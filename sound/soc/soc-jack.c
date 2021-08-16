@@ -42,7 +42,6 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 	struct snd_soc_dapm_context *dapm;
 	struct snd_soc_jack_pin *pin;
 	unsigned int sync = 0;
-	int enable;
 
 	if (!jack)
 		return;
@@ -58,7 +57,7 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 	trace_snd_soc_jack_notify(jack, status);
 
 	list_for_each_entry(pin, &jack->pins, list) {
-		enable = pin->mask & jack->status;
+		int enable = pin->mask & jack->status;
 
 		if (pin->invert)
 			enable = !enable;
