@@ -603,7 +603,7 @@ config SM_GPUCC_8250
 
 config SM_VIDEOCC_8150
 	tristate "SM8150 Video Clock Controller"
-	select SDM_GCC_8150
+	select SM_GCC_8150
 	select QCOM_GDSC
 	help
 	  Support for the video clock controller on SM8150 devices.
@@ -612,7 +612,7 @@ config SM_VIDEOCC_8150
 
 config SM_VIDEOCC_8250
 	tristate "SM8250 Video Clock Controller"
-	select SDM_GCC_8250
+	select SM_GCC_8250
 	select QCOM_GDSC
 	help
 	  Support for the video clock controller on SM8250 devices.
