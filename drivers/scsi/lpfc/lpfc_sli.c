@@ -8068,6 +8068,21 @@ no_cmf:
 	atomic64_set(&phba->cgn_latency_evt, 0);
 
 	phba->cmf_interval_rate = LPFC_CMF_INTERVAL;
+
+	/* Allocate RX Monitor Buffer */
+	if (!phba->rxtable) {
+		phba->rxtable = kmalloc_array(LPFC_MAX_RXMONITOR_ENTRY,
+					      sizeof(struct rxtable_entry),
+					      GFP_KERNEL);
+		if (!phba->rxtable) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2644 Failed to alloc memory "
+					"for RX Monitor Buffer\n");
+			return -ENOMEM;
+		}
+	}
+	atomic_set(&phba->rxtable_idx_head, 0);
+	atomic_set(&phba->rxtable_idx_tail, 0);
 	return 0;
 }
 

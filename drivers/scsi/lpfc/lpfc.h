@@ -1546,6 +1546,12 @@ struct lpfc_hba {
 	u32 cgn_sig_freq;
 	u32 cgn_acqe_cnt;
 
+	/* RX monitor handling for CMF */
+	struct rxtable_entry *rxtable;  /* RX_monitor information */
+	atomic_t rxtable_idx_head;
+#define LPFC_RXMONITOR_TABLE_IN_USE     (LPFC_MAX_RXMONITOR_ENTRY + 73)
+	atomic_t rxtable_idx_tail;
+	atomic_t rx_max_read_cnt;       /* Maximum read bytes */
 	uint64_t rx_block_cnt;
 
 	/* Congestion parameters from flash */
@@ -1589,6 +1595,21 @@ struct lpfc_hba {
 	atomic_t dbg_log_cnt;
 	atomic_t dbg_log_dmping;
 	struct dbg_log_ent dbg_log[DBG_LOG_SZ];
+};
+
+#define LPFC_MAX_RXMONITOR_ENTRY	800
+struct rxtable_entry {
+	uint64_t total_bytes;   /* Total no of read bytes requested */
+	uint64_t rcv_bytes;     /* Total no of read bytes completed */
+	uint64_t avg_io_size;
+	uint64_t avg_io_latency;/* Average io latency in microseconds */
+	uint64_t max_read_cnt;  /* Maximum read bytes */
+	uint64_t max_bytes_per_interval;
+	uint32_t cmf_busy;
+	uint32_t cmf_info;      /* CMF_SYNC_WQE info */
+	uint32_t io_cnt;
+	uint32_t timer_utilization;
+	uint32_t timer_interval;
 };
 
 static inline struct Scsi_Host *

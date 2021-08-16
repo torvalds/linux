@@ -5452,9 +5452,13 @@ lpfc_cmf_timer(struct hrtimer *timer)
 {
 	struct lpfc_hba *phba = container_of(timer, struct lpfc_hba,
 					     cmf_timer);
+	struct rxtable_entry *entry;
 	uint32_t io_cnt;
+	uint32_t head, tail;
+	uint32_t busy, max_read;
 	uint64_t total, rcv, lat, mbpi;
 	int timer_interval = LPFC_CMF_INTERVAL;
+	uint32_t ms;
 	struct lpfc_cgn_stat *cgs;
 	int cpu;
 
@@ -5478,6 +5482,14 @@ lpfc_cmf_timer(struct hrtimer *timer)
 	 * total_bytes will be cleared
 	 */
 	atomic_set(&phba->cmf_stop_io, 1);
+
+	/* First we need to calculate the actual ms between
+	 * the last timer interrupt and this one. We ask for
+	 * LPFC_CMF_INTERVAL, however the actual time may
+	 * vary depending on system overhead.
+	 */
+	ms = lpfc_calc_cmf_latency(phba);
+
 
 	/* Immediately after we calculate the time since the last
 	 * timer interrupt, set the start time for the next
@@ -5525,6 +5537,8 @@ lpfc_cmf_timer(struct hrtimer *timer)
 		atomic_add(io_cnt, &phba->cgn_latency_evt_cnt);
 		atomic64_add(lat, &phba->cgn_latency_evt);
 	}
+	busy = atomic_xchg(&phba->cmf_busy, 0);
+	max_read = atomic_xchg(&phba->rx_max_read_cnt, 0);
 
 	/* Calculate MBPI for the next timer interval */
 	if (mbpi) {
@@ -5537,6 +5551,42 @@ lpfc_cmf_timer(struct hrtimer *timer)
 		 */
 		if (mbpi != phba->cmf_max_bytes_per_interval)
 			phba->cmf_max_bytes_per_interval = mbpi;
+	}
+
+	/* Save rxmonitor information for debug */
+	if (phba->rxtable) {
+		head = atomic_xchg(&phba->rxtable_idx_head,
+				   LPFC_RXMONITOR_TABLE_IN_USE);
+		entry = &phba->rxtable[head];
+		entry->total_bytes = total;
+		entry->rcv_bytes = rcv;
+		entry->cmf_busy = busy;
+		entry->cmf_info = phba->cmf_active_info;
+		if (io_cnt) {
+			entry->avg_io_latency = div_u64(lat, io_cnt);
+			entry->avg_io_size = div_u64(rcv, io_cnt);
+		} else {
+			entry->avg_io_latency = 0;
+			entry->avg_io_size = 0;
+		}
+		entry->max_read_cnt = max_read;
+		entry->io_cnt = io_cnt;
+		entry->max_bytes_per_interval = mbpi;
+		if (phba->cmf_active_mode == LPFC_CFG_MANAGED)
+			entry->timer_utilization = phba->cmf_last_ts;
+		else
+			entry->timer_utilization = ms;
+		entry->timer_interval = ms;
+		phba->cmf_last_ts = 0;
+
+		/* Increment rxtable index */
+		head = (head + 1) % LPFC_MAX_RXMONITOR_ENTRY;
+		tail = atomic_read(&phba->rxtable_idx_tail);
+		if (head == tail) {
+			tail = (tail + 1) % LPFC_MAX_RXMONITOR_ENTRY;
+			atomic_set(&phba->rxtable_idx_tail, tail);
+		}
+		atomic_set(&phba->rxtable_idx_head, head);
 	}
 
 	if (phba->cmf_active_mode == LPFC_CFG_MONITOR) {

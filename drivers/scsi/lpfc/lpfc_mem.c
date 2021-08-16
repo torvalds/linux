@@ -344,6 +344,10 @@ lpfc_mem_free_all(struct lpfc_hba *phba)
 		phba->cgn_i = NULL;
 	}
 
+	/* Free RX table */
+	kfree(phba->rxtable);
+	phba->rxtable = NULL;
+
 	/* Free the iocb lookup array */
 	kfree(psli->iocbq_lookup);
 	psli->iocbq_lookup = NULL;

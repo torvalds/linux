@@ -3981,6 +3981,8 @@ lpfc_update_cmf_cmd(struct lpfc_hba *phba, uint32_t size)
 			atomic_inc(&phba->cmf_busy);
 			return -EBUSY;
 		}
+		if (size > atomic_read(&phba->rx_max_read_cnt))
+			atomic_set(&phba->rx_max_read_cnt, size);
 	}
 
 	cgs = this_cpu_ptr(phba->cmf_stat);
