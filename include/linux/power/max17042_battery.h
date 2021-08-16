@@ -113,7 +113,6 @@ enum max17042_register {
 enum max17055_register {
 	MAX17055_QRes		= 0x0C,
 	MAX17055_TTF		= 0x20,
-	MAX17055_V_empty	= 0x3A,
 	MAX17055_TIMER		= 0x3E,
 	MAX17055_USER_MEM	= 0x40,
 	MAX17055_RGAIN		= 0x42,

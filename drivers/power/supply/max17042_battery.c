@@ -283,8 +283,6 @@ static int max17042_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
 		if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17042)
 			ret = regmap_read(map, MAX17042_V_empty, &data);
-		else if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17055)
-			ret = regmap_read(map, MAX17055_V_empty, &data);
 		else
 			ret = regmap_read(map, MAX17047_V_empty, &data);
 		if (ret < 0)
@@ -778,8 +776,6 @@ static inline void max17042_override_por_values(struct max17042_chip *chip)
 
 	if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17042)
 		max17042_override_por(map, MAX17042_V_empty, config->vempty);
-	if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17055)
-		max17042_override_por(map, MAX17055_V_empty, config->vempty);
 	else
 		max17042_override_por(map, MAX17047_V_empty, config->vempty);
 	max17042_override_por(map, MAX17042_TempNom, config->temp_nom);
