@@ -330,9 +330,6 @@ void mt7921_mac_write_txwi(struct mt7921_dev *dev, __le32 *txwi,
 			   struct sk_buff *skb, struct mt76_wcid *wcid,
 			   struct ieee80211_key_conf *key, bool beacon);
 void mt7921_mac_set_timing(struct mt7921_phy *phy);
-int mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb);
-void mt7921_mac_fill_rx_vector(struct mt7921_dev *dev, struct sk_buff *skb);
-void mt7921_mac_tx_free(struct mt7921_dev *dev, struct sk_buff *skb);
 int mt7921_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
 void mt7921_mac_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,

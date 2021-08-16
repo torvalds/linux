@@ -351,7 +351,8 @@ mt7921_mac_assoc_rssi(struct mt7921_dev *dev, struct sk_buff *skb)
 		mt7921_mac_rssi_iter, skb);
 }
 
-int mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
+static int
+mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
 {
 	u32 csum_mask = MT_RXD0_NORMAL_IP_SUM | MT_RXD0_NORMAL_UDP_TCP_SUM;
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
@@ -1045,7 +1046,8 @@ void mt7921_txp_skb_unmap(struct mt76_dev *dev,
 	}
 }
 
-void mt7921_mac_tx_free(struct mt7921_dev *dev, struct sk_buff *skb)
+static void
+mt7921_mac_tx_free(struct mt7921_dev *dev, struct sk_buff *skb)
 {
 	struct mt7921_tx_free *free = (struct mt7921_tx_free *)skb->data;
 	struct mt76_dev *mdev = &dev->mt76;
@@ -1139,6 +1141,40 @@ void mt7921_mac_tx_free(struct mt7921_dev *dev, struct sk_buff *skb)
 
 	mt7921_mac_sta_poll(dev);
 	mt76_worker_schedule(&dev->mt76.tx_worker);
+}
+
+void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
+			 struct sk_buff *skb)
+{
+	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	__le32 *rxd = (__le32 *)skb->data;
+	enum rx_pkt_type type;
+	u16 flag;
+
+	type = FIELD_GET(MT_RXD0_PKT_TYPE, le32_to_cpu(rxd[0]));
+	flag = FIELD_GET(MT_RXD0_PKT_FLAG, le32_to_cpu(rxd[0]));
+
+	if (type == PKT_TYPE_RX_EVENT && flag == 0x1)
+		type = PKT_TYPE_NORMAL_MCU;
+
+	switch (type) {
+	case PKT_TYPE_TXRX_NOTIFY:
+		mt7921_mac_tx_free(dev, skb);
+		break;
+	case PKT_TYPE_RX_EVENT:
+		mt7921_mcu_rx_event(dev, skb);
+		break;
+	case PKT_TYPE_NORMAL_MCU:
+	case PKT_TYPE_NORMAL:
+		if (!mt7921_mac_fill_rx(dev, skb)) {
+			mt76_rx(&dev->mt76, q, skb);
+			return;
+		}
+		fallthrough;
+	default:
+		dev_kfree_skb(skb);
+		break;
+	}
 }
 
 void mt7921_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)

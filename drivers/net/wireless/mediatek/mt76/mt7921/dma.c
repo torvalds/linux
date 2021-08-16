@@ -19,40 +19,6 @@ int mt7921_init_tx_queues(struct mt7921_phy *phy, int idx, int n_desc)
 	return 0;
 }
 
-void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
-			 struct sk_buff *skb)
-{
-	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
-	__le32 *rxd = (__le32 *)skb->data;
-	enum rx_pkt_type type;
-	u16 flag;
-
-	type = FIELD_GET(MT_RXD0_PKT_TYPE, le32_to_cpu(rxd[0]));
-	flag = FIELD_GET(MT_RXD0_PKT_FLAG, le32_to_cpu(rxd[0]));
-
-	if (type == PKT_TYPE_RX_EVENT && flag == 0x1)
-		type = PKT_TYPE_NORMAL_MCU;
-
-	switch (type) {
-	case PKT_TYPE_TXRX_NOTIFY:
-		mt7921_mac_tx_free(dev, skb);
-		break;
-	case PKT_TYPE_RX_EVENT:
-		mt7921_mcu_rx_event(dev, skb);
-		break;
-	case PKT_TYPE_NORMAL_MCU:
-	case PKT_TYPE_NORMAL:
-		if (!mt7921_mac_fill_rx(dev, skb)) {
-			mt76_rx(&dev->mt76, q, skb);
-			return;
-		}
-		fallthrough;
-	default:
-		dev_kfree_skb(skb);
-		break;
-	}
-}
-
 void mt7921_tx_cleanup(struct mt7921_dev *dev)
 {
 	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], false);
