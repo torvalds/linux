@@ -177,6 +177,7 @@ config PTP_1588_CLOCK_OCP
 	imply MTD_SPI_NOR
 	imply I2C_XILINX
 	select SERIAL_8250
+	select NET_DEVLINK
 
 	default n
 	help
