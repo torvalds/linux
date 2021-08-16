@@ -309,7 +309,7 @@ int rtl8188eu_oid_rt_pro_set_antenna_bb_hdl(struct oid_par_priv *poid_par_priv)
 		SetAntenna(Adapter);
 		_irqlevel_changed_(&oldirql, RAISE);
 	} else {
-		antenna = (Adapter->mppriv.antenna_tx << 16)|Adapter->mppriv.antenna_rx;
+		antenna = (Adapter->mppriv.antenna_tx << 16) | Adapter->mppriv.antenna_rx;
 		*(u32 *)poid_par_priv->information_buf = antenna;
 	}
 
@@ -734,7 +734,7 @@ int rtl8188eu_oid_rt_pro_read16_eeprom_hdl(struct oid_par_priv *poid_par_priv)
 }
 
 /*  */
-int rtl8188eu_oid_rt_pro_write16_eeprom_hdl (struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_write16_eeprom_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
@@ -754,7 +754,7 @@ int rtl8188eu_oid_rt_rd_attrib_mem_hdl(struct oid_par_priv *poid_par_priv)
 	return 0;
 }
 /*  */
-int rtl8188eu_oid_rt_wr_attrib_mem_hdl (struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_wr_attrib_mem_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
