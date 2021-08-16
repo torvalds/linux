@@ -25,7 +25,6 @@
 #include "blk-mq-debugfs.h"
 #include "blk-mq-tag.h"
 #include "blk-mq-sched.h"
-#include "mq-deadline-cgroup.h"
 
 /*
  * See Documentation/block/deadline-iosched.rst
@@ -57,6 +56,14 @@ enum dd_prio {
 
 enum { DD_PRIO_COUNT = 3 };
 
+/* I/O statistics per I/O priority. */
+struct io_stats_per_prio {
+	local_t inserted;
+	local_t merged;
+	local_t dispatched;
+	local_t completed;
+};
+
 /* I/O statistics for all I/O priorities (enum dd_prio). */
 struct io_stats {
 	struct io_stats_per_prio stats[DD_PRIO_COUNT];
@@ -78,9 +85,6 @@ struct deadline_data {
 	/*
 	 * run time data
 	 */
-
-	/* Request queue that owns this data structure. */
-	struct request_queue *queue;
 
 	struct dd_per_prio per_prio[DD_PRIO_COUNT];
 
@@ -234,10 +238,8 @@ static void dd_merged_requests(struct request_queue *q, struct request *req,
 	struct deadline_data *dd = q->elevator->elevator_data;
 	const u8 ioprio_class = dd_rq_ioclass(next);
 	const enum dd_prio prio = ioprio_class_to_prio[ioprio_class];
-	struct dd_blkcg *blkcg = next->elv.priv[0];
 
 	dd_count(dd, merged, prio);
-	ddcg_count(blkcg, merged, ioprio_class);
 
 	/*
 	 * if next expires before rq, assign its expire time to rq
@@ -375,7 +377,6 @@ static struct request *__dd_dispatch_request(struct deadline_data *dd,
 {
 	struct request *rq, *next_rq;
 	enum dd_data_dir data_dir;
-	struct dd_blkcg *blkcg;
 	enum dd_prio prio;
 	u8 ioprio_class;
 
@@ -474,8 +475,6 @@ done:
 	ioprio_class = dd_rq_ioclass(rq);
 	prio = ioprio_class_to_prio[ioprio_class];
 	dd_count(dd, dispatched, prio);
-	blkcg = rq->elv.priv[0];
-	ddcg_count(blkcg, dispatched, ioprio_class);
 	/*
 	 * If the request needs its target zone locked, do it.
 	 */
@@ -569,8 +568,6 @@ static void dd_exit_sched(struct elevator_queue *e)
 	struct deadline_data *dd = e->elevator_data;
 	enum dd_prio prio;
 
-	dd_deactivate_policy(dd->queue);
-
 	for (prio = 0; prio <= DD_PRIO_MAX; prio++) {
 		struct dd_per_prio *per_prio = &dd->per_prio[prio];
 
@@ -584,7 +581,7 @@ static void dd_exit_sched(struct elevator_queue *e)
 }
 
 /*
- * Initialize elevator private data (deadline_data) and associate with blkcg.
+ * initialize elevator private data (deadline_data).
  */
 static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
 {
@@ -592,12 +589,6 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
 	struct elevator_queue *eq;
 	enum dd_prio prio;
 	int ret = -ENOMEM;
-
-	/*
-	 * Initialization would be very tricky if the queue is not frozen,
-	 * hence the warning statement below.
-	 */
-	WARN_ON_ONCE(!percpu_ref_is_zero(&q->q_usage_counter));
 
 	eq = elevator_alloc(q, e);
 	if (!eq)
@@ -613,8 +604,6 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
 				     GFP_KERNEL | __GFP_ZERO);
 	if (!dd->stats)
 		goto free_dd;
-
-	dd->queue = q;
 
 	for (prio = 0; prio <= DD_PRIO_MAX; prio++) {
 		struct dd_per_prio *per_prio = &dd->per_prio[prio];
@@ -635,16 +624,8 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
 	spin_lock_init(&dd->lock);
 	spin_lock_init(&dd->zone_lock);
 
-	ret = dd_activate_policy(q);
-	if (ret)
-		goto free_stats;
-
-	ret = 0;
 	q->elevator = eq;
 	return 0;
-
-free_stats:
-	free_percpu(dd->stats);
 
 free_dd:
 	kfree(dd);
@@ -718,7 +699,6 @@ static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	u8 ioprio_class = IOPRIO_PRIO_CLASS(ioprio);
 	struct dd_per_prio *per_prio;
 	enum dd_prio prio;
-	struct dd_blkcg *blkcg;
 	LIST_HEAD(free);
 
 	lockdep_assert_held(&dd->lock);
@@ -729,18 +709,8 @@ static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	 */
 	blk_req_zone_write_unlock(rq);
 
-	/*
-	 * If a block cgroup has been associated with the submitter and if an
-	 * I/O priority has been set in the associated block cgroup, use the
-	 * lowest of the cgroup priority and the request priority for the
-	 * request. If no priority has been set in the request, use the cgroup
-	 * priority.
-	 */
 	prio = ioprio_class_to_prio[ioprio_class];
 	dd_count(dd, inserted, prio);
-	blkcg = dd_blkcg_from_bio(rq->bio);
-	ddcg_count(blkcg, inserted, ioprio_class);
-	rq->elv.priv[0] = blkcg;
 
 	if (blk_mq_sched_try_insert_merge(q, rq, &free)) {
 		blk_mq_free_requests(&free);
@@ -789,10 +759,12 @@ static void dd_insert_requests(struct blk_mq_hw_ctx *hctx,
 	spin_unlock(&dd->lock);
 }
 
-/* Callback from inside blk_mq_rq_ctx_init(). */
+/*
+ * Nothing to do here. This is defined only to ensure that .finish_request
+ * method is called upon request completion.
+ */
 static void dd_prepare_request(struct request *rq)
 {
-	rq->elv.priv[0] = NULL;
 }
 
 /*
@@ -815,13 +787,11 @@ static void dd_finish_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 	struct deadline_data *dd = q->elevator->elevator_data;
-	struct dd_blkcg *blkcg = rq->elv.priv[0];
 	const u8 ioprio_class = dd_rq_ioclass(rq);
 	const enum dd_prio prio = ioprio_class_to_prio[ioprio_class];
 	struct dd_per_prio *per_prio = &dd->per_prio[prio];
 
 	dd_count(dd, completed, prio);
-	ddcg_count(blkcg, completed, ioprio_class);
 
 	if (blk_queue_is_zoned(q)) {
 		unsigned long flags;
@@ -1144,26 +1114,11 @@ MODULE_ALIAS("mq-deadline-iosched");
 
 static int __init deadline_init(void)
 {
-	int ret;
-
-	ret = elv_register(&mq_deadline);
-	if (ret)
-		goto out;
-	ret = dd_blkcg_init();
-	if (ret)
-		goto unreg;
-
-out:
-	return ret;
-
-unreg:
-	elv_unregister(&mq_deadline);
-	goto out;
+	return elv_register(&mq_deadline);
 }
 
 static void __exit deadline_exit(void)
 {
-	dd_blkcg_exit();
 	elv_unregister(&mq_deadline);
 }
 

@@ -48,6 +48,7 @@
 #include "lib/fs_chains.h"
 #include "en_tc.h"
 #include "en/mapping.h"
+#include "devlink.h"
 
 #define mlx5_esw_for_each_rep(esw, i, rep) \
 	xa_for_each(&((esw)->offloads.vport_reps), i, rep)
@@ -3001,12 +3002,19 @@ int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 	if (cur_mlx5_mode == mlx5_mode)
 		goto unlock;
 
-	if (mode == DEVLINK_ESWITCH_MODE_SWITCHDEV)
+	if (mode == DEVLINK_ESWITCH_MODE_SWITCHDEV) {
+		if (mlx5_devlink_trap_get_num_active(esw->dev)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Can't change mode while devlink traps are active");
+			err = -EOPNOTSUPP;
+			goto unlock;
+		}
 		err = esw_offloads_start(esw, extack);
-	else if (mode == DEVLINK_ESWITCH_MODE_LEGACY)
+	} else if (mode == DEVLINK_ESWITCH_MODE_LEGACY) {
 		err = esw_offloads_stop(esw, extack);
-	else
+	} else {
 		err = -EINVAL;
+	}
 
 unlock:
 	mlx5_esw_unlock(esw);
