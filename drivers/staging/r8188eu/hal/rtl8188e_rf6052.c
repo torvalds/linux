@@ -147,8 +147,8 @@ rtl8188e_PHY_RF6052SetCckTxPower(
 		if (TurboScanOff) {
 			for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
 				TxAGC[idx1] =
-					pPowerlevel[idx1] | (pPowerlevel[idx1]<<8) |
-					(pPowerlevel[idx1]<<16) | (pPowerlevel[idx1]<<24);
+					pPowerlevel[idx1] | (pPowerlevel[idx1] << 8) |
+					(pPowerlevel[idx1] << 16) | (pPowerlevel[idx1] << 24);
 				/*  2010/10/18 MH For external PA module. We need to limit power index to be less than 0x20. */
 				if (TxAGC[idx1] > 0x20 && pHalData->ExternalPA)
 					TxAGC[idx1] = 0x20;
@@ -171,16 +171,16 @@ i		 *  Currently, we cannot fully disable driver dynamic
 		} else {
 			for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
 				TxAGC[idx1] =
-					pPowerlevel[idx1] | (pPowerlevel[idx1]<<8) |
-					(pPowerlevel[idx1]<<16) | (pPowerlevel[idx1]<<24);
+					pPowerlevel[idx1] | (pPowerlevel[idx1] << 8) |
+					(pPowerlevel[idx1] << 16) | (pPowerlevel[idx1] << 24);
 			}
 			if (pHalData->EEPROMRegulatory == 0) {
 				tmpval = (pHalData->MCSTxPowerLevelOriginalOffset[0][6]) +
-						(pHalData->MCSTxPowerLevelOriginalOffset[0][7]<<8);
+						(pHalData->MCSTxPowerLevelOriginalOffset[0][7] << 8);
 				TxAGC[RF_PATH_A] += tmpval;
 
 				tmpval = (pHalData->MCSTxPowerLevelOriginalOffset[0][14]) +
-						(pHalData->MCSTxPowerLevelOriginalOffset[0][15]<<24);
+						(pHalData->MCSTxPowerLevelOriginalOffset[0][15] << 24);
 				TxAGC[RF_PATH_B] += tmpval;
 			}
 		}
@@ -206,15 +206,15 @@ i		 *  Currently, we cannot fully disable driver dynamic
 	}
 
 	/*  rf-A cck tx power */
-	tmpval = TxAGC[RF_PATH_A]&0xff;
+	tmpval = TxAGC[RF_PATH_A] & 0xff;
 	PHY_SetBBReg(Adapter, rTxAGC_A_CCK1_Mcs32, bMaskByte1, tmpval);
-	tmpval = TxAGC[RF_PATH_A]>>8;
+	tmpval = TxAGC[RF_PATH_A] >> 8;
 	PHY_SetBBReg(Adapter, rTxAGC_B_CCK11_A_CCK2_11, 0xffffff00, tmpval);
 
 	/*  rf-B cck tx power */
-	tmpval = TxAGC[RF_PATH_B]>>24;
+	tmpval = TxAGC[RF_PATH_B] >> 24;
 	PHY_SetBBReg(Adapter, rTxAGC_B_CCK11_A_CCK2_11, bMaskByte0, tmpval);
-	tmpval = TxAGC[RF_PATH_B]&0x00ffffff;
+	tmpval = TxAGC[RF_PATH_B] & 0x00ffffff;
 	PHY_SetBBReg(Adapter, rTxAGC_B_CCK1_55_Mcs32, 0xffffff00, tmpval);
 }	/* PHY_RF6052SetCckTxPower */
 
@@ -232,8 +232,8 @@ static void getpowerbase88e(struct adapter *Adapter, u8 *pPowerLevelOFDM,
 	for (i = 0; i < 2; i++) {
 		powerBase0 = pPowerLevelOFDM[i];
 
-		powerBase0 = (powerBase0<<24) | (powerBase0<<16) | (powerBase0<<8) | powerBase0;
-		*(OfdmBase+i) = powerBase0;
+		powerBase0 = (powerBase0 << 24) | (powerBase0 << 16) | (powerBase0 << 8) | powerBase0;
+		*(OfdmBase + i) = powerBase0;
 	}
 	for (i = 0; i < pHalData->NumTotalRFPath; i++) {
 		/* Check HT20 to HT40 diff */
@@ -242,8 +242,8 @@ static void getpowerbase88e(struct adapter *Adapter, u8 *pPowerLevelOFDM,
 		else
 			powerlevel[i] = pPowerLevelBW40[i];
 		powerBase1 = powerlevel[i];
-		powerBase1 = (powerBase1<<24) | (powerBase1<<16) | (powerBase1<<8) | powerBase1;
-		*(MCSBase+i) = powerBase1;
+		powerBase1 = (powerBase1 << 24) | (powerBase1 << 16) | (powerBase1 << 8) | powerBase1;
+		*(MCSBase + i) = powerBase1;
 	}
 }
 static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
@@ -264,7 +264,7 @@ static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
 		case 0:	/*  Realtek better performance */
 				/*  increase power diff defined by Realtek for large power */
 			chnlGroup = 0;
-			writeVal = pHalData->MCSTxPowerLevelOriginalOffset[chnlGroup][index+(rf ? 8 : 0)] +
+			writeVal = pHalData->MCSTxPowerLevelOriginalOffset[chnlGroup][index + (rf ? 8 : 0)] +
 				((index < 2) ? powerBase0[rf] : powerBase1[rf]);
 			break;
 		case 1:	/*  Realtek regulatory */
@@ -285,7 +285,7 @@ static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
 				else if (Channel == 14)		/*  Channel 14 */
 					chnlGroup = 5;
 			}
-			writeVal = pHalData->MCSTxPowerLevelOriginalOffset[chnlGroup][index+(rf ? 8 : 0)] +
+			writeVal = pHalData->MCSTxPowerLevelOriginalOffset[chnlGroup][index + (rf ? 8 : 0)] +
 					((index < 2) ? powerBase0[rf] : powerBase1[rf]);
 			break;
 		case 2:	/*  Better regulatory */
@@ -297,14 +297,14 @@ static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
 			chnlGroup = 0;
 
 			if (index < 2)
-				pwr_diff = pHalData->TxPwrLegacyHtDiff[rf][Channel-1];
+				pwr_diff = pHalData->TxPwrLegacyHtDiff[rf][Channel - 1];
 			else if (pHalData->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
-				pwr_diff = pHalData->TxPwrHt20Diff[rf][Channel-1];
+				pwr_diff = pHalData->TxPwrHt20Diff[rf][Channel - 1];
 
 			if (pHalData->CurrentChannelBW == HT_CHANNEL_WIDTH_40)
-				customer_pwr_limit = pHalData->PwrGroupHT40[rf][Channel-1];
+				customer_pwr_limit = pHalData->PwrGroupHT40[rf][Channel - 1];
 			else
-				customer_pwr_limit = pHalData->PwrGroupHT20[rf][Channel-1];
+				customer_pwr_limit = pHalData->PwrGroupHT20[rf][Channel - 1];
 
 			if (pwr_diff >= customer_pwr_limit)
 				pwr_diff = 0;
@@ -312,18 +312,18 @@ static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
 				pwr_diff = customer_pwr_limit - pwr_diff;
 
 			for (i = 0; i < 4; i++) {
-				pwr_diff_limit[i] = (u8)((pHalData->MCSTxPowerLevelOriginalOffset[chnlGroup][index+(rf ? 8 : 0)]&(0x7f<<(i*8)))>>(i*8));
+				pwr_diff_limit[i] = (u8)((pHalData->MCSTxPowerLevelOriginalOffset[chnlGroup][index + (rf ? 8 : 0)] & (0x7f << (i * 8))) >> (i * 8));
 
 				if (pwr_diff_limit[i] > pwr_diff)
 					pwr_diff_limit[i] = pwr_diff;
 			}
-			customer_limit = (pwr_diff_limit[3]<<24) | (pwr_diff_limit[2]<<16) |
-					 (pwr_diff_limit[1]<<8) | (pwr_diff_limit[0]);
+			customer_limit = (pwr_diff_limit[3] << 24) | (pwr_diff_limit[2] << 16) |
+					 (pwr_diff_limit[1] << 8) | (pwr_diff_limit[0]);
 			writeVal = customer_limit + ((index < 2) ? powerBase0[rf] : powerBase1[rf]);
 			break;
 		default:
 			chnlGroup = 0;
-			writeVal = pHalData->MCSTxPowerLevelOriginalOffset[chnlGroup][index+(rf ? 8 : 0)] +
+			writeVal = pHalData->MCSTxPowerLevelOriginalOffset[chnlGroup][index + (rf ? 8 : 0)] +
 					((index < 2) ? powerBase0[rf] : powerBase1[rf]);
 			break;
 		}
@@ -340,7 +340,7 @@ static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
 		/*  This mechanism is only applied when Driver-Highpower-Mechanism is OFF. */
 		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_BT1)
 			writeVal = writeVal - 0x06060606;
-		*(pOutWriteVal+rf) = writeVal;
+		*(pOutWriteVal + rf) = writeVal;
 	}
 }
 static void writeOFDMPowerReg88E(struct adapter *Adapter, u8 index, u32 *pValue)
@@ -361,11 +361,11 @@ static void writeOFDMPowerReg88E(struct adapter *Adapter, u8 index, u32 *pValue)
 	for (rf = 0; rf < 2; rf++) {
 		writeVal = pValue[rf];
 		for (i = 0; i < 4; i++) {
-			pwr_val[i] = (u8)((writeVal & (0x7f<<(i*8)))>>(i*8));
+			pwr_val[i] = (u8)((writeVal & (0x7f << (i * 8))) >> (i * 8));
 			if (pwr_val[i]  > RF6052_MAX_TX_PWR)
 				pwr_val[i]  = RF6052_MAX_TX_PWR;
 		}
-		writeVal = (pwr_val[3]<<24) | (pwr_val[2]<<16) | (pwr_val[1]<<8) | pwr_val[0];
+		writeVal = (pwr_val[3] << 24) | (pwr_val[2] << 16) | (pwr_val[1] << 8) | pwr_val[0];
 
 		if (rf == 0)
 			regoffset = regoffset_a[index];
@@ -386,10 +386,10 @@ static void writeOFDMPowerReg88E(struct adapter *Adapter, u8 index, u32 *pValue)
 				regoffset = 0xc98;
 			for (i = 0; i < 3; i++) {
 				if (i != 2)
-					writeVal = (writeVal > 8) ? (writeVal-8) : 0;
+					writeVal = (writeVal > 8) ? (writeVal - 8) : 0;
 				else
-					writeVal = (writeVal > 6) ? (writeVal-6) : 0;
-				rtw_write8(Adapter, (u32)(regoffset+i), (u8)writeVal);
+					writeVal = (writeVal > 6) ? (writeVal - 6) : 0;
+				rtw_write8(Adapter, (u32)(regoffset + i), (u8)writeVal);
 			}
 		}
 	}
@@ -475,11 +475,11 @@ static int phy_RF6052_Config_ParaFile(struct adapter *Adapter)
 			break;
 		case RF_PATH_B:
 		case RF_PATH_D:
-			u4RegValue = PHY_QueryBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV<<16);
+			u4RegValue = PHY_QueryBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV << 16);
 			break;
 		}
 		/*----Set RF_ENV enable----*/
-		PHY_SetBBReg(Adapter, pPhyReg->rfintfe, bRFSI_RFENV<<16, 0x1);
+		PHY_SetBBReg(Adapter, pPhyReg->rfintfe, bRFSI_RFENV << 16, 0x1);
 		udelay(1);/* PlatformStallExecution(1); */
 
 		/*----Set RF_ENV output high----*/
@@ -516,7 +516,7 @@ static int phy_RF6052_Config_ParaFile(struct adapter *Adapter)
 			break;
 		case RF_PATH_B:
 		case RF_PATH_D:
-			PHY_SetBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV<<16, u4RegValue);
+			PHY_SetBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV << 16, u4RegValue);
 			break;
 		}
 		if (rtStatus != _SUCCESS)

@@ -82,7 +82,7 @@ int	rtl8188eu_init_recv_priv(struct adapter *padapter)
 			if (pskb) {
 				pskb->dev = padapter->pnetdev;
 				tmpaddr = (size_t)pskb->data;
-				alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
+				alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
 				skb_reserve(pskb, (RECVBUFF_ALIGN_SZ - alignment));
 
 				skb_queue_tail(&precvpriv->free_recv_skb_queue, pskb);

@@ -114,7 +114,7 @@ static u8 usb_read8(struct intf_hdl *pintfhdl, u32 addr)
 	requesttype = 0x01;/* read_in */
 	index = 0;/* n/a */
 
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 1;
 
 	usbctrl_vendorreq(pintfhdl, request, wvalue, index, &data, len, requesttype);
@@ -137,11 +137,11 @@ static u16 usb_read16(struct intf_hdl *pintfhdl, u32 addr)
 	request = 0x05;
 	requesttype = 0x01;/* read_in */
 	index = 0;/* n/a */
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 2;
 	usbctrl_vendorreq(pintfhdl, request, wvalue, index, &data, len, requesttype);
 
-	return (u16)(le32_to_cpu(data)&0xffff);
+	return (u16)(le32_to_cpu(data) & 0xffff);
 }
 
 static u32 usb_read32(struct intf_hdl *pintfhdl, u32 addr)
@@ -157,7 +157,7 @@ static u32 usb_read32(struct intf_hdl *pintfhdl, u32 addr)
 	requesttype = 0x01;/* read_in */
 	index = 0;/* n/a */
 
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 4;
 
 	usbctrl_vendorreq(pintfhdl, request, wvalue, index, &data, len, requesttype);
@@ -179,7 +179,7 @@ static int usb_write8(struct intf_hdl *pintfhdl, u32 addr, u8 val)
 	request = 0x05;
 	requesttype = 0x00;/* write_out */
 	index = 0;/* n/a */
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 1;
 	data = val;
 	ret = usbctrl_vendorreq(pintfhdl, request, wvalue, index, &data, len, requesttype);
@@ -203,7 +203,7 @@ static int usb_write16(struct intf_hdl *pintfhdl, u32 addr, u16 val)
 	requesttype = 0x00;/* write_out */
 	index = 0;/* n/a */
 
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 2;
 
 	data = cpu_to_le32(val & 0x0000ffff);
@@ -231,7 +231,7 @@ static int usb_write32(struct intf_hdl *pintfhdl, u32 addr, u32 val)
 	requesttype = 0x00;/* write_out */
 	index = 0;/* n/a */
 
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 4;
 	data = cpu_to_le32(val);
 
@@ -258,7 +258,7 @@ static int usb_writeN(struct intf_hdl *pintfhdl, u32 addr, u32 length, u8 *pdata
 	requesttype = 0x00;/* write_out */
 	index = 0;/* n/a */
 
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = length;
 	memcpy(buf, pdata, len);
 
@@ -438,7 +438,7 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 		pkt_copy = NULL;
 
 		if (transfer_len > 0 && pkt_cnt == 0)
-			pkt_cnt = (le32_to_cpu(prxstat->rxdw2)>>16) & 0xff;
+			pkt_cnt = (le32_to_cpu(prxstat->rxdw2) >> 16) & 0xff;
 
 	} while ((transfer_len > 0) && (pkt_cnt > 0));
 
@@ -573,7 +573,7 @@ static u32 usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 		}
 
 		tmpaddr = (size_t)precvbuf->pskb->data;
-		alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
+		alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
 		skb_reserve(precvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
 
 		precvbuf->phead = precvbuf->pskb->head;

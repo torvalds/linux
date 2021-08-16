@@ -20,10 +20,10 @@ void SwLedOn(struct adapter *padapter, struct LED_871x *pLed)
 	LedCfg = rtw_read8(padapter, REG_LEDCFG2);
 	switch (pLed->LedPin) {
 	case LED_PIN_LED0:
-		rtw_write8(padapter, REG_LEDCFG2, (LedCfg&0xf0)|BIT(5)|BIT(6)); /*  SW control led0 on. */
+		rtw_write8(padapter, REG_LEDCFG2, (LedCfg & 0xf0) | BIT(5) | BIT(6)); /*  SW control led0 on. */
 		break;
 	case LED_PIN_LED1:
-		rtw_write8(padapter, REG_LEDCFG2, (LedCfg&0x0f)|BIT(5)); /*  SW control led1 on. */
+		rtw_write8(padapter, REG_LEDCFG2, (LedCfg & 0x0f) | BIT(5)); /*  SW control led1 on. */
 		break;
 	default:
 		break;
@@ -48,17 +48,17 @@ void SwLedOff(struct adapter *padapter, struct LED_871x *pLed)
 		if (pHalData->bLedOpenDrain) {
 			/*  Open-drain arrangement for controlling the LED) */
 			LedCfg &= 0x90; /*  Set to software control. */
-			rtw_write8(padapter, REG_LEDCFG2, (LedCfg|BIT(3)));
+			rtw_write8(padapter, REG_LEDCFG2, (LedCfg | BIT(3)));
 			LedCfg = rtw_read8(padapter, REG_MAC_PINMUX_CFG);
 			LedCfg &= 0xFE;
 			rtw_write8(padapter, REG_MAC_PINMUX_CFG, LedCfg);
 		} else {
-			rtw_write8(padapter, REG_LEDCFG2, (LedCfg|BIT(3)|BIT(5)|BIT(6)));
+			rtw_write8(padapter, REG_LEDCFG2, (LedCfg | BIT(3) | BIT(5) | BIT(6)));
 		}
 		break;
 	case LED_PIN_LED1:
 		LedCfg &= 0x0f; /*  Set to software control. */
-		rtw_write8(padapter, REG_LEDCFG2, (LedCfg|BIT(3)));
+		rtw_write8(padapter, REG_LEDCFG2, (LedCfg | BIT(3)));
 		break;
 	default:
 		break;
