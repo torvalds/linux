@@ -2136,8 +2136,10 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 			 * doesn't have any media in it, don't bother
 			 * with any more polling.
 			 */
-			if (media_not_present(sdkp, &sshdr))
+			if (media_not_present(sdkp, &sshdr)) {
+				sd_printk(KERN_NOTICE, sdkp, "Media removed, stopped polling\n");
 				return;
+			}
 
 			if (the_result)
 				sense_valid = scsi_sense_valid(&sshdr);
