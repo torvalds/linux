@@ -1990,7 +1990,7 @@ struct hl_state_dump_specs {
 
 #define HL_STR_MAX	32
 
-#define HL_DEV_STS_MAX (HL_DEVICE_STATUS_NEEDS_RESET + 1)
+#define HL_DEV_STS_MAX (HL_DEVICE_STATUS_LAST + 1)
 
 /* Theoretical limit only. A single host can only contain up to 4 or 8 PCIe
  * x16 cards. In extreme cases, there are hosts that can accommodate 16 cards.

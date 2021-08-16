@@ -23,6 +23,8 @@ enum hl_device_status hl_device_status(struct hl_device *hdev)
 		status = HL_DEVICE_STATUS_NEEDS_RESET;
 	else if (hdev->disabled)
 		status = HL_DEVICE_STATUS_MALFUNCTION;
+	else if (!hdev->init_done)
+		status = HL_DEVICE_STATUS_IN_DEVICE_CREATION;
 	else
 		status = HL_DEVICE_STATUS_OPERATIONAL;
 
@@ -44,6 +46,7 @@ bool hl_device_operational(struct hl_device *hdev,
 	case HL_DEVICE_STATUS_NEEDS_RESET:
 		return false;
 	case HL_DEVICE_STATUS_OPERATIONAL:
+	case HL_DEVICE_STATUS_IN_DEVICE_CREATION:
 	default:
 		return true;
 	}
