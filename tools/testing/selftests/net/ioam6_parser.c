@@ -2,19 +2,20 @@
 /*
  * Author: Justin Iurman (justin.iurman@uliege.be)
  *
- * IOAM parser for IPv6, see ioam6.sh for details.
+ * IOAM tester for IPv6, see ioam6.sh for details on each test case.
  */
-#include <asm/byteorder.h>
+#include <arpa/inet.h>
+#include <errno.h>
+#include <limits.h>
 #include <linux/const.h>
 #include <linux/if_ether.h>
 #include <linux/ioam6.h>
 #include <linux/ipv6.h>
-#include <sys/socket.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-struct node_args {
+struct ioam_config {
 	__u32 id;
 	__u64 wide;
 	__u16 ingr_id;
@@ -24,143 +25,325 @@ struct node_args {
 	__u32 ns_data;
 	__u64 ns_wide;
 	__u32 sc_id;
-	__u8 hop_limit;
-	__u8 *sc_data; /* NULL when sc_id = 0xffffff (default empty value) */
+	__u8 hlim;
+	char *sc_data;
 };
 
-/* expected args per node, in that order */
+/*
+ * Be careful if you modify structs below - everything MUST be kept synchronized
+ * with configurations inside ioam6.sh and always reflect the same.
+ */
+
+static struct ioam_config node1 = {
+	.id = 1,
+	.wide = 11111111,
+	.ingr_id = 0xffff, /* default value */
+	.egr_id = 101,
+	.ingr_wide = 0xffffffff, /* default value */
+	.egr_wide = 101101,
+	.ns_data = 0xdeadbee0,
+	.ns_wide = 0xcafec0caf00dc0de,
+	.sc_id = 777,
+	.sc_data = "something that will be 4n-aligned",
+	.hlim = 64,
+};
+
+static struct ioam_config node2 = {
+	.id = 2,
+	.wide = 22222222,
+	.ingr_id = 201,
+	.egr_id = 202,
+	.ingr_wide = 201201,
+	.egr_wide = 202202,
+	.ns_data = 0xdeadbee1,
+	.ns_wide = 0xcafec0caf11dc0de,
+	.sc_id = 666,
+	.sc_data = "Hello there -Obi",
+	.hlim = 63,
+};
+
+static struct ioam_config node3 = {
+	.id = 3,
+	.wide = 33333333,
+	.ingr_id = 301,
+	.egr_id = 0xffff, /* default value */
+	.ingr_wide = 301301,
+	.egr_wide = 0xffffffff, /* default value */
+	.ns_data = 0xdeadbee2,
+	.ns_wide = 0xcafec0caf22dc0de,
+	.sc_id = 0xffffff, /* default value */
+	.sc_data = NULL,
+	.hlim = 62,
+};
+
 enum {
-	NODE_ARG_HOP_LIMIT,
-	NODE_ARG_ID,
-	NODE_ARG_WIDE,
-	NODE_ARG_INGR_ID,
-	NODE_ARG_INGR_WIDE,
-	NODE_ARG_EGR_ID,
-	NODE_ARG_EGR_WIDE,
-	NODE_ARG_NS_DATA,
-	NODE_ARG_NS_WIDE,
-	NODE_ARG_SC_ID,
-	__NODE_ARG_MAX,
+	/**********
+	 * OUTPUT *
+	 **********/
+	TEST_OUT_UNDEF_NS,
+	TEST_OUT_NO_ROOM,
+	TEST_OUT_BIT0,
+	TEST_OUT_BIT1,
+	TEST_OUT_BIT2,
+	TEST_OUT_BIT3,
+	TEST_OUT_BIT4,
+	TEST_OUT_BIT5,
+	TEST_OUT_BIT6,
+	TEST_OUT_BIT7,
+	TEST_OUT_BIT8,
+	TEST_OUT_BIT9,
+	TEST_OUT_BIT10,
+	TEST_OUT_BIT11,
+	TEST_OUT_BIT12,
+	TEST_OUT_BIT13,
+	TEST_OUT_BIT14,
+	TEST_OUT_BIT15,
+	TEST_OUT_BIT16,
+	TEST_OUT_BIT17,
+	TEST_OUT_BIT18,
+	TEST_OUT_BIT19,
+	TEST_OUT_BIT20,
+	TEST_OUT_BIT21,
+	TEST_OUT_BIT22,
+	TEST_OUT_FULL_SUPP_TRACE,
+
+	/*********
+	 * INPUT *
+	 *********/
+	TEST_IN_UNDEF_NS,
+	TEST_IN_NO_ROOM,
+	TEST_IN_OFLAG,
+	TEST_IN_BIT0,
+	TEST_IN_BIT1,
+	TEST_IN_BIT2,
+	TEST_IN_BIT3,
+	TEST_IN_BIT4,
+	TEST_IN_BIT5,
+	TEST_IN_BIT6,
+	TEST_IN_BIT7,
+	TEST_IN_BIT8,
+	TEST_IN_BIT9,
+	TEST_IN_BIT10,
+	TEST_IN_BIT11,
+	TEST_IN_BIT12,
+	TEST_IN_BIT13,
+	TEST_IN_BIT14,
+	TEST_IN_BIT15,
+	TEST_IN_BIT16,
+	TEST_IN_BIT17,
+	TEST_IN_BIT18,
+	TEST_IN_BIT19,
+	TEST_IN_BIT20,
+	TEST_IN_BIT21,
+	TEST_IN_BIT22,
+	TEST_IN_FULL_SUPP_TRACE,
+
+	/**********
+	 * GLOBAL *
+	 **********/
+	TEST_FWD_FULL_SUPP_TRACE,
+
+	__TEST_MAX,
 };
 
-#define NODE_ARGS_SIZE __NODE_ARG_MAX
-
-struct args {
-	__u16 ns_id;
-	__u32 trace_type;
-	__u8 n_node;
-	__u8 *ifname;
-	struct node_args node[0];
-};
-
-/* expected args, in that order */
-enum {
-	ARG_IFNAME,
-	ARG_N_NODE,
-	ARG_NS_ID,
-	ARG_TRACE_TYPE,
-	__ARG_MAX,
-};
-
-#define ARGS_SIZE __ARG_MAX
-
-int check_ioam6_node_data(__u8 **p, struct ioam6_trace_hdr *trace, __u8 hlim,
-			  __u32 id, __u64 wide, __u16 ingr_id, __u32 ingr_wide,
-			  __u16 egr_id, __u32 egr_wide, __u32 ns_data,
-			  __u64 ns_wide, __u32 sc_id, __u8 *sc_data)
+static int check_ioam_header(int tid, struct ioam6_trace_hdr *ioam6h,
+			     __u32 trace_type, __u16 ioam_ns)
 {
+	if (__be16_to_cpu(ioam6h->namespace_id) != ioam_ns ||
+	    __be32_to_cpu(ioam6h->type_be32) != (trace_type << 8))
+		return 1;
+
+	switch (tid) {
+	case TEST_OUT_UNDEF_NS:
+	case TEST_IN_UNDEF_NS:
+		return ioam6h->overflow ||
+		       ioam6h->nodelen != 1 ||
+		       ioam6h->remlen != 1;
+
+	case TEST_OUT_NO_ROOM:
+	case TEST_IN_NO_ROOM:
+	case TEST_IN_OFLAG:
+		return !ioam6h->overflow ||
+		       ioam6h->nodelen != 2 ||
+		       ioam6h->remlen != 1;
+
+	case TEST_OUT_BIT0:
+	case TEST_IN_BIT0:
+	case TEST_OUT_BIT1:
+	case TEST_IN_BIT1:
+	case TEST_OUT_BIT2:
+	case TEST_IN_BIT2:
+	case TEST_OUT_BIT3:
+	case TEST_IN_BIT3:
+	case TEST_OUT_BIT4:
+	case TEST_IN_BIT4:
+	case TEST_OUT_BIT5:
+	case TEST_IN_BIT5:
+	case TEST_OUT_BIT6:
+	case TEST_IN_BIT6:
+	case TEST_OUT_BIT7:
+	case TEST_IN_BIT7:
+	case TEST_OUT_BIT11:
+	case TEST_IN_BIT11:
+		return ioam6h->overflow ||
+		       ioam6h->nodelen != 1 ||
+		       ioam6h->remlen;
+
+	case TEST_OUT_BIT8:
+	case TEST_IN_BIT8:
+	case TEST_OUT_BIT9:
+	case TEST_IN_BIT9:
+	case TEST_OUT_BIT10:
+	case TEST_IN_BIT10:
+		return ioam6h->overflow ||
+		       ioam6h->nodelen != 2 ||
+		       ioam6h->remlen;
+
+	case TEST_OUT_BIT12:
+	case TEST_IN_BIT12:
+	case TEST_OUT_BIT13:
+	case TEST_IN_BIT13:
+	case TEST_OUT_BIT14:
+	case TEST_IN_BIT14:
+	case TEST_OUT_BIT15:
+	case TEST_IN_BIT15:
+	case TEST_OUT_BIT16:
+	case TEST_IN_BIT16:
+	case TEST_OUT_BIT17:
+	case TEST_IN_BIT17:
+	case TEST_OUT_BIT18:
+	case TEST_IN_BIT18:
+	case TEST_OUT_BIT19:
+	case TEST_IN_BIT19:
+	case TEST_OUT_BIT20:
+	case TEST_IN_BIT20:
+	case TEST_OUT_BIT21:
+	case TEST_IN_BIT21:
+		return ioam6h->overflow ||
+		       ioam6h->nodelen ||
+		       ioam6h->remlen != 1;
+
+	case TEST_OUT_BIT22:
+	case TEST_IN_BIT22:
+		return ioam6h->overflow ||
+		       ioam6h->nodelen ||
+		       ioam6h->remlen;
+
+	case TEST_OUT_FULL_SUPP_TRACE:
+	case TEST_IN_FULL_SUPP_TRACE:
+	case TEST_FWD_FULL_SUPP_TRACE:
+		return ioam6h->overflow ||
+		       ioam6h->nodelen != 15 ||
+		       ioam6h->remlen;
+
+	default:
+		break;
+	}
+
+	return 1;
+}
+
+static int check_ioam6_data(__u8 **p, struct ioam6_trace_hdr *ioam6h,
+			    const struct ioam_config cnf)
+{
+	unsigned int len;
+	__u8 aligned;
 	__u64 raw64;
 	__u32 raw32;
-	__u8 sc_len;
 
-	if (trace->type.bit0) {
+	if (ioam6h->type.bit0) {
 		raw32 = __be32_to_cpu(*((__u32 *)*p));
-		if (hlim != (raw32 >> 24) || id != (raw32 & 0xffffff))
+		if (cnf.hlim != (raw32 >> 24) || cnf.id != (raw32 & 0xffffff))
 			return 1;
 		*p += sizeof(__u32);
 	}
 
-	if (trace->type.bit1) {
+	if (ioam6h->type.bit1) {
 		raw32 = __be32_to_cpu(*((__u32 *)*p));
-		if (ingr_id != (raw32 >> 16) || egr_id != (raw32 & 0xffff))
+		if (cnf.ingr_id != (raw32 >> 16) ||
+		    cnf.egr_id != (raw32 & 0xffff))
 			return 1;
 		*p += sizeof(__u32);
 	}
 
-	if (trace->type.bit2)
+	if (ioam6h->type.bit2)
 		*p += sizeof(__u32);
 
-	if (trace->type.bit3)
+	if (ioam6h->type.bit3)
 		*p += sizeof(__u32);
 
-	if (trace->type.bit4) {
+	if (ioam6h->type.bit4) {
 		if (__be32_to_cpu(*((__u32 *)*p)) != 0xffffffff)
 			return 1;
 		*p += sizeof(__u32);
 	}
 
-	if (trace->type.bit5) {
-		if (__be32_to_cpu(*((__u32 *)*p)) != ns_data)
+	if (ioam6h->type.bit5) {
+		if (__be32_to_cpu(*((__u32 *)*p)) != cnf.ns_data)
 			return 1;
 		*p += sizeof(__u32);
 	}
 
-	if (trace->type.bit6) {
+	if (ioam6h->type.bit6) {
 		if (__be32_to_cpu(*((__u32 *)*p)) != 0xffffffff)
 			return 1;
 		*p += sizeof(__u32);
 	}
 
-	if (trace->type.bit7) {
+	if (ioam6h->type.bit7) {
 		if (__be32_to_cpu(*((__u32 *)*p)) != 0xffffffff)
 			return 1;
 		*p += sizeof(__u32);
 	}
 
-	if (trace->type.bit8) {
+	if (ioam6h->type.bit8) {
 		raw64 = __be64_to_cpu(*((__u64 *)*p));
-		if (hlim != (raw64 >> 56) || wide != (raw64 & 0xffffffffffffff))
+		if (cnf.hlim != (raw64 >> 56) ||
+		    cnf.wide != (raw64 & 0xffffffffffffff))
 			return 1;
 		*p += sizeof(__u64);
 	}
 
-	if (trace->type.bit9) {
-		if (__be32_to_cpu(*((__u32 *)*p)) != ingr_wide)
+	if (ioam6h->type.bit9) {
+		if (__be32_to_cpu(*((__u32 *)*p)) != cnf.ingr_wide)
 			return 1;
 		*p += sizeof(__u32);
 
-		if (__be32_to_cpu(*((__u32 *)*p)) != egr_wide)
+		if (__be32_to_cpu(*((__u32 *)*p)) != cnf.egr_wide)
 			return 1;
 		*p += sizeof(__u32);
 	}
 
-	if (trace->type.bit10) {
-		if (__be64_to_cpu(*((__u64 *)*p)) != ns_wide)
+	if (ioam6h->type.bit10) {
+		if (__be64_to_cpu(*((__u64 *)*p)) != cnf.ns_wide)
 			return 1;
 		*p += sizeof(__u64);
 	}
 
-	if (trace->type.bit11) {
+	if (ioam6h->type.bit11) {
 		if (__be32_to_cpu(*((__u32 *)*p)) != 0xffffffff)
 			return 1;
 		*p += sizeof(__u32);
 	}
 
-	if (trace->type.bit22) {
+	if (ioam6h->type.bit22) {
+		len = cnf.sc_data ? strlen(cnf.sc_data) : 0;
+		aligned = cnf.sc_data ? __ALIGN_KERNEL(len, 4) : 0;
+
 		raw32 = __be32_to_cpu(*((__u32 *)*p));
-		sc_len = sc_data ? __ALIGN_KERNEL(strlen(sc_data), 4) : 0;
-		if (sc_len != (raw32 >> 24) * 4 || sc_id != (raw32 & 0xffffff))
+		if (aligned != (raw32 >> 24) * 4 ||
+		    cnf.sc_id != (raw32 & 0xffffff))
 			return 1;
 		*p += sizeof(__u32);
 
-		if (sc_data) {
-			if (strncmp(*p, sc_data, strlen(sc_data)))
+		if (cnf.sc_data) {
+			if (strncmp((char *)*p, cnf.sc_data, len))
 				return 1;
 
-			*p += strlen(sc_data);
-			sc_len -= strlen(sc_data);
+			*p += len;
+			aligned -= len;
 
-			while (sc_len--) {
+			while (aligned--) {
 				if (**p != '\0')
 					return 1;
 				*p += sizeof(__u8);
@@ -171,232 +354,367 @@ int check_ioam6_node_data(__u8 **p, struct ioam6_trace_hdr *trace, __u8 hlim,
 	return 0;
 }
 
-int check_ioam6_trace(struct ioam6_trace_hdr *trace, struct args *args)
+static int check_ioam_header_and_data(int tid, struct ioam6_trace_hdr *ioam6h,
+				      __u32 trace_type, __u16 ioam_ns)
 {
 	__u8 *p;
-	int i;
 
-	if (__be16_to_cpu(trace->namespace_id) != args->ns_id ||
-	    __be32_to_cpu(trace->type_be32) != args->trace_type)
+	if (check_ioam_header(tid, ioam6h, trace_type, ioam_ns))
 		return 1;
 
-	p = trace->data + trace->remlen * 4;
+	p = ioam6h->data + ioam6h->remlen * 4;
 
-	for (i = args->n_node - 1; i >= 0; i--) {
-		if (check_ioam6_node_data(&p, trace,
-					  args->node[i].hop_limit,
-					  args->node[i].id,
-					  args->node[i].wide,
-					  args->node[i].ingr_id,
-					  args->node[i].ingr_wide,
-					  args->node[i].egr_id,
-					  args->node[i].egr_wide,
-					  args->node[i].ns_data,
-					  args->node[i].ns_wide,
-					  args->node[i].sc_id,
-					  args->node[i].sc_data))
-			return 1;
+	switch (tid) {
+	case TEST_OUT_BIT0:
+	case TEST_OUT_BIT1:
+	case TEST_OUT_BIT2:
+	case TEST_OUT_BIT3:
+	case TEST_OUT_BIT4:
+	case TEST_OUT_BIT5:
+	case TEST_OUT_BIT6:
+	case TEST_OUT_BIT7:
+	case TEST_OUT_BIT8:
+	case TEST_OUT_BIT9:
+	case TEST_OUT_BIT10:
+	case TEST_OUT_BIT11:
+	case TEST_OUT_BIT22:
+	case TEST_OUT_FULL_SUPP_TRACE:
+		return check_ioam6_data(&p, ioam6h, node1);
+
+	case TEST_IN_BIT0:
+	case TEST_IN_BIT1:
+	case TEST_IN_BIT2:
+	case TEST_IN_BIT3:
+	case TEST_IN_BIT4:
+	case TEST_IN_BIT5:
+	case TEST_IN_BIT6:
+	case TEST_IN_BIT7:
+	case TEST_IN_BIT8:
+	case TEST_IN_BIT9:
+	case TEST_IN_BIT10:
+	case TEST_IN_BIT11:
+	case TEST_IN_BIT22:
+	case TEST_IN_FULL_SUPP_TRACE:
+	{
+		__u32 tmp32 = node2.egr_wide;
+		__u16 tmp16 = node2.egr_id;
+		int res;
+
+		node2.egr_id = 0xffff;
+		node2.egr_wide = 0xffffffff;
+
+		res = check_ioam6_data(&p, ioam6h, node2);
+
+		node2.egr_id = tmp16;
+		node2.egr_wide = tmp32;
+
+		return res;
 	}
 
+	case TEST_FWD_FULL_SUPP_TRACE:
+		if (check_ioam6_data(&p, ioam6h, node3))
+			return 1;
+		if (check_ioam6_data(&p, ioam6h, node2))
+			return 1;
+		return check_ioam6_data(&p, ioam6h, node1);
+
+	default:
+		break;
+	}
+
+	return 1;
+}
+
+static int str2id(const char *tname)
+{
+	if (!strcmp("out_undef_ns", tname))
+		return TEST_OUT_UNDEF_NS;
+	if (!strcmp("out_no_room", tname))
+		return TEST_OUT_NO_ROOM;
+	if (!strcmp("out_bit0", tname))
+		return TEST_OUT_BIT0;
+	if (!strcmp("out_bit1", tname))
+		return TEST_OUT_BIT1;
+	if (!strcmp("out_bit2", tname))
+		return TEST_OUT_BIT2;
+	if (!strcmp("out_bit3", tname))
+		return TEST_OUT_BIT3;
+	if (!strcmp("out_bit4", tname))
+		return TEST_OUT_BIT4;
+	if (!strcmp("out_bit5", tname))
+		return TEST_OUT_BIT5;
+	if (!strcmp("out_bit6", tname))
+		return TEST_OUT_BIT6;
+	if (!strcmp("out_bit7", tname))
+		return TEST_OUT_BIT7;
+	if (!strcmp("out_bit8", tname))
+		return TEST_OUT_BIT8;
+	if (!strcmp("out_bit9", tname))
+		return TEST_OUT_BIT9;
+	if (!strcmp("out_bit10", tname))
+		return TEST_OUT_BIT10;
+	if (!strcmp("out_bit11", tname))
+		return TEST_OUT_BIT11;
+	if (!strcmp("out_bit12", tname))
+		return TEST_OUT_BIT12;
+	if (!strcmp("out_bit13", tname))
+		return TEST_OUT_BIT13;
+	if (!strcmp("out_bit14", tname))
+		return TEST_OUT_BIT14;
+	if (!strcmp("out_bit15", tname))
+		return TEST_OUT_BIT15;
+	if (!strcmp("out_bit16", tname))
+		return TEST_OUT_BIT16;
+	if (!strcmp("out_bit17", tname))
+		return TEST_OUT_BIT17;
+	if (!strcmp("out_bit18", tname))
+		return TEST_OUT_BIT18;
+	if (!strcmp("out_bit19", tname))
+		return TEST_OUT_BIT19;
+	if (!strcmp("out_bit20", tname))
+		return TEST_OUT_BIT20;
+	if (!strcmp("out_bit21", tname))
+		return TEST_OUT_BIT21;
+	if (!strcmp("out_bit22", tname))
+		return TEST_OUT_BIT22;
+	if (!strcmp("out_full_supp_trace", tname))
+		return TEST_OUT_FULL_SUPP_TRACE;
+	if (!strcmp("in_undef_ns", tname))
+		return TEST_IN_UNDEF_NS;
+	if (!strcmp("in_no_room", tname))
+		return TEST_IN_NO_ROOM;
+	if (!strcmp("in_oflag", tname))
+		return TEST_IN_OFLAG;
+	if (!strcmp("in_bit0", tname))
+		return TEST_IN_BIT0;
+	if (!strcmp("in_bit1", tname))
+		return TEST_IN_BIT1;
+	if (!strcmp("in_bit2", tname))
+		return TEST_IN_BIT2;
+	if (!strcmp("in_bit3", tname))
+		return TEST_IN_BIT3;
+	if (!strcmp("in_bit4", tname))
+		return TEST_IN_BIT4;
+	if (!strcmp("in_bit5", tname))
+		return TEST_IN_BIT5;
+	if (!strcmp("in_bit6", tname))
+		return TEST_IN_BIT6;
+	if (!strcmp("in_bit7", tname))
+		return TEST_IN_BIT7;
+	if (!strcmp("in_bit8", tname))
+		return TEST_IN_BIT8;
+	if (!strcmp("in_bit9", tname))
+		return TEST_IN_BIT9;
+	if (!strcmp("in_bit10", tname))
+		return TEST_IN_BIT10;
+	if (!strcmp("in_bit11", tname))
+		return TEST_IN_BIT11;
+	if (!strcmp("in_bit12", tname))
+		return TEST_IN_BIT12;
+	if (!strcmp("in_bit13", tname))
+		return TEST_IN_BIT13;
+	if (!strcmp("in_bit14", tname))
+		return TEST_IN_BIT14;
+	if (!strcmp("in_bit15", tname))
+		return TEST_IN_BIT15;
+	if (!strcmp("in_bit16", tname))
+		return TEST_IN_BIT16;
+	if (!strcmp("in_bit17", tname))
+		return TEST_IN_BIT17;
+	if (!strcmp("in_bit18", tname))
+		return TEST_IN_BIT18;
+	if (!strcmp("in_bit19", tname))
+		return TEST_IN_BIT19;
+	if (!strcmp("in_bit20", tname))
+		return TEST_IN_BIT20;
+	if (!strcmp("in_bit21", tname))
+		return TEST_IN_BIT21;
+	if (!strcmp("in_bit22", tname))
+		return TEST_IN_BIT22;
+	if (!strcmp("in_full_supp_trace", tname))
+		return TEST_IN_FULL_SUPP_TRACE;
+	if (!strcmp("fwd_full_supp_trace", tname))
+		return TEST_FWD_FULL_SUPP_TRACE;
+
+	return -1;
+}
+
+static int ipv6_addr_equal(const struct in6_addr *a1, const struct in6_addr *a2)
+{
+	return ((a1->s6_addr32[0] ^ a2->s6_addr32[0]) |
+		(a1->s6_addr32[1] ^ a2->s6_addr32[1]) |
+		(a1->s6_addr32[2] ^ a2->s6_addr32[2]) |
+		(a1->s6_addr32[3] ^ a2->s6_addr32[3])) == 0;
+}
+
+static int get_u32(__u32 *val, const char *arg, int base)
+{
+	unsigned long res;
+	char *ptr;
+
+	if (!arg || !*arg)
+		return -1;
+	res = strtoul(arg, &ptr, base);
+
+	if (!ptr || ptr == arg || *ptr)
+		return -1;
+
+	if (res == ULONG_MAX && errno == ERANGE)
+		return -1;
+
+	if (res > 0xFFFFFFFFUL)
+		return -1;
+
+	*val = res;
 	return 0;
 }
 
-int parse_node_args(int *argcp, char ***argvp, struct node_args *node)
+static int get_u16(__u16 *val, const char *arg, int base)
 {
-	char **argv = *argvp;
+	unsigned long res;
+	char *ptr;
 
-	if (*argcp < NODE_ARGS_SIZE)
-		return 1;
+	if (!arg || !*arg)
+		return -1;
+	res = strtoul(arg, &ptr, base);
 
-	node->hop_limit = strtoul(argv[NODE_ARG_HOP_LIMIT], NULL, 10);
-	if (!node->hop_limit) {
-		node->hop_limit = strtoul(argv[NODE_ARG_HOP_LIMIT], NULL, 16);
-		if (!node->hop_limit)
-			return 1;
-	}
+	if (!ptr || ptr == arg || *ptr)
+		return -1;
 
-	node->id = strtoul(argv[NODE_ARG_ID], NULL, 10);
-	if (!node->id) {
-		node->id = strtoul(argv[NODE_ARG_ID], NULL, 16);
-		if (!node->id)
-			return 1;
-	}
+	if (res == ULONG_MAX && errno == ERANGE)
+		return -1;
 
-	node->wide = strtoull(argv[NODE_ARG_WIDE], NULL, 10);
-	if (!node->wide) {
-		node->wide = strtoull(argv[NODE_ARG_WIDE], NULL, 16);
-		if (!node->wide)
-			return 1;
-	}
+	if (res > 0xFFFFUL)
+		return -1;
 
-	node->ingr_id = strtoul(argv[NODE_ARG_INGR_ID], NULL, 10);
-	if (!node->ingr_id) {
-		node->ingr_id = strtoul(argv[NODE_ARG_INGR_ID], NULL, 16);
-		if (!node->ingr_id)
-			return 1;
-	}
-
-	node->ingr_wide = strtoul(argv[NODE_ARG_INGR_WIDE], NULL, 10);
-	if (!node->ingr_wide) {
-		node->ingr_wide = strtoul(argv[NODE_ARG_INGR_WIDE], NULL, 16);
-		if (!node->ingr_wide)
-			return 1;
-	}
-
-	node->egr_id = strtoul(argv[NODE_ARG_EGR_ID], NULL, 10);
-	if (!node->egr_id) {
-		node->egr_id = strtoul(argv[NODE_ARG_EGR_ID], NULL, 16);
-		if (!node->egr_id)
-			return 1;
-	}
-
-	node->egr_wide = strtoul(argv[NODE_ARG_EGR_WIDE], NULL, 10);
-	if (!node->egr_wide) {
-		node->egr_wide = strtoul(argv[NODE_ARG_EGR_WIDE], NULL, 16);
-		if (!node->egr_wide)
-			return 1;
-	}
-
-	node->ns_data = strtoul(argv[NODE_ARG_NS_DATA], NULL, 16);
-	if (!node->ns_data)
-		return 1;
-
-	node->ns_wide = strtoull(argv[NODE_ARG_NS_WIDE], NULL, 16);
-	if (!node->ns_wide)
-		return 1;
-
-	node->sc_id = strtoul(argv[NODE_ARG_SC_ID], NULL, 10);
-	if (!node->sc_id) {
-		node->sc_id = strtoul(argv[NODE_ARG_SC_ID], NULL, 16);
-		if (!node->sc_id)
-			return 1;
-	}
-
-	*argcp -= NODE_ARGS_SIZE;
-	*argvp += NODE_ARGS_SIZE;
-
-	if (node->sc_id != 0xffffff) {
-		if (!*argcp)
-			return 1;
-
-		node->sc_data = argv[NODE_ARG_SC_ID + 1];
-
-		*argcp -= 1;
-		*argvp += 1;
-	}
-
+	*val = res;
 	return 0;
 }
 
-struct args *parse_args(int argc, char **argv)
-{
-	struct args *args;
-	int n_node, i;
-
-	if (argc < ARGS_SIZE)
-		goto out;
-
-	n_node = strtoul(argv[ARG_N_NODE], NULL, 10);
-	if (!n_node || n_node > 10)
-		goto out;
-
-	args = calloc(1, sizeof(*args) + n_node * sizeof(struct node_args));
-	if (!args)
-		goto out;
-
-	args->ns_id = strtoul(argv[ARG_NS_ID], NULL, 10);
-	if (!args->ns_id)
-		goto free;
-
-	args->trace_type = strtoul(argv[ARG_TRACE_TYPE], NULL, 16);
-	if (!args->trace_type)
-		goto free;
-
-	args->n_node = n_node;
-	args->ifname = argv[ARG_IFNAME];
-
-	argv += ARGS_SIZE;
-	argc -= ARGS_SIZE;
-
-	for (i = 0; i < n_node; i++) {
-		if (parse_node_args(&argc, &argv, &args->node[i]))
-			goto free;
-	}
-
-	if (argc)
-		goto free;
-
-	return args;
-free:
-	free(args);
-out:
-	return NULL;
-}
+static int (*func[__TEST_MAX])(int, struct ioam6_trace_hdr *, __u32, __u16) = {
+	[TEST_OUT_UNDEF_NS]		= check_ioam_header,
+	[TEST_OUT_NO_ROOM]		= check_ioam_header,
+	[TEST_OUT_BIT0]		= check_ioam_header_and_data,
+	[TEST_OUT_BIT1]		= check_ioam_header_and_data,
+	[TEST_OUT_BIT2]		= check_ioam_header_and_data,
+	[TEST_OUT_BIT3]		= check_ioam_header_and_data,
+	[TEST_OUT_BIT4]		= check_ioam_header_and_data,
+	[TEST_OUT_BIT5]		= check_ioam_header_and_data,
+	[TEST_OUT_BIT6]		= check_ioam_header_and_data,
+	[TEST_OUT_BIT7]		= check_ioam_header_and_data,
+	[TEST_OUT_BIT8]		= check_ioam_header_and_data,
+	[TEST_OUT_BIT9]		= check_ioam_header_and_data,
+	[TEST_OUT_BIT10]		= check_ioam_header_and_data,
+	[TEST_OUT_BIT11]		= check_ioam_header_and_data,
+	[TEST_OUT_BIT12]		= check_ioam_header,
+	[TEST_OUT_BIT13]		= check_ioam_header,
+	[TEST_OUT_BIT14]		= check_ioam_header,
+	[TEST_OUT_BIT15]		= check_ioam_header,
+	[TEST_OUT_BIT16]		= check_ioam_header,
+	[TEST_OUT_BIT17]		= check_ioam_header,
+	[TEST_OUT_BIT18]		= check_ioam_header,
+	[TEST_OUT_BIT19]		= check_ioam_header,
+	[TEST_OUT_BIT20]		= check_ioam_header,
+	[TEST_OUT_BIT21]		= check_ioam_header,
+	[TEST_OUT_BIT22]		= check_ioam_header_and_data,
+	[TEST_OUT_FULL_SUPP_TRACE]	= check_ioam_header_and_data,
+	[TEST_IN_UNDEF_NS]		= check_ioam_header,
+	[TEST_IN_NO_ROOM]		= check_ioam_header,
+	[TEST_IN_OFLAG]		= check_ioam_header,
+	[TEST_IN_BIT0]			= check_ioam_header_and_data,
+	[TEST_IN_BIT1]			= check_ioam_header_and_data,
+	[TEST_IN_BIT2]			= check_ioam_header_and_data,
+	[TEST_IN_BIT3]			= check_ioam_header_and_data,
+	[TEST_IN_BIT4]			= check_ioam_header_and_data,
+	[TEST_IN_BIT5]			= check_ioam_header_and_data,
+	[TEST_IN_BIT6]			= check_ioam_header_and_data,
+	[TEST_IN_BIT7]			= check_ioam_header_and_data,
+	[TEST_IN_BIT8]			= check_ioam_header_and_data,
+	[TEST_IN_BIT9]			= check_ioam_header_and_data,
+	[TEST_IN_BIT10]		= check_ioam_header_and_data,
+	[TEST_IN_BIT11]		= check_ioam_header_and_data,
+	[TEST_IN_BIT12]		= check_ioam_header,
+	[TEST_IN_BIT13]		= check_ioam_header,
+	[TEST_IN_BIT14]		= check_ioam_header,
+	[TEST_IN_BIT15]		= check_ioam_header,
+	[TEST_IN_BIT16]		= check_ioam_header,
+	[TEST_IN_BIT17]		= check_ioam_header,
+	[TEST_IN_BIT18]		= check_ioam_header,
+	[TEST_IN_BIT19]		= check_ioam_header,
+	[TEST_IN_BIT20]		= check_ioam_header,
+	[TEST_IN_BIT21]		= check_ioam_header,
+	[TEST_IN_BIT22]		= check_ioam_header_and_data,
+	[TEST_IN_FULL_SUPP_TRACE]	= check_ioam_header_and_data,
+	[TEST_FWD_FULL_SUPP_TRACE]	= check_ioam_header_and_data,
+};
 
 int main(int argc, char **argv)
 {
-	int ret, fd, pkts, size, hoplen, found;
-	struct ioam6_trace_hdr *ioam6h;
+	int fd, size, hoplen, tid, ret = 1;
+	struct in6_addr src, dst;
 	struct ioam6_hdr *opt;
 	struct ipv6hdr *ip6h;
 	__u8 buffer[400], *p;
-	struct args *args;
+	__u16 ioam_ns;
+	__u32 tr_type;
 
-	args = parse_args(argc - 1, argv + 1);
-	if (!args) {
-		ret = 1;
+	if (argc != 7)
 		goto out;
-	}
+
+	tid = str2id(argv[2]);
+	if (tid < 0 || !func[tid])
+		goto out;
+
+	if (inet_pton(AF_INET6, argv[3], &src) != 1 ||
+	    inet_pton(AF_INET6, argv[4], &dst) != 1)
+		goto out;
+
+	if (get_u32(&tr_type, argv[5], 16) ||
+	    get_u16(&ioam_ns, argv[6], 0))
+		goto out;
 
 	fd = socket(AF_PACKET, SOCK_DGRAM, __cpu_to_be16(ETH_P_IPV6));
-	if (!fd) {
-		ret = 1;
+	if (!fd)
 		goto out;
-	}
 
 	if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE,
-		       args->ifname, strlen(args->ifname))) {
-		ret = 1;
+		       argv[1], strlen(argv[1])))
 		goto close;
-	}
 
-	pkts = 0;
-	found = 0;
-	while (pkts < 3 && !found) {
-		size = recv(fd, buffer, sizeof(buffer), 0);
-		ip6h = (struct ipv6hdr *)buffer;
-		pkts++;
+recv:
+	size = recv(fd, buffer, sizeof(buffer), 0);
+	if (size <= 0)
+		goto close;
 
-		if (ip6h->nexthdr == IPPROTO_HOPOPTS) {
-			p = buffer + sizeof(*ip6h);
-			hoplen = (p[1] + 1) << 3;
+	ip6h = (struct ipv6hdr *)buffer;
 
-			p += sizeof(struct ipv6_hopopt_hdr);
-			while (hoplen > 0) {
-				opt = (struct ioam6_hdr *)p;
+	if (!ipv6_addr_equal(&ip6h->saddr, &src) ||
+	    !ipv6_addr_equal(&ip6h->daddr, &dst))
+		goto recv;
 
-				if (opt->opt_type == IPV6_TLV_IOAM &&
-				    opt->type == IOAM6_TYPE_PREALLOC) {
-					found = 1;
+	if (ip6h->nexthdr != IPPROTO_HOPOPTS)
+		goto close;
 
-					p += sizeof(*opt);
-					ioam6h = (struct ioam6_trace_hdr *)p;
+	p = buffer + sizeof(*ip6h);
+	hoplen = (p[1] + 1) << 3;
+	p += sizeof(struct ipv6_hopopt_hdr);
 
-					ret = check_ioam6_trace(ioam6h, args);
-					break;
-				}
+	while (hoplen > 0) {
+		opt = (struct ioam6_hdr *)p;
 
-				p += opt->opt_len + 2;
-				hoplen -= opt->opt_len + 2;
-			}
+		if (opt->opt_type == IPV6_TLV_IOAM &&
+		    opt->type == IOAM6_TYPE_PREALLOC) {
+			p += sizeof(*opt);
+			ret = func[tid](tid, (struct ioam6_trace_hdr *)p,
+					   tr_type, ioam_ns);
+			break;
 		}
-	}
 
-	if (!found)
-		ret = 1;
+		p += opt->opt_len + 2;
+		hoplen -= opt->opt_len + 2;
+	}
 close:
 	close(fd);
 out:
-	free(args);
 	return ret;
 }
