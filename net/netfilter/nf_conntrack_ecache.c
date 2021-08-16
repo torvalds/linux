@@ -130,27 +130,57 @@ static void ecache_work(struct work_struct *work)
 		schedule_delayed_work(&cnet->ecache_dwork, delay);
 }
 
-int nf_conntrack_eventmask_report(unsigned int eventmask, struct nf_conn *ct,
+static int __nf_conntrack_eventmask_report(struct nf_conntrack_ecache *e,
+					   const unsigned int events,
+					   const unsigned long missed,
+					   const struct nf_ct_event *item)
+{
+	struct nf_conn *ct = item->ct;
+	struct net *net = nf_ct_net(item->ct);
+	struct nf_ct_event_notifier *notify;
+	int ret;
+
+	if (!((events | missed) & e->ctmask))
+		return 0;
+
+	rcu_read_lock();
+
+	notify = rcu_dereference(net->ct.nf_conntrack_event_cb);
+	if (!notify) {
+		rcu_read_unlock();
+		return 0;
+	}
+
+	ret = notify->fcn(events | missed, item);
+	rcu_read_unlock();
+
+	if (likely(ret >= 0 && missed == 0))
+		return 0;
+
+	spin_lock_bh(&ct->lock);
+	if (ret < 0)
+		e->missed |= events;
+	else
+		e->missed &= ~missed;
+	spin_unlock_bh(&ct->lock);
+
+	return ret;
+}
+
+int nf_conntrack_eventmask_report(unsigned int events, struct nf_conn *ct,
 				  u32 portid, int report)
 {
-	struct net *net = nf_ct_net(ct);
-	struct nf_ct_event_notifier *notify;
 	struct nf_conntrack_ecache *e;
 	struct nf_ct_event item;
 	unsigned long missed;
-	int ret = 0;
+	int ret;
 
 	if (!nf_ct_is_confirmed(ct))
-		return ret;
-
-	rcu_read_lock();
-	notify = rcu_dereference(net->ct.nf_conntrack_event_cb);
-	if (!notify)
-		goto out_unlock;
+		return 0;
 
 	e = nf_ct_ecache_find(ct);
 	if (!e)
-		goto out_unlock;
+		return 0;
 
 	memset(&item, 0, sizeof(item));
 
@@ -161,33 +191,16 @@ int nf_conntrack_eventmask_report(unsigned int eventmask, struct nf_conn *ct,
 	/* This is a resent of a destroy event? If so, skip missed */
 	missed = e->portid ? 0 : e->missed;
 
-	if (!((eventmask | missed) & e->ctmask))
-		goto out_unlock;
-
-	ret = notify->fcn(eventmask | missed, &item);
-	if (likely(ret >= 0 && !missed))
-		goto out_unlock;
-
-	spin_lock_bh(&ct->lock);
-	if (ret < 0) {
-		/* This is a destroy event that has been
-		 * triggered by a process, we store the PORTID
-		 * to include it in the retransmission.
+	ret = __nf_conntrack_eventmask_report(e, events, missed, &item);
+	if (unlikely(ret < 0 && (events & (1 << IPCT_DESTROY)))) {
+		/* This is a destroy event that has been triggered by a process,
+		 * we store the PORTID to include it in the retransmission.
 		 */
-		if (eventmask & (1 << IPCT_DESTROY)) {
-			if (e->portid == 0 && portid != 0)
-				e->portid = portid;
-			e->state = NFCT_ECACHE_DESTROY_FAIL;
-		} else {
-			e->missed |= eventmask;
-		}
-	} else {
-		e->missed &= ~missed;
+		if (e->portid == 0 && portid != 0)
+			e->portid = portid;
+		e->state = NFCT_ECACHE_DESTROY_FAIL;
 	}
-	spin_unlock_bh(&ct->lock);
 
-out_unlock:
-	rcu_read_unlock();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_eventmask_report);
@@ -196,53 +209,28 @@ EXPORT_SYMBOL_GPL(nf_conntrack_eventmask_report);
  * disabled softirqs */
 void nf_ct_deliver_cached_events(struct nf_conn *ct)
 {
-	struct net *net = nf_ct_net(ct);
-	unsigned long events, missed;
-	struct nf_ct_event_notifier *notify;
 	struct nf_conntrack_ecache *e;
 	struct nf_ct_event item;
-	int ret;
-
-	rcu_read_lock();
-	notify = rcu_dereference(net->ct.nf_conntrack_event_cb);
-	if (notify == NULL)
-		goto out_unlock;
+	unsigned long events;
 
 	if (!nf_ct_is_confirmed(ct) || nf_ct_is_dying(ct))
-		goto out_unlock;
+		return;
 
 	e = nf_ct_ecache_find(ct);
 	if (e == NULL)
-		goto out_unlock;
+		return;
 
 	events = xchg(&e->cache, 0);
-
-	/* We make a copy of the missed event cache without taking
-	 * the lock, thus we may send missed events twice. However,
-	 * this does not harm and it happens very rarely. */
-	missed = e->missed;
-
-	if (!((events | missed) & e->ctmask))
-		goto out_unlock;
 
 	item.ct = ct;
 	item.portid = 0;
 	item.report = 0;
 
-	ret = notify->fcn(events | missed, &item);
-
-	if (likely(ret == 0 && !missed))
-		goto out_unlock;
-
-	spin_lock_bh(&ct->lock);
-	if (ret < 0)
-		e->missed |= events;
-	else
-		e->missed &= ~missed;
-	spin_unlock_bh(&ct->lock);
-
-out_unlock:
-	rcu_read_unlock();
+	/* We make a copy of the missed event cache without taking
+	 * the lock, thus we may send missed events twice. However,
+	 * this does not harm and it happens very rarely.
+	 */
+	__nf_conntrack_eventmask_report(e, events, e->missed, &item);
 }
 EXPORT_SYMBOL_GPL(nf_ct_deliver_cached_events);
 
