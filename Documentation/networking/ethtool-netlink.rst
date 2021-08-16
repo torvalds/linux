@@ -595,6 +595,14 @@ Link extended substates:
                                                                        that is not formally
                                                                        supported, which led to
                                                                        signal integrity issues
+
+  ``ETHTOOL_LINK_EXT_SUBSTATE_BSI_SERDES_REFERENCE_CLOCK_LOST``        The external clock signal for
+                                                                       SerDes is too weak or
+                                                                       unavailable.
+
+  ``ETHTOOL_LINK_EXT_SUBSTATE_BSI_SERDES_ALOS``                        The received signal for
+                                                                       SerDes is too weak because
+                                                                       analog loss of signal.
   =================================================================    =============================
 
   Cable issue substates:
