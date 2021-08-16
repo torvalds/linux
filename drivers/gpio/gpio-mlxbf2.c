@@ -228,7 +228,6 @@ mlxbf2_gpio_probe(struct platform_device *pdev)
 	struct mlxbf2_gpio_context *gs;
 	struct device *dev = &pdev->dev;
 	struct gpio_chip *gc;
-	struct resource *res;
 	unsigned int npins;
 	int ret;
 
@@ -237,13 +236,9 @@ mlxbf2_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* YU GPIO block address */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
-	gs->gpio_io = devm_ioremap(dev, res->start, resource_size(res));
-	if (!gs->gpio_io)
-		return -ENOMEM;
+	gs->gpio_io = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(gs->gpio_io))
+		return PTR_ERR(gs->gpio_io);
 
 	ret = mlxbf2_gpio_get_lock_res(pdev);
 	if (ret) {
