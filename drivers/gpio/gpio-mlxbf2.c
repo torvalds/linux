@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <linux/acpi.h>
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/device.h>
@@ -8,6 +7,7 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
@@ -314,7 +314,7 @@ MODULE_DEVICE_TABLE(acpi, mlxbf2_gpio_acpi_match);
 static struct platform_driver mlxbf2_gpio_driver = {
 	.driver = {
 		.name = "mlxbf2_gpio",
-		.acpi_match_table = ACPI_PTR(mlxbf2_gpio_acpi_match),
+		.acpi_match_table = mlxbf2_gpio_acpi_match,
 		.pm = &mlxbf2_pm_ops,
 	},
 	.probe    = mlxbf2_gpio_probe,
