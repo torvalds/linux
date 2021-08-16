@@ -718,6 +718,8 @@ struct hnae3_ae_ops {
 			    u32 nsec, u32 sec);
 	int (*get_ts_info)(struct hnae3_handle *handle,
 			   struct ethtool_ts_info *info);
+	int (*get_link_diagnosis_info)(struct hnae3_handle *handle,
+				       u32 *status_code);
 };
 
 struct hnae3_dcb_ops {

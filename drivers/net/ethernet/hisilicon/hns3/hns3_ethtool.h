@@ -22,4 +22,10 @@ struct hns3_pflag_desc {
 	void (*handler)(struct net_device *netdev, bool enable);
 };
 
+struct hns3_ethtool_link_ext_state_mapping {
+	u32 status_code;
+	enum ethtool_link_ext_state link_ext_state;
+	u8 link_ext_substate;
+};
+
 #endif
