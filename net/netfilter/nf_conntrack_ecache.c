@@ -165,25 +165,27 @@ int nf_conntrack_eventmask_report(unsigned int eventmask, struct nf_conn *ct,
 		goto out_unlock;
 
 	ret = notify->fcn(eventmask | missed, &item);
-	if (unlikely(ret < 0 || missed)) {
-		spin_lock_bh(&ct->lock);
-		if (ret < 0) {
-			/* This is a destroy event that has been
-			 * triggered by a process, we store the PORTID
-			 * to include it in the retransmission.
-			 */
-			if (eventmask & (1 << IPCT_DESTROY)) {
-				if (e->portid == 0 && portid != 0)
-					e->portid = portid;
-				e->state = NFCT_ECACHE_DESTROY_FAIL;
-			} else {
-				e->missed |= eventmask;
-			}
+	if (likely(ret >= 0 && !missed))
+		goto out_unlock;
+
+	spin_lock_bh(&ct->lock);
+	if (ret < 0) {
+		/* This is a destroy event that has been
+		 * triggered by a process, we store the PORTID
+		 * to include it in the retransmission.
+		 */
+		if (eventmask & (1 << IPCT_DESTROY)) {
+			if (e->portid == 0 && portid != 0)
+				e->portid = portid;
+			e->state = NFCT_ECACHE_DESTROY_FAIL;
 		} else {
-			e->missed &= ~missed;
+			e->missed |= eventmask;
 		}
-		spin_unlock_bh(&ct->lock);
+	} else {
+		e->missed &= ~missed;
 	}
+	spin_unlock_bh(&ct->lock);
+
 out_unlock:
 	rcu_read_unlock();
 	return ret;
