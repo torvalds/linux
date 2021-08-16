@@ -47,12 +47,10 @@
 #define YU_GPIO_MODE0_SET		0x54
 #define YU_GPIO_MODE0_CLEAR		0x58
 
-#ifdef CONFIG_PM
 struct mlxbf2_gpio_context_save_regs {
 	u32 gpio_mode0;
 	u32 gpio_mode1;
 };
-#endif
 
 /* BlueField-2 gpio block context structure. */
 struct mlxbf2_gpio_context {
@@ -61,9 +59,7 @@ struct mlxbf2_gpio_context {
 	/* YU GPIO blocks address */
 	void __iomem *gpio_io;
 
-#ifdef CONFIG_PM
 	struct mlxbf2_gpio_context_save_regs *csave_regs;
-#endif
 };
 
 /* BlueField-2 gpio shared structure. */
@@ -284,11 +280,9 @@ mlxbf2_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int mlxbf2_gpio_suspend(struct platform_device *pdev,
-				pm_message_t state)
+static int __maybe_unused mlxbf2_gpio_suspend(struct device *dev)
 {
-	struct mlxbf2_gpio_context *gs = platform_get_drvdata(pdev);
+	struct mlxbf2_gpio_context *gs = dev_get_drvdata(dev);
 
 	gs->csave_regs->gpio_mode0 = readl(gs->gpio_io +
 		YU_GPIO_MODE0);
@@ -298,9 +292,9 @@ static int mlxbf2_gpio_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int mlxbf2_gpio_resume(struct platform_device *pdev)
+static int __maybe_unused mlxbf2_gpio_resume(struct device *dev)
 {
-	struct mlxbf2_gpio_context *gs = platform_get_drvdata(pdev);
+	struct mlxbf2_gpio_context *gs = dev_get_drvdata(dev);
 
 	writel(gs->csave_regs->gpio_mode0, gs->gpio_io +
 		YU_GPIO_MODE0);
@@ -309,7 +303,7 @@ static int mlxbf2_gpio_resume(struct platform_device *pdev)
 
 	return 0;
 }
-#endif
+static SIMPLE_DEV_PM_OPS(mlxbf2_pm_ops, mlxbf2_gpio_suspend, mlxbf2_gpio_resume);
 
 static const struct acpi_device_id __maybe_unused mlxbf2_gpio_acpi_match[] = {
 	{ "MLNXBF22", 0 },
@@ -321,12 +315,9 @@ static struct platform_driver mlxbf2_gpio_driver = {
 	.driver = {
 		.name = "mlxbf2_gpio",
 		.acpi_match_table = ACPI_PTR(mlxbf2_gpio_acpi_match),
+		.pm = &mlxbf2_pm_ops,
 	},
 	.probe    = mlxbf2_gpio_probe,
-#ifdef CONFIG_PM
-	.suspend  = mlxbf2_gpio_suspend,
-	.resume   = mlxbf2_gpio_resume,
-#endif
 };
 
 module_platform_driver(mlxbf2_gpio_driver);
