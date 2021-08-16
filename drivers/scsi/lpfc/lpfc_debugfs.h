@@ -52,6 +52,9 @@
 /* scsistat output buffer size */
 #define LPFC_SCSISTAT_SIZE 8192
 
+/* Congestion Info Buffer size */
+#define LPFC_CGN_BUF_SIZE 8192
+
 #define LPFC_DEBUG_OUT_LINE_SZ	80
 
 /*
@@ -277,6 +280,12 @@ struct lpfc_idiag {
 	struct lpfc_idiag_cmd cmd;
 	struct lpfc_idiag_offset offset;
 	void *ptr_private;
+};
+
+#define MAX_DEBUGFS_RX_TABLE_SIZE	(100 * LPFC_MAX_RXMONITOR_ENTRY)
+struct lpfc_rx_monitor_debug {
+	char *i_private;
+	char *buffer;
 };
 
 #else
