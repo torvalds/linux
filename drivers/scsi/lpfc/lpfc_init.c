@@ -93,6 +93,7 @@ static uint32_t lpfc_sli4_enable_intr(struct lpfc_hba *, uint32_t);
 static void lpfc_sli4_oas_verify(struct lpfc_hba *phba);
 static uint16_t lpfc_find_cpu_handle(struct lpfc_hba *, uint16_t, int);
 static void lpfc_setup_bg(struct lpfc_hba *, struct Scsi_Host *);
+static int lpfc_sli4_cgn_parm_chg_evt(struct lpfc_hba *);
 
 static struct scsi_transport_template *lpfc_transport_template = NULL;
 static struct scsi_transport_template *lpfc_vport_transport_template = NULL;
@@ -3021,6 +3022,123 @@ lpfc_sli4_stop_fcf_redisc_wait_timer(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_cmf_stop - Stop CMF processing
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This is called when the link goes down or if CMF mode is turned OFF.
+ * It is also called when going offline or unloaded just before the
+ * congestion info buffer is unregistered.
+ **/
+void
+lpfc_cmf_stop(struct lpfc_hba *phba)
+{
+	int cpu;
+	struct lpfc_cgn_stat *cgs;
+
+	/* We only do something if CMF is enabled */
+	if (!phba->sli4_hba.pc_sli4_params.cmf)
+		return;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+			"6221 Stop CMF / Cancel Timer\n");
+
+	/* Cancel the CMF timer */
+	hrtimer_cancel(&phba->cmf_timer);
+
+	/* Zero CMF counters */
+	atomic_set(&phba->cmf_busy, 0);
+	for_each_present_cpu(cpu) {
+		cgs = per_cpu_ptr(phba->cmf_stat, cpu);
+		atomic64_set(&cgs->total_bytes, 0);
+		atomic64_set(&cgs->rcv_bytes, 0);
+		atomic_set(&cgs->rx_io_cnt, 0);
+		atomic64_set(&cgs->rx_latency, 0);
+	}
+	atomic_set(&phba->cmf_bw_wait, 0);
+
+	/* Resume any blocked IO - Queue unblock on workqueue */
+	queue_work(phba->wq, &phba->unblock_request_work);
+}
+
+static inline uint64_t
+lpfc_get_max_line_rate(struct lpfc_hba *phba)
+{
+	uint64_t rate = lpfc_sli_port_speed_get(phba);
+
+	return ((((unsigned long)rate) * 1024 * 1024) / 10);
+}
+
+void
+lpfc_cmf_signal_init(struct lpfc_hba *phba)
+{
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+			"6223 Signal CMF init\n");
+
+	/* Use the new fc_linkspeed to recalculate */
+	phba->cmf_interval_rate = LPFC_CMF_INTERVAL;
+	phba->cmf_max_line_rate = lpfc_get_max_line_rate(phba);
+	phba->cmf_link_byte_count = div_u64(phba->cmf_max_line_rate *
+					    phba->cmf_interval_rate, 1000);
+	phba->cmf_max_bytes_per_interval = phba->cmf_link_byte_count;
+
+	/* This is a signal to firmware to sync up CMF BW with link speed */
+	lpfc_issue_cmf_sync_wqe(phba, 0, 0);
+}
+
+/**
+ * lpfc_cmf_start - Start CMF processing
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This is called when the link comes up or if CMF mode is turned OFF
+ * to Monitor or Managed.
+ **/
+void
+lpfc_cmf_start(struct lpfc_hba *phba)
+{
+	struct lpfc_cgn_stat *cgs;
+	int cpu;
+
+	/* We only do something if CMF is enabled */
+	if (!phba->sli4_hba.pc_sli4_params.cmf ||
+	    phba->cmf_active_mode == LPFC_CFG_OFF)
+		return;
+
+	/* Reinitialize congestion buffer info */
+	lpfc_init_congestion_buf(phba);
+
+	atomic_set(&phba->cgn_fabric_warn_cnt, 0);
+	atomic_set(&phba->cgn_fabric_alarm_cnt, 0);
+	atomic_set(&phba->cgn_sync_alarm_cnt, 0);
+	atomic_set(&phba->cgn_sync_warn_cnt, 0);
+
+	atomic_set(&phba->cmf_busy, 0);
+	for_each_present_cpu(cpu) {
+		cgs = per_cpu_ptr(phba->cmf_stat, cpu);
+		atomic64_set(&cgs->total_bytes, 0);
+		atomic64_set(&cgs->rcv_bytes, 0);
+		atomic_set(&cgs->rx_io_cnt, 0);
+		atomic64_set(&cgs->rx_latency, 0);
+	}
+	phba->cmf_latency.tv_sec = 0;
+	phba->cmf_latency.tv_nsec = 0;
+
+	lpfc_cmf_signal_init(phba);
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+			"6222 Start CMF / Timer\n");
+
+	phba->cmf_timer_cnt = 0;
+	hrtimer_start(&phba->cmf_timer,
+		      ktime_set(0, LPFC_CMF_INTERVAL * 1000000),
+		      HRTIMER_MODE_REL);
+	/* Setup for latency check in IO cmpl routines */
+	ktime_get_real_ts64(&phba->cmf_latency);
+
+	atomic_set(&phba->cmf_bw_wait, 0);
+	atomic_set(&phba->cmf_stop_io, 0);
+}
+
+/**
  * lpfc_stop_hba_timers - Stop all the timers associated with an HBA
  * @phba: pointer to lpfc hba data structure.
  *
@@ -5286,6 +5404,165 @@ lpfc_async_link_speed_to_read_top(struct lpfc_hba *phba, uint8_t speed_code)
 	return port_speed;
 }
 
+/**
+ * lpfc_calc_cmf_latency - latency from start of rxate timer interval
+ * @phba: The Hba for which this call is being executed.
+ *
+ * The routine calculates the latency from the beginning of the CMF timer
+ * interval to the current point in time. It is called from IO completion
+ * when we exceed our Bandwidth limitation for the time interval.
+ */
+uint32_t
+lpfc_calc_cmf_latency(struct lpfc_hba *phba)
+{
+	struct timespec64 cmpl_time;
+	uint32_t msec = 0;
+
+	ktime_get_real_ts64(&cmpl_time);
+
+	/* This routine works on a ms granularity so sec and usec are
+	 * converted accordingly.
+	 */
+	if (cmpl_time.tv_sec == phba->cmf_latency.tv_sec) {
+		msec = (cmpl_time.tv_nsec - phba->cmf_latency.tv_nsec) /
+			NSEC_PER_MSEC;
+	} else {
+		if (cmpl_time.tv_nsec >= phba->cmf_latency.tv_nsec) {
+			msec = (cmpl_time.tv_sec -
+				phba->cmf_latency.tv_sec) * MSEC_PER_SEC;
+			msec += ((cmpl_time.tv_nsec -
+				  phba->cmf_latency.tv_nsec) / NSEC_PER_MSEC);
+		} else {
+			msec = (cmpl_time.tv_sec - phba->cmf_latency.tv_sec -
+				1) * MSEC_PER_SEC;
+			msec += (((NSEC_PER_SEC - phba->cmf_latency.tv_nsec) +
+				 cmpl_time.tv_nsec) / NSEC_PER_MSEC);
+		}
+	}
+	return msec;
+}
+
+/**
+ * lpfc_cmf_timer -  This is the timer function for one congestion
+ * rate interval.
+ * @timer: Pointer to the high resolution timer that expired
+ */
+static enum hrtimer_restart
+lpfc_cmf_timer(struct hrtimer *timer)
+{
+	struct lpfc_hba *phba = container_of(timer, struct lpfc_hba,
+					     cmf_timer);
+	uint32_t io_cnt;
+	uint64_t total, rcv, lat, mbpi;
+	int timer_interval = LPFC_CMF_INTERVAL;
+	struct lpfc_cgn_stat *cgs;
+	int cpu;
+
+	/* Only restart the timer if congestion mgmt is on */
+	if (phba->cmf_active_mode == LPFC_CFG_OFF ||
+	    !phba->cmf_latency.tv_sec) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"6224 CMF timer exit: %d %lld\n",
+				phba->cmf_active_mode,
+				(uint64_t)phba->cmf_latency.tv_sec);
+		return HRTIMER_NORESTART;
+	}
+
+	/* If pport is not ready yet, just exit and wait for
+	 * the next timer cycle to hit.
+	 */
+	if (!phba->pport)
+		goto skip;
+
+	/* Do not block SCSI IO while in the timer routine since
+	 * total_bytes will be cleared
+	 */
+	atomic_set(&phba->cmf_stop_io, 1);
+
+	/* Immediately after we calculate the time since the last
+	 * timer interrupt, set the start time for the next
+	 * interrupt
+	 */
+	ktime_get_real_ts64(&phba->cmf_latency);
+
+	phba->cmf_link_byte_count =
+		div_u64(phba->cmf_max_line_rate * LPFC_CMF_INTERVAL, 1000);
+
+	/* Collect all the stats from the prior timer interval */
+	total = 0;
+	io_cnt = 0;
+	lat = 0;
+	rcv = 0;
+	for_each_present_cpu(cpu) {
+		cgs = per_cpu_ptr(phba->cmf_stat, cpu);
+		total += atomic64_xchg(&cgs->total_bytes, 0);
+		io_cnt += atomic_xchg(&cgs->rx_io_cnt, 0);
+		lat += atomic64_xchg(&cgs->rx_latency, 0);
+		rcv += atomic64_xchg(&cgs->rcv_bytes, 0);
+	}
+
+	/* Before we issue another CMF_SYNC_WQE, retrieve the BW
+	 * returned from the last CMF_SYNC_WQE issued, from
+	 * cmf_last_sync_bw. This will be the target BW for
+	 * this next timer interval.
+	 */
+	if (phba->cmf_active_mode == LPFC_CFG_MANAGED &&
+	    phba->link_state != LPFC_LINK_DOWN &&
+	    phba->hba_flag & HBA_SETUP) {
+		mbpi = phba->cmf_last_sync_bw;
+		phba->cmf_last_sync_bw = 0;
+		lpfc_issue_cmf_sync_wqe(phba, LPFC_CMF_INTERVAL, total);
+	} else {
+		/* For Monitor mode or link down we want mbpi
+		 * to be the full link speed
+		 */
+		mbpi = phba->cmf_link_byte_count;
+	}
+	phba->cmf_timer_cnt++;
+
+	if (io_cnt) {
+		/* Update congestion info buffer latency in us */
+		atomic_add(io_cnt, &phba->cgn_latency_evt_cnt);
+		atomic64_add(lat, &phba->cgn_latency_evt);
+	}
+
+	/* Calculate MBPI for the next timer interval */
+	if (mbpi) {
+		if (mbpi > phba->cmf_link_byte_count ||
+		    phba->cmf_active_mode == LPFC_CFG_MONITOR)
+			mbpi = phba->cmf_link_byte_count;
+
+		/* Change max_bytes_per_interval to what the prior
+		 * CMF_SYNC_WQE cmpl indicated.
+		 */
+		if (mbpi != phba->cmf_max_bytes_per_interval)
+			phba->cmf_max_bytes_per_interval = mbpi;
+	}
+
+	if (phba->cmf_active_mode == LPFC_CFG_MONITOR) {
+		/* If Monitor mode, check if we are oversubscribed
+		 * against the full line rate.
+		 */
+		if (mbpi && total > mbpi)
+			atomic_inc(&phba->cgn_driver_evt_cnt);
+	}
+	phba->rx_block_cnt += div_u64(rcv, 512);  /* save 512 byte block cnt */
+
+	/* Since total_bytes has already been zero'ed, its okay to unblock
+	 * after max_bytes_per_interval is setup.
+	 */
+	if (atomic_xchg(&phba->cmf_bw_wait, 0))
+		queue_work(phba->wq, &phba->unblock_request_work);
+
+	/* SCSI IO is now unblocked */
+	atomic_set(&phba->cmf_stop_io, 0);
+
+skip:
+	hrtimer_forward_now(timer,
+			    ktime_set(0, timer_interval * NSEC_PER_MSEC));
+	return HRTIMER_RESTART;
+}
+
 #define trunk_link_status(__idx)\
 	bf_get(lpfc_acqe_fc_la_trunk_config_port##__idx, acqe_fc) ?\
 	       ((phba->trunk_link.link##__idx.state == LPFC_LINK_UP) ?\
@@ -5347,6 +5624,9 @@ lpfc_update_trunk_link_status(struct lpfc_hba *phba,
 			phba->sli4_hba.link_state.logical_speed,
 			trunk_link_status(0), trunk_link_status(1),
 			trunk_link_status(2), trunk_link_status(3));
+
+	if (phba->cmf_active_mode != LPFC_CFG_OFF)
+		lpfc_cmf_signal_init(phba);
 
 	if (port_fault)
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
@@ -5687,6 +5967,10 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 				"3192 Remote DPort Test Initiated - "
 				"Event Data1:x%08x Event Data2: x%08x\n",
 				acqe_sli->event_data1, acqe_sli->event_data2);
+		break;
+	case LPFC_SLI_EVENT_TYPE_PORT_PARAMS_CHG:
+		/* Call FW to obtain active parms */
+		lpfc_sli4_cgn_parm_chg_evt(phba);
 		break;
 	case LPFC_SLI_EVENT_TYPE_MISCONF_FAWWN:
 		/* Misconfigured WWN. Reports that the SLI Port is configured
@@ -6114,6 +6398,21 @@ lpfc_sli4_async_grp5_evt(struct lpfc_hba *phba,
 }
 
 /**
+ * lpfc_sli4_async_cmstat_evt - Process the asynchronous cmstat event
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is to handle the SLI4 asynchronous cmstat event. A cmstat event
+ * is an asynchronous notification of a request to reset CM stats.
+ **/
+static void
+lpfc_sli4_async_cmstat_evt(struct lpfc_hba *phba)
+{
+	if (!phba->cgn_i)
+		return;
+	lpfc_init_congestion_stat(phba);
+}
+
+/**
  * lpfc_cgn_params_val - Validate FW congestion parameters.
  * @phba: pointer to lpfc hba data structure.
  * @p_cfg_param: pointer to FW provided congestion parameters.
@@ -6200,6 +6499,7 @@ lpfc_cgn_params_parse(struct lpfc_hba *phba,
 		case LPFC_CFG_OFF:
 			if (phba->cgn_p.cgn_param_mode != LPFC_CFG_OFF) {
 				/* Turning CMF on */
+				lpfc_cmf_start(phba);
 
 				if (phba->link_state >= LPFC_LINK_UP) {
 					phba->cgn_reg_fpin =
@@ -6214,6 +6514,7 @@ lpfc_cgn_params_parse(struct lpfc_hba *phba,
 			switch (phba->cgn_p.cgn_param_mode) {
 			case LPFC_CFG_OFF:
 				/* Turning CMF off */
+				lpfc_cmf_stop(phba);
 				if (phba->link_state >= LPFC_LINK_UP)
 					lpfc_issue_els_edc(phba->pport, 0);
 				break;
@@ -6221,6 +6522,12 @@ lpfc_cgn_params_parse(struct lpfc_hba *phba,
 				lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
 						"4661 Switch from MANAGED to "
 						"`MONITOR mode\n");
+				phba->cmf_max_bytes_per_interval =
+					phba->cmf_link_byte_count;
+
+				/* Resume blocked IO - unblock on workqueue */
+				queue_work(phba->wq,
+					   &phba->unblock_request_work);
 				break;
 			}
 			break;
@@ -6228,6 +6535,7 @@ lpfc_cgn_params_parse(struct lpfc_hba *phba,
 			switch (phba->cgn_p.cgn_param_mode) {
 			case LPFC_CFG_OFF:
 				/* Turning CMF off */
+				lpfc_cmf_stop(phba);
 				if (phba->link_state >= LPFC_LINK_UP)
 					lpfc_issue_els_edc(phba->pport, 0);
 				break;
@@ -6235,6 +6543,7 @@ lpfc_cgn_params_parse(struct lpfc_hba *phba,
 				lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
 						"4662 Switch from MONITOR to "
 						"MANAGED mode\n");
+				lpfc_cmf_signal_init(phba);
 				break;
 			}
 			break;
@@ -6302,6 +6611,51 @@ lpfc_sli4_cgn_params_read(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_sli4_cgn_parm_chg_evt - Process a FW congestion param change event
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * The FW generated Async ACQE SLI event calls this routine when
+ * the event type is an SLI Internal Port Event and the Event Code
+ * indicates a change to the FW maintained congestion parameters.
+ *
+ * This routine executes a Read_Object mailbox call to obtain the
+ * current congestion parameters maintained in FW and corrects
+ * the driver's active congestion parameters.
+ *
+ * The acqe event is not passed because there is no further data
+ * required.
+ *
+ * Returns nonzero error if event processing encountered an error.
+ * Zero otherwise for success.
+ **/
+static int
+lpfc_sli4_cgn_parm_chg_evt(struct lpfc_hba *phba)
+{
+	int ret = 0;
+
+	if (!phba->sli4_hba.pc_sli4_params.cmf) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT | LOG_INIT,
+				"4664 Cgn Evt when E2E off. Drop event\n");
+		return -EACCES;
+	}
+
+	/* If the event is claiming an empty object, it's ok.  A write
+	 * could have cleared it.  Only error is a negative return
+	 * status.
+	 */
+	ret = lpfc_sli4_cgn_params_read(phba);
+	if (ret < 0) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT | LOG_INIT,
+				"4667 Error reading Cgn Params (%d)\n",
+				ret);
+	} else if (!ret) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT | LOG_INIT,
+				"4673 CGN Event empty object.\n");
+	}
+	return ret;
+}
+
+/**
  * lpfc_sli4_async_event_proc - Process all the pending asynchronous event
  * @phba: pointer to lpfc hba data structure.
  *
@@ -6348,6 +6702,9 @@ void lpfc_sli4_async_event_proc(struct lpfc_hba *phba)
 			break;
 		case LPFC_TRAILER_CODE_SLI:
 			lpfc_sli4_async_sli_evt(phba, &cq_event->cqe.acqe_sli);
+			break;
+		case LPFC_TRAILER_CODE_CMSTAT:
+			lpfc_sli4_async_cmstat_evt(phba);
 			break;
 		default:
 			lpfc_printf_log(phba, KERN_ERR,
@@ -6633,6 +6990,15 @@ lpfc_sli_probe_sriov_nr_virtfn(struct lpfc_hba *phba, int nr_vfn)
 	return rc;
 }
 
+static void
+lpfc_unblock_requests_work(struct work_struct *work)
+{
+	struct lpfc_hba *phba = container_of(work, struct lpfc_hba,
+					     unblock_request_work);
+
+	lpfc_unblock_requests(phba);
+}
+
 /**
  * lpfc_setup_driver_resource_phase1 - Phase1 etup driver internal resources.
  * @phba: pointer to lpfc hba data structure.
@@ -6708,7 +7074,7 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 
 	INIT_DELAYED_WORK(&phba->idle_stat_delay_work,
 			  lpfc_idle_stat_delay_work);
-
+	INIT_WORK(&phba->unblock_request_work, lpfc_unblock_requests_work);
 	return 0;
 }
 
@@ -6938,6 +7304,10 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 	/* FCF rediscover timer */
 	timer_setup(&phba->fcf.redisc_wait, lpfc_sli4_fcf_redisc_wait_tmo, 0);
+
+	/* CMF congestion timer */
+	hrtimer_init(&phba->cmf_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	phba->cmf_timer.function = lpfc_cmf_timer;
 
 	/*
 	 * Control structure for handling external multi-buffer mailbox
@@ -7387,6 +7757,14 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	}
 #endif
 
+	phba->cmf_stat = alloc_percpu(struct lpfc_cgn_stat);
+	if (!phba->cmf_stat) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"3331 Failed allocating per cpu cgn stats\n");
+		rc = -ENOMEM;
+		goto out_free_hba_hdwq_info;
+	}
+
 	/*
 	 * Enable sr-iov virtual functions if supported and configured
 	 * through the module parameter.
@@ -7406,6 +7784,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 	return 0;
 
+out_free_hba_hdwq_info:
+	free_percpu(phba->sli4_hba.c_stat);
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 out_free_hba_idle_stat:
 	kfree(phba->sli4_hba.idle_stat);
@@ -7453,6 +7833,7 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	free_percpu(phba->sli4_hba.c_stat);
 #endif
+	free_percpu(phba->cmf_stat);
 	kfree(phba->sli4_hba.idle_stat);
 
 	/* Free memory allocated for msi-x interrupt vector to CPU mapping */
@@ -12352,6 +12733,8 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 	struct pci_dev *pdev = phba->pcidev;
 
 	lpfc_stop_hba_timers(phba);
+	hrtimer_cancel(&phba->cmf_timer);
+
 	if (phba->pport)
 		phba->sli4_hba.intr_enable = 0;
 
@@ -12421,7 +12804,6 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 	if (phba->pport)
 		phba->pport->work_port_events = 0;
 }
-
 
 void
 lpfc_init_congestion_buf(struct lpfc_hba *phba)
@@ -12519,9 +12901,10 @@ __lpfc_reg_congestion_buf(struct lpfc_hba *phba, int reg)
 	return 0;
 }
 
-static int
+int
 lpfc_unreg_congestion_buf(struct lpfc_hba *phba)
 {
+	lpfc_cmf_stop(phba);
 	return __lpfc_reg_congestion_buf(phba, 0);
 }
 
@@ -13763,6 +14146,8 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	spin_lock_irq(&phba->hbalock);
 	vport->load_flag |= FC_UNLOADING;
 	spin_unlock_irq(&phba->hbalock);
+	if (phba->cgn_i)
+		lpfc_unreg_congestion_buf(phba);
 
 	lpfc_free_sysfs_attr(vport);
 

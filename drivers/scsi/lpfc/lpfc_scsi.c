@@ -3854,6 +3854,141 @@ lpfc_scsi_unprep_dma_buf(struct lpfc_hba *phba, struct lpfc_io_buf *psb)
 }
 
 /**
+ * lpfc_unblock_requests - allow further commands to be queued.
+ * @phba: pointer to phba object
+ *
+ * For single vport, just call scsi_unblock_requests on physical port.
+ * For multiple vports, send scsi_unblock_requests for all the vports.
+ */
+void
+lpfc_unblock_requests(struct lpfc_hba *phba)
+{
+	struct lpfc_vport **vports;
+	struct Scsi_Host  *shost;
+	int i;
+
+	if (phba->sli_rev == LPFC_SLI_REV4 &&
+	    !phba->sli4_hba.max_cfg_param.vpi_used) {
+		shost = lpfc_shost_from_vport(phba->pport);
+		scsi_unblock_requests(shost);
+		return;
+	}
+
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports != NULL)
+		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
+			shost = lpfc_shost_from_vport(vports[i]);
+			scsi_unblock_requests(shost);
+		}
+	lpfc_destroy_vport_work_array(phba, vports);
+}
+
+/**
+ * lpfc_block_requests - prevent further commands from being queued.
+ * @phba: pointer to phba object
+ *
+ * For single vport, just call scsi_block_requests on physical port.
+ * For multiple vports, send scsi_block_requests for all the vports.
+ */
+void
+lpfc_block_requests(struct lpfc_hba *phba)
+{
+	struct lpfc_vport **vports;
+	struct Scsi_Host  *shost;
+	int i;
+
+	if (atomic_read(&phba->cmf_stop_io))
+		return;
+
+	if (phba->sli_rev == LPFC_SLI_REV4 &&
+	    !phba->sli4_hba.max_cfg_param.vpi_used) {
+		shost = lpfc_shost_from_vport(phba->pport);
+		scsi_block_requests(shost);
+		return;
+	}
+
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports != NULL)
+		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
+			shost = lpfc_shost_from_vport(vports[i]);
+			scsi_block_requests(shost);
+		}
+	lpfc_destroy_vport_work_array(phba, vports);
+}
+
+/**
+ * lpfc_update_cmf_cmpl - Adjust CMF counters for IO completion
+ * @phba: The HBA for which this call is being executed.
+ * @time: The latency of the IO that completed (in ns)
+ * @size: The size of the IO that completed
+ * @shost: SCSI host the IO completed on (NULL for a NVME IO)
+ *
+ * The routine adjusts the various Burst and Bandwidth counters used in
+ * Congestion management and E2E. If time is set to LPFC_CGN_NOT_SENT,
+ * that means the IO was never issued to the HBA, so this routine is
+ * just being called to cleanup the counter from a previous
+ * lpfc_update_cmf_cmd call.
+ */
+int
+lpfc_update_cmf_cmpl(struct lpfc_hba *phba,
+		     uint64_t time, uint32_t size, struct Scsi_Host *shost)
+{
+	struct lpfc_cgn_stat *cgs;
+
+	if (time != LPFC_CGN_NOT_SENT) {
+		/* lat is ns coming in, save latency in us */
+		if (time < 1000)
+			time = 1;
+		else
+			time = div_u64(time + 500, 1000); /* round it */
+
+		cgs = this_cpu_ptr(phba->cmf_stat);
+		atomic64_add(size, &cgs->rcv_bytes);
+		atomic64_add(time, &cgs->rx_latency);
+		atomic_inc(&cgs->rx_io_cnt);
+	}
+	return 0;
+}
+
+/**
+ * lpfc_update_cmf_cmd - Adjust CMF counters for IO submission
+ * @phba: The HBA for which this call is being executed.
+ * @size: The size of the IO that will be issued
+ *
+ * The routine adjusts the various Burst and Bandwidth counters used in
+ * Congestion management and E2E.
+ */
+int
+lpfc_update_cmf_cmd(struct lpfc_hba *phba, uint32_t size)
+{
+	uint64_t total;
+	struct lpfc_cgn_stat *cgs;
+	int cpu;
+
+	/* At this point we are either LPFC_CFG_MANAGED or LPFC_CFG_MONITOR */
+	if (phba->cmf_active_mode == LPFC_CFG_MANAGED) {
+		total = 0;
+		for_each_present_cpu(cpu) {
+			cgs = per_cpu_ptr(phba->cmf_stat, cpu);
+			total += atomic64_read(&cgs->total_bytes);
+		}
+		if (total >= phba->cmf_max_bytes_per_interval) {
+			if (!atomic_xchg(&phba->cmf_bw_wait, 1)) {
+				lpfc_block_requests(phba);
+				phba->cmf_last_ts =
+					lpfc_calc_cmf_latency(phba);
+			}
+			atomic_inc(&phba->cmf_busy);
+			return -EBUSY;
+		}
+	}
+
+	cgs = this_cpu_ptr(phba->cmf_stat);
+	atomic64_add(size, &cgs->total_bytes);
+	return 0;
+}
+
+/**
  * lpfc_handle_fcp_err - FCP response handler
  * @vport: The virtual port for which this call is being executed.
  * @lpfc_cmd: Pointer to lpfc_io_buf data structure.
@@ -4063,6 +4198,7 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	u32 logit = LOG_FCP;
 	u32 status, idx;
 	unsigned long iflags = 0;
+	u32 lat;
 	u8 wait_xb_clr = 0;
 
 	/* Sanity check on return of outstanding command */
@@ -4351,10 +4487,21 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 		lpfc_io_ktime(phba, lpfc_cmd);
 	}
 #endif
+	if (likely(!wait_xb_clr))
+		lpfc_cmd->pCmd = NULL;
+	spin_unlock(&lpfc_cmd->buf_lock);
+
+	/* Check if IO qualified for CMF */
+	if (phba->cmf_active_mode != LPFC_CFG_OFF &&
+	    cmd->sc_data_direction == DMA_FROM_DEVICE &&
+	    (scsi_sg_count(cmd))) {
+		/* Used when calculating average latency */
+		lat = ktime_get_ns() - lpfc_cmd->rx_cmd_start;
+		lpfc_update_cmf_cmpl(phba, lat, scsi_bufflen(cmd), shost);
+	}
+
 	if (wait_xb_clr)
 		goto out;
-	lpfc_cmd->pCmd = NULL;
-	spin_unlock(&lpfc_cmd->buf_lock);
 
 	/* The sdev is not guaranteed to be valid post scsi_done upcall. */
 	cmd->scsi_done(cmd);
@@ -4367,8 +4514,8 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	lpfc_cmd->cur_iocbq.iocb_flag &= ~LPFC_DRIVER_ABORTED;
 	if (lpfc_cmd->waitq)
 		wake_up(lpfc_cmd->waitq);
-out:
 	spin_unlock(&lpfc_cmd->buf_lock);
+out:
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
 }
 
@@ -4775,6 +4922,11 @@ static int lpfc_scsi_prep_cmnd_buf_s4(struct lpfc_vport *vport,
 			fcp_cmnd->fcpCntl3 = READ_DATA;
 			if (hdwq)
 				hdwq->scsi_cstat.input_requests++;
+
+			/* For a CMF Managed port, iod must be zero'ed */
+			if (phba->cmf_active_mode == LPFC_CFG_MANAGED)
+				bf_set(wqe_iod, &wqe->fcp_iread.wqe_com,
+				       LPFC_WQE_IOD_NONE);
 		}
 	} else {
 		/* From the icmnd template, initialize words 4 - 11 */
@@ -5454,7 +5606,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	if (phba->ktime_on)
 		start = ktime_get_ns();
 #endif
-
+	start = ktime_get_ns();
 	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
 
 	/* sanity check on references */
@@ -5485,7 +5637,18 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	 * transport is still transitioning.
 	 */
 	if (!ndlp)
-		goto out_tgt_busy;
+		goto out_tgt_busy1;
+
+	/* Check if IO qualifies for CMF */
+	if (phba->cmf_active_mode != LPFC_CFG_OFF &&
+	    cmnd->sc_data_direction == DMA_FROM_DEVICE &&
+	    (scsi_sg_count(cmnd))) {
+		/* Latency start time saved in rx_cmd_start later in routine */
+		err = lpfc_update_cmf_cmd(phba, scsi_bufflen(cmnd));
+		if (err)
+			goto out_tgt_busy1;
+	}
+
 	if (lpfc_ndlp_check_qdepth(phba, ndlp)) {
 		if (atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth) {
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP_ERROR,
@@ -5513,7 +5676,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 					 ndlp->nlp_portname.u.wwn[5],
 					 ndlp->nlp_portname.u.wwn[6],
 					 ndlp->nlp_portname.u.wwn[7]);
-			goto out_tgt_busy;
+			goto out_tgt_busy2;
 		}
 	}
 
@@ -5526,6 +5689,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 				 "IO busied\n");
 		goto out_host_busy;
 	}
+	lpfc_cmd->rx_cmd_start = start;
 
 	/*
 	 * Store the midlayer's command structure for the completion phase
@@ -5669,13 +5833,20 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
  out_host_busy_release_buf:
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
  out_host_busy:
+	lpfc_update_cmf_cmpl(phba, LPFC_CGN_NOT_SENT, scsi_bufflen(cmnd),
+			     shost);
 	return SCSI_MLQUEUE_HOST_BUSY;
 
- out_tgt_busy:
+ out_tgt_busy2:
+	lpfc_update_cmf_cmpl(phba, LPFC_CGN_NOT_SENT, scsi_bufflen(cmnd),
+			     shost);
+ out_tgt_busy1:
 	return SCSI_MLQUEUE_TARGET_BUSY;
 
  out_fail_command_release_buf:
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
+	lpfc_update_cmf_cmpl(phba, LPFC_CGN_NOT_SENT, scsi_bufflen(cmnd),
+			     shost);
 
  out_fail_command:
 	cmnd->scsi_done(cmnd);

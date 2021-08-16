@@ -463,4 +463,5 @@ struct lpfc_io_buf {
 	uint64_t ts_isr_cmpl;
 	uint64_t ts_data_io;
 #endif
+	uint64_t rx_cmd_start;
 };

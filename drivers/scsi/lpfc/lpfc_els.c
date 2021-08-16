@@ -3333,9 +3333,11 @@ lpfc_cmpl_els_disc_cmd(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			lpfc_printf_vlog(vport, KERN_INFO,
 					 LOG_ELS | LOG_CGN_MGMT,
 					 "4677 Fabric RDF Notification Grant "
-					 "Data: 0x%08x\n",
+					 "Data: 0x%08x Reg: %x %x\n",
 					 be32_to_cpu(
-						prdf->reg_d1.desc_tags[i]));
+						prdf->reg_d1.desc_tags[i]),
+					 phba->cgn_reg_signal,
+					 phba->cgn_reg_fpin);
 	}
 
 out:
@@ -3702,9 +3704,11 @@ lpfc_issue_els_rdf(struct lpfc_vport *vport, uint8_t retry)
 	prdf->reg_d1.desc_tags[3] = cpu_to_be32(ELS_DTAG_CONGESTION);
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS | LOG_CGN_MGMT,
-			 "6444 Xmit RDF to remote NPORT x%x\n",
-			 ndlp->nlp_DID);
+			 "6444 Xmit RDF to remote NPORT x%x Reg: %x %x\n",
+			 ndlp->nlp_DID, phba->cgn_reg_signal,
+			 phba->cgn_reg_fpin);
 
+	phba->cgn_fpin_frequency = LPFC_FPIN_INIT_FREQ;
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_disc_cmd;
 	elsiocb->context1 = lpfc_nlp_get(ndlp);
 	if (!elsiocb->context1) {
@@ -3778,6 +3782,8 @@ lpfc_least_capable_settings(struct lpfc_hba *phba,
 {
 	u32 rsp_sig_cap = 0, drv_sig_cap = 0;
 	u32 rsp_sig_freq_cyc = 0, rsp_sig_freq_scale = 0;
+	struct lpfc_cgn_info *cp;
+	u16 sig_freq;
 
 	/* Get rsp signal and frequency capabilities.  */
 	rsp_sig_cap = be32_to_cpu(pcgd->xmt_signal_capability);
@@ -3831,6 +3837,24 @@ lpfc_least_capable_settings(struct lpfc_hba *phba,
 			phba->cgn_reg_signal = EDC_CG_SIG_WARN_ONLY;
 			phba->cgn_reg_fpin &= ~LPFC_CGN_FPIN_WARN;
 		}
+	}
+
+	if (!phba->cgn_i)
+		return;
+
+	/* Update signal frequency in congestion info buffer */
+	cp = (struct lpfc_cgn_info *)phba->cgn_i->virt;
+
+	/* Frequency (in ms) Signal Warning/Signal Congestion Notifications
+	 * are received by the HBA
+	 */
+	sig_freq = phba->cgn_sig_freq;
+
+	if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ONLY)
+		cp->cgn_warn_freq = cpu_to_le16(sig_freq);
+	if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM) {
+		cp->cgn_alarm_freq = cpu_to_le16(sig_freq);
+		cp->cgn_warn_freq = cpu_to_le16(sig_freq);
 	}
 	return;
 
@@ -9508,11 +9532,13 @@ lpfc_els_rcv_fpin_peer_cgn(struct lpfc_hba *phba, struct fc_tlv_desc *tlv)
 static int
 lpfc_els_rcv_fpin_cgn(struct lpfc_hba *phba, struct fc_tlv_desc *tlv)
 {
+	struct lpfc_cgn_info *cp;
 	struct fc_fn_congn_desc *cgn = (struct fc_fn_congn_desc *)tlv;
 	const char *cgn_evt_str;
 	u32 cgn_evt;
 	const char *cgn_sev_str;
 	u32 cgn_sev;
+	uint16_t value;
 	bool nm_log = false;
 	int rc = 1;
 
@@ -9540,9 +9566,48 @@ lpfc_els_rcv_fpin_cgn(struct lpfc_hba *phba, struct fc_tlv_desc *tlv)
 		switch (cgn_sev) {
 		case FPIN_CONGN_SEVERITY_ERROR:
 			/* Take action here for an Alarm event */
+			if (phba->cmf_active_mode != LPFC_CFG_OFF) {
+				if (phba->cgn_reg_fpin & LPFC_CGN_FPIN_ALARM) {
+					/* Track of alarm cnt for cgn_info */
+					atomic_inc(&phba->cgn_fabric_alarm_cnt);
+					/* Track of alarm cnt for SYNC_WQE */
+					atomic_inc(&phba->cgn_sync_alarm_cnt);
+				}
+				goto cleanup;
+			}
 			break;
 		case FPIN_CONGN_SEVERITY_WARNING:
 			/* Take action here for a Warning event */
+			if (phba->cmf_active_mode != LPFC_CFG_OFF) {
+				if (phba->cgn_reg_fpin & LPFC_CGN_FPIN_WARN) {
+					/* Track of warning cnt for cgn_info */
+					atomic_inc(&phba->cgn_fabric_warn_cnt);
+					/* Track of warning cnt for SYNC_WQE */
+					atomic_inc(&phba->cgn_sync_warn_cnt);
+				}
+cleanup:
+				/* Save frequency in ms */
+				phba->cgn_fpin_frequency =
+					be32_to_cpu(cgn->event_period);
+				value = phba->cgn_fpin_frequency;
+				if (phba->cgn_i) {
+					cp = (struct lpfc_cgn_info *)
+						phba->cgn_i->virt;
+					if (phba->cgn_reg_fpin &
+						LPFC_CGN_FPIN_ALARM)
+						cp->cgn_alarm_freq =
+							cpu_to_le16(value);
+					if (phba->cgn_reg_fpin &
+						LPFC_CGN_FPIN_WARN)
+						cp->cgn_warn_freq =
+							cpu_to_le16(value);
+				}
+
+				/* Don't deliver to upper layer since
+				 * driver took action on this tlv.
+				 */
+				rc = 0;
+			}
 			break;
 		}
 		break;

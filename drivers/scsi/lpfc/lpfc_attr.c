@@ -7476,6 +7476,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_enable_dpp_init(phba, lpfc_enable_dpp);
 	lpfc_enable_mi_init(phba, lpfc_enable_mi);
 
+	phba->cgn_p.cgn_param_mode = LPFC_CFG_OFF;
 	phba->cmf_active_mode = LPFC_CFG_OFF;
 	if (lpfc_fabric_cgn_frequency > EDC_CG_SIGFREQ_CNT_MAX ||
 	   lpfc_fabric_cgn_frequency < EDC_CG_SIGFREQ_CNT_MIN)

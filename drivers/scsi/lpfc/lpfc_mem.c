@@ -335,6 +335,15 @@ lpfc_mem_free_all(struct lpfc_hba *phba)
 	dma_pool_destroy(phba->lpfc_cmd_rsp_buf_pool);
 	phba->lpfc_cmd_rsp_buf_pool = NULL;
 
+	/* Free Congestion Data buffer */
+	if (phba->cgn_i) {
+		dma_free_coherent(&phba->pcidev->dev,
+				  sizeof(struct lpfc_cgn_info),
+				  phba->cgn_i->virt, phba->cgn_i->phys);
+		kfree(phba->cgn_i);
+		phba->cgn_i = NULL;
+	}
+
 	/* Free the iocb lookup array */
 	kfree(psli->iocbq_lookup);
 	psli->iocbq_lookup = NULL;

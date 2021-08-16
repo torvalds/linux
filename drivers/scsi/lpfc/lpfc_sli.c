@@ -1439,7 +1439,7 @@ out:
 	memset((char *)iocbq + start_clean, 0, sizeof(*iocbq) - start_clean);
 	iocbq->sli4_lxritag = NO_XRI;
 	iocbq->sli4_xritag = NO_XRI;
-	iocbq->iocb_flag &= ~(LPFC_IO_NVME | LPFC_IO_NVMET |
+	iocbq->iocb_flag &= ~(LPFC_IO_NVME | LPFC_IO_NVMET | LPFC_IO_CMF |
 			      LPFC_IO_NVME_LS);
 	list_add_tail(&iocbq->list, &phba->lpfc_iocb_list);
 }
@@ -1785,9 +1785,11 @@ lpfc_cmf_sync_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 {
 	union lpfc_wqe128 *wqe;
 	uint32_t status, info;
-	uint64_t bw;
+	uint64_t bw, bwdif, slop;
+	uint64_t pcent, bwpcent;
 	int asig, afpin, sigcnt, fpincnt;
-	int cg, tdp;
+	int wsigmax, wfpinmax, cg, tdp;
+	char *s;
 
 	/* First check for error */
 	status = bf_get(lpfc_wcqe_c_status, cmf_cmpl);
@@ -1806,6 +1808,14 @@ lpfc_cmf_sync_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/* Gather congestion information on a successful cmpl */
 	info = cmf_cmpl->parameter;
+	phba->cmf_active_info = info;
+
+	/* See if firmware info count is valid or has changed */
+	if (info > LPFC_MAX_CMF_INFO || phba->cmf_info_per_interval == info)
+		info = 0;
+	else
+		phba->cmf_info_per_interval = info;
+
 	tdp = bf_get(lpfc_wcqe_c_cmf_bw, cmf_cmpl);
 	cg = bf_get(lpfc_wcqe_c_cmf_cg, cmf_cmpl);
 
@@ -1824,7 +1834,67 @@ lpfc_cmf_sync_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	afpin = bf_get(cmf_sync_afpin, &wqe->cmf_sync);
 	fpincnt = bf_get(cmf_sync_wfpincnt, &wqe->cmf_sync);
 	sigcnt = bf_get(cmf_sync_wsigcnt, &wqe->cmf_sync);
+	if (phba->cmf_max_bytes_per_interval != bw ||
+	    (asig || afpin || sigcnt || fpincnt)) {
+		/* Are we increasing or decreasing BW */
+		if (phba->cmf_max_bytes_per_interval <  bw) {
+			bwdif = bw - phba->cmf_max_bytes_per_interval;
+			s = "Increase";
+		} else {
+			bwdif = phba->cmf_max_bytes_per_interval - bw;
+			s = "Decrease";
+		}
 
+		/* What is the change percentage */
+		slop = div_u64(phba->cmf_link_byte_count, 200); /*For rounding*/
+		pcent = div64_u64(bwdif * 100 + slop,
+				  phba->cmf_link_byte_count);
+		bwpcent = div64_u64(bw * 100 + slop,
+				    phba->cmf_link_byte_count);
+		if (asig) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+					"6237 BW Threshold %lld%% (%lld): "
+					"%lld%% %s: Signal Alarm: cg:%d "
+					"Info:%u\n",
+					bwpcent, bw, pcent, s, cg,
+					phba->cmf_active_info);
+		} else if (afpin) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+					"6238 BW Threshold %lld%% (%lld): "
+					"%lld%% %s: FPIN Alarm: cg:%d "
+					"Info:%u\n",
+					bwpcent, bw, pcent, s, cg,
+					phba->cmf_active_info);
+		} else if (sigcnt) {
+			wsigmax = bf_get(cmf_sync_wsigmax, &wqe->cmf_sync);
+			lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+					"6239 BW Threshold %lld%% (%lld): "
+					"%lld%% %s: Signal Warning: "
+					"Cnt %d Max %d: cg:%d Info:%u\n",
+					bwpcent, bw, pcent, s, sigcnt,
+					wsigmax, cg, phba->cmf_active_info);
+		} else if (fpincnt) {
+			wfpinmax = bf_get(cmf_sync_wfpinmax, &wqe->cmf_sync);
+			lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+					"6240 BW Threshold %lld%% (%lld): "
+					"%lld%% %s: FPIN Warning: "
+					"Cnt %d Max %d: cg:%d Info:%u\n",
+					bwpcent, bw, pcent, s, fpincnt,
+					wfpinmax, cg, phba->cmf_active_info);
+		} else {
+			lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+					"6241 BW Threshold %lld%% (%lld): "
+					"CMF %lld%% %s: cg:%d Info:%u\n",
+					bwpcent, bw, pcent, s, cg,
+					phba->cmf_active_info);
+		}
+	} else if (info) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"6246 Info Threshold %u\n", info);
+	}
+
+	/* Save BW change to be picked up during next timer interrupt */
+	phba->cmf_last_sync_bw = bw;
 out:
 	lpfc_sli_release_iocbq(phba, cmdiocb);
 }
@@ -4645,6 +4715,7 @@ lpfc_sli_brdready_s4(struct lpfc_hba *phba, uint32_t mask)
 	} else
 		phba->sli4_hba.intr_enable = 0;
 
+	phba->hba_flag &= ~HBA_SETUP;
 	return retval;
 }
 
@@ -4965,6 +5036,7 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 	phba->link_events = 0;
 	phba->pport->fc_myDID = 0;
 	phba->pport->fc_prevDID = 0;
+	phba->hba_flag &= ~HBA_SETUP;
 
 	spin_lock_irq(&phba->hbalock);
 	psli->sli_flag &= ~(LPFC_PROCESS_LA);
@@ -6663,8 +6735,14 @@ lpfc_set_features(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox,
 		bf_set(lpfc_mbx_set_feature_mi, &mbox->u.mqe.un.set_feature,
 		       phba->sli4_hba.pc_sli4_params.mi_ver);
 		break;
+	case LPFC_SET_ENABLE_CMF:
+		bf_set(lpfc_mbx_set_feature_dd, &mbox->u.mqe.un.set_feature, 1);
+		mbox->u.mqe.un.set_feature.feature = LPFC_SET_ENABLE_CMF;
+		mbox->u.mqe.un.set_feature.param_len = 4;
+		bf_set(lpfc_mbx_set_feature_cmf,
+		       &mbox->u.mqe.un.set_feature, 1);
+		break;
 	}
-
 	return;
 }
 
@@ -7813,10 +7891,11 @@ lpfc_cmf_setup(struct lpfc_hba *phba)
 {
 	LPFC_MBOXQ_t *mboxq;
 	struct lpfc_mqe *mqe;
+	struct lpfc_dmabuf *mp;
 	struct lpfc_pc_sli4_params *sli4_params;
 	struct lpfc_sli4_parameters *mbx_sli4_parameters;
 	int length;
-	int rc, mi_ver;
+	int rc, cmf, mi_ver;
 
 	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq)
@@ -7836,10 +7915,11 @@ lpfc_cmf_setup(struct lpfc_hba *phba)
 		return rc;
 	}
 
-	/* Gather info on MI support */
+	/* Gather info on CMF and MI support */
 	sli4_params = &phba->sli4_hba.pc_sli4_params;
 	mbx_sli4_parameters = &mqe->un.get_sli4_parameters.sli4_parameters;
 	sli4_params->mi_ver = bf_get(cfg_mi_ver, mbx_sli4_parameters);
+	sli4_params->cmf = bf_get(cfg_cmf, mbx_sli4_parameters);
 
 	/* Are we forcing MI off via module parameter? */
 	if (!phba->cfg_enable_mi)
@@ -7886,9 +7966,95 @@ lpfc_cmf_setup(struct lpfc_hba *phba)
 	if (sli4_params->mi_ver)
 		phba->cfg_fdmi_on = LPFC_FDMI_SUPPORT;
 
+	/* Always try to enable CMF feature if we can */
+	if (sli4_params->cmf) {
+		lpfc_set_features(phba, mboxq, LPFC_SET_ENABLE_CMF);
+		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+		cmf = bf_get(lpfc_mbx_set_feature_cmf,
+			     &mboxq->u.mqe.un.set_feature);
+		if (rc == MBX_SUCCESS && cmf) {
+			lpfc_printf_log(phba, KERN_WARNING, LOG_CGN_MGMT,
+					"6218 CMF is enabled: mode %d\n",
+					phba->cmf_active_mode);
+		} else {
+			lpfc_printf_log(phba, KERN_WARNING,
+					LOG_CGN_MGMT | LOG_INIT,
+					"6219 Enable CMF Mailbox x%x (x%x/x%x) "
+					"failed, rc:x%x dd:x%x\n",
+					bf_get(lpfc_mqe_command, &mboxq->u.mqe),
+					lpfc_sli_config_mbox_subsys_get
+						(phba, mboxq),
+					lpfc_sli_config_mbox_opcode_get
+						(phba, mboxq),
+					rc, cmf);
+			sli4_params->cmf = 0;
+			phba->cmf_active_mode = LPFC_CFG_OFF;
+			goto no_cmf;
+		}
+
+		/* Allocate Congestion Information Buffer */
+		if (!phba->cgn_i) {
+			mp = kmalloc(sizeof(*mp), GFP_KERNEL);
+			if (mp)
+				mp->virt = dma_alloc_coherent
+						(&phba->pcidev->dev,
+						sizeof(struct lpfc_cgn_info),
+						&mp->phys, GFP_KERNEL);
+			if (!mp || !mp->virt) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"2640 Failed to alloc memory "
+						"for Congestion Info\n");
+				kfree(mp);
+				sli4_params->cmf = 0;
+				phba->cmf_active_mode = LPFC_CFG_OFF;
+				goto no_cmf;
+			}
+			phba->cgn_i = mp;
+
+			/* initialize congestion buffer info */
+			lpfc_init_congestion_buf(phba);
+			lpfc_init_congestion_stat(phba);
+		}
+
+		rc = lpfc_sli4_cgn_params_read(phba);
+		if (rc < 0) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT | LOG_INIT,
+					"6242 Error reading Cgn Params (%d)\n",
+					rc);
+			/* Ensure CGN Mode is off */
+			sli4_params->cmf = 0;
+		} else if (!rc) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT | LOG_INIT,
+					"6243 CGN Event empty object.\n");
+			/* Ensure CGN Mode is off */
+			sli4_params->cmf = 0;
+		}
+	} else {
+no_cmf:
+		lpfc_printf_log(phba, KERN_WARNING, LOG_CGN_MGMT,
+				"6220 CMF is disabled\n");
+	}
+
+	/* Only register congestion buffer with firmware if BOTH
+	 * CMF and E2E are enabled.
+	 */
+	if (sli4_params->cmf && sli4_params->mi_ver) {
+		rc = lpfc_reg_congestion_buf(phba);
+		if (rc) {
+			dma_free_coherent(&phba->pcidev->dev,
+					  sizeof(struct lpfc_cgn_info),
+					  phba->cgn_i->virt, phba->cgn_i->phys);
+			kfree(phba->cgn_i);
+			phba->cgn_i = NULL;
+			/* Ensure CGN Mode is off */
+			phba->cmf_active_mode = LPFC_CFG_OFF;
+			return 0;
+		}
+	}
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-			"6470 Setup MI version %d\n",
-			sli4_params->mi_ver);
+			"6470 Setup MI version %d CMF %d mode %d\n",
+			sli4_params->mi_ver, sli4_params->cmf,
+			phba->cmf_active_mode);
 
 	mempool_free(mboxq, phba->mbox_mem_pool);
 
@@ -7901,6 +8067,7 @@ lpfc_cmf_setup(struct lpfc_hba *phba)
 	atomic_set(&phba->cgn_latency_evt_cnt, 0);
 	atomic64_set(&phba->cgn_latency_evt, 0);
 
+	phba->cmf_interval_rate = LPFC_CMF_INTERVAL;
 	return 0;
 }
 
@@ -8041,8 +8208,6 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	rc = lpfc_set_host_tm(phba);
 	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
 			"6468 Set host date / time: Status x%x:\n", rc);
-
-	lpfc_cmf_setup(phba);
 
 	/*
 	 * Continue initialization with default values even if driver failed
@@ -8571,6 +8736,9 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	/* Indicate device interrupt mode */
 	phba->sli4_hba.intr_enable = 1;
 
+	/* Setup CMF after HBA is initialized */
+	lpfc_cmf_setup(phba);
+
 	if (!(phba->hba_flag & HBA_FCOE_MODE) &&
 	    (phba->hba_flag & LINK_DISABLED)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
@@ -8592,7 +8760,10 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		}
 	}
 	mempool_free(mboxq, phba->mbox_mem_pool);
+
+	phba->hba_flag |= HBA_SETUP;
 	return rc;
+
 out_io_buff_free:
 	/* Free allocated IO Buffers */
 	lpfc_io_free(phba);
@@ -21104,8 +21275,7 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 	}
 
 	/* NVME_FCREQ and NVME_ABTS requests */
-	if (pwqe->iocb_flag & LPFC_IO_NVME ||
-	    pwqe->iocb_flag & LPFC_IO_FCP) {
+	if (pwqe->iocb_flag & (LPFC_IO_NVME | LPFC_IO_FCP | LPFC_IO_CMF)) {
 		/* Get the IO distribution (hba_wqidx) for WQ assignment. */
 		wq = qp->io_wq;
 		pring = wq->pring;

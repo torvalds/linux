@@ -550,6 +550,14 @@ struct lpfc_cgn_info {
 #define LPFC_CGN_INFO_SZ	(sizeof(struct lpfc_cgn_info) -  \
 				sizeof(uint32_t))
 
+struct lpfc_cgn_stat {
+	atomic64_t total_bytes;
+	atomic64_t rcv_bytes;
+	atomic64_t rx_latency;
+#define LPFC_CGN_NOT_SENT	0xFFFFFFFFFFFFFFFFLL
+	atomic_t rx_io_cnt;
+};
+
 struct lpfc_cgn_acqe_stat {
 	atomic64_t alarm;
 	atomic64_t warn;
@@ -1021,7 +1029,10 @@ struct lpfc_hba {
 					 * capability
 					 */
 #define HBA_FLOGI_ISSUED	0x100000 /* FLOGI was issued */
+#define HBA_CGN_RSVD1		0x200000 /* Reserved CGN flag */
+#define HBA_CGN_DAY_WRAP	0x400000 /* HBA Congestion info day wraps */
 #define HBA_DEFER_FLOGI		0x800000 /* Defer FLOGI till read_sparm cmpl */
+#define HBA_SETUP		0x1000000 /* Signifies HBA setup is completed */
 #define HBA_NEEDS_CFG_PORT	0x2000000 /* SLI3 - needs a CONFIG_PORT mbox */
 #define HBA_HBEAT_INP		0x4000000 /* mbox HBEAT is in progress */
 #define HBA_HBEAT_TMO		0x8000000 /* HBEAT initiated after timeout */
@@ -1272,6 +1283,7 @@ struct lpfc_hba {
 	uint32_t total_iocbq_bufs;
 	struct list_head active_rrq_list;
 	spinlock_t hbalock;
+	struct work_struct  unblock_request_work; /* SCSI layer unblock IOs */
 
 	/* dma_mem_pools */
 	struct dma_pool *lpfc_sg_dma_buf_pool;
@@ -1496,12 +1508,25 @@ struct lpfc_hba {
 	uint64_t ktime_seg10_max;
 #endif
 	/* CMF objects */
-	u32 cmf_active_mode;
-#define LPFC_CFG_OFF		0
-
+	struct lpfc_cgn_stat __percpu *cmf_stat;
+	uint32_t cmf_interval_rate;  /* timer interval limit in ms */
+	uint32_t cmf_timer_cnt;
 #define LPFC_CMF_INTERVAL 90
+	uint64_t cmf_link_byte_count;
+	uint64_t cmf_max_line_rate;
+	uint64_t cmf_max_bytes_per_interval;
+	uint64_t cmf_last_sync_bw;
 #define  LPFC_CMF_BLK_SIZE 512
+	struct hrtimer cmf_timer;
+	atomic_t cmf_bw_wait;
+	atomic_t cmf_busy;
+	atomic_t cmf_stop_io;      /* To block request and stop IO's */
+	uint32_t cmf_active_mode;
+	uint32_t cmf_info_per_interval;
 #define LPFC_MAX_CMF_INFO 32
+	struct timespec64 cmf_latency;  /* Interval congestion timestamp */
+	uint32_t cmf_last_ts;   /* Interval congestion time (ms) */
+	uint32_t cmf_active_info;
 
 	/* Signal / FPIN handling for Congestion Mgmt */
 	u8 cgn_reg_fpin;           /* Negotiated value from RDF */
@@ -1520,6 +1545,8 @@ struct lpfc_hba {
 #define LPFC_FPIN_INIT_FREQ	0xffff
 	u32 cgn_sig_freq;
 	u32 cgn_acqe_cnt;
+
+	uint64_t rx_block_cnt;
 
 	/* Congestion parameters from flash */
 	struct lpfc_cgn_param cgn_p;
