@@ -193,7 +193,7 @@ static bool range_is_memory(u64 start, u64 end)
 {
 	struct kvm_mem_range r1, r2;
 
-	if (!find_mem_range(start, &r1) || !find_mem_range(end, &r2))
+	if (!find_mem_range(start, &r1) || !find_mem_range(end - 1, &r2))
 		return false;
 	if (r1.start != r2.start)
 		return false;

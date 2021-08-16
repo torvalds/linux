@@ -183,7 +183,7 @@ static void flow_offload_fixup_ct_timeout(struct nf_conn *ct)
 	const struct nf_conntrack_l4proto *l4proto;
 	struct net *net = nf_ct_net(ct);
 	int l4num = nf_ct_protonum(ct);
-	unsigned int timeout;
+	s32 timeout;
 
 	l4proto = nf_ct_l4proto_find(l4num);
 	if (!l4proto)
@@ -192,14 +192,19 @@ static void flow_offload_fixup_ct_timeout(struct nf_conn *ct)
 	if (l4num == IPPROTO_TCP) {
 		struct nf_tcp_net *tn = nf_tcp_pernet(net);
 
-		timeout = tn->offload_pickup;
+		timeout = tn->timeouts[TCP_CONNTRACK_ESTABLISHED];
+		timeout -= tn->offload_timeout;
 	} else if (l4num == IPPROTO_UDP) {
 		struct nf_udp_net *tn = nf_udp_pernet(net);
 
-		timeout = tn->offload_pickup;
+		timeout = tn->timeouts[UDP_CT_REPLIED];
+		timeout -= tn->offload_timeout;
 	} else {
 		return;
 	}
+
+	if (timeout < 0)
+		timeout = 0;
 
 	if (nf_flow_timeout_delta(ct->timeout) > (__s32)timeout)
 		ct->timeout = nfct_time_stamp + timeout;

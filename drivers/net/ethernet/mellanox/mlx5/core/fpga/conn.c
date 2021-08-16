@@ -417,7 +417,6 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 	struct mlx5_wq_param wqp;
 	struct mlx5_cqe64 *cqe;
 	int inlen, err, eqn;
-	unsigned int irqn;
 	void *cqc, *in;
 	__be64 *pas;
 	u32 i;
@@ -446,7 +445,7 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 		goto err_cqwq;
 	}
 
-	err = mlx5_vector2eqn(mdev, smp_processor_id(), &eqn, &irqn);
+	err = mlx5_vector2eqn(mdev, smp_processor_id(), &eqn);
 	if (err) {
 		kvfree(in);
 		goto err_cqwq;
@@ -476,7 +475,6 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 	*conn->cq.mcq.arm_db    = 0;
 	conn->cq.mcq.vector     = 0;
 	conn->cq.mcq.comp       = mlx5_fpga_conn_cq_complete;
-	conn->cq.mcq.irqn       = irqn;
 	conn->cq.mcq.uar        = fdev->conn_res.uar;
 	tasklet_setup(&conn->cq.tasklet, mlx5_fpga_conn_cq_tasklet);
 

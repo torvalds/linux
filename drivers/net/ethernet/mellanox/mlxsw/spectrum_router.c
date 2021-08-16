@@ -9079,7 +9079,7 @@ mlxsw_sp_rif_fid_fid_get(struct mlxsw_sp_rif *rif,
 
 static void mlxsw_sp_rif_fid_fdb_del(struct mlxsw_sp_rif *rif, const char *mac)
 {
-	struct switchdev_notifier_fdb_info info;
+	struct switchdev_notifier_fdb_info info = {};
 	struct net_device *dev;
 
 	dev = br_fdb_find_port(rif->dev, mac, 0);
@@ -9127,8 +9127,8 @@ mlxsw_sp_rif_vlan_fid_get(struct mlxsw_sp_rif *rif,
 
 static void mlxsw_sp_rif_vlan_fdb_del(struct mlxsw_sp_rif *rif, const char *mac)
 {
+	struct switchdev_notifier_fdb_info info = {};
 	u16 vid = mlxsw_sp_fid_8021q_vid(rif->fid);
-	struct switchdev_notifier_fdb_info info;
 	struct net_device *br_dev;
 	struct net_device *dev;
 
