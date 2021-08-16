@@ -24,6 +24,7 @@
  * dns_resolve_server_name_to_ip - Resolve UNC server name to ip address.
  * @unc: UNC path specifying the server (with '/' as delimiter)
  * @ip_addr: Where to return the IP address.
+ * @expiry: Where to return the expiry time for the dns record.
  *
  * The IP address will be returned in string form, and the caller is
  * responsible for freeing it.
@@ -31,7 +32,7 @@
  * Returns length of result on success, -ve on error.
  */
 int
-dns_resolve_server_name_to_ip(const char *unc, char **ip_addr)
+dns_resolve_server_name_to_ip(const char *unc, char **ip_addr, time64_t *expiry)
 {
 	struct sockaddr_storage ss;
 	const char *hostname, *sep;
@@ -66,13 +67,14 @@ dns_resolve_server_name_to_ip(const char *unc, char **ip_addr)
 
 	/* Perform the upcall */
 	rc = dns_query(current->nsproxy->net_ns, NULL, hostname, len,
-		       NULL, ip_addr, NULL, false);
+		       NULL, ip_addr, expiry, false);
 	if (rc < 0)
 		cifs_dbg(FYI, "%s: unable to resolve: %*.*s\n",
 			 __func__, len, len, hostname);
 	else
-		cifs_dbg(FYI, "%s: resolved: %*.*s to %s\n",
-			 __func__, len, len, hostname, *ip_addr);
+		cifs_dbg(FYI, "%s: resolved: %*.*s to %s expiry %llu\n",
+			 __func__, len, len, hostname, *ip_addr,
+			 expiry ? (*expiry) : 0);
 	return rc;
 
 name_is_IP_address:

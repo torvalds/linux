@@ -100,6 +100,8 @@ static int ttm_global_init(void)
 	debugfs_create_atomic_t("buffer_objects", 0444, ttm_debugfs_root,
 				&glob->bo_count);
 out:
+	if (ret)
+		--ttm_glob_use_count;
 	mutex_unlock(&ttm_global_mutex);
 	return ret;
 }

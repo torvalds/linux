@@ -27,11 +27,11 @@
 #define BOOT_CHECK_DEFAULT_TIMEOUT 400
 
 /* IP MUX channel range */
-#define IP_MUX_SESSION_START 1
-#define IP_MUX_SESSION_END 8
+#define IP_MUX_SESSION_START 0
+#define IP_MUX_SESSION_END 7
 
 /* Default IP MUX channel */
-#define IP_MUX_SESSION_DEFAULT	1
+#define IP_MUX_SESSION_DEFAULT	0
 
 /**
  * ipc_imem_sys_port_open - Open a port link to CP.

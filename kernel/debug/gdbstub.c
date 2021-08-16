@@ -1045,8 +1045,8 @@ int gdb_serial_stub(struct kgdb_state *ks)
 				gdb_cmd_detachkill(ks);
 				return DBG_PASS_EVENT;
 			}
-#endif
 			fallthrough;
+#endif
 		case 'C': /* Exception passing */
 			tmp = gdb_cmd_exception_pass(ks);
 			if (tmp > 0)

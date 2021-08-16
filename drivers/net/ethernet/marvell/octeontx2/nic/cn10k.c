@@ -22,69 +22,52 @@ static struct dev_hw_ops cn10k_hw_ops = {
 	.refill_pool_ptrs = cn10k_refill_pool_ptrs,
 };
 
-int cn10k_pf_lmtst_init(struct otx2_nic *pf)
+int cn10k_lmtst_init(struct otx2_nic *pfvf)
 {
-	int size, num_lines;
-	u64 base;
 
-	if (!test_bit(CN10K_LMTST, &pf->hw.cap_flag)) {
-		pf->hw_ops = &otx2_hw_ops;
+	struct lmtst_tbl_setup_req *req;
+	int qcount, err;
+
+	if (!test_bit(CN10K_LMTST, &pfvf->hw.cap_flag)) {
+		pfvf->hw_ops = &otx2_hw_ops;
 		return 0;
 	}
 
-	pf->hw_ops = &cn10k_hw_ops;
-	base = pci_resource_start(pf->pdev, PCI_MBOX_BAR_NUM) +
-		       (MBOX_SIZE * (pf->total_vfs + 1));
+	pfvf->hw_ops = &cn10k_hw_ops;
+	qcount = pfvf->hw.max_queues;
+	/* LMTST lines allocation
+	 * qcount = num_online_cpus();
+	 * NPA = TX + RX + XDP.
+	 * NIX = TX * 32 (For Burst SQE flush).
+	 */
+	pfvf->tot_lmt_lines = (qcount * 3) + (qcount * 32);
+	pfvf->npa_lmt_lines = qcount * 3;
+	pfvf->nix_lmt_size =  LMT_BURST_SIZE * LMT_LINE_SIZE;
 
-	size = pci_resource_len(pf->pdev, PCI_MBOX_BAR_NUM) -
-	       (MBOX_SIZE * (pf->total_vfs + 1));
-
-	pf->hw.lmt_base = ioremap(base, size);
-
-	if (!pf->hw.lmt_base) {
-		dev_err(pf->dev, "Unable to map PF LMTST region\n");
+	mutex_lock(&pfvf->mbox.lock);
+	req = otx2_mbox_alloc_msg_lmtst_tbl_setup(&pfvf->mbox);
+	if (!req) {
+		mutex_unlock(&pfvf->mbox.lock);
 		return -ENOMEM;
 	}
 
-	/* FIXME: Get the num of LMTST lines from LMT table */
-	pf->tot_lmt_lines = size / LMT_LINE_SIZE;
-	num_lines = (pf->tot_lmt_lines - NIX_LMTID_BASE) /
-			    pf->hw.tx_queues;
-	/* Number of LMT lines per SQ queues */
-	pf->nix_lmt_lines = num_lines > 32 ? 32 : num_lines;
+	req->use_local_lmt_region = true;
 
-	pf->nix_lmt_size = pf->nix_lmt_lines * LMT_LINE_SIZE;
+	err = qmem_alloc(pfvf->dev, &pfvf->dync_lmt, pfvf->tot_lmt_lines,
+			 LMT_LINE_SIZE);
+	if (err) {
+		mutex_unlock(&pfvf->mbox.lock);
+		return err;
+	}
+	pfvf->hw.lmt_base = (u64 *)pfvf->dync_lmt->base;
+	req->lmt_iova = (u64)pfvf->dync_lmt->iova;
+
+	err = otx2_sync_mbox_msg(&pfvf->mbox);
+	mutex_unlock(&pfvf->mbox.lock);
+
 	return 0;
 }
-
-int cn10k_vf_lmtst_init(struct otx2_nic *vf)
-{
-	int size, num_lines;
-
-	if (!test_bit(CN10K_LMTST, &vf->hw.cap_flag)) {
-		vf->hw_ops = &otx2_hw_ops;
-		return 0;
-	}
-
-	vf->hw_ops = &cn10k_hw_ops;
-	size = pci_resource_len(vf->pdev, PCI_MBOX_BAR_NUM);
-	vf->hw.lmt_base = ioremap_wc(pci_resource_start(vf->pdev,
-							PCI_MBOX_BAR_NUM),
-				     size);
-	if (!vf->hw.lmt_base) {
-		dev_err(vf->dev, "Unable to map VF LMTST region\n");
-		return -ENOMEM;
-	}
-
-	vf->tot_lmt_lines = size / LMT_LINE_SIZE;
-	/* LMTST lines per SQ */
-	num_lines = (vf->tot_lmt_lines - NIX_LMTID_BASE) /
-			    vf->hw.tx_queues;
-	vf->nix_lmt_lines = num_lines > 32 ? 32 : num_lines;
-	vf->nix_lmt_size = vf->nix_lmt_lines * LMT_LINE_SIZE;
-	return 0;
-}
-EXPORT_SYMBOL(cn10k_vf_lmtst_init);
+EXPORT_SYMBOL(cn10k_lmtst_init);
 
 int cn10k_sq_aq_init(void *dev, u16 qidx, u16 sqb_aura)
 {
@@ -93,8 +76,10 @@ int cn10k_sq_aq_init(void *dev, u16 qidx, u16 sqb_aura)
 	struct otx2_snd_queue *sq;
 
 	sq = &pfvf->qset.sq[qidx];
-	sq->lmt_addr = (__force u64 *)((u64)pfvf->hw.nix_lmt_base +
+	sq->lmt_addr = (u64 *)((u64)pfvf->hw.nix_lmt_base +
 			       (qidx * pfvf->nix_lmt_size));
+
+	sq->lmt_id = pfvf->npa_lmt_lines + (qidx * LMT_BURST_SIZE);
 
 	/* Get memory to put this msg */
 	aq = otx2_mbox_alloc_msg_nix_cn10k_aq_enq(&pfvf->mbox);
@@ -158,15 +143,13 @@ void cn10k_refill_pool_ptrs(void *dev, struct otx2_cq_queue *cq)
 
 void cn10k_sqe_flush(void *dev, struct otx2_snd_queue *sq, int size, int qidx)
 {
-	struct otx2_nic *pfvf = dev;
-	int lmt_id = NIX_LMTID_BASE + (qidx * pfvf->nix_lmt_lines);
 	u64 val = 0, tar_addr = 0;
 
 	/* FIXME: val[0:10] LMT_ID.
 	 * [12:15] no of LMTST - 1 in the burst.
 	 * [19:63] data size of each LMTST in the burst except first.
 	 */
-	val = (lmt_id & 0x7FF);
+	val = (sq->lmt_id & 0x7FF);
 	/* Target address for LMTST flush tells HW how many 128bit
 	 * words are present.
 	 * tar_addr[6:4] size of first LMTST - 1 in units of 128b.

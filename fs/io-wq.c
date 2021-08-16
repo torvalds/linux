@@ -731,7 +731,12 @@ static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work)
 	int work_flags;
 	unsigned long flags;
 
-	if (test_bit(IO_WQ_BIT_EXIT, &wqe->wq->state)) {
+	/*
+	 * If io-wq is exiting for this task, or if the request has explicitly
+	 * been marked as one that should not get executed, cancel it here.
+	 */
+	if (test_bit(IO_WQ_BIT_EXIT, &wqe->wq->state) ||
+	    (work->flags & IO_WQ_WORK_CANCEL)) {
 		io_run_cancel(work, wqe);
 		return;
 	}

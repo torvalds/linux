@@ -230,8 +230,8 @@ static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 		/* If arch decided it can't, fall through... */
-#endif /* HAVE_PCI_MMAP */
 		fallthrough;
+#endif /* HAVE_PCI_MMAP */
 	default:
 		ret = -EINVAL;
 		break;

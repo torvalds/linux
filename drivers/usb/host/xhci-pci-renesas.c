@@ -207,8 +207,7 @@ static int renesas_check_rom_state(struct pci_dev *pdev)
 			return 0;
 
 		case RENESAS_ROM_STATUS_NO_RESULT: /* No result yet */
-			dev_dbg(&pdev->dev, "Unknown ROM status ...\n");
-			break;
+			return 0;
 
 		case RENESAS_ROM_STATUS_ERROR: /* Error State */
 		default: /* All other states are marked as "Reserved states" */
@@ -225,12 +224,13 @@ static int renesas_fw_check_running(struct pci_dev *pdev)
 	u8 fw_state;
 	int err;
 
-	/*
-	 * Only if device has ROM and loaded FW we can skip loading and
-	 * return success. Otherwise (even unknown state), attempt to load FW.
-	 */
-	if (renesas_check_rom(pdev) && !renesas_check_rom_state(pdev))
-		return 0;
+	/* Check if device has ROM and loaded, if so skip everything */
+	err = renesas_check_rom(pdev);
+	if (err) { /* we have rom */
+		err = renesas_check_rom_state(pdev);
+		if (!err)
+			return err;
+	}
 
 	/*
 	 * Test if the device is actually needing the firmware. As most

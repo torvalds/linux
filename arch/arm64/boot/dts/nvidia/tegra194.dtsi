@@ -948,6 +948,10 @@
 				 <&bpmp TEGRA194_CLK_XUSB_SS>,
 				 <&bpmp TEGRA194_CLK_XUSB_FS>;
 			clock-names = "dev", "ss", "ss_src", "fs_src";
+			interconnects = <&mc TEGRA194_MEMORY_CLIENT_XUSB_DEVR &emc>,
+					<&mc TEGRA194_MEMORY_CLIENT_XUSB_DEVW &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu TEGRA194_SID_XUSB_DEV>;
 			power-domains = <&bpmp TEGRA194_POWER_DOMAIN_XUSBB>,
 					<&bpmp TEGRA194_POWER_DOMAIN_XUSBA>;
 			power-domain-names = "dev", "ss";
@@ -977,6 +981,10 @@
 				      "xusb_ss", "xusb_ss_src", "xusb_hs_src",
 				      "xusb_fs_src", "pll_u_480m", "clk_m",
 				      "pll_e";
+			interconnects = <&mc TEGRA194_MEMORY_CLIENT_XUSB_HOSTR &emc>,
+					<&mc TEGRA194_MEMORY_CLIENT_XUSB_HOSTW &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu TEGRA194_SID_XUSB_HOST>;
 
 			power-domains = <&bpmp TEGRA194_POWER_DOMAIN_XUSBC>,
 					<&bpmp TEGRA194_POWER_DOMAIN_XUSBA>;
@@ -2469,6 +2477,11 @@
 		 * for 8x and 11.025x sample rate streams.
 		 */
 		assigned-clock-rates = <258000000>;
+
+		interconnects = <&mc TEGRA194_MEMORY_CLIENT_APEDMAR &emc>,
+				<&mc TEGRA194_MEMORY_CLIENT_APEDMAW &emc>;
+		interconnect-names = "dma-mem", "write";
+		iommus = <&smmu TEGRA194_SID_APE>;
 	};
 
 	tcu: tcu {

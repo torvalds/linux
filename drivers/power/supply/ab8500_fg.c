@@ -1728,6 +1728,7 @@ static void ab8500_fg_algorithm_calibrate(struct ab8500_fg *di)
 		break;
 	case AB8500_FG_CALIB_WAIT:
 		dev_dbg(di->dev, "Calibration WFI\n");
+		break;
 	default:
 		break;
 	}
@@ -2224,6 +2225,7 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 					queue_work(di->fg_wq, &di->fg_work);
 					break;
 				}
+				break;
 			default:
 				break;
 			}

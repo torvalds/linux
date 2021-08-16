@@ -2299,18 +2299,18 @@ mvneta_swbm_add_rx_fragment(struct mvneta_port *pp,
 		skb_frag_off_set(frag, pp->rx_offset_correction);
 		skb_frag_size_set(frag, data_len);
 		__skb_frag_set_page(frag, page);
-
-		/* last fragment */
-		if (len == *size) {
-			struct skb_shared_info *sinfo;
-
-			sinfo = xdp_get_shared_info_from_buff(xdp);
-			sinfo->nr_frags = xdp_sinfo->nr_frags;
-			memcpy(sinfo->frags, xdp_sinfo->frags,
-			       sinfo->nr_frags * sizeof(skb_frag_t));
-		}
 	} else {
 		page_pool_put_full_page(rxq->page_pool, page, true);
+	}
+
+	/* last fragment */
+	if (len == *size) {
+		struct skb_shared_info *sinfo;
+
+		sinfo = xdp_get_shared_info_from_buff(xdp);
+		sinfo->nr_frags = xdp_sinfo->nr_frags;
+		memcpy(sinfo->frags, xdp_sinfo->frags,
+		       sinfo->nr_frags * sizeof(skb_frag_t));
 	}
 	*size -= len;
 }
