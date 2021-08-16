@@ -155,7 +155,7 @@ void rtl8188e_Add_RateATid(struct adapter *pAdapter, u32 bitmap, u8 arg, u8 rssi
 {
 	struct hal_data_8188e *haldata = GET_HAL_DATA(pAdapter);
 
-	u8 macid, init_rate, raid, shortGIrate = false;
+	u8 macid, raid, shortGIrate = false;
 
 	macid = arg & 0x1f;
 
@@ -167,12 +167,7 @@ void rtl8188e_Add_RateATid(struct adapter *pAdapter, u32 bitmap, u8 arg, u8 rssi
 
 	bitmap |= ((raid << 28) & 0xf0000000);
 
-	init_rate = get_highest_rate_idx(bitmap & 0x0fffffff) & 0x3f;
-
 	shortGIrate = (arg & BIT(5)) ? true : false;
-
-	if (shortGIrate)
-		init_rate |= BIT(6);
 
 	raid = (bitmap >> 28) & 0x0f;
 
