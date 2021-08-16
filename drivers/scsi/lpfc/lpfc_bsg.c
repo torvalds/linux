@@ -5751,6 +5751,92 @@ job_error:
 
 }
 
+static int
+lpfc_get_cgnbuf_info(struct bsg_job *job)
+{
+	struct lpfc_vport *vport = shost_priv(fc_bsg_to_shost(job));
+	struct lpfc_hba *phba = vport->phba;
+	struct fc_bsg_request *bsg_request = job->request;
+	struct fc_bsg_reply *bsg_reply = job->reply;
+	struct get_cgnbuf_info_req *cgnbuf_req;
+	struct lpfc_cgn_info *cp;
+	uint8_t *cgn_buff;
+	int size, cinfosz;
+	int  rc = 0;
+
+	if (job->request_len < sizeof(struct fc_bsg_request) +
+	    sizeof(struct get_cgnbuf_info_req)) {
+		rc = -ENOMEM;
+		goto job_exit;
+	}
+
+	if (!phba->sli4_hba.pc_sli4_params.cmf) {
+		rc = -ENOENT;
+		goto job_exit;
+	}
+
+	if (!phba->cgn_i || !phba->cgn_i->virt) {
+		rc = -ENOENT;
+		goto job_exit;
+	}
+
+	cp = phba->cgn_i->virt;
+	if (cp->cgn_info_version < LPFC_CGN_INFO_V3) {
+		rc = -EPERM;
+		goto job_exit;
+	}
+
+	cgnbuf_req = (struct get_cgnbuf_info_req *)
+		bsg_request->rqst_data.h_vendor.vendor_cmd;
+
+	/* For reset or size == 0 */
+	bsg_reply->reply_payload_rcv_len = 0;
+
+	if (cgnbuf_req->reset == LPFC_BSG_CGN_RESET_STAT) {
+		lpfc_init_congestion_stat(phba);
+		goto job_exit;
+	}
+
+	/* We don't want to include the CRC at the end */
+	cinfosz = sizeof(struct lpfc_cgn_info) - sizeof(uint32_t);
+
+	size = cgnbuf_req->read_size;
+	if (!size)
+		goto job_exit;
+
+	if (size < cinfosz) {
+		/* Just copy back what we can */
+		cinfosz = size;
+		rc = -E2BIG;
+	}
+
+	/* Allocate memory to read congestion info */
+	cgn_buff = vmalloc(cinfosz);
+	if (!cgn_buff) {
+		rc = -ENOMEM;
+		goto job_exit;
+	}
+
+	memcpy(cgn_buff, cp, cinfosz);
+
+	bsg_reply->reply_payload_rcv_len =
+		sg_copy_from_buffer(job->reply_payload.sg_list,
+				    job->reply_payload.sg_cnt,
+				    cgn_buff, cinfosz);
+
+	vfree(cgn_buff);
+
+job_exit:
+	bsg_reply->result = rc;
+	if (!rc)
+		bsg_job_done(job, bsg_reply->result,
+			     bsg_reply->reply_payload_rcv_len);
+	else
+		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+				"2724 GET CGNBUF error: %d\n", rc);
+	return rc;
+}
+
 /**
  * lpfc_bsg_hst_vendor - process a vendor-specific fc_bsg_job
  * @job: fc_bsg_job to handle
@@ -5812,6 +5898,9 @@ lpfc_bsg_hst_vendor(struct bsg_job *job)
 		break;
 	case LPFC_BSG_VENDOR_GET_TRUNK_INFO:
 		rc = lpfc_get_trunk_info(job);
+		break;
+	case LPFC_BSG_VENDOR_GET_CGNBUF_INFO:
+		rc = lpfc_get_cgnbuf_info(job);
 		break;
 	default:
 		rc = -EINVAL;
