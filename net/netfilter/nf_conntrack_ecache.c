@@ -133,10 +133,15 @@ static void ecache_work(struct work_struct *work)
 int nf_conntrack_eventmask_report(unsigned int eventmask, struct nf_conn *ct,
 				  u32 portid, int report)
 {
-	int ret = 0;
 	struct net *net = nf_ct_net(ct);
 	struct nf_ct_event_notifier *notify;
 	struct nf_conntrack_ecache *e;
+	struct nf_ct_event item;
+	unsigned long missed;
+	int ret = 0;
+
+	if (!nf_ct_is_confirmed(ct))
+		return ret;
 
 	rcu_read_lock();
 	notify = rcu_dereference(net->ct.nf_conntrack_event_cb);
@@ -147,38 +152,37 @@ int nf_conntrack_eventmask_report(unsigned int eventmask, struct nf_conn *ct,
 	if (!e)
 		goto out_unlock;
 
-	if (nf_ct_is_confirmed(ct)) {
-		struct nf_ct_event item = {
-			.ct	= ct,
-			.portid	= e->portid ? e->portid : portid,
-			.report = report
-		};
-		/* This is a resent of a destroy event? If so, skip missed */
-		unsigned long missed = e->portid ? 0 : e->missed;
+	memset(&item, 0, sizeof(item));
 
-		if (!((eventmask | missed) & e->ctmask))
-			goto out_unlock;
+	item.ct = ct;
+	item.portid = e->portid ? e->portid : portid;
+	item.report = report;
 
-		ret = notify->fcn(eventmask | missed, &item);
-		if (unlikely(ret < 0 || missed)) {
-			spin_lock_bh(&ct->lock);
-			if (ret < 0) {
-				/* This is a destroy event that has been
-				 * triggered by a process, we store the PORTID
-				 * to include it in the retransmission.
-				 */
-				if (eventmask & (1 << IPCT_DESTROY)) {
-					if (e->portid == 0 && portid != 0)
-						e->portid = portid;
-					e->state = NFCT_ECACHE_DESTROY_FAIL;
-				} else {
-					e->missed |= eventmask;
-				}
+	/* This is a resent of a destroy event? If so, skip missed */
+	missed = e->portid ? 0 : e->missed;
+
+	if (!((eventmask | missed) & e->ctmask))
+		goto out_unlock;
+
+	ret = notify->fcn(eventmask | missed, &item);
+	if (unlikely(ret < 0 || missed)) {
+		spin_lock_bh(&ct->lock);
+		if (ret < 0) {
+			/* This is a destroy event that has been
+			 * triggered by a process, we store the PORTID
+			 * to include it in the retransmission.
+			 */
+			if (eventmask & (1 << IPCT_DESTROY)) {
+				if (e->portid == 0 && portid != 0)
+					e->portid = portid;
+				e->state = NFCT_ECACHE_DESTROY_FAIL;
 			} else {
-				e->missed &= ~missed;
+				e->missed |= eventmask;
 			}
-			spin_unlock_bh(&ct->lock);
+		} else {
+			e->missed &= ~missed;
 		}
+		spin_unlock_bh(&ct->lock);
 	}
 out_unlock:
 	rcu_read_unlock();

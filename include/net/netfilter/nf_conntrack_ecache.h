@@ -73,7 +73,7 @@ struct nf_ct_event {
 };
 
 struct nf_ct_event_notifier {
-	int (*fcn)(unsigned int events, struct nf_ct_event *item);
+	int (*fcn)(unsigned int events, const struct nf_ct_event *item);
 };
 
 int nf_conntrack_register_notifier(struct net *net,
