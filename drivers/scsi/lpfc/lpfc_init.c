@@ -12234,6 +12234,115 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 		phba->pport->work_port_events = 0;
 }
 
+
+void
+lpfc_init_congestion_buf(struct lpfc_hba *phba)
+{
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+			"6235 INIT Congestion Buffer %p\n", phba->cgn_i);
+
+	if (!phba->cgn_i)
+		return;
+
+	atomic_set(&phba->cgn_fabric_warn_cnt, 0);
+	atomic_set(&phba->cgn_fabric_alarm_cnt, 0);
+	atomic_set(&phba->cgn_sync_alarm_cnt, 0);
+	atomic_set(&phba->cgn_sync_warn_cnt, 0);
+
+	atomic64_set(&phba->cgn_acqe_stat.alarm, 0);
+	atomic64_set(&phba->cgn_acqe_stat.warn, 0);
+	atomic_set(&phba->cgn_driver_evt_cnt, 0);
+	atomic_set(&phba->cgn_latency_evt_cnt, 0);
+	atomic64_set(&phba->cgn_latency_evt, 0);
+	phba->cgn_evt_minute = 0;
+
+	phba->cgn_evt_timestamp = jiffies +
+		msecs_to_jiffies(LPFC_CGN_TIMER_TO_MIN);
+}
+
+void
+lpfc_init_congestion_stat(struct lpfc_hba *phba)
+{
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+			"6236 INIT Congestion Stat %p\n", phba->cgn_i);
+
+	if (!phba->cgn_i)
+		return;
+}
+
+/**
+ * __lpfc_reg_congestion_buf - register congestion info buffer with HBA
+ * @phba: Pointer to hba context object.
+ * @reg: flag to determine register or unregister.
+ */
+static int
+__lpfc_reg_congestion_buf(struct lpfc_hba *phba, int reg)
+{
+	struct lpfc_mbx_reg_congestion_buf *reg_congestion_buf;
+	union  lpfc_sli4_cfg_shdr *shdr;
+	uint32_t shdr_status, shdr_add_status;
+	LPFC_MBOXQ_t *mboxq;
+	int length, rc;
+
+	if (!phba->cgn_i)
+		return -ENXIO;
+
+	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+				"2641 REG_CONGESTION_BUF mbox allocation fail: "
+				"HBA state x%x reg %d\n",
+				phba->pport->port_state, reg);
+		return -ENOMEM;
+	}
+
+	length = (sizeof(struct lpfc_mbx_reg_congestion_buf) -
+		sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_REG_CONGESTION_BUF, length,
+			 LPFC_SLI4_MBX_EMBED);
+	reg_congestion_buf = &mboxq->u.mqe.un.reg_congestion_buf;
+	bf_set(lpfc_mbx_reg_cgn_buf_type, reg_congestion_buf, 1);
+	if (reg > 0)
+		bf_set(lpfc_mbx_reg_cgn_buf_cnt, reg_congestion_buf, 1);
+	else
+		bf_set(lpfc_mbx_reg_cgn_buf_cnt, reg_congestion_buf, 0);
+	reg_congestion_buf->length = sizeof(struct lpfc_cgn_info);
+	reg_congestion_buf->addr_lo =
+		putPaddrLow(phba->cgn_i->phys);
+	reg_congestion_buf->addr_hi =
+		putPaddrHigh(phba->cgn_i->phys);
+
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+	shdr = (union lpfc_sli4_cfg_shdr *)
+		&mboxq->u.mqe.un.sli4_config.header.cfg_shdr;
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
+				 &shdr->response);
+	mempool_free(mboxq, phba->mbox_mem_pool);
+	if (shdr_status || shdr_add_status || rc) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"2642 REG_CONGESTION_BUF mailbox "
+				"failed with status x%x add_status x%x,"
+				" mbx status x%x reg %d\n",
+				shdr_status, shdr_add_status, rc, reg);
+		return -ENXIO;
+	}
+	return 0;
+}
+
+static int
+lpfc_unreg_congestion_buf(struct lpfc_hba *phba)
+{
+	return __lpfc_reg_congestion_buf(phba, 0);
+}
+
+int
+lpfc_reg_congestion_buf(struct lpfc_hba *phba)
+{
+	return __lpfc_reg_congestion_buf(phba, 1);
+}
+
 /**
  * lpfc_get_sli4_parameters - Get the SLI4 Config PARAMETERS.
  * @phba: Pointer to HBA context object.
