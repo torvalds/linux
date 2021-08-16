@@ -1016,9 +1016,9 @@ int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
 
 	struct page *page;
 	MKSGuestStatInstanceDescriptor *pdesc;
-	const size_t num_pages_stat = vmw_num_pages(arg->stat_len);
-	const size_t num_pages_info = vmw_num_pages(arg->info_len);
-	const size_t num_pages_strs = vmw_num_pages(arg->strs_len);
+	const size_t num_pages_stat = PFN_UP(arg->stat_len);
+	const size_t num_pages_info = PFN_UP(arg->info_len);
+	const size_t num_pages_strs = PFN_UP(arg->strs_len);
 	long desc_len;
 	long nr_pinned_stat;
 	long nr_pinned_info;

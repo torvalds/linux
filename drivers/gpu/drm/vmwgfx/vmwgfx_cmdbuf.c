@@ -358,8 +358,7 @@ static void vmw_cmdbuf_ctx_submit(struct vmw_cmdbuf_man *man,
 			break;
 		}
 
-		list_del(&entry->list);
-		list_add_tail(&entry->list, &ctx->hw_submitted);
+		list_move_tail(&entry->list, &ctx->hw_submitted);
 		ctx->num_hw_submitted++;
 	}
 
@@ -802,7 +801,7 @@ static int vmw_cmdbuf_alloc_space(struct vmw_cmdbuf_man *man,
 {
 	struct vmw_cmdbuf_alloc_info info;
 
-	info.page_size = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	info.page_size = PFN_UP(size);
 	info.node = node;
 	info.done = false;
 

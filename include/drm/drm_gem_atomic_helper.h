@@ -42,6 +42,14 @@ struct drm_shadow_plane_state {
 	 * prepare_fb callback and removed in the cleanup_fb callback.
 	 */
 	struct dma_buf_map map[DRM_FORMAT_MAX_PLANES];
+
+	/**
+	 * @data: Address of each framebuffer BO's data
+	 *
+	 * The address of the data stored in each mapping. This is different
+	 * for framebuffers with non-zero offset fields.
+	 */
+	struct dma_buf_map data[DRM_FORMAT_MAX_PLANES];
 };
 
 /**

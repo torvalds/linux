@@ -353,8 +353,7 @@ int vmw_user_lookup_handle(struct vmw_private *dev_priv,
 static int vmw_resource_buf_alloc(struct vmw_resource *res,
 				  bool interruptible)
 {
-	unsigned long size =
-		(res->backup_size + PAGE_SIZE - 1) & PAGE_MASK;
+	unsigned long size = PFN_ALIGN(res->backup_size);
 	struct vmw_buffer_object *backup;
 	int ret;
 

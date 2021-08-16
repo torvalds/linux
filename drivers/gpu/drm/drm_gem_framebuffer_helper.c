@@ -315,11 +315,16 @@ EXPORT_SYMBOL_GPL(drm_gem_fb_create_with_dirty);
  * drm_gem_fb_vmap - maps all framebuffer BOs into kernel address space
  * @fb: the framebuffer
  * @map: returns the mapping's address for each BO
+ * @data: returns the data address for each BO, can be NULL
  *
  * This function maps all buffer objects of the given framebuffer into
  * kernel address space and stores them in struct dma_buf_map. If the
  * mapping operation fails for one of the BOs, the function unmaps the
  * already established mappings automatically.
+ *
+ * Callers that want to access a BO's stored data should pass @data.
+ * The argument returns the addresses of the data stored in each BO. This
+ * is different from @map if the framebuffer's offsets field is non-zero.
  *
  * See drm_gem_fb_vunmap() for unmapping.
  *
@@ -327,7 +332,8 @@ EXPORT_SYMBOL_GPL(drm_gem_fb_create_with_dirty);
  * 0 on success, or a negative errno code otherwise.
  */
 int drm_gem_fb_vmap(struct drm_framebuffer *fb,
-		    struct dma_buf_map map[static DRM_FORMAT_MAX_PLANES])
+		    struct dma_buf_map map[static DRM_FORMAT_MAX_PLANES],
+		    struct dma_buf_map data[DRM_FORMAT_MAX_PLANES])
 {
 	struct drm_gem_object *obj;
 	unsigned int i;
@@ -342,6 +348,15 @@ int drm_gem_fb_vmap(struct drm_framebuffer *fb,
 		ret = drm_gem_vmap(obj, &map[i]);
 		if (ret)
 			goto err_drm_gem_vunmap;
+	}
+
+	if (data) {
+		for (i = 0; i < DRM_FORMAT_MAX_PLANES; ++i) {
+			memcpy(&data[i], &map[i], sizeof(data[i]));
+			if (dma_buf_map_is_null(&data[i]))
+				continue;
+			dma_buf_map_incr(&data[i], fb->offsets[i]);
+		}
 	}
 
 	return 0;

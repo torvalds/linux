@@ -256,8 +256,7 @@ static int vmw_otable_batch_setup(struct vmw_private *dev_priv,
 		if (!otables[i].enabled)
 			continue;
 
-		otables[i].size =
-			(otables[i].size + PAGE_SIZE - 1) & PAGE_MASK;
+		otables[i].size = PFN_ALIGN(otables[i].size);
 		bo_size += otables[i].size;
 	}
 
@@ -385,7 +384,7 @@ static unsigned long vmw_mob_calculate_pt_pages(unsigned long data_pages)
 	while (likely(data_size > PAGE_SIZE)) {
 		data_size = DIV_ROUND_UP(data_size, PAGE_SIZE);
 		data_size *= VMW_PPN_SIZE;
-		tot_size += (data_size + PAGE_SIZE - 1) & PAGE_MASK;
+		tot_size += PFN_ALIGN(data_size);
 	}
 
 	return tot_size >> PAGE_SHIFT;

@@ -33,6 +33,8 @@ struct mxsfb_drm_private {
 	struct clk			*clk_axi;
 	struct clk			*clk_disp_axi;
 
+	unsigned int			irq;
+
 	struct drm_device		*drm;
 	struct {
 		struct drm_plane	primary;

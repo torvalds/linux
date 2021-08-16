@@ -701,29 +701,6 @@ static int ingenic_drm_encoder_atomic_check(struct drm_encoder *encoder,
 	}
 }
 
-static void ingenic_drm_atomic_helper_commit_tail(struct drm_atomic_state *old_state)
-{
-	/*
-	 * Just your regular drm_atomic_helper_commit_tail(), but only calls
-	 * drm_atomic_helper_wait_for_vblanks() if priv->no_vblank.
-	 */
-	struct drm_device *dev = old_state->dev;
-	struct ingenic_drm *priv = drm_device_get_priv(dev);
-
-	drm_atomic_helper_commit_modeset_disables(dev, old_state);
-
-	drm_atomic_helper_commit_planes(dev, old_state, 0);
-
-	drm_atomic_helper_commit_modeset_enables(dev, old_state);
-
-	drm_atomic_helper_commit_hw_done(old_state);
-
-	if (!priv->no_vblank)
-		drm_atomic_helper_wait_for_vblanks(dev, old_state);
-
-	drm_atomic_helper_cleanup_planes(dev, old_state);
-}
-
 static irqreturn_t ingenic_drm_irq_handler(int irq, void *arg)
 {
 	struct ingenic_drm *priv = drm_device_get_priv(arg);
@@ -743,6 +720,9 @@ static irqreturn_t ingenic_drm_irq_handler(int irq, void *arg)
 static int ingenic_drm_enable_vblank(struct drm_crtc *crtc)
 {
 	struct ingenic_drm *priv = drm_crtc_get_priv(crtc);
+
+	if (priv->no_vblank)
+		return -EINVAL;
 
 	regmap_update_bits(priv->map, JZ_REG_LCD_CTRL,
 			   JZ_LCD_CTRL_EOF_IRQ, JZ_LCD_CTRL_EOF_IRQ);
@@ -851,7 +831,7 @@ static const struct drm_mode_config_funcs ingenic_drm_mode_config_funcs = {
 };
 
 static struct drm_mode_config_helper_funcs ingenic_drm_mode_config_helpers = {
-	.atomic_commit_tail = ingenic_drm_atomic_helper_commit_tail,
+	.atomic_commit_tail = drm_atomic_helper_commit_tail,
 };
 
 static void ingenic_drm_unbind_all(void *d)
@@ -983,9 +963,6 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 		+ offsetof(struct ingenic_dma_hwdescs, palette);
 	priv->dma_hwdescs->hwdesc_pal.cmd = JZ_LCD_CMD_ENABLE_PAL
 		| (sizeof(priv->dma_hwdescs->palette) / 4);
-
-	if (soc_info->has_osd)
-		priv->ipu_plane = drm_plane_from_index(drm, 0);
 
 	primary = priv->soc_info->has_osd ? &priv->f1 : &priv->f0;
 

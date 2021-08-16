@@ -150,7 +150,7 @@ struct msm_kms {
 	const struct msm_kms_funcs *funcs;
 	struct drm_device *dev;
 
-	/* irq number to be passed on to drm_irq_install */
+	/* irq number to be passed on to msm_irq_install */
 	int irq;
 
 	/* mapper-id used to request GEM buffer mapped for scanout: */

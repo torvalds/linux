@@ -111,7 +111,7 @@ static void vkms_plane_atomic_update(struct drm_plane *plane,
 	memcpy(&composer->src, &new_state->src, sizeof(struct drm_rect));
 	memcpy(&composer->dst, &new_state->dst, sizeof(struct drm_rect));
 	memcpy(&composer->fb, fb, sizeof(struct drm_framebuffer));
-	memcpy(&composer->map, &shadow_plane_state->map, sizeof(composer->map));
+	memcpy(&composer->map, &shadow_plane_state->data, sizeof(composer->map));
 	drm_framebuffer_get(&composer->fb);
 	composer->offset = fb->offsets[0];
 	composer->pitch = fb->pitches[0];
