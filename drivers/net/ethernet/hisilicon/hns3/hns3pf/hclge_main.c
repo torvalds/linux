@@ -12843,6 +12843,29 @@ static int hclge_get_module_eeprom(struct hnae3_handle *handle, u32 offset,
 	return 0;
 }
 
+static int hclge_get_link_diagnosis_info(struct hnae3_handle *handle,
+					 u32 *status_code)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	struct hclge_desc desc;
+	int ret;
+
+	if (hdev->ae_dev->dev_version <= HNAE3_DEVICE_VERSION_V2)
+		return -EOPNOTSUPP;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_LINK_DIAGNOSIS, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to query link diagnosis info, ret = %d\n", ret);
+		return ret;
+	}
+
+	*status_code = le32_to_cpu(desc.data[0]);
+	return 0;
+}
+
 static const struct hnae3_ae_ops hclge_ops = {
 	.init_ae_dev = hclge_init_ae_dev,
 	.uninit_ae_dev = hclge_uninit_ae_dev,
@@ -12943,6 +12966,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_tx_hwts_info = hclge_ptp_set_tx_info,
 	.get_rx_hwts = hclge_ptp_get_rx_hwts,
 	.get_ts_info = hclge_ptp_get_ts_info,
+	.get_link_diagnosis_info = hclge_get_link_diagnosis_info,
 };
 
 static struct hnae3_ae_algo ae_algo = {
