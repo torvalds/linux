@@ -4624,7 +4624,8 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 	     ((ino < EXT4_FIRST_INO(sb) && ino != EXT4_ROOT_INO) ||
 	      ino == le32_to_cpu(es->s_usr_quota_inum) ||
 	      ino == le32_to_cpu(es->s_grp_quota_inum) ||
-	      ino == le32_to_cpu(es->s_prj_quota_inum))) ||
+	      ino == le32_to_cpu(es->s_prj_quota_inum) ||
+	      ino == le32_to_cpu(es->s_orphan_file_inum))) ||
 	    (ino < EXT4_ROOT_INO) ||
 	    (ino > le32_to_cpu(es->s_inodes_count))) {
 		if (flags & EXT4_IGET_HANDLE)

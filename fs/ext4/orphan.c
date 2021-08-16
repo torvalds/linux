@@ -8,6 +8,52 @@
 #include "ext4.h"
 #include "ext4_jbd2.h"
 
+static int ext4_orphan_file_add(handle_t *handle, struct inode *inode)
+{
+	int i, j;
+	struct ext4_orphan_info *oi = &EXT4_SB(inode->i_sb)->s_orphan_info;
+	int ret = 0;
+	__le32 *bdata;
+	int inodes_per_ob = ext4_inodes_per_orphan_block(inode->i_sb);
+
+	spin_lock(&oi->of_lock);
+	for (i = 0; i < oi->of_blocks && !oi->of_binfo[i].ob_free_entries; i++);
+	if (i == oi->of_blocks) {
+		spin_unlock(&oi->of_lock);
+		/*
+		 * For now we don't grow or shrink orphan file. We just use
+		 * whatever was allocated at mke2fs time. The additional
+		 * credits we would have to reserve for each orphan inode
+		 * operation just don't seem worth it.
+		 */
+		return -ENOSPC;
+	}
+	oi->of_binfo[i].ob_free_entries--;
+	spin_unlock(&oi->of_lock);
+
+	/*
+	 * Get access to orphan block. We have dropped of_lock but since we
+	 * have decremented number of free entries we are guaranteed free entry
+	 * in our block.
+	 */
+	ret = ext4_journal_get_write_access(handle, inode->i_sb,
+				oi->of_binfo[i].ob_bh, EXT4_JTR_ORPHAN_FILE);
+	if (ret)
+		return ret;
+
+	bdata = (__le32 *)(oi->of_binfo[i].ob_bh->b_data);
+	spin_lock(&oi->of_lock);
+	/* Find empty slot in a block */
+	for (j = 0; j < inodes_per_ob && bdata[j]; j++);
+	BUG_ON(j == inodes_per_ob);
+	bdata[j] = cpu_to_le32(inode->i_ino);
+	EXT4_I(inode)->i_orphan_idx = i * inodes_per_ob + j;
+	ext4_set_inode_state(inode, EXT4_STATE_ORPHAN_FILE);
+	spin_unlock(&oi->of_lock);
+
+	return ext4_handle_dirty_metadata(handle, NULL, oi->of_binfo[i].ob_bh);
+}
+
 /*
  * ext4_orphan_add() links an unlinked or truncated inode into a list of
  * such inodes, starting at the superblock, in case we crash before the
@@ -34,10 +80,10 @@ int ext4_orphan_add(handle_t *handle, struct inode *inode)
 	WARN_ON_ONCE(!(inode->i_state & (I_NEW | I_FREEING)) &&
 		     !inode_is_locked(inode));
 	/*
-	 * Exit early if inode already is on orphan list. This is a big speedup
-	 * since we don't have to contend on the global s_orphan_lock.
+	 * Inode orphaned in orphan file or in orphan list?
 	 */
-	if (!list_empty(&EXT4_I(inode)->i_orphan))
+	if (ext4_test_inode_state(inode, EXT4_STATE_ORPHAN_FILE) ||
+	    !list_empty(&EXT4_I(inode)->i_orphan))
 		return 0;
 
 	/*
@@ -48,6 +94,16 @@ int ext4_orphan_add(handle_t *handle, struct inode *inode)
 	 */
 	ASSERT((S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 		  S_ISLNK(inode->i_mode)) || inode->i_nlink == 0);
+
+	if (sbi->s_orphan_info.of_blocks) {
+		err = ext4_orphan_file_add(handle, inode);
+		/*
+		 * Fallback to normal orphan list of orphan file is
+		 * out of space
+		 */
+		if (err != -ENOSPC)
+			return err;
+	}
 
 	BUFFER_TRACE(sbi->s_sbh, "get_write_access");
 	err = ext4_journal_get_write_access(handle, sb, sbi->s_sbh,
@@ -103,6 +159,39 @@ out:
 	return err;
 }
 
+static int ext4_orphan_file_del(handle_t *handle, struct inode *inode)
+{
+	struct ext4_orphan_info *oi = &EXT4_SB(inode->i_sb)->s_orphan_info;
+	__le32 *bdata;
+	int blk, off;
+	int inodes_per_ob = ext4_inodes_per_orphan_block(inode->i_sb);
+	int ret = 0;
+
+	if (!handle)
+		goto out;
+	blk = EXT4_I(inode)->i_orphan_idx / inodes_per_ob;
+	off = EXT4_I(inode)->i_orphan_idx % inodes_per_ob;
+	if (WARN_ON_ONCE(blk >= oi->of_blocks))
+		goto out;
+
+	ret = ext4_journal_get_write_access(handle, inode->i_sb,
+				oi->of_binfo[blk].ob_bh, EXT4_JTR_ORPHAN_FILE);
+	if (ret)
+		goto out;
+
+	bdata = (__le32 *)(oi->of_binfo[blk].ob_bh->b_data);
+	spin_lock(&oi->of_lock);
+	bdata[off] = 0;
+	oi->of_binfo[blk].ob_free_entries++;
+	spin_unlock(&oi->of_lock);
+	ret = ext4_handle_dirty_metadata(handle, NULL, oi->of_binfo[blk].ob_bh);
+out:
+	ext4_clear_inode_state(inode, EXT4_STATE_ORPHAN_FILE);
+	INIT_LIST_HEAD(&EXT4_I(inode)->i_orphan);
+
+	return ret;
+}
+
 /*
  * ext4_orphan_del() removes an unlinked or truncated inode from the list
  * of such inodes stored on disk, because it is finally being cleaned up.
@@ -121,6 +210,9 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 
 	WARN_ON_ONCE(!(inode->i_state & (I_NEW | I_FREEING)) &&
 		     !inode_is_locked(inode));
+	if (ext4_test_inode_state(inode, EXT4_STATE_ORPHAN_FILE))
+		return ext4_orphan_file_del(handle, inode);
+
 	/* Do this quick check before taking global s_orphan_lock. */
 	if (list_empty(&ei->i_orphan))
 		return 0;
@@ -200,6 +292,46 @@ static int ext4_quota_on_mount(struct super_block *sb, int type)
 }
 #endif
 
+static void ext4_process_orphan(struct inode *inode,
+				int *nr_truncates, int *nr_orphans)
+{
+	struct super_block *sb = inode->i_sb;
+	int ret;
+
+	dquot_initialize(inode);
+	if (inode->i_nlink) {
+		if (test_opt(sb, DEBUG))
+			ext4_msg(sb, KERN_DEBUG,
+				"%s: truncating inode %lu to %lld bytes",
+				__func__, inode->i_ino, inode->i_size);
+		jbd_debug(2, "truncating inode %lu to %lld bytes\n",
+			  inode->i_ino, inode->i_size);
+		inode_lock(inode);
+		truncate_inode_pages(inode->i_mapping, inode->i_size);
+		ret = ext4_truncate(inode);
+		if (ret) {
+			/*
+			 * We need to clean up the in-core orphan list
+			 * manually if ext4_truncate() failed to get a
+			 * transaction handle.
+			 */
+			ext4_orphan_del(NULL, inode);
+			ext4_std_error(inode->i_sb, ret);
+		}
+		inode_unlock(inode);
+		(*nr_truncates)++;
+	} else {
+		if (test_opt(sb, DEBUG))
+			ext4_msg(sb, KERN_DEBUG,
+				"%s: deleting unreferenced inode %lu",
+				__func__, inode->i_ino);
+		jbd_debug(2, "deleting unreferenced inode %lu\n",
+			  inode->i_ino);
+		(*nr_orphans)++;
+	}
+	iput(inode);  /* The delete magic happens here! */
+}
+
 /* ext4_orphan_cleanup() walks a singly-linked list of inodes (starting at
  * the superblock) which were deleted from all directories, but held open by
  * a process at the time of a crash.  We walk the list and try to delete these
@@ -220,12 +352,17 @@ static int ext4_quota_on_mount(struct super_block *sb, int type)
 void ext4_orphan_cleanup(struct super_block *sb, struct ext4_super_block *es)
 {
 	unsigned int s_flags = sb->s_flags;
-	int ret, nr_orphans = 0, nr_truncates = 0;
+	int nr_orphans = 0, nr_truncates = 0;
+	struct inode *inode;
+	int i, j;
 #ifdef CONFIG_QUOTA
 	int quota_update = 0;
-	int i;
 #endif
-	if (!es->s_last_orphan) {
+	__le32 *bdata;
+	struct ext4_orphan_info *oi = &EXT4_SB(sb)->s_orphan_info;
+	int inodes_per_ob = ext4_inodes_per_orphan_block(sb);
+
+	if (!es->s_last_orphan && !oi->of_blocks) {
 		jbd_debug(4, "no orphan inodes to clean up\n");
 		return;
 	}
@@ -289,8 +426,6 @@ void ext4_orphan_cleanup(struct super_block *sb, struct ext4_super_block *es)
 #endif
 
 	while (es->s_last_orphan) {
-		struct inode *inode;
-
 		/*
 		 * We may have encountered an error during cleanup; if
 		 * so, skip the rest.
@@ -308,38 +443,21 @@ void ext4_orphan_cleanup(struct super_block *sb, struct ext4_super_block *es)
 		}
 
 		list_add(&EXT4_I(inode)->i_orphan, &EXT4_SB(sb)->s_orphan);
-		dquot_initialize(inode);
-		if (inode->i_nlink) {
-			if (test_opt(sb, DEBUG))
-				ext4_msg(sb, KERN_DEBUG,
-					"%s: truncating inode %lu to %lld bytes",
-					__func__, inode->i_ino, inode->i_size);
-			jbd_debug(2, "truncating inode %lu to %lld bytes\n",
-				  inode->i_ino, inode->i_size);
-			inode_lock(inode);
-			truncate_inode_pages(inode->i_mapping, inode->i_size);
-			ret = ext4_truncate(inode);
-			if (ret) {
-				/*
-				 * We need to clean up the in-core orphan list
-				 * manually if ext4_truncate() failed to get a
-				 * transaction handle.
-				 */
-				ext4_orphan_del(NULL, inode);
-				ext4_std_error(inode->i_sb, ret);
-			}
-			inode_unlock(inode);
-			nr_truncates++;
-		} else {
-			if (test_opt(sb, DEBUG))
-				ext4_msg(sb, KERN_DEBUG,
-					"%s: deleting unreferenced inode %lu",
-					__func__, inode->i_ino);
-			jbd_debug(2, "deleting unreferenced inode %lu\n",
-				  inode->i_ino);
-			nr_orphans++;
+		ext4_process_orphan(inode, &nr_truncates, &nr_orphans);
+	}
+
+	for (i = 0; i < oi->of_blocks; i++) {
+		bdata = (__le32 *)(oi->of_binfo[i].ob_bh->b_data);
+		for (j = 0; j < inodes_per_ob; j++) {
+			if (!bdata[j])
+				continue;
+			inode = ext4_orphan_get(sb, le32_to_cpu(bdata[j]));
+			if (IS_ERR(inode))
+				continue;
+			ext4_set_inode_state(inode, EXT4_STATE_ORPHAN_FILE);
+			EXT4_I(inode)->i_orphan_idx = i * inodes_per_ob + j;
+			ext4_process_orphan(inode, &nr_truncates, &nr_orphans);
 		}
-		iput(inode);  /* The delete magic happens here! */
 	}
 
 #define PLURAL(x) (x), ((x) == 1) ? "" : "s"
@@ -360,4 +478,148 @@ void ext4_orphan_cleanup(struct super_block *sb, struct ext4_super_block *es)
 	}
 #endif
 	sb->s_flags = s_flags; /* Restore SB_RDONLY status */
+}
+
+void ext4_release_orphan_info(struct super_block *sb)
+{
+	int i;
+	struct ext4_orphan_info *oi = &EXT4_SB(sb)->s_orphan_info;
+
+	if (!oi->of_blocks)
+		return;
+	for (i = 0; i < oi->of_blocks; i++)
+		brelse(oi->of_binfo[i].ob_bh);
+	kfree(oi->of_binfo);
+}
+
+static struct ext4_orphan_block_tail *ext4_orphan_block_tail(
+						struct super_block *sb,
+						struct buffer_head *bh)
+{
+	return (struct ext4_orphan_block_tail *)(bh->b_data + sb->s_blocksize -
+				sizeof(struct ext4_orphan_block_tail));
+}
+
+static int ext4_orphan_file_block_csum_verify(struct super_block *sb,
+					      struct buffer_head *bh)
+{
+	__u32 calculated;
+	int inodes_per_ob = ext4_inodes_per_orphan_block(sb);
+	struct ext4_orphan_info *oi = &EXT4_SB(sb)->s_orphan_info;
+	struct ext4_orphan_block_tail *ot;
+	__le64 dsk_block_nr = cpu_to_le64(bh->b_blocknr);
+
+	if (!ext4_has_metadata_csum(sb))
+		return 1;
+
+	ot = ext4_orphan_block_tail(sb, bh);
+	calculated = ext4_chksum(EXT4_SB(sb), oi->of_csum_seed,
+				 (__u8 *)&dsk_block_nr, sizeof(dsk_block_nr));
+	calculated = ext4_chksum(EXT4_SB(sb), calculated, (__u8 *)bh->b_data,
+				 inodes_per_ob * sizeof(__u32));
+	return le32_to_cpu(ot->ob_checksum) == calculated;
+}
+
+/* This gets called only when checksumming is enabled */
+void ext4_orphan_file_block_trigger(struct jbd2_buffer_trigger_type *triggers,
+				    struct buffer_head *bh,
+				    void *data, size_t size)
+{
+	struct super_block *sb = EXT4_TRIGGER(triggers)->sb;
+	__u32 csum;
+	int inodes_per_ob = ext4_inodes_per_orphan_block(sb);
+	struct ext4_orphan_info *oi = &EXT4_SB(sb)->s_orphan_info;
+	struct ext4_orphan_block_tail *ot;
+	__le64 dsk_block_nr = cpu_to_le64(bh->b_blocknr);
+
+	csum = ext4_chksum(EXT4_SB(sb), oi->of_csum_seed,
+			   (__u8 *)&dsk_block_nr, sizeof(dsk_block_nr));
+	csum = ext4_chksum(EXT4_SB(sb), csum, (__u8 *)data,
+			   inodes_per_ob * sizeof(__u32));
+	ot = ext4_orphan_block_tail(sb, bh);
+	ot->ob_checksum = cpu_to_le32(csum);
+}
+
+int ext4_init_orphan_info(struct super_block *sb)
+{
+	struct ext4_orphan_info *oi = &EXT4_SB(sb)->s_orphan_info;
+	struct inode *inode;
+	int i, j;
+	int ret;
+	int free;
+	__le32 *bdata;
+	int inodes_per_ob = ext4_inodes_per_orphan_block(sb);
+	struct ext4_orphan_block_tail *ot;
+	ino_t orphan_ino = le32_to_cpu(EXT4_SB(sb)->s_es->s_orphan_file_inum);
+
+	spin_lock_init(&oi->of_lock);
+
+	if (!ext4_has_feature_orphan_file(sb))
+		return 0;
+
+	inode = ext4_iget(sb, orphan_ino, EXT4_IGET_SPECIAL);
+	if (IS_ERR(inode)) {
+		ext4_msg(sb, KERN_ERR, "get orphan inode failed");
+		return PTR_ERR(inode);
+	}
+	oi->of_blocks = inode->i_size >> sb->s_blocksize_bits;
+	oi->of_csum_seed = EXT4_I(inode)->i_csum_seed;
+	oi->of_binfo = kmalloc(oi->of_blocks*sizeof(struct ext4_orphan_block),
+			       GFP_KERNEL);
+	if (!oi->of_binfo) {
+		ret = -ENOMEM;
+		goto out_put;
+	}
+	for (i = 0; i < oi->of_blocks; i++) {
+		oi->of_binfo[i].ob_bh = ext4_bread(NULL, inode, i, 0);
+		if (IS_ERR(oi->of_binfo[i].ob_bh)) {
+			ret = PTR_ERR(oi->of_binfo[i].ob_bh);
+			goto out_free;
+		}
+		if (!oi->of_binfo[i].ob_bh) {
+			ret = -EIO;
+			goto out_free;
+		}
+		ot = ext4_orphan_block_tail(sb, oi->of_binfo[i].ob_bh);
+		if (le32_to_cpu(ot->ob_magic) != EXT4_ORPHAN_BLOCK_MAGIC) {
+			ext4_error(sb, "orphan file block %d: bad magic", i);
+			ret = -EIO;
+			goto out_free;
+		}
+		if (!ext4_orphan_file_block_csum_verify(sb,
+						oi->of_binfo[i].ob_bh)) {
+			ext4_error(sb, "orphan file block %d: bad checksum", i);
+			ret = -EIO;
+			goto out_free;
+		}
+		bdata = (__le32 *)(oi->of_binfo[i].ob_bh->b_data);
+		free = 0;
+		for (j = 0; j < inodes_per_ob; j++)
+			if (bdata[j] == 0)
+				free++;
+		oi->of_binfo[i].ob_free_entries = free;
+	}
+	iput(inode);
+	return 0;
+out_free:
+	for (i--; i >= 0; i--)
+		brelse(oi->of_binfo[i].ob_bh);
+	kfree(oi->of_binfo);
+out_put:
+	iput(inode);
+	return ret;
+}
+
+int ext4_orphan_file_empty(struct super_block *sb)
+{
+	struct ext4_orphan_info *oi = &EXT4_SB(sb)->s_orphan_info;
+	int i;
+	int inodes_per_ob = ext4_inodes_per_orphan_block(sb);
+
+	if (!ext4_has_feature_orphan_file(sb))
+		return 1;
+	for (i = 0; i < oi->of_blocks; i++)
+		if (oi->of_binfo[i].ob_free_entries != inodes_per_ob)
+			return 0;
+	return 1;
 }

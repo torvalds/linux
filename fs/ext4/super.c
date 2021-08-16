@@ -1174,6 +1174,7 @@ static void ext4_put_super(struct super_block *sb)
 
 	flush_work(&sbi->s_error_work);
 	destroy_workqueue(sbi->rsv_conversion_wq);
+	ext4_release_orphan_info(sb);
 
 	/*
 	 * Unregister sysfs before destroying jbd2 journal.
@@ -1199,6 +1200,7 @@ static void ext4_put_super(struct super_block *sb)
 
 	if (!sb_rdonly(sb) && !aborted) {
 		ext4_clear_feature_journal_needs_recovery(sb);
+		ext4_clear_feature_orphan_present(sb);
 		es->s_state = cpu_to_le16(sbi->s_mount_state);
 	}
 	if (!sb_rdonly(sb))
@@ -2684,8 +2686,11 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 		es->s_max_mnt_count = cpu_to_le16(EXT4_DFL_MAX_MNT_COUNT);
 	le16_add_cpu(&es->s_mnt_count, 1);
 	ext4_update_tstamp(es, s_mtime);
-	if (sbi->s_journal)
+	if (sbi->s_journal) {
 		ext4_set_feature_journal_needs_recovery(sb);
+		if (ext4_has_feature_orphan_file(sb))
+			ext4_set_feature_orphan_present(sb);
+	}
 
 	err = ext4_commit_super(sb);
 done:
@@ -3960,6 +3965,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		silent = 1;
 		goto cantfind_ext4;
 	}
+	ext4_setup_csum_trigger(sb, EXT4_JTR_ORPHAN_FILE,
+				ext4_orphan_file_block_trigger);
 
 	/* Load the checksum driver */
 	sbi->s_chksum_driver = crypto_alloc_shash("crc32c", 0, 0);
@@ -4624,6 +4631,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_root = NULL;
 
 	needs_recovery = (es->s_last_orphan != 0 ||
+			  ext4_has_feature_orphan_present(sb) ||
 			  ext4_has_feature_journal_needs_recovery(sb));
 
 	if (ext4_has_feature_mmp(sb) && !sb_rdonly(sb))
@@ -4922,12 +4930,15 @@ no_journal:
 	if (err)
 		goto failed_mount7;
 
+	err = ext4_init_orphan_info(sb);
+	if (err)
+		goto failed_mount8;
 #ifdef CONFIG_QUOTA
 	/* Enable quota usage during mount. */
 	if (ext4_has_feature_quota(sb) && !sb_rdonly(sb)) {
 		err = ext4_enable_quotas(sb);
 		if (err)
-			goto failed_mount8;
+			goto failed_mount9;
 	}
 #endif  /* CONFIG_QUOTA */
 
@@ -4946,7 +4957,7 @@ no_journal:
 		ext4_msg(sb, KERN_INFO, "recovery complete");
 		err = ext4_mark_recovery_complete(sb, es);
 		if (err)
-			goto failed_mount8;
+			goto failed_mount9;
 	}
 	if (EXT4_SB(sb)->s_journal) {
 		if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA)
@@ -4992,6 +5003,8 @@ cantfind_ext4:
 		ext4_msg(sb, KERN_ERR, "VFS: Can't find ext4 filesystem");
 	goto failed_mount;
 
+failed_mount9:
+	ext4_release_orphan_info(sb);
 failed_mount8:
 	ext4_unregister_sysfs(sb);
 	kobject_put(&sbi->s_kobj);
@@ -5502,8 +5515,15 @@ static int ext4_mark_recovery_complete(struct super_block *sb,
 	if (err < 0)
 		goto out;
 
-	if (ext4_has_feature_journal_needs_recovery(sb) && sb_rdonly(sb)) {
+	if (sb_rdonly(sb) && (ext4_has_feature_journal_needs_recovery(sb) ||
+	    ext4_has_feature_orphan_present(sb))) {
+		if (!ext4_orphan_file_empty(sb)) {
+			ext4_error(sb, "Orphan file not empty on read-only fs.");
+			err = -EFSCORRUPTED;
+			goto out;
+		}
 		ext4_clear_feature_journal_needs_recovery(sb);
+		ext4_clear_feature_orphan_present(sb);
 		ext4_commit_super(sb);
 	}
 out:
@@ -5646,6 +5666,8 @@ static int ext4_freeze(struct super_block *sb)
 
 		/* Journal blocked and flushed, clear needs_recovery flag. */
 		ext4_clear_feature_journal_needs_recovery(sb);
+		if (ext4_orphan_file_empty(sb))
+			ext4_clear_feature_orphan_present(sb);
 	}
 
 	error = ext4_commit_super(sb);
@@ -5668,6 +5690,8 @@ static int ext4_unfreeze(struct super_block *sb)
 	if (EXT4_SB(sb)->s_journal) {
 		/* Reset the needs_recovery flag before the fs is unlocked. */
 		ext4_set_feature_journal_needs_recovery(sb);
+		if (ext4_has_feature_orphan_file(sb))
+			ext4_set_feature_orphan_present(sb);
 	}
 
 	ext4_commit_super(sb);
@@ -5871,7 +5895,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 			 * around from a previously readonly bdev mount,
 			 * require a full umount/remount for now.
 			 */
-			if (es->s_last_orphan) {
+			if (es->s_last_orphan || !ext4_orphan_file_empty(sb)) {
 				ext4_msg(sb, KERN_WARNING, "Couldn't "
 				       "remount RDWR because of unprocessed "
 				       "orphan inode list.  Please "
