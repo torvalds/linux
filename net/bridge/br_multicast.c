@@ -2928,7 +2928,7 @@ __br_multicast_get_querier_port(struct net_bridge *br,
 
 size_t br_multicast_querier_state_size(void)
 {
-	return nla_total_size(sizeof(0)) +      /* nest attribute */
+	return nla_total_size(0) +		/* nest attribute */
 	       nla_total_size(sizeof(__be32)) + /* BRIDGE_QUERIER_IP_ADDRESS */
 	       nla_total_size(sizeof(int)) +    /* BRIDGE_QUERIER_IP_PORT */
 	       nla_total_size_64bit(sizeof(u64)); /* BRIDGE_QUERIER_IP_OTHER_TIMER */
