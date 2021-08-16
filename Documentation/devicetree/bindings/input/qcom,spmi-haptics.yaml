@@ -1,0 +1,128 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright 2020 Unisoc Inc.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/qcom,spmi-haptics.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Technologies Inc PMI8998 spmi haptics
+
+maintainers:
+  - Caleb Connolly <caleb@connolly.tech>
+
+description: |
+  Qualcomm SPMI haptics is a peripheral on some QTI PMICs. It supports linear resonant
+  actuators and eccentric rotating mass type haptics commonly found in mobile devices.
+  It supports multiple sources of wave data such as an internal buffer, direct play
+  (from kernel or userspace) as well as an audio mode.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - qcom,pmi8998-haptics
+          - qcom,pmi8996-haptics
+          - qcom,pmi8941-haptics
+      - const: qcom,spmi-haptics
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: short circuit interrupt
+      - description: play interrupt
+
+  interrupt-names:
+    items:
+      - const: short
+      - const: play
+
+  qcom,actuator-type:
+    description: |
+      The type of actuator attached to the hardware.
+      Allowed values are,
+        0 - HAP_TYPE_LRA
+        1 - HAP_TYPE_ERM
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 0, 1 ]
+    default: 0
+
+  qcom,wave-shape:
+    description: |
+      Selects the wave shape to use.
+      Allowed values are,
+        0 - HAP_WAVE_SINE
+        1 - HAP_WAVE_SQUARE
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 0, 1 ]
+    default: 0
+
+  qcom,play-mode:
+    description: |
+      Selects the play mode to use.
+      Allowed values are,
+        0 - HAP_PLAY_DIRECT
+        1 - HAP_PLAY_BUFFER
+        2 - HAP_PLAY_AUDIO
+        3 - HAP_PLAY_PWM
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 0, 1, 2, 3 ]
+    default: 2
+
+  qcom,wave-play-rate-us:
+    description: |
+      Wave play rate in microseconds, 1/f where f
+      is the resonant frequency of the actuator.
+    minimum: 0
+    maximum: 20475
+
+  qcom,brake-pattern:
+    minItems: 4
+    maxItems: 4
+    description: |
+      The brake pattern is an array of amplitudes
+      used to brake the haptics. Allowed values are,
+        0 - 0V
+        1 - Vmax/4
+        2 - Vmax/2
+        3 - Vmax
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    default: [0x3, 0x3, 0x2, 0x1]
+    items:
+      enum: [ 0, 1, 2, 3 ]
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - qcom,wave-play-rate-us
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/spmi/spmi.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/input/qcom,spmi-haptics.h>
+
+    pmic@3 {
+      compatible = "qcom,pmi8998", "qcom,spmi-pmic";
+      reg = <0x3 SPMI_USID>;
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      pmi8998_haptics: haptics@c000 {
+        compatible = "qcom,pmi8998-haptics", "qcom,spmi-haptics";
+        reg = <0xc000>;
+
+        interrupts = <0x3 0xc0 0x0 IRQ_TYPE_EDGE_BOTH>,
+                     <0x3 0xc0 0x1 IRQ_TYPE_EDGE_BOTH>;
+        interrupt-names = "short", "play";
+
+        qcom,wave-shape = <HAP_WAVE_SINE>;
+        qcom,wave-play-rate-us = <4255>;
+        qcom,play-mode = <HAP_PLAY_BUFFER>;
+        qcom,brake-pattern = <0x3 0x3 0x2 0x1>;
+      };
+    };
