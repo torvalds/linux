@@ -1769,6 +1769,184 @@ lpfc_sli_ringtx_get(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 }
 
 /**
+ * lpfc_cmf_sync_cmpl - Process a CMF_SYNC_WQE cmpl
+ * @phba: Pointer to HBA context object.
+ * @cmdiocb: Pointer to driver command iocb object.
+ * @cmf_cmpl: Pointer to completed WCQE.
+ *
+ * This routine will inform the driver of any BW adjustments we need
+ * to make. These changes will be picked up during the next CMF
+ * timer interrupt. In addition, any BW changes will be logged
+ * with LOG_CGN_MGMT.
+ **/
+static void
+lpfc_cmf_sync_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+		   struct lpfc_wcqe_complete *cmf_cmpl)
+{
+	union lpfc_wqe128 *wqe;
+	uint32_t status, info;
+	uint64_t bw;
+	int asig, afpin, sigcnt, fpincnt;
+	int cg, tdp;
+
+	/* First check for error */
+	status = bf_get(lpfc_wcqe_c_status, cmf_cmpl);
+	if (status) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"6211 CMF_SYNC_WQE Error "
+				"req_tag x%x status x%x hwstatus x%x "
+				"tdatap x%x parm x%x\n",
+				bf_get(lpfc_wcqe_c_request_tag, cmf_cmpl),
+				bf_get(lpfc_wcqe_c_status, cmf_cmpl),
+				bf_get(lpfc_wcqe_c_hw_status, cmf_cmpl),
+				cmf_cmpl->total_data_placed,
+				cmf_cmpl->parameter);
+		goto out;
+	}
+
+	/* Gather congestion information on a successful cmpl */
+	info = cmf_cmpl->parameter;
+	tdp = bf_get(lpfc_wcqe_c_cmf_bw, cmf_cmpl);
+	cg = bf_get(lpfc_wcqe_c_cmf_cg, cmf_cmpl);
+
+	/* Get BW requirement from firmware */
+	bw = (uint64_t)tdp * LPFC_CMF_BLK_SIZE;
+	if (!bw) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"6212 CMF_SYNC_WQE x%x: NULL bw\n",
+				bf_get(lpfc_wcqe_c_request_tag, cmf_cmpl));
+		goto out;
+	}
+
+	/* Gather information needed for logging if a BW change is required */
+	wqe = &cmdiocb->wqe;
+	asig = bf_get(cmf_sync_asig, &wqe->cmf_sync);
+	afpin = bf_get(cmf_sync_afpin, &wqe->cmf_sync);
+	fpincnt = bf_get(cmf_sync_wfpincnt, &wqe->cmf_sync);
+	sigcnt = bf_get(cmf_sync_wsigcnt, &wqe->cmf_sync);
+
+out:
+	lpfc_sli_release_iocbq(phba, cmdiocb);
+}
+
+/**
+ * lpfc_issue_cmf_sync_wqe - Issue a CMF_SYNC_WQE
+ * @phba: Pointer to HBA context object.
+ * @ms:   ms to set in WQE interval, 0 means use init op
+ * @total: Total rcv bytes for this interval
+ *
+ * This routine is called every CMF timer interrupt. Its purpose is
+ * to issue a CMF_SYNC_WQE to the firmware to inform it of any events
+ * that may indicate we have congestion (FPINs or Signals). Upon
+ * completion, the firmware will indicate any BW restrictions the
+ * driver may need to take.
+ **/
+int
+lpfc_issue_cmf_sync_wqe(struct lpfc_hba *phba, u32 ms, u64 total)
+{
+	union lpfc_wqe128 *wqe;
+	struct lpfc_iocbq *sync_buf;
+	unsigned long iflags;
+	u32 ret_val;
+	u32 atot, wtot, max;
+
+	/* First address any alarm / warning activity */
+	atot = atomic_xchg(&phba->cgn_sync_alarm_cnt, 0);
+	wtot = atomic_xchg(&phba->cgn_sync_warn_cnt, 0);
+
+	/* ONLY Managed mode will send the CMF_SYNC_WQE to the HBA */
+	if (phba->cmf_active_mode != LPFC_CFG_MANAGED ||
+	    phba->link_state == LPFC_LINK_DOWN)
+		return 0;
+
+	spin_lock_irqsave(&phba->hbalock, iflags);
+	sync_buf = __lpfc_sli_get_iocbq(phba);
+	if (!sync_buf) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT,
+				"6213 No available WQEs for CMF_SYNC_WQE\n");
+		ret_val = ENOMEM;
+		goto out_unlock;
+	}
+
+	wqe = &sync_buf->wqe;
+
+	/* WQEs are reused.  Clear stale data and set key fields to zero */
+	memset(wqe, 0, sizeof(*wqe));
+
+	/* If this is the very first CMF_SYNC_WQE, issue an init operation */
+	if (!ms) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"6441 CMF Init %d - CMF_SYNC_WQE\n",
+				phba->fc_eventTag);
+		bf_set(cmf_sync_op, &wqe->cmf_sync, 1); /* 1=init */
+		bf_set(cmf_sync_interval, &wqe->cmf_sync, LPFC_CMF_INTERVAL);
+		goto initpath;
+	}
+
+	bf_set(cmf_sync_op, &wqe->cmf_sync, 0); /* 0=recalc */
+	bf_set(cmf_sync_interval, &wqe->cmf_sync, ms);
+
+	/* Check for alarms / warnings */
+	if (atot) {
+		if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM) {
+			/* We hit an Signal alarm condition */
+			bf_set(cmf_sync_asig, &wqe->cmf_sync, 1);
+		} else {
+			/* We hit a FPIN alarm condition */
+			bf_set(cmf_sync_afpin, &wqe->cmf_sync, 1);
+		}
+	} else if (wtot) {
+		if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ONLY ||
+		    phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM) {
+			/* We hit an Signal warning condition */
+			max = LPFC_SEC_TO_MSEC / lpfc_fabric_cgn_frequency *
+				lpfc_acqe_cgn_frequency;
+			bf_set(cmf_sync_wsigmax, &wqe->cmf_sync, max);
+			bf_set(cmf_sync_wsigcnt, &wqe->cmf_sync, wtot);
+		} else {
+			/* We hit a FPIN warning condition */
+			bf_set(cmf_sync_wfpinmax, &wqe->cmf_sync, 1);
+			bf_set(cmf_sync_wfpincnt, &wqe->cmf_sync, 1);
+		}
+	}
+
+	/* Update total read blocks during previous timer interval */
+	wqe->cmf_sync.read_bytes = (u32)(total / LPFC_CMF_BLK_SIZE);
+
+initpath:
+	bf_set(cmf_sync_ver, &wqe->cmf_sync, LPFC_CMF_SYNC_VER);
+	wqe->cmf_sync.event_tag = phba->fc_eventTag;
+	bf_set(cmf_sync_cmnd, &wqe->cmf_sync, CMD_CMF_SYNC_WQE);
+
+	/* Setup reqtag to match the wqe completion. */
+	bf_set(cmf_sync_reqtag, &wqe->cmf_sync, sync_buf->iotag);
+
+	bf_set(cmf_sync_qosd, &wqe->cmf_sync, 1);
+
+	bf_set(cmf_sync_cmd_type, &wqe->cmf_sync, CMF_SYNC_COMMAND);
+	bf_set(cmf_sync_wqec, &wqe->cmf_sync, 1);
+	bf_set(cmf_sync_cqid, &wqe->cmf_sync, LPFC_WQE_CQ_ID_DEFAULT);
+
+	sync_buf->vport = phba->pport;
+	sync_buf->wqe_cmpl = lpfc_cmf_sync_cmpl;
+	sync_buf->iocb_cmpl = NULL;
+	sync_buf->context1 = NULL;
+	sync_buf->context2 = NULL;
+	sync_buf->context3 = NULL;
+	sync_buf->sli4_xritag = NO_XRI;
+
+	sync_buf->iocb_flag |= LPFC_IO_CMF;
+	ret_val = lpfc_sli4_issue_wqe(phba, &phba->sli4_hba.hdwq[0], sync_buf);
+	if (ret_val)
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"6214 Cannot issue CMF_SYNC_WQE: x%x\n",
+				ret_val);
+out_unlock:
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
+	return ret_val;
+}
+
+/**
  * lpfc_sli_next_iocb_slot - Get next iocb slot in the ring
  * @phba: Pointer to HBA context object.
  * @pring: Pointer to driver SLI ring object.

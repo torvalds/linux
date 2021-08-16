@@ -1499,6 +1499,10 @@ struct lpfc_hba {
 	u32 cmf_active_mode;
 #define LPFC_CFG_OFF		0
 
+#define LPFC_CMF_INTERVAL 90
+#define  LPFC_CMF_BLK_SIZE 512
+#define LPFC_MAX_CMF_INFO 32
+
 	/* Signal / FPIN handling for Congestion Mgmt */
 	u8 cgn_reg_fpin;           /* Negotiated value from RDF */
 	u8 cgn_init_reg_fpin;      /* Initial value from READ_CONFIG */
