@@ -2171,6 +2171,8 @@ static inline bool ext4_has_incompat_features(struct super_block *sb)
 	return (EXT4_SB(sb)->s_es->s_feature_incompat != 0);
 }
 
+extern int ext4_feature_set_ok(struct super_block *sb, int readonly);
+
 /*
  * Superblock flags
  */
@@ -3031,8 +3033,6 @@ extern int ext4_init_new_dir(handle_t *handle, struct inode *dir,
 			     struct inode *inode);
 extern int ext4_dirblock_csum_verify(struct inode *inode,
 				     struct buffer_head *bh);
-extern int ext4_orphan_add(handle_t *, struct inode *);
-extern int ext4_orphan_del(handle_t *, struct inode *);
 extern int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 				__u32 start_minor_hash, __u32 *next_hash);
 extern int ext4_search_dir(struct buffer_head *bh,
@@ -3501,6 +3501,7 @@ static inline bool ext4_is_quota_journalled(struct super_block *sb)
 	return (ext4_has_feature_quota(sb) ||
 		sbi->s_qf_names[USRQUOTA] || sbi->s_qf_names[GRPQUOTA]);
 }
+int ext4_enable_quotas(struct super_block *sb);
 #endif
 
 /*
@@ -3761,6 +3762,12 @@ extern void ext4_stop_mmpd(struct ext4_sb_info *sbi);
 
 /* verity.c */
 extern const struct fsverity_operations ext4_verityops;
+
+/* orphan.c */
+extern int ext4_orphan_add(handle_t *, struct inode *);
+extern int ext4_orphan_del(handle_t *, struct inode *);
+extern void ext4_orphan_cleanup(struct super_block *sb,
+				struct ext4_super_block *es);
 
 /*
  * Add new method to test whether block and inode bitmaps are properly
