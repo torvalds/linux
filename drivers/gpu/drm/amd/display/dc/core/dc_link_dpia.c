@@ -960,7 +960,7 @@ enum link_training_result dc_link_dpia_perform_link_training(
 	bool skip_video_pattern)
 {
 	enum link_training_result result;
-	struct link_training_settings lt_settings;
+	struct link_training_settings lt_settings = {0};
 	uint8_t repeater_cnt = 0; /* Number of hops/repeaters in display path. */
 	int8_t repeater_id; /* Current hop. */
 
