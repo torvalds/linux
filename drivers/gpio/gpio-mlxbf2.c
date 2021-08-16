@@ -69,11 +69,8 @@ struct mlxbf2_gpio_param {
 	struct mutex *lock;
 };
 
-static struct resource yu_arm_gpio_lock_res = {
-	.start = YU_ARM_GPIO_LOCK_ADDR,
-	.end   = YU_ARM_GPIO_LOCK_ADDR + YU_ARM_GPIO_LOCK_SIZE - 1,
-	.name  = "YU_ARM_GPIO_LOCK",
-};
+static struct resource yu_arm_gpio_lock_res =
+	DEFINE_RES_MEM_NAMED(YU_ARM_GPIO_LOCK_ADDR, YU_ARM_GPIO_LOCK_SIZE, "YU_ARM_GPIO_LOCK");
 
 static DEFINE_MUTEX(yu_arm_gpio_lock_mutex);
 
