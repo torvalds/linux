@@ -225,7 +225,8 @@
 	__SMU_DUMMY_MAP(DisableDeterminism),		\
 	__SMU_DUMMY_MAP(SetUclkDpmMode),		\
 	__SMU_DUMMY_MAP(LightSBR),			\
-	__SMU_DUMMY_MAP(GfxDriverResetRecovery),
+	__SMU_DUMMY_MAP(GfxDriverResetRecovery),	\
+	__SMU_DUMMY_MAP(BoardPowerCalibration),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type
@@ -281,6 +282,7 @@ enum smu_clk_type {
        __SMU_DUMMY_MAP(TDC),                           	\
        __SMU_DUMMY_MAP(THERMAL),                       	\
        __SMU_DUMMY_MAP(GFX_PER_CU_CG),                 	\
+       __SMU_DUMMY_MAP(DATA_CALCULATIONS),                 	\
        __SMU_DUMMY_MAP(RM),                            	\
        __SMU_DUMMY_MAP(DS_DCEFCLK),                    	\
        __SMU_DUMMY_MAP(ACDC),                          	\

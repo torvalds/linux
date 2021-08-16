@@ -18,7 +18,8 @@ void panfrost_mmu_reset(struct panfrost_device *pfdev);
 u32 panfrost_mmu_as_get(struct panfrost_device *pfdev, struct panfrost_mmu *mmu);
 void panfrost_mmu_as_put(struct panfrost_device *pfdev, struct panfrost_mmu *mmu);
 
-int panfrost_mmu_pgtable_alloc(struct panfrost_file_priv *priv);
-void panfrost_mmu_pgtable_free(struct panfrost_file_priv *priv);
+struct panfrost_mmu *panfrost_mmu_ctx_get(struct panfrost_mmu *mmu);
+void panfrost_mmu_ctx_put(struct panfrost_mmu *mmu);
+struct panfrost_mmu *panfrost_mmu_ctx_create(struct panfrost_device *pfdev);
 
 #endif

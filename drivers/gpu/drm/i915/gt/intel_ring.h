@@ -49,6 +49,7 @@ static inline void intel_ring_advance(struct i915_request *rq, u32 *cs)
 	 * intel_ring_begin()).
 	 */
 	GEM_BUG_ON((rq->ring->vaddr + rq->ring->emit) != cs);
+	GEM_BUG_ON(!IS_ALIGNED(rq->ring->emit, 8)); /* RING_TAIL qword align */
 }
 
 static inline u32 intel_ring_wrap(const struct intel_ring *ring, u32 pos)

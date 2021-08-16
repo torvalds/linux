@@ -381,7 +381,7 @@ static int ps3_system_bus_probe(struct device *_dev)
 	return result;
 }
 
-static int ps3_system_bus_remove(struct device *_dev)
+static void ps3_system_bus_remove(struct device *_dev)
 {
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
 	struct ps3_system_bus_driver *drv;
@@ -399,7 +399,6 @@ static int ps3_system_bus_remove(struct device *_dev)
 			__func__, __LINE__, drv->core.name);
 
 	pr_debug(" <- %s:%d: %s\n", __func__, __LINE__, dev_name(&dev->core));
-	return 0;
 }
 
 static void ps3_system_bus_shutdown(struct device *_dev)

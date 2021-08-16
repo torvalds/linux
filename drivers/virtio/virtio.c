@@ -278,7 +278,7 @@ err:
 
 }
 
-static int virtio_dev_remove(struct device *_d)
+static void virtio_dev_remove(struct device *_d)
 {
 	struct virtio_device *dev = dev_to_virtio(_d);
 	struct virtio_driver *drv = drv_to_virtio(dev->dev.driver);
@@ -292,7 +292,6 @@ static int virtio_dev_remove(struct device *_d)
 
 	/* Acknowledge the device's existence again. */
 	virtio_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE);
-	return 0;
 }
 
 static struct bus_type virtio_bus = {

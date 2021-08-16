@@ -22,6 +22,9 @@ properties:
               - ti,ths8134a
               - ti,ths8134b
           - const: ti,ths8134
+      - items:
+          - const: corpro,gm7123
+          - const: adi,adv7123
       - enum:
           - adi,adv7123
           - dumb-vga-dac

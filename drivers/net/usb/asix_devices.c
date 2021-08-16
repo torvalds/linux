@@ -701,6 +701,7 @@ static int ax88772_init_phy(struct usbnet *dev)
 		return ret;
 	}
 
+	phy_suspend(priv->phydev);
 	priv->phydev->mac_managed_pm = 1;
 
 	phy_attached_info(priv->phydev);

@@ -290,12 +290,8 @@ static int omap_modeset_init(struct drm_device *dev)
 			ret = drm_bridge_attach(pipe->encoder,
 						pipe->output->bridge, NULL,
 						DRM_BRIDGE_ATTACH_NO_CONNECTOR);
-			if (ret < 0) {
-				dev_err(priv->dev,
-					"unable to attach bridge %pOF\n",
-					pipe->output->bridge->of_node);
+			if (ret < 0)
 				return ret;
-			}
 		}
 
 		id = omap_display_id(pipe->output);

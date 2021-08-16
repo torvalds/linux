@@ -426,4 +426,7 @@ static inline int i915_vma_sync(struct i915_vma *vma)
 	return i915_active_wait(&vma->active);
 }
 
+void i915_vma_module_exit(void);
+int i915_vma_module_init(void);
+
 #endif

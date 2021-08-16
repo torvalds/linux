@@ -604,7 +604,7 @@ asmlinkage void noinstr el0t_64_fiq_handler(struct pt_regs *regs)
 	__el0_fiq_handler_common(regs);
 }
 
-static void __el0_error_handler_common(struct pt_regs *regs)
+static void noinstr __el0_error_handler_common(struct pt_regs *regs)
 {
 	unsigned long esr = read_sysreg(esr_el1);
 

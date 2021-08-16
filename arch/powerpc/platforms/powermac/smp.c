@@ -146,6 +146,7 @@ static inline void psurge_clr_ipi(int cpu)
 		switch(psurge_type) {
 		case PSURGE_DUAL:
 			out_8(psurge_sec_intr, ~0);
+			break;
 		case PSURGE_NONE:
 			break;
 		default:

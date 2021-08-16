@@ -131,7 +131,7 @@
 #define FEATURE_GFX_EDC_BIT             49
 #define FEATURE_GFX_PER_PART_VMIN_BIT   50
 #define FEATURE_SMART_SHIFT_BIT         51
-#define FEATURE_SPARE_52_BIT            52
+#define FEATURE_APT_BIT                 52
 #define FEATURE_SPARE_53_BIT            53
 #define FEATURE_SPARE_54_BIT            54
 #define FEATURE_SPARE_55_BIT            55
@@ -211,6 +211,7 @@ typedef enum {
 #define THROTTLER_FIT_BIT          17
 #define THROTTLER_PPM_BIT          18
 #define THROTTLER_APCC_BIT         19
+#define THROTTLER_COUNT            20
 
 // FW DState Features Control Bits
 // FW DState Features Control Bits
@@ -1406,7 +1407,67 @@ typedef struct {
 } SmuMetrics_t;
 
 typedef struct {
-  SmuMetrics_t SmuMetrics;
+  uint32_t CurrClock[PPCLK_COUNT];
+
+  uint16_t AverageGfxclkFrequencyPreDs;
+  uint16_t AverageGfxclkFrequencyPostDs;
+  uint16_t AverageFclkFrequencyPreDs;
+  uint16_t AverageFclkFrequencyPostDs;
+  uint16_t AverageUclkFrequencyPreDs  ;
+  uint16_t AverageUclkFrequencyPostDs  ;
+
+
+  uint16_t AverageGfxActivity    ;
+  uint16_t AverageUclkActivity   ;
+  uint8_t  CurrSocVoltageOffset  ;
+  uint8_t  CurrGfxVoltageOffset  ;
+  uint8_t  CurrMemVidOffset      ;
+  uint8_t  Padding8        ;
+  uint16_t AverageSocketPower    ;
+  uint16_t TemperatureEdge       ;
+  uint16_t TemperatureHotspot    ;
+  uint16_t TemperatureMem        ;
+  uint16_t TemperatureVrGfx      ;
+  uint16_t TemperatureVrMem0     ;
+  uint16_t TemperatureVrMem1     ;
+  uint16_t TemperatureVrSoc      ;
+  uint16_t TemperatureLiquid0    ;
+  uint16_t TemperatureLiquid1    ;
+  uint16_t TemperaturePlx        ;
+  uint16_t Padding16             ;
+  uint32_t AccCnt                ;
+  uint8_t  ThrottlingPercentage[THROTTLER_COUNT];
+
+
+  uint8_t  LinkDpmLevel;
+  uint8_t  CurrFanPwm;
+  uint16_t CurrFanSpeed;
+
+  //BACO metrics, PMFW-1721
+  //metrics for D3hot entry/exit and driver ARM msgs
+  uint8_t D3HotEntryCountPerMode[D3HOT_SEQUENCE_COUNT];
+  uint8_t D3HotExitCountPerMode[D3HOT_SEQUENCE_COUNT];
+  uint8_t ArmMsgReceivedCountPerMode[D3HOT_SEQUENCE_COUNT];
+
+  //PMFW-4362
+  uint32_t EnergyAccumulator;
+  uint16_t AverageVclk0Frequency  ;
+  uint16_t AverageDclk0Frequency  ;
+  uint16_t AverageVclk1Frequency  ;
+  uint16_t AverageDclk1Frequency  ;
+  uint16_t VcnActivityPercentage  ; //place holder, David N. to provide full sequence
+  uint8_t  PcieRate               ;
+  uint8_t  PcieWidth              ;
+  uint16_t AverageGfxclkFrequencyTarget;
+  uint16_t Padding16_2;
+
+} SmuMetrics_V2_t;
+
+typedef struct {
+  union {
+    SmuMetrics_t SmuMetrics;
+    SmuMetrics_V2_t SmuMetrics_V2;
+  };
   uint32_t Spare[1];
 
   // Padding - ignore

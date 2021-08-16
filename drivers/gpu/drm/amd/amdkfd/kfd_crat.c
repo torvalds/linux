@@ -1404,6 +1404,7 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 		break;
 	case CHIP_NAVI10:
 	case CHIP_NAVI12:
+	case CHIP_CYAN_SKILLFISH:
 		pcache_info = navi10_cache_info;
 		num_of_cache_types = ARRAY_SIZE(navi10_cache_info);
 		break;
@@ -1989,8 +1990,19 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 		sub_type_hdr->flags |= CRAT_IOLINK_FLAGS_BI_DIRECTIONAL;
 		sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_XGMI;
 		sub_type_hdr->num_hops_xgmi = 1;
+		if (adev->asic_type == CHIP_ALDEBARAN) {
+			sub_type_hdr->minimum_bandwidth_mbs =
+					amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(
+							kdev->kgd, NULL, true);
+			sub_type_hdr->maximum_bandwidth_mbs =
+					sub_type_hdr->minimum_bandwidth_mbs;
+		}
 	} else {
 		sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_PCIEXPRESS;
+		sub_type_hdr->minimum_bandwidth_mbs =
+				amdgpu_amdkfd_get_pcie_bandwidth_mbytes(kdev->kgd, true);
+		sub_type_hdr->maximum_bandwidth_mbs =
+				amdgpu_amdkfd_get_pcie_bandwidth_mbytes(kdev->kgd, false);
 	}
 
 	sub_type_hdr->proximity_domain_from = proximity_domain;
@@ -2033,6 +2045,11 @@ static int kfd_fill_gpu_xgmi_link_to_gpu(int *avail_size,
 	sub_type_hdr->proximity_domain_to = proximity_domain_to;
 	sub_type_hdr->num_hops_xgmi =
 		amdgpu_amdkfd_get_xgmi_hops_count(kdev->kgd, peer_kdev->kgd);
+	sub_type_hdr->maximum_bandwidth_mbs =
+		amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(kdev->kgd, peer_kdev->kgd, false);
+	sub_type_hdr->minimum_bandwidth_mbs = sub_type_hdr->maximum_bandwidth_mbs ?
+		amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(kdev->kgd, NULL, true) : 0;
+
 	return 0;
 }
 

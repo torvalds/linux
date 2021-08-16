@@ -190,8 +190,6 @@ static int __btrfs_add_ordered_extent(struct btrfs_inode *inode, u64 file_offset
 	entry->truncated_len = (u64)-1;
 	entry->qgroup_rsv = ret;
 	entry->physical = (u64)-1;
-	entry->disk = NULL;
-	entry->partno = (u8)-1;
 
 	ASSERT(type == BTRFS_ORDERED_REGULAR ||
 	       type == BTRFS_ORDERED_NOCOW ||

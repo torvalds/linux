@@ -544,7 +544,7 @@
 			assigned-clock-rates = <19200000>, <200000000>;
 			status = "disabled";
 
-			usb@7580000 {
+			dwc3@7580000 {
 				compatible = "snps,dwc3";
 				reg = <0x07580000 0xcd00>;
 				interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
@@ -573,7 +573,7 @@
 			assigned-clock-rates = <19200000>, <133333333>;
 			status = "disabled";
 
-			usb@78c0000 {
+			dwc3@78c0000 {
 				compatible = "snps,dwc3";
 				reg = <0x078c0000 0xcc00>;
 				interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;

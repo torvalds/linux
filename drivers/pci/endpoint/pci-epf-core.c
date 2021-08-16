@@ -387,17 +387,14 @@ static int pci_epf_device_probe(struct device *dev)
 	return driver->probe(epf);
 }
 
-static int pci_epf_device_remove(struct device *dev)
+static void pci_epf_device_remove(struct device *dev)
 {
-	int ret = 0;
 	struct pci_epf *epf = to_pci_epf(dev);
 	struct pci_epf_driver *driver = to_pci_epf_driver(dev->driver);
 
 	if (driver->remove)
-		ret = driver->remove(epf);
+		driver->remove(epf);
 	epf->driver = NULL;
-
-	return ret;
 }
 
 static struct bus_type pci_epf_bus_type = {

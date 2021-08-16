@@ -22,18 +22,13 @@
  *
  */
 
-#include <linux/console.h>
 #include <linux/vga_switcheroo.h>
 
 #include <drm/drm_drv.h>
 #include <drm/i915_pciids.h>
 
-#include "display/intel_fbdev.h"
-
 #include "i915_drv.h"
-#include "i915_perf.h"
-#include "i915_globals.h"
-#include "i915_selftest.h"
+#include "i915_pci.h"
 
 #define PLATFORM(x) .platform = (x)
 #define GEN(x) \
@@ -922,7 +917,7 @@ static const struct intel_device_info adl_s_info = {
 	.display.has_psr_hw_tracking = 0,
 	.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
-	.dma_mask_size = 46,
+	.dma_mask_size = 39,
 };
 
 #define XE_LPD_CURSOR_OFFSETS \
@@ -1000,6 +995,7 @@ static const struct intel_device_info adl_p_info = {
 	.has_llc = 1, \
 	.has_logical_ring_contexts = 1, \
 	.has_logical_ring_elsq = 1, \
+	.has_mslices = 1, \
 	.has_rc6 = 1, \
 	.has_reset_engine = 1, \
 	.has_rps = 1, \
@@ -1021,8 +1017,9 @@ static const struct intel_device_info xehpsdv_info = {
 	.pipe_mask = 0,
 	.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) |
-		BIT(VECS0) | BIT(VECS1) |
-		BIT(VCS0) | BIT(VCS1) | BIT(VCS2) | BIT(VCS3),
+		BIT(VECS0) | BIT(VECS1) | BIT(VECS2) | BIT(VECS3) |
+		BIT(VCS0) | BIT(VCS1) | BIT(VCS2) | BIT(VCS3) |
+		BIT(VCS4) | BIT(VCS5) | BIT(VCS6) | BIT(VCS7),
 	.require_force_probe = 1,
 };
 
@@ -1237,65 +1234,12 @@ static struct pci_driver i915_pci_driver = {
 	.driver.pm = &i915_pm_ops,
 };
 
-static int __init i915_init(void)
+int i915_register_pci_driver(void)
 {
-	bool use_kms = true;
-	int err;
-
-	err = i915_globals_init();
-	if (err)
-		return err;
-
-	err = i915_mock_selftests();
-	if (err)
-		return err > 0 ? 0 : err;
-
-	/*
-	 * Enable KMS by default, unless explicitly overriden by
-	 * either the i915.modeset prarameter or by the
-	 * vga_text_mode_force boot option.
-	 */
-
-	if (i915_modparams.modeset == 0)
-		use_kms = false;
-
-	if (vgacon_text_force() && i915_modparams.modeset == -1)
-		use_kms = false;
-
-	if (!use_kms) {
-		/* Silently fail loading to not upset userspace. */
-		DRM_DEBUG_DRIVER("KMS disabled.\n");
-		return 0;
-	}
-
-	i915_pmu_init();
-
-	err = pci_register_driver(&i915_pci_driver);
-	if (err) {
-		i915_pmu_exit();
-		return err;
-	}
-
-	i915_perf_sysctl_register();
-	return 0;
+	return pci_register_driver(&i915_pci_driver);
 }
 
-static void __exit i915_exit(void)
+void i915_unregister_pci_driver(void)
 {
-	if (!i915_pci_driver.driver.owner)
-		return;
-
-	i915_perf_sysctl_unregister();
 	pci_unregister_driver(&i915_pci_driver);
-	i915_globals_exit();
-	i915_pmu_exit();
 }
-
-module_init(i915_init);
-module_exit(i915_exit);
-
-MODULE_AUTHOR("Tungsten Graphics, Inc.");
-MODULE_AUTHOR("Intel Corporation");
-
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL and additional rights");
