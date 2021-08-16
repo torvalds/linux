@@ -1258,6 +1258,12 @@ static unsigned int ima_parse_appraise_algos(char *arg)
 			return 0;
 		}
 
+		if (!crypto_has_alg(hash_algo_name[idx], 0, 0)) {
+			pr_err("unavailable hash algorithm \"%s\", check your kernel configuration",
+			       token);
+			return 0;
+		}
+
 		/* Add the hash algorithm to the 'allowed' bitfield */
 		res |= (1U << idx);
 	}
