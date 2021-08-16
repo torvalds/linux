@@ -4,10 +4,8 @@
 #ifndef __MLX5_EN_TC_SAMPLE_H__
 #define __MLX5_EN_TC_SAMPLE_H__
 
-#include "en.h"
 #include "eswitch.h"
 
-struct mlx5e_priv;
 struct mlx5_flow_attr;
 struct mlx5_esw_psample;
 
@@ -34,7 +32,7 @@ mlx5_esw_sample_unoffload(struct mlx5_esw_psample *sample_priv,
 			  struct mlx5_flow_attr *attr);
 
 struct mlx5_esw_psample *
-mlx5_esw_sample_init(struct mlx5e_priv *priv);
+mlx5_esw_sample_init(struct mlx5_eswitch *esw);
 
 void
 mlx5_esw_sample_cleanup(struct mlx5_esw_psample *esw_psample);
