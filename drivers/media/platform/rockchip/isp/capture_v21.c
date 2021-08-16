@@ -19,6 +19,167 @@ static int mi_frame_end(struct rkisp_stream *stream);
 static void rkisp_buf_queue(struct vb2_buffer *vb);
 static int rkisp_create_dummy_buf(struct rkisp_stream *stream);
 
+static const struct capture_fmt dmatx_fmts[] = {
+	/* raw */
+	{
+		.fourcc = V4L2_PIX_FMT_SRGGB8,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 8 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGRBG8,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 8 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGBRG8,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 8 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SBGGR8,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 8 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_GREY,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 8 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SRGGB10,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 10 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGRBG10,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 10 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGBRG10,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 10 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SBGGR10,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 10 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_Y10,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 10 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SRGGB12,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 12 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGRBG12,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 12 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGBRG12,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 12 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SBGGR12,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 12 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_Y12,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 12 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_YUYV,
+		.fmt_type = FMT_YUV,
+		.bpp = { 16 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_YVYU,
+		.fmt_type = FMT_YUV,
+		.bpp = { 16 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_UYVY,
+		.fmt_type = FMT_YUV,
+		.bpp = { 16 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_VYUY,
+		.fmt_type = FMT_YUV,
+		.bpp = { 16 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4l2_PIX_FMT_EBD8,
+		.fmt_type = FMT_EBD,
+		.bpp = { 8 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4l2_PIX_FMT_SPD16,
+		.fmt_type = FMT_SPD,
+		.bpp = { 16 },
+		.mplanes = 1,
+	}
+};
+
+static struct stream_config rkisp2_dmatx0_stream_config = {
+	.fmts = dmatx_fmts,
+	.fmt_size = ARRAY_SIZE(dmatx_fmts),
+	.frame_end_id = MI_RAW0_WR_FRAME,
+	.mi = {
+		.y_size_init = MI_RAW0_WR_SIZE,
+		.y_base_ad_init = MI_RAW0_WR_BASE,
+		.y_base_ad_shd = MI_RAW0_WR_BASE_SHD,
+		.length = MI_RAW0_WR_LENGTH,
+	},
+	.dma = {
+		.ctrl = CSI2RX_RAW0_WR_CTRL,
+		.pic_size = CSI2RX_RAW0_WR_PIC_SIZE,
+		.pic_offs = CSI2RX_RAW0_WR_PIC_OFF,
+	},
+};
+
+static struct stream_config rkisp2_dmatx1_stream_config = {
+	.fmts = dmatx_fmts,
+	.fmt_size = ARRAY_SIZE(dmatx_fmts),
+	.frame_end_id = MI_RAW1_WR_FRAME,
+	.mi = {
+		.y_size_init = MI_RAW1_WR_SIZE,
+		.y_base_ad_init = MI_RAW1_WR_BASE,
+		.y_base_ad_shd = MI_RAW1_WR_BASE_SHD,
+		.length = MI_RAW1_WR_LENGTH,
+	},
+	.dma = {
+		.ctrl = CSI2RX_RAW1_WR_CTRL,
+		.pic_size = CSI2RX_RAW1_WR_PIC_SIZE,
+		.pic_offs = CSI2RX_RAW1_WR_PIC_OFF,
+	},
+};
+
+static struct stream_config rkisp2_dmatx3_stream_config = {
+	.fmts = dmatx_fmts,
+	.fmt_size = ARRAY_SIZE(dmatx_fmts),
+	.frame_end_id = MI_RAW3_WR_FRAME,
+	.mi = {
+		.y_size_init = MI_RAW3_WR_SIZE,
+		.y_base_ad_init = MI_RAW3_WR_BASE,
+		.y_base_ad_shd = MI_RAW3_WR_BASE_SHD,
+		.length = MI_RAW3_WR_LENGTH,
+	},
+	.dma = {
+		.ctrl = CSI2RX_RAW3_WR_CTRL,
+		.pic_size = CSI2RX_RAW3_WR_PIC_SIZE,
+		.pic_offs = CSI2RX_RAW3_WR_PIC_OFF,
+	},
+};
+
 static bool is_rdbk_stream(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;

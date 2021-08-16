@@ -12,8 +12,24 @@ config VIDEO_ROCKCHIP_ISP
 	help
 	  Support for ISP on the rockchip SoC.
 
+if VIDEO_ROCKCHIP_ISP
+
+config VIDEO_ROCKCHIP_ISP_VERSION_V1X
+	bool "isp1 for rk1808 rk3288 rk3326 rk3368 rk3399"
+	default y if CPU_RK1808 || CPU_RK3288 || CPU_PX30 || CPU_RK3368 || CPU_RK3399
+
+config VIDEO_ROCKCHIP_ISP_VERSION_V20
+	bool "isp20 for rv1126 and rv1109"
+	default y if CPU_RV1126
+
+config VIDEO_ROCKCHIP_ISP_VERSION_V21
+	bool "isp21 for rk3566 and rk3568"
+	default y if CPU_RK3568
+
 config VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
 	bool "Rockchip Image Signal Processing Thunderboot helper"
 	depends on ROCKCHIP_THUNDER_BOOT
 	help
 	  Say y if enable thunderboot helper for isp.
+
+endif

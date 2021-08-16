@@ -76,7 +76,12 @@ struct rkisp_isp_params_v1x_config {
 	const int hst_weight_grids_size;
 };
 
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V1X)
 int rkisp_init_params_vdev_v1x(struct rkisp_isp_params_vdev *params_vdev);
 void rkisp_uninit_params_vdev_v1x(struct rkisp_isp_params_vdev *params_vdev);
+#else
+static inline int rkisp_init_params_vdev_v1x(struct rkisp_isp_params_vdev *params_vdev) { return 0; }
+static inline void rkisp_uninit_params_vdev_v1x(struct rkisp_isp_params_vdev *params_vdev) {}
+#endif
 
 #endif /* _RKISP_ISP_PARAM_V1X_H */

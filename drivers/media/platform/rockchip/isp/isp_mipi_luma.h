@@ -58,6 +58,7 @@ struct rkisp_luma_vdev {
 	struct rkisp_luma_readout_work work;
 };
 
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V20)
 void rkisp_luma_isr(struct rkisp_luma_vdev *luma_vdev, u32 isp_stat);
 
 int rkisp_register_luma_vdev(struct rkisp_luma_vdev *luma_vdev,
@@ -65,5 +66,14 @@ int rkisp_register_luma_vdev(struct rkisp_luma_vdev *luma_vdev,
 			     struct rkisp_device *dev);
 
 void rkisp_unregister_luma_vdev(struct rkisp_luma_vdev *luma_vdev);
+#else
+static inline void rkisp_unregister_luma_vdev(struct rkisp_luma_vdev *luma_vdev) {}
+static inline int rkisp_register_luma_vdev(struct rkisp_luma_vdev *luma_vdev,
+					   struct v4l2_device *v4l2_dev,
+					   struct rkisp_device *dev)
+{
+	return 0;
+}
+#endif
 
 #endif /* _RKISP_ISP_LUMA_H */

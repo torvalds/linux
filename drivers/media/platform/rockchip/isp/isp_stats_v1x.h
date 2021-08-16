@@ -31,7 +31,12 @@ struct rkisp_stats_v1x_config {
 	const int hist_bin_n_max;
 };
 
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V1X)
 void rkisp_init_stats_vdev_v1x(struct rkisp_isp_stats_vdev *stats_vdev);
 void rkisp_uninit_stats_vdev_v1x(struct rkisp_isp_stats_vdev *stats_vdev);
+#else
+static inline void rkisp_init_stats_vdev_v1x(struct rkisp_isp_stats_vdev *stats_vdev) {}
+static inline void rkisp_uninit_stats_vdev_v1x(struct rkisp_isp_stats_vdev *stats_vdev) {}
+#endif
 
 #endif /* _RKISP_ISP_STATS_V1X_H */
