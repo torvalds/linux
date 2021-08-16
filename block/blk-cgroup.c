@@ -489,9 +489,9 @@ static int blkcg_reset_stats(struct cgroup_subsys_state *css,
 
 const char *blkg_dev_name(struct blkcg_gq *blkg)
 {
-	if (!queue_has_disk(blkg->q) || !queue_to_disk(blkg->q)->bdi->dev)
+	if (!blkg->q->disk || !blkg->q->disk->bdi->dev)
 		return NULL;
-	return bdi_dev_name(queue_to_disk(blkg->q)->bdi);
+	return bdi_dev_name(blkg->q->disk->bdi);
 }
 
 /**

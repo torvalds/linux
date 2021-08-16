@@ -421,6 +421,8 @@ struct request_queue {
 
 	spinlock_t		queue_lock;
 
+	struct gendisk		*disk;
+
 	/*
 	 * queue kobject
 	 */
@@ -660,9 +662,6 @@ extern void blk_clear_pm_only(struct request_queue *q);
 #define dma_map_bvec(dev, bv, dir, attrs) \
 	dma_map_page_attrs(dev, (bv)->bv_page, (bv)->bv_offset, (bv)->bv_len, \
 	(dir), (attrs))
-
-#define queue_has_disk(q)	((q)->kobj.parent != NULL)
-#define queue_to_disk(q)	(dev_to_disk(kobj_to_dev((q)->kobj.parent)))
 
 static inline bool queue_is_mq(struct request_queue *q)
 {

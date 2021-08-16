@@ -5269,7 +5269,7 @@ bfq_set_next_ioprio_data(struct bfq_queue *bfqq, struct bfq_io_cq *bic)
 	switch (ioprio_class) {
 	default:
 		pr_err("bdi %s: bfq: bad prio class %d\n",
-			bdi_dev_name(queue_to_disk(bfqq->bfqd->queue)->bdi),
+			bdi_dev_name(bfqq->bfqd->queue->disk->bdi),
 			ioprio_class);
 		fallthrough;
 	case IOPRIO_CLASS_NONE:

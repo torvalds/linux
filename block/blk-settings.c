@@ -141,9 +141,9 @@ void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_secto
 				 limits->logical_block_size >> SECTOR_SHIFT);
 	limits->max_sectors = max_sectors;
 
-	if (!queue_has_disk(q))
+	if (!q->disk)
 		return;
-	queue_to_disk(q)->bdi->io_pages = max_sectors >> (PAGE_SHIFT - 9);
+	q->disk->bdi->io_pages = max_sectors >> (PAGE_SHIFT - 9);
 }
 EXPORT_SYMBOL(blk_queue_max_hw_sectors);
 
@@ -475,9 +475,9 @@ EXPORT_SYMBOL(blk_limits_io_opt);
 void blk_queue_io_opt(struct request_queue *q, unsigned int opt)
 {
 	blk_limits_io_opt(&q->limits, opt);
-	if (!queue_has_disk(q))
+	if (!q->disk)
 		return;
-	queue_to_disk(q)->bdi->ra_pages =
+	q->disk->bdi->ra_pages =
 		max(queue_io_opt(q) * 2 / PAGE_SIZE, VM_READAHEAD_PAGES);
 }
 EXPORT_SYMBOL(blk_queue_io_opt);
