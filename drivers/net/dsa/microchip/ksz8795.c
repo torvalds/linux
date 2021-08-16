@@ -833,9 +833,11 @@ static void ksz8795_port_vlan_add(struct dsa_switch *ds, int port,
 
 	if (new_pvid) {
 		ksz_pread16(dev, port, REG_PORT_CTRL_VID, &vid);
-		vid &= 0xfff;
+		vid &= ~VLAN_VID_MASK;
 		vid |= new_pvid;
 		ksz_pwrite16(dev, port, REG_PORT_CTRL_VID, vid);
+
+		ksz_pwrite8(dev, port, REG_PORT_CTRL_12, 0x0f);
 	}
 }
 
@@ -844,8 +846,9 @@ static int ksz8795_port_vlan_del(struct dsa_switch *ds, int port,
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct ksz_device *dev = ds->priv;
-	u16 data, vid, pvid, new_pvid = 0;
+	u16 data, vid, pvid;
 	u8 fid, member, valid;
+	bool del_pvid = false;
 
 	ksz_pread16(dev, port, REG_PORT_CTRL_VID, &pvid);
 	pvid = pvid & 0xFFF;
@@ -865,14 +868,14 @@ static int ksz8795_port_vlan_del(struct dsa_switch *ds, int port,
 		}
 
 		if (pvid == vid)
-			new_pvid = 1;
+			del_pvid = true;
 
 		ksz8795_to_vlan(fid, member, valid, &data);
 		ksz8795_w_vlan_table(dev, vid, data);
 	}
 
-	if (new_pvid != pvid)
-		ksz_pwrite16(dev, port, REG_PORT_CTRL_VID, pvid);
+	if (del_pvid)
+		ksz_pwrite8(dev, port, REG_PORT_CTRL_12, 0x00);
 
 	return 0;
 }
@@ -1084,6 +1087,8 @@ static int ksz8795_setup(struct dsa_switch *ds)
 	ksz_cfg(dev, S_REPLACE_VID_CTRL, SW_REPLACE_VID, false);
 
 	ksz_cfg(dev, S_MIRROR_CTRL, SW_MIRROR_RX_TX, false);
+
+	ksz_cfg(dev, REG_SW_CTRL_19, SW_INS_TAG_ENABLE, true);
 
 	/* set broadcast storm protection 10% rate */
 	regmap_update_bits(dev->regmap[1], S_REPLACE_VID_CTRL,
