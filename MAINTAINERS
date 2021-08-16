@@ -9458,10 +9458,10 @@ F:	include/linux/mfd/intel-m10-bmc.h
 
 INTEL MENLOW THERMAL DRIVER
 M:	Sujith Thomas <sujith.thomas@intel.com>
-L:	platform-driver-x86@vger.kernel.org
+L:	linux-pm@vger.kernel.org
 S:	Supported
 W:	https://01.org/linux-acpi
-F:	drivers/platform/x86/intel_menlow.c
+F:	drivers/thermal/intel/intel_menlow.c
 
 INTEL P-Unit IPC DRIVER
 M:	Zha Qipeng <qipeng.zha@intel.com>
