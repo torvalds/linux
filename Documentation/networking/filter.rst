@@ -638,8 +638,8 @@ extension, PTP dissector/classifier, and much more. They are all internally
 converted by the kernel into the new instruction set representation and run
 in the eBPF interpreter. For in-kernel handlers, this all works transparently
 by using bpf_prog_create() for setting up the filter, resp.
-bpf_prog_destroy() for destroying it. The macro
-BPF_PROG_RUN(filter, ctx) transparently invokes eBPF interpreter or JITed
+bpf_prog_destroy() for destroying it. The function
+bpf_prog_run(filter, ctx) transparently invokes eBPF interpreter or JITed
 code to run the filter. 'filter' is a pointer to struct bpf_prog that we
 got from bpf_prog_create(), and 'ctx' the given context (e.g.
 skb pointer). All constraints and restrictions from bpf_check_classic() apply
