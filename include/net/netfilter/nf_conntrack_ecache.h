@@ -73,13 +73,12 @@ struct nf_ct_event {
 };
 
 struct nf_ct_event_notifier {
-	int (*fcn)(unsigned int events, const struct nf_ct_event *item);
+	int (*ct_event)(unsigned int events, const struct nf_ct_event *item);
 };
 
-int nf_conntrack_register_notifier(struct net *net,
-				   struct nf_ct_event_notifier *nb);
-void nf_conntrack_unregister_notifier(struct net *net,
-				      struct nf_ct_event_notifier *nb);
+void nf_conntrack_register_notifier(struct net *net,
+				   const struct nf_ct_event_notifier *nb);
+void nf_conntrack_unregister_notifier(struct net *net);
 
 void nf_ct_deliver_cached_events(struct nf_conn *ct);
 int nf_conntrack_eventmask_report(unsigned int eventmask, struct nf_conn *ct,
@@ -159,7 +158,7 @@ struct nf_exp_event {
 };
 
 struct nf_exp_event_notifier {
-	int (*fcn)(unsigned int events, struct nf_exp_event *item);
+	int (*exp_event)(unsigned int events, struct nf_exp_event *item);
 };
 
 int nf_ct_expect_register_notifier(struct net *net,
