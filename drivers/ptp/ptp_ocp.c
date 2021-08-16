@@ -763,7 +763,7 @@ ptp_ocp_devlink_flash(struct devlink *devlink, struct device *dev,
 	size_t off, len, resid, wrote;
 	struct erase_info erase;
 	size_t base, blksz;
-	int err;
+	int err = 0;
 
 	off = 0;
 	base = bp->flash_start;
