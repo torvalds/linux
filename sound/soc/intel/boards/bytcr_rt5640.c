@@ -1544,7 +1544,7 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 		if (byt_rt5640_quirk & BYT_RT5640_LINEOUT_AS_HP2)
 			lineout_string = " cfg-hp2:lineout";
 		else
-			lineout_string = " cfg-lineout:1";
+			lineout_string = " cfg-lineout:2";
 	}
 
 	if (byt_rt5640_quirk & BYT_RT5640_HSMIC2_ON_IN1)
