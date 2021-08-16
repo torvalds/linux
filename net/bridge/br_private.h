@@ -952,6 +952,7 @@ int br_multicast_dump_querier_state(struct sk_buff *skb,
 				    const struct net_bridge_mcast *brmctx,
 				    int nest_attr);
 size_t br_multicast_querier_state_size(void);
+size_t br_rports_size(const struct net_bridge_mcast *brmctx);
 
 static inline bool br_group_is_l2(const struct br_ip *group)
 {
