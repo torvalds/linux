@@ -8,7 +8,7 @@
 	 do {						\
 		 i += 2;				\
 		 v1 = array[i];				\
-		 v2 = array[i+1];			\
+		 v2 = array[i + 1];			\
 	 } while (0)
 
 static bool CheckCondition(const u32  condition, const u32  hex)
@@ -179,7 +179,7 @@ enum HAL_STATUS ODM_ReadAndConfig_AGC_TAB_1T_8188E(struct odm_dm_struct *dm_odm)
 	u8     platform    = dm_odm->SupportPlatform;
 	u8     interfaceValue   = dm_odm->SupportInterface;
 	u8     board       = dm_odm->BoardType;
-	u32     arraylen    = sizeof(array_agc_tab_1t_8188e)/sizeof(u32);
+	u32     arraylen    = sizeof(array_agc_tab_1t_8188e) / sizeof(u32);
 	u32    *array       = array_agc_tab_1t_8188e;
 	bool		biol = false;
 	struct adapter *adapter =  dm_odm->Adapter;
@@ -203,7 +203,7 @@ enum HAL_STATUS ODM_ReadAndConfig_AGC_TAB_1T_8188E(struct odm_dm_struct *dm_odm)
 
 	for (i = 0; i < arraylen; i += 2) {
 		u32 v1 = array[i];
-		u32 v2 = array[i+1];
+		u32 v2 = array[i + 1];
 
 		/*  This (offset, data) pair meets the condition. */
 		if (v1 < 0xCDCDCDCD) {
@@ -459,7 +459,7 @@ enum HAL_STATUS ODM_ReadAndConfig_PHY_REG_1T_8188E(struct odm_dm_struct *dm_odm)
 	u8     platform    = dm_odm->SupportPlatform;
 	u8     interfaceValue   = dm_odm->SupportInterface;
 	u8     board       = dm_odm->BoardType;
-	u32     arraylen    = sizeof(array_phy_reg_1t_8188e)/sizeof(u32);
+	u32     arraylen    = sizeof(array_phy_reg_1t_8188e) / sizeof(u32);
 	u32    *array       = array_phy_reg_1t_8188e;
 	bool	biol = false;
 	struct adapter *adapter =  dm_odm->Adapter;
@@ -482,7 +482,7 @@ enum HAL_STATUS ODM_ReadAndConfig_PHY_REG_1T_8188E(struct odm_dm_struct *dm_odm)
 
 	for (i = 0; i < arraylen; i += 2) {
 		u32 v1 = array[i];
-		u32 v2 = array[i+1];
+		u32 v2 = array[i + 1];
 
 		/*  This (offset, data) pair meets the condition. */
 		if (v1 < 0xCDCDCDCD) {
@@ -676,8 +676,8 @@ void ODM_ReadAndConfig_PHY_REG_PG_8188E(struct odm_dm_struct *dm_odm)
 
 	for (i = 0; i < arraylen; i += 3) {
 		u32 v1 = array[i];
-		u32 v2 = array[i+1];
-		u32 v3 = array[i+2];
+		u32 v2 = array[i + 1];
+		u32 v3 = array[i + 2];
 
 		/*  this line is a line of pure_body */
 		if (v1 < 0xCDCDCDCD) {
@@ -688,13 +688,13 @@ void ODM_ReadAndConfig_PHY_REG_PG_8188E(struct odm_dm_struct *dm_odm)
 				/*  don't need the hw_body */
 				i += 2; /*  skip the pair of expression */
 				v1 = array[i];
-				v2 = array[i+1];
-				v3 = array[i+2];
+				v2 = array[i + 1];
+				v3 = array[i + 2];
 				while (v2 != 0xDEAD) {
 					i += 3;
 					v1 = array[i];
-					v2 = array[i+1];
-					v3 = array[i+1];
+					v2 = array[i + 1];
+					v3 = array[i + 1];
 				}
 			}
 		}
