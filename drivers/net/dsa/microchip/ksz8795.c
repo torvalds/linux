@@ -895,7 +895,6 @@ static void ksz8795_port_vlan_add(struct dsa_switch *ds, int port,
 static int ksz8795_port_vlan_del(struct dsa_switch *ds, int port,
 				 const struct switchdev_obj_port_vlan *vlan)
 {
-	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct ksz_device *dev = ds->priv;
 	u16 data, vid, pvid;
 	u8 fid, member, valid;
@@ -903,8 +902,6 @@ static int ksz8795_port_vlan_del(struct dsa_switch *ds, int port,
 
 	ksz_pread16(dev, port, REG_PORT_CTRL_VID, &pvid);
 	pvid = pvid & 0xFFF;
-
-	ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
 
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
 		ksz8795_r_vlan_table(dev, vid, &data);
