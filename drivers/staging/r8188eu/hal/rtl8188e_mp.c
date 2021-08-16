@@ -78,8 +78,8 @@ void Hal_MPT_CCKTxPowerAdjust(struct adapter *Adapter, bool bInCH14)
 		/*  Readback the current bb cck swing value and compare with the table to */
 		/*  get the current swing index */
 		for (i = 0; i < CCK_TABLE_SIZE; i++) {
-			if (((CurrCCKSwingVal&0xff) == (u32)CCKSwingTable_Ch1_Ch13[i][0]) &&
-			    (((CurrCCKSwingVal&0xff00)>>8) == (u32)CCKSwingTable_Ch1_Ch13[i][1])) {
+			if (((CurrCCKSwingVal & 0xff) == (u32)CCKSwingTable_Ch1_Ch13[i][0]) &&
+			    (((CurrCCKSwingVal & 0xff00) >> 8) == (u32)CCKSwingTable_Ch1_Ch13[i][1])) {
 				CCKSwingIndex = i;
 				break;
 			}
@@ -87,23 +87,23 @@ void Hal_MPT_CCKTxPowerAdjust(struct adapter *Adapter, bool bInCH14)
 
 		/* Write 0xa22 0xa23 */
 		TempVal = CCKSwingTable_Ch1_Ch13[CCKSwingIndex][0] +
-				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][1]<<8);
+				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][1] << 8);
 
 		/* Write 0xa24 ~ 0xa27 */
 		TempVal2 = 0;
 		TempVal2 = CCKSwingTable_Ch1_Ch13[CCKSwingIndex][2] +
-				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][3]<<8) +
-				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][4]<<16)+
-				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][5]<<24);
+				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][3] << 8) +
+				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][4] << 16) +
+				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][5] << 24);
 
 		/* Write 0xa28  0xa29 */
 		TempVal3 = 0;
 		TempVal3 = CCKSwingTable_Ch1_Ch13[CCKSwingIndex][6] +
-				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][7]<<8);
+				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][7] << 8);
 	} else {
 		for (i = 0; i < CCK_TABLE_SIZE; i++) {
-			if (((CurrCCKSwingVal&0xff) == (u32)CCKSwingTable_Ch14[i][0]) &&
-			    (((CurrCCKSwingVal&0xff00)>>8) == (u32)CCKSwingTable_Ch14[i][1])) {
+			if (((CurrCCKSwingVal & 0xff) == (u32)CCKSwingTable_Ch14[i][0]) &&
+			    (((CurrCCKSwingVal & 0xff00) >> 8) == (u32)CCKSwingTable_Ch14[i][1])) {
 				CCKSwingIndex = i;
 				break;
 			}
@@ -111,19 +111,19 @@ void Hal_MPT_CCKTxPowerAdjust(struct adapter *Adapter, bool bInCH14)
 
 		/* Write 0xa22 0xa23 */
 		TempVal = CCKSwingTable_Ch14[CCKSwingIndex][0] +
-				(CCKSwingTable_Ch14[CCKSwingIndex][1]<<8);
+				(CCKSwingTable_Ch14[CCKSwingIndex][1] << 8);
 
 		/* Write 0xa24 ~ 0xa27 */
 		TempVal2 = 0;
 		TempVal2 = CCKSwingTable_Ch14[CCKSwingIndex][2] +
-				(CCKSwingTable_Ch14[CCKSwingIndex][3]<<8) +
-				(CCKSwingTable_Ch14[CCKSwingIndex][4]<<16)+
-				(CCKSwingTable_Ch14[CCKSwingIndex][5]<<24);
+				(CCKSwingTable_Ch14[CCKSwingIndex][3] << 8) +
+				(CCKSwingTable_Ch14[CCKSwingIndex][4] << 16) +
+				(CCKSwingTable_Ch14[CCKSwingIndex][5] << 24);
 
 		/* Write 0xa28  0xa29 */
 		TempVal3 = 0;
 		TempVal3 = CCKSwingTable_Ch14[CCKSwingIndex][6] +
-				(CCKSwingTable_Ch14[CCKSwingIndex][7]<<8);
+				(CCKSwingTable_Ch14[CCKSwingIndex][7] << 8);
 	}
 
 	write_bbreg(Adapter, rCCK0_TxFilter1, bMaskHWord, TempVal);
@@ -247,12 +247,12 @@ void Hal_SetCCKTxPower(struct adapter *pAdapter, u8 *TxPower)
 
 	/*  rf-A cck tx power */
 	write_bbreg(pAdapter, rTxAGC_A_CCK1_Mcs32, bMaskByte1, TxPower[RF_PATH_A]);
-	tmpval = (TxPower[RF_PATH_A]<<16) | (TxPower[RF_PATH_A]<<8) | TxPower[RF_PATH_A];
+	tmpval = (TxPower[RF_PATH_A] << 16) | (TxPower[RF_PATH_A] << 8) | TxPower[RF_PATH_A];
 	write_bbreg(pAdapter, rTxAGC_B_CCK11_A_CCK2_11, 0xffffff00, tmpval);
 
 	/*  rf-B cck tx power */
 	write_bbreg(pAdapter, rTxAGC_B_CCK11_A_CCK2_11, bMaskByte0, TxPower[RF_PATH_B]);
-	tmpval = (TxPower[RF_PATH_B]<<16) | (TxPower[RF_PATH_B]<<8) | TxPower[RF_PATH_B];
+	tmpval = (TxPower[RF_PATH_B] << 16) | (TxPower[RF_PATH_B] << 8) | TxPower[RF_PATH_B];
 	write_bbreg(pAdapter, rTxAGC_B_CCK1_55_Mcs32, 0xffffff00, tmpval);
 }
 
@@ -263,7 +263,7 @@ void Hal_SetOFDMTxPower(struct adapter *pAdapter, u8 *TxPower)
 
 	/*  HT Tx-rf(A) */
 	tmpval = TxPower[RF_PATH_A];
-	TxAGC = (tmpval<<24) | (tmpval<<16) | (tmpval<<8) | tmpval;
+	TxAGC = (tmpval << 24) | (tmpval << 16) | (tmpval << 8) | tmpval;
 
 	write_bbreg(pAdapter, rTxAGC_A_Rate18_06, bMaskDWord, TxAGC);
 	write_bbreg(pAdapter, rTxAGC_A_Rate54_24, bMaskDWord, TxAGC);
@@ -274,7 +274,7 @@ void Hal_SetOFDMTxPower(struct adapter *pAdapter, u8 *TxPower)
 
 	/*  HT Tx-rf(B) */
 	tmpval = TxPower[RF_PATH_B];
-	TxAGC = (tmpval<<24) | (tmpval<<16) | (tmpval<<8) | tmpval;
+	TxAGC = (tmpval << 24) | (tmpval << 16) | (tmpval << 8) | tmpval;
 
 	write_bbreg(pAdapter, rTxAGC_B_Rate18_06, bMaskDWord, TxAGC);
 	write_bbreg(pAdapter, rTxAGC_B_Rate54_24, bMaskDWord, TxAGC);
@@ -312,7 +312,7 @@ void Hal_SetAntennaPathPower(struct adapter *pAdapter)
 	case RF_6052:
 		Hal_SetCCKTxPower(pAdapter, TxPowerLevel);
 		if (pAdapter->mppriv.rateidx < MPT_RATE_6M)	/*  CCK rate */
-			Hal_MPT_CCKTxPowerAdjustbyIndex(pAdapter, TxPowerLevel[rfPath]%2 == 0);
+			Hal_MPT_CCKTxPowerAdjustbyIndex(pAdapter, TxPowerLevel[rfPath] % 2 == 0);
 		Hal_SetOFDMTxPower(pAdapter, TxPowerLevel);
 		break;
 	default:
@@ -351,7 +351,7 @@ void Hal_SetTxPower(struct adapter *pAdapter)
 	case RF_6052:
 		Hal_SetCCKTxPower(pAdapter, TxPowerLevel);
 		if (pAdapter->mppriv.rateidx < MPT_RATE_6M)	/*  CCK rate */
-			Hal_MPT_CCKTxPowerAdjustbyIndex(pAdapter, TxPowerLevel[rfPath]%2 == 0);
+			Hal_MPT_CCKTxPowerAdjustbyIndex(pAdapter, TxPowerLevel[rfPath] % 2 == 0);
 		Hal_SetOFDMTxPower(pAdapter, TxPowerLevel);
 		break;
 	default:

@@ -15,7 +15,7 @@ static u8 odm_QueryRxPwrPercentage(s8 AntPower)
 	else if (AntPower >= 0)
 		return	100;
 	else
-		return 100+AntPower;
+		return 100 + AntPower;
 }
 
 /*  2012/01/12 MH MOve some signal strength smooth method to MP HAL layer. */
@@ -39,7 +39,7 @@ static s32 odm_SignalScaleMapping_92CSeries(struct odm_dm_struct *dm_odm, s32 Cu
 		if (CurrSig >= 51 && CurrSig <= 100)
 			RetSig = 100;
 		else if (CurrSig >= 41 && CurrSig <= 50)
-			RetSig = 80 + ((CurrSig - 40)*2);
+			RetSig = 80 + ((CurrSig - 40) * 2);
 		else if (CurrSig >= 31 && CurrSig <= 40)
 			RetSig = 66 + (CurrSig - 30);
 		else if (CurrSig >= 21 && CurrSig <= 30)
@@ -121,44 +121,44 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 
 		cck_highpwr = dm_odm->bCckHighPower;
 
-		cck_agc_rpt =  pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a ;
+		cck_agc_rpt =  pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a;
 
 		/* 2011.11.28 LukeLee: 88E use different LNA & VGA gain table */
 		/* The RSSI formula should be modified according to the gain table */
 		/* In 88E, cck_highpwr is always set to 1 */
-		if (dm_odm->SupportICType & (ODM_RTL8188E|ODM_RTL8812)) {
+		if (dm_odm->SupportICType & (ODM_RTL8188E | ODM_RTL8812)) {
 			LNA_idx = ((cck_agc_rpt & 0xE0) >> 5);
 			VGA_idx = (cck_agc_rpt & 0x1F);
 			switch (LNA_idx) {
 			case 7:
 				if (VGA_idx <= 27)
-					rx_pwr_all = -100 + 2*(27-VGA_idx); /* VGA_idx = 27~2 */
+					rx_pwr_all = -100 + 2 * (27 - VGA_idx); /* VGA_idx = 27~2 */
 				else
 					rx_pwr_all = -100;
 				break;
 			case 6:
-				rx_pwr_all = -48 + 2*(2-VGA_idx); /* VGA_idx = 2~0 */
+				rx_pwr_all = -48 + 2 * (2 - VGA_idx); /* VGA_idx = 2~0 */
 				break;
 			case 5:
-				rx_pwr_all = -42 + 2*(7-VGA_idx); /* VGA_idx = 7~5 */
+				rx_pwr_all = -42 + 2 * (7 - VGA_idx); /* VGA_idx = 7~5 */
 				break;
 			case 4:
-				rx_pwr_all = -36 + 2*(7-VGA_idx); /* VGA_idx = 7~4 */
+				rx_pwr_all = -36 + 2 * (7 - VGA_idx); /* VGA_idx = 7~4 */
 				break;
 			case 3:
-				rx_pwr_all = -24 + 2*(7-VGA_idx); /* VGA_idx = 7~0 */
+				rx_pwr_all = -24 + 2 * (7 - VGA_idx); /* VGA_idx = 7~0 */
 				break;
 			case 2:
 				if (cck_highpwr)
-					rx_pwr_all = -12 + 2*(5-VGA_idx); /* VGA_idx = 5~0 */
+					rx_pwr_all = -12 + 2 * (5 - VGA_idx); /* VGA_idx = 5~0 */
 				else
-					rx_pwr_all = -6 + 2*(5-VGA_idx);
+					rx_pwr_all = -6 + 2 * (5 - VGA_idx);
 				break;
 			case 1:
-					rx_pwr_all = 8-2*VGA_idx;
+					rx_pwr_all = 8 - 2 * VGA_idx;
 				break;
 			case 0:
-					rx_pwr_all = 14-2*VGA_idx;
+					rx_pwr_all = 14 - 2 * VGA_idx;
 				break;
 			default:
 				break;
@@ -167,7 +167,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 			PWDB_ALL = odm_QueryRxPwrPercentage(rx_pwr_all);
 			if (!cck_highpwr) {
 				if (PWDB_ALL >= 80)
-					PWDB_ALL = ((PWDB_ALL-80)<<1)+((PWDB_ALL-80)>>1)+80;
+					PWDB_ALL = ((PWDB_ALL - 80) << 1) + ((PWDB_ALL - 80) >> 1) + 80;
 				else if ((PWDB_ALL <= 78) && (PWDB_ALL >= 20))
 					PWDB_ALL += 3;
 				if (PWDB_ALL > 100)
@@ -175,7 +175,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 			}
 		} else {
 			if (!cck_highpwr) {
-				report = (cck_agc_rpt & 0xc0)>>6;
+				report = (cck_agc_rpt & 0xc0) >> 6;
 				switch (report) {
 				/*  03312009 modified by cosa */
 				/*  Modify the RF RNA gain value to -40, -20, -2, 14 by Jenyu's suggestion */
@@ -194,19 +194,19 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 					break;
 				}
 			} else {
-				report = (cck_agc_rpt & 0x60)>>5;
+				report = (cck_agc_rpt & 0x60) >> 5;
 				switch (report) {
 				case 0x3:
-					rx_pwr_all = -46 - ((cck_agc_rpt & 0x1f)<<1) ;
+					rx_pwr_all = -46 - ((cck_agc_rpt & 0x1f) << 1);
 					break;
 				case 0x2:
-					rx_pwr_all = -26 - ((cck_agc_rpt & 0x1f)<<1);
+					rx_pwr_all = -26 - ((cck_agc_rpt & 0x1f) << 1);
 					break;
 				case 0x1:
-					rx_pwr_all = -12 - ((cck_agc_rpt & 0x1f)<<1);
+					rx_pwr_all = -12 - ((cck_agc_rpt & 0x1f) << 1);
 					break;
 				case 0x0:
-					rx_pwr_all = 16 - ((cck_agc_rpt & 0x1f)<<1);
+					rx_pwr_all = 16 - ((cck_agc_rpt & 0x1f) << 1);
 					break;
 				}
 			}
@@ -215,13 +215,13 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 
 			/* Modification for ext-LNA board */
 			if (dm_odm->BoardType == ODM_BOARD_HIGHPWR) {
-				if ((cck_agc_rpt>>7) == 0) {
-					PWDB_ALL = (PWDB_ALL > 94) ? 100 : (PWDB_ALL+6);
+				if ((cck_agc_rpt >> 7) == 0) {
+					PWDB_ALL = (PWDB_ALL > 94) ? 100 : (PWDB_ALL + 6);
 				} else {
 					if (PWDB_ALL > 38)
 						PWDB_ALL -= 16;
 					else
-						PWDB_ALL = (PWDB_ALL <= 16) ? (PWDB_ALL>>2) : (PWDB_ALL-12);
+						PWDB_ALL = (PWDB_ALL <= 16) ? (PWDB_ALL >> 2) : (PWDB_ALL - 12);
 				}
 
 				/* CCK modification */
@@ -254,7 +254,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 				else if (SQ_rpt < 20)
 					SQ = 100;
 				else
-					SQ = ((64-SQ_rpt) * 100) / 44;
+					SQ = ((64 - SQ_rpt) * 100) / 44;
 			}
 			pPhyInfo->SignalQuality = SQ;
 			pPhyInfo->RxMIMOSignalQuality[RF_PATH_A] = SQ;
@@ -270,7 +270,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 			if (dm_odm->RFPathRxEnable & BIT(i))
 				rf_rx_num++;
 
-			rx_pwr[i] = ((pPhyStaRpt->path_agc[i].gain & 0x3F)*2) - 110;
+			rx_pwr[i] = ((pPhyStaRpt->path_agc[i].gain & 0x3F) * 2) - 110;
 			if (i == RF_PATH_A)
 				adapt->signal_strength = rx_pwr[i];
 
@@ -294,8 +294,8 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 			pPhyInfo->RxMIMOSignalStrength[i] = (u8)RSSI;
 
 			/* Get Rx snr value in DB */
-			pPhyInfo->RxSNR[i] = (s32)(pPhyStaRpt->path_rxsnr[i]/2);
-			dm_odm->PhyDbgInfo.RxSNRdB[i] = (s32)(pPhyStaRpt->path_rxsnr[i]/2);
+			pPhyInfo->RxSNR[i] = (s32)(pPhyStaRpt->path_rxsnr[i] / 2);
+			dm_odm->PhyDbgInfo.RxSNRdB[i] = (s32)(pPhyStaRpt->path_rxsnr[i] / 2);
 
 			/* Record Signal Strength for next packet */
 			if (pPktinfo->bPacketMatchBSSID) {
@@ -390,8 +390,8 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 		if (dm_odm->AntDivType == CG_TRX_SMART_ANTDIV) {
 			if (pDM_FatTable->FAT_State == FAT_TRAINING_STATE) {
 				if (pPktinfo->bPacketToSelf) {
-					antsel_tr_mux = (pDM_FatTable->antsel_rx_keep_2<<2) |
-							(pDM_FatTable->antsel_rx_keep_1<<1) |
+					antsel_tr_mux = (pDM_FatTable->antsel_rx_keep_2 << 2) |
+							(pDM_FatTable->antsel_rx_keep_1 << 1) |
 							pDM_FatTable->antsel_rx_keep_0;
 					pDM_FatTable->antSumRSSI[antsel_tr_mux] += pPhyInfo->RxPWDBAll;
 					pDM_FatTable->antRSSIcnt[antsel_tr_mux]++;
@@ -399,8 +399,8 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 			}
 		} else if ((dm_odm->AntDivType == CG_TRX_HW_ANTDIV) || (dm_odm->AntDivType == CGCS_RX_HW_ANTDIV)) {
 			if (pPktinfo->bPacketToSelf || pPktinfo->bPacketBeacon) {
-				antsel_tr_mux = (pDM_FatTable->antsel_rx_keep_2<<2) |
-						(pDM_FatTable->antsel_rx_keep_1<<1) | pDM_FatTable->antsel_rx_keep_0;
+				antsel_tr_mux = (pDM_FatTable->antsel_rx_keep_2 << 2) |
+						(pDM_FatTable->antsel_rx_keep_1 << 1) | pDM_FatTable->antsel_rx_keep_0;
 				ODM_AntselStatistics_88E(dm_odm, antsel_tr_mux, pPktinfo->StationID, pPhyInfo->RxPWDBAll);
 			}
 		}
@@ -439,17 +439,17 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 			} else {
 				if (pPhyInfo->RxPWDBAll > (u32)UndecoratedSmoothedOFDM) {
 					UndecoratedSmoothedOFDM =
-							(((UndecoratedSmoothedOFDM)*(Rx_Smooth_Factor-1)) +
+							(((UndecoratedSmoothedOFDM) * (Rx_Smooth_Factor - 1)) +
 							(RSSI_Ave)) / (Rx_Smooth_Factor);
 					UndecoratedSmoothedOFDM = UndecoratedSmoothedOFDM + 1;
 				} else {
 					UndecoratedSmoothedOFDM =
-							(((UndecoratedSmoothedOFDM)*(Rx_Smooth_Factor-1)) +
+							(((UndecoratedSmoothedOFDM) * (Rx_Smooth_Factor - 1)) +
 							(RSSI_Ave)) / (Rx_Smooth_Factor);
 				}
 			}
 
-			pEntry->rssi_stat.PacketMap = (pEntry->rssi_stat.PacketMap<<1) | BIT(0);
+			pEntry->rssi_stat.PacketMap = (pEntry->rssi_stat.PacketMap << 1) | BIT(0);
 
 		} else {
 			RSSI_Ave = pPhyInfo->RxPWDBAll;
@@ -460,16 +460,16 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 			} else {
 				if (pPhyInfo->RxPWDBAll > (u32)UndecoratedSmoothedCCK) {
 					UndecoratedSmoothedCCK =
-							((UndecoratedSmoothedCCK * (Rx_Smooth_Factor-1)) +
+							((UndecoratedSmoothedCCK * (Rx_Smooth_Factor - 1)) +
 							pPhyInfo->RxPWDBAll) / Rx_Smooth_Factor;
 					UndecoratedSmoothedCCK = UndecoratedSmoothedCCK + 1;
 				} else {
 					UndecoratedSmoothedCCK =
-							((UndecoratedSmoothedCCK * (Rx_Smooth_Factor-1)) +
+							((UndecoratedSmoothedCCK * (Rx_Smooth_Factor - 1)) +
 							pPhyInfo->RxPWDBAll) / Rx_Smooth_Factor;
 				}
 			}
-			pEntry->rssi_stat.PacketMap = pEntry->rssi_stat.PacketMap<<1;
+			pEntry->rssi_stat.PacketMap = pEntry->rssi_stat.PacketMap << 1;
 		}
 		/* 2011.07.28 LukeLee: modified to prevent unstable CCK RSSI */
 		if (pEntry->rssi_stat.ValidBit >= 64)
@@ -478,16 +478,16 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 			pEntry->rssi_stat.ValidBit++;
 
 		for (i = 0; i < pEntry->rssi_stat.ValidBit; i++)
-			OFDM_pkt += (u8)(pEntry->rssi_stat.PacketMap>>i)&BIT(0);
+			OFDM_pkt += (u8)(pEntry->rssi_stat.PacketMap >> i) & BIT(0);
 
 		if (pEntry->rssi_stat.ValidBit == 64) {
-			Weighting = ((OFDM_pkt<<4) > 64) ? 64 : (OFDM_pkt<<4);
-			UndecoratedSmoothedPWDB = (Weighting*UndecoratedSmoothedOFDM+(64-Weighting)*UndecoratedSmoothedCCK)>>6;
+			Weighting = ((OFDM_pkt << 4) > 64) ? 64 : (OFDM_pkt << 4);
+			UndecoratedSmoothedPWDB = (Weighting * UndecoratedSmoothedOFDM + (64 - Weighting) * UndecoratedSmoothedCCK) >> 6;
 		} else {
 			if (pEntry->rssi_stat.ValidBit != 0)
 				UndecoratedSmoothedPWDB = (OFDM_pkt * UndecoratedSmoothedOFDM +
-							  (pEntry->rssi_stat.ValidBit-OFDM_pkt) *
-							  UndecoratedSmoothedCCK)/pEntry->rssi_stat.ValidBit;
+							  (pEntry->rssi_stat.ValidBit - OFDM_pkt) *
+							  UndecoratedSmoothedCCK) / pEntry->rssi_stat.ValidBit;
 			else
 				UndecoratedSmoothedPWDB = 0;
 		}

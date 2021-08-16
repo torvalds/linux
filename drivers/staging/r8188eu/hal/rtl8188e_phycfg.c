@@ -47,7 +47,7 @@ static	u32 phy_CalculateBitShift(u32 BitMask)
 	u32 i;
 
 	for (i = 0; i <= 31; i++) {
-		if (((BitMask>>i) &  0x1) == 1)
+		if (((BitMask >> i) & 0x1) == 1)
 			break;
 	}
 	return i;
@@ -167,9 +167,9 @@ phy_RFSerialRead(
 	else
 		tmplong2 = PHY_QueryBBReg(Adapter, pPhyReg->rfHSSIPara2, bMaskDWord);
 
-	tmplong2 = (tmplong2 & (~bLSSIReadAddress)) | (NewOffset<<23) | bLSSIReadEdge;	/* T65 RF */
+	tmplong2 = (tmplong2 & (~bLSSIReadAddress)) | (NewOffset << 23) | bLSSIReadEdge;	/* T65 RF */
 
-	PHY_SetBBReg(Adapter, rFPGA0_XA_HSSIParameter2, bMaskDWord, tmplong&(~bLSSIReadEdge));
+	PHY_SetBBReg(Adapter, rFPGA0_XA_HSSIParameter2, bMaskDWord, tmplong & (~bLSSIReadEdge));
 	udelay(10);/*  PlatformStallExecution(10); */
 
 	PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, bMaskDWord, tmplong2);
@@ -258,7 +258,7 @@ phy_RFSerialWrite(
 	/*  */
 	/*  Put write addr in [5:0]  and write data in [31:16] */
 	/*  */
-	DataAndAddr = ((NewOffset<<20) | (Data&0x000fffff)) & 0x0fffffff;	/*  T65 RF */
+	DataAndAddr = ((NewOffset << 20) | (Data & 0x000fffff)) & 0x0fffffff;	/*  T65 RF */
 
 	/*  */
 	/*  Write Operation */
@@ -582,11 +582,11 @@ PHY_BBConfig8188E(
 
 	/*  Enable BB and RF */
 	RegVal = rtw_read16(Adapter, REG_SYS_FUNC_EN);
-	rtw_write16(Adapter, REG_SYS_FUNC_EN, (u16)(RegVal|BIT(13)|BIT(0)|BIT(1)));
+	rtw_write16(Adapter, REG_SYS_FUNC_EN, (u16)(RegVal | BIT(13) | BIT(0) | BIT(1)));
 
 	/*  20090923 Joseph: Advised by Steven and Jenyu. Power sequence before init RF. */
 
-	rtw_write8(Adapter, REG_RF_CTRL, RF_EN|RF_RSTB|RF_SDMRSTB);
+	rtw_write8(Adapter, REG_RF_CTRL, RF_EN | RF_RSTB | RF_SDMRSTB);
 
 	rtw_write8(Adapter, REG_SYS_FUNC_EN, FEN_USBA | FEN_USBD | FEN_BB_GLB_RSTn | FEN_BBRSTB);
 
@@ -787,10 +787,10 @@ static void getTxPowerIndex88E(struct adapter *Adapter, u8 channel, u8 *cckPower
 			/*  1. CCK */
 			cckPowerLevel[TxCount]	= pHalData->Index24G_CCK_Base[TxCount][index];
 			/* 2. OFDM */
-			ofdmPowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[RF_PATH_A][index]+
+			ofdmPowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[RF_PATH_A][index] +
 				pHalData->OFDM_24G_Diff[TxCount][RF_PATH_A];
 			/*  1. BW20 */
-			BW20PowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[RF_PATH_A][index]+
+			BW20PowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[RF_PATH_A][index] +
 				pHalData->BW20_24G_Diff[TxCount][RF_PATH_A];
 			/* 2. BW40 */
 			BW40PowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[TxCount][index];
@@ -798,12 +798,12 @@ static void getTxPowerIndex88E(struct adapter *Adapter, u8 channel, u8 *cckPower
 			/*  1. CCK */
 			cckPowerLevel[TxCount]	= pHalData->Index24G_CCK_Base[TxCount][index];
 			/* 2. OFDM */
-			ofdmPowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[RF_PATH_A][index]+
-			pHalData->BW20_24G_Diff[RF_PATH_A][index]+
+			ofdmPowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[RF_PATH_A][index] +
+			pHalData->BW20_24G_Diff[RF_PATH_A][index] +
 			pHalData->BW20_24G_Diff[TxCount][index];
 			/*  1. BW20 */
-			BW20PowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[RF_PATH_A][index]+
-			pHalData->BW20_24G_Diff[TxCount][RF_PATH_A]+
+			BW20PowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[RF_PATH_A][index] +
+			pHalData->BW20_24G_Diff[TxCount][RF_PATH_A] +
 			pHalData->BW20_24G_Diff[TxCount][index];
 			/* 2. BW40 */
 			BW40PowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[TxCount][index];
@@ -811,14 +811,14 @@ static void getTxPowerIndex88E(struct adapter *Adapter, u8 channel, u8 *cckPower
 			/*  1. CCK */
 			cckPowerLevel[TxCount]	= pHalData->Index24G_CCK_Base[TxCount][index];
 			/* 2. OFDM */
-			ofdmPowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[RF_PATH_A][index]+
-			pHalData->BW20_24G_Diff[RF_PATH_A][index]+
-			pHalData->BW20_24G_Diff[RF_PATH_B][index]+
+			ofdmPowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[RF_PATH_A][index] +
+			pHalData->BW20_24G_Diff[RF_PATH_A][index] +
+			pHalData->BW20_24G_Diff[RF_PATH_B][index] +
 			pHalData->BW20_24G_Diff[TxCount][index];
 			/*  1. BW20 */
-			BW20PowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[RF_PATH_A][index]+
-			pHalData->BW20_24G_Diff[RF_PATH_A][index]+
-			pHalData->BW20_24G_Diff[RF_PATH_B][index]+
+			BW20PowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[RF_PATH_A][index] +
+			pHalData->BW20_24G_Diff[RF_PATH_A][index] +
+			pHalData->BW20_24G_Diff[RF_PATH_B][index] +
 			pHalData->BW20_24G_Diff[TxCount][index];
 			/* 2. BW40 */
 			BW40PowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[TxCount][index];
@@ -826,17 +826,17 @@ static void getTxPowerIndex88E(struct adapter *Adapter, u8 channel, u8 *cckPower
 			/*  1. CCK */
 			cckPowerLevel[TxCount]	= pHalData->Index24G_CCK_Base[TxCount][index];
 			/* 2. OFDM */
-			ofdmPowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[RF_PATH_A][index]+
-			pHalData->BW20_24G_Diff[RF_PATH_A][index]+
-			pHalData->BW20_24G_Diff[RF_PATH_B][index]+
-			pHalData->BW20_24G_Diff[RF_PATH_C][index]+
+			ofdmPowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[RF_PATH_A][index] +
+			pHalData->BW20_24G_Diff[RF_PATH_A][index] +
+			pHalData->BW20_24G_Diff[RF_PATH_B][index] +
+			pHalData->BW20_24G_Diff[RF_PATH_C][index] +
 			pHalData->BW20_24G_Diff[TxCount][index];
 
 			/*  1. BW20 */
-			BW20PowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[RF_PATH_A][index]+
-			pHalData->BW20_24G_Diff[RF_PATH_A][index]+
-			pHalData->BW20_24G_Diff[RF_PATH_B][index]+
-			pHalData->BW20_24G_Diff[RF_PATH_C][index]+
+			BW20PowerLevel[TxCount]	= pHalData->Index24G_BW40_Base[RF_PATH_A][index] +
+			pHalData->BW20_24G_Diff[RF_PATH_A][index] +
+			pHalData->BW20_24G_Diff[RF_PATH_B][index] +
+			pHalData->BW20_24G_Diff[RF_PATH_C][index] +
 			pHalData->BW20_24G_Diff[TxCount][index];
 
 			/* 2. BW40 */
@@ -976,7 +976,7 @@ _PHY_SetBWMode92C(
 	/* 3 */
 
 	regBwOpMode = rtw_read8(Adapter, REG_BWOPMODE);
-	regRRSR_RSC = rtw_read8(Adapter, REG_RRSR+2);
+	regRRSR_RSC = rtw_read8(Adapter, REG_RRSR + 2);
 
 	switch (pHalData->CurrentChannelBW) {
 	case HT_CHANNEL_WIDTH_20:
@@ -988,8 +988,8 @@ _PHY_SetBWMode92C(
 		regBwOpMode &= ~BW_OPMODE_20MHZ;
 		/*  2007/02/07 Mark by Emily because we have not verify whether this register works */
 		rtw_write8(Adapter, REG_BWOPMODE, regBwOpMode);
-		regRRSR_RSC = (regRRSR_RSC&0x90) | (pHalData->nCur40MhzPrimeSC<<5);
-		rtw_write8(Adapter, REG_RRSR+2, regRRSR_RSC);
+		regRRSR_RSC = (regRRSR_RSC & 0x90) | (pHalData->nCur40MhzPrimeSC << 5);
+		rtw_write8(Adapter, REG_RRSR + 2, regRRSR_RSC);
 		break;
 	default:
 		break;
@@ -1009,7 +1009,7 @@ _PHY_SetBWMode92C(
 		PHY_SetBBReg(Adapter, rFPGA0_RFMOD, bRFMOD, 0x1);
 		PHY_SetBBReg(Adapter, rFPGA1_RFMOD, bRFMOD, 0x1);
 		/*  Set Control channel to upper or lower. These settings are required only for 40MHz */
-		PHY_SetBBReg(Adapter, rCCK0_System, bCCKSideBand, (pHalData->nCur40MhzPrimeSC>>1));
+		PHY_SetBBReg(Adapter, rCCK0_System, bCCKSideBand, (pHalData->nCur40MhzPrimeSC >> 1));
 		PHY_SetBBReg(Adapter, rOFDM1_LSTF, 0xC00, pHalData->nCur40MhzPrimeSC);
 		PHY_SetBBReg(Adapter, 0x818, (BIT(26) | BIT(27)),
 			     (pHalData->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_LOWER) ? 2 : 1);
