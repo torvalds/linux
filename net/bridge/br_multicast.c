@@ -4074,7 +4074,7 @@ void br_multicast_toggle_one_vlan(struct net_bridge_vlan *vlan, bool on)
 	}
 }
 
-void br_multicast_toggle_vlan(struct net_bridge_vlan *vlan, bool on)
+static void br_multicast_toggle_vlan(struct net_bridge_vlan *vlan, bool on)
 {
 	struct net_bridge_port *p;
 
@@ -4089,6 +4089,9 @@ void br_multicast_toggle_vlan(struct net_bridge_vlan *vlan, bool on)
 			continue;
 		br_multicast_toggle_one_vlan(vport, on);
 	}
+
+	if (br_vlan_is_brentry(vlan))
+		br_multicast_toggle_one_vlan(vlan, on);
 }
 
 int br_multicast_toggle_vlan_snooping(struct net_bridge *br, bool on,
