@@ -83,8 +83,10 @@ void lpfc_cmf_stop(struct lpfc_hba *phba);
 void lpfc_init_congestion_stat(struct lpfc_hba *phba);
 void lpfc_init_congestion_buf(struct lpfc_hba *phba);
 int lpfc_sli4_cgn_params_read(struct lpfc_hba *phba);
+uint32_t lpfc_cgn_calc_crc32(void *bufp, uint32_t sz, uint32_t seed);
 int lpfc_config_cgn_signal(struct lpfc_hba *phba);
 int lpfc_issue_cmf_sync_wqe(struct lpfc_hba *phba, u32 ms, u64 total);
+void lpfc_cgn_update_stat(struct lpfc_hba *phba, uint32_t dtag);
 void lpfc_unblock_requests(struct lpfc_hba *phba);
 void lpfc_block_requests(struct lpfc_hba *phba);
 

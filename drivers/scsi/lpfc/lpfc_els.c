@@ -3783,6 +3783,7 @@ lpfc_least_capable_settings(struct lpfc_hba *phba,
 	u32 rsp_sig_cap = 0, drv_sig_cap = 0;
 	u32 rsp_sig_freq_cyc = 0, rsp_sig_freq_scale = 0;
 	struct lpfc_cgn_info *cp;
+	u32 crc;
 	u16 sig_freq;
 
 	/* Get rsp signal and frequency capabilities.  */
@@ -3856,6 +3857,8 @@ lpfc_least_capable_settings(struct lpfc_hba *phba,
 		cp->cgn_alarm_freq = cpu_to_le16(sig_freq);
 		cp->cgn_warn_freq = cpu_to_le16(sig_freq);
 	}
+	crc = lpfc_cgn_calc_crc32(cp, LPFC_CGN_INFO_SZ, LPFC_CGN_CRC32_SEED);
+	cp->cgn_info_crc = cpu_to_le32(crc);
 	return;
 
 out_no_support:
@@ -9539,6 +9542,7 @@ lpfc_els_rcv_fpin_cgn(struct lpfc_hba *phba, struct fc_tlv_desc *tlv)
 	const char *cgn_sev_str;
 	u32 cgn_sev;
 	uint16_t value;
+	u32 crc;
 	bool nm_log = false;
 	int rc = 1;
 
@@ -9601,6 +9605,11 @@ cleanup:
 						LPFC_CGN_FPIN_WARN)
 						cp->cgn_warn_freq =
 							cpu_to_le16(value);
+					crc = lpfc_cgn_calc_crc32
+						(cp,
+						LPFC_CGN_INFO_SZ,
+						LPFC_CGN_CRC32_SEED);
+					cp->cgn_info_crc = cpu_to_le32(crc);
 				}
 
 				/* Don't deliver to upper layer since
@@ -9688,6 +9697,7 @@ lpfc_els_rcv_fpin(struct lpfc_vport *vport, void *p, u32 fpin_length)
 			/* If descriptor is bad, drop the rest of the data */
 			return;
 		}
+		lpfc_cgn_update_stat(phba, dtag);
 		cnt = be32_to_cpu(tlv->desc_len);
 
 		/* Sanity check descriptor length. The desc_len value does not
