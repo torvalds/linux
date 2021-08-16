@@ -1243,7 +1243,8 @@ lpfc_idle_stat_delay_work(struct work_struct *work)
 		return;
 
 	if (phba->link_state == LPFC_HBA_ERROR ||
-	    phba->pport->fc_flag & FC_OFFLINE_MODE)
+	    phba->pport->fc_flag & FC_OFFLINE_MODE ||
+	    phba->cmf_active_mode != LPFC_CFG_OFF)
 		goto requeue;
 
 	for_each_present_cpu(i) {
@@ -5528,9 +5529,10 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 	uint8_t operational = 0;
 	struct temp_event temp_event_data;
 	struct lpfc_acqe_misconfigured_event *misconfigured;
+	struct lpfc_acqe_cgn_signal *cgn_signal;
 	struct Scsi_Host  *shost;
 	struct lpfc_vport **vports;
-	int rc, i;
+	int rc, i, cnt;
 
 	evt_type = bf_get(lpfc_trailer_type, acqe_sli);
 
@@ -5702,6 +5704,40 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 			     "2518 EEPROM failure - "
 			     "Event Data1: x%08x Event Data2: x%08x\n",
 			     acqe_sli->event_data1, acqe_sli->event_data2);
+		break;
+	case LPFC_SLI_EVENT_TYPE_CGN_SIGNAL:
+		if (phba->cmf_active_mode == LPFC_CFG_OFF)
+			break;
+		cgn_signal = (struct lpfc_acqe_cgn_signal *)
+					&acqe_sli->event_data1;
+		phba->cgn_acqe_cnt++;
+
+		cnt = bf_get(lpfc_warn_acqe, cgn_signal);
+		atomic64_add(cnt, &phba->cgn_acqe_stat.warn);
+		atomic64_add(cgn_signal->alarm_cnt, &phba->cgn_acqe_stat.alarm);
+
+		/* no threshold for CMF, even 1 signal will trigger an event */
+
+		/* Alarm overrides warning, so check that first */
+		if (cgn_signal->alarm_cnt) {
+			if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM) {
+				/* Keep track of alarm cnt for cgn_info */
+				atomic_add(cgn_signal->alarm_cnt,
+					   &phba->cgn_fabric_alarm_cnt);
+				/* Keep track of alarm cnt for CMF_SYNC_WQE */
+				atomic_add(cgn_signal->alarm_cnt,
+					   &phba->cgn_sync_alarm_cnt);
+			}
+		} else if (cnt) {
+			/* signal action needs to be taken */
+			if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ONLY ||
+			    phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM) {
+				/* Keep track of warning cnt for cgn_info */
+				atomic_add(cnt, &phba->cgn_fabric_warn_cnt);
+				/* Keep track of warning cnt for CMF_SYNC_WQE */
+				atomic_add(cnt, &phba->cgn_sync_warn_cnt);
+			}
+		}
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
@@ -8702,6 +8738,52 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		phba->max_vpi = (phba->sli4_hba.max_cfg_param.max_vpi > 0) ?
 				(phba->sli4_hba.max_cfg_param.max_vpi - 1) : 0;
 		phba->max_vports = phba->max_vpi;
+
+		/* Next decide on FPIN or Signal E2E CGN support
+		 * For congestion alarms and warnings valid combination are:
+		 * 1. FPIN alarms / FPIN warnings
+		 * 2. Signal alarms / Signal warnings
+		 * 3. FPIN alarms / Signal warnings
+		 * 4. Signal alarms / FPIN warnings
+		 *
+		 * Initialize the adapter frequency to 100 mSecs
+		 */
+		phba->cgn_reg_fpin = LPFC_CGN_FPIN_BOTH;
+		phba->cgn_reg_signal = EDC_CG_SIG_NOTSUPPORTED;
+		phba->cgn_sig_freq = lpfc_fabric_cgn_frequency;
+
+		if (lpfc_use_cgn_signal) {
+			if (bf_get(lpfc_mbx_rd_conf_wcs, rd_config)) {
+				phba->cgn_reg_signal = EDC_CG_SIG_WARN_ONLY;
+				phba->cgn_reg_fpin &= ~LPFC_CGN_FPIN_WARN;
+			}
+			if (bf_get(lpfc_mbx_rd_conf_acs, rd_config)) {
+				/* MUST support both alarm and warning
+				 * because EDC does not support alarm alone.
+				 */
+				if (phba->cgn_reg_signal !=
+				    EDC_CG_SIG_WARN_ONLY) {
+					/* Must support both or none */
+					phba->cgn_reg_fpin = LPFC_CGN_FPIN_BOTH;
+					phba->cgn_reg_signal =
+						EDC_CG_SIG_NOTSUPPORTED;
+				} else {
+					phba->cgn_reg_signal =
+						EDC_CG_SIG_WARN_ALARM;
+					phba->cgn_reg_fpin =
+						LPFC_CGN_FPIN_NONE;
+				}
+			}
+		}
+
+		/* Set the congestion initial signal and fpin values. */
+		phba->cgn_init_reg_fpin = phba->cgn_reg_fpin;
+		phba->cgn_init_reg_signal = phba->cgn_reg_signal;
+
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"6446 READ_CONFIG reg_sig x%x reg_fpin:x%x\n",
+				phba->cgn_reg_signal, phba->cgn_reg_fpin);
+
 		lpfc_map_topology(phba, rd_config);
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 				"2003 cfg params Extents? %d "

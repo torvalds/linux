@@ -6417,6 +6417,7 @@ lpfc_set_features(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox,
 		  uint32_t feature)
 {
 	uint32_t len;
+	u32 sig_freq = 0;
 
 	len = sizeof(struct lpfc_mbx_set_feature) -
 		sizeof(struct lpfc_sli4_cfg_mhdr);
@@ -6438,6 +6439,35 @@ lpfc_set_features(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox,
 		       &mbox->u.mqe.un.set_feature, 1);
 		mbox->u.mqe.un.set_feature.feature = LPFC_SET_MDS_DIAGS;
 		mbox->u.mqe.un.set_feature.param_len = 8;
+		break;
+	case LPFC_SET_CGN_SIGNAL:
+		if (phba->cmf_active_mode == LPFC_CFG_OFF)
+			sig_freq = 0;
+		else
+			sig_freq = phba->cgn_sig_freq;
+
+		if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM) {
+			bf_set(lpfc_mbx_set_feature_CGN_alarm_freq,
+			       &mbox->u.mqe.un.set_feature, sig_freq);
+			bf_set(lpfc_mbx_set_feature_CGN_warn_freq,
+			       &mbox->u.mqe.un.set_feature, sig_freq);
+		}
+
+		if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ONLY)
+			bf_set(lpfc_mbx_set_feature_CGN_warn_freq,
+			       &mbox->u.mqe.un.set_feature, sig_freq);
+
+		if (phba->cmf_active_mode == LPFC_CFG_OFF ||
+		    phba->cgn_reg_signal == EDC_CG_SIG_NOTSUPPORTED)
+			sig_freq = 0;
+		else
+			sig_freq = lpfc_acqe_cgn_frequency;
+
+		bf_set(lpfc_mbx_set_feature_CGN_acqe_freq,
+		       &mbox->u.mqe.un.set_feature, sig_freq);
+
+		mbox->u.mqe.un.set_feature.feature = LPFC_SET_CGN_SIGNAL;
+		mbox->u.mqe.un.set_feature.param_len = 12;
 		break;
 	case LPFC_SET_DUAL_DUMP:
 		bf_set(lpfc_mbx_set_feature_dd,
@@ -7445,6 +7475,91 @@ lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	return 1;
 }
 
+static void
+lpfc_mbx_cmpl_cgn_set_ftrs(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
+{
+	struct lpfc_vport *vport = pmb->vport;
+	union lpfc_sli4_cfg_shdr *shdr;
+	u32 shdr_status, shdr_add_status;
+	u32 sig, acqe;
+
+	/* Two outcomes. (1) Set featurs was successul and EDC negotiation
+	 * is done. (2) Mailbox failed and send FPIN support only.
+	 */
+	shdr = (union lpfc_sli4_cfg_shdr *)
+		&pmb->u.mqe.un.sli4_config.header.cfg_shdr;
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+	if (shdr_status || shdr_add_status || pmb->u.mb.mbxStatus) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_CGN_MGMT,
+				"2516 CGN SET_FEATURE mbox failed with "
+				"status x%x add_status x%x, mbx status x%x "
+				"Reset Congestion to FPINs only\n",
+				shdr_status, shdr_add_status,
+				pmb->u.mb.mbxStatus);
+		/* If there is a mbox error, move on to RDF */
+		phba->cgn_reg_signal = EDC_CG_SIG_NOTSUPPORTED;
+		phba->cgn_reg_fpin = LPFC_CGN_FPIN_WARN | LPFC_CGN_FPIN_ALARM;
+		goto out;
+	}
+
+	/* Zero out Congestion Signal ACQE counter */
+	phba->cgn_acqe_cnt = 0;
+	atomic64_set(&phba->cgn_acqe_stat.warn, 0);
+	atomic64_set(&phba->cgn_acqe_stat.alarm, 0);
+
+	acqe = bf_get(lpfc_mbx_set_feature_CGN_acqe_freq,
+		      &pmb->u.mqe.un.set_feature);
+	sig = bf_get(lpfc_mbx_set_feature_CGN_warn_freq,
+		     &pmb->u.mqe.un.set_feature);
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+			"4620 SET_FEATURES Success: Freq: %ds %dms "
+			" Reg: x%x x%x\n", acqe, sig,
+			phba->cgn_reg_signal, phba->cgn_reg_fpin);
+out:
+	mempool_free(pmb, phba->mbox_mem_pool);
+
+	/* Register for FPIN events from the fabric now that the
+	 * EDC common_set_features has completed.
+	 */
+	lpfc_issue_els_rdf(vport, 0);
+}
+
+int
+lpfc_config_cgn_signal(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *mboxq;
+	u32 rc;
+
+	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq)
+		goto out_rdf;
+
+	lpfc_set_features(phba, mboxq, LPFC_SET_CGN_SIGNAL);
+	mboxq->vport = phba->pport;
+	mboxq->mbox_cmpl = lpfc_mbx_cmpl_cgn_set_ftrs;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+			"4621 SET_FEATURES: FREQ sig x%x acqe x%x: "
+			"Reg: x%x x%x\n",
+			phba->cgn_sig_freq, lpfc_acqe_cgn_frequency,
+			phba->cgn_reg_signal, phba->cgn_reg_fpin);
+
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
+	if (rc == MBX_NOT_FINISHED)
+		goto out;
+	return 0;
+
+out:
+	mempool_free(mboxq, phba->mbox_mem_pool);
+out_rdf:
+	/* If there is a mbox error, move on to RDF */
+	phba->cgn_reg_fpin = LPFC_CGN_FPIN_WARN | LPFC_CGN_FPIN_ALARM;
+	phba->cgn_reg_signal = EDC_CG_SIG_NOTSUPPORTED;
+	lpfc_issue_els_rdf(phba->pport, 0);
+	return -EIO;
+}
+
 /**
  * lpfc_init_idle_stat_hb - Initialize idle_stat tracking
  * @phba: pointer to lpfc hba data structure.
@@ -7476,7 +7591,8 @@ static void lpfc_init_idle_stat_hb(struct lpfc_hba *phba)
 		idle_stat->prev_idle = get_cpu_idle_time(i, &wall, 1);
 		idle_stat->prev_wall = wall;
 
-		if (phba->nvmet_support)
+		if (phba->nvmet_support ||
+		    phba->cmf_active_mode != LPFC_CFG_OFF)
 			cq->poll_mode = LPFC_QUEUE_WORK;
 		else
 			cq->poll_mode = LPFC_IRQ_POLL;
@@ -9947,6 +10063,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 			if (pcmd && (*pcmd == ELS_CMD_FLOGI ||
 				*pcmd == ELS_CMD_SCR ||
 				*pcmd == ELS_CMD_RDF ||
+				*pcmd == ELS_CMD_EDC ||
 				*pcmd == ELS_CMD_RSCN_XMT ||
 				*pcmd == ELS_CMD_FDISC ||
 				*pcmd == ELS_CMD_LOGO ||
@@ -14814,8 +14931,12 @@ static void lpfc_sli4_sched_cq_work(struct lpfc_hba *phba,
 
 	switch (cq->poll_mode) {
 	case LPFC_IRQ_POLL:
-		irq_poll_sched(&cq->iop);
-		break;
+		/* CGN mgmt is mutually exclusive from softirq processing */
+		if (phba->cmf_active_mode == LPFC_CFG_OFF) {
+			irq_poll_sched(&cq->iop);
+			break;
+		}
+		fallthrough;
 	case LPFC_QUEUE_WORK:
 	default:
 		if (is_kdump_kernel())

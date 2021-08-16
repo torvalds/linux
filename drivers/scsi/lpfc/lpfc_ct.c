@@ -2288,6 +2288,8 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			/* No retry on Vendor, RPA only done on physical port */
 			if (phba->link_flag & LS_CT_VEN_RPA) {
 				phba->link_flag &= ~LS_CT_VEN_RPA;
+				if (phba->cmf_active_mode == LPFC_CFG_OFF)
+					return;
 				lpfc_printf_log(phba, KERN_ERR,
 						LOG_DISCOVERY | LOG_ELS,
 						"6460 VEN FDMI RPA failure\n");

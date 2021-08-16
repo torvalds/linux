@@ -2813,6 +2813,12 @@ struct lpfc_mbx_read_config {
 #define lpfc_mbx_rd_conf_extnts_inuse_SHIFT	31
 #define lpfc_mbx_rd_conf_extnts_inuse_MASK	0x00000001
 #define lpfc_mbx_rd_conf_extnts_inuse_WORD	word1
+#define lpfc_mbx_rd_conf_wcs_SHIFT		28	/* warning signaling */
+#define lpfc_mbx_rd_conf_wcs_MASK		0x00000001
+#define lpfc_mbx_rd_conf_wcs_WORD		word1
+#define lpfc_mbx_rd_conf_acs_SHIFT		27	/* alarm signaling */
+#define lpfc_mbx_rd_conf_acs_MASK		0x00000001
+#define lpfc_mbx_rd_conf_acs_WORD		word1
 	uint32_t word2;
 #define lpfc_mbx_rd_conf_lnk_numb_SHIFT		0
 #define lpfc_mbx_rd_conf_lnk_numb_MASK		0x0000003F
@@ -3393,6 +3399,7 @@ struct lpfc_sli4_parameters {
 
 #define LPFC_SET_UE_RECOVERY		0x10
 #define LPFC_SET_MDS_DIAGS		0x12
+#define LPFC_SET_CGN_SIGNAL		0x1f
 #define LPFC_SET_DUAL_DUMP		0x1e
 #define LPFC_SET_ENABLE_MI		0x21
 struct lpfc_mbx_set_feature {
@@ -3409,6 +3416,9 @@ struct lpfc_mbx_set_feature {
 #define lpfc_mbx_set_feature_mds_deep_loopbk_SHIFT  1
 #define lpfc_mbx_set_feature_mds_deep_loopbk_MASK   0x00000001
 #define lpfc_mbx_set_feature_mds_deep_loopbk_WORD   word6
+#define lpfc_mbx_set_feature_CGN_warn_freq_SHIFT 0
+#define lpfc_mbx_set_feature_CGN_warn_freq_MASK  0x0000ffff
+#define lpfc_mbx_set_feature_CGN_warn_freq_WORD  word6
 #define lpfc_mbx_set_feature_dd_SHIFT		0
 #define lpfc_mbx_set_feature_dd_MASK		0x00000001
 #define lpfc_mbx_set_feature_dd_WORD		word6
@@ -3431,6 +3441,13 @@ struct lpfc_mbx_set_feature {
 #define lpfc_mbx_set_feature_UESR_SHIFT 16
 #define lpfc_mbx_set_feature_UESR_MASK  0x0000ffff
 #define lpfc_mbx_set_feature_UESR_WORD  word7
+#define lpfc_mbx_set_feature_CGN_alarm_freq_SHIFT 0
+#define lpfc_mbx_set_feature_CGN_alarm_freq_MASK  0x0000ffff
+#define lpfc_mbx_set_feature_CGN_alarm_freq_WORD  word7
+	u32 word8;
+#define lpfc_mbx_set_feature_CGN_acqe_freq_SHIFT 0
+#define lpfc_mbx_set_feature_CGN_acqe_freq_MASK  0x000000ff
+#define lpfc_mbx_set_feature_CGN_acqe_freq_WORD  word8
 };
 
 
@@ -4173,6 +4190,19 @@ struct lpfc_acqe_misconfigured_event {
 #define LPFC_SLI_EVENT_STATUS_UNCERTIFIED	0x05
 };
 
+struct lpfc_acqe_cgn_signal {
+	u32 word0;
+#define lpfc_warn_acqe_SHIFT		0
+#define lpfc_warn_acqe_MASK		0x7FFFFFFF
+#define lpfc_warn_acqe_WORD		word0
+#define lpfc_imm_acqe_SHIFT		31
+#define lpfc_imm_acqe_MASK		0x1
+#define lpfc_imm_acqe_WORD		word0
+	u32 alarm_cnt;
+	u32 word2;
+	u32 trailer;
+};
+
 struct lpfc_acqe_sli {
 	uint32_t event_data1;
 	uint32_t event_data2;
@@ -4187,6 +4217,7 @@ struct lpfc_acqe_sli {
 #define LPFC_SLI_EVENT_TYPE_REMOTE_DPORT	0xA
 #define LPFC_SLI_EVENT_TYPE_MISCONF_FAWWN	0xF
 #define LPFC_SLI_EVENT_TYPE_EEPROM_FAILURE	0x10
+#define LPFC_SLI_EVENT_TYPE_CGN_SIGNAL		0x11
 };
 
 /*
@@ -4815,6 +4846,17 @@ struct lpfc_grp_hdr {
 #define LPFC_FW_RESET	2
 #define LPFC_DV_RESET	3
 
+/* On some kernels, enum fc_ls_tlv_dtag does not have
+ * these 2 enums defined, on other kernels it does.
+ * To get aound this we need to add these 2 defines here.
+ */
+#ifndef ELS_DTAG_LNK_FAULT_CAP
+#define ELS_DTAG_LNK_FAULT_CAP        0x0001000D
+#endif
+#ifndef ELS_DTAG_CG_SIGNAL_CAP
+#define ELS_DTAG_CG_SIGNAL_CAP        0x0001000F
+#endif
+
 /*
  * Initializer useful for decoding FPIN string table.
  */
@@ -4822,6 +4864,22 @@ struct lpfc_grp_hdr {
 	{ FPIN_CONGN_SEVERITY_WARNING,		"Warning" },	\
 	{ FPIN_CONGN_SEVERITY_ERROR,		"Alarm" },	\
 }
+
+/* EDC supports two descriptors.  When allocated, it is the
+ * size of this structure plus each supported descriptor.
+ */
+struct lpfc_els_edc_req {
+	struct fc_els_edc               edc;       /* hdr up to descriptors */
+	struct fc_diag_cg_sig_desc      cgn_desc;  /* 1st descriptor */
+};
+
+/* Minimum structure defines for the EDC response.
+ * Balance is in buffer.
+ */
+struct lpfc_els_edc_rsp {
+	struct fc_els_edc_resp          edc_rsp;   /* hdr up to descriptors */
+	struct fc_diag_cg_sig_desc      cgn_desc;  /* 1st descriptor */
+};
 
 /* Used for logging FPIN messages */
 #define LPFC_FPIN_WWPN_LINE_SZ  128

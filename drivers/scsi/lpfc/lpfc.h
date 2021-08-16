@@ -403,6 +403,11 @@ struct lpfc_trunk_link  {
 				     link3;
 };
 
+struct lpfc_cgn_acqe_stat {
+	atomic64_t alarm;
+	atomic64_t warn;
+};
+
 struct lpfc_vport {
 	struct lpfc_hba *phba;
 	struct list_head listentry;
@@ -1343,6 +1348,36 @@ struct lpfc_hba {
 	uint64_t ktime_seg10_min;
 	uint64_t ktime_seg10_max;
 #endif
+	/* CMF objects */
+	u32 cmf_active_mode;
+#define LPFC_CFG_OFF		0
+
+	/* Signal / FPIN handling for Congestion Mgmt */
+	u8 cgn_reg_fpin;           /* Negotiated value from RDF */
+	u8 cgn_init_reg_fpin;      /* Initial value from READ_CONFIG */
+#define LPFC_CGN_FPIN_NONE	0x0
+#define LPFC_CGN_FPIN_WARN	0x1
+#define LPFC_CGN_FPIN_ALARM	0x2
+#define LPFC_CGN_FPIN_BOTH	(LPFC_CGN_FPIN_WARN | LPFC_CGN_FPIN_ALARM)
+
+	u8 cgn_reg_signal;          /* Negotiated value from EDC */
+	u8 cgn_init_reg_signal;     /* Initial value from READ_CONFIG */
+		/* cgn_reg_signal and cgn_init_reg_signal use
+		 * enum fc_edc_cg_signal_cap_types
+		 */
+	u16 cgn_fpin_frequency;
+#define LPFC_FPIN_INIT_FREQ	0xffff
+	u32 cgn_sig_freq;
+	u32 cgn_acqe_cnt;
+
+	/* Statistics counter for ACQE cgn alarms and warnings */
+	struct lpfc_cgn_acqe_stat cgn_acqe_stat;
+
+	/* Congestion buffer information */
+	atomic_t cgn_fabric_warn_cnt;   /* Total warning cgn events for info */
+	atomic_t cgn_fabric_alarm_cnt;  /* Total alarm cgn events for info */
+	atomic_t cgn_sync_warn_cnt;     /* Total warning events for SYNC wqe */
+	atomic_t cgn_sync_alarm_cnt;    /* Total alarm events for SYNC wqe */
 
 	struct hlist_node cpuhp;	/* used for cpuhp per hba callback */
 	struct timer_list cpuhp_poll_timer;
