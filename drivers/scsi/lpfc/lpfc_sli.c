@@ -7369,7 +7369,7 @@ lpfc_set_host_data(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 	mbox->u.mqe.un.set_host_data.param_id = LPFC_SET_HOST_OS_DRIVER_VERSION;
 	mbox->u.mqe.un.set_host_data.param_len =
 					LPFC_HOST_OS_DRIVER_VERSION_SIZE;
-	snprintf(mbox->u.mqe.un.set_host_data.data,
+	snprintf(mbox->u.mqe.un.set_host_data.un.data,
 		 LPFC_HOST_OS_DRIVER_VERSION_SIZE,
 		 "Linux %s v"LPFC_DRIVER_VERSION,
 		 (phba->hba_flag & HBA_FCOE_MODE) ? "FCoE" : "FC");
@@ -7499,6 +7499,51 @@ static void lpfc_sli4_dip(struct lpfc_hba *phba)
 	}
 }
 
+static int
+lpfc_set_host_tm(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *mboxq;
+	uint32_t len, rc;
+	struct timespec64 cur_time;
+	struct tm broken;
+	uint32_t month, day, year;
+	uint32_t hour, minute, second;
+	struct lpfc_mbx_set_host_date_time *tm;
+
+	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq)
+		return -ENOMEM;
+
+	len = sizeof(struct lpfc_mbx_set_host_data) -
+		sizeof(struct lpfc_sli4_cfg_mhdr);
+	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_SET_HOST_DATA, len,
+			 LPFC_SLI4_MBX_EMBED);
+
+	mboxq->u.mqe.un.set_host_data.param_id = LPFC_SET_HOST_DATE_TIME;
+	mboxq->u.mqe.un.set_host_data.param_len =
+			sizeof(struct lpfc_mbx_set_host_date_time);
+	tm = &mboxq->u.mqe.un.set_host_data.un.tm;
+	ktime_get_real_ts64(&cur_time);
+	time64_to_tm(cur_time.tv_sec, 0, &broken);
+	month = broken.tm_mon + 1;
+	day = broken.tm_mday;
+	year = broken.tm_year - 100;
+	hour = broken.tm_hour;
+	minute = broken.tm_min;
+	second = broken.tm_sec;
+	bf_set(lpfc_mbx_set_host_month, tm, month);
+	bf_set(lpfc_mbx_set_host_day, tm, day);
+	bf_set(lpfc_mbx_set_host_year, tm, year);
+	bf_set(lpfc_mbx_set_host_hour, tm, hour);
+	bf_set(lpfc_mbx_set_host_min, tm, minute);
+	bf_set(lpfc_mbx_set_host_sec, tm, second);
+
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+	mempool_free(mboxq, phba->mbox_mem_pool);
+	return rc;
+}
+
 /**
  * lpfc_sli4_hba_setup - SLI4 device initialization PCI function
  * @phba: Pointer to HBA context object.
@@ -7587,6 +7632,10 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		kfree(vpd);
 		goto out_free_mbox;
 	}
+
+	rc = lpfc_set_host_tm(phba);
+	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
+			"6468 Set host date / time: Status x%x:\n", rc);
 
 	/*
 	 * Continue initialization with default values even if driver failed

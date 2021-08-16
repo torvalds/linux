@@ -3427,12 +3427,40 @@ struct lpfc_mbx_set_feature {
 
 
 #define LPFC_SET_HOST_OS_DRIVER_VERSION    0x2
+#define LPFC_SET_HOST_DATE_TIME		   0x4
+
+struct lpfc_mbx_set_host_date_time {
+	uint32_t word6;
+#define lpfc_mbx_set_host_month_WORD	word6
+#define lpfc_mbx_set_host_month_SHIFT	16
+#define lpfc_mbx_set_host_month_MASK	0xFF
+#define lpfc_mbx_set_host_day_WORD	word6
+#define lpfc_mbx_set_host_day_SHIFT	8
+#define lpfc_mbx_set_host_day_MASK	0xFF
+#define lpfc_mbx_set_host_year_WORD	word6
+#define lpfc_mbx_set_host_year_SHIFT	0
+#define lpfc_mbx_set_host_year_MASK	0xFF
+	uint32_t word7;
+#define lpfc_mbx_set_host_hour_WORD	word7
+#define lpfc_mbx_set_host_hour_SHIFT	16
+#define lpfc_mbx_set_host_hour_MASK	0xFF
+#define lpfc_mbx_set_host_min_WORD	word7
+#define lpfc_mbx_set_host_min_SHIFT	8
+#define lpfc_mbx_set_host_min_MASK	0xFF
+#define lpfc_mbx_set_host_sec_WORD	word7
+#define lpfc_mbx_set_host_sec_SHIFT     0
+#define lpfc_mbx_set_host_sec_MASK      0xFF
+};
+
 struct lpfc_mbx_set_host_data {
 #define LPFC_HOST_OS_DRIVER_VERSION_SIZE   48
 	struct mbox_header header;
 	uint32_t param_id;
 	uint32_t param_len;
-	uint8_t  data[LPFC_HOST_OS_DRIVER_VERSION_SIZE];
+	union {
+		uint8_t data[LPFC_HOST_OS_DRIVER_VERSION_SIZE];
+		struct  lpfc_mbx_set_host_date_time tm;
+	} un;
 };
 
 struct lpfc_mbx_set_trunk_mode {
