@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2018, 2021 Intel Corporation
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/dongwoon,dw9807-vcm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Dongwoon Anatech DW9807 voice coil lens driver
+
+maintainers:
+  - Sakari Ailus <sakari.ailus@linux.intel.com>
+
+description: |
+  DW9807 is a 10-bit DAC with current sink capability. It is intended for
+  controlling voice coil lenses.
+
+properties:
+  compatible:
+    const: dongwoon,dw9807-vcm
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        lens@e {
+            compatible = "dongwoon,dw9807-vcm";
+            reg = <0x0e>;
+        };
+    };
+...
