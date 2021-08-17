@@ -980,8 +980,9 @@
 			clocks = <&gcc GMAC_CORE1_CLK>;
 			clock-names = "stmmaceth";
 
-			resets = <&gcc GMAC_CORE1_RESET>;
-			reset-names = "stmmaceth";
+			resets = <&gcc GMAC_CORE1_RESET>,
+				 <&gcc GMAC_AHB_RESET>;
+			reset-names = "stmmaceth", "ahb";
 
 			status = "disabled";
 		};
@@ -1003,8 +1004,9 @@
 			clocks = <&gcc GMAC_CORE2_CLK>;
 			clock-names = "stmmaceth";
 
-			resets = <&gcc GMAC_CORE2_RESET>;
-			reset-names = "stmmaceth";
+			resets = <&gcc GMAC_CORE2_RESET>,
+				 <&gcc GMAC_AHB_RESET>;
+			reset-names = "stmmaceth", "ahb";
 
 			status = "disabled";
 		};
@@ -1026,8 +1028,9 @@
 			clocks = <&gcc GMAC_CORE3_CLK>;
 			clock-names = "stmmaceth";
 
-			resets = <&gcc GMAC_CORE3_RESET>;
-			reset-names = "stmmaceth";
+			resets = <&gcc GMAC_CORE3_RESET>,
+				 <&gcc GMAC_AHB_RESET>;
+			reset-names = "stmmaceth", "ahb";
 
 			status = "disabled";
 		};
@@ -1049,8 +1052,9 @@
 			clocks = <&gcc GMAC_CORE4_CLK>;
 			clock-names = "stmmaceth";
 
-			resets = <&gcc GMAC_CORE4_RESET>;
-			reset-names = "stmmaceth";
+			resets = <&gcc GMAC_CORE4_RESET>,
+				 <&gcc GMAC_AHB_RESET>;
+			reset-names = "stmmaceth", "ahb";
 
 			status = "disabled";
 		};
