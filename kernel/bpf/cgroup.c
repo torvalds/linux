@@ -1135,7 +1135,7 @@ int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 minor,
 		.major = major,
 		.minor = minor,
 	};
-	int allow = 1;
+	int allow;
 
 	rcu_read_lock();
 	cgrp = task_dfl_cgroup(current);
