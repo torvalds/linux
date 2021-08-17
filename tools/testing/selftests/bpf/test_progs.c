@@ -755,7 +755,7 @@ int main(int argc, char **argv)
 	save_netns();
 	stdio_hijack();
 	env.has_testmod = true;
-	if (load_bpf_testmod()) {
+	if (!env.list_test_names && load_bpf_testmod()) {
 		fprintf(env.stderr, "WARNING! Selftests relying on bpf_testmod.ko will be skipped.\n");
 		env.has_testmod = false;
 	}
@@ -803,7 +803,7 @@ int main(int argc, char **argv)
 		if (test->need_cgroup_cleanup)
 			cleanup_cgroup_environment();
 	}
-	if (env.has_testmod)
+	if (!env.list_test_names && env.has_testmod)
 		unload_bpf_testmod();
 	stdio_restore();
 
