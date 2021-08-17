@@ -1873,6 +1873,14 @@ cg_sockopt_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_sk_storage_get_proto;
 	case BPF_FUNC_sk_storage_delete:
 		return &bpf_sk_storage_delete_proto;
+	case BPF_FUNC_setsockopt:
+		if (prog->expected_attach_type == BPF_CGROUP_SETSOCKOPT)
+			return &bpf_sk_setsockopt_proto;
+		return NULL;
+	case BPF_FUNC_getsockopt:
+		if (prog->expected_attach_type == BPF_CGROUP_SETSOCKOPT)
+			return &bpf_sk_getsockopt_proto;
+		return NULL;
 #endif
 #ifdef CONFIG_INET
 	case BPF_FUNC_tcp_sock:
