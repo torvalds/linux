@@ -462,8 +462,7 @@ static void mptcp_pm_create_subflow_or_signal_addr(struct mptcp_sock *msk)
 			check_work_pending(msk);
 			remote_address((struct sock_common *)sk, &remote);
 			spin_unlock_bh(&msk->pm.lock);
-			__mptcp_subflow_connect(sk, &local->addr, &remote,
-						local->flags, local->ifindex);
+			__mptcp_subflow_connect(sk, &local->addr, &remote);
 			spin_lock_bh(&msk->pm.lock);
 			return;
 		}
@@ -518,7 +517,7 @@ static void mptcp_pm_nl_add_addr_received(struct mptcp_sock *msk)
 	local.family = remote.family;
 
 	spin_unlock_bh(&msk->pm.lock);
-	__mptcp_subflow_connect(sk, &local, &remote, 0, 0);
+	__mptcp_subflow_connect(sk, &local, &remote);
 	spin_lock_bh(&msk->pm.lock);
 
 add_addr_echo:
@@ -1103,6 +1102,27 @@ __lookup_addr_by_id(struct pm_nl_pernet *pernet, unsigned int id)
 			return entry;
 	}
 	return NULL;
+}
+
+int mptcp_pm_get_flags_and_ifindex_by_id(struct net *net, unsigned int id,
+					 u8 *flags, int *ifindex)
+{
+	struct mptcp_pm_addr_entry *entry;
+
+	*flags = 0;
+	*ifindex = 0;
+
+	if (id) {
+		rcu_read_lock();
+		entry = __lookup_addr_by_id(net_generic(net, pm_nl_pernet_id), id);
+		if (entry) {
+			*flags = entry->flags;
+			*ifindex = entry->ifindex;
+		}
+		rcu_read_unlock();
+	}
+
+	return 0;
 }
 
 static bool remove_anno_list_by_saddr(struct mptcp_sock *msk,
