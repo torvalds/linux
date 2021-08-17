@@ -63,6 +63,34 @@
  *   This means a slightly higher tree locking latency.
  */
 
+void btrfs_init_subpage_info(struct btrfs_subpage_info *subpage_info, u32 sectorsize)
+{
+	unsigned int cur = 0;
+	unsigned int nr_bits;
+
+	ASSERT(IS_ALIGNED(PAGE_SIZE, sectorsize));
+
+	nr_bits = PAGE_SIZE / sectorsize;
+	subpage_info->bitmap_nr_bits = nr_bits;
+
+	subpage_info->uptodate_offset = cur;
+	cur += nr_bits;
+
+	subpage_info->error_offset = cur;
+	cur += nr_bits;
+
+	subpage_info->dirty_offset = cur;
+	cur += nr_bits;
+
+	subpage_info->writeback_offset = cur;
+	cur += nr_bits;
+
+	subpage_info->ordered_offset = cur;
+	cur += nr_bits;
+
+	subpage_info->total_nr_bits = cur;
+}
+
 int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 			 struct page *page, enum btrfs_subpage_type type)
 {

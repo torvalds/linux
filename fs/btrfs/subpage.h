@@ -12,6 +12,39 @@
 #define BTRFS_SUBPAGE_BITMAP_SIZE	16
 
 /*
+ * Extra info for subpapge bitmap.
+ *
+ * For subpage we pack all uptodate/error/dirty/writeback/ordered bitmaps into
+ * one larger bitmap.
+ *
+ * This structure records how they are organized in the bitmap:
+ *
+ * /- uptodate_offset	/- error_offset	/- dirty_offset
+ * |			|		|
+ * v			v		v
+ * |u|u|u|u|........|u|u|e|e|.......|e|e| ...	|o|o|
+ * |<- bitmap_nr_bits ->|
+ * |<--------------- total_nr_bits ---------------->|
+ */
+struct btrfs_subpage_info {
+	/* Number of bits for each bitmap */
+	unsigned int bitmap_nr_bits;
+
+	/* Total number of bits for the whole bitmap */
+	unsigned int total_nr_bits;
+
+	/*
+	 * *_start indicates where the bitmap starts, the length is always
+	 * @bitmap_size, which is calculated from PAGE_SIZE / sectorsize.
+	 */
+	unsigned int uptodate_offset;
+	unsigned int error_offset;
+	unsigned int dirty_offset;
+	unsigned int writeback_offset;
+	unsigned int ordered_offset;
+};
+
+/*
  * Structure to trace status of each sector inside a page, attached to
  * page::private for both data and metadata inodes.
  */
@@ -53,6 +86,7 @@ enum btrfs_subpage_type {
 	BTRFS_SUBPAGE_DATA,
 };
 
+void btrfs_init_subpage_info(struct btrfs_subpage_info *subpage_info, u32 sectorsize);
 int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 			 struct page *page, enum btrfs_subpage_type type);
 void btrfs_detach_subpage(const struct btrfs_fs_info *fs_info,
