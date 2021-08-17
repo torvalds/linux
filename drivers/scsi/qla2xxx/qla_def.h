@@ -4021,6 +4021,7 @@ struct qla_hw_data {
 		uint32_t	scm_supported_f:1;
 				/* Enabled in Driver */
 		uint32_t	scm_enabled:1;
+		uint32_t	edif_hw:1;
 		uint32_t	edif_enabled:1;
 		uint32_t	plogi_template_valid:1;
 		uint32_t	port_isolated:1;
@@ -4433,6 +4434,7 @@ struct qla_hw_data {
 	/* Cisco fabric attached */
 #define FW_ATTR_EXT0_SCM_CISCO		0x00002000
 #define FW_ATTR_EXT0_NVME2	BIT_13
+#define FW_ATTR_EXT0_EDIF	BIT_5
 	uint16_t	fw_attributes_ext[2];
 	uint32_t	fw_memory_size;
 	uint32_t	fw_transfer_size;

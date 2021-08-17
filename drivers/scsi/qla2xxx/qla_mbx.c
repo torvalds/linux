@@ -663,6 +663,7 @@ qla2x00_load_ram(scsi_qla_host_t *vha, dma_addr_t req_dma, uint32_t risc_addr,
 }
 
 #define	NVME_ENABLE_FLAG	BIT_3
+#define	EDIF_HW_SUPPORT		BIT_10
 
 /*
  * qla2x00_execute_fw
@@ -795,10 +796,10 @@ again:
 		}
 	}
 
-	if (IS_QLA28XX(ha) && (mcp->mb[5] & BIT_10) && ql2xsecenable) {
-		ha->flags.edif_enabled = 1;
+	if (IS_QLA28XX(ha) && (mcp->mb[5] & EDIF_HW_SUPPORT)) {
+		ha->flags.edif_hw = 1;
 		ql_log(ql_log_info, vha, 0xffff,
-		    "%s: edif is enabled\n", __func__);
+		    "%s: edif HW\n", __func__);
 	}
 
 done:
@@ -1135,6 +1136,13 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 			       "Firmware supports NVMe2 0x%x\n",
 			       ha->fw_attributes_ext[0]);
 			vha->flags.nvme2_enabled = 1;
+		}
+
+		if (IS_QLA28XX(ha) && ha->flags.edif_hw && ql2xsecenable &&
+		    (ha->fw_attributes_ext[0] & FW_ATTR_EXT0_EDIF)) {
+			ha->flags.edif_enabled = 1;
+			ql_log(ql_log_info + ql_dbg_edif, vha, 0xffff,
+			       "%s: edif is enabled\n", __func__);
 		}
 	}
 
