@@ -2683,7 +2683,7 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	int was_rmapped = 0;
 	int ret = RET_PF_FIXED;
 	bool flush = false;
-	int make_spte_ret;
+	bool wrprot;
 	u64 spte;
 
 	pgprintk("%s: spte %llx write_fault %d gfn %llx\n", __func__,
@@ -2715,8 +2715,8 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 			was_rmapped = 1;
 	}
 
-	make_spte_ret = make_spte(vcpu, pte_access, level, gfn, pfn, *sptep, speculative,
-				 true, host_writable, sp_ad_disabled(sp), &spte);
+	wrprot = make_spte(vcpu, pte_access, level, gfn, pfn, *sptep, speculative,
+			   true, host_writable, sp_ad_disabled(sp), &spte);
 
 	if (*sptep == spte) {
 		ret = RET_PF_SPURIOUS;
@@ -2725,7 +2725,7 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		flush |= mmu_spte_update(sptep, spte);
 	}
 
-	if (make_spte_ret & SET_SPTE_WRITE_PROTECTED_PT) {
+	if (wrprot) {
 		if (write_fault)
 			ret = RET_PF_EMULATE;
 	}

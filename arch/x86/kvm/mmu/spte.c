@@ -89,13 +89,13 @@ static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
 				     E820_TYPE_RAM);
 }
 
-int make_spte(struct kvm_vcpu *vcpu, unsigned int pte_access, int level,
+bool make_spte(struct kvm_vcpu *vcpu, unsigned int pte_access, int level,
 		     gfn_t gfn, kvm_pfn_t pfn, u64 old_spte, bool speculative,
 		     bool can_unsync, bool host_writable, bool ad_disabled,
 		     u64 *new_spte)
 {
 	u64 spte = SPTE_MMU_PRESENT_MASK;
-	int ret = 0;
+	bool wrprot = false;
 
 	if (ad_disabled)
 		spte |= SPTE_TDP_AD_DISABLED_MASK;
@@ -162,7 +162,7 @@ int make_spte(struct kvm_vcpu *vcpu, unsigned int pte_access, int level,
 		if (mmu_try_to_unsync_pages(vcpu, gfn, can_unsync, speculative)) {
 			pgprintk("%s: found shadow page for %llx, marking ro\n",
 				 __func__, gfn);
-			ret |= SET_SPTE_WRITE_PROTECTED_PT;
+			wrprot = true;
 			pte_access &= ~ACC_WRITE_MASK;
 			spte &= ~(PT_WRITABLE_MASK | shadow_mmu_writable_mask);
 		}
@@ -183,7 +183,7 @@ out:
 		kvm_vcpu_mark_page_dirty(vcpu, gfn);
 
 	*new_spte = spte;
-	return ret;
+	return wrprot;
 }
 
 u64 make_nonleaf_spte(u64 *child_pt, bool ad_disabled)

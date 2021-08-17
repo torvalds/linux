@@ -898,12 +898,12 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
 {
 	u64 new_spte;
 	int ret = RET_PF_FIXED;
-	int make_spte_ret = 0;
+	bool wrprot = false;
 
 	if (unlikely(!fault->slot))
 		new_spte = make_mmio_spte(vcpu, iter->gfn, ACC_ALL);
 	else
-		make_spte_ret = make_spte(vcpu, ACC_ALL, iter->level, iter->gfn,
+		wrprot = make_spte(vcpu, ACC_ALL, iter->level, iter->gfn,
 					 fault->pfn, iter->old_spte, fault->prefault, true,
 					 fault->map_writable, !shadow_accessed_mask,
 					 &new_spte);
@@ -918,7 +918,7 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
 	 * protected, emulation is needed. If the emulation was skipped,
 	 * the vCPU would have the same fault again.
 	 */
-	if (make_spte_ret & SET_SPTE_WRITE_PROTECTED_PT) {
+	if (wrprot) {
 		if (fault->write)
 			ret = RET_PF_EMULATE;
 	}
