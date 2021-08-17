@@ -5523,16 +5523,8 @@ err:
 
 static void io_req_task_timeout(struct io_kiocb *req)
 {
-	struct io_ring_ctx *ctx = req->ctx;
-
-	spin_lock(&ctx->completion_lock);
-	io_cqring_fill_event(ctx, req->user_data, -ETIME, 0);
-	io_commit_cqring(ctx);
-	spin_unlock(&ctx->completion_lock);
-
-	io_cqring_ev_posted(ctx);
 	req_set_fail(req);
-	io_put_req(req);
+	io_req_complete_post(req, -ETIME, 0);
 }
 
 static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
@@ -5660,14 +5652,9 @@ static int io_timeout_remove(struct io_kiocb *req, unsigned int issue_flags)
 					io_translate_timeout_mode(tr->flags));
 	spin_unlock_irq(&ctx->timeout_lock);
 
-	spin_lock(&ctx->completion_lock);
-	io_cqring_fill_event(ctx, req->user_data, ret, 0);
-	io_commit_cqring(ctx);
-	spin_unlock(&ctx->completion_lock);
-	io_cqring_ev_posted(ctx);
 	if (ret < 0)
 		req_set_fail(req);
-	io_put_req(req);
+	io_req_complete_post(req, ret, 0);
 	return 0;
 }
 
@@ -5807,7 +5794,6 @@ static int io_async_cancel_one(struct io_uring_task *tctx, u64 user_data,
 }
 
 static int io_try_cancel_userdata(struct io_kiocb *req, u64 sqe_addr)
-	__acquires(&req->ctx->completion_lock)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
@@ -5815,15 +5801,19 @@ static int io_try_cancel_userdata(struct io_kiocb *req, u64 sqe_addr)
 	WARN_ON_ONCE(req->task != current);
 
 	ret = io_async_cancel_one(req->task->io_uring, sqe_addr, ctx);
-	spin_lock(&ctx->completion_lock);
 	if (ret != -ENOENT)
 		return ret;
+
+	spin_lock(&ctx->completion_lock);
 	spin_lock_irq(&ctx->timeout_lock);
 	ret = io_timeout_cancel(ctx, sqe_addr);
 	spin_unlock_irq(&ctx->timeout_lock);
 	if (ret != -ENOENT)
-		return ret;
-	return io_poll_cancel(ctx, sqe_addr, false);
+		goto out;
+	ret = io_poll_cancel(ctx, sqe_addr, false);
+out:
+	spin_unlock(&ctx->completion_lock);
+	return ret;
 }
 
 static int io_async_cancel_prep(struct io_kiocb *req,
@@ -5850,7 +5840,6 @@ static int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
 	ret = io_try_cancel_userdata(req, sqe_addr);
 	if (ret != -ENOENT)
 		goto done;
-	spin_unlock(&ctx->completion_lock);
 
 	/* slow path, try all io-wq's */
 	io_ring_submit_lock(ctx, !(issue_flags & IO_URING_F_NONBLOCK));
@@ -5863,17 +5852,10 @@ static int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
 			break;
 	}
 	io_ring_submit_unlock(ctx, !(issue_flags & IO_URING_F_NONBLOCK));
-
-	spin_lock(&ctx->completion_lock);
 done:
-	io_cqring_fill_event(ctx, req->user_data, ret, 0);
-	io_commit_cqring(ctx);
-	spin_unlock(&ctx->completion_lock);
-	io_cqring_ev_posted(ctx);
-
 	if (ret < 0)
 		req_set_fail(req);
-	io_put_req(req);
+	io_req_complete_post(req, ret, 0);
 	return 0;
 }
 
@@ -6413,20 +6395,12 @@ static inline struct file *io_file_get(struct io_ring_ctx *ctx,
 static void io_req_task_link_timeout(struct io_kiocb *req)
 {
 	struct io_kiocb *prev = req->timeout.prev;
-	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
 
 	if (prev) {
 		ret = io_try_cancel_userdata(req, prev->user_data);
-		if (!ret)
-			ret = -ETIME;
-		io_cqring_fill_event(ctx, req->user_data, ret, 0);
-		io_commit_cqring(ctx);
-		spin_unlock(&ctx->completion_lock);
-		io_cqring_ev_posted(ctx);
-
+		io_req_complete_post(req, ret ?: -ETIME, 0);
 		io_put_req(prev);
-		io_put_req(req);
 	} else {
 		io_req_complete_post(req, -ETIME, 0);
 	}
