@@ -31,6 +31,7 @@ properties:
           - mediatek,mt8173-xhci
           - mediatek,mt8183-xhci
           - mediatek,mt8192-xhci
+          - mediatek,mt8195-xhci
       - const: mediatek,mtk-xhci
 
   reg:
