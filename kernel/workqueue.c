@@ -1197,10 +1197,6 @@ static void pwq_dec_nr_in_flight(struct pool_workqueue *pwq, unsigned long work_
 		}
 	}
 
-	/* uncolored work items don't participate in flushing */
-	if (color == WORK_NO_COLOR)
-		goto out_put;
-
 	pwq->nr_in_flight[color]--;
 
 	/* is flush in progress and are we at the flushing tip? */
@@ -1307,7 +1303,7 @@ static int try_to_grab_pending(struct work_struct *work, bool is_dwork,
 		 * canceled (see the comments in insert_wq_barrier()).
 		 *
 		 * An inactive work item cannot be grabbed directly because
-		 * it might have linked NO_COLOR work items which, if left
+		 * it might have linked barrier work items which, if left
 		 * on the inactive_works list, will confuse pwq->nr_active
 		 * management later on and cause stall.  Make sure the work
 		 * item is activated before grabbing.
@@ -2234,6 +2230,7 @@ __acquires(&pool->lock)
 	worker->current_func = work->func;
 	worker->current_pwq = pwq;
 	work_data = *work_data_bits(work);
+	worker->current_color = get_work_color(work_data);
 
 	/*
 	 * Record wq name for cmdline and debug reporting, may get
@@ -2339,6 +2336,7 @@ __acquires(&pool->lock)
 	worker->current_work = NULL;
 	worker->current_func = NULL;
 	worker->current_pwq = NULL;
+	worker->current_color = INT_MAX;
 	pwq_dec_nr_in_flight(pwq, work_data);
 }
 
@@ -2682,7 +2680,8 @@ static void insert_wq_barrier(struct pool_workqueue *pwq,
 			      struct wq_barrier *barr,
 			      struct work_struct *target, struct worker *worker)
 {
-	unsigned int work_flags = work_color_to_flags(WORK_NO_COLOR);
+	unsigned int work_flags = 0;
+	unsigned int work_color;
 	struct list_head *head;
 
 	/*
@@ -2705,16 +2704,21 @@ static void insert_wq_barrier(struct pool_workqueue *pwq,
 	 * If @target is currently being executed, schedule the
 	 * barrier to the worker; otherwise, put it after @target.
 	 */
-	if (worker)
+	if (worker) {
 		head = worker->scheduled.next;
-	else {
+		work_color = worker->current_color;
+	} else {
 		unsigned long *bits = work_data_bits(target);
 
 		head = target->entry.next;
 		/* there can already be other linked works, inherit and set */
 		work_flags |= *bits & WORK_STRUCT_LINKED;
+		work_color = get_work_color(*bits);
 		__set_bit(WORK_STRUCT_LINKED_BIT, bits);
 	}
+
+	pwq->nr_in_flight[work_color]++;
+	work_flags |= work_color_to_flags(work_color);
 
 	debug_work_activate(&barr->work);
 	insert_work(pwq, &barr->work, head, work_flags);
