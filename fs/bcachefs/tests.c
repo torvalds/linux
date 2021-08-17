@@ -778,7 +778,7 @@ static int btree_perf_test_thread(void *data)
 		wait_event(j->ready_wait, !atomic_read(&j->ready));
 	}
 
-	ret = j->fn(j->c, j->nr / j->nr_threads);
+	ret = j->fn(j->c, div64_u64(j->nr, j->nr_threads));
 	if (ret)
 		j->ret = ret;
 
@@ -854,11 +854,11 @@ int bch2_btree_perf_test(struct bch_fs *c, const char *testname,
 
 	scnprintf(name_buf, sizeof(name_buf), "%s:", testname);
 	bch2_hprint(&PBUF(nr_buf), nr);
-	bch2_hprint(&PBUF(per_sec_buf), nr * NSEC_PER_SEC / time);
+	bch2_hprint(&PBUF(per_sec_buf), div64_u64(nr * NSEC_PER_SEC, time));
 	printk(KERN_INFO "%-12s %s with %u threads in %5llu sec, %5llu nsec per iter, %5s per sec\n",
 		name_buf, nr_buf, nr_threads,
-		time / NSEC_PER_SEC,
-		time * nr_threads / nr,
+		div_u64(time, NSEC_PER_SEC),
+		div_u64(time * nr_threads, nr),
 		per_sec_buf);
 	return j.ret;
 }

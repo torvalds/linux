@@ -670,7 +670,7 @@ static s64 ptr_disk_sectors(s64 sectors, struct extent_ptr_decoded p)
 
 	return p.crc.compression_type &&
 		p.crc.compression_type != BCH_COMPRESSION_TYPE_incompressible
-		? DIV_ROUND_UP(sectors * p.crc.compressed_size,
+		? DIV_ROUND_UP_ULL(sectors * p.crc.compressed_size,
 			       p.crc.uncompressed_size)
 		: sectors;
 }
