@@ -347,6 +347,7 @@ static struct pmu amd_nb_pmu = {
 	.stop		= amd_uncore_stop,
 	.read		= amd_uncore_read,
 	.capabilities	= PERF_PMU_CAP_NO_EXCLUDE | PERF_PMU_CAP_NO_INTERRUPT,
+	.module		= THIS_MODULE,
 };
 
 static struct pmu amd_llc_pmu = {
@@ -360,6 +361,7 @@ static struct pmu amd_llc_pmu = {
 	.stop		= amd_uncore_stop,
 	.read		= amd_uncore_read,
 	.capabilities	= PERF_PMU_CAP_NO_EXCLUDE | PERF_PMU_CAP_NO_INTERRUPT,
+	.module		= THIS_MODULE,
 };
 
 static struct amd_uncore *amd_uncore_alloc(unsigned int cpu)
@@ -665,4 +667,28 @@ fail_nb:
 
 	return ret;
 }
-device_initcall(amd_uncore_init);
+
+static void __exit amd_uncore_exit(void)
+{
+	cpuhp_remove_state(CPUHP_AP_PERF_X86_AMD_UNCORE_ONLINE);
+	cpuhp_remove_state(CPUHP_AP_PERF_X86_AMD_UNCORE_STARTING);
+	cpuhp_remove_state(CPUHP_PERF_X86_AMD_UNCORE_PREP);
+
+	if (boot_cpu_has(X86_FEATURE_PERFCTR_LLC)) {
+		perf_pmu_unregister(&amd_llc_pmu);
+		free_percpu(amd_uncore_llc);
+		amd_uncore_llc = NULL;
+	}
+
+	if (boot_cpu_has(X86_FEATURE_PERFCTR_NB)) {
+		perf_pmu_unregister(&amd_nb_pmu);
+		free_percpu(amd_uncore_nb);
+		amd_uncore_nb = NULL;
+	}
+}
+
+module_init(amd_uncore_init);
+module_exit(amd_uncore_exit);
+
+MODULE_DESCRIPTION("AMD Uncore Driver");
+MODULE_LICENSE("GPL v2");
