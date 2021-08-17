@@ -744,6 +744,20 @@ void __sched mutex_unlock(struct mutex *lock)
 }
 EXPORT_SYMBOL(mutex_unlock);
 
+static void __ww_mutex_unlock(struct ww_mutex *lock)
+{
+	/*
+	 * The unlocking fastpath is the 0->1 transition from 'locked'
+	 * into 'unlocked' state:
+	 */
+	if (lock->ctx) {
+		MUTEX_WARN_ON(!lock->ctx->acquired);
+		if (lock->ctx->acquired > 0)
+			lock->ctx->acquired--;
+		lock->ctx = NULL;
+	}
+}
+
 /**
  * ww_mutex_unlock - release the w/w mutex
  * @lock: the mutex to be released
@@ -757,17 +771,7 @@ EXPORT_SYMBOL(mutex_unlock);
  */
 void __sched ww_mutex_unlock(struct ww_mutex *lock)
 {
-	/*
-	 * The unlocking fastpath is the 0->1 transition from 'locked'
-	 * into 'unlocked' state:
-	 */
-	if (lock->ctx) {
-		MUTEX_WARN_ON(!lock->ctx->acquired);
-		if (lock->ctx->acquired > 0)
-			lock->ctx->acquired--;
-		lock->ctx = NULL;
-	}
-
+	__ww_mutex_unlock(lock);
 	mutex_unlock(&lock->base);
 }
 EXPORT_SYMBOL(ww_mutex_unlock);
