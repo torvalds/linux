@@ -205,6 +205,23 @@ struct pool_workqueue {
 	int			refcnt;		/* L: reference count */
 	int			nr_in_flight[WORK_NR_COLORS];
 						/* L: nr of in_flight works */
+
+	/*
+	 * nr_active management and WORK_STRUCT_INACTIVE:
+	 *
+	 * When pwq->nr_active >= max_active, new work item is queued to
+	 * pwq->inactive_works instead of pool->worklist and marked with
+	 * WORK_STRUCT_INACTIVE.
+	 *
+	 * All work items marked with WORK_STRUCT_INACTIVE do not participate
+	 * in pwq->nr_active and all work items in pwq->inactive_works are
+	 * marked with WORK_STRUCT_INACTIVE.  But not all WORK_STRUCT_INACTIVE
+	 * work items are in pwq->inactive_works.  Some of them are ready to
+	 * run in pool->worklist or worker->scheduled.  Those work itmes are
+	 * only struct wq_barrier which is used for flush_work() and should
+	 * not participate in pwq->nr_active.  For non-barrier work item, it
+	 * is marked with WORK_STRUCT_INACTIVE iff it is in pwq->inactive_works.
+	 */
 	int			nr_active;	/* L: nr of active works */
 	int			max_active;	/* L: max active works */
 	struct list_head	inactive_works;	/* L: inactive works */
@@ -1171,18 +1188,20 @@ static void pwq_dec_nr_in_flight(struct pool_workqueue *pwq, unsigned long work_
 {
 	int color = get_work_color(work_data);
 
-	/* uncolored work items don't participate in flushing or nr_active */
+	if (!(work_data & WORK_STRUCT_INACTIVE)) {
+		pwq->nr_active--;
+		if (!list_empty(&pwq->inactive_works)) {
+			/* one down, submit an inactive one */
+			if (pwq->nr_active < pwq->max_active)
+				pwq_activate_first_inactive(pwq);
+		}
+	}
+
+	/* uncolored work items don't participate in flushing */
 	if (color == WORK_NO_COLOR)
 		goto out_put;
 
 	pwq->nr_in_flight[color]--;
-
-	pwq->nr_active--;
-	if (!list_empty(&pwq->inactive_works)) {
-		/* one down, submit an inactive one */
-		if (pwq->nr_active < pwq->max_active)
-			pwq_activate_first_inactive(pwq);
-	}
 
 	/* is flush in progress and are we at the flushing tip? */
 	if (likely(pwq->flush_color != color))
@@ -1283,6 +1302,10 @@ static int try_to_grab_pending(struct work_struct *work, bool is_dwork,
 		debug_work_deactivate(work);
 
 		/*
+		 * A cancelable inactive work item must be in the
+		 * pwq->inactive_works since a queued barrier can't be
+		 * canceled (see the comments in insert_wq_barrier()).
+		 *
 		 * An inactive work item cannot be grabbed directly because
 		 * it might have linked NO_COLOR work items which, if left
 		 * on the inactive_works list, will confuse pwq->nr_active
@@ -2674,6 +2697,9 @@ static void insert_wq_barrier(struct pool_workqueue *pwq,
 	init_completion_map(&barr->done, &target->lockdep_map);
 
 	barr->task = current;
+
+	/* The barrier work item does not participate in pwq->nr_active. */
+	work_flags |= WORK_STRUCT_INACTIVE;
 
 	/*
 	 * If @target is currently being executed, schedule the
