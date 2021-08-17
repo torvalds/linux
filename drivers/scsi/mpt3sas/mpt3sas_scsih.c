@@ -5048,48 +5048,31 @@ _scsih_setup_eedp(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 	Mpi25SCSIIORequest_t *mpi_request)
 {
 	u16 eedp_flags;
-	unsigned char prot_op = scsi_get_prot_op(scmd);
-	unsigned char prot_type = scsi_get_prot_type(scmd);
 	Mpi25SCSIIORequest_t *mpi_request_3v =
 	   (Mpi25SCSIIORequest_t *)mpi_request;
 
-	if (prot_type == SCSI_PROT_DIF_TYPE0 || prot_op == SCSI_PROT_NORMAL)
-		return;
-
-	if (prot_op ==  SCSI_PROT_READ_STRIP)
+	switch (scsi_get_prot_op(scmd)) {
+	case SCSI_PROT_READ_STRIP:
 		eedp_flags = MPI2_SCSIIO_EEDPFLAGS_CHECK_REMOVE_OP;
-	else if (prot_op ==  SCSI_PROT_WRITE_INSERT)
+		break;
+	case SCSI_PROT_WRITE_INSERT:
 		eedp_flags = MPI2_SCSIIO_EEDPFLAGS_INSERT_OP;
-	else
+		break;
+	default:
 		return;
-
-	switch (prot_type) {
-	case SCSI_PROT_DIF_TYPE1:
-	case SCSI_PROT_DIF_TYPE2:
-
-		/*
-		* enable ref/guard checking
-		* auto increment ref tag
-		*/
-		eedp_flags |= MPI2_SCSIIO_EEDPFLAGS_INC_PRI_REFTAG |
-		    MPI2_SCSIIO_EEDPFLAGS_CHECK_REFTAG |
-		    MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD;
-		mpi_request->CDB.EEDP32.PrimaryReferenceTag =
-		    cpu_to_be32(t10_pi_ref_tag(scsi_cmd_to_rq(scmd)));
-		break;
-
-	case SCSI_PROT_DIF_TYPE3:
-
-		/*
-		* enable guard checking
-		*/
-		eedp_flags |= MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD;
-
-		break;
 	}
 
-	mpi_request_3v->EEDPBlockSize =
-	    cpu_to_le16(scmd->device->sector_size);
+	if (scmd->prot_flags & SCSI_PROT_GUARD_CHECK)
+		eedp_flags |= MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD;
+
+	if (scmd->prot_flags & SCSI_PROT_REF_CHECK) {
+		eedp_flags |= MPI2_SCSIIO_EEDPFLAGS_INC_PRI_REFTAG |
+			MPI2_SCSIIO_EEDPFLAGS_CHECK_REFTAG;
+		mpi_request->CDB.EEDP32.PrimaryReferenceTag =
+			cpu_to_be32(scsi_prot_ref_tag(scmd));
+	}
+
+	mpi_request_3v->EEDPBlockSize = cpu_to_le16(scsi_prot_interval(scmd));
 
 	if (ioc->is_gen35_ioc)
 		eedp_flags |= MPI25_SCSIIO_EEDPFLAGS_APPTAG_DISABLE_MODE;
