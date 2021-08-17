@@ -1084,24 +1084,24 @@ static int f_audio_validate_opts(struct g_audio *audio, struct device *dev)
 
 	if (opts->p_volume_max <= opts->p_volume_min) {
 		dev_err(dev, "Error: incorrect playback volume max/min\n");
-			return -EINVAL;
+		return -EINVAL;
 	} else if (opts->c_volume_max <= opts->c_volume_min) {
 		dev_err(dev, "Error: incorrect capture volume max/min\n");
-			return -EINVAL;
+		return -EINVAL;
 	} else if (opts->p_volume_res <= 0) {
 		dev_err(dev, "Error: negative/zero playback volume resolution\n");
-			return -EINVAL;
+		return -EINVAL;
 	} else if (opts->c_volume_res <= 0) {
 		dev_err(dev, "Error: negative/zero capture volume resolution\n");
-			return -EINVAL;
+		return -EINVAL;
 	}
 
 	if ((opts->p_volume_max - opts->p_volume_min) % opts->p_volume_res) {
 		dev_err(dev, "Error: incorrect playback volume resolution\n");
-			return -EINVAL;
+		return -EINVAL;
 	} else if ((opts->c_volume_max - opts->c_volume_min) % opts->c_volume_res) {
 		dev_err(dev, "Error: incorrect capture volume resolution\n");
-			return -EINVAL;
+		return -EINVAL;
 	}
 
 	return 0;
