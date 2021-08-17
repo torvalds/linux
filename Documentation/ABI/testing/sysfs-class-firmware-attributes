@@ -272,3 +272,14 @@ Description:
 
 		Note that any changes to this attribute requires a reboot
 		for changes to take effect.
+
+What:		/sys/class/firmware-attributes/*/attributes/debug_cmd
+Date:		July 2021
+KernelVersion:	5.14
+Contact:	Mark Pearson <markpearson@lenovo.com>
+Description:
+		This write only attribute can be used to send debug commands to the BIOS.
+		This should only be used when recommended by the BIOS vendor. Vendors may
+		use it to enable extra debug attributes or BIOS features for testing purposes.
+
+		Note that any changes to this attribute requires a reboot for changes to take effect.
