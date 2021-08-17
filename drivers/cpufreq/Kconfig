@@ -247,7 +247,7 @@ comment "CPU frequency scaling drivers"
 config CPUFREQ_DT
 	tristate "Generic DT based cpufreq driver"
 	depends on HAVE_CLK && OF
-	select CPUFREQ_DT_PLATDEV
+	select CPUFREQ_DT_PLATDEV if !ARM_ROCKCHIP_CPUFREQ
 	select PM_OPP
 	help
 	  This adds a generic DT based cpufreq driver for frequency management.
