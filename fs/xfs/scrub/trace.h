@@ -79,6 +79,16 @@ TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_FSCOUNTERS);
 	{ XFS_SCRUB_TYPE_PQUOTA,	"prjquota" }, \
 	{ XFS_SCRUB_TYPE_FSCOUNTERS,	"fscounters" }
 
+#define XFS_SCRUB_FLAG_STRINGS \
+	{ XFS_SCRUB_IFLAG_REPAIR,		"repair" }, \
+	{ XFS_SCRUB_OFLAG_CORRUPT,		"corrupt" }, \
+	{ XFS_SCRUB_OFLAG_PREEN,		"preen" }, \
+	{ XFS_SCRUB_OFLAG_XFAIL,		"xfail" }, \
+	{ XFS_SCRUB_OFLAG_XCORRUPT,		"xcorrupt" }, \
+	{ XFS_SCRUB_OFLAG_INCOMPLETE,		"incomplete" }, \
+	{ XFS_SCRUB_OFLAG_WARNING,		"warning" }, \
+	{ XFS_SCRUB_OFLAG_NO_REPAIR_NEEDED,	"norepair" }
+
 DECLARE_EVENT_CLASS(xchk_class,
 	TP_PROTO(struct xfs_inode *ip, struct xfs_scrub_metadata *sm,
 		 int error),
@@ -103,14 +113,14 @@ DECLARE_EVENT_CLASS(xchk_class,
 		__entry->flags = sm->sm_flags;
 		__entry->error = error;
 	),
-	TP_printk("dev %d:%d ino 0x%llx type %s agno 0x%x inum 0x%llx gen 0x%x flags 0x%x error %d",
+	TP_printk("dev %d:%d ino 0x%llx type %s agno 0x%x inum 0x%llx gen 0x%x flags (%s) error %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __print_symbolic(__entry->type, XFS_SCRUB_TYPE_STRINGS),
 		  __entry->agno,
 		  __entry->inum,
 		  __entry->gen,
-		  __entry->flags,
+		  __print_flags(__entry->flags, "|", XFS_SCRUB_FLAG_STRINGS),
 		  __entry->error)
 )
 #define DEFINE_SCRUB_EVENT(name) \
