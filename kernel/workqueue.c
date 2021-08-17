@@ -579,9 +579,9 @@ static unsigned int work_color_to_flags(int color)
 	return color << WORK_STRUCT_COLOR_SHIFT;
 }
 
-static int get_work_color(struct work_struct *work)
+static int get_work_color(unsigned long work_data)
 {
-	return (*work_data_bits(work) >> WORK_STRUCT_COLOR_SHIFT) &
+	return (work_data >> WORK_STRUCT_COLOR_SHIFT) &
 		((1 << WORK_STRUCT_COLOR_BITS) - 1);
 }
 
@@ -1159,7 +1159,7 @@ static void pwq_activate_first_inactive(struct pool_workqueue *pwq)
 /**
  * pwq_dec_nr_in_flight - decrement pwq's nr_in_flight
  * @pwq: pwq of interest
- * @color: color of work which left the queue
+ * @work_data: work_data of work which left the queue
  *
  * A work either has completed or is removed from pending queue,
  * decrement nr_in_flight of its pwq and handle workqueue flushing.
@@ -1167,8 +1167,10 @@ static void pwq_activate_first_inactive(struct pool_workqueue *pwq)
  * CONTEXT:
  * raw_spin_lock_irq(pool->lock).
  */
-static void pwq_dec_nr_in_flight(struct pool_workqueue *pwq, int color)
+static void pwq_dec_nr_in_flight(struct pool_workqueue *pwq, unsigned long work_data)
 {
+	int color = get_work_color(work_data);
+
 	/* uncolored work items don't participate in flushing or nr_active */
 	if (color == WORK_NO_COLOR)
 		goto out_put;
@@ -1291,7 +1293,7 @@ static int try_to_grab_pending(struct work_struct *work, bool is_dwork,
 			pwq_activate_inactive_work(work);
 
 		list_del_init(&work->entry);
-		pwq_dec_nr_in_flight(pwq, get_work_color(work));
+		pwq_dec_nr_in_flight(pwq, *work_data_bits(work));
 
 		/* work->data points to pwq iff queued, point to pool */
 		set_work_pool_and_keep_pending(work, pool->id);
@@ -2172,7 +2174,7 @@ __acquires(&pool->lock)
 	struct pool_workqueue *pwq = get_work_pwq(work);
 	struct worker_pool *pool = worker->pool;
 	bool cpu_intensive = pwq->wq->flags & WQ_CPU_INTENSIVE;
-	int work_color;
+	unsigned long work_data;
 	struct worker *collision;
 #ifdef CONFIG_LOCKDEP
 	/*
@@ -2208,7 +2210,7 @@ __acquires(&pool->lock)
 	worker->current_work = work;
 	worker->current_func = work->func;
 	worker->current_pwq = pwq;
-	work_color = get_work_color(work);
+	work_data = *work_data_bits(work);
 
 	/*
 	 * Record wq name for cmdline and debug reporting, may get
@@ -2314,7 +2316,7 @@ __acquires(&pool->lock)
 	worker->current_work = NULL;
 	worker->current_func = NULL;
 	worker->current_pwq = NULL;
-	pwq_dec_nr_in_flight(pwq, work_color);
+	pwq_dec_nr_in_flight(pwq, work_data);
 }
 
 /**
