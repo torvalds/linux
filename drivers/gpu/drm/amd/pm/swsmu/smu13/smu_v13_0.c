@@ -311,7 +311,7 @@ static int smu_v13_0_get_pptable_from_firmware(struct smu_context *smu, void **t
 	version_major = le16_to_cpu(hdr->header.header_version_major);
 	version_minor = le16_to_cpu(hdr->header.header_version_minor);
 	if (version_major != 2) {
-		dev_err(adev->dev, "Unsupported smu firwmare version %d.%d\n",
+		dev_err(adev->dev, "Unsupported smu firmware version %d.%d\n",
 			version_major, version_minor);
 		return -EINVAL;
 	}
