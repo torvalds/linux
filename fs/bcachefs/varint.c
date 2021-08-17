@@ -97,7 +97,7 @@ int bch2_varint_encode_fast(u8 *out, u64 v)
 int bch2_varint_decode_fast(const u8 *in, const u8 *end, u64 *out)
 {
 	u64 v = get_unaligned_le64(in);
-	unsigned bytes = ffz(v & 255) + 1;
+	unsigned bytes = ffz(*in) + 1;
 
 	if (unlikely(in + bytes > end))
 		return -1;
