@@ -59,9 +59,8 @@ void btrfs_detach_subpage(const struct btrfs_fs_info *fs_info,
 			  struct page *page);
 
 /* Allocate additional data where page represents more than one sector */
-int btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
-			struct btrfs_subpage **ret,
-			enum btrfs_subpage_type type);
+struct btrfs_subpage *btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
+					  enum btrfs_subpage_type type);
 void btrfs_free_subpage(struct btrfs_subpage *subpage);
 
 void btrfs_page_inc_eb_refs(const struct btrfs_fs_info *fs_info,

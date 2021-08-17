@@ -6138,9 +6138,9 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 		 * support, so we still preallocate the memory in the loop.
 		 */
 		if (fs_info->sectorsize < PAGE_SIZE) {
-			ret = btrfs_alloc_subpage(fs_info, &prealloc,
-						  BTRFS_SUBPAGE_METADATA);
-			if (ret < 0) {
+			prealloc = btrfs_alloc_subpage(fs_info, BTRFS_SUBPAGE_METADATA);
+			if (IS_ERR(prealloc)) {
+				ret = PTR_ERR(prealloc);
 				unlock_page(p);
 				put_page(p);
 				exists = ERR_PTR(ret);

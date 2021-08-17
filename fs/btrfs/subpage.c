@@ -66,8 +66,7 @@
 int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 			 struct page *page, enum btrfs_subpage_type type)
 {
-	struct btrfs_subpage *subpage = NULL;
-	int ret;
+	struct btrfs_subpage *subpage;
 
 	/*
 	 * We have cases like a dummy extent buffer page, which is not mappped
@@ -75,13 +74,15 @@ int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 	 */
 	if (page->mapping)
 		ASSERT(PageLocked(page));
+
 	/* Either not subpage, or the page already has private attached */
 	if (fs_info->sectorsize == PAGE_SIZE || PagePrivate(page))
 		return 0;
 
-	ret = btrfs_alloc_subpage(fs_info, &subpage, type);
-	if (ret < 0)
-		return ret;
+	subpage = btrfs_alloc_subpage(fs_info, type);
+	if (IS_ERR(subpage))
+		return  PTR_ERR(subpage);
+
 	attach_page_private(page, subpage);
 	return 0;
 }
@@ -100,23 +101,25 @@ void btrfs_detach_subpage(const struct btrfs_fs_info *fs_info,
 	btrfs_free_subpage(subpage);
 }
 
-int btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
-			struct btrfs_subpage **ret,
-			enum btrfs_subpage_type type)
+struct btrfs_subpage *btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
+					  enum btrfs_subpage_type type)
 {
+	struct btrfs_subpage *ret;
+
 	ASSERT(fs_info->sectorsize < PAGE_SIZE);
 
-	*ret = kzalloc(sizeof(struct btrfs_subpage), GFP_NOFS);
-	if (!*ret)
-		return -ENOMEM;
-	spin_lock_init(&(*ret)->lock);
+	ret = kzalloc(sizeof(struct btrfs_subpage), GFP_NOFS);
+	if (!ret)
+		return ERR_PTR(-ENOMEM);
+
+	spin_lock_init(&ret->lock);
 	if (type == BTRFS_SUBPAGE_METADATA) {
-		atomic_set(&(*ret)->eb_refs, 0);
+		atomic_set(&ret->eb_refs, 0);
 	} else {
-		atomic_set(&(*ret)->readers, 0);
-		atomic_set(&(*ret)->writers, 0);
+		atomic_set(&ret->readers, 0);
+		atomic_set(&ret->writers, 0);
 	}
-	return 0;
+	return ret;
 }
 
 void btrfs_free_subpage(struct btrfs_subpage *subpage)
