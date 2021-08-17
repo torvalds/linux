@@ -959,8 +959,15 @@ void mmc_run_bkops(struct mmc_card *card)
 	 */
 	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 			 EXT_CSD_BKOPS_START, 1, MMC_BKOPS_TIMEOUT_MS);
-	if (err)
-		pr_warn("%s: Error %d starting bkops\n",
+	/*
+	 * If the BKOPS timed out, the card is probably still busy in the
+	 * R1_STATE_PRG. Rather than continue to wait, let's try to abort
+	 * it with a HPI command to get back into R1_STATE_TRAN.
+	 */
+	if (err == -ETIMEDOUT && !mmc_interrupt_hpi(card))
+		pr_warn("%s: BKOPS aborted\n", mmc_hostname(card->host));
+	else if (err)
+		pr_warn("%s: Error %d running bkops\n",
 			mmc_hostname(card->host), err);
 
 	mmc_retune_release(card->host);
