@@ -318,6 +318,7 @@ void kvm_flush_remote_tlbs(struct kvm *kvm)
 	 */
 	long dirty_count = smp_load_acquire(&kvm->tlbs_dirty);
 
+	++kvm->stat.generic.remote_tlb_flush_requests;
 	/*
 	 * We want to publish modifications to the page tables before reading
 	 * mode. Pairs with a memory barrier in arch-specific code.
