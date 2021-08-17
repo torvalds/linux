@@ -1494,6 +1494,7 @@ void sock_map_unhash(struct sock *sk)
 	rcu_read_unlock();
 	saved_unhash(sk);
 }
+EXPORT_SYMBOL_GPL(sock_map_unhash);
 
 void sock_map_close(struct sock *sk, long timeout)
 {
