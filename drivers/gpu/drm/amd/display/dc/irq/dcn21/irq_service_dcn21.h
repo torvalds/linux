@@ -31,4 +31,6 @@
 struct irq_service *dal_irq_service_dcn21_create(
 	struct irq_service_init_data *init_data);
 
+uint32_t dal_get_hpd_state_dcn21(struct irq_service *irq_service, enum dc_irq_source source);
+
 #endif
