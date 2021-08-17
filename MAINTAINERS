@@ -9945,6 +9945,7 @@ M:	Steve French <sfrench@samba.org>
 M:	Hyunchul Lee <hyc.lee@gmail.com>
 L:	linux-cifs@vger.kernel.org
 S:	Maintained
+T:	git git://git.samba.org/ksmbd.git
 F:	fs/ksmbd/
 
 KERNEL UNIT TESTING FRAMEWORK (KUnit)
