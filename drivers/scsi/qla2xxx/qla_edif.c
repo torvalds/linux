@@ -628,7 +628,6 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 static int
 qla_edif_app_stop(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 {
-	int32_t                 rval = 0;
 	struct app_stop         appstop;
 	struct fc_bsg_reply     *bsg_reply = bsg_job->reply;
 	struct fc_port  *fcport, *tf;
@@ -679,7 +678,7 @@ qla_edif_app_stop(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 
 	/* no return interface to app - it assumes we cleaned up ok */
 
-	return rval;
+	return 0;
 }
 
 static int
