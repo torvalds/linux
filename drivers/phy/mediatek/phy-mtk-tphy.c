@@ -10,11 +10,13 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 
 /* version V1 sub-banks offset base address */
 /* banks shared by multiple phys */
@@ -280,6 +282,14 @@
 #define RG_CDR_BIRLTD0_GEN3_MSK		GENMASK(4, 0)
 #define RG_CDR_BIRLTD0_GEN3_VAL(x)	(0x1f & (x))
 
+/* PHY switch between pcie/usb3/sgmii/sata */
+#define USB_PHY_SWITCH_CTRL	0x0
+#define RG_PHY_SW_TYPE		GENMASK(3, 0)
+#define RG_PHY_SW_PCIE		0x0
+#define RG_PHY_SW_USB3		0x1
+#define RG_PHY_SW_SGMII		0x2
+#define RG_PHY_SW_SATA		0x3
+
 #define TPHY_CLKS_CNT	2
 
 enum mtk_phy_version {
@@ -322,7 +332,10 @@ struct mtk_phy_instance {
 	};
 	struct clk_bulk_data clks[TPHY_CLKS_CNT];
 	u32 index;
-	u8 type;
+	u32 type;
+	struct regmap *type_sw;
+	u32 type_sw_reg;
+	u32 type_sw_index;
 	int eye_src;
 	int eye_vrt;
 	int eye_term;
@@ -969,6 +982,64 @@ static void u2_phy_props_set(struct mtk_tphy *tphy,
 	}
 }
 
+/* type switch for usb3/pcie/sgmii/sata */
+static int phy_type_syscon_get(struct mtk_phy_instance *instance,
+			       struct device_node *dn)
+{
+	struct of_phandle_args args;
+	int ret;
+
+	/* type switch function is optional */
+	if (!of_property_read_bool(dn, "mediatek,syscon-type"))
+		return 0;
+
+	ret = of_parse_phandle_with_fixed_args(dn, "mediatek,syscon-type",
+					       2, 0, &args);
+	if (ret)
+		return ret;
+
+	instance->type_sw_reg = args.args[0];
+	instance->type_sw_index = args.args[1] & 0x3; /* <=3 */
+	instance->type_sw = syscon_node_to_regmap(args.np);
+	of_node_put(args.np);
+	dev_info(&instance->phy->dev, "type_sw - reg %#x, index %d\n",
+		 instance->type_sw_reg, instance->type_sw_index);
+
+	return PTR_ERR_OR_ZERO(instance->type_sw);
+}
+
+static int phy_type_set(struct mtk_phy_instance *instance)
+{
+	int type;
+	u32 mask;
+
+	if (!instance->type_sw)
+		return 0;
+
+	switch (instance->type) {
+	case PHY_TYPE_USB3:
+		type = RG_PHY_SW_USB3;
+		break;
+	case PHY_TYPE_PCIE:
+		type = RG_PHY_SW_PCIE;
+		break;
+	case PHY_TYPE_SGMII:
+		type = RG_PHY_SW_SGMII;
+		break;
+	case PHY_TYPE_SATA:
+		type = RG_PHY_SW_SATA;
+		break;
+	case PHY_TYPE_USB2:
+	default:
+		return 0;
+	}
+
+	mask = RG_PHY_SW_TYPE << (instance->type_sw_index * BITS_PER_BYTE);
+	regmap_update_bits(instance->type_sw, instance->type_sw_reg, mask, type);
+
+	return 0;
+}
+
 static int mtk_phy_init(struct phy *phy)
 {
 	struct mtk_phy_instance *instance = phy_get_drvdata(phy);
@@ -992,6 +1063,9 @@ static int mtk_phy_init(struct phy *phy)
 		break;
 	case PHY_TYPE_SATA:
 		sata_phy_instance_init(tphy, instance);
+		break;
+	case PHY_TYPE_SGMII:
+		/* nothing to do, only used to set type */
 		break;
 	default:
 		dev_err(tphy->dev, "incompatible PHY type\n");
@@ -1081,7 +1155,8 @@ static struct phy *mtk_phy_xlate(struct device *dev,
 	if (!(instance->type == PHY_TYPE_USB2 ||
 	      instance->type == PHY_TYPE_USB3 ||
 	      instance->type == PHY_TYPE_PCIE ||
-	      instance->type == PHY_TYPE_SATA)) {
+	      instance->type == PHY_TYPE_SATA ||
+	      instance->type == PHY_TYPE_SGMII)) {
 		dev_err(dev, "unsupported device type: %d\n", instance->type);
 		return ERR_PTR(-EINVAL);
 	}
@@ -1100,6 +1175,7 @@ static struct phy *mtk_phy_xlate(struct device *dev,
 	}
 
 	phy_parse_property(tphy, instance);
+	phy_type_set(instance);
 
 	return instance->phy;
 }
@@ -1242,6 +1318,10 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 		clks[0].id = "ref";     /* digital (& analog) clock */
 		clks[1].id = "da_ref";  /* analog clock */
 		retval = devm_clk_bulk_get_optional(&phy->dev, TPHY_CLKS_CNT, clks);
+		if (retval)
+			goto put_child;
+
+		retval = phy_type_syscon_get(instance, child_np);
 		if (retval)
 			goto put_child;
 	}
