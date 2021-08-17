@@ -1420,11 +1420,16 @@ static int map_update_retriable(int map_fd, const void *key, const void *value,
 
 static int map_delete_retriable(int map_fd, const void *key, int attempts)
 {
+	int delay = rand() % MIN_DELAY_RANGE_US;
+
 	while (bpf_map_delete_elem(map_fd, key)) {
 		if (!attempts || (errno != EAGAIN && errno != EBUSY))
 			return -errno;
 
-		usleep(1);
+		if (delay <= MAX_DELAY_US / 2)
+			delay *= 2;
+
+		usleep(delay);
 		attempts--;
 	}
 
