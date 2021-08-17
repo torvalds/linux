@@ -12,6 +12,10 @@
 SEC("struct_ops/"#name) \
 BPF_PROG(name, args)
 
+#ifndef SOL_TCP
+#define SOL_TCP 6
+#endif
+
 #define tcp_jiffies32 ((__u32)bpf_jiffies64())
 
 struct sock_common {
@@ -201,6 +205,20 @@ static __always_inline bool tcp_is_cwnd_limited(const struct sock *sk)
 		return tp->snd_cwnd < 2 * tp->max_packets_out;
 
 	return !!BPF_CORE_READ_BITFIELD(tp, is_cwnd_limited);
+}
+
+static __always_inline bool tcp_cc_eq(const char *a, const char *b)
+{
+	int i;
+
+	for (i = 0; i < TCP_CA_NAME_MAX; i++) {
+		if (a[i] != b[i])
+			return false;
+		if (!a[i])
+			break;
+	}
+
+	return true;
 }
 
 extern __u32 tcp_slow_start(struct tcp_sock *tp, __u32 acked) __ksym;
