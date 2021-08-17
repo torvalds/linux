@@ -346,7 +346,7 @@ DECLARE_EVENT_CLASS(xfs_bmap_class,
 		__entry->caller_ip = caller_ip;
 	),
 	TP_printk("dev %d:%d ino 0x%llx state %s cur %p/%d "
-		  "offset %lld block %lld count %lld flag %d caller %pS",
+		  "offset %lld startblock 0x%llx count %lld flag %d caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __print_flags(__entry->bmap_state, "|", XFS_BMAP_EXT_FLAGS),
@@ -1440,7 +1440,7 @@ DECLARE_EVENT_CLASS(xfs_imap_class,
 		__entry->blockcount = irec ? irec->br_blockcount : 0;
 	),
 	TP_printk("dev %d:%d ino 0x%llx size 0x%llx offset 0x%llx count %zd "
-		  "fork %s startoff 0x%llx startblock %lld blockcount 0x%llx",
+		  "fork %s startoff 0x%llx startblock 0x%llx blockcount 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->size,
@@ -1558,14 +1558,14 @@ TRACE_EVENT(xfs_pagecache_inval,
 );
 
 TRACE_EVENT(xfs_bunmap,
-	TP_PROTO(struct xfs_inode *ip, xfs_fileoff_t bno, xfs_filblks_t len,
+	TP_PROTO(struct xfs_inode *ip, xfs_fileoff_t fileoff, xfs_filblks_t len,
 		 int flags, unsigned long caller_ip),
-	TP_ARGS(ip, bno, len, flags, caller_ip),
+	TP_ARGS(ip, fileoff, len, flags, caller_ip),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_ino_t, ino)
 		__field(xfs_fsize_t, size)
-		__field(xfs_fileoff_t, bno)
+		__field(xfs_fileoff_t, fileoff)
 		__field(xfs_filblks_t, len)
 		__field(unsigned long, caller_ip)
 		__field(int, flags)
@@ -1574,17 +1574,17 @@ TRACE_EVENT(xfs_bunmap,
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->ino = ip->i_ino;
 		__entry->size = ip->i_disk_size;
-		__entry->bno = bno;
+		__entry->fileoff = fileoff;
 		__entry->len = len;
 		__entry->caller_ip = caller_ip;
 		__entry->flags = flags;
 	),
-	TP_printk("dev %d:%d ino 0x%llx size 0x%llx bno 0x%llx len 0x%llx"
+	TP_printk("dev %d:%d ino 0x%llx size 0x%llx fileoff 0x%llx len 0x%llx"
 		  "flags %s caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->size,
-		  __entry->bno,
+		  __entry->fileoff,
 		  __entry->len,
 		  __print_flags(__entry->flags, "|", XFS_BMAPI_FLAGS),
 		  (void *)__entry->caller_ip)
@@ -2277,7 +2277,7 @@ DECLARE_EVENT_CLASS(xfs_log_recover_buf_item_class,
 		__entry->size = buf_f->blf_size;
 		__entry->map_size = buf_f->blf_map_size;
 	),
-	TP_printk("dev %d:%d blkno 0x%llx, len %u, flags 0x%x, size %d, "
+	TP_printk("dev %d:%d daddr 0x%llx, len %u, flags 0x%x, size %d, "
 			"map_size %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->blkno,
@@ -2328,7 +2328,7 @@ DECLARE_EVENT_CLASS(xfs_log_recover_ino_item_class,
 		__entry->boffset = in_f->ilf_boffset;
 	),
 	TP_printk("dev %d:%d ino 0x%llx, size %u, fields 0x%x, asize %d, "
-			"dsize %d, blkno 0x%llx, len %d, boffset %d",
+			"dsize %d, daddr 0x%llx, len %d, boffset %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->size,
@@ -3282,7 +3282,7 @@ DECLARE_EVENT_CLASS(xfs_inode_irec_class,
 		__entry->pblk = irec->br_startblock;
 		__entry->state = irec->br_state;
 	),
-	TP_printk("dev %d:%d ino 0x%llx lblk 0x%llx len 0x%x pblk %llu st %d",
+	TP_printk("dev %d:%d ino 0x%llx lblk 0x%llx len 0x%x startblock 0x%llx st %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->lblk,
@@ -3423,7 +3423,7 @@ DECLARE_EVENT_CLASS(xfs_fsmap_class,
 		__entry->offset = rmap->rm_offset;
 		__entry->flags = rmap->rm_flags;
 	),
-	TP_printk("dev %d:%d keydev %d:%d agno 0x%x bno %llu len %llu owner 0x%llx offset %llu flags 0x%x",
+	TP_printk("dev %d:%d keydev %d:%d agno 0x%x startblock 0x%llx len %llu owner 0x%llx offset %llu flags 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  MAJOR(__entry->keydev), MINOR(__entry->keydev),
 		  __entry->agno,
@@ -3463,7 +3463,7 @@ DECLARE_EVENT_CLASS(xfs_getfsmap_class,
 		__entry->offset = fsmap->fmr_offset;
 		__entry->flags = fsmap->fmr_flags;
 	),
-	TP_printk("dev %d:%d keydev %d:%d block %llu len %llu owner 0x%llx offset %llu flags 0x%llx",
+	TP_printk("dev %d:%d keydev %d:%d daddr 0x%llx len %llu owner 0x%llx offset %llu flags 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  MAJOR(__entry->keydev), MINOR(__entry->keydev),
 		  __entry->block,
