@@ -588,8 +588,10 @@ static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 	if (!(bond_status & 0x3))
 		return 0;
 
-	if (lag_upper_info)
+	if (lag_upper_info) {
 		tracker->tx_type = lag_upper_info->tx_type;
+		tracker->hash_type = lag_upper_info->hash_type;
+	}
 
 	/* Determine bonding status:
 	 * A device is considered bonded if both its physical ports are slaves
