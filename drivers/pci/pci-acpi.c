@@ -952,46 +952,36 @@ static bool acpi_pci_power_manageable(struct pci_dev *dev)
 
 static bool acpi_pci_bridge_d3(struct pci_dev *dev)
 {
-	const struct fwnode_handle *fwnode;
+	const union acpi_object *obj;
 	struct acpi_device *adev;
-	struct pci_dev *root;
-	u8 val;
+	struct pci_dev *rpdev;
 
 	if (!dev->is_hotplug_bridge)
 		return false;
 
 	/* Assume D3 support if the bridge is power-manageable by ACPI. */
-	pci_set_acpi_fwnode(dev);
-
 	if (acpi_pci_power_manageable(dev))
 		return true;
 
 	/*
-	 * Look for a special _DSD property for the root port and if it
-	 * is set we know the hierarchy behind it supports D3 just fine.
+	 * The ACPI firmware will provide the device-specific properties through
+	 * _DSD configuration object. Look for the 'HotPlugSupportInD3' property
+	 * for the root port and if it is set we know the hierarchy behind it
+	 * supports D3 just fine.
 	 */
-	root = pcie_find_root_port(dev);
-	if (!root)
+	rpdev = pcie_find_root_port(dev);
+	if (!rpdev)
 		return false;
 
-	adev = ACPI_COMPANION(&root->dev);
-	if (root == dev) {
-		/*
-		 * It is possible that the ACPI companion is not yet bound
-		 * for the root port so look it up manually here.
-		 */
-		if (!adev && !pci_dev_is_added(root))
-			adev = acpi_pci_find_companion(&root->dev);
-	}
-
+	adev = ACPI_COMPANION(&rpdev->dev);
 	if (!adev)
 		return false;
 
-	fwnode = acpi_fwnode_handle(adev);
-	if (fwnode_property_read_u8(fwnode, "HotPlugSupportInD3", &val))
+	if (acpi_dev_get_property(adev, "HotPlugSupportInD3",
+				   ACPI_TYPE_INTEGER, &obj) < 0)
 		return false;
 
-	return val == 1;
+	return obj->integer.value == 1;
 }
 
 static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
