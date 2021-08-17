@@ -724,7 +724,17 @@ void rvu_npc_install_promisc_entry(struct rvu *rvu, u16 pcifunc,
 		action.index = pfvf->promisc_mce_idx;
 	}
 
-	req.chan_mask = 0xFFFU;
+	/* For cn10k the upper two bits of the channel number are
+	 * cpt channel number. with masking out these bits in the
+	 * mcam entry, same entry used for NIX will allow packets
+	 * received from cpt for parsing.
+	 */
+	if (!is_rvu_otx2(rvu)) {
+		req.chan_mask = NIX_CHAN_CPT_X2P_MASK;
+	} else {
+		req.chan_mask = 0xFFFU;
+	}
+
 	if (chan_cnt > 1) {
 		if (!is_power_of_2(chan_cnt)) {
 			dev_err(rvu->dev,
