@@ -459,6 +459,12 @@ S:	Maintained
 W:	https://parisc.wiki.kernel.org/index.php/AD1889
 F:	sound/pci/ad1889.*
 
+AD5110 ANALOG DEVICES DIGITAL POTENTIOMETERS DRIVER
+M:	Mugilraj Dhavachelvan <dmugil2000@gmail.com>
+L:	linux-iio@vger.kernel.org
+S:	Supported
+F:	drivers/iio/potentiometer/ad5110.c
+
 AD525X ANALOG DEVICES DIGITAL POTENTIOMETERS DRIVER
 M:	Michael Hennerich <michael.hennerich@analog.com>
 S:	Supported
@@ -15849,6 +15855,14 @@ M:	Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
 L:	linux-renesas-soc@vger.kernel.org
 S:	Maintained
 F:	drivers/phy/renesas/phy-rcar-gen3-usb*.c
+
+RENESAS RZ/G2L A/D DRIVER
+M:	Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com>
+L:	linux-iio@vger.kernel.org
+L:	linux-renesas-soc@vger.kernel.org
+S:	Supported
+F:	Documentation/devicetree/bindings/iio/adc/renesas,rzg2l-adc.yaml
+F:	drivers/iio/adc/rzg2l_adc.c
 
 RESET CONTROLLER FRAMEWORK
 M:	Philipp Zabel <p.zabel@pengutronix.de>
