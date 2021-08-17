@@ -92,8 +92,14 @@ static int otx2_alloc_ntuple_mcam_entries(struct otx2_nic *pfvf, u16 count)
 		req->contig = false;
 		req->count = (count - allocated) > NPC_MAX_NONCONTIG_ENTRIES ?
 				NPC_MAX_NONCONTIG_ENTRIES : count - allocated;
-		req->priority = NPC_MCAM_HIGHER_PRIO;
-		req->ref_entry = flow_cfg->def_ent[0];
+
+		/* Allocate higher priority entries for PFs, so that VF's entries
+		 * will be on top of PF.
+		 */
+		if (!is_otx2_vf(pfvf->pcifunc)) {
+			req->priority = NPC_MCAM_HIGHER_PRIO;
+			req->ref_entry = flow_cfg->def_ent[0];
+		}
 
 		/* Send message to AF */
 		if (otx2_sync_mbox_msg(&pfvf->mbox))
@@ -121,11 +127,13 @@ exit:
 	flow_cfg->ntuple_max_flows = allocated;
 	flow_cfg->tc_max_flows = allocated;
 
+	pfvf->flags |= OTX2_FLAG_MCAM_ENTRIES_ALLOC;
+	pfvf->flags |= OTX2_FLAG_NTUPLE_SUPPORT;
+
 	if (allocated != count)
 		netdev_info(pfvf->netdev,
-			    "Unable to allocate %d MCAM entries for ntuple, got %d\n",
+			    "Unable to allocate %d MCAM entries, got only %d\n",
 			    count, allocated);
-
 	return allocated;
 }
 
@@ -195,11 +203,33 @@ int otx2_alloc_mcam_entries(struct otx2_nic *pfvf)
 		return 0;
 	}
 
-	pfvf->flags |= OTX2_FLAG_NTUPLE_SUPPORT;
 	pfvf->flags |= OTX2_FLAG_TC_FLOWER_SUPPORT;
 
 	return 0;
 }
+
+int otx2vf_mcam_flow_init(struct otx2_nic *pfvf)
+{
+	struct otx2_flow_config *flow_cfg;
+	int count;
+
+	pfvf->flow_cfg = devm_kzalloc(pfvf->dev,
+				      sizeof(struct otx2_flow_config),
+				      GFP_KERNEL);
+	if (!pfvf->flow_cfg)
+		return -ENOMEM;
+
+	flow_cfg = pfvf->flow_cfg;
+	INIT_LIST_HEAD(&flow_cfg->flow_list);
+	flow_cfg->ntuple_max_flows = 0;
+
+	count = otx2_alloc_ntuple_mcam_entries(pfvf, OTX2_DEFAULT_FLOWCOUNT);
+	if (count <= 0)
+		return -ENOMEM;
+
+	return 0;
+}
+EXPORT_SYMBOL(otx2vf_mcam_flow_init);
 
 int otx2_mcam_flow_init(struct otx2_nic *pf)
 {
@@ -248,6 +278,7 @@ void otx2_mcam_flow_del(struct otx2_nic *pf)
 {
 	otx2_destroy_mcam_flows(pf);
 }
+EXPORT_SYMBOL(otx2_mcam_flow_del);
 
 /*  On success adds mcam entry
  *  On failure enable promisous mode
@@ -379,8 +410,11 @@ static void otx2_add_flow_to_list(struct otx2_nic *pfvf, struct otx2_flow *flow)
 	list_add(&flow->list, head);
 }
 
-static int otx2_get_maxflows(struct otx2_flow_config *flow_cfg)
+int otx2_get_maxflows(struct otx2_flow_config *flow_cfg)
 {
+	if (!flow_cfg)
+		return 0;
+
 	if (flow_cfg->nr_flows == flow_cfg->ntuple_max_flows ||
 	    bitmap_weight(&flow_cfg->dmacflt_bmap,
 			  flow_cfg->dmacflt_max_flows))
@@ -388,6 +422,7 @@ static int otx2_get_maxflows(struct otx2_flow_config *flow_cfg)
 	else
 		return flow_cfg->ntuple_max_flows;
 }
+EXPORT_SYMBOL(otx2_get_maxflows);
 
 int otx2_get_flow(struct otx2_nic *pfvf, struct ethtool_rxnfc *nfc,
 		  u32 location)
@@ -732,7 +767,7 @@ int otx2_prepare_flow_request(struct ethtool_rx_flow_spec *fsp,
 			ether_addr_copy(pmask->dmac, eth_mask->h_dest);
 			req->features |= BIT_ULL(NPC_DMAC);
 		}
-		if (eth_mask->h_proto) {
+		if (eth_hdr->h_proto) {
 			memcpy(&pkt->etype, &eth_hdr->h_proto,
 			       sizeof(pkt->etype));
 			memcpy(&pmask->etype, &eth_mask->h_proto,
@@ -996,6 +1031,8 @@ int otx2_add_flow(struct otx2_nic *pfvf, struct ethtool_rxnfc *nfc)
 	}
 
 	if (err) {
+		if (err == MBOX_MSG_INVALID)
+			err = -EINVAL;
 		if (new)
 			kfree(flow);
 		return err;
