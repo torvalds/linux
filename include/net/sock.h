@@ -2400,6 +2400,11 @@ static inline gfp_t gfp_any(void)
 	return in_softirq() ? GFP_ATOMIC : GFP_KERNEL;
 }
 
+static inline gfp_t gfp_memcg_charge(void)
+{
+	return in_softirq() ? GFP_NOWAIT : GFP_KERNEL;
+}
+
 static inline long sock_rcvtimeo(const struct sock *sk, bool noblock)
 {
 	return noblock ? 0 : sk->sk_rcvtimeo;
