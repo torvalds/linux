@@ -659,11 +659,9 @@ fail_prep:
 fail_llc:
 	if (boot_cpu_has(X86_FEATURE_PERFCTR_NB))
 		perf_pmu_unregister(&amd_nb_pmu);
-	if (amd_uncore_llc)
-		free_percpu(amd_uncore_llc);
+	free_percpu(amd_uncore_llc);
 fail_nb:
-	if (amd_uncore_nb)
-		free_percpu(amd_uncore_nb);
+	free_percpu(amd_uncore_nb);
 
 	return ret;
 }
