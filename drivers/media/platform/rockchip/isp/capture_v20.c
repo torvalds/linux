@@ -316,7 +316,7 @@ void hdr_destroy_buf(struct rkisp_device *dev)
 	if (atomic_read(&dev->cap_dev.refcnt) > 1 ||
 	    !dev->active_sensor ||
 	    (dev->active_sensor &&
-	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2))
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY))
 		return;
 
 	atomic_set(&dev->hdr.refcnt, 0);
@@ -347,7 +347,7 @@ int hdr_update_dmatx_buf(struct rkisp_device *dev)
 
 	if (!dev->active_sensor ||
 	    (dev->active_sensor &&
-	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2) ||
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY) ||
 	    (dev->isp_inp & INP_CIF))
 		return 0;
 
@@ -413,7 +413,7 @@ int hdr_config_dmatx(struct rkisp_device *dev)
 	if (atomic_inc_return(&dev->hdr.refcnt) > 1 ||
 	    !dev->active_sensor ||
 	    (dev->active_sensor &&
-	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2) ||
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY) ||
 	    (dev->isp_inp & INP_CIF))
 		return 0;
 
@@ -480,7 +480,7 @@ void hdr_stop_dmatx(struct rkisp_device *dev)
 	if (atomic_dec_return(&dev->hdr.refcnt) ||
 	    !dev->active_sensor ||
 	    (dev->active_sensor &&
-	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2) ||
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY) ||
 	    (dev->isp_inp & INP_CIF))
 		return;
 
@@ -860,7 +860,7 @@ static int dmatx3_config_mi(struct rkisp_stream *stream)
 
 	if (!dev->active_sensor ||
 	    (dev->active_sensor &&
-	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2)) {
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY)) {
 		v4l2_err(&dev->v4l2_dev,
 			 "only mipi sensor support rawwr3\n");
 		return -EINVAL;
@@ -904,7 +904,7 @@ static int dmatx2_config_mi(struct rkisp_stream *stream)
 
 	if (!dev->active_sensor ||
 	    (dev->active_sensor &&
-	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2)) {
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY)) {
 		v4l2_err(&dev->v4l2_dev,
 			 "only mipi sensor support rawwr2 path\n");
 		return -EINVAL;
@@ -947,7 +947,7 @@ static int dmatx1_config_mi(struct rkisp_stream *stream)
 
 	if (!dev->active_sensor ||
 	    (dev->active_sensor &&
-	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2)) {
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY)) {
 		if (stream->id == RKISP_STREAM_DMATX1)
 			v4l2_err(&dev->v4l2_dev,
 				 "only mipi sensor support dmatx1 path\n");
@@ -993,7 +993,7 @@ static int dmatx0_config_mi(struct rkisp_stream *stream)
 
 	if (!dev->active_sensor ||
 	    (dev->active_sensor &&
-	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2)) {
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY)) {
 		if (stream->id == RKISP_STREAM_DMATX0)
 			v4l2_err(&dev->v4l2_dev,
 				 "only mipi sensor support rawwr0 path\n");
@@ -1999,7 +1999,7 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 	init_waitqueue_head(&stream->done);
 	spin_lock_init(&stream->vbq_lock);
 
-	stream->linked = MEDIA_LNK_FL_ENABLED;
+	stream->linked = true;
 	/* isp2 disable MP/SP, enable BRIDGE default */
 	if (id == RKISP_STREAM_MP)
 		stream->linked = false;

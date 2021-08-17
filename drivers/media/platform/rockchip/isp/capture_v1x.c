@@ -874,7 +874,7 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 	init_waitqueue_head(&stream->done);
 	spin_lock_init(&stream->vbq_lock);
 
-	stream->linked = MEDIA_LNK_FL_ENABLED;
+	stream->linked = true;
 	switch (id) {
 	case RKISP_STREAM_SP:
 		strlcpy(vdev->name, SP_VDEV_NAME,

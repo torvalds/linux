@@ -1295,9 +1295,9 @@ static int bridge_s_power(struct v4l2_subdev *sd, int on)
 		 "%s %d\n", __func__, on);
 
 	if (on)
-		ret = v4l2_pipeline_pm_use(&sd->entity, 1);
+		ret = v4l2_pipeline_pm_get(&sd->entity);
 	else
-		ret = v4l2_pipeline_pm_use(&sd->entity, 0);
+		v4l2_pipeline_pm_put(&sd->entity);
 
 	return ret;
 }

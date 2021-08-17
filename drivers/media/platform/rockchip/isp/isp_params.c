@@ -235,7 +235,7 @@ static int rkisp_params_fh_open(struct file *filp)
 
 	ret = v4l2_fh_open(filp);
 	if (!ret) {
-		ret = v4l2_pipeline_pm_use(&params->vnode.vdev.entity, 1);
+		ret = v4l2_pipeline_pm_get(&params->vnode.vdev.entity);
 		if (ret < 0)
 			vb2_fop_release(filp);
 	}
@@ -253,12 +253,8 @@ static int rkisp_params_fop_release(struct file *file)
 		params->ops->fop_release(params);
 
 	ret = vb2_fop_release(file);
-	if (!ret) {
-		ret = v4l2_pipeline_pm_use(&params->vnode.vdev.entity, 0);
-		if (ret < 0)
-			v4l2_err(&params->dev->v4l2_dev,
-				 "set pipeline power failed %d\n", ret);
-	}
+	if (!ret)
+		v4l2_pipeline_pm_put(&params->vnode.vdev.entity);
 	return ret;
 }
 
@@ -402,7 +398,7 @@ int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,
 	ret = media_entity_pads_init(&vdev->entity, 1, &node->pad);
 	if (ret < 0)
 		goto err_release_queue;
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		dev_err(&vdev->dev,
 			"could not register Video for Linux device\n");

@@ -38,6 +38,7 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 #include <linux/media.h>
+#include <linux/rk-video-format.h>
 #include <media/media-device.h>
 #include <media/media-entity.h>
 #include <media/v4l2-ctrls.h>

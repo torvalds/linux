@@ -320,7 +320,7 @@ static int rkisp_create_links(struct rkisp_device *dev)
 	for (s = 0; s < dev->num_sensors; ++s) {
 		struct rkisp_sensor_info *sensor = &dev->sensors[s];
 		u32 type = sensor->sd->entity.function;
-		bool en = s ? 0 : MEDIA_LNK_FL_ENABLED;
+		bool en = s ? 0 : true;
 
 		for (pad = 0; pad < sensor->sd->entity.num_pads; pad++)
 			if (sensor->sd->entity.pads[pad].flags & MEDIA_PAD_FL_SOURCE)
@@ -342,8 +342,8 @@ static int rkisp_create_links(struct rkisp_device *dev)
 			ret = media_create_pad_link(&sensor->sd->entity, pad,
 				&dev->isp_sdev.sd.entity, RKISP_ISP_PAD_SINK, en);
 		} else {
-			v4l2_subdev_call(sensor->sd, video,
-					 g_mbus_config, &sensor->mbus);
+			v4l2_subdev_call(sensor->sd, pad,
+					 get_mbus_config, 0, &sensor->mbus);
 			if (sensor->mbus.type == V4L2_MBUS_CCP2) {
 				/* mipi-phy lvds link -> isp */
 				dev->isp_inp = INP_LVDS;
@@ -411,7 +411,7 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev)
 		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_SP,
 					 width, height, V4L2_PIX_FMT_NV12);
 	if ((dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) &&
-	    dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
+	    dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
 		width = dev->active_sensor->fmt[1].format.width;
 		height = dev->active_sensor->fmt[1].format.height;
 		code = dev->active_sensor->fmt[1].format.code;
@@ -532,14 +532,13 @@ static int isp_subdev_notifier(struct rkisp_device *isp_dev)
 	struct device *dev = isp_dev->dev;
 	int ret;
 
+	v4l2_async_notifier_init(ntf);
+
 	ret = v4l2_async_notifier_parse_fwnode_endpoints(
 		dev, ntf, sizeof(struct rkisp_async_subdev),
 		rkisp_fwnode_parse);
 	if (ret < 0)
 		return ret;
-
-	if (!ntf->num_subdevs)
-		return -ENODEV;	/* no endpoint */
 
 	ntf->ops = &subdev_notifier_ops;
 
@@ -588,10 +587,6 @@ static int rkisp_register_platform_subdevs(struct rkisp_device *dev)
 	if (ret < 0) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Failed to register subdev notifier(%d)\n", ret);
-		/* maybe use dmarx to input image */
-		ret = v4l2_device_register_subdev_nodes(&dev->v4l2_dev);
-		if (ret == 0)
-			return 0;
 		goto err_unreg_luma_vdev;
 	}
 

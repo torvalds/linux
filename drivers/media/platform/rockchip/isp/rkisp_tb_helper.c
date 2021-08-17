@@ -71,7 +71,7 @@ static void *shm_vmap(struct dma_buf *dma_buf)
 {
 	struct shm_data *data = dma_buf->priv;
 
-	return vm_map_ram(data->pages, data->npages, 0, PAGE_KERNEL);
+	return vm_map_ram(data->pages, data->npages, 0);
 }
 
 static void shm_vunmap(struct dma_buf *dma_buf, void *vaddr)
@@ -79,20 +79,6 @@ static void shm_vunmap(struct dma_buf *dma_buf, void *vaddr)
 	struct shm_data *data = dma_buf->priv;
 
 	vm_unmap_ram(vaddr, data->npages);
-}
-
-static void *shm_kmap(struct dma_buf *dma_buf, unsigned long page_num)
-{
-	struct shm_data *data = dma_buf->priv;
-
-	return kmap(data->pages[page_num]);
-}
-
-static void shm_kunmap(struct dma_buf *dma_buf, unsigned long page_num, void *addr)
-{
-	struct shm_data *data = dma_buf->priv;
-
-	return kunmap(data->pages[page_num]);
 }
 
 static int shm_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
@@ -138,8 +124,6 @@ static const struct dma_buf_ops shm_dmabuf_ops = {
 	.map_dma_buf = shm_map_dma_buf,
 	.unmap_dma_buf = shm_unmap_dma_buf,
 	.release = shm_release,
-	.map = shm_kmap,
-	.unmap = shm_kunmap,
 	.mmap = shm_mmap,
 	.vmap = shm_vmap,
 	.vunmap = shm_vunmap,

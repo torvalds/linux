@@ -318,12 +318,11 @@ static int isp_open(struct inode *inode, struct file *file)
 	return single_open(file, isp_show, data);
 }
 
-static const struct file_operations ops = {
-	.owner		= THIS_MODULE,
-	.open		= isp_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+static const struct proc_ops ops = {
+	.proc_open	= isp_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 int rkisp_proc_init(struct rkisp_device *dev)

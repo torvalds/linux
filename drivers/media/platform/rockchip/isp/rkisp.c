@@ -33,6 +33,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/compat.h>
 #include <linux/iopoll.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -341,12 +342,12 @@ int rkisp_update_sensor_info(struct rkisp_device *dev)
 		return -ENODEV;
 
 	sensor = sd_to_sensor(dev, sensor_sd);
-	ret = v4l2_subdev_call(sensor->sd, video, g_mbus_config,
-			       &sensor->mbus);
+	ret = v4l2_subdev_call(sensor->sd, pad, get_mbus_config,
+			       0, &sensor->mbus);
 	if (ret && ret != -ENOIOCTLCMD)
 		return ret;
 
-	if (sensor->mbus.type == V4L2_MBUS_CSI2) {
+	if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
 		u8 vc = 0;
 
 		memset(dev->csi_dev.mipi_di, 0,
@@ -358,8 +359,12 @@ int rkisp_update_sensor_info(struct rkisp_device *dev)
 			fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
 			ret = v4l2_subdev_call(sensor->sd, pad, get_fmt,
 					       &sensor->cfg, fmt);
-			if (ret && ret != -ENOIOCTLCMD)
-				return ret;
+			if (ret && ret != -ENOIOCTLCMD) {
+				if (i)
+					*fmt = sensor->fmt[0];
+				else
+					return ret;
+			}
 			ret = mbus_pixelcode_to_mipi_dt(fmt->format.code);
 			if (ret < 0) {
 				v4l2_err(&dev->v4l2_dev,
@@ -1155,7 +1160,7 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 	} else if (in_fmt->fmt_type == FMT_YUV) {
 		acq_mult = 2;
 		if (sensor &&
-		    (sensor->mbus.type == V4L2_MBUS_CSI2 ||
+		    (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ||
 		     sensor->mbus.type == V4L2_MBUS_CCP2)) {
 			isp_ctrl = CIF_ISP_CTRL_ISP_MODE_ITU601;
 		} else {
@@ -1346,7 +1351,7 @@ static int rkisp_config_path(struct rkisp_device *dev)
 	u32 dpcl = readl(dev->base_addr + CIF_VI_DPCL);
 
 	/* isp input interface selects */
-	if ((sensor && sensor->mbus.type == V4L2_MBUS_CSI2) ||
+	if ((sensor && sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) ||
 	    dev->isp_inp & (INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2 | INP_CIF)) {
 		/* mipi sensor->isp or isp read from ddr */
 		dpcl |= CIF_VI_DPCL_IF_SEL_MIPI;
@@ -1595,7 +1600,7 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 		 atomic_read(&dev->hw_dev->refcnt));
 
 	/* Activate MIPI */
-	if (sensor && sensor->mbus.type == V4L2_MBUS_CSI2) {
+	if (sensor && sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
 		if (dev->isp_ver == ISP_V12 || dev->isp_ver == ISP_V13) {
 			/* clear interrupts state */
 			readl(base + CIF_ISP_CSI0_ERR1);
@@ -2419,7 +2424,6 @@ rkisp_isp_queue_event_sof(struct rkisp_isp_subdev *isp)
 			atomic_inc_return(&isp->frm_sync_seq) - 1,
 	};
 
-	event.timestamp = ns_to_timespec(ktime_get_ns());
 	v4l2_event_queue(isp->sd.devnode, &event);
 }
 
@@ -2465,6 +2469,10 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			isp_dev->csi_dev.memory = 0;
 		break;
 	case RKISP_CMD_GET_SHARED_BUF:
+		if (!IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)) {
+			ret = -ENOIOCTLCMD;
+			break;
+		}
 		resmem = (struct rkisp_thunderboot_resmem *)arg;
 		resmem->resmem_padr = isp_dev->resmem_pa;
 		resmem->resmem_size = isp_dev->resmem_size;
@@ -2494,6 +2502,10 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		}
 		break;
 	case RKISP_CMD_FREE_SHARED_BUF:
+		if (!IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)) {
+			ret = -ENOIOCTLCMD;
+			break;
+		}
 		if (isp_dev->resmem_pa && isp_dev->resmem_size) {
 			dma_unmap_single(isp_dev->dev, isp_dev->resmem_pa,
 					 sizeof(struct rkisp_thunderboot_resmem_head),
@@ -2515,6 +2527,10 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		rkisp_params_set_ldchbuf_size(&isp_dev->params_vdev, ldchsize);
 		break;
 	case RKISP_CMD_GET_SHM_BUFFD:
+		if (!IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)) {
+			ret = -ENOIOCTLCMD;
+			break;
+		}
 		shmem = (struct rkisp_thunderboot_shmem *)arg;
 		ret = rkisp_tb_shm_ioctl(shmem);
 		break;
@@ -2558,11 +2574,19 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = rkisp_ioctl(sd, cmd, &mode);
 		break;
 	case RKISP_CMD_GET_SHARED_BUF:
+		if (!IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)) {
+			ret = -ENOIOCTLCMD;
+			break;
+		}
 		ret = rkisp_ioctl(sd, cmd, &resmem);
 		if (!ret && copy_to_user(up, &resmem, sizeof(resmem)))
 			ret = -EFAULT;
 		break;
 	case RKISP_CMD_FREE_SHARED_BUF:
+		if (!IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)) {
+			ret = -ENOIOCTLCMD;
+			break;
+		}
 		ret = rkisp_ioctl(sd, cmd, NULL);
 		break;
 	case RKISP_CMD_GET_LDCHBUF_INFO:
@@ -2576,6 +2600,10 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = rkisp_ioctl(sd, cmd, &ldchsize);
 		break;
 	case RKISP_CMD_GET_SHM_BUFFD:
+		if (!IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)) {
+			ret = -ENOIOCTLCMD;
+			break;
+		}
 		if (copy_from_user(&shmem, up, sizeof(shmem)))
 			return -EFAULT;
 		ret = rkisp_ioctl(sd, cmd, &shmem);
@@ -2950,7 +2978,7 @@ void rkisp_isp_isr(unsigned int isp_mis,
 		}
 		if (dev->cap_dev.stream[RKISP_STREAM_SP].interlaced) {
 			/* 0 = ODD 1 = EVEN */
-			if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
+			if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
 				void __iomem *addr = NULL;
 
 				if (dev->isp_ver == ISP_V10 ||

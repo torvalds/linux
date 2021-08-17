@@ -843,7 +843,7 @@ static const struct v4l2_ioctl_ops rkisp_dmarx_ioctl = {
 	.vidioc_streamon = vb2_ioctl_streamon,
 	.vidioc_streamoff = vb2_ioctl_streamoff,
 	.vidioc_try_fmt_vid_out_mplane = rkisp_try_fmt_vid_out_mplane,
-	.vidioc_enum_fmt_vid_out_mplane = rkisp_enum_fmt_vid_out_mplane,
+	.vidioc_enum_fmt_vid_out = rkisp_enum_fmt_vid_out_mplane,
 	.vidioc_s_fmt_vid_out_mplane = rkisp_s_fmt_vid_out_mplane,
 	.vidioc_g_fmt_vid_out_mplane = rkisp_g_fmt_vid_out_mplane,
 	.vidioc_querycap = rkisp_querycap,
@@ -883,7 +883,7 @@ static int rkisp_register_dmarx_video(struct rkisp_stream *stream)
 		V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
 	vdev->queue = &node->buf_queue;
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev,
 			 "%s failed with error %d\n", __func__, ret);

@@ -678,7 +678,7 @@ int rkisp_fh_open(struct file *filp)
 
 	ret = v4l2_fh_open(filp);
 	if (!ret) {
-		ret = v4l2_pipeline_pm_use(&stream->vnode.vdev.entity, 1);
+		ret = v4l2_pipeline_pm_get(&stream->vnode.vdev.entity);
 		if (ret < 0)
 			vb2_fop_release(filp);
 	}
@@ -692,12 +692,8 @@ int rkisp_fop_release(struct file *file)
 	int ret;
 
 	ret = vb2_fop_release(file);
-	if (!ret) {
-		ret = v4l2_pipeline_pm_use(&stream->vnode.vdev.entity, 0);
-		if (ret < 0)
-			v4l2_err(&stream->ispdev->v4l2_dev,
-				 "set pipeline power failed %d\n", ret);
-	}
+	if (!ret)
+		v4l2_pipeline_pm_put(&stream->vnode.vdev.entity);
 	return ret;
 }
 
@@ -990,7 +986,7 @@ static const struct v4l2_ioctl_ops rkisp_v4l2_ioctl_ops = {
 	.vidioc_streamoff = vb2_ioctl_streamoff,
 	.vidioc_enum_input = rkisp_enum_input,
 	.vidioc_try_fmt_vid_cap_mplane = rkisp_try_fmt_vid_cap_mplane,
-	.vidioc_enum_fmt_vid_cap_mplane = rkisp_enum_fmt_vid_cap_mplane,
+	.vidioc_enum_fmt_vid_cap = rkisp_enum_fmt_vid_cap_mplane,
 	.vidioc_s_fmt_vid_cap_mplane = rkisp_s_fmt_vid_cap_mplane,
 	.vidioc_g_fmt_vid_cap_mplane = rkisp_g_fmt_vid_cap_mplane,
 	.vidioc_s_selection = rkisp_s_selection,
@@ -1031,7 +1027,7 @@ int rkisp_register_stream_vdev(struct rkisp_stream *stream)
 	node->pad.flags = MEDIA_PAD_FL_SINK;
 	vdev->queue = &node->buf_queue;
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev,
 			 "video_register_device failed with error %d\n", ret);

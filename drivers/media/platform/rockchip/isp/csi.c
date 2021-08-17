@@ -103,14 +103,15 @@ out:
 }
 
 static int rkisp_csi_g_mbus_config(struct v4l2_subdev *sd,
-				  struct v4l2_mbus_config *config)
+				   unsigned int pad_id,
+				   struct v4l2_mbus_config *config)
 {
 	struct v4l2_subdev *remote_sd;
 
 	if (!sd)
 		return -ENODEV;
 	remote_sd = get_remote_subdev(sd);
-	return v4l2_subdev_call(remote_sd, video, g_mbus_config, config);
+	return v4l2_subdev_call(remote_sd, pad, get_mbus_config, pad_id, config);
 }
 
 static int rkisp_csi_get_set_fmt(struct v4l2_subdev *sd,
@@ -159,10 +160,10 @@ static const struct media_entity_operations rkisp_csi_media_ops = {
 static const struct v4l2_subdev_pad_ops rkisp_csi_pad_ops = {
 	.set_fmt = rkisp_csi_get_set_fmt,
 	.get_fmt = rkisp_csi_get_set_fmt,
+	.get_mbus_config = rkisp_csi_g_mbus_config,
 };
 
 static const struct v4l2_subdev_video_ops rkisp_csi_video_ops = {
-	.g_mbus_config = rkisp_csi_g_mbus_config,
 	.s_stream = rkisp_csi_s_stream,
 };
 

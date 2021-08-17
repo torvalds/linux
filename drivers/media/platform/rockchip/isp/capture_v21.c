@@ -323,7 +323,7 @@ static int dmatx3_config_mi(struct rkisp_stream *stream)
 
 	if (!dev->active_sensor ||
 	    (dev->active_sensor &&
-	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2)) {
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY)) {
 		v4l2_err(&dev->v4l2_dev,
 			 "only mipi sensor support rawwr3\n");
 		return -EINVAL;
@@ -366,7 +366,7 @@ static int dmatx2_config_mi(struct rkisp_stream *stream)
 
 	if (!dev->active_sensor ||
 	    (dev->active_sensor &&
-	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2)) {
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY)) {
 		v4l2_err(&dev->v4l2_dev,
 			 "only mipi sensor support rawwr2 path\n");
 		return -EINVAL;
@@ -408,7 +408,7 @@ static int dmatx0_config_mi(struct rkisp_stream *stream)
 
 	if (!dev->active_sensor ||
 	    (dev->active_sensor &&
-	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2)) {
+	     dev->active_sensor->mbus.type != V4L2_MBUS_CSI2_DPHY)) {
 		if (stream->id == RKISP_STREAM_DMATX0)
 			v4l2_err(&dev->v4l2_dev,
 				 "only mipi sensor support rawwr0 path\n");
@@ -1284,7 +1284,7 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 	INIT_LIST_HEAD(&stream->buf_queue);
 	init_waitqueue_head(&stream->done);
 	spin_lock_init(&stream->vbq_lock);
-	stream->linked = MEDIA_LNK_FL_ENABLED;
+	stream->linked = true;
 
 	switch (id) {
 	case RKISP_STREAM_SP:
