@@ -327,7 +327,6 @@ struct flow_indr_dev {
 	flow_indr_block_bind_cb_t	*cb;
 	void				*cb_priv;
 	refcount_t			refcnt;
-	struct rcu_head			rcu;
 };
 
 static struct flow_indr_dev *flow_indr_dev_alloc(flow_indr_block_bind_cb_t *cb,
