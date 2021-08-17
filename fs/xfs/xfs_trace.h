@@ -858,9 +858,12 @@ TRACE_EVENT(xfs_irec_merge_pre,
 		__entry->nagino = nagino;
 		__entry->nholemask = holemask;
 	),
-	TP_printk("dev %d:%d agno %d inobt (%u:0x%x) new (%u:0x%x)",
-		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->agno,
-		  __entry->agino, __entry->holemask, __entry->nagino,
+	TP_printk("dev %d:%d agno %d agino 0x%x holemask 0x%x new_agino 0x%x new_holemask 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agino,
+		  __entry->holemask,
+		  __entry->nagino,
 		  __entry->nholemask)
 )
 
@@ -880,8 +883,11 @@ TRACE_EVENT(xfs_irec_merge_post,
 		__entry->agino = agino;
 		__entry->holemask = holemask;
 	),
-	TP_printk("dev %d:%d agno %d inobt (%u:0x%x)", MAJOR(__entry->dev),
-		  MINOR(__entry->dev), __entry->agno, __entry->agino,
+	TP_printk("dev %d:%d agno %d agino 0x%x holemask 0x%x",
+		  MAJOR(__entry->dev),
+		  MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agino,
 		  __entry->holemask)
 )
 
@@ -3191,7 +3197,7 @@ DECLARE_EVENT_CLASS(xfs_inode_error_class,
 		__entry->error = error;
 		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d ino %llx error %d caller %pS",
+	TP_printk("dev %d:%d ino 0x%llx error %d caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->error,
@@ -3603,7 +3609,7 @@ DECLARE_EVENT_CLASS(xfs_ag_inode_class,
 		__entry->agno = XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino);
 		__entry->agino = XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino);
 	),
-	TP_printk("dev %d:%d agno %u agino %u",
+	TP_printk("dev %d:%d agno %u agino 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->agno, __entry->agino)
 )
@@ -3706,7 +3712,7 @@ TRACE_EVENT(xfs_iwalk_ag,
 		__entry->agno = agno;
 		__entry->startino = startino;
 	),
-	TP_printk("dev %d:%d agno %d startino %u",
+	TP_printk("dev %d:%d agno %d startino 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->agno,
 		  __entry->startino)
 )
@@ -3727,7 +3733,7 @@ TRACE_EVENT(xfs_iwalk_ag_rec,
 		__entry->startino = irec->ir_startino;
 		__entry->freemask = irec->ir_free;
 	),
-	TP_printk("dev %d:%d agno %d startino %u freemask 0x%llx",
+	TP_printk("dev %d:%d agno %d startino 0x%x freemask 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->agno,
 		  __entry->startino, __entry->freemask)
 )
@@ -3790,7 +3796,7 @@ TRACE_EVENT(xfs_check_new_dalign,
 		__entry->sb_rootino = mp->m_sb.sb_rootino;
 		__entry->calc_rootino = calc_rootino;
 	),
-	TP_printk("dev %d:%d new_dalign %d sb_rootino %llu calc_rootino %llu",
+	TP_printk("dev %d:%d new_dalign %d sb_rootino 0x%llx calc_rootino 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->new_dalign, __entry->sb_rootino,
 		  __entry->calc_rootino)
@@ -3847,7 +3853,7 @@ TRACE_EVENT(xfs_btree_commit_ifakeroot,
 		__entry->blocks = cur->bc_ino.ifake->if_blocks;
 		__entry->whichfork = cur->bc_ino.whichfork;
 	),
-	TP_printk("dev %d:%d btree %s ag %u agino %u whichfork %s levels %u blocks %u",
+	TP_printk("dev %d:%d btree %s ag %u agino 0x%x whichfork %s levels %u blocks %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __print_symbolic(__entry->btnum, XFS_BTNUM_STRINGS),
 		  __entry->agno,
