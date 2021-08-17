@@ -270,8 +270,7 @@ static void *virtual_dev_open(void *data)
 
 	dev_fd = *(int *)data;
 
-	while ((len = read(dev_fd, buf, 258)) == 0)
-		;
+	len = read(dev_fd, buf, 258);
 	if (len <= 0)
 		goto error;
 	if (len != sizeof(nci_reset_cmd))
@@ -280,8 +279,7 @@ static void *virtual_dev_open(void *data)
 		goto error;
 	write(dev_fd, nci_reset_rsp, sizeof(nci_reset_rsp));
 
-	while ((len = read(dev_fd, buf, 258)) == 0)
-		;
+	len = read(dev_fd, buf, 258);
 	if (len <= 0)
 		goto error;
 	if (len != sizeof(nci_init_cmd))
@@ -290,8 +288,7 @@ static void *virtual_dev_open(void *data)
 		goto error;
 	write(dev_fd, nci_init_rsp, sizeof(nci_init_rsp));
 
-	while ((len = read(dev_fd, buf, 258)) == 0)
-		;
+	len = read(dev_fd, buf, 258);
 	if (len <= 0)
 		goto error;
 	if (len != sizeof(nci_rf_disc_map_cmd))
@@ -313,8 +310,7 @@ static void *virtual_dev_open_v2(void *data)
 
 	dev_fd = *(int *)data;
 
-	while ((len = read(dev_fd, buf, 258)) == 0)
-		;
+	len = read(dev_fd, buf, 258);
 	if (len <= 0)
 		goto error;
 	if (len != sizeof(nci_reset_cmd))
@@ -324,8 +320,7 @@ static void *virtual_dev_open_v2(void *data)
 	write(dev_fd, nci_reset_rsp_v2, sizeof(nci_reset_rsp_v2));
 	write(dev_fd, nci_reset_ntf, sizeof(nci_reset_ntf));
 
-	while ((len = read(dev_fd, buf, 258)) == 0)
-		;
+	len = read(dev_fd, buf, 258);
 	if (len <= 0)
 		goto error;
 	if (len != sizeof(nci_init_cmd_v2))
@@ -334,8 +329,7 @@ static void *virtual_dev_open_v2(void *data)
 		goto error;
 	write(dev_fd, nci_init_rsp_v2, sizeof(nci_init_rsp_v2));
 
-	while ((len = read(dev_fd, buf, 258)) == 0)
-		;
+	len = read(dev_fd, buf, 258);
 	if (len <= 0)
 		goto error;
 	if (len != sizeof(nci_rf_disc_map_cmd))
@@ -402,8 +396,7 @@ static void *virtual_deinit(void *data)
 
 	dev_fd = *(int *)data;
 
-	while ((len = read(dev_fd, buf, 258)) == 0)
-		;
+	len = read(dev_fd, buf, 258);
 	if (len <= 0)
 		goto error;
 	if (len != sizeof(nci_reset_cmd))
@@ -425,8 +418,7 @@ static void *virtual_deinit_v2(void *data)
 
 	dev_fd = *(int *)data;
 
-	while ((len = read(dev_fd, buf, 258)) == 0)
-		;
+	len = read(dev_fd, buf, 258);
 	if (len <= 0)
 		goto error;
 	if (len != sizeof(nci_reset_cmd))
@@ -489,16 +481,14 @@ static void *virtual_poll_start(void *data)
 
 	dev_fd = *(int *)data;
 
-	while ((len = read(dev_fd, buf, 258)) == 0)
-		;
+	len = read(dev_fd, buf, 258);
 	if (len <= 0)
 		goto error;
 	if (len != sizeof(nci_rf_discovery_cmd))
 		goto error;
 	if (memcmp(nci_rf_discovery_cmd, buf, len))
 		goto error;
-	write(dev_fd, nci_rf_disc_rsp, sizeof(nci_rf_disc_rsp))
-		;
+	write(dev_fd, nci_rf_disc_rsp, sizeof(nci_rf_disc_rsp));
 
 	return (void *)0;
 error:
@@ -513,8 +503,7 @@ static void *virtual_poll_stop(void *data)
 
 	dev_fd = *(int *)data;
 
-	while ((len = read(dev_fd, buf, 258)) == 0)
-		;
+	len = read(dev_fd, buf, 258);
 	if (len <= 0)
 		goto error;
 	if (len != sizeof(nci_rf_deact_cmd))
