@@ -133,10 +133,13 @@ struct btrfs_subpage *btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
 					  enum btrfs_subpage_type type)
 {
 	struct btrfs_subpage *ret;
+	unsigned int real_size;
 
 	ASSERT(fs_info->sectorsize < PAGE_SIZE);
 
-	ret = kzalloc(sizeof(struct btrfs_subpage), GFP_NOFS);
+	real_size = struct_size(ret, bitmaps,
+			BITS_TO_LONGS(fs_info->subpage_info->total_nr_bits));
+	ret = kzalloc(real_size, GFP_NOFS);
 	if (!ret)
 		return ERR_PTR(-ENOMEM);
 
@@ -319,37 +322,59 @@ void btrfs_page_end_writer_lock(const struct btrfs_fs_info *fs_info,
 		unlock_page(page);
 }
 
-/*
- * Convert the [start, start + len) range into a u16 bitmap
- *
- * For example: if start == page_offset() + 16K, len = 16K, we get 0x00f0.
- */
-static u16 btrfs_subpage_calc_bitmap(const struct btrfs_fs_info *fs_info,
-		struct page *page, u64 start, u32 len)
+static bool bitmap_test_range_all_set(unsigned long *addr, unsigned int start,
+				      unsigned int nbits)
 {
-	const int bit_start = offset_in_page(start) >> fs_info->sectorsize_bits;
-	const int nbits = len >> fs_info->sectorsize_bits;
+	unsigned int found_zero;
 
-	btrfs_subpage_assert(fs_info, page, start, len);
-
-	/*
-	 * Here nbits can be 16, thus can go beyond u16 range. We make the
-	 * first left shift to be calculate in unsigned long (at least u32),
-	 * then truncate the result to u16.
-	 */
-	return (u16)(((1UL << nbits) - 1) << bit_start);
+	found_zero = find_next_zero_bit(addr, start + nbits, start);
+	if (found_zero == start + nbits)
+		return true;
+	return false;
 }
+
+static bool bitmap_test_range_all_zero(unsigned long *addr, unsigned int start,
+				       unsigned int nbits)
+{
+	unsigned int found_set;
+
+	found_set = find_next_bit(addr, start + nbits, start);
+	if (found_set == start + nbits)
+		return true;
+	return false;
+}
+
+#define subpage_calc_start_bit(fs_info, page, name, start, len)		\
+({									\
+	unsigned int start_bit;						\
+									\
+	btrfs_subpage_assert(fs_info, page, start, len);		\
+	start_bit = offset_in_page(start) >> fs_info->sectorsize_bits;	\
+	start_bit += fs_info->subpage_info->name##_offset;		\
+	start_bit;							\
+})
+
+#define subpage_test_bitmap_all_set(fs_info, subpage, name)		\
+	bitmap_test_range_all_set(subpage->bitmaps,			\
+			fs_info->subpage_info->name##_offset,		\
+			fs_info->subpage_info->bitmap_nr_bits)
+
+#define subpage_test_bitmap_all_zero(fs_info, subpage, name)		\
+	bitmap_test_range_all_zero(subpage->bitmaps,			\
+			fs_info->subpage_info->name##_offset,		\
+			fs_info->subpage_info->bitmap_nr_bits)
 
 void btrfs_subpage_set_uptodate(const struct btrfs_fs_info *fs_info,
 		struct page *page, u64 start, u32 len)
 {
 	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
-	const u16 tmp = btrfs_subpage_calc_bitmap(fs_info, page, start, len);
+	unsigned int start_bit = subpage_calc_start_bit(fs_info, page,
+							uptodate, start, len);
 	unsigned long flags;
 
 	spin_lock_irqsave(&subpage->lock, flags);
-	subpage->uptodate_bitmap |= tmp;
-	if (subpage->uptodate_bitmap == U16_MAX)
+	bitmap_set(subpage->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
+	if (subpage_test_bitmap_all_set(fs_info, subpage, uptodate))
 		SetPageUptodate(page);
 	spin_unlock_irqrestore(&subpage->lock, flags);
 }
@@ -358,11 +383,12 @@ void btrfs_subpage_clear_uptodate(const struct btrfs_fs_info *fs_info,
 		struct page *page, u64 start, u32 len)
 {
 	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
-	const u16 tmp = btrfs_subpage_calc_bitmap(fs_info, page, start, len);
+	unsigned int start_bit = subpage_calc_start_bit(fs_info, page,
+							uptodate, start, len);
 	unsigned long flags;
 
 	spin_lock_irqsave(&subpage->lock, flags);
-	subpage->uptodate_bitmap &= ~tmp;
+	bitmap_clear(subpage->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
 	ClearPageUptodate(page);
 	spin_unlock_irqrestore(&subpage->lock, flags);
 }
@@ -371,11 +397,12 @@ void btrfs_subpage_set_error(const struct btrfs_fs_info *fs_info,
 		struct page *page, u64 start, u32 len)
 {
 	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
-	const u16 tmp = btrfs_subpage_calc_bitmap(fs_info, page, start, len);
+	unsigned int start_bit = subpage_calc_start_bit(fs_info, page,
+							error, start, len);
 	unsigned long flags;
 
 	spin_lock_irqsave(&subpage->lock, flags);
-	subpage->error_bitmap |= tmp;
+	bitmap_set(subpage->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
 	SetPageError(page);
 	spin_unlock_irqrestore(&subpage->lock, flags);
 }
@@ -384,12 +411,13 @@ void btrfs_subpage_clear_error(const struct btrfs_fs_info *fs_info,
 		struct page *page, u64 start, u32 len)
 {
 	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
-	const u16 tmp = btrfs_subpage_calc_bitmap(fs_info, page, start, len);
+	unsigned int start_bit = subpage_calc_start_bit(fs_info, page,
+							error, start, len);
 	unsigned long flags;
 
 	spin_lock_irqsave(&subpage->lock, flags);
-	subpage->error_bitmap &= ~tmp;
-	if (subpage->error_bitmap == 0)
+	bitmap_clear(subpage->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
+	if (subpage_test_bitmap_all_zero(fs_info, subpage, error))
 		ClearPageError(page);
 	spin_unlock_irqrestore(&subpage->lock, flags);
 }
@@ -398,11 +426,12 @@ void btrfs_subpage_set_dirty(const struct btrfs_fs_info *fs_info,
 		struct page *page, u64 start, u32 len)
 {
 	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
-	u16 tmp = btrfs_subpage_calc_bitmap(fs_info, page, start, len);
+	unsigned int start_bit = subpage_calc_start_bit(fs_info, page,
+							dirty, start, len);
 	unsigned long flags;
 
 	spin_lock_irqsave(&subpage->lock, flags);
-	subpage->dirty_bitmap |= tmp;
+	bitmap_set(subpage->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
 	spin_unlock_irqrestore(&subpage->lock, flags);
 	set_page_dirty(page);
 }
@@ -421,13 +450,14 @@ bool btrfs_subpage_clear_and_test_dirty(const struct btrfs_fs_info *fs_info,
 		struct page *page, u64 start, u32 len)
 {
 	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
-	u16 tmp = btrfs_subpage_calc_bitmap(fs_info, page, start, len);
+	unsigned int start_bit = subpage_calc_start_bit(fs_info, page,
+							dirty, start, len);
 	unsigned long flags;
 	bool last = false;
 
 	spin_lock_irqsave(&subpage->lock, flags);
-	subpage->dirty_bitmap &= ~tmp;
-	if (subpage->dirty_bitmap == 0)
+	bitmap_clear(subpage->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
+	if (subpage_test_bitmap_all_zero(fs_info, subpage, dirty))
 		last = true;
 	spin_unlock_irqrestore(&subpage->lock, flags);
 	return last;
@@ -447,11 +477,12 @@ void btrfs_subpage_set_writeback(const struct btrfs_fs_info *fs_info,
 		struct page *page, u64 start, u32 len)
 {
 	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
-	u16 tmp = btrfs_subpage_calc_bitmap(fs_info, page, start, len);
+	unsigned int start_bit = subpage_calc_start_bit(fs_info, page,
+							writeback, start, len);
 	unsigned long flags;
 
 	spin_lock_irqsave(&subpage->lock, flags);
-	subpage->writeback_bitmap |= tmp;
+	bitmap_set(subpage->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
 	set_page_writeback(page);
 	spin_unlock_irqrestore(&subpage->lock, flags);
 }
@@ -460,12 +491,13 @@ void btrfs_subpage_clear_writeback(const struct btrfs_fs_info *fs_info,
 		struct page *page, u64 start, u32 len)
 {
 	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
-	u16 tmp = btrfs_subpage_calc_bitmap(fs_info, page, start, len);
+	unsigned int start_bit = subpage_calc_start_bit(fs_info, page,
+							writeback, start, len);
 	unsigned long flags;
 
 	spin_lock_irqsave(&subpage->lock, flags);
-	subpage->writeback_bitmap &= ~tmp;
-	if (subpage->writeback_bitmap == 0) {
+	bitmap_clear(subpage->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
+	if (subpage_test_bitmap_all_zero(fs_info, subpage, writeback)) {
 		ASSERT(PageWriteback(page));
 		end_page_writeback(page);
 	}
@@ -476,11 +508,12 @@ void btrfs_subpage_set_ordered(const struct btrfs_fs_info *fs_info,
 		struct page *page, u64 start, u32 len)
 {
 	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
-	const u16 tmp = btrfs_subpage_calc_bitmap(fs_info, page, start, len);
+	unsigned int start_bit = subpage_calc_start_bit(fs_info, page,
+							ordered, start, len);
 	unsigned long flags;
 
 	spin_lock_irqsave(&subpage->lock, flags);
-	subpage->ordered_bitmap |= tmp;
+	bitmap_set(subpage->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
 	SetPageOrdered(page);
 	spin_unlock_irqrestore(&subpage->lock, flags);
 }
@@ -489,12 +522,13 @@ void btrfs_subpage_clear_ordered(const struct btrfs_fs_info *fs_info,
 		struct page *page, u64 start, u32 len)
 {
 	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
-	const u16 tmp = btrfs_subpage_calc_bitmap(fs_info, page, start, len);
+	unsigned int start_bit = subpage_calc_start_bit(fs_info, page,
+							ordered, start, len);
 	unsigned long flags;
 
 	spin_lock_irqsave(&subpage->lock, flags);
-	subpage->ordered_bitmap &= ~tmp;
-	if (subpage->ordered_bitmap == 0)
+	bitmap_clear(subpage->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
+	if (subpage_test_bitmap_all_zero(fs_info, subpage, ordered))
 		ClearPageOrdered(page);
 	spin_unlock_irqrestore(&subpage->lock, flags);
 }
@@ -507,12 +541,14 @@ bool btrfs_subpage_test_##name(const struct btrfs_fs_info *fs_info,	\
 		struct page *page, u64 start, u32 len)			\
 {									\
 	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private; \
-	const u16 tmp = btrfs_subpage_calc_bitmap(fs_info, page, start, len); \
+	unsigned int start_bit = subpage_calc_start_bit(fs_info, page,	\
+						name, start, len);	\
 	unsigned long flags;						\
 	bool ret;							\
 									\
 	spin_lock_irqsave(&subpage->lock, flags);			\
-	ret = ((subpage->name##_bitmap & tmp) == tmp);			\
+	ret = bitmap_test_range_all_set(subpage->bitmaps, start_bit,	\
+				len >> fs_info->sectorsize_bits);	\
 	spin_unlock_irqrestore(&subpage->lock, flags);			\
 	return ret;							\
 }
@@ -609,5 +645,5 @@ void btrfs_page_assert_not_dirty(const struct btrfs_fs_info *fs_info,
 		return;
 
 	ASSERT(PagePrivate(page) && page->private);
-	ASSERT(subpage->dirty_bitmap == 0);
+	ASSERT(subpage_test_bitmap_all_zero(fs_info, subpage, dirty));
 }

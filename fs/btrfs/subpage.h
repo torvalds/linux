@@ -6,12 +6,6 @@
 #include <linux/spinlock.h>
 
 /*
- * Maximum page size we support is 64K, minimum sector size is 4K, u16 bitmap
- * is sufficient. Regular bitmap_* is not used due to size reasons.
- */
-#define BTRFS_SUBPAGE_BITMAP_SIZE	16
-
-/*
  * Extra info for subpapge bitmap.
  *
  * For subpage we pack all uptodate/error/dirty/writeback/ordered bitmaps into
@@ -51,10 +45,6 @@ struct btrfs_subpage_info {
 struct btrfs_subpage {
 	/* Common members for both data and metadata pages */
 	spinlock_t lock;
-	u16 uptodate_bitmap;
-	u16 error_bitmap;
-	u16 dirty_bitmap;
-	u16 writeback_bitmap;
 	/*
 	 * Both data and metadata needs to track how many readers are for the
 	 * page.
@@ -71,14 +61,11 @@ struct btrfs_subpage {
 		 * manages whether the subpage can be detached.
 		 */
 		atomic_t eb_refs;
-		/* Structures only used by data */
-		struct {
-			atomic_t writers;
 
-			/* Tracke pending ordered extent in this sector */
-			u16 ordered_bitmap;
-		};
+		/* Structures only used by data */
+		atomic_t writers;
 	};
+	unsigned long bitmaps[];
 };
 
 enum btrfs_subpage_type {

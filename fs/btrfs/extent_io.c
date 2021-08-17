@@ -3854,12 +3854,11 @@ static void find_next_dirty_byte(struct btrfs_fs_info *fs_info,
 				 struct page *page, u64 *start, u64 *end)
 {
 	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
+	struct btrfs_subpage_info *spi = fs_info->subpage_info;
 	u64 orig_start = *start;
 	/* Declare as unsigned long so we can use bitmap ops */
-	unsigned long dirty_bitmap;
 	unsigned long flags;
-	int nbits = (orig_start - page_offset(page)) >> fs_info->sectorsize_bits;
-	int range_start_bit = nbits;
+	int range_start_bit;
 	int range_end_bit;
 
 	/*
@@ -3872,13 +3871,18 @@ static void find_next_dirty_byte(struct btrfs_fs_info *fs_info,
 		return;
 	}
 
+	range_start_bit = spi->dirty_offset +
+			  (offset_in_page(orig_start) >> fs_info->sectorsize_bits);
+
 	/* We should have the page locked, but just in case */
 	spin_lock_irqsave(&subpage->lock, flags);
-	dirty_bitmap = subpage->dirty_bitmap;
+	bitmap_next_set_region(subpage->bitmaps, &range_start_bit, &range_end_bit,
+			       spi->dirty_offset + spi->bitmap_nr_bits);
 	spin_unlock_irqrestore(&subpage->lock, flags);
 
-	bitmap_next_set_region(&dirty_bitmap, &range_start_bit, &range_end_bit,
-			       BTRFS_SUBPAGE_BITMAP_SIZE);
+	range_start_bit -= spi->dirty_offset;
+	range_end_bit -= spi->dirty_offset;
+
 	*start = page_offset(page) + range_start_bit * fs_info->sectorsize;
 	*end = page_offset(page) + range_end_bit * fs_info->sectorsize;
 }
@@ -4602,12 +4606,11 @@ static int submit_eb_subpage(struct page *page,
 	int submitted = 0;
 	u64 page_start = page_offset(page);
 	int bit_start = 0;
-	const int nbits = BTRFS_SUBPAGE_BITMAP_SIZE;
 	int sectors_per_node = fs_info->nodesize >> fs_info->sectorsize_bits;
 	int ret;
 
 	/* Lock and write each dirty extent buffers in the range */
-	while (bit_start < nbits) {
+	while (bit_start < fs_info->subpage_info->bitmap_nr_bits) {
 		struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
 		struct extent_buffer *eb;
 		unsigned long flags;
@@ -4623,7 +4626,8 @@ static int submit_eb_subpage(struct page *page,
 			break;
 		}
 		spin_lock_irqsave(&subpage->lock, flags);
-		if (!((1 << bit_start) & subpage->dirty_bitmap)) {
+		if (!test_bit(bit_start + fs_info->subpage_info->dirty_offset,
+			      subpage->bitmaps)) {
 			spin_unlock_irqrestore(&subpage->lock, flags);
 			spin_unlock(&page->mapping->private_lock);
 			bit_start++;
@@ -7169,32 +7173,41 @@ void memmove_extent_buffer(const struct extent_buffer *dst,
 	}
 }
 
+#define GANG_LOOKUP_SIZE	16
 static struct extent_buffer *get_next_extent_buffer(
 		struct btrfs_fs_info *fs_info, struct page *page, u64 bytenr)
 {
-	struct extent_buffer *gang[BTRFS_SUBPAGE_BITMAP_SIZE];
+	struct extent_buffer *gang[GANG_LOOKUP_SIZE];
 	struct extent_buffer *found = NULL;
 	u64 page_start = page_offset(page);
-	int ret;
-	int i;
+	u64 cur = page_start;
 
 	ASSERT(in_range(bytenr, page_start, PAGE_SIZE));
-	ASSERT(PAGE_SIZE / fs_info->nodesize <= BTRFS_SUBPAGE_BITMAP_SIZE);
 	lockdep_assert_held(&fs_info->buffer_lock);
 
-	ret = radix_tree_gang_lookup(&fs_info->buffer_radix, (void **)gang,
-			bytenr >> fs_info->sectorsize_bits,
-			PAGE_SIZE / fs_info->nodesize);
-	for (i = 0; i < ret; i++) {
-		/* Already beyond page end */
-		if (gang[i]->start >= page_start + PAGE_SIZE)
-			break;
-		/* Found one */
-		if (gang[i]->start >= bytenr) {
-			found = gang[i];
-			break;
+	while (cur < page_start + PAGE_SIZE) {
+		int ret;
+		int i;
+
+		ret = radix_tree_gang_lookup(&fs_info->buffer_radix,
+				(void **)gang, cur >> fs_info->sectorsize_bits,
+				min_t(unsigned int, GANG_LOOKUP_SIZE,
+				      PAGE_SIZE / fs_info->nodesize));
+		if (ret == 0)
+			goto out;
+		for (i = 0; i < ret; i++) {
+			/* Already beyond page end */
+			if (gang[i]->start >= page_start + PAGE_SIZE)
+				goto out;
+			/* Found one */
+			if (gang[i]->start >= bytenr) {
+				found = gang[i];
+				goto out;
+			}
 		}
+		cur = gang[ret - 1]->start + gang[ret - 1]->len;
 	}
+out:
 	return found;
 }
 
