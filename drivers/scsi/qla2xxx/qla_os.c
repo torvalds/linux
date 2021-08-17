@@ -3964,7 +3964,6 @@ void qla2x00_mark_device_lost(scsi_qla_host_t *vha, fc_port_t *fcport,
 		qla2x00_schedule_rport_del(vha, fcport);
 	}
 
-	qla_edif_sess_down(vha, fcport);
 	/*
 	 * We may need to retry the login, so don't change the state of the
 	 * port but do the retries.
@@ -7342,6 +7341,10 @@ qla2x00_timer(struct timer_list *t)
 			start_dpc++;
 		}
 	}
+
+	/* check if edif running */
+	if (vha->hw->flags.edif_enabled)
+		qla_edif_timer(vha);
 
 	/* Process any deferred work. */
 	if (!list_empty(&vha->work_list)) {

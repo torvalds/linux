@@ -1141,7 +1141,7 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 		if (IS_QLA28XX(ha) && ha->flags.edif_hw && ql2xsecenable &&
 		    (ha->fw_attributes_ext[0] & FW_ATTR_EXT0_EDIF)) {
 			ha->flags.edif_enabled = 1;
-			ql_log(ql_log_info + ql_dbg_edif, vha, 0xffff,
+			ql_log(ql_log_info, vha, 0xffff,
 			       "%s: edif is enabled\n", __func__);
 		}
 	}
@@ -4049,6 +4049,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 				fcport->scan_state = QLA_FCPORT_FOUND;
 				fcport->n2n_flag = 1;
 				fcport->keep_nport_handle = 1;
+				fcport->login_retry = vha->hw->login_retry_count;
 
 				if (wwn_to_u64(vha->port_name) >
 				    wwn_to_u64(fcport->port_name)) {

@@ -2633,6 +2633,7 @@ typedef struct fc_port {
 		uint64_t	rx_bytes;
 		uint8_t		non_secured_login;
 		uint8_t		auth_state;
+		uint16_t	authok:1;
 		uint16_t	rekey_cnt;
 		struct list_head edif_indx_list;
 		spinlock_t  indx_list_lock;
@@ -4023,6 +4024,7 @@ struct qla_hw_data {
 		uint32_t	scm_enabled:1;
 		uint32_t	edif_hw:1;
 		uint32_t	edif_enabled:1;
+		uint32_t	n2n_fw_acc_sec:1;
 		uint32_t	plogi_template_valid:1;
 		uint32_t	port_isolated:1;
 	} flags;
@@ -4720,6 +4722,7 @@ struct qla_hw_data {
 	struct list_head sadb_rx_index_list;
 	spinlock_t sadb_lock;	/* protects list */
 	struct els_reject elsrej;
+	u8 edif_post_stop_cnt_down;
 };
 
 #define RX_ELS_SIZE (roundup(sizeof(struct enode) + ELS_MAX_PAYLOAD, SMP_CACHE_BYTES))

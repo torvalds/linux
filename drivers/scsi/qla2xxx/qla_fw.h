@@ -810,6 +810,7 @@ struct els_entry_24xx {
 #define EPD_RX_XCHG		(3 << 13)
 #define ECF_CLR_PASSTHRU_PEND	BIT_12
 #define ECF_INCL_FRAME_HDR	BIT_11
+#define ECF_SEC_LOGIN		BIT_3
 
 	union {
 		struct {

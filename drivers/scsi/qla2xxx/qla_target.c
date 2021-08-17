@@ -638,6 +638,7 @@ int qla24xx_async_notify_ack(scsi_qla_host_t *vha, fc_port_t *fcport,
 		if (vha->hw->flags.edif_enabled &&
 		    (le16_to_cpu(ntfy->u.isp24.flags) & NOTIFY24XX_FLAGS_FCSP)) {
 			fcport->flags |= FCF_FCSP_DEVICE;
+			fcport->edif.secured_login = 1;
 		}
 		break;
 	case SRB_NACK_PRLI:
@@ -937,6 +938,11 @@ qlt_send_first_logo(struct scsi_qla_host *vha, qlt_port_logo_t *logo)
 	qlt_port_logo_t *tmp;
 	int res;
 
+	if (test_bit(PFLG_DRIVER_REMOVING, &vha->pci_flags)) {
+		res = 0;
+		goto out;
+	}
+
 	mutex_lock(&vha->vha_tgt.tgt_mutex);
 
 	list_for_each_entry(tmp, &vha->logo_list, list) {
@@ -957,6 +963,7 @@ qlt_send_first_logo(struct scsi_qla_host *vha, qlt_port_logo_t *logo)
 	list_del(&logo->list);
 	mutex_unlock(&vha->vha_tgt.tgt_mutex);
 
+out:
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf098,
 	    "Finished LOGO to %02x:%02x:%02x, dropped %d cmds, res = %#x\n",
 	    logo->id.b.domain, logo->id.b.area, logo->id.b.al_pa,
@@ -987,6 +994,7 @@ void qlt_free_session_done(struct work_struct *work)
 	if (!IS_SW_RESV_ADDR(sess->d_id)) {
 		if (ha->flags.edif_enabled &&
 		    (!own || own->iocb.u.isp24.status_subcode == ELS_PLOGI)) {
+			sess->edif.authok = 0;
 			if (!ha->flags.host_shutting_down) {
 				ql_dbg(ql_dbg_edif, vha, 0x911e,
 					"%s wwpn %8phC calling qla2x00_release_all_sadb\n",
@@ -997,6 +1005,7 @@ void qlt_free_session_done(struct work_struct *work)
 					"%s bypassing release_all_sadb\n",
 					__func__);
 			}
+			qla_edif_sess_down(vha, sess);
 		}
 		qla2x00_mark_device_lost(vha, sess, 0);
 
@@ -4808,6 +4817,23 @@ static int qlt_handle_login(struct scsi_qla_host *vha,
 		goto out;
 	}
 
+	if (vha->hw->flags.edif_enabled) {
+		if (!(vha->e_dbell.db_flags & EDB_ACTIVE)) {
+			ql_dbg(ql_dbg_disc, vha, 0xffff,
+			       "%s %d Term INOT due to app not started lid=%d, NportID %06X ",
+			       __func__, __LINE__, loop_id, port_id.b24);
+			qlt_send_term_imm_notif(vha, iocb, 1);
+			goto out;
+		} else if (iocb->u.isp24.status_subcode == ELS_PLOGI &&
+			   !(le16_to_cpu(iocb->u.isp24.flags) & NOTIFY24XX_FLAGS_FCSP)) {
+			ql_dbg(ql_dbg_disc, vha, 0xffff,
+			       "%s %d Term INOT due to unsecure lid=%d, NportID %06X ",
+			       __func__, __LINE__, loop_id, port_id.b24);
+			qlt_send_term_imm_notif(vha, iocb, 1);
+			goto out;
+		}
+	}
+
 	pla = qlt_plogi_ack_find_add(vha, &port_id, iocb);
 	if (!pla) {
 		ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
@@ -4876,6 +4902,10 @@ static int qlt_handle_login(struct scsi_qla_host *vha,
 	sess->loop_id = loop_id;
 
 	if (iocb->u.isp24.status_subcode == ELS_PLOGI) {
+		/* remote port has assigned Port ID */
+		if (N2N_TOPO(vha->hw) && fcport_is_bigger(sess))
+			vha->d_id = sess->d_id;
+
 		ql_dbg(ql_dbg_disc, vha, 0xffff,
 		    "%s %8phC - send port online\n",
 		    __func__, sess->port_name);
@@ -4995,6 +5025,16 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 			sess = qla2x00_find_fcport_by_wwpn(vha,
 			    iocb->u.isp24.port_name, 1);
 
+			if (vha->hw->flags.edif_enabled && sess &&
+			    (!(sess->flags & FCF_FCSP_DEVICE) ||
+			     !sess->edif.authok)) {
+				ql_dbg(ql_dbg_disc, vha, 0xffff,
+				       "%s %d %8phC Term PRLI due to unauthorize PRLI\n",
+				       __func__, __LINE__, iocb->u.isp24.port_name);
+				qlt_send_term_imm_notif(vha, iocb, 1);
+				break;
+			}
+
 			if (sess && sess->plogi_link[QLT_PLOGI_LINK_SAME_WWN]) {
 				ql_dbg(ql_dbg_disc, vha, 0xffff,
 				    "%s %d %8phC Term PRLI due to PLOGI ACK not completed\n",
@@ -5042,6 +5082,16 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 		if (sess != NULL) {
 			bool delete = false;
 			int sec;
+
+			if (vha->hw->flags.edif_enabled && sess &&
+			    (!(sess->flags & FCF_FCSP_DEVICE) ||
+			     !sess->edif.authok)) {
+				ql_dbg(ql_dbg_disc, vha, 0xffff,
+				       "%s %d %8phC Term PRLI due to unauthorize prli\n",
+				       __func__, __LINE__, iocb->u.isp24.port_name);
+				qlt_send_term_imm_notif(vha, iocb, 1);
+				break;
+			}
 
 			spin_lock_irqsave(&tgt->ha->tgt.sess_lock, flags);
 			switch (sess->fw_login_state) {
@@ -5232,7 +5282,8 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 }
 
 /*
- * ha->hardware_lock supposed to be held on entry. Might drop it, then reaquire
+ * ha->hardware_lock supposed to be held on entry.
+ * Might drop it, then reacquire.
  */
 static void qlt_handle_imm_notify(struct scsi_qla_host *vha,
 	struct imm_ntfy_from_isp *iocb)

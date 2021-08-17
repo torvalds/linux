@@ -990,6 +990,7 @@ void qla_enode_init(scsi_qla_host_t *vha);
 void qla_enode_stop(scsi_qla_host_t *vha);
 void qla_edif_flush_sa_ctl_lists(fc_port_t *fcport);
 void qla_edb_init(scsi_qla_host_t *vha);
+void qla_edif_timer(scsi_qla_host_t *vha);
 int qla28xx_start_scsi_edif(srb_t *sp);
 void qla24xx_sa_update_iocb(srb_t *sp, struct sa_update_28xx *sa_update_iocb);
 void qla24xx_sa_replace_iocb(srb_t *sp, struct sa_update_28xx *sa_update_iocb);
