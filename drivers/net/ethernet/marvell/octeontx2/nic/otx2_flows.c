@@ -11,6 +11,8 @@
 
 #define OTX2_DEFAULT_ACTION	0x1
 
+static int otx2_mcam_entry_init(struct otx2_nic *pfvf);
+
 struct otx2_flow {
 	struct ethtool_rx_flow_spec flow_spec;
 	struct list_head list;
@@ -66,7 +68,7 @@ static int mcam_entry_cmp(const void *a, const void *b)
 	return *(u16 *)a - *(u16 *)b;
 }
 
-static int otx2_alloc_ntuple_mcam_entries(struct otx2_nic *pfvf, u16 count)
+int otx2_alloc_mcam_entries(struct otx2_nic *pfvf, u16 count)
 {
 	struct otx2_flow_config *flow_cfg = pfvf->flow_cfg;
 	struct npc_mcam_alloc_entry_req *req;
@@ -81,8 +83,12 @@ static int otx2_alloc_ntuple_mcam_entries(struct otx2_nic *pfvf, u16 count)
 
 	flow_cfg->flow_ent = devm_kmalloc_array(pfvf->dev, count,
 						sizeof(u16), GFP_KERNEL);
-	if (!flow_cfg->flow_ent)
+	if (!flow_cfg->flow_ent) {
+		netdev_err(pfvf->netdev,
+			   "%s: Unable to allocate memory for flow entries\n",
+			    __func__);
 		return -ENOMEM;
+	}
 
 	mutex_lock(&pfvf->mbox.lock);
 
@@ -139,8 +145,10 @@ exit:
 
 	flow_cfg->max_flows = allocated;
 
-	pfvf->flags |= OTX2_FLAG_MCAM_ENTRIES_ALLOC;
-	pfvf->flags |= OTX2_FLAG_NTUPLE_SUPPORT;
+	if (allocated) {
+		pfvf->flags |= OTX2_FLAG_MCAM_ENTRIES_ALLOC;
+		pfvf->flags |= OTX2_FLAG_NTUPLE_SUPPORT;
+	}
 
 	if (allocated != count)
 		netdev_info(pfvf->netdev,
@@ -148,8 +156,9 @@ exit:
 			    count, allocated);
 	return allocated;
 }
+EXPORT_SYMBOL(otx2_alloc_mcam_entries);
 
-int otx2_alloc_mcam_entries(struct otx2_nic *pfvf)
+static int otx2_mcam_entry_init(struct otx2_nic *pfvf)
 {
 	struct otx2_flow_config *flow_cfg = pfvf->flow_cfg;
 	struct npc_mcam_alloc_entry_req *req;
@@ -209,7 +218,7 @@ int otx2_alloc_mcam_entries(struct otx2_nic *pfvf)
 	mutex_unlock(&pfvf->mbox.lock);
 
 	/* Allocate entries for Ntuple filters */
-	count = otx2_alloc_ntuple_mcam_entries(pfvf, OTX2_DEFAULT_FLOWCOUNT);
+	count = otx2_alloc_mcam_entries(pfvf, OTX2_DEFAULT_FLOWCOUNT);
 	if (count <= 0) {
 		otx2_clear_ntuple_flow_info(pfvf, flow_cfg);
 		return 0;
@@ -223,7 +232,6 @@ int otx2_alloc_mcam_entries(struct otx2_nic *pfvf)
 int otx2vf_mcam_flow_init(struct otx2_nic *pfvf)
 {
 	struct otx2_flow_config *flow_cfg;
-	int count;
 
 	pfvf->flow_cfg = devm_kzalloc(pfvf->dev,
 				      sizeof(struct otx2_flow_config),
@@ -234,10 +242,6 @@ int otx2vf_mcam_flow_init(struct otx2_nic *pfvf)
 	flow_cfg = pfvf->flow_cfg;
 	INIT_LIST_HEAD(&flow_cfg->flow_list);
 	flow_cfg->max_flows = 0;
-
-	count = otx2_alloc_ntuple_mcam_entries(pfvf, OTX2_DEFAULT_FLOWCOUNT);
-	if (count <= 0)
-		return -ENOMEM;
 
 	return 0;
 }
@@ -254,7 +258,10 @@ int otx2_mcam_flow_init(struct otx2_nic *pf)
 
 	INIT_LIST_HEAD(&pf->flow_cfg->flow_list);
 
-	err = otx2_alloc_mcam_entries(pf);
+	/* Allocate bare minimum number of MCAM entries needed for
+	 * unicast and ntuple filters.
+	 */
+	err = otx2_mcam_entry_init(pf);
 	if (err)
 		return err;
 

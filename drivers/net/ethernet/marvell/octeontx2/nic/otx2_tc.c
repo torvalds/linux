@@ -52,12 +52,15 @@ struct otx2_tc_flow {
 	bool				is_act_police;
 };
 
-static int otx2_tc_alloc_ent_bitmap(struct otx2_nic *nic)
+int otx2_tc_alloc_ent_bitmap(struct otx2_nic *nic)
 {
 	struct otx2_tc_info *tc = &nic->tc_info;
 
-	if (!nic->flow_cfg->max_flows)
+	if (!nic->flow_cfg->max_flows || is_otx2_vf(nic->pcifunc))
 		return 0;
+
+	/* Max flows changed, free the existing bitmap */
+	kfree(tc->tc_entries_bitmap);
 
 	tc->tc_entries_bitmap =
 			kcalloc(BITS_TO_LONGS(nic->flow_cfg->max_flows),
@@ -70,6 +73,7 @@ static int otx2_tc_alloc_ent_bitmap(struct otx2_nic *nic)
 
 	return 0;
 }
+EXPORT_SYMBOL(otx2_tc_alloc_ent_bitmap);
 
 static void otx2_get_egress_burst_cfg(u32 burst, u32 *burst_exp,
 				      u32 *burst_mantissa)
