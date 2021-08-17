@@ -2235,6 +2235,7 @@ qla24xx_els_ct_entry(scsi_qla_host_t *v, struct req_que *req,
 			} else if (comp_status == CS_PORT_LOGGED_OUT) {
 				els->u.els_plogi.len = 0;
 				res = DID_IMM_RETRY << 16;
+				qlt_schedule_sess_for_deletion(sp->fcport);
 			} else {
 				els->u.els_plogi.len = 0;
 				res = DID_ERROR << 16;

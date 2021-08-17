@@ -63,6 +63,8 @@ struct sa_update_28xx {
 	union {
 		__le16 nport_handle;  /* in: N_PORT handle. */
 		__le16 comp_sts;              /* out: completion status */
+#define CS_PORT_EDIF_UNAVAIL	0x28
+#define CS_PORT_EDIF_LOGOUT	0x29
 #define CS_PORT_EDIF_SUPP_NOT_RDY 0x64
 #define CS_PORT_EDIF_INV_REQ      0x66
 	} u;

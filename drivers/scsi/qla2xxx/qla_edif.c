@@ -2674,6 +2674,14 @@ qla28xx_sa_update_iocb_entry(scsi_qla_host_t *v, struct req_que *req,
 		    __func__, pkt->sa_index, nport_handle);
 		qla_edif_sadb_delete_sa_index(sp->fcport, nport_handle,
 		    le16_to_cpu(pkt->sa_index));
+		switch (le16_to_cpu(pkt->u.comp_sts)) {
+		case CS_PORT_EDIF_UNAVAIL:
+		case CS_PORT_EDIF_LOGOUT:
+			qlt_schedule_sess_for_deletion(sp->fcport);
+			break;
+		default:
+			break;
+		}
 	}
 
 	sp->done(sp, 0);
