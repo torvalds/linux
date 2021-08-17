@@ -1515,53 +1515,77 @@ static const struct rockchip_tsadc_chip rk3588_tsadc_data = {
 };
 
 static const struct of_device_id of_rockchip_thermal_match[] = {
+#ifdef CONFIG_CPU_PX30
 	{	.compatible = "rockchip,px30-tsadc",
 		.data = (void *)&px30_tsadc_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RV1108
 	{
 		.compatible = "rockchip,rv1108-tsadc",
 		.data = (void *)&rv1108_tsadc_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RV1126
 	{
 		.compatible = "rockchip,rv1126-tsadc",
 		.data = (void *)&rv1126_tsadc_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK1808
 	{
 		.compatible = "rockchip,rk1808-tsadc",
 		.data = (void *)&rk1808_tsadc_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK322X
 	{
 		.compatible = "rockchip,rk3228-tsadc",
 		.data = (void *)&rk3228_tsadc_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3288
 	{
 		.compatible = "rockchip,rk3288-tsadc",
 		.data = (void *)&rk3288_tsadc_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3328
 	{
 		.compatible = "rockchip,rk3328-tsadc",
 		.data = (void *)&rk3328_tsadc_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3366
 	{
 		.compatible = "rockchip,rk3366-tsadc",
 		.data = (void *)&rk3366_tsadc_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3368
 	{
 		.compatible = "rockchip,rk3368-tsadc",
 		.data = (void *)&rk3368_tsadc_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3399
 	{
 		.compatible = "rockchip,rk3399-tsadc",
 		.data = (void *)&rk3399_tsadc_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3568
 	{
 		.compatible = "rockchip,rk3568-tsadc",
 		.data = (void *)&rk3568_tsadc_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3588
 	{
 		.compatible = "rockchip,rk3588-tsadc",
 		.data = (void *)&rk3588_tsadc_data,
 	},
+#endif
 	{ /* end */ },
 };
 MODULE_DEVICE_TABLE(of, of_rockchip_thermal_match);
