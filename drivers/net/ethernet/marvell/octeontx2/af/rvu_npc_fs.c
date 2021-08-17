@@ -1139,7 +1139,7 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0) {
 		dev_err(rvu->dev, "%s: NPC block not implemented\n", __func__);
-		return -ENODEV;
+		return NPC_MCAM_INVALID_REQ;
 	}
 
 	if (!is_npc_interface_valid(rvu, req->intf))
