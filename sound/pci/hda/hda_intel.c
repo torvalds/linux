@@ -883,11 +883,10 @@ static unsigned int azx_get_pos_skl(struct azx *chip, struct azx_dev *azx_dev)
 	return azx_get_pos_posbuf(chip, azx_dev);
 }
 
-static void __azx_shutdown_chip(struct azx *chip, bool skip_link_reset)
+static void azx_shutdown_chip(struct azx *chip)
 {
 	azx_stop_chip(chip);
-	if (!skip_link_reset)
-		azx_enter_link_reset(chip);
+	azx_enter_link_reset(chip);
 	azx_clear_irq_pending(chip);
 	display_power(chip, false);
 }
@@ -895,11 +894,6 @@ static void __azx_shutdown_chip(struct azx *chip, bool skip_link_reset)
 #ifdef CONFIG_PM
 static DEFINE_MUTEX(card_list_lock);
 static LIST_HEAD(card_list);
-
-static void azx_shutdown_chip(struct azx *chip)
-{
-	__azx_shutdown_chip(chip, false);
-}
 
 static void azx_add_card_list(struct azx *chip)
 {
@@ -2363,7 +2357,7 @@ static void azx_shutdown(struct pci_dev *pci)
 		return;
 	chip = card->private_data;
 	if (chip && chip->running)
-		__azx_shutdown_chip(chip, true);
+		azx_shutdown_chip(chip);
 }
 
 /* PCI IDs */
