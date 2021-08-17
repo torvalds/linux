@@ -866,15 +866,6 @@ config I2C_PCA_PLATFORM
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-pca-platform.
 
-config I2C_PMCMSP
-	tristate "PMC MSP I2C TWI Controller"
-	depends on PMC_MSP || COMPILE_TEST
-	help
-	  This driver supports the PMC TWI controller on MSP devices.
-
-	  This driver can also be built as module. If so, the module
-	  will be called i2c-pmcmsp.
-
 config I2C_PNX
 	tristate "I2C bus support for Philips PNX and NXP LPC targets"
 	depends on ARCH_LPC32XX || COMPILE_TEST
