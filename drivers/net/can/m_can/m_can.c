@@ -279,7 +279,7 @@ enum m_can_reg {
 /* Message RAM Elements */
 #define M_CAN_FIFO_ID		0x0
 #define M_CAN_FIFO_DLC		0x4
-#define M_CAN_FIFO_DATA(n)	(0x8 + ((n) << 2))
+#define M_CAN_FIFO_DATA		0x8
 
 /* Rx Buffer Element */
 /* R0 */
@@ -514,7 +514,7 @@ static int m_can_read_fifo(struct net_device *dev, u32 rxfs)
 		if (fifo_header.dlc & RX_BUF_BRS)
 			cf->flags |= CANFD_BRS;
 
-		err = m_can_fifo_read(cdev, fgi, M_CAN_FIFO_DATA(0),
+		err = m_can_fifo_read(cdev, fgi, M_CAN_FIFO_DATA,
 				      cf->data, DIV_ROUND_UP(cf->len, 4));
 		if (err)
 			goto out_fail;
@@ -1588,8 +1588,9 @@ static netdev_tx_t m_can_tx_handler(struct m_can_classdev *cdev)
 	struct canfd_frame *cf = (struct canfd_frame *)cdev->tx_skb->data;
 	struct net_device *dev = cdev->net;
 	struct sk_buff *skb = cdev->tx_skb;
-	u32 id, dlc, cccr, fdflags;
-	int i, err;
+	struct id_and_dlc fifo_header;
+	u32 cccr, fdflags;
+	int err;
 	int putidx;
 
 	cdev->tx_skb = NULL;
@@ -1597,33 +1598,29 @@ static netdev_tx_t m_can_tx_handler(struct m_can_classdev *cdev)
 	/* Generate ID field for TX buffer Element */
 	/* Common to all supported M_CAN versions */
 	if (cf->can_id & CAN_EFF_FLAG) {
-		id = cf->can_id & CAN_EFF_MASK;
-		id |= TX_BUF_XTD;
+		fifo_header.id = cf->can_id & CAN_EFF_MASK;
+		fifo_header.id |= TX_BUF_XTD;
 	} else {
-		id = ((cf->can_id & CAN_SFF_MASK) << 18);
+		fifo_header.id = ((cf->can_id & CAN_SFF_MASK) << 18);
 	}
 
 	if (cf->can_id & CAN_RTR_FLAG)
-		id |= TX_BUF_RTR;
+		fifo_header.id |= TX_BUF_RTR;
 
 	if (cdev->version == 30) {
 		netif_stop_queue(dev);
 
-		/* message ram configuration */
-		err = m_can_fifo_write(cdev, 0, M_CAN_FIFO_ID, &id, 1);
+		fifo_header.dlc = can_fd_len2dlc(cf->len) << 16;
+
+		/* Write the frame ID, DLC, and payload to the FIFO element. */
+		err = m_can_fifo_write(cdev, 0, M_CAN_FIFO_ID, &fifo_header, 2);
 		if (err)
 			goto out_fail;
 
-		dlc = can_fd_len2dlc(cf->len) << 16;
-		err = m_can_fifo_write(cdev, 0, M_CAN_FIFO_DLC, &dlc, 1);
+		err = m_can_fifo_write(cdev, 0, M_CAN_FIFO_DATA,
+				       cf->data, DIV_ROUND_UP(cf->len, 4));
 		if (err)
 			goto out_fail;
-
-		for (i = 0; i < cf->len; i += 4) {
-			err = m_can_fifo_write(cdev, 0, M_CAN_FIFO_DATA(i / 4), cf->data + i, 1);
-			if (err)
-				goto out_fail;
-		}
 
 		can_put_echo_skb(skb, dev, 0, 0);
 
@@ -1667,10 +1664,11 @@ static netdev_tx_t m_can_tx_handler(struct m_can_classdev *cdev)
 		/* get put index for frame */
 		putidx = FIELD_GET(TXFQS_TFQPI_MASK,
 				   m_can_read(cdev, M_CAN_TXFQS));
-		/* Write ID Field to FIFO Element */
-		err = m_can_fifo_write(cdev, putidx, M_CAN_FIFO_ID, &id, 1);
-		if (err)
-			goto out_fail;
+
+		/* Construct DLC Field, with CAN-FD configuration.
+		 * Use the put index of the fifo as the message marker,
+		 * used in the TX interrupt for sending the correct echo frame.
+		 */
 
 		/* get CAN FD configuration of frame */
 		fdflags = 0;
@@ -1680,24 +1678,17 @@ static netdev_tx_t m_can_tx_handler(struct m_can_classdev *cdev)
 				fdflags |= TX_BUF_BRS;
 		}
 
-		/* Construct DLC Field. Also contains CAN-FD configuration
-		 * use put index of fifo as message marker
-		 * it is used in TX interrupt for
-		 * sending the correct echo frame
-		 */
-		dlc = FIELD_PREP(TX_BUF_MM_MASK, putidx) |
+		fifo_header.dlc = FIELD_PREP(TX_BUF_MM_MASK, putidx) |
 			FIELD_PREP(TX_BUF_DLC_MASK, can_fd_len2dlc(cf->len)) |
 			fdflags | TX_BUF_EFC;
-		err = m_can_fifo_write(cdev, putidx, M_CAN_FIFO_DLC, &dlc, 1);
+		err = m_can_fifo_write(cdev, putidx, M_CAN_FIFO_ID, &fifo_header, 2);
 		if (err)
 			goto out_fail;
 
-		for (i = 0; i < cf->len; i += 4) {
-			err = m_can_fifo_write(cdev, putidx, M_CAN_FIFO_DATA(i / 4),
-					       cf->data + i, 1);
-			if (err)
-				goto out_fail;
-		}
+		err = m_can_fifo_write(cdev, putidx, M_CAN_FIFO_DATA,
+				       cf->data, DIV_ROUND_UP(cf->len, 4));
+		if (err)
+			goto out_fail;
 
 		/* Push loopback echo.
 		 * Will be looped back on TX interrupt based on message marker
