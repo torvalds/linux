@@ -116,9 +116,14 @@ static inline bool sja1105_is_meta_frame(const struct sk_buff *skb)
 }
 
 /* Calls sja1105_port_deferred_xmit in sja1105_main.c */
-static struct sk_buff *sja1105_defer_xmit(struct sja1105_port *sp,
+static struct sk_buff *sja1105_defer_xmit(struct dsa_port *dp,
 					  struct sk_buff *skb)
 {
+	struct sja1105_port *sp = dp->priv;
+
+	if (!dsa_port_is_sja1105(dp))
+		return skb;
+
 	/* Increase refcount so the kfree_skb in dsa_slave_xmit
 	 * won't really free the packet.
 	 */
@@ -128,8 +133,13 @@ static struct sk_buff *sja1105_defer_xmit(struct sja1105_port *sp,
 	return NULL;
 }
 
-static u16 sja1105_xmit_tpid(struct sja1105_port *sp)
+static u16 sja1105_xmit_tpid(struct dsa_port *dp)
 {
+	struct sja1105_port *sp = dp->priv;
+
+	if (unlikely(!dsa_port_is_sja1105(dp)))
+		return ETH_P_8021Q;
+
 	return sp->xmit_tpid;
 }
 
@@ -155,7 +165,7 @@ static struct sk_buff *sja1105_imprecise_xmit(struct sk_buff *skb,
 	 */
 	tx_vid = dsa_8021q_bridge_tx_fwd_offload_vid(dp->bridge_num);
 
-	return dsa_8021q_xmit(skb, netdev, sja1105_xmit_tpid(dp->priv), tx_vid);
+	return dsa_8021q_xmit(skb, netdev, sja1105_xmit_tpid(dp), tx_vid);
 }
 
 static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
@@ -174,9 +184,9 @@ static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
 	 * is the .port_deferred_xmit driver callback.
 	 */
 	if (unlikely(sja1105_is_link_local(skb)))
-		return sja1105_defer_xmit(dp->priv, skb);
+		return sja1105_defer_xmit(dp, skb);
 
-	return dsa_8021q_xmit(skb, netdev, sja1105_xmit_tpid(dp->priv),
+	return dsa_8021q_xmit(skb, netdev, sja1105_xmit_tpid(dp),
 			     ((pcp << VLAN_PRIO_SHIFT) | tx_vid));
 }
 
@@ -200,7 +210,7 @@ static struct sk_buff *sja1110_xmit(struct sk_buff *skb,
 	 * tag_8021q TX VLANs.
 	 */
 	if (likely(!sja1105_is_link_local(skb)))
-		return dsa_8021q_xmit(skb, netdev, sja1105_xmit_tpid(dp->priv),
+		return dsa_8021q_xmit(skb, netdev, sja1105_xmit_tpid(dp),
 				     ((pcp << VLAN_PRIO_SHIFT) | tx_vid));
 
 	skb_push(skb, SJA1110_HEADER_LEN);
@@ -265,16 +275,16 @@ static struct sk_buff
 				bool is_link_local,
 				bool is_meta)
 {
-	struct sja1105_port *sp;
-	struct dsa_port *dp;
-
-	dp = dsa_slave_to_port(skb->dev);
-	sp = dp->priv;
-
 	/* Step 1: A timestampable frame was received.
 	 * Buffer it until we get its meta frame.
 	 */
 	if (is_link_local) {
+		struct dsa_port *dp = dsa_slave_to_port(skb->dev);
+		struct sja1105_port *sp = dp->priv;
+
+		if (unlikely(!dsa_port_is_sja1105(dp)))
+			return skb;
+
 		if (!test_bit(SJA1105_HWTS_RX_EN, &sp->data->state))
 			/* Do normal processing. */
 			return skb;
@@ -307,7 +317,12 @@ static struct sk_buff
 	 * frame, which serves no further purpose).
 	 */
 	} else if (is_meta) {
+		struct dsa_port *dp = dsa_slave_to_port(skb->dev);
+		struct sja1105_port *sp = dp->priv;
 		struct sk_buff *stampable_skb;
+
+		if (unlikely(!dsa_port_is_sja1105(dp)))
+			return skb;
 
 		/* Drop the meta frame if we're not in the right state
 		 * to process it.
