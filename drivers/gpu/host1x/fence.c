@@ -15,7 +15,7 @@
 #include "intr.h"
 #include "syncpt.h"
 
-DEFINE_SPINLOCK(lock);
+static DEFINE_SPINLOCK(lock);
 
 struct host1x_syncpt_fence {
 	struct dma_fence base;
