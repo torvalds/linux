@@ -6137,13 +6137,15 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 		 * page, but it may change in the future for 16K page size
 		 * support, so we still preallocate the memory in the loop.
 		 */
-		ret = btrfs_alloc_subpage(fs_info, &prealloc,
-					  BTRFS_SUBPAGE_METADATA);
-		if (ret < 0) {
-			unlock_page(p);
-			put_page(p);
-			exists = ERR_PTR(ret);
-			goto free_eb;
+		if (fs_info->sectorsize < PAGE_SIZE) {
+			ret = btrfs_alloc_subpage(fs_info, &prealloc,
+						  BTRFS_SUBPAGE_METADATA);
+			if (ret < 0) {
+				unlock_page(p);
+				put_page(p);
+				exists = ERR_PTR(ret);
+				goto free_eb;
+			}
 		}
 
 		spin_lock(&mapping->private_lock);

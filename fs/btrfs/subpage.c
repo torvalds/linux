@@ -104,8 +104,7 @@ int btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
 			struct btrfs_subpage **ret,
 			enum btrfs_subpage_type type)
 {
-	if (fs_info->sectorsize == PAGE_SIZE)
-		return 0;
+	ASSERT(fs_info->sectorsize < PAGE_SIZE);
 
 	*ret = kzalloc(sizeof(struct btrfs_subpage), GFP_NOFS);
 	if (!*ret)
