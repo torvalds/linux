@@ -181,11 +181,7 @@ static inline unsigned long frame_pointer(struct pt_regs *regs)
 	return 0;
 }
 
-#ifdef __powerpc64__
-#define user_mode(regs) ((((regs)->msr) >> MSR_PR_LG) & 0x1)
-#else
 #define user_mode(regs) (((regs)->msr & MSR_PR) != 0)
-#endif
 
 #define force_successful_syscall_return()   \
 	do { \
