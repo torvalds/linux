@@ -193,29 +193,21 @@ DECLARE_EVENT_CLASS(xchk_block_error_class,
 		__field(dev_t, dev)
 		__field(unsigned int, type)
 		__field(xfs_agnumber_t, agno)
-		__field(xfs_agblock_t, bno)
+		__field(xfs_agblock_t, agbno)
 		__field(void *, ret_ip)
 	),
 	TP_fast_assign(
-		xfs_fsblock_t	fsbno;
-		xfs_agnumber_t	agno;
-		xfs_agblock_t	bno;
-
-		fsbno = XFS_DADDR_TO_FSB(sc->mp, daddr);
-		agno = XFS_FSB_TO_AGNO(sc->mp, fsbno);
-		bno = XFS_FSB_TO_AGBNO(sc->mp, fsbno);
-
 		__entry->dev = sc->mp->m_super->s_dev;
 		__entry->type = sc->sm->sm_type;
-		__entry->agno = agno;
-		__entry->bno = bno;
+		__entry->agno = xfs_daddr_to_agno(sc->mp, daddr);
+		__entry->agbno = xfs_daddr_to_agbno(sc->mp, daddr);
 		__entry->ret_ip = ret_ip;
 	),
 	TP_printk("dev %d:%d type %s agno %u agbno %u ret_ip %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __print_symbolic(__entry->type, XFS_SCRUB_TYPE_STRINGS),
 		  __entry->agno,
-		  __entry->bno,
+		  __entry->agbno,
 		  __entry->ret_ip)
 )
 
