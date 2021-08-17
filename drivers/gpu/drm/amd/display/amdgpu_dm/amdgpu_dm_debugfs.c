@@ -2540,6 +2540,57 @@ static int target_backlight_show(struct seq_file *m, void *unused)
 	return 0;
 }
 
+/*
+ * function description: Determine if the connector is mst connector
+ *
+ * This function helps to determine whether a connector is a mst connector.
+ * - "root" stands for the root connector of the topology
+ * - "branch" stands for branch device of the topology
+ * - "end" stands for leaf node connector of the topology
+ * - "no" stands for the connector is not a device of a mst topology
+ * Access it with the following command:
+ *
+ *	cat /sys/kernel/debug/dri/0/DP-X/is_mst_connector
+ *
+ */
+static int dp_is_mst_connector_show(struct seq_file *m, void *unused)
+{
+	struct drm_connector *connector = m->private;
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+	struct drm_dp_mst_topology_mgr *mgr = NULL;
+	struct drm_dp_mst_port *port = NULL;
+	char *role = NULL;
+
+	mutex_lock(&aconnector->hpd_lock);
+
+	if (aconnector->mst_mgr.mst_state) {
+		role = "root";
+	} else if (aconnector->mst_port &&
+		aconnector->mst_port->mst_mgr.mst_state) {
+
+		role = "end";
+
+		mgr = &aconnector->mst_port->mst_mgr;
+		port = aconnector->port;
+
+		drm_modeset_lock(&mgr->base.lock, NULL);
+		if (port->pdt == DP_PEER_DEVICE_MST_BRANCHING &&
+			port->mcs)
+			role = "branch";
+		drm_modeset_unlock(&mgr->base.lock);
+
+	} else {
+		role = "no";
+	}
+
+	seq_printf(m, "%s\n", role);
+
+	mutex_unlock(&aconnector->hpd_lock);
+
+	return 0;
+}
+
+
 DEFINE_SHOW_ATTRIBUTE(dp_dsc_fec_support);
 DEFINE_SHOW_ATTRIBUTE(dmub_fw_state);
 DEFINE_SHOW_ATTRIBUTE(dmub_tracebuffer);
@@ -2549,6 +2600,7 @@ DEFINE_SHOW_ATTRIBUTE(hdcp_sink_capability);
 #endif
 DEFINE_SHOW_ATTRIBUTE(internal_display);
 DEFINE_SHOW_ATTRIBUTE(psr_capability);
+DEFINE_SHOW_ATTRIBUTE(dp_is_mst_connector);
 
 static const struct file_operations dp_dsc_clock_en_debugfs_fops = {
 	.owner = THIS_MODULE,
@@ -2692,6 +2744,7 @@ static const struct {
 		{"dp_dsc_fec_support", &dp_dsc_fec_support_fops},
 		{"max_bpc", &dp_max_bpc_debugfs_fops},
 		{"dsc_disable_passthrough", &dp_dsc_disable_passthrough_debugfs_fops},
+		{"is_mst_connector", &dp_is_mst_connector_fops}
 };
 
 #ifdef CONFIG_DRM_AMD_DC_HDCP
