@@ -397,7 +397,7 @@ DECLARE_EVENT_CLASS(xfs_buf_class,
 		__entry->flags = bp->b_flags;
 		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d bno 0x%llx nblks 0x%x hold %d pincount %d "
+	TP_printk("dev %d:%d daddr 0x%llx nblks 0x%x hold %d pincount %d "
 		  "lock %d flags %s caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long long)__entry->bno,
@@ -465,7 +465,7 @@ DECLARE_EVENT_CLASS(xfs_buf_flags_class,
 		__entry->lockval = bp->b_sema.count;
 		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d bno 0x%llx len 0x%zx hold %d pincount %d "
+	TP_printk("dev %d:%d daddr 0x%llx len 0x%zx hold %d pincount %d "
 		  "lock %d flags %s caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long long)__entry->bno,
@@ -510,7 +510,7 @@ TRACE_EVENT(xfs_buf_ioerror,
 		__entry->flags = bp->b_flags;
 		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d bno 0x%llx len 0x%zx hold %d pincount %d "
+	TP_printk("dev %d:%d daddr 0x%llx len 0x%zx hold %d pincount %d "
 		  "lock %d error %d flags %s caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long long)__entry->bno,
@@ -552,7 +552,7 @@ DECLARE_EVENT_CLASS(xfs_buf_item_class,
 		__entry->buf_lockval = bip->bli_buf->b_sema.count;
 		__entry->li_flags = bip->bli_item.li_flags;
 	),
-	TP_printk("dev %d:%d bno 0x%llx len 0x%zx hold %d pincount %d "
+	TP_printk("dev %d:%d daddr 0x%llx len 0x%zx hold %d pincount %d "
 		  "lock %d flags %s recur %d refcount %d bliflags %s "
 		  "liflags %s",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
