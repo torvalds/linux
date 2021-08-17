@@ -412,7 +412,7 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 	val |= pre_val;
 	write_csi2_dphy_reg(hw, CSI2PHY_REG_CTRL_LANE_ENABLE, val);
 
-	if (sensor->mbus.type == V4L2_MBUS_CSI2) {
+	if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
 		/* Reset dphy digital part */
 		if (hw->lane_mode == LANE_MODE_FULL) {
 			write_csi2_dphy_reg(hw, CSI2PHY_DUAL_CLK_EN, 0x1e);

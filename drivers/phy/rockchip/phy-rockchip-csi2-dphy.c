@@ -105,7 +105,7 @@ static int csi2_dphy_update_sensor_mbus(struct v4l2_subdev *sd)
 	struct v4l2_mbus_config mbus;
 	int ret;
 
-	ret = v4l2_subdev_call(sensor_sd, video, g_mbus_config, &mbus);
+	ret = v4l2_subdev_call(sensor_sd, pad, get_mbus_config, 0, &mbus);
 	if (ret)
 		return ret;
 
@@ -202,7 +202,8 @@ static int csi2_dphy_g_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int csi2_dphy_g_mbus_config(struct v4l2_subdev *sd,
-				  struct v4l2_mbus_config *config)
+				   unsigned int pad_id,
+				   struct v4l2_mbus_config *config)
 {
 	struct csi2_dphy *dphy = to_csi2_dphy(sd);
 	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
@@ -295,7 +296,6 @@ static const struct v4l2_subdev_core_ops csi2_dphy_core_ops = {
 
 static const struct v4l2_subdev_video_ops csi2_dphy_video_ops = {
 	.g_frame_interval = csi2_dphy_g_frame_interval,
-	.g_mbus_config = csi2_dphy_g_mbus_config,
 	.s_stream = csi2_dphy_s_stream,
 };
 
@@ -303,6 +303,7 @@ static const struct v4l2_subdev_pad_ops csi2_dphy_subdev_pad_ops = {
 	.set_fmt = csi2_dphy_get_set_fmt,
 	.get_fmt = csi2_dphy_get_set_fmt,
 	.get_selection = csi2_dphy_get_selection,
+	.get_mbus_config = csi2_dphy_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops csi2_dphy_subdev_ops = {
@@ -395,8 +396,8 @@ static int rockchip_csi2_dphy_fwnode_parse(struct device *dev,
 		return -EINVAL;
 	}
 
-	if (vep->bus_type == V4L2_MBUS_CSI2) {
-		config->type = V4L2_MBUS_CSI2;
+	if (vep->bus_type == V4L2_MBUS_CSI2_DPHY) {
+		config->type = V4L2_MBUS_CSI2_DPHY;
 		config->flags = vep->bus.mipi_csi2.flags;
 		s_asd->lanes = vep->bus.mipi_csi2.num_data_lanes;
 	} else {
@@ -438,15 +439,14 @@ static int rockchip_csi2dphy_media_init(struct csi2_dphy *dphy)
 	if (ret < 0)
 		return ret;
 
+	v4l2_async_notifier_init(&dphy->notifier);
+
 	ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(
 		dphy->dev, &dphy->notifier,
 		sizeof(struct sensor_async_subdev), 0,
 		rockchip_csi2_dphy_fwnode_parse);
 	if (ret < 0)
 		return ret;
-
-	if (!dphy->notifier.num_subdevs)
-		return -ENODEV;	/* no endpoint */
 
 	dphy->sd.subdev_notifier = &dphy->notifier;
 	dphy->notifier.ops = &rockchip_csi2_dphy_async_ops;
@@ -623,42 +623,6 @@ static int rockchip_csi2_dphy_remove(struct platform_device *pdev)
 	mutex_destroy(&dphy->mutex);
 	return 0;
 }
-static int __maybe_unused __rockchip_csi2dphy_clr_unready_dev(void)
-{
-	struct csi2_dphy *csi2dphy;
-
-	mutex_lock(&csi2dphy_dev_mutex);
-	list_for_each_entry(csi2dphy, &csi2dphy_device_list, list)
-		v4l2_async_notifier_clr_unready_dev(&csi2dphy->notifier);
-	mutex_unlock(&csi2dphy_dev_mutex);
-
-	return 0;
-}
-
-static int rockchip_csi2dphy_clr_unready_dev_param_set(const char *val,
-						       const struct kernel_param *kp)
-{
-#ifdef MODULE
-	__rockchip_csi2dphy_clr_unready_dev();
-#endif
-
-	return 0;
-}
-
-module_param_call(clr_unready_dev,
-		  rockchip_csi2dphy_clr_unready_dev_param_set,
-		  NULL, NULL, 0200);
-MODULE_PARM_DESC(clr_unready_dev, "clear unready devices");
-
-#ifndef MODULE
-static int __init rockchip_csi2_dphy_clr_unready_dev(void)
-{
-	__rockchip_csi2dphy_clr_unready_dev();
-
-	return 0;
-}
-late_initcall_sync(rockchip_csi2_dphy_clr_unready_dev);
-#endif
 
 static const struct dev_pm_ops rockchip_csi2_dphy_pm_ops = {
 	SET_RUNTIME_PM_OPS(csi2_dphy_runtime_suspend,
