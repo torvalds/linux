@@ -167,6 +167,7 @@ static union kvm_mmu_page_role page_role_for_level(struct kvm_vcpu *vcpu,
 	role.direct = true;
 	role.gpte_is_8_bytes = true;
 	role.access = ACC_ALL;
+	role.ad_disabled = !shadow_accessed_mask;
 
 	return role;
 }
