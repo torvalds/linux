@@ -1259,10 +1259,10 @@ enum behavior {
 			 * __folio_lock() waiting on then setting PG_locked.
 			 */
 	SHARED,		/* Hold ref to page and check the bit when woken, like
-			 * wait_on_page_writeback() waiting on PG_writeback.
+			 * folio_wait_writeback() waiting on PG_writeback.
 			 */
 	DROP,		/* Drop ref to page before wait, no check when woken,
-			 * like put_and_wait_on_page_locked() on PG_locked.
+			 * like folio_put_wait_locked() on PG_locked.
 			 */
 };
 
@@ -1439,22 +1439,21 @@ int folio_wait_bit_killable(struct folio *folio, int bit_nr)
 EXPORT_SYMBOL(folio_wait_bit_killable);
 
 /**
- * put_and_wait_on_page_locked - Drop a reference and wait for it to be unlocked
- * @page: The page to wait for.
+ * folio_put_wait_locked - Drop a reference and wait for it to be unlocked
+ * @folio: The folio to wait for.
  * @state: The sleep state (TASK_KILLABLE, TASK_UNINTERRUPTIBLE, etc).
  *
- * The caller should hold a reference on @page.  They expect the page to
+ * The caller should hold a reference on @folio.  They expect the page to
  * become unlocked relatively soon, but do not wish to hold up migration
- * (for example) by holding the reference while waiting for the page to
+ * (for example) by holding the reference while waiting for the folio to
  * come unlocked.  After this function returns, the caller should not
- * dereference @page.
+ * dereference @folio.
  *
- * Return: 0 if the page was unlocked or -EINTR if interrupted by a signal.
+ * Return: 0 if the folio was unlocked or -EINTR if interrupted by a signal.
  */
-int put_and_wait_on_page_locked(struct page *page, int state)
+int folio_put_wait_locked(struct folio *folio, int state)
 {
-	return folio_wait_bit_common(page_folio(page), PG_locked, state,
-			DROP);
+	return folio_wait_bit_common(folio, PG_locked, state, DROP);
 }
 
 /**
@@ -2447,7 +2446,11 @@ static int filemap_update_page(struct kiocb *iocb,
 			goto unlock_mapping;
 		if (!(iocb->ki_flags & IOCB_WAITQ)) {
 			filemap_invalidate_unlock_shared(mapping);
-			put_and_wait_on_page_locked(&folio->page, TASK_KILLABLE);
+			/*
+			 * This is where we usually end up waiting for a
+			 * previously submitted readahead to finish.
+			 */
+			folio_put_wait_locked(folio, TASK_KILLABLE);
 			return AOP_TRUNCATED_PAGE;
 		}
 		error = __folio_lock_async(folio, iocb->ki_waitq);
