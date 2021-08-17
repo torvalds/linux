@@ -2674,27 +2674,6 @@ int mmu_try_to_unsync_pages(struct kvm_vcpu *vcpu, gfn_t gfn, bool can_unsync,
 	return 0;
 }
 
-static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
-		    unsigned int pte_access, int level,
-		    gfn_t gfn, kvm_pfn_t pfn, bool speculative,
-		    bool can_unsync, bool host_writable)
-{
-	u64 spte;
-	struct kvm_mmu_page *sp;
-	int ret;
-
-	sp = sptep_to_sp(sptep);
-
-	ret = make_spte(vcpu, pte_access, level, gfn, pfn, *sptep, speculative,
-			can_unsync, host_writable, sp_ad_disabled(sp), &spte);
-
-	if (*sptep == spte)
-		ret |= SET_SPTE_SPURIOUS;
-	else if (mmu_spte_update(sptep, spte))
-		ret |= SET_SPTE_NEED_REMOTE_TLB_FLUSH;
-	return ret;
-}
-
 static int mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 			unsigned int pte_access, bool write_fault, int level,
 			gfn_t gfn, kvm_pfn_t pfn, bool speculative,
