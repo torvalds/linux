@@ -636,10 +636,8 @@ int qla24xx_async_notify_ack(scsi_qla_host_t *vha, fc_port_t *fcport,
 		fcport->fw_login_state = DSC_LS_PLOGI_PEND;
 		c = "PLOGI";
 		if (vha->hw->flags.edif_enabled &&
-		    (le16_to_cpu(ntfy->u.isp24.flags) & NOTIFY24XX_FLAGS_FCSP)) {
+		    (le16_to_cpu(ntfy->u.isp24.flags) & NOTIFY24XX_FLAGS_FCSP))
 			fcport->flags |= FCF_FCSP_DEVICE;
-			fcport->edif.secured_login = 1;
-		}
 		break;
 	case SRB_NACK_PRLI:
 		fcport->fw_login_state = DSC_LS_PRLI_PEND;

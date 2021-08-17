@@ -1435,18 +1435,15 @@ static int	qla_chk_secure_login(scsi_qla_host_t	*vha, fc_port_t *fcport,
 		ql_dbg(ql_dbg_disc, vha, 0x104d,
 		    "Secure Login established on %8phC\n",
 		    fcport->port_name);
-		fcport->edif.secured_login = 1;
-		fcport->edif.non_secured_login = 0;
 		fcport->flags |= FCF_FCSP_DEVICE;
 	} else {
 		ql_dbg(ql_dbg_disc, vha, 0x104d,
 		    "non-Secure Login %8phC",
 		    fcport->port_name);
-		fcport->edif.secured_login = 0;
-		fcport->edif.non_secured_login = 1;
+		fcport->flags &= ~FCF_FCSP_DEVICE;
 	}
 	if (vha->hw->flags.edif_enabled) {
-		if (fcport->edif.secured_login) {
+		if (fcport->flags & FCF_FCSP_DEVICE) {
 			qla2x00_set_fcport_disc_state(fcport, DSC_LOGIN_AUTH_PEND);
 			/* Start edif prli timer & ring doorbell for app */
 			fcport->edif.rx_sa_set = 0;

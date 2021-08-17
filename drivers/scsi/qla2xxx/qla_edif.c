@@ -568,7 +568,7 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 
 			if (atomic_read(&vha->loop_state) == LOOP_DOWN)
 				break;
-			if (!fcport->edif.secured_login)
+			if (!(fcport->flags & FCF_FCSP_DEVICE))
 				continue;
 
 			fcport->edif.app_started = 1;
@@ -647,7 +647,7 @@ qla_edif_app_stop(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	qla_edb_stop(vha);          /* stop db */
 
 	list_for_each_entry_safe(fcport, tf, &vha->vp_fcports, list) {
-		if (fcport->edif.non_secured_login)
+		if (!(fcport->flags & FCF_FCSP_DEVICE))
 			continue;
 
 		if (fcport->flags & FCF_FCSP_DEVICE) {
@@ -948,7 +948,7 @@ qla_edif_app_getfcinfo(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 			ql_dbg(ql_dbg_edif, vha, 0x2058,
 			    "Found FC_SP fcport - nn %8phN pn %8phN pcnt %d portid=%06x secure %d.\n",
 			    fcport->node_name, fcport->port_name, pcnt,
-			    fcport->d_id.b24, fcport->edif.secured_login);
+			    fcport->d_id.b24, fcport->flags & FCF_FCSP_DEVICE);
 
 			switch (fcport->edif.auth_state) {
 			case VND_CMD_AUTH_STATE_ELS_RCVD:
