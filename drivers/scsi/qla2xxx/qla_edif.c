@@ -2376,7 +2376,7 @@ void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 	fcport = qla2x00_find_fcport_by_pid(host, &purex->pur_info.pur_sid);
 
 	if (host->e_dbell.db_flags != EDB_ACTIVE ||
-	    (fcport && fcport->loop_id == FC_NO_LOOP_ID)) {
+	    (fcport && EDIF_SESSION_DOWN(fcport))) {
 		ql_dbg(ql_dbg_edif, host, 0x0910c, "%s e_dbell.db_flags =%x %06x\n",
 		    __func__, host->e_dbell.db_flags,
 		    fcport ? fcport->d_id.b24 : 0);

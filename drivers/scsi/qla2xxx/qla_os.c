@@ -4345,7 +4345,7 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 		goto fail_elsrej;
 	}
 	ha->elsrej.c->er_cmd = ELS_LS_RJT;
-	ha->elsrej.c->er_reason = ELS_RJT_BUSY;
+	ha->elsrej.c->er_reason = ELS_RJT_LOGIC;
 	ha->elsrej.c->er_explan = ELS_EXPL_UNAB_DATA;
 	return 0;
 

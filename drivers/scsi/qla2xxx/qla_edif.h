@@ -127,4 +127,10 @@ struct enode {
 		struct purexevent	purexinfo;
 	} u;
 };
+
+#define EDIF_SESSION_DOWN(_s) \
+	(_s->disc_state == DSC_DELETE_PEND || \
+	 _s->disc_state == DSC_DELETED || \
+	 !_s->edif.app_sess_online)
+
 #endif	/* __QLA_EDIF_H */
