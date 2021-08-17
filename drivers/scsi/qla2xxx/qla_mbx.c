@@ -4050,6 +4050,9 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 				fcport->n2n_flag = 1;
 				fcport->keep_nport_handle = 1;
 				fcport->login_retry = vha->hw->login_retry_count;
+				fcport->fc4_type = FS_FC4TYPE_FCP;
+				if (vha->flags.nvme_enabled)
+					fcport->fc4_type |= FS_FC4TYPE_NVME;
 
 				if (wwn_to_u64(vha->port_name) >
 				    wwn_to_u64(fcport->port_name)) {
