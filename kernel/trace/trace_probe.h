@@ -354,7 +354,7 @@ int trace_probe_create(const char *raw_command, int (*createfn)(int, const char 
 #define TPARG_FL_MASK	GENMASK(2, 0)
 
 extern int traceprobe_parse_probe_arg(struct trace_probe *tp, int i,
-				char *arg, unsigned int flags);
+				const char *argv, unsigned int flags);
 
 extern int traceprobe_update_arg(struct probe_arg *arg);
 extern void traceprobe_free_probe_arg(struct probe_arg *arg);
