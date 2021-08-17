@@ -227,11 +227,11 @@ static void qla_nvme_abort_work(struct work_struct *work)
 	srb_t *sp = priv->sp;
 	fc_port_t *fcport = sp->fcport;
 	struct qla_hw_data *ha = fcport->vha->hw;
-	int rval;
+	int rval, abts_done_called = 1;
 
 	ql_dbg(ql_dbg_io, fcport->vha, 0xffff,
-	       "%s called for sp=%p, hndl=%x on fcport=%p deleted=%d\n",
-	       __func__, sp, sp->handle, fcport, fcport->deleted);
+	       "%s called for sp=%p, hndl=%x on fcport=%p desc=%p deleted=%d\n",
+	       __func__, sp, sp->handle, fcport, sp->u.iocb_cmd.u.nvme.desc, fcport->deleted);
 
 	if (!ha->flags.fw_started || fcport->deleted == QLA_SESS_DELETED)
 		goto out;
@@ -252,11 +252,19 @@ static void qla_nvme_abort_work(struct work_struct *work)
 	    sp, sp->handle, fcport, rval);
 
 	/*
+	 * If async tmf is enabled, the abort callback is called only on
+	 * return codes QLA_SUCCESS and QLA_ERR_FROM_FW.
+	 */
+	if (ql2xasynctmfenable &&
+	    rval != QLA_SUCCESS && rval != QLA_ERR_FROM_FW)
+		abts_done_called = 0;
+
+	/*
 	 * Returned before decreasing kref so that I/O requests
 	 * are waited until ABTS complete. This kref is decreased
 	 * at qla24xx_abort_sp_done function.
 	 */
-	if (ql2xabts_wait_nvme && QLA_ABTS_WAIT_ENABLED(sp))
+	if (abts_done_called && ql2xabts_wait_nvme && QLA_ABTS_WAIT_ENABLED(sp))
 		return;
 out:
 	/* kref_get was done before work was schedule. */
@@ -804,14 +812,14 @@ void qla_nvme_abort_process_comp_status(struct abort_entry_24xx *abt, srb_t *ori
 	case CS_PORT_LOGGED_OUT:
 	/* BA_RJT was received for the ABTS */
 	case CS_PORT_CONFIG_CHG:
-		ql_dbg(ql_dbg_async + ql_dbg_mbx, vha, 0xf09d,
+		ql_dbg(ql_dbg_async, vha, 0xf09d,
 		       "Abort I/O IOCB completed with error, comp_status=%x\n",
 		comp_status);
 		break;
 
 	/* BA_RJT was received for the ABTS */
 	case CS_REJECT_RECEIVED:
-		ql_dbg(ql_dbg_async + ql_dbg_mbx, vha, 0xf09e,
+		ql_dbg(ql_dbg_async, vha, 0xf09e,
 		       "BA_RJT was received for the ABTS rjt_vendorUnique = %u",
 			abt->fw.ba_rjt_vendorUnique);
 		ql_dbg(ql_dbg_async + ql_dbg_mbx, vha, 0xf09e,
@@ -820,18 +828,18 @@ void qla_nvme_abort_process_comp_status(struct abort_entry_24xx *abt, srb_t *ori
 		break;
 
 	case CS_COMPLETE:
-		ql_dbg(ql_dbg_async + ql_dbg_mbx, vha, 0xf09f,
+		ql_dbg(ql_dbg_async + ql_dbg_verbose, vha, 0xf09f,
 		       "IOCB request is completed successfully comp_status=%x\n",
 		comp_status);
 		break;
 
 	case CS_IOCB_ERROR:
-		ql_dbg(ql_dbg_async + ql_dbg_mbx, vha, 0xf0a0,
+		ql_dbg(ql_dbg_async, vha, 0xf0a0,
 		       "IOCB request is failed, comp_status=%x\n", comp_status);
 		break;
 
 	default:
-		ql_dbg(ql_dbg_async + ql_dbg_mbx, vha, 0xf0a1,
+		ql_dbg(ql_dbg_async, vha, 0xf0a1,
 		       "Invalid Abort IO IOCB Completion Status %x\n",
 		comp_status);
 		break;
