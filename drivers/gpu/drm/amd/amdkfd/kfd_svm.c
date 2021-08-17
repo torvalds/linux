@@ -1547,7 +1547,7 @@ unreserve_out:
  * Context: Returns with mmap write lock held, pending deferred work flushed
  *
  */
-static void
+void
 svm_range_list_lock_and_flush_work(struct svm_range_list *svms,
 				   struct mm_struct *mm)
 {
