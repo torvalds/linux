@@ -271,7 +271,7 @@ static __maybe_unused int max98373_resume(struct device *dev)
 	struct max98373_priv *max98373 = dev_get_drvdata(dev);
 	unsigned long time;
 
-	if (!max98373->hw_init)
+	if (!max98373->first_hw_init)
 		return 0;
 
 	if (!slave->unattach_request)
@@ -362,7 +362,7 @@ static int max98373_io_init(struct sdw_slave *slave)
 	struct device *dev = &slave->dev;
 	struct max98373_priv *max98373 = dev_get_drvdata(dev);
 
-	if (max98373->pm_init_once) {
+	if (max98373->first_hw_init) {
 		regcache_cache_only(max98373->regmap, false);
 		regcache_cache_bypass(max98373->regmap, true);
 	}
@@ -370,7 +370,7 @@ static int max98373_io_init(struct sdw_slave *slave)
 	/*
 	 * PM runtime is only enabled when a Slave reports as Attached
 	 */
-	if (!max98373->pm_init_once) {
+	if (!max98373->first_hw_init) {
 		/* set autosuspend parameters */
 		pm_runtime_set_autosuspend_delay(dev, 3000);
 		pm_runtime_use_autosuspend(dev);
@@ -462,12 +462,12 @@ static int max98373_io_init(struct sdw_slave *slave)
 	regmap_write(max98373->regmap, MAX98373_R20B5_BDE_EN, 1);
 	regmap_write(max98373->regmap, MAX98373_R20E2_LIMITER_EN, 1);
 
-	if (max98373->pm_init_once) {
+	if (max98373->first_hw_init) {
 		regcache_cache_bypass(max98373->regmap, false);
 		regcache_mark_dirty(max98373->regmap);
 	}
 
-	max98373->pm_init_once = true;
+	max98373->first_hw_init = true;
 	max98373->hw_init = true;
 
 	pm_runtime_mark_last_busy(dev);
@@ -787,6 +787,8 @@ static int max98373_init(struct sdw_slave *slave, struct regmap *regmap)
 	max98373->cache = devm_kcalloc(dev, max98373->cache_num,
 				       sizeof(*max98373->cache),
 				       GFP_KERNEL);
+	if (!max98373->cache)
+		return -ENOMEM;
 
 	for (i = 0; i < max98373->cache_num; i++)
 		max98373->cache[i].reg = max98373_sdw_cache_reg[i];
@@ -795,7 +797,7 @@ static int max98373_init(struct sdw_slave *slave, struct regmap *regmap)
 	max98373_slot_config(dev, max98373);
 
 	max98373->hw_init = false;
-	max98373->pm_init_once = false;
+	max98373->first_hw_init = false;
 
 	/* codec registration  */
 	ret = devm_snd_soc_register_component(dev, &soc_codec_dev_max98373_sdw,

@@ -50,6 +50,7 @@
 #include <linux/screen_info.h>
 #include <linux/vt.h>
 #include <linux/console.h>
+#include <linux/acpi.h>
 
 #include <linux/uaccess.h>
 
@@ -1450,9 +1451,23 @@ static struct miscdevice vga_arb_device = {
 	MISC_DYNAMIC_MINOR, "vga_arbiter", &vga_arb_device_fops
 };
 
+#if defined(CONFIG_ACPI)
+static bool vga_arb_integrated_gpu(struct device *dev)
+{
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+
+	return adev && !strcmp(acpi_device_hid(adev), ACPI_VIDEO_HID);
+}
+#else
+static bool vga_arb_integrated_gpu(struct device *dev)
+{
+	return false;
+}
+#endif
+
 static void __init vga_arb_select_default_device(void)
 {
-	struct pci_dev *pdev;
+	struct pci_dev *pdev, *found = NULL;
 	struct vga_device *vgadev;
 
 #if defined(CONFIG_X86) || defined(CONFIG_IA64)
@@ -1505,18 +1520,24 @@ static void __init vga_arb_select_default_device(void)
 #endif
 
 	if (!vga_default_device()) {
-		list_for_each_entry(vgadev, &vga_list, list) {
+		list_for_each_entry_reverse(vgadev, &vga_list, list) {
 			struct device *dev = &vgadev->pdev->dev;
 			u16 cmd;
 
 			pdev = vgadev->pdev;
 			pci_read_config_word(pdev, PCI_COMMAND, &cmd);
 			if (cmd & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY)) {
-				vgaarb_info(dev, "setting as boot device (VGA legacy resources not available)\n");
-				vga_set_default_device(pdev);
-				break;
+				found = pdev;
+				if (vga_arb_integrated_gpu(dev))
+					break;
 			}
 		}
+	}
+
+	if (found) {
+		vgaarb_info(&found->dev, "setting as boot device (VGA legacy resources not available)\n");
+		vga_set_default_device(found);
+		return;
 	}
 
 	if (!vga_default_device()) {

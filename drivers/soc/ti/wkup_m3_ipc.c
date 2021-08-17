@@ -445,10 +445,8 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	m3_ipc->ipc_mem_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(m3_ipc->ipc_mem_base)) {
-		dev_err(dev, "could not ioremap ipc_mem\n");
+	if (IS_ERR(m3_ipc->ipc_mem_base))
 		return PTR_ERR(m3_ipc->ipc_mem_base);
-	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (!irq) {

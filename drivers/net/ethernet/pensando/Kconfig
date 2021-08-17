@@ -20,6 +20,7 @@ if NET_VENDOR_PENSANDO
 config IONIC
 	tristate "Pensando Ethernet IONIC Support"
 	depends on 64BIT && PCI
+	depends on PTP_1588_CLOCK || !PTP_1588_CLOCK
 	select NET_DEVLINK
 	select DIMLIB
 	help

@@ -457,12 +457,12 @@ static int emit_ggtt_store_dw(struct i915_request *rq, u32 addr, u32 value)
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	if (INTEL_GEN(rq->engine->i915) >= 8) {
+	if (GRAPHICS_VER(rq->engine->i915) >= 8) {
 		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*cs++ = addr;
 		*cs++ = 0;
 		*cs++ = value;
-	} else if (INTEL_GEN(rq->engine->i915) >= 4) {
+	} else if (GRAPHICS_VER(rq->engine->i915) >= 4) {
 		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*cs++ = 0;
 		*cs++ = addr;
@@ -992,7 +992,7 @@ static int live_hwsp_read(void *arg)
 	 * even across multiple wraps.
 	 */
 
-	if (INTEL_GEN(gt->i915) < 8) /* CS convenience [SRM/LRM] */
+	if (GRAPHICS_VER(gt->i915) < 8) /* CS convenience [SRM/LRM] */
 		return 0;
 
 	tl = intel_timeline_create(gt);

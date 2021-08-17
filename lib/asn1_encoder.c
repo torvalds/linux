@@ -181,7 +181,7 @@ EXPORT_SYMBOL_GPL(asn1_encode_oid);
 /**
  * asn1_encode_length() - encode a length to follow an ASN.1 tag
  * @data: pointer to encode at
- * @data_len: pointer to remaning length (adjusted by routine)
+ * @data_len: pointer to remaining length (adjusted by routine)
  * @len: length to encode
  *
  * This routine can encode lengths up to 65535 using the ASN.1 rules.

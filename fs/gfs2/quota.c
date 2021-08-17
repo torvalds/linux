@@ -825,7 +825,7 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	u64 size;
 
 	if (gfs2_is_stuffed(ip)) {
-		err = gfs2_unstuff_dinode(ip, NULL);
+		err = gfs2_unstuff_dinode(ip);
 		if (err)
 			return err;
 	}

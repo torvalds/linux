@@ -18,6 +18,7 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_display_power.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_hdcp.h"
 #include "intel_sideband.h"
@@ -286,11 +287,12 @@ static int intel_hdcp_load_keys(struct drm_i915_private *dev_priv)
 	/*
 	 * Initiate loading the HDCP key from fuses.
 	 *
-	 * BXT+ platforms, HDCP key needs to be loaded by SW. Only Gen 9
-	 * platforms except BXT and GLK, differ in the key load trigger process
-	 * from other platforms. So GEN9_BC uses the GT Driver Mailbox i/f.
+	 * BXT+ platforms, HDCP key needs to be loaded by SW. Only display
+	 * version 9 platforms (minus BXT) differ in the key load trigger
+	 * process from other platforms. These platforms use the GT Driver
+	 * Mailbox interface.
 	 */
-	if (IS_GEN9_BC(dev_priv)) {
+	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv)) {
 		ret = sandybridge_pcode_write(dev_priv,
 					      SKL_PCODE_LOAD_HDCP_KEYS, 1);
 		if (ret) {

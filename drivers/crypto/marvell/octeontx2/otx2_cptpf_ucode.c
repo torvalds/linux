@@ -16,6 +16,8 @@
 #define LOADFVC_MAJOR_OP 0x01
 #define LOADFVC_MINOR_OP 0x08
 
+#define CTX_FLUSH_TIMER_CNT 0xFFFFFF
+
 struct fw_info_t {
 	struct list_head ucodes;
 };
@@ -666,7 +668,8 @@ static int reserve_engines(struct device *dev,
 static void ucode_unload(struct device *dev, struct otx2_cpt_ucode *ucode)
 {
 	if (ucode->va) {
-		dma_free_coherent(dev, ucode->size, ucode->va, ucode->dma);
+		dma_free_coherent(dev, OTX2_CPT_UCODE_SZ, ucode->va,
+				  ucode->dma);
 		ucode->va = NULL;
 		ucode->dma = 0;
 		ucode->size = 0;
@@ -685,7 +688,7 @@ static int copy_ucode_to_dma_mem(struct device *dev,
 	u32 i;
 
 	/*  Allocate DMAable space */
-	ucode->va = dma_alloc_coherent(dev, ucode->size, &ucode->dma,
+	ucode->va = dma_alloc_coherent(dev, OTX2_CPT_UCODE_SZ, &ucode->dma,
 				       GFP_KERNEL);
 	if (!ucode->va)
 		return -ENOMEM;
@@ -1100,11 +1103,12 @@ int otx2_cpt_get_eng_grp(struct otx2_cpt_eng_grps *eng_grps, int eng_type)
 	return eng_grp_num;
 }
 
-int otx2_cpt_create_eng_grps(struct pci_dev *pdev,
+int otx2_cpt_create_eng_grps(struct otx2_cptpf_dev *cptpf,
 			     struct otx2_cpt_eng_grps *eng_grps)
 {
 	struct otx2_cpt_uc_info_t *uc_info[OTX2_CPT_MAX_ETYPES_PER_GRP] = {  };
 	struct otx2_cpt_engines engs[OTX2_CPT_MAX_ETYPES_PER_GRP] = { {0} };
+	struct pci_dev *pdev = cptpf->pdev;
 	struct fw_info_t fw_info;
 	int ret;
 
@@ -1180,6 +1184,23 @@ int otx2_cpt_create_eng_grps(struct pci_dev *pdev,
 	eng_grps->is_grps_created = true;
 
 	cpt_ucode_release_fw(&fw_info);
+
+	if (is_dev_otx2(pdev))
+		return 0;
+	/*
+	 * Configure engine group mask to allow context prefetching
+	 * for the groups.
+	 */
+	otx2_cpt_write_af_reg(&cptpf->afpf_mbox, pdev, CPT_AF_CTL,
+			      OTX2_CPT_ALL_ENG_GRPS_MASK << 3 | BIT_ULL(16),
+			      BLKADDR_CPT0);
+	/*
+	 * Set interval to periodically flush dirty data for the next
+	 * CTX cache entry. Set the interval count to maximum supported
+	 * value.
+	 */
+	otx2_cpt_write_af_reg(&cptpf->afpf_mbox, pdev, CPT_AF_CTX_FLUSH_TIMER,
+			      CTX_FLUSH_TIMER_CNT, BLKADDR_CPT0);
 	return 0;
 
 delete_eng_grp:
@@ -1460,9 +1481,10 @@ int otx2_cpt_discover_eng_capabilities(struct otx2_cptpf_dev *cptpf)
 		iq_cmd.cptr.s.grp = otx2_cpt_get_eng_grp(&cptpf->eng_grps,
 							 etype);
 		otx2_cpt_fill_inst(&inst, &iq_cmd, rptr_baddr);
-		otx2_cpt_send_cmd(&inst, 1, &cptpf->lfs.lf[0]);
+		lfs->ops->send_cmd(&inst, 1, &cptpf->lfs.lf[0]);
 
-		while (result->s.compcode == OTX2_CPT_COMPLETION_CODE_INIT)
+		while (lfs->ops->cpt_get_compcode(result) ==
+						OTX2_CPT_COMPLETION_CODE_INIT)
 			cpu_relax();
 
 		cptpf->eng_caps[etype].u = be64_to_cpup(rptr);

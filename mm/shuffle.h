@@ -10,7 +10,7 @@
 DECLARE_STATIC_KEY_FALSE(page_alloc_shuffle_key);
 extern void __shuffle_free_memory(pg_data_t *pgdat);
 extern bool shuffle_pick_tail(void);
-static inline void shuffle_free_memory(pg_data_t *pgdat)
+static inline void __meminit shuffle_free_memory(pg_data_t *pgdat)
 {
 	if (!static_branch_unlikely(&page_alloc_shuffle_key))
 		return;
@@ -18,7 +18,7 @@ static inline void shuffle_free_memory(pg_data_t *pgdat)
 }
 
 extern void __shuffle_zone(struct zone *z);
-static inline void shuffle_zone(struct zone *z)
+static inline void __meminit shuffle_zone(struct zone *z)
 {
 	if (!static_branch_unlikely(&page_alloc_shuffle_key))
 		return;

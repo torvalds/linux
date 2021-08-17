@@ -75,9 +75,7 @@ config OF_NET
 	def_bool y
 
 config OF_RESERVED_MEM
-	bool
-	depends on OF_EARLY_FLATTREE
-	default y if DMA_DECLARE_COHERENT || DMA_CMA
+	def_bool OF_EARLY_FLATTREE
 
 config OF_RESOLVE
 	bool

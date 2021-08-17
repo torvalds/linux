@@ -338,7 +338,7 @@ do {									     \
 	FP_SET_EXCEPTION(FP_EX_INVALID | FP_EX_INVALID_ISI);		     \
 	break;								     \
       }									     \
-    /* FALLTHRU */							     \
+    fallthrough;							     \
 									     \
   case _FP_CLS_COMBINE(FP_CLS_INF,FP_CLS_NORMAL):			     \
   case _FP_CLS_COMBINE(FP_CLS_INF,FP_CLS_ZERO):				     \

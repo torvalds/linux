@@ -153,7 +153,7 @@ static void tvout_write(struct sti_tvout *tvout, u32 val, int offset)
 }
 
 /**
- * Set the clipping mode of a VIP
+ * tvout_vip_set_color_order - Set the clipping mode of a VIP
  *
  * @tvout: tvout structure
  * @reg: register to set
@@ -177,7 +177,7 @@ static void tvout_vip_set_color_order(struct sti_tvout *tvout, int reg,
 }
 
 /**
- * Set the clipping mode of a VIP
+ * tvout_vip_set_clip_mode - Set the clipping mode of a VIP
  *
  * @tvout: tvout structure
  * @reg: register to set
@@ -193,7 +193,7 @@ static void tvout_vip_set_clip_mode(struct sti_tvout *tvout, int reg, u32 range)
 }
 
 /**
- * Set the rounded value of a VIP
+ * tvout_vip_set_rnd - Set the rounded value of a VIP
  *
  * @tvout: tvout structure
  * @reg: register to set
@@ -209,7 +209,7 @@ static void tvout_vip_set_rnd(struct sti_tvout *tvout, int reg, u32 rnd)
 }
 
 /**
- * Select the VIP input
+ * tvout_vip_set_sel_input - Select the VIP input
  *
  * @tvout: tvout structure
  * @reg: register to set
@@ -247,7 +247,7 @@ static void tvout_vip_set_sel_input(struct sti_tvout *tvout,
 }
 
 /**
- * Select the input video signed or unsigned
+ * tvout_vip_set_in_vid_fmt - Select the input video signed or unsigned
  *
  * @tvout: tvout structure
  * @reg: register to set
@@ -264,7 +264,7 @@ static void tvout_vip_set_in_vid_fmt(struct sti_tvout *tvout,
 }
 
 /**
- * Set preformatter matrix
+ * tvout_preformatter_set_matrix - Set preformatter matrix
  *
  * @tvout: tvout structure
  * @mode: display mode structure
@@ -289,7 +289,7 @@ static void tvout_preformatter_set_matrix(struct sti_tvout *tvout,
 }
 
 /**
- * Start VIP block for DVO output
+ * tvout_dvo_start - Start VIP block for DVO output
  *
  * @tvout: pointer on tvout structure
  * @main_path: true if main path has to be used in the vip configuration
@@ -343,7 +343,7 @@ static void tvout_dvo_start(struct sti_tvout *tvout, bool main_path)
 }
 
 /**
- * Start VIP block for HDMI output
+ * tvout_hdmi_start - Start VIP block for HDMI output
  *
  * @tvout: pointer on tvout structure
  * @main_path: true if main path has to be used in the vip configuration
@@ -392,7 +392,7 @@ static void tvout_hdmi_start(struct sti_tvout *tvout, bool main_path)
 }
 
 /**
- * Start HDF VIP and HD DAC
+ * tvout_hda_start - Start HDF VIP and HD DAC
  *
  * @tvout: pointer on tvout structure
  * @main_path: true if main path has to be used in the vip configuration

@@ -61,10 +61,9 @@ int asoc_simple_parse_daifmt(struct device *dev,
 	struct device_node *framemaster = NULL;
 	unsigned int daifmt;
 
-	daifmt = snd_soc_of_parse_daifmt(node, prefix,
-					 &bitclkmaster, &framemaster);
-	daifmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
+	daifmt = snd_soc_daifmt_parse_format(node, prefix);
 
+	snd_soc_daifmt_parse_clock_provider_as_phandle(node, prefix, &bitclkmaster, &framemaster);
 	if (!bitclkmaster && !framemaster) {
 		/*
 		 * No dai-link level and master setting was not found from
@@ -73,15 +72,10 @@ int asoc_simple_parse_daifmt(struct device *dev,
 		 */
 		dev_dbg(dev, "Revert to legacy daifmt parsing\n");
 
-		daifmt = snd_soc_of_parse_daifmt(codec, NULL, NULL, NULL) |
-			(daifmt & ~SND_SOC_DAIFMT_CLOCK_MASK);
+		daifmt |= snd_soc_daifmt_parse_clock_provider_as_flag(codec, NULL);
 	} else {
-		if (codec == bitclkmaster)
-			daifmt |= (codec == framemaster) ?
-				SND_SOC_DAIFMT_CBM_CFM : SND_SOC_DAIFMT_CBM_CFS;
-		else
-			daifmt |= (codec == framemaster) ?
-				SND_SOC_DAIFMT_CBS_CFM : SND_SOC_DAIFMT_CBS_CFS;
+		daifmt |= snd_soc_daifmt_clock_provider_from_bitmap(
+				((codec == bitclkmaster) << 4) | (codec == framemaster));
 	}
 
 	of_node_put(bitclkmaster);

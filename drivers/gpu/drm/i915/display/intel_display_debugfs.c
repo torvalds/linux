@@ -7,10 +7,11 @@
 #include <drm/drm_fourcc.h>
 
 #include "i915_debugfs.h"
-#include "intel_csr.h"
 #include "intel_display_debugfs.h"
 #include "intel_display_power.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_dmc.h"
 #include "intel_dp.h"
 #include "intel_fbc.h"
 #include "intel_hdcp.h"
@@ -531,24 +532,24 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	intel_wakeref_t wakeref;
-	struct intel_csr *csr;
+	struct intel_dmc *dmc;
 	i915_reg_t dc5_reg, dc6_reg = {};
 
-	if (!HAS_CSR(dev_priv))
+	if (!HAS_DMC(dev_priv))
 		return -ENODEV;
 
-	csr = &dev_priv->csr;
+	dmc = &dev_priv->dmc;
 
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
-	seq_printf(m, "fw loaded: %s\n", yesno(csr->dmc_payload != NULL));
-	seq_printf(m, "path: %s\n", csr->fw_path);
+	seq_printf(m, "fw loaded: %s\n", yesno(intel_dmc_has_payload(dev_priv)));
+	seq_printf(m, "path: %s\n", dmc->fw_path);
 
-	if (!csr->dmc_payload)
+	if (!intel_dmc_has_payload(dev_priv))
 		goto out;
 
-	seq_printf(m, "version: %d.%d\n", CSR_VERSION_MAJOR(csr->version),
-		   CSR_VERSION_MINOR(csr->version));
+	seq_printf(m, "version: %d.%d\n", DMC_VERSION_MAJOR(dmc->version),
+		   DMC_VERSION_MINOR(dmc->version));
 
 	if (DISPLAY_VER(dev_priv) >= 12) {
 		if (IS_DGFX(dev_priv)) {
@@ -567,10 +568,10 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 		seq_printf(m, "DC3CO count: %d\n",
 			   intel_de_read(dev_priv, DMC_DEBUG3));
 	} else {
-		dc5_reg = IS_BROXTON(dev_priv) ? BXT_CSR_DC3_DC5_COUNT :
-						 SKL_CSR_DC3_DC5_COUNT;
-		if (!IS_GEN9_LP(dev_priv))
-			dc6_reg = SKL_CSR_DC5_DC6_COUNT;
+		dc5_reg = IS_BROXTON(dev_priv) ? BXT_DMC_DC3_DC5_COUNT :
+						 SKL_DMC_DC3_DC5_COUNT;
+		if (!IS_GEMINILAKE(dev_priv) && !IS_BROXTON(dev_priv))
+			dc6_reg = SKL_DMC_DC5_DC6_COUNT;
 	}
 
 	seq_printf(m, "DC3 -> DC5 count: %d\n",
@@ -581,10 +582,10 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 
 out:
 	seq_printf(m, "program base: 0x%08x\n",
-		   intel_de_read(dev_priv, CSR_PROGRAM(0)));
+		   intel_de_read(dev_priv, DMC_PROGRAM(0)));
 	seq_printf(m, "ssp base: 0x%08x\n",
-		   intel_de_read(dev_priv, CSR_SSP_BASE));
-	seq_printf(m, "htp: 0x%08x\n", intel_de_read(dev_priv, CSR_HTP_SKL));
+		   intel_de_read(dev_priv, DMC_SSP_BASE));
+	seq_printf(m, "htp: 0x%08x\n", intel_de_read(dev_priv, DMC_HTP_SKL));
 
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
@@ -1338,6 +1339,12 @@ intel_lpsp_power_well_enabled(struct drm_i915_private *i915,
 static int i915_lpsp_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
+
+	if (DISPLAY_VER(i915) >= 13) {
+		LPSP_STATUS(!intel_lpsp_power_well_enabled(i915,
+							   SKL_DISP_PW_2));
+		return 0;
+	}
 
 	switch (DISPLAY_VER(i915)) {
 	case 12:

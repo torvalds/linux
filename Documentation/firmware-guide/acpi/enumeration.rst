@@ -258,6 +258,38 @@ input driver::
 		.id_table	= mpu3050_ids,
 	};
 
+Reference to PWM device
+=======================
+
+Sometimes a device can be a consumer of PWM channel. Obviously OS would like
+to know which one. To provide this mapping the special property has been
+introduced, i.e.::
+
+    Device (DEV)
+    {
+        Name (_DSD, Package ()
+        {
+            ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+            Package () {
+                Package () { "compatible", Package () { "pwm-leds" } },
+                Package () { "label", "alarm-led" },
+                Package () { "pwms",
+                    Package () {
+                        "\\_SB.PCI0.PWM",  // <PWM device reference>
+                        0,                 // <PWM index>
+                        600000000,         // <PWM period>
+                        0,                 // <PWM flags>
+                    }
+                }
+            }
+
+        })
+        ...
+
+In the above example the PWM-based LED driver references to the PWM channel 0
+of \_SB.PCI0.PWM device with initial period setting equal to 600 ms (note that
+value is given in nanoseconds).
+
 GPIO support
 ============
 
@@ -339,8 +371,8 @@ a code like this::
 There are also devm_* versions of these functions which release the
 descriptors once the device is released.
 
-See Documentation/firmware-guide/acpi/gpio-properties.rst for more information about the
-_DSD binding related to GPIOs.
+See Documentation/firmware-guide/acpi/gpio-properties.rst for more information
+about the _DSD binding related to GPIOs.
 
 MFD devices
 ===========
@@ -460,7 +492,8 @@ the _DSD of the device object itself or the _DSD of its ancestor in the
 Otherwise, the _DSD itself is regarded as invalid and therefore the "compatible"
 property returned by it is meaningless.
 
-Refer to :doc:`DSD-properties-rules` for more information.
+Refer to Documentation/firmware-guide/acpi/DSD-properties-rules.rst for more
+information.
 
 PCI hierarchy representation
 ============================

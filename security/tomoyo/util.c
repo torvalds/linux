@@ -83,8 +83,8 @@ const u8 tomoyo_index2category[TOMOYO_MAX_MAC_INDEX] = {
 /**
  * tomoyo_convert_time - Convert time_t to YYYY/MM/DD hh/mm/ss.
  *
- * @time:  Seconds since 1970/01/01 00:00:00.
- * @stamp: Pointer to "struct tomoyo_time".
+ * @time64: Seconds since 1970/01/01 00:00:00.
+ * @stamp:  Pointer to "struct tomoyo_time".
  *
  * Returns nothing.
  */

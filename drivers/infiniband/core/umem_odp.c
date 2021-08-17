@@ -445,7 +445,7 @@ retry:
 		if (hmm_order + PAGE_SHIFT < page_shift) {
 			ret = -EINVAL;
 			ibdev_dbg(umem_odp->umem.ibdev,
-				  "%s: un-expected hmm_order %d, page_shift %d\n",
+				  "%s: un-expected hmm_order %u, page_shift %u\n",
 				  __func__, hmm_order, page_shift);
 			break;
 		}

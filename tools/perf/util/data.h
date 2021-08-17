@@ -31,6 +31,7 @@ struct perf_data {
 	bool			 is_dir;
 	bool			 force;
 	bool			 use_stdio;
+	bool			 in_place_update;
 	enum perf_data_mode	 mode;
 
 	struct {

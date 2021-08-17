@@ -35,7 +35,6 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 2
     items:
       - description: controller register bus clock
       - description: baud rate generator and delay control clock

@@ -975,10 +975,12 @@ static int s390_tdb_get(struct task_struct *target,
 			struct membuf to)
 {
 	struct pt_regs *regs = task_pt_regs(target);
+	size_t size;
 
 	if (!(regs->int_code & 0x200))
 		return -ENODATA;
-	return membuf_write(&to, target->thread.trap_tdb, 256);
+	size = sizeof(target->thread.trap_tdb.data);
+	return membuf_write(&to, target->thread.trap_tdb.data, size);
 }
 
 static int s390_tdb_set(struct task_struct *target,

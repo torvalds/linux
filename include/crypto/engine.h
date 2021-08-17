@@ -28,7 +28,7 @@
  * of a failed backlog request
  * crypto-engine, in head position to keep order
  * @list: link with the global crypto engine list
- * @queue_lock: spinlock to syncronise access to request queue
+ * @queue_lock: spinlock to synchronise access to request queue
  * @queue: the crypto queue of the engine
  * @rt: whether this queue is set to run as a realtime task
  * @prepare_crypt_hardware: a request will soon arrive from the queue

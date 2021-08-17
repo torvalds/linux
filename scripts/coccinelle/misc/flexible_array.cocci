@@ -51,21 +51,40 @@ position p : script:python() { relevant(p) };
   };
 )
 
+@only_field depends on patch@
+identifier name, array;
+type T;
+position q;
+@@
+
+(
+  struct name {@q
+    T array[0];
+  };
+|
+  struct {@q
+    T array[0];
+  };
+)
+
 @depends on patch@
 identifier name, array;
 type T;
 position p : script:python() { relevant(p) };
+// position @q with rule "only_field" simplifies
+// handling of bitfields, arrays, etc.
+position q != only_field.q;
 @@
 
 (
-  struct name {
+  struct name {@q
     ...
     T array@p[
 -       0
     ];
   };
 |
-  struct {
+  struct {@q
     ...
     T array@p[
 -       0

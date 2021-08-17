@@ -1058,9 +1058,10 @@ static int _cs46xx_adjust_sample_rate (struct snd_cs46xx *chip, struct snd_cs46x
 		int unlinked = cpcm->pcm_channel->unlinked;
 		cs46xx_dsp_destroy_pcm_channel (chip,cpcm->pcm_channel);
 
-		if ( (cpcm->pcm_channel = cs46xx_dsp_create_pcm_channel (chip, sample_rate, cpcm, 
-									 cpcm->hw_buf.addr,
-									 cpcm->pcm_channel_id)) == NULL) {
+		cpcm->pcm_channel = cs46xx_dsp_create_pcm_channel(chip, sample_rate, cpcm,
+								  cpcm->hw_buf.addr,
+								  cpcm->pcm_channel_id);
+		if (!cpcm->pcm_channel) {
 			dev_err(chip->card->dev,
 				"failed to re-create virtual PCM channel\n");
 			return -ENOMEM;
@@ -1147,7 +1148,8 @@ static int snd_cs46xx_playback_hw_params(struct snd_pcm_substream *substream,
 			runtime->dma_addr = 0;
 			runtime->dma_bytes = 0;
 		}
-		if ((err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0) {
+		err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
+		if (err < 0) {
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 			mutex_unlock(&chip->spos_mutex);
 #endif
@@ -1295,7 +1297,8 @@ static int snd_cs46xx_capture_hw_params(struct snd_pcm_substream *substream,
 			runtime->dma_addr = 0;
 			runtime->dma_bytes = 0;
 		}
-		if ((err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0)
+		err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
+		if (err < 0)
 			return err;
 		substream->ops = &snd_cs46xx_capture_indirect_ops;
 	}
@@ -1760,7 +1763,8 @@ int snd_cs46xx_pcm(struct snd_cs46xx *chip, int device)
 	struct snd_pcm *pcm;
 	int err;
 
-	if ((err = snd_pcm_new(chip->card, "CS46xx", device, MAX_PLAYBACK_CHANNELS, 1, &pcm)) < 0)
+	err = snd_pcm_new(chip->card, "CS46xx", device, MAX_PLAYBACK_CHANNELS, 1, &pcm);
+	if (err < 0)
 		return err;
 
 	pcm->private_data = chip;
@@ -1787,7 +1791,8 @@ int snd_cs46xx_pcm_rear(struct snd_cs46xx *chip, int device)
 	struct snd_pcm *pcm;
 	int err;
 
-	if ((err = snd_pcm_new(chip->card, "CS46xx - Rear", device, MAX_PLAYBACK_CHANNELS, 0, &pcm)) < 0)
+	err = snd_pcm_new(chip->card, "CS46xx - Rear", device, MAX_PLAYBACK_CHANNELS, 0, &pcm);
+	if (err < 0)
 		return err;
 
 	pcm->private_data = chip;
@@ -1811,7 +1816,8 @@ int snd_cs46xx_pcm_center_lfe(struct snd_cs46xx *chip, int device)
 	struct snd_pcm *pcm;
 	int err;
 
-	if ((err = snd_pcm_new(chip->card, "CS46xx - Center LFE", device, MAX_PLAYBACK_CHANNELS, 0, &pcm)) < 0)
+	err = snd_pcm_new(chip->card, "CS46xx - Center LFE", device, MAX_PLAYBACK_CHANNELS, 0, &pcm);
+	if (err < 0)
 		return err;
 
 	pcm->private_data = chip;
@@ -1835,7 +1841,8 @@ int snd_cs46xx_pcm_iec958(struct snd_cs46xx *chip, int device)
 	struct snd_pcm *pcm;
 	int err;
 
-	if ((err = snd_pcm_new(chip->card, "CS46xx - IEC958", device, 1, 0, &pcm)) < 0)
+	err = snd_pcm_new(chip->card, "CS46xx - IEC958", device, 1, 0, &pcm);
+	if (err < 0)
 		return err;
 
 	pcm->private_data = chip;
@@ -2414,7 +2421,8 @@ static void snd_cs46xx_codec_reset (struct snd_ac97 * ac97)
 
 		/* test if we can write to the record gain volume register */
 		snd_ac97_write(ac97, AC97_REC_GAIN, 0x8a05);
-		if ((err = snd_ac97_read(ac97, AC97_REC_GAIN)) == 0x8a05)
+		err = snd_ac97_read(ac97, AC97_REC_GAIN);
+		if (err == 0x8a05)
 			return;
 
 		msleep(10);
@@ -2476,7 +2484,8 @@ int snd_cs46xx_mixer(struct snd_cs46xx *chip, int spdif_device)
 	/* detect primary codec */
 	chip->nr_ac97_codecs = 0;
 	dev_dbg(chip->card->dev, "detecting primary codec\n");
-	if ((err = snd_ac97_bus(card, 0, &ops, chip, &chip->ac97_bus)) < 0)
+	err = snd_ac97_bus(card, 0, &ops, chip, &chip->ac97_bus);
+	if (err < 0)
 		return err;
 	chip->ac97_bus->private_free = snd_cs46xx_mixer_free_ac97_bus;
 
@@ -2497,7 +2506,8 @@ int snd_cs46xx_mixer(struct snd_cs46xx *chip, int spdif_device)
 		kctl = snd_ctl_new1(&snd_cs46xx_controls[idx], chip);
 		if (kctl && kctl->id.iface == SNDRV_CTL_ELEM_IFACE_PCM)
 			kctl->id.device = spdif_device;
-		if ((err = snd_ctl_add(card, kctl)) < 0)
+		err = snd_ctl_add(card, kctl);
+		if (err < 0)
 			return err;
 	}
 
@@ -2684,7 +2694,8 @@ int snd_cs46xx_midi(struct snd_cs46xx *chip, int device)
 	struct snd_rawmidi *rmidi;
 	int err;
 
-	if ((err = snd_rawmidi_new(chip->card, "CS46XX", device, 1, 1, &rmidi)) < 0)
+	err = snd_rawmidi_new(chip->card, "CS46XX", device, 1, 1, &rmidi);
+	if (err < 0)
 		return err;
 	strcpy(rmidi->name, "CS46XX");
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT, &snd_cs46xx_midi_output);
@@ -3526,7 +3537,8 @@ static void hercules_mixer_init (struct snd_cs46xx *chip)
 		struct snd_kcontrol *kctl;
 
 		kctl = snd_ctl_new1(&snd_hercules_controls[idx], chip);
-		if ((err = snd_ctl_add(card, kctl)) < 0) {
+		err = snd_ctl_add(card, kctl);
+		if (err < 0) {
 			dev_err(card->dev,
 				"failed to initialize Hercules mixer (%d)\n",
 				err);
@@ -3871,7 +3883,8 @@ int snd_cs46xx_create(struct snd_card *card,
 	*rchip = NULL;
 
 	/* enable PCI device */
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pci_enable_device(pci);
+	if (err < 0)
 		return err;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
@@ -3965,8 +3978,9 @@ int snd_cs46xx_create(struct snd_card *card,
 
 	for (idx = 0; idx < 5; idx++) {
 		region = &chip->region.idx[idx];
-		if ((region->resource = request_mem_region(region->base, region->size,
-							   region->name)) == NULL) {
+		region->resource = request_mem_region(region->base, region->size,
+						      region->name);
+		if (!region->resource) {
 			dev_err(chip->card->dev,
 				"unable to request memory region 0x%lx-0x%lx\n",
 				   region->base, region->base + region->size - 1);
@@ -4005,7 +4019,8 @@ int snd_cs46xx_create(struct snd_card *card,
 		return err;
 	}
 
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	if (err < 0) {
 		snd_cs46xx_free(chip);
 		return err;
 	}

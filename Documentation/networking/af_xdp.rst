@@ -243,8 +243,8 @@ Configuration Flags and Socket Options
 These are the various configuration flags that can be used to control
 and monitor the behavior of AF_XDP sockets.
 
-XDP_COPY and XDP_ZERO_COPY bind flags
--------------------------------------
+XDP_COPY and XDP_ZEROCOPY bind flags
+------------------------------------
 
 When you bind to a socket, the kernel will first try to use zero-copy
 copy. If zero-copy is not supported, it will fall back on using copy
@@ -252,7 +252,7 @@ mode, i.e. copying all packets out to user space. But if you would
 like to force a certain mode, you can use the following flags. If you
 pass the XDP_COPY flag to the bind call, the kernel will force the
 socket into copy mode. If it cannot use copy mode, the bind call will
-fail with an error. Conversely, the XDP_ZERO_COPY flag will force the
+fail with an error. Conversely, the XDP_ZEROCOPY flag will force the
 socket into zero-copy mode or fail.
 
 XDP_SHARED_UMEM bind flag
@@ -290,19 +290,19 @@ round-robin example of distributing packets is shown below:
    #define MAX_SOCKS 16
 
    struct {
-        __uint(type, BPF_MAP_TYPE_XSKMAP);
-        __uint(max_entries, MAX_SOCKS);
-        __uint(key_size, sizeof(int));
-        __uint(value_size, sizeof(int));
+       __uint(type, BPF_MAP_TYPE_XSKMAP);
+       __uint(max_entries, MAX_SOCKS);
+       __uint(key_size, sizeof(int));
+       __uint(value_size, sizeof(int));
    } xsks_map SEC(".maps");
 
    static unsigned int rr;
 
    SEC("xdp_sock") int xdp_sock_prog(struct xdp_md *ctx)
    {
-	rr = (rr + 1) & (MAX_SOCKS - 1);
+       rr = (rr + 1) & (MAX_SOCKS - 1);
 
-	return bpf_redirect_map(&xsks_map, rr, XDP_DROP);
+       return bpf_redirect_map(&xsks_map, rr, XDP_DROP);
    }
 
 Note, that since there is only a single set of FILL and COMPLETION
@@ -379,7 +379,7 @@ would look like this for the TX path:
 .. code-block:: c
 
    if (xsk_ring_prod__needs_wakeup(&my_tx_ring))
-      sendto(xsk_socket__fd(xsk_handle), NULL, 0, MSG_DONTWAIT, NULL, 0);
+       sendto(xsk_socket__fd(xsk_handle), NULL, 0, MSG_DONTWAIT, NULL, 0);
 
 I.e., only use the syscall if the flag is set.
 
@@ -442,9 +442,9 @@ purposes. The supported statistics are shown below:
 .. code-block:: c
 
    struct xdp_statistics {
-	  __u64 rx_dropped; /* Dropped for reasons other than invalid desc */
-	  __u64 rx_invalid_descs; /* Dropped due to invalid descriptor */
-	  __u64 tx_invalid_descs; /* Dropped due to invalid descriptor */
+       __u64 rx_dropped; /* Dropped for reasons other than invalid desc */
+       __u64 rx_invalid_descs; /* Dropped due to invalid descriptor */
+       __u64 tx_invalid_descs; /* Dropped due to invalid descriptor */
    };
 
 XDP_OPTIONS getsockopt
@@ -483,15 +483,15 @@ like this:
 .. code-block:: c
 
     // struct xdp_rxtx_ring {
-    // 	__u32 *producer;
-    // 	__u32 *consumer;
-    // 	struct xdp_desc *desc;
+    //     __u32 *producer;
+    //     __u32 *consumer;
+    //     struct xdp_desc *desc;
     // };
 
     // struct xdp_umem_ring {
-    // 	__u32 *producer;
-    // 	__u32 *consumer;
-    // 	__u64 *desc;
+    //     __u32 *producer;
+    //     __u32 *consumer;
+    //     __u64 *desc;
     // };
 
     // typedef struct xdp_rxtx_ring RING;

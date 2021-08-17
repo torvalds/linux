@@ -110,6 +110,9 @@ config QED_RDMA
 config QED_ISCSI
 	bool
 
+config QED_NVMETCP
+	bool
+
 config QED_FCOE
 	bool
 

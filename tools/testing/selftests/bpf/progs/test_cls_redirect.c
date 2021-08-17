@@ -39,8 +39,8 @@ char _license[] SEC("license") = "Dual BSD/GPL";
 /**
  * Destination port and IP used for UDP encapsulation.
  */
-static volatile const __be16 ENCAPSULATION_PORT;
-static volatile const __be32 ENCAPSULATION_IP;
+volatile const __be16 ENCAPSULATION_PORT;
+volatile const __be32 ENCAPSULATION_IP;
 
 typedef struct {
 	uint64_t processed_packets_total;

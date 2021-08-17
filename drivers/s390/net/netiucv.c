@@ -118,24 +118,6 @@ static struct device_driver netiucv_driver = {
 	.bus  = &iucv_bus,
 };
 
-static int netiucv_callback_connreq(struct iucv_path *, u8 *, u8 *);
-static void netiucv_callback_connack(struct iucv_path *, u8 *);
-static void netiucv_callback_connrej(struct iucv_path *, u8 *);
-static void netiucv_callback_connsusp(struct iucv_path *, u8 *);
-static void netiucv_callback_connres(struct iucv_path *, u8 *);
-static void netiucv_callback_rx(struct iucv_path *, struct iucv_message *);
-static void netiucv_callback_txdone(struct iucv_path *, struct iucv_message *);
-
-static struct iucv_handler netiucv_handler = {
-	.path_pending	  = netiucv_callback_connreq,
-	.path_complete	  = netiucv_callback_connack,
-	.path_severed	  = netiucv_callback_connrej,
-	.path_quiesced	  = netiucv_callback_connsusp,
-	.path_resumed	  = netiucv_callback_connres,
-	.message_pending  = netiucv_callback_rx,
-	.message_complete = netiucv_callback_txdone
-};
-
 /**
  * Per connection profiling data
  */
@@ -773,6 +755,16 @@ static void conn_action_txdone(fsm_instance *fi, int event, void *arg)
 			conn->prof.maxcqueue = stat_maxcq;
 	}
 }
+
+static struct iucv_handler netiucv_handler = {
+	.path_pending	  = netiucv_callback_connreq,
+	.path_complete	  = netiucv_callback_connack,
+	.path_severed	  = netiucv_callback_connrej,
+	.path_quiesced	  = netiucv_callback_connsusp,
+	.path_resumed	  = netiucv_callback_connres,
+	.message_pending  = netiucv_callback_rx,
+	.message_complete = netiucv_callback_txdone,
+};
 
 static void conn_action_connaccept(fsm_instance *fi, int event, void *arg)
 {

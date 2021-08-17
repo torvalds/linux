@@ -69,7 +69,7 @@ guard=_UAPI_ASM_$(basename "$outfile" |
 	sed -e 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' \
 	-e 's/[^A-Z0-9_]/_/g' -e 's/__/_/g')
 
-grep -E "^[0-9A-Fa-fXx]+[[:space:]]+$abis" "$infile" | sort -n | {
+grep -E "^[0-9A-Fa-fXx]+[[:space:]]+$abis" "$infile" | {
 	echo "#ifndef $guard"
 	echo "#define $guard"
 	echo

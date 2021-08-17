@@ -10,10 +10,9 @@
 #include <linux/pgtable.h>
 #include <linux/scatterlist.h>
 
-#define PAGE_REPORTING_MIN_ORDER	pageblock_order
-
 #ifdef CONFIG_PAGE_REPORTING
 DECLARE_STATIC_KEY_FALSE(page_reporting_enabled);
+extern unsigned int page_reporting_order;
 void __page_reporting_notify(void);
 
 static inline bool page_reported(struct page *page)
@@ -38,7 +37,7 @@ static inline void page_reporting_notify_free(unsigned int order)
 		return;
 
 	/* Determine if we have crossed reporting threshold */
-	if (order < PAGE_REPORTING_MIN_ORDER)
+	if (order < page_reporting_order)
 		return;
 
 	/* This will add a few cycles, but should be called infrequently */

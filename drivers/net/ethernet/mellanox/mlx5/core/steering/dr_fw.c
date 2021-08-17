@@ -112,7 +112,8 @@ int mlx5dr_fw_create_md_tbl(struct mlx5dr_domain *dmn,
 	int ret;
 
 	ft_attr.table_type = MLX5_FLOW_TABLE_TYPE_FDB;
-	ft_attr.level = dmn->info.caps.max_ft_level - 2;
+	ft_attr.level = min_t(int, dmn->info.caps.max_ft_level - 2,
+			      MLX5_FT_MAX_MULTIPATH_LEVEL);
 	ft_attr.reformat_en = reformat_req;
 	ft_attr.decap_en = reformat_req;
 

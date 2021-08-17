@@ -78,12 +78,10 @@ struct intel_dbuf_state {
 	struct skl_ddb_entry ddb[I915_MAX_PIPES];
 	unsigned int weight[I915_MAX_PIPES];
 	u8 slices[I915_MAX_PIPES];
-
 	u8 enabled_slices;
 	u8 active_pipes;
+	bool joined_mbus;
 };
-
-int intel_dbuf_init(struct drm_i915_private *dev_priv);
 
 struct intel_dbuf_state *
 intel_atomic_get_dbuf_state(struct intel_atomic_state *state);

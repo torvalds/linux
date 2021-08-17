@@ -265,7 +265,8 @@ static int sm_read_sector(struct sm_ftl *ftl,
 again:
 	if (try++) {
 		/* Avoid infinite recursion on CIS reads, sm_recheck_media
-			won't help anyway */
+		 * won't help anyway
+		 */
 		if (zone == 0 && block == ftl->cis_block && boffset ==
 			ftl->cis_boffset)
 			return ret;
@@ -276,7 +277,8 @@ again:
 	}
 
 	/* Unfortunately, oob read will _always_ succeed,
-		despite card removal..... */
+	 * despite card removal.....
+	 */
 	ret = mtd_read_oob(mtd, sm_mkoffset(ftl, zone, block, boffset), &ops);
 
 	/* Test for unknown errors */
@@ -411,9 +413,10 @@ restart:
 
 			/* If write fails. try to erase the block */
 			/* This is safe, because we never write in blocks
-				that contain valuable data.
-			This is intended to repair block that are marked
-			as erased, but that isn't fully erased*/
+			 * that contain valuable data.
+			 * This is intended to repair block that are marked
+			 * as erased, but that isn't fully erased
+			 */
 
 			if (sm_erase_block(ftl, zone, block, 0))
 				return -EIO;
@@ -448,7 +451,8 @@ static void sm_mark_block_bad(struct sm_ftl *ftl, int zone, int block)
 
 	/* We aren't checking the return value, because we don't care */
 	/* This also fails on fake xD cards, but I guess these won't expose
-		any bad blocks till fail completely */
+	 * any bad blocks till fail completely
+	 */
 	for (boffset = 0; boffset < ftl->block_size; boffset += SM_SECTOR_SIZE)
 		sm_write_sector(ftl, zone, block, boffset, NULL, &oob);
 }
@@ -505,7 +509,8 @@ static int sm_check_block(struct sm_ftl *ftl, int zone, int block)
 
 	/* First just check that block doesn't look fishy */
 	/* Only blocks that are valid or are sliced in two parts, are
-		accepted */
+	 * accepted
+	 */
 	for (boffset = 0; boffset < ftl->block_size;
 					boffset += SM_SECTOR_SIZE) {
 
@@ -554,7 +559,8 @@ static const uint8_t cis_signature[] = {
 	0x01, 0x03, 0xD9, 0x01, 0xFF, 0x18, 0x02, 0xDF, 0x01, 0x20
 };
 /* Find out media parameters.
- * This ideally has to be based on nand id, but for now device size is enough */
+ * This ideally has to be based on nand id, but for now device size is enough
+ */
 static int sm_get_media_info(struct sm_ftl *ftl, struct mtd_info *mtd)
 {
 	int i;
@@ -607,7 +613,8 @@ static int sm_get_media_info(struct sm_ftl *ftl, struct mtd_info *mtd)
 	}
 
 	/* Minimum xD size is 16MiB. Also, all xD cards have standard zone
-	   sizes. SmartMedia cards exist up to 128 MiB and have same layout*/
+	 * sizes. SmartMedia cards exist up to 128 MiB and have same layout
+	 */
 	if (size_in_megs >= 16) {
 		ftl->zone_count = size_in_megs / 16;
 		ftl->zone_size = 1024;
@@ -782,7 +789,8 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 		}
 
 		/* Test to see if block is erased. It is enough to test
-			first sector, because erase happens in one shot */
+		 * first sector, because erase happens in one shot
+		 */
 		if (sm_block_erased(&oob)) {
 			kfifo_in(&zone->free_sectors,
 				(unsigned char *)&block, 2);
@@ -792,7 +800,8 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 		/* If block is marked as bad, skip it */
 		/* This assumes we can trust first sector*/
 		/* However the way the block valid status is defined, ensures
-			very low probability of failure here */
+		 * very low probability of failure here
+		 */
 		if (!sm_block_valid(&oob)) {
 			dbg("PH %04d <-> <marked bad>", block);
 			continue;
@@ -803,7 +812,8 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 
 		/* Invalid LBA means that block is damaged. */
 		/* We can try to erase it, or mark it as bad, but
-			lets leave that to recovery application */
+		 * lets leave that to recovery application
+		 */
 		if (lba == -2 || lba >= ftl->max_lba) {
 			dbg("PH %04d <-> LBA %04d(bad)", block, lba);
 			continue;
@@ -811,7 +821,8 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 
 
 		/* If there is no collision,
-			just put the sector in the FTL table */
+		 * just put the sector in the FTL table
+		 */
 		if (zone->lba_to_phys_table[lba] < 0) {
 			dbg_verbose("PH %04d <-> LBA %04d", block, lba);
 			zone->lba_to_phys_table[lba] = block;
@@ -834,9 +845,9 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 		}
 
 		/* If both blocks are valid and share same LBA, it means that
-			they hold different versions of same data. It not
-			known which is more recent, thus just erase one of them
-		*/
+		 * they hold different versions of same data. It not
+		 * known which is more recent, thus just erase one of them
+		 */
 		sm_printk("both blocks are valid, erasing the later");
 		sm_erase_block(ftl, zone_num, block, 1);
 	}
@@ -845,7 +856,8 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 	zone->initialized = 1;
 
 	/* No free sectors, means that the zone is heavily damaged, write won't
-		work, but it can still can be (partially) read */
+	 * work, but it can still can be (partially) read
+	 */
 	if (!kfifo_len(&zone->free_sectors)) {
 		sm_printk("no free blocks in zone %d", zone_num);
 		return 0;
@@ -952,8 +964,9 @@ restart:
 
 	/* If there are no spare blocks, */
 	/* we could still continue by erasing/writing the current block,
-		but for such worn out media it doesn't worth the trouble,
-			and the dangers */
+	 * but for such worn out media it doesn't worth the trouble,
+	 * and the dangers
+	 */
 	if (kfifo_out(&zone->free_sectors,
 				(unsigned char *)&write_sector, 2) != 2) {
 		dbg("no free sectors for write!");

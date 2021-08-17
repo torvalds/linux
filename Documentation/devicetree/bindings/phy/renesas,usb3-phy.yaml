@@ -33,7 +33,6 @@ properties:
     # If you want to use the ssc, the clock-frequency of usb_extal
     # must not be 0.
     minItems: 2
-    maxItems: 3
     items:
       - const: usb3-if # The funcional clock
       - const: usb3s_clk # The usb3's external clock

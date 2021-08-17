@@ -17,12 +17,12 @@ static unsigned int nft_nat_do_chain(void *priv, struct sk_buff *skb,
 	switch (state->pf) {
 #ifdef CONFIG_NF_TABLES_IPV4
 	case NFPROTO_IPV4:
-		nft_set_pktinfo_ipv4(&pkt, skb);
+		nft_set_pktinfo_ipv4(&pkt);
 		break;
 #endif
 #ifdef CONFIG_NF_TABLES_IPV6
 	case NFPROTO_IPV6:
-		nft_set_pktinfo_ipv6(&pkt, skb);
+		nft_set_pktinfo_ipv6(&pkt);
 		break;
 #endif
 	default:

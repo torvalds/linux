@@ -1306,7 +1306,8 @@ int qed_mfw_process_tlv_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	}
 
 	if ((tlv_group & QED_MFW_TLV_ISCSI) &&
-	    p_hwfn->hw_info.personality != QED_PCI_ISCSI) {
+	    p_hwfn->hw_info.personality != QED_PCI_ISCSI &&
+		p_hwfn->hw_info.personality != QED_PCI_NVMETCP) {
 		DP_VERBOSE(p_hwfn, QED_MSG_SP,
 			   "Skipping iSCSI TLVs for non-iSCSI function\n");
 		tlv_group &= ~QED_MFW_TLV_ISCSI;

@@ -1663,7 +1663,6 @@ static void hinic_diag_test(struct net_device *netdev,
 	err = hinic_port_link_state(nic_dev, &link_state);
 	if (!err && link_state == HINIC_LINK_STATE_UP)
 		netif_carrier_on(netdev);
-
 }
 
 static int hinic_set_phys_id(struct net_device *netdev,

@@ -226,7 +226,7 @@ struct max98373_priv {
 	/* variables to support soundwire */
 	struct sdw_slave *slave;
 	bool hw_init;
-	bool pm_init_once;
+	bool first_hw_init;
 	int slot;
 	unsigned int rx_mask;
 };

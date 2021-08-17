@@ -6,7 +6,7 @@
  * managing access and communication to and from the SSAM EC, as well as main
  * communication structures and definitions.
  *
- * Copyright (C) 2019-2020 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #ifndef _LINUX_SURFACE_AGGREGATOR_CONTROLLER_H
@@ -796,6 +796,20 @@ enum ssam_event_mask {
 	SSAM_EVENT_REGISTRY(SSAM_SSH_TC_REG, 0x02, 0x01, 0x02)
 
 /**
+ * enum ssam_event_notifier_flags - Flags for event notifiers.
+ * @SSAM_EVENT_NOTIFIER_OBSERVER:
+ *	The corresponding notifier acts as observer. Registering a notifier
+ *	with this flag set will not attempt to enable any event. Equally,
+ *	unregistering will not attempt to disable any event. Note that a
+ *	notifier with this flag may not even correspond to a certain event at
+ *	all, only to a specific event target category. Event matching will not
+ *	be influenced by this flag.
+ */
+enum ssam_event_notifier_flags {
+	SSAM_EVENT_NOTIFIER_OBSERVER = BIT(0),
+};
+
+/**
  * struct ssam_event_notifier - Notifier block for SSAM events.
  * @base:        The base notifier block with callback function and priority.
  * @event:       The event for which this block will receive notifications.
@@ -803,6 +817,7 @@ enum ssam_event_mask {
  * @event.id:    ID specifying the event.
  * @event.mask:  Flags determining how events are matched to the notifier.
  * @event.flags: Flags used for enabling the event.
+ * @flags:       Notifier flags (see &enum ssam_event_notifier_flags).
  */
 struct ssam_event_notifier {
 	struct ssam_notifier_block base;
@@ -813,6 +828,8 @@ struct ssam_event_notifier {
 		enum ssam_event_mask mask;
 		u8 flags;
 	} event;
+
+	unsigned long flags;
 };
 
 int ssam_notifier_register(struct ssam_controller *ctrl,
@@ -820,5 +837,13 @@ int ssam_notifier_register(struct ssam_controller *ctrl,
 
 int ssam_notifier_unregister(struct ssam_controller *ctrl,
 			     struct ssam_event_notifier *n);
+
+int ssam_controller_event_enable(struct ssam_controller *ctrl,
+				 struct ssam_event_registry reg,
+				 struct ssam_event_id id, u8 flags);
+
+int ssam_controller_event_disable(struct ssam_controller *ctrl,
+				  struct ssam_event_registry reg,
+				  struct ssam_event_id id, u8 flags);
 
 #endif /* _LINUX_SURFACE_AGGREGATOR_CONTROLLER_H */

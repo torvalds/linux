@@ -13,7 +13,7 @@
 /*
  * This file contains both data structures defined by SGX architecture and Linux
  * defined software data structures and functions.  The two should not be mixed
- * together for better readibility.  The architectural definitions come first.
+ * together for better readability.  The architectural definitions come first.
  */
 
 /* The SGX specific CPUID function. */

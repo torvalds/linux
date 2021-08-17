@@ -382,7 +382,8 @@ dccp_state_table[CT_DCCP_ROLE_MAX + 1][DCCP_PKT_SYNCACK + 1][CT_DCCP_MAX + 1] = 
 
 static noinline bool
 dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
-	 const struct dccp_hdr *dh)
+	 const struct dccp_hdr *dh,
+	 const struct nf_hook_state *hook_state)
 {
 	struct net *net = nf_ct_net(ct);
 	struct nf_dccp_net *dn;
@@ -414,7 +415,7 @@ dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	return true;
 
 out_invalid:
-	nf_ct_l4proto_log_invalid(skb, ct, "%s", msg);
+	nf_ct_l4proto_log_invalid(skb, ct, hook_state, "%s", msg);
 	return false;
 }
 
@@ -464,8 +465,7 @@ static bool dccp_error(const struct dccp_hdr *dh,
 	}
 	return false;
 out_invalid:
-	nf_l4proto_log_invalid(skb, state->net, state->pf,
-			       IPPROTO_DCCP, "%s", msg);
+	nf_l4proto_log_invalid(skb, state, IPPROTO_DCCP, "%s", msg);
 	return true;
 }
 
@@ -488,7 +488,7 @@ int nf_conntrack_dccp_packet(struct nf_conn *ct, struct sk_buff *skb,
 		return -NF_ACCEPT;
 
 	type = dh->dccph_type;
-	if (!nf_ct_is_confirmed(ct) && !dccp_new(ct, skb, dh))
+	if (!nf_ct_is_confirmed(ct) && !dccp_new(ct, skb, dh, state))
 		return -NF_ACCEPT;
 
 	if (type == DCCP_PKT_RESET &&
@@ -543,11 +543,11 @@ int nf_conntrack_dccp_packet(struct nf_conn *ct, struct sk_buff *skb,
 		ct->proto.dccp.last_pkt = type;
 
 		spin_unlock_bh(&ct->lock);
-		nf_ct_l4proto_log_invalid(skb, ct, "%s", "invalid packet");
+		nf_ct_l4proto_log_invalid(skb, ct, state, "%s", "invalid packet");
 		return NF_ACCEPT;
 	case CT_DCCP_INVALID:
 		spin_unlock_bh(&ct->lock);
-		nf_ct_l4proto_log_invalid(skb, ct, "%s", "invalid state transition");
+		nf_ct_l4proto_log_invalid(skb, ct, state, "%s", "invalid state transition");
 		return -NF_ACCEPT;
 	}
 

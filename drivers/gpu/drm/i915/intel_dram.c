@@ -121,7 +121,7 @@ skl_dram_get_dimm_info(struct drm_i915_private *i915,
 		       struct dram_dimm_info *dimm,
 		       int channel, char dimm_name, u16 val)
 {
-	if (INTEL_GEN(i915) >= 10) {
+	if (GRAPHICS_VER(i915) >= 10) {
 		dimm->size = cnl_get_dimm_size(val);
 		dimm->width = cnl_get_dimm_width(val);
 		dimm->ranks = cnl_get_dimm_ranks(val);
@@ -422,7 +422,7 @@ static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv)
 	if (ret)
 		return ret;
 
-	if (IS_GEN(dev_priv, 12)) {
+	if (GRAPHICS_VER(dev_priv) == 12) {
 		switch (val & 0xf) {
 		case 0:
 			dram_info->type = INTEL_DRAM_DDR4;
@@ -501,12 +501,12 @@ void intel_dram_detect(struct drm_i915_private *i915)
 	 */
 	dram_info->wm_lv_0_adjust_needed = !IS_GEN9_LP(i915);
 
-	if (INTEL_GEN(i915) < 9 || !HAS_DISPLAY(i915))
+	if (GRAPHICS_VER(i915) < 9 || !HAS_DISPLAY(i915))
 		return;
 
-	if (INTEL_GEN(i915) >= 12)
+	if (GRAPHICS_VER(i915) >= 12)
 		ret = gen12_get_dram_info(i915);
-	else if (INTEL_GEN(i915) >= 11)
+	else if (GRAPHICS_VER(i915) >= 11)
 		ret = gen11_get_dram_info(i915);
 	else if (IS_GEN9_LP(i915))
 		ret = bxt_get_dram_info(i915);
@@ -535,7 +535,7 @@ void intel_dram_edram_detect(struct drm_i915_private *i915)
 {
 	u32 edram_cap = 0;
 
-	if (!(IS_HASWELL(i915) || IS_BROADWELL(i915) || INTEL_GEN(i915) >= 9))
+	if (!(IS_HASWELL(i915) || IS_BROADWELL(i915) || GRAPHICS_VER(i915) >= 9))
 		return;
 
 	edram_cap = __raw_uncore_read32(&i915->uncore, HSW_EDRAM_CAP);
@@ -549,7 +549,7 @@ void intel_dram_edram_detect(struct drm_i915_private *i915)
 	 * The needed capability bits for size calculation are not there with
 	 * pre gen9 so return 128MB always.
 	 */
-	if (INTEL_GEN(i915) < 9)
+	if (GRAPHICS_VER(i915) < 9)
 		i915->edram_size_mb = 128;
 	else
 		i915->edram_size_mb = gen9_edram_size_mb(i915, edram_cap);

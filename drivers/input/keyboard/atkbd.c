@@ -324,7 +324,7 @@ static ssize_t atkbd_show_function_row_physmap(struct atkbd *atkbd, char *buf)
 static umode_t atkbd_attr_is_visible(struct kobject *kobj,
 				struct attribute *attr, int i)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct serio *serio = to_serio_port(dev);
 	struct atkbd *atkbd = serio_get_drvdata(serio);
 

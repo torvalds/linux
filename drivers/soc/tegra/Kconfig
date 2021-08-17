@@ -15,7 +15,7 @@ config ARCH_TEGRA_2x_SOC
 	select PL310_ERRATA_769419 if CACHE_L2X0
 	select SOC_TEGRA_FLOWCTRL
 	select SOC_TEGRA_PMC
-	select SOC_TEGRA20_VOLTAGE_COUPLER
+	select SOC_TEGRA20_VOLTAGE_COUPLER if REGULATOR
 	select TEGRA_TIMER
 	help
 	  Support for NVIDIA Tegra AP20 and T20 processors, based on the
@@ -29,7 +29,7 @@ config ARCH_TEGRA_3x_SOC
 	select PL310_ERRATA_769419 if CACHE_L2X0
 	select SOC_TEGRA_FLOWCTRL
 	select SOC_TEGRA_PMC
-	select SOC_TEGRA30_VOLTAGE_COUPLER
+	select SOC_TEGRA30_VOLTAGE_COUPLER if REGULATOR
 	select TEGRA_TIMER
 	help
 	  Support for NVIDIA Tegra T30 processor family, based on the
@@ -144,6 +144,8 @@ config SOC_TEGRA_FLOWCTRL
 config SOC_TEGRA_PMC
 	bool
 	select GENERIC_PINCONF
+	select PM_OPP
+	select PM_GENERIC_DOMAINS
 
 config SOC_TEGRA_POWERGATE_BPMP
 	def_bool y
@@ -153,7 +155,9 @@ config SOC_TEGRA_POWERGATE_BPMP
 config SOC_TEGRA20_VOLTAGE_COUPLER
 	bool "Voltage scaling support for Tegra20 SoCs"
 	depends on ARCH_TEGRA_2x_SOC || COMPILE_TEST
+	depends on REGULATOR
 
 config SOC_TEGRA30_VOLTAGE_COUPLER
 	bool "Voltage scaling support for Tegra30 SoCs"
 	depends on ARCH_TEGRA_3x_SOC || COMPILE_TEST
+	depends on REGULATOR

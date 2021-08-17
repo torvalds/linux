@@ -6,16 +6,16 @@
  * Copyright (C) 1999 - 2006 Krzysztof Halasa <khc@pm.waw.pl>
  *
 
-            Theory of PVC state
+	Theory of PVC state
 
  DCE mode:
 
  (exist,new) -> 0,0 when "PVC create" or if "link unreliable"
-         0,x -> 1,1 if "link reliable" when sending FULL STATUS
-         1,1 -> 1,0 if received FULL STATUS ACK
+	 0,x -> 1,1 if "link reliable" when sending FULL STATUS
+	 1,1 -> 1,0 if received FULL STATUS ACK
 
  (active)    -> 0 when "ifconfig PVC down" or "link unreliable" or "PVC create"
-             -> 1 when "PVC up" and (exist,new) = 1,0
+	     -> 1 when "PVC up" and (exist,new) = 1,0
 
  DTE mode:
  (exist,new,active) = FULL STATUS if "link reliable"
@@ -60,7 +60,6 @@
 #define NLPID_CCITT_ANSI_LMI	0x08
 #define NLPID_CISCO_LMI		0x09
 
-
 #define LMI_CCITT_ANSI_DLCI	   0 /* LMI DLCI */
 #define LMI_CISCO_DLCI		1023
 
@@ -86,7 +85,6 @@
 #define LMI_CCITT_CISCO_LENGTH	  13 /* LMI frame lengths */
 #define LMI_ANSI_LENGTH		  14
 
-
 struct fr_hdr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	unsigned ea1:	1;
@@ -111,7 +109,6 @@ struct fr_hdr {
 #endif
 } __packed;
 
-
 struct pvc_device {
 	struct net_device *frad;
 	struct net_device *main;
@@ -128,7 +125,7 @@ struct pvc_device {
 		unsigned int fecn: 1;
 		unsigned int becn: 1;
 		unsigned int bandwidth;	/* Cisco LMI reporting only */
-	}state;
+	} state;
 };
 
 struct frad_state {
@@ -149,15 +146,12 @@ struct frad_state {
 	u8 rxseq; /* RX sequence number */
 };
 
-
 static int fr_ioctl(struct net_device *dev, struct ifreq *ifr);
-
 
 static inline u16 q922_to_dlci(u8 *hdr)
 {
 	return ((hdr[0] & 0xFC) << 2) | ((hdr[1] & 0xF0) >> 4);
 }
-
 
 static inline void dlci_to_q922(u8 *hdr, u16 dlci)
 {
@@ -165,12 +159,10 @@ static inline void dlci_to_q922(u8 *hdr, u16 dlci)
 	hdr[1] = ((dlci << 4) & 0xF0) | 0x01;
 }
 
-
-static inline struct frad_state* state(hdlc_device *hdlc)
+static inline struct frad_state *state(hdlc_device *hdlc)
 {
-	return(struct frad_state *)(hdlc->state);
+	return (struct frad_state *)(hdlc->state);
 }
-
 
 static inline struct pvc_device *find_pvc(hdlc_device *hdlc, u16 dlci)
 {
@@ -186,7 +178,6 @@ static inline struct pvc_device *find_pvc(hdlc_device *hdlc, u16 dlci)
 
 	return NULL;
 }
-
 
 static struct pvc_device *add_pvc(struct net_device *dev, u16 dlci)
 {
@@ -215,12 +206,10 @@ static struct pvc_device *add_pvc(struct net_device *dev, u16 dlci)
 	return pvc;
 }
 
-
 static inline int pvc_is_used(struct pvc_device *pvc)
 {
 	return pvc->main || pvc->ether;
 }
-
 
 static inline void pvc_carrier(int on, struct pvc_device *pvc)
 {
@@ -241,7 +230,6 @@ static inline void pvc_carrier(int on, struct pvc_device *pvc)
 	}
 }
 
-
 static inline void delete_unused_pvcs(hdlc_device *hdlc)
 {
 	struct pvc_device **pvc_p = &state(hdlc)->first_pvc;
@@ -260,7 +248,6 @@ static inline void delete_unused_pvcs(hdlc_device *hdlc)
 	}
 }
 
-
 static inline struct net_device **get_dev_p(struct pvc_device *pvc,
 					    int type)
 {
@@ -269,7 +256,6 @@ static inline struct net_device **get_dev_p(struct pvc_device *pvc,
 	else
 		return &pvc->main;
 }
-
 
 static int fr_hard_header(struct sk_buff *skb, u16 dlci)
 {
@@ -334,8 +320,6 @@ static int fr_hard_header(struct sk_buff *skb, u16 dlci)
 	return 0;
 }
 
-
-
 static int pvc_open(struct net_device *dev)
 {
 	struct pvc_device *pvc = dev->ml_priv;
@@ -345,6 +329,7 @@ static int pvc_open(struct net_device *dev)
 
 	if (pvc->open_count++ == 0) {
 		hdlc_device *hdlc = dev_to_hdlc(pvc->frad);
+
 		if (state(hdlc)->settings.lmi == LMI_NONE)
 			pvc->state.active = netif_carrier_ok(pvc->frad);
 
@@ -354,14 +339,13 @@ static int pvc_open(struct net_device *dev)
 	return 0;
 }
 
-
-
 static int pvc_close(struct net_device *dev)
 {
 	struct pvc_device *pvc = dev->ml_priv;
 
 	if (--pvc->open_count == 0) {
 		hdlc_device *hdlc = dev_to_hdlc(pvc->frad);
+
 		if (state(hdlc)->settings.lmi == LMI_NONE)
 			pvc->state.active = 0;
 
@@ -372,8 +356,6 @@ static int pvc_close(struct net_device *dev)
 	}
 	return 0;
 }
-
-
 
 static int pvc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -465,14 +447,11 @@ static inline void fr_log_dlci_active(struct pvc_device *pvc)
 		    pvc->state.active ? "active" : "inactive");
 }
 
-
-
 static inline u8 fr_lmi_nextseq(u8 x)
 {
 	x++;
 	return x ? x : 1;
 }
-
 
 static void fr_lmi_send(struct net_device *dev, int fullrep)
 {
@@ -495,17 +474,16 @@ static void fr_lmi_send(struct net_device *dev, int fullrep)
 	}
 
 	skb = dev_alloc_skb(len);
-	if (!skb) {
-		netdev_warn(dev, "Memory squeeze on fr_lmi_send()\n");
+	if (!skb)
 		return;
-	}
+
 	memset(skb->data, 0, len);
 	skb_reserve(skb, 4);
-	if (lmi == LMI_CISCO) {
+	if (lmi == LMI_CISCO)
 		fr_hard_header(skb, LMI_CISCO_DLCI);
-	} else {
+	else
 		fr_hard_header(skb, LMI_CCITT_ANSI_DLCI);
-	}
+
 	data = skb_tail_pointer(skb);
 	data[i++] = LMI_CALLREF;
 	data[i++] = dce ? LMI_STATUS : LMI_STATUS_ENQUIRY;
@@ -569,8 +547,6 @@ static void fr_lmi_send(struct net_device *dev, int fullrep)
 	dev_queue_xmit(skb);
 }
 
-
-
 static void fr_set_link_state(int reliable, struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
@@ -602,7 +578,6 @@ static void fr_set_link_state(int reliable, struct net_device *dev)
 		}
 	}
 }
-
 
 static void fr_timer(struct timer_list *t)
 {
@@ -637,10 +612,10 @@ static void fr_timer(struct timer_list *t)
 		fr_set_link_state(reliable, dev);
 	}
 
-	if (state(hdlc)->settings.dce)
+	if (state(hdlc)->settings.dce) {
 		state(hdlc)->timer.expires = jiffies +
 			state(hdlc)->settings.t392 * HZ;
-	else {
+	} else {
 		if (state(hdlc)->n391cnt)
 			state(hdlc)->n391cnt--;
 
@@ -654,7 +629,6 @@ static void fr_timer(struct timer_list *t)
 
 	add_timer(&state(hdlc)->timer);
 }
-
 
 static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 {
@@ -696,8 +670,9 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 			return 1;
 		}
 		i = 7;
-	} else
+	} else {
 		i = 6;
+	}
 
 	if (skb->data[i] != (lmi == LMI_CCITT ? LMI_CCITT_REPTYPE :
 			     LMI_ANSI_CISCO_REPTYPE)) {
@@ -814,8 +789,8 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 		}
 		i++;
 
-		new = !! (skb->data[i + 2] & 0x08);
-		active = !! (skb->data[i + 2] & 0x02);
+		new = !!(skb->data[i + 2] & 0x08);
+		active = !!(skb->data[i + 2] & 0x02);
 		if (lmi == LMI_CISCO) {
 			dlci = (skb->data[i] << 8) | skb->data[i + 1];
 			bw = (skb->data[i + 3] << 16) |
@@ -962,8 +937,8 @@ static int fr_rx(struct sk_buff *skb)
 		pvc->state.becn ^= 1;
 	}
 
-
-	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL) {
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb) {
 		frad->stats.rx_dropped++;
 		return NET_RX_DROP;
 	}
@@ -1018,8 +993,6 @@ rx_drop:
 	return NET_RX_DROP;
 }
 
-
-
 static void fr_start(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
@@ -1040,10 +1013,10 @@ static void fr_start(struct net_device *dev)
 		/* First poll after 1 s */
 		state(hdlc)->timer.expires = jiffies + HZ;
 		add_timer(&state(hdlc)->timer);
-	} else
+	} else {
 		fr_set_link_state(1, dev);
+	}
 }
-
 
 static void fr_stop(struct net_device *dev)
 {
@@ -1055,7 +1028,6 @@ static void fr_stop(struct net_device *dev)
 		del_timer_sync(&state(hdlc)->timer);
 	fr_set_link_state(0, dev);
 }
-
 
 static void fr_close(struct net_device *dev)
 {
@@ -1070,7 +1042,6 @@ static void fr_close(struct net_device *dev)
 		pvc = pvc->next;
 	}
 }
-
 
 static void pvc_setup(struct net_device *dev)
 {
@@ -1095,7 +1066,8 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 	struct net_device *dev;
 	int used;
 
-	if ((pvc = add_pvc(frad, dlci)) == NULL) {
+	pvc = add_pvc(frad, dlci);
+	if (!pvc) {
 		netdev_warn(frad, "Memory squeeze on fr_add_pvc()\n");
 		return -ENOBUFS;
 	}
@@ -1121,7 +1093,7 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 		dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 		eth_hw_addr_random(dev);
 	} else {
-		*(__be16*)dev->dev_addr = htons(dlci);
+		*(__be16 *)dev->dev_addr = htons(dlci);
 		dlci_to_q922(dev->broadcast, dlci);
 	}
 	dev->netdev_ops = &pvc_ops;
@@ -1147,17 +1119,17 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 	return 0;
 }
 
-
-
 static int fr_del_pvc(hdlc_device *hdlc, unsigned int dlci, int type)
 {
 	struct pvc_device *pvc;
 	struct net_device *dev;
 
-	if ((pvc = find_pvc(hdlc, dlci)) == NULL)
+	pvc = find_pvc(hdlc, dlci);
+	if (!pvc)
 		return -ENOENT;
 
-	if ((dev = *get_dev_p(pvc, type)) == NULL)
+	dev = *get_dev_p(pvc, type);
+	if (!dev)
 		return -ENOENT;
 
 	if (dev->flags & IFF_UP)
@@ -1174,12 +1146,11 @@ static int fr_del_pvc(hdlc_device *hdlc, unsigned int dlci, int type)
 	return 0;
 }
 
-
-
 static void fr_destroy(struct net_device *frad)
 {
 	hdlc_device *hdlc = dev_to_hdlc(frad);
 	struct pvc_device *pvc = state(hdlc)->first_pvc;
+
 	state(hdlc)->first_pvc = NULL; /* All PVCs destroyed */
 	state(hdlc)->dce_pvc_count = 0;
 	state(hdlc)->dce_changed = 1;
@@ -1198,7 +1169,6 @@ static void fr_destroy(struct net_device *frad)
 	}
 }
 
-
 static struct hdlc_proto proto = {
 	.close		= fr_close,
 	.start		= fr_start,
@@ -1208,7 +1178,6 @@ static struct hdlc_proto proto = {
 	.netif_rx	= fr_rx,
 	.module		= THIS_MODULE,
 };
-
 
 static int fr_ioctl(struct net_device *dev, struct ifreq *ifr)
 {
@@ -1259,7 +1228,8 @@ static int fr_ioctl(struct net_device *dev, struct ifreq *ifr)
 		     new_settings.dce != 1))
 			return -EINVAL;
 
-		result=hdlc->attach(dev, ENCODING_NRZ,PARITY_CRC16_PR1_CCITT);
+		result = hdlc->attach(dev, ENCODING_NRZ,
+				      PARITY_CRC16_PR1_CCITT);
 		if (result)
 			return result;
 
@@ -1309,22 +1279,19 @@ static int fr_ioctl(struct net_device *dev, struct ifreq *ifr)
 	return -EINVAL;
 }
 
-
-static int __init mod_init(void)
+static int __init hdlc_fr_init(void)
 {
 	register_hdlc_protocol(&proto);
 	return 0;
 }
 
-
-static void __exit mod_exit(void)
+static void __exit hdlc_fr_exit(void)
 {
 	unregister_hdlc_protocol(&proto);
 }
 
-
-module_init(mod_init);
-module_exit(mod_exit);
+module_init(hdlc_fr_init);
+module_exit(hdlc_fr_exit);
 
 MODULE_AUTHOR("Krzysztof Halasa <khc@pm.waw.pl>");
 MODULE_DESCRIPTION("Frame-Relay protocol support for generic HDLC");

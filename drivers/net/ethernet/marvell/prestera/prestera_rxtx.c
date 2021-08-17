@@ -14,6 +14,7 @@
 #include "prestera.h"
 #include "prestera_hw.h"
 #include "prestera_rxtx.h"
+#include "prestera_devlink.h"
 
 #define PRESTERA_SDMA_WAIT_MUL		10
 
@@ -214,9 +215,10 @@ static struct sk_buff *prestera_sdma_rx_skb_get(struct prestera_sdma *sdma,
 static int prestera_rxtx_process_skb(struct prestera_sdma *sdma,
 				     struct sk_buff *skb)
 {
-	const struct prestera_port *port;
+	struct prestera_port *port;
 	struct prestera_dsa dsa;
 	u32 hw_port, dev_id;
+	u8 cpu_code;
 	int err;
 
 	skb_pull(skb, ETH_HLEN);
@@ -258,6 +260,9 @@ static int prestera_rxtx_process_skb(struct prestera_sdma *sdma,
 
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), tci);
 	}
+
+	cpu_code = dsa.cpu_code;
+	prestera_devlink_trap_report(port, skb, cpu_code);
 
 	return 0;
 }

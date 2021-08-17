@@ -1150,8 +1150,16 @@ static int qcom_swrm_get_port_config(struct qcom_swrm_ctrl *ctrl)
 
 	ret = of_property_read_u8_array(np, "qcom,ports-block-pack-mode",
 					bp_mode, nports);
-	if (ret)
-		return ret;
+	if (ret) {
+		u32 version;
+
+		ctrl->reg_read(ctrl, SWRM_COMP_HW_VERSION, &version);
+
+		if (version <= 0x01030000)
+			memset(bp_mode, SWR_INVALID_PARAM, QCOM_SDW_MAX_PORTS);
+		else
+			return ret;
+	}
 
 	memset(hstart, SWR_INVALID_PARAM, QCOM_SDW_MAX_PORTS);
 	of_property_read_u8_array(np, "qcom,ports-hstart", hstart, nports);

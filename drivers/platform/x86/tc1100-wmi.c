@@ -156,7 +156,7 @@ static struct attribute *tc1100_attributes[] = {
 	NULL
 };
 
-static struct attribute_group tc1100_attribute_group = {
+static const struct attribute_group tc1100_attribute_group = {
 	.attrs	= tc1100_attributes,
 };
 

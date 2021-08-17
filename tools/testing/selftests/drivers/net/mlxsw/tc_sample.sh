@@ -234,15 +234,15 @@ __tc_sample_rate_test()
 
 	psample_capture_start
 
-	ip vrf exec v$h1 $MZ $h1 -c 3200 -d 1msec -p 64 -A 192.0.2.1 \
+	ip vrf exec v$h1 $MZ $h1 -c 320000 -d 100usec -p 64 -A 192.0.2.1 \
 		-B $dip -t udp dp=52768,sp=42768 -q
 
 	psample_capture_stop
 
 	pkts=$(grep -e "group 1 " $CAPTURE_FILE | wc -l)
-	pct=$((100 * (pkts - 100) / 100))
+	pct=$((100 * (pkts - 10000) / 10000))
 	(( -25 <= pct && pct <= 25))
-	check_err $? "Expected 100 packets, got $pkts packets, which is $pct% off. Required accuracy is +-25%"
+	check_err $? "Expected 10000 packets, got $pkts packets, which is $pct% off. Required accuracy is +-25%"
 
 	log_test "tc sample rate ($desc)"
 
@@ -587,15 +587,15 @@ __tc_sample_acl_rate_test()
 
 	psample_capture_start
 
-	ip vrf exec v$h1 $MZ $h1 -c 3200 -d 1msec -p 64 -A 192.0.2.1 \
+	ip vrf exec v$h1 $MZ $h1 -c 320000 -d 100usec -p 64 -A 192.0.2.1 \
 		-B 198.51.100.1 -t udp dp=52768,sp=42768 -q
 
 	psample_capture_stop
 
 	pkts=$(grep -e "group 1 " $CAPTURE_FILE | wc -l)
-	pct=$((100 * (pkts - 100) / 100))
+	pct=$((100 * (pkts - 10000) / 10000))
 	(( -25 <= pct && pct <= 25))
-	check_err $? "Expected 100 packets, got $pkts packets, which is $pct% off. Required accuracy is +-25%"
+	check_err $? "Expected 10000 packets, got $pkts packets, which is $pct% off. Required accuracy is +-25%"
 
 	# Setup a filter that should not match any packet and make sure packets
 	# are not sampled.

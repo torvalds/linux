@@ -71,7 +71,7 @@ DECLARE_EVENT_CLASS(rvt_rc_template,
 			__field(u32, r_psn)
 			),
 		    TP_fast_assign(
-			RDI_DEV_ASSIGN(ib_to_rvt(qp->ibqp.device))
+			RDI_DEV_ASSIGN(ib_to_rvt(qp->ibqp.device));
 			__entry->qpn = qp->ibqp.qp_num;
 			__entry->s_flags = qp->s_flags;
 			__entry->psn = psn;

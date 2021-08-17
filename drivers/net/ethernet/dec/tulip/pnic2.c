@@ -351,7 +351,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 			del_timer_sync(&tp->timer);
 			pnic2_start_nway(dev);
 			tp->timer.expires = RUN_AT(3*HZ);
-       			add_timer(&tp->timer);
+			add_timer(&tp->timer);
                 }
 
                 return;
@@ -375,7 +375,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 			del_timer_sync(&tp->timer);
 			pnic2_start_nway(dev);
 			tp->timer.expires = RUN_AT(3*HZ);
-       			add_timer(&tp->timer);
+			add_timer(&tp->timer);
                 }
 
                 return;

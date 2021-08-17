@@ -59,12 +59,31 @@ static void hdp_v4_0_invalidate_hdp(struct amdgpu_device *adev,
 			HDP, 0, mmHDP_READ_CACHE_INVALIDATE), 1);
 }
 
+static void hdp_v4_0_query_ras_error_count(struct amdgpu_device *adev,
+					   void *ras_error_status)
+{
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
+
+	err_data->ue_count = 0;
+	err_data->ce_count = 0;
+
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__HDP))
+		return;
+
+	/* HDP SRAM errors are uncorrectable ones (i.e. fatal errors) */
+	err_data->ue_count += RREG32_SOC15(HDP, 0, mmHDP_EDC_CNT);
+};
+
 static void hdp_v4_0_reset_ras_error_count(struct amdgpu_device *adev)
 {
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__HDP))
 		return;
-	/*read back hdp ras counter to reset it to 0 */
-	RREG32_SOC15(HDP, 0, mmHDP_EDC_CNT);
+
+	if (adev->asic_type >= CHIP_ALDEBARAN)
+		WREG32_SOC15(HDP, 0, mmHDP_EDC_CNT, 0);
+	else
+		/*read back hdp ras counter to reset it to 0 */
+		RREG32_SOC15(HDP, 0, mmHDP_EDC_CNT);
 }
 
 static void hdp_v4_0_update_clock_gating(struct amdgpu_device *adev,
@@ -130,10 +149,16 @@ static void hdp_v4_0_init_registers(struct amdgpu_device *adev)
 	WREG32_SOC15(HDP, 0, mmHDP_NONSURFACE_BASE_HI, (adev->gmc.vram_start >> 40));
 }
 
+const struct amdgpu_hdp_ras_funcs hdp_v4_0_ras_funcs = {
+	.ras_late_init = amdgpu_hdp_ras_late_init,
+	.ras_fini = amdgpu_hdp_ras_fini,
+	.query_ras_error_count = hdp_v4_0_query_ras_error_count,
+	.reset_ras_error_count = hdp_v4_0_reset_ras_error_count,
+};
+
 const struct amdgpu_hdp_funcs hdp_v4_0_funcs = {
 	.flush_hdp = hdp_v4_0_flush_hdp,
 	.invalidate_hdp = hdp_v4_0_invalidate_hdp,
-	.reset_ras_error_count = hdp_v4_0_reset_ras_error_count,
 	.update_clock_gating = hdp_v4_0_update_clock_gating,
 	.get_clock_gating_state = hdp_v4_0_get_clockgating_state,
 	.init_registers = hdp_v4_0_init_registers,

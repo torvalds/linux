@@ -260,6 +260,10 @@ static int prop_compression_validate(const char *value, size_t len)
 	if (btrfs_compress_is_valid_type(value, len))
 		return 0;
 
+	if ((len == 2 && strncmp("no", value, 2) == 0) ||
+	    (len == 4 && strncmp("none", value, 4) == 0))
+		return 0;
+
 	return -EINVAL;
 }
 
@@ -269,7 +273,17 @@ static int prop_compression_apply(struct inode *inode, const char *value,
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	int type;
 
+	/* Reset to defaults */
 	if (len == 0) {
+		BTRFS_I(inode)->flags &= ~BTRFS_INODE_COMPRESS;
+		BTRFS_I(inode)->flags &= ~BTRFS_INODE_NOCOMPRESS;
+		BTRFS_I(inode)->prop_compress = BTRFS_COMPRESS_NONE;
+		return 0;
+	}
+
+	/* Set NOCOMPRESS flag */
+	if ((len == 2 && strncmp("no", value, 2) == 0) ||
+	    (len == 4 && strncmp("none", value, 4) == 0)) {
 		BTRFS_I(inode)->flags |= BTRFS_INODE_NOCOMPRESS;
 		BTRFS_I(inode)->flags &= ~BTRFS_INODE_COMPRESS;
 		BTRFS_I(inode)->prop_compress = BTRFS_COMPRESS_NONE;
@@ -348,7 +362,7 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 
 		/*
 		 * This is not strictly necessary as the property should be
-		 * valid, but in case it isn't, don't propagate it futher.
+		 * valid, but in case it isn't, don't propagate it further.
 		 */
 		ret = h->validate(value, strlen(value));
 		if (ret)

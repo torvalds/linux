@@ -506,7 +506,6 @@ static int __init mtd_oobtest_init(void)
 	err = mtd_write_oob(mtd, addr0, &ops);
 	if (err) {
 		pr_info("error occurred as expected\n");
-		err = 0;
 	} else {
 		pr_err("error: can write past end of OOB\n");
 		errcnt += 1;
@@ -529,7 +528,6 @@ static int __init mtd_oobtest_init(void)
 
 	if (err) {
 		pr_info("error occurred as expected\n");
-		err = 0;
 	} else {
 		pr_err("error: can read past end of OOB\n");
 		errcnt += 1;
@@ -553,7 +551,6 @@ static int __init mtd_oobtest_init(void)
 		err = mtd_write_oob(mtd, mtd->size - mtd->writesize, &ops);
 		if (err) {
 			pr_info("error occurred as expected\n");
-			err = 0;
 		} else {
 			pr_err("error: wrote past end of device\n");
 			errcnt += 1;
@@ -576,7 +573,6 @@ static int __init mtd_oobtest_init(void)
 
 		if (err) {
 			pr_info("error occurred as expected\n");
-			err = 0;
 		} else {
 			pr_err("error: read past end of device\n");
 			errcnt += 1;
@@ -600,7 +596,6 @@ static int __init mtd_oobtest_init(void)
 		err = mtd_write_oob(mtd, mtd->size - mtd->writesize, &ops);
 		if (err) {
 			pr_info("error occurred as expected\n");
-			err = 0;
 		} else {
 			pr_err("error: wrote past end of device\n");
 			errcnt += 1;
@@ -623,7 +618,6 @@ static int __init mtd_oobtest_init(void)
 
 		if (err) {
 			pr_info("error occurred as expected\n");
-			err = 0;
 		} else {
 			pr_err("error: read past end of device\n");
 			errcnt += 1;
@@ -701,6 +695,7 @@ static int __init mtd_oobtest_init(void)
 			       (long long)addr);
 			errcnt += 1;
 			if (errcnt > 1000) {
+				err = -EINVAL;
 				pr_err("error: too many errors\n");
 				goto out;
 			}

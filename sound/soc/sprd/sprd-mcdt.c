@@ -949,8 +949,7 @@ static int sprd_mcdt_probe(struct platform_device *pdev)
 	if (!mcdt)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mcdt->base = devm_ioremap_resource(&pdev->dev, res);
+	mcdt->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(mcdt->base))
 		return PTR_ERR(mcdt->base);
 

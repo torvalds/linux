@@ -26,7 +26,6 @@ properties:
       - description: Base address and size of SAI common register set.
       - description: Base address and size of SAI identification register set.
     minItems: 1
-    maxItems: 2
 
   ranges:
     maxItems: 1
@@ -81,14 +80,12 @@ patternProperties:
           - description: sai_ck clock feeding the internal clock generator.
           - description: MCLK clock from a SAI set as master clock provider.
         minItems: 1
-        maxItems: 2
 
       clock-names:
         items:
           - const: sai_ck
           - const: MCLK
         minItems: 1
-        maxItems: 2
 
       dmas:
         maxItems: 1

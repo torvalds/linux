@@ -33,47 +33,6 @@ static bool CheckPositive(
 		pDM_Odm->TypeALNA << 16 |
 		pDM_Odm->TypeAPA << 24;
 
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_TRACE,
-		(
-			"===> [8812A] CheckPositive (cond1, cond2) = (0x%X 0x%X)\n",
-			cond1,
-			cond2
-		)
-	);
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_TRACE,
-		(
-			"===> [8812A] CheckPositive (driver1, driver2) = (0x%X 0x%X)\n",
-			driver1,
-			driver2
-		)
-	);
-
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_TRACE,
-		("	(Platform, Interface) = (0x%X, 0x%X)\n",
-			pDM_Odm->SupportPlatform,
-			pDM_Odm->SupportInterface
-		)
-	);
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_TRACE,
-		(
-			"	(Board, Package) = (0x%X, 0x%X)\n",
-			pDM_Odm->BoardType,
-			pDM_Odm->PackageType
-		)
-	);
-
 
 	/*  Value Defined Check =============== */
 	/* QFN Type [15:12] and Cut Version [27:24] need to do value check */
@@ -262,13 +221,6 @@ void ODM_ReadAndConfig_MP_8723B_AGC_TAB(struct dm_odm_t *pDM_Odm)
 	u32 i = 0;
 	u32 ArrayLen = ARRAY_SIZE(Array_MP_8723B_AGC_TAB);
 	u32 *Array = Array_MP_8723B_AGC_TAB;
-
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_LOUD,
-		("===> ODM_ReadAndConfig_MP_8723B_AGC_TAB\n")
-	);
 
 	for (i = 0; i < ArrayLen; i += 2) {
 		u32 v1 = Array[i];
@@ -532,13 +484,6 @@ void ODM_ReadAndConfig_MP_8723B_PHY_REG(struct dm_odm_t *pDM_Odm)
 	u32 ArrayLen = ARRAY_SIZE(Array_MP_8723B_PHY_REG);
 	u32 *Array = Array_MP_8723B_PHY_REG;
 
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_LOUD,
-		("===> ODM_ReadAndConfig_MP_8723B_PHY_REG\n")
-	);
-
 	for (i = 0; i < ArrayLen; i += 2) {
 		u32 v1 = Array[i];
 		u32 v2 = Array[i+1];
@@ -598,12 +543,12 @@ void ODM_ReadAndConfig_MP_8723B_PHY_REG(struct dm_odm_t *pDM_Odm)
 ******************************************************************************/
 
 static u32 Array_MP_8723B_PHY_REG_PG[] = {
-	0, 0, 0, 0x00000e08, 0x0000ff00, 0x00003800,
-	0, 0, 0, 0x0000086c, 0xffffff00, 0x32343600,
-	0, 0, 0, 0x00000e00, 0xffffffff, 0x40424444,
-	0, 0, 0, 0x00000e04, 0xffffffff, 0x28323638,
-	0, 0, 0, 0x00000e10, 0xffffffff, 0x38404244,
-	0, 0, 0, 0x00000e14, 0xffffffff, 0x26303436
+	0, 0, 0x00000e08, 0x0000ff00, 0x00003800,
+	0, 0, 0x0000086c, 0xffffff00, 0x32343600,
+	0, 0, 0x00000e00, 0xffffffff, 0x40424444,
+	0, 0, 0x00000e04, 0xffffffff, 0x28323638,
+	0, 0, 0x00000e10, 0xffffffff, 0x38404244,
+	0, 0, 0x00000e14, 0xffffffff, 0x26303436
 };
 
 void ODM_ReadAndConfig_MP_8723B_PHY_REG_PG(struct dm_odm_t *pDM_Odm)
@@ -611,24 +556,16 @@ void ODM_ReadAndConfig_MP_8723B_PHY_REG_PG(struct dm_odm_t *pDM_Odm)
 	u32 i = 0;
 	u32 *Array = Array_MP_8723B_PHY_REG_PG;
 
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_LOUD,
-		("===> ODM_ReadAndConfig_MP_8723B_PHY_REG_PG\n")
-	);
-
 	pDM_Odm->PhyRegPgVersion = 1;
 	pDM_Odm->PhyRegPgValueType = PHY_REG_PG_EXACT_VALUE;
 
-	for (i = 0; i < ARRAY_SIZE(Array_MP_8723B_PHY_REG_PG); i += 6) {
+	for (i = 0; i < ARRAY_SIZE(Array_MP_8723B_PHY_REG_PG); i += 5) {
 		u32 v1 = Array[i];
 		u32 v2 = Array[i+1];
 		u32 v3 = Array[i+2];
 		u32 v4 = Array[i+3];
 		u32 v5 = Array[i+4];
-		u32 v6 = Array[i+5];
 
-		odm_ConfigBB_PHY_REG_PG_8723B(pDM_Odm, v1, v2, v3, v4, v5, v6);
+		odm_ConfigBB_PHY_REG_PG_8723B(pDM_Odm, v1, v2, v3, v4, v5);
 	}
 }

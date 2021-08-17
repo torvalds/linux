@@ -29,10 +29,8 @@ struct cinergyt2_state {
 	unsigned char data[64];
 };
 
-/* We are missing a release hook with usb_device data */
-static struct dvb_usb_device *cinergyt2_usb_device;
-
-static struct dvb_usb_device_properties cinergyt2_properties;
+/* Forward declaration */
+static const struct dvb_usb_device_properties cinergyt2_properties;
 
 static int cinergyt2_streaming_ctrl(struct dvb_usb_adapter *adap, int enable)
 {
@@ -78,12 +76,11 @@ static int cinergyt2_frontend_attach(struct dvb_usb_adapter *adap)
 
 	ret = dvb_usb_generic_rw(d, st->data, 1, st->data, 3, 0);
 	if (ret < 0) {
+		if (adap->fe_adap[0].fe)
+			adap->fe_adap[0].fe->ops.release(adap->fe_adap[0].fe);
 		deb_rc("cinergyt2_power_ctrl() Failed to retrieve sleep state info\n");
 	}
 	mutex_unlock(&d->data_mutex);
-
-	/* Copy this pointer as we are gonna need it in the release phase */
-	cinergyt2_usb_device = adap->dev;
 
 	return ret;
 }
@@ -203,7 +200,7 @@ static struct usb_device_id cinergyt2_usb_table[] = {
 
 MODULE_DEVICE_TABLE(usb, cinergyt2_usb_table);
 
-static struct dvb_usb_device_properties cinergyt2_properties = {
+static const struct dvb_usb_device_properties cinergyt2_properties = {
 	.size_of_priv = sizeof(struct cinergyt2_state),
 	.num_adapters = 1,
 	.adapter = {

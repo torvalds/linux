@@ -946,7 +946,7 @@ static int sx9500_probe(struct i2c_client *client,
 			return ret;
 
 		data->trig = devm_iio_trigger_alloc(&client->dev,
-				"%s-dev%d", indio_dev->name, indio_dev->id);
+				"%s-dev%d", indio_dev->name, iio_device_id(indio_dev));
 		if (!data->trig)
 			return -ENOMEM;
 

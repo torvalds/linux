@@ -89,7 +89,7 @@
  *
  *	Note: Do not call this function directly, call tty_driver_flush_chars
  * 
- * int  (*write_room)(struct tty_struct *tty);
+ * unsigned int  (*write_room)(struct tty_struct *tty);
  *
  * 	This routine returns the numbers of characters the tty driver
  * 	will accept for queuing to be written.  This number is subject
@@ -136,7 +136,7 @@
  * 	the line discipline are close to full, and it should somehow
  * 	signal that no more characters should be sent to the tty.
  *
- *	Optional: Always invoke via tty_throttle(), called under the
+ *	Optional: Always invoke via tty_throttle_safe(), called under the
  *	termios lock.
  * 
  * void (*unthrottle)(struct tty_struct * tty);
@@ -153,7 +153,7 @@
  * 	This routine notifies the tty driver that it should stop
  * 	outputting characters to the tty device.  
  *
- *	Called with ->flow_lock held. Serialized with start() method.
+ *	Called with ->flow.lock held. Serialized with start() method.
  *
  *	Optional:
  *
@@ -164,7 +164,7 @@
  * 	This routine notifies the tty driver that it resume sending
  *	characters to the tty device.
  *
- *	Called with ->flow_lock held. Serialized with stop() method.
+ *	Called with ->flow.lock held. Serialized with stop() method.
  *
  *	Optional:
  *
@@ -256,8 +256,8 @@ struct tty_operations {
 		      const unsigned char *buf, int count);
 	int  (*put_char)(struct tty_struct *tty, unsigned char ch);
 	void (*flush_chars)(struct tty_struct *tty);
-	int  (*write_room)(struct tty_struct *tty);
-	int  (*chars_in_buffer)(struct tty_struct *tty);
+	unsigned int (*write_room)(struct tty_struct *tty);
+	unsigned int (*chars_in_buffer)(struct tty_struct *tty);
 	int  (*ioctl)(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg);
 	long (*compat_ioctl)(struct tty_struct *tty,

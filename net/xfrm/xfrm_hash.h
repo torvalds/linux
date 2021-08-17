@@ -131,6 +131,13 @@ __xfrm_spi_hash(const xfrm_address_t *daddr, __be32 spi, u8 proto,
 	return (h ^ (h >> 10) ^ (h >> 20)) & hmask;
 }
 
+static inline unsigned int
+__xfrm_seq_hash(u32 seq, unsigned int hmask)
+{
+	unsigned int h = seq;
+	return (h ^ (h >> 10) ^ (h >> 20)) & hmask;
+}
+
 static inline unsigned int __idx_hash(u32 index, unsigned int hmask)
 {
 	return (index ^ (index >> 8)) & hmask;

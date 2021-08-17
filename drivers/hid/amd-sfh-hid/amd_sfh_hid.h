@@ -9,10 +9,15 @@
 #ifndef AMDSFH_HID_H
 #define AMDSFH_HID_H
 
-#define MAX_HID_DEVICES		4
+#define MAX_HID_DEVICES		5
 #define BUS_AMD_AMDTP		0x20
 #define AMD_SFH_HID_VENDOR	0x1022
 #define AMD_SFH_HID_PRODUCT	0x0001
+
+struct amd_input_data {
+	u32 *sensor_virt_addr[MAX_HID_DEVICES];
+	u8 *input_report[MAX_HID_DEVICES];
+};
 
 struct amdtp_cl_data {
 	u8 init_done;
@@ -26,7 +31,6 @@ struct amdtp_cl_data {
 	u8 *hid_descr[MAX_HID_DEVICES];
 	int hid_descr_size[MAX_HID_DEVICES];
 	phys_addr_t phys_addr_base;
-	u32 *sensor_virt_addr[MAX_HID_DEVICES];
 	dma_addr_t sensor_dma_addr[MAX_HID_DEVICES];
 	u32 sensor_sts[MAX_HID_DEVICES];
 	u32 sensor_requested_cnt[MAX_HID_DEVICES];
@@ -34,8 +38,8 @@ struct amdtp_cl_data {
 	u8 report_id[MAX_HID_DEVICES];
 	u8 sensor_idx[MAX_HID_DEVICES];
 	u8 *feature_report[MAX_HID_DEVICES];
-	u8 *input_report[MAX_HID_DEVICES];
 	u8 request_done[MAX_HID_DEVICES];
+	struct amd_input_data *in_data;
 	struct delayed_work work;
 	struct delayed_work work_buffer;
 };
@@ -64,4 +68,6 @@ void amdtp_hid_remove(struct amdtp_cl_data *cli_data);
 int amd_sfh_get_report(struct hid_device *hid, int report_id, int report_type);
 void amd_sfh_set_report(struct hid_device *hid, int report_id, int report_type);
 void amdtp_hid_wakeup(struct hid_device *hid);
+u8 get_input_report(u8 current_index, int sensor_idx, int report_id,
+		    struct amd_input_data *in_data);
 #endif

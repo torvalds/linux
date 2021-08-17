@@ -12,7 +12,11 @@ maintainers:
 
 properties:
   "#sound-dai-cells":
-    const: 0
+    minimum: 0
+    maximum: 1
+    description:
+      A value of 0 is deprecated. When used, it only allows access to
+      the ADC/DAC and AIF1 (the CPU DAI), not the other two AIFs/DAIs.
 
   compatible:
     oneOf:
@@ -50,7 +54,7 @@ additionalProperties: false
 examples:
   - |
     audio-codec@1c22e00 {
-      #sound-dai-cells = <0>;
+      #sound-dai-cells = <1>;
       compatible = "allwinner,sun8i-a33-codec";
       reg = <0x01c22e00 0x400>;
       interrupts = <0 29 4>;

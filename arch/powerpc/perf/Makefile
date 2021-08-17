@@ -1,9 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
-obj-$(CONFIG_PERF_EVENTS)	+= callchain.o callchain_$(BITS).o perf_regs.o
-ifdef CONFIG_COMPAT
-obj-$(CONFIG_PERF_EVENTS)	+= callchain_32.o
-endif
+obj-y				+= callchain.o callchain_$(BITS).o perf_regs.o
+obj-$(CONFIG_COMPAT)		+= callchain_32.o
 
 obj-$(CONFIG_PPC_PERF_CTRS)	+= core-book3s.o bhrb.o
 obj64-$(CONFIG_PPC_PERF_CTRS)	+= ppc970-pmu.o power5-pmu.o \

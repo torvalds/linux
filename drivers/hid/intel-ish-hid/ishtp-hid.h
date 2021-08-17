@@ -16,14 +16,9 @@
 #define	IS_RESPONSE	0x80
 
 /* Used to dump to Linux trace buffer, if enabled */
-extern void (*hid_print_trace)(void *unused, const char *format, ...);
+extern ishtp_print_log ishtp_hid_print_trace;
 #define hid_ishtp_trace(client, ...) \
-		(hid_print_trace)(NULL, __VA_ARGS__)
-
-/* ISH Transport protocol (ISHTP in short) GUID */
-static const guid_t hid_ishtp_guid =
-	GUID_INIT(0x33AECD58, 0xB679, 0x4E54,
-		  0x9B, 0xD9, 0xA0, 0x4D, 0x34, 0xF0, 0xC2, 0x26);
+	(ishtp_hid_print_trace)(NULL, __VA_ARGS__)
 
 /* ISH HID message structure */
 struct hostif_msg_hdr {
@@ -140,6 +135,7 @@ struct ishtp_cl_data {
 	int multi_packet_cnt;
 
 	struct work_struct work;
+	struct work_struct resume_work;
 	struct ishtp_cl_device *cl_device;
 };
 

@@ -124,7 +124,6 @@
 #define IF_RXPKT(A)
 #endif /* CONFIG_ATM_IA_DEBUG */ 
 
-#define isprint(a) ((a >=' ')&&(a <= '~'))  
 #define ATM_DESC(skb) (skb->protocol)
 #define IA_SKB_STATE(skb) (skb->protocol)
 #define IA_DLED   1

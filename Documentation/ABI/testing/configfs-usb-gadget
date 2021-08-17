@@ -137,7 +137,7 @@ Description:
 		This group contains "OS String" extension handling attributes.
 
 		=============	===============================================
-		use		flag turning "OS Desctiptors" support on/off
+		use		flag turning "OS Descriptors" support on/off
 		b_vendor_code	one-byte value used for custom per-device and
 				per-interface requests
 		qw_sign		an identifier to be reported as "OS String"

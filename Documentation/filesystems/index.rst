@@ -77,6 +77,7 @@ Documentation for filesystem implementations.
    coda
    configfs
    cramfs
+   dax
    debugfs
    dlmfs
    ecryptfs

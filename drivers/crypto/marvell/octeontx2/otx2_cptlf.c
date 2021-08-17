@@ -379,9 +379,14 @@ int otx2_cptlf_init(struct otx2_cptlfs_info *lfs, u8 eng_grp_mask, int pri,
 	for (slot = 0; slot < lfs->lfs_num; slot++) {
 		lfs->lf[slot].lfs = lfs;
 		lfs->lf[slot].slot = slot;
-		lfs->lf[slot].lmtline = lfs->reg_base +
-			OTX2_CPT_RVU_FUNC_ADDR_S(BLKADDR_LMT, slot,
+		if (lfs->lmt_base)
+			lfs->lf[slot].lmtline = lfs->lmt_base +
+						(slot * LMTLINE_SIZE);
+		else
+			lfs->lf[slot].lmtline = lfs->reg_base +
+				OTX2_CPT_RVU_FUNC_ADDR_S(BLKADDR_LMT, slot,
 						 OTX2_CPT_LMT_LF_LMTLINEX(0));
+
 		lfs->lf[slot].ioreg = lfs->reg_base +
 			OTX2_CPT_RVU_FUNC_ADDR_S(BLKADDR_CPT0, slot,
 						 OTX2_CPT_LF_NQX(0));

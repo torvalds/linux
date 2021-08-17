@@ -423,18 +423,18 @@ static void tipc_node_write_unlock(struct tipc_node *n)
 	write_unlock_bh(&n->lock);
 
 	if (flags & TIPC_NOTIFY_NODE_DOWN)
-		tipc_publ_notify(net, publ_list, n->addr, n->capabilities);
+		tipc_publ_notify(net, publ_list, sk.node, n->capabilities);
 
 	if (flags & TIPC_NOTIFY_NODE_UP)
-		tipc_named_node_up(net, n->addr, n->capabilities);
+		tipc_named_node_up(net, sk.node, n->capabilities);
 
 	if (flags & TIPC_NOTIFY_LINK_UP) {
-		tipc_mon_peer_up(net, n->addr, bearer_id);
-		tipc_nametbl_publish(net, &ua, &sk, n->link_id);
+		tipc_mon_peer_up(net, sk.node, bearer_id);
+		tipc_nametbl_publish(net, &ua, &sk, sk.ref);
 	}
 	if (flags & TIPC_NOTIFY_LINK_DOWN) {
-		tipc_mon_peer_down(net, n->addr, bearer_id);
-		tipc_nametbl_withdraw(net, &ua, &sk, n->link_id);
+		tipc_mon_peer_down(net, sk.node, bearer_id);
+		tipc_nametbl_withdraw(net, &ua, &sk, sk.ref);
 	}
 }
 
@@ -1214,7 +1214,7 @@ void tipc_node_check_dest(struct net *net, u32 addr,
 		/* Peer has changed i/f address without rebooting.
 		 * If so, the link will reset soon, and the next
 		 * discovery will be accepted. So we can ignore it.
-		 * It may also be an cloned or malicious peer having
+		 * It may also be a cloned or malicious peer having
 		 * chosen the same node address and signature as an
 		 * existing one.
 		 * Ignore requests until the link goes down, if ever.

@@ -379,7 +379,7 @@ static const struct i2c_algorithm gmbus_algorithm = {
 };
 
 /**
- * intel_gmbus_setup - instantiate all Intel i2c GMBuses
+ * gma_intel_setup_gmbus() - instantiate all Intel i2c GMBuses
  * @dev: DRM device
  */
 int gma_intel_setup_gmbus(struct drm_device *dev)

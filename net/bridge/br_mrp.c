@@ -204,6 +204,33 @@ static struct sk_buff *br_mrp_alloc_test_skb(struct br_mrp *mrp,
 	hdr->timestamp = cpu_to_be32(jiffies_to_msecs(jiffies));
 
 	br_mrp_skb_common(skb, mrp);
+
+	/* In case the node behaves as MRA then the Test frame needs to have
+	 * an Option TLV which includes eventually a sub-option TLV that has
+	 * the type AUTO_MGR
+	 */
+	if (mrp->ring_role == BR_MRP_RING_ROLE_MRA) {
+		struct br_mrp_sub_option1_hdr *sub_opt = NULL;
+		struct br_mrp_tlv_hdr *sub_tlv = NULL;
+		struct br_mrp_oui_hdr *oui = NULL;
+		u8 length;
+
+		length = sizeof(*sub_opt) + sizeof(*sub_tlv) + sizeof(oui) +
+			MRP_OPT_PADDING;
+		br_mrp_skb_tlv(skb, BR_MRP_TLV_HEADER_OPTION, length);
+
+		oui = skb_put(skb, sizeof(*oui));
+		memset(oui, 0x0, sizeof(*oui));
+		sub_opt = skb_put(skb, sizeof(*sub_opt));
+		memset(sub_opt, 0x0, sizeof(*sub_opt));
+
+		sub_tlv = skb_put(skb, sizeof(*sub_tlv));
+		sub_tlv->type = BR_MRP_SUB_TLV_HEADER_TEST_AUTO_MGR;
+
+		/* 32 bit alligment shall be ensured therefore add 2 bytes */
+		skb_put(skb, MRP_OPT_PADDING);
+	}
+
 	br_mrp_skb_tlv(skb, BR_MRP_TLV_HEADER_END, 0x0);
 
 	return skb;
@@ -627,8 +654,7 @@ int br_mrp_set_ring_state(struct net_bridge *br,
 	if (!mrp)
 		return -EINVAL;
 
-	if (mrp->ring_state == BR_MRP_RING_STATE_CLOSED &&
-	    state->ring_state != BR_MRP_RING_STATE_CLOSED)
+	if (mrp->ring_state != state->ring_state)
 		mrp->ring_transitions++;
 
 	mrp->ring_state = state->ring_state;
@@ -715,8 +741,7 @@ int br_mrp_set_in_state(struct net_bridge *br, struct br_mrp_in_state *state)
 	if (!mrp)
 		return -EINVAL;
 
-	if (mrp->in_state == BR_MRP_IN_STATE_CLOSED &&
-	    state->in_state != BR_MRP_IN_STATE_CLOSED)
+	if (mrp->in_state != state->in_state)
 		mrp->in_transitions++;
 
 	mrp->in_state = state->in_state;

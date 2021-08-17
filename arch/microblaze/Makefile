@@ -3,7 +3,7 @@ KBUILD_DEFCONFIG := mmu_defconfig
 
 UTS_SYSNAME = -DUTS_SYSNAME=\"Linux\"
 
-# What CPU vesion are we building for, and crack it open
+# What CPU version are we building for, and crack it open
 # as major.minor.rev
 CPU_VER   := $(shell echo $(CONFIG_XILINX_MICROBLAZE0_HW_VER))
 CPU_MAJOR := $(shell echo $(CPU_VER) | cut -d '.' -f 1)

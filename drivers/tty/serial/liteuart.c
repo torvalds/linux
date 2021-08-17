@@ -370,6 +370,27 @@ static int __init liteuart_console_init(void)
 	return 0;
 }
 console_initcall(liteuart_console_init);
+
+static void early_liteuart_write(struct console *console, const char *s,
+				    unsigned int count)
+{
+	struct earlycon_device *device = console->data;
+	struct uart_port *port = &device->port;
+
+	uart_console_write(port, s, count, liteuart_putchar);
+}
+
+static int __init early_liteuart_setup(struct earlycon_device *device,
+				       const char *options)
+{
+	if (!device->port.membase)
+		return -ENODEV;
+
+	device->con->write = early_liteuart_write;
+	return 0;
+}
+
+OF_EARLYCON_DECLARE(liteuart, "litex,liteuart", early_liteuart_setup);
 #endif /* CONFIG_SERIAL_LITEUART_CONSOLE */
 
 static int __init liteuart_init(void)

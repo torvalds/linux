@@ -1175,6 +1175,7 @@ static const struct platform_device_id kbl_board_ids[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(platform, kbl_board_ids);
 
 static struct platform_driver kabylake_audio = {
 	.probe = kabylake_audio_probe,
@@ -1191,7 +1192,3 @@ module_platform_driver(kabylake_audio)
 MODULE_DESCRIPTION("Audio KabyLake Machine driver for MAX98927/MAX98373 & DA7219");
 MODULE_AUTHOR("Mac Chiang <mac.chiang@intel.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:kbl_da7219_max98927");
-MODULE_ALIAS("platform:kbl_max98927");
-MODULE_ALIAS("platform:kbl_da7219_max98373");
-MODULE_ALIAS("platform:kbl_max98373");

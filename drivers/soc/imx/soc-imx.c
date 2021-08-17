@@ -70,6 +70,9 @@ static int __init imx_soc_device_init(void)
 	case MXC_CPU_MX35:
 		soc_id = "i.MX35";
 		break;
+	case MXC_CPU_MX50:
+		soc_id = "i.MX50";
+		break;
 	case MXC_CPU_MX51:
 		ocotp_compat = "fsl,imx51-iim";
 		soc_id = "i.MX51";

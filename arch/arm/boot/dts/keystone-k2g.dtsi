@@ -242,7 +242,7 @@
 			status = "disabled";
 		};
 
-		msgmgr: msgmgr@2a00000 {
+		msgmgr: mailbox@2a00000 {
 			compatible = "ti,k2g-message-manager";
 			#mbox-cells = <2>;
 			reg-names = "queue_proxy_region",
@@ -254,7 +254,7 @@
 				     <GIC_SPI 327 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		pmmc: pmmc@2921c00 {
+		pmmc: system-controller@2921c00 {
 			compatible = "ti,k2g-sci";
 			/*
 			 * In case of rare platforms that does not use k2g as
@@ -272,7 +272,7 @@
 				#power-domain-cells = <1>;
 			};
 
-			k2g_clks: clocks {
+			k2g_clks: clock-controller {
 				compatible = "ti,k2g-sci-clk";
 				#clock-cells = <2>;
 			};

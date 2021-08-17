@@ -18,6 +18,7 @@
 #include "i915_vgpu.h"
 
 #include "intel_gtt.h"
+#include "gen8_ppgtt.h"
 
 static int
 i915_get_ggtt_vma_pages(struct i915_vma *vma);
@@ -106,10 +107,10 @@ static bool needs_idle_maps(struct drm_i915_private *i915)
 	if (!intel_vtd_active())
 		return false;
 
-	if (IS_GEN(i915, 5) && IS_MOBILE(i915))
+	if (GRAPHICS_VER(i915) == 5 && IS_MOBILE(i915))
 		return true;
 
-	if (IS_GEN(i915, 12))
+	if (GRAPHICS_VER(i915) == 12)
 		return true; /* XXX DMAR fault reason 7 */
 
 	return false;
@@ -175,7 +176,7 @@ static void guc_ggtt_invalidate(struct i915_ggtt *ggtt)
 
 	gen8_ggtt_invalidate(ggtt);
 
-	if (INTEL_GEN(i915) >= 12)
+	if (GRAPHICS_VER(i915) >= 12)
 		intel_uncore_write_fw(uncore, GEN12_GUC_TLB_INV_CR,
 				      GEN12_GUC_TLB_INV_CR_INVALIDATE);
 	else
@@ -187,9 +188,9 @@ static void gmch_ggtt_invalidate(struct i915_ggtt *ggtt)
 	intel_gtt_chipset_flush();
 }
 
-static u64 gen8_ggtt_pte_encode(dma_addr_t addr,
-				enum i915_cache_level level,
-				u32 flags)
+u64 gen8_ggtt_pte_encode(dma_addr_t addr,
+			 enum i915_cache_level level,
+			 u32 flags)
 {
 	gen8_pte_t pte = addr | _PAGE_PRESENT;
 
@@ -657,7 +658,7 @@ static int init_aliasing_ppgtt(struct i915_ggtt *ggtt)
 		goto err_ppgtt;
 
 	i915_gem_object_lock(ppgtt->vm.scratch[0], NULL);
-	err = i915_vm_pin_pt_stash(&ppgtt->vm, &stash);
+	err = i915_vm_map_pt_stash(&ppgtt->vm, &stash);
 	i915_gem_object_unlock(ppgtt->vm.scratch[0]);
 	if (err)
 		goto err_stash;
@@ -745,7 +746,6 @@ static void ggtt_cleanup_hw(struct i915_ggtt *ggtt)
 
 	mutex_unlock(&ggtt->vm.mutex);
 	i915_address_space_fini(&ggtt->vm);
-	dma_resv_fini(&ggtt->vm.resv);
 
 	arch_phys_wc_del(ggtt->mtrr);
 
@@ -765,6 +765,19 @@ void i915_ggtt_driver_release(struct drm_i915_private *i915)
 
 	intel_ggtt_fini_fences(ggtt);
 	ggtt_cleanup_hw(ggtt);
+}
+
+/**
+ * i915_ggtt_driver_late_release - Cleanup of GGTT that needs to be done after
+ * all free objects have been drained.
+ * @i915: i915 device
+ */
+void i915_ggtt_driver_late_release(struct drm_i915_private *i915)
+{
+	struct i915_ggtt *ggtt = &i915->ggtt;
+
+	GEM_WARN_ON(kref_read(&ggtt->vm.resv_ref) != 1);
+	dma_resv_fini(&ggtt->vm._resv);
 }
 
 static unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
@@ -819,7 +832,7 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 	 * resort to an uncached mapping. The WC issue is easily caught by the
 	 * readback check when writing GTT PTE entries.
 	 */
-	if (IS_GEN9_LP(i915) || INTEL_GEN(i915) >= 10)
+	if (IS_GEN9_LP(i915) || GRAPHICS_VER(i915) >= 10)
 		ggtt->gsm = ioremap(phys_addr, size);
 	else
 		ggtt->gsm = ioremap_wc(phys_addr, size);
@@ -828,6 +841,7 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 		return -ENOMEM;
 	}
 
+	kref_init(&ggtt->vm.resv_ref);
 	ret = setup_scratch_page(&ggtt->vm);
 	if (ret) {
 		drm_err(&i915->drm, "Scratch setup failed\n");
@@ -906,9 +920,11 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 
 	ggtt->vm.insert_entries = gen8_ggtt_insert_entries;
 
-	/* Serialize GTT updates with aperture access on BXT if VT-d is on. */
-	if (intel_ggtt_update_needs_vtd_wa(i915) ||
-	    IS_CHERRYVIEW(i915) /* fails with concurrent use/update */) {
+	/*
+	 * Serialize GTT updates with aperture access on BXT if VT-d is on,
+	 * and always on CHV.
+	 */
+	if (intel_vm_no_concurrent_access_wa(i915)) {
 		ggtt->vm.insert_entries = bxt_vtd_ggtt_insert_entries__BKL;
 		ggtt->vm.insert_page    = bxt_vtd_ggtt_insert_page__BKL;
 		ggtt->vm.bind_async_flags =
@@ -1062,7 +1078,7 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 		ggtt->vm.pte_encode = hsw_pte_encode;
 	else if (IS_VALLEYVIEW(i915))
 		ggtt->vm.pte_encode = byt_pte_encode;
-	else if (INTEL_GEN(i915) >= 7)
+	else if (GRAPHICS_VER(i915) >= 7)
 		ggtt->vm.pte_encode = ivb_pte_encode;
 	else
 		ggtt->vm.pte_encode = snb_pte_encode;
@@ -1132,16 +1148,16 @@ static int ggtt_probe_hw(struct i915_ggtt *ggtt, struct intel_gt *gt)
 	ggtt->vm.gt = gt;
 	ggtt->vm.i915 = i915;
 	ggtt->vm.dma = i915->drm.dev;
-	dma_resv_init(&ggtt->vm.resv);
+	dma_resv_init(&ggtt->vm._resv);
 
-	if (INTEL_GEN(i915) <= 5)
+	if (GRAPHICS_VER(i915) <= 5)
 		ret = i915_gmch_probe(ggtt);
-	else if (INTEL_GEN(i915) < 8)
+	else if (GRAPHICS_VER(i915) < 8)
 		ret = gen6_gmch_probe(ggtt);
 	else
 		ret = gen8_gmch_probe(ggtt);
 	if (ret) {
-		dma_resv_fini(&ggtt->vm.resv);
+		dma_resv_fini(&ggtt->vm._resv);
 		return ret;
 	}
 
@@ -1193,7 +1209,7 @@ int i915_ggtt_probe_hw(struct drm_i915_private *i915)
 
 int i915_ggtt_enable_hw(struct drm_i915_private *i915)
 {
-	if (INTEL_GEN(i915) < 6 && !intel_enable_gtt())
+	if (GRAPHICS_VER(i915) < 6 && !intel_enable_gtt())
 		return -EIO;
 
 	return 0;
@@ -1258,7 +1274,7 @@ void i915_ggtt_resume(struct i915_ggtt *ggtt)
 	if (flush)
 		wbinvd_on_all_cpus();
 
-	if (INTEL_GEN(ggtt->vm.i915) >= 8)
+	if (GRAPHICS_VER(ggtt->vm.i915) >= 8)
 		setup_private_pat(ggtt->vm.gt->uncore);
 
 	intel_ggtt_restore_fences(ggtt);

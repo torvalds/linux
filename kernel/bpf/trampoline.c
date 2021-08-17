@@ -552,7 +552,7 @@ static void notrace inc_misses_counter(struct bpf_prog *prog)
  * __bpf_prog_enter returns:
  * 0 - skip execution of the bpf prog
  * 1 - execute bpf prog
- * [2..MAX_U64] - excute bpf prog and record execution time.
+ * [2..MAX_U64] - execute bpf prog and record execution time.
  *     This is start time.
  */
 u64 notrace __bpf_prog_enter(struct bpf_prog *prog)

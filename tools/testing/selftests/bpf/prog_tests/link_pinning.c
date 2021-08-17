@@ -17,7 +17,7 @@ void test_link_pinning_subtest(struct bpf_program *prog,
 	int err, i;
 
 	link = bpf_program__attach(prog);
-	if (CHECK(IS_ERR(link), "link_attach", "err: %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "link_attach"))
 		goto cleanup;
 
 	bss->in = 1;
@@ -51,7 +51,7 @@ void test_link_pinning_subtest(struct bpf_program *prog,
 
 	/* re-open link from BPFFS */
 	link = bpf_link__open(link_pin_path);
-	if (CHECK(IS_ERR(link), "link_open", "err: %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "link_open"))
 		goto cleanup;
 
 	CHECK(strcmp(link_pin_path, bpf_link__pin_path(link)), "pin_path2",
@@ -84,8 +84,7 @@ void test_link_pinning_subtest(struct bpf_program *prog,
 	CHECK(i == 10000, "link_attached", "got to iteration #%d\n", i);
 
 cleanup:
-	if (!IS_ERR(link))
-		bpf_link__destroy(link);
+	bpf_link__destroy(link);
 }
 
 void test_link_pinning(void)

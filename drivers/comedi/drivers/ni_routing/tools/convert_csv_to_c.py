@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0+
-# vim: ts=2:sw=2:et:tw=80:nowrap
 
 # This is simply to aide in creating the entries in the order of the value of
 # the device-global NI signal/terminal constants defined in comedi.h
@@ -123,7 +122,6 @@ class DeviceRoutes(CSVCollection):
 
   output_file_top = """\
 // SPDX-License-Identifier: GPL-2.0+
-/* vim: set ts=8 sw=8 noet tw=80 nowrap: */
 /*
  *  comedi/drivers/ni_routing/{filename}
  *  List of valid routes for specific NI boards.
@@ -155,7 +153,6 @@ class DeviceRoutes(CSVCollection):
 
   extern_header = """\
 /* SPDX-License-Identifier: GPL-2.0+ */
-/* vim: set ts=8 sw=8 noet tw=80 nowrap: */
 /*
  *  comedi/drivers/ni_routing/{filename}
  *  List of valid routes for specific NI boards.
@@ -193,7 +190,6 @@ class DeviceRoutes(CSVCollection):
 
   single_output_file_top = """\
 // SPDX-License-Identifier: GPL-2.0+
-/* vim: set ts=8 sw=8 noet tw=80 nowrap: */
 /*
  *  comedi/drivers/ni_routing/{filename}
  *  List of valid routes for specific NI boards.
@@ -299,7 +295,6 @@ class RouteValues(CSVCollection):
 
   output_file_top = """\
 // SPDX-License-Identifier: GPL-2.0+
-/* vim: set ts=8 sw=8 noet tw=80 nowrap: */
 /*
  *  comedi/drivers/ni_routing/{filename}
  *  Route information for NI boards.
@@ -337,7 +332,6 @@ class RouteValues(CSVCollection):
 
   extern_header = """\
 /* SPDX-License-Identifier: GPL-2.0+ */
-/* vim: set ts=8 sw=8 noet tw=80 nowrap: */
 /*
  *  comedi/drivers/ni_routing/{filename}
  *  List of valid routes for specific NI boards.
@@ -375,7 +369,6 @@ class RouteValues(CSVCollection):
 
   single_output_file_top = """\
 // SPDX-License-Identifier: GPL-2.0+
-/* vim: set ts=8 sw=8 noet tw=80 nowrap: */
 /*
  *  comedi/drivers/ni_routing/{filename}
  *  Route information for {sheet} boards.

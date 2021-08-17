@@ -345,6 +345,16 @@ static u32 spwr_notify_bat(struct ssam_event_notifier *nf, const struct ssam_eve
 	struct spwr_battery_device *bat = container_of(nf, struct spwr_battery_device, notif);
 	int status;
 
+	/*
+	 * We cannot use strict matching when registering the notifier as the
+	 * EC expects us to register it against instance ID 0. Strict matching
+	 * would thus drop events, as those may have non-zero instance IDs in
+	 * this subsystem. So we need to check the instance ID of the event
+	 * here manually.
+	 */
+	if (event->instance_id != bat->sdev->uid.instance)
+		return 0;
+
 	dev_dbg(&bat->sdev->dev, "power event (cid = %#04x, iid = %#04x, tid = %#04x)\n",
 		event->command_id, event->instance_id, event->target_id);
 
@@ -720,8 +730,8 @@ static void spwr_battery_init(struct spwr_battery_device *bat, struct ssam_devic
 	bat->notif.base.fn = spwr_notify_bat;
 	bat->notif.event.reg = registry;
 	bat->notif.event.id.target_category = sdev->uid.category;
-	bat->notif.event.id.instance = 0;
-	bat->notif.event.mask = SSAM_EVENT_MASK_STRICT;
+	bat->notif.event.id.instance = 0;	/* need to register with instance 0 */
+	bat->notif.event.mask = SSAM_EVENT_MASK_TARGET;
 	bat->notif.event.flags = SSAM_EVENT_SEQUENCED;
 
 	bat->psy_desc.name = bat->name;

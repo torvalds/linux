@@ -23,10 +23,12 @@
 /* Microcode version string length */
 #define OTX2_CPT_UCODE_VER_STR_SZ   44
 
-/* Maximum number of supported engines/cores on OcteonTX2 platform */
-#define OTX2_CPT_MAX_ENGINES        128
+/* Maximum number of supported engines/cores on OcteonTX2/CN10K platform */
+#define OTX2_CPT_MAX_ENGINES        144
 
 #define OTX2_CPT_ENGS_BITMASK_LEN   BITS_TO_LONGS(OTX2_CPT_MAX_ENGINES)
+
+#define OTX2_CPT_UCODE_SZ           (64 * 1024)
 
 /* Microcode types */
 enum otx2_cpt_ucode_type {
@@ -153,7 +155,7 @@ int otx2_cpt_init_eng_grps(struct pci_dev *pdev,
 			   struct otx2_cpt_eng_grps *eng_grps);
 void otx2_cpt_cleanup_eng_grps(struct pci_dev *pdev,
 			       struct otx2_cpt_eng_grps *eng_grps);
-int otx2_cpt_create_eng_grps(struct pci_dev *pdev,
+int otx2_cpt_create_eng_grps(struct otx2_cptpf_dev *cptpf,
 			     struct otx2_cpt_eng_grps *eng_grps);
 int otx2_cpt_disable_all_cores(struct otx2_cptpf_dev *cptpf);
 int otx2_cpt_get_eng_grp(struct otx2_cpt_eng_grps *eng_grps, int eng_type);

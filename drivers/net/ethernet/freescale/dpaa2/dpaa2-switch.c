@@ -1625,7 +1625,7 @@ static int dpaa2_switch_port_bridge_flags(struct net_device *netdev,
 	return 0;
 }
 
-static int dpaa2_switch_port_attr_set(struct net_device *netdev,
+static int dpaa2_switch_port_attr_set(struct net_device *netdev, const void *ctx,
 				      const struct switchdev_attr *attr,
 				      struct netlink_ext_ack *extack)
 {
@@ -2770,32 +2770,32 @@ static int dpaa2_switch_ctrl_if_setup(struct ethsw_core *ethsw)
 	if (err)
 		return err;
 
-	err = dpaa2_switch_seed_bp(ethsw);
-	if (err)
-		goto err_free_dpbp;
-
 	err = dpaa2_switch_alloc_rings(ethsw);
 	if (err)
-		goto err_drain_dpbp;
+		goto err_free_dpbp;
 
 	err = dpaa2_switch_setup_dpio(ethsw);
 	if (err)
 		goto err_destroy_rings;
 
+	err = dpaa2_switch_seed_bp(ethsw);
+	if (err)
+		goto err_deregister_dpio;
+
 	err = dpsw_ctrl_if_enable(ethsw->mc_io, 0, ethsw->dpsw_handle);
 	if (err) {
 		dev_err(ethsw->dev, "dpsw_ctrl_if_enable err %d\n", err);
-		goto err_deregister_dpio;
+		goto err_drain_dpbp;
 	}
 
 	return 0;
 
+err_drain_dpbp:
+	dpaa2_switch_drain_bp(ethsw);
 err_deregister_dpio:
 	dpaa2_switch_free_dpio(ethsw);
 err_destroy_rings:
 	dpaa2_switch_destroy_rings(ethsw);
-err_drain_dpbp:
-	dpaa2_switch_drain_bp(ethsw);
 err_free_dpbp:
 	dpaa2_switch_free_dpbp(ethsw);
 

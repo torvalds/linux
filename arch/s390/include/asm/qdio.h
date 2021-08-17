@@ -137,7 +137,6 @@ struct slibe {
  * @user0: user defineable value
  * @res4: reserved paramater
  * @user1: user defineable value
- * @user2: user defineable value
  */
 struct qaob {
 	u64 res0[6];
@@ -152,8 +151,7 @@ struct qaob {
 	u16 dcount[QDIO_MAX_ELEMENTS_PER_BUFFER];
 	u64 user0;
 	u64 res4[2];
-	u64 user1;
-	u64 user2;
+	u8 user1[16];
 } __attribute__ ((packed, aligned(256)));
 
 /**

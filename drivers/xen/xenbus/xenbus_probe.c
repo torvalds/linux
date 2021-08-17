@@ -207,7 +207,7 @@ void xenbus_otherend_changed(struct xenbus_watch *watch,
 EXPORT_SYMBOL_GPL(xenbus_otherend_changed);
 
 #define XENBUS_SHOW_STAT(name)						\
-static ssize_t show_##name(struct device *_dev,				\
+static ssize_t name##_show(struct device *_dev,				\
 			   struct device_attribute *attr,		\
 			   char *buf)					\
 {									\
@@ -215,14 +215,14 @@ static ssize_t show_##name(struct device *_dev,				\
 									\
 	return sprintf(buf, "%d\n", atomic_read(&dev->name));		\
 }									\
-static DEVICE_ATTR(name, 0444, show_##name, NULL)
+static DEVICE_ATTR_RO(name)
 
 XENBUS_SHOW_STAT(event_channels);
 XENBUS_SHOW_STAT(events);
 XENBUS_SHOW_STAT(spurious_events);
 XENBUS_SHOW_STAT(jiffies_eoi_delayed);
 
-static ssize_t show_spurious_threshold(struct device *_dev,
+static ssize_t spurious_threshold_show(struct device *_dev,
 				       struct device_attribute *attr,
 				       char *buf)
 {
@@ -231,9 +231,9 @@ static ssize_t show_spurious_threshold(struct device *_dev,
 	return sprintf(buf, "%d\n", dev->spurious_threshold);
 }
 
-static ssize_t set_spurious_threshold(struct device *_dev,
-				      struct device_attribute *attr,
-				      const char *buf, size_t count)
+static ssize_t spurious_threshold_store(struct device *_dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
 {
 	struct xenbus_device *dev = to_xenbus_device(_dev);
 	unsigned int val;
@@ -248,8 +248,7 @@ static ssize_t set_spurious_threshold(struct device *_dev,
 	return count;
 }
 
-static DEVICE_ATTR(spurious_threshold, 0644, show_spurious_threshold,
-		   set_spurious_threshold);
+static DEVICE_ATTR_RW(spurious_threshold);
 
 static struct attribute *xenbus_attrs[] = {
 	&dev_attr_event_channels.attr,

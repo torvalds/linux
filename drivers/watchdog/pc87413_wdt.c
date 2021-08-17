@@ -445,7 +445,7 @@ static long pc87413_ioctl(struct file *file, unsigned int cmd,
 /* -- Notifier funtions -----------------------------------------*/
 
 /**
- *	notify_sys:
+ *	pc87413_notify_sys:
  *	@this: our notifier block
  *	@code: the event being reported
  *	@unused: unused

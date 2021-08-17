@@ -30,6 +30,7 @@
 #include <linux/seq_file.h>
 
 #include "intel_atomic.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_pipe_crc.h"
 
@@ -409,7 +410,7 @@ static int get_new_crc_ctl_reg(struct drm_i915_private *dev_priv,
 			       enum pipe pipe,
 			       enum intel_pipe_crc_source *source, u32 *val)
 {
-	if (IS_DISPLAY_VER(dev_priv, 2))
+	if (DISPLAY_VER(dev_priv) == 2)
 		return i8xx_pipe_crc_ctl_reg(source, val);
 	else if (DISPLAY_VER(dev_priv) < 5)
 		return i9xx_pipe_crc_ctl_reg(dev_priv, pipe, source, val);
@@ -539,7 +540,7 @@ static int
 intel_is_valid_crc_source(struct drm_i915_private *dev_priv,
 			  const enum intel_pipe_crc_source source)
 {
-	if (IS_DISPLAY_VER(dev_priv, 2))
+	if (DISPLAY_VER(dev_priv) == 2)
 		return i8xx_crc_source_valid(dev_priv, source);
 	else if (DISPLAY_VER(dev_priv) < 5)
 		return i9xx_crc_source_valid(dev_priv, source);
@@ -580,13 +581,14 @@ int intel_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
 	return -EINVAL;
 }
 
-int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name)
+int intel_crtc_set_crc_source(struct drm_crtc *_crtc, const char *source_name)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_pipe_crc *pipe_crc = &intel_crtc->pipe_crc;
+	struct intel_crtc *crtc = to_intel_crtc(_crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_pipe_crc *pipe_crc = &crtc->pipe_crc;
 	enum intel_display_power_domain power_domain;
 	enum intel_pipe_crc_source source;
+	enum pipe pipe = crtc->pipe;
 	intel_wakeref_t wakeref;
 	u32 val = 0; /* shut up gcc */
 	int ret = 0;
@@ -597,7 +599,7 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name)
 		return -EINVAL;
 	}
 
-	power_domain = POWER_DOMAIN_PIPE(crtc->index);
+	power_domain = POWER_DOMAIN_PIPE(pipe);
 	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
 	if (!wakeref) {
 		drm_dbg_kms(&dev_priv->drm,
@@ -607,64 +609,64 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name)
 
 	enable = source != INTEL_PIPE_CRC_SOURCE_NONE;
 	if (enable)
-		intel_crtc_crc_setup_workarounds(to_intel_crtc(crtc), true);
+		intel_crtc_crc_setup_workarounds(crtc, true);
 
-	ret = get_new_crc_ctl_reg(dev_priv, crtc->index, &source, &val);
+	ret = get_new_crc_ctl_reg(dev_priv, pipe, &source, &val);
 	if (ret != 0)
 		goto out;
 
 	pipe_crc->source = source;
-	intel_de_write(dev_priv, PIPE_CRC_CTL(crtc->index), val);
-	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(crtc->index));
+	intel_de_write(dev_priv, PIPE_CRC_CTL(pipe), val);
+	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(pipe));
 
 	if (!source) {
 		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-			vlv_undo_pipe_scramble_reset(dev_priv, crtc->index);
+			vlv_undo_pipe_scramble_reset(dev_priv, pipe);
 	}
 
 	pipe_crc->skipped = 0;
 
 out:
 	if (!enable)
-		intel_crtc_crc_setup_workarounds(to_intel_crtc(crtc), false);
+		intel_crtc_crc_setup_workarounds(crtc, false);
 
 	intel_display_power_put(dev_priv, power_domain, wakeref);
 
 	return ret;
 }
 
-void intel_crtc_enable_pipe_crc(struct intel_crtc *intel_crtc)
+void intel_crtc_enable_pipe_crc(struct intel_crtc *crtc)
 {
-	struct drm_crtc *crtc = &intel_crtc->base;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_pipe_crc *pipe_crc = &intel_crtc->pipe_crc;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_pipe_crc *pipe_crc = &crtc->pipe_crc;
+	enum pipe pipe = crtc->pipe;
 	u32 val = 0;
 
-	if (!crtc->crc.opened)
+	if (!crtc->base.crc.opened)
 		return;
 
-	if (get_new_crc_ctl_reg(dev_priv, crtc->index, &pipe_crc->source, &val) < 0)
+	if (get_new_crc_ctl_reg(dev_priv, pipe, &pipe_crc->source, &val) < 0)
 		return;
 
 	/* Don't need pipe_crc->lock here, IRQs are not generated. */
 	pipe_crc->skipped = 0;
 
-	intel_de_write(dev_priv, PIPE_CRC_CTL(crtc->index), val);
-	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(crtc->index));
+	intel_de_write(dev_priv, PIPE_CRC_CTL(pipe), val);
+	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(pipe));
 }
 
-void intel_crtc_disable_pipe_crc(struct intel_crtc *intel_crtc)
+void intel_crtc_disable_pipe_crc(struct intel_crtc *crtc)
 {
-	struct drm_crtc *crtc = &intel_crtc->base;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_pipe_crc *pipe_crc = &intel_crtc->pipe_crc;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_pipe_crc *pipe_crc = &crtc->pipe_crc;
+	enum pipe pipe = crtc->pipe;
 
 	/* Swallow crc's until we stop generating them. */
 	spin_lock_irq(&pipe_crc->lock);
 	pipe_crc->skipped = INT_MIN;
 	spin_unlock_irq(&pipe_crc->lock);
 
-	intel_de_write(dev_priv, PIPE_CRC_CTL(crtc->index), 0);
-	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(crtc->index));
+	intel_de_write(dev_priv, PIPE_CRC_CTL(pipe), 0);
+	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(pipe));
 	intel_synchronize_irq(dev_priv);
 }

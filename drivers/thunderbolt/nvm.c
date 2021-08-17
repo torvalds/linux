@@ -164,6 +164,101 @@ void tb_nvm_free(struct tb_nvm *nvm)
 	kfree(nvm);
 }
 
+/**
+ * tb_nvm_read_data() - Read data from NVM
+ * @address: Start address on the flash
+ * @buf: Buffer where the read data is copied
+ * @size: Size of the buffer in bytes
+ * @retries: Number of retries if block read fails
+ * @read_block: Function that reads block from the flash
+ * @read_block_data: Data passsed to @read_block
+ *
+ * This is a generic function that reads data from NVM or NVM like
+ * device.
+ *
+ * Returns %0 on success and negative errno otherwise.
+ */
+int tb_nvm_read_data(unsigned int address, void *buf, size_t size,
+		     unsigned int retries, read_block_fn read_block,
+		     void *read_block_data)
+{
+	do {
+		unsigned int dwaddress, dwords, offset;
+		u8 data[NVM_DATA_DWORDS * 4];
+		size_t nbytes;
+		int ret;
+
+		offset = address & 3;
+		nbytes = min_t(size_t, size + offset, NVM_DATA_DWORDS * 4);
+
+		dwaddress = address / 4;
+		dwords = ALIGN(nbytes, 4) / 4;
+
+		ret = read_block(read_block_data, dwaddress, data, dwords);
+		if (ret) {
+			if (ret != -ENODEV && retries--)
+				continue;
+			return ret;
+		}
+
+		nbytes -= offset;
+		memcpy(buf, data + offset, nbytes);
+
+		size -= nbytes;
+		address += nbytes;
+		buf += nbytes;
+	} while (size > 0);
+
+	return 0;
+}
+
+/**
+ * tb_nvm_write_data() - Write data to NVM
+ * @address: Start address on the flash
+ * @buf: Buffer where the data is copied from
+ * @size: Size of the buffer in bytes
+ * @retries: Number of retries if the block write fails
+ * @write_block: Function that writes block to the flash
+ * @write_block_data: Data passwd to @write_block
+ *
+ * This is generic function that writes data to NVM or NVM like device.
+ *
+ * Returns %0 on success and negative errno otherwise.
+ */
+int tb_nvm_write_data(unsigned int address, const void *buf, size_t size,
+		      unsigned int retries, write_block_fn write_block,
+		      void *write_block_data)
+{
+	do {
+		unsigned int offset, dwaddress;
+		u8 data[NVM_DATA_DWORDS * 4];
+		size_t nbytes;
+		int ret;
+
+		offset = address & 3;
+		nbytes = min_t(u32, size + offset, NVM_DATA_DWORDS * 4);
+
+		memcpy(data + offset, buf, nbytes);
+
+		dwaddress = address / 4;
+		ret = write_block(write_block_data, dwaddress, data, nbytes / 4);
+		if (ret) {
+			if (ret == -ETIMEDOUT) {
+				if (retries--)
+					continue;
+				ret = -EIO;
+			}
+			return ret;
+		}
+
+		size -= nbytes;
+		address += nbytes;
+		buf += nbytes;
+	} while (size > 0);
+
+	return 0;
+}
+
 void tb_nvm_exit(void)
 {
 	ida_destroy(&nvm_ida);

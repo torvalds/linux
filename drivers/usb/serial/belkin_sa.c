@@ -356,25 +356,7 @@ static void belkin_sa_set_termios(struct tty_struct *tty,
 
 	/* set the number of data bits */
 	if ((cflag & CSIZE) != (old_cflag & CSIZE)) {
-		switch (cflag & CSIZE) {
-		case CS5:
-			urb_value = BELKIN_SA_DATA_BITS(5);
-			break;
-		case CS6:
-			urb_value = BELKIN_SA_DATA_BITS(6);
-			break;
-		case CS7:
-			urb_value = BELKIN_SA_DATA_BITS(7);
-			break;
-		case CS8:
-			urb_value = BELKIN_SA_DATA_BITS(8);
-			break;
-		default:
-			dev_dbg(&port->dev,
-				"CSIZE was not CS5-CS8, using default of 8\n");
-			urb_value = BELKIN_SA_DATA_BITS(8);
-			break;
-		}
+		urb_value = BELKIN_SA_DATA_BITS(tty_get_char_size(cflag));
 		if (BSA_USB_CMD(BELKIN_SA_SET_DATA_BITS_REQUEST, urb_value) < 0)
 			dev_err(&port->dev, "Set data bits error\n");
 	}

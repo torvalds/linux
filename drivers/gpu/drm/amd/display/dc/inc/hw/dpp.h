@@ -32,6 +32,12 @@
 struct dpp {
 	const struct dpp_funcs *funcs;
 	struct dc_context *ctx;
+	/**
+	 * @inst:
+	 *
+	 * inst stands for "instance," and it is an id number that references a
+	 * specific DPP.
+	 */
 	int inst;
 	struct dpp_caps *caps;
 	struct pwl_params regamma_params;

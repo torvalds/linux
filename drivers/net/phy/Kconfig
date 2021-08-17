@@ -207,6 +207,11 @@ config MARVELL_88X2222_PHY
 	  Support for the Marvell 88X2222 Dual-port Multi-speed Ethernet
 	  Transceiver.
 
+config MEDIATEK_GE_PHY
+	tristate "MediaTek Gigabit Ethernet PHYs"
+	help
+	  Supports the MediaTek Gigabit Ethernet PHYs.
+
 config MICREL_PHY
 	tristate "Micrel PHYs"
 	help
@@ -229,6 +234,12 @@ config MICROSEMI_PHY
 	help
 	  Currently supports VSC8514, VSC8530, VSC8531, VSC8540 and VSC8541 PHYs
 
+config MOTORCOMM_PHY
+	tristate "Motorcomm PHYs"
+	help
+	  Enables support for Motorcomm network PHYs.
+	  Currently supports the YT8511 gigabit PHY.
+
 config NATIONAL_PHY
 	tristate "National Semiconductor PHYs"
 	help
@@ -247,10 +258,11 @@ config NXP_TJA11XX_PHY
 	  Currently supports the NXP TJA1100 and TJA1101 PHY.
 
 config AT803X_PHY
-	tristate "Qualcomm Atheros AR803X PHYs"
+	tristate "Qualcomm Atheros AR803X PHYs and QCA833x PHYs"
 	depends on REGULATOR
 	help
-	  Currently supports the AR8030, AR8031, AR8033 and AR8035 model
+	  Currently supports the AR8030, AR8031, AR8033, AR8035 and internal
+	  QCA8337(Internal qca8k PHY) model
 
 config QSEMI_PHY
 	tristate "Quality Semiconductor PHYs"

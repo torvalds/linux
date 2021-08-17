@@ -306,33 +306,64 @@ static const struct regmap_bus regmap_i2c_smbus_i2c_block_reg16 = {
 static const struct regmap_bus *regmap_get_i2c_bus(struct i2c_client *i2c,
 					const struct regmap_config *config)
 {
+	const struct i2c_adapter_quirks *quirks;
+	const struct regmap_bus *bus = NULL;
+	struct regmap_bus *ret_bus;
+	u16 max_read = 0, max_write = 0;
+
 	if (i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C))
-		return &regmap_i2c;
+		bus = &regmap_i2c;
 	else if (config->val_bits == 8 && config->reg_bits == 8 &&
 		 i2c_check_functionality(i2c->adapter,
 					 I2C_FUNC_SMBUS_I2C_BLOCK))
-		return &regmap_i2c_smbus_i2c_block;
+		bus = &regmap_i2c_smbus_i2c_block;
 	else if (config->val_bits == 8 && config->reg_bits == 16 &&
 		i2c_check_functionality(i2c->adapter,
 					I2C_FUNC_SMBUS_I2C_BLOCK))
-		return &regmap_i2c_smbus_i2c_block_reg16;
+		bus = &regmap_i2c_smbus_i2c_block_reg16;
 	else if (config->val_bits == 16 && config->reg_bits == 8 &&
 		 i2c_check_functionality(i2c->adapter,
 					 I2C_FUNC_SMBUS_WORD_DATA))
 		switch (regmap_get_val_endian(&i2c->dev, NULL, config)) {
 		case REGMAP_ENDIAN_LITTLE:
-			return &regmap_smbus_word;
+			bus = &regmap_smbus_word;
+			break;
 		case REGMAP_ENDIAN_BIG:
-			return &regmap_smbus_word_swapped;
+			bus = &regmap_smbus_word_swapped;
+			break;
 		default:		/* everything else is not supported */
 			break;
 		}
 	else if (config->val_bits == 8 && config->reg_bits == 8 &&
 		 i2c_check_functionality(i2c->adapter,
 					 I2C_FUNC_SMBUS_BYTE_DATA))
-		return &regmap_smbus_byte;
+		bus = &regmap_smbus_byte;
 
-	return ERR_PTR(-ENOTSUPP);
+	if (!bus)
+		return ERR_PTR(-ENOTSUPP);
+
+	quirks = i2c->adapter->quirks;
+	if (quirks) {
+		if (quirks->max_read_len &&
+		    (bus->max_raw_read == 0 || bus->max_raw_read > quirks->max_read_len))
+			max_read = quirks->max_read_len;
+
+		if (quirks->max_write_len &&
+		    (bus->max_raw_write == 0 || bus->max_raw_write > quirks->max_write_len))
+			max_write = quirks->max_write_len;
+
+		if (max_read || max_write) {
+			ret_bus = kmemdup(bus, sizeof(*bus), GFP_KERNEL);
+			if (!ret_bus)
+				return ERR_PTR(-ENOMEM);
+			ret_bus->free_on_exit = true;
+			ret_bus->max_raw_read = max_read;
+			ret_bus->max_raw_write = max_write;
+			bus = ret_bus;
+		}
+	}
+
+	return bus;
 }
 
 struct regmap *__regmap_init_i2c(struct i2c_client *i2c,

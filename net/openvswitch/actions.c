@@ -30,6 +30,7 @@
 #include "conntrack.h"
 #include "vport.h"
 #include "flow_netlink.h"
+#include "openvswitch_trace.h"
 
 struct deferred_action {
 	struct sk_buff *skb;
@@ -1241,6 +1242,9 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 	for (a = attr, rem = len; rem > 0;
 	     a = nla_next(a, &rem)) {
 		int err = 0;
+
+		if (trace_ovs_do_execute_action_enabled())
+			trace_ovs_do_execute_action(dp, skb, key, a, rem);
 
 		switch (nla_type(a)) {
 		case OVS_ACTION_ATTR_OUTPUT: {

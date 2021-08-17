@@ -190,39 +190,21 @@ struct scsi_varlen_cdb_hdr {
  *  SCSI Architecture Model (SAM) Status codes. Taken from SAM-3 draft
  *  T10/1561-D Revision 4 Draft dated 7th November 2002.
  */
-#define SAM_STAT_GOOD            0x00
-#define SAM_STAT_CHECK_CONDITION 0x02
-#define SAM_STAT_CONDITION_MET   0x04
-#define SAM_STAT_BUSY            0x08
-#define SAM_STAT_INTERMEDIATE    0x10
-#define SAM_STAT_INTERMEDIATE_CONDITION_MET 0x14
-#define SAM_STAT_RESERVATION_CONFLICT 0x18
-#define SAM_STAT_COMMAND_TERMINATED 0x22	/* obsolete in SAM-3 */
-#define SAM_STAT_TASK_SET_FULL   0x28
-#define SAM_STAT_ACA_ACTIVE      0x30
-#define SAM_STAT_TASK_ABORTED    0x40
+enum sam_status {
+	SAM_STAT_GOOD				= 0x00,
+	SAM_STAT_CHECK_CONDITION		= 0x02,
+	SAM_STAT_CONDITION_MET			= 0x04,
+	SAM_STAT_BUSY				= 0x08,
+	SAM_STAT_INTERMEDIATE			= 0x10,
+	SAM_STAT_INTERMEDIATE_CONDITION_MET	= 0x14,
+	SAM_STAT_RESERVATION_CONFLICT		= 0x18,
+	SAM_STAT_COMMAND_TERMINATED		= 0x22,	/* obsolete in SAM-3 */
+	SAM_STAT_TASK_SET_FULL			= 0x28,
+	SAM_STAT_ACA_ACTIVE			= 0x30,
+	SAM_STAT_TASK_ABORTED			= 0x40,
+};
 
-/*
- *  Status codes. These are deprecated as they are shifted 1 bit right
- *  from those found in the SCSI standards. This causes confusion for
- *  applications that are ported to several OSes. Prefer SAM Status codes
- *  above.
- */
-
-#define GOOD                 0x00
-#define CHECK_CONDITION      0x01
-#define CONDITION_GOOD       0x02
-#define BUSY                 0x04
-#define INTERMEDIATE_GOOD    0x08
-#define INTERMEDIATE_C_GOOD  0x0a
-#define RESERVATION_CONFLICT 0x0c
-#define COMMAND_TERMINATED   0x11
-#define QUEUE_FULL           0x14
-#define ACA_ACTIVE           0x18
-#define TASK_ABORTED         0x20
-
-#define STATUS_MASK          0xfe
-
+#define STATUS_MASK         0xfe
 /*
  *  SENSE KEYS
  */
@@ -339,6 +321,18 @@ enum zbc_zone_cond {
 	ZBC_ZONE_COND_READONLY		= 0xd,
 	ZBC_ZONE_COND_FULL		= 0xe,
 	ZBC_ZONE_COND_OFFLINE		= 0xf,
+};
+
+/* Version descriptor values for INQUIRY */
+enum scsi_version_descriptor {
+	SCSI_VERSION_DESCRIPTOR_FCP4	= 0x0a40,
+	SCSI_VERSION_DESCRIPTOR_ISCSI	= 0x0960,
+	SCSI_VERSION_DESCRIPTOR_SAM5	= 0x00a0,
+	SCSI_VERSION_DESCRIPTOR_SAS3	= 0x0c60,
+	SCSI_VERSION_DESCRIPTOR_SBC3	= 0x04c0,
+	SCSI_VERSION_DESCRIPTOR_SBP3	= 0x0980,
+	SCSI_VERSION_DESCRIPTOR_SPC4	= 0x0460,
+	SCSI_VERSION_DESCRIPTOR_SRP	= 0x0940
 };
 
 #endif /* _SCSI_PROTO_H_ */

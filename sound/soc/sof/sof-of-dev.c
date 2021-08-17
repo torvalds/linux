@@ -70,7 +70,6 @@ static int sof_of_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct sof_dev_desc *desc;
 	struct snd_sof_pdata *sof_pdata;
-	const struct snd_sof_dsp_ops *ops;
 
 	dev_info(&pdev->dev, "DT DSP detected");
 
@@ -82,9 +81,7 @@ static int sof_of_probe(struct platform_device *pdev)
 	if (!desc)
 		return -ENODEV;
 
-	/* get ops for platform */
-	ops = desc->ops;
-	if (!ops) {
+	if (!desc->ops) {
 		dev_err(dev, "error: no matching DT descriptor ops\n");
 		return -ENODEV;
 	}

@@ -134,6 +134,9 @@ M(MSIX_OFFSET,		0x005, msix_offset, msg_req, msix_offset_rsp)	\
 M(VF_FLR,		0x006, vf_flr, msg_req, msg_rsp)		\
 M(PTP_OP,		0x007, ptp_op, ptp_req, ptp_rsp)		\
 M(GET_HW_CAP,		0x008, get_hw_cap, msg_req, get_hw_cap_rsp)	\
+M(LMTST_TBL_SETUP,	0x00a, lmtst_tbl_setup, lmtst_tbl_setup_req,    \
+				msg_rsp)				\
+M(SET_VF_PERM,		0x00b, set_vf_perm, set_vf_perm, msg_rsp)	\
 /* CGX mbox IDs (range 0x200 - 0x3FF) */				\
 M(CGX_START_RXTX,	0x200, cgx_start_rxtx, msg_req, msg_rsp)	\
 M(CGX_STOP_RXTX,	0x201, cgx_stop_rxtx, msg_req, msg_rsp)		\
@@ -162,7 +165,15 @@ M(CGX_SET_LINK_MODE,	0x214, cgx_set_link_mode, cgx_set_link_mode_req,\
 M(CGX_FEATURES_GET,	0x215, cgx_features_get, msg_req,		\
 			       cgx_features_info_msg)			\
 M(RPM_STATS,		0x216, rpm_stats, msg_req, rpm_stats_rsp)	\
- /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
+M(CGX_MAC_ADDR_ADD,	0x217, cgx_mac_addr_add, cgx_mac_addr_add_req,    \
+			       cgx_mac_addr_add_rsp)		\
+M(CGX_MAC_ADDR_DEL,	0x218, cgx_mac_addr_del, cgx_mac_addr_del_req,    \
+			       msg_rsp)		\
+M(CGX_MAC_MAX_ENTRIES_GET, 0x219, cgx_mac_max_entries_get, msg_req,    \
+				  cgx_max_dmac_entries_get_rsp)		\
+M(CGX_MAC_ADDR_RESET,	0x21A, cgx_mac_addr_reset, msg_req, msg_rsp)	\
+M(CGX_MAC_ADDR_UPDATE,	0x21B, cgx_mac_addr_update, cgx_mac_addr_update_req, \
+			       msg_rsp)					\
 /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
 M(NPA_LF_ALLOC,		0x400, npa_lf_alloc,				\
 				npa_lf_alloc_req, npa_lf_alloc_rsp)	\
@@ -259,7 +270,11 @@ M(NIX_BP_DISABLE,	0x8017, nix_bp_disable, nix_bp_cfg_req, msg_rsp) \
 M(NIX_GET_MAC_ADDR, 0x8018, nix_get_mac_addr, msg_req, nix_get_mac_addr_rsp) \
 M(NIX_CN10K_AQ_ENQ,	0x8019, nix_cn10k_aq_enq, nix_cn10k_aq_enq_req, \
 				nix_cn10k_aq_enq_rsp)			\
-M(NIX_GET_HW_INFO,	0x801a, nix_get_hw_info, msg_req, nix_hw_info)
+M(NIX_GET_HW_INFO,	0x801c, nix_get_hw_info, msg_req, nix_hw_info)	\
+M(NIX_BANDPROF_ALLOC,	0x801d, nix_bandprof_alloc, nix_bandprof_alloc_req, \
+				nix_bandprof_alloc_rsp)			    \
+M(NIX_BANDPROF_FREE,	0x801e, nix_bandprof_free, nix_bandprof_free_req,   \
+				msg_rsp)
 
 /* Messages initiated by AF (range 0xC00 - 0xDFF) */
 #define MBOX_UP_CGX_MESSAGES						\
@@ -396,6 +411,38 @@ struct cgx_mac_addr_set_or_get {
 	u8 mac_addr[ETH_ALEN];
 };
 
+/* Structure for requesting the operation to
+ * add DMAC filter entry into CGX interface
+ */
+struct cgx_mac_addr_add_req {
+	struct mbox_msghdr hdr;
+	u8 mac_addr[ETH_ALEN];
+};
+
+/* Structure for response against the operation to
+ * add DMAC filter entry into CGX interface
+ */
+struct cgx_mac_addr_add_rsp {
+	struct mbox_msghdr hdr;
+	u8 index;
+};
+
+/* Structure for requesting the operation to
+ * delete DMAC filter entry from CGX interface
+ */
+struct cgx_mac_addr_del_req {
+	struct mbox_msghdr hdr;
+	u8 index;
+};
+
+/* Structure for response against the operation to
+ * get maximum supported DMAC filter entries
+ */
+struct cgx_max_dmac_entries_get_rsp {
+	struct mbox_msghdr hdr;
+	u8 max_dmac_filters;
+};
+
 struct cgx_link_user_info {
 	uint64_t link_up:1;
 	uint64_t full_duplex:1;
@@ -492,6 +539,12 @@ struct cgx_set_link_mode_req {
 struct cgx_set_link_mode_rsp {
 	struct mbox_msghdr hdr;
 	int status;
+};
+
+struct cgx_mac_addr_update_req {
+	struct mbox_msghdr hdr;
+	u8 mac_addr[ETH_ALEN];
+	u8 index;
 };
 
 #define RVU_LMAC_FEAT_FC		BIT_ULL(0) /* pause frames */
@@ -611,7 +664,12 @@ enum nix_af_status {
 	NIX_AF_INVAL_SSO_PF_FUNC    = -420,
 	NIX_AF_ERR_TX_VTAG_NOSPC    = -421,
 	NIX_AF_ERR_RX_VTAG_INUSE    = -422,
-	NIX_AF_ERR_NPC_KEY_NOT_SUPP = -423,
+	NIX_AF_ERR_PTP_CONFIG_FAIL  = -423,
+	NIX_AF_ERR_NPC_KEY_NOT_SUPP = -424,
+	NIX_AF_ERR_INVALID_NIXBLK   = -425,
+	NIX_AF_ERR_INVALID_BANDPROF = -426,
+	NIX_AF_ERR_IPOLICER_NOTSUPP = -427,
+	NIX_AF_ERR_BANDPROF_INVAL_REQ  = -428,
 };
 
 /* For NIX RX vtag action  */
@@ -680,6 +738,7 @@ struct nix_cn10k_aq_enq_req {
 		struct nix_cq_ctx_s cq;
 		struct nix_rsse_s   rss;
 		struct nix_rx_mce_s mce;
+		struct nix_bandprof_s prof;
 	};
 	union {
 		struct nix_cn10k_rq_ctx_s rq_mask;
@@ -687,6 +746,7 @@ struct nix_cn10k_aq_enq_req {
 		struct nix_cq_ctx_s cq_mask;
 		struct nix_rsse_s   rss_mask;
 		struct nix_rx_mce_s mce_mask;
+		struct nix_bandprof_s prof_mask;
 	};
 };
 
@@ -698,6 +758,7 @@ struct nix_cn10k_aq_enq_rsp {
 		struct nix_cq_ctx_s cq;
 		struct nix_rsse_s   rss;
 		struct nix_rx_mce_s mce;
+		struct nix_bandprof_s prof;
 	};
 };
 
@@ -713,6 +774,7 @@ struct nix_aq_enq_req {
 		struct nix_cq_ctx_s cq;
 		struct nix_rsse_s   rss;
 		struct nix_rx_mce_s mce;
+		u64 prof;
 	};
 	union {
 		struct nix_rq_ctx_s rq_mask;
@@ -720,6 +782,7 @@ struct nix_aq_enq_req {
 		struct nix_cq_ctx_s cq_mask;
 		struct nix_rsse_s   rss_mask;
 		struct nix_rx_mce_s mce_mask;
+		u64 prof_mask;
 	};
 };
 
@@ -731,6 +794,7 @@ struct nix_aq_enq_rsp {
 		struct nix_cq_ctx_s cq;
 		struct nix_rsse_s   rss;
 		struct nix_rx_mce_s mce;
+		struct nix_bandprof_s prof;
 	};
 };
 
@@ -913,6 +977,7 @@ struct nix_rx_mode {
 #define NIX_RX_MODE_UCAST	BIT(0)
 #define NIX_RX_MODE_PROMISC	BIT(1)
 #define NIX_RX_MODE_ALLMULTI	BIT(2)
+#define NIX_RX_MODE_USE_MCE	BIT(3)
 	u16	mode;
 };
 
@@ -969,6 +1034,31 @@ struct nix_hw_info {
 	struct mbox_msghdr hdr;
 	u16 max_mtu;
 	u16 min_mtu;
+};
+
+struct nix_bandprof_alloc_req {
+	struct mbox_msghdr hdr;
+	/* Count of profiles needed per layer */
+	u16 prof_count[BAND_PROF_NUM_LAYERS];
+};
+
+struct nix_bandprof_alloc_rsp {
+	struct mbox_msghdr hdr;
+	u16 prof_count[BAND_PROF_NUM_LAYERS];
+
+	/* There is no need to allocate morethan 1 bandwidth profile
+	 * per RQ of a PF_FUNC's NIXLF. So limit the maximum
+	 * profiles to 64 per PF_FUNC.
+	 */
+#define MAX_BANDPROF_PER_PFFUNC	64
+	u16 prof_idx[BAND_PROF_NUM_LAYERS][MAX_BANDPROF_PER_PFFUNC];
+};
+
+struct nix_bandprof_free_req {
+	struct mbox_msghdr hdr;
+	u8 free_all;
+	u16 prof_count[BAND_PROF_NUM_LAYERS];
+	u16 prof_idx[BAND_PROF_NUM_LAYERS][MAX_BANDPROF_PER_PFFUNC];
 };
 
 /* NPC mbox message structs */
@@ -1226,6 +1316,22 @@ struct ptp_req {
 struct ptp_rsp {
 	struct mbox_msghdr hdr;
 	u64 clk;
+};
+
+struct set_vf_perm  {
+	struct  mbox_msghdr hdr;
+	u16	vf;
+#define RESET_VF_PERM		BIT_ULL(0)
+#define	VF_TRUSTED		BIT_ULL(1)
+	u64	flags;
+};
+
+struct lmtst_tbl_setup_req {
+	struct mbox_msghdr hdr;
+	u16 base_pcifunc;
+	u8  use_local_lmt_region;
+	u64 lmt_iova;
+	u64 rsvd[4];
 };
 
 /* CPT mailbox error codes

@@ -385,7 +385,7 @@ static void test_bc(struct rs_control *rs, int len, int errs,
 
 			/*
 			 * We check that the returned word is actually a
-			 * codeword. The obious way to do this would be to
+			 * codeword. The obvious way to do this would be to
 			 * compute the syndrome, but we don't want to replicate
 			 * that code here. However, all the codes are in
 			 * systematic form, and therefore we can encode the

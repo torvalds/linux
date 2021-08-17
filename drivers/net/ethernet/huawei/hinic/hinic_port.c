@@ -128,7 +128,7 @@ int hinic_port_get_mac(struct hinic_dev *nic_dev, u8 *addr)
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_MAC,
 				 &port_mac_cmd, sizeof(port_mac_cmd),
 				 &port_mac_cmd, &out_size);
-	if (err || (out_size != sizeof(port_mac_cmd)) || port_mac_cmd.status) {
+	if (err || out_size != sizeof(port_mac_cmd) || port_mac_cmd.status) {
 		dev_err(&pdev->dev, "Failed to get mac, err: %d, status: 0x%x, out size: 0x%x\n",
 			err, port_mac_cmd.status, out_size);
 		return -EFAULT;
@@ -263,7 +263,7 @@ int hinic_port_link_state(struct hinic_dev *nic_dev,
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_LINK_STATE,
 				 &link_cmd, sizeof(link_cmd),
 				 &link_cmd, &out_size);
-	if (err || (out_size != sizeof(link_cmd)) || link_cmd.status) {
+	if (err || out_size != sizeof(link_cmd) || link_cmd.status) {
 		dev_err(&pdev->dev, "Failed to get link state, err: %d, status: 0x%x, out size: 0x%x\n",
 			err, link_cmd.status, out_size);
 		return -EINVAL;
@@ -297,7 +297,7 @@ int hinic_port_set_state(struct hinic_dev *nic_dev, enum hinic_port_state state)
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_PORT_STATE,
 				 &port_state, sizeof(port_state),
 				 &port_state, &out_size);
-	if (err || (out_size != sizeof(port_state)) || port_state.status) {
+	if (err || out_size != sizeof(port_state) || port_state.status) {
 		dev_err(&pdev->dev, "Failed to set port state, err: %d, status: 0x%x, out size: 0x%x\n",
 			err, port_state.status, out_size);
 		return -EFAULT;
@@ -329,7 +329,7 @@ int hinic_port_set_func_state(struct hinic_dev *nic_dev,
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_FUNC_STATE,
 				 &func_state, sizeof(func_state),
 				 &func_state, &out_size);
-	if (err || (out_size != sizeof(func_state)) || func_state.status) {
+	if (err || out_size != sizeof(func_state) || func_state.status) {
 		dev_err(&pdev->dev, "Failed to set port func state, err: %d, status: 0x%x, out size: 0x%x\n",
 			err, func_state.status, out_size);
 		return -EFAULT;
@@ -359,7 +359,7 @@ int hinic_port_get_cap(struct hinic_dev *nic_dev,
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_CAP,
 				 port_cap, sizeof(*port_cap),
 				 port_cap, &out_size);
-	if (err || (out_size != sizeof(*port_cap)) || port_cap->status) {
+	if (err || out_size != sizeof(*port_cap) || port_cap->status) {
 		dev_err(&pdev->dev,
 			"Failed to get port capabilities, err: %d, status: 0x%x, out size: 0x%x\n",
 			err, port_cap->status, out_size);

@@ -19,13 +19,13 @@
    :maxdepth: 2
 
    gcov
+   kasan
 
 Todolist:
 
  - coccinelle
  - sparse
  - kcov
- - kasan
  - ubsan
  - kmemleak
  - kcsan

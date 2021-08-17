@@ -210,8 +210,6 @@ static int iproc_pwmc_probe(struct platform_device *pdev)
 	ip->chip.dev = &pdev->dev;
 	ip->chip.ops = &iproc_pwm_ops;
 	ip->chip.npwm = 4;
-	ip->chip.of_xlate = of_pwm_xlate_with_flags;
-	ip->chip.of_pwm_n_cells = 3;
 
 	ip->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ip->base))

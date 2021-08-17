@@ -37,7 +37,7 @@ int ubifs_compare_master_node(struct ubifs_info *c, void *m1, void *m2)
 		return ret;
 
 	/*
-	 * Do not compare the embedded HMAC aswell which also must be different
+	 * Do not compare the embedded HMAC as well which also must be different
 	 * due to the different common node header.
 	 */
 	behind = hmac_offs + UBIFS_MAX_HMAC_LEN;

@@ -97,8 +97,7 @@ static struct srcfile *find_srcfile(char *fn)
 	hlist_for_each_entry (h, &srcfile_htab[hval], hash_nd) {
 		if (!strcmp(fn, h->fn)) {
 			/* Move to front */
-			list_del(&h->nd);
-			list_add(&h->nd, &srcfile_list);
+			list_move(&h->nd, &srcfile_list);
 			return h;
 		}
 	}

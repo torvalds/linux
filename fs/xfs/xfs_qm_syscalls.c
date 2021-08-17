@@ -201,7 +201,8 @@ xfs_qm_scall_quotaoff(
 	 * depend on the quota inodes (and other things) being valid as long as
 	 * we keep the lock(s).
 	 */
-	xfs_qm_dqrele_all_inodes(mp, flags);
+	error = xfs_dqrele_all_inodes(mp, flags);
+	ASSERT(!error);
 
 	/*
 	 * Next we make the changes in the quota flag in the mount struct.
@@ -746,55 +747,4 @@ xfs_qm_scall_getquota_next(
 
 	xfs_qm_dqput(dqp);
 	return error;
-}
-
-STATIC int
-xfs_dqrele_inode(
-	struct xfs_inode	*ip,
-	void			*args)
-{
-	uint			*flags = args;
-
-	/* skip quota inodes */
-	if (ip == ip->i_mount->m_quotainfo->qi_uquotaip ||
-	    ip == ip->i_mount->m_quotainfo->qi_gquotaip ||
-	    ip == ip->i_mount->m_quotainfo->qi_pquotaip) {
-		ASSERT(ip->i_udquot == NULL);
-		ASSERT(ip->i_gdquot == NULL);
-		ASSERT(ip->i_pdquot == NULL);
-		return 0;
-	}
-
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	if ((*flags & XFS_UQUOTA_ACCT) && ip->i_udquot) {
-		xfs_qm_dqrele(ip->i_udquot);
-		ip->i_udquot = NULL;
-	}
-	if ((*flags & XFS_GQUOTA_ACCT) && ip->i_gdquot) {
-		xfs_qm_dqrele(ip->i_gdquot);
-		ip->i_gdquot = NULL;
-	}
-	if ((*flags & XFS_PQUOTA_ACCT) && ip->i_pdquot) {
-		xfs_qm_dqrele(ip->i_pdquot);
-		ip->i_pdquot = NULL;
-	}
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	return 0;
-}
-
-
-/*
- * Go thru all the inodes in the file system, releasing their dquots.
- *
- * Note that the mount structure gets modified to indicate that quotas are off
- * AFTER this, in the case of quotaoff.
- */
-void
-xfs_qm_dqrele_all_inodes(
-	struct xfs_mount	*mp,
-	uint			flags)
-{
-	ASSERT(mp->m_quotainfo);
-	xfs_inode_walk(mp, XFS_INODE_WALK_INEW_WAIT, xfs_dqrele_inode,
-			&flags, XFS_ICI_NO_TAG);
 }

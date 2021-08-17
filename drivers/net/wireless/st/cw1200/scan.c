@@ -75,20 +75,17 @@ int cw1200_hw_scan(struct ieee80211_hw *hw,
 	if (req->n_ssids > WSM_SCAN_MAX_NUM_OF_SSIDS)
 		return -EINVAL;
 
-	/* will be unlocked in cw1200_scan_work() */
-	down(&priv->scan.lock);
-	mutex_lock(&priv->conf_mutex);
-
 	frame.skb = ieee80211_probereq_get(hw, priv->vif->addr, NULL, 0,
 		req->ie_len);
-	if (!frame.skb) {
-		mutex_unlock(&priv->conf_mutex);
-		up(&priv->scan.lock);
+	if (!frame.skb)
 		return -ENOMEM;
-	}
 
 	if (req->ie_len)
 		skb_put_data(frame.skb, req->ie, req->ie_len);
+
+	/* will be unlocked in cw1200_scan_work() */
+	down(&priv->scan.lock);
+	mutex_lock(&priv->conf_mutex);
 
 	ret = wsm_set_template_frame(priv, &frame);
 	if (!ret) {
@@ -96,9 +93,9 @@ int cw1200_hw_scan(struct ieee80211_hw *hw,
 		ret = wsm_set_probe_responder(priv, true);
 	}
 	if (ret) {
-		dev_kfree_skb(frame.skb);
 		mutex_unlock(&priv->conf_mutex);
 		up(&priv->scan.lock);
+		dev_kfree_skb(frame.skb);
 		return ret;
 	}
 
@@ -120,8 +117,8 @@ int cw1200_hw_scan(struct ieee80211_hw *hw,
 		++priv->scan.n_ssids;
 	}
 
-	dev_kfree_skb(frame.skb);
 	mutex_unlock(&priv->conf_mutex);
+	dev_kfree_skb(frame.skb);
 	queue_work(priv->workqueue, &priv->scan.work);
 	return 0;
 }

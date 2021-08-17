@@ -871,7 +871,7 @@ enum bfa_port_linkstate_rsn {
 
 /*
  * Initially flash content may be fff. On making LUN mask enable and disable
- * state chnage.  when report lun command is being processed it goes from
+ * state change.  when report lun command is being processed it goes from
  * BFA_LUN_MASK_ACTIVE to BFA_LUN_MASK_FETCH and comes back to
  * BFA_LUN_MASK_ACTIVE.
  */

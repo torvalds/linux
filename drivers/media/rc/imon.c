@@ -780,7 +780,7 @@ static int send_set_imon_clock(struct imon_context *ictx,
 /*
  * These are the sysfs functions to handle the association on the iMON 2.4G LT.
  */
-static ssize_t show_associate_remote(struct device *d,
+static ssize_t associate_remote_show(struct device *d,
 				     struct device_attribute *attr,
 				     char *buf)
 {
@@ -800,7 +800,7 @@ static ssize_t show_associate_remote(struct device *d,
 	return strlen(buf);
 }
 
-static ssize_t store_associate_remote(struct device *d,
+static ssize_t associate_remote_store(struct device *d,
 				      struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
@@ -822,7 +822,7 @@ static ssize_t store_associate_remote(struct device *d,
 /*
  * sysfs functions to control internal imon clock
  */
-static ssize_t show_imon_clock(struct device *d,
+static ssize_t imon_clock_show(struct device *d,
 			       struct device_attribute *attr, char *buf)
 {
 	struct imon_context *ictx = dev_get_drvdata(d);
@@ -848,7 +848,7 @@ static ssize_t show_imon_clock(struct device *d,
 	return len;
 }
 
-static ssize_t store_imon_clock(struct device *d,
+static ssize_t imon_clock_store(struct device *d,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
@@ -895,11 +895,8 @@ exit:
 }
 
 
-static DEVICE_ATTR(imon_clock, S_IWUSR | S_IRUGO, show_imon_clock,
-		   store_imon_clock);
-
-static DEVICE_ATTR(associate_remote, S_IWUSR | S_IRUGO, show_associate_remote,
-		   store_associate_remote);
+static DEVICE_ATTR_RW(imon_clock);
+static DEVICE_ATTR_RW(associate_remote);
 
 static struct attribute *imon_display_sysfs_entries[] = {
 	&dev_attr_imon_clock.attr,

@@ -302,7 +302,6 @@ void __init smp_callin(unsigned long pdce_proc)
 #endif
 
 	smp_cpu_init(slave_id);
-	preempt_disable();
 
 	flush_cache_all_local(); /* start with known state */
 	flush_tlb_all_local(NULL);

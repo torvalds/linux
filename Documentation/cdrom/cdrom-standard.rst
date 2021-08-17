@@ -146,18 +146,18 @@ with the kernel as a block device by registering the following general
 *struct file_operations*::
 
 	struct file_operations cdrom_fops = {
-		NULL,			/∗ lseek ∗/
-		block _read ,		/∗ read—general block-dev read ∗/
-		block _write,		/∗ write—general block-dev write ∗/
-		NULL,			/∗ readdir ∗/
-		NULL,			/∗ select ∗/
-		cdrom_ioctl,		/∗ ioctl ∗/
-		NULL,			/∗ mmap ∗/
-		cdrom_open,		/∗ open ∗/
-		cdrom_release,		/∗ release ∗/
-		NULL,			/∗ fsync ∗/
-		NULL,			/∗ fasync ∗/
-		NULL			/∗ revalidate ∗/
+		NULL,			/* lseek */
+		block _read ,		/* read--general block-dev read */
+		block _write,		/* write--general block-dev write */
+		NULL,			/* readdir */
+		NULL,			/* select */
+		cdrom_ioctl,		/* ioctl */
+		NULL,			/* mmap */
+		cdrom_open,		/* open */
+		cdrom_release,		/* release */
+		NULL,			/* fsync */
+		NULL,			/* fasync */
+		NULL			/* revalidate */
 	};
 
 Every active CD-ROM device shares this *struct*. The routines
@@ -250,12 +250,12 @@ The drive-specific, minor-like information that is registered with
 `cdrom.c`, currently contains the following fields::
 
   struct cdrom_device_info {
-	const struct cdrom_device_ops * ops; 	/* device operations for this major */
+	const struct cdrom_device_ops * ops;	/* device operations for this major */
 	struct list_head list;			/* linked list of all device_info */
 	struct gendisk * disk;			/* matching block layer disk */
 	void *  handle;				/* driver-dependent data */
 
-	int mask; 				/* mask of capability: disables them */
+	int mask;				/* mask of capability: disables them */
 	int speed;				/* maximum speed for reading data */
 	int capacity;				/* number of discs in a jukebox */
 
@@ -569,7 +569,7 @@ the *CDC_CLOSE_TRAY* bit in *mask*.
 
 In the file `cdrom.c` you will encounter many constructions of the type::
 
-	if (cdo->capability & ∼cdi->mask & CDC _⟨capability⟩) ...
+	if (cdo->capability & ~cdi->mask & CDC _<capability>) ...
 
 There is no *ioctl* to set the mask... The reason is that
 I think it is better to control the **behavior** rather than the

@@ -1273,14 +1273,14 @@ static int cxgb_up(struct adapter *adap)
 			free_irq(adap->msix_info[0].vec, adap);
 			goto irq_err;
 		}
-	} else if ((err = request_irq(adap->pdev->irq,
-				      t3_intr_handler(adap,
-						      adap->sge.qs[0].rspq.
-						      polling),
-				      (adap->flags & USING_MSI) ?
-				       0 : IRQF_SHARED,
-				      adap->name, adap)))
-		goto irq_err;
+	} else {
+		err = request_irq(adap->pdev->irq,
+				  t3_intr_handler(adap, adap->sge.qs[0].rspq.polling),
+				  (adap->flags & USING_MSI) ? 0 : IRQF_SHARED,
+				  adap->name, adap);
+		if (err)
+			goto irq_err;
+	}
 
 	enable_all_napi(adap);
 	t3_sge_start(adap);
@@ -3098,8 +3098,9 @@ static void set_nqsets(struct adapter *adap)
 			nqsets = num_cpus;
 		if (nqsets < 1 || hwports == 4)
 			nqsets = 1;
-	} else
+	} else {
 		nqsets = 1;
+	}
 
 	for_each_port(adap, i) {
 		struct port_info *pi = adap2pinfo(adap, i);

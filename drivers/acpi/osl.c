@@ -212,7 +212,7 @@ acpi_physical_address __init acpi_os_get_root_pointer(void)
 			return efi.acpi20;
 		if (efi.acpi != EFI_INVALID_TABLE_ADDR)
 			return efi.acpi;
-		pr_err(PREFIX "System description tables not found\n");
+		pr_err("System description tables not found\n");
 	} else if (IS_ENABLED(CONFIG_ACPI_LEGACY_TABLES_LOOKUP)) {
 		acpi_find_root_pointer(&pa);
 	}
@@ -430,7 +430,7 @@ void __ref acpi_os_unmap_iomem(void __iomem *virt, acpi_size size)
 	map = acpi_map_lookup_virt(virt, size);
 	if (!map) {
 		mutex_unlock(&acpi_ioremap_lock);
-		WARN(true, PREFIX "%s: bad address %p\n", __func__, virt);
+		WARN(true, "ACPI: %s: bad address %p\n", __func__, virt);
 		return;
 	}
 	acpi_os_drop_map_ref(map);
@@ -1487,12 +1487,7 @@ EXPORT_SYMBOL(acpi_check_resource_conflict);
 int acpi_check_region(resource_size_t start, resource_size_t n,
 		      const char *name)
 {
-	struct resource res = {
-		.start = start,
-		.end   = start + n - 1,
-		.name  = name,
-		.flags = IORESOURCE_IO,
-	};
+	struct resource res = DEFINE_RES_IO_NAMED(start, n, name);
 
 	return acpi_check_resource_conflict(&res);
 }

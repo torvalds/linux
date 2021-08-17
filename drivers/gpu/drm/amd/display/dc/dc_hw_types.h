@@ -182,6 +182,8 @@ enum surface_pixel_format {
 	SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS,
 	/*64 bpp */
 	SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616,
+	/*swapped*/
+	SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616,
 	/*float*/
 	SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F,
 	/*swaped & float*/
@@ -739,6 +741,7 @@ struct dc_dsc_config {
 	uint32_t version_minor; /* DSC minor version. Full version is formed as 1.version_minor. */
 	bool ycbcr422_simple; /* Tell DSC engine to convert YCbCr 4:2:2 to 'YCbCr 4:2:2 simple'. */
 	int32_t rc_buffer_size; /* DSC RC buffer block size in bytes */
+	bool is_dp; /* indicate if DSC is applied based on DP's capability */
 };
 struct dc_crtc_timing {
 	uint32_t h_total;

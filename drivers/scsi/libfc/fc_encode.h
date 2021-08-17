@@ -166,9 +166,11 @@ static inline int fc_ct_ns_fill(struct fc_lport *lport,
 static inline void fc_ct_ms_fill_attr(struct fc_fdmi_attr_entry *entry,
 				    const char *in, size_t len)
 {
-	int copied = strscpy(entry->value, in, len);
-	if (copied > 0)
-		memset(entry->value, copied, len - copied);
+	int copied;
+
+	copied = strscpy(entry->value, in, len);
+	if (copied > 0 && copied + 1 < len)
+		memset(entry->value + copied + 1, 0, len - copied - 1);
 }
 
 /**
@@ -190,10 +192,11 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 	struct fc_fdmi_attr_entry *entry;
 	struct fs_fdmi_attrs *hba_attrs;
 	int numattrs = 0;
+	struct fc_host_attrs *fc_host = shost_to_fc_host(lport->host);
 
 	switch (op) {
 	case FC_FDMI_RHBA:
-		numattrs = 10;
+		numattrs = 11;
 		len = sizeof(struct fc_fdmi_rhba);
 		len -= sizeof(struct fc_fdmi_attr_entry);
 		len += (numattrs * FC_FDMI_ATTR_ENTRY_HEADER_LEN);
@@ -207,8 +210,21 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 		len += FC_FDMI_HBA_ATTR_OPTIONROMVERSION_LEN;
 		len += FC_FDMI_HBA_ATTR_FIRMWAREVERSION_LEN;
 		len += FC_FDMI_HBA_ATTR_OSNAMEVERSION_LEN;
+		len += FC_FDMI_HBA_ATTR_MAXCTPAYLOAD_LEN;
+
+		if (fc_host->fdmi_version == FDMI_V2) {
+			numattrs += 7;
+			len += FC_FDMI_HBA_ATTR_NODESYMBLNAME_LEN;
+			len += FC_FDMI_HBA_ATTR_VENDORSPECIFICINFO_LEN;
+			len += FC_FDMI_HBA_ATTR_NUMBEROFPORTS_LEN;
+			len += FC_FDMI_HBA_ATTR_FABRICNAME_LEN;
+			len += FC_FDMI_HBA_ATTR_BIOSVERSION_LEN;
+			len += FC_FDMI_HBA_ATTR_BIOSSTATE_LEN;
+			len += FC_FDMI_HBA_ATTR_VENDORIDENTIFIER_LEN;
+		}
+
 		ct = fc_ct_hdr_fill(fp, op, len, FC_FST_MGMT,
-				    FC_FDMI_SUBTYPE);
+				FC_FDMI_SUBTYPE);
 
 		/* HBA Identifier */
 		put_unaligned_be64(lport->wwpn, &ct->payload.rhba.hbaid.id);
@@ -313,7 +329,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 				   &entry->type);
 		put_unaligned_be16(len, &entry->len);
 		fc_ct_ms_fill_attr(entry,
-			fc_host_optionrom_version(lport->host),
+			"unknown",
 			FC_FDMI_HBA_ATTR_OPTIONROMVERSION_LEN);
 
 		/* Firmware Version */
@@ -341,6 +357,100 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 			"%s v%s",
 			init_utsname()->sysname,
 			init_utsname()->release);
+
+		/* Max CT payload */
+		entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_HBA_ATTR_OSNAMEVERSION_LEN);
+		len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+		len += FC_FDMI_HBA_ATTR_MAXCTPAYLOAD_LEN;
+		put_unaligned_be16(FC_FDMI_HBA_ATTR_MAXCTPAYLOAD,
+				&entry->type);
+		put_unaligned_be16(len, &entry->len);
+		put_unaligned_be32(fc_host_max_ct_payload(lport->host),
+				&entry->value);
+
+		if (fc_host->fdmi_version == FDMI_V2) {
+			/* Node symbolic name */
+			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_HBA_ATTR_MAXCTPAYLOAD_LEN);
+			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+			len += FC_FDMI_HBA_ATTR_NODESYMBLNAME_LEN;
+			put_unaligned_be16(FC_FDMI_HBA_ATTR_NODESYMBLNAME,
+					&entry->type);
+			put_unaligned_be16(len, &entry->len);
+			fc_ct_ms_fill_attr(entry,
+					fc_host_symbolic_name(lport->host),
+					FC_FDMI_HBA_ATTR_NODESYMBLNAME_LEN);
+
+			/* Vendor specific info */
+			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_HBA_ATTR_NODESYMBLNAME_LEN);
+			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+			len += FC_FDMI_HBA_ATTR_VENDORSPECIFICINFO_LEN;
+			put_unaligned_be16(FC_FDMI_HBA_ATTR_VENDORSPECIFICINFO,
+					&entry->type);
+			put_unaligned_be16(len, &entry->len);
+			put_unaligned_be32(0,
+					&entry->value);
+
+			/* Number of ports */
+			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_HBA_ATTR_VENDORSPECIFICINFO_LEN);
+			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+			len += FC_FDMI_HBA_ATTR_NUMBEROFPORTS_LEN;
+			put_unaligned_be16(FC_FDMI_HBA_ATTR_NUMBEROFPORTS,
+					&entry->type);
+			put_unaligned_be16(len, &entry->len);
+			put_unaligned_be32(fc_host_num_ports(lport->host),
+					&entry->value);
+
+			/* Fabric name */
+			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_HBA_ATTR_NUMBEROFPORTS_LEN);
+			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+			len += FC_FDMI_HBA_ATTR_FABRICNAME_LEN;
+			put_unaligned_be16(FC_FDMI_HBA_ATTR_FABRICNAME,
+					&entry->type);
+			put_unaligned_be16(len, &entry->len);
+			put_unaligned_be64(fc_host_fabric_name(lport->host),
+					&entry->value);
+
+			/* BIOS version */
+			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_HBA_ATTR_FABRICNAME_LEN);
+			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+			len += FC_FDMI_HBA_ATTR_BIOSVERSION_LEN;
+			put_unaligned_be16(FC_FDMI_HBA_ATTR_BIOSVERSION,
+					&entry->type);
+			put_unaligned_be16(len, &entry->len);
+			fc_ct_ms_fill_attr(entry,
+					fc_host_bootbios_version(lport->host),
+					FC_FDMI_HBA_ATTR_BIOSVERSION_LEN);
+
+			/* BIOS state */
+			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_HBA_ATTR_BIOSVERSION_LEN);
+			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+			len += FC_FDMI_HBA_ATTR_BIOSSTATE_LEN;
+			put_unaligned_be16(FC_FDMI_HBA_ATTR_BIOSSTATE,
+					&entry->type);
+			put_unaligned_be16(len, &entry->len);
+			put_unaligned_be32(fc_host_bootbios_state(lport->host),
+					&entry->value);
+
+			/* Vendor identifier  */
+			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_HBA_ATTR_BIOSSTATE_LEN);
+			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+			len += FC_FDMI_HBA_ATTR_VENDORIDENTIFIER_LEN;
+			put_unaligned_be16(FC_FDMI_HBA_ATTR_VENDORIDENTIFIER,
+					&entry->type);
+			put_unaligned_be16(len, &entry->len);
+			fc_ct_ms_fill_attr(entry,
+					fc_host_vendor_identifier(lport->host),
+					FC_FDMI_HBA_ATTR_VENDORIDENTIFIER_LEN);
+		}
+
 		break;
 	case FC_FDMI_RPA:
 		numattrs = 6;
@@ -353,6 +463,24 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 		len += FC_FDMI_PORT_ATTR_MAXFRAMESIZE_LEN;
 		len += FC_FDMI_PORT_ATTR_OSDEVICENAME_LEN;
 		len += FC_FDMI_PORT_ATTR_HOSTNAME_LEN;
+
+
+		if (fc_host->fdmi_version == FDMI_V2) {
+			numattrs += 10;
+
+			len += FC_FDMI_PORT_ATTR_NODENAME_LEN;
+			len += FC_FDMI_PORT_ATTR_PORTNAME_LEN;
+			len += FC_FDMI_PORT_ATTR_SYMBOLICNAME_LEN;
+			len += FC_FDMI_PORT_ATTR_PORTTYPE_LEN;
+			len += FC_FDMI_PORT_ATTR_SUPPORTEDCLASSSRVC_LEN;
+			len += FC_FDMI_PORT_ATTR_FABRICNAME_LEN;
+			len += FC_FDMI_PORT_ATTR_CURRENTFC4TYPE_LEN;
+			len += FC_FDMI_PORT_ATTR_PORTSTATE_LEN;
+			len += FC_FDMI_PORT_ATTR_DISCOVEREDPORTS_LEN;
+			len += FC_FDMI_PORT_ATTR_PORTID_LEN;
+
+		}
+
 		ct = fc_ct_hdr_fill(fp, op, len, FC_FST_MGMT,
 				    FC_FDMI_SUBTYPE);
 
@@ -441,6 +569,122 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 			fc_ct_ms_fill_attr(entry,
 				init_utsname()->nodename,
 				FC_FDMI_PORT_ATTR_HOSTNAME_LEN);
+
+
+		if (fc_host->fdmi_version == FDMI_V2) {
+
+			/* Node name */
+			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_PORT_ATTR_HOSTNAME_LEN);
+			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+			len += FC_FDMI_PORT_ATTR_NODENAME_LEN;
+			put_unaligned_be16(FC_FDMI_PORT_ATTR_NODENAME,
+					&entry->type);
+			put_unaligned_be16(len, &entry->len);
+			put_unaligned_be64(fc_host_node_name(lport->host),
+					&entry->value);
+
+			/* Port name  */
+			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_PORT_ATTR_NODENAME_LEN);
+			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+			len += FC_FDMI_PORT_ATTR_PORTNAME_LEN;
+			put_unaligned_be16(FC_FDMI_PORT_ATTR_PORTNAME,
+					&entry->type);
+			put_unaligned_be16(len, &entry->len);
+			put_unaligned_be64(lport->wwpn,
+					&entry->value);
+
+			/* Port symbolic name */
+			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_PORT_ATTR_PORTNAME_LEN);
+			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+			len += FC_FDMI_PORT_ATTR_SYMBOLICNAME_LEN;
+			put_unaligned_be16(FC_FDMI_PORT_ATTR_SYMBOLICNAME,
+					&entry->type);
+			put_unaligned_be16(len, &entry->len);
+			fc_ct_ms_fill_attr(entry,
+					fc_host_symbolic_name(lport->host),
+					FC_FDMI_PORT_ATTR_SYMBOLICNAME_LEN);
+
+			/* Port type */
+			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_PORT_ATTR_SYMBOLICNAME_LEN);
+			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+			len += FC_FDMI_PORT_ATTR_PORTTYPE_LEN;
+			put_unaligned_be16(FC_FDMI_PORT_ATTR_PORTTYPE,
+					&entry->type);
+			put_unaligned_be16(len, &entry->len);
+			put_unaligned_be32(fc_host_port_type(lport->host),
+					&entry->value);
+
+			/* Supported class of service */
+			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_PORT_ATTR_PORTTYPE_LEN);
+			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+			len += FC_FDMI_PORT_ATTR_SUPPORTEDCLASSSRVC_LEN;
+			put_unaligned_be16(FC_FDMI_PORT_ATTR_SUPPORTEDCLASSSRVC,
+					&entry->type);
+			put_unaligned_be16(len, &entry->len);
+			put_unaligned_be32(fc_host_supported_classes(lport->host),
+					&entry->value);
+
+			/* Port Fabric name */
+			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_PORT_ATTR_SUPPORTEDCLASSSRVC_LEN);
+			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+			len += FC_FDMI_PORT_ATTR_FABRICNAME_LEN;
+			put_unaligned_be16(FC_FDMI_PORT_ATTR_FABRICNAME,
+					&entry->type);
+			put_unaligned_be16(len, &entry->len);
+			put_unaligned_be64(fc_host_fabric_name(lport->host),
+					&entry->value);
+
+			/* Port active FC-4 */
+			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_PORT_ATTR_FABRICNAME_LEN);
+			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+			len += FC_FDMI_PORT_ATTR_CURRENTFC4TYPE_LEN;
+			put_unaligned_be16(FC_FDMI_PORT_ATTR_CURRENTFC4TYPE,
+					&entry->type);
+			put_unaligned_be16(len, &entry->len);
+			memcpy(&entry->value, fc_host_active_fc4s(lport->host),
+					FC_FDMI_PORT_ATTR_CURRENTFC4TYPE_LEN);
+
+			/* Port state */
+			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_PORT_ATTR_CURRENTFC4TYPE_LEN);
+			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+			len += FC_FDMI_PORT_ATTR_PORTSTATE_LEN;
+			put_unaligned_be16(FC_FDMI_PORT_ATTR_PORTSTATE,
+					&entry->type);
+			put_unaligned_be16(len, &entry->len);
+			put_unaligned_be32(fc_host_port_state(lport->host),
+					&entry->value);
+
+			/* Discovered ports */
+			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_PORT_ATTR_PORTSTATE_LEN);
+			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+			len += FC_FDMI_PORT_ATTR_DISCOVEREDPORTS_LEN;
+			put_unaligned_be16(FC_FDMI_PORT_ATTR_DISCOVEREDPORTS,
+					&entry->type);
+			put_unaligned_be16(len, &entry->len);
+			put_unaligned_be32(fc_host_num_discovered_ports(lport->host),
+					&entry->value);
+
+			/* Port ID */
+			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
+					FC_FDMI_PORT_ATTR_DISCOVEREDPORTS_LEN);
+			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
+			len += FC_FDMI_PORT_ATTR_PORTID_LEN;
+			put_unaligned_be16(FC_FDMI_PORT_ATTR_PORTID,
+					&entry->type);
+			put_unaligned_be16(len, &entry->len);
+			put_unaligned_be32(fc_host_port_id(lport->host),
+					&entry->value);
+		}
+
 		break;
 	case FC_FDMI_DPRT:
 		len = sizeof(struct fc_fdmi_dprt);

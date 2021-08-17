@@ -152,7 +152,7 @@ DECLARE_EVENT_CLASS(rpcgss_ctx_class,
 	TP_fast_assign(
 		__entry->cred = gc;
 		__entry->service = gc->gc_service;
-		__assign_str(principal, gc->gc_principal)
+		__assign_str(principal, gc->gc_principal);
 	),
 
 	TP_printk("cred=%p service=%s principal='%s'",
@@ -535,7 +535,7 @@ TRACE_EVENT(rpcgss_upcall_msg,
 	),
 
 	TP_fast_assign(
-		__assign_str(msg, buf)
+		__assign_str(msg, buf);
 	),
 
 	TP_printk("msg='%s'", __get_str(msg))

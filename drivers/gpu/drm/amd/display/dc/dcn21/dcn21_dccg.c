@@ -100,6 +100,9 @@ void dccg21_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk)
 static const struct dccg_funcs dccg21_funcs = {
 	.update_dpp_dto = dccg21_update_dpp_dto,
 	.get_dccg_ref_freq = dccg2_get_dccg_ref_freq,
+	.set_fifo_errdet_ovr_en = dccg2_set_fifo_errdet_ovr_en,
+	.otg_add_pixel = dccg2_otg_add_pixel,
+	.otg_drop_pixel = dccg2_otg_drop_pixel,
 	.dccg_init = dccg2_init
 };
 

@@ -116,7 +116,7 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 		tail = (struct frame_tail __user *)regs->regs[29];
 
 		while (entry->nr < entry->max_stack &&
-		       tail && !((unsigned long)tail & 0xf))
+		       tail && !((unsigned long)tail & 0x7))
 			tail = user_backtrace(tail, entry);
 	} else {
 #ifdef CONFIG_COMPAT

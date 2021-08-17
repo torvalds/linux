@@ -75,6 +75,11 @@ struct snd_bebob_spec {
 	const struct snd_bebob_meter_spec *meter;
 };
 
+enum snd_bebob_quirk {
+	SND_BEBOB_QUIRK_INITIAL_DISCONTINUOUS_DBC = (1 << 0),
+	SND_BEBOB_QUIRK_WRONG_DBC		  = (1 << 1),
+};
+
 struct snd_bebob {
 	struct snd_card *card;
 	struct fw_unit *unit;
@@ -83,11 +88,8 @@ struct snd_bebob {
 	struct mutex mutex;
 	spinlock_t lock;
 
-	bool registered;
-	struct delayed_work dwork;
-
-	const struct ieee1394_device_id *entry;
 	const struct snd_bebob_spec *spec;
+	unsigned int quirks;	// Combination of snd_bebob_quirk enumerations.
 
 	unsigned int midi_input_ports;
 	unsigned int midi_output_ports;
@@ -112,9 +114,6 @@ struct snd_bebob {
 
 	/* for M-Audio special devices */
 	void *maudio_special_quirk;
-
-	/* For BeBoB version quirk. */
-	unsigned int version;
 
 	struct amdtp_domain domain;
 };
@@ -253,14 +252,5 @@ extern const struct snd_bebob_spec maudio_nrv10_spec;
 extern const struct snd_bebob_spec maudio_special_spec;
 int snd_bebob_maudio_special_discover(struct snd_bebob *bebob, bool is1814);
 int snd_bebob_maudio_load_firmware(struct fw_unit *unit);
-
-#define SND_BEBOB_DEV_ENTRY(vendor, model, data) \
-{ \
-	.match_flags	= IEEE1394_MATCH_VENDOR_ID | \
-			  IEEE1394_MATCH_MODEL_ID, \
-	.vendor_id	= vendor, \
-	.model_id	= model, \
-	.driver_data	= (kernel_ulong_t)data \
-}
 
 #endif

@@ -206,7 +206,7 @@
 	pinctrl-0 = <&pinctrl_weim>;
 	status = "okay";
 
-	lan9221: lan9221@5,0 {
+	lan9221: ethernet@5,0 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_lan9221>;
 		compatible = "smsc,lan9221", "smsc,lan9115";

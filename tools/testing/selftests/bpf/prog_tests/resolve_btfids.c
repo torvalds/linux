@@ -76,7 +76,7 @@ __resolve_symbol(struct btf *btf, int type_id)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(test_symbols); i++) {
-		if (test_symbols[i].id != -1)
+		if (test_symbols[i].id >= 0)
 			continue;
 
 		if (BTF_INFO_KIND(type->info) != test_symbols[i].type)

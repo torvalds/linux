@@ -1225,9 +1225,11 @@ static int setup_spdif_playback(struct cmipci *cm, struct snd_pcm_substream *sub
 
 	rate = subs->runtime->rate;
 
-	if (up && do_ac3)
-		if ((err = save_mixer_state(cm)) < 0)
+	if (up && do_ac3) {
+		err = save_mixer_state(cm);
+		if (err < 0)
 			return err;
+	}
 
 	spin_lock_irq(&cm->reg_lock);
 	cm->spdif_playback_avail = up;
@@ -1276,7 +1278,8 @@ static int snd_cmipci_playback_prepare(struct snd_pcm_substream *substream)
 		    substream->runtime->channels == 2);
 	if (do_spdif && cm->can_ac3_hw) 
 		do_ac3 = cm->dig_pcm_status & IEC958_AES0_NONAUDIO;
-	if ((err = setup_spdif_playback(cm, substream, do_spdif, do_ac3)) < 0)
+	err = setup_spdif_playback(cm, substream, do_spdif, do_ac3);
+	if (err < 0)
 		return err;
 	return snd_cmipci_pcm_prepare(cm, &cm->channel[CM_CH_PLAY], substream);
 }
@@ -1291,7 +1294,8 @@ static int snd_cmipci_playback_spdif_prepare(struct snd_pcm_substream *substream
 		do_ac3 = cm->dig_pcm_status & IEC958_AES0_NONAUDIO;
 	else
 		do_ac3 = 1; /* doesn't matter */
-	if ((err = setup_spdif_playback(cm, substream, 1, do_ac3)) < 0)
+	err = setup_spdif_playback(cm, substream, 1, do_ac3);
+	if (err < 0)
 		return err;
 	return snd_cmipci_pcm_prepare(cm, &cm->channel[CM_CH_PLAY], substream);
 }
@@ -1639,7 +1643,8 @@ static int snd_cmipci_playback_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	if ((err = open_device_check(cm, CM_OPEN_PLAYBACK, substream)) < 0)
+	err = open_device_check(cm, CM_OPEN_PLAYBACK, substream);
+	if (err < 0)
 		return err;
 	runtime->hw = snd_cmipci_playback;
 	if (cm->chip_version == 68) {
@@ -1665,7 +1670,8 @@ static int snd_cmipci_capture_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	if ((err = open_device_check(cm, CM_OPEN_CAPTURE, substream)) < 0)
+	err = open_device_check(cm, CM_OPEN_CAPTURE, substream);
+	if (err < 0)
 		return err;
 	runtime->hw = snd_cmipci_capture;
 	if (cm->chip_version == 68) {	// 8768 only supports 44k/48k recording
@@ -1689,7 +1695,9 @@ static int snd_cmipci_playback2_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	if ((err = open_device_check(cm, CM_OPEN_PLAYBACK2, substream)) < 0) /* use channel B */
+	/* use channel B */
+	err = open_device_check(cm, CM_OPEN_PLAYBACK2, substream);
+	if (err < 0)
 		return err;
 	runtime->hw = snd_cmipci_playback2;
 	mutex_lock(&cm->open_mutex);
@@ -1727,7 +1735,9 @@ static int snd_cmipci_playback_spdif_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	if ((err = open_device_check(cm, CM_OPEN_SPDIF_PLAYBACK, substream)) < 0) /* use channel A */
+	/* use channel A */
+	err = open_device_check(cm, CM_OPEN_SPDIF_PLAYBACK, substream);
+	if (err < 0)
 		return err;
 	if (cm->can_ac3_hw) {
 		runtime->hw = snd_cmipci_playback_spdif;
@@ -1754,7 +1764,9 @@ static int snd_cmipci_capture_spdif_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	if ((err = open_device_check(cm, CM_OPEN_SPDIF_CAPTURE, substream)) < 0) /* use channel B */
+	/* use channel B */
+	err = open_device_check(cm, CM_OPEN_SPDIF_CAPTURE, substream);
+	if (err < 0)
 		return err;
 	runtime->hw = snd_cmipci_capture_spdif;
 	if (cm->can_96k && !(cm->chip_version == 68)) {
@@ -2650,7 +2662,8 @@ static int snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_device)
 				"PCM Playback Volume"))
 				continue;
 		}
-		if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_cmipci_mixers[idx], cm))) < 0)
+		err = snd_ctl_add(card, snd_ctl_new1(&snd_cmipci_mixers[idx], cm));
+		if (err < 0)
 			return err;
 	}
 
@@ -2675,13 +2688,19 @@ static int snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_device)
 				return err;
 		}
 		if (cm->can_ac3_hw) {
-			if ((err = snd_ctl_add(card, kctl = snd_ctl_new1(&snd_cmipci_spdif_default, cm))) < 0)
+			kctl = snd_ctl_new1(&snd_cmipci_spdif_default, cm);
+			err = snd_ctl_add(card, kctl);
+			if (err < 0)
 				return err;
 			kctl->id.device = pcm_spdif_device;
-			if ((err = snd_ctl_add(card, kctl = snd_ctl_new1(&snd_cmipci_spdif_mask, cm))) < 0)
+			kctl = snd_ctl_new1(&snd_cmipci_spdif_mask, cm);
+			err = snd_ctl_add(card, kctl);
+			if (err < 0)
 				return err;
 			kctl->id.device = pcm_spdif_device;
-			if ((err = snd_ctl_add(card, kctl = snd_ctl_new1(&snd_cmipci_spdif_stream, cm))) < 0)
+			kctl = snd_ctl_new1(&snd_cmipci_spdif_stream, cm);
+			err = snd_ctl_add(card, kctl);
+			if (err < 0)
 				return err;
 			kctl->id.device = pcm_spdif_device;
 		}
@@ -2955,7 +2974,8 @@ static int snd_cmipci_create_fm(struct cmipci *cm, long fm_port)
 			goto disable_fm;
 		}
 	}
-	if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
+	err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
+	if (err < 0) {
 		dev_err(cm->card->dev, "cannot create OPL3 hwdep\n");
 		return err;
 	}
@@ -2987,7 +3007,8 @@ static int snd_cmipci_create(struct snd_card *card, struct pci_dev *pci,
 
 	*rcmipci = NULL;
 
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pci_enable_device(pci);
+	if (err < 0)
 		return err;
 
 	cm = kzalloc(sizeof(*cm), GFP_KERNEL);
@@ -3006,7 +3027,8 @@ static int snd_cmipci_create(struct snd_card *card, struct pci_dev *pci,
 	cm->channel[1].ch = 1;
 	cm->channel[0].is_dac = cm->channel[1].is_dac = 1; /* dual DAC mode */
 
-	if ((err = pci_request_regions(pci, card->driver)) < 0) {
+	err = pci_request_regions(pci, card->driver);
+	if (err < 0) {
 		kfree(cm);
 		pci_disable_device(pci);
 		return err;
@@ -3120,7 +3142,8 @@ static int snd_cmipci_create(struct snd_card *card, struct pci_dev *pci,
 	sprintf(card->longname, "%s%s at %#lx, irq %i",
 		card->shortname, modelstr, cm->iobase, cm->irq);
 
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, cm, &ops)) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, cm, &ops);
+	if (err < 0) {
 		snd_cmipci_free(cm);
 		return err;
 	}
@@ -3172,32 +3195,36 @@ static int snd_cmipci_create(struct snd_card *card, struct pci_dev *pci,
 
 	/* create pcm devices */
 	pcm_index = pcm_spdif_index = 0;
-	if ((err = snd_cmipci_pcm_new(cm, pcm_index)) < 0)
+	err = snd_cmipci_pcm_new(cm, pcm_index);
+	if (err < 0)
 		return err;
 	pcm_index++;
-	if ((err = snd_cmipci_pcm2_new(cm, pcm_index)) < 0)
+	err = snd_cmipci_pcm2_new(cm, pcm_index);
+	if (err < 0)
 		return err;
 	pcm_index++;
 	if (cm->can_ac3_hw || cm->can_ac3_sw) {
 		pcm_spdif_index = pcm_index;
-		if ((err = snd_cmipci_pcm_spdif_new(cm, pcm_index)) < 0)
+		err = snd_cmipci_pcm_spdif_new(cm, pcm_index);
+		if (err < 0)
 			return err;
 	}
 
 	/* create mixer interface & switches */
-	if ((err = snd_cmipci_mixer_new(cm, pcm_spdif_index)) < 0)
+	err = snd_cmipci_mixer_new(cm, pcm_spdif_index);
+	if (err < 0)
 		return err;
 
 	if (iomidi > 0) {
-		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_CMIPCI,
-					       iomidi,
-					       (integrated_midi ?
-						MPU401_INFO_INTEGRATED : 0) |
-					       MPU401_INFO_IRQ_HOOK,
-					       -1, &cm->rmidi)) < 0) {
+		err = snd_mpu401_uart_new(card, 0, MPU401_HW_CMIPCI,
+					  iomidi,
+					  (integrated_midi ?
+					   MPU401_INFO_INTEGRATED : 0) |
+					  MPU401_INFO_IRQ_HOOK,
+					  -1, &cm->rmidi);
+		if (err < 0)
 			dev_err(cm->card->dev,
 				"no UART401 device at 0x%lx\n", iomidi);
-		}
 	}
 
 #ifdef USE_VAR48KRATE

@@ -347,11 +347,11 @@ static int __init ultra_probe_isapnp(struct net_device *dev)
                                             idev))) {
                         /* Avoid already found cards from previous calls */
                         if (pnp_device_attach(idev) < 0)
-                        	continue;
+				continue;
                         if (pnp_activate_dev(idev) < 0) {
                               __again:
-                        	pnp_device_detach(idev);
-                        	continue;
+				pnp_device_detach(idev);
+				continue;
                         }
 			/* if no io and irq, search for next */
 			if (!pnp_port_valid(idev, 0) || !pnp_irq_valid(idev, 0))

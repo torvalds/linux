@@ -18,4 +18,14 @@
 #include "../../../../arch/x86/include/asm/enclu.h"
 #include "../../../../arch/x86/include/uapi/asm/sgx.h"
 
+enum encl_op_type {
+	ENCL_OP_PUT,
+	ENCL_OP_GET,
+};
+
+struct encl_op {
+	uint64_t type;
+	uint64_t buffer;
+};
+
 #endif /* DEFINES_H */

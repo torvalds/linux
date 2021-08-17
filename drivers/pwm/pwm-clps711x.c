@@ -134,16 +134,7 @@ static int clps711x_pwm_probe(struct platform_device *pdev)
 
 	spin_lock_init(&priv->lock);
 
-	platform_set_drvdata(pdev, priv);
-
-	return pwmchip_add(&priv->chip);
-}
-
-static int clps711x_pwm_remove(struct platform_device *pdev)
-{
-	struct clps711x_chip *priv = platform_get_drvdata(pdev);
-
-	return pwmchip_remove(&priv->chip);
+	return devm_pwmchip_add(&pdev->dev, &priv->chip);
 }
 
 static const struct of_device_id __maybe_unused clps711x_pwm_dt_ids[] = {
@@ -158,7 +149,6 @@ static struct platform_driver clps711x_pwm_driver = {
 		.of_match_table = of_match_ptr(clps711x_pwm_dt_ids),
 	},
 	.probe = clps711x_pwm_probe,
-	.remove = clps711x_pwm_remove,
 };
 module_platform_driver(clps711x_pwm_driver);
 

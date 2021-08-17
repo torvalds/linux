@@ -21,6 +21,7 @@ properties:
       - brcm,bcm2711-emmc2
       - brcm,sdhci-iproc-cygnus
       - brcm,sdhci-iproc
+      - brcm,bcm7211a0-sdhci
 
   reg:
     minItems: 1

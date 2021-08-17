@@ -33,6 +33,9 @@ static const struct mtk_pinctrl_devdata mt6397_pinctrl_data = {
 	.port_shf = 3,
 	.port_mask = 0x3,
 	.port_align = 2,
+	.mode_mask = 0xf,
+	.mode_per_reg = 5,
+	.mode_shf = 4,
 };
 
 static int mt6397_pinctrl_probe(struct platform_device *pdev)

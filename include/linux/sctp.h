@@ -98,6 +98,7 @@ enum sctp_cid {
 	SCTP_CID_I_FWD_TSN		= 0xC2,
 	SCTP_CID_ASCONF_ACK		= 0x80,
 	SCTP_CID_RECONF			= 0x82,
+	SCTP_CID_PAD			= 0x84,
 }; /* enum */
 
 
@@ -407,6 +408,12 @@ struct sctp_heartbeathdr {
 struct sctp_heartbeat_chunk {
 	struct sctp_chunkhdr chunk_hdr;
 	struct sctp_heartbeathdr hb_hdr;
+};
+
+
+/* PAD chunk could be bundled with heartbeat chunk to probe pmtu */
+struct sctp_pad_chunk {
+	struct sctp_chunkhdr uh;
 };
 
 

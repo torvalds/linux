@@ -2,7 +2,6 @@
 /*
  * Copyright (C) 2018-2019 HUAWEI, Inc.
  *             https://www.huawei.com/
- * Created by Gao Xiang <gaoxiang25@huawei.com>
  */
 #include "internal.h"
 #include <asm/unaligned.h>
@@ -450,14 +449,31 @@ static int z_erofs_get_extent_compressedlen(struct z_erofs_maprecorder *m,
 	lcn = m->lcn + 1;
 	if (m->compressedlcs)
 		goto out;
-	if (lcn == initial_lcn)
-		goto err_bonus_cblkcnt;
 
 	err = z_erofs_load_cluster_from_disk(m, lcn);
 	if (err)
 		return err;
 
+	/*
+	 * If the 1st NONHEAD lcluster has already been handled initially w/o
+	 * valid compressedlcs, which means at least it mustn't be CBLKCNT, or
+	 * an internal implemenatation error is detected.
+	 *
+	 * The following code can also handle it properly anyway, but let's
+	 * BUG_ON in the debugging mode only for developers to notice that.
+	 */
+	DBG_BUGON(lcn == initial_lcn &&
+		  m->type == Z_EROFS_VLE_CLUSTER_TYPE_NONHEAD);
+
 	switch (m->type) {
+	case Z_EROFS_VLE_CLUSTER_TYPE_PLAIN:
+	case Z_EROFS_VLE_CLUSTER_TYPE_HEAD:
+		/*
+		 * if the 1st NONHEAD lcluster is actually PLAIN or HEAD type
+		 * rather than CBLKCNT, it's a 1 lcluster-sized pcluster.
+		 */
+		m->compressedlcs = 1;
+		break;
 	case Z_EROFS_VLE_CLUSTER_TYPE_NONHEAD:
 		if (m->delta[0] != 1)
 			goto err_bonus_cblkcnt;
@@ -580,4 +596,3 @@ out:
 	DBG_BUGON(err < 0 && err != -ENOMEM);
 	return err;
 }
-

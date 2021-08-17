@@ -166,9 +166,9 @@ copy_ckfpr_from_user(struct task_struct *task, void __user *from)
 }
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 #else
-#define unsafe_copy_fpr_to_user(to, task, label) do { } while (0)
+#define unsafe_copy_fpr_to_user(to, task, label) do { if (0) goto label;} while (0)
 
-#define unsafe_copy_fpr_from_user(task, from, label) do { } while (0)
+#define unsafe_copy_fpr_from_user(task, from, label) do { if (0) goto label;} while (0)
 
 static inline unsigned long
 copy_fpr_to_user(void __user *to, struct task_struct *task)

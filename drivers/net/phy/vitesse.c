@@ -249,7 +249,8 @@ static int vsc73xx_config_aneg(struct phy_device *phydev)
 
 /* This adds a skew for both TX and RX clocks, so the skew should only be
  * applied to "rgmii-id" interfaces. It may not work as expected
- * on "rgmii-txid", "rgmii-rxid" or "rgmii" interfaces. */
+ * on "rgmii-txid", "rgmii-rxid" or "rgmii" interfaces.
+ */
 static int vsc8601_add_skew(struct phy_device *phydev)
 {
 	int ret;

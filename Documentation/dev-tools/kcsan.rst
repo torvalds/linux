@@ -27,75 +27,57 @@ Error reports
 A typical data race report looks like this::
 
     ==================================================================
-    BUG: KCSAN: data-race in generic_permission / kernfs_refresh_inode
+    BUG: KCSAN: data-race in test_kernel_read / test_kernel_write
 
-    write to 0xffff8fee4c40700c of 4 bytes by task 175 on cpu 4:
-     kernfs_refresh_inode+0x70/0x170
-     kernfs_iop_permission+0x4f/0x90
-     inode_permission+0x190/0x200
-     link_path_walk.part.0+0x503/0x8e0
-     path_lookupat.isra.0+0x69/0x4d0
-     filename_lookup+0x136/0x280
-     user_path_at_empty+0x47/0x60
-     vfs_statx+0x9b/0x130
-     __do_sys_newlstat+0x50/0xb0
-     __x64_sys_newlstat+0x37/0x50
-     do_syscall_64+0x85/0x260
-     entry_SYSCALL_64_after_hwframe+0x44/0xa9
+    write to 0xffffffffc009a628 of 8 bytes by task 487 on cpu 0:
+     test_kernel_write+0x1d/0x30
+     access_thread+0x89/0xd0
+     kthread+0x23e/0x260
+     ret_from_fork+0x22/0x30
 
-    read to 0xffff8fee4c40700c of 4 bytes by task 166 on cpu 6:
-     generic_permission+0x5b/0x2a0
-     kernfs_iop_permission+0x66/0x90
-     inode_permission+0x190/0x200
-     link_path_walk.part.0+0x503/0x8e0
-     path_lookupat.isra.0+0x69/0x4d0
-     filename_lookup+0x136/0x280
-     user_path_at_empty+0x47/0x60
-     do_faccessat+0x11a/0x390
-     __x64_sys_access+0x3c/0x50
-     do_syscall_64+0x85/0x260
-     entry_SYSCALL_64_after_hwframe+0x44/0xa9
+    read to 0xffffffffc009a628 of 8 bytes by task 488 on cpu 6:
+     test_kernel_read+0x10/0x20
+     access_thread+0x89/0xd0
+     kthread+0x23e/0x260
+     ret_from_fork+0x22/0x30
+
+    value changed: 0x00000000000009a6 -> 0x00000000000009b2
 
     Reported by Kernel Concurrency Sanitizer on:
-    CPU: 6 PID: 166 Comm: systemd-journal Not tainted 5.3.0-rc7+ #1
-    Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.12.0-1 04/01/2014
+    CPU: 6 PID: 488 Comm: access_thread Not tainted 5.12.0-rc2+ #1
+    Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.14.0-2 04/01/2014
     ==================================================================
 
 The header of the report provides a short summary of the functions involved in
 the race. It is followed by the access types and stack traces of the 2 threads
-involved in the data race.
+involved in the data race. If KCSAN also observed a value change, the observed
+old value and new value are shown on the "value changed" line respectively.
 
 The other less common type of data race report looks like this::
 
     ==================================================================
-    BUG: KCSAN: data-race in e1000_clean_rx_irq+0x551/0xb10
+    BUG: KCSAN: data-race in test_kernel_rmw_array+0x71/0xd0
 
-    race at unknown origin, with read to 0xffff933db8a2ae6c of 1 bytes by interrupt on cpu 0:
-     e1000_clean_rx_irq+0x551/0xb10
-     e1000_clean+0x533/0xda0
-     net_rx_action+0x329/0x900
-     __do_softirq+0xdb/0x2db
-     irq_exit+0x9b/0xa0
-     do_IRQ+0x9c/0xf0
-     ret_from_intr+0x0/0x18
-     default_idle+0x3f/0x220
-     arch_cpu_idle+0x21/0x30
-     do_idle+0x1df/0x230
-     cpu_startup_entry+0x14/0x20
-     rest_init+0xc5/0xcb
-     arch_call_rest_init+0x13/0x2b
-     start_kernel+0x6db/0x700
+    race at unknown origin, with read to 0xffffffffc009bdb0 of 8 bytes by task 515 on cpu 2:
+     test_kernel_rmw_array+0x71/0xd0
+     access_thread+0x89/0xd0
+     kthread+0x23e/0x260
+     ret_from_fork+0x22/0x30
+
+    value changed: 0x0000000000002328 -> 0x0000000000002329
 
     Reported by Kernel Concurrency Sanitizer on:
-    CPU: 0 PID: 0 Comm: swapper/0 Not tainted 5.3.0-rc7+ #2
-    Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.12.0-1 04/01/2014
+    CPU: 2 PID: 515 Comm: access_thread Not tainted 5.12.0-rc2+ #1
+    Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.14.0-2 04/01/2014
     ==================================================================
 
 This report is generated where it was not possible to determine the other
 racing thread, but a race was inferred due to the data value of the watched
-memory location having changed. These can occur either due to missing
-instrumentation or e.g. DMA accesses. These reports will only be generated if
-``CONFIG_KCSAN_REPORT_RACE_UNKNOWN_ORIGIN=y`` (selected by default).
+memory location having changed. These reports always show a "value changed"
+line. A common reason for reports of this type are missing instrumentation in
+the racing thread, but could also occur due to e.g. DMA accesses. Such reports
+are shown only if ``CONFIG_KCSAN_REPORT_RACE_UNKNOWN_ORIGIN=y``, which is
+enabled by default.
 
 Selective analysis
 ~~~~~~~~~~~~~~~~~~
@@ -106,7 +88,8 @@ the below options are available:
 
 * KCSAN understands the ``data_race(expr)`` annotation, which tells KCSAN that
   any data races due to accesses in ``expr`` should be ignored and resulting
-  behaviour when encountering a data race is deemed safe.
+  behaviour when encountering a data race is deemed safe.  Please see
+  `"Marking Shared-Memory Accesses" in the LKMM`_ for more information.
 
 * Disabling data race detection for entire functions can be accomplished by
   using the function attribute ``__no_kcsan``::
@@ -127,6 +110,8 @@ the below options are available:
   ``Makefile``, add to the respective ``Makefile``::
 
     KCSAN_SANITIZE := n
+
+.. _"Marking Shared-Memory Accesses" in the LKMM: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/tools/memory-model/Documentation/access-marking.txt
 
 Furthermore, it is possible to tell KCSAN to show or hide entire classes of
 data races, depending on preferences. These can be changed via the following

@@ -23,7 +23,7 @@ static inline void preempt_count_set(u64 pc)
 } while (0)
 
 #define init_idle_preempt_count(p, cpu) do { \
-	task_thread_info(p)->preempt_count = PREEMPT_ENABLED; \
+	task_thread_info(p)->preempt_count = PREEMPT_DISABLED; \
 } while (0)
 
 static inline void set_preempt_need_resched(void)

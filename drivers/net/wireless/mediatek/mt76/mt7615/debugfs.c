@@ -75,7 +75,7 @@ mt7615_pm_set(void *data, u64 val)
 	if (!mt7615_wait_for_mcu_init(dev))
 		return 0;
 
-	if (!mt7615_firmware_offload(dev) || !mt76_is_mmio(&dev->mt76))
+	if (!mt7615_firmware_offload(dev) || mt76_is_usb(&dev->mt76))
 		return -EOPNOTSUPP;
 
 	if (val == pm->enable)
@@ -319,24 +319,6 @@ mt7615_radio_read(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int mt7615_read_temperature(struct seq_file *s, void *data)
-{
-	struct mt7615_dev *dev = dev_get_drvdata(s->private);
-	int temp;
-
-	if (!mt7615_wait_for_mcu_init(dev))
-		return 0;
-
-	/* cpu */
-	mt7615_mutex_acquire(dev);
-	temp = mt7615_mcu_get_temperature(dev, 0);
-	mt7615_mutex_release(dev);
-
-	seq_printf(s, "Temperature: %d\n", temp);
-
-	return 0;
-}
-
 static int
 mt7615_queues_acq(struct seq_file *s, void *data)
 {
@@ -566,8 +548,6 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 
 	debugfs_create_file("reset_test", 0200, dir, dev,
 			    &fops_reset_test);
-	debugfs_create_devm_seqfile(dev->mt76.dev, "temperature", dir,
-				    mt7615_read_temperature);
 	debugfs_create_file("ext_mac_addr", 0600, dir, dev, &fops_ext_mac_addr);
 
 	debugfs_create_u32("rf_wfidx", 0600, dir, &dev->debugfs_rf_wf);

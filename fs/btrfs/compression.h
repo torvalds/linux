@@ -31,6 +31,9 @@ struct compressed_bio {
 	/* number of bios pending for this compressed extent */
 	refcount_t pending_bios;
 
+	/* Number of compressed pages in the array */
+	unsigned int nr_pages;
+
 	/* the pages with the compressed data on them */
 	struct page **compressed_pages;
 
@@ -40,20 +43,17 @@ struct compressed_bio {
 	/* starting offset in the inode for our pages */
 	u64 start;
 
-	/* number of bytes in the inode we're working on */
-	unsigned long len;
+	/* Number of bytes in the inode we're working on */
+	unsigned int len;
 
-	/* number of bytes on disk */
-	unsigned long compressed_len;
+	/* Number of bytes on disk */
+	unsigned int compressed_len;
 
-	/* the compression algorithm for this bio */
-	int compress_type;
-
-	/* number of compressed pages in the array */
-	unsigned long nr_pages;
+	/* The compression algorithm for this bio */
+	u8 compress_type;
 
 	/* IO errors */
-	int errors;
+	u8 errors;
 	int mirror_num;
 
 	/* for reads, this is the bio we are copying the data into */
@@ -91,10 +91,10 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 			      struct bio *bio);
 
 blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
-				  unsigned long len, u64 disk_start,
-				  unsigned long compressed_len,
+				  unsigned int len, u64 disk_start,
+				  unsigned int compressed_len,
 				  struct page **compressed_pages,
-				  unsigned long nr_pages,
+				  unsigned int nr_pages,
 				  unsigned int write_flags,
 				  struct cgroup_subsys_state *blkcg_css);
 blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,

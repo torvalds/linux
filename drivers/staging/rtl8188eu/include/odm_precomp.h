@@ -23,7 +23,6 @@
 
 #include "odm.h"
 #include "odm_hwconfig.h"
-#include "odm_debug.h"
 #include "phydm_regdefine11n.h"
 
 #include "hal8188e_rate_adaptive.h" /* for RA,Power training */
@@ -33,8 +32,6 @@
 
 #include "odm_rtl8188e.h"
 
-void odm_CmnInfoHook_Debug(struct odm_dm_struct *pDM_Odm);
-void odm_CmnInfoInit_Debug(struct odm_dm_struct *pDM_Odm);
 void odm_DIGInit(struct odm_dm_struct *pDM_Odm);
 void odm_RateAdaptiveMaskInit(struct odm_dm_struct *pDM_Odm);
 void odm_DynamicBBPowerSavingInit(struct odm_dm_struct *pDM_Odm);
@@ -42,7 +39,6 @@ void odm_DynamicTxPowerInit(struct odm_dm_struct *pDM_Odm);
 void odm_TXPowerTrackingInit(struct odm_dm_struct *pDM_Odm);
 void ODM_EdcaTurboInit(struct odm_dm_struct *pDM_Odm);
 void odm_SwAntDivInit_NIC(struct odm_dm_struct *pDM_Odm);
-void odm_CmnInfoUpdate_Debug(struct odm_dm_struct *pDM_Odm);
 void odm_CommonInfoSelfUpdate(struct odm_dm_struct *pDM_Odm);
 void odm_FalseAlarmCounterStatistics(struct odm_dm_struct *pDM_Odm);
 void odm_DIG(struct odm_dm_struct *pDM_Odm);

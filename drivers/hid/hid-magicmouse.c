@@ -693,7 +693,7 @@ static int magicmouse_probe(struct hid_device *hdev,
 	if (id->vendor == USB_VENDOR_ID_APPLE &&
 	    id->product == USB_DEVICE_ID_APPLE_MAGICTRACKPAD2 &&
 	    hdev->type != HID_TYPE_USBMOUSE)
-		return 0;
+		return -ENODEV;
 
 	msc = devm_kzalloc(&hdev->dev, sizeof(*msc), GFP_KERNEL);
 	if (msc == NULL) {
@@ -779,7 +779,10 @@ err_stop_hw:
 static void magicmouse_remove(struct hid_device *hdev)
 {
 	struct magicmouse_sc *msc = hid_get_drvdata(hdev);
-	cancel_delayed_work_sync(&msc->work);
+
+	if (msc)
+		cancel_delayed_work_sync(&msc->work);
+
 	hid_hw_stop(hdev);
 }
 

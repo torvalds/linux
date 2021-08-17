@@ -14,6 +14,11 @@ struct intel_memory_region;
 
 extern const struct drm_i915_gem_object_ops i915_gem_lmem_obj_ops;
 
+void __iomem *
+i915_gem_object_lmem_io_map(struct drm_i915_gem_object *obj,
+			    unsigned long n,
+			    unsigned long size);
+
 bool i915_gem_object_is_lmem(struct drm_i915_gem_object *obj);
 
 struct drm_i915_gem_object *

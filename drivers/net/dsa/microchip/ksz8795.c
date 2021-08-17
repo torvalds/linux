@@ -6,6 +6,7 @@
  *	Tristram Ha <Tristram.Ha@microchip.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/gpio.h>
@@ -15,8 +16,10 @@
 #include <linux/phy.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
+#include <linux/micrel_phy.h>
 #include <net/dsa.h>
 #include <net/switchdev.h>
+#include <linux/phylink.h>
 
 #include "ksz_common.h"
 #include "ksz8795_reg.h"
@@ -684,8 +687,8 @@ static void ksz8_r_vlan_entries(struct ksz_device *dev, u16 addr)
 	shifts = ksz8->shifts;
 
 	ksz8_r_table(dev, TABLE_VLAN, addr, &data);
-	addr *= dev->phy_port_cnt;
-	for (i = 0; i < dev->phy_port_cnt; i++) {
+	addr *= 4;
+	for (i = 0; i < 4; i++) {
 		dev->vlan_cache[addr + i].table[0] = (u16)data;
 		data >>= shifts[VLAN_TABLE];
 	}
@@ -699,7 +702,7 @@ static void ksz8_r_vlan_table(struct ksz_device *dev, u16 vid, u16 *vlan)
 	u64 buf;
 
 	data = (u16 *)&buf;
-	addr = vid / dev->phy_port_cnt;
+	addr = vid / 4;
 	index = vid & 3;
 	ksz8_r_table(dev, TABLE_VLAN, addr, &buf);
 	*vlan = data[index];
@@ -713,7 +716,7 @@ static void ksz8_w_vlan_table(struct ksz_device *dev, u16 vid, u16 vlan)
 	u64 buf;
 
 	data = (u16 *)&buf;
-	addr = vid / dev->phy_port_cnt;
+	addr = vid / 4;
 	index = vid & 3;
 	ksz8_r_table(dev, TABLE_VLAN, addr, &buf);
 	data[index] = vlan;
@@ -727,92 +730,114 @@ static void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 	u8 restart, speed, ctrl, link;
 	const u8 *regs = ksz8->regs;
 	int processed = true;
+	u8 val1, val2;
 	u16 data = 0;
 	u8 p = phy;
 
 	switch (reg) {
-	case PHY_REG_CTRL:
+	case MII_BMCR:
 		ksz_pread8(dev, p, regs[P_NEG_RESTART_CTRL], &restart);
 		ksz_pread8(dev, p, regs[P_SPEED_STATUS], &speed);
 		ksz_pread8(dev, p, regs[P_FORCE_CTRL], &ctrl);
 		if (restart & PORT_PHY_LOOPBACK)
-			data |= PHY_LOOPBACK;
+			data |= BMCR_LOOPBACK;
 		if (ctrl & PORT_FORCE_100_MBIT)
-			data |= PHY_SPEED_100MBIT;
+			data |= BMCR_SPEED100;
 		if (ksz_is_ksz88x3(dev)) {
 			if ((ctrl & PORT_AUTO_NEG_ENABLE))
-				data |= PHY_AUTO_NEG_ENABLE;
+				data |= BMCR_ANENABLE;
 		} else {
 			if (!(ctrl & PORT_AUTO_NEG_DISABLE))
-				data |= PHY_AUTO_NEG_ENABLE;
+				data |= BMCR_ANENABLE;
 		}
 		if (restart & PORT_POWER_DOWN)
-			data |= PHY_POWER_DOWN;
+			data |= BMCR_PDOWN;
 		if (restart & PORT_AUTO_NEG_RESTART)
-			data |= PHY_AUTO_NEG_RESTART;
+			data |= BMCR_ANRESTART;
 		if (ctrl & PORT_FORCE_FULL_DUPLEX)
-			data |= PHY_FULL_DUPLEX;
+			data |= BMCR_FULLDPLX;
 		if (speed & PORT_HP_MDIX)
-			data |= PHY_HP_MDIX;
+			data |= KSZ886X_BMCR_HP_MDIX;
 		if (restart & PORT_FORCE_MDIX)
-			data |= PHY_FORCE_MDIX;
+			data |= KSZ886X_BMCR_FORCE_MDI;
 		if (restart & PORT_AUTO_MDIX_DISABLE)
-			data |= PHY_AUTO_MDIX_DISABLE;
+			data |= KSZ886X_BMCR_DISABLE_AUTO_MDIX;
 		if (restart & PORT_TX_DISABLE)
-			data |= PHY_TRANSMIT_DISABLE;
+			data |= KSZ886X_BMCR_DISABLE_TRANSMIT;
 		if (restart & PORT_LED_OFF)
-			data |= PHY_LED_DISABLE;
+			data |= KSZ886X_BMCR_DISABLE_LED;
 		break;
-	case PHY_REG_STATUS:
+	case MII_BMSR:
 		ksz_pread8(dev, p, regs[P_LINK_STATUS], &link);
-		data = PHY_100BTX_FD_CAPABLE |
-		       PHY_100BTX_CAPABLE |
-		       PHY_10BT_FD_CAPABLE |
-		       PHY_10BT_CAPABLE |
-		       PHY_AUTO_NEG_CAPABLE;
+		data = BMSR_100FULL |
+		       BMSR_100HALF |
+		       BMSR_10FULL |
+		       BMSR_10HALF |
+		       BMSR_ANEGCAPABLE;
 		if (link & PORT_AUTO_NEG_COMPLETE)
-			data |= PHY_AUTO_NEG_ACKNOWLEDGE;
+			data |= BMSR_ANEGCOMPLETE;
 		if (link & PORT_STAT_LINK_GOOD)
-			data |= PHY_LINK_STATUS;
+			data |= BMSR_LSTATUS;
 		break;
-	case PHY_REG_ID_1:
+	case MII_PHYSID1:
 		data = KSZ8795_ID_HI;
 		break;
-	case PHY_REG_ID_2:
+	case MII_PHYSID2:
 		if (ksz_is_ksz88x3(dev))
 			data = KSZ8863_ID_LO;
 		else
 			data = KSZ8795_ID_LO;
 		break;
-	case PHY_REG_AUTO_NEGOTIATION:
+	case MII_ADVERTISE:
 		ksz_pread8(dev, p, regs[P_LOCAL_CTRL], &ctrl);
-		data = PHY_AUTO_NEG_802_3;
+		data = ADVERTISE_CSMA;
 		if (ctrl & PORT_AUTO_NEG_SYM_PAUSE)
-			data |= PHY_AUTO_NEG_SYM_PAUSE;
+			data |= ADVERTISE_PAUSE_CAP;
 		if (ctrl & PORT_AUTO_NEG_100BTX_FD)
-			data |= PHY_AUTO_NEG_100BTX_FD;
+			data |= ADVERTISE_100FULL;
 		if (ctrl & PORT_AUTO_NEG_100BTX)
-			data |= PHY_AUTO_NEG_100BTX;
+			data |= ADVERTISE_100HALF;
 		if (ctrl & PORT_AUTO_NEG_10BT_FD)
-			data |= PHY_AUTO_NEG_10BT_FD;
+			data |= ADVERTISE_10FULL;
 		if (ctrl & PORT_AUTO_NEG_10BT)
-			data |= PHY_AUTO_NEG_10BT;
+			data |= ADVERTISE_10HALF;
 		break;
-	case PHY_REG_REMOTE_CAPABILITY:
+	case MII_LPA:
 		ksz_pread8(dev, p, regs[P_REMOTE_STATUS], &link);
-		data = PHY_AUTO_NEG_802_3;
+		data = LPA_SLCT;
 		if (link & PORT_REMOTE_SYM_PAUSE)
-			data |= PHY_AUTO_NEG_SYM_PAUSE;
+			data |= LPA_PAUSE_CAP;
 		if (link & PORT_REMOTE_100BTX_FD)
-			data |= PHY_AUTO_NEG_100BTX_FD;
+			data |= LPA_100FULL;
 		if (link & PORT_REMOTE_100BTX)
-			data |= PHY_AUTO_NEG_100BTX;
+			data |= LPA_100HALF;
 		if (link & PORT_REMOTE_10BT_FD)
-			data |= PHY_AUTO_NEG_10BT_FD;
+			data |= LPA_10FULL;
 		if (link & PORT_REMOTE_10BT)
-			data |= PHY_AUTO_NEG_10BT;
-		if (data & ~PHY_AUTO_NEG_802_3)
-			data |= PHY_REMOTE_ACKNOWLEDGE_NOT;
+			data |= LPA_10HALF;
+		if (data & ~LPA_SLCT)
+			data |= LPA_LPACK;
+		break;
+	case PHY_REG_LINK_MD:
+		ksz_pread8(dev, p, REG_PORT_LINK_MD_CTRL, &val1);
+		ksz_pread8(dev, p, REG_PORT_LINK_MD_RESULT, &val2);
+		if (val1 & PORT_START_CABLE_DIAG)
+			data |= PHY_START_CABLE_DIAG;
+
+		if (val1 & PORT_CABLE_10M_SHORT)
+			data |= PHY_CABLE_10M_SHORT;
+
+		data |= FIELD_PREP(PHY_CABLE_DIAG_RESULT_M,
+				FIELD_GET(PORT_CABLE_DIAG_RESULT_M, val1));
+
+		data |= FIELD_PREP(PHY_CABLE_FAULT_COUNTER_M,
+				(FIELD_GET(PORT_CABLE_FAULT_COUNTER_H, val1) << 8) |
+				FIELD_GET(PORT_CABLE_FAULT_COUNTER_L, val2));
+		break;
+	case PHY_REG_PHY_CTRL:
+		ksz_pread8(dev, p, regs[P_LINK_STATUS], &link);
+		if (link & PORT_MDIX_STATUS)
+			data |= KSZ886X_CTRL_MDIX_STAT;
 		break;
 	default:
 		processed = false;
@@ -830,14 +855,14 @@ static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 	u8 p = phy;
 
 	switch (reg) {
-	case PHY_REG_CTRL:
+	case MII_BMCR:
 
 		/* Do not support PHY reset function. */
-		if (val & PHY_RESET)
+		if (val & BMCR_RESET)
 			break;
 		ksz_pread8(dev, p, regs[P_SPEED_STATUS], &speed);
 		data = speed;
-		if (val & PHY_HP_MDIX)
+		if (val & KSZ886X_BMCR_HP_MDIX)
 			data |= PORT_HP_MDIX;
 		else
 			data &= ~PORT_HP_MDIX;
@@ -846,12 +871,12 @@ static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 		ksz_pread8(dev, p, regs[P_FORCE_CTRL], &ctrl);
 		data = ctrl;
 		if (ksz_is_ksz88x3(dev)) {
-			if ((val & PHY_AUTO_NEG_ENABLE))
+			if ((val & BMCR_ANENABLE))
 				data |= PORT_AUTO_NEG_ENABLE;
 			else
 				data &= ~PORT_AUTO_NEG_ENABLE;
 		} else {
-			if (!(val & PHY_AUTO_NEG_ENABLE))
+			if (!(val & BMCR_ANENABLE))
 				data |= PORT_AUTO_NEG_DISABLE;
 			else
 				data &= ~PORT_AUTO_NEG_DISABLE;
@@ -861,11 +886,11 @@ static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 				data |= PORT_AUTO_NEG_DISABLE;
 		}
 
-		if (val & PHY_SPEED_100MBIT)
+		if (val & BMCR_SPEED100)
 			data |= PORT_FORCE_100_MBIT;
 		else
 			data &= ~PORT_FORCE_100_MBIT;
-		if (val & PHY_FULL_DUPLEX)
+		if (val & BMCR_FULLDPLX)
 			data |= PORT_FORCE_FULL_DUPLEX;
 		else
 			data &= ~PORT_FORCE_FULL_DUPLEX;
@@ -873,38 +898,38 @@ static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 			ksz_pwrite8(dev, p, regs[P_FORCE_CTRL], data);
 		ksz_pread8(dev, p, regs[P_NEG_RESTART_CTRL], &restart);
 		data = restart;
-		if (val & PHY_LED_DISABLE)
+		if (val & KSZ886X_BMCR_DISABLE_LED)
 			data |= PORT_LED_OFF;
 		else
 			data &= ~PORT_LED_OFF;
-		if (val & PHY_TRANSMIT_DISABLE)
+		if (val & KSZ886X_BMCR_DISABLE_TRANSMIT)
 			data |= PORT_TX_DISABLE;
 		else
 			data &= ~PORT_TX_DISABLE;
-		if (val & PHY_AUTO_NEG_RESTART)
+		if (val & BMCR_ANRESTART)
 			data |= PORT_AUTO_NEG_RESTART;
 		else
 			data &= ~(PORT_AUTO_NEG_RESTART);
-		if (val & PHY_POWER_DOWN)
+		if (val & BMCR_PDOWN)
 			data |= PORT_POWER_DOWN;
 		else
 			data &= ~PORT_POWER_DOWN;
-		if (val & PHY_AUTO_MDIX_DISABLE)
+		if (val & KSZ886X_BMCR_DISABLE_AUTO_MDIX)
 			data |= PORT_AUTO_MDIX_DISABLE;
 		else
 			data &= ~PORT_AUTO_MDIX_DISABLE;
-		if (val & PHY_FORCE_MDIX)
+		if (val & KSZ886X_BMCR_FORCE_MDI)
 			data |= PORT_FORCE_MDIX;
 		else
 			data &= ~PORT_FORCE_MDIX;
-		if (val & PHY_LOOPBACK)
+		if (val & BMCR_LOOPBACK)
 			data |= PORT_PHY_LOOPBACK;
 		else
 			data &= ~PORT_PHY_LOOPBACK;
 		if (data != restart)
 			ksz_pwrite8(dev, p, regs[P_NEG_RESTART_CTRL], data);
 		break;
-	case PHY_REG_AUTO_NEGOTIATION:
+	case MII_ADVERTISE:
 		ksz_pread8(dev, p, regs[P_LOCAL_CTRL], &ctrl);
 		data = ctrl;
 		data &= ~(PORT_AUTO_NEG_SYM_PAUSE |
@@ -912,18 +937,22 @@ static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 			  PORT_AUTO_NEG_100BTX |
 			  PORT_AUTO_NEG_10BT_FD |
 			  PORT_AUTO_NEG_10BT);
-		if (val & PHY_AUTO_NEG_SYM_PAUSE)
+		if (val & ADVERTISE_PAUSE_CAP)
 			data |= PORT_AUTO_NEG_SYM_PAUSE;
-		if (val & PHY_AUTO_NEG_100BTX_FD)
+		if (val & ADVERTISE_100FULL)
 			data |= PORT_AUTO_NEG_100BTX_FD;
-		if (val & PHY_AUTO_NEG_100BTX)
+		if (val & ADVERTISE_100HALF)
 			data |= PORT_AUTO_NEG_100BTX;
-		if (val & PHY_AUTO_NEG_10BT_FD)
+		if (val & ADVERTISE_10FULL)
 			data |= PORT_AUTO_NEG_10BT_FD;
-		if (val & PHY_AUTO_NEG_10BT)
+		if (val & ADVERTISE_10HALF)
 			data |= PORT_AUTO_NEG_10BT;
 		if (data != ctrl)
 			ksz_pwrite8(dev, p, regs[P_LOCAL_CTRL], data);
+		break;
+	case PHY_REG_LINK_MD:
+		if (val & PHY_START_CABLE_DIAG)
+			ksz_port_cfg(dev, p, REG_PORT_LINK_MD_CTRL, PORT_START_CABLE_DIAG, true);
 		break;
 	default:
 		break;
@@ -939,6 +968,18 @@ static enum dsa_tag_protocol ksz8_get_tag_protocol(struct dsa_switch *ds,
 	/* ksz88x3 uses the same tag schema as KSZ9893 */
 	return ksz_is_ksz88x3(dev) ?
 		DSA_TAG_PROTO_KSZ9893 : DSA_TAG_PROTO_KSZ8795;
+}
+
+static u32 ksz8_sw_get_phy_flags(struct dsa_switch *ds, int port)
+{
+	/* Silicon Errata Sheet (DS80000830A):
+	 * Port 1 does not work with LinkMD Cable-Testing.
+	 * Port 1 does not respond to received PAUSE control frames.
+	 */
+	if (!port)
+		return MICREL_KSZ8_P1_ERRATA;
+
+	return 0;
 }
 
 static void ksz8_get_strings(struct dsa_switch *ds, int port,
@@ -1078,9 +1119,25 @@ static int ksz8_port_vlan_filtering(struct dsa_switch *ds, int port, bool flag,
 	if (ksz_is_ksz88x3(dev))
 		return -ENOTSUPP;
 
+	/* Discard packets with VID not enabled on the switch */
 	ksz_cfg(dev, S_MIRROR_CTRL, SW_VLAN_ENABLE, flag);
 
+	/* Discard packets with VID not enabled on the ingress port */
+	for (port = 0; port < dev->phy_port_cnt; ++port)
+		ksz_port_cfg(dev, port, REG_PORT_CTRL_2, PORT_INGRESS_FILTER,
+			     flag);
+
 	return 0;
+}
+
+static void ksz8_port_enable_pvid(struct ksz_device *dev, int port, bool state)
+{
+	if (ksz_is_ksz88x3(dev)) {
+		ksz_cfg(dev, REG_SW_INSERT_SRC_PVID,
+			0x03 << (4 - 2 * port), state);
+	} else {
+		ksz_pwrite8(dev, port, REG_PORT_CTRL_12, state ? 0x0f : 0x00);
+	}
 }
 
 static int ksz8_port_vlan_add(struct dsa_switch *ds, int port,
@@ -1089,13 +1146,40 @@ static int ksz8_port_vlan_add(struct dsa_switch *ds, int port,
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct ksz_device *dev = ds->priv;
+	struct ksz_port *p = &dev->ports[port];
 	u16 data, new_pvid = 0;
 	u8 fid, member, valid;
 
 	if (ksz_is_ksz88x3(dev))
 		return -ENOTSUPP;
 
-	ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
+	/* If a VLAN is added with untagged flag different from the
+	 * port's Remove Tag flag, we need to change the latter.
+	 * Ignore VID 0, which is always untagged.
+	 * Ignore CPU port, which will always be tagged.
+	 */
+	if (untagged != p->remove_tag && vlan->vid != 0 &&
+	    port != dev->cpu_port) {
+		unsigned int vid;
+
+		/* Reject attempts to add a VLAN that requires the
+		 * Remove Tag flag to be changed, unless there are no
+		 * other VLANs currently configured.
+		 */
+		for (vid = 1; vid < dev->num_vlans; ++vid) {
+			/* Skip the VID we are going to add or reconfigure */
+			if (vid == vlan->vid)
+				continue;
+
+			ksz8_from_vlan(dev, dev->vlan_cache[vid].table[0],
+				       &fid, &member, &valid);
+			if (valid && (member & BIT(port)))
+				return -EINVAL;
+		}
+
+		ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
+		p->remove_tag = untagged;
+	}
 
 	ksz8_r_vlan_table(dev, vlan->vid, &data);
 	ksz8_from_vlan(dev, data, &fid, &member, &valid);
@@ -1119,9 +1203,11 @@ static int ksz8_port_vlan_add(struct dsa_switch *ds, int port,
 		u16 vid;
 
 		ksz_pread16(dev, port, REG_PORT_CTRL_VID, &vid);
-		vid &= 0xfff;
+		vid &= ~VLAN_VID_MASK;
 		vid |= new_pvid;
 		ksz_pwrite16(dev, port, REG_PORT_CTRL_VID, vid);
+
+		ksz8_port_enable_pvid(dev, port, true);
 	}
 
 	return 0;
@@ -1130,9 +1216,8 @@ static int ksz8_port_vlan_add(struct dsa_switch *ds, int port,
 static int ksz8_port_vlan_del(struct dsa_switch *ds, int port,
 			      const struct switchdev_obj_port_vlan *vlan)
 {
-	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct ksz_device *dev = ds->priv;
-	u16 data, pvid, new_pvid = 0;
+	u16 data, pvid;
 	u8 fid, member, valid;
 
 	if (ksz_is_ksz88x3(dev))
@@ -1140,8 +1225,6 @@ static int ksz8_port_vlan_del(struct dsa_switch *ds, int port,
 
 	ksz_pread16(dev, port, REG_PORT_CTRL_VID, &pvid);
 	pvid = pvid & 0xFFF;
-
-	ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
 
 	ksz8_r_vlan_table(dev, vlan->vid, &data);
 	ksz8_from_vlan(dev, data, &fid, &member, &valid);
@@ -1154,14 +1237,11 @@ static int ksz8_port_vlan_del(struct dsa_switch *ds, int port,
 		valid = 0;
 	}
 
-	if (pvid == vlan->vid)
-		new_pvid = 1;
-
 	ksz8_to_vlan(dev, fid, member, valid, &data);
 	ksz8_w_vlan_table(dev, vlan->vid, data);
 
-	if (new_pvid != pvid)
-		ksz_pwrite16(dev, port, REG_PORT_CTRL_VID, pvid);
+	if (pvid == vlan->vid)
+		ksz8_port_enable_pvid(dev, port, false);
 
 	return 0;
 }
@@ -1394,6 +1474,9 @@ static int ksz8_setup(struct dsa_switch *ds)
 
 	ksz_cfg(dev, S_MIRROR_CTRL, SW_MIRROR_RX_TX, false);
 
+	if (!ksz_is_ksz88x3(dev))
+		ksz_cfg(dev, REG_SW_CTRL_19, SW_INS_TAG_ENABLE, true);
+
 	/* set broadcast storm protection 10% rate */
 	regmap_update_bits(dev->regmap[1], S_REPLACE_VID_CTRL,
 			   BROADCAST_STORM_RATE,
@@ -1419,11 +1502,66 @@ static int ksz8_setup(struct dsa_switch *ds)
 	return 0;
 }
 
+static void ksz8_validate(struct dsa_switch *ds, int port,
+			  unsigned long *supported,
+			  struct phylink_link_state *state)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
+	struct ksz_device *dev = ds->priv;
+
+	if (port == dev->cpu_port) {
+		if (state->interface != PHY_INTERFACE_MODE_RMII &&
+		    state->interface != PHY_INTERFACE_MODE_MII &&
+		    state->interface != PHY_INTERFACE_MODE_NA)
+			goto unsupported;
+	} else {
+		if (state->interface != PHY_INTERFACE_MODE_INTERNAL &&
+		    state->interface != PHY_INTERFACE_MODE_NA)
+			goto unsupported;
+	}
+
+	/* Allow all the expected bits */
+	phylink_set_port_modes(mask);
+	phylink_set(mask, Autoneg);
+
+	/* Silicon Errata Sheet (DS80000830A):
+	 * "Port 1 does not respond to received flow control PAUSE frames"
+	 * So, disable Pause support on "Port 1" (port == 0) for all ksz88x3
+	 * switches.
+	 */
+	if (!ksz_is_ksz88x3(dev) || port)
+		phylink_set(mask, Pause);
+
+	/* Asym pause is not supported on KSZ8863 and KSZ8873 */
+	if (!ksz_is_ksz88x3(dev))
+		phylink_set(mask, Asym_Pause);
+
+	/* 10M and 100M are only supported */
+	phylink_set(mask, 10baseT_Half);
+	phylink_set(mask, 10baseT_Full);
+	phylink_set(mask, 100baseT_Half);
+	phylink_set(mask, 100baseT_Full);
+
+	bitmap_and(supported, supported, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_and(state->advertising, state->advertising, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+
+	return;
+
+unsupported:
+	bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	dev_err(ds->dev, "Unsupported interface: %s, port: %d\n",
+		phy_modes(state->interface), port);
+}
+
 static const struct dsa_switch_ops ksz8_switch_ops = {
 	.get_tag_protocol	= ksz8_get_tag_protocol,
+	.get_phy_flags		= ksz8_sw_get_phy_flags,
 	.setup			= ksz8_setup,
 	.phy_read		= ksz_phy_read16,
 	.phy_write		= ksz_phy_write16,
+	.phylink_validate	= ksz8_validate,
 	.phylink_mac_link_down	= ksz_mac_link_down,
 	.port_enable		= ksz_enable_port,
 	.get_strings		= ksz8_get_strings,
@@ -1620,6 +1758,16 @@ static int ksz8_switch_init(struct ksz_device *dev)
 
 	/* set the real number of ports */
 	dev->ds->num_ports = dev->port_cnt;
+
+	/* We rely on software untagging on the CPU port, so that we
+	 * can support both tagged and untagged VLANs
+	 */
+	dev->ds->untag_bridge_pvid = true;
+
+	/* VLAN filtering is partly controlled by the global VLAN
+	 * Enable flag
+	 */
+	dev->ds->vlan_filtering_is_global = true;
 
 	return 0;
 }

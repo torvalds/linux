@@ -184,9 +184,6 @@ static int mt76s_process_tx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 	if (!q->queued)
 		wake_up(&dev->tx_wait);
 
-	if (!mcu)
-		mt76_txq_schedule(&dev->phy, q->qid);
-
 	return nframes;
 }
 
@@ -195,19 +192,28 @@ static void mt76s_status_worker(struct mt76_worker *w)
 	struct mt76_sdio *sdio = container_of(w, struct mt76_sdio,
 					      status_worker);
 	struct mt76_dev *dev = container_of(sdio, struct mt76_dev, sdio);
+	bool resched = false;
 	int i, nframes;
 
 	do {
+		int ndata_frames = 0;
+
 		nframes = mt76s_process_tx_queue(dev, dev->q_mcu[MT_MCUQ_WM]);
 
 		for (i = 0; i <= MT_TXQ_PSD; i++)
-			nframes += mt76s_process_tx_queue(dev,
-							  dev->phy.q_tx[i]);
+			ndata_frames += mt76s_process_tx_queue(dev,
+							       dev->phy.q_tx[i]);
+		nframes += ndata_frames;
+		if (ndata_frames > 0)
+			resched = true;
 
 		if (dev->drv->tx_status_data &&
 		    !test_and_set_bit(MT76_READING_STATS, &dev->phy.state))
 			queue_work(dev->wq, &dev->sdio.stat_work);
 	} while (nframes > 0);
+
+	if (resched)
+		mt76_worker_schedule(&dev->sdio.txrx_worker);
 }
 
 static void mt76s_tx_status_data(struct work_struct *work)
@@ -256,6 +262,7 @@ mt76s_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 
 	q->entry[q->head].skb = tx_info.skb;
 	q->entry[q->head].buf_sz = len;
+	q->entry[q->head].wcid = 0xffff;
 
 	smp_wmb();
 

@@ -37,13 +37,13 @@ struct drm_encoder;
 struct drm_file;
 struct drm_format_info;
 struct drm_framebuffer;
-struct drm_i915_error_state_buf;
 struct drm_i915_gem_object;
 struct drm_i915_private;
 struct drm_mode_fb_cmd2;
 struct drm_modeset_acquire_ctx;
 struct drm_plane;
 struct drm_plane_state;
+struct i915_address_space;
 struct i915_ggtt_view;
 struct intel_atomic_state;
 struct intel_crtc;
@@ -188,12 +188,13 @@ enum plane_id {
 	for ((__p) = PLANE_PRIMARY; (__p) < I915_MAX_PLANES; (__p)++) \
 		for_each_if((__crtc)->plane_ids_mask & BIT(__p))
 
-#define for_each_dbuf_slice_in_mask(__slice, __mask) \
+#define for_each_dbuf_slice(__dev_priv, __slice) \
 	for ((__slice) = DBUF_S1; (__slice) < I915_MAX_DBUF_SLICES; (__slice)++) \
-		for_each_if((BIT(__slice)) & (__mask))
+		for_each_if(INTEL_INFO(__dev_priv)->dbuf.slice_mask & BIT(__slice))
 
-#define for_each_dbuf_slice(__slice) \
-	for_each_dbuf_slice_in_mask(__slice, BIT(I915_MAX_DBUF_SLICES) - 1)
+#define for_each_dbuf_slice_in_mask(__dev_priv, __slice, __mask) \
+	for_each_dbuf_slice((__dev_priv), (__slice)) \
+		for_each_if((__mask) & BIT(__slice))
 
 enum port {
 	PORT_NONE = -1,
@@ -215,6 +216,10 @@ enum port {
 	PORT_TC4,
 	PORT_TC5,
 	PORT_TC6,
+
+	/* XE_LPD repositions D/E offsets and bitfields */
+	PORT_D_XELPD = PORT_TC5,
+	PORT_E_XELPD,
 
 	I915_MAX_PORTS
 };
@@ -299,6 +304,10 @@ enum aux_ch {
 	AUX_CH_USBC4,
 	AUX_CH_USBC5,
 	AUX_CH_USBC6,
+
+	/* XE_LPD repositions D/E offsets and bitfields */
+	AUX_CH_D_XELPD = AUX_CH_USBC5,
+	AUX_CH_E_XELPD,
 };
 
 #define aux_ch_name(a) ((a) + 'A')
@@ -556,9 +565,6 @@ enum tc_port intel_port_to_tc(struct drm_i915_private *dev_priv,
 			      enum port port);
 int intel_get_pipe_from_crtc_id_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv);
-u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc);
-void intel_crtc_vblank_on(const struct intel_crtc_state *crtc_state);
-void intel_crtc_vblank_off(const struct intel_crtc_state *crtc_state);
 
 int ilk_get_lanes_required(int target_clock, int link_bw, int bpp);
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
@@ -597,9 +603,6 @@ void intel_dp_get_m_n(struct intel_crtc *crtc,
 void intel_dp_set_m_n(const struct intel_crtc_state *crtc_state,
 		      enum link_m_n_set m_n);
 int intel_dotclock_calculate(int link_freq, const struct intel_link_m_n *m_n);
-bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state,
-			struct dpll *best_clock);
-int chv_calc_dpll_params(int refclk, struct dpll *pll_clock);
 
 bool hsw_crtc_state_ips_capable(const struct intel_crtc_state *crtc_state);
 void hsw_enable_ips(const struct intel_crtc_state *crtc_state);
@@ -615,11 +618,6 @@ void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state);
 
 int bdw_get_pipemisc_bpp(struct intel_crtc *crtc);
 unsigned int intel_plane_fence_y_offset(const struct intel_plane_state *plane_state);
-
-struct intel_display_error_state *
-intel_display_capture_error_state(struct drm_i915_private *dev_priv);
-void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
-				     struct intel_display_error_state *error);
 
 bool
 intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
@@ -648,6 +646,7 @@ void intel_modeset_driver_remove_noirq(struct drm_i915_private *i915);
 void intel_modeset_driver_remove_nogem(struct drm_i915_private *i915);
 void intel_display_resume(struct drm_device *dev);
 void intel_init_pch_refclk(struct drm_i915_private *dev_priv);
+int intel_modeset_all_pipes(struct intel_atomic_state *state);
 
 /* modesetting asserts */
 void assert_panel_unlocked(struct drm_i915_private *dev_priv,

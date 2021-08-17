@@ -11,12 +11,14 @@ its supported drivers.
 
 Please see:
 
-- :doc:`/userspace-api/media/index`
-     for the userspace APIs used on media devices.
+Documentation/userspace-api/media/index.rst
 
-- :doc:`/driver-api/media/index`
-     for driver development information and Kernel APIs used by
-     media devices;
+  - for the userspace APIs used on media devices.
+
+Documentation/driver-api/media/index.rst
+
+  - for driver development information and Kernel APIs used by
+    media devices;
 
 The media subsystem
 ===================

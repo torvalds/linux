@@ -23,4 +23,10 @@ long long __ashlti3(long long a, int b);
 long long __ashrti3(long long a, int b);
 long long __lshrti3(long long a, int b);
 
+/*
+ * This function uses a custom calling convention and cannot be called from C so
+ * this prototype is not entirely accurate.
+ */
+void __hwasan_tag_mismatch(unsigned long addr, unsigned long access_info);
+
 #endif /* __ASM_PROTOTYPES_H */

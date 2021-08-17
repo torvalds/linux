@@ -37,16 +37,18 @@ static inline bool mlx5_is_real_time_rq(struct mlx5_core_dev *mdev)
 {
 	u8 rq_ts_format_cap = MLX5_CAP_GEN(mdev, rq_ts_format);
 
-	return (rq_ts_format_cap == MLX5_RQ_TIMESTAMP_FORMAT_CAP_REAL_TIME  ||
-		rq_ts_format_cap == MLX5_RQ_TIMESTAMP_FORMAT_CAP_FREE_RUNNING_AND_REAL_TIME);
+	return (rq_ts_format_cap == MLX5_TIMESTAMP_FORMAT_CAP_REAL_TIME ||
+		rq_ts_format_cap ==
+			MLX5_TIMESTAMP_FORMAT_CAP_FREE_RUNNING_AND_REAL_TIME);
 }
 
 static inline bool mlx5_is_real_time_sq(struct mlx5_core_dev *mdev)
 {
 	u8 sq_ts_format_cap = MLX5_CAP_GEN(mdev, sq_ts_format);
 
-	return (sq_ts_format_cap == MLX5_SQ_TIMESTAMP_FORMAT_CAP_REAL_TIME  ||
-		sq_ts_format_cap == MLX5_SQ_TIMESTAMP_FORMAT_CAP_FREE_RUNNING_AND_REAL_TIME);
+	return (sq_ts_format_cap == MLX5_TIMESTAMP_FORMAT_CAP_REAL_TIME ||
+		sq_ts_format_cap ==
+			MLX5_TIMESTAMP_FORMAT_CAP_FREE_RUNNING_AND_REAL_TIME);
 }
 
 typedef ktime_t (*cqe_ts_to_ns)(struct mlx5_clock *, u64);

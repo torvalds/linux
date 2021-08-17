@@ -156,7 +156,7 @@ static const struct csi2tx_fmt *csi2tx_get_fmt_from_mbus(u32 mbus)
 }
 
 static int csi2tx_enum_mbus_code(struct v4l2_subdev *subdev,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad || code->index >= ARRAY_SIZE(csi2tx_formats))
@@ -169,20 +169,20 @@ static int csi2tx_enum_mbus_code(struct v4l2_subdev *subdev,
 
 static struct v4l2_mbus_framefmt *
 __csi2tx_get_pad_format(struct v4l2_subdev *subdev,
-			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_state *sd_state,
 			struct v4l2_subdev_format *fmt)
 {
 	struct csi2tx_priv *csi2tx = v4l2_subdev_to_csi2tx(subdev);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(subdev, cfg,
+		return v4l2_subdev_get_try_format(subdev, sd_state,
 						  fmt->pad);
 
 	return &csi2tx->pad_fmts[fmt->pad];
 }
 
 static int csi2tx_get_pad_format(struct v4l2_subdev *subdev,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
 	const struct v4l2_mbus_framefmt *format;
@@ -191,7 +191,7 @@ static int csi2tx_get_pad_format(struct v4l2_subdev *subdev,
 	if (fmt->pad == CSI2TX_PAD_SOURCE)
 		return -EINVAL;
 
-	format = __csi2tx_get_pad_format(subdev, cfg, fmt);
+	format = __csi2tx_get_pad_format(subdev, sd_state, fmt);
 	if (!format)
 		return -EINVAL;
 
@@ -201,7 +201,7 @@ static int csi2tx_get_pad_format(struct v4l2_subdev *subdev,
 }
 
 static int csi2tx_set_pad_format(struct v4l2_subdev *subdev,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
 	const struct v4l2_mbus_framefmt *src_format = &fmt->format;
@@ -214,7 +214,7 @@ static int csi2tx_set_pad_format(struct v4l2_subdev *subdev,
 	if (!csi2tx_get_fmt_from_mbus(fmt->format.code))
 		src_format = &fmt_default;
 
-	dst_format = __csi2tx_get_pad_format(subdev, cfg, fmt);
+	dst_format = __csi2tx_get_pad_format(subdev, sd_state, fmt);
 	if (!dst_format)
 		return -EINVAL;
 
@@ -436,6 +436,7 @@ static int csi2tx_get_resources(struct csi2tx_priv *csi2tx,
 	struct resource *res;
 	unsigned int i;
 	u32 dev_cfg;
+	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	csi2tx->base = devm_ioremap_resource(&pdev->dev, res);
@@ -454,7 +455,12 @@ static int csi2tx_get_resources(struct csi2tx_priv *csi2tx,
 		return PTR_ERR(csi2tx->esc_clk);
 	}
 
-	clk_prepare_enable(csi2tx->p_clk);
+	ret = clk_prepare_enable(csi2tx->p_clk);
+	if (ret) {
+		dev_err(&pdev->dev, "Couldn't prepare and enable p_clk\n");
+		return ret;
+	}
+
 	dev_cfg = readl(csi2tx->base + CSI2TX_DEVICE_CONFIG_REG);
 	clk_disable_unprepare(csi2tx->p_clk);
 

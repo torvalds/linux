@@ -2348,9 +2348,9 @@ cadence_nand_setup_interface(struct nand_chip *chip, int chipnr,
 	 * for tRP and tRH timings. If it is NOT possible to sample data
 	 * with optimal tRP/tRH settings, the parameters will be extended.
 	 * If clk_period is 50ns (the lowest value) this condition is met
-	 * for asynchronous timing modes 1, 2, 3, 4 and 5.
-	 * If clk_period is 20ns the condition is met only
-	 * for asynchronous timing mode 5.
+	 * for SDR timing modes 1, 2, 3, 4 and 5.
+	 * If clk_period is 20ns the condition is met only for SDR timing
+	 * mode 5.
 	 */
 	if (sdr->tRC_min <= clk_period &&
 	    sdr->tRP_min <= (clk_period / 2) &&

@@ -852,7 +852,8 @@ snd_ad1889_create(struct snd_card *card,
 
 	*rchip = NULL;
 
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pci_enable_device(pci);
+	if (err < 0)
 		return err;
 
 	/* check PCI availability (32bit DMA) */
@@ -863,7 +864,8 @@ snd_ad1889_create(struct snd_card *card,
 	}
 
 	/* allocate chip specific data with zero-filled memory */
-	if ((chip = kzalloc(sizeof(*chip), GFP_KERNEL)) == NULL) {
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	if (!chip) {
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}
@@ -874,7 +876,8 @@ snd_ad1889_create(struct snd_card *card,
 	chip->irq = -1;
 
 	/* (1) PCI resource allocation */
-	if ((err = pci_request_regions(pci, card->driver)) < 0)
+	err = pci_request_regions(pci, card->driver);
+	if (err < 0)
 		goto free_and_ret;
 
 	chip->bar = pci_resource_start(pci, 0);
@@ -900,12 +903,14 @@ snd_ad1889_create(struct snd_card *card,
 	card->sync_irq = chip->irq;
 
 	/* (2) initialization of the chip hardware */
-	if ((err = snd_ad1889_init(chip)) < 0) {
+	err = snd_ad1889_init(chip);
+	if (err < 0) {
 		snd_ad1889_free(chip);
 		return err;
 	}
 
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	if (err < 0) {
 		snd_ad1889_free(chip);
 		return err;
 	}

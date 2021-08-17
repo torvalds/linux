@@ -50,7 +50,8 @@ To build and install, you should run::
 Once the new Kernel is booted, saa7134 driver should be loaded automatically.
 
 Depending on the card you might have to pass ``card=<nr>`` as insmod option.
-If so, please check :doc:`saa7134-cardlist` for valid choices.
+If so, please check Documentation/admin-guide/media/saa7134-cardlist.rst
+for valid choices.
 
 Once you have your card type number, you can pass a modules configuration
 via a file (usually, it is either ``/etc/modules.conf`` or some file at

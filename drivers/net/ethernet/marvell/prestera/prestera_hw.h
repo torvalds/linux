@@ -89,12 +89,18 @@ enum {
 	PRESTERA_STP_FORWARD,
 };
 
+enum prestera_hw_cpu_code_cnt_t {
+	PRESTERA_HW_CPU_CODE_CNT_TYPE_DROP = 0,
+	PRESTERA_HW_CPU_CODE_CNT_TYPE_TRAP = 1,
+};
+
 struct prestera_switch;
 struct prestera_port;
 struct prestera_port_stats;
 struct prestera_port_caps;
 enum prestera_event_type;
 struct prestera_event;
+struct prestera_acl_rule;
 
 typedef void (*prestera_event_cb_t)
 	(struct prestera_switch *sw, struct prestera_event *evt, void *arg);
@@ -138,7 +144,8 @@ int prestera_hw_port_mdix_get(const struct prestera_port *port, u8 *status,
 int prestera_hw_port_mdix_set(const struct prestera_port *port, u8 mode);
 int prestera_hw_port_speed_get(const struct prestera_port *port, u32 *speed);
 int prestera_hw_port_learning_set(struct prestera_port *port, bool enable);
-int prestera_hw_port_flood_set(struct prestera_port *port, bool flood);
+int prestera_hw_port_flood_set(struct prestera_port *port, unsigned long mask,
+			       unsigned long val);
 int prestera_hw_port_accept_frm_type(struct prestera_port *port,
 				     enum prestera_accept_frm_type type);
 /* Vlan API */
@@ -165,6 +172,28 @@ int prestera_hw_bridge_delete(struct prestera_switch *sw, u16 bridge_id);
 int prestera_hw_bridge_port_add(struct prestera_port *port, u16 bridge_id);
 int prestera_hw_bridge_port_delete(struct prestera_port *port, u16 bridge_id);
 
+/* ACL API */
+int prestera_hw_acl_ruleset_create(struct prestera_switch *sw,
+				   u16 *ruleset_id);
+int prestera_hw_acl_ruleset_del(struct prestera_switch *sw,
+				u16 ruleset_id);
+int prestera_hw_acl_rule_add(struct prestera_switch *sw,
+			     struct prestera_acl_rule *rule,
+			     u32 *rule_id);
+int prestera_hw_acl_rule_del(struct prestera_switch *sw, u32 rule_id);
+int prestera_hw_acl_rule_stats_get(struct prestera_switch *sw,
+				   u32 rule_id, u64 *packets, u64 *bytes);
+int prestera_hw_acl_port_bind(const struct prestera_port *port,
+			      u16 ruleset_id);
+int prestera_hw_acl_port_unbind(const struct prestera_port *port,
+				u16 ruleset_id);
+
+/* SPAN API */
+int prestera_hw_span_get(const struct prestera_port *port, u8 *span_id);
+int prestera_hw_span_bind(const struct prestera_port *port, u8 span_id);
+int prestera_hw_span_unbind(const struct prestera_port *port);
+int prestera_hw_span_release(struct prestera_switch *sw, u8 span_id);
+
 /* Event handlers */
 int prestera_hw_event_handler_register(struct prestera_switch *sw,
 				       enum prestera_event_type type,
@@ -178,5 +207,25 @@ void prestera_hw_event_handler_unregister(struct prestera_switch *sw,
 int prestera_hw_rxtx_init(struct prestera_switch *sw,
 			  struct prestera_rxtx_params *params);
 int prestera_hw_rxtx_port_init(struct prestera_port *port);
+
+/* LAG API */
+int prestera_hw_lag_member_add(struct prestera_port *port, u16 lag_id);
+int prestera_hw_lag_member_del(struct prestera_port *port, u16 lag_id);
+int prestera_hw_lag_member_enable(struct prestera_port *port, u16 lag_id,
+				  bool enable);
+int prestera_hw_lag_fdb_add(struct prestera_switch *sw, u16 lag_id,
+			    const unsigned char *mac, u16 vid, bool dynamic);
+int prestera_hw_lag_fdb_del(struct prestera_switch *sw, u16 lag_id,
+			    const unsigned char *mac, u16 vid);
+int prestera_hw_fdb_flush_lag(struct prestera_switch *sw, u16 lag_id,
+			      u32 mode);
+int prestera_hw_fdb_flush_lag_vlan(struct prestera_switch *sw,
+				   u16 lag_id, u16 vid, u32 mode);
+
+/* HW trap/drop counters API */
+int
+prestera_hw_cpu_code_counters_get(struct prestera_switch *sw, u8 code,
+				  enum prestera_hw_cpu_code_cnt_t counter_type,
+				  u64 *packet_count);
 
 #endif /* _PRESTERA_HW_H_ */

@@ -25,16 +25,16 @@ ioctl commands that follow modern conventions: ``_IO``, ``_IOR``,
 with the correct parameters:
 
 _IO/_IOR/_IOW/_IOWR
-   The macro name specifies how the argument will be used.  It may be a
+   The macro name specifies how the argument will be used.  It may be a
    pointer to data to be passed into the kernel (_IOW), out of the kernel
-   (_IOR), or both (_IOWR).  _IO can indicate either commands with no
+   (_IOR), or both (_IOWR).  _IO can indicate either commands with no
    argument or those passing an integer value instead of a pointer.
    It is recommended to only use _IO for commands without arguments,
    and use pointers for passing data.
 
 type
    An 8-bit number, often a character literal, specific to a subsystem
-   or driver, and listed in :doc:`../userspace-api/ioctl/ioctl-number`
+   or driver, and listed in Documentation/userspace-api/ioctl/ioctl-number.rst
 
 nr
   An 8-bit number identifying the specific command, unique for a give
@@ -200,10 +200,10 @@ cause an information leak, which can be used to defeat kernel address
 space layout randomization (KASLR), helping in an attack.
 
 For this reason (and for compat support) it is best to avoid any
-implicit padding in data structures.  Where there is implicit padding
+implicit padding in data structures.  Where there is implicit padding
 in an existing structure, kernel drivers must be careful to fully
 initialize an instance of the structure before copying it to user
-space.  This is usually done by calling memset() before assigning to
+space.  This is usually done by calling memset() before assigning to
 individual members.
 
 Subsystem abstractions

@@ -1194,7 +1194,8 @@ snd_azf3328_mixer_new(struct snd_azf3328 *chip)
 	sw = snd_azf3328_mixer_controls;
 	for (idx = 0; idx < ARRAY_SIZE(snd_azf3328_mixer_controls);
 			++idx, ++sw) {
-		if ((err = snd_ctl_add(chip->card, snd_ctl_new1(sw, chip))) < 0)
+		err = snd_ctl_add(chip->card, snd_ctl_new1(sw, chip));
+		if (err < 0)
 			return err;
 	}
 	snd_component_add(card, "AZF3328 mixer");

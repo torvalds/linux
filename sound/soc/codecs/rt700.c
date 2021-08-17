@@ -1112,6 +1112,8 @@ int rt700_init(struct device *dev, struct regmap *sdw_regmap,
 	rt700->sdw_regmap = sdw_regmap;
 	rt700->regmap = regmap;
 
+	mutex_init(&rt700->disable_irq_lock);
+
 	/*
 	 * Mark hw_init to false
 	 * HW init will be performed when device reports present
@@ -1132,6 +1134,8 @@ int rt700_init(struct device *dev, struct regmap *sdw_regmap,
 int rt700_io_init(struct device *dev, struct sdw_slave *slave)
 {
 	struct rt700_priv *rt700 = dev_get_drvdata(dev);
+
+	rt700->disable_irq = false;
 
 	if (rt700->hw_init)
 		return 0;

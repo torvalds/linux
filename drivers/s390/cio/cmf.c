@@ -163,13 +163,14 @@ static inline u64 time_to_avg_nsec(u32 value, u32 count)
  */
 static inline void cmf_activate(void *area, unsigned int onoff)
 {
-	register void * __gpr2 asm("2");
-	register long __gpr1 asm("1");
-
-	__gpr2 = area;
-	__gpr1 = onoff;
 	/* activate channel measurement */
-	asm("schm" : : "d" (__gpr2), "d" (__gpr1) );
+	asm volatile(
+		"	lgr	1,%[r1]\n"
+		"	lgr	2,%[mbo]\n"
+		"	schm\n"
+		:
+		: [r1] "d" ((unsigned long)onoff), [mbo] "d" (area)
+		: "1", "2");
 }
 
 static int set_schib(struct ccw_device *cdev, u32 mme, int mbfc,

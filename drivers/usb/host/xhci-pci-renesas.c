@@ -197,7 +197,7 @@ static int renesas_check_rom_state(struct pci_dev *pdev)
 	if (err)
 		return pcibios_err_to_errno(err);
 
-	if (rom_state & BIT(15)) {
+	if (rom_state & RENESAS_ROM_STATUS_ROM_EXISTS) {
 		/* ROM exists */
 		dev_dbg(&pdev->dev, "ROM exists\n");
 

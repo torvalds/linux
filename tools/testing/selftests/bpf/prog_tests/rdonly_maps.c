@@ -30,7 +30,7 @@ void test_rdonly_maps(void)
 	struct bss bss;
 
 	obj = bpf_object__open_file(file, NULL);
-	if (CHECK(IS_ERR(obj), "obj_open", "err %ld\n", PTR_ERR(obj)))
+	if (!ASSERT_OK_PTR(obj, "obj_open"))
 		return;
 
 	err = bpf_object__load(obj);
@@ -58,11 +58,8 @@ void test_rdonly_maps(void)
 			goto cleanup;
 
 		link = bpf_program__attach_raw_tracepoint(prog, "sys_enter");
-		if (CHECK(IS_ERR(link), "attach_prog", "prog '%s', err %ld\n",
-			  t->prog_name, PTR_ERR(link))) {
-			link = NULL;
+		if (!ASSERT_OK_PTR(link, "attach_prog"))
 			goto cleanup;
-		}
 
 		/* trigger probe */
 		usleep(1);

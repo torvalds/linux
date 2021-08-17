@@ -20,12 +20,12 @@
 #include <linux/mii.h>
 #include <linux/phy.h>
 
-#define MII_XCIIS   	0x11	/* Configuration Info IRQ & Status Reg */
-#define MII_XIE     	0x12	/* Interrupt Enable Register */
+#define MII_XCIIS	0x11	/* Configuration Info IRQ & Status Reg */
+#define MII_XIE		0x12	/* Interrupt Enable Register */
 #define MII_XIE_DEFAULT_MASK 0x0070 /* ANE complete, Remote Fault, Link Down */
 
 #define STE101P_PHY_ID		0x00061c50
-#define STE100P_PHY_ID       	0x1c040011
+#define STE100P_PHY_ID		0x1c040011
 
 static int ste10Xp_config_init(struct phy_device *phydev)
 {

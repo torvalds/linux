@@ -99,6 +99,12 @@ These options are setting per-event options.
 ftrace.[instance.INSTANCE.]event.GROUP.EVENT.enable
    Enable GROUP:EVENT tracing.
 
+ftrace.[instance.INSTANCE.]event.GROUP.enable
+   Enable all event tracing within GROUP.
+
+ftrace.[instance.INSTANCE.]event.enable
+   Enable all event tracing.
+
 ftrace.[instance.INSTANCE.]event.GROUP.EVENT.filter = FILTER
    Set FILTER rule to the GROUP:EVENT.
 

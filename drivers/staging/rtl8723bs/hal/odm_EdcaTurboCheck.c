@@ -37,19 +37,6 @@ void ODM_EdcaTurboInit(void *pDM_VOID)
 	pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
 	pDM_Odm->DM_EDCA_Table.bIsCurRDLState = false;
 	Adapter->recvpriv.bIsAnyNonBEPkts = false;
-
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
-		     ("Original VO PARAM: 0x%x\n",
-		      rtw_read32(pDM_Odm->Adapter, ODM_EDCA_VO_PARAM)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
-		     ("Original VI PARAM: 0x%x\n",
-		      rtw_read32(pDM_Odm->Adapter, ODM_EDCA_VI_PARAM)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
-		     ("Original BE PARAM: 0x%x\n",
-		      rtw_read32(pDM_Odm->Adapter, ODM_EDCA_BE_PARAM)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
-		     ("Original BK PARAM: 0x%x\n",
-		      rtw_read32(pDM_Odm->Adapter, ODM_EDCA_BK_PARAM)));
 }	/*  ODM_InitEdcaTurbo */
 
 void odm_EdcaTurboCheck(void *pDM_VOID)
@@ -60,15 +47,10 @@ void odm_EdcaTurboCheck(void *pDM_VOID)
 	 */
 	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
-		     ("odm_EdcaTurboCheck ========================>\n"));
-
 	if (!(pDM_Odm->SupportAbility & ODM_MAC_EDCA_TURBO))
 		return;
 
 	odm_EdcaTurboCheckCE(pDM_Odm);
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
-		     ("<========================odm_EdcaTurboCheck\n"));
 }	/*  odm_CheckEdcaTurbo */
 
 void odm_EdcaTurboCheckCE(void *pDM_VOID)
@@ -142,12 +124,10 @@ void odm_EdcaTurboCheckCE(void *pDM_VOID)
 		} else if ((iot_peer == HT_IOT_PEER_CISCO) &&
 			   ((wirelessmode == ODM_WM_G) ||
 			    (wirelessmode == (ODM_WM_B | ODM_WM_G)) ||
-			    (wirelessmode == ODM_WM_A) ||
 			    (wirelessmode == ODM_WM_B))) {
 			EDCA_BE_DL = edca_setting_DL_GMode[iot_peer];
 		} else if ((iot_peer == HT_IOT_PEER_AIRGO) &&
-			   ((wirelessmode == ODM_WM_G) ||
-			    (wirelessmode == ODM_WM_A))) {
+			   (wirelessmode == ODM_WM_G)) {
 			EDCA_BE_DL = 0xa630;
 		} else if (iot_peer == HT_IOT_PEER_MARVELL) {
 			EDCA_BE_DL = edca_setting_DL[iot_peer];

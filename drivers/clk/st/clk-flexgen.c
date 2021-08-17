@@ -16,9 +16,16 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
+struct clkgen_clk_out {
+	const char *name;
+	unsigned long flags;
+};
+
 struct clkgen_data {
 	unsigned long flags;
 	bool mode;
+	const struct clkgen_clk_out *outputs;
+	const unsigned int outputs_nb;
 };
 
 struct flexgen {
@@ -295,6 +302,290 @@ static const struct clkgen_data clkgen_video = {
 	.mode = 1,
 };
 
+static const struct clkgen_clk_out clkgen_stih407_a0_clk_out[] = {
+	/* This clk needs to be on so that memory interface is accessible */
+	{ .name = "clk-ic-lmi0", .flags = CLK_IS_CRITICAL },
+};
+
+static const struct clkgen_data clkgen_stih407_a0 = {
+	.outputs = clkgen_stih407_a0_clk_out,
+	.outputs_nb = ARRAY_SIZE(clkgen_stih407_a0_clk_out),
+};
+
+static const struct clkgen_clk_out clkgen_stih410_a0_clk_out[] = {
+	/* Those clks need to be on so that memory interface is accessible */
+	{ .name = "clk-ic-lmi0", .flags = CLK_IS_CRITICAL },
+	{ .name = "clk-ic-lmi1", .flags = CLK_IS_CRITICAL },
+};
+
+static const struct clkgen_data clkgen_stih410_a0 = {
+	.outputs = clkgen_stih410_a0_clk_out,
+	.outputs_nb = ARRAY_SIZE(clkgen_stih410_a0_clk_out),
+};
+
+static const struct clkgen_clk_out clkgen_stih407_c0_clk_out[] = {
+	{ .name = "clk-icn-gpu", },
+	{ .name = "clk-fdma", },
+	{ .name = "clk-nand", },
+	{ .name = "clk-hva", },
+	{ .name = "clk-proc-stfe", },
+	{ .name = "clk-proc-tp", },
+	{ .name = "clk-rx-icn-dmu", },
+	{ .name = "clk-rx-icn-hva", },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-icn-cpu", .flags = CLK_IS_CRITICAL },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-tx-icn-dmu", .flags = CLK_IS_CRITICAL },
+	{ .name = "clk-mmc-0", },
+	{ .name = "clk-mmc-1", },
+	{ .name = "clk-jpegdec", },
+	/* This clk needs to be on to keep A9 running */
+	{ .name = "clk-ext2fa9", .flags = CLK_IS_CRITICAL },
+	{ .name = "clk-ic-bdisp-0", },
+	{ .name = "clk-ic-bdisp-1", },
+	{ .name = "clk-pp-dmu", },
+	{ .name = "clk-vid-dmu", },
+	{ .name = "clk-dss-lpc", },
+	{ .name = "clk-st231-aud-0", },
+	{ .name = "clk-st231-gp-1", },
+	{ .name = "clk-st231-dmu", },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-icn-lmi", .flags = CLK_IS_CRITICAL },
+	{ .name = "clk-tx-icn-disp-1", },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-icn-sbc", .flags = CLK_IS_CRITICAL },
+	{ .name = "clk-stfe-frc2", },
+	{ .name = "clk-eth-phy", },
+	{ .name = "clk-eth-ref-phyclk", },
+	{ .name = "clk-flash-promip", },
+	{ .name = "clk-main-disp", },
+	{ .name = "clk-aux-disp", },
+	{ .name = "clk-compo-dvp", },
+};
+
+static const struct clkgen_data clkgen_stih407_c0 = {
+	.outputs = clkgen_stih407_c0_clk_out,
+	.outputs_nb = ARRAY_SIZE(clkgen_stih407_c0_clk_out),
+};
+
+static const struct clkgen_clk_out clkgen_stih410_c0_clk_out[] = {
+	{ .name = "clk-icn-gpu", },
+	{ .name = "clk-fdma", },
+	{ .name = "clk-nand", },
+	{ .name = "clk-hva", },
+	{ .name = "clk-proc-stfe", },
+	{ .name = "clk-proc-tp", },
+	{ .name = "clk-rx-icn-dmu", },
+	{ .name = "clk-rx-icn-hva", },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-icn-cpu", .flags = CLK_IS_CRITICAL },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-tx-icn-dmu", .flags = CLK_IS_CRITICAL },
+	{ .name = "clk-mmc-0", },
+	{ .name = "clk-mmc-1", },
+	{ .name = "clk-jpegdec", },
+	/* This clk needs to be on to keep A9 running */
+	{ .name = "clk-ext2fa9", .flags = CLK_IS_CRITICAL },
+	{ .name = "clk-ic-bdisp-0", },
+	{ .name = "clk-ic-bdisp-1", },
+	{ .name = "clk-pp-dmu", },
+	{ .name = "clk-vid-dmu", },
+	{ .name = "clk-dss-lpc", },
+	{ .name = "clk-st231-aud-0", },
+	{ .name = "clk-st231-gp-1", },
+	{ .name = "clk-st231-dmu", },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-icn-lmi", .flags = CLK_IS_CRITICAL },
+	{ .name = "clk-tx-icn-disp-1", },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-icn-sbc", .flags = CLK_IS_CRITICAL },
+	{ .name = "clk-stfe-frc2", },
+	{ .name = "clk-eth-phy", },
+	{ .name = "clk-eth-ref-phyclk", },
+	{ .name = "clk-flash-promip", },
+	{ .name = "clk-main-disp", },
+	{ .name = "clk-aux-disp", },
+	{ .name = "clk-compo-dvp", },
+	{ .name = "clk-tx-icn-hades", },
+	{ .name = "clk-rx-icn-hades", },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-icn-reg-16", .flags = CLK_IS_CRITICAL },
+	{ .name = "clk-pp-hades", },
+	{ .name = "clk-clust-hades", },
+	{ .name = "clk-hwpe-hades", },
+	{ .name = "clk-fc-hades", },
+};
+
+static const struct clkgen_data clkgen_stih410_c0 = {
+	.outputs = clkgen_stih410_c0_clk_out,
+	.outputs_nb = ARRAY_SIZE(clkgen_stih410_c0_clk_out),
+};
+
+static const struct clkgen_clk_out clkgen_stih418_c0_clk_out[] = {
+	{ .name = "clk-icn-gpu", },
+	{ .name = "clk-fdma", },
+	{ .name = "clk-nand", },
+	{ .name = "clk-hva", },
+	{ .name = "clk-proc-stfe", },
+	{ .name = "clk-tp", },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-rx-icn-dmu", .flags = CLK_IS_CRITICAL },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-rx-icn-hva", .flags = CLK_IS_CRITICAL },
+	{ .name = "clk-icn-cpu", .flags = CLK_IS_CRITICAL },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-tx-icn-dmu", .flags = CLK_IS_CRITICAL },
+	{ .name = "clk-mmc-0", },
+	{ .name = "clk-mmc-1", },
+	{ .name = "clk-jpegdec", },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-icn-reg", .flags = CLK_IS_CRITICAL },
+	{ .name = "clk-proc-bdisp-0", },
+	{ .name = "clk-proc-bdisp-1", },
+	{ .name = "clk-pp-dmu", },
+	{ .name = "clk-vid-dmu", },
+	{ .name = "clk-dss-lpc", },
+	{ .name = "clk-st231-aud-0", },
+	{ .name = "clk-st231-gp-1", },
+	{ .name = "clk-st231-dmu", },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-icn-lmi", .flags = CLK_IS_CRITICAL },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-tx-icn-1", .flags = CLK_IS_CRITICAL },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-icn-sbc", .flags = CLK_IS_CRITICAL },
+	{ .name = "clk-stfe-frc2", },
+	{ .name = "clk-eth-phyref", },
+	{ .name = "clk-eth-ref-phyclk", },
+	{ .name = "clk-flash-promip", },
+	{ .name = "clk-main-disp", },
+	{ .name = "clk-aux-disp", },
+	{ .name = "clk-compo-dvp", },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-tx-icn-hades", .flags = CLK_IS_CRITICAL },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-rx-icn-hades", .flags = CLK_IS_CRITICAL },
+	/* This clk needs to be on to keep bus interconnect alive */
+	{ .name = "clk-icn-reg-16", .flags = CLK_IS_CRITICAL },
+	{ .name = "clk-pp-hevc", },
+	{ .name = "clk-clust-hevc", },
+	{ .name = "clk-hwpe-hevc", },
+	{ .name = "clk-fc-hevc", },
+	{ .name = "clk-proc-mixer", },
+	{ .name = "clk-proc-sc", },
+	{ .name = "clk-avsp-hevc", },
+};
+
+static const struct clkgen_data clkgen_stih418_c0 = {
+	.outputs = clkgen_stih418_c0_clk_out,
+	.outputs_nb = ARRAY_SIZE(clkgen_stih418_c0_clk_out),
+};
+
+static const struct clkgen_clk_out clkgen_stih407_d0_clk_out[] = {
+	{ .name = "clk-pcm-0", },
+	{ .name = "clk-pcm-1", },
+	{ .name = "clk-pcm-2", },
+	{ .name = "clk-spdiff", },
+};
+
+static const struct clkgen_data clkgen_stih407_d0 = {
+	.flags = CLK_SET_RATE_PARENT,
+	.outputs = clkgen_stih407_d0_clk_out,
+	.outputs_nb = ARRAY_SIZE(clkgen_stih407_d0_clk_out),
+};
+
+static const struct clkgen_clk_out clkgen_stih410_d0_clk_out[] = {
+	{ .name = "clk-pcm-0", },
+	{ .name = "clk-pcm-1", },
+	{ .name = "clk-pcm-2", },
+	{ .name = "clk-spdiff", },
+	{ .name = "clk-pcmr10-master", },
+	{ .name = "clk-usb2-phy", },
+};
+
+static const struct clkgen_data clkgen_stih410_d0 = {
+	.flags = CLK_SET_RATE_PARENT,
+	.outputs = clkgen_stih410_d0_clk_out,
+	.outputs_nb = ARRAY_SIZE(clkgen_stih410_d0_clk_out),
+};
+
+static const struct clkgen_clk_out clkgen_stih407_d2_clk_out[] = {
+	{ .name = "clk-pix-main-disp", },
+	{ .name = "clk-pix-pip", },
+	{ .name = "clk-pix-gdp1", },
+	{ .name = "clk-pix-gdp2", },
+	{ .name = "clk-pix-gdp3", },
+	{ .name = "clk-pix-gdp4", },
+	{ .name = "clk-pix-aux-disp", },
+	{ .name = "clk-denc", },
+	{ .name = "clk-pix-hddac", },
+	{ .name = "clk-hddac", },
+	{ .name = "clk-sddac", },
+	{ .name = "clk-pix-dvo", },
+	{ .name = "clk-dvo", },
+	{ .name = "clk-pix-hdmi", },
+	{ .name = "clk-tmds-hdmi", },
+	{ .name = "clk-ref-hdmiphy", },
+};
+
+static const struct clkgen_data clkgen_stih407_d2 = {
+	.outputs = clkgen_stih407_d2_clk_out,
+	.outputs_nb = ARRAY_SIZE(clkgen_stih407_d2_clk_out),
+	.flags = CLK_SET_RATE_PARENT,
+	.mode = 1,
+};
+
+static const struct clkgen_clk_out clkgen_stih418_d2_clk_out[] = {
+	{ .name = "clk-pix-main-disp", },
+	{ .name = "", },
+	{ .name = "", },
+	{ .name = "", },
+	{ .name = "", },
+	{ .name = "clk-tmds-hdmi-div2", },
+	{ .name = "clk-pix-aux-disp", },
+	{ .name = "clk-denc", },
+	{ .name = "clk-pix-hddac", },
+	{ .name = "clk-hddac", },
+	{ .name = "clk-sddac", },
+	{ .name = "clk-pix-dvo", },
+	{ .name = "clk-dvo", },
+	{ .name = "clk-pix-hdmi", },
+	{ .name = "clk-tmds-hdmi", },
+	{ .name = "clk-ref-hdmiphy", },
+	{ .name = "", }, { .name = "", }, { .name = "", }, { .name = "", },
+	{ .name = "", }, { .name = "", }, { .name = "", }, { .name = "", },
+	{ .name = "", }, { .name = "", }, { .name = "", }, { .name = "", },
+	{ .name = "", }, { .name = "", }, { .name = "", }, { .name = "", },
+	{ .name = "", }, { .name = "", }, { .name = "", }, { .name = "", },
+	{ .name = "", }, { .name = "", }, { .name = "", }, { .name = "", },
+	{ .name = "", }, { .name = "", }, { .name = "", }, { .name = "", },
+	{ .name = "", }, { .name = "", }, { .name = "", },
+	{ .name = "clk-vp9", },
+};
+
+static const struct clkgen_data clkgen_stih418_d2 = {
+	.outputs = clkgen_stih418_d2_clk_out,
+	.outputs_nb = ARRAY_SIZE(clkgen_stih418_d2_clk_out),
+	.flags = CLK_SET_RATE_PARENT,
+	.mode = 1,
+};
+
+static const struct clkgen_clk_out clkgen_stih407_d3_clk_out[] = {
+	{ .name = "clk-stfe-frc1", },
+	{ .name = "clk-tsout-0", },
+	{ .name = "clk-tsout-1", },
+	{ .name = "clk-mchi", },
+	{ .name = "clk-vsens-compo", },
+	{ .name = "clk-frc1-remote", },
+	{ .name = "clk-lpc-0", },
+	{ .name = "clk-lpc-1", },
+};
+
+static const struct clkgen_data clkgen_stih407_d3 = {
+	.outputs = clkgen_stih407_d3_clk_out,
+	.outputs_nb = ARRAY_SIZE(clkgen_stih407_d3_clk_out),
+};
+
 static const struct of_device_id flexgen_of_match[] = {
 	{
 		.compatible = "st,flexgen-audio",
@@ -303,6 +594,46 @@ static const struct of_device_id flexgen_of_match[] = {
 	{
 		.compatible = "st,flexgen-video",
 		.data = &clkgen_video,
+	},
+	{
+		.compatible = "st,flexgen-stih407-a0",
+		.data = &clkgen_stih407_a0,
+	},
+	{
+		.compatible = "st,flexgen-stih410-a0",
+		.data = &clkgen_stih410_a0,
+	},
+	{
+		.compatible = "st,flexgen-stih407-c0",
+		.data = &clkgen_stih407_c0,
+	},
+	{
+		.compatible = "st,flexgen-stih410-c0",
+		.data = &clkgen_stih410_c0,
+	},
+	{
+		.compatible = "st,flexgen-stih418-c0",
+		.data = &clkgen_stih418_c0,
+	},
+	{
+		.compatible = "st,flexgen-stih407-d0",
+		.data = &clkgen_stih407_d0,
+	},
+	{
+		.compatible = "st,flexgen-stih410-d0",
+		.data = &clkgen_stih410_d0,
+	},
+	{
+		.compatible = "st,flexgen-stih407-d2",
+		.data = &clkgen_stih407_d2,
+	},
+	{
+		.compatible = "st,flexgen-stih418-d2",
+		.data = &clkgen_stih418_d2,
+	},
+	{
+		.compatible = "st,flexgen-stih407-d3",
+		.data = &clkgen_stih407_d3,
 	},
 	{}
 };
@@ -320,6 +651,7 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 	unsigned long flex_flags = 0;
 	int ret;
 	bool clk_mode = 0;
+	const char *clk_name;
 
 	pnode = of_get_parent(np);
 	if (!pnode)
@@ -347,13 +679,17 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 	if (!clk_data)
 		goto err;
 
-	ret = of_property_count_strings(np, "clock-output-names");
-	if (ret <= 0) {
-		pr_err("%s: Failed to get number of output clocks (%d)",
-				__func__, clk_data->clk_num);
-		goto err;
-	}
-	clk_data->clk_num = ret;
+	/* First try to get output information from the compatible data */
+	if (!data || !data->outputs_nb || !data->outputs) {
+		ret = of_property_count_strings(np, "clock-output-names");
+		if (ret <= 0) {
+			pr_err("%s: Failed to get number of output clocks (%d)",
+					__func__, clk_data->clk_num);
+			goto err;
+		}
+		clk_data->clk_num = ret;
+	} else
+		clk_data->clk_num = data->outputs_nb;
 
 	clk_data->clks = kcalloc(clk_data->clk_num, sizeof(struct clk *),
 			GFP_KERNEL);
@@ -368,15 +704,18 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 
 	for (i = 0; i < clk_data->clk_num; i++) {
 		struct clk *clk;
-		const char *clk_name;
 
-		if (of_property_read_string_index(np, "clock-output-names",
-						  i, &clk_name)) {
-			break;
+		if (!data || !data->outputs_nb || !data->outputs) {
+			if (of_property_read_string_index(np,
+							  "clock-output-names",
+							  i, &clk_name))
+				break;
+			flex_flags &= ~CLK_IS_CRITICAL;
+			of_clk_detect_critical(np, i, &flex_flags);
+		} else {
+			clk_name = data->outputs[i].name;
+			flex_flags = data->flags | data->outputs[i].flags;
 		}
-
-		flex_flags &= ~CLK_IS_CRITICAL;
-		of_clk_detect_critical(np, i, &flex_flags);
 
 		/*
 		 * If we read an empty clock name then the output is unused

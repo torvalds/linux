@@ -33,8 +33,6 @@ source "drivers/nvme/Kconfig"
 
 source "drivers/misc/Kconfig"
 
-source "drivers/ide/Kconfig"
-
 source "drivers/scsi/Kconfig"
 
 source "drivers/ata/Kconfig"

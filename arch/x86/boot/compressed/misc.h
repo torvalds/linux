@@ -79,7 +79,7 @@ struct mem_vector {
 	u64 size;
 };
 
-#if CONFIG_RANDOMIZE_BASE
+#ifdef CONFIG_RANDOMIZE_BASE
 /* kaslr.c */
 void choose_random_location(unsigned long input,
 			    unsigned long input_size,

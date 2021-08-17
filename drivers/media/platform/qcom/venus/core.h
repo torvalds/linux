@@ -155,7 +155,6 @@ struct venus_core {
 	struct clk *vcodec1_clks[VIDC_VCODEC_CLKS_NUM_MAX];
 	struct icc_path *video_path;
 	struct icc_path *cpucfg_path;
-	struct opp_table *opp_table;
 	bool has_opp_table;
 	struct device *pmdomains[VIDC_PMDOMAINS_NUM_MAX];
 	struct device_link *opp_dl_venus;
@@ -293,6 +292,7 @@ struct clock_data {
 	unsigned long freq;
 	unsigned long vpp_freq;
 	unsigned long vsp_freq;
+	unsigned long low_power_freq;
 };
 
 #define to_venus_buffer(ptr)	container_of(ptr, struct venus_buffer, vb)
@@ -314,6 +314,10 @@ struct venus_ts_metadata {
 	u64 ts_us;
 	u32 flags;
 	struct v4l2_timecode tc;
+};
+
+enum venus_inst_modes {
+	VENUS_LOW_POWER = BIT(0),
 };
 
 /**
@@ -445,6 +449,7 @@ struct venus_inst {
 	unsigned int pic_struct;
 	bool next_buf_last;
 	bool drain_active;
+	enum venus_inst_modes flags;
 };
 
 #define IS_V1(core)	((core)->res->hfi_version == HFI_VERSION_1XX)

@@ -48,6 +48,7 @@
 #include "lib/fs_chains.h"
 #include "en_tc.h"
 #include "en/mapping.h"
+#include "devlink.h"
 
 #define mlx5_esw_for_each_rep(esw, i, rep) \
 	xa_for_each(&((esw)->offloads.vport_reps), i, rep)
@@ -219,7 +220,8 @@ esw_setup_slow_path_dest(struct mlx5_flow_destination *dest,
 			 struct mlx5_fs_chains *chains,
 			 int i)
 {
-	flow_act->flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
+	if (mlx5_chains_ignore_flow_level_supported(chains))
+		flow_act->flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
 	dest[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest[i].ft = mlx5_chains_get_tc_end_ft(chains);
 }
@@ -381,10 +383,11 @@ esw_setup_vport_dest(struct mlx5_flow_destination *dest, struct mlx5_flow_act *f
 {
 	dest[dest_idx].type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 	dest[dest_idx].vport.num = esw_attr->dests[attr_idx].rep->vport;
-	dest[dest_idx].vport.vhca_id =
-		MLX5_CAP_GEN(esw_attr->dests[attr_idx].mdev, vhca_id);
-	if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
+	if (MLX5_CAP_ESW(esw->dev, merged_eswitch)) {
+		dest[dest_idx].vport.vhca_id =
+			MLX5_CAP_GEN(esw_attr->dests[attr_idx].mdev, vhca_id);
 		dest[dest_idx].vport.flags |= MLX5_FLOW_DEST_VPORT_VHCA_ID;
+	}
 	if (esw_attr->dests[attr_idx].flags & MLX5_ESW_DEST_ENCAP) {
 		if (pkt_reformat) {
 			flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
@@ -1633,7 +1636,21 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw)
 	}
 	esw->fdb_table.offloads.slow_fdb = fdb;
 
-	err = esw_chains_create(esw, fdb);
+	/* Create empty TC-miss managed table. This allows plugging in following
+	 * priorities without directly exposing their level 0 table to
+	 * eswitch_offloads and passing it as miss_fdb to following call to
+	 * esw_chains_create().
+	 */
+	memset(&ft_attr, 0, sizeof(ft_attr));
+	ft_attr.prio = FDB_TC_MISS;
+	esw->fdb_table.offloads.tc_miss_table = mlx5_create_flow_table(root_ns, &ft_attr);
+	if (IS_ERR(esw->fdb_table.offloads.tc_miss_table)) {
+		err = PTR_ERR(esw->fdb_table.offloads.tc_miss_table);
+		esw_warn(dev, "Failed to create TC miss FDB Table err %d\n", err);
+		goto tc_miss_table_err;
+	}
+
+	err = esw_chains_create(esw, esw->fdb_table.offloads.tc_miss_table);
 	if (err) {
 		esw_warn(dev, "Failed to open fdb chains err(%d)\n", err);
 		goto fdb_chains_err;
@@ -1778,6 +1795,8 @@ send_vport_meta_err:
 send_vport_err:
 	esw_chains_destroy(esw, esw_chains(esw));
 fdb_chains_err:
+	mlx5_destroy_flow_table(esw->fdb_table.offloads.tc_miss_table);
+tc_miss_table_err:
 	mlx5_destroy_flow_table(esw->fdb_table.offloads.slow_fdb);
 slow_fdb_err:
 	/* Holds true only as long as DMFS is the default */
@@ -1805,6 +1824,7 @@ static void esw_destroy_offloads_fdb_tables(struct mlx5_eswitch *esw)
 
 	esw_chains_destroy(esw, esw_chains(esw));
 
+	mlx5_destroy_flow_table(esw->fdb_table.offloads.tc_miss_table);
 	mlx5_destroy_flow_table(esw->fdb_table.offloads.slow_fdb);
 	/* Holds true only as long as DMFS is the default */
 	mlx5_flow_namespace_set_mode(esw->fdb_table.offloads.ns,
@@ -2349,6 +2369,9 @@ static int mlx5_esw_offloads_devcom_event(int event,
 
 	switch (event) {
 	case ESW_OFFLOADS_DEVCOM_PAIR:
+		if (mlx5_get_next_phys_dev(esw->dev) != peer_esw->dev)
+			break;
+
 		if (mlx5_eswitch_vport_match_metadata_enabled(esw) !=
 		    mlx5_eswitch_vport_match_metadata_enabled(peer_esw))
 			break;
@@ -2979,12 +3002,19 @@ int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 	if (cur_mlx5_mode == mlx5_mode)
 		goto unlock;
 
-	if (mode == DEVLINK_ESWITCH_MODE_SWITCHDEV)
+	if (mode == DEVLINK_ESWITCH_MODE_SWITCHDEV) {
+		if (mlx5_devlink_trap_get_num_active(esw->dev)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Can't change mode while devlink traps are active");
+			err = -EOPNOTSUPP;
+			goto unlock;
+		}
 		err = esw_offloads_start(esw, extack);
-	else if (mode == DEVLINK_ESWITCH_MODE_LEGACY)
+	} else if (mode == DEVLINK_ESWITCH_MODE_LEGACY) {
 		err = esw_offloads_stop(esw, extack);
-	else
+	} else {
 		err = -EINVAL;
+	}
 
 unlock:
 	mlx5_esw_unlock(esw);

@@ -50,12 +50,20 @@ enum {
 #define SOF_RT715_DAI_ID_FIX		BIT(11)
 #define SOF_SDW_NO_AGGREGATION		BIT(12)
 
+/* BT audio offload: reserve 3 bits for future */
+#define SOF_BT_OFFLOAD_SSP_SHIFT	13
+#define SOF_BT_OFFLOAD_SSP_MASK	(GENMASK(15, 13))
+#define SOF_BT_OFFLOAD_SSP(quirk)	\
+	(((quirk) << SOF_BT_OFFLOAD_SSP_SHIFT) & SOF_BT_OFFLOAD_SSP_MASK)
+#define SOF_SSP_BT_OFFLOAD_PRESENT	BIT(16)
+
 struct sof_sdw_codec_info {
 	const int part_id;
 	const int version_id;
 	int amp_num;
 	const u8 acpi_id[ACPI_ID_LEN];
 	const bool direction[2]; // playback & capture support
+	const bool ignore_pch_dmic;
 	const char *dai_name;
 	const struct snd_soc_ops *ops;
 
@@ -71,7 +79,6 @@ struct sof_sdw_codec_info {
 
 struct mc_private {
 	struct list_head hdmi_pcm_list;
-	bool common_hdmi_codec_drv;
 	bool idisp_codec;
 	struct snd_soc_jack sdw_headset;
 };

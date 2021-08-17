@@ -11,7 +11,6 @@
  * Note: SDO pin cannot be left floating otherwise I2C address
  *	 will be undefined.
  */
-#include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
@@ -42,12 +41,6 @@ static const struct i2c_device_id bme680_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, bme680_i2c_id);
 
-static const struct acpi_device_id bme680_acpi_match[] = {
-	{"BME0680", 0},
-	{},
-};
-MODULE_DEVICE_TABLE(acpi, bme680_acpi_match);
-
 static const struct of_device_id bme680_of_i2c_match[] = {
 	{ .compatible = "bosch,bme680", },
 	{},
@@ -57,7 +50,6 @@ MODULE_DEVICE_TABLE(of, bme680_of_i2c_match);
 static struct i2c_driver bme680_i2c_driver = {
 	.driver = {
 		.name			= "bme680_i2c",
-		.acpi_match_table       = ACPI_PTR(bme680_acpi_match),
 		.of_match_table		= bme680_of_i2c_match,
 	},
 	.probe = bme680_i2c_probe,

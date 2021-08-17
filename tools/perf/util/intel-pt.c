@@ -78,6 +78,7 @@ struct intel_pt {
 	u64 kernel_start;
 	u64 switch_ip;
 	u64 ptss_ip;
+	u64 first_timestamp;
 
 	struct perf_tsc_conversion tc;
 	bool cap_user_time_zero;
@@ -122,6 +123,7 @@ struct intel_pt {
 	u64 noretcomp_bit;
 	unsigned max_non_turbo_ratio;
 	unsigned cbr2khz;
+	int max_loops;
 
 	unsigned long num_events;
 
@@ -133,6 +135,9 @@ struct intel_pt {
 
 	struct ip_callchain *chain;
 	struct branch_stack *br_stack;
+
+	u64 dflt_tsc_offset;
+	struct rb_root vmcs_info;
 };
 
 enum switch_state {
@@ -271,6 +276,65 @@ static bool intel_pt_log_events(struct intel_pt *pt, u64 tm)
 	return !n || !perf_time__ranges_skip_sample(range, n, tm);
 }
 
+static struct intel_pt_vmcs_info *intel_pt_findnew_vmcs(struct rb_root *rb_root,
+							u64 vmcs,
+							u64 dflt_tsc_offset)
+{
+	struct rb_node **p = &rb_root->rb_node;
+	struct rb_node *parent = NULL;
+	struct intel_pt_vmcs_info *v;
+
+	while (*p) {
+		parent = *p;
+		v = rb_entry(parent, struct intel_pt_vmcs_info, rb_node);
+
+		if (v->vmcs == vmcs)
+			return v;
+
+		if (vmcs < v->vmcs)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+
+	v = zalloc(sizeof(*v));
+	if (v) {
+		v->vmcs = vmcs;
+		v->tsc_offset = dflt_tsc_offset;
+		v->reliable = dflt_tsc_offset;
+
+		rb_link_node(&v->rb_node, parent, p);
+		rb_insert_color(&v->rb_node, rb_root);
+	}
+
+	return v;
+}
+
+static struct intel_pt_vmcs_info *intel_pt_findnew_vmcs_info(void *data, uint64_t vmcs)
+{
+	struct intel_pt_queue *ptq = data;
+	struct intel_pt *pt = ptq->pt;
+
+	if (!vmcs && !pt->dflt_tsc_offset)
+		return NULL;
+
+	return intel_pt_findnew_vmcs(&pt->vmcs_info, vmcs, pt->dflt_tsc_offset);
+}
+
+static void intel_pt_free_vmcs_info(struct intel_pt *pt)
+{
+	struct intel_pt_vmcs_info *v;
+	struct rb_node *n;
+
+	n = rb_first(&pt->vmcs_info);
+	while (n) {
+		v = rb_entry(n, struct intel_pt_vmcs_info, rb_node);
+		n = rb_next(n);
+		rb_erase(&v->rb_node, &pt->vmcs_info);
+		free(v);
+	}
+}
+
 static int intel_pt_do_fix_overlap(struct intel_pt *pt, struct auxtrace_buffer *a,
 				   struct auxtrace_buffer *b)
 {
@@ -278,9 +342,17 @@ static int intel_pt_do_fix_overlap(struct intel_pt *pt, struct auxtrace_buffer *
 	void *start;
 
 	start = intel_pt_find_overlap(a->data, a->size, b->data, b->size,
-				      pt->have_tsc, &consecutive);
+				      pt->have_tsc, &consecutive,
+				      pt->synth_opts.vm_time_correlation);
 	if (!start)
 		return -EINVAL;
+	/*
+	 * In the case of vm_time_correlation, the overlap might contain TSC
+	 * packets that will not be fixed, and that will then no longer work for
+	 * overlap detection. Avoid that by zeroing out the overlap.
+	 */
+	if (pt->synth_opts.vm_time_correlation)
+		memset(b->data, 0, start - b->data);
 	b->use_size = b->data + b->size - start;
 	b->use_data = start;
 	if (b->use_size && consecutive)
@@ -707,8 +779,10 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 
 			*ip += intel_pt_insn->length;
 
-			if (to_ip && *ip == to_ip)
+			if (to_ip && *ip == to_ip) {
+				intel_pt_insn->length = 0;
 				goto out_no_cache;
+			}
 
 			if (*ip >= al.map->end)
 				break;
@@ -899,7 +973,7 @@ static bool intel_pt_timeless_decoding(struct intel_pt *pt)
 	bool timeless_decoding = true;
 	u64 config;
 
-	if (!pt->tsc_bit || !pt->cap_user_time_zero)
+	if (!pt->tsc_bit || !pt->cap_user_time_zero || pt->synth_opts.timeless_decoding)
 		return true;
 
 	evlist__for_each_entry(pt->session->evlist, evsel) {
@@ -945,6 +1019,19 @@ static bool intel_pt_have_tsc(struct intel_pt *pt)
 		}
 	}
 	return have_tsc;
+}
+
+static bool intel_pt_have_mtc(struct intel_pt *pt)
+{
+	struct evsel *evsel;
+	u64 config;
+
+	evlist__for_each_entry(pt->session->evlist, evsel) {
+		if (intel_pt_get_config(pt, &evsel->core.attr, &config) &&
+		    (config & pt->mtc_bit))
+			return true;
+	}
+	return false;
 }
 
 static bool intel_pt_sampling_mode(struct intel_pt *pt)
@@ -1101,6 +1188,7 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 	params.get_trace = intel_pt_get_trace;
 	params.walk_insn = intel_pt_walk_next_insn;
 	params.lookahead = intel_pt_lookahead;
+	params.findnew_vmcs_info = intel_pt_findnew_vmcs_info;
 	params.data = ptq;
 	params.return_compression = intel_pt_return_compression(pt);
 	params.branch_enable = intel_pt_branch_enable(pt);
@@ -1110,6 +1198,10 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 	params.tsc_ctc_ratio_n = pt->tsc_ctc_ratio_n;
 	params.tsc_ctc_ratio_d = pt->tsc_ctc_ratio_d;
 	params.quick = pt->synth_opts.quick;
+	params.vm_time_correlation = pt->synth_opts.vm_time_correlation;
+	params.vm_tm_corr_dry_run = pt->synth_opts.vm_tm_corr_dry_run;
+	params.first_timestamp = pt->first_timestamp;
+	params.max_loops = pt->max_loops;
 
 	if (pt->filts.cnt > 0)
 		params.pgd_ip = intel_pt_pgd_ip;
@@ -1174,6 +1266,21 @@ static void intel_pt_free_queue(void *priv)
 	free(ptq);
 }
 
+static void intel_pt_first_timestamp(struct intel_pt *pt, u64 timestamp)
+{
+	unsigned int i;
+
+	pt->first_timestamp = timestamp;
+
+	for (i = 0; i < pt->queues.nr_queues; i++) {
+		struct auxtrace_queue *queue = &pt->queues.queue_array[i];
+		struct intel_pt_queue *ptq = queue->priv;
+
+		if (ptq && ptq->decoder)
+			intel_pt_set_first_timestamp(ptq->decoder, timestamp);
+	}
+}
+
 static void intel_pt_set_pid_tid_cpu(struct intel_pt *pt,
 				     struct auxtrace_queue *queue)
 {
@@ -1198,6 +1305,7 @@ static void intel_pt_set_pid_tid_cpu(struct intel_pt *pt,
 
 static void intel_pt_sample_flags(struct intel_pt_queue *ptq)
 {
+	ptq->insn_len = 0;
 	if (ptq->state->flags & INTEL_PT_ABORT_TX) {
 		ptq->flags = PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TX_ABORT;
 	} else if (ptq->state->flags & INTEL_PT_ASYNC) {
@@ -1211,7 +1319,6 @@ static void intel_pt_sample_flags(struct intel_pt_queue *ptq)
 			ptq->flags = PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL |
 				     PERF_IP_FLAG_ASYNC |
 				     PERF_IP_FLAG_INTERRUPT;
-		ptq->insn_len = 0;
 	} else {
 		if (ptq->state->from_ip)
 			ptq->flags = intel_pt_insn_type(ptq->state->insn_op);
@@ -2377,7 +2484,7 @@ static int intel_pt_run_decoder(struct intel_pt_queue *ptq, u64 *timestamp)
 		if (pt->per_cpu_mmaps &&
 		    (pt->have_sched_switch == 1 || pt->have_sched_switch == 3) &&
 		    !pt->timeless_decoding && intel_pt_tracing_kernel(pt) &&
-		    !pt->sampling_mode) {
+		    !pt->sampling_mode && !pt->synth_opts.vm_time_correlation) {
 			pt->switch_ip = intel_pt_switch_ip(pt, &pt->ptss_ip);
 			if (pt->switch_ip) {
 				intel_pt_log("switch_ip: %"PRIx64" ptss_ip: %"PRIx64"\n",
@@ -2876,6 +2983,8 @@ static int intel_pt_process_event(struct perf_session *session,
 							       sample->time);
 		}
 	} else if (timestamp) {
+		if (!pt->first_timestamp)
+			intel_pt_first_timestamp(pt, timestamp);
 		err = intel_pt_process_queues(pt, timestamp);
 	}
 	if (err)
@@ -2962,6 +3071,7 @@ static void intel_pt_free(struct perf_session *session)
 	auxtrace_heap__free(&pt->heap);
 	intel_pt_free_events(session);
 	session->auxtrace = NULL;
+	intel_pt_free_vmcs_info(pt);
 	thread__put(pt->unknown_thread);
 	addr_filters__exit(&pt->filts);
 	zfree(&pt->chain);
@@ -3323,6 +3433,9 @@ static int intel_pt_perf_config(const char *var, const char *value, void *data)
 	if (!strcmp(var, "intel-pt.mispred-all"))
 		pt->mispred_all = perf_config_bool(var, value);
 
+	if (!strcmp(var, "intel-pt.max-loops"))
+		perf_config_int(&pt->max_loops, var, value);
+
 	return 0;
 }
 
@@ -3405,6 +3518,65 @@ static int intel_pt_setup_time_ranges(struct intel_pt *pt,
 	return 0;
 }
 
+static int intel_pt_parse_vm_tm_corr_arg(struct intel_pt *pt, char **args)
+{
+	struct intel_pt_vmcs_info *vmcs_info;
+	u64 tsc_offset, vmcs;
+	char *p = *args;
+
+	errno = 0;
+
+	p = skip_spaces(p);
+	if (!*p)
+		return 1;
+
+	tsc_offset = strtoull(p, &p, 0);
+	if (errno)
+		return -errno;
+	p = skip_spaces(p);
+	if (*p != ':') {
+		pt->dflt_tsc_offset = tsc_offset;
+		*args = p;
+		return 0;
+	}
+	while (1) {
+		vmcs = strtoull(p, &p, 0);
+		if (errno)
+			return -errno;
+		if (!vmcs)
+			return -EINVAL;
+		vmcs_info = intel_pt_findnew_vmcs(&pt->vmcs_info, vmcs, tsc_offset);
+		if (!vmcs_info)
+			return -ENOMEM;
+		p = skip_spaces(p);
+		if (*p != ',')
+			break;
+		p += 1;
+	}
+	*args = p;
+	return 0;
+}
+
+static int intel_pt_parse_vm_tm_corr_args(struct intel_pt *pt)
+{
+	char *args = pt->synth_opts.vm_tm_corr_args;
+	int ret;
+
+	if (!args)
+		return 0;
+
+	do {
+		ret = intel_pt_parse_vm_tm_corr_arg(pt, &args);
+	} while (!ret);
+
+	if (ret < 0) {
+		pr_err("Failed to parse VM Time Correlation options\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static const char * const intel_pt_info_fmts[] = {
 	[INTEL_PT_PMU_TYPE]		= "  PMU Type            %"PRId64"\n",
 	[INTEL_PT_TIME_SHIFT]		= "  Time Shift          %"PRIu64"\n",
@@ -3467,6 +3639,8 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	if (!pt)
 		return -ENOMEM;
 
+	pt->vmcs_info = RB_ROOT;
+
 	addr_filters__init(&pt->filts);
 
 	err = perf_config(intel_pt_perf_config, pt);
@@ -3478,6 +3652,20 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		goto err_free;
 
 	intel_pt_log_set_name(INTEL_PT_PMU_NAME);
+
+	if (session->itrace_synth_opts->set) {
+		pt->synth_opts = *session->itrace_synth_opts;
+	} else {
+		struct itrace_synth_opts *opts = session->itrace_synth_opts;
+
+		itrace_synth_opts__set_default(&pt->synth_opts, opts->default_no_sample);
+		if (!opts->default_no_sample && !opts->inject) {
+			pt->synth_opts.branches = false;
+			pt->synth_opts.callchain = true;
+			pt->synth_opts.add_callchain = true;
+		}
+		pt->synth_opts.thread_stack = opts->thread_stack;
+	}
 
 	pt->session = session;
 	pt->machine = &session->machines.host; /* No kvm support */
@@ -3560,6 +3748,28 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	pt->sampling_mode = intel_pt_sampling_mode(pt);
 	pt->est_tsc = !pt->timeless_decoding;
 
+	if (pt->synth_opts.vm_time_correlation) {
+		if (pt->timeless_decoding) {
+			pr_err("Intel PT has no time information for VM Time Correlation\n");
+			err = -EINVAL;
+			goto err_free_queues;
+		}
+		if (session->itrace_synth_opts->ptime_range) {
+			pr_err("Time ranges cannot be specified with VM Time Correlation\n");
+			err = -EINVAL;
+			goto err_free_queues;
+		}
+		/* Currently TSC Offset is calculated using MTC packets */
+		if (!intel_pt_have_mtc(pt)) {
+			pr_err("MTC packets must have been enabled for VM Time Correlation\n");
+			err = -EINVAL;
+			goto err_free_queues;
+		}
+		err = intel_pt_parse_vm_tm_corr_args(pt);
+		if (err)
+			goto err_free_queues;
+	}
+
 	pt->unknown_thread = thread__new(999999999, 999999999);
 	if (!pt->unknown_thread) {
 		err = -ENOMEM;
@@ -3607,21 +3817,6 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		pr_err("%s: missing context_switch attribute flag\n", __func__);
 		err = -EINVAL;
 		goto err_delete_thread;
-	}
-
-	if (session->itrace_synth_opts->set) {
-		pt->synth_opts = *session->itrace_synth_opts;
-	} else {
-		itrace_synth_opts__set_default(&pt->synth_opts,
-				session->itrace_synth_opts->default_no_sample);
-		if (!session->itrace_synth_opts->default_no_sample &&
-		    !session->itrace_synth_opts->inject) {
-			pt->synth_opts.branches = false;
-			pt->synth_opts.callchain = true;
-			pt->synth_opts.add_callchain = true;
-		}
-		pt->synth_opts.thread_stack =
-				session->itrace_synth_opts->thread_stack;
 	}
 
 	if (pt->synth_opts.log)

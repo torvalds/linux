@@ -17,7 +17,8 @@ address), ``force`` (to forcibly attach the driver to a given device) and
 With the conversion of the I2C subsystem to the standard device driver
 binding model, it became clear that these per-module parameters were no
 longer needed, and that a centralized implementation was possible. The new,
-sysfs-based interface is described in :doc:`instantiating-devices`, section
+sysfs-based interface is described in
+Documentation/i2c/instantiating-devices.rst, section
 "Method 4: Instantiate from user-space".
 
 Below is a mapping from the old module parameters to the new interface.

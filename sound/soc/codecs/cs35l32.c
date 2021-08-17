@@ -30,6 +30,7 @@
 #include <dt-bindings/sound/cs35l32.h>
 
 #include "cs35l32.h"
+#include "cirrus_legacy.h"
 
 #define CS35L32_NUM_SUPPLIES 2
 static const char *const cs35l32_supply_names[CS35L32_NUM_SUPPLIES] = {
@@ -261,6 +262,9 @@ static const struct regmap_config cs35l32_regmap = {
 	.readable_reg = cs35l32_readable_register,
 	.precious_reg = cs35l32_precious_register,
 	.cache_type = REGCACHE_RBTREE,
+
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 static int cs35l32_handle_of_data(struct i2c_client *i2c_client,
@@ -348,8 +352,7 @@ static int cs35l32_i2c_probe(struct i2c_client *i2c_client,
 	struct cs35l32_private *cs35l32;
 	struct cs35l32_platform_data *pdata =
 		dev_get_platdata(&i2c_client->dev);
-	int ret, i;
-	unsigned int devid = 0;
+	int ret, i, devid;
 	unsigned int reg;
 
 	cs35l32 = devm_kzalloc(&i2c_client->dev, sizeof(*cs35l32), GFP_KERNEL);
@@ -404,40 +407,40 @@ static int cs35l32_i2c_probe(struct i2c_client *i2c_client,
 	/* Reset the Device */
 	cs35l32->reset_gpio = devm_gpiod_get_optional(&i2c_client->dev,
 		"reset", GPIOD_OUT_LOW);
-	if (IS_ERR(cs35l32->reset_gpio))
-		return PTR_ERR(cs35l32->reset_gpio);
+	if (IS_ERR(cs35l32->reset_gpio)) {
+		ret = PTR_ERR(cs35l32->reset_gpio);
+		goto err_supplies;
+	}
 
 	gpiod_set_value_cansleep(cs35l32->reset_gpio, 1);
 
 	/* initialize codec */
-	ret = regmap_read(cs35l32->regmap, CS35L32_DEVID_AB, &reg);
-	devid = (reg & 0xFF) << 12;
-
-	ret = regmap_read(cs35l32->regmap, CS35L32_DEVID_CD, &reg);
-	devid |= (reg & 0xFF) << 4;
-
-	ret = regmap_read(cs35l32->regmap, CS35L32_DEVID_E, &reg);
-	devid |= (reg & 0xF0) >> 4;
+	devid = cirrus_read_device_id(cs35l32->regmap, CS35L32_DEVID_AB);
+	if (devid < 0) {
+		ret = devid;
+		dev_err(&i2c_client->dev, "Failed to read device ID: %d\n", ret);
+		goto err_disable;
+	}
 
 	if (devid != CS35L32_CHIP_ID) {
 		ret = -ENODEV;
 		dev_err(&i2c_client->dev,
 			"CS35L32 Device ID (%X). Expected %X\n",
 			devid, CS35L32_CHIP_ID);
-		return ret;
+		goto err_disable;
 	}
 
 	ret = regmap_read(cs35l32->regmap, CS35L32_REV_ID, &reg);
 	if (ret < 0) {
 		dev_err(&i2c_client->dev, "Get Revision ID failed\n");
-		return ret;
+		goto err_disable;
 	}
 
 	ret = regmap_register_patch(cs35l32->regmap, cs35l32_monitor_patch,
 				    ARRAY_SIZE(cs35l32_monitor_patch));
 	if (ret < 0) {
 		dev_err(&i2c_client->dev, "Failed to apply errata patch\n");
-		return ret;
+		goto err_disable;
 	}
 
 	dev_info(&i2c_client->dev,
@@ -478,7 +481,7 @@ static int cs35l32_i2c_probe(struct i2c_client *i2c_client,
 			    CS35L32_PDN_AMP);
 
 	/* Clear MCLK Error Bit since we don't have the clock yet */
-	ret = regmap_read(cs35l32->regmap, CS35L32_INT_STATUS_1, &reg);
+	regmap_read(cs35l32->regmap, CS35L32_INT_STATUS_1, &reg);
 
 	ret = devm_snd_soc_register_component(&i2c_client->dev,
 			&soc_component_dev_cs35l32, cs35l32_dai,
@@ -489,6 +492,8 @@ static int cs35l32_i2c_probe(struct i2c_client *i2c_client,
 	return 0;
 
 err_disable:
+	gpiod_set_value_cansleep(cs35l32->reset_gpio, 0);
+err_supplies:
 	regulator_bulk_disable(ARRAY_SIZE(cs35l32->supplies),
 			       cs35l32->supplies);
 	return ret;

@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/component.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/notifier.h>
@@ -414,6 +415,14 @@ disable_otp:
 static void ab8500_power_supply_changed(struct ab8500_charger *di,
 					struct power_supply *psy)
 {
+	/*
+	 * This happens if we get notifications or interrupts and
+	 * the platform has been configured not to support one or
+	 * other type of charging.
+	 */
+	if (!psy)
+		return;
+
 	if (di->autopower_cfg) {
 		if (!di->usb.charger_connected &&
 		    !di->ac.charger_connected &&
@@ -440,7 +449,15 @@ static void ab8500_charger_set_usb_connected(struct ab8500_charger *di,
 		if (!connected)
 			di->flags.vbus_drop_end = false;
 
-		sysfs_notify(&di->usb_chg.psy->dev.kobj, NULL, "present");
+		/*
+		 * Sometimes the platform is configured not to support
+		 * USB charging and no psy has been created, but we still
+		 * will get these notifications.
+		 */
+		if (di->usb_chg.psy) {
+			sysfs_notify(&di->usb_chg.psy->dev.kobj, NULL,
+				     "present");
+		}
 
 		if (connected) {
 			mutex_lock(&di->charger_attached_mutex);
@@ -3171,9 +3188,6 @@ static int ab8500_charger_usb_notifier_call(struct notifier_block *nb,
 	enum ab8500_usb_state bm_usb_state;
 	unsigned mA = *((unsigned *)power);
 
-	if (!di)
-		return NOTIFY_DONE;
-
 	if (event != USB_EVENT_VBUS) {
 		dev_dbg(di->dev, "not a standard host, returning\n");
 		return NOTIFY_DONE;
@@ -3276,50 +3290,6 @@ static struct notifier_block charger_nb = {
 	.notifier_call = ab8500_external_charger_prepare,
 };
 
-static int ab8500_charger_remove(struct platform_device *pdev)
-{
-	struct ab8500_charger *di = platform_get_drvdata(pdev);
-	int i, irq, ret;
-
-	/* Disable AC charging */
-	ab8500_charger_ac_en(&di->ac_chg, false, 0, 0);
-
-	/* Disable USB charging */
-	ab8500_charger_usb_en(&di->usb_chg, false, 0, 0);
-
-	/* Disable interrupts */
-	for (i = 0; i < ARRAY_SIZE(ab8500_charger_irq); i++) {
-		irq = platform_get_irq_byname(pdev, ab8500_charger_irq[i].name);
-		free_irq(irq, di);
-	}
-
-	/* Backup battery voltage and current disable */
-	ret = abx500_mask_and_set_register_interruptible(di->dev,
-		AB8500_RTC, AB8500_RTC_CTRL_REG, RTC_BUP_CH_ENA, 0);
-	if (ret < 0)
-		dev_err(di->dev, "%s mask and set failed\n", __func__);
-
-	usb_unregister_notifier(di->usb_phy, &di->nb);
-	usb_put_phy(di->usb_phy);
-
-	/* Delete the work queue */
-	destroy_workqueue(di->charger_wq);
-
-	/* Unregister external charger enable notifier */
-	if (!di->ac_chg.enabled)
-		blocking_notifier_chain_unregister(
-			&charger_notifier_list, &charger_nb);
-
-	flush_scheduled_work();
-	if (di->usb_chg.enabled)
-		power_supply_unregister(di->usb_chg.psy);
-
-	if (di->ac_chg.enabled && !di->ac_chg.external)
-		power_supply_unregister(di->ac_chg.psy);
-
-	return 0;
-}
-
 static char *supply_interface[] = {
 	"ab8500_chargalg",
 	"ab8500_fg",
@@ -3342,13 +3312,100 @@ static const struct power_supply_desc ab8500_usb_chg_desc = {
 	.get_property	= ab8500_charger_usb_get_property,
 };
 
+static int ab8500_charger_bind(struct device *dev)
+{
+	struct ab8500_charger *di = dev_get_drvdata(dev);
+	int ch_stat;
+	int ret;
+
+	/* Create a work queue for the charger */
+	di->charger_wq = alloc_ordered_workqueue("ab8500_charger_wq",
+						 WQ_MEM_RECLAIM);
+	if (di->charger_wq == NULL) {
+		dev_err(dev, "failed to create work queue\n");
+		return -ENOMEM;
+	}
+
+	ch_stat = ab8500_charger_detect_chargers(di, false);
+
+	if (ch_stat & AC_PW_CONN) {
+		if (is_ab8500(di->parent))
+			queue_delayed_work(di->charger_wq,
+					   &di->ac_charger_attached_work,
+					   HZ);
+	}
+	if (ch_stat & USB_PW_CONN) {
+		if (is_ab8500(di->parent))
+			queue_delayed_work(di->charger_wq,
+					   &di->usb_charger_attached_work,
+					   HZ);
+		di->vbus_detected = true;
+		di->vbus_detected_start = true;
+		queue_work(di->charger_wq,
+			   &di->detect_usb_type_work);
+	}
+
+	ret = component_bind_all(dev, di);
+	if (ret) {
+		dev_err(dev, "can't bind component devices\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static void ab8500_charger_unbind(struct device *dev)
+{
+	struct ab8500_charger *di = dev_get_drvdata(dev);
+	int ret;
+
+	/* Disable AC charging */
+	ab8500_charger_ac_en(&di->ac_chg, false, 0, 0);
+
+	/* Disable USB charging */
+	ab8500_charger_usb_en(&di->usb_chg, false, 0, 0);
+
+	/* Backup battery voltage and current disable */
+	ret = abx500_mask_and_set_register_interruptible(di->dev,
+		AB8500_RTC, AB8500_RTC_CTRL_REG, RTC_BUP_CH_ENA, 0);
+	if (ret < 0)
+		dev_err(di->dev, "%s mask and set failed\n", __func__);
+
+	/* Delete the work queue */
+	destroy_workqueue(di->charger_wq);
+
+	flush_scheduled_work();
+
+	/* Unbind fg, btemp, algorithm */
+	component_unbind_all(dev, di);
+}
+
+static const struct component_master_ops ab8500_charger_comp_ops = {
+	.bind = ab8500_charger_bind,
+	.unbind = ab8500_charger_unbind,
+};
+
+static struct platform_driver *const ab8500_charger_component_drivers[] = {
+	&ab8500_fg_driver,
+	&ab8500_btemp_driver,
+	&abx500_chargalg_driver,
+};
+
+static int ab8500_charger_compare_dev(struct device *dev, void *data)
+{
+	return dev == data;
+}
+
 static int ab8500_charger_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	struct component_match *match = NULL;
 	struct power_supply_config ac_psy_cfg = {}, usb_psy_cfg = {};
 	struct ab8500_charger *di;
-	int irq, i, charger_status, ret = 0, ch_stat;
-	struct device *dev = &pdev->dev;
+	int charger_status;
+	int i, irq;
+	int ret;
 
 	di = devm_kzalloc(dev, sizeof(*di), GFP_KERNEL);
 	if (!di)
@@ -3393,6 +3450,38 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	/*
+	 * VDD ADC supply needs to be enabled from this driver when there
+	 * is a charger connected to avoid erroneous BTEMP_HIGH/LOW
+	 * interrupts during charging
+	 */
+	di->regu = devm_regulator_get(dev, "vddadc");
+	if (IS_ERR(di->regu)) {
+		ret = PTR_ERR(di->regu);
+		dev_err(dev, "failed to get vddadc regulator\n");
+		return ret;
+	}
+
+	/* Request interrupts */
+	for (i = 0; i < ARRAY_SIZE(ab8500_charger_irq); i++) {
+		irq = platform_get_irq_byname(pdev, ab8500_charger_irq[i].name);
+		if (irq < 0)
+			return irq;
+
+		ret = devm_request_threaded_irq(dev,
+			irq, NULL, ab8500_charger_irq[i].isr,
+			IRQF_SHARED | IRQF_NO_SUSPEND | IRQF_ONESHOT,
+			ab8500_charger_irq[i].name, di);
+
+		if (ret != 0) {
+			dev_err(dev, "failed to request %s IRQ %d: %d\n"
+				, ab8500_charger_irq[i].name, irq, ret);
+			return ret;
+		}
+		dev_dbg(dev, "Requested %s IRQ %d: %d\n",
+			ab8500_charger_irq[i].name, irq, ret);
+	}
+
 	/* initialize lock */
 	spin_lock_init(&di->usb_state.usb_lock);
 	mutex_init(&di->usb_ipt_crnt_lock);
@@ -3419,13 +3508,15 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->ac_chg.max_out_curr =
 		di->bm->chg_output_curr[di->bm->n_chg_out_curr - 1];
 	di->ac_chg.wdt_refresh = CHG_WD_INTERVAL;
-	di->ac_chg.enabled = di->bm->ac_enabled;
+	/*
+	 * The AB8505 only supports USB charging. If we are not the
+	 * AB8505, register an AC charger.
+	 *
+	 * TODO: if this should be opt-in, add DT properties for this.
+	 */
+	if (!is_ab8505(di->parent))
+		di->ac_chg.enabled = true;
 	di->ac_chg.external = false;
-
-	/*notifier for external charger enabling*/
-	if (!di->ac_chg.enabled)
-		blocking_notifier_chain_register(
-			&charger_notifier_list, &charger_nb);
 
 	/* USB supply */
 	/* ux500_charger sub-class */
@@ -3438,17 +3529,8 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->usb_chg.max_out_curr =
 		di->bm->chg_output_curr[di->bm->n_chg_out_curr - 1];
 	di->usb_chg.wdt_refresh = CHG_WD_INTERVAL;
-	di->usb_chg.enabled = di->bm->usb_enabled;
 	di->usb_chg.external = false;
 	di->usb_state.usb_current = -1;
-
-	/* Create a work queue for the charger */
-	di->charger_wq = alloc_ordered_workqueue("ab8500_charger_wq",
-						 WQ_MEM_RECLAIM);
-	if (di->charger_wq == NULL) {
-		dev_err(dev, "failed to create work queue\n");
-		return -ENOMEM;
-	}
 
 	mutex_init(&di->charger_attached_mutex);
 
@@ -3500,61 +3582,32 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	INIT_WORK(&di->check_usb_thermal_prot_work,
 		ab8500_charger_check_usb_thermal_prot_work);
 
-	/*
-	 * VDD ADC supply needs to be enabled from this driver when there
-	 * is a charger connected to avoid erroneous BTEMP_HIGH/LOW
-	 * interrupts during charging
-	 */
-	di->regu = devm_regulator_get(dev, "vddadc");
-	if (IS_ERR(di->regu)) {
-		ret = PTR_ERR(di->regu);
-		dev_err(dev, "failed to get vddadc regulator\n");
-		goto free_charger_wq;
-	}
-
 
 	/* Initialize OVV, and other registers */
 	ret = ab8500_charger_init_hw_registers(di);
 	if (ret) {
 		dev_err(dev, "failed to initialize ABB registers\n");
-		goto free_charger_wq;
+		return ret;
 	}
 
 	/* Register AC charger class */
 	if (di->ac_chg.enabled) {
-		di->ac_chg.psy = power_supply_register(dev,
+		di->ac_chg.psy = devm_power_supply_register(dev,
 						       &ab8500_ac_chg_desc,
 						       &ac_psy_cfg);
 		if (IS_ERR(di->ac_chg.psy)) {
 			dev_err(dev, "failed to register AC charger\n");
-			ret = PTR_ERR(di->ac_chg.psy);
-			goto free_charger_wq;
+			return PTR_ERR(di->ac_chg.psy);
 		}
 	}
 
 	/* Register USB charger class */
-	if (di->usb_chg.enabled) {
-		di->usb_chg.psy = power_supply_register(dev,
-							&ab8500_usb_chg_desc,
-							&usb_psy_cfg);
-		if (IS_ERR(di->usb_chg.psy)) {
-			dev_err(dev, "failed to register USB charger\n");
-			ret = PTR_ERR(di->usb_chg.psy);
-			goto free_ac;
-		}
-	}
-
-	di->usb_phy = usb_get_phy(USB_PHY_TYPE_USB2);
-	if (IS_ERR_OR_NULL(di->usb_phy)) {
-		dev_err(dev, "failed to get usb transceiver\n");
-		ret = -EINVAL;
-		goto free_usb;
-	}
-	di->nb.notifier_call = ab8500_charger_usb_notifier_call;
-	ret = usb_register_notifier(di->usb_phy, &di->nb);
-	if (ret) {
-		dev_err(dev, "failed to register usb notifier\n");
-		goto put_usb_phy;
+	di->usb_chg.psy = devm_power_supply_register(dev,
+						     &ab8500_usb_chg_desc,
+						     &usb_psy_cfg);
+	if (IS_ERR(di->usb_chg.psy)) {
+		dev_err(dev, "failed to register USB charger\n");
+		return PTR_ERR(di->usb_chg.psy);
 	}
 
 	/* Identify the connected charger types during startup */
@@ -3566,76 +3619,84 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 		sysfs_notify(&di->ac_chg.psy->dev.kobj, NULL, "present");
 	}
 
-	if (charger_status & USB_PW_CONN) {
-		di->vbus_detected = true;
-		di->vbus_detected_start = true;
-		queue_work(di->charger_wq,
-			&di->detect_usb_type_work);
-	}
-
-	/* Register interrupts */
-	for (i = 0; i < ARRAY_SIZE(ab8500_charger_irq); i++) {
-		irq = platform_get_irq_byname(pdev, ab8500_charger_irq[i].name);
-		if (irq < 0) {
-			ret = irq;
-			goto free_irq;
-		}
-
-		ret = request_threaded_irq(irq, NULL, ab8500_charger_irq[i].isr,
-			IRQF_SHARED | IRQF_NO_SUSPEND | IRQF_ONESHOT,
-			ab8500_charger_irq[i].name, di);
-
-		if (ret != 0) {
-			dev_err(dev, "failed to request %s IRQ %d: %d\n"
-				, ab8500_charger_irq[i].name, irq, ret);
-			goto free_irq;
-		}
-		dev_dbg(dev, "Requested %s IRQ %d: %d\n",
-			ab8500_charger_irq[i].name, irq, ret);
-	}
-
 	platform_set_drvdata(pdev, di);
 
-	mutex_lock(&di->charger_attached_mutex);
+	/* Create something that will match the subdrivers when we bind */
+	for (i = 0; i < ARRAY_SIZE(ab8500_charger_component_drivers); i++) {
+		struct device_driver *drv = &ab8500_charger_component_drivers[i]->driver;
+		struct device *p = NULL, *d;
 
-	ch_stat = ab8500_charger_detect_chargers(di, false);
-
-	if ((ch_stat & AC_PW_CONN) == AC_PW_CONN) {
-		if (is_ab8500(di->parent))
-			queue_delayed_work(di->charger_wq,
-					   &di->ac_charger_attached_work,
-					   HZ);
+		while ((d = platform_find_device_by_driver(p, drv))) {
+			put_device(p);
+			component_match_add(dev, &match,
+					    ab8500_charger_compare_dev, d);
+			p = d;
+		}
+		put_device(p);
 	}
-	if ((ch_stat & USB_PW_CONN) == USB_PW_CONN) {
-		if (is_ab8500(di->parent))
-			queue_delayed_work(di->charger_wq,
-					   &di->usb_charger_attached_work,
-					   HZ);
+	if (!match) {
+		dev_err(dev, "no matching components\n");
+		return -ENODEV;
+	}
+	if (IS_ERR(match)) {
+		dev_err(dev, "could not create component match\n");
+		return PTR_ERR(match);
 	}
 
-	mutex_unlock(&di->charger_attached_mutex);
+	/* Notifier for external charger enabling */
+	if (!di->ac_chg.enabled)
+		blocking_notifier_chain_register(
+			&charger_notifier_list, &charger_nb);
 
-	return ret;
 
-free_irq:
+	di->usb_phy = usb_get_phy(USB_PHY_TYPE_USB2);
+	if (IS_ERR_OR_NULL(di->usb_phy)) {
+		dev_err(dev, "failed to get usb transceiver\n");
+		ret = -EINVAL;
+		goto out_charger_notifier;
+	}
+	di->nb.notifier_call = ab8500_charger_usb_notifier_call;
+	ret = usb_register_notifier(di->usb_phy, &di->nb);
+	if (ret) {
+		dev_err(dev, "failed to register usb notifier\n");
+		goto put_usb_phy;
+	}
+
+
+	ret = component_master_add_with_match(&pdev->dev,
+					      &ab8500_charger_comp_ops,
+					      match);
+	if (ret) {
+		dev_err(dev, "failed to add component master\n");
+		goto free_notifier;
+	}
+
+	return 0;
+
+free_notifier:
 	usb_unregister_notifier(di->usb_phy, &di->nb);
-
-	/* We also have to free all successfully registered irqs */
-	for (i = i - 1; i >= 0; i--) {
-		irq = platform_get_irq_byname(pdev, ab8500_charger_irq[i].name);
-		free_irq(irq, di);
-	}
 put_usb_phy:
 	usb_put_phy(di->usb_phy);
-free_usb:
-	if (di->usb_chg.enabled)
-		power_supply_unregister(di->usb_chg.psy);
-free_ac:
-	if (di->ac_chg.enabled)
-		power_supply_unregister(di->ac_chg.psy);
-free_charger_wq:
-	destroy_workqueue(di->charger_wq);
+out_charger_notifier:
+	if (!di->ac_chg.enabled)
+		blocking_notifier_chain_unregister(
+			&charger_notifier_list, &charger_nb);
 	return ret;
+}
+
+static int ab8500_charger_remove(struct platform_device *pdev)
+{
+	struct ab8500_charger *di = platform_get_drvdata(pdev);
+
+	component_master_del(&pdev->dev, &ab8500_charger_comp_ops);
+
+	usb_unregister_notifier(di->usb_phy, &di->nb);
+	usb_put_phy(di->usb_phy);
+	if (!di->ac_chg.enabled)
+		blocking_notifier_chain_unregister(
+			&charger_notifier_list, &charger_nb);
+
+	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(ab8500_charger_pm_ops, ab8500_charger_suspend, ab8500_charger_resume);
@@ -3644,6 +3705,7 @@ static const struct of_device_id ab8500_charger_match[] = {
 	{ .compatible = "stericsson,ab8500-charger", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, ab8500_charger_match);
 
 static struct platform_driver ab8500_charger_driver = {
 	.probe = ab8500_charger_probe,
@@ -3657,15 +3719,24 @@ static struct platform_driver ab8500_charger_driver = {
 
 static int __init ab8500_charger_init(void)
 {
+	int ret;
+
+	ret = platform_register_drivers(ab8500_charger_component_drivers,
+			ARRAY_SIZE(ab8500_charger_component_drivers));
+	if (ret)
+		return ret;
+
 	return platform_driver_register(&ab8500_charger_driver);
 }
 
 static void __exit ab8500_charger_exit(void)
 {
+	platform_unregister_drivers(ab8500_charger_component_drivers,
+			ARRAY_SIZE(ab8500_charger_component_drivers));
 	platform_driver_unregister(&ab8500_charger_driver);
 }
 
-subsys_initcall_sync(ab8500_charger_init);
+module_init(ab8500_charger_init);
 module_exit(ab8500_charger_exit);
 
 MODULE_LICENSE("GPL v2");

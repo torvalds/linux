@@ -32,10 +32,7 @@ struct cmd_obj {
 
 struct cmd_priv {
 	struct completion cmd_queue_comp;
-	struct completion terminate_cmdthread_comp;
 	struct __queue cmd_queue;
-	u8 cmdthd_running;
-	struct adapter *padapter;
 };
 
 #define init_h2fwcmd_w_parm_no_rsp(pcmd, pparm, code) \
@@ -54,7 +51,7 @@ void rtw_free_cmd_obj(struct cmd_obj *pcmd);
 
 int rtw_cmd_thread(void *context);
 
-int rtw_init_cmd_priv(struct cmd_priv *pcmdpriv);
+void rtw_init_cmd_priv(struct cmd_priv *pcmdpriv);
 
 enum rtw_drvextra_cmd_id {
 	NONE_WK_CID,

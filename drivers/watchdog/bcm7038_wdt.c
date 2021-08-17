@@ -34,6 +34,25 @@ struct bcm7038_watchdog {
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 
+static inline void bcm7038_wdt_write(u32 value, void __iomem *addr)
+{
+	/* MIPS chips strapped for BE will automagically configure the
+	 * peripheral registers for CPU-native byte order.
+	 */
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
+		__raw_writel(value, addr);
+	else
+		writel_relaxed(value, addr);
+}
+
+static inline u32 bcm7038_wdt_read(void __iomem *addr)
+{
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
+		return __raw_readl(addr);
+	else
+		return readl_relaxed(addr);
+}
+
 static void bcm7038_wdt_set_timeout_reg(struct watchdog_device *wdog)
 {
 	struct bcm7038_watchdog *wdt = watchdog_get_drvdata(wdog);
@@ -41,15 +60,15 @@ static void bcm7038_wdt_set_timeout_reg(struct watchdog_device *wdog)
 
 	timeout = wdt->rate * wdog->timeout;
 
-	writel(timeout, wdt->base + WDT_TIMEOUT_REG);
+	bcm7038_wdt_write(timeout, wdt->base + WDT_TIMEOUT_REG);
 }
 
 static int bcm7038_wdt_ping(struct watchdog_device *wdog)
 {
 	struct bcm7038_watchdog *wdt = watchdog_get_drvdata(wdog);
 
-	writel(WDT_START_1, wdt->base + WDT_CMD_REG);
-	writel(WDT_START_2, wdt->base + WDT_CMD_REG);
+	bcm7038_wdt_write(WDT_START_1, wdt->base + WDT_CMD_REG);
+	bcm7038_wdt_write(WDT_START_2, wdt->base + WDT_CMD_REG);
 
 	return 0;
 }
@@ -66,8 +85,8 @@ static int bcm7038_wdt_stop(struct watchdog_device *wdog)
 {
 	struct bcm7038_watchdog *wdt = watchdog_get_drvdata(wdog);
 
-	writel(WDT_STOP_1, wdt->base + WDT_CMD_REG);
-	writel(WDT_STOP_2, wdt->base + WDT_CMD_REG);
+	bcm7038_wdt_write(WDT_STOP_1, wdt->base + WDT_CMD_REG);
+	bcm7038_wdt_write(WDT_STOP_2, wdt->base + WDT_CMD_REG);
 
 	return 0;
 }
@@ -88,7 +107,7 @@ static unsigned int bcm7038_wdt_get_timeleft(struct watchdog_device *wdog)
 	struct bcm7038_watchdog *wdt = watchdog_get_drvdata(wdog);
 	u32 time_left;
 
-	time_left = readl(wdt->base + WDT_CMD_REG);
+	time_left = bcm7038_wdt_read(wdt->base + WDT_CMD_REG);
 
 	return time_left / wdt->rate;
 }

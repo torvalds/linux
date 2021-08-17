@@ -30,11 +30,6 @@ struct clk_lookup {
 		.clk = c,	\
 	}
 
-struct clk_lookup *clkdev_alloc(struct clk *clk, const char *con_id,
-	const char *dev_fmt, ...) __printf(3, 4);
-struct clk_lookup *clkdev_hw_alloc(struct clk_hw *hw, const char *con_id,
-	const char *dev_fmt, ...) __printf(3, 4);
-
 void clkdev_add(struct clk_lookup *cl);
 void clkdev_drop(struct clk_lookup *cl);
 

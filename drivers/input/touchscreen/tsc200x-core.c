@@ -338,7 +338,7 @@ static struct attribute *tsc200x_attrs[] = {
 static umode_t tsc200x_attr_is_visible(struct kobject *kobj,
 				      struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct tsc200x *ts = dev_get_drvdata(dev);
 	umode_t mode = attr->mode;
 

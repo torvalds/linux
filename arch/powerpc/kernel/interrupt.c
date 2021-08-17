@@ -3,6 +3,7 @@
 #include <linux/context_tracking.h>
 #include <linux/err.h>
 #include <linux/compat.h>
+#include <linux/sched/debug.h> /* for show_regs */
 
 #include <asm/asm-prototypes.h>
 #include <asm/kup.h>
@@ -26,6 +27,53 @@ unsigned long global_dbcr0[NR_CPUS];
 
 typedef long (*syscall_fn)(long, long, long, long, long, long);
 
+#ifdef CONFIG_PPC_BOOK3S_64
+DEFINE_STATIC_KEY_FALSE(interrupt_exit_not_reentrant);
+static inline bool exit_must_hard_disable(void)
+{
+	return static_branch_unlikely(&interrupt_exit_not_reentrant);
+}
+#else
+static inline bool exit_must_hard_disable(void)
+{
+	return true;
+}
+#endif
+
+/*
+ * local irqs must be disabled. Returns false if the caller must re-enable
+ * them, check for new work, and try again.
+ *
+ * This should be called with local irqs disabled, but if they were previously
+ * enabled when the interrupt handler returns (indicating a process-context /
+ * synchronous interrupt) then irqs_enabled should be true.
+ *
+ * restartable is true then EE/RI can be left on because interrupts are handled
+ * with a restart sequence.
+ */
+static notrace __always_inline bool prep_irq_for_enabled_exit(bool restartable)
+{
+	/* This must be done with RI=1 because tracing may touch vmaps */
+	trace_hardirqs_on();
+
+	if (exit_must_hard_disable() || !restartable)
+		__hard_EE_RI_disable();
+
+#ifdef CONFIG_PPC64
+	/* This pattern matches prep_irq_for_idle */
+	if (unlikely(lazy_irq_pending_nocheck())) {
+		if (exit_must_hard_disable() || !restartable) {
+			local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+			__hard_RI_enable();
+		}
+		trace_hardirqs_off();
+
+		return false;
+	}
+#endif
+	return true;
+}
+
 /* Has to run notrace because it is entered not completely "reconciled" */
 notrace long system_call_exception(long r3, long r4, long r5,
 				   long r6, long r7, long r8,
@@ -34,9 +82,6 @@ notrace long system_call_exception(long r3, long r4, long r5,
 	syscall_fn f;
 
 	kuep_lock();
-#ifdef CONFIG_PPC32
-	kuap_save_and_lock(regs);
-#endif
 
 	regs->orig_gpr3 = r3;
 
@@ -147,71 +192,6 @@ notrace long system_call_exception(long r3, long r4, long r5,
 	return f(r3, r4, r5, r6, r7, r8);
 }
 
-/*
- * local irqs must be disabled. Returns false if the caller must re-enable
- * them, check for new work, and try again.
- *
- * This should be called with local irqs disabled, but if they were previously
- * enabled when the interrupt handler returns (indicating a process-context /
- * synchronous interrupt) then irqs_enabled should be true.
- */
-static notrace __always_inline bool __prep_irq_for_enabled_exit(bool clear_ri)
-{
-	/* This must be done with RI=1 because tracing may touch vmaps */
-	trace_hardirqs_on();
-
-	/* This pattern matches prep_irq_for_idle */
-	if (clear_ri)
-		__hard_EE_RI_disable();
-	else
-		__hard_irq_disable();
-#ifdef CONFIG_PPC64
-	if (unlikely(lazy_irq_pending_nocheck())) {
-		/* Took an interrupt, may have more exit work to do. */
-		if (clear_ri)
-			__hard_RI_enable();
-		trace_hardirqs_off();
-		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
-
-		return false;
-	}
-	local_paca->irq_happened = 0;
-	irq_soft_mask_set(IRQS_ENABLED);
-#endif
-	return true;
-}
-
-static notrace inline bool prep_irq_for_enabled_exit(bool clear_ri, bool irqs_enabled)
-{
-	if (__prep_irq_for_enabled_exit(clear_ri))
-		return true;
-
-	/*
-	 * Must replay pending soft-masked interrupts now. Don't just
-	 * local_irq_enabe(); local_irq_disable(); because if we are
-	 * returning from an asynchronous interrupt here, another one
-	 * might hit after irqs are enabled, and it would exit via this
-	 * same path allowing another to fire, and so on unbounded.
-	 *
-	 * If interrupts were enabled when this interrupt exited,
-	 * indicating a process context (synchronous) interrupt,
-	 * local_irq_enable/disable can be used, which will enable
-	 * interrupts rather than keeping them masked (unclear how
-	 * much benefit this is over just replaying for all cases,
-	 * because we immediately disable again, so all we're really
-	 * doing is allowing hard interrupts to execute directly for
-	 * a very small time, rather than being masked and replayed).
-	 */
-	if (irqs_enabled) {
-		local_irq_enable();
-		local_irq_disable();
-	} else {
-		replay_soft_interrupts();
-	}
-
-	return false;
-}
-
 static notrace void booke_load_dbcr0(void)
 {
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
@@ -232,6 +212,162 @@ static notrace void booke_load_dbcr0(void)
 	mtspr(SPRN_DBCR0, dbcr0);
 	mtspr(SPRN_DBSR, -1);
 #endif
+}
+
+static void check_return_regs_valid(struct pt_regs *regs)
+{
+#ifdef CONFIG_PPC_BOOK3S_64
+	unsigned long trap, srr0, srr1;
+	static bool warned;
+	u8 *validp;
+	char *h;
+
+	if (trap_is_scv(regs))
+		return;
+
+	trap = regs->trap;
+	// EE in HV mode sets HSRRs like 0xea0
+	if (cpu_has_feature(CPU_FTR_HVMODE) && trap == INTERRUPT_EXTERNAL)
+		trap = 0xea0;
+
+	switch (trap) {
+	case 0x980:
+	case INTERRUPT_H_DATA_STORAGE:
+	case 0xe20:
+	case 0xe40:
+	case INTERRUPT_HMI:
+	case 0xe80:
+	case 0xea0:
+	case INTERRUPT_H_FAC_UNAVAIL:
+	case 0x1200:
+	case 0x1500:
+	case 0x1600:
+	case 0x1800:
+		validp = &local_paca->hsrr_valid;
+		if (!*validp)
+			return;
+
+		srr0 = mfspr(SPRN_HSRR0);
+		srr1 = mfspr(SPRN_HSRR1);
+		h = "H";
+
+		break;
+	default:
+		validp = &local_paca->srr_valid;
+		if (!*validp)
+			return;
+
+		srr0 = mfspr(SPRN_SRR0);
+		srr1 = mfspr(SPRN_SRR1);
+		h = "";
+		break;
+	}
+
+	if (srr0 == regs->nip && srr1 == regs->msr)
+		return;
+
+	/*
+	 * A NMI / soft-NMI interrupt may have come in after we found
+	 * srr_valid and before the SRRs are loaded. The interrupt then
+	 * comes in and clobbers SRRs and clears srr_valid. Then we load
+	 * the SRRs here and test them above and find they don't match.
+	 *
+	 * Test validity again after that, to catch such false positives.
+	 *
+	 * This test in general will have some window for false negatives
+	 * and may not catch and fix all such cases if an NMI comes in
+	 * later and clobbers SRRs without clearing srr_valid, but hopefully
+	 * such things will get caught most of the time, statistically
+	 * enough to be able to get a warning out.
+	 */
+	barrier();
+
+	if (!*validp)
+		return;
+
+	if (!warned) {
+		warned = true;
+		printk("%sSRR0 was: %lx should be: %lx\n", h, srr0, regs->nip);
+		printk("%sSRR1 was: %lx should be: %lx\n", h, srr1, regs->msr);
+		show_regs(regs);
+	}
+
+	*validp = 0; /* fixup */
+#endif
+}
+
+static notrace unsigned long
+interrupt_exit_user_prepare_main(unsigned long ret, struct pt_regs *regs)
+{
+	unsigned long ti_flags;
+
+again:
+	ti_flags = READ_ONCE(current_thread_info()->flags);
+	while (unlikely(ti_flags & (_TIF_USER_WORK_MASK & ~_TIF_RESTORE_TM))) {
+		local_irq_enable();
+		if (ti_flags & _TIF_NEED_RESCHED) {
+			schedule();
+		} else {
+			/*
+			 * SIGPENDING must restore signal handler function
+			 * argument GPRs, and some non-volatiles (e.g., r1).
+			 * Restore all for now. This could be made lighter.
+			 */
+			if (ti_flags & _TIF_SIGPENDING)
+				ret |= _TIF_RESTOREALL;
+			do_notify_resume(regs, ti_flags);
+		}
+		local_irq_disable();
+		ti_flags = READ_ONCE(current_thread_info()->flags);
+	}
+
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && IS_ENABLED(CONFIG_PPC_FPU)) {
+		if (IS_ENABLED(CONFIG_PPC_TRANSACTIONAL_MEM) &&
+				unlikely((ti_flags & _TIF_RESTORE_TM))) {
+			restore_tm_state(regs);
+		} else {
+			unsigned long mathflags = MSR_FP;
+
+			if (cpu_has_feature(CPU_FTR_VSX))
+				mathflags |= MSR_VEC | MSR_VSX;
+			else if (cpu_has_feature(CPU_FTR_ALTIVEC))
+				mathflags |= MSR_VEC;
+
+			/*
+			 * If userspace MSR has all available FP bits set,
+			 * then they are live and no need to restore. If not,
+			 * it means the regs were given up and restore_math
+			 * may decide to restore them (to avoid taking an FP
+			 * fault).
+			 */
+			if ((regs->msr & mathflags) != mathflags)
+				restore_math(regs);
+		}
+	}
+
+	check_return_regs_valid(regs);
+
+	user_enter_irqoff();
+	if (!prep_irq_for_enabled_exit(true)) {
+		user_exit_irqoff();
+		local_irq_enable();
+		local_irq_disable();
+		goto again;
+	}
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	local_paca->tm_scratch = regs->msr;
+#endif
+
+	booke_load_dbcr0();
+
+	account_cpu_user_exit();
+
+	/* Restore user access locks last */
+	kuap_user_restore(regs);
+	kuep_unlock();
+
+	return ret;
 }
 
 /*
@@ -285,81 +421,47 @@ notrace unsigned long syscall_exit_prepare(unsigned long r3,
 	}
 
 	local_irq_disable();
+	ret = interrupt_exit_user_prepare_main(ret, regs);
 
-again:
-	ti_flags = READ_ONCE(current_thread_info()->flags);
-	while (unlikely(ti_flags & (_TIF_USER_WORK_MASK & ~_TIF_RESTORE_TM))) {
-		local_irq_enable();
-		if (ti_flags & _TIF_NEED_RESCHED) {
-			schedule();
-		} else {
-			/*
-			 * SIGPENDING must restore signal handler function
-			 * argument GPRs, and some non-volatiles (e.g., r1).
-			 * Restore all for now. This could be made lighter.
-			 */
-			if (ti_flags & _TIF_SIGPENDING)
-				ret |= _TIF_RESTOREALL;
-			do_notify_resume(regs, ti_flags);
-		}
-		local_irq_disable();
-		ti_flags = READ_ONCE(current_thread_info()->flags);
-	}
-
-	if (IS_ENABLED(CONFIG_PPC_BOOK3S) && IS_ENABLED(CONFIG_PPC_FPU)) {
-		if (IS_ENABLED(CONFIG_PPC_TRANSACTIONAL_MEM) &&
-				unlikely((ti_flags & _TIF_RESTORE_TM))) {
-			restore_tm_state(regs);
-		} else {
-			unsigned long mathflags = MSR_FP;
-
-			if (cpu_has_feature(CPU_FTR_VSX))
-				mathflags |= MSR_VEC | MSR_VSX;
-			else if (cpu_has_feature(CPU_FTR_ALTIVEC))
-				mathflags |= MSR_VEC;
-
-			/*
-			 * If userspace MSR has all available FP bits set,
-			 * then they are live and no need to restore. If not,
-			 * it means the regs were given up and restore_math
-			 * may decide to restore them (to avoid taking an FP
-			 * fault).
-			 */
-			if ((regs->msr & mathflags) != mathflags)
-				restore_math(regs);
-		}
-	}
-
-	user_enter_irqoff();
-
-	/* scv need not set RI=0 because SRRs are not used */
-	if (unlikely(!__prep_irq_for_enabled_exit(is_not_scv))) {
-		user_exit_irqoff();
-		local_irq_enable();
-		local_irq_disable();
-		goto again;
-	}
-
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	local_paca->tm_scratch = regs->msr;
+#ifdef CONFIG_PPC64
+	regs->exit_result = ret;
 #endif
-
-	booke_load_dbcr0();
-
-	account_cpu_user_exit();
-
-	/* Restore user access locks last */
-	kuap_user_restore(regs);
-	kuep_unlock();
 
 	return ret;
 }
 
-notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs, unsigned long msr)
+#ifdef CONFIG_PPC64
+notrace unsigned long syscall_exit_restart(unsigned long r3, struct pt_regs *regs)
 {
-	unsigned long ti_flags;
-	unsigned long flags;
-	unsigned long ret = 0;
+	/*
+	 * This is called when detecting a soft-pending interrupt as well as
+	 * an alternate-return interrupt. So we can't just have the alternate
+	 * return path clear SRR1[MSR] and set PACA_IRQ_HARD_DIS (unless
+	 * the soft-pending case were to fix things up as well). RI might be
+	 * disabled, in which case it gets re-enabled by __hard_irq_disable().
+	 */
+	__hard_irq_disable();
+	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+
+#ifdef CONFIG_PPC_BOOK3S_64
+	set_kuap(AMR_KUAP_BLOCKED);
+#endif
+
+	trace_hardirqs_off();
+	user_exit_irqoff();
+	account_cpu_user_entry();
+
+	BUG_ON(!user_mode(regs));
+
+	regs->exit_result = interrupt_exit_user_prepare_main(regs->exit_result, regs);
+
+	return regs->exit_result;
+}
+#endif
+
+notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs)
+{
+	unsigned long ret;
 
 	if (!IS_ENABLED(CONFIG_BOOKE) && !IS_ENABLED(CONFIG_40x))
 		BUG_ON(!(regs->msr & MSR_RI));
@@ -373,71 +475,26 @@ notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs, unsigned
 	 */
 	kuap_assert_locked();
 
-	local_irq_save(flags);
+	local_irq_disable();
 
-again:
-	ti_flags = READ_ONCE(current_thread_info()->flags);
-	while (unlikely(ti_flags & (_TIF_USER_WORK_MASK & ~_TIF_RESTORE_TM))) {
-		local_irq_enable(); /* returning to user: may enable */
-		if (ti_flags & _TIF_NEED_RESCHED) {
-			schedule();
-		} else {
-			if (ti_flags & _TIF_SIGPENDING)
-				ret |= _TIF_RESTOREALL;
-			do_notify_resume(regs, ti_flags);
-		}
-		local_irq_disable();
-		ti_flags = READ_ONCE(current_thread_info()->flags);
-	}
+	ret = interrupt_exit_user_prepare_main(0, regs);
 
-	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && IS_ENABLED(CONFIG_PPC_FPU)) {
-		if (IS_ENABLED(CONFIG_PPC_TRANSACTIONAL_MEM) &&
-				unlikely((ti_flags & _TIF_RESTORE_TM))) {
-			restore_tm_state(regs);
-		} else {
-			unsigned long mathflags = MSR_FP;
-
-			if (cpu_has_feature(CPU_FTR_VSX))
-				mathflags |= MSR_VEC | MSR_VSX;
-			else if (cpu_has_feature(CPU_FTR_ALTIVEC))
-				mathflags |= MSR_VEC;
-
-			/* See above restore_math comment */
-			if ((regs->msr & mathflags) != mathflags)
-				restore_math(regs);
-		}
-	}
-
-	user_enter_irqoff();
-
-	if (unlikely(!__prep_irq_for_enabled_exit(true))) {
-		user_exit_irqoff();
-		local_irq_enable();
-		local_irq_disable();
-		goto again;
-	}
-
-	booke_load_dbcr0();
-
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	local_paca->tm_scratch = regs->msr;
+#ifdef CONFIG_PPC64
+	regs->exit_result = ret;
 #endif
-
-	account_cpu_user_exit();
-
-	/* Restore user access locks last */
-	kuap_user_restore(regs);
 
 	return ret;
 }
 
 void preempt_schedule_irq(void);
 
-notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs, unsigned long msr)
+notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs)
 {
 	unsigned long flags;
 	unsigned long ret = 0;
 	unsigned long kuap;
+	bool stack_store = current_thread_info()->flags &
+						_TIF_EMULATE_STACK_STORE;
 
 	if (!IS_ENABLED(CONFIG_BOOKE) && !IS_ENABLED(CONFIG_40x) &&
 	    unlikely(!(regs->msr & MSR_RI)))
@@ -451,11 +508,6 @@ notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs, unsign
 		CT_WARN_ON(ct_state() == CONTEXT_USER);
 
 	kuap = kuap_get_and_assert_locked();
-
-	if (unlikely(current_thread_info()->flags & _TIF_EMULATE_STACK_STORE)) {
-		clear_bits(_TIF_EMULATE_STACK_STORE, &current_thread_info()->flags);
-		ret = 1;
-	}
 
 	local_irq_save(flags);
 
@@ -471,17 +523,58 @@ again:
 			}
 		}
 
-		if (unlikely(!prep_irq_for_enabled_exit(true, !irqs_disabled_flags(flags))))
+		check_return_regs_valid(regs);
+
+		/*
+		 * Stack store exit can't be restarted because the interrupt
+		 * stack frame might have been clobbered.
+		 */
+		if (!prep_irq_for_enabled_exit(unlikely(stack_store))) {
+			/*
+			 * Replay pending soft-masked interrupts now. Don't
+			 * just local_irq_enabe(); local_irq_disable(); because
+			 * if we are returning from an asynchronous interrupt
+			 * here, another one might hit after irqs are enabled,
+			 * and it would exit via this same path allowing
+			 * another to fire, and so on unbounded.
+			 */
+			hard_irq_disable();
+			replay_soft_interrupts();
+			/* Took an interrupt, may have more exit work to do. */
 			goto again;
-	} else {
-		/* Returning to a kernel context with local irqs disabled. */
-		__hard_EE_RI_disable();
+		}
 #ifdef CONFIG_PPC64
+		/*
+		 * An interrupt may clear MSR[EE] and set this concurrently,
+		 * but it will be marked pending and the exit will be retried.
+		 * This leaves a racy window where MSR[EE]=0 and HARD_DIS is
+		 * clear, until interrupt_exit_kernel_restart() calls
+		 * hard_irq_disable(), which will set HARD_DIS again.
+		 */
+		local_paca->irq_happened &= ~PACA_IRQ_HARD_DIS;
+
+	} else {
+		check_return_regs_valid(regs);
+
+		if (unlikely(stack_store))
+			__hard_EE_RI_disable();
+		/*
+		 * Returning to a kernel context with local irqs disabled.
+		 * Here, if EE was enabled in the interrupted context, enable
+		 * it on return as well. A problem exists here where a soft
+		 * masked interrupt may have cleared MSR[EE] and set HARD_DIS
+		 * here, and it will still exist on return to the caller. This
+		 * will be resolved by the masked interrupt firing again.
+		 */
 		if (regs->msr & MSR_EE)
 			local_paca->irq_happened &= ~PACA_IRQ_HARD_DIS;
-#endif
+#endif /* CONFIG_PPC64 */
 	}
 
+	if (unlikely(stack_store)) {
+		clear_bits(_TIF_EMULATE_STACK_STORE, &current_thread_info()->flags);
+		ret = 1;
+	}
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	local_paca->tm_scratch = regs->msr;
@@ -496,3 +589,46 @@ again:
 
 	return ret;
 }
+
+#ifdef CONFIG_PPC64
+notrace unsigned long interrupt_exit_user_restart(struct pt_regs *regs)
+{
+	__hard_irq_disable();
+	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+
+#ifdef CONFIG_PPC_BOOK3S_64
+	set_kuap(AMR_KUAP_BLOCKED);
+#endif
+
+	trace_hardirqs_off();
+	user_exit_irqoff();
+	account_cpu_user_entry();
+
+	BUG_ON(!user_mode(regs));
+
+	regs->exit_result |= interrupt_exit_user_prepare(regs);
+
+	return regs->exit_result;
+}
+
+/*
+ * No real need to return a value here because the stack store case does not
+ * get restarted.
+ */
+notrace unsigned long interrupt_exit_kernel_restart(struct pt_regs *regs)
+{
+	__hard_irq_disable();
+	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+
+#ifdef CONFIG_PPC_BOOK3S_64
+	set_kuap(AMR_KUAP_BLOCKED);
+#endif
+
+	if (regs->softe == IRQS_ENABLED)
+		trace_hardirqs_off();
+
+	BUG_ON(user_mode(regs));
+
+	return interrupt_exit_kernel_prepare(regs);
+}
+#endif

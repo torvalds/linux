@@ -372,7 +372,7 @@ static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 		if (!old_hvs_state->fifo_state[channel].in_use)
 			continue;
 
-		ret = drm_crtc_commit_wait(old_hvs_state->fifo_state[i].pending_commit);
+		ret = drm_crtc_commit_wait(old_hvs_state->fifo_state[channel].pending_commit);
 		if (ret)
 			drm_err(dev, "Timed out waiting for commit\n");
 	}
@@ -899,7 +899,6 @@ int vc4_kms_load(struct drm_device *dev)
 	dev->mode_config.helper_private = &vc4_mode_config_helpers;
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.async_page_flip = true;
-	dev->mode_config.allow_fb_modifiers = true;
 
 	ret = vc4_ctm_obj_init(vc4);
 	if (ret)

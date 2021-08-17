@@ -170,12 +170,12 @@ int nf_conntrack_inet_error(struct nf_conn *tmpl, struct sk_buff *skb,
 	ct_daddr = &ct->tuplehash[dir].tuple.dst.u3;
 	if (!nf_inet_addr_cmp(outer_daddr, ct_daddr)) {
 		if (state->pf == AF_INET) {
-			nf_l4proto_log_invalid(skb, state->net, state->pf,
+			nf_l4proto_log_invalid(skb, state,
 					       l4proto,
 					       "outer daddr %pI4 != inner %pI4",
 					       &outer_daddr->ip, &ct_daddr->ip);
 		} else if (state->pf == AF_INET6) {
-			nf_l4proto_log_invalid(skb, state->net, state->pf,
+			nf_l4proto_log_invalid(skb, state,
 					       l4proto,
 					       "outer daddr %pI6 != inner %pI6",
 					       &outer_daddr->ip6, &ct_daddr->ip6);
@@ -197,8 +197,7 @@ static void icmp_error_log(const struct sk_buff *skb,
 			   const struct nf_hook_state *state,
 			   const char *msg)
 {
-	nf_l4proto_log_invalid(skb, state->net, state->pf,
-			       IPPROTO_ICMP, "%s", msg);
+	nf_l4proto_log_invalid(skb, state, IPPROTO_ICMP, "%s", msg);
 }
 
 /* Small and modified version of icmp_rcv */

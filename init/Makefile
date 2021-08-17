@@ -27,11 +27,11 @@ $(obj)/version.o: include/generated/compile.h
 # mkcompile_h will make sure to only update the
 # actual file if its content has changed.
 
-       chk_compile.h = :
- quiet_chk_compile.h = echo '  CHK     $@'
-silent_chk_compile.h = :
-include/generated/compile.h: FORCE
-	@$($(quiet)chk_compile.h)
-	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/mkcompile_h $@	\
+quiet_cmd_compile.h = CHK     $@
+      cmd_compile.h = \
+	$(CONFIG_SHELL) $(srctree)/scripts/mkcompile_h $@	\
 	"$(UTS_MACHINE)" "$(CONFIG_SMP)" "$(CONFIG_PREEMPT)"	\
 	"$(CONFIG_PREEMPT_RT)" $(CONFIG_CC_VERSION_TEXT) "$(LD)"
+
+include/generated/compile.h: FORCE
+	$(call cmd,compile.h)

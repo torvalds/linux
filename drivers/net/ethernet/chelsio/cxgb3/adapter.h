@@ -178,7 +178,7 @@ struct sge_txq {		/* state for an SGE Tx queue */
 	unsigned int token;	/* WR token */
 	dma_addr_t phys_addr;	/* physical address of the ring */
 	struct sk_buff_head sendq;	/* List of backpressured offload packets */
-	struct tasklet_struct qresume_tsk;	/* restarts the queue */
+	struct work_struct qresume_task;	/* restarts the queue */
 	unsigned int cntxt_id;	/* SGE context id for the Tx q */
 	unsigned long stops;	/* # of times q has been stopped */
 	unsigned long restarts;	/* # of queue restarts */

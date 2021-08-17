@@ -31,17 +31,17 @@ __setup("cmma=", cmma);
 
 static inline int cmma_test_essa(void)
 {
-	register unsigned long tmp asm("0") = 0;
-	register int rc asm("1");
+	unsigned long tmp = 0;
+	int rc = -EOPNOTSUPP;
 
 	/* test ESSA_GET_STATE */
 	asm volatile(
-		"	.insn	rrf,0xb9ab0000,%1,%1,%2,0\n"
-		"0:     la      %0,0\n"
+		"	.insn	rrf,0xb9ab0000,%[tmp],%[tmp],%[cmd],0\n"
+		"0:     la      %[rc],0\n"
 		"1:\n"
 		EX_TABLE(0b,1b)
-		: "=&d" (rc), "+&d" (tmp)
-		: "i" (ESSA_GET_STATE), "0" (-EOPNOTSUPP));
+		: [rc] "+&d" (rc), [tmp] "+&d" (tmp)
+		: [cmd] "i" (ESSA_GET_STATE));
 	return rc;
 }
 

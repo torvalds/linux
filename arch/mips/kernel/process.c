@@ -662,7 +662,7 @@ unsigned long get_wchan(struct task_struct *task)
 	unsigned long ra = 0;
 #endif
 
-	if (!task || task == current || task->state == TASK_RUNNING)
+	if (!task || task == current || task_is_running(task))
 		goto out;
 	if (!task_stack_page(task))
 		goto out;

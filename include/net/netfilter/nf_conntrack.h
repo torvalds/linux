@@ -346,6 +346,13 @@ nf_ct_set(struct sk_buff *skb, struct nf_conn *ct, enum ip_conntrack_info info)
 	skb_set_nfct(skb, (unsigned long)ct | info);
 }
 
+extern unsigned int nf_conntrack_net_id;
+
+static inline struct nf_conntrack_net *nf_ct_pernet(const struct net *net)
+{
+	return net_generic(net, nf_conntrack_net_id);
+}
+
 #define NF_CT_STAT_INC(net, count)	  __this_cpu_inc((net)->ct.stat->count)
 #define NF_CT_STAT_INC_ATOMIC(net, count) this_cpu_inc((net)->ct.stat->count)
 #define NF_CT_STAT_ADD_ATOMIC(net, count, v) this_cpu_add((net)->ct.stat->count, (v))

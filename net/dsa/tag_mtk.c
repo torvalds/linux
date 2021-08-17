@@ -102,7 +102,7 @@ static const struct dsa_device_ops mtk_netdev_ops = {
 	.proto		= DSA_TAG_PROTO_MTK,
 	.xmit		= mtk_tag_xmit,
 	.rcv		= mtk_tag_rcv,
-	.overhead	= MTK_HDR_LEN,
+	.needed_headroom = MTK_HDR_LEN,
 };
 
 MODULE_LICENSE("GPL");

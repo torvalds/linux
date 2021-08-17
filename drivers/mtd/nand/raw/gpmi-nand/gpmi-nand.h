@@ -79,7 +79,7 @@ enum gpmi_type {
 struct gpmi_devdata {
 	enum gpmi_type type;
 	int bch_max_ecc_strength;
-	int max_chain_delay; /* See the async EDO mode */
+	int max_chain_delay; /* See the SDR EDO mode */
 	const char * const *clks;
 	const int clks_count;
 };

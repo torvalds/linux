@@ -389,7 +389,7 @@ int rdma_rw_ctx_signature_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 	int count = 0, ret;
 
 	if (sg_cnt > pages_per_mr || prot_sg_cnt > pages_per_mr) {
-		pr_err("SG count too large: sg_cnt=%d, prot_sg_cnt=%d, pages_per_mr=%d\n",
+		pr_err("SG count too large: sg_cnt=%u, prot_sg_cnt=%u, pages_per_mr=%u\n",
 		       sg_cnt, prot_sg_cnt, pages_per_mr);
 		return -EINVAL;
 	}
@@ -429,7 +429,7 @@ int rdma_rw_ctx_signature_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 	ret = ib_map_mr_sg_pi(ctx->reg->mr, sg, sg_cnt, NULL, prot_sg,
 			      prot_sg_cnt, NULL, SZ_4K);
 	if (unlikely(ret)) {
-		pr_err("failed to map PI sg (%d)\n", sg_cnt + prot_sg_cnt);
+		pr_err("failed to map PI sg (%u)\n", sg_cnt + prot_sg_cnt);
 		goto out_destroy_sig_mr;
 	}
 
@@ -714,7 +714,7 @@ int rdma_rw_init_mrs(struct ib_qp *qp, struct ib_qp_init_attr *attr)
 				IB_MR_TYPE_MEM_REG,
 				max_num_sg, 0);
 		if (ret) {
-			pr_err("%s: failed to allocated %d MRs\n",
+			pr_err("%s: failed to allocated %u MRs\n",
 				__func__, nr_mrs);
 			return ret;
 		}
@@ -724,7 +724,7 @@ int rdma_rw_init_mrs(struct ib_qp *qp, struct ib_qp_init_attr *attr)
 		ret = ib_mr_pool_init(qp, &qp->sig_mrs, nr_sig_mrs,
 				IB_MR_TYPE_INTEGRITY, max_num_sg, max_num_sg);
 		if (ret) {
-			pr_err("%s: failed to allocated %d SIG MRs\n",
+			pr_err("%s: failed to allocated %u SIG MRs\n",
 				__func__, nr_sig_mrs);
 			goto out_free_rdma_mrs;
 		}

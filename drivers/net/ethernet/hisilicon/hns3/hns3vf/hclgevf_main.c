@@ -243,23 +243,31 @@ static void hclgevf_build_send_msg(struct hclge_vf_to_pf_msg *msg, u8 code,
 	}
 }
 
-static int hclgevf_get_tc_info(struct hclgevf_dev *hdev)
+static int hclgevf_get_basic_info(struct hclgevf_dev *hdev)
 {
+	struct hnae3_ae_dev *ae_dev = hdev->ae_dev;
+	u8 resp_msg[HCLGE_MBX_MAX_RESP_DATA_SIZE];
+	struct hclge_basic_info *basic_info;
 	struct hclge_vf_to_pf_msg send_msg;
-	u8 resp_msg;
+	unsigned long caps;
 	int status;
 
-	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_GET_TCINFO, 0);
-	status = hclgevf_send_mbx_msg(hdev, &send_msg, true, &resp_msg,
+	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_GET_BASIC_INFO, 0);
+	status = hclgevf_send_mbx_msg(hdev, &send_msg, true, resp_msg,
 				      sizeof(resp_msg));
 	if (status) {
 		dev_err(&hdev->pdev->dev,
-			"VF request to get TC info from PF failed %d",
-			status);
+			"failed to get basic info from pf, ret = %d", status);
 		return status;
 	}
 
-	hdev->hw_tc_map = resp_msg;
+	basic_info = (struct hclge_basic_info *)resp_msg;
+
+	hdev->hw_tc_map = basic_info->hw_tc_map;
+	hdev->mbx_api_version = basic_info->mbx_api_version;
+	caps = basic_info->pf_caps;
+	if (test_bit(HNAE3_PF_SUPPORT_VLAN_FLTR_MDF_B, &caps))
+		set_bit(HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B, ae_dev->caps);
 
 	return 0;
 }
@@ -1528,8 +1536,7 @@ static void hclgevf_sync_from_add_list(struct list_head *add_list,
 			kfree(mac_node);
 		} else if (mac_node->state == HCLGEVF_MAC_ACTIVE) {
 			mac_node->state = HCLGEVF_MAC_TO_DEL;
-			list_del(&mac_node->node);
-			list_add_tail(&mac_node->node, mac_list);
+			list_move_tail(&mac_node->node, mac_list);
 		} else {
 			list_del(&mac_node->node);
 			kfree(mac_node);
@@ -1554,8 +1561,7 @@ static void hclgevf_sync_from_del_list(struct list_head *del_list,
 			list_del(&mac_node->node);
 			kfree(mac_node);
 		} else {
-			list_del(&mac_node->node);
-			list_add_tail(&mac_node->node, mac_list);
+			list_move_tail(&mac_node->node, mac_list);
 		}
 	}
 }
@@ -1591,8 +1597,7 @@ static void hclgevf_sync_mac_list(struct hclgevf_dev *hdev,
 	list_for_each_entry_safe(mac_node, tmp, list, node) {
 		switch (mac_node->state) {
 		case HCLGEVF_MAC_TO_DEL:
-			list_del(&mac_node->node);
-			list_add_tail(&mac_node->node, &tmp_del_list);
+			list_move_tail(&mac_node->node, &tmp_del_list);
 			break;
 		case HCLGEVF_MAC_TO_ADD:
 			new_node = kzalloc(sizeof(*new_node), GFP_ATOMIC);
@@ -1640,6 +1645,22 @@ static void hclgevf_uninit_mac_list(struct hclgevf_dev *hdev)
 	hclgevf_clear_list(&hdev->mac_table.mc_mac_list);
 
 	spin_unlock_bh(&hdev->mac_table.mac_list_lock);
+}
+
+static int hclgevf_enable_vlan_filter(struct hnae3_handle *handle, bool enable)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	struct hnae3_ae_dev *ae_dev = hdev->ae_dev;
+	struct hclge_vf_to_pf_msg send_msg;
+
+	if (!test_bit(HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B, ae_dev->caps))
+		return -EOPNOTSUPP;
+
+	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_SET_VLAN,
+			       HCLGE_MBX_ENABLE_VLAN_FILTER);
+	send_msg.data[0] = enable ? 1 : 0;
+
+	return hclgevf_send_mbx_msg(hdev, &send_msg, true, NULL, 0);
 }
 
 static int hclgevf_set_vlan_filter(struct hnae3_handle *handle,
@@ -2466,6 +2487,10 @@ static int hclgevf_configure(struct hclgevf_dev *hdev)
 {
 	int ret;
 
+	ret = hclgevf_get_basic_info(hdev);
+	if (ret)
+		return ret;
+
 	/* get current port based vlan state from PF */
 	ret = hclgevf_get_port_base_vlan_filter_state(hdev);
 	if (ret)
@@ -2481,12 +2506,7 @@ static int hclgevf_configure(struct hclgevf_dev *hdev)
 	if (ret)
 		return ret;
 
-	ret = hclgevf_get_pf_media_type(hdev);
-	if (ret)
-		return ret;
-
-	/* get tc configuration from PF */
-	return hclgevf_get_tc_info(hdev);
+	return hclgevf_get_pf_media_type(hdev);
 }
 
 static int hclgevf_alloc_hdev(struct hnae3_ae_dev *ae_dev)
@@ -2621,6 +2641,16 @@ static int hclgevf_rss_init_hw(struct hclgevf_dev *hdev)
 
 static int hclgevf_init_vlan_config(struct hclgevf_dev *hdev)
 {
+	struct hnae3_handle *nic = &hdev->nic;
+	int ret;
+
+	ret = hclgevf_en_hw_strip_rxvtag(nic, true);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to enable rx vlan offload, ret = %d\n", ret);
+		return ret;
+	}
+
 	return hclgevf_set_vlan_filter(&hdev->nic, htons(ETH_P_8021Q), 0,
 				       false);
 }
@@ -3242,6 +3272,18 @@ static int hclgevf_clear_vport_list(struct hclgevf_dev *hdev)
 	return hclgevf_send_mbx_msg(hdev, &send_msg, false, NULL, 0);
 }
 
+static void hclgevf_init_rxd_adv_layout(struct hclgevf_dev *hdev)
+{
+	if (hnae3_ae_dev_rxd_adv_layout_supported(hdev->ae_dev))
+		hclgevf_write_dev(&hdev->hw, HCLGEVF_RXD_ADV_LAYOUT_EN_REG, 1);
+}
+
+static void hclgevf_uninit_rxd_adv_layout(struct hclgevf_dev *hdev)
+{
+	if (hnae3_ae_dev_rxd_adv_layout_supported(hdev->ae_dev))
+		hclgevf_write_dev(&hdev->hw, HCLGEVF_RXD_ADV_LAYOUT_EN_REG, 0);
+}
+
 static int hclgevf_reset_hdev(struct hclgevf_dev *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
@@ -3278,6 +3320,8 @@ static int hclgevf_reset_hdev(struct hclgevf_dev *hdev)
 	}
 
 	set_bit(HCLGEVF_STATE_PROMISC_CHANGED, &hdev->state);
+
+	hclgevf_init_rxd_adv_layout(hdev);
 
 	dev_info(&hdev->pdev->dev, "Reset done\n");
 
@@ -3379,6 +3423,8 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 		goto err_config;
 	}
 
+	hclgevf_init_rxd_adv_layout(hdev);
+
 	hdev->last_reset_time = jiffies;
 	dev_info(&hdev->pdev->dev, "finished initializing %s driver\n",
 		 HCLGEVF_DRIVER_NAME);
@@ -3405,6 +3451,7 @@ static void hclgevf_uninit_hdev(struct hclgevf_dev *hdev)
 	struct hclge_vf_to_pf_msg send_msg;
 
 	hclgevf_state_uninit(hdev);
+	hclgevf_uninit_rxd_adv_layout(hdev);
 
 	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_VF_UNINIT, 0);
 	hclgevf_send_mbx_msg(hdev, &send_msg, false, NULL, 0);
@@ -3784,6 +3831,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.get_tc_size = hclgevf_get_tc_size,
 	.get_fw_version = hclgevf_get_fw_version,
 	.set_vlan_filter = hclgevf_set_vlan_filter,
+	.enable_vlan_filter = hclgevf_enable_vlan_filter,
 	.enable_hw_strip_rxvtag = hclgevf_en_hw_strip_rxvtag,
 	.reset_event = hclgevf_reset_event,
 	.set_default_reset_request = hclgevf_set_def_reset_request,

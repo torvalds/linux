@@ -1283,19 +1283,6 @@ static struct parport_driver imm_driver = {
 	.detach		= imm_detach,
 	.devmodel	= true,
 };
-
-static int __init imm_driver_init(void)
-{
-	printk("imm: Version %s\n", IMM_VERSION);
-	return parport_register_driver(&imm_driver);
-}
-
-static void __exit imm_driver_exit(void)
-{
-	parport_unregister_driver(&imm_driver);
-}
-
-module_init(imm_driver_init);
-module_exit(imm_driver_exit);
+module_parport_driver(imm_driver);
 
 MODULE_LICENSE("GPL");

@@ -53,7 +53,7 @@ static int  kobil_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void kobil_close(struct usb_serial_port *port);
 static int  kobil_write(struct tty_struct *tty, struct usb_serial_port *port,
 			 const unsigned char *buf, int count);
-static int  kobil_write_room(struct tty_struct *tty);
+static unsigned int kobil_write_room(struct tty_struct *tty);
 static int  kobil_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg);
 static int  kobil_tiocmget(struct tty_struct *tty);
@@ -358,7 +358,7 @@ static int kobil_write(struct tty_struct *tty, struct usb_serial_port *port,
 }
 
 
-static int kobil_write_room(struct tty_struct *tty)
+static unsigned int kobil_write_room(struct tty_struct *tty)
 {
 	/* FIXME */
 	return 8;

@@ -715,6 +715,8 @@ out:
 	bpf_object__close(obj);
 }
 
+#include "tailcall_bpf2bpf4.skel.h"
+
 /* test_tailcall_bpf2bpf_4 checks that tailcall counter is correctly preserved
  * across tailcalls combined with bpf2bpf calls. for making sure that tailcall
  * counter behaves correctly, bpf program will go through following flow:
@@ -727,10 +729,15 @@ out:
  * the loop begins. At the end of the test make sure that the global counter is
  * equal to 31, because tailcall counter includes the first two tailcalls
  * whereas global counter is incremented only on loop presented on flow above.
+ *
+ * The noise parameter is used to insert bpf_map_update calls into the logic
+ * to force verifier to patch instructions. This allows us to ensure jump
+ * logic remains correct with instruction movement.
  */
-static void test_tailcall_bpf2bpf_4(void)
+static void test_tailcall_bpf2bpf_4(bool noise)
 {
-	int err, map_fd, prog_fd, main_fd, data_fd, i, val;
+	int err, map_fd, prog_fd, main_fd, data_fd, i;
+	struct tailcall_bpf2bpf4__bss val;
 	struct bpf_map *prog_array, *data_map;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
@@ -774,11 +781,6 @@ static void test_tailcall_bpf2bpf_4(void)
 			goto out;
 	}
 
-	err = bpf_prog_test_run(main_fd, 1, &pkt_v4, sizeof(pkt_v4), 0,
-				&duration, &retval, NULL);
-	CHECK(err || retval != sizeof(pkt_v4) * 3, "tailcall", "err %d errno %d retval %d\n",
-	      err, errno, retval);
-
 	data_map = bpf_object__find_map_by_name(obj, "tailcall.bss");
 	if (CHECK_FAIL(!data_map || !bpf_map__is_internal(data_map)))
 		return;
@@ -788,9 +790,21 @@ static void test_tailcall_bpf2bpf_4(void)
 		return;
 
 	i = 0;
+	val.noise = noise;
+	val.count = 0;
+	err = bpf_map_update_elem(data_fd, &i, &val, BPF_ANY);
+	if (CHECK_FAIL(err))
+		goto out;
+
+	err = bpf_prog_test_run(main_fd, 1, &pkt_v4, sizeof(pkt_v4), 0,
+				&duration, &retval, NULL);
+	CHECK(err || retval != sizeof(pkt_v4) * 3, "tailcall", "err %d errno %d retval %d\n",
+	      err, errno, retval);
+
+	i = 0;
 	err = bpf_map_lookup_elem(data_fd, &i, &val);
-	CHECK(err || val != 31, "tailcall count", "err %d errno %d count %d\n",
-	      err, errno, val);
+	CHECK(err || val.count != 31, "tailcall count", "err %d errno %d count %d\n",
+	      err, errno, val.count);
 
 out:
 	bpf_object__close(obj);
@@ -815,5 +829,7 @@ void test_tailcalls(void)
 	if (test__start_subtest("tailcall_bpf2bpf_3"))
 		test_tailcall_bpf2bpf_3();
 	if (test__start_subtest("tailcall_bpf2bpf_4"))
-		test_tailcall_bpf2bpf_4();
+		test_tailcall_bpf2bpf_4(false);
+	if (test__start_subtest("tailcall_bpf2bpf_5"))
+		test_tailcall_bpf2bpf_4(true);
 }

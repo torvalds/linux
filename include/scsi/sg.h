@@ -131,6 +131,39 @@ struct compat_sg_io_hdr {
 #define SG_INFO_DIRECT_IO 0x2   /* direct IO requested and performed */
 #define SG_INFO_MIXED_IO 0x4    /* part direct, part indirect IO */
 
+/*
+ * Obsolete DRIVER_SENSE driver byte
+ *
+ * Originally the SCSI midlayer would set the DRIVER_SENSE driver byte when
+ * a sense code was generated and a sense buffer was allocated.
+ * However, as nowadays every scsi command has a sense code allocated this
+ * distinction became moot as one could check the sense buffer directly.
+ * Consequently this byte is not set anymore from the midlayer, but SG will
+ * keep setting this byte to be compatible with previous releases.
+ */
+#define DRIVER_SENSE 0x08
+/* Obsolete driver_byte() declaration */
+#define driver_byte(result) (((result) >> 24) & 0xff)
+
+/*
+ *  Original linux SCSI Status codes. They are shifted 1 bit right
+ *  from those found in the SCSI standards.
+ */
+
+#define GOOD                 0x00
+#define CHECK_CONDITION      0x01
+#define CONDITION_GOOD       0x02
+#define BUSY                 0x04
+#define INTERMEDIATE_GOOD    0x08
+#define INTERMEDIATE_C_GOOD  0x0a
+#define RESERVATION_CONFLICT 0x0c
+#define COMMAND_TERMINATED   0x11
+#define QUEUE_FULL           0x14
+#define ACA_ACTIVE           0x18
+#define TASK_ABORTED         0x20
+
+/* Obsolete status_byte() declaration */
+#define status_byte(result) (((result) >> 1) & 0x7f)
 
 typedef struct sg_scsi_id { /* used by SG_GET_SCSI_ID ioctl() */
     int host_no;        /* as in "scsi<n>" where 'n' is one of 0, 1, 2 etc */
@@ -145,7 +178,7 @@ typedef struct sg_scsi_id { /* used by SG_GET_SCSI_ID ioctl() */
 
 typedef struct sg_req_info { /* used by SG_GET_REQUEST_TABLE ioctl() */
     char req_state;     /* 0 -> not used, 1 -> written, 2 -> ready to read */
-    char orphan;        /* 0 -> normal request, 1 -> from interruped SG_IO */
+    char orphan;        /* 0 -> normal request, 1 -> from interrupted SG_IO */
     char sg_io_owned;   /* 0 -> complete with read(), 1 -> owned by SG_IO */
     char problem;       /* 0 -> no problem detected, 1 -> error to report */
     int pack_id;        /* pack_id associated with request */

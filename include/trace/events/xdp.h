@@ -110,7 +110,11 @@ DECLARE_EVENT_CLASS(xdp_redirect_template,
 		u32 ifindex = 0, map_index = index;
 
 		if (map_type == BPF_MAP_TYPE_DEVMAP || map_type == BPF_MAP_TYPE_DEVMAP_HASH) {
-			ifindex = ((struct _bpf_dtab_netdev *)tgt)->dev->ifindex;
+			/* Just leave to_ifindex to 0 if do broadcast redirect,
+			 * as tgt will be NULL.
+			 */
+			if (tgt)
+				ifindex = ((struct _bpf_dtab_netdev *)tgt)->dev->ifindex;
 		} else if (map_type == BPF_MAP_TYPE_UNSPEC && map_id == INT_MAX) {
 			ifindex = index;
 			map_index = 0;

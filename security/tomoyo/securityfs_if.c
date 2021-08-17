@@ -139,6 +139,7 @@ static int tomoyo_open(struct inode *inode, struct file *file)
 /**
  * tomoyo_release - close() for /sys/kernel/security/tomoyo/ interface.
  *
+ * @inode: Pointer to "struct inode".
  * @file:  Pointer to "struct file".
  *
  */

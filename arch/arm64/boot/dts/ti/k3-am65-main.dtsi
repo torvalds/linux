@@ -84,8 +84,6 @@
 	main_uart0: serial@2800000 {
 		compatible = "ti,am654-uart";
 		reg = <0x00 0x02800000 0x00 0x100>;
-		reg-shift = <2>;
-		reg-io-width = <4>;
 		interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
 		current-speed = <115200>;
@@ -95,8 +93,6 @@
 	main_uart1: serial@2810000 {
 		compatible = "ti,am654-uart";
 		reg = <0x00 0x02810000 0x00 0x100>;
-		reg-shift = <2>;
-		reg-io-width = <4>;
 		interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
 		power-domains = <&k3_pds 147 TI_SCI_PD_EXCLUSIVE>;
@@ -105,8 +101,6 @@
 	main_uart2: serial@2820000 {
 		compatible = "ti,am654-uart";
 		reg = <0x00 0x02820000 0x00 0x100>;
-		reg-shift = <2>;
-		reg-io-width = <4>;
 		interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
 		power-domains = <&k3_pds 148 TI_SCI_PD_EXCLUSIVE>;
@@ -301,7 +295,6 @@
 		ti,otap-del-sel = <0x2>;
 		ti,trm-icp = <0x8>;
 		dma-coherent;
-		no-1-8-v;
 	};
 
 	scm_conf: scm-conf@100000 {
@@ -433,8 +426,9 @@
 		#phy-cells = <0>;
 	};
 
-	intr_main_gpio: interrupt-controller0 {
+	intr_main_gpio: interrupt-controller@a00000 {
 		compatible = "ti,sci-intr";
+		reg = <0x0 0x00a00000 0x0 0x400>;
 		ti,intr-trigger-type = <1>;
 		interrupt-controller;
 		interrupt-parent = <&gic500>;
@@ -444,18 +438,19 @@
 		ti,interrupt-ranges = <0 392 32>;
 	};
 
-	main-navss {
+	main_navss: bus@30800000 {
 		compatible = "simple-mfd";
 		#address-cells = <2>;
 		#size-cells = <2>;
-		ranges;
+		ranges = <0x0 0x30800000 0x0 0x30800000 0x0 0xbc00000>;
 		dma-coherent;
 		dma-ranges;
 
 		ti,sci-dev-id = <118>;
 
-		intr_main_navss: interrupt-controller1 {
+		intr_main_navss: interrupt-controller@310e0000 {
 			compatible = "ti,sci-intr";
+			reg = <0x0 0x310e0000 0x0 0x2000>;
 			ti,intr-trigger-type = <4>;
 			interrupt-controller;
 			interrupt-parent = <&gic500>;
@@ -1051,6 +1046,16 @@
 			reg-names = "iram", "control", "debug";
 			firmware-name = "am65x-txpru0_1-fw";
 		};
+
+		icssg0_mdio: mdio@32400 {
+			compatible = "ti,davinci_mdio";
+			reg = <0x32400 0x100>;
+			clocks = <&k3_clks 62 3>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			bus_freq = <1000000>;
+		};
 	};
 
 	icssg1: icssg@b100000 {
@@ -1182,6 +1187,16 @@
 			reg-names = "iram", "control", "debug";
 			firmware-name = "am65x-txpru1_1-fw";
 		};
+
+		icssg1_mdio: mdio@32400 {
+			compatible = "ti,davinci_mdio";
+			reg = <0x32400 0x100>;
+			clocks = <&k3_clks 63 3>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			bus_freq = <1000000>;
+		};
 	};
 
 	icssg2: icssg@b200000 {
@@ -1312,6 +1327,16 @@
 			      <0x25c00 0x100>;
 			reg-names = "iram", "control", "debug";
 			firmware-name = "am65x-txpru2_1-fw";
+		};
+
+		icssg2_mdio: mdio@32400 {
+			compatible = "ti,davinci_mdio";
+			reg = <0x32400 0x100>;
+			clocks = <&k3_clks 64 3>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			bus_freq = <1000000>;
 		};
 	};
 };

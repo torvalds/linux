@@ -427,7 +427,7 @@ the ‘TRC’ prefix.
 :Syntax:
     ``echo idx > vmid_idx``
 
-    Where idx <  numvmidc
+    Where idx <  numvmidc
 
 ----
 

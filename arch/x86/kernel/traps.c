@@ -1046,9 +1046,10 @@ static void math_error(struct pt_regs *regs, int trapnr)
 	}
 
 	/*
-	 * Save the info for the exception handler and clear the error.
+	 * Synchronize the FPU register state to the memory register state
+	 * if necessary. This allows the exception handler to inspect it.
 	 */
-	fpu__save(fpu);
+	fpu_sync_fpstate(fpu);
 
 	task->thread.trap_nr	= trapnr;
 	task->thread.error_code = 0;
@@ -1160,12 +1161,9 @@ void __init trap_init(void)
 	/* Init GHCB memory pages when running as an SEV-ES guest */
 	sev_es_init_vc_handling();
 
+	/* Initialize TSS before setting up traps so ISTs work */
+	cpu_init_exception_handling();
+	/* Setup traps as cpu_init() might #GP */
 	idt_setup_traps();
-
-	/*
-	 * Should be a barrier for any external CPU state:
-	 */
 	cpu_init();
-
-	idt_setup_ist_traps();
 }

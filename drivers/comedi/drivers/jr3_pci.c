@@ -186,19 +186,6 @@ static void set_full_scales(struct jr3_sensor __iomem *sensor,
 	set_s16(&sensor->command_word0, 0x0a00);
 }
 
-static struct six_axis_t get_min_full_scales(struct jr3_sensor __iomem *sensor)
-{
-	struct six_axis_t result;
-
-	result.fx = get_s16(&sensor->min_full_scale.fx);
-	result.fy = get_s16(&sensor->min_full_scale.fy);
-	result.fz = get_s16(&sensor->min_full_scale.fz);
-	result.mx = get_s16(&sensor->min_full_scale.mx);
-	result.my = get_s16(&sensor->min_full_scale.my);
-	result.mz = get_s16(&sensor->min_full_scale.mz);
-	return result;
-}
-
 static struct six_axis_t get_max_full_scales(struct jr3_sensor __iomem *sensor)
 {
 	struct six_axis_t result;
@@ -504,10 +491,8 @@ jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 			result = poll_delay_min_max(20, 100);
 		} else {
 			/* Set full scale */
-			struct six_axis_t min_full_scale;
 			struct six_axis_t max_full_scale;
 
-			min_full_scale = get_min_full_scales(sensor);
 			max_full_scale = get_max_full_scales(sensor);
 			set_full_scales(sensor, max_full_scale);
 

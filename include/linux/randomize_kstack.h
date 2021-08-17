@@ -38,7 +38,7 @@ void *__builtin_alloca(size_t size);
 		u32 offset = raw_cpu_read(kstack_offset);		\
 		u8 *ptr = __builtin_alloca(KSTACK_OFFSET_MAX(offset));	\
 		/* Keep allocation even after "ptr" loses scope. */	\
-		asm volatile("" : "=o"(*ptr) :: "memory");		\
+		asm volatile("" :: "r"(ptr) : "memory");		\
 	}								\
 } while (0)
 

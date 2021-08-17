@@ -13,7 +13,7 @@ void gaudi_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq)
 	struct gaudi_device *gaudi = hdev->asic_specific;
 
 	if (freq == PLL_LAST)
-		hl_set_frequency(hdev, MME_PLL, gaudi->max_freq_value);
+		hl_set_frequency(hdev, HL_GAUDI_MME_PLL, gaudi->max_freq_value);
 }
 
 int gaudi_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk)
@@ -23,7 +23,7 @@ int gaudi_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk)
 	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
-	value = hl_get_frequency(hdev, MME_PLL, false);
+	value = hl_get_frequency(hdev, HL_GAUDI_MME_PLL, false);
 
 	if (value < 0) {
 		dev_err(hdev->dev, "Failed to retrieve device max clock %ld\n",
@@ -33,7 +33,7 @@ int gaudi_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk)
 
 	*max_clk = (value / 1000 / 1000);
 
-	value = hl_get_frequency(hdev, MME_PLL, true);
+	value = hl_get_frequency(hdev, HL_GAUDI_MME_PLL, true);
 
 	if (value < 0) {
 		dev_err(hdev->dev,
@@ -57,7 +57,7 @@ static ssize_t clk_max_freq_mhz_show(struct device *dev,
 	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
-	value = hl_get_frequency(hdev, MME_PLL, false);
+	value = hl_get_frequency(hdev, HL_GAUDI_MME_PLL, false);
 
 	gaudi->max_freq_value = value;
 
@@ -85,7 +85,7 @@ static ssize_t clk_max_freq_mhz_store(struct device *dev,
 
 	gaudi->max_freq_value = value * 1000 * 1000;
 
-	hl_set_frequency(hdev, MME_PLL, gaudi->max_freq_value);
+	hl_set_frequency(hdev, HL_GAUDI_MME_PLL, gaudi->max_freq_value);
 
 fail:
 	return count;
@@ -100,7 +100,7 @@ static ssize_t clk_cur_freq_mhz_show(struct device *dev,
 	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
-	value = hl_get_frequency(hdev, MME_PLL, true);
+	value = hl_get_frequency(hdev, HL_GAUDI_MME_PLL, true);
 
 	return sprintf(buf, "%lu\n", (value / 1000 / 1000));
 }

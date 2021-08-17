@@ -38,7 +38,7 @@ int gen8_emit_flush_rcs(struct i915_request *rq, u32 mode)
 		 * On GEN9: before VF_CACHE_INVALIDATE we need to emit a NULL
 		 * pipe control.
 		 */
-		if (IS_GEN(rq->engine->i915, 9))
+		if (GRAPHICS_VER(rq->engine->i915) == 9)
 			vf_flush_wa = true;
 
 		/* WaForGAMHang:kbl */

@@ -70,7 +70,8 @@ struct __packed vmcs12 {
 	u64 eptp_list_address;
 	u64 pml_address;
 	u64 encls_exiting_bitmap;
-	u64 padding64[2]; /* room for future expansion */
+	u64 tsc_multiplier;
+	u64 padding64[1]; /* room for future expansion */
 	/*
 	 * To allow migration of L1 (complete with its L2 guests) between
 	 * machines of different natural widths (32 or 64 bit), we cannot have
@@ -205,12 +206,6 @@ struct __packed vmcs12 {
 #define VMCS12_SIZE		KVM_STATE_NESTED_VMX_VMCS_SIZE
 
 /*
- * VMCS12_MAX_FIELD_INDEX is the highest index value used in any
- * supported VMCS12 field encoding.
- */
-#define VMCS12_MAX_FIELD_INDEX 0x17
-
-/*
  * For save/restore compatibility, the vmcs12 field offsets must not change.
  */
 #define CHECK_OFFSET(field, loc)				\
@@ -258,6 +253,7 @@ static inline void vmx_check_vmcs12_offsets(void)
 	CHECK_OFFSET(eptp_list_address, 304);
 	CHECK_OFFSET(pml_address, 312);
 	CHECK_OFFSET(encls_exiting_bitmap, 320);
+	CHECK_OFFSET(tsc_multiplier, 328);
 	CHECK_OFFSET(cr0_guest_host_mask, 344);
 	CHECK_OFFSET(cr4_guest_host_mask, 352);
 	CHECK_OFFSET(cr0_read_shadow, 360);

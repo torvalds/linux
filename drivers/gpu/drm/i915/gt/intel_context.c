@@ -326,7 +326,6 @@ void intel_context_unpin(struct intel_context *ce)
 	intel_context_put(ce);
 }
 
-__i915_active_call
 static void __intel_context_retire(struct i915_active *active)
 {
 	struct intel_context *ce = container_of(active, typeof(*ce), active);
@@ -385,7 +384,7 @@ intel_context_init(struct intel_context *ce, struct intel_engine_cs *engine)
 	mutex_init(&ce->pin_mutex);
 
 	i915_active_init(&ce->active,
-			 __intel_context_active, __intel_context_retire);
+			 __intel_context_active, __intel_context_retire, 0);
 }
 
 void intel_context_fini(struct intel_context *ce)

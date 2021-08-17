@@ -221,6 +221,7 @@ void wbc_account_cgroup_owner(struct writeback_control *wbc, struct page *page,
 int cgroup_writeback_by_id(u64 bdi_id, int memcg_id, unsigned long nr_pages,
 			   enum wb_reason reason, struct wb_completion *done);
 void cgroup_writeback_umount(void);
+bool cleanup_offline_cgwb(struct bdi_writeback *wb);
 
 /**
  * inode_attach_wb - associate an inode with its wb
@@ -360,7 +361,6 @@ extern unsigned int dirty_writeback_interval;
 extern unsigned int dirty_expire_interval;
 extern unsigned int dirtytime_expire_interval;
 extern int vm_highmem_is_dirtyable;
-extern int block_dump;
 extern int laptop_mode;
 
 int dirty_background_ratio_handler(struct ctl_table *table, int write,

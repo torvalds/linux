@@ -709,6 +709,8 @@ void snd_hdmi_write_eld_info(struct hdmi_eld *eld,
 #define SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE 80
 void snd_print_channel_allocation(int spk_alloc, char *buf, int buflen);
 
+void snd_hda_codec_display_power(struct hda_codec *codec, bool enable);
+
 /*
  */
 #define codec_err(codec, fmt, args...) \

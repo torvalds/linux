@@ -319,7 +319,8 @@ static int emu10k1_midi_init(struct snd_emu10k1 *emu, struct snd_emu10k1_midi *m
 	struct snd_rawmidi *rmidi;
 	int err;
 
-	if ((err = snd_rawmidi_new(emu->card, name, device, 1, 1, &rmidi)) < 0)
+	err = snd_rawmidi_new(emu->card, name, device, 1, 1, &rmidi);
+	if (err < 0)
 		return err;
 	midi->emu = emu;
 	spin_lock_init(&midi->open_lock);
@@ -342,7 +343,8 @@ int snd_emu10k1_midi(struct snd_emu10k1 *emu)
 	struct snd_emu10k1_midi *midi = &emu->midi;
 	int err;
 
-	if ((err = emu10k1_midi_init(emu, midi, 0, "EMU10K1 MPU-401 (UART)")) < 0)
+	err = emu10k1_midi_init(emu, midi, 0, "EMU10K1 MPU-401 (UART)");
+	if (err < 0)
 		return err;
 
 	midi->tx_enable = INTE_MIDITXENABLE;
@@ -360,7 +362,8 @@ int snd_emu10k1_audigy_midi(struct snd_emu10k1 *emu)
 	int err;
 
 	midi = &emu->midi;
-	if ((err = emu10k1_midi_init(emu, midi, 0, "Audigy MPU-401 (UART)")) < 0)
+	err = emu10k1_midi_init(emu, midi, 0, "Audigy MPU-401 (UART)");
+	if (err < 0)
 		return err;
 
 	midi->tx_enable = INTE_MIDITXENABLE;
@@ -371,7 +374,8 @@ int snd_emu10k1_audigy_midi(struct snd_emu10k1 *emu)
 	midi->interrupt = snd_emu10k1_midi_interrupt;
 
 	midi = &emu->midi2;
-	if ((err = emu10k1_midi_init(emu, midi, 1, "Audigy MPU-401 #2")) < 0)
+	err = emu10k1_midi_init(emu, midi, 1, "Audigy MPU-401 #2");
+	if (err < 0)
 		return err;
 
 	midi->tx_enable = INTE_A_MIDITXENABLE2;

@@ -79,8 +79,6 @@ typedef struct qp_entry qp_table[];
 
 void calc_rc_params(struct rc_params *rc, const struct drm_dsc_config *pps);
 u32 calc_dsc_bytes_per_pixel(const struct drm_dsc_config *pps);
-u32 calc_dsc_bpp_x16(u32 stream_bandwidth_kbps, u32 pix_clk_100hz,
-		     u32 bpp_increment_div);
 
 #endif
 

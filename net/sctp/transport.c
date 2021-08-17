@@ -75,6 +75,7 @@ static struct sctp_transport *sctp_transport_init(struct net *net,
 	timer_setup(&peer->T3_rtx_timer, sctp_generate_t3_rtx_event, 0);
 	timer_setup(&peer->hb_timer, sctp_generate_heartbeat_event, 0);
 	timer_setup(&peer->reconf_timer, sctp_generate_reconf_event, 0);
+	timer_setup(&peer->probe_timer, sctp_generate_probe_event, 0);
 	timer_setup(&peer->proto_unreach_timer,
 		    sctp_generate_proto_unreach_event, 0);
 
@@ -129,6 +130,9 @@ void sctp_transport_free(struct sctp_transport *transport)
 		sctp_transport_put(transport);
 
 	if (del_timer(&transport->reconf_timer))
+		sctp_transport_put(transport);
+
+	if (del_timer(&transport->probe_timer))
 		sctp_transport_put(transport);
 
 	/* Delete the ICMP proto unreachable timer if it's active. */
@@ -207,6 +211,15 @@ void sctp_transport_reset_reconf_timer(struct sctp_transport *transport)
 			sctp_transport_hold(transport);
 }
 
+void sctp_transport_reset_probe_timer(struct sctp_transport *transport)
+{
+	if (timer_pending(&transport->probe_timer))
+		return;
+	if (!mod_timer(&transport->probe_timer,
+		       jiffies + transport->probe_interval))
+		sctp_transport_hold(transport);
+}
+
 /* This transport has been assigned to an association.
  * Initialize fields from the association or from the sock itself.
  * Register the reference count in the association.
@@ -241,12 +254,155 @@ void sctp_transport_pmtu(struct sctp_transport *transport, struct sock *sk)
 		transport->pathmtu = sctp_dst_mtu(transport->dst);
 	else
 		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
+
+	sctp_transport_pl_update(transport);
+}
+
+bool sctp_transport_pl_send(struct sctp_transport *t)
+{
+	if (t->pl.probe_count < SCTP_MAX_PROBES)
+		goto out;
+
+	t->pl.last_rtx_chunks = t->asoc->rtx_data_chunks;
+	t->pl.probe_count = 0;
+	if (t->pl.state == SCTP_PL_BASE) {
+		if (t->pl.probe_size == SCTP_BASE_PLPMTU) { /* BASE_PLPMTU Confirmation Failed */
+			t->pl.state = SCTP_PL_ERROR; /* Base -> Error */
+
+			t->pl.pmtu = SCTP_MIN_PLPMTU;
+			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+			sctp_assoc_sync_pmtu(t->asoc);
+		}
+	} else if (t->pl.state == SCTP_PL_SEARCH) {
+		if (t->pl.pmtu == t->pl.probe_size) { /* Black Hole Detected */
+			t->pl.state = SCTP_PL_BASE;  /* Search -> Base */
+			t->pl.probe_size = SCTP_BASE_PLPMTU;
+			t->pl.probe_high = 0;
+
+			t->pl.pmtu = SCTP_BASE_PLPMTU;
+			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+			sctp_assoc_sync_pmtu(t->asoc);
+		} else { /* Normal probe failure. */
+			t->pl.probe_high = t->pl.probe_size;
+			t->pl.probe_size = t->pl.pmtu;
+		}
+	} else if (t->pl.state == SCTP_PL_COMPLETE) {
+		if (t->pl.pmtu == t->pl.probe_size) { /* Black Hole Detected */
+			t->pl.state = SCTP_PL_BASE;  /* Search Complete -> Base */
+			t->pl.probe_size = SCTP_BASE_PLPMTU;
+
+			t->pl.pmtu = SCTP_BASE_PLPMTU;
+			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+			sctp_assoc_sync_pmtu(t->asoc);
+		}
+	}
+
+out:
+	if (t->pl.state == SCTP_PL_COMPLETE && t->pl.raise_count < 30 &&
+	    !t->pl.probe_count && t->pl.last_rtx_chunks == t->asoc->rtx_data_chunks) {
+		t->pl.raise_count++;
+		return false;
+	}
+
+	pr_debug("%s: PLPMTUD: transport: %p, state: %d, pmtu: %d, size: %d, high: %d\n",
+		 __func__, t, t->pl.state, t->pl.pmtu, t->pl.probe_size, t->pl.probe_high);
+
+	t->pl.probe_count++;
+	return true;
+}
+
+bool sctp_transport_pl_recv(struct sctp_transport *t)
+{
+	pr_debug("%s: PLPMTUD: transport: %p, state: %d, pmtu: %d, size: %d, high: %d\n",
+		 __func__, t, t->pl.state, t->pl.pmtu, t->pl.probe_size, t->pl.probe_high);
+
+	t->pl.last_rtx_chunks = t->asoc->rtx_data_chunks;
+	t->pl.pmtu = t->pl.probe_size;
+	t->pl.probe_count = 0;
+	if (t->pl.state == SCTP_PL_BASE) {
+		t->pl.state = SCTP_PL_SEARCH; /* Base -> Search */
+		t->pl.probe_size += SCTP_PL_BIG_STEP;
+	} else if (t->pl.state == SCTP_PL_ERROR) {
+		t->pl.state = SCTP_PL_SEARCH; /* Error -> Search */
+
+		t->pl.pmtu = t->pl.probe_size;
+		t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+		sctp_assoc_sync_pmtu(t->asoc);
+		t->pl.probe_size += SCTP_PL_BIG_STEP;
+	} else if (t->pl.state == SCTP_PL_SEARCH) {
+		if (!t->pl.probe_high) {
+			t->pl.probe_size = min(t->pl.probe_size + SCTP_PL_BIG_STEP,
+					       SCTP_MAX_PLPMTU);
+			return false;
+		}
+		t->pl.probe_size += SCTP_PL_MIN_STEP;
+		if (t->pl.probe_size >= t->pl.probe_high) {
+			t->pl.probe_high = 0;
+			t->pl.raise_count = 0;
+			t->pl.state = SCTP_PL_COMPLETE; /* Search -> Search Complete */
+
+			t->pl.probe_size = t->pl.pmtu;
+			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+			sctp_assoc_sync_pmtu(t->asoc);
+		}
+	} else if (t->pl.state == SCTP_PL_COMPLETE && t->pl.raise_count == 30) {
+		/* Raise probe_size again after 30 * interval in Search Complete */
+		t->pl.state = SCTP_PL_SEARCH; /* Search Complete -> Search */
+		t->pl.probe_size += SCTP_PL_MIN_STEP;
+	}
+
+	return t->pl.state == SCTP_PL_COMPLETE;
+}
+
+static bool sctp_transport_pl_toobig(struct sctp_transport *t, u32 pmtu)
+{
+	pr_debug("%s: PLPMTUD: transport: %p, state: %d, pmtu: %d, size: %d, ptb: %d\n",
+		 __func__, t, t->pl.state, t->pl.pmtu, t->pl.probe_size, pmtu);
+
+	if (pmtu < SCTP_MIN_PLPMTU || pmtu >= t->pl.probe_size)
+		return false;
+
+	if (t->pl.state == SCTP_PL_BASE) {
+		if (pmtu >= SCTP_MIN_PLPMTU && pmtu < SCTP_BASE_PLPMTU) {
+			t->pl.state = SCTP_PL_ERROR; /* Base -> Error */
+
+			t->pl.pmtu = SCTP_MIN_PLPMTU;
+			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+		}
+	} else if (t->pl.state == SCTP_PL_SEARCH) {
+		if (pmtu >= SCTP_BASE_PLPMTU && pmtu < t->pl.pmtu) {
+			t->pl.state = SCTP_PL_BASE;  /* Search -> Base */
+			t->pl.probe_size = SCTP_BASE_PLPMTU;
+			t->pl.probe_count = 0;
+
+			t->pl.probe_high = 0;
+			t->pl.pmtu = SCTP_BASE_PLPMTU;
+			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+		} else if (pmtu > t->pl.pmtu && pmtu < t->pl.probe_size) {
+			t->pl.probe_size = pmtu;
+			t->pl.probe_count = 0;
+
+			return false;
+		}
+	} else if (t->pl.state == SCTP_PL_COMPLETE) {
+		if (pmtu >= SCTP_BASE_PLPMTU && pmtu < t->pl.pmtu) {
+			t->pl.state = SCTP_PL_BASE;  /* Complete -> Base */
+			t->pl.probe_size = SCTP_BASE_PLPMTU;
+			t->pl.probe_count = 0;
+
+			t->pl.probe_high = 0;
+			t->pl.pmtu = SCTP_BASE_PLPMTU;
+			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+		}
+	}
+
+	return true;
 }
 
 bool sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
 {
-	struct dst_entry *dst = sctp_transport_dst_check(t);
 	struct sock *sk = t->asoc->base.sk;
+	struct dst_entry *dst;
 	bool change = true;
 
 	if (unlikely(pmtu < SCTP_DEFAULT_MINSEGMENT)) {
@@ -257,6 +413,10 @@ bool sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
 	}
 	pmtu = SCTP_TRUNC4(pmtu);
 
+	if (sctp_transport_pl_enabled(t))
+		return sctp_transport_pl_toobig(t, pmtu - sctp_transport_pl_hlen(t));
+
+	dst = sctp_transport_dst_check(t);
 	if (dst) {
 		struct sctp_pf *pf = sctp_get_pf_specific(dst->ops->family);
 		union sctp_addr addr;

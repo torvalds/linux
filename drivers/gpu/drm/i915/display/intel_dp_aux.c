@@ -126,12 +126,7 @@ static u32 g4x_get_aux_send_ctl(struct intel_dp *intel_dp,
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv =
 			to_i915(dig_port->base.base.dev);
-	u32 precharge, timeout;
-
-	if (IS_SANDYBRIDGE(dev_priv))
-		precharge = 3;
-	else
-		precharge = 5;
+	u32 timeout;
 
 	/* Max timeout value on G4x-BDW: 1.6ms */
 	if (IS_BROADWELL(dev_priv))
@@ -146,7 +141,7 @@ static u32 g4x_get_aux_send_ctl(struct intel_dp *intel_dp,
 	       timeout |
 	       DP_AUX_CH_CTL_RECEIVE_ERROR |
 	       (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
-	       (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
+	       (3 << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
 	       (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT);
 }
 
@@ -607,8 +602,8 @@ static i915_reg_t tgl_aux_ctl_reg(struct intel_dp *intel_dp)
 	case AUX_CH_USBC2:
 	case AUX_CH_USBC3:
 	case AUX_CH_USBC4:
-	case AUX_CH_USBC5:
-	case AUX_CH_USBC6:
+	case AUX_CH_USBC5:  /* aka AUX_CH_D_XELPD */
+	case AUX_CH_USBC6:  /* aka AUX_CH_E_XELPD */
 		return DP_AUX_CH_CTL(aux_ch);
 	default:
 		MISSING_CASE(aux_ch);
@@ -630,8 +625,8 @@ static i915_reg_t tgl_aux_data_reg(struct intel_dp *intel_dp, int index)
 	case AUX_CH_USBC2:
 	case AUX_CH_USBC3:
 	case AUX_CH_USBC4:
-	case AUX_CH_USBC5:
-	case AUX_CH_USBC6:
+	case AUX_CH_USBC5:  /* aka AUX_CH_D_XELPD */
+	case AUX_CH_USBC6:  /* aka AUX_CH_E_XELPD */
 		return DP_AUX_CH_DATA(aux_ch, index);
 	default:
 		MISSING_CASE(aux_ch);
@@ -682,10 +677,15 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 	else
 		intel_dp->get_aux_send_ctl = g4x_get_aux_send_ctl;
 
+	intel_dp->aux.drm_dev = &dev_priv->drm;
 	drm_dp_aux_init(&intel_dp->aux);
 
 	/* Failure to allocate our preferred name is not critical */
-	if (DISPLAY_VER(dev_priv) >= 12 && aux_ch >= AUX_CH_USBC1)
+	if (DISPLAY_VER(dev_priv) >= 13 && aux_ch >= AUX_CH_D_XELPD)
+		intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX %c/%s",
+					       aux_ch_name(aux_ch - AUX_CH_D_XELPD + AUX_CH_D),
+					       encoder->base.name);
+	else if (DISPLAY_VER(dev_priv) >= 12 && aux_ch >= AUX_CH_USBC1)
 		intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX USBC%c/%s",
 					       aux_ch - AUX_CH_USBC1 + '1',
 					       encoder->base.name);

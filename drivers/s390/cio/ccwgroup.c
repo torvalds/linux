@@ -45,27 +45,6 @@ static void __ccwgroup_remove_symlinks(struct ccwgroup_device *gdev)
 	}
 }
 
-/*
- * Remove references from ccw devices to ccw group device and from
- * ccw group device to ccw devices.
- */
-static void __ccwgroup_remove_cdev_refs(struct ccwgroup_device *gdev)
-{
-	struct ccw_device *cdev;
-	int i;
-
-	for (i = 0; i < gdev->count; i++) {
-		cdev = gdev->cdev[i];
-		if (!cdev)
-			continue;
-		spin_lock_irq(cdev->ccwlock);
-		dev_set_drvdata(&cdev->dev, NULL);
-		spin_unlock_irq(cdev->ccwlock);
-		gdev->cdev[i] = NULL;
-		put_device(&cdev->dev);
-	}
-}
-
 /**
  * ccwgroup_set_online() - enable a ccwgroup device
  * @gdev: target ccwgroup device
@@ -175,7 +154,6 @@ static void ccwgroup_ungroup(struct ccwgroup_device *gdev)
 	if (device_is_registered(&gdev->dev)) {
 		__ccwgroup_remove_symlinks(gdev);
 		device_unregister(&gdev->dev);
-		__ccwgroup_remove_cdev_refs(gdev);
 	}
 	mutex_unlock(&gdev->reg_mutex);
 }
@@ -228,7 +206,23 @@ static void ccwgroup_ungroup_workfn(struct work_struct *work)
 
 static void ccwgroup_release(struct device *dev)
 {
-	kfree(to_ccwgroupdev(dev));
+	struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
+	unsigned int i;
+
+	for (i = 0; i < gdev->count; i++) {
+		struct ccw_device *cdev = gdev->cdev[i];
+		unsigned long flags;
+
+		if (cdev) {
+			spin_lock_irqsave(cdev->ccwlock, flags);
+			if (dev_get_drvdata(&cdev->dev) == gdev)
+				dev_set_drvdata(&cdev->dev, NULL);
+			spin_unlock_irqrestore(cdev->ccwlock, flags);
+			put_device(&cdev->dev);
+		}
+	}
+
+	kfree(gdev);
 }
 
 static int __ccwgroup_create_symlinks(struct ccwgroup_device *gdev)
@@ -396,15 +390,6 @@ int ccwgroup_create_dev(struct device *parent, struct ccwgroup_driver *gdrv,
 	mutex_unlock(&gdev->reg_mutex);
 	return 0;
 error:
-	for (i = 0; i < num_devices; i++)
-		if (gdev->cdev[i]) {
-			spin_lock_irq(gdev->cdev[i]->ccwlock);
-			if (dev_get_drvdata(&gdev->cdev[i]->dev) == gdev)
-				dev_set_drvdata(&gdev->cdev[i]->dev, NULL);
-			spin_unlock_irq(gdev->cdev[i]->ccwlock);
-			put_device(&gdev->cdev[i]->dev);
-			gdev->cdev[i] = NULL;
-		}
 	mutex_unlock(&gdev->reg_mutex);
 	put_device(&gdev->dev);
 	return rc;
@@ -416,7 +401,7 @@ static int ccwgroup_notifier(struct notifier_block *nb, unsigned long action,
 {
 	struct ccwgroup_device *gdev = to_ccwgroupdev(data);
 
-	if (action == BUS_NOTIFY_UNBIND_DRIVER) {
+	if (action == BUS_NOTIFY_UNBOUND_DRIVER) {
 		get_device(&gdev->dev);
 		schedule_work(&gdev->ungroup_work);
 	}
@@ -514,15 +499,6 @@ EXPORT_SYMBOL(ccwgroup_driver_register);
  */
 void ccwgroup_driver_unregister(struct ccwgroup_driver *cdriver)
 {
-	struct device *dev;
-
-	/* We don't want ccwgroup devices to live longer than their driver. */
-	while ((dev = driver_find_next_device(&cdriver->driver, NULL))) {
-		struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
-
-		ccwgroup_ungroup(gdev);
-		put_device(dev);
-	}
 	driver_unregister(&cdriver->driver);
 }
 EXPORT_SYMBOL(ccwgroup_driver_unregister);

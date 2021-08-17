@@ -379,6 +379,44 @@ err:
 	return ret;
 }
 
+static int genpd_set_performance_state(struct device *dev, unsigned int state)
+{
+	struct generic_pm_domain *genpd = dev_to_genpd(dev);
+	struct generic_pm_domain_data *gpd_data = dev_gpd_data(dev);
+	unsigned int prev_state;
+	int ret;
+
+	prev_state = gpd_data->performance_state;
+	if (prev_state == state)
+		return 0;
+
+	gpd_data->performance_state = state;
+	state = _genpd_reeval_performance_state(genpd, state);
+
+	ret = _genpd_set_performance_state(genpd, state, 0);
+	if (ret)
+		gpd_data->performance_state = prev_state;
+
+	return ret;
+}
+
+static int genpd_drop_performance_state(struct device *dev)
+{
+	unsigned int prev_state = dev_gpd_data(dev)->performance_state;
+
+	if (!genpd_set_performance_state(dev, 0))
+		return prev_state;
+
+	return 0;
+}
+
+static void genpd_restore_performance_state(struct device *dev,
+					    unsigned int state)
+{
+	if (state)
+		genpd_set_performance_state(dev, state);
+}
+
 /**
  * dev_pm_genpd_set_performance_state- Set performance state of device's power
  * domain.
@@ -397,8 +435,6 @@ err:
 int dev_pm_genpd_set_performance_state(struct device *dev, unsigned int state)
 {
 	struct generic_pm_domain *genpd;
-	struct generic_pm_domain_data *gpd_data;
-	unsigned int prev;
 	int ret;
 
 	genpd = dev_to_genpd_safe(dev);
@@ -410,16 +446,7 @@ int dev_pm_genpd_set_performance_state(struct device *dev, unsigned int state)
 		return -EINVAL;
 
 	genpd_lock(genpd);
-
-	gpd_data = to_gpd_data(dev->power.subsys_data->domain_data);
-	prev = gpd_data->performance_state;
-	gpd_data->performance_state = state;
-
-	state = _genpd_reeval_performance_state(genpd, state);
-	ret = _genpd_set_performance_state(genpd, state, 0);
-	if (ret)
-		gpd_data->performance_state = prev;
-
+	ret = genpd_set_performance_state(dev, state);
 	genpd_unlock(genpd);
 
 	return ret;
@@ -572,6 +599,7 @@ static void genpd_queue_power_off_work(struct generic_pm_domain *genpd)
  * RPM status of the releated device is in an intermediate state, not yet turned
  * into RPM_SUSPENDED. This means genpd_power_off() must allow one device to not
  * be RPM_SUSPENDED, while it tries to power off the PM domain.
+ * @depth: nesting count for lockdep.
  *
  * If all of the @genpd's devices have been suspended and all of its subdomains
  * have been powered down, remove power from @genpd.
@@ -832,7 +860,8 @@ static int genpd_runtime_suspend(struct device *dev)
 {
 	struct generic_pm_domain *genpd;
 	bool (*suspend_ok)(struct device *__dev);
-	struct gpd_timing_data *td = &dev_gpd_data(dev)->td;
+	struct generic_pm_domain_data *gpd_data = dev_gpd_data(dev);
+	struct gpd_timing_data *td = &gpd_data->td;
 	bool runtime_pm = pm_runtime_enabled(dev);
 	ktime_t time_start;
 	s64 elapsed_ns;
@@ -889,6 +918,7 @@ static int genpd_runtime_suspend(struct device *dev)
 		return 0;
 
 	genpd_lock(genpd);
+	gpd_data->rpm_pstate = genpd_drop_performance_state(dev);
 	genpd_power_off(genpd, true, 0);
 	genpd_unlock(genpd);
 
@@ -906,7 +936,8 @@ static int genpd_runtime_suspend(struct device *dev)
 static int genpd_runtime_resume(struct device *dev)
 {
 	struct generic_pm_domain *genpd;
-	struct gpd_timing_data *td = &dev_gpd_data(dev)->td;
+	struct generic_pm_domain_data *gpd_data = dev_gpd_data(dev);
+	struct gpd_timing_data *td = &gpd_data->td;
 	bool runtime_pm = pm_runtime_enabled(dev);
 	ktime_t time_start;
 	s64 elapsed_ns;
@@ -930,6 +961,8 @@ static int genpd_runtime_resume(struct device *dev)
 
 	genpd_lock(genpd);
 	ret = genpd_power_on(genpd, 0);
+	if (!ret)
+		genpd_restore_performance_state(dev, gpd_data->rpm_pstate);
 	genpd_unlock(genpd);
 
 	if (ret)
@@ -968,6 +1001,7 @@ err_stop:
 err_poweroff:
 	if (!pm_runtime_is_irq_safe(dev) || genpd_is_irq_safe(genpd)) {
 		genpd_lock(genpd);
+		gpd_data->rpm_pstate = genpd_drop_performance_state(dev);
 		genpd_power_off(genpd, true, 0);
 		genpd_unlock(genpd);
 	}
@@ -1984,8 +2018,8 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 
 	mutex_lock(&gpd_list_lock);
 	list_add(&genpd->gpd_list_node, &gpd_list);
-	genpd_debug_add(genpd);
 	mutex_unlock(&gpd_list_lock);
+	genpd_debug_add(genpd);
 
 	return 0;
 }
@@ -2172,12 +2206,19 @@ static int genpd_add_provider(struct device_node *np, genpd_xlate_t xlate,
 
 static bool genpd_present(const struct generic_pm_domain *genpd)
 {
+	bool ret = false;
 	const struct generic_pm_domain *gpd;
 
-	list_for_each_entry(gpd, &gpd_list, gpd_list_node)
-		if (gpd == genpd)
-			return true;
-	return false;
+	mutex_lock(&gpd_list_lock);
+	list_for_each_entry(gpd, &gpd_list, gpd_list_node) {
+		if (gpd == genpd) {
+			ret = true;
+			break;
+		}
+	}
+	mutex_unlock(&gpd_list_lock);
+
+	return ret;
 }
 
 /**
@@ -2188,15 +2229,13 @@ static bool genpd_present(const struct generic_pm_domain *genpd)
 int of_genpd_add_provider_simple(struct device_node *np,
 				 struct generic_pm_domain *genpd)
 {
-	int ret = -EINVAL;
+	int ret;
 
 	if (!np || !genpd)
 		return -EINVAL;
 
-	mutex_lock(&gpd_list_lock);
-
 	if (!genpd_present(genpd))
-		goto unlock;
+		return -EINVAL;
 
 	genpd->dev.of_node = np;
 
@@ -2207,7 +2246,7 @@ int of_genpd_add_provider_simple(struct device_node *np,
 			if (ret != -EPROBE_DEFER)
 				dev_err(&genpd->dev, "Failed to add OPP table: %d\n",
 					ret);
-			goto unlock;
+			return ret;
 		}
 
 		/*
@@ -2225,16 +2264,13 @@ int of_genpd_add_provider_simple(struct device_node *np,
 			dev_pm_opp_of_remove_table(&genpd->dev);
 		}
 
-		goto unlock;
+		return ret;
 	}
 
 	genpd->provider = &np->fwnode;
 	genpd->has_provider = true;
 
-unlock:
-	mutex_unlock(&gpd_list_lock);
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(of_genpd_add_provider_simple);
 
@@ -2252,8 +2288,6 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 
 	if (!np || !data)
 		return -EINVAL;
-
-	mutex_lock(&gpd_list_lock);
 
 	if (!data->xlate)
 		data->xlate = genpd_xlate_onecell;
@@ -2294,8 +2328,6 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 	if (ret < 0)
 		goto error;
 
-	mutex_unlock(&gpd_list_lock);
-
 	return 0;
 
 error:
@@ -2313,8 +2345,6 @@ error:
 			dev_pm_opp_of_remove_table(&genpd->dev);
 		}
 	}
-
-	mutex_unlock(&gpd_list_lock);
 
 	return ret;
 }
@@ -2505,7 +2535,7 @@ EXPORT_SYMBOL_GPL(of_genpd_remove_subdomain);
 
 /**
  * of_genpd_remove_last - Remove the last PM domain registered for a provider
- * @provider: Pointer to device structure associated with provider
+ * @np: Pointer to device node associated with provider
  *
  * Find the last PM domain that was added by a particular provider and
  * remove this PM domain from the list of PM domains. The provider is

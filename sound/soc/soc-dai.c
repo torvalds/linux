@@ -134,6 +134,69 @@ int snd_soc_dai_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_bclk_ratio);
 
+int snd_soc_dai_get_fmt_max_priority(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_dai *dai;
+	int i, max = 0;
+
+	/*
+	 * return max num if *ALL* DAIs have .auto_selectable_formats
+	 */
+	for_each_rtd_dais(rtd, i, dai) {
+		if (dai->driver->ops &&
+		    dai->driver->ops->num_auto_selectable_formats)
+			max = max(max, dai->driver->ops->num_auto_selectable_formats);
+		else
+			return 0;
+	}
+
+	return max;
+}
+
+/**
+ * snd_soc_dai_get_fmt - get supported audio format.
+ * @dai: DAI
+ * @priority: priority level of supported audio format.
+ *
+ * This should return only formats implemented with high
+ * quality by the DAI so that the core can configure a
+ * format which will work well with other devices.
+ * For example devices which don't support both edges of the
+ * LRCLK signal in I2S style formats should only list DSP
+ * modes.  This will mean that sometimes fewer formats
+ * are reported here than are supported by set_fmt().
+ */
+u64 snd_soc_dai_get_fmt(struct snd_soc_dai *dai, int priority)
+{
+	const struct snd_soc_dai_ops *ops = dai->driver->ops;
+	u64 fmt = 0;
+	int i, max = 0, until = priority;
+
+	/*
+	 * Collect auto_selectable_formats until priority
+	 *
+	 * ex)
+	 *	auto_selectable_formats[] = { A, B, C };
+	 *	(A, B, C = SND_SOC_POSSIBLE_DAIFMT_xxx)
+	 *
+	 * priority = 1 :	A
+	 * priority = 2 :	A | B
+	 * priority = 3 :	A | B | C
+	 * priority = 4 :	A | B | C
+	 * ...
+	 */
+	if (ops)
+		max = ops->num_auto_selectable_formats;
+
+	if (max < until)
+		until = max;
+
+	for (i = 0; i < until; i++)
+		fmt |= ops->auto_selectable_formats[i];
+
+	return fmt;
+}
+
 /**
  * snd_soc_dai_set_fmt - configure DAI hardware audio format.
  * @dai: DAI
@@ -327,14 +390,15 @@ int snd_soc_dai_hw_params(struct snd_soc_dai *dai,
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	int ret = 0;
 
-	/* perform any topology hw_params fixups before DAI  */
-	ret = snd_soc_link_be_hw_params_fixup(rtd, params);
-	if (ret < 0)
-		goto end;
-
 	if (dai->driver->ops &&
-	    dai->driver->ops->hw_params)
+	    dai->driver->ops->hw_params) {
+		/* perform any topology hw_params fixups before DAI  */
+		ret = snd_soc_link_be_hw_params_fixup(rtd, params);
+		if (ret < 0)
+			goto end;
+
 		ret = dai->driver->ops->hw_params(substream, params, dai);
+	}
 
 	/* mark substream if succeeded */
 	if (ret == 0)

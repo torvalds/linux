@@ -19,6 +19,7 @@
 #include "util.h"
 #include "iostat.h"
 #include "pmu-hybrid.h"
+#include "evlist-hybrid.h"
 
 #define CNTR_NOT_SUPPORTED	"<not supported>"
 #define CNTR_NOT_COUNTED	"<not counted>"
@@ -465,9 +466,11 @@ static void printout(struct perf_stat_config *config, struct aggr_cpu_id id, int
 			config->csv_sep);
 
 		if (counter->supported) {
-			config->print_free_counters_hint = 1;
-			if (is_mixed_hw_group(counter))
-				config->print_mixed_hw_group_error = 1;
+			if (!evlist__has_hybrid(counter->evlist)) {
+				config->print_free_counters_hint = 1;
+				if (is_mixed_hw_group(counter))
+					config->print_mixed_hw_group_error = 1;
+			}
 		}
 
 		fprintf(config->output, "%-*s%s",
@@ -541,7 +544,7 @@ static void uniquify_event_name(struct evsel *counter)
 	char *config;
 	int ret = 0;
 
-	if (counter->uniquified_name ||
+	if (counter->uniquified_name || counter->use_config_name ||
 	    !counter->pmu_name || !strncmp(counter->name, counter->pmu_name,
 					   strlen(counter->pmu_name)))
 		return;
@@ -555,10 +558,8 @@ static void uniquify_event_name(struct evsel *counter)
 		}
 	} else {
 		if (perf_pmu__has_hybrid()) {
-			if (!counter->use_config_name) {
-				ret = asprintf(&new_name, "%s/%s/",
-					       counter->pmu_name, counter->name);
-			}
+			ret = asprintf(&new_name, "%s/%s/",
+				       counter->pmu_name, counter->name);
 		} else {
 			ret = asprintf(&new_name, "%s [%s]",
 				       counter->name, counter->pmu_name);
@@ -595,6 +596,18 @@ static void collect_all_aliases(struct perf_stat_config *config, struct evsel *c
 	}
 }
 
+static bool is_uncore(struct evsel *evsel)
+{
+	struct perf_pmu *pmu = evsel__find_pmu(evsel);
+
+	return pmu && pmu->is_uncore;
+}
+
+static bool hybrid_uniquify(struct evsel *evsel)
+{
+	return perf_pmu__has_hybrid() && !is_uncore(evsel);
+}
+
 static bool collect_data(struct perf_stat_config *config, struct evsel *counter,
 			    void (*cb)(struct perf_stat_config *config, struct evsel *counter, void *data,
 				       bool first),
@@ -603,7 +616,7 @@ static bool collect_data(struct perf_stat_config *config, struct evsel *counter,
 	if (counter->merged_stat)
 		return false;
 	cb(config, counter, data, true);
-	if (config->no_merge)
+	if (config->no_merge || hybrid_uniquify(counter))
 		uniquify_event_name(counter);
 	else if (counter->auto_merge_stats)
 		collect_all_aliases(config, counter, cb, data);
@@ -827,11 +840,11 @@ static void counter_aggr_cb(struct perf_stat_config *config __maybe_unused,
 			    bool first __maybe_unused)
 {
 	struct caggr_data *cd = data;
-	struct perf_stat_evsel *ps = counter->stats;
+	struct perf_counts_values *aggr = &counter->counts->aggr;
 
-	cd->avg += avg_stats(&ps->res_stats[0]);
-	cd->avg_enabled += avg_stats(&ps->res_stats[1]);
-	cd->avg_running += avg_stats(&ps->res_stats[2]);
+	cd->avg += aggr->val;
+	cd->avg_enabled += aggr->ena;
+	cd->avg_running += aggr->run;
 }
 
 /*

@@ -44,7 +44,6 @@ properties:
   clock-names:
     description: N = 0 is allowed for SoCs without internal baud clock mux.
     minItems: 2
-    maxItems: 5
     items:
       - const: uart
       - pattern: '^clk_uart_baud[0-3]$'
@@ -82,7 +81,7 @@ required:
 unevaluatedProperties: false
 
 allOf:
-  - $ref: /schemas/serial.yaml#
+  - $ref: serial.yaml#
 
   - if:
       properties:

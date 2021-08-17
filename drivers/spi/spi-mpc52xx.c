@@ -415,7 +415,7 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 	}
 
 	dev_dbg(&op->dev, "allocating spi_master struct\n");
-	master = spi_alloc_master(&op->dev, sizeof *ms);
+	master = spi_alloc_master(&op->dev, sizeof(*ms));
 	if (!master) {
 		rc = -ENOMEM;
 		goto err_alloc;

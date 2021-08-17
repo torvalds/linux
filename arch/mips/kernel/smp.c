@@ -348,7 +348,6 @@ asmlinkage void start_secondary(void)
 	 */
 
 	calibrate_delay();
-	preempt_disable();
 	cpu = smp_processor_id();
 	cpu_data[cpu].udelay_val = loops_per_jiffy;
 

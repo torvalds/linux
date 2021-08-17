@@ -76,6 +76,9 @@
 #define QM_Q_DEPTH			1024
 #define QM_MIN_QNUM                     2
 #define HISI_ACC_SGL_SGE_NR_MAX		255
+#define QM_SHAPER_CFG			0x100164
+#define QM_SHAPER_ENABLE		BIT(30)
+#define QM_SHAPER_TYPE1_OFFSET		10
 
 /* page number for queue file region */
 #define QM_DOORBELL_PAGE_NR		1
@@ -148,6 +151,14 @@ struct qm_debug {
 	struct debugfs_file files[DEBUG_FILE_NUM];
 };
 
+struct qm_shaper_factor {
+	u32 func_qos;
+	u64 cir_b;
+	u64 cir_u;
+	u64 cir_s;
+	u64 cbs_s;
+};
+
 struct qm_dma {
 	void *va;
 	dma_addr_t dma;
@@ -188,6 +199,8 @@ struct hisi_qm_err_ini {
 	void (*clear_dev_hw_err_status)(struct hisi_qm *qm, u32 err_sts);
 	void (*open_axi_master_ooo)(struct hisi_qm *qm);
 	void (*close_axi_master_ooo)(struct hisi_qm *qm);
+	void (*open_sva_prefetch)(struct hisi_qm *qm);
+	void (*close_sva_prefetch)(struct hisi_qm *qm);
 	void (*log_dev_hw_err)(struct hisi_qm *qm, u32 err_sts);
 	void (*err_info_init)(struct hisi_qm *qm);
 };
@@ -248,6 +261,7 @@ struct hisi_qm {
 	struct workqueue_struct *wq;
 	struct work_struct work;
 	struct work_struct rst_work;
+	struct work_struct cmd_process;
 
 	const char *algs;
 	bool use_sva;
@@ -259,6 +273,9 @@ struct hisi_qm {
 	resource_size_t db_phys_base;
 	struct uacce_device *uacce;
 	int mode;
+	struct qm_shaper_factor *factor;
+	u32 mb_qos;
+	u32 type_rate;
 };
 
 struct hisi_qp_status {

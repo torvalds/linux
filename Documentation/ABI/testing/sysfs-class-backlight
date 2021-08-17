@@ -84,3 +84,103 @@ Description:
 		It can be enabled by writing the value stored in
 		/sys/class/backlight/<backlight>/max_brightness to
 		/sys/class/backlight/<backlight>/brightness.
+
+What:		/sys/class/backlight/<backlight>/<ambient light zone>_max
+Date:		Sep, 2009
+KernelVersion:	v2.6.32
+Contact:	device-drivers-devel@blackfin.uclinux.org
+Description:
+		Control the maximum brightness for <ambient light zone>
+		on this <backlight>. Values are between 0 and 127. This file
+		will also show the brightness level stored for this
+		<ambient light zone>.
+
+		The <ambient light zone> is device-driver specific:
+
+		For ADP5520 and ADP5501, <ambient light zone> can be:
+
+		===========  ================================================
+		Ambient      sysfs entry
+		light zone
+		===========  ================================================
+		daylight     /sys/class/backlight/<backlight>/daylight_max
+		office       /sys/class/backlight/<backlight>/office_max
+		dark         /sys/class/backlight/<backlight>/dark_max
+		===========  ================================================
+
+		For ADP8860, <ambient light zone> can be:
+
+		===========  ================================================
+		Ambient      sysfs entry
+		light zone
+		===========  ================================================
+		l1_daylight  /sys/class/backlight/<backlight>/l1_daylight_max
+		l2_office    /sys/class/backlight/<backlight>/l2_office_max
+		l3_dark      /sys/class/backlight/<backlight>/l3_dark_max
+		===========  ================================================
+
+		For ADP8870, <ambient light zone> can be:
+
+		===========  ================================================
+		Ambient      sysfs entry
+		light zone
+		===========  ================================================
+		l1_daylight  /sys/class/backlight/<backlight>/l1_daylight_max
+		l2_bright    /sys/class/backlight/<backlight>/l2_bright_max
+		l3_office    /sys/class/backlight/<backlight>/l3_office_max
+		l4_indoor    /sys/class/backlight/<backlight>/l4_indoor_max
+		l5_dark      /sys/class/backlight/<backlight>/l5_dark_max
+		===========  ================================================
+
+		See also: /sys/class/backlight/<backlight>/ambient_light_zone.
+
+What:		/sys/class/backlight/<backlight>/<ambient light zone>_dim
+Date:		Sep, 2009
+KernelVersion:	v2.6.32
+Contact:	device-drivers-devel@blackfin.uclinux.org
+Description:
+		Control the dim brightness for <ambient light zone>
+		on this <backlight>. Values are between 0 and 127, typically
+		set to 0. Full off when the backlight is disabled.
+		This file will also show the dim brightness level stored for
+		this <ambient light zone>.
+
+		The <ambient light zone> is device-driver specific:
+
+		For ADP5520 and ADP5501, <ambient light zone> can be:
+
+		===========  ================================================
+		Ambient      sysfs entry
+		light zone
+		===========  ================================================
+		daylight     /sys/class/backlight/<backlight>/daylight_dim
+		office       /sys/class/backlight/<backlight>/office_dim
+		dark         /sys/class/backlight/<backlight>/dark_dim
+		===========  ================================================
+
+		For ADP8860, <ambient light zone> can be:
+
+		===========  ================================================
+		Ambient      sysfs entry
+		light zone
+		===========  ================================================
+		l1_daylight  /sys/class/backlight/<backlight>/l1_daylight_dim
+		l2_office    /sys/class/backlight/<backlight>/l2_office_dim
+		l3_dark      /sys/class/backlight/<backlight>/l3_dark_dim
+		===========  ================================================
+
+		For ADP8870, <ambient light zone> can be:
+
+		===========  ================================================
+		Ambient      sysfs entry
+		light zone
+		===========  ================================================
+		l1_daylight  /sys/class/backlight/<backlight>/l1_daylight_dim
+		l2_bright    /sys/class/backlight/<backlight>/l2_bright_dim
+		l3_office    /sys/class/backlight/<backlight>/l3_office_dim
+		l4_indoor    /sys/class/backlight/<backlight>/l4_indoor_dim
+		l5_dark      /sys/class/backlight/<backlight>/l5_dark_dim
+		===========  ================================================
+
+		See also: /sys/class/backlight/<backlight>/ambient_light_zone.
+

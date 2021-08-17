@@ -13,7 +13,6 @@
 #include <asm/setup.h>
 #include <asm/uv.h>
 
-unsigned long kasan_vmax;
 static unsigned long segment_pos __initdata;
 static unsigned long segment_low __initdata;
 static unsigned long pgalloc_pos __initdata;
@@ -251,28 +250,9 @@ static void __init kasan_early_detect_facilities(void)
 	}
 }
 
-static bool __init has_uv_sec_stor_limit(void)
-{
-	/*
-	 * keep these conditions in line with setup_uv()
-	 */
-	if (!is_prot_virt_host())
-		return false;
-
-	if (is_prot_virt_guest())
-		return false;
-
-	if (!test_facility(158))
-		return false;
-
-	return !!uv_info.max_sec_stor_addr;
-}
-
 void __init kasan_early_init(void)
 {
-	unsigned long untracked_mem_end;
 	unsigned long shadow_alloc_size;
-	unsigned long vmax_unlimited;
 	unsigned long initrd_end;
 	unsigned long memsize;
 	unsigned long pgt_prot = pgprot_val(PAGE_KERNEL_RO);
@@ -306,9 +286,6 @@ void __init kasan_early_init(void)
 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, P4D_SIZE));
 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, P4D_SIZE));
 	crst_table_init((unsigned long *)early_pg_dir, _REGION2_ENTRY_EMPTY);
-	untracked_mem_end = kasan_vmax = vmax_unlimited = _REGION1_SIZE;
-	if (has_uv_sec_stor_limit())
-		kasan_vmax = min(vmax_unlimited, uv_info.max_sec_stor_addr);
 
 	/* init kasan zero shadow */
 	crst_table_init((unsigned long *)kasan_early_shadow_p4d,
@@ -375,18 +352,18 @@ void __init kasan_early_init(void)
 	 */
 	/* populate kasan shadow (for identity mapping and zero page mapping) */
 	kasan_early_pgtable_populate(__sha(0), __sha(memsize), POPULATE_MAP);
-	if (IS_ENABLED(CONFIG_MODULES))
-		untracked_mem_end = kasan_vmax - MODULES_LEN;
 	if (IS_ENABLED(CONFIG_KASAN_VMALLOC)) {
-		untracked_mem_end = kasan_vmax - vmalloc_size - MODULES_LEN;
 		/* shallowly populate kasan shadow for vmalloc and modules */
-		kasan_early_pgtable_populate(__sha(untracked_mem_end), __sha(kasan_vmax),
+		kasan_early_pgtable_populate(__sha(VMALLOC_START), __sha(MODULES_END),
 					     POPULATE_SHALLOW);
 	}
 	/* populate kasan shadow for untracked memory */
-	kasan_early_pgtable_populate(__sha(ident_map_size), __sha(untracked_mem_end),
+	kasan_early_pgtable_populate(__sha(ident_map_size),
+				     IS_ENABLED(CONFIG_KASAN_VMALLOC) ?
+						   __sha(VMALLOC_START) :
+						   __sha(MODULES_VADDR),
 				     POPULATE_ZERO_SHADOW);
-	kasan_early_pgtable_populate(__sha(kasan_vmax), __sha(vmax_unlimited),
+	kasan_early_pgtable_populate(__sha(MODULES_END), __sha(_REGION1_SIZE),
 				     POPULATE_ZERO_SHADOW);
 	/* memory allocated for identity mapping structs will be freed later */
 	pgalloc_freeable = pgalloc_pos;

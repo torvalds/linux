@@ -74,8 +74,8 @@ void lkdtm_STACKLEAK_ERASING(void)
 
 end:
 	if (test_failed) {
-		pr_err("FAIL: the thread stack is NOT properly erased\n");
-		dump_stack();
+		pr_err("FAIL: the thread stack is NOT properly erased!\n");
+		pr_expected_config(CONFIG_GCC_PLUGIN_STACKLEAK);
 	} else {
 		pr_info("OK: the rest of the thread stack is properly erased\n");
 	}

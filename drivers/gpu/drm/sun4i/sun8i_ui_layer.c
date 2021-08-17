@@ -370,6 +370,11 @@ static const u32 sun8i_ui_layer_formats[] = {
 	DRM_FORMAT_XRGB8888,
 };
 
+static const uint64_t sun8i_layer_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
 struct sun8i_ui_layer *sun8i_ui_layer_init_one(struct drm_device *drm,
 					       struct sun8i_mixer *mixer,
 					       int index)
@@ -392,7 +397,7 @@ struct sun8i_ui_layer *sun8i_ui_layer_init_one(struct drm_device *drm,
 				       &sun8i_ui_layer_funcs,
 				       sun8i_ui_layer_formats,
 				       ARRAY_SIZE(sun8i_ui_layer_formats),
-				       NULL, type, NULL);
+				       sun8i_layer_modifiers, type, NULL);
 	if (ret) {
 		dev_err(drm->dev, "Couldn't initialize layer\n");
 		return ERR_PTR(ret);

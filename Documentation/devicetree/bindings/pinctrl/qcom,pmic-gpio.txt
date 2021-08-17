@@ -31,6 +31,7 @@ PMIC's from Qualcomm.
 		    "qcom,pm8350b-gpio"
 		    "qcom,pm8350c-gpio"
 		    "qcom,pmk8350-gpio"
+		    "qcom,pm7325-gpio"
 		    "qcom,pmr735a-gpio"
 		    "qcom,pmr735b-gpio"
 		    "qcom,pm6150-gpio"
@@ -120,6 +121,7 @@ to specify in a pin configuration subnode:
 		    gpio1-gpio8 for pm8350b
 		    gpio1-gpio9 for pm8350c
 		    gpio1-gpio4 for pmk8350
+		    gpio1-gpio10 for pm7325
 		    gpio1-gpio4 for pmr735a
 		    gpio1-gpio4 for pmr735b
 		    gpio1-gpio10 for pm6150

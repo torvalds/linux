@@ -52,8 +52,13 @@ class Kconfig(object):
 				return False
 		return True
 
+	def merge_in_entries(self, other: 'Kconfig') -> None:
+		if other.is_subset_of(self):
+			return
+		self._entries = list(self.entries().union(other.entries()))
+
 	def write_to_file(self, path: str) -> None:
-		with open(path, 'w') as f:
+		with open(path, 'a+') as f:
 			for entry in self.entries():
 				f.write(str(entry) + '\n')
 

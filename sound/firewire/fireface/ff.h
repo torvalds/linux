@@ -69,9 +69,6 @@ struct snd_ff {
 	struct mutex mutex;
 	spinlock_t lock;
 
-	bool registered;
-	struct delayed_work dwork;
-
 	enum snd_ff_unit_version unit_version;
 	const struct snd_ff_spec *spec;
 

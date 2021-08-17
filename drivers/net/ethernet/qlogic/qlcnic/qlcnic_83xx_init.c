@@ -746,7 +746,7 @@ static int qlcnic_83xx_idc_unknown_state(struct qlcnic_adapter *adapter)
 }
 
 /**
- * qlcnic_83xx_idc_cold_state
+ * qlcnic_83xx_idc_cold_state_handler
  *
  * @adapter: adapter structure
  *

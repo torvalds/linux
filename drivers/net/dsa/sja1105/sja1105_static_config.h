@@ -9,19 +9,30 @@
 #include <linux/types.h>
 #include <asm/types.h>
 
+#define SJA1105_NUM_PORTS				5
+#define SJA1110_NUM_PORTS				11
+#define SJA1105_MAX_NUM_PORTS				SJA1110_NUM_PORTS
+#define SJA1105_NUM_TC					8
+
+#define SJA1105_SIZE_SPI_MSG_HEADER			4
+#define SJA1105_SIZE_SPI_MSG_MAXLEN			(64 * 4)
 #define SJA1105_SIZE_DEVICE_ID				4
 #define SJA1105_SIZE_TABLE_HEADER			12
 #define SJA1105_SIZE_SCHEDULE_ENTRY			8
+#define SJA1110_SIZE_SCHEDULE_ENTRY			12
 #define SJA1105_SIZE_SCHEDULE_ENTRY_POINTS_ENTRY	4
+#define SJA1110_SIZE_SCHEDULE_ENTRY_POINTS_ENTRY	8
 #define SJA1105_SIZE_VL_LOOKUP_ENTRY			12
 #define SJA1105_SIZE_VL_POLICING_ENTRY			8
 #define SJA1105_SIZE_VL_FORWARDING_ENTRY		4
 #define SJA1105_SIZE_L2_POLICING_ENTRY			8
 #define SJA1105_SIZE_VLAN_LOOKUP_ENTRY			8
+#define SJA1110_SIZE_VLAN_LOOKUP_ENTRY			12
 #define SJA1105_SIZE_L2_FORWARDING_ENTRY		8
 #define SJA1105_SIZE_L2_FORWARDING_PARAMS_ENTRY		12
 #define SJA1105_SIZE_RETAGGING_ENTRY			8
 #define SJA1105_SIZE_XMII_PARAMS_ENTRY			4
+#define SJA1110_SIZE_XMII_PARAMS_ENTRY			8
 #define SJA1105_SIZE_SCHEDULE_PARAMS_ENTRY		12
 #define SJA1105_SIZE_SCHEDULE_ENTRY_POINTS_PARAMS_ENTRY	4
 #define SJA1105_SIZE_VL_FORWARDING_PARAMS_ENTRY         12
@@ -32,11 +43,15 @@
 #define SJA1105ET_SIZE_AVB_PARAMS_ENTRY			12
 #define SJA1105ET_SIZE_CBS_ENTRY			16
 #define SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY		20
+#define SJA1110_SIZE_L2_LOOKUP_ENTRY			24
 #define SJA1105PQRS_SIZE_MAC_CONFIG_ENTRY		32
 #define SJA1105PQRS_SIZE_L2_LOOKUP_PARAMS_ENTRY		16
+#define SJA1110_SIZE_L2_LOOKUP_PARAMS_ENTRY		28
 #define SJA1105PQRS_SIZE_GENERAL_PARAMS_ENTRY		44
+#define SJA1110_SIZE_GENERAL_PARAMS_ENTRY		56
 #define SJA1105PQRS_SIZE_AVB_PARAMS_ENTRY		16
 #define SJA1105PQRS_SIZE_CBS_ENTRY			20
+#define SJA1110_SIZE_PCP_REMAPPING_ENTRY		4
 
 /* UM10944.pdf Page 11, Table 2. Configuration Blocks */
 enum {
@@ -59,6 +74,7 @@ enum {
 	BLKID_GENERAL_PARAMS				= 0x11,
 	BLKID_RETAGGING					= 0x12,
 	BLKID_CBS					= 0x13,
+	BLKID_PCP_REMAPPING				= 0x1C,
 	BLKID_XMII_PARAMS				= 0x4E,
 };
 
@@ -83,6 +99,7 @@ enum sja1105_blk_idx {
 	BLK_IDX_RETAGGING,
 	BLK_IDX_CBS,
 	BLK_IDX_XMII_PARAMS,
+	BLK_IDX_PCP_REMAPPING,
 	BLK_IDX_MAX,
 	/* Fake block indices that are only valid for dynamic access */
 	BLK_IDX_MGMT_ROUTE,
@@ -91,15 +108,22 @@ enum sja1105_blk_idx {
 };
 
 #define SJA1105_MAX_SCHEDULE_COUNT			1024
+#define SJA1110_MAX_SCHEDULE_COUNT			4096
 #define SJA1105_MAX_SCHEDULE_ENTRY_POINTS_COUNT		2048
 #define SJA1105_MAX_VL_LOOKUP_COUNT			1024
+#define SJA1110_MAX_VL_LOOKUP_COUNT			4096
 #define SJA1105_MAX_VL_POLICING_COUNT			1024
+#define SJA1110_MAX_VL_POLICING_COUNT			4096
 #define SJA1105_MAX_VL_FORWARDING_COUNT			1024
+#define SJA1110_MAX_VL_FORWARDING_COUNT			4096
 #define SJA1105_MAX_L2_LOOKUP_COUNT			1024
 #define SJA1105_MAX_L2_POLICING_COUNT			45
+#define SJA1110_MAX_L2_POLICING_COUNT			110
 #define SJA1105_MAX_VLAN_LOOKUP_COUNT			4096
 #define SJA1105_MAX_L2_FORWARDING_COUNT			13
+#define SJA1110_MAX_L2_FORWARDING_COUNT			19
 #define SJA1105_MAX_MAC_CONFIG_COUNT			5
+#define SJA1110_MAX_MAC_CONFIG_COUNT			11
 #define SJA1105_MAX_SCHEDULE_PARAMS_COUNT		1
 #define SJA1105_MAX_SCHEDULE_ENTRY_POINTS_PARAMS_COUNT	1
 #define SJA1105_MAX_VL_FORWARDING_PARAMS_COUNT		1
@@ -111,21 +135,40 @@ enum sja1105_blk_idx {
 #define SJA1105_MAX_AVB_PARAMS_COUNT			1
 #define SJA1105ET_MAX_CBS_COUNT				10
 #define SJA1105PQRS_MAX_CBS_COUNT			16
+#define SJA1110_MAX_CBS_COUNT				80
+#define SJA1110_MAX_PCP_REMAPPING_COUNT			11
 
 #define SJA1105_MAX_FRAME_MEMORY			929
-#define SJA1105_MAX_FRAME_MEMORY_RETAGGING		910
+#define SJA1110_MAX_FRAME_MEMORY			1820
+#define SJA1105_FRAME_MEMORY_RETAGGING_OVERHEAD		19
 #define SJA1105_VL_FRAME_MEMORY				100
 
 #define SJA1105E_DEVICE_ID				0x9C00000Cull
 #define SJA1105T_DEVICE_ID				0x9E00030Eull
 #define SJA1105PR_DEVICE_ID				0xAF00030Eull
 #define SJA1105QS_DEVICE_ID				0xAE00030Eull
+#define SJA1110_DEVICE_ID				0xB700030Full
 
 #define SJA1105ET_PART_NO				0x9A83
 #define SJA1105P_PART_NO				0x9A84
 #define SJA1105Q_PART_NO				0x9A85
 #define SJA1105R_PART_NO				0x9A86
 #define SJA1105S_PART_NO				0x9A87
+#define SJA1110A_PART_NO				0x1110
+#define SJA1110B_PART_NO				0x1111
+#define SJA1110C_PART_NO				0x1112
+#define SJA1110D_PART_NO				0x1113
+
+#define SJA1110_ACU			0x1c4400
+#define SJA1110_RGU			0x1c6000
+#define SJA1110_CGU			0x1c6400
+
+#define SJA1110_SPI_ADDR(x)		((x) / 4)
+#define SJA1110_ACU_ADDR(x)		(SJA1110_ACU + SJA1110_SPI_ADDR(x))
+#define SJA1110_CGU_ADDR(x)		(SJA1110_CGU + SJA1110_SPI_ADDR(x))
+#define SJA1110_RGU_ADDR(x)		(SJA1110_RGU + SJA1110_SPI_ADDR(x))
+
+#define SJA1105_RSV_ADDR		0xffffffffffffffffull
 
 struct sja1105_schedule_entry {
 	u64 winstindex;
@@ -171,6 +214,10 @@ struct sja1105_general_params_entry {
 	u64 egrmirrpcp;
 	u64 egrmirrdei;
 	u64 replay_port;
+	/* SJA1110 only */
+	u64 tte_en;
+	u64 tdmaconfigidx;
+	u64 header_type;
 };
 
 struct sja1105_schedule_entry_points_entry {
@@ -191,6 +238,7 @@ struct sja1105_vlan_lookup_entry {
 	u64 vlan_bc;
 	u64 tag_port;
 	u64 vlanid;
+	u64 type_entry; /* SJA1110 only */
 };
 
 struct sja1105_l2_lookup_entry {
@@ -203,11 +251,17 @@ struct sja1105_l2_lookup_entry {
 	u64 mask_iotag;
 	u64 mask_vlanid;
 	u64 mask_macaddr;
+	u64 mask_srcport;
 	u64 iotag;
+	u64 srcport;
 	u64 lockeds;
 	union {
 		/* LOCKEDS=1: Static FDB entries */
 		struct {
+			/* TSREG is deprecated in SJA1110, TRAP is supported only
+			 * in SJA1110.
+			 */
+			u64 trap;
 			u64 tsreg;
 			u64 mirrvlan;
 			u64 takets;
@@ -223,7 +277,7 @@ struct sja1105_l2_lookup_entry {
 };
 
 struct sja1105_l2_lookup_params_entry {
-	u64 maxaddrp[5];     /* P/Q/R/S only */
+	u64 maxaddrp[SJA1105_MAX_NUM_PORTS]; /* P/Q/R/S only */
 	u64 start_dynspc;    /* P/Q/R/S only */
 	u64 drpnolearn;      /* P/Q/R/S only */
 	u64 use_static;      /* P/Q/R/S only */
@@ -241,7 +295,9 @@ struct sja1105_l2_forwarding_entry {
 	u64 bc_domain;
 	u64 reach_port;
 	u64 fl_domain;
-	u64 vlan_pmap[8];
+	/* This is actually max(SJA1105_NUM_TC, SJA1105_MAX_NUM_PORTS) */
+	u64 vlan_pmap[SJA1105_MAX_NUM_PORTS];
+	bool type_egrpcp2outputq;
 };
 
 struct sja1105_l2_forwarding_params_entry {
@@ -296,8 +352,8 @@ struct sja1105_retagging_entry {
 };
 
 struct sja1105_cbs_entry {
-	u64 port;
-	u64 prio;
+	u64 port; /* Not used for SJA1110 */
+	u64 prio; /* Not used for SJA1110 */
 	u64 credit_hi;
 	u64 credit_lo;
 	u64 send_slope;
@@ -305,8 +361,19 @@ struct sja1105_cbs_entry {
 };
 
 struct sja1105_xmii_params_entry {
-	u64 phy_mac[5];
-	u64 xmii_mode[5];
+	u64 phy_mac[SJA1105_MAX_NUM_PORTS];
+	u64 xmii_mode[SJA1105_MAX_NUM_PORTS];
+	/* The SJA1110 insists being a snowflake, and requires SGMII,
+	 * 2500base-x and internal MII ports connected to the 100base-TX PHY to
+	 * set this bit. We set it unconditionally from the high-level logic,
+	 * and only sja1110_xmii_params_entry_packing writes it to the static
+	 * config. I have no better name for it than "special".
+	 */
+	u64 special[SJA1105_MAX_NUM_PORTS];
+};
+
+struct sja1110_pcp_remapping_entry {
+	u64 egrpcp[SJA1105_NUM_TC];
 };
 
 enum {
@@ -387,6 +454,7 @@ extern const struct sja1105_table_ops sja1105p_table_ops[BLK_IDX_MAX];
 extern const struct sja1105_table_ops sja1105q_table_ops[BLK_IDX_MAX];
 extern const struct sja1105_table_ops sja1105r_table_ops[BLK_IDX_MAX];
 extern const struct sja1105_table_ops sja1105s_table_ops[BLK_IDX_MAX];
+extern const struct sja1105_table_ops sja1110_table_ops[BLK_IDX_MAX];
 
 size_t sja1105_table_header_packing(void *buf, void *hdr, enum packing_op op);
 void
@@ -412,7 +480,8 @@ typedef enum {
 extern const char *sja1105_static_config_error_msg[];
 
 sja1105_config_valid_t
-sja1105_static_config_check_valid(const struct sja1105_static_config *config);
+sja1105_static_config_check_valid(const struct sja1105_static_config *config,
+				  int max_mem);
 void
 sja1105_static_config_pack(void *buf, struct sja1105_static_config *config);
 int sja1105_static_config_init(struct sja1105_static_config *config,
@@ -433,23 +502,47 @@ void sja1105_packing(void *buf, u64 *val, int start, int end,
 /* Common implementations for the static and dynamic configs */
 size_t sja1105pqrs_general_params_entry_packing(void *buf, void *entry_ptr,
 						enum packing_op op);
+size_t sja1110_general_params_entry_packing(void *buf, void *entry_ptr,
+					    enum packing_op op);
 size_t sja1105pqrs_l2_lookup_params_entry_packing(void *buf, void *entry_ptr,
 						  enum packing_op op);
+size_t sja1110_l2_lookup_params_entry_packing(void *buf, void *entry_ptr,
+					      enum packing_op op);
 size_t sja1105_l2_forwarding_entry_packing(void *buf, void *entry_ptr,
+					   enum packing_op op);
+size_t sja1110_l2_forwarding_entry_packing(void *buf, void *entry_ptr,
 					   enum packing_op op);
 size_t sja1105pqrs_l2_lookup_entry_packing(void *buf, void *entry_ptr,
 					   enum packing_op op);
 size_t sja1105et_l2_lookup_entry_packing(void *buf, void *entry_ptr,
 					 enum packing_op op);
+size_t sja1110_l2_lookup_entry_packing(void *buf, void *entry_ptr,
+				       enum packing_op op);
 size_t sja1105_vlan_lookup_entry_packing(void *buf, void *entry_ptr,
+					 enum packing_op op);
+size_t sja1110_vlan_lookup_entry_packing(void *buf, void *entry_ptr,
 					 enum packing_op op);
 size_t sja1105_retagging_entry_packing(void *buf, void *entry_ptr,
 				       enum packing_op op);
+size_t sja1110_retagging_entry_packing(void *buf, void *entry_ptr,
+				       enum packing_op op);
 size_t sja1105pqrs_mac_config_entry_packing(void *buf, void *entry_ptr,
 					    enum packing_op op);
+size_t sja1110_mac_config_entry_packing(void *buf, void *entry_ptr,
+					enum packing_op op);
 size_t sja1105pqrs_avb_params_entry_packing(void *buf, void *entry_ptr,
 					    enum packing_op op);
 size_t sja1105_vl_lookup_entry_packing(void *buf, void *entry_ptr,
 				       enum packing_op op);
+size_t sja1110_vl_lookup_entry_packing(void *buf, void *entry_ptr,
+				       enum packing_op op);
+size_t sja1110_vl_policing_entry_packing(void *buf, void *entry_ptr,
+					 enum packing_op op);
+size_t sja1110_xmii_params_entry_packing(void *buf, void *entry_ptr,
+					 enum packing_op op);
+size_t sja1110_l2_policing_entry_packing(void *buf, void *entry_ptr,
+					 enum packing_op op);
+size_t sja1110_l2_forwarding_params_entry_packing(void *buf, void *entry_ptr,
+						  enum packing_op op);
 
 #endif

@@ -830,8 +830,8 @@ static void rkisp1_return_all_buffers(struct rkisp1_capture *cap,
 }
 
 /*
- * Most of registers inside rockchip ISP1 have shadow register since
- * they must be not be changed during processing a frame.
+ * Most registers inside the rockchip ISP1 have shadow register since
+ * they must not be changed while processing a frame.
  * Usually, each sub-module updates its shadow register after
  * processing the last pixel of a frame.
  */
@@ -847,14 +847,14 @@ static void rkisp1_cap_stream_enable(struct rkisp1_capture *cap)
 	spin_lock_irq(&cap->buf.lock);
 	rkisp1_set_next_buf(cap);
 	cap->ops->enable(cap);
-	/* It's safe to config ACTIVE and SHADOW regs for the
+	/* It's safe to configure ACTIVE and SHADOW registers for the
 	 * first stream. While when the second is starting, do NOT
-	 * force update because it also update the first one.
+	 * force update because it also updates the first one.
 	 *
-	 * The latter case would drop one more buf(that is 2) since
-	 * there's not buf in shadow when the second FE received. This's
-	 * also required because the second FE maybe corrupt especially
-	 * when run at 120fps.
+	 * The latter case would drop one more buffer(that is 2) since
+	 * there's no buffer in a shadow register when the second FE received.
+	 * This's also required because the second FE maybe corrupt
+	 * especially when run at 120fps.
 	 */
 	if (!other->is_streaming) {
 		/* force cfg update */
@@ -1003,9 +1003,8 @@ rkisp1_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 	if (ret)
 		goto err_pipeline_stop;
 
-	ret = pm_runtime_get_sync(cap->rkisp1->dev);
+	ret = pm_runtime_resume_and_get(cap->rkisp1->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(cap->rkisp1->dev);
 		dev_err(cap->rkisp1->dev, "power up failed %d\n", ret);
 		goto err_destroy_dummy;
 	}

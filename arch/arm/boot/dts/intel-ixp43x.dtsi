@@ -8,6 +8,10 @@
 
 / {
 	soc {
+		pci@c0000000 {
+			compatible = "intel,ixp43x-pci";
+		};
+
 		interrupt-controller@c8003000 {
 			compatible = "intel,ixp43x-interrupt";
 		};

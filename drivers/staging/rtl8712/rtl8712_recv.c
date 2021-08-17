@@ -1039,8 +1039,9 @@ static void recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 		skb_reserve(pkt_copy, 4 - ((addr_t)(pkt_copy->data) % 4));
 		skb_reserve(pkt_copy, shift_sz);
 		memcpy(pkt_copy->data, pbuf, tmp_len);
-		precvframe->u.hdr.rx_head = precvframe->u.hdr.rx_data =
-			precvframe->u.hdr.rx_tail = pkt_copy->data;
+		precvframe->u.hdr.rx_head = pkt_copy->data;
+		precvframe->u.hdr.rx_data = pkt_copy->data;
+		precvframe->u.hdr.rx_tail = pkt_copy->data;
 		precvframe->u.hdr.rx_end = pkt_copy->data + alloc_sz;
 
 		recvframe_put(precvframe, tmp_len);

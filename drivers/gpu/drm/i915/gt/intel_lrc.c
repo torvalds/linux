@@ -47,7 +47,7 @@ static void set_offsets(u32 *regs,
 		*regs = MI_LOAD_REGISTER_IMM(count);
 		if (flags & POSTED)
 			*regs |= MI_LRI_FORCE_POSTED;
-		if (INTEL_GEN(engine->i915) >= 11)
+		if (GRAPHICS_VER(engine->i915) >= 11)
 			*regs |= MI_LRI_LRM_CS_MMIO;
 		regs++;
 
@@ -70,7 +70,7 @@ static void set_offsets(u32 *regs,
 	if (close) {
 		/* Close the batch; used mainly by live_lrc_layout() */
 		*regs = MI_BATCH_BUFFER_END;
-		if (INTEL_GEN(engine->i915) >= 10)
+		if (GRAPHICS_VER(engine->i915) >= 10)
 			*regs |= BIT(0);
 	}
 }
@@ -498,22 +498,22 @@ static const u8 *reg_offsets(const struct intel_engine_cs *engine)
 	 * addressing to automatic fixup the register state between the
 	 * physical engines for virtual engine.
 	 */
-	GEM_BUG_ON(INTEL_GEN(engine->i915) >= 12 &&
+	GEM_BUG_ON(GRAPHICS_VER(engine->i915) >= 12 &&
 		   !intel_engine_has_relative_mmio(engine));
 
 	if (engine->class == RENDER_CLASS) {
-		if (INTEL_GEN(engine->i915) >= 12)
+		if (GRAPHICS_VER(engine->i915) >= 12)
 			return gen12_rcs_offsets;
-		else if (INTEL_GEN(engine->i915) >= 11)
+		else if (GRAPHICS_VER(engine->i915) >= 11)
 			return gen11_rcs_offsets;
-		else if (INTEL_GEN(engine->i915) >= 9)
+		else if (GRAPHICS_VER(engine->i915) >= 9)
 			return gen9_rcs_offsets;
 		else
 			return gen8_rcs_offsets;
 	} else {
-		if (INTEL_GEN(engine->i915) >= 12)
+		if (GRAPHICS_VER(engine->i915) >= 12)
 			return gen12_xcs_offsets;
-		else if (INTEL_GEN(engine->i915) >= 9)
+		else if (GRAPHICS_VER(engine->i915) >= 9)
 			return gen9_xcs_offsets;
 		else
 			return gen8_xcs_offsets;
@@ -522,9 +522,9 @@ static const u8 *reg_offsets(const struct intel_engine_cs *engine)
 
 static int lrc_ring_mi_mode(const struct intel_engine_cs *engine)
 {
-	if (INTEL_GEN(engine->i915) >= 12)
+	if (GRAPHICS_VER(engine->i915) >= 12)
 		return 0x60;
-	else if (INTEL_GEN(engine->i915) >= 9)
+	else if (GRAPHICS_VER(engine->i915) >= 9)
 		return 0x54;
 	else if (engine->class == RENDER_CLASS)
 		return 0x58;
@@ -534,9 +534,9 @@ static int lrc_ring_mi_mode(const struct intel_engine_cs *engine)
 
 static int lrc_ring_gpr0(const struct intel_engine_cs *engine)
 {
-	if (INTEL_GEN(engine->i915) >= 12)
+	if (GRAPHICS_VER(engine->i915) >= 12)
 		return 0x74;
-	else if (INTEL_GEN(engine->i915) >= 9)
+	else if (GRAPHICS_VER(engine->i915) >= 9)
 		return 0x68;
 	else if (engine->class == RENDER_CLASS)
 		return 0xd8;
@@ -546,9 +546,9 @@ static int lrc_ring_gpr0(const struct intel_engine_cs *engine)
 
 static int lrc_ring_wa_bb_per_ctx(const struct intel_engine_cs *engine)
 {
-	if (INTEL_GEN(engine->i915) >= 12)
+	if (GRAPHICS_VER(engine->i915) >= 12)
 		return 0x12;
-	else if (INTEL_GEN(engine->i915) >= 9 || engine->class == RENDER_CLASS)
+	else if (GRAPHICS_VER(engine->i915) >= 9 || engine->class == RENDER_CLASS)
 		return 0x18;
 	else
 		return -1;
@@ -581,9 +581,9 @@ static int lrc_ring_cmd_buf_cctl(const struct intel_engine_cs *engine)
 	if (engine->class != RENDER_CLASS)
 		return -1;
 
-	if (INTEL_GEN(engine->i915) >= 12)
+	if (GRAPHICS_VER(engine->i915) >= 12)
 		return 0xb6;
-	else if (INTEL_GEN(engine->i915) >= 11)
+	else if (GRAPHICS_VER(engine->i915) >= 11)
 		return 0xaa;
 	else
 		return -1;
@@ -592,9 +592,9 @@ static int lrc_ring_cmd_buf_cctl(const struct intel_engine_cs *engine)
 static u32
 lrc_ring_indirect_offset_default(const struct intel_engine_cs *engine)
 {
-	switch (INTEL_GEN(engine->i915)) {
+	switch (GRAPHICS_VER(engine->i915)) {
 	default:
-		MISSING_CASE(INTEL_GEN(engine->i915));
+		MISSING_CASE(GRAPHICS_VER(engine->i915));
 		fallthrough;
 	case 12:
 		return GEN12_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
@@ -637,7 +637,7 @@ static void init_common_regs(u32 * const regs,
 	ctl |= _MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
 	if (inhibit)
 		ctl |= CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT;
-	if (INTEL_GEN(engine->i915) < 11)
+	if (GRAPHICS_VER(engine->i915) < 11)
 		ctl |= _MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT |
 					   CTX_CTRL_RS_CTX_ENABLE);
 	regs[CTX_CONTEXT_CONTROL] = ctl;
@@ -805,7 +805,7 @@ __lrc_alloc_state(struct intel_context *ce, struct intel_engine_cs *engine)
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
 		context_size += I915_GTT_PAGE_SIZE; /* for redzone */
 
-	if (INTEL_GEN(engine->i915) == 12) {
+	if (GRAPHICS_VER(engine->i915) == 12) {
 		ce->wa_bb_page = context_size / PAGE_SIZE;
 		context_size += PAGE_SIZE;
 	}
@@ -903,7 +903,9 @@ lrc_pre_pin(struct intel_context *ce,
 	GEM_BUG_ON(!i915_vma_is_pinned(ce->state));
 
 	*vaddr = i915_gem_object_pin_map(ce->state->obj,
-					 i915_coherent_map_type(ce->engine->i915) |
+					 i915_coherent_map_type(ce->engine->i915,
+								ce->state->obj,
+								false) |
 					 I915_MAP_OVERRIDE);
 
 	return PTR_ERR_OR_ZERO(*vaddr);
@@ -1112,7 +1114,7 @@ static u32 lrc_descriptor(const struct intel_context *ce)
 	desc <<= GEN8_CTX_ADDRESSING_MODE_SHIFT;
 
 	desc |= GEN8_CTX_VALID | GEN8_CTX_PRIVILEGE;
-	if (IS_GEN(ce->vm->i915, 8))
+	if (GRAPHICS_VER(ce->vm->i915) == 8)
 		desc |= GEN8_CTX_L3LLC_COHERENT;
 
 	return i915_ggtt_offset(ce->state) | desc;
@@ -1467,7 +1469,7 @@ void lrc_init_wa_ctx(struct intel_engine_cs *engine)
 	if (engine->class != RENDER_CLASS)
 		return;
 
-	switch (INTEL_GEN(engine->i915)) {
+	switch (GRAPHICS_VER(engine->i915)) {
 	case 12:
 	case 11:
 		return;
@@ -1484,7 +1486,7 @@ void lrc_init_wa_ctx(struct intel_engine_cs *engine)
 		wa_bb_fn[1] = NULL;
 		break;
 	default:
-		MISSING_CASE(INTEL_GEN(engine->i915));
+		MISSING_CASE(GRAPHICS_VER(engine->i915));
 		return;
 	}
 

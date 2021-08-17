@@ -282,6 +282,7 @@
 		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&max77686_irq>;
+		wakeup-source;
 		reg = <0x09>;
 		#clock-cells = <1>;
 

@@ -2,7 +2,10 @@ EEPROMs (SPI) compatible with Microchip Technology 93xx46 family.
 
 Required properties:
 - compatible : shall be one of:
+    "atmel,at93c46"
     "atmel,at93c46d"
+    "atmel,at93c56"
+    "atmel,at93c66"
     "eeprom-93xx46"
     "microchip,93lc46b"
 - data-size : number of data bits per word (either 8 or 16)

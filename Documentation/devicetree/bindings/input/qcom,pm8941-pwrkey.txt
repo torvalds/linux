@@ -8,6 +8,8 @@ PROPERTIES
 	Definition: must be one of:
 		    "qcom,pm8941-pwrkey"
 		    "qcom,pm8941-resin"
+		    "qcom,pmk8350-pwrkey"
+		    "qcom,pmk8350-resin"
 
 - reg:
 	Usage: required

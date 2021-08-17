@@ -47,7 +47,7 @@ config MD_AUTODETECT
 	  If unsure, say Y.
 
 config MD_LINEAR
-	tristate "Linear (append) mode"
+	tristate "Linear (append) mode (deprecated)"
 	depends on BLK_DEV_MD
 	help
 	  If you say Y here, then your multiple devices driver will be able to
@@ -158,7 +158,7 @@ config MD_RAID456
 	  If unsure, say Y.
 
 config MD_MULTIPATH
-	tristate "Multipath I/O support"
+	tristate "Multipath I/O support (deprecated)"
 	depends on BLK_DEV_MD
 	help
 	  MD_MULTIPATH provides a simple multi-path personality for use
@@ -169,7 +169,7 @@ config MD_MULTIPATH
 	  If unsure, say N.
 
 config MD_FAULTY
-	tristate "Faulty test module for MD"
+	tristate "Faulty test module for MD (deprecated)"
 	depends on BLK_DEV_MD
 	help
 	  The "faulty" module allows for a block device that occasionally returns

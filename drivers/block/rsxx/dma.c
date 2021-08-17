@@ -74,9 +74,6 @@ struct dma_tracker {
 	struct rsxx_dma	*dma;
 };
 
-#define DMA_TRACKER_LIST_SIZE8 (sizeof(struct dma_tracker_list) + \
-		(sizeof(struct dma_tracker) * RSXX_MAX_OUTSTANDING_CMDS))
-
 struct dma_tracker_list {
 	spinlock_t		lock;
 	int			head;
@@ -808,7 +805,8 @@ static int rsxx_dma_ctrl_init(struct pci_dev *dev,
 
 	memset(&ctrl->stats, 0, sizeof(ctrl->stats));
 
-	ctrl->trackers = vmalloc(DMA_TRACKER_LIST_SIZE8);
+	ctrl->trackers = vmalloc(struct_size(ctrl->trackers, list,
+					     RSXX_MAX_OUTSTANDING_CMDS));
 	if (!ctrl->trackers)
 		return -ENOMEM;
 

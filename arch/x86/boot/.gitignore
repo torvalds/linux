@@ -11,3 +11,4 @@ setup.elf
 fdimage
 mtools.conf
 image.iso
+hdimage

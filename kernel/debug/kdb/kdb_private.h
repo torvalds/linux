@@ -64,7 +64,7 @@
 
 /*
  * KDB_MAXBPT describes the total number of breakpoints
- * supported by this architecure.
+ * supported by this architecture.
  */
 #define KDB_MAXBPT	16
 

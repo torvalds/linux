@@ -60,7 +60,7 @@ static int netdev_devres_match(struct device *dev, void *this, void *match_data)
  *	@ndev: device to register
  *
  *	This is a devres variant of register_netdev() for which the unregister
- *	function will be call automatically when the managing device is
+ *	function will be called automatically when the managing device is
  *	detached. Note: the net_device used must also be resource managed by
  *	the same struct device.
  */

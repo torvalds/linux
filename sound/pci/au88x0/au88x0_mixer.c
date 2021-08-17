@@ -30,7 +30,8 @@ static int snd_vortex_mixer(vortex_t *vortex)
 		.read = vortex_codec_read,
 	};
 
-	if ((err = snd_ac97_bus(vortex->card, 0, &ops, NULL, &pbus)) < 0)
+	err = snd_ac97_bus(vortex->card, 0, &ops, NULL, &pbus);
+	if (err < 0)
 		return err;
 	memset(&ac97, 0, sizeof(ac97));
 	// Initialize AC97 codec stuff.

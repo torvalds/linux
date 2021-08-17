@@ -29,6 +29,18 @@
 	___C(GET_LSA, "Get Label Storage Area"),                          \
 	___C(GET_HEALTH_INFO, "Get Health Info"),                         \
 	___C(GET_LOG, "Get Log"),                                         \
+	___C(SET_PARTITION_INFO, "Set Partition Information"),            \
+	___C(SET_LSA, "Set Label Storage Area"),                          \
+	___C(GET_ALERT_CONFIG, "Get Alert Configuration"),                \
+	___C(SET_ALERT_CONFIG, "Set Alert Configuration"),                \
+	___C(GET_SHUTDOWN_STATE, "Get Shutdown State"),                   \
+	___C(SET_SHUTDOWN_STATE, "Set Shutdown State"),                   \
+	___C(GET_POISON, "Get Poison List"),                              \
+	___C(INJECT_POISON, "Inject Poison"),                             \
+	___C(CLEAR_POISON, "Clear Poison"),                               \
+	___C(GET_SCAN_MEDIA_CAPS, "Get Scan Media Capabilities"),         \
+	___C(SCAN_MEDIA, "Scan Media"),                                   \
+	___C(GET_SCAN_MEDIA, "Get Scan Media Results"),                   \
 	___C(MAX, "invalid / last command")
 
 #define ___C(a, b) CXL_MEM_COMMAND_ID_##a

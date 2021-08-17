@@ -434,7 +434,7 @@ static int goya_config_etr(struct hl_device *hdev,
 		WREG32(mmPSOC_ETR_BUFWM, 0x3FFC);
 		WREG32(mmPSOC_ETR_RSZ, input->buffer_size);
 		WREG32(mmPSOC_ETR_MODE, input->sink_mode);
-		if (hdev->asic_prop.fw_security_disabled) {
+		if (!hdev->asic_prop.fw_security_enabled) {
 			/* make ETR not privileged */
 			val = FIELD_PREP(PSOC_ETR_AXICTL_PROTCTRLBIT0_MASK, 0);
 			/* make ETR non-secured (inverted logic) */

@@ -396,16 +396,13 @@ int amdtp_dot_init(struct amdtp_stream *s, struct fw_unit *unit,
 		 enum amdtp_stream_direction dir)
 {
 	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
-	enum cip_flags flags;
+	unsigned int flags = CIP_NONBLOCKING | CIP_UNAWARE_SYT;
 
 	// Use different mode between incoming/outgoing.
-	if (dir == AMDTP_IN_STREAM) {
-		flags = CIP_NONBLOCKING;
+	if (dir == AMDTP_IN_STREAM)
 		process_ctx_payloads = process_ir_ctx_payloads;
-	} else {
-		flags = CIP_BLOCKING;
+	else
 		process_ctx_payloads = process_it_ctx_payloads;
-	}
 
 	return amdtp_stream_init(s, unit, dir, flags, CIP_FMT_AM,
 				process_ctx_payloads, sizeof(struct amdtp_dot));

@@ -243,20 +243,29 @@ struct tty_port {
 #define TTY_PORT_KOPENED	5	/* device exclusively opened by
 					   kernel */
 
-/*
- * Where all of the state associated with a tty is kept while the tty
- * is open.  Since the termios state should be kept even if the tty
- * has been closed --- for things like the baud rate, etc --- it is
- * not stored here, but rather a pointer to the real state is stored
- * here.  Possible the winsize structure should have the same
- * treatment, but (1) the default 80x24 is usually right and (2) it's
- * most often used by a windowing system, which will set the correct
- * size each time the window is created or resized anyway.
- * 						- TYT, 9/14/92
- */
-
 struct tty_operations;
 
+/**
+ * struct tty_struct - state associated with a tty while open
+ *
+ * @flow.lock: lock for flow members
+ * @flow.stopped: tty stopped/started by tty_stop/tty_start
+ * @flow.tco_stopped: tty stopped/started by TCOOFF/TCOON ioctls (it has
+ *		      precedense over @flow.stopped)
+ * @flow.unused: alignment for Alpha, so that no members other than @flow.* are
+ *		 modified by the same 64b word store. The @flow's __aligned is
+ *		 there for the very same reason.
+ * @ctrl.lock: lock for ctrl members
+ * @ctrl.pgrp: process group of this tty (setpgrp(2))
+ * @ctrl.session: session of this tty (setsid(2)). Writes are protected by both
+ *		  @ctrl.lock and legacy mutex, readers must use at least one of
+ *		  them.
+ * @ctrl.pktstatus: packet mode status (bitwise OR of TIOCPKT_* constants)
+ * @ctrl.packet: packet mode enabled
+ *
+ * All of the state associated with a tty while the tty is open. Persistent
+ * storage for tty devices is referenced here as @port in struct tty_port.
+ */
 struct tty_struct {
 	int	magic;
 	struct kref kref;
@@ -274,27 +283,30 @@ struct tty_struct {
 	struct mutex throttle_mutex;
 	struct rw_semaphore termios_rwsem;
 	struct mutex winsize_mutex;
-	spinlock_t ctrl_lock;
-	spinlock_t flow_lock;
 	/* Termios values are protected by the termios rwsem */
 	struct ktermios termios, termios_locked;
 	char name[64];
-	struct pid *pgrp;		/* Protected by ctrl lock */
-	/*
-	 * Writes protected by both ctrl lock and legacy mutex, readers must use
-	 * at least one of them.
-	 */
-	struct pid *session;
 	unsigned long flags;
 	int count;
 	struct winsize winsize;		/* winsize_mutex */
-	unsigned long stopped:1,	/* flow_lock */
-		      flow_stopped:1,
-		      unused:BITS_PER_LONG - 2;
+
+	struct {
+		spinlock_t lock;
+		bool stopped;
+		bool tco_stopped;
+		unsigned long unused[0];
+	} __aligned(sizeof(unsigned long)) flow;
+
+	struct {
+		spinlock_t lock;
+		struct pid *pgrp;
+		struct pid *session;
+		unsigned char pktstatus;
+		bool packet;
+		unsigned long unused[0];
+	} __aligned(sizeof(unsigned long)) ctrl;
+
 	int hw_stopped;
-	unsigned long ctrl_status:8,	/* ctrl_lock */
-		      packet:1,
-		      unused_ctrl:BITS_PER_LONG - 9;
 	unsigned int receive_room;	/* Bytes free for queue */
 	int flow_change;
 
@@ -446,10 +458,9 @@ extern void tty_unregister_device(struct tty_driver *driver, unsigned index);
 extern void tty_write_message(struct tty_struct *tty, char *msg);
 extern int tty_send_xchar(struct tty_struct *tty, char ch);
 extern int tty_put_char(struct tty_struct *tty, unsigned char c);
-extern int tty_chars_in_buffer(struct tty_struct *tty);
-extern int tty_write_room(struct tty_struct *tty);
+extern unsigned int tty_chars_in_buffer(struct tty_struct *tty);
+extern unsigned int tty_write_room(struct tty_struct *tty);
 extern void tty_driver_flush_buffer(struct tty_struct *tty);
-extern void tty_throttle(struct tty_struct *tty);
 extern void tty_unthrottle(struct tty_struct *tty);
 extern int tty_throttle_safe(struct tty_struct *tty);
 extern int tty_unthrottle_safe(struct tty_struct *tty);
@@ -483,6 +494,9 @@ static inline speed_t tty_get_baud_rate(struct tty_struct *tty)
 {
 	return tty_termios_baud_rate(&tty->termios);
 }
+
+unsigned char tty_get_char_size(unsigned int cflag);
+unsigned char tty_get_frame_size(unsigned int cflag);
 
 extern void tty_termios_copy_hw(struct ktermios *new, struct ktermios *old);
 extern int tty_termios_hw_change(const struct ktermios *a, const struct ktermios *b);
@@ -624,11 +638,11 @@ static inline int tty_port_users(struct tty_port *port)
 	return port->count + port->blocked_open;
 }
 
-extern int tty_register_ldisc(int disc, struct tty_ldisc_ops *new_ldisc);
-extern int tty_unregister_ldisc(int disc);
+extern int tty_register_ldisc(struct tty_ldisc_ops *new_ldisc);
+extern void tty_unregister_ldisc(struct tty_ldisc_ops *ldisc);
 extern int tty_set_ldisc(struct tty_struct *tty, int disc);
 extern int tty_ldisc_receive_buf(struct tty_ldisc *ld, const unsigned char *p,
-				 char *f, int count);
+				 const char *f, int count);
 
 /* n_tty.c */
 extern void n_tty_inherit_ops(struct tty_ldisc_ops *ops);

@@ -60,6 +60,14 @@
 			clock-frequency = <32768>;
 			status = "disabled";
 		};
+
+		xtal_div2: xtal_div2 {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clocks = <&xtal>;
+			clock-div = <2>;
+			clock-mult = <1>;
+		};
 	};
 
 	soc: soc {
@@ -99,6 +107,12 @@
 				regmap = <&pmsleep>;
 				offset = <0xb8>;
 				mask = <0x79>;
+			};
+
+			watchdog@6000 {
+				compatible = "mstar,msc313e-wdt";
+				reg = <0x6000 0x1f>;
+				clocks = <&xtal_div2>;
 			};
 
 			intc_fiq: interrupt-controller@201310 {

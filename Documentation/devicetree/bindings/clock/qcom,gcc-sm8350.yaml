@@ -36,7 +36,6 @@ properties:
       - description: USB3 phy wrapper pipe clock source (Optional clock)
       - description: USB3 phy sec pipe clock source (Optional clock)
     minItems: 2
-    maxItems: 13
 
   clock-names:
     items:
@@ -54,7 +53,6 @@ properties:
       - const: usb3_phy_wrapper_gcc_usb30_pipe_clk # Optional clock
       - const: usb3_uni_phy_sec_gcc_usb30_pipe_clk # Optional clock
     minItems: 2
-    maxItems: 13
 
   '#clock-cells':
     const: 1

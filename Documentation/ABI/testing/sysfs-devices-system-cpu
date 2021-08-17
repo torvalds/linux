@@ -50,7 +50,7 @@ Description:	Dynamic addition and removal of CPU's.  This is not hotplug
 		architecture specific.
 
 		release: writes to this file dynamically remove a CPU from
-		the system.  Information writtento the file to remove CPU's
+		the system.  Information written to the file to remove CPU's
 		is architecture specific.
 
 What:		/sys/devices/system/cpu/cpu#/node
@@ -97,7 +97,7 @@ Description:	CPU topology files that describe a logical CPU's relationship
 		corresponds to a physical socket number, but the actual value
 		is architecture and platform dependent.
 
-		thread_siblings: internel kernel map of cpu#'s hardware
+		thread_siblings: internal kernel map of cpu#'s hardware
 		threads within the same core as cpu#
 
 		thread_siblings_list: human-readable list of cpu#'s hardware
@@ -280,7 +280,7 @@ Description:	Disable L3 cache indices
 		on a processor with this functionality will return the currently
 		disabled index for that node. There is one L3 structure per
 		node, or per internal node on MCM machines. Writing a valid
-		index to one of these files will cause the specificed cache
+		index to one of these files will cause the specified cache
 		index to be disabled.
 
 		All AMD processors with L3 caches provide this functionality.
@@ -295,7 +295,7 @@ Description:	Processor frequency boosting control
 
 		This switch controls the boost setting for the whole system.
 		Boosting allows the CPU and the firmware to run at a frequency
-		beyound it's nominal limit.
+		beyond it's nominal limit.
 
 		More details can be found in
 		Documentation/admin-guide/pm/cpufreq.rst
@@ -532,7 +532,7 @@ What:		/sys/devices/system/cpu/smt
 		/sys/devices/system/cpu/smt/control
 Date:		June 2018
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
-Description:	Control Symetric Multi Threading (SMT)
+Description:	Control Symmetric Multi Threading (SMT)
 
 		active:  Tells whether SMT is active (enabled and siblings online)
 

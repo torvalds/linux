@@ -924,10 +924,8 @@ static int pvt_request_regs(struct pvt_hwmon *pvt)
 	}
 
 	pvt->regs = devm_ioremap_resource(pvt->dev, res);
-	if (IS_ERR(pvt->regs)) {
-		dev_err(pvt->dev, "Couldn't map PVT registers\n");
+	if (IS_ERR(pvt->regs))
 		return PTR_ERR(pvt->regs);
-	}
 
 	return 0;
 }

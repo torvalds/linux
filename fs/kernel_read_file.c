@@ -160,7 +160,7 @@ int kernel_read_file_from_path_initns(const char *path, loff_t offset,
 	get_fs_root(init_task.fs, &root);
 	task_unlock(&init_task);
 
-	file = file_open_root(root.dentry, root.mnt, path, O_RDONLY, 0);
+	file = file_open_root(&root, path, O_RDONLY, 0);
 	path_put(&root);
 	if (IS_ERR(file))
 		return PTR_ERR(file);

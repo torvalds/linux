@@ -93,7 +93,7 @@ interfaces:
 Registration Interface for a Mediated Bus Driver
 ------------------------------------------------
 
-The registration interface for a mediated bus driver provides the following
+The registration interface for a mediated device driver provides the following
 structure to represent a mediated device's driver::
 
      /*
@@ -136,37 +136,26 @@ The structures in the mdev_parent_ops structure are as follows:
 * dev_attr_groups: attributes of the parent device
 * mdev_attr_groups: attributes of the mediated device
 * supported_config: attributes to define supported configurations
+* device_driver: device driver to bind for mediated device instances
 
-The functions in the mdev_parent_ops structure are as follows:
+The mdev_parent_ops also still has various functions pointers.  Theses exist
+for historical reasons only and shall not be used for new drivers.
 
-* create: allocate basic resources in a driver for a mediated device
-* remove: free resources in a driver when a mediated device is destroyed
-
-(Note that mdev-core provides no implicit serialization of create/remove
-callbacks per mdev parent device, per mdev type, or any other categorization.
-Vendor drivers are expected to be fully asynchronous in this respect or
-provide their own internal resource protection.)
-
-The callbacks in the mdev_parent_ops structure are as follows:
-
-* open: open callback of mediated device
-* close: close callback of mediated device
-* ioctl: ioctl callback of mediated device
-* read : read emulation callback
-* write: write emulation callback
-* mmap: mmap emulation callback
-
-A driver should use the mdev_parent_ops structure in the function call to
-register itself with the mdev core driver::
+When a driver wants to add the GUID creation sysfs to an existing device it has
+probe'd to then it should call::
 
 	extern int  mdev_register_device(struct device *dev,
 	                                 const struct mdev_parent_ops *ops);
 
-However, the mdev_parent_ops structure is not required in the function call
-that a driver should use to unregister itself with the mdev core driver::
+This will provide the 'mdev_supported_types/XX/create' files which can then be
+used to trigger the creation of a mdev_device. The created mdev_device will be
+attached to the specified driver.
+
+When the driver needs to remove itself it calls::
 
 	extern void mdev_unregister_device(struct device *dev);
 
+Which will unbind and destroy all the created mdevs and remove the sysfs files.
 
 Mediated Device Management Interface Through sysfs
 ==================================================

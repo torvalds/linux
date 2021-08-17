@@ -58,8 +58,6 @@ struct pg_state {
 	const struct addr_marker *marker;
 	unsigned long start_address;
 	unsigned long start_pa;
-	unsigned long last_pa;
-	unsigned long page_size;
 	unsigned int level;
 	u64 current_flags;
 	bool check_wx;
@@ -163,8 +161,6 @@ static void dump_flag_info(struct pg_state *st, const struct flag_info
 
 static void dump_addr(struct pg_state *st, unsigned long addr)
 {
-	unsigned long delta;
-
 #ifdef CONFIG_PPC64
 #define REG		"0x%016lx"
 #else
@@ -172,14 +168,8 @@ static void dump_addr(struct pg_state *st, unsigned long addr)
 #endif
 
 	pt_dump_seq_printf(st->seq, REG "-" REG " ", st->start_address, addr - 1);
-	if (st->start_pa == st->last_pa && st->start_address + st->page_size != addr) {
-		pt_dump_seq_printf(st->seq, "[" REG "]", st->start_pa);
-		delta = st->page_size >> 10;
-	} else {
-		pt_dump_seq_printf(st->seq, " " REG " ", st->start_pa);
-		delta = (addr - st->start_address) >> 10;
-	}
-	pt_dump_size(st->seq, delta);
+	pt_dump_seq_printf(st->seq, " " REG " ", st->start_pa);
+	pt_dump_size(st->seq, (addr - st->start_address) >> 10);
 }
 
 static void note_prot_wx(struct pg_state *st, unsigned long addr)
@@ -208,7 +198,6 @@ static void note_page_update_state(struct pg_state *st, unsigned long addr,
 	st->current_flags = flag;
 	st->start_address = addr;
 	st->start_pa = pa;
-	st->page_size = page_size;
 
 	while (addr >= st->marker[1].start_address) {
 		st->marker++;
@@ -220,7 +209,6 @@ static void note_page(struct pg_state *st, unsigned long addr,
 	       unsigned int level, u64 val, unsigned long page_size)
 {
 	u64 flag = val & pg_level[level].mask;
-	u64 pa = val & PTE_RPN_MASK;
 
 	/* At first no level is set */
 	if (!st->level) {
@@ -232,12 +220,9 @@ static void note_page(struct pg_state *st, unsigned long addr,
 	 *   - we change levels in the tree.
 	 *   - the address is in a different section of memory and is thus
 	 *   used for a different purpose, regardless of the flags.
-	 *   - the pa of this page is not adjacent to the last inspected page
 	 */
 	} else if (flag != st->current_flags || level != st->level ||
-		   addr >= st->marker[1].start_address ||
-		   (pa != st->last_pa + st->page_size &&
-		    (pa != st->start_pa || st->start_pa != st->last_pa))) {
+		   addr >= st->marker[1].start_address) {
 
 		/* Check the PTE flags */
 		if (st->current_flags) {
@@ -259,7 +244,6 @@ static void note_page(struct pg_state *st, unsigned long addr,
 		 */
 		note_page_update_state(st, addr, level, val, page_size);
 	}
-	st->last_pa = pa;
 }
 
 static void walk_pte(struct pg_state *st, pmd_t *pmd, unsigned long start)
