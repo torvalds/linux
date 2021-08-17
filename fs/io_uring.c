@@ -2477,8 +2477,10 @@ static void io_fallback_req_func(struct work_struct *work)
 	struct llist_node *node = llist_del_all(&ctx->fallback_llist);
 	struct io_kiocb *req, *tmp;
 
+	percpu_ref_get(&ctx->refs);
 	llist_for_each_entry_safe(req, tmp, node, io_task_work.fallback_node)
 		req->io_task_work.func(req);
+	percpu_ref_put(&ctx->refs);
 }
 
 static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
