@@ -102,6 +102,7 @@ int pt_core_perform_passthru(struct pt_cmd_queue *cmd_q,
 	struct ptdma_desc desc;
 
 	cmd_q->cmd_error = 0;
+	cmd_q->total_pt_ops++;
 	memset(&desc, 0, sizeof(desc));
 	desc.dw0 = CMD_DESC_DW0_VAL;
 	desc.length = pt_engine->src_len;
@@ -150,6 +151,7 @@ static irqreturn_t pt_core_irq_handler(int irq, void *data)
 	u32 status;
 
 	pt_core_disable_queue_interrupts(pt);
+	pt->total_interrupts++;
 	status = ioread32(cmd_q->reg_control + 0x0010);
 	if (status) {
 		cmd_q->int_status = status;
@@ -249,6 +251,9 @@ int pt_core_init(struct pt_device *pt)
 	ret = pt_dmaengine_register(pt);
 	if (ret)
 		goto e_dmaengine;
+
+	/* Set up debugfs entries */
+	ptdma_debugfs_setup(pt);
 
 	return 0;
 

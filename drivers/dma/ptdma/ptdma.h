@@ -216,6 +216,8 @@ struct pt_cmd_queue {
 	u32 q_status;
 	u32 q_int_status;
 	u32 cmd_error;
+	/* Queue Statistics */
+	unsigned long total_pt_ops;
 } ____cacheline_aligned;
 
 struct pt_device {
@@ -253,6 +255,9 @@ struct pt_device {
 	struct kmem_cache *dma_desc_cache;
 
 	wait_queue_head_t lsb_queue;
+
+	/* Device Statistics */
+	unsigned long total_interrupts;
 
 	struct pt_tasklet_data tdata;
 };
@@ -307,6 +312,7 @@ struct pt_dev_vdata {
 int pt_dmaengine_register(struct pt_device *pt);
 void pt_dmaengine_unregister(struct pt_device *pt);
 
+void ptdma_debugfs_setup(struct pt_device *pt);
 int pt_core_init(struct pt_device *pt);
 void pt_core_destroy(struct pt_device *pt);
 
