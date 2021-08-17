@@ -398,6 +398,13 @@
 					reg = <0x9c 0x4>;
 					status = "disabled";
 				};
+
+				mbox: mbox@200 {
+					compatible = "aspeed,ast2500-mbox";
+					reg = <0x200 0x30>;
+					interrupts = <46>;
+					status = "disabled";
+				};
 			};
 
 			peci0: peci-controller@1e78b000 {
