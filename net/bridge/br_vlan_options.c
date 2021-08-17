@@ -362,7 +362,7 @@ out_err:
 	return false;
 }
 
-static size_t rtnl_vlan_global_opts_nlmsg_size(void)
+static size_t rtnl_vlan_global_opts_nlmsg_size(const struct net_bridge_vlan *v)
 {
 	return NLMSG_ALIGN(sizeof(struct br_vlan_msg))
 		+ nla_total_size(0) /* BRIDGE_VLANDB_GLOBAL_OPTIONS */
@@ -382,6 +382,8 @@ static size_t rtnl_vlan_global_opts_nlmsg_size(void)
 		+ nla_total_size(sizeof(u8)) /* BRIDGE_VLANDB_GOPTS_MCAST_QUERIER */
 		+ nla_total_size(sizeof(u8)) /* BRIDGE_VLANDB_GOPTS_MCAST_ROUTER */
 		+ br_multicast_querier_state_size() /* BRIDGE_VLANDB_GOPTS_MCAST_QUERIER_STATE */
+		+ nla_total_size(0) /* BRIDGE_VLANDB_GOPTS_MCAST_ROUTER_PORTS */
+		+ br_rports_size(&v->br_mcast_ctx) /* BRIDGE_VLANDB_GOPTS_MCAST_ROUTER_PORTS */
 #endif
 		+ nla_total_size(sizeof(u16)); /* BRIDGE_VLANDB_GOPTS_RANGE */
 }
@@ -398,7 +400,12 @@ static void br_vlan_global_opts_notify(const struct net_bridge *br,
 	/* right now notifications are done only with rtnl held */
 	ASSERT_RTNL();
 
-	skb = nlmsg_new(rtnl_vlan_global_opts_nlmsg_size(), GFP_KERNEL);
+	/* need to find the vlan due to flags/options */
+	v = br_vlan_find(br_vlan_group(br), vid);
+	if (!v)
+		return;
+
+	skb = nlmsg_new(rtnl_vlan_global_opts_nlmsg_size(v), GFP_KERNEL);
 	if (!skb)
 		goto out_err;
 
@@ -411,11 +418,6 @@ static void br_vlan_global_opts_notify(const struct net_bridge *br,
 	bvm->family = AF_BRIDGE;
 	bvm->ifindex = br->dev->ifindex;
 
-	/* need to find the vlan due to flags/options */
-	v = br_vlan_find(br_vlan_group(br), vid);
-	if (!v)
-		goto out_kfree;
-
 	if (!br_vlan_global_opts_fill(skb, vid, vid_range, v))
 		goto out_err;
 
@@ -425,7 +427,6 @@ static void br_vlan_global_opts_notify(const struct net_bridge *br,
 
 out_err:
 	rtnl_set_sk_err(dev_net(br->dev), RTNLGRP_BRVLAN, err);
-out_kfree:
 	kfree_skb(skb);
 }
 

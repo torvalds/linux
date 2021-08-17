@@ -221,7 +221,7 @@ br_multicast_pg_to_port_ctx(const struct net_bridge_port_group *pg)
 	 * can safely be used on return
 	 */
 	rcu_read_lock();
-	vlan = br_vlan_find(nbp_vlan_group(pg->key.port), pg->key.addr.vid);
+	vlan = br_vlan_find(nbp_vlan_group_rcu(pg->key.port), pg->key.addr.vid);
 	if (vlan && !br_multicast_port_ctx_vlan_disabled(&vlan->port_mcast_ctx))
 		pmctx = &vlan->port_mcast_ctx;
 	else
@@ -4074,7 +4074,7 @@ void br_multicast_toggle_one_vlan(struct net_bridge_vlan *vlan, bool on)
 	}
 }
 
-void br_multicast_toggle_vlan(struct net_bridge_vlan *vlan, bool on)
+static void br_multicast_toggle_vlan(struct net_bridge_vlan *vlan, bool on)
 {
 	struct net_bridge_port *p;
 
@@ -4089,6 +4089,9 @@ void br_multicast_toggle_vlan(struct net_bridge_vlan *vlan, bool on)
 			continue;
 		br_multicast_toggle_one_vlan(vport, on);
 	}
+
+	if (br_vlan_is_brentry(vlan))
+		br_multicast_toggle_one_vlan(vlan, on);
 }
 
 int br_multicast_toggle_vlan_snooping(struct net_bridge *br, bool on,
@@ -4329,7 +4332,8 @@ static void br_multicast_start_querier(struct net_bridge_mcast *brmctx,
 		if (br_multicast_ctx_is_vlan(brmctx)) {
 			struct net_bridge_vlan *vlan;
 
-			vlan = br_vlan_find(nbp_vlan_group(port), brmctx->vlan->vid);
+			vlan = br_vlan_find(nbp_vlan_group_rcu(port),
+					    brmctx->vlan->vid);
 			if (!vlan ||
 			    br_multicast_port_ctx_state_stopped(&vlan->port_mcast_ctx))
 				continue;
