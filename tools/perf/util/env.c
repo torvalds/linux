@@ -10,6 +10,7 @@
 #include <sys/utsname.h>
 #include <stdlib.h>
 #include <string.h>
+#include "strbuf.h"
 
 struct perf_env perf_env;
 
@@ -306,6 +307,45 @@ int perf_env__read_cpu_topology_map(struct perf_env *env)
 	return 0;
 }
 
+int perf_env__read_pmu_mappings(struct perf_env *env)
+{
+	struct perf_pmu *pmu = NULL;
+	u32 pmu_num = 0;
+	struct strbuf sb;
+
+	while ((pmu = perf_pmu__scan(pmu))) {
+		if (!pmu->name)
+			continue;
+		pmu_num++;
+	}
+	if (!pmu_num) {
+		pr_debug("pmu mappings not available\n");
+		return -ENOENT;
+	}
+	env->nr_pmu_mappings = pmu_num;
+
+	if (strbuf_init(&sb, 128 * pmu_num) < 0)
+		return -ENOMEM;
+
+	while ((pmu = perf_pmu__scan(pmu))) {
+		if (!pmu->name)
+			continue;
+		if (strbuf_addf(&sb, "%u:%s", pmu->type, pmu->name) < 0)
+			goto error;
+		/* include a NULL character at the end */
+		if (strbuf_add(&sb, "", 1) < 0)
+			goto error;
+	}
+
+	env->pmu_mappings = strbuf_detach(&sb, NULL);
+
+	return 0;
+
+error:
+	strbuf_release(&sb);
+	return -1;
+}
+
 int perf_env__read_cpuid(struct perf_env *env)
 {
 	char cpuid[128];
@@ -404,6 +444,44 @@ const char *perf_env__arch(struct perf_env *env)
 	return normalize_arch(arch_name);
 }
 
+const char *perf_env__cpuid(struct perf_env *env)
+{
+	int status;
+
+	if (!env || !env->cpuid) { /* Assume local operation */
+		status = perf_env__read_cpuid(env);
+		if (status)
+			return NULL;
+	}
+
+	return env->cpuid;
+}
+
+int perf_env__nr_pmu_mappings(struct perf_env *env)
+{
+	int status;
+
+	if (!env || !env->nr_pmu_mappings) { /* Assume local operation */
+		status = perf_env__read_pmu_mappings(env);
+		if (status)
+			return 0;
+	}
+
+	return env->nr_pmu_mappings;
+}
+
+const char *perf_env__pmu_mappings(struct perf_env *env)
+{
+	int status;
+
+	if (!env || !env->pmu_mappings) { /* Assume local operation */
+		status = perf_env__read_pmu_mappings(env);
+		if (status)
+			return NULL;
+	}
+
+	return env->pmu_mappings;
+}
 
 int perf_env__numa_node(struct perf_env *env, int cpu)
 {
