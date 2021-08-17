@@ -158,7 +158,7 @@ static int get_family_id(int sd, __u32 pid)
 		char buf[512];
 	} ans;
 	struct nlattr *na;
-	int rep_len;
+	int resp_len;
 	__u16 id;
 	int rc;
 
@@ -167,10 +167,10 @@ static int get_family_id(int sd, __u32 pid)
 	if (rc < 0)
 		return 0;
 
-	rep_len = recv(sd, &ans, sizeof(ans), 0);
+	resp_len = recv(sd, &ans, sizeof(ans), 0);
 
-	if (ans.n.nlmsg_type == NLMSG_ERROR || rep_len < 0 ||
-	    !NLMSG_OK(&ans.n, rep_len))
+	if (ans.n.nlmsg_type == NLMSG_ERROR || resp_len < 0 ||
+	    !NLMSG_OK(&ans.n, resp_len))
 		return 0;
 
 	na = (struct nlattr *)GENLMSG_DATA(&ans);
@@ -194,7 +194,7 @@ static int send_cmd_with_idx(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
 
 static int get_nci_devid(int sd, __u16 fid, __u32 pid, int dev_id, struct msgtemplate *msg)
 {
-	int rc, rep_len;
+	int rc, resp_len;
 
 	rc = send_cmd_with_idx(sd, fid, pid, NFC_CMD_GET_DEVICE, dev_id);
 	if (rc < 0) {
@@ -202,14 +202,14 @@ static int get_nci_devid(int sd, __u16 fid, __u32 pid, int dev_id, struct msgtem
 		goto error;
 	}
 
-	rep_len = recv(sd, msg, sizeof(*msg), 0);
-	if (rep_len < 0) {
+	resp_len = recv(sd, msg, sizeof(*msg), 0);
+	if (resp_len < 0) {
 		rc = -2;
 		goto error;
 	}
 
 	if (msg->n.nlmsg_type == NLMSG_ERROR ||
-	    !NLMSG_OK(&msg->n, rep_len)) {
+	    !NLMSG_OK(&msg->n, resp_len)) {
 		rc = -3;
 		goto error;
 	}
@@ -222,21 +222,21 @@ error:
 static __u8 get_dev_enable_state(struct msgtemplate *msg)
 {
 	struct nlattr *na;
-	int rep_len;
+	int resp_len;
 	int len;
 
-	rep_len = GENLMSG_PAYLOAD(&msg->n);
+	resp_len = GENLMSG_PAYLOAD(&msg->n);
 	na = (struct nlattr *)GENLMSG_DATA(msg);
 	len = 0;
 
-	while (len < rep_len) {
+	while (len < resp_len) {
 		len += NLA_ALIGN(na->nla_len);
 		if (na->nla_type == NFC_ATTR_DEVICE_POWERED)
 			return *(char *)NLA_DATA(na);
 		na = (struct nlattr *)(GENLMSG_DATA(msg) + len);
 	}
 
-	return rep_len;
+	return resp_len;
 }
 
 FIXTURE(NCI) {
