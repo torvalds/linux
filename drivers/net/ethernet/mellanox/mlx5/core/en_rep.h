@@ -60,6 +60,7 @@ struct mlx5e_neigh_update_table {
 struct mlx5_tc_ct_priv;
 struct mlx5e_rep_bond;
 struct mlx5e_tc_tun_encap;
+struct mlx5e_post_act;
 
 struct mlx5_rep_uplink_priv {
 	/* Filters DB - instantiated by the uplink representor and shared by
@@ -88,6 +89,7 @@ struct mlx5_rep_uplink_priv {
 	/* maps tun_enc_opts to a unique id*/
 	struct mapping_ctx *tunnel_enc_opts_mapping;
 
+	struct mlx5e_post_act *post_act;
 	struct mlx5_tc_ct_priv *ct_priv;
 	struct mlx5e_tc_psample *tc_psample;
 
