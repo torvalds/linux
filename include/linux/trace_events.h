@@ -350,7 +350,14 @@ struct trace_event_call {
 	struct trace_event	event;
 	char			*print_fmt;
 	struct event_filter	*filter;
-	void			*mod;
+	/*
+	 * Static events can disappear with modules,
+	 * where as dynamic ones need their own ref count.
+	 */
+	union {
+		void				*module;
+		atomic_t			refcnt;
+	};
 	void			*data;
 
 	/* See the TRACE_EVENT_FL_* flags above */
@@ -365,6 +372,42 @@ struct trace_event_call {
 			     struct perf_event *);
 #endif
 };
+
+#ifdef CONFIG_DYNAMIC_EVENTS
+bool trace_event_dyn_try_get_ref(struct trace_event_call *call);
+void trace_event_dyn_put_ref(struct trace_event_call *call);
+bool trace_event_dyn_busy(struct trace_event_call *call);
+#else
+static inline bool trace_event_dyn_try_get_ref(struct trace_event_call *call)
+{
+	/* Without DYNAMIC_EVENTS configured, nothing should be calling this */
+	return false;
+}
+static inline void trace_event_dyn_put_ref(struct trace_event_call *call)
+{
+}
+static inline bool trace_event_dyn_busy(struct trace_event_call *call)
+{
+	/* Nothing should call this without DYNAIMIC_EVENTS configured. */
+	return true;
+}
+#endif
+
+static inline bool trace_event_try_get_ref(struct trace_event_call *call)
+{
+	if (call->flags & TRACE_EVENT_FL_DYNAMIC)
+		return trace_event_dyn_try_get_ref(call);
+	else
+		return try_module_get(call->module);
+}
+
+static inline void trace_event_put_ref(struct trace_event_call *call)
+{
+	if (call->flags & TRACE_EVENT_FL_DYNAMIC)
+		trace_event_dyn_put_ref(call);
+	else
+		module_put(call->module);
+}
 
 #ifdef CONFIG_PERF_EVENTS
 static inline bool bpf_prog_array_valid(struct trace_event_call *call)

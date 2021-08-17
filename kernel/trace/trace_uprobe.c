@@ -393,6 +393,10 @@ static int unregister_trace_uprobe(struct trace_uprobe *tu)
 	if (trace_probe_has_sibling(&tu->tp))
 		goto unreg;
 
+	/* If there's a reference to the dynamic event */
+	if (trace_event_dyn_busy(trace_probe_event_call(&tu->tp)))
+		return -EBUSY;
+
 	ret = unregister_uprobe_event(tu);
 	if (ret)
 		return ret;

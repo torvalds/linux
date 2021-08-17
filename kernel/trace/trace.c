@@ -3697,11 +3697,11 @@ static bool trace_safe_str(struct trace_iterator *iter, const char *str)
 		return false;
 
 	event = container_of(trace_event, struct trace_event_call, event);
-	if (!event->mod)
+	if ((event->flags & TRACE_EVENT_FL_DYNAMIC) || !event->module)
 		return false;
 
 	/* Would rather have rodata, but this will suffice */
-	if (within_module_core(addr, event->mod))
+	if (within_module_core(addr, event->module))
 		return true;
 
 	return false;
