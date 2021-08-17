@@ -87,7 +87,7 @@ error:
 
 static int send_cmd_mt_nla(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
 			   __u8 genl_cmd, int nla_num, __u16 nla_type[],
-			   void *nla_data[], int nla_len[])
+			   void *nla_data[], int nla_len[], __u16 flags)
 {
 	struct sockaddr_nl nladdr;
 	struct msgtemplate msg;
@@ -98,7 +98,7 @@ static int send_cmd_mt_nla(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
 
 	msg.n.nlmsg_len = NLMSG_LENGTH(GENL_HDRLEN);
 	msg.n.nlmsg_type = nlmsg_type;
-	msg.n.nlmsg_flags = NLM_F_REQUEST;
+	msg.n.nlmsg_flags = flags;
 	msg.n.nlmsg_seq = 0;
 	msg.n.nlmsg_pid = nlmsg_pid;
 	msg.g.cmd = genl_cmd;
@@ -146,8 +146,8 @@ static int send_get_nfc_family(int sd, __u32 pid)
 	nla_get_family_data = family_name;
 
 	return send_cmd_mt_nla(sd, GENL_ID_CTRL, pid, CTRL_CMD_GETFAMILY,
-				1, &nla_get_family_type,
-				&nla_get_family_data, &nla_get_family_len);
+				1, &nla_get_family_type, &nla_get_family_data,
+				&nla_get_family_len, NLM_F_REQUEST);
 }
 
 static int get_family_id(int sd, __u32 pid)
@@ -189,7 +189,7 @@ static int send_cmd_with_idx(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
 	int nla_len = 4;
 
 	return send_cmd_mt_nla(sd, nlmsg_type, nlmsg_pid, genl_cmd, 1,
-				&nla_type, &nla_data, &nla_len);
+				&nla_type, &nla_data, &nla_len, NLM_F_REQUEST);
 }
 
 static int get_nci_devid(int sd, __u16 fid, __u32 pid, int dev_id, struct msgtemplate *msg)
@@ -531,9 +531,9 @@ TEST_F(NCI, start_poll)
 			    (void *)&self->virtual_nci_fd);
 	ASSERT_GT(rc, -1);
 
-	rc = send_cmd_mt_nla(self->sd, self->fid, self->pid,
-			     NFC_CMD_START_POLL, 2, nla_start_poll_type,
-			     nla_start_poll_data, nla_start_poll_len);
+	rc = send_cmd_mt_nla(self->sd, self->fid, self->pid, NFC_CMD_START_POLL, 2,
+			     nla_start_poll_type, nla_start_poll_data,
+			     nla_start_poll_len, NLM_F_REQUEST);
 	EXPECT_EQ(rc, 0);
 
 	pthread_join(thread_t, (void **)&status);
