@@ -83,10 +83,6 @@ static struct trace_uprobe *to_trace_uprobe(struct dyn_event *ev)
 	for_each_dyn_event(dpos)		\
 		if (is_trace_uprobe(dpos) && (pos = to_trace_uprobe(dpos)))
 
-#define SIZEOF_TRACE_UPROBE(n)				\
-	(offsetof(struct trace_uprobe, tp.args) +	\
-	(sizeof(struct probe_arg) * (n)))
-
 static int register_uprobe_event(struct trace_uprobe *tu);
 static int unregister_uprobe_event(struct trace_uprobe *tu);
 
@@ -340,7 +336,7 @@ alloc_trace_uprobe(const char *group, const char *event, int nargs, bool is_ret)
 	struct trace_uprobe *tu;
 	int ret;
 
-	tu = kzalloc(SIZEOF_TRACE_UPROBE(nargs), GFP_KERNEL);
+	tu = kzalloc(struct_size(tu, tp.args, nargs), GFP_KERNEL);
 	if (!tu)
 		return ERR_PTR(-ENOMEM);
 
