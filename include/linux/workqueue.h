@@ -51,19 +51,14 @@ enum {
 	WORK_STRUCT_STATIC	= 0,
 #endif
 
-	/*
-	 * The last color is no color used for works which don't
-	 * participate in workqueue flushing.
-	 */
-	WORK_NR_COLORS		= (1 << WORK_STRUCT_COLOR_BITS) - 1,
-	WORK_NO_COLOR		= WORK_NR_COLORS,
+	WORK_NR_COLORS		= (1 << WORK_STRUCT_COLOR_BITS),
 
 	/* not bound to any CPU, prefer the local CPU */
 	WORK_CPU_UNBOUND	= NR_CPUS,
 
 	/*
 	 * Reserve 8 bits off of pwq pointer w/ debugobjects turned off.
-	 * This makes pwqs aligned to 256 bytes and allows 15 workqueue
+	 * This makes pwqs aligned to 256 bytes and allows 16 workqueue
 	 * flush colors.
 	 */
 	WORK_STRUCT_FLAG_BITS	= WORK_STRUCT_COLOR_SHIFT +
