@@ -123,6 +123,26 @@ static inline void pt_core_enable_queue_interrupts(struct pt_device *pt)
 	iowrite32(SUPPORTED_INTERRUPTS, pt->cmd_q.reg_control + 0x000C);
 }
 
+static void pt_do_cmd_complete(unsigned long data)
+{
+	struct pt_tasklet_data *tdata = (struct pt_tasklet_data *)data;
+	struct pt_cmd *cmd = tdata->cmd;
+	struct pt_cmd_queue *cmd_q = &cmd->pt->cmd_q;
+	u32 tail;
+
+	if (cmd_q->cmd_error) {
+	       /*
+		* Log the error and flush the queue by
+		* moving the head pointer
+		*/
+		tail = lower_32_bits(cmd_q->qdma_tail + cmd_q->qidx * Q_DESC_SIZE);
+		pt_log_error(cmd_q->pt, cmd_q->cmd_error);
+		iowrite32(tail, cmd_q->reg_control + 0x0008);
+	}
+
+	cmd->pt_cmd_callback(cmd->data, cmd->ret);
+}
+
 static irqreturn_t pt_core_irq_handler(int irq, void *data)
 {
 	struct pt_device *pt = data;
@@ -143,6 +163,7 @@ static irqreturn_t pt_core_irq_handler(int irq, void *data)
 		/* Acknowledge the interrupt */
 		iowrite32(status, cmd_q->reg_control + 0x0010);
 		pt_core_enable_queue_interrupts(pt);
+		pt_do_cmd_complete((ulong)&pt->tdata);
 	}
 	return IRQ_HANDLED;
 }
@@ -224,7 +245,15 @@ int pt_core_init(struct pt_device *pt)
 
 	pt_core_enable_queue_interrupts(pt);
 
+	/* Register the DMA engine support */
+	ret = pt_dmaengine_register(pt);
+	if (ret)
+		goto e_dmaengine;
+
 	return 0;
+
+e_dmaengine:
+	free_irq(pt->pt_irq, pt);
 
 e_dma_alloc:
 	dma_free_coherent(dev, cmd_q->qsize, cmd_q->qbase, cmd_q->qbase_dma);
@@ -241,6 +270,9 @@ void pt_core_destroy(struct pt_device *pt)
 	struct device *dev = pt->dev;
 	struct pt_cmd_queue *cmd_q = &pt->cmd_q;
 	struct pt_cmd *cmd;
+
+	/* Unregister the DMA engine */
+	pt_dmaengine_unregister(pt);
 
 	/* Disable and clear interrupts */
 	pt_core_disable_queue_interrupts(pt);
