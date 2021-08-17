@@ -666,7 +666,10 @@ void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 
 static s64 ptr_disk_sectors(s64 sectors, struct extent_ptr_decoded p)
 {
-	return p.crc.compression_type
+	EBUG_ON(sectors < 0);
+
+	return p.crc.compression_type &&
+		p.crc.compression_type != BCH_COMPRESSION_TYPE_incompressible
 		? DIV_ROUND_UP(sectors * p.crc.compressed_size,
 			       p.crc.uncompressed_size)
 		: sectors;
@@ -929,15 +932,15 @@ static int bch2_mark_extent(struct bch_fs *c,
 	BUG_ON((flags & (BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE)) ==
 	       (BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE));
 
-	if (flags & BTREE_TRIGGER_OVERWRITE)
-		sectors = -sectors;
-
 	r.e.data_type	= data_type;
 	r.e.nr_devs	= 0;
 	r.e.nr_required	= 1;
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 		s64 disk_sectors = ptr_disk_sectors(sectors, p);
+
+		if (flags & BTREE_TRIGGER_OVERWRITE)
+			disk_sectors = -disk_sectors;
 
 		ret = bch2_mark_pointer(c, k, p, disk_sectors, data_type,
 					journal_seq, flags);
@@ -1549,15 +1552,15 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 	BUG_ON((flags & (BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE)) ==
 	       (BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE));
 
-	if (flags & BTREE_TRIGGER_OVERWRITE)
-		sectors = -sectors;
-
 	r.e.data_type	= data_type;
 	r.e.nr_devs	= 0;
 	r.e.nr_required	= 1;
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 		s64 disk_sectors = ptr_disk_sectors(sectors, p);
+
+		if (flags & BTREE_TRIGGER_OVERWRITE)
+			disk_sectors = -disk_sectors;
 
 		ret = bch2_trans_mark_pointer(trans, k, p,
 					disk_sectors, data_type);
