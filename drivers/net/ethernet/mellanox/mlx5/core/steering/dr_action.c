@@ -1769,7 +1769,9 @@ mlx5dr_action_create_dest_vport(struct mlx5dr_domain *dmn,
 
 	vport_cap = mlx5dr_get_vport_cap(&vport_dmn->info.caps, vport);
 	if (!vport_cap) {
-		mlx5dr_dbg(dmn, "Failed to get vport %d caps\n", vport);
+		mlx5dr_err(dmn,
+			   "Failed to get vport 0x%x caps - vport is disabled or invalid\n",
+			   vport);
 		return NULL;
 	}
 

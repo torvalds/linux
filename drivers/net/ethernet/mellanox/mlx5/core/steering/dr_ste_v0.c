@@ -1670,7 +1670,7 @@ dr_ste_v0_build_src_gvmi_qpn_tag(struct mlx5dr_match_param *value,
 	if (source_gvmi_set) {
 		vport_cap = mlx5dr_get_vport_cap(caps, misc->source_port);
 		if (!vport_cap) {
-			mlx5dr_err(dmn, "Vport 0x%x is invalid\n",
+			mlx5dr_err(dmn, "Vport 0x%x is disabled or invalid\n",
 				   misc->source_port);
 			return -EINVAL;
 		}
