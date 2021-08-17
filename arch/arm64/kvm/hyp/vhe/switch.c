@@ -93,10 +93,6 @@ void activate_traps_vhe_load(struct kvm_vcpu *vcpu)
 
 void deactivate_traps_vhe_put(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.mdcr_el2_host &= MDCR_EL2_HPMN_MASK |
-				    MDCR_EL2_E2PB_MASK << MDCR_EL2_E2PB_SHIFT |
-				    MDCR_EL2_TPMS;
-
 	__deactivate_traps_common(vcpu);
 }
 

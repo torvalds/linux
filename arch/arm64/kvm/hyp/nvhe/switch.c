@@ -90,10 +90,6 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 		isb();
 	}
 
-	vcpu->arch.mdcr_el2_host &= MDCR_EL2_HPMN_MASK |
-				    MDCR_EL2_E2PB_MASK << MDCR_EL2_E2PB_SHIFT |
-				    MDCR_EL2_E2TB_MASK << MDCR_EL2_E2TB_SHIFT;
-
 	__deactivate_traps_common(vcpu);
 
 	write_sysreg(this_cpu_ptr(&kvm_init_params)->hcr_el2, hcr_el2);
