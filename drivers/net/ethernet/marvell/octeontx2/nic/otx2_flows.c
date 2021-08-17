@@ -5,6 +5,7 @@
  */
 
 #include <net/ipv6.h>
+#include <linux/sort.h>
 
 #include "otx2_common.h"
 
@@ -59,6 +60,11 @@ static int otx2_free_ntuple_mcam_entries(struct otx2_nic *pfvf)
 	mutex_unlock(&pfvf->mbox.lock);
 	otx2_clear_ntuple_flow_info(pfvf, flow_cfg);
 	return 0;
+}
+
+static int mcam_entry_cmp(const void *a, const void *b)
+{
+	return *(u16 *)a - *(u16 *)b;
 }
 
 static int otx2_alloc_ntuple_mcam_entries(struct otx2_nic *pfvf, u16 count)
@@ -119,6 +125,15 @@ static int otx2_alloc_ntuple_mcam_entries(struct otx2_nic *pfvf, u16 count)
 		if (rsp->count != req->count)
 			break;
 	}
+
+	/* Multiple MCAM entry alloc requests could result in non-sequential
+	 * MCAM entries in the flow_ent[] array. Sort them in an ascending order,
+	 * otherwise user installed ntuple filter index and MCAM entry index will
+	 * not be in sync.
+	 */
+	if (allocated)
+		sort(&flow_cfg->flow_ent[0], allocated,
+		     sizeof(flow_cfg->flow_ent[0]), mcam_entry_cmp, NULL);
 
 exit:
 	mutex_unlock(&pfvf->mbox.lock);
