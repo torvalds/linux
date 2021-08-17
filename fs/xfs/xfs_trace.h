@@ -1392,7 +1392,7 @@ DECLARE_EVENT_CLASS(xfs_file_class,
 		__entry->offset = iocb->ki_pos;
 		__entry->count = iov_iter_count(iter);
 	),
-	TP_printk("dev %d:%d ino 0x%llx size 0x%llx pos 0x%llx bytecount 0x%zx",
+	TP_printk("dev %d:%d ino 0x%llx disize 0x%llx pos 0x%llx bytecount 0x%zx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->size,
@@ -1439,7 +1439,7 @@ DECLARE_EVENT_CLASS(xfs_imap_class,
 		__entry->startblock = irec ? irec->br_startblock : 0;
 		__entry->blockcount = irec ? irec->br_blockcount : 0;
 	),
-	TP_printk("dev %d:%d ino 0x%llx size 0x%llx pos 0x%llx bytecount 0x%zx "
+	TP_printk("dev %d:%d ino 0x%llx disize 0x%llx pos 0x%llx bytecount 0x%zx "
 		  "fork %s startoff 0x%llx startblock 0x%llx fsbcount 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
@@ -1518,7 +1518,7 @@ DECLARE_EVENT_CLASS(xfs_itrunc_class,
 		__entry->size = ip->i_disk_size;
 		__entry->new_size = new_size;
 	),
-	TP_printk("dev %d:%d ino 0x%llx size 0x%llx new_size 0x%llx",
+	TP_printk("dev %d:%d ino 0x%llx disize 0x%llx new_size 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->size,
@@ -1549,7 +1549,7 @@ TRACE_EVENT(xfs_pagecache_inval,
 		__entry->start = start;
 		__entry->finish = finish;
 	),
-	TP_printk("dev %d:%d ino 0x%llx size 0x%llx start 0x%llx finish 0x%llx",
+	TP_printk("dev %d:%d ino 0x%llx disize 0x%llx start 0x%llx finish 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->size,
@@ -1579,7 +1579,7 @@ TRACE_EVENT(xfs_bunmap,
 		__entry->caller_ip = caller_ip;
 		__entry->flags = flags;
 	),
-	TP_printk("dev %d:%d ino 0x%llx size 0x%llx fileoff 0x%llx fsbcount 0x%llx"
+	TP_printk("dev %d:%d ino 0x%llx disize 0x%llx fileoff 0x%llx fsbcount 0x%llx"
 		  "flags %s caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
@@ -3366,9 +3366,7 @@ TRACE_EVENT(xfs_ioctl_clone,
 		__entry->dest_ino = dest->i_ino;
 		__entry->dest_isize = i_size_read(dest);
 	),
-	TP_printk("dev %d:%d "
-		  "ino 0x%lx isize 0x%llx -> "
-		  "ino 0x%lx isize 0x%llx",
+	TP_printk("dev %d:%d ino 0x%lx isize 0x%llx -> ino 0x%lx isize 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->src_ino,
 		  __entry->src_isize,
