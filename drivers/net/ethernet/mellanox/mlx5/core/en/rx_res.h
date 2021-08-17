@@ -8,6 +8,7 @@
 #include "rqt.h"
 #include "tir.h"
 #include "fs.h"
+#include "rss.h"
 
 struct mlx5e_rx_res;
 
@@ -19,9 +20,6 @@ enum mlx5e_rx_res_features {
 	MLX5E_RX_RES_FEATURE_XSK = BIT(1),
 	MLX5E_RX_RES_FEATURE_PTP = BIT(2),
 };
-
-struct mlx5e_rss_params_traffic_type
-mlx5e_rss_get_default_tt_config(enum mlx5_traffic_types tt);
 
 /* Setup */
 struct mlx5e_rx_res *mlx5e_rx_res_alloc(void);
@@ -50,16 +48,22 @@ int mlx5e_rx_res_xsk_activate(struct mlx5e_rx_res *res, struct mlx5e_channels *c
 int mlx5e_rx_res_xsk_deactivate(struct mlx5e_rx_res *res, unsigned int ix);
 
 /* Configuration API */
-struct mlx5e_rss_params_traffic_type
-mlx5e_rx_res_rss_get_current_tt_config(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt);
 void mlx5e_rx_res_rss_set_indir_uniform(struct mlx5e_rx_res *res, unsigned int nch);
-void mlx5e_rx_res_rss_get_rxfh(struct mlx5e_rx_res *res, u32 *indir, u8 *key, u8 *hfunc);
-int mlx5e_rx_res_rss_set_rxfh(struct mlx5e_rx_res *res, const u32 *indir,
-			      const u8 *key, const u8 *hfunc);
+int mlx5e_rx_res_rss_get_rxfh(struct mlx5e_rx_res *res, u32 rss_idx,
+			      u32 *indir, u8 *key, u8 *hfunc);
+int mlx5e_rx_res_rss_set_rxfh(struct mlx5e_rx_res *res, u32 rss_idx,
+			      const u32 *indir, const u8 *key, const u8 *hfunc);
+
 u8 mlx5e_rx_res_rss_get_hash_fields(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt);
 int mlx5e_rx_res_rss_set_hash_fields(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt,
 				     u8 rx_hash_fields);
 int mlx5e_rx_res_lro_set_param(struct mlx5e_rx_res *res, struct mlx5e_lro_param *lro_param);
+
+int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res, u32 *rss_idx, unsigned int init_nch);
+int mlx5e_rx_res_rss_destroy(struct mlx5e_rx_res *res, u32 rss_idx);
+int mlx5e_rx_res_rss_cnt(struct mlx5e_rx_res *res);
+int mlx5e_rx_res_rss_index(struct mlx5e_rx_res *res, struct mlx5e_rss *rss);
+struct mlx5e_rss *mlx5e_rx_res_rss_get(struct mlx5e_rx_res *res, u32 rss_idx);
 
 /* Workaround for hairpin */
 struct mlx5e_rss_params_hash mlx5e_rx_res_get_current_hash(struct mlx5e_rx_res *res);

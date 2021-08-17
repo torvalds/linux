@@ -72,6 +72,7 @@ struct page_pool;
 #define MLX5E_SW2HW_MTU(params, swmtu) ((swmtu) + ((params)->hard_mtu))
 
 #define MLX5E_MAX_NUM_TC	8
+#define MLX5E_MAX_NUM_MQPRIO_CH_TC TC_QOPT_MAX_QUEUE
 
 #define MLX5_RX_HEADROOM NET_SKB_PAD
 #define MLX5_SKB_FRAG_SZ(len)	(SKB_DATA_ALIGN(len) +	\
@@ -248,7 +249,10 @@ struct mlx5e_params {
 	u8  rq_wq_type;
 	u8  log_rq_mtu_frames;
 	u16 num_channels;
-	u8  num_tc;
+	struct {
+		u16 mode;
+		u8 num_tc;
+	} mqprio;
 	bool rx_cqe_compress_def;
 	bool tunneled_offload_en;
 	struct dim_cq_moder rx_cq_moderation;
@@ -267,6 +271,12 @@ struct mlx5e_params {
 	int hard_mtu;
 	bool ptp_rx;
 };
+
+static inline u8 mlx5e_get_dcb_num_tc(struct mlx5e_params *params)
+{
+	return params->mqprio.mode == TC_MQPRIO_MODE_DCB ?
+		params->mqprio.num_tc : 1;
+}
 
 enum {
 	MLX5E_RQ_STATE_ENABLED,
