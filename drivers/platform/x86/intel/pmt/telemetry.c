@@ -61,6 +61,14 @@ static int pmt_telem_header_decode(struct intel_pmt_entry *entry,
 	/* Size is measured in DWORDS, but accessor returns bytes */
 	header->size = TELEM_SIZE(readl(disc_table));
 
+	/*
+	 * Some devices may expose non-functioning entries that are
+	 * reserved for future use. They have zero size. Do not fail
+	 * probe for these. Just ignore them.
+	 */
+	if (header->size == 0)
+		return 1;
+
 	return 0;
 }
 
