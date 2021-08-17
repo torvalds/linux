@@ -150,8 +150,8 @@ void test__end_subtest()
 
 	dump_test_log(test, sub_error_cnt);
 
-	fprintf(env.stdout, "#%d/%d %s:%s\n",
-	       test->test_num, test->subtest_num, test->subtest_name,
+	fprintf(env.stdout, "#%d/%d %s/%s:%s\n",
+	       test->test_num, test->subtest_num, test->test_name, test->subtest_name,
 	       sub_error_cnt ? "FAIL" : (test->skip_cnt ? "SKIP" : "OK"));
 
 	if (sub_error_cnt)
