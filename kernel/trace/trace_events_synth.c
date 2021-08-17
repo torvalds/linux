@@ -1298,7 +1298,7 @@ static int __create_synth_event(const char *name, const char *raw_fields)
 	}
 	ret = register_synth_event(event);
 	if (!ret)
-		dyn_event_add(&event->devent);
+		dyn_event_add(&event->devent, &event->call);
 	else
 		free_synth_event(event);
  out:

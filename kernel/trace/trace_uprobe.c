@@ -455,7 +455,7 @@ static int append_trace_uprobe(struct trace_uprobe *tu, struct trace_uprobe *to)
 	/* Append to existing event */
 	ret = trace_probe_append(&tu->tp, &to->tp);
 	if (!ret)
-		dyn_event_add(&tu->devent);
+		dyn_event_add(&tu->devent, trace_probe_event_call(&tu->tp));
 
 	return ret;
 }
@@ -518,7 +518,7 @@ static int register_trace_uprobe(struct trace_uprobe *tu)
 		goto end;
 	}
 
-	dyn_event_add(&tu->devent);
+	dyn_event_add(&tu->devent, trace_probe_event_call(&tu->tp));
 
 end:
 	mutex_unlock(&event_mutex);

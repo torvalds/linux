@@ -618,7 +618,7 @@ static int append_trace_kprobe(struct trace_kprobe *tk, struct trace_kprobe *to)
 	if (ret)
 		trace_probe_unlink(&tk->tp);
 	else
-		dyn_event_add(&tk->devent);
+		dyn_event_add(&tk->devent, trace_probe_event_call(&tk->tp));
 
 	return ret;
 }
@@ -661,7 +661,7 @@ static int register_trace_kprobe(struct trace_kprobe *tk)
 	if (ret < 0)
 		unregister_kprobe_event(tk);
 	else
-		dyn_event_add(&tk->devent);
+		dyn_event_add(&tk->devent, trace_probe_event_call(&tk->tp));
 
 end:
 	mutex_unlock(&event_mutex);
