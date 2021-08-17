@@ -1128,9 +1128,9 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		sptep = &sp->spt[i];
 		spte = *sptep;
 		host_writable = spte & shadow_host_writable_mask;
-		make_spte(vcpu, pte_access, PG_LEVEL_4K, gfn,
+		make_spte(vcpu, sp, pte_access, gfn,
 			  spte_to_pfn(spte), spte, true, false,
-			  host_writable, sp_ad_disabled(sp), &spte);
+			  host_writable, &spte);
 
 		flush |= mmu_spte_update(sptep, spte);
 	}

@@ -897,17 +897,18 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
 					  struct kvm_page_fault *fault,
 					  struct tdp_iter *iter)
 {
+	struct kvm_mmu_page *sp = sptep_to_sp(iter->sptep);
 	u64 new_spte;
 	int ret = RET_PF_FIXED;
 	bool wrprot = false;
 
+	WARN_ON(sp->role.level != fault->goal_level);
 	if (unlikely(!fault->slot))
 		new_spte = make_mmio_spte(vcpu, iter->gfn, ACC_ALL);
 	else
-		wrprot = make_spte(vcpu, ACC_ALL, iter->level, iter->gfn,
+		wrprot = make_spte(vcpu, sp, ACC_ALL, iter->gfn,
 					 fault->pfn, iter->old_spte, fault->prefault, true,
-					 fault->map_writable, !shadow_accessed_mask,
-					 &new_spte);
+					 fault->map_writable, &new_spte);
 
 	if (new_spte == iter->old_spte)
 		ret = RET_PF_SPURIOUS;
