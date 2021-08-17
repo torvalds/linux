@@ -346,7 +346,7 @@ DECLARE_EVENT_CLASS(xfs_bmap_class,
 		__entry->caller_ip = caller_ip;
 	),
 	TP_printk("dev %d:%d ino 0x%llx state %s cur %p/%d "
-		  "offset %lld startblock 0x%llx count %lld flag %d caller %pS",
+		  "fileoff 0x%llx startblock 0x%llx count %lld flag %d caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __print_flags(__entry->bmap_state, "|", XFS_BMAP_EXT_FLAGS),
@@ -1392,7 +1392,7 @@ DECLARE_EVENT_CLASS(xfs_file_class,
 		__entry->offset = iocb->ki_pos;
 		__entry->count = iov_iter_count(iter);
 	),
-	TP_printk("dev %d:%d ino 0x%llx size 0x%llx offset 0x%llx count 0x%zx",
+	TP_printk("dev %d:%d ino 0x%llx size 0x%llx pos 0x%llx count 0x%zx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->size,
@@ -1439,7 +1439,7 @@ DECLARE_EVENT_CLASS(xfs_imap_class,
 		__entry->startblock = irec ? irec->br_startblock : 0;
 		__entry->blockcount = irec ? irec->br_blockcount : 0;
 	),
-	TP_printk("dev %d:%d ino 0x%llx size 0x%llx offset 0x%llx count %zd "
+	TP_printk("dev %d:%d ino 0x%llx size 0x%llx pos 0x%llx count %zd "
 		  "fork %s startoff 0x%llx startblock 0x%llx blockcount 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
@@ -1482,7 +1482,7 @@ DECLARE_EVENT_CLASS(xfs_simple_io_class,
 		__entry->count = count;
 	),
 	TP_printk("dev %d:%d ino 0x%llx isize 0x%llx disize 0x%llx "
-		  "offset 0x%llx count %zd",
+		  "pos 0x%llx count %zd",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->isize,
@@ -2151,7 +2151,7 @@ DECLARE_EVENT_CLASS(xfs_swap_extent_class,
 		__entry->fork_off = XFS_IFORK_BOFF(ip);
 	),
 	TP_printk("dev %d:%d ino 0x%llx (%s), %s format, num_extents %d, "
-		  "broot size %d, fork offset %d",
+		  "broot size %d, forkoff 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __print_symbolic(__entry->which, XFS_SWAPEXT_INODES),
@@ -2604,7 +2604,7 @@ DECLARE_EVENT_CLASS(xfs_map_extent_deferred_class,
 		__entry->l_state = state;
 		__entry->op = op;
 	),
-	TP_printk("dev %d:%d op %d agno 0x%x agbno 0x%x owner 0x%llx %s offset %llu len %llu state %d",
+	TP_printk("dev %d:%d op %d agno 0x%x agbno 0x%x owner 0x%llx %s fileoff 0x%llx len %llu state %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->op,
 		  __entry->agno,
@@ -2674,7 +2674,7 @@ DECLARE_EVENT_CLASS(xfs_rmap_class,
 		if (unwritten)
 			__entry->flags |= XFS_RMAP_UNWRITTEN;
 	),
-	TP_printk("dev %d:%d agno 0x%x agbno 0x%x len %u owner 0x%llx offset %llu flags 0x%lx",
+	TP_printk("dev %d:%d agno 0x%x agbno 0x%x len %u owner 0x%llx fileoff 0x%llx flags 0x%lx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->agno,
 		  __entry->agbno,
@@ -2754,7 +2754,7 @@ DECLARE_EVENT_CLASS(xfs_rmapbt_class,
 		__entry->offset = offset;
 		__entry->flags = flags;
 	),
-	TP_printk("dev %d:%d agno 0x%x agbno 0x%x len %u owner 0x%llx offset %llu flags 0x%x",
+	TP_printk("dev %d:%d agno 0x%x agbno 0x%x len %u owner 0x%llx fileoff 0x%llx flags 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->agno,
 		  __entry->agbno,
@@ -3242,8 +3242,8 @@ DECLARE_EVENT_CLASS(xfs_double_io_class,
 		__entry->dest_offset = doffset;
 	),
 	TP_printk("dev %d:%d count %zd "
-		  "ino 0x%llx isize 0x%llx disize 0x%llx offset 0x%llx -> "
-		  "ino 0x%llx isize 0x%llx disize 0x%llx offset 0x%llx",
+		  "ino 0x%llx isize 0x%llx disize 0x%llx pos 0x%llx -> "
+		  "ino 0x%llx isize 0x%llx disize 0x%llx pos 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->len,
 		  __entry->src_ino,
@@ -3282,7 +3282,7 @@ DECLARE_EVENT_CLASS(xfs_inode_irec_class,
 		__entry->pblk = irec->br_startblock;
 		__entry->state = irec->br_state;
 	),
-	TP_printk("dev %d:%d ino 0x%llx lblk 0x%llx len 0x%x startblock 0x%llx st %d",
+	TP_printk("dev %d:%d ino 0x%llx fileoff 0x%llx len 0x%x startblock 0x%llx st %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->lblk,
@@ -3323,8 +3323,7 @@ TRACE_EVENT(xfs_reflink_remap_blocks,
 		__entry->dest_lblk = doffset;
 	),
 	TP_printk("dev %d:%d len 0x%llx "
-		  "ino 0x%llx offset 0x%llx blocks -> "
-		  "ino 0x%llx offset 0x%llx blocks",
+		  "ino 0x%llx fileoff 0x%llx -> ino 0x%llx fileoff 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->len,
 		  __entry->src_ino,
@@ -3423,7 +3422,7 @@ DECLARE_EVENT_CLASS(xfs_fsmap_class,
 		__entry->offset = rmap->rm_offset;
 		__entry->flags = rmap->rm_flags;
 	),
-	TP_printk("dev %d:%d keydev %d:%d agno 0x%x startblock 0x%llx len %llu owner 0x%llx offset %llu flags 0x%x",
+	TP_printk("dev %d:%d keydev %d:%d agno 0x%x startblock 0x%llx len %llu owner 0x%llx fileoff 0x%llx flags 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  MAJOR(__entry->keydev), MINOR(__entry->keydev),
 		  __entry->agno,
@@ -3463,7 +3462,7 @@ DECLARE_EVENT_CLASS(xfs_getfsmap_class,
 		__entry->offset = fsmap->fmr_offset;
 		__entry->flags = fsmap->fmr_flags;
 	),
-	TP_printk("dev %d:%d keydev %d:%d daddr 0x%llx len %llu owner 0x%llx offset %llu flags 0x%llx",
+	TP_printk("dev %d:%d keydev %d:%d daddr 0x%llx len %llu owner 0x%llx fileoff_daddr 0x%llx flags 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  MAJOR(__entry->keydev), MINOR(__entry->keydev),
 		  __entry->block,
