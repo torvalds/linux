@@ -34,6 +34,16 @@ config ASPEED_UART_ROUTING
 	  users to perform runtime configuration of the RX muxes among
 	  the UART controllers and I/O pins.
 
+config ASPEED_LPC_MAILBOX
+	tristate "ASPEED LPC mailbox support"
+	select REGMAP
+	select MFD_SYSCON
+	default ARCH_ASPEED
+	help
+	  Provides a driver to control the LPC mailbox which possesses
+	  up to 32 data registers for the communication between the Host
+	  and the BMC over LPC.
+
 config ASPEED_P2A_CTRL
 	tristate "ASPEED P2A (VGA MMIO to BMC) bridge control"
 	select REGMAP

@@ -11,3 +11,4 @@ obj-$(CONFIG_ASPEED_ESPI)		+= aspeed-espi-ctrl.o \
 					   aspeed-espi-vw.o \
 					   aspeed-espi-oob.o \
 					   aspeed-espi-flash.o
+obj-$(CONFIG_ASPEED_LPC_MAILBOX)	+= aspeed-lpc-mbox.o
