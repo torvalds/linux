@@ -113,9 +113,7 @@ if:
   properties:
     compatible:
       contains:
-        items:
-          - const: cortina,gemini-pci
-          - const: faraday,ftpci100
+        const: faraday,ftpci100
 then:
   required:
     - interrupt-controller
