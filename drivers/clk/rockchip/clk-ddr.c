@@ -259,12 +259,16 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 	init.flags |= CLK_SET_RATE_NO_REPARENT;
 
 	switch (ddr_flag) {
+#ifdef CONFIG_ROCKCHIP_DDRCLK_SIP
 	case ROCKCHIP_DDRCLK_SIP:
 		init.ops = &rockchip_ddrclk_sip_ops;
 		break;
+#endif
+#ifdef CONFIG_ROCKCHIP_DDRCLK_SCPI
 	case ROCKCHIP_DDRCLK_SCPI:
 		init.ops = &rockchip_ddrclk_scpi_ops;
 		break;
+#endif
 	case ROCKCHIP_DDRCLK_SIP_V2:
 		init.ops = &rockchip_ddrclk_sip_ops_v2;
 		break;

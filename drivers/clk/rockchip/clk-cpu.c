@@ -171,7 +171,8 @@ static int rockchip_cpuclk_pre_rate_change(struct rockchip_cpuclk *cpuclk,
 		return -EINVAL;
 	}
 
-	rockchip_boost_enable_recovery_sw_low(cpuclk->pll_hw);
+	if (IS_ENABLED(CONFIG_ROCKCHIP_CLK_BOOST))
+		rockchip_boost_enable_recovery_sw_low(cpuclk->pll_hw);
 
 	alt_prate = clk_get_rate(cpuclk->alt_parent);
 
@@ -209,7 +210,8 @@ static int rockchip_cpuclk_pre_rate_change(struct rockchip_cpuclk *cpuclk,
 		}
 	}
 
-	rockchip_boost_add_core_div(cpuclk->pll_hw, alt_prate);
+	if (IS_ENABLED(CONFIG_ROCKCHIP_CLK_BOOST))
+		rockchip_boost_add_core_div(cpuclk->pll_hw, alt_prate);
 
 	rockchip_cpuclk_set_pre_muxs(cpuclk, rate);
 
@@ -279,7 +281,8 @@ static int rockchip_cpuclk_post_rate_change(struct rockchip_cpuclk *cpuclk,
 	if (ndata->old_rate > ndata->new_rate)
 		rockchip_cpuclk_set_dividers(cpuclk, rate);
 
-	rockchip_boost_disable_recovery_sw(cpuclk->pll_hw);
+	if (IS_ENABLED(CONFIG_ROCKCHIP_CLK_BOOST))
+		rockchip_boost_disable_recovery_sw(cpuclk->pll_hw);
 
 	spin_unlock_irqrestore(cpuclk->lock, flags);
 	return 0;
@@ -354,7 +357,7 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 	cpuclk->reg_data = reg_data;
 	cpuclk->clk_nb.notifier_call = rockchip_cpuclk_notifier_cb;
 	cpuclk->hw.init = &init;
-	if (reg_data->pll_name) {
+	if (IS_ENABLED(CONFIG_ROCKCHIP_CLK_BOOST) && reg_data->pll_name) {
 		pll_clk = clk_get_parent(parent);
 		if (!pll_clk) {
 			pr_err("%s: could not lookup pll clock: (%s)\n",

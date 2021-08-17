@@ -654,11 +654,13 @@ void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 			);
 			break;
 		case branch_inverter:
+#ifdef CONFIG_ROCKCHIP_CLK_INV
 			clk = rockchip_clk_register_inverter(
 				list->name, list->parent_names,
 				list->num_parents,
 				ctx->reg_base + list->muxdiv_offset,
 				list->div_shift, list->div_flags, &ctx->lock);
+#endif
 			break;
 		case branch_factor:
 			clk = rockchip_clk_register_factor_branch(
@@ -678,6 +680,7 @@ void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 				ctx->reg_base);
 			break;
 		case branch_dclk_divider:
+#ifdef CONFIG_ROCKCHIP_DCLK_DIV
 			clk = rockchip_clk_register_dclk_branch(list->name,
 				list->parent_names, list->num_parents,
 				ctx->reg_base, list->muxdiv_offset, list->mux_shift,
@@ -686,6 +689,7 @@ void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 				list->div_flags, list->div_table,
 				list->gate_offset, list->gate_shift,
 				list->gate_flags, flags, list->max_prate, &ctx->lock);
+#endif
 			break;
 		}
 

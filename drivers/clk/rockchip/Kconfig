@@ -148,6 +148,61 @@ config ROCKCHIP_CLK_LINK
 	help
 	  Say y here to enable clock link for Rockchip.
 
+config ROCKCHIP_CLK_BOOST
+	bool "Rockchip Clk Boost"
+	default y if CPU_PX30
+	help
+	  Say y here to enable clk boost.
+
+config ROCKCHIP_CLK_INV
+	bool "Rockchip Clk Inverter"
+	default y if !CPU_RV1126 && !CPU_RV1106
+	help
+	  Say y here to enable clk Inverter.
+
+config ROCKCHIP_CLK_PVTM
+	bool "Rockchip Clk Pvtm"
+	default y if !CPU_RV1126 && !CPU_RV1106
+	help
+	  Say y here to enable clk pvtm.
+
+config ROCKCHIP_DCLK_DIV
+	bool "Rockchip Dclk Divider"
+	default y if !CPU_RV1126 && !CPU_RV1106
+	help
+	  Say y here to enable dclk divider.
+
+config ROCKCHIP_DDRCLK_SCPI
+	bool "Rockchip DDR Clk SCPI"
+	default y if RK3368_SCPI_PROTOCOL
+	help
+	  Say y here to enable ddr clk scpi.
+
+config ROCKCHIP_DDRCLK_SIP
+	bool "Rockchip DDR Clk SIP"
+	default y if CPU_RK3399
+	help
+	  Say y here to enable ddr clk sip.
+
+config ROCKCHIP_PLL_RK3066
+	bool "Rockchip PLL Type RK3066"
+	default y if CPU_RK30XX || CPU_RK3188 || \
+		CPU_RK3288 || CPU_RK3368
+	help
+	  Say y here to enable pll type is rk3066.
+
+config ROCKCHIP_PLL_RK3399
+	bool "Rockchip PLL Type RK3399"
+	default y if CPU_RK3399 || CPU_RV1108
+	help
+	  Say y here to enable pll type is rk3399.
+
+config ROCKCHIP_PLL_RK3588
+	bool "Rockchip PLL Type RK3588"
+	default y if CPU_RK3588
+	help
+	  Say y here to enable pll type is rk3588.
+
 source "drivers/clk/rockchip/regmap/Kconfig"
 
 endif

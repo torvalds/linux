@@ -47,12 +47,14 @@ struct rockchip_clk_pll {
 
 	struct rockchip_clk_provider *ctx;
 
+#ifdef CONFIG_ROCKCHIP_CLK_BOOST
 	bool			boost_enabled;
 	u32			boost_backup_pll_usage;
 	unsigned long		boost_backup_pll_rate;
 	unsigned long		boost_low_rate;
 	unsigned long		boost_high_rate;
 	struct regmap		*boost;
+#endif
 #ifdef CONFIG_DEBUG_FS
 	struct hlist_node	debug_node;
 #endif
@@ -62,7 +64,15 @@ struct rockchip_clk_pll {
 #define to_rockchip_clk_pll_nb(nb) \
 			container_of(nb, struct rockchip_clk_pll, clk_nb)
 
+#ifdef CONFIG_ROCKCHIP_CLK_BOOST
 static void rockchip_boost_disable_low(struct rockchip_clk_pll *pll);
+#ifdef CONFIG_DEBUG_FS
+static HLIST_HEAD(clk_boost_list);
+static DEFINE_MUTEX(clk_boost_lock);
+#endif
+#else
+static inline void rockchip_boost_disable_low(struct rockchip_clk_pll *pll) {}
+#endif
 
 #define MHZ			(1000UL * 1000UL)
 #define KHZ			(1000UL)
@@ -86,10 +96,6 @@ static void rockchip_boost_disable_low(struct rockchip_clk_pll *pll);
 #define MAX_FOUTVCO_FREQ	(2000 * MHZ)
 
 static struct rockchip_pll_rate_table auto_table;
-#ifdef CONFIG_DEBUG_FS
-static HLIST_HEAD(clk_boost_list);
-static DEFINE_MUTEX(clk_boost_lock);
-#endif
 
 int rockchip_pll_clk_adaptive_scaling(struct clk *clk, int sel)
 {
@@ -477,7 +483,7 @@ static int rockchip_rk3036_pll_wait_lock(struct rockchip_clk_pll *pll)
 	return ret;
 }
 
-static unsigned long
+static unsigned long __maybe_unused
 rockchip_rk3036_pll_con_to_rate(struct rockchip_clk_pll *pll,
 				u32 con0, u32 con1)
 {
@@ -599,7 +605,8 @@ static int rockchip_rk3036_pll_set_params(struct rockchip_clk_pll *pll,
 	pllcon |= rate->frac << RK3036_PLLCON2_FRAC_SHIFT;
 	writel_relaxed(pllcon, pll->reg_base + RK3036_PLLCON(2));
 
-	rockchip_boost_disable_low(pll);
+	if (IS_ENABLED(CONFIG_ROCKCHIP_CLK_BOOST))
+		rockchip_boost_disable_low(pll);
 
 	/* wait for the pll to lock */
 	ret = rockchip_rk3036_pll_wait_lock(pll);
@@ -1656,18 +1663,23 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 		else
 			init.ops = &rockchip_rk3036_pll_clk_ops;
 		break;
+#ifdef CONFIG_ROCKCHIP_PLL_RK3066
 	case pll_rk3066:
 		if (!pll->rate_table || IS_ERR(ctx->grf))
 			init.ops = &rockchip_rk3066_pll_clk_norate_ops;
 		else
 			init.ops = &rockchip_rk3066_pll_clk_ops;
 		break;
+#endif
+#ifdef CONFIG_ROCKCHIP_PLL_RK3399
 	case pll_rk3399:
 		if (!pll->rate_table)
 			init.ops = &rockchip_rk3399_pll_clk_norate_ops;
 		else
 			init.ops = &rockchip_rk3399_pll_clk_ops;
 		break;
+#endif
+#ifdef CONFIG_ROCKCHIP_PLL_RK3588
 	case pll_rk3588:
 	case pll_rk3588_core:
 		if (!pll->rate_table)
@@ -1676,6 +1688,7 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 			init.ops = &rockchip_rk3588_pll_clk_ops;
 		init.flags = flags;
 		break;
+#endif
 	default:
 		pr_warn("%s: Unknown pll type for pll clk %s\n",
 			__func__, name);
@@ -1707,6 +1720,7 @@ err_mux:
 	return mux_clk;
 }
 
+#ifdef CONFIG_ROCKCHIP_CLK_BOOST
 static unsigned long rockchip_pll_con_to_rate(struct rockchip_clk_pll *pll,
 					      u32 con0, u32 con1)
 {
@@ -2019,3 +2033,4 @@ static int __init boost_debug_init(void)
 late_initcall(boost_debug_init);
 #endif /* MODULE */
 #endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_ROCKCHIP_CLK_BOOST */
