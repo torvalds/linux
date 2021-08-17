@@ -30,11 +30,11 @@
 #include <linux/debug_locks.h>
 #include <linux/osq_lock.h>
 
+#include "mutex.h"
+
 #ifdef CONFIG_DEBUG_MUTEXES
-# include "mutex-debug.h"
 # define MUTEX_WARN_ON(cond) DEBUG_LOCKS_WARN_ON(cond)
 #else
-# include "mutex.h"
 # define MUTEX_WARN_ON(cond)
 #endif
 
