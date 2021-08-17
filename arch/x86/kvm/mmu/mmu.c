@@ -2675,9 +2675,8 @@ int mmu_try_to_unsync_pages(struct kvm_vcpu *vcpu, gfn_t gfn, bool can_unsync,
 }
 
 static int mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
-			unsigned int pte_access, bool write_fault,
-			gfn_t gfn, kvm_pfn_t pfn, bool speculative,
-			bool host_writable)
+			unsigned int pte_access, gfn_t gfn,
+			kvm_pfn_t pfn, struct kvm_page_fault *fault)
 {
 	struct kvm_mmu_page *sp = sptep_to_sp(sptep);
 	int level = sp->role.level;
@@ -2686,6 +2685,11 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	bool flush = false;
 	bool wrprot;
 	u64 spte;
+
+	/* Prefetching always gets a writable pfn.  */
+	bool host_writable = !fault || fault->map_writable;
+	bool speculative = !fault || fault->prefault;
+	bool write_fault = fault && fault->write;
 
 	pgprintk("%s: spte %llx write_fault %d gfn %llx\n", __func__,
 		 *sptep, write_fault, gfn);
@@ -2778,8 +2782,8 @@ static int direct_pte_prefetch_many(struct kvm_vcpu *vcpu,
 		return -1;
 
 	for (i = 0; i < ret; i++, gfn++, start++) {
-		mmu_set_spte(vcpu, start, access, false, gfn,
-			     page_to_pfn(pages[i]), true, true);
+		mmu_set_spte(vcpu, start, access, gfn,
+			     page_to_pfn(pages[i]), NULL);
 		put_page(pages[i]);
 	}
 
@@ -2981,8 +2985,7 @@ static int __direct_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		return -EFAULT;
 
 	ret = mmu_set_spte(vcpu, it.sptep, ACC_ALL,
-			   fault->write, base_gfn, fault->pfn,
-			   fault->prefault, fault->map_writable);
+			   base_gfn, fault->pfn, fault);
 	if (ret == RET_PF_SPURIOUS)
 		return ret;
 

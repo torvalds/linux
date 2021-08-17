@@ -578,13 +578,7 @@ FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	if (is_error_pfn(pfn))
 		return false;
 
-	/*
-	 * we call mmu_set_spte() with host_writable = true because
-	 * pte_prefetch_gfn_to_pfn always gets a writable pfn.
-	 */
-	mmu_set_spte(vcpu, spte, pte_access, false, gfn, pfn,
-		     true, true);
-
+	mmu_set_spte(vcpu, spte, pte_access, gfn, pfn, NULL);
 	kvm_release_pfn_clean(pfn);
 	return true;
 }
@@ -763,9 +757,8 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 	if (WARN_ON_ONCE(it.level != fault->goal_level))
 		return -EFAULT;
 
-	ret = mmu_set_spte(vcpu, it.sptep, gw->pte_access, fault->write,
-			   base_gfn, fault->pfn, fault->prefault,
-			   fault->map_writable);
+	ret = mmu_set_spte(vcpu, it.sptep, gw->pte_access,
+			   base_gfn, fault->pfn, fault);
 	if (ret == RET_PF_SPURIOUS)
 		return ret;
 
