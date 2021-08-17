@@ -724,7 +724,17 @@ void rvu_npc_install_promisc_entry(struct rvu *rvu, u16 pcifunc,
 		action.index = pfvf->promisc_mce_idx;
 	}
 
-	req.chan_mask = 0xFFFU;
+	/* For cn10k the upper two bits of the channel number are
+	 * cpt channel number. with masking out these bits in the
+	 * mcam entry, same entry used for NIX will allow packets
+	 * received from cpt for parsing.
+	 */
+	if (!is_rvu_otx2(rvu)) {
+		req.chan_mask = NIX_CHAN_CPT_X2P_MASK;
+	} else {
+		req.chan_mask = 0xFFFU;
+	}
+
 	if (chan_cnt > 1) {
 		if (!is_power_of_2(chan_cnt)) {
 			dev_err(rvu->dev,
@@ -1898,9 +1908,22 @@ static void rvu_npc_hw_init(struct rvu *rvu, int blkaddr)
 
 	mcam->banks = (npc_const >> 44) & 0xFULL;
 	mcam->banksize = (npc_const >> 28) & 0xFFFFULL;
+	hw->npc_stat_ena = BIT_ULL(9);
 	/* Extended set */
 	if (npc_const2) {
 		hw->npc_ext_set = true;
+		/* 96xx supports only match_stats and npc_counters
+		 * reflected in NPC_AF_CONST reg.
+		 * STAT_SEL and ENA are at [0:8] and 9 bit positions.
+		 * 98xx has both match_stat and ext and npc_counter
+		 * reflected in NPC_AF_CONST2
+		 * STAT_SEL_EXT added at [12:14] bit position.
+		 * cn10k supports only ext and hence npc_counters in
+		 * NPC_AF_CONST is 0 and npc_counters reflected in NPC_AF_CONST2.
+		 * STAT_SEL bitpos incremented from [0:8] to [0:11] and ENA bit moved to 63
+		 */
+		if (!hw->npc_counters)
+			hw->npc_stat_ena = BIT_ULL(63);
 		hw->npc_counters = (npc_const2 >> 16) & 0xFFFFULL;
 		mcam->banksize = npc_const2 & 0xFFFFULL;
 	}
@@ -1955,7 +1978,7 @@ static void rvu_npc_setup_interfaces(struct rvu *rvu, int blkaddr)
 		rvu_write64(rvu, blkaddr,
 			    NPC_AF_INTFX_MISS_STAT_ACT(intf),
 			    ((mcam->rx_miss_act_cntr >> 9) << 12) |
-			    BIT_ULL(9) | mcam->rx_miss_act_cntr);
+			    hw->npc_stat_ena | mcam->rx_miss_act_cntr);
 	}
 
 	/* Configure TX interfaces */
@@ -2147,18 +2170,16 @@ static void npc_map_mcam_entry_and_cntr(struct rvu *rvu, struct npc_mcam *mcam,
 					int blkaddr, u16 entry, u16 cntr)
 {
 	u16 index = entry & (mcam->banksize - 1);
-	u16 bank = npc_get_bank(mcam, entry);
+	u32 bank = npc_get_bank(mcam, entry);
+	struct rvu_hwinfo *hw = rvu->hw;
 
 	/* Set mapping and increment counter's refcnt */
 	mcam->entry2cntr_map[entry] = cntr;
 	mcam->cntr_refcnt[cntr]++;
-	/* Enable stats
-	 * NPC_AF_MCAMEX_BANKX_STAT_ACT[14:12] - counter[11:9]
-	 * NPC_AF_MCAMEX_BANKX_STAT_ACT[8:0] - counter[8:0]
-	 */
+	/* Enable stats */
 	rvu_write64(rvu, blkaddr,
 		    NPC_AF_MCAMEX_BANKX_STAT_ACT(index, bank),
-		    ((cntr >> 9) << 12) | BIT_ULL(9) | cntr);
+		    ((cntr >> 9) << 12) | hw->npc_stat_ena | cntr);
 }
 
 static void npc_unmap_mcam_entry_and_cntr(struct rvu *rvu,
@@ -2414,6 +2435,17 @@ static int npc_mcam_alloc_entries(struct npc_mcam *mcam, u16 pcifunc,
 		goto alloc;
 	}
 
+	/* For a VF base MCAM match rule is set by its PF. And all the
+	 * further MCAM rules installed by VF on its own are
+	 * concatenated with the base rule set by its PF. Hence PF entries
+	 * should be at lower priority compared to VF entries. Otherwise
+	 * base rule is hit always and rules installed by VF will be of
+	 * no use. Hence if the request is from PF and NOT a priority
+	 * allocation request then allocate low priority entries.
+	 */
+	if (!(pcifunc & RVU_PFVF_FUNC_MASK))
+		goto lprio_alloc;
+
 	/* Find out the search range for non-priority allocation request
 	 *
 	 * Get MCAM free entry count in middle zone.
@@ -2439,6 +2471,7 @@ static int npc_mcam_alloc_entries(struct npc_mcam *mcam, u16 pcifunc,
 		/* Not enough free entries, search all entries in reverse,
 		 * so that low priority ones will get used up.
 		 */
+lprio_alloc:
 		reverse = true;
 		start = 0;
 		end = mcam->bmap_entries;
@@ -3252,7 +3285,7 @@ int rvu_mbox_handler_npc_mcam_entry_stats(struct rvu *rvu,
 	/* read MCAM entry STAT_ACT register */
 	regval = rvu_read64(rvu, blkaddr, NPC_AF_MCAMEX_BANKX_STAT_ACT(index, bank));
 
-	if (!(regval & BIT_ULL(9))) {
+	if (!(regval & rvu->hw->npc_stat_ena)) {
 		rsp->stat_ena = 0;
 		mutex_unlock(&mcam->lock);
 		return 0;
