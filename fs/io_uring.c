@@ -2286,6 +2286,8 @@ static inline unsigned int io_put_rw_kbuf(struct io_kiocb *req)
 {
 	struct io_buffer *kbuf;
 
+	if (likely(!(req->flags & REQ_F_BUFFER_SELECTED)))
+		return 0;
 	kbuf = (struct io_buffer *) (unsigned long) req->rw.addr;
 	return io_put_kbuf(req, kbuf);
 }
@@ -2315,8 +2317,6 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 
 	io_init_req_batch(&rb);
 	while (!list_empty(done)) {
-		int cflags = 0;
-
 		req = list_first_entry(done, struct io_kiocb, inflight_entry);
 		list_del(&req->inflight_entry);
 
@@ -2327,10 +2327,8 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 			continue;
 		}
 
-		if (req->flags & REQ_F_BUFFER_SELECTED)
-			cflags = io_put_rw_kbuf(req);
-
-		__io_cqring_fill_event(ctx, req->user_data, req->result, cflags);
+		__io_cqring_fill_event(ctx, req->user_data, req->result,
+					io_put_rw_kbuf(req));
 		(*nr_events)++;
 
 		if (req_ref_put_and_test(req))
@@ -2550,11 +2548,7 @@ static bool __io_complete_rw_common(struct io_kiocb *req, long res)
 
 static void io_req_task_complete(struct io_kiocb *req)
 {
-	int cflags = 0;
-
-	if (req->flags & REQ_F_BUFFER_SELECTED)
-		cflags = io_put_rw_kbuf(req);
-	__io_req_complete(req, 0, req->result, cflags);
+	__io_req_complete(req, 0, req->result, io_put_rw_kbuf(req));
 }
 
 static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
@@ -2822,12 +2816,9 @@ static void kiocb_done(struct kiocb *kiocb, ssize_t ret,
 		if (io_resubmit_prep(req)) {
 			io_req_task_queue_reissue(req);
 		} else {
-			int cflags = 0;
-
 			req_set_fail(req);
-			if (req->flags & REQ_F_BUFFER_SELECTED)
-				cflags = io_put_rw_kbuf(req);
-			__io_req_complete(req, issue_flags, ret, cflags);
+			__io_req_complete(req, issue_flags, ret,
+					  io_put_rw_kbuf(req));
 		}
 	}
 }
