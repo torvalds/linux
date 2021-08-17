@@ -32,9 +32,8 @@ static const char * const dsi_6g_bus_clk_names[] = {
 static const struct msm_dsi_config msm8974_apq8084_dsi_cfg = {
 	.io_offset = DSI_6G_REG_SHIFT,
 	.reg_cfg = {
-		.num = 4,
+		.num = 3,
 		.regs = {
-			{"gdsc", -1, -1},
 			{"vdd", 150000, 100},	/* 3.0 V */
 			{"vdda", 100000, 100},	/* 1.2 V */
 			{"vddio", 100000, 100},	/* 1.8 V */
@@ -53,9 +52,8 @@ static const char * const dsi_8916_bus_clk_names[] = {
 static const struct msm_dsi_config msm8916_dsi_cfg = {
 	.io_offset = DSI_6G_REG_SHIFT,
 	.reg_cfg = {
-		.num = 3,
+		.num = 2,
 		.regs = {
-			{"gdsc", -1, -1},
 			{"vdda", 100000, 100},	/* 1.2 V */
 			{"vddio", 100000, 100},	/* 1.8 V */
 		},
@@ -73,9 +71,8 @@ static const char * const dsi_8976_bus_clk_names[] = {
 static const struct msm_dsi_config msm8976_dsi_cfg = {
 	.io_offset = DSI_6G_REG_SHIFT,
 	.reg_cfg = {
-		.num = 3,
+		.num = 2,
 		.regs = {
-			{"gdsc", -1, -1},
 			{"vdda", 100000, 100},	/* 1.2 V */
 			{"vddio", 100000, 100},	/* 1.8 V */
 		},
@@ -89,9 +86,8 @@ static const struct msm_dsi_config msm8976_dsi_cfg = {
 static const struct msm_dsi_config msm8994_dsi_cfg = {
 	.io_offset = DSI_6G_REG_SHIFT,
 	.reg_cfg = {
-		.num = 7,
+		.num = 6,
 		.regs = {
-			{"gdsc", -1, -1},
 			{"vdda", 100000, 100},	/* 1.25 V */
 			{"vddio", 100000, 100},	/* 1.8 V */
 			{"vcca", 10000, 100},	/* 1.0 V */
@@ -154,7 +150,6 @@ static const struct msm_dsi_config sdm660_dsi_cfg = {
 	.reg_cfg = {
 		.num = 2,
 		.regs = {
-			{"vdd", 73400, 32 },	/* 0.9 V */
 			{"vdda", 12560, 4 },	/* 1.2 V */
 		},
 	},
@@ -196,6 +191,24 @@ static const struct msm_dsi_config sc7180_dsi_cfg = {
 	},
 	.bus_clk_names = dsi_sc7180_bus_clk_names,
 	.num_bus_clks = ARRAY_SIZE(dsi_sc7180_bus_clk_names),
+	.io_start = { 0xae94000 },
+	.num_dsi = 1,
+};
+
+static const char * const dsi_sc7280_bus_clk_names[] = {
+	"iface", "bus",
+};
+
+static const struct msm_dsi_config sc7280_dsi_cfg = {
+	.io_offset = DSI_6G_REG_SHIFT,
+	.reg_cfg = {
+		.num = 1,
+		.regs = {
+			{"vdda", 8350, 0 },	/* 1.2 V */
+		},
+	},
+	.bus_clk_names = dsi_sc7280_bus_clk_names,
+	.num_bus_clks = ARRAY_SIZE(dsi_sc7280_bus_clk_names),
 	.io_start = { 0xae94000 },
 	.num_dsi = 1,
 };
@@ -267,6 +280,8 @@ static const struct msm_dsi_cfg_handler dsi_cfg_handlers[] = {
 		&sdm845_dsi_cfg, &msm_dsi_6g_v2_host_ops},
 	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V2_4_1,
 		&sc7180_dsi_cfg, &msm_dsi_6g_v2_host_ops},
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V2_5_0,
+		&sc7280_dsi_cfg, &msm_dsi_6g_v2_host_ops},
 };
 
 const struct msm_dsi_cfg_handler *msm_dsi_cfg_get(u32 major, u32 minor)
