@@ -807,27 +807,6 @@ static void skl_set_copier_format(struct skl_dev *skl,
 }
 
 /*
- * Algo module are DSP pre processing modules. Algo module take base module
- * configuration and params
- */
-
-static void skl_set_algo_format(struct skl_dev *skl,
-			struct skl_module_cfg *mconfig,
-			struct skl_algo_cfg *algo_mcfg)
-{
-	struct skl_base_cfg *base_cfg = (struct skl_base_cfg *)algo_mcfg;
-
-	skl_set_base_module_format(skl, mconfig, base_cfg);
-	if (mconfig->formats_config[SKL_PARAM_INIT].caps_size == 0)
-		return;
-
-	memcpy(algo_mcfg->params,
-			mconfig->formats_config[SKL_PARAM_INIT].caps,
-			mconfig->formats_config[SKL_PARAM_INIT].caps_size);
-
-}
-
-/*
  * Mic select module allows selecting one or many input channels, thus
  * acting as a demux.
  *
@@ -849,6 +828,8 @@ static void skl_set_base_outfmt_format(struct skl_dev *skl,
 static u16 skl_get_module_param_size(struct skl_dev *skl,
 			struct skl_module_cfg *mconfig)
 {
+	struct skl_module_res *res;
+	struct skl_module *module = mconfig->module;
 	u16 param_size;
 
 	switch (mconfig->m_type) {
@@ -863,11 +844,6 @@ static u16 skl_get_module_param_size(struct skl_dev *skl,
 	case SKL_MODULE_TYPE_UPDWMIX:
 		return sizeof(struct skl_up_down_mixer_cfg);
 
-	case SKL_MODULE_TYPE_ALGO:
-		param_size = sizeof(struct skl_base_cfg);
-		param_size += mconfig->formats_config[SKL_PARAM_INIT].caps_size;
-		return param_size;
-
 	case SKL_MODULE_TYPE_BASE_OUTFMT:
 	case SKL_MODULE_TYPE_MIC_SELECT:
 		return sizeof(struct skl_base_outfmt_cfg);
@@ -876,12 +852,16 @@ static u16 skl_get_module_param_size(struct skl_dev *skl,
 	case SKL_MODULE_TYPE_KPB:
 		return sizeof(struct skl_base_cfg);
 
+	case SKL_MODULE_TYPE_ALGO:
 	default:
-		/*
-		 * return only base cfg when no specific module type is
-		 * specified
-		 */
-		return sizeof(struct skl_base_cfg);
+		res = &module->resources[mconfig->res_idx];
+
+		param_size = sizeof(struct skl_base_cfg) + sizeof(struct skl_base_cfg_ext);
+		param_size += (res->nr_input_pins + res->nr_output_pins) *
+			      sizeof(struct skl_pin_format);
+		param_size += mconfig->formats_config[SKL_PARAM_INIT].caps_size;
+
+		return param_size;
 	}
 
 	return 0;
@@ -922,10 +902,6 @@ static int skl_set_module_format(struct skl_dev *skl,
 		skl_set_updown_mixer_format(skl, module_config, *param_data);
 		break;
 
-	case SKL_MODULE_TYPE_ALGO:
-		skl_set_algo_format(skl, module_config, *param_data);
-		break;
-
 	case SKL_MODULE_TYPE_BASE_OUTFMT:
 	case SKL_MODULE_TYPE_MIC_SELECT:
 		skl_set_base_outfmt_format(skl, module_config, *param_data);
@@ -936,10 +912,13 @@ static int skl_set_module_format(struct skl_dev *skl,
 		skl_set_base_module_format(skl, module_config, *param_data);
 		break;
 
+	case SKL_MODULE_TYPE_ALGO:
 	default:
 		skl_set_base_module_format(skl, module_config, *param_data);
+		skl_set_base_ext_module_format(skl, module_config,
+					       *param_data +
+					       sizeof(struct skl_base_cfg));
 		break;
-
 	}
 
 	dev_dbg(skl->dev, "Module type=%d id=%d config size: %d bytes\n",
