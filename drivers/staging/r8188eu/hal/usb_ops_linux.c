@@ -10,7 +10,7 @@
 #include "../include/recv_osdep.h"
 #include "../include/rtl8188e_hal.h"
 
-static int usbctrl_vendorreq(struct intf_hdl *pintfhdl, u16 value, u16 index, void *pdata, u16 len, u8 requesttype)
+static int usbctrl_vendorreq(struct intf_hdl *pintfhdl, u16 value, void *pdata, u16 len, u8 requesttype)
 {
 	struct adapter	*adapt = pintfhdl->padapter;
 	struct dvobj_priv  *dvobjpriv = adapter_to_dvobj(adapt);
@@ -56,7 +56,8 @@ static int usbctrl_vendorreq(struct intf_hdl *pintfhdl, u16 value, u16 index, vo
 		}
 
 		status = usb_control_msg(udev, pipe, REALTEK_USB_VENQT_CMD_REQ,
-					 reqtype, value, index, pIo_buf, len, RTW_USB_CONTROL_MSG_TIMEOUT);
+					 reqtype, value, REALTEK_USB_VENQT_CMD_IDX,
+					 pIo_buf, len, RTW_USB_CONTROL_MSG_TIMEOUT);
 
 		if (status == len) {   /*  Success this control transfer. */
 			rtw_reset_continual_urb_error(dvobjpriv);
@@ -104,19 +105,17 @@ static u8 usb_read8(struct intf_hdl *pintfhdl, u32 addr)
 {
 	u8 requesttype;
 	u16 wvalue;
-	u16 index;
 	u16 len;
 	u8 data = 0;
 
 
 
 	requesttype = 0x01;/* read_in */
-	index = 0;/* n/a */
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 1;
 
-	usbctrl_vendorreq(pintfhdl, wvalue, index, &data, len, requesttype);
+	usbctrl_vendorreq(pintfhdl, wvalue, &data, len, requesttype);
 
 
 
@@ -128,15 +127,13 @@ static u16 usb_read16(struct intf_hdl *pintfhdl, u32 addr)
 {
 	u8 requesttype;
 	u16 wvalue;
-	u16 index;
 	u16 len;
 	__le32 data;
 
 	requesttype = 0x01;/* read_in */
-	index = 0;/* n/a */
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 2;
-	usbctrl_vendorreq(pintfhdl, wvalue, index, &data, len, requesttype);
+	usbctrl_vendorreq(pintfhdl, wvalue, &data, len, requesttype);
 
 	return (u16)(le32_to_cpu(data) & 0xffff);
 }
@@ -145,17 +142,15 @@ static u32 usb_read32(struct intf_hdl *pintfhdl, u32 addr)
 {
 	u8 requesttype;
 	u16 wvalue;
-	u16 index;
 	u16 len;
 	__le32 data;
 
 	requesttype = 0x01;/* read_in */
-	index = 0;/* n/a */
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 4;
 
-	usbctrl_vendorreq(pintfhdl, wvalue, index, &data, len, requesttype);
+	usbctrl_vendorreq(pintfhdl, wvalue, &data, len, requesttype);
 
 	return le32_to_cpu(data);
 }
@@ -164,18 +159,16 @@ static int usb_write8(struct intf_hdl *pintfhdl, u32 addr, u8 val)
 {
 	u8 requesttype;
 	u16 wvalue;
-	u16 index;
 	u16 len;
 	u8 data;
 	int ret;
 
 
 	requesttype = 0x00;/* write_out */
-	index = 0;/* n/a */
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 1;
 	data = val;
-	ret = usbctrl_vendorreq(pintfhdl, wvalue, index, &data, len, requesttype);
+	ret = usbctrl_vendorreq(pintfhdl, wvalue, &data, len, requesttype);
 
 	return ret;
 }
@@ -184,7 +177,6 @@ static int usb_write16(struct intf_hdl *pintfhdl, u32 addr, u16 val)
 {
 	u8 requesttype;
 	u16 wvalue;
-	u16 index;
 	u16 len;
 	__le32 data;
 	int ret;
@@ -192,14 +184,13 @@ static int usb_write16(struct intf_hdl *pintfhdl, u32 addr, u16 val)
 
 
 	requesttype = 0x00;/* write_out */
-	index = 0;/* n/a */
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 2;
 
 	data = cpu_to_le32(val & 0x0000ffff);
 
-	ret = usbctrl_vendorreq(pintfhdl, wvalue, index, &data, len, requesttype);
+	ret = usbctrl_vendorreq(pintfhdl, wvalue, &data, len, requesttype);
 
 
 
@@ -210,7 +201,6 @@ static int usb_write32(struct intf_hdl *pintfhdl, u32 addr, u32 val)
 {
 	u8 requesttype;
 	u16 wvalue;
-	u16 index;
 	u16 len;
 	__le32 data;
 	int ret;
@@ -218,13 +208,12 @@ static int usb_write32(struct intf_hdl *pintfhdl, u32 addr, u32 val)
 
 
 	requesttype = 0x00;/* write_out */
-	index = 0;/* n/a */
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 4;
 	data = cpu_to_le32(val);
 
-	ret = usbctrl_vendorreq(pintfhdl, wvalue, index, &data, len, requesttype);
+	ret = usbctrl_vendorreq(pintfhdl, wvalue, &data, len, requesttype);
 
 
 
@@ -235,7 +224,6 @@ static int usb_writeN(struct intf_hdl *pintfhdl, u32 addr, u32 length, u8 *pdata
 {
 	u8 requesttype;
 	u16 wvalue;
-	u16 index;
 	u16 len;
 	u8 buf[VENDOR_CMD_MAX_DATA_LEN] = {0};
 	int ret;
@@ -243,13 +231,12 @@ static int usb_writeN(struct intf_hdl *pintfhdl, u32 addr, u32 length, u8 *pdata
 
 
 	requesttype = 0x00;/* write_out */
-	index = 0;/* n/a */
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = length;
 	memcpy(buf, pdata, len);
 
-	ret = usbctrl_vendorreq(pintfhdl, wvalue, index, buf, len, requesttype);
+	ret = usbctrl_vendorreq(pintfhdl, wvalue, buf, len, requesttype);
 
 	return ret;
 }
