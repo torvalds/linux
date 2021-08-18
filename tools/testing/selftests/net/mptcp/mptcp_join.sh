@@ -344,17 +344,18 @@ do_transfer()
 		let rm_nr_ns1=-addr_nr_ns1
 		if [ $rm_nr_ns1 -lt 8 ]; then
 			counter=1
+			pos=1
 			dump=(`ip netns exec ${listener_ns} ./pm_nl_ctl dump`)
 			if [ ${#dump[@]} -gt 0 ]; then
-				id=${dump[1]}
 				sleep 1
 
 				while [ $counter -le $rm_nr_ns1 ]
 				do
+					id=${dump[$pos]}
 					ip netns exec ${listener_ns} ./pm_nl_ctl del $id
 					sleep 1
 					let counter+=1
-					let id+=1
+					let pos+=5
 				done
 			fi
 		elif [ $rm_nr_ns1 -eq 8 ]; then
@@ -364,6 +365,12 @@ do_transfer()
 			sleep 1
 			ip netns exec ${listener_ns} ./pm_nl_ctl del 0 ${connect_addr}
 		fi
+	fi
+
+	flags="subflow"
+	if [[ "${addr_nr_ns2}" = "fullmesh_"* ]]; then
+		flags="${flags},fullmesh"
+		addr_nr_ns2=${addr_nr_ns2:9}
 	fi
 
 	if [ $addr_nr_ns2 -gt 0 ]; then
@@ -377,7 +384,7 @@ do_transfer()
 			else
 				addr="10.0.$counter.2"
 			fi
-			ip netns exec $ns2 ./pm_nl_ctl add $addr flags subflow
+			ip netns exec $ns2 ./pm_nl_ctl add $addr flags $flags
 			let counter+=1
 			let add_nr_ns2-=1
 		done
@@ -386,17 +393,18 @@ do_transfer()
 		let rm_nr_ns2=-addr_nr_ns2
 		if [ $rm_nr_ns2 -lt 8 ]; then
 			counter=1
+			pos=1
 			dump=(`ip netns exec ${connector_ns} ./pm_nl_ctl dump`)
 			if [ ${#dump[@]} -gt 0 ]; then
-				id=${dump[1]}
 				sleep 1
 
 				while [ $counter -le $rm_nr_ns2 ]
 				do
+					id=${dump[$pos]}
 					ip netns exec ${connector_ns} ./pm_nl_ctl del $id
 					sleep 1
 					let counter+=1
-					let id+=1
+					let pos+=5
 				done
 			fi
 		elif [ $rm_nr_ns2 -eq 8 ]; then
@@ -1686,6 +1694,55 @@ deny_join_id0_tests()
 	chk_join_nr "subflow and address allow join id0 2" 1 1 1
 }
 
+fullmesh_tests()
+{
+	# fullmesh 1
+	# 2 fullmesh addrs in ns2, added before the connection,
+	# 1 non-fullmesh addr in ns1, added during the connection.
+	reset
+	ip netns exec $ns1 ./pm_nl_ctl limits 0 4
+	ip netns exec $ns2 ./pm_nl_ctl limits 1 4
+	ip netns exec $ns2 ./pm_nl_ctl add 10.0.2.2 flags subflow,fullmesh
+	ip netns exec $ns2 ./pm_nl_ctl add 10.0.3.2 flags subflow,fullmesh
+	run_tests $ns1 $ns2 10.0.1.1 0 1 0 slow
+	chk_join_nr "fullmesh test 2x1" 4 4 4
+	chk_add_nr 1 1
+
+	# fullmesh 2
+	# 1 non-fullmesh addr in ns1, added before the connection,
+	# 1 fullmesh addr in ns2, added during the connection.
+	reset
+	ip netns exec $ns1 ./pm_nl_ctl limits 1 3
+	ip netns exec $ns2 ./pm_nl_ctl limits 1 3
+	ip netns exec $ns1 ./pm_nl_ctl add 10.0.2.1 flags signal
+	run_tests $ns1 $ns2 10.0.1.1 0 0 fullmesh_1 slow
+	chk_join_nr "fullmesh test 1x1" 3 3 3
+	chk_add_nr 1 1
+
+	# fullmesh 3
+	# 1 non-fullmesh addr in ns1, added before the connection,
+	# 2 fullmesh addrs in ns2, added during the connection.
+	reset
+	ip netns exec $ns1 ./pm_nl_ctl limits 2 5
+	ip netns exec $ns2 ./pm_nl_ctl limits 1 5
+	ip netns exec $ns1 ./pm_nl_ctl add 10.0.2.1 flags signal
+	run_tests $ns1 $ns2 10.0.1.1 0 0 fullmesh_2 slow
+	chk_join_nr "fullmesh test 1x2" 5 5 5
+	chk_add_nr 1 1
+
+	# fullmesh 4
+	# 1 non-fullmesh addr in ns1, added before the connection,
+	# 2 fullmesh addrs in ns2, added during the connection,
+	# limit max_subflows to 4.
+	reset
+	ip netns exec $ns1 ./pm_nl_ctl limits 2 4
+	ip netns exec $ns2 ./pm_nl_ctl limits 1 4
+	ip netns exec $ns1 ./pm_nl_ctl add 10.0.2.1 flags signal
+	run_tests $ns1 $ns2 10.0.1.1 0 0 fullmesh_2 slow
+	chk_join_nr "fullmesh test 1x2, limited" 4 4 4
+	chk_add_nr 1 1
+}
+
 all_tests()
 {
 	subflows_tests
@@ -1701,6 +1758,7 @@ all_tests()
 	syncookies_tests
 	checksum_tests
 	deny_join_id0_tests
+	fullmesh_tests
 }
 
 usage()
@@ -1719,6 +1777,7 @@ usage()
 	echo "  -k syncookies_tests"
 	echo "  -S checksum_tests"
 	echo "  -d deny_join_id0_tests"
+	echo "  -m fullmesh_tests"
 	echo "  -c capture pcap files"
 	echo "  -C enable data checksum"
 	echo "  -h help"
@@ -1754,7 +1813,7 @@ if [ $do_all_tests -eq 1 ]; then
 	exit $ret
 fi
 
-while getopts 'fsltra64bpkdchCS' opt; do
+while getopts 'fsltra64bpkdmchCS' opt; do
 	case $opt in
 		f)
 			subflows_tests
@@ -1794,6 +1853,9 @@ while getopts 'fsltra64bpkdchCS' opt; do
 			;;
 		d)
 			deny_join_id0_tests
+			;;
+		m)
+			fullmesh_tests
 			;;
 		c)
 			;;
