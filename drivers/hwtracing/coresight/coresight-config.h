@@ -237,4 +237,13 @@ struct cscfg_csdev_feat_ops {
 			 struct cscfg_feature_csdev *feat_csdev);
 };
 
+/* coresight config helper functions*/
+
+/* enable / disable config on a device - called with appropriate locks set.*/
+int cscfg_csdev_enable_config(struct cscfg_config_csdev *config_csdev, int preset);
+void cscfg_csdev_disable_config(struct cscfg_config_csdev *config_csdev);
+
+/* reset a feature to default values */
+void cscfg_reset_feat(struct cscfg_feature_csdev *feat_csdev);
+
 #endif /* _CORESIGHT_CORESIGHT_CONFIG_H */

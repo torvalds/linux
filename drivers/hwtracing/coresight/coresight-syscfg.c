@@ -189,7 +189,8 @@ static int cscfg_load_feat_csdev(struct coresight_device *csdev,
 	if (err)
 		return err;
 
-	/* add to internal csdev feature list */
+	/* add to internal csdev feature list & initialise using reset call */
+	cscfg_reset_feat(feat_csdev);
 	spin_lock_irqsave(&csdev->cscfg_csdev_lock, flags);
 	list_add(&feat_csdev->node, &csdev->feature_csdev_list);
 	spin_unlock_irqrestore(&csdev->cscfg_csdev_lock, flags);
