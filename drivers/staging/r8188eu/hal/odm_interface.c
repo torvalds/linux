@@ -79,7 +79,7 @@ u32 ODM_GetRFReg(struct odm_dm_struct *pDM_Odm, enum rf_radio_path	eRFPath, u32 
 /*  ODM Memory relative API. */
 void ODM_AllocateMemory(struct odm_dm_struct *pDM_Odm, void **pPtr, u32 length)
 {
-	*pPtr = rtw_zvmalloc(length);
+	*pPtr = vzalloc(length);
 }
 
 /*  length could be ignored, used to detect memory leakage. */
