@@ -1588,7 +1588,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         log_max_tis_per_sq[0x5];
 
 	u8         ext_stride_num_range[0x1];
-	u8         reserved_at_3a1[0x2];
+	u8         roce_rw_supported[0x1];
+	u8         reserved_at_3a2[0x1];
 	u8         log_max_stride_sz_rq[0x5];
 	u8         reserved_at_3a8[0x3];
 	u8         log_min_stride_sz_rq[0x5];
