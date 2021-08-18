@@ -174,17 +174,12 @@ static u64 ifcvf_vdpa_get_features(struct vdpa_device *vdpa_dev)
 	struct ifcvf_adapter *adapter = vdpa_to_adapter(vdpa_dev);
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
 	struct pci_dev *pdev = adapter->pdev;
-
+	u32 type = vf->dev_type;
 	u64 features;
 
-	switch (vf->dev_type) {
-	case VIRTIO_ID_NET:
-		features = ifcvf_get_features(vf) & IFCVF_NET_SUPPORTED_FEATURES;
-		break;
-	case VIRTIO_ID_BLOCK:
+	if (type == VIRTIO_ID_NET || type == VIRTIO_ID_BLOCK)
 		features = ifcvf_get_features(vf);
-		break;
-	default:
+	else {
 		features = 0;
 		IFCVF_ERR(pdev, "VIRTIO ID %u not supported\n", vf->dev_type);
 	}

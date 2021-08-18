@@ -22,15 +22,6 @@
 #define N3000_DEVICE_ID		0x1041
 #define N3000_SUBSYS_DEVICE_ID	0x001A
 
-#define IFCVF_NET_SUPPORTED_FEATURES \
-		((1ULL << VIRTIO_NET_F_MAC)			| \
-		 (1ULL << VIRTIO_F_ANY_LAYOUT)			| \
-		 (1ULL << VIRTIO_F_VERSION_1)			| \
-		 (1ULL << VIRTIO_NET_F_STATUS)			| \
-		 (1ULL << VIRTIO_F_ORDER_PLATFORM)		| \
-		 (1ULL << VIRTIO_F_ACCESS_PLATFORM)		| \
-		 (1ULL << VIRTIO_NET_F_MRG_RXBUF))
-
 /* Max 8 data queue pairs(16 queues) and one control vq for now. */
 #define IFCVF_MAX_QUEUES	17
 
