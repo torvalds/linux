@@ -359,9 +359,8 @@ void i915_hotplug_interrupt_update(struct drm_i915_private *dev_priv,
  * @interrupt_mask: mask of interrupt bits to update
  * @enabled_irq_mask: mask of interrupt bits to enable
  */
-void ilk_update_display_irq(struct drm_i915_private *dev_priv,
-			    u32 interrupt_mask,
-			    u32 enabled_irq_mask)
+static void ilk_update_display_irq(struct drm_i915_private *dev_priv,
+				   u32 interrupt_mask, u32 enabled_irq_mask)
 {
 	u32 new_val;
 
@@ -378,6 +377,16 @@ void ilk_update_display_irq(struct drm_i915_private *dev_priv,
 		intel_uncore_write(&dev_priv->uncore, DEIMR, dev_priv->irq_mask);
 		intel_uncore_posting_read(&dev_priv->uncore, DEIMR);
 	}
+}
+
+void ilk_enable_display_irq(struct drm_i915_private *i915, u32 bits)
+{
+	ilk_update_display_irq(i915, bits, bits);
+}
+
+void ilk_disable_display_irq(struct drm_i915_private *i915, u32 bits)
+{
+	ilk_update_display_irq(i915, bits, 0);
 }
 
 /**
@@ -419,10 +428,9 @@ static void bdw_update_port_irq(struct drm_i915_private *dev_priv,
  * @interrupt_mask: mask of interrupt bits to update
  * @enabled_irq_mask: mask of interrupt bits to enable
  */
-void bdw_update_pipe_irq(struct drm_i915_private *dev_priv,
-			 enum pipe pipe,
-			 u32 interrupt_mask,
-			 u32 enabled_irq_mask)
+static void bdw_update_pipe_irq(struct drm_i915_private *dev_priv,
+				enum pipe pipe, u32 interrupt_mask,
+				u32 enabled_irq_mask)
 {
 	u32 new_val;
 
@@ -444,15 +452,27 @@ void bdw_update_pipe_irq(struct drm_i915_private *dev_priv,
 	}
 }
 
+void bdw_enable_pipe_irq(struct drm_i915_private *i915,
+			 enum pipe pipe, u32 bits)
+{
+	bdw_update_pipe_irq(i915, pipe, bits, bits);
+}
+
+void bdw_disable_pipe_irq(struct drm_i915_private *i915,
+			  enum pipe pipe, u32 bits)
+{
+	bdw_update_pipe_irq(i915, pipe, bits, 0);
+}
+
 /**
  * ibx_display_interrupt_update - update SDEIMR
  * @dev_priv: driver private
  * @interrupt_mask: mask of interrupt bits to update
  * @enabled_irq_mask: mask of interrupt bits to enable
  */
-void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
-				  u32 interrupt_mask,
-				  u32 enabled_irq_mask)
+static void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
+					 u32 interrupt_mask,
+					 u32 enabled_irq_mask)
 {
 	u32 sdeimr = intel_uncore_read(&dev_priv->uncore, SDEIMR);
 	sdeimr &= ~interrupt_mask;
@@ -467,6 +487,16 @@ void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
 
 	intel_uncore_write(&dev_priv->uncore, SDEIMR, sdeimr);
 	intel_uncore_posting_read(&dev_priv->uncore, SDEIMR);
+}
+
+void ibx_enable_display_interrupt(struct drm_i915_private *i915, u32 bits)
+{
+	ibx_display_interrupt_update(i915, bits, bits);
+}
+
+void ibx_disable_display_interrupt(struct drm_i915_private *i915, u32 bits)
+{
+	ibx_display_interrupt_update(i915, bits, 0);
 }
 
 u32 i915_pipestat_enable_mask(struct drm_i915_private *dev_priv,
