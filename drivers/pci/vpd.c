@@ -270,6 +270,32 @@ const struct attribute_group pci_dev_vpd_attr_group = {
 	.is_bin_visible = vpd_attr_is_visible,
 };
 
+void *pci_vpd_alloc(struct pci_dev *dev, unsigned int *size)
+{
+	unsigned int len = dev->vpd.len;
+	void *buf;
+	int cnt;
+
+	if (!dev->vpd.cap)
+		return ERR_PTR(-ENODEV);
+
+	buf = kmalloc(len, GFP_KERNEL);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+
+	cnt = pci_read_vpd(dev, 0, len, buf);
+	if (cnt != len) {
+		kfree(buf);
+		return ERR_PTR(-EIO);
+	}
+
+	if (size)
+		*size = len;
+
+	return buf;
+}
+EXPORT_SYMBOL_GPL(pci_vpd_alloc);
+
 int pci_vpd_find_tag(const u8 *buf, unsigned int len, u8 rdt)
 {
 	int i = 0;

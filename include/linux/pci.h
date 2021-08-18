@@ -2331,6 +2331,15 @@ static inline u8 pci_vpd_info_field_size(const u8 *info_field)
 }
 
 /**
+ * pci_vpd_alloc - Allocate buffer and read VPD into it
+ * @dev: PCI device
+ * @size: pointer to field where VPD length is returned
+ *
+ * Returns pointer to allocated buffer or an ERR_PTR in case of failure
+ */
+void *pci_vpd_alloc(struct pci_dev *dev, unsigned int *size);
+
+/**
  * pci_vpd_find_tag - Locates the Resource Data Type tag provided
  * @buf: Pointer to buffered vpd data
  * @len: The length of the vpd buffer
