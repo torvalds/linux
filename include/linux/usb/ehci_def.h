@@ -176,16 +176,23 @@ struct ehci_regs {
 #define USBMODE_CM_HC	(3<<0)		/* host controller mode */
 #define USBMODE_CM_IDLE	(0<<0)		/* idle state */
 	};
-	u32		reserved4;
 
 /* Moorestown has some non-standard registers, partially due to the fact that
  * its EHCI controller has both TT and LPM support. HOSTPCx are extensions to
  * PORTSCx
  */
-	/* HOSTPC: offset 0x84 */
-	u32		hostpc[HCS_N_PORTS_MAX];
+	union {
+		struct {
+			u32	reserved4;
+			/* HOSTPC: offset 0x84 */
+			u32	hostpc[HCS_N_PORTS_MAX];
 #define HOSTPC_PHCD	(1<<22)		/* Phy clock disable */
 #define HOSTPC_PSPD	(3<<25)		/* Port speed detection */
+		};
+
+		/* Broadcom-proprietary USB_EHCI_INSNREG00 @ 0x80 */
+		u32	brcm_insnreg[4];
+	};
 
 	u32		reserved5[2];
 
