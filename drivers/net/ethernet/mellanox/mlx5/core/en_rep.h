@@ -89,7 +89,7 @@ struct mlx5_rep_uplink_priv {
 	struct mapping_ctx *tunnel_enc_opts_mapping;
 
 	struct mlx5_tc_ct_priv *ct_priv;
-	struct mlx5_esw_psample *esw_psample;
+	struct mlx5e_tc_psample *tc_psample;
 
 	/* support eswitch vports bonding */
 	struct mlx5e_rep_bond *bond;

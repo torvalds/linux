@@ -46,6 +46,7 @@ mlx5_core-$(CONFIG_MLX5_CLS_ACT)     += en_tc.o en/rep/tc.o en/rep/neigh.o \
 					en/tc_tun_vxlan.o en/tc_tun_gre.o en/tc_tun_geneve.o \
 					en/tc_tun_mplsoudp.o diag/en_tc_tracepoint.o
 mlx5_core-$(CONFIG_MLX5_TC_CT)	     += en/tc_ct.o
+mlx5_core-$(CONFIG_MLX5_TC_SAMPLE)   += en/tc/sample.o
 
 #
 # Core extra
@@ -56,7 +57,6 @@ mlx5_core-$(CONFIG_MLX5_ESWITCH)   += esw/acl/helper.o \
 				      esw/acl/egress_lgcy.o esw/acl/egress_ofld.o \
 				      esw/acl/ingress_lgcy.o esw/acl/ingress_ofld.o \
 				      esw/devlink_port.o esw/vporttbl.o
-mlx5_core-$(CONFIG_MLX5_TC_SAMPLE) += esw/sample.o
 mlx5_core-$(CONFIG_MLX5_BRIDGE)    += esw/bridge.o en/rep/bridge.o
 
 mlx5_core-$(CONFIG_MLX5_MPFS)      += lib/mpfs.o

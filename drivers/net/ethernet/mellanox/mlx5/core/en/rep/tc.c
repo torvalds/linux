@@ -17,7 +17,7 @@
 #include "en/mapping.h"
 #include "en/tc_tun.h"
 #include "lib/port_tun.h"
-#include "esw/sample.h"
+#include "en/tc/sample.h"
 
 struct mlx5e_rep_indr_block_priv {
 	struct net_device *netdev;
@@ -677,7 +677,7 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 #endif /* CONFIG_NET_TC_SKB_EXT */
 #if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
 	if (mapped_obj.type == MLX5_MAPPED_OBJ_SAMPLE) {
-		mlx5_esw_sample_skb(skb, &mapped_obj);
+		mlx5e_tc_sample_skb(skb, &mapped_obj);
 		return false;
 	}
 #endif /* CONFIG_MLX5_TC_SAMPLE */

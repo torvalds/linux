@@ -4,7 +4,7 @@
 #include <linux/skbuff.h>
 #include <net/psample.h>
 #include "en/mapping.h"
-#include "esw/sample.h"
+#include "sample.h"
 #include "eswitch.h"
 #include "en_tc.h"
 #include "fs_core.h"
@@ -17,7 +17,7 @@ static const struct esw_vport_tbl_namespace mlx5_esw_vport_tbl_sample_ns = {
 	.flags = MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT | MLX5_FLOW_TABLE_TUNNEL_EN_DECAP,
 };
 
-struct mlx5_esw_psample {
+struct mlx5e_tc_psample {
 	struct mlx5_eswitch *esw;
 	struct mlx5_flow_table *termtbl;
 	struct mlx5_flow_handle *termtbl_rule;
@@ -27,7 +27,7 @@ struct mlx5_esw_psample {
 	struct mutex restore_lock; /* protect restore_hashtbl */
 };
 
-struct mlx5_sampler {
+struct mlx5e_sampler {
 	struct hlist_node hlist;
 	u32 sampler_id;
 	u32 sample_ratio;
@@ -36,15 +36,15 @@ struct mlx5_sampler {
 	int count;
 };
 
-struct mlx5_sample_flow {
-	struct mlx5_sampler *sampler;
-	struct mlx5_sample_restore *restore;
+struct mlx5e_sample_flow {
+	struct mlx5e_sampler *sampler;
+	struct mlx5e_sample_restore *restore;
 	struct mlx5_flow_attr *pre_attr;
 	struct mlx5_flow_handle *pre_rule;
 	struct mlx5_flow_handle *rule;
 };
 
-struct mlx5_sample_restore {
+struct mlx5e_sample_restore {
 	struct hlist_node hlist;
 	struct mlx5_modify_hdr *modify_hdr;
 	struct mlx5_flow_handle *rule;
@@ -53,9 +53,9 @@ struct mlx5_sample_restore {
 };
 
 static int
-sampler_termtbl_create(struct mlx5_esw_psample *esw_psample)
+sampler_termtbl_create(struct mlx5e_tc_psample *tc_psample)
 {
-	struct mlx5_eswitch *esw = esw_psample->esw;
+	struct mlx5_eswitch *esw = tc_psample->esw;
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_destination dest = {};
 	struct mlx5_core_dev *dev = esw->dev;
@@ -79,20 +79,20 @@ sampler_termtbl_create(struct mlx5_esw_psample *esw_psample)
 	ft_attr.prio = FDB_SLOW_PATH;
 	ft_attr.max_fte = 1;
 	ft_attr.level = 1;
-	esw_psample->termtbl = mlx5_create_auto_grouped_flow_table(root_ns, &ft_attr);
-	if (IS_ERR(esw_psample->termtbl)) {
-		err = PTR_ERR(esw_psample->termtbl);
+	tc_psample->termtbl = mlx5_create_auto_grouped_flow_table(root_ns, &ft_attr);
+	if (IS_ERR(tc_psample->termtbl)) {
+		err = PTR_ERR(tc_psample->termtbl);
 		mlx5_core_warn(dev, "failed to create termtbl, err: %d\n", err);
 		return err;
 	}
 
 	act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	dest.vport.num = esw->manager_vport;
-	esw_psample->termtbl_rule = mlx5_add_flow_rules(esw_psample->termtbl, NULL, &act, &dest, 1);
-	if (IS_ERR(esw_psample->termtbl_rule)) {
-		err = PTR_ERR(esw_psample->termtbl_rule);
+	tc_psample->termtbl_rule = mlx5_add_flow_rules(tc_psample->termtbl, NULL, &act, &dest, 1);
+	if (IS_ERR(tc_psample->termtbl_rule)) {
+		err = PTR_ERR(tc_psample->termtbl_rule);
 		mlx5_core_warn(dev, "failed to create termtbl rule, err: %d\n", err);
-		mlx5_destroy_flow_table(esw_psample->termtbl);
+		mlx5_destroy_flow_table(tc_psample->termtbl);
 		return err;
 	}
 
@@ -100,14 +100,14 @@ sampler_termtbl_create(struct mlx5_esw_psample *esw_psample)
 }
 
 static void
-sampler_termtbl_destroy(struct mlx5_esw_psample *esw_psample)
+sampler_termtbl_destroy(struct mlx5e_tc_psample *tc_psample)
 {
-	mlx5_del_flow_rules(esw_psample->termtbl_rule);
-	mlx5_destroy_flow_table(esw_psample->termtbl);
+	mlx5_del_flow_rules(tc_psample->termtbl_rule);
+	mlx5_destroy_flow_table(tc_psample->termtbl);
 }
 
 static int
-sampler_obj_create(struct mlx5_core_dev *mdev, struct mlx5_sampler *sampler)
+sampler_obj_create(struct mlx5_core_dev *mdev, struct mlx5e_sampler *sampler)
 {
 	u32 in[MLX5_ST_SZ_DW(create_sampler_obj_in)] = {};
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
@@ -163,16 +163,16 @@ sampler_cmp(u32 sample_ratio1, u32 default_table_id1, u32 sample_ratio2, u32 def
 	return sample_ratio1 != sample_ratio2 || default_table_id1 != default_table_id2;
 }
 
-static struct mlx5_sampler *
-sampler_get(struct mlx5_esw_psample *esw_psample, u32 sample_ratio, u32 default_table_id)
+static struct mlx5e_sampler *
+sampler_get(struct mlx5e_tc_psample *tc_psample, u32 sample_ratio, u32 default_table_id)
 {
-	struct mlx5_sampler *sampler;
+	struct mlx5e_sampler *sampler;
 	u32 hash_key;
 	int err;
 
-	mutex_lock(&esw_psample->ht_lock);
+	mutex_lock(&tc_psample->ht_lock);
 	hash_key = sampler_hash(sample_ratio, default_table_id);
-	hash_for_each_possible(esw_psample->hashtbl, sampler, hlist, hash_key)
+	hash_for_each_possible(tc_psample->hashtbl, sampler, hlist, hash_key)
 		if (!sampler_cmp(sampler->sample_ratio, sampler->default_table_id,
 				 sample_ratio, default_table_id))
 			goto add_ref;
@@ -183,38 +183,38 @@ sampler_get(struct mlx5_esw_psample *esw_psample, u32 sample_ratio, u32 default_
 		goto err_alloc;
 	}
 
-	sampler->sample_table_id = esw_psample->termtbl->id;
+	sampler->sample_table_id = tc_psample->termtbl->id;
 	sampler->default_table_id = default_table_id;
 	sampler->sample_ratio = sample_ratio;
 
-	err = sampler_obj_create(esw_psample->esw->dev, sampler);
+	err = sampler_obj_create(tc_psample->esw->dev, sampler);
 	if (err)
 		goto err_create;
 
-	hash_add(esw_psample->hashtbl, &sampler->hlist, hash_key);
+	hash_add(tc_psample->hashtbl, &sampler->hlist, hash_key);
 
 add_ref:
 	sampler->count++;
-	mutex_unlock(&esw_psample->ht_lock);
+	mutex_unlock(&tc_psample->ht_lock);
 	return sampler;
 
 err_create:
 	kfree(sampler);
 err_alloc:
-	mutex_unlock(&esw_psample->ht_lock);
+	mutex_unlock(&tc_psample->ht_lock);
 	return ERR_PTR(err);
 }
 
 static void
-sampler_put(struct mlx5_esw_psample *esw_psample, struct mlx5_sampler *sampler)
+sampler_put(struct mlx5e_tc_psample *tc_psample, struct mlx5e_sampler *sampler)
 {
-	mutex_lock(&esw_psample->ht_lock);
+	mutex_lock(&tc_psample->ht_lock);
 	if (--sampler->count == 0) {
 		hash_del(&sampler->hlist);
-		sampler_obj_destroy(esw_psample->esw->dev, sampler->sampler_id);
+		sampler_obj_destroy(tc_psample->esw->dev, sampler->sampler_id);
 		kfree(sampler);
 	}
-	mutex_unlock(&esw_psample->ht_lock);
+	mutex_unlock(&tc_psample->ht_lock);
 }
 
 static struct mlx5_modify_hdr *
@@ -246,17 +246,17 @@ err_set_regc0:
 	return ERR_PTR(err);
 }
 
-static struct mlx5_sample_restore *
-sample_restore_get(struct mlx5_esw_psample *esw_psample, u32 obj_id)
+static struct mlx5e_sample_restore *
+sample_restore_get(struct mlx5e_tc_psample *tc_psample, u32 obj_id)
 {
-	struct mlx5_eswitch *esw = esw_psample->esw;
+	struct mlx5_eswitch *esw = tc_psample->esw;
 	struct mlx5_core_dev *mdev = esw->dev;
-	struct mlx5_sample_restore *restore;
+	struct mlx5e_sample_restore *restore;
 	struct mlx5_modify_hdr *modify_hdr;
 	int err;
 
-	mutex_lock(&esw_psample->restore_lock);
-	hash_for_each_possible(esw_psample->restore_hashtbl, restore, hlist, obj_id)
+	mutex_lock(&tc_psample->restore_lock);
+	hash_for_each_possible(tc_psample->restore_hashtbl, restore, hlist, obj_id)
 		if (restore->obj_id == obj_id)
 			goto add_ref;
 
@@ -280,10 +280,10 @@ sample_restore_get(struct mlx5_esw_psample *esw_psample, u32 obj_id)
 		goto err_restore;
 	}
 
-	hash_add(esw_psample->restore_hashtbl, &restore->hlist, obj_id);
+	hash_add(tc_psample->restore_hashtbl, &restore->hlist, obj_id);
 add_ref:
 	restore->count++;
-	mutex_unlock(&esw_psample->restore_lock);
+	mutex_unlock(&tc_psample->restore_lock);
 	return restore;
 
 err_restore:
@@ -291,26 +291,26 @@ err_restore:
 err_modify_hdr:
 	kfree(restore);
 err_alloc:
-	mutex_unlock(&esw_psample->restore_lock);
+	mutex_unlock(&tc_psample->restore_lock);
 	return ERR_PTR(err);
 }
 
 static void
-sample_restore_put(struct mlx5_esw_psample *esw_psample, struct mlx5_sample_restore *restore)
+sample_restore_put(struct mlx5e_tc_psample *tc_psample, struct mlx5e_sample_restore *restore)
 {
-	mutex_lock(&esw_psample->restore_lock);
+	mutex_lock(&tc_psample->restore_lock);
 	if (--restore->count == 0)
 		hash_del(&restore->hlist);
-	mutex_unlock(&esw_psample->restore_lock);
+	mutex_unlock(&tc_psample->restore_lock);
 
 	if (!restore->count) {
 		mlx5_del_flow_rules(restore->rule);
-		mlx5_modify_header_dealloc(esw_psample->esw->dev, restore->modify_hdr);
+		mlx5_modify_header_dealloc(tc_psample->esw->dev, restore->modify_hdr);
 		kfree(restore);
 	}
 }
 
-void mlx5_esw_sample_skb(struct sk_buff *skb, struct mlx5_mapped_obj *mapped_obj)
+void mlx5e_tc_sample_skb(struct sk_buff *skb, struct mlx5_mapped_obj *mapped_obj)
 {
 	u32 trunc_size = mapped_obj->sample.trunc_size;
 	struct psample_group psample_group = {};
@@ -362,7 +362,7 @@ void mlx5_esw_sample_skb(struct sk_buff *skb, struct mlx5_mapped_obj *mapped_obj
  *                                  +----------------------------------------+
  */
 struct mlx5_flow_handle *
-mlx5_esw_sample_offload(struct mlx5_esw_psample *esw_psample,
+mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 			struct mlx5_flow_spec *spec,
 			struct mlx5_flow_attr *attr)
 {
@@ -370,21 +370,21 @@ mlx5_esw_sample_offload(struct mlx5_esw_psample *esw_psample,
 	struct mlx5_vport_tbl_attr per_vport_tbl_attr;
 	struct mlx5_esw_flow_attr *pre_esw_attr;
 	struct mlx5_mapped_obj restore_obj = {};
-	struct mlx5_sample_flow *sample_flow;
-	struct mlx5_sample_attr *sample_attr;
+	struct mlx5e_sample_flow *sample_flow;
+	struct mlx5e_sample_attr *sample_attr;
 	struct mlx5_flow_table *default_tbl;
 	struct mlx5_flow_attr *pre_attr;
 	struct mlx5_eswitch *esw;
 	u32 obj_id;
 	int err;
 
-	if (IS_ERR_OR_NULL(esw_psample))
+	if (IS_ERR_OR_NULL(tc_psample))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	/* If slow path flag is set, eg. when the neigh is invalid for encap,
 	 * don't offload sample action.
 	 */
-	esw = esw_psample->esw;
+	esw = tc_psample->esw;
 	if (attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH)
 		return mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
 
@@ -426,7 +426,7 @@ mlx5_esw_sample_offload(struct mlx5_esw_psample *esw_psample,
 	}
 
 	/* Create sampler object. */
-	sample_flow->sampler = sampler_get(esw_psample, esw_attr->sample->rate, default_tbl->id);
+	sample_flow->sampler = sampler_get(tc_psample, esw_attr->sample->rate, default_tbl->id);
 	if (IS_ERR(sample_flow->sampler)) {
 		err = PTR_ERR(sample_flow->sampler);
 		goto err_sampler;
@@ -443,7 +443,7 @@ mlx5_esw_sample_offload(struct mlx5_esw_psample *esw_psample,
 	esw_attr->sample->restore_obj_id = obj_id;
 
 	/* Create sample restore context. */
-	sample_flow->restore = sample_restore_get(esw_psample, obj_id);
+	sample_flow->restore = sample_restore_get(tc_psample, obj_id);
 	if (IS_ERR(sample_flow->restore)) {
 		err = PTR_ERR(sample_flow->restore);
 		goto err_sample_restore;
@@ -486,11 +486,11 @@ err_pre_offload_rule:
 err_alloc_sample_attr:
 	kfree(pre_attr);
 err_alloc_flow_attr:
-	sample_restore_put(esw_psample, sample_flow->restore);
+	sample_restore_put(tc_psample, sample_flow->restore);
 err_sample_restore:
 	mapping_remove(esw->offloads.reg_c0_obj_pool, obj_id);
 err_obj_id:
-	sampler_put(esw_psample, sample_flow->sampler);
+	sampler_put(tc_psample, sample_flow->sampler);
 err_sampler:
 	/* For sample offload, rule is added in default_tbl. No need to call
 	 * mlx5_esw_chains_put_table()
@@ -506,23 +506,23 @@ err_default_tbl:
 }
 
 void
-mlx5_esw_sample_unoffload(struct mlx5_esw_psample *esw_psample,
+mlx5e_tc_sample_unoffload(struct mlx5e_tc_psample *tc_psample,
 			  struct mlx5_flow_handle *rule,
 			  struct mlx5_flow_attr *attr)
 {
 	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
-	struct mlx5_sample_flow *sample_flow;
+	struct mlx5e_sample_flow *sample_flow;
 	struct mlx5_vport_tbl_attr tbl_attr;
 	struct mlx5_flow_attr *pre_attr;
 	struct mlx5_eswitch *esw;
 
-	if (IS_ERR_OR_NULL(esw_psample))
+	if (IS_ERR_OR_NULL(tc_psample))
 		return;
 
 	/* If slow path flag is set, sample action is not offloaded.
 	 * No need to delete sample rule.
 	 */
-	esw = esw_psample->esw;
+	esw = tc_psample->esw;
 	if (attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH) {
 		mlx5_eswitch_del_offloaded_rule(esw, rule, attr);
 		return;
@@ -534,9 +534,9 @@ mlx5_esw_sample_unoffload(struct mlx5_esw_psample *esw_psample,
 	mlx5_eswitch_del_offloaded_rule(esw, sample_flow->pre_rule, pre_attr);
 	mlx5_eswitch_del_offloaded_rule(esw, sample_flow->rule, attr);
 
-	sample_restore_put(esw_psample, sample_flow->restore);
+	sample_restore_put(tc_psample, sample_flow->restore);
 	mapping_remove(esw->offloads.reg_c0_obj_pool, esw_attr->sample->restore_obj_id);
-	sampler_put(esw_psample, sample_flow->sampler);
+	sampler_put(tc_psample, sample_flow->sampler);
 	tbl_attr.chain = attr->chain;
 	tbl_attr.prio = attr->prio;
 	tbl_attr.vport = esw_attr->in_rep->vport;
@@ -548,38 +548,38 @@ mlx5_esw_sample_unoffload(struct mlx5_esw_psample *esw_psample,
 	kfree(sample_flow);
 }
 
-struct mlx5_esw_psample *
-mlx5_esw_sample_init(struct mlx5_eswitch *esw)
+struct mlx5e_tc_psample *
+mlx5e_tc_sample_init(struct mlx5_eswitch *esw)
 {
-	struct mlx5_esw_psample *esw_psample;
+	struct mlx5e_tc_psample *tc_psample;
 	int err;
 
-	esw_psample = kzalloc(sizeof(*esw_psample), GFP_KERNEL);
-	if (!esw_psample)
+	tc_psample = kzalloc(sizeof(*tc_psample), GFP_KERNEL);
+	if (!tc_psample)
 		return ERR_PTR(-ENOMEM);
-	esw_psample->esw = esw;
-	err = sampler_termtbl_create(esw_psample);
+	tc_psample->esw = esw;
+	err = sampler_termtbl_create(tc_psample);
 	if (err)
 		goto err_termtbl;
 
-	mutex_init(&esw_psample->ht_lock);
-	mutex_init(&esw_psample->restore_lock);
+	mutex_init(&tc_psample->ht_lock);
+	mutex_init(&tc_psample->restore_lock);
 
-	return esw_psample;
+	return tc_psample;
 
 err_termtbl:
-	kfree(esw_psample);
+	kfree(tc_psample);
 	return ERR_PTR(err);
 }
 
 void
-mlx5_esw_sample_cleanup(struct mlx5_esw_psample *esw_psample)
+mlx5e_tc_sample_cleanup(struct mlx5e_tc_psample *tc_psample)
 {
-	if (IS_ERR_OR_NULL(esw_psample))
+	if (IS_ERR_OR_NULL(tc_psample))
 		return;
 
-	mutex_destroy(&esw_psample->restore_lock);
-	mutex_destroy(&esw_psample->ht_lock);
-	sampler_termtbl_destroy(esw_psample);
-	kfree(esw_psample);
+	mutex_destroy(&tc_psample->restore_lock);
+	mutex_destroy(&tc_psample->ht_lock);
+	sampler_termtbl_destroy(tc_psample);
+	kfree(tc_psample);
 }

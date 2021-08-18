@@ -60,7 +60,7 @@
 #include "en/mod_hdr.h"
 #include "en/tc_priv.h"
 #include "en/tc_tun_encap.h"
-#include "esw/sample.h"
+#include "en/tc/sample.h"
 #include "lib/devcom.h"
 #include "lib/geneve.h"
 #include "lib/fs_chains.h"
@@ -246,7 +246,7 @@ get_ct_priv(struct mlx5e_priv *priv)
 }
 
 #if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
-static struct mlx5_esw_psample *
+static struct mlx5e_tc_psample *
 get_sample_priv(struct mlx5e_priv *priv)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
@@ -257,7 +257,7 @@ get_sample_priv(struct mlx5e_priv *priv)
 		uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
 		uplink_priv = &uplink_rpriv->uplink_priv;
 
-		return uplink_priv->esw_psample;
+		return uplink_priv->tc_psample;
 	}
 
 	return NULL;
@@ -1147,7 +1147,7 @@ mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
 					       mod_hdr_acts);
 #if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
 	} else if (flow_flag_test(flow, SAMPLE)) {
-		rule = mlx5_esw_sample_offload(get_sample_priv(flow->priv), spec, attr);
+		rule = mlx5e_tc_sample_offload(get_sample_priv(flow->priv), spec, attr);
 #endif
 	} else {
 		rule = mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
@@ -1186,7 +1186,7 @@ void mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
 
 #if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
 	if (flow_flag_test(flow, SAMPLE)) {
-		mlx5_esw_sample_unoffload(get_sample_priv(flow->priv), flow->rule[0], attr);
+		mlx5e_tc_sample_unoffload(get_sample_priv(flow->priv), flow->rule[0], attr);
 		return;
 	}
 #endif
@@ -3722,7 +3722,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	bool ft_flow = mlx5e_is_ft_flow(flow);
 	const struct flow_action_entry *act;
 	struct mlx5_esw_flow_attr *esw_attr;
-	struct mlx5_sample_attr sample = {};
+	struct mlx5e_sample_attr sample = {};
 	bool encap = false, decap = false;
 	u32 action = attr->action;
 	int err, i, if_count = 0;
@@ -4976,7 +4976,7 @@ int mlx5e_tc_esw_init(struct rhashtable *tc_ht)
 					       MLX5_FLOW_NAMESPACE_FDB);
 
 #if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
-	uplink_priv->esw_psample = mlx5_esw_sample_init(esw);
+	uplink_priv->tc_psample = mlx5e_tc_sample_init(esw);
 #endif
 
 	mapping_id = mlx5_query_nic_system_image_guid(esw->dev);
@@ -5022,7 +5022,7 @@ err_enc_opts_mapping:
 	mapping_destroy(uplink_priv->tunnel_mapping);
 err_tun_mapping:
 #if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
-	mlx5_esw_sample_cleanup(uplink_priv->esw_psample);
+	mlx5e_tc_sample_cleanup(uplink_priv->tc_psample);
 #endif
 	mlx5_tc_ct_clean(uplink_priv->ct_priv);
 	netdev_warn(priv->netdev,
@@ -5043,7 +5043,7 @@ void mlx5e_tc_esw_cleanup(struct rhashtable *tc_ht)
 	mapping_destroy(uplink_priv->tunnel_mapping);
 
 #if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
-	mlx5_esw_sample_cleanup(uplink_priv->esw_psample);
+	mlx5e_tc_sample_cleanup(uplink_priv->tc_psample);
 #endif
 	mlx5_tc_ct_clean(uplink_priv->ct_priv);
 }
