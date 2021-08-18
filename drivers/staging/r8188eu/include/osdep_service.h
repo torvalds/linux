@@ -172,7 +172,6 @@ extern unsigned char RSN_TKIP_CIPHER[4];
 
 #define rtw_update_mem_stat(flag, sz) do {} while (0)
 u8 *_rtw_zvmalloc(u32 sz);
-#define rtw_zvmalloc(sz)			_rtw_zvmalloc((sz))
 
 void *rtw_malloc2d(int h, int w, int size);
 
