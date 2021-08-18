@@ -1002,7 +1002,7 @@
 			      <0x0 0xf3f20000 0x0 0x40000>,
 			      <0x0 0xf5000000 0x0 0x2000>;
 			reg-names = "dbi", "apb", "phy", "config";
-			bus-range = <0x0  0x1>;
+			bus-range = <0x0 0xff>;
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
