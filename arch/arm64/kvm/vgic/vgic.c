@@ -106,7 +106,6 @@ struct vgic_irq *vgic_get_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
 	if (intid >= VGIC_MIN_LPI)
 		return vgic_get_lpi(kvm, intid);
 
-	WARN(1, "Looking up struct vgic_irq for reserved INTID");
 	return NULL;
 }
 
