@@ -18,10 +18,12 @@ enum {
 	MLX5_LAG_FLAG_SRIOV  = 1 << 1,
 	MLX5_LAG_FLAG_MULTIPATH = 1 << 2,
 	MLX5_LAG_FLAG_READY = 1 << 3,
+	MLX5_LAG_FLAG_HASH_BASED = 1 << 4,
 };
 
 #define MLX5_LAG_MODE_FLAGS (MLX5_LAG_FLAG_ROCE | MLX5_LAG_FLAG_SRIOV |\
-			     MLX5_LAG_FLAG_MULTIPATH)
+			     MLX5_LAG_FLAG_MULTIPATH | \
+			     MLX5_LAG_FLAG_HASH_BASED)
 
 struct lag_func {
 	struct mlx5_core_dev *dev;
