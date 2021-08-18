@@ -19,10 +19,6 @@ s32	rtl8188eu_init_xmit_priv(struct adapter *adapt)
 	return _SUCCESS;
 }
 
-void	rtl8188eu_free_xmit_priv(struct adapter *adapt)
-{
-}
-
 static u8 urb_zero_packet_chk(struct adapter *adapt, int sz)
 {
 	u8 set_tx_desc_offset;
