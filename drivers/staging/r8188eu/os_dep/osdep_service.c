@@ -36,17 +36,10 @@ u32 rtw_atoi(u8 *s)
 	return num;
 }
 
-inline u8 *_rtw_vmalloc(u32 sz)
-{
-	u8	*pbuf;
-	pbuf = vmalloc(sz);
-	return pbuf;
-}
-
 inline u8 *_rtw_zvmalloc(u32 sz)
 {
 	u8	*pbuf;
-	pbuf = _rtw_vmalloc(sz);
+	pbuf = vmalloc(sz);
 	if (pbuf)
 		memset(pbuf, 0, sz);
 	return pbuf;
