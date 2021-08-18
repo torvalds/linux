@@ -223,6 +223,7 @@ struct coresight_sysfs_link {
  * @feature_csdev_list: List of complex feature programming added to the device.
  * @config_csdev_list:  List of system configurations added to the device.
  * @cscfg_csdev_lock:	Protect the lists of configurations and features.
+ * @active_cscfg_ctxt:  Context information for current active system configuration.
  */
 struct coresight_device {
 	struct coresight_platform_data *pdata;
@@ -248,6 +249,7 @@ struct coresight_device {
 	struct list_head feature_csdev_list;
 	struct list_head config_csdev_list;
 	spinlock_t cscfg_csdev_lock;
+	void *active_cscfg_ctxt;
 };
 
 /*
