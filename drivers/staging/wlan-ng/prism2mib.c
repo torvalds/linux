@@ -668,6 +668,10 @@ static int prism2mib_priv(struct mibrec *mib,
 
 	switch (mib->did) {
 	case DIDMIB_LNX_CONFIGTABLE_RSNAIE: {
+		/*
+		 * This can never work: wpa is on the stack
+		 * and has no bytes allocated in wpa.data.
+		 */
 		struct hfa384x_wpa_data wpa;
 
 		if (isget) {
@@ -675,11 +679,17 @@ static int prism2mib_priv(struct mibrec *mib,
 					       HFA384x_RID_CNFWPADATA,
 					       (u8 *)&wpa,
 					       sizeof(wpa));
+			/*
 			pstr->len = le16_to_cpu(wpa.datalen);
 			memcpy(pstr->data, wpa.data, pstr->len);
+			*/
+			pstr->len = 0;
 		} else {
+			/*
 			wpa.datalen = cpu_to_le16(pstr->len);
 			memcpy(wpa.data, pstr->data, pstr->len);
+			*/
+			wpa.datalen = 0;
 
 			hfa384x_drvr_setconfig(hw,
 					       HFA384x_RID_CNFWPADATA,
