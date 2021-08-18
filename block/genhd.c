@@ -409,71 +409,6 @@ static void disk_scan_partitions(struct gendisk *disk)
 		blkdev_put(bdev, FMODE_READ);
 }
 
-static void register_disk(struct device *parent, struct gendisk *disk,
-			  const struct attribute_group **groups)
-{
-	struct device *ddev = disk_to_dev(disk);
-	int err;
-
-	ddev->parent = parent;
-
-	dev_set_name(ddev, "%s", disk->disk_name);
-
-	/* delay uevents, until we scanned partition table */
-	dev_set_uevent_suppress(ddev, 1);
-
-	if (groups) {
-		WARN_ON(ddev->groups);
-		ddev->groups = groups;
-	}
-	if (device_add(ddev))
-		return;
-	if (!sysfs_deprecated) {
-		err = sysfs_create_link(block_depr, &ddev->kobj,
-					kobject_name(&ddev->kobj));
-		if (err) {
-			device_del(ddev);
-			return;
-		}
-	}
-
-	/*
-	 * avoid probable deadlock caused by allocating memory with
-	 * GFP_KERNEL in runtime_resume callback of its all ancestor
-	 * devices
-	 */
-	pm_runtime_set_memalloc_noio(ddev, true);
-
-	disk->part0->bd_holder_dir =
-		kobject_create_and_add("holders", &ddev->kobj);
-	disk->slave_dir = kobject_create_and_add("slaves", &ddev->kobj);
-
-	/*
-	 * XXX: this is a mess, can't wait for real error handling in add_disk.
-	 * Make sure ->slave_dir is NULL if we failed some of the registration
-	 * so that the cleanup in bd_unlink_disk_holder works properly.
-	 */
-	if (bd_register_pending_holders(disk) < 0) {
-		kobject_put(disk->slave_dir);
-		disk->slave_dir = NULL;
-	}
-
-	if (disk->flags & GENHD_FL_HIDDEN)
-		return;
-
-	disk_scan_partitions(disk);
-
-	/* announce the disk and partitions after all partitions are created */
-	dev_set_uevent_suppress(ddev, 0);
-	disk_uevent(disk, KOBJ_ADD);
-
-	if (disk->bdi->dev) {
-		err = sysfs_create_link(&ddev->kobj, &disk->bdi->dev->kobj,
-					"bdi");
-		WARN_ON(err);
-	}
-}
-
 /**
  * device_add_disk - add disk information to kernel list
  * @parent: parent device for the disk
@@ -490,6 +425,7 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 		     const struct attribute_group **groups)
 
 {
+	struct device *ddev = disk_to_dev(disk);
 	int ret;
 
 	/*
@@ -538,17 +474,70 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 		disk->flags |= GENHD_FL_SUPPRESS_PARTITION_INFO;
 		disk->flags |= GENHD_FL_NO_PART_SCAN;
 	} else {
-		struct device *dev = disk_to_dev(disk);
-
 		/* Register BDI before referencing it from bdev */
-		dev->devt = MKDEV(disk->major, disk->first_minor);
+		ddev->devt = MKDEV(disk->major, disk->first_minor);
 		ret = bdi_register(disk->bdi, "%u:%u",
 				   disk->major, disk->first_minor);
 		WARN_ON(ret);
-		bdi_set_owner(disk->bdi, dev);
-		bdev_add(disk->part0, dev->devt);
+		bdi_set_owner(disk->bdi, ddev);
+		bdev_add(disk->part0, ddev->devt);
 	}
-	register_disk(parent, disk, groups);
+
+	/* delay uevents, until we scanned partition table */
+	dev_set_uevent_suppress(ddev, 1);
+
+	ddev->parent = parent;
+	ddev->groups = groups;
+	dev_set_name(ddev, "%s", disk->disk_name);
+	if (device_add(ddev))
+		return;
+	if (!sysfs_deprecated) {
+		ret = sysfs_create_link(block_depr, &ddev->kobj,
+					kobject_name(&ddev->kobj));
+		if (ret) {
+			device_del(ddev);
+			return;
+		}
+	}
+
+	/*
+	 * avoid probable deadlock caused by allocating memory with
+	 * GFP_KERNEL in runtime_resume callback of its all ancestor
+	 * devices
+	 */
+	pm_runtime_set_memalloc_noio(ddev, true);
+
+	disk->part0->bd_holder_dir =
+		kobject_create_and_add("holders", &ddev->kobj);
+	disk->slave_dir = kobject_create_and_add("slaves", &ddev->kobj);
+
+	/*
+	 * XXX: this is a mess, can't wait for real error handling in add_disk.
+	 * Make sure ->slave_dir is NULL if we failed some of the registration
+	 * so that the cleanup in bd_unlink_disk_holder works properly.
+	 */
+	if (bd_register_pending_holders(disk) < 0) {
+		kobject_put(disk->slave_dir);
+		disk->slave_dir = NULL;
+	}
+
+	if (!(disk->flags & GENHD_FL_HIDDEN)) {
+		disk_scan_partitions(disk);
+
+		/*
+		 * Announce the disk and partitions after all partitions are
+		 * created.
+		 */
+		dev_set_uevent_suppress(ddev, 0);
+		disk_uevent(disk, KOBJ_ADD);
+
+		if (disk->bdi->dev) {
+			ret = sysfs_create_link(&ddev->kobj,
+						&disk->bdi->dev->kobj, "bdi");
+			WARN_ON(ret);
+		}
+	}
+
 	blk_register_queue(disk);
 
 	disk_add_events(disk);
