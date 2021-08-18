@@ -1084,9 +1084,9 @@ static void show_stalled_task_trace(struct task_struct *t, bool *firstreport)
 	cpu = task_cpu(t);
 	pr_alert("P%d: %c%c%c nesting: %d%c cpu: %d\n",
 		 t->pid,
-		 ".I"[READ_ONCE(t->trc_ipi_to_cpu) > 0],
+		 ".I"[READ_ONCE(t->trc_ipi_to_cpu) >= 0],
 		 ".i"[is_idle_task(t)],
-		 ".N"[cpu > 0 && tick_nohz_full_cpu(cpu)],
+		 ".N"[cpu >= 0 && tick_nohz_full_cpu(cpu)],
 		 READ_ONCE(t->trc_reader_nesting),
 		 " N"[!!READ_ONCE(t->trc_reader_special.b.need_qs)],
 		 cpu);
