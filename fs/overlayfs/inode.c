@@ -446,11 +446,14 @@ ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size)
 	return res;
 }
 
-struct posix_acl *ovl_get_acl(struct inode *inode, int type)
+struct posix_acl *ovl_get_acl(struct inode *inode, int type, bool rcu)
 {
 	struct inode *realinode = ovl_inode_real(inode);
 	const struct cred *old_cred;
 	struct posix_acl *acl;
+
+	if (rcu)
+		return ERR_PTR(-ECHILD);
 
 	if (!IS_ENABLED(CONFIG_FS_POSIX_ACL) || !IS_POSIXACL(realinode))
 		return NULL;

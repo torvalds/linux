@@ -498,7 +498,7 @@ int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char *name,
 int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char *name,
 		  void *value, size_t size);
 ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size);
-struct posix_acl *ovl_get_acl(struct inode *inode, int type);
+struct posix_acl *ovl_get_acl(struct inode *inode, int type, bool rcu);
 int ovl_update_time(struct inode *inode, struct timespec64 *ts, int flags);
 bool ovl_is_private_xattr(struct super_block *sb, const char *name);
 

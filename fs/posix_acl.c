@@ -138,7 +138,7 @@ struct posix_acl *get_acl(struct inode *inode, int type)
 		set_cached_acl(inode, type, NULL);
 		return NULL;
 	}
-	acl = inode->i_op->get_acl(inode, type);
+	acl = inode->i_op->get_acl(inode, type, false);
 
 	if (IS_ERR(acl)) {
 		/*
