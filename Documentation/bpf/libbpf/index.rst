@@ -3,6 +3,14 @@
 libbpf
 ======
 
+For API documentation see the `versioned API documentation site <https://libbpf.readthedocs.io/en/latest/api.html>`_.
+
+.. toctree::
+   :maxdepth: 1
+
+   libbpf_naming_convention
+   libbpf_build
+
 This is documentation for libbpf, a userspace library for loading and
 interacting with bpf programs.
 
