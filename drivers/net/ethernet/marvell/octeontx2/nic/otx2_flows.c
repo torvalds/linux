@@ -821,11 +821,6 @@ int otx2_prepare_flow_request(struct ethtool_rx_flow_spec *fsp,
 		if (fsp->m_ext.vlan_etype)
 			return -EINVAL;
 		if (fsp->m_ext.vlan_tci) {
-			if (fsp->m_ext.vlan_tci != cpu_to_be16(VLAN_VID_MASK))
-				return -EINVAL;
-			if (be16_to_cpu(fsp->h_ext.vlan_tci) >= VLAN_N_VID)
-				return -EINVAL;
-
 			memcpy(&pkt->vlan_tci, &fsp->h_ext.vlan_tci,
 			       sizeof(pkt->vlan_tci));
 			memcpy(&pmask->vlan_tci, &fsp->m_ext.vlan_tci,
