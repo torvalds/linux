@@ -517,7 +517,7 @@ void intel_pasid_tear_down_entry(struct intel_iommu *iommu, struct device *dev,
 	if (WARN_ON(!pte))
 		return;
 
-	if (!(pte->val[0] & PASID_PTE_PRESENT))
+	if (!pasid_pte_is_present(pte))
 		return;
 
 	did = pasid_get_domain_id(pte);
