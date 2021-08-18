@@ -18,6 +18,7 @@ android/abi_gki_aarch64_fips140
 android/abi_gki_aarch64_galaxy
 android/abi_gki_aarch64_generic
 android/abi_gki_aarch64_hikey960
+android/abi_gki_aarch64_imx
 android/abi_gki_aarch64_mtk
 android/abi_gki_aarch64_oplus
 android/abi_gki_aarch64_qcom
