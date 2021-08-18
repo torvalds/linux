@@ -339,8 +339,7 @@ static int csi_config(struct rkisp_csi_device *csi)
 		rkisp_write(dev, CSI2RX_MASK_OVERFLOW, val, true);
 		val = RAW0_WR_FRAME | RAW1_WR_FRAME | RAW2_WR_FRAME |
 			MIPI_DROP_FRM | RAW_WR_SIZE_ERR | MIPI_LINECNT |
-			RAW_RD_SIZE_ERR | MIPI_FRAME_ST_VC(0xf) |
-			MIPI_FRAME_END_VC(0xf) | RAW0_Y_STATE |
+			RAW_RD_SIZE_ERR | RAW0_Y_STATE |
 			RAW1_Y_STATE | RAW2_Y_STATE;
 		rkisp_write(dev, CSI2RX_MASK_STAT, val, true);
 
