@@ -997,6 +997,9 @@ struct ravb_hw_info {
 	int stats_len;
 	size_t max_rx_len;
 	unsigned aligned_tx: 1;
+
+	/* hardware features */
+	unsigned internal_delay:1;	/* AVB-DMAC has internal delays */
 };
 
 struct ravb_private {
