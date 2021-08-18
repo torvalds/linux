@@ -856,15 +856,6 @@ int blk_register_queue(struct gendisk *disk)
 	struct device *dev = disk_to_dev(disk);
 	struct request_queue *q = disk->queue;
 
-	if (WARN_ON(!q))
-		return -ENXIO;
-
-	WARN_ONCE(blk_queue_registered(q),
-		  "%s is registering an already registered queue\n",
-		  kobject_name(&dev->kobj));
-
-	disk_update_readahead(disk);
-
 	ret = blk_trace_init_sysfs(dev);
 	if (ret)
 		return ret;

@@ -508,6 +508,8 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 		disk->slave_dir = NULL;
 	}
 
+	blk_register_queue(disk);
+
 	if (disk->flags & GENHD_FL_HIDDEN) {
 		/*
 		 * Don't let hidden disks show up in /proc/partitions,
@@ -537,8 +539,7 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 		disk_uevent(disk, KOBJ_ADD);
 	}
 
-	blk_register_queue(disk);
-
+	disk_update_readahead(disk);
 	disk_add_events(disk);
 }
 EXPORT_SYMBOL(device_add_disk);
