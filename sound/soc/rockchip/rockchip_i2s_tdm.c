@@ -1469,12 +1469,24 @@ static const struct rk_i2s_soc_data rv1126_i2s_soc_data = {
 };
 
 static const struct of_device_id rockchip_i2s_tdm_match[] = {
+#ifdef CONFIG_CPU_PX30
 	{ .compatible = "rockchip,px30-i2s-tdm", .data = &px30_i2s_soc_data },
+#endif
+#ifdef CONFIG_CPU_RK1808
 	{ .compatible = "rockchip,rk1808-i2s-tdm", .data = &rk1808_i2s_soc_data },
+#endif
+#ifdef CONFIG_CPU_RK3308
 	{ .compatible = "rockchip,rk3308-i2s-tdm", .data = &rk3308_i2s_soc_data },
+#endif
+#ifdef CONFIG_CPU_RK3568
 	{ .compatible = "rockchip,rk3568-i2s-tdm", .data = &rk3568_i2s_soc_data },
+#endif
+#ifdef CONFIG_CPU_RK3588
 	{ .compatible = "rockchip,rk3588-i2s-tdm", },
+#endif
+#ifdef CONFIG_CPU_RV1126
 	{ .compatible = "rockchip,rv1126-i2s-tdm", .data = &rv1126_i2s_soc_data },
+#endif
 	{},
 };
 
