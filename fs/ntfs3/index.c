@@ -175,6 +175,7 @@ static inline NTFS_CMP_FUNC get_cmp_func(const struct INDEX_ROOT *root)
 		default:
 			break;
 		}
+		break;
 	default:
 		break;
 	}

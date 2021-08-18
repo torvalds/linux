@@ -1789,6 +1789,7 @@ out3:
 	switch (err) {
 	case 0:
 		drop_nlink(inode);
+		break;
 	case -ENOTEMPTY:
 	case -ENOSPC:
 	case -EROFS:
