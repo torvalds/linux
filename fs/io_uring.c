@@ -5572,6 +5572,7 @@ static struct io_kiocb *io_timeout_extract(struct io_ring_ctx *ctx,
 }
 
 static int io_timeout_cancel(struct io_ring_ctx *ctx, __u64 user_data)
+	__must_hold(&ctx->completion_lock)
 	__must_hold(&ctx->timeout_lock)
 {
 	struct io_kiocb *req = io_timeout_extract(ctx, user_data);
@@ -5646,13 +5647,18 @@ static int io_timeout_remove(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
 
-	spin_lock_irq(&ctx->timeout_lock);
-	if (!(req->timeout_rem.flags & IORING_TIMEOUT_UPDATE))
+	if (!(req->timeout_rem.flags & IORING_TIMEOUT_UPDATE)) {
+		spin_lock(&ctx->completion_lock);
+		spin_lock_irq(&ctx->timeout_lock);
 		ret = io_timeout_cancel(ctx, tr->addr);
-	else
+		spin_unlock_irq(&ctx->timeout_lock);
+		spin_unlock(&ctx->completion_lock);
+	} else {
+		spin_lock_irq(&ctx->timeout_lock);
 		ret = io_timeout_update(ctx, tr->addr, &tr->ts,
 					io_translate_timeout_mode(tr->flags));
-	spin_unlock_irq(&ctx->timeout_lock);
+		spin_unlock_irq(&ctx->timeout_lock);
+	}
 
 	if (ret < 0)
 		req_set_fail(req);
