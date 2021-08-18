@@ -1717,8 +1717,7 @@ static int null_gendisk_register(struct nullb *nullb)
 			return ret;
 	}
 
-	add_disk(disk);
-	return 0;
+	return add_disk(disk);
 }
 
 static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
