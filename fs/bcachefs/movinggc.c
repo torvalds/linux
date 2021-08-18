@@ -85,6 +85,7 @@ static enum data_cmd copygc_pred(struct bch_fs *c, void *arg,
 		BUG_ON(i != j);
 #endif
 		if (i >= 0 &&
+		    p.ptr.dev == h->data[i].dev &&
 		    p.ptr.offset < h->data[i].offset + ca->mi.bucket_size &&
 		    p.ptr.gen == h->data[i].gen) {
 			/*
