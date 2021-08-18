@@ -4481,7 +4481,7 @@ static int rtw_wx_set_priv(struct net_device *dev,
 		return -EFAULT;
 
 	len = dwrq->length;
-	ext = rtw_vmalloc(len);
+	ext = vmalloc(len);
 	if (!ext)
 		return -ENOMEM;
 
