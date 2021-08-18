@@ -1296,11 +1296,6 @@ MODULE_LICENSE ("GPL");
 #define XILINX_OF_PLATFORM_DRIVER	ehci_hcd_xilinx_of_driver
 #endif
 
-#ifdef CONFIG_USB_EHCI_HCD_PMC_MSP
-#include "ehci-pmcmsp.c"
-#define	PLATFORM_DRIVER		ehci_hcd_msp_driver
-#endif
-
 #ifdef CONFIG_SPARC_LEON
 #include "ehci-grlib.c"
 #define PLATFORM_DRIVER		ehci_grlib_driver
