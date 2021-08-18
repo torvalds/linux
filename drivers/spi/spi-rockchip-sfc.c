@@ -257,7 +257,7 @@ static int rockchip_sfc_wait_txfifo_ready(struct rockchip_sfc *sfc, u32 timeout_
 	if (ret) {
 		dev_dbg(sfc->dev, "sfc wait tx fifo timeout\n");
 
-		ret = -ETIMEDOUT;
+		return -ETIMEDOUT;
 	}
 
 	return (status & SFC_FSR_TXLV_MASK) >> SFC_FSR_TXLV_SHIFT;
@@ -274,7 +274,7 @@ static int rockchip_sfc_wait_rxfifo_ready(struct rockchip_sfc *sfc, u32 timeout_
 	if (ret) {
 		dev_dbg(sfc->dev, "sfc wait rx fifo timeout\n");
 
-		ret = -ETIMEDOUT;
+		return -ETIMEDOUT;
 	}
 
 	return (status & SFC_FSR_RXLV_MASK) >> SFC_FSR_RXLV_SHIFT;
