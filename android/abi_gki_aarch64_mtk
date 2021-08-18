@@ -1923,6 +1923,9 @@
   __traceiter_android_vh_exit_creds
   __traceiter_android_vh_fill_ext_fmtdesc
   __traceiter_android_vh_finish_update_load_avg_se
+  __traceiter_android_vh_freq_qos_add_request
+  __traceiter_android_vh_freq_qos_update_request
+  __traceiter_android_vh_freq_qos_remove_request
   __traceiter_android_vh_iommu_alloc_iova
   __traceiter_android_vh_iommu_free_iova
   __traceiter_android_vh_ipv6_gen_linklocal_addr
@@ -1996,6 +1999,9 @@
   __tracepoint_android_vh_exit_creds
   __tracepoint_android_vh_fill_ext_fmtdesc
   __tracepoint_android_vh_finish_update_load_avg_se
+  __tracepoint_android_vh_freq_qos_add_request
+  __tracepoint_android_vh_freq_qos_update_request
+  __tracepoint_android_vh_freq_qos_remove_request
   __tracepoint_android_vh_iommu_alloc_iova
   __tracepoint_android_vh_iommu_free_iova
   __tracepoint_android_vh_ipv6_gen_linklocal_addr
