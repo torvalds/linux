@@ -17,11 +17,12 @@
 #include <linux/platform_device.h>
 #include <linux/types.h>
 
-#define LED_DEVICE(_name, max) struct led_classdev _name = { \
+#define LED_DEVICE(_name, max, flag) struct led_classdev _name = { \
 	.name           = __stringify(_name),   \
 	.max_brightness = max,                  \
 	.brightness_set = _name##_set,          \
 	.brightness_get = _name##_get,          \
+	.flags = flag,                          \
 }
 
 MODULE_AUTHOR("Matan Ziv-Av");
@@ -71,6 +72,8 @@ static u32 inited;
 #define INIT_SPARSE_KEYMAP      0x80
 
 static int battery_limit_use_wmbb;
+static struct led_classdev kbd_backlight;
+static enum led_brightness get_kbd_backlight_level(void);
 
 static const struct key_entry wmi_keymap[] = {
 	{KE_KEY, 0x70, {KEY_F15} },	 /* LG control panel (F1) */
@@ -217,10 +220,16 @@ static void wmi_notify(u32 value, void *context)
 		int eventcode = obj->integer.value;
 		struct key_entry *key;
 
-		key =
-		    sparse_keymap_entry_from_scancode(wmi_input_dev, eventcode);
-		if (key && key->type == KE_KEY)
-			sparse_keymap_report_entry(wmi_input_dev, key, 1, true);
+		if (eventcode == 0x10000000) {
+			led_classdev_notify_brightness_hw_changed(
+				&kbd_backlight, get_kbd_backlight_level());
+		} else {
+			key = sparse_keymap_entry_from_scancode(
+				wmi_input_dev, eventcode);
+			if (key && key->type == KE_KEY)
+				sparse_keymap_report_entry(wmi_input_dev,
+							   key, 1, true);
+		}
 	}
 
 	pr_debug("Type: %i    Eventcode: 0x%llx\n", obj->type,
@@ -548,7 +557,7 @@ static enum led_brightness tpad_led_get(struct led_classdev *cdev)
 	return ggov(GOV_TLED) > 0 ? LED_ON : LED_OFF;
 }
 
-static LED_DEVICE(tpad_led, 1);
+static LED_DEVICE(tpad_led, 1, 0);
 
 static void kbd_backlight_set(struct led_classdev *cdev,
 			      enum led_brightness brightness)
@@ -565,7 +574,7 @@ static void kbd_backlight_set(struct led_classdev *cdev,
 	kfree(r);
 }
 
-static enum led_brightness kbd_backlight_get(struct led_classdev *cdev)
+static enum led_brightness get_kbd_backlight_level(void)
 {
 	union acpi_object *r;
 	int val;
@@ -596,7 +605,12 @@ static enum led_brightness kbd_backlight_get(struct led_classdev *cdev)
 	return val;
 }
 
-static LED_DEVICE(kbd_backlight, 255);
+static enum led_brightness kbd_backlight_get(struct led_classdev *cdev)
+{
+	return get_kbd_backlight_level();
+}
+
+static LED_DEVICE(kbd_backlight, 255, LED_BRIGHT_HW_CHANGED);
 
 static void wmi_input_destroy(void)
 {
