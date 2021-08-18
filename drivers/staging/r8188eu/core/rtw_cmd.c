@@ -89,13 +89,9 @@ void rtw_free_evt_priv(struct	evt_priv *pevtpriv)
 
 void _rtw_free_cmd_priv(struct cmd_priv *pcmdpriv)
 {
-
 	if (pcmdpriv) {
-		if (pcmdpriv->cmd_allocated_buf)
-			kfree(pcmdpriv->cmd_allocated_buf);
-
-		if (pcmdpriv->rsp_allocated_buf)
-			kfree(pcmdpriv->rsp_allocated_buf);
+		kfree(pcmdpriv->cmd_allocated_buf);
+		kfree(pcmdpriv->rsp_allocated_buf);
 	}
 }
 
@@ -818,11 +814,8 @@ u8 rtw_joinbss_cmd(struct adapter  *padapter, struct wlan_network *pnetwork)
 
 	psecnetwork = (struct wlan_bssid_ex *)&psecuritypriv->sec_bss;
 	if (!psecnetwork) {
-		if (pcmd)
-			kfree(pcmd);
-
+		kfree(pcmd);
 		res = _FAIL;
-
 		goto exit;
 	}
 
