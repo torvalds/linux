@@ -1340,7 +1340,7 @@ static __init int init_graph_tracefs(void)
 	if (ret)
 		return 0;
 
-	trace_create_file("max_graph_depth", 0644, NULL,
+	trace_create_file("max_graph_depth", TRACE_MODE_WRITE, NULL,
 			  NULL, &graph_depth_fops);
 
 	return 0;

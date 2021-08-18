@@ -782,21 +782,21 @@ static int init_tracefs(void)
 	if (!top_dir)
 		return -ENOMEM;
 
-	hwlat_sample_window = tracefs_create_file("window", 0640,
+	hwlat_sample_window = tracefs_create_file("window", TRACE_MODE_WRITE,
 						  top_dir,
 						  &hwlat_window,
 						  &trace_min_max_fops);
 	if (!hwlat_sample_window)
 		goto err;
 
-	hwlat_sample_width = tracefs_create_file("width", 0644,
+	hwlat_sample_width = tracefs_create_file("width", TRACE_MODE_WRITE,
 						 top_dir,
 						 &hwlat_width,
 						 &trace_min_max_fops);
 	if (!hwlat_sample_width)
 		goto err;
 
-	hwlat_thread_mode = trace_create_file("mode", 0644,
+	hwlat_thread_mode = trace_create_file("mode", TRACE_MODE_WRITE,
 					      top_dir,
 					      NULL,
 					      &thread_mode_fops);
