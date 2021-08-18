@@ -2842,11 +2842,13 @@ static void __direct_pte_prefetch(struct kvm_vcpu *vcpu,
 			if (!start)
 				continue;
 			if (direct_pte_prefetch_many(vcpu, sp, start, spte) < 0)
-				break;
+				return;
 			start = NULL;
 		} else if (!start)
 			start = spte;
 	}
+	if (start)
+		direct_pte_prefetch_many(vcpu, sp, start, spte);
 }
 
 static void direct_pte_prefetch(struct kvm_vcpu *vcpu, u64 *sptep)
