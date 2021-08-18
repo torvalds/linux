@@ -7204,7 +7204,7 @@ static void read_local_oob_ext_data_complete(struct hci_dev *hdev, u8 status,
 	if (!mgmt_rp)
 		goto done;
 
-	if (status)
+	if (eir_len == 0)
 		goto send_rsp;
 
 	eir_len = eir_append_data(mgmt_rp->eir, 0, EIR_CLASS_OF_DEV,
