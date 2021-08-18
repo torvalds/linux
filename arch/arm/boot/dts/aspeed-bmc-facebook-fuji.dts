@@ -1,27 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0+
-// Copyright (c) 2018 Facebook Inc.
+// Copyright (c) 2020 Facebook Inc.
+
 /dts-v1/;
 
-#include "ast2500-facebook-netbmc-common.dtsi"
+#include <dt-bindings/leds/common.h>
+#include "ast2600-facebook-netbmc-common.dtsi"
 
 / {
-	model = "Facebook Minipack 100 BMC";
-	compatible = "facebook,minipack-bmc", "aspeed,ast2500";
+	model = "Facebook Fuji BMC";
+	compatible = "facebook,fuji-bmc", "aspeed,ast2600";
 
 	aliases {
 		/*
-		 * Override the default serial aliases to avoid breaking
-		 * the legacy applications.
-		 */
-		serial0 = &uart5;
-		serial1 = &uart1;
-		serial2 = &uart2;
-		serial3 = &uart3;
-		serial4 = &uart4;
-
-		/*
-		 * i2c switch 2-0070, pca9548, 8 child channels assigned
-		 * with bus number 16-23.
+		 * PCA9548 (2-0070) provides 8 channels connecting to
+		 * SCM (System Controller Module).
 		 */
 		i2c16 = &imux16;
 		i2c17 = &imux17;
@@ -33,8 +25,8 @@
 		i2c23 = &imux23;
 
 		/*
-		 * i2c switch 8-0070, pca9548, 8 child channels assigned
-		 * with bus number 24-31.
+		 * PCA9548 (8-0070) provides 8 channels connecting to
+		 * SMB (Switch Main Board).
 		 */
 		i2c24 = &imux24;
 		i2c25 = &imux25;
@@ -46,21 +38,8 @@
 		i2c31 = &imux31;
 
 		/*
-		 * i2c switch 9-0070, pca9548, 8 child channels assigned
-		 * with bus number 32-39.
-		 */
-		i2c32 = &imux32;
-		i2c33 = &imux33;
-		i2c34 = &imux34;
-		i2c35 = &imux35;
-		i2c36 = &imux36;
-		i2c37 = &imux37;
-		i2c38 = &imux38;
-		i2c39 = &imux39;
-
-		/*
-		 * i2c switch 11-0070, pca9548, 8 child channels assigned
-		 * with bus number 40-47.
+		 * PCA9548 (11-0077) provides 8 channels connecting to
+		 * SMB (Switch Main Board).
 		 */
 		i2c40 = &imux40;
 		i2c41 = &imux41;
@@ -72,8 +51,8 @@
 		i2c47 = &imux47;
 
 		/*
-		 * I2C Switch 24-0071 (channel #0 of 8-0070): 8 channels for
-		 * connecting to left PDB (Power Distribution Board).
+		 * PCA9548 (24-0071) provides 8 channels connecting to
+		 * PDB-Left.
 		 */
 		i2c48 = &imux48;
 		i2c49 = &imux49;
@@ -85,8 +64,8 @@
 		i2c55 = &imux55;
 
 		/*
-		 * I2C Switch 25-0072 (channel #1 of 8-0070): 8 channels for
-		 * connecting to right PDB (Power Distribution Board).
+		 * PCA9548 (25-0072) provides 8 channels connecting to
+		 * PDB-Right.
 		 */
 		i2c56 = &imux56;
 		i2c57 = &imux57;
@@ -98,8 +77,8 @@
 		i2c63 = &imux63;
 
 		/*
-		 * I2C Switch 26-0076 (channel #2 of 8-0070): 8 channels for
-		 * connecting to top FCM (Fan Control Module).
+		 * PCA9548 (26-0076) provides 8 channels connecting to
+		 * FCM1.
 		 */
 		i2c64 = &imux64;
 		i2c65 = &imux65;
@@ -111,8 +90,8 @@
 		i2c71 = &imux71;
 
 		/*
-		 * I2C Switch 27-0076 (channel #3 of 8-0070): 8 channels for
-		 * connecting to bottom FCM (Fan Control Module).
+		 * PCA9548 (27-0076) provides 8 channels connecting to
+		 * FCM2.
 		 */
 		i2c72 = &imux72;
 		i2c73 = &imux73;
@@ -124,8 +103,8 @@
 		i2c79 = &imux79;
 
 		/*
-		 * I2C Switch 40-0073 (channel #0 of 11-0070): connecting
-		 * to PIM (Port Interface Module) #1 (1-based).
+		 * PCA9548 (40-0076) provides 8 channels connecting to
+		 * PIM1.
 		 */
 		i2c80 = &imux80;
 		i2c81 = &imux81;
@@ -137,8 +116,8 @@
 		i2c87 = &imux87;
 
 		/*
-		 * I2C Switch 41-0073 (channel #1 of 11-0070): connecting
-		 * to PIM (Port Interface Module) #2 (1-based).
+		 * PCA9548 (41-0076) provides 8 channels connecting to
+		 * PIM2.
 		 */
 		i2c88 = &imux88;
 		i2c89 = &imux89;
@@ -150,8 +129,8 @@
 		i2c95 = &imux95;
 
 		/*
-		 * I2C Switch 42-0073 (channel #2 of 11-0070): connecting
-		 * to PIM (Port Interface Module) #3 (1-based).
+		 * PCA9548 (42-0076) provides 8 channels connecting to
+		 * PIM3.
 		 */
 		i2c96 = &imux96;
 		i2c97 = &imux97;
@@ -163,8 +142,8 @@
 		i2c103 = &imux103;
 
 		/*
-		 * I2C Switch 43-0073 (channel #3 of 11-0070): connecting
-		 * to PIM (Port Interface Module) #4 (1-based).
+		 * PCA9548 (43-0076) provides 8 channels connecting to
+		 * PIM4.
 		 */
 		i2c104 = &imux104;
 		i2c105 = &imux105;
@@ -176,8 +155,8 @@
 		i2c111 = &imux111;
 
 		/*
-		 * I2C Switch 44-0073 (channel #4 of 11-0070): connecting
-		 * to PIM (Port Interface Module) #5 (1-based).
+		 * PCA9548 (44-0076) provides 8 channels connecting to
+		 * PIM5.
 		 */
 		i2c112 = &imux112;
 		i2c113 = &imux113;
@@ -189,8 +168,8 @@
 		i2c119 = &imux119;
 
 		/*
-		 * I2C Switch 45-0073 (channel #5 of 11-0070): connecting
-		 * to PIM (Port Interface Module) #6 (1-based).
+		 * PCA9548 (45-0076) provides 8 channels connecting to
+		 * PIM6.
 		 */
 		i2c120 = &imux120;
 		i2c121 = &imux121;
@@ -202,8 +181,8 @@
 		i2c127 = &imux127;
 
 		/*
-		 * I2C Switch 46-0073 (channel #6 of 11-0070): connecting
-		 * to PIM (Port Interface Module) #7 (1-based).
+		 * PCA9548 (46-0076) provides 8 channels connecting to
+		 * PIM7.
 		 */
 		i2c128 = &imux128;
 		i2c129 = &imux129;
@@ -215,8 +194,8 @@
 		i2c135 = &imux135;
 
 		/*
-		 * I2C Switch 47-0073 (channel #7 of 11-0070): connecting
-		 * to PIM (Port Interface Module) #8 (1-based).
+		 * PCA9548 (47-0076) provides 8 channels connecting to
+		 * PIM8.
 		 */
 		i2c136 = &imux136;
 		i2c137 = &imux137;
@@ -228,121 +207,31 @@
 		i2c143 = &imux143;
 	};
 
-	chosen {
-		stdout-path = &uart1;
-		bootargs = "debug console=ttyS1,9600n8 root=/dev/ram rw";
-	};
-};
+	spi_gpio: spi-gpio {
+		num-chipselects = <3>;
+		cs-gpios = <&gpio0 ASPEED_GPIO(X, 0) GPIO_ACTIVE_LOW>,
+			   <0>,	/* device reg=<1> does not exist */
+			   <&gpio0 ASPEED_GPIO(X, 2) GPIO_ACTIVE_HIGH>;
 
-&wdt2 {
-	status = "okay";
-	aspeed,reset-type = "system";
-};
-
-/*
- * Both firmware flashes are 64MB on Minipack BMC.
- */
-&fmc_flash0 {
-	partitions {
-		compatible = "fixed-partitions";
-		#address-cells = <1>;
-		#size-cells = <1>;
-
-		/*
-		 * u-boot partition: 384KB.
-		 */
-		u-boot@0 {
-			reg = <0x0 0x60000>;
-			label = "u-boot";
-		};
-
-		/*
-		 * u-boot environment variables: 128KB.
-		 */
-		u-boot-env@60000 {
-			reg = <0x60000 0x20000>;
-			label = "env";
-		};
-
-		/*
-		 * FIT image: 55.5 MB.
-		 */
-		fit@80000 {
-			reg = <0x80000 0x3780000>;
-			label = "fit";
-		};
-
-		/*
-		 * "data0" partition (8MB) is reserved for persistent
-		 * data store.
-		 */
-		data0@3800000 {
-			reg = <0x3800000 0x800000>;
-			label = "data0";
-		};
-
-		/*
-		 * "flash0" partition (covering the entire flash) is
-		 * explicitly created to avoid breaking legacy applications.
-		 */
-		flash0@0 {
-			reg = <0x0 0x4000000>;
-			label = "flash0";
+		eeprom@2 {
+			compatible = "atmel,at93c46d";
+			spi-max-frequency = <250000>;
+			data-size = <16>;
+			spi-cs-high;
+			reg = <2>;
 		};
 	};
-};
-
-&fmc_flash1 {
-	partitions {
-		compatible = "fixed-partitions";
-		#address-cells = <1>;
-		#size-cells = <1>;
-
-		flash1@0 {
-			reg = <0x0 0x4000000>;
-		};
-	};
-};
-
-&uart1 {
-	pinctrl-0 = <&pinctrl_txd1_default
-		     &pinctrl_rxd1_default
-		     &pinctrl_ncts1_default
-		     &pinctrl_ndsr1_default
-		     &pinctrl_ndtr1_default
-		     &pinctrl_nrts1_default>;
-};
-
-&uart2 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_txd2_default
-		     &pinctrl_rxd2_default>;
-};
-
-&uart4 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_txd4_default
-		     &pinctrl_rxd4_default>;
 };
 
 &i2c0 {
-	status = "okay";
-	bus-frequency = <400000>;
 	multi-master;
-};
-
-&i2c1 {
-	status = "okay";
+	bus-frequency = <1000000>;
 };
 
 &i2c2 {
-	status = "okay";
-
 	/*
-	 * I2C Switch 2-0070 is connecting to SCM (System Controller
-	 * Module).
+	 * PCA9548 (2-0070) provides 8 channels connecting to SCM (System
+	 * Controller Module).
 	 */
 	i2c-switch@70 {
 		compatible = "nxp,pca9548";
@@ -355,6 +244,14 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;
+
+			adm1278@10 {
+				compatible = "adi,adm1278";
+				reg = <0x10>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				shunt-resistor-micro-ohms = <1500>;
+			};
 		};
 
 		imux17: i2c@1 {
@@ -401,30 +298,11 @@
 	};
 };
 
-&i2c3 {
-	status = "okay";
-};
-
-&i2c4 {
-	status = "okay";
-	multi-master;
-};
-
-&i2c5 {
-	status = "okay";
-};
-
-&i2c6 {
-	status = "okay";
-};
-
-&i2c7 {
-	status = "okay";
-};
-
 &i2c8 {
-	status = "okay";
-
+	/*
+	 * PCA9548 (8-0070) provides 8 channels connecting to SMB (Switch
+	 * Main Board).
+	 */
 	i2c-switch@70 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
@@ -432,10 +310,6 @@
 		reg = <0x70>;
 		i2c-mux-idle-disconnect;
 
-		/*
-		 * I2C Switch 8-0070 channel #0: connecting to left PDB
-		 * (Power Distribution Board).
-		 */
 		imux24: i2c@0 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -464,6 +338,109 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <2>;
+
+					lp5012@14 {
+						compatible = "ti,lp5012";
+						reg = <0x14>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						multi-led@0 {
+							#address-cells = <1>;
+							#size-cells = <0>;
+							reg = <0>;
+							color = <LED_COLOR_ID_MULTI>;
+							function = LED_FUNCTION_ACTIVITY;
+							label = "sys";
+
+							led@0 {
+								reg = <0>;
+								color = <LED_COLOR_ID_RED>;
+							};
+
+							led@1 {
+								reg = <1>;
+								color = <LED_COLOR_ID_BLUE>;
+							};
+
+							led@2 {
+								reg = <2>;
+								color = <LED_COLOR_ID_GREEN>;
+							};
+						};
+
+						multi-led@1 {
+							#address-cells = <1>;
+							#size-cells = <0>;
+							reg = <1>;
+							color = <LED_COLOR_ID_MULTI>;
+							function = LED_FUNCTION_ACTIVITY;
+							label = "fan";
+
+							led@0 {
+								reg = <0>;
+								color = <LED_COLOR_ID_RED>;
+							};
+
+							led@1 {
+								reg = <1>;
+								color = <LED_COLOR_ID_BLUE>;
+							};
+
+							led@2 {
+								reg = <2>;
+								color = <LED_COLOR_ID_GREEN>;
+							};
+						};
+
+						multi-led@2 {
+							#address-cells = <1>;
+							#size-cells = <0>;
+							reg = <2>;
+							color = <LED_COLOR_ID_MULTI>;
+							function = LED_FUNCTION_ACTIVITY;
+							label = "psu";
+
+							led@0 {
+								reg = <0>;
+								color = <LED_COLOR_ID_RED>;
+							};
+
+							led@1 {
+								reg = <1>;
+								color = <LED_COLOR_ID_BLUE>;
+							};
+
+							led@2 {
+								reg = <2>;
+								color = <LED_COLOR_ID_GREEN>;
+							};
+						};
+
+						multi-led@3 {
+							#address-cells = <1>;
+							#size-cells = <0>;
+							reg = <3>;
+							color = <LED_COLOR_ID_MULTI>;
+							function = LED_FUNCTION_ACTIVITY;
+							label = "smb";
+
+							led@0 {
+								reg = <0>;
+								color = <LED_COLOR_ID_RED>;
+							};
+
+							led@1 {
+								reg = <1>;
+								color = <LED_COLOR_ID_BLUE>;
+							};
+
+							led@2 {
+								reg = <2>;
+								color = <LED_COLOR_ID_GREEN>;
+							};
+						};
+					};
 				};
 
 				imux51: i2c@3 {
@@ -496,12 +473,9 @@
 					reg = <7>;
 				};
 			};
+
 		};
 
-		/*
-		 * I2C Switch 8-0070 channel #1: connecting to right PDB
-		 * (Power Distribution Board).
-		 */
 		imux25: i2c@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -562,12 +536,9 @@
 					reg = <7>;
 				};
 			};
+
 		};
 
-		/*
-		 * I2C Switch 8-0070 channel #2: connecting to top FCM
-		 * (Fan Control Module).
-		 */
 		imux26: i2c@2 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -602,6 +573,14 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <3>;
+
+					adm1278@10 {
+						compatible = "adi,adm1278";
+						reg = <0x10>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+						shunt-resistor-micro-ohms = <250>;
+					};
 				};
 
 				imux68: i2c@4 {
@@ -628,12 +607,9 @@
 					reg = <7>;
 				};
 			};
+
 		};
 
-		/*
-		 * I2C Switch 8-0070 channel #3: connecting to bottom
-		 * FCM (Fan Control Module).
-		 */
 		imux27: i2c@3 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -668,6 +644,14 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <3>;
+
+					adm1278@10 {
+						compatible = "adi,adm1278";
+						reg = <0x10>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+						shunt-resistor-micro-ohms = <250>;
+					};
 				};
 
 				imux76: i2c@4 {
@@ -694,6 +678,7 @@
 					reg = <7>;
 				};
 			};
+
 		};
 
 		imux28: i2c@4 {
@@ -719,101 +704,34 @@
 			#size-cells = <0>;
 			reg = <7>;
 		};
+
 	};
-};
-
-&i2c9 {
-	status = "okay";
-
-	/*
-	 * I2C Switch 9-0070 is connecting to MAC/PHY EEPROMs on SMB
-	 * (Switch Main Board).
-	 */
-	i2c-switch@70 {
-		compatible = "nxp,pca9548";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg = <0x70>;
-		i2c-mux-idle-disconnect;
-
-		imux32: i2c@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0>;
-		};
-
-		imux33: i2c@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <1>;
-		};
-
-		imux34: i2c@2 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <2>;
-		};
-
-		imux35: i2c@3 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <3>;
-		};
-
-		imux36: i2c@4 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <4>;
-		};
-
-		imux37: i2c@5 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <5>;
-		};
-
-		imux38: i2c@6 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <6>;
-		};
-
-		imux39: i2c@7 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <7>;
-		};
-	};
-};
-
-&i2c10 {
-	status = "okay";
 };
 
 &i2c11 {
 	status = "okay";
 
-	i2c-switch@70 {
+	/*
+	 * PCA9548 (11-0077) provides 8 channels connecting to SMB (Switch
+	 * Main Board).
+	 */
+	i2c-switch@77 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		reg = <0x70>;
+		reg = <0x77>;
 		i2c-mux-idle-disconnect;
 
-		/*
-		 * I2C Switch 11-0070 channel #0: connecting to PIM
-		 * (Port Interface Module) #1 (1-based).
-		 */
 		imux40: i2c@0 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;
 
-			i2c-switch@73 {
+			i2c-switch@76 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <0x73>;
+				reg = <0x76>;
 				i2c-mux-idle-disconnect;
 
 				imux80: i2c@0 {
@@ -864,22 +782,19 @@
 					reg = <7>;
 				};
 			};
+
 		};
 
-		/*
-		 * I2C Switch 11-0070 channel #1: connecting to PIM
-		 * (Port Interface Module) #2 (1-based).
-		 */
 		imux41: i2c@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <1>;
 
-			i2c-switch@73 {
+			i2c-switch@76 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <0x73>;
+				reg = <0x76>;
 				i2c-mux-idle-disconnect;
 
 				imux88: i2c@0 {
@@ -930,22 +845,19 @@
 					reg = <7>;
 				};
 			};
+
 		};
 
-		/*
-		 * I2C Switch 11-0070 channel #2: connecting to PIM
-		 * (Port Interface Module) #3 (1-based).
-		 */
 		imux42: i2c@2 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <2>;
 
-			i2c-switch@73 {
+			i2c-switch@76 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <0x73>;
+				reg = <0x76>;
 				i2c-mux-idle-disconnect;
 
 				imux96: i2c@0 {
@@ -996,22 +908,19 @@
 					reg = <7>;
 				};
 			};
+
 		};
 
-		/*
-		 * I2C Switch 11-0070 channel #3: connecting to PIM
-		 * (Port Interface Module) #4 (1-based).
-		 */
 		imux43: i2c@3 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <3>;
 
-			i2c-switch@73 {
+			i2c-switch@76 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <0x73>;
+				reg = <0x76>;
 				i2c-mux-idle-disconnect;
 
 				imux104: i2c@0 {
@@ -1062,22 +971,19 @@
 					reg = <7>;
 				};
 			};
+
 		};
 
-		/*
-		 * I2C Switch 11-0070 channel #4: connecting to PIM
-		 * (Port Interface Module) #5 (1-based).
-		 */
 		imux44: i2c@4 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <4>;
 
-			i2c-switch@73 {
+			i2c-switch@76 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <0x73>;
+				reg = <0x76>;
 				i2c-mux-idle-disconnect;
 
 				imux112: i2c@0 {
@@ -1128,22 +1034,19 @@
 					reg = <7>;
 				};
 			};
+
 		};
 
-		/*
-		 * I2C Switch 11-0070 channel #5: connecting to PIM
-		 * (Port Interface Module) #6 (1-based).
-		 */
 		imux45: i2c@5 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <5>;
 
-			i2c-switch@73 {
+			i2c-switch@76 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <0x73>;
+				reg = <0x76>;
 				i2c-mux-idle-disconnect;
 
 				imux120: i2c@0 {
@@ -1194,22 +1097,19 @@
 					reg = <7>;
 				};
 			};
+
 		};
 
-		/*
-		 * I2C Switch 11-0070 channel #6: connecting to PIM
-		 * (Port Interface Module) #7 (1-based).
-		 */
 		imux46: i2c@6 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <6>;
 
-			i2c-switch@73 {
+			i2c-switch@76 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <0x73>;
+				reg = <0x76>;
 				i2c-mux-idle-disconnect;
 
 				imux128: i2c@0 {
@@ -1260,22 +1160,19 @@
 					reg = <7>;
 				};
 			};
+
 		};
 
-		/*
-		 * I2C Switch 11-0070 channel #7: connecting to PIM
-		 * (Port Interface Module) #8 (1-based).
-		 */
 		imux47: i2c@7 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <7>;
 
-			i2c-switch@73 {
+			i2c-switch@76 {
 				compatible = "nxp,pca9548";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <0x73>;
+				reg = <0x76>;
 				i2c-mux-idle-disconnect;
 
 				imux136: i2c@0 {
@@ -1326,14 +1223,29 @@
 					reg = <7>;
 				};
 			};
+
 		};
+
 	};
 };
 
-&i2c12 {
+&ehci1 {
 	status = "okay";
 };
 
-&i2c13 {
+&mdio1 {
 	status = "okay";
+
+	ethphy3: ethernet-phy@13 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x0d>;
+	};
+};
+
+&mac3 {
+	status = "okay";
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy3>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii4_default>;
 };
