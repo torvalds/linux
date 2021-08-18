@@ -466,29 +466,14 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 
 	disk_alloc_events(disk);
 
-	if (disk->flags & GENHD_FL_HIDDEN) {
-		/*
-		 * Don't let hidden disks show up in /proc/partitions,
-		 * and don't bother scanning for partitions either.
-		 */
-		disk->flags |= GENHD_FL_SUPPRESS_PARTITION_INFO;
-		disk->flags |= GENHD_FL_NO_PART_SCAN;
-	} else {
-		/* Register BDI before referencing it from bdev */
-		ddev->devt = MKDEV(disk->major, disk->first_minor);
-		ret = bdi_register(disk->bdi, "%u:%u",
-				   disk->major, disk->first_minor);
-		WARN_ON(ret);
-		bdi_set_owner(disk->bdi, ddev);
-		bdev_add(disk->part0, ddev->devt);
-	}
-
 	/* delay uevents, until we scanned partition table */
 	dev_set_uevent_suppress(ddev, 1);
 
 	ddev->parent = parent;
 	ddev->groups = groups;
 	dev_set_name(ddev, "%s", disk->disk_name);
+	if (!(disk->flags & GENHD_FL_HIDDEN))
+		ddev->devt = MKDEV(disk->major, disk->first_minor);
 	if (device_add(ddev))
 		return;
 	if (!sysfs_deprecated) {
@@ -521,12 +506,25 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 		disk->slave_dir = NULL;
 	}
 
-	if (!(disk->flags & GENHD_FL_HIDDEN)) {
+	if (disk->flags & GENHD_FL_HIDDEN) {
+		/*
+		 * Don't let hidden disks show up in /proc/partitions,
+		 * and don't bother scanning for partitions either.
+		 */
+		disk->flags |= GENHD_FL_SUPPRESS_PARTITION_INFO;
+		disk->flags |= GENHD_FL_NO_PART_SCAN;
+	} else {
+		ret = bdi_register(disk->bdi, "%u:%u",
+				   disk->major, disk->first_minor);
+		WARN_ON(ret);
+		bdi_set_owner(disk->bdi, ddev);
+		bdev_add(disk->part0, ddev->devt);
+
 		disk_scan_partitions(disk);
 
 		/*
 		 * Announce the disk and partitions after all partitions are
-		 * created.
+		 * created. (for hidden disks uevents remain suppressed forever)
 		 */
 		dev_set_uevent_suppress(ddev, 0);
 		disk_uevent(disk, KOBJ_ADD);
