@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2021, Konrad Dybcio <konrad.dybcio@somainline.org>
+ */
+
+#include "msm8996-sony-xperia-tone-kagura.dts"
+#include "pmi8996.dtsi"
+
+/ {
+	model = "Sony Xperia XZ (PMI8996)";
+};

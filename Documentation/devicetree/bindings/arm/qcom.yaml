@@ -135,6 +135,8 @@ properties:
           - const: qcom,msm8974
 
       - items:
+          - enum:
+              - alcatel,idol347
           - const: qcom,msm8916-mtp/1
           - const: qcom,msm8916-mtp
           - const: qcom,msm8916
@@ -187,6 +189,8 @@ properties:
       - items:
           - enum:
               - qcom,sc7280-idp
+              - qcom,sc7280-idp2
+              - google,piglin
               - google,senor
           - const: qcom,sc7280
 
