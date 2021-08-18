@@ -2067,6 +2067,8 @@ static void tctx_task_work(struct callback_head *cb)
 			if (req->ctx != ctx) {
 				ctx_flush_and_put(ctx, &locked);
 				ctx = req->ctx;
+				/* if not contended, grab and improve batching */
+				locked = mutex_trylock(&ctx->uring_lock);
 				percpu_ref_get(&ctx->refs);
 			}
 			req->io_task_work.func(req, &locked);
@@ -2582,7 +2584,20 @@ static bool __io_complete_rw_common(struct io_kiocb *req, long res)
 
 static void io_req_task_complete(struct io_kiocb *req, bool *locked)
 {
-	__io_req_complete(req, 0, req->result, io_put_rw_kbuf(req));
+	unsigned int cflags = io_put_rw_kbuf(req);
+	long res = req->result;
+
+	if (*locked) {
+		struct io_ring_ctx *ctx = req->ctx;
+		struct io_submit_state *state = &ctx->submit_state;
+
+		io_req_complete_state(req, res, cflags);
+		state->compl_reqs[state->compl_nr++] = req;
+		if (state->compl_nr == ARRAY_SIZE(state->compl_reqs))
+			io_submit_flush_completions(ctx);
+	} else {
+		io_req_complete_post(req, res, cflags);
+	}
 }
 
 static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
