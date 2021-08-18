@@ -988,6 +988,10 @@ enum ravb_chip_id {
 	RCAR_GEN3,
 };
 
+struct ravb_hw_info {
+	enum ravb_chip_id chip_id;
+};
+
 struct ravb_private {
 	struct net_device *ndev;
 	struct platform_device *pdev;
@@ -1040,6 +1044,8 @@ struct ravb_private {
 	unsigned txcidm:1;		/* TX Clock Internal Delay Mode */
 	unsigned rgmii_override:1;	/* Deprecated rgmii-*id behavior */
 	unsigned int num_tx_desc;	/* TX descriptors per packet */
+
+	const struct ravb_hw_info *info;
 };
 
 static inline u32 ravb_read(struct net_device *ndev, enum ravb_reg reg)
