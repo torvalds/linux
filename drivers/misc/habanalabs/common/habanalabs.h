@@ -2956,6 +2956,10 @@ int hl_set_voltage(struct hl_device *hdev,
 			int sensor_index, u32 attr, long value);
 int hl_set_current(struct hl_device *hdev,
 			int sensor_index, u32 attr, long value);
+int hl_set_power(struct hl_device *hdev,
+			int sensor_index, u32 attr, long value);
+int hl_get_power(struct hl_device *hdev,
+			int sensor_index, u32 attr, long *value);
 void hw_sob_get(struct hl_hw_sob *hw_sob);
 void hw_sob_put(struct hl_hw_sob *hw_sob);
 void hl_encaps_handle_do_release(struct kref *ref);

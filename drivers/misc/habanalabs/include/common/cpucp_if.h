@@ -599,6 +599,16 @@ enum cpucp_pll_type_attributes {
 };
 
 /*
+ * cpucp_power_type aligns with hwmon_power_attributes
+ * defined in Linux kernel hwmon.h file
+ */
+enum cpucp_power_type {
+	CPUCP_POWER_INPUT = 8,
+	CPUCP_POWER_INPUT_HIGHEST = 9,
+	CPUCP_POWER_RESET_INPUT_HISTORY = 11
+};
+
+/*
  * MSI type enumeration table for all ASICs and future SW versions.
  * For future ASIC-LKD compatibility, we can only add new enumerations.
  * at the end of the table (before CPUCP_NUM_OF_MSI_TYPES).

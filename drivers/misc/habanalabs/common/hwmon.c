@@ -236,6 +236,23 @@ static int hl_read(struct device *dev, enum hwmon_sensor_types type,
 		else
 			rc = hl_get_pwm_info(hdev, channel, attr, val);
 		break;
+	case hwmon_power:
+		switch (attr) {
+		case hwmon_power_input:
+			cpucp_attr = CPUCP_POWER_INPUT;
+			break;
+		case hwmon_power_input_highest:
+			cpucp_attr = CPUCP_POWER_INPUT_HIGHEST;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		if (use_cpucp_enum)
+			rc = hl_get_power(hdev, channel, cpucp_attr, val);
+		else
+			rc = hl_get_power(hdev, channel, attr, val);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -316,6 +333,20 @@ static int hl_write(struct device *dev, enum hwmon_sensor_types type,
 		else
 			hl_set_current(hdev, channel, attr, val);
 		break;
+	case hwmon_power:
+		switch (attr) {
+		case hwmon_power_reset_history:
+			cpucp_attr = CPUCP_POWER_RESET_INPUT_HISTORY;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		if (use_cpucp_enum)
+			hl_set_power(hdev, channel, cpucp_attr, val);
+		else
+			hl_set_power(hdev, channel, attr, val);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -376,6 +407,15 @@ static umode_t hl_is_visible(const void *data, enum hwmon_sensor_types type,
 		case hwmon_pwm_input:
 		case hwmon_pwm_enable:
 			return 0644;
+		}
+		break;
+	case hwmon_power:
+		switch (attr) {
+		case hwmon_power_input:
+		case hwmon_power_input_highest:
+			return 0444;
+		case hwmon_power_reset_history:
+			return 0200;
 		}
 		break;
 	default:
@@ -629,6 +669,60 @@ int hl_set_current(struct hl_device *hdev,
 		dev_err(hdev->dev,
 			"Failed to set current of sensor %d, error %d\n",
 			sensor_index, rc);
+
+	return rc;
+}
+
+int hl_set_power(struct hl_device *hdev,
+			int sensor_index, u32 attr, long value)
+{
+	struct cpucp_packet pkt;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_POWER_GET <<
+				CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.sensor_index = __cpu_to_le16(sensor_index);
+	pkt.type = __cpu_to_le16(attr);
+	pkt.value = __cpu_to_le64(value);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+						0, NULL);
+
+	if (rc)
+		dev_err(hdev->dev,
+			"Failed to set power of sensor %d, error %d\n",
+			sensor_index, rc);
+
+	return rc;
+}
+
+int hl_get_power(struct hl_device *hdev,
+			int sensor_index, u32 attr, long *value)
+{
+	struct cpucp_packet pkt;
+	u64 result;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_POWER_GET <<
+				CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.sensor_index = __cpu_to_le16(sensor_index);
+	pkt.type = __cpu_to_le16(attr);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+						0, &result);
+
+	*value = (long) result;
+
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to get power of sensor %d, error %d\n",
+			sensor_index, rc);
+		*value = 0;
+	}
 
 	return rc;
 }
