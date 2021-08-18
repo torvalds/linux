@@ -2363,6 +2363,19 @@ int pci_vpd_find_tag(const u8 *buf, unsigned int len, u8 rdt);
 int pci_vpd_find_info_keyword(const u8 *buf, unsigned int off,
 			      unsigned int len, const char *kw);
 
+/**
+ * pci_vpd_find_ro_info_keyword - Locate info field keyword in VPD RO section
+ * @buf: Pointer to buffered VPD data
+ * @len: The length of the buffer area in which to search
+ * @kw: The keyword to search for
+ * @size: Pointer to field where length of found keyword data is returned
+ *
+ * Returns the index of the information field keyword data or -ENOENT if
+ * not found.
+ */
+int pci_vpd_find_ro_info_keyword(const void *buf, unsigned int len,
+				 const char *kw, unsigned int *size);
+
 /* PCI <-> OF binding helpers */
 #ifdef CONFIG_OF
 struct device_node;

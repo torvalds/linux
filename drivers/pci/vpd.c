@@ -380,6 +380,39 @@ ssize_t pci_write_vpd(struct pci_dev *dev, loff_t pos, size_t count, const void 
 }
 EXPORT_SYMBOL(pci_write_vpd);
 
+int pci_vpd_find_ro_info_keyword(const void *buf, unsigned int len,
+				 const char *kw, unsigned int *size)
+{
+	int ro_start, infokw_start;
+	unsigned int ro_len, infokw_size;
+
+	ro_start = pci_vpd_find_tag(buf, len, PCI_VPD_LRDT_RO_DATA);
+	if (ro_start < 0)
+		return ro_start;
+
+	ro_len = pci_vpd_lrdt_size(buf + ro_start);
+	ro_start += PCI_VPD_LRDT_TAG_SIZE;
+
+	if (ro_start + ro_len > len)
+		ro_len = len - ro_start;
+
+	infokw_start = pci_vpd_find_info_keyword(buf, ro_start, ro_len, kw);
+	if (infokw_start < 0)
+		return infokw_start;
+
+	infokw_size = pci_vpd_info_field_size(buf + infokw_start);
+	infokw_start += PCI_VPD_INFO_FLD_HDR_SIZE;
+
+	if (infokw_start + infokw_size > len)
+		return -EINVAL;
+
+	if (size)
+		*size = infokw_size;
+
+	return infokw_start;
+}
+EXPORT_SYMBOL_GPL(pci_vpd_find_ro_info_keyword);
+
 #ifdef CONFIG_PCI_QUIRKS
 /*
  * Quirk non-zero PCI functions to route VPD access through function 0 for
