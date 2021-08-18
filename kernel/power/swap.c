@@ -306,7 +306,7 @@ static blk_status_t hib_wait_io(struct hib_bio_batch *hb)
 	 * a plug will flush the plug list before sleeping.
 	 */
 	wait_event(hb->wait, atomic_read(&hb->count) == 0);
-	return blk_status_to_errno(hb->error);
+	return hb->error;
 }
 
 /*
