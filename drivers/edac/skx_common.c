@@ -532,6 +532,7 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 	bool ripv = GET_BITFIELD(m->mcgstatus, 0, 0);
 	bool overflow = GET_BITFIELD(m->status, 62, 62);
 	bool uncorrected_error = GET_BITFIELD(m->status, 61, 61);
+	bool scrub_err = false;
 	bool recoverable;
 	int len;
 	u32 core_err_cnt = GET_BITFIELD(m->status, 38, 52);
@@ -583,6 +584,7 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 			break;
 		case 4:
 			optype = "memory scrubbing error";
+			scrub_err = true;
 			break;
 		default:
 			optype = "reserved";
@@ -605,7 +607,7 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 	}
 
 	if (skx_show_retry_rd_err_log)
-		skx_show_retry_rd_err_log(res, skx_msg + len, MSG_SIZE - len);
+		skx_show_retry_rd_err_log(res, skx_msg + len, MSG_SIZE - len, scrub_err);
 
 	edac_dbg(0, "%s\n", skx_msg);
 
