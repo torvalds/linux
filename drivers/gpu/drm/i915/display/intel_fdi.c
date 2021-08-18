@@ -95,6 +95,15 @@ static int ilk_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 	}
 }
 
+u32 intel_fdi_link_freq(struct drm_i915_private *i915,
+			const struct intel_crtc_state *pipe_config)
+{
+	if (HAS_DDI(i915))
+		return pipe_config->port_clock; /* SPLL */
+	else
+		return i915->fdi_pll_freq;
+}
+
 int ilk_fdi_compute_config(struct intel_crtc *crtc,
 			   struct intel_crtc_state *pipe_config)
 {
