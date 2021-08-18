@@ -990,6 +990,7 @@ enum ravb_chip_id {
 
 struct ravb_hw_info {
 	enum ravb_chip_id chip_id;
+	int stats_len;
 	size_t max_rx_len;
 	unsigned aligned_tx: 1;
 };
