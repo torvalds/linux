@@ -68,6 +68,8 @@ mt7921_ampdu_stat_read_phy(struct mt7921_phy *phy,
 	if (!phy)
 		return;
 
+	mt7921_mac_update_mib_stats(phy);
+
 	/* Tx ampdu stat */
 	for (i = 0; i < ARRAY_SIZE(range); i++)
 		range[i] = mt76_rr(dev, MT_MIB_ARNG(0, i));
