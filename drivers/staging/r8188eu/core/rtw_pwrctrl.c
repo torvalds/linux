@@ -256,15 +256,15 @@ static u8 PS_RDY_CHECK(struct adapter *padapter)
 	if (delta_time < LPS_DELAY_TIME)
 		return false;
 
-	if ((check_fwstate(pmlmepriv, _FW_LINKED) == false) ||
-	    (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY)) ||
-	    (check_fwstate(pmlmepriv, WIFI_AP_STATE)) ||
-	    (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) ||
-	    (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)))
+	if (!check_fwstate(pmlmepriv, _FW_LINKED) ||
+	    check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) ||
+	    check_fwstate(pmlmepriv, WIFI_AP_STATE) ||
+	    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) ||
+	    check_fwstate(pmlmepriv, WIFI_ADHOC_STATE))
 		return false;
 	if (pwrpriv->bInSuspend)
 		return false;
-	if ((padapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X) && (padapter->securitypriv.binstallGrpkey == false)) {
+	if (padapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X && !padapter->securitypriv.binstallGrpkey) {
 		DBG_88E("Group handshake still in progress !!!\n");
 		return false;
 	}
@@ -365,7 +365,7 @@ void LPS_Enter(struct adapter *padapter)
 {
 	struct pwrctrl_priv	*pwrpriv = &padapter->pwrctrlpriv;
 
-	if (PS_RDY_CHECK(padapter) == false)
+	if (!PS_RDY_CHECK(padapter))
 		return;
 
 	if (pwrpriv->bLeisurePs) {

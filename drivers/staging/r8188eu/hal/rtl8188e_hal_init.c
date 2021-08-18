@@ -1262,7 +1262,7 @@ static int hal_EfusePgPacketRead_8188e(struct adapter *pAdapter, u8 offset, u8 *
 								bDataEmpty = false;
 						}
 					}
-					if (bDataEmpty == false) {
+					if (!bDataEmpty) {
 						ReadState = PG_STATE_DATA;
 					} else {/* read next header */
 						efuse_addr = efuse_addr + (word_cnts * 2) + 1;

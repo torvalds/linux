@@ -1873,7 +1873,7 @@ static int recv_func_prehandle(struct adapter *padapter, struct recv_frame *rfra
 		else
 			padapter->mppriv.rx_pktcount++;
 
-		if (check_fwstate(pmlmepriv, WIFI_MP_LPBK_STATE) == false) {
+		if (!check_fwstate(pmlmepriv, WIFI_MP_LPBK_STATE)) {
 			ret = _FAIL;
 			rtw_free_recvframe(rframe, pfree_recv_queue);/* free this recv_frame */
 			goto exit;
@@ -2035,7 +2035,7 @@ void rtw_signal_stat_timer_hdl(struct timer_list *t)
 		}
 
 		/* update value of signal_strength, rssi, signal_qual */
-		if (check_fwstate(&adapter->mlmepriv, _FW_UNDER_SURVEY) == false) {
+		if (!check_fwstate(&adapter->mlmepriv, _FW_UNDER_SURVEY)) {
 			tmp_s = (avg_signal_strength + (_alpha - 1) * recvpriv->signal_strength);
 			if (tmp_s % _alpha)
 				tmp_s = tmp_s / _alpha + 1;

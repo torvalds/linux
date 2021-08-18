@@ -511,7 +511,7 @@ s32 Hal_SetThermalMeter(struct adapter *pAdapter, u8 target_ther)
 	if (!netif_running(pAdapter->pnetdev))
 		return _FAIL;
 
-	if (check_fwstate(&pAdapter->mlmepriv, WIFI_MP_STATE) == false)
+	if (!check_fwstate(&pAdapter->mlmepriv, WIFI_MP_STATE))
 		return _FAIL;
 
 	target_ther &= 0xff;

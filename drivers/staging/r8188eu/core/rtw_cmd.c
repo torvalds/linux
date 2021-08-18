@@ -1863,13 +1863,13 @@ static s32 c2h_evt_hdl(struct adapter *adapter, struct c2h_evt_hdr *c2h_evt, c2h
 		if (c2h_evt_read(adapter, buf) == _SUCCESS) {
 			c2h_evt = (struct c2h_evt_hdr *)buf;
 
-			if (filter && filter(c2h_evt->id) == false)
+			if (filter && !filter(c2h_evt->id))
 				goto exit;
 
 			ret = rtw_hal_c2h_handler(adapter, c2h_evt);
 		}
 	} else {
-		if (filter && filter(c2h_evt->id) == false)
+		if (filter && !filter(c2h_evt->id))
 			goto exit;
 
 		ret = rtw_hal_c2h_handler(adapter, c2h_evt);

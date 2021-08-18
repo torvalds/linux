@@ -606,7 +606,7 @@ void odm_DIG(struct odm_dm_struct *pDM_Odm)
 		return;
 
 	/* add by Neil Chen to avoid PSD is processing */
-	if (pDM_Odm->bDMInitialGainEnable == false)
+	if (!pDM_Odm->bDMInitialGainEnable)
 		return;
 
 	if (pDM_Odm->SupportICType == ODM_RTL8192D) {
@@ -1342,8 +1342,8 @@ static void FindMinimumRSSI(struct adapter *pAdapter)
 	struct mlme_priv	*pmlmepriv = &pAdapter->mlmepriv;
 
 	/* 1 1.Determine the minimum RSSI */
-	if ((check_fwstate(pmlmepriv, _FW_LINKED) == false) &&
-	    (pdmpriv->EntryMinUndecoratedSmoothedPWDB == 0))
+	if (!check_fwstate(pmlmepriv, _FW_LINKED) &&
+	    pdmpriv->EntryMinUndecoratedSmoothedPWDB == 0)
 		pdmpriv->MinUndecoratedPWDBForDM = 0;
 	if (check_fwstate(pmlmepriv, _FW_LINKED)) /*  Default port */
 		pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;

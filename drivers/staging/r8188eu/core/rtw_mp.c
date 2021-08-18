@@ -421,7 +421,7 @@ void mp_stop_test(struct adapter *padapter)
 	if (pmppriv->mode == MP_ON) {
 		pmppriv->bSetTxPower = 0;
 		spin_lock_bh(&pmlmepriv->lock);
-		if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == false)
+		if (!check_fwstate(pmlmepriv, WIFI_MP_STATE))
 			goto end_of_mp_stop_test;
 
 		/* 3 1. disconnect psudo AdHoc */
@@ -866,7 +866,7 @@ u32 mp_query_psd(struct adapter *pAdapter, u8 *data)
 	if (!netif_running(pAdapter->pnetdev))
 		return 0;
 
-	if (check_fwstate(&pAdapter->mlmepriv, WIFI_MP_STATE) == false)
+	if (!check_fwstate(&pAdapter->mlmepriv, WIFI_MP_STATE))
 		return 0;
 
 	if (strlen(data) == 0) { /* default value */
