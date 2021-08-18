@@ -2780,22 +2780,6 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	}
 }
 
-static int vop2_plane_prepare_fb(struct drm_plane *plane,
-				 struct drm_plane_state *new_state)
-{
-	if (plane->state->fb)
-		drm_framebuffer_get(plane->state->fb);
-
-	return 0;
-}
-
-static void vop2_plane_cleanup_fb(struct drm_plane *plane,
-				  struct drm_plane_state *old_state)
-{
-	if (old_state->fb)
-		drm_framebuffer_put(old_state->fb);
-}
-
 static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 {
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(state);
@@ -3281,8 +3265,6 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 }
 
 static const struct drm_plane_helper_funcs vop2_plane_helper_funcs = {
-	.prepare_fb = vop2_plane_prepare_fb,
-	.cleanup_fb = vop2_plane_cleanup_fb,
 	.atomic_check = vop2_plane_atomic_check,
 	.atomic_update = vop2_plane_atomic_update,
 	.atomic_disable = vop2_plane_atomic_disable,
