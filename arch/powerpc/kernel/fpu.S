@@ -91,8 +91,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	isync
 	/* enable use of FP after return */
 #ifdef CONFIG_PPC32
-	mfspr	r5,SPRN_SPRG_THREAD	/* current task's THREAD (phys) */
-	tovirt(r5, r5)
+	addi	r5,r2,THREAD
 	lwz	r4,THREAD_FPEXC_MODE(r5)
 	ori	r9,r9,MSR_FP		/* enable FP for current */
 	or	r9,r9,r4
