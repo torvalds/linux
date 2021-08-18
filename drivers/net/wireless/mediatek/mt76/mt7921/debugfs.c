@@ -95,6 +95,8 @@ mt7921_tx_stats_show(struct seq_file *file, void *data)
 	struct mt7921_dev *dev = file->private;
 	int stat[8], i, n;
 
+	mt7921_mutex_acquire(dev);
+
 	mt7921_ampdu_stat_read_phy(&dev->phy, file);
 
 	/* Tx amsdu info */
@@ -103,6 +105,8 @@ mt7921_tx_stats_show(struct seq_file *file, void *data)
 		stat[i] = mt76_rr(dev,  MT_PLE_AMSDU_PACK_MSDU_CNT(i));
 		n += stat[i];
 	}
+
+	mt7921_mutex_release(dev);
 
 	for (i = 0; i < ARRAY_SIZE(stat); i++) {
 		seq_printf(file, "AMSDU pack count of %d MSDU in TXD: 0x%x ",
@@ -124,6 +128,8 @@ mt7921_queues_acq(struct seq_file *s, void *data)
 	struct mt7921_dev *dev = dev_get_drvdata(s->private);
 	int i;
 
+	mt7921_mutex_acquire(dev);
+
 	for (i = 0; i < 16; i++) {
 		int j, acs = i / 4, index = i % 4;
 		u32 ctrl, val, qlen = 0;
@@ -142,6 +148,8 @@ mt7921_queues_acq(struct seq_file *s, void *data)
 		}
 		seq_printf(s, "AC%d%d: queued=%d\n", acs, index, qlen);
 	}
+
+	mt7921_mutex_release(dev);
 
 	return 0;
 }
