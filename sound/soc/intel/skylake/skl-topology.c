@@ -640,8 +640,9 @@ skl_tplg_get_pipe_config(struct skl_dev *skl, struct skl_module_cfg *mconfig)
 		return 0;
 	}
 
-	if (pipe->conn_type == SKL_PIPE_CONN_TYPE_NONE) {
-		dev_dbg(skl->dev, "No conn_type detected, take 0th config\n");
+	if (pipe->conn_type == SKL_PIPE_CONN_TYPE_NONE || pipe->nr_cfgs == 1) {
+		dev_dbg(skl->dev, "No conn_type or just 1 pathcfg, taking 0th for %d\n",
+			pipe->ppl_id);
 		pipe->cur_config_idx = 0;
 		pipe->memory_pages = pconfig->mem_pages;
 
