@@ -63,9 +63,13 @@ static int ifcvf_request_irq(struct ifcvf_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 	struct ifcvf_hw *vf = &adapter->vf;
 	int vector, i, ret, irq;
+	u16 max_intr;
 
-	ret = pci_alloc_irq_vectors(pdev, IFCVF_MAX_INTR,
-				    IFCVF_MAX_INTR, PCI_IRQ_MSIX);
+	/* all queues and config interrupt  */
+	max_intr = vf->nr_vring + 1;
+
+	ret = pci_alloc_irq_vectors(pdev, max_intr,
+				    max_intr, PCI_IRQ_MSIX);
 	if (ret < 0) {
 		IFCVF_ERR(pdev, "Failed to alloc IRQ vectors\n");
 		return ret;
@@ -83,7 +87,7 @@ static int ifcvf_request_irq(struct ifcvf_adapter *adapter)
 		return ret;
 	}
 
-	for (i = 0; i < IFCVF_MAX_QUEUE_PAIRS * 2; i++) {
+	for (i = 0; i < vf->nr_vring; i++) {
 		snprintf(vf->vring[i].msix_name, 256, "ifcvf[%s]-%d\n",
 			 pci_name(pdev), i);
 		vector = i + IFCVF_MSI_QUEUE_OFF;
@@ -112,7 +116,6 @@ static int ifcvf_start_datapath(void *private)
 	u8 status;
 	int ret;
 
-	vf->nr_vring = IFCVF_MAX_QUEUE_PAIRS * 2;
 	ret = ifcvf_start_hw(vf);
 	if (ret < 0) {
 		status = ifcvf_get_status(vf);
@@ -128,7 +131,7 @@ static int ifcvf_stop_datapath(void *private)
 	struct ifcvf_hw *vf = ifcvf_private_to_vf(private);
 	int i;
 
-	for (i = 0; i < IFCVF_MAX_QUEUE_PAIRS * 2; i++)
+	for (i = 0; i < vf->nr_vring; i++)
 		vf->vring[i].cb.callback = NULL;
 
 	ifcvf_stop_hw(vf);
@@ -141,7 +144,7 @@ static void ifcvf_reset_vring(struct ifcvf_adapter *adapter)
 	struct ifcvf_hw *vf = ifcvf_private_to_vf(adapter);
 	int i;
 
-	for (i = 0; i < IFCVF_MAX_QUEUE_PAIRS * 2; i++) {
+	for (i = 0; i < vf->nr_vring; i++) {
 		vf->vring[i].last_avail_idx = 0;
 		vf->vring[i].desc = 0;
 		vf->vring[i].avail = 0;
@@ -227,7 +230,7 @@ static void ifcvf_vdpa_set_status(struct vdpa_device *vdpa_dev, u8 status)
 	if ((status_old & VIRTIO_CONFIG_S_DRIVER_OK) &&
 	    !(status & VIRTIO_CONFIG_S_DRIVER_OK)) {
 		ifcvf_stop_datapath(adapter);
-		ifcvf_free_irq(adapter, IFCVF_MAX_QUEUE_PAIRS * 2);
+		ifcvf_free_irq(adapter, vf->nr_vring);
 	}
 
 	if (status == 0) {
@@ -526,13 +529,13 @@ static int ifcvf_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name)
 		goto err;
 	}
 
-	for (i = 0; i < IFCVF_MAX_QUEUE_PAIRS * 2; i++)
+	for (i = 0; i < vf->nr_vring; i++)
 		vf->vring[i].irq = -EINVAL;
 
 	vf->hw_features = ifcvf_get_hw_features(vf);
 
 	adapter->vdpa.mdev = &ifcvf_mgmt_dev->mdev;
-	ret = _vdpa_register_device(&adapter->vdpa, IFCVF_MAX_QUEUE_PAIRS * 2);
+	ret = _vdpa_register_device(&adapter->vdpa, vf->nr_vring);
 	if (ret) {
 		IFCVF_ERR(pdev, "Failed to register to vDPA bus");
 		goto err;
