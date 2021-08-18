@@ -26,15 +26,11 @@
 #include <sound/soc.h>
 #include "rk817_codec.h"
 
-static int dbg_enable;
-module_param_named(dbg_level, dbg_enable, int, 0644);
-
-#define DBG(args...) \
-	do { \
-		if (dbg_enable) { \
-			pr_info(args); \
-		} \
-	} while (0)
+#ifdef CONFIG_SND_DEBUG
+#define DBG(args...) pr_info(args)
+#else
+#define DBG(args...)
+#endif
 
 /* For route */
 #define RK817_CODEC_PLAYBACK	1
@@ -862,14 +858,12 @@ static int rk817_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
-	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
 	unsigned int rate = params_rate(params);
 	unsigned char apll_cfg3_val;
 	unsigned char dtop_digen_sr_lmt0;
 	unsigned char dtop_digen_clke;
 
-	DBG("%s : MCLK = %dHz, sample rate = %dHz\n",
-	    __func__, rk817->stereo_sysclk, rate);
+	DBG("%s : sample rate = %dHz\n", __func__, rate);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dtop_digen_clke = DAC_DIG_CLK_EN;
