@@ -472,6 +472,75 @@ static void skl_set_base_module_format(struct skl_dev *skl,
 	base_cfg->is_pages = res->is_pages;
 }
 
+static void fill_pin_params(struct skl_audio_data_format *pin_fmt,
+			    struct skl_module_fmt *format)
+{
+	pin_fmt->number_of_channels = format->channels;
+	pin_fmt->s_freq = format->s_freq;
+	pin_fmt->bit_depth = format->bit_depth;
+	pin_fmt->valid_bit_depth = format->valid_bit_depth;
+	pin_fmt->ch_cfg = format->ch_cfg;
+	pin_fmt->sample_type = format->sample_type;
+	pin_fmt->channel_map = format->ch_map;
+	pin_fmt->interleaving = format->interleaving_style;
+}
+
+/*
+ * Any module configuration begins with a base module configuration but
+ * can be followed by a generic extension containing audio format for all
+ * module's pins that are in use.
+ */
+static void skl_set_base_ext_module_format(struct skl_dev *skl,
+					   struct skl_module_cfg *mconfig,
+					   struct skl_base_cfg_ext *base_cfg_ext)
+{
+	struct skl_module *module = mconfig->module;
+	struct skl_module_pin_resources *pin_res;
+	struct skl_module_iface *fmt = &module->formats[mconfig->fmt_idx];
+	struct skl_module_res *res = &module->resources[mconfig->res_idx];
+	struct skl_module_fmt *format;
+	struct skl_pin_format *pin_fmt;
+	char *params;
+	int i;
+
+	base_cfg_ext->nr_input_pins = res->nr_input_pins;
+	base_cfg_ext->nr_output_pins = res->nr_output_pins;
+	base_cfg_ext->priv_param_length =
+		mconfig->formats_config[SKL_PARAM_INIT].caps_size;
+
+	for (i = 0; i < res->nr_input_pins; i++) {
+		pin_res = &res->input[i];
+		pin_fmt = &base_cfg_ext->pins_fmt[i];
+
+		pin_fmt->pin_idx = pin_res->pin_index;
+		pin_fmt->buf_size = pin_res->buf_size;
+
+		format = &fmt->inputs[pin_res->pin_index].fmt;
+		fill_pin_params(&pin_fmt->audio_fmt, format);
+	}
+
+	for (i = 0; i < res->nr_output_pins; i++) {
+		pin_res = &res->output[i];
+		pin_fmt = &base_cfg_ext->pins_fmt[res->nr_input_pins + i];
+
+		pin_fmt->pin_idx = pin_res->pin_index;
+		pin_fmt->buf_size = pin_res->buf_size;
+
+		format = &fmt->outputs[pin_res->pin_index].fmt;
+		fill_pin_params(&pin_fmt->audio_fmt, format);
+	}
+
+	if (!base_cfg_ext->priv_param_length)
+		return;
+
+	params = (char *)base_cfg_ext + sizeof(struct skl_base_cfg_ext);
+	params += (base_cfg_ext->nr_input_pins + base_cfg_ext->nr_output_pins) *
+		  sizeof(struct skl_pin_format);
+
+	memcpy(params, mconfig->formats_config[SKL_PARAM_INIT].caps,
+	       mconfig->formats_config[SKL_PARAM_INIT].caps_size);
+}
+
 /*
  * Copies copier capabilities into copier module and updates copier module
  * config size.
@@ -1089,19 +1158,6 @@ int skl_unbind_modules(struct skl_dev *skl,
 	}
 
 	return ret;
-}
-
-static void fill_pin_params(struct skl_audio_data_format *pin_fmt,
-				struct skl_module_fmt *format)
-{
-	pin_fmt->number_of_channels = format->channels;
-	pin_fmt->s_freq = format->s_freq;
-	pin_fmt->bit_depth = format->bit_depth;
-	pin_fmt->valid_bit_depth = format->valid_bit_depth;
-	pin_fmt->ch_cfg = format->ch_cfg;
-	pin_fmt->sample_type = format->sample_type;
-	pin_fmt->channel_map = format->ch_map;
-	pin_fmt->interleaving = format->interleaving_style;
 }
 
 #define CPR_SINK_FMT_PARAM_ID 2
