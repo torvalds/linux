@@ -238,7 +238,8 @@ static int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs
 	if (err)
 		goto err_free_sq;
 	err = mlx5e_open_txqsq(c, priv->tisn[c->lag_port][0], txq_ix, params,
-			       &param_sq, sq, 0, node->hw_id, node->qid);
+			       &param_sq, sq, 0, node->hw_id,
+			       priv->htb.qos_sq_stats[node->qid]);
 	if (err)
 		goto err_close_cq;
 

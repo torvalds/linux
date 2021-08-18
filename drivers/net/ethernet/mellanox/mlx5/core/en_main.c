@@ -1300,7 +1300,8 @@ static int mlx5e_set_sq_maxrate(struct net_device *dev,
 
 int mlx5e_open_txqsq(struct mlx5e_channel *c, u32 tisn, int txq_ix,
 		     struct mlx5e_params *params, struct mlx5e_sq_param *param,
-		     struct mlx5e_txqsq *sq, int tc, u16 qos_queue_group_id, u16 qos_qid)
+		     struct mlx5e_txqsq *sq, int tc, u16 qos_queue_group_id,
+		     struct mlx5e_sq_stats *sq_stats)
 {
 	struct mlx5e_create_sq_param csp = {};
 	u32 tx_rate;
@@ -1310,10 +1311,7 @@ int mlx5e_open_txqsq(struct mlx5e_channel *c, u32 tisn, int txq_ix,
 	if (err)
 		return err;
 
-	if (qos_queue_group_id)
-		sq->stats = c->priv->htb.qos_sq_stats[qos_qid];
-	else
-		sq->stats = &c->priv->channel_stats[c->ix].sq[tc];
+	sq->stats = sq_stats;
 
 	csp.tisn            = tisn;
 	csp.tis_lst_sz      = 1;
@@ -1717,7 +1715,8 @@ static int mlx5e_open_sqs(struct mlx5e_channel *c,
 		int txq_ix = c->ix + tc * params->num_channels;
 
 		err = mlx5e_open_txqsq(c, c->priv->tisn[c->lag_port][tc], txq_ix,
-				       params, &cparam->txq_sq, &c->sq[tc], tc, 0, 0);
+				       params, &cparam->txq_sq, &c->sq[tc], tc, 0,
+				       &c->priv->channel_stats[c->ix].sq[tc]);
 		if (err)
 			goto err_close_sqs;
 	}
