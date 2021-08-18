@@ -534,6 +534,10 @@ void intel_pasid_tear_down_entry(struct intel_iommu *iommu, struct device *dev,
 		devtlb_invalidation_with_pasid(iommu, dev, pasid);
 }
 
+/*
+ * This function flushes cache for a newly setup pasid table entry.
+ * Caller of it should not modify the in-use pasid table entries.
+ */
 static void pasid_flush_caches(struct intel_iommu *iommu,
 				struct pasid_entry *pte,
 			       u32 pasid, u16 did)
@@ -584,6 +588,10 @@ int intel_pasid_setup_first_level(struct intel_iommu *iommu,
 	pte = intel_pasid_get_entry(dev, pasid);
 	if (WARN_ON(!pte))
 		return -EINVAL;
+
+	/* Caller must ensure PASID entry is not in use. */
+	if (pasid_pte_is_present(pte))
+		return -EBUSY;
 
 	pasid_clear_entry(pte);
 
@@ -684,6 +692,10 @@ int intel_pasid_setup_second_level(struct intel_iommu *iommu,
 		return -ENODEV;
 	}
 
+	/* Caller must ensure PASID entry is not in use. */
+	if (pasid_pte_is_present(pte))
+		return -EBUSY;
+
 	pasid_clear_entry(pte);
 	pasid_set_domain_id(pte, did);
 	pasid_set_slptr(pte, pgd_val);
@@ -722,6 +734,10 @@ int intel_pasid_setup_pass_through(struct intel_iommu *iommu,
 		dev_err(dev, "Failed to get pasid entry of PASID %d\n", pasid);
 		return -ENODEV;
 	}
+
+	/* Caller must ensure PASID entry is not in use. */
+	if (pasid_pte_is_present(pte))
+		return -EBUSY;
 
 	pasid_clear_entry(pte);
 	pasid_set_domain_id(pte, did);
