@@ -74,8 +74,6 @@ void lkdtm_STACK_GUARD_PAGE_TRAILING(void);
 void lkdtm_UNSET_SMEP(void);
 void lkdtm_DOUBLE_FAULT(void);
 void lkdtm_CORRUPT_PAC(void);
-void lkdtm_FORTIFY_OBJECT(void);
-void lkdtm_FORTIFY_SUBOBJECT(void);
 
 /* heap.c */
 void __init lkdtm_heap_init(void);
@@ -150,6 +148,8 @@ void lkdtm_STACKLEAK_ERASING(void);
 void lkdtm_CFI_FORWARD_PROTO(void);
 
 /* fortify.c */
+void lkdtm_FORTIFIED_OBJECT(void);
+void lkdtm_FORTIFIED_SUBOBJECT(void);
 void lkdtm_FORTIFIED_STRSCPY(void);
 
 /* powerpc.c */

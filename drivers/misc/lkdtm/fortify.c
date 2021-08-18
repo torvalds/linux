@@ -8,6 +8,59 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
+static volatile int fortify_scratch_space;
+
+void lkdtm_FORTIFIED_OBJECT(void)
+{
+	struct target {
+		char a[10];
+	} target[2] = {};
+	/*
+	 * Using volatile prevents the compiler from determining the value of
+	 * 'size' at compile time. Without that, we would get a compile error
+	 * rather than a runtime error.
+	 */
+	volatile int size = 11;
+
+	pr_info("trying to read past the end of a struct\n");
+
+	/* Store result to global to prevent the code from being eliminated */
+	fortify_scratch_space = memcmp(&target[0], &target[1], size);
+
+	pr_err("FAIL: fortify did not block an object overread!\n");
+	pr_expected_config(CONFIG_FORTIFY_SOURCE);
+}
+
+void lkdtm_FORTIFIED_SUBOBJECT(void)
+{
+	struct target {
+		char a[10];
+		char b[10];
+	} target;
+	volatile int size = 20;
+	char *src;
+
+	src = kmalloc(size, GFP_KERNEL);
+	strscpy(src, "over ten bytes", size);
+	size = strlen(src) + 1;
+
+	pr_info("trying to strcpy past the end of a member of a struct\n");
+
+	/*
+	 * memcpy(target.a, src, 20); will hit a compile error because the
+	 * compiler knows at build time that target.a < 20 bytes. Use a
+	 * volatile to force a runtime error.
+	 */
+	memcpy(target.a, src, size);
+
+	/* Store result to global to prevent the code from being eliminated */
+	fortify_scratch_space = target.a[3];
+
+	pr_err("FAIL: fortify did not block an sub-object overrun!\n");
+	pr_expected_config(CONFIG_FORTIFY_SOURCE);
+
+	kfree(src);
+}
 
 /*
  * Calls fortified strscpy to test that it returns the same result as vanilla
