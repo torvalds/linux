@@ -417,11 +417,8 @@ static void disk_scan_partitions(struct gendisk *disk)
  *
  * This function registers the partitioning information in @disk
  * with the kernel.
- *
- * FIXME: error handling
  */
-
-void device_add_disk(struct device *parent, struct gendisk *disk,
+int device_add_disk(struct device *parent, struct gendisk *disk,
 		     const struct attribute_group **groups)
 
 {
@@ -444,7 +441,8 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 	 * and all partitions from the extended dev_t space.
 	 */
 	if (disk->major) {
-		WARN_ON(!disk->minors);
+		if (WARN_ON(!disk->minors))
+			return -EINVAL;
 
 		if (disk->minors > DISK_MAX_PARTS) {
 			pr_err("block: can't allocate more than %d partitions\n",
@@ -452,19 +450,20 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 			disk->minors = DISK_MAX_PARTS;
 		}
 	} else {
-		WARN_ON(disk->minors);
+		if (WARN_ON(disk->minors))
+			return -EINVAL;
 
 		ret = blk_alloc_ext_minor();
-		if (ret < 0) {
-			WARN_ON(1);
-			return;
-		}
+		if (ret < 0)
+			return ret;
 		disk->major = BLOCK_EXT_MAJOR;
 		disk->first_minor = MINOR(ret);
 		disk->flags |= GENHD_FL_EXT_DEVT;
 	}
 
-	disk_alloc_events(disk);
+	ret = disk_alloc_events(disk);
+	if (ret)
+		goto out_free_ext_minor;
 
 	/* delay uevents, until we scanned partition table */
 	dev_set_uevent_suppress(ddev, 1);
@@ -474,15 +473,14 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 	dev_set_name(ddev, "%s", disk->disk_name);
 	if (!(disk->flags & GENHD_FL_HIDDEN))
 		ddev->devt = MKDEV(disk->major, disk->first_minor);
-	if (device_add(ddev))
-		return;
+	ret = device_add(ddev);
+	if (ret)
+		goto out_disk_release_events;
 	if (!sysfs_deprecated) {
 		ret = sysfs_create_link(block_depr, &ddev->kobj,
 					kobject_name(&ddev->kobj));
-		if (ret) {
-			device_del(ddev);
-			return;
-		}
+		if (ret)
+			goto out_device_del;
 	}
 
 	/*
@@ -492,23 +490,25 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 	 */
 	pm_runtime_set_memalloc_noio(ddev, true);
 
-	blk_integrity_add(disk);
+	ret = blk_integrity_add(disk);
+	if (ret)
+		goto out_del_block_link;
 
 	disk->part0->bd_holder_dir =
 		kobject_create_and_add("holders", &ddev->kobj);
+	if (!disk->part0->bd_holder_dir)
+		goto out_del_integrity;
 	disk->slave_dir = kobject_create_and_add("slaves", &ddev->kobj);
+	if (!disk->slave_dir)
+		goto out_put_holder_dir;
 
-	/*
-	 * XXX: this is a mess, can't wait for real error handling in add_disk.
-	 * Make sure ->slave_dir is NULL if we failed some of the registration
-	 * so that the cleanup in bd_unlink_disk_holder works properly.
-	 */
-	if (bd_register_pending_holders(disk) < 0) {
-		kobject_put(disk->slave_dir);
-		disk->slave_dir = NULL;
-	}
+	ret = bd_register_pending_holders(disk);
+	if (ret < 0)
+		goto out_put_slave_dir;
 
-	blk_register_queue(disk);
+	ret = blk_register_queue(disk);
+	if (ret)
+		goto out_put_slave_dir;
 
 	if (disk->flags & GENHD_FL_HIDDEN) {
 		/*
@@ -520,13 +520,13 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 	} else {
 		ret = bdi_register(disk->bdi, "%u:%u",
 				   disk->major, disk->first_minor);
-		WARN_ON(ret);
+		if (ret)
+			goto out_unregister_queue;
 		bdi_set_owner(disk->bdi, ddev);
-		if (disk->bdi->dev) {
-			ret = sysfs_create_link(&ddev->kobj,
-						&disk->bdi->dev->kobj, "bdi");
-			WARN_ON(ret);
-		}
+		ret = sysfs_create_link(&ddev->kobj,
+					&disk->bdi->dev->kobj, "bdi");
+		if (ret)
+			goto out_unregister_bdi;
 
 		bdev_add(disk->part0, ddev->devt);
 		disk_scan_partitions(disk);
@@ -541,6 +541,30 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 
 	disk_update_readahead(disk);
 	disk_add_events(disk);
+	return 0;
+
+out_unregister_bdi:
+	if (!(disk->flags & GENHD_FL_HIDDEN))
+		bdi_unregister(disk->bdi);
+out_unregister_queue:
+	blk_unregister_queue(disk);
+out_put_slave_dir:
+	kobject_put(disk->slave_dir);
+out_put_holder_dir:
+	kobject_put(disk->part0->bd_holder_dir);
+out_del_integrity:
+	blk_integrity_del(disk);
+out_del_block_link:
+	if (!sysfs_deprecated)
+		sysfs_remove_link(block_depr, dev_name(ddev));
+out_device_del:
+	device_del(ddev);
+out_disk_release_events:
+	disk_release_events(disk);
+out_free_ext_minor:
+	if (disk->major == BLOCK_EXT_MAJOR)
+		blk_free_ext_minor(disk->first_minor);
+	return WARN_ON_ONCE(ret); /* keep until all callers handle errors */
 }
 EXPORT_SYMBOL(device_add_disk);
 
