@@ -25,6 +25,7 @@ int intel_panel_init(struct intel_panel *panel,
 void intel_panel_fini(struct intel_panel *panel);
 enum drm_connector_status
 intel_panel_detect(struct drm_connector *connector, bool force);
+bool intel_panel_use_ssc(struct drm_i915_private *i915);
 void intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
 			    struct drm_display_mode *adjusted_mode);
 int intel_pch_panel_fitting(struct intel_crtc_state *crtc_state,

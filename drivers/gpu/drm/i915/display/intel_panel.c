@@ -41,6 +41,14 @@
 #include "intel_dsi_dcs_backlight.h"
 #include "intel_panel.h"
 
+bool intel_panel_use_ssc(struct drm_i915_private *i915)
+{
+	if (i915->params.panel_use_ssc >= 0)
+		return i915->params.panel_use_ssc != 0;
+	return i915->vbt.lvds_use_ssc
+		&& !(i915->quirks & QUIRK_LVDS_SSC_DISABLE);
+}
+
 void
 intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
 		       struct drm_display_mode *adjusted_mode)
