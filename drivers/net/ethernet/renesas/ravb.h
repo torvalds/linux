@@ -989,6 +989,8 @@ enum ravb_chip_id {
 };
 
 struct ravb_hw_info {
+	const char (*gstrings_stats)[ETH_GSTRING_LEN];
+	size_t gstrings_size;
 	enum ravb_chip_id chip_id;
 	int stats_len;
 	size_t max_rx_len;
