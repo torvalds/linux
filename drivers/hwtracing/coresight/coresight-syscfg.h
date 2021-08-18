@@ -6,6 +6,7 @@
 #ifndef CORESIGHT_SYSCFG_H
 #define CORESIGHT_SYSCFG_H
 
+#include <linux/configfs.h>
 #include <linux/coresight.h>
 #include <linux/device.h>
 
@@ -25,6 +26,7 @@
  * @feat_desc_list:	List of feature descriptors to load into registered devices.
  * @config_desc_list:	List of system configuration descriptors to load into registered devices.
  * @sys_active_cnt:	Total number of active config descriptor references.
+ * @cfgfs_subsys:	configfs subsystem used to manage configurations.
  */
 struct cscfg_manager {
 	struct device dev;
@@ -32,6 +34,7 @@ struct cscfg_manager {
 	struct list_head feat_desc_list;
 	struct list_head config_desc_list;
 	atomic_t sys_active_cnt;
+	struct configfs_subsystem cfgfs_subsys;
 };
 
 /* get reference to dev in cscfg_manager */
@@ -57,6 +60,10 @@ struct cscfg_registered_csdev {
 int __init cscfg_init(void);
 void cscfg_exit(void);
 int cscfg_preload(void);
+const struct cscfg_feature_desc *cscfg_get_named_feat_desc(const char *name);
+int cscfg_update_feat_param_val(struct cscfg_feature_desc *feat_desc,
+				int param_idx, u64 value);
+
 
 /* syscfg manager external API */
 int cscfg_load_config_sets(struct cscfg_config_desc **cfg_descs,

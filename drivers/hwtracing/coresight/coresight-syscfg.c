@@ -9,6 +9,7 @@
 #include "coresight-config.h"
 #include "coresight-etm-perf.h"
 #include "coresight-syscfg.h"
+#include "coresight-syscfg-configfs.h"
 
 /*
  * cscfg_ API manages configurations and features for the entire coresight
@@ -286,6 +287,72 @@ static int cscfg_load_config(struct cscfg_config_desc *config_desc)
 	return 0;
 }
 
+/* get a feature descriptor by name */
+const struct cscfg_feature_desc *cscfg_get_named_feat_desc(const char *name)
+{
+	const struct cscfg_feature_desc *feat_desc = NULL, *feat_desc_item;
+
+	mutex_lock(&cscfg_mutex);
+
+	list_for_each_entry(feat_desc_item, &cscfg_mgr->feat_desc_list, item) {
+		if (strcmp(feat_desc_item->name, name) == 0) {
+			feat_desc = feat_desc_item;
+			break;
+		}
+	}
+
+	mutex_unlock(&cscfg_mutex);
+	return feat_desc;
+}
+
+/* called with cscfg_mutex held */
+static struct cscfg_feature_csdev *
+cscfg_csdev_get_feat_from_desc(struct coresight_device *csdev,
+			       struct cscfg_feature_desc *feat_desc)
+{
+	struct cscfg_feature_csdev *feat_csdev;
+
+	list_for_each_entry(feat_csdev, &csdev->feature_csdev_list, node) {
+		if (feat_csdev->feat_desc == feat_desc)
+			return feat_csdev;
+	}
+	return NULL;
+}
+
+int cscfg_update_feat_param_val(struct cscfg_feature_desc *feat_desc,
+				int param_idx, u64 value)
+{
+	int err = 0;
+	struct cscfg_feature_csdev *feat_csdev;
+	struct cscfg_registered_csdev *csdev_item;
+
+	mutex_lock(&cscfg_mutex);
+
+	/* check if any config active & return busy */
+	if (atomic_read(&cscfg_mgr->sys_active_cnt)) {
+		err = -EBUSY;
+		goto unlock_exit;
+	}
+
+	/* set the value */
+	if ((param_idx < 0) || (param_idx >= feat_desc->nr_params)) {
+		err = -EINVAL;
+		goto unlock_exit;
+	}
+	feat_desc->params_desc[param_idx].value = value;
+
+	/* update loaded instances.*/
+	list_for_each_entry(csdev_item, &cscfg_mgr->csdev_desc_list, item) {
+		feat_csdev = cscfg_csdev_get_feat_from_desc(csdev_item->csdev, feat_desc);
+		if (feat_csdev)
+			feat_csdev->params_csdev[param_idx].current_value = value;
+	}
+
+unlock_exit:
+	mutex_unlock(&cscfg_mutex);
+	return err;
+}
+
 /**
  * cscfg_load_config_sets - API function to load feature and config sets.
  *
@@ -307,6 +374,8 @@ int cscfg_load_config_sets(struct cscfg_config_desc **config_descs,
 	if (feat_descs) {
 		while (feat_descs[i]) {
 			err = cscfg_load_feat(feat_descs[i]);
+			if (!err)
+				err = cscfg_configfs_add_feature(feat_descs[i]);
 			if (err) {
 				pr_err("coresight-syscfg: Failed to load feature %s\n",
 				       feat_descs[i]->name);
@@ -321,6 +390,8 @@ int cscfg_load_config_sets(struct cscfg_config_desc **config_descs,
 	if (config_descs) {
 		while (config_descs[i]) {
 			err = cscfg_load_config(config_descs[i]);
+			if (!err)
+				err = cscfg_configfs_add_config(config_descs[i]);
 			if (err) {
 				pr_err("coresight-syscfg: Failed to load configuration %s\n",
 				       config_descs[i]->name);
@@ -734,6 +805,7 @@ static void cscfg_clear_device(void)
 	list_for_each_entry(cfg_desc, &cscfg_mgr->config_desc_list, item) {
 		etm_perf_del_symlink_cscfg(cfg_desc);
 	}
+	cscfg_configfs_release(cscfg_mgr);
 	device_unregister(cscfg_device());
 	mutex_unlock(&cscfg_mutex);
 }
@@ -746,6 +818,10 @@ int __init cscfg_init(void)
 	err = cscfg_create_device();
 	if (err)
 		return err;
+
+	err = cscfg_configfs_init(cscfg_mgr);
+	if (err)
+		goto exit_err;
 
 	INIT_LIST_HEAD(&cscfg_mgr->csdev_desc_list);
 	INIT_LIST_HEAD(&cscfg_mgr->feat_desc_list);
