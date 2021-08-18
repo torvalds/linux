@@ -3980,7 +3980,7 @@ __qla1280_print_scsi_cmd(struct scsi_cmnd *cmd)
 	   qla1280_dump_buffer(1, (char *)sg, (cmd->use_sg*sizeof(struct scatterlist)));
 	   } */
 	printk("  tag=%d, transfersize=0x%x \n",
-	       cmd->tag, cmd->transfersize);
+	       scsi_cmd_to_rq(cmd)->tag, cmd->transfersize);
 	printk("  SP=0x%p\n", CMD_SP(cmd));
 	printk(" underflow size = 0x%x, direction=0x%x\n",
 	       cmd->underflow, cmd->sc_data_direction);
