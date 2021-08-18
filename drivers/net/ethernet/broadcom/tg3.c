@@ -15592,63 +15592,36 @@ skip_phy_reset:
 static void tg3_read_vpd(struct tg3 *tp)
 {
 	u8 *vpd_data;
-	unsigned int block_end, rosize, len, vpdlen;
-	int j, i = 0;
+	unsigned int len, vpdlen;
+	int i;
 
 	vpd_data = (u8 *)tg3_vpd_readblock(tp, &vpdlen);
 	if (!vpd_data)
 		goto out_no_vpd;
 
-	i = pci_vpd_find_tag(vpd_data, vpdlen, PCI_VPD_LRDT_RO_DATA);
+	i = pci_vpd_find_ro_info_keyword(vpd_data, vpdlen,
+					 PCI_VPD_RO_KEYWORD_MFR_ID, &len);
 	if (i < 0)
-		goto out_not_found;
+		goto partno;
 
-	rosize = pci_vpd_lrdt_size(&vpd_data[i]);
-	block_end = i + PCI_VPD_LRDT_TAG_SIZE + rosize;
-	i += PCI_VPD_LRDT_TAG_SIZE;
+	if (len != 4 || memcmp(vpd_data + i, "1028", 4))
+		goto partno;
 
-	if (block_end > vpdlen)
-		goto out_not_found;
+	i = pci_vpd_find_ro_info_keyword(vpd_data, vpdlen,
+					 PCI_VPD_RO_KEYWORD_VENDOR0, &len);
+	if (i < 0)
+		goto partno;
 
-	j = pci_vpd_find_info_keyword(vpd_data, i, rosize,
-				      PCI_VPD_RO_KEYWORD_MFR_ID);
-	if (j > 0) {
-		len = pci_vpd_info_field_size(&vpd_data[j]);
-
-		j += PCI_VPD_INFO_FLD_HDR_SIZE;
-		if (j + len > block_end || len != 4 ||
-		    memcmp(&vpd_data[j], "1028", 4))
-			goto partno;
-
-		j = pci_vpd_find_info_keyword(vpd_data, i, rosize,
-					      PCI_VPD_RO_KEYWORD_VENDOR0);
-		if (j < 0)
-			goto partno;
-
-		len = pci_vpd_info_field_size(&vpd_data[j]);
-
-		j += PCI_VPD_INFO_FLD_HDR_SIZE;
-		if (j + len > block_end)
-			goto partno;
-
-		if (len >= sizeof(tp->fw_ver))
-			len = sizeof(tp->fw_ver) - 1;
-		memset(tp->fw_ver, 0, sizeof(tp->fw_ver));
-		snprintf(tp->fw_ver, sizeof(tp->fw_ver), "%.*s bc ", len,
-			 &vpd_data[j]);
-	}
+	memset(tp->fw_ver, 0, sizeof(tp->fw_ver));
+	snprintf(tp->fw_ver, sizeof(tp->fw_ver), "%.*s bc ", len, vpd_data + i);
 
 partno:
-	i = pci_vpd_find_info_keyword(vpd_data, i, rosize,
-				      PCI_VPD_RO_KEYWORD_PARTNO);
+	i = pci_vpd_find_ro_info_keyword(vpd_data, vpdlen,
+					 PCI_VPD_RO_KEYWORD_PARTNO, &len);
 	if (i < 0)
 		goto out_not_found;
 
-	len = pci_vpd_info_field_size(&vpd_data[i]);
-
-	i += PCI_VPD_INFO_FLD_HDR_SIZE;
-	if (len > TG3_BPN_SIZE ||
-	    (len + i) > vpdlen)
+	if (len > TG3_BPN_SIZE)
 		goto out_not_found;
 
 	memcpy(tp->board_part_number, &vpd_data[i], len);
