@@ -589,20 +589,46 @@ static const struct rk_i2s_pins rk3399_i2s_pins = {
 };
 
 static const struct of_device_id rockchip_i2s_match[] __maybe_unused = {
+#ifdef CONFIG_CPU_PX30
 	{ .compatible = "rockchip,px30-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK1808
 	{ .compatible = "rockchip,rk1808-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK3036
 	{ .compatible = "rockchip,rk3036-i2s", },
+#endif
 	{ .compatible = "rockchip,rk3066-i2s", },
+#ifdef CONFIG_CPU_RK312X
 	{ .compatible = "rockchip,rk3128-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK3188
 	{ .compatible = "rockchip,rk3188-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK322X
 	{ .compatible = "rockchip,rk3228-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK3288
 	{ .compatible = "rockchip,rk3288-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK3308
 	{ .compatible = "rockchip,rk3308-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK3328
 	{ .compatible = "rockchip,rk3328-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK3366
 	{ .compatible = "rockchip,rk3366-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK3368
 	{ .compatible = "rockchip,rk3368-i2s", },
+#endif
+#ifdef CONFIG_CPU_RK3399
 	{ .compatible = "rockchip,rk3399-i2s", .data = &rk3399_i2s_pins },
+#endif
+#ifdef CONFIG_CPU_RV1126
 	{ .compatible = "rockchip,rv1126-i2s", },
+#endif
 	{},
 };
 
