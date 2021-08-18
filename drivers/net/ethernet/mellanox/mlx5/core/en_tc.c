@@ -1550,6 +1550,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 		else
 			mlx5e_detach_mod_hdr(priv, flow);
 	}
+	kfree(attr->sample_attr);
 	kvfree(attr->parse_attr);
 	kvfree(attr->esw_attr->rx_tun_attr);
 
@@ -1559,7 +1560,6 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	if (flow_flag_test(flow, L3_TO_L2_DECAP))
 		mlx5e_detach_decap(priv, flow);
 
-	kfree(flow->attr->esw_attr->sample);
 	kfree(flow->attr);
 }
 
@@ -3716,13 +3716,13 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	struct mlx5e_sample_attr sample_attr = {};
 	const struct ip_tunnel_info *info = NULL;
 	struct mlx5_flow_attr *attr = flow->attr;
 	int ifindexes[MLX5_MAX_FLOW_FWD_VPORTS];
 	bool ft_flow = mlx5e_is_ft_flow(flow);
 	const struct flow_action_entry *act;
 	struct mlx5_esw_flow_attr *esw_attr;
-	struct mlx5e_sample_attr sample = {};
 	bool encap = false, decap = false;
 	u32 action = attr->action;
 	int err, i, if_count = 0;
@@ -3993,10 +3993,10 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				NL_SET_ERR_MSG_MOD(extack, "Sample action with connection tracking is not supported");
 				return -EOPNOTSUPP;
 			}
-			sample.rate = act->sample.rate;
-			sample.group_num = act->sample.psample_group->group_num;
+			sample_attr.rate = act->sample.rate;
+			sample_attr.group_num = act->sample.psample_group->group_num;
 			if (act->sample.truncate)
-				sample.trunc_size = act->sample.trunc_size;
+				sample_attr.trunc_size = act->sample.trunc_size;
 			flow_flag_set(flow, SAMPLE);
 			break;
 		default:
@@ -4081,10 +4081,10 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	 * no errors after parsing.
 	 */
 	if (flow_flag_test(flow, SAMPLE)) {
-		esw_attr->sample = kzalloc(sizeof(*esw_attr->sample), GFP_KERNEL);
-		if (!esw_attr->sample)
+		attr->sample_attr = kzalloc(sizeof(*attr->sample_attr), GFP_KERNEL);
+		if (!attr->sample_attr)
 			return -ENOMEM;
-		*esw_attr->sample = sample;
+		*attr->sample_attr = sample_attr;
 	}
 
 	return 0;

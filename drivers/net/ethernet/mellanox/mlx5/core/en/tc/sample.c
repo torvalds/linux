@@ -391,7 +391,8 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	sample_flow = kzalloc(sizeof(*sample_flow), GFP_KERNEL);
 	if (!sample_flow)
 		return ERR_PTR(-ENOMEM);
-	esw_attr->sample->sample_flow = sample_flow;
+	sample_attr = attr->sample_attr;
+	sample_attr->sample_flow = sample_flow;
 
 	/* Allocate default table per vport, chain and prio. Otherwise, there is
 	 * only one default table for the same sampler object. Rules with different
@@ -411,7 +412,7 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	/* Perform the original matches on the default table.
 	 * Offload all actions except the sample action.
 	 */
-	esw_attr->sample->sample_default_tbl = default_tbl;
+	sample_attr->sample_default_tbl = default_tbl;
 	/* When offloading sample and encap action, if there is no valid
 	 * neigh data struct, a slow path rule is offloaded first. Source
 	 * port metadata match is set at that time. A per vport table is
@@ -426,7 +427,7 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	}
 
 	/* Create sampler object. */
-	sample_flow->sampler = sampler_get(tc_psample, esw_attr->sample->rate, default_tbl->id);
+	sample_flow->sampler = sampler_get(tc_psample, sample_attr->rate, default_tbl->id);
 	if (IS_ERR(sample_flow->sampler)) {
 		err = PTR_ERR(sample_flow->sampler);
 		goto err_sampler;
@@ -434,13 +435,13 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 
 	/* Create an id mapping reg_c0 value to sample object. */
 	restore_obj.type = MLX5_MAPPED_OBJ_SAMPLE;
-	restore_obj.sample.group_id = esw_attr->sample->group_num;
-	restore_obj.sample.rate = esw_attr->sample->rate;
-	restore_obj.sample.trunc_size = esw_attr->sample->trunc_size;
+	restore_obj.sample.group_id = sample_attr->group_num;
+	restore_obj.sample.rate = sample_attr->rate;
+	restore_obj.sample.trunc_size = sample_attr->trunc_size;
 	err = mapping_add(esw->offloads.reg_c0_obj_pool, &restore_obj, &obj_id);
 	if (err)
 		goto err_obj_id;
-	esw_attr->sample->restore_obj_id = obj_id;
+	sample_attr->restore_obj_id = obj_id;
 
 	/* Create sample restore context. */
 	sample_flow->restore = sample_restore_get(tc_psample, obj_id);
@@ -462,14 +463,14 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 		err = -ENOMEM;
 		goto err_alloc_sample_attr;
 	}
-	pre_esw_attr = pre_attr->esw_attr;
 	pre_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 	pre_attr->modify_hdr = sample_flow->restore->modify_hdr;
 	pre_attr->flags = MLX5_ESW_ATTR_FLAG_SAMPLE;
 	pre_attr->chain = attr->chain;
 	pre_attr->prio = attr->prio;
-	pre_esw_attr->sample = sample_attr;
-	pre_esw_attr->sample->sampler_id = sample_flow->sampler->sampler_id;
+	pre_attr->sample_attr = sample_attr;
+	sample_attr->sampler_id = sample_flow->sampler->sampler_id;
+	pre_esw_attr = pre_attr->esw_attr;
 	pre_esw_attr->in_mdev = esw_attr->in_mdev;
 	pre_esw_attr->in_rep = esw_attr->in_rep;
 	sample_flow->pre_rule = mlx5_eswitch_add_offloaded_rule(esw, spec, pre_attr);
@@ -528,14 +529,14 @@ mlx5e_tc_sample_unoffload(struct mlx5e_tc_psample *tc_psample,
 		return;
 	}
 
-	sample_flow = esw_attr->sample->sample_flow;
+	sample_flow = attr->sample_attr->sample_flow;
 	pre_attr = sample_flow->pre_attr;
 	memset(pre_attr, 0, sizeof(*pre_attr));
 	mlx5_eswitch_del_offloaded_rule(esw, sample_flow->pre_rule, pre_attr);
 	mlx5_eswitch_del_offloaded_rule(esw, sample_flow->rule, attr);
 
 	sample_restore_put(tc_psample, sample_flow->restore);
-	mapping_remove(esw->offloads.reg_c0_obj_pool, esw_attr->sample->restore_obj_id);
+	mapping_remove(esw->offloads.reg_c0_obj_pool, attr->sample_attr->restore_obj_id);
 	sampler_put(tc_psample, sample_flow->sampler);
 	tbl_attr.chain = attr->chain;
 	tbl_attr.prio = attr->prio;
@@ -543,7 +544,7 @@ mlx5e_tc_sample_unoffload(struct mlx5e_tc_psample *tc_psample,
 	tbl_attr.vport_ns = &mlx5_esw_vport_tbl_sample_ns;
 	mlx5_esw_vporttbl_put(esw, &tbl_attr);
 
-	kfree(pre_attr->esw_attr->sample);
+	kfree(pre_attr->sample_attr);
 	kfree(pre_attr);
 	kfree(sample_flow);
 }

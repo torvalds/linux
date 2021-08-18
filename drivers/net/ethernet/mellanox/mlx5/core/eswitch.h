@@ -469,7 +469,6 @@ struct mlx5_esw_flow_attr {
 	} dests[MLX5_MAX_FLOW_FWD_VPORTS];
 	struct mlx5_rx_tun_attr *rx_tun_attr;
 	struct mlx5_pkt_reformat *decap_pkt_reformat;
-	struct mlx5e_sample_attr *sample;
 };
 
 int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
