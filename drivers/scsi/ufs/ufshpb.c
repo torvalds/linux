@@ -255,7 +255,7 @@ next_srgn:
 	/*
 	 * If the region state is active, mctx must be allocated.
 	 * In this case, check whether the region is evicted or
-	 * mctx allcation fail.
+	 * mctx allocation fail.
 	 */
 	if (unlikely(!srgn->mctx)) {
 		dev_err(&hpb->sdev_ufs_lu->sdev_dev,
