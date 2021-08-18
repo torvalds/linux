@@ -1197,6 +1197,11 @@ static void io_fallback_req_func(struct work_struct *work)
 	percpu_ref_get(&ctx->refs);
 	llist_for_each_entry_safe(req, tmp, node, io_task_work.fallback_node)
 		req->io_task_work.func(req);
+
+	mutex_lock(&ctx->uring_lock);
+	if (ctx->submit_state.compl_nr)
+		io_submit_flush_completions(ctx);
+	mutex_unlock(&ctx->uring_lock);
 	percpu_ref_put(&ctx->refs);
 }
 
