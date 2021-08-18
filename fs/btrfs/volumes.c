@@ -2159,7 +2159,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 	/*
 	 * In normal cases the cur_devices == fs_devices. But in case
 	 * of deleting a seed device, the cur_devices should point to
-	 * its own fs_devices listed under the fs_devices->seed.
+	 * its own fs_devices listed under the fs_devices->seed_list.
 	 */
 	cur_devices = device->fs_devices;
 	mutex_lock(&fs_devices->device_list_mutex);
