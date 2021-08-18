@@ -1031,8 +1031,6 @@ cpt:
 			"%s: Failed to allocate CPT1 LF bitmap\n", __func__);
 		return err;
 	}
-	if (err)
-		return err;
 
 	/* Allocate memory for PFVF data */
 	rvu->pf = devm_kcalloc(rvu->dev, hw->total_pfs,
