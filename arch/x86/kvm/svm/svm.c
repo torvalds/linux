@@ -259,7 +259,7 @@ u32 svm_msrpm_offset(u32 msr)
 static int get_max_npt_level(void)
 {
 #ifdef CONFIG_X86_64
-	return PT64_ROOT_4LEVEL;
+	return pgtable_l5_enabled() ? PT64_ROOT_5LEVEL : PT64_ROOT_4LEVEL;
 #else
 	return PT32E_ROOT_LEVEL;
 #endif
@@ -457,11 +457,6 @@ static int has_svm(void)
 
 	if (sev_active()) {
 		pr_info("KVM is unsupported when running as an SEV guest\n");
-		return 0;
-	}
-
-	if (pgtable_l5_enabled()) {
-		pr_info("KVM doesn't yet support 5-level paging on AMD SVM\n");
 		return 0;
 	}
 
