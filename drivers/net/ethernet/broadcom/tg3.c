@@ -12791,7 +12791,7 @@ static void tg3_get_ethtool_stats(struct net_device *dev,
 		memset(tmp_stats, 0, sizeof(struct tg3_ethtool_stats));
 }
 
-static __be32 *tg3_vpd_readblock(struct tg3 *tp, u32 *vpdlen)
+static __be32 *tg3_vpd_readblock(struct tg3 *tp, unsigned int *vpdlen)
 {
 	int i;
 	__be32 *buf;
@@ -12825,15 +12825,11 @@ static __be32 *tg3_vpd_readblock(struct tg3 *tp, u32 *vpdlen)
 			offset = TG3_NVM_VPD_OFF;
 			len = TG3_NVM_VPD_LEN;
 		}
-	} else {
-		len = TG3_NVM_PCI_VPD_MAX_LEN;
-	}
 
-	buf = kmalloc(len, GFP_KERNEL);
-	if (buf == NULL)
-		return NULL;
+		buf = kmalloc(len, GFP_KERNEL);
+		if (!buf)
+			return NULL;
 
-	if (magic == TG3_EEPROM_MAGIC) {
 		for (i = 0; i < len; i += 4) {
 			/* The data is in little-endian format in NVRAM.
 			 * Use the big-endian read routines to preserve
@@ -12844,12 +12840,9 @@ static __be32 *tg3_vpd_readblock(struct tg3 *tp, u32 *vpdlen)
 		}
 		*vpdlen = len;
 	} else {
-		ssize_t cnt;
-
-		cnt = pci_read_vpd(tp->pdev, 0, len, (u8 *)buf);
-		if (cnt < 0)
-			goto error;
-		*vpdlen = cnt;
+		buf = pci_vpd_alloc(tp->pdev, vpdlen);
+		if (IS_ERR(buf))
+			return NULL;
 	}
 
 	return buf;
@@ -12871,9 +12864,10 @@ error:
 
 static int tg3_test_nvram(struct tg3 *tp)
 {
-	u32 csum, magic, len;
+	u32 csum, magic;
 	__be32 *buf;
 	int i, j, k, err = 0, size;
+	unsigned int len;
 
 	if (tg3_flag(tp, NO_NVRAM))
 		return 0;
@@ -15621,8 +15615,7 @@ skip_phy_reset:
 static void tg3_read_vpd(struct tg3 *tp)
 {
 	u8 *vpd_data;
-	unsigned int block_end, rosize, len;
-	u32 vpdlen;
+	unsigned int block_end, rosize, len, vpdlen;
 	int j, i = 0;
 
 	vpd_data = (u8 *)tg3_vpd_readblock(tp, &vpdlen);
