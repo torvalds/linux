@@ -545,19 +545,12 @@ static void __svc_rdma_free(struct work_struct *work)
 {
 	struct svcxprt_rdma *rdma =
 		container_of(work, struct svcxprt_rdma, sc_work);
-	struct svc_xprt *xprt = &rdma->sc_xprt;
 
 	/* This blocks until the Completion Queues are empty */
 	if (rdma->sc_qp && !IS_ERR(rdma->sc_qp))
 		ib_drain_qp(rdma->sc_qp);
 
 	svc_rdma_flush_recv_queues(rdma);
-
-	/* Final put of backchannel client transport */
-	if (xprt->xpt_bc_xprt) {
-		xprt_put(xprt->xpt_bc_xprt);
-		xprt->xpt_bc_xprt = NULL;
-	}
 
 	svc_rdma_destroy_rw_ctxts(rdma);
 	svc_rdma_send_ctxts_destroy(rdma);
