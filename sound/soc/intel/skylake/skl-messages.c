@@ -479,15 +479,15 @@ static void skl_set_base_module_format(struct skl_dev *skl,
 static void skl_copy_copier_caps(struct skl_module_cfg *mconfig,
 				struct skl_cpr_cfg *cpr_mconfig)
 {
-	if (mconfig->formats_config.caps_size == 0)
+	if (mconfig->formats_config[SKL_PARAM_INIT].caps_size == 0)
 		return;
 
 	memcpy(cpr_mconfig->gtw_cfg.config_data,
-			mconfig->formats_config.caps,
-			mconfig->formats_config.caps_size);
+			mconfig->formats_config[SKL_PARAM_INIT].caps,
+			mconfig->formats_config[SKL_PARAM_INIT].caps_size);
 
 	cpr_mconfig->gtw_cfg.config_length =
-			(mconfig->formats_config.caps_size) / 4;
+			(mconfig->formats_config[SKL_PARAM_INIT].caps_size) / 4;
 }
 
 #define SKL_NON_GATEWAY_CPR_NODE_ID 0xFFFFFFFF
@@ -749,13 +749,12 @@ static void skl_set_algo_format(struct skl_dev *skl,
 	struct skl_base_cfg *base_cfg = (struct skl_base_cfg *)algo_mcfg;
 
 	skl_set_base_module_format(skl, mconfig, base_cfg);
-
-	if (mconfig->formats_config.caps_size == 0)
+	if (mconfig->formats_config[SKL_PARAM_INIT].caps_size == 0)
 		return;
 
 	memcpy(algo_mcfg->params,
-			mconfig->formats_config.caps,
-			mconfig->formats_config.caps_size);
+			mconfig->formats_config[SKL_PARAM_INIT].caps,
+			mconfig->formats_config[SKL_PARAM_INIT].caps_size);
 
 }
 
@@ -786,7 +785,7 @@ static u16 skl_get_module_param_size(struct skl_dev *skl,
 	switch (mconfig->m_type) {
 	case SKL_MODULE_TYPE_COPIER:
 		param_size = sizeof(struct skl_cpr_cfg);
-		param_size += mconfig->formats_config.caps_size;
+		param_size += mconfig->formats_config[SKL_PARAM_INIT].caps_size;
 		return param_size;
 
 	case SKL_MODULE_TYPE_SRCINT:
@@ -797,7 +796,7 @@ static u16 skl_get_module_param_size(struct skl_dev *skl,
 
 	case SKL_MODULE_TYPE_ALGO:
 		param_size = sizeof(struct skl_base_cfg);
-		param_size += mconfig->formats_config.caps_size;
+		param_size += mconfig->formats_config[SKL_PARAM_INIT].caps_size;
 		return param_size;
 
 	case SKL_MODULE_TYPE_BASE_OUTFMT:

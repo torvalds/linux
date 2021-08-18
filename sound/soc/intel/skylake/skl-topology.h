@@ -81,6 +81,8 @@ enum skl_s_freq {
 	SKL_FS_INVALID
 };
 
+#define SKL_MAX_PARAMS_TYPES	4
+
 enum skl_widget_type {
 	SKL_WIDGET_VMIXER = 1,
 	SKL_WIDGET_MIXER = 2,
@@ -371,6 +373,7 @@ struct skl_module_cfg {
 	struct skl_module *module;
 	int res_idx;
 	int fmt_idx;
+	int fmt_cfg_idx;
 	u8 domain;
 	bool homogenous_inputs;
 	bool homogenous_outputs;
@@ -401,7 +404,7 @@ struct skl_module_cfg {
 	enum skl_hw_conn_type  hw_conn_type;
 	enum skl_module_state m_state;
 	struct skl_pipe *pipe;
-	struct skl_specific_cfg formats_config;
+	struct skl_specific_cfg formats_config[SKL_MAX_PARAMS_TYPES];
 	struct skl_pipe_mcfg mod_cfg[SKL_MAX_MODULES_IN_PIPE];
 };
 
