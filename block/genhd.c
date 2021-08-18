@@ -518,8 +518,13 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 				   disk->major, disk->first_minor);
 		WARN_ON(ret);
 		bdi_set_owner(disk->bdi, ddev);
-		bdev_add(disk->part0, ddev->devt);
+		if (disk->bdi->dev) {
+			ret = sysfs_create_link(&ddev->kobj,
+						&disk->bdi->dev->kobj, "bdi");
+			WARN_ON(ret);
+		}
 
+		bdev_add(disk->part0, ddev->devt);
 		disk_scan_partitions(disk);
 
 		/*
@@ -528,12 +533,6 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 		 */
 		dev_set_uevent_suppress(ddev, 0);
 		disk_uevent(disk, KOBJ_ADD);
-
-		if (disk->bdi->dev) {
-			ret = sysfs_create_link(&ddev->kobj,
-						&disk->bdi->dev->kobj, "bdi");
-			WARN_ON(ret);
-		}
 	}
 
 	blk_register_queue(disk);
