@@ -492,6 +492,8 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 	 */
 	pm_runtime_set_memalloc_noio(ddev, true);
 
+	blk_integrity_add(disk);
+
 	disk->part0->bd_holder_dir =
 		kobject_create_and_add("holders", &ddev->kobj);
 	disk->slave_dir = kobject_create_and_add("slaves", &ddev->kobj);
@@ -538,7 +540,6 @@ void device_add_disk(struct device *parent, struct gendisk *disk,
 	blk_register_queue(disk);
 
 	disk_add_events(disk);
-	blk_integrity_add(disk);
 }
 EXPORT_SYMBOL(device_add_disk);
 
