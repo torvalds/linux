@@ -579,7 +579,7 @@ void del_gendisk(struct gendisk *disk)
 {
 	might_sleep();
 
-	if (WARN_ON_ONCE(!disk->queue))
+	if (WARN_ON_ONCE(!disk_live(disk)))
 		return;
 
 	blk_integrity_del(disk);
