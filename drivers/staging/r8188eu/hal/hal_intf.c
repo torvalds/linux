@@ -226,12 +226,6 @@ s32 rtw_hal_init_xmit_priv(struct adapter *adapt)
 	return _FAIL;
 }
 
-void rtw_hal_free_xmit_priv(struct adapter *adapt)
-{
-	if (adapt->HalFunc.free_xmit_priv)
-		adapt->HalFunc.free_xmit_priv(adapt);
-}
-
 s32 rtw_hal_init_recv_priv(struct adapter *adapt)
 {
 	if (adapt->HalFunc.init_recv_priv)
