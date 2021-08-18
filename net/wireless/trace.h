@@ -3628,7 +3628,7 @@ TRACE_EVENT(cfg80211_bss_color_notify,
 	TP_ARGS(netdev, cmd, count, color_bitmap),
 	TP_STRUCT__entry(
 		NETDEV_ENTRY
-		__field(enum nl80211_bss_scan_width, cmd)
+		__field(u32, cmd)
 		__field(u8, count)
 		__field(u64, color_bitmap)
 	),
