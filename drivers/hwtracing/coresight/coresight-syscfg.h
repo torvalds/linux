@@ -35,6 +35,22 @@ struct cscfg_manager {
 /* get reference to dev in cscfg_manager */
 struct device *cscfg_device(void);
 
+/**
+ * List entry for Coresight devices that are registered as supporting complex
+ * config operations.
+ *
+ * @csdev:	 The registered device.
+ * @match_flags: The matching type information for adding features.
+ * @ops:	 Operations supported by the registered device.
+ * @item:	 list entry.
+ */
+struct cscfg_registered_csdev {
+	struct coresight_device *csdev;
+	u32 match_flags;
+	struct cscfg_csdev_feat_ops ops;
+	struct list_head item;
+};
+
 /* internal core operations for cscfg */
 int __init cscfg_init(void);
 void cscfg_exit(void);
@@ -42,5 +58,8 @@ void cscfg_exit(void);
 /* syscfg manager external API */
 int cscfg_load_config_sets(struct cscfg_config_desc **cfg_descs,
 			   struct cscfg_feature_desc **feat_descs);
+int cscfg_register_csdev(struct coresight_device *csdev, u32 match_flags,
+			 struct cscfg_csdev_feat_ops *ops);
+void cscfg_unregister_csdev(struct coresight_device *csdev);
 
 #endif /* CORESIGHT_SYSCFG_H */

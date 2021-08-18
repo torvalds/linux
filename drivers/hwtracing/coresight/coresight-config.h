@@ -139,4 +139,102 @@ struct cscfg_config_desc {
 	const u64 *presets; /* nr_presets * nr_total_params */
 };
 
+/**
+ * config register instance - part of a loaded feature.
+ *                            maps register values to csdev driver structures
+ *
+ * @reg_desc:		value to use when setting feature on device / store for
+ *			readback of volatile values.
+ * @driver_regval:	pointer to internal driver element used to set the value
+ *			in hardware.
+ */
+struct cscfg_regval_csdev {
+	struct cscfg_regval_desc reg_desc;
+	void *driver_regval;
+};
+
+/**
+ * config parameter instance - part of a loaded feature.
+ *
+ * @feat_csdev:		parent feature
+ * @reg_csdev:		register value updated by this parameter.
+ * @current_value:	current value of parameter - may be set by user via
+ *			sysfs, or modified during device operation.
+ * @val64:		true if 64 bit value
+ */
+struct cscfg_parameter_csdev {
+	struct cscfg_feature_csdev *feat_csdev;
+	struct cscfg_regval_csdev *reg_csdev;
+	u64 current_value;
+	bool val64;
+};
+
+/**
+ * Feature instance loaded into a CoreSight device.
+ *
+ * When a feature is loaded into a specific device, then this structure holds
+ * the connections between the register / parameter values used and the
+ * internal data structures that are written when the feature is enabled.
+ *
+ * Since applying a feature modifies internal data structures in the device,
+ * then we have a reference to the device spinlock to protect access to these
+ * structures (@drv_spinlock).
+ *
+ * @feat_desc:		pointer to the static descriptor for this feature.
+ * @csdev:		parent CoreSight device instance.
+ * @node:		list entry into feature list for this device.
+ * @drv_spinlock:	device spinlock for access to driver register data.
+ * @nr_params:		number of parameters.
+ * @params_csdev:	current parameter values on this device
+ * @nr_regs:		number of registers to be programmed.
+ * @regs_csdev:		Programming details for the registers
+ */
+struct cscfg_feature_csdev {
+	const struct cscfg_feature_desc *feat_desc;
+	struct coresight_device *csdev;
+	struct list_head node;
+	spinlock_t *drv_spinlock;
+	int nr_params;
+	struct cscfg_parameter_csdev *params_csdev;
+	int nr_regs;
+	struct cscfg_regval_csdev *regs_csdev;
+};
+
+/**
+ * Configuration instance when loaded into a CoreSight device.
+ *
+ * The instance contains references to loaded features on this device that are
+ * used by the configuration.
+ *
+ * @config_desc:reference to the descriptor for this configuration
+ * @csdev:	parent coresight device for this configuration instance.
+ * @enabled:	true if configuration is enabled on this device.
+ * @node:	list entry within the coresight device
+ * @nr_feat:	Number of features on this device that are used in the
+ *		configuration.
+ * @feats_csdev:references to the device features to enable.
+ */
+struct cscfg_config_csdev {
+	const struct cscfg_config_desc *config_desc;
+	struct coresight_device *csdev;
+	bool enabled;
+	struct list_head node;
+	int nr_feat;
+	struct cscfg_feature_csdev *feats_csdev[0];
+};
+
+/**
+ * Coresight device operations.
+ *
+ * Registered coresight devices provide these operations to manage feature
+ * instances compatible with the device hardware and drivers
+ *
+ * @load_feat:	Pass a feature descriptor into the device and create the
+ *		loaded feature instance (struct cscfg_feature_csdev).
+ */
+struct cscfg_csdev_feat_ops {
+	int (*load_feat)(struct coresight_device *csdev,
+			 struct cscfg_feature_csdev *feat_csdev);
+};
+
 #endif /* _CORESIGHT_CORESIGHT_CONFIG_H */
