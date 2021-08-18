@@ -498,8 +498,6 @@ skl_tplg_init_pipe_modules(struct skl_dev *skl, struct skl_pipe *pipe)
 				mconfig->id.module_id, mconfig->guid);
 			if (ret < 0)
 				return ret;
-
-			mconfig->m_state = SKL_MODULE_LOADED;
 		}
 
 		/* prepare the DMA if the module is gateway cpr */
@@ -558,8 +556,7 @@ static int skl_tplg_unload_pipe_modules(struct skl_dev *skl,
 		mconfig  = w_module->w->priv;
 		uuid_mod = (guid_t *)mconfig->guid;
 
-		if (mconfig->module->loadable && skl->dsp->fw_ops.unload_mod &&
-			mconfig->m_state > SKL_MODULE_UNINIT) {
+		if (mconfig->module->loadable && skl->dsp->fw_ops.unload_mod) {
 			ret = skl->dsp->fw_ops.unload_mod(skl->dsp,
 						mconfig->id.module_id);
 			if (ret < 0)
