@@ -947,6 +947,7 @@ static int receive_from_sock(struct connection *con)
 		}
 	}
 
+	dlm_midcomms_receive_done(con->nodeid);
 	mutex_unlock(&con->sock_mutex);
 	return 0;
 
