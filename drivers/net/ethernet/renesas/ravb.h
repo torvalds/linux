@@ -990,6 +990,7 @@ enum ravb_chip_id {
 
 struct ravb_hw_info {
 	enum ravb_chip_id chip_id;
+	unsigned aligned_tx: 1;
 };
 
 struct ravb_private {
