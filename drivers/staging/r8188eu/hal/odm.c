@@ -1345,7 +1345,7 @@ static void FindMinimumRSSI(struct adapter *pAdapter)
 	if ((check_fwstate(pmlmepriv, _FW_LINKED) == false) &&
 	    (pdmpriv->EntryMinUndecoratedSmoothedPWDB == 0))
 		pdmpriv->MinUndecoratedPWDBForDM = 0;
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == true)	/*  Default port */
+	if (check_fwstate(pmlmepriv, _FW_LINKED)) /*  Default port */
 		pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;
 	else /*  associated entry pwdb */
 		pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;
