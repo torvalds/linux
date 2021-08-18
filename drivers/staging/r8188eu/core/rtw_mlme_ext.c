@@ -1495,6 +1495,7 @@ unsigned int OnAssocRsp(struct adapter *padapter, struct recv_frame *precv_frame
 			break;
 		case _ERPINFO_IE_:
 			ERP_IE_handler(padapter, pIE);
+			break;
 		default:
 			break;
 		}
