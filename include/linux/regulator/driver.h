@@ -337,6 +337,12 @@ enum regulator_type {
  * @pull_down_val_on: Enabling value for control when using regmap
  *                     set_pull_down
  *
+ * @ramp_reg:		Register for controlling the regulator ramp-rate.
+ * @ramp_mask:		Bitmask for the ramp-rate control register.
+ * @ramp_delay_table:	Table for mapping the regulator ramp-rate values. Values
+ *			should be given in units of V/S (uV/uS). See the
+ *			regulator_set_ramp_delay_regmap().
+ *
  * @enable_time: Time taken for initial enable of regulator (in uS).
  * @off_on_delay: guard time (in uS), before re-enabling a regulator
  *
@@ -462,7 +468,7 @@ struct regulator_err_state {
 };
 
 /**
- * struct regulator_irq_data - regulator error/notification status date
+ * struct regulator_irq_data - regulator error/notification status data
  *
  * @states:	Status structs for each of the associated regulators.
  * @num_states:	Amount of associated regulators.
