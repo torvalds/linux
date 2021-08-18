@@ -13,7 +13,7 @@ Hotkeys
 The following FN keys are ignored by the kernel without this driver:
 
 - FN-F1 (LG control panel)   - Generates F15
-- FN-F5 (Touchpad toggle)    - Generates F13
+- FN-F5 (Touchpad toggle)    - Generates F21
 - FN-F6 (Airplane mode)      - Generates RFKILL
 - FN-F8 (Keyboard backlight) - Generates F16.
   This key also changes keyboard backlight mode.

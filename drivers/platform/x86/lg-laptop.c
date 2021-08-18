@@ -74,7 +74,7 @@ static int battery_limit_use_wmbb;
 
 static const struct key_entry wmi_keymap[] = {
 	{KE_KEY, 0x70, {KEY_F15} },	 /* LG control panel (F1) */
-	{KE_KEY, 0x74, {KEY_F13} },	 /* Touchpad toggle (F5) */
+	{KE_KEY, 0x74, {KEY_F21} },	 /* Touchpad toggle (F5) */
 	{KE_KEY, 0xf020000, {KEY_F14} }, /* Read mode (F9) */
 	{KE_KEY, 0x10000000, {KEY_F16} },/* Keyboard backlight (F8) - pressing
 					  * this key both sends an event and
