@@ -1581,7 +1581,7 @@ xfs_fs_fill_super(
 	set_posix_acl_flag(sb);
 
 	/* version 5 superblocks support inode version counters. */
-	if (XFS_SB_VERSION_NUM(&mp->m_sb) == XFS_SB_VERSION_5)
+	if (xfs_has_crc(mp))
 		sb->s_flags |= SB_I_VERSION;
 
 	if (xfs_has_dax_always(mp)) {
@@ -1702,7 +1702,7 @@ xfs_remount_rw(
 		return -EINVAL;
 	}
 
-	if (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 &&
+	if (xfs_sb_is_v5(sbp) &&
 	    xfs_sb_has_ro_compat_feature(sbp, XFS_SB_FEAT_RO_COMPAT_UNKNOWN)) {
 		xfs_warn(mp,
 	"ro->rw transition prohibited on unknown (0x%x) ro-compat filesystem",
@@ -1822,12 +1822,11 @@ xfs_fs_reconfigure(
 {
 	struct xfs_mount	*mp = XFS_M(fc->root->d_sb);
 	struct xfs_mount        *new_mp = fc->s_fs_info;
-	xfs_sb_t		*sbp = &mp->m_sb;
 	int			flags = fc->sb_flags;
 	int			error;
 
 	/* version 5 superblocks always support version counters. */
-	if (XFS_SB_VERSION_NUM(&mp->m_sb) == XFS_SB_VERSION_5)
+	if (xfs_has_crc(mp))
 		fc->sb_flags |= SB_I_VERSION;
 
 	error = xfs_fs_validate_params(new_mp);
@@ -1839,13 +1838,13 @@ xfs_fs_reconfigure(
 	/* inode32 -> inode64 */
 	if (xfs_has_small_inums(mp) && !xfs_has_small_inums(new_mp)) {
 		mp->m_features &= ~XFS_FEAT_SMALL_INUMS;
-		mp->m_maxagi = xfs_set_inode_alloc(mp, sbp->sb_agcount);
+		mp->m_maxagi = xfs_set_inode_alloc(mp, mp->m_sb.sb_agcount);
 	}
 
 	/* inode64 -> inode32 */
 	if (!xfs_has_small_inums(mp) && xfs_has_small_inums(new_mp)) {
 		mp->m_features |= XFS_FEAT_SMALL_INUMS;
-		mp->m_maxagi = xfs_set_inode_alloc(mp, sbp->sb_agcount);
+		mp->m_maxagi = xfs_set_inode_alloc(mp, mp->m_sb.sb_agcount);
 	}
 
 	/* ro -> rw */

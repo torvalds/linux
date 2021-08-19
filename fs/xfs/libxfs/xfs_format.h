@@ -279,6 +279,11 @@ typedef struct xfs_dsb {
 
 #define	XFS_SB_VERSION_NUM(sbp)	((sbp)->sb_versionnum & XFS_SB_VERSION_NUMBITS)
 
+static inline bool xfs_sb_is_v5(struct xfs_sb *sbp)
+{
+	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5;
+}
+
 /*
  * Detect a mismatched features2 field.  Older kernels read/wrote
  * this into the wrong slot, so to be safe we keep them in sync.
@@ -290,7 +295,7 @@ static inline bool xfs_sb_has_mismatched_features2(struct xfs_sb *sbp)
 
 static inline bool xfs_sb_version_hasmorebits(struct xfs_sb *sbp)
 {
-	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 ||
+	return xfs_sb_is_v5(sbp) ||
 	       (sbp->sb_versionnum & XFS_SB_VERSION_MOREBITSBIT);
 }
 
@@ -413,15 +418,10 @@ xfs_sb_add_incompat_log_features(
  * v5 file systems support V3 inodes only, earlier file systems support
  * v2 and v1 inodes.
  */
-static inline bool xfs_sb_version_has_v3inode(struct xfs_sb *sbp)
-{
-	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5;
-}
-
 static inline bool xfs_dinode_good_version(struct xfs_sb *sbp,
 		uint8_t version)
 {
-	if (xfs_sb_version_has_v3inode(sbp))
+	if (xfs_sb_is_v5(sbp))
 		return version == 3;
 	return version == 1 || version == 2;
 }
@@ -893,7 +893,7 @@ enum xfs_dinode_fmt {
  * Inode size for given fs.
  */
 #define XFS_DINODE_SIZE(sbp) \
-	(xfs_sb_version_has_v3inode(sbp) ? \
+	(xfs_sb_is_v5(sbp) ? \
 		sizeof(struct xfs_dinode) : \
 		offsetof(struct xfs_dinode, di_crc))
 #define XFS_LITINO(mp) \

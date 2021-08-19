@@ -258,7 +258,7 @@ xchk_superblock(
 			xchk_block_set_corrupt(sc, bp);
 	} else {
 		v2_ok = XFS_SB_VERSION2_OKBITS;
-		if (XFS_SB_VERSION_NUM(&mp->m_sb) >= XFS_SB_VERSION_5)
+		if (xfs_sb_is_v5(&mp->m_sb))
 			v2_ok |= XFS_SB_VERSION2_CRCBIT;
 
 		if (!!(sb->sb_features2 & cpu_to_be32(~v2_ok)))

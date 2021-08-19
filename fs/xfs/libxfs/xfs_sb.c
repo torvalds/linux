@@ -38,7 +38,7 @@ xfs_sb_good_version(
 	struct xfs_sb	*sbp)
 {
 	/* all v5 filesystems are supported */
-	if (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5)
+	if (xfs_sb_is_v5(sbp))
 		return true;
 
 	/* versions prior to v4 are not supported */
@@ -97,7 +97,7 @@ xfs_sb_version_to_features(
 			features |= XFS_FEAT_FTYPE;
 	}
 
-	if (XFS_SB_VERSION_NUM(sbp) != XFS_SB_VERSION_5)
+	if (!xfs_sb_is_v5(sbp))
 		return features;
 
 	/* Always on V5 features */
@@ -133,7 +133,7 @@ xfs_validate_sb_read(
 	struct xfs_mount	*mp,
 	struct xfs_sb		*sbp)
 {
-	if (XFS_SB_VERSION_NUM(sbp) != XFS_SB_VERSION_5)
+	if (!xfs_sb_is_v5(sbp))
 		return 0;
 
 	/*
@@ -200,7 +200,7 @@ xfs_validate_sb_write(
 		return -EFSCORRUPTED;
 	}
 
-	if (XFS_SB_VERSION_NUM(sbp) != XFS_SB_VERSION_5)
+	if (!xfs_sb_is_v5(sbp))
 		return 0;
 
 	/*
@@ -274,7 +274,7 @@ xfs_validate_sb_common(
 	/*
 	 * Validate feature flags and state
 	 */
-	if (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) {
+	if (xfs_sb_is_v5(sbp)) {
 		if (sbp->sb_blocksize < XFS_MIN_CRC_BLOCKSIZE) {
 			xfs_notice(mp,
 "Block size (%u bytes) too small for Version 5 superblock (minimum %d bytes)",
@@ -465,7 +465,7 @@ xfs_sb_quota_from_disk(struct xfs_sb *sbp)
 	 * We need to do these manipilations only if we are working
 	 * with an older version of on-disk superblock.
 	 */
-	if (XFS_SB_VERSION_NUM(sbp) >= XFS_SB_VERSION_5)
+	if (xfs_sb_is_v5(sbp))
 		return;
 
 	if (sbp->sb_qflags & XFS_OQUOTA_ENFD)
@@ -558,7 +558,7 @@ __xfs_sb_from_disk(
 	 * sb_meta_uuid is only on disk if it differs from sb_uuid and the
 	 * feature flag is set; if not set we keep it only in memory.
 	 */
-	if (XFS_SB_VERSION_NUM(to) == XFS_SB_VERSION_5 &&
+	if (xfs_sb_is_v5(to) &&
 	    (to->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_META_UUID))
 		uuid_copy(&to->sb_meta_uuid, &from->sb_meta_uuid);
 	else
@@ -589,7 +589,7 @@ xfs_sb_quota_to_disk(
 	 * The in-memory superblock quota state matches the v5 on-disk format so
 	 * just write them out and return
 	 */
-	if (XFS_SB_VERSION_NUM(from) == XFS_SB_VERSION_5) {
+	if (xfs_sb_is_v5(from)) {
 		to->sb_qflags = cpu_to_be16(from->sb_qflags);
 		to->sb_gquotino = cpu_to_be64(from->sb_gquotino);
 		to->sb_pquotino = cpu_to_be64(from->sb_pquotino);
@@ -699,19 +699,20 @@ xfs_sb_to_disk(
 	to->sb_features2 = cpu_to_be32(from->sb_features2);
 	to->sb_bad_features2 = cpu_to_be32(from->sb_bad_features2);
 
-	if (XFS_SB_VERSION_NUM(from) == XFS_SB_VERSION_5) {
-		to->sb_features_compat = cpu_to_be32(from->sb_features_compat);
-		to->sb_features_ro_compat =
-				cpu_to_be32(from->sb_features_ro_compat);
-		to->sb_features_incompat =
-				cpu_to_be32(from->sb_features_incompat);
-		to->sb_features_log_incompat =
-				cpu_to_be32(from->sb_features_log_incompat);
-		to->sb_spino_align = cpu_to_be32(from->sb_spino_align);
-		to->sb_lsn = cpu_to_be64(from->sb_lsn);
-		if (from->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_META_UUID)
-			uuid_copy(&to->sb_meta_uuid, &from->sb_meta_uuid);
-	}
+	if (!xfs_sb_is_v5(from))
+		return;
+
+	to->sb_features_compat = cpu_to_be32(from->sb_features_compat);
+	to->sb_features_ro_compat =
+			cpu_to_be32(from->sb_features_ro_compat);
+	to->sb_features_incompat =
+			cpu_to_be32(from->sb_features_incompat);
+	to->sb_features_log_incompat =
+			cpu_to_be32(from->sb_features_log_incompat);
+	to->sb_spino_align = cpu_to_be32(from->sb_spino_align);
+	to->sb_lsn = cpu_to_be64(from->sb_lsn);
+	if (from->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_META_UUID)
+		uuid_copy(&to->sb_meta_uuid, &from->sb_meta_uuid);
 }
 
 /*
@@ -814,7 +815,7 @@ xfs_sb_write_verify(
 	if (error)
 		goto out_error;
 
-	if (XFS_SB_VERSION_NUM(&sb) != XFS_SB_VERSION_5)
+	if (!xfs_sb_is_v5(&sb))
 		return;
 
 	if (bip)
