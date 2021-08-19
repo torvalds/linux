@@ -90,11 +90,14 @@ EXPORT_SYMBOL_GPL(pci_epf_unbind);
  */
 int pci_epf_bind(struct pci_epf *epf)
 {
+	struct device *dev = &epf->dev;
 	struct pci_epf *epf_vf;
+	u8 func_no, vfunc_no;
+	struct pci_epc *epc;
 	int ret;
 
 	if (!epf->driver) {
-		dev_WARN(&epf->dev, "epf device not bound to driver\n");
+		dev_WARN(dev, "epf device not bound to driver\n");
 		return -EINVAL;
 	}
 
@@ -103,7 +106,50 @@ int pci_epf_bind(struct pci_epf *epf)
 
 	mutex_lock(&epf->lock);
 	list_for_each_entry(epf_vf, &epf->pci_vepf, list) {
+		vfunc_no = epf_vf->vfunc_no;
+
+		if (vfunc_no < 1) {
+			dev_err(dev, "Invalid virtual function number\n");
+			ret = -EINVAL;
+			goto ret;
+		}
+
+		epc = epf->epc;
+		func_no = epf->func_no;
+		if (!IS_ERR_OR_NULL(epc)) {
+			if (!epc->max_vfs) {
+				dev_err(dev, "No support for virt function\n");
+				ret = -EINVAL;
+				goto ret;
+			}
+
+			if (vfunc_no > epc->max_vfs[func_no]) {
+				dev_err(dev, "PF%d: Exceeds max vfunc number\n",
+					func_no);
+				ret = -EINVAL;
+				goto ret;
+			}
+		}
+
+		epc = epf->sec_epc;
+		func_no = epf->sec_epc_func_no;
+		if (!IS_ERR_OR_NULL(epc)) {
+			if (!epc->max_vfs) {
+				dev_err(dev, "No support for virt function\n");
+				ret = -EINVAL;
+				goto ret;
+			}
+
+			if (vfunc_no > epc->max_vfs[func_no]) {
+				dev_err(dev, "PF%d: Exceeds max vfunc number\n",
+					func_no);
+				ret = -EINVAL;
+				goto ret;
+			}
+		}
+
 		epf_vf->func_no = epf->func_no;
+		epf_vf->sec_epc_func_no = epf->sec_epc_func_no;
 		epf_vf->epc = epf->epc;
 		epf_vf->sec_epc = epf->sec_epc;
 		ret = epf_vf->driver->ops->bind(epf_vf);
