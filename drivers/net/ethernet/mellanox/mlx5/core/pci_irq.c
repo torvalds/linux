@@ -13,8 +13,8 @@
 #endif
 
 #define MLX5_MAX_IRQ_NAME (32)
-/* max irq_index is 255. three chars */
-#define MLX5_MAX_IRQ_IDX_CHARS (3)
+/* max irq_index is 2047, so four chars */
+#define MLX5_MAX_IRQ_IDX_CHARS (4)
 
 #define MLX5_SFS_PER_CTRL_IRQ 64
 #define MLX5_IRQ_CTRL_SF_MAX 8
