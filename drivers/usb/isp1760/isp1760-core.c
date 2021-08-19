@@ -491,7 +491,7 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 		       (devflags & ISP1760_FLAG_ISP1761));
 
 	if ((!IS_ENABLED(CONFIG_USB_ISP1760_HCD) || usb_disabled()) &&
-	    (!IS_ENABLED(CONFIG_USB_ISP1761_UDC) || !udc_enabled))
+	    (!udc_enabled || !IS_ENABLED(CONFIG_USB_ISP1761_UDC)))
 		return -ENODEV;
 
 	isp = devm_kzalloc(dev, sizeof(*isp), GFP_KERNEL);
@@ -571,7 +571,7 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 			return ret;
 	}
 
-	if (IS_ENABLED(CONFIG_USB_ISP1761_UDC) && udc_enabled) {
+	if (udc_enabled && IS_ENABLED(CONFIG_USB_ISP1761_UDC)) {
 		ret = isp1760_udc_register(isp, irq, irqflags);
 		if (ret < 0) {
 			isp1760_hcd_unregister(hcd);
