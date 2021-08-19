@@ -836,8 +836,10 @@ int hinic_ndo_set_vf_trust(struct net_device *netdev, int vf, bool setting)
 int hinic_ndo_set_vf_bw(struct net_device *netdev,
 			int vf, int min_tx_rate, int max_tx_rate)
 {
-	u32 speeds[] = {SPEED_10, SPEED_100, SPEED_1000, SPEED_10000,
-			SPEED_25000, SPEED_40000, SPEED_100000};
+	static const u32 speeds[] = {
+		SPEED_10, SPEED_100, SPEED_1000, SPEED_10000,
+		SPEED_25000, SPEED_40000, SPEED_100000
+	};
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
 	struct hinic_port_cap port_cap = { 0 };
 	enum hinic_port_link_state link_state;
