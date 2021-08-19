@@ -437,7 +437,7 @@ static void m_can_clean(struct net_device *net)
  * napi. For non-peripherals, RX is done in napi already, so push
  * directly. timestamp is used to ensure good skb ordering in
  * rx-offload and is ignored for non-peripherals.
-*/
+ */
 static void m_can_receive_skb(struct m_can_classdev *cdev,
 			      struct sk_buff *skb,
 			      u32 timestamp)
@@ -946,7 +946,7 @@ static int m_can_poll(struct napi_struct *napi, int quota)
 /* Echo tx skb and update net stats. Peripherals use rx-offload for
  * echo. timestamp is used for peripherals to ensure correct ordering
  * by rx-offload, and is ignored for non-peripherals.
-*/
+ */
 static void m_can_tx_update_stats(struct m_can_classdev *cdev,
 				  unsigned int msg_mark,
 				  u32 timestamp)
@@ -1306,7 +1306,8 @@ static void m_can_chip_config(struct net_device *dev)
 	m_can_set_bittiming(dev);
 
 	/* enable internal timestamp generation, with a prescalar of 16. The
-	 * prescalar is applied to the nominal bit timing */
+	 * prescalar is applied to the nominal bit timing
+	 */
 	m_can_write(cdev, M_CAN_TSCC, FIELD_PREP(TSCC_TCP_MASK, 0xf));
 
 	m_can_config_endisable(cdev, false);
