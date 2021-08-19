@@ -420,16 +420,21 @@ static int iwl_sar_set_profile(union acpi_object *table,
 	 * The table from ACPI is flat, but we store it in a
 	 * structured array.
 	 */
-	for (i = 0; i < num_chains; i++) {
-		for (j = 0; j < num_sub_bands; j++) {
-			if (table[idx].type != ACPI_TYPE_INTEGER ||
-			    table[idx].integer.value > U8_MAX)
-				return -EINVAL;
+	for (i = 0; i < ACPI_SAR_NUM_CHAINS_REV2; i++) {
+		for (j = 0; j < ACPI_SAR_NUM_SUB_BANDS_REV2; j++) {
+			/* if we don't have the values, use the default */
+			if (i >= num_chains || j >= num_sub_bands) {
+				profile->chains[i].subbands[j] = 0;
+			} else {
+				if (table[idx].type != ACPI_TYPE_INTEGER ||
+				    table[idx].integer.value > U8_MAX)
+					return -EINVAL;
 
-			profile->chains[i].subbands[j] =
-				table[idx].integer.value;
+				profile->chains[i].subbands[j] =
+					table[idx].integer.value;
 
-			idx++;
+				idx++;
+			}
 		}
 	}
 
