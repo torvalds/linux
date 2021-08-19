@@ -144,6 +144,7 @@ void btrfs_put_block_group(struct btrfs_block_group *cache)
 		 */
 		WARN_ON(!RB_EMPTY_ROOT(&cache->full_stripe_locks_root.root));
 		kfree(cache->free_space_ctl);
+		kfree(cache->physical_map);
 		kfree(cache);
 	}
 }

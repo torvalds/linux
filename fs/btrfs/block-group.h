@@ -204,6 +204,7 @@ struct btrfs_block_group {
 	u64 zone_unusable;
 	u64 zone_capacity;
 	u64 meta_write_pointer;
+	struct map_lookup *physical_map;
 };
 
 static inline u64 btrfs_block_group_end(struct btrfs_block_group *block_group)
