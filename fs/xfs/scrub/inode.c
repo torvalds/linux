@@ -533,7 +533,7 @@ xchk_inode_xref(
 
 	error = xchk_ag_init_existing(sc, agno, &sc->sa);
 	if (!xchk_xref_process_error(sc, agno, agbno, &error))
-		return;
+		goto out_free;
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_inode_xref_finobt(sc, ino);
@@ -541,6 +541,7 @@ xchk_inode_xref(
 	xchk_xref_is_not_shared(sc, agbno, 1);
 	xchk_inode_xref_bmap(sc, dip);
 
+out_free:
 	xchk_ag_free(sc, &sc->sa);
 }
 

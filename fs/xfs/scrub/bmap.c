@@ -263,7 +263,7 @@ xchk_bmap_iextent_xref(
 	error = xchk_ag_init_existing(info->sc, agno, &info->sc->sa);
 	if (!xchk_fblock_process_error(info->sc, info->whichfork,
 			irec->br_startoff, &error))
-		return;
+		goto out_free;
 
 	xchk_xref_is_used_space(info->sc, agbno, len);
 	xchk_xref_is_not_inode_chunk(info->sc, agbno, len);
@@ -283,6 +283,7 @@ xchk_bmap_iextent_xref(
 		break;
 	}
 
+out_free:
 	xchk_ag_free(info->sc, &info->sc->sa);
 }
 

@@ -377,7 +377,7 @@ xchk_btree_check_block_owner(
 		error = xchk_ag_init_existing(bs->sc, agno, &bs->sc->sa);
 		if (!xchk_btree_xref_process_error(bs->sc, bs->cur,
 				level, &error))
-			return error;
+			goto out_free;
 	}
 
 	xchk_xref_is_used_space(bs->sc, agbno, 1);
@@ -393,6 +393,7 @@ xchk_btree_check_block_owner(
 	if (!bs->sc->sa.rmap_cur && btnum == XFS_BTNUM_RMAP)
 		bs->cur = NULL;
 
+out_free:
 	if (init_sa)
 		xchk_ag_free(bs->sc, &bs->sc->sa);
 
