@@ -2362,6 +2362,29 @@ static void rt5640_cancel_work(void *data)
 	cancel_delayed_work_sync(&rt5640->bp_work);
 }
 
+static void rt5640_disable_jack_detect(struct snd_soc_component *component)
+{
+	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
+
+	/*
+	 * soc_remove_component() force-disables jack and thus rt5640->jack
+	 * could be NULL at the time of driver's module unloading.
+	 */
+	if (!rt5640->jack)
+		return;
+
+	disable_irq(rt5640->irq);
+	rt5640_cancel_work(rt5640);
+
+	if (rt5640->jack->status & SND_JACK_MICROPHONE) {
+		rt5640_disable_micbias1_ovcd_irq(component);
+		rt5640_disable_micbias1_for_ovcd(component);
+		snd_soc_jack_report(rt5640->jack, 0, SND_JACK_BTN_0);
+	}
+
+	rt5640->jack = NULL;
+}
+
 static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 				      struct snd_soc_jack *jack)
 {
@@ -2426,29 +2449,6 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 	enable_irq(rt5640->irq);
 	/* sync initial jack state */
 	queue_work(system_long_wq, &rt5640->jack_work);
-}
-
-static void rt5640_disable_jack_detect(struct snd_soc_component *component)
-{
-	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
-
-	/*
-	 * soc_remove_component() force-disables jack and thus rt5640->jack
-	 * could be NULL at the time of driver's module unloading.
-	 */
-	if (!rt5640->jack)
-		return;
-
-	disable_irq(rt5640->irq);
-	rt5640_cancel_work(rt5640);
-
-	if (rt5640->jack->status & SND_JACK_MICROPHONE) {
-		rt5640_disable_micbias1_ovcd_irq(component);
-		rt5640_disable_micbias1_for_ovcd(component);
-		snd_soc_jack_report(rt5640->jack, 0, SND_JACK_BTN_0);
-	}
-
-	rt5640->jack = NULL;
 }
 
 static int rt5640_set_jack(struct snd_soc_component *component,
