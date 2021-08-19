@@ -15,9 +15,9 @@ description: |
 
 properties:
   compatible:
-      oneOf:
-        - const: realtek,rt1015p
-        - const: realtek,rt1019p
+    enum:
+      - realtek,rt1015p
+      - realtek,rt1019p
 
   sdb-gpios:
     description:
