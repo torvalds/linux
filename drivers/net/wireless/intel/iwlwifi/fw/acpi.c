@@ -745,20 +745,18 @@ int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
 read_table:
 	fwrt->geo_rev = tbl_rev;
 	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
-		for (j = 0; j < num_bands; j++) {
+		for (j = 0; j < ACPI_GEO_NUM_BANDS_REV2; j++) {
 			union acpi_object *entry;
 
-			entry = &wifi_pkg->package.elements[idx++];
-			if (entry->type != ACPI_TYPE_INTEGER ||
-			    entry->integer.value > U8_MAX) {
-				ret = -EINVAL;
-				goto out_free;
-			}
-
-			fwrt->geo_profiles[i].bands[j].max =
-				entry->integer.value;
-
-			for (k = 0; k < ACPI_GEO_NUM_CHAINS; k++) {
+			/*
+			 * num_bands is either 2 or 3, if it's only 2 then
+			 * fill the third band (6 GHz) with the values from
+			 * 5 GHz (second band)
+			 */
+			if (j >= num_bands) {
+				fwrt->geo_profiles[i].bands[j].max =
+					fwrt->geo_profiles[i].bands[1].max;
+			} else {
 				entry = &wifi_pkg->package.elements[idx++];
 				if (entry->type != ACPI_TYPE_INTEGER ||
 				    entry->integer.value > U8_MAX) {
@@ -766,8 +764,26 @@ read_table:
 					goto out_free;
 				}
 
-				fwrt->geo_profiles[i].bands[j].chains[k] =
+				fwrt->geo_profiles[i].bands[j].max =
 					entry->integer.value;
+			}
+
+			for (k = 0; k < ACPI_GEO_NUM_CHAINS; k++) {
+				/* same here as above */
+				if (j >= num_bands) {
+					fwrt->geo_profiles[i].bands[j].chains[k] =
+						fwrt->geo_profiles[i].bands[1].chains[k];
+				} else {
+					entry = &wifi_pkg->package.elements[idx++];
+					if (entry->type != ACPI_TYPE_INTEGER ||
+					    entry->integer.value > U8_MAX) {
+						ret = -EINVAL;
+						goto out_free;
+					}
+
+					fwrt->geo_profiles[i].bands[j].chains[k] =
+						entry->integer.value;
+				}
 			}
 		}
 	}
