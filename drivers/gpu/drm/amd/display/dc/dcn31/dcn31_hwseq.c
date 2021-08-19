@@ -595,18 +595,3 @@ void dcn31_reset_hw_ctx_wrap(
 		}
 	}
 }
-
-bool dcn31_is_abm_supported(struct dc *dc,
-		struct dc_state *context, struct dc_stream_state *stream)
-{
-	int i;
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		if (pipe_ctx->stream == stream &&
-				(pipe_ctx->prev_odm_pipe == NULL && pipe_ctx->next_odm_pipe == NULL))
-			return true;
-	}
-	return false;
-}
