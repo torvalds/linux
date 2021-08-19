@@ -177,7 +177,7 @@ xfs_attr3_node_inactive(
 			return error;
 
 		/* save for re-read later */
-		child_blkno = XFS_BUF_ADDR(child_bp);
+		child_blkno = xfs_buf_daddr(child_bp);
 
 		/*
 		 * Invalidate the subtree, however we have to.

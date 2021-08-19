@@ -1540,7 +1540,7 @@ xfs_attr_fillstate(xfs_da_state_t *state)
 	ASSERT((path->active >= 0) && (path->active < XFS_DA_NODE_MAXDEPTH));
 	for (blk = path->blk, level = 0; level < path->active; blk++, level++) {
 		if (blk->bp) {
-			blk->disk_blkno = XFS_BUF_ADDR(blk->bp);
+			blk->disk_blkno = xfs_buf_daddr(blk->bp);
 			blk->bp = NULL;
 		} else {
 			blk->disk_blkno = 0;
@@ -1555,7 +1555,7 @@ xfs_attr_fillstate(xfs_da_state_t *state)
 	ASSERT((path->active >= 0) && (path->active < XFS_DA_NODE_MAXDEPTH));
 	for (blk = path->blk, level = 0; level < path->active; blk++, level++) {
 		if (blk->bp) {
-			blk->disk_blkno = XFS_BUF_ADDR(blk->bp);
+			blk->disk_blkno = xfs_buf_daddr(blk->bp);
 			blk->bp = NULL;
 		} else {
 			blk->disk_blkno = 0;
