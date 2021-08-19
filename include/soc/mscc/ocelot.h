@@ -807,7 +807,8 @@ int ocelot_get_sset_count(struct ocelot *ocelot, int port, int sset);
 int ocelot_get_ts_info(struct ocelot *ocelot, int port,
 		       struct ethtool_ts_info *info);
 void ocelot_set_ageing_time(struct ocelot *ocelot, unsigned int msecs);
-int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port, bool enabled);
+int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port, bool enabled,
+			       struct netlink_ext_ack *extack);
 void ocelot_bridge_stp_state_set(struct ocelot *ocelot, int port, u8 state);
 void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot);
 int ocelot_port_pre_bridge_flags(struct ocelot *ocelot, int port,

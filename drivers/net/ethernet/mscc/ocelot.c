@@ -223,7 +223,7 @@ static void ocelot_port_set_pvid(struct ocelot *ocelot, int port,
 }
 
 int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
-			       bool vlan_aware)
+			       bool vlan_aware, struct netlink_ext_ack *extack)
 {
 	struct ocelot_vcap_block *block = &ocelot->block[VCAP_IS1];
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
@@ -233,8 +233,8 @@ int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
 	list_for_each_entry(filter, &block->rules, list) {
 		if (filter->ingress_port_mask & BIT(port) &&
 		    filter->action.vid_replace_ena) {
-			dev_err(ocelot->dev,
-				"Cannot change VLAN state with vlan modify rules active\n");
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Cannot change VLAN state with vlan modify rules active");
 			return -EBUSY;
 		}
 	}

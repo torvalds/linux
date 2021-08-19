@@ -913,7 +913,8 @@ static int ocelot_port_attr_set(struct net_device *dev, const void *ctx,
 		ocelot_port_attr_ageing_set(ocelot, port, attr->u.ageing_time);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
-		ocelot_port_vlan_filtering(ocelot, port, attr->u.vlan_filtering);
+		ocelot_port_vlan_filtering(ocelot, port, attr->u.vlan_filtering,
+					   extack);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_MC_DISABLED:
 		ocelot_port_attr_mc_set(ocelot, port, !attr->u.mc_disabled);
@@ -1133,14 +1134,15 @@ static int ocelot_switchdev_sync(struct ocelot *ocelot, int port,
 	ocelot_port_attr_ageing_set(ocelot, port, ageing_time);
 
 	return ocelot_port_vlan_filtering(ocelot, port,
-					  br_vlan_enabled(bridge_dev));
+					  br_vlan_enabled(bridge_dev),
+					  extack);
 }
 
 static int ocelot_switchdev_unsync(struct ocelot *ocelot, int port)
 {
 	int err;
 
-	err = ocelot_port_vlan_filtering(ocelot, port, false);
+	err = ocelot_port_vlan_filtering(ocelot, port, false, NULL);
 	if (err)
 		return err;
 

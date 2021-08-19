@@ -770,7 +770,7 @@ static int felix_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
 {
 	struct ocelot *ocelot = ds->priv;
 
-	return ocelot_port_vlan_filtering(ocelot, port, enabled);
+	return ocelot_port_vlan_filtering(ocelot, port, enabled, extack);
 }
 
 static int felix_vlan_add(struct dsa_switch *ds, int port,
