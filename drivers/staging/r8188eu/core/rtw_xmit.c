@@ -207,10 +207,6 @@ exit:
 	return res;
 }
 
-static void  rtw_mfree_xmit_priv_lock(struct xmit_priv *pxmitpriv)
-{
-}
-
 void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv)
 {
 	int i;
@@ -219,8 +215,6 @@ void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv)
 	struct xmit_buf *pxmitbuf = (struct xmit_buf *)pxmitpriv->pxmitbuf;
 	u32 max_xmit_extbuf_size = MAX_XMIT_EXTBUF_SZ;
 	u32 num_xmit_extbuf = NR_XMIT_EXTBUFF;
-
-	rtw_mfree_xmit_priv_lock(pxmitpriv);
 
 	if (!pxmitpriv->pxmit_frame_buf)
 		return;
