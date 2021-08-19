@@ -570,8 +570,10 @@ static int __maybe_unused rzg2l_adc_pm_runtime_resume(struct device *dev)
 		return ret;
 
 	ret = clk_prepare_enable(adc->adclk);
-	if (ret)
+	if (ret) {
+		clk_disable_unprepare(adc->pclk);
 		return ret;
+	}
 
 	rzg2l_adc_pwr(adc, true);
 
