@@ -1517,6 +1517,37 @@ iwl_dump_ini_special_mem_iter(struct iwl_fw_runtime *fwrt,
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
 
+static int
+iwl_dump_ini_dbgi_sram_iter(struct iwl_fw_runtime *fwrt,
+			    struct iwl_dump_ini_region_data *reg_data,
+			    void *range_ptr, int idx)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
+	__le32 *val = range->data;
+	u32 prph_data;
+	int i;
+
+	if (!iwl_trans_grab_nic_access(fwrt->trans))
+		return -EBUSY;
+
+	range->range_data_size = reg->dev_addr.size;
+	iwl_write_prph_no_grab(fwrt->trans, DBGI_SRAM_TARGET_ACCESS_CFG,
+			       DBGI_SRAM_TARGET_ACCESS_CFG_RESET_ADDRESS_MSK);
+	for (i = 0; i < (le32_to_cpu(reg->dev_addr.size) / 4); i++) {
+		prph_data = iwl_read_prph(fwrt->trans, (i % 2) ?
+					  DBGI_SRAM_TARGET_ACCESS_RDATA_MSB :
+					  DBGI_SRAM_TARGET_ACCESS_RDATA_LSB);
+		if (prph_data == 0x5a5a5a5a) {
+			iwl_trans_release_nic_access(fwrt->trans);
+			return -EBUSY;
+		}
+		*val++ = cpu_to_le32(prph_data);
+	}
+	iwl_trans_release_nic_access(fwrt->trans);
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
 static int iwl_dump_ini_fw_pkt_iter(struct iwl_fw_runtime *fwrt,
 				    struct iwl_dump_ini_region_data *reg_data,
 				    void *range_ptr, int idx)
@@ -2188,6 +2219,12 @@ static const struct iwl_dump_ini_mem_ops iwl_dump_ini_region_ops[] = {
 		.get_size = iwl_dump_ini_special_mem_get_size,
 		.fill_mem_hdr = iwl_dump_ini_special_mem_fill_header,
 		.fill_range = iwl_dump_ini_special_mem_iter,
+	},
+	[IWL_FW_INI_REGION_DBGI_SRAM] = {
+		.get_num_of_ranges = iwl_dump_ini_mem_ranges,
+		.get_size = iwl_dump_ini_mem_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
+		.fill_range = iwl_dump_ini_dbgi_sram_iter,
 	},
 };
 
