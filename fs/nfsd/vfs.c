@@ -333,7 +333,6 @@ nfsd_get_write_access(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		struct iattr *iap)
 {
 	struct inode *inode = d_inode(fhp->fh_dentry);
-	int host_err;
 
 	if (iap->ia_size < inode->i_size) {
 		__be32 err;
@@ -343,20 +342,7 @@ nfsd_get_write_access(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		if (err)
 			return err;
 	}
-
-	host_err = get_write_access(inode);
-	if (host_err)
-		goto out_nfserrno;
-
-	host_err = locks_verify_truncate(inode, NULL, iap->ia_size);
-	if (host_err)
-		goto out_put_write_access;
-	return 0;
-
-out_put_write_access:
-	put_write_access(inode);
-out_nfserrno:
-	return nfserrno(host_err);
+	return nfserrno(get_write_access(inode));
 }
 
 /*
@@ -749,13 +735,6 @@ __nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type,
 	 */
 	err = nfserr_perm;
 	if (IS_APPEND(inode) && (may_flags & NFSD_MAY_WRITE))
-		goto out;
-	/*
-	 * We must ignore files (but only files) which might have mandatory
-	 * locks on them because there is no way to know if the accesser has
-	 * the lock.
-	 */
-	if (S_ISREG((inode)->i_mode) && mandatory_lock(inode))
 		goto out;
 
 	if (!inode->i_fop)
