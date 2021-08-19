@@ -683,9 +683,20 @@ static int sb_log_location(struct block_device *bdev, struct blk_zone *zones,
 			reset->wp = reset->start;
 		}
 	} else if (ret != -ENOENT) {
-		/* For READ, we want the precious one */
+		/*
+		 * For READ, we want the previous one. Move write pointer to
+		 * the end of a zone, if it is at the head of a zone.
+		 */
+		u64 zone_end = 0;
+
 		if (wp == zones[0].start << SECTOR_SHIFT)
-			wp = (zones[1].start + zones[1].len) << SECTOR_SHIFT;
+			zone_end = zones[1].start + zones[1].capacity;
+		else if (wp == zones[1].start << SECTOR_SHIFT)
+			zone_end = zones[0].start + zones[0].capacity;
+		if (zone_end)
+			wp = ALIGN_DOWN(zone_end << SECTOR_SHIFT,
+					BTRFS_SUPER_INFO_SIZE);
+
 		wp -= BTRFS_SUPER_INFO_SIZE;
 	}
 
