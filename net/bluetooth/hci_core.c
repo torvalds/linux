@@ -1724,6 +1724,7 @@ static void hci_pend_le_actions_clear(struct hci_dev *hdev)
 int hci_dev_do_close(struct hci_dev *hdev)
 {
 	bool auto_off;
+	int err = 0;
 
 	BT_DBG("%s %p", hdev->name, hdev);
 
@@ -1738,13 +1739,13 @@ int hci_dev_do_close(struct hci_dev *hdev)
 	    test_bit(HCI_UP, &hdev->flags)) {
 		/* Execute vendor specific shutdown routine */
 		if (hdev->shutdown)
-			hdev->shutdown(hdev);
+			err = hdev->shutdown(hdev);
 	}
 
 	if (!test_and_clear_bit(HCI_UP, &hdev->flags)) {
 		cancel_delayed_work_sync(&hdev->cmd_timer);
 		hci_req_sync_unlock(hdev);
-		return 0;
+		return err;
 	}
 
 	hci_leds_update_powered(hdev, false);
@@ -1851,7 +1852,7 @@ int hci_dev_do_close(struct hci_dev *hdev)
 	hci_req_sync_unlock(hdev);
 
 	hci_dev_put(hdev);
-	return 0;
+	return err;
 }
 
 int hci_dev_close(__u16 dev)
