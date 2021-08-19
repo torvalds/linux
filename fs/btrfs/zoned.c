@@ -4,6 +4,7 @@
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/sched/mm.h>
+#include <linux/atomic.h>
 #include "ctree.h"
 #include "volumes.h"
 #include "zoned.h"
@@ -37,6 +38,16 @@
 
 /* Number of superblock log zones */
 #define BTRFS_NR_SB_LOG_ZONES 2
+
+/*
+ * Minimum of active zones we need:
+ *
+ * - BTRFS_SUPER_MIRROR_MAX zones for superblock mirrors
+ * - 3 zones to ensure at least one zone per SYSTEM, META and DATA block group
+ * - 1 zone for tree-log dedicated block group
+ * - 1 zone for relocation
+ */
+#define BTRFS_MIN_ACTIVE_ZONES		(BTRFS_SUPER_MIRROR_MAX + 5)
 
 /*
  * Maximum supported zone size. Currently, SMR disks have a zone size of
@@ -303,6 +314,9 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device)
 	struct btrfs_fs_info *fs_info = device->fs_info;
 	struct btrfs_zoned_device_info *zone_info = NULL;
 	struct block_device *bdev = device->bdev;
+	struct request_queue *queue = bdev_get_queue(bdev);
+	unsigned int max_active_zones;
+	unsigned int nactive;
 	sector_t nr_sectors;
 	sector_t sector = 0;
 	struct blk_zone *zones = NULL;
@@ -358,6 +372,17 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device)
 	if (!IS_ALIGNED(nr_sectors, zone_sectors))
 		zone_info->nr_zones++;
 
+	max_active_zones = queue_max_active_zones(queue);
+	if (max_active_zones && max_active_zones < BTRFS_MIN_ACTIVE_ZONES) {
+		btrfs_err_in_rcu(fs_info,
+"zoned: %s: max active zones %u is too small, need at least %u active zones",
+				 rcu_str_deref(device->name), max_active_zones,
+				 BTRFS_MIN_ACTIVE_ZONES);
+		ret = -EINVAL;
+		goto out;
+	}
+	zone_info->max_active_zones = max_active_zones;
+
 	zone_info->seq_zones = bitmap_zalloc(zone_info->nr_zones, GFP_KERNEL);
 	if (!zone_info->seq_zones) {
 		ret = -ENOMEM;
@@ -370,6 +395,12 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device)
 		goto out;
 	}
 
+	zone_info->active_zones = bitmap_zalloc(zone_info->nr_zones, GFP_KERNEL);
+	if (!zone_info->active_zones) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
 	zones = kcalloc(BTRFS_REPORT_NR_ZONES, sizeof(struct blk_zone), GFP_KERNEL);
 	if (!zones) {
 		ret = -ENOMEM;
@@ -377,6 +408,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device)
 	}
 
 	/* Get zones type */
+	nactive = 0;
 	while (sector < nr_sectors) {
 		nr_zones = BTRFS_REPORT_NR_ZONES;
 		ret = btrfs_get_dev_zones(device, sector << SECTOR_SHIFT, zones,
@@ -387,8 +419,17 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device)
 		for (i = 0; i < nr_zones; i++) {
 			if (zones[i].type == BLK_ZONE_TYPE_SEQWRITE_REQ)
 				__set_bit(nreported, zone_info->seq_zones);
-			if (zones[i].cond == BLK_ZONE_COND_EMPTY)
+			switch (zones[i].cond) {
+			case BLK_ZONE_COND_EMPTY:
 				__set_bit(nreported, zone_info->empty_zones);
+				break;
+			case BLK_ZONE_COND_IMP_OPEN:
+			case BLK_ZONE_COND_EXP_OPEN:
+			case BLK_ZONE_COND_CLOSED:
+				__set_bit(nreported, zone_info->active_zones);
+				nactive++;
+				break;
+			}
 			nreported++;
 		}
 		sector = zones[nr_zones - 1].start + zones[nr_zones - 1].len;
@@ -401,6 +442,19 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device)
 				 zone_info->nr_zones);
 		ret = -EIO;
 		goto out;
+	}
+
+	if (max_active_zones) {
+		if (nactive > max_active_zones) {
+			btrfs_err_in_rcu(device->fs_info,
+			"zoned: %u active zones on %s exceeds max_active_zones %u",
+					 nactive, rcu_str_deref(device->name),
+					 max_active_zones);
+			ret = -EIO;
+			goto out;
+		}
+		atomic_set(&zone_info->active_zones_left,
+			   max_active_zones - nactive);
 	}
 
 	/* Validate superblock log */
@@ -485,6 +539,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device)
 out:
 	kfree(zones);
 out_free_zone_info:
+	bitmap_free(zone_info->active_zones);
 	bitmap_free(zone_info->empty_zones);
 	bitmap_free(zone_info->seq_zones);
 	kfree(zone_info);
@@ -500,6 +555,7 @@ void btrfs_destroy_dev_zone_info(struct btrfs_device *device)
 	if (!zone_info)
 		return;
 
+	bitmap_free(zone_info->active_zones);
 	bitmap_free(zone_info->seq_zones);
 	bitmap_free(zone_info->empty_zones);
 	kfree(zone_info);

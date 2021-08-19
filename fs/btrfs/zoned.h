@@ -23,8 +23,11 @@ struct btrfs_zoned_device_info {
 	u64 zone_size;
 	u8  zone_size_shift;
 	u32 nr_zones;
+	unsigned int max_active_zones;
+	atomic_t active_zones_left;
 	unsigned long *seq_zones;
 	unsigned long *empty_zones;
+	unsigned long *active_zones;
 	struct blk_zone sb_zones[2 * BTRFS_SUPER_MIRROR_MAX];
 };
 
