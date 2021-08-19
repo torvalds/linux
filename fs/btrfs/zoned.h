@@ -40,7 +40,7 @@ int btrfs_sb_log_location_bdev(struct block_device *bdev, int mirror, int rw,
 			       u64 *bytenr_ret);
 int btrfs_sb_log_location(struct btrfs_device *device, int mirror, int rw,
 			  u64 *bytenr_ret);
-void btrfs_advance_sb_log(struct btrfs_device *device, int mirror);
+int btrfs_advance_sb_log(struct btrfs_device *device, int mirror);
 int btrfs_reset_sb_log_zones(struct block_device *bdev, int mirror);
 u64 btrfs_find_allocatable_zones(struct btrfs_device *device, u64 hole_start,
 				 u64 hole_end, u64 num_bytes);
@@ -113,8 +113,10 @@ static inline int btrfs_sb_log_location(struct btrfs_device *device, int mirror,
 	return 0;
 }
 
-static inline void btrfs_advance_sb_log(struct btrfs_device *device, int mirror)
-{ }
+static inline int btrfs_advance_sb_log(struct btrfs_device *device, int mirror)
+{
+	return 0;
+}
 
 static inline int btrfs_reset_sb_log_zones(struct block_device *bdev, int mirror)
 {
