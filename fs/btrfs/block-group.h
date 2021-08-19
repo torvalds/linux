@@ -202,6 +202,7 @@ struct btrfs_block_group {
 	 */
 	u64 alloc_offset;
 	u64 zone_unusable;
+	u64 zone_capacity;
 	u64 meta_write_pointer;
 };
 

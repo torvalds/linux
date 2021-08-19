@@ -1039,6 +1039,7 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 	int i;
 	unsigned int nofs_flag;
 	u64 *alloc_offsets = NULL;
+	u64 *caps = NULL;
 	u64 last_alloc = 0;
 	u32 num_sequential = 0, num_conventional = 0;
 
@@ -1067,6 +1068,12 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 	if (!alloc_offsets) {
 		free_extent_map(em);
 		return -ENOMEM;
+	}
+
+	caps = kcalloc(map->num_stripes, sizeof(*caps), GFP_NOFS);
+	if (!caps) {
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	for (i = 0; i < map->num_stripes; i++) {
@@ -1131,6 +1138,8 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 			goto out;
 		}
 
+		caps[i] = (zone.capacity << SECTOR_SHIFT);
+
 		switch (zone.cond) {
 		case BLK_ZONE_COND_OFFLINE:
 		case BLK_ZONE_COND_READONLY:
@@ -1144,7 +1153,7 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 			alloc_offsets[i] = 0;
 			break;
 		case BLK_ZONE_COND_FULL:
-			alloc_offsets[i] = fs_info->zone_size;
+			alloc_offsets[i] = caps[i];
 			break;
 		default:
 			/* Partially used zone */
@@ -1169,6 +1178,9 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 		 * calculate_alloc_pointer() which takes extent buffer
 		 * locks to avoid deadlock.
 		 */
+
+		/* Zone capacity is always zone size in emulation */
+		cache->zone_capacity = cache->length;
 		if (new) {
 			cache->alloc_offset = 0;
 			goto out;
@@ -1195,6 +1207,7 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 			goto out;
 		}
 		cache->alloc_offset = alloc_offsets[0];
+		cache->zone_capacity = caps[0];
 		break;
 	case BTRFS_BLOCK_GROUP_DUP:
 	case BTRFS_BLOCK_GROUP_RAID1:
@@ -1218,6 +1231,14 @@ out:
 		ret = -EIO;
 	}
 
+	if (cache->alloc_offset > cache->zone_capacity) {
+		btrfs_err(fs_info,
+"zoned: invalid write pointer %llu (larger than zone capacity %llu) in block group %llu",
+			  cache->alloc_offset, cache->zone_capacity,
+			  cache->start);
+		ret = -EIO;
+	}
+
 	/* An extent is allocated after the write pointer */
 	if (!ret && num_conventional && last_alloc > cache->alloc_offset) {
 		btrfs_err(fs_info,
@@ -1229,6 +1250,7 @@ out:
 	if (!ret)
 		cache->meta_write_pointer = cache->alloc_offset + cache->start;
 
+	kfree(caps);
 	kfree(alloc_offsets);
 	free_extent_map(em);
 
