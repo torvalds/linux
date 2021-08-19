@@ -1547,7 +1547,7 @@ iwl_dump_ini_mem_fill_header(struct iwl_fw_runtime *fwrt,
 
 	dump->header.version = cpu_to_le32(IWL_INI_DUMP_VER);
 
-	return dump->ranges;
+	return dump->data;
 }
 
 /**
@@ -1611,7 +1611,7 @@ iwl_dump_ini_mon_fill_header(struct iwl_fw_runtime *fwrt,
 
 	data->header.version = cpu_to_le32(IWL_INI_DUMP_VER);
 
-	return data->ranges;
+	return data->data;
 }
 
 static void *
@@ -1647,7 +1647,7 @@ iwl_dump_ini_err_table_fill_header(struct iwl_fw_runtime *fwrt,
 	dump->header.version = cpu_to_le32(IWL_INI_DUMP_VER);
 	dump->version = reg->err_table.version;
 
-	return dump->ranges;
+	return dump->data;
 }
 
 static void *
@@ -1662,7 +1662,7 @@ iwl_dump_ini_special_mem_fill_header(struct iwl_fw_runtime *fwrt,
 	dump->type = reg->special_mem.type;
 	dump->version = reg->special_mem.version;
 
-	return dump->ranges;
+	return dump->data;
 }
 
 static u32 iwl_dump_ini_mem_ranges(struct iwl_fw_runtime *fwrt,
