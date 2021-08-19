@@ -296,16 +296,6 @@
 	};
 
 	smb: bus@40000000 {
-		compatible = "simple-bus";
-
-		#address-cells = <2>;
-		#size-cells = <1>;
-		ranges = <0 0 0x40000000 0x04000000>,
-			 <1 0 0x44000000 0x04000000>,
-			 <2 0 0x48000000 0x04000000>,
-			 <3 0 0x4c000000 0x04000000>,
-			 <7 0 0x10000000 0x00020000>;
-
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 63>;
 		interrupt-map = <0 0  0 &gic 0  0 4>,
