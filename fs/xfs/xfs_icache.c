@@ -967,7 +967,7 @@ static inline bool
 xfs_want_reclaim_sick(
 	struct xfs_mount	*mp)
 {
-	return (mp->m_flags & XFS_MOUNT_UNMOUNTING) || xfs_has_norecovery(mp) ||
+	return xfs_is_unmounting(mp) || xfs_has_norecovery(mp) ||
 	       XFS_FORCED_SHUTDOWN(mp);
 }
 

@@ -528,15 +528,10 @@ xfs_do_force_shutdown(
 	int		tag;
 	const char	*why;
 
-	spin_lock(&mp->m_sb_lock);
-	if (XFS_FORCED_SHUTDOWN(mp)) {
-		spin_unlock(&mp->m_sb_lock);
+	if (test_and_set_bit(XFS_OPSTATE_SHUTDOWN, &mp->m_opstate))
 		return;
-	}
-	mp->m_flags |= XFS_MOUNT_FS_SHUTDOWN;
 	if (mp->m_sb_bp)
 		mp->m_sb_bp->b_flags |= XBF_DONE;
-	spin_unlock(&mp->m_sb_lock);
 
 	if (flags & SHUTDOWN_FORCE_UMOUNT)
 		xfs_alert(mp, "User initiated shutdown received.");

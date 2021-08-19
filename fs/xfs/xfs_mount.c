@@ -488,7 +488,7 @@ xfs_check_summary_counts(
 	 * counters.  If any of them are obviously incorrect, we can recompute
 	 * them from the AGF headers in the next step.
 	 */
-	if (XFS_LAST_UNMOUNT_WAS_CLEAN(mp) &&
+	if (xfs_is_clean(mp) &&
 	    (mp->m_sb.sb_fdblocks > mp->m_sb.sb_dblocks ||
 	     !xfs_verify_icount(mp, mp->m_sb.sb_icount) ||
 	     mp->m_sb.sb_ifree > mp->m_sb.sb_icount))
@@ -505,8 +505,7 @@ xfs_check_summary_counts(
 	 * superblock to be correct and we don't need to do anything here.
 	 * Otherwise, recalculate the summary counters.
 	 */
-	if ((!xfs_has_lazysbcount(mp) ||
-	     XFS_LAST_UNMOUNT_WAS_CLEAN(mp)) &&
+	if ((!xfs_has_lazysbcount(mp) || xfs_is_clean(mp)) &&
 	    !xfs_fs_has_sickness(mp, XFS_SICK_FS_COUNTERS))
 		return 0;
 
@@ -547,7 +546,7 @@ xfs_unmount_flush_inodes(
 	xfs_extent_busy_wait_all(mp);
 	flush_workqueue(xfs_discard_wq);
 
-	mp->m_flags |= XFS_MOUNT_UNMOUNTING;
+	set_bit(XFS_OPSTATE_UNMOUNTING, &mp->m_opstate);
 
 	xfs_ail_push_all_sync(mp->m_ail);
 	xfs_inodegc_stop(mp);
@@ -835,7 +834,7 @@ xfs_mountfs(
 	 * the next remount into writeable mode.  Otherwise we would never
 	 * perform the update e.g. for the root filesystem.
 	 */
-	if (mp->m_update_sb && !(mp->m_flags & XFS_MOUNT_RDONLY)) {
+	if (mp->m_update_sb && !xfs_is_readonly(mp)) {
 		error = xfs_sync_sb(mp, false);
 		if (error) {
 			xfs_warn(mp, "failed to write sb changes");
@@ -892,7 +891,7 @@ xfs_mountfs(
 	 * We use the same quiesce mechanism as the rw->ro remount, as they are
 	 * semantically identical operations.
 	 */
-	if ((mp->m_flags & XFS_MOUNT_RDONLY) && !xfs_has_norecovery(mp))
+	if (xfs_is_readonly(mp) && !xfs_has_norecovery(mp))
 		xfs_log_clean(mp);
 
 	/*
@@ -916,7 +915,7 @@ xfs_mountfs(
 	 * This may drive us straight to ENOSPC on mount, but that implies
 	 * we were already there on the last unmount. Warn if this occurs.
 	 */
-	if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
+	if (!xfs_is_readonly(mp)) {
 		resblks = xfs_default_resblks(mp);
 		error = xfs_reserve_blocks(mp, &resblks, NULL);
 		if (error)
@@ -1077,7 +1076,7 @@ xfs_fs_writable(
 {
 	ASSERT(level > SB_UNFROZEN);
 	if ((mp->m_super->s_writers.frozen >= level) ||
-	    XFS_FORCED_SHUTDOWN(mp) || (mp->m_flags & XFS_MOUNT_RDONLY))
+	    XFS_FORCED_SHUTDOWN(mp) || xfs_is_readonly(mp))
 		return false;
 
 	return true;

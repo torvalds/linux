@@ -1434,7 +1434,7 @@ xfs_release(
 		return 0;
 
 	/* If this is a read-only mount, don't do this (would generate I/O) */
-	if (mp->m_flags & XFS_MOUNT_RDONLY)
+	if (xfs_is_readonly(mp))
 		return 0;
 
 	if (!XFS_FORCED_SHUTDOWN(mp)) {
@@ -1674,7 +1674,7 @@ xfs_inode_needs_inactive(
 		return false;
 
 	/* If this is a read-only mount, don't do this (would generate I/O) */
-	if (mp->m_flags & XFS_MOUNT_RDONLY)
+	if (xfs_is_readonly(mp))
 		return false;
 
 	/* If the log isn't running, push inodes straight to reclaim. */
@@ -1735,7 +1735,7 @@ xfs_inactive(
 	ASSERT(!xfs_iflags_test(ip, XFS_IRECOVERY));
 
 	/* If this is a read-only mount, don't do this (would generate I/O) */
-	if (mp->m_flags & XFS_MOUNT_RDONLY)
+	if (xfs_is_readonly(mp))
 		goto out;
 
 	/* Metadata inodes require explicit resource cleanup. */

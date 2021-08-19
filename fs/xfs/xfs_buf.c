@@ -1144,7 +1144,7 @@ xfs_buf_ioerror_permanent(
 		return true;
 
 	/* At unmount we may treat errors differently */
-	if ((mp->m_flags & XFS_MOUNT_UNMOUNTING) && mp->m_fail_unmount)
+	if (xfs_is_unmounting(mp) && mp->m_fail_unmount)
 		return true;
 
 	return false;

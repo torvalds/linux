@@ -1347,7 +1347,7 @@ xlog_find_tail(
 	 * headers if we have a filesystem using non-persistent counters.
 	 */
 	if (clean)
-		log->l_mp->m_flags |= XFS_MOUNT_WAS_CLEAN;
+		set_bit(XFS_OPSTATE_CLEAN, &log->l_mp->m_opstate);
 
 	/*
 	 * Make sure that there are no blocks in front of the head

@@ -146,7 +146,6 @@ typedef struct xfs_mount {
 	uint			m_rsumsize;	/* size of rt summary, bytes */
 	int			m_fixedfsid[2];	/* unchanged for life of FS */
 	uint			m_qflags;	/* quota status flags */
-	uint64_t		m_flags;	/* global mount flags */
 	uint64_t		m_features;	/* active filesystem features */
 	uint64_t		m_low_space[XFS_LOWSP_MAX];
 	uint64_t		m_low_rtexts[XFS_LOWSP_MAX];
@@ -342,8 +341,8 @@ __XFS_HAS_FEAT(needsrepair, NEEDSREPAIR)
 /*
  * Mount features
  *
- * These do not change dynamically - features that can come and go,
- * such as 32 bit inodes and read-only state, are kept as flags rather than
+ * These do not change dynamically - features that can come and go, such as 32
+ * bit inodes and read-only state, are kept as operational state rather than
  * features.
  */
 __XFS_HAS_FEAT(noattr2, NOATTR2)
@@ -364,31 +363,28 @@ __XFS_HAS_FEAT(norecovery, NORECOVERY)
 __XFS_HAS_FEAT(nouuid, NOUUID)
 
 /*
- * Flags for m_flags.
+ * Operational mount state flags
+ *
+ * Use these with atomic bit ops only!
  */
-#define XFS_MOUNT_WSYNC		(1ULL << 0)	/* for nfs - all metadata ops
-						   must be synchronous except
-						   for space allocations */
-#define XFS_MOUNT_UNMOUNTING	(1ULL << 1)	/* filesystem is unmounting */
-#define XFS_MOUNT_WAS_CLEAN	(1ULL << 2)
-#define XFS_MOUNT_FS_SHUTDOWN	(1ULL << 3)	/* atomic stop of all filesystem
-						   operations, typically for
-						   disk errors in metadata */
-#define XFS_MOUNT_32BITINODES	(1ULL << 15)	/* inode32 allocator active */
-#define XFS_MOUNT_RDONLY	(1ULL << 4)	/* read-only fs */
+#define XFS_OPSTATE_UNMOUNTING		0	/* filesystem is unmounting */
+#define XFS_OPSTATE_CLEAN		1	/* mount was clean */
+#define XFS_OPSTATE_SHUTDOWN		2	/* stop all fs operations */
+#define XFS_OPSTATE_INODE32		3	/* inode32 allocator active */
+#define XFS_OPSTATE_READONLY		4	/* read-only fs */
 
 /*
  * If set, inactivation worker threads will be scheduled to process queued
  * inodegc work.  If not, queued inodes remain in memory waiting to be
  * processed.
  */
-#define XFS_OPSTATE_INODEGC_ENABLED	0
+#define XFS_OPSTATE_INODEGC_ENABLED	5
 /*
  * If set, background speculative prealloc gc worker threads will be scheduled
  * to process queued blockgc work.  If not, inodes retain their preallocations
  * until explicitly deleted.
  */
-#define XFS_OPSTATE_BLOCKGC_ENABLED	1
+#define XFS_OPSTATE_BLOCKGC_ENABLED	6
 
 #define __XFS_IS_OPSTATE(name, NAME) \
 static inline bool xfs_is_ ## name (struct xfs_mount *mp) \
@@ -404,10 +400,20 @@ static inline bool xfs_set_ ## name (struct xfs_mount *mp) \
 	return test_and_set_bit(XFS_OPSTATE_ ## NAME, &mp->m_opstate); \
 }
 
+__XFS_IS_OPSTATE(unmounting, UNMOUNTING)
+__XFS_IS_OPSTATE(clean, CLEAN)
+__XFS_IS_OPSTATE(shutdown, SHUTDOWN)
+__XFS_IS_OPSTATE(inode32, INODE32)
+__XFS_IS_OPSTATE(readonly, READONLY)
 __XFS_IS_OPSTATE(inodegc_enabled, INODEGC_ENABLED)
 __XFS_IS_OPSTATE(blockgc_enabled, BLOCKGC_ENABLED)
 
 #define XFS_OPSTATE_STRINGS \
+	{ (1UL << XFS_OPSTATE_UNMOUNTING),		"unmounting" }, \
+	{ (1UL << XFS_OPSTATE_CLEAN),			"clean" }, \
+	{ (1UL << XFS_OPSTATE_SHUTDOWN),		"shutdown" }, \
+	{ (1UL << XFS_OPSTATE_INODE32),			"inode32" }, \
+	{ (1UL << XFS_OPSTATE_READONLY),		"read_only" }, \
 	{ (1UL << XFS_OPSTATE_INODEGC_ENABLED),		"inodegc" }, \
 	{ (1UL << XFS_OPSTATE_BLOCKGC_ENABLED),		"blockgc" }
 
@@ -418,9 +424,7 @@ __XFS_IS_OPSTATE(blockgc_enabled, BLOCKGC_ENABLED)
 #define XFS_MAX_IO_LOG		30	/* 1G */
 #define XFS_MIN_IO_LOG		PAGE_SHIFT
 
-#define XFS_LAST_UNMOUNT_WAS_CLEAN(mp)	\
-				((mp)->m_flags & XFS_MOUNT_WAS_CLEAN)
-#define XFS_FORCED_SHUTDOWN(mp)	((mp)->m_flags & XFS_MOUNT_FS_SHUTDOWN)
+#define XFS_FORCED_SHUTDOWN(mp)		xfs_is_shutdown(mp)
 void xfs_do_force_shutdown(struct xfs_mount *mp, int flags, char *fname,
 		int lnnum);
 #define xfs_force_shutdown(m,f)	\

@@ -883,7 +883,7 @@ xchk_start_reaping(
 	 * Readonly filesystems do not perform inactivation or speculative
 	 * preallocation, so there's no need to restart the workers.
 	 */
-	if (!(sc->mp->m_flags & XFS_MOUNT_RDONLY)) {
+	if (!xfs_is_readonly(sc->mp)) {
 		xfs_inodegc_start(sc->mp);
 		xfs_blockgc_start(sc->mp);
 	}

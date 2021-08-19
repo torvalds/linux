@@ -419,7 +419,7 @@ xchk_validate_inputs(
 			goto out;
 
 		error = -EROFS;
-		if (mp->m_flags & XFS_MOUNT_RDONLY)
+		if (xfs_is_readonly(mp))
 			goto out;
 	}
 

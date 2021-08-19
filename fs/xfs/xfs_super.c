@@ -250,7 +250,7 @@ xfs_fs_show_options(
  *
  * Inode allocation patterns are altered only if inode32 is requested
  * (XFS_FEAT_SMALL_INUMS), and the filesystem is sufficiently large.
- * If altered, XFS_MOUNT_32BITINODES is set as well.
+ * If altered, XFS_OPSTATE_INODE32 is set as well.
  *
  * An agcount independent of that in the mount structure is provided
  * because in the growfs case, mp->m_sb.sb_agcount is not yet updated
@@ -292,13 +292,13 @@ xfs_set_inode_alloc(
 
 	/*
 	 * If user asked for no more than 32-bit inodes, and the fs is
-	 * sufficiently large, set XFS_MOUNT_32BITINODES if we must alter
+	 * sufficiently large, set XFS_OPSTATE_INODE32 if we must alter
 	 * the allocator to accommodate the request.
 	 */
 	if (xfs_has_small_inums(mp) && ino > XFS_MAXINUMBER_32)
-		mp->m_flags |= XFS_MOUNT_32BITINODES;
+		set_bit(XFS_OPSTATE_INODE32, &mp->m_opstate);
 	else
-		mp->m_flags &= ~XFS_MOUNT_32BITINODES;
+		clear_bit(XFS_OPSTATE_INODE32, &mp->m_opstate);
 
 	for (index = 0; index < agcount; index++) {
 		struct xfs_perag	*pag;
@@ -307,7 +307,7 @@ xfs_set_inode_alloc(
 
 		pag = xfs_perag_get(mp, index);
 
-		if (mp->m_flags & XFS_MOUNT_32BITINODES) {
+		if (xfs_is_inode32(mp)) {
 			if (ino > XFS_MAXINUMBER_32) {
 				pag->pagi_inodeok = 0;
 				pag->pagf_metadata = 0;
@@ -327,7 +327,7 @@ xfs_set_inode_alloc(
 		xfs_perag_put(pag);
 	}
 
-	return (mp->m_flags & XFS_MOUNT_32BITINODES) ? maxagi : agcount;
+	return xfs_is_inode32(mp) ? maxagi : agcount;
 }
 
 STATIC int
@@ -887,7 +887,7 @@ xfs_fs_freeze(
 	 * here, so we can restart safely without racing with a stop in
 	 * xfs_fs_sync_fs().
 	 */
-	if (ret && !(mp->m_flags & XFS_MOUNT_RDONLY)) {
+	if (ret && !xfs_is_readonly(mp)) {
 		xfs_blockgc_start(mp);
 		xfs_inodegc_start(mp);
 	}
@@ -910,7 +910,7 @@ xfs_fs_unfreeze(
 	 * worker because there are no speculative preallocations on a readonly
 	 * filesystem.
 	 */
-	if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
+	if (!xfs_is_readonly(mp)) {
 		xfs_blockgc_start(mp);
 		xfs_inodegc_start(mp);
 	}
@@ -926,8 +926,6 @@ STATIC int
 xfs_finish_flags(
 	struct xfs_mount	*mp)
 {
-	int			ronly = (mp->m_flags & XFS_MOUNT_RDONLY);
-
 	/* Fail a mount where the logbuf is smaller than the log stripe */
 	if (xfs_has_logv2(mp)) {
 		if (mp->m_logbsize <= 0 &&
@@ -960,7 +958,7 @@ xfs_finish_flags(
 	/*
 	 * prohibit r/w mounts of read-only filesystems
 	 */
-	if ((mp->m_sb.sb_flags & XFS_SBF_READONLY) && !ronly) {
+	if ((mp->m_sb.sb_flags & XFS_SBF_READONLY) && !xfs_is_readonly(mp)) {
 		xfs_warn(mp,
 			"cannot mount a read-only filesystem as read-write");
 		return -EROFS;
@@ -1334,7 +1332,7 @@ xfs_fs_validate_params(
 	struct xfs_mount	*mp)
 {
 	/* No recovery flag requires a read-only mount */
-	if (xfs_has_norecovery(mp) && !(mp->m_flags & XFS_MOUNT_RDONLY)) {
+	if (xfs_has_norecovery(mp) && !xfs_is_readonly(mp)) {
 		xfs_warn(mp, "no-recovery mounts must be read-only.");
 		return -EINVAL;
 	}
@@ -1713,7 +1711,7 @@ xfs_remount_rw(
 		return -EINVAL;
 	}
 
-	mp->m_flags &= ~XFS_MOUNT_RDONLY;
+	clear_bit(XFS_OPSTATE_READONLY, &mp->m_opstate);
 
 	/*
 	 * If this is the first remount to writeable state we might have some
@@ -1801,7 +1799,7 @@ xfs_remount_ro(
 	xfs_save_resvblks(mp);
 
 	xfs_log_clean(mp);
-	mp->m_flags |= XFS_MOUNT_RDONLY;
+	set_bit(XFS_OPSTATE_READONLY, &mp->m_opstate);
 
 	return 0;
 }
@@ -1851,14 +1849,14 @@ xfs_fs_reconfigure(
 	}
 
 	/* ro -> rw */
-	if ((mp->m_flags & XFS_MOUNT_RDONLY) && !(flags & SB_RDONLY)) {
+	if (xfs_is_readonly(mp) && !(flags & SB_RDONLY)) {
 		error = xfs_remount_rw(mp);
 		if (error)
 			return error;
 	}
 
 	/* rw -> ro */
-	if (!(mp->m_flags & XFS_MOUNT_RDONLY) && (flags & SB_RDONLY)) {
+	if (!xfs_is_readonly(mp) && (flags & SB_RDONLY)) {
 		error = xfs_remount_ro(mp);
 		if (error)
 			return error;
@@ -1925,7 +1923,7 @@ static int xfs_init_fs_context(
 	 * Copy binary VFS mount flags we are interested in.
 	 */
 	if (fc->sb_flags & SB_RDONLY)
-		mp->m_flags |= XFS_MOUNT_RDONLY;
+		set_bit(XFS_OPSTATE_READONLY, &mp->m_opstate);
 	if (fc->sb_flags & SB_DIRSYNC)
 		mp->m_features |= XFS_FEAT_DIRSYNC;
 	if (fc->sb_flags & SB_SYNCHRONOUS)
