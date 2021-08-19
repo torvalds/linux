@@ -18,6 +18,8 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/dmi.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
 #include <linux/input.h>
 #include <linux/slab.h>
 #include <sound/pcm.h>
@@ -76,6 +78,7 @@ enum {
 #define BYT_RT5640_LINEOUT		BIT(25)
 #define BYT_RT5640_LINEOUT_AS_HP2	BIT(26)
 #define BYT_RT5640_HSMIC2_ON_IN1	BIT(27)
+#define BYT_RT5640_JD_HP_ELITEP_1000G2	BIT(28)
 
 #define BYTCR_INPUT_DEFAULTS				\
 	(BYT_RT5640_IN3_MAP |				\
@@ -89,6 +92,8 @@ enum {
 
 struct byt_rt5640_private {
 	struct snd_soc_jack jack;
+	struct snd_soc_jack jack2;
+	struct gpio_desc *hsmic_detect;
 	struct clk *mclk;
 	struct device *codec_dev;
 };
@@ -141,6 +146,8 @@ static void log_quirks(struct device *dev)
 	}
 	if (byt_rt5640_quirk & BYT_RT5640_JD_NOT_INV)
 		dev_info(dev, "quirk JD_NOT_INV enabled\n");
+	if (byt_rt5640_quirk & BYT_RT5640_JD_HP_ELITEP_1000G2)
+		dev_info(dev, "quirk JD_HP_ELITEPAD_1000G2 enabled\n");
 	if (byt_rt5640_quirk & BYT_RT5640_MONO_SPEAKER)
 		dev_info(dev, "quirk MONO_SPEAKER enabled\n");
 	if (byt_rt5640_quirk & BYT_RT5640_NO_SPEAKERS)
@@ -446,6 +453,75 @@ static struct snd_soc_jack_pin rt5640_pins[] = {
 	},
 };
 
+static struct snd_soc_jack_pin rt5640_pins2[] = {
+	{
+		/* The 2nd headset jack uses lineout with an external HP-amp */
+		.pin	= "Line Out",
+		.mask	= SND_JACK_HEADPHONE,
+	},
+	{
+		.pin	= "Headset Mic 2",
+		.mask	= SND_JACK_MICROPHONE,
+	},
+};
+
+struct snd_soc_jack_gpio rt5640_jack_gpio = {
+	.name = "hp-detect",
+	.report = SND_JACK_HEADSET,
+	.invert = true,
+	.debounce_time = 200,
+};
+
+struct snd_soc_jack_gpio rt5640_jack2_gpio = {
+	.name = "hp2-detect",
+	.report = SND_JACK_HEADSET,
+	.invert = true,
+	.debounce_time = 200,
+};
+
+static const struct acpi_gpio_params acpi_gpio0 = { 0, 0, false };
+static const struct acpi_gpio_params acpi_gpio1 = { 1, 0, false };
+static const struct acpi_gpio_params acpi_gpio2 = { 2, 0, false };
+
+static const struct acpi_gpio_mapping byt_rt5640_hp_elitepad_1000g2_gpios[] = {
+	{ "hp-detect-gpios", &acpi_gpio0, 1, },
+	{ "headset-mic-detect-gpios", &acpi_gpio1, 1, },
+	{ "hp2-detect-gpios", &acpi_gpio2, 1, },
+	{ },
+};
+
+int byt_rt5640_hp_elitepad_1000g2_jack1_check(void *data)
+{
+	struct byt_rt5640_private *priv = data;
+	int jack_status, mic_status;
+
+	jack_status = gpiod_get_value_cansleep(rt5640_jack_gpio.desc);
+	if (jack_status)
+		return 0;
+
+	mic_status = gpiod_get_value_cansleep(priv->hsmic_detect);
+	if (mic_status)
+		return SND_JACK_HEADPHONE;
+	else
+		return SND_JACK_HEADSET;
+}
+
+int byt_rt5640_hp_elitepad_1000g2_jack2_check(void *data)
+{
+	struct snd_soc_component *component = data;
+	int jack_status, report;
+
+	jack_status = gpiod_get_value_cansleep(rt5640_jack2_gpio.desc);
+	if (jack_status)
+		return 0;
+
+	rt5640_enable_micbias1_for_ovcd(component);
+	report = rt5640_detect_headset(component, rt5640_jack2_gpio.desc);
+	rt5640_disable_micbias1_for_ovcd(component);
+
+	return report;
+}
+
 static int byt_rt5640_aif1_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
@@ -657,7 +733,8 @@ static const struct dmi_system_id byt_rt5640_quirk_table[] = {
 					BYT_RT5640_MCLK_EN |
 					BYT_RT5640_LINEOUT |
 					BYT_RT5640_LINEOUT_AS_HP2 |
-					BYT_RT5640_HSMIC2_ON_IN1),
+					BYT_RT5640_HSMIC2_ON_IN1 |
+					BYT_RT5640_JD_HP_ELITEP_1000G2),
 	},
 	{	/* HP Pavilion x2 10-k0XX, 10-n0XX */
 		.matches = {
@@ -1180,7 +1257,51 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 		snd_soc_component_set_jack(component, &priv->jack, NULL);
 	}
 
+	if (byt_rt5640_quirk & BYT_RT5640_JD_HP_ELITEP_1000G2) {
+		ret = snd_soc_card_jack_new(card, "Headset",
+					    SND_JACK_HEADSET,
+					    &priv->jack, rt5640_pins,
+					    ARRAY_SIZE(rt5640_pins));
+		if (ret)
+			return ret;
+
+		ret = snd_soc_card_jack_new(card, "Headset 2",
+					    SND_JACK_HEADSET,
+					    &priv->jack2, rt5640_pins2,
+					    ARRAY_SIZE(rt5640_pins2));
+		if (ret)
+			return ret;
+
+		rt5640_jack_gpio.data = priv;
+		rt5640_jack_gpio.gpiod_dev = priv->codec_dev;
+		rt5640_jack_gpio.jack_status_check = byt_rt5640_hp_elitepad_1000g2_jack1_check;
+		ret = snd_soc_jack_add_gpios(&priv->jack, 1, &rt5640_jack_gpio);
+		if (ret)
+			return ret;
+
+		rt5640_set_ovcd_params(component);
+		rt5640_jack2_gpio.data = component;
+		rt5640_jack2_gpio.gpiod_dev = priv->codec_dev;
+		rt5640_jack2_gpio.jack_status_check = byt_rt5640_hp_elitepad_1000g2_jack2_check;
+		ret = snd_soc_jack_add_gpios(&priv->jack2, 1, &rt5640_jack2_gpio);
+		if (ret) {
+			snd_soc_jack_free_gpios(&priv->jack, 1, &rt5640_jack_gpio);
+			return ret;
+		}
+	}
+
 	return 0;
+}
+
+static void byt_rt5640_exit(struct snd_soc_pcm_runtime *runtime)
+{
+	struct snd_soc_card *card = runtime->card;
+	struct byt_rt5640_private *priv = snd_soc_card_get_drvdata(card);
+
+	if (byt_rt5640_quirk & BYT_RT5640_JD_HP_ELITEP_1000G2) {
+		snd_soc_jack_free_gpios(&priv->jack2, 1, &rt5640_jack2_gpio);
+		snd_soc_jack_free_gpios(&priv->jack, 1, &rt5640_jack_gpio);
+	}
 }
 
 static int byt_rt5640_codec_fixup(struct snd_soc_pcm_runtime *rtd,
@@ -1295,6 +1416,7 @@ static struct snd_soc_dai_link byt_rt5640_dais[] = {
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.init = byt_rt5640_init,
+		.exit = byt_rt5640_exit,
 		.ops = &byt_rt5640_be_ssp2_ops,
 		SND_SOC_DAILINK_REG(ssp2_port, ssp2_codec, platform),
 	},
@@ -1498,10 +1620,24 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	priv->codec_dev = get_device(codec_dev);
 
+	if (byt_rt5640_quirk & BYT_RT5640_JD_HP_ELITEP_1000G2) {
+		acpi_dev_add_driver_gpios(ACPI_COMPANION(priv->codec_dev),
+					  byt_rt5640_hp_elitepad_1000g2_gpios);
+
+		priv->hsmic_detect = devm_fwnode_gpiod_get(&pdev->dev, codec_dev->fwnode,
+							   "headset-mic-detect", GPIOD_IN,
+							   "headset-mic-detect");
+		if (IS_ERR(priv->hsmic_detect)) {
+			ret_val = PTR_ERR(priv->hsmic_detect);
+			dev_err_probe(&pdev->dev, ret_val, "getting hsmic-detect GPIO\n");
+			goto err_device;
+		}
+	}
+
 	/* Must be called before register_card, also see declaration comment. */
 	ret_val = byt_rt5640_add_codec_device_props(codec_dev, priv);
 	if (ret_val)
-		goto err_device;
+		goto err_remove_gpios;
 
 	log_quirks(&pdev->dev);
 
@@ -1605,6 +1741,9 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 
 err:
 	device_remove_software_node(priv->codec_dev);
+err_remove_gpios:
+	if (byt_rt5640_quirk & BYT_RT5640_JD_HP_ELITEP_1000G2)
+		acpi_dev_remove_driver_gpios(ACPI_COMPANION(priv->codec_dev));
 err_device:
 	put_device(priv->codec_dev);
 	return ret_val;
@@ -1614,6 +1753,9 @@ static int snd_byt_rt5640_mc_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct byt_rt5640_private *priv = snd_soc_card_get_drvdata(card);
+
+	if (byt_rt5640_quirk & BYT_RT5640_JD_HP_ELITEP_1000G2)
+		acpi_dev_remove_driver_gpios(ACPI_COMPANION(priv->codec_dev));
 
 	device_remove_software_node(priv->codec_dev);
 	put_device(priv->codec_dev);
