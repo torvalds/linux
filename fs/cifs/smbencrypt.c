@@ -24,6 +24,7 @@
 #include "cifsglob.h"
 #include "cifs_debug.h"
 #include "cifsproto.h"
+#include "../cifs_common/md4.h"
 
 #ifndef false
 #define false 0
@@ -42,29 +43,24 @@ static int
 mdfour(unsigned char *md4_hash, unsigned char *link_str, int link_len)
 {
 	int rc;
-	struct crypto_shash *md4 = NULL;
-	struct sdesc *sdescmd4 = NULL;
+	struct md4_ctx mctx;
 
-	rc = cifs_alloc_hash("md4", &md4, &sdescmd4);
-	if (rc)
-		goto mdfour_err;
-
-	rc = crypto_shash_init(&sdescmd4->shash);
+	rc = cifs_md4_init(&mctx);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not init md4 shash\n", __func__);
+		cifs_dbg(VFS, "%s: Could not init MD4\n", __func__);
 		goto mdfour_err;
 	}
-	rc = crypto_shash_update(&sdescmd4->shash, link_str, link_len);
+	rc = cifs_md4_update(&mctx, link_str, link_len);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not update with link_str\n", __func__);
+		cifs_dbg(VFS, "%s: Could not update MD4\n", __func__);
 		goto mdfour_err;
 	}
-	rc = crypto_shash_final(&sdescmd4->shash, md4_hash);
+	rc = cifs_md4_final(&mctx, md4_hash);
 	if (rc)
-		cifs_dbg(VFS, "%s: Could not generate md4 hash\n", __func__);
+		cifs_dbg(VFS, "%s: Could not finalize MD4\n", __func__);
+
 
 mdfour_err:
-	cifs_free_hash(&md4, &sdescmd4);
 	return rc;
 }
 
