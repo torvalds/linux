@@ -1706,13 +1706,16 @@ static int ext4_da_map_blocks(struct inode *inode, sector_t iblock,
 		}
 
 		/*
-		 * Delayed extent could be allocated by fallocate.
-		 * So we need to check it.
+		 * the buffer head associated with a delayed and not unwritten
+		 * block found in the extent status cache must contain an
+		 * invalid block number and have its BH_New and BH_Delay bits
+		 * set, reflecting the state assigned when the block was
+		 * initially delayed allocated
 		 */
-		if (ext4_es_is_delayed(&es) && !ext4_es_is_unwritten(&es)) {
-			map_bh(bh, inode->i_sb, invalid_block);
-			set_buffer_new(bh);
-			set_buffer_delay(bh);
+		if (ext4_es_is_delonly(&es)) {
+			BUG_ON(bh->b_blocknr != invalid_block);
+			BUG_ON(!buffer_new(bh));
+			BUG_ON(!buffer_delay(bh));
 			return 0;
 		}
 
