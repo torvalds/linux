@@ -1508,10 +1508,12 @@ static irqreturn_t dpaa2_switch_irq0_handler_thread(int irq_num, void *arg)
 	}
 
 	if (status & DPSW_IRQ_EVENT_ENDPOINT_CHANGED) {
+		rtnl_lock();
 		if (dpaa2_switch_port_has_mac(port_priv))
 			dpaa2_switch_port_disconnect_mac(port_priv);
 		else
 			dpaa2_switch_port_connect_mac(port_priv);
+		rtnl_unlock();
 	}
 
 out:
@@ -3201,7 +3203,9 @@ static int dpaa2_switch_remove(struct fsl_mc_device *sw_dev)
 	for (i = 0; i < ethsw->sw_attr.num_ifs; i++) {
 		port_priv = ethsw->ports[i];
 		unregister_netdev(port_priv->netdev);
+		rtnl_lock();
 		dpaa2_switch_port_disconnect_mac(port_priv);
+		rtnl_unlock();
 		free_netdev(port_priv->netdev);
 	}
 
