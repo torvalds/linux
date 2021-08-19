@@ -16,7 +16,6 @@
 #include "ipa_smp2p.h"
 #include "ipa.h"
 #include "ipa_uc.h"
-#include "ipa_clock.h"
 
 /**
  * DOC: IPA SMP2P communication with the modem
@@ -153,6 +152,7 @@ static void ipa_smp2p_panic_notifier_unregister(struct ipa_smp2p *smp2p)
 static irqreturn_t ipa_smp2p_modem_setup_ready_isr(int irq, void *dev_id)
 {
 	struct ipa_smp2p *smp2p = dev_id;
+	struct device *dev;
 	int ret;
 
 	mutex_lock(&smp2p->mutex);
@@ -161,17 +161,20 @@ static irqreturn_t ipa_smp2p_modem_setup_ready_isr(int irq, void *dev_id)
 		goto out_mutex_unlock;
 	smp2p->disabled = true;		/* If any others arrive, ignore them */
 
-	/* The clock needs to be active for setup */
-	ret = ipa_clock_get(smp2p->ipa);
-	if (WARN_ON(ret < 0))
-		goto out_clock_put;
+	/* Power needs to be active for setup */
+	dev = &smp2p->ipa->pdev->dev;
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		dev_err(dev, "error %d getting power for setup\n", ret);
+		goto out_power_put;
+	}
 
 	/* An error here won't cause driver shutdown, so warn if one occurs */
 	ret = ipa_setup(smp2p->ipa);
 	WARN(ret != 0, "error %d from ipa_setup()\n", ret);
 
-out_clock_put:
-	(void)ipa_clock_put(smp2p->ipa);
+out_power_put:
+	(void)pm_runtime_put(dev);
 out_mutex_unlock:
 	mutex_unlock(&smp2p->mutex);
 
@@ -211,7 +214,7 @@ static void ipa_smp2p_clock_release(struct ipa *ipa)
 	if (!ipa->smp2p->clock_on)
 		return;
 
-	(void)ipa_clock_put(ipa);
+	(void)pm_runtime_put(&ipa->pdev->dev);
 	ipa->smp2p->clock_on = false;
 }
 
