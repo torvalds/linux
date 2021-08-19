@@ -16,7 +16,6 @@ config CIFS
 	select CRYPTO_GCM
 	select CRYPTO_ECB
 	select CRYPTO_AES
-	select CRYPTO_LIB_DES
 	select KEYS
 	select DNS_RESOLVER
 	select ASN1
@@ -84,33 +83,6 @@ config CIFS_ALLOW_INSECURE_LEGACY
 	  on mounts with cifs.ko
 
 	  If unsure, say Y.
-
-config CIFS_WEAK_PW_HASH
-	bool "Support legacy servers which use weaker LANMAN security"
-	depends on CIFS && CIFS_ALLOW_INSECURE_LEGACY
-	help
-	  Modern CIFS servers including Samba and most Windows versions
-	  (since 1997) support stronger NTLM (and even NTLMv2 and Kerberos)
-	  security mechanisms. These hash the password more securely
-	  than the mechanisms used in the older LANMAN version of the
-	  SMB protocol but LANMAN based authentication is needed to
-	  establish sessions with some old SMB servers.
-
-	  Enabling this option allows the cifs module to mount to older
-	  LANMAN based servers such as OS/2 and Windows 95, but such
-	  mounts may be less secure than mounts using NTLM or more recent
-	  security mechanisms if you are on a public network.  Unless you
-	  have a need to access old SMB servers (and are on a private
-	  network) you probably want to say N.  Even if this support
-	  is enabled in the kernel build, LANMAN authentication will not be
-	  used automatically. At runtime LANMAN mounts are disabled but
-	  can be set to required (or optional) either in
-	  /proc/fs/cifs (see Documentation/admin-guide/cifs/usage.rst for
-	  more detail) or via an option on the mount command. This support
-	  is disabled by default in order to reduce the possibility of a
-	  downgrade attack.
-
-	  If unsure, say N.
 
 config CIFS_UPCALL
 	bool "Kerberos/SPNEGO advanced session setup"

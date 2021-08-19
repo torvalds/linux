@@ -57,12 +57,9 @@ static const match_table_t cifs_secflavor_tokens = {
 	{ Opt_sec_krb5p, "krb5p" },
 	{ Opt_sec_ntlmsspi, "ntlmsspi" },
 	{ Opt_sec_ntlmssp, "ntlmssp" },
-	{ Opt_ntlm, "ntlm" },
-	{ Opt_sec_ntlmi, "ntlmi" },
 	{ Opt_sec_ntlmv2, "nontlm" },
 	{ Opt_sec_ntlmv2, "ntlmv2" },
 	{ Opt_sec_ntlmv2i, "ntlmv2i" },
-	{ Opt_sec_lanman, "lanman" },
 	{ Opt_sec_none, "none" },
 
 	{ Opt_sec_err, NULL }
@@ -221,23 +218,12 @@ cifs_parse_security_flavors(struct fs_context *fc, char *value, struct smb3_fs_c
 	case Opt_sec_ntlmssp:
 		ctx->sectype = RawNTLMSSP;
 		break;
-	case Opt_sec_ntlmi:
-		ctx->sign = true;
-		fallthrough;
-	case Opt_ntlm:
-		ctx->sectype = NTLM;
-		break;
 	case Opt_sec_ntlmv2i:
 		ctx->sign = true;
 		fallthrough;
 	case Opt_sec_ntlmv2:
 		ctx->sectype = NTLMv2;
 		break;
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-	case Opt_sec_lanman:
-		ctx->sectype = LANMAN;
-		break;
-#endif
 	case Opt_sec_none:
 		ctx->nullauth = 1;
 		break;

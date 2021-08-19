@@ -42,10 +42,6 @@ static struct {
 	int index;
 	char *name;
 } protocols[] = {
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-	{LANMAN_PROT, "\2LM1.2X002"},
-	{LANMAN2_PROT, "\2LANMAN2.1"},
-#endif /* weak password hashing for legacy clients */
 	{CIFS_PROT, "\2NT LM 0.12"},
 	{POSIX_PROT, "\2POSIX 2"},
 	{BAD_PROT, "\2"}
@@ -55,10 +51,6 @@ static struct {
 	int index;
 	char *name;
 } protocols[] = {
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-	{LANMAN_PROT, "\2LM1.2X002"},
-	{LANMAN2_PROT, "\2LANMAN2.1"},
-#endif /* weak password hashing for legacy clients */
 	{CIFS_PROT, "\2NT LM 0.12"},
 	{BAD_PROT, "\2"}
 };
@@ -66,17 +58,9 @@ static struct {
 
 /* define the number of elements in the cifs dialect array */
 #ifdef CONFIG_CIFS_POSIX
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-#define CIFS_NUM_PROT 4
-#else
 #define CIFS_NUM_PROT 2
-#endif /* CIFS_WEAK_PW_HASH */
 #else /* not posix */
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-#define CIFS_NUM_PROT 3
-#else
 #define CIFS_NUM_PROT 1
-#endif /* CONFIG_CIFS_WEAK_PW_HASH */
 #endif /* CIFS_POSIX */
 
 /*
@@ -475,89 +459,6 @@ cifs_enable_signing(struct TCP_Server_Info *server, bool mnt_sign_required)
 	return 0;
 }
 
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-static int
-decode_lanman_negprot_rsp(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr)
-{
-	__s16 tmp;
-	struct lanman_neg_rsp *rsp = (struct lanman_neg_rsp *)pSMBr;
-
-	if (server->dialect != LANMAN_PROT && server->dialect != LANMAN2_PROT)
-		return -EOPNOTSUPP;
-
-	server->sec_mode = le16_to_cpu(rsp->SecurityMode);
-	server->maxReq = min_t(unsigned int,
-			       le16_to_cpu(rsp->MaxMpxCount),
-			       cifs_max_pending);
-	set_credits(server, server->maxReq);
-	server->maxBuf = le16_to_cpu(rsp->MaxBufSize);
-	/* set up max_read for readpages check */
-	server->max_read = server->maxBuf;
-	/* even though we do not use raw we might as well set this
-	accurately, in case we ever find a need for it */
-	if ((le16_to_cpu(rsp->RawMode) & RAW_ENABLE) == RAW_ENABLE) {
-		server->max_rw = 0xFF00;
-		server->capabilities = CAP_MPX_MODE | CAP_RAW_MODE;
-	} else {
-		server->max_rw = 0;/* do not need to use raw anyway */
-		server->capabilities = CAP_MPX_MODE;
-	}
-	tmp = (__s16)le16_to_cpu(rsp->ServerTimeZone);
-	if (tmp == -1) {
-		/* OS/2 often does not set timezone therefore
-		 * we must use server time to calc time zone.
-		 * Could deviate slightly from the right zone.
-		 * Smallest defined timezone difference is 15 minutes
-		 * (i.e. Nepal).  Rounding up/down is done to match
-		 * this requirement.
-		 */
-		int val, seconds, remain, result;
-		struct timespec64 ts;
-		time64_t utc = ktime_get_real_seconds();
-		ts = cnvrtDosUnixTm(rsp->SrvTime.Date,
-				    rsp->SrvTime.Time, 0);
-		cifs_dbg(FYI, "SrvTime %lld sec since 1970 (utc: %lld) diff: %lld\n",
-			 ts.tv_sec, utc,
-			 utc - ts.tv_sec);
-		val = (int)(utc - ts.tv_sec);
-		seconds = abs(val);
-		result = (seconds / MIN_TZ_ADJ) * MIN_TZ_ADJ;
-		remain = seconds % MIN_TZ_ADJ;
-		if (remain >= (MIN_TZ_ADJ / 2))
-			result += MIN_TZ_ADJ;
-		if (val < 0)
-			result = -result;
-		server->timeAdj = result;
-	} else {
-		server->timeAdj = (int)tmp;
-		server->timeAdj *= 60; /* also in seconds */
-	}
-	cifs_dbg(FYI, "server->timeAdj: %d seconds\n", server->timeAdj);
-
-
-	/* BB get server time for time conversions and add
-	code to use it and timezone since this is not UTC */
-
-	if (rsp->EncryptionKeyLength ==
-			cpu_to_le16(CIFS_CRYPTO_KEY_SIZE)) {
-		memcpy(server->cryptkey, rsp->EncryptionKey,
-			CIFS_CRYPTO_KEY_SIZE);
-	} else if (server->sec_mode & SECMODE_PW_ENCRYPT) {
-		return -EIO; /* need cryptkey unless plain text */
-	}
-
-	cifs_dbg(FYI, "LANMAN negotiated\n");
-	return 0;
-}
-#else
-static inline int
-decode_lanman_negprot_rsp(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr)
-{
-	cifs_dbg(VFS, "mount failed, cifs module not built with CIFS_WEAK_PW_HASH support\n");
-	return -EOPNOTSUPP;
-}
-#endif
-
 static bool
 should_set_ext_sec_flag(enum securityEnum sectype)
 {
@@ -626,16 +527,12 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 	server->dialect = le16_to_cpu(pSMBr->DialectIndex);
 	cifs_dbg(FYI, "Dialect: %d\n", server->dialect);
 	/* Check wct = 1 error case */
-	if ((pSMBr->hdr.WordCount < 13) || (server->dialect == BAD_PROT)) {
+	if ((pSMBr->hdr.WordCount <= 13) || (server->dialect == BAD_PROT)) {
 		/* core returns wct = 1, but we do not ask for core - otherwise
 		small wct just comes when dialect index is -1 indicating we
 		could not negotiate a common dialect */
 		rc = -EOPNOTSUPP;
 		goto neg_err_exit;
-	} else if (pSMBr->hdr.WordCount == 13) {
-		server->negflavor = CIFS_NEGFLAVOR_LANMAN;
-		rc = decode_lanman_negprot_rsp(server, pSMBr);
-		goto signing_check;
 	} else if (pSMBr->hdr.WordCount != 17) {
 		/* unknown wct */
 		rc = -EOPNOTSUPP;
@@ -677,7 +574,6 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 		server->capabilities &= ~CAP_EXTENDED_SECURITY;
 	}
 
-signing_check:
 	if (!rc)
 		rc = cifs_enable_signing(server, ses->sign);
 neg_err_exit:
