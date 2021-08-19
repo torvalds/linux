@@ -202,6 +202,7 @@ config SND_SOC_MT8195_MT6359_RT1019_RT5682
 	select SND_SOC_RT1015P
 	select SND_SOC_RT5682_I2C
 	select SND_SOC_DMIC
+	select SND_SOC_HDMI_CODEC
 	help
 	  This adds ASoC driver for Mediatek MT8195 boards
 	  with the MT6359 RT1019 RT5682 audio codec.
