@@ -851,19 +851,25 @@ int traceprobe_update_arg(struct probe_arg *arg)
 /* When len=0, we just calculate the needed length */
 #define LEN_OR_ZERO (len ? len - pos : 0)
 static int __set_print_fmt(struct trace_probe *tp, char *buf, int len,
-			   bool is_return)
+			   enum probe_print_type ptype)
 {
 	struct probe_arg *parg;
 	int i, j;
 	int pos = 0;
 	const char *fmt, *arg;
 
-	if (!is_return) {
+	switch (ptype) {
+	case PROBE_PRINT_NORMAL:
 		fmt = "(%lx)";
 		arg = "REC->" FIELD_STRING_IP;
-	} else {
+		break;
+	case PROBE_PRINT_RETURN:
 		fmt = "(%lx <- %lx)";
 		arg = "REC->" FIELD_STRING_FUNC ", REC->" FIELD_STRING_RETIP;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return 0;
 	}
 
 	pos += snprintf(buf + pos, LEN_OR_ZERO, "\"%s", fmt);
@@ -912,20 +918,20 @@ static int __set_print_fmt(struct trace_probe *tp, char *buf, int len,
 }
 #undef LEN_OR_ZERO
 
-int traceprobe_set_print_fmt(struct trace_probe *tp, bool is_return)
+int traceprobe_set_print_fmt(struct trace_probe *tp, enum probe_print_type ptype)
 {
 	struct trace_event_call *call = trace_probe_event_call(tp);
 	int len;
 	char *print_fmt;
 
 	/* First: called with 0 length to calculate the needed length */
-	len = __set_print_fmt(tp, NULL, 0, is_return);
+	len = __set_print_fmt(tp, NULL, 0, ptype);
 	print_fmt = kmalloc(len + 1, GFP_KERNEL);
 	if (!print_fmt)
 		return -ENOMEM;
 
 	/* Second: actually write the @print_fmt */
-	__set_print_fmt(tp, print_fmt, len + 1, is_return);
+	__set_print_fmt(tp, print_fmt, len + 1, ptype);
 	call->print_fmt = print_fmt;
 
 	return 0;

@@ -742,6 +742,7 @@ static int __trace_kprobe_create(int argc, const char *argv[])
 	bool is_return = false;
 	char *symbol = NULL, *tmp = NULL;
 	const char *event = NULL, *group = KPROBE_EVENT_SYSTEM;
+	enum probe_print_type ptype;
 	int maxactive = 0;
 	long offset = 0;
 	void *addr = NULL;
@@ -875,7 +876,8 @@ static int __trace_kprobe_create(int argc, const char *argv[])
 			goto error;	/* This can be -ENOMEM */
 	}
 
-	ret = traceprobe_set_print_fmt(&tk->tp, is_return);
+	ptype = is_return ? PROBE_PRINT_RETURN : PROBE_PRINT_NORMAL;
+	ret = traceprobe_set_print_fmt(&tk->tp, ptype);
 	if (ret < 0)
 		goto error;
 
@@ -1799,6 +1801,7 @@ struct trace_event_call *
 create_local_trace_kprobe(char *func, void *addr, unsigned long offs,
 			  bool is_return)
 {
+	enum probe_print_type ptype;
 	struct trace_kprobe *tk;
 	int ret;
 	char *event;
@@ -1822,7 +1825,9 @@ create_local_trace_kprobe(char *func, void *addr, unsigned long offs,
 
 	init_trace_event_call(tk);
 
-	if (traceprobe_set_print_fmt(&tk->tp, trace_kprobe_is_return(tk)) < 0) {
+	ptype = trace_kprobe_is_return(tk) ?
+		PROBE_PRINT_RETURN : PROBE_PRINT_NORMAL;
+	if (traceprobe_set_print_fmt(&tk->tp, ptype) < 0) {
 		ret = -ENOMEM;
 		goto error;
 	}

@@ -536,6 +536,7 @@ static int __trace_uprobe_create(int argc, const char **argv)
 	const char *event = NULL, *group = UPROBE_EVENT_SYSTEM;
 	char *arg, *filename, *rctr, *rctr_end, *tmp;
 	char buf[MAX_EVENT_NAME_LEN];
+	enum probe_print_type ptype;
 	struct path path;
 	unsigned long offset, ref_ctr_offset;
 	bool is_return = false;
@@ -687,7 +688,8 @@ static int __trace_uprobe_create(int argc, const char **argv)
 			goto error;
 	}
 
-	ret = traceprobe_set_print_fmt(&tu->tp, is_ret_probe(tu));
+	ptype = is_ret_probe(tu) ? PROBE_PRINT_RETURN : PROBE_PRINT_NORMAL;
+	ret = traceprobe_set_print_fmt(&tu->tp, ptype);
 	if (ret < 0)
 		goto error;
 
@@ -1578,6 +1580,7 @@ struct trace_event_call *
 create_local_trace_uprobe(char *name, unsigned long offs,
 			  unsigned long ref_ctr_offset, bool is_return)
 {
+	enum probe_print_type ptype;
 	struct trace_uprobe *tu;
 	struct path path;
 	int ret;
@@ -1612,7 +1615,8 @@ create_local_trace_uprobe(char *name, unsigned long offs,
 	tu->filename = kstrdup(name, GFP_KERNEL);
 	init_trace_event_call(tu);
 
-	if (traceprobe_set_print_fmt(&tu->tp, is_ret_probe(tu)) < 0) {
+	ptype = is_ret_probe(tu) ? PROBE_PRINT_RETURN : PROBE_PRINT_NORMAL;
+	if (traceprobe_set_print_fmt(&tu->tp, ptype) < 0) {
 		ret = -ENOMEM;
 		goto error;
 	}

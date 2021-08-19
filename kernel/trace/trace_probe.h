@@ -363,7 +363,12 @@ extern int traceprobe_split_symbol_offset(char *symbol, long *offset);
 int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
 				char *buf, int offset);
 
-extern int traceprobe_set_print_fmt(struct trace_probe *tp, bool is_return);
+enum probe_print_type {
+	PROBE_PRINT_NORMAL,
+	PROBE_PRINT_RETURN,
+};
+
+extern int traceprobe_set_print_fmt(struct trace_probe *tp, enum probe_print_type ptype);
 
 #ifdef CONFIG_PERF_EVENTS
 extern struct trace_event_call *
