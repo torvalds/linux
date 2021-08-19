@@ -2372,7 +2372,8 @@ free_q_irqs:
 static int ice_xdp_alloc_setup_rings(struct ice_vsi *vsi)
 {
 	struct device *dev = ice_pf_to_dev(vsi->back);
-	int i;
+	struct ice_tx_desc *tx_desc;
+	int i, j;
 
 	for (i = 0; i < vsi->num_xdp_txq; i++) {
 		u16 xdp_q_idx = vsi->alloc_txq + i;
@@ -2387,6 +2388,8 @@ static int ice_xdp_alloc_setup_rings(struct ice_vsi *vsi)
 		xdp_ring->reg_idx = vsi->txq_map[xdp_q_idx];
 		xdp_ring->vsi = vsi;
 		xdp_ring->netdev = NULL;
+		xdp_ring->next_dd = ICE_TX_THRESH - 1;
+		xdp_ring->next_rs = ICE_TX_THRESH - 1;
 		xdp_ring->dev = dev;
 		xdp_ring->count = vsi->num_tx_desc;
 		WRITE_ONCE(vsi->xdp_rings[i], xdp_ring);
@@ -2394,6 +2397,10 @@ static int ice_xdp_alloc_setup_rings(struct ice_vsi *vsi)
 			goto free_xdp_rings;
 		ice_set_ring_xdp(xdp_ring);
 		xdp_ring->xsk_pool = ice_tx_xsk_pool(xdp_ring);
+		for (j = 0; j < xdp_ring->count; j++) {
+			tx_desc = ICE_TX_DESC(xdp_ring, j);
+			tx_desc->cmd_type_offset_bsz = cpu_to_le64(ICE_TX_DESC_DTYPE_DESC_DONE);
+		}
 	}
 
 	ice_for_each_rxq(vsi, i)

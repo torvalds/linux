@@ -13,6 +13,7 @@
 #define ICE_MAX_CHAINED_RX_BUFS	5
 #define ICE_MAX_BUF_TXD		8
 #define ICE_MIN_TX_LEN		17
+#define ICE_TX_THRESH		32
 
 /* The size limit for a transmit buffer in a descriptor is (16K - 1).
  * In order to align with the read requests we will align the value to
@@ -310,12 +311,15 @@ struct ice_tx_ring {
 	struct ice_vsi *vsi;		/* Backreference to associated VSI */
 	/* CL2 - 2nd cacheline starts here */
 	dma_addr_t dma;			/* physical address of ring */
+	struct xsk_buff_pool *xsk_pool;
 	u16 next_to_use;
 	u16 next_to_clean;
+	u16 next_rs;
+	u16 next_dd;
+	u16 q_handle;			/* Queue handle per TC */
+	u16 reg_idx;			/* HW register index of the ring */
 	u16 count;			/* Number of descriptors */
 	u16 q_index;			/* Queue number of ring */
-	struct xsk_buff_pool *xsk_pool;
-
 	/* stats structs */
 	struct ice_q_stats	stats;
 	struct u64_stats_sync syncp;
@@ -326,8 +330,6 @@ struct ice_tx_ring {
 	DECLARE_BITMAP(xps_state, ICE_TX_NBITS);	/* XPS Config State */
 	struct ice_ptp_tx *tx_tstamps;
 	u32 txq_teid;			/* Added Tx queue TEID */
-	u16 q_handle;			/* Queue handle per TC */
-	u16 reg_idx;			/* HW register index of the ring */
 #define ICE_TX_FLAGS_RING_XDP		BIT(0)
 	u8 flags;
 	u8 dcb_tc;			/* Traffic class of ring */
