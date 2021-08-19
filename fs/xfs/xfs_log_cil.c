@@ -571,7 +571,7 @@ xlog_discard_busy_extents(
 	struct blk_plug		plug;
 	int			error = 0;
 
-	ASSERT(mp->m_flags & XFS_MOUNT_DISCARD);
+	ASSERT(xfs_has_discard(mp));
 
 	blk_start_plug(&plug);
 	list_for_each_entry(busyp, list, list) {
@@ -633,7 +633,7 @@ xlog_cil_committed(
 
 	xfs_extent_busy_sort(&ctx->busy_extents);
 	xfs_extent_busy_clear(mp, &ctx->busy_extents,
-			     (mp->m_flags & XFS_MOUNT_DISCARD) && !abort);
+			      xfs_has_discard(mp) && !abort);
 
 	spin_lock(&ctx->cil->xc_push_lock);
 	list_del(&ctx->committing);

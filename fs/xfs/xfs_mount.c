@@ -62,7 +62,7 @@ xfs_uuid_mount(
 	/* Publish UUID in struct super_block */
 	uuid_copy(&mp->m_super->s_uuid, uuid);
 
-	if (mp->m_flags & XFS_MOUNT_NOUUID)
+	if (xfs_has_nouuid(mp))
 		return 0;
 
 	if (uuid_is_null(uuid)) {
@@ -104,7 +104,7 @@ xfs_uuid_unmount(
 	uuid_t			*uuid = &mp->m_sb.sb_uuid;
 	int			i;
 
-	if (mp->m_flags & XFS_MOUNT_NOUUID)
+	if (xfs_has_nouuid(mp))
 		return;
 
 	mutex_lock(&xfs_uuid_table_mutex);
@@ -350,8 +350,7 @@ xfs_update_alignment(
 		sbp->sb_unit = mp->m_dalign;
 		sbp->sb_width = mp->m_swidth;
 		mp->m_update_sb = true;
-	} else if ((mp->m_flags & XFS_MOUNT_NOALIGN) != XFS_MOUNT_NOALIGN &&
-		    xfs_has_dalign(mp)) {
+	} else if (!xfs_has_noalign(mp) && xfs_has_dalign(mp)) {
 		mp->m_dalign = sbp->sb_unit;
 		mp->m_swidth = sbp->sb_width;
 	}
@@ -783,12 +782,15 @@ xfs_mountfs(
 	/*
 	 * Now that we've recovered any pending superblock feature bit
 	 * additions, we can finish setting up the attr2 behaviour for the
-	 * mount. If no attr2 mount options were specified, the we use the
-	 * behaviour specified by the superblock feature bit.
+	 * mount. The noattr2 option overrides the superblock flag, so only
+	 * check the superblock feature flag if the mount option is not set.
 	 */
-	if (!(mp->m_flags & (XFS_MOUNT_ATTR2|XFS_MOUNT_NOATTR2)) &&
-	    xfs_has_attr2(mp))
-		mp->m_flags |= XFS_MOUNT_ATTR2;
+	if (xfs_has_noattr2(mp)) {
+		mp->m_features &= ~XFS_FEAT_ATTR2;
+	} else if (!xfs_has_attr2(mp) &&
+		   (mp->m_sb.sb_features2 & XFS_SB_VERSION2_ATTR2BIT)) {
+		mp->m_features |= XFS_FEAT_ATTR2;
+	}
 
 	/*
 	 * Get and sanity-check the root inode.
@@ -890,10 +892,8 @@ xfs_mountfs(
 	 * We use the same quiesce mechanism as the rw->ro remount, as they are
 	 * semantically identical operations.
 	 */
-	if ((mp->m_flags & (XFS_MOUNT_RDONLY|XFS_MOUNT_NORECOVERY)) ==
-							XFS_MOUNT_RDONLY) {
+	if ((mp->m_flags & XFS_MOUNT_RDONLY) && !xfs_has_norecovery(mp))
 		xfs_log_clean(mp);
-	}
 
 	/*
 	 * Complete the quota initialisation, post-log-replay component.

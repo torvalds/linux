@@ -224,7 +224,7 @@ xfs_attr_try_sf_addname(
 	if (!error && !(args->op_flags & XFS_DA_OP_NOTIME))
 		xfs_trans_ichgtime(args->trans, dp, XFS_ICHGTIME_CHG);
 
-	if (dp->i_mount->m_flags & XFS_MOUNT_WSYNC)
+	if (xfs_has_wsync(dp->i_mount))
 		xfs_trans_set_sync(args->trans);
 
 	return error;
@@ -808,7 +808,7 @@ xfs_attr_set(
 	 * If this is a synchronous mount, make sure that the
 	 * transaction goes to disk before returning to the user.
 	 */
-	if (mp->m_flags & XFS_MOUNT_WSYNC)
+	if (xfs_has_wsync(mp))
 		xfs_trans_set_sync(args->trans);
 
 	if (!(args->op_flags & XFS_DA_OP_NOTIME))

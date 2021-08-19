@@ -480,7 +480,7 @@ xfs_scrub_metadata(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		goto out;
 	error = -ENOTRECOVERABLE;
-	if (mp->m_flags & XFS_MOUNT_NORECOVERY)
+	if (xfs_has_norecovery(mp))
 		goto out;
 
 	error = xchk_validate_inputs(mp, sm);

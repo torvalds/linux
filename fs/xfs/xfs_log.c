@@ -356,7 +356,7 @@ xfs_log_writable(
 	 * mounts allow internal writes for log recovery and unmount purposes,
 	 * so don't restrict that case.
 	 */
-	if (mp->m_flags & XFS_MOUNT_NORECOVERY)
+	if (xfs_has_norecovery(mp))
 		return false;
 	if (xfs_readonly_buftarg(mp->m_ddev_targp))
 		return false;
@@ -633,7 +633,7 @@ xfs_log_mount(
 	int		error = 0;
 	int		min_logfsbs;
 
-	if (!(mp->m_flags & XFS_MOUNT_NORECOVERY)) {
+	if (!xfs_has_norecovery(mp)) {
 		xfs_notice(mp, "Mounting V%d Filesystem",
 			   XFS_SB_VERSION_NUM(&mp->m_sb));
 	} else {
@@ -719,8 +719,8 @@ xfs_log_mount(
 	 * skip log recovery on a norecovery mount.  pretend it all
 	 * just worked.
 	 */
-	if (!(mp->m_flags & XFS_MOUNT_NORECOVERY)) {
-		int	readonly = (mp->m_flags & XFS_MOUNT_RDONLY);
+	if (!xfs_has_norecovery(mp)) {
+		bool	readonly = (mp->m_flags & XFS_MOUNT_RDONLY);
 
 		if (readonly)
 			mp->m_flags &= ~XFS_MOUNT_RDONLY;
@@ -780,8 +780,8 @@ xfs_log_mount_finish(
 	bool			readonly = (mp->m_flags & XFS_MOUNT_RDONLY);
 	int			error = 0;
 
-	if (mp->m_flags & XFS_MOUNT_NORECOVERY) {
-		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);
+	if (xfs_has_norecovery(mp)) {
+		ASSERT(readonly);
 		return 0;
 	} else if (readonly) {
 		/* Allow unlinked processing to proceed */
@@ -3941,7 +3941,7 @@ xfs_log_check_lsn(
 	 * resets the in-core LSN. We can't validate in this mode, but
 	 * modifications are not allowed anyways so just return true.
 	 */
-	if (mp->m_flags & XFS_MOUNT_NORECOVERY)
+	if (xfs_has_norecovery(mp))
 		return true;
 
 	/*

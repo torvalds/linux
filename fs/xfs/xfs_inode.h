@@ -400,8 +400,7 @@ enum layout_break_reason {
  * new subdirectory gets S_ISGID bit from parent.
  */
 #define XFS_INHERIT_GID(pip)	\
-	(((pip)->i_mount->m_flags & XFS_MOUNT_GRPID) || \
-	 (VFS_I(pip)->i_mode & S_ISGID))
+	(xfs_has_grpid((pip)->i_mount) || (VFS_I(pip)->i_mode & S_ISGID))
 
 int		xfs_release(struct xfs_inode *ip);
 void		xfs_inactive(struct xfs_inode *ip);

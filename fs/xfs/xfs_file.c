@@ -1122,7 +1122,7 @@ static inline bool xfs_file_sync_writes(struct file *filp)
 {
 	struct xfs_inode	*ip = XFS_I(file_inode(filp));
 
-	if (ip->i_mount->m_flags & XFS_MOUNT_WSYNC)
+	if (xfs_has_wsync(ip->i_mount))
 		return true;
 	if (filp->f_flags & (__O_SYNC | O_DSYNC))
 		return true;

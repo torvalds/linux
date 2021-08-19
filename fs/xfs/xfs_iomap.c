@@ -132,7 +132,7 @@ xfs_eof_alignment(
 		 * If mounted with the "-o swalloc" option the alignment is
 		 * increased from the strip unit size to the stripe width.
 		 */
-		if (mp->m_swidth && (mp->m_flags & XFS_MOUNT_SWALLOC))
+		if (mp->m_swidth && xfs_has_swalloc(mp))
 			align = mp->m_swidth;
 		else if (mp->m_dalign)
 			align = mp->m_dalign;
@@ -994,7 +994,7 @@ xfs_buffered_write_iomap_begin(
 		 * Determine the initial size of the preallocation.
 		 * We clean up any extra preallocation when the file is closed.
 		 */
-		if (mp->m_flags & XFS_MOUNT_ALLOCSIZE)
+		if (xfs_has_allocsize(mp))
 			prealloc_blocks = mp->m_allocsize_blocks;
 		else
 			prealloc_blocks = xfs_iomap_prealloc_size(ip, allocfork,

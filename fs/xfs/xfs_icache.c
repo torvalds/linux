@@ -602,7 +602,7 @@ xfs_iget_cache_miss(
 
 	/*
 	 * For version 5 superblocks, if we are initialising a new inode and we
-	 * are not utilising the XFS_MOUNT_IKEEP inode cluster mode, we can
+	 * are not utilising the XFS_FEAT_IKEEP inode cluster mode, we can
 	 * simply build the new inode core with a random generation number.
 	 *
 	 * For version 4 (and older) superblocks, log recovery is dependent on
@@ -611,7 +611,7 @@ xfs_iget_cache_miss(
 	 * initializing new inodes.
 	 */
 	if (xfs_has_v3inodes(mp) &&
-	    (flags & XFS_IGET_CREATE) && !(mp->m_flags & XFS_MOUNT_IKEEP)) {
+	    (flags & XFS_IGET_CREATE) && !xfs_has_ikeep(mp)) {
 		VFS_I(ip)->i_generation = prandom_u32();
 	} else {
 		struct xfs_buf		*bp;
@@ -967,8 +967,7 @@ static inline bool
 xfs_want_reclaim_sick(
 	struct xfs_mount	*mp)
 {
-	return (mp->m_flags & XFS_MOUNT_UNMOUNTING) ||
-	       (mp->m_flags & XFS_MOUNT_NORECOVERY) ||
+	return (mp->m_flags & XFS_MOUNT_UNMOUNTING) || xfs_has_norecovery(mp) ||
 	       XFS_FORCED_SHUTDOWN(mp);
 }
 

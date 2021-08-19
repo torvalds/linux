@@ -558,10 +558,10 @@ xfs_stat_blksize(
 	 * default buffered I/O size, return that, otherwise return the compat
 	 * default.
 	 */
-	if (mp->m_flags & XFS_MOUNT_LARGEIO) {
+	if (xfs_has_large_iosize(mp)) {
 		if (mp->m_swidth)
 			return XFS_FSB_TO_B(mp, mp->m_swidth);
-		if (mp->m_flags & XFS_MOUNT_ALLOCSIZE)
+		if (xfs_has_allocsize(mp))
 			return 1U << mp->m_allocsize_log;
 	}
 
@@ -808,7 +808,7 @@ xfs_setattr_nonsize(
 
 	XFS_STATS_INC(mp, xs_ig_attrchg);
 
-	if (mp->m_flags & XFS_MOUNT_WSYNC)
+	if (xfs_has_wsync(mp))
 		xfs_trans_set_sync(tp);
 	error = xfs_trans_commit(tp);
 
@@ -1037,7 +1037,7 @@ xfs_setattr_size(
 
 	XFS_STATS_INC(mp, xs_ig_attrchg);
 
-	if (mp->m_flags & XFS_MOUNT_WSYNC)
+	if (xfs_has_wsync(mp))
 		xfs_trans_set_sync(tp);
 
 	error = xfs_trans_commit(tp);
@@ -1287,11 +1287,11 @@ xfs_inode_should_enable_dax(
 {
 	if (!IS_ENABLED(CONFIG_FS_DAX))
 		return false;
-	if (ip->i_mount->m_flags & XFS_MOUNT_DAX_NEVER)
+	if (xfs_has_dax_never(ip->i_mount))
 		return false;
 	if (!xfs_inode_supports_dax(ip))
 		return false;
-	if (ip->i_mount->m_flags & XFS_MOUNT_DAX_ALWAYS)
+	if (xfs_has_dax_always(ip->i_mount))
 		return true;
 	if (ip->i_diflags2 & XFS_DIFLAG2_DAX)
 		return true;

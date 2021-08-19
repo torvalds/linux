@@ -1237,8 +1237,7 @@ xfs_ioctl_setattr_prepare_dax(
 	if (S_ISDIR(inode->i_mode))
 		return;
 
-	if ((mp->m_flags & XFS_MOUNT_DAX_ALWAYS) ||
-	    (mp->m_flags & XFS_MOUNT_DAX_NEVER))
+	if (xfs_has_dax_always(mp) || xfs_has_dax_never(mp))
 		return;
 
 	if (((fa->fsx_xflags & FS_XFLAG_DAX) &&
@@ -1274,7 +1273,7 @@ xfs_ioctl_setattr_get_trans(
 	if (error)
 		goto out_error;
 
-	if (mp->m_flags & XFS_MOUNT_WSYNC)
+	if (xfs_has_wsync(mp))
 		xfs_trans_set_sync(tp);
 
 	return tp;
