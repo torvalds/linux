@@ -238,7 +238,7 @@ static int p80211_convert_to_ether(struct wlandevice *wlandev,
 	struct p80211_hdr *hdr;
 
 	hdr = (struct p80211_hdr *)skb->data;
-	if (p80211_rx_typedrop(wlandev, le16_to_cpu(hdr->fc)))
+	if (p80211_rx_typedrop(wlandev, le16_to_cpu(hdr->frame_control)))
 		return CONV_TO_ETHER_SKIPPED;
 
 	/* perform mcast filtering: allow my local address through but reject
@@ -246,8 +246,8 @@ static int p80211_convert_to_ether(struct wlandevice *wlandev,
 	 */
 	if (wlandev->netdev->flags & IFF_ALLMULTI) {
 		if (!ether_addr_equal_unaligned(wlandev->netdev->dev_addr,
-						hdr->a1)) {
-			if (!is_multicast_ether_addr(hdr->a1))
+						hdr->address1)) {
+			if (!is_multicast_ether_addr(hdr->address1))
 				return CONV_TO_ETHER_SKIPPED;
 		}
 	}

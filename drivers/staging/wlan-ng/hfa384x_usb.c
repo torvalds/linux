@@ -2516,8 +2516,7 @@ int hfa384x_drvr_txframe(struct hfa384x *hw, struct sk_buff *skb,
 	cpu_to_le16s(&hw->txbuff.txfrm.desc.tx_control);
 
 	/* copy the header over to the txdesc */
-	memcpy(&hw->txbuff.txfrm.desc.frame_control, p80211_hdr,
-	       sizeof(struct p80211_hdr));
+	hw->txbuff.txfrm.desc.hdr = *p80211_hdr;
 
 	/* if we're using host WEP, increase size by IV+ICV */
 	if (p80211_wep->data) {
@@ -3258,7 +3257,7 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 
 	switch (status) {
 	case 0:
-		fc = le16_to_cpu(usbin->rxfrm.desc.frame_control);
+		fc = le16_to_cpu(usbin->rxfrm.desc.hdr.frame_control);
 
 		/* If exclude and we receive an unencrypted, drop it */
 		if ((wlandev->hostwep & HOSTWEP_EXCLUDEUNENCRYPTED) &&
@@ -3278,7 +3277,7 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 		 * with an "overlapping" copy
 		 */
 		memmove(skb_push(skb, hdrlen),
-			&usbin->rxfrm.desc.frame_control, hdrlen);
+			&usbin->rxfrm.desc.hdr, hdrlen);
 
 		skb->dev = wlandev->netdev;
 
@@ -3356,7 +3355,7 @@ static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
 
 	/* Remember the status, time, and data_len fields are in host order */
 	/* Figure out how big the frame is */
-	fc = le16_to_cpu(rxdesc->frame_control);
+	fc = le16_to_cpu(rxdesc->hdr.frame_control);
 	hdrlen = p80211_headerlen(fc);
 	datalen = le16_to_cpu(rxdesc->data_len);
 
@@ -3404,7 +3403,7 @@ static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
 	/* Copy the 802.11 header to the skb
 	 * (ctl frames may be less than a full header)
 	 */
-	skb_put_data(skb, &rxdesc->frame_control, hdrlen);
+	skb_put_data(skb, &rxdesc->hdr.frame_control, hdrlen);
 
 	/* If any, copy the data from the card to the skb */
 	if (datalen > 0) {

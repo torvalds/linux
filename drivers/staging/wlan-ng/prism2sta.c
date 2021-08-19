@@ -250,7 +250,7 @@ static int prism2sta_txframe(struct wlandevice *wlandev, struct sk_buff *skb,
 	/* If necessary, set the 802.11 WEP bit */
 	if ((wlandev->hostwep & (HOSTWEP_PRIVACYINVOKED | HOSTWEP_ENCRYPT)) ==
 	    HOSTWEP_PRIVACYINVOKED) {
-		p80211_hdr->fc |= cpu_to_le16(WLAN_SET_FC_ISWEP(1));
+		p80211_hdr->frame_control |= cpu_to_le16(WLAN_SET_FC_ISWEP(1));
 	}
 
 	return hfa384x_drvr_txframe(hw, skb, p80211_hdr, p80211_wep);

@@ -175,21 +175,21 @@ int skb_ether_to_p80211(struct wlandevice *wlandev, u32 ethconv,
 
 	switch (wlandev->macmode) {
 	case WLAN_MACMODE_IBSS_STA:
-		memcpy(p80211_hdr->a1, &e_hdr.daddr, ETH_ALEN);
-		memcpy(p80211_hdr->a2, wlandev->netdev->dev_addr, ETH_ALEN);
-		memcpy(p80211_hdr->a3, wlandev->bssid, ETH_ALEN);
+		memcpy(p80211_hdr->address1, &e_hdr.daddr, ETH_ALEN);
+		memcpy(p80211_hdr->address2, wlandev->netdev->dev_addr, ETH_ALEN);
+		memcpy(p80211_hdr->address3, wlandev->bssid, ETH_ALEN);
 		break;
 	case WLAN_MACMODE_ESS_STA:
 		fc |= cpu_to_le16(WLAN_SET_FC_TODS(1));
-		memcpy(p80211_hdr->a1, wlandev->bssid, ETH_ALEN);
-		memcpy(p80211_hdr->a2, wlandev->netdev->dev_addr, ETH_ALEN);
-		memcpy(p80211_hdr->a3, &e_hdr.daddr, ETH_ALEN);
+		memcpy(p80211_hdr->address1, wlandev->bssid, ETH_ALEN);
+		memcpy(p80211_hdr->address2, wlandev->netdev->dev_addr, ETH_ALEN);
+		memcpy(p80211_hdr->address3, &e_hdr.daddr, ETH_ALEN);
 		break;
 	case WLAN_MACMODE_ESS_AP:
 		fc |= cpu_to_le16(WLAN_SET_FC_FROMDS(1));
-		memcpy(p80211_hdr->a1, &e_hdr.daddr, ETH_ALEN);
-		memcpy(p80211_hdr->a2, wlandev->bssid, ETH_ALEN);
-		memcpy(p80211_hdr->a3, &e_hdr.saddr, ETH_ALEN);
+		memcpy(p80211_hdr->address1, &e_hdr.daddr, ETH_ALEN);
+		memcpy(p80211_hdr->address2, wlandev->bssid, ETH_ALEN);
+		memcpy(p80211_hdr->address3, &e_hdr.saddr, ETH_ALEN);
 		break;
 	default:
 		netdev_err(wlandev->netdev,
@@ -222,9 +222,9 @@ int skb_ether_to_p80211(struct wlandevice *wlandev, u32 ethconv,
 
 	/*      skb->nh.raw = skb->data; */
 
-	p80211_hdr->fc = fc;
-	p80211_hdr->dur = 0;
-	p80211_hdr->seq = 0;
+	p80211_hdr->frame_control = fc;
+	p80211_hdr->duration_id = 0;
+	p80211_hdr->sequence_control = 0;
 
 	return 0;
 }
@@ -294,18 +294,18 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 	w_hdr = (struct p80211_hdr *)skb->data;
 
 	/* setup some vars for convenience */
-	fc = le16_to_cpu(w_hdr->fc);
+	fc = le16_to_cpu(w_hdr->frame_control);
 	if ((WLAN_GET_FC_TODS(fc) == 0) && (WLAN_GET_FC_FROMDS(fc) == 0)) {
-		ether_addr_copy(daddr, w_hdr->a1);
-		ether_addr_copy(saddr, w_hdr->a2);
+		ether_addr_copy(daddr, w_hdr->address1);
+		ether_addr_copy(saddr, w_hdr->address2);
 	} else if ((WLAN_GET_FC_TODS(fc) == 0) &&
 		   (WLAN_GET_FC_FROMDS(fc) == 1)) {
-		ether_addr_copy(daddr, w_hdr->a1);
-		ether_addr_copy(saddr, w_hdr->a3);
+		ether_addr_copy(daddr, w_hdr->address1);
+		ether_addr_copy(saddr, w_hdr->address3);
 	} else if ((WLAN_GET_FC_TODS(fc) == 1) &&
 		   (WLAN_GET_FC_FROMDS(fc) == 0)) {
-		ether_addr_copy(daddr, w_hdr->a3);
-		ether_addr_copy(saddr, w_hdr->a2);
+		ether_addr_copy(daddr, w_hdr->address3);
+		ether_addr_copy(saddr, w_hdr->address2);
 	} else {
 		payload_offset = WLAN_HDR_A4_LEN;
 		if (payload_length < WLAN_HDR_A4_LEN - WLAN_HDR_A3_LEN) {
@@ -313,8 +313,8 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 			return 1;
 		}
 		payload_length -= (WLAN_HDR_A4_LEN - WLAN_HDR_A3_LEN);
-		ether_addr_copy(daddr, w_hdr->a3);
-		ether_addr_copy(saddr, w_hdr->a4);
+		ether_addr_copy(daddr, w_hdr->address3);
+		ether_addr_copy(saddr, w_hdr->address4);
 	}
 
 	/* perform de-wep if necessary.. */
