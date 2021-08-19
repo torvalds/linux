@@ -324,6 +324,7 @@ static int byt_rt5640_event_lineout(struct snd_soc_dapm_widget *w,
 static const struct snd_soc_dapm_widget byt_rt5640_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic 2", NULL),
 	SND_SOC_DAPM_MIC("Internal Mic", NULL),
 	SND_SOC_DAPM_SPK("Speaker", NULL),
 	SND_SOC_DAPM_LINE("Line Out", byt_rt5640_event_lineout),
@@ -361,6 +362,12 @@ static const struct snd_soc_dapm_route byt_rt5640_intmic_in3_map[] = {
 	{"Internal Mic", NULL, "Platform Clock"},
 	{"Internal Mic", NULL, "MICBIAS1"},
 	{"IN3P", NULL, "Internal Mic"},
+};
+
+static const struct snd_soc_dapm_route byt_rt5640_hsmic2_in1_map[] = {
+	{"Headset Mic 2", NULL, "Platform Clock"},
+	{"Headset Mic 2", NULL, "MICBIAS1"},
+	{"IN1P", NULL, "Headset Mic 2"},
 };
 
 static const struct snd_soc_dapm_route byt_rt5640_ssp2_aif1_map[] = {
@@ -422,6 +429,7 @@ static const struct snd_soc_dapm_route byt_rt5640_lineout_map[] = {
 static const struct snd_kcontrol_new byt_rt5640_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
+	SOC_DAPM_PIN_SWITCH("Headset Mic 2"),
 	SOC_DAPM_PIN_SWITCH("Internal Mic"),
 	SOC_DAPM_PIN_SWITCH("Speaker"),
 	SOC_DAPM_PIN_SWITCH("Line Out"),
@@ -1086,8 +1094,8 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 
 	if (byt_rt5640_quirk & BYT_RT5640_HSMIC2_ON_IN1) {
 		ret = snd_soc_dapm_add_routes(&card->dapm,
-					byt_rt5640_intmic_in1_map,
-					ARRAY_SIZE(byt_rt5640_intmic_in1_map));
+					byt_rt5640_hsmic2_in1_map,
+					ARRAY_SIZE(byt_rt5640_hsmic2_in1_map));
 		if (ret)
 			return ret;
 	}
