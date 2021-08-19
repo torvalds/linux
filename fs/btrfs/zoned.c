@@ -1170,6 +1170,7 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 	unsigned int nofs_flag;
 	u64 *alloc_offsets = NULL;
 	u64 *caps = NULL;
+	unsigned long *active = NULL;
 	u64 last_alloc = 0;
 	u32 num_sequential = 0, num_conventional = 0;
 
@@ -1210,6 +1211,12 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 
 	caps = kcalloc(map->num_stripes, sizeof(*caps), GFP_NOFS);
 	if (!caps) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	active = bitmap_zalloc(map->num_stripes, GFP_NOFS);
+	if (!active) {
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -1297,8 +1304,16 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 			/* Partially used zone */
 			alloc_offsets[i] =
 					((zone.wp - zone.start) << SECTOR_SHIFT);
+			__set_bit(i, active);
 			break;
 		}
+
+		/*
+		 * Consider a zone as active if we can allow any number of
+		 * active zones.
+		 */
+		if (!device->zone_info->max_active_zones)
+			__set_bit(i, active);
 	}
 
 	if (num_sequential > 0)
@@ -1346,6 +1361,7 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 		}
 		cache->alloc_offset = alloc_offsets[0];
 		cache->zone_capacity = caps[0];
+		cache->zone_is_active = test_bit(0, active);
 		break;
 	case BTRFS_BLOCK_GROUP_DUP:
 	case BTRFS_BLOCK_GROUP_RAID1:
@@ -1359,6 +1375,13 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 			  btrfs_bg_type_to_raid_name(map->type));
 		ret = -EINVAL;
 		goto out;
+	}
+
+	if (cache->zone_is_active) {
+		btrfs_get_block_group(cache);
+		spin_lock(&fs_info->zone_active_bgs_lock);
+		list_add_tail(&cache->active_bg_list, &fs_info->zone_active_bgs);
+		spin_unlock(&fs_info->zone_active_bgs_lock);
 	}
 
 out:
@@ -1392,6 +1415,7 @@ out:
 		kfree(cache->physical_map);
 		cache->physical_map = NULL;
 	}
+	bitmap_free(active);
 	kfree(caps);
 	kfree(alloc_offsets);
 	free_extent_map(em);
