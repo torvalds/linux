@@ -1974,16 +1974,20 @@ static void kill_transfer(struct usb_hcd *hcd, struct urb *urb,
 	/* We need to forcefully reclaim the slot since some transfers never
 	   return, e.g. interrupt transfers and NAKed bulk transfers. */
 	if (usb_pipecontrol(urb->pipe) || usb_pipebulk(urb->pipe)) {
-		skip_map = isp1760_hcd_read(hcd, HC_ATL_PTD_SKIPMAP);
-		skip_map |= (1 << qh->slot);
-		isp1760_hcd_write(hcd, HC_ATL_PTD_SKIPMAP, skip_map);
-		ndelay(100);
+		if (qh->slot != -1) {
+			skip_map = isp1760_hcd_read(hcd, HC_ATL_PTD_SKIPMAP);
+			skip_map |= (1 << qh->slot);
+			isp1760_hcd_write(hcd, HC_ATL_PTD_SKIPMAP, skip_map);
+			ndelay(100);
+		}
 		priv->atl_slots[qh->slot].qh = NULL;
 		priv->atl_slots[qh->slot].qtd = NULL;
 	} else {
-		skip_map = isp1760_hcd_read(hcd, HC_INT_PTD_SKIPMAP);
-		skip_map |= (1 << qh->slot);
-		isp1760_hcd_write(hcd, HC_INT_PTD_SKIPMAP, skip_map);
+		if (qh->slot != -1) {
+			skip_map = isp1760_hcd_read(hcd, HC_INT_PTD_SKIPMAP);
+			skip_map |= (1 << qh->slot);
+			isp1760_hcd_write(hcd, HC_INT_PTD_SKIPMAP, skip_map);
+		}
 		priv->int_slots[qh->slot].qh = NULL;
 		priv->int_slots[qh->slot].qtd = NULL;
 	}
