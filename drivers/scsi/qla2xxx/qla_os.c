@@ -1500,7 +1500,6 @@ static int
 qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *vha = shost_priv(cmd->device->host);
-	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
 	int ret = FAILED;
 	unsigned int id;
 	uint64_t lun;
@@ -1515,15 +1514,6 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 
 	id = cmd->device->id;
 	lun = cmd->device->lun;
-
-	if (!fcport) {
-		return ret;
-	}
-
-	ret = fc_block_scsi_eh(cmd);
-	if (ret != 0)
-		return ret;
-	ret = FAILED;
 
 	if (qla2x00_chip_is_down(vha))
 		return ret;
