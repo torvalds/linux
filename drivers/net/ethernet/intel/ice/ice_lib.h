@@ -14,7 +14,7 @@ void ice_update_eth_stats(struct ice_vsi *vsi);
 
 int ice_vsi_cfg_single_rxq(struct ice_vsi *vsi, u16 q_idx);
 
-int ice_vsi_cfg_single_txq(struct ice_vsi *vsi, struct ice_ring **tx_rings, u16 q_idx);
+int ice_vsi_cfg_single_txq(struct ice_vsi *vsi, struct ice_tx_ring **tx_rings, u16 q_idx);
 
 int ice_vsi_cfg_rxqs(struct ice_vsi *vsi);
 
@@ -93,9 +93,9 @@ void ice_vsi_free_tx_rings(struct ice_vsi *vsi);
 
 void ice_vsi_manage_rss_lut(struct ice_vsi *vsi, bool ena);
 
-void ice_update_tx_ring_stats(struct ice_ring *ring, u64 pkts, u64 bytes);
+void ice_update_tx_ring_stats(struct ice_tx_ring *ring, u64 pkts, u64 bytes);
 
-void ice_update_rx_ring_stats(struct ice_ring *ring, u64 pkts, u64 bytes);
+void ice_update_rx_ring_stats(struct ice_rx_ring *ring, u64 pkts, u64 bytes);
 
 void ice_vsi_cfg_frame_size(struct ice_vsi *vsi);
 

@@ -69,21 +69,6 @@ err_def_rx:
 }
 
 /**
- * ice_eswitch_remap_ring - reconfigure ring of switchdev ctrl VSI
- * @ring: pointer to ring
- * @q_vector: pointer of q_vector which is connected with this ring
- * @netdev: netdevice connected with this ring
- */
-static void
-ice_eswitch_remap_ring(struct ice_ring *ring, struct ice_q_vector *q_vector,
-		       struct net_device *netdev)
-{
-	ring->q_vector = q_vector;
-	ring->next = NULL;
-	ring->netdev = netdev;
-}
-
-/**
  * ice_eswitch_remap_rings_to_vectors - reconfigure rings of switchdev ctrl VSI
  * @pf: pointer to PF struct
  *
@@ -102,23 +87,27 @@ static void ice_eswitch_remap_rings_to_vectors(struct ice_pf *pf)
 	ice_for_each_txq(vsi, q_id) {
 		struct ice_repr *repr = pf->vf[q_id].repr;
 		struct ice_q_vector *q_vector = repr->q_vector;
-		struct ice_ring *tx_ring = vsi->tx_rings[q_id];
-		struct ice_ring *rx_ring = vsi->rx_rings[q_id];
+		struct ice_tx_ring *tx_ring = vsi->tx_rings[q_id];
+		struct ice_rx_ring *rx_ring = vsi->rx_rings[q_id];
 
 		q_vector->vsi = vsi;
 		q_vector->reg_idx = vsi->q_vectors[0]->reg_idx;
 
 		q_vector->num_ring_tx = 1;
-		q_vector->tx.ring = tx_ring;
-		ice_eswitch_remap_ring(tx_ring, q_vector, repr->netdev);
+		q_vector->tx.tx_ring = tx_ring;
+		tx_ring->q_vector = q_vector;
+		tx_ring->next = NULL;
+		tx_ring->netdev = repr->netdev;
 		/* In switchdev mode, from OS stack perspective, there is only
 		 * one queue for given netdev, so it needs to be indexed as 0.
 		 */
 		tx_ring->q_index = 0;
 
 		q_vector->num_ring_rx = 1;
-		q_vector->rx.ring = rx_ring;
-		ice_eswitch_remap_ring(rx_ring, q_vector, repr->netdev);
+		q_vector->rx.rx_ring = rx_ring;
+		rx_ring->q_vector = q_vector;
+		rx_ring->next = NULL;
+		rx_ring->netdev = repr->netdev;
 	}
 }
 
@@ -390,7 +379,7 @@ static void ice_eswitch_set_rxdid(struct ice_vsi *vsi, u32 rxdid)
 	int i;
 
 	ice_for_each_rxq(vsi, i) {
-		struct ice_ring *ring = vsi->rx_rings[i];
+		struct ice_rx_ring *ring = vsi->rx_rings[i];
 		u16 pf_q = vsi->rxq_map[ring->q_index];
 
 		ice_write_qrxflxp_cntxt(hw, pf_q, rxdid, 0x3, true);
@@ -511,7 +500,7 @@ ice_eswitch_mode_set(struct devlink *devlink, u16 mode,
  * context, regular netdev associated with Rx ring is returned.
  */
 struct net_device *
-ice_eswitch_get_target_netdev(struct ice_ring *rx_ring,
+ice_eswitch_get_target_netdev(struct ice_rx_ring *rx_ring,
 			      union ice_32b_rx_flex_desc *rx_desc)
 {
 	struct ice_32b_rx_flex_desc_nic_2 *desc;
