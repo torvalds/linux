@@ -133,7 +133,12 @@ struct xfs_buf {
 	 * fast-path on locking.
 	 */
 	struct rhash_head	b_rhash_head;	/* pag buffer hash node */
-	xfs_daddr_t		b_bn;		/* block number of buffer */
+
+	/*
+	 * b_bn is the cache index. Do not use directly, use b_maps[0].bm_bn
+	 * for the buffer disk address instead.
+	 */
+	xfs_daddr_t		b_bn;
 	int			b_length;	/* size of buffer in BBs */
 	atomic_t		b_hold;		/* reference count */
 	atomic_t		b_lru_ref;	/* lru reclaim ref count */
