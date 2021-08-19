@@ -3478,6 +3478,7 @@ struct find_free_extent_ctl {
 	/* Basic allocation info */
 	u64 ram_bytes;
 	u64 num_bytes;
+	u64 min_alloc_size;
 	u64 empty_size;
 	u64 flags;
 	int delalloc;
@@ -3946,17 +3947,29 @@ static int find_free_extent_update_loop(struct btrfs_fs_info *fs_info,
 	    ffe_ctl->have_caching_bg && !ffe_ctl->orig_have_caching_bg)
 		ffe_ctl->orig_have_caching_bg = true;
 
-	if (!ins->objectid && ffe_ctl->loop >= LOOP_CACHING_WAIT &&
-	    ffe_ctl->have_caching_bg)
-		return 1;
-
-	if (!ins->objectid && ++(ffe_ctl->index) < BTRFS_NR_RAID_TYPES)
-		return 1;
-
 	if (ins->objectid) {
 		found_extent(ffe_ctl, ins);
 		return 0;
 	}
+
+	if (ffe_ctl->max_extent_size >= ffe_ctl->min_alloc_size &&
+	    !btrfs_can_activate_zone(fs_info->fs_devices, ffe_ctl->index)) {
+		/*
+		 * If we have enough free space left in an already active block
+		 * group and we can't activate any other zone now, retry the
+		 * active ones with a smaller allocation size.  Returning early
+		 * from here will tell btrfs_reserve_extent() to haven the
+		 * size.
+		 */
+		return -ENOSPC;
+	}
+
+	if (ffe_ctl->loop >= LOOP_CACHING_WAIT && ffe_ctl->have_caching_bg)
+		return 1;
+
+	ffe_ctl->index++;
+	if (ffe_ctl->index < BTRFS_NR_RAID_TYPES)
+		return 1;
 
 	/*
 	 * LOOP_CACHING_NOWAIT, search partially cached block groups, kicking
@@ -4432,6 +4445,7 @@ again:
 
 	ffe_ctl.ram_bytes = ram_bytes;
 	ffe_ctl.num_bytes = num_bytes;
+	ffe_ctl.min_alloc_size = min_alloc_size;
 	ffe_ctl.empty_size = empty_size;
 	ffe_ctl.flags = flags;
 	ffe_ctl.delalloc = delalloc;

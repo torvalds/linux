@@ -1873,3 +1873,34 @@ int btrfs_zone_finish(struct btrfs_block_group *block_group)
 
 	return ret;
 }
+
+bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices, int raid_index)
+{
+	struct btrfs_device *device;
+	bool ret = false;
+
+	if (!btrfs_is_zoned(fs_devices->fs_info))
+		return true;
+
+	/* Non-single profiles are not supported yet */
+	if (raid_index != BTRFS_RAID_SINGLE)
+		return false;
+
+	/* Check if there is a device with active zones left */
+	mutex_lock(&fs_devices->device_list_mutex);
+	list_for_each_entry(device, &fs_devices->devices, dev_list) {
+		struct btrfs_zoned_device_info *zinfo = device->zone_info;
+
+		if (!device->bdev)
+			continue;
+
+		if (!zinfo->max_active_zones ||
+		    atomic_read(&zinfo->active_zones_left)) {
+			ret = true;
+			break;
+		}
+	}
+	mutex_unlock(&fs_devices->device_list_mutex);
+
+	return ret;
+}

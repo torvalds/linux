@@ -71,6 +71,8 @@ struct btrfs_device *btrfs_zoned_get_device(struct btrfs_fs_info *fs_info,
 					    u64 logical, u64 length);
 bool btrfs_zone_activate(struct btrfs_block_group *block_group);
 int btrfs_zone_finish(struct btrfs_block_group *block_group);
+bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices,
+			     int raid_index);
 #else /* CONFIG_BLK_DEV_ZONED */
 static inline int btrfs_get_dev_zone(struct btrfs_device *device, u64 pos,
 				     struct blk_zone *zone)
@@ -214,6 +216,12 @@ static inline bool btrfs_zone_activate(struct btrfs_block_group *block_group)
 static inline int btrfs_zone_finish(struct btrfs_block_group *block_group)
 {
 	return 0;
+}
+
+static inline bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices,
+					   int raid_index)
+{
+	return true;
 }
 
 #endif
