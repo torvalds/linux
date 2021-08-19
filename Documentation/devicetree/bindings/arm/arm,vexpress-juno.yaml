@@ -154,9 +154,9 @@ patternProperties:
     description: Static Memory Bus (SMB) node, if this exists it describes
       the connection between the motherboard and any tiles. Sometimes the
       compatible is placed directly under this node, sometimes it is placed
-      in a subnode named "motherboard". Sometimes the compatible includes
+      in a subnode named "motherboard-bus". Sometimes the compatible includes
       "arm,vexpress,v2?-p1" sometimes (on software models) is is just
-      "simple-bus". If the compatible is placed in the "motherboard" node,
+      "simple-bus". If the compatible is placed in the "motherboard-bus" node,
       it is stricter and always has two compatibles.
     type: object
     $ref: '/schemas/simple-bus.yaml'
@@ -170,7 +170,9 @@ patternProperties:
                   - arm,vexpress,v2p-p1
               - const: simple-bus
           - const: simple-bus
-      motherboard:
+
+    patternProperties:
+      '^motherboard-bus@':
         type: object
         description: The motherboard description provides a single "motherboard"
           node using 2 address cells corresponding to the Static Memory Bus
