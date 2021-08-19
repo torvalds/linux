@@ -171,6 +171,7 @@
   config_group_init_type_name
   config_item_get
   config_item_put
+  console_printk
   console_stop
   console_suspend_enabled
   __const_udelay
@@ -848,6 +849,7 @@
   kmem_cache_free
   kmemdup
   kmemdup_nul
+  kmsg_dump_get_line
   kobject_add
   kobject_create_and_add
   kobject_del
@@ -1474,6 +1476,7 @@
   sdhci_set_bus_width
   sdhci_set_power_noreg
   sdhci_setup_host
+  send_sig_info
   seq_buf_printf
   seq_lseek
   seq_open
