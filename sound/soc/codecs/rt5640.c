@@ -2373,7 +2373,7 @@ static void rt5640_disable_jack_detect(struct snd_soc_component *component)
 	if (!rt5640->jack)
 		return;
 
-	disable_irq(rt5640->irq);
+	free_irq(rt5640->irq, rt5640);
 	rt5640_cancel_work(rt5640);
 
 	if (rt5640->jack->status & SND_JACK_MICROPHONE) {
@@ -2389,6 +2389,7 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 				      struct snd_soc_jack *jack)
 {
 	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
+	int ret;
 
 	/* Select JD-source */
 	snd_soc_component_update_bits(component, RT5640_JD_CTRL,
@@ -2446,7 +2447,17 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 		rt5640_enable_micbias1_ovcd_irq(component);
 	}
 
-	enable_irq(rt5640->irq);
+	ret = request_irq(rt5640->irq, rt5640_irq,
+			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+			  "rt5640", rt5640);
+	if (ret) {
+		dev_warn(component->dev, "Failed to reguest IRQ %d: %d\n", rt5640->irq, ret);
+		rt5640->irq = -ENXIO;
+		/* Undo above settings */
+		rt5640_disable_jack_detect(component);
+		return;
+	}
+
 	/* sync initial jack state */
 	queue_work(system_long_wq, &rt5640->jack_work);
 }
@@ -2835,21 +2846,6 @@ static int rt5640_i2c_probe(struct i2c_client *i2c,
 	ret = devm_add_action_or_reset(&i2c->dev, rt5640_cancel_work, rt5640);
 	if (ret)
 		return ret;
-
-	if (rt5640->irq) {
-		/* enabled by rt5640_set_jack() */
-		ret = devm_request_irq(&i2c->dev, rt5640->irq, rt5640_irq,
-				       IRQF_TRIGGER_RISING | IRQF_NO_AUTOEN |
-				       IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				       "rt5640", rt5640);
-		if (ret) {
-			dev_err(&i2c->dev, "Failed to request IRQ %d: %d\n",
-				rt5640->irq, ret);
-			return ret;
-		}
-	} else {
-		rt5640->irq = -ENXIO;
-	}
 
 	return devm_snd_soc_register_component(&i2c->dev,
 				      &soc_component_dev_rt5640,
