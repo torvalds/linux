@@ -102,14 +102,11 @@
 
 	bus@8000000 {
 		motherboard-bus {
-			model = "V2M-P1";
 			arm,hbi = <0x190>;
 			arm,vexpress,site = <0>;
-			arm,v2m-memory-map = "rs1";
 			compatible = "arm,vexpress,v2m-p1", "simple-bus";
 			#address-cells = <2>; /* SMB chipselect number and offset */
 			#size-cells = <1>;
-			#interrupt-cells = <1>;
 			ranges;
 
 			nor_flash: flash@0 {

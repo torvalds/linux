@@ -21,13 +21,11 @@
 / {
 	bus@4000000 {
 		motherboard {
-			model = "V2M-P1";
 			arm,hbi = <0x190>;
 			arm,vexpress,site = <0>;
 			compatible = "arm,vexpress,v2m-p1", "simple-bus";
 			#address-cells = <2>; /* SMB chipselect number and offset */
 			#size-cells = <1>;
-			#interrupt-cells = <1>;
 			ranges;
 
 			flash@0,00000000 {

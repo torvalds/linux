@@ -96,12 +96,9 @@
 			compatible = "arm,vexpress,v2p-p1", "simple-bus";
 			#address-cells = <2>;  /* SMB chipselect number and offset */
 			#size-cells = <1>;
-			#interrupt-cells = <1>;
 			ranges;
-			model = "V2M-Juno";
 			arm,hbi = <0x252>;
 			arm,vexpress,site = <0>;
-			arm,v2m-memory-map = "rs1";
 
 			flash@0 {
 				/* 2 * 32MiB NOR Flash memory mounted on CS0 */
