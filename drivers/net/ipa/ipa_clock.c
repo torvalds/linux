@@ -48,11 +48,15 @@ struct ipa_interconnect {
  * enum ipa_power_flag - IPA power flags
  * @IPA_POWER_FLAG_RESUMED:	Whether resume from suspend has been signaled
  * @IPA_POWER_FLAG_SYSTEM:	Hardware is system (not runtime) suspended
+ * @IPA_POWER_FLAG_STOPPED:	Modem TX is disabled by ipa_start_xmit()
+ * @IPA_POWER_FLAG_STARTED:	Modem TX was enabled by ipa_runtime_resume()
  * @IPA_POWER_FLAG_COUNT:	Number of defined power flags
  */
 enum ipa_power_flag {
 	IPA_POWER_FLAG_RESUMED,
 	IPA_POWER_FLAG_SYSTEM,
+	IPA_POWER_FLAG_STOPPED,
+	IPA_POWER_FLAG_STARTED,
 	IPA_POWER_FLAG_COUNT,		/* Last; not a flag */
 };
 
@@ -60,6 +64,7 @@ enum ipa_power_flag {
  * struct ipa_clock - IPA clocking information
  * @dev:		IPA device pointer
  * @core:		IPA core clock
+ * @spinlock:		Protects modem TX queue enable/disable
  * @flags:		Boolean state flags
  * @interconnect_count:	Number of elements in interconnect[]
  * @interconnect:	Interconnect array
@@ -67,6 +72,7 @@ enum ipa_power_flag {
 struct ipa_clock {
 	struct device *dev;
 	struct clk *core;
+	spinlock_t spinlock;	/* used with STOPPED/STARTED power flags */
 	DECLARE_BITMAP(flags, IPA_POWER_FLAG_COUNT);
 	u32 interconnect_count;
 	struct ipa_interconnect *interconnect;
@@ -334,6 +340,70 @@ static void ipa_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 	ipa_interrupt_suspend_clear_all(ipa->interrupt);
 }
 
+/* The next few functions coordinate stopping and starting the modem
+ * network device transmit queue.
+ *
+ * Transmit can be running concurrent with power resume, and there's a
+ * chance the resume completes before the transmit path stops the queue,
+ * leaving the queue in a stopped state.  The next two functions are used
+ * to avoid this: ipa_power_modem_queue_stop() is used by ipa_start_xmit()
+ * to conditionally stop the TX queue; and ipa_power_modem_queue_start()
+ * is used by ipa_runtime_resume() to conditionally restart it.
+ *
+ * Two flags and a spinlock are used.  If the queue is stopped, the STOPPED
+ * power flag is set.  And if the queue is started, the STARTED flag is set.
+ * The queue is only started on resume if the STOPPED flag is set.  And the
+ * queue is only started in ipa_start_xmit() if the STARTED flag is *not*
+ * set.  As a result, the queue remains operational if the two activites
+ * happen concurrently regardless of the order they complete.  The spinlock
+ * ensures the flag and TX queue operations are done atomically.
+ *
+ * The first function stops the modem netdev transmit queue, but only if
+ * the STARTED flag is *not* set.  That flag is cleared if it was set.
+ * If the queue is stopped, the STOPPED flag is set.  This is called only
+ * from the power ->runtime_resume operation.
+ */
+void ipa_power_modem_queue_stop(struct ipa *ipa)
+{
+	struct ipa_clock *clock = ipa->clock;
+	unsigned long flags;
+
+	spin_lock_irqsave(&clock->spinlock, flags);
+
+	if (!__test_and_clear_bit(IPA_POWER_FLAG_STARTED, clock->flags)) {
+		netif_stop_queue(ipa->modem_netdev);
+		__set_bit(IPA_POWER_FLAG_STOPPED, clock->flags);
+	}
+
+	spin_unlock_irqrestore(&clock->spinlock, flags);
+}
+
+/* This function starts the modem netdev transmit queue, but only if the
+ * STOPPED flag is set.  That flag is cleared if it was set.  If the queue
+ * was restarted, the STARTED flag is set; this allows ipa_start_xmit()
+ * to skip stopping the queue in the event of a race.
+ */
+void ipa_power_modem_queue_wake(struct ipa *ipa)
+{
+	struct ipa_clock *clock = ipa->clock;
+	unsigned long flags;
+
+	spin_lock_irqsave(&clock->spinlock, flags);
+
+	if (__test_and_clear_bit(IPA_POWER_FLAG_STOPPED, clock->flags)) {
+		__set_bit(IPA_POWER_FLAG_STARTED, clock->flags);
+		netif_wake_queue(ipa->modem_netdev);
+	}
+
+	spin_unlock_irqrestore(&clock->spinlock, flags);
+}
+
+/* This function clears the STARTED flag once the TX queue is operating */
+void ipa_power_modem_queue_active(struct ipa *ipa)
+{
+	clear_bit(IPA_POWER_FLAG_STARTED, ipa->clock->flags);
+}
+
 int ipa_power_setup(struct ipa *ipa)
 {
 	int ret;
@@ -383,6 +453,7 @@ ipa_clock_init(struct device *dev, const struct ipa_clock_data *data)
 	}
 	clock->dev = dev;
 	clock->core = clk;
+	spin_lock_init(&clock->spinlock);
 	clock->interconnect_count = data->interconnect_count;
 
 	ret = ipa_interconnect_init(clock, dev, data->interconnect_data);

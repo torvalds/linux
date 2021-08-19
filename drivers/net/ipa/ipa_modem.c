@@ -130,6 +130,7 @@ ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (ret < 1) {
 		/* If a resume won't happen, just drop the packet */
 		if (ret < 0 && ret != -EINPROGRESS) {
+			ipa_power_modem_queue_active(ipa);
 			pm_runtime_put_noidle(dev);
 			goto err_drop_skb;
 		}
@@ -138,12 +139,14 @@ ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		 * until we're resumed; ipa_modem_resume() arranges for the
 		 * TX queue to be started again.
 		 */
-		netif_stop_queue(netdev);
+		ipa_power_modem_queue_stop(ipa);
 
 		(void)pm_runtime_put(dev);
 
 		return NETDEV_TX_BUSY;
 	}
+
+	ipa_power_modem_queue_active(ipa);
 
 	ret = ipa_endpoint_skb_tx(endpoint, skb);
 
@@ -241,7 +244,7 @@ static void ipa_modem_wake_queue_work(struct work_struct *work)
 {
 	struct ipa_priv *priv = container_of(work, struct ipa_priv, work);
 
-	netif_wake_queue(priv->ipa->modem_netdev);
+	ipa_power_modem_queue_wake(priv->ipa);
 }
 
 /** ipa_modem_resume() - resume callback for runtime_pm
