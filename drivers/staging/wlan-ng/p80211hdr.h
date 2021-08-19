@@ -148,16 +148,7 @@
 
 /* Generic 802.11 Header types */
 
-struct p80211_hdr_a3 {
-	__le16 fc;
-	u16 dur;
-	u8 a1[ETH_ALEN];
-	u8 a2[ETH_ALEN];
-	u8 a3[ETH_ALEN];
-	u16 seq;
-} __packed;
-
-struct p80211_hdr_a4 {
+struct p80211_hdr {
 	u16 fc;
 	u16 dur;
 	u8 a1[ETH_ALEN];
@@ -165,11 +156,6 @@ struct p80211_hdr_a4 {
 	u8 a3[ETH_ALEN];
 	u16 seq;
 	u8 a4[ETH_ALEN];
-} __packed;
-
-union p80211_hdr {
-	struct p80211_hdr_a3 a3;
-	struct p80211_hdr_a4 a4;
 } __packed;
 
 /* Frame and header length macros */
