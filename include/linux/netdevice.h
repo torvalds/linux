@@ -47,6 +47,7 @@
 #include <uapi/linux/if_bonding.h>
 #include <uapi/linux/pkt_cls.h>
 #include <linux/hashtable.h>
+#include <linux/rbtree.h>
 
 struct netpoll_info;
 struct device;
@@ -208,6 +209,7 @@ struct sk_buff;
 
 struct netdev_hw_addr {
 	struct list_head	list;
+	struct rb_node		node;
 	unsigned char		addr[MAX_ADDR_LEN];
 	unsigned char		type;
 #define NETDEV_HW_ADDR_T_LAN		1
@@ -224,6 +226,9 @@ struct netdev_hw_addr {
 struct netdev_hw_addr_list {
 	struct list_head	list;
 	int			count;
+
+	/* Auxiliary tree for faster lookup on addition and deletion */
+	struct rb_root		tree;
 };
 
 #define netdev_hw_addr_list_count(l) ((l)->count)
