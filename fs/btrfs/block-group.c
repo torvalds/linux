@@ -1896,6 +1896,7 @@ static struct btrfs_block_group *btrfs_create_block_group_cache(
 	INIT_LIST_HEAD(&cache->discard_list);
 	INIT_LIST_HEAD(&cache->dirty_list);
 	INIT_LIST_HEAD(&cache->io_list);
+	INIT_LIST_HEAD(&cache->active_bg_list);
 	btrfs_init_free_space_ctl(cache, cache->free_space_ctl);
 	atomic_set(&cache->frozen, 0);
 	mutex_init(&cache->free_space_lock);
@@ -3841,6 +3842,16 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 		btrfs_put_block_group(block_group);
 	}
 	spin_unlock(&info->unused_bgs_lock);
+
+	spin_lock(&info->zone_active_bgs_lock);
+	while (!list_empty(&info->zone_active_bgs)) {
+		block_group = list_first_entry(&info->zone_active_bgs,
+					       struct btrfs_block_group,
+					       active_bg_list);
+		list_del_init(&block_group->active_bg_list);
+		btrfs_put_block_group(block_group);
+	}
+	spin_unlock(&info->zone_active_bgs_lock);
 
 	spin_lock(&info->block_group_cache_lock);
 	while ((n = rb_last(&info->block_group_cache_tree)) != NULL) {

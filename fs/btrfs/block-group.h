@@ -98,6 +98,7 @@ struct btrfs_block_group {
 	unsigned int to_copy:1;
 	unsigned int relocating_repair:1;
 	unsigned int chunk_item_inserted:1;
+	unsigned int zone_is_active:1;
 
 	int disk_cache_state;
 
@@ -205,6 +206,7 @@ struct btrfs_block_group {
 	u64 zone_capacity;
 	u64 meta_write_pointer;
 	struct map_lookup *physical_map;
+	struct list_head active_bg_list;
 };
 
 static inline u64 btrfs_block_group_end(struct btrfs_block_group *block_group)

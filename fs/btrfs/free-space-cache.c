@@ -2763,8 +2763,9 @@ void btrfs_dump_free_space(struct btrfs_block_group *block_group,
 	 * out the free space after the allocation offset.
 	 */
 	if (btrfs_is_zoned(fs_info)) {
-		btrfs_info(fs_info, "free space %llu",
-			   block_group->zone_capacity - block_group->alloc_offset);
+		btrfs_info(fs_info, "free space %llu active %d",
+			   block_group->zone_capacity - block_group->alloc_offset,
+			   block_group->zone_is_active);
 		return;
 	}
 
