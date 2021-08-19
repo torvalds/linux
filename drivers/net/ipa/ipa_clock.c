@@ -272,23 +272,6 @@ static int ipa_runtime_idle(struct device *dev)
 	return -EAGAIN;
 }
 
-/* Get an IPA clock reference.  If the reference count is non-zero, it is
- * incremented and return is immediate.  Otherwise the IPA clock is
- * enabled.
- */
-int ipa_clock_get(struct ipa *ipa)
-{
-	return pm_runtime_get_sync(&ipa->pdev->dev);
-}
-
-/* Attempt to remove an IPA clock reference.  If this represents the
- * last reference, disable the IPA clock.
- */
-int ipa_clock_put(struct ipa *ipa)
-{
-	return pm_runtime_put(&ipa->pdev->dev);
-}
-
 static int ipa_suspend(struct device *dev)
 {
 	struct ipa *ipa = dev_get_drvdata(dev);
