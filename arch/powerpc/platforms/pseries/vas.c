@@ -184,7 +184,7 @@ static int h_get_nx_fault(u32 winid, u64 buffer)
  * Note: The hypervisor forwards an interrupt for each fault request.
  *	So one fault CRB to process for each H_GET_NX_FAULT hcall.
  */
-irqreturn_t pseries_vas_fault_thread_fn(int irq, void *data)
+static irqreturn_t pseries_vas_fault_thread_fn(int irq, void *data)
 {
 	struct pseries_vas_window *txwin = data;
 	struct coprocessor_request_block crb;
