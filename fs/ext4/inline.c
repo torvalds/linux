@@ -7,6 +7,7 @@
 #include <linux/iomap.h>
 #include <linux/fiemap.h>
 #include <linux/iversion.h>
+#include <linux/backing-dev.h>
 
 #include "ext4_jbd2.h"
 #include "ext4.h"
@@ -1918,6 +1919,24 @@ int ext4_inline_data_truncate(struct inode *inode, int *has_inline)
 	EXT4_I(inode)->i_disksize = i_size;
 
 	if (i_size < inline_size) {
+		/*
+		 * if there's inline data to truncate and this file was
+		 * converted to extents after that inline data was written,
+		 * the extent status cache must be cleared to avoid leaving
+		 * behind stale delayed allocated extent entries
+		 */
+		if (!ext4_test_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA)) {
+retry:
+			err = ext4_es_remove_extent(inode, 0, EXT_MAX_BLOCKS);
+			if (err == -ENOMEM) {
+				cond_resched();
+				congestion_wait(BLK_RW_ASYNC, HZ/50);
+				goto retry;
+			}
+			if (err)
+				goto out_error;
+		}
+
 		/* Clear the content in the xattr space. */
 		if (inline_size > EXT4_MIN_INLINE_DATA_SIZE) {
 			if ((err = ext4_xattr_ibody_find(inode, &i, &is)) != 0)
