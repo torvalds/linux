@@ -963,7 +963,7 @@ struct hns_roce_dev {
 	struct hns_roce_cmdq	cmd;
 	struct hns_roce_ida pd_ida;
 	struct hns_roce_ida xrcd_ida;
-	struct hns_roce_uar_table uar_table;
+	struct hns_roce_ida uar_ida;
 	struct hns_roce_mr_table  mr_table;
 	struct hns_roce_cq_table  cq_table;
 	struct hns_roce_srq_table srq_table;
@@ -1118,10 +1118,8 @@ static inline u8 get_tclass(const struct ib_global_route *grh)
 	       grh->traffic_class >> DSCP_SHIFT : grh->traffic_class;
 }
 
-int hns_roce_init_uar_table(struct hns_roce_dev *dev);
+void hns_roce_init_uar_table(struct hns_roce_dev *dev);
 int hns_roce_uar_alloc(struct hns_roce_dev *dev, struct hns_roce_uar *uar);
-void hns_roce_uar_free(struct hns_roce_dev *dev, struct hns_roce_uar *uar);
-void hns_roce_cleanup_uar_table(struct hns_roce_dev *dev);
 
 int hns_roce_cmd_init(struct hns_roce_dev *hr_dev);
 void hns_roce_cmd_cleanup(struct hns_roce_dev *hr_dev);
