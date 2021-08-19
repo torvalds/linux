@@ -259,16 +259,15 @@ int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
 EXPORT_SYMBOL(ocelot_port_vlan_filtering);
 
 int ocelot_vlan_prepare(struct ocelot *ocelot, int port, u16 vid, bool pvid,
-			bool untagged)
+			bool untagged, struct netlink_ext_ack *extack)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 
 	/* Deny changing the native VLAN, but always permit deleting it */
 	if (untagged && ocelot_port->native_vlan.vid != vid &&
 	    ocelot_port->native_vlan.valid) {
-		dev_err(ocelot->dev,
-			"Port already has a native VLAN: %d\n",
-			ocelot_port->native_vlan.vid);
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Port already has a native VLAN");
 		return -EBUSY;
 	}
 

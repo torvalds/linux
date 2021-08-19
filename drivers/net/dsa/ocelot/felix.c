@@ -742,7 +742,8 @@ static int felix_lag_change(struct dsa_switch *ds, int port)
 }
 
 static int felix_vlan_prepare(struct dsa_switch *ds, int port,
-			      const struct switchdev_obj_port_vlan *vlan)
+			      const struct switchdev_obj_port_vlan *vlan,
+			      struct netlink_ext_ack *extack)
 {
 	struct ocelot *ocelot = ds->priv;
 	u16 flags = vlan->flags;
@@ -760,7 +761,8 @@ static int felix_vlan_prepare(struct dsa_switch *ds, int port,
 
 	return ocelot_vlan_prepare(ocelot, port, vlan->vid,
 				   flags & BRIDGE_VLAN_INFO_PVID,
-				   flags & BRIDGE_VLAN_INFO_UNTAGGED);
+				   flags & BRIDGE_VLAN_INFO_UNTAGGED,
+				   extack);
 }
 
 static int felix_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
@@ -779,7 +781,7 @@ static int felix_vlan_add(struct dsa_switch *ds, int port,
 	u16 flags = vlan->flags;
 	int err;
 
-	err = felix_vlan_prepare(ds, port, vlan);
+	err = felix_vlan_prepare(ds, port, vlan, extack);
 	if (err)
 		return err;
 
