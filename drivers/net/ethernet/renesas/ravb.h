@@ -988,6 +988,21 @@ enum ravb_chip_id {
 	RCAR_GEN3,
 };
 
+struct ravb_hw_info {
+	const char (*gstrings_stats)[ETH_GSTRING_LEN];
+	size_t gstrings_size;
+	netdev_features_t net_hw_features;
+	netdev_features_t net_features;
+	enum ravb_chip_id chip_id;
+	int stats_len;
+	size_t max_rx_len;
+	unsigned aligned_tx: 1;
+
+	/* hardware features */
+	unsigned internal_delay:1;	/* AVB-DMAC has internal delays */
+	unsigned tx_counters:1;		/* E-MAC has TX counters */
+};
+
 struct ravb_private {
 	struct net_device *ndev;
 	struct platform_device *pdev;
@@ -1039,7 +1054,9 @@ struct ravb_private {
 	unsigned rxcidm:1;		/* RX Clock Internal Delay Mode */
 	unsigned txcidm:1;		/* TX Clock Internal Delay Mode */
 	unsigned rgmii_override:1;	/* Deprecated rgmii-*id behavior */
-	int num_tx_desc;		/* TX descriptors per packet */
+	unsigned int num_tx_desc;	/* TX descriptors per packet */
+
+	const struct ravb_hw_info *info;
 };
 
 static inline u32 ravb_read(struct net_device *ndev, enum ravb_reg reg)
