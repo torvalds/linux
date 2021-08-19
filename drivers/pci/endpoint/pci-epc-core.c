@@ -548,7 +548,7 @@ int pci_epc_add_epf(struct pci_epc *epc, struct pci_epf *epf,
 	u32 func_no;
 	int ret = 0;
 
-	if (IS_ERR_OR_NULL(epc))
+	if (IS_ERR_OR_NULL(epc) || epf->is_vf)
 		return -EINVAL;
 
 	if (type == PRIMARY_INTERFACE && epf->epc)
