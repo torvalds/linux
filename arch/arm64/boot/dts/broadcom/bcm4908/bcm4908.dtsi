@@ -296,7 +296,7 @@
 			status = "okay";
 		};
 
-		nand@1800 {
+		nand-controller@1800 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "brcm,nand-bcm63138", "brcm,brcmnand-v7.1", "brcm,brcmnand";
