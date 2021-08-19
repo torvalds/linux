@@ -2,6 +2,41 @@
 /*
  * Copyright (c) 2009, Christoph Hellwig
  * All Rights Reserved.
+ *
+ * NOTE: none of these tracepoints shall be considered a stable kernel ABI
+ * as they can change at any time.
+ *
+ * Current conventions for printing numbers measuring specific units:
+ *
+ * agno: allocation group number
+ *
+ * agino: per-AG inode number
+ * ino: filesystem inode number
+ *
+ * agbno: per-AG block number in fs blocks
+ * startblock: physical block number for file mappings.  This is either a
+ *             segmented fsblock for data device mappings, or a rfsblock
+ *             for realtime device mappings
+ * fsbcount: number of blocks in an extent, in fs blocks
+ *
+ * daddr: physical block number in 512b blocks
+ * bbcount: number of blocks in a physical extent, in 512b blocks
+ *
+ * owner: reverse-mapping owner, usually inodes
+ *
+ * fileoff: file offset, in fs blocks
+ * pos: file offset, in bytes
+ * bytecount: number of bytes
+ *
+ * disize: ondisk file size, in bytes
+ * isize: incore file size, in bytes
+ *
+ * forkoff: inode fork offset, in bytes
+ *
+ * ireccount: number of inode records
+ *
+ * Numbers describing space allocations (blocks, extents, inodes) should be
+ * formatted in hexadecimal.
  */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM xfs
