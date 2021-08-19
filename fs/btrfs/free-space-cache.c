@@ -2539,10 +2539,15 @@ static int __btrfs_add_free_space_zoned(struct btrfs_block_group *block_group,
 	u64 offset = bytenr - block_group->start;
 	u64 to_free, to_unusable;
 	const int bg_reclaim_threshold = READ_ONCE(fs_info->bg_reclaim_threshold);
+	bool initial = (size == block_group->length);
+
+	WARN_ON(!initial && offset + size > block_group->zone_capacity);
 
 	spin_lock(&ctl->tree_lock);
 	if (!used)
 		to_free = size;
+	else if (initial)
+		to_free = block_group->zone_capacity;
 	else if (offset >= block_group->alloc_offset)
 		to_free = size;
 	else if (offset + size <= block_group->alloc_offset)
@@ -2755,7 +2760,7 @@ void btrfs_dump_free_space(struct btrfs_block_group *block_group,
 	 */
 	if (btrfs_is_zoned(fs_info)) {
 		btrfs_info(fs_info, "free space %llu",
-			   block_group->length - block_group->alloc_offset);
+			   block_group->zone_capacity - block_group->alloc_offset);
 		return;
 	}
 
