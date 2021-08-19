@@ -818,6 +818,15 @@ static int idxd_groups_config_write(struct idxd_device *idxd)
 	return 0;
 }
 
+static bool idxd_device_pasid_priv_enabled(struct idxd_device *idxd)
+{
+	struct pci_dev *pdev = idxd->pdev;
+
+	if (pdev->pasid_enabled && (pdev->pasid_features & PCI_PASID_CAP_PRIV))
+		return true;
+	return false;
+}
+
 static int idxd_wq_config_write(struct idxd_wq *wq)
 {
 	struct idxd_device *idxd = wq->idxd;
@@ -850,7 +859,6 @@ static int idxd_wq_config_write(struct idxd_wq *wq)
 	wq->wqcfg->wq_thresh = wq->threshold;
 
 	/* byte 8-11 */
-	wq->wqcfg->priv = !!(wq->type == IDXD_WQT_KERNEL);
 	if (wq_dedicated(wq))
 		wq->wqcfg->mode = 1;
 
@@ -858,6 +866,25 @@ static int idxd_wq_config_write(struct idxd_wq *wq)
 		wq->wqcfg->pasid_en = 1;
 		if (wq->type == IDXD_WQT_KERNEL && wq_dedicated(wq))
 			wq->wqcfg->pasid = idxd->pasid;
+	}
+
+	/*
+	 * Here the priv bit is set depending on the WQ type. priv = 1 if the
+	 * WQ type is kernel to indicate privileged access. This setting only
+	 * matters for dedicated WQ. According to the DSA spec:
+	 * If the WQ is in dedicated mode, WQ PASID Enable is 1, and the
+	 * Privileged Mode Enable field of the PCI Express PASID capability
+	 * is 0, this field must be 0.
+	 *
+	 * In the case of a dedicated kernel WQ that is not able to support
+	 * the PASID cap, then the configuration will be rejected.
+	 */
+	wq->wqcfg->priv = !!(wq->type == IDXD_WQT_KERNEL);
+	if (wq_dedicated(wq) && wq->wqcfg->pasid_en &&
+	    !idxd_device_pasid_priv_enabled(idxd) &&
+	    wq->type == IDXD_WQT_KERNEL) {
+		idxd->cmd_status = IDXD_SCMD_WQ_NO_PRIV;
+		return -EOPNOTSUPP;
 	}
 
 	wq->wqcfg->priority = wq->priority;

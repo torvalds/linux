@@ -69,7 +69,11 @@ static inline void idxd_prep_desc_common(struct idxd_wq *wq,
 	hw->src_addr = addr_f1;
 	hw->dst_addr = addr_f2;
 	hw->xfer_size = len;
-	hw->priv = !!(wq->type == IDXD_WQT_KERNEL);
+	/*
+	 * For dedicated WQ, this field is ignored and HW will use the WQCFG.priv
+	 * field instead. This field should be set to 1 for kernel descriptors.
+	 */
+	hw->priv = 1;
 	hw->completion_addr = compl;
 }
 

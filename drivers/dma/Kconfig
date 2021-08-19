@@ -285,6 +285,7 @@ config INTEL_IDXD
 	tristate "Intel Data Accelerators support"
 	depends on PCI && X86_64 && !UML
 	depends on PCI_MSI
+	depends on PCI_PASID
 	depends on SBITMAP
 	select DMA_ENGINE
 	help
