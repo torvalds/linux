@@ -206,7 +206,6 @@ vmlinux_link()
 			-Wl,-T,${lds}				\
 			${objects}				\
 			-lutil -lrt -lpthread
-		rm -f linux
 	fi
 }
 
