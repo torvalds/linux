@@ -3773,6 +3773,18 @@ static int do_allocation_zoned(struct btrfs_block_group *block_group,
 	if (skip)
 		return 1;
 
+	/* Check RO and no space case before trying to activate it */
+	spin_lock(&block_group->lock);
+	if (block_group->ro ||
+	    block_group->alloc_offset == block_group->zone_capacity) {
+		spin_unlock(&block_group->lock);
+		return 1;
+	}
+	spin_unlock(&block_group->lock);
+
+	if (!btrfs_zone_activate(block_group))
+		return 1;
+
 	spin_lock(&space_info->lock);
 	spin_lock(&block_group->lock);
 	spin_lock(&fs_info->treelog_bg_lock);
