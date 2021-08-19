@@ -116,12 +116,17 @@ properties:
       - const: per
 
   pinctrl-names:
-    minItems: 1
-    items:
-      - const: default
-      - const: state_100mhz
-      - const: state_200mhz
-      - const: sleep
+    oneOf:
+      - minItems: 3
+        items:
+          - const: default
+          - const: state_100mhz
+          - const: state_200mhz
+          - const: sleep
+      - minItems: 1
+        items:
+          - const: default
+          - const: sleep
 
 required:
   - compatible
