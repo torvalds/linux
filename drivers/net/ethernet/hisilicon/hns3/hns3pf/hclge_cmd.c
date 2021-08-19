@@ -169,17 +169,19 @@ static bool hclge_is_special_opcode(u16 opcode)
 	/* these commands have several descriptors,
 	 * and use the first one to save opcode and return value
 	 */
-	u16 spec_opcode[] = {HCLGE_OPC_STATS_64_BIT,
-			     HCLGE_OPC_STATS_32_BIT,
-			     HCLGE_OPC_STATS_MAC,
-			     HCLGE_OPC_STATS_MAC_ALL,
-			     HCLGE_OPC_QUERY_32_BIT_REG,
-			     HCLGE_OPC_QUERY_64_BIT_REG,
-			     HCLGE_QUERY_CLEAR_MPF_RAS_INT,
-			     HCLGE_QUERY_CLEAR_PF_RAS_INT,
-			     HCLGE_QUERY_CLEAR_ALL_MPF_MSIX_INT,
-			     HCLGE_QUERY_CLEAR_ALL_PF_MSIX_INT,
-			     HCLGE_QUERY_ALL_ERR_INFO};
+	static const u16 spec_opcode[] = {
+		HCLGE_OPC_STATS_64_BIT,
+		HCLGE_OPC_STATS_32_BIT,
+		HCLGE_OPC_STATS_MAC,
+		HCLGE_OPC_STATS_MAC_ALL,
+		HCLGE_OPC_QUERY_32_BIT_REG,
+		HCLGE_OPC_QUERY_64_BIT_REG,
+		HCLGE_QUERY_CLEAR_MPF_RAS_INT,
+		HCLGE_QUERY_CLEAR_PF_RAS_INT,
+		HCLGE_QUERY_CLEAR_ALL_MPF_MSIX_INT,
+		HCLGE_QUERY_CLEAR_ALL_PF_MSIX_INT,
+		HCLGE_QUERY_ALL_ERR_INFO
+	};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(spec_opcode); i++) {
