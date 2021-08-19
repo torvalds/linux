@@ -38,6 +38,7 @@
 #define FIELD_STRING_IP		"__probe_ip"
 #define FIELD_STRING_RETIP	"__probe_ret_ip"
 #define FIELD_STRING_FUNC	"__probe_func"
+#define FIELD_STRING_TYPE	"__probe_type"
 
 #undef DEFINE_FIELD
 #define DEFINE_FIELD(type, item, name, is_signed)			\
@@ -102,6 +103,7 @@ enum fetch_op {
 	FETCH_OP_MOD_BF,	/* Bitfield: .basesize, .lshift, .rshift */
 	// Stage 5 (loop) op
 	FETCH_OP_LP_ARRAY,	/* Array: .param = loop count */
+	FETCH_OP_TP_ARG,	/* Trace Point argument */
 	FETCH_OP_END,
 	FETCH_NOP_SYMBOL,	/* Unresolved Symbol holder */
 };
@@ -351,7 +353,8 @@ int trace_probe_create(const char *raw_command, int (*createfn)(int, const char 
 #define TPARG_FL_RETURN BIT(0)
 #define TPARG_FL_KERNEL BIT(1)
 #define TPARG_FL_FENTRY BIT(2)
-#define TPARG_FL_MASK	GENMASK(2, 0)
+#define TPARG_FL_TPOINT BIT(3)
+#define TPARG_FL_MASK	GENMASK(3, 0)
 
 extern int traceprobe_parse_probe_arg(struct trace_probe *tp, int i,
 				const char *argv, unsigned int flags);
@@ -366,6 +369,7 @@ int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
 enum probe_print_type {
 	PROBE_PRINT_NORMAL,
 	PROBE_PRINT_RETURN,
+	PROBE_PRINT_EVENT,
 };
 
 extern int traceprobe_set_print_fmt(struct trace_probe *tp, enum probe_print_type ptype);

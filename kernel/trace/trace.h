@@ -126,6 +126,11 @@ struct kprobe_trace_entry_head {
 	unsigned long		ip;
 };
 
+struct eprobe_trace_entry_head {
+	struct trace_entry	ent;
+	unsigned int		type;
+};
+
 struct kretprobe_trace_entry_head {
 	struct trace_entry	ent;
 	unsigned long		func;
@@ -1508,9 +1513,14 @@ static inline int register_trigger_hist_enable_disable_cmds(void) { return 0; }
 extern int register_trigger_cmds(void);
 extern void clear_event_triggers(struct trace_array *tr);
 
+enum {
+	EVENT_TRIGGER_FL_PROBE		= BIT(0),
+};
+
 struct event_trigger_data {
 	unsigned long			count;
 	int				ref;
+	int				flags;
 	struct event_trigger_ops	*ops;
 	struct event_command		*cmd_ops;
 	struct event_filter __rcu	*filter;
@@ -1916,6 +1926,14 @@ static inline bool is_good_name(const char *name)
 			return false;
 	}
 	return true;
+}
+
+/* Convert certain expected symbols into '_' when generating event names */
+static inline void sanitize_event_name(char *name)
+{
+	while (*name++ != '\0')
+		if (*name == ':' || *name == '.')
+			*name = '_';
 }
 
 /*

@@ -707,14 +707,6 @@ static struct notifier_block trace_kprobe_module_nb = {
 	.priority = 1	/* Invoked after kprobe module callback */
 };
 
-/* Convert certain expected symbols into '_' when generating event names */
-static inline void sanitize_event_name(char *name)
-{
-	while (*name++ != '\0')
-		if (*name == ':' || *name == '.')
-			*name = '_';
-}
-
 static int __trace_kprobe_create(int argc, const char *argv[])
 {
 	/*
