@@ -353,8 +353,6 @@ source "drivers/gpu/drm/hisilicon/Kconfig"
 
 source "drivers/gpu/drm/mediatek/Kconfig"
 
-source "drivers/gpu/drm/zte/Kconfig"
-
 source "drivers/gpu/drm/mxsfb/Kconfig"
 
 source "drivers/gpu/drm/meson/Kconfig"
