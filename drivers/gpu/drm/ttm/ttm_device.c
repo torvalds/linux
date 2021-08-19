@@ -78,9 +78,7 @@ static int ttm_global_init(void)
 
 	ttm_debugfs_root = debugfs_create_dir("ttm", NULL);
 	if (IS_ERR(ttm_debugfs_root)) {
-		ret = PTR_ERR(ttm_debugfs_root);
 		ttm_debugfs_root = NULL;
-		goto out;
 	}
 
 	/* Limit the number of pages in the pool to about 50% of the total
