@@ -30,6 +30,72 @@
  * Physical superblock buffer manipulations. Shared with libxfs in userspace.
  */
 
+uint64_t
+xfs_sb_version_to_features(
+	struct xfs_sb	*sbp)
+{
+	uint64_t	features = 0;
+
+	/* optional V4 features */
+	if (sbp->sb_rblocks > 0)
+		features |= XFS_FEAT_REALTIME;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_ATTRBIT)
+		features |= XFS_FEAT_ATTR;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_QUOTABIT)
+		features |= XFS_FEAT_QUOTA;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_ALIGNBIT)
+		features |= XFS_FEAT_ALIGN;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_LOGV2BIT)
+		features |= XFS_FEAT_LOGV2;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_DALIGNBIT)
+		features |= XFS_FEAT_DALIGN;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_EXTFLGBIT)
+		features |= XFS_FEAT_EXTFLG;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_SECTORBIT)
+		features |= XFS_FEAT_SECTOR;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_BORGBIT)
+		features |= XFS_FEAT_ASCIICI;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_MOREBITSBIT) {
+		if (sbp->sb_features2 & XFS_SB_VERSION2_LAZYSBCOUNTBIT)
+			features |= XFS_FEAT_LAZYSBCOUNT;
+		if (sbp->sb_features2 & XFS_SB_VERSION2_ATTR2BIT)
+			features |= XFS_FEAT_ATTR2;
+		if (sbp->sb_features2 & XFS_SB_VERSION2_PROJID32BIT)
+			features |= XFS_FEAT_PROJID32;
+		if (sbp->sb_features2 & XFS_SB_VERSION2_FTYPE)
+			features |= XFS_FEAT_FTYPE;
+	}
+
+	if (XFS_SB_VERSION_NUM(sbp) != XFS_SB_VERSION_5)
+		return features;
+
+	/* Always on V5 features */
+	features |= XFS_FEAT_ALIGN | XFS_FEAT_LOGV2 | XFS_FEAT_EXTFLG |
+		    XFS_FEAT_LAZYSBCOUNT | XFS_FEAT_ATTR2 | XFS_FEAT_PROJID32 |
+		    XFS_FEAT_V3INODES | XFS_FEAT_CRC | XFS_FEAT_PQUOTINO;
+
+	/* Optional V5 features */
+	if (sbp->sb_features_ro_compat & XFS_SB_FEAT_RO_COMPAT_FINOBT)
+		features |= XFS_FEAT_FINOBT;
+	if (sbp->sb_features_ro_compat & XFS_SB_FEAT_RO_COMPAT_RMAPBT)
+		features |= XFS_FEAT_RMAPBT;
+	if (sbp->sb_features_ro_compat & XFS_SB_FEAT_RO_COMPAT_REFLINK)
+		features |= XFS_FEAT_REFLINK;
+	if (sbp->sb_features_ro_compat & XFS_SB_FEAT_RO_COMPAT_INOBTCNT)
+		features |= XFS_FEAT_INOBTCNT;
+	if (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_FTYPE)
+		features |= XFS_FEAT_FTYPE;
+	if (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_SPINODES)
+		features |= XFS_FEAT_SPINODES;
+	if (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_META_UUID)
+		features |= XFS_FEAT_META_UUID;
+	if (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_BIGTIME)
+		features |= XFS_FEAT_BIGTIME;
+	if (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_NEEDSREPAIR)
+		features |= XFS_FEAT_NEEDSREPAIR;
+	return features;
+}
+
 /* Check all the superblock fields we care about when reading one in. */
 STATIC int
 xfs_validate_sb_read(

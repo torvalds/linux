@@ -1131,6 +1131,9 @@ error_cancel:
 		error = xfs_trans_commit(tp);
 		if (error)
 			break;
+
+		/* Ensure the mount RT feature flag is now set. */
+		mp->m_features |= XFS_FEAT_REALTIME;
 	}
 	if (error)
 		goto out_free;

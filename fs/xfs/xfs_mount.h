@@ -147,6 +147,7 @@ typedef struct xfs_mount {
 	int			m_fixedfsid[2];	/* unchanged for life of FS */
 	uint			m_qflags;	/* quota status flags */
 	uint64_t		m_flags;	/* global mount flags */
+	uint64_t		m_features;	/* active filesystem features */
 	uint64_t		m_low_space[XFS_LOWSP_MAX];
 	uint64_t		m_low_rtexts[XFS_LOWSP_MAX];
 	struct xfs_ino_geometry	m_ino_geo;	/* inode geometry */
@@ -242,6 +243,81 @@ typedef struct xfs_mount {
 } xfs_mount_t;
 
 #define M_IGEO(mp)		(&(mp)->m_ino_geo)
+
+/*
+ * Flags for m_features.
+ *
+ * These are all the active features in the filesystem, regardless of how
+ * they are configured.
+ */
+#define XFS_FEAT_ATTR		(1ULL << 0)	/* xattrs present in fs */
+#define XFS_FEAT_NLINK		(1ULL << 1)	/* 32 bit link counts */
+#define XFS_FEAT_QUOTA		(1ULL << 2)	/* quota active */
+#define XFS_FEAT_ALIGN		(1ULL << 3)	/* inode alignment */
+#define XFS_FEAT_DALIGN		(1ULL << 4)	/* data alignment */
+#define XFS_FEAT_LOGV2		(1ULL << 5)	/* version 2 logs */
+#define XFS_FEAT_SECTOR		(1ULL << 6)	/* sector size > 512 bytes */
+#define XFS_FEAT_EXTFLG		(1ULL << 7)	/* unwritten extents */
+#define XFS_FEAT_ASCIICI	(1ULL << 8)	/* ASCII only case-insens. */
+#define XFS_FEAT_LAZYSBCOUNT	(1ULL << 9)	/* Superblk counters */
+#define XFS_FEAT_ATTR2		(1ULL << 10)	/* dynamic attr fork */
+#define XFS_FEAT_PARENT		(1ULL << 11)	/* parent pointers */
+#define XFS_FEAT_PROJID32	(1ULL << 12)	/* 32 bit project id */
+#define XFS_FEAT_CRC		(1ULL << 13)	/* metadata CRCs */
+#define XFS_FEAT_V3INODES	(1ULL << 14)	/* Version 3 inodes */
+#define XFS_FEAT_PQUOTINO	(1ULL << 15)	/* non-shared proj/grp quotas */
+#define XFS_FEAT_FTYPE		(1ULL << 16)	/* inode type in dir */
+#define XFS_FEAT_FINOBT		(1ULL << 17)	/* free inode btree */
+#define XFS_FEAT_RMAPBT		(1ULL << 18)	/* reverse map btree */
+#define XFS_FEAT_REFLINK	(1ULL << 19)	/* reflinked files */
+#define XFS_FEAT_SPINODES	(1ULL << 20)	/* sparse inode chunks */
+#define XFS_FEAT_META_UUID	(1ULL << 21)	/* metadata UUID */
+#define XFS_FEAT_REALTIME	(1ULL << 22)	/* realtime device present */
+#define XFS_FEAT_INOBTCNT	(1ULL << 23)	/* inobt block counts */
+#define XFS_FEAT_BIGTIME	(1ULL << 24)	/* large timestamps */
+#define XFS_FEAT_NEEDSREPAIR	(1ULL << 25)	/* needs xfs_repair */
+
+#define __XFS_HAS_FEAT(name, NAME) \
+static inline bool xfs_has_ ## name (struct xfs_mount *mp) \
+{ \
+	return mp->m_features & XFS_FEAT_ ## NAME; \
+}
+
+/* Some features can be added dynamically so they need a set wrapper, too. */
+#define __XFS_ADD_FEAT(name, NAME) \
+	__XFS_HAS_FEAT(name, NAME); \
+static inline void xfs_add_ ## name (struct xfs_mount *mp) \
+{ \
+	mp->m_features |= XFS_FEAT_ ## NAME; \
+	xfs_sb_version_add ## name(&mp->m_sb); \
+}
+
+__XFS_ADD_FEAT(attr, ATTR)
+__XFS_HAS_FEAT(nlink, NLINK)
+__XFS_ADD_FEAT(quota, QUOTA)
+__XFS_HAS_FEAT(align, ALIGN)
+__XFS_HAS_FEAT(dalign, DALIGN)
+__XFS_HAS_FEAT(logv2, LOGV2)
+__XFS_HAS_FEAT(sector, SECTOR)
+__XFS_HAS_FEAT(extflg, EXTFLG)
+__XFS_HAS_FEAT(asciici, ASCIICI)
+__XFS_HAS_FEAT(lazysbcount, LAZYSBCOUNT)
+__XFS_ADD_FEAT(attr2, ATTR2)
+__XFS_HAS_FEAT(parent, PARENT)
+__XFS_ADD_FEAT(projid32, PROJID32)
+__XFS_HAS_FEAT(crc, CRC)
+__XFS_HAS_FEAT(v3inodes, V3INODES)
+__XFS_HAS_FEAT(pquotino, PQUOTINO)
+__XFS_HAS_FEAT(ftype, FTYPE)
+__XFS_HAS_FEAT(finobt, FINOBT)
+__XFS_HAS_FEAT(rmapbt, RMAPBT)
+__XFS_HAS_FEAT(reflink, REFLINK)
+__XFS_HAS_FEAT(sparseinodes, SPINODES)
+__XFS_HAS_FEAT(metauuid, META_UUID)
+__XFS_HAS_FEAT(realtime, REALTIME)
+__XFS_HAS_FEAT(inobtcounts, REALTIME)
+__XFS_HAS_FEAT(bigtime, REALTIME)
+__XFS_HAS_FEAT(needsrepair, REALTIME)
 
 /*
  * Flags for m_flags.

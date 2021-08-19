@@ -225,6 +225,7 @@ reread:
 		goto reread;
 	}
 
+	mp->m_features |= xfs_sb_version_to_features(sbp);
 	xfs_reinit_percpu_counters(mp);
 
 	/* no need to be quiet anymore, so reset the buf ops */

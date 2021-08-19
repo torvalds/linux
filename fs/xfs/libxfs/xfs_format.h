@@ -405,7 +405,7 @@ static inline bool xfs_sb_version_hasprojid32bit(struct xfs_sb *sbp)
 		(sbp->sb_features2 & XFS_SB_VERSION2_PROJID32BIT));
 }
 
-static inline void xfs_sb_version_addprojid32bit(struct xfs_sb *sbp)
+static inline void xfs_sb_version_addprojid32(struct xfs_sb *sbp)
 {
 	sbp->sb_versionnum |= XFS_SB_VERSION_MOREBITSBIT;
 	sbp->sb_features2 |= XFS_SB_VERSION2_PROJID32BIT;
