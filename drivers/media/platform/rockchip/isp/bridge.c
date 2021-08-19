@@ -487,11 +487,12 @@ static void rkisp_bridge_save_fbcgain(struct rkisp_device *dev, struct rkisp_isp
 
 	spin_lock_irqsave(&hw->buf_lock, lock_flags);
 	if (dev->cur_fbcgain) {
-		v4l2_dbg(3, rkisp_debug, &br_dev->sd,
+		v4l2_dbg(1, rkisp_debug, &br_dev->sd,
 			 "%s old mfbcgain buf is exit, frame_id %d\n",
 			 __func__, dev->cur_fbcgain->frame_id);
 		list_add_tail(&dev->cur_fbcgain->list, &hw->list);
 		dev->cur_fbcgain = NULL;
+		br_dev->dbg.frameloss++;
 	}
 	dev->cur_fbcgain = fbcgain;
 	rkisp_bridge_try_sendtohal(dev);
@@ -597,6 +598,7 @@ static int frame_end(struct rkisp_bridge_device *dev, bool en, u32 state)
 		hw->cur_buf = NULL;
 	} else {
 		v4l2_dbg(1, rkisp_debug, &dev->sd, "no buf, lost frame:%d\n", dev->dbg.id);
+		dev->dbg.frameloss++;
 	}
 
 	if (hw->nxt_buf) {
@@ -1276,6 +1278,7 @@ static int bridge_s_stream(struct v4l2_subdev *sd, int on)
 		 "%s %d\n", __func__, on);
 
 	if (on) {
+		memset(&dev->dbg, 0, sizeof(dev->dbg));
 		atomic_inc(&dev->ispdev->cap_dev.refcnt);
 		ret = bridge_start_stream(sd);
 	} else {
@@ -1467,11 +1470,12 @@ void rkisp_bridge_save_spbuf(struct rkisp_device *dev, struct rkisp_buffer *sp_b
 
 	spin_lock_irqsave(&hw->buf_lock, lock_flags);
 	if (dev->cur_spbuf) {
-		v4l2_dbg(3, rkisp_debug, &br_dev->sd,
+		v4l2_dbg(1, rkisp_debug, &br_dev->sd,
 			 "%s old sp buf is exit, frame_id %d\n",
 			 __func__, dev->cur_spbuf->vb.sequence);
 		rkisp_spbuf_queue(&dev->cap_dev.stream[RKISP_STREAM_SP], dev->cur_spbuf);
 		dev->cur_spbuf = NULL;
+		dev->cap_dev.stream[RKISP_STREAM_SP].dbg.frameloss++;
 	}
 	dev->cur_spbuf = sp_buf;
 	rkisp_bridge_try_sendtohal(dev);

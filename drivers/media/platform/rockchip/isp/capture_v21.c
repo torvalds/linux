@@ -495,8 +495,10 @@ static void update_dmatx_v2(struct rkisp_stream *stream)
 			else
 				hdr_qbuf(&dev->hdr.q_tx[index], buf);
 		}
-		if (!buf && dev->hw_dev->dummy_buf.mem_priv)
+		if (!buf && dev->hw_dev->dummy_buf.mem_priv) {
 			buf = &dev->hw_dev->dummy_buf;
+			stream->dbg.frameloss++;
+		}
 		if (buf)
 			mi_set_y_addr(stream, buf->dma_addr);
 	}
@@ -535,6 +537,7 @@ static void update_mi(struct rkisp_stream *stream)
 			    dummy_buf->dma_addr, false);
 		rkisp_write(dev, stream->config->mi.cr_base_ad_init,
 			    dummy_buf->dma_addr, false);
+		stream->dbg.frameloss++;
 	}
 
 	mi_set_y_offset(stream, 0);
@@ -681,6 +684,7 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 	return;
 
 RDBK_FRM_UNMATCH:
+	stream->dbg.frameloss++;
 	if (cap->rdbk_buf[RDBK_L])
 		rkisp_buf_queue(&cap->rdbk_buf[RDBK_L]->vb.vb2_buf);
 	if (cap->rdbk_buf[RDBK_S])
@@ -1158,6 +1162,7 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 		return -EBUSY;
 	}
 
+	memset(&stream->dbg, 0, sizeof(stream->dbg));
 	atomic_inc(&dev->cap_dev.refcnt);
 	if (!dev->isp_inp || !stream->linked) {
 		v4l2_err(v4l2_dev, "check video link or isp input\n");

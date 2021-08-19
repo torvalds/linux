@@ -71,6 +71,7 @@ struct frame_debug_info {
 	u32 interval;
 	u32 delay;
 	u32 id;
+	u32 frameloss;
 };
 
 struct max_input {
