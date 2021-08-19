@@ -623,6 +623,7 @@ static int iwl_dbg_tlv_apply_buffer(struct iwl_fw_runtime *fwrt,
 			.id = WIDE_ID(DEBUG_GROUP, BUFFER_ALLOCATION),
 			.data[0] = &data,
 			.len[0] = sizeof(data),
+			.flags = CMD_SEND_IN_RFKILL,
 		};
 		int ret, j;
 
