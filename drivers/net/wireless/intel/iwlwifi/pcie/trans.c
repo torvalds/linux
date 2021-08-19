@@ -2968,8 +2968,8 @@ static u32 iwl_trans_pcie_dump_rbs(struct iwl_trans *trans,
 		struct iwl_rx_mem_buffer *rxb = rxq->queue[i];
 		struct iwl_fw_error_dump_rb *rb;
 
-		dma_unmap_page(trans->dev, rxb->page_dma, max_len,
-			       DMA_FROM_DEVICE);
+		dma_sync_single_for_cpu(trans->dev, rxb->page_dma,
+					max_len, DMA_FROM_DEVICE);
 
 		rb_len += sizeof(**data) + sizeof(*rb) + max_len;
 
@@ -2978,10 +2978,6 @@ static u32 iwl_trans_pcie_dump_rbs(struct iwl_trans *trans,
 		rb = (void *)(*data)->data;
 		rb->index = cpu_to_le32(i);
 		memcpy(rb->data, page_address(rxb->page), max_len);
-		/* remap the page for the free benefit */
-		rxb->page_dma = dma_map_page(trans->dev, rxb->page,
-					     rxb->offset, max_len,
-					     DMA_FROM_DEVICE);
 
 		*data = iwl_fw_error_next_data(*data);
 	}
