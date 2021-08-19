@@ -115,7 +115,7 @@ static int rk3568_iodomain_write(struct rockchip_iodomain_supply *supply, int uV
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }
