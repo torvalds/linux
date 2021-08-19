@@ -1603,8 +1603,10 @@ static void unix_redir_to_connected(int sotype, int sock_mapfd,
 again:
 	n = read(mode == REDIR_INGRESS ? p0 : c0, &b, 1);
 	if (n < 0) {
-		if (errno == EAGAIN && retries--)
+		if (errno == EAGAIN && retries--) {
+			usleep(1000);
 			goto again;
+		}
 		FAIL_ERRNO("%s: read", log_prefix);
 	}
 	if (n == 0)
@@ -1776,8 +1778,10 @@ static void udp_redir_to_connected(int family, int sock_mapfd, int verd_mapfd,
 again:
 	n = read(mode == REDIR_INGRESS ? p0 : c0, &b, 1);
 	if (n < 0) {
-		if (errno == EAGAIN && retries--)
+		if (errno == EAGAIN && retries--) {
+			usleep(1000);
 			goto again;
+		}
 		FAIL_ERRNO("%s: read", log_prefix);
 	}
 	if (n == 0)
@@ -1869,8 +1873,10 @@ static void inet_unix_redir_to_connected(int family, int type, int sock_mapfd,
 again:
 	n = read(mode == REDIR_INGRESS ? p0 : c0, &b, 1);
 	if (n < 0) {
-		if (errno == EAGAIN && retries--)
+		if (errno == EAGAIN && retries--) {
+			usleep(1000);
 			goto again;
+		}
 		FAIL_ERRNO("%s: read", log_prefix);
 	}
 	if (n == 0)
