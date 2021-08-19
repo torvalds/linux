@@ -2241,7 +2241,7 @@ static void rt5640_button_press_work(struct work_struct *work)
 	schedule_delayed_work(&rt5640->bp_work, msecs_to_jiffies(BP_POLL_TIME));
 }
 
-static int rt5640_detect_headset(struct snd_soc_component *component)
+int rt5640_detect_headset(struct snd_soc_component *component, struct gpio_desc *hp_det_gpio)
 {
 	int i, headset_count = 0, headphone_count = 0;
 
@@ -2259,8 +2259,13 @@ static int rt5640_detect_headset(struct snd_soc_component *component)
 		msleep(JACK_SETTLE_TIME);
 
 		/* Check the jack is still connected before checking ovcd */
-		if (!rt5640_jack_inserted(component))
-			return 0;
+		if (hp_det_gpio) {
+			if (gpiod_get_value_cansleep(hp_det_gpio))
+				return 0;
+		} else {
+			if (!rt5640_jack_inserted(component))
+				return 0;
+		}
 
 		if (rt5640_micbias1_ovcd(component)) {
 			/*
@@ -2285,6 +2290,7 @@ static int rt5640_detect_headset(struct snd_soc_component *component)
 	dev_err(component->dev, "Error detecting headset vs headphones, bad contact?, assuming headphones\n");
 	return SND_JACK_HEADPHONE;
 }
+EXPORT_SYMBOL_GPL(rt5640_detect_headset);
 
 static void rt5640_jack_work(struct work_struct *work)
 {
@@ -2309,7 +2315,7 @@ static void rt5640_jack_work(struct work_struct *work)
 		/* Jack inserted */
 		WARN_ON(rt5640->ovcd_irq_enabled);
 		rt5640_enable_micbias1_for_ovcd(component);
-		status = rt5640_detect_headset(component);
+		status = rt5640_detect_headset(component, NULL);
 		if (status == SND_JACK_HEADSET) {
 			/* Enable ovcd IRQ for button press detect. */
 			rt5640_enable_micbias1_ovcd_irq(component);
