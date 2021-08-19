@@ -25,6 +25,7 @@
 #include "backref.h"
 #include "misc.h"
 #include "subpage.h"
+#include "zoned.h"
 
 /*
  * Relocation overview
@@ -4062,6 +4063,9 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 	btrfs_wait_ordered_roots(fs_info, U64_MAX,
 				 rc->block_group->start,
 				 rc->block_group->length);
+
+	ret = btrfs_zone_finish(rc->block_group);
+	WARN_ON(ret && ret != -EAGAIN);
 
 	while (1) {
 		int finishes_stage;
