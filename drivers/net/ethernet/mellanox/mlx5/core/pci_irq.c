@@ -194,15 +194,14 @@ static void irq_sf_set_name(struct mlx5_irq_pool *pool, char *name, int vecidx)
 	snprintf(name, MLX5_MAX_IRQ_NAME, "%s%d", pool->name, vecidx);
 }
 
-static void irq_set_name(char *name, int vecidx)
+static void irq_set_name(struct mlx5_irq_pool *pool, char *name, int vecidx)
 {
-	if (vecidx == 0) {
+	if (vecidx == pool->xa_num_irqs.max) {
 		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_async%d", vecidx);
 		return;
 	}
 
-	snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_comp%d",
-		 vecidx - MLX5_IRQ_VEC_COMP_BASE);
+	snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_comp%d", vecidx);
 }
 
 static struct mlx5_irq *irq_request(struct mlx5_irq_pool *pool, int i)
@@ -217,7 +216,7 @@ static struct mlx5_irq *irq_request(struct mlx5_irq_pool *pool, int i)
 		return ERR_PTR(-ENOMEM);
 	irq->irqn = pci_irq_vector(dev->pdev, i);
 	if (!pool->name[0])
-		irq_set_name(name, i);
+		irq_set_name(pool, name, i);
 	else
 		irq_sf_set_name(pool, name, i);
 	ATOMIC_INIT_NOTIFIER_HEAD(&irq->nh);
@@ -440,6 +439,7 @@ struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, u16 vecidx,
 	}
 pf_irq:
 	pool = irq_table->pf_pool;
+	vecidx = (vecidx == MLX5_IRQ_EQ_CTRL) ? pool->xa_num_irqs.max : vecidx;
 	irq = irq_pool_request_vector(pool, vecidx, affinity);
 out:
 	if (IS_ERR(irq))
