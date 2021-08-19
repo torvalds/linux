@@ -4159,6 +4159,9 @@ void wait_on_extent_buffer_writeback(struct extent_buffer *eb)
 
 static void end_extent_buffer_writeback(struct extent_buffer *eb)
 {
+	if (test_bit(EXTENT_BUFFER_ZONE_FINISH, &eb->bflags))
+		btrfs_zone_finish_endio(eb->fs_info, eb->start, eb->len);
+
 	clear_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags);
 	smp_mb__after_atomic();
 	wake_up_bit(&eb->bflags, EXTENT_BUFFER_WRITEBACK);
@@ -4760,8 +4763,13 @@ static int submit_eb_page(struct page *page, struct writeback_control *wbc,
 		free_extent_buffer(eb);
 		return ret;
 	}
-	if (cache)
+	if (cache) {
+		/* Impiles write in zoned mode */
 		btrfs_put_block_group(cache);
+		/* Mark the last eb in a block group */
+		if (cache->seq_zone && eb->start + eb->len == cache->zone_capacity)
+			set_bit(EXTENT_BUFFER_ZONE_FINISH, &eb->bflags);
+	}
 	ret = write_one_eb(eb, wbc, epd);
 	free_extent_buffer(eb);
 	if (ret < 0)

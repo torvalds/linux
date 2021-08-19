@@ -1904,3 +1904,53 @@ bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices, int raid_index
 
 	return ret;
 }
+
+void btrfs_zone_finish_endio(struct btrfs_fs_info *fs_info, u64 logical, u64 length)
+{
+	struct btrfs_block_group *block_group;
+	struct map_lookup *map;
+	struct btrfs_device *device;
+	u64 physical;
+
+	if (!btrfs_is_zoned(fs_info))
+		return;
+
+	block_group = btrfs_lookup_block_group(fs_info, logical);
+	ASSERT(block_group);
+
+	if (logical + length < block_group->start + block_group->zone_capacity)
+		goto out;
+
+	spin_lock(&block_group->lock);
+
+	if (!block_group->zone_is_active) {
+		spin_unlock(&block_group->lock);
+		goto out;
+	}
+
+	block_group->zone_is_active = 0;
+	/* We should have consumed all the free space */
+	ASSERT(block_group->alloc_offset == block_group->zone_capacity);
+	ASSERT(block_group->free_space_ctl->free_space == 0);
+	btrfs_clear_treelog_bg(block_group);
+	spin_unlock(&block_group->lock);
+
+	map = block_group->physical_map;
+	device = map->stripes[0].dev;
+	physical = map->stripes[0].physical;
+
+	if (!device->zone_info->max_active_zones)
+		goto out;
+
+	btrfs_dev_clear_active_zone(device, physical);
+
+	spin_lock(&fs_info->zone_active_bgs_lock);
+	ASSERT(!list_empty(&block_group->active_bg_list));
+	list_del_init(&block_group->active_bg_list);
+	spin_unlock(&fs_info->zone_active_bgs_lock);
+
+	btrfs_put_block_group(block_group);
+
+out:
+	btrfs_put_block_group(block_group);
+}
