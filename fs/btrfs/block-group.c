@@ -2445,6 +2445,12 @@ struct btrfs_block_group *btrfs_make_block_group(struct btrfs_trans_handle *tran
 		return ERR_PTR(ret);
 	}
 
+	/*
+	 * New block group is likely to be used soon. Try to activate it now.
+	 * Failure is OK for now.
+	 */
+	btrfs_zone_activate(cache);
+
 	ret = exclude_super_stripes(cache);
 	if (ret) {
 		/* We may have excluded something, so call this just in case */
