@@ -53,7 +53,7 @@ xfs_dir3_block_verify(
 	if (!xfs_verify_magic(bp, hdr3->magic))
 		return __this_address;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_meta_uuid))
 			return __this_address;
 		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
@@ -121,7 +121,7 @@ xfs_dir3_block_header_check(
 {
 	struct xfs_mount	*mp = dp->i_mount;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		struct xfs_dir3_blk_hdr *hdr3 = bp->b_addr;
 
 		if (be64_to_cpu(hdr3->owner) != dp->i_ino)

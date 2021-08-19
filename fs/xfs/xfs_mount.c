@@ -1320,7 +1320,7 @@ xfs_clear_incompat_log_features(
 {
 	bool			ret = false;
 
-	if (!xfs_sb_version_hascrc(&mp->m_sb) ||
+	if (!xfs_has_crc(mp) ||
 	    !xfs_sb_has_incompat_log_feature(&mp->m_sb,
 				XFS_SB_FEAT_INCOMPAT_LOG_ALL) ||
 	    xfs_is_shutdown(mp))

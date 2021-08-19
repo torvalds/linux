@@ -247,7 +247,7 @@ xfs_dir2_free_hdr_from_disk(
 	struct xfs_dir3_icfree_hdr	*to,
 	struct xfs_dir2_free		*from)
 {
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		struct xfs_dir3_free	*from3 = (struct xfs_dir3_free *)from;
 
 		to->magic = be32_to_cpu(from3->hdr.hdr.magic);
@@ -274,7 +274,7 @@ xfs_dir2_free_hdr_to_disk(
 	struct xfs_dir2_free		*to,
 	struct xfs_dir3_icfree_hdr	*from)
 {
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		struct xfs_dir3_free	*to3 = (struct xfs_dir3_free *)to;
 
 		ASSERT(from->magic == XFS_DIR3_FREE_MAGIC);

@@ -207,7 +207,7 @@ retry:
 		/* Add up the free/freelist/bnobt/cntbt blocks */
 		fsc->fdblocks += pag->pagf_freeblks;
 		fsc->fdblocks += pag->pagf_flcount;
-		if (xfs_sb_version_haslazysbcount(&sc->mp->m_sb)) {
+		if (xfs_has_lazysbcount(sc->mp)) {
 			fsc->fdblocks += pag->pagf_btreeblks;
 		} else {
 			error = xchk_fscount_btreeblks(sc, fsc, agno);

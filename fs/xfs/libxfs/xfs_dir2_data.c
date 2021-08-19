@@ -29,7 +29,7 @@ xfs_dir2_data_bestfree_p(
 	struct xfs_mount		*mp,
 	struct xfs_dir2_data_hdr	*hdr)
 {
-	if (xfs_sb_version_hascrc(&mp->m_sb))
+	if (xfs_has_crc(mp))
 		return ((struct xfs_dir3_data_hdr *)hdr)->best_free;
 	return hdr->bestfree;
 }
@@ -51,7 +51,7 @@ xfs_dir2_data_get_ftype(
 	struct xfs_mount		*mp,
 	struct xfs_dir2_data_entry	*dep)
 {
-	if (xfs_sb_version_hasftype(&mp->m_sb)) {
+	if (xfs_has_ftype(mp)) {
 		uint8_t			ftype = dep->name[dep->namelen];
 
 		if (likely(ftype < XFS_DIR3_FT_MAX))
@@ -70,7 +70,7 @@ xfs_dir2_data_put_ftype(
 	ASSERT(ftype < XFS_DIR3_FT_MAX);
 	ASSERT(dep->namelen != 0);
 
-	if (xfs_sb_version_hasftype(&mp->m_sb))
+	if (xfs_has_ftype(mp))
 		dep->name[dep->namelen] = ftype;
 }
 
@@ -297,7 +297,7 @@ xfs_dir3_data_verify(
 	if (!xfs_verify_magic(bp, hdr3->magic))
 		return __this_address;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_meta_uuid))
 			return __this_address;
 		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
@@ -401,7 +401,7 @@ xfs_dir3_data_header_check(
 {
 	struct xfs_mount	*mp = dp->i_mount;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		struct xfs_dir3_data_hdr *hdr3 = bp->b_addr;
 
 		if (be64_to_cpu(hdr3->hdr.owner) != dp->i_ino)

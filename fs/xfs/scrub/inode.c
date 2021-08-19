@@ -199,8 +199,7 @@ xchk_inode_flags2(
 		goto bad;
 
 	/* no bigtime iflag without the bigtime feature */
-	if (xfs_dinode_has_bigtime(dip) &&
-	    !xfs_sb_version_hasbigtime(&mp->m_sb))
+	if (xfs_dinode_has_bigtime(dip) && !xfs_has_bigtime(mp))
 		goto bad;
 
 	return;

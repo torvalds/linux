@@ -434,7 +434,7 @@ struct xfs_log_dinode {
 };
 
 #define xfs_log_dinode_size(mp)						\
-	(xfs_sb_version_has_v3inode(&(mp)->m_sb) ?			\
+	(xfs_has_v3inodes((mp)) ?					\
 		sizeof(struct xfs_log_dinode) :				\
 		offsetof(struct xfs_log_dinode, di_next_unlinked))
 

@@ -662,8 +662,7 @@ xchk_bmap(
 		}
 		break;
 	case XFS_ATTR_FORK:
-		if (!xfs_sb_version_hasattr(&mp->m_sb) &&
-		    !xfs_sb_version_hasattr2(&mp->m_sb))
+		if (!xfs_has_attr(mp) && !xfs_has_attr2(mp))
 			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
 		break;
 	default:

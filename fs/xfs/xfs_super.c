@@ -1496,7 +1496,7 @@ xfs_fs_fill_super(
 	}
 
 	/* Filesystem claims it needs repair, so refuse the mount. */
-	if (xfs_sb_version_needsrepair(&mp->m_sb)) {
+	if (xfs_has_needsrepair(mp)) {
 		xfs_warn(mp, "Filesystem needs repair.  Please run xfs_repair.");
 		error = -EFSCORRUPTED;
 		goto out_free_sb;

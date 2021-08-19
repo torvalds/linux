@@ -187,7 +187,7 @@ xfs_calc_inode_chunk_res(
 			       XFS_FSB_TO_B(mp, 1));
 	if (alloc) {
 		/* icreate tx uses ordered buffers */
-		if (xfs_sb_version_has_v3inode(&mp->m_sb))
+		if (xfs_has_v3inodes(mp))
 			return res;
 		size = XFS_FSB_TO_B(mp, 1);
 	}
@@ -268,7 +268,7 @@ xfs_calc_write_reservation(
 	     xfs_calc_buf_res(3, mp->m_sb.sb_sectsize) +
 	     xfs_calc_buf_res(xfs_allocfree_log_count(mp, 2), blksz);
 
-	if (xfs_sb_version_hasrealtime(&mp->m_sb)) {
+	if (xfs_has_realtime(mp)) {
 		t2 = xfs_calc_inode_res(mp, 1) +
 		     xfs_calc_buf_res(XFS_BM_MAXLEVELS(mp, XFS_DATA_FORK),
 				     blksz) +
@@ -317,7 +317,7 @@ xfs_calc_itruncate_reservation(
 	t2 = xfs_calc_buf_res(9, mp->m_sb.sb_sectsize) +
 	     xfs_calc_buf_res(xfs_allocfree_log_count(mp, 4), blksz);
 
-	if (xfs_sb_version_hasrealtime(&mp->m_sb)) {
+	if (xfs_has_realtime(mp)) {
 		t3 = xfs_calc_buf_res(5, mp->m_sb.sb_sectsize) +
 		     xfs_calc_buf_res(xfs_rtalloc_log_count(mp, 2), blksz) +
 		     xfs_calc_buf_res(xfs_allocfree_log_count(mp, 2), blksz);

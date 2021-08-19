@@ -37,7 +37,7 @@ xfs_dir2_leaf_hdr_from_disk(
 	struct xfs_dir3_icleaf_hdr	*to,
 	struct xfs_dir2_leaf		*from)
 {
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		struct xfs_dir3_leaf *from3 = (struct xfs_dir3_leaf *)from;
 
 		to->forw = be32_to_cpu(from3->hdr.info.hdr.forw);
@@ -68,7 +68,7 @@ xfs_dir2_leaf_hdr_to_disk(
 	struct xfs_dir2_leaf		*to,
 	struct xfs_dir3_icleaf_hdr	*from)
 {
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		struct xfs_dir3_leaf *to3 = (struct xfs_dir3_leaf *)to;
 
 		ASSERT(from->magic == XFS_DIR3_LEAF1_MAGIC ||

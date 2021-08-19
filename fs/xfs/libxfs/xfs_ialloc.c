@@ -302,7 +302,7 @@ xfs_ialloc_inode_init(
 	 * That means for v3 inode we log the entire buffer rather than just the
 	 * inode cores.
 	 */
-	if (xfs_sb_version_has_v3inode(&mp->m_sb)) {
+	if (xfs_has_v3inodes(mp)) {
 		version = 3;
 		ino = XFS_AGINO_TO_INO(mp, agno, XFS_AGB_TO_AGINO(mp, agbno));
 
@@ -635,7 +635,7 @@ xfs_ialloc_ag_alloc(
 
 #ifdef DEBUG
 	/* randomly do sparse inode allocations */
-	if (xfs_sb_version_hassparseinodes(&tp->t_mountp->m_sb) &&
+	if (xfs_has_sparseinodes(tp->t_mountp) &&
 	    igeo->ialloc_min_blks < igeo->ialloc_blks)
 		do_sparse = prandom_u32() & 1;
 #endif
@@ -754,7 +754,7 @@ xfs_ialloc_ag_alloc(
 	 * Finally, try a sparse allocation if the filesystem supports it and
 	 * the sparse allocation length is smaller than a full chunk.
 	 */
-	if (xfs_sb_version_hassparseinodes(&args.mp->m_sb) &&
+	if (xfs_has_sparseinodes(args.mp) &&
 	    igeo->ialloc_min_blks < igeo->ialloc_blks &&
 	    args.fsbno == NULLFSBLOCK) {
 sparse_alloc:
@@ -856,7 +856,7 @@ sparse_alloc:
 		 * from the previous call. Set merge false to replace any
 		 * existing record with this one.
 		 */
-		if (xfs_sb_version_hasfinobt(&args.mp->m_sb)) {
+		if (xfs_has_finobt(args.mp)) {
 			error = xfs_inobt_insert_sprec(args.mp, tp, agbp, pag,
 				       XFS_BTNUM_FINO, &rec, false);
 			if (error)
@@ -869,7 +869,7 @@ sparse_alloc:
 		if (error)
 			return error;
 
-		if (xfs_sb_version_hasfinobt(&args.mp->m_sb)) {
+		if (xfs_has_finobt(args.mp)) {
 			error = xfs_inobt_insert(args.mp, tp, agbp, pag, newino,
 						 newlen, XFS_BTNUM_FINO);
 			if (error)
@@ -1448,7 +1448,7 @@ xfs_dialloc_ag(
 	int				offset;
 	int				i;
 
-	if (!xfs_sb_version_hasfinobt(&mp->m_sb))
+	if (!xfs_has_finobt(mp))
 		return xfs_dialloc_ag_inobt(tp, agbp, pag, parent, inop);
 
 	/*
@@ -2187,7 +2187,7 @@ xfs_difree(
 	/*
 	 * Fix up the free inode btree.
 	 */
-	if (xfs_sb_version_hasfinobt(&mp->m_sb)) {
+	if (xfs_has_finobt(mp)) {
 		error = xfs_difree_finobt(mp, tp, agbp, pag, agino, &rec);
 		if (error)
 			goto error0;
@@ -2771,7 +2771,7 @@ xfs_ialloc_setup_geometry(
 	uint			inodes;
 
 	igeo->new_diflags2 = 0;
-	if (xfs_sb_version_hasbigtime(&mp->m_sb))
+	if (xfs_has_bigtime(mp))
 		igeo->new_diflags2 |= XFS_DIFLAG2_BIGTIME;
 
 	/* Compute inode btree geometry. */
@@ -2826,7 +2826,7 @@ xfs_ialloc_setup_geometry(
 	 * cannot change the behavior.
 	 */
 	igeo->inode_cluster_size_raw = XFS_INODE_BIG_CLUSTER_SIZE;
-	if (xfs_sb_version_has_v3inode(&mp->m_sb)) {
+	if (xfs_has_v3inodes(mp)) {
 		int	new_size = igeo->inode_cluster_size_raw;
 
 		new_size *= mp->m_sb.sb_inodesize / XFS_DINODE_MIN_SIZE;
@@ -2844,7 +2844,7 @@ xfs_ialloc_setup_geometry(
 	igeo->inodes_per_cluster = XFS_FSB_TO_INO(mp, igeo->blocks_per_cluster);
 
 	/* Calculate inode cluster alignment. */
-	if (xfs_sb_version_hasalign(&mp->m_sb) &&
+	if (xfs_has_align(mp) &&
 	    mp->m_sb.sb_inoalignmt >= igeo->blocks_per_cluster)
 		igeo->cluster_align = mp->m_sb.sb_inoalignmt;
 	else
@@ -2892,15 +2892,15 @@ xfs_ialloc_calc_rootino(
 	first_bno += xfs_alloc_min_freelist(mp, NULL);
 
 	/* ...the free inode btree root... */
-	if (xfs_sb_version_hasfinobt(&mp->m_sb))
+	if (xfs_has_finobt(mp))
 		first_bno++;
 
 	/* ...the reverse mapping btree root... */
-	if (xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (xfs_has_rmapbt(mp))
 		first_bno++;
 
 	/* ...the reference count btree... */
-	if (xfs_sb_version_hasreflink(&mp->m_sb))
+	if (xfs_has_reflink(mp))
 		first_bno++;
 
 	/*
@@ -2918,9 +2918,9 @@ xfs_ialloc_calc_rootino(
 	 * Now round first_bno up to whatever allocation alignment is given
 	 * by the filesystem or was passed in.
 	 */
-	if (xfs_sb_version_hasdalign(&mp->m_sb) && igeo->ialloc_align > 0)
+	if (xfs_has_dalign(mp) && igeo->ialloc_align > 0)
 		first_bno = roundup(first_bno, sunit);
-	else if (xfs_sb_version_hasalign(&mp->m_sb) &&
+	else if (xfs_has_align(mp) &&
 			mp->m_sb.sb_inoalignmt > 1)
 		first_bno = roundup(first_bno, mp->m_sb.sb_inoalignmt);
 

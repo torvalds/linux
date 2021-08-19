@@ -816,7 +816,7 @@ xrep_agi_calc_from_btrees(
 	error = xfs_ialloc_count_inodes(cur, &count, &freecount);
 	if (error)
 		goto err;
-	if (xfs_sb_version_hasinobtcounts(&mp->m_sb)) {
+	if (xfs_has_inobtcounts(mp)) {
 		xfs_agblock_t	blocks;
 
 		error = xfs_btree_count_blocks(cur, &blocks);
@@ -829,8 +829,7 @@ xrep_agi_calc_from_btrees(
 	agi->agi_count = cpu_to_be32(count);
 	agi->agi_freecount = cpu_to_be32(freecount);
 
-	if (xfs_sb_version_hasfinobt(&mp->m_sb) &&
-	    xfs_sb_version_hasinobtcounts(&mp->m_sb)) {
+	if (xfs_has_finobt(mp) && xfs_has_inobtcounts(mp)) {
 		xfs_agblock_t	blocks;
 
 		cur = xfs_inobt_init_cursor(mp, sc->tp, agi_bp,

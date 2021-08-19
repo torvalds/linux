@@ -911,7 +911,7 @@ xfs_log_sb(
 	 * unclean shutdown, this will be corrected by log recovery rebuilding
 	 * the counters from the AGF block counts.
 	 */
-	if (xfs_sb_version_haslazysbcount(&mp->m_sb)) {
+	if (xfs_has_lazysbcount(mp)) {
 		mp->m_sb.sb_icount = percpu_counter_sum(&mp->m_icount);
 		mp->m_sb.sb_ifree = percpu_counter_sum(&mp->m_ifree);
 		mp->m_sb.sb_fdblocks = percpu_counter_sum(&mp->m_fdblocks);

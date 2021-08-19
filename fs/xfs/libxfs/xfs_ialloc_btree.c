@@ -76,7 +76,7 @@ xfs_inobt_mod_blockcount(
 	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agi		*agi = agbp->b_addr;
 
-	if (!xfs_sb_version_hasinobtcounts(&cur->bc_mp->m_sb))
+	if (!xfs_has_inobtcounts(cur->bc_mp))
 		return;
 
 	if (cur->bc_btnum == XFS_BTNUM_FINO)
@@ -292,7 +292,7 @@ xfs_inobt_verify(
 	 * but beware of the landmine (i.e. need to check pag->pagi_init) if we
 	 * ever do.
 	 */
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		fa = xfs_btree_sblock_v5hdr_verify(bp);
 		if (fa)
 			return fa;
@@ -511,7 +511,7 @@ xfs_inobt_commit_staged_btree(
 		fields = XFS_AGI_ROOT | XFS_AGI_LEVEL;
 		agi->agi_root = cpu_to_be32(afake->af_root);
 		agi->agi_level = cpu_to_be32(afake->af_levels);
-		if (xfs_sb_version_hasinobtcounts(&cur->bc_mp->m_sb)) {
+		if (xfs_has_inobtcounts(cur->bc_mp)) {
 			agi->agi_iblocks = cpu_to_be32(afake->af_blocks);
 			fields |= XFS_AGI_IBLOCKS;
 		}
@@ -521,7 +521,7 @@ xfs_inobt_commit_staged_btree(
 		fields = XFS_AGI_FREE_ROOT | XFS_AGI_FREE_LEVEL;
 		agi->agi_free_root = cpu_to_be32(afake->af_root);
 		agi->agi_free_level = cpu_to_be32(afake->af_levels);
-		if (xfs_sb_version_hasinobtcounts(&cur->bc_mp->m_sb)) {
+		if (xfs_has_inobtcounts(cur->bc_mp)) {
 			agi->agi_fblocks = cpu_to_be32(afake->af_blocks);
 			fields |= XFS_AGI_IBLOCKS;
 		}
@@ -740,7 +740,7 @@ xfs_finobt_calc_reserves(
 	if (!xfs_has_finobt(mp))
 		return 0;
 
-	if (xfs_sb_version_hasinobtcounts(&mp->m_sb))
+	if (xfs_has_inobtcounts(mp))
 		error = xfs_finobt_read_blocks(mp, tp, pag, &tree_len);
 	else
 		error = xfs_inobt_count_blocks(mp, tp, pag, XFS_BTNUM_FINO,

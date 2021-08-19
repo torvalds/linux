@@ -48,7 +48,7 @@ xfs_dir2_sf_entsize(
 	count += sizeof(struct xfs_dir2_sf_entry);	/* namelen + offset */
 	count += hdr->i8count ? XFS_INO64_SIZE : XFS_INO32_SIZE; /* ino # */
 
-	if (xfs_sb_version_hasftype(&mp->m_sb))
+	if (xfs_has_ftype(mp))
 		count += sizeof(uint8_t);
 	return count;
 }
@@ -76,7 +76,7 @@ xfs_dir2_sf_get_ino(
 {
 	uint8_t				*from = sfep->name + sfep->namelen;
 
-	if (xfs_sb_version_hasftype(&mp->m_sb))
+	if (xfs_has_ftype(mp))
 		from++;
 
 	if (!hdr->i8count)
@@ -95,7 +95,7 @@ xfs_dir2_sf_put_ino(
 
 	ASSERT(ino <= XFS_MAXINUMBER);
 
-	if (xfs_sb_version_hasftype(&mp->m_sb))
+	if (xfs_has_ftype(mp))
 		to++;
 
 	if (hdr->i8count)
@@ -135,7 +135,7 @@ xfs_dir2_sf_get_ftype(
 	struct xfs_mount		*mp,
 	struct xfs_dir2_sf_entry	*sfep)
 {
-	if (xfs_sb_version_hasftype(&mp->m_sb)) {
+	if (xfs_has_ftype(mp)) {
 		uint8_t			ftype = sfep->name[sfep->namelen];
 
 		if (ftype < XFS_DIR3_FT_MAX)
@@ -153,7 +153,7 @@ xfs_dir2_sf_put_ftype(
 {
 	ASSERT(ftype < XFS_DIR3_FT_MAX);
 
-	if (xfs_sb_version_hasftype(&mp->m_sb))
+	if (xfs_has_ftype(mp))
 		sfep->name[sfep->namelen] = ftype;
 }
 

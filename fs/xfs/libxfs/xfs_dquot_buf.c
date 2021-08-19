@@ -70,7 +70,7 @@ xfs_dquot_verify(
 		return __this_address;
 
 	if ((ddq->d_type & XFS_DQTYPE_BIGTIME) &&
-	    !xfs_sb_version_hasbigtime(&mp->m_sb))
+	    !xfs_has_bigtime(mp))
 		return __this_address;
 
 	if ((ddq->d_type & XFS_DQTYPE_BIGTIME) && !ddq->d_id)

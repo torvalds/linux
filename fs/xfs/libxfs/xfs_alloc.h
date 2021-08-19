@@ -243,7 +243,7 @@ static inline __be32 *
 xfs_buf_to_agfl_bno(
 	struct xfs_buf		*bp)
 {
-	if (xfs_sb_version_hascrc(&bp->b_mount->m_sb))
+	if (xfs_has_crc(bp->b_mount))
 		return bp->b_addr + sizeof(struct xfs_agfl);
 	return bp->b_addr;
 }
