@@ -177,6 +177,8 @@ cmd_modversions_c =								\
 	if $(NM) $@ 2>/dev/null | grep -q __ksymtab; then			\
 		$(call cmd_gensymtypes_c,$(KBUILD_SYMTYPES),$(@:.o=.symtypes))	\
 		    > $@.symversions;						\
+	else									\
+		rm -f $@.symversions;						\
 	fi;
 else
 cmd_modversions_c =								\
