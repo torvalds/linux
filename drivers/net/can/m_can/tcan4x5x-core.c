@@ -105,7 +105,6 @@
 static inline struct tcan4x5x_priv *cdev_to_priv(struct m_can_classdev *cdev)
 {
 	return container_of(cdev, struct tcan4x5x_priv, cdev);
-
 }
 
 static void tcan4x5x_check_wake(struct tcan4x5x_priv *priv)
