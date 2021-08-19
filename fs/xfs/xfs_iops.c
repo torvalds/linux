@@ -393,7 +393,7 @@ xfs_vn_unlink(
 	 * but still hashed. This is incompatible with case-insensitive
 	 * mode, so invalidate (unhash) the dentry in CI-mode.
 	 */
-	if (xfs_sb_version_hasasciici(&XFS_M(dir->i_sb)->m_sb))
+	if (xfs_has_asciici(XFS_M(dir->i_sb)))
 		d_invalidate(dentry);
 	return 0;
 }
@@ -597,7 +597,7 @@ xfs_vn_getattr(
 	stat->ctime = inode->i_ctime;
 	stat->blocks = XFS_FSB_TO_BB(mp, ip->i_nblocks + ip->i_delayed_blks);
 
-	if (xfs_sb_version_has_v3inode(&mp->m_sb)) {
+	if (xfs_has_v3inodes(mp)) {
 		if (request_mask & STATX_BTIME) {
 			stat->result_mask |= STATX_BTIME;
 			stat->btime = ip->i_crtime;
@@ -788,7 +788,7 @@ xfs_setattr_nonsize(
 		}
 		if (!gid_eq(igid, gid)) {
 			if (XFS_IS_GQUOTA_ON(mp)) {
-				ASSERT(xfs_sb_version_has_pquotino(&mp->m_sb) ||
+				ASSERT(xfs_has_pquotino(mp) ||
 				       !XFS_IS_PQUOTA_ON(mp));
 				ASSERT(mask & ATTR_GID);
 				ASSERT(gdqp);
@@ -1401,7 +1401,7 @@ xfs_setup_iops(
 			inode->i_mapping->a_ops = &xfs_address_space_operations;
 		break;
 	case S_IFDIR:
-		if (xfs_sb_version_hasasciici(&XFS_M(inode->i_sb)->m_sb))
+		if (xfs_has_asciici(XFS_M(inode->i_sb)))
 			inode->i_op = &xfs_dir_ci_inode_operations;
 		else
 			inode->i_op = &xfs_dir_inode_operations;

@@ -515,7 +515,7 @@ xfs_dinode_verify(
 
 	/* don't allow reflink/cowextsize if we don't have reflink */
 	if ((flags2 & (XFS_DIFLAG2_REFLINK | XFS_DIFLAG2_COWEXTSIZE)) &&
-	     !xfs_sb_version_hasreflink(&mp->m_sb))
+	     !xfs_has_reflink(mp))
 		return __this_address;
 
 	/* only regular files get reflink */
@@ -550,7 +550,7 @@ xfs_dinode_calc_crc(
 	if (dip->di_version < 3)
 		return;
 
-	ASSERT(xfs_sb_version_hascrc(&mp->m_sb));
+	ASSERT(xfs_has_crc(mp));
 	crc = xfs_start_cksum_update((char *)dip, mp->m_sb.sb_inodesize,
 			      XFS_DINODE_CRC_OFF);
 	dip->di_crc = xfs_end_cksum(crc);
@@ -677,7 +677,7 @@ xfs_inode_validate_cowextsize(
 	hint_flag = (flags2 & XFS_DIFLAG2_COWEXTSIZE);
 	cowextsize_bytes = XFS_FSB_TO_B(mp, cowextsize);
 
-	if (hint_flag && !xfs_sb_version_hasreflink(&mp->m_sb))
+	if (hint_flag && !xfs_has_reflink(mp))
 		return __this_address;
 
 	if (hint_flag && !(S_ISDIR(mode) || S_ISREG(mode)))

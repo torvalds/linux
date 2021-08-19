@@ -466,7 +466,7 @@ xfs_rui_validate_map(
 	struct xfs_mount		*mp,
 	struct xfs_map_extent		*rmap)
 {
-	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (!xfs_has_rmapbt(mp))
 		return false;
 
 	if (rmap->me_flags & ~XFS_RMAP_EXTENT_FLAGS)

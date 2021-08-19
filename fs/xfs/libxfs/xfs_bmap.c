@@ -1115,17 +1115,17 @@ xfs_bmap_add_attrfork(
 		xfs_trans_log_inode(tp, ip, logflags);
 	if (error)
 		goto trans_cancel;
-	if (!xfs_sb_version_hasattr(&mp->m_sb) ||
-	   (!xfs_sb_version_hasattr2(&mp->m_sb) && version == 2)) {
+	if (!xfs_has_attr(mp) ||
+	   (!xfs_has_attr2(mp) && version == 2)) {
 		bool log_sb = false;
 
 		spin_lock(&mp->m_sb_lock);
-		if (!xfs_sb_version_hasattr(&mp->m_sb)) {
-			xfs_sb_version_addattr(&mp->m_sb);
+		if (!xfs_has_attr(mp)) {
+			xfs_add_attr(mp);
 			log_sb = true;
 		}
-		if (!xfs_sb_version_hasattr2(&mp->m_sb) && version == 2) {
-			xfs_sb_version_addattr2(&mp->m_sb);
+		if (!xfs_has_attr2(mp) && version == 2) {
+			xfs_add_attr2(mp);
 			log_sb = true;
 		}
 		spin_unlock(&mp->m_sb_lock);

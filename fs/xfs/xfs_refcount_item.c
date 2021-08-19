@@ -423,7 +423,7 @@ xfs_cui_validate_phys(
 	struct xfs_mount		*mp,
 	struct xfs_phys_extent		*refc)
 {
-	if (!xfs_sb_version_hasreflink(&mp->m_sb))
+	if (!xfs_has_reflink(mp))
 		return false;
 
 	if (refc->pe_flags & ~XFS_REFCOUNT_EXTENT_FLAGS)

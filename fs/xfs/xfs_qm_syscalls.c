@@ -105,7 +105,7 @@ xfs_qm_scall_trunc_qfiles(
 {
 	int		error = -EINVAL;
 
-	if (!xfs_sb_version_hasquota(&mp->m_sb) || flags == 0 ||
+	if (!xfs_has_quota(mp) || flags == 0 ||
 	    (flags & ~XFS_QMOPT_QUOTALL)) {
 		xfs_debug(mp, "%s: flags=%x m_qflags=%x",
 			__func__, flags, mp->m_qflags);

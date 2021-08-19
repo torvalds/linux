@@ -485,7 +485,7 @@ xfs_setup_devices(
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp) {
 		unsigned int	log_sector_size = BBSIZE;
 
-		if (xfs_sb_version_hassector(&mp->m_sb))
+		if (xfs_has_sector(mp))
 			log_sector_size = mp->m_sb.sb_logsectsize;
 		error = xfs_setsize_buftarg(mp->m_logdev_targp,
 					    log_sector_size);
@@ -930,7 +930,7 @@ xfs_finish_flags(
 	int			ronly = (mp->m_flags & XFS_MOUNT_RDONLY);
 
 	/* Fail a mount where the logbuf is smaller than the log stripe */
-	if (xfs_sb_version_haslogv2(&mp->m_sb)) {
+	if (xfs_has_logv2(mp)) {
 		if (mp->m_logbsize <= 0 &&
 		    mp->m_sb.sb_logsunit > XLOG_BIG_RECORD_BSIZE) {
 			mp->m_logbsize = mp->m_sb.sb_logsunit;
@@ -952,7 +952,7 @@ xfs_finish_flags(
 	/*
 	 * V5 filesystems always use attr2 format for attributes.
 	 */
-	if (xfs_sb_version_hascrc(&mp->m_sb) &&
+	if (xfs_has_crc(mp) &&
 	    (mp->m_flags & XFS_MOUNT_NOATTR2)) {
 		xfs_warn(mp, "Cannot mount a V5 filesystem as noattr2. "
 			     "attr2 is always enabled for V5 filesystems.");
@@ -970,7 +970,7 @@ xfs_finish_flags(
 
 	if ((mp->m_qflags & XFS_GQUOTA_ACCT) &&
 	    (mp->m_qflags & XFS_PQUOTA_ACCT) &&
-	    !xfs_sb_version_has_pquotino(&mp->m_sb)) {
+	    !xfs_has_pquotino(mp)) {
 		xfs_warn(mp,
 		  "Super block does not support project and group quota together");
 		return -EINVAL;
@@ -1488,7 +1488,7 @@ xfs_fs_fill_super(
 		goto out_free_sb;
 
 	/* V4 support is undergoing deprecation. */
-	if (!xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (!xfs_has_crc(mp)) {
 #ifdef CONFIG_XFS_SUPPORT_V4
 		xfs_warn_once(mp,
 	"Deprecated V4 format (crc=0) will not be supported after September 2030.");
@@ -1573,7 +1573,7 @@ xfs_fs_fill_super(
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_max_links = XFS_MAXLINK;
 	sb->s_time_gran = 1;
-	if (xfs_sb_version_hasbigtime(&mp->m_sb)) {
+	if (xfs_has_bigtime(mp)) {
 		sb->s_time_min = xfs_bigtime_to_unix(XFS_BIGTIME_TIME_MIN);
 		sb->s_time_max = xfs_bigtime_to_unix(XFS_BIGTIME_TIME_MAX);
 	} else {
@@ -1605,7 +1605,7 @@ xfs_fs_fill_super(
 			"DAX unsupported by block device. Turning off DAX.");
 			xfs_mount_set_dax_mode(mp, XFS_DAX_NEVER);
 		}
-		if (xfs_sb_version_hasreflink(&mp->m_sb)) {
+		if (xfs_has_reflink(mp)) {
 			xfs_alert(mp,
 		"DAX and reflink cannot be used together!");
 			error = -EINVAL;
@@ -1623,7 +1623,7 @@ xfs_fs_fill_super(
 		}
 	}
 
-	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
+	if (xfs_has_reflink(mp)) {
 		if (mp->m_sb.sb_rblocks) {
 			xfs_alert(mp,
 	"reflink not compatible with realtime device!");
@@ -1637,7 +1637,7 @@ xfs_fs_fill_super(
 		}
 	}
 
-	if (xfs_sb_version_hasrmapbt(&mp->m_sb) && mp->m_sb.sb_rblocks) {
+	if (xfs_has_rmapbt(mp) && mp->m_sb.sb_rblocks) {
 		xfs_alert(mp,
 	"reverse mapping btree not compatible with realtime device!");
 		error = -EINVAL;

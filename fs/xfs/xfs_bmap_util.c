@@ -1282,7 +1282,7 @@ xfs_swap_extents_check_format(
 	 * If we have to use the (expensive) rmap swap method, we can
 	 * handle any number of extents and any format.
 	 */
-	if (xfs_sb_version_hasrmapbt(&ip->i_mount->m_sb))
+	if (xfs_has_rmapbt(ip->i_mount))
 		return 0;
 
 	/*
@@ -1516,7 +1516,7 @@ xfs_swap_extent_forks(
 	 * event of a crash. Set the owner change log flags now and leave the
 	 * bmbt scan as the last step.
 	 */
-	if (xfs_sb_version_has_v3inode(&ip->i_mount->m_sb)) {
+	if (xfs_has_v3inodes(ip->i_mount)) {
 		if (ip->i_df.if_format == XFS_DINODE_FMT_BTREE)
 			(*target_log_flags) |= XFS_ILOG_DOWNER;
 		if (tip->i_df.if_format == XFS_DINODE_FMT_BTREE)
@@ -1553,7 +1553,7 @@ xfs_swap_extent_forks(
 		(*src_log_flags) |= XFS_ILOG_DEXT;
 		break;
 	case XFS_DINODE_FMT_BTREE:
-		ASSERT(!xfs_sb_version_has_v3inode(&ip->i_mount->m_sb) ||
+		ASSERT(!xfs_has_v3inodes(ip->i_mount) ||
 		       (*src_log_flags & XFS_ILOG_DOWNER));
 		(*src_log_flags) |= XFS_ILOG_DBROOT;
 		break;
@@ -1565,7 +1565,7 @@ xfs_swap_extent_forks(
 		break;
 	case XFS_DINODE_FMT_BTREE:
 		(*target_log_flags) |= XFS_ILOG_DBROOT;
-		ASSERT(!xfs_sb_version_has_v3inode(&ip->i_mount->m_sb) ||
+		ASSERT(!xfs_has_v3inodes(ip->i_mount) ||
 		       (*target_log_flags & XFS_ILOG_DOWNER));
 		break;
 	}
@@ -1679,7 +1679,7 @@ xfs_swap_extents(
 	 * a block reservation because it's really just a remap operation
 	 * performed with log redo items!
 	 */
-	if (xfs_sb_version_hasrmapbt(&mp->m_sb)) {
+	if (xfs_has_rmapbt(mp)) {
 		int		w = XFS_DATA_FORK;
 		uint32_t	ipnext = ip->i_df.if_nextents;
 		uint32_t	tipnext	= tip->i_df.if_nextents;
@@ -1761,7 +1761,7 @@ xfs_swap_extents(
 	src_log_flags = XFS_ILOG_CORE;
 	target_log_flags = XFS_ILOG_CORE;
 
-	if (xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (xfs_has_rmapbt(mp))
 		error = xfs_swap_extent_rmap(&tp, ip, tip);
 	else
 		error = xfs_swap_extent_forks(tp, ip, tip, &src_log_flags,
@@ -1780,7 +1780,7 @@ xfs_swap_extents(
 	}
 
 	/* Swap the cow forks. */
-	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
+	if (xfs_has_reflink(mp)) {
 		ASSERT(!ip->i_cowfp ||
 		       ip->i_cowfp->if_format == XFS_DINODE_FMT_EXTENTS);
 		ASSERT(!tip->i_cowfp ||

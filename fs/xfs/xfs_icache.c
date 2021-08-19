@@ -610,7 +610,7 @@ xfs_iget_cache_miss(
 	 * value and hence we must also read the inode off disk even when
 	 * initializing new inodes.
 	 */
-	if (xfs_sb_version_has_v3inode(&mp->m_sb) &&
+	if (xfs_has_v3inodes(mp) &&
 	    (flags & XFS_IGET_CREATE) && !(mp->m_flags & XFS_MOUNT_IKEEP)) {
 		VFS_I(ip)->i_generation = prandom_u32();
 	} else {

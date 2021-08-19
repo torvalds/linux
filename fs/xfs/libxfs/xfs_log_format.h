@@ -41,10 +41,10 @@ typedef uint32_t xlog_tid_t;
 #define XFS_MIN_LOG_FACTOR	3
 
 #define XLOG_REC_SHIFT(log) \
-	BTOBB(1 << (xfs_sb_version_haslogv2(&log->l_mp->m_sb) ? \
+	BTOBB(1 << (xfs_has_logv2(log->l_mp) ? \
 	 XLOG_MAX_RECORD_BSHIFT : XLOG_BIG_RECORD_BSHIFT))
 #define XLOG_TOTAL_REC_SHIFT(log) \
-	BTOBB(XLOG_MAX_ICLOGS << (xfs_sb_version_haslogv2(&log->l_mp->m_sb) ? \
+	BTOBB(XLOG_MAX_ICLOGS << (xfs_has_logv2(log->l_mp) ? \
 	 XLOG_MAX_RECORD_BSHIFT : XLOG_BIG_RECORD_BSHIFT))
 
 /* get lsn fields */

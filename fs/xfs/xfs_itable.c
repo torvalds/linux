@@ -108,7 +108,7 @@ xfs_bulkstat_one_int(
 	buf->bs_forkoff = XFS_IFORK_BOFF(ip);
 	buf->bs_version = XFS_BULKSTAT_VERSION_V5;
 
-	if (xfs_sb_version_has_v3inode(&mp->m_sb)) {
+	if (xfs_has_v3inodes(mp)) {
 		buf->bs_btime = ip->i_crtime.tv_sec;
 		buf->bs_btime_nsec = ip->i_crtime.tv_nsec;
 		if (ip->i_diflags2 & XFS_DIFLAG2_COWEXTSIZE)

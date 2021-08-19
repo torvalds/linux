@@ -16,7 +16,7 @@ struct xfs_trans;
  * Btree block header size depends on a superblock flag.
  */
 #define XFS_BMBT_BLOCK_LEN(mp) \
-	(xfs_sb_version_hascrc(&((mp)->m_sb)) ? \
+	(xfs_has_crc(((mp))) ? \
 		XFS_BTREE_LBLOCK_CRC_LEN : XFS_BTREE_LBLOCK_LEN)
 
 #define XFS_BMBT_REC_ADDR(mp, block, index) \

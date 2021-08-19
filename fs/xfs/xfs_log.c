@@ -629,7 +629,7 @@ xfs_log_mount(
 	int		num_bblks)
 {
 	struct xlog	*log;
-	bool		fatal = xfs_sb_version_hascrc(&mp->m_sb);
+	bool		fatal = xfs_has_crc(mp);
 	int		error = 0;
 	int		min_logfsbs;
 
@@ -1229,7 +1229,7 @@ xfs_log_cover(
 	 * handles this for us.
 	 */
 	need_covered = xfs_log_need_covered(mp);
-	if (!need_covered && !xfs_sb_version_haslazysbcount(&mp->m_sb))
+	if (!need_covered && !xfs_has_lazysbcount(mp))
 		return 0;
 
 	/*
@@ -1528,7 +1528,7 @@ xlog_alloc_log(
 	xlog_assign_atomic_lsn(&log->l_last_sync_lsn, 1, 0);
 	log->l_curr_cycle  = 1;	    /* 0 is bad since this is initial value */
 
-	if (xfs_sb_version_haslogv2(&mp->m_sb) && mp->m_sb.sb_logsunit > 1)
+	if (xfs_has_logv2(mp) && mp->m_sb.sb_logsunit > 1)
 		log->l_iclog_roundoff = mp->m_sb.sb_logsunit;
 	else
 		log->l_iclog_roundoff = BBSIZE;
@@ -1537,7 +1537,7 @@ xlog_alloc_log(
 	xlog_grant_head_init(&log->l_write_head);
 
 	error = -EFSCORRUPTED;
-	if (xfs_sb_version_hassector(&mp->m_sb)) {
+	if (xfs_has_sector(mp)) {
 	        log2_size = mp->m_sb.sb_logsectlog;
 		if (log2_size < BBSHIFT) {
 			xfs_warn(mp, "Log sector size too small (0x%x < 0x%x)",
@@ -1554,7 +1554,7 @@ xlog_alloc_log(
 
 		/* for larger sector sizes, must have v2 or external log */
 		if (log2_size && log->l_logBBstart > 0 &&
-			    !xfs_sb_version_haslogv2(&mp->m_sb)) {
+			    !xfs_has_logv2(mp)) {
 			xfs_warn(mp,
 		"log sector size (0x%x) invalid for configuration.",
 				log2_size);
@@ -1602,7 +1602,7 @@ xlog_alloc_log(
 		memset(head, 0, sizeof(xlog_rec_header_t));
 		head->h_magicno = cpu_to_be32(XLOG_HEADER_MAGIC_NUM);
 		head->h_version = cpu_to_be32(
-			xfs_sb_version_haslogv2(&log->l_mp->m_sb) ? 2 : 1);
+			xfs_has_logv2(log->l_mp) ? 2 : 1);
 		head->h_size = cpu_to_be32(log->l_iclog_size);
 		/* new fields */
 		head->h_fmt = cpu_to_be32(XLOG_FMT);
@@ -1761,7 +1761,7 @@ xlog_pack_data(
 		dp += BBSIZE;
 	}
 
-	if (xfs_sb_version_haslogv2(&log->l_mp->m_sb)) {
+	if (xfs_has_logv2(log->l_mp)) {
 		xlog_in_core_2_t *xhdr = iclog->ic_data;
 
 		for ( ; i < BTOBB(size); i++) {
@@ -1798,7 +1798,7 @@ xlog_cksum(
 			      offsetof(struct xlog_rec_header, h_crc));
 
 	/* ... then for additional cycle data for v2 logs ... */
-	if (xfs_sb_version_haslogv2(&log->l_mp->m_sb)) {
+	if (xfs_has_logv2(log->l_mp)) {
 		union xlog_in_core2 *xhdr = (union xlog_in_core2 *)rhead;
 		int		i;
 		int		xheads;
@@ -2025,7 +2025,7 @@ xlog_sync(
 
 	/* real byte length */
 	size = iclog->ic_offset;
-	if (xfs_sb_version_haslogv2(&log->l_mp->m_sb))
+	if (xfs_has_logv2(log->l_mp))
 		size += roundoff;
 	iclog->ic_header.h_len = cpu_to_be32(size);
 

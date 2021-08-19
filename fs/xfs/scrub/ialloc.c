@@ -517,7 +517,7 @@ xchk_iallocbt_xref_rmap_btreeblks(
 	int			error;
 
 	if (!sc->sa.ino_cur || !sc->sa.rmap_cur ||
-	    (xfs_sb_version_hasfinobt(&sc->mp->m_sb) && !sc->sa.fino_cur) ||
+	    (xfs_has_finobt(sc->mp) && !sc->sa.fino_cur) ||
 	    xchk_skip_xref(sc->sm))
 		return;
 

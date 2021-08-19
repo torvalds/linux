@@ -51,7 +51,7 @@ xfs_agfl_size(
 {
 	unsigned int		size = mp->m_sb.sb_sectsize;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb))
+	if (xfs_has_crc(mp))
 		size -= sizeof(struct xfs_agfl);
 
 	return size / sizeof(xfs_agblock_t);
@@ -61,9 +61,9 @@ unsigned int
 xfs_refc_block(
 	struct xfs_mount	*mp)
 {
-	if (xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (xfs_has_rmapbt(mp))
 		return XFS_RMAP_BLOCK(mp) + 1;
-	if (xfs_sb_version_hasfinobt(&mp->m_sb))
+	if (xfs_has_finobt(mp))
 		return XFS_FIBT_BLOCK(mp) + 1;
 	return XFS_IBT_BLOCK(mp) + 1;
 }
@@ -72,11 +72,11 @@ xfs_extlen_t
 xfs_prealloc_blocks(
 	struct xfs_mount	*mp)
 {
-	if (xfs_sb_version_hasreflink(&mp->m_sb))
+	if (xfs_has_reflink(mp))
 		return xfs_refc_block(mp) + 1;
-	if (xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (xfs_has_rmapbt(mp))
 		return XFS_RMAP_BLOCK(mp) + 1;
-	if (xfs_sb_version_hasfinobt(&mp->m_sb))
+	if (xfs_has_finobt(mp))
 		return XFS_FIBT_BLOCK(mp) + 1;
 	return XFS_IBT_BLOCK(mp) + 1;
 }
@@ -126,11 +126,11 @@ xfs_alloc_ag_max_usable(
 	blocks = XFS_BB_TO_FSB(mp, XFS_FSS_TO_BB(mp, 4)); /* ag headers */
 	blocks += XFS_ALLOC_AGFL_RESERVE;
 	blocks += 3;			/* AGF, AGI btree root blocks */
-	if (xfs_sb_version_hasfinobt(&mp->m_sb))
+	if (xfs_has_finobt(mp))
 		blocks++;		/* finobt root block */
-	if (xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (xfs_has_rmapbt(mp))
 		blocks++; 		/* rmap root block */
-	if (xfs_sb_version_hasreflink(&mp->m_sb))
+	if (xfs_has_reflink(mp))
 		blocks++;		/* refcount root block */
 
 	return mp->m_sb.sb_agblocks - blocks;
@@ -598,7 +598,7 @@ xfs_agfl_verify(
 	 * AGFL is what the AGF says is active. We can't get to the AGF, so we
 	 * can't verify just those entries are valid.
 	 */
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_has_crc(mp))
 		return NULL;
 
 	if (!xfs_verify_magic(bp, agfl->agfl_magicnum))
@@ -638,7 +638,7 @@ xfs_agfl_read_verify(
 	 * AGFL is what the AGF says is active. We can't get to the AGF, so we
 	 * can't verify just those entries are valid.
 	 */
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_has_crc(mp))
 		return;
 
 	if (!xfs_buf_verify_cksum(bp, XFS_AGFL_CRC_OFF))
@@ -659,7 +659,7 @@ xfs_agfl_write_verify(
 	xfs_failaddr_t		fa;
 
 	/* no verification of non-crc AGFLs */
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_has_crc(mp))
 		return;
 
 	fa = xfs_agfl_verify(bp);
@@ -2373,7 +2373,7 @@ xfs_agfl_needs_reset(
 	int			active;
 
 	/* no agfl header on v4 supers */
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_has_crc(mp))
 		return false;
 
 	/*
@@ -2877,7 +2877,7 @@ xfs_agf_verify(
 	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_agf		*agf = bp->b_addr;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		if (!uuid_equal(&agf->agf_uuid, &mp->m_sb.sb_meta_uuid))
 			return __this_address;
 		if (!xfs_log_check_lsn(mp, be64_to_cpu(agf->agf_lsn)))
@@ -2907,7 +2907,7 @@ xfs_agf_verify(
 	    be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]) > mp->m_ag_maxlevels)
 		return __this_address;
 
-	if (xfs_sb_version_hasrmapbt(&mp->m_sb) &&
+	if (xfs_has_rmapbt(mp) &&
 	    (be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAP]) < 1 ||
 	     be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAP]) > mp->m_rmap_maxlevels))
 		return __this_address;
@@ -2950,7 +2950,7 @@ xfs_agf_read_verify(
 	struct xfs_mount *mp = bp->b_mount;
 	xfs_failaddr_t	fa;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb) &&
+	if (xfs_has_crc(mp) &&
 	    !xfs_buf_verify_cksum(bp, XFS_AGF_CRC_OFF))
 		xfs_verifier_error(bp, -EFSBADCRC, __this_address);
 	else {
@@ -2975,7 +2975,7 @@ xfs_agf_write_verify(
 		return;
 	}
 
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_has_crc(mp))
 		return;
 
 	if (bip)

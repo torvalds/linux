@@ -253,7 +253,7 @@ xfs_da3_node_write_verify(
 		return;
 	}
 
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_has_crc(mp))
 		return;
 
 	if (bip)
@@ -442,7 +442,7 @@ xfs_da3_node_create(
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DA_NODE_BUF);
 	node = bp->b_addr;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
 
 		memset(hdr3, 0, sizeof(struct xfs_da3_node_hdr));

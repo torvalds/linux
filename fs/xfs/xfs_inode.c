@@ -705,7 +705,7 @@ xfs_inode_inherit_flags(
 			di_flags |= XFS_DIFLAG_PROJINHERIT;
 	} else if (S_ISREG(mode)) {
 		if ((pip->i_diflags & XFS_DIFLAG_RTINHERIT) &&
-		    xfs_sb_version_hasrealtime(&ip->i_mount->m_sb))
+		    xfs_has_realtime(ip->i_mount))
 			di_flags |= XFS_DIFLAG_REALTIME;
 		if (pip->i_diflags & XFS_DIFLAG_EXTSZINHERIT) {
 			di_flags |= XFS_DIFLAG_EXTSIZE;
@@ -857,7 +857,7 @@ xfs_init_new_inode(
 	ip->i_extsize = 0;
 	ip->i_diflags = 0;
 
-	if (xfs_sb_version_has_v3inode(&mp->m_sb)) {
+	if (xfs_has_v3inodes(mp)) {
 		inode_set_iversion(inode, 1);
 		ip->i_cowextsize = 0;
 		ip->i_crtime = tv;
@@ -897,7 +897,7 @@ xfs_init_new_inode(
 	 * this saves us from needing to run a separate transaction to set the
 	 * fork offset in the immediate future.
 	 */
-	if (init_xattrs && xfs_sb_version_hasattr(&mp->m_sb)) {
+	if (init_xattrs && xfs_has_attr(mp)) {
 		ip->i_forkoff = xfs_default_attroffset(ip) >> 3;
 		ip->i_afp = xfs_ifork_alloc(XFS_DINODE_FMT_EXTENTS, 0);
 	}
@@ -3515,7 +3515,7 @@ xfs_iflush(
 	 * happen but we need to still do it to ensure backwards compatibility
 	 * with old kernels that predate logging all inode changes.
 	 */
-	if (!xfs_sb_version_has_v3inode(&mp->m_sb))
+	if (!xfs_has_v3inodes(mp))
 		ip->i_flushiter++;
 
 	/*
@@ -3537,7 +3537,7 @@ xfs_iflush(
 	xfs_inode_to_disk(ip, dip, iip->ili_item.li_lsn);
 
 	/* Wrap, we never let the log put out DI_MAX_FLUSH */
-	if (!xfs_sb_version_has_v3inode(&mp->m_sb)) {
+	if (!xfs_has_v3inodes(mp)) {
 		if (ip->i_flushiter == DI_MAX_FLUSH)
 			ip->i_flushiter = 0;
 	}

@@ -51,7 +51,7 @@ xfs_attr3_rmt_blocks(
 	struct xfs_mount *mp,
 	int		attrlen)
 {
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		int buflen = XFS_ATTR3_RMT_BUF_SPACE(mp, mp->m_sb.sb_blocksize);
 		return (attrlen + buflen - 1) / buflen;
 	}
@@ -126,7 +126,7 @@ __xfs_attr3_rmt_read_verify(
 	int		blksize = mp->m_attr_geo->blksize;
 
 	/* no verification of non-crc buffers */
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_has_crc(mp))
 		return 0;
 
 	ptr = bp->b_addr;
@@ -191,7 +191,7 @@ xfs_attr3_rmt_write_verify(
 	xfs_daddr_t	bno;
 
 	/* no verification of non-crc buffers */
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_has_crc(mp))
 		return;
 
 	ptr = bp->b_addr;
@@ -246,7 +246,7 @@ xfs_attr3_rmt_hdr_set(
 {
 	struct xfs_attr3_rmt_hdr *rmt = ptr;
 
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_has_crc(mp))
 		return 0;
 
 	rmt->rm_magic = cpu_to_be32(XFS_ATTR3_RMT_MAGIC);
@@ -296,7 +296,7 @@ xfs_attr_rmtval_copyout(
 
 		byte_cnt = min(*valuelen, byte_cnt);
 
-		if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		if (xfs_has_crc(mp)) {
 			if (xfs_attr3_rmt_hdr_ok(src, ino, *offset,
 						  byte_cnt, bno)) {
 				xfs_alert(mp,

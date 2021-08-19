@@ -1520,7 +1520,7 @@ _xfs_buf_ioapply(
 			 * non-crc filesystems don't attach verifiers during
 			 * log recovery, so don't warn for such filesystems.
 			 */
-			if (xfs_sb_version_hascrc(&mp->m_sb)) {
+			if (xfs_has_crc(mp)) {
 				xfs_warn(mp,
 					"%s: no buf ops on daddr 0x%llx len %d",
 					__func__, bp->b_bn, bp->b_length);
@@ -2301,7 +2301,7 @@ xfs_verify_magic(
 	struct xfs_mount	*mp = bp->b_mount;
 	int			idx;
 
-	idx = xfs_sb_version_hascrc(&mp->m_sb);
+	idx = xfs_has_crc(mp);
 	if (WARN_ON(!bp->b_ops || !bp->b_ops->magic[idx]))
 		return false;
 	return dmagic == bp->b_ops->magic[idx];
@@ -2319,7 +2319,7 @@ xfs_verify_magic16(
 	struct xfs_mount	*mp = bp->b_mount;
 	int			idx;
 
-	idx = xfs_sb_version_hascrc(&mp->m_sb);
+	idx = xfs_has_crc(mp);
 	if (WARN_ON(!bp->b_ops || !bp->b_ops->magic16[idx]))
 		return false;
 	return dmagic == bp->b_ops->magic16[idx];

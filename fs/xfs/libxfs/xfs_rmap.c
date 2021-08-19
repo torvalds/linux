@@ -705,7 +705,7 @@ xfs_rmap_free(
 	struct xfs_btree_cur		*cur;
 	int				error;
 
-	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (!xfs_has_rmapbt(mp))
 		return 0;
 
 	cur = xfs_rmapbt_init_cursor(mp, tp, agbp, pag);
@@ -959,7 +959,7 @@ xfs_rmap_alloc(
 	struct xfs_btree_cur		*cur;
 	int				error;
 
-	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (!xfs_has_rmapbt(mp))
 		return 0;
 
 	cur = xfs_rmapbt_init_cursor(mp, tp, agbp, pag);
@@ -2459,7 +2459,7 @@ xfs_rmap_update_is_needed(
 	struct xfs_mount	*mp,
 	int			whichfork)
 {
-	return xfs_sb_version_hasrmapbt(&mp->m_sb) && whichfork != XFS_COW_FORK;
+	return xfs_has_rmapbt(mp) && whichfork != XFS_COW_FORK;
 }
 
 /*

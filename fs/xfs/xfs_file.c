@@ -1153,7 +1153,7 @@ xfs_file_remap_range(
 	if (remap_flags & ~(REMAP_FILE_DEDUP | REMAP_FILE_ADVISORY))
 		return -EINVAL;
 
-	if (!xfs_sb_version_hasreflink(&mp->m_sb))
+	if (!xfs_has_reflink(mp))
 		return -EOPNOTSUPP;
 
 	if (XFS_FORCED_SHUTDOWN(mp))

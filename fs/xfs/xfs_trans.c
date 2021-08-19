@@ -275,7 +275,7 @@ retry:
 	WARN_ON(resp->tr_logres > 0 &&
 		mp->m_super->s_writers.frozen == SB_FREEZE_COMPLETE);
 	ASSERT(!(flags & XFS_TRANS_RES_FDBLKS) ||
-	       xfs_sb_version_haslazysbcount(&mp->m_sb));
+	       xfs_has_lazysbcount(mp));
 
 	tp->t_magic = XFS_TRANS_HEADER_MAGIC;
 	tp->t_flags = flags;
@@ -364,12 +364,12 @@ xfs_trans_mod_sb(
 	switch (field) {
 	case XFS_TRANS_SB_ICOUNT:
 		tp->t_icount_delta += delta;
-		if (xfs_sb_version_haslazysbcount(&mp->m_sb))
+		if (xfs_has_lazysbcount(mp))
 			flags &= ~XFS_TRANS_SB_DIRTY;
 		break;
 	case XFS_TRANS_SB_IFREE:
 		tp->t_ifree_delta += delta;
-		if (xfs_sb_version_haslazysbcount(&mp->m_sb))
+		if (xfs_has_lazysbcount(mp))
 			flags &= ~XFS_TRANS_SB_DIRTY;
 		break;
 	case XFS_TRANS_SB_FDBLOCKS:
@@ -398,7 +398,7 @@ xfs_trans_mod_sb(
 			delta -= blkres_delta;
 		}
 		tp->t_fdblocks_delta += delta;
-		if (xfs_sb_version_haslazysbcount(&mp->m_sb))
+		if (xfs_has_lazysbcount(mp))
 			flags &= ~XFS_TRANS_SB_DIRTY;
 		break;
 	case XFS_TRANS_SB_RES_FDBLOCKS:
@@ -408,7 +408,7 @@ xfs_trans_mod_sb(
 		 * be applied to the on-disk superblock.
 		 */
 		tp->t_res_fdblocks_delta += delta;
-		if (xfs_sb_version_haslazysbcount(&mp->m_sb))
+		if (xfs_has_lazysbcount(mp))
 			flags &= ~XFS_TRANS_SB_DIRTY;
 		break;
 	case XFS_TRANS_SB_FREXTENTS:
@@ -487,7 +487,7 @@ xfs_trans_apply_sb_deltas(
 	/*
 	 * Only update the superblock counters if we are logging them
 	 */
-	if (!xfs_sb_version_haslazysbcount(&(tp->t_mountp->m_sb))) {
+	if (!xfs_has_lazysbcount((tp->t_mountp))) {
 		if (tp->t_icount_delta)
 			be64_add_cpu(&sbp->sb_icount, tp->t_icount_delta);
 		if (tp->t_ifree_delta)
@@ -585,7 +585,7 @@ xfs_trans_unreserve_and_mod_sb(
 	if (tp->t_blk_res > 0)
 		blkdelta = tp->t_blk_res;
 	if ((tp->t_fdblocks_delta != 0) &&
-	    (xfs_sb_version_haslazysbcount(&mp->m_sb) ||
+	    (xfs_has_lazysbcount(mp) ||
 	     (tp->t_flags & XFS_TRANS_SB_DIRTY)))
 	        blkdelta += tp->t_fdblocks_delta;
 
@@ -595,7 +595,7 @@ xfs_trans_unreserve_and_mod_sb(
 	    (tp->t_flags & XFS_TRANS_SB_DIRTY))
 		rtxdelta += tp->t_frextents_delta;
 
-	if (xfs_sb_version_haslazysbcount(&mp->m_sb) ||
+	if (xfs_has_lazysbcount(mp) ||
 	     (tp->t_flags & XFS_TRANS_SB_DIRTY)) {
 		idelta = tp->t_icount_delta;
 		ifreedelta = tp->t_ifree_delta;

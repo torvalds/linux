@@ -212,7 +212,7 @@ xfs_inobt_init_rec_from_cur(
 	union xfs_btree_rec	*rec)
 {
 	rec->inobt.ir_startino = cpu_to_be32(cur->bc_rec.i.ir_startino);
-	if (xfs_sb_version_hassparseinodes(&cur->bc_mp->m_sb)) {
+	if (xfs_has_sparseinodes(cur->bc_mp)) {
 		rec->inobt.ir_u.sp.ir_holemask =
 					cpu_to_be16(cur->bc_rec.i.ir_holemask);
 		rec->inobt.ir_u.sp.ir_count = cur->bc_rec.i.ir_count;
@@ -446,7 +446,7 @@ xfs_inobt_init_common(
 
 	cur->bc_blocklog = mp->m_sb.sb_blocklog;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb))
+	if (xfs_has_crc(mp))
 		cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;
 
 	/* take a reference for the cursor */
@@ -737,7 +737,7 @@ xfs_finobt_calc_reserves(
 	xfs_extlen_t		tree_len = 0;
 	int			error;
 
-	if (!xfs_sb_version_hasfinobt(&mp->m_sb))
+	if (!xfs_has_finobt(mp))
 		return 0;
 
 	if (xfs_sb_version_hasinobtcounts(&mp->m_sb))

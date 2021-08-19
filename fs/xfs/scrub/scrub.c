@@ -415,7 +415,7 @@ xchk_validate_inputs(
 	 */
 	if (sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR) {
 		error = -EOPNOTSUPP;
-		if (!xfs_sb_version_hascrc(&mp->m_sb))
+		if (!xfs_has_crc(mp))
 			goto out;
 
 		error = -EROFS;

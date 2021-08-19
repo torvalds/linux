@@ -164,7 +164,7 @@ xrep_agf_find_btrees(
 		return -EFSCORRUPTED;
 
 	/* We must find the refcountbt root if that feature is enabled. */
-	if (xfs_sb_version_hasreflink(&sc->mp->m_sb) &&
+	if (xfs_has_reflink(sc->mp) &&
 	    !xrep_check_btree_root(sc, &fab[XREP_AGF_REFCOUNTBT]))
 		return -EFSCORRUPTED;
 
@@ -194,7 +194,7 @@ xrep_agf_init_header(
 	agf->agf_flfirst = old_agf->agf_flfirst;
 	agf->agf_fllast = old_agf->agf_fllast;
 	agf->agf_flcount = old_agf->agf_flcount;
-	if (xfs_sb_version_hascrc(&mp->m_sb))
+	if (xfs_has_crc(mp))
 		uuid_copy(&agf->agf_uuid, &mp->m_sb.sb_meta_uuid);
 
 	/* Mark the incore AGF data stale until we're done fixing things. */
@@ -224,7 +224,7 @@ xrep_agf_set_roots(
 	agf->agf_levels[XFS_BTNUM_RMAPi] =
 			cpu_to_be32(fab[XREP_AGF_RMAPBT].height);
 
-	if (xfs_sb_version_hasreflink(&sc->mp->m_sb)) {
+	if (xfs_has_reflink(sc->mp)) {
 		agf->agf_refcount_root =
 				cpu_to_be32(fab[XREP_AGF_REFCOUNTBT].root);
 		agf->agf_refcount_level =
@@ -281,7 +281,7 @@ xrep_agf_calc_from_btrees(
 	agf->agf_btreeblks = cpu_to_be32(btreeblks);
 
 	/* Update the AGF counters from the refcountbt. */
-	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
+	if (xfs_has_reflink(mp)) {
 		cur = xfs_refcountbt_init_cursor(mp, sc->tp, agf_bp,
 				sc->sa.pag);
 		error = xfs_btree_count_blocks(cur, &blocks);
@@ -364,7 +364,7 @@ xrep_agf(
 	int				error;
 
 	/* We require the rmapbt to rebuild anything. */
-	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (!xfs_has_rmapbt(mp))
 		return -EOPNOTSUPP;
 
 	/*
@@ -640,7 +640,7 @@ xrep_agfl(
 	int			error;
 
 	/* We require the rmapbt to rebuild anything. */
-	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (!xfs_has_rmapbt(mp))
 		return -EOPNOTSUPP;
 
 	xbitmap_init(&agfl_extents);
@@ -741,7 +741,7 @@ xrep_agi_find_btrees(
 		return -EFSCORRUPTED;
 
 	/* We must find the finobt root if that feature is enabled. */
-	if (xfs_sb_version_hasfinobt(&mp->m_sb) &&
+	if (xfs_has_finobt(mp) &&
 	    !xrep_check_btree_root(sc, &fab[XREP_AGI_FINOBT]))
 		return -EFSCORRUPTED;
 
@@ -770,7 +770,7 @@ xrep_agi_init_header(
 							sc->sa.pag->pag_agno));
 	agi->agi_newino = cpu_to_be32(NULLAGINO);
 	agi->agi_dirino = cpu_to_be32(NULLAGINO);
-	if (xfs_sb_version_hascrc(&mp->m_sb))
+	if (xfs_has_crc(mp))
 		uuid_copy(&agi->agi_uuid, &mp->m_sb.sb_meta_uuid);
 
 	/* We don't know how to fix the unlinked list yet. */
@@ -792,7 +792,7 @@ xrep_agi_set_roots(
 	agi->agi_root = cpu_to_be32(fab[XREP_AGI_INOBT].root);
 	agi->agi_level = cpu_to_be32(fab[XREP_AGI_INOBT].height);
 
-	if (xfs_sb_version_hasfinobt(&sc->mp->m_sb)) {
+	if (xfs_has_finobt(sc->mp)) {
 		agi->agi_free_root = cpu_to_be32(fab[XREP_AGI_FINOBT].root);
 		agi->agi_free_level = cpu_to_be32(fab[XREP_AGI_FINOBT].height);
 	}
@@ -898,7 +898,7 @@ xrep_agi(
 	int				error;
 
 	/* We require the rmapbt to rebuild anything. */
-	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (!xfs_has_rmapbt(mp))
 		return -EOPNOTSUPP;
 
 	/*

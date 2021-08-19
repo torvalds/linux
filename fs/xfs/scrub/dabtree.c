@@ -367,11 +367,11 @@ xchk_da_btree_block(
 	pmaxrecs = &ds->maxrecs[level];
 
 	/* We only started zeroing the header on v5 filesystems. */
-	if (xfs_sb_version_hascrc(&ds->sc->mp->m_sb) && hdr3->hdr.pad)
+	if (xfs_has_crc(ds->sc->mp) && hdr3->hdr.pad)
 		xchk_da_set_corrupt(ds, level);
 
 	/* Check the owner. */
-	if (xfs_sb_version_hascrc(&ip->i_mount->m_sb)) {
+	if (xfs_has_crc(ip->i_mount)) {
 		owner = be64_to_cpu(hdr3->owner);
 		if (owner != ip->i_ino)
 			xchk_da_set_corrupt(ds, level);

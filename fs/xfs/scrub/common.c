@@ -829,7 +829,7 @@ xchk_metadata_inode_forks(
 		return error;
 
 	/* Look for incorrect shared blocks. */
-	if (xfs_sb_version_hasreflink(&sc->mp->m_sb)) {
+	if (xfs_has_reflink(sc->mp)) {
 		error = xfs_reflink_inode_has_shared_extents(sc->tp, sc->ip,
 				&shared);
 		if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, 0,

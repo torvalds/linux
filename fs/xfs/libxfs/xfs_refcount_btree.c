@@ -209,7 +209,7 @@ xfs_refcountbt_verify(
 	if (!xfs_verify_magic(bp, block->bb_magic))
 		return __this_address;
 
-	if (!xfs_sb_version_hasreflink(&mp->m_sb))
+	if (!xfs_has_reflink(mp))
 		return __this_address;
 	fa = xfs_btree_sblock_v5hdr_verify(bp);
 	if (fa)
@@ -462,7 +462,7 @@ xfs_refcountbt_calc_reserves(
 	xfs_extlen_t		tree_len;
 	int			error;
 
-	if (!xfs_sb_version_hasreflink(&mp->m_sb))
+	if (!xfs_has_reflink(mp))
 		return 0;
 
 	error = xfs_alloc_read_agf(mp, tp, pag->pag_agno, 0, &agbp);

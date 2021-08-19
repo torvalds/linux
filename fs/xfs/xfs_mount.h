@@ -315,9 +315,9 @@ __XFS_HAS_FEAT(reflink, REFLINK)
 __XFS_HAS_FEAT(sparseinodes, SPINODES)
 __XFS_HAS_FEAT(metauuid, META_UUID)
 __XFS_HAS_FEAT(realtime, REALTIME)
-__XFS_HAS_FEAT(inobtcounts, REALTIME)
-__XFS_HAS_FEAT(bigtime, REALTIME)
-__XFS_HAS_FEAT(needsrepair, REALTIME)
+__XFS_HAS_FEAT(inobtcounts, INOBTCNT)
+__XFS_HAS_FEAT(bigtime, BIGTIME)
+__XFS_HAS_FEAT(needsrepair, NEEDSREPAIR)
 
 /*
  * Flags for m_flags.

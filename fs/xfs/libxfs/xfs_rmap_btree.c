@@ -304,7 +304,7 @@ xfs_rmapbt_verify(
 	if (!xfs_verify_magic(bp, block->bb_magic))
 		return __this_address;
 
-	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (!xfs_has_rmapbt(mp))
 		return __this_address;
 	fa = xfs_btree_sblock_v5hdr_verify(bp);
 	if (fa)
@@ -558,7 +558,7 @@ xfs_rmapbt_compute_maxlevels(
 	 * disallow reflinking when less than 10% of the per-AG metadata
 	 * block reservation since the fallback is a regular file copy.
 	 */
-	if (xfs_sb_version_hasreflink(&mp->m_sb))
+	if (xfs_has_reflink(mp))
 		mp->m_rmap_maxlevels = XFS_BTREE_MAXLEVELS;
 	else
 		mp->m_rmap_maxlevels = xfs_btree_compute_maxlevels(
@@ -606,7 +606,7 @@ xfs_rmapbt_calc_reserves(
 	xfs_extlen_t		tree_len;
 	int			error;
 
-	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (!xfs_has_rmapbt(mp))
 		return 0;
 
 	error = xfs_alloc_read_agf(mp, tp, pag->pag_agno, 0, &agbp);

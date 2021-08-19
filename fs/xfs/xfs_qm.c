@@ -656,7 +656,7 @@ xfs_qm_init_quotainfo(
 	/* Precalc some constants */
 	qinf->qi_dqchunklen = XFS_FSB_TO_BB(mp, XFS_DQUOT_CLUSTER_SIZE_FSB);
 	qinf->qi_dqperchunk = xfs_calc_dquots_per_chunk(qinf->qi_dqchunklen);
-	if (xfs_sb_version_hasbigtime(&mp->m_sb)) {
+	if (xfs_has_bigtime(mp)) {
 		qinf->qi_expiry_min =
 			xfs_dq_bigtime_to_unix(XFS_DQ_BIGTIME_EXPIRY_MIN);
 		qinf->qi_expiry_max =
@@ -749,7 +749,7 @@ xfs_qm_qino_alloc(
 	 * with PQUOTA, just use sb_gquotino for sb_pquotino and
 	 * vice-versa.
 	 */
-	if (!xfs_sb_version_has_pquotino(&mp->m_sb) &&
+	if (!xfs_has_pquotino(mp) &&
 			(flags & (XFS_QMOPT_PQUOTA|XFS_QMOPT_GQUOTA))) {
 		xfs_ino_t ino = NULLFSINO;
 
@@ -802,9 +802,9 @@ xfs_qm_qino_alloc(
 	 */
 	spin_lock(&mp->m_sb_lock);
 	if (flags & XFS_QMOPT_SBVERSION) {
-		ASSERT(!xfs_sb_version_hasquota(&mp->m_sb));
+		ASSERT(!xfs_has_quota(mp));
 
-		xfs_sb_version_addquota(&mp->m_sb);
+		xfs_add_quota(mp);
 		mp->m_sb.sb_uquotino = NULLFSINO;
 		mp->m_sb.sb_gquotino = NULLFSINO;
 		mp->m_sb.sb_pquotino = NULLFSINO;
@@ -890,11 +890,11 @@ xfs_qm_reset_dqcounts(
 			ddq->d_bwarns = 0;
 			ddq->d_iwarns = 0;
 			ddq->d_rtbwarns = 0;
-			if (xfs_sb_version_hasbigtime(&mp->m_sb))
+			if (xfs_has_bigtime(mp))
 				ddq->d_type |= XFS_DQTYPE_BIGTIME;
 		}
 
-		if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		if (xfs_has_crc(mp)) {
 			xfs_update_cksum((char *)&dqb[j],
 					 sizeof(struct xfs_dqblk),
 					 XFS_DQUOT_CRC_OFF);
@@ -1498,7 +1498,7 @@ xfs_qm_init_quotainos(
 	/*
 	 * Get the uquota and gquota inodes
 	 */
-	if (xfs_sb_version_hasquota(&mp->m_sb)) {
+	if (xfs_has_quota(mp)) {
 		if (XFS_IS_UQUOTA_ON(mp) &&
 		    mp->m_sb.sb_uquotino != NULLFSINO) {
 			ASSERT(mp->m_sb.sb_uquotino > 0);

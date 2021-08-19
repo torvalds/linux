@@ -951,8 +951,7 @@ xfs_growfs_rt(
 		return -EINVAL;
 
 	/* Unsupported realtime features. */
-	if (xfs_sb_version_hasrmapbt(&mp->m_sb) ||
-	    xfs_sb_version_hasreflink(&mp->m_sb))
+	if (xfs_has_rmapbt(mp) || xfs_has_reflink(mp))
 		return -EOPNOTSUPP;
 
 	nrblocks = in->newblocks;

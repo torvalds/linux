@@ -319,7 +319,7 @@ xfs_validate_new_dalign(
 		}
 	}
 
-	if (!xfs_sb_version_hasdalign(&mp->m_sb)) {
+	if (!xfs_has_dalign(mp)) {
 		xfs_warn(mp,
 "cannot change alignment: superblock does not support data alignment");
 		return -EINVAL;
@@ -351,7 +351,7 @@ xfs_update_alignment(
 		sbp->sb_width = mp->m_swidth;
 		mp->m_update_sb = true;
 	} else if ((mp->m_flags & XFS_MOUNT_NOALIGN) != XFS_MOUNT_NOALIGN &&
-		    xfs_sb_version_hasdalign(&mp->m_sb)) {
+		    xfs_has_dalign(mp)) {
 		mp->m_dalign = sbp->sb_unit;
 		mp->m_swidth = sbp->sb_width;
 	}
@@ -506,7 +506,7 @@ xfs_check_summary_counts(
 	 * superblock to be correct and we don't need to do anything here.
 	 * Otherwise, recalculate the summary counters.
 	 */
-	if ((!xfs_sb_version_haslazysbcount(&mp->m_sb) ||
+	if ((!xfs_has_lazysbcount(mp) ||
 	     XFS_LAST_UNMOUNT_WAS_CLEAN(mp)) &&
 	    !xfs_fs_has_sickness(mp, XFS_SICK_FS_COUNTERS))
 		return 0;
@@ -619,6 +619,7 @@ xfs_mountfs(
 	/* always use v2 inodes by default now */
 	if (!(mp->m_sb.sb_versionnum & XFS_SB_VERSION_NLINKBIT)) {
 		mp->m_sb.sb_versionnum |= XFS_SB_VERSION_NLINKBIT;
+		mp->m_features |= XFS_FEAT_NLINK;
 		mp->m_update_sb = true;
 	}
 
@@ -691,7 +692,7 @@ xfs_mountfs(
 	 * cluster size. Full inode chunk alignment must match the chunk size,
 	 * but that is checked on sb read verification...
 	 */
-	if (xfs_sb_version_hassparseinodes(&mp->m_sb) &&
+	if (xfs_has_sparseinodes(mp) &&
 	    mp->m_sb.sb_spino_align !=
 			XFS_B_TO_FSBT(mp, igeo->inode_cluster_size_raw)) {
 		xfs_warn(mp,
@@ -786,7 +787,7 @@ xfs_mountfs(
 	 * behaviour specified by the superblock feature bit.
 	 */
 	if (!(mp->m_flags & (XFS_MOUNT_ATTR2|XFS_MOUNT_NOATTR2)) &&
-	    xfs_sb_version_hasattr2(&mp->m_sb))
+	    xfs_has_attr2(mp))
 		mp->m_flags |= XFS_MOUNT_ATTR2;
 
 	/*
@@ -1229,7 +1230,7 @@ void
 xfs_force_summary_recalc(
 	struct xfs_mount	*mp)
 {
-	if (!xfs_sb_version_haslazysbcount(&mp->m_sb))
+	if (!xfs_has_lazysbcount(mp))
 		return;
 
 	xfs_fs_mark_sick(mp, XFS_SICK_FS_COUNTERS);

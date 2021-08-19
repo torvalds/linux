@@ -239,7 +239,7 @@ xfs_validate_sb_common(
 		return -EWRONGFS;
 	}
 
-	if (xfs_sb_version_has_pquotino(sbp)) {
+	if (xfs_sb_version_haspquotino(sbp)) {
 		if (sbp->sb_qflags & (XFS_OQUOTA_ENFD | XFS_OQUOTA_CHKD)) {
 			xfs_notice(mp,
 			   "Version 5 of Super block has XFS_OQUOTA bits.");
@@ -378,7 +378,7 @@ xfs_validate_sb_common(
 			XFS_FSB_TO_B(mp, sbp->sb_width), 0, false))
 		return -EFSCORRUPTED;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb) &&
+	if (xfs_sb_version_hascrc(sbp) &&
 	    sbp->sb_blocksize < XFS_MIN_CRC_BLOCKSIZE) {
 		xfs_notice(mp, "v5 SB sanity check failed");
 		return -EFSCORRUPTED;
@@ -427,7 +427,7 @@ xfs_sb_quota_from_disk(struct xfs_sb *sbp)
 	 * We need to do these manipilations only if we are working
 	 * with an older version of on-disk superblock.
 	 */
-	if (xfs_sb_version_has_pquotino(sbp))
+	if (xfs_sb_version_haspquotino(sbp))
 		return;
 
 	if (sbp->sb_qflags & XFS_OQUOTA_ENFD)
@@ -545,7 +545,7 @@ xfs_sb_quota_to_disk(
 	uint16_t	qflags = from->sb_qflags;
 
 	to->sb_uquotino = cpu_to_be64(from->sb_uquotino);
-	if (xfs_sb_version_has_pquotino(from)) {
+	if (xfs_sb_version_haspquotino(from)) {
 		to->sb_qflags = cpu_to_be16(from->sb_qflags);
 		to->sb_gquotino = cpu_to_be64(from->sb_gquotino);
 		to->sb_pquotino = cpu_to_be64(from->sb_pquotino);
@@ -770,7 +770,7 @@ xfs_sb_write_verify(
 	if (error)
 		goto out_error;
 
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_sb_version_hascrc(&sb))
 		return;
 
 	if (bip)
@@ -1066,7 +1066,7 @@ xfs_fs_geometry(
 		geo->flags |= XFS_FSOP_GEOM_FLAGS_LAZYSB;
 	if (xfs_sb_version_hasattr2(sbp))
 		geo->flags |= XFS_FSOP_GEOM_FLAGS_ATTR2;
-	if (xfs_sb_version_hasprojid32bit(sbp))
+	if (xfs_sb_version_hasprojid32(sbp))
 		geo->flags |= XFS_FSOP_GEOM_FLAGS_PROJID32;
 	if (xfs_sb_version_hascrc(sbp))
 		geo->flags |= XFS_FSOP_GEOM_FLAGS_V5SB;

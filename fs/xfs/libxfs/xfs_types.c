@@ -169,7 +169,7 @@ xfs_internal_inum(
 	xfs_ino_t		ino)
 {
 	return ino == mp->m_sb.sb_rbmino || ino == mp->m_sb.sb_rsumino ||
-		(xfs_sb_version_hasquota(&mp->m_sb) &&
+		(xfs_has_quota(mp) &&
 		 xfs_is_quota_inode(&mp->m_sb, ino));
 }
 

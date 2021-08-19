@@ -58,7 +58,7 @@ xfs_trans_log_dquot(
 
 	/* Upgrade the dquot to bigtime format if possible. */
 	if (dqp->q_id != 0 &&
-	    xfs_sb_version_hasbigtime(&tp->t_mountp->m_sb) &&
+	    xfs_has_bigtime(tp->t_mountp) &&
 	    !(dqp->q_type & XFS_DQTYPE_BIGTIME))
 		dqp->q_type |= XFS_DQTYPE_BIGTIME;
 

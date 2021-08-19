@@ -398,7 +398,7 @@ static inline void xfs_sb_version_addattr2(struct xfs_sb *sbp)
 	sbp->sb_features2 |= XFS_SB_VERSION2_ATTR2BIT;
 }
 
-static inline bool xfs_sb_version_hasprojid32bit(struct xfs_sb *sbp)
+static inline bool xfs_sb_version_hasprojid32(struct xfs_sb *sbp)
 {
 	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) ||
 	       (xfs_sb_version_hasmorebits(sbp) &&
@@ -528,7 +528,7 @@ static inline bool xfs_dinode_good_version(struct xfs_sb *sbp,
 	return version == 1 || version == 2;
 }
 
-static inline bool xfs_sb_version_has_pquotino(struct xfs_sb *sbp)
+static inline bool xfs_sb_version_haspquotino(struct xfs_sb *sbp)
 {
 	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5;
 }
@@ -1462,7 +1462,7 @@ struct xfs_dsymlink_hdr {
 #define XFS_SYMLINK_MAPS 3
 
 #define XFS_SYMLINK_BUF_SPACE(mp, bufsize)	\
-	((bufsize) - (xfs_sb_version_hascrc(&(mp)->m_sb) ? \
+	((bufsize) - (xfs_has_crc((mp)) ? \
 			sizeof(struct xfs_dsymlink_hdr) : 0))
 
 
@@ -1694,7 +1694,7 @@ struct xfs_rmap_key {
 typedef __be32 xfs_rmap_ptr_t;
 
 #define	XFS_RMAP_BLOCK(mp) \
-	(xfs_sb_version_hasfinobt(&((mp)->m_sb)) ? \
+	(xfs_has_finobt(((mp))) ? \
 	 XFS_FIBT_BLOCK(mp) + 1 : \
 	 XFS_IBT_BLOCK(mp) + 1)
 
@@ -1926,7 +1926,7 @@ struct xfs_acl {
  * limited only by the maximum size of the xattr that stores the information.
  */
 #define XFS_ACL_MAX_ENTRIES(mp)	\
-	(xfs_sb_version_hascrc(&mp->m_sb) \
+	(xfs_has_crc(mp) \
 		?  (XFS_XATTR_SIZE_MAX - sizeof(struct xfs_acl)) / \
 						sizeof(struct xfs_acl_entry) \
 		: 25)

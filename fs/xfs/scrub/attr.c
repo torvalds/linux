@@ -336,7 +336,7 @@ xchk_xattr_block(
 	bitmap_zero(usedmap, mp->m_attr_geo->blksize);
 
 	/* Check all the padding. */
-	if (xfs_sb_version_hascrc(&ds->sc->mp->m_sb)) {
+	if (xfs_has_crc(ds->sc->mp)) {
 		struct xfs_attr3_leafblock	*leaf = bp->b_addr;
 
 		if (leaf->hdr.pad1 != 0 || leaf->hdr.pad2 != 0 ||

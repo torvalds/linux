@@ -400,7 +400,7 @@ xchk_bmapbt_rec(
 	 * Check the owners of the btree blocks up to the level below
 	 * the root since the verifiers don't do that.
 	 */
-	if (xfs_sb_version_hascrc(&bs->cur->bc_mp->m_sb) &&
+	if (xfs_has_crc(bs->cur->bc_mp) &&
 	    bs->cur->bc_ptrs[0] == 1) {
 		for (i = 0; i < bs->cur->bc_nlevels - 1; i++) {
 			block = xfs_btree_get_block(bs->cur, i, &bp);
@@ -584,7 +584,7 @@ xchk_bmap_check_rmaps(
 	bool			zero_size;
 	int			error;
 
-	if (!xfs_sb_version_hasrmapbt(&sc->mp->m_sb) ||
+	if (!xfs_has_rmapbt(sc->mp) ||
 	    whichfork == XFS_COW_FORK ||
 	    (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		return 0;

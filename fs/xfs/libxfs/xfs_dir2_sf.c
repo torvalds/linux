@@ -192,7 +192,7 @@ xfs_dir2_block_sfsize(
 	 * if there is a filetype field, add the extra byte to the namelen
 	 * for each entry that we see.
 	 */
-	has_ftype = xfs_sb_version_hasftype(&mp->m_sb) ? 1 : 0;
+	has_ftype = xfs_has_ftype(mp) ? 1 : 0;
 
 	count = i8count = namelen = 0;
 	btp = xfs_dir2_block_tail_p(geo, hdr);
