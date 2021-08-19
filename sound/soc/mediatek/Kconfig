@@ -193,3 +193,17 @@ config SND_SOC_MT8195
 	  that can be used with other codecs.
 	  Select Y if you have such device.
 	  If unsure select "N".
+
+config SND_SOC_MT8195_MT6359_RT1019_RT5682
+	tristate "ASoC Audio driver for MT8195 with MT6359 RT1019 RT5682 codec"
+	depends on I2C
+	depends on SND_SOC_MT8195
+	select SND_SOC_MT6359
+	select SND_SOC_RT1015P
+	select SND_SOC_RT5682_I2C
+	select SND_SOC_DMIC
+	help
+	  This adds ASoC driver for Mediatek MT8195 boards
+	  with the MT6359 RT1019 RT5682 audio codec.
+	  Select Y if you have such device.
+	  If unsure select "N".
