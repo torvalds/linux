@@ -134,11 +134,7 @@ struct xfs_buf {
 	 */
 	struct rhash_head	b_rhash_head;	/* pag buffer hash node */
 
-	/*
-	 * b_bn is the cache index. Do not use directly, use b_maps[0].bm_bn
-	 * for the buffer disk address instead.
-	 */
-	xfs_daddr_t		b_bn;
+	xfs_daddr_t		b_rhash_key;	/* buffer cache index */
 	int			b_length;	/* size of buffer in BBs */
 	atomic_t		b_hold;		/* reference count */
 	atomic_t		b_lru_ref;	/* lru reclaim ref count */
@@ -300,18 +296,6 @@ extern int xfs_buf_delwri_pushbuf(struct xfs_buf *, struct list_head *);
 /* Buffer Daemon Setup Routines */
 extern int xfs_buf_init(void);
 extern void xfs_buf_terminate(void);
-
-/*
- * These macros use the IO block map rather than b_bn. b_bn is now really
- * just for the buffer cache index for cached buffers. As IO does not use b_bn
- * anymore, uncached buffers do not use b_bn at all and hence must modify the IO
- * map directly. Uncached buffers are not allowed to be discontiguous, so this
- * is safe to do.
- *
- * In future, uncached buffers will pass the block number directly to the io
- * request function and hence these macros will go away at that point.
- */
-#define XFS_BUF_SET_ADDR(bp, bno)	((bp)->b_maps[0].bm_bn = (xfs_daddr_t)(bno))
 
 static inline xfs_daddr_t xfs_buf_daddr(struct xfs_buf *bp)
 {
