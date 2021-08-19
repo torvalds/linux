@@ -19,7 +19,7 @@
  */
 
 / {
-	bus@4000000 {
+	bus@40000000 {
 		motherboard {
 			arm,hbi = <0x190>;
 			arm,vexpress,site = <0>;
