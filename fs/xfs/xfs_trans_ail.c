@@ -620,7 +620,7 @@ xfsaild(
 			 * opportunity to release such buffers from the queue.
 			 */
 			ASSERT(list_empty(&ailp->ail_buf_list) ||
-			       XFS_FORCED_SHUTDOWN(ailp->ail_mount));
+			       xfs_is_shutdown(ailp->ail_mount));
 			xfs_buf_delwri_cancel(&ailp->ail_buf_list);
 			break;
 		}
@@ -683,7 +683,7 @@ xfs_ail_push(
 	struct xfs_log_item	*lip;
 
 	lip = xfs_ail_min(ailp);
-	if (!lip || XFS_FORCED_SHUTDOWN(ailp->ail_mount) ||
+	if (!lip || xfs_is_shutdown(ailp->ail_mount) ||
 	    XFS_LSN_CMP(threshold_lsn, ailp->ail_target) <= 0)
 		return;
 
@@ -748,7 +748,7 @@ xfs_ail_update_finish(
 		return;
 	}
 
-	if (!XFS_FORCED_SHUTDOWN(mp))
+	if (!xfs_is_shutdown(mp))
 		xlog_assign_tail_lsn_locked(mp);
 
 	if (list_empty(&ailp->ail_head))
@@ -868,7 +868,7 @@ xfs_trans_ail_delete(
 	spin_lock(&ailp->ail_lock);
 	if (!test_bit(XFS_LI_IN_AIL, &lip->li_flags)) {
 		spin_unlock(&ailp->ail_lock);
-		if (shutdown_type && !XFS_FORCED_SHUTDOWN(mp)) {
+		if (shutdown_type && !xfs_is_shutdown(mp)) {
 			xfs_alert_tag(mp, XFS_PTAG_AILDELETE,
 	"%s: attempting to delete a log item that is not in the AIL",
 					__func__);

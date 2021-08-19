@@ -477,7 +477,7 @@ xfs_scrub_metadata(
 
 	/* Forbidden if we are shut down or mounted norecovery. */
 	error = -ESHUTDOWN;
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		goto out;
 	error = -ENOTRECOVERABLE;
 	if (xfs_has_norecovery(mp))

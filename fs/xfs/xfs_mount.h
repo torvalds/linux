@@ -424,7 +424,7 @@ __XFS_IS_OPSTATE(blockgc_enabled, BLOCKGC_ENABLED)
 #define XFS_MAX_IO_LOG		30	/* 1G */
 #define XFS_MIN_IO_LOG		PAGE_SHIFT
 
-#define XFS_FORCED_SHUTDOWN(mp)		xfs_is_shutdown(mp)
+#define xfs_is_shutdown(mp)		xfs_is_shutdown(mp)
 void xfs_do_force_shutdown(struct xfs_mount *mp, int flags, char *fname,
 		int lnnum);
 #define xfs_force_shutdown(m,f)	\

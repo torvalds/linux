@@ -890,7 +890,7 @@ xfs_reclaim_inode(
 	if (xfs_iflags_test_and_set(ip, XFS_IFLUSHING))
 		goto out_iunlock;
 
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+	if (xfs_is_shutdown(ip->i_mount)) {
 		xfs_iunpin_wait(ip);
 		xfs_iflush_abort(ip);
 		goto reclaim;
@@ -968,7 +968,7 @@ xfs_want_reclaim_sick(
 	struct xfs_mount	*mp)
 {
 	return xfs_is_unmounting(mp) || xfs_has_norecovery(mp) ||
-	       XFS_FORCED_SHUTDOWN(mp);
+	       xfs_is_shutdown(mp);
 }
 
 void
@@ -1414,7 +1414,7 @@ xfs_blockgc_igrab(
 	spin_unlock(&ip->i_flags_lock);
 
 	/* nothing to sync during shutdown */
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
+	if (xfs_is_shutdown(ip->i_mount))
 		return false;
 
 	/* If we can't grab the inode, it must on it's way to reclaim. */
@@ -1811,7 +1811,7 @@ xfs_inodegc_set_reclaimable(
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_perag	*pag;
 
-	if (!XFS_FORCED_SHUTDOWN(mp) && ip->i_delayed_blks) {
+	if (!xfs_is_shutdown(mp) && ip->i_delayed_blks) {
 		xfs_check_delalloc(ip, XFS_DATA_FORK);
 		xfs_check_delalloc(ip, XFS_COW_FORK);
 		ASSERT(0);

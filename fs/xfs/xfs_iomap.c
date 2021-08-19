@@ -734,7 +734,7 @@ xfs_direct_write_iomap_begin(
 
 	ASSERT(flags & (IOMAP_WRITE | IOMAP_ZERO));
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	/*
@@ -874,7 +874,7 @@ xfs_buffered_write_iomap_begin(
 	int			allocfork = XFS_DATA_FORK;
 	int			error = 0;
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	/* we can't use delayed allocations when using extent size hints */
@@ -1127,7 +1127,7 @@ xfs_buffered_write_iomap_end(
 
 		error = xfs_bmap_punch_delalloc_range(ip, start_fsb,
 					       end_fsb - start_fsb);
-		if (error && !XFS_FORCED_SHUTDOWN(mp)) {
+		if (error && !xfs_is_shutdown(mp)) {
 			xfs_alert(mp, "%s: unable to clean up ino %lld",
 				__func__, ip->i_ino);
 			return error;
@@ -1162,7 +1162,7 @@ xfs_read_iomap_begin(
 
 	ASSERT(!(flags & (IOMAP_WRITE | IOMAP_ZERO)));
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	error = xfs_ilock_for_iomap(ip, flags, &lockmode);
@@ -1203,7 +1203,7 @@ xfs_seek_iomap_begin(
 	int			error = 0;
 	unsigned		lockmode;
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	lockmode = xfs_ilock_data_map_shared(ip);
@@ -1285,7 +1285,7 @@ xfs_xattr_iomap_begin(
 	int			nimaps = 1, error = 0;
 	unsigned		lockmode;
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	lockmode = xfs_ilock_attr_map_shared(ip);

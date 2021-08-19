@@ -512,7 +512,7 @@ xfs_readdir(
 
 	trace_xfs_readdir(dp);
 
-	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
+	if (xfs_is_shutdown(dp->i_mount))
 		return -EIO;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));

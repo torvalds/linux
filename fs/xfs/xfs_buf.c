@@ -813,7 +813,7 @@ xfs_buf_read_map(
 	 * buffer.
 	 */
 	if (error) {
-		if (!XFS_FORCED_SHUTDOWN(target->bt_mount))
+		if (!xfs_is_shutdown(target->bt_mount))
 			xfs_buf_ioerror_alert(bp, fa);
 
 		bp->b_flags &= ~XBF_DONE;
@@ -1178,7 +1178,7 @@ xfs_buf_ioend_handle_error(
 	 * If we've already decided to shutdown the filesystem because of I/O
 	 * errors, there's no point in giving this a retry.
 	 */
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		goto out_stale;
 
 	xfs_buf_ioerror_alert_ratelimited(bp);
@@ -1591,7 +1591,7 @@ __xfs_buf_submit(
 	ASSERT(!(bp->b_flags & _XBF_DELWRI_Q));
 
 	/* on shutdown we stale and complete the buffer immediately */
-	if (XFS_FORCED_SHUTDOWN(bp->b_mount)) {
+	if (xfs_is_shutdown(bp->b_mount)) {
 		xfs_buf_ioend_fail(bp);
 		return -EIO;
 	}
@@ -1808,7 +1808,7 @@ xfs_buftarg_drain(
 	 * down the fs.
 	 */
 	if (write_fail) {
-		ASSERT(XFS_FORCED_SHUTDOWN(btp->bt_mount));
+		ASSERT(xfs_is_shutdown(btp->bt_mount));
 		xfs_alert(btp->bt_mount,
 	      "Please run xfs_repair to determine the extent of the problem.");
 	}

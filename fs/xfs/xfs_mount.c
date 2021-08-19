@@ -1076,7 +1076,7 @@ xfs_fs_writable(
 {
 	ASSERT(level > SB_UNFROZEN);
 	if ((mp->m_super->s_writers.frozen >= level) ||
-	    XFS_FORCED_SHUTDOWN(mp) || xfs_is_readonly(mp))
+	    xfs_is_shutdown(mp) || xfs_is_readonly(mp))
 		return false;
 
 	return true;
@@ -1268,7 +1268,7 @@ xfs_add_incompat_log_feature(
 	xfs_buf_lock(mp->m_sb_bp);
 	xfs_buf_hold(mp->m_sb_bp);
 
-	if (XFS_FORCED_SHUTDOWN(mp)) {
+	if (xfs_is_shutdown(mp)) {
 		error = -EIO;
 		goto rele;
 	}
@@ -1323,7 +1323,7 @@ xfs_clear_incompat_log_features(
 	if (!xfs_sb_version_hascrc(&mp->m_sb) ||
 	    !xfs_sb_has_incompat_log_feature(&mp->m_sb,
 				XFS_SB_FEAT_INCOMPAT_LOG_ALL) ||
-	    XFS_FORCED_SHUTDOWN(mp))
+	    xfs_is_shutdown(mp))
 		return false;
 
 	/*

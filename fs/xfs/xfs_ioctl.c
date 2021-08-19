@@ -756,7 +756,7 @@ xfs_ioc_fsbulkstat(
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	if (copy_from_user(&bulkreq, arg, sizeof(struct xfs_fsop_bulkreq)))
@@ -927,7 +927,7 @@ xfs_ioc_bulkstat(
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	if (copy_from_user(&hdr, &arg->hdr, sizeof(hdr)))
@@ -977,7 +977,7 @@ xfs_ioc_inumbers(
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	if (copy_from_user(&hdr, &arg->hdr, sizeof(hdr)))
@@ -1265,7 +1265,7 @@ xfs_ioctl_setattr_get_trans(
 	if (xfs_is_readonly(mp))
 		goto out_error;
 	error = -EIO;
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		goto out_error;
 
 	error = xfs_trans_alloc_ichange(ip, NULL, NULL, pdqp,
@@ -1791,7 +1791,7 @@ xfs_ioc_swapext(
 		goto out_put_tmp_file;
 	}
 
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+	if (xfs_is_shutdown(ip->i_mount)) {
 		error = -EIO;
 		goto out_put_tmp_file;
 	}
