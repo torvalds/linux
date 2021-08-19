@@ -130,7 +130,7 @@ static ssize_t ltc4261_value_show(struct device *dev,
 		return PTR_ERR(data);
 
 	value = ltc4261_get_value(data, attr->index);
-	return snprintf(buf, PAGE_SIZE, "%d\n", value);
+	return sysfs_emit(buf, "%d\n", value);
 }
 
 static ssize_t ltc4261_bool_show(struct device *dev,
@@ -147,7 +147,7 @@ static ssize_t ltc4261_bool_show(struct device *dev,
 	if (fault)		/* Clear reported faults in chip register */
 		i2c_smbus_write_byte_data(data->client, LTC4261_FAULT, ~fault);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", fault ? 1 : 0);
+	return sysfs_emit(buf, "%d\n", fault ? 1 : 0);
 }
 
 /*

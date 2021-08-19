@@ -432,14 +432,6 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres
  * To be differentiate with macro pte_mkyoung, this macro is used on platforms
  * where software maintains page access bit.
  */
-#ifndef pte_sw_mkyoung
-static inline pte_t pte_sw_mkyoung(pte_t pte)
-{
-	return pte;
-}
-#define pte_sw_mkyoung	pte_sw_mkyoung
-#endif
-
 #ifndef pte_savedwrite
 #define pte_savedwrite pte_write
 #endif
@@ -910,6 +902,10 @@ static inline void ptep_modify_prot_commit(struct vm_area_struct *vma,
 
 #ifndef pgprot_device
 #define pgprot_device pgprot_noncached
+#endif
+
+#ifndef pgprot_mhp
+#define pgprot_mhp(prot)	(prot)
 #endif
 
 #ifdef CONFIG_MMU

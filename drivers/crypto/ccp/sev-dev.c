@@ -21,6 +21,7 @@
 #include <linux/ccp.h>
 #include <linux/firmware.h>
 #include <linux/gfp.h>
+#include <linux/cpufeature.h>
 
 #include <asm/smp.h>
 
@@ -971,6 +972,11 @@ int sev_dev_init(struct psp_device *psp)
 	struct device *dev = psp->dev;
 	struct sev_device *sev;
 	int ret = -ENOMEM;
+
+	if (!boot_cpu_has(X86_FEATURE_SEV)) {
+		dev_info_once(dev, "SEV: memory encryption not enabled by BIOS\n");
+		return 0;
+	}
 
 	sev = devm_kzalloc(dev, sizeof(*sev), GFP_KERNEL);
 	if (!sev)

@@ -270,7 +270,10 @@ or bottom half).
 	->alloc_inode.
 
 ``dirty_inode``
-	this method is called by the VFS to mark an inode dirty.
+	this method is called by the VFS when an inode is marked dirty.
+	This is specifically for the inode itself being marked dirty,
+	not its data.  If the update needs to be persisted by fdatasync(),
+	then I_DIRTY_DATASYNC will be set in the flags argument.
 
 ``write_inode``
 	this method is called when the VFS needs to write an inode to
@@ -415,28 +418,32 @@ As of kernel 2.6.22, the following members are defined:
 .. code-block:: c
 
 	struct inode_operations {
-		int (*create) (struct inode *,struct dentry *, umode_t, bool);
+		int (*create) (struct user_namespace *, struct inode *,struct dentry *, umode_t, bool);
 		struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
 		int (*link) (struct dentry *,struct inode *,struct dentry *);
 		int (*unlink) (struct inode *,struct dentry *);
-		int (*symlink) (struct inode *,struct dentry *,const char *);
-		int (*mkdir) (struct inode *,struct dentry *,umode_t);
+		int (*symlink) (struct user_namespace *, struct inode *,struct dentry *,const char *);
+		int (*mkdir) (struct user_namespace *, struct inode *,struct dentry *,umode_t);
 		int (*rmdir) (struct inode *,struct dentry *);
-		int (*mknod) (struct inode *,struct dentry *,umode_t,dev_t);
-		int (*rename) (struct inode *, struct dentry *,
+		int (*mknod) (struct user_namespace *, struct inode *,struct dentry *,umode_t,dev_t);
+		int (*rename) (struct user_namespace *, struct inode *, struct dentry *,
 			       struct inode *, struct dentry *, unsigned int);
 		int (*readlink) (struct dentry *, char __user *,int);
 		const char *(*get_link) (struct dentry *, struct inode *,
 					 struct delayed_call *);
-		int (*permission) (struct inode *, int);
+		int (*permission) (struct user_namespace *, struct inode *, int);
 		int (*get_acl)(struct inode *, int);
-		int (*setattr) (struct dentry *, struct iattr *);
-		int (*getattr) (const struct path *, struct kstat *, u32, unsigned int);
+		int (*setattr) (struct user_namespace *, struct dentry *, struct iattr *);
+		int (*getattr) (struct user_namespace *, const struct path *, struct kstat *, u32, unsigned int);
 		ssize_t (*listxattr) (struct dentry *, char *, size_t);
 		void (*update_time)(struct inode *, struct timespec *, int);
 		int (*atomic_open)(struct inode *, struct dentry *, struct file *,
 				   unsigned open_flag, umode_t create_mode);
-		int (*tmpfile) (struct inode *, struct dentry *, umode_t);
+		int (*tmpfile) (struct user_namespace *, struct inode *, struct dentry *, umode_t);
+	        int (*set_acl)(struct user_namespace *, struct inode *, struct posix_acl *, int);
+		int (*fileattr_set)(struct user_namespace *mnt_userns,
+				    struct dentry *dentry, struct fileattr *fa);
+		int (*fileattr_get)(struct dentry *dentry, struct fileattr *fa);
 	};
 
 Again, all methods are called without any locks being held, unless
@@ -583,6 +590,18 @@ otherwise noted.
 	called in the end of O_TMPFILE open().  Optional, equivalent to
 	atomically creating, opening and unlinking a file in given
 	directory.
+
+``fileattr_get``
+	called on ioctl(FS_IOC_GETFLAGS) and ioctl(FS_IOC_FSGETXATTR) to
+	retrieve miscellaneous file flags and attributes.  Also called
+	before the relevant SET operation to check what is being changed
+	(in this case with i_rwsem locked exclusive).  If unset, then
+	fall back to f_op->ioctl().
+
+``fileattr_set``
+	called on ioctl(FS_IOC_SETFLAGS) and ioctl(FS_IOC_FSSETXATTR) to
+	change miscellaneous file flags and attributes.  Callers hold
+	i_rwsem exclusive.  If unset, then fall back to f_op->ioctl().
 
 
 The Address Space Object

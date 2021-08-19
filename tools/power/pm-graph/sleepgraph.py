@@ -6819,7 +6819,7 @@ if __name__ == '__main__':
 			sysvals.outdir = val
 			sysvals.notestrun = True
 			if(os.path.isdir(val) == False):
-				doError('%s is not accesible' % val)
+				doError('%s is not accessible' % val)
 		elif(arg == '-filter'):
 			try:
 				val = next(args)

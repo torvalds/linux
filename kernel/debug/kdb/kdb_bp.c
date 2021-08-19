@@ -522,6 +522,54 @@ static int kdb_ss(int argc, const char **argv)
 	return KDB_CMD_SS;
 }
 
+static kdbtab_t bptab[] = {
+	{	.cmd_name = "bp",
+		.cmd_func = kdb_bp,
+		.cmd_usage = "[<vaddr>]",
+		.cmd_help = "Set/Display breakpoints",
+		.cmd_flags = KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_NO_ARGS,
+	},
+	{	.cmd_name = "bl",
+		.cmd_func = kdb_bp,
+		.cmd_usage = "[<vaddr>]",
+		.cmd_help = "Display breakpoints",
+		.cmd_flags = KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_NO_ARGS,
+	},
+	{	.cmd_name = "bc",
+		.cmd_func = kdb_bc,
+		.cmd_usage = "<bpnum>",
+		.cmd_help = "Clear Breakpoint",
+		.cmd_flags = KDB_ENABLE_FLOW_CTRL,
+	},
+	{	.cmd_name = "be",
+		.cmd_func = kdb_bc,
+		.cmd_usage = "<bpnum>",
+		.cmd_help = "Enable Breakpoint",
+		.cmd_flags = KDB_ENABLE_FLOW_CTRL,
+	},
+	{	.cmd_name = "bd",
+		.cmd_func = kdb_bc,
+		.cmd_usage = "<bpnum>",
+		.cmd_help = "Disable Breakpoint",
+		.cmd_flags = KDB_ENABLE_FLOW_CTRL,
+	},
+	{	.cmd_name = "ss",
+		.cmd_func = kdb_ss,
+		.cmd_usage = "",
+		.cmd_help = "Single Step",
+		.cmd_minlen = 1,
+		.cmd_flags = KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_NO_ARGS,
+	},
+};
+
+static kdbtab_t bphcmd = {
+	.cmd_name = "bph",
+	.cmd_func = kdb_bp,
+	.cmd_usage = "[<vaddr>]",
+	.cmd_help = "[datar [length]|dataw [length]]   Set hw brk",
+	.cmd_flags = KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_NO_ARGS,
+};
+
 /* Initialize the breakpoint table and register	breakpoint commands. */
 
 void __init kdb_initbptab(void)
@@ -537,30 +585,7 @@ void __init kdb_initbptab(void)
 	for (i = 0, bp = kdb_breakpoints; i < KDB_MAXBPT; i++, bp++)
 		bp->bp_free = 1;
 
-	kdb_register_flags("bp", kdb_bp, "[<vaddr>]",
-		"Set/Display breakpoints", 0,
-		KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_NO_ARGS);
-	kdb_register_flags("bl", kdb_bp, "[<vaddr>]",
-		"Display breakpoints", 0,
-		KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_NO_ARGS);
+	kdb_register_table(bptab, ARRAY_SIZE(bptab));
 	if (arch_kgdb_ops.flags & KGDB_HW_BREAKPOINT)
-		kdb_register_flags("bph", kdb_bp, "[<vaddr>]",
-		"[datar [length]|dataw [length]]   Set hw brk", 0,
-		KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_NO_ARGS);
-	kdb_register_flags("bc", kdb_bc, "<bpnum>",
-		"Clear Breakpoint", 0,
-		KDB_ENABLE_FLOW_CTRL);
-	kdb_register_flags("be", kdb_bc, "<bpnum>",
-		"Enable Breakpoint", 0,
-		KDB_ENABLE_FLOW_CTRL);
-	kdb_register_flags("bd", kdb_bc, "<bpnum>",
-		"Disable Breakpoint", 0,
-		KDB_ENABLE_FLOW_CTRL);
-
-	kdb_register_flags("ss", kdb_ss, "",
-		"Single Step", 1,
-		KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_NO_ARGS);
-	/*
-	 * Architecture dependent initialization.
-	 */
+		kdb_register_table(&bphcmd, 1);
 }

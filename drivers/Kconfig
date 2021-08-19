@@ -6,6 +6,7 @@ menu "Device Drivers"
 source "drivers/amba/Kconfig"
 source "drivers/eisa/Kconfig"
 source "drivers/pci/Kconfig"
+source "drivers/cxl/Kconfig"
 source "drivers/pcmcia/Kconfig"
 source "drivers/rapidio/Kconfig"
 
@@ -147,6 +148,8 @@ source "drivers/hv/Kconfig"
 source "drivers/xen/Kconfig"
 
 source "drivers/greybus/Kconfig"
+
+source "drivers/comedi/Kconfig"
 
 source "drivers/staging/Kconfig"
 

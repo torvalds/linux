@@ -1353,14 +1353,13 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 		is_64bit = kernel_ip(to) || any_64bit_mode(regs);
 #endif
 		insn_init(&insn, kaddr, size, is_64bit);
-		insn_get_length(&insn);
+
 		/*
-		 * Make sure there was not a problem decoding the
-		 * instruction and getting the length.  This is
-		 * doubly important because we have an infinite
-		 * loop if insn.length=0.
+		 * Make sure there was not a problem decoding the instruction.
+		 * This is doubly important because we have an infinite loop if
+		 * insn.length=0.
 		 */
-		if (!insn.length)
+		if (insn_get_length(&insn))
 			break;
 
 		to += insn.length;
@@ -1805,7 +1804,7 @@ intel_pmu_save_and_restart_reload(struct perf_event *event, int count)
 	 *
 	 *   [-period, 0]
 	 *
-	 * the difference between two consequtive reads is:
+	 * the difference between two consecutive reads is:
 	 *
 	 *   A) value2 - value1;
 	 *      when no overflows have happened in between,
@@ -2010,7 +2009,7 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs, struct perf_sample_d
 		 */
 		if (!pebs_status && cpuc->pebs_enabled &&
 			!(cpuc->pebs_enabled & (cpuc->pebs_enabled-1)))
-			pebs_status = cpuc->pebs_enabled;
+			pebs_status = p->status = cpuc->pebs_enabled;
 
 		bit = find_first_bit((unsigned long *)&pebs_status,
 					x86_pmu.max_pebs_events);

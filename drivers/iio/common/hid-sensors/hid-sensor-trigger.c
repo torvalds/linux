@@ -255,14 +255,14 @@ int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 		return ret;
 	}
 
-	trig = iio_trigger_alloc("%s-dev%d", name, indio_dev->id);
+	trig = iio_trigger_alloc(indio_dev->dev.parent,
+				 "%s-dev%d", name, indio_dev->id);
 	if (trig == NULL) {
 		dev_err(&indio_dev->dev, "Trigger Allocate Failed\n");
 		ret = -ENOMEM;
 		goto error_triggered_buffer_cleanup;
 	}
 
-	trig->dev.parent = indio_dev->dev.parent;
 	iio_trigger_set_drvdata(trig, attrb);
 	trig->ops = &hid_sensor_trigger_ops;
 	ret = iio_trigger_register(trig);

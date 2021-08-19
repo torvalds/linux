@@ -12,9 +12,8 @@
 #include <linux/bitops.h>
 
 /*
- * If more options are added please update profile_names
- * array in platform-profile.c and sysfs-platform-profile.rst
- * documentation.
+ * If more options are added please update profile_names array in
+ * platform_profile.c and sysfs-platform_profile documentation.
  */
 
 enum platform_profile_option {
@@ -22,6 +21,7 @@ enum platform_profile_option {
 	PLATFORM_PROFILE_COOL,
 	PLATFORM_PROFILE_QUIET,
 	PLATFORM_PROFILE_BALANCED,
+	PLATFORM_PROFILE_BALANCED_PERFORMANCE,
 	PLATFORM_PROFILE_PERFORMANCE,
 	PLATFORM_PROFILE_LAST, /*must always be last */
 };

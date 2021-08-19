@@ -549,15 +549,15 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 	if (err < 0)
 		goto snd_fail;
 
-	strlcpy(pcm->name, pcm_name, sizeof(pcm->name));
+	strscpy(pcm->name, pcm_name, sizeof(pcm->name));
 	pcm->private_data = uac;
 	uac->pcm = pcm;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &uac_pcm_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &uac_pcm_ops);
 
-	strlcpy(card->driver, card_name, sizeof(card->driver));
-	strlcpy(card->shortname, card_name, sizeof(card->shortname));
+	strscpy(card->driver, card_name, sizeof(card->driver));
+	strscpy(card->shortname, card_name, sizeof(card->shortname));
 	sprintf(card->longname, "%s %i", card_name, card->dev->id);
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,

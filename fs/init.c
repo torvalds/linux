@@ -49,7 +49,7 @@ int __init init_chdir(const char *filename)
 	error = kern_path(filename, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &path);
 	if (error)
 		return error;
-	error = inode_permission(path.dentry->d_inode, MAY_EXEC | MAY_CHDIR);
+	error = path_permission(&path, MAY_EXEC | MAY_CHDIR);
 	if (!error)
 		set_fs_pwd(current->fs, &path);
 	path_put(&path);
@@ -64,7 +64,7 @@ int __init init_chroot(const char *filename)
 	error = kern_path(filename, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &path);
 	if (error)
 		return error;
-	error = inode_permission(path.dentry->d_inode, MAY_EXEC | MAY_CHDIR);
+	error = path_permission(&path, MAY_EXEC | MAY_CHDIR);
 	if (error)
 		goto dput_and_out;
 	error = -EPERM;
@@ -118,7 +118,7 @@ int __init init_eaccess(const char *filename)
 	error = kern_path(filename, LOOKUP_FOLLOW, &path);
 	if (error)
 		return error;
-	error = inode_permission(d_inode(path.dentry), MAY_ACCESS);
+	error = path_permission(&path, MAY_ACCESS);
 	path_put(&path);
 	return error;
 }
@@ -157,8 +157,8 @@ int __init init_mknod(const char *filename, umode_t mode, unsigned int dev)
 		mode &= ~current_umask();
 	error = security_path_mknod(&path, dentry, mode, dev);
 	if (!error)
-		error = vfs_mknod(path.dentry->d_inode, dentry, mode,
-				  new_decode_dev(dev));
+		error = vfs_mknod(mnt_user_ns(path.mnt), path.dentry->d_inode,
+				  dentry, mode, new_decode_dev(dev));
 	done_path_create(&path, dentry);
 	return error;
 }
@@ -167,6 +167,7 @@ int __init init_link(const char *oldname, const char *newname)
 {
 	struct dentry *new_dentry;
 	struct path old_path, new_path;
+	struct user_namespace *mnt_userns;
 	int error;
 
 	error = kern_path(oldname, 0, &old_path);
@@ -181,14 +182,15 @@ int __init init_link(const char *oldname, const char *newname)
 	error = -EXDEV;
 	if (old_path.mnt != new_path.mnt)
 		goto out_dput;
-	error = may_linkat(&old_path);
+	mnt_userns = mnt_user_ns(new_path.mnt);
+	error = may_linkat(mnt_userns, &old_path);
 	if (unlikely(error))
 		goto out_dput;
 	error = security_path_link(old_path.dentry, &new_path, new_dentry);
 	if (error)
 		goto out_dput;
-	error = vfs_link(old_path.dentry, new_path.dentry->d_inode, new_dentry,
-			 NULL);
+	error = vfs_link(old_path.dentry, mnt_userns, new_path.dentry->d_inode,
+			 new_dentry, NULL);
 out_dput:
 	done_path_create(&new_path, new_dentry);
 out:
@@ -207,7 +209,8 @@ int __init init_symlink(const char *oldname, const char *newname)
 		return PTR_ERR(dentry);
 	error = security_path_symlink(&path, dentry, oldname);
 	if (!error)
-		error = vfs_symlink(path.dentry->d_inode, dentry, oldname);
+		error = vfs_symlink(mnt_user_ns(path.mnt), path.dentry->d_inode,
+				    dentry, oldname);
 	done_path_create(&path, dentry);
 	return error;
 }
@@ -230,7 +233,8 @@ int __init init_mkdir(const char *pathname, umode_t mode)
 		mode &= ~current_umask();
 	error = security_path_mkdir(&path, dentry, mode);
 	if (!error)
-		error = vfs_mkdir(path.dentry->d_inode, dentry, mode);
+		error = vfs_mkdir(mnt_user_ns(path.mnt), path.dentry->d_inode,
+				  dentry, mode);
 	done_path_create(&path, dentry);
 	return error;
 }

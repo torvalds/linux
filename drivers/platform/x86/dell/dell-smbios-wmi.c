@@ -205,7 +205,7 @@ fail_register:
 	return ret;
 }
 
-static int dell_smbios_wmi_remove(struct wmi_device *wdev)
+static void dell_smbios_wmi_remove(struct wmi_device *wdev)
 {
 	struct wmi_smbios_priv *priv = dev_get_drvdata(&wdev->dev);
 	int count;
@@ -218,7 +218,6 @@ static int dell_smbios_wmi_remove(struct wmi_device *wdev)
 	count = get_order(priv->req_buf_size);
 	free_pages((unsigned long)priv->buf, count);
 	mutex_unlock(&call_mutex);
-	return 0;
 }
 
 static const struct wmi_device_id dell_smbios_wmi_id_table[] = {

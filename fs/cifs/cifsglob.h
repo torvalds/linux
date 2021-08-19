@@ -21,6 +21,7 @@
 
 #include <linux/in.h>
 #include <linux/in6.h>
+#include <linux/inet.h>
 #include <linux/slab.h>
 #include <linux/mempool.h>
 #include <linux/workqueue.h>
@@ -256,7 +257,7 @@ struct smb_version_operations {
 	/* verify the message */
 	int (*check_message)(char *, unsigned int, struct TCP_Server_Info *);
 	bool (*is_oplock_break)(char *, struct TCP_Server_Info *);
-	int (*handle_cancelled_mid)(char *, struct TCP_Server_Info *);
+	int (*handle_cancelled_mid)(struct mid_q_entry *, struct TCP_Server_Info *);
 	void (*downgrade_oplock)(struct TCP_Server_Info *server,
 				 struct cifsInodeInfo *cinode, __u32 oplock,
 				 unsigned int epoch, bool *purge_cache);
@@ -494,7 +495,7 @@ struct smb_version_operations {
 			 struct inode *inode,
 			 struct dentry *dentry,
 			 struct cifs_tcon *tcon,
-			 char *full_path,
+			 const char *full_path,
 			 umode_t mode,
 			 dev_t device_number);
 	/* version specific fiemap implementation */
@@ -504,6 +505,8 @@ struct smb_version_operations {
 	loff_t (*llseek)(struct file *, struct cifs_tcon *, loff_t, int);
 	/* Check for STATUS_IO_TIMEOUT */
 	bool (*is_status_io_timeout)(char *buf);
+	/* Check for STATUS_NETWORK_NAME_DELETED */
+	void (*is_network_name_deleted)(char *buf, struct TCP_Server_Info *srv);
 };
 
 struct smb_version_values {
@@ -577,6 +580,7 @@ inc_rfc1001_len(void *buf, int count)
 struct TCP_Server_Info {
 	struct list_head tcp_ses_list;
 	struct list_head smb_ses_list;
+	__u64 conn_id; /* connection identifier (useful for debugging) */
 	int srv_count; /* reference counter */
 	/* 15 character server name + 0x20 16th byte indicating type = srv */
 	char server_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
@@ -901,7 +905,7 @@ struct cifs_ses {
 	kuid_t linux_uid;	/* overriding owner of files on the mount */
 	kuid_t cred_uid;	/* owner of credentials */
 	unsigned int capabilities;
-	char serverName[SERVER_NAME_LEN_WITH_NULL];
+	char ip_addr[INET6_ADDRSTRLEN + 1]; /* Max ipv6 (or v4) addr string len */
 	char *user_name;	/* must not be null except during init of sess
 				   and after mount option parsing we fill it */
 	char *domainName;
@@ -915,8 +919,8 @@ struct cifs_ses {
 	bool binding:1; /* are we binding the session? */
 	__u16 session_flags;
 	__u8 smb3signingkey[SMB3_SIGN_KEY_SIZE];
-	__u8 smb3encryptionkey[SMB3_SIGN_KEY_SIZE];
-	__u8 smb3decryptionkey[SMB3_SIGN_KEY_SIZE];
+	__u8 smb3encryptionkey[SMB3_ENC_DEC_KEY_SIZE];
+	__u8 smb3decryptionkey[SMB3_ENC_DEC_KEY_SIZE];
 	__u8 preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
 
 	__u8 binding_preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
@@ -984,10 +988,12 @@ struct cached_fid {
 	bool is_valid:1;	/* Do we have a useable root fid */
 	bool file_all_info_is_valid:1;
 	bool has_lease:1;
+	unsigned long time; /* jiffies of when lease was taken */
 	struct kref refcount;
 	struct cifs_fid *fid;
 	struct mutex fid_mutex;
 	struct cifs_tcon *tcon;
+	struct dentry *dentry;
 	struct work_struct lease_break;
 	struct smb2_file_all_info file_all_info;
 };
@@ -1066,6 +1072,7 @@ struct cifs_tcon {
 	bool use_resilient:1; /* use resilient instead of durable handles */
 	bool use_persistent:1; /* use persistent instead of durable handles */
 	bool no_lease:1;    /* Do not request leases on files or directories */
+	bool use_witness:1; /* use witness protocol */
 	__le32 capabilities;
 	__u32 share_flags;
 	__u32 maximal_access;
@@ -1089,9 +1096,6 @@ struct cifs_tcon {
 	char *dfs_path;
 	int remap:2;
 	struct list_head ulist; /* cache update list */
-#endif
-#ifdef CONFIG_CIFS_SWN_UPCALL
-	bool use_witness:1; /* use witness protocol */
 #endif
 };
 
@@ -1279,8 +1283,6 @@ struct cifs_aio_ctx {
 	bool			direct_io;
 };
 
-struct cifs_readdata;
-
 /* asynchronous read support */
 struct cifs_readdata {
 	struct kref			refcount;
@@ -1313,8 +1315,6 @@ struct cifs_readdata {
 	unsigned int			nr_pages;
 	struct page			**pages;
 };
-
-struct cifs_writedata;
 
 /* asynchronous write support */
 struct cifs_writedata {
@@ -1701,14 +1701,17 @@ static inline bool is_retryable_error(int error)
 #define   CIFS_NO_RSP_BUF   0x040    /* no response buffer required */
 
 /* Type of request operation */
-#define   CIFS_ECHO_OP      0x080    /* echo request */
-#define   CIFS_OBREAK_OP   0x0100    /* oplock break request */
-#define   CIFS_NEG_OP      0x0200    /* negotiate request */
-#define   CIFS_OP_MASK     0x0380    /* mask request type */
+#define   CIFS_ECHO_OP            0x080  /* echo request */
+#define   CIFS_OBREAK_OP          0x0100 /* oplock break request */
+#define   CIFS_NEG_OP             0x0200 /* negotiate request */
+#define   CIFS_CP_CREATE_CLOSE_OP 0x0400 /* compound create+close request */
+/* Lower bitmask values are reserved by others below. */
+#define   CIFS_SESS_OP            0x2000 /* session setup request */
+#define   CIFS_OP_MASK            0x2780 /* mask request type */
 
-#define   CIFS_HAS_CREDITS 0x0400    /* already has credits */
-#define   CIFS_TRANSFORM_REQ 0x0800    /* transform request before sending */
-#define   CIFS_NO_SRV_RSP    0x1000    /* there is no server response */
+#define   CIFS_HAS_CREDITS        0x0400 /* already has credits */
+#define   CIFS_TRANSFORM_REQ      0x0800 /* transform request before sending */
+#define   CIFS_NO_SRV_RSP         0x1000 /* there is no server response */
 
 /* Security Flags: indicate type of session setup needed */
 #define   CIFSSEC_MAY_SIGN	0x00001
@@ -1791,9 +1794,8 @@ require use of the stronger protocol */
  *
  *  Semaphores
  *  ----------
- *  sesSem     operations on smb session
- *  tconSem    operations on tree connection
- *  fh_sem      file handle reconnection operations
+ *  cifsInodeInfo->lock_sem protects:
+ *	the list of locks held by the inode
  *
  ****************************************************************************/
 
@@ -1824,13 +1826,6 @@ GLOBAL_EXTERN struct list_head		cifs_tcp_ses_list;
  */
 GLOBAL_EXTERN spinlock_t		cifs_tcp_ses_lock;
 
-#ifdef CONFIG_CIFS_DNOTIFY_EXPERIMENTAL /* unused temporarily */
-/* Outstanding dir notify requests */
-GLOBAL_EXTERN struct list_head GlobalDnotifyReqList;
-/* DirNotify response queue */
-GLOBAL_EXTERN struct list_head GlobalDnotifyRsp_Q;
-#endif /* was needed for dnotify, and will be needed for inotify when VFS fix */
-
 /*
  * Global transaction id (XID) information
  */
@@ -1844,6 +1839,7 @@ GLOBAL_EXTERN spinlock_t GlobalMid_Lock;  /* protects above & list operations */
  */
 GLOBAL_EXTERN atomic_t sesInfoAllocCount;
 GLOBAL_EXTERN atomic_t tconInfoAllocCount;
+GLOBAL_EXTERN atomic_t tcpSesNextId;
 GLOBAL_EXTERN atomic_t tcpSesAllocCount;
 GLOBAL_EXTERN atomic_t tcpSesReconnectCount;
 GLOBAL_EXTERN atomic_t tconInfoReconnectCount;
@@ -1873,19 +1869,9 @@ extern unsigned int cifs_min_small;  /* min size of small buf pool */
 extern unsigned int cifs_max_pending; /* MAX requests at once to server*/
 extern bool disable_legacy_dialects;  /* forbid vers=1.0 and vers=2.0 mounts */
 
-GLOBAL_EXTERN struct rb_root uidtree;
-GLOBAL_EXTERN struct rb_root gidtree;
-GLOBAL_EXTERN spinlock_t siduidlock;
-GLOBAL_EXTERN spinlock_t sidgidlock;
-GLOBAL_EXTERN struct rb_root siduidtree;
-GLOBAL_EXTERN struct rb_root sidgidtree;
-GLOBAL_EXTERN spinlock_t uidsidlock;
-GLOBAL_EXTERN spinlock_t gidsidlock;
-
 void cifs_oplock_break(struct work_struct *work);
 void cifs_queue_oplock_break(struct cifsFileInfo *cfile);
 
-extern const struct slow_work_ops cifs_oplock_break_ops;
 extern struct workqueue_struct *cifsiod_wq;
 extern struct workqueue_struct *decrypt_wq;
 extern struct workqueue_struct *fileinfo_put_wq;

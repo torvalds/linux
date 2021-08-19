@@ -23,6 +23,7 @@ config ARM
 	select ARCH_HAS_TEARDOWN_DMA_OPS if MMU
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAVE_CUSTOM_GPIO_H
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG if CPU_V7 || CPU_V7M || CPU_V6K
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_KEEP_MEMBLOCK
 	select ARCH_MIGHT_HAVE_PC_PARPORT
@@ -347,6 +348,7 @@ config ARCH_EP93XX
 	select ARM_AMBA
 	imply ARM_PATCH_PHYS_VIRT
 	select ARM_VIC
+	select GENERIC_IRQ_MULTI_HANDLER
 	select AUTO_ZRELADDR
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
@@ -1291,9 +1293,15 @@ config KASAN_SHADOW_OFFSET
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
-	range 2 32
+	range 2 16 if DEBUG_KMAP_LOCAL
+	range 2 32 if !DEBUG_KMAP_LOCAL
 	depends on SMP
 	default "4"
+	help
+	  The maximum number of CPUs that the kernel can support.
+	  Up to 32 CPUs can be supported, or up to 16 if kmap_local()
+	  debugging is enabled, which uses half of the per-CPU fixmap
+	  slots as guard regions.
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
@@ -1319,7 +1327,7 @@ config ARM_PSCI
 # selected platforms.
 config ARCH_NR_GPIO
 	int
-	default 2048 if ARCH_SOCFPGA
+	default 2048 if ARCH_INTEL_SOCFPGA
 	default 1024 if ARCH_BRCMSTB || ARCH_RENESAS || ARCH_TEGRA || \
 		ARCH_ZYNQ || ARCH_ASPEED
 	default 512 if ARCH_EXYNOS || ARCH_KEYSTONE || SOC_OMAP5 || \
@@ -1856,9 +1864,10 @@ config AUTO_ZRELADDR
 	help
 	  ZRELADDR is the physical address where the decompressed kernel
 	  image will be placed. If AUTO_ZRELADDR is selected, the address
-	  will be determined at run-time by masking the current IP with
-	  0xf8000000. This assumes the zImage being placed in the first 128MB
-	  from start of memory.
+	  will be determined at run-time, either by masking the current IP
+	  with 0xf8000000, or, if invalid, from the DTB passed in r2.
+	  This assumes the zImage being placed in the first 128MB from
+	  start of memory.
 
 config EFI_STUB
 	bool

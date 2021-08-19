@@ -50,7 +50,7 @@
 			CONFIG_ACPI_DEBUG must be enabled to produce any ACPI
 			debug output.  Bits in debug_layer correspond to a
 			_COMPONENT in an ACPI source file, e.g.,
-			    #define _COMPONENT ACPI_PCI_COMPONENT
+			    #define _COMPONENT ACPI_EVENTS
 			Bits in debug_level correspond to a level in
 			ACPI_DEBUG_PRINT statements, e.g.,
 			    ACPI_DEBUG_PRINT((ACPI_DB_INFO, ...
@@ -60,8 +60,6 @@
 
 			Enable processor driver info messages:
 			    acpi.debug_layer=0x20000000
-			Enable PCI/PCI interrupt routing info messages:
-			    acpi.debug_layer=0x400000
 			Enable AML "Debug" output, i.e., stores to the Debug
 			object while interpreting AML:
 			    acpi.debug_layer=0xffffffff acpi.debug_level=0x2
@@ -1434,6 +1432,11 @@
 				to enforce probe and suspend/resume ordering.
 			rpm --	Like "on", but also use to order runtime PM.
 
+	fw_devlink.strict=<bool>
+			[KNL] Treat all inferred dependencies as mandatory
+			dependencies. This only applies for fw_devlink=on|rpm.
+			Format: <bool>
+
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
 			support via parallel port (up to 5 devices per port)
@@ -1673,6 +1676,12 @@
 			idle=halt: Halt is forced to be used for CPU idle.
 			In such case C2/C3 won't be used again.
 			idle=nomwait: Disable mwait for CPU C-states
+
+	idxd.sva=	[HW]
+			Format: <bool>
+			Allow force disabling of Shared Virtual Memory (SVA)
+			support for the idxd driver. By default it is set to
+			true (1).
 
 	ieee754=	[MIPS] Select IEEE Std 754 conformance mode
 			Format: { strict | legacy | 2008 | relaxed }
@@ -2268,8 +2277,7 @@
 				   state is kept private from the host.
 				   Not valid if the kernel is running in EL2.
 
-			Defaults to VHE/nVHE based on hardware support and
-			the value of CONFIG_ARM64_VHE.
+			Defaults to VHE/nVHE based on hardware support.
 
 	kvm-arm.vgic_v3_group0_trap=
 			[KVM,ARM] Trap guest accesses to GICv3 group-0
@@ -3461,7 +3469,8 @@
 
 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
 
-	numa_balancing=	[KNL,X86] Enable or disable automatic NUMA balancing.
+	numa_balancing=	[KNL,ARM64,PPC,RISCV,S390,X86] Enable or disable automatic
+			NUMA balancing.
 			Allowed values are enable and disable
 
 	numa_zonelist_order= [KNL, BOOT] Select zonelist order for NUMA.
@@ -4049,6 +4058,17 @@
 			CPU's random number generator (if available) to
 			fully seed the kernel's CRNG. Default is controlled
 			by CONFIG_RANDOM_TRUST_CPU.
+
+	randomize_kstack_offset=
+			[KNL] Enable or disable kernel stack offset
+			randomization, which provides roughly 5 bits of
+			entropy, frustrating memory corruption attacks
+			that depend on stack address determinism or
+			cross-syscall address exposures. This is only
+			available on architectures that have defined
+			CONFIG_HAVE_ARCH_RANDOMIZE_KSTACK_OFFSET.
+			Format: <bool>  (1/Y/y=enable, 0/N/n=disable)
+			Default is CONFIG_RANDOMIZE_KSTACK_OFFSET_DEFAULT.
 
 	ras=option[,option,...]	[KNL] RAS-specific options
 
@@ -4893,14 +4913,6 @@
 			last alloc / free. For more information see
 			Documentation/vm/slub.rst.
 
-	slub_memcg_sysfs=	[MM, SLUB]
-			Determines whether to enable sysfs directories for
-			memory cgroup sub-caches. 1 to enable, 0 to disable.
-			The default is determined by CONFIG_SLUB_MEMCG_SYSFS_ON.
-			Enabling this can lead to a very high number of	debug
-			directories and files being created under
-			/sys/kernel/slub.
-
 	slub_max_order= [MM, SLUB]
 			Determines the maximum allowed order for slabs.
 			A high setting may cause OOMs due to memory
@@ -5097,26 +5109,36 @@
 	spia_peddr=
 
 	split_lock_detect=
-			[X86] Enable split lock detection
+			[X86] Enable split lock detection or bus lock detection
 
 			When enabled (and if hardware support is present), atomic
 			instructions that access data across cache line
-			boundaries will result in an alignment check exception.
+			boundaries will result in an alignment check exception
+			for split lock detection or a debug exception for
+			bus lock detection.
 
 			off	- not enabled
 
-			warn	- the kernel will emit rate limited warnings
+			warn	- the kernel will emit rate-limited warnings
 				  about applications triggering the #AC
-				  exception. This mode is the default on CPUs
-				  that supports split lock detection.
+				  exception or the #DB exception. This mode is
+				  the default on CPUs that support split lock
+				  detection or bus lock detection. Default
+				  behavior is by #AC if both features are
+				  enabled in hardware.
 
 			fatal	- the kernel will send SIGBUS to applications
-				  that trigger the #AC exception.
+				  that trigger the #AC exception or the #DB
+				  exception. Default behavior is by #AC if
+				  both features are enabled in hardware.
 
 			If an #AC exception is hit in the kernel or in
 			firmware (i.e. not while executing in user mode)
 			the kernel will oops in either "warn" or "fatal"
 			mode.
+
+			#DB exception for bus lock is triggered only when
+			CPL > 0.
 
 	srbds=		[X86,INTEL]
 			Control the Special Register Buffer Data Sampling
@@ -5178,6 +5200,12 @@
 			to (for stacks growing down) resp. after (for stacks
 			growing up) the main stack are reserved for no other
 			mapping. Default value is 256 pages.
+
+	stack_depot_disable= [KNL]
+			Setting this to true through kernel command line will
+			disable the stack depot thereby saving the static memory
+			consumed by the stack hash table. By default this is set
+			to false.
 
 	stacktrace	[FTRACE]
 			Enabled the stack tracer on boot up.
@@ -5452,6 +5480,18 @@
 			with respect to transparent hugepages.
 			See Documentation/admin-guide/mm/transhuge.rst
 			for more details.
+
+	trusted.source=	[KEYS]
+			Format: <string>
+			This parameter identifies the trust source as a backend
+			for trusted keys implementation. Supported trust
+			sources:
+			- "tpm"
+			- "tee"
+			If not specified then it defaults to iterating through
+			the trust source list starting with TPM and assigns the
+			first trust source as a backend which is initialized
+			successfully during iteration.
 
 	tsc=		Disable clocksource stability checks for TSC.
 			Format: <string>
@@ -5978,12 +6018,6 @@
 	x2apic_phys	[X86-64,APIC] Use x2apic physical mode instead of
 			default x2apic cluster mode on platforms
 			supporting x2apic.
-
-	x86_intel_mid_timer= [X86-32,APBT]
-			Choose timer option for x86 Intel MID platform.
-			Two valid options are apbt timer only and lapic timer
-			plus one apbt timer for broadcast timer.
-			x86_intel_mid_timer=apbt_only | lapic_and_apbt
 
 	xen_512gb_limit		[KNL,X86-64,XEN]
 			Restricts the kernel running paravirtualized under Xen

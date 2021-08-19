@@ -51,3 +51,4 @@ module_i2c_driver(tps40422_driver);
 MODULE_AUTHOR("Zhu Laiwen <richard.zhu@nsn.com>");
 MODULE_DESCRIPTION("PMBus driver for TI TPS40422");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

@@ -1480,7 +1480,7 @@ xfs_buf_ioapply_map(
 	int		op)
 {
 	int		page_index;
-	int		total_nr_pages = bp->b_page_count;
+	unsigned int	total_nr_pages = bp->b_page_count;
 	int		nr_pages;
 	struct bio	*bio;
 	sector_t	sector =  bp->b_maps[map].bm_bn;
@@ -1505,7 +1505,7 @@ xfs_buf_ioapply_map(
 
 next_chunk:
 	atomic_inc(&bp->b_io_remaining);
-	nr_pages = min(total_nr_pages, BIO_MAX_PAGES);
+	nr_pages = bio_max_segs(total_nr_pages);
 
 	bio = bio_alloc(GFP_NOIO, nr_pages);
 	bio_set_dev(bio, bp->b_target->bt_bdev);
@@ -2124,9 +2124,9 @@ xfs_buf_delwri_queue(
  */
 static int
 xfs_buf_cmp(
-	void		*priv,
-	struct list_head *a,
-	struct list_head *b)
+	void			*priv,
+	const struct list_head	*a,
+	const struct list_head	*b)
 {
 	struct xfs_buf	*ap = container_of(a, struct xfs_buf, b_list);
 	struct xfs_buf	*bp = container_of(b, struct xfs_buf, b_list);

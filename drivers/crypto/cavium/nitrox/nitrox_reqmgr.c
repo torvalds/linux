@@ -58,14 +58,15 @@ static void softreq_unmap_sgbufs(struct nitrox_softreq *sr)
 	struct device *dev = DEV(ndev);
 
 
-	dma_unmap_sg(dev, sr->in.sg, sr->in.sgmap_cnt, DMA_BIDIRECTIONAL);
+	dma_unmap_sg(dev, sr->in.sg, sg_nents(sr->in.sg),
+		     DMA_BIDIRECTIONAL);
 	dma_unmap_single(dev, sr->in.sgcomp_dma, sr->in.sgcomp_len,
 			 DMA_TO_DEVICE);
 	kfree(sr->in.sgcomp);
 	sr->in.sg = NULL;
 	sr->in.sgmap_cnt = 0;
 
-	dma_unmap_sg(dev, sr->out.sg, sr->out.sgmap_cnt,
+	dma_unmap_sg(dev, sr->out.sg, sg_nents(sr->out.sg),
 		     DMA_BIDIRECTIONAL);
 	dma_unmap_single(dev, sr->out.sgcomp_dma, sr->out.sgcomp_len,
 			 DMA_TO_DEVICE);
@@ -178,7 +179,7 @@ static int dma_map_inbufs(struct nitrox_softreq *sr,
 	return 0;
 
 incomp_err:
-	dma_unmap_sg(dev, req->src, nents, DMA_BIDIRECTIONAL);
+	dma_unmap_sg(dev, req->src, sg_nents(req->src), DMA_BIDIRECTIONAL);
 	sr->in.sgmap_cnt = 0;
 	return ret;
 }
@@ -203,7 +204,7 @@ static int dma_map_outbufs(struct nitrox_softreq *sr,
 	return 0;
 
 outcomp_map_err:
-	dma_unmap_sg(dev, req->dst, nents, DMA_BIDIRECTIONAL);
+	dma_unmap_sg(dev, req->dst, sg_nents(req->dst), DMA_BIDIRECTIONAL);
 	sr->out.sgmap_cnt = 0;
 	sr->out.sg = NULL;
 	return ret;

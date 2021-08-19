@@ -188,7 +188,7 @@ MODULE_PARM_DESC(cdns_mcp_int_mask, "Cadence MCP IntMask");
 #define CDNS_PDI_CONFIG_PORT			GENMASK(4, 0)
 
 /* Driver defaults */
-#define CDNS_TX_TIMEOUT				2000
+#define CDNS_TX_TIMEOUT				500
 
 #define CDNS_SCP_RX_FIFOLEVEL			0x2
 
@@ -483,11 +483,11 @@ cdns_fill_msg_resp(struct sdw_cdns *cdns,
 	for (i = 0; i < count; i++) {
 		if (!(cdns->response_buf[i] & CDNS_MCP_RESP_ACK)) {
 			no_ack = 1;
-			dev_dbg_ratelimited(cdns->dev, "Msg Ack not received\n");
-			if (cdns->response_buf[i] & CDNS_MCP_RESP_NACK) {
-				nack = 1;
-				dev_err_ratelimited(cdns->dev, "Msg NACK received\n");
-			}
+			dev_vdbg(cdns->dev, "Msg Ack not received, cmd %d\n", i);
+		}
+		if (cdns->response_buf[i] & CDNS_MCP_RESP_NACK) {
+			nack = 1;
+			dev_err_ratelimited(cdns->dev, "Msg NACK received, cmd %d\n", i);
 		}
 	}
 
@@ -734,21 +734,18 @@ static void cdns_read_response(struct sdw_cdns *cdns)
 }
 
 static int cdns_update_slave_status(struct sdw_cdns *cdns,
-				    u32 slave0, u32 slave1)
+				    u64 slave_intstat)
 {
 	enum sdw_slave_status status[SDW_MAX_DEVICES + 1];
 	bool is_slave = false;
-	u64 slave;
 	u32 mask;
 	int i, set_status;
 
-	/* combine the two status */
-	slave = ((u64)slave1 << 32) | slave0;
 	memset(status, 0, sizeof(status));
 
 	for (i = 0; i <= SDW_MAX_DEVICES; i++) {
-		mask = (slave >> (i * CDNS_MCP_SLAVE_STATUS_NUM)) &
-				CDNS_MCP_SLAVE_STATUS_BITS;
+		mask = (slave_intstat >> (i * CDNS_MCP_SLAVE_STATUS_NUM)) &
+			CDNS_MCP_SLAVE_STATUS_BITS;
 		if (!mask)
 			continue;
 
@@ -908,7 +905,7 @@ irqreturn_t sdw_cdns_irq(int irq, void *dev_id)
 EXPORT_SYMBOL(sdw_cdns_irq);
 
 /**
- * To update slave status in a work since we will need to handle
+ * cdns_update_slave_status_work - update slave status in a work since we will need to handle
  * other interrupts eg. CDNS_MCP_INT_RX_WL during the update slave
  * process.
  * @work: cdns worker thread
@@ -918,13 +915,17 @@ static void cdns_update_slave_status_work(struct work_struct *work)
 	struct sdw_cdns *cdns =
 		container_of(work, struct sdw_cdns, work);
 	u32 slave0, slave1;
-
-	dev_dbg_ratelimited(cdns->dev, "Slave status change\n");
+	u64 slave_intstat;
 
 	slave0 = cdns_readl(cdns, CDNS_MCP_SLAVE_INTSTAT0);
 	slave1 = cdns_readl(cdns, CDNS_MCP_SLAVE_INTSTAT1);
 
-	cdns_update_slave_status(cdns, slave0, slave1);
+	/* combine the two status */
+	slave_intstat = ((u64)slave1 << 32) | slave0;
+
+	dev_dbg_ratelimited(cdns->dev, "Slave status change: 0x%llx\n", slave_intstat);
+
+	cdns_update_slave_status(cdns, slave_intstat);
 	cdns_writel(cdns, CDNS_MCP_SLAVE_INTSTAT0, slave0);
 	cdns_writel(cdns, CDNS_MCP_SLAVE_INTSTAT1, slave1);
 
@@ -967,7 +968,7 @@ int sdw_cdns_exit_reset(struct sdw_cdns *cdns)
 EXPORT_SYMBOL(sdw_cdns_exit_reset);
 
 /**
- * sdw_cdns_enable_slave_interrupt() - Enable SDW slave interrupts
+ * cdns_enable_slave_interrupts() - Enable SDW slave interrupts
  * @cdns: Cadence instance
  * @state: boolean for true/false
  */
@@ -1449,10 +1450,12 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 	}
 
 	/* Prepare slaves for clock stop */
-	ret = sdw_bus_prep_clk_stop(&cdns->bus);
-	if (ret < 0) {
-		dev_err(cdns->dev, "prepare clock stop failed %d", ret);
-		return ret;
+	if (slave_present) {
+		ret = sdw_bus_prep_clk_stop(&cdns->bus);
+		if (ret < 0 && ret != -ENODATA) {
+			dev_err(cdns->dev, "prepare clock stop failed %d\n", ret);
+			return ret;
+		}
 	}
 
 	/*
@@ -1461,7 +1464,7 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 	 */
 	ret = sdw_bus_clk_stop(&cdns->bus);
 	if (ret < 0 && slave_present && ret != -ENODATA) {
-		dev_err(cdns->dev, "bus clock stop failed %d", ret);
+		dev_err(cdns->dev, "bus clock stop failed %d\n", ret);
 		return ret;
 	}
 

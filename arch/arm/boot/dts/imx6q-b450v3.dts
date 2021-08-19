@@ -84,6 +84,11 @@
 };
 
 &pca9539 {
+	gpio-line-names = "AMB_P_INT1#", "AMB_P_INT2#", "BT_EN", "WLAN_EN",
+			  "", "SM_D_ACT", "DP1_RST#", "",
+			  "WD15S_EN", "WD15S_DIS#", "", "",
+			  "", "", "", "";
+
 	P04-hog {
 		gpio-hog;
 		gpios = <4 0>;

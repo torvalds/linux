@@ -106,7 +106,7 @@ static inline void kvm_sched_clock_init(bool stable)
 	if (!stable)
 		clear_sched_clock_stable();
 	kvm_sched_clock_offset = kvm_clock_read();
-	pv_ops.time.sched_clock = kvm_sched_clock_read;
+	paravirt_set_sched_clock(kvm_sched_clock_read);
 
 	pr_info("kvm-clock: using sched offset of %llu cycles",
 		kvm_sched_clock_offset);
@@ -268,20 +268,19 @@ static void __init kvmclock_init_mem(void)
 
 static int __init kvm_setup_vsyscall_timeinfo(void)
 {
-#ifdef CONFIG_X86_64
-	u8 flags;
-
-	if (!per_cpu(hv_clock_per_cpu, 0) || !kvmclock_vsyscall)
-		return 0;
-
-	flags = pvclock_read_flags(&hv_clock_boot[0].pvti);
-	if (!(flags & PVCLOCK_TSC_STABLE_BIT))
-		return 0;
-
-	kvm_clock.vdso_clock_mode = VDSO_CLOCKMODE_PVCLOCK;
-#endif
-
 	kvmclock_init_mem();
+
+#ifdef CONFIG_X86_64
+	if (per_cpu(hv_clock_per_cpu, 0) && kvmclock_vsyscall) {
+		u8 flags;
+
+		flags = pvclock_read_flags(&hv_clock_boot[0].pvti);
+		if (!(flags & PVCLOCK_TSC_STABLE_BIT))
+			return 0;
+
+		kvm_clock.vdso_clock_mode = VDSO_CLOCKMODE_PVCLOCK;
+	}
+#endif
 
 	return 0;
 }

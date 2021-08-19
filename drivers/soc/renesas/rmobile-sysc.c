@@ -14,8 +14,6 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
-#include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_clock.h>
 #include <linux/pm_domain.h>
@@ -344,6 +342,8 @@ static int __init rmobile_init_pm_domains(void)
 			of_node_put(np);
 			break;
 		}
+
+		fwnode_dev_initialized(&np->fwnode, true);
 	}
 
 	put_special_pds();

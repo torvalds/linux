@@ -547,7 +547,7 @@ static int setup_disable_autosuspend(struct snd_usb_audio *chip,
 				       struct usb_driver *driver,
 				       const struct snd_usb_audio_quirk *quirk)
 {
-	driver->supports_autosuspend = 0;
+	usb_disable_autosuspend(interface_to_usbdev(iface));
 	return 1;	/* Continue with creating streams and mixer */
 }
 
@@ -1482,7 +1482,7 @@ static int pioneer_djm_set_format_quirk(struct snd_usb_substream *subs,
 	usb_set_interface(subs->dev, 0, 1);
 	// we should derive windex from fmt-sync_ep but it's not set
 	snd_usb_ctl_msg(subs->stream->chip->dev,
-		usb_rcvctrlpipe(subs->stream->chip->dev, 0),
+		usb_sndctrlpipe(subs->stream->chip->dev, 0),
 		0x01, 0x22, 0x0100, windex, &sr, 0x0003);
 	return 0;
 }
@@ -1520,6 +1520,8 @@ bool snd_usb_get_sample_rate_quirk(struct snd_usb_audio *chip)
 	case USB_ID(0x1901, 0x0191): /* GE B850V3 CP2114 audio interface */
 	case USB_ID(0x21b4, 0x0081): /* AudioQuest DragonFly */
 	case USB_ID(0x2912, 0x30c8): /* Audioengine D1 */
+	case USB_ID(0x413c, 0xa506): /* Dell AE515 sound bar */
+	case USB_ID(0x046d, 0x084c): /* Logitech ConferenceCam Connect */
 		return true;
 	}
 
@@ -1668,6 +1670,14 @@ void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
 	 */
 	if (is_itf_usb_dsd_dac(chip->usb_id)
 	    && (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
+		msleep(20);
+
+	/*
+	 * Plantronics headsets (C320, C320-M, etc) need a delay to avoid
+	 * random microhpone failures.
+	 */
+	if (USB_ID_VENDOR(chip->usb_id) == 0x047f &&
+	    (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
 		msleep(20);
 
 	/* Zoom R16/24, many Logitech(at least H650e/H570e/BCC950),

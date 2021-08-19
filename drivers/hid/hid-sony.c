@@ -12,6 +12,7 @@
  *  Copyright (c) 2014-2016 Frank Praznik <frank.praznik@gmail.com>
  *  Copyright (c) 2018 Todd Kelner
  *  Copyright (c) 2020 Pascal Giard <pascal.giard@etsmtl.ca>
+ *  Copyright (c) 2020 Sanjay Govind <sanjay.govind9@gmail.com>
  */
 
 /*
@@ -59,7 +60,8 @@
 #define NSG_MR5U_REMOTE_BT        BIT(14)
 #define NSG_MR7U_REMOTE_BT        BIT(15)
 #define SHANWAN_GAMEPAD           BIT(16)
-#define GHL_GUITAR_PS3WIIU        BIT(17)
+#define GH_GUITAR_CONTROLLER      BIT(17)
+#define GHL_GUITAR_PS3WIIU        BIT(18)
 
 #define SIXAXIS_CONTROLLER (SIXAXIS_CONTROLLER_USB | SIXAXIS_CONTROLLER_BT)
 #define MOTION_CONTROLLER (MOTION_CONTROLLER_USB | MOTION_CONTROLLER_BT)
@@ -84,7 +86,7 @@
 #define NSG_MRXU_MAX_Y 1868
 
 #define GHL_GUITAR_POKE_INTERVAL 10 /* In seconds */
-#define GHL_GUITAR_TILT_USAGE 44
+#define GUITAR_TILT_USAGE 44
 
 /* Magic value and data taken from GHLtarUtility:
  * https://github.com/ghlre/GHLtarUtility/blob/master/PS3Guitar.cs
@@ -692,7 +694,7 @@ static int guitar_mapping(struct hid_device *hdev, struct hid_input *hi,
 	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_MSVENDOR) {
 		unsigned int abs = usage->hid & HID_USAGE;
 
-		if (abs == GHL_GUITAR_TILT_USAGE) {
+		if (abs == GUITAR_TILT_USAGE) {
 			hid_map_usage_clear(hi, usage, bit, max, EV_ABS, ABS_RY);
 			return 1;
 		}
@@ -1481,7 +1483,7 @@ static int sony_mapping(struct hid_device *hdev, struct hid_input *hi,
 	if (sc->quirks & DUALSHOCK4_CONTROLLER)
 		return ds4_mapping(hdev, hi, field, usage, bit, max);
 
-	if (sc->quirks & GHL_GUITAR_PS3WIIU)
+	if (sc->quirks & GH_GUITAR_CONTROLLER)
 		return guitar_mapping(hdev, hi, field, usage, bit, max);
 
 	/* Let hid-core decide for the others */
@@ -3167,8 +3169,14 @@ static const struct hid_device_id sony_devices[] = {
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SMK, USB_DEVICE_ID_SMK_NSG_MR7U_REMOTE),
 		.driver_data = NSG_MR7U_REMOTE_BT },
 	/* Guitar Hero Live PS3 and Wii U guitar dongles */
-	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_GHLIVE, USB_DEVICE_ID_SONY_PS3WIIU_GHLIVE_DONGLE),
-		.driver_data = GHL_GUITAR_PS3WIIU},
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3WIIU_GHLIVE_DONGLE),
+		.driver_data = GHL_GUITAR_PS3WIIU | GH_GUITAR_CONTROLLER },
+	/* Guitar Hero PC Guitar Dongle */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ACTIVISION, USB_DEVICE_ID_ACTIVISION_GUITAR_DONGLE),
+		.driver_data = GH_GUITAR_CONTROLLER },
+	/* Guitar Hero PS3 World Tour Guitar Dongle */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3_GUITAR_DONGLE),
+		.driver_data = GH_GUITAR_CONTROLLER },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, sony_devices);

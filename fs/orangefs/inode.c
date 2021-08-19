@@ -11,6 +11,7 @@
  */
 
 #include <linux/bvec.h>
+#include <linux/fileattr.h>
 #include "protocol.h"
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
@@ -855,13 +856,13 @@ again:
 		ORANGEFS_I(inode)->attr_uid = current_fsuid();
 		ORANGEFS_I(inode)->attr_gid = current_fsgid();
 	}
-	setattr_copy(inode, iattr);
+	setattr_copy(&init_user_ns, inode, iattr);
 	spin_unlock(&inode->i_lock);
 	mark_inode_dirty(inode);
 
 	if (iattr->ia_valid & ATTR_MODE)
 		/* change mod on a file that has ACLs */
-		ret = posix_acl_chmod(inode, inode->i_mode);
+		ret = posix_acl_chmod(&init_user_ns, inode, inode->i_mode);
 
 	ret = 0;
 out:
@@ -871,12 +872,13 @@ out:
 /*
  * Change attributes of an object referenced by dentry.
  */
-int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
+int orangefs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		     struct iattr *iattr)
 {
 	int ret;
 	gossip_debug(GOSSIP_INODE_DEBUG, "__orangefs_setattr: called on %pd\n",
 	    dentry);
-	ret = setattr_prepare(dentry, iattr);
+	ret = setattr_prepare(&init_user_ns, dentry, iattr);
 	if (ret)
 	        goto out;
 	ret = __orangefs_setattr(d_inode(dentry), iattr);
@@ -890,8 +892,8 @@ out:
 /*
  * Obtain attributes of an object given a dentry
  */
-int orangefs_getattr(const struct path *path, struct kstat *stat,
-		     u32 request_mask, unsigned int flags)
+int orangefs_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		     struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	int ret;
 	struct inode *inode = path->dentry->d_inode;
@@ -903,7 +905,7 @@ int orangefs_getattr(const struct path *path, struct kstat *stat,
 	ret = orangefs_inode_getattr(inode,
 	    request_mask & STATX_SIZE ? ORANGEFS_GETATTR_SIZE : 0);
 	if (ret == 0) {
-		generic_fillattr(inode, stat);
+		generic_fillattr(&init_user_ns, inode, stat);
 
 		/* override block size reported to stat */
 		if (!(request_mask & STATX_SIZE))
@@ -919,7 +921,8 @@ int orangefs_getattr(const struct path *path, struct kstat *stat,
 	return ret;
 }
 
-int orangefs_permission(struct inode *inode, int mask)
+int orangefs_permission(struct user_namespace *mnt_userns,
+			struct inode *inode, int mask)
 {
 	int ret;
 
@@ -933,7 +936,7 @@ int orangefs_permission(struct inode *inode, int mask)
 	if (ret < 0)
 		return ret;
 
-	return generic_permission(inode, mask);
+	return generic_permission(&init_user_ns, inode, mask);
 }
 
 int orangefs_update_time(struct inode *inode, struct timespec64 *time, int flags)
@@ -952,6 +955,53 @@ int orangefs_update_time(struct inode *inode, struct timespec64 *time, int flags
 	return __orangefs_setattr(inode, &iattr);
 }
 
+static int orangefs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+{
+	u64 val = 0;
+	int ret;
+
+	gossip_debug(GOSSIP_FILE_DEBUG, "%s: called on %pd\n", __func__,
+		     dentry);
+
+	ret = orangefs_inode_getxattr(d_inode(dentry),
+				      "user.pvfs2.meta_hint",
+				      &val, sizeof(val));
+	if (ret < 0 && ret != -ENODATA)
+		return ret;
+
+	gossip_debug(GOSSIP_FILE_DEBUG, "%s: flags=%u\n", __func__, (u32) val);
+
+	fileattr_fill_flags(fa, val);
+	return 0;
+}
+
+static int orangefs_fileattr_set(struct user_namespace *mnt_userns,
+				 struct dentry *dentry, struct fileattr *fa)
+{
+	u64 val = 0;
+
+	gossip_debug(GOSSIP_FILE_DEBUG, "%s: called on %pd\n", __func__,
+		     dentry);
+	/*
+	 * ORANGEFS_MIRROR_FL is set internally when the mirroring mode is
+	 * turned on for a file. The user is not allowed to turn on this bit,
+	 * but the bit is present if the user first gets the flags and then
+	 * updates the flags with some new settings. So, we ignore it in the
+	 * following edit. bligon.
+	 */
+	if (fileattr_has_fsx(fa) ||
+	    (fa->flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL | FS_NOATIME_FL | ORANGEFS_MIRROR_FL))) {
+		gossip_err("%s: only supports setting one of FS_IMMUTABLE_FL|FS_APPEND_FL|FS_NOATIME_FL\n",
+			   __func__);
+		return -EOPNOTSUPP;
+	}
+	val = fa->flags;
+	gossip_debug(GOSSIP_FILE_DEBUG, "%s: flags=%u\n", __func__, (u32) val);
+	return orangefs_inode_setxattr(d_inode(dentry),
+				       "user.pvfs2.meta_hint",
+				       &val, sizeof(val), 0);
+}
+
 /* ORANGEFS2 implementation of VFS inode operations for files */
 static const struct inode_operations orangefs_file_inode_operations = {
 	.get_acl = orangefs_get_acl,
@@ -961,6 +1011,8 @@ static const struct inode_operations orangefs_file_inode_operations = {
 	.listxattr = orangefs_listxattr,
 	.permission = orangefs_permission,
 	.update_time = orangefs_update_time,
+	.fileattr_get = orangefs_fileattr_get,
+	.fileattr_set = orangefs_fileattr_set,
 };
 
 static int orangefs_init_iops(struct inode *inode)

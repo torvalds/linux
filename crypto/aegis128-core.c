@@ -58,21 +58,6 @@ static bool aegis128_do_simd(void)
 	return false;
 }
 
-bool crypto_aegis128_have_simd(void);
-void crypto_aegis128_update_simd(struct aegis_state *state, const void *msg);
-void crypto_aegis128_init_simd(struct aegis_state *state,
-			       const union aegis_block *key,
-			       const u8 *iv);
-void crypto_aegis128_encrypt_chunk_simd(struct aegis_state *state, u8 *dst,
-					const u8 *src, unsigned int size);
-void crypto_aegis128_decrypt_chunk_simd(struct aegis_state *state, u8 *dst,
-					const u8 *src, unsigned int size);
-int crypto_aegis128_final_simd(struct aegis_state *state,
-			       union aegis_block *tag_xor,
-			       unsigned int assoclen,
-			       unsigned int cryptlen,
-			       unsigned int authsize);
-
 static void crypto_aegis128_update(struct aegis_state *state)
 {
 	union aegis_block tmp;

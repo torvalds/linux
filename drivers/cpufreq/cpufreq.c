@@ -42,9 +42,6 @@ static LIST_HEAD(cpufreq_policy_list);
 #define for_each_inactive_policy(__policy)		\
 	for_each_suitable_policy(__policy, false)
 
-#define for_each_policy(__policy)			\
-	list_for_each_entry(__policy, &cpufreq_policy_list, policy_list)
-
 /* Iterate over governors */
 static LIST_HEAD(cpufreq_governor_list);
 #define for_each_governor(__governor)				\
@@ -2101,7 +2098,7 @@ EXPORT_SYMBOL_GPL(cpufreq_driver_fast_switch);
  * cpufreq_driver_adjust_perf - Adjust CPU performance level in one go.
  * @cpu: Target CPU.
  * @min_perf: Minimum (required) performance level (units of @capacity).
- * @target_perf: Terget (desired) performance level (units of @capacity).
+ * @target_perf: Target (desired) performance level (units of @capacity).
  * @capacity: Capacity of the target CPU.
  *
  * Carry out a fast performance level switch of @cpu without sleeping.

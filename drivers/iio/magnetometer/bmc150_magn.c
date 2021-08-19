@@ -922,7 +922,6 @@ int bmc150_magn_probe(struct device *dev, struct regmap *regmap,
 			goto err_poweroff;
 		}
 
-		data->dready_trig->dev.parent = dev;
 		data->dready_trig->ops = &bmc150_magn_trigger_ops;
 		iio_trigger_set_drvdata(data->dready_trig, indio_dev);
 		ret = iio_trigger_register(data->dready_trig);

@@ -1,0 +1,466 @@
+[
+   {
+	    "BriefDescription": "bytes of all masters read from ddr",
+	    "MetricName": "imx8mp_ddr_read.all",
+	    "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0xffff\\,axi_id\\=0x0000@",
+	    "ScaleUnit": "9.765625e-4KB",
+	    "Unit": "imx8_ddr",
+	    "Compat": "i.MX8MP"
+   },
+   {
+	    "BriefDescription": "bytes of all masters write to ddr",
+	    "MetricName": "imx8mp_ddr_write.all",
+	    "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0xffff\\,axi_id\\=0x0000@",
+	    "ScaleUnit": "9.765625e-4KB",
+	    "Unit": "imx8_ddr",
+	    "Compat": "i.MX8MP"
+   },
+   {
+	    "BriefDescription": "bytes of a53 core read from ddr",
+	    "MetricName": "imx8mp_ddr_read.a53",
+	    "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x0000@",
+	    "ScaleUnit": "9.765625e-4KB",
+	    "Unit": "imx8_ddr",
+	    "Compat": "i.MX8MP"
+   },
+   {
+	    "BriefDescription": "bytes of a53 core write to ddr",
+	    "MetricName": "imx8mp_ddr_write.a53",
+	    "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0000@",
+	    "ScaleUnit": "9.765625e-4KB",
+	    "Unit": "imx8_ddr",
+	    "Compat": "i.MX8MP"
+   },
+   {
+	    "BriefDescription": "bytes of supermix(m7) core read from ddr",
+	    "MetricName": "imx8mp_ddr_read.supermix",
+	    "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x000f\\,axi_id\\=0x0020@",
+	    "ScaleUnit": "9.765625e-4KB",
+	    "Unit": "imx8_ddr",
+	    "Compat": "i.MX8MP"
+   },
+   {
+	    "BriefDescription": "bytes of supermix(m7) write to ddr",
+	    "MetricName": "imx8mp_ddr_write.supermix",
+	    "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x000f\\,axi_id\\=0x0020@",
+	    "ScaleUnit": "9.765625e-4KB",
+	    "Unit": "imx8_ddr",
+	    "Compat": "i.MX8MP"
+   },
+   {
+	    "BriefDescription": "bytes of gpu 3d read from ddr",
+	    "MetricName": "imx8mp_ddr_read.3d",
+	    "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x0070@",
+	    "ScaleUnit": "9.765625e-4KB",
+	    "Unit": "imx8_ddr",
+	    "Compat": "i.MX8MP"
+   },
+   {
+	    "BriefDescription": "bytes of gpu 3d write to ddr",
+	    "MetricName": "imx8mp_ddr_write.3d",
+	    "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0070@",
+	    "ScaleUnit": "9.765625e-4KB",
+	    "Unit": "imx8_ddr",
+	    "Compat": "i.MX8MP"
+   },
+   {
+	    "BriefDescription": "bytes of gpu 2d read from ddr",
+	    "MetricName": "imx8mp_ddr_read.2d",
+	    "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x0071@",
+	    "ScaleUnit": "9.765625e-4KB",
+	    "Unit": "imx8_ddr",
+	    "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of gpu 2d write to ddr",
+	   "MetricName": "imx8mp_ddr_write.2d",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0071@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of display lcdif1 read from ddr",
+	   "MetricName": "imx8mp_ddr_read.lcdif1",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x0068@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of display lcdif1 write to ddr",
+	   "MetricName": "imx8mp_ddr_write.lcdif1",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0068@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of display lcdif2 read from ddr",
+	   "MetricName": "imx8mp_ddr_read.lcdif2",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x0069@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of display lcdif2 write to ddr",
+	   "MetricName": "imx8mp_ddr_write.lcdif2",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0069@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of display isi1 read from ddr",
+	   "MetricName": "imx8mp_ddr_read.isi1",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x006a@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	    "BriefDescription": "bytes of display isi1 write to ddr",
+	    "MetricName": "imx8mp_ddr_write.isi1",
+	    "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x006a@",
+	    "ScaleUnit": "9.765625e-4KB",
+	    "Unit": "imx8_ddr",
+	    "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of display isi2 read from ddr",
+	   "MetricName": "imx8mp_ddr_read.isi2",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x006b@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of display isi2 write to ddr",
+	   "MetricName": "imx8mp_ddr_write.isi2",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x006b@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of display isi3 read from ddr",
+	   "MetricName": "imx8mp_ddr_read.isi3",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x006c@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of display isi3 write to ddr",
+	   "MetricName": "imx8mp_ddr_write.isi3",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x006c@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of display isp1 read from ddr",
+	   "MetricName": "imx8mp_ddr_read.isp1",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x006d@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of display isp1 write to ddr",
+	   "MetricName": "imx8mp_ddr_write.isp1",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x006d@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of display isp2 read from ddr",
+	   "MetricName": "imx8mp_ddr_read.isp2",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x006e@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of display isp2 write to ddr",
+	   "MetricName": "imx8mp_ddr_write.isp2",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x006e@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of display dewarp read from ddr",
+	   "MetricName": "imx8mp_ddr_read.dewarp",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x006f@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of display dewarp write to ddr",
+	   "MetricName": "imx8mp_ddr_write.dewarp",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x006f@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of vpu1 read from ddr",
+	   "MetricName": "imx8mp_ddr_read.vpu1",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x007c@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of vpu1 write to ddr",
+	   "MetricName": "imx8mp_ddr_write.vpu1",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x007c@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of vpu2 read from ddr",
+	   "MetricName": "imx8mp_ddr_read.vpu2",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x007d@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of vpu2 write to ddr",
+	   "MetricName": "imx8mp_ddr_write.vpu2",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x007d@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of vpu3 read from ddr",
+	   "MetricName": "imx8mp_ddr_read.vpu3",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x007e@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of vpu3 write to ddr",
+	   "MetricName": "imx8mp_ddr_write.vpu3",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x007e@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of npu read from ddr",
+	   "MetricName": "imx8mp_ddr_read.npu",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x0073@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of npu write to ddr",
+	   "MetricName": "imx8mp_ddr_write.npu",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0073@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of hsio usb1 read from ddr",
+	   "MetricName": "imx8mp_ddr_read.usb1",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x0078@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of hsio usb1 write to ddr",
+	   "MetricName": "imx8mp_ddr_write.usb1",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0078@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of hsio usb2 read from ddr",
+	   "MetricName": "imx8mp_ddr_read.usb2",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x0079@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of hsio usb2 write to ddr",
+	   "MetricName": "imx8mp_ddr_write.usb2",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0079@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of hsio pci read from ddr",
+	   "MetricName": "imx8mp_ddr_read.pci",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x007a@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of hsio pci write to ddr",
+	   "MetricName": "imx8mp_ddr_write.pci",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x007a@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of hdmi_tx hrv_mwr read from ddr",
+	   "MetricName": "imx8mp_ddr_read.hdmi_hrv_mwr",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x0074@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of hdmi_tx hrv_mwr write to ddr",
+	   "MetricName": "imx8mp_ddr_write.hdmi_hrv_mwr",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0074@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of hdmi_tx lcdif read from ddr",
+	   "MetricName": "imx8mp_ddr_read.hdmi_lcdif",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x0075@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of hdmi_tx lcdif write to ddr",
+	   "MetricName": "imx8mp_ddr_write.hdmi_lcdif",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0075@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of hdmi_tx tx_hdcp read from ddr",
+	   "MetricName": "imx8mp_ddr_read.hdmi_hdcp",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x0076@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of hdmi_tx tx_hdcp write to ddr",
+	   "MetricName": "imx8mp_ddr_write.hdmi_hdcp",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0076@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of audio dsp read from ddr",
+	   "MetricName": "imx8mp_ddr_read.audio_dsp",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x0041@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of audio dsp write to ddr",
+	   "MetricName": "imx8mp_ddr_write.audio_dsp",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0041@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of audio sdma2_per read from ddr",
+	   "MetricName": "imx8mp_ddr_read.audio_sdma2_per",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x0062@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of audio sdma2_per write to ddr",
+	   "MetricName": "imx8mp_ddr_write.audio_sdma2_per",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0062@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of audio sdma2_burst read from ddr",
+	   "MetricName": "imx8mp_ddr_read.audio_sdma2_burst",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x0063@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of audio sdma2_burst write to ddr",
+	   "MetricName": "imx8mp_ddr_write.audio_sdma2_burst",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0063@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of audio sdma3_per read from ddr",
+	   "MetricName": "imx8mp_ddr_read.audio_sdma3_per",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x0064@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of audio sdma3_per write to ddr",
+	   "MetricName": "imx8mp_ddr_write.audio_sdma3_per",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0064@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of audio sdma3_burst read from ddr",
+	   "MetricName": "imx8mp_ddr_read.audio_sdma3_burst",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x0065@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of audio sdma3_burst write to ddr",
+	   "MetricName": "imx8mp_ddr_write.audio_sdma3_burst",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0065@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of audio sdma_pif read from ddr",
+	   "MetricName": "imx8mp_ddr_read.audio_sdma_pif",
+	   "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0x0000\\,axi_id\\=0x0066@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   },
+   {
+	   "BriefDescription": "bytes of audio sdma_pif write to ddr",
+	   "MetricName": "imx8mp_ddr_write.audio_sdma_pif",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0066@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MP"
+   }
+]

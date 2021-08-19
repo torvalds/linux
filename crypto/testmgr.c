@@ -1168,11 +1168,6 @@ static inline int check_shash_op(const char *op, int err,
 	return err;
 }
 
-static inline const void *sg_data(struct scatterlist *sg)
-{
-	return page_address(sg_page(sg)) + sg->offset;
-}
-
 /* Test one hash test vector in one configuration, using the shash API */
 static int test_shash_vec_cfg(const struct hash_testvec *vec,
 			      const char *vec_name,
@@ -1230,7 +1225,7 @@ static int test_shash_vec_cfg(const struct hash_testvec *vec,
 			return 0;
 		if (cfg->nosimd)
 			crypto_disable_simd_for_test();
-		err = crypto_shash_digest(desc, sg_data(&tsgl->sgl[0]),
+		err = crypto_shash_digest(desc, sg_virt(&tsgl->sgl[0]),
 					  tsgl->sgl[0].length, result);
 		if (cfg->nosimd)
 			crypto_reenable_simd_for_test();
@@ -1266,7 +1261,7 @@ static int test_shash_vec_cfg(const struct hash_testvec *vec,
 		    cfg->finalization_type == FINALIZATION_TYPE_FINUP) {
 			if (divs[i]->nosimd)
 				crypto_disable_simd_for_test();
-			err = crypto_shash_finup(desc, sg_data(&tsgl->sgl[i]),
+			err = crypto_shash_finup(desc, sg_virt(&tsgl->sgl[i]),
 						 tsgl->sgl[i].length, result);
 			if (divs[i]->nosimd)
 				crypto_reenable_simd_for_test();
@@ -1278,7 +1273,7 @@ static int test_shash_vec_cfg(const struct hash_testvec *vec,
 		}
 		if (divs[i]->nosimd)
 			crypto_disable_simd_for_test();
-		err = crypto_shash_update(desc, sg_data(&tsgl->sgl[i]),
+		err = crypto_shash_update(desc, sg_virt(&tsgl->sgl[i]),
 					  tsgl->sgl[i].length);
 		if (divs[i]->nosimd)
 			crypto_reenable_simd_for_test();
@@ -4904,11 +4899,38 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 #endif
-		.alg = "ecdh",
+#ifndef CONFIG_CRYPTO_FIPS
+		.alg = "ecdh-nist-p192",
 		.test = alg_test_kpp,
 		.fips_allowed = 1,
 		.suite = {
-			.kpp = __VECS(ecdh_tv_template)
+			.kpp = __VECS(ecdh_p192_tv_template)
+		}
+	}, {
+#endif
+		.alg = "ecdh-nist-p256",
+		.test = alg_test_kpp,
+		.fips_allowed = 1,
+		.suite = {
+			.kpp = __VECS(ecdh_p256_tv_template)
+		}
+	}, {
+		.alg = "ecdsa-nist-p192",
+		.test = alg_test_akcipher,
+		.suite = {
+			.akcipher = __VECS(ecdsa_nist_p192_tv_template)
+		}
+	}, {
+		.alg = "ecdsa-nist-p256",
+		.test = alg_test_akcipher,
+		.suite = {
+			.akcipher = __VECS(ecdsa_nist_p256_tv_template)
+		}
+	}, {
+		.alg = "ecdsa-nist-p384",
+		.test = alg_test_akcipher,
+		.suite = {
+			.akcipher = __VECS(ecdsa_nist_p384_tv_template)
 		}
 	}, {
 		.alg = "ecrdsa",

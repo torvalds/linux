@@ -21,8 +21,7 @@
 #define HV_MIN_DELTA_TICKS 1
 
 /* Routines called by the VMbus driver */
-extern int hv_stimer_alloc(void);
-extern void hv_stimer_free(void);
+extern int hv_stimer_alloc(bool have_percpu_irqs);
 extern int hv_stimer_cleanup(unsigned int cpu);
 extern void hv_stimer_legacy_init(unsigned int cpu, int sint);
 extern void hv_stimer_legacy_cleanup(unsigned int cpu);

@@ -10,6 +10,7 @@
 #include "internal.h"
 #include "zpvec.h"
 
+#define Z_EROFS_PCLUSTER_MAX_PAGES	(Z_EROFS_PCLUSTER_MAX_SIZE / PAGE_SIZE)
 #define Z_EROFS_NR_INLINE_PAGEVECS      3
 
 /*
@@ -59,16 +60,17 @@ struct z_erofs_pcluster {
 	/* A: point to next chained pcluster or TAILs */
 	z_erofs_next_pcluster_t next;
 
-	/* A: compressed pages (including multi-usage pages) */
-	struct page *compressed_pages[Z_EROFS_CLUSTER_MAX_PAGES];
-
 	/* A: lower limit of decompressed length and if full length or not */
 	unsigned int length;
 
+	/* I: physical cluster size in pages */
+	unsigned short pclusterpages;
+
 	/* I: compression algorithm format */
 	unsigned char algorithmformat;
-	/* I: bit shift of physical cluster size */
-	unsigned char clusterbits;
+
+	/* A: compressed pages (can be cached or inplaced pages) */
+	struct page *compressed_pages[];
 };
 
 #define z_erofs_primarycollection(pcluster) (&(pcluster)->primary_collection)
@@ -81,8 +83,6 @@ struct z_erofs_pcluster {
 #define Z_EROFS_PCLUSTER_TAIL_CLOSED    ((void *)0x5F0EDEAD)
 
 #define Z_EROFS_PCLUSTER_NIL            (NULL)
-
-#define Z_EROFS_WORKGROUP_SIZE  sizeof(struct z_erofs_pcluster)
 
 struct z_erofs_decompressqueue {
 	struct super_block *sb;

@@ -23,7 +23,7 @@
 	} while (0)
 
 
-void ConfigureTxpowerTrack(PDM_ODM_T pDM_Odm, PTXPWRTRACK_CFG pConfig)
+void ConfigureTxpowerTrack(struct dm_odm_t *pDM_Odm, struct txpwrtrack_cfg *pConfig)
 {
 	ConfigureTxpowerTrack_8723B(pConfig);
 }
@@ -36,7 +36,7 @@ void ConfigureTxpowerTrack(PDM_ODM_T pDM_Odm, PTXPWRTRACK_CFG pConfig)
 /*  NOTE: If Tx BB swing or Tx scaling is varified during run-time, still */
 /*        need to call this function. */
 /*  */
-void ODM_ClearTxPowerTrackingState(PDM_ODM_T pDM_Odm)
+void ODM_ClearTxPowerTrackingState(struct dm_odm_t *pDM_Odm)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(pDM_Odm->Adapter);
 	u8 p = 0;
@@ -74,7 +74,7 @@ void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter)
 {
 
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
-	PDM_ODM_T pDM_Odm = &pHalData->odmpriv;
+	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
 
 	u8 ThermalValue = 0, delta, delta_LCK, delta_IQK, p = 0, i = 0;
 	u8 ThermalValue_AVG_count = 0;
@@ -83,7 +83,7 @@ void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter)
 	u8 OFDM_min_index = 0;  /*  OFDM BB Swing should be less than +3.0dB, which is required by Arthur */
 	u8 Indexforchannel = 0; /*  GetRightChnlPlaceforIQK(pHalData->CurrentChannel) */
 
-	TXPWRTRACK_CFG c;
+	struct txpwrtrack_cfg c;
 
 
 	/* 4 1. The following TWO tables decide the final index of OFDM/CCK swing table. */

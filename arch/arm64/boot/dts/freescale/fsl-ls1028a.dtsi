@@ -18,10 +18,6 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	aliases {
-		rtc1 = &ftm_alarm0;
-	};
-
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -1027,7 +1023,7 @@
 				status = "disabled";
 
 				fixed-link {
-					speed = <1000>;
+					speed = <2500>;
 					full-duplex;
 				};
 			};
@@ -1113,6 +1109,12 @@
 					speed = <1000>;
 					full-duplex;
 				};
+			};
+
+			rcec@1f,0 {
+				reg = <0x00f800 0 0 0 0>;
+				/* IEP INT_A */
+				interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 

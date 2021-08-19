@@ -308,8 +308,10 @@ static long vhost_vdpa_get_vring_num(struct vhost_vdpa *v, u16 __user *argp)
 
 static void vhost_vdpa_config_put(struct vhost_vdpa *v)
 {
-	if (v->config_ctx)
+	if (v->config_ctx) {
 		eventfd_ctx_put(v->config_ctx);
+		v->config_ctx = NULL;
+	}
 }
 
 static long vhost_vdpa_set_config_call(struct vhost_vdpa *v, u32 __user *argp)
@@ -329,8 +331,12 @@ static long vhost_vdpa_set_config_call(struct vhost_vdpa *v, u32 __user *argp)
 	if (!IS_ERR_OR_NULL(ctx))
 		eventfd_ctx_put(ctx);
 
-	if (IS_ERR(v->config_ctx))
-		return PTR_ERR(v->config_ctx);
+	if (IS_ERR(v->config_ctx)) {
+		long ret = PTR_ERR(v->config_ctx);
+
+		v->config_ctx = NULL;
+		return ret;
+	}
 
 	v->vdpa->config->set_config_cb(v->vdpa, &cb);
 
@@ -739,9 +745,11 @@ static int vhost_vdpa_process_iotlb_msg(struct vhost_dev *dev,
 	const struct vdpa_config_ops *ops = vdpa->config;
 	int r = 0;
 
+	mutex_lock(&dev->mutex);
+
 	r = vhost_dev_check_owner(dev);
 	if (r)
-		return r;
+		goto unlock;
 
 	switch (msg->type) {
 	case VHOST_IOTLB_UPDATE:
@@ -762,6 +770,8 @@ static int vhost_vdpa_process_iotlb_msg(struct vhost_dev *dev,
 		r = -EINVAL;
 		break;
 	}
+unlock:
+	mutex_unlock(&dev->mutex);
 
 	return r;
 }
@@ -900,14 +910,10 @@ err:
 
 static void vhost_vdpa_clean_irq(struct vhost_vdpa *v)
 {
-	struct vhost_virtqueue *vq;
 	int i;
 
-	for (i = 0; i < v->nvqs; i++) {
-		vq = &v->vqs[i];
-		if (vq->call_ctx.producer.irq)
-			irq_bypass_unregister_producer(&vq->call_ctx.producer);
-	}
+	for (i = 0; i < v->nvqs; i++)
+		vhost_vdpa_unsetup_vq_irq(v, i);
 }
 
 static int vhost_vdpa_release(struct inode *inode, struct file *filep)

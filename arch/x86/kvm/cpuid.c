@@ -408,7 +408,7 @@ void kvm_set_cpu_caps(void)
 
 	kvm_cpu_cap_mask(CPUID_7_0_EBX,
 		F(FSGSBASE) | F(BMI1) | F(HLE) | F(AVX2) | F(SMEP) |
-		F(BMI2) | F(ERMS) | 0 /*INVPCID*/ | F(RTM) | 0 /*MPX*/ | F(RDSEED) |
+		F(BMI2) | F(ERMS) | F(INVPCID) | F(RTM) | 0 /*MPX*/ | F(RDSEED) |
 		F(ADX) | F(SMAP) | F(AVX512IFMA) | F(AVX512F) | F(AVX512PF) |
 		F(AVX512ER) | F(AVX512CD) | F(CLFLUSHOPT) | F(CLWB) | F(AVX512DQ) |
 		F(SHA_NI) | F(AVX512BW) | F(AVX512VL) | 0 /*INTEL_PT*/
@@ -1033,7 +1033,7 @@ EXPORT_SYMBOL_GPL(kvm_find_cpuid_entry);
  *  - Centaur:    0xc0000000 - 0xcfffffff
  *
  * The Hypervisor class is further subdivided into sub-classes that each act as
- * their own indepdent class associated with a 0x100 byte range.  E.g. if Qemu
+ * their own independent class associated with a 0x100 byte range.  E.g. if Qemu
  * is advertising support for both HyperV and KVM, the resulting Hypervisor
  * CPUID sub-classes are:
  *

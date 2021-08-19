@@ -443,7 +443,7 @@ void omap_auxdata_legacy_init(struct device *dev)
 	dev->platform_data = &twl_gpio_auxdata;
 }
 
-#if IS_ENABLED(CONFIG_SND_SOC_OMAP_MCBSP)
+#if defined(CONFIG_ARCH_OMAP3) && IS_ENABLED(CONFIG_SND_SOC_OMAP_MCBSP)
 static struct omap_mcbsp_platform_data mcbsp_pdata;
 static void __init omap3_mcbsp_init(void)
 {
@@ -569,10 +569,29 @@ static void pdata_quirks_check(struct pdata_init *quirks)
 	}
 }
 
-void __init pdata_quirks_init(const struct of_device_id *omap_dt_match_table)
+static const char * const pdata_quirks_init_nodes[] = {
+	"prcm",
+	"prm",
+};
+
+static void __init
+pdata_quirks_init_clocks(const struct of_device_id *omap_dt_match_table)
 {
 	struct device_node *np;
+	int i;
 
+	for (i = 0; i < ARRAY_SIZE(pdata_quirks_init_nodes); i++) {
+		np = of_find_node_by_name(NULL, pdata_quirks_init_nodes[i]);
+		if (!np)
+			continue;
+
+		of_platform_populate(np, omap_dt_match_table,
+				     omap_auxdata_lookup, NULL);
+	}
+}
+
+void __init pdata_quirks_init(const struct of_device_id *omap_dt_match_table)
+{
 	/*
 	 * We still need this for omap2420 and omap3 PM to work, others are
 	 * using drivers/misc/sram.c already.
@@ -585,13 +604,7 @@ void __init pdata_quirks_init(const struct of_device_id *omap_dt_match_table)
 		omap3_mcbsp_init();
 	pdata_quirks_check(auxdata_quirks);
 
-	/* Populate always-on PRCM in l4_wkup to probe l4_wkup */
-	np = of_find_node_by_name(NULL, "prcm");
-	if (!np)
-		np = of_find_node_by_name(NULL, "prm");
-	if (np)
-		of_platform_populate(np, omap_dt_match_table,
-				     omap_auxdata_lookup, NULL);
+	pdata_quirks_init_clocks(omap_dt_match_table);
 
 	of_platform_populate(NULL, omap_dt_match_table,
 			     omap_auxdata_lookup, NULL);

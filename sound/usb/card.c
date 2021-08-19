@@ -58,8 +58,6 @@
 MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("USB Audio");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Generic,USB Audio}}");
-
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -830,6 +828,9 @@ static int usb_audio_probe(struct usb_interface *intf,
 		snd_media_device_create(chip, intf);
 	}
 
+	if (quirk)
+		chip->quirk_type = quirk->type;
+
 	usb_chip[chip->index] = chip;
 	chip->intf[chip->num_interfaces] = intf;
 	chip->num_interfaces++;
@@ -903,6 +904,9 @@ static void usb_audio_disconnect(struct usb_interface *intf)
 			snd_usb_mixer_disconnect(mixer);
 		}
 	}
+
+	if (chip->quirk_type & QUIRK_SETUP_DISABLE_AUTOSUSPEND)
+		usb_enable_autosuspend(interface_to_usbdev(intf));
 
 	chip->num_interfaces--;
 	if (chip->num_interfaces <= 0) {

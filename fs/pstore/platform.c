@@ -385,6 +385,7 @@ void pstore_record_init(struct pstore_record *record,
 static void pstore_dump(struct kmsg_dumper *dumper,
 			enum kmsg_dump_reason reason)
 {
+	struct kmsg_dump_iter iter;
 	unsigned long	total = 0;
 	const char	*why;
 	unsigned int	part = 1;
@@ -404,6 +405,8 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 			return;
 		}
 	}
+
+	kmsg_dump_rewind(&iter);
 
 	oopscount++;
 	while (total < kmsg_bytes) {
@@ -435,7 +438,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		dst_size -= header_size;
 
 		/* Write dump contents. */
-		if (!kmsg_dump_get_buffer(dumper, true, dst + header_size,
+		if (!kmsg_dump_get_buffer(&iter, true, dst + header_size,
 					  dst_size, &dump_size))
 			break;
 

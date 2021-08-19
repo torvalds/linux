@@ -857,6 +857,7 @@ int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 #if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
 	struct tc_skb_ext *tc_ext;
 #endif
+	bool post_ct = false;
 	int res, err;
 
 	/* Extract metadata from packet. */
@@ -895,6 +896,7 @@ int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 		tc_ext = skb_ext_find(skb, TC_SKB_EXT);
 		key->recirc_id = tc_ext ? tc_ext->chain : 0;
 		OVS_CB(skb)->mru = tc_ext ? tc_ext->mru : 0;
+		post_ct = tc_ext ? tc_ext->post_ct : false;
 	} else {
 		key->recirc_id = 0;
 	}
@@ -904,7 +906,7 @@ int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 
 	err = key_extract(skb, key);
 	if (!err)
-		ovs_ct_fill_key(skb, key);   /* Must be after key_extract(). */
+		ovs_ct_fill_key(skb, key, post_ct);   /* Must be after key_extract(). */
 	return err;
 }
 

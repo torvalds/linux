@@ -51,6 +51,7 @@ struct otx2_cptpf_dev {
 	u8 max_vfs;		/* Maximum number of VFs supported by CPT */
 	u8 enabled_vfs;		/* Number of enabled VFs */
 	u8 kvf_limits;		/* Kernel crypto limits */
+	bool has_cpt1;
 };
 
 irqreturn_t otx2_cptpf_afpf_mbox_intr(int irq, void *arg);

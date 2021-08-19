@@ -14,6 +14,7 @@
 
 #include <linux/compat.h>
 #include <linux/mount.h>
+#include <linux/fileattr.h>
 #include "ubifs.h"
 
 /* Need to be kept consistent with checked flags in ioctl2ubifs() */
@@ -103,7 +104,7 @@ static int ubifs2ioctl(int ubifs_flags)
 
 static int setflags(struct inode *inode, int flags)
 {
-	int oldflags, err, release;
+	int err, release;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 	struct ubifs_budget_req req = { .dirtied_ino = 1,
@@ -114,11 +115,6 @@ static int setflags(struct inode *inode, int flags)
 		return err;
 
 	mutex_lock(&ui->ui_mutex);
-	oldflags = ubifs2ioctl(ui->flags);
-	err = vfs_ioc_setflags_prepare(inode, oldflags, flags);
-	if (err)
-		goto out_unlock;
-
 	ui->flags &= ~ioctl2ubifs(UBIFS_SETTABLE_IOCTL_FLAGS);
 	ui->flags |= ioctl2ubifs(flags);
 	ubifs_set_inode_flags(inode);
@@ -132,54 +128,52 @@ static int setflags(struct inode *inode, int flags)
 	if (IS_SYNC(inode))
 		err = write_inode_now(inode, 1);
 	return err;
+}
 
-out_unlock:
-	mutex_unlock(&ui->ui_mutex);
-	ubifs_release_budget(c, &req);
-	return err;
+int ubifs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+	int flags = ubifs2ioctl(ubifs_inode(inode)->flags);
+
+	if (d_is_special(dentry))
+		return -ENOTTY;
+
+	dbg_gen("get flags: %#x, i_flags %#x", flags, inode->i_flags);
+	fileattr_fill_flags(fa, flags);
+
+	return 0;
+}
+
+int ubifs_fileattr_set(struct user_namespace *mnt_userns,
+		       struct dentry *dentry, struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+	int flags = fa->flags;
+
+	if (d_is_special(dentry))
+		return -ENOTTY;
+
+	if (fileattr_has_fsx(fa))
+		return -EOPNOTSUPP;
+
+	if (flags & ~UBIFS_GETTABLE_IOCTL_FLAGS)
+		return -EOPNOTSUPP;
+
+	flags &= UBIFS_SETTABLE_IOCTL_FLAGS;
+
+	if (!S_ISDIR(inode->i_mode))
+		flags &= ~FS_DIRSYNC_FL;
+
+	dbg_gen("set flags: %#x, i_flags %#x", flags, inode->i_flags);
+	return setflags(inode, flags);
 }
 
 long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	int flags, err;
+	int err;
 	struct inode *inode = file_inode(file);
 
 	switch (cmd) {
-	case FS_IOC_GETFLAGS:
-		flags = ubifs2ioctl(ubifs_inode(inode)->flags);
-
-		dbg_gen("get flags: %#x, i_flags %#x", flags, inode->i_flags);
-		return put_user(flags, (int __user *) arg);
-
-	case FS_IOC_SETFLAGS: {
-		if (IS_RDONLY(inode))
-			return -EROFS;
-
-		if (!inode_owner_or_capable(inode))
-			return -EACCES;
-
-		if (get_user(flags, (int __user *) arg))
-			return -EFAULT;
-
-		if (flags & ~UBIFS_GETTABLE_IOCTL_FLAGS)
-			return -EOPNOTSUPP;
-		flags &= UBIFS_SETTABLE_IOCTL_FLAGS;
-
-		if (!S_ISDIR(inode->i_mode))
-			flags &= ~FS_DIRSYNC_FL;
-
-		/*
-		 * Make sure the file-system is read-write and make sure it
-		 * will not become read-only while we are changing the flags.
-		 */
-		err = mnt_want_write_file(file);
-		if (err)
-			return err;
-		dbg_gen("set flags: %#x, i_flags %#x", flags, inode->i_flags);
-		err = setflags(inode, flags);
-		mnt_drop_write_file(file);
-		return err;
-	}
 	case FS_IOC_SET_ENCRYPTION_POLICY: {
 		struct ubifs_info *c = inode->i_sb->s_fs_info;
 

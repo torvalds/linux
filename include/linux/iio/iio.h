@@ -518,8 +518,6 @@ struct iio_buffer_setup_ops {
  * @setup_ops:		[DRIVER] callbacks to call before and after buffer
  *			enable/disable
  * @chrdev:		[INTERN] associated character device
- * @groups:		[INTERN] attribute groups
- * @groupcounter:	[INTERN] index of next attribute group
  * @flags:		[INTERN] file ops related flags including busy flag.
  * @priv:		[DRIVER] reference to driver's private information
  *			**MUST** be accessed **ONLY** via iio_priv() helper
@@ -556,9 +554,6 @@ struct iio_dev {
 	struct mutex			info_exist_lock;
 	const struct iio_buffer_setup_ops	*setup_ops;
 	struct cdev			chrdev;
-#define IIO_MAX_GROUPS 6
-	const struct attribute_group	*groups[IIO_MAX_GROUPS + 1];
-	int				groupcounter;
 
 	unsigned long			flags;
 	void				*priv;
@@ -698,7 +693,7 @@ static inline void *iio_priv(const struct iio_dev *indio_dev)
 void iio_device_free(struct iio_dev *indio_dev);
 struct iio_dev *devm_iio_device_alloc(struct device *parent, int sizeof_priv);
 __printf(2, 3)
-struct iio_trigger *devm_iio_trigger_alloc(struct device *dev,
+struct iio_trigger *devm_iio_trigger_alloc(struct device *parent,
 					   const char *fmt, ...);
 /**
  * iio_buffer_enabled() - helper function to test if the buffer is enabled

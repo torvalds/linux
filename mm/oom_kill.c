@@ -170,7 +170,7 @@ static bool oom_unkillable_task(struct task_struct *p)
 	return false;
 }
 
-/**
+/*
  * Check whether unreclaimable slab amount is greater than
  * all user memory(LRU pages).
  * dump_unreclaimable_slab() could help in the case that
@@ -395,9 +395,8 @@ static int dump_task(struct task_struct *p, void *arg)
 	task = find_lock_task_mm(p);
 	if (!task) {
 		/*
-		 * This is a kthread or all of p's threads have already
-		 * detached their mm's.  There's no need to report
-		 * them; they can't be oom killed anyway.
+		 * All of p's threads have already detached their mm's. There's
+		 * no need to report them; they can't be oom killed anyway.
 		 */
 		return 0;
 	}

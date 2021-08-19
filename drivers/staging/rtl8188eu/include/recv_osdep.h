@@ -19,7 +19,7 @@ int rtw_recv_indicatepkt(struct adapter *adapter,
 
 void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup);
 
-int rtw_os_recvbuf_resource_alloc(struct adapter *adapt, struct recv_buf *buf);
+int rtw_os_recvbuf_resource_alloc(struct recv_buf *precvbuf);
 
 void rtw_init_recv_timer(struct recv_reorder_ctrl *preorder_ctrl);
 

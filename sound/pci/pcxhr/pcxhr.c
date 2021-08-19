@@ -35,7 +35,6 @@ MODULE_AUTHOR("Markus Bollinger <bollinger@digigram.com>, "
 	      "Marc Titinger <titinger@digigram.com>");
 MODULE_DESCRIPTION("Digigram " DRIVER_NAME " " PCXHR_DRIVER_VERSION_STRING);
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Digigram," DRIVER_NAME "}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */

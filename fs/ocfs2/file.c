@@ -1112,7 +1112,8 @@ out:
 	return ret;
 }
 
-int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
+int ocfs2_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		  struct iattr *attr)
 {
 	int status = 0, size_change;
 	int inode_locked = 0;
@@ -1142,7 +1143,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	if (!(attr->ia_valid & OCFS2_VALID_ATTRS))
 		return 0;
 
-	status = setattr_prepare(dentry, attr);
+	status = setattr_prepare(&init_user_ns, dentry, attr);
 	if (status)
 		return status;
 
@@ -1244,26 +1245,28 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 				goto bail_unlock;
 			}
 		}
+		down_write(&OCFS2_I(inode)->ip_alloc_sem);
 		handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS +
 					   2 * ocfs2_quota_trans_credits(sb));
 		if (IS_ERR(handle)) {
 			status = PTR_ERR(handle);
 			mlog_errno(status);
-			goto bail_unlock;
+			goto bail_unlock_alloc;
 		}
 		status = __dquot_transfer(inode, transfer_to);
 		if (status < 0)
 			goto bail_commit;
 	} else {
+		down_write(&OCFS2_I(inode)->ip_alloc_sem);
 		handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 		if (IS_ERR(handle)) {
 			status = PTR_ERR(handle);
 			mlog_errno(status);
-			goto bail_unlock;
+			goto bail_unlock_alloc;
 		}
 	}
 
-	setattr_copy(inode, attr);
+	setattr_copy(&init_user_ns, inode, attr);
 	mark_inode_dirty(inode);
 
 	status = ocfs2_mark_inode_dirty(handle, inode, bh);
@@ -1272,6 +1275,8 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 
 bail_commit:
 	ocfs2_commit_trans(osb, handle);
+bail_unlock_alloc:
+	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 bail_unlock:
 	if (status && inode_locked) {
 		ocfs2_inode_unlock_tracker(inode, 1, &oh, had_lock);
@@ -1298,8 +1303,8 @@ bail:
 	return status;
 }
 
-int ocfs2_getattr(const struct path *path, struct kstat *stat,
-		  u32 request_mask, unsigned int flags)
+int ocfs2_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		  struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct inode *inode = d_inode(path->dentry);
 	struct super_block *sb = path->dentry->d_sb;
@@ -1313,7 +1318,7 @@ int ocfs2_getattr(const struct path *path, struct kstat *stat,
 		goto bail;
 	}
 
-	generic_fillattr(inode, stat);
+	generic_fillattr(&init_user_ns, inode, stat);
 	/*
 	 * If there is inline data in the inode, the inode will normally not
 	 * have data blocks allocated (it may have an external xattr block).
@@ -1330,7 +1335,8 @@ bail:
 	return err;
 }
 
-int ocfs2_permission(struct inode *inode, int mask)
+int ocfs2_permission(struct user_namespace *mnt_userns, struct inode *inode,
+		     int mask)
 {
 	int ret, had_lock;
 	struct ocfs2_lock_holder oh;
@@ -1355,7 +1361,7 @@ int ocfs2_permission(struct inode *inode, int mask)
 		dump_stack();
 	}
 
-	ret = generic_permission(inode, mask);
+	ret = generic_permission(&init_user_ns, inode, mask);
 
 	ocfs2_inode_unlock_tracker(inode, 0, &oh, had_lock);
 out:
@@ -2643,6 +2649,8 @@ const struct inode_operations ocfs2_file_iops = {
 	.fiemap		= ocfs2_fiemap,
 	.get_acl	= ocfs2_iop_get_acl,
 	.set_acl	= ocfs2_iop_set_acl,
+	.fileattr_get	= ocfs2_fileattr_get,
+	.fileattr_set	= ocfs2_fileattr_set,
 };
 
 const struct inode_operations ocfs2_special_file_iops = {

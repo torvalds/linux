@@ -88,11 +88,9 @@ static int (*check_part[])(struct parsed_partitions *) = {
 
 static void bdev_set_nr_sectors(struct block_device *bdev, sector_t sectors)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&bdev->bd_size_lock, flags);
+	spin_lock(&bdev->bd_size_lock);
 	i_size_write(bdev->bd_inode, (loff_t)sectors << SECTOR_SHIFT);
-	spin_unlock_irqrestore(&bdev->bd_size_lock, flags);
+	spin_unlock(&bdev->bd_size_lock);
 }
 
 static struct parsed_partitions *allocate_partitions(struct gendisk *hd)
@@ -323,6 +321,13 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 	struct block_device *bdev;
 	const char *dname;
 	int err;
+
+	/*
+	 * disk_max_parts() won't be zero, either GENHD_FL_EXT_DEVT is set
+	 * or 'minors' is passed to alloc_disk().
+	 */
+	if (partno >= disk_max_parts(disk))
+		return ERR_PTR(-EINVAL);
 
 	/*
 	 * Partitions are not supported on zoned block devices that are used as

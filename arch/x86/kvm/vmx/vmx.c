@@ -1529,7 +1529,7 @@ static int vmx_rtit_ctl_check(struct kvm_vcpu *vcpu, u64 data)
 
 	/*
 	 * MTCFreq, CycThresh and PSBFreq encodings check, any MSR write that
-	 * utilize encodings marked reserved will casue a #GP fault.
+	 * utilize encodings marked reserved will cause a #GP fault.
 	 */
 	value = intel_pt_validate_cap(vmx->pt_desc.caps, PT_CAP_mtc_periods);
 	if (intel_pt_validate_cap(vmx->pt_desc.caps, PT_CAP_mtc) &&
@@ -2761,7 +2761,7 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 	/*
-	 * Update real mode segment cache. It may be not up-to-date if sement
+	 * Update real mode segment cache. It may be not up-to-date if segment
 	 * register was written while vcpu was in a guest mode.
 	 */
 	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_ES], VCPU_SREG_ES);
@@ -4277,7 +4277,12 @@ static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
 	*/
 	exec_control &= ~SECONDARY_EXEC_SHADOW_VMCS;
 
-	if (!enable_pml)
+	/*
+	 * PML is enabled/disabled when dirty logging of memsmlots changes, but
+	 * it needs to be set here when dirty logging is already active, e.g.
+	 * if this vCPU was created after dirty logging was enabled.
+	 */
+	if (!vcpu->kvm->arch.cpu_dirty_logging_count)
 		exec_control &= ~SECONDARY_EXEC_ENABLE_PML;
 
 	if (cpu_has_vmx_xsaves()) {
@@ -4295,17 +4300,7 @@ static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
 	}
 
 	vmx_adjust_sec_exec_feature(vmx, &exec_control, rdtscp, RDTSCP);
-
-	/*
-	 * Expose INVPCID if and only if PCID is also exposed to the guest.
-	 * INVPCID takes a #UD when it's disabled in the VMCS, but a #GP or #PF
-	 * if CR4.PCIDE=0.  Enumerating CPUID.INVPCID=1 would lead to incorrect
-	 * behavior from the guest perspective (it would expect #GP or #PF).
-	 */
-	if (!guest_cpuid_has(vcpu, X86_FEATURE_PCID))
-		guest_cpuid_clear(vcpu, X86_FEATURE_INVPCID);
 	vmx_adjust_sec_exec_feature(vmx, &exec_control, invpcid, INVPCID);
-
 
 	vmx_adjust_sec_exec_exiting(vmx, &exec_control, rdrand, RDRAND);
 	vmx_adjust_sec_exec_exiting(vmx, &exec_control, rdseed, RDSEED);
@@ -5776,24 +5771,6 @@ static void vmx_flush_pml_buffer(struct kvm_vcpu *vcpu)
 	vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
 }
 
-/*
- * Flush all vcpus' PML buffer and update logged GPAs to dirty_bitmap.
- * Called before reporting dirty_bitmap to userspace.
- */
-static void kvm_flush_pml_buffers(struct kvm *kvm)
-{
-	int i;
-	struct kvm_vcpu *vcpu;
-	/*
-	 * We only need to kick vcpu out of guest mode here, as PML buffer
-	 * is flushed at beginning of all VMEXITs, and it's obvious that only
-	 * vcpus running in guest are possible to have unflushed GPAs in PML
-	 * buffer.
-	 */
-	kvm_for_each_vcpu(i, vcpu, kvm)
-		kvm_vcpu_kick(vcpu);
-}
-
 static void vmx_dump_sel(char *name, uint32_t sel)
 {
 	pr_err("%s sel=0x%04x, attr=0x%05x, limit=0x%08x, base=0x%016lx\n",
@@ -5976,9 +5953,10 @@ static int __vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 	 * updated. Another good is, in kvm_vm_ioctl_get_dirty_log, before
 	 * querying dirty_bitmap, we only need to kick all vcpus out of guest
 	 * mode as if vcpus is in root mode, the PML buffer must has been
-	 * flushed already.
+	 * flushed already.  Note, PML is never enabled in hardware while
+	 * running L2.
 	 */
-	if (enable_pml)
+	if (enable_pml && !is_guest_mode(vcpu))
 		vmx_flush_pml_buffer(vcpu);
 
 	/*
@@ -5994,6 +5972,13 @@ static int __vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 		return handle_invalid_guest_state(vcpu);
 
 	if (is_guest_mode(vcpu)) {
+		/*
+		 * PML is never enabled when running L2, bail immediately if a
+		 * PML full exit occurs as something is horribly wrong.
+		 */
+		if (exit_reason.basic == EXIT_REASON_PML_FULL)
+			goto unexpected_vmexit;
+
 		/*
 		 * The host physical addresses of some pages of guest memory
 		 * are loaded into the vmcs02 (e.g. vmcs12's Virtual APIC
@@ -6042,19 +6027,19 @@ static int __vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 	     exit_reason.basic != EXIT_REASON_PML_FULL &&
 	     exit_reason.basic != EXIT_REASON_APIC_ACCESS &&
 	     exit_reason.basic != EXIT_REASON_TASK_SWITCH)) {
+		int ndata = 3;
+
 		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_DELIVERY_EV;
-		vcpu->run->internal.ndata = 3;
 		vcpu->run->internal.data[0] = vectoring_info;
 		vcpu->run->internal.data[1] = exit_reason.full;
 		vcpu->run->internal.data[2] = vcpu->arch.exit_qualification;
 		if (exit_reason.basic == EXIT_REASON_EPT_MISCONFIG) {
-			vcpu->run->internal.ndata++;
-			vcpu->run->internal.data[3] =
+			vcpu->run->internal.data[ndata++] =
 				vmcs_read64(GUEST_PHYSICAL_ADDRESS);
 		}
-		vcpu->run->internal.data[vcpu->run->internal.ndata++] =
-			vcpu->arch.last_vmentry_cpu;
+		vcpu->run->internal.data[ndata++] = vcpu->arch.last_vmentry_cpu;
+		vcpu->run->internal.ndata = ndata;
 		return 0;
 	}
 
@@ -6595,8 +6580,8 @@ static void atomic_switch_perf_msrs(struct vcpu_vmx *vmx)
 	int i, nr_msrs;
 	struct perf_guest_switch_msr *msrs;
 
+	/* Note, nr_msrs may be garbage if perf_guest_get_msrs() returns NULL. */
 	msrs = perf_guest_get_msrs(&nr_msrs);
-
 	if (!msrs)
 		return;
 
@@ -6851,13 +6836,15 @@ static fastpath_t vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	if (unlikely((u16)vmx->exit_reason.basic == EXIT_REASON_MCE_DURING_VMENTRY))
 		kvm_machine_check();
 
+	if (likely(!vmx->exit_reason.failed_vmentry))
+		vmx->idt_vectoring_info = vmcs_read32(IDT_VECTORING_INFO_FIELD);
+
 	trace_kvm_exit(vmx->exit_reason.full, vcpu, KVM_ISA_VMX);
 
 	if (unlikely(vmx->exit_reason.failed_vmentry))
 		return EXIT_FASTPATH_NONE;
 
 	vmx->loaded_vmcs->launched = 1;
-	vmx->idt_vectoring_info = vmcs_read32(IDT_VECTORING_INFO_FIELD);
 
 	vmx_recover_nmi_blocking(vmx);
 	vmx_complete_interrupts(vmx);
@@ -7265,7 +7252,7 @@ static void update_intel_pt_cfg(struct kvm_vcpu *vcpu)
 	if (intel_pt_validate_cap(vmx->pt_desc.caps, PT_CAP_topa_output))
 		vmx->pt_desc.ctl_bitmask &= ~RTIT_CTL_TOPA;
 
-	/* If CPUID.(EAX=14H,ECX=0):ECX[3]=1 FabircEn can be set */
+	/* If CPUID.(EAX=14H,ECX=0):ECX[3]=1 FabricEn can be set */
 	if (intel_pt_validate_cap(vmx->pt_desc.caps, PT_CAP_output_subsys))
 		vmx->pt_desc.ctl_bitmask &= ~RTIT_CTL_FABRIC_EN;
 
@@ -7330,8 +7317,8 @@ static __init void vmx_set_cpu_caps(void)
 	/* CPUID 0x7 */
 	if (kvm_mpx_supported())
 		kvm_cpu_cap_check_and_set(X86_FEATURE_MPX);
-	if (cpu_has_vmx_invpcid())
-		kvm_cpu_cap_check_and_set(X86_FEATURE_INVPCID);
+	if (!cpu_has_vmx_invpcid())
+		kvm_cpu_cap_clear(X86_FEATURE_INVPCID);
 	if (vmx_pt_mode_is_host_guest())
 		kvm_cpu_cap_check_and_set(X86_FEATURE_INTEL_PT);
 
@@ -7509,30 +7496,24 @@ static void vmx_sched_in(struct kvm_vcpu *vcpu, int cpu)
 		shrink_ple_window(vcpu);
 }
 
-static void vmx_slot_enable_log_dirty(struct kvm *kvm,
-				     struct kvm_memory_slot *slot)
+void vmx_update_cpu_dirty_logging(struct kvm_vcpu *vcpu)
 {
-	if (!kvm_dirty_log_manual_protect_and_init_set(kvm))
-		kvm_mmu_slot_leaf_clear_dirty(kvm, slot);
-	kvm_mmu_slot_largepage_remove_write_access(kvm, slot);
-}
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-static void vmx_slot_disable_log_dirty(struct kvm *kvm,
-				       struct kvm_memory_slot *slot)
-{
-	kvm_mmu_slot_set_dirty(kvm, slot);
-}
+	if (is_guest_mode(vcpu)) {
+		vmx->nested.update_vmcs01_cpu_dirty_logging = true;
+		return;
+	}
 
-static void vmx_flush_log_dirty(struct kvm *kvm)
-{
-	kvm_flush_pml_buffers(kvm);
-}
-
-static void vmx_enable_log_dirty_pt_masked(struct kvm *kvm,
-					   struct kvm_memory_slot *memslot,
-					   gfn_t offset, unsigned long mask)
-{
-	kvm_mmu_clear_dirty_pt_masked(kvm, memslot, offset, mask);
+	/*
+	 * Note, cpu_dirty_logging_count can be changed concurrent with this
+	 * code, but in that case another update request will be made and so
+	 * the guest will never run with a stale PML value.
+	 */
+	if (vcpu->kvm->arch.cpu_dirty_logging_count)
+		secondary_exec_controls_setbit(vmx, SECONDARY_EXEC_ENABLE_PML);
+	else
+		secondary_exec_controls_clearbit(vmx, SECONDARY_EXEC_ENABLE_PML);
 }
 
 static int vmx_pre_block(struct kvm_vcpu *vcpu)
@@ -7642,11 +7623,6 @@ static bool vmx_check_apicv_inhibit_reasons(ulong bit)
 	return supported & BIT(bit);
 }
 
-static int vmx_cpu_dirty_log_size(void)
-{
-	return enable_pml ? PML_ENTITY_NUM : 0;
-}
-
 static struct kvm_x86_ops vmx_x86_ops __initdata = {
 	.hardware_unsetup = hardware_unsetup,
 
@@ -7746,10 +7722,8 @@ static struct kvm_x86_ops vmx_x86_ops __initdata = {
 
 	.sched_in = vmx_sched_in,
 
-	.slot_enable_log_dirty = vmx_slot_enable_log_dirty,
-	.slot_disable_log_dirty = vmx_slot_disable_log_dirty,
-	.flush_log_dirty = vmx_flush_log_dirty,
-	.enable_log_dirty_pt_masked = vmx_enable_log_dirty_pt_masked,
+	.cpu_dirty_log_size = PML_ENTITY_NUM,
+	.update_cpu_dirty_logging = vmx_update_cpu_dirty_logging,
 
 	.pre_block = vmx_pre_block,
 	.post_block = vmx_post_block,
@@ -7777,7 +7751,6 @@ static struct kvm_x86_ops vmx_x86_ops __initdata = {
 
 	.msr_filter_changed = vmx_msr_filter_changed,
 	.complete_emulated_msr = kvm_complete_insn_gp,
-	.cpu_dirty_log_size = vmx_cpu_dirty_log_size,
 
 	.vcpu_deliver_sipi_vector = kvm_vcpu_deliver_sipi_vector,
 };
@@ -7894,13 +7867,8 @@ static __init int hardware_setup(void)
 	if (!enable_ept || !enable_ept_ad_bits || !cpu_has_vmx_pml())
 		enable_pml = 0;
 
-	if (!enable_pml) {
-		vmx_x86_ops.slot_enable_log_dirty = NULL;
-		vmx_x86_ops.slot_disable_log_dirty = NULL;
-		vmx_x86_ops.flush_log_dirty = NULL;
-		vmx_x86_ops.enable_log_dirty_pt_masked = NULL;
-		vmx_x86_ops.cpu_dirty_log_size = NULL;
-	}
+	if (!enable_pml)
+		vmx_x86_ops.cpu_dirty_log_size = 0;
 
 	if (!cpu_has_vmx_preemption_timer())
 		enable_preemption_timer = false;

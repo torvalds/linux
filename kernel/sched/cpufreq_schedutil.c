@@ -26,7 +26,7 @@ struct sugov_policy {
 	struct sugov_tunables	*tunables;
 	struct list_head	tunables_hook;
 
-	raw_spinlock_t		update_lock;	/* For shared policies */
+	raw_spinlock_t		update_lock;
 	u64			last_freq_update_time;
 	s64			freq_update_delay_ns;
 	unsigned int		next_freq;
@@ -114,19 +114,8 @@ static bool sugov_update_next_freq(struct sugov_policy *sg_policy, u64 time,
 	return true;
 }
 
-static void sugov_fast_switch(struct sugov_policy *sg_policy, u64 time,
-			      unsigned int next_freq)
+static void sugov_deferred_update(struct sugov_policy *sg_policy)
 {
-	if (sugov_update_next_freq(sg_policy, time, next_freq))
-		cpufreq_driver_fast_switch(sg_policy->policy, next_freq);
-}
-
-static void sugov_deferred_update(struct sugov_policy *sg_policy, u64 time,
-				  unsigned int next_freq)
-{
-	if (!sugov_update_next_freq(sg_policy, time, next_freq))
-		return;
-
 	if (!sg_policy->work_in_progress) {
 		sg_policy->work_in_progress = true;
 		irq_work_queue(&sg_policy->irq_work);
@@ -320,23 +309,21 @@ static inline bool sugov_cpu_is_busy(struct sugov_cpu *sg_cpu) { return false; }
  * Make sugov_should_update_freq() ignore the rate limit when DL
  * has increased the utilization.
  */
-static inline void ignore_dl_rate_limit(struct sugov_cpu *sg_cpu, struct sugov_policy *sg_policy)
+static inline void ignore_dl_rate_limit(struct sugov_cpu *sg_cpu)
 {
 	if (cpu_bw_dl(cpu_rq(sg_cpu->cpu)) > sg_cpu->bw_dl)
-		sg_policy->limits_changed = true;
+		sg_cpu->sg_policy->limits_changed = true;
 }
 
 static inline bool sugov_update_single_common(struct sugov_cpu *sg_cpu,
 					      u64 time, unsigned int flags)
 {
-	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
-
 	sugov_iowait_boost(sg_cpu, time, flags);
 	sg_cpu->last_update = time;
 
-	ignore_dl_rate_limit(sg_cpu, sg_policy);
+	ignore_dl_rate_limit(sg_cpu);
 
-	if (!sugov_should_update_freq(sg_policy, time))
+	if (!sugov_should_update_freq(sg_cpu->sg_policy, time))
 		return false;
 
 	sugov_get_util(sg_cpu);
@@ -368,16 +355,19 @@ static void sugov_update_single_freq(struct update_util_data *hook, u64 time,
 		sg_policy->cached_raw_freq = cached_freq;
 	}
 
+	if (!sugov_update_next_freq(sg_policy, time, next_f))
+		return;
+
 	/*
 	 * This code runs under rq->lock for the target CPU, so it won't run
 	 * concurrently on two different CPUs for the same target and it is not
 	 * necessary to acquire the lock in the fast switch case.
 	 */
 	if (sg_policy->policy->fast_switch_enabled) {
-		sugov_fast_switch(sg_policy, time, next_f);
+		cpufreq_driver_fast_switch(sg_policy->policy, next_f);
 	} else {
 		raw_spin_lock(&sg_policy->update_lock);
-		sugov_deferred_update(sg_policy, time, next_f);
+		sugov_deferred_update(sg_policy);
 		raw_spin_unlock(&sg_policy->update_lock);
 	}
 }
@@ -451,17 +441,20 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 	sugov_iowait_boost(sg_cpu, time, flags);
 	sg_cpu->last_update = time;
 
-	ignore_dl_rate_limit(sg_cpu, sg_policy);
+	ignore_dl_rate_limit(sg_cpu);
 
 	if (sugov_should_update_freq(sg_policy, time)) {
 		next_f = sugov_next_freq_shared(sg_cpu, time);
 
-		if (sg_policy->policy->fast_switch_enabled)
-			sugov_fast_switch(sg_policy, time, next_f);
-		else
-			sugov_deferred_update(sg_policy, time, next_f);
-	}
+		if (!sugov_update_next_freq(sg_policy, time, next_f))
+			goto unlock;
 
+		if (sg_policy->policy->fast_switch_enabled)
+			cpufreq_driver_fast_switch(sg_policy->policy, next_f);
+		else
+			sugov_deferred_update(sg_policy);
+	}
+unlock:
 	raw_spin_unlock(&sg_policy->update_lock);
 }
 

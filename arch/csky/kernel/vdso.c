@@ -1,86 +1,107 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
-#include <linux/kernel.h>
-#include <linux/err.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/init.h>
 #include <linux/binfmts.h>
 #include <linux/elf.h>
-#include <linux/vmalloc.h>
-#include <linux/unistd.h>
-#include <linux/uaccess.h>
+#include <linux/err.h>
+#include <linux/mm.h>
+#include <linux/slab.h>
 
+#include <asm/page.h>
+#ifdef GENERIC_TIME_VSYSCALL
+#include <vdso/datapage.h>
+#else
 #include <asm/vdso.h>
-#include <asm/cacheflush.h>
+#endif
 
-static struct page *vdso_page;
+extern char vdso_start[], vdso_end[];
 
-static int __init init_vdso(void)
+static unsigned int vdso_pages;
+static struct page **vdso_pagelist;
+
+/*
+ * The vDSO data page.
+ */
+static union {
+	struct vdso_data	data;
+	u8			page[PAGE_SIZE];
+} vdso_data_store __page_aligned_data;
+struct vdso_data *vdso_data = &vdso_data_store.data;
+
+static int __init vdso_init(void)
 {
-	struct csky_vdso *vdso;
-	int err = 0;
+	unsigned int i;
 
-	vdso_page = alloc_page(GFP_KERNEL);
-	if (!vdso_page)
-		panic("Cannot allocate vdso");
+	vdso_pages = (vdso_end - vdso_start) >> PAGE_SHIFT;
+	vdso_pagelist =
+		kcalloc(vdso_pages + 1, sizeof(struct page *), GFP_KERNEL);
+	if (unlikely(vdso_pagelist == NULL)) {
+		pr_err("vdso: pagelist allocation failed\n");
+		return -ENOMEM;
+	}
 
-	vdso = vmap(&vdso_page, 1, 0, PAGE_KERNEL);
-	if (!vdso)
-		panic("Cannot map vdso");
+	for (i = 0; i < vdso_pages; i++) {
+		struct page *pg;
 
-	clear_page(vdso);
-
-	err = setup_vdso_page(vdso->rt_signal_retcode);
-	if (err)
-		panic("Cannot set signal return code, err: %x.", err);
-
-	dcache_wb_range((unsigned long)vdso, (unsigned long)vdso + 16);
-
-	vunmap(vdso);
+		pg = virt_to_page(vdso_start + (i << PAGE_SHIFT));
+		vdso_pagelist[i] = pg;
+	}
+	vdso_pagelist[i] = virt_to_page(vdso_data);
 
 	return 0;
 }
-subsys_initcall(init_vdso);
+arch_initcall(vdso_init);
 
-int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
+int arch_setup_additional_pages(struct linux_binprm *bprm,
+	int uses_interp)
 {
-	int ret;
-	unsigned long addr;
 	struct mm_struct *mm = current->mm;
+	unsigned long vdso_base, vdso_len;
+	int ret;
+
+	vdso_len = (vdso_pages + 1) << PAGE_SHIFT;
 
 	mmap_write_lock(mm);
-
-	addr = get_unmapped_area(NULL, STACK_TOP, PAGE_SIZE, 0, 0);
-	if (IS_ERR_VALUE(addr)) {
-		ret = addr;
-		goto up_fail;
+	vdso_base = get_unmapped_area(NULL, 0, vdso_len, 0, 0);
+	if (IS_ERR_VALUE(vdso_base)) {
+		ret = vdso_base;
+		goto end;
 	}
 
-	ret = install_special_mapping(
-			mm,
-			addr,
-			PAGE_SIZE,
-			VM_READ|VM_EXEC|VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-			&vdso_page);
-	if (ret)
-		goto up_fail;
+	/*
+	 * Put vDSO base into mm struct. We need to do this before calling
+	 * install_special_mapping or the perf counter mmap tracking code
+	 * will fail to recognise it as a vDSO (since arch_vma_name fails).
+	 */
+	mm->context.vdso = (void *)vdso_base;
 
-	mm->context.vdso = (void *)addr;
+	ret =
+	   install_special_mapping(mm, vdso_base, vdso_pages << PAGE_SHIFT,
+		(VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC),
+		vdso_pagelist);
 
-up_fail:
+	if (unlikely(ret)) {
+		mm->context.vdso = NULL;
+		goto end;
+	}
+
+	vdso_base += (vdso_pages << PAGE_SHIFT);
+	ret = install_special_mapping(mm, vdso_base, PAGE_SIZE,
+		(VM_READ | VM_MAYREAD), &vdso_pagelist[vdso_pages]);
+
+	if (unlikely(ret))
+		mm->context.vdso = NULL;
+end:
 	mmap_write_unlock(mm);
 	return ret;
 }
 
 const char *arch_vma_name(struct vm_area_struct *vma)
 {
-	if (vma->vm_mm == NULL)
-		return NULL;
-
-	if (vma->vm_start == (long)vma->vm_mm->context.vdso)
+	if (vma->vm_mm && (vma->vm_start == (long)vma->vm_mm->context.vdso))
 		return "[vdso]";
-	else
-		return NULL;
+	if (vma->vm_mm && (vma->vm_start ==
+			   (long)vma->vm_mm->context.vdso + PAGE_SIZE))
+		return "[vdso_data]";
+	return NULL;
 }

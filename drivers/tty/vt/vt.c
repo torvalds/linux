@@ -1381,6 +1381,7 @@ struct vc_data *vc_deallocate(unsigned int currcons)
 		atomic_notifier_call_chain(&vt_notifier_list, VT_DEALLOCATE, &param);
 		vcs_remove_sysfs(currcons);
 		visual_deinit(vc);
+		con_free_unimap(vc);
 		put_pid(vc->vt_pid);
 		vc_uniscr_set(vc, NULL);
 		kfree(vc->vc_screenbuf);
@@ -4448,7 +4449,7 @@ void poke_blanked_console(void)
 	might_sleep();
 
 	/* This isn't perfectly race free, but a race here would be mostly harmless,
-	 * at worse, we'll do a spurrious blank and it's unlikely
+	 * at worst, we'll do a spurious blank and it's unlikely
 	 */
 	del_timer(&console_timer);
 	blank_timer_expired = 0;

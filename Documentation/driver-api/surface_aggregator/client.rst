@@ -248,7 +248,7 @@ This example defines a function
 
 .. code-block:: c
 
-   int __ssam_tmp_perf_mode_set(struct ssam_controller *ctrl, const __le32 *arg);
+   static int __ssam_tmp_perf_mode_set(struct ssam_controller *ctrl, const __le32 *arg);
 
 executing the specified request, with the controller passed in when calling
 said function. In this example, the argument is provided via the ``arg``
@@ -296,7 +296,7 @@ This invocation of the macro defines a function
 
 .. code-block:: c
 
-   int ssam_bat_get_sta(struct ssam_device *sdev, __le32 *ret);
+   static int ssam_bat_get_sta(struct ssam_device *sdev, __le32 *ret);
 
 executing the specified request, using the device IDs and controller given
 in the client device. The full list of such macros for client devices is:

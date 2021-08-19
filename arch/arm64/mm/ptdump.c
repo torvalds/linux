@@ -337,7 +337,7 @@ void ptdump_walk(struct seq_file *s, struct ptdump_info *info)
 	ptdump_walk_pgd(&st.ptdump, info->mm, NULL);
 }
 
-static void ptdump_initialize(void)
+static void __init ptdump_initialize(void)
 {
 	unsigned i, j;
 
@@ -381,7 +381,7 @@ void ptdump_check_wx(void)
 		pr_info("Checked W+X mappings: passed, no W+X pages found\n");
 }
 
-static int ptdump_init(void)
+static int __init ptdump_init(void)
 {
 	address_markers[PAGE_END_NR].start_address = PAGE_END;
 #if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)

@@ -23,6 +23,7 @@
 #include "qgroup.h"
 #include "block-group.h"
 #include "sysfs.h"
+#include "tree-mod-log.h"
 
 /* TODO XXX FIXME
  *  - subvol delete -> delete when ref goes to 0? delete limits also?
@@ -226,7 +227,6 @@ static void __del_qgroup_rb(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_qgroup_list *list;
 
-	btrfs_sysfs_del_one_qgroup(fs_info, qgroup);
 	list_del(&qgroup->dirty);
 	while (!list_empty(&qgroup->groups)) {
 		list = list_first_entry(&qgroup->groups,
@@ -243,7 +243,6 @@ static void __del_qgroup_rb(struct btrfs_fs_info *fs_info,
 		list_del(&list->next_member);
 		kfree(list);
 	}
-	kfree(qgroup);
 }
 
 /* must be called with qgroup_lock held */
@@ -569,6 +568,8 @@ void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info)
 		qgroup = rb_entry(n, struct btrfs_qgroup, node);
 		rb_erase(n, &fs_info->qgroup_tree);
 		__del_qgroup_rb(fs_info, qgroup);
+		btrfs_sysfs_del_one_qgroup(fs_info, qgroup);
+		kfree(qgroup);
 	}
 	/*
 	 * We call btrfs_free_qgroup_config() when unmounting
@@ -1578,6 +1579,14 @@ int btrfs_remove_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid)
 	spin_lock(&fs_info->qgroup_lock);
 	del_qgroup_rb(fs_info, qgroupid);
 	spin_unlock(&fs_info->qgroup_lock);
+
+	/*
+	 * Remove the qgroup from sysfs now without holding the qgroup_lock
+	 * spinlock, since the sysfs_remove_group() function needs to take
+	 * the mutex kernfs_mutex through kernfs_remove_by_name_ns().
+	 */
+	btrfs_sysfs_del_one_qgroup(fs_info, qgroup);
+	kfree(qgroup);
 out:
 	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	return ret;
@@ -2631,12 +2640,12 @@ int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans)
 					record->data_rsv,
 					BTRFS_QGROUP_RSV_DATA);
 			/*
-			 * Use SEQ_LAST as time_seq to do special search, which
-			 * doesn't lock tree or delayed_refs and search current
-			 * root. It's safe inside commit_transaction().
+			 * Use BTRFS_SEQ_LAST as time_seq to do special search,
+			 * which doesn't lock tree or delayed_refs and search
+			 * current root. It's safe inside commit_transaction().
 			 */
 			ret = btrfs_find_all_roots(trans, fs_info,
-				record->bytenr, SEQ_LAST, &new_roots, false);
+				record->bytenr, BTRFS_SEQ_LAST, &new_roots, false);
 			if (ret < 0)
 				goto cleanup;
 			if (qgroup_to_skip) {
@@ -3535,37 +3544,19 @@ static int try_flush_qgroup(struct btrfs_root *root)
 {
 	struct btrfs_trans_handle *trans;
 	int ret;
-	bool can_commit = true;
 
-	/*
-	 * If current process holds a transaction, we shouldn't flush, as we
-	 * assume all space reservation happens before a transaction handle is
-	 * held.
-	 *
-	 * But there are cases like btrfs_delayed_item_reserve_metadata() where
-	 * we try to reserve space with one transction handle already held.
-	 * In that case we can't commit transaction, but at least try to end it
-	 * and hope the started data writes can free some space.
-	 */
-	if (current->journal_info &&
-	    current->journal_info != BTRFS_SEND_TRANS_STUB)
-		can_commit = false;
+	/* Can't hold an open transaction or we run the risk of deadlocking */
+	ASSERT(current->journal_info == NULL ||
+	       current->journal_info == BTRFS_SEND_TRANS_STUB);
+	if (WARN_ON(current->journal_info &&
+		    current->journal_info != BTRFS_SEND_TRANS_STUB))
+		return 0;
 
 	/*
 	 * We don't want to run flush again and again, so if there is a running
 	 * one, we won't try to start a new flush, but exit directly.
 	 */
 	if (test_and_set_bit(BTRFS_ROOT_QGROUP_FLUSHING, &root->state)) {
-		/*
-		 * We are already holding a transaction, thus we can block other
-		 * threads from flushing.  So exit right now. This increases
-		 * the chance of EDQUOT for heavy load and near limit cases.
-		 * But we can argue that if we're already near limit, EDQUOT is
-		 * unavoidable anyway.
-		 */
-		if (!can_commit)
-			return 0;
-
 		wait_event(root->qgroup_flush_wait,
 			!test_bit(BTRFS_ROOT_QGROUP_FLUSHING, &root->state));
 		return 0;
@@ -3582,10 +3573,7 @@ static int try_flush_qgroup(struct btrfs_root *root)
 		goto out;
 	}
 
-	if (can_commit)
-		ret = btrfs_commit_transaction(trans);
-	else
-		ret = btrfs_end_transaction(trans);
+	ret = btrfs_commit_transaction(trans);
 out:
 	clear_bit(BTRFS_ROOT_QGROUP_FLUSHING, &root->state);
 	wake_up(&root->qgroup_flush_wait);
@@ -3638,8 +3626,7 @@ cleanup:
 	qgroup_unreserve_range(inode, reserved, start, len);
 out:
 	if (new_reserved) {
-		extent_changeset_release(reserved);
-		kfree(reserved);
+		extent_changeset_free(reserved);
 		*reserved_ret = NULL;
 	}
 	return ret;
@@ -3841,8 +3828,8 @@ static int sub_root_meta_rsv(struct btrfs_root *root, int num_bytes,
 	return num_bytes;
 }
 
-static int qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
-				enum btrfs_qgroup_rsv_type type, bool enforce)
+int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
+			      enum btrfs_qgroup_rsv_type type, bool enforce)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret;
@@ -3873,14 +3860,14 @@ int __btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
 {
 	int ret;
 
-	ret = qgroup_reserve_meta(root, num_bytes, type, enforce);
+	ret = btrfs_qgroup_reserve_meta(root, num_bytes, type, enforce);
 	if (ret <= 0 && ret != -EDQUOT)
 		return ret;
 
 	ret = try_flush_qgroup(root);
 	if (ret < 0)
 		return ret;
-	return qgroup_reserve_meta(root, num_bytes, type, enforce);
+	return btrfs_qgroup_reserve_meta(root, num_bytes, type, enforce);
 }
 
 void btrfs_qgroup_free_meta_all_pertrans(struct btrfs_root *root)

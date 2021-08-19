@@ -27,6 +27,7 @@ include $(srctree)/tools/build/Makefile.include
 #
 $(OUTPUT)include/linux/iio: ../../include/uapi/linux/iio
 	mkdir -p $(OUTPUT)include/linux/iio 2>&1 || true
+	ln -sf $(CURDIR)/../../include/uapi/linux/iio/buffer.h $@
 	ln -sf $(CURDIR)/../../include/uapi/linux/iio/events.h $@
 	ln -sf $(CURDIR)/../../include/uapi/linux/iio/types.h $@
 

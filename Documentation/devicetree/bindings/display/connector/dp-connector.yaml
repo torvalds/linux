@@ -26,7 +26,6 @@ properties:
 
   dp-pwr-supply:
     description: Power supply for the DP_PWR pin
-    maxItems: 1
 
   port:
     $ref: /schemas/graph.yaml#/properties/port

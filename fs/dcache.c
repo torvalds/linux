@@ -1044,6 +1044,31 @@ struct dentry *d_find_alias(struct inode *inode)
 EXPORT_SYMBOL(d_find_alias);
 
 /*
+ *  Caller MUST be holding rcu_read_lock() and be guaranteed
+ *  that inode won't get freed until rcu_read_unlock().
+ */
+struct dentry *d_find_alias_rcu(struct inode *inode)
+{
+	struct hlist_head *l = &inode->i_dentry;
+	struct dentry *de = NULL;
+
+	spin_lock(&inode->i_lock);
+	// ->i_dentry and ->i_rcu are colocated, but the latter won't be
+	// used without having I_FREEING set, which means no aliases left
+	if (likely(!(inode->i_state & I_FREEING) && !hlist_empty(l))) {
+		if (S_ISDIR(inode->i_mode)) {
+			de = hlist_entry(l->first, struct dentry, d_u.d_alias);
+		} else {
+			hlist_for_each_entry(de, l, d_u.d_alias)
+				if (!d_unhashed(de))
+					break;
+		}
+	}
+	spin_unlock(&inode->i_lock);
+	return de;
+}
+
+/*
  *	Try to kill dentries associated with this inode.
  * WARNING: you must own a reference to inode.
  */
@@ -2151,8 +2176,8 @@ EXPORT_SYMBOL(d_obtain_root);
  * same inode, only the actual correct case is stored in the dcache for
  * case-insensitive filesystems.
  *
- * For a case-insensitive lookup match and if the the case-exact dentry
- * already exists in in the dcache, use it and return it.
+ * For a case-insensitive lookup match and if the case-exact dentry
+ * already exists in the dcache, use it and return it.
  *
  * If no entry exists with the exact case name, allocate new dentry with
  * the exact case, and return the spliced entry.

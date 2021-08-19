@@ -3222,7 +3222,7 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 	}
 
 	/*
-	 * Now load segment descriptors. If fault happenes at this stage
+	 * Now load segment descriptors. If fault happens at this stage
 	 * it is handled in a context of new task
 	 */
 	ret = __load_segment_descriptor(ctxt, tss->ldt_selector, VCPU_SREG_LDTR,

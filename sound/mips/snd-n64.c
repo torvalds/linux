@@ -312,14 +312,14 @@ static int __init n64audio_probe(struct platform_device *pdev)
 	}
 
 	priv->mi_reg_base = devm_platform_ioremap_resource(pdev, 0);
-	if (!priv->mi_reg_base) {
-		err = -EINVAL;
+	if (IS_ERR(priv->mi_reg_base)) {
+		err = PTR_ERR(priv->mi_reg_base);
 		goto fail_dma_alloc;
 	}
 
 	priv->ai_reg_base = devm_platform_ioremap_resource(pdev, 1);
-	if (!priv->ai_reg_base) {
-		err = -EINVAL;
+	if (IS_ERR(priv->ai_reg_base)) {
+		err = PTR_ERR(priv->ai_reg_base);
 		goto fail_dma_alloc;
 	}
 

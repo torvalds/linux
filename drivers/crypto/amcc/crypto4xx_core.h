@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/**
+/*
  * AMCC SoC PPC4xx Crypto Driver
  *
  * Copyright (c) 2008 Applied Micro Circuits Corporation.
@@ -188,7 +188,7 @@ int crypto4xx_hash_final(struct ahash_request *req);
 int crypto4xx_hash_update(struct ahash_request *req);
 int crypto4xx_hash_init(struct ahash_request *req);
 
-/**
+/*
  * Note: Only use this function to copy items that is word aligned.
  */
 static inline void crypto4xx_memcpy_swab32(u32 *dst, const void *buf,

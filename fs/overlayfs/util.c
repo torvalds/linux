@@ -479,12 +479,12 @@ struct file *ovl_path_open(struct path *path, int flags)
 		BUG();
 	}
 
-	err = inode_permission(inode, acc_mode | MAY_OPEN);
+	err = inode_permission(&init_user_ns, inode, acc_mode | MAY_OPEN);
 	if (err)
 		return ERR_PTR(err);
 
 	/* O_NOATIME is an optimization, don't fail if not permitted */
-	if (inode_owner_or_capable(inode))
+	if (inode_owner_or_capable(&init_user_ns, inode))
 		flags |= O_NOATIME;
 
 	return dentry_open(path, flags, current_cred());

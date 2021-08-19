@@ -40,7 +40,7 @@ space obtained in one of the following ways:
   during creation and with the same restrictions as for ``mmap()`` above
   (e.g. data, bss, stack).
 
-The AArch64 Tagged Address ABI has two stages of relaxation depending
+The AArch64 Tagged Address ABI has two stages of relaxation depending on
 how the user addresses are used by the kernel:
 
 1. User addresses not accessed by the kernel but used for address space

@@ -87,11 +87,17 @@ properties:
     minItems: 1
 
   snps,usb2-lpm-disable:
-    description: Indicate if we don't want to enable USB2 HW LPM
+    description: Indicate if we don't want to enable USB2 HW LPM for host
+      mode.
     type: boolean
 
   snps,usb3_lpm_capable:
     description: Determines if platform is USB3 LPM capable
+    type: boolean
+
+  snps,usb2-gadget-lpm-disable:
+    description: Indicate if we don't want to enable USB2 HW LPM for gadget
+      mode.
     type: boolean
 
   snps,dis-start-transfer-quirk:

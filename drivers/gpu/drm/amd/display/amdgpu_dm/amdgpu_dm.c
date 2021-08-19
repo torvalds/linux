@@ -937,7 +937,49 @@ static void mmhub_read_system_context(struct amdgpu_device *adev, struct dc_phy_
 
 }
 #endif
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+static void event_mall_stutter(struct work_struct *work)
+{
 
+	struct vblank_workqueue *vblank_work = container_of(work, struct vblank_workqueue, mall_work);
+	struct amdgpu_display_manager *dm = vblank_work->dm;
+
+	mutex_lock(&dm->dc_lock);
+
+	if (vblank_work->enable)
+		dm->active_vblank_irq_count++;
+	else
+		dm->active_vblank_irq_count--;
+
+
+	dc_allow_idle_optimizations(
+		dm->dc, dm->active_vblank_irq_count == 0 ? true : false);
+
+	DRM_DEBUG_DRIVER("Allow idle optimizations (MALL): %d\n", dm->active_vblank_irq_count == 0);
+
+
+	mutex_unlock(&dm->dc_lock);
+}
+
+static struct vblank_workqueue *vblank_create_workqueue(struct amdgpu_device *adev, struct dc *dc)
+{
+
+	int max_caps = dc->caps.max_links;
+	struct vblank_workqueue *vblank_work;
+	int i = 0;
+
+	vblank_work = kcalloc(max_caps, sizeof(*vblank_work), GFP_KERNEL);
+	if (ZERO_OR_NULL_PTR(vblank_work)) {
+		kfree(vblank_work);
+		return NULL;
+	}
+
+	for (i = 0; i < max_caps; i++)
+		INIT_WORK(&vblank_work[i].mall_work, event_mall_stutter);
+
+	return vblank_work;
+}
+#endif
 static int amdgpu_dm_init(struct amdgpu_device *adev)
 {
 	struct dc_init_data init_data;
@@ -957,6 +999,9 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	mutex_init(&adev->dm.dc_lock);
 	mutex_init(&adev->dm.audio_lock);
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	spin_lock_init(&adev->dm.vblank_lock);
+#endif
 
 	if(amdgpu_dm_irq_init(adev)) {
 		DRM_ERROR("amdgpu: failed to initialize DM IRQ support.\n");
@@ -1070,6 +1115,17 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 				adev->dm.freesync_module);
 
 	amdgpu_dm_init_color_mod();
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (adev->dm.dc->caps.max_links > 0) {
+		adev->dm.vblank_workqueue = vblank_create_workqueue(adev, adev->dm.dc);
+
+		if (!adev->dm.vblank_workqueue)
+			DRM_ERROR("amdgpu: failed to initialize vblank_workqueue.\n");
+		else
+			DRM_DEBUG_DRIVER("amdgpu: vblank_workqueue init done %p.\n", adev->dm.vblank_workqueue);
+	}
+#endif
 
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 	if (adev->dm.dc->caps.max_links > 0 && adev->asic_type >= CHIP_RAVEN) {
@@ -1936,7 +1992,7 @@ static void dm_gpureset_commit_state(struct dc_state *dc_state,
 		dc_commit_updates_for_stream(
 			dm->dc, bundle->surface_updates,
 			dc_state->stream_status->plane_count,
-			dc_state->streams[k], &bundle->stream_update);
+			dc_state->streams[k], &bundle->stream_update, dc_state);
 	}
 
 cleanup:
@@ -1967,7 +2023,8 @@ static void dm_set_dpms_off(struct dc_link *link)
 
 	stream_update.stream = stream_state;
 	dc_commit_updates_for_stream(stream_state->ctx->dc, NULL, 0,
-				     stream_state, &stream_update);
+				     stream_state, &stream_update,
+				     stream_state->ctx->dc->current_state);
 	mutex_unlock(&adev->dm.dc_lock);
 }
 
@@ -2208,6 +2265,11 @@ static void update_connector_ext_caps(struct amdgpu_dm_connector *aconnector)
 	if (caps->ext_caps->bits.oled == 1 ||
 	    caps->ext_caps->bits.sdr_aux_backlight_control == 1 ||
 	    caps->ext_caps->bits.hdr_aux_backlight_control == 1)
+		caps->aux_support = true;
+
+	if (amdgpu_backlight == 0)
+		caps->aux_support = false;
+	else if (amdgpu_backlight == 1)
 		caps->aux_support = true;
 
 	/* From the specification (CTA-861-G), for calculating the maximum
@@ -3128,19 +3190,6 @@ static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm)
 #endif
 }
 
-static int set_backlight_via_aux(struct dc_link *link, uint32_t brightness)
-{
-	bool rc;
-
-	if (!link)
-		return 1;
-
-	rc = dc_link_set_backlight_level_nits(link, true, brightness,
-					      AUX_BL_DEFAULT_TRANSITION_TIME_MS);
-
-	return rc ? 0 : 1;
-}
-
 static int get_brightness_range(const struct amdgpu_dm_backlight_caps *caps,
 				unsigned *min, unsigned *max)
 {
@@ -3203,9 +3252,10 @@ static int amdgpu_dm_backlight_update_status(struct backlight_device *bd)
 	brightness = convert_brightness_from_user(&caps, bd->props.brightness);
 	// Change brightness based on AUX property
 	if (caps.aux_support)
-		return set_backlight_via_aux(link, brightness);
-
-	rc = dc_link_set_backlight_level(dm->backlight_link, brightness, 0);
+		rc = dc_link_set_backlight_level_nits(link, true, brightness,
+						      AUX_BL_DEFAULT_TRANSITION_TIME_MS);
+	else
+		rc = dc_link_set_backlight_level(dm->backlight_link, brightness, 0);
 
 	return rc ? 0 : 1;
 }
@@ -3213,11 +3263,27 @@ static int amdgpu_dm_backlight_update_status(struct backlight_device *bd)
 static int amdgpu_dm_backlight_get_brightness(struct backlight_device *bd)
 {
 	struct amdgpu_display_manager *dm = bl_get_data(bd);
-	int ret = dc_link_get_backlight_level(dm->backlight_link);
+	struct amdgpu_dm_backlight_caps caps;
 
-	if (ret == DC_ERROR_UNEXPECTED)
-		return bd->props.brightness;
-	return convert_brightness_to_user(&dm->backlight_caps, ret);
+	amdgpu_dm_update_backlight_caps(dm);
+	caps = dm->backlight_caps;
+
+	if (caps.aux_support) {
+		struct dc_link *link = (struct dc_link *)dm->backlight_link;
+		u32 avg, peak;
+		bool rc;
+
+		rc = dc_link_get_backlight_level_nits(link, &avg, &peak);
+		if (!rc)
+			return bd->props.brightness;
+		return convert_brightness_to_user(&caps, avg);
+	} else {
+		int ret = dc_link_get_backlight_level(dm->backlight_link);
+
+		if (ret == DC_ERROR_UNEXPECTED)
+			return bd->props.brightness;
+		return convert_brightness_to_user(&caps, ret);
+	}
 }
 
 static const struct backlight_ops amdgpu_dm_backlight_ops = {
@@ -4006,13 +4072,6 @@ static bool dm_plane_format_mod_supported(struct drm_plane *plane,
 		return true;
 
 	/*
-	 * The arbitrary tiling support for multiplane formats has not been hooked
-	 * up.
-	 */
-	if (info->num_planes > 1)
-		return false;
-
-	/*
 	 * For D swizzle the canonical modifier depends on the bpp, so check
 	 * it here.
 	 */
@@ -4029,6 +4088,10 @@ static bool dm_plane_format_mod_supported(struct drm_plane *plane,
 	if (modifier_has_dcc(modifier)) {
 		/* Per radeonsi comments 16/64 bpp are more complicated. */
 		if (info->cpp[0] != 4)
+			return false;
+		/* We support multi-planar formats, but not when combined with
+		 * additional DCC metadata planes. */
+		if (info->num_planes > 1)
 			return false;
 	}
 
@@ -4230,7 +4293,7 @@ add_gfx10_3_modifiers(const struct amdgpu_device *adev,
 		    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1) |
 		    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
 		    AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1) |
-		    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B));
+		    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B));
 
 	add_modifier(mods, size, capacity, AMD_FMT_MOD |
 		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
@@ -4242,7 +4305,7 @@ add_gfx10_3_modifiers(const struct amdgpu_device *adev,
 		    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1) |
 		    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
 		    AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1) |
-		    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B));
+		    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B));
 
 	add_modifier(mods, size, capacity, AMD_FMT_MOD |
 		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
@@ -4659,6 +4722,7 @@ static int fill_dc_plane_attributes(struct amdgpu_device *adev,
 	dc_plane_state->global_alpha_value = plane_info.global_alpha_value;
 	dc_plane_state->dcc = plane_info.dcc;
 	dc_plane_state->layer_index = plane_info.layer_index; // Always returns 0
+	dc_plane_state->flip_int_enabled = true;
 
 	/*
 	 * Always set input transfer function, since plane state is refreshed
@@ -5374,7 +5438,10 @@ static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 	struct amdgpu_device *adev = drm_to_adev(crtc->dev);
 	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(crtc->state);
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct amdgpu_display_manager *dm = &adev->dm;
+	unsigned long flags;
+#endif
 	int rc = 0;
 
 	if (enable) {
@@ -5397,21 +5464,14 @@ static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
 	if (amdgpu_in_reset(adev))
 		return 0;
 
-	mutex_lock(&dm->dc_lock);
-
-	if (enable)
-		dm->active_vblank_irq_count++;
-	else
-		dm->active_vblank_irq_count--;
-
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-	dc_allow_idle_optimizations(
-		adev->dm.dc, dm->active_vblank_irq_count == 0 ? true : false);
-
-	DRM_DEBUG_DRIVER("Allow idle optimizations (MALL): %d\n", dm->active_vblank_irq_count == 0);
+	spin_lock_irqsave(&dm->vblank_lock, flags);
+	dm->vblank_workqueue->dm = dm;
+	dm->vblank_workqueue->otg_inst = acrtc->otg_inst;
+	dm->vblank_workqueue->enable = enable;
+	spin_unlock_irqrestore(&dm->vblank_lock, flags);
+	schedule_work(&dm->vblank_workqueue->mall_work);
 #endif
-
-	mutex_unlock(&dm->dc_lock);
 
 	return 0;
 }
@@ -7663,7 +7723,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 				    struct drm_crtc *pcrtc,
 				    bool wait_for_vblank)
 {
-	int i;
+	uint32_t i;
 	uint64_t timestamp_ns;
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state, *new_plane_state;
@@ -7704,7 +7764,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		amdgpu_dm_commit_cursors(state);
 
 	/* update planes when needed */
-	for_each_oldnew_plane_in_state_reverse(state, plane, old_plane_state, new_plane_state, i) {
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
 		struct drm_crtc *crtc = new_plane_state->crtc;
 		struct drm_crtc_state *new_crtc_state;
 		struct drm_framebuffer *fb = new_plane_state->fb;
@@ -7927,7 +7987,8 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 						     bundle->surface_updates,
 						     planes_count,
 						     acrtc_state->stream,
-						     &bundle->stream_update);
+						     &bundle->stream_update,
+						     dc_state);
 
 		/**
 		 * Enable or disable the interrupts on the backend.
@@ -8263,13 +8324,13 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		struct dm_connector_state *dm_new_con_state = to_dm_connector_state(new_con_state);
 		struct dm_connector_state *dm_old_con_state = to_dm_connector_state(old_con_state);
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(dm_new_con_state->base.crtc);
-		struct dc_surface_update surface_updates[MAX_SURFACES];
+		struct dc_surface_update dummy_updates[MAX_SURFACES];
 		struct dc_stream_update stream_update;
 		struct dc_info_packet hdr_packet;
 		struct dc_stream_status *status = NULL;
 		bool abm_changed, hdr_changed, scaling_changed;
 
-		memset(&surface_updates, 0, sizeof(surface_updates));
+		memset(&dummy_updates, 0, sizeof(dummy_updates));
 		memset(&stream_update, 0, sizeof(stream_update));
 
 		if (acrtc) {
@@ -8326,15 +8387,16 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		 * To fix this, DC should permit updating only stream properties.
 		 */
 		for (j = 0; j < status->plane_count; j++)
-			surface_updates[j].surface = status->plane_states[j];
+			dummy_updates[j].surface = status->plane_states[0];
 
 
 		mutex_lock(&dm->dc_lock);
 		dc_commit_updates_for_stream(dm->dc,
-						surface_updates,
+						     dummy_updates,
 						     status->plane_count,
 						     dm_new_crtc_state->stream,
-						     &stream_update);
+						     &stream_update,
+						     dc_state);
 		mutex_unlock(&dm->dc_lock);
 	}
 

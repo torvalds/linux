@@ -285,11 +285,9 @@ static int tegra_usb_probe(struct platform_device *pdev)
 	}
 
 	usb->phy = devm_usb_get_phy_by_phandle(&pdev->dev, "nvidia,phy", 0);
-	if (IS_ERR(usb->phy)) {
-		err = PTR_ERR(usb->phy);
-		dev_err(&pdev->dev, "failed to get PHY: %d\n", err);
-		return err;
-	}
+	if (IS_ERR(usb->phy))
+		return dev_err_probe(&pdev->dev, PTR_ERR(usb->phy),
+				     "failed to get PHY\n");
 
 	usb->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(usb->clk)) {

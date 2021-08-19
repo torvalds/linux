@@ -2,13 +2,13 @@
 /*
  * Alarmtimer interface
  *
- * This interface provides a timer which is similarto hrtimers,
+ * This interface provides a timer which is similar to hrtimers,
  * but triggers a RTC alarm if the box is suspend.
  *
  * This interface is influenced by the Android RTC Alarm timer
  * interface.
  *
- * Copyright (C) 2010 IBM Corperation
+ * Copyright (C) 2010 IBM Corporation
  *
  * Author: John Stultz <john.stultz@linaro.org>
  */
@@ -811,7 +811,7 @@ static long __sched alarm_timer_nsleep_restart(struct restart_block *restart)
 /**
  * alarm_timer_nsleep - alarmtimer nanosleep
  * @which_clock: clockid
- * @flags: determins abstime or relative
+ * @flags: determines abstime or relative
  * @tsreq: requested sleep time (abs or rel)
  *
  * Handles clock_nanosleep calls against _ALARM clockids
@@ -854,9 +854,9 @@ static int alarm_timer_nsleep(const clockid_t which_clock, int flags,
 	if (flags == TIMER_ABSTIME)
 		return -ERESTARTNOHAND;
 
-	restart->fn = alarm_timer_nsleep_restart;
 	restart->nanosleep.clockid = type;
 	restart->nanosleep.expires = exp;
+	set_restart_fn(restart, alarm_timer_nsleep_restart);
 	return ret;
 }
 

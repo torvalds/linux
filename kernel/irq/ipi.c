@@ -107,7 +107,7 @@ free_descs:
  * @irq:	linux irq number to be destroyed
  * @dest:	cpumask of cpus which should have the IPI removed
  *
- * The IPIs allocated with irq_reserve_ipi() are retuerned to the system
+ * The IPIs allocated with irq_reserve_ipi() are returned to the system
  * destroying all virqs associated with them.
  *
  * Return 0 on success or error code on failure.

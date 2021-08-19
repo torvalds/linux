@@ -621,10 +621,10 @@ EXPORT_SYMBOL_GPL(devm_spi_mem_dirmap_create);
 
 static int devm_spi_mem_dirmap_match(struct device *dev, void *res, void *data)
 {
-        struct spi_mem_dirmap_desc **ptr = res;
+	struct spi_mem_dirmap_desc **ptr = res;
 
-        if (WARN_ON(!ptr || !*ptr))
-                return 0;
+	if (WARN_ON(!ptr || !*ptr))
+		return 0;
 
 	return *ptr == data;
 }

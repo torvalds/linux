@@ -430,8 +430,6 @@ struct nci_uart_ops {
 	int (*open)(struct nci_uart *nci_uart);
 	void (*close)(struct nci_uart *nci_uart);
 	int (*recv)(struct nci_uart *nci_uart, struct sk_buff *skb);
-	int (*recv_buf)(struct nci_uart *nci_uart, const u8 *data, char *flags,
-			int count);
 	int (*send)(struct nci_uart *nci_uart, struct sk_buff *skb);
 	void (*tx_start)(struct nci_uart *nci_uart);
 	void (*tx_done)(struct nci_uart *nci_uart);

@@ -75,8 +75,8 @@ II. For kernel maintainers
      binding, and it hasn't received an Acked-by from the devicetree
      maintainers after a few weeks, go ahead and take it.
 
-     Subsystem bindings (anything affecting more than a single device)
-     then getting a devicetree maintainer to review it is required.
+     For subsystem bindings (anything affecting more than a single device),
+     getting a devicetree maintainer to review it is required.
 
   3) For a series going though multiple trees, the binding patch should be
      kept with the driver using the binding.

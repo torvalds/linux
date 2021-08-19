@@ -314,9 +314,6 @@ static const struct dw_pcie_host_ops al_pcie_host_ops = {
 	.host_init = al_pcie_host_init,
 };
 
-static const struct dw_pcie_ops dw_pcie_ops = {
-};
-
 static int al_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -334,7 +331,6 @@ static int al_pcie_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	pci->dev = dev;
-	pci->ops = &dw_pcie_ops;
 	pci->pp.ops = &al_pcie_host_ops;
 
 	al_pcie->pci = pci;

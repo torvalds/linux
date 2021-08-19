@@ -44,8 +44,12 @@ config SND_INTEL_NHLT
 config SND_INTEL_DSP_CONFIG
 	tristate
 	select SND_INTEL_NHLT if ACPI
+	select SND_INTEL_SOUNDWIRE_ACPI if ACPI
 	# this config should be selected only for Intel DSP platforms.
 	# A fallback is provided so that the code compiles in all cases.
+
+config SND_INTEL_SOUNDWIRE_ACPI
+	tristate
 
 config SND_INTEL_BYT_PREFER_SOF
 	bool "Prefer SOF driver over SST on BY/CHT platforms"

@@ -1116,7 +1116,7 @@ static void devx_obj_build_destroy_cmd(void *in, void *out, void *din,
 	case MLX5_CMD_OP_CREATE_MKEY:
 		MLX5_SET(destroy_mkey_in, din, opcode,
 			 MLX5_CMD_OP_DESTROY_MKEY);
-		MLX5_SET(destroy_mkey_in, in, mkey_index, *obj_id);
+		MLX5_SET(destroy_mkey_in, din, mkey_index, *obj_id);
 		break;
 	case MLX5_CMD_OP_CREATE_CQ:
 		MLX5_SET(destroy_cq_in, din, opcode, MLX5_CMD_OP_DESTROY_CQ);
@@ -2073,8 +2073,10 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_SUBSCRIBE_EVENT)(
 
 		num_alloc_xa_entries++;
 		event_sub = kzalloc(sizeof(*event_sub), GFP_KERNEL);
-		if (!event_sub)
+		if (!event_sub) {
+			err = -ENOMEM;
 			goto err;
+		}
 
 		list_add_tail(&event_sub->event_list, &sub_list);
 		uverbs_uobject_get(&ev_file->uobj);

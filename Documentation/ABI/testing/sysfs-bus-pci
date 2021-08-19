@@ -195,10 +195,13 @@ What:		/sys/bus/pci/devices/.../index
 Date:		July 2010
 Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
 Description:
-		Reading this attribute will provide the firmware
-		given instance (SMBIOS type 41 device type instance) of the
-		PCI device. The attribute will be created only if the firmware
-		has given an instance number to the PCI device.
+		Reading this attribute will provide the firmware given instance
+		number of the PCI device.  Depending on the platform this can
+		be for example the SMBIOS type 41 device type instance or the
+		user-defined ID (UID) on s390. The attribute will be created
+		only if the firmware has given an instance number to the PCI
+		device and that number is guaranteed to uniquely identify the
+		device in the system.
 Users:
 		Userspace applications interested in knowing the
 		firmware assigned device type instance of the PCI

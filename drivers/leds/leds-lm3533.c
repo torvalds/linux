@@ -608,7 +608,7 @@ static struct attribute *lm3533_led_attributes[] = {
 static umode_t lm3533_led_attr_is_visible(struct kobject *kobj,
 					     struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct lm3533_led *led = to_lm3533_led(led_cdev);
 	umode_t mode = attr->mode;

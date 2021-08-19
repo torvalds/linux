@@ -875,7 +875,6 @@ static int fxas21002c_trigger_probe(struct fxas21002c_data *data)
 	if (ret < 0)
 		return ret;
 
-	data->dready_trig->dev.parent = dev;
 	data->dready_trig->ops = &fxas21002c_trigger_ops;
 	iio_trigger_set_drvdata(data->dready_trig, indio_dev);
 

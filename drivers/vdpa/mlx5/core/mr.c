@@ -219,6 +219,11 @@ static void destroy_indirect_key(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_m
 	mlx5_vdpa_destroy_mkey(mvdev, &mkey->mkey);
 }
 
+static struct device *get_dma_device(struct mlx5_vdpa_dev *mvdev)
+{
+	return &mvdev->mdev->pdev->dev;
+}
+
 static int map_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct_mr *mr,
 			 struct vhost_iotlb *iotlb)
 {
@@ -234,7 +239,7 @@ static int map_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct_mr
 	u64 pa;
 	u64 paend;
 	struct scatterlist *sg;
-	struct device *dma = mvdev->mdev->device;
+	struct device *dma = get_dma_device(mvdev);
 
 	for (map = vhost_iotlb_itree_first(iotlb, mr->start, mr->end - 1);
 	     map; map = vhost_iotlb_itree_next(map, start, mr->end - 1)) {
@@ -273,8 +278,10 @@ done:
 	mr->log_size = log_entity_size;
 	mr->nsg = nsg;
 	mr->nent = dma_map_sg_attrs(dma, mr->sg_head.sgl, mr->nsg, DMA_BIDIRECTIONAL, 0);
-	if (!mr->nent)
+	if (!mr->nent) {
+		err = -ENOMEM;
 		goto err_map;
+	}
 
 	err = create_direct_mr(mvdev, mr);
 	if (err)
@@ -291,7 +298,7 @@ err_map:
 
 static void unmap_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct_mr *mr)
 {
-	struct device *dma = mvdev->mdev->device;
+	struct device *dma = get_dma_device(mvdev);
 
 	destroy_direct_mr(mvdev, mr);
 	dma_unmap_sg_attrs(dma, mr->sg_head.sgl, mr->nsg, DMA_BIDIRECTIONAL, 0);

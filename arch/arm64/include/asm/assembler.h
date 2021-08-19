@@ -15,6 +15,7 @@
 #include <asm-generic/export.h>
 
 #include <asm/asm-offsets.h>
+#include <asm/alternative.h>
 #include <asm/cpufeature.h>
 #include <asm/cputype.h>
 #include <asm/debug-monitors.h>
@@ -22,6 +23,14 @@
 #include <asm/pgtable-hwdef.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
+
+	/*
+	 * Provide a wxN alias for each wN register so what we can paste a xN
+	 * reference after a 'w' to obtain the 32-bit version.
+	 */
+	.irp	n,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30
+	wx\n	.req	w\n
+	.endr
 
 	.macro save_and_disable_daif, flags
 	mrs	\flags, daif
@@ -40,9 +49,9 @@
 	msr	daif, \flags
 	.endm
 
-	/* IRQ is the lowest priority flag, unconditionally unmask the rest. */
-	.macro enable_da_f
-	msr	daifclr, #(8 | 4 | 1)
+	/* IRQ/FIQ are the lowest priority flags, unconditionally unmask the rest. */
+	.macro enable_da
+	msr	daifclr, #(8 | 4)
 	.endm
 
 /*
@@ -50,7 +59,7 @@
  */
 	.macro	save_and_disable_irq, flags
 	mrs	\flags, daif
-	msr	daifset, #2
+	msr	daifset, #3
 	.endm
 
 	.macro	restore_irq, flags
@@ -692,90 +701,33 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	isb
 .endm
 
-/*
- * Check whether to yield to another runnable task from kernel mode NEON code
- * (which runs with preemption disabled).
- *
- * if_will_cond_yield_neon
- *        // pre-yield patchup code
- * do_cond_yield_neon
- *        // post-yield patchup code
- * endif_yield_neon    <label>
- *
- * where <label> is optional, and marks the point where execution will resume
- * after a yield has been performed. If omitted, execution resumes right after
- * the endif_yield_neon invocation. Note that the entire sequence, including
- * the provided patchup code, will be omitted from the image if
- * CONFIG_PREEMPTION is not defined.
- *
- * As a convenience, in the case where no patchup code is required, the above
- * sequence may be abbreviated to
- *
- * cond_yield_neon <label>
- *
- * Note that the patchup code does not support assembler directives that change
- * the output section, any use of such directives is undefined.
- *
- * The yield itself consists of the following:
- * - Check whether the preempt count is exactly 1 and a reschedule is also
- *   needed. If so, calling of preempt_enable() in kernel_neon_end() will
- *   trigger a reschedule. If it is not the case, yielding is pointless.
- * - Disable and re-enable kernel mode NEON, and branch to the yield fixup
- *   code.
- *
- * This macro sequence may clobber all CPU state that is not guaranteed by the
- * AAPCS to be preserved across an ordinary function call.
- */
-
-	.macro		cond_yield_neon, lbl
-	if_will_cond_yield_neon
-	do_cond_yield_neon
-	endif_yield_neon	\lbl
-	.endm
-
-	.macro		if_will_cond_yield_neon
-#ifdef CONFIG_PREEMPTION
-	get_current_task	x0
-	ldr		x0, [x0, #TSK_TI_PREEMPT]
-	sub		x0, x0, #PREEMPT_DISABLE_OFFSET
-	cbz		x0, .Lyield_\@
-	/* fall through to endif_yield_neon */
-	.subsection	1
-.Lyield_\@ :
-#else
-	.section	".discard.cond_yield_neon", "ax"
-#endif
-	.endm
-
-	.macro		do_cond_yield_neon
-	bl		kernel_neon_end
-	bl		kernel_neon_begin
-	.endm
-
-	.macro		endif_yield_neon, lbl
-	.ifnb		\lbl
-	b		\lbl
-	.else
-	b		.Lyield_out_\@
-	.endif
-	.previous
-.Lyield_out_\@ :
-	.endm
-
 	/*
-	 * Check whether preempt-disabled code should yield as soon as it
-	 * is able. This is the case if re-enabling preemption a single
-	 * time results in a preempt count of zero, and the TIF_NEED_RESCHED
-	 * flag is set. (Note that the latter is stored negated in the
-	 * top word of the thread_info::preempt_count field)
+	 * Check whether preempt/bh-disabled asm code should yield as soon as
+	 * it is able. This is the case if we are currently running in task
+	 * context, and either a softirq is pending, or the TIF_NEED_RESCHED
+	 * flag is set and re-enabling preemption a single time would result in
+	 * a preempt count of zero. (Note that the TIF_NEED_RESCHED flag is
+	 * stored negated in the top word of the thread_info::preempt_count
+	 * field)
 	 */
-	.macro		cond_yield, lbl:req, tmp:req
-#ifdef CONFIG_PREEMPTION
+	.macro		cond_yield, lbl:req, tmp:req, tmp2:req
 	get_current_task \tmp
 	ldr		\tmp, [\tmp, #TSK_TI_PREEMPT]
+	/*
+	 * If we are serving a softirq, there is no point in yielding: the
+	 * softirq will not be preempted no matter what we do, so we should
+	 * run to completion as quickly as we can.
+	 */
+	tbnz		\tmp, #SOFTIRQ_SHIFT, .Lnoyield_\@
+#ifdef CONFIG_PREEMPTION
 	sub		\tmp, \tmp, #PREEMPT_DISABLE_OFFSET
 	cbz		\tmp, \lbl
 #endif
+	adr_l		\tmp, irq_stat + IRQ_CPUSTAT_SOFTIRQ_PENDING
+	this_cpu_offset	\tmp2
+	ldr		w\tmp, [\tmp, \tmp2]
+	cbnz		w\tmp, \lbl	// yield on pending softirq in task context
+.Lnoyield_\@:
 	.endm
 
 /*

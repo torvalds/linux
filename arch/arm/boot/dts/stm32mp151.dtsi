@@ -452,32 +452,36 @@
 		usart2: serial@4000e000 {
 			compatible = "st,stm32h7-uart";
 			reg = <0x4000e000 0x400>;
-			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts-extended = <&exti 27 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc USART2_K>;
+			wakeup-source;
 			status = "disabled";
 		};
 
 		usart3: serial@4000f000 {
 			compatible = "st,stm32h7-uart";
 			reg = <0x4000f000 0x400>;
-			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts-extended = <&exti 28 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc USART3_K>;
+			wakeup-source;
 			status = "disabled";
 		};
 
 		uart4: serial@40010000 {
 			compatible = "st,stm32h7-uart";
 			reg = <0x40010000 0x400>;
-			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts-extended = <&exti 30 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc UART4_K>;
+			wakeup-source;
 			status = "disabled";
 		};
 
 		uart5: serial@40011000 {
 			compatible = "st,stm32h7-uart";
 			reg = <0x40011000 0x400>;
-			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts-extended = <&exti 31 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc UART5_K>;
+			wakeup-source;
 			status = "disabled";
 		};
 
@@ -493,6 +497,7 @@
 			#size-cells = <0>;
 			st,syscfg-fmp = <&syscfg 0x4 0x1>;
 			wakeup-source;
+			i2c-analog-filter;
 			status = "disabled";
 		};
 
@@ -508,6 +513,7 @@
 			#size-cells = <0>;
 			st,syscfg-fmp = <&syscfg 0x4 0x2>;
 			wakeup-source;
+			i2c-analog-filter;
 			status = "disabled";
 		};
 
@@ -523,6 +529,7 @@
 			#size-cells = <0>;
 			st,syscfg-fmp = <&syscfg 0x4 0x4>;
 			wakeup-source;
+			i2c-analog-filter;
 			status = "disabled";
 		};
 
@@ -538,6 +545,7 @@
 			#size-cells = <0>;
 			st,syscfg-fmp = <&syscfg 0x4 0x10>;
 			wakeup-source;
+			i2c-analog-filter;
 			status = "disabled";
 		};
 
@@ -577,16 +585,18 @@
 		uart7: serial@40018000 {
 			compatible = "st,stm32h7-uart";
 			reg = <0x40018000 0x400>;
-			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts-extended = <&exti 32 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc UART7_K>;
+			wakeup-source;
 			status = "disabled";
 		};
 
 		uart8: serial@40019000 {
 			compatible = "st,stm32h7-uart";
 			reg = <0x40019000 0x400>;
-			interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts-extended = <&exti 33 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc UART8_K>;
+			wakeup-source;
 			status = "disabled";
 		};
 
@@ -665,8 +675,9 @@
 		usart6: serial@44003000 {
 			compatible = "st,stm32h7-uart";
 			reg = <0x44003000 0x400>;
-			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts-extended = <&exti 29 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc USART6_K>;
+			wakeup-source;
 			status = "disabled";
 		};
 
@@ -1421,11 +1432,13 @@
 				      "mac-clk-tx",
 				      "mac-clk-rx",
 				      "eth-ck",
+				      "ptp_ref",
 				      "ethstp";
 			clocks = <&rcc ETHMAC>,
 				 <&rcc ETHTX>,
 				 <&rcc ETHRX>,
 				 <&rcc ETHCK_K>,
+				 <&rcc ETHPTP_K>,
 				 <&rcc ETHSTP>;
 			st,syscon = <&syscfg 0x4>;
 			snps,mixed-burst;
@@ -1505,8 +1518,9 @@
 		usart1: serial@5c000000 {
 			compatible = "st,stm32h7-uart";
 			reg = <0x5c000000 0x400>;
-			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts-extended = <&exti 26 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc USART1_K>;
+			wakeup-source;
 			status = "disabled";
 		};
 
@@ -1536,6 +1550,7 @@
 			#size-cells = <0>;
 			st,syscfg-fmp = <&syscfg 0x4 0x8>;
 			wakeup-source;
+			i2c-analog-filter;
 			status = "disabled";
 		};
 
@@ -1573,6 +1588,7 @@
 			#size-cells = <0>;
 			st,syscfg-fmp = <&syscfg 0x4 0x20>;
 			wakeup-source;
+			i2c-analog-filter;
 			status = "disabled";
 		};
 

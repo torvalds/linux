@@ -96,7 +96,6 @@ MODULE_DEVICE_TABLE(of, imx_iim_dt_ids);
 
 static int imx_iim_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
 	struct iim_priv *iim;
 	struct nvmem_device *nvmem;
@@ -111,11 +110,7 @@ static int imx_iim_probe(struct platform_device *pdev)
 	if (IS_ERR(iim->base))
 		return PTR_ERR(iim->base);
 
-	of_id = of_match_device(imx_iim_dt_ids, dev);
-	if (!of_id)
-		return -ENODEV;
-
-	drvdata = of_id->data;
+	drvdata = of_device_get_match_data(&pdev->dev);
 
 	iim->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(iim->clk))

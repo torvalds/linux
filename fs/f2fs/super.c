@@ -753,9 +753,9 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
 		case Opt_io_size_bits:
 			if (args->from && match_int(args, &arg))
 				return -EINVAL;
-			if (arg <= 0 || arg > __ilog2_u32(BIO_MAX_PAGES)) {
+			if (arg <= 0 || arg > __ilog2_u32(BIO_MAX_VECS)) {
 				f2fs_warn(sbi, "Not support %d, larger than %d",
-					  1 << arg, BIO_MAX_PAGES);
+					  1 << arg, BIO_MAX_VECS);
 				return -EINVAL;
 			}
 			F2FS_OPTION(sbi).write_io_size_bits = arg;
@@ -1298,9 +1298,6 @@ static void f2fs_dirty_inode(struct inode *inode, int flags)
 
 	if (inode->i_ino == F2FS_NODE_INO(sbi) ||
 			inode->i_ino == F2FS_META_INO(sbi))
-		return;
-
-	if (flags == I_DIRTY_TIME)
 		return;
 
 	if (is_inode_flag_set(inode, FI_AUTO_RECOVER))

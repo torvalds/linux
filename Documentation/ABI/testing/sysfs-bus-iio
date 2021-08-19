@@ -33,6 +33,52 @@ Description:
 		Description of the physical chip / device for device X.
 		Typically a part number.
 
+What:		/sys/bus/iio/devices/iio:deviceX/label
+KernelVersion:	5.8
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Optional symbolic label for a device.
+		This is useful for userspace to be able to better identify an
+		individual device.
+
+		The contents of the label are free-form, but there are some
+		standardized uses:
+
+		For proximity sensors which give the proximity (of a person) to
+		a certain wlan or wwan antenna the following standardized labels
+		are used:
+
+		* "proximity-wifi"
+		* "proximity-lte"
+		* "proximity-wifi-lte"
+		* "proximity-wifi-left"
+		* "proximity-wifi-right"
+
+		These are used to indicate to userspace that these proximity
+		sensors may be used to tune transmit power to ensure that
+		Specific Absorption Rate (SAR) limits are honored.
+		The "-left" and "-right" labels are for devices with multiple
+		antennas.
+
+		In some laptops/tablets the standardized proximity sensor labels
+		instead	indicate proximity to a specific part of the device:
+
+		* "proximity-palmrest" indicates proximity to the keyboard's palmrest
+		* "proximity-palmrest-left" indicates proximity to the left part of the palmrest
+		* "proximity-palmrest-right" indicates proximity to the right part of the palmrest
+		* "proximity-lap" indicates the device is being used on someone's lap
+
+		Note "proximity-lap" is special in that its value may be
+		calculated by firmware from other sensor readings, rather then
+		being a raw sensor reading.
+
+		For accelerometers used in 2-in-1s with 360° (yoga-style) hinges,
+		which have an accelerometer in both their base and their display,
+		the following standardized labels are used:
+
+		* "accel-base"
+		* "accel-display"
+
 What:		/sys/bus/iio/devices/iio:deviceX/current_timestamp_clock
 KernelVersion:	4.5
 Contact:	linux-iio@vger.kernel.org
@@ -325,6 +371,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_humidityrelative_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_magn_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_rot_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_angl_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_capacitanceX_offset
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -656,6 +703,8 @@ What:		/sys/.../iio:deviceX/events/in_voltageY_thresh_falling_en
 What:		/sys/.../iio:deviceX/events/in_voltageY_thresh_either_en
 What:		/sys/.../iio:deviceX/events/in_tempY_thresh_rising_en
 What:		/sys/.../iio:deviceX/events/in_tempY_thresh_falling_en
+What:		/sys/.../iio:deviceX/events/in_capacitanceY_thresh_rising_en
+What:		/sys/.../iio:deviceX/events/in_capacitanceY_thresh_falling_en
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -733,6 +782,32 @@ Description:
 		a given event type is enabled a future point (and not those for
 		whatever event was previously enabled).
 
+What:		/sys/.../events/in_capacitanceY_adaptive_thresh_rising_en
+What:		/sys/.../events/in_capacitanceY_adaptive_thresh_falling_en
+KernelVersion:	5.13
+Contact:	linux-iio@vger.kernel.org
+Descrption:
+		Adaptive thresholds are similar to normal fixed thresholds
+		but the value is expressed as an offset from a value which
+		provides a low frequency approximation of the channel itself.
+		Thus these detect if a rapid change occurs in the specified
+		direction which crosses tracking value + offset.
+		Tracking value calculation is devices specific.
+
+What:		/sys/.../in_capacitanceY_adaptive_thresh_rising_timeout
+What:		/sys/.../in_capacitanceY_adaptive_thresh_falling_timeout
+KernelVersion:	5.11
+Contact:	linux-iio@vger.kernel.org
+Descrption:
+		When adaptive thresholds are used, the tracking signal
+		may adjust too slowly to step changes in the raw signal.
+		*_timeout (in seconds) specifies a time for which the
+		difference between the slow tracking signal and the raw
+		signal is allowed to remain out-of-range before a reset
+		event occurs in which the tracking signal is made equal
+		to the raw signal, allowing slow tracking to resume and the
+		adaptive threshold event detection to function as expected.
+
 What:		/sys/.../events/in_accel_thresh_rising_value
 What:		/sys/.../events/in_accel_thresh_falling_value
 What:		/sys/.../events/in_accel_x_raw_thresh_rising_value
@@ -773,6 +848,10 @@ What:		/sys/.../events/in_proximity0_thresh_falling_value
 What:		/sys/.../events/in_proximity0_thresh_rising_value
 What:		/sys/.../events/in_illuminance_thresh_rising_value
 What:		/sys/.../events/in_illuminance_thresh_falling_value
+What:		/sys/.../events/in_capacitanceY_thresh_rising_value
+What:		/sys/.../events/in_capacitanceY_thresh_falling_value
+What:		/sys/.../events/in_capacitanceY_thresh_adaptive_rising_value
+What:		/sys/.../events/in_capacitanceY_thresh_falling_rising_value
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -1118,12 +1197,16 @@ Description:
 
 What:		/sys/bus/iio/devices/iio:deviceX/buffer/length
 KernelVersion:	2.6.35
+What:		/sys/bus/iio/devices/iio:deviceX/bufferY/length
+KernelVersion:	5.11
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Number of scans contained by the buffer.
 
 What:		/sys/bus/iio/devices/iio:deviceX/buffer/enable
 KernelVersion:	2.6.35
+What:		/sys/bus/iio/devices/iio:deviceX/bufferY/enable
+KernelVersion:	5.11
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Actually start the buffer capture up.  Will start trigger
@@ -1131,10 +1214,15 @@ Description:
 
 What:		/sys/bus/iio/devices/iio:deviceX/scan_elements
 KernelVersion:	2.6.37
+What:		/sys/bus/iio/devices/iio:deviceX/bufferY
+KernelVersion:	5.11
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Directory containing interfaces for elements that will be
 		captured for a single triggered sample set in the buffer.
+
+		Since kernel 5.11 the scan_elements attributes are merged into
+		the bufferY directory, to be configurable per buffer.
 
 What:		/sys/.../iio:deviceX/scan_elements/in_accel_x_en
 What:		/sys/.../iio:deviceX/scan_elements/in_accel_y_en
@@ -1164,6 +1252,34 @@ What:		/sys/.../iio:deviceX/scan_elements/in_pressure_en
 What:		/sys/.../iio:deviceX/scan_elements/in_rot_quaternion_en
 What:		/sys/.../iio:deviceX/scan_elements/in_proximity_en
 KernelVersion:	2.6.37
+What:		/sys/.../iio:deviceX/bufferY/in_accel_x_en
+What:		/sys/.../iio:deviceX/bufferY/in_accel_y_en
+What:		/sys/.../iio:deviceX/bufferY/in_accel_z_en
+What:		/sys/.../iio:deviceX/bufferY/in_anglvel_x_en
+What:		/sys/.../iio:deviceX/bufferY/in_anglvel_y_en
+What:		/sys/.../iio:deviceX/bufferY/in_anglvel_z_en
+What:		/sys/.../iio:deviceX/bufferY/in_magn_x_en
+What:		/sys/.../iio:deviceX/bufferY/in_magn_y_en
+What:		/sys/.../iio:deviceX/bufferY/in_magn_z_en
+What:		/sys/.../iio:deviceX/bufferY/in_rot_from_north_magnetic_en
+What:		/sys/.../iio:deviceX/bufferY/in_rot_from_north_true_en
+What:		/sys/.../iio:deviceX/bufferY/in_rot_from_north_magnetic_tilt_comp_en
+What:		/sys/.../iio:deviceX/bufferY/in_rot_from_north_true_tilt_comp_en
+What:		/sys/.../iio:deviceX/bufferY/in_timestamp_en
+What:		/sys/.../iio:deviceX/bufferY/in_voltageY_supply_en
+What:		/sys/.../iio:deviceX/bufferY/in_voltageY_en
+What:		/sys/.../iio:deviceX/bufferY/in_voltageY-voltageZ_en
+What:		/sys/.../iio:deviceX/bufferY/in_voltageY_i_en
+What:		/sys/.../iio:deviceX/bufferY/in_voltageY_q_en
+What:		/sys/.../iio:deviceX/bufferY/in_voltage_i_en
+What:		/sys/.../iio:deviceX/bufferY/in_voltage_q_en
+What:		/sys/.../iio:deviceX/bufferY/in_incli_x_en
+What:		/sys/.../iio:deviceX/bufferY/in_incli_y_en
+What:		/sys/.../iio:deviceX/bufferY/in_pressureY_en
+What:		/sys/.../iio:deviceX/bufferY/in_pressure_en
+What:		/sys/.../iio:deviceX/bufferY/in_rot_quaternion_en
+What:		/sys/.../iio:deviceX/bufferY/in_proximity_en
+KernelVersion:	5.11
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Scan element control for triggered data capture.
@@ -1185,6 +1301,23 @@ What:		/sys/.../iio:deviceX/scan_elements/in_pressure_type
 What:		/sys/.../iio:deviceX/scan_elements/in_rot_quaternion_type
 What:		/sys/.../iio:deviceX/scan_elements/in_proximity_type
 KernelVersion:	2.6.37
+What:		/sys/.../iio:deviceX/bufferY/in_accel_type
+What:		/sys/.../iio:deviceX/bufferY/in_anglvel_type
+What:		/sys/.../iio:deviceX/bufferY/in_magn_type
+What:		/sys/.../iio:deviceX/bufferY/in_incli_type
+What:		/sys/.../iio:deviceX/bufferY/in_voltageY_type
+What:		/sys/.../iio:deviceX/bufferY/in_voltage_type
+What:		/sys/.../iio:deviceX/bufferY/in_voltageY_supply_type
+What:		/sys/.../iio:deviceX/bufferY/in_voltageY_i_type
+What:		/sys/.../iio:deviceX/bufferY/in_voltageY_q_type
+What:		/sys/.../iio:deviceX/bufferY/in_voltage_i_type
+What:		/sys/.../iio:deviceX/bufferY/in_voltage_q_type
+What:		/sys/.../iio:deviceX/bufferY/in_timestamp_type
+What:		/sys/.../iio:deviceX/bufferY/in_pressureY_type
+What:		/sys/.../iio:deviceX/bufferY/in_pressure_type
+What:		/sys/.../iio:deviceX/bufferY/in_rot_quaternion_type
+What:		/sys/.../iio:deviceX/bufferY/in_proximity_type
+KernelVersion:	5.11
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Description of the scan element data storage within the buffer
@@ -1241,6 +1374,33 @@ What:		/sys/.../iio:deviceX/scan_elements/in_pressure_index
 What:		/sys/.../iio:deviceX/scan_elements/in_rot_quaternion_index
 What:		/sys/.../iio:deviceX/scan_elements/in_proximity_index
 KernelVersion:	2.6.37
+What:		/sys/.../iio:deviceX/bufferY/in_voltageY_index
+What:		/sys/.../iio:deviceX/bufferY/in_voltageY_supply_index
+What:		/sys/.../iio:deviceX/bufferY/in_voltageY_i_index
+What:		/sys/.../iio:deviceX/bufferY/in_voltageY_q_index
+What:		/sys/.../iio:deviceX/bufferY/in_voltage_i_index
+What:		/sys/.../iio:deviceX/bufferY/in_voltage_q_index
+What:		/sys/.../iio:deviceX/bufferY/in_accel_x_index
+What:		/sys/.../iio:deviceX/bufferY/in_accel_y_index
+What:		/sys/.../iio:deviceX/bufferY/in_accel_z_index
+What:		/sys/.../iio:deviceX/bufferY/in_anglvel_x_index
+What:		/sys/.../iio:deviceX/bufferY/in_anglvel_y_index
+What:		/sys/.../iio:deviceX/bufferY/in_anglvel_z_index
+What:		/sys/.../iio:deviceX/bufferY/in_magn_x_index
+What:		/sys/.../iio:deviceX/bufferY/in_magn_y_index
+What:		/sys/.../iio:deviceX/bufferY/in_magn_z_index
+What:		/sys/.../iio:deviceX/bufferY/in_rot_from_north_magnetic_index
+What:		/sys/.../iio:deviceX/bufferY/in_rot_from_north_true_index
+What:		/sys/.../iio:deviceX/bufferY/in_rot_from_north_magnetic_tilt_comp_index
+What:		/sys/.../iio:deviceX/bufferY/in_rot_from_north_true_tilt_comp_index
+What:		/sys/.../iio:deviceX/bufferY/in_incli_x_index
+What:		/sys/.../iio:deviceX/bufferY/in_incli_y_index
+What:		/sys/.../iio:deviceX/bufferY/in_timestamp_index
+What:		/sys/.../iio:deviceX/bufferY/in_pressureY_index
+What:		/sys/.../iio:deviceX/bufferY/in_pressure_index
+What:		/sys/.../iio:deviceX/bufferY/in_rot_quaternion_index
+What:		/sys/.../iio:deviceX/bufferY/in_proximity_index
+KernelVersion:	5.11
 Contact:	linux-iio@vger.kernel.org
 Description:
 		A single positive integer specifying the position of this
@@ -1455,6 +1615,8 @@ Description:
 
 What:		/sys/bus/iio/devices/iio:deviceX/buffer/watermark
 KernelVersion:	4.2
+What:		/sys/bus/iio/devices/iio:deviceX/bufferY/watermark
+KernelVersion:	5.11
 Contact:	linux-iio@vger.kernel.org
 Description:
 		A single positive integer specifying the maximum number of scan
@@ -1473,6 +1635,8 @@ Description:
 
 What:		/sys/bus/iio/devices/iio:deviceX/buffer/data_available
 KernelVersion: 4.16
+What:		/sys/bus/iio/devices/iio:deviceX/bufferY/data_available
+KernelVersion:	5.11
 Contact:	linux-iio@vger.kernel.org
 Description:
 		A read-only value indicating the bytes of data available in the
@@ -1823,3 +1987,12 @@ Description:
 		hinge, keyboard, screen. It means the three channels
 		each correspond respectively to hinge angle, keyboard angle,
 		and screen angle.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance_hysteresis_relative
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_hysteresis_relative
+KernelVersion:	5.12
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specify the percent for light sensor relative to the channel
+		absolute value that a data field should change before an event
+		is generated. Units are a percentage of the prior reading.

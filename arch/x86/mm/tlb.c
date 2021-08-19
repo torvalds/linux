@@ -106,7 +106,7 @@ static inline u16 kern_pcid(u16 asid)
 
 #ifdef CONFIG_PAGE_TABLE_ISOLATION
 	/*
-	 * Make sure that the dynamic ASID space does not confict with the
+	 * Make sure that the dynamic ASID space does not conflict with the
 	 * bit we are using to switch between user and kernel ASIDs.
 	 */
 	BUILD_BUG_ON(TLB_NR_DYN_ASIDS >= (1 << X86_CR3_PTI_PCID_USER_BIT));
@@ -736,7 +736,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
 	 *    3, we'd be break the invariant: we'd update local_tlb_gen above
 	 *    1 without the full flush that's needed for tlb_gen 2.
 	 *
-	 * 2. f->new_tlb_gen == mm_tlb_gen.  This is purely an optimiation.
+	 * 2. f->new_tlb_gen == mm_tlb_gen.  This is purely an optimization.
 	 *    Partial TLB flushes are not all that much cheaper than full TLB
 	 *    flushes, so it seems unlikely that it would be a performance win
 	 *    to do a partial flush if that won't bring our TLB fully up to
@@ -876,7 +876,7 @@ static inline struct flush_tlb_info *get_flush_tlb_info(struct mm_struct *mm,
 static inline void put_flush_tlb_info(void)
 {
 #ifdef CONFIG_DEBUG_VM
-	/* Complete reentrency prevention checks */
+	/* Complete reentrancy prevention checks */
 	barrier();
 	this_cpu_dec(flush_tlb_info_idx);
 #endif

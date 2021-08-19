@@ -434,10 +434,13 @@ static ssize_t queue_poll_store(struct request_queue *q, const char *page,
 	if (ret < 0)
 		return ret;
 
-	if (poll_on)
+	if (poll_on) {
 		blk_queue_flag_set(QUEUE_FLAG_POLL, q);
-	else
+	} else {
+		blk_mq_freeze_queue(q);
 		blk_queue_flag_clear(QUEUE_FLAG_POLL, q);
+		blk_mq_unfreeze_queue(q);
+	}
 
 	return ret;
 }

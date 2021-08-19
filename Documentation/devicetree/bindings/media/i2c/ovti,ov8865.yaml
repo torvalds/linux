@@ -44,19 +44,17 @@ properties:
     description: Reset Pin GPIO Control (active low)
 
   port:
-    type: object
     description: MIPI CSI-2 transmitter port
+    $ref: /schemas/graph.yaml#/properties/port
+    additionalProperties: false
 
     properties:
       endpoint:
-        type: object
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
 
         properties:
-          remote-endpoint: true
-
-          link-frequencies:
-            $ref: /schemas/types.yaml#/definitions/uint64-array
-            description: Allowed MIPI CSI-2 link frequencies
+          link-frequencies: true
 
           data-lanes:
             minItems: 1
@@ -65,10 +63,6 @@ properties:
         required:
           - data-lanes
           - link-frequencies
-          - remote-endpoint
-
-    required:
-      - endpoint
 
 required:
   - compatible

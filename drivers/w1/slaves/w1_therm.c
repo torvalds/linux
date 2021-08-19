@@ -63,8 +63,8 @@ static u16 bulk_read_device_counter; /* =0 as per C standard */
 #define EEPROM_CMD_READ     "restore"	/* cmd for read eeprom sysfs */
 #define BULK_TRIGGER_CMD    "trigger"	/* cmd to trigger a bulk read */
 
-#define MIN_TEMP	-55	/* min temperature that can be mesured */
-#define MAX_TEMP	125	/* max temperature that can be mesured */
+#define MIN_TEMP	-55	/* min temperature that can be measured */
+#define MAX_TEMP	125	/* max temperature that can be measured */
 
 /* Allowed values for sysfs conv_time attribute */
 #define CONV_TIME_DEFAULT 0
@@ -667,27 +667,23 @@ static inline int w1_DS18B20_get_resolution(struct w1_slave *sl)
  */
 static inline int w1_DS18B20_convert_temp(u8 rom[9])
 {
-	int t;
-	u32 bv;
+	u16 bv;
+	s16 t;
+
+	/* Signed 16-bit value to unsigned, cpu order */
+	bv = le16_to_cpup((__le16 *)rom);
 
 	/* Config register bit R2 = 1 - GX20MH01 in 13 or 14 bit resolution mode */
 	if (rom[4] & 0x80) {
-		/* Signed 16-bit value to unsigned, cpu order */
-		bv = le16_to_cpup((__le16 *)rom);
-
 		/* Insert two temperature bits from config register */
 		/* Avoid arithmetic shift of signed value */
 		bv = (bv << 2) | (rom[4] & 3);
-
-		t = (int) sign_extend32(bv, 17); /* Degrees, lowest bit is 2^-6 */
-		return (t*1000)/64;  /* Millidegrees */
+		t = (s16) bv;	/* Degrees, lowest bit is 2^-6 */
+		return (int)t * 1000 / 64;	/* Sign-extend to int; millidegrees */
 	}
-
-	t = (int)le16_to_cpup((__le16 *)rom);
-	return t*1000/16;
+	t = (s16)bv;	/* Degrees, lowest bit is 2^-4 */
+	return (int)t * 1000 / 16;	/* Sign-extend to int; millidegrees */
 }
-
-
 
 /**
  * w1_DS18S20_convert_temp() - temperature computation for DS18S20
@@ -910,8 +906,7 @@ static inline int temperature_from_RAM(struct w1_slave *sl, u8 rom[9])
 static inline s8 int_to_short(int i)
 {
 	/* Prepare to cast to short by eliminating out of range values */
-	i = i > MAX_TEMP ? MAX_TEMP : i;
-	i = i < MIN_TEMP ? MIN_TEMP : i;
+	i = clamp(i, MIN_TEMP, MAX_TEMP);
 	return (s8) i;
 }
 

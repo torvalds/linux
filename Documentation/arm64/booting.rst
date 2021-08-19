@@ -202,9 +202,10 @@ Before jumping into the kernel, the following conditions must be met:
 
 - System registers
 
-  All writable architected system registers at the exception level where
-  the kernel image will be entered must be initialised by software at a
-  higher exception level to prevent execution in an UNKNOWN state.
+  All writable architected system registers at or below the exception
+  level where the kernel image will be entered must be initialised by
+  software at a higher exception level to prevent execution in an UNKNOWN
+  state.
 
   - SCR_EL3.FIQ must have the same value across all CPUs the kernel is
     executing on.
@@ -269,6 +270,12 @@ Before jumping into the kernel, the following conditions must be met:
     - AMCNTENSET1_EL0 must be initialised to a platform specific value
       having 0b1 set for the corresponding bit for each of the auxiliary
       counters present.
+
+  For CPUs with the Fine Grained Traps (FEAT_FGT) extension present:
+
+  - If EL3 is present and the kernel is entered at EL2:
+
+    - SCR_EL3.FGTEn (bit 27) must be initialised to 0b1.
 
 The requirements described above for CPU mode, caches, MMUs, architected
 timers, coherency and system registers apply to all CPUs.  All CPUs must

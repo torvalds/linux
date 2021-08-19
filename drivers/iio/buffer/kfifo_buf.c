@@ -180,13 +180,13 @@ static void devm_iio_kfifo_release(struct device *dev, void *res)
 }
 
 /**
- * devm_iio_fifo_allocate - Resource-managed iio_kfifo_allocate()
+ * devm_iio_kfifo_allocate - Resource-managed iio_kfifo_allocate()
  * @dev:		Device to allocate kfifo buffer for
  *
  * RETURNS:
  * Pointer to allocated iio_buffer on success, NULL on failure.
  */
-struct iio_buffer *devm_iio_kfifo_allocate(struct device *dev)
+static struct iio_buffer *devm_iio_kfifo_allocate(struct device *dev)
 {
 	struct iio_buffer **ptr, *r;
 
@@ -204,6 +204,45 @@ struct iio_buffer *devm_iio_kfifo_allocate(struct device *dev)
 
 	return r;
 }
-EXPORT_SYMBOL(devm_iio_kfifo_allocate);
+
+/**
+ * devm_iio_kfifo_buffer_setup_ext - Allocate a kfifo buffer & attach it to an IIO device
+ * @dev: Device object to which to attach the life-time of this kfifo buffer
+ * @indio_dev: The device the buffer should be attached to
+ * @mode_flags: The mode flags for this buffer (INDIO_BUFFER_SOFTWARE and/or
+ *		INDIO_BUFFER_TRIGGERED).
+ * @setup_ops: The setup_ops required to configure the HW part of the buffer (optional)
+ * @buffer_attrs: Extra sysfs buffer attributes for this IIO buffer
+ *
+ * This function allocates a kfifo buffer via devm_iio_kfifo_allocate() and
+ * attaches it to the IIO device via iio_device_attach_buffer().
+ * This is meant to be a bit of a short-hand/helper function as there are a few
+ * drivers that seem to do this.
+ */
+int devm_iio_kfifo_buffer_setup_ext(struct device *dev,
+				    struct iio_dev *indio_dev,
+				    int mode_flags,
+				    const struct iio_buffer_setup_ops *setup_ops,
+				    const struct attribute **buffer_attrs)
+{
+	struct iio_buffer *buffer;
+
+	if (!mode_flags)
+		return -EINVAL;
+
+	buffer = devm_iio_kfifo_allocate(dev);
+	if (!buffer)
+		return -ENOMEM;
+
+	mode_flags &= kfifo_access_funcs.modes;
+
+	indio_dev->modes |= mode_flags;
+	indio_dev->setup_ops = setup_ops;
+
+	buffer->attrs = buffer_attrs;
+
+	return iio_device_attach_buffer(indio_dev, buffer);
+}
+EXPORT_SYMBOL_GPL(devm_iio_kfifo_buffer_setup_ext);
 
 MODULE_LICENSE("GPL");

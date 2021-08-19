@@ -115,13 +115,6 @@ static const struct svm_direct_access_msrs {
 	{ .index = MSR_INVALID,				.always = false },
 };
 
-/* enable NPT for AMD64 and X86 with PAE */
-#if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
-bool npt_enabled = true;
-#else
-bool npt_enabled;
-#endif
-
 /*
  * These 2 parameters are used to config the controls for Pause-Loop Exiting:
  * pause_filter_count: On processors that support Pause filtering(indicated
@@ -170,9 +163,12 @@ module_param(pause_filter_count_shrink, ushort, 0444);
 static unsigned short pause_filter_count_max = KVM_SVM_DEFAULT_PLE_WINDOW_MAX;
 module_param(pause_filter_count_max, ushort, 0444);
 
-/* allow nested paging (virtualized MMU) for all guests */
-static int npt = true;
-module_param(npt, int, S_IRUGO);
+/*
+ * Use nested page tables by default.  Note, NPT may get forced off by
+ * svm_hardware_setup() if it's unsupported by hardware or the host kernel.
+ */
+bool npt_enabled = true;
+module_param_named(npt, npt_enabled, bool, 0444);
 
 /* allow nested virtualization in KVM/SVM */
 static int nested = true;
@@ -926,9 +922,6 @@ static __init void svm_set_cpu_caps(void)
 	if (boot_cpu_has(X86_FEATURE_LS_CFG_SSBD) ||
 	    boot_cpu_has(X86_FEATURE_AMD_SSBD))
 		kvm_cpu_cap_set(X86_FEATURE_VIRT_SSBD);
-
-	/* Enable INVPCID feature */
-	kvm_cpu_cap_check_and_set(X86_FEATURE_INVPCID);
 }
 
 static __init int svm_hardware_setup(void)
@@ -991,10 +984,15 @@ static __init int svm_hardware_setup(void)
 			goto err;
 	}
 
-	if (!boot_cpu_has(X86_FEATURE_NPT))
+	/*
+	 * KVM's MMU doesn't support using 2-level paging for itself, and thus
+	 * NPT isn't supported if the host is using 2-level paging since host
+	 * CR4 is unchanged on VMRUN.
+	 */
+	if (!IS_ENABLED(CONFIG_X86_64) && !IS_ENABLED(CONFIG_X86_PAE))
 		npt_enabled = false;
 
-	if (npt_enabled && !npt)
+	if (!boot_cpu_has(X86_FEATURE_NPT))
 		npt_enabled = false;
 
 	kvm_configure_mmu(npt_enabled, get_max_npt_level(), PG_LEVEL_1G);
@@ -1103,12 +1101,12 @@ static u64 svm_write_l1_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 static void svm_check_invpcid(struct vcpu_svm *svm)
 {
 	/*
-	 * Intercept INVPCID instruction only if shadow page table is
-	 * enabled. Interception is not required with nested page table
-	 * enabled.
+	 * Intercept INVPCID if shadow paging is enabled to sync/free shadow
+	 * roots, or if INVPCID is disabled in the guest to inject #UD.
 	 */
 	if (kvm_cpu_cap_has(X86_FEATURE_INVPCID)) {
-		if (!npt_enabled)
+		if (!npt_enabled ||
+		    !guest_cpuid_has(&svm->vcpu, X86_FEATURE_INVPCID))
 			svm_set_intercept(svm, INTERCEPT_INVPCID);
 		else
 			svm_clr_intercept(svm, INTERCEPT_INVPCID);
@@ -1203,6 +1201,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 	init_sys_seg(&save->ldtr, SEG_TYPE_LDT);
 	init_sys_seg(&save->tr, SEG_TYPE_BUSY_TSS16);
 
+	svm_set_cr4(&svm->vcpu, 0);
 	svm_set_efer(&svm->vcpu, 0);
 	save->dr6 = 0xffff0ff0;
 	kvm_set_rflags(&svm->vcpu, X86_EFLAGS_FIXED);
@@ -2214,15 +2213,20 @@ static int emulate_svm_instr(struct kvm_vcpu *vcpu, int opcode)
 		[SVM_INSTR_VMSAVE] = vmsave_interception,
 	};
 	struct vcpu_svm *svm = to_svm(vcpu);
+	int ret;
 
 	if (is_guest_mode(vcpu)) {
 		svm->vmcb->control.exit_code = guest_mode_exit_codes[opcode];
 		svm->vmcb->control.exit_info_1 = 0;
 		svm->vmcb->control.exit_info_2 = 0;
 
-		return nested_svm_vmexit(svm);
-	} else
-		return svm_instr_handlers[opcode](svm);
+		/* Returns '1' or -errno on failure, '0' on success. */
+		ret = nested_svm_vmexit(svm);
+		if (ret)
+			return ret;
+		return 1;
+	}
+	return svm_instr_handlers[opcode](svm);
 }
 
 /*
@@ -4396,7 +4400,7 @@ static bool svm_can_emulate_instruction(struct kvm_vcpu *vcpu, void *insn, int i
 	 *
 	 * This happens because CPU microcode reading instruction bytes
 	 * uses a special opcode which attempts to read data using CPL=0
-	 * priviledges. The microcode reads CS:RIP and if it hits a SMAP
+	 * privileges. The microcode reads CS:RIP and if it hits a SMAP
 	 * fault, it gives up and returns no instruction bytes.
 	 *
 	 * Detection:

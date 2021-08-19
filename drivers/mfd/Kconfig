@@ -21,7 +21,7 @@ config MFD_CS5535
 
 config MFD_ALTERA_A10SR
 	bool "Altera Arria10 DevKit System Resource chip"
-	depends on ARCH_SOCFPGA && SPI_MASTER=y && OF
+	depends on ARCH_INTEL_SOCFPGA && SPI_MASTER=y && OF
 	select REGMAP_SPI
 	select MFD_CORE
 	help
@@ -32,7 +32,7 @@ config MFD_ALTERA_A10SR
 
 config MFD_ALTERA_SYSMGR
 	bool "Altera SOCFPGA System Manager"
-	depends on (ARCH_SOCFPGA || ARCH_STRATIX10) && OF
+	depends on ARCH_INTEL_SOCFPGA && OF
 	select MFD_SYSCON
 	help
 	  Select this to get System Manager support for all Altera branded
@@ -658,15 +658,6 @@ config MFD_INTEL_LPSS_PCI
 	  This driver supports Intel Low Power Subsystem (LPSS) devices such as
 	  I2C, SPI and HS-UART starting from Intel Sunrisepoint (Intel Skylake
 	  PCH) in PCI mode.
-
-config MFD_INTEL_MSIC
-	bool "Intel MSIC"
-	depends on INTEL_SCU
-	select MFD_CORE
-	help
-	  Select this option to enable access to Intel MSIC (Avatele
-	  Passage) chip. This chip embeds audio, battery, GPIO, etc.
-	  devices used in Intel Medfield platforms.
 
 config MFD_INTEL_PMC_BXT
 	tristate "Intel PMC Driver for Broxton"

@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2015-2018 Oracle.  All rights reserved.
  *
- * Support for backward direction RPCs on RPC/RDMA (server-side).
+ * Support for reverse-direction RPCs on RPC/RDMA (server-side).
  */
 
 #include <linux/sunrpc/svc_rdma.h>
@@ -59,7 +59,7 @@ out_unlock:
 	spin_unlock(&xprt->queue_lock);
 }
 
-/* Send a backwards direction RPC call.
+/* Send a reverse-direction RPC Call.
  *
  * Caller holds the connection's mutex and has already marshaled
  * the RPC/RDMA request.
@@ -93,7 +93,13 @@ static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 	 */
 	get_page(virt_to_page(rqst->rq_buffer));
 	sctxt->sc_send_wr.opcode = IB_WR_SEND;
-	return svc_rdma_send(rdma, sctxt);
+	ret = svc_rdma_send(rdma, sctxt);
+	if (ret < 0)
+		return ret;
+
+	ret = wait_for_completion_killable(&sctxt->sc_done);
+	svc_rdma_send_ctxt_put(rdma, sctxt);
+	return ret;
 }
 
 /* Server-side transport endpoint wants a whole page for its send
@@ -252,9 +258,9 @@ xprt_setup_rdma_bc(struct xprt_create *args)
 	xprt->timeout = &xprt_rdma_bc_timeout;
 	xprt_set_bound(xprt);
 	xprt_set_connected(xprt);
-	xprt->bind_timeout = RPCRDMA_BIND_TO;
-	xprt->reestablish_timeout = RPCRDMA_INIT_REEST_TO;
-	xprt->idle_timeout = RPCRDMA_IDLE_DISC_TO;
+	xprt->bind_timeout = 0;
+	xprt->reestablish_timeout = 0;
+	xprt->idle_timeout = 0;
 
 	xprt->prot = XPRT_TRANSPORT_BC_RDMA;
 	xprt->ops = &xprt_rdma_bc_procs;

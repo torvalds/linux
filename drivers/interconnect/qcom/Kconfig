@@ -17,6 +17,15 @@ config INTERCONNECT_QCOM_MSM8916
 	  This is a driver for the Qualcomm Network-on-Chip on msm8916-based
 	  platforms.
 
+config INTERCONNECT_QCOM_MSM8939
+	tristate "Qualcomm MSM8939 interconnect driver"
+	depends on INTERCONNECT_QCOM
+	depends on QCOM_SMD_RPM
+	select INTERCONNECT_QCOM_SMD_RPM
+	help
+	  This is a driver for the Qualcomm Network-on-Chip on msm8939-based
+	  platforms.
+
 config INTERCONNECT_QCOM_MSM8974
 	tristate "Qualcomm MSM8974 interconnect driver"
 	depends on INTERCONNECT_QCOM
@@ -65,6 +74,15 @@ config INTERCONNECT_QCOM_SC7180
 	  This is a driver for the Qualcomm Network-on-Chip on sc7180-based
 	  platforms.
 
+config INTERCONNECT_QCOM_SDM660
+	tristate "Qualcomm SDM660 interconnect driver"
+	depends on INTERCONNECT_QCOM
+	depends on QCOM_SMD_RPM
+	select INTERCONNECT_QCOM_SMD_RPM
+	help
+	  This is a driver for the Qualcomm Network-on-Chip on sdm660-based
+	  platforms.
+
 config INTERCONNECT_QCOM_SDM845
 	tristate "Qualcomm SDM845 interconnect driver"
 	depends on INTERCONNECT_QCOM_RPMH_POSSIBLE
@@ -72,6 +90,15 @@ config INTERCONNECT_QCOM_SDM845
 	select INTERCONNECT_QCOM_BCM_VOTER
 	help
 	  This is a driver for the Qualcomm Network-on-Chip on sdm845-based
+	  platforms.
+
+config INTERCONNECT_QCOM_SDX55
+	tristate "Qualcomm SDX55 interconnect driver"
+	depends on INTERCONNECT_QCOM_RPMH_POSSIBLE
+	select INTERCONNECT_QCOM_RPMH
+	select INTERCONNECT_QCOM_BCM_VOTER
+	help
+	  This is a driver for the Qualcomm Network-on-Chip on sdx55-based
 	  platforms.
 
 config INTERCONNECT_QCOM_SM8150
@@ -90,6 +117,15 @@ config INTERCONNECT_QCOM_SM8250
 	select INTERCONNECT_QCOM_BCM_VOTER
 	help
 	  This is a driver for the Qualcomm Network-on-Chip on sm8250-based
+	  platforms.
+
+config INTERCONNECT_QCOM_SM8350
+	tristate "Qualcomm SM8350 interconnect driver"
+	depends on INTERCONNECT_QCOM_RPMH_POSSIBLE
+	select INTERCONNECT_QCOM_RPMH
+	select INTERCONNECT_QCOM_BCM_VOTER
+	help
+	  This is a driver for the Qualcomm Network-on-Chip on SM8350-based
 	  platforms.
 
 config INTERCONNECT_QCOM_SMD_RPM

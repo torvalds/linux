@@ -92,7 +92,7 @@ static int probe(struct pci_dev *pdev,
 	gdev->info.version = DRIVER_VERSION;
 	gdev->info.release = release;
 	gdev->pdev = pdev;
-	if (pdev->irq) {
+	if (pdev->irq && (pdev->irq != IRQ_NOTCONNECTED)) {
 		gdev->info.irq = pdev->irq;
 		gdev->info.irq_flags = IRQF_SHARED;
 		gdev->info.handler = irqhandler;

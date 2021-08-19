@@ -126,7 +126,7 @@ static int uacce_fops_open(struct inode *inode, struct file *filep)
 {
 	struct uacce_device *uacce;
 	struct uacce_queue *q;
-	int ret = 0;
+	int ret;
 
 	uacce = xa_load(&uacce_xa, iminor(inode));
 	if (!uacce)

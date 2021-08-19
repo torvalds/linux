@@ -5,11 +5,17 @@
  * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
+#include <linux/etherdevice.h>
 #include <net/mac80211.h>
 
 #include "sta.h"
 #include "wfx.h"
+#include "fwio.h"
+#include "bh.h"
+#include "key.h"
 #include "scan.h"
+#include "debug.h"
+#include "hif_tx.h"
 #include "hif_tx_mib.h"
 
 #define HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES 2
@@ -193,7 +199,7 @@ int wfx_update_pm(struct wfx_vif *wvif)
 }
 
 int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		   u16 queue, const struct ieee80211_tx_queue_params *params)
+		u16 queue, const struct ieee80211_tx_queue_params *params)
 {
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;

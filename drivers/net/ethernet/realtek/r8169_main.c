@@ -767,7 +767,7 @@ static void r8168fp_adjust_ocp_cmd(struct rtl8169_private *tp, u32 *cmd, int typ
 	if (type == ERIAR_OOB &&
 	    (tp->mac_version == RTL_GIGA_MAC_VER_52 ||
 	     tp->mac_version == RTL_GIGA_MAC_VER_53))
-		*cmd |= 0x7f0 << 18;
+		*cmd |= 0xf70 << 18;
 }
 
 DECLARE_RTL_COND(rtl_eriar_cond)
@@ -2285,14 +2285,14 @@ static void r8168dp_hw_jumbo_disable(struct rtl8169_private *tp)
 
 static void r8168e_hw_jumbo_enable(struct rtl8169_private *tp)
 {
-	RTL_W8(tp, MaxTxPacketSize, 0x3f);
+	RTL_W8(tp, MaxTxPacketSize, 0x24);
 	RTL_W8(tp, Config3, RTL_R8(tp, Config3) | Jumbo_En0);
 	RTL_W8(tp, Config4, RTL_R8(tp, Config4) | 0x01);
 }
 
 static void r8168e_hw_jumbo_disable(struct rtl8169_private *tp)
 {
-	RTL_W8(tp, MaxTxPacketSize, 0x0c);
+	RTL_W8(tp, MaxTxPacketSize, 0x3f);
 	RTL_W8(tp, Config3, RTL_R8(tp, Config3) & ~Jumbo_En0);
 	RTL_W8(tp, Config4, RTL_R8(tp, Config4) & ~0x01);
 }
@@ -2350,6 +2350,13 @@ static void rtl_jumbo_config(struct rtl8169_private *tp)
 
 	if (pci_is_pcie(tp->pci_dev) && tp->supports_gmii)
 		pcie_set_readrq(tp->pci_dev, readrq);
+
+	/* Chip doesn't support pause in jumbo mode */
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+			 tp->phydev->advertising, !jumbo);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+			 tp->phydev->advertising, !jumbo);
+	phy_start_aneg(tp->phydev);
 }
 
 DECLARE_RTL_COND(rtl_chipcmd_cond)
@@ -4630,8 +4637,6 @@ static int r8169_phy_connect(struct rtl8169_private *tp)
 	if (!tp->supports_gmii)
 		phy_set_max_speed(phydev, SPEED_100);
 
-	phy_support_asym_pause(phydev);
-
 	phy_attached_info(phydev);
 
 	return 0;
@@ -4646,6 +4651,9 @@ static void rtl8169_down(struct rtl8169_private *tp)
 
 	rtl8169_update_counters(tp);
 
+	pci_clear_master(tp->pci_dev);
+	rtl_pci_commit(tp);
+
 	rtl8169_cleanup(tp, true);
 
 	rtl_prepare_power_down(tp);
@@ -4653,6 +4661,7 @@ static void rtl8169_down(struct rtl8169_private *tp)
 
 static void rtl8169_up(struct rtl8169_private *tp)
 {
+	pci_set_master(tp->pci_dev);
 	phy_resume(tp->phydev);
 	rtl8169_init_phy(tp);
 	napi_enable(&tp->napi);
@@ -5306,8 +5315,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rtl_hw_initialize(tp);
 
 	rtl_hw_reset(tp);
-
-	pci_set_master(pdev);
 
 	rc = rtl_alloc_irq(tp);
 	if (rc < 0) {

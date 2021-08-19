@@ -79,12 +79,10 @@ CMAGIC                0x0111           user                     ``include/linux/
 MKISS_DRIVER_MAGIC    0x04bf           mkiss_channel            ``drivers/net/mkiss.h``
 HDLC_MAGIC            0x239e           n_hdlc                   ``drivers/char/n_hdlc.c``
 APM_BIOS_MAGIC        0x4101           apm_user                 ``arch/x86/kernel/apm_32.c``
-CYCLADES_MAGIC        0x4359           cyclades_port            ``include/linux/cyclades.h``
 DB_MAGIC              0x4442           fc_info                  ``drivers/net/iph5526_novram.c``
 DL_MAGIC              0x444d           fc_info                  ``drivers/net/iph5526_novram.c``
 FASYNC_MAGIC          0x4601           fasync_struct            ``include/linux/fs.h``
 FF_MAGIC              0x4646           fc_info                  ``drivers/net/iph5526_novram.c``
-ISICOM_MAGIC          0x4d54           isi_port                 ``include/linux/isicom.h``
 PTY_MAGIC             0x5001                                    ``drivers/char/pty.c``
 PPP_MAGIC             0x5002           ppp                      ``include/linux/if_pppvar.h``
 SSTATE_MAGIC          0x5302           serial_state             ``include/linux/serial.h``
@@ -96,16 +94,13 @@ TTY_MAGIC             0x5401           tty_struct               ``include/linux/
 MGSL_MAGIC            0x5401           mgsl_info                ``drivers/char/synclink.c``
 TTY_DRIVER_MAGIC      0x5402           tty_driver               ``include/linux/tty_driver.h``
 MGSLPC_MAGIC          0x5402           mgslpc_info              ``drivers/char/pcmcia/synclink_cs.c``
-TTY_LDISC_MAGIC       0x5403           tty_ldisc                ``include/linux/tty_ldisc.h``
 USB_SERIAL_MAGIC      0x6702           usb_serial               ``drivers/usb/serial/usb-serial.h``
 FULL_DUPLEX_MAGIC     0x6969                                    ``drivers/net/ethernet/dec/tulip/de2104x.c``
 USB_BLUETOOTH_MAGIC   0x6d02           usb_bluetooth            ``drivers/usb/class/bluetty.c``
 RFCOMM_TTY_MAGIC      0x6d02                                    ``net/bluetooth/rfcomm/tty.c``
 USB_SERIAL_PORT_MAGIC 0x7301           usb_serial_port          ``drivers/usb/serial/usb-serial.h``
 CG_MAGIC              0x00090255       ufs_cylinder_group       ``include/linux/ufs_fs.h``
-RPORT_MAGIC           0x00525001       r_port                   ``drivers/char/rocket_int.h``
 LSEMAGIC              0x05091998       lse                      ``drivers/fc4/fc.c``
-GDTIOCTL_MAGIC        0x06030f07       gdth_iowr_str            ``drivers/scsi/gdth_ioctl.h``
 RIEBL_MAGIC           0x09051990                                ``drivers/net/atarilance.c``
 NBD_REQUEST_MAGIC     0x12560953       nbd_request              ``include/linux/nbd.h``
 RED_MAGIC2            0x170fc2a5       (any)                    ``mm/slab.c``
@@ -148,7 +143,6 @@ PWC_MAGIC             0x89DC10AB       pwc_device               ``drivers/usb/me
 NBD_REPLY_MAGIC       0x96744668       nbd_reply                ``include/linux/nbd.h``
 ENI155_MAGIC          0xa54b872d       midway_eprom	        ``drivers/atm/eni.h``
 CODA_MAGIC            0xC0DAC0DA       coda_file_info           ``fs/coda/coda_fs_i.h``
-DPMEM_MAGIC           0xc0ffee11       gdt_pci_sram             ``drivers/scsi/gdth.h``
 YAM_MAGIC             0xF10A7654       yam_port                 ``drivers/net/hamradio/yam.c``
 CCB_MAGIC             0xf2691ad2       ccb                      ``drivers/scsi/ncr53c8xx.c``
 QUEUE_MAGIC_FREE      0xf7e1c9a3       queue_entry              ``drivers/scsi/arm/queue.c``

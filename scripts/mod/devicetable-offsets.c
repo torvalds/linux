@@ -254,5 +254,9 @@ int main(void)
 	DEVID_FIELD(ssam_device_id, instance);
 	DEVID_FIELD(ssam_device_id, function);
 
+	DEVID(dfl_device_id);
+	DEVID_FIELD(dfl_device_id, type);
+	DEVID_FIELD(dfl_device_id, feature_id);
+
 	return 0;
 }

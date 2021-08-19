@@ -10,7 +10,7 @@
  * EFI Quirks
  * Several EFI systems do not correctly advertise their boot framebuffers.
  * Hence, we use this static table of known broken machines and fix up the
- * information so framebuffer drivers can load corectly.
+ * information so framebuffer drivers can load correctly.
  */
 
 #include <linux/dmi.h>

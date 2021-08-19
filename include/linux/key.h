@@ -289,6 +289,7 @@ extern struct key *key_alloc(struct key_type *type,
 #define KEY_ALLOC_BUILT_IN		0x0004	/* Key is built into kernel */
 #define KEY_ALLOC_BYPASS_RESTRICTION	0x0008	/* Override the check on restricted keyrings */
 #define KEY_ALLOC_UID_KEYRING		0x0010	/* allocating a user or user session keyring */
+#define KEY_ALLOC_SET_KEEP		0x0020	/* Set the KEEP flag on the key/keyring */
 
 extern void key_revoke(struct key *key);
 extern void key_invalidate(struct key *key);
@@ -360,7 +361,7 @@ static inline struct key *request_key(struct key_type *type,
  * completion of keys undergoing construction with a non-interruptible wait.
  */
 #define request_key_net(type, description, net, callout_info) \
-	request_key_tag(type, description, net->key_domain, callout_info);
+	request_key_tag(type, description, net->key_domain, callout_info)
 
 /**
  * request_key_net_rcu - Request a key for a net namespace under RCU conditions
@@ -372,7 +373,7 @@ static inline struct key *request_key(struct key_type *type,
  * network namespace are used.
  */
 #define request_key_net_rcu(type, description, net) \
-	request_key_rcu(type, description, net->key_domain);
+	request_key_rcu(type, description, net->key_domain)
 #endif /* CONFIG_NET */
 
 extern int wait_for_key_construction(struct key *key, bool intr);

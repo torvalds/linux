@@ -45,11 +45,10 @@ static void disk_release_events(struct gendisk *disk);
 void set_capacity(struct gendisk *disk, sector_t sectors)
 {
 	struct block_device *bdev = disk->part0;
-	unsigned long flags;
 
-	spin_lock_irqsave(&bdev->bd_size_lock, flags);
+	spin_lock(&bdev->bd_size_lock);
 	i_size_write(bdev->bd_inode, (loff_t)sectors << SECTOR_SHIFT);
-	spin_unlock_irqrestore(&bdev->bd_size_lock, flags);
+	spin_unlock(&bdev->bd_size_lock);
 }
 EXPORT_SYMBOL(set_capacity);
 
@@ -74,7 +73,7 @@ bool set_capacity_and_notify(struct gendisk *disk, sector_t size)
 		return false;
 
 	pr_info("%s: detected capacity change from %lld to %lld\n",
-		disk->disk_name, size, capacity);
+		disk->disk_name, capacity, size);
 
 	/*
 	 * Historically we did not send a uevent for changes to/from an empty
@@ -476,7 +475,7 @@ void disk_uevent(struct gendisk *disk, enum kobject_action action)
 	struct disk_part_iter piter;
 	struct block_device *part;
 
-	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_PART0);
+	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY_PART0);
 	while ((part = disk_part_iter_next(&piter)))
 		kobject_uevent(bdev_kobj(part), action);
 	disk_part_iter_exit(&piter);
@@ -535,10 +534,8 @@ static void register_disk(struct device *parent, struct gendisk *disk,
 		kobject_create_and_add("holders", &ddev->kobj);
 	disk->slave_dir = kobject_create_and_add("slaves", &ddev->kobj);
 
-	if (disk->flags & GENHD_FL_HIDDEN) {
-		dev_set_uevent_suppress(ddev, 0);
+	if (disk->flags & GENHD_FL_HIDDEN)
 		return;
-	}
 
 	disk_scan_partitions(disk);
 

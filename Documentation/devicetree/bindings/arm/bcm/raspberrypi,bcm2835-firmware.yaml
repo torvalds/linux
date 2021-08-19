@@ -64,6 +64,21 @@ properties:
       - compatible
       - "#reset-cells"
 
+  pwm:
+    type: object
+
+    properties:
+      compatible:
+        const: raspberrypi,firmware-poe-pwm
+
+      "#pwm-cells":
+        # See pwm.yaml in this directory for a description of the cells format.
+        const: 2
+
+    required:
+      - compatible
+      - "#pwm-cells"
+
     additionalProperties: false
 
 required:
@@ -86,6 +101,11 @@ examples:
         reset: reset {
             compatible = "raspberrypi,firmware-reset";
             #reset-cells = <1>;
+        };
+
+        pwm: pwm {
+            compatible = "raspberrypi,firmware-poe-pwm";
+            #pwm-cells = <2>;
         };
     };
 ...

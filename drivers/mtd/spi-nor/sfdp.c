@@ -405,8 +405,6 @@ static void spi_nor_regions_sort_erase_types(struct spi_nor_erase_map *map)
  * @nor:		pointer to a 'struct spi_nor'
  * @bfpt_header:	pointer to the 'struct sfdp_parameter_header' describing
  *			the Basic Flash Parameter Table length and version
- * @params:		pointer to the 'struct spi_nor_flash_parameter' to be
- *			filled
  *
  * The Basic Flash Parameter Table is the main and only mandatory table as
  * defined by the SFDP (JESD216) specification.
@@ -431,9 +429,9 @@ static void spi_nor_regions_sort_erase_types(struct spi_nor_erase_map *map)
  * Return: 0 on success, -errno otherwise.
  */
 static int spi_nor_parse_bfpt(struct spi_nor *nor,
-			      const struct sfdp_parameter_header *bfpt_header,
-			      struct spi_nor_flash_parameter *params)
+			      const struct sfdp_parameter_header *bfpt_header)
 {
+	struct spi_nor_flash_parameter *params = nor->params;
 	struct spi_nor_erase_map *map = &params->erase_map;
 	struct spi_nor_erase_type *erase_type = map->erase_type;
 	struct sfdp_bfpt bfpt;
@@ -552,8 +550,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 
 	/* Stop here if not JESD216 rev A or later. */
 	if (bfpt_header->length == BFPT_DWORD_MAX_JESD216)
-		return spi_nor_post_bfpt_fixups(nor, bfpt_header, &bfpt,
-						params);
+		return spi_nor_post_bfpt_fixups(nor, bfpt_header, &bfpt);
 
 	/* Page size: this field specifies 'N' so the page size = 2^N bytes. */
 	val = bfpt.dwords[BFPT_DWORD(11)];
@@ -614,8 +611,8 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 
 	/* Stop here if not JESD216 rev C or later. */
 	if (bfpt_header->length == BFPT_DWORD_MAX_JESD216B)
-		return spi_nor_post_bfpt_fixups(nor, bfpt_header, &bfpt,
-						params);
+		return spi_nor_post_bfpt_fixups(nor, bfpt_header, &bfpt);
+
 	/* 8D-8D-8D command extension. */
 	switch (bfpt.dwords[BFPT_DWORD(18)] & BFPT_DWORD18_CMD_EXT_MASK) {
 	case BFPT_DWORD18_CMD_EXT_REP:
@@ -635,7 +632,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 		return -EOPNOTSUPP;
 	}
 
-	return spi_nor_post_bfpt_fixups(nor, bfpt_header, &bfpt, params);
+	return spi_nor_post_bfpt_fixups(nor, bfpt_header, &bfpt);
 }
 
 /**
@@ -800,18 +797,14 @@ spi_nor_region_check_overlay(struct spi_nor_erase_region *region,
 /**
  * spi_nor_init_non_uniform_erase_map() - initialize the non-uniform erase map
  * @nor:	pointer to a 'struct spi_nor'
- * @params:     pointer to a duplicate 'struct spi_nor_flash_parameter' that is
- *              used for storing SFDP parsed data
  * @smpt:	pointer to the sector map parameter table
  *
  * Return: 0 on success, -errno otherwise.
  */
-static int
-spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
-				   struct spi_nor_flash_parameter *params,
-				   const u32 *smpt)
+static int spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
+					      const u32 *smpt)
 {
-	struct spi_nor_erase_map *map = &params->erase_map;
+	struct spi_nor_erase_map *map = &nor->params->erase_map;
 	struct spi_nor_erase_type *erase = map->erase_type;
 	struct spi_nor_erase_region *region;
 	u64 offset;
@@ -889,8 +882,6 @@ spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
  * spi_nor_parse_smpt() - parse Sector Map Parameter Table
  * @nor:		pointer to a 'struct spi_nor'
  * @smpt_header:	sector map parameter table header
- * @params:		pointer to a duplicate 'struct spi_nor_flash_parameter'
- *                      that is used for storing SFDP parsed data
  *
  * This table is optional, but when available, we parse it to identify the
  * location and size of sectors within the main data array of the flash memory
@@ -899,8 +890,7 @@ spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
  * Return: 0 on success, -errno otherwise.
  */
 static int spi_nor_parse_smpt(struct spi_nor *nor,
-			      const struct sfdp_parameter_header *smpt_header,
-			      struct spi_nor_flash_parameter *params)
+			      const struct sfdp_parameter_header *smpt_header)
 {
 	const u32 *sector_map;
 	u32 *smpt;
@@ -928,11 +918,11 @@ static int spi_nor_parse_smpt(struct spi_nor *nor,
 		goto out;
 	}
 
-	ret = spi_nor_init_non_uniform_erase_map(nor, params, sector_map);
+	ret = spi_nor_init_non_uniform_erase_map(nor, sector_map);
 	if (ret)
 		goto out;
 
-	spi_nor_regions_sort_erase_types(&params->erase_map);
+	spi_nor_regions_sort_erase_types(&nor->params->erase_map);
 	/* fall through */
 out:
 	kfree(smpt);
@@ -944,13 +934,11 @@ out:
  * @nor:		pointer to a 'struct spi_nor'.
  * @param_header:	pointer to the 'struct sfdp_parameter_header' describing
  *			the 4-Byte Address Instruction Table length and version.
- * @params:		pointer to the 'struct spi_nor_flash_parameter' to be.
  *
  * Return: 0 on success, -errno otherwise.
  */
 static int spi_nor_parse_4bait(struct spi_nor *nor,
-			       const struct sfdp_parameter_header *param_header,
-			       struct spi_nor_flash_parameter *params)
+			       const struct sfdp_parameter_header *param_header)
 {
 	static const struct sfdp_4bait reads[] = {
 		{ SNOR_HWCAPS_READ,		BIT(0) },
@@ -974,6 +962,7 @@ static int spi_nor_parse_4bait(struct spi_nor *nor,
 		{ 0u /* not used */,		BIT(11) },
 		{ 0u /* not used */,		BIT(12) },
 	};
+	struct spi_nor_flash_parameter *params = nor->params;
 	struct spi_nor_pp_command *params_pp = params->page_programs;
 	struct spi_nor_erase_map *map = &params->erase_map;
 	struct spi_nor_erase_type *erase_type = map->erase_type;
@@ -1130,13 +1119,11 @@ out:
  * @nor:		pointer to a 'struct spi_nor'
  * @profile1_header:	pointer to the 'struct sfdp_parameter_header' describing
  *			the Profile 1.0 Table length and version.
- * @params:		pointer to the 'struct spi_nor_flash_parameter' to be.
  *
  * Return: 0 on success, -errno otherwise.
  */
 static int spi_nor_parse_profile1(struct spi_nor *nor,
-				  const struct sfdp_parameter_header *profile1_header,
-				  struct spi_nor_flash_parameter *params)
+				  const struct sfdp_parameter_header *profile1_header)
 {
 	u32 *dwords, addr;
 	size_t len;
@@ -1160,14 +1147,14 @@ static int spi_nor_parse_profile1(struct spi_nor *nor,
 
 	 /* Set the Read Status Register dummy cycles and dummy address bytes. */
 	if (dwords[0] & PROFILE1_DWORD1_RDSR_DUMMY)
-		params->rdsr_dummy = 8;
+		nor->params->rdsr_dummy = 8;
 	else
-		params->rdsr_dummy = 4;
+		nor->params->rdsr_dummy = 4;
 
 	if (dwords[0] & PROFILE1_DWORD1_RDSR_ADDR_BYTES)
-		params->rdsr_addr_nbytes = 4;
+		nor->params->rdsr_addr_nbytes = 4;
 	else
-		params->rdsr_addr_nbytes = 0;
+		nor->params->rdsr_addr_nbytes = 0;
 
 	/*
 	 * We don't know what speed the controller is running at. Find the
@@ -1193,7 +1180,7 @@ static int spi_nor_parse_profile1(struct spi_nor *nor,
 	dummy = round_up(dummy, 2);
 
 	/* Update the fast read settings. */
-	spi_nor_set_read_settings(&params->reads[SNOR_CMD_READ_8_8_8_DTR],
+	spi_nor_set_read_settings(&nor->params->reads[SNOR_CMD_READ_8_8_8_DTR],
 				  0, dummy, opcode,
 				  SNOR_PROTO_8_8_8_DTR);
 
@@ -1210,13 +1197,11 @@ out:
  * @nor:		pointer to a 'struct spi_nor'
  * @sccr_header:	pointer to the 'struct sfdp_parameter_header' describing
  *			the SCCR Map table length and version.
- * @params:		pointer to the 'struct spi_nor_flash_parameter' to be.
  *
  * Return: 0 on success, -errno otherwise.
  */
 static int spi_nor_parse_sccr(struct spi_nor *nor,
-			      const struct sfdp_parameter_header *sccr_header,
-			      struct spi_nor_flash_parameter *params)
+			      const struct sfdp_parameter_header *sccr_header)
 {
 	u32 *dwords, addr;
 	size_t len;
@@ -1245,8 +1230,6 @@ out:
 /**
  * spi_nor_parse_sfdp() - parse the Serial Flash Discoverable Parameters.
  * @nor:		pointer to a 'struct spi_nor'
- * @params:		pointer to the 'struct spi_nor_flash_parameter' to be
- *			filled
  *
  * The Serial Flash Discoverable Parameters are described by the JEDEC JESD216
  * specification. This is a standard which tends to supported by almost all
@@ -1256,8 +1239,7 @@ out:
  *
  * Return: 0 on success, -errno otherwise.
  */
-int spi_nor_parse_sfdp(struct spi_nor *nor,
-		       struct spi_nor_flash_parameter *params)
+int spi_nor_parse_sfdp(struct spi_nor *nor)
 {
 	const struct sfdp_parameter_header *param_header, *bfpt_header;
 	struct sfdp_parameter_header *param_headers = NULL;
@@ -1326,7 +1308,7 @@ int spi_nor_parse_sfdp(struct spi_nor *nor,
 			bfpt_header = param_header;
 	}
 
-	err = spi_nor_parse_bfpt(nor, bfpt_header, params);
+	err = spi_nor_parse_bfpt(nor, bfpt_header);
 	if (err)
 		goto exit;
 
@@ -1336,19 +1318,19 @@ int spi_nor_parse_sfdp(struct spi_nor *nor,
 
 		switch (SFDP_PARAM_HEADER_ID(param_header)) {
 		case SFDP_SECTOR_MAP_ID:
-			err = spi_nor_parse_smpt(nor, param_header, params);
+			err = spi_nor_parse_smpt(nor, param_header);
 			break;
 
 		case SFDP_4BAIT_ID:
-			err = spi_nor_parse_4bait(nor, param_header, params);
+			err = spi_nor_parse_4bait(nor, param_header);
 			break;
 
 		case SFDP_PROFILE1_ID:
-			err = spi_nor_parse_profile1(nor, param_header, params);
+			err = spi_nor_parse_profile1(nor, param_header);
 			break;
 
 		case SFDP_SCCR_MAP_ID:
-			err = spi_nor_parse_sccr(nor, param_header, params);
+			err = spi_nor_parse_sccr(nor, param_header);
 			break;
 
 		default:

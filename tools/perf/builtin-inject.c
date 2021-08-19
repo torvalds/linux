@@ -313,7 +313,7 @@ static int perf_event__jit_repipe_mmap(struct perf_tool *tool,
 	 * if jit marker, then inject jit mmaps and generate ELF images
 	 */
 	ret = jit_process(inject->session, &inject->output, machine,
-			  event->mmap.filename, event->mmap.pid, &n);
+			  event->mmap.filename, event->mmap.pid, event->mmap.tid, &n);
 	if (ret < 0)
 		return ret;
 	if (ret) {
@@ -413,7 +413,7 @@ static int perf_event__jit_repipe_mmap2(struct perf_tool *tool,
 	 * if jit marker, then inject jit mmaps and generate ELF images
 	 */
 	ret = jit_process(inject->session, &inject->output, machine,
-			  event->mmap2.filename, event->mmap2.pid, &n);
+			  event->mmap2.filename, event->mmap2.pid, event->mmap2.tid, &n);
 	if (ret < 0)
 		return ret;
 	if (ret) {
@@ -906,7 +906,7 @@ int cmd_inject(int argc, const char **argv)
 	}
 
 	data.path = inject.input_name;
-	inject.session = perf_session__new(&data, true, &inject.tool);
+	inject.session = perf_session__new(&data, inject.output.is_pipe, &inject.tool);
 	if (IS_ERR(inject.session))
 		return PTR_ERR(inject.session);
 

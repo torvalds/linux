@@ -2397,7 +2397,7 @@ static void blkfront_connect(struct blkfront_info *info)
 	}
 
 	/*
-	 * physcial-sector-size is a newer field, so old backends may not
+	 * physical-sector-size is a newer field, so old backends may not
 	 * provide this. Assume physical sector size to be the same as
 	 * sector_size in that case.
 	 */

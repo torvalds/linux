@@ -159,7 +159,7 @@ static int smk_bu_current(char *note, struct smack_known *oskp,
 static int smk_bu_task(struct task_struct *otp, int mode, int rc)
 {
 	struct task_smack *tsp = smack_cred(current_cred());
-	struct smack_known *smk_task = smk_of_task_struct(otp);
+	struct smack_known *smk_task = smk_of_task_struct_obj(otp);
 	char acc[SMK_NUM_ACCESS_TYPE + 1];
 
 	if (rc <= 0)
@@ -479,7 +479,7 @@ static int smack_ptrace_access_check(struct task_struct *ctp, unsigned int mode)
 {
 	struct smack_known *skp;
 
-	skp = smk_of_task_struct(ctp);
+	skp = smk_of_task_struct_obj(ctp);
 
 	return smk_ptrace_rule_check(current, skp, mode, __func__);
 }
@@ -1240,7 +1240,8 @@ static int smack_inode_getattr(const struct path *path)
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_setxattr(struct dentry *dentry, const char *name,
+static int smack_inode_setxattr(struct user_namespace *mnt_userns,
+				struct dentry *dentry, const char *name,
 				const void *value, size_t size, int flags)
 {
 	struct smk_audit_info ad;
@@ -1362,7 +1363,8 @@ static int smack_inode_getxattr(struct dentry *dentry, const char *name)
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_removexattr(struct dentry *dentry, const char *name)
+static int smack_inode_removexattr(struct user_namespace *mnt_userns,
+				   struct dentry *dentry, const char *name)
 {
 	struct inode_smack *isp;
 	struct smk_audit_info ad;
@@ -1377,7 +1379,7 @@ static int smack_inode_removexattr(struct dentry *dentry, const char *name)
 		if (!smack_privileged(CAP_MAC_ADMIN))
 			rc = -EPERM;
 	} else
-		rc = cap_inode_removexattr(dentry, name);
+		rc = cap_inode_removexattr(mnt_userns, dentry, name);
 
 	if (rc != 0)
 		return rc;
@@ -1420,9 +1422,9 @@ static int smack_inode_removexattr(struct dentry *dentry, const char *name)
  *
  * Returns the size of the attribute or an error code
  */
-static int smack_inode_getsecurity(struct inode *inode,
-				   const char *name, void **buffer,
-				   bool alloc)
+static int smack_inode_getsecurity(struct user_namespace *mnt_userns,
+				   struct inode *inode, const char *name,
+				   void **buffer, bool alloc)
 {
 	struct socket_smack *ssp;
 	struct socket *sock;
@@ -2031,7 +2033,7 @@ static int smk_curacc_on_task(struct task_struct *p, int access,
 				const char *caller)
 {
 	struct smk_audit_info ad;
-	struct smack_known *skp = smk_of_task_struct(p);
+	struct smack_known *skp = smk_of_task_struct_subj(p);
 	int rc;
 
 	smk_ad_init(&ad, caller, LSM_AUDIT_DATA_TASK);
@@ -2076,15 +2078,29 @@ static int smack_task_getsid(struct task_struct *p)
 }
 
 /**
- * smack_task_getsecid - get the secid of the task
- * @p: the object task
+ * smack_task_getsecid_subj - get the subjective secid of the task
+ * @p: the task
  * @secid: where to put the result
  *
- * Sets the secid to contain a u32 version of the smack label.
+ * Sets the secid to contain a u32 version of the task's subjective smack label.
  */
-static void smack_task_getsecid(struct task_struct *p, u32 *secid)
+static void smack_task_getsecid_subj(struct task_struct *p, u32 *secid)
 {
-	struct smack_known *skp = smk_of_task_struct(p);
+	struct smack_known *skp = smk_of_task_struct_subj(p);
+
+	*secid = skp->smk_secid;
+}
+
+/**
+ * smack_task_getsecid_obj - get the objective secid of the task
+ * @p: the task
+ * @secid: where to put the result
+ *
+ * Sets the secid to contain a u32 version of the task's objective smack label.
+ */
+static void smack_task_getsecid_obj(struct task_struct *p, u32 *secid)
+{
+	struct smack_known *skp = smk_of_task_struct_obj(p);
 
 	*secid = skp->smk_secid;
 }
@@ -2172,7 +2188,7 @@ static int smack_task_kill(struct task_struct *p, struct kernel_siginfo *info,
 {
 	struct smk_audit_info ad;
 	struct smack_known *skp;
-	struct smack_known *tkp = smk_of_task_struct(p);
+	struct smack_known *tkp = smk_of_task_struct_obj(p);
 	int rc;
 
 	if (!sig)
@@ -2210,7 +2226,7 @@ static int smack_task_kill(struct task_struct *p, struct kernel_siginfo *info,
 static void smack_task_to_inode(struct task_struct *p, struct inode *inode)
 {
 	struct inode_smack *isp = smack_inode(inode);
-	struct smack_known *skp = smk_of_task_struct(p);
+	struct smack_known *skp = smk_of_task_struct_obj(p);
 
 	isp->smk_inode = skp;
 	isp->smk_flags |= SMK_INODE_INSTANT;
@@ -3425,7 +3441,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 			 */
 			if (isp->smk_flags & SMK_INODE_CHANGED) {
 				isp->smk_flags &= ~SMK_INODE_CHANGED;
-				rc = __vfs_setxattr(dp, inode,
+				rc = __vfs_setxattr(&init_user_ns, dp, inode,
 					XATTR_NAME_SMACKTRANSMUTE,
 					TRANS_TRUE, TRANS_TRUE_SIZE,
 					0);
@@ -3481,7 +3497,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
  */
 static int smack_getprocattr(struct task_struct *p, char *name, char **value)
 {
-	struct smack_known *skp = smk_of_task_struct(p);
+	struct smack_known *skp = smk_of_task_struct_subj(p);
 	char *cp;
 	int slen;
 
@@ -4597,12 +4613,14 @@ static int smack_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid)
 
 static int smack_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen)
 {
-	return smack_inode_setsecurity(inode, XATTR_SMACK_SUFFIX, ctx, ctxlen, 0);
+	return smack_inode_setsecurity(inode, XATTR_SMACK_SUFFIX, ctx,
+				       ctxlen, 0);
 }
 
 static int smack_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
 {
-	return __vfs_setxattr_noperm(dentry, XATTR_NAME_SMACK, ctx, ctxlen, 0);
+	return __vfs_setxattr_noperm(&init_user_ns, dentry, XATTR_NAME_SMACK,
+				     ctx, ctxlen, 0);
 }
 
 static int smack_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
@@ -4755,7 +4773,8 @@ static struct security_hook_list smack_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(task_setpgid, smack_task_setpgid),
 	LSM_HOOK_INIT(task_getpgid, smack_task_getpgid),
 	LSM_HOOK_INIT(task_getsid, smack_task_getsid),
-	LSM_HOOK_INIT(task_getsecid, smack_task_getsecid),
+	LSM_HOOK_INIT(task_getsecid_subj, smack_task_getsecid_subj),
+	LSM_HOOK_INIT(task_getsecid_obj, smack_task_getsecid_obj),
 	LSM_HOOK_INIT(task_setnice, smack_task_setnice),
 	LSM_HOOK_INIT(task_setioprio, smack_task_setioprio),
 	LSM_HOOK_INIT(task_getioprio, smack_task_getioprio),

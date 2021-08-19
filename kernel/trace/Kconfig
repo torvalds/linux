@@ -60,6 +60,11 @@ config HAVE_NOP_MCOUNT
 	help
 	  Arch supports the gcc options -pg with -mrecord-mcount and -nop-mcount
 
+config HAVE_OBJTOOL_MCOUNT
+	bool
+	help
+	  Arch supports objtool --mcount
+
 config HAVE_C_RECORDMCOUNT
 	bool
 	help
@@ -545,7 +550,7 @@ config KPROBE_EVENTS_ON_NOTRACE
 	  using kprobe events.
 
 	  If kprobes can use ftrace instead of breakpoint, ftrace related
-	  functions are protected from kprobe-events to prevent an infinit
+	  functions are protected from kprobe-events to prevent an infinite
 	  recursion or any unexpected execution path which leads to a kernel
 	  crash.
 
@@ -601,6 +606,30 @@ config FTRACE_MCOUNT_RECORD
 	def_bool y
 	depends on DYNAMIC_FTRACE
 	depends on HAVE_FTRACE_MCOUNT_RECORD
+
+config FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY
+	bool
+	depends on FTRACE_MCOUNT_RECORD
+
+config FTRACE_MCOUNT_USE_CC
+	def_bool y
+	depends on $(cc-option,-mrecord-mcount)
+	depends on !FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY
+	depends on FTRACE_MCOUNT_RECORD
+
+config FTRACE_MCOUNT_USE_OBJTOOL
+	def_bool y
+	depends on HAVE_OBJTOOL_MCOUNT
+	depends on !FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY
+	depends on !FTRACE_MCOUNT_USE_CC
+	depends on FTRACE_MCOUNT_RECORD
+
+config FTRACE_MCOUNT_USE_RECORDMCOUNT
+	def_bool y
+	depends on !FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY
+	depends on !FTRACE_MCOUNT_USE_CC
+	depends on !FTRACE_MCOUNT_USE_OBJTOOL
+	depends on FTRACE_MCOUNT_RECORD
 
 config TRACING_MAP
 	bool
@@ -665,7 +694,7 @@ config TRACEPOINT_BENCHMARK
 	help
 	 This option creates the tracepoint "benchmark:benchmark_event".
 	 When the tracepoint is enabled, it kicks off a kernel thread that
-	 goes into an infinite loop (calling cond_sched() to let other tasks
+	 goes into an infinite loop (calling cond_resched() to let other tasks
 	 run), and calls the tracepoint. Each iteration will record the time
 	 it took to write to the tracepoint and the next iteration that
 	 data will be passed to the tracepoint itself. That is, the tracepoint
@@ -885,6 +914,10 @@ config PREEMPTIRQ_DELAY_TEST
 	  For example, the following invocation generates a burst of three
 	  irq-disabled critical sections for 500us:
 	  modprobe preemptirq_delay_test test_mode=irq delay=500 burst_size=3
+
+	  What's more, if you want to attach the test on the cpu which the latency
+	  tracer is running on, specify cpu_affinity=cpu_num at the end of the
+	  command.
 
 	  If unsure, say N
 

@@ -31,6 +31,8 @@
 
 		reg_usb_h1_vbus: regulator@1 {
 			compatible = "regulator-fixed";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usbh1_vbus>;
 			reg = <1>;
 			regulator-name = "usb_h1_vbus";
 			regulator-min-microvolt = <5000000>;
@@ -41,6 +43,8 @@
 	};
 
 	gpio_leds: leds {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_leds>;
 		compatible = "gpio-leds";
 
 		green {
@@ -122,6 +126,8 @@
 	};
 
 	pmic@58 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pmic>;
 		compatible = "dlg,da9063";
 		reg = <0x58>;
 		interrupt-parent = <&gpio2>;
@@ -215,25 +221,13 @@
 };
 
 &iomuxc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hog>;
-
 	imx6q-phytec-pfla02 {
-		pinctrl_hog: hoggrp {
-			fsl,pins = <
-				MX6QDL_PAD_EIM_D23__GPIO3_IO23 0x80000000
-				MX6QDL_PAD_DISP0_DAT3__GPIO4_IO24 0x80000000 /* SPI NOR chipselect */
-				MX6QDL_PAD_SD4_DAT1__GPIO2_IO09  0x80000000 /* PMIC interrupt */
-				MX6QDL_PAD_ENET_TXD0__GPIO1_IO30 0x80000000 /* Green LED */
-				MX6QDL_PAD_EIM_EB3__GPIO2_IO31 0x80000000 /* Red LED */
-			>;
-		};
-
 		pinctrl_ecspi3: ecspi3grp {
 			fsl,pins = <
 				MX6QDL_PAD_DISP0_DAT2__ECSPI3_MISO	0x100b1
 				MX6QDL_PAD_DISP0_DAT1__ECSPI3_MOSI	0x100b1
 				MX6QDL_PAD_DISP0_DAT0__ECSPI3_SCLK	0x100b1
+				MX6QDL_PAD_DISP0_DAT3__GPIO4_IO24	0x80000000 /* CS0 */
 			>;
 		};
 
@@ -255,6 +249,7 @@
 				MX6QDL_PAD_RGMII_RD3__RGMII_RD3		0x1b030
 				MX6QDL_PAD_RGMII_RX_CTL__RGMII_RX_CTL	0x1b030
 				MX6QDL_PAD_ENET_TX_EN__ENET_TX_EN	0x1b0b0
+				MX6QDL_PAD_EIM_D23__GPIO3_IO23		0x80000000 /* Reset GPIO */
 			>;
 		};
 
@@ -308,8 +303,19 @@
 			>;
 		};
 
+		pinctrl_leds: ledsgrp {
+			fsl,pins = <
+				MX6QDL_PAD_ENET_TXD0__GPIO1_IO30	0x80000000 /* Green LED */
+				MX6QDL_PAD_EIM_EB3__GPIO2_IO31		0x80000000 /* Red LED */
+			>;
+		};
+
 		pinctrl_pcie: pciegrp {
 			fsl,pins = <MX6QDL_PAD_DI0_PIN15__GPIO4_IO17  0x80000000>;
+		};
+
+		pinctrl_pmic: pmicgrp {
+			fsl,pins = <MX6QDL_PAD_SD4_DAT1__GPIO2_IO09	0x80000000>; /* PMIC interrupt */
 		};
 
 		pinctrl_uart3: uart3grp {
@@ -328,9 +334,9 @@
 			>;
 		};
 
-		pinctrl_usbh1: usbh1grp {
+		pinctrl_usbh1_vbus: usbh1vbusgrp {
 			fsl,pins = <
-				MX6QDL_PAD_GPIO_0__USB_H1_PWR		0x80000000
+				MX6QDL_PAD_GPIO_0__GPIO1_IO00		0x1b0b0
 			>;
 		};
 
@@ -415,8 +421,6 @@
 
 &usbh1 {
 	vbus-supply = <&reg_usb_h1_vbus>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usbh1>;
 	status = "disabled";
 };
 
@@ -433,6 +437,7 @@
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+	vmmc-supply = <&vdd_sd1_reg>;
 	status = "disabled";
 };
 
@@ -442,5 +447,6 @@
 		     &pinctrl_usdhc3_cdwp>;
 	cd-gpios = <&gpio1 27 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio1 29 GPIO_ACTIVE_HIGH>;
+	vmmc-supply = <&vdd_sd0_reg>;
 	status = "disabled";
 };

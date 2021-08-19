@@ -31,23 +31,31 @@ int dyn_event_register(struct dyn_event_operations *ops)
 	return 0;
 }
 
-int dyn_event_release(int argc, char **argv, struct dyn_event_operations *type)
+int dyn_event_release(const char *raw_command, struct dyn_event_operations *type)
 {
 	struct dyn_event *pos, *n;
 	char *system = NULL, *event, *p;
-	int ret = -ENOENT;
+	int argc, ret = -ENOENT;
+	char **argv;
+
+	argv = argv_split(GFP_KERNEL, raw_command, &argc);
+	if (!argv)
+		return -ENOMEM;
 
 	if (argv[0][0] == '-') {
-		if (argv[0][1] != ':')
-			return -EINVAL;
+		if (argv[0][1] != ':') {
+			ret = -EINVAL;
+			goto out;
+		}
 		event = &argv[0][2];
 	} else {
 		event = strchr(argv[0], ':');
-		if (!event)
-			return -EINVAL;
+		if (!event) {
+			ret = -EINVAL;
+			goto out;
+		}
 		event++;
 	}
-	argc--; argv++;
 
 	p = strchr(event, '/');
 	if (p) {
@@ -55,15 +63,17 @@ int dyn_event_release(int argc, char **argv, struct dyn_event_operations *type)
 		event = p + 1;
 		*p = '\0';
 	}
-	if (event[0] == '\0')
-		return -EINVAL;
+	if (event[0] == '\0') {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	mutex_lock(&event_mutex);
 	for_each_dyn_event_safe(pos, n) {
 		if (type && type != pos->ops)
 			continue;
 		if (!pos->ops->match(system, event,
-				argc, (const char **)argv, pos))
+				argc - 1, (const char **)argv + 1, pos))
 			continue;
 
 		ret = pos->ops->free(pos);
@@ -71,21 +81,22 @@ int dyn_event_release(int argc, char **argv, struct dyn_event_operations *type)
 			break;
 	}
 	mutex_unlock(&event_mutex);
-
+out:
+	argv_free(argv);
 	return ret;
 }
 
-static int create_dyn_event(int argc, char **argv)
+static int create_dyn_event(const char *raw_command)
 {
 	struct dyn_event_operations *ops;
 	int ret = -ENODEV;
 
-	if (argv[0][0] == '-' || argv[0][0] == '!')
-		return dyn_event_release(argc, argv, NULL);
+	if (raw_command[0] == '-' || raw_command[0] == '!')
+		return dyn_event_release(raw_command, NULL);
 
 	mutex_lock(&dyn_event_ops_mutex);
 	list_for_each_entry(ops, &dyn_event_ops_list, list) {
-		ret = ops->create(argc, (const char **)argv);
+		ret = ops->create(raw_command);
 		if (!ret || ret != -ECANCELED)
 			break;
 	}

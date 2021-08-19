@@ -21,7 +21,6 @@
 #define DEBUGFS_FILENAME "udelay_test"
 
 static DEFINE_MUTEX(udelay_test_lock);
-static struct dentry *udelay_test_debugfs_file;
 static int udelay_test_usecs;
 static int udelay_test_iterations = DEFAULT_ITERATIONS;
 
@@ -138,8 +137,8 @@ static const struct file_operations udelay_test_debugfs_ops = {
 static int __init udelay_test_init(void)
 {
 	mutex_lock(&udelay_test_lock);
-	udelay_test_debugfs_file = debugfs_create_file(DEBUGFS_FILENAME,
-			S_IRUSR, NULL, NULL, &udelay_test_debugfs_ops);
+	debugfs_create_file(DEBUGFS_FILENAME, S_IRUSR, NULL, NULL,
+			    &udelay_test_debugfs_ops);
 	mutex_unlock(&udelay_test_lock);
 
 	return 0;
@@ -150,7 +149,7 @@ module_init(udelay_test_init);
 static void __exit udelay_test_exit(void)
 {
 	mutex_lock(&udelay_test_lock);
-	debugfs_remove(udelay_test_debugfs_file);
+	debugfs_remove(debugfs_lookup(DEBUGFS_FILENAME, NULL));
 	mutex_unlock(&udelay_test_lock);
 }
 

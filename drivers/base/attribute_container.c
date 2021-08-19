@@ -461,6 +461,10 @@ attribute_container_add_class_device(struct device *classdev)
 /**
  * attribute_container_add_class_device_adapter - simple adapter for triggers
  *
+ * @cont: the container to register.
+ * @dev:  the generic device to activate the trigger for
+ * @classdev:	the class device to add
+ *
  * This function is identical to attribute_container_add_class_device except
  * that it is designed to be called from the triggers
  */

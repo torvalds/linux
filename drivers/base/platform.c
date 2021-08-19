@@ -192,7 +192,7 @@ int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 #ifdef CONFIG_SPARC
 	/* sparc does not have irqs represented as IORESOURCE_IRQ resources */
 	if (!dev || num >= dev->archdata.num_irqs)
-		return -ENXIO;
+		goto out_not_found;
 	ret = dev->archdata.irqs[num];
 	goto out;
 #else
@@ -223,10 +223,8 @@ int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 		struct irq_data *irqd;
 
 		irqd = irq_get_irq_data(r->start);
-		if (!irqd) {
-			ret = -ENXIO;
-			goto out;
-		}
+		if (!irqd)
+			goto out_not_found;
 		irqd_set_trigger_type(irqd, r->flags & IORESOURCE_BITS);
 	}
 
@@ -249,8 +247,9 @@ int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 			goto out;
 	}
 
-	ret = -ENXIO;
 #endif
+out_not_found:
+	ret = -ENXIO;
 out:
 	WARN(ret == 0, "0 is an invalid IRQ number\n");
 	return ret;
@@ -1463,13 +1462,16 @@ static int platform_remove(struct device *_dev)
 {
 	struct platform_driver *drv = to_platform_driver(_dev->driver);
 	struct platform_device *dev = to_platform_device(_dev);
-	int ret = 0;
 
-	if (drv->remove)
-		ret = drv->remove(dev);
+	if (drv->remove) {
+		int ret = drv->remove(dev);
+
+		if (ret)
+			dev_warn(_dev, "remove callback returned a non-zero value. This will be ignored.\n");
+	}
 	dev_pm_domain_detach(_dev, true);
 
-	return ret;
+	return 0;
 }
 
 static void platform_shutdown(struct device *_dev)

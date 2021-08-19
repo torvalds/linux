@@ -9,6 +9,12 @@
 	model = "Mecer Xtreme Mini S6";
 	compatible = "mecer,xms6", "rockchip,rk3229";
 
+	aliases {
+		mmc0 = &sdmmc;
+		mmc1 = &sdio;
+		mmc2 = &emmc;
+	};
+
 	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x40000000>;

@@ -992,8 +992,8 @@
 
 					reg = <1>;
 
-					vin4csi41: endpoint@2 {
-						reg = <2>;
+					vin4csi41: endpoint@3 {
+						reg = <3>;
 						remote-endpoint = <&csi41vin4>;
 					};
 				};
@@ -1020,8 +1020,8 @@
 
 					reg = <1>;
 
-					vin5csi41: endpoint@2 {
-						reg = <2>;
+					vin5csi41: endpoint@3 {
+						reg = <3>;
 						remote-endpoint = <&csi41vin5>;
 					};
 				};
@@ -1048,8 +1048,8 @@
 
 					reg = <1>;
 
-					vin6csi41: endpoint@2 {
-						reg = <2>;
+					vin6csi41: endpoint@3 {
+						reg = <3>;
 						remote-endpoint = <&csi41vin6>;
 					};
 				};
@@ -1076,8 +1076,8 @@
 
 					reg = <1>;
 
-					vin7csi41: endpoint@2 {
-						reg = <2>;
+					vin7csi41: endpoint@3 {
+						reg = <3>;
 						remote-endpoint = <&csi41vin7>;
 					};
 				};

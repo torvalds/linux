@@ -1,0 +1,199 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/brcm,brcmstb-usb-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom STB USB PHY
+
+description: Broadcom's PHY that handles EHCI/OHCI and/or XHCI
+
+maintainers:
+  - Al Cooper <alcooperx@gmail.com>
+  - Rafał Miłecki <rafal@milecki.pl>
+
+properties:
+  compatible:
+    enum:
+      - brcm,bcm4908-usb-phy
+      - brcm,bcm7211-usb-phy
+      - brcm,bcm7216-usb-phy
+      - brcm,brcmstb-usb-phy
+
+  reg:
+    minItems: 1
+    maxItems: 6
+    items:
+      - description: the base CTRL register
+      - description: XHCI EC register
+      - description: XHCI GBL register
+      - description: USB PHY register
+      - description: USB MDIO register
+      - description: BDC register
+
+  reg-names:
+    minItems: 1
+    maxItems: 6
+    items:
+      - const: ctrl
+      - const: xhci_ec
+      - const: xhci_gbl
+      - const: usb_phy
+      - const: usb_mdio
+      - const: bdc_ec
+
+  power-domains:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    minItems: 1
+    maxItems: 2
+    items:
+      - const: sw_usb
+      - const: sw_usb3
+
+  interrupts:
+    description: wakeup interrupt
+
+  interrupt-names:
+    const: wake
+
+  brcm,ipp:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Invert Port Power
+    minimum: 0
+    maximum: 1
+
+  brcm,ioc:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Invert Over Current detection
+    minimum: 0
+    maximum: 1
+
+  dr_mode:
+    description: PHY Device mode. If this property is not defined, the PHY will
+      default to "host" mode.
+    enum:
+      - host
+      - peripheral
+      - drd
+      - typec-pd
+
+  brcm,syscon-piarbctl:
+    description: phandle to syscon for handling config registers
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  brcm,has-xhci:
+    description: Indicates the PHY has an XHCI PHY.
+    type: boolean
+
+  brcm,has-eohci:
+    description: Indicates the PHY has an EHCI/OHCI PHY.
+    type: boolean
+
+  "#phy-cells":
+    description: |
+      Cell allows setting the type of the PHY. Possible values are:
+      - PHY_TYPE_USB2 for USB1.1/2.0 PHY
+      - PHY_TYPE_USB3 for USB3.x PHY
+    const: 1
+
+required:
+  - reg
+  - "#phy-cells"
+
+anyOf:
+  - required:
+      - brcm,has-xhci
+  - required:
+      - brcm,has-eohci
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - const: brcm,bcm4908-usb-phy
+              - const: brcm,brcmstb-usb-phy
+    then:
+      properties:
+        reg:
+          minItems: 1
+          maxItems: 2
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: brcm,bcm7211-usb-phy
+    then:
+      properties:
+        reg:
+          minItems: 5
+          maxItems: 6
+        reg-names:
+          minItems: 5
+          maxItems: 6
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: brcm,bcm7216-usb-phy
+    then:
+      properties:
+        reg:
+          minItems: 3
+          maxItems: 3
+        reg-names:
+          minItems: 3
+          maxItems: 3
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/phy/phy.h>
+
+    usb-phy@f0470200 {
+        compatible = "brcm,brcmstb-usb-phy";
+        reg = <0xf0470200 0xb8>,
+              <0xf0471940 0x6c0>;
+        #phy-cells = <1>;
+        dr_mode = "host";
+        brcm,ioc = <1>;
+        brcm,ipp = <1>;
+        brcm,has-xhci;
+        brcm,has-eohci;
+        clocks = <&usb20>, <&usb30>;
+        clock-names = "sw_usb", "sw_usb3";
+    };
+  - |
+    #include <dt-bindings/phy/phy.h>
+
+    usb-phy@29f0200 {
+        compatible = "brcm,bcm7211-usb-phy";
+        reg = <0x29f0200 0x200>,
+              <0x29c0880 0x30>,
+              <0x29cc100 0x534>,
+              <0x2808000 0x24>,
+              <0x2980080 0x8>;
+        reg-names = "ctrl",
+            "xhci_ec",
+            "xhci_gbl",
+            "usb_phy",
+            "usb_mdio";
+        brcm,ioc = <0x0>;
+        brcm,ipp = <0x0>;
+        interrupts = <0x30>;
+        interrupt-parent = <&vpu_intr1_nosec_intc>;
+        interrupt-names = "wake";
+        #phy-cells = <0x1>;
+        brcm,has-xhci;
+        brcm,syscon-piarbctl = <&syscon_piarbctl>;
+        clocks = <&scmi_clk 256>;
+        clock-names = "sw_usb";
+    };

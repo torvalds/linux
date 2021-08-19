@@ -75,7 +75,8 @@ void blk_mq_sched_restart(struct blk_mq_hw_ctx *hctx)
 	blk_mq_run_hw_queue(hctx, true);
 }
 
-static int sched_rq_cmp(void *priv, struct list_head *a, struct list_head *b)
+static int sched_rq_cmp(void *priv, const struct list_head *a,
+			const struct list_head *b)
 {
 	struct request *rqa = container_of(a, struct request, queuelist);
 	struct request *rqb = container_of(b, struct request, queuelist);
@@ -384,14 +385,7 @@ bool blk_mq_sched_try_insert_merge(struct request_queue *q, struct request *rq)
 }
 EXPORT_SYMBOL_GPL(blk_mq_sched_try_insert_merge);
 
-void blk_mq_sched_request_inserted(struct request *rq)
-{
-	trace_block_rq_insert(rq);
-}
-EXPORT_SYMBOL_GPL(blk_mq_sched_request_inserted);
-
 static bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx,
-				       bool has_sched,
 				       struct request *rq)
 {
 	/*
@@ -408,9 +402,6 @@ static bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx,
 	if ((rq->rq_flags & RQF_FLUSH_SEQ) || blk_rq_is_passthrough(rq))
 		return true;
 
-	if (has_sched)
-		rq->rq_flags |= RQF_SORTED;
-
 	return false;
 }
 
@@ -424,7 +415,7 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 
 	WARN_ON(e && (rq->tag != BLK_MQ_NO_TAG));
 
-	if (blk_mq_sched_bypass_insert(hctx, !!e, rq)) {
+	if (blk_mq_sched_bypass_insert(hctx, rq)) {
 		/*
 		 * Firstly normal IO request is inserted to scheduler queue or
 		 * sw queue, meantime we add flush request to dispatch queue(

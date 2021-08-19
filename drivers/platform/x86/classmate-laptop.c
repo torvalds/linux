@@ -956,7 +956,7 @@ static int cmpc_ipml_add(struct acpi_device *acpi)
 	/*
 	 * If RFKILL is disabled, rfkill_alloc will return ERR_PTR(-ENODEV).
 	 * This is OK, however, since all other uses of the device will not
-	 * derefence it.
+	 * dereference it.
 	 */
 	if (ipml->rf) {
 		retval = rfkill_register(ipml->rf);

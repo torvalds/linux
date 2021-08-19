@@ -890,6 +890,13 @@ int security_sb_eat_lsm_opts(char *options, void **mnt_opts)
 }
 EXPORT_SYMBOL(security_sb_eat_lsm_opts);
 
+int security_sb_mnt_opts_compat(struct super_block *sb,
+				void *mnt_opts)
+{
+	return call_int_hook(sb_mnt_opts_compat, 0, sb, mnt_opts);
+}
+EXPORT_SYMBOL(security_sb_mnt_opts_compat);
+
 int security_sb_remount(struct super_block *sb,
 			void *mnt_opts)
 {
@@ -1288,7 +1295,8 @@ int security_inode_getattr(const struct path *path)
 	return call_int_hook(inode_getattr, 0, path);
 }
 
-int security_inode_setxattr(struct dentry *dentry, const char *name,
+int security_inode_setxattr(struct user_namespace *mnt_userns,
+			    struct dentry *dentry, const char *name,
 			    const void *value, size_t size, int flags)
 {
 	int ret;
@@ -1299,8 +1307,8 @@ int security_inode_setxattr(struct dentry *dentry, const char *name,
 	 * SELinux and Smack integrate the cap call,
 	 * so assume that all LSMs supplying this call do so.
 	 */
-	ret = call_int_hook(inode_setxattr, 1, dentry, name, value, size,
-				flags);
+	ret = call_int_hook(inode_setxattr, 1, mnt_userns, dentry, name, value,
+			    size, flags);
 
 	if (ret == 1)
 		ret = cap_inode_setxattr(dentry, name, value, size, flags);
@@ -1335,7 +1343,8 @@ int security_inode_listxattr(struct dentry *dentry)
 	return call_int_hook(inode_listxattr, 0, dentry);
 }
 
-int security_inode_removexattr(struct dentry *dentry, const char *name)
+int security_inode_removexattr(struct user_namespace *mnt_userns,
+			       struct dentry *dentry, const char *name)
 {
 	int ret;
 
@@ -1345,9 +1354,9 @@ int security_inode_removexattr(struct dentry *dentry, const char *name)
 	 * SELinux and Smack integrate the cap call,
 	 * so assume that all LSMs supplying this call do so.
 	 */
-	ret = call_int_hook(inode_removexattr, 1, dentry, name);
+	ret = call_int_hook(inode_removexattr, 1, mnt_userns, dentry, name);
 	if (ret == 1)
-		ret = cap_inode_removexattr(dentry, name);
+		ret = cap_inode_removexattr(mnt_userns, dentry, name);
 	if (ret)
 		return ret;
 	ret = ima_inode_removexattr(dentry, name);
@@ -1361,12 +1370,15 @@ int security_inode_need_killpriv(struct dentry *dentry)
 	return call_int_hook(inode_need_killpriv, 0, dentry);
 }
 
-int security_inode_killpriv(struct dentry *dentry)
+int security_inode_killpriv(struct user_namespace *mnt_userns,
+			    struct dentry *dentry)
 {
-	return call_int_hook(inode_killpriv, 0, dentry);
+	return call_int_hook(inode_killpriv, 0, mnt_userns, dentry);
 }
 
-int security_inode_getsecurity(struct inode *inode, const char *name, void **buffer, bool alloc)
+int security_inode_getsecurity(struct user_namespace *mnt_userns,
+			       struct inode *inode, const char *name,
+			       void **buffer, bool alloc)
 {
 	struct security_hook_list *hp;
 	int rc;
@@ -1377,7 +1389,7 @@ int security_inode_getsecurity(struct inode *inode, const char *name, void **buf
 	 * Only one module will provide an attribute with a given name.
 	 */
 	hlist_for_each_entry(hp, &security_hook_heads.inode_getsecurity, list) {
-		rc = hp->hook.inode_getsecurity(inode, name, buffer, alloc);
+		rc = hp->hook.inode_getsecurity(mnt_userns, inode, name, buffer, alloc);
 		if (rc != LSM_RET_DEFAULT(inode_getsecurity))
 			return rc;
 	}
@@ -1757,12 +1769,19 @@ int security_task_getsid(struct task_struct *p)
 	return call_int_hook(task_getsid, 0, p);
 }
 
-void security_task_getsecid(struct task_struct *p, u32 *secid)
+void security_task_getsecid_subj(struct task_struct *p, u32 *secid)
 {
 	*secid = 0;
-	call_void_hook(task_getsecid, p, secid);
+	call_void_hook(task_getsecid_subj, p, secid);
 }
-EXPORT_SYMBOL(security_task_getsecid);
+EXPORT_SYMBOL(security_task_getsecid_subj);
+
+void security_task_getsecid_obj(struct task_struct *p, u32 *secid)
+{
+	*secid = 0;
+	call_void_hook(task_getsecid_obj, p, secid);
+}
+EXPORT_SYMBOL(security_task_getsecid_obj);
 
 int security_task_setnice(struct task_struct *p, int nice)
 {

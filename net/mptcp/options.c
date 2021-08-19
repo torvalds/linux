@@ -411,6 +411,7 @@ static void clear_3rdack_retransmission(struct sock *sk)
 }
 
 static bool mptcp_established_options_mp(struct sock *sk, struct sk_buff *skb,
+					 bool snd_data_fin_enable,
 					 unsigned int *size,
 					 unsigned int remaining,
 					 struct mptcp_out_options *opts)
@@ -428,9 +429,10 @@ static bool mptcp_established_options_mp(struct sock *sk, struct sk_buff *skb,
 	if (!skb)
 		return false;
 
-	/* MPC/MPJ needed only on 3rd ack packet */
-	if (subflow->fully_established ||
-	    subflow->snd_isn != TCP_SKB_CB(skb)->seq)
+	/* MPC/MPJ needed only on 3rd ack packet, DATA_FIN and TCP shutdown take precedence */
+	if (subflow->fully_established || snd_data_fin_enable ||
+	    subflow->snd_isn != TCP_SKB_CB(skb)->seq ||
+	    sk->sk_state != TCP_ESTABLISHED)
 		return false;
 
 	if (subflow->mp_capable) {
@@ -502,20 +504,20 @@ static void mptcp_write_data_fin(struct mptcp_subflow_context *subflow,
 }
 
 static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
+					  bool snd_data_fin_enable,
 					  unsigned int *size,
 					  unsigned int remaining,
 					  struct mptcp_out_options *opts)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
 	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
-	u64 snd_data_fin_enable, ack_seq;
 	unsigned int dss_size = 0;
 	struct mptcp_ext *mpext;
 	unsigned int ack_size;
 	bool ret = false;
+	u64 ack_seq;
 
 	mpext = skb ? mptcp_get_ext(skb) : NULL;
-	snd_data_fin_enable = mptcp_data_fin_enabled(msk);
 
 	if (!skb || (mpext && mpext->use_map) || snd_data_fin_enable) {
 		unsigned int map_size;
@@ -565,15 +567,15 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 }
 
 static u64 add_addr_generate_hmac(u64 key1, u64 key2, u8 addr_id,
-				  struct in_addr *addr)
+				  struct in_addr *addr, u16 port)
 {
 	u8 hmac[SHA256_DIGEST_SIZE];
 	u8 msg[7];
 
 	msg[0] = addr_id;
 	memcpy(&msg[1], &addr->s_addr, 4);
-	msg[5] = 0;
-	msg[6] = 0;
+	msg[5] = port >> 8;
+	msg[6] = port & 0xFF;
 
 	mptcp_crypto_hmac_sha(key1, key2, msg, 7, hmac);
 
@@ -582,15 +584,15 @@ static u64 add_addr_generate_hmac(u64 key1, u64 key2, u8 addr_id,
 
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 static u64 add_addr6_generate_hmac(u64 key1, u64 key2, u8 addr_id,
-				   struct in6_addr *addr)
+				   struct in6_addr *addr, u16 port)
 {
 	u8 hmac[SHA256_DIGEST_SIZE];
 	u8 msg[19];
 
 	msg[0] = addr_id;
 	memcpy(&msg[1], &addr->s6_addr, 16);
-	msg[17] = 0;
-	msg[18] = 0;
+	msg[17] = port >> 8;
+	msg[18] = port & 0xFF;
 
 	mptcp_crypto_hmac_sha(key1, key2, msg, 19, hmac);
 
@@ -644,7 +646,8 @@ static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *
 			opts->ahmac = add_addr_generate_hmac(msk->local_key,
 							     msk->remote_key,
 							     opts->addr_id,
-							     &opts->addr);
+							     &opts->addr,
+							     opts->port);
 		}
 	}
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
@@ -655,7 +658,8 @@ static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *
 			opts->ahmac = add_addr6_generate_hmac(msk->local_key,
 							      msk->remote_key,
 							      opts->addr_id,
-							      &opts->addr6);
+							      &opts->addr6,
+							      opts->port);
 		}
 	}
 #endif
@@ -717,12 +721,15 @@ bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
 			       unsigned int *size, unsigned int remaining,
 			       struct mptcp_out_options *opts)
 {
+	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
+	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
 	unsigned int opt_size = 0;
+	bool snd_data_fin;
 	bool ret = false;
 
 	opts->suboptions = 0;
 
-	if (unlikely(mptcp_check_fallback(sk)))
+	if (unlikely(__mptcp_check_fallback(msk)))
 		return false;
 
 	/* prevent adding of any MPTCP related options on reset packet
@@ -731,10 +738,10 @@ bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
 	if (unlikely(skb && TCP_SKB_CB(skb)->tcp_flags & TCPHDR_RST))
 		return false;
 
-	if (mptcp_established_options_mp(sk, skb, &opt_size, remaining, opts))
+	snd_data_fin = mptcp_data_fin_enabled(msk);
+	if (mptcp_established_options_mp(sk, skb, snd_data_fin, &opt_size, remaining, opts))
 		ret = true;
-	else if (mptcp_established_options_dss(sk, skb, &opt_size, remaining,
-					       opts))
+	else if (mptcp_established_options_dss(sk, skb, snd_data_fin, &opt_size, remaining, opts))
 		ret = true;
 
 	/* we reserved enough space for the above options, and exceeding the
@@ -957,12 +964,14 @@ static bool add_addr_hmac_valid(struct mptcp_sock *msk,
 	if (mp_opt->family == MPTCP_ADDR_IPVERSION_4)
 		hmac = add_addr_generate_hmac(msk->remote_key,
 					      msk->local_key,
-					      mp_opt->addr_id, &mp_opt->addr);
+					      mp_opt->addr_id, &mp_opt->addr,
+					      mp_opt->port);
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	else
 		hmac = add_addr6_generate_hmac(msk->remote_key,
 					       msk->local_key,
-					       mp_opt->addr_id, &mp_opt->addr6);
+					       mp_opt->addr_id, &mp_opt->addr6,
+					       mp_opt->port);
 #endif
 
 	pr_debug("msk=%p, ahmac=%llu, mp_opt->ahmac=%llu\n",

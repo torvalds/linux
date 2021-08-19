@@ -13,18 +13,26 @@
 
 #include <stdint.h>
 #include <time.h>
+#include <sched.h>
+#include <sys/syscall.h>
 
 #define VCPU_ID		5
 
+#define SHINFO_REGION_GVA	0xc0000000ULL
 #define SHINFO_REGION_GPA	0xc0000000ULL
 #define SHINFO_REGION_SLOT	10
 #define PAGE_SIZE		4096
 
 #define PVTIME_ADDR	(SHINFO_REGION_GPA + PAGE_SIZE)
+#define RUNSTATE_ADDR	(SHINFO_REGION_GPA + PAGE_SIZE + 0x20)
+
+#define RUNSTATE_VADDR	(SHINFO_REGION_GVA + PAGE_SIZE + 0x20)
 
 static struct kvm_vm *vm;
 
 #define XEN_HYPERCALL_MSR	0x40000000
+
+#define MIN_STEAL_TIME		50000
 
 struct pvclock_vcpu_time_info {
         u32   version;
@@ -43,9 +51,65 @@ struct pvclock_wall_clock {
         u32   nsec;
 } __attribute__((__packed__));
 
+struct vcpu_runstate_info {
+    uint32_t state;
+    uint64_t state_entry_time;
+    uint64_t time[4];
+};
+
+#define RUNSTATE_running  0
+#define RUNSTATE_runnable 1
+#define RUNSTATE_blocked  2
+#define RUNSTATE_offline  3
+
 static void guest_code(void)
 {
+	struct vcpu_runstate_info *rs = (void *)RUNSTATE_VADDR;
+
+	/* Test having the host set runstates manually */
+	GUEST_SYNC(RUNSTATE_runnable);
+	GUEST_ASSERT(rs->time[RUNSTATE_runnable] != 0);
+	GUEST_ASSERT(rs->state == 0);
+
+	GUEST_SYNC(RUNSTATE_blocked);
+	GUEST_ASSERT(rs->time[RUNSTATE_blocked] != 0);
+	GUEST_ASSERT(rs->state == 0);
+
+	GUEST_SYNC(RUNSTATE_offline);
+	GUEST_ASSERT(rs->time[RUNSTATE_offline] != 0);
+	GUEST_ASSERT(rs->state == 0);
+
+	/* Test runstate time adjust */
+	GUEST_SYNC(4);
+	GUEST_ASSERT(rs->time[RUNSTATE_blocked] == 0x5a);
+	GUEST_ASSERT(rs->time[RUNSTATE_offline] == 0x6b6b);
+
+	/* Test runstate time set */
+	GUEST_SYNC(5);
+	GUEST_ASSERT(rs->state_entry_time >= 0x8000);
+	GUEST_ASSERT(rs->time[RUNSTATE_runnable] == 0);
+	GUEST_ASSERT(rs->time[RUNSTATE_blocked] == 0x6b6b);
+	GUEST_ASSERT(rs->time[RUNSTATE_offline] == 0x5a);
+
+	/* sched_yield() should result in some 'runnable' time */
+	GUEST_SYNC(6);
+	GUEST_ASSERT(rs->time[RUNSTATE_runnable] >= MIN_STEAL_TIME);
+
 	GUEST_DONE();
+}
+
+static long get_run_delay(void)
+{
+        char path[64];
+        long val[2];
+        FILE *fp;
+
+        sprintf(path, "/proc/%ld/schedstat", syscall(SYS_gettid));
+        fp = fopen(path, "r");
+        fscanf(fp, "%ld %ld ", &val[0], &val[1]);
+        fclose(fp);
+
+        return val[1];
 }
 
 static int cmp_timespec(struct timespec *a, struct timespec *b)
@@ -66,11 +130,13 @@ int main(int argc, char *argv[])
 {
 	struct timespec min_ts, max_ts, vm_ts;
 
-	if (!(kvm_check_cap(KVM_CAP_XEN_HVM) &
-	      KVM_XEN_HVM_CONFIG_SHARED_INFO) ) {
+	int xen_caps = kvm_check_cap(KVM_CAP_XEN_HVM);
+	if (!(xen_caps & KVM_XEN_HVM_CONFIG_SHARED_INFO) ) {
 		print_skip("KVM_XEN_HVM_CONFIG_SHARED_INFO not available");
 		exit(KSFT_SKIP);
 	}
+
+	bool do_runstate_tests = !!(xen_caps & KVM_XEN_HVM_CONFIG_RUNSTATE);
 
 	clock_gettime(CLOCK_REALTIME, &min_ts);
 
@@ -80,6 +146,7 @@ int main(int argc, char *argv[])
 	/* Map a region for the shared_info page */
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
 				    SHINFO_REGION_GPA, SHINFO_REGION_SLOT, 2, 0);
+	virt_map(vm, SHINFO_REGION_GVA, SHINFO_REGION_GPA, 2, 0);
 
 	struct kvm_xen_hvm_config hvmc = {
 		.flags = KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL,
@@ -111,6 +178,17 @@ int main(int argc, char *argv[])
 	};
 	vcpu_ioctl(vm, VCPU_ID, KVM_XEN_VCPU_SET_ATTR, &pvclock);
 
+	if (do_runstate_tests) {
+		struct kvm_xen_vcpu_attr st = {
+			.type = KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_ADDR,
+			.u.gpa = RUNSTATE_ADDR,
+		};
+		vcpu_ioctl(vm, VCPU_ID, KVM_XEN_VCPU_SET_ATTR, &st);
+	}
+
+	struct vcpu_runstate_info *rs = addr_gpa2hva(vm, RUNSTATE_ADDR);;
+	rs->state = 0x5a;
+
 	for (;;) {
 		volatile struct kvm_run *run = vcpu_state(vm, VCPU_ID);
 		struct ucall uc;
@@ -126,8 +204,56 @@ int main(int argc, char *argv[])
 		case UCALL_ABORT:
 			TEST_FAIL("%s", (const char *)uc.args[0]);
 			/* NOT REACHED */
-		case UCALL_SYNC:
+		case UCALL_SYNC: {
+			struct kvm_xen_vcpu_attr rst;
+			long rundelay;
+
+			/* If no runstate support, bail out early */
+			if (!do_runstate_tests)
+				goto done;
+
+			TEST_ASSERT(rs->state_entry_time == rs->time[0] +
+				    rs->time[1] + rs->time[2] + rs->time[3],
+				    "runstate times don't add up");
+
+			switch (uc.args[1]) {
+			case RUNSTATE_running...RUNSTATE_offline:
+				rst.type = KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_CURRENT;
+				rst.u.runstate.state = uc.args[1];
+				vcpu_ioctl(vm, VCPU_ID, KVM_XEN_VCPU_SET_ATTR, &rst);
+				break;
+			case 4:
+				rst.type = KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_ADJUST;
+				memset(&rst.u, 0, sizeof(rst.u));
+				rst.u.runstate.state = (uint64_t)-1;
+				rst.u.runstate.time_blocked =
+					0x5a - rs->time[RUNSTATE_blocked];
+				rst.u.runstate.time_offline =
+					0x6b6b - rs->time[RUNSTATE_offline];
+				rst.u.runstate.time_runnable = -rst.u.runstate.time_blocked -
+					rst.u.runstate.time_offline;
+				vcpu_ioctl(vm, VCPU_ID, KVM_XEN_VCPU_SET_ATTR, &rst);
+				break;
+
+			case 5:
+				rst.type = KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_DATA;
+				memset(&rst.u, 0, sizeof(rst.u));
+				rst.u.runstate.state = RUNSTATE_running;
+				rst.u.runstate.state_entry_time = 0x6b6b + 0x5a;
+				rst.u.runstate.time_blocked = 0x6b6b;
+				rst.u.runstate.time_offline = 0x5a;
+				vcpu_ioctl(vm, VCPU_ID, KVM_XEN_VCPU_SET_ATTR, &rst);
+				break;
+			case 6:
+				/* Yield until scheduler delay exceeds target */
+				rundelay = get_run_delay() + MIN_STEAL_TIME;
+				do {
+					sched_yield();
+				} while (get_run_delay() < rundelay);
+				break;
+			}
 			break;
+		}
 		case UCALL_DONE:
 			goto done;
 		default:
@@ -162,6 +288,33 @@ int main(int argc, char *argv[])
 	TEST_ASSERT(ti2->version && !(ti2->version & 1),
 		    "Bad time_info version %x", ti->version);
 
+	if (do_runstate_tests) {
+		/*
+		 * Fetch runstate and check sanity. Strictly speaking in the
+		 * general case we might not expect the numbers to be identical
+		 * but in this case we know we aren't running the vCPU any more.
+		 */
+		struct kvm_xen_vcpu_attr rst = {
+			.type = KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_DATA,
+		};
+		vcpu_ioctl(vm, VCPU_ID, KVM_XEN_VCPU_GET_ATTR, &rst);
+
+		TEST_ASSERT(rs->state == rst.u.runstate.state, "Runstate mismatch");
+		TEST_ASSERT(rs->state_entry_time == rst.u.runstate.state_entry_time,
+			    "State entry time mismatch");
+		TEST_ASSERT(rs->time[RUNSTATE_running] == rst.u.runstate.time_running,
+			    "Running time mismatch");
+		TEST_ASSERT(rs->time[RUNSTATE_runnable] == rst.u.runstate.time_runnable,
+			    "Runnable time mismatch");
+		TEST_ASSERT(rs->time[RUNSTATE_blocked] == rst.u.runstate.time_blocked,
+			    "Blocked time mismatch");
+		TEST_ASSERT(rs->time[RUNSTATE_offline] == rst.u.runstate.time_offline,
+			    "Offline time mismatch");
+
+		TEST_ASSERT(rs->state_entry_time == rs->time[0] +
+			    rs->time[1] + rs->time[2] + rs->time[3],
+			    "runstate times don't add up");
+	}
 	kvm_vm_free(vm);
 	return 0;
 }

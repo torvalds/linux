@@ -56,8 +56,6 @@ static struct acpi_scan_handler pci_root_handler = {
 	},
 };
 
-static DEFINE_MUTEX(osc_lock);
-
 /**
  * acpi_is_root_bridge - determine whether an ACPI CA node is a PCI root bridge
  * @handle:  the ACPI CA node in question.
@@ -223,12 +221,7 @@ static acpi_status acpi_pci_query_osc(struct acpi_pci_root *root,
 
 static acpi_status acpi_pci_osc_support(struct acpi_pci_root *root, u32 flags)
 {
-	acpi_status status;
-
-	mutex_lock(&osc_lock);
-	status = acpi_pci_query_osc(root, flags, NULL);
-	mutex_unlock(&osc_lock);
-	return status;
+	return acpi_pci_query_osc(root, flags, NULL);
 }
 
 struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle)
@@ -353,10 +346,10 @@ EXPORT_SYMBOL_GPL(acpi_get_pci_dev);
  * _OSC bits the BIOS has granted control of, but its contents are meaningless
  * on failure.
  **/
-acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 *mask, u32 req)
+static acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 *mask, u32 req)
 {
 	struct acpi_pci_root *root;
-	acpi_status status = AE_OK;
+	acpi_status status;
 	u32 ctrl, capbuf[3];
 
 	if (!mask)
@@ -370,18 +363,16 @@ acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 *mask, u32 req)
 	if (!root)
 		return AE_NOT_EXIST;
 
-	mutex_lock(&osc_lock);
-
 	*mask = ctrl | root->osc_control_set;
 	/* No need to evaluate _OSC if the control was already granted. */
 	if ((root->osc_control_set & ctrl) == ctrl)
-		goto out;
+		return AE_OK;
 
 	/* Need to check the available controls bits before requesting them. */
 	while (*mask) {
 		status = acpi_pci_query_osc(root, root->osc_support_set, mask);
 		if (ACPI_FAILURE(status))
-			goto out;
+			return status;
 		if (ctrl == *mask)
 			break;
 		decode_osc_control(root, "platform does not support",
@@ -392,21 +383,19 @@ acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 *mask, u32 req)
 	if ((ctrl & req) != req) {
 		decode_osc_control(root, "not requesting control; platform does not support",
 				   req & ~(ctrl));
-		status = AE_SUPPORT;
-		goto out;
+		return AE_SUPPORT;
 	}
 
 	capbuf[OSC_QUERY_DWORD] = 0;
 	capbuf[OSC_SUPPORT_DWORD] = root->osc_support_set;
 	capbuf[OSC_CONTROL_DWORD] = ctrl;
 	status = acpi_pci_run_osc(handle, capbuf, mask);
-	if (ACPI_SUCCESS(status))
-		root->osc_control_set = *mask;
-out:
-	mutex_unlock(&osc_lock);
-	return status;
+	if (ACPI_FAILURE(status))
+		return status;
+
+	root->osc_control_set = *mask;
+	return AE_OK;
 }
-EXPORT_SYMBOL(acpi_pci_osc_control_set);
 
 static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 				 bool is_pcie)
@@ -452,9 +441,8 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 		if ((status == AE_NOT_FOUND) && !is_pcie)
 			return;
 
-		dev_info(&device->dev, "_OSC failed (%s)%s\n",
-			 acpi_format_exception(status),
-			 pcie_aspm_support_enabled() ? "; disabling ASPM" : "");
+		dev_info(&device->dev, "_OSC: platform retains control of PCIe features (%s)\n",
+			 acpi_format_exception(status));
 		return;
 	}
 
@@ -510,7 +498,7 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 	} else {
 		decode_osc_control(root, "OS requested", requested);
 		decode_osc_control(root, "platform willing to grant", control);
-		dev_info(&device->dev, "_OSC failed (%s); disabling ASPM\n",
+		dev_info(&device->dev, "_OSC: platform retains control of PCIe features (%s)\n",
 			acpi_format_exception(status));
 
 		/*

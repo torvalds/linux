@@ -7,6 +7,7 @@
  * Copyright (C) 2018 Stefan Wahren <stefan.wahren@i2se.com>
  */
 #include <linux/device.h>
+#include <linux/devm-helpers.h>
 #include <linux/err.h>
 #include <linux/hwmon.h>
 #include <linux/module.h>
@@ -106,6 +107,7 @@ static int rpi_hwmon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rpi_hwmon_data *data;
+	int ret;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -119,7 +121,10 @@ static int rpi_hwmon_probe(struct platform_device *pdev)
 							       &rpi_chip_info,
 							       NULL);
 
-	INIT_DELAYED_WORK(&data->get_values_poll_work, get_values_poll);
+	ret = devm_delayed_work_autocancel(dev, &data->get_values_poll_work,
+					   get_values_poll);
+	if (ret)
+		return ret;
 	platform_set_drvdata(pdev, data);
 
 	if (!PTR_ERR_OR_ZERO(data->hwmon_dev))
@@ -128,18 +133,8 @@ static int rpi_hwmon_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(data->hwmon_dev);
 }
 
-static int rpi_hwmon_remove(struct platform_device *pdev)
-{
-	struct rpi_hwmon_data *data = platform_get_drvdata(pdev);
-
-	cancel_delayed_work_sync(&data->get_values_poll_work);
-
-	return 0;
-}
-
 static struct platform_driver rpi_hwmon_driver = {
 	.probe = rpi_hwmon_probe,
-	.remove = rpi_hwmon_remove,
 	.driver = {
 		.name = "raspberrypi-hwmon",
 	},

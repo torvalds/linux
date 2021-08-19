@@ -239,6 +239,7 @@ void can_setup(struct net_device *dev)
 struct net_device *alloc_candev_mqs(int sizeof_priv, unsigned int echo_skb_max,
 				    unsigned int txqs, unsigned int rxqs)
 {
+	struct can_ml_priv *can_ml;
 	struct net_device *dev;
 	struct can_priv *priv;
 	int size;
@@ -270,7 +271,8 @@ struct net_device *alloc_candev_mqs(int sizeof_priv, unsigned int echo_skb_max,
 	priv = netdev_priv(dev);
 	priv->dev = dev;
 
-	dev->ml_priv = (void *)priv + ALIGN(sizeof_priv, NETDEV_ALIGN);
+	can_ml = (void *)priv + ALIGN(sizeof_priv, NETDEV_ALIGN);
+	can_set_ml_priv(dev, can_ml);
 
 	if (echo_skb_max) {
 		priv->echo_skb_max = echo_skb_max;

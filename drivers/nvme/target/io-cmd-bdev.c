@@ -185,7 +185,7 @@ static int nvmet_bdev_alloc_bip(struct nvmet_req *req, struct bio *bio,
 	}
 
 	bip = bio_integrity_alloc(bio, GFP_NOIO,
-		min_t(unsigned int, req->metadata_sg_cnt, BIO_MAX_PAGES));
+					bio_max_segs(req->metadata_sg_cnt));
 	if (IS_ERR(bip)) {
 		pr_err("Unable to allocate bio_integrity_payload\n");
 		return PTR_ERR(bip);
@@ -225,7 +225,7 @@ static int nvmet_bdev_alloc_bip(struct nvmet_req *req, struct bio *bio,
 
 static void nvmet_bdev_execute_rw(struct nvmet_req *req)
 {
-	int sg_cnt = req->sg_cnt;
+	unsigned int sg_cnt = req->sg_cnt;
 	struct bio *bio;
 	struct scatterlist *sg;
 	struct blk_plug plug;
@@ -262,7 +262,7 @@ static void nvmet_bdev_execute_rw(struct nvmet_req *req)
 		bio = &req->b.inline_bio;
 		bio_init(bio, req->inline_bvec, ARRAY_SIZE(req->inline_bvec));
 	} else {
-		bio = bio_alloc(GFP_KERNEL, min(sg_cnt, BIO_MAX_PAGES));
+		bio = bio_alloc(GFP_KERNEL, bio_max_segs(sg_cnt));
 	}
 	bio_set_dev(bio, req->ns->bdev);
 	bio->bi_iter.bi_sector = sector;
@@ -289,7 +289,7 @@ static void nvmet_bdev_execute_rw(struct nvmet_req *req)
 				}
 			}
 
-			bio = bio_alloc(GFP_KERNEL, min(sg_cnt, BIO_MAX_PAGES));
+			bio = bio_alloc(GFP_KERNEL, bio_max_segs(sg_cnt));
 			bio_set_dev(bio, req->ns->bdev);
 			bio->bi_iter.bi_sector = sector;
 			bio->bi_opf = op;

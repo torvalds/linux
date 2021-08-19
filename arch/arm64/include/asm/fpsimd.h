@@ -73,6 +73,7 @@ extern void sve_flush_live(void);
 extern void sve_load_from_fpsimd_state(struct user_fpsimd_state const *state,
 				       unsigned long vq_minus_1);
 extern unsigned int sve_get_vl(void);
+extern void sve_set_vq(unsigned long vq_minus_1);
 
 struct arm64_cpu_capabilities;
 extern void sve_kernel_enable(const struct arm64_cpu_capabilities *__unused);

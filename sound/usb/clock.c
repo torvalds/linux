@@ -652,10 +652,10 @@ static int set_sample_rate_v2v3(struct snd_usb_audio *chip,
 		cur_rate = prev_rate;
 
 	if (cur_rate != rate) {
-		usb_audio_warn(chip,
-			       "%d:%d: freq mismatch (RO clock): req %d, clock runs @%d\n",
-			       fmt->iface, fmt->altsetting, rate, cur_rate);
-		return -ENXIO;
+		usb_audio_dbg(chip,
+			      "%d:%d: freq mismatch: req %d, clock runs @%d\n",
+			      fmt->iface, fmt->altsetting, rate, cur_rate);
+		/* continue processing */
 	}
 
 validation:

@@ -39,8 +39,6 @@ MODULE_PARM_DESC(precise_ptr, "Enable precise pointer (doesn't work reliably).")
 MODULE_AUTHOR("Paul Davis <pbd@op.net>, Winfried Ritsch");
 MODULE_DESCRIPTION("RME Digi9652/Digi9636");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{RME,Hammerfall},"
-		"{RME,Hammerfall-Light}}");
 
 /* The Hammerfall has two sets of 24 ADAT + 2 S/PDIF channels, one for
    capture, one for playback. Both the ADAT and S/PDIF channels appear

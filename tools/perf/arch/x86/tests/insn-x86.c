@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
-#include "../../../../arch/x86/include/asm/insn.h"
 #include <string.h>
 
 #include "debug.h"
 #include "tests/tests.h"
 #include "arch-tests.h"
+#include "../../../../arch/x86/include/asm/insn.h"
 
 #include "intel-pt-decoder/intel-pt-insn-decoder.h"
 
@@ -48,6 +48,7 @@ static int get_op(const char *op_str)
 		{"int",     INTEL_PT_OP_INT},
 		{"syscall", INTEL_PT_OP_SYSCALL},
 		{"sysret",  INTEL_PT_OP_SYSRET},
+		{"vmentry",  INTEL_PT_OP_VMENTRY},
 		{NULL, 0},
 	};
 	struct val_data *val;
@@ -95,13 +96,12 @@ static int get_branch(const char *branch_str)
 static int test_data_item(struct test_data *dat, int x86_64)
 {
 	struct intel_pt_insn intel_pt_insn;
+	int op, branch, ret;
 	struct insn insn;
-	int op, branch;
 
-	insn_init(&insn, dat->data, MAX_INSN_SIZE, x86_64);
-	insn_get_length(&insn);
-
-	if (!insn_complete(&insn)) {
+	ret = insn_decode(&insn, dat->data, MAX_INSN_SIZE,
+			  x86_64 ? INSN_MODE_64 : INSN_MODE_32);
+	if (ret < 0) {
 		pr_debug("Failed to decode: %s\n", dat->asm_rep);
 		return -1;
 	}

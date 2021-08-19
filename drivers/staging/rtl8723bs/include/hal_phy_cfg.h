@@ -47,20 +47,20 @@ void PHY_SetTxPowerIndex(struct adapter *Adapter, u32 PowerIndex,
 			 u8 RFPath, u8 Rate);
 
 u8 PHY_GetTxPowerIndex(struct adapter *padapter, u8 RFPath, u8 Rate,
-			enum CHANNEL_WIDTH BandWidth, u8 Channel);
+			enum channel_width BandWidth, u8 Channel);
 
 void PHY_GetTxPowerLevel8723B(struct adapter *Adapter, s32 *powerlevel);
 
 void PHY_SetTxPowerLevel8723B(struct adapter *Adapter, u8 channel);
 
-void PHY_SetBWMode8723B(struct adapter *Adapter, enum CHANNEL_WIDTH Bandwidth,
+void PHY_SetBWMode8723B(struct adapter *Adapter, enum channel_width Bandwidth,
 			unsigned char Offset);
 
 /*  Call after initialization */
 void PHY_SwChnl8723B(struct adapter *Adapter, u8 channel);
 
 void PHY_SetSwChnlBWMode8723B(struct adapter *Adapter, u8 channel,
-				enum CHANNEL_WIDTH Bandwidth,
+				enum channel_width Bandwidth,
 				u8 Offset40, u8 Offset80);
 
 /*--------------------------Exported Function prototype End---------------------*/

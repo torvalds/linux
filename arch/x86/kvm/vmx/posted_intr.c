@@ -10,7 +10,7 @@
 #include "vmx.h"
 
 /*
- * We maintian a per-CPU linked-list of vCPU, so in wakeup_handler() we
+ * We maintain a per-CPU linked-list of vCPU, so in wakeup_handler() we
  * can find which vCPU should be waken up.
  */
 static DEFINE_PER_CPU(struct list_head, blocked_vcpu_on_cpu);

@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>
+#include <linux/virtio_config.h>
 
 #include <asm/tlbflush.h>
 #include <asm/fixmap.h>
@@ -262,7 +263,7 @@ static void __init __set_clr_pte_enc(pte_t *kpte, int level, bool enc)
 	if (pgprot_val(old_prot) == pgprot_val(new_prot))
 		return;
 
-	pa = pfn << page_level_shift(level);
+	pa = pfn << PAGE_SHIFT;
 	size = page_level_size(level);
 
 	/*
@@ -484,3 +485,8 @@ void __init mem_encrypt_init(void)
 	print_mem_encrypt_feature_info();
 }
 
+int arch_has_restricted_virtio_memory_access(void)
+{
+	return sev_active();
+}
+EXPORT_SYMBOL_GPL(arch_has_restricted_virtio_memory_access);

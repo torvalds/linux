@@ -237,8 +237,6 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 	struct rxe_mc_elem *mce;
 	struct rxe_qp *qp;
 	union ib_gid dgid;
-	struct sk_buff *per_qp_skb;
-	struct rxe_pkt_info *per_qp_pkt;
 	int err;
 
 	if (skb->protocol == htons(ETH_P_IP))
@@ -250,10 +248,15 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 	/* lookup mcast group corresponding to mgid, takes a ref */
 	mcg = rxe_pool_get_key(&rxe->mc_grp_pool, &dgid);
 	if (!mcg)
-		goto err1;	/* mcast group not registered */
+		goto drop;	/* mcast group not registered */
 
 	spin_lock_bh(&mcg->mcg_lock);
 
+	/* this is unreliable datagram service so we let
+	 * failures to deliver a multicast packet to a
+	 * single QP happen and just move on and try
+	 * the rest of them on the list
+	 */
 	list_for_each_entry(mce, &mcg->qp_list, qp_list) {
 		qp = mce->qp;
 
@@ -266,39 +269,47 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 		if (err)
 			continue;
 
-		/* for all but the last qp create a new clone of the
-		 * skb and pass to the qp. If an error occurs in the
-		 * checks for the last qp in the list we need to
-		 * free the skb since it hasn't been passed on to
-		 * rxe_rcv_pkt() which would free it later.
+		/* for all but the last QP create a new clone of the
+		 * skb and pass to the QP. Pass the original skb to
+		 * the last QP in the list.
 		 */
 		if (mce->qp_list.next != &mcg->qp_list) {
-			per_qp_skb = skb_clone(skb, GFP_ATOMIC);
-			if (WARN_ON(!ib_device_try_get(&rxe->ib_dev))) {
-				kfree_skb(per_qp_skb);
+			struct sk_buff *cskb;
+			struct rxe_pkt_info *cpkt;
+
+			cskb = skb_clone(skb, GFP_ATOMIC);
+			if (unlikely(!cskb))
 				continue;
+
+			if (WARN_ON(!ib_device_try_get(&rxe->ib_dev))) {
+				kfree_skb(cskb);
+				break;
 			}
+
+			cpkt = SKB_TO_PKT(cskb);
+			cpkt->qp = qp;
+			rxe_add_ref(qp);
+			rxe_rcv_pkt(cpkt, cskb);
 		} else {
-			per_qp_skb = skb;
-			/* show we have consumed the skb */
-			skb = NULL;
+			pkt->qp = qp;
+			rxe_add_ref(qp);
+			rxe_rcv_pkt(pkt, skb);
+			skb = NULL;	/* mark consumed */
 		}
-
-		if (unlikely(!per_qp_skb))
-			continue;
-
-		per_qp_pkt = SKB_TO_PKT(per_qp_skb);
-		per_qp_pkt->qp = qp;
-		rxe_add_ref(qp);
-		rxe_rcv_pkt(per_qp_pkt, per_qp_skb);
 	}
 
 	spin_unlock_bh(&mcg->mcg_lock);
 
 	rxe_drop_ref(mcg);	/* drop ref from rxe_pool_get_key. */
 
-err1:
-	/* free skb if not consumed */
+	if (likely(!skb))
+		return;
+
+	/* This only occurs if one of the checks fails on the last
+	 * QP in the list above
+	 */
+
+drop:
 	kfree_skb(skb);
 	ib_device_put(&rxe->ib_dev);
 }

@@ -26,8 +26,6 @@ if STAGING
 
 source "drivers/staging/wlan-ng/Kconfig"
 
-source "drivers/staging/comedi/Kconfig"
-
 source "drivers/staging/olpc_dcon/Kconfig"
 
 source "drivers/staging/rtl8192u/Kconfig"
@@ -98,8 +96,6 @@ source "drivers/staging/ralink-gdma/Kconfig"
 
 source "drivers/staging/mt7621-dts/Kconfig"
 
-source "drivers/staging/gasket/Kconfig"
-
 source "drivers/staging/axis-fifo/Kconfig"
 
 source "drivers/staging/fieldbus/Kconfig"
@@ -107,8 +103,6 @@ source "drivers/staging/fieldbus/Kconfig"
 source "drivers/staging/kpc2000/Kconfig"
 
 source "drivers/staging/qlge/Kconfig"
-
-source "drivers/staging/wimax/Kconfig"
 
 source "drivers/staging/wfx/Kconfig"
 

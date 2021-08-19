@@ -7,13 +7,9 @@
 #ifndef _RTW_RECV_H_
 #define _RTW_RECV_H_
 
-	#ifdef CONFIG_SINGLE_RECV_BUF
-		#define NR_RECVBUFF (1)
-	#else
-		#define NR_RECVBUFF (8)
-	#endif /* CONFIG_SINGLE_RECV_BUF */
+#define NR_RECVBUFF (8)
 
-	#define NR_PREALLOC_RECV_SKB (8)
+#define NR_PREALLOC_RECV_SKB (8)
 
 #define NR_RECVFRAME 256
 
@@ -47,7 +43,7 @@ struct recv_reorder_ctrl {
 	u16 wend_b;
 	u8 wsize_b;
 	struct __queue pending_recvframe_queue;
-	_timer reordering_ctrl_timer;
+	struct timer_list reordering_ctrl_timer;
 };
 
 struct	stainfo_rxcache	{
@@ -72,13 +68,6 @@ struct	stainfo_rxcache	{
 */
 };
 
-
-struct smooth_rssi_data {
-	u32 elements[100];	/* array to store values */
-	u32 index;			/* index to current array to store */
-	u32 total_num;		/* num of valid elements */
-	u32 total_val;		/* sum of valid elements */
-};
 
 struct signal_stat {
 	u8 update_req;		/* used to indicate */
@@ -143,7 +132,7 @@ struct rx_pkt_attrib	{
 	u8 order;
 	u8 privacy; /* in frame_ctrl field */
 	u8 bdecrypted;
-	u8 encrypt; /* when 0 indicate no encrypt. when non-zero, indicate the encrypt algorith */
+	u8 encrypt; /* when 0 indicates no encryption; when non-zero, indicates the encryption algorithm */
 	u8 iv_len;
 	u8 icv_len;
 	u8 crc_err;
@@ -159,11 +148,6 @@ struct rx_pkt_attrib	{
 
 	u8 ack_policy;
 
-/* ifdef CONFIG_TCP_CSUM_OFFLOAD_RX */
-	u8 tcpchk_valid; /*  0: invalid, 1: valid */
-	u8 ip_chkrpt; /* 0: incorrect, 1: correct */
-	u8 tcp_chkrpt; /* 0: incorrect, 1: correct */
-/* endif */
 	u8 key_index;
 
 	u8 data_rate;
@@ -214,7 +198,7 @@ accesser of recv_priv: rtw_recv_entry(dispatch / passive level); recv_thread(pas
 using enter_critical section to protect
 */
 struct recv_priv {
-	_lock	lock;
+	spinlock_t	lock;
 	struct __queue	free_recv_queue;
 	struct __queue	recv_pending_queue;
 	struct __queue	uc_swdec_pending_queue;
@@ -235,10 +219,6 @@ struct recv_priv {
 	struct tasklet_struct recv_tasklet;
 	struct sk_buff_head free_recv_skb_queue;
 	struct sk_buff_head rx_skb_queue;
-#ifdef CONFIG_RX_INDICATE_QUEUE
-	struct task rx_indicate_tasklet;
-	struct ifqueue rx_indicate_queue;
-#endif	/*  CONFIG_RX_INDICATE_QUEUE */
 
 	u8 *pallocated_recv_buf;
 	u8 *precv_buf;    /*  4 alignment */
@@ -247,7 +227,7 @@ struct recv_priv {
 
 	struct __queue	recv_buf_pending_queue;
 
-	/* For display the phy informatiom */
+	/* For display the phy information */
 	u8 is_signal_dbg;	/*  for debug */
 	u8 signal_strength_dbg;	/*  for debug */
 
@@ -264,7 +244,7 @@ struct recv_priv {
 	/* int FalseAlmCnt_all; */
 
 
-	_timer signal_stat_timer;
+	struct timer_list signal_stat_timer;
 	u32 signal_stat_sampling_interval;
 	/* u32 signal_stat_converging_constant; */
 	struct signal_stat signal_qual_data;
@@ -275,8 +255,8 @@ struct recv_priv {
 
 struct sta_recv_priv {
 
-	_lock	lock;
-	sint	option;
+	spinlock_t	lock;
+	signed int	option;
 
 	/* struct __queue	blk_strms[MAX_RX_NUMBLKS]; */
 	struct __queue defrag_q;	 /* keeping the fragment frame until defrag */
@@ -293,7 +273,7 @@ struct sta_recv_priv {
 struct recv_buf {
 	struct list_head list;
 
-	_lock recvbuf_lock;
+	spinlock_t recvbuf_lock;
 
 	u32 ref_cnt;
 
@@ -308,7 +288,7 @@ struct recv_buf {
 	u8 *ptail;
 	u8 *pend;
 
-	_pkt	*pskb;
+	struct sk_buff	*pskb;
 	u8 reuse;
 };
 
@@ -330,13 +310,8 @@ struct recv_buf {
 */
 struct recv_frame_hdr {
 	struct list_head	list;
-#ifndef CONFIG_BSD_RX_USE_MBUF
 	struct sk_buff	 *pkt;
 	struct sk_buff	 *pkt_newalloc;
-#else /*  CONFIG_BSD_RX_USE_MBUF */
-	_pkt	*pkt;
-	_pkt *pkt_newalloc;
-#endif /*  CONFIG_BSD_RX_USE_MBUF */
 
 	struct adapter  *adapter;
 
@@ -374,7 +349,7 @@ union recv_frame {
 
 };
 
-enum RX_PACKET_TYPE {
+enum {
 	NORMAL_RX,/* Normal rx packet */
 	TX_REPORT1,/* CCX */
 	TX_REPORT2,/* TX RPT */
@@ -393,8 +368,8 @@ extern int rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *q
 extern void rtw_free_recvframe_queue(struct __queue *pframequeue,  struct __queue *pfree_recv_queue);
 u32 rtw_free_uc_swdec_pending_queue(struct adapter *adapter);
 
-sint rtw_enqueue_recvbuf_to_head(struct recv_buf *precvbuf, struct __queue *queue);
-sint rtw_enqueue_recvbuf(struct recv_buf *precvbuf, struct __queue *queue);
+signed int rtw_enqueue_recvbuf_to_head(struct recv_buf *precvbuf, struct __queue *queue);
+signed int rtw_enqueue_recvbuf(struct recv_buf *precvbuf, struct __queue *queue);
 struct recv_buf *rtw_dequeue_recvbuf(struct __queue *queue);
 
 void rtw_reordering_ctrl_timeout_handler(struct timer_list *t);
@@ -419,7 +394,7 @@ static inline u8 *get_recvframe_data(union recv_frame *precvframe)
 
 }
 
-static inline u8 *recvframe_pull(union recv_frame *precvframe, sint sz)
+static inline u8 *recvframe_pull(union recv_frame *precvframe, signed int sz)
 {
 	/*  rx_data += sz; move rx_data sz bytes  hereafter */
 
@@ -444,7 +419,7 @@ static inline u8 *recvframe_pull(union recv_frame *precvframe, sint sz)
 
 }
 
-static inline u8 *recvframe_put(union recv_frame *precvframe, sint sz)
+static inline u8 *recvframe_put(union recv_frame *precvframe, signed int sz)
 {
 	/*  rx_tai += sz; move rx_tail sz bytes  hereafter */
 
@@ -473,7 +448,7 @@ static inline u8 *recvframe_put(union recv_frame *precvframe, sint sz)
 
 
 
-static inline u8 *recvframe_pull_tail(union recv_frame *precvframe, sint sz)
+static inline u8 *recvframe_pull_tail(union recv_frame *precvframe, signed int sz)
 {
 	/*  rmv data from rx_tail (by yitsen) */
 
@@ -507,7 +482,7 @@ static inline union recv_frame *rxmem_to_recvframe(u8 *rxmem)
 
 }
 
-static inline sint get_recvframe_len(union recv_frame *precvframe)
+static inline signed int get_recvframe_len(union recv_frame *precvframe)
 {
 	return precvframe->u.hdr.len;
 }
@@ -517,14 +492,9 @@ static inline s32 translate_percentage_to_dbm(u32 SignalStrengthIndex)
 {
 	s32	SignalPower; /*  in dBm. */
 
-#ifdef CONFIG_SKIP_SIGNAL_SCALE_MAPPING
-	/*  Translate to dBm (x =y-100) */
-	SignalPower = SignalStrengthIndex - 100;
-#else
 	/*  Translate to dBm (x = 0.5y-95). */
 	SignalPower = (s32)((SignalStrengthIndex + 1) >> 1);
 	SignalPower -= 95;
-#endif
 
 	return SignalPower;
 }

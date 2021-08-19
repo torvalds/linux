@@ -309,7 +309,7 @@ static int __init bcm7120_l2_intc_probe(struct device_node *dn,
 
 		if (data->can_wake) {
 			/* This IRQ chip can wake the system, set all
-			 * relevant child interupts in wake_enabled mask
+			 * relevant child interrupts in wake_enabled mask
 			 */
 			gc->wake_enabled = 0xffffffff;
 			gc->wake_enabled &= ~gc->unused;

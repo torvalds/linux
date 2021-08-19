@@ -165,25 +165,6 @@ static inline void arch_timer_set_cntkctl(u32 cntkctl)
 	isb();
 }
 
-/*
- * Ensure that reads of the counter are treated the same as memory reads
- * for the purposes of ordering by subsequent memory barriers.
- *
- * This insanity brought to you by speculative system register reads,
- * out-of-order memory accesses, sequence locks and Thomas Gleixner.
- *
- * http://lists.infradead.org/pipermail/linux-arm-kernel/2019-February/631195.html
- */
-#define arch_counter_enforce_ordering(val) do {				\
-	u64 tmp, _val = (val);						\
-									\
-	asm volatile(							\
-	"	eor	%0, %1, %1\n"					\
-	"	add	%0, sp, %0\n"					\
-	"	ldr	xzr, [%0]"					\
-	: "=r" (tmp) : "r" (_val));					\
-} while (0)
-
 static __always_inline u64 __arch_counter_get_cntpct_stable(void)
 {
 	u64 cnt;
@@ -223,8 +204,6 @@ static __always_inline u64 __arch_counter_get_cntvct(void)
 	arch_counter_enforce_ordering(cnt);
 	return cnt;
 }
-
-#undef arch_counter_enforce_ordering
 
 static inline int arch_timer_arch_init(void)
 {

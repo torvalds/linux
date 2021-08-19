@@ -887,7 +887,8 @@ static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 
 	want_v = hpte_encode_avpn(vpn, psize, ssize);
 
-	flags = (newpp & 7) | H_AVPN;
+	flags = (newpp & (HPTE_R_PP | HPTE_R_N | HPTE_R_KEY_LO)) | H_AVPN;
+	flags |= (newpp & HPTE_R_KEY_HI) >> 48;
 	if (mmu_has_feature(MMU_FTR_KERNEL_RO))
 		/* Move pp0 into bit 8 (IBM 55) */
 		flags |= (newpp & HPTE_R_PP0) >> 55;

@@ -50,6 +50,8 @@ properties:
           - atmel,atsha204a
             # i2c h/w elliptic curve crypto module
           - atmel,atecc508a
+            # BPA-RS600: Power Supply
+          - blutek,bpa-rs600
             # Bosch Sensortec pressure, temperature, humididty and VOC sensor
           - bosch,bme680
             # CM32181: Ambient Light Sensor
@@ -102,6 +104,8 @@ properties:
           - mps,mp2975
             # G751: Digital Temperature Sensor and Thermal Watchdog with Two-Wire Interface
           - gmt,g751
+            # Infineon IR36021 digital POL buck controller
+          - infineon,ir36021
             # Infineon IR38064 Voltage Regulator
           - infineon,ir38064
             # Infineon SLB9635 (Soft-) I2C TPM (old protocol, max 100khz)
@@ -288,6 +292,8 @@ properties:
           - ti,tmp103
             # Digital Temperature Sensor
           - ti,tmp275
+            # TI Dual channel DCAP+ multiphase controller TPS53676 with AVSBus
+          - ti,tps53676
             # TI Dual channel DCAP+ multiphase controller TPS53679
           - ti,tps53679
             # TI Dual channel DCAP+ multiphase controller TPS53688

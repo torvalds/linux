@@ -134,6 +134,7 @@ xfs_readlink(
 
 int
 xfs_symlink(
+	struct user_namespace	*mnt_userns,
 	struct xfs_inode	*dp,
 	struct xfs_name		*link_name,
 	const char		*target_path,
@@ -181,7 +182,8 @@ xfs_symlink(
 	/*
 	 * Make sure that we have allocated dquot(s) on disk.
 	 */
-	error = xfs_qm_vop_dqalloc(dp, current_fsuid(), current_fsgid(), prid,
+	error = xfs_qm_vop_dqalloc(dp, mapped_fsuid(mnt_userns),
+			mapped_fsgid(mnt_userns), prid,
 			XFS_QMOPT_QUOTALL | XFS_QMOPT_INHERIT,
 			&udqp, &gdqp, &pdqp);
 	if (error)
@@ -221,8 +223,8 @@ xfs_symlink(
 	/*
 	 * Allocate an inode for the symlink.
 	 */
-	error = xfs_dir_ialloc(&tp, dp, S_IFLNK | (mode & ~S_IFMT), 1, 0,
-			       prid, &ip);
+	error = xfs_dir_ialloc(mnt_userns, &tp, dp, S_IFLNK | (mode & ~S_IFMT),
+			       1, 0, prid, &ip);
 	if (error)
 		goto out_trans_cancel;
 

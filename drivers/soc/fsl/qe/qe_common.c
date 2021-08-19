@@ -26,7 +26,7 @@
 #include <soc/fsl/qe/qe.h>
 
 static struct gen_pool *muram_pool;
-static spinlock_t cpm_muram_lock;
+static DEFINE_SPINLOCK(cpm_muram_lock);
 static void __iomem *muram_vbase;
 static phys_addr_t muram_pbase;
 
@@ -54,7 +54,6 @@ int cpm_muram_init(void)
 	if (muram_pbase)
 		return 0;
 
-	spin_lock_init(&cpm_muram_lock);
 	np = of_find_compatible_node(NULL, NULL, "fsl,cpm-muram-data");
 	if (!np) {
 		/* try legacy bindings */

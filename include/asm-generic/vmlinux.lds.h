@@ -90,12 +90,15 @@
  * .data. We don't want to pull in .data..other sections, which Linux
  * has defined. Same for text and bss.
  *
+ * With LTO_CLANG, the linker also splits sections by default, so we need
+ * these macros to combine the sections during the final link.
+ *
  * RODATA_MAIN is not used because existing code already defines .rodata.x
  * sections to be brought in with rodata.
  */
-#ifdef CONFIG_LD_DEAD_CODE_DATA_ELIMINATION
+#if defined(CONFIG_LD_DEAD_CODE_DATA_ELIMINATION) || defined(CONFIG_LTO_CLANG)
 #define TEXT_MAIN .text .text.[0-9a-zA-Z_]*
-#define DATA_MAIN .data .data.[0-9a-zA-Z_]* .data..L* .data..compoundliteral* .data.$__unnamed_* .data.$Lubsan_*
+#define DATA_MAIN .data .data.[0-9a-zA-Z_]* .data..L* .data..compoundliteral* .data.$__unnamed_* .data.$L*
 #define SDATA_MAIN .sdata .sdata.[0-9a-zA-Z_]*
 #define RODATA_MAIN .rodata .rodata.[0-9a-zA-Z_]* .rodata..L*
 #define BSS_MAIN .bss .bss.[0-9a-zA-Z_]* .bss..compoundliteral*
@@ -494,27 +497,6 @@
 		__stop___ksymtab_gpl = .;				\
 	}								\
 									\
-	/* Kernel symbol table: Normal unused symbols */		\
-	__ksymtab_unused  : AT(ADDR(__ksymtab_unused) - LOAD_OFFSET) {	\
-		__start___ksymtab_unused = .;				\
-		KEEP(*(SORT(___ksymtab_unused+*)))			\
-		__stop___ksymtab_unused = .;				\
-	}								\
-									\
-	/* Kernel symbol table: GPL-only unused symbols */		\
-	__ksymtab_unused_gpl : AT(ADDR(__ksymtab_unused_gpl) - LOAD_OFFSET) { \
-		__start___ksymtab_unused_gpl = .;			\
-		KEEP(*(SORT(___ksymtab_unused_gpl+*)))			\
-		__stop___ksymtab_unused_gpl = .;			\
-	}								\
-									\
-	/* Kernel symbol table: GPL-future-only symbols */		\
-	__ksymtab_gpl_future : AT(ADDR(__ksymtab_gpl_future) - LOAD_OFFSET) { \
-		__start___ksymtab_gpl_future = .;			\
-		KEEP(*(SORT(___ksymtab_gpl_future+*)))			\
-		__stop___ksymtab_gpl_future = .;			\
-	}								\
-									\
 	/* Kernel symbol table: Normal symbols */			\
 	__kcrctab         : AT(ADDR(__kcrctab) - LOAD_OFFSET) {		\
 		__start___kcrctab = .;					\
@@ -527,27 +509,6 @@
 		__start___kcrctab_gpl = .;				\
 		KEEP(*(SORT(___kcrctab_gpl+*)))				\
 		__stop___kcrctab_gpl = .;				\
-	}								\
-									\
-	/* Kernel symbol table: Normal unused symbols */		\
-	__kcrctab_unused  : AT(ADDR(__kcrctab_unused) - LOAD_OFFSET) {	\
-		__start___kcrctab_unused = .;				\
-		KEEP(*(SORT(___kcrctab_unused+*)))			\
-		__stop___kcrctab_unused = .;				\
-	}								\
-									\
-	/* Kernel symbol table: GPL-only unused symbols */		\
-	__kcrctab_unused_gpl : AT(ADDR(__kcrctab_unused_gpl) - LOAD_OFFSET) { \
-		__start___kcrctab_unused_gpl = .;			\
-		KEEP(*(SORT(___kcrctab_unused_gpl+*)))			\
-		__stop___kcrctab_unused_gpl = .;			\
-	}								\
-									\
-	/* Kernel symbol table: GPL-future-only symbols */		\
-	__kcrctab_gpl_future : AT(ADDR(__kcrctab_gpl_future) - LOAD_OFFSET) { \
-		__start___kcrctab_gpl_future = .;			\
-		KEEP(*(SORT(___kcrctab_gpl_future+*)))			\
-		__stop___kcrctab_gpl_future = .;			\
 	}								\
 									\
 	/* Kernel symbol table: strings */				\
@@ -583,6 +544,22 @@
 	. = ALIGN((align));						\
 	__end_rodata = .;
 
+
+/*
+ * .text..L.cfi.jumptable.* contain Control-Flow Integrity (CFI)
+ * jump table entries.
+ */
+#ifdef CONFIG_CFI_CLANG
+#define TEXT_CFI_JT							\
+		. = ALIGN(PMD_SIZE);					\
+		__cfi_jt_start = .;					\
+		*(.text..L.cfi.jumptable .text..L.cfi.jumptable.*)	\
+		. = ALIGN(PMD_SIZE);					\
+		__cfi_jt_end = .;
+#else
+#define TEXT_CFI_JT
+#endif
+
 /*
  * Non-instrumentable text section
  */
@@ -609,6 +586,7 @@
 		NOINSTR_TEXT						\
 		*(.text..refcount)					\
 		*(.ref.text)						\
+		TEXT_CFI_JT						\
 	MEM_KEEP(init.text*)						\
 	MEM_KEEP(exit.text*)						\
 
@@ -842,8 +820,13 @@
 		/* DWARF 4 */						\
 		.debug_types	0 : { *(.debug_types) }			\
 		/* DWARF 5 */						\
+		.debug_addr	0 : { *(.debug_addr) }			\
+		.debug_line_str	0 : { *(.debug_line_str) }		\
+		.debug_loclists	0 : { *(.debug_loclists) }		\
 		.debug_macro	0 : { *(.debug_macro) }			\
-		.debug_addr	0 : { *(.debug_addr) }
+		.debug_names	0 : { *(.debug_names) }			\
+		.debug_rnglists	0 : { *(.debug_rnglists) }		\
+		.debug_str_offsets	0 : { *(.debug_str_offsets) }
 
 /* Stabs debugging sections. */
 #define STABS_DEBUG							\
@@ -1002,12 +985,14 @@
 #endif
 
 /*
- * Clang's -fsanitize=kernel-address and -fsanitize=thread produce
- * unwanted sections (.eh_frame and .init_array.*), but
- * CONFIG_CONSTRUCTORS wants to keep any .init_array.* sections.
+ * Clang's -fprofile-arcs, -fsanitize=kernel-address, and
+ * -fsanitize=thread produce unwanted sections (.eh_frame
+ * and .init_array.*), but CONFIG_CONSTRUCTORS wants to
+ * keep any .init_array.* sections.
  * https://bugs.llvm.org/show_bug.cgi?id=46478
  */
-#if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KCSAN)
+#if defined(CONFIG_GCOV_KERNEL) || defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KCSAN) || \
+	defined(CONFIG_CFI_CLANG)
 # ifdef CONFIG_CONSTRUCTORS
 #  define SANITIZER_DISCARDS						\
 	*(.eh_frame)

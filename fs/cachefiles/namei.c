@@ -311,7 +311,8 @@ static int cachefiles_bury_object(struct cachefiles_cache *cache,
 			cachefiles_io_error(cache, "Unlink security error");
 		} else {
 			trace_cachefiles_unlink(object, rep, why);
-			ret = vfs_unlink(d_inode(dir), rep, NULL);
+			ret = vfs_unlink(&init_user_ns, d_inode(dir), rep,
+					 NULL);
 
 			if (preemptive)
 				cachefiles_mark_object_buried(cache, rep, why);
@@ -412,9 +413,16 @@ try_again:
 	if (ret < 0) {
 		cachefiles_io_error(cache, "Rename security error %d", ret);
 	} else {
+		struct renamedata rd = {
+			.old_mnt_userns	= &init_user_ns,
+			.old_dir	= d_inode(dir),
+			.old_dentry	= rep,
+			.new_mnt_userns	= &init_user_ns,
+			.new_dir	= d_inode(cache->graveyard),
+			.new_dentry	= grave,
+		};
 		trace_cachefiles_rename(object, rep, grave, why);
-		ret = vfs_rename(d_inode(dir), rep,
-				 d_inode(cache->graveyard), grave, NULL, 0);
+		ret = vfs_rename(&rd);
 		if (ret != 0 && ret != -ENOMEM)
 			cachefiles_io_error(cache,
 					    "Rename failed with error %d", ret);
@@ -561,7 +569,7 @@ lookup_again:
 			if (ret < 0)
 				goto create_error;
 			start = jiffies;
-			ret = vfs_mkdir(d_inode(dir), next, 0);
+			ret = vfs_mkdir(&init_user_ns, d_inode(dir), next, 0);
 			cachefiles_hist(cachefiles_mkdir_histogram, start);
 			if (!key)
 				trace_cachefiles_mkdir(object, next, ret);
@@ -597,7 +605,8 @@ lookup_again:
 			if (ret < 0)
 				goto create_error;
 			start = jiffies;
-			ret = vfs_create(d_inode(dir), next, S_IFREG, true);
+			ret = vfs_create(&init_user_ns, d_inode(dir), next,
+					 S_IFREG, true);
 			cachefiles_hist(cachefiles_create_histogram, start);
 			trace_cachefiles_create(object, next, ret);
 			if (ret < 0)
@@ -791,7 +800,7 @@ retry:
 		ret = security_path_mkdir(&path, subdir, 0700);
 		if (ret < 0)
 			goto mkdir_error;
-		ret = vfs_mkdir(d_inode(dir), subdir, 0700);
+		ret = vfs_mkdir(&init_user_ns, d_inode(dir), subdir, 0700);
 		if (ret < 0)
 			goto mkdir_error;
 

@@ -16,7 +16,10 @@ properties:
   compatible:
     enum:
       - qcom,usb-snps-hs-7nm-phy
+      - qcom,sc7280-usb-hs-phy
       - qcom,sm8150-usb-hs-phy
+      - qcom,sm8250-usb-hs-phy
+      - qcom,sm8350-usb-hs-phy
       - qcom,usb-snps-femto-v2-phy
 
   reg:

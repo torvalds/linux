@@ -40,7 +40,7 @@ DECLARE_EVENT_CLASS(gb_message,
 		__entry->result = message->header->result;
 	),
 
-	TP_printk("size=%hu operation_id=0x%04x type=0x%02x result=0x%02x",
+	TP_printk("size=%u operation_id=0x%04x type=0x%02x result=0x%02x",
 		  __entry->size, __entry->operation_id,
 		  __entry->type, __entry->result)
 );
@@ -317,7 +317,7 @@ DECLARE_EVENT_CLASS(gb_interface,
 		__entry->mode_switch = intf->mode_switch;
 	),
 
-	TP_printk("intf_id=%hhu device_id=%hhu module_id=%hhu D=%d J=%d A=%d E=%d M=%d",
+	TP_printk("intf_id=%u device_id=%u module_id=%u D=%d J=%d A=%d E=%d M=%d",
 		__entry->id, __entry->device_id, __entry->module_id,
 		__entry->disconnected, __entry->ejected, __entry->active,
 		__entry->enabled, __entry->mode_switch)
@@ -391,7 +391,7 @@ DECLARE_EVENT_CLASS(gb_module,
 		__entry->disconnected = module->disconnected;
 	),
 
-	TP_printk("hd_bus_id=%d module_id=%hhu num_interfaces=%zu disconnected=%d",
+	TP_printk("hd_bus_id=%d module_id=%u num_interfaces=%zu disconnected=%d",
 		__entry->hd_bus_id, __entry->module_id,
 		__entry->num_interfaces, __entry->disconnected)
 );

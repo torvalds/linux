@@ -66,6 +66,7 @@ properties:
       - st,lis3mdl-magn
       - st,lis2mdl
       - st,lsm9ds1-magn
+      - st,iis2mdc
         # Pressure sensors
       - st,lps001wp-press
       - st,lps25h-press

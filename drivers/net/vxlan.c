@@ -2725,12 +2725,17 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			goto tx_error;
 		} else if (err) {
 			if (info) {
+				struct ip_tunnel_info *unclone;
 				struct in_addr src, dst;
+
+				unclone = skb_tunnel_info_unclone(skb);
+				if (unlikely(!unclone))
+					goto tx_error;
 
 				src = remote_ip.sin.sin_addr;
 				dst = local_ip.sin.sin_addr;
-				info->key.u.ipv4.src = src.s_addr;
-				info->key.u.ipv4.dst = dst.s_addr;
+				unclone->key.u.ipv4.src = src.s_addr;
+				unclone->key.u.ipv4.dst = dst.s_addr;
 			}
 			vxlan_encap_bypass(skb, vxlan, vxlan, vni, false);
 			dst_release(ndst);
@@ -2781,12 +2786,17 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			goto tx_error;
 		} else if (err) {
 			if (info) {
+				struct ip_tunnel_info *unclone;
 				struct in6_addr src, dst;
+
+				unclone = skb_tunnel_info_unclone(skb);
+				if (unlikely(!unclone))
+					goto tx_error;
 
 				src = remote_ip.sin6.sin6_addr;
 				dst = local_ip.sin6.sin6_addr;
-				info->key.u.ipv6.src = src;
-				info->key.u.ipv6.dst = dst;
+				unclone->key.u.ipv6.src = src;
+				unclone->key.u.ipv6.dst = dst;
 			}
 
 			vxlan_encap_bypass(skb, vxlan, vxlan, vni, false);
@@ -4721,7 +4731,6 @@ static void vxlan_destroy_tunnels(struct net *net, struct list_head *head)
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
 	struct vxlan_dev *vxlan, *next;
 	struct net_device *dev, *aux;
-	unsigned int h;
 
 	for_each_netdev_safe(net, dev, aux)
 		if (dev->rtnl_link_ops == &vxlan_link_ops)
@@ -4735,14 +4744,13 @@ static void vxlan_destroy_tunnels(struct net *net, struct list_head *head)
 			unregister_netdevice_queue(vxlan->dev, head);
 	}
 
-	for (h = 0; h < PORT_HASH_SIZE; ++h)
-		WARN_ON_ONCE(!hlist_empty(&vn->sock_list[h]));
 }
 
 static void __net_exit vxlan_exit_batch_net(struct list_head *net_list)
 {
 	struct net *net;
 	LIST_HEAD(list);
+	unsigned int h;
 
 	rtnl_lock();
 	list_for_each_entry(net, net_list, exit_list) {
@@ -4755,6 +4763,13 @@ static void __net_exit vxlan_exit_batch_net(struct list_head *net_list)
 
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
+
+	list_for_each_entry(net, net_list, exit_list) {
+		struct vxlan_net *vn = net_generic(net, vxlan_net_id);
+
+		for (h = 0; h < PORT_HASH_SIZE; ++h)
+			WARN_ON_ONCE(!hlist_empty(&vn->sock_list[h]));
+	}
 }
 
 static struct pernet_operations vxlan_net_ops = {

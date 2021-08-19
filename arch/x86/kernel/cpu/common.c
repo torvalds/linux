@@ -161,7 +161,6 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 
 	[GDT_ENTRY_ESPFIX_SS]		= GDT_ENTRY_INIT(0xc092, 0, 0xfffff),
 	[GDT_ENTRY_PERCPU]		= GDT_ENTRY_INIT(0xc092, 0, 0xfffff),
-	GDT_STACK_CANARY_INIT
 #endif
 } };
 EXPORT_PER_CPU_SYMBOL_GPL(gdt_page);
@@ -482,7 +481,7 @@ static __always_inline void setup_pku(struct cpuinfo_x86 *c)
 	if (pk)
 		pk->pkru = init_pkru_value;
 	/*
-	 * Seting X86_CR4_PKE will cause the X86_FEATURE_OSPKE
+	 * Setting X86_CR4_PKE will cause the X86_FEATURE_OSPKE
 	 * cpuid bit to be set.  We need to ensure that we
 	 * update that bit in this CPU's "cpu_info".
 	 */
@@ -599,7 +598,6 @@ void load_percpu_segment(int cpu)
 	__loadsegment_simple(gs, 0);
 	wrmsrl(MSR_GS_BASE, cpu_kernelmode_gs_base(cpu));
 #endif
-	load_stack_canary_segment();
 }
 
 #ifdef CONFIG_X86_32
@@ -1330,7 +1328,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 
 	cpu_set_bug_bits(c);
 
-	cpu_set_core_cap_bits(c);
+	sld_setup(c);
 
 	fpu__init_system(c);
 
@@ -1404,7 +1402,7 @@ static void detect_null_seg_behavior(struct cpuinfo_x86 *c)
 	 * where GS is unused by the prev and next threads.
 	 *
 	 * Since neither vendor documents this anywhere that I can see,
-	 * detect it directly instead of hardcoding the choice by
+	 * detect it directly instead of hard-coding the choice by
 	 * vendor.
 	 *
 	 * I've designated AMD's behavior as the "bug" because it's
@@ -1742,11 +1740,13 @@ DEFINE_PER_CPU(struct task_struct *, current_task) ____cacheline_aligned =
 	&init_task;
 EXPORT_PER_CPU_SYMBOL(current_task);
 
-DEFINE_PER_CPU(struct irq_stack *, hardirq_stack_ptr);
-DEFINE_PER_CPU(unsigned int, irq_count) __visible = -1;
+DEFINE_PER_CPU(void *, hardirq_stack_ptr);
+DEFINE_PER_CPU(bool, hardirq_stack_inuse);
 
 DEFINE_PER_CPU(int, __preempt_count) = INIT_PREEMPT_COUNT;
 EXPORT_PER_CPU_SYMBOL(__preempt_count);
+
+DEFINE_PER_CPU(unsigned long, cpu_current_top_of_stack) = TOP_OF_INIT_STACK;
 
 /* May not be marked __init: used by software suspend */
 void syscall_init(void)
@@ -1796,7 +1796,8 @@ DEFINE_PER_CPU(unsigned long, cpu_current_top_of_stack) =
 EXPORT_PER_CPU_SYMBOL(cpu_current_top_of_stack);
 
 #ifdef CONFIG_STACKPROTECTOR
-DEFINE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
+DEFINE_PER_CPU(unsigned long, __stack_chk_guard);
+EXPORT_PER_CPU_SYMBOL(__stack_chk_guard);
 #endif
 
 #endif	/* CONFIG_X86_64 */

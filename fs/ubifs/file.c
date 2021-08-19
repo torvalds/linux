@@ -1257,7 +1257,8 @@ static int do_setattr(struct ubifs_info *c, struct inode *inode,
 	return err;
 }
 
-int ubifs_setattr(struct dentry *dentry, struct iattr *attr)
+int ubifs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		  struct iattr *attr)
 {
 	int err;
 	struct inode *inode = d_inode(dentry);
@@ -1265,7 +1266,7 @@ int ubifs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	dbg_gen("ino %lu, mode %#x, ia_valid %#x",
 		inode->i_ino, inode->i_mode, attr->ia_valid);
-	err = setattr_prepare(dentry, attr);
+	err = setattr_prepare(&init_user_ns, dentry, attr);
 	if (err)
 		return err;
 
@@ -1647,6 +1648,8 @@ const struct inode_operations ubifs_file_inode_operations = {
 	.getattr     = ubifs_getattr,
 	.listxattr   = ubifs_listxattr,
 	.update_time = ubifs_update_time,
+	.fileattr_get = ubifs_fileattr_get,
+	.fileattr_set = ubifs_fileattr_set,
 };
 
 const struct inode_operations ubifs_symlink_inode_operations = {

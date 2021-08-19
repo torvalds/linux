@@ -2036,7 +2036,10 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 	if (size != dm_get_size(md))
 		memset(&md->geometry, 0, sizeof(md->geometry));
 
-	set_capacity_and_notify(md->disk, size);
+	if (!get_capacity(md->disk))
+		set_capacity(md->disk, size);
+	else
+		set_capacity_and_notify(md->disk, size);
 
 	dm_table_event_callback(t, event_callback, md);
 

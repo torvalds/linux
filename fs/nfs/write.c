@@ -303,9 +303,9 @@ static void nfs_set_pageerror(struct address_space *mapping)
 	nfs_zap_mapping(mapping->host, mapping);
 	/* Force file size revalidation */
 	spin_lock(&inode->i_lock);
-	NFS_I(inode)->cache_validity |= NFS_INO_REVAL_FORCED |
-					NFS_INO_REVAL_PAGECACHE |
-					NFS_INO_INVALID_SIZE;
+	nfs_set_cache_invalid(inode, NFS_INO_REVAL_FORCED |
+					     NFS_INO_REVAL_PAGECACHE |
+					     NFS_INO_INVALID_SIZE);
 	spin_unlock(&inode->i_lock);
 }
 
@@ -712,16 +712,23 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 {
 	struct inode *inode = mapping->host;
 	struct nfs_pageio_descriptor pgio;
-	struct nfs_io_completion *ioc;
+	struct nfs_io_completion *ioc = NULL;
+	unsigned int mntflags = NFS_SERVER(inode)->flags;
+	int priority = 0;
 	int err;
 
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGES);
 
-	ioc = nfs_io_completion_alloc(GFP_KERNEL);
-	if (ioc)
-		nfs_io_completion_init(ioc, nfs_io_completion_commit, inode);
+	if (!(mntflags & NFS_MOUNT_WRITE_EAGER) || wbc->for_kupdate ||
+	    wbc->for_background || wbc->for_sync || wbc->for_reclaim) {
+		ioc = nfs_io_completion_alloc(GFP_KERNEL);
+		if (ioc)
+			nfs_io_completion_init(ioc, nfs_io_completion_commit,
+					       inode);
+		priority = wb_priority(wbc);
+	}
 
-	nfs_pageio_init_write(&pgio, inode, wb_priority(wbc), false,
+	nfs_pageio_init_write(&pgio, inode, priority, false,
 				&nfs_async_write_completion_ops);
 	pgio.pg_io_completion = ioc;
 	err = write_cache_pages(mapping, wbc, nfs_writepages_callback, &pgio);
@@ -1278,19 +1285,21 @@ bool nfs_ctx_key_to_expire(struct nfs_open_context *ctx, struct inode *inode)
  * the PageUptodate() flag. In this case, we will need to turn off
  * write optimisations that depend on the page contents being correct.
  */
-static bool nfs_write_pageuptodate(struct page *page, struct inode *inode)
+static bool nfs_write_pageuptodate(struct page *page, struct inode *inode,
+				   unsigned int pagelen)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	if (nfs_have_delegated_attributes(inode))
 		goto out;
-	if (nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE)
+	if (nfsi->cache_validity &
+	    (NFS_INO_REVAL_PAGECACHE | NFS_INO_INVALID_SIZE))
 		return false;
 	smp_rmb();
-	if (test_bit(NFS_INO_INVALIDATING, &nfsi->flags))
+	if (test_bit(NFS_INO_INVALIDATING, &nfsi->flags) && pagelen != 0)
 		return false;
 out:
-	if (nfsi->cache_validity & NFS_INO_INVALID_DATA)
+	if (nfsi->cache_validity & NFS_INO_INVALID_DATA && pagelen != 0)
 		return false;
 	return PageUptodate(page) != 0;
 }
@@ -1310,7 +1319,8 @@ is_whole_file_wrlock(struct file_lock *fl)
  * If the file is opened for synchronous writes then we can just skip the rest
  * of the checks.
  */
-static int nfs_can_extend_write(struct file *file, struct page *page, struct inode *inode)
+static int nfs_can_extend_write(struct file *file, struct page *page,
+				struct inode *inode, unsigned int pagelen)
 {
 	int ret;
 	struct file_lock_context *flctx = inode->i_flctx;
@@ -1318,7 +1328,7 @@ static int nfs_can_extend_write(struct file *file, struct page *page, struct ino
 
 	if (file->f_flags & O_DSYNC)
 		return 0;
-	if (!nfs_write_pageuptodate(page, inode))
+	if (!nfs_write_pageuptodate(page, inode, pagelen))
 		return 0;
 	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE))
 		return 1;
@@ -1356,6 +1366,7 @@ int nfs_updatepage(struct file *file, struct page *page,
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct address_space *mapping = page_file_mapping(page);
 	struct inode	*inode = mapping->host;
+	unsigned int	pagelen = nfs_page_length(page);
 	int		status = 0;
 
 	nfs_inc_stats(inode, NFSIOS_VFSUPDATEPAGE);
@@ -1366,8 +1377,8 @@ int nfs_updatepage(struct file *file, struct page *page,
 	if (!count)
 		goto out;
 
-	if (nfs_can_extend_write(file, page, inode)) {
-		count = max(count + offset, nfs_page_length(page));
+	if (nfs_can_extend_write(file, page, inode, pagelen)) {
+		count = max(count + offset, pagelen);
 		offset = 0;
 	}
 
@@ -1593,7 +1604,7 @@ static int nfs_writeback_done(struct rpc_task *task,
 	/* Deal with the suid/sgid bit corner case */
 	if (nfs_should_remove_suid(inode)) {
 		spin_lock(&inode->i_lock);
-		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_OTHER;
+		nfs_set_cache_invalid(inode, NFS_INO_INVALID_OTHER);
 		spin_unlock(&inode->i_lock);
 	}
 	return 0;

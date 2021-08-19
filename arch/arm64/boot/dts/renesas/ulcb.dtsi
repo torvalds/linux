@@ -23,6 +23,8 @@
 	aliases {
 		serial0 = &scif2;
 		ethernet0 = &avb;
+		mmc0 = &sdhi2;
+		mmc1 = &sdhi0;
 	};
 
 	chosen {
@@ -134,6 +136,10 @@
 		#clock-cells = <0>;
 		clock-frequency = <25000000>;
 	};
+};
+
+&a57_0 {
+	cpu-supply = <&dvfs>;
 };
 
 &audio_clk_a {
@@ -365,7 +371,7 @@
 };
 
 &rcar_sound {
-	pinctrl-0 = <&sound_pins &sound_clk_pins>;
+	pinctrl-0 = <&sound_pins>, <&sound_clk_pins>;
 	pinctrl-names = "default";
 
 	/* Single DAI */
@@ -408,8 +414,8 @@
 				bitclock-master = <&rsnd_for_ak4613>;
 				frame-master = <&rsnd_for_ak4613>;
 
-				playback = <&ssi0 &src0 &dvc0>;
-				capture  = <&ssi1 &src1 &dvc1>;
+				playback = <&ssi0>, <&src0>, <&dvc0>;
+				capture  = <&ssi1>, <&src1>, <&dvc1>;
 			};
 		};
 		rsnd_port1: port@1 {

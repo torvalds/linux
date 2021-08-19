@@ -12,3 +12,16 @@ config PCI_EPF_TEST
 	   for PCI Endpoint.
 
 	   If in doubt, say "N" to disable Endpoint test driver.
+
+config PCI_EPF_NTB
+	tristate "PCI Endpoint NTB driver"
+	depends on PCI_ENDPOINT
+	select CONFIGFS_FS
+	help
+	  Select this configuration option to enable the Non-Transparent
+	  Bridge (NTB) driver for PCI Endpoint. NTB driver implements NTB
+	  controller functionality using multiple PCIe endpoint instances.
+	  It can support NTB endpoint function devices created using
+	  device tree.
+
+	  If in doubt, say "N" to disable Endpoint NTB driver.

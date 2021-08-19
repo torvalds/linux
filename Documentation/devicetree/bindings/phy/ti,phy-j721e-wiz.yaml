@@ -15,6 +15,7 @@ properties:
     enum:
       - ti,j721e-wiz-16g
       - ti,j721e-wiz-10g
+      - ti,am64-wiz-10g
 
   power-domains:
     maxItems: 1
@@ -40,6 +41,9 @@ properties:
     const: 1
 
   "#reset-cells":
+    const: 1
+
+  "#clock-cells":
     const: 1
 
   ranges: true
@@ -151,7 +155,7 @@ patternProperties:
       WIZ node should have '1' subnode for the SERDES. It could be either
       Sierra SERDES or Torrent SERDES. Sierra SERDES should follow the
       bindings specified in
-      Documentation/devicetree/bindings/phy/phy-cadence-sierra.txt
+      Documentation/devicetree/bindings/phy/phy-cadence-sierra.yaml
       Torrent SERDES should follow the bindings specified in
       Documentation/devicetree/bindings/phy/phy-cadence-torrent.yaml
 

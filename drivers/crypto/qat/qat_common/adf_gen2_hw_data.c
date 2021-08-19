@@ -179,3 +179,28 @@ u32 adf_gen2_get_accel_cap(struct adf_accel_dev *accel_dev)
 	return capabilities;
 }
 EXPORT_SYMBOL_GPL(adf_gen2_get_accel_cap);
+
+void adf_gen2_set_ssm_wdtimer(struct adf_accel_dev *accel_dev)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	u32 timer_val_pke = ADF_SSM_WDT_PKE_DEFAULT_VALUE;
+	u32 timer_val = ADF_SSM_WDT_DEFAULT_VALUE;
+	unsigned long accel_mask = hw_data->accel_mask;
+	void __iomem *pmisc_addr;
+	struct adf_bar *pmisc;
+	int pmisc_id;
+	u32 i = 0;
+
+	pmisc_id = hw_data->get_misc_bar_id(hw_data);
+	pmisc = &GET_BARS(accel_dev)[pmisc_id];
+	pmisc_addr = pmisc->virt_addr;
+
+	/* Configures WDT timers */
+	for_each_set_bit(i, &accel_mask, hw_data->num_accel) {
+		/* Enable WDT for sym and dc */
+		ADF_CSR_WR(pmisc_addr, ADF_SSMWDT(i), timer_val);
+		/* Enable WDT for pke */
+		ADF_CSR_WR(pmisc_addr, ADF_SSMWDTPKE(i), timer_val_pke);
+	}
+}
+EXPORT_SYMBOL_GPL(adf_gen2_set_ssm_wdtimer);

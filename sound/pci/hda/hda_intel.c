@@ -208,40 +208,6 @@ MODULE_PARM_DESC(snoop, "Enable/disable snooping");
 
 
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
-			 "{Intel, ICH6M},"
-			 "{Intel, ICH7},"
-			 "{Intel, ESB2},"
-			 "{Intel, ICH8},"
-			 "{Intel, ICH9},"
-			 "{Intel, ICH10},"
-			 "{Intel, PCH},"
-			 "{Intel, CPT},"
-			 "{Intel, PPT},"
-			 "{Intel, LPT},"
-			 "{Intel, LPT_LP},"
-			 "{Intel, WPT_LP},"
-			 "{Intel, SPT},"
-			 "{Intel, SPT_LP},"
-			 "{Intel, HPT},"
-			 "{Intel, PBG},"
-			 "{Intel, SCH},"
-			 "{ATI, SB450},"
-			 "{ATI, SB600},"
-			 "{ATI, RS600},"
-			 "{ATI, RS690},"
-			 "{ATI, RS780},"
-			 "{ATI, R600},"
-			 "{ATI, RV630},"
-			 "{ATI, RV610},"
-			 "{ATI, RV670},"
-			 "{ATI, RV635},"
-			 "{ATI, RV620},"
-			 "{ATI, RV770},"
-			 "{VIA, VT8251},"
-			 "{VIA, VT8237A},"
-			 "{SiS, SIS966},"
-			 "{ULI, M5461}}");
 MODULE_DESCRIPTION("Intel HDA driver");
 
 #if defined(CONFIG_PM) && defined(CONFIG_VGA_SWITCHEROO)
@@ -1023,8 +989,14 @@ static int azx_prepare(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
 
+	if (!azx_is_pm_ready(card))
+		return 0;
+
 	chip = card->private_data;
 	chip->pm_prepared = 1;
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+
+	flush_work(&azx_bus(chip)->unsol_work);
 
 	/* HDA controller always requires different WAKEEN for runtime suspend
 	 * and system suspend, so don't use direct-complete here.
@@ -1037,7 +1009,11 @@ static void azx_complete(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
 
+	if (!azx_is_pm_ready(card))
+		return;
+
 	chip = card->private_data;
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	chip->pm_prepared = 0;
 }
 

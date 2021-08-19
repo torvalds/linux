@@ -40,7 +40,8 @@ static int nfsd_acceptable(void *expv, struct dentry *dentry)
 		/* make sure parents give x permission to user */
 		int err;
 		parent = dget_parent(tdentry);
-		err = inode_permission(d_inode(parent), MAY_EXEC);
+		err = inode_permission(&init_user_ns,
+				       d_inode(parent), MAY_EXEC);
 		if (err < 0) {
 			dput(parent);
 			break;
@@ -710,7 +711,7 @@ char * SVCFH_fmt(struct svc_fh *fhp)
 	return buf;
 }
 
-enum fsid_source fsid_source(struct svc_fh *fhp)
+enum fsid_source fsid_source(const struct svc_fh *fhp)
 {
 	if (fhp->fh_handle.fh_version != 1)
 		return FSIDSOURCE_DEV;

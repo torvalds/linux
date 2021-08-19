@@ -1292,7 +1292,7 @@ exit_unlock:
 	 * resumes, hv_pci_restore_msi_state() is able to correctly restore
 	 * the interrupt with the correct affinity.
 	 */
-	if (res && hbus->state != hv_pcibus_removing)
+	if (!hv_result_success(res) && hbus->state != hv_pcibus_removing)
 		dev_err(&hbus->hdev->device,
 			"%s() failed: %#llx", __func__, res);
 
@@ -1458,7 +1458,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	 * Prevents hv_pci_onchannelcallback() from running concurrently
 	 * in the tasklet.
 	 */
-	tasklet_disable(&channel->callback_event);
+	tasklet_disable_in_atomic(&channel->callback_event);
 
 	/*
 	 * Since this function is called with IRQ locks held, can't
@@ -1714,7 +1714,7 @@ static void prepopulate_bars(struct hv_pcibus_device *hbus)
 	 * resumed and suspended again: see hibernation_snapshot() and
 	 * hibernation_platform_enter().
 	 *
-	 * If the memory enable bit is already set, Hyper-V sliently ignores
+	 * If the memory enable bit is already set, Hyper-V silently ignores
 	 * the below BAR updates, and the related PCI device driver can not
 	 * work, because reading from the device register(s) always returns
 	 * 0xFFFFFFFF.

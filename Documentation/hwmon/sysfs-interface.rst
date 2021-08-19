@@ -65,6 +65,14 @@ the desired value must be written, note that strings which are not a number
 are interpreted as 0! For more on how written strings are interpreted see the
 "sysfs attribute writes interpretation" section at the end of this file.
 
+Attribute access
+----------------
+
+Hardware monitoring sysfs attributes are displayed by unrestricted userspace
+applications. For this reason, all standard ABI attributes shall be world
+readable. Writeable standard ABI attributes shall be writeable only for
+privileged users.
+
 -------------------------------------------------------------------------
 
 ======= ===========================================

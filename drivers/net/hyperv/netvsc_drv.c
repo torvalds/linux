@@ -744,7 +744,7 @@ static netdev_tx_t netvsc_start_xmit(struct sk_buff *skb,
  */
 void netvsc_linkstatus_callback(struct net_device *net,
 				struct rndis_message *resp,
-				void *data)
+				void *data, u32 data_buflen)
 {
 	struct rndis_indicate_status *indicate = &resp->msg.indicate_status;
 	struct net_device_context *ndev_ctx = netdev_priv(net);
@@ -765,11 +765,16 @@ void netvsc_linkstatus_callback(struct net_device *net,
 	if (indicate->status == RNDIS_STATUS_LINK_SPEED_CHANGE) {
 		u32 speed;
 
-		/* Validate status_buf_offset */
+		/* Validate status_buf_offset and status_buflen.
+		 *
+		 * Certain (pre-Fe) implementations of Hyper-V's vSwitch didn't account
+		 * for the status buffer field in resp->msg_len; perform the validation
+		 * using data_buflen (>= resp->msg_len).
+		 */
 		if (indicate->status_buflen < sizeof(speed) ||
 		    indicate->status_buf_offset < sizeof(*indicate) ||
-		    resp->msg_len - RNDIS_HEADER_SIZE < indicate->status_buf_offset ||
-		    resp->msg_len - RNDIS_HEADER_SIZE - indicate->status_buf_offset
+		    data_buflen - RNDIS_HEADER_SIZE < indicate->status_buf_offset ||
+		    data_buflen - RNDIS_HEADER_SIZE - indicate->status_buf_offset
 				< indicate->status_buflen) {
 			netdev_err(net, "invalid rndis_indicate_status packet\n");
 			return;

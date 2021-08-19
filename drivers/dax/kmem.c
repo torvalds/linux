@@ -136,7 +136,7 @@ err_res_name:
 }
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
-static int dev_dax_kmem_remove(struct dev_dax *dev_dax)
+static void dev_dax_kmem_remove(struct dev_dax *dev_dax)
 {
 	int i, success = 0;
 	struct device *dev = &dev_dax->dev;
@@ -176,11 +176,9 @@ static int dev_dax_kmem_remove(struct dev_dax *dev_dax)
 		kfree(data);
 		dev_set_drvdata(dev, NULL);
 	}
-
-	return 0;
 }
 #else
-static int dev_dax_kmem_remove(struct dev_dax *dev_dax)
+static void dev_dax_kmem_remove(struct dev_dax *dev_dax)
 {
 	/*
 	 * Without hotremove purposely leak the request_mem_region() for the
@@ -190,7 +188,6 @@ static int dev_dax_kmem_remove(struct dev_dax *dev_dax)
 	 * request_mem_region().
 	 */
 	any_hotremove_failed = true;
-	return 0;
 }
 #endif /* CONFIG_MEMORY_HOTREMOVE */
 

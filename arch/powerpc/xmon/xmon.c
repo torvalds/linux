@@ -1383,7 +1383,6 @@ static long check_bp_loc(unsigned long addr)
 	return 1;
 }
 
-#ifndef CONFIG_PPC_8xx
 static int find_free_data_bpt(void)
 {
 	int i;
@@ -1395,7 +1394,6 @@ static int find_free_data_bpt(void)
 	printf("Couldn't find free breakpoint register\n");
 	return -1;
 }
-#endif
 
 static void print_data_bpts(void)
 {
@@ -1435,7 +1433,6 @@ bpt_cmds(void)
 	cmd = inchar();
 
 	switch (cmd) {
-#ifndef CONFIG_PPC_8xx
 	static const char badaddr[] = "Only kernel addresses are permitted for breakpoints\n";
 	int mode;
 	case 'd':	/* bd - hardware data breakpoint */
@@ -1497,7 +1494,6 @@ bpt_cmds(void)
 			force_enable_xmon();
 		}
 		break;
-#endif
 
 	case 'c':
 		if (!scanhex(&a)) {
@@ -3005,7 +3001,7 @@ print_address(unsigned long addr)
 static void
 dump_log_buf(void)
 {
-	struct kmsg_dumper dumper = { .active = 1 };
+	struct kmsg_dump_iter iter;
 	unsigned char buf[128];
 	size_t len;
 
@@ -3017,9 +3013,9 @@ dump_log_buf(void)
 	catch_memory_errors = 1;
 	sync();
 
-	kmsg_dump_rewind_nolock(&dumper);
+	kmsg_dump_rewind(&iter);
 	xmon_start_pagination();
-	while (kmsg_dump_get_line_nolock(&dumper, false, buf, sizeof(buf), &len)) {
+	while (kmsg_dump_get_line(&iter, false, buf, sizeof(buf), &len)) {
 		buf[len] = '\0';
 		printf("%s", buf);
 	}
@@ -3723,7 +3719,7 @@ void dump_segments(void)
 
 	printf("sr0-15 =");
 	for (i = 0; i < 16; ++i)
-		printf(" %x", mfsrin(i << 28));
+		printf(" %x", mfsr(i << 28));
 	printf("\n");
 }
 #endif

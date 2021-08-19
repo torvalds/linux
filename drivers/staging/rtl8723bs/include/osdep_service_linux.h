@@ -40,29 +40,12 @@
         #include <net/ieee80211_radiotap.h>
 	#include <net/cfg80211.h>
 
-	typedef	spinlock_t	_lock;
-	typedef struct mutex		_mutex;
-	typedef struct timer_list _timer;
-
 	struct	__queue	{
 		struct	list_head	queue;
-		_lock	lock;
+		spinlock_t	lock;
 	};
 
-	typedef	struct sk_buff	_pkt;
-	typedef unsigned char _buffer;
-
-	typedef	int	_OS_STATUS;
-	/* typedef u32 _irqL; */
-	typedef unsigned long _irqL;
-	typedef	struct	net_device * _nic_hdl;
-
 	#define thread_exit() complete_and_exit(NULL, 0)
-
-	typedef void timer_hdl_return;
-	typedef void* timer_hdl_context;
-
-	typedef struct work_struct _workitem;
 
 static inline struct list_head *get_next(struct list_head	*list)
 {
@@ -74,22 +57,22 @@ static inline struct list_head	*get_list_head(struct __queue	*queue)
 	return (&(queue->queue));
 }
 
-static inline void _set_timer(_timer *ptimer, u32 delay_time)
+static inline void _set_timer(struct timer_list *ptimer, u32 delay_time)
 {
 	mod_timer(ptimer, (jiffies + (delay_time * HZ / 1000)));
 }
 
-static inline void _init_workitem(_workitem *pwork, void *pfunc, void *cntx)
+static inline void _init_workitem(struct work_struct *pwork, void *pfunc, void *cntx)
 {
 	INIT_WORK(pwork, pfunc);
 }
 
-static inline void _set_workitem(_workitem *pwork)
+static inline void _set_workitem(struct work_struct *pwork)
 {
 	schedule_work(pwork);
 }
 
-static inline void _cancel_workitem_sync(_workitem *pwork)
+static inline void _cancel_workitem_sync(struct work_struct *pwork)
 {
 	cancel_work_sync(pwork);
 }
@@ -137,6 +120,6 @@ static inline struct adapter *rtw_netdev_priv(struct net_device *netdev)
 }
 
 struct net_device *rtw_alloc_etherdev_with_old_priv(int sizeof_priv, void *old_priv);
-extern struct net_device * rtw_alloc_etherdev(int sizeof_priv);
+extern struct net_device *rtw_alloc_etherdev(int sizeof_priv);
 
 #endif

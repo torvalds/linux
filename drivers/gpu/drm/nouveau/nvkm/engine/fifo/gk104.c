@@ -261,6 +261,9 @@ gk104_fifo_pbdma = {
 struct nvkm_engine *
 gk104_fifo_id_engine(struct nvkm_fifo *base, int engi)
 {
+	if (engi == GK104_FIFO_ENGN_SW)
+		return nvkm_device_engine(base->engine.subdev.device, NVKM_ENGINE_SW, 0);
+
 	return gk104_fifo(base)->engine[engi].engine;
 }
 

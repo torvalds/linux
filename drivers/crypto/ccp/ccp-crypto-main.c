@@ -59,7 +59,7 @@ struct ccp_crypto_queue {
 #define CCP_CRYPTO_MAX_QLEN	100
 
 static struct ccp_crypto_queue req_queue;
-static spinlock_t req_queue_lock;
+static DEFINE_SPINLOCK(req_queue_lock);
 
 struct ccp_crypto_cmd {
 	struct list_head entry;
@@ -410,7 +410,6 @@ static int ccp_crypto_init(void)
 		return ret;
 	}
 
-	spin_lock_init(&req_queue_lock);
 	INIT_LIST_HEAD(&req_queue.cmds);
 	req_queue.backlog = &req_queue.cmds;
 	req_queue.cmd_count = 0;

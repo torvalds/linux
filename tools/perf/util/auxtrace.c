@@ -298,10 +298,6 @@ static int auxtrace_queues__queue_buffer(struct auxtrace_queues *queues,
 		queue->set = true;
 		queue->tid = buffer->tid;
 		queue->cpu = buffer->cpu;
-	} else if (buffer->cpu != queue->cpu || buffer->tid != queue->tid) {
-		pr_err("auxtrace queue conflict: cpu %d, tid %d vs cpu %d, tid %d\n",
-		       queue->cpu, queue->tid, buffer->cpu, buffer->tid);
-		return -EINVAL;
 	}
 
 	buffer->buffer_nr = queues->next_buffer_nr++;
@@ -638,7 +634,7 @@ int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
 		break;
 	}
 
-	if (itr)
+	if (itr && itr->parse_snapshot_options)
 		return itr->parse_snapshot_options(itr, opts, str);
 
 	pr_err("No AUX area tracing to snapshot\n");
@@ -786,6 +782,21 @@ no_opt:
 	}
 
 	return auxtrace_validate_aux_sample_size(evlist, opts);
+}
+
+void auxtrace_regroup_aux_output(struct evlist *evlist)
+{
+	struct evsel *evsel, *aux_evsel = NULL;
+	struct evsel_config_term *term;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel__is_aux_event(evsel))
+			aux_evsel = evsel;
+		term = evsel__get_config_term(evsel, AUX_OUTPUT);
+		/* If possible, group with the AUX event */
+		if (term && aux_evsel)
+			evlist__regroup(evlist, aux_evsel, evsel);
+	}
 }
 
 struct auxtrace_record *__weak

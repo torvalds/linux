@@ -292,7 +292,7 @@ void f2fs_ra_meta_pages_cond(struct f2fs_sb_info *sbi, pgoff_t index)
 	f2fs_put_page(page, 0);
 
 	if (readahead)
-		f2fs_ra_meta_pages(sbi, index, BIO_MAX_PAGES, META_POR, true);
+		f2fs_ra_meta_pages(sbi, index, BIO_MAX_VECS, META_POR, true);
 }
 
 static int __f2fs_write_meta_page(struct page *page,

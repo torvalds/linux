@@ -12,9 +12,21 @@ config LITEX_SOC_CONTROLLER
 	select LITEX
 	help
 	  This option enables the SoC Controller Driver which verifies
-	  LiteX CSR access and provides common litex_get_reg/litex_set_reg
+	  LiteX CSR access and provides common litex_[read|write]*
 	  accessors.
 	  All drivers that use functions from litex.h must depend on
 	  LITEX.
+
+config LITEX_SUBREG_SIZE
+	int "Size of a LiteX CSR subregister, in bytes"
+	depends on LITEX
+	range 1 4
+	default 4
+	help
+	LiteX MMIO registers (referred to as Configuration and Status
+	registers, or CSRs) are spread across adjacent 8- or 32-bit
+	subregisters, located at 32-bit aligned MMIO addresses. Use
+	this to select the appropriate size (1 or 4 bytes) matching
+	your particular LiteX build.
 
 endmenu

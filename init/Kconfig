@@ -19,37 +19,43 @@ config CC_VERSION_TEXT
 	    CC_VERSION_TEXT so it is recorded in include/config/auto.conf.cmd.
 	    When the compiler is updated, Kconfig will be invoked.
 
-	  - Ensure full rebuild when the compier is updated
-	    include/linux/kconfig.h contains this option in the comment line so
-	    fixdep adds include/config/cc/version/text.h into the auto-generated
-	    dependency. When the compiler is updated, syncconfig will touch it
-	    and then every file will be rebuilt.
+	  - Ensure full rebuild when the compiler is updated
+	    include/linux/compiler-version.h contains this option in the comment
+	    line so fixdep adds include/config/cc/version/text.h into the
+	    auto-generated dependency. When the compiler is updated, syncconfig
+	    will touch it and then every file will be rebuilt.
 
 config CC_IS_GCC
-	def_bool $(success,echo "$(CC_VERSION_TEXT)" | grep -q gcc)
+	def_bool $(success,test "$(cc-name)" = GCC)
 
 config GCC_VERSION
 	int
-	default $(shell,$(srctree)/scripts/gcc-version.sh $(CC)) if CC_IS_GCC
+	default $(cc-version) if CC_IS_GCC
 	default 0
 
-config LD_VERSION
-	int
-	default $(shell,$(LD) --version | $(srctree)/scripts/ld-version.sh)
-
 config CC_IS_CLANG
-	def_bool $(success,echo "$(CC_VERSION_TEXT)" | grep -q clang)
-
-config LD_IS_LLD
-	def_bool $(success,$(LD) -v | head -n 1 | grep -q LLD)
+	def_bool $(success,test "$(cc-name)" = Clang)
 
 config CLANG_VERSION
 	int
-	default $(shell,$(srctree)/scripts/clang-version.sh $(CC))
+	default $(cc-version) if CC_IS_CLANG
+	default 0
+
+config LD_IS_BFD
+	def_bool $(success,test "$(ld-name)" = BFD)
+
+config LD_VERSION
+	int
+	default $(ld-version) if LD_IS_BFD
+	default 0
+
+config LD_IS_LLD
+	def_bool $(success,test "$(ld-name)" = LLD)
 
 config LLD_VERSION
 	int
-	default $(shell,$(srctree)/scripts/lld-version.sh $(LD))
+	default $(ld-version) if LD_IS_LLD
+	default 0
 
 config CC_CAN_LINK
 	bool
@@ -113,8 +119,7 @@ config INIT_ENV_ARG_LIMIT
 
 config COMPILE_TEST
 	bool "Compile also drivers which will not load"
-	depends on !UML && !S390
-	default n
+	depends on HAS_IOMEM
 	help
 	  Some drivers can be compiled on a different platform than they are
 	  intended to be run on. Despite they cannot be loaded there (or even
@@ -1193,6 +1198,7 @@ endif # NAMESPACES
 config CHECKPOINT_RESTORE
 	bool "Checkpoint/restore support"
 	select PROC_CHILDREN
+	select KCMP
 	default n
 	help
 	  Enables additional kernel features in a sake of checkpoint/restore.
@@ -1736,6 +1742,16 @@ config ARCH_HAS_MEMBARRIER_CALLBACKS
 config ARCH_HAS_MEMBARRIER_SYNC_CORE
 	bool
 
+config KCMP
+	bool "Enable kcmp() system call" if EXPERT
+	help
+	  Enable the kernel resource comparison system call. It provides
+	  user-space with the ability to compare two processes to see if they
+	  share a common resource, such as a file descriptor or even virtual
+	  memory space.
+
+	  If unsure, say N.
+
 config RSEQ
 	bool "Enable rseq() system call" if EXPERT
 	default y
@@ -1849,20 +1865,6 @@ config SLUB_DEBUG
 	  result in significant savings in code size. This also disables
 	  SLUB sysfs support. /sys/slab will not exist and there will be
 	  no support for cache validation etc.
-
-config SLUB_MEMCG_SYSFS_ON
-	default n
-	bool "Enable memcg SLUB sysfs support by default" if EXPERT
-	depends on SLUB && SYSFS && MEMCG
-	help
-	  SLUB creates a directory under /sys/kernel/slab for each
-	  allocation cache to host info and debug files. If memory
-	  cgroup is enabled, each cache can have per memory cgroup
-	  caches. SLUB can create the same sysfs directories for these
-	  caches under /sys/kernel/slab/CACHE/cgroup but it can lead
-	  to a very high number of debug files being created. This is
-	  controlled by slub_memcg_sysfs boot parameter and this
-	  config option determines the parameter's default value.
 
 config COMPAT_BRK
 	bool "Disable heap randomization"
@@ -2261,25 +2263,9 @@ config MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS
 
 	  If unsure, say N.
 
-config UNUSED_SYMBOLS
-	bool "Enable unused/obsolete exported symbols"
-	default y if X86
-	help
-	  Unused but exported symbols make the kernel needlessly bigger.  For
-	  that reason most of these unused exports will soon be removed.  This
-	  option is provided temporarily to provide a transition period in case
-	  some external kernel module needs one of these symbols anyway. If you
-	  encounter such a case in your module, consider if you are actually
-	  using the right API.  (rationale: since nobody in the kernel is using
-	  this in a module, there is a pretty good chance it's actually the
-	  wrong interface to use).  If you really need the symbol, please send a
-	  mail to the linux kernel mailing list mentioning the symbol and why
-	  you really need it, and what the merge plan to the mainline kernel for
-	  your module is.
-
 config TRIM_UNUSED_KSYMS
-	bool "Trim unused exported kernel symbols"
-	depends on !UNUSED_SYMBOLS
+	bool "Trim unused exported kernel symbols" if EXPERT
+	depends on !COMPILE_TEST
 	help
 	  The kernel and some modules make many symbols available for
 	  other modules to use via EXPORT_SYMBOL() and variants. Depending
@@ -2310,7 +2296,7 @@ endif # MODULES
 
 config MODULES_TREE_LOOKUP
 	def_bool y
-	depends on PERF_EVENTS || TRACING
+	depends on PERF_EVENTS || TRACING || CFI_CLANG
 
 config INIT_ALL_POSSIBLE
 	bool

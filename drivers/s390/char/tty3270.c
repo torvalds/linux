@@ -424,8 +424,10 @@ tty3270_update(struct timer_list *t)
 			 * last output position matches the start address
 			 * of this line.
 			 */
-			if (s->string[1] == sba[0] && s->string[2] == sba[1])
-				str += 3, len -= 3;
+			if (s->string[1] == sba[0] && s->string[2] == sba[1]) {
+				str += 3;
+				len -= 3;
+			}
 			if (raw3270_request_add_data(wrq, str, len) != 0)
 				break;
 			list_del_init(&s->update);

@@ -97,6 +97,7 @@
 #include <asm/ptrace.h>
 #include <asm/sal.h>
 #include <asm/mca.h>
+#include <asm/mca_asm.h>
 #include <asm/kexec.h>
 
 #include <asm/irq.h>
@@ -895,7 +896,7 @@ static void
 finish_pt_regs(struct pt_regs *regs, struct ia64_sal_os_state *sos,
 		unsigned long *nat)
 {
-	const pal_min_state_area_t *ms = sos->pal_min_state;
+	const struct pal_min_state_area *ms = sos->pal_min_state;
 	const u64 *bank;
 
 	/* If ipsr.ic then use pmsa_{iip,ipsr,ifs}, else use
@@ -971,7 +972,7 @@ ia64_mca_modify_original_stack(struct pt_regs *regs,
 	char *p;
 	ia64_va va;
 	extern char ia64_leave_kernel[];	/* Need asm address, not function descriptor */
-	const pal_min_state_area_t *ms = sos->pal_min_state;
+	const struct pal_min_state_area *ms = sos->pal_min_state;
 	struct task_struct *previous_current;
 	struct pt_regs *old_regs;
 	struct switch_stack *old_sw;
@@ -1823,7 +1824,7 @@ ia64_mca_cpu_init(void *cpu_data)
 			data = mca_bootmem();
 			first_time = 0;
 		} else
-			data = (void *)__get_free_pages(GFP_KERNEL,
+			data = (void *)__get_free_pages(GFP_ATOMIC,
 							get_order(sz));
 		if (!data)
 			panic("Could not allocate MCA memory for cpu %d\n",

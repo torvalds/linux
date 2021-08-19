@@ -146,6 +146,8 @@ VMLINUX_BTF_PATHS ?= $(if $(O),$(O)/vmlinux)				\
 		     /boot/vmlinux-$(shell uname -r)
 VMLINUX_BTF ?= $(abspath $(firstword $(wildcard $(VMLINUX_BTF_PATHS))))
 
+bootstrap: $(BPFTOOL_BOOTSTRAP)
+
 ifneq ($(VMLINUX_BTF)$(VMLINUX_H),)
 ifeq ($(feature-clang-bpf-co-re),1)
 

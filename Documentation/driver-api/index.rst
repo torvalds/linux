@@ -35,6 +35,7 @@ available subsections can be seen below.
    usb/index
    firewire
    pci/index
+   cxl/index
    spi
    i2c
    ipmb
@@ -93,7 +94,6 @@ available subsections can be seen below.
    pps
    ptp
    phy/index
-   pti_intel_mid
    pwm
    pldmfw/index
    rfkill

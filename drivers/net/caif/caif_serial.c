@@ -382,7 +382,6 @@ static void ldisc_close(struct tty_struct *tty)
 /* The line discipline structure. */
 static struct tty_ldisc_ops caif_ldisc = {
 	.owner =	THIS_MODULE,
-	.magic =	TTY_LDISC_MAGIC,
 	.name =		"n_caif",
 	.open =		ldisc_open,
 	.close =	ldisc_close,
@@ -390,18 +389,6 @@ static struct tty_ldisc_ops caif_ldisc = {
 	.write_wakeup =	ldisc_tx_wakeup
 };
 
-static int register_ldisc(void)
-{
-	int result;
-
-	result = tty_register_ldisc(N_CAIF, &caif_ldisc);
-	if (result < 0) {
-		pr_err("cannot register CAIF ldisc=%d err=%d\n", N_CAIF,
-			result);
-		return result;
-	}
-	return result;
-}
 static const struct net_device_ops netdev_ops = {
 	.ndo_open = caif_net_open,
 	.ndo_stop = caif_net_close,
@@ -444,7 +431,10 @@ static int __init caif_ser_init(void)
 {
 	int ret;
 
-	ret = register_ldisc();
+	ret = tty_register_ldisc(N_CAIF, &caif_ldisc);
+	if (ret < 0)
+		pr_err("cannot register CAIF ldisc=%d err=%d\n", N_CAIF, ret);
+
 	debugfsdir = debugfs_create_dir("caif_serial", NULL);
 	return ret;
 }

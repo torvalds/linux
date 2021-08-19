@@ -82,17 +82,19 @@ extern const struct dentry_operations vboxsf_dentry_ops;
 
 /* from utils.c */
 struct inode *vboxsf_new_inode(struct super_block *sb);
-void vboxsf_init_inode(struct vboxsf_sbi *sbi, struct inode *inode,
-		       const struct shfl_fsobjinfo *info);
+int vboxsf_init_inode(struct vboxsf_sbi *sbi, struct inode *inode,
+		       const struct shfl_fsobjinfo *info, bool reinit);
 int vboxsf_create_at_dentry(struct dentry *dentry,
 			    struct shfl_createparms *params);
 int vboxsf_stat(struct vboxsf_sbi *sbi, struct shfl_string *path,
 		struct shfl_fsobjinfo *info);
 int vboxsf_stat_dentry(struct dentry *dentry, struct shfl_fsobjinfo *info);
 int vboxsf_inode_revalidate(struct dentry *dentry);
-int vboxsf_getattr(const struct path *path, struct kstat *kstat,
-		   u32 request_mask, unsigned int query_flags);
-int vboxsf_setattr(struct dentry *dentry, struct iattr *iattr);
+int vboxsf_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		   struct kstat *kstat, u32 request_mask,
+		   unsigned int query_flags);
+int vboxsf_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		   struct iattr *iattr);
 struct shfl_string *vboxsf_path_from_dentry(struct vboxsf_sbi *sbi,
 					    struct dentry *dentry);
 int vboxsf_nlscpy(struct vboxsf_sbi *sbi, char *name, size_t name_bound_len,

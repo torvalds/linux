@@ -391,6 +391,30 @@ DEFINE_EVENT(nfsd_err_class, nfsd_##name,	\
 DEFINE_NFSD_ERR_EVENT(read_err);
 DEFINE_NFSD_ERR_EVENT(write_err);
 
+TRACE_EVENT(nfsd_dirent,
+	TP_PROTO(struct svc_fh *fhp,
+		 u64 ino,
+		 const char *name,
+		 int namlen),
+	TP_ARGS(fhp, ino, name, namlen),
+	TP_STRUCT__entry(
+		__field(u32, fh_hash)
+		__field(u64, ino)
+		__field(int, len)
+		__dynamic_array(unsigned char, name, namlen)
+	),
+	TP_fast_assign(
+		__entry->fh_hash = fhp ? knfsd_fh_hash(&fhp->fh_handle) : 0;
+		__entry->ino = ino;
+		__entry->len = namlen;
+		memcpy(__get_str(name), name, namlen);
+		__assign_str(name, name);
+	),
+	TP_printk("fh_hash=0x%08x ino=%llu name=%.*s",
+		__entry->fh_hash, __entry->ino,
+		__entry->len, __get_str(name))
+)
+
 #include "state.h"
 #include "filecache.h"
 #include "vfs.h"

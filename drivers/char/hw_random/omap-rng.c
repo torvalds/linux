@@ -30,8 +30,7 @@
 #include <linux/of_address.h>
 #include <linux/interrupt.h>
 #include <linux/clk.h>
-
-#include <asm/io.h>
+#include <linux/io.h>
 
 #define RNG_REG_STATUS_RDY			(1 << 0)
 
@@ -378,16 +377,13 @@ MODULE_DEVICE_TABLE(of, omap_rng_of_match);
 static int of_get_omap_rng_device_details(struct omap_rng_dev *priv,
 					  struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	int irq, err;
 
-	match = of_match_device(of_match_ptr(omap_rng_of_match), dev);
-	if (!match) {
-		dev_err(dev, "no compatible OF match\n");
-		return -EINVAL;
-	}
-	priv->pdata = match->data;
+	priv->pdata = of_device_get_match_data(dev);
+	if (!priv->pdata)
+		return -ENODEV;
+
 
 	if (of_device_is_compatible(dev->of_node, "ti,omap4-rng") ||
 	    of_device_is_compatible(dev->of_node, "inside-secure,safexcel-eip76")) {

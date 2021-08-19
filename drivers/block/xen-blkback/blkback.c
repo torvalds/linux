@@ -891,7 +891,7 @@ next:
 out:
 	for (i = last_map; i < num; i++) {
 		/* Don't zap current batch's valid persistent grants. */
-		if(i >= last_map + segs_to_map)
+		if(i >= map_until)
 			pages[i]->persistent_gnt = NULL;
 		pages[i]->handle = BLKBACK_INVALID_HANDLE;
 	}
@@ -1326,9 +1326,7 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 				     pages[i]->page,
 				     seg[i].nsec << 9,
 				     seg[i].offset) == 0)) {
-
-			int nr_iovecs = min_t(int, (nseg-i), BIO_MAX_PAGES);
-			bio = bio_alloc(GFP_KERNEL, nr_iovecs);
+			bio = bio_alloc(GFP_KERNEL, bio_max_segs(nseg - i));
 			if (unlikely(bio == NULL))
 				goto fail_put_bio;
 

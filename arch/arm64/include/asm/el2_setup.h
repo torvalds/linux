@@ -131,6 +131,26 @@
 .Lskip_sve_\@:
 .endm
 
+/* Disable any fine grained traps */
+.macro __init_el2_fgt
+	mrs	x1, id_aa64mmfr0_el1
+	ubfx	x1, x1, #ID_AA64MMFR0_FGT_SHIFT, #4
+	cbz	x1, .Lskip_fgt_\@
+
+	msr_s	SYS_HDFGRTR_EL2, xzr
+	msr_s	SYS_HDFGWTR_EL2, xzr
+	msr_s	SYS_HFGRTR_EL2, xzr
+	msr_s	SYS_HFGWTR_EL2, xzr
+	msr_s	SYS_HFGITR_EL2, xzr
+
+	mrs	x1, id_aa64pfr0_el1		// AMU traps UNDEF without AMU
+	ubfx	x1, x1, #ID_AA64PFR0_AMU_SHIFT, #4
+	cbz	x1, .Lskip_fgt_\@
+
+	msr_s	SYS_HAFGRTR_EL2, xzr
+.Lskip_fgt_\@:
+.endm
+
 .macro __init_el2_nvhe_prepare_eret
 	mov	x0, #INIT_PSTATE_EL1
 	msr	spsr_el2, x0
@@ -155,6 +175,7 @@
 	__init_el2_nvhe_idregs
 	__init_el2_nvhe_cptr
 	__init_el2_nvhe_sve
+	__init_el2_fgt
 	__init_el2_nvhe_prepare_eret
 .endm
 

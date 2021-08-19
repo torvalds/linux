@@ -384,9 +384,14 @@ static int vangogh_dpm_set_jpeg_enable(struct smu_context *smu, bool enable)
 
 static bool vangogh_is_dpm_running(struct smu_context *smu)
 {
+	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 	uint32_t feature_mask[2];
 	uint64_t feature_enabled;
+
+	/* we need to re-init after suspend so return false */
+	if (adev->in_suspend)
+		return false;
 
 	ret = smu_cmn_get_enabled_32_bits_mask(smu, feature_mask, 2);
 
@@ -810,7 +815,7 @@ static int vangogh_set_power_profile_mode(struct smu_context *smu, long *input, 
 						       CMN2ASIC_MAPPING_WORKLOAD,
 						       profile_mode);
 	if (workload_type < 0) {
-		dev_err_once(smu->adev->dev, "Unsupported power profile mode %d on VANGOGH\n",
+		dev_dbg(smu->adev->dev, "Unsupported power profile mode %d on VANGOGH\n",
 					profile_mode);
 		return -EINVAL;
 	}
@@ -1685,9 +1690,9 @@ static int vangogh_system_features_control(struct smu_context *smu, bool en)
 	uint32_t feature_mask[2];
 	int ret = 0;
 
-	if (adev->pm.fw_version >= 0x43f1700)
+	if (adev->pm.fw_version >= 0x43f1700 && !en)
 		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_RlcPowerNotify,
-						      en ? RLC_STATUS_NORMAL : RLC_STATUS_OFF, NULL);
+						      RLC_STATUS_OFF, NULL);
 
 	bitmap_zero(feature->enabled, feature->feature_num);
 	bitmap_zero(feature->supported, feature->feature_num);

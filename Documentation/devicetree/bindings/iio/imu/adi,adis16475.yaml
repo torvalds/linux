@@ -71,15 +71,6 @@ properties:
     minimum: 0
     maximum: 3
 
-  adi,scaled-output-hz:
-    description:
-      This property must be present if the clock mode is scaled-sync through
-      clock-names property. In this mode, the input clock can have a range
-      of 1Hz to 128HZ which must be scaled to originate an allowable sample
-      rate. This property specifies that rate.
-    minimum: 1900
-    maximum: 2100
-
 required:
   - compatible
   - reg

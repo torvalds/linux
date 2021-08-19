@@ -113,18 +113,17 @@ static int nvdimm_bus_remove(struct device *dev)
 	struct nd_device_driver *nd_drv = to_nd_device_driver(dev->driver);
 	struct module *provider = to_bus_provider(dev);
 	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
-	int rc = 0;
 
 	if (nd_drv->remove) {
 		debug_nvdimm_lock(dev);
-		rc = nd_drv->remove(dev);
+		nd_drv->remove(dev);
 		debug_nvdimm_unlock(dev);
 	}
 
-	dev_dbg(&nvdimm_bus->dev, "%s.remove(%s) = %d\n", dev->driver->name,
-			dev_name(dev), rc);
+	dev_dbg(&nvdimm_bus->dev, "%s.remove(%s)\n", dev->driver->name,
+			dev_name(dev));
 	module_put(provider);
-	return rc;
+	return 0;
 }
 
 static void nvdimm_bus_shutdown(struct device *dev)
@@ -427,7 +426,7 @@ static void free_badrange_list(struct list_head *badrange_list)
 	list_del_init(badrange_list);
 }
 
-static int nd_bus_remove(struct device *dev)
+static void nd_bus_remove(struct device *dev)
 {
 	struct nvdimm_bus *nvdimm_bus = to_nvdimm_bus(dev);
 
@@ -446,8 +445,6 @@ static int nd_bus_remove(struct device *dev)
 	spin_unlock(&nvdimm_bus->badrange.lock);
 
 	nvdimm_bus_destroy_ndctl(nvdimm_bus);
-
-	return 0;
 }
 
 static int nd_bus_probe(struct device *dev)
@@ -634,16 +631,14 @@ void nvdimm_check_and_set_ro(struct gendisk *disk)
 	struct nd_region *nd_region = to_nd_region(dev->parent);
 	int disk_ro = get_disk_ro(disk);
 
-	/*
-	 * Upgrade to read-only if the region is read-only preserve as
-	 * read-only if the disk is already read-only.
-	 */
-	if (disk_ro || nd_region->ro == disk_ro)
+	/* catch the disk up with the region ro state */
+	if (disk_ro == nd_region->ro)
 		return;
 
-	dev_info(dev, "%s read-only, marking %s read-only\n",
-			dev_name(&nd_region->dev), disk->disk_name);
-	set_disk_ro(disk, 1);
+	dev_info(dev, "%s read-%s, marking %s read-%s\n",
+		 dev_name(&nd_region->dev), nd_region->ro ? "only" : "write",
+		 disk->disk_name, nd_region->ro ? "only" : "write");
+	set_disk_ro(disk, nd_region->ro);
 }
 EXPORT_SYMBOL(nvdimm_check_and_set_ro);
 

@@ -28,12 +28,30 @@ properties:
   clock-names:
     const: ipsec
 
+  resets:
+    maxItems: 1
+
+  reset-names:
+    const: ipsec
+
   interrupts:
     maxItems: 1
 
 required:
   - compatible
   - reg
+
+if:
+  properties:
+    compatible:
+      enum:
+        - brcm,bcm6368-rng
+then:
+  required:
+    - clocks
+    - clock-names
+    - resets
+    - reset-names
 
 additionalProperties: false
 
@@ -58,4 +76,7 @@ examples:
 
         clocks = <&periph_clk 18>;
         clock-names = "ipsec";
+
+        resets = <&periph_rst 4>;
+        reset-names = "ipsec";
     };

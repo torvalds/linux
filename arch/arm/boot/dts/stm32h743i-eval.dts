@@ -42,7 +42,7 @@
 
 /dts-v1/;
 #include "stm32h743.dtsi"
-#include "stm32h743-pinctrl.dtsi"
+#include "stm32h7-pinctrl.dtsi"
 
 / {
 	model = "STMicroelectronics STM32H743i-EVAL board";

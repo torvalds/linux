@@ -21,7 +21,7 @@
 #include "hisi_uncore_pmu.h"
 
 #define HISI_GET_EVENTID(ev) (ev->hw.config_base & 0xff)
-#define HISI_MAX_PERIOD(nr) (BIT_ULL(nr) - 1)
+#define HISI_MAX_PERIOD(nr) (GENMASK_ULL((nr) - 1, 0))
 
 /*
  * PMU format attributes
@@ -33,7 +33,7 @@ ssize_t hisi_format_sysfs_show(struct device *dev,
 
 	eattr = container_of(attr, struct dev_ext_attribute, attr);
 
-	return sprintf(buf, "%s\n", (char *)eattr->var);
+	return sysfs_emit(buf, "%s\n", (char *)eattr->var);
 }
 EXPORT_SYMBOL_GPL(hisi_format_sysfs_show);
 
@@ -47,7 +47,7 @@ ssize_t hisi_event_sysfs_show(struct device *dev,
 
 	eattr = container_of(attr, struct dev_ext_attribute, attr);
 
-	return sprintf(page, "config=0x%lx\n", (unsigned long)eattr->var);
+	return sysfs_emit(page, "config=0x%lx\n", (unsigned long)eattr->var);
 }
 EXPORT_SYMBOL_GPL(hisi_event_sysfs_show);
 
@@ -59,7 +59,7 @@ ssize_t hisi_cpumask_sysfs_show(struct device *dev,
 {
 	struct hisi_pmu *hisi_pmu = to_hisi_pmu(dev_get_drvdata(dev));
 
-	return sprintf(buf, "%d\n", hisi_pmu->on_cpu);
+	return sysfs_emit(buf, "%d\n", hisi_pmu->on_cpu);
 }
 EXPORT_SYMBOL_GPL(hisi_cpumask_sysfs_show);
 
@@ -96,12 +96,6 @@ static bool hisi_validate_event_group(struct perf_event *event)
 	return counters <= hisi_pmu->num_counters;
 }
 
-int hisi_uncore_pmu_counter_valid(struct hisi_pmu *hisi_pmu, int idx)
-{
-	return idx >= 0 && idx < hisi_pmu->num_counters;
-}
-EXPORT_SYMBOL_GPL(hisi_uncore_pmu_counter_valid);
-
 int hisi_uncore_pmu_get_event_idx(struct perf_event *event)
 {
 	struct hisi_pmu *hisi_pmu = to_hisi_pmu(event->pmu);
@@ -125,19 +119,68 @@ ssize_t hisi_uncore_pmu_identifier_attr_show(struct device *dev,
 {
 	struct hisi_pmu *hisi_pmu = to_hisi_pmu(dev_get_drvdata(dev));
 
-	return snprintf(page, PAGE_SIZE, "0x%08x\n", hisi_pmu->identifier);
+	return sysfs_emit(page, "0x%08x\n", hisi_pmu->identifier);
 }
 EXPORT_SYMBOL_GPL(hisi_uncore_pmu_identifier_attr_show);
 
 static void hisi_uncore_pmu_clear_event_idx(struct hisi_pmu *hisi_pmu, int idx)
 {
-	if (!hisi_uncore_pmu_counter_valid(hisi_pmu, idx)) {
-		dev_err(hisi_pmu->dev, "Unsupported event index:%d!\n", idx);
-		return;
-	}
-
 	clear_bit(idx, hisi_pmu->pmu_events.used_mask);
 }
+
+static irqreturn_t hisi_uncore_pmu_isr(int irq, void *data)
+{
+	struct hisi_pmu *hisi_pmu = data;
+	struct perf_event *event;
+	unsigned long overflown;
+	int idx;
+
+	overflown = hisi_pmu->ops->get_int_status(hisi_pmu);
+	if (!overflown)
+		return IRQ_NONE;
+
+	/*
+	 * Find the counter index which overflowed if the bit was set
+	 * and handle it.
+	 */
+	for_each_set_bit(idx, &overflown, hisi_pmu->num_counters) {
+		/* Write 1 to clear the IRQ status flag */
+		hisi_pmu->ops->clear_int_status(hisi_pmu, idx);
+		/* Get the corresponding event struct */
+		event = hisi_pmu->pmu_events.hw_events[idx];
+		if (!event)
+			continue;
+
+		hisi_uncore_pmu_event_update(event);
+		hisi_uncore_pmu_set_event_period(event);
+	}
+
+	return IRQ_HANDLED;
+}
+
+int hisi_uncore_pmu_init_irq(struct hisi_pmu *hisi_pmu,
+			     struct platform_device *pdev)
+{
+	int irq, ret;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	ret = devm_request_irq(&pdev->dev, irq, hisi_uncore_pmu_isr,
+			       IRQF_NOBALANCING | IRQF_NO_THREAD,
+			       dev_name(&pdev->dev), hisi_pmu);
+	if (ret < 0) {
+		dev_err(&pdev->dev,
+			"Fail to request IRQ: %d ret: %d.\n", irq, ret);
+		return ret;
+	}
+
+	hisi_pmu->irq = irq;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hisi_uncore_pmu_init_irq);
 
 int hisi_uncore_pmu_event_init(struct perf_event *event)
 {
@@ -202,6 +245,9 @@ static void hisi_uncore_pmu_enable_event(struct perf_event *event)
 	hisi_pmu->ops->write_evtype(hisi_pmu, hwc->idx,
 				    HISI_GET_EVENTID(event));
 
+	if (hisi_pmu->ops->enable_filter)
+		hisi_pmu->ops->enable_filter(event);
+
 	hisi_pmu->ops->enable_counter_int(hisi_pmu, hwc);
 	hisi_pmu->ops->enable_counter(hisi_pmu, hwc);
 }
@@ -216,6 +262,9 @@ static void hisi_uncore_pmu_disable_event(struct perf_event *event)
 
 	hisi_pmu->ops->disable_counter(hisi_pmu, hwc);
 	hisi_pmu->ops->disable_counter_int(hisi_pmu, hwc);
+
+	if (hisi_pmu->ops->disable_filter)
+		hisi_pmu->ops->disable_filter(event);
 }
 
 void hisi_uncore_pmu_set_event_period(struct perf_event *event)

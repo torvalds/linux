@@ -602,7 +602,6 @@ static void btrfs_delayed_item_release_metadata(struct btrfs_root *root,
 static int btrfs_delayed_inode_reserve_metadata(
 					struct btrfs_trans_handle *trans,
 					struct btrfs_root *root,
-					struct btrfs_inode *inode,
 					struct btrfs_delayed_node *node)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -627,37 +626,23 @@ static int btrfs_delayed_inode_reserve_metadata(
 	 */
 	if (!src_rsv || (!trans->bytes_reserved &&
 			 src_rsv->type != BTRFS_BLOCK_RSV_DELALLOC)) {
-		ret = btrfs_qgroup_reserve_meta_prealloc(root, num_bytes, true);
+		ret = btrfs_qgroup_reserve_meta(root, num_bytes,
+					  BTRFS_QGROUP_RSV_META_PREALLOC, true);
 		if (ret < 0)
 			return ret;
 		ret = btrfs_block_rsv_add(root, dst_rsv, num_bytes,
 					  BTRFS_RESERVE_NO_FLUSH);
-		/*
-		 * Since we're under a transaction reserve_metadata_bytes could
-		 * try to commit the transaction which will make it return
-		 * EAGAIN to make us stop the transaction we have, so return
-		 * ENOSPC instead so that btrfs_dirty_inode knows what to do.
-		 */
-		if (ret == -EAGAIN) {
-			ret = -ENOSPC;
+		/* NO_FLUSH could only fail with -ENOSPC */
+		ASSERT(ret == 0 || ret == -ENOSPC);
+		if (ret)
 			btrfs_qgroup_free_meta_prealloc(root, num_bytes);
-		}
-		if (!ret) {
-			node->bytes_reserved = num_bytes;
-			trace_btrfs_space_reservation(fs_info,
-						      "delayed_inode",
-						      btrfs_ino(inode),
-						      num_bytes, 1);
-		} else {
-			btrfs_qgroup_free_meta_prealloc(root, fs_info->nodesize);
-		}
-		return ret;
+	} else {
+		ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, true);
 	}
 
-	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, true);
 	if (!ret) {
 		trace_btrfs_space_reservation(fs_info, "delayed_inode",
-					      btrfs_ino(inode), num_bytes, 1);
+					      node->inode_id, num_bytes, 1);
 		node->bytes_reserved = num_bytes;
 	}
 
@@ -1588,8 +1573,8 @@ bool btrfs_readdir_get_delayed_items(struct inode *inode,
 	 * We can only do one readdir with delayed items at a time because of
 	 * item->readdir_list.
 	 */
-	inode_unlock_shared(inode);
-	inode_lock(inode);
+	btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
+	btrfs_inode_lock(inode, 0);
 
 	mutex_lock(&delayed_node->mutex);
 	item = __btrfs_first_delayed_insertion_item(delayed_node);
@@ -1832,8 +1817,7 @@ int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
 		goto release_node;
 	}
 
-	ret = btrfs_delayed_inode_reserve_metadata(trans, root, inode,
-						   delayed_node);
+	ret = btrfs_delayed_inode_reserve_metadata(trans, root, delayed_node);
 	if (ret)
 		goto release_node;
 

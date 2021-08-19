@@ -84,15 +84,6 @@ hv_set_next_write_location(struct hv_ring_buffer_info *ring_info,
 	ring_info->ring_buffer->write_index = next_write_location;
 }
 
-/* Set the next read location for the specified ring buffer. */
-static inline void
-hv_set_next_read_location(struct hv_ring_buffer_info *ring_info,
-		    u32 next_read_location)
-{
-	ring_info->ring_buffer->read_index = next_read_location;
-	ring_info->priv_read_index = next_read_location;
-}
-
 /* Get the size of the ring buffer. */
 static inline u32
 hv_get_ring_buffersize(const struct hv_ring_buffer_info *ring_info)
@@ -313,7 +304,6 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 		rqst_id = vmbus_next_request_id(&channel->requestor, requestid);
 		if (rqst_id == VMBUS_RQST_ERROR) {
 			spin_unlock_irqrestore(&outring_info->ring_lock, flags);
-			pr_err("No request id available\n");
 			return -EAGAIN;
 		}
 	}

@@ -136,7 +136,8 @@ void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_resource_manager *man;
 
-	dma_resv_assert_held(bo->base.resv);
+	if (!bo->deleted)
+		dma_resv_assert_held(bo->base.resv);
 
 	if (bo->pin_count) {
 		ttm_bo_del_from_lru(bo);
@@ -508,8 +509,11 @@ static void ttm_bo_release(struct kref *kref)
 		 * Make pinned bos immediately available to
 		 * shrinkers, now that they are queued for
 		 * destruction.
+		 *
+		 * FIXME: QXL is triggering this. Can be removed when the
+		 * driver is fixed.
 		 */
-		if (WARN_ON(bo->pin_count)) {
+		if (WARN_ON_ONCE(bo->pin_count)) {
 			bo->pin_count = 0;
 			ttm_bo_move_to_lru_tail(bo, &bo->mem, NULL);
 		}
@@ -959,8 +963,10 @@ static int ttm_bo_bounce_temp_buffer(struct ttm_buffer_object *bo,
 		return ret;
 	/* move to the bounce domain */
 	ret = ttm_bo_handle_move_mem(bo, &hop_mem, false, ctx, NULL);
-	if (ret)
+	if (ret) {
+		ttm_resource_free(bo, &hop_mem);
 		return ret;
+	}
 	return 0;
 }
 
@@ -991,18 +997,19 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 	 * stop and the driver will be called to make
 	 * the second hop.
 	 */
-bounce:
 	ret = ttm_bo_mem_space(bo, placement, &mem, ctx);
 	if (ret)
 		return ret;
+bounce:
 	ret = ttm_bo_handle_move_mem(bo, &mem, false, ctx, &hop);
 	if (ret == -EMULTIHOP) {
 		ret = ttm_bo_bounce_temp_buffer(bo, &mem, ctx, &hop);
 		if (ret)
-			return ret;
+			goto out;
 		/* try and move to final place now. */
 		goto bounce;
 	}
+out:
 	if (ret)
 		ttm_resource_free(bo, &mem);
 	return ret;

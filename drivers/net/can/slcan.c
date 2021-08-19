@@ -516,6 +516,7 @@ static struct slcan *slc_alloc(void)
 	int i;
 	char name[IFNAMSIZ];
 	struct net_device *dev = NULL;
+	struct can_ml_priv *can_ml;
 	struct slcan       *sl;
 	int size;
 
@@ -538,7 +539,8 @@ static struct slcan *slc_alloc(void)
 
 	dev->base_addr  = i;
 	sl = netdev_priv(dev);
-	dev->ml_priv = (void *)sl + ALIGN(sizeof(*sl), NETDEV_ALIGN);
+	can_ml = (void *)sl + ALIGN(sizeof(*sl), NETDEV_ALIGN);
+	can_set_ml_priv(dev, can_ml);
 
 	/* Initialize channel control data */
 	sl->magic = SLCAN_MAGIC;
@@ -695,7 +697,6 @@ static int slcan_ioctl(struct tty_struct *tty, struct file *file,
 
 static struct tty_ldisc_ops slc_ldisc = {
 	.owner		= THIS_MODULE,
-	.magic		= TTY_LDISC_MAGIC,
 	.name		= "slcan",
 	.open		= slcan_open,
 	.close		= slcan_close,

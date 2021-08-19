@@ -49,10 +49,14 @@ properties:
 
   # See ../video-interfaces.txt for more details
   port:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/port
+    additionalProperties: false
+
     properties:
       endpoint:
-        type: object
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
+
         properties:
           data-lanes:
             oneOf:
@@ -65,11 +69,7 @@ properties:
                   - const: 1
                   - const: 2
 
-          link-frequencies:
-            allOf:
-              - $ref: /schemas/types.yaml#/definitions/uint64-array
-            description:
-              Allowed data bus frequencies.
+          link-frequencies: true
 
         required:
           - data-lanes

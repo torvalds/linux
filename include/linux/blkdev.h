@@ -65,8 +65,6 @@ typedef void (rq_end_io_fn)(struct request *, blk_status_t);
  * request flags */
 typedef __u32 __bitwise req_flags_t;
 
-/* elevator knows about this request */
-#define RQF_SORTED		((__force req_flags_t)(1 << 0))
 /* drive already may have started this one */
 #define RQF_STARTED		((__force req_flags_t)(1 << 1))
 /* may not be passed by ioscheduler */
@@ -87,8 +85,6 @@ typedef __u32 __bitwise req_flags_t;
 #define RQF_ELVPRIV		((__force req_flags_t)(1 << 12))
 /* account into disk and partition IO statistics */
 #define RQF_IO_STAT		((__force req_flags_t)(1 << 13))
-/* request came from our alloc pool */
-#define RQF_ALLOCED		((__force req_flags_t)(1 << 14))
 /* runtime pm request */
 #define RQF_PM			((__force req_flags_t)(1 << 15))
 /* on IO scheduler merge hash */
@@ -462,7 +458,6 @@ struct request_queue {
 #ifdef CONFIG_PM
 	struct device		*dev;
 	enum rpm_status		rpm_status;
-	unsigned int		nr_pending;
 #endif
 
 	/*

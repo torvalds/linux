@@ -101,6 +101,12 @@
 #define MEI_DEV_ID_MCC        0x4B70  /* Mule Creek Canyon (EHL) */
 #define MEI_DEV_ID_MCC_4      0x4B75  /* Mule Creek Canyon 4 (EHL) */
 
+#define MEI_DEV_ID_EBG        0x1BE0  /* Emmitsburg WS */
+
+#define MEI_DEV_ID_ADP_S      0x7AE8  /* Alder Lake Point S */
+#define MEI_DEV_ID_ADP_LP     0x7A60  /* Alder Lake Point LP */
+#define MEI_DEV_ID_ADP_P      0x51E0  /* Alder Lake Point P */
+
 /*
  * MEI HW Section
  */

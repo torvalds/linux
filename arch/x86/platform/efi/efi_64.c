@@ -195,7 +195,7 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 	}
 
 	/*
-	 * Certain firmware versions are way too sentimential and still believe
+	 * Certain firmware versions are way too sentimental and still believe
 	 * they are exclusive and unquestionable owners of the first physical page,
 	 * even though they explicitly mark it as EFI_CONVENTIONAL_MEMORY
 	 * (but then write-access it later during SetVirtualAddressMap()).
@@ -457,7 +457,7 @@ void __init efi_dump_pagetable(void)
  * in a kernel thread and user context. Preemption needs to remain disabled
  * while the EFI-mm is borrowed. mmgrab()/mmdrop() is not used because the mm
  * can not change under us.
- * It should be ensured that there are no concurent calls to this function.
+ * It should be ensured that there are no concurrent calls to this function.
  */
 void efi_enter_mm(void)
 {

@@ -803,17 +803,19 @@ retry:
 		 * allowed as upper are limited to "normal" ones, where checking
 		 * for the above two errors is sufficient.
 		 */
-		err = vfs_removexattr(work, XATTR_NAME_POSIX_ACL_DEFAULT);
+		err = vfs_removexattr(&init_user_ns, work,
+				      XATTR_NAME_POSIX_ACL_DEFAULT);
 		if (err && err != -ENODATA && err != -EOPNOTSUPP)
 			goto out_dput;
 
-		err = vfs_removexattr(work, XATTR_NAME_POSIX_ACL_ACCESS);
+		err = vfs_removexattr(&init_user_ns, work,
+				      XATTR_NAME_POSIX_ACL_ACCESS);
 		if (err && err != -ENODATA && err != -EOPNOTSUPP)
 			goto out_dput;
 
 		/* Clear any inherited mode bits */
 		inode_lock(work->d_inode);
-		err = notify_change(work, &attr, NULL);
+		err = notify_change(&init_user_ns, work, &attr, NULL);
 		inode_unlock(work->d_inode);
 		if (err)
 			goto out_dput;
@@ -863,6 +865,10 @@ static int ovl_mount_dir_noesc(const char *name, struct path *path)
 	err = -EINVAL;
 	if (ovl_dentry_weird(path->dentry)) {
 		pr_err("filesystem on '%s' not supported\n", name);
+		goto out_put;
+	}
+	if (mnt_user_ns(path->mnt) != &init_user_ns) {
+		pr_err("idmapped layers are currently not supported\n");
 		goto out_put;
 	}
 	if (!d_is_dir(path->dentry)) {
@@ -989,6 +995,7 @@ ovl_posix_acl_xattr_get(const struct xattr_handler *handler,
 
 static int __maybe_unused
 ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
+			struct user_namespace *mnt_userns,
 			struct dentry *dentry, struct inode *inode,
 			const char *name, const void *value,
 			size_t size, int flags)
@@ -1014,7 +1021,7 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 		goto out_acl_release;
 	}
 	err = -EPERM;
-	if (!inode_owner_or_capable(inode))
+	if (!inode_owner_or_capable(&init_user_ns, inode))
 		goto out_acl_release;
 
 	posix_acl_release(acl);
@@ -1026,10 +1033,10 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 	if (unlikely(inode->i_mode & S_ISGID) &&
 	    handler->flags == ACL_TYPE_ACCESS &&
 	    !in_group_p(inode->i_gid) &&
-	    !capable_wrt_inode_uidgid(inode, CAP_FSETID)) {
+	    !capable_wrt_inode_uidgid(&init_user_ns, inode, CAP_FSETID)) {
 		struct iattr iattr = { .ia_valid = ATTR_KILL_SGID };
 
-		err = ovl_setattr(dentry, &iattr);
+		err = ovl_setattr(&init_user_ns, dentry, &iattr);
 		if (err)
 			return err;
 	}
@@ -1053,6 +1060,7 @@ static int ovl_own_xattr_get(const struct xattr_handler *handler,
 }
 
 static int ovl_own_xattr_set(const struct xattr_handler *handler,
+			     struct user_namespace *mnt_userns,
 			     struct dentry *dentry, struct inode *inode,
 			     const char *name, const void *value,
 			     size_t size, int flags)
@@ -1068,6 +1076,7 @@ static int ovl_other_xattr_get(const struct xattr_handler *handler,
 }
 
 static int ovl_other_xattr_set(const struct xattr_handler *handler,
+			       struct user_namespace *mnt_userns,
 			       struct dentry *dentry, struct inode *inode,
 			       const char *name, const void *value,
 			       size_t size, int flags)

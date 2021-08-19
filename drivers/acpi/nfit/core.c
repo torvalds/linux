@@ -1195,7 +1195,8 @@ static int __nfit_mem_init(struct acpi_nfit_desc *acpi_desc,
 	return 0;
 }
 
-static int nfit_mem_cmp(void *priv, struct list_head *_a, struct list_head *_b)
+static int nfit_mem_cmp(void *priv, const struct list_head *_a,
+		const struct list_head *_b)
 {
 	struct nfit_mem *a = container_of(_a, typeof(*a), list);
 	struct nfit_mem *b = container_of(_b, typeof(*b), list);
@@ -3831,7 +3832,7 @@ static __init int nfit_init(void)
 	int ret;
 
 	BUILD_BUG_ON(sizeof(struct acpi_table_nfit) != 40);
-	BUILD_BUG_ON(sizeof(struct acpi_nfit_system_address) != 56);
+	BUILD_BUG_ON(sizeof(struct acpi_nfit_system_address) != 64);
 	BUILD_BUG_ON(sizeof(struct acpi_nfit_memory_map) != 48);
 	BUILD_BUG_ON(sizeof(struct acpi_nfit_interleave) != 20);
 	BUILD_BUG_ON(sizeof(struct acpi_nfit_smbios) != 9);

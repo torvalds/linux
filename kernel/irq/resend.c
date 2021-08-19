@@ -128,7 +128,7 @@ int check_irq_resend(struct irq_desc *desc, bool inject)
 	if (!try_retrigger(desc))
 		err = irq_sw_resend(desc);
 
-	/* If the retrigger was successfull, mark it with the REPLAY bit */
+	/* If the retrigger was successful, mark it with the REPLAY bit */
 	if (!err)
 		desc->istate |= IRQS_REPLAY;
 	return err;

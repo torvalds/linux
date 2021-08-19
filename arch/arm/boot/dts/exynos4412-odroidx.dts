@@ -84,7 +84,8 @@
 			ethernet: usbether@1 {
 				compatible = "usb0424,ec00";
 				reg = <1>;
-				local-mac-address = [00 00 00 00 00 00]; /* Filled in by a bootloader */
+				/* Filled in by a bootloader */
+				local-mac-address = [00 00 00 00 00 00];
 			};
 		};
 	};

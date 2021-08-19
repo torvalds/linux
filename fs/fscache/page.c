@@ -299,7 +299,7 @@ static void fscache_release_retrieval_op(struct fscache_operation *_op)
 /*
  * allocate a retrieval op
  */
-static struct fscache_retrieval *fscache_alloc_retrieval(
+struct fscache_retrieval *fscache_alloc_retrieval(
 	struct fscache_cookie *cookie,
 	struct address_space *mapping,
 	fscache_rw_complete_t end_io_func,

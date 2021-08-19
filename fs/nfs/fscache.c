@@ -390,10 +390,6 @@ static void nfs_readpage_from_fscache_complete(struct page *page,
 	if (!error) {
 		SetPageUptodate(page);
 		unlock_page(page);
-	} else {
-		error = nfs_readpage_async(context, page->mapping->host, page);
-		if (error)
-			unlock_page(page);
 	}
 }
 

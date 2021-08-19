@@ -184,9 +184,8 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 	//	printk("WPA IE\n");
 		u8 *p = buf;
 		p += sprintf(p, "wpa_ie=");
-		for (i = 0; i < network->wpa_ie_len; i++) {
+		for (i = 0; i < network->wpa_ie_len; i++)
 			p += sprintf(p, "%02x", network->wpa_ie[i]);
-		}
 
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVCUSTOM;
@@ -199,9 +198,8 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 
 		u8 *p = buf;
 		p += sprintf(p, "rsn_ie=");
-		for (i = 0; i < network->rsn_ie_len; i++) {
+		for (i = 0; i < network->rsn_ie_len; i++)
 			p += sprintf(p, "%02x", network->rsn_ie[i]);
-		}
 
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVCUSTOM;

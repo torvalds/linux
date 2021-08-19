@@ -84,7 +84,7 @@ static ssize_t max5821_read_dac_powerdown(struct iio_dev *indio_dev,
 {
 	struct max5821_data *st = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n", st->powerdown[chan->channel]);
+	return sysfs_emit(buf, "%d\n", st->powerdown[chan->channel]);
 }
 
 static int max5821_sync_powerdown_mode(struct max5821_data *data,

@@ -895,6 +895,9 @@ struct task_struct {
 	/* CLONE_CHILD_CLEARTID: */
 	int __user			*clear_child_tid;
 
+	/* PF_IO_WORKER */
+	void				*pf_io_worker;
+
 	u64				utime;
 	u64				stime;
 #ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
@@ -1040,6 +1043,9 @@ struct task_struct {
 	int				softirqs_enabled;
 	int				softirq_context;
 	int				irq_config;
+#endif
+#ifdef CONFIG_PREEMPT_RT
+	int				softirq_disable_cnt;
 #endif
 
 #ifdef CONFIG_LOCKDEP
