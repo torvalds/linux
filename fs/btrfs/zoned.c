@@ -1273,9 +1273,6 @@ void btrfs_calc_zone_unusable(struct btrfs_block_group *cache)
 	cache->cached = BTRFS_CACHE_FINISHED;
 	cache->free_space_ctl->free_space = free;
 	cache->zone_unusable = unusable;
-
-	/* Should not have any excluded extents. Just in case, though */
-	btrfs_free_excluded_extents(cache);
 }
 
 void btrfs_redirty_list_add(struct btrfs_transaction *trans,

@@ -2035,6 +2035,8 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 	 */
 	if (btrfs_is_zoned(info)) {
 		btrfs_calc_zone_unusable(cache);
+		/* Should not have any excluded extents. Just in case, though. */
+		btrfs_free_excluded_extents(cache);
 	} else if (cache->length == cache->used) {
 		cache->last_byte_to_unpin = (u64)-1;
 		cache->cached = BTRFS_CACHE_FINISHED;
