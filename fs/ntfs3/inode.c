@@ -13,7 +13,6 @@
 #include <linux/namei.h>
 #include <linux/nls.h>
 #include <linux/uio.h>
-#include <linux/version.h>
 #include <linux/writeback.h>
 
 #include "debug.h"
