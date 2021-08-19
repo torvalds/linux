@@ -45,6 +45,14 @@
  */
 #define BTRFS_MAX_ZONE_SIZE		SZ_8G
 
+#define SUPER_INFO_SECTORS	((u64)BTRFS_SUPER_INFO_SIZE >> SECTOR_SHIFT)
+
+static inline bool sb_zone_is_full(const struct blk_zone *zone)
+{
+	return (zone->cond == BLK_ZONE_COND_FULL) ||
+		(zone->wp + SUPER_INFO_SECTORS > zone->start + zone->capacity);
+}
+
 static int copy_zone_info_cb(struct blk_zone *zone, unsigned int idx, void *data)
 {
 	struct blk_zone *zones = data;
@@ -60,14 +68,13 @@ static int sb_write_pointer(struct block_device *bdev, struct blk_zone *zones,
 	bool empty[BTRFS_NR_SB_LOG_ZONES];
 	bool full[BTRFS_NR_SB_LOG_ZONES];
 	sector_t sector;
+	int i;
 
-	ASSERT(zones[0].type != BLK_ZONE_TYPE_CONVENTIONAL &&
-	       zones[1].type != BLK_ZONE_TYPE_CONVENTIONAL);
-
-	empty[0] = (zones[0].cond == BLK_ZONE_COND_EMPTY);
-	empty[1] = (zones[1].cond == BLK_ZONE_COND_EMPTY);
-	full[0] = (zones[0].cond == BLK_ZONE_COND_FULL);
-	full[1] = (zones[1].cond == BLK_ZONE_COND_FULL);
+	for (i = 0; i < BTRFS_NR_SB_LOG_ZONES; i++) {
+		ASSERT(zones[i].type != BLK_ZONE_TYPE_CONVENTIONAL);
+		empty[i] = (zones[i].cond == BLK_ZONE_COND_EMPTY);
+		full[i] = sb_zone_is_full(&zones[i]);
+	}
 
 	/*
 	 * Possible states of log buffer zones
@@ -664,7 +671,7 @@ static int sb_log_location(struct block_device *bdev, struct blk_zone *zones,
 			reset = &zones[1];
 
 		if (reset && reset->cond != BLK_ZONE_COND_EMPTY) {
-			ASSERT(reset->cond == BLK_ZONE_COND_FULL);
+			ASSERT(sb_zone_is_full(reset));
 
 			ret = blkdev_zone_mgmt(bdev, REQ_OP_ZONE_RESET,
 					       reset->start, reset->len,
