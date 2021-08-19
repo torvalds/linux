@@ -1058,8 +1058,12 @@ static void isolate_free_pages(struct movable_zone_fill_control *fc)
 	unsigned long start_pfn = fc->start_pfn;
 	unsigned long end_pfn = fc->end_pfn;
 	LIST_HEAD(tmp);
-	struct zone *dst_zone = page_zone(pfn_to_page(start_pfn));
+	struct zone *dst_zone;
 
+	if (!(start_pfn < end_pfn))
+		return;
+
+	dst_zone = page_zone(pfn_to_page(start_pfn));
 	if (zone_page_state(dst_zone, NR_FREE_PAGES) < high_wmark_pages(dst_zone))
 		return;
 
