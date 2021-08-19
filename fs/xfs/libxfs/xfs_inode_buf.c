@@ -71,7 +71,7 @@ xfs_inode_buf_verify(
 #ifdef DEBUG
 			xfs_alert(mp,
 				"bad inode magic/vsn daddr %lld #%d (magic=%x)",
-				(unsigned long long)bp->b_bn, i,
+				(unsigned long long)xfs_buf_daddr(bp), i,
 				be16_to_cpu(dip->di_magic));
 #endif
 			xfs_buf_verifier_error(bp, -EFSCORRUPTED,

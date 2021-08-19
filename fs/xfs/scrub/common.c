@@ -186,7 +186,7 @@ xchk_block_set_preen(
 	struct xfs_buf		*bp)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_PREEN;
-	trace_xchk_block_preen(sc, bp->b_bn, __return_address);
+	trace_xchk_block_preen(sc, xfs_buf_daddr(bp), __return_address);
 }
 
 /*
@@ -219,7 +219,7 @@ xchk_block_set_corrupt(
 	struct xfs_buf		*bp)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
-	trace_xchk_block_error(sc, bp->b_bn, __return_address);
+	trace_xchk_block_error(sc, xfs_buf_daddr(bp), __return_address);
 }
 
 /* Record a corruption while cross-referencing. */
@@ -229,7 +229,7 @@ xchk_block_xref_set_corrupt(
 	struct xfs_buf		*bp)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XCORRUPT;
-	trace_xchk_block_error(sc, bp->b_bn, __return_address);
+	trace_xchk_block_error(sc, xfs_buf_daddr(bp), __return_address);
 }
 
 /*
@@ -784,7 +784,7 @@ xchk_buffer_recheck(
 	if (!fa)
 		return;
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
-	trace_xchk_block_error(sc, bp->b_bn, fa);
+	trace_xchk_block_error(sc, xfs_buf_daddr(bp), fa);
 }
 
 /*
