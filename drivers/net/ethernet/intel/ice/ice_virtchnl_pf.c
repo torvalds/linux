@@ -412,7 +412,7 @@ static bool ice_is_vf_link_up(struct ice_vf *vf)
  *
  * send a link status message to a single VF
  */
-static void ice_vc_notify_vf_link_state(struct ice_vf *vf)
+void ice_vc_notify_vf_link_state(struct ice_vf *vf)
 {
 	struct virtchnl_pf_event pfe = { 0 };
 	struct ice_hw *hw = &vf->pf->hw;

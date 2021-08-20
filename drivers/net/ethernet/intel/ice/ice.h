@@ -63,6 +63,7 @@
 #include "ice_fdir.h"
 #include "ice_xsk.h"
 #include "ice_arfs.h"
+#include "ice_repr.h"
 #include "ice_lag.h"
 
 #define ICE_BAR0		0
@@ -518,6 +519,7 @@ struct ice_pf {
 
 struct ice_netdev_priv {
 	struct ice_vsi *vsi;
+	struct ice_repr *repr;
 };
 
 /**
