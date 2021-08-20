@@ -239,7 +239,7 @@
 		};
 	};
 
-	cluster_a53_opp_table: opp-table0 {
+	cluster_a53_opp_table: opp-table-0 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -285,7 +285,7 @@
 		};
 	};
 
-	cluster_a57_opp_table: opp-table1 {
+	cluster_a57_opp_table: opp-table-1 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
