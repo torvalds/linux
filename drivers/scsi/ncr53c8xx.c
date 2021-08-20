@@ -4553,12 +4553,8 @@ static void ncr_start_reset(struct ncb *np)
 **
 **==========================================================
 */
-static int ncr_reset_bus (struct ncb *np, struct scsi_cmnd *cmd)
+static int ncr_reset_bus (struct ncb *np)
 {
-/*	struct scsi_device        *device    = cmd->device; */
-	struct ccb *cp;
-	int found;
-
 /*
  * Return immediately if reset is in progress.
  */
@@ -4573,24 +4569,6 @@ static int ncr_reset_bus (struct ncb *np, struct scsi_cmnd *cmd)
  */
 	ncr_start_reset(np);
 /*
- * First, look in the wakeup list
- */
-	for (found=0, cp=np->ccb; cp; cp=cp->link_ccb) {
-		/*
-		**	look for the ccb of this command.
-		*/
-		if (cp->host_status == HS_IDLE) continue;
-		if (cp->cmd == cmd) {
-			found = 1;
-			break;
-		}
-	}
-/*
- * Then, look in the waiting list
- */
-	if (!found && retrieve_from_waiting_list(0, np, cmd))
-		found = 1;
-/*
  * Wake-up all awaiting commands with DID_RESET.
  */
 	reset_waiting_list(np);
@@ -4598,15 +4576,6 @@ static int ncr_reset_bus (struct ncb *np, struct scsi_cmnd *cmd)
  * Wake-up all pending commands with HS_RESET -> DID_RESET.
  */
 	ncr_wakeup(np, HS_RESET);
-/*
- * If the involved command was not in a driver queue, and the 
- * command is not currently in the waiting list, complete it
- * with DID_RESET status in order to keep it alive.
- */
-	if (!found && !retrieve_from_waiting_list(0, np, cmd)) {
-		set_host_byte(cmd, DID_RESET);
-		ncr_queue_done_cmd(np, cmd);
-	}
 
 	return SUCCESS;
 }
@@ -8124,7 +8093,7 @@ static int ncr53c8xx_bus_reset(struct scsi_cmnd *cmd)
 	 */
 
 	spin_lock_irqsave(&np->smp_lock, flags);
-	sts = ncr_reset_bus(np, cmd);
+	sts = ncr_reset_bus(np);
 
 	done_list     = np->done_list;
 	np->done_list = NULL;
