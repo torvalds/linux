@@ -571,6 +571,8 @@ static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
 
 	gpu->fe_running = false;
 	gpu->exec_state = -1;
+	if (gpu->mmu_context)
+		etnaviv_iommu_context_put(gpu->mmu_context);
 	gpu->mmu_context = NULL;
 
 	return 0;
