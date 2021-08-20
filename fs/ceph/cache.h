@@ -56,12 +56,6 @@ static inline bool ceph_is_cache_enabled(struct inode *inode)
 	return fscache_cookie_enabled(ceph_fscache_cookie(ceph_inode(inode)));
 }
 
-static inline void ceph_fscache_note_page_release(struct inode *inode)
-{
-	struct ceph_inode_info *ci = ceph_inode(inode);
-
-	fscache_note_page_release(ceph_fscache_cookie(ci));
-}
 #else /* CONFIG_CEPH_FSCACHE */
 static inline int ceph_fscache_register_fs(struct ceph_fs_client* fsc,
 					   struct fs_context *fc)
@@ -117,10 +111,6 @@ static inline int ceph_fscache_unpin_writeback(struct inode *inode,
 static inline bool ceph_is_cache_enabled(struct inode *inode)
 {
 	return false;
-}
-
-static inline void ceph_fscache_note_page_release(struct inode *inode)
-{
 }
 #endif /* CONFIG_CEPH_FSCACHE */
 
