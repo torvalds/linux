@@ -106,6 +106,12 @@ int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk)
 	}
 
 	list_add(&holder->list, &disk->slave_bdevs);
+	/*
+	 * del_gendisk drops the initial reference to bd_holder_dir, so we need
+	 * to keep our own here to allow for cleanup past that point.
+	 */
+	kobject_get(bdev->bd_holder_dir);
+
 out_unlock:
 	mutex_unlock(&disk->open_mutex);
 	return ret;
@@ -138,6 +144,7 @@ void bd_unlink_disk_holder(struct block_device *bdev, struct gendisk *disk)
 	if (!WARN_ON_ONCE(holder == NULL) && !--holder->refcnt) {
 		if (disk->slave_dir)
 			__unlink_disk_holder(bdev, disk);
+		kobject_put(bdev->bd_holder_dir);
 		list_del_init(&holder->list);
 		kfree(holder);
 	}
