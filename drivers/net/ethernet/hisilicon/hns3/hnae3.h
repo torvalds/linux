@@ -774,6 +774,7 @@ struct hnae3_knic_private_info {
 
 	u16 int_rl_setting;
 	enum pkt_hash_types rss_type;
+	void __iomem *io_base;
 };
 
 struct hnae3_roce_private_info {
