@@ -27,6 +27,7 @@
 #include "wmm.h"
 #include "11n.h"
 #include "pcie.h"
+#include "pcie_quirks.h"
 
 #define PCIE_VERSION	"1.0"
 #define DRV_NAME        "Marvell mwifiex PCIe"
@@ -409,6 +410,9 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 		if (ret)
 			return ret;
 	}
+
+	/* check quirks */
+	mwifiex_initialize_quirks(card);
 
 	if (mwifiex_add_card(card, &card->fw_done, &pcie_ops,
 			     MWIFIEX_PCIE, &pdev->dev)) {
