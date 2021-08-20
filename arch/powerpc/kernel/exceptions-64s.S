@@ -812,7 +812,6 @@ __start_interrupts:
  * syscall register convention is in Documentation/powerpc/syscall64-abi.rst
  */
 EXC_VIRT_BEGIN(system_call_vectored, 0x3000, 0x1000)
-1:
 	/* SCV 0 */
 	mr	r9,r13
 	GET_PACA(r13)
@@ -842,10 +841,12 @@ EXC_VIRT_BEGIN(system_call_vectored, 0x3000, 0x1000)
 	b	system_call_vectored_sigill
 #endif
 	.endr
-2:
 EXC_VIRT_END(system_call_vectored, 0x3000, 0x1000)
 
-SOFT_MASK_TABLE(1b, 2b) // Treat scv vectors as soft-masked, see comment above.
+// Treat scv vectors as soft-masked, see comment above.
+// Use absolute values rather than labels here, so they don't get relocated,
+// because this code runs unrelocated.
+SOFT_MASK_TABLE(0xc000000000003000, 0xc000000000004000)
 
 #ifdef CONFIG_RELOCATABLE
 TRAMP_VIRT_BEGIN(system_call_vectored_tramp)
