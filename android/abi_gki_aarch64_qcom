@@ -359,6 +359,7 @@
   dev_alloc_name
   dev_change_net_namespace
   dev_close
+  dev_coredumpm
   dev_coredumpv
   _dev_crit
   __dev_direct_xmit
