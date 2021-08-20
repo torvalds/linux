@@ -829,9 +829,9 @@ static int iommu_ga_log_enable(struct amd_iommu *iommu)
 	return 0;
 }
 
-#ifdef CONFIG_IRQ_REMAP
 static int iommu_init_ga_log(struct amd_iommu *iommu)
 {
+#ifdef CONFIG_IRQ_REMAP
 	u64 entry;
 
 	if (!AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir))
@@ -861,18 +861,9 @@ static int iommu_init_ga_log(struct amd_iommu *iommu)
 err_out:
 	free_ga_log(iommu);
 	return -EINVAL;
-}
+#else
+	return 0;
 #endif /* CONFIG_IRQ_REMAP */
-
-static int iommu_init_ga(struct amd_iommu *iommu)
-{
-	int ret = 0;
-
-#ifdef CONFIG_IRQ_REMAP
-	ret = iommu_init_ga_log(iommu);
-#endif /* CONFIG_IRQ_REMAP */
-
-	return ret;
 }
 
 static int __init alloc_cwwb_sem(struct amd_iommu *iommu)
@@ -1854,7 +1845,7 @@ static int __init iommu_init_pci(struct amd_iommu *iommu)
 	if (iommu_feature(iommu, FEATURE_PPR) && alloc_ppr_log(iommu))
 		return -ENOMEM;
 
-	ret = iommu_init_ga(iommu);
+	ret = iommu_init_ga_log(iommu);
 	if (ret)
 		return ret;
 
