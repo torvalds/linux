@@ -46,7 +46,6 @@ static DEFINE_IDA(ice_aux_ida);
 static struct workqueue_struct *ice_wq;
 static const struct net_device_ops ice_netdev_safe_mode_ops;
 static const struct net_device_ops ice_netdev_ops;
-static int ice_vsi_open(struct ice_vsi *vsi);
 
 static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type);
 
@@ -6159,7 +6158,7 @@ err_setup_tx:
  *
  * Returns 0 on success, negative value on error
  */
-static int ice_vsi_open(struct ice_vsi *vsi)
+int ice_vsi_open(struct ice_vsi *vsi)
 {
 	char int_name[ICE_INT_NAME_STR_LEN];
 	struct ice_pf *pf = vsi->back;
@@ -6184,14 +6183,16 @@ static int ice_vsi_open(struct ice_vsi *vsi)
 	if (err)
 		goto err_setup_rx;
 
-	/* Notify the stack of the actual queue counts. */
-	err = netif_set_real_num_tx_queues(vsi->netdev, vsi->num_txq);
-	if (err)
-		goto err_set_qs;
+	if (vsi->type == ICE_VSI_PF) {
+		/* Notify the stack of the actual queue counts. */
+		err = netif_set_real_num_tx_queues(vsi->netdev, vsi->num_txq);
+		if (err)
+			goto err_set_qs;
 
-	err = netif_set_real_num_rx_queues(vsi->netdev, vsi->num_rxq);
-	if (err)
-		goto err_set_qs;
+		err = netif_set_real_num_rx_queues(vsi->netdev, vsi->num_rxq);
+		if (err)
+			goto err_set_qs;
+	}
 
 	err = ice_up_complete(vsi);
 	if (err)

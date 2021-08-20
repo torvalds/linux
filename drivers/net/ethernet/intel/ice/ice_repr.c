@@ -265,3 +265,15 @@ void ice_repr_rem_from_all_vfs(struct ice_pf *pf)
 		ice_vc_set_dflt_vf_ops(&vf->vc_ops);
 	}
 }
+
+/**
+ * ice_repr_set_traffic_vsi - set traffic VSI for port representor
+ * @repr: repr on with VSI will be set
+ * @vsi: pointer to VSI that will be used by port representor to pass traffic
+ */
+void ice_repr_set_traffic_vsi(struct ice_repr *repr, struct ice_vsi *vsi)
+{
+	struct ice_netdev_priv *np = netdev_priv(repr->netdev);
+
+	np->vsi = vsi;
+}

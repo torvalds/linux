@@ -351,6 +351,8 @@ struct ice_vsi {
 	u16 num_xdp_txq;		 /* Used XDP queues */
 	u8 xdp_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
 
+	struct net_device **target_netdevs;
+
 	/* setup back reference, to which aggregator node this VSI
 	 * corresponds to
 	 */
@@ -408,6 +410,12 @@ enum ice_pf_flags {
 	ICE_FLAG_MDD_AUTO_RESET_VF,
 	ICE_FLAG_LINK_LENIENT_MODE_ENA,
 	ICE_PF_FLAGS_NBITS		/* must be last */
+};
+
+struct ice_switchdev_info {
+	struct ice_vsi *control_vsi;
+	struct ice_vsi *uplink_vsi;
+	bool is_running;
 };
 
 struct ice_agg_node {
@@ -507,6 +515,8 @@ struct ice_pf {
 	__le64 nvm_phy_type_hi; /* NVM PHY type high */
 	struct ice_link_default_override_tlv link_dflt_override;
 	struct ice_lag *lag; /* Link Aggregation information */
+
+	struct ice_switchdev_info switchdev;
 
 #define ICE_INVALID_AGG_NODE_ID		0
 #define ICE_PF_AGG_NODE_ID_START	1
@@ -618,6 +628,18 @@ static inline struct ice_vsi *ice_get_ctrl_vsi(struct ice_pf *pf)
 }
 
 /**
+ * ice_is_switchdev_running - check if switchdev is configured
+ * @pf: pointer to PF structure
+ *
+ * Returns true if eswitch mode is set to DEVLINK_ESWITCH_MODE_SWITCHDEV
+ * and switchdev is configured, false otherwise.
+ */
+static inline bool ice_is_switchdev_running(struct ice_pf *pf)
+{
+	return pf->switchdev.is_running;
+}
+
+/**
  * ice_set_sriov_cap - enable SRIOV in PF flags
  * @pf: PF struct
  */
@@ -645,6 +667,7 @@ bool netif_is_ice(struct net_device *dev);
 int ice_vsi_setup_tx_rings(struct ice_vsi *vsi);
 int ice_vsi_setup_rx_rings(struct ice_vsi *vsi);
 int ice_vsi_open_ctrl(struct ice_vsi *vsi);
+int ice_vsi_open(struct ice_vsi *vsi);
 void ice_set_ethtool_ops(struct net_device *netdev);
 void ice_set_ethtool_safe_mode_ops(struct net_device *netdev);
 u16 ice_get_avail_txq_count(struct ice_pf *pf);
