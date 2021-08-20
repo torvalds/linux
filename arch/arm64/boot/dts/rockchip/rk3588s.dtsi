@@ -263,4 +263,80 @@
 		#dma-cells = <1>;
 		arm,pl330-periph-burst;
 	};
+
+	pinctrl: pinctrl {
+		compatible = "rockchip,rk3588-pinctrl";
+		//rockchip,grf = <&grf>;
+		//rockchip,pmu = <&pmugrf>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		gpio0: gpio@fd8a0000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x0 0xfd8a0000 0x0 0x100>;
+			interrupts = <GIC_SPI 277 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO0>, <&cru DBCLK_GPIO0>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 0 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio1: gpio@fec20000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x0 0xfec20000 0x0 0x100>;
+			interrupts = <GIC_SPI 278 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO1>, <&cru DBCLK_GPIO1>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 32 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio2: gpio@fec30000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x0 0xfec30000 0x0 0x100>;
+			interrupts = <GIC_SPI 279 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO2>, <&cru DBCLK_GPIO2>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 64 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio3: gpio@fec40000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x0 0xfec40000 0x0 0x100>;
+			interrupts = <GIC_SPI 280 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO3>, <&cru DBCLK_GPIO3>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 96 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio4: gpio@fec50000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x0 0xfec50000 0x0 0x100>;
+			interrupts = <GIC_SPI 281 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO4>, <&cru DBCLK_GPIO4>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 128 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
 };
+
+#include "rk3588s-pinctrl.dtsi"
