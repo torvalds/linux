@@ -306,10 +306,6 @@ struct ice_vsi {
 	spinlock_t arfs_lock;	/* protects aRFS hash table and filter state */
 	atomic_t *arfs_last_fltr_id;
 
-	/* devlink port data */
-	struct devlink_port devlink_port;
-	bool devlink_port_registered;
-
 	u16 max_frame;
 	u16 rx_buf_len;
 
@@ -420,6 +416,9 @@ struct ice_pf {
 
 	struct devlink_region *nvm_region;
 	struct devlink_region *devcaps_region;
+
+	/* devlink port data */
+	struct devlink_port devlink_port;
 
 	/* OS reserved IRQ details */
 	struct msix_entry *msix_entries;
