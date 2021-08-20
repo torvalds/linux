@@ -831,6 +831,26 @@ static int mmc_blk_compat_ioctl(struct block_device *bdev, fmode_t mode,
 }
 #endif
 
+static int mmc_blk_alternative_gpt_sector(struct gendisk *disk,
+					  sector_t *sector)
+{
+	struct mmc_blk_data *md;
+	int ret;
+
+	md = mmc_blk_get(disk);
+	if (!md)
+		return -EINVAL;
+
+	if (md->queue.card)
+		ret = mmc_card_alternative_gpt_sector(md->queue.card, sector);
+	else
+		ret = -ENODEV;
+
+	mmc_blk_put(md);
+
+	return ret;
+}
+
 static const struct block_device_operations mmc_bdops = {
 	.open			= mmc_blk_open,
 	.release		= mmc_blk_release,
@@ -840,6 +860,7 @@ static const struct block_device_operations mmc_bdops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl		= mmc_blk_compat_ioctl,
 #endif
+	.alternative_gpt_sector	= mmc_blk_alternative_gpt_sector,
 };
 
 static int mmc_blk_part_switch_pre(struct mmc_card *card,
