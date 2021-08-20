@@ -383,10 +383,8 @@ dropped:
 dropped_freed:
 	batadv_inc_counter(bat_priv, BATADV_CNT_TX_DROPPED);
 end:
-	if (mcast_single_orig)
-		batadv_orig_node_put(mcast_single_orig);
-	if (primary_if)
-		batadv_hardif_put(primary_if);
+	batadv_orig_node_put(mcast_single_orig);
+	batadv_hardif_put(primary_if);
 	return NETDEV_TX_OK;
 }
 
@@ -501,7 +499,7 @@ out:
  *  after rcu grace period
  * @ref: kref pointer of the vlan object
  */
-static void batadv_softif_vlan_release(struct kref *ref)
+void batadv_softif_vlan_release(struct kref *ref)
 {
 	struct batadv_softif_vlan *vlan;
 
@@ -512,19 +510,6 @@ static void batadv_softif_vlan_release(struct kref *ref)
 	spin_unlock_bh(&vlan->bat_priv->softif_vlan_list_lock);
 
 	kfree_rcu(vlan, rcu);
-}
-
-/**
- * batadv_softif_vlan_put() - decrease the vlan object refcounter and
- *  possibly release it
- * @vlan: the vlan object to release
- */
-void batadv_softif_vlan_put(struct batadv_softif_vlan *vlan)
-{
-	if (!vlan)
-		return;
-
-	kref_put(&vlan->refcount, batadv_softif_vlan_release);
 }
 
 /**
@@ -851,8 +836,7 @@ static int batadv_softif_slave_add(struct net_device *dev,
 	ret = batadv_hardif_enable_interface(hard_iface, dev);
 
 out:
-	if (hard_iface)
-		batadv_hardif_put(hard_iface);
+	batadv_hardif_put(hard_iface);
 	return ret;
 }
 
@@ -878,8 +862,7 @@ static int batadv_softif_slave_del(struct net_device *dev,
 	ret = 0;
 
 out:
-	if (hard_iface)
-		batadv_hardif_put(hard_iface);
+	batadv_hardif_put(hard_iface);
 	return ret;
 }
 
