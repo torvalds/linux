@@ -4246,15 +4246,16 @@ br_multicast_rport_del_notify(struct net_bridge_mcast_port *pmctx, bool deleted)
 		pmctx->multicast_router = MDB_RTR_TYPE_TEMP_QUERY;
 }
 
-int br_multicast_set_port_router(struct net_bridge_port *p, unsigned long val)
+int br_multicast_set_port_router(struct net_bridge_mcast_port *pmctx,
+				 unsigned long val)
 {
-	struct net_bridge_mcast *brmctx = &p->br->multicast_ctx;
-	struct net_bridge_mcast_port *pmctx = &p->multicast_ctx;
+	struct net_bridge_mcast *brmctx;
 	unsigned long now = jiffies;
 	int err = -EINVAL;
 	bool del = false;
 
-	spin_lock(&p->br->multicast_lock);
+	brmctx = br_multicast_port_ctx_get_global(pmctx);
+	spin_lock(&brmctx->br->multicast_lock);
 	if (pmctx->multicast_router == val) {
 		/* Refresh the temp router port timer */
 		if (pmctx->multicast_router == MDB_RTR_TYPE_TEMP) {
@@ -4304,7 +4305,7 @@ int br_multicast_set_port_router(struct net_bridge_port *p, unsigned long val)
 	}
 	err = 0;
 unlock:
-	spin_unlock(&p->br->multicast_lock);
+	spin_unlock(&brmctx->br->multicast_lock);
 
 	return err;
 }
