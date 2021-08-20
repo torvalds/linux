@@ -1508,10 +1508,12 @@ static irqreturn_t dpaa2_switch_irq0_handler_thread(int irq_num, void *arg)
 	}
 
 	if (status & DPSW_IRQ_EVENT_ENDPOINT_CHANGED) {
+		rtnl_lock();
 		if (dpaa2_switch_port_has_mac(port_priv))
 			dpaa2_switch_port_disconnect_mac(port_priv);
 		else
 			dpaa2_switch_port_connect_mac(port_priv);
+		rtnl_unlock();
 	}
 
 out:
@@ -2923,6 +2925,18 @@ err_free_dpbp:
 	return err;
 }
 
+static void dpaa2_switch_remove_port(struct ethsw_core *ethsw,
+				     u16 port_idx)
+{
+	struct ethsw_port_priv *port_priv = ethsw->ports[port_idx];
+
+	rtnl_lock();
+	dpaa2_switch_port_disconnect_mac(port_priv);
+	rtnl_unlock();
+	free_netdev(port_priv->netdev);
+	ethsw->ports[port_idx] = NULL;
+}
+
 static int dpaa2_switch_init(struct fsl_mc_device *sw_dev)
 {
 	struct device *dev = &sw_dev->dev;
@@ -3201,8 +3215,7 @@ static int dpaa2_switch_remove(struct fsl_mc_device *sw_dev)
 	for (i = 0; i < ethsw->sw_attr.num_ifs; i++) {
 		port_priv = ethsw->ports[i];
 		unregister_netdev(port_priv->netdev);
-		dpaa2_switch_port_disconnect_mac(port_priv);
-		free_netdev(port_priv->netdev);
+		dpaa2_switch_remove_port(ethsw, i);
 	}
 
 	kfree(ethsw->fdbs);
@@ -3390,7 +3403,7 @@ err_stop:
 	dpsw_disable(ethsw->mc_io, 0, ethsw->dpsw_handle);
 err_free_netdev:
 	for (i--; i >= 0; i--)
-		free_netdev(ethsw->ports[i]->netdev);
+		dpaa2_switch_remove_port(ethsw, i);
 	kfree(ethsw->filter_blocks);
 err_free_fdbs:
 	kfree(ethsw->fdbs);
