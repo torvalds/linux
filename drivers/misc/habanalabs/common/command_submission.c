@@ -2740,14 +2740,10 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	else
 		interrupt = &hdev->user_interrupt[interrupt_offset];
 
-	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
-
-	if (copy_from_user(&completion_value, u64_to_user_ptr(user_address),
-									4)) {
-		dev_err(hdev->dev,
-			"Failed to copy completion value from user\n");
+	if (copy_from_user(&completion_value, u64_to_user_ptr(user_address), 4)) {
+		dev_err(hdev->dev, "Failed to copy completion value from user\n");
 		rc = -EFAULT;
-		goto unlock_and_free_fence;
+		goto free_fence;
 	}
 
 	if (completion_value >= target_value)
@@ -2756,42 +2752,35 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 		*status = CS_WAIT_STATUS_BUSY;
 
 	if (!timeout_us || (*status == CS_WAIT_STATUS_COMPLETED))
-		goto unlock_and_free_fence;
+		goto free_fence;
 
 	/* Add pending user interrupt to relevant list for the interrupt
 	 * handler to monitor
 	 */
+	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
 	list_add_tail(&pend->wait_list_node, &interrupt->wait_list_head);
 	spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 
 wait_again:
 	/* Wait for interrupt handler to signal completion */
-	completion_rc =
-		wait_for_completion_interruptible_timeout(
-				&pend->fence.completion, timeout);
+	completion_rc = wait_for_completion_interruptible_timeout(&pend->fence.completion,
+										timeout);
 
 	/* If timeout did not expire we need to perform the comparison.
 	 * If comparison fails, keep waiting until timeout expires
 	 */
 	if (completion_rc > 0) {
-		spin_lock_irqsave(&interrupt->wait_list_lock, flags);
-
-		if (copy_from_user(&completion_value,
-				u64_to_user_ptr(user_address), 4)) {
-
-			spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
-
-			dev_err(hdev->dev,
-				"Failed to copy completion value from user\n");
+		if (copy_from_user(&completion_value, u64_to_user_ptr(user_address), 4)) {
+			dev_err(hdev->dev, "Failed to copy completion value from user\n");
 			rc = -EFAULT;
 
 			goto remove_pending_user_interrupt;
 		}
 
 		if (completion_value >= target_value) {
-			spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 			*status = CS_WAIT_STATUS_COMPLETED;
 		} else {
+			spin_lock_irqsave(&interrupt->wait_list_lock, flags);
 			reinit_completion(&pend->fence.completion);
 			timeout = completion_rc;
 
@@ -2811,9 +2800,9 @@ wait_again:
 remove_pending_user_interrupt:
 	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
 	list_del(&pend->wait_list_node);
-
-unlock_and_free_fence:
 	spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
+
+free_fence:
 	kfree(pend);
 	hl_ctx_put(ctx);
 
