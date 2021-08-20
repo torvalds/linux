@@ -2872,6 +2872,8 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 		dw_hdmi_update_hdr_property(connector);
 		kfree(edid);
 	} else {
+		hdmi->sink_is_hdmi = true;
+		hdmi->sink_has_audio = true;
 		for (i = 0; i < ARRAY_SIZE(dw_hdmi_default_modes); i++) {
 			const struct drm_display_mode *ptr =
 				&dw_hdmi_default_modes[i];
