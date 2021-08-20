@@ -239,15 +239,20 @@ static int get_dlfilters_path(char *buf, size_t sz)
 
 static int check_filter_desc(struct test_data *td)
 {
-	char *long_desc;
-	char *desc;
+	char *long_desc = NULL;
+	char *desc = NULL;
+	int ret;
 
 	if (get_filter_desc(td->dlfilters, "dlfilter-test-api-v0.so", &desc, &long_desc) &&
 	    long_desc && !strcmp(long_desc, "Filter used by the 'dlfilter C API' perf test") &&
 	    desc && !strcmp(desc, "dlfilter to test v0 C API"))
-		return 0;
+		ret = 0;
+	else
+		ret = -1;
 
-	return -1;
+	free(desc);
+	free(long_desc);
+	return ret;
 }
 
 static int get_ip_addr(struct test_data *td)
