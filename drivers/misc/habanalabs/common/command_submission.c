@@ -2741,10 +2741,6 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 		interrupt = &hdev->user_interrupt[interrupt_offset];
 
 	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
-	if (!hl_device_operational(hdev, NULL)) {
-		rc = -EPERM;
-		goto unlock_and_free_fence;
-	}
 
 	if (copy_from_user(&completion_value, u64_to_user_ptr(user_address),
 									4)) {
@@ -2890,6 +2886,12 @@ int hl_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	union hl_wait_cs_args *args = data;
 	u32 flags = args->in.flags;
 	int rc;
+
+	/* If the device is not operational, no point in waiting for any command submission or
+	 * user interrupt
+	 */
+	if (!hl_device_operational(hpriv->hdev, NULL))
+		return -EPERM;
 
 	if (flags & HL_WAIT_CS_FLAGS_INTERRUPT)
 		rc = hl_interrupt_wait_ioctl(hpriv, data);
