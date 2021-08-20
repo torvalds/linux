@@ -9475,7 +9475,7 @@ M:	Zha Qipeng <qipeng.zha@intel.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	arch/x86/include/asm/intel_punit_ipc.h
-F:	drivers/platform/x86/intel_punit_ipc.c
+F:	drivers/platform/x86/intel/punit_ipc.c
 
 INTEL PMC CORE DRIVER
 M:	Rajneesh Bhardwaj <irenic.rajneesh@gmail.com>
