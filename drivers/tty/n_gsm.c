@@ -587,6 +587,10 @@ static void gsm_send(struct gsm_mux *gsm, int addr, int cr, int control)
 		return;
 	}
 	gsmld_output(gsm, cbuf, len);
+	if (!gsm->initiator) {
+		cr = cr & gsm->initiator;
+		control = control & ~PF;
+	}
 	gsm_print_packet("-->", addr, cr, control, NULL, 0);
 }
 
