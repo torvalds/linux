@@ -532,7 +532,7 @@ int kvm_init_stage2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu)
 	mmu->arch = &kvm->arch;
 	mmu->pgt = pgt;
 	mmu->pgd_phys = __pa(pgt->pgd);
-	mmu->vmid.vmid_gen = 0;
+	WRITE_ONCE(mmu->vmid.vmid_gen, 0);
 	return 0;
 
 out_destroy_pgtable:

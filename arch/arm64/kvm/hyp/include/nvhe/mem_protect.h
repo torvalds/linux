@@ -60,7 +60,7 @@ void handle_host_mem_abort(struct kvm_cpu_context *host_ctxt);
 static __always_inline void __load_host_stage2(void)
 {
 	if (static_branch_likely(&kvm_protected_mode_initialized))
-		__load_stage2(&host_kvm.arch.mmu, host_kvm.arch.vtcr);
+		__load_stage2(&host_kvm.arch.mmu, &host_kvm.arch);
 	else
 		write_sysreg(0, vttbr_el2);
 }

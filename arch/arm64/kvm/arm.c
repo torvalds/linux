@@ -573,7 +573,7 @@ static void update_vmid(struct kvm_vmid *vmid)
 		kvm_call_hyp(__kvm_flush_vm_context);
 	}
 
-	vmid->vmid = kvm_next_vmid;
+	WRITE_ONCE(vmid->vmid, kvm_next_vmid);
 	kvm_next_vmid++;
 	kvm_next_vmid &= (1 << kvm_get_vmid_bits()) - 1;
 
