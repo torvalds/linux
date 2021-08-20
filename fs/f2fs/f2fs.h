@@ -1781,6 +1781,10 @@ struct f2fs_sb_info {
 	bool iostat_enable;
 	unsigned long iostat_next_period;
 	unsigned int iostat_period_ms;
+
+	/* For io latency related statistics info in one iostat period */
+	spinlock_t iostat_lat_lock;
+	struct iostat_lat_info *iostat_io_lat;
 #endif
 };
 
