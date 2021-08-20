@@ -416,6 +416,8 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 
 	return 0;
 err:
+	if (mpc8xxx_gc->irq)
+		irq_domain_remove(mpc8xxx_gc->irq);
 	iounmap(mpc8xxx_gc->regs);
 	return ret;
 }
