@@ -21,4 +21,14 @@ source "drivers/platform/x86/intel/int33fe/Kconfig"
 source "drivers/platform/x86/intel/int3472/Kconfig"
 source "drivers/platform/x86/intel/pmt/Kconfig"
 
+config INTEL_BXTWC_PMIC_TMU
+	tristate "Intel Broxton Whiskey Cove TMU Driver"
+	depends on INTEL_SOC_PMIC_BXTWC
+	depends on MFD_INTEL_PMC_BXT
+	select REGMAP
+	help
+	  Select this driver to use Intel Broxton Whiskey Cove PMIC TMU feature.
+	  This driver enables the alarm wakeup functionality in the TMU unit of
+	  Whiskey Cove PMIC.
+
 endif # X86_PLATFORM_DRIVERS_INTEL
