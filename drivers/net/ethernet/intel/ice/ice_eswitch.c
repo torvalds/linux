@@ -259,6 +259,58 @@ void ice_eswitch_update_repr(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_eswitch_port_start_xmit - callback for packets transmit
+ * @skb: send buffer
+ * @netdev: network interface device structure
+ *
+ * Returns NETDEV_TX_OK if sent, else an error code
+ */
+netdev_tx_t
+ice_eswitch_port_start_xmit(struct sk_buff *skb, struct net_device *netdev)
+{
+	struct ice_netdev_priv *np;
+	struct ice_repr *repr;
+	struct ice_vsi *vsi;
+
+	np = netdev_priv(netdev);
+	vsi = np->vsi;
+
+	if (ice_is_reset_in_progress(vsi->back->state))
+		return NETDEV_TX_BUSY;
+
+	repr = ice_netdev_to_repr(netdev);
+	skb_dst_drop(skb);
+	dst_hold((struct dst_entry *)repr->dst);
+	skb_dst_set(skb, (struct dst_entry *)repr->dst);
+	skb->queue_mapping = repr->vf->vf_id;
+
+	return ice_start_xmit(skb, netdev);
+}
+
+/**
+ * ice_eswitch_set_target_vsi - set switchdev context in Tx context descriptor
+ * @skb: pointer to send buffer
+ * @off: pointer to offload struct
+ */
+void
+ice_eswitch_set_target_vsi(struct sk_buff *skb,
+			   struct ice_tx_offload_params *off)
+{
+	struct metadata_dst *dst = skb_metadata_dst(skb);
+	u64 cd_cmd, dst_vsi;
+
+	if (!dst) {
+		cd_cmd = ICE_TX_CTX_DESC_SWTCH_UPLINK << ICE_TXD_CTX_QW1_CMD_S;
+		off->cd_qw1 |= (cd_cmd | ICE_TX_DESC_DTYPE_CTX);
+	} else {
+		cd_cmd = ICE_TX_CTX_DESC_SWTCH_VSI << ICE_TXD_CTX_QW1_CMD_S;
+		dst_vsi = ((u64)dst->u.port_info.port_id <<
+			   ICE_TXD_CTX_QW1_VSI_S) & ICE_TXD_CTX_QW1_VSI_M;
+		off->cd_qw1 = cd_cmd | dst_vsi | ICE_TX_DESC_DTYPE_CTX;
+	}
+}
+
+/**
  * ice_eswitch_release_env - clear switchdev HW filters
  * @pf: pointer to PF struct
  *
@@ -446,6 +498,34 @@ ice_eswitch_mode_set(struct devlink *devlink, u16 mode,
 
 	pf->eswitch_mode = mode;
 	return 0;
+}
+
+/**
+ * ice_eswitch_get_target_netdev - return port representor netdev
+ * @rx_ring: pointer to Rx ring
+ * @rx_desc: pointer to Rx descriptor
+ *
+ * When working in switchdev mode context (when control VSI is used), this
+ * function returns netdev of appropriate port representor. For non-switchdev
+ * context, regular netdev associated with Rx ring is returned.
+ */
+struct net_device *
+ice_eswitch_get_target_netdev(struct ice_ring *rx_ring,
+			      union ice_32b_rx_flex_desc *rx_desc)
+{
+	struct ice_32b_rx_flex_desc_nic_2 *desc;
+	struct ice_vsi *vsi = rx_ring->vsi;
+	struct ice_vsi *control_vsi;
+	u16 target_vsi_id;
+
+	control_vsi = vsi->back->switchdev.control_vsi;
+	if (vsi != control_vsi)
+		return rx_ring->netdev;
+
+	desc = (struct ice_32b_rx_flex_desc_nic_2 *)rx_desc;
+	target_vsi_id = le16_to_cpu(desc->src_vsi);
+
+	return vsi->target_netdevs[target_vsi_id];
 }
 
 /**
