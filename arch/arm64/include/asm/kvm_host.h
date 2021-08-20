@@ -286,9 +286,13 @@ struct kvm_vcpu_arch {
 	/* Stage 2 paging state used by the hardware on next switch */
 	struct kvm_s2_mmu *hw_mmu;
 
-	/* HYP configuration */
+	/* Values of trap registers for the guest. */
 	u64 hcr_el2;
-	u32 mdcr_el2;
+	u64 mdcr_el2;
+	u64 cptr_el2;
+
+	/* Values of trap registers for the host before guest entry. */
+	u64 mdcr_el2_host;
 
 	/* Exception Information */
 	struct kvm_vcpu_fault_info fault;
@@ -770,6 +774,11 @@ struct kvm *kvm_arch_alloc_vm(void);
 void kvm_arch_free_vm(struct kvm *kvm);
 
 int kvm_arm_setup_stage2(struct kvm *kvm, unsigned long type);
+
+static inline bool kvm_vm_is_protected(struct kvm *kvm)
+{
+	return false;
+}
 
 int kvm_arm_vcpu_finalize(struct kvm_vcpu *vcpu, int feature);
 bool kvm_arm_vcpu_is_finalized(struct kvm_vcpu *vcpu);
