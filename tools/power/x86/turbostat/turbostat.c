@@ -4773,6 +4773,15 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 			((msr >> 32) & 0x7FFF) * rapl_power_units,
 			(1.0 + (((msr >> 54) & 0x3) / 4.0)) * (1 << ((msr >> 49) & 0x1F)) * rapl_time_units,
 			((msr >> 48) & 1) ? "EN" : "DIS");
+
+		if (get_msr(cpu, MSR_VR_CURRENT_CONFIG, &msr))
+			return -9;
+
+		fprintf(outf, "cpu%d: MSR_VR_CURRENT_CONFIG: 0x%08llx\n", cpu, msr);
+		fprintf(outf, "cpu%d: PKG Limit #4: %f Watts (%slocked)\n",
+			cpu,
+			((msr >> 0) & 0x1FFF) * rapl_power_units,
+			(msr >> 31) & 1 ? "" : "UN");
 	}
 
 	if (do_rapl & RAPL_DRAM_POWER_INFO) {
