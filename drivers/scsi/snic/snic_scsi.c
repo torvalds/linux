@@ -2335,7 +2335,7 @@ snic_reset(struct Scsi_Host *shost, struct scsi_cmnd *sc)
 	spin_lock_irqsave(&snic->snic_lock, flags);
 	if (snic_get_state(snic) == SNIC_FWRESET) {
 		spin_unlock_irqrestore(&snic->snic_lock, flags);
-		SNIC_HOST_INFO(shost, "reset:prev reset is in progres\n");
+		SNIC_HOST_INFO(shost, "reset:prev reset is in progress\n");
 
 		msleep(SNIC_HOST_RESET_TIMEOUT);
 		ret = SUCCESS;
