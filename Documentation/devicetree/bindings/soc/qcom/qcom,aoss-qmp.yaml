@@ -30,6 +30,7 @@ properties:
           - qcom,sc7280-aoss-qmp
           - qcom,sc8180x-aoss-qmp
           - qcom,sdm845-aoss-qmp
+          - qcom,sm6350-aoss-qmp
           - qcom,sm8150-aoss-qmp
           - qcom,sm8250-aoss-qmp
           - qcom,sm8350-aoss-qmp
