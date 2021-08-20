@@ -1596,9 +1596,6 @@ static int etnaviv_gpu_hw_suspend(struct etnaviv_gpu *gpu)
 		 */
 		etnaviv_gpu_wait_idle(gpu, 100);
 
-		etnaviv_iommu_context_put(gpu->mmu_context);
-		gpu->mmu_context = NULL;
-
 		gpu->fe_running = false;
 	}
 
@@ -1746,6 +1743,9 @@ static void etnaviv_gpu_unbind(struct device *dev, struct device *master,
 #else
 	etnaviv_gpu_hw_suspend(gpu);
 #endif
+
+	if (gpu->mmu_context)
+		etnaviv_iommu_context_put(gpu->mmu_context);
 
 	if (gpu->initialized) {
 		etnaviv_cmdbuf_free(&gpu->buffer);
