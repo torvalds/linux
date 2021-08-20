@@ -332,7 +332,7 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 				 mpc8xxx_gc->regs + GPIO_DIR, NULL,
 				 BGPIOF_BIG_ENDIAN);
 		if (ret)
-			goto err;
+			return ret;
 		dev_dbg(&pdev->dev, "GPIO registers are LITTLE endian\n");
 	} else {
 		ret = bgpio_init(gc, &pdev->dev, 4,
@@ -342,7 +342,7 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 				 BGPIOF_BIG_ENDIAN
 				 | BGPIOF_BIG_ENDIAN_BYTE_ORDER);
 		if (ret)
-			goto err;
+			return ret;
 		dev_dbg(&pdev->dev, "GPIO registers are BIG endian\n");
 	}
 
@@ -384,7 +384,7 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev,
 			"GPIO chip registration failed with status %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	mpc8xxx_gc->irqn = platform_get_irq(pdev, 0);
@@ -416,9 +416,7 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 
 	return 0;
 err:
-	if (mpc8xxx_gc->irq)
-		irq_domain_remove(mpc8xxx_gc->irq);
-	iounmap(mpc8xxx_gc->regs);
+	irq_domain_remove(mpc8xxx_gc->irq);
 	return ret;
 }
 
@@ -432,7 +430,6 @@ static int mpc8xxx_remove(struct platform_device *pdev)
 	}
 
 	gpiochip_remove(&mpc8xxx_gc->gc);
-	iounmap(mpc8xxx_gc->regs);
 
 	return 0;
 }
