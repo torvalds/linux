@@ -4310,6 +4310,19 @@ unlock:
 	return err;
 }
 
+int br_multicast_set_vlan_router(struct net_bridge_vlan *v, u8 mcast_router)
+{
+	int err;
+
+	if (br_vlan_is_master(v))
+		err = br_multicast_set_router(&v->br_mcast_ctx, mcast_router);
+	else
+		err = br_multicast_set_port_router(&v->port_mcast_ctx,
+						   mcast_router);
+
+	return err;
+}
+
 static void br_multicast_start_querier(struct net_bridge_mcast *brmctx,
 				       struct bridge_mcast_own_query *query)
 {

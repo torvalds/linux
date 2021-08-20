@@ -676,6 +676,20 @@ static inline bool br_vlan_valid_range(const struct bridge_vlan_info *cur,
 	return true;
 }
 
+static inline u8 br_vlan_multicast_router(const struct net_bridge_vlan *v)
+{
+	u8 mcast_router = MDB_RTR_TYPE_DISABLED;
+
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+	if (!br_vlan_is_master(v))
+		mcast_router = v->port_mcast_ctx.multicast_router;
+	else
+		mcast_router = v->br_mcast_ctx.multicast_router;
+#endif
+
+	return mcast_router;
+}
+
 static inline int br_afspec_cmd_to_rtm(int cmd)
 {
 	switch (cmd) {
@@ -881,6 +895,7 @@ void br_multicast_flood(struct net_bridge_mdb_entry *mdst, struct sk_buff *skb,
 int br_multicast_set_router(struct net_bridge_mcast *brmctx, unsigned long val);
 int br_multicast_set_port_router(struct net_bridge_mcast_port *pmctx,
 				 unsigned long val);
+int br_multicast_set_vlan_router(struct net_bridge_vlan *v, u8 mcast_router);
 int br_multicast_toggle(struct net_bridge *br, unsigned long val,
 			struct netlink_ext_ack *extack);
 int br_multicast_set_querier(struct net_bridge_mcast *brmctx, unsigned long val);
