@@ -60,6 +60,14 @@ unsigned int sysctl_sched_min_granularity			= 750000ULL;
 static unsigned int normalized_sysctl_sched_min_granularity	= 750000ULL;
 
 /*
+ * Minimal preemption granularity for CPU-bound SCHED_IDLE tasks.
+ * Applies only when SCHED_IDLE tasks compete with normal tasks.
+ *
+ * (default: 0.75 msec)
+ */
+unsigned int sysctl_sched_idle_min_granularity			= 750000ULL;
+
+/*
  * This value is kept at sysctl_sched_latency/sysctl_sched_min_granularity
  */
 static unsigned int sched_nr_latency = 8;
@@ -665,6 +673,8 @@ static u64 __sched_period(unsigned long nr_running)
 		return sysctl_sched_latency;
 }
 
+static bool sched_idle_cfs_rq(struct cfs_rq *cfs_rq);
+
 /*
  * We calculate the wall-time slice from the period by taking a part
  * proportional to the weight.
@@ -674,6 +684,8 @@ static u64 __sched_period(unsigned long nr_running)
 static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	unsigned int nr_running = cfs_rq->nr_running;
+	struct sched_entity *init_se = se;
+	unsigned int min_gran;
 	u64 slice;
 
 	if (sched_feat(ALT_PERIOD))
@@ -684,12 +696,13 @@ static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	for_each_sched_entity(se) {
 		struct load_weight *load;
 		struct load_weight lw;
+		struct cfs_rq *qcfs_rq;
 
-		cfs_rq = cfs_rq_of(se);
-		load = &cfs_rq->load;
+		qcfs_rq = cfs_rq_of(se);
+		load = &qcfs_rq->load;
 
 		if (unlikely(!se->on_rq)) {
-			lw = cfs_rq->load;
+			lw = qcfs_rq->load;
 
 			update_load_add(&lw, se->load.weight);
 			load = &lw;
@@ -697,8 +710,14 @@ static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		slice = __calc_delta(slice, se->load.weight, load);
 	}
 
-	if (sched_feat(BASE_SLICE))
-		slice = max(slice, (u64)sysctl_sched_min_granularity);
+	if (sched_feat(BASE_SLICE)) {
+		if (se_is_idle(init_se) && !sched_idle_cfs_rq(cfs_rq))
+			min_gran = sysctl_sched_idle_min_granularity;
+		else
+			min_gran = sysctl_sched_min_granularity;
+
+		slice = max_t(u64, slice, min_gran);
+	}
 
 	return slice;
 }
