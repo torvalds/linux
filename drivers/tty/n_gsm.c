@@ -601,7 +601,7 @@ static void gsm_send(struct gsm_mux *gsm, int addr, int cr, int control)
 
 static inline void gsm_response(struct gsm_mux *gsm, int addr, int control)
 {
-	gsm_send(gsm, addr, 0, control);
+	gsm_send(gsm, addr, 1, control);
 }
 
 /**
@@ -1786,9 +1786,9 @@ static void gsm_queue(struct gsm_mux *gsm)
 		if (dlci == NULL)
 			return;
 		if (dlci->dead)
-			gsm_response(gsm, address, DM);
+			gsm_response(gsm, address, DM|PF);
 		else {
-			gsm_response(gsm, address, UA);
+			gsm_response(gsm, address, UA|PF);
 			gsm_dlci_open(dlci);
 		}
 		break;
@@ -1796,11 +1796,11 @@ static void gsm_queue(struct gsm_mux *gsm)
 		if (cr == 1)
 			goto invalid;
 		if (dlci == NULL || dlci->state == DLCI_CLOSED) {
-			gsm_response(gsm, address, DM);
+			gsm_response(gsm, address, DM|PF);
 			return;
 		}
 		/* Real close complete */
-		gsm_response(gsm, address, UA);
+		gsm_response(gsm, address, UA|PF);
 		gsm_dlci_close(dlci);
 		break;
 	case UA:
