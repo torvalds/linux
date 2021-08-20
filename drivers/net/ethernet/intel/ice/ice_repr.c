@@ -267,6 +267,26 @@ void ice_repr_rem_from_all_vfs(struct ice_pf *pf)
 }
 
 /**
+ * ice_repr_start_tx_queues - start Tx queues of port representor
+ * @repr: pointer to repr structure
+ */
+void ice_repr_start_tx_queues(struct ice_repr *repr)
+{
+	netif_carrier_on(repr->netdev);
+	netif_tx_start_all_queues(repr->netdev);
+}
+
+/**
+ * ice_repr_stop_tx_queues - stop Tx queues of port representor
+ * @repr: pointer to repr structure
+ */
+void ice_repr_stop_tx_queues(struct ice_repr *repr)
+{
+	netif_carrier_off(repr->netdev);
+	netif_tx_stop_all_queues(repr->netdev);
+}
+
+/**
  * ice_repr_set_traffic_vsi - set traffic VSI for port representor
  * @repr: repr on with VSI will be set
  * @vsi: pointer to VSI that will be used by port representor to pass traffic

@@ -9,6 +9,7 @@
 #ifdef CONFIG_ICE_SWITCHDEV
 void ice_eswitch_release(struct ice_pf *pf);
 int ice_eswitch_configure(struct ice_pf *pf);
+int ice_eswitch_rebuild(struct ice_pf *pf);
 
 int ice_eswitch_mode_get(struct devlink *devlink, u16 *mode);
 int
@@ -17,12 +18,21 @@ ice_eswitch_mode_set(struct devlink *devlink, u16 mode,
 bool ice_is_eswitch_mode_switchdev(struct ice_pf *pf);
 
 void ice_eswitch_update_repr(struct ice_vsi *vsi);
+
+void ice_eswitch_stop_all_tx_queues(struct ice_pf *pf);
 #else /* CONFIG_ICE_SWITCHDEV */
 static inline void ice_eswitch_release(struct ice_pf *pf) { }
+
+static inline void ice_eswitch_stop_all_tx_queues(struct ice_pf *pf) { }
 
 static inline void ice_eswitch_update_repr(struct ice_vsi *vsi) { }
 
 static inline int ice_eswitch_configure(struct ice_pf *pf)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int ice_eswitch_rebuild(struct ice_pf *pf)
 {
 	return -EOPNOTSUPP;
 }
