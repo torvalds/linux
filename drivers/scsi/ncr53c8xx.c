@@ -4553,7 +4553,7 @@ static void ncr_start_reset(struct ncb *np)
 **
 **==========================================================
 */
-static int ncr_reset_bus (struct ncb *np, struct scsi_cmnd *cmd, int sync_reset)
+static int ncr_reset_bus (struct ncb *np, struct scsi_cmnd *cmd)
 {
 /*	struct scsi_device        *device    = cmd->device; */
 	struct ccb *cp;
@@ -4600,11 +4600,10 @@ static int ncr_reset_bus (struct ncb *np, struct scsi_cmnd *cmd, int sync_reset)
 	ncr_wakeup(np, HS_RESET);
 /*
  * If the involved command was not in a driver queue, and the 
- * scsi driver told us reset is synchronous, and the command is not 
- * currently in the waiting list, complete it with DID_RESET status,
- * in order to keep it alive.
+ * command is not currently in the waiting list, complete it
+ * with DID_RESET status in order to keep it alive.
  */
-	if (!found && sync_reset && !retrieve_from_waiting_list(0, np, cmd)) {
+	if (!found && !retrieve_from_waiting_list(0, np, cmd)) {
 		set_host_byte(cmd, DID_RESET);
 		ncr_queue_done_cmd(np, cmd);
 	}
@@ -8125,7 +8124,7 @@ static int ncr53c8xx_bus_reset(struct scsi_cmnd *cmd)
 	 */
 
 	spin_lock_irqsave(&np->smp_lock, flags);
-	sts = ncr_reset_bus(np, cmd, 1);
+	sts = ncr_reset_bus(np, cmd);
 
 	done_list     = np->done_list;
 	np->done_list = NULL;
