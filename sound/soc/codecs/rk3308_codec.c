@@ -95,6 +95,7 @@
 
 #define ACODEC_VERSION_A			0xa
 #define ACODEC_VERSION_B			0xb
+#define ACODEC_VERSION_C			0xc
 
 enum {
 	ACODEC_TO_I2S2_8CH = 0,
@@ -261,6 +262,8 @@ static const DECLARE_TLV_DB_RANGE(rk3308_codec_adc_mic_gain_tlv_b,
 static bool handle_loopback(struct rk3308_codec_priv *rk3308);
 
 static int check_micbias(int micbias);
+
+static void rk3308_codec_dac_mclk_enable(struct rk3308_codec_priv *rk3308);
 
 static int rk3308_codec_micbias_enable(struct rk3308_codec_priv *rk3308,
 				       int micbias);
@@ -1486,15 +1489,25 @@ static int rk3308_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	case SND_SOC_DAIFMT_CBS_CFS:
 		adc_aif2 |= RK3308_ADC_IO_MODE_SLAVE;
 		adc_aif2 |= RK3308_ADC_MODE_SLAVE;
-		dac_aif2 |= RK3308_DAC_IO_MODE_SLAVE;
-		dac_aif2 |= RK3308_DAC_MODE_SLAVE;
+		if (rk3308->codec_ver == ACODEC_VERSION_C) {
+			dac_aif2 |= RK3308BS_DAC_IO_MODE_SLAVE;
+			dac_aif2 |= RK3308BS_DAC_MODE_SLAVE;
+		} else {
+			dac_aif2 |= RK3308_DAC_IO_MODE_SLAVE;
+			dac_aif2 |= RK3308_DAC_MODE_SLAVE;
+		}
 		is_master = 0;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
 		adc_aif2 |= RK3308_ADC_IO_MODE_MASTER;
 		adc_aif2 |= RK3308_ADC_MODE_MASTER;
-		dac_aif2 |= RK3308_DAC_IO_MODE_MASTER;
-		dac_aif2 |= RK3308_DAC_MODE_MASTER;
+		if (rk3308->codec_ver == ACODEC_VERSION_C) {
+			dac_aif2 |= RK3308BS_DAC_IO_MODE_MASTER;
+			dac_aif2 |= RK3308BS_DAC_MODE_MASTER;
+		} else {
+			dac_aif2 |= RK3308_DAC_IO_MODE_MASTER;
+			dac_aif2 |= RK3308_DAC_MODE_MASTER;
+		}
 		is_master = 1;
 		break;
 	default:
@@ -1588,11 +1601,19 @@ static int rk3308_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			   RK3308_DAC_I2S_LRC_POL_MSK |
 			   RK3308_DAC_I2S_MODE_MSK,
 			   dac_aif1);
-	regmap_update_bits(rk3308->regmap, RK3308_DAC_DIG_CON02,
+	if (rk3308->codec_ver == ACODEC_VERSION_C) {
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_DIG_CON02,
+			   RK3308BS_DAC_IO_MODE_MSK |
+			   RK3308BS_DAC_MODE_MSK |
+			   RK3308_DAC_I2S_BIT_CLK_POL_MSK,
+			   dac_aif2);
+	} else {
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_DIG_CON02,
 			   RK3308_DAC_IO_MODE_MSK |
 			   RK3308_DAC_MODE_MSK |
 			   RK3308_DAC_I2S_BIT_CLK_POL_MSK,
 			   dac_aif2);
+	}
 
 	return 0;
 }
@@ -1728,18 +1749,20 @@ static int rk3308_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 		int dgain;
 
 		if (mute) {
-			for (dgain = 0x2; dgain <= 0x7; dgain++) {
-				/*
-				 * Keep the max -> min digital CIC interpolation
-				 * filter gain step by step.
-				 *
-				 * loud: 0x2; whisper: 0x7
-				 */
-				regmap_update_bits(rk3308->regmap,
-						   RK3308_DAC_DIG_CON04,
-						   RK3308_DAC_CIC_IF_GAIN_MSK,
-						   dgain);
-				usleep_range(200, 300);  /* estimated value */
+			if (rk3308->codec_ver <= ACODEC_VERSION_B) {
+				for (dgain = 0x2; dgain <= 0x7; dgain++) {
+					/*
+					 * Keep the max -> min digital CIC interpolation
+					 * filter gain step by step.
+					 *
+					 * loud: 0x2; whisper: 0x7
+					 */
+					regmap_update_bits(rk3308->regmap,
+							   RK3308_DAC_DIG_CON04,
+							   RK3308_DAC_CIC_IF_GAIN_MSK,
+							   dgain);
+					usleep_range(200, 300);  /* estimated value */
+				}
 			}
 
 #if !DEBUG_POP_ALWAYS
@@ -1756,18 +1779,20 @@ static int rk3308_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 			if (rk3308->delay_start_play_ms)
 				msleep(rk3308->delay_start_play_ms);
 #endif
-			for (dgain = 0x7; dgain >= 0x2; dgain--) {
-				/*
-				 * Keep the min -> max digital CIC interpolation
-				 * filter gain step by step
-				 *
-				 * loud: 0x2; whisper: 0x7
-				 */
-				regmap_update_bits(rk3308->regmap,
-						   RK3308_DAC_DIG_CON04,
-						   RK3308_DAC_CIC_IF_GAIN_MSK,
-						   dgain);
-				usleep_range(200, 300);  /* estimated value */
+			if (rk3308->codec_ver <= ACODEC_VERSION_B) {
+				for (dgain = 0x7; dgain >= 0x2; dgain--) {
+					/*
+					 * Keep the min -> max digital CIC interpolation
+					 * filter gain step by step
+					 *
+					 * loud: 0x2; whisper: 0x7
+					 */
+					regmap_update_bits(rk3308->regmap,
+							   RK3308_DAC_DIG_CON04,
+							   RK3308_DAC_CIC_IF_GAIN_MSK,
+							   dgain);
+					usleep_range(200, 300);  /* estimated value */
+				}
 			}
 		}
 	}
@@ -2074,7 +2099,7 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 
 	udelay(20);
 
-	if (rk3308->codec_ver == ACODEC_VERSION_B &&
+	if (rk3308->codec_ver >= ACODEC_VERSION_B &&
 	    (rk3308->dac_output == DAC_LINEOUT ||
 	     rk3308->dac_output == DAC_LINEOUT_HPOUT)) {
 		/* Step 04 */
@@ -2145,7 +2170,7 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 		udelay(20);
 	}
 
-	if (rk3308->codec_ver == ACODEC_VERSION_B) {
+	if (rk3308->codec_ver >= ACODEC_VERSION_B) {
 		/* Step 10 */
 		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON15,
 				   RK3308_DAC_LINEOUT_POP_SOUND_L_MSK |
@@ -2351,7 +2376,7 @@ static int rk3308_codec_dac_disable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_HPOUT_POP_SOUND_R_INIT);
 
 	/* Step 15 */
-	if (rk3308->codec_ver == ACODEC_VERSION_B &&
+	if (rk3308->codec_ver >= ACODEC_VERSION_B &&
 	    (rk3308->dac_output == DAC_LINEOUT ||
 	     rk3308->dac_output == DAC_LINEOUT_HPOUT)) {
 		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON15,
@@ -2421,7 +2446,7 @@ static int rk3308_codec_power_on(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_HPOUT_POP_SOUND_R_MSK,
 			   RK3308_DAC_HPOUT_POP_SOUND_R_INIT);
 
-	if (rk3308->codec_ver == ACODEC_VERSION_B) {
+	if (rk3308->codec_ver >= ACODEC_VERSION_B) {
 		/*
 		 * 2. Configure ACODEC_DAC_ANA_CON15[1:0] and
 		 *    ACODEC_DAC_ANA_CON15[5:4] to 0x1, to setup dc voltage of
@@ -2442,7 +2467,7 @@ static int rk3308_codec_power_on(struct rk3308_codec_priv *rk3308)
 			   RK3308_ADC_CURRENT_CHARGE_MSK,
 			   RK3308_ADC_SEL_I(0x1));
 
-	if (rk3308->codec_ver == ACODEC_VERSION_B) {
+	if (rk3308->codec_ver >= ACODEC_VERSION_B) {
 		/*
 		 * 4. Configure the register ACODEC_ADC_ANA_CON14[3:0] to
 		 *    4’b0001.
@@ -2461,7 +2486,7 @@ static int rk3308_codec_power_on(struct rk3308_codec_priv *rk3308)
 	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON10(0),
 			   RK3308_ADC_REF_EN, RK3308_ADC_REF_EN);
 
-	if (rk3308->codec_ver == ACODEC_VERSION_B) {
+	if (rk3308->codec_ver >= ACODEC_VERSION_B) {
 		/*
 		 * 7. Configure the register ACODEC_ADC_ANA_CON14[4] to 0x1 to
 		 *    setup reference voltage
@@ -2483,7 +2508,7 @@ static int rk3308_codec_power_on(struct rk3308_codec_priv *rk3308)
 		udelay(200);
 	}
 
-	if (rk3308->codec_ver == ACODEC_VERSION_B) {
+	if (rk3308->codec_ver >= ACODEC_VERSION_B) {
 		/*
 		 * 9. Change the register ACODEC_ADC_ANA_CON14[3:0] from the 0x1
 		 *    to 0xf step by step or configure the
@@ -2508,13 +2533,19 @@ static int rk3308_codec_power_on(struct rk3308_codec_priv *rk3308)
 	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON10(0),
 			   RK3308_ADC_CURRENT_CHARGE_MSK, 0x7c);
 
-	if (rk3308->codec_ver == ACODEC_VERSION_B) {
+	if (rk3308->codec_ver >= ACODEC_VERSION_B) {
 		/*
 		 * 12. Configure the register ACODEC_DAC_ANA_CON14[6:0] to the
 		 *     appropriate value(expect 0x0) for reducing power.
 		 */
 		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON14,
 				   RK3308_DAC_CURRENT_CHARGE_MSK, 0xf);
+	}
+
+	if (rk3308->codec_ver == ACODEC_VERSION_C) {
+		/* Using large driver strength for HPOUT and LINEOUT */
+		regmap_write(rk3308->regmap, RK3308_DAC_ANA_CON07, 0x11);
+		regmap_write(rk3308->regmap, RK3308_DAC_ANA_CON08, 0x11);
 	}
 
 	return 0;
@@ -2536,7 +2567,7 @@ static int rk3308_codec_power_off(struct rk3308_codec_priv *rk3308)
 			   RK3308_ADC_CURRENT_CHARGE_MSK,
 			   RK3308_ADC_SEL_I(0x1));
 
-	if (rk3308->codec_ver == ACODEC_VERSION_B) {
+	if (rk3308->codec_ver >= ACODEC_VERSION_B) {
 		/*
 		 * 2. Configure the register ACODEC_DAC_ANA_CON14[3:0] to
 		 *    4’b0001.
@@ -2551,7 +2582,7 @@ static int rk3308_codec_power_off(struct rk3308_codec_priv *rk3308)
 			   RK3308_ADC_REF_EN,
 			   RK3308_ADC_REF_DIS);
 
-	if (rk3308->codec_ver == ACODEC_VERSION_B) {
+	if (rk3308->codec_ver >= ACODEC_VERSION_B) {
 		/* 4. Configure the register ACODEC_DAC_ANA_CON14[7] to 0x0 */
 		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON14,
 				   RK3308_DAC_VCM_LINEOUT_EN,
@@ -2570,7 +2601,7 @@ static int rk3308_codec_power_off(struct rk3308_codec_priv *rk3308)
 		udelay(200);
 	}
 
-	if (rk3308->codec_ver == ACODEC_VERSION_B) {
+	if (rk3308->codec_ver >= ACODEC_VERSION_B) {
 		/*
 		 * 6. Change the register ACODEC_DAC_ANA_CON14[3:0] from the 0x1
 		 *    to 0xf step by step or configure the
@@ -2599,6 +2630,9 @@ static int rk3308_codec_power_off(struct rk3308_codec_priv *rk3308)
 
 static int rk3308_codec_headset_detect_enable(struct rk3308_codec_priv *rk3308)
 {
+	if (rk3308->codec_ver == ACODEC_VERSION_C)
+		rk3308_codec_dac_mclk_enable(rk3308);
+
 	/*
 	 * Set ACODEC_DAC_ANA_CON0[1] to 0x1, to enable the headset insert
 	 * detection
@@ -2791,7 +2825,7 @@ static int check_micbias(int micbias)
 static bool handle_loopback(struct rk3308_codec_priv *rk3308)
 {
 	/* The version B doesn't need to handle loopback. */
-	if (rk3308->codec_ver == ACODEC_VERSION_B)
+	if (rk3308->codec_ver >= ACODEC_VERSION_B)
 		return false;
 
 	switch (rk3308->loopback_grp) {
@@ -3425,6 +3459,9 @@ static void rk3308_codec_adc_mclk_enable(struct rk3308_codec_priv *rk3308)
 
 static void rk3308_codec_dac_mclk_disable(struct rk3308_codec_priv *rk3308)
 {
+	if (!rk3308->no_hp_det && rk3308->codec_ver == ACODEC_VERSION_C)
+		return;
+
 	regmap_update_bits(rk3308->regmap, RK3308_GLB_CON,
 			   RK3308_DAC_MCLK_MSK,
 			   RK3308_DAC_MCLK_DIS);
@@ -3848,6 +3885,17 @@ static int rk3308_codec_default_gains(struct rk3308_codec_priv *rk3308)
 				   RK3308_ADC_CH2_ALC_GAIN_0DB);
 	}
 
+	if (rk3308->codec_ver == ACODEC_VERSION_C) {
+		/* recover ADC digtial volume to 0dB */
+		for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+			/* DIG_VOL: -97dB ~ +32dB  */
+			regmap_write(rk3308->regmap, RK3308BS_ADC_DIG_CON05(grp),
+					   RK3308_ADC_DIG_VOL_CON_L(RK3308_ADC_DIG_VOL_0DB));
+			regmap_write(rk3308->regmap, RK3308BS_ADC_DIG_CON06(grp),
+					   RK3308_ADC_DIG_VOL_CON_R(RK3308_ADC_DIG_VOL_0DB));
+		}
+	}
+
 	/* Prepare DAC gains */
 	/* Step 15, set HPMIX default gains */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON12,
@@ -3873,6 +3921,12 @@ static int rk3308_codec_default_gains(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_R_LINEOUT_GAIN_MSK,
 			   RK3308_DAC_L_LINEOUT_GAIN_NDB_6 |
 			   RK3308_DAC_R_LINEOUT_GAIN_NDB_6);
+
+	if (rk3308->codec_ver == ACODEC_VERSION_C) {
+		/* recover DAC digtial gain to 0dB */
+		regmap_write(rk3308->regmap, RK3308BS_DAC_DIG_CON04,
+			     RK3308BS_DAC_DIG_GAIN(RK3308BS_DAC_DIG_0DB));
+	}
 
 	return 0;
 }
@@ -3934,7 +3988,7 @@ static int rk3308_codec_dapm_mic_gains(struct rk3308_codec_priv *rk3308)
 {
 	int ret;
 
-	if (rk3308->codec_ver == ACODEC_VERSION_B) {
+	if (rk3308->codec_ver >= ACODEC_VERSION_B) {
 		ret = snd_soc_add_component_controls(rk3308->component,
 						     mic_gains_b,
 						     ARRAY_SIZE(mic_gains_b));
@@ -4136,12 +4190,15 @@ static void rk3308_codec_hpdetect_work(struct work_struct *work)
 {
 	struct rk3308_codec_priv *rk3308 =
 		container_of(work, struct rk3308_codec_priv, hpdet_work.work);
-	unsigned int val;
+	unsigned int val, headphone_con = RK3308_CODEC_HEADPHONE_CON;
 	int need_poll = 0, need_irq = 0;
 	int need_report = 0, report_type = 0;
 	int dac_output = DAC_LINEOUT;
 
-	if (rk3308->codec_ver == ACODEC_VERSION_B) {
+	if (rk3308->codec_ver == ACODEC_VERSION_C)
+		headphone_con = RK3308BS_CODEC_HEADPHONE_CON;
+
+	if (rk3308->codec_ver >= ACODEC_VERSION_B) {
 		/* Check headphone plugged/unplugged directly. */
 		regmap_read(rk3308->detect_grf,
 			    DETECT_GRF_ACODEC_HPDET_STATUS, &val);
@@ -4182,7 +4239,7 @@ static void rk3308_codec_hpdetect_work(struct work_struct *work)
 	}
 
 	/* Check headphone unplugged via poll. */
-	regmap_read(rk3308->regmap, RK3308_DAC_DIG_CON14, &val);
+	regmap_read(rk3308->regmap, headphone_con, &val);
 
 	if (rk3308->hp_jack_reversed) {
 		if (!val) {
@@ -4816,6 +4873,9 @@ static int rk3308_codec_get_version(struct rk3308_codec_priv *rk3308)
 	case 0x3308:
 		rk3308->codec_ver = ACODEC_VERSION_B;
 		break;
+	case 0x3308c:
+		rk3308->codec_ver = ACODEC_VERSION_C;
+		break;
 	default:
 		pr_err("Unknown chip_id: %d / 0x%x\n", chip_id, chip_id);
 		return -EFAULT;
@@ -5030,7 +5090,7 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	if (!rk3308->no_hp_det) {
 		int index = 0;
 
-		if (rk3308->codec_ver == ACODEC_VERSION_B)
+		if (rk3308->codec_ver >= ACODEC_VERSION_B)
 			index = 1;
 
 		rk3308->irq = platform_get_irq(pdev, index);
@@ -5051,7 +5111,7 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 			goto failed;
 		}
 
-		if (rk3308->codec_ver == ACODEC_VERSION_B) {
+		if (rk3308->codec_ver >= ACODEC_VERSION_B) {
 			rk3308->detect_grf =
 				syscon_regmap_lookup_by_phandle(np, "rockchip,detect-grf");
 			if (IS_ERR(rk3308->detect_grf)) {
