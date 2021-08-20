@@ -1356,6 +1356,8 @@ struct dma_fence *etnaviv_gpu_submit(struct etnaviv_gem_submit *submit)
 		gpu->mmu_context = etnaviv_iommu_context_get(submit->mmu_context);
 		etnaviv_gpu_start_fe_idleloop(gpu);
 	} else {
+		if (submit->prev_mmu_context)
+			etnaviv_iommu_context_put(submit->prev_mmu_context);
 		submit->prev_mmu_context = etnaviv_iommu_context_get(gpu->mmu_context);
 	}
 
