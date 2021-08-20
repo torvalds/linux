@@ -1779,7 +1779,7 @@ static void gsm_queue(struct gsm_mux *gsm)
 
 	switch (gsm->control) {
 	case SABM|PF:
-		if (cr == 0)
+		if (cr == 1)
 			goto invalid;
 		if (dlci == NULL)
 			dlci = gsm_dlci_alloc(gsm, address);
@@ -1793,7 +1793,7 @@ static void gsm_queue(struct gsm_mux *gsm)
 		}
 		break;
 	case DISC|PF:
-		if (cr == 0)
+		if (cr == 1)
 			goto invalid;
 		if (dlci == NULL || dlci->state == DLCI_CLOSED) {
 			gsm_response(gsm, address, DM);
