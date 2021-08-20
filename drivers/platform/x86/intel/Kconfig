@@ -24,6 +24,7 @@ source "drivers/platform/x86/intel/pmc/Kconfig"
 source "drivers/platform/x86/intel/pmt/Kconfig"
 source "drivers/platform/x86/intel/speed_select_if/Kconfig"
 source "drivers/platform/x86/intel/telemetry/Kconfig"
+source "drivers/platform/x86/intel/wmi/Kconfig"
 
 config INTEL_HID_EVENT
 	tristate "Intel HID Event"

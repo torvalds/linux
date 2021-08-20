@@ -12,6 +12,7 @@ obj-$(CONFIG_INTEL_PMC_CORE)		+= pmc/
 obj-$(CONFIG_INTEL_PMT_CLASS)		+= pmt/
 obj-$(CONFIG_INTEL_SPEED_SELECT_INTERFACE) += speed_select_if/
 obj-$(CONFIG_INTEL_TELEMETRY)		+= telemetry/
+obj-$(CONFIG_INTEL_WMI)			+= wmi/
 
 # Intel input drivers
 intel-hid-y				:= hid.o
