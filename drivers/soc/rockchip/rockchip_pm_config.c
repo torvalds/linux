@@ -26,6 +26,7 @@
 #define MAX_ON_OFF_REG_NUM		30
 #define MAX_ON_OFF_REG_PROP_NAME_LEN	60
 
+#if defined(CONFIG_NO_GKI)
 enum rk_pm_state {
 	RK_PM_MEM = 0,
 	RK_PM_MEM_LITE,
@@ -37,6 +38,7 @@ static struct rk_on_off_regulator_list {
 	struct regulator_dev *on_reg_list[MAX_ON_OFF_REG_NUM];
 	struct regulator_dev *off_reg_list[MAX_ON_OFF_REG_NUM];
 } on_off_regs_list[RK_PM_STATE_MAX];
+#endif
 
 static const struct of_device_id pm_match_table[] = {
 	{ .compatible = "rockchip,pm-px30",},
@@ -52,13 +54,14 @@ static const struct of_device_id pm_match_table[] = {
 	{ },
 };
 
+#if defined(CONFIG_NO_GKI)
 static void rockchip_pm_virt_pwroff_prepare(void)
 {
 	int error;
 
 	regulator_suspend_prepare(PM_SUSPEND_MEM);
 
-	error = disable_nonboot_cpus();
+	error = suspend_disable_secondary_cpus();
 	if (error) {
 		pr_err("Disable nonboot cpus failed!\n");
 		return;
@@ -149,6 +152,7 @@ static int parse_on_off_regulator(struct device_node *node, enum rk_pm_state sta
 
 	return 0;
 }
+#endif
 
 static int pm_config_probe(struct platform_device *pdev)
 {
@@ -160,7 +164,9 @@ static int pm_config_probe(struct platform_device *pdev)
 	int gpio_temp[10];
 	u32 sleep_debug_en = 0;
 	u32 apios_suspend = 0;
+#if defined(CONFIG_NO_GKI)
 	u32 virtual_poweroff_en = 0;
+#endif
 	enum of_gpio_flags flags;
 	int i = 0;
 	int length;
@@ -230,6 +236,7 @@ static int pm_config_probe(struct platform_device *pdev)
 					 apios_suspend,
 					 0);
 
+#if defined(CONFIG_NO_GKI)
 	if (!of_property_read_u32_array(node,
 					"rockchip,virtual-poweroff",
 					&virtual_poweroff_en, 1) &&
@@ -238,10 +245,12 @@ static int pm_config_probe(struct platform_device *pdev)
 
 	for (i = RK_PM_MEM; i < RK_PM_STATE_MAX; i++)
 		parse_on_off_regulator(node, i);
+#endif
 
 	return 0;
 }
 
+#if defined(CONFIG_NO_GKI)
 static int pm_config_prepare(struct device *dev)
 {
 	int i;
@@ -272,13 +281,16 @@ static int pm_config_prepare(struct device *dev)
 static const struct dev_pm_ops rockchip_pm_ops = {
 	.prepare = pm_config_prepare,
 };
+#endif
 
 static struct platform_driver pm_driver = {
 	.probe = pm_config_probe,
 	.driver = {
 		.name = "rockchip-pm",
 		.of_match_table = pm_match_table,
+#if defined(CONFIG_NO_GKI)
 		.pm = &rockchip_pm_ops,
+#endif
 	},
 };
 
