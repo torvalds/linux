@@ -14,7 +14,6 @@
 #include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/pm_runtime.h>
-#include <linux/phy/phy.h>
 #include <linux/regmap.h>
 
 #include <video/mipi_display.h>
