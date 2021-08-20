@@ -16,6 +16,8 @@ obj-$(CONFIG_INTEL_TELEMETRY)		+= telemetry/
 # Intel input drivers
 intel-hid-y				:= hid.o
 obj-$(CONFIG_INTEL_HID_EVENT)		+= intel-hid.o
+intel-vbtn-y				:= vbtn.o
+obj-$(CONFIG_INTEL_VBTN)		+= intel-vbtn.o
 
 # Intel miscellaneous drivers
 intel_int0002_vgpio-y			:= int0002_vgpio.o
