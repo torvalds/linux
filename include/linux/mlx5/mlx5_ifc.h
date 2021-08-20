@@ -865,7 +865,8 @@ struct mlx5_ifc_qos_cap_bits {
 	u8         nic_bw_share[0x1];
 	u8         nic_rate_limit[0x1];
 	u8         packet_pacing_uid[0x1];
-	u8         reserved_at_c[0x14];
+	u8         log_esw_max_sched_depth[0x4];
+	u8         reserved_at_10[0x10];
 
 	u8         reserved_at_20[0xb];
 	u8         log_max_qos_nic_queue_group[0x5];

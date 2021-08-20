@@ -7,6 +7,8 @@
 #include "mod_hdr.h"
 #include "lib/fs_ttc.h"
 
+struct mlx5e_post_act;
+
 enum {
 	MLX5E_TC_FT_LEVEL = 0,
 	MLX5E_TC_TTC_FT_LEVEL,
@@ -19,6 +21,7 @@ struct mlx5e_tc_table {
 	struct mutex			t_lock;
 	struct mlx5_flow_table		*t;
 	struct mlx5_fs_chains           *chains;
+	struct mlx5e_post_act		*post_act;
 
 	struct rhashtable               ht;
 
