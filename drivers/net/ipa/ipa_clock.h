@@ -9,18 +9,18 @@
 struct device;
 
 struct ipa;
-struct ipa_clock_data;
+struct ipa_power_data;
 
 /* IPA device power management function block */
 extern const struct dev_pm_ops ipa_pm_ops;
 
 /**
- * ipa_clock_rate() - Return the current IPA core clock rate
+ * ipa_core_clock_rate() - Return the current IPA core clock rate
  * @ipa:	IPA structure
  *
  * Return: The current clock rate (in Hz), or 0.
  */
-u32 ipa_clock_rate(struct ipa *ipa);
+u32 ipa_core_clock_rate(struct ipa *ipa);
 
 /**
  * ipa_power_modem_queue_stop() - Possibly stop the modem netdev TX queue
@@ -55,19 +55,19 @@ int ipa_power_setup(struct ipa *ipa);
 void ipa_power_teardown(struct ipa *ipa);
 
 /**
- * ipa_clock_init() - Initialize IPA clocking
+ * ipa_power_init() - Initialize IPA power management
  * @dev:	IPA device
  * @data:	Clock configuration data
  *
- * Return:	A pointer to an ipa_clock structure, or a pointer-coded error
+ * Return:	A pointer to an ipa_power structure, or a pointer-coded error
  */
-struct ipa_clock *ipa_clock_init(struct device *dev,
-				 const struct ipa_clock_data *data);
+struct ipa_power *ipa_power_init(struct device *dev,
+				 const struct ipa_power_data *data);
 
 /**
- * ipa_clock_exit() - Inverse of ipa_clock_init()
- * @clock:	IPA clock pointer
+ * ipa_power_exit() - Inverse of ipa_power_init()
+ * @power:	IPA power pointer
  */
-void ipa_clock_exit(struct ipa_clock *clock);
+void ipa_power_exit(struct ipa_power *power);
 
 #endif /* _IPA_CLOCK_H_ */

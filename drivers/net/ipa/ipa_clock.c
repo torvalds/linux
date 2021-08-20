@@ -18,18 +18,16 @@
 #include "ipa_data.h"
 
 /**
- * DOC: IPA Clocking
+ * DOC: IPA Power Management
  *
- * The "IPA Clock" manages both the IPA core clock and the interconnects
- * (buses) the IPA depends on as a single logical entity.  A reference count
- * is incremented by "get" operations and decremented by "put" operations.
- * Transitions of that count from 0 to 1 result in the clock and interconnects
- * being enabled, and transitions of the count from 1 to 0 cause them to be
- * disabled.  We currently operate the core clock at a fixed clock rate, and
- * all buses at a fixed average and peak bandwidth.  As more advanced IPA
- * features are enabled, we can make better use of clock and bus scaling.
+ * The IPA hardware is enabled when the IPA core clock and all the
+ * interconnects (buses) it depends on are enabled.  Runtime power
+ * management is used to determine whether the core clock and
+ * interconnects are enabled, and if not in use to be suspended
+ * automatically.
  *
- * An IPA clock reference must be held for any access to IPA hardware.
+ * The core clock currently runs at a fixed clock rate when enabled,
+ * an all interconnects use a fixed average and peak bandwidth.
  */
 
 #define IPA_AUTOSUSPEND_DELAY	500	/* milliseconds */
@@ -63,7 +61,7 @@ enum ipa_power_flag {
 };
 
 /**
- * struct ipa_clock - IPA clocking information
+ * struct ipa_power - IPA power management information
  * @dev:		IPA device pointer
  * @core:		IPA core clock
  * @spinlock:		Protects modem TX queue enable/disable
@@ -71,7 +69,7 @@ enum ipa_power_flag {
  * @interconnect_count:	Number of elements in interconnect[]
  * @interconnect:	Interconnect array
  */
-struct ipa_clock {
+struct ipa_power {
 	struct device *dev;
 	struct clk *core;
 	spinlock_t spinlock;	/* used with STOPPED/STARTED power flags */
@@ -110,18 +108,18 @@ static void ipa_interconnect_exit_one(struct ipa_interconnect *interconnect)
 }
 
 /* Initialize interconnects required for IPA operation */
-static int ipa_interconnect_init(struct ipa_clock *clock, struct device *dev,
+static int ipa_interconnect_init(struct ipa_power *power, struct device *dev,
 				 const struct ipa_interconnect_data *data)
 {
 	struct ipa_interconnect *interconnect;
 	u32 count;
 	int ret;
 
-	count = clock->interconnect_count;
+	count = power->interconnect_count;
 	interconnect = kcalloc(count, sizeof(*interconnect), GFP_KERNEL);
 	if (!interconnect)
 		return -ENOMEM;
-	clock->interconnect = interconnect;
+	power->interconnect = interconnect;
 
 	while (count--) {
 		ret = ipa_interconnect_init_one(dev, interconnect, data++);
@@ -133,36 +131,36 @@ static int ipa_interconnect_init(struct ipa_clock *clock, struct device *dev,
 	return 0;
 
 out_unwind:
-	while (interconnect-- > clock->interconnect)
+	while (interconnect-- > power->interconnect)
 		ipa_interconnect_exit_one(interconnect);
-	kfree(clock->interconnect);
-	clock->interconnect = NULL;
+	kfree(power->interconnect);
+	power->interconnect = NULL;
 
 	return ret;
 }
 
 /* Inverse of ipa_interconnect_init() */
-static void ipa_interconnect_exit(struct ipa_clock *clock)
+static void ipa_interconnect_exit(struct ipa_power *power)
 {
 	struct ipa_interconnect *interconnect;
 
-	interconnect = clock->interconnect + clock->interconnect_count;
-	while (interconnect-- > clock->interconnect)
+	interconnect = power->interconnect + power->interconnect_count;
+	while (interconnect-- > power->interconnect)
 		ipa_interconnect_exit_one(interconnect);
-	kfree(clock->interconnect);
-	clock->interconnect = NULL;
+	kfree(power->interconnect);
+	power->interconnect = NULL;
 }
 
 /* Currently we only use one bandwidth level, so just "enable" interconnects */
 static int ipa_interconnect_enable(struct ipa *ipa)
 {
 	struct ipa_interconnect *interconnect;
-	struct ipa_clock *clock = ipa->clock;
+	struct ipa_power *power = ipa->power;
 	int ret;
 	u32 i;
 
-	interconnect = clock->interconnect;
-	for (i = 0; i < clock->interconnect_count; i++) {
+	interconnect = power->interconnect;
+	for (i = 0; i < power->interconnect_count; i++) {
 		ret = icc_set_bw(interconnect->path,
 				 interconnect->average_bandwidth,
 				 interconnect->peak_bandwidth);
@@ -178,7 +176,7 @@ static int ipa_interconnect_enable(struct ipa *ipa)
 	return 0;
 
 out_unwind:
-	while (interconnect-- > clock->interconnect)
+	while (interconnect-- > power->interconnect)
 		(void)icc_set_bw(interconnect->path, 0, 0);
 
 	return ret;
@@ -188,14 +186,14 @@ out_unwind:
 static int ipa_interconnect_disable(struct ipa *ipa)
 {
 	struct ipa_interconnect *interconnect;
-	struct ipa_clock *clock = ipa->clock;
+	struct ipa_power *power = ipa->power;
 	struct device *dev = &ipa->pdev->dev;
 	int result = 0;
 	u32 count;
 	int ret;
 
-	count = clock->interconnect_count;
-	interconnect = clock->interconnect + count;
+	count = power->interconnect_count;
+	interconnect = power->interconnect + count;
 	while (count--) {
 		interconnect--;
 		ret = icc_set_bw(interconnect->path, 0, 0);
@@ -211,8 +209,8 @@ static int ipa_interconnect_disable(struct ipa *ipa)
 	return result;
 }
 
-/* Turn on IPA clocks, including interconnects */
-static int ipa_clock_enable(struct ipa *ipa)
+/* Enable IPA power, enabling interconnects and the core clock */
+static int ipa_power_enable(struct ipa *ipa)
 {
 	int ret;
 
@@ -220,7 +218,7 @@ static int ipa_clock_enable(struct ipa *ipa)
 	if (ret)
 		return ret;
 
-	ret = clk_prepare_enable(ipa->clock->core);
+	ret = clk_prepare_enable(ipa->power->core);
 	if (ret) {
 		dev_err(&ipa->pdev->dev, "error %d enabling core clock\n", ret);
 		(void)ipa_interconnect_disable(ipa);
@@ -229,10 +227,10 @@ static int ipa_clock_enable(struct ipa *ipa)
 	return ret;
 }
 
-/* Inverse of ipa_clock_enable() */
-static int ipa_clock_disable(struct ipa *ipa)
+/* Inverse of ipa_power_enable() */
+static int ipa_power_disable(struct ipa *ipa)
 {
-	clk_disable_unprepare(ipa->clock->core);
+	clk_disable_unprepare(ipa->power->core);
 
 	return ipa_interconnect_disable(ipa);
 }
@@ -243,12 +241,12 @@ static int ipa_runtime_suspend(struct device *dev)
 
 	/* Endpoints aren't usable until setup is complete */
 	if (ipa->setup_complete) {
-		__clear_bit(IPA_POWER_FLAG_RESUMED, ipa->clock->flags);
+		__clear_bit(IPA_POWER_FLAG_RESUMED, ipa->power->flags);
 		ipa_endpoint_suspend(ipa);
 		gsi_suspend(&ipa->gsi);
 	}
 
-	return ipa_clock_disable(ipa);
+	return ipa_power_disable(ipa);
 }
 
 static int ipa_runtime_resume(struct device *dev)
@@ -256,7 +254,7 @@ static int ipa_runtime_resume(struct device *dev)
 	struct ipa *ipa = dev_get_drvdata(dev);
 	int ret;
 
-	ret = ipa_clock_enable(ipa);
+	ret = ipa_power_enable(ipa);
 	if (WARN_ON(ret < 0))
 		return ret;
 
@@ -273,7 +271,7 @@ static int ipa_suspend(struct device *dev)
 {
 	struct ipa *ipa = dev_get_drvdata(dev);
 
-	__set_bit(IPA_POWER_FLAG_SYSTEM, ipa->clock->flags);
+	__set_bit(IPA_POWER_FLAG_SYSTEM, ipa->power->flags);
 
 	return pm_runtime_force_suspend(dev);
 }
@@ -285,15 +283,15 @@ static int ipa_resume(struct device *dev)
 
 	ret = pm_runtime_force_resume(dev);
 
-	__clear_bit(IPA_POWER_FLAG_SYSTEM, ipa->clock->flags);
+	__clear_bit(IPA_POWER_FLAG_SYSTEM, ipa->power->flags);
 
 	return ret;
 }
 
 /* Return the current IPA core clock rate */
-u32 ipa_clock_rate(struct ipa *ipa)
+u32 ipa_core_clock_rate(struct ipa *ipa)
 {
-	return ipa->clock ? (u32)clk_get_rate(ipa->clock->core) : 0;
+	return ipa->power ? (u32)clk_get_rate(ipa->power->core) : 0;
 }
 
 /**
@@ -312,8 +310,8 @@ static void ipa_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 	 * just to handle the interrupt, so we're done.  If we are in a
 	 * system suspend, trigger a system resume.
 	 */
-	if (!__test_and_set_bit(IPA_POWER_FLAG_RESUMED, ipa->clock->flags))
-		if (test_bit(IPA_POWER_FLAG_SYSTEM, ipa->clock->flags))
+	if (!__test_and_set_bit(IPA_POWER_FLAG_RESUMED, ipa->power->flags))
+		if (test_bit(IPA_POWER_FLAG_SYSTEM, ipa->power->flags))
 			pm_wakeup_dev_event(&ipa->pdev->dev, 0, true);
 
 	/* Acknowledge/clear the suspend interrupt on all endpoints */
@@ -345,17 +343,17 @@ static void ipa_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
  */
 void ipa_power_modem_queue_stop(struct ipa *ipa)
 {
-	struct ipa_clock *clock = ipa->clock;
+	struct ipa_power *power = ipa->power;
 	unsigned long flags;
 
-	spin_lock_irqsave(&clock->spinlock, flags);
+	spin_lock_irqsave(&power->spinlock, flags);
 
-	if (!__test_and_clear_bit(IPA_POWER_FLAG_STARTED, clock->flags)) {
+	if (!__test_and_clear_bit(IPA_POWER_FLAG_STARTED, power->flags)) {
 		netif_stop_queue(ipa->modem_netdev);
-		__set_bit(IPA_POWER_FLAG_STOPPED, clock->flags);
+		__set_bit(IPA_POWER_FLAG_STOPPED, power->flags);
 	}
 
-	spin_unlock_irqrestore(&clock->spinlock, flags);
+	spin_unlock_irqrestore(&power->spinlock, flags);
 }
 
 /* This function starts the modem netdev transmit queue, but only if the
@@ -365,23 +363,23 @@ void ipa_power_modem_queue_stop(struct ipa *ipa)
  */
 void ipa_power_modem_queue_wake(struct ipa *ipa)
 {
-	struct ipa_clock *clock = ipa->clock;
+	struct ipa_power *power = ipa->power;
 	unsigned long flags;
 
-	spin_lock_irqsave(&clock->spinlock, flags);
+	spin_lock_irqsave(&power->spinlock, flags);
 
-	if (__test_and_clear_bit(IPA_POWER_FLAG_STOPPED, clock->flags)) {
-		__set_bit(IPA_POWER_FLAG_STARTED, clock->flags);
+	if (__test_and_clear_bit(IPA_POWER_FLAG_STOPPED, power->flags)) {
+		__set_bit(IPA_POWER_FLAG_STARTED, power->flags);
 		netif_wake_queue(ipa->modem_netdev);
 	}
 
-	spin_unlock_irqrestore(&clock->spinlock, flags);
+	spin_unlock_irqrestore(&power->spinlock, flags);
 }
 
 /* This function clears the STARTED flag once the TX queue is operating */
 void ipa_power_modem_queue_active(struct ipa *ipa)
 {
-	clear_bit(IPA_POWER_FLAG_STARTED, ipa->clock->flags);
+	clear_bit(IPA_POWER_FLAG_STARTED, ipa->power->flags);
 }
 
 int ipa_power_setup(struct ipa *ipa)
@@ -404,11 +402,11 @@ void ipa_power_teardown(struct ipa *ipa)
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
 }
 
-/* Initialize IPA clocking */
-struct ipa_clock *
-ipa_clock_init(struct device *dev, const struct ipa_clock_data *data)
+/* Initialize IPA power management */
+struct ipa_power *
+ipa_power_init(struct device *dev, const struct ipa_power_data *data)
 {
-	struct ipa_clock *clock;
+	struct ipa_power *power;
 	struct clk *clk;
 	int ret;
 
@@ -426,17 +424,17 @@ ipa_clock_init(struct device *dev, const struct ipa_clock_data *data)
 		goto err_clk_put;
 	}
 
-	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
-	if (!clock) {
+	power = kzalloc(sizeof(*power), GFP_KERNEL);
+	if (!power) {
 		ret = -ENOMEM;
 		goto err_clk_put;
 	}
-	clock->dev = dev;
-	clock->core = clk;
-	spin_lock_init(&clock->spinlock);
-	clock->interconnect_count = data->interconnect_count;
+	power->dev = dev;
+	power->core = clk;
+	spin_lock_init(&power->spinlock);
+	power->interconnect_count = data->interconnect_count;
 
-	ret = ipa_interconnect_init(clock, dev, data->interconnect_data);
+	ret = ipa_interconnect_init(power, dev, data->interconnect_data);
 	if (ret)
 		goto err_kfree;
 
@@ -444,26 +442,26 @@ ipa_clock_init(struct device *dev, const struct ipa_clock_data *data)
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_enable(dev);
 
-	return clock;
+	return power;
 
 err_kfree:
-	kfree(clock);
+	kfree(power);
 err_clk_put:
 	clk_put(clk);
 
 	return ERR_PTR(ret);
 }
 
-/* Inverse of ipa_clock_init() */
-void ipa_clock_exit(struct ipa_clock *clock)
+/* Inverse of ipa_power_init() */
+void ipa_power_exit(struct ipa_power *power)
 {
-	struct device *dev = clock->dev;
-	struct clk *clk = clock->core;
+	struct device *dev = power->dev;
+	struct clk *clk = power->core;
 
 	pm_runtime_disable(dev);
 	pm_runtime_dont_use_autosuspend(dev);
-	ipa_interconnect_exit(clock);
-	kfree(clock);
+	ipa_interconnect_exit(power);
+	kfree(power);
 	clk_put(clk);
 }
 

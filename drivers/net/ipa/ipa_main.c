@@ -326,8 +326,8 @@ static void ipa_idle_indication_cfg(struct ipa *ipa,
  * @ipa:	IPA pointer
  *
  * Configures when the IPA signals it is idle to the global clock
- * controller, which can respond by scalling down the clock to
- * save power.
+ * controller, which can respond by scaling down the clock to save
+ * power.
  */
 static void ipa_hardware_dcd_config(struct ipa *ipa)
 {
@@ -417,7 +417,7 @@ static void ipa_hardware_deconfig(struct ipa *ipa)
  * @ipa:	IPA pointer
  * @data:	IPA configuration data
  *
- * Perform initialization requiring IPA clock to be enabled.
+ * Perform initialization requiring IPA power to be enabled.
  */
 static int ipa_config(struct ipa *ipa, const struct ipa_data *data)
 {
@@ -647,7 +647,7 @@ static bool ipa_version_valid(enum ipa_version version)
  * in several stages:
  *   - The "init" stage involves activities that can be initialized without
  *     access to the IPA hardware.
- *   - The "config" stage requires the IPA clock to be active so IPA registers
+ *   - The "config" stage requires IPA power to be active so IPA registers
  *     can be accessed, but does not require the use of IPA immediate commands.
  *   - The "setup" stage uses IPA immediate commands, and so requires the GSI
  *     layer to be initialized.
@@ -663,14 +663,14 @@ static int ipa_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct ipa_data *data;
-	struct ipa_clock *clock;
+	struct ipa_power *power;
 	bool modem_init;
 	struct ipa *ipa;
 	int ret;
 
 	ipa_validate_build();
 
-	/* Get configuration data early; needed for clock initialization */
+	/* Get configuration data early; needed for power initialization */
 	data = of_device_get_match_data(dev);
 	if (!data) {
 		dev_err(dev, "matched hardware not supported\n");
@@ -691,20 +691,20 @@ static int ipa_probe(struct platform_device *pdev)
 	/* The clock and interconnects might not be ready when we're
 	 * probed, so might return -EPROBE_DEFER.
 	 */
-	clock = ipa_clock_init(dev, data->clock_data);
-	if (IS_ERR(clock))
-		return PTR_ERR(clock);
+	power = ipa_power_init(dev, data->power_data);
+	if (IS_ERR(power))
+		return PTR_ERR(power);
 
 	/* No more EPROBE_DEFER.  Allocate and initialize the IPA structure */
 	ipa = kzalloc(sizeof(*ipa), GFP_KERNEL);
 	if (!ipa) {
 		ret = -ENOMEM;
-		goto err_clock_exit;
+		goto err_power_exit;
 	}
 
 	ipa->pdev = pdev;
 	dev_set_drvdata(dev, ipa);
-	ipa->clock = clock;
+	ipa->power = power;
 	ipa->version = data->version;
 	init_completion(&ipa->completion);
 
@@ -737,7 +737,7 @@ static int ipa_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_table_exit;
 
-	/* The clock needs to be active for config and setup */
+	/* Power needs to be active for config and setup */
 	ret = pm_runtime_get_sync(dev);
 	if (WARN_ON(ret < 0))
 		goto err_power_put;
@@ -788,8 +788,8 @@ err_reg_exit:
 	ipa_reg_exit(ipa);
 err_kfree_ipa:
 	kfree(ipa);
-err_clock_exit:
-	ipa_clock_exit(clock);
+err_power_exit:
+	ipa_power_exit(power);
 
 	return ret;
 }
@@ -797,7 +797,7 @@ err_clock_exit:
 static int ipa_remove(struct platform_device *pdev)
 {
 	struct ipa *ipa = dev_get_drvdata(&pdev->dev);
-	struct ipa_clock *clock = ipa->clock;
+	struct ipa_power *power = ipa->power;
 	struct device *dev = &pdev->dev;
 	int ret;
 
@@ -828,7 +828,7 @@ out_power_put:
 	ipa_mem_exit(ipa);
 	ipa_reg_exit(ipa);
 	kfree(ipa);
-	ipa_clock_exit(clock);
+	ipa_power_exit(power);
 
 	return 0;
 }

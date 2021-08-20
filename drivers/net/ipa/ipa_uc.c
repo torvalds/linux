@@ -147,16 +147,16 @@ static void ipa_uc_response_hdlr(struct ipa *ipa, enum ipa_irq_id irq_id)
 	 * should only receive responses from the microcontroller when it has
 	 * sent it a request message.
 	 *
-	 * We can drop the clock reference taken in ipa_uc_clock() once we
+	 * We can drop the power reference taken in ipa_uc_power() once we
 	 * know the microcontroller has finished its initialization.
 	 */
 	switch (shared->response) {
 	case IPA_UC_RESPONSE_INIT_COMPLETED:
-		if (ipa->uc_clocked) {
+		if (ipa->uc_powered) {
 			ipa->uc_loaded = true;
 			pm_runtime_mark_last_busy(dev);
 			(void)pm_runtime_put_autosuspend(dev);
-			ipa->uc_clocked = false;
+			ipa->uc_powered = false;
 		} else {
 			dev_warn(dev, "unexpected init_completed response\n");
 		}
@@ -171,7 +171,7 @@ static void ipa_uc_response_hdlr(struct ipa *ipa, enum ipa_irq_id irq_id)
 /* Configure the IPA microcontroller subsystem */
 void ipa_uc_config(struct ipa *ipa)
 {
-	ipa->uc_clocked = false;
+	ipa->uc_powered = false;
 	ipa->uc_loaded = false;
 	ipa_interrupt_add(ipa->interrupt, IPA_IRQ_UC_0, ipa_uc_event_handler);
 	ipa_interrupt_add(ipa->interrupt, IPA_IRQ_UC_1, ipa_uc_response_hdlr);
@@ -184,15 +184,15 @@ void ipa_uc_deconfig(struct ipa *ipa)
 
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_UC_1);
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_UC_0);
-	if (!ipa->uc_clocked)
+	if (!ipa->uc_powered)
 		return;
 
 	pm_runtime_mark_last_busy(dev);
 	(void)pm_runtime_put_autosuspend(dev);
 }
 
-/* Take a proxy clock reference for the microcontroller */
-void ipa_uc_clock(struct ipa *ipa)
+/* Take a proxy power reference for the microcontroller */
+void ipa_uc_power(struct ipa *ipa)
 {
 	static bool already;
 	struct device *dev;
@@ -209,7 +209,7 @@ void ipa_uc_clock(struct ipa *ipa)
 		pm_runtime_put_noidle(dev);
 		dev_err(dev, "error %d getting proxy power\n", ret);
 	} else {
-		ipa->uc_clocked = true;
+		ipa->uc_powered = true;
 	}
 }
 
