@@ -1203,6 +1203,11 @@ static int hns3_get_coalesce(struct net_device *netdev,
 	cmd->tx_max_coalesced_frames = tx_coal->int_ql;
 	cmd->rx_max_coalesced_frames = rx_coal->int_ql;
 
+	kernel_coal->use_cqe_mode_tx = (priv->tx_cqe_mode ==
+					DIM_CQ_PERIOD_MODE_START_FROM_CQE);
+	kernel_coal->use_cqe_mode_rx = (priv->rx_cqe_mode ==
+					DIM_CQ_PERIOD_MODE_START_FROM_CQE);
+
 	return 0;
 }
 
@@ -1372,6 +1377,8 @@ static int hns3_set_coalesce(struct net_device *netdev,
 	struct hns3_enet_coalesce *tx_coal = &priv->tx_coal;
 	struct hns3_enet_coalesce *rx_coal = &priv->rx_coal;
 	u16 queue_num = h->kinfo.num_tqps;
+	enum dim_cq_period_mode tx_mode;
+	enum dim_cq_period_mode rx_mode;
 	int ret;
 	int i;
 
@@ -1396,6 +1403,14 @@ static int hns3_set_coalesce(struct net_device *netdev,
 
 	for (i = 0; i < queue_num; i++)
 		hns3_set_coalesce_per_queue(netdev, cmd, i);
+
+	tx_mode = kernel_coal->use_cqe_mode_tx ?
+		  DIM_CQ_PERIOD_MODE_START_FROM_CQE :
+		  DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+	rx_mode = kernel_coal->use_cqe_mode_rx ?
+		  DIM_CQ_PERIOD_MODE_START_FROM_CQE :
+		  DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+	hns3_cq_period_mode_init(priv, tx_mode, rx_mode);
 
 	return 0;
 }
@@ -1702,7 +1717,8 @@ static int hns3_set_tunable(struct net_device *netdev,
 				 ETHTOOL_COALESCE_USE_ADAPTIVE |	\
 				 ETHTOOL_COALESCE_RX_USECS_HIGH |	\
 				 ETHTOOL_COALESCE_TX_USECS_HIGH |	\
-				 ETHTOOL_COALESCE_MAX_FRAMES)
+				 ETHTOOL_COALESCE_MAX_FRAMES |		\
+				 ETHTOOL_COALESCE_USE_CQE)
 
 static int hns3_get_ts_info(struct net_device *netdev,
 			    struct ethtool_ts_info *info)

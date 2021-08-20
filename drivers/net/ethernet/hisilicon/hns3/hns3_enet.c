@@ -5055,9 +5055,9 @@ static void hns3_set_cq_period_mode(struct hns3_nic_priv *priv,
 	}
 }
 
-static void hns3_cq_period_mode_init(struct hns3_nic_priv *priv,
-				     enum dim_cq_period_mode tx_mode,
-				     enum dim_cq_period_mode rx_mode)
+void hns3_cq_period_mode_init(struct hns3_nic_priv *priv,
+			      enum dim_cq_period_mode tx_mode,
+			      enum dim_cq_period_mode rx_mode)
 {
 	hns3_set_cq_period_mode(priv, tx_mode, true);
 	hns3_set_cq_period_mode(priv, rx_mode, false);
