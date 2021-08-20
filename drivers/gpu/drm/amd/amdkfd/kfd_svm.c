@@ -3026,6 +3026,14 @@ svm_range_get_attr(struct kfd_process *p, uint64_t start, uint64_t size,
 	pr_debug("svms 0x%p [0x%llx 0x%llx] nattr 0x%x\n", &p->svms, start,
 		 start + size - 1, nattr);
 
+	/* Flush pending deferred work to avoid racing with deferred actions from
+	 * previous memory map changes (e.g. munmap). Concurrent memory map changes
+	 * can still race with get_attr because we don't hold the mmap lock. But that
+	 * would be a race condition in the application anyway, and undefined
+	 * behaviour is acceptable in that case.
+	 */
+	flush_work(&p->svms.deferred_list_work);
+
 	mmap_read_lock(mm);
 	if (!svm_range_is_valid(mm, start, size)) {
 		pr_debug("invalid range\n");
