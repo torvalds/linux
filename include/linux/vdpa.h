@@ -277,6 +277,17 @@ struct vdpa_device *__vdpa_alloc_device(struct device *parent,
 					const struct vdpa_config_ops *config,
 					size_t size, const char *name);
 
+/**
+ * vdpa_alloc_device - allocate and initilaize a vDPA device
+ *
+ * @dev_struct: the type of the parent structure
+ * @member: the name of struct vdpa_device within the @dev_struct
+ * @parent: the parent device
+ * @config: the bus operations that is supported by this device
+ * @name: name of the vdpa device
+ *
+ * Return allocated data structure or ERR_PTR upon error
+ */
 #define vdpa_alloc_device(dev_struct, member, parent, config, name)   \
 			  container_of(__vdpa_alloc_device( \
 				       parent, config, \
