@@ -7,9 +7,9 @@
 #include <linux/types.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/pm_runtime.h>
 
 #include "ipa.h"
-#include "ipa_clock.h"
 #include "ipa_uc.h"
 
 /**
@@ -154,7 +154,7 @@ static void ipa_uc_response_hdlr(struct ipa *ipa, enum ipa_irq_id irq_id)
 	case IPA_UC_RESPONSE_INIT_COMPLETED:
 		if (ipa->uc_clocked) {
 			ipa->uc_loaded = true;
-			(void)ipa_clock_put(ipa);
+			(void)pm_runtime_put(dev);
 			ipa->uc_clocked = false;
 		} else {
 			dev_warn(dev, "unexpected init_completed response\n");
@@ -182,25 +182,29 @@ void ipa_uc_deconfig(struct ipa *ipa)
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_UC_1);
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_UC_0);
 	if (ipa->uc_clocked)
-		(void)ipa_clock_put(ipa);
+		(void)pm_runtime_put(&ipa->pdev->dev);
 }
 
 /* Take a proxy clock reference for the microcontroller */
 void ipa_uc_clock(struct ipa *ipa)
 {
 	static bool already;
+	struct device *dev;
 	int ret;
 
 	if (already)
 		return;
 	already = true;		/* Only do this on first boot */
 
-	/* This clock reference dropped in ipa_uc_response_hdlr() above */
-	ret = ipa_clock_get(ipa);
-	if (WARN(ret < 0, "error %d getting proxy clock\n", ret))
-		(void)ipa_clock_put(ipa);
-
-	ipa->uc_clocked = ret >= 0;
+	/* This power reference dropped in ipa_uc_response_hdlr() above */
+	dev = &ipa->pdev->dev;
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(dev);
+		dev_err(dev, "error %d getting proxy power\n", ret);
+	} else {
+		ipa->uc_clocked = true;
+	}
 }
 
 /* Send a command to the microcontroller */

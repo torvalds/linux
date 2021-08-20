@@ -21,9 +21,9 @@
 
 #include <linux/types.h>
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 
 #include "ipa.h"
-#include "ipa_clock.h"
 #include "ipa_reg.h"
 #include "ipa_endpoint.h"
 #include "ipa_interrupt.h"
@@ -80,14 +80,16 @@ static irqreturn_t ipa_isr_thread(int irq, void *dev_id)
 	struct ipa_interrupt *interrupt = dev_id;
 	struct ipa *ipa = interrupt->ipa;
 	u32 enabled = interrupt->enabled;
+	struct device *dev;
 	u32 pending;
 	u32 offset;
 	u32 mask;
 	int ret;
 
-	ret = ipa_clock_get(ipa);
+	dev = &ipa->pdev->dev;
+	ret = pm_runtime_get_sync(dev);
 	if (WARN_ON(ret < 0))
-		goto out_clock_put;
+		goto out_power_put;
 
 	/* The status register indicates which conditions are present,
 	 * including conditions whose interrupt is not enabled.  Handle
@@ -108,15 +110,13 @@ static irqreturn_t ipa_isr_thread(int irq, void *dev_id)
 
 	/* If any disabled interrupts are pending, clear them */
 	if (pending) {
-		struct device *dev = &ipa->pdev->dev;
-
 		dev_dbg(dev, "clearing disabled IPA interrupts 0x%08x\n",
 			pending);
 		offset = ipa_reg_irq_clr_offset(ipa->version);
 		iowrite32(pending, ipa->reg_virt + offset);
 	}
-out_clock_put:
-	(void)ipa_clock_put(ipa);
+out_power_put:
+	(void)pm_runtime_put(dev);
 
 	return IRQ_HANDLED;
 }

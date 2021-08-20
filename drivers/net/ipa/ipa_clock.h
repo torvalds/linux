@@ -70,28 +70,4 @@ struct ipa_clock *ipa_clock_init(struct device *dev,
  */
 void ipa_clock_exit(struct ipa_clock *clock);
 
-/**
- * ipa_clock_get() - Get an IPA clock reference
- * @ipa:	IPA pointer
- *
- * Return:	0 if clock started, 1 if clock already running, or a negative
- *		error code
- *
- * This call blocks if this is the first reference.  A reference is
- * taken even if an error occurs starting the IPA clock.
- */
-int ipa_clock_get(struct ipa *ipa);
-
-/**
- * ipa_clock_put() - Drop an IPA clock reference
- * @ipa:	IPA pointer
- *
- * Return:	0 if successful, or a negative error code
- *
- * This drops a clock reference.  If the last reference is being dropped,
- * the clock is stopped and RX endpoints are suspended.  This call will
- * not block unless the last reference is dropped.
- */
-int ipa_clock_put(struct ipa *ipa);
-
 #endif /* _IPA_CLOCK_H_ */

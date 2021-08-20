@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
+#include <linux/pm_runtime.h>
 #include <linux/qcom_scm.h>
 #include <linux/soc/qcom/mdt_loader.h>
 
@@ -737,13 +738,13 @@ static int ipa_probe(struct platform_device *pdev)
 		goto err_table_exit;
 
 	/* The clock needs to be active for config and setup */
-	ret = ipa_clock_get(ipa);
+	ret = pm_runtime_get_sync(dev);
 	if (WARN_ON(ret < 0))
-		goto err_clock_put;
+		goto err_power_put;
 
 	ret = ipa_config(ipa, data);
 	if (ret)
-		goto err_clock_put;
+		goto err_power_put;
 
 	dev_info(dev, "IPA driver initialized");
 
@@ -765,14 +766,14 @@ static int ipa_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_deconfig;
 done:
-	(void)ipa_clock_put(ipa);
+	(void)pm_runtime_put(dev);
 
 	return 0;
 
 err_deconfig:
 	ipa_deconfig(ipa);
-err_clock_put:
-	(void)ipa_clock_put(ipa);
+err_power_put:
+	(void)pm_runtime_put(dev);
 	ipa_modem_exit(ipa);
 err_table_exit:
 	ipa_table_exit(ipa);
@@ -798,9 +799,9 @@ static int ipa_remove(struct platform_device *pdev)
 	struct ipa_clock *clock = ipa->clock;
 	int ret;
 
-	ret = ipa_clock_get(ipa);
+	ret = pm_runtime_get_sync(&pdev->dev);
 	if (WARN_ON(ret < 0))
-		goto out_clock_put;
+		goto out_power_put;
 
 	if (ipa->setup_complete) {
 		ret = ipa_modem_stop(ipa);
@@ -816,8 +817,8 @@ static int ipa_remove(struct platform_device *pdev)
 	}
 
 	ipa_deconfig(ipa);
-out_clock_put:
-	(void)ipa_clock_put(ipa);
+out_power_put:
+	(void)pm_runtime_put(&pdev->dev);
 
 	ipa_modem_exit(ipa);
 	ipa_table_exit(ipa);
