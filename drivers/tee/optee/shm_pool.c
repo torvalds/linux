@@ -35,7 +35,7 @@ static int pool_op_alloc(struct tee_shm_pool_mgr *poolm,
 		unsigned int nr_pages = 1 << order, i;
 		struct page **pages;
 
-		pages = kcalloc(nr_pages, sizeof(pages), GFP_KERNEL);
+		pages = kcalloc(nr_pages, sizeof(*pages), GFP_KERNEL);
 		if (!pages) {
 			rc = -ENOMEM;
 			goto err;
