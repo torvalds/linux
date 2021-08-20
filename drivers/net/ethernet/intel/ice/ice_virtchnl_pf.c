@@ -1603,7 +1603,7 @@ bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr)
  *
  * Returns true if the PF or VF is disabled, false otherwise.
  */
-static bool ice_is_vf_disabled(struct ice_vf *vf)
+bool ice_is_vf_disabled(struct ice_vf *vf)
 {
 	struct ice_pf *pf = vf->pf;
 
@@ -2841,7 +2841,7 @@ static void ice_wait_on_vf_reset(struct ice_vf *vf)
  * disabled, and initialized so it can be configured and/or queried by a host
  * administrator.
  */
-static int ice_check_vf_ready_for_cfg(struct ice_vf *vf)
+int ice_check_vf_ready_for_cfg(struct ice_vf *vf)
 {
 	struct ice_pf *pf;
 
