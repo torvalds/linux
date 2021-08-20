@@ -9538,7 +9538,7 @@ INTEL SPEED SELECT TECHNOLOGY
 M:	Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
-F:	drivers/platform/x86/intel_speed_select_if/
+F:	drivers/platform/x86/intel/speed_select_if/
 F:	include/uapi/linux/isst_if.h
 F:	tools/power/x86/intel-speed-select/
 

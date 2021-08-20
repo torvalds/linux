@@ -1110,8 +1110,6 @@ config INTEL_IPS
 	  functionality.  If in doubt, say Y here; it will only load on
 	  supported platforms.
 
-source "drivers/platform/x86/intel_speed_select_if/Kconfig"
-
 config INTEL_SCU_IPC
 	bool
 
