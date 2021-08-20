@@ -1306,8 +1306,13 @@ int smu_v11_0_get_fan_speed_rpm(struct smu_context *smu,
 	tmp64 = (uint64_t)crystal_clock_freq * 60 * 10000;
 
 	tach_status = RREG32_SOC15(THM, 0, mmCG_TACH_STATUS);
-	do_div(tmp64, tach_status);
-	*speed = (uint32_t)tmp64;
+	if (tach_status) {
+		do_div(tmp64, tach_status);
+		*speed = (uint32_t)tmp64;
+	} else {
+		dev_warn_once(adev->dev, "Got zero output on CG_TACH_STATUS reading!\n");
+		*speed = 0;
+	}
 
 	return 0;
 }

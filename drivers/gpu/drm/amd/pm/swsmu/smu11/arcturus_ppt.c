@@ -1227,8 +1227,12 @@ static int arcturus_get_fan_speed_rpm(struct smu_context *smu,
 
 		tmp64 = (uint64_t)crystal_clock_freq * 60 * 10000;
 		tach_status = RREG32_SOC15(THM, 0, mmCG_TACH_STATUS_ARCT);
-		do_div(tmp64, tach_status);
-		*speed = (uint32_t)tmp64;
+		if (tach_status) {
+			do_div(tmp64, tach_status);
+			*speed = (uint32_t)tmp64;
+		} else {
+			*speed = 0;
+		}
 
 		break;
 	}
@@ -1303,12 +1307,14 @@ static int arcturus_get_fan_speed_pwm(struct smu_context *smu,
 				CG_FDO_CTRL1, FMAX_DUTY100);
 	duty = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_THERMAL_STATUS_ARCT),
 				CG_THERMAL_STATUS, FDO_PWM_DUTY);
-	if (!duty100)
-		return -EINVAL;
 
-	tmp64 = (uint64_t)duty * 255;
-	do_div(tmp64, duty100);
-	*speed = MIN((uint32_t)tmp64, 255);
+	if (duty100) {
+		tmp64 = (uint64_t)duty * 255;
+		do_div(tmp64, duty100);
+		*speed = MIN((uint32_t)tmp64, 255);
+	} else {
+		*speed = 0;
+	}
 
 	return 0;
 }
