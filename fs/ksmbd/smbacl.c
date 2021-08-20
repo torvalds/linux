@@ -533,22 +533,29 @@ static void parse_dacl(struct user_namespace *user_ns,
 
 	if (acl_state.users->n || acl_state.groups->n) {
 		acl_state.mask.allow = 0x07;
-		fattr->cf_acls = posix_acl_alloc(acl_state.users->n +
-			acl_state.groups->n + 4, GFP_KERNEL);
-		if (fattr->cf_acls) {
-			cf_pace = fattr->cf_acls->a_entries;
-			posix_state_to_acl(&acl_state, cf_pace);
+
+		if (IS_ENABLED(CONFIG_FS_POSIX_ACL)) {
+			fattr->cf_acls =
+				posix_acl_alloc(acl_state.users->n +
+					acl_state.groups->n + 4, GFP_KERNEL);
+			if (fattr->cf_acls) {
+				cf_pace = fattr->cf_acls->a_entries;
+				posix_state_to_acl(&acl_state, cf_pace);
+			}
 		}
 	}
 
 	if (default_acl_state.users->n || default_acl_state.groups->n) {
 		default_acl_state.mask.allow = 0x07;
-		fattr->cf_dacls =
-			posix_acl_alloc(default_acl_state.users->n +
-			default_acl_state.groups->n + 4, GFP_KERNEL);
-		if (fattr->cf_dacls) {
-			cf_pdace = fattr->cf_dacls->a_entries;
-			posix_state_to_acl(&default_acl_state, cf_pdace);
+
+		if (IS_ENABLED(CONFIG_FS_POSIX_ACL)) {
+			fattr->cf_dacls =
+				posix_acl_alloc(default_acl_state.users->n +
+				default_acl_state.groups->n + 4, GFP_KERNEL);
+			if (fattr->cf_dacls) {
+				cf_pdace = fattr->cf_dacls->a_entries;
+				posix_state_to_acl(&default_acl_state, cf_pdace);
+			}
 		}
 	}
 	free_acl_state(&acl_state);
@@ -724,7 +731,6 @@ static void set_mode_dacl(struct user_namespace *user_ns,
 	ace_size = fill_ace_for_sid(pace, sid, ACCESS_ALLOWED, 0,
 				    fattr->cf_mode, 0700);
 	pace->sid.sub_auth[pace->sid.num_subauth++] = cpu_to_le32(uid);
-	pace->access_req |= FILE_DELETE_LE | FILE_DELETE_CHILD_LE;
 	pace->size = cpu_to_le16(ace_size + 4);
 	size += le16_to_cpu(pace->size);
 	pace = (struct smb_ace *)((char *)pndace + size);
@@ -745,7 +751,6 @@ static void set_mode_dacl(struct user_namespace *user_ns,
 		/* creator owner */
 		size += fill_ace_for_sid(pace, &creator_owner, ACCESS_ALLOWED,
 					 0x0b, fattr->cf_mode, 0700);
-		pace->access_req |= FILE_DELETE_LE | FILE_DELETE_CHILD_LE;
 		pace = (struct smb_ace *)((char *)pndace + size);
 
 		/* creator group */
@@ -1221,31 +1226,36 @@ int smb_check_perm_dacl(struct ksmbd_conn *conn, struct path *path,
 			granted = GENERIC_ALL_FLAGS;
 	}
 
-	posix_acls = get_acl(d_inode(path->dentry), ACL_TYPE_ACCESS);
-	if (posix_acls && !found) {
-		unsigned int id = -1;
+	if (IS_ENABLED(CONFIG_FS_POSIX_ACL)) {
+		posix_acls = get_acl(d_inode(path->dentry), ACL_TYPE_ACCESS);
+		if (posix_acls && !found) {
+			unsigned int id = -1;
 
-		pa_entry = posix_acls->a_entries;
-		for (i = 0; i < posix_acls->a_count; i++, pa_entry++) {
-			if (pa_entry->e_tag == ACL_USER)
-				id = from_kuid(user_ns,
-					       pa_entry->e_uid);
-			else if (pa_entry->e_tag == ACL_GROUP)
-				id = from_kgid(user_ns,
-					       pa_entry->e_gid);
-			else
-				continue;
+			pa_entry = posix_acls->a_entries;
+			for (i = 0; i < posix_acls->a_count; i++, pa_entry++) {
+				if (pa_entry->e_tag == ACL_USER)
+					id = from_kuid(user_ns,
+						       pa_entry->e_uid);
+				else if (pa_entry->e_tag == ACL_GROUP)
+					id = from_kgid(user_ns,
+						       pa_entry->e_gid);
+				else
+					continue;
 
-			if (id == uid) {
-				mode_to_access_flags(pa_entry->e_perm, 0777, &access_bits);
-				if (!access_bits)
-					access_bits = SET_MINIMUM_RIGHTS;
-				goto check_access_bits;
+				if (id == uid) {
+					mode_to_access_flags(pa_entry->e_perm,
+							     0777,
+							     &access_bits);
+					if (!access_bits)
+						access_bits =
+							SET_MINIMUM_RIGHTS;
+					goto check_access_bits;
+				}
 			}
 		}
+		if (posix_acls)
+			posix_acl_release(posix_acls);
 	}
-	if (posix_acls)
-		posix_acl_release(posix_acls);
 
 	if (!found) {
 		if (others_ace) {
@@ -1308,7 +1318,7 @@ int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
 
 	ksmbd_vfs_remove_acl_xattrs(user_ns, path->dentry);
 	/* Update posix acls */
-	if (fattr.cf_dacls) {
+	if (IS_ENABLED(CONFIG_FS_POSIX_ACL) && fattr.cf_dacls) {
 		rc = set_posix_acl(user_ns, inode,
 				   ACL_TYPE_ACCESS, fattr.cf_acls);
 		if (S_ISDIR(inode->i_mode) && fattr.cf_dacls)

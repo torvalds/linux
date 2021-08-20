@@ -1638,8 +1638,8 @@ void init_smb2_max_read_size(unsigned int sz);
 void init_smb2_max_write_size(unsigned int sz);
 void init_smb2_max_trans_size(unsigned int sz);
 
-int is_smb2_neg_cmd(struct ksmbd_work *work);
-int is_smb2_rsp(struct ksmbd_work *work);
+bool is_smb2_neg_cmd(struct ksmbd_work *work);
+bool is_smb2_rsp(struct ksmbd_work *work);
 
 u16 get_smb2_cmd_val(struct ksmbd_work *work);
 void set_smb2_rsp_status(struct ksmbd_work *work, __le32 err);
@@ -1664,7 +1664,7 @@ void smb2_send_interim_resp(struct ksmbd_work *work, __le32 status);
 struct channel *lookup_chann_list(struct ksmbd_session *sess,
 				  struct ksmbd_conn *conn);
 void smb3_preauth_hash_rsp(struct ksmbd_work *work);
-int smb3_is_transform_hdr(void *buf);
+bool smb3_is_transform_hdr(void *buf);
 int smb3_decrypt_req(struct ksmbd_work *work);
 int smb3_encrypt_resp(struct ksmbd_work *work);
 bool smb3_11_final_sess_setup_resp(struct ksmbd_work *work);

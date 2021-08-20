@@ -329,7 +329,8 @@ static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 static void
 smb_direct_disconnect_rdma_connection(struct smb_direct_transport *t)
 {
-	queue_work(smb_direct_wq, &t->disconnect_work);
+	if (t->status == SMB_DIRECT_CS_CONNECTED)
+		queue_work(smb_direct_wq, &t->disconnect_work);
 }
 
 static void smb_direct_send_immediate_work(struct work_struct *work)
@@ -1415,7 +1416,7 @@ static void smb_direct_disconnect(struct ksmbd_transport *t)
 
 	ksmbd_debug(RDMA, "Disconnecting cm_id=%p\n", st->cm_id);
 
-	smb_direct_disconnect_rdma_connection(st);
+	smb_direct_disconnect_rdma_work(&st->disconnect_work);
 	wait_event_interruptible(st->wait_status,
 				 st->status == SMB_DIRECT_CS_DISCONNECTED);
 	free_transport(st);

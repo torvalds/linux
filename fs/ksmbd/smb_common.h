@@ -473,7 +473,7 @@ struct smb_version_ops {
 	void (*set_sign_rsp)(struct ksmbd_work *work);
 	int (*generate_signingkey)(struct ksmbd_session *sess, struct ksmbd_conn *conn);
 	int (*generate_encryptionkey)(struct ksmbd_session *sess);
-	int (*is_transform_hdr)(void *buf);
+	bool (*is_transform_hdr)(void *buf);
 	int (*decrypt_req)(struct ksmbd_work *work);
 	int (*encrypt_resp)(struct ksmbd_work *work);
 };
@@ -498,7 +498,6 @@ bool ksmbd_smb_request(struct ksmbd_conn *conn);
 
 int ksmbd_lookup_dialect_by_id(__le16 *cli_dialects, __le16 dialects_count);
 
-int ksmbd_negotiate_smb_dialect(void *buf);
 int ksmbd_init_smb_server(struct ksmbd_work *work);
 
 bool ksmbd_pdu_size_has_room(unsigned int pdu);
