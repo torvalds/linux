@@ -111,8 +111,9 @@ nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 	INIT_HLIST_NODE(&file->f_list);
 	INIT_LIST_HEAD(&file->f_blocks);
 
-	/* Open the file. Note that this must not sleep for too long, else
-	 * we would lock up lockd:-) So no NFS re-exports, folks.
+	/*
+	 * Open the file. Note that if we're reexporting, for example,
+	 * this could block the lockd thread for a while.
 	 *
 	 * We have to make sure we have the right credential to open
 	 * the file.
