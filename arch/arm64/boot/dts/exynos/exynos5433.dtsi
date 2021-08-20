@@ -1132,7 +1132,7 @@
 		};
 
 		syscon_fsys: syscon@156f0000 {
-			compatible = "syscon";
+			compatible = "samsung,exynos5433-sysreg", "syscon";
 			reg = <0x156f0000 0x1044>;
 		};
 
