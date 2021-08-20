@@ -923,13 +923,14 @@ static void
 wake_pending_user_interrupt_threads(struct hl_user_interrupt *interrupt)
 {
 	struct hl_user_pending_interrupt *pend;
+	unsigned long flags;
 
-	spin_lock(&interrupt->wait_list_lock);
+	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
 	list_for_each_entry(pend, &interrupt->wait_list_head, wait_list_node) {
 		pend->fence.error = -EIO;
 		complete_all(&pend->fence.completion);
 	}
-	spin_unlock(&interrupt->wait_list_lock);
+	spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 }
 
 void hl_release_pending_user_interrupts(struct hl_device *hdev)
@@ -2714,9 +2715,9 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 {
 	struct hl_user_pending_interrupt *pend;
 	struct hl_user_interrupt *interrupt;
-	unsigned long timeout;
-	long completion_rc;
+	unsigned long timeout, flags;
 	u32 completion_value;
+	long completion_rc;
 	int rc = 0;
 
 	if (timeout_us == U32_MAX)
@@ -2739,7 +2740,7 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	else
 		interrupt = &hdev->user_interrupt[interrupt_offset];
 
-	spin_lock(&interrupt->wait_list_lock);
+	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
 	if (!hl_device_operational(hdev, NULL)) {
 		rc = -EPERM;
 		goto unlock_and_free_fence;
@@ -2765,7 +2766,7 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	 * handler to monitor
 	 */
 	list_add_tail(&pend->wait_list_node, &interrupt->wait_list_head);
-	spin_unlock(&interrupt->wait_list_lock);
+	spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 
 wait_again:
 	/* Wait for interrupt handler to signal completion */
@@ -2777,12 +2778,12 @@ wait_again:
 	 * If comparison fails, keep waiting until timeout expires
 	 */
 	if (completion_rc > 0) {
-		spin_lock(&interrupt->wait_list_lock);
+		spin_lock_irqsave(&interrupt->wait_list_lock, flags);
 
 		if (copy_from_user(&completion_value,
 				u64_to_user_ptr(user_address), 4)) {
 
-			spin_unlock(&interrupt->wait_list_lock);
+			spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 
 			dev_err(hdev->dev,
 				"Failed to copy completion value from user\n");
@@ -2792,13 +2793,13 @@ wait_again:
 		}
 
 		if (completion_value >= target_value) {
-			spin_unlock(&interrupt->wait_list_lock);
+			spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 			*status = CS_WAIT_STATUS_COMPLETED;
 		} else {
 			reinit_completion(&pend->fence.completion);
 			timeout = completion_rc;
 
-			spin_unlock(&interrupt->wait_list_lock);
+			spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 			goto wait_again;
 		}
 	} else if (completion_rc == -ERESTARTSYS) {
@@ -2812,11 +2813,11 @@ wait_again:
 	}
 
 remove_pending_user_interrupt:
-	spin_lock(&interrupt->wait_list_lock);
+	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
 	list_del(&pend->wait_list_node);
 
 unlock_and_free_fence:
-	spin_unlock(&interrupt->wait_list_lock);
+	spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 	kfree(pend);
 	hl_ctx_put(ctx);
 
