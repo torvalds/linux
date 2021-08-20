@@ -24,3 +24,5 @@ obj-$(CONFIG_INTEL_PUNIT_IPC)		+= intel_punit_ipc.o
 # Intel Uncore drivers
 intel-rst-y				:= rst.o
 obj-$(CONFIG_INTEL_RST)			+= intel-rst.o
+intel-smartconnect-y			:= smartconnect.o
+obj-$(CONFIG_INTEL_SMARTCONNECT)	+= intel-smartconnect.o
