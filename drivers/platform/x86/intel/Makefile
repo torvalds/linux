@@ -12,3 +12,5 @@ obj-$(CONFIG_INTEL_PMT_CLASS)		+= pmt/
 # Intel PMIC / PMC / P-Unit drivers
 intel_bxtwc_tmu-y			:= bxtwc_tmu.o
 obj-$(CONFIG_INTEL_BXTWC_PMIC_TMU)	+= intel_bxtwc_tmu.o
+intel_chtdc_ti_pwrbtn-y			:= chtdc_ti_pwrbtn.o
+obj-$(CONFIG_INTEL_CHTDC_TI_PWRBTN)	+= intel_chtdc_ti_pwrbtn.o
