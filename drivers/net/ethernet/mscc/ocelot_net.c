@@ -164,6 +164,7 @@ int ocelot_port_devlink_init(struct ocelot *ocelot, int port,
 	struct devlink *dl = ocelot->devlink;
 	struct devlink_port_attrs attrs = {};
 
+	memset(dlp, 0, sizeof(*dlp));
 	memcpy(attrs.switch_id.id, &ocelot->base_mac, id_len);
 	attrs.switch_id.id_len = id_len;
 	attrs.phys.port_number = port;

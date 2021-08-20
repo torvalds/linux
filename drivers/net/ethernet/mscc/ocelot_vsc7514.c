@@ -978,13 +978,14 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 			of_node_put(portnp);
 			goto out_teardown;
 		}
-		devlink_ports_registered |= BIT(port);
 
 		err = ocelot_probe_port(ocelot, port, target, portnp);
 		if (err) {
-			of_node_put(portnp);
-			goto out_teardown;
+			ocelot_port_devlink_teardown(ocelot, port);
+			continue;
 		}
+
+		devlink_ports_registered |= BIT(port);
 
 		ocelot_port = ocelot->ports[port];
 		priv = container_of(ocelot_port, struct ocelot_port_private,
