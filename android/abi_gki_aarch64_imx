@@ -220,6 +220,7 @@
   drm_atomic_helper_commit_modeset_disables
   drm_atomic_helper_commit_modeset_enables
   drm_atomic_helper_commit_planes
+  drm_atomic_helper_commit_tail_rpm
   drm_atomic_helper_connector_destroy_state
   drm_atomic_helper_connector_duplicate_state
   drm_atomic_helper_connector_reset
@@ -252,6 +253,7 @@
   drm_crtc_vblank_off
   drm_crtc_vblank_on
   __drm_dbg
+  drm_default_rgb_quant_range
   drm_detect_hdmi_monitor
   drm_detect_monitor_audio
   drm_dev_alloc
@@ -260,6 +262,7 @@
   drm_dev_put
   drm_dev_register
   drm_dev_unregister
+  drm_display_info_set_bus_formats
   drm_display_mode_from_videomode
   drm_display_mode_to_videomode
   drm_do_get_edid
@@ -267,6 +270,8 @@
   drm_encoder_init
   __drm_err
   drm_fb_cma_get_gem_obj
+  drm_gem_cma_create_object_default_funcs
+  drm_gem_cma_dumb_create
   drm_gem_cma_mmap
   drm_gem_cma_prime_import_sg_table
   drm_gem_cma_prime_mmap
@@ -278,7 +283,9 @@
   drm_get_edid
   drm_get_format_name
   drm_hdmi_avi_infoframe_from_display_mode
+  drm_hdmi_avi_infoframe_quant_range
   drm_hdmi_infoframe_set_hdr_metadata
+  drm_hdmi_vendor_infoframe_from_display_mode
   drm_helper_hpd_irq_event
   drm_helper_probe_single_connector_modes
   drm_ioctl
@@ -294,12 +301,14 @@
   drm_mode_destroy
   drm_mode_duplicate
   drm_mode_equal
+  drm_mode_find_dmt
   drm_mode_is_420_only
   drm_mode_probed_add
   drm_mode_set_name
   drm_mode_vrefresh
   drm_object_attach_property
   drm_of_component_match_add
+  drm_of_find_panel_or_bridge
   drm_of_find_possible_crtcs
   drm_open
   drm_panel_add
@@ -364,6 +373,8 @@
   hdmi_audio_infoframe_init
   hdmi_audio_infoframe_pack
   hdmi_avi_infoframe_pack
+  hdmi_drm_infoframe_pack
+  hdmi_vendor_infoframe_pack
   i2c_add_adapter
   i2c_del_adapter
   i2c_del_driver
@@ -907,13 +918,18 @@
   register_reboot_notifier
 
 # required by cdns_mhdp_drmcore.ko
+  drm_connector_attach_content_protection_property
   drm_dp_aux_register
   drm_dp_aux_unregister
   drm_dp_bw_code_to_link_rate
   drm_dp_dpcd_read
   drm_dp_link_rate_to_bw_code
+  drm_hdcp_check_ksvs_revoked
+  drm_hdmi_avi_infoframe_colorspace
+  drm_mode_create_hdmi_colorspace_property
   drm_modeset_lock
   drm_modeset_unlock
+  hdmi_avi_infoframe_check
   seq_write
 
 # required by cfg80211.ko
@@ -1063,10 +1079,31 @@
   power_supply_register
   power_supply_unregister
 
+# required by dw-hdmi-cec.ko
+  cec_notifier_cec_adap_register
+  cec_notifier_cec_adap_unregister
+  devm_remove_action
+
 # required by dw-hdmi.ko
+  cec_fill_conn_info_from_drm
+  cec_notifier_conn_register
+  cec_notifier_conn_unregister
+  cec_notifier_set_phys_addr
+  cec_notifier_set_phys_addr_from_edid
   drm_atomic_get_new_connector_for_encoder
+  drm_connector_attach_max_bpc_property
   drm_connector_init_with_ddc
+  drm_mode_is_420_also
+  drm_scdc_read
+  drm_scdc_set_high_tmds_clock_ratio
+  drm_scdc_set_scrambling
+  drm_scdc_write
   i2c_put_adapter
+  of_get_i2c_adapter_by_node
+
+# required by dw_hdmi-imx.ko
+  devm_phy_optional_get
+  drm_of_encoder_active_endpoint
 
 # required by fec.ko
   ethtool_op_get_ts_info
@@ -1099,6 +1136,9 @@
   skb_tstamp_tx
   timecounter_init
   timecounter_read
+
+# required by fsl-imx-ldb.ko
+  devm_drm_panel_bridge_add
 
 # required by fsl_imx8_ddr_perf.ko
   bitmap_print_to_pagebuf
@@ -1223,6 +1263,9 @@
   drm_atomic_helper_disable_planes_on_crtc
   drm_atomic_helper_shutdown
   drm_atomic_normalize_zpos
+  drm_bridge_connector_disable_hpd
+  drm_bridge_connector_enable_hpd
+  drm_bridge_connector_init
   drm_gem_cma_free_object
   drm_gem_cma_prime_get_sg_table
   drm_gem_cma_prime_vmap
@@ -1231,9 +1274,13 @@
   drm_gem_prime_export
   drm_gem_prime_import
   drm_plane_create_alpha_property
+  drm_plane_create_color_properties
   drm_plane_create_rotation_property
   drm_property_create_range
   pm_runtime_allow
+
+# required by imx-lcdif-crtc.ko
+  drm_property_destroy
 
 # required by imx-mailbox.ko
   devm_mbox_controller_register
@@ -1528,7 +1575,11 @@
 # required by nwl-dsi.ko
   drm_bridge_chain_enable
   drm_mode_debug_printmodeline
+  drm_panel_bridge_add_typed
+  drm_panel_bridge_remove
   phy_configure
+  phy_mipi_dphy_get_default_config
+  phy_validate
 
 # required by ov5640.ko
   v4l2_ctrl_auto_cluster
@@ -1539,12 +1590,27 @@
 
 # required by panel-raydium-rm67191.ko
   devm_backlight_device_register
+  mipi_dsi_dcs_enter_sleep_mode
+  mipi_dsi_dcs_exit_sleep_mode
+  mipi_dsi_dcs_get_display_brightness
   mipi_dsi_dcs_set_display_brightness
+  mipi_dsi_dcs_set_display_off
+  mipi_dsi_dcs_set_display_on
+  mipi_dsi_dcs_set_pixel_format
+  mipi_dsi_dcs_set_tear_on
+  mipi_dsi_dcs_set_tear_scanline
+  mipi_dsi_dcs_soft_reset
   mipi_dsi_generic_write
 
 # required by panel-simple.ko
+  drm_bus_flags_from_videomode
+  drm_connector_set_panel_orientation
   drm_mode_create
+  drm_panel_of_backlight
+  of_drm_get_panel_orientation
   of_find_i2c_adapter_by_node
+  of_get_display_timing
+  videomode_from_timing
 
 # required by pca9450-regulator.ko
   regulator_list_voltage_linear_range
@@ -1662,12 +1728,14 @@
   sdhci_reset
 
 # required by sec-dsim.ko
+  drm_atomic_helper_bridge_propagate_bus_fmt
   drm_panel_enable
   drm_panel_get_modes
   drm_panel_prepare
   of_drm_find_panel
 
 # required by sec_mipi_dsim-imx.ko
+  drm_atomic_get_new_bridge_state
   reset_control_put
 
 # required by secure_heap.ko
