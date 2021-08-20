@@ -32,6 +32,8 @@
  * An IPA clock reference must be held for any access to IPA hardware.
  */
 
+#define IPA_AUTOSUSPEND_DELAY	500	/* milliseconds */
+
 /**
  * struct ipa_interconnect - IPA interconnect information
  * @path:		Interconnect path
@@ -267,11 +269,6 @@ static int ipa_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int ipa_runtime_idle(struct device *dev)
-{
-	return -EAGAIN;
-}
-
 static int ipa_suspend(struct device *dev)
 {
 	struct ipa *ipa = dev_get_drvdata(dev);
@@ -443,7 +440,8 @@ ipa_clock_init(struct device *dev, const struct ipa_clock_data *data)
 	if (ret)
 		goto err_kfree;
 
-	pm_runtime_dont_use_autosuspend(dev);
+	pm_runtime_set_autosuspend_delay(dev, IPA_AUTOSUSPEND_DELAY);
+	pm_runtime_use_autosuspend(dev);
 	pm_runtime_enable(dev);
 
 	return clock;
@@ -459,9 +457,11 @@ err_clk_put:
 /* Inverse of ipa_clock_init() */
 void ipa_clock_exit(struct ipa_clock *clock)
 {
+	struct device *dev = clock->dev;
 	struct clk *clk = clock->core;
 
-	pm_runtime_disable(clock->dev);
+	pm_runtime_disable(dev);
+	pm_runtime_dont_use_autosuspend(dev);
 	ipa_interconnect_exit(clock);
 	kfree(clock);
 	clk_put(clk);
@@ -472,5 +472,4 @@ const struct dev_pm_ops ipa_pm_ops = {
 	.resume			= ipa_resume,
 	.runtime_suspend	= ipa_runtime_suspend,
 	.runtime_resume		= ipa_runtime_resume,
-	.runtime_idle		= ipa_runtime_idle,
 };

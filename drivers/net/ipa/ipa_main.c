@@ -766,14 +766,15 @@ static int ipa_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_deconfig;
 done:
-	(void)pm_runtime_put(dev);
+	pm_runtime_mark_last_busy(dev);
+	(void)pm_runtime_put_autosuspend(dev);
 
 	return 0;
 
 err_deconfig:
 	ipa_deconfig(ipa);
 err_power_put:
-	(void)pm_runtime_put(dev);
+	pm_runtime_put_noidle(dev);
 	ipa_modem_exit(ipa);
 err_table_exit:
 	ipa_table_exit(ipa);
@@ -797,9 +798,10 @@ static int ipa_remove(struct platform_device *pdev)
 {
 	struct ipa *ipa = dev_get_drvdata(&pdev->dev);
 	struct ipa_clock *clock = ipa->clock;
+	struct device *dev = &pdev->dev;
 	int ret;
 
-	ret = pm_runtime_get_sync(&pdev->dev);
+	ret = pm_runtime_get_sync(dev);
 	if (WARN_ON(ret < 0))
 		goto out_power_put;
 
@@ -818,8 +820,7 @@ static int ipa_remove(struct platform_device *pdev)
 
 	ipa_deconfig(ipa);
 out_power_put:
-	(void)pm_runtime_put(&pdev->dev);
-
+	pm_runtime_put_noidle(dev);
 	ipa_modem_exit(ipa);
 	ipa_table_exit(ipa);
 	ipa_endpoint_exit(ipa);

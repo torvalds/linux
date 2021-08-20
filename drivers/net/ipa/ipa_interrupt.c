@@ -116,7 +116,8 @@ static irqreturn_t ipa_isr_thread(int irq, void *dev_id)
 		iowrite32(pending, ipa->reg_virt + offset);
 	}
 out_power_put:
-	(void)pm_runtime_put(dev);
+	pm_runtime_mark_last_busy(dev);
+	(void)pm_runtime_put_autosuspend(dev);
 
 	return IRQ_HANDLED;
 }

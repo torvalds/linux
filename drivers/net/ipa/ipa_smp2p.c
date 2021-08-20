@@ -174,7 +174,8 @@ static irqreturn_t ipa_smp2p_modem_setup_ready_isr(int irq, void *dev_id)
 	WARN(ret != 0, "error %d from ipa_setup()\n", ret);
 
 out_power_put:
-	(void)pm_runtime_put(dev);
+	pm_runtime_mark_last_busy(dev);
+	(void)pm_runtime_put_autosuspend(dev);
 out_mutex_unlock:
 	mutex_unlock(&smp2p->mutex);
 
@@ -211,10 +212,13 @@ static void ipa_smp2p_irq_exit(struct ipa_smp2p *smp2p, u32 irq)
 /* Drop the clock reference if it was taken in ipa_smp2p_notify() */
 static void ipa_smp2p_clock_release(struct ipa *ipa)
 {
+	struct device *dev = &ipa->pdev->dev;
+
 	if (!ipa->smp2p->clock_on)
 		return;
 
-	(void)pm_runtime_put(&ipa->pdev->dev);
+	pm_runtime_mark_last_busy(dev);
+	(void)pm_runtime_put_autosuspend(dev);
 	ipa->smp2p->clock_on = false;
 }
 

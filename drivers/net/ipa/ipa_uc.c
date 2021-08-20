@@ -154,7 +154,8 @@ static void ipa_uc_response_hdlr(struct ipa *ipa, enum ipa_irq_id irq_id)
 	case IPA_UC_RESPONSE_INIT_COMPLETED:
 		if (ipa->uc_clocked) {
 			ipa->uc_loaded = true;
-			(void)pm_runtime_put(dev);
+			pm_runtime_mark_last_busy(dev);
+			(void)pm_runtime_put_autosuspend(dev);
 			ipa->uc_clocked = false;
 		} else {
 			dev_warn(dev, "unexpected init_completed response\n");
@@ -179,10 +180,15 @@ void ipa_uc_config(struct ipa *ipa)
 /* Inverse of ipa_uc_config() */
 void ipa_uc_deconfig(struct ipa *ipa)
 {
+	struct device *dev = &ipa->pdev->dev;
+
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_UC_1);
 	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_UC_0);
-	if (ipa->uc_clocked)
-		(void)pm_runtime_put(&ipa->pdev->dev);
+	if (!ipa->uc_clocked)
+		return;
+
+	pm_runtime_mark_last_busy(dev);
+	(void)pm_runtime_put_autosuspend(dev);
 }
 
 /* Take a proxy clock reference for the microcontroller */
