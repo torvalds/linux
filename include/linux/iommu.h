@@ -548,6 +548,11 @@ static inline void iommu_iotlb_gather_add_page(struct iommu_domain *domain,
 		gather->start = start;
 }
 
+static inline bool iommu_iotlb_gather_queued(struct iommu_iotlb_gather *gather)
+{
+	return gather && gather->queued;
+}
+
 /* PCI device grouping function */
 extern struct iommu_group *pci_device_group(struct device *dev);
 /* Generic device grouping function */
@@ -894,6 +899,11 @@ static inline void iommu_iotlb_gather_add_page(struct iommu_domain *domain,
 					       struct iommu_iotlb_gather *gather,
 					       unsigned long iova, size_t size)
 {
+}
+
+static inline bool iommu_iotlb_gather_queued(struct iommu_iotlb_gather *gather)
+{
+	return false;
 }
 
 static inline void iommu_device_unregister(struct iommu_device *iommu)
