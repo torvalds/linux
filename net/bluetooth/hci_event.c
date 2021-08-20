@@ -2351,7 +2351,7 @@ static void hci_cs_disconnect(struct hci_dev *hdev, u8 status)
 		mgmt_disconnect_failed(hdev, &conn->dst, conn->type,
 				       conn->dst_type, status);
 
-		if (conn->type == LE_LINK) {
+		if (conn->type == LE_LINK && conn->role == HCI_ROLE_SLAVE) {
 			hdev->cur_adv_instance = conn->adv_instance;
 			hci_req_reenable_advertising(hdev);
 		}
@@ -2961,7 +2961,7 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	 * or until a connection is created or until the Advertising
 	 * is timed out due to Directed Advertising."
 	 */
-	if (conn->type == LE_LINK) {
+	if (conn->type == LE_LINK && conn->role == HCI_ROLE_SLAVE) {
 		hdev->cur_adv_instance = conn->adv_instance;
 		hci_req_reenable_advertising(hdev);
 	}
