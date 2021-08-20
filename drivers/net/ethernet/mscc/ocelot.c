@@ -222,8 +222,35 @@ static void ocelot_port_set_pvid(struct ocelot *ocelot, int port,
 		       ANA_PORT_DROP_CFG, port);
 }
 
+static int ocelot_vlan_member_set(struct ocelot *ocelot, u32 vlan_mask, u16 vid)
+{
+	int err;
+
+	err = ocelot_vlant_set_mask(ocelot, vid, vlan_mask);
+	if (err)
+		return err;
+
+	ocelot->vlan_mask[vid] = vlan_mask;
+
+	return 0;
+}
+
+static int ocelot_vlan_member_add(struct ocelot *ocelot, int port, u16 vid)
+{
+	return ocelot_vlan_member_set(ocelot,
+				      ocelot->vlan_mask[vid] | BIT(port),
+				      vid);
+}
+
+static int ocelot_vlan_member_del(struct ocelot *ocelot, int port, u16 vid)
+{
+	return ocelot_vlan_member_set(ocelot,
+				      ocelot->vlan_mask[vid] & ~BIT(port),
+				      vid);
+}
+
 int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
-			       bool vlan_aware)
+			       bool vlan_aware, struct netlink_ext_ack *extack)
 {
 	struct ocelot_vcap_block *block = &ocelot->block[VCAP_IS1];
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
@@ -233,8 +260,8 @@ int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
 	list_for_each_entry(filter, &block->rules, list) {
 		if (filter->ingress_port_mask & BIT(port) &&
 		    filter->action.vid_replace_ena) {
-			dev_err(ocelot->dev,
-				"Cannot change VLAN state with vlan modify rules active\n");
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Cannot change VLAN state with vlan modify rules active");
 			return -EBUSY;
 		}
 	}
@@ -259,16 +286,15 @@ int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
 EXPORT_SYMBOL(ocelot_port_vlan_filtering);
 
 int ocelot_vlan_prepare(struct ocelot *ocelot, int port, u16 vid, bool pvid,
-			bool untagged)
+			bool untagged, struct netlink_ext_ack *extack)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 
 	/* Deny changing the native VLAN, but always permit deleting it */
 	if (untagged && ocelot_port->native_vlan.vid != vid &&
 	    ocelot_port->native_vlan.valid) {
-		dev_err(ocelot->dev,
-			"Port already has a native VLAN: %d\n",
-			ocelot_port->native_vlan.vid);
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Port already has a native VLAN");
 		return -EBUSY;
 	}
 
@@ -279,13 +305,11 @@ EXPORT_SYMBOL(ocelot_vlan_prepare);
 int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
 		    bool untagged)
 {
-	int ret;
+	int err;
 
-	/* Make the port a member of the VLAN */
-	ocelot->vlan_mask[vid] |= BIT(port);
-	ret = ocelot_vlant_set_mask(ocelot, vid, ocelot->vlan_mask[vid]);
-	if (ret)
-		return ret;
+	err = ocelot_vlan_member_add(ocelot, port, vid);
+	if (err)
+		return err;
 
 	/* Default ingress vlan classification */
 	if (pvid) {
@@ -312,13 +336,11 @@ EXPORT_SYMBOL(ocelot_vlan_add);
 int ocelot_vlan_del(struct ocelot *ocelot, int port, u16 vid)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
-	int ret;
+	int err;
 
-	/* Stop the port from being a member of the vlan */
-	ocelot->vlan_mask[vid] &= ~BIT(port);
-	ret = ocelot_vlant_set_mask(ocelot, vid, ocelot->vlan_mask[vid]);
-	if (ret)
-		return ret;
+	err = ocelot_vlan_member_del(ocelot, port, vid);
+	if (err)
+		return err;
 
 	/* Ingress */
 	if (ocelot_port->pvid_vlan.vid == vid) {
@@ -340,6 +362,7 @@ EXPORT_SYMBOL(ocelot_vlan_del);
 
 static void ocelot_vlan_init(struct ocelot *ocelot)
 {
+	unsigned long all_ports = GENMASK(ocelot->num_phys_ports - 1, 0);
 	u16 port, vid;
 
 	/* Clear VLAN table, by default all ports are members of all VLANs */
@@ -348,23 +371,19 @@ static void ocelot_vlan_init(struct ocelot *ocelot)
 	ocelot_vlant_wait_for_completion(ocelot);
 
 	/* Configure the port VLAN memberships */
-	for (vid = 1; vid < VLAN_N_VID; vid++) {
-		ocelot->vlan_mask[vid] = 0;
-		ocelot_vlant_set_mask(ocelot, vid, ocelot->vlan_mask[vid]);
-	}
+	for (vid = 1; vid < VLAN_N_VID; vid++)
+		ocelot_vlan_member_set(ocelot, 0, vid);
 
 	/* Because VLAN filtering is enabled, we need VID 0 to get untagged
 	 * traffic.  It is added automatically if 8021q module is loaded, but
 	 * we can't rely on it since module may be not loaded.
 	 */
-	ocelot->vlan_mask[0] = GENMASK(ocelot->num_phys_ports - 1, 0);
-	ocelot_vlant_set_mask(ocelot, 0, ocelot->vlan_mask[0]);
+	ocelot_vlan_member_set(ocelot, all_ports, 0);
 
 	/* Set vlan ingress filter mask to all ports but the CPU port by
 	 * default.
 	 */
-	ocelot_write(ocelot, GENMASK(ocelot->num_phys_ports - 1, 0),
-		     ANA_VLANMASK);
+	ocelot_write(ocelot, all_ports, ANA_VLANMASK);
 
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
 		ocelot_write_gix(ocelot, 0, REW_PORT_VLAN_CFG, port);
