@@ -1488,8 +1488,10 @@ static struct iommu_group *arm_smmu_device_group(struct device *dev)
 	mutex_lock(&smmu->stream_map_mutex);
 	for_each_cfg_sme(cfg, fwspec, i, idx) {
 		if (group && smmu->s2crs[idx].group &&
-		    group != smmu->s2crs[idx].group)
+		    group != smmu->s2crs[idx].group) {
+			mutex_unlock(&smmu->stream_map_mutex);
 			return ERR_PTR(-EINVAL);
+		}
 
 		group = smmu->s2crs[idx].group;
 	}
