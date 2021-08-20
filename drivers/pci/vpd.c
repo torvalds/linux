@@ -413,6 +413,29 @@ int pci_vpd_find_ro_info_keyword(const void *buf, unsigned int len,
 }
 EXPORT_SYMBOL_GPL(pci_vpd_find_ro_info_keyword);
 
+int pci_vpd_check_csum(const void *buf, unsigned int len)
+{
+	const u8 *vpd = buf;
+	unsigned int size;
+	u8 csum = 0;
+	int rv_start;
+
+	rv_start = pci_vpd_find_ro_info_keyword(buf, len, PCI_VPD_RO_KEYWORD_CHKSUM, &size);
+	if (rv_start == -ENOENT) /* no checksum in VPD */
+		return 1;
+	else if (rv_start < 0)
+		return rv_start;
+
+	if (!size)
+		return -EINVAL;
+
+	while (rv_start >= 0)
+		csum += vpd[rv_start--];
+
+	return csum ? -EILSEQ : 0;
+}
+EXPORT_SYMBOL_GPL(pci_vpd_check_csum);
+
 #ifdef CONFIG_PCI_QUIRKS
 /*
  * Quirk non-zero PCI functions to route VPD access through function 0 for

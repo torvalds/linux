@@ -2376,6 +2376,15 @@ int pci_vpd_find_info_keyword(const u8 *buf, unsigned int off,
 int pci_vpd_find_ro_info_keyword(const void *buf, unsigned int len,
 				 const char *kw, unsigned int *size);
 
+/**
+ * pci_vpd_check_csum - Check VPD checksum
+ * @buf: Pointer to buffered VPD data
+ * @len: VPD size
+ *
+ * Returns 1 if VPD has no checksum, otherwise 0 or an errno
+ */
+int pci_vpd_check_csum(const void *buf, unsigned int len);
+
 /* PCI <-> OF binding helpers */
 #ifdef CONFIG_OF
 struct device_node;
