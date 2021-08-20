@@ -86,6 +86,14 @@ struct mlx5_mapped_obj {
 #define esw_chains(esw) \
 	((esw)->fdb_table.offloads.esw_chains_priv)
 
+enum {
+	MAPPING_TYPE_CHAIN,
+	MAPPING_TYPE_TUNNEL,
+	MAPPING_TYPE_TUNNEL_ENC_OPTS,
+	MAPPING_TYPE_LABELS,
+	MAPPING_TYPE_ZONE,
+};
+
 struct vport_ingress {
 	struct mlx5_flow_table *acl;
 	struct mlx5_flow_handle *allow_rule;
@@ -124,6 +132,8 @@ struct vport_egress {
 		struct {
 			struct mlx5_flow_group *fwd_grp;
 			struct mlx5_flow_handle *fwd_rule;
+			struct mlx5_flow_handle *bounce_rule;
+			struct mlx5_flow_group *bounce_grp;
 		} offloads;
 	};
 };
@@ -315,6 +325,7 @@ struct mlx5_eswitch {
 		u32             large_group_num;
 	}  params;
 	struct blocking_notifier_head n_head;
+	struct lock_class_key mode_lock_key;
 };
 
 void esw_offloads_disable(struct mlx5_eswitch *esw);
@@ -699,10 +710,17 @@ void mlx5_esw_get(struct mlx5_core_dev *dev);
 void mlx5_esw_put(struct mlx5_core_dev *dev);
 int mlx5_esw_try_lock(struct mlx5_eswitch *esw);
 void mlx5_esw_unlock(struct mlx5_eswitch *esw);
+void mlx5_esw_lock(struct mlx5_eswitch *esw);
 
 void esw_vport_change_handle_locked(struct mlx5_vport *vport);
 
 bool mlx5_esw_offloads_controller_valid(const struct mlx5_eswitch *esw, u32 controller);
+
+int mlx5_eswitch_offloads_config_single_fdb(struct mlx5_eswitch *master_esw,
+					    struct mlx5_eswitch *slave_esw);
+void mlx5_eswitch_offloads_destroy_single_fdb(struct mlx5_eswitch *master_esw,
+					      struct mlx5_eswitch *slave_esw);
+int mlx5_eswitch_reload_reps(struct mlx5_eswitch *esw);
 
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
@@ -719,6 +737,9 @@ static inline const u32 *mlx5_esw_query_functions(struct mlx5_core_dev *dev)
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
+static inline void mlx5_esw_unlock(struct mlx5_eswitch *esw) { return; }
+static inline void mlx5_esw_lock(struct mlx5_eswitch *esw) { return; }
+
 static inline struct mlx5_flow_handle *
 esw_add_restore_rule(struct mlx5_eswitch *esw, u32 tag)
 {
@@ -730,6 +751,23 @@ mlx5_esw_vport_to_devlink_port_index(const struct mlx5_core_dev *dev,
 				     u16 vport_num)
 {
 	return vport_num;
+}
+
+static inline int
+mlx5_eswitch_offloads_config_single_fdb(struct mlx5_eswitch *master_esw,
+					struct mlx5_eswitch *slave_esw)
+{
+	return 0;
+}
+
+static inline void
+mlx5_eswitch_offloads_destroy_single_fdb(struct mlx5_eswitch *master_esw,
+					 struct mlx5_eswitch *slave_esw) {}
+
+static inline int
+mlx5_eswitch_reload_reps(struct mlx5_eswitch *esw)
+{
+	return 0;
 }
 #endif /* CONFIG_MLX5_ESWITCH */
 

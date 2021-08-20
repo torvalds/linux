@@ -161,7 +161,7 @@ static void mlx5_lag_fib_route_event(struct mlx5_lag *ldev,
 		struct lag_tracker tracker;
 
 		tracker = ldev->tracker;
-		mlx5_activate_lag(ldev, &tracker, MLX5_LAG_FLAG_MULTIPATH);
+		mlx5_activate_lag(ldev, &tracker, MLX5_LAG_FLAG_MULTIPATH, false);
 	}
 
 	mlx5_lag_set_port_affinity(ldev, MLX5_LAG_NORMAL_AFFINITY);
