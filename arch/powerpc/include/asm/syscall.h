@@ -90,10 +90,9 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	unsigned long val, mask = -1UL;
 	unsigned int n = 6;
 
-#ifdef CONFIG_COMPAT
-	if (test_tsk_thread_flag(task, TIF_32BIT))
+	if (is_32bit_task())
 		mask = 0xffffffff;
-#endif
+
 	while (n--) {
 		if (n == 0)
 			val = regs->orig_gpr3;
