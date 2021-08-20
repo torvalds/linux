@@ -396,7 +396,8 @@ static void repo_hpd_event(struct work_struct *p_work)
 		bool change;
 
 		change = drm_helper_hpd_irq_event(hdmi->bridge.dev);
-		if (change && hdmi->cec_adap->devnode.registered)
+		if (change && hdmi->cec_adap &&
+		    hdmi->cec_adap->devnode.registered)
 			cec_queue_pin_hpd_event(hdmi->cec_adap,
 						hdmi->hpd_state,
 						ktime_get());
