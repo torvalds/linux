@@ -1527,7 +1527,9 @@ qlcnic_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
  * firmware coalescing to default.
  */
 static int qlcnic_set_intr_coalesce(struct net_device *netdev,
-			struct ethtool_coalesce *ethcoal)
+				    struct ethtool_coalesce *ethcoal,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int err;
@@ -1551,7 +1553,9 @@ static int qlcnic_set_intr_coalesce(struct net_device *netdev,
 }
 
 static int qlcnic_get_intr_coalesce(struct net_device *netdev,
-			struct ethtool_coalesce *ethcoal)
+				    struct ethtool_coalesce *ethcoal,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 

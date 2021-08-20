@@ -1749,7 +1749,10 @@ rtl_coalesce_info(struct rtl8169_private *tp)
 	return ERR_PTR(-ELNRNG);
 }
 
-static int rtl_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
+static int rtl_get_coalesce(struct net_device *dev,
+			    struct ethtool_coalesce *ec,
+			    struct kernel_ethtool_coalesce *kernel_coal,
+			    struct netlink_ext_ack *extack)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	const struct rtl_coalesce_info *ci;
@@ -1807,7 +1810,10 @@ static int rtl_coalesce_choose_scale(struct rtl8169_private *tp, u32 usec,
 	return -ERANGE;
 }
 
-static int rtl_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
+static int rtl_set_coalesce(struct net_device *dev,
+			    struct ethtool_coalesce *ec,
+			    struct kernel_ethtool_coalesce *kernel_coal,
+			    struct netlink_ext_ack *extack)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	u32 tx_fr = ec->tx_max_coalesced_frames;

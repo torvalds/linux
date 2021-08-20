@@ -685,6 +685,8 @@ static int __iavf_get_coalesce(struct net_device *netdev,
  * iavf_get_coalesce - Get interrupt coalescing settings
  * @netdev: network interface device structure
  * @ec: ethtool coalesce structure
+ * @kernel_coal: ethtool CQE mode setting structure
+ * @extack: extack for reporting error messages
  *
  * Returns current coalescing settings. This is referred to elsewhere in the
  * driver as Interrupt Throttle Rate, as this is how the hardware describes
@@ -692,7 +694,9 @@ static int __iavf_get_coalesce(struct net_device *netdev,
  * only represents the settings of queue 0.
  **/
 static int iavf_get_coalesce(struct net_device *netdev,
-			     struct ethtool_coalesce *ec)
+			     struct ethtool_coalesce *ec,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	return __iavf_get_coalesce(netdev, ec, -1);
 }
@@ -804,11 +808,15 @@ static int __iavf_set_coalesce(struct net_device *netdev,
  * iavf_set_coalesce - Set interrupt coalescing settings
  * @netdev: network interface device structure
  * @ec: ethtool coalesce structure
+ * @kernel_coal: ethtool CQE mode setting structure
+ * @extack: extack for reporting error messages
  *
  * Change current coalescing settings for every queue.
  **/
 static int iavf_set_coalesce(struct net_device *netdev,
-			     struct ethtool_coalesce *ec)
+			     struct ethtool_coalesce *ec,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	return __iavf_set_coalesce(netdev, ec, -1);
 }

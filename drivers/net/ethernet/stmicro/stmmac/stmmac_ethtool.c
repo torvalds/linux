@@ -874,7 +874,9 @@ static int __stmmac_get_coalesce(struct net_device *dev,
 }
 
 static int stmmac_get_coalesce(struct net_device *dev,
-			       struct ethtool_coalesce *ec)
+			       struct ethtool_coalesce *ec,
+			       struct kernel_ethtool_coalesce *kernel_coal,
+			       struct netlink_ext_ack *extack)
 {
 	return __stmmac_get_coalesce(dev, ec, -1);
 }
@@ -958,7 +960,9 @@ static int __stmmac_set_coalesce(struct net_device *dev,
 }
 
 static int stmmac_set_coalesce(struct net_device *dev,
-			       struct ethtool_coalesce *ec)
+			       struct ethtool_coalesce *ec,
+			       struct kernel_ethtool_coalesce *kernel_coal,
+			       struct netlink_ext_ack *extack)
 {
 	return __stmmac_set_coalesce(dev, ec, -1);
 }

@@ -615,7 +615,9 @@ static inline u32 skge_usecs2clk(const struct skge_hw *hw, u32 usec)
 }
 
 static int skge_get_coalesce(struct net_device *dev,
-			     struct ethtool_coalesce *ecmd)
+			     struct ethtool_coalesce *ecmd,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;
@@ -639,7 +641,9 @@ static int skge_get_coalesce(struct net_device *dev,
 
 /* Note: interrupt timer is per board, but can turn on/off per port */
 static int skge_set_coalesce(struct net_device *dev,
-			     struct ethtool_coalesce *ecmd)
+			     struct ethtool_coalesce *ecmd,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;

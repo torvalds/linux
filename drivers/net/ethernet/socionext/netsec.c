@@ -532,7 +532,9 @@ static void netsec_et_get_drvinfo(struct net_device *net_device,
 }
 
 static int netsec_et_get_coalesce(struct net_device *net_device,
-				  struct ethtool_coalesce *et_coalesce)
+				  struct ethtool_coalesce *et_coalesce,
+				  struct kernel_ethtool_coalesce *kernel_coal,
+				  struct netlink_ext_ack *extack)
 {
 	struct netsec_priv *priv = netdev_priv(net_device);
 
@@ -542,7 +544,9 @@ static int netsec_et_get_coalesce(struct net_device *net_device,
 }
 
 static int netsec_et_set_coalesce(struct net_device *net_device,
-				  struct ethtool_coalesce *et_coalesce)
+				  struct ethtool_coalesce *et_coalesce,
+				  struct kernel_ethtool_coalesce *kernel_coal,
+				  struct netlink_ext_ack *extack)
 {
 	struct netsec_priv *priv = netdev_priv(net_device);
 
@@ -1544,7 +1548,7 @@ static int netsec_start_gmac(struct netsec_priv *priv)
 	netsec_write(priv, NETSEC_REG_NRM_RX_INTEN_CLR, ~0);
 	netsec_write(priv, NETSEC_REG_NRM_TX_INTEN_CLR, ~0);
 
-	netsec_et_set_coalesce(priv->ndev, &priv->et_coalesce);
+	netsec_et_set_coalesce(priv->ndev, &priv->et_coalesce, NULL, NULL);
 
 	if (netsec_mac_write(priv, GMAC_REG_OMR, value))
 		return -ETIMEDOUT;

@@ -534,7 +534,9 @@ int mlx5e_ethtool_get_coalesce(struct mlx5e_priv *priv,
 }
 
 static int mlx5e_get_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 
@@ -652,7 +654,9 @@ int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 }
 
 static int mlx5e_set_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct mlx5e_priv *priv    = netdev_priv(netdev);
 

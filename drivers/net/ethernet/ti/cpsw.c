@@ -845,7 +845,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		struct ethtool_coalesce coal;
 
 		coal.rx_coalesce_usecs = cpsw->coal_intvl;
-		cpsw_set_coalesce(ndev, &coal);
+		cpsw_set_coalesce(ndev, &coal, NULL, NULL);
 	}
 
 	cpdma_ctlr_start(cpsw->dma);

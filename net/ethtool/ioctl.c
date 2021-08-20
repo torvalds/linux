@@ -1619,12 +1619,14 @@ static noinline_for_stack int ethtool_get_coalesce(struct net_device *dev,
 						   void __user *useraddr)
 {
 	struct ethtool_coalesce coalesce = { .cmd = ETHTOOL_GCOALESCE };
+	struct kernel_ethtool_coalesce kernel_coalesce = {};
 	int ret;
 
 	if (!dev->ethtool_ops->get_coalesce)
 		return -EOPNOTSUPP;
 
-	ret = dev->ethtool_ops->get_coalesce(dev, &coalesce);
+	ret = dev->ethtool_ops->get_coalesce(dev, &coalesce, &kernel_coalesce,
+					     NULL);
 	if (ret)
 		return ret;
 
@@ -1691,11 +1693,17 @@ ethtool_set_coalesce_supported(struct net_device *dev,
 static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
 						   void __user *useraddr)
 {
+	struct kernel_ethtool_coalesce kernel_coalesce = {};
 	struct ethtool_coalesce coalesce;
 	int ret;
 
-	if (!dev->ethtool_ops->set_coalesce)
+	if (!dev->ethtool_ops->set_coalesce && !dev->ethtool_ops->get_coalesce)
 		return -EOPNOTSUPP;
+
+	ret = dev->ethtool_ops->get_coalesce(dev, &coalesce, &kernel_coalesce,
+					     NULL);
+	if (ret)
+		return ret;
 
 	if (copy_from_user(&coalesce, useraddr, sizeof(coalesce)))
 		return -EFAULT;
@@ -1703,7 +1711,8 @@ static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
 	if (!ethtool_set_coalesce_supported(dev, &coalesce))
 		return -EOPNOTSUPP;
 
-	ret = dev->ethtool_ops->set_coalesce(dev, &coalesce);
+	ret = dev->ethtool_ops->set_coalesce(dev, &coalesce, &kernel_coalesce,
+					     NULL);
 	if (!ret)
 		ethtool_notify(dev, ETHTOOL_MSG_COALESCE_NTF, NULL);
 	return ret;

@@ -7242,8 +7242,10 @@ bnx2_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	return rc;
 }
 
-static int
-bnx2_get_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
+static int bnx2_get_coalesce(struct net_device *dev,
+			     struct ethtool_coalesce *coal,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 
@@ -7264,8 +7266,10 @@ bnx2_get_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
 	return 0;
 }
 
-static int
-bnx2_set_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
+static int bnx2_set_coalesce(struct net_device *dev,
+			     struct ethtool_coalesce *coal,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 

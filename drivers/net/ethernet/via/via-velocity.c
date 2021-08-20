@@ -3518,7 +3518,9 @@ static void set_pending_timer_val(int *val, u32 us)
 
 
 static int velocity_get_coalesce(struct net_device *dev,
-		struct ethtool_coalesce *ecmd)
+				 struct ethtool_coalesce *ecmd,
+				 struct kernel_ethtool_coalesce *kernel_coal,
+				 struct netlink_ext_ack *extack)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 
@@ -3532,7 +3534,9 @@ static int velocity_get_coalesce(struct net_device *dev,
 }
 
 static int velocity_set_coalesce(struct net_device *dev,
-		struct ethtool_coalesce *ecmd)
+				 struct ethtool_coalesce *ecmd,
+				 struct kernel_ethtool_coalesce *kernel_coal,
+				 struct netlink_ext_ack *extack)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 	int max_us = 0x3f * 64;

@@ -862,7 +862,9 @@ static void igc_ethtool_get_stats(struct net_device *netdev,
 }
 
 static int igc_ethtool_get_coalesce(struct net_device *netdev,
-				    struct ethtool_coalesce *ec)
+				    struct ethtool_coalesce *ec,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
@@ -882,7 +884,9 @@ static int igc_ethtool_get_coalesce(struct net_device *netdev,
 }
 
 static int igc_ethtool_set_coalesce(struct net_device *netdev,
-				    struct ethtool_coalesce *ec)
+				    struct ethtool_coalesce *ec,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 	int i;

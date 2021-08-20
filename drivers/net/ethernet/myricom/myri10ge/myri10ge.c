@@ -1652,8 +1652,10 @@ myri10ge_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *info)
 	strlcpy(info->bus_info, pci_name(mgp->pdev), sizeof(info->bus_info));
 }
 
-static int
-myri10ge_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *coal)
+static int myri10ge_get_coalesce(struct net_device *netdev,
+				 struct ethtool_coalesce *coal,
+				 struct kernel_ethtool_coalesce *kernel_coal,
+				 struct netlink_ext_ack *extack)
 {
 	struct myri10ge_priv *mgp = netdev_priv(netdev);
 
@@ -1661,8 +1663,10 @@ myri10ge_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *coal)
 	return 0;
 }
 
-static int
-myri10ge_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coal)
+static int myri10ge_set_coalesce(struct net_device *netdev,
+				 struct ethtool_coalesce *coal,
+				 struct kernel_ethtool_coalesce *kernel_coal,
+				 struct netlink_ext_ack *extack)
 {
 	struct myri10ge_priv *mgp = netdev_priv(netdev);
 

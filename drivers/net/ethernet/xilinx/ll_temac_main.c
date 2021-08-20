@@ -1310,8 +1310,11 @@ static int ll_temac_ethtools_set_ringparam(struct net_device *ndev,
 	return 0;
 }
 
-static int ll_temac_ethtools_get_coalesce(struct net_device *ndev,
-					  struct ethtool_coalesce *ec)
+static int
+ll_temac_ethtools_get_coalesce(struct net_device *ndev,
+			       struct ethtool_coalesce *ec,
+			       struct kernel_ethtool_coalesce *kernel_coal,
+			       struct netlink_ext_ack *extack)
 {
 	struct temac_local *lp = netdev_priv(ndev);
 
@@ -1322,8 +1325,11 @@ static int ll_temac_ethtools_get_coalesce(struct net_device *ndev,
 	return 0;
 }
 
-static int ll_temac_ethtools_set_coalesce(struct net_device *ndev,
-					  struct ethtool_coalesce *ec)
+static int
+ll_temac_ethtools_set_coalesce(struct net_device *ndev,
+			       struct ethtool_coalesce *ec,
+			       struct kernel_ethtool_coalesce *kernel_coal,
+			       struct netlink_ext_ack *extack)
 {
 	struct temac_local *lp = netdev_priv(ndev);
 

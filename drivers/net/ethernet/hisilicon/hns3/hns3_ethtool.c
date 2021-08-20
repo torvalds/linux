@@ -1179,7 +1179,9 @@ static void hns3_get_channels(struct net_device *netdev,
 }
 
 static int hns3_get_coalesce(struct net_device *netdev,
-			     struct ethtool_coalesce *cmd)
+			     struct ethtool_coalesce *cmd,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hns3_enet_coalesce *tx_coal = &priv->tx_coal;
@@ -1361,7 +1363,9 @@ static void hns3_set_coalesce_per_queue(struct net_device *netdev,
 }
 
 static int hns3_set_coalesce(struct net_device *netdev,
-			     struct ethtool_coalesce *cmd)
+			     struct ethtool_coalesce *cmd,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct hns3_nic_priv *priv = netdev_priv(netdev);

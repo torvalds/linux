@@ -62,6 +62,7 @@ static int coalesce_prepare_data(const struct ethnl_req_info *req_base,
 				 struct genl_info *info)
 {
 	struct coalesce_reply_data *data = COALESCE_REPDATA(reply_base);
+	struct netlink_ext_ack *extack = info ? info->extack : NULL;
 	struct net_device *dev = reply_base->dev;
 	int ret;
 
@@ -71,7 +72,8 @@ static int coalesce_prepare_data(const struct ethnl_req_info *req_base,
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		return ret;
-	ret = dev->ethtool_ops->get_coalesce(dev, &data->coalesce);
+	ret = dev->ethtool_ops->get_coalesce(dev, &data->coalesce,
+					     &data->kernel_coalesce, extack);
 	ethnl_ops_complete(dev);
 
 	return ret;
@@ -266,7 +268,8 @@ int ethnl_set_coalesce(struct sk_buff *skb, struct genl_info *info)
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		goto out_rtnl;
-	ret = ops->get_coalesce(dev, &coalesce);
+	ret = ops->get_coalesce(dev, &coalesce, &kernel_coalesce,
+				info->extack);
 	if (ret < 0)
 		goto out_ops;
 
@@ -322,7 +325,8 @@ int ethnl_set_coalesce(struct sk_buff *skb, struct genl_info *info)
 	if (!mod)
 		goto out_ops;
 
-	ret = dev->ethtool_ops->set_coalesce(dev, &coalesce);
+	ret = dev->ethtool_ops->set_coalesce(dev, &coalesce, &kernel_coalesce,
+					     info->extack);
 	if (ret < 0)
 		goto out_ops;
 	ethtool_notify(dev, ETHTOOL_MSG_COALESCE_NTF, NULL);
