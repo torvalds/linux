@@ -585,6 +585,8 @@ static int find_valid_gpt(struct parsed_partitions *state, gpt_header **gpt,
 	gpt_header *pgpt = NULL, *agpt = NULL;
 	gpt_entry *pptes = NULL, *aptes = NULL;
 	legacy_mbr *legacymbr;
+	struct gendisk *disk = state->disk;
+	const struct block_device_operations *fops = disk->fops;
 	sector_t total_sectors = get_capacity(state->disk);
 	u64 lastlba;
 
@@ -618,6 +620,16 @@ static int find_valid_gpt(struct parsed_partitions *state, gpt_header **gpt,
 					 &agpt, &aptes);
         if (!good_agpt && force_gpt)
                 good_agpt = is_gpt_valid(state, lastlba, &agpt, &aptes);
+
+	if (!good_agpt && force_gpt && fops->alternative_gpt_sector) {
+		sector_t agpt_sector;
+		int err;
+
+		err = fops->alternative_gpt_sector(disk, &agpt_sector);
+		if (!err)
+			good_agpt = is_gpt_valid(state, agpt_sector,
+						 &agpt, &aptes);
+	}
 
         /* The obviously unsuccessful case */
         if (!good_pgpt && !good_agpt)
