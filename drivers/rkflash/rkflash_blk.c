@@ -122,7 +122,7 @@ static int rkflash_blk_proc_show(struct seq_file *m, void *v)
 {
 	char *ftl_buf = kzalloc(4096, GFP_KERNEL);
 
-#if IS_ENABLED(CONFIG_RK_NANDC_NAND) || IS_ENABLED(CONFIG_RK_SFC_NAND)
+#if IS_ENABLED(CONFIG_RK_SFTL)
 	int real_size = 0;
 
 	real_size = rknand_proc_ftlread(4096, ftl_buf);
@@ -702,7 +702,7 @@ int rkflash_dev_init(void __iomem *reg_addr,
 		break;
 #endif
 	case FLASH_TYPE_NANDC_NAND:
-#if defined(CONFIG_RK_SFC_NAND) || defined(CONFIG_RK_NANDC_NAND)
+#if defined(CONFIG_RK_SFTL)
 		rk_sftl_vendor_dev_ops_register(rkflash_dev_vendor_read,
 						rkflash_dev_vendor_write);
 		ret = rk_sftl_vendor_storage_init();

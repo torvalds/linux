@@ -19,6 +19,15 @@ if RK_FLASH
 
 comment "Rockchip Flash Devices"
 
+config RK_SFTL
+	tristate "Rockchip Slc Nand FTL support"
+	default y
+	depends on (RK_NAND || (RK_SFC_NAND && RK_SFC_NAND_MTD !=y))
+	help
+	  This enables support for Slc Nand FTL.
+
+	  Say Y when you have a board with Slc Nand Flash register as block device.
+
 config RK_NANDC_NAND
 	tristate "Rockchip NANDC Slc Nand Devices support"
 	default n
