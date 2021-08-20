@@ -2007,7 +2007,8 @@ static void ctx_flush_and_put(struct io_ring_ctx *ctx)
 		return;
 	if (ctx->submit_state.compl_nr) {
 		mutex_lock(&ctx->uring_lock);
-		io_submit_flush_completions(ctx);
+		if (ctx->submit_state.compl_nr)
+			io_submit_flush_completions(ctx);
 		mutex_unlock(&ctx->uring_lock);
 	}
 	percpu_ref_put(&ctx->refs);
