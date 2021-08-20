@@ -2,4 +2,9 @@
 # SPDX-License-Identifier: GPL-2.0
 # Copyright (c) 2020 SUSE LLC.
 
+SCRIPT_DIR=$(dirname $(realpath $0))
+
+# 'make -C tools/testing/selftests/bpf' will install to BPFTOOL_INSTALL_PATH
+BPFTOOL_INSTALL_PATH="$SCRIPT_DIR"/tools/sbin
+export PATH=$BPFTOOL_INSTALL_PATH:$PATH
 python3 -m unittest -v test_bpftool.TestBpftool
