@@ -6,6 +6,7 @@
 #include "ice_lib.h"
 #include "ice_fltr.h"
 #include "ice_flow.h"
+#include "ice_eswitch.h"
 #include "ice_virtchnl_allowlist.h"
 
 #define FIELD_SELECTOR(proto_hdr_field) \
@@ -620,6 +621,8 @@ void ice_free_vfs(struct ice_pf *pf)
 	if (!pf->vf)
 		return;
 
+	ice_eswitch_release(pf);
+
 	while (test_and_set_bit(ICE_VF_DIS, pf->state))
 		usleep_range(1000, 2000);
 
@@ -931,6 +934,9 @@ static int ice_vf_rebuild_host_mac_cfg(struct ice_vf *vf)
 	struct ice_vsi *vsi = ice_get_vf_vsi(vf);
 	enum ice_status status;
 	u8 broadcast[ETH_ALEN];
+
+	if (ice_is_eswitch_mode_switchdev(vf->pf))
+		return 0;
 
 	eth_broadcast_addr(broadcast);
 	status = ice_fltr_add_mac(vsi, broadcast, ICE_FWD_TO_VSI);
@@ -1711,6 +1717,8 @@ bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 	}
 
 	ice_vf_post_vsi_rebuild(vf);
+	vsi = ice_get_vf_vsi(vf);
+	ice_eswitch_update_repr(vsi);
 
 	/* if the VF has been reset allow it to come up again */
 	if (ice_mbx_clear_malvf(&hw->mbx_snapshot, pf->malvfs, ICE_MAX_VF_COUNT, vf->vf_id))
@@ -1962,6 +1970,10 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
 	}
 
 	clear_bit(ICE_VF_DIS, pf->state);
+
+	if (ice_eswitch_configure(pf))
+		goto err_unroll_sriov;
+
 	return 0;
 
 err_unroll_sriov:
@@ -4782,6 +4794,11 @@ int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
 	struct ice_vf *vf;
 	int ret;
+
+	if (ice_is_eswitch_mode_switchdev(pf)) {
+		dev_info(ice_pf_to_dev(pf), "Trusted VF is forbidden in switchdev mode\n");
+		return -EOPNOTSUPP;
+	}
 
 	if (ice_validate_vf_id(pf, vf_id))
 		return -EINVAL;

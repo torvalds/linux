@@ -233,6 +233,32 @@ ice_eswitch_release_reprs(struct ice_pf *pf, struct ice_vsi *ctrl_vsi)
 }
 
 /**
+ * ice_eswitch_update_repr - reconfigure VF port representor
+ * @vsi: VF VSI for which port representor is configured
+ */
+void ice_eswitch_update_repr(struct ice_vsi *vsi)
+{
+	struct ice_pf *pf = vsi->back;
+	struct ice_repr *repr;
+	struct ice_vf *vf;
+	int ret;
+
+	if (!ice_is_switchdev_running(pf))
+		return;
+
+	vf = &pf->vf[vsi->vf_id];
+	repr = vf->repr;
+	repr->src_vsi = vsi;
+	repr->dst->u.port_info.port_id = vsi->vsi_num;
+
+	ret = ice_vsi_update_security(vsi, ice_vsi_ctx_clear_antispoof);
+	if (ret) {
+		ice_fltr_add_mac_and_broadcast(vsi, vf->hw_lan_addr.addr, ICE_FWD_TO_VSI);
+		dev_err(ice_pf_to_dev(pf), "Failed to update VF %d port representor", vsi->vf_id);
+	}
+}
+
+/**
  * ice_eswitch_release_env - clear switchdev HW filters
  * @pf: pointer to PF struct
  *
@@ -421,6 +447,18 @@ int ice_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 
 	*mode = pf->eswitch_mode;
 	return 0;
+}
+
+/**
+ * ice_is_eswitch_mode_switchdev - check if eswitch mode is set to switchdev
+ * @pf: pointer to PF structure
+ *
+ * Returns true if eswitch mode is set to DEVLINK_ESWITCH_MODE_SWITCHDEV,
+ * false otherwise.
+ */
+bool ice_is_eswitch_mode_switchdev(struct ice_pf *pf)
+{
+	return pf->eswitch_mode == DEVLINK_ESWITCH_MODE_SWITCHDEV;
 }
 
 /**
