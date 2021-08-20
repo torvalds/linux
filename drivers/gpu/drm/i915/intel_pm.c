@@ -2859,6 +2859,7 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 		u32 val;
 		int ret, i;
 		int level, max_level = ilk_wm_max_level(dev_priv);
+		int mult = IS_DG2(dev_priv) ? 2 : 1;
 
 		/* read the first set of memory latencies[0:3] */
 		val = 0; /* data0 to be programmed to 0 for first set */
@@ -2872,13 +2873,13 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 			return;
 		}
 
-		wm[0] = val & GEN9_MEM_LATENCY_LEVEL_MASK;
-		wm[1] = (val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK;
-		wm[2] = (val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK;
-		wm[3] = (val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK;
+		wm[0] = (val & GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+		wm[1] = ((val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+		wm[2] = ((val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+		wm[3] = ((val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
 
 		/* read the second set of memory latencies[4:7] */
 		val = 1; /* data0 to be programmed to 1 for second set */
@@ -2891,13 +2892,13 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 			return;
 		}
 
-		wm[4] = val & GEN9_MEM_LATENCY_LEVEL_MASK;
-		wm[5] = (val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK;
-		wm[6] = (val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK;
-		wm[7] = (val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK;
+		wm[4] = (val & GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+		wm[5] = ((val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+		wm[6] = ((val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+		wm[7] = ((val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
 
 		/*
 		 * If a level n (n > 1) has a 0us latency, all levels m (m >= n)
