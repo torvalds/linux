@@ -3,8 +3,8 @@
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  * Copyright (C) 2018-2020 Linaro Ltd.
  */
-#ifndef _IPA_CLOCK_H_
-#define _IPA_CLOCK_H_
+#ifndef _IPA_POWER_H_
+#define _IPA_POWER_H_
 
 struct device;
 
@@ -70,4 +70,4 @@ struct ipa_power *ipa_power_init(struct device *dev,
  */
 void ipa_power_exit(struct ipa_power *power);
 
-#endif /* _IPA_CLOCK_H_ */
+#endif /* _IPA_POWER_H_ */

@@ -20,7 +20,7 @@
 #include <linux/soc/qcom/mdt_loader.h>
 
 #include "ipa.h"
-#include "ipa_clock.h"
+#include "ipa_power.h"
 #include "ipa_data.h"
 #include "ipa_endpoint.h"
 #include "ipa_resource.h"

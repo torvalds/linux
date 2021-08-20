@@ -12,7 +12,7 @@
 #include <linux/bitops.h>
 
 #include "ipa.h"
-#include "ipa_clock.h"
+#include "ipa_power.h"
 #include "ipa_endpoint.h"
 #include "ipa_modem.h"
 #include "ipa_data.h"

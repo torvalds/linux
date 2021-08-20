@@ -21,7 +21,7 @@
 #include "ipa_modem.h"
 #include "ipa_table.h"
 #include "ipa_gsi.h"
-#include "ipa_clock.h"
+#include "ipa_power.h"
 
 #define atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
 
