@@ -972,6 +972,12 @@ int otx2_add_flow(struct otx2_nic *pfvf, struct ethtool_rxnfc *nfc)
 	int err = 0;
 	u32 ring;
 
+	if (!flow_cfg->max_flows) {
+		netdev_err(pfvf->netdev,
+			   "Ntuple rule count is 0, allocate and retry\n");
+		return -EINVAL;
+	}
+
 	ring = ethtool_get_flow_spec_ring(fsp->ring_cookie);
 	if (!(pfvf->flags & OTX2_FLAG_NTUPLE_SUPPORT))
 		return -ENOMEM;
@@ -1181,6 +1187,9 @@ int otx2_destroy_ntuple_flows(struct otx2_nic *pfvf)
 	int err;
 
 	if (!(pfvf->flags & OTX2_FLAG_NTUPLE_SUPPORT))
+		return 0;
+
+	if (!flow_cfg->max_flows)
 		return 0;
 
 	mutex_lock(&pfvf->mbox.lock);
