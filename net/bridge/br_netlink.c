@@ -932,7 +932,8 @@ static int br_setport(struct net_bridge_port *p, struct nlattr *tb[],
 	if (tb[IFLA_BRPORT_MULTICAST_ROUTER]) {
 		u8 mcast_router = nla_get_u8(tb[IFLA_BRPORT_MULTICAST_ROUTER]);
 
-		err = br_multicast_set_port_router(p, mcast_router);
+		err = br_multicast_set_port_router(&p->multicast_ctx,
+						   mcast_router);
 		if (err)
 			return err;
 	}

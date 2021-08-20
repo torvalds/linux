@@ -250,7 +250,7 @@ static ssize_t show_multicast_router(struct net_bridge_port *p, char *buf)
 static int store_multicast_router(struct net_bridge_port *p,
 				      unsigned long v)
 {
-	return br_multicast_set_port_router(p, v);
+	return br_multicast_set_port_router(&p->multicast_ctx, v);
 }
 static BRPORT_ATTR(multicast_router, 0644, show_multicast_router,
 		   store_multicast_router);
