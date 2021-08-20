@@ -1433,6 +1433,8 @@ static void gsm_dlci_close(struct gsm_dlci *dlci)
 		kfifo_reset(&dlci->fifo);
 	} else
 		dlci->gsm->dead = true;
+	/* Unregister gsmtty driver,report gsmtty dev remove uevent for user */
+	tty_unregister_device(gsm_tty_driver, dlci->addr);
 	wake_up(&dlci->gsm->event);
 	/* A DLCI 0 close is a MUX termination so we need to kick that
 	   back to userspace somehow */
@@ -1454,6 +1456,8 @@ static void gsm_dlci_open(struct gsm_dlci *dlci)
 	dlci->state = DLCI_OPEN;
 	if (debug & 8)
 		pr_debug("DLCI %d goes open.\n", dlci->addr);
+	/* Register gsmtty driver,report gsmtty dev add uevent for user */
+	tty_register_device(gsm_tty_driver, dlci->addr, NULL);
 	wake_up(&dlci->gsm->event);
 }
 
@@ -2388,17 +2392,19 @@ static int gsmld_attach_gsm(struct tty_struct *tty, struct gsm_mux *gsm)
 	else {
 		/* Don't register device 0 - this is the control channel and not
 		   a usable tty interface */
-		base = mux_num_to_base(gsm); /* Base for this MUX */
-		for (i = 1; i < NUM_DLCI; i++) {
-			struct device *dev;
+		if (gsm->initiator) {
+			base = mux_num_to_base(gsm); /* Base for this MUX */
+			for (i = 1; i < NUM_DLCI; i++) {
+				struct device *dev;
 
-			dev = tty_register_device(gsm_tty_driver,
+				dev = tty_register_device(gsm_tty_driver,
 							base + i, NULL);
-			if (IS_ERR(dev)) {
-				for (i--; i >= 1; i--)
-					tty_unregister_device(gsm_tty_driver,
-								base + i);
-				return PTR_ERR(dev);
+				if (IS_ERR(dev)) {
+					for (i--; i >= 1; i--)
+						tty_unregister_device(gsm_tty_driver,
+									base + i);
+					return PTR_ERR(dev);
+				}
 			}
 		}
 	}
@@ -2420,8 +2426,10 @@ static void gsmld_detach_gsm(struct tty_struct *tty, struct gsm_mux *gsm)
 	int i;
 
 	WARN_ON(tty != gsm->tty);
-	for (i = 1; i < NUM_DLCI; i++)
-		tty_unregister_device(gsm_tty_driver, base + i);
+	if (gsm->initiator) {
+		for (i = 1; i < NUM_DLCI; i++)
+			tty_unregister_device(gsm_tty_driver, base + i);
+	}
 	gsm_cleanup_mux(gsm);
 	tty_kref_put(gsm->tty);
 	gsm->tty = NULL;
