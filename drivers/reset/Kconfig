@@ -214,7 +214,6 @@ config RESET_SIMPLE
 	   - Realtek SoCs
 	   - RCC reset controller in STM32 MCUs
 	   - Allwinner SoCs
-	   - ZTE's zx2967 family
 	   - SiFive FU740 SoCs
 
 config RESET_SOCFPGA
