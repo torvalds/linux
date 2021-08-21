@@ -25,6 +25,11 @@ static int iterations = 100;
 static int nr_events = 1;
 static const char *event_string = "dummy";
 
+static inline u64 timeval2usec(struct timeval *tv)
+{
+	return tv->tv_sec * USEC_PER_SEC + tv->tv_usec;
+}
+
 static struct record_opts opts = {
 	.sample_time	     = true,
 	.mmap_pages	     = UINT_MAX,
@@ -167,7 +172,7 @@ static int bench_evlist_open_close__run(char *evstr)
 
 		gettimeofday(&end, NULL);
 		timersub(&end, &start, &diff);
-		runtime_us = diff.tv_sec * USEC_PER_SEC + diff.tv_usec;
+		runtime_us = timeval2usec(&diff);
 		update_stats(&time_stats, runtime_us);
 
 		evlist__delete(evlist);
