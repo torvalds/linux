@@ -200,19 +200,6 @@ receive all frames regardless of the value of the MAC DA. This can be done by
 setting the ``promisc_on_master`` property of the ``struct dsa_device_ops``.
 Note that this assumes a DSA-unaware master driver, which is the norm.
 
-Hardware manufacturers are strongly discouraged to do this, but some tagging
-protocols might not provide source port information on RX for all packets, but
-e.g. only for control traffic (link-local PDUs). In this case, by implementing
-the ``filter`` method of ``struct dsa_device_ops``, the tagger might select
-which packets are to be redirected on RX towards the virtual DSA user network
-interfaces, and which are to be left in the DSA master's RX data path.
-
-It might also happen (although silicon vendors are strongly discouraged to
-produce hardware like this) that a tagging protocol splits the switch-specific
-information into a header portion and a tail portion, therefore not falling
-cleanly into any of the above 3 categories. DSA does not support this
-configuration.
-
 Master network devices
 ----------------------
 
