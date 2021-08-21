@@ -984,6 +984,7 @@ int smu_v11_0_set_power_limit(struct smu_context *smu,
 {
 	int power_src;
 	int ret = 0;
+	uint32_t limit_param;
 
 	if (limit_type != SMU_DEFAULT_PPT_LIMIT)
 		return -EINVAL;
@@ -1006,10 +1007,10 @@ int smu_v11_0_set_power_limit(struct smu_context *smu,
 	 * BIT 16-23: PowerSource
 	 * BIT 0-15: PowerLimit
 	 */
-	limit &= 0xFFFF;
-	limit |= 0 << 24;
-	limit |= (power_src) << 16;
-	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, limit, NULL);
+	limit_param  = (limit & 0xFFFF);
+	limit_param |= 0 << 24;
+	limit_param |= (power_src) << 16;
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, limit_param, NULL);
 	if (ret) {
 		dev_err(smu->adev->dev, "[%s] Set power limit Failed!\n", __func__);
 		return ret;
