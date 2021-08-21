@@ -151,6 +151,7 @@ struct evsel {
 		struct bperf_follower_bpf *follower_skel;
 	};
 	unsigned long		open_flags;
+	int			precise_ip_original;
 };
 
 struct perf_missing_features {
@@ -298,6 +299,7 @@ bool evsel__ignore_missing_thread(struct evsel *evsel,
 				  int nr_cpus, int cpu,
 				  struct perf_thread_map *threads,
 				  int thread, int err);
+bool evsel__precise_ip_fallback(struct evsel *evsel);
 
 struct perf_sample;
 
