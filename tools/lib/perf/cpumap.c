@@ -282,14 +282,8 @@ int perf_cpu_map__idx(struct perf_cpu_map *cpus, int cpu)
 
 int perf_cpu_map__max(struct perf_cpu_map *map)
 {
-	int i, max = -1;
-
-	for (i = 0; i < map->nr; i++) {
-		if (map->map[i] > max)
-			max = map->map[i];
-	}
-
-	return max;
+	// cpu_map__trim_new() qsort()s it, cpu_map__default_new() sorts it as well.
+	return map->nr > 0 ? map->map[map->nr - 1] : -1;
 }
 
 /*
