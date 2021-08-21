@@ -289,6 +289,7 @@ int evsel__open(struct evsel *evsel, struct perf_cpu_map *cpus,
 void evsel__close(struct evsel *evsel);
 int evsel__prepare_open(struct evsel *evsel, struct perf_cpu_map *cpus,
 		struct perf_thread_map *threads);
+bool evsel__detect_missing_features(struct evsel *evsel);
 
 struct perf_sample;
 
