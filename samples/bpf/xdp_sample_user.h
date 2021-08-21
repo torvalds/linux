@@ -14,9 +14,11 @@ enum stats_mask {
 	SAMPLE_CPUMAP_ENQUEUE_CNT   = 1U << 3,
 	SAMPLE_CPUMAP_KTHREAD_CNT   = 1U << 4,
 	SAMPLE_EXCEPTION_CNT        = 1U << 5,
+	SAMPLE_DEVMAP_XMIT_CNT      = 1U << 6,
 	SAMPLE_REDIRECT_CNT         = 1U << 7,
 	SAMPLE_REDIRECT_MAP_CNT     = SAMPLE_REDIRECT_CNT | _SAMPLE_REDIRECT_MAP,
 	SAMPLE_REDIRECT_ERR_MAP_CNT = SAMPLE_REDIRECT_ERR_CNT | _SAMPLE_REDIRECT_MAP,
+	SAMPLE_DEVMAP_XMIT_CNT_MULTI = 1U << 8,
 };
 
 /* Exit return codes */
@@ -63,6 +65,17 @@ static inline char *safe_strncpy(char *dst, const char *src, size_t size)
 			return -errno;                                         \
 	})
 
+#define sample_init_pre_load(skel)                                             \
+	({                                                                     \
+		skel->rodata->nr_cpus = libbpf_num_possible_cpus();            \
+		sample_setup_maps((struct bpf_map *[]){                        \
+			skel->maps.rx_cnt, skel->maps.redir_err_cnt,           \
+			skel->maps.cpumap_enqueue_cnt,                         \
+			skel->maps.cpumap_kthread_cnt,                         \
+			skel->maps.exception_cnt, skel->maps.devmap_xmit_cnt,  \
+			skel->maps.devmap_xmit_cnt_multi });                   \
+	})
+
 #define DEFINE_SAMPLE_INIT(name)                                               \
 	static int sample_init(struct name *skel, int mask)                    \
 	{                                                                      \
@@ -84,6 +97,10 @@ static inline char *safe_strncpy(char *dst, const char *src, size_t size)
 			__attach_tp(tp_xdp_cpumap_kthread);                    \
 		if (mask & SAMPLE_EXCEPTION_CNT)                               \
 			__attach_tp(tp_xdp_exception);                         \
+		if (mask & SAMPLE_DEVMAP_XMIT_CNT)                             \
+			__attach_tp(tp_xdp_devmap_xmit);                       \
+		if (mask & SAMPLE_DEVMAP_XMIT_CNT_MULTI)                       \
+			__attach_tp(tp_xdp_devmap_xmit_multi);                 \
 		return 0;                                                      \
 	}
 
