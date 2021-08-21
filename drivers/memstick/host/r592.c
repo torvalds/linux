@@ -293,7 +293,7 @@ static int r592_transfer_fifo_dma(struct r592_device *dev)
 
 	/* TODO: hidden assumption about nenth beeing always 1 */
 	sg_count = dma_map_sg(&dev->pci_dev->dev, &dev->req->sg, 1, is_write ?
-		PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
+			      DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
 	if (sg_count != 1 || sg_dma_len(&dev->req->sg) < R592_LFIFO_SIZE) {
 		message("problem in dma_map_sg");
@@ -310,8 +310,7 @@ static int r592_transfer_fifo_dma(struct r592_device *dev)
 	}
 
 	dma_unmap_sg(&dev->pci_dev->dev, &dev->req->sg, 1, is_write ?
-		PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
-
+		     DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
 	return dev->dma_error;
 }
