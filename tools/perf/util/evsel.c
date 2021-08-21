@@ -1656,7 +1656,7 @@ static int update_fds(struct evsel *evsel,
 	return 0;
 }
 
-static bool ignore_missing_thread(struct evsel *evsel,
+bool evsel__ignore_missing_thread(struct evsel *evsel,
 				  int nr_cpus, int cpu,
 				  struct perf_thread_map *threads,
 				  int thread, int err)
@@ -1993,12 +1993,15 @@ fallback_missing_features:
 
 		for (thread = 0; thread < nthreads; thread++) {
 			int fd, group_fd;
+retry_open:
+			if (thread >= nthreads)
+				break;
 
 			if (!evsel->cgrp && !evsel->core.system_wide)
 				pid = perf_thread_map__pid(threads, thread);
 
 			group_fd = get_group_fd(evsel, cpu, thread);
-retry_open:
+
 			test_attr__ready();
 
 			fd = perf_event_open(evsel, pid, cpus->map[cpu],
@@ -2015,20 +2018,6 @@ retry_open:
 
 			if (fd < 0) {
 				err = -errno;
-
-				if (ignore_missing_thread(evsel, cpus->nr, cpu, threads, thread, err)) {
-					/*
-					 * We just removed 1 thread, so take a step
-					 * back on thread index and lower the upper
-					 * nthreads limit.
-					 */
-					nthreads--;
-					thread--;
-
-					/* ... and pretend like nothing have happened. */
-					err = 0;
-					continue;
-				}
 
 				pr_debug2_peo("\nsys_perf_event_open failed, error %d\n",
 					  err);
@@ -2069,6 +2058,14 @@ retry_open:
 	return 0;
 
 try_fallback:
+	if (evsel__ignore_missing_thread(evsel, cpus->nr, cpu, threads, thread, err)) {
+		/* We just removed 1 thread, so lower the upper nthreads limit. */
+		nthreads--;
+
+		/* ... and pretend like nothing have happened. */
+		err = 0;
+		goto retry_open;
+	}
 	/*
 	 * perf stat needs between 5 and 22 fds per CPU. When we run out
 	 * of them try to increase the limits.
