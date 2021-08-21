@@ -74,6 +74,7 @@
 enum map_type {
 	MAP_RX,
 	MAP_REDIRECT_ERR,
+	MAP_EXCEPTION,
 	NUM_MAP,
 };
 
@@ -98,6 +99,7 @@ struct map_entry {
 struct stats_record {
 	struct record rx_cnt;
 	struct record redir_err[XDP_REDIRECT_ERR_MAX];
+	struct record exception[XDP_ACTION_MAX];
 };
 
 struct sample_output {
@@ -115,6 +117,9 @@ struct sample_output {
 		__u64 suc;
 		__u64 err;
 	} redir_cnt;
+	struct {
+		__u64 hits;
+	} except_cnt;
 };
 
 struct xdp_desc {
@@ -156,6 +161,15 @@ static const char *xdp_redirect_err_help[XDP_REDIRECT_ERR_MAX - 1] = {
 	"No space in ptr_ring of cpumap kthread",
 };
 
+static const char *xdp_action_names[XDP_ACTION_MAX] = {
+	[XDP_ABORTED]  = "XDP_ABORTED",
+	[XDP_DROP]     = "XDP_DROP",
+	[XDP_PASS]     = "XDP_PASS",
+	[XDP_TX]       = "XDP_TX",
+	[XDP_REDIRECT] = "XDP_REDIRECT",
+	[XDP_UNKNOWN]  = "XDP_UNKNOWN",
+};
+
 static __u64 gettime(void)
 {
 	struct timespec t;
@@ -167,6 +181,13 @@ static __u64 gettime(void)
 		return UINT64_MAX;
 	}
 	return (__u64)t.tv_sec * NANOSEC_PER_SEC + t.tv_nsec;
+}
+
+static const char *action2str(int action)
+{
+	if (action < XDP_ACTION_MAX)
+		return xdp_action_names[action];
+	return NULL;
 }
 
 static void sample_print_help(int mask)
@@ -206,6 +227,15 @@ static void sample_print_help(int mask)
 
 		printf("  \n\t\t\t\terror/s   - Packets that failed redirection per second\n\n");
 	}
+
+	if (mask & SAMPLE_EXCEPTION_CNT) {
+		printf("  xdp_exception\t\tDisplays xdp_exception tracepoint events\n"
+		       "  \t\t\tThis can occur due to internal driver errors, unrecognized\n"
+		       "  \t\t\tXDP actions and due to explicit user trigger by use of XDP_ABORTED\n"
+		       "  \t\t\tEach action is expanded below this field with its count\n"
+		       "  \t\t\t\thit/s     - Number of times the tracepoint was hit per second\n\n");
+	}
+
 }
 
 void sample_usage(char *argv[], const struct option *long_options,
@@ -327,9 +357,26 @@ static struct stats_record *alloc_stats_record(void)
 			}
 		}
 	}
+	if (sample_mask & SAMPLE_EXCEPTION_CNT) {
+		for (i = 0; i < XDP_ACTION_MAX; i++) {
+			rec->exception[i].cpu = alloc_record_per_cpu();
+			if (!rec->exception[i].cpu) {
+				fprintf(stderr,
+					"Failed to allocate exception per-CPU array for "
+					"\"%s\" case\n",
+					action2str(i));
+				while (i--)
+					free(rec->exception[i].cpu);
+				goto end_redir;
+			}
+		}
+	}
 
 	return rec;
 
+end_redir:
+	for (i = 0; i < XDP_REDIRECT_ERR_MAX; i++)
+		free(rec->redir_err[i].cpu);
 end_rx_cnt:
 	free(rec->rx_cnt.cpu);
 end_rec:
@@ -343,6 +390,8 @@ static void free_stats_record(struct stats_record *r)
 	struct map_entry *e;
 	int i;
 
+	for (i = 0; i < XDP_ACTION_MAX; i++)
+		free(r->exception[i].cpu);
 	for (i = 0; i < XDP_REDIRECT_ERR_MAX; i++)
 		free(r->redir_err[i].cpu);
 	free(r->rx_cnt.cpu);
@@ -551,6 +600,50 @@ static void stats_get_redirect_err_cnt(struct stats_record *stats_rec,
 	}
 }
 
+static void stats_get_exception_cnt(struct stats_record *stats_rec,
+				    struct stats_record *stats_prev,
+				    unsigned int nr_cpus,
+				    struct sample_output *out)
+{
+	double t, drop, sum = 0;
+	struct record *rec, *prev;
+	int rec_i, i;
+
+	for (rec_i = 0; rec_i < XDP_ACTION_MAX; rec_i++) {
+		rec = &stats_rec->exception[rec_i];
+		prev = &stats_prev->exception[rec_i];
+		t = calc_period(rec, prev);
+
+		drop = calc_drop_pps(&rec->total, &prev->total, t);
+		/* Fold out errors after heading */
+		sum += drop;
+
+		if (drop > 0 && !out) {
+			print_always("    %-18s " FMT_COLUMNf "\n",
+				     action2str(rec_i), ERR(drop));
+
+			for (i = 0; i < nr_cpus; i++) {
+				struct datarec *r = &rec->cpu[i];
+				struct datarec *p = &prev->cpu[i];
+				char str[64];
+				double drop;
+
+				drop = calc_drop_pps(r, p, t);
+				if (!drop)
+					continue;
+
+				snprintf(str, sizeof(str), "cpu:%d", i);
+				print_default("       %-16s" FMT_COLUMNf "\n",
+					      str, ERR(drop));
+			}
+		}
+	}
+
+	if (out) {
+		out->except_cnt.hits = sum;
+		out->totals.err += sum;
+	}
+}
 
 static void stats_print(const char *prefix, int mask, struct stats_record *r,
 			struct stats_record *p, struct sample_output *out)
@@ -595,6 +688,16 @@ static void stats_print(const char *prefix, int mask, struct stats_record *r,
 		stats_get_redirect_err_cnt(r, p, nr_cpus, NULL);
 	}
 
+	if (mask & SAMPLE_EXCEPTION_CNT) {
+		str = out->except_cnt.hits ? "xdp_exception total" :
+						   "xdp_exception";
+
+		print_err(out->except_cnt.hits, "  %-20s " FMT_COLUMNl "\n", str,
+			  HITS(out->except_cnt.hits));
+
+		stats_get_exception_cnt(r, p, nr_cpus, NULL);
+	}
+
 	if (sample_log_level & LL_DEFAULT ||
 	    ((sample_log_level & LL_SIMPLE) && sample_err_exp)) {
 		sample_err_exp = false;
@@ -616,6 +719,9 @@ int sample_setup_maps(struct bpf_map **maps)
 		case MAP_REDIRECT_ERR:
 			sample_map_count[i] =
 				XDP_REDIRECT_ERR_MAX * sample_n_cpus;
+			break;
+		case MAP_EXCEPTION:
+			sample_map_count[i] = XDP_ACTION_MAX * sample_n_cpus;
 			break;
 		default:
 			return -EINVAL;
@@ -788,6 +894,11 @@ static int sample_stats_collect(struct stats_record *rec)
 					   &rec->redir_err[i]);
 	}
 
+	if (sample_mask & SAMPLE_EXCEPTION_CNT)
+		for (i = 0; i < XDP_ACTION_MAX; i++)
+			map_collect_percpu(&sample_mmap[MAP_EXCEPTION][i * sample_n_cpus],
+					   &rec->exception[i]);
+
 	return 0;
 }
 
@@ -811,6 +922,8 @@ static void sample_stats_print(int mask, struct stats_record *cur,
 		stats_get_redirect_cnt(cur, prev, 0, &out);
 	if (mask & SAMPLE_REDIRECT_ERR_CNT)
 		stats_get_redirect_err_cnt(cur, prev, 0, &out);
+	if (mask & SAMPLE_EXCEPTION_CNT)
+		stats_get_exception_cnt(cur, prev, 0, &out);
 	sample_summary_update(&out, interval);
 
 	stats_print(prog_name, mask, cur, prev, &out);

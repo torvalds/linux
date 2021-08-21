@@ -11,6 +11,7 @@ enum stats_mask {
 	_SAMPLE_REDIRECT_MAP        = 1U << 0,
 	SAMPLE_RX_CNT               = 1U << 1,
 	SAMPLE_REDIRECT_ERR_CNT     = 1U << 2,
+	SAMPLE_EXCEPTION_CNT        = 1U << 5,
 	SAMPLE_REDIRECT_CNT         = 1U << 7,
 	SAMPLE_REDIRECT_MAP_CNT     = SAMPLE_REDIRECT_CNT | _SAMPLE_REDIRECT_MAP,
 	SAMPLE_REDIRECT_ERR_MAP_CNT = SAMPLE_REDIRECT_ERR_CNT | _SAMPLE_REDIRECT_MAP,
@@ -75,6 +76,8 @@ static inline char *safe_strncpy(char *dst, const char *src, size_t size)
 			__attach_tp(tp_xdp_redirect_map_err);                  \
 		if (mask & SAMPLE_REDIRECT_ERR_CNT)                            \
 			__attach_tp(tp_xdp_redirect_err);                      \
+		if (mask & SAMPLE_EXCEPTION_CNT)                               \
+			__attach_tp(tp_xdp_exception);                         \
 		return 0;                                                      \
 	}
 
