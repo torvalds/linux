@@ -128,59 +128,25 @@ static u32 usb_read32(struct intf_hdl *pintfhdl, u32 addr)
 
 static int usb_write8(struct intf_hdl *pintfhdl, u32 addr, u8 val)
 {
-	u16 wvalue;
-	u16 len;
-	u8 data;
-	int ret;
+	u16 wvalue = (u16)(addr & 0x0000ffff);
 
-
-	wvalue = (u16)(addr & 0x0000ffff);
-	len = 1;
-	data = val;
-	ret = usbctrl_vendorreq(pintfhdl, wvalue, &data, len, REALTEK_USB_VENQT_WRITE);
-
-	return ret;
+	return usbctrl_vendorreq(pintfhdl, wvalue, &val, 1, REALTEK_USB_VENQT_WRITE);
 }
 
 static int usb_write16(struct intf_hdl *pintfhdl, u32 addr, u16 val)
 {
-	u16 wvalue;
-	u16 len;
-	__le32 data;
-	int ret;
+	u16 wvalue = (u16)(addr & 0x0000ffff);
+	__le32 data = cpu_to_le32(val & 0x0000ffff);
 
-
-
-	wvalue = (u16)(addr & 0x0000ffff);
-	len = 2;
-
-	data = cpu_to_le32(val & 0x0000ffff);
-
-	ret = usbctrl_vendorreq(pintfhdl, wvalue, &data, len, REALTEK_USB_VENQT_WRITE);
-
-
-
-	return ret;
+	return usbctrl_vendorreq(pintfhdl, wvalue, &data, 2, REALTEK_USB_VENQT_WRITE);
 }
 
 static int usb_write32(struct intf_hdl *pintfhdl, u32 addr, u32 val)
 {
-	u16 wvalue;
-	u16 len;
-	__le32 data;
-	int ret;
+	u16 wvalue = (u16)(addr & 0x0000ffff);
+	__le32 data = cpu_to_le32(val);
 
-
-
-	wvalue = (u16)(addr & 0x0000ffff);
-	len = 4;
-	data = cpu_to_le32(val);
-
-	ret = usbctrl_vendorreq(pintfhdl, wvalue, &data, len, REALTEK_USB_VENQT_WRITE);
-
-
-
-	return ret;
+	return usbctrl_vendorreq(pintfhdl, wvalue, &data, 4, REALTEK_USB_VENQT_WRITE);
 }
 
 static int usb_writeN(struct intf_hdl *pintfhdl, u32 addr, u32 length, u8 *pdata)
