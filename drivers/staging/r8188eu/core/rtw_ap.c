@@ -1199,7 +1199,7 @@ static void update_bcn_wps_ie(struct adapter *padapter)
 
 	pwps_ie_src = pmlmepriv->wps_beacon_ie;
 	if (!pwps_ie_src)
-		return;
+		goto exit;
 
 	wps_ielen = (uint)pwps_ie_src[1];/* to get ie data len */
 	if ((wps_offset + wps_ielen + 2 + remainder_ielen) <= MAX_IE_SZ) {
@@ -1213,6 +1213,7 @@ static void update_bcn_wps_ie(struct adapter *padapter)
 		pnetwork->IELength = wps_offset + (wps_ielen + 2) + remainder_ielen;
 	}
 
+exit:
 	kfree(pbackup_remainder_ie);
 }
 
