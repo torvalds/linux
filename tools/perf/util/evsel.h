@@ -150,6 +150,7 @@ struct evsel {
 		struct bperf_leader_bpf *leader_skel;
 		struct bperf_follower_bpf *follower_skel;
 	};
+	unsigned long		open_flags;
 };
 
 struct perf_missing_features {

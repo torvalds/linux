@@ -1710,17 +1710,16 @@ static void display_attr(struct perf_event_attr *attr)
 }
 
 static int perf_event_open(struct evsel *evsel,
-			   pid_t pid, int cpu, int group_fd,
-			   unsigned long flags)
+			   pid_t pid, int cpu, int group_fd)
 {
 	int precise_ip = evsel->core.attr.precise_ip;
 	int fd;
 
 	while (1) {
 		pr_debug2_peo("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx",
-			  pid, cpu, group_fd, flags);
+			  pid, cpu, group_fd, evsel->open_flags);
 
-		fd = sys_perf_event_open(&evsel->core.attr, pid, cpu, group_fd, flags);
+		fd = sys_perf_event_open(&evsel->core.attr, pid, cpu, group_fd, evsel->open_flags);
 		if (fd >= 0)
 			break;
 
@@ -1788,6 +1787,10 @@ static int __evsel__prepare_open(struct evsel *evsel, struct perf_cpu_map *cpus,
 	    perf_evsel__alloc_fd(&evsel->core, cpus->nr, nthreads) < 0)
 		return -ENOMEM;
 
+	evsel->open_flags = PERF_FLAG_FD_CLOEXEC;
+	if (evsel->cgrp)
+		evsel->open_flags |= PERF_FLAG_PID_CGROUP;
+
 	return 0;
 }
 
@@ -1796,7 +1799,6 @@ static int evsel__open_cpu(struct evsel *evsel, struct perf_cpu_map *cpus,
 		int start_cpu, int end_cpu)
 {
 	int cpu, thread, nthreads;
-	unsigned long flags = PERF_FLAG_FD_CLOEXEC;
 	int pid = -1, err, old_errno;
 	enum { NO_CHANGE, SET_TO_MAX, INCREASED_MAX } set_rlimit = NO_CHANGE;
 
@@ -1815,10 +1817,8 @@ static int evsel__open_cpu(struct evsel *evsel, struct perf_cpu_map *cpus,
 	else
 		nthreads = threads->nr;
 
-	if (evsel->cgrp) {
-		flags |= PERF_FLAG_PID_CGROUP;
+	if (evsel->cgrp)
 		pid = evsel->cgrp->fd;
-	}
 
 fallback_missing_features:
 	if (perf_missing_features.weight_struct) {
@@ -1832,7 +1832,7 @@ fallback_missing_features:
 		evsel->core.attr.clockid = 0;
 	}
 	if (perf_missing_features.cloexec)
-		flags &= ~(unsigned long)PERF_FLAG_FD_CLOEXEC;
+		evsel->open_flags &= ~(unsigned long)PERF_FLAG_FD_CLOEXEC;
 	if (perf_missing_features.mmap2)
 		evsel->core.attr.mmap2 = 0;
 	if (perf_missing_features.exclude_guest)
@@ -1866,7 +1866,7 @@ retry_open:
 			test_attr__ready();
 
 			fd = perf_event_open(evsel, pid, cpus->map[cpu],
-					     group_fd, flags);
+					     group_fd);
 
 			FD(evsel, cpu, thread) = fd;
 
@@ -1874,7 +1874,7 @@ retry_open:
 
 			if (unlikely(test_attr__enabled)) {
 				test_attr__open(&evsel->core.attr, pid, cpus->map[cpu],
-						fd, group_fd, flags);
+						fd, group_fd, evsel->open_flags);
 			}
 
 			if (fd < 0) {
@@ -2012,7 +2012,7 @@ try_fallback:
 		perf_missing_features.clockid = true;
 		pr_debug2_peo("switching off use_clockid\n");
 		goto fallback_missing_features;
-	} else if (!perf_missing_features.cloexec && (flags & PERF_FLAG_FD_CLOEXEC)) {
+	} else if (!perf_missing_features.cloexec && (evsel->open_flags & PERF_FLAG_FD_CLOEXEC)) {
 		perf_missing_features.cloexec = true;
 		pr_debug2_peo("switching off cloexec flag\n");
 		goto fallback_missing_features;
