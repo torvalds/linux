@@ -2847,7 +2847,8 @@ static int unix_shutdown(struct socket *sock, int mode)
 		int peer_mode = 0;
 		const struct proto *prot = READ_ONCE(other->sk_prot);
 
-		prot->unhash(other);
+		if (prot->unhash)
+			prot->unhash(other);
 		if (mode&RCV_SHUTDOWN)
 			peer_mode |= SEND_SHUTDOWN;
 		if (mode&SEND_SHUTDOWN)
