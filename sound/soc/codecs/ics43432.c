@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * I2S MEMS microphone driver for InvenSense ICS-43432
+ * I2S MEMS microphone driver for InvenSense ICS-43432 and similar
+ * MEMS-based microphones.
  *
  * - Non configurable.
  * - I2S interface, 64 BCLs per frame, 32 bits per channel, 24 bit data
@@ -53,6 +54,7 @@ static int ics43432_probe(struct platform_device *pdev)
 #ifdef CONFIG_OF
 static const struct of_device_id ics43432_ids[] = {
 	{ .compatible = "invensense,ics43432", },
+	{ .compatible = "cui,cmm-4030d-261", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ics43432_ids);
