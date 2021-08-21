@@ -11,6 +11,14 @@ array_map redir_err_cnt SEC(".maps");
 array_map cpumap_enqueue_cnt SEC(".maps");
 array_map cpumap_kthread_cnt SEC(".maps");
 array_map exception_cnt SEC(".maps");
+array_map devmap_xmit_cnt SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_HASH);
+	__uint(max_entries, 32 * 32);
+	__type(key, u64);
+	__type(value, struct datarec);
+} devmap_xmit_cnt_multi SEC(".maps");
 
 const volatile int nr_cpus = 0;
 
@@ -191,5 +199,68 @@ int BPF_PROG(tp_xdp_exception, const struct net_device *dev,
 		return 0;
 	NO_TEAR_INC(rec->dropped);
 
+	return 0;
+}
+
+SEC("tp_btf/xdp_devmap_xmit")
+int BPF_PROG(tp_xdp_devmap_xmit, const struct net_device *from_dev,
+	     const struct net_device *to_dev, int sent, int drops, int err)
+{
+	struct datarec *rec;
+	int idx_in, idx_out;
+	u32 cpu;
+
+	idx_in = from_dev->ifindex;
+	idx_out = to_dev->ifindex;
+
+	if (!IN_SET(from_match, idx_in))
+		return 0;
+	if (!IN_SET(to_match, idx_out))
+		return 0;
+
+	cpu = bpf_get_smp_processor_id();
+	rec = bpf_map_lookup_elem(&devmap_xmit_cnt, &cpu);
+	if (!rec)
+		return 0;
+	NO_TEAR_ADD(rec->processed, sent);
+	NO_TEAR_ADD(rec->dropped, drops);
+	/* Record bulk events, then userspace can calc average bulk size */
+	NO_TEAR_INC(rec->info);
+	/* Record error cases, where no frame were sent */
+	/* Catch API error of drv ndo_xdp_xmit sent more than count */
+	if (err || drops < 0)
+		NO_TEAR_INC(rec->issue);
+	return 0;
+}
+
+SEC("tp_btf/xdp_devmap_xmit")
+int BPF_PROG(tp_xdp_devmap_xmit_multi, const struct net_device *from_dev,
+	     const struct net_device *to_dev, int sent, int drops, int err)
+{
+	struct datarec empty = {};
+	struct datarec *rec;
+	int idx_in, idx_out;
+	u64 idx;
+
+	idx_in = from_dev->ifindex;
+	idx_out = to_dev->ifindex;
+	idx = idx_in;
+	idx = idx << 32 | idx_out;
+
+	if (!IN_SET(from_match, idx_in))
+		return 0;
+	if (!IN_SET(to_match, idx_out))
+		return 0;
+
+	bpf_map_update_elem(&devmap_xmit_cnt_multi, &idx, &empty, BPF_NOEXIST);
+	rec = bpf_map_lookup_elem(&devmap_xmit_cnt_multi, &idx);
+	if (!rec)
+		return 0;
+
+	NO_TEAR_ADD(rec->processed, sent);
+	NO_TEAR_ADD(rec->dropped, drops);
+	NO_TEAR_INC(rec->info);
+	if (err || drops < 0)
+		NO_TEAR_INC(rec->issue);
 	return 0;
 }
