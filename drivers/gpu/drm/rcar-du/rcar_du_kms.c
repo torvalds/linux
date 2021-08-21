@@ -513,8 +513,8 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 	ret = rcar_du_encoder_init(rcdu, output, entity);
 	if (ret && ret != -EPROBE_DEFER && ret != -ENOLINK)
 		dev_warn(rcdu->dev,
-			 "failed to initialize encoder %pOF on output %u (%d), skipping\n",
-			 entity, output, ret);
+			 "failed to initialize encoder %pOF on output %s (%d), skipping\n",
+			 entity, rcar_du_output_name(output), ret);
 
 	of_node_put(entity);
 

@@ -33,6 +33,17 @@ struct rcar_du_device;
 
 #define RCAR_DU_QUIRK_ALIGN_128B	BIT(0)	/* Align pitches to 128 bytes */
 
+enum rcar_du_output {
+	RCAR_DU_OUTPUT_DPAD0,
+	RCAR_DU_OUTPUT_DPAD1,
+	RCAR_DU_OUTPUT_LVDS0,
+	RCAR_DU_OUTPUT_LVDS1,
+	RCAR_DU_OUTPUT_HDMI0,
+	RCAR_DU_OUTPUT_HDMI1,
+	RCAR_DU_OUTPUT_TCON,
+	RCAR_DU_OUTPUT_MAX,
+};
+
 /*
  * struct rcar_du_output_routing - Output routing specification
  * @possible_crtcs: bitmask of possible CRTCs for the output
@@ -125,5 +136,7 @@ static inline void rcar_du_write(struct rcar_du_device *rcdu, u32 reg, u32 data)
 {
 	iowrite32(data, rcdu->mmio + reg);
 }
+
+const char *rcar_du_output_name(enum rcar_du_output output);
 
 #endif /* __RCAR_DU_DRV_H__ */
