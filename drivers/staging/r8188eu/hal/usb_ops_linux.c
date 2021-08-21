@@ -151,20 +151,15 @@ static int usb_write32(struct intf_hdl *pintfhdl, u32 addr, u32 val)
 
 static int usb_writeN(struct intf_hdl *pintfhdl, u32 addr, u32 length, u8 *pdata)
 {
-	u16 wvalue;
-	u16 len;
+	u16 wvalue = (u16)(addr & 0x0000ffff);
 	u8 buf[VENDOR_CMD_MAX_DATA_LEN] = {0};
-	int ret;
 
+	if (length > VENDOR_CMD_MAX_DATA_LEN)
+		return -EINVAL;
 
+	memcpy(buf, pdata, length);
 
-	wvalue = (u16)(addr & 0x0000ffff);
-	len = length;
-	memcpy(buf, pdata, len);
-
-	ret = usbctrl_vendorreq(pintfhdl, wvalue, buf, len, REALTEK_USB_VENQT_WRITE);
-
-	return ret;
+	return usbctrl_vendorreq(pintfhdl, wvalue, buf, (length & 0xffff), REALTEK_USB_VENQT_WRITE);
 }
 
 static void interrupt_handler_8188eu(struct adapter *adapt, u16 pkt_len, u8 *pbuf)
