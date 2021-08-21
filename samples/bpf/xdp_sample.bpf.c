@@ -8,6 +8,8 @@
 
 array_map rx_cnt SEC(".maps");
 array_map redir_err_cnt SEC(".maps");
+array_map cpumap_enqueue_cnt SEC(".maps");
+array_map cpumap_kthread_cnt SEC(".maps");
 array_map exception_cnt SEC(".maps");
 
 const volatile int nr_cpus = 0;
@@ -18,6 +20,8 @@ const volatile int nr_cpus = 0;
  */
 const volatile int from_match[32] = {};
 const volatile int to_match[32] = {};
+
+int cpumap_map_id = 0;
 
 /* Find if b is part of set a, but if a is empty set then evaluate to true */
 #define IN_SET(a, b)                                                 \
@@ -112,6 +116,59 @@ int BPF_PROG(tp_xdp_redirect_map, const struct net_device *dev,
 	return xdp_redirect_collect_stat(dev->ifindex, err);
 }
 
+SEC("tp_btf/xdp_cpumap_enqueue")
+int BPF_PROG(tp_xdp_cpumap_enqueue, int map_id, unsigned int processed,
+	     unsigned int drops, int to_cpu)
+{
+	u32 cpu = bpf_get_smp_processor_id();
+	struct datarec *rec;
+	u32 idx;
+
+	if (cpumap_map_id && cpumap_map_id != map_id)
+		return 0;
+
+	idx = to_cpu * nr_cpus + cpu;
+	rec = bpf_map_lookup_elem(&cpumap_enqueue_cnt, &idx);
+	if (!rec)
+		return 0;
+	NO_TEAR_ADD(rec->processed, processed);
+	NO_TEAR_ADD(rec->dropped, drops);
+	/* Record bulk events, then userspace can calc average bulk size */
+	if (processed > 0)
+		NO_TEAR_INC(rec->issue);
+	/* Inception: It's possible to detect overload situations, via
+	 * this tracepoint.  This can be used for creating a feedback
+	 * loop to XDP, which can take appropriate actions to mitigate
+	 * this overload situation.
+	 */
+	return 0;
+}
+
+SEC("tp_btf/xdp_cpumap_kthread")
+int BPF_PROG(tp_xdp_cpumap_kthread, int map_id, unsigned int processed,
+	     unsigned int drops, int sched, struct xdp_cpumap_stats *xdp_stats)
+{
+	struct datarec *rec;
+	u32 cpu;
+
+	if (cpumap_map_id && cpumap_map_id != map_id)
+		return 0;
+
+	cpu = bpf_get_smp_processor_id();
+	rec = bpf_map_lookup_elem(&cpumap_kthread_cnt, &cpu);
+	if (!rec)
+		return 0;
+	NO_TEAR_ADD(rec->processed, processed);
+	NO_TEAR_ADD(rec->dropped, drops);
+	NO_TEAR_ADD(rec->xdp_pass, xdp_stats->pass);
+	NO_TEAR_ADD(rec->xdp_drop, xdp_stats->drop);
+	NO_TEAR_ADD(rec->xdp_redirect, xdp_stats->redirect);
+	/* Count times kthread yielded CPU via schedule call */
+	if (sched)
+		NO_TEAR_INC(rec->issue);
+	return 0;
+}
+
 SEC("tp_btf/xdp_exception")
 int BPF_PROG(tp_xdp_exception, const struct net_device *dev,
 	     const struct bpf_prog *xdp, u32 act)
@@ -136,4 +193,3 @@ int BPF_PROG(tp_xdp_exception, const struct net_device *dev,
 
 	return 0;
 }
-
