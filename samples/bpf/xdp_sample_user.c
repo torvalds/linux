@@ -74,6 +74,8 @@
 enum map_type {
 	MAP_RX,
 	MAP_REDIRECT_ERR,
+	MAP_CPUMAP_ENQUEUE,
+	MAP_CPUMAP_KTHREAD,
 	MAP_EXCEPTION,
 	NUM_MAP,
 };
@@ -99,13 +101,16 @@ struct map_entry {
 struct stats_record {
 	struct record rx_cnt;
 	struct record redir_err[XDP_REDIRECT_ERR_MAX];
+	struct record kthread;
 	struct record exception[XDP_ACTION_MAX];
+	struct record enq[];
 };
 
 struct sample_output {
 	struct {
 		__u64 rx;
 		__u64 redir;
+		__u64 drop;
 		__u64 err;
 	} totals;
 	struct {
@@ -226,6 +231,30 @@ static void sample_print_help(int mask)
 			       xdp_redirect_err_help[i - 1]);
 
 		printf("  \n\t\t\t\terror/s   - Packets that failed redirection per second\n\n");
+	}
+
+	if (mask & SAMPLE_CPUMAP_ENQUEUE_CNT) {
+		printf("  enqueue to cpu N\tDisplays the number of packets enqueued to bulk queue of CPU N\n"
+		       "  \t\t\tExpands to cpu:FROM->N to display enqueue stats for each CPU enqueuing to CPU N\n"
+		       "  \t\t\tReceived packets can be associated with the CPU redirect program is enqueuing \n"
+		       "  \t\t\tpackets to.\n"
+		       "  \t\t\t\tpkt/s    - Packets enqueued per second from other CPU to CPU N\n"
+		       "  \t\t\t\tdrop/s   - Packets dropped when trying to enqueue to CPU N\n"
+		       "  \t\t\t\tbulk-avg - Average number of packets processed for each event\n\n");
+	}
+
+	if (mask & SAMPLE_CPUMAP_KTHREAD_CNT) {
+		printf("  kthread\t\tDisplays the number of packets processed in CPUMAP kthread for each CPU\n"
+		       "  \t\t\tPackets consumed from ptr_ring in kthread, and its xdp_stats (after calling \n"
+		       "  \t\t\tCPUMAP bpf prog) are expanded below this. xdp_stats are expanded as a total and\n"
+		       "  \t\t\tthen per-CPU to associate it to each CPU's pinned CPUMAP kthread.\n"
+		       "  \t\t\t\tpkt/s    - Packets consumed per second from ptr_ring\n"
+		       "  \t\t\t\tdrop/s   - Packets dropped per second in kthread\n"
+		       "  \t\t\t\tsched    - Number of times kthread called schedule()\n\n"
+		       "  \t\t\txdp_stats (also expands to per-CPU counts)\n"
+		       "  \t\t\t\tpass/s  - XDP_PASS count for CPUMAP program execution\n"
+		       "  \t\t\t\tdrop/s  - XDP_DROP count for CPUMAP program execution\n"
+		       "  \t\t\t\tredir/s - XDP_REDIRECT count for CPUMAP program execution\n\n");
 	}
 
 	if (mask & SAMPLE_EXCEPTION_CNT) {
@@ -357,6 +386,14 @@ static struct stats_record *alloc_stats_record(void)
 			}
 		}
 	}
+	if (sample_mask & SAMPLE_CPUMAP_KTHREAD_CNT) {
+		rec->kthread.cpu = alloc_record_per_cpu();
+		if (!rec->kthread.cpu) {
+			fprintf(stderr,
+				"Failed to allocate kthread per-CPU array\n");
+			goto end_redir;
+		}
+	}
 	if (sample_mask & SAMPLE_EXCEPTION_CNT) {
 		for (i = 0; i < XDP_ACTION_MAX; i++) {
 			rec->exception[i].cpu = alloc_record_per_cpu();
@@ -367,13 +404,32 @@ static struct stats_record *alloc_stats_record(void)
 					action2str(i));
 				while (i--)
 					free(rec->exception[i].cpu);
-				goto end_redir;
+				goto end_kthread;
+			}
+		}
+	}
+	if (sample_mask & SAMPLE_CPUMAP_ENQUEUE_CNT) {
+		for (i = 0; i < sample_n_cpus; i++) {
+			rec->enq[i].cpu = alloc_record_per_cpu();
+			if (!rec->enq[i].cpu) {
+				fprintf(stderr,
+					"Failed to allocate enqueue per-CPU array for "
+					"CPU %d\n",
+					i);
+				while (i--)
+					free(rec->enq[i].cpu);
+				goto end_exception;
 			}
 		}
 	}
 
 	return rec;
 
+end_exception:
+	for (i = 0; i < XDP_ACTION_MAX; i++)
+		free(rec->exception[i].cpu);
+end_kthread:
+	free(rec->kthread.cpu);
 end_redir:
 	for (i = 0; i < XDP_REDIRECT_ERR_MAX; i++)
 		free(rec->redir_err[i].cpu);
@@ -390,8 +446,11 @@ static void free_stats_record(struct stats_record *r)
 	struct map_entry *e;
 	int i;
 
+	for (i = 0; i < sample_n_cpus; i++)
+		free(r->enq[i].cpu);
 	for (i = 0; i < XDP_ACTION_MAX; i++)
 		free(r->exception[i].cpu);
+	free(r->kthread.cpu);
 	for (i = 0; i < XDP_REDIRECT_ERR_MAX; i++)
 		free(r->redir_err[i].cpu);
 	free(r->rx_cnt.cpu);
@@ -516,6 +575,137 @@ static void stats_get_rx_cnt(struct stats_record *stats_rec,
 		out->totals.rx += pps;
 		out->totals.drop += drop;
 		out->totals.err += err;
+	}
+}
+
+static void stats_get_cpumap_enqueue(struct stats_record *stats_rec,
+				     struct stats_record *stats_prev,
+				     unsigned int nr_cpus)
+{
+	struct record *rec, *prev;
+	double t, pps, drop, err;
+	int i, to_cpu;
+
+	/* cpumap enqueue stats */
+	for (to_cpu = 0; to_cpu < sample_n_cpus; to_cpu++) {
+		rec = &stats_rec->enq[to_cpu];
+		prev = &stats_prev->enq[to_cpu];
+		t = calc_period(rec, prev);
+
+		pps = calc_pps(&rec->total, &prev->total, t);
+		drop = calc_drop_pps(&rec->total, &prev->total, t);
+		err = calc_errs_pps(&rec->total, &prev->total, t);
+
+		if (pps > 0 || drop > 0) {
+			char str[64];
+
+			snprintf(str, sizeof(str), "enqueue to cpu %d", to_cpu);
+
+			if (err > 0)
+				err = pps / err; /* calc average bulk size */
+
+			print_err(drop,
+				  "  %-20s " FMT_COLUMNf FMT_COLUMNf __COLUMN(
+					  ".2f") "\n",
+				  str, PPS(pps), DROP(drop), err, "bulk-avg");
+		}
+
+		for (i = 0; i < nr_cpus; i++) {
+			struct datarec *r = &rec->cpu[i];
+			struct datarec *p = &prev->cpu[i];
+			char str[64];
+
+			pps = calc_pps(r, p, t);
+			drop = calc_drop_pps(r, p, t);
+			err = calc_errs_pps(r, p, t);
+			if (!pps && !drop && !err)
+				continue;
+
+			snprintf(str, sizeof(str), "cpu:%d->%d", i, to_cpu);
+			if (err > 0)
+				err = pps / err; /* calc average bulk size */
+			print_default(
+				"    %-18s " FMT_COLUMNf FMT_COLUMNf __COLUMN(
+					".2f") "\n",
+				str, PPS(pps), DROP(drop), err, "bulk-avg");
+		}
+	}
+}
+
+static void stats_get_cpumap_remote(struct stats_record *stats_rec,
+				    struct stats_record *stats_prev,
+				    unsigned int nr_cpus)
+{
+	double xdp_pass, xdp_drop, xdp_redirect;
+	struct record *rec, *prev;
+	double t;
+	int i;
+
+	rec = &stats_rec->kthread;
+	prev = &stats_prev->kthread;
+	t = calc_period(rec, prev);
+
+	calc_xdp_pps(&rec->total, &prev->total, &xdp_pass, &xdp_drop,
+		     &xdp_redirect, t);
+	if (xdp_pass || xdp_drop || xdp_redirect) {
+		print_err(xdp_drop,
+			  "    %-18s " FMT_COLUMNf FMT_COLUMNf FMT_COLUMNf "\n",
+			  "xdp_stats", PASS(xdp_pass), DROP(xdp_drop),
+			  REDIR(xdp_redirect));
+	}
+
+	for (i = 0; i < nr_cpus; i++) {
+		struct datarec *r = &rec->cpu[i];
+		struct datarec *p = &prev->cpu[i];
+		char str[64];
+
+		calc_xdp_pps(r, p, &xdp_pass, &xdp_drop, &xdp_redirect, t);
+		if (!xdp_pass && !xdp_drop && !xdp_redirect)
+			continue;
+
+		snprintf(str, sizeof(str), "cpu:%d", i);
+		print_default("      %-16s " FMT_COLUMNf FMT_COLUMNf FMT_COLUMNf
+			      "\n",
+			      str, PASS(xdp_pass), DROP(xdp_drop),
+			      REDIR(xdp_redirect));
+	}
+}
+
+static void stats_get_cpumap_kthread(struct stats_record *stats_rec,
+				     struct stats_record *stats_prev,
+				     unsigned int nr_cpus)
+{
+	struct record *rec, *prev;
+	double t, pps, drop, err;
+	int i;
+
+	rec = &stats_rec->kthread;
+	prev = &stats_prev->kthread;
+	t = calc_period(rec, prev);
+
+	pps = calc_pps(&rec->total, &prev->total, t);
+	drop = calc_drop_pps(&rec->total, &prev->total, t);
+	err = calc_errs_pps(&rec->total, &prev->total, t);
+
+	print_err(drop, "  %-20s " FMT_COLUMNf FMT_COLUMNf FMT_COLUMNf "\n",
+		  pps ? "kthread total" : "kthread", PPS(pps), DROP(drop), err,
+		  "sched");
+
+	for (i = 0; i < nr_cpus; i++) {
+		struct datarec *r = &rec->cpu[i];
+		struct datarec *p = &prev->cpu[i];
+		char str[64];
+
+		pps = calc_pps(r, p, t);
+		drop = calc_drop_pps(r, p, t);
+		err = calc_errs_pps(r, p, t);
+		if (!pps && !drop && !err)
+			continue;
+
+		snprintf(str, sizeof(str), "cpu:%d", i);
+		print_default("    %-18s " FMT_COLUMNf FMT_COLUMNf FMT_COLUMNf
+			      "\n",
+			      str, PPS(pps), DROP(drop), err, "sched");
 	}
 }
 
@@ -656,6 +846,9 @@ static void stats_print(const char *prefix, int mask, struct stats_record *r,
 		print_always(FMT_COLUMNl, RX(out->totals.rx));
 	if (mask & SAMPLE_REDIRECT_CNT)
 		print_always(FMT_COLUMNl, REDIR(out->totals.redir));
+	printf(FMT_COLUMNl,
+	       out->totals.err + out->totals.drop + out->totals.drop_xmit,
+	       "err,drop/s");
 	printf("\n");
 
 	if (mask & SAMPLE_RX_CNT) {
@@ -668,6 +861,14 @@ static void stats_print(const char *prefix, int mask, struct stats_record *r,
 			  ERR(out->rx_cnt.err));
 
 		stats_get_rx_cnt(r, p, nr_cpus, NULL);
+	}
+
+	if (mask & SAMPLE_CPUMAP_ENQUEUE_CNT)
+		stats_get_cpumap_enqueue(r, p, nr_cpus);
+
+	if (mask & SAMPLE_CPUMAP_KTHREAD_CNT) {
+		stats_get_cpumap_kthread(r, p, nr_cpus);
+		stats_get_cpumap_remote(r, p, nr_cpus);
 	}
 
 	if (mask & SAMPLE_REDIRECT_CNT) {
@@ -714,6 +915,7 @@ int sample_setup_maps(struct bpf_map **maps)
 
 		switch (i) {
 		case MAP_RX:
+		case MAP_CPUMAP_KTHREAD:
 			sample_map_count[i] = sample_n_cpus;
 			break;
 		case MAP_REDIRECT_ERR:
@@ -722,6 +924,8 @@ int sample_setup_maps(struct bpf_map **maps)
 			break;
 		case MAP_EXCEPTION:
 			sample_map_count[i] = XDP_ACTION_MAX * sample_n_cpus;
+		case MAP_CPUMAP_ENQUEUE:
+			sample_map_count[i] = sample_n_cpus * sample_n_cpus;
 			break;
 		default:
 			return -EINVAL;
@@ -850,6 +1054,9 @@ static void sample_summary_print(void)
 		print_always("  Average redir/s     : %'-10.0f\n",
 			     sample_round(pkts / period));
 	}
+	if (sample_out.totals.drop)
+		print_always("  Rx dropped          : %'-10llu\n",
+			     sample_out.totals.drop);
 	if (sample_out.totals.err)
 		print_always("  Errors recorded     : %'-10llu\n",
 			     sample_out.totals.err);
@@ -894,6 +1101,15 @@ static int sample_stats_collect(struct stats_record *rec)
 					   &rec->redir_err[i]);
 	}
 
+	if (sample_mask & SAMPLE_CPUMAP_ENQUEUE_CNT)
+		for (i = 0; i < sample_n_cpus; i++)
+			map_collect_percpu(&sample_mmap[MAP_CPUMAP_ENQUEUE][i * sample_n_cpus],
+					   &rec->enq[i]);
+
+	if (sample_mask & SAMPLE_CPUMAP_KTHREAD_CNT)
+		map_collect_percpu(sample_mmap[MAP_CPUMAP_KTHREAD],
+				   &rec->kthread);
+
 	if (sample_mask & SAMPLE_EXCEPTION_CNT)
 		for (i = 0; i < XDP_ACTION_MAX; i++)
 			map_collect_percpu(&sample_mmap[MAP_EXCEPTION][i * sample_n_cpus],
@@ -906,6 +1122,7 @@ static void sample_summary_update(struct sample_output *out, int interval)
 {
 	sample_out.totals.rx += out->totals.rx;
 	sample_out.totals.redir += out->totals.redir;
+	sample_out.totals.drop += out->totals.drop;
 	sample_out.totals.err += out->totals.err;
 	sample_out.rx_cnt.pps += interval;
 }
