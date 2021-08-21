@@ -5861,10 +5861,15 @@ int smb2_set_info(struct ksmbd_work *work)
 		break;
 	case SMB2_O_INFO_SECURITY:
 		ksmbd_debug(SMB, "GOT SMB2_O_INFO_SECURITY\n");
+		if (ksmbd_override_fsids(work)) {
+			rc = -ENOMEM;
+			goto err_out;
+		}
 		rc = smb2_set_info_sec(fp,
 				       le32_to_cpu(req->AdditionalInformation),
 				       req->Buffer,
 				       le32_to_cpu(req->BufferLength));
+		ksmbd_revert_fsids(work);
 		break;
 	default:
 		rc = -EOPNOTSUPP;
