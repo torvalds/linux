@@ -2009,8 +2009,6 @@ retry_open:
 
 			FD(evsel, cpu, thread) = fd;
 
-			bpf_counter__install_pe(evsel, cpu, fd);
-
 			if (fd < 0) {
 				err = -errno;
 
@@ -2018,6 +2016,8 @@ retry_open:
 					  err);
 				goto try_fallback;
 			}
+
+			bpf_counter__install_pe(evsel, cpu, fd);
 
 			if (unlikely(test_attr__enabled)) {
 				test_attr__open(&evsel->core.attr, pid, cpus->map[cpu],
