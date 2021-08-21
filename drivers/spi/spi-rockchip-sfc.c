@@ -453,7 +453,7 @@ static int rockchip_sfc_xfer_data_dma(struct rockchip_sfc *sfc,
 	dev_dbg(sfc->dev, "sfc xfer_dma len=%x\n", len);
 
 	if (op->data.dir == SPI_MEM_DATA_OUT)
-		memcpy_toio(sfc->buffer, op->data.buf.out, len);
+		memcpy(sfc->buffer, op->data.buf.out, len);
 
 	ret = rockchip_sfc_fifo_transfer_dma(sfc, sfc->dma_buffer, len);
 	if (!wait_for_completion_timeout(&sfc->cp, msecs_to_jiffies(2000))) {
@@ -462,7 +462,7 @@ static int rockchip_sfc_xfer_data_dma(struct rockchip_sfc *sfc,
 	}
 	rockchip_sfc_irq_mask(sfc, SFC_IMR_DMA);
 	if (op->data.dir == SPI_MEM_DATA_IN)
-		memcpy_fromio(op->data.buf.in, sfc->buffer, len);
+		memcpy(op->data.buf.in, sfc->buffer, len);
 
 	return ret;
 }
