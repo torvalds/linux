@@ -73,6 +73,7 @@
 
 enum map_type {
 	MAP_RX,
+	MAP_REDIRECT_ERR,
 	NUM_MAP,
 };
 
@@ -96,17 +97,24 @@ struct map_entry {
 
 struct stats_record {
 	struct record rx_cnt;
+	struct record redir_err[XDP_REDIRECT_ERR_MAX];
 };
 
 struct sample_output {
 	struct {
 		__u64 rx;
+		__u64 redir;
+		__u64 err;
 	} totals;
 	struct {
 		__u64 pps;
 		__u64 drop;
 		__u64 err;
 	} rx_cnt;
+	struct {
+		__u64 suc;
+		__u64 err;
+	} redir_cnt;
 };
 
 struct xdp_desc {
@@ -126,6 +134,27 @@ int sample_xdp_cnt;
 int sample_n_cpus;
 int sample_sig_fd;
 int sample_mask;
+
+static const char *xdp_redirect_err_names[XDP_REDIRECT_ERR_MAX] = {
+	/* Key=1 keeps unknown errors */
+	"Success",
+	"Unknown",
+	"EINVAL",
+	"ENETDOWN",
+	"EMSGSIZE",
+	"EOPNOTSUPP",
+	"ENOSPC",
+};
+
+/* Keyed from Unknown */
+static const char *xdp_redirect_err_help[XDP_REDIRECT_ERR_MAX - 1] = {
+	"Unknown error",
+	"Invalid redirection",
+	"Device being redirected to is down",
+	"Packet length too large for device",
+	"Operation not supported",
+	"No space in ptr_ring of cpumap kthread",
+};
 
 static __u64 gettime(void)
 {
@@ -161,6 +190,21 @@ static void sample_print_help(int mask)
 		       " \t\t\t\tpkt/s     - Packets received per second\n"
 		       " \t\t\t\tdrop/s    - Packets dropped per second\n"
 		       " \t\t\t\terror/s   - Errors encountered per second\n\n");
+	}
+	if (mask & (SAMPLE_REDIRECT_CNT | SAMPLE_REDIRECT_ERR_CNT)) {
+		printf("  redirect\t\tDisplays the number of packets successfully redirected\n"
+		       "  \t\t\tErrors encountered are expanded under redirect_err field\n"
+		       "  \t\t\tNote that passing -s to enable it has a per packet overhead\n"
+		       "  \t\t\t\tredir/s   - Packets redirected successfully per second\n\n"
+		       "  redirect_err\t\tDisplays the number of packets that failed redirection\n"
+		       "  \t\t\tThe errno is expanded under this field with per CPU count\n"
+		       "  \t\t\tThe recognized errors are:\n");
+
+		for (int i = 2; i < XDP_REDIRECT_ERR_MAX; i++)
+			printf("\t\t\t  %s: %s\n", xdp_redirect_err_names[i],
+			       xdp_redirect_err_help[i - 1]);
+
+		printf("  \n\t\t\t\terror/s   - Packets that failed redirection per second\n\n");
 	}
 }
 
@@ -269,8 +313,25 @@ static struct stats_record *alloc_stats_record(void)
 			goto end_rec;
 		}
 	}
+	if (sample_mask & (SAMPLE_REDIRECT_CNT | SAMPLE_REDIRECT_ERR_CNT)) {
+		for (i = 0; i < XDP_REDIRECT_ERR_MAX; i++) {
+			rec->redir_err[i].cpu = alloc_record_per_cpu();
+			if (!rec->redir_err[i].cpu) {
+				fprintf(stderr,
+					"Failed to allocate redir_err per-CPU array for "
+					"\"%s\" case\n",
+					xdp_redirect_err_names[i]);
+				while (i--)
+					free(rec->redir_err[i].cpu);
+				goto end_rx_cnt;
+			}
+		}
+	}
 
 	return rec;
+
+end_rx_cnt:
+	free(rec->rx_cnt.cpu);
 end_rec:
 	free(rec);
 	return NULL;
@@ -282,6 +343,8 @@ static void free_stats_record(struct stats_record *r)
 	struct map_entry *e;
 	int i;
 
+	for (i = 0; i < XDP_REDIRECT_ERR_MAX; i++)
+		free(r->redir_err[i].cpu);
 	free(r->rx_cnt.cpu);
 	free(r);
 }
@@ -407,6 +470,87 @@ static void stats_get_rx_cnt(struct stats_record *stats_rec,
 	}
 }
 
+static void stats_get_redirect_cnt(struct stats_record *stats_rec,
+				   struct stats_record *stats_prev,
+				   unsigned int nr_cpus,
+				   struct sample_output *out)
+{
+	struct record *rec, *prev;
+	double t, pps;
+	int i;
+
+	rec = &stats_rec->redir_err[0];
+	prev = &stats_prev->redir_err[0];
+	t = calc_period(rec, prev);
+	for (i = 0; i < nr_cpus; i++) {
+		struct datarec *r = &rec->cpu[i];
+		struct datarec *p = &prev->cpu[i];
+		char str[64];
+
+		pps = calc_pps(r, p, t);
+		if (!pps)
+			continue;
+
+		snprintf(str, sizeof(str), "cpu:%d", i);
+		print_default("    %-18s " FMT_COLUMNf "\n", str, REDIR(pps));
+	}
+
+	if (out) {
+		pps = calc_pps(&rec->total, &prev->total, t);
+		out->redir_cnt.suc = pps;
+		out->totals.redir += pps;
+	}
+}
+
+static void stats_get_redirect_err_cnt(struct stats_record *stats_rec,
+				       struct stats_record *stats_prev,
+				       unsigned int nr_cpus,
+				       struct sample_output *out)
+{
+	struct record *rec, *prev;
+	double t, drop, sum = 0;
+	int rec_i, i;
+
+	for (rec_i = 1; rec_i < XDP_REDIRECT_ERR_MAX; rec_i++) {
+		char str[64];
+
+		rec = &stats_rec->redir_err[rec_i];
+		prev = &stats_prev->redir_err[rec_i];
+		t = calc_period(rec, prev);
+
+		drop = calc_drop_pps(&rec->total, &prev->total, t);
+		if (drop > 0 && !out) {
+			snprintf(str, sizeof(str),
+				 sample_log_level & LL_DEFAULT ? "%s total" :
+								       "%s",
+				 xdp_redirect_err_names[rec_i]);
+			print_err(drop, "    %-18s " FMT_COLUMNf "\n", str,
+				  ERR(drop));
+		}
+
+		for (i = 0; i < nr_cpus; i++) {
+			struct datarec *r = &rec->cpu[i];
+			struct datarec *p = &prev->cpu[i];
+			double drop;
+
+			drop = calc_drop_pps(r, p, t);
+			if (!drop)
+				continue;
+
+			snprintf(str, sizeof(str), "cpu:%d", i);
+			print_default("       %-16s" FMT_COLUMNf "\n", str,
+				      ERR(drop));
+		}
+
+		sum += drop;
+	}
+
+	if (out) {
+		out->redir_cnt.err = sum;
+		out->totals.err += sum;
+	}
+}
+
 
 static void stats_print(const char *prefix, int mask, struct stats_record *r,
 			struct stats_record *p, struct sample_output *out)
@@ -417,6 +561,8 @@ static void stats_print(const char *prefix, int mask, struct stats_record *r,
 	print_always("%-23s", prefix ?: "Summary");
 	if (mask & SAMPLE_RX_CNT)
 		print_always(FMT_COLUMNl, RX(out->totals.rx));
+	if (mask & SAMPLE_REDIRECT_CNT)
+		print_always(FMT_COLUMNl, REDIR(out->totals.redir));
 	printf("\n");
 
 	if (mask & SAMPLE_RX_CNT) {
@@ -429,6 +575,24 @@ static void stats_print(const char *prefix, int mask, struct stats_record *r,
 			  ERR(out->rx_cnt.err));
 
 		stats_get_rx_cnt(r, p, nr_cpus, NULL);
+	}
+
+	if (mask & SAMPLE_REDIRECT_CNT) {
+		str = out->redir_cnt.suc ? "redirect total" : "redirect";
+		print_default("  %-20s " FMT_COLUMNl "\n", str,
+			      REDIR(out->redir_cnt.suc));
+
+		stats_get_redirect_cnt(r, p, nr_cpus, NULL);
+	}
+
+	if (mask & SAMPLE_REDIRECT_ERR_CNT) {
+		str = (sample_log_level & LL_DEFAULT) && out->redir_cnt.err ?
+				    "redirect_err total" :
+				    "redirect_err";
+		print_err(out->redir_cnt.err, "  %-20s " FMT_COLUMNl "\n", str,
+			  ERR(out->redir_cnt.err));
+
+		stats_get_redirect_err_cnt(r, p, nr_cpus, NULL);
 	}
 
 	if (sample_log_level & LL_DEFAULT ||
@@ -448,6 +612,10 @@ int sample_setup_maps(struct bpf_map **maps)
 		switch (i) {
 		case MAP_RX:
 			sample_map_count[i] = sample_n_cpus;
+			break;
+		case MAP_REDIRECT_ERR:
+			sample_map_count[i] =
+				XDP_REDIRECT_ERR_MAX * sample_n_cpus;
 			break;
 		default:
 			return -EINVAL;
@@ -568,6 +736,17 @@ static void sample_summary_print(void)
 		print_always("  Average packets/s   : %'-10.0f\n",
 			     sample_round(pkts / period));
 	}
+	if (sample_out.totals.redir) {
+		double pkts = sample_out.totals.redir;
+
+		print_always("  Packets redirected  : %'-10llu\n",
+			     sample_out.totals.redir);
+		print_always("  Average redir/s     : %'-10.0f\n",
+			     sample_round(pkts / period));
+	}
+	if (sample_out.totals.err)
+		print_always("  Errors recorded     : %'-10llu\n",
+			     sample_out.totals.err);
 }
 
 void sample_exit(int status)
@@ -600,12 +779,23 @@ static int sample_stats_collect(struct stats_record *rec)
 	if (sample_mask & SAMPLE_RX_CNT)
 		map_collect_percpu(sample_mmap[MAP_RX], &rec->rx_cnt);
 
+	if (sample_mask & SAMPLE_REDIRECT_CNT)
+		map_collect_percpu(sample_mmap[MAP_REDIRECT_ERR], &rec->redir_err[0]);
+
+	if (sample_mask & SAMPLE_REDIRECT_ERR_CNT) {
+		for (i = 1; i < XDP_REDIRECT_ERR_MAX; i++)
+			map_collect_percpu(&sample_mmap[MAP_REDIRECT_ERR][i * sample_n_cpus],
+					   &rec->redir_err[i]);
+	}
+
 	return 0;
 }
 
 static void sample_summary_update(struct sample_output *out, int interval)
 {
 	sample_out.totals.rx += out->totals.rx;
+	sample_out.totals.redir += out->totals.redir;
+	sample_out.totals.err += out->totals.err;
 	sample_out.rx_cnt.pps += interval;
 }
 
@@ -617,6 +807,10 @@ static void sample_stats_print(int mask, struct stats_record *cur,
 
 	if (mask & SAMPLE_RX_CNT)
 		stats_get_rx_cnt(cur, prev, 0, &out);
+	if (mask & SAMPLE_REDIRECT_CNT)
+		stats_get_redirect_cnt(cur, prev, 0, &out);
+	if (mask & SAMPLE_REDIRECT_ERR_CNT)
+		stats_get_redirect_err_cnt(cur, prev, 0, &out);
 	sample_summary_update(&out, interval);
 
 	stats_print(prog_name, mask, cur, prev, &out);

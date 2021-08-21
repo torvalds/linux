@@ -10,6 +10,10 @@
 enum stats_mask {
 	_SAMPLE_REDIRECT_MAP        = 1U << 0,
 	SAMPLE_RX_CNT               = 1U << 1,
+	SAMPLE_REDIRECT_ERR_CNT     = 1U << 2,
+	SAMPLE_REDIRECT_CNT         = 1U << 7,
+	SAMPLE_REDIRECT_MAP_CNT     = SAMPLE_REDIRECT_CNT | _SAMPLE_REDIRECT_MAP,
+	SAMPLE_REDIRECT_ERR_MAP_CNT = SAMPLE_REDIRECT_ERR_CNT | _SAMPLE_REDIRECT_MAP,
 };
 
 /* Exit return codes */
@@ -47,6 +51,15 @@ static inline char *safe_strncpy(char *dst, const char *src, size_t size)
 }
 #pragma GCC diagnostic pop
 
+#define __attach_tp(name)                                                      \
+	({                                                                     \
+		if (!bpf_program__is_tracing(skel->progs.name))                \
+			return -EINVAL;                                        \
+		skel->links.name = bpf_program__attach(skel->progs.name);      \
+		if (!skel->links.name)                                         \
+			return -errno;                                         \
+	})
+
 #define DEFINE_SAMPLE_INIT(name)                                               \
 	static int sample_init(struct name *skel, int mask)                    \
 	{                                                                      \
@@ -54,6 +67,14 @@ static inline char *safe_strncpy(char *dst, const char *src, size_t size)
 		ret = __sample_init(mask);                                     \
 		if (ret < 0)                                                   \
 			return ret;                                            \
+		if (mask & SAMPLE_REDIRECT_MAP_CNT)                            \
+			__attach_tp(tp_xdp_redirect_map);                      \
+		if (mask & SAMPLE_REDIRECT_CNT)                                \
+			__attach_tp(tp_xdp_redirect);                          \
+		if (mask & SAMPLE_REDIRECT_ERR_MAP_CNT)                        \
+			__attach_tp(tp_xdp_redirect_map_err);                  \
+		if (mask & SAMPLE_REDIRECT_ERR_CNT)                            \
+			__attach_tp(tp_xdp_redirect_err);                      \
 		return 0;                                                      \
 	}
 
