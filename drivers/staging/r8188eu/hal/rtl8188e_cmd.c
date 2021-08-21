@@ -6,7 +6,6 @@
 #include "../include/osdep_service.h"
 #include "../include/drv_types.h"
 #include "../include/recv_osdep.h"
-#include "../include/cmd_osdep.h"
 #include "../include/mlme_osdep.h"
 #include "../include/rtw_ioctl_set.h"
 
