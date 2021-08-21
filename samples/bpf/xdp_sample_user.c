@@ -1510,7 +1510,7 @@ static int sample_timer_cb(int timerfd, struct stats_record **rec,
 	if (ret < 0)
 		return ret;
 
-	if (sample_xdp_cnt == 2) {
+	if (sample_xdp_cnt == 2 && !(sample_mask & SAMPLE_SKIP_HEADING)) {
 		char fi[IFNAMSIZ];
 		char to[IFNAMSIZ];
 		const char *f, *t;
