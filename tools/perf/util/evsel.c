@@ -2011,17 +2011,17 @@ retry_open:
 
 			bpf_counter__install_pe(evsel, cpu, fd);
 
-			if (unlikely(test_attr__enabled)) {
-				test_attr__open(&evsel->core.attr, pid, cpus->map[cpu],
-						fd, group_fd, evsel->open_flags);
-			}
-
 			if (fd < 0) {
 				err = -errno;
 
 				pr_debug2_peo("\nsys_perf_event_open failed, error %d\n",
 					  err);
 				goto try_fallback;
+			}
+
+			if (unlikely(test_attr__enabled)) {
+				test_attr__open(&evsel->core.attr, pid, cpus->map[cpu],
+						fd, group_fd, evsel->open_flags);
 			}
 
 			pr_debug2_peo(" = %d\n", fd);
