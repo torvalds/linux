@@ -1827,6 +1827,20 @@ static void evsel__disable_missing_features(struct evsel *evsel)
 		evsel->core.attr.sample_id_all = 0;
 }
 
+int evsel__prepare_open(struct evsel *evsel, struct perf_cpu_map *cpus,
+			struct perf_thread_map *threads)
+{
+	int err;
+
+	err = __evsel__prepare_open(evsel, cpus, threads);
+	if (err)
+		return err;
+
+	evsel__disable_missing_features(evsel);
+
+	return err;
+}
+
 static int evsel__open_cpu(struct evsel *evsel, struct perf_cpu_map *cpus,
 		struct perf_thread_map *threads,
 		int start_cpu, int end_cpu)

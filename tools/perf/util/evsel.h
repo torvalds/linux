@@ -287,6 +287,8 @@ int evsel__open_per_thread(struct evsel *evsel, struct perf_thread_map *threads)
 int evsel__open(struct evsel *evsel, struct perf_cpu_map *cpus,
 		struct perf_thread_map *threads);
 void evsel__close(struct evsel *evsel);
+int evsel__prepare_open(struct evsel *evsel, struct perf_cpu_map *cpus,
+		struct perf_thread_map *threads);
 
 struct perf_sample;
 
