@@ -1931,13 +1931,40 @@ bool evsel__detect_missing_features(struct evsel *evsel)
 	}
 }
 
+bool evsel__increase_rlimit(enum rlimit_action *set_rlimit)
+{
+	int old_errno;
+	struct rlimit l;
+
+	if (*set_rlimit < INCREASED_MAX) {
+		old_errno = errno;
+
+		if (getrlimit(RLIMIT_NOFILE, &l) == 0) {
+			if (*set_rlimit == NO_CHANGE) {
+				l.rlim_cur = l.rlim_max;
+			} else {
+				l.rlim_cur = l.rlim_max + 1000;
+				l.rlim_max = l.rlim_cur;
+			}
+			if (setrlimit(RLIMIT_NOFILE, &l) == 0) {
+				(*set_rlimit) += 1;
+				errno = old_errno;
+				return true;
+			}
+		}
+		errno = old_errno;
+	}
+
+	return false;
+}
+
 static int evsel__open_cpu(struct evsel *evsel, struct perf_cpu_map *cpus,
 		struct perf_thread_map *threads,
 		int start_cpu, int end_cpu)
 {
 	int cpu, thread, nthreads;
 	int pid = -1, err, old_errno;
-	enum { NO_CHANGE, SET_TO_MAX, INCREASED_MAX } set_rlimit = NO_CHANGE;
+	enum rlimit_action set_rlimit = NO_CHANGE;
 
 	err = __evsel__prepare_open(evsel, cpus, threads);
 	if (err)
@@ -2046,25 +2073,8 @@ try_fallback:
 	 * perf stat needs between 5 and 22 fds per CPU. When we run out
 	 * of them try to increase the limits.
 	 */
-	if (err == -EMFILE && set_rlimit < INCREASED_MAX) {
-		struct rlimit l;
-
-		old_errno = errno;
-		if (getrlimit(RLIMIT_NOFILE, &l) == 0) {
-			if (set_rlimit == NO_CHANGE)
-				l.rlim_cur = l.rlim_max;
-			else {
-				l.rlim_cur = l.rlim_max + 1000;
-				l.rlim_max = l.rlim_cur;
-			}
-			if (setrlimit(RLIMIT_NOFILE, &l) == 0) {
-				set_rlimit++;
-				errno = old_errno;
-				goto retry_open;
-			}
-		}
-		errno = old_errno;
-	}
+	if (err == -EMFILE && evsel__increase_rlimit(&set_rlimit))
+		goto retry_open;
 
 	if (err != -EINVAL || cpu > 0 || thread > 0)
 		goto out_close;
