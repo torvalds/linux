@@ -8,6 +8,7 @@
 
 array_map rx_cnt SEC(".maps");
 array_map redir_err_cnt SEC(".maps");
+array_map exception_cnt SEC(".maps");
 
 const volatile int nr_cpus = 0;
 
@@ -110,3 +111,29 @@ int BPF_PROG(tp_xdp_redirect_map, const struct net_device *dev,
 {
 	return xdp_redirect_collect_stat(dev->ifindex, err);
 }
+
+SEC("tp_btf/xdp_exception")
+int BPF_PROG(tp_xdp_exception, const struct net_device *dev,
+	     const struct bpf_prog *xdp, u32 act)
+{
+	u32 cpu = bpf_get_smp_processor_id();
+	struct datarec *rec;
+	u32 key = act, idx;
+
+	if (!IN_SET(from_match, dev->ifindex))
+		return 0;
+	if (!IN_SET(to_match, dev->ifindex))
+		return 0;
+
+	if (key > XDP_REDIRECT)
+		key = XDP_REDIRECT + 1;
+
+	idx = key * nr_cpus + cpu;
+	rec = bpf_map_lookup_elem(&exception_cnt, &idx);
+	if (!rec)
+		return 0;
+	NO_TEAR_INC(rec->dropped);
+
+	return 0;
+}
+
