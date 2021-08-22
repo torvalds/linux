@@ -238,9 +238,13 @@ static int mlxsw_sp1_nve_vxlan_init(struct mlxsw_sp_nve *nve,
 	struct mlxsw_sp *mlxsw_sp = nve->mlxsw_sp;
 	int err;
 
-	err = __mlxsw_sp_nve_inc_parsing_depth_get(mlxsw_sp, config->udp_dport);
+	err = mlxsw_sp_parsing_vxlan_udp_dport_set(mlxsw_sp, config->udp_dport);
 	if (err)
 		return err;
+
+	err = mlxsw_sp_parsing_depth_inc(mlxsw_sp);
+	if (err)
+		goto err_parsing_depth_inc;
 
 	err = mlxsw_sp1_nve_vxlan_config_set(mlxsw_sp, config);
 	if (err)
@@ -263,7 +267,9 @@ err_promote_decap:
 err_rtdp_set:
 	mlxsw_sp1_nve_vxlan_config_clear(mlxsw_sp);
 err_config_set:
-	__mlxsw_sp_nve_inc_parsing_depth_put(mlxsw_sp, 0);
+	mlxsw_sp_parsing_depth_dec(mlxsw_sp);
+err_parsing_depth_inc:
+	mlxsw_sp_parsing_vxlan_udp_dport_set(mlxsw_sp, 0);
 	return err;
 }
 
@@ -275,7 +281,8 @@ static void mlxsw_sp1_nve_vxlan_fini(struct mlxsw_sp_nve *nve)
 	mlxsw_sp_router_nve_demote_decap(mlxsw_sp, config->ul_tb_id,
 					 config->ul_proto, &config->ul_sip);
 	mlxsw_sp1_nve_vxlan_config_clear(mlxsw_sp);
-	__mlxsw_sp_nve_inc_parsing_depth_put(mlxsw_sp, 0);
+	mlxsw_sp_parsing_depth_dec(mlxsw_sp);
+	mlxsw_sp_parsing_vxlan_udp_dport_set(mlxsw_sp, 0);
 }
 
 static int
@@ -412,9 +419,13 @@ static int mlxsw_sp2_nve_vxlan_init(struct mlxsw_sp_nve *nve,
 	struct mlxsw_sp *mlxsw_sp = nve->mlxsw_sp;
 	int err;
 
-	err = __mlxsw_sp_nve_inc_parsing_depth_get(mlxsw_sp, config->udp_dport);
+	err = mlxsw_sp_parsing_vxlan_udp_dport_set(mlxsw_sp, config->udp_dport);
 	if (err)
 		return err;
+
+	err = mlxsw_sp_parsing_depth_inc(mlxsw_sp);
+	if (err)
+		goto err_parsing_depth_inc;
 
 	err = mlxsw_sp2_nve_vxlan_config_set(mlxsw_sp, config);
 	if (err)
@@ -438,7 +449,9 @@ err_promote_decap:
 err_rtdp_set:
 	mlxsw_sp2_nve_vxlan_config_clear(mlxsw_sp);
 err_config_set:
-	__mlxsw_sp_nve_inc_parsing_depth_put(mlxsw_sp, 0);
+	mlxsw_sp_parsing_depth_dec(mlxsw_sp);
+err_parsing_depth_inc:
+	mlxsw_sp_parsing_vxlan_udp_dport_set(mlxsw_sp, 0);
 	return err;
 }
 
@@ -450,7 +463,8 @@ static void mlxsw_sp2_nve_vxlan_fini(struct mlxsw_sp_nve *nve)
 	mlxsw_sp_router_nve_demote_decap(mlxsw_sp, config->ul_tb_id,
 					 config->ul_proto, &config->ul_sip);
 	mlxsw_sp2_nve_vxlan_config_clear(mlxsw_sp);
-	__mlxsw_sp_nve_inc_parsing_depth_put(mlxsw_sp, 0);
+	mlxsw_sp_parsing_depth_dec(mlxsw_sp);
+	mlxsw_sp_parsing_vxlan_udp_dport_set(mlxsw_sp, 0);
 }
 
 const struct mlxsw_sp_nve_ops mlxsw_sp2_nve_vxlan_ops = {
