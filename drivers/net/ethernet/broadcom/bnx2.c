@@ -8041,21 +8041,16 @@ bnx2_read_vpd_fw_ver(struct bnx2 *bp)
 #define BNX2_VPD_LEN		128
 #define BNX2_MAX_VER_SLEN	30
 
-	data = kmalloc(256, GFP_KERNEL);
+	data = kmalloc(BNX2_VPD_LEN, GFP_KERNEL);
 	if (!data)
 		return;
 
-	rc = bnx2_nvram_read(bp, BNX2_VPD_NVRAM_OFFSET, data + BNX2_VPD_LEN,
-			     BNX2_VPD_LEN);
+	rc = bnx2_nvram_read(bp, BNX2_VPD_NVRAM_OFFSET, data, BNX2_VPD_LEN);
 	if (rc)
 		goto vpd_done;
 
-	for (i = 0; i < BNX2_VPD_LEN; i += 4) {
-		data[i] = data[i + BNX2_VPD_LEN + 3];
-		data[i + 1] = data[i + BNX2_VPD_LEN + 2];
-		data[i + 2] = data[i + BNX2_VPD_LEN + 1];
-		data[i + 3] = data[i + BNX2_VPD_LEN];
-	}
+	for (i = 0; i < BNX2_VPD_LEN; i += 4)
+		swab32s((u32 *)&data[i]);
 
 	j = pci_vpd_find_ro_info_keyword(data, BNX2_VPD_LEN,
 					 PCI_VPD_RO_KEYWORD_MFR_ID, &len);
