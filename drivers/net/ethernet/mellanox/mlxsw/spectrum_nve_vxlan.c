@@ -10,14 +10,6 @@
 #include "spectrum.h"
 #include "spectrum_nve.h"
 
-/* Eth (18B) | IPv6 (40B) | UDP (8B) | VxLAN (8B) | Eth (14B) | IPv6 (40B)
- *
- * In the worst case - where we have a VLAN tag on the outer Ethernet
- * header and IPv6 in overlay and underlay - we need to parse 128 bytes
- */
-#define MLXSW_SP_NVE_VXLAN_PARSING_DEPTH 128
-#define MLXSW_SP_NVE_DEFAULT_PARSING_DEPTH 96
-
 #define MLXSW_SP_NVE_VXLAN_SUPPORTED_FLAGS	(VXLAN_F_UDP_ZERO_CSUM_TX | \
 						 VXLAN_F_LEARN)
 
@@ -113,66 +105,6 @@ static void mlxsw_sp_nve_vxlan_config(const struct mlxsw_sp_nve *nve,
 	config->ul_proto = MLXSW_SP_L3_PROTO_IPV4;
 	config->ul_sip.addr4 = cfg->saddr.sin.sin_addr.s_addr;
 	config->udp_dport = cfg->dst_port;
-}
-
-static int __mlxsw_sp_nve_parsing_set(struct mlxsw_sp *mlxsw_sp,
-				      unsigned int parsing_depth,
-				      __be16 udp_dport)
-{
-	char mprs_pl[MLXSW_REG_MPRS_LEN];
-
-	mlxsw_reg_mprs_pack(mprs_pl, parsing_depth, be16_to_cpu(udp_dport));
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mprs), mprs_pl);
-}
-
-static int mlxsw_sp_nve_parsing_set(struct mlxsw_sp *mlxsw_sp,
-				    __be16 udp_dport)
-{
-	int parsing_depth = mlxsw_sp->nve->inc_parsing_depth_refs ?
-				MLXSW_SP_NVE_VXLAN_PARSING_DEPTH :
-				MLXSW_SP_NVE_DEFAULT_PARSING_DEPTH;
-
-	return __mlxsw_sp_nve_parsing_set(mlxsw_sp, parsing_depth, udp_dport);
-}
-
-static int
-__mlxsw_sp_nve_inc_parsing_depth_get(struct mlxsw_sp *mlxsw_sp,
-				     __be16 udp_dport)
-{
-	int err;
-
-	mlxsw_sp->nve->inc_parsing_depth_refs++;
-
-	err = mlxsw_sp_nve_parsing_set(mlxsw_sp, udp_dport);
-	if (err)
-		goto err_nve_parsing_set;
-	return 0;
-
-err_nve_parsing_set:
-	mlxsw_sp->nve->inc_parsing_depth_refs--;
-	return err;
-}
-
-static void
-__mlxsw_sp_nve_inc_parsing_depth_put(struct mlxsw_sp *mlxsw_sp,
-				     __be16 udp_dport)
-{
-	mlxsw_sp->nve->inc_parsing_depth_refs--;
-	mlxsw_sp_nve_parsing_set(mlxsw_sp, udp_dport);
-}
-
-int mlxsw_sp_nve_inc_parsing_depth_get(struct mlxsw_sp *mlxsw_sp)
-{
-	__be16 udp_dport = mlxsw_sp->nve->config.udp_dport;
-
-	return __mlxsw_sp_nve_inc_parsing_depth_get(mlxsw_sp, udp_dport);
-}
-
-void mlxsw_sp_nve_inc_parsing_depth_put(struct mlxsw_sp *mlxsw_sp)
-{
-	__be16 udp_dport = mlxsw_sp->nve->config.udp_dport;
-
-	__mlxsw_sp_nve_inc_parsing_depth_put(mlxsw_sp, udp_dport);
 }
 
 static void
