@@ -2745,7 +2745,7 @@ int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 {
 	int i, ret = 0, addr;
 	int ec, sn, pn, na;
-	u8 *vpd, csum, base_val = 0;
+	u8 *vpd, base_val = 0;
 	unsigned int vpdr_len, kw_offset, id_len;
 
 	vpd = vmalloc(VPD_LEN);
@@ -2800,13 +2800,9 @@ int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	var += PCI_VPD_INFO_FLD_HDR_SIZE; \
 } while (0)
 
-	FIND_VPD_KW(i, "RV");
-	for (csum = 0; i >= 0; i--)
-		csum += vpd[i];
-
-	if (csum) {
-		dev_err(adapter->pdev_dev,
-			"corrupted VPD EEPROM, actual csum %u\n", csum);
+	ret = pci_vpd_check_csum(vpd, VPD_LEN);
+	if (ret) {
+		dev_err(adapter->pdev_dev, "VPD checksum incorrect or missing\n");
 		ret = -EINVAL;
 		goto out;
 	}
