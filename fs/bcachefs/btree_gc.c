@@ -1736,8 +1736,14 @@ static int bch2_gc_btree_gens(struct bch_fs *c, enum btree_id btree_id)
 				   BTREE_ITER_ALL_SNAPSHOTS);
 
 	while ((bch2_trans_begin(&trans),
-		k = bch2_btree_iter_peek(iter)).k &&
-	       !(ret = bkey_err(k))) {
+		k = bch2_btree_iter_peek(iter)).k) {
+		ret = bkey_err(k);
+
+		if (ret == -EINTR)
+			continue;
+		if (ret)
+			break;
+
 		c->gc_gens_pos = iter->pos;
 
 		if (gc_btree_gens_key(c, k) && !commit_err) {
