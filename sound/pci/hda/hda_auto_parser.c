@@ -971,6 +971,8 @@ EXPORT_SYMBOL_GPL(snd_hda_pick_pin_fixup);
  * When a special model string "nofixup" is given, also no fixup is applied.
  *
  * The function tries to find the matching model name at first, if given.
+ * If the model string contains the SSID alias, try to look up with the given
+ * alias ID.
  * If nothing matched, try to look up the PCI SSID.
  * If still nothing matched, try to look up the codec SSID.
  */
@@ -983,6 +985,7 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 	int id = HDA_FIXUP_ID_NOT_SET;
 	const char *name = NULL;
 	const char *type = NULL;
+	int vendor, device;
 
 	if (codec->fixup_id != HDA_FIXUP_ID_NOT_SET)
 		return;
@@ -1012,6 +1015,16 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 
 	if (!quirk)
 		return;
+
+	/* match with the SSID alias given by the model string "XXXX:YYYY" */
+	if (codec->modelname &&
+	    sscanf(codec->modelname, "%04x:%04x", &vendor, &device) == 2) {
+		q = snd_pci_quirk_lookup_id(vendor, device, quirk);
+		if (q) {
+			type = "alias SSID";
+			goto found_device;
+		}
+	}
 
 	/* match with the PCI SSID */
 	q = snd_pci_quirk_lookup(codec->bus->pci, quirk);
