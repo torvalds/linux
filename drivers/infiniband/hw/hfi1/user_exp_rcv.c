@@ -177,8 +177,8 @@ static void unpin_rcv_pages(struct hfi1_filedata *fd,
 	struct mm_struct *mm;
 
 	if (mapped) {
-		pci_unmap_single(dd->pcidev, node->dma_addr,
-				 node->npages * PAGE_SIZE, PCI_DMA_FROMDEVICE);
+		dma_unmap_single(&dd->pcidev->dev, node->dma_addr,
+				 node->npages * PAGE_SIZE, DMA_FROM_DEVICE);
 		pages = &node->pages[idx];
 		mm = mm_from_tid_node(node);
 	} else {
@@ -739,9 +739,8 @@ static int set_rcvarray_entry(struct hfi1_filedata *fd,
 	if (!node)
 		return -ENOMEM;
 
-	phys = pci_map_single(dd->pcidev,
-			      __va(page_to_phys(pages[0])),
-			      npages * PAGE_SIZE, PCI_DMA_FROMDEVICE);
+	phys = dma_map_single(&dd->pcidev->dev, __va(page_to_phys(pages[0])),
+			      npages * PAGE_SIZE, DMA_FROM_DEVICE);
 	if (dma_mapping_error(&dd->pcidev->dev, phys)) {
 		dd_dev_err(dd, "Failed to DMA map Exp Rcv pages 0x%llx\n",
 			   phys);
@@ -783,8 +782,8 @@ out_unmap:
 	hfi1_cdbg(TID, "Failed to insert RB node %u 0x%lx, 0x%lx %d",
 		  node->rcventry, node->notifier.interval_tree.start,
 		  node->phys, ret);
-	pci_unmap_single(dd->pcidev, phys, npages * PAGE_SIZE,
-			 PCI_DMA_FROMDEVICE);
+	dma_unmap_single(&dd->pcidev->dev, phys, npages * PAGE_SIZE,
+			 DMA_FROM_DEVICE);
 	kfree(node);
 	return -EFAULT;
 }

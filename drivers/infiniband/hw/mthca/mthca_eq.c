@@ -617,9 +617,9 @@ static void mthca_free_eq(struct mthca_dev *dev,
 
 	mthca_free_mr(dev, &eq->mr);
 	for (i = 0; i < npages; ++i)
-		pci_free_consistent(dev->pdev, PAGE_SIZE,
-				    eq->page_list[i].buf,
-				    dma_unmap_addr(&eq->page_list[i], mapping));
+		dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
+				  eq->page_list[i].buf,
+				  dma_unmap_addr(&eq->page_list[i], mapping));
 
 	kfree(eq->page_list);
 	mthca_free_mailbox(dev, mailbox);
@@ -739,17 +739,18 @@ int mthca_map_eq_icm(struct mthca_dev *dev, u64 icm_virt)
 	dev->eq_table.icm_page = alloc_page(GFP_HIGHUSER);
 	if (!dev->eq_table.icm_page)
 		return -ENOMEM;
-	dev->eq_table.icm_dma  = pci_map_page(dev->pdev, dev->eq_table.icm_page, 0,
-					      PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	if (pci_dma_mapping_error(dev->pdev, dev->eq_table.icm_dma)) {
+	dev->eq_table.icm_dma =
+		dma_map_page(&dev->pdev->dev, dev->eq_table.icm_page, 0,
+			     PAGE_SIZE, DMA_BIDIRECTIONAL);
+	if (dma_mapping_error(&dev->pdev->dev, dev->eq_table.icm_dma)) {
 		__free_page(dev->eq_table.icm_page);
 		return -ENOMEM;
 	}
 
 	ret = mthca_MAP_ICM_page(dev, dev->eq_table.icm_dma, icm_virt);
 	if (ret) {
-		pci_unmap_page(dev->pdev, dev->eq_table.icm_dma, PAGE_SIZE,
-			       PCI_DMA_BIDIRECTIONAL);
+		dma_unmap_page(&dev->pdev->dev, dev->eq_table.icm_dma,
+			       PAGE_SIZE, DMA_BIDIRECTIONAL);
 		__free_page(dev->eq_table.icm_page);
 	}
 
@@ -759,8 +760,8 @@ int mthca_map_eq_icm(struct mthca_dev *dev, u64 icm_virt)
 void mthca_unmap_eq_icm(struct mthca_dev *dev)
 {
 	mthca_UNMAP_ICM(dev, dev->eq_table.icm_virt, 1);
-	pci_unmap_page(dev->pdev, dev->eq_table.icm_dma, PAGE_SIZE,
-		       PCI_DMA_BIDIRECTIONAL);
+	dma_unmap_page(&dev->pdev->dev, dev->eq_table.icm_dma, PAGE_SIZE,
+		       DMA_BIDIRECTIONAL);
 	__free_page(dev->eq_table.icm_page);
 }
 
