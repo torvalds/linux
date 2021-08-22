@@ -132,7 +132,7 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	if (ret < 0)
 		return ret;
 
-	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret)
 		goto err_free_pci_vec;
 
