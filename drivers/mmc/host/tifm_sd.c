@@ -669,8 +669,8 @@ static void tifm_sd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 			if(1 != tifm_map_sg(sock, &host->bounce_buf, 1,
 					    r_data->flags & MMC_DATA_WRITE
-					    ? PCI_DMA_TODEVICE
-					    : PCI_DMA_FROMDEVICE)) {
+					    ? DMA_TO_DEVICE
+					    : DMA_FROM_DEVICE)) {
 				pr_err("%s : scatterlist map failed\n",
 				       dev_name(&sock->dev));
 				mrq->cmd->error = -ENOMEM;
@@ -680,15 +680,15 @@ static void tifm_sd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 						   r_data->sg_len,
 						   r_data->flags
 						   & MMC_DATA_WRITE
-						   ? PCI_DMA_TODEVICE
-						   : PCI_DMA_FROMDEVICE);
+						   ? DMA_TO_DEVICE
+						   : DMA_FROM_DEVICE);
 			if (host->sg_len < 1) {
 				pr_err("%s : scatterlist map failed\n",
 				       dev_name(&sock->dev));
 				tifm_unmap_sg(sock, &host->bounce_buf, 1,
 					      r_data->flags & MMC_DATA_WRITE
-					      ? PCI_DMA_TODEVICE
-					      : PCI_DMA_FROMDEVICE);
+					      ? DMA_TO_DEVICE
+					      : DMA_FROM_DEVICE);
 				mrq->cmd->error = -ENOMEM;
 				goto err_out;
 			}
@@ -762,10 +762,10 @@ static void tifm_sd_end_cmd(struct tasklet_struct *t)
 		} else {
 			tifm_unmap_sg(sock, &host->bounce_buf, 1,
 				      (r_data->flags & MMC_DATA_WRITE)
-				      ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
+				      ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 			tifm_unmap_sg(sock, r_data->sg, r_data->sg_len,
 				      (r_data->flags & MMC_DATA_WRITE)
-				      ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
+				      ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 		}
 
 		r_data->bytes_xfered = r_data->blocks
