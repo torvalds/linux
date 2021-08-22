@@ -64,8 +64,8 @@ static inline int qmem_alloc(struct device *dev, struct qmem **q,
 
 	qmem->entry_sz = entry_sz;
 	qmem->alloc_sz = (qsize * entry_sz) + OTX2_ALIGN;
-	qmem->base = dma_alloc_coherent(dev, qmem->alloc_sz,
-					 &qmem->iova, GFP_KERNEL);
+	qmem->base = dma_alloc_attrs(dev, qmem->alloc_sz, &qmem->iova,
+				     GFP_KERNEL, DMA_ATTR_FORCE_CONTIGUOUS);
 	if (!qmem->base)
 		return -ENOMEM;
 
@@ -84,9 +84,10 @@ static inline void qmem_free(struct device *dev, struct qmem *qmem)
 		return;
 
 	if (qmem->base)
-		dma_free_coherent(dev, qmem->alloc_sz,
-				  qmem->base - qmem->align,
-				  qmem->iova - qmem->align);
+		dma_free_attrs(dev, qmem->alloc_sz,
+			       qmem->base - qmem->align,
+			       qmem->iova - qmem->align,
+			       DMA_ATTR_FORCE_CONTIGUOUS);
 	devm_kfree(dev, qmem);
 }
 
@@ -191,8 +192,6 @@ enum nix_scheduler {
 #define NIX_CHAN_CGX_LMAC_CHX(a, b, c)	(0x800 + 0x100 * (a) + 0x10 * (b) + (c))
 #define NIX_CHAN_LBK_CHX(a, b)		(0 + 0x100 * (a) + (b))
 #define NIX_CHAN_SDP_CH_START		(0x700ull)
-
-#define SDP_CHANNELS			256
 
 /* The mask is to extract lower 10-bits of channel number
  * which CPT will pass to X2P.

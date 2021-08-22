@@ -25,7 +25,7 @@ static int nix_update_mce_rule(struct rvu *rvu, u16 pcifunc,
 			       int type, bool add);
 static int nix_setup_ipolicers(struct rvu *rvu,
 			       struct nix_hw *nix_hw, int blkaddr);
-static void nix_ipolicer_freemem(struct nix_hw *nix_hw);
+static void nix_ipolicer_freemem(struct rvu *rvu, struct nix_hw *nix_hw);
 static int nix_verify_bandprof(struct nix_cn10k_aq_enq_req *req,
 			       struct nix_hw *nix_hw, u16 pcifunc);
 static int nix_free_all_bandprof(struct rvu *rvu, u16 pcifunc);
@@ -3965,7 +3965,7 @@ static void rvu_nix_block_freemem(struct rvu *rvu, int blkaddr,
 			kfree(txsch->schq.bmap);
 		}
 
-		nix_ipolicer_freemem(nix_hw);
+		nix_ipolicer_freemem(rvu, nix_hw);
 
 		vlan = &nix_hw->txvlan;
 		kfree(vlan->rsrc.bmap);
@@ -4341,10 +4341,13 @@ static int nix_setup_ipolicers(struct rvu *rvu,
 	return 0;
 }
 
-static void nix_ipolicer_freemem(struct nix_hw *nix_hw)
+static void nix_ipolicer_freemem(struct rvu *rvu, struct nix_hw *nix_hw)
 {
 	struct nix_ipolicer *ipolicer;
 	int layer;
+
+	if (!rvu->hw->cap.ipolicer)
+		return;
 
 	for (layer = 0; layer < BAND_PROF_NUM_LAYERS; layer++) {
 		ipolicer = &nix_hw->ipolicer[layer];

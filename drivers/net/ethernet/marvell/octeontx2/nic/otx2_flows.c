@@ -907,6 +907,7 @@ static int otx2_add_flow_msg(struct otx2_nic *pfvf, struct otx2_flow *flow)
 		if (flow->flow_spec.flow_type & FLOW_RSS) {
 			req->op = NIX_RX_ACTIONOP_RSS;
 			req->index = flow->rss_ctx_id;
+			req->flow_key_alg = pfvf->hw.flowkey_alg_idx;
 		} else {
 			req->op = NIX_RX_ACTIONOP_UCAST;
 			req->index = ethtool_get_flow_spec_ring(ring_cookie);

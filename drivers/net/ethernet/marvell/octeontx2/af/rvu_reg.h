@@ -53,7 +53,7 @@
 #define RVU_AF_SMMU_TXN_REQ		    (0x6008)
 #define RVU_AF_SMMU_ADDR_RSP_STS	    (0x6010)
 #define RVU_AF_SMMU_ADDR_TLN		    (0x6018)
-#define RVU_AF_SMMU_TLN_FLIT1		    (0x6030)
+#define RVU_AF_SMMU_TLN_FLIT0		    (0x6020)
 
 /* Admin function's privileged PF/VF registers */
 #define RVU_PRIV_CONST                      (0x8000000)
