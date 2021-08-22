@@ -121,10 +121,7 @@ static void SwLedBlink(struct LED_871x *pLed)
 	}
 
 	if (bStopBlinking) {
-		/* if (padapter->pwrctrlpriv.cpwm >= PS_STATE_S2) */
-		if (0) {
-			SwLedOff(padapter, pLed);
-		} else if ((check_fwstate(pmlmepriv, _FW_LINKED)) && (!pLed->bLedOn)) {
+		if ((check_fwstate(pmlmepriv, _FW_LINKED)) && (!pLed->bLedOn)) {
 			SwLedOn(padapter, pLed);
 		} else if ((check_fwstate(pmlmepriv, _FW_LINKED)) &&  pLed->bLedOn) {
 			SwLedOff(padapter, pLed);
