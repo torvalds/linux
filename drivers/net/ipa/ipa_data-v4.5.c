@@ -443,7 +443,7 @@ static const struct ipa_interconnect_data ipa_interconnect_data[] = {
 };
 
 /* Clock and interconnect configuration data for an SoC having IPA v4.5 */
-static const struct ipa_clock_data ipa_clock_data = {
+static const struct ipa_power_data ipa_power_data = {
 	.core_clock_rate	= 150 * 1000 * 1000,	/* Hz (150?  60?) */
 	.interconnect_count	= ARRAY_SIZE(ipa_interconnect_data),
 	.interconnect_data	= ipa_interconnect_data,
@@ -458,5 +458,5 @@ const struct ipa_data ipa_data_v4_5 = {
 	.endpoint_data	= ipa_gsi_endpoint_data,
 	.resource_data	= &ipa_resource_data,
 	.mem_data	= &ipa_mem_data,
-	.clock_data	= &ipa_clock_data,
+	.power_data	= &ipa_power_data,
 };

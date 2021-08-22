@@ -21,7 +21,7 @@
 #include "ipa_smp2p.h"
 #include "ipa_qmi.h"
 #include "ipa_uc.h"
-#include "ipa_clock.h"
+#include "ipa_power.h"
 
 #define IPA_NETDEV_NAME		"rmnet_ipa%d"
 #define IPA_NETDEV_TAILROOM	0	/* for padding by mux layer */
@@ -67,14 +67,15 @@ static int ipa_open(struct net_device *netdev)
 
 	netif_start_queue(netdev);
 
-	(void)pm_runtime_put(dev);
+	pm_runtime_mark_last_busy(dev);
+	(void)pm_runtime_put_autosuspend(dev);
 
 	return 0;
 
 err_disable_tx:
 	ipa_endpoint_disable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
 err_power_put:
-	(void)pm_runtime_put(dev);
+	pm_runtime_put_noidle(dev);
 
 	return ret;
 }
@@ -97,7 +98,8 @@ static int ipa_stop(struct net_device *netdev)
 	ipa_endpoint_disable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]);
 	ipa_endpoint_disable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
 out_power_put:
-	(void)pm_runtime_put(dev);
+	pm_runtime_mark_last_busy(dev);
+	(void)pm_runtime_put_autosuspend(dev);
 
 	return 0;
 }
@@ -145,7 +147,7 @@ ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		 */
 		ipa_power_modem_queue_stop(ipa);
 
-		(void)pm_runtime_put(dev);
+		pm_runtime_put_noidle(dev);
 
 		return NETDEV_TX_BUSY;
 	}
@@ -154,7 +156,8 @@ ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	ret = ipa_endpoint_skb_tx(endpoint, skb);
 
-	(void)pm_runtime_put(dev);
+	pm_runtime_mark_last_busy(dev);
+	(void)pm_runtime_put_autosuspend(dev);
 
 	if (ret) {
 		if (ret != -E2BIG)
@@ -398,7 +401,8 @@ static void ipa_modem_crashed(struct ipa *ipa)
 		dev_err(dev, "error %d zeroing modem memory regions\n", ret);
 
 out_power_put:
-	(void)pm_runtime_put(dev);
+	pm_runtime_mark_last_busy(dev);
+	(void)pm_runtime_put_autosuspend(dev);
 }
 
 static int ipa_modem_notify(struct notifier_block *nb, unsigned long action,
@@ -411,7 +415,7 @@ static int ipa_modem_notify(struct notifier_block *nb, unsigned long action,
 	switch (action) {
 	case QCOM_SSR_BEFORE_POWERUP:
 		dev_info(dev, "received modem starting event\n");
-		ipa_uc_clock(ipa);
+		ipa_uc_power(ipa);
 		ipa_smp2p_notify_reset(ipa);
 		break;
 

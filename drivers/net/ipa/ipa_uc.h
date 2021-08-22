@@ -21,18 +21,18 @@ void ipa_uc_config(struct ipa *ipa);
 void ipa_uc_deconfig(struct ipa *ipa);
 
 /**
- * ipa_uc_clock() - Take a proxy clock reference for the microcontroller
+ * ipa_uc_power() - Take a proxy power reference for the microcontroller
  * @ipa:	IPA pointer
  *
  * The first time the modem boots, it loads firmware for and starts the
  * IPA-resident microcontroller.  The microcontroller signals that it
  * has completed its initialization by sending an INIT_COMPLETED response
- * message to the AP.  The AP must ensure the IPA core clock is operating
- * until it receives this message, and to do so we take a "proxy" clock
+ * message to the AP.  The AP must ensure the IPA is powered until
+ * it receives this message, and to do so we take a "proxy" clock
  * reference on its behalf here.  Once we receive the INIT_COMPLETED
- * message (in ipa_uc_response_hdlr()) we drop this clock reference.
+ * message (in ipa_uc_response_hdlr()) we drop this power reference.
  */
-void ipa_uc_clock(struct ipa *ipa);
+void ipa_uc_power(struct ipa *ipa);
 
 /**
  * ipa_uc_panic_notifier()
