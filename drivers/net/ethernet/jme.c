@@ -734,17 +734,17 @@ jme_make_new_rx_buf(struct jme_adapter *jme, int i)
 	if (unlikely(!skb))
 		return -ENOMEM;
 
-	mapping = pci_map_page(jme->pdev, virt_to_page(skb->data),
+	mapping = dma_map_page(&jme->pdev->dev, virt_to_page(skb->data),
 			       offset_in_page(skb->data), skb_tailroom(skb),
-			       PCI_DMA_FROMDEVICE);
-	if (unlikely(pci_dma_mapping_error(jme->pdev, mapping))) {
+			       DMA_FROM_DEVICE);
+	if (unlikely(dma_mapping_error(&jme->pdev->dev, mapping))) {
 		dev_kfree_skb(skb);
 		return -ENOMEM;
 	}
 
 	if (likely(rxbi->mapping))
-		pci_unmap_page(jme->pdev, rxbi->mapping,
-			       rxbi->len, PCI_DMA_FROMDEVICE);
+		dma_unmap_page(&jme->pdev->dev, rxbi->mapping, rxbi->len,
+			       DMA_FROM_DEVICE);
 
 	rxbi->skb = skb;
 	rxbi->len = skb_tailroom(skb);
@@ -760,10 +760,8 @@ jme_free_rx_buf(struct jme_adapter *jme, int i)
 	rxbi += i;
 
 	if (rxbi->skb) {
-		pci_unmap_page(jme->pdev,
-				 rxbi->mapping,
-				 rxbi->len,
-				 PCI_DMA_FROMDEVICE);
+		dma_unmap_page(&jme->pdev->dev, rxbi->mapping, rxbi->len,
+			       DMA_FROM_DEVICE);
 		dev_kfree_skb(rxbi->skb);
 		rxbi->skb = NULL;
 		rxbi->mapping = 0;
@@ -1005,16 +1003,12 @@ jme_alloc_and_feed_skb(struct jme_adapter *jme, int idx)
 	rxbi += idx;
 
 	skb = rxbi->skb;
-	pci_dma_sync_single_for_cpu(jme->pdev,
-					rxbi->mapping,
-					rxbi->len,
-					PCI_DMA_FROMDEVICE);
+	dma_sync_single_for_cpu(&jme->pdev->dev, rxbi->mapping, rxbi->len,
+				DMA_FROM_DEVICE);
 
 	if (unlikely(jme_make_new_rx_buf(jme, idx))) {
-		pci_dma_sync_single_for_device(jme->pdev,
-						rxbi->mapping,
-						rxbi->len,
-						PCI_DMA_FROMDEVICE);
+		dma_sync_single_for_device(&jme->pdev->dev, rxbi->mapping,
+					   rxbi->len, DMA_FROM_DEVICE);
 
 		++(NET_STAT(jme).rx_dropped);
 	} else {
@@ -1453,10 +1447,9 @@ static void jme_tx_clean_tasklet(struct tasklet_struct *t)
 				ttxbi = txbi + ((i + j) & (mask));
 				txdesc[(i + j) & (mask)].dw[0] = 0;
 
-				pci_unmap_page(jme->pdev,
-						 ttxbi->mapping,
-						 ttxbi->len,
-						 PCI_DMA_TODEVICE);
+				dma_unmap_page(&jme->pdev->dev,
+					       ttxbi->mapping, ttxbi->len,
+					       DMA_TO_DEVICE);
 
 				ttxbi->mapping = 0;
 				ttxbi->len = 0;
@@ -1966,19 +1959,13 @@ jme_fill_tx_map(struct pci_dev *pdev,
 {
 	dma_addr_t dmaaddr;
 
-	dmaaddr = pci_map_page(pdev,
-				page,
-				page_offset,
-				len,
-				PCI_DMA_TODEVICE);
+	dmaaddr = dma_map_page(&pdev->dev, page, page_offset, len,
+			       DMA_TO_DEVICE);
 
-	if (unlikely(pci_dma_mapping_error(pdev, dmaaddr)))
+	if (unlikely(dma_mapping_error(&pdev->dev, dmaaddr)))
 		return -EINVAL;
 
-	pci_dma_sync_single_for_device(pdev,
-				       dmaaddr,
-				       len,
-				       PCI_DMA_TODEVICE);
+	dma_sync_single_for_device(&pdev->dev, dmaaddr, len, DMA_TO_DEVICE);
 
 	txdesc->dw[0] = 0;
 	txdesc->dw[1] = 0;
@@ -2003,10 +1990,8 @@ static void jme_drop_tx_map(struct jme_adapter *jme, int startidx, int count)
 
 	for (j = 0 ; j < count ; j++) {
 		ctxbi = txbi + ((startidx + j + 2) & (mask));
-		pci_unmap_page(jme->pdev,
-				ctxbi->mapping,
-				ctxbi->len,
-				PCI_DMA_TODEVICE);
+		dma_unmap_page(&jme->pdev->dev, ctxbi->mapping, ctxbi->len,
+			       DMA_TO_DEVICE);
 
 		ctxbi->mapping = 0;
 		ctxbi->len = 0;
@@ -2859,18 +2844,15 @@ static int
 jme_pci_dma64(struct pci_dev *pdev)
 {
 	if (pdev->device == PCI_DEVICE_ID_JMICRON_JMC250 &&
-	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64)))
-		if (!pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))
-			return 1;
+	    !dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)))
+		return 1;
 
 	if (pdev->device == PCI_DEVICE_ID_JMICRON_JMC250 &&
-	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(40)))
-		if (!pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(40)))
-			return 1;
+	    !dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(40)))
+		return 1;
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))
-		if (!pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))
-			return 0;
+	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32)))
+		return 0;
 
 	return -1;
 }
