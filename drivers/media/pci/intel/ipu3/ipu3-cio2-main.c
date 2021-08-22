@@ -1752,7 +1752,7 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 
 	pci_set_master(pci_dev);
 
-	r = pci_set_dma_mask(pci_dev, CIO2_DMA_MASK);
+	r = dma_set_mask(&pci_dev->dev, CIO2_DMA_MASK);
 	if (r) {
 		dev_err(dev, "failed to set DMA mask (%d)\n", r);
 		return -ENODEV;
