@@ -81,6 +81,7 @@ struct mlxsw_sp_router {
 	size_t adj_grp_size_ranges_count;
 	struct delayed_work nh_grp_activity_dw;
 	struct list_head nh_res_grp_list;
+	bool inc_parsing_depth;
 };
 
 struct mlxsw_sp_fib_entry_priv {
