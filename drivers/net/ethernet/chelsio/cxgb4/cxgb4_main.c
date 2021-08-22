@@ -6162,8 +6162,7 @@ static void print_port_info(const struct net_device *dev)
 		--bufp;
 	sprintf(bufp, "BASE-%s", t4_get_port_type_description(pi->port_type));
 
-	netdev_info(dev, "%s: Chelsio %s (%s) %s\n",
-		    dev->name, adap->params.vpd.id, adap->name, buf);
+	netdev_info(dev, "Chelsio %s %s\n", adap->params.vpd.id, buf);
 }
 
 /*
