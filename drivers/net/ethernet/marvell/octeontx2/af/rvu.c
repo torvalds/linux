@@ -498,12 +498,15 @@ int rvu_lf_reset(struct rvu *rvu, struct rvu_block *block, int lf)
 static void rvu_block_reset(struct rvu *rvu, int blkaddr, u64 rst_reg)
 {
 	struct rvu_block *block = &rvu->hw->block[blkaddr];
+	int err;
 
 	if (!block->implemented)
 		return;
 
 	rvu_write64(rvu, blkaddr, rst_reg, BIT_ULL(0));
-	rvu_poll_reg(rvu, blkaddr, rst_reg, BIT_ULL(63), true);
+	err = rvu_poll_reg(rvu, blkaddr, rst_reg, BIT_ULL(63), true);
+	if (err)
+		dev_err(rvu->dev, "HW block:%d reset failed\n", blkaddr);
 }
 
 static void rvu_reset_all_blocks(struct rvu *rvu)
