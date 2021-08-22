@@ -849,7 +849,7 @@ static int xts_crypt(struct skcipher_request *req, bool encrypt)
 		return -EINVAL;
 
 	err = skcipher_walk_virt(&walk, req, false);
-	if (err)
+	if (!walk.nbytes)
 		return err;
 
 	if (unlikely(tail > 0 && walk.nbytes < walk.total)) {
