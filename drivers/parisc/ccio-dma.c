@@ -518,9 +518,9 @@ typedef unsigned long space_t;
 ** when it passes in BIDIRECTIONAL flag.
 */
 static u32 hint_lookup[] = {
-	[PCI_DMA_BIDIRECTIONAL]	= HINT_STOP_MOST | HINT_SAFE_DMA | IOPDIR_VALID,
-	[PCI_DMA_TODEVICE]	= HINT_STOP_MOST | HINT_PREFETCH | IOPDIR_VALID,
-	[PCI_DMA_FROMDEVICE]	= HINT_STOP_MOST | IOPDIR_VALID,
+	[DMA_BIDIRECTIONAL]	= HINT_STOP_MOST | HINT_SAFE_DMA | IOPDIR_VALID,
+	[DMA_TO_DEVICE]		= HINT_STOP_MOST | HINT_PREFETCH | IOPDIR_VALID,
+	[DMA_FROM_DEVICE]	= HINT_STOP_MOST | IOPDIR_VALID,
 };
 
 /**
@@ -860,7 +860,7 @@ ccio_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle, gfp_t flag,
 
 	if (ret) {
 		memset(ret, 0, size);
-		*dma_handle = ccio_map_single(dev, ret, size, PCI_DMA_BIDIRECTIONAL);
+		*dma_handle = ccio_map_single(dev, ret, size, DMA_BIDIRECTIONAL);
 	}
 
 	return ret;
