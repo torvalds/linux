@@ -3366,7 +3366,7 @@ static int bnxt_run_loopback(struct bnxt *bp)
 		data[i] = (u8)(i & 0xff);
 
 	map = dma_map_single(&bp->pdev->dev, skb->data, pkt_size,
-			     PCI_DMA_TODEVICE);
+			     DMA_TO_DEVICE);
 	if (dma_mapping_error(&bp->pdev->dev, map)) {
 		dev_kfree_skb(skb);
 		return -EIO;
@@ -3379,7 +3379,7 @@ static int bnxt_run_loopback(struct bnxt *bp)
 	bnxt_db_write(bp, &txr->tx_db, txr->tx_prod);
 	rc = bnxt_poll_loopback(bp, cpr, pkt_size);
 
-	dma_unmap_single(&bp->pdev->dev, map, pkt_size, PCI_DMA_TODEVICE);
+	dma_unmap_single(&bp->pdev->dev, map, pkt_size, DMA_TO_DEVICE);
 	dev_kfree_skb(skb);
 	return rc;
 }
