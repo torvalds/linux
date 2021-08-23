@@ -900,7 +900,7 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 
 	ret = pdata->calibrate(gpadc);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to read calibration registers\n");
+		dev_err(dev, "failed to read calibration registers\n");
 		return ret;
 	}
 
@@ -914,14 +914,14 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 
 	ret = twl6030_gpadc_enable_irq(TWL6030_GPADC_RT_SW1_EOC_MASK);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to enable GPADC interrupt\n");
+		dev_err(dev, "failed to enable GPADC interrupt\n");
 		return ret;
 	}
 
 	ret = twl_i2c_write_u8(TWL6030_MODULE_ID1, TWL6030_GPADCS,
 					TWL6030_REG_TOGGLE1);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to enable GPADC module\n");
+		dev_err(dev, "failed to enable GPADC module\n");
 		return ret;
 	}
 
