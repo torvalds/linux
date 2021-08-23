@@ -200,6 +200,7 @@ enum vop2_layer_phy_id {
 };
 
 struct vop2_zpos {
+	struct drm_plane *plane;
 	int win_phys_id;
 	int zpos;
 };
@@ -4533,7 +4534,10 @@ static int vop2_zpos_cmp(const void *a, const void *b)
 	struct vop2_zpos *pa = (struct vop2_zpos *)a;
 	struct vop2_zpos *pb = (struct vop2_zpos *)b;
 
-	return pa->zpos - pb->zpos;
+	if (pa->zpos != pb->zpos)
+		return pa->zpos - pb->zpos;
+	else
+		return pa->plane->base.id - pb->plane->base.id;
 }
 
 static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
@@ -5155,6 +5159,7 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 		vpstate = to_vop2_plane_state(plane->state);
 		vop2_zpos[nr_layers].win_phys_id = win->phys_id;
 		vop2_zpos[nr_layers].zpos = vpstate->zpos;
+		vop2_zpos[nr_layers].plane = plane;
 		nr_layers++;
 		DRM_DEV_DEBUG(vop2->dev, "%s active zpos:%d for vp%d from vp%d\n",
 			     win->name, vpstate->zpos, vp->id, old_vp->id);
