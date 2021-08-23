@@ -75,6 +75,17 @@
 		#size-cells = <1>;
 		ranges;
 
+		securam: securam@e0000000 {
+			compatible = "microchip,sama7g5-securam", "atmel,sama5d2-securam", "mmio-sram";
+			reg = <0xe0000000 0x4000>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 18>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0xe0000000 0x4000>;
+			no-memory-wc;
+			status = "okay";
+		};
+
 		secumod: secumod@e0004000 {
 			compatible = "microchip,sama7g5-secumod", "atmel,sama5d2-secumod", "syscon";
 			reg = <0xe0004000 0x4000>;
