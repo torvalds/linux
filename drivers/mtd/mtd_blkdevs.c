@@ -36,14 +36,6 @@ static void blktrans_dev_release(struct kref *kref)
 	kfree(dev);
 }
 
-static struct mtd_blktrans_dev *blktrans_dev_get(struct gendisk *disk)
-{
-	struct mtd_blktrans_dev *dev = disk->private_data;
-
-	kref_get(&dev->ref);
-	return dev;
-}
-
 static void blktrans_dev_put(struct mtd_blktrans_dev *dev)
 {
 	kref_put(&dev->ref, blktrans_dev_release);
@@ -191,15 +183,16 @@ static blk_status_t mtd_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 static int blktrans_open(struct block_device *bdev, fmode_t mode)
 {
-	struct mtd_blktrans_dev *dev = blktrans_dev_get(bdev->bd_disk);
+	struct mtd_blktrans_dev *dev = bdev->bd_disk->private_data;
 	int ret = 0;
+
+	kref_get(&dev->ref);
 
 	mutex_lock(&dev->lock);
 
 	if (dev->open)
 		goto unlock;
 
-	kref_get(&dev->ref);
 	__module_get(dev->tr->owner);
 
 	if (!dev->mtd)
@@ -219,7 +212,6 @@ static int blktrans_open(struct block_device *bdev, fmode_t mode)
 unlock:
 	dev->open++;
 	mutex_unlock(&dev->lock);
-	blktrans_dev_put(dev);
 	return ret;
 
 error_release:
@@ -227,7 +219,6 @@ error_release:
 		dev->tr->release(dev);
 error_put:
 	module_put(dev->tr->owner);
-	kref_put(&dev->ref, blktrans_dev_release);
 	mutex_unlock(&dev->lock);
 	blktrans_dev_put(dev);
 	return ret;
@@ -235,14 +226,13 @@ error_put:
 
 static void blktrans_release(struct gendisk *disk, fmode_t mode)
 {
-	struct mtd_blktrans_dev *dev = blktrans_dev_get(disk);
+	struct mtd_blktrans_dev *dev = disk->private_data;
 
 	mutex_lock(&dev->lock);
 
 	if (--dev->open)
 		goto unlock;
 
-	kref_put(&dev->ref, blktrans_dev_release);
 	module_put(dev->tr->owner);
 
 	if (dev->mtd) {
