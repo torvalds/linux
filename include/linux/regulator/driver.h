@@ -527,8 +527,8 @@ struct regulator_irq_data {
  *		active events as core does not clean the map data.
  *		REGULATOR_FAILED_RETRY can be returned to indicate that the
  *		status reading from IC failed. If this is repeated for
- *		fatal_cnt times the core will call die() callback or BUG()
- *		as a last resort to protect the HW.
+ *		fatal_cnt times the core will call die() callback or power-off
+ *		the system as a last resort to protect the HW.
  * @renable:	Optional callback to check status (if HW supports that) before
  *		re-enabling IRQ. If implemented this should clear the error
  *		flags so that errors fetched by regulator_get_error_flags()
@@ -537,7 +537,8 @@ struct regulator_irq_data {
  *		REGULATOR_FAILED_RETRY can be returned to
  *		indicate that the status reading from IC failed. If this is
  *		repeated for 'fatal_cnt' times the core will call die()
- *		callback or BUG() as a last resort to protect the HW.
+ *		callback or if die() is not populated then attempt to power-off
+ *		the system as a last resort to protect the HW.
  *		Returning zero indicates that the problem in HW has been solved
  *		and IRQ will be re-enabled. Returning REGULATOR_ERROR_ON
  *		indicates the error condition is still active and keeps IRQ
