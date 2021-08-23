@@ -259,8 +259,8 @@ int ndr_encode_posix_acl(struct ndr *n,
 		ndr_write_int32(n, 0);
 	}
 
-	ndr_write_int64(n, from_kuid(user_ns, inode->i_uid));
-	ndr_write_int64(n, from_kgid(user_ns, inode->i_gid));
+	ndr_write_int64(n, from_kuid(&init_user_ns, i_uid_into_mnt(user_ns, inode)));
+	ndr_write_int64(n, from_kgid(&init_user_ns, i_gid_into_mnt(user_ns, inode)));
 	ndr_write_int32(n, inode->i_mode);
 
 	if (acl) {
