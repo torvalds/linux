@@ -193,9 +193,9 @@ static int st_accel_i2c_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
-	st_sensors_power_disable(indio_dev);
-
 	st_accel_common_remove(indio_dev);
+
+	st_sensors_power_disable(indio_dev);
 
 	return 0;
 }
