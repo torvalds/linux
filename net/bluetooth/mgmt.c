@@ -7315,6 +7315,11 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 	if (!rp)
 		return -ENOMEM;
 
+	if (!status && !lmp_ssp_capable(hdev)) {
+		status = MGMT_STATUS_NOT_SUPPORTED;
+		eir_len = 0;
+	}
+
 	if (status)
 		goto complete;
 
