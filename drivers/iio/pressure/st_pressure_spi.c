@@ -102,9 +102,9 @@ static int st_press_spi_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
-	st_sensors_power_disable(indio_dev);
-
 	st_press_common_remove(indio_dev);
+
+	st_sensors_power_disable(indio_dev);
 
 	return 0;
 }
