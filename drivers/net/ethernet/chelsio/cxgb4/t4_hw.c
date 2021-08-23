@@ -2743,9 +2743,9 @@ int t4_seeprom_wp(struct adapter *adapter, bool enable)
  */
 int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 {
-	unsigned int id_len, pn_len, sn_len, na_len;
-	int sn, pn, na, addr, ret = 0;
-	u8 *vpd, base_val = 0;
+	int i, ret = 0, addr;
+	u8 *vpd, csum, base_val = 0;
+	unsigned int vpdr_len, kw_offset, id_len;
 
 	vpd = vmalloc(VPD_LEN);
 	if (!vpd)
@@ -2772,38 +2772,26 @@ int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 
 	id_len = pci_vpd_lrdt_size(vpd);
 
-	ret = pci_vpd_check_csum(vpd, VPD_LEN);
-	if (ret) {
-		dev_err(adapter->pdev_dev, "VPD checksum incorrect or missing\n");
+#define FIND_VPD_KW(var, name) do { \
+	var = pci_vpd_find_info_keyword(vpd, kw_offset, vpdr_len, name); \
+	if (var < 0) { \
+		dev_err(adapter->pdev_dev, "missing VPD keyword " name "\n"); \
+		ret = -EINVAL; \
+		goto out; \
+	} \
+	var += PCI_VPD_INFO_FLD_HDR_SIZE; \
+} while (0)
+
+	FIND_VPD_KW(i, "RV");
+	for (csum = 0; i >= 0; i--)
+		csum += vpd[i];
+
+	if (csum) {
+		dev_err(adapter->pdev_dev,
+			"corrupted VPD EEPROM, actual csum %u\n", csum);
 		ret = -EINVAL;
 		goto out;
 	}
-
-	ret = pci_vpd_find_ro_info_keyword(vpd, VPD_LEN,
-					   PCI_VPD_RO_KEYWORD_SERIALNO, &sn_len);
-	if (ret < 0)
-		goto out;
-	sn = ret;
-
-	ret = pci_vpd_find_ro_info_keyword(vpd, VPD_LEN,
-					   PCI_VPD_RO_KEYWORD_PARTNO, &pn_len);
-	if (ret < 0)
-		goto out;
-	pn = ret;
-
-	ret = pci_vpd_find_ro_info_keyword(vpd, VPD_LEN, "NA", &na_len);
-	if (ret < 0)
-		goto out;
-	na = ret;
-
-	memcpy(p->id, vpd + PCI_VPD_LRDT_TAG_SIZE, min_t(int, id_len, ID_LEN));
-	strim(p->id);
-	memcpy(p->sn, vpd + sn, min_t(int, sn_len, SERNUM_LEN));
-	strim(p->sn);
-	memcpy(p->pn, vpd + pn, min_t(int, pn_len, PN_LEN));
-	strim(p->pn);
-	memcpy(p->na, vpd + na, min_t(int, na_len, MACADDR_LEN));
-	strim((char *)p->na);
 
 out:
 	vfree(vpd);
