@@ -31,7 +31,8 @@ unsigned int intel_tile_size(const struct drm_i915_private *i915);
 unsigned int intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane);
 unsigned int intel_tile_height(const struct drm_framebuffer *fb, int color_plane);
 unsigned int intel_tile_row_size(const struct drm_framebuffer *fb, int color_plane);
-
+unsigned int intel_fb_align_height(const struct drm_framebuffer *fb,
+				   int color_plane, unsigned int height);
 unsigned int intel_cursor_alignment(const struct drm_i915_private *i915);
 
 void intel_fb_plane_get_subsampling(int *hsub, int *vsub,

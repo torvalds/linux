@@ -163,6 +163,15 @@ unsigned int intel_tile_row_size(const struct drm_framebuffer *fb, int color_pla
 	return fb->pitches[color_plane] * tile_height;
 }
 
+unsigned int
+intel_fb_align_height(const struct drm_framebuffer *fb,
+		      int color_plane, unsigned int height)
+{
+	unsigned int tile_height = intel_tile_height(fb, color_plane);
+
+	return ALIGN(height, tile_height);
+}
+
 unsigned int intel_cursor_alignment(const struct drm_i915_private *i915)
 {
 	if (IS_I830(i915))

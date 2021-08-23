@@ -879,15 +879,6 @@ intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
 	       info->num_planes == (is_ccs_modifier(modifier) ? 4 : 2);
 }
 
-unsigned int
-intel_fb_align_height(const struct drm_framebuffer *fb,
-		      int color_plane, unsigned int height)
-{
-	unsigned int tile_height = intel_tile_height(fb, color_plane);
-
-	return ALIGN(height, tile_height);
-}
-
 unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info)
 {
 	unsigned int size = 0;

@@ -548,8 +548,6 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv);
 unsigned int intel_fb_xy_to_linear(int x, int y,
 				   const struct intel_plane_state *state,
 				   int plane);
-unsigned int intel_fb_align_height(const struct drm_framebuffer *fb,
-				   int color_plane, unsigned int height);
 void intel_add_fb_offsets(int *x, int *y,
 			  const struct intel_plane_state *state, int plane);
 unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info);
