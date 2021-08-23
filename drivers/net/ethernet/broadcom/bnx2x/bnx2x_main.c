@@ -12189,28 +12189,49 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 
 static void bnx2x_read_fwinfo(struct bnx2x *bp)
 {
-	int i, block_end, rodi;
+	int cnt, i, block_end, rodi;
+	char vpd_start[BNX2X_VPD_LEN+1];
 	char str_id_reg[VENDOR_ID_LEN+1];
 	char str_id_cap[VENDOR_ID_LEN+1];
-	unsigned int vpd_len;
-	u8 *vpd_data, len;
+	char *vpd_data;
+	char *vpd_extended_data = NULL;
+	u8 len;
 
+	cnt = pci_read_vpd(bp->pdev, 0, BNX2X_VPD_LEN, vpd_start);
 	memset(bp->fw_ver, 0, sizeof(bp->fw_ver));
 
-	vpd_data = pci_vpd_alloc(bp->pdev, &vpd_len);
-	if (IS_ERR(vpd_data))
-		return;
+	if (cnt < BNX2X_VPD_LEN)
+		goto out_not_found;
 
 	/* VPD RO tag should be first tag after identifier string, hence
 	 * we should be able to find it in first BNX2X_VPD_LEN chars
 	 */
-	i = pci_vpd_find_tag(vpd_data, vpd_len, PCI_VPD_LRDT_RO_DATA);
+	i = pci_vpd_find_tag(vpd_start, BNX2X_VPD_LEN, PCI_VPD_LRDT_RO_DATA);
 	if (i < 0)
 		goto out_not_found;
 
 	block_end = i + PCI_VPD_LRDT_TAG_SIZE +
-		    pci_vpd_lrdt_size(&vpd_data[i]);
+		    pci_vpd_lrdt_size(&vpd_start[i]);
+
 	i += PCI_VPD_LRDT_TAG_SIZE;
+
+	if (block_end > BNX2X_VPD_LEN) {
+		vpd_extended_data = kmalloc(block_end, GFP_KERNEL);
+		if (vpd_extended_data  == NULL)
+			goto out_not_found;
+
+		/* read rest of vpd image into vpd_extended_data */
+		memcpy(vpd_extended_data, vpd_start, BNX2X_VPD_LEN);
+		cnt = pci_read_vpd(bp->pdev, BNX2X_VPD_LEN,
+				   block_end - BNX2X_VPD_LEN,
+				   vpd_extended_data + BNX2X_VPD_LEN);
+		if (cnt < (block_end - BNX2X_VPD_LEN))
+			goto out_not_found;
+		vpd_data = vpd_extended_data;
+	} else
+		vpd_data = vpd_start;
+
+	/* now vpd_data holds full vpd content in both cases */
 
 	rodi = pci_vpd_find_info_keyword(vpd_data, i, block_end,
 				   PCI_VPD_RO_KEYWORD_MFR_ID);
@@ -12237,14 +12258,17 @@ static void bnx2x_read_fwinfo(struct bnx2x *bp)
 
 			rodi += PCI_VPD_INFO_FLD_HDR_SIZE;
 
-			if (len < 32 && (len + rodi) <= vpd_len) {
+			if (len < 32 && (len + rodi) <= BNX2X_VPD_LEN) {
 				memcpy(bp->fw_ver, &vpd_data[rodi], len);
 				bp->fw_ver[len] = ' ';
 			}
 		}
+		kfree(vpd_extended_data);
+		return;
 	}
 out_not_found:
-	kfree(vpd_data);
+	kfree(vpd_extended_data);
+	return;
 }
 
 static void bnx2x_set_modes_bitmap(struct bnx2x *bp)
