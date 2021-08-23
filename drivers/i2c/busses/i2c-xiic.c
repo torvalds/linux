@@ -170,7 +170,7 @@ struct xiic_i2c {
 #define xiic_tx_space(i2c) ((i2c)->tx_msg->len - (i2c)->tx_pos)
 #define xiic_rx_space(i2c) ((i2c)->rx_msg->len - (i2c)->rx_pos)
 
-static int xiic_start_xfer(struct xiic_i2c *i2c);
+static int xiic_start_xfer(struct xiic_i2c *i2c, struct i2c_msg *msgs, int num);
 static void __xiic_start_xfer(struct xiic_i2c *i2c);
 
 /*
@@ -684,15 +684,25 @@ static void __xiic_start_xfer(struct xiic_i2c *i2c)
 
 }
 
-static int xiic_start_xfer(struct xiic_i2c *i2c)
+static int xiic_start_xfer(struct xiic_i2c *i2c, struct i2c_msg *msgs, int num)
 {
 	int ret;
+
 	mutex_lock(&i2c->lock);
+
+	ret = xiic_busy(i2c);
+	if (ret)
+		goto out;
+
+	i2c->tx_msg = msgs;
+	i2c->rx_msg = NULL;
+	i2c->nmsgs = num;
 
 	ret = xiic_reinit(i2c);
 	if (!ret)
 		__xiic_start_xfer(i2c);
 
+out:
 	mutex_unlock(&i2c->lock);
 
 	return ret;
@@ -710,14 +720,7 @@ static int xiic_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	if (err < 0)
 		return err;
 
-	err = xiic_busy(i2c);
-	if (err)
-		goto out;
-
-	i2c->tx_msg = msgs;
-	i2c->nmsgs = num;
-
-	err = xiic_start_xfer(i2c);
+	err = xiic_start_xfer(i2c, msgs, num);
 	if (err < 0) {
 		dev_err(adap->dev.parent, "Error xiic_start_xfer\n");
 		goto out;
@@ -725,9 +728,11 @@ static int xiic_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 
 	if (wait_event_timeout(i2c->wait, (i2c->state == STATE_ERROR) ||
 		(i2c->state == STATE_DONE), HZ)) {
+		mutex_lock(&i2c->lock);
 		err = (i2c->state == STATE_DONE) ? num : -EIO;
 		goto out;
 	} else {
+		mutex_lock(&i2c->lock);
 		i2c->tx_msg = NULL;
 		i2c->rx_msg = NULL;
 		i2c->nmsgs = 0;
@@ -735,6 +740,7 @@ static int xiic_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		goto out;
 	}
 out:
+	mutex_unlock(&i2c->lock);
 	pm_runtime_mark_last_busy(i2c->dev);
 	pm_runtime_put_autosuspend(i2c->dev);
 	return err;
