@@ -351,6 +351,8 @@
   fwnode_property_read_u64_array
   gcd
   generic_handle_irq
+  __genphy_config_aneg
+  genphy_soft_reset
   gen_pool_free_owner
   get_cpu_device
   get_device
@@ -572,8 +574,11 @@
   perf_trace_buf_alloc
   perf_trace_run_bpf_submit
   pfn_valid
+  phy_drivers_register
+  phy_drivers_unregister
   phy_exit
   phy_init
+  phy_modify
   phy_power_off
   phy_power_on
   pinctrl_lookup_state
@@ -926,6 +931,19 @@
   i2c_new_ancillary_device
   regmap_register_patch
 
+# required by at803x.ko
+  ethnl_cable_test_fault_length
+  ethnl_cable_test_result
+  genphy_aneg_done
+  genphy_read_lpa
+  genphy_update_link
+  mdio_device_reset
+  phy_init_hw
+  phy_modify_changed
+  phy_read_mmd
+  phy_resolve_aneg_pause
+  phy_write_mmd
+
 # required by busfreq-imx8mq.ko
   jiffies_to_usecs
   register_pm_notifier
@@ -1041,6 +1059,7 @@
 
 # required by ci_hdrc_pci.ko
   pcim_enable_device
+  pci_try_set_mwi
 
 # required by clk-blk-ctrl.ko
   pm_runtime_forbid
@@ -1123,12 +1142,16 @@
   ethtool_op_get_ts_info
   mdiobus_alloc_size
   mdiobus_free
+  mdiobus_is_registered_device
   mdiobus_unregister
   netdev_pick_tx
   netif_schedule_queue
   of_get_mac_address
+  of_get_phy_mode
   of_mdiobus_register
+  of_phy_connect
   of_phy_deregister_fixed_link
+  of_phy_find_device
   of_phy_is_fixed_link
   of_phy_register_fixed_link
   param_ops_byte
@@ -1143,13 +1166,23 @@
   phy_init_eee
   phy_mii_ioctl
   phy_print_status
+  phy_remove_link_mode
+  phy_reset_after_clk_enable
+  phy_set_max_speed
+  phy_set_sym_pause
   phy_start
   phy_start_aneg
   phy_stop
+  phy_support_sym_pause
   platform_get_irq_byname_optional
   skb_tstamp_tx
+  timecounter_cyc2time
   timecounter_init
   timecounter_read
+  tso_build_data
+  tso_build_hdr
+  tso_count_descs
+  tso_start
 
 # required by fsl-imx-ldb.ko
   devm_drm_panel_bridge_add
@@ -1489,6 +1522,13 @@
   hex_dump_to_buffer
   in4_pton
   init_dummy_netdev
+  iwe_stream_add_event
+  iwe_stream_add_point
+  iwe_stream_add_value
+  iw_handler_get_spy
+  iw_handler_get_thrspy
+  iw_handler_set_spy
+  iw_handler_set_thrspy
   ktime_get_raw_ts64
   mmc_hw_reset
   mmc_set_data_timeout
@@ -1498,15 +1538,19 @@
   netlink_kernel_release
   panic
   param_ops_ushort
+  pci_choose_state
   pci_disable_device
   pci_disable_msi
+  pci_disable_msix
   pci_enable_device
   pci_enable_msi
+  pci_enable_msix_range
   pci_enable_wake
   pci_iomap
   pci_read_config_dword
   pci_release_region
   pci_request_region
+  pci_reset_function
   pci_restore_state
   pci_save_state
   pci_set_power_state
@@ -1644,12 +1688,21 @@
 
 # required by pci-imx6.ko
   dw_pcie_ep_init
+  dw_pcie_ep_raise_legacy_irq
+  dw_pcie_ep_raise_msi_irq
+  dw_pcie_ep_raise_msix_irq
+  dw_pcie_ep_reset_bar
+  dw_pcie_find_capability
+  dw_pcie_find_ext_capability
   dw_pcie_host_init
+  dw_pcie_link_up
   dw_pcie_msi_init
   dw_pcie_read
   dw_pcie_read_dbi
   dw_pcie_setup_rc
+  dw_pcie_wait_for_link
   dw_pcie_write_dbi
+  pci_msi_enabled
   phy_calibrate
   regulator_get_voltage
 
@@ -1720,7 +1773,21 @@
   thermal_zone_of_sensor_unregister
 
 # required by realtek.ko
+  genphy_read_abilities
+  genphy_read_mmd_unsupported
+  genphy_read_status
   genphy_resume
+  genphy_suspend
+  genphy_write_mmd_unsupported
+  __mdiobus_read
+  __mdiobus_write
+  __phy_modify
+  phy_modify_paged
+  phy_modify_paged_changed
+  phy_read_paged
+  phy_restore_page
+  phy_select_page
+  phy_write_paged
 
 # required by rpmsg_raw.ko
   compat_ptr_ioctl
