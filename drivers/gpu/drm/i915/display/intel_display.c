@@ -880,60 +880,6 @@ intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
 }
 
 unsigned int
-intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane)
-{
-	struct drm_i915_private *dev_priv = to_i915(fb->dev);
-	unsigned int cpp = fb->format->cpp[color_plane];
-
-	switch (fb->modifier) {
-	case DRM_FORMAT_MOD_LINEAR:
-		return intel_tile_size(dev_priv);
-	case I915_FORMAT_MOD_X_TILED:
-		if (DISPLAY_VER(dev_priv) == 2)
-			return 128;
-		else
-			return 512;
-	case I915_FORMAT_MOD_Y_TILED_CCS:
-		if (is_ccs_plane(fb, color_plane))
-			return 128;
-		fallthrough;
-	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS:
-	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC:
-	case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
-		if (is_ccs_plane(fb, color_plane))
-			return 64;
-		fallthrough;
-	case I915_FORMAT_MOD_Y_TILED:
-		if (DISPLAY_VER(dev_priv) == 2 || HAS_128_BYTE_Y_TILING(dev_priv))
-			return 128;
-		else
-			return 512;
-	case I915_FORMAT_MOD_Yf_TILED_CCS:
-		if (is_ccs_plane(fb, color_plane))
-			return 128;
-		fallthrough;
-	case I915_FORMAT_MOD_Yf_TILED:
-		switch (cpp) {
-		case 1:
-			return 64;
-		case 2:
-		case 4:
-			return 128;
-		case 8:
-		case 16:
-			return 256;
-		default:
-			MISSING_CASE(cpp);
-			return cpp;
-		}
-		break;
-	default:
-		MISSING_CASE(fb->modifier);
-		return cpp;
-	}
-}
-
-unsigned int
 intel_fb_align_height(const struct drm_framebuffer *fb,
 		      int color_plane, unsigned int height)
 {
