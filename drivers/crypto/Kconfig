@@ -750,12 +750,20 @@ config CRYPTO_DEV_ROCKCHIP
 	tristate "Rockchip's Cryptographic Engine driver"
 	depends on OF && ARCH_ROCKCHIP
 	select CRYPTO_AES
+	select CRYPTO_ECB
+	select CRYPTO_CBC
+	select CRYPTO_XTS
+	select CRYPTO_CFB
+	select CRYPTO_CTR
 	select CRYPTO_LIB_DES
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
+	select CRYPTO_SM3
+	select CRYPTO_SM4
 	select CRYPTO_SHA256
 	select CRYPTO_HASH
 	select CRYPTO_SKCIPHER
+	select CRYPTO_RSA
 
 	help
 	  This driver interfaces with the hardware crypto accelerator.

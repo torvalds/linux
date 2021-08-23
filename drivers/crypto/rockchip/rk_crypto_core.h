@@ -12,13 +12,19 @@
 #include <crypto/sha.h>
 #include <crypto/sm3.h>
 #include <crypto/sm4.h>
+#include <crypto/skcipher.h>
 #include <crypto/internal/akcipher.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/rsa.h>
+#include <crypto/internal/des.h>
 #include <crypto/internal/skcipher.h>
+
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/io.h>
+#include <linux/dma-mapping.h>
+#include <linux/scatterlist.h>
 
 #include "rk_crypto_bignum.h"
 
@@ -128,6 +134,7 @@ struct rk_cipher_ctx {
 
 	/* for fallback */
 	struct crypto_skcipher		*fallback_tfm;
+	struct skcipher_request		fallback_req;	// keep at the end
 };
 
 struct rk_rsa_ctx {
@@ -149,7 +156,7 @@ enum alg_type {
 struct rk_crypto_algt {
 	struct rk_crypto_dev		*rk_dev;
 	union {
-		struct crypto_alg	crypto;
+		struct skcipher_alg	crypto;
 		struct ahash_alg	hash;
 		struct akcipher_alg	asym;
 	} alg;
@@ -198,26 +205,22 @@ enum rk_cipher_mode {
 	.algo = CIPHER_ALGO_##cipher_algo,\
 	.mode = CIPHER_MODE_##cipher_mode,\
 	.alg.crypto = {\
-		.cra_name		= #algo_name,\
-		.cra_driver_name	= #driver_name,\
-		.cra_priority		= RK_CRYPTO_PRIORITY,\
-		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |\
-					  CRYPTO_ALG_ASYNC,\
-		.cra_blocksize		= cipher_algo##_BLOCK_SIZE,\
-		.cra_ctxsize		= sizeof(struct rk_cipher_ctx),\
-		.cra_alignmask		= 0x07,\
-		.cra_type		= &crypto_ablkcipher_type,\
-		.cra_module		= THIS_MODULE,\
-		.cra_init		= rk_ablk_cra_init,\
-		.cra_exit		= rk_ablk_cra_exit,\
-		.cra_u.ablkcipher	= {\
-			.min_keysize	=  cipher_algo##_MIN_KEY_SIZE,\
-			.max_keysize	=  cipher_algo##_MAX_KEY_SIZE,\
-			.ivsize		= cipher_algo##_BLOCK_SIZE,\
-			.setkey		= rk_cipher_setkey,\
-			.encrypt	= rk_cipher_encrypt,\
-			.decrypt	= rk_cipher_decrypt,\
-		} \
+		.base.cra_name		= #algo_name,\
+		.base.cra_driver_name	= #driver_name,\
+		.base.cra_priority	= RK_CRYPTO_PRIORITY,\
+		.base.cra_flags		= CRYPTO_ALG_ASYNC,\
+		.base.cra_blocksize	= cipher_algo##_BLOCK_SIZE,\
+		.base.cra_ctxsize	= sizeof(struct rk_cipher_ctx),\
+		.base.cra_alignmask	= 0x07,\
+		.base.cra_module	= THIS_MODULE,\
+		.init		= rk_ablk_init_tfm,\
+		.exit		= rk_ablk_exit_tfm,\
+		.min_keysize	= cipher_algo##_MIN_KEY_SIZE,\
+		.max_keysize	= cipher_algo##_MAX_KEY_SIZE,\
+		.ivsize		= cipher_algo##_BLOCK_SIZE,\
+		.setkey		= rk_cipher_setkey,\
+		.encrypt	= rk_cipher_encrypt,\
+		.decrypt	= rk_cipher_decrypt,\
 	} \
 }
 
@@ -227,26 +230,22 @@ enum rk_cipher_mode {
 	.algo = CIPHER_ALGO_##cipher_algo,\
 	.mode = CIPHER_MODE_XTS,\
 	.alg.crypto = {\
-		.cra_name		= #algo_name,\
-		.cra_driver_name	= #driver_name,\
-		.cra_priority		= RK_CRYPTO_PRIORITY,\
-		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |\
-					  CRYPTO_ALG_ASYNC,\
-		.cra_blocksize		= cipher_algo##_BLOCK_SIZE,\
-		.cra_ctxsize		= sizeof(struct rk_cipher_ctx),\
-		.cra_alignmask		= 0x07,\
-		.cra_type		= &crypto_ablkcipher_type,\
-		.cra_module		= THIS_MODULE,\
-		.cra_init		= rk_ablk_cra_init,\
-		.cra_exit		= rk_ablk_cra_exit,\
-		.cra_u.ablkcipher	= {\
-			.min_keysize	=  cipher_algo##_MAX_KEY_SIZE,\
-			.max_keysize	=  cipher_algo##_MAX_KEY_SIZE * 2,\
-			.ivsize		= cipher_algo##_BLOCK_SIZE,\
-			.setkey		= rk_cipher_setkey,\
-			.encrypt	= rk_cipher_encrypt,\
-			.decrypt	= rk_cipher_decrypt,\
-		} \
+		.base.cra_name		= #algo_name,\
+		.base.cra_driver_name	= #driver_name,\
+		.base.cra_priority	= RK_CRYPTO_PRIORITY,\
+		.base.cra_flags		= CRYPTO_ALG_ASYNC,\
+		.base.cra_blocksize	= cipher_algo##_BLOCK_SIZE,\
+		.base.cra_ctxsize	= sizeof(struct rk_cipher_ctx),\
+		.base.cra_alignmask	= 0x07,\
+		.base.cra_module	= THIS_MODULE,\
+		.init		= rk_ablk_init_tfm,\
+		.exit		= rk_ablk_exit_tfm,\
+		.min_keysize	= cipher_algo##_MAX_KEY_SIZE,\
+		.max_keysize	= cipher_algo##_MAX_KEY_SIZE * 2,\
+		.ivsize		= cipher_algo##_BLOCK_SIZE,\
+		.setkey		= rk_cipher_setkey,\
+		.encrypt	= rk_cipher_encrypt,\
+		.decrypt	= rk_cipher_decrypt,\
 	} \
 }
 

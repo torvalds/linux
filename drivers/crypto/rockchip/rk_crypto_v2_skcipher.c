@@ -38,10 +38,10 @@ static const u32 cipher_mode2bc[] = {
 static struct rk_alg_ctx *rk_alg_ctx_cast(
 	struct rk_crypto_dev *rk_dev)
 {
-	struct ablkcipher_request *req =
-		ablkcipher_request_cast(rk_dev->async_req);
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
-	struct rk_cipher_ctx *ctx = crypto_ablkcipher_ctx(tfm);
+	struct skcipher_request *req =
+		skcipher_request_cast(rk_dev->async_req);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct rk_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	return &ctx->algs_ctx;
 }
@@ -159,9 +159,9 @@ static void write_tkey_reg(struct rk_crypto_dev *rk_dev, const u8 *key,
 	}
 }
 
-static struct rk_crypto_algt *rk_cipher_get_algt(struct crypto_ablkcipher *tfm)
+static struct rk_crypto_algt *rk_cipher_get_algt(struct crypto_skcipher *tfm)
 {
-	struct crypto_alg *alg = tfm->base.__crt_alg;
+	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
 
 	return container_of(alg, struct rk_crypto_algt, alg.crypto);
 }
@@ -171,9 +171,9 @@ static bool is_use_fallback(struct rk_cipher_ctx *ctx)
 	return ctx->keylen == AES_KEYSIZE_192 && ctx->fallback_tfm;
 }
 
-static bool is_no_multi_blocksize(struct ablkcipher_request *req)
+static bool is_no_multi_blocksize(struct skcipher_request *req)
 {
-	struct crypto_ablkcipher *cipher = crypto_ablkcipher_reqtfm(req);
+	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
 	struct rk_crypto_algt *algt = rk_cipher_get_algt(cipher);
 
 	return (algt->mode == CIPHER_MODE_CFB ||
@@ -188,24 +188,22 @@ static void rk_crypto_complete(struct crypto_async_request *base, int err)
 }
 
 static int rk_handle_req(struct rk_crypto_dev *rk_dev,
-			 struct ablkcipher_request *req)
+			 struct skcipher_request *req)
 {
 	struct rk_cipher_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 
-	if (!IS_ALIGNED(req->nbytes, ctx->algs_ctx.align_size) &&
+	if (!IS_ALIGNED(req->cryptlen, ctx->algs_ctx.align_size) &&
 	    !is_no_multi_blocksize(req))
 		return -EINVAL;
 	else
 		return rk_dev->enqueue(rk_dev, &req->base);
 }
 
-static int rk_cipher_setkey(struct crypto_ablkcipher *cipher,
+static int rk_cipher_setkey(struct crypto_skcipher *cipher,
 			    const u8 *key, unsigned int keylen)
 {
-	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
 	struct rk_crypto_algt *algt = rk_cipher_get_algt(cipher);
-	struct rk_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 tmp[DES_EXPKEY_WORDS];
+	struct rk_cipher_ctx *ctx = crypto_skcipher_ctx(cipher);
 	int ret = -EINVAL;
 
 	CRYPTO_MSG("algo = %x, mode = %x, key_len = %d\n",
@@ -213,17 +211,13 @@ static int rk_cipher_setkey(struct crypto_ablkcipher *cipher,
 
 	switch (algt->algo) {
 	case CIPHER_ALGO_DES:
-		if (keylen != DES_KEY_SIZE)
+		ret = verify_skcipher_des_key(cipher, key);
+		if (ret)
 			goto error;
-
-		if (!des_ekey(tmp, key) &&
-		    (tfm->crt_flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
-			tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
-			return -EINVAL;
-		}
 		break;
 	case CIPHER_ALGO_DES3_EDE:
-		if (keylen != DES3_EDE_KEY_SIZE)
+		ret = verify_skcipher_des3_key(cipher, key);
+		if (ret)
 			goto error;
 		break;
 	case CIPHER_ALGO_AES:
@@ -269,41 +263,41 @@ static int rk_cipher_setkey(struct crypto_ablkcipher *cipher,
 	return 0;
 
 error:
-	crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	return ret;
 }
 
-static int rk_cipher_fallback(struct ablkcipher_request *req,
+static int rk_cipher_fallback(struct skcipher_request *req,
 			      struct rk_cipher_ctx *ctx,
 			      bool encrypt)
 {
 	int ret;
 
-	SKCIPHER_REQUEST_ON_STACK(subreq, ctx->fallback_tfm);
-
 	CRYPTO_MSG("use fallback tfm");
 
-	skcipher_request_set_tfm(subreq, ctx->fallback_tfm);
-	skcipher_request_set_callback(subreq, req->base.flags,
-				      NULL, NULL);
-	skcipher_request_set_crypt(subreq, req->src, req->dst,
-				   req->nbytes, req->info);
-	ret = encrypt ? crypto_skcipher_encrypt(subreq) :
-			crypto_skcipher_decrypt(subreq);
-	skcipher_request_zero(subreq);
+	skcipher_request_set_tfm(&ctx->fallback_req, ctx->fallback_tfm);
+	skcipher_request_set_callback(&ctx->fallback_req,
+				      req->base.flags,
+				      req->base.complete,
+				      req->base.data);
+
+	skcipher_request_set_crypt(&ctx->fallback_req, req->src,
+				   req->dst, req->cryptlen, req->iv);
+
+	ret = encrypt ? crypto_skcipher_encrypt(&ctx->fallback_req) :
+			crypto_skcipher_decrypt(&ctx->fallback_req);
 
 	return ret;
 }
 
-static int rk_cipher_crypt(struct ablkcipher_request *req, bool encrypt)
+static int rk_cipher_crypt(struct skcipher_request *req, bool encrypt)
 {
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
-	struct rk_cipher_ctx *ctx = crypto_ablkcipher_ctx(tfm);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct rk_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct rk_crypto_algt *algt = rk_cipher_get_algt(tfm);
 	int ret = -EINVAL;
 
 	CRYPTO_TRACE("%s total = %u",
-		     encrypt ? "encrypt" : "decrypt", req->nbytes);
+		     encrypt ? "encrypt" : "decrypt", req->cryptlen);
 
 	if (is_use_fallback(ctx)) {
 		ret = rk_cipher_fallback(req, ctx, encrypt);
@@ -320,29 +314,29 @@ static int rk_cipher_crypt(struct ablkcipher_request *req, bool encrypt)
 	return ret;
 }
 
-static int rk_cipher_encrypt(struct ablkcipher_request *req)
+static int rk_cipher_encrypt(struct skcipher_request *req)
 {
 	return rk_cipher_crypt(req, true);
 }
 
-static int rk_cipher_decrypt(struct ablkcipher_request *req)
+static int rk_cipher_decrypt(struct skcipher_request *req)
 {
 	return rk_cipher_crypt(req, false);
 }
 
 static void rk_ablk_hw_init(struct rk_crypto_dev *rk_dev)
 {
-	struct ablkcipher_request *req =
-		ablkcipher_request_cast(rk_dev->async_req);
-	struct crypto_ablkcipher *cipher = crypto_ablkcipher_reqtfm(req);
-	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
-	struct rk_cipher_ctx *ctx = crypto_ablkcipher_ctx(cipher);
+	struct skcipher_request *req =
+		skcipher_request_cast(rk_dev->async_req);
+	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
+	struct crypto_tfm *tfm = crypto_skcipher_tfm(cipher);
+	struct rk_cipher_ctx *ctx = crypto_skcipher_ctx(cipher);
 	u32 ivsize, block;
 
 	CRYPTO_WRITE(rk_dev, CRYPTO_BC_CTL, 0x00010000);
 
 	block = crypto_tfm_alg_blocksize(tfm);
-	ivsize = crypto_ablkcipher_ivsize(cipher);
+	ivsize = crypto_skcipher_ivsize(cipher);
 
 	write_key_reg(ctx->rk_dev, ctx->key, ctx->keylen);
 	if (MASK_BC_MODE(ctx->mode) == CRYPTO_BC_XTS)
@@ -350,7 +344,7 @@ static void rk_ablk_hw_init(struct rk_crypto_dev *rk_dev)
 			       ctx->key + ctx->keylen, ctx->keylen);
 
 	if (MASK_BC_MODE(ctx->mode) != CRYPTO_BC_ECB)
-		set_iv_reg(rk_dev, req->info, ivsize);
+		set_iv_reg(rk_dev, req->iv, ivsize);
 
 	if (block != DES_BLOCK_SIZE) {
 		if (ctx->keylen == AES_KEYSIZE_128)
@@ -374,8 +368,8 @@ static void crypto_dma_start(struct rk_crypto_dev *rk_dev)
 {
 	struct rk_hw_crypto_v2_info *hw_info =
 			(struct rk_hw_crypto_v2_info *)rk_dev->hw_info;
-	struct ablkcipher_request *req =
-		ablkcipher_request_cast(rk_dev->async_req);
+	struct skcipher_request *req =
+		skcipher_request_cast(rk_dev->async_req);
 	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev);
 	u32 calc_len = alg_ctx->count;
 
@@ -415,20 +409,20 @@ static int rk_set_data_start(struct rk_crypto_dev *rk_dev)
 
 static int rk_ablk_start(struct rk_crypto_dev *rk_dev)
 {
-	struct ablkcipher_request *req =
-		ablkcipher_request_cast(rk_dev->async_req);
+	struct skcipher_request *req =
+		skcipher_request_cast(rk_dev->async_req);
 	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev);
 	unsigned long flags;
 	int err = 0;
 
-	alg_ctx->left_bytes = req->nbytes;
-	alg_ctx->total      = req->nbytes;
+	alg_ctx->left_bytes = req->cryptlen;
+	alg_ctx->total      = req->cryptlen;
 	alg_ctx->sg_src     = req->src;
 	alg_ctx->req_src    = req->src;
-	alg_ctx->src_nents  = sg_nents_for_len(req->src, req->nbytes);
+	alg_ctx->src_nents  = sg_nents_for_len(req->src, req->cryptlen);
 	alg_ctx->sg_dst     = req->dst;
 	alg_ctx->req_dst    = req->dst;
-	alg_ctx->dst_nents  = sg_nents_for_len(req->dst, req->nbytes);
+	alg_ctx->dst_nents  = sg_nents_for_len(req->dst, req->cryptlen);
 
 	CRYPTO_TRACE("total = %u", alg_ctx->total);
 
@@ -441,21 +435,21 @@ static int rk_ablk_start(struct rk_crypto_dev *rk_dev)
 
 static void rk_iv_copyback(struct rk_crypto_dev *rk_dev)
 {
-	struct ablkcipher_request *req =
-		ablkcipher_request_cast(rk_dev->async_req);
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
-	struct rk_cipher_ctx *ctx = crypto_ablkcipher_ctx(tfm);
+	struct skcipher_request *req =
+		skcipher_request_cast(rk_dev->async_req);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct rk_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev);
 
-	u32 ivsize = crypto_ablkcipher_ivsize(tfm);
+	u32 ivsize = crypto_skcipher_ivsize(tfm);
 
 	/* Update the IV buffer to contain the next IV for encryption mode. */
-	if (!IS_BC_DECRYPT(ctx->mode) && req->info) {
+	if (!IS_BC_DECRYPT(ctx->mode) && req->iv) {
 		if (alg_ctx->aligned) {
-			memcpy(req->info, sg_virt(alg_ctx->sg_dst) +
+			memcpy(req->iv, sg_virt(alg_ctx->sg_dst) +
 				alg_ctx->count - ivsize, ivsize);
 		} else {
-			memcpy(req->info, rk_dev->addr_vir +
+			memcpy(req->iv, rk_dev->addr_vir +
 				alg_ctx->count - ivsize, ivsize);
 		}
 	}
@@ -499,12 +493,11 @@ out_rx:
 	return err;
 }
 
-static int rk_ablk_cra_init(struct crypto_tfm *tfm)
+static int rk_ablk_init_tfm(struct crypto_skcipher *tfm)
 {
-	struct rk_crypto_algt *algt =
-		rk_cipher_get_algt(__crypto_ablkcipher_cast(tfm));
-	struct rk_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
-	const char *alg_name = crypto_tfm_alg_name(tfm);
+	struct rk_crypto_algt *algt = rk_cipher_get_algt(tfm);
+	struct rk_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
+	const char *alg_name = crypto_tfm_alg_name(crypto_skcipher_tfm(tfm));
 	struct rk_crypto_dev *rk_dev = algt->rk_dev;
 	struct rk_alg_ctx *alg_ctx = &ctx->algs_ctx;
 
@@ -517,7 +510,7 @@ static int rk_ablk_cra_init(struct crypto_tfm *tfm)
 
 	rk_dev->request_crypto(rk_dev, alg_name);
 
-	alg_ctx->align_size     = crypto_tfm_alg_blocksize(tfm);
+	alg_ctx->align_size     = crypto_skcipher_blocksize(tfm);
 
 	alg_ctx->ops.start      = rk_ablk_start;
 	alg_ctx->ops.update     = rk_ablk_rx;
@@ -526,7 +519,7 @@ static int rk_ablk_cra_init(struct crypto_tfm *tfm)
 
 	ctx->rk_dev = rk_dev;
 
-	if (algt->alg.crypto.cra_flags & CRYPTO_ALG_NEED_FALLBACK) {
+	if (algt->alg.crypto.base.cra_flags & CRYPTO_ALG_NEED_FALLBACK) {
 		CRYPTO_MSG("alloc fallback tfm, name = %s", alg_name);
 		ctx->fallback_tfm = crypto_alloc_skcipher(alg_name, 0,
 							  CRYPTO_ALG_ASYNC |
@@ -541,9 +534,10 @@ static int rk_ablk_cra_init(struct crypto_tfm *tfm)
 	return 0;
 }
 
-static void rk_ablk_cra_exit(struct crypto_tfm *tfm)
+static void rk_ablk_exit_tfm(struct crypto_skcipher *tfm)
 {
-	struct rk_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct rk_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
+	const char *alg_name = crypto_tfm_alg_name(crypto_skcipher_tfm(tfm));
 
 	CRYPTO_TRACE();
 
@@ -552,7 +546,7 @@ static void rk_ablk_cra_exit(struct crypto_tfm *tfm)
 		crypto_free_skcipher(ctx->fallback_tfm);
 	}
 
-	ctx->rk_dev->release_crypto(ctx->rk_dev, crypto_tfm_alg_name(tfm));
+	ctx->rk_dev->release_crypto(ctx->rk_dev, alg_name);
 }
 
 int rk_hw_crypto_v2_init(struct device *dev, void *hw_info)

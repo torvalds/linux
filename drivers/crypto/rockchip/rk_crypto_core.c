@@ -51,9 +51,16 @@
 	.default_pka_offset = 0x0480,\
 }
 
+static struct rk_alg_ctx *rk_alg_ctx_cast(struct crypto_async_request *async_req)
+{
+	struct rk_cipher_ctx *ctx = crypto_tfm_ctx(async_req->tfm);
+
+	return &ctx->algs_ctx;
+}
+
 static void dump_alg_ctx(struct crypto_async_request *async_req)
 {
-	struct rk_alg_ctx *alg_ctx = crypto_tfm_ctx(async_req->tfm);
+	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(async_req);
 	struct scatterlist *cur_sg = NULL;
 	unsigned int i;
 
@@ -127,7 +134,7 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 	int ret = -EINVAL;
 	unsigned int count;
 	struct device *dev = rk_dev->dev;
-	struct rk_alg_ctx *alg_ctx = crypto_tfm_ctx(rk_dev->async_req->tfm);
+	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
 
 	mutex_lock(&rk_dev->mutex);
 
@@ -209,7 +216,7 @@ static int rk_unload_data(struct rk_crypto_dev *rk_dev)
 {
 	int ret = 0;
 	struct scatterlist *sg_in, *sg_out;
-	struct rk_alg_ctx *alg_ctx = crypto_tfm_ctx(rk_dev->async_req->tfm);
+	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
 
 	CRYPTO_TRACE("aligned = %d, total = %u, left_bytes = %u\n",
 		     alg_ctx->aligned, alg_ctx->total, alg_ctx->left_bytes);
@@ -240,7 +247,7 @@ exit:
 static irqreturn_t rk_crypto_irq_handle(int irq, void *dev_id)
 {
 	struct rk_crypto_dev *rk_dev  = platform_get_drvdata(dev_id);
-	struct rk_alg_ctx *alg_ctx = crypto_tfm_ctx(rk_dev->async_req->tfm);
+	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
 
 	spin_lock(&rk_dev->lock);
 
@@ -297,7 +304,7 @@ static void rk_crypto_queue_task_cb(unsigned long data)
 		backlog = NULL;
 	}
 
-	alg_ctx = crypto_tfm_ctx(async_req->tfm);
+	alg_ctx = rk_alg_ctx_cast(async_req);
 
 	rk_dev->async_req = async_req;
 	err = alg_ctx->ops.start(rk_dev);
@@ -310,7 +317,7 @@ static void rk_crypto_queue_task_cb(unsigned long data)
 static void rk_crypto_done_task_cb(unsigned long data)
 {
 	struct rk_crypto_dev *rk_dev = (struct rk_crypto_dev *)data;
-	struct rk_alg_ctx *alg_ctx = crypto_tfm_ctx(rk_dev->async_req->tfm);
+	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
 
 	if (rk_dev->err) {
 		alg_ctx->ops.complete(rk_dev->async_req, rk_dev->err);
@@ -369,9 +376,9 @@ static int rk_crypto_register(struct rk_crypto_dev *rk_dev)
 			if (tmp_algs->algo == CIPHER_ALGO_AES &&
 			    tmp_algs->mode != CIPHER_MODE_XTS &&
 			    soc_data->use_soft_aes192)
-				tmp_algs->alg.crypto.cra_flags |= CRYPTO_ALG_NEED_FALLBACK;
+				tmp_algs->alg.crypto.base.cra_flags |= CRYPTO_ALG_NEED_FALLBACK;
 
-			err = crypto_register_alg(&tmp_algs->alg.crypto);
+			err = crypto_register_skcipher(&tmp_algs->alg.crypto);
 		} else if (tmp_algs->type == ALG_TYPE_HASH || tmp_algs->type == ALG_TYPE_HMAC) {
 			err = crypto_register_ahash(&tmp_algs->alg.hash);
 		} else if (tmp_algs->type == ALG_TYPE_ASYM) {
@@ -393,7 +400,7 @@ err_cipher_algs:
 	for (k = 0; k < i; k++, algs_name++) {
 		tmp_algs = rk_crypto_find_algs(rk_dev, *algs_name);
 		if (tmp_algs->type == ALG_TYPE_CIPHER)
-			crypto_unregister_alg(&tmp_algs->alg.crypto);
+			crypto_unregister_skcipher(&tmp_algs->alg.crypto);
 		else if (tmp_algs->type == ALG_TYPE_HASH || tmp_algs->type == ALG_TYPE_HMAC)
 			crypto_unregister_ahash(&tmp_algs->alg.hash);
 		else if (tmp_algs->type == ALG_TYPE_ASYM)
@@ -413,7 +420,7 @@ static void rk_crypto_unregister(struct rk_crypto_dev *rk_dev)
 	for (i = 0; i < rk_dev->soc_data->valid_algs_num; i++, algs_name++) {
 		tmp_algs = rk_crypto_find_algs(rk_dev, *algs_name);
 		if (tmp_algs->type == ALG_TYPE_CIPHER)
-			crypto_unregister_alg(&tmp_algs->alg.crypto);
+			crypto_unregister_skcipher(&tmp_algs->alg.crypto);
 		else if (tmp_algs->type == ALG_TYPE_HASH || tmp_algs->type == ALG_TYPE_HMAC)
 			crypto_unregister_ahash(&tmp_algs->alg.hash);
 		else if (tmp_algs->type == ALG_TYPE_ASYM)

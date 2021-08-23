@@ -402,8 +402,6 @@ static int rk_ahash_hmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 	}
 
 exit:
-	if (ret)
-		crypto_ahash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	return ret;
 }
 
