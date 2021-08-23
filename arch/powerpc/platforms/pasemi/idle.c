@@ -58,7 +58,7 @@ static int pasemi_system_reset_exception(struct pt_regs *regs)
 	restore_astate(hard_smp_processor_id());
 
 	/* everything handled */
-	regs_set_return_msr(regs, regs->msr | MSR_RI);
+	regs_set_recoverable(regs);
 	return 1;
 }
 

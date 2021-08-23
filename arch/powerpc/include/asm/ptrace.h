@@ -22,6 +22,7 @@
 #include <linux/err.h>
 #include <uapi/asm/ptrace.h>
 #include <asm/asm-const.h>
+#include <asm/reg.h>
 
 #ifndef __ASSEMBLY__
 struct pt_regs
@@ -270,6 +271,28 @@ static inline long regs_return_value(struct pt_regs *regs)
 static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
 {
 	regs->gpr[3] = rc;
+}
+
+static inline bool cpu_has_msr_ri(void)
+{
+	return !IS_ENABLED(CONFIG_BOOKE) && !IS_ENABLED(CONFIG_40x);
+}
+
+static inline bool regs_is_unrecoverable(struct pt_regs *regs)
+{
+	return unlikely(cpu_has_msr_ri() && !(regs->msr & MSR_RI));
+}
+
+static inline void regs_set_recoverable(struct pt_regs *regs)
+{
+	if (cpu_has_msr_ri())
+		regs_set_return_msr(regs, regs->msr | MSR_RI);
+}
+
+static inline void regs_set_unrecoverable(struct pt_regs *regs)
+{
+	if (cpu_has_msr_ri())
+		regs_set_return_msr(regs, regs->msr & ~MSR_RI);
 }
 
 #define arch_has_single_step()	(1)
