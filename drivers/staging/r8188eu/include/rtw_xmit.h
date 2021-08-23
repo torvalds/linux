@@ -122,10 +122,10 @@ struct pkt_attrib {
 	u8	ack_policy;
 	u8	mac_id;
 	u8	vcs_mode;	/* virtual carrier sense method */
-	u8	dst[ETH_ALEN];
-	u8	src[ETH_ALEN];
-	u8	ta[ETH_ALEN];
-	u8	ra[ETH_ALEN];
+	u8	dst[ETH_ALEN] __aligned(2);
+	u8	src[ETH_ALEN] __aligned(2);
+	u8	ta[ETH_ALEN] __aligned(2);
+	u8	ra[ETH_ALEN] __aligned(2);
 	u8	key_idx;
 	u8	qos_en;
 	u8	ht_en;

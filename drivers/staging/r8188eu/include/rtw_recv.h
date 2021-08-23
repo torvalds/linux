@@ -109,11 +109,11 @@ struct rx_pkt_attrib {
 
 	u16 eth_type;
 
-	u8	dst[ETH_ALEN];
-	u8	src[ETH_ALEN];
-	u8	ta[ETH_ALEN];
-	u8	ra[ETH_ALEN];
-	u8	bssid[ETH_ALEN];
+	u8	dst[ETH_ALEN] __aligned(2);
+	u8	src[ETH_ALEN] __aligned(2);
+	u8	ta[ETH_ALEN] __aligned(2);
+	u8	ra[ETH_ALEN] __aligned(2);
+	u8	bssid[ETH_ALEN] __aligned(2);
 
 	u8 ack_policy;
 
