@@ -19,7 +19,7 @@
 		ethernet2 = &cp0_eth2;
 	};
 
-	memory@00000000 {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};

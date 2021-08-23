@@ -303,7 +303,7 @@
 			type = <PCA955X_TYPE_GPIO>;
 		};
 
-		gpio@01 {
+		gpio@1 {
 			reg = <1>;
 			type = <PCA955X_TYPE_GPIO>;
 		};
