@@ -133,7 +133,7 @@ struct mlx5_vdpa_virtqueue {
 /* We will remove this limitation once mlx5_vdpa_alloc_resources()
  * provides for driver space allocation
  */
-#define MLX5_MAX_SUPPORTED_VQS 2
+#define MLX5_MAX_SUPPORTED_VQS 16
 
 static bool is_index_valid(struct mlx5_vdpa_dev *mvdev, u16 idx)
 {
@@ -184,6 +184,23 @@ static bool mlx5_vdpa_debug;
 			mlx5_vdpa_info(mvdev, "%s\n", #_status);                                   \
 	} while (0)
 
+/* TODO: cross-endian support */
+static inline bool mlx5_vdpa_is_little_endian(struct mlx5_vdpa_dev *mvdev)
+{
+	return virtio_legacy_is_little_endian() ||
+		(mvdev->actual_features & BIT_ULL(VIRTIO_F_VERSION_1));
+}
+
+static u16 mlx5vdpa16_to_cpu(struct mlx5_vdpa_dev *mvdev, __virtio16 val)
+{
+	return __virtio16_to_cpu(mlx5_vdpa_is_little_endian(mvdev), val);
+}
+
+static __virtio16 cpu_to_mlx5vdpa16(struct mlx5_vdpa_dev *mvdev, u16 val)
+{
+	return __cpu_to_virtio16(mlx5_vdpa_is_little_endian(mvdev), val);
+}
+
 static inline u32 mlx5_vdpa_max_qps(int max_vqs)
 {
 	return max_vqs / 2;
@@ -191,6 +208,9 @@ static inline u32 mlx5_vdpa_max_qps(int max_vqs)
 
 static u16 ctrl_vq_idx(struct mlx5_vdpa_dev *mvdev)
 {
+	if (!(mvdev->actual_features & BIT_ULL(VIRTIO_NET_F_MQ)))
+		return 2;
+
 	return 2 * mlx5_vdpa_max_qps(mvdev->max_vqs);
 }
 
@@ -1126,10 +1146,8 @@ static int setup_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq)
 	if (!mvq->num_ent)
 		return 0;
 
-	if (mvq->initialized) {
-		mlx5_vdpa_warn(&ndev->mvdev, "attempt re init\n");
-		return -EINVAL;
-	}
+	if (mvq->initialized)
+		return 0;
 
 	err = cq_create(ndev, idx, mvq->num_ent);
 	if (err)
@@ -1216,19 +1234,20 @@ static void teardown_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *
 
 static int create_rqt(struct mlx5_vdpa_net *ndev)
 {
-	int log_max_rqt;
 	__be32 *list;
+	int max_rqt;
 	void *rqtc;
 	int inlen;
 	void *in;
 	int i, j;
 	int err;
 
-	log_max_rqt = min_t(int, 1, MLX5_CAP_GEN(ndev->mvdev.mdev, log_max_rqt_size));
-	if (log_max_rqt < 1)
+	max_rqt = min_t(int, MLX5_MAX_SUPPORTED_VQS / 2,
+			1 << MLX5_CAP_GEN(ndev->mvdev.mdev, log_max_rqt_size));
+	if (max_rqt < 1)
 		return -EOPNOTSUPP;
 
-	inlen = MLX5_ST_SZ_BYTES(create_rqt_in) + (1 << log_max_rqt) * MLX5_ST_SZ_BYTES(rq_num);
+	inlen = MLX5_ST_SZ_BYTES(create_rqt_in) + max_rqt * MLX5_ST_SZ_BYTES(rq_num);
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
@@ -1237,10 +1256,9 @@ static int create_rqt(struct mlx5_vdpa_net *ndev)
 	rqtc = MLX5_ADDR_OF(create_rqt_in, in, rqt_context);
 
 	MLX5_SET(rqtc, rqtc, list_q_type, MLX5_RQTC_LIST_Q_TYPE_VIRTIO_NET_Q);
-	MLX5_SET(rqtc, rqtc, rqt_max_size, 1 << log_max_rqt);
-	MLX5_SET(rqtc, rqtc, rqt_actual_size, 1);
+	MLX5_SET(rqtc, rqtc, rqt_max_size, max_rqt);
 	list = MLX5_ADDR_OF(rqtc, rqtc, rq_num[0]);
-	for (i = 0, j = 0; j < ndev->mvdev.max_vqs; j++) {
+	for (i = 0, j = 0; j < max_rqt; j++) {
 		if (!ndev->vqs[j].initialized)
 			continue;
 
@@ -1249,8 +1267,55 @@ static int create_rqt(struct mlx5_vdpa_net *ndev)
 			i++;
 		}
 	}
+	MLX5_SET(rqtc, rqtc, rqt_actual_size, i);
 
 	err = mlx5_vdpa_create_rqt(&ndev->mvdev, in, inlen, &ndev->res.rqtn);
+	kfree(in);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+#define MLX5_MODIFY_RQT_NUM_RQS ((u64)1)
+
+static int modify_rqt(struct mlx5_vdpa_net *ndev, int num)
+{
+	__be32 *list;
+	int max_rqt;
+	void *rqtc;
+	int inlen;
+	void *in;
+	int i, j;
+	int err;
+
+	max_rqt = min_t(int, ndev->cur_num_vqs / 2,
+			1 << MLX5_CAP_GEN(ndev->mvdev.mdev, log_max_rqt_size));
+	if (max_rqt < 1)
+		return -EOPNOTSUPP;
+
+	inlen = MLX5_ST_SZ_BYTES(modify_rqt_in) + max_rqt * MLX5_ST_SZ_BYTES(rq_num);
+	in = kzalloc(inlen, GFP_KERNEL);
+	if (!in)
+		return -ENOMEM;
+
+	MLX5_SET(modify_rqt_in, in, uid, ndev->mvdev.res.uid);
+	MLX5_SET64(modify_rqt_in, in, bitmask, MLX5_MODIFY_RQT_NUM_RQS);
+	rqtc = MLX5_ADDR_OF(modify_rqt_in, in, ctx);
+	MLX5_SET(rqtc, rqtc, list_q_type, MLX5_RQTC_LIST_Q_TYPE_VIRTIO_NET_Q);
+
+	list = MLX5_ADDR_OF(rqtc, rqtc, rq_num[0]);
+	for (i = 0, j = 0; j < num; j++) {
+		if (!ndev->vqs[j].initialized)
+			continue;
+
+		if (!vq_is_tx(ndev->vqs[j].index)) {
+			list[i] = cpu_to_be32(ndev->vqs[j].virtq_id);
+			i++;
+		}
+	}
+	MLX5_SET(rqtc, rqtc, rqt_actual_size, i);
+	err = mlx5_vdpa_modify_rqt(&ndev->mvdev, in, inlen, ndev->res.rqtn);
 	kfree(in);
 	if (err)
 		return err;
@@ -1417,6 +1482,77 @@ static virtio_net_ctrl_ack handle_ctrl_mac(struct mlx5_vdpa_dev *mvdev, u8 cmd)
 	return status;
 }
 
+static int change_num_qps(struct mlx5_vdpa_dev *mvdev, int newqps)
+{
+	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
+	int cur_qps = ndev->cur_num_vqs / 2;
+	int err;
+	int i;
+
+	if (cur_qps > newqps) {
+		err = modify_rqt(ndev, 2 * newqps);
+		if (err)
+			return err;
+
+		for (i = ndev->cur_num_vqs - 1; i >= 2 * newqps; i--)
+			teardown_vq(ndev, &ndev->vqs[i]);
+
+		ndev->cur_num_vqs = 2 * newqps;
+	} else {
+		ndev->cur_num_vqs = 2 * newqps;
+		for (i = cur_qps * 2; i < 2 * newqps; i++) {
+			err = setup_vq(ndev, &ndev->vqs[i]);
+			if (err)
+				goto clean_added;
+		}
+		err = modify_rqt(ndev, 2 * newqps);
+		if (err)
+			goto clean_added;
+	}
+	return 0;
+
+clean_added:
+	for (--i; i >= cur_qps; --i)
+		teardown_vq(ndev, &ndev->vqs[i]);
+
+	return err;
+}
+
+static virtio_net_ctrl_ack handle_ctrl_mq(struct mlx5_vdpa_dev *mvdev, u8 cmd)
+{
+	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
+	virtio_net_ctrl_ack status = VIRTIO_NET_ERR;
+	struct mlx5_control_vq *cvq = &mvdev->cvq;
+	struct virtio_net_ctrl_mq mq;
+	size_t read;
+	u16 newqps;
+
+	switch (cmd) {
+	case VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET:
+		read = vringh_iov_pull_iotlb(&cvq->vring, &cvq->riov, (void *)&mq, sizeof(mq));
+		if (read != sizeof(mq))
+			break;
+
+		newqps = mlx5vdpa16_to_cpu(mvdev, mq.virtqueue_pairs);
+		if (ndev->cur_num_vqs == 2 * newqps) {
+			status = VIRTIO_NET_OK;
+			break;
+		}
+
+		if (newqps & (newqps - 1))
+			break;
+
+		if (!change_num_qps(mvdev, newqps))
+			status = VIRTIO_NET_OK;
+
+		break;
+	default:
+		break;
+	}
+
+	return status;
+}
+
 static void mlx5_cvq_kick_handler(struct work_struct *work)
 {
 	virtio_net_ctrl_ack status = VIRTIO_NET_ERR;
@@ -1451,6 +1587,9 @@ static void mlx5_cvq_kick_handler(struct work_struct *work)
 		switch (ctrl.class) {
 		case VIRTIO_NET_CTRL_MAC:
 			status = handle_ctrl_mac(mvdev, ctrl.cmd);
+			break;
+		case VIRTIO_NET_CTRL_MQ:
+			status = handle_ctrl_mq(mvdev, ctrl.cmd);
 			break;
 
 		default:
@@ -1709,6 +1848,7 @@ static u64 mlx5_vdpa_get_features(struct vdpa_device *vdev)
 	ndev->mvdev.mlx_features |= BIT_ULL(VIRTIO_F_ACCESS_PLATFORM);
 	ndev->mvdev.mlx_features |= BIT_ULL(VIRTIO_NET_F_CTRL_VQ);
 	ndev->mvdev.mlx_features |= BIT_ULL(VIRTIO_NET_F_CTRL_MAC_ADDR);
+	ndev->mvdev.mlx_features |= BIT_ULL(VIRTIO_NET_F_MQ);
 
 	print_features(mvdev, ndev->mvdev.mlx_features, false);
 	return ndev->mvdev.mlx_features;
@@ -1766,18 +1906,6 @@ static void teardown_virtqueues(struct mlx5_vdpa_net *ndev)
 
 		teardown_vq(ndev, mvq);
 	}
-}
-
-/* TODO: cross-endian support */
-static inline bool mlx5_vdpa_is_little_endian(struct mlx5_vdpa_dev *mvdev)
-{
-	return virtio_legacy_is_little_endian() ||
-		(mvdev->actual_features & BIT_ULL(VIRTIO_F_VERSION_1));
-}
-
-static __virtio16 cpu_to_mlx5vdpa16(struct mlx5_vdpa_dev *mvdev, u16 val)
-{
-	return __cpu_to_virtio16(mlx5_vdpa_is_little_endian(mvdev), val);
 }
 
 static void update_cvq_info(struct mlx5_vdpa_dev *mvdev)
@@ -1851,15 +1979,14 @@ static u8 mlx5_vdpa_get_status(struct vdpa_device *vdev)
 static int save_channel_info(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq)
 {
 	struct mlx5_vq_restore_info *ri = &mvq->ri;
-	struct mlx5_virtq_attr attr;
+	struct mlx5_virtq_attr attr = {};
 	int err;
 
-	if (!mvq->initialized)
-		return 0;
-
-	err = query_virtqueue(ndev, mvq, &attr);
-	if (err)
-		return err;
+	if (mvq->initialized) {
+		err = query_virtqueue(ndev, mvq, &attr);
+		if (err)
+			return err;
+	}
 
 	ri->avail_index = attr.available_index;
 	ri->used_index = attr.used_index;

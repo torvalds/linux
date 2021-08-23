@@ -129,6 +129,16 @@ int mlx5_vdpa_create_rqt(struct mlx5_vdpa_dev *mvdev, void *in, int inlen, u32 *
 	return err;
 }
 
+int mlx5_vdpa_modify_rqt(struct mlx5_vdpa_dev *mvdev, void *in, int inlen, u32 rqtn)
+{
+	u32 out[MLX5_ST_SZ_DW(create_rqt_out)] = {};
+
+	MLX5_SET(modify_rqt_in, in, uid, mvdev->res.uid);
+	MLX5_SET(modify_rqt_in, in, rqtn, rqtn);
+	MLX5_SET(modify_rqt_in, in, opcode, MLX5_CMD_OP_MODIFY_RQT);
+	return mlx5_cmd_exec(mvdev->mdev, in, inlen, out, sizeof(out));
+}
+
 void mlx5_vdpa_destroy_rqt(struct mlx5_vdpa_dev *mvdev, u32 rqtn)
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_rqt_in)] = {};
