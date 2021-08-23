@@ -543,7 +543,7 @@ static int xiic_busy(struct xiic_i2c *i2c)
 	int tries = 3;
 	int err;
 
-	if (i2c->tx_msg)
+	if (i2c->tx_msg || i2c->rx_msg)
 		return -EBUSY;
 
 	/* In single master mode bus can only be busy, when in use by this
