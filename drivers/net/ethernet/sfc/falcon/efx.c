@@ -2780,18 +2780,22 @@ static void ef4_pci_remove(struct pci_dev *pci_dev)
 };
 
 /* NIC VPD information
- * Called during probe to display the part number of the installed NIC.
+ * Called during probe to display the part number of the
+ * installed NIC.  VPD is potentially very large but this should
+ * always appear within the first 512 bytes.
  */
+#define SFC_VPD_LEN 512
 static void ef4_probe_vpd_strings(struct ef4_nic *efx)
 {
 	struct pci_dev *dev = efx->pci_dev;
+	char vpd_data[SFC_VPD_LEN];
+	ssize_t vpd_size;
 	int ro_start, ro_size, i, j;
-	unsigned int vpd_size;
-	u8 *vpd_data;
 
-	vpd_data = pci_vpd_alloc(dev, &vpd_size);
-	if (IS_ERR(vpd_data)) {
-		pci_warn(dev, "Unable to read VPD\n");
+	/* Get the vpd data from the device */
+	vpd_size = pci_read_vpd(dev, 0, sizeof(vpd_data), vpd_data);
+	if (vpd_size <= 0) {
+		netif_err(efx, drv, efx->net_dev, "Unable to read VPD\n");
 		return;
 	}
 
@@ -2799,7 +2803,7 @@ static void ef4_probe_vpd_strings(struct ef4_nic *efx)
 	ro_start = pci_vpd_find_tag(vpd_data, vpd_size, PCI_VPD_LRDT_RO_DATA);
 	if (ro_start < 0) {
 		netif_err(efx, drv, efx->net_dev, "VPD Read-only not found\n");
-		goto out;
+		return;
 	}
 
 	ro_size = pci_vpd_lrdt_size(&vpd_data[ro_start]);
@@ -2812,14 +2816,14 @@ static void ef4_probe_vpd_strings(struct ef4_nic *efx)
 	i = pci_vpd_find_info_keyword(vpd_data, i, j, "PN");
 	if (i < 0) {
 		netif_err(efx, drv, efx->net_dev, "Part number not found\n");
-		goto out;
+		return;
 	}
 
 	j = pci_vpd_info_field_size(&vpd_data[i]);
 	i += PCI_VPD_INFO_FLD_HDR_SIZE;
 	if (i + j > vpd_size) {
 		netif_err(efx, drv, efx->net_dev, "Incomplete part number\n");
-		goto out;
+		return;
 	}
 
 	netif_info(efx, drv, efx->net_dev,
@@ -2830,23 +2834,21 @@ static void ef4_probe_vpd_strings(struct ef4_nic *efx)
 	i = pci_vpd_find_info_keyword(vpd_data, i, j, "SN");
 	if (i < 0) {
 		netif_err(efx, drv, efx->net_dev, "Serial number not found\n");
-		goto out;
+		return;
 	}
 
 	j = pci_vpd_info_field_size(&vpd_data[i]);
 	i += PCI_VPD_INFO_FLD_HDR_SIZE;
 	if (i + j > vpd_size) {
 		netif_err(efx, drv, efx->net_dev, "Incomplete serial number\n");
-		goto out;
+		return;
 	}
 
 	efx->vpd_sn = kmalloc(j + 1, GFP_KERNEL);
 	if (!efx->vpd_sn)
-		goto out;
+		return;
 
 	snprintf(efx->vpd_sn, j + 1, "%s", &vpd_data[i]);
-out:
-	kfree(vpd_data);
 }
 
 
