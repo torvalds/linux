@@ -39,16 +39,12 @@ static void blktrans_dev_release(struct kref *kref)
 
 static struct mtd_blktrans_dev *blktrans_dev_get(struct gendisk *disk)
 {
-	struct mtd_blktrans_dev *dev;
+	struct mtd_blktrans_dev *dev = disk->private_data;
 
 	mutex_lock(&blktrans_ref_mutex);
-	dev = disk->private_data;
-
-	if (!dev)
-		goto unlock;
 	kref_get(&dev->ref);
-unlock:
 	mutex_unlock(&blktrans_ref_mutex);
+
 	return dev;
 }
 
@@ -204,9 +200,6 @@ static int blktrans_open(struct block_device *bdev, fmode_t mode)
 	struct mtd_blktrans_dev *dev = blktrans_dev_get(bdev->bd_disk);
 	int ret = 0;
 
-	if (!dev)
-		return -ERESTARTSYS; /* FIXME: busy loop! -arnd*/
-
 	mutex_lock(&dev->lock);
 
 	if (dev->open)
@@ -250,9 +243,6 @@ static void blktrans_release(struct gendisk *disk, fmode_t mode)
 {
 	struct mtd_blktrans_dev *dev = blktrans_dev_get(disk);
 
-	if (!dev)
-		return;
-
 	mutex_lock(&dev->lock);
 
 	if (--dev->open)
@@ -275,9 +265,6 @@ static int blktrans_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
 	struct mtd_blktrans_dev *dev = blktrans_dev_get(bdev->bd_disk);
 	int ret = -ENXIO;
-
-	if (!dev)
-		return ret;
 
 	mutex_lock(&dev->lock);
 
