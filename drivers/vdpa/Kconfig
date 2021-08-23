@@ -53,6 +53,7 @@ config MLX5_VDPA
 config MLX5_VDPA_NET
 	tristate "vDPA driver for ConnectX devices"
 	select MLX5_VDPA
+	select VHOST_RING
 	depends on MLX5_CORE
 	help
 	  VDPA network driver for ConnectX6 and newer. Provides offloading

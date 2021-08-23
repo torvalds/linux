@@ -5,6 +5,7 @@
 #define __MLX5_VDPA_H__
 
 #include <linux/etherdevice.h>
+#include <linux/vringh.h>
 #include <linux/vdpa.h>
 #include <linux/mlx5/driver.h>
 
@@ -47,6 +48,26 @@ struct mlx5_vdpa_resources {
 	bool valid;
 };
 
+struct mlx5_control_vq {
+	struct vhost_iotlb *iotlb;
+	/* spinlock to synchronize iommu table */
+	spinlock_t iommu_lock;
+	struct vringh vring;
+	bool ready;
+	u64 desc_addr;
+	u64 device_addr;
+	u64 driver_addr;
+	struct vdpa_callback event_cb;
+	struct vringh_kiov riov;
+	struct vringh_kiov wiov;
+	unsigned short head;
+};
+
+struct mlx5_ctrl_wq_ent {
+	struct work_struct work;
+	struct mlx5_vdpa_dev *mvdev;
+};
+
 struct mlx5_vdpa_dev {
 	struct vdpa_device vdev;
 	struct mlx5_core_dev *mdev;
@@ -60,6 +81,8 @@ struct mlx5_vdpa_dev {
 	u32 generation;
 
 	struct mlx5_vdpa_mr mr;
+	struct mlx5_control_vq cvq;
+	struct workqueue_struct *wq;
 };
 
 int mlx5_vdpa_alloc_pd(struct mlx5_vdpa_dev *dev, u32 *pdn, u16 uid);
