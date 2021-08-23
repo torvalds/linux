@@ -723,7 +723,7 @@ static void set_mode_dacl(struct user_namespace *user_ns,
 	}
 
 	/* owner RID */
-	uid = from_kuid(user_ns, fattr->cf_uid);
+	uid = from_kuid(&init_user_ns, fattr->cf_uid);
 	if (uid)
 		sid = &server_conf.domain_sid;
 	else
@@ -739,7 +739,7 @@ static void set_mode_dacl(struct user_namespace *user_ns,
 	ace_size = fill_ace_for_sid(pace, &sid_unix_groups,
 				    ACCESS_ALLOWED, 0, fattr->cf_mode, 0070);
 	pace->sid.sub_auth[pace->sid.num_subauth++] =
-		cpu_to_le32(from_kgid(user_ns, fattr->cf_gid));
+		cpu_to_le32(from_kgid(&init_user_ns, fattr->cf_gid));
 	pace->size = cpu_to_le16(ace_size + 4);
 	size += le16_to_cpu(pace->size);
 	pace = (struct smb_ace *)((char *)pndace + size);
@@ -880,7 +880,7 @@ int build_sec_desc(struct user_namespace *user_ns,
 	if (!nowner_sid_ptr)
 		return -ENOMEM;
 
-	uid = from_kuid(user_ns, fattr->cf_uid);
+	uid = from_kuid(&init_user_ns, fattr->cf_uid);
 	if (!uid)
 		sid_type = SIDUNIX_USER;
 	id_to_sid(uid, sid_type, nowner_sid_ptr);
@@ -891,7 +891,7 @@ int build_sec_desc(struct user_namespace *user_ns,
 		return -ENOMEM;
 	}
 
-	gid = from_kgid(user_ns, fattr->cf_gid);
+	gid = from_kgid(&init_user_ns, fattr->cf_gid);
 	id_to_sid(gid, SIDUNIX_GROUP, ngroup_sid_ptr);
 
 	offset = sizeof(struct smb_ntsd);

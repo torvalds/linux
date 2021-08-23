@@ -2381,10 +2381,12 @@ static int smb2_create_sd_buffer(struct ksmbd_work *work,
 			    le32_to_cpu(sd_buf->ccontext.DataLength), true);
 }
 
-static void ksmbd_acls_fattr(struct smb_fattr *fattr, struct inode *inode)
+static void ksmbd_acls_fattr(struct smb_fattr *fattr,
+			     struct user_namespace *mnt_userns,
+			     struct inode *inode)
 {
-	fattr->cf_uid = inode->i_uid;
-	fattr->cf_gid = inode->i_gid;
+	fattr->cf_uid = i_uid_into_mnt(mnt_userns, inode);
+	fattr->cf_gid = i_gid_into_mnt(mnt_userns, inode);
 	fattr->cf_mode = inode->i_mode;
 	fattr->cf_acls = NULL;
 	fattr->cf_dacls = NULL;
@@ -2893,7 +2895,7 @@ int smb2_open(struct ksmbd_work *work)
 					struct smb_ntsd *pntsd;
 					int pntsd_size, ace_num = 0;
 
-					ksmbd_acls_fattr(&fattr, inode);
+					ksmbd_acls_fattr(&fattr, user_ns, inode);
 					if (fattr.cf_acls)
 						ace_num = fattr.cf_acls->a_count;
 					if (fattr.cf_dacls)
@@ -5006,7 +5008,7 @@ static int smb2_get_info_sec(struct ksmbd_work *work,
 
 	user_ns = file_mnt_user_ns(fp->filp);
 	inode = file_inode(fp->filp);
-	ksmbd_acls_fattr(&fattr, inode);
+	ksmbd_acls_fattr(&fattr, user_ns, inode);
 
 	if (test_share_config_flag(work->tcon->share_conf,
 				   KSMBD_SHARE_FLAG_ACL_XATTR))
