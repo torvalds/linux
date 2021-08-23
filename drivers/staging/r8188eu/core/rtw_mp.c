@@ -635,7 +635,7 @@ void SetPacketTx(struct adapter *padapter)
 	struct tx_desc *desc;
 	struct rtw_ieee80211_hdr *hdr;
 	u8 payload;
-	s32 bmcast;
+	bool bmcast;
 	struct pkt_attrib *pattrib;
 	struct mp_priv *pmp_priv;
 
@@ -651,7 +651,7 @@ void SetPacketTx(struct adapter *padapter)
 	memcpy(pattrib->src, padapter->eeprompriv.mac_addr, ETH_ALEN);
 	memcpy(pattrib->ta, pattrib->src, ETH_ALEN);
 	memcpy(pattrib->ra, pattrib->dst, ETH_ALEN);
-	bmcast = IS_MCAST(pattrib->ra);
+	bmcast = is_multicast_ether_addr(pattrib->ra);
 	if (bmcast) {
 		pattrib->mac_id = 1;
 		pattrib->psta = rtw_get_bcmc_stainfo(padapter);
