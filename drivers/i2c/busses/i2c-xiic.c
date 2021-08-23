@@ -554,7 +554,6 @@ static void xiic_start_recv(struct xiic_i2c *i2c)
 {
 	u8 rx_watermark;
 	struct i2c_msg *msg = i2c->rx_msg = i2c->tx_msg;
-	unsigned long flags;
 
 	/* Clear and enable Rx full interrupt. */
 	xiic_irq_clr_en(i2c, XIIC_INTR_RX_FULL_MASK | XIIC_INTR_TX_ERROR_MASK);
@@ -570,7 +569,6 @@ static void xiic_start_recv(struct xiic_i2c *i2c)
 		rx_watermark = IIC_RX_FIFO_DEPTH;
 	xiic_setreg8(i2c, XIIC_RFD_REG_OFFSET, rx_watermark - 1);
 
-	local_irq_save(flags);
 	if (!(msg->flags & I2C_M_NOSTART))
 		/* write the address */
 		xiic_setreg16(i2c, XIIC_DTR_REG_OFFSET,
@@ -580,7 +578,6 @@ static void xiic_start_recv(struct xiic_i2c *i2c)
 
 	xiic_setreg16(i2c, XIIC_DTR_REG_OFFSET,
 		msg->len | ((i2c->nmsgs == 1) ? XIIC_TX_DYN_STOP_MASK : 0));
-	local_irq_restore(flags);
 
 	if (i2c->nmsgs == 1)
 		/* very last, enable bus not busy as well */
@@ -618,26 +615,6 @@ static void xiic_start_send(struct xiic_i2c *i2c)
 	/* Clear any pending Tx empty, Tx Error and then enable them. */
 	xiic_irq_clr_en(i2c, XIIC_INTR_TX_EMPTY_MASK | XIIC_INTR_TX_ERROR_MASK |
 		XIIC_INTR_BNB_MASK);
-}
-
-static irqreturn_t xiic_isr(int irq, void *dev_id)
-{
-	struct xiic_i2c *i2c = dev_id;
-	u32 pend, isr, ier;
-	irqreturn_t ret = IRQ_NONE;
-	/* Do not processes a devices interrupts if the device has no
-	 * interrupts pending
-	 */
-
-	dev_dbg(i2c->adap.dev.parent, "%s entry\n", __func__);
-
-	isr = xiic_getreg32(i2c, XIIC_IISR_OFFSET);
-	ier = xiic_getreg32(i2c, XIIC_IIER_OFFSET);
-	pend = isr & ier;
-	if (pend)
-		ret = IRQ_WAKE_THREAD;
-
-	return ret;
 }
 
 static void __xiic_start_xfer(struct xiic_i2c *i2c)
@@ -818,7 +795,7 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(i2c->dev);
 	pm_runtime_set_active(i2c->dev);
 	pm_runtime_enable(i2c->dev);
-	ret = devm_request_threaded_irq(&pdev->dev, irq, xiic_isr,
+	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 					xiic_process, IRQF_ONESHOT,
 					pdev->name, i2c);
 
