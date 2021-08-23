@@ -13171,17 +13171,22 @@ static int bnxt_init_mac_addr(struct bnxt *bp)
 	return rc;
 }
 
+#define BNXT_VPD_LEN	512
 static void bnxt_vpd_read_info(struct bnxt *bp)
 {
 	struct pci_dev *pdev = bp->pdev;
 	int i, len, pos, ro_size, size;
-	unsigned int vpd_size;
+	ssize_t vpd_size;
 	u8 *vpd_data;
 
-	vpd_data = pci_vpd_alloc(pdev, &vpd_size);
-	if (IS_ERR(vpd_data)) {
-		pci_warn(pdev, "Unable to read VPD\n");
+	vpd_data = kmalloc(BNXT_VPD_LEN, GFP_KERNEL);
+	if (!vpd_data)
 		return;
+
+	vpd_size = pci_read_vpd(pdev, 0, BNXT_VPD_LEN, vpd_data);
+	if (vpd_size <= 0) {
+		netdev_err(bp->dev, "Unable to read VPD\n");
+		goto exit;
 	}
 
 	i = pci_vpd_find_tag(vpd_data, vpd_size, PCI_VPD_LRDT_RO_DATA);
