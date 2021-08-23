@@ -129,13 +129,10 @@ exit:
 	return rst;
 }
 
-static u8 rtw_deinit_intf_priv(struct dvobj_priv *dvobj)
+static void rtw_deinit_intf_priv(struct dvobj_priv *dvobj)
 {
-	u8 rst = _SUCCESS;
-
 	kfree(dvobj->usb_alloc_vendor_req_buf);
 	_rtw_mutex_free(&dvobj->usb_vendor_req_mutex);
-	return rst;
 }
 
 static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
