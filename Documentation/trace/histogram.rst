@@ -70,16 +70,16 @@ Documentation written by Tom Zanussi
   modified by appending any of the following modifiers to the field
   name:
 
-	=========== ==========================================
-        .hex        display a number as a hex value
-	.sym        display an address as a symbol
-	.sym-offset display an address as a symbol and offset
-	.syscall    display a syscall id as a system call name
-	.execname   display a common_pid as a program name
-	.log2       display log2 value rather than raw number
+	=============  =================================================
+        .hex           display a number as a hex value
+	.sym           display an address as a symbol
+	.sym-offset    display an address as a symbol and offset
+	.syscall       display a syscall id as a system call name
+	.execname      display a common_pid as a program name
+	.log2          display log2 value rather than raw number
 	.buckets=size  display grouping of values rather than raw number
-	.usecs      display a common_timestamp in microseconds
-	=========== ==========================================
+	.usecs         display a common_timestamp in microseconds
+	=============  =================================================
 
   Note that in general the semantics of a given field aren't
   interpreted when applying a modifier to it, but there are some
