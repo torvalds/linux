@@ -257,7 +257,7 @@ unlock:
 
 static int blktrans_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	struct mtd_blktrans_dev *dev = blktrans_dev_get(bdev->bd_disk);
+	struct mtd_blktrans_dev *dev = bdev->bd_disk->private_data;
 	int ret = -ENXIO;
 
 	mutex_lock(&dev->lock);
@@ -268,7 +268,6 @@ static int blktrans_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	ret = dev->tr->getgeo ? dev->tr->getgeo(dev, geo) : -ENOTTY;
 unlock:
 	mutex_unlock(&dev->lock);
-	blktrans_dev_put(dev);
 	return ret;
 }
 
