@@ -233,6 +233,7 @@
 		#reset-cells = <1>;
 		assigned-clocks = <&cru PLL_GPLL>, <&pmucru PLL_PPLL>;
 		assigned-clock-rates = <1200000000>, <200000000>;
+		rockchip,grf = <&grf>;
 	};
 
 	i2c0: i2c@fdd40000 {
