@@ -2969,7 +2969,7 @@ static void intel_pstate_driver_cleanup(void)
 {
 	unsigned int cpu;
 
-	get_online_cpus();
+	cpus_read_lock();
 	for_each_online_cpu(cpu) {
 		if (all_cpu_data[cpu]) {
 			if (intel_pstate_driver == &intel_pstate)
@@ -2979,7 +2979,7 @@ static void intel_pstate_driver_cleanup(void)
 			all_cpu_data[cpu] = NULL;
 		}
 	}
-	put_online_cpus();
+	cpus_read_unlock();
 
 	intel_pstate_driver = NULL;
 }
