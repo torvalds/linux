@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: (GPL-2.0-only or BSD-3-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/qcom,fg.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm PMIC Fuel Gauge
+
+maintainers:
+  - Caleb Connolly <caleb@connolly.tech>
+  - Joel Selvaraj <jo@jsfamily.in>
+  - Yassine Oudjana <y.oudjana@protonmail.com>
+
+properties:
+  compatible:
+    enum:
+      - qcom,pm8994-fg
+      - qcom,pm8998-fg
+
+  reg:
+    maxItems: 1
+
+  monitored-battery:
+    description: |
+       phandle of battery characteristics node.
+       The fuel gauge uses the following battery properties:
+       - charge-full-design-microamp-hours
+       - voltage-min-design-microvolt
+       - voltage-max-design-microvolt
+       See Documentation/devicetree/bindings/power/supply/battery.yaml
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pm8994-fg
+
+    then:
+      properties:
+        interrupts:
+          items:
+            - description: State of charge change interrupt
+            - description: SRAM availability change interrupt
+
+        interrupt-names:
+          items:
+            - const: soc-delta
+            - const: mem-avail
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pm8998-fg
+
+    then:
+      properties:
+        interrupts:
+          items:
+            - description: State of charge change interrupt
+
+        interrupt-names:
+          items:
+            - const: soc-delta
+
+required:
+  - compatible
+  - reg
+  - monitored-battery
+  - interrupts
+  - interrupt-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    battery: battery {
+      compatible = "simple-battery";
+
+      charge-full-design-microamp-hours = <4070000>;
+      voltage-min-design-microvolt = <3400000>;
+      voltage-max-design-microvolt = <4400000>;
+    };
+
+    pmic {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      fuel-gauge@4000 {
+        compatible = "qcom,pmi8994-fg";
+        reg = <0x4000>;
+
+        interrupts = <0x2 0x40 0x4 IRQ_TYPE_EDGE_RISING>,
+                     <0x2 0x44 0x0 IRQ_TYPE_EDGE_BOTH>;
+        interrupt-names = "soc-delta", "mem-avail";
+
+        monitored-battery = <&battery>;
+      };
+    };
