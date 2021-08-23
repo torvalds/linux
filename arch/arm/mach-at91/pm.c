@@ -589,18 +589,22 @@ static const struct of_device_id ramc_phy_ids[] __initconst = {
 	{ /* Sentinel. */ },
 };
 
-static __init void at91_dt_ramc(bool phy_mandatory)
+static __init int at91_dt_ramc(bool phy_mandatory)
 {
 	struct device_node *np;
 	const struct of_device_id *of_id;
 	int idx = 0;
 	void *standby = NULL;
 	const struct ramc_info *ramc;
+	int ret;
 
 	for_each_matching_node_and_match(np, ramc_ids, &of_id) {
 		soc_pm.data.ramc[idx] = of_iomap(np, 0);
-		if (!soc_pm.data.ramc[idx])
-			panic(pr_fmt("unable to map ramc[%d] cpu registers\n"), idx);
+		if (!soc_pm.data.ramc[idx]) {
+			pr_err("unable to map ramc[%d] cpu registers\n", idx);
+			ret = -ENOMEM;
+			goto unmap_ramc;
+		}
 
 		ramc = of_id->data;
 		if (ramc) {
@@ -612,25 +616,42 @@ static __init void at91_dt_ramc(bool phy_mandatory)
 		idx++;
 	}
 
-	if (!idx)
-		panic(pr_fmt("unable to find compatible ram controller node in dtb\n"));
+	if (!idx) {
+		pr_err("unable to find compatible ram controller node in dtb\n");
+		ret = -ENODEV;
+		goto unmap_ramc;
+	}
 
 	/* Lookup for DDR PHY node, if any. */
 	for_each_matching_node_and_match(np, ramc_phy_ids, &of_id) {
 		soc_pm.data.ramc_phy = of_iomap(np, 0);
-		if (!soc_pm.data.ramc_phy)
-			panic(pr_fmt("unable to map ramc phy cpu registers\n"));
+		if (!soc_pm.data.ramc_phy) {
+			pr_err("unable to map ramc phy cpu registers\n");
+			ret = -ENOMEM;
+			goto unmap_ramc;
+		}
 	}
 
-	if (phy_mandatory && !soc_pm.data.ramc_phy)
-		panic(pr_fmt("DDR PHY is mandatory!\n"));
+	if (phy_mandatory && !soc_pm.data.ramc_phy) {
+		pr_err("DDR PHY is mandatory!\n");
+		ret = -ENODEV;
+		goto unmap_ramc;
+	}
 
 	if (!standby) {
 		pr_warn("ramc no standby function available\n");
-		return;
+		return 0;
 	}
 
 	at91_cpuidle_device.dev.platform_data = standby;
+
+	return 0;
+
+unmap_ramc:
+	while (idx)
+		iounmap(soc_pm.data.ramc[--idx]);
+
+	return ret;
 }
 
 static void at91rm9200_idle(void)
@@ -1017,6 +1038,8 @@ static void __init at91_pm_init(void (*pm_idle)(void))
 
 void __init at91rm9200_pm_init(void)
 {
+	int ret;
+
 	if (!IS_ENABLED(CONFIG_SOC_AT91RM9200))
 		return;
 
@@ -1028,7 +1051,9 @@ void __init at91rm9200_pm_init(void)
 	soc_pm.data.standby_mode = AT91_PM_STANDBY;
 	soc_pm.data.suspend_mode = AT91_PM_ULP0;
 
-	at91_dt_ramc(false);
+	ret = at91_dt_ramc(false);
+	if (ret)
+		return;
 
 	/*
 	 * AT91RM9200 SDRAM low-power mode cannot be used with self-refresh.
@@ -1046,13 +1071,17 @@ void __init sam9x60_pm_init(void)
 	static const int iomaps[] __initconst = {
 		[AT91_PM_ULP1]		= AT91_PM_IOMAP(SHDWC),
 	};
+	int ret;
 
 	if (!IS_ENABLED(CONFIG_SOC_SAM9X60))
 		return;
 
 	at91_pm_modes_validate(modes, ARRAY_SIZE(modes));
 	at91_pm_modes_init(iomaps, ARRAY_SIZE(iomaps));
-	at91_dt_ramc(false);
+	ret = at91_dt_ramc(false);
+	if (ret)
+		return;
+
 	at91_pm_init(NULL);
 
 	soc_pm.ws_ids = sam9x60_ws_ids;
@@ -1061,6 +1090,8 @@ void __init sam9x60_pm_init(void)
 
 void __init at91sam9_pm_init(void)
 {
+	int ret;
+
 	if (!IS_ENABLED(CONFIG_SOC_AT91SAM9))
 		return;
 
@@ -1072,7 +1103,10 @@ void __init at91sam9_pm_init(void)
 	soc_pm.data.standby_mode = AT91_PM_STANDBY;
 	soc_pm.data.suspend_mode = AT91_PM_ULP0;
 
-	at91_dt_ramc(false);
+	ret = at91_dt_ramc(false);
+	if (ret)
+		return;
+
 	at91_pm_init(at91sam9_idle);
 }
 
@@ -1081,12 +1115,16 @@ void __init sama5_pm_init(void)
 	static const int modes[] __initconst = {
 		AT91_PM_STANDBY, AT91_PM_ULP0, AT91_PM_ULP0_FAST,
 	};
+	int ret;
 
 	if (!IS_ENABLED(CONFIG_SOC_SAMA5))
 		return;
 
 	at91_pm_modes_validate(modes, ARRAY_SIZE(modes));
-	at91_dt_ramc(false);
+	ret = at91_dt_ramc(false);
+	if (ret)
+		return;
+
 	at91_pm_init(NULL);
 }
 
@@ -1101,13 +1139,17 @@ void __init sama5d2_pm_init(void)
 		[AT91_PM_BACKUP]	= AT91_PM_IOMAP(SHDWC) |
 					  AT91_PM_IOMAP(SFRBU),
 	};
+	int ret;
 
 	if (!IS_ENABLED(CONFIG_SOC_SAMA5D2))
 		return;
 
 	at91_pm_modes_validate(modes, ARRAY_SIZE(modes));
 	at91_pm_modes_init(iomaps, ARRAY_SIZE(iomaps));
-	at91_dt_ramc(false);
+	ret = at91_dt_ramc(false);
+	if (ret)
+		return;
+
 	at91_pm_init(NULL);
 
 	soc_pm.ws_ids = sama5d2_ws_ids;
@@ -1127,13 +1169,17 @@ void __init sama7_pm_init(void)
 		[AT91_PM_BACKUP]	= AT91_PM_IOMAP(SFRBU) |
 					  AT91_PM_IOMAP(SHDWC),
 	};
+	int ret;
 
 	if (!IS_ENABLED(CONFIG_SOC_SAMA7))
 		return;
 
 	at91_pm_modes_validate(modes, ARRAY_SIZE(modes));
 
-	at91_dt_ramc(true);
+	ret = at91_dt_ramc(true);
+	if (ret)
+		return;
+
 	at91_pm_modes_init(iomaps, ARRAY_SIZE(iomaps));
 	at91_pm_init(NULL);
 
