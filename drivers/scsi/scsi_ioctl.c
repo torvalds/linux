@@ -874,7 +874,7 @@ static int scsi_ioctl_sg_io(struct scsi_device *sdev, struct gendisk *disk,
 		return error;
 	if (put_sg_io_hdr(&hdr, argp))
 		return -EFAULT;
-	return 0;
+	return error;
 }
 
 /**
