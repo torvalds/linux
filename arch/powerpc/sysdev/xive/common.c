@@ -1170,7 +1170,7 @@ out:
 	return ret;
 }
 
-static int __init xive_request_ipi(unsigned int cpu)
+static int xive_request_ipi(unsigned int cpu)
 {
 	struct xive_ipi_desc *xid = &xive_ipis[early_cpu_to_node(cpu)];
 	int ret;
