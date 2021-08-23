@@ -490,6 +490,7 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	policy->driver_data = data;
+	policy->dvfs_possible_from_any_cpu = true;
 
 	ret = qcom_cpufreq_hw_read_lut(cpu_dev, policy);
 	if (ret) {
