@@ -28,9 +28,6 @@
 #include <linux/serio.h>
 #include "../../misc/lis3lv02d/lis3lv02d.h"
 
-#define DRIVER_NAME     "hp_accel"
-#define ACPI_MDPS_CLASS "accelerometer"
-
 /* Delayed LEDs infrastructure ------------------------------------ */
 
 /* Special LED class that can defer work */
@@ -269,30 +266,6 @@ static struct delayed_led_classdev hpled_led = {
 	.set_brightness = hpled_set,
 };
 
-static acpi_status
-lis3lv02d_get_resource(struct acpi_resource *resource, void *context)
-{
-	if (resource->type == ACPI_RESOURCE_TYPE_EXTENDED_IRQ) {
-		struct acpi_resource_extended_irq *irq;
-		u32 *device_irq = context;
-
-		irq = &resource->data.extended_irq;
-		*device_irq = irq->interrupts[0];
-	}
-
-	return AE_OK;
-}
-
-static void lis3lv02d_enum_resources(struct acpi_device *device)
-{
-	acpi_status status;
-
-	status = acpi_walk_resources(device->handle, METHOD_NAME__CRS,
-					lis3lv02d_get_resource, &lis3_dev.irq);
-	if (ACPI_FAILURE(status))
-		printk(KERN_DEBUG DRIVER_NAME ": Error getting resources\n");
-}
-
 static bool hp_accel_i8042_filter(unsigned char data, unsigned char str,
 				  struct serio *port)
 {
@@ -322,23 +295,19 @@ static bool hp_accel_i8042_filter(unsigned char data, unsigned char str,
 	return false;
 }
 
-static int lis3lv02d_add(struct acpi_device *device)
+static int lis3lv02d_probe(struct platform_device *device)
 {
 	int ret;
 
-	if (!device)
-		return -EINVAL;
-
-	lis3_dev.bus_priv = device;
+	lis3_dev.bus_priv = ACPI_COMPANION(&device->dev);
 	lis3_dev.init = lis3lv02d_acpi_init;
 	lis3_dev.read = lis3lv02d_acpi_read;
 	lis3_dev.write = lis3lv02d_acpi_write;
-	strcpy(acpi_device_name(device), DRIVER_NAME);
-	strcpy(acpi_device_class(device), ACPI_MDPS_CLASS);
-	device->driver_data = &lis3_dev;
 
 	/* obtain IRQ number of our device from ACPI */
-	lis3lv02d_enum_resources(device);
+	ret = platform_get_irq_optional(device, 0);
+	if (ret > 0)
+		lis3_dev.irq = ret;
 
 	/* If possible use a "standard" axes order */
 	if (lis3_dev.ac.x && lis3_dev.ac.y && lis3_dev.ac.z) {
@@ -371,11 +340,8 @@ static int lis3lv02d_add(struct acpi_device *device)
 	return ret;
 }
 
-static int lis3lv02d_remove(struct acpi_device *device)
+static int lis3lv02d_remove(struct platform_device *device)
 {
-	if (!device)
-		return -EINVAL;
-
 	i8042_remove_filter(hp_accel_i8042_filter);
 	lis3lv02d_joystick_disable(&lis3_dev);
 	lis3lv02d_poweroff(&lis3_dev);
@@ -385,7 +351,6 @@ static int lis3lv02d_remove(struct acpi_device *device)
 
 	return lis3lv02d_remove_fs(&lis3_dev);
 }
-
 
 #ifdef CONFIG_PM_SLEEP
 static int lis3lv02d_suspend(struct device *dev)
@@ -422,17 +387,16 @@ static const struct dev_pm_ops hp_accel_pm = {
 #endif
 
 /* For the HP MDPS aka 3D Driveguard */
-static struct acpi_driver lis3lv02d_driver = {
-	.name  = DRIVER_NAME,
-	.class = ACPI_MDPS_CLASS,
-	.ids   = lis3lv02d_device_ids,
-	.ops = {
-		.add     = lis3lv02d_add,
-		.remove  = lis3lv02d_remove,
+static struct platform_driver lis3lv02d_driver = {
+	.probe	= lis3lv02d_probe,
+	.remove	= lis3lv02d_remove,
+	.driver	= {
+		.name	= "hp_accel",
+		.pm	= HP_ACCEL_PM,
+		.acpi_match_table = lis3lv02d_device_ids,
 	},
-	.drv.pm = HP_ACCEL_PM,
 };
-module_acpi_driver(lis3lv02d_driver);
+module_platform_driver(lis3lv02d_driver);
 
 MODULE_DESCRIPTION("Glue between LIS3LV02Dx and HP ACPI BIOS and support for disk protection LED.");
 MODULE_AUTHOR("Yan Burman, Eric Piel, Pavel Machek");
