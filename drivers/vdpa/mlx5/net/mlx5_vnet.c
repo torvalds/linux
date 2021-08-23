@@ -155,7 +155,7 @@ struct mlx5_vdpa_net {
 
 static void free_resources(struct mlx5_vdpa_net *ndev);
 static void init_mvqs(struct mlx5_vdpa_net *ndev);
-static int setup_driver(struct mlx5_vdpa_net *ndev);
+static int setup_driver(struct mlx5_vdpa_dev *mvdev);
 static void teardown_driver(struct mlx5_vdpa_net *ndev);
 
 static bool mlx5_vdpa_debug;
@@ -1507,12 +1507,13 @@ static int verify_min_features(struct mlx5_vdpa_dev *mvdev, u64 features)
 	return 0;
 }
 
-static int setup_virtqueues(struct mlx5_vdpa_net *ndev)
+static int setup_virtqueues(struct mlx5_vdpa_dev *mvdev)
 {
+	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
 	int err;
 	int i;
 
-	for (i = 0; i < 2 * mlx5_vdpa_max_qps(ndev->mvdev.max_vqs); i++) {
+	for (i = 0; i < 2 * mlx5_vdpa_max_qps(mvdev->max_vqs); i++) {
 		err = setup_vq(ndev, &ndev->vqs[i]);
 		if (err)
 			goto err_vq;
@@ -1671,8 +1672,9 @@ static void restore_channels_info(struct mlx5_vdpa_net *ndev)
 	}
 }
 
-static int mlx5_vdpa_change_map(struct mlx5_vdpa_net *ndev, struct vhost_iotlb *iotlb)
+static int mlx5_vdpa_change_map(struct mlx5_vdpa_dev *mvdev, struct vhost_iotlb *iotlb)
 {
+	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
 	int err;
 
 	suspend_vqs(ndev);
@@ -1681,58 +1683,59 @@ static int mlx5_vdpa_change_map(struct mlx5_vdpa_net *ndev, struct vhost_iotlb *
 		goto err_mr;
 
 	teardown_driver(ndev);
-	mlx5_vdpa_destroy_mr(&ndev->mvdev);
-	err = mlx5_vdpa_create_mr(&ndev->mvdev, iotlb);
+	mlx5_vdpa_destroy_mr(mvdev);
+	err = mlx5_vdpa_create_mr(mvdev, iotlb);
 	if (err)
 		goto err_mr;
 
-	if (!(ndev->mvdev.status & VIRTIO_CONFIG_S_DRIVER_OK))
+	if (!(mvdev->status & VIRTIO_CONFIG_S_DRIVER_OK))
 		return 0;
 
 	restore_channels_info(ndev);
-	err = setup_driver(ndev);
+	err = setup_driver(mvdev);
 	if (err)
 		goto err_setup;
 
 	return 0;
 
 err_setup:
-	mlx5_vdpa_destroy_mr(&ndev->mvdev);
+	mlx5_vdpa_destroy_mr(mvdev);
 err_mr:
 	return err;
 }
 
-static int setup_driver(struct mlx5_vdpa_net *ndev)
+static int setup_driver(struct mlx5_vdpa_dev *mvdev)
 {
+	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
 	int err;
 
 	mutex_lock(&ndev->reslock);
 	if (ndev->setup) {
-		mlx5_vdpa_warn(&ndev->mvdev, "setup driver called for already setup driver\n");
+		mlx5_vdpa_warn(mvdev, "setup driver called for already setup driver\n");
 		err = 0;
 		goto out;
 	}
-	err = setup_virtqueues(ndev);
+	err = setup_virtqueues(mvdev);
 	if (err) {
-		mlx5_vdpa_warn(&ndev->mvdev, "setup_virtqueues\n");
+		mlx5_vdpa_warn(mvdev, "setup_virtqueues\n");
 		goto out;
 	}
 
 	err = create_rqt(ndev);
 	if (err) {
-		mlx5_vdpa_warn(&ndev->mvdev, "create_rqt\n");
+		mlx5_vdpa_warn(mvdev, "create_rqt\n");
 		goto err_rqt;
 	}
 
 	err = create_tir(ndev);
 	if (err) {
-		mlx5_vdpa_warn(&ndev->mvdev, "create_tir\n");
+		mlx5_vdpa_warn(mvdev, "create_tir\n");
 		goto err_tir;
 	}
 
 	err = add_fwd_to_tir(ndev);
 	if (err) {
-		mlx5_vdpa_warn(&ndev->mvdev, "add_fwd_to_tir\n");
+		mlx5_vdpa_warn(mvdev, "add_fwd_to_tir\n");
 		goto err_fwd;
 	}
 	ndev->setup = true;
@@ -1798,7 +1801,7 @@ static void mlx5_vdpa_set_status(struct vdpa_device *vdev, u8 status)
 
 	if ((status ^ ndev->mvdev.status) & VIRTIO_CONFIG_S_DRIVER_OK) {
 		if (status & VIRTIO_CONFIG_S_DRIVER_OK) {
-			err = setup_driver(ndev);
+			err = setup_driver(mvdev);
 			if (err) {
 				mlx5_vdpa_warn(mvdev, "failed to setup driver\n");
 				goto err_setup;
@@ -1848,7 +1851,6 @@ static u32 mlx5_vdpa_get_generation(struct vdpa_device *vdev)
 static int mlx5_vdpa_set_map(struct vdpa_device *vdev, struct vhost_iotlb *iotlb)
 {
 	struct mlx5_vdpa_dev *mvdev = to_mvdev(vdev);
-	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
 	bool change_map;
 	int err;
 
@@ -1859,7 +1861,7 @@ static int mlx5_vdpa_set_map(struct vdpa_device *vdev, struct vhost_iotlb *iotlb
 	}
 
 	if (change_map)
-		return mlx5_vdpa_change_map(ndev, iotlb);
+		return mlx5_vdpa_change_map(mvdev, iotlb);
 
 	return 0;
 }
