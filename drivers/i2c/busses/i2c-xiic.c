@@ -609,8 +609,6 @@ static void xiic_start_send(struct xiic_i2c *i2c)
 {
 	struct i2c_msg *msg = i2c->tx_msg;
 
-	xiic_irq_clr(i2c, XIIC_INTR_TX_ERROR_MASK);
-
 	dev_dbg(i2c->adap.dev.parent, "%s entry, msg: %p, len: %d",
 		__func__, msg, msg->len);
 	dev_dbg(i2c->adap.dev.parent, "%s entry, ISR: 0x%x, CR: 0x%x\n",
@@ -628,16 +626,17 @@ static void xiic_start_send(struct xiic_i2c *i2c)
 		xiic_setreg16(i2c, XIIC_DTR_REG_OFFSET, data);
 	}
 
-	xiic_fill_tx_fifo(i2c);
-
 	/* Clear any pending Tx empty, Tx Error and then enable them. */
 	xiic_irq_clr_en(i2c, XIIC_INTR_TX_EMPTY_MASK | XIIC_INTR_TX_ERROR_MASK |
-		XIIC_INTR_BNB_MASK);
+		XIIC_INTR_BNB_MASK |
+		((i2c->nmsgs > 1 || xiic_tx_space(i2c)) ?
+			XIIC_INTR_TX_HALF_MASK : 0));
+
+	xiic_fill_tx_fifo(i2c);
 }
 
 static void __xiic_start_xfer(struct xiic_i2c *i2c)
 {
-	int first = 1;
 	int fifo_space = xiic_tx_fifo_space(i2c);
 	dev_dbg(i2c->adap.dev.parent, "%s entry, msg: %p, fifos space: %d\n",
 		__func__, i2c->tx_msg, fifo_space);
@@ -648,35 +647,12 @@ static void __xiic_start_xfer(struct xiic_i2c *i2c)
 	i2c->rx_pos = 0;
 	i2c->tx_pos = 0;
 	i2c->state = STATE_START;
-	while ((fifo_space >= 2) && (first || (i2c->nmsgs > 1))) {
-		if (!first) {
-			i2c->nmsgs--;
-			i2c->tx_msg++;
-			i2c->tx_pos = 0;
-		} else
-			first = 0;
-
-		if (i2c->tx_msg->flags & I2C_M_RD) {
-			/* we dont date putting several reads in the FIFO */
-			xiic_start_recv(i2c);
-			return;
-		} else {
-			xiic_start_send(i2c);
-			if (xiic_tx_space(i2c) != 0) {
-				/* the message could not be completely sent */
-				break;
-			}
-		}
-
-		fifo_space = xiic_tx_fifo_space(i2c);
+	if (i2c->tx_msg->flags & I2C_M_RD) {
+		/* we dont date putting several reads in the FIFO */
+		xiic_start_recv(i2c);
+	} else {
+		xiic_start_send(i2c);
 	}
-
-	/* there are more messages or the current one could not be completely
-	 * put into the FIFO, also enable the half empty interrupt
-	 */
-	if (i2c->nmsgs > 1 || xiic_tx_space(i2c))
-		xiic_irq_clr_en(i2c, XIIC_INTR_TX_HALF_MASK);
-
 }
 
 static int xiic_start_xfer(struct xiic_i2c *i2c, struct i2c_msg *msgs, int num)
