@@ -1435,11 +1435,12 @@ static int dsa_slave_clear_vlan(struct net_device *vdev, int vid, void *arg)
  * To summarize, a DSA switch port offloads:
  *
  * - If standalone (this includes software bridge, software LAG):
- *     - if ds->vlan_filtering_is_global = true AND there are bridges spanning
- *       this switch chip which have vlan_filtering=1:
+ *     - if ds->needs_standalone_vlan_filtering = true, OR if
+ *       (ds->vlan_filtering_is_global = true AND there are bridges spanning
+ *       this switch chip which have vlan_filtering=1)
  *         - the 8021q upper VLANs
- *     - else (VLAN filtering is not global, or it is, but no port is under a
- *       VLAN-aware bridge):
+ *     - else (standalone VLAN filtering is not needed, VLAN filtering is not
+ *       global, or it is, but no port is under a VLAN-aware bridge):
  *         - no VLAN (any 8021q upper is a software VLAN)
  *
  * - If under a vlan_filtering=0 bridge which it offload:
@@ -1871,6 +1872,7 @@ void dsa_slave_setup_tagger(struct net_device *slave)
 	struct dsa_slave_priv *p = netdev_priv(slave);
 	const struct dsa_port *cpu_dp = dp->cpu_dp;
 	struct net_device *master = cpu_dp->master;
+	const struct dsa_switch *ds = dp->ds;
 
 	slave->needed_headroom = cpu_dp->tag_ops->needed_headroom;
 	slave->needed_tailroom = cpu_dp->tag_ops->needed_tailroom;
@@ -1888,6 +1890,8 @@ void dsa_slave_setup_tagger(struct net_device *slave)
 	slave->features |= NETIF_F_LLTX;
 	if (slave->needed_tailroom)
 		slave->features &= ~(NETIF_F_SG | NETIF_F_FRAGLIST);
+	if (ds->needs_standalone_vlan_filtering)
+		slave->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 }
 
 static struct lock_class_key dsa_slave_netdev_xmit_lock_key;
