@@ -634,6 +634,15 @@
 	pinctrl-0 = <&pinctrl_sdmmc2_default>;
 };
 
+&shdwc {
+	atmel,shdwc-debouncer = <976>;
+	status = "okay";
+
+	input@0 {
+		reg = <0>;
+	};
+};
+
 &spdifrx {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_spdifrx_default>;
