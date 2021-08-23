@@ -3241,13 +3241,11 @@ void dcn10_update_dchub(struct dce_hwseq *hws, struct dchub_init_data *dh_data)
 
 static bool dcn10_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
 {
-	struct pipe_ctx *test_pipe;
+	struct pipe_ctx *test_pipe, *split_pipe;
 	const struct scaler_data *scl_data = &pipe_ctx->plane_res.scl_data;
-	const struct rect *r1 = &scl_data->recout, *r2;
-	int r1_r = r1->x + r1->width, r1_b = r1->y + r1->height, r2_r, r2_b;
+	struct rect r1 = scl_data->recout, r2, r2_half;
+	int r1_r = r1.x + r1.width, r1_b = r1.y + r1.height, r2_r, r2_b;
 	int cur_layer = pipe_ctx->plane_state->layer_index;
-	bool upper_pipe_exists = false;
-	struct fixed31_32 one = dc_fixpt_from_int(1);
 
 	/**
 	 * Disable the cursor if there's another pipe above this with a
@@ -3256,25 +3254,32 @@ static bool dcn10_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
 	 */
 	for (test_pipe = pipe_ctx->top_pipe; test_pipe;
 	     test_pipe = test_pipe->top_pipe) {
-		if (!test_pipe->plane_state->visible)
+		// Skip invisible layer and pipe-split plane on same layer
+		if (!test_pipe->plane_state->visible || test_pipe->plane_state->layer_index == cur_layer)
 			continue;
 
-		r2 = &test_pipe->plane_res.scl_data.recout;
-		r2_r = r2->x + r2->width;
-		r2_b = r2->y + r2->height;
+		r2 = test_pipe->plane_res.scl_data.recout;
+		r2_r = r2.x + r2.width;
+		r2_b = r2.y + r2.height;
+		split_pipe = test_pipe;
 
-		if (r1->x >= r2->x && r1->y >= r2->y && r1_r <= r2_r && r1_b <= r2_b)
+		/**
+		 * There is another half plane on same layer because of
+		 * pipe-split, merge together per same height.
+		 */
+		for (split_pipe = pipe_ctx->top_pipe; split_pipe;
+		     split_pipe = split_pipe->top_pipe)
+			if (split_pipe->plane_state->layer_index == test_pipe->plane_state->layer_index) {
+				r2_half = split_pipe->plane_res.scl_data.recout;
+				r2.x = (r2_half.x < r2.x) ? r2_half.x : r2.x;
+				r2.width = r2.width + r2_half.width;
+				r2_r = r2.x + r2.width;
+				break;
+			}
+
+		if (r1.x >= r2.x && r1.y >= r2.y && r1_r <= r2_r && r1_b <= r2_b)
 			return true;
-
-		if (test_pipe->plane_state->layer_index < cur_layer)
-			upper_pipe_exists = true;
 	}
-
-	// if plane scaled, assume an upper plane can handle cursor if it exists.
-	if (upper_pipe_exists &&
-			(scl_data->ratios.horz.value != one.value ||
-			scl_data->ratios.vert.value != one.value))
-		return true;
 
 	return false;
 }
