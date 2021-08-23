@@ -24,6 +24,7 @@
   bpf_trace_run4
   bpf_trace_run5
   bpf_trace_run6
+  bsearch
   cancel_delayed_work
   cancel_delayed_work_sync
   cancel_work_sync
@@ -54,8 +55,10 @@
   clk_get_rate
   __clk_hw_register_divider
   clk_hw_register_fixed_factor
+  __clk_hw_register_fixed_rate
   __clk_hw_register_gate
   __clk_hw_register_mux
+  clk_is_match
   clk_prepare
   clk_put
   clk_round_rate
@@ -117,6 +120,7 @@
   device_property_read_u32_array
   device_register
   device_remove_file
+  __device_reset
   device_set_wakeup_capable
   device_set_wakeup_enable
   device_unregister
@@ -165,6 +169,7 @@
   dev_pm_domain_attach_by_id
   dev_pm_domain_attach_by_name
   dev_pm_domain_detach
+  dev_pm_set_wake_irq
   dev_set_name
   _dev_warn
   disable_irq
@@ -1225,6 +1230,7 @@
   find_vpid
   get_unused_fd_flags
   get_user_pages
+  hrtimer_resolution
   idr_preload
   iommu_attach_device
   iommu_domain_alloc
@@ -1261,19 +1267,27 @@
 # required by gpio-ir-recv.ko
   devm_rc_allocate_device
   devm_rc_register_device
+  ir_raw_event_store_edge
 
 # required by gpio-mxc.ko
   bgpio_init
   __devm_irq_alloc_descs
+  devm_irq_alloc_generic_chip
+  devm_irq_setup_generic_chip
   gpiochip_generic_free
   gpiochip_generic_request
   gpiochip_lock_as_irq
   gpiochip_unlock_as_irq
+  irq_domain_add_legacy
   irq_domain_simple_ops
+  irq_gc_ack_set_bit
+  irq_gc_mask_clr_bit
+  irq_gc_mask_set_bit
   __irq_set_handler
   register_syscore_ops
 
 # required by gpio-pca953x.ko
+  __bitmap_replace
   regcache_sync_region
 
 # required by gpio-regulator.ko
@@ -1283,6 +1297,7 @@
 
 # required by gpio-reset.ko
   reset_controller_register
+  reset_controller_unregister
 
 # required by gpio-switch.ko
   typec_switch_get_drvdata
@@ -1297,6 +1312,9 @@
   i2c_recover_bus
 
 # required by imx-cpufreq-dt.ko
+  clk_bulk_get
+  clk_bulk_put
+  dev_pm_opp_put_supported_hw
   dev_pm_opp_set_supported_hw
   nvmem_cell_read_u32
 
@@ -1351,7 +1369,9 @@
 
 # required by imx-sdma.ko
   dma_async_device_register
+  gen_pool_dma_alloc
   krealloc
+  of_gen_pool_get
   vchan_dma_desc_free_list
   vchan_find_desc
   vchan_init
@@ -1364,6 +1384,11 @@
   hrtimer_init
   hrtimer_start_range_ns
   hrtimer_try_to_cancel
+  mctrl_gpio_disable_ms
+  mctrl_gpio_enable_ms
+  mctrl_gpio_get
+  mctrl_gpio_init
+  mctrl_gpio_set
   oops_in_progress
   rational_best_approximation
   _raw_spin_trylock
@@ -1376,6 +1401,9 @@
   uart_console_write
   uart_get_baud_rate
   uart_get_divisor
+  uart_get_rs485_mode
+  uart_handle_cts_change
+  uart_handle_dcd_change
   uart_parse_options
   uart_register_driver
   uart_remove_one_port
@@ -1415,11 +1443,17 @@
 # required by imx8-media-dev.ko
   v4l2_device_register_subdev
 
+# required by imx8m_pm_domains.ko
+  of_genpd_add_subdomain
+
+# required by imx8mm_thermal.ko
+  thermal_zone_bind_cooling_device
+
+# required by imx8mp-ldb.ko
+  devm_of_phy_get
+
 # required by imx_dsp_rproc.ko
   rproc_of_parse_firmware
-
-# required by imx_rpmsg_tty.ko
-  print_hex_dump
 
 # required by imx_rproc.ko
   rproc_elf_find_loaded_rsc_table
@@ -1441,7 +1475,9 @@
 # required by leds-gpio.ko
   device_get_child_node_count
   device_get_next_child_node
+  devm_fwnode_gpiod_get_index
   devm_led_classdev_register_ext
+  gpiod_cansleep
   gpiod_set_value
 
 # required by mac80211.ko
@@ -1593,9 +1629,11 @@
 
 # required by mux-core.ko
   class_find_device
+  device_match_of_node
   devres_add
   devres_alloc_node
   devres_free
+  down_killable
 
 # required by mux-mmio.ko
   dev_get_regmap
@@ -1605,13 +1643,16 @@
 # required by mxc-clk.ko
   __clk_determine_rate
   clk_divider_ops
+  clk_fractional_divider_ops
   clk_gate_ops
   __clk_get_hw
   clk_hw_get_name
   clk_hw_get_parent_by_index
   clk_hw_is_enabled
   clk_hw_register
+  clk_hw_register_composite
   clk_hw_unregister
+  clk_mux_index_to_val
   clk_mux_ops
   clk_unregister
   divider_get_val
@@ -1625,6 +1666,7 @@
   v4l2_src_change_event_subscribe
 
 # required by mxs-dma.ko
+  dmaenginem_async_device_register
   tasklet_setup
 
 # required by mxsfb.ko
@@ -1684,6 +1726,7 @@
   videomode_from_timing
 
 # required by pca9450-regulator.ko
+  regulator_desc_list_voltage_linear_range
   regulator_list_voltage_linear_range
 
 # required by pci-imx6.ko
@@ -1707,6 +1750,8 @@
   regulator_get_voltage
 
 # required by pfuze100-regulator.ko
+  of_regulator_match
+  pm_power_off_prepare
   regulator_list_voltage_linear
   regulator_map_voltage_ascend
 
@@ -1735,7 +1780,15 @@
   pinctrl_enable
   pinctrl_force_default
   pinctrl_force_sleep
+  pinctrl_generic_get_group
+  pinctrl_generic_get_group_count
+  pinctrl_generic_get_group_name
+  pinctrl_generic_get_group_pins
   pin_get_name
+  pinmux_generic_get_function
+  pinmux_generic_get_function_count
+  pinmux_generic_get_function_groups
+  pinmux_generic_get_function_name
   radix_tree_insert
 
 # required by pps_core.ko
@@ -1763,7 +1816,10 @@
   backlight_device_register
   backlight_device_unregister
   devm_pwm_get
+  gpiod_get_direction
   pwm_apply_state
+  pwm_free
+  pwm_request
 
 # required by pwrseq_simple.ko
   devm_gpiod_get_array
@@ -1788,6 +1844,9 @@
   phy_restore_page
   phy_select_page
   phy_write_paged
+
+# required by reset-dispmix.ko
+  __regmap_init_mmio_clk
 
 # required by rpmsg_raw.ko
   compat_ptr_ioctl
@@ -1935,6 +1994,7 @@
   spi_unregister_controller
 
 # required by spi-imx.ko
+  sg_last
   wait_for_completion_interruptible
 
 # required by spidev.ko
@@ -1960,6 +2020,7 @@
 
 # required by timer-imx-sysctr.ko
   clockevents_config_and_register
+  timer_of_init
 
 # required by trusty-ipc.ko
   _copy_from_iter
