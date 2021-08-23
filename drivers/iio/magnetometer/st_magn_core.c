@@ -612,6 +612,7 @@ int st_magn_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *mdata = iio_priv(indio_dev);
 	struct st_sensors_platform_data *pdata = dev_get_platdata(mdata->dev);
+	struct device *parent = indio_dev->dev.parent;
 	int err;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -650,15 +651,9 @@ int st_magn_common_probe(struct iio_dev *indio_dev)
 			return err;
 	}
 
-	return iio_device_register(indio_dev);
+	return devm_iio_device_register(parent, indio_dev);
 }
 EXPORT_SYMBOL(st_magn_common_probe);
-
-void st_magn_common_remove(struct iio_dev *indio_dev)
-{
-	iio_device_unregister(indio_dev);
-}
-EXPORT_SYMBOL(st_magn_common_remove);
 
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics magnetometers driver");

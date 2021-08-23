@@ -18,6 +18,5 @@ struct st_lsm9ds0 {
 };
 
 int st_lsm9ds0_probe(struct st_lsm9ds0 *lsm9ds0, struct regmap *regmap);
-int st_lsm9ds0_remove(struct st_lsm9ds0 *lsm9ds0);
 
 #endif /* ST_LSM9DS0_H */

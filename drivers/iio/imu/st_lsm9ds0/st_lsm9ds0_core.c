@@ -142,22 +142,9 @@ int st_lsm9ds0_probe(struct st_lsm9ds0 *lsm9ds0, struct regmap *regmap)
 		return ret;
 
 	/* Setup magnetometer device */
-	ret = st_lsm9ds0_probe_magn(lsm9ds0, regmap);
-	if (ret)
-		st_accel_common_remove(lsm9ds0->accel);
-
-	return ret;
+	return st_lsm9ds0_probe_magn(lsm9ds0, regmap);
 }
 EXPORT_SYMBOL_GPL(st_lsm9ds0_probe);
-
-int st_lsm9ds0_remove(struct st_lsm9ds0 *lsm9ds0)
-{
-	st_magn_common_remove(lsm9ds0->magn);
-	st_accel_common_remove(lsm9ds0->accel);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(st_lsm9ds0_remove);
 
 MODULE_AUTHOR("Andy Shevchenko <andriy.shevchenko@linux.intel.com>");
 MODULE_DESCRIPTION("STMicroelectronics LSM9DS0 IMU core driver");

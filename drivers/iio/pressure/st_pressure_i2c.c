@@ -106,15 +106,6 @@ static int st_press_i2c_probe(struct i2c_client *client,
 	return st_press_common_probe(indio_dev);
 }
 
-static int st_press_i2c_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	st_press_common_remove(indio_dev);
-
-	return 0;
-}
-
 static struct i2c_driver st_press_driver = {
 	.driver = {
 		.name = "st-press-i2c",
@@ -122,7 +113,6 @@ static struct i2c_driver st_press_driver = {
 		.acpi_match_table = ACPI_PTR(st_press_acpi_match),
 	},
 	.probe = st_press_i2c_probe,
-	.remove = st_press_i2c_remove,
 	.id_table = st_press_id_table,
 };
 module_i2c_driver(st_press_driver);

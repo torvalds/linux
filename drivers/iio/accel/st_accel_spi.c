@@ -130,15 +130,6 @@ static int st_accel_spi_probe(struct spi_device *spi)
 	return st_accel_common_probe(indio_dev);
 }
 
-static int st_accel_spi_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-
-	st_accel_common_remove(indio_dev);
-
-	return 0;
-}
-
 static const struct spi_device_id st_accel_id_table[] = {
 	{ LIS3DH_ACCEL_DEV_NAME },
 	{ LSM330D_ACCEL_DEV_NAME },
@@ -166,7 +157,6 @@ static struct spi_driver st_accel_driver = {
 		.of_match_table = st_accel_of_match,
 	},
 	.probe = st_accel_spi_probe,
-	.remove = st_accel_spi_remove,
 	.id_table = st_accel_id_table,
 };
 module_spi_driver(st_accel_driver);

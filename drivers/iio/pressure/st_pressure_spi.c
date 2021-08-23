@@ -89,15 +89,6 @@ static int st_press_spi_probe(struct spi_device *spi)
 	return st_press_common_probe(indio_dev);
 }
 
-static int st_press_spi_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-
-	st_press_common_remove(indio_dev);
-
-	return 0;
-}
-
 static const struct spi_device_id st_press_id_table[] = {
 	{ LPS001WP_PRESS_DEV_NAME },
 	{ LPS25H_PRESS_DEV_NAME },
@@ -116,7 +107,6 @@ static struct spi_driver st_press_driver = {
 		.of_match_table = st_press_of_match,
 	},
 	.probe = st_press_spi_probe,
-	.remove = st_press_spi_remove,
 	.id_table = st_press_id_table,
 };
 module_spi_driver(st_press_driver);

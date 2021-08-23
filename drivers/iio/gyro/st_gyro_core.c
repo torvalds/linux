@@ -478,6 +478,7 @@ int st_gyro_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *gdata = iio_priv(indio_dev);
 	struct st_sensors_platform_data *pdata;
+	struct device *parent = indio_dev->dev.parent;
 	int err;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -515,15 +516,9 @@ int st_gyro_common_probe(struct iio_dev *indio_dev)
 			return err;
 	}
 
-	return iio_device_register(indio_dev);
+	return devm_iio_device_register(parent, indio_dev);
 }
 EXPORT_SYMBOL(st_gyro_common_probe);
-
-void st_gyro_common_remove(struct iio_dev *indio_dev)
-{
-	iio_device_unregister(indio_dev);
-}
-EXPORT_SYMBOL(st_gyro_common_remove);
 
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics gyroscopes driver");
