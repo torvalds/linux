@@ -90,7 +90,6 @@ struct mlx5_vq_restore_info {
 	u16 avail_index;
 	u16 used_index;
 	bool ready;
-	struct vdpa_callback cb;
 	bool restore;
 };
 
@@ -100,7 +99,6 @@ struct mlx5_vdpa_virtqueue {
 	u64 device_addr;
 	u64 driver_addr;
 	u32 num_ent;
-	struct vdpa_callback event_cb;
 
 	/* Resources for implementing the notification channel from the device
 	 * to the driver. fwqp is the firmware end of an RC connection; the
@@ -140,6 +138,7 @@ struct mlx5_vdpa_net {
 	struct mlx5_vdpa_net_resources res;
 	struct virtio_net_config config;
 	struct mlx5_vdpa_virtqueue vqs[MLX5_MAX_SUPPORTED_VQS];
+	struct vdpa_callback event_cbs[MLX5_MAX_SUPPORTED_VQS + 1];
 
 	/* Serialize vq resources creation and destruction. This is required
 	 * since memory map might change and we need to destroy and create
@@ -481,6 +480,10 @@ static int mlx5_vdpa_poll_one(struct mlx5_vdpa_cq *vcq)
 
 static void mlx5_vdpa_handle_completions(struct mlx5_vdpa_virtqueue *mvq, int num)
 {
+	struct mlx5_vdpa_net *ndev = mvq->ndev;
+	struct vdpa_callback *event_cb;
+
+	event_cb = &ndev->event_cbs[mvq->index];
 	mlx5_cq_set_ci(&mvq->cq.mcq);
 
 	/* make sure CQ cosumer update is visible to the hardware before updating
@@ -488,8 +491,8 @@ static void mlx5_vdpa_handle_completions(struct mlx5_vdpa_virtqueue *mvq, int nu
 	 */
 	dma_wmb();
 	rx_post(&mvq->vqqp, num);
-	if (mvq->event_cb.callback)
-		mvq->event_cb.callback(mvq->event_cb.private);
+	if (event_cb->callback)
+		event_cb->callback(event_cb->private);
 }
 
 static void mlx5_vdpa_cq_comp(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe)
@@ -1384,9 +1387,8 @@ static void mlx5_vdpa_set_vq_cb(struct vdpa_device *vdev, u16 idx, struct vdpa_c
 {
 	struct mlx5_vdpa_dev *mvdev = to_mvdev(vdev);
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
-	struct mlx5_vdpa_virtqueue *vq = &ndev->vqs[idx];
 
-	vq->event_cb = *cb;
+	ndev->event_cbs[idx] = *cb;
 }
 
 static void mlx5_vdpa_set_vq_ready(struct vdpa_device *vdev, u16 idx, bool ready)
@@ -1623,7 +1625,6 @@ static int save_channel_info(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqu
 	ri->desc_addr = mvq->desc_addr;
 	ri->device_addr = mvq->device_addr;
 	ri->driver_addr = mvq->driver_addr;
-	ri->cb = mvq->event_cb;
 	ri->restore = true;
 	return 0;
 }
@@ -1668,7 +1669,6 @@ static void restore_channels_info(struct mlx5_vdpa_net *ndev)
 		mvq->desc_addr = ri->desc_addr;
 		mvq->device_addr = ri->device_addr;
 		mvq->driver_addr = ri->driver_addr;
-		mvq->event_cb = ri->cb;
 	}
 }
 
@@ -1791,6 +1791,7 @@ static void mlx5_vdpa_set_status(struct vdpa_device *vdev, u8 status)
 		mlx5_vdpa_destroy_mr(&ndev->mvdev);
 		ndev->mvdev.status = 0;
 		ndev->mvdev.mlx_features = 0;
+		memset(ndev->event_cbs, 0, sizeof(ndev->event_cbs));
 		++mvdev->generation;
 		if (MLX5_CAP_GEN(mvdev->mdev, umem_uid_0)) {
 			if (mlx5_vdpa_create_mr(mvdev, NULL))
