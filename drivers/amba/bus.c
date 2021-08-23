@@ -19,6 +19,7 @@
 #include <linux/clk/clk-conf.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
+#include <linux/of_irq.h>
 
 #include <asm/irq.h>
 
@@ -371,11 +372,37 @@ static void amba_device_release(struct device *dev)
 	kfree(d);
 }
 
+static int of_amba_device_decode_irq(struct amba_device *dev)
+{
+	struct device_node *node = dev->dev.of_node;
+	int i, irq = 0;
+
+	if (IS_ENABLED(CONFIG_OF_IRQ) && node) {
+		/* Decode the IRQs and address ranges */
+		for (i = 0; i < AMBA_NR_IRQS; i++) {
+			irq = of_irq_get(node, i);
+			if (irq < 0) {
+				if (irq == -EPROBE_DEFER)
+					return irq;
+				irq = 0;
+			}
+
+			dev->irq[i] = irq;
+		}
+	}
+
+	return 0;
+}
+
 static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 {
 	u32 size;
 	void __iomem *tmp;
 	int i, ret;
+
+	ret = of_amba_device_decode_irq(dev);
+	if (ret)
+		goto err_out;
 
 	ret = request_resource(parent, &dev->res);
 	if (ret)
