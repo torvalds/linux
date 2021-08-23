@@ -515,6 +515,18 @@
 			};
 		};
 
+		uddrc: uddrc@e3800000 {
+			compatible = "microchip,sama7g5-uddrc";
+			reg = <0xe3800000 0x4000>;
+			status = "okay";
+		};
+
+		ddr3phy: ddr3phy@e3804000 {
+			compatible = "microchip,sama7g5-ddr3phy";
+			reg = <0xe3804000 0x1000>;
+			status = "okay";
+		};
+
 		gic: interrupt-controller@e8c11000 {
 			compatible = "arm,cortex-a7-gic";
 			#interrupt-cells = <3>;
