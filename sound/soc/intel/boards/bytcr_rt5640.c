@@ -490,7 +490,7 @@ static const struct acpi_gpio_mapping byt_rt5640_hp_elitepad_1000g2_gpios[] = {
 	{ },
 };
 
-int byt_rt5640_hp_elitepad_1000g2_jack1_check(void *data)
+static int byt_rt5640_hp_elitepad_1000g2_jack1_check(void *data)
 {
 	struct byt_rt5640_private *priv = data;
 	int jack_status, mic_status;
@@ -506,7 +506,7 @@ int byt_rt5640_hp_elitepad_1000g2_jack1_check(void *data)
 		return SND_JACK_HEADSET;
 }
 
-int byt_rt5640_hp_elitepad_1000g2_jack2_check(void *data)
+static int byt_rt5640_hp_elitepad_1000g2_jack2_check(void *data)
 {
 	struct snd_soc_component *component = data;
 	int jack_status, report;
