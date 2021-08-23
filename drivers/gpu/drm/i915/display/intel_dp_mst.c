@@ -61,7 +61,7 @@ static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 	int bpp, slots = -EINVAL;
 
 	crtc_state->lane_count = limits->max_lane_count;
-	crtc_state->port_clock = limits->max_clock;
+	crtc_state->port_clock = limits->max_rate;
 
 	for (bpp = limits->max_bpp; bpp >= limits->min_bpp; bpp -= 2 * 3) {
 		crtc_state->pipe_bpp = bpp;
@@ -131,8 +131,8 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	 * for MST we always configure max link bw - the spec doesn't
 	 * seem to suggest we should do otherwise.
 	 */
-	limits.min_clock =
-	limits.max_clock = intel_dp_max_link_rate(intel_dp);
+	limits.min_rate =
+	limits.max_rate = intel_dp_max_link_rate(intel_dp);
 
 	limits.min_lane_count =
 	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);

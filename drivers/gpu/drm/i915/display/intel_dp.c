@@ -1044,7 +1044,8 @@ intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 						    intel_dp->num_common_rates,
 						    intel_dp->compliance.test_link_rate);
 			if (index >= 0)
-				limits->min_clock = limits->max_clock = index;
+				limits->min_rate = limits->max_rate =
+					intel_dp->compliance.test_link_rate;
 			limits->min_lane_count = limits->max_lane_count =
 				intel_dp->compliance.test_lane_count;
 		}
@@ -1058,8 +1059,8 @@ intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
 				  const struct link_config_limits *limits)
 {
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
-	int bpp, clock, lane_count;
-	int mode_rate, link_clock, link_avail;
+	int bpp, i, lane_count;
+	int mode_rate, link_rate, link_avail;
 
 	for (bpp = limits->max_bpp; bpp >= limits->min_bpp; bpp -= 2 * 3) {
 		int output_bpp = intel_dp_output_bpp(pipe_config->output_format, bpp);
@@ -1067,18 +1068,22 @@ intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
 		mode_rate = intel_dp_link_required(adjusted_mode->crtc_clock,
 						   output_bpp);
 
-		for (clock = limits->min_clock; clock <= limits->max_clock; clock++) {
+		for (i = 0; i < intel_dp->num_common_rates; i++) {
+			link_rate = intel_dp->common_rates[i];
+			if (link_rate < limits->min_rate ||
+			    link_rate > limits->max_rate)
+				continue;
+
 			for (lane_count = limits->min_lane_count;
 			     lane_count <= limits->max_lane_count;
 			     lane_count <<= 1) {
-				link_clock = intel_dp->common_rates[clock];
-				link_avail = intel_dp_max_data_rate(link_clock,
+				link_avail = intel_dp_max_data_rate(link_rate,
 								    lane_count);
 
 				if (mode_rate <= link_avail) {
 					pipe_config->lane_count = lane_count;
 					pipe_config->pipe_bpp = bpp;
-					pipe_config->port_clock = link_clock;
+					pipe_config->port_clock = link_rate;
 
 					return 0;
 				}
@@ -1212,7 +1217,7 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	 * with DSC enabled for the requested mode.
 	 */
 	pipe_config->pipe_bpp = pipe_bpp;
-	pipe_config->port_clock = intel_dp->common_rates[limits->max_clock];
+	pipe_config->port_clock = limits->max_rate;
 	pipe_config->lane_count = limits->max_lane_count;
 
 	if (intel_dp_is_edp(intel_dp)) {
@@ -1321,8 +1326,8 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	/* No common link rates between source and sink */
 	drm_WARN_ON(encoder->base.dev, common_len <= 0);
 
-	limits.min_clock = 0;
-	limits.max_clock = common_len - 1;
+	limits.min_rate = intel_dp->common_rates[0];
+	limits.max_rate = intel_dp->common_rates[common_len - 1];
 
 	limits.min_lane_count = 1;
 	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
@@ -1340,15 +1345,14 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 		 * values correspond to the native resolution of the panel.
 		 */
 		limits.min_lane_count = limits.max_lane_count;
-		limits.min_clock = limits.max_clock;
+		limits.min_rate = limits.max_rate;
 	}
 
 	intel_dp_adjust_compliance_config(intel_dp, pipe_config, &limits);
 
 	drm_dbg_kms(&i915->drm, "DP link computation with max lane count %i "
 		    "max rate %d max bpp %d pixel clock %iKHz\n",
-		    limits.max_lane_count,
-		    intel_dp->common_rates[limits.max_clock],
+		    limits.max_lane_count, limits.max_rate,
 		    limits.max_bpp, adjusted_mode->crtc_clock);
 
 	if ((adjusted_mode->crtc_clock > i915->max_dotclk_freq ||

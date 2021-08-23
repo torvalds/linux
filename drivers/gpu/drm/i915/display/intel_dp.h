@@ -26,7 +26,7 @@ struct intel_dp;
 struct intel_encoder;
 
 struct link_config_limits {
-	int min_clock, max_clock;
+	int min_rate, max_rate;
 	int min_lane_count, max_lane_count;
 	int min_bpp, max_bpp;
 };
