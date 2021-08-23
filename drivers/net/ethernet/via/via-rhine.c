@@ -1113,13 +1113,12 @@ err_out:
 
 static int rhine_init_one_platform(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	const u32 *quirks;
 	int irq;
 	void __iomem *ioaddr;
 
-	match = of_match_device(rhine_of_tbl, &pdev->dev);
-	if (!match)
+	quirks = of_device_get_match_data(&pdev->dev);
+	if (!quirks)
 		return -EINVAL;
 
 	ioaddr = devm_platform_ioremap_resource(pdev, 0);
@@ -1128,10 +1127,6 @@ static int rhine_init_one_platform(struct platform_device *pdev)
 
 	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (!irq)
-		return -EINVAL;
-
-	quirks = match->data;
-	if (!quirks)
 		return -EINVAL;
 
 	return rhine_init_one_common(&pdev->dev, *quirks,
