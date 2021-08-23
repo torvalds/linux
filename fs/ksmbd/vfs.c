@@ -1390,14 +1390,14 @@ static struct xattr_smb_acl *ksmbd_vfs_make_xattr_posix_acl(struct user_namespac
 		switch (pa_entry->e_tag) {
 		case ACL_USER:
 			xa_entry->type = SMB_ACL_USER;
-			xa_entry->uid = from_kuid(user_ns, pa_entry->e_uid);
+			xa_entry->uid = posix_acl_uid_translate(user_ns, pa_entry);
 			break;
 		case ACL_USER_OBJ:
 			xa_entry->type = SMB_ACL_USER_OBJ;
 			break;
 		case ACL_GROUP:
 			xa_entry->type = SMB_ACL_GROUP;
-			xa_entry->gid = from_kgid(user_ns, pa_entry->e_gid);
+			xa_entry->gid = posix_acl_gid_translate(user_ns, pa_entry);
 			break;
 		case ACL_GROUP_OBJ:
 			xa_entry->type = SMB_ACL_GROUP_OBJ;

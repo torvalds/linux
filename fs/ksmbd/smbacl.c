@@ -587,14 +587,14 @@ static void set_posix_acl_entries_dacl(struct user_namespace *user_ns,
 			uid_t uid;
 			unsigned int sid_type = SIDOWNER;
 
-			uid = from_kuid(user_ns, pace->e_uid);
+			uid = posix_acl_uid_translate(user_ns, pace);
 			if (!uid)
 				sid_type = SIDUNIX_USER;
 			id_to_sid(uid, sid_type, sid);
 		} else if (pace->e_tag == ACL_GROUP) {
 			gid_t gid;
 
-			gid = from_kgid(user_ns, pace->e_gid);
+			gid = posix_acl_gid_translate(user_ns, pace);
 			id_to_sid(gid, SIDUNIX_GROUP, sid);
 		} else if (pace->e_tag == ACL_OTHER && !nt_aces_num) {
 			smb_copy_sid(sid, &sid_everyone);
@@ -653,12 +653,12 @@ posix_default_acl:
 		if (pace->e_tag == ACL_USER) {
 			uid_t uid;
 
-			uid = from_kuid(user_ns, pace->e_uid);
+			uid = posix_acl_uid_translate(user_ns, pace);
 			id_to_sid(uid, SIDCREATOR_OWNER, sid);
 		} else if (pace->e_tag == ACL_GROUP) {
 			gid_t gid;
 
-			gid = from_kgid(user_ns, pace->e_gid);
+			gid = posix_acl_gid_translate(user_ns, pace);
 			id_to_sid(gid, SIDCREATOR_GROUP, sid);
 		} else {
 			kfree(sid);
@@ -1234,11 +1234,9 @@ int smb_check_perm_dacl(struct ksmbd_conn *conn, struct path *path,
 			pa_entry = posix_acls->a_entries;
 			for (i = 0; i < posix_acls->a_count; i++, pa_entry++) {
 				if (pa_entry->e_tag == ACL_USER)
-					id = from_kuid(user_ns,
-						       pa_entry->e_uid);
+					id = posix_acl_uid_translate(user_ns, pa_entry);
 				else if (pa_entry->e_tag == ACL_GROUP)
-					id = from_kgid(user_ns,
-						       pa_entry->e_gid);
+					id = posix_acl_gid_translate(user_ns, pa_entry);
 				else
 					continue;
 
