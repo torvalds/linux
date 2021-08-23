@@ -2204,6 +2204,22 @@ static inline void __bch2_trans_iter_free(struct btree_trans *trans,
 	btree_trans_verify_sorted_refs(trans);
 }
 
+static bool have_iter_at_pos(struct btree_trans *trans,
+			     struct btree_iter *iter)
+{
+	struct btree_iter *n;
+
+	n = prev_btree_iter(trans, iter);
+	if (n && !btree_iter_cmp(n, iter))
+		return true;
+
+	n = next_btree_iter(trans, iter);
+	if (n && !btree_iter_cmp(n, iter))
+		return true;
+
+	return false;
+}
+
 int bch2_trans_iter_put(struct btree_trans *trans,
 			struct btree_iter *iter)
 {
@@ -2217,8 +2233,9 @@ int bch2_trans_iter_put(struct btree_trans *trans,
 
 	ret = btree_iter_err(iter);
 
-	if (!(trans->iters_touched & (1ULL << iter->idx)) &&
-	    !(iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT))
+	if (!(iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT) &&
+	    (!(trans->iters_touched & (1ULL << iter->idx)) ||
+	     have_iter_at_pos(trans, iter)))
 		__bch2_trans_iter_free(trans, iter->idx);
 
 	trans->iters_live	&= ~(1ULL << iter->idx);

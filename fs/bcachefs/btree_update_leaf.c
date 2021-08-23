@@ -1040,6 +1040,7 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 		n.iter = bch2_trans_get_iter(trans, n.btree_id, n.k->k.p,
 					     BTREE_ITER_INTENT|
 					     BTREE_ITER_NOT_EXTENTS);
+		n.iter->flags |= BTREE_ITER_KEEP_UNTIL_COMMIT;
 		ret = bch2_btree_iter_traverse(n.iter);
 		bch2_trans_iter_put(trans, n.iter);
 
