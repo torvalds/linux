@@ -449,10 +449,8 @@ u8 rtw_set_802_11_bssid_list_scan(struct adapter *padapter, struct ndis_802_11_s
 		res = true;
 
 	} else {
-		if (rtw_is_scan_deny(padapter)) {
-			indicate_wx_scan_complete_event(padapter);
+		if (rtw_is_scan_deny(padapter))
 			return _SUCCESS;
-		}
 
 		spin_lock_bh(&pmlmepriv->lock);
 

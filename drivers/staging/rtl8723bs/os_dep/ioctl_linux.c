@@ -29,44 +29,6 @@
 #define WEXT_CSCAN_HOME_DWELL_SECTION	'H'
 #define WEXT_CSCAN_TYPE_SECTION		'T'
 
-void indicate_wx_scan_complete_event(struct adapter *padapter)
-{
-	union iwreq_data wrqu;
-
-	memset(&wrqu, 0, sizeof(union iwreq_data));
-}
-
-
-void rtw_indicate_wx_assoc_event(struct adapter *padapter)
-{
-	union iwreq_data wrqu;
-	struct	mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
-	struct wlan_bssid_ex		*pnetwork = (struct wlan_bssid_ex *)(&(pmlmeinfo->network));
-
-	memset(&wrqu, 0, sizeof(union iwreq_data));
-
-	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-
-	if (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true)
-		memcpy(wrqu.ap_addr.sa_data, pnetwork->mac_address, ETH_ALEN);
-	else
-		memcpy(wrqu.ap_addr.sa_data, pmlmepriv->cur_network.network.mac_address, ETH_ALEN);
-
-	netdev_dbg(padapter->pnetdev, "assoc success\n");
-}
-
-void rtw_indicate_wx_disassoc_event(struct adapter *padapter)
-{
-	union iwreq_data wrqu;
-
-	memset(&wrqu, 0, sizeof(union iwreq_data));
-
-	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	eth_zero_addr(wrqu.ap_addr.sa_data);
-}
-
 static int wpa_set_auth_algs(struct net_device *dev, u32 value)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
