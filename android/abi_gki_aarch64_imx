@@ -439,6 +439,7 @@
   __log_read_mmio
   __log_write_mmio
   mbox_free_channel
+  mbox_request_channel_byname
   mbox_send_message
   mdiobus_read
   mdiobus_write
@@ -646,6 +647,7 @@
   register_netdevice_notifier
   __register_rpmsg_driver
   register_virtio_driver
+  regmap_attach_dev
   regmap_bulk_read
   regmap_bulk_write
   regmap_read
@@ -675,12 +677,19 @@
   reset_control_assert
   reset_control_deassert
   rpmsg_send
+  rpmsg_sendto
   rproc_add
+  rproc_add_carveout
   rproc_alloc
   rproc_coredump_add_segment
+  rproc_da_to_va
   rproc_del
   rproc_elf_get_boot_addr
+  rproc_elf_load_rsc_table
+  rproc_elf_sanity_check
   rproc_free
+  rproc_mem_entry_init
+  rproc_vq_interrupt
   rtnl_is_locked
   rtnl_lock
   rtnl_unlock
@@ -712,7 +721,9 @@
   snd_ctl_boolean_mono_info
   snd_dma_alloc_pages
   snd_dmaengine_pcm_prepare_slave_config
+  snd_dmaengine_pcm_set_config_from_dai_data
   snd_dma_free_pages
+  snd_hwparams_to_dma_slave_config
   snd_pcm_format_physical_width
   snd_pcm_format_width
   snd_pcm_hw_constraint_integer
@@ -724,6 +735,7 @@
   snd_soc_component_read
   snd_soc_component_update_bits
   snd_soc_component_write
+  snd_soc_dai_active
   snd_soc_dai_set_fmt
   snd_soc_dai_set_sysclk
   snd_soc_dai_set_tdm_slot
@@ -732,6 +744,7 @@
   snd_soc_dapm_ignore_suspend
   snd_soc_dapm_new_controls
   snd_soc_dapm_put_volsw
+  snd_soc_dpcm_get_substream
   snd_soc_get_enum_double
   snd_soc_get_volsw
   snd_soc_info_enum_double
@@ -746,6 +759,7 @@
   snd_soc_put_volsw
   snd_soc_set_runtime_hwparams
   snprintf
+  soc_device_match
   __spi_alloc_controller
   sprintf
   sscanf
@@ -1289,6 +1303,12 @@
 
 # required by imx-pcm-dma-v2.ko
   dma_get_slave_caps
+  snd_dmaengine_pcm_close_release_chan
+  snd_dmaengine_pcm_get_chan
+  snd_dmaengine_pcm_open
+  snd_dmaengine_pcm_open_request_chan
+  snd_dmaengine_pcm_pointer
+  snd_dmaengine_pcm_trigger
 
 # required by imx-pcm-rpmsg.ko
   __pm_stay_awake
@@ -1362,8 +1382,15 @@
 # required by imx8-media-dev.ko
   v4l2_device_register_subdev
 
+# required by imx_dsp_rproc.ko
+  rproc_of_parse_firmware
+
 # required by imx_rpmsg_tty.ko
   print_hex_dump
+
+# required by imx_rproc.ko
+  rproc_elf_find_loaded_rsc_table
+  rproc_elf_load_segments
 
 # required by imxdrm.ko
   component_match_add_release
@@ -1701,6 +1728,7 @@
   rpmsg_create_ept
   rpmsg_destroy_ept
   rpmsg_poll
+  rpmsg_trysendto
 
 # required by rtc-snvs.ko
   devm_rtc_allocate_device
@@ -1748,6 +1776,11 @@
   snd_soc_dai_set_pll
   snd_soc_dapm_disable_pin
   snd_soc_dapm_enable_pin
+  snd_soc_jack_notifier_register
+
+# required by snd-soc-fsl-asrc.ko
+  snd_dmaengine_pcm_refine_runtime_hwparams
+  snd_soc_lookup_component_nolocked
 
 # required by snd-soc-fsl-dsp-cpu.ko
   snd_soc_new_compress
@@ -1755,6 +1788,9 @@
   snd_soc_unregister_component
 
 # required by snd-soc-fsl-easrc.ko
+  snd_pcm_format_big_endian
+  snd_pcm_format_linear
+  snd_pcm_format_unsigned
   snd_soc_info_xr_sx
 
 # required by snd-soc-fsl-micfil.ko
@@ -1793,6 +1829,7 @@
 
 # required by snd-soc-imx-rpmsg.ko
   of_reserved_mem_device_init_by_idx
+  snd_soc_get_dai_name
 
 # required by snd-soc-rpmsg-ak4497.ko
   gpio_free
