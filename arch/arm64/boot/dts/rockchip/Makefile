@@ -84,3 +84,4 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nvr-demo-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nvr-demo-v10-linux-spi-nand.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nvr-demo-v12-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nvr-demo-v12-linux-spi-nand.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb2-lp4-v10.dtb
