@@ -2261,6 +2261,7 @@ delayed_register
 quirk_flags
     Contains the bit flags for various device specific workarounds.
     Applied to the corresponding card index.
+
         * bit 0: Skip reading sample rate for devices
         * bit 1: Create Media Controller API entries
         * bit 2: Allow alignment on audio sub-slot at transfer
