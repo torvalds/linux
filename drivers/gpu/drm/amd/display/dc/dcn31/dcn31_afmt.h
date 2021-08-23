@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright 2019 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,14 +23,14 @@
  *
  */
 
-#ifndef __DAL_DCN30_AFMT_H__
-#define __DAL_DCN30_AFMT_H__
+#ifndef __DAL_DCN31_AFMT_H__
+#define __DAL_DCN31_AFMT_H__
 
 
-#define DCN30_AFMT_FROM_AFMT(afmt)\
-	container_of(afmt, struct dcn30_afmt, base)
+#define DCN31_AFMT_FROM_AFMT(afmt)\
+	container_of(afmt, struct dcn31_afmt, base)
 
-#define AFMT_DCN3_REG_LIST(id) \
+#define AFMT_DCN31_REG_LIST(id) \
 	SRI(AFMT_INFOFRAME_CONTROL0, AFMT, id), \
 	SRI(AFMT_VBI_PACKET_CONTROL, AFMT, id), \
 	SRI(AFMT_AUDIO_PACKET_CONTROL, AFMT, id), \
@@ -41,7 +41,7 @@
 	SRI(AFMT_60958_2, AFMT, id), \
 	SRI(AFMT_MEM_PWR, AFMT, id)
 
-struct dcn30_afmt_registers {
+struct dcn31_afmt_registers {
 	uint32_t AFMT_INFOFRAME_CONTROL0;
 	uint32_t AFMT_VBI_PACKET_CONTROL;
 	uint32_t AFMT_AUDIO_PACKET_CONTROL;
@@ -53,7 +53,7 @@ struct dcn30_afmt_registers {
 	uint32_t AFMT_MEM_PWR;
 };
 
-#define DCN3_AFMT_MASK_SH_LIST(mask_sh)\
+#define DCN31_AFMT_MASK_SH_LIST(mask_sh)\
 	SE_SF(AFMT0_AFMT_INFOFRAME_CONTROL0, AFMT_AUDIO_INFO_UPDATE, mask_sh),\
 	SE_SF(AFMT0_AFMT_AUDIO_SRC_CONTROL, AFMT_AUDIO_SRC_SELECT, mask_sh),\
 	SE_SF(AFMT0_AFMT_AUDIO_PACKET_CONTROL2, AFMT_AUDIO_CHANNEL_ENABLE, mask_sh),\
@@ -70,9 +70,11 @@ struct dcn30_afmt_registers {
 	SE_SF(AFMT0_AFMT_60958_2, AFMT_60958_CS_CHANNEL_NUMBER_6, mask_sh),\
 	SE_SF(AFMT0_AFMT_60958_2, AFMT_60958_CS_CHANNEL_NUMBER_7, mask_sh),\
 	SE_SF(AFMT0_AFMT_AUDIO_PACKET_CONTROL, AFMT_AUDIO_SAMPLE_SEND, mask_sh),\
-	SE_SF(AFMT0_AFMT_MEM_PWR, AFMT_MEM_PWR_FORCE, mask_sh)
+	SE_SF(AFMT0_AFMT_MEM_PWR, AFMT_MEM_PWR_FORCE, mask_sh),\
+	SE_SF(AFMT0_AFMT_MEM_PWR, AFMT_MEM_PWR_DIS, mask_sh),\
+	SE_SF(AFMT0_AFMT_MEM_PWR, AFMT_MEM_PWR_STATE, mask_sh)
 
-#define AFMT_DCN3_REG_FIELD_LIST(type) \
+#define AFMT_DCN31_REG_FIELD_LIST(type) \
 		type AFMT_AUDIO_INFO_UPDATE;\
 		type AFMT_AUDIO_SRC_SELECT;\
 		type AFMT_AUDIO_CHANNEL_ENABLE;\
@@ -89,83 +91,36 @@ struct dcn30_afmt_registers {
 		type AFMT_60958_CS_CHANNEL_NUMBER_6;\
 		type AFMT_60958_CS_CHANNEL_NUMBER_7;\
 		type AFMT_AUDIO_SAMPLE_SEND;\
-		type AFMT_MEM_PWR_FORCE
+		type AFMT_MEM_PWR_FORCE;\
+		type AFMT_MEM_PWR_DIS;\
+		type AFMT_MEM_PWR_STATE
 
-struct dcn30_afmt_shift {
-	AFMT_DCN3_REG_FIELD_LIST(uint8_t);
+struct dcn31_afmt_shift {
+	AFMT_DCN31_REG_FIELD_LIST(uint8_t);
 };
 
-struct dcn30_afmt_mask {
-	AFMT_DCN3_REG_FIELD_LIST(uint32_t);
+struct dcn31_afmt_mask {
+	AFMT_DCN31_REG_FIELD_LIST(uint32_t);
 };
 
-
-struct afmt;
-
-struct afmt_funcs {
-
-	void (*setup_hdmi_audio)(
-		struct afmt *afmt);
-
-	void (*se_audio_setup)(
-		struct afmt *afmt,
-		unsigned int az_inst,
-		struct audio_info *audio_info);
-
-	void (*audio_mute_control)(
-		struct afmt *afmt,
-		bool mute);
-
-	void (*audio_info_immediate_update)(
-		struct afmt *afmt);
-
-	void (*setup_dp_audio)(
-		struct afmt *afmt);
-
-	void (*afmt_poweron)(
-		struct afmt *afmt);
-
-	void (*afmt_powerdown)(
-		struct afmt *afmt);
-};
-
-struct afmt {
-	const struct afmt_funcs *funcs;
-	struct dc_context *ctx;
-	int inst;
-};
-
-struct dcn30_afmt {
+struct dcn31_afmt {
 	struct afmt base;
-	const struct dcn30_afmt_registers *regs;
-	const struct dcn30_afmt_shift *afmt_shift;
-	const struct dcn30_afmt_mask *afmt_mask;
+	const struct dcn31_afmt_registers *regs;
+	const struct dcn31_afmt_shift *afmt_shift;
+	const struct dcn31_afmt_mask *afmt_mask;
 };
 
-void afmt3_setup_hdmi_audio(
-	struct afmt *afmt);
-
-void afmt3_se_audio_setup(
-	struct afmt *afmt,
-	unsigned int az_inst,
-	struct audio_info *audio_info);
-
-void afmt3_audio_mute_control(
-	struct afmt *afmt,
-	bool mute);
-
-void afmt3_audio_info_immediate_update(
-	struct afmt *afmt);
-
-void afmt3_setup_dp_audio(
+void afmt31_poweron(
 		struct afmt *afmt);
 
-void afmt3_construct(struct dcn30_afmt *afmt3,
+void afmt31_powerdown(
+		struct afmt *afmt);
+
+void afmt31_construct(struct dcn31_afmt *afmt31,
 	struct dc_context *ctx,
 	uint32_t inst,
-	const struct dcn30_afmt_registers *afmt_regs,
-	const struct dcn30_afmt_shift *afmt_shift,
-	const struct dcn30_afmt_mask *afmt_mask);
-
+	const struct dcn31_afmt_registers *afmt_regs,
+	const struct dcn31_afmt_shift *afmt_shift,
+	const struct dcn31_afmt_mask *afmt_mask);
 
 #endif

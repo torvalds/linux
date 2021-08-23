@@ -704,6 +704,8 @@ static void enc3_se_setup_dp_audio(
 static void enc3_se_dp_audio_enable(
 	struct stream_encoder *enc)
 {
+	if (enc->afmt->funcs->afmt_poweron)
+		enc->afmt->funcs->afmt_poweron(enc->afmt);
 	enc1_se_enable_audio_clock(enc, true);
 	enc3_se_setup_dp_audio(enc);
 	enc1_se_enable_dp_audio(enc);

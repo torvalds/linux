@@ -471,6 +471,8 @@ union mem_low_power_enable_options {
 		bool cm: 1;
 		bool mpc: 1;
 		bool optc: 1;
+		bool vpg: 1;
+		bool afmt: 1;
 	} bits;
 	uint32_t u32All;
 };

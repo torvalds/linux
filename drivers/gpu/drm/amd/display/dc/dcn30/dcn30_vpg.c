@@ -43,7 +43,7 @@
 	vpg3->base.ctx
 
 
-static void vpg3_update_generic_info_packet(
+void vpg3_update_generic_info_packet(
 	struct vpg *vpg,
 	uint32_t packet_index,
 	const struct dc_info_packet *info_packet)

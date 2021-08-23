@@ -51,6 +51,8 @@
 #include "inc/link_enc_cfg.h"
 #include "inc/link_dpcd.h"
 
+#include "dc/dcn30/dcn30_vpg.h"
+
 #define DC_LOGGER_INIT(logger)
 
 #define LINK_INFO(...) \
@@ -3608,6 +3610,7 @@ void core_link_enable_stream(
 	struct link_encoder *link_enc;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	enum otg_out_mux_dest otg_out_dest = OUT_MUX_DIO;
+	struct vpg *vpg = pipe_ctx->stream_res.stream_enc->vpg;
 #endif
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 
@@ -3698,6 +3701,12 @@ void core_link_enable_stream(
 			pipe_ctx->stream->apply_edp_fast_boot_optimization;
 
 		pipe_ctx->stream->apply_edp_fast_boot_optimization = false;
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		// Enable VPG before building infoframe
+		if (vpg && vpg->funcs->vpg_poweron)
+			vpg->funcs->vpg_poweron(vpg);
+#endif
 
 		resource_build_info_frame(pipe_ctx);
 		dc->hwss.update_info_frame(pipe_ctx);
@@ -3845,6 +3854,9 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 	struct dc  *dc = pipe_ctx->stream->ctx->dc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	struct vpg *vpg = pipe_ctx->stream_res.stream_enc->vpg;
+#endif
 
 	if (!IS_DIAG_DC(dc->ctx->dce_environment) &&
 			dc_is_virtual_signal(pipe_ctx->stream->signal))
@@ -3927,6 +3939,11 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 		if (pipe_ctx->stream_res.tg->funcs->set_out_mux)
 			pipe_ctx->stream_res.tg->funcs->set_out_mux(pipe_ctx->stream_res.tg, OUT_MUX_DIO);
 	}
+#endif
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (vpg && vpg->funcs->vpg_powerdown)
+		vpg->funcs->vpg_powerdown(vpg);
 #endif
 }
 

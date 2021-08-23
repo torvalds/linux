@@ -56,6 +56,8 @@
 #include "dcn31/dcn31_hpo_dp_link_encoder.h"
 #include "dcn31/dcn31_apg.h"
 #include "dcn31/dcn31_dio_link_encoder.h"
+#include "dcn31/dcn31_vpg.h"
+#include "dcn31/dcn31_afmt.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
@@ -414,10 +416,10 @@ static const struct dce_audio_mask audio_mask = {
 
 #define vpg_regs(id)\
 [id] = {\
-	VPG_DCN3_REG_LIST(id)\
+	VPG_DCN31_REG_LIST(id)\
 }
 
-static const struct dcn30_vpg_registers vpg_regs[] = {
+static const struct dcn31_vpg_registers vpg_regs[] = {
 	vpg_regs(0),
 	vpg_regs(1),
 	vpg_regs(2),
@@ -430,20 +432,20 @@ static const struct dcn30_vpg_registers vpg_regs[] = {
 	vpg_regs(9),
 };
 
-static const struct dcn30_vpg_shift vpg_shift = {
-	DCN3_VPG_MASK_SH_LIST(__SHIFT)
+static const struct dcn31_vpg_shift vpg_shift = {
+	DCN31_VPG_MASK_SH_LIST(__SHIFT)
 };
 
-static const struct dcn30_vpg_mask vpg_mask = {
-	DCN3_VPG_MASK_SH_LIST(_MASK)
+static const struct dcn31_vpg_mask vpg_mask = {
+	DCN31_VPG_MASK_SH_LIST(_MASK)
 };
 
 #define afmt_regs(id)\
 [id] = {\
-	AFMT_DCN3_REG_LIST(id)\
+	AFMT_DCN31_REG_LIST(id)\
 }
 
-static const struct dcn30_afmt_registers afmt_regs[] = {
+static const struct dcn31_afmt_registers afmt_regs[] = {
 	afmt_regs(0),
 	afmt_regs(1),
 	afmt_regs(2),
@@ -452,12 +454,12 @@ static const struct dcn30_afmt_registers afmt_regs[] = {
 	afmt_regs(5)
 };
 
-static const struct dcn30_afmt_shift afmt_shift = {
-	DCN3_AFMT_MASK_SH_LIST(__SHIFT)
+static const struct dcn31_afmt_shift afmt_shift = {
+	DCN31_AFMT_MASK_SH_LIST(__SHIFT)
 };
 
-static const struct dcn30_afmt_mask afmt_mask = {
-	DCN3_AFMT_MASK_SH_LIST(_MASK)
+static const struct dcn31_afmt_mask afmt_mask = {
+	DCN31_AFMT_MASK_SH_LIST(_MASK)
 };
 
 #define apg_regs(id)\
@@ -1014,6 +1016,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 			.cm = false,
 			.mpc = false,
 			.optc = false,
+			.vpg = false,
+			.afmt = false,
 		}
 	},
 	.optimize_edp_link_rate = true,
@@ -1298,34 +1302,40 @@ static struct vpg *dcn31_vpg_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
-	struct dcn30_vpg *vpg3 = kzalloc(sizeof(struct dcn30_vpg), GFP_KERNEL);
+	struct dcn31_vpg *vpg31 = kzalloc(sizeof(struct dcn31_vpg), GFP_KERNEL);
 
-	if (!vpg3)
+	if (!vpg31)
 		return NULL;
 
-	vpg3_construct(vpg3, ctx, inst,
+	vpg31_construct(vpg31, ctx, inst,
 			&vpg_regs[inst],
 			&vpg_shift,
 			&vpg_mask);
 
-	return &vpg3->base;
+	// Will re-enable hw block when we enable stream
+	// Check for enabled stream before powering down?
+	vpg31_powerdown(&vpg31->base);
+
+	return &vpg31->base;
 }
 
 static struct afmt *dcn31_afmt_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
-	struct dcn30_afmt *afmt3 = kzalloc(sizeof(struct dcn30_afmt), GFP_KERNEL);
+	struct dcn31_afmt *afmt31 = kzalloc(sizeof(struct dcn31_afmt), GFP_KERNEL);
 
-	if (!afmt3)
+	if (!afmt31)
 		return NULL;
 
-	afmt3_construct(afmt3, ctx, inst,
+	afmt31_construct(afmt31, ctx, inst,
 			&afmt_regs[inst],
 			&afmt_shift,
 			&afmt_mask);
 
-	return &afmt3->base;
+	// Light sleep by default, no need to power down here
+
+	return &afmt31->base;
 }
 
 static struct apg *dcn31_apg_create(

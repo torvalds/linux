@@ -31,6 +31,7 @@
 #include "hw_shared.h"
 #include "inc/link_dpcd.h"
 #include "dpcd_defs.h"
+#include "dcn30/dcn30_afmt.h"
 
 #define DC_LOGGER \
 		enc1->base.ctx->logger
@@ -1401,6 +1402,11 @@ static void enc1_se_disable_dp_audio(
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 	uint32_t value = 0;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (enc->afmt && enc->afmt->funcs->afmt_powerdown)
+		enc->afmt->funcs->afmt_powerdown(enc->afmt);
+#endif
+
 	/* Disable Audio packets */
 	REG_UPDATE_5(DP_SEC_CNTL,
 			DP_SEC_ASP_ENABLE, 0,
@@ -1464,6 +1470,10 @@ void enc1_se_hdmi_audio_setup(
 void enc1_se_hdmi_audio_disable(
 	struct stream_encoder *enc)
 {
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (enc->afmt && enc->afmt->funcs->afmt_powerdown)
+		enc->afmt->funcs->afmt_powerdown(enc->afmt);
+#endif
 	enc1_se_enable_audio_clock(enc, false);
 }
 

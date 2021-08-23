@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright 2019 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,29 +23,31 @@
  *
  */
 
-#ifndef __DAL_DCN30_VPG_H__
-#define __DAL_DCN30_VPG_H__
+#ifndef __DAL_DCN31_VPG_H__
+#define __DAL_DCN31_VPG_H__
 
 
-#define DCN30_VPG_FROM_VPG(vpg)\
-	container_of(vpg, struct dcn30_vpg, base)
+#define DCN31_VPG_FROM_VPG(vpg)\
+	container_of(vpg, struct dcn31_vpg, base)
 
-#define VPG_DCN3_REG_LIST(id) \
+#define VPG_DCN31_REG_LIST(id) \
 	SRI(VPG_GENERIC_STATUS, VPG, id), \
 	SRI(VPG_GENERIC_PACKET_ACCESS_CTRL, VPG, id), \
 	SRI(VPG_GENERIC_PACKET_DATA, VPG, id), \
 	SRI(VPG_GSP_FRAME_UPDATE_CTRL, VPG, id), \
-	SRI(VPG_GSP_IMMEDIATE_UPDATE_CTRL, VPG, id)
+	SRI(VPG_GSP_IMMEDIATE_UPDATE_CTRL, VPG, id), \
+	SRI(VPG_MEM_PWR, VPG, id)
 
-struct dcn30_vpg_registers {
+struct dcn31_vpg_registers {
 	uint32_t VPG_GENERIC_STATUS;
 	uint32_t VPG_GENERIC_PACKET_ACCESS_CTRL;
 	uint32_t VPG_GENERIC_PACKET_DATA;
 	uint32_t VPG_GSP_FRAME_UPDATE_CTRL;
 	uint32_t VPG_GSP_IMMEDIATE_UPDATE_CTRL;
+	uint32_t VPG_MEM_PWR;
 };
 
-#define DCN3_VPG_MASK_SH_LIST(mask_sh)\
+#define DCN31_VPG_MASK_SH_LIST(mask_sh)\
 	SE_SF(VPG0_VPG_GENERIC_STATUS, VPG_GENERIC_CONFLICT_OCCURED, mask_sh),\
 	SE_SF(VPG0_VPG_GENERIC_STATUS, VPG_GENERIC_CONFLICT_CLR, mask_sh),\
 	SE_SF(VPG0_VPG_GENERIC_PACKET_ACCESS_CTRL, VPG_GENERIC_DATA_INDEX, mask_sh),\
@@ -82,9 +84,12 @@ struct dcn30_vpg_registers {
 	SE_SF(VPG0_VPG_GSP_IMMEDIATE_UPDATE_CTRL, VPG_GENERIC11_IMMEDIATE_UPDATE, mask_sh),\
 	SE_SF(VPG0_VPG_GSP_IMMEDIATE_UPDATE_CTRL, VPG_GENERIC12_IMMEDIATE_UPDATE, mask_sh),\
 	SE_SF(VPG0_VPG_GSP_IMMEDIATE_UPDATE_CTRL, VPG_GENERIC13_IMMEDIATE_UPDATE, mask_sh),\
-	SE_SF(VPG0_VPG_GSP_IMMEDIATE_UPDATE_CTRL, VPG_GENERIC14_IMMEDIATE_UPDATE, mask_sh)
+	SE_SF(VPG0_VPG_GSP_IMMEDIATE_UPDATE_CTRL, VPG_GENERIC14_IMMEDIATE_UPDATE, mask_sh),\
+	SE_SF(VPG0_VPG_MEM_PWR, VPG_GSP_MEM_LIGHT_SLEEP_DIS, mask_sh),\
+	SE_SF(VPG0_VPG_MEM_PWR, VPG_GSP_LIGHT_SLEEP_FORCE, mask_sh),\
+	SE_SF(VPG0_VPG_MEM_PWR, VPG_GSP_MEM_PWR_STATE, mask_sh)
 
-#define VPG_DCN3_REG_FIELD_LIST(type) \
+#define VPG_DCN31_REG_FIELD_LIST(type) \
 	type VPG_GENERIC_CONFLICT_OCCURED;\
 	type VPG_GENERIC_CONFLICT_CLR;\
 	type VPG_GENERIC_DATA_INDEX;\
@@ -121,56 +126,37 @@ struct dcn30_vpg_registers {
 	type VPG_GENERIC11_IMMEDIATE_UPDATE;\
 	type VPG_GENERIC12_IMMEDIATE_UPDATE;\
 	type VPG_GENERIC13_IMMEDIATE_UPDATE;\
-	type VPG_GENERIC14_IMMEDIATE_UPDATE
+	type VPG_GENERIC14_IMMEDIATE_UPDATE;\
+	type VPG_GSP_MEM_LIGHT_SLEEP_DIS;\
+	type VPG_GSP_LIGHT_SLEEP_FORCE;\
+	type VPG_GSP_MEM_PWR_STATE
 
-
-struct dcn30_vpg_shift {
-	VPG_DCN3_REG_FIELD_LIST(uint8_t);
+struct dcn31_vpg_shift {
+	VPG_DCN31_REG_FIELD_LIST(uint8_t);
 };
 
-struct dcn30_vpg_mask {
-	VPG_DCN3_REG_FIELD_LIST(uint32_t);
+struct dcn31_vpg_mask {
+	VPG_DCN31_REG_FIELD_LIST(uint32_t);
 };
 
-struct vpg;
-
-struct vpg_funcs {
-	void (*update_generic_info_packet)(
-		struct vpg *vpg,
-		uint32_t packet_index,
-		const struct dc_info_packet *info_packet);
-
-	void (*vpg_poweron)(
-		struct vpg *vpg);
-
-	void (*vpg_powerdown)(
-		struct vpg *vpg);
-};
-
-struct vpg {
-	const struct vpg_funcs *funcs;
-	struct dc_context *ctx;
-	int inst;
-};
-
-struct dcn30_vpg {
+struct dcn31_vpg {
 	struct vpg base;
-	const struct dcn30_vpg_registers *regs;
-	const struct dcn30_vpg_shift *vpg_shift;
-	const struct dcn30_vpg_mask *vpg_mask;
+	const struct dcn31_vpg_registers *regs;
+	const struct dcn31_vpg_shift *vpg_shift;
+	const struct dcn31_vpg_mask *vpg_mask;
 };
 
-void vpg3_update_generic_info_packet(
-	struct vpg *vpg,
-	uint32_t packet_index,
-	const struct dc_info_packet *info_packet);
+void vpg31_poweron(
+		struct vpg *vpg);
 
-void vpg3_construct(struct dcn30_vpg *vpg3,
+void vpg31_powerdown(
+		struct vpg *vpg);
+
+void vpg31_construct(struct dcn31_vpg *vpg31,
 	struct dc_context *ctx,
 	uint32_t inst,
-	const struct dcn30_vpg_registers *vpg_regs,
-	const struct dcn30_vpg_shift *vpg_shift,
-	const struct dcn30_vpg_mask *vpg_mask);
-
+	const struct dcn31_vpg_registers *vpg_regs,
+	const struct dcn31_vpg_shift *vpg_shift,
+	const struct dcn31_vpg_mask *vpg_mask);
 
 #endif
