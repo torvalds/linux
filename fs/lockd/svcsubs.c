@@ -82,31 +82,31 @@ static inline unsigned int file_hash(struct nfs_fh *f)
  */
 __be32
 nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
-					struct nfs_fh *f)
+					struct nlm_lock *lock)
 {
 	struct nlm_file	*file;
 	unsigned int	hash;
 	__be32		nfserr;
 
-	nlm_debug_print_fh("nlm_lookup_file", f);
+	nlm_debug_print_fh("nlm_lookup_file", &lock->fh);
 
-	hash = file_hash(f);
+	hash = file_hash(&lock->fh);
 
 	/* Lock file table */
 	mutex_lock(&nlm_file_mutex);
 
 	hlist_for_each_entry(file, &nlm_files[hash], f_list)
-		if (!nfs_compare_fh(&file->f_handle, f))
+		if (!nfs_compare_fh(&file->f_handle, &lock->fh))
 			goto found;
 
-	nlm_debug_print_fh("creating file for", f);
+	nlm_debug_print_fh("creating file for", &lock->fh);
 
 	nfserr = nlm_lck_denied_nolocks;
 	file = kzalloc(sizeof(*file), GFP_KERNEL);
 	if (!file)
 		goto out_unlock;
 
-	memcpy(&file->f_handle, f, sizeof(struct nfs_fh));
+	memcpy(&file->f_handle, &lock->fh, sizeof(struct nfs_fh));
 	mutex_init(&file->f_mutex);
 	INIT_HLIST_NODE(&file->f_list);
 	INIT_LIST_HEAD(&file->f_blocks);
@@ -117,7 +117,8 @@ nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 	 * We have to make sure we have the right credential to open
 	 * the file.
 	 */
-	if ((nfserr = nlmsvc_ops->fopen(rqstp, f, &file->f_file)) != 0) {
+	nfserr = nlmsvc_ops->fopen(rqstp, &lock->fh, &file->f_file);
+	if (nfserr) {
 		dprintk("lockd: open failed (error %d)\n", nfserr);
 		goto out_free;
 	}
