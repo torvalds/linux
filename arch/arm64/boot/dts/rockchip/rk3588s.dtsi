@@ -159,7 +159,7 @@
 		compatible = "rockchip,rk3588-uart", "snps,dw-apb-uart";
 		reg = <0x0 0xfd890000 0x0 0x100>;
 		interrupts = <GIC_SPI 331 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&xin24m>, <&xin24m>;
+		clocks = <&cru SCLK_UART0>, <&cru PCLK_UART0>;
 		clock-names = "baudclk", "apb_pclk";
 		reg-shift = <2>;
 		reg-io-width = <4>;
@@ -172,8 +172,8 @@
 		reg = <0x0 0xfe2c0000 0x0 0x4000>;
 		interrupts = <GIC_SPI 203 IRQ_TYPE_LEVEL_HIGH>;
 		max-frequency = <150000000>;
-		clocks = <&xin24m>, <&xin24m>,
-			 <&xin24m>, <&xin24m>;
+		clocks = <&scmi_clk SCMI_HCLK_SD>, <&scmi_clk SCMI_CCLK_SD>,
+			 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
 		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		fifo-depth = <0x100>;
 		status = "disabled";
@@ -214,8 +214,7 @@
 		reg = <0x0 0xfea10000 0x0 0x4000>;
 		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
-		//clocks = <&cru ACLK_BUS>;
-		clocks = <&xin24m>;
+		clocks = <&cru ACLK_DMAC0>;
 		clock-names = "apb_pclk";
 		#dma-cells = <1>;
 		arm,pl330-periph-burst;
@@ -226,8 +225,7 @@
 		reg = <0x0 0xfea30000 0x0 0x4000>;
 		interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
-		//clocks = <&cru ACLK_BUS>;
-		clocks = <&xin24m>;
+		clocks = <&cru ACLK_DMAC1>;
 		clock-names = "apb_pclk";
 		#dma-cells = <1>;
 		arm,pl330-periph-burst;
@@ -237,7 +235,7 @@
 		compatible = "rockchip,rk3588-uart", "snps,dw-apb-uart";
 		reg = <0x0 0xfeb50000 0x0 0x100>;
 		interrupts = <GIC_SPI 333 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&xin24m>, <&xin24m>;
+		clocks = <&cru SCLK_UART2>, <&cru PCLK_UART2>;
 		clock-names = "baudclk", "apb_pclk";
 		reg-shift = <2>;
 		reg-io-width = <4>;
@@ -248,7 +246,7 @@
 		compatible = "rockchip,rk3588-uart", "snps,dw-apb-uart";
 		reg = <0x0 0xfeb60000 0x0 0x100>;
 		interrupts = <GIC_SPI 334 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&xin24m>, <&xin24m>;
+		clocks = <&cru SCLK_UART3>, <&cru PCLK_UART3>;
 		clock-names = "baudclk", "apb_pclk";
 		reg-shift = <2>;
 		reg-io-width = <4>;
@@ -260,8 +258,7 @@
 		reg = <0x0 0xfed10000 0x0 0x4000>;
 		interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
-		//clocks = <&cru ACLK_BUS>;
-		clocks = <&xin24m>;
+		clocks = <&cru ACLK_DMAC2>;
 		clock-names = "apb_pclk";
 		#dma-cells = <1>;
 		arm,pl330-periph-burst;

@@ -1451,6 +1451,7 @@
 #define SCMI_CRYPTO_CORE		20
 #define SCMI_CRYPTO_PKA			21
 #define SCMI_SPLL			22
+#define SCMI_HCLK_SD			23
 
 /********Name=SECURE_SOFTRST_CON00,Offset=0xA00********/
 #define SRST_A_SECURE_NS_BIU		10
