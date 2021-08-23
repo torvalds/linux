@@ -390,9 +390,8 @@ static void __exit parport_remove_chip(struct parisc_device *dev)
 		if (p->irq != PARPORT_IRQ_NONE)
 			free_irq(p->irq, p);
 		if (priv->dma_buf)
-			pci_free_consistent(priv->dev, PAGE_SIZE,
-					    priv->dma_buf,
-					    priv->dma_handle);
+			dma_free_coherent(&priv->dev->dev, PAGE_SIZE,
+					  priv->dma_buf, priv->dma_handle);
 		kfree (p->private_data);
 		parport_put_port(p);
 		kfree (ops); /* hope no-one cached it */
