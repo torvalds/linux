@@ -1592,6 +1592,51 @@
 		arm,pl330-periph-burst;
 	};
 
+	can0: can@fea50000 {
+		compatible = "rockchip,canfd-1.0";
+		reg = <0x0 0xfea50000 0x0 0x1000>;
+		iinterrupts = <GIC_SPI 341 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_CAN0>, <&cru PCLK_CAN0>;
+		clock-names = "baudclk", "apb_pclk";
+		resets = <&cru SRST_CAN0>, <&cru SRST_P_CAN0>;
+		reset-names = "can", "can-apb";
+		pinctrl-names = "default";
+		pinctrl-0 = <&can0m0_pins>;
+		tx-fifo-depth = <1>;
+		rx-fifo-depth = <6>;
+		status = "disabled";
+	};
+
+	can1: can@fea60000 {
+		compatible = "rockchip,canfd-1.0";
+		reg = <0x0 0xfea60000 0x0 0x1000>;
+		interrupts = <GIC_SPI 342 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_CAN1>, <&cru PCLK_CAN1>;
+		clock-names = "baudclk", "apb_pclk";
+		resets = <&cru SRST_CAN1>, <&cru SRST_P_CAN1>;
+		reset-names = "can", "can-apb";
+		pinctrl-names = "default";
+		pinctrl-0 = <&can1m0_pins>;
+		tx-fifo-depth = <1>;
+		rx-fifo-depth = <6>;
+		status = "disabled";
+	};
+
+	can2: can@fea70000 {
+		compatible = "rockchip,canfd-1.0";
+		reg = <0x0 0xfea70000 0x0 0x1000>;
+		interrupts = <GIC_SPI 343 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_CAN2>, <&cru PCLK_CAN2>;
+		clock-names = "baudclk", "apb_pclk";
+		resets = <&cru SRST_CAN2>, <&cru SRST_P_CAN2>;
+		reset-names = "can", "can-apb";
+		pinctrl-names = "default";
+		pinctrl-0 = <&can2m0_pins>;
+		tx-fifo-depth = <1>;
+		rx-fifo-depth = <6>;
+		status = "disabled";
+	};
+
 	hw_decompress: decompress@fea80000 {
 		compatible = "rockchip,hw-decompress";
 		reg = <0x0 0xfea80000 0x0 0x1000>;
