@@ -273,7 +273,6 @@ irqreturn_t st_sensors_trigger_handler(int irq, void *p);
 int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 				const struct iio_trigger_ops *trigger_ops);
 
-void st_sensors_deallocate_trigger(struct iio_dev *indio_dev);
 int st_sensors_validate_device(struct iio_trigger *trig,
 			       struct iio_dev *indio_dev);
 #else
@@ -281,10 +280,6 @@ static inline int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 				const struct iio_trigger_ops *trigger_ops)
 {
 	return 0;
-}
-static inline void st_sensors_deallocate_trigger(struct iio_dev *indio_dev)
-{
-	return;
 }
 #define st_sensors_validate_device NULL
 #endif

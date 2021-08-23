@@ -650,29 +650,13 @@ int st_magn_common_probe(struct iio_dev *indio_dev)
 			return err;
 	}
 
-	err = iio_device_register(indio_dev);
-	if (err)
-		goto st_magn_device_register_error;
-
-	dev_info(&indio_dev->dev, "registered magnetometer %s\n",
-		 indio_dev->name);
-
-	return 0;
-
-st_magn_device_register_error:
-	if (mdata->irq > 0)
-		st_sensors_deallocate_trigger(indio_dev);
-	return err;
+	return iio_device_register(indio_dev);
 }
 EXPORT_SYMBOL(st_magn_common_probe);
 
 void st_magn_common_remove(struct iio_dev *indio_dev)
 {
-	struct st_sensor_data *mdata = iio_priv(indio_dev);
-
 	iio_device_unregister(indio_dev);
-	if (mdata->irq > 0)
-		st_sensors_deallocate_trigger(indio_dev);
 }
 EXPORT_SYMBOL(st_magn_common_remove);
 
