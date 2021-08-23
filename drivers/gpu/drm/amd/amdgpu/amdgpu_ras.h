@@ -309,6 +309,7 @@ struct ras_common_if {
 	enum amdgpu_ras_block block;
 	enum amdgpu_ras_error_type type;
 	uint32_t sub_block_index;
+	char name[32];
 };
 
 struct amdgpu_ras {
