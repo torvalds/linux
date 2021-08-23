@@ -101,10 +101,15 @@ struct share_params {
 
 static struct share_params *ddr_psci_param;
 
+struct rockchip_dmcfreq_ondemand_data {
+	unsigned int upthreshold;
+	unsigned int downdifferential;
+};
+
 struct rockchip_dmcfreq {
 	struct device *dev;
 	struct dmcfreq_common_info info;
-	struct devfreq_simple_ondemand_data ondemand_data;
+	struct rockchip_dmcfreq_ondemand_data ondemand_data;
 	struct clk *dmc_clk;
 	struct devfreq_event_dev **edev;
 	struct mutex lock; /* serializes access to video_info_list */
@@ -2351,7 +2356,7 @@ static int devfreq_dmc_ondemand_func(struct devfreq *df,
 	struct devfreq_dev_status *stat;
 	unsigned long long a, b;
 	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(df->dev.parent);
-	struct devfreq_simple_ondemand_data *data = &dmcfreq->ondemand_data;
+	struct rockchip_dmcfreq_ondemand_data *data = &dmcfreq->ondemand_data;
 	unsigned int upthreshold = data->upthreshold;
 	unsigned int downdifferential = data->downdifferential;
 	unsigned long target_freq = 0;
