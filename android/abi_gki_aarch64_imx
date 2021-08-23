@@ -885,6 +885,7 @@
   vb2_buffer_done
   vb2_dma_contig_memops
   vb2_dqbuf
+  vb2_expbuf
   vb2_fop_mmap
   vb2_fop_poll
   vb2_mmap
@@ -1023,9 +1024,14 @@
 # required by ci_hdrc.ko
   devm_extcon_register_notifier
   devm_usb_get_phy
+  ehci_handshake
+  ehci_hub_control
+  ehci_init_driver
+  ehci_setup
   extcon_get_edev_by_phandle
   extcon_get_state
   of_usb_host_tpl_support
+  of_usb_update_otg_caps
   phy_set_mode_ext
   platform_device_add_resources
   usb_add_gadget_udc
@@ -1056,11 +1062,14 @@
   usb_get_maximum_speed
   usb_hcd_irq
   usb_phy_set_charger_current
+  usb_phy_set_charger_state
+  usb_phy_set_event
   usb_put_hcd
   usb_remove_hcd
   usb_role_switch_get_drvdata
   usb_role_switch_register
   usb_role_switch_unregister
+  usb_udc_vbus_handler
 
 # required by ci_hdrc_pci.ko
   pcim_enable_device
@@ -1423,9 +1432,14 @@
   watchdog_set_restart_priority
 
 # required by imx8-isi-cap.ko
+  media_graph_walk_cleanup
+  media_graph_walk_init
   media_graph_walk_next
   media_graph_walk_start
   v4l2_fh_open
+  v4l2_g_parm_cap
+  v4l2_s_parm_cap
+  _vb2_fop_release
   vb2_ioctl_create_bufs
   vb2_ioctl_dqbuf
   vb2_ioctl_expbuf
@@ -1640,6 +1654,9 @@
   devm_regmap_field_alloc
   regmap_field_update_bits_base
 
+# required by mx6s_capture.ko
+  vb2_read
+
 # required by mxc-clk.ko
   __clk_determine_rate
   clk_divider_ops
@@ -1697,6 +1714,8 @@
 # required by ov5640.ko
   v4l2_ctrl_auto_cluster
   v4l2_ctrl_new_std_menu_items
+  __v4l2_ctrl_s_ctrl_int64
+  v4l2_ctrl_subdev_log_status
   v4l2_ctrl_subdev_subscribe_event
   v4l2_event_subdev_unsubscribe
   __v4l2_find_nearest_size
@@ -1756,6 +1775,7 @@
   regulator_map_voltage_ascend
 
 # required by phy-fsl-imx8mq-usb.ko
+  power_supply_get_by_phandle
   power_supply_get_property
   power_supply_put
   power_supply_reg_notifier
@@ -1822,7 +1842,11 @@
   pwm_request
 
 # required by pwrseq_simple.ko
+  bitmap_alloc
   devm_gpiod_get_array
+  gpiod_set_array_value_cansleep
+  mmc_pwrseq_register
+  mmc_pwrseq_unregister
 
 # required by qoriq_thermal.ko
   of_thermal_get_ntrips
@@ -1868,18 +1892,26 @@
   mmc_gpiod_request_ro
   mmc_gpio_get_cd
   mmc_gpio_get_ro
+  mmc_gpio_set_cd_wake
   mmc_of_parse
   mmc_of_parse_voltage
+  mmc_retune_timer_stop
   mmc_send_tuning
   pinctrl_select_default_state
   sdhci_add_host
   sdhci_cqe_disable
   sdhci_cqe_enable
   sdhci_cqe_irq
+  sdhci_dumpregs
+  sdhci_execute_tuning
   sdhci_pltfm_free
   sdhci_pltfm_init
   sdhci_remove_host
   sdhci_reset
+  sdhci_resume_host
+  sdhci_runtime_resume_host
+  sdhci_runtime_suspend_host
+  sdhci_suspend_host
 
 # required by sec-dsim.ko
   drm_atomic_helper_bridge_propagate_bus_fmt
@@ -2090,4 +2122,5 @@
 # required by vvcam-video.ko
   complete_all
   media_entity_remove_links
+  v4l2_async_notifier_add_devname_subdev
   v4l2_ctrl_poll
