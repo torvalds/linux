@@ -1904,8 +1904,6 @@ static int ufshpb_alloc_region_tbl(struct ufs_hba *hba, struct ufshpb_lu *hpb)
 	if (!rgn_table)
 		return -ENOMEM;
 
-	hpb->rgn_tbl = rgn_table;
-
 	for (rgn_idx = 0; rgn_idx < hpb->rgns_per_lu; rgn_idx++) {
 		int srgn_cnt = hpb->srgns_per_rgn;
 		bool last_srgn = false;
@@ -1942,10 +1940,12 @@ static int ufshpb_alloc_region_tbl(struct ufs_hba *hba, struct ufshpb_lu *hpb)
 		rgn->hpb = hpb;
 	}
 
+	hpb->rgn_tbl = rgn_table;
+
 	return 0;
 
 release_srgn_table:
-	for (i = 0; i < rgn_idx; i++)
+	for (i = 0; i <= rgn_idx; i++)
 		kvfree(rgn_table[i].srgn_tbl);
 
 	kvfree(rgn_table);
