@@ -388,7 +388,7 @@ static bool link_dpia_control(struct dc_context *dc_ctx,
 	dc_dmub_srv_cmd_execute(dmub);
 	dc_dmub_srv_wait_idle(dmub);
 
-	return false;
+	return true;
 }
 
 static void link_encoder_disable(struct dcn10_link_encoder *enc10)
@@ -424,7 +424,10 @@ void dcn31_link_encoder_enable_dp_output(
 		dpia_control.lanenum = (uint8_t)link_settings->lane_count;
 		dpia_control.symclk_10khz = link_settings->link_rate *
 				LINK_RATE_REF_FREQ_IN_KHZ / 10;
-		dpia_control.hpdsel = 5; /* Unused by DPIA */
+		/* DIG_BE_CNTL.DIG_HPD_SELECT set to 5 (hpdsel - 1) to indicate HPD pin
+		 * unused by DPIA.
+		 */
+		dpia_control.hpdsel = 6;
 
 		if (link) {
 			dpia_control.dpia_id = link->ddc_hw_inst;
@@ -466,7 +469,10 @@ void dcn31_link_encoder_enable_dp_mst_output(
 		dpia_control.lanenum = (uint8_t)link_settings->lane_count;
 		dpia_control.symclk_10khz = link_settings->link_rate *
 				LINK_RATE_REF_FREQ_IN_KHZ / 10;
-		dpia_control.hpdsel = 5; /* Unused by DPIA */
+		/* DIG_BE_CNTL.DIG_HPD_SELECT set to 5 (hpdsel - 1) to indicate HPD pin
+		 * unused by DPIA.
+		 */
+		dpia_control.hpdsel = 6;
 
 		if (link) {
 			dpia_control.dpia_id = link->ddc_hw_inst;
