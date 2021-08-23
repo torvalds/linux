@@ -92,8 +92,10 @@ static int dsa_switch_bridge_join(struct dsa_switch *ds,
 	struct dsa_switch_tree *dst = ds->dst;
 	int err;
 
-	if (dst->index == info->tree_index && ds->index == info->sw_index &&
-	    ds->ops->port_bridge_join) {
+	if (dst->index == info->tree_index && ds->index == info->sw_index) {
+		if (!ds->ops->port_bridge_join)
+			return -EOPNOTSUPP;
+
 		err = ds->ops->port_bridge_join(ds, info->port, info->br);
 		if (err)
 			return err;
