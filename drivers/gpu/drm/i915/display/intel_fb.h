@@ -8,10 +8,12 @@
 
 #include <linux/types.h>
 
+struct drm_device;
+struct drm_file;
 struct drm_framebuffer;
-
+struct drm_i915_gem_object;
 struct drm_i915_private;
-
+struct drm_mode_fb_cmd2;
 struct intel_fb_view;
 struct intel_framebuffer;
 struct intel_plane_state;
@@ -56,5 +58,13 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 void intel_fb_fill_view(const struct intel_framebuffer *fb, unsigned int rotation,
 			struct intel_fb_view *view);
 int intel_plane_compute_gtt(struct intel_plane_state *plane_state);
+
+int intel_framebuffer_init(struct intel_framebuffer *ifb,
+			   struct drm_i915_gem_object *obj,
+			   struct drm_mode_fb_cmd2 *mode_cmd);
+struct drm_framebuffer *
+intel_user_framebuffer_create(struct drm_device *dev,
+			      struct drm_file *filp,
+			      const struct drm_mode_fb_cmd2 *user_mode_cmd);
 
 #endif /* __INTEL_FB_H__ */

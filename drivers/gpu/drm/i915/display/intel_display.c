@@ -112,9 +112,6 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 static void ilk_pch_clock_get(struct intel_crtc *crtc,
 			      struct intel_crtc_state *pipe_config);
 
-static int intel_framebuffer_init(struct intel_framebuffer *ifb,
-				  struct drm_i915_gem_object *obj,
-				  struct drm_mode_fb_cmd2 *mode_cmd);
 static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_state);
 static void intel_set_pipe_src_size(const struct intel_crtc_state *crtc_state);
 static void intel_cpu_transcoder_set_m_n(const struct intel_crtc_state *crtc_state,
@@ -1134,22 +1131,6 @@ void intel_add_fb_offsets(int *x, int *y,
 	*y += state->view.color_plane[color_plane].y;
 }
 
-static unsigned int intel_fb_modifier_to_tiling(u64 fb_modifier)
-{
-	switch (fb_modifier) {
-	case I915_FORMAT_MOD_X_TILED:
-		return I915_TILING_X;
-	case I915_FORMAT_MOD_Y_TILED:
-	case I915_FORMAT_MOD_Y_TILED_CCS:
-	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS:
-	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC:
-	case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
-		return I915_TILING_Y;
-	default:
-		return I915_TILING_NONE;
-	}
-}
-
 /*
  * From the Sky Lake PRM:
  * "The Color Control Surface (CCS) contains the compression status of
@@ -1280,12 +1261,6 @@ intel_get_format_info(const struct drm_mode_fb_cmd2 *cmd)
 	}
 }
 
-static int gen12_ccs_aux_stride(struct drm_framebuffer *fb, int ccs_plane)
-{
-	return DIV_ROUND_UP(fb->pitches[skl_ccs_to_main_plane(fb, ccs_plane)],
-			    512) * 64;
-}
-
 u32 intel_plane_fb_max_stride(struct drm_i915_private *dev_priv,
 			      u32 pixel_format, u64 modifier)
 {
@@ -1308,71 +1283,6 @@ u32 intel_plane_fb_max_stride(struct drm_i915_private *dev_priv,
 
 	return plane->max_stride(plane, pixel_format, modifier,
 				 DRM_MODE_ROTATE_0);
-}
-
-static
-u32 intel_fb_max_stride(struct drm_i915_private *dev_priv,
-			u32 pixel_format, u64 modifier)
-{
-	/*
-	 * Arbitrary limit for gen4+ chosen to match the
-	 * render engine max stride.
-	 *
-	 * The new CCS hash mode makes remapping impossible
-	 */
-	if (DISPLAY_VER(dev_priv) < 4 || is_ccs_modifier(modifier) ||
-	    intel_modifier_uses_dpt(dev_priv, modifier))
-		return intel_plane_fb_max_stride(dev_priv, pixel_format, modifier);
-	else if (DISPLAY_VER(dev_priv) >= 7)
-		return 256 * 1024;
-	else
-		return 128 * 1024;
-}
-
-static u32
-intel_fb_stride_alignment(const struct drm_framebuffer *fb, int color_plane)
-{
-	struct drm_i915_private *dev_priv = to_i915(fb->dev);
-	u32 tile_width;
-
-	if (is_surface_linear(fb, color_plane)) {
-		u32 max_stride = intel_plane_fb_max_stride(dev_priv,
-							   fb->format->format,
-							   fb->modifier);
-
-		/*
-		 * To make remapping with linear generally feasible
-		 * we need the stride to be page aligned.
-		 */
-		if (fb->pitches[color_plane] > max_stride &&
-		    !is_ccs_modifier(fb->modifier))
-			return intel_tile_size(dev_priv);
-		else
-			return 64;
-	}
-
-	tile_width = intel_tile_width_bytes(fb, color_plane);
-	if (is_ccs_modifier(fb->modifier)) {
-		/*
-		 * Display WA #0531: skl,bxt,kbl,glk
-		 *
-		 * Render decompression and plane width > 3840
-		 * combined with horizontal panning requires the
-		 * plane stride to be a multiple of 4. We'll just
-		 * require the entire fb to accommodate that to avoid
-		 * potential runtime errors at plane configuration time.
-		 */
-		if ((DISPLAY_VER(dev_priv) == 9 || IS_GEMINILAKE(dev_priv)) &&
-		    color_plane == 0 && fb->width > 3840)
-			tile_width *= 4;
-		/*
-		 * The main surface pitch must be padded to a multiple of four
-		 * tile widths.
-		 */
-		else if (DISPLAY_VER(dev_priv) >= 12)
-			tile_width *= 4;
-	}
-	return tile_width;
 }
 
 static struct i915_vma *
@@ -6181,28 +6091,6 @@ static const struct drm_display_mode load_detect_mode = {
 	DRM_MODE("640x480", DRM_MODE_TYPE_DEFAULT, 31500, 640, 664,
 		 704, 832, 0, 480, 489, 491, 520, 0, DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
 };
-
-struct drm_framebuffer *
-intel_framebuffer_create(struct drm_i915_gem_object *obj,
-			 struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	struct intel_framebuffer *intel_fb;
-	int ret;
-
-	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
-	if (!intel_fb)
-		return ERR_PTR(-ENOMEM);
-
-	ret = intel_framebuffer_init(intel_fb, obj, mode_cmd);
-	if (ret)
-		goto err;
-
-	return &intel_fb->base;
-
-err:
-	kfree(intel_fb);
-	return ERR_PTR(ret);
-}
 
 static int intel_modeset_disable_planes(struct drm_atomic_state *state,
 					struct drm_crtc *crtc)
@@ -11354,249 +11242,6 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 	intel_init_pch_refclk(dev_priv);
 
 	drm_helper_move_panel_connectors_to_head(&dev_priv->drm);
-}
-
-static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
-{
-	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-
-	drm_framebuffer_cleanup(fb);
-
-	if (intel_fb_uses_dpt(fb))
-		intel_dpt_destroy(intel_fb->dpt_vm);
-
-	intel_frontbuffer_put(intel_fb->frontbuffer);
-
-	kfree(intel_fb);
-}
-
-static int intel_user_framebuffer_create_handle(struct drm_framebuffer *fb,
-						struct drm_file *file,
-						unsigned int *handle)
-{
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-
-	if (i915_gem_object_is_userptr(obj)) {
-		drm_dbg(&i915->drm,
-			"attempting to use a userptr for a framebuffer, denied\n");
-		return -EINVAL;
-	}
-
-	return drm_gem_handle_create(file, &obj->base, handle);
-}
-
-static int intel_user_framebuffer_dirty(struct drm_framebuffer *fb,
-					struct drm_file *file,
-					unsigned flags, unsigned color,
-					struct drm_clip_rect *clips,
-					unsigned num_clips)
-{
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-
-	i915_gem_object_flush_if_display(obj);
-	intel_frontbuffer_flush(to_intel_frontbuffer(fb), ORIGIN_DIRTYFB);
-
-	return 0;
-}
-
-static const struct drm_framebuffer_funcs intel_fb_funcs = {
-	.destroy = intel_user_framebuffer_destroy,
-	.create_handle = intel_user_framebuffer_create_handle,
-	.dirty = intel_user_framebuffer_dirty,
-};
-
-static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
-				  struct drm_i915_gem_object *obj,
-				  struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	struct drm_framebuffer *fb = &intel_fb->base;
-	u32 max_stride;
-	unsigned int tiling, stride;
-	int ret = -EINVAL;
-	int i;
-
-	intel_fb->frontbuffer = intel_frontbuffer_get(obj);
-	if (!intel_fb->frontbuffer)
-		return -ENOMEM;
-
-	i915_gem_object_lock(obj, NULL);
-	tiling = i915_gem_object_get_tiling(obj);
-	stride = i915_gem_object_get_stride(obj);
-	i915_gem_object_unlock(obj);
-
-	if (mode_cmd->flags & DRM_MODE_FB_MODIFIERS) {
-		/*
-		 * If there's a fence, enforce that
-		 * the fb modifier and tiling mode match.
-		 */
-		if (tiling != I915_TILING_NONE &&
-		    tiling != intel_fb_modifier_to_tiling(mode_cmd->modifier[0])) {
-			drm_dbg_kms(&dev_priv->drm,
-				    "tiling_mode doesn't match fb modifier\n");
-			goto err;
-		}
-	} else {
-		if (tiling == I915_TILING_X) {
-			mode_cmd->modifier[0] = I915_FORMAT_MOD_X_TILED;
-		} else if (tiling == I915_TILING_Y) {
-			drm_dbg_kms(&dev_priv->drm,
-				    "No Y tiling for legacy addfb\n");
-			goto err;
-		}
-	}
-
-	if (!drm_any_plane_has_format(&dev_priv->drm,
-				      mode_cmd->pixel_format,
-				      mode_cmd->modifier[0])) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "unsupported pixel format %p4cc / modifier 0x%llx\n",
-			    &mode_cmd->pixel_format, mode_cmd->modifier[0]);
-		goto err;
-	}
-
-	/*
-	 * gen2/3 display engine uses the fence if present,
-	 * so the tiling mode must match the fb modifier exactly.
-	 */
-	if (DISPLAY_VER(dev_priv) < 4 &&
-	    tiling != intel_fb_modifier_to_tiling(mode_cmd->modifier[0])) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "tiling_mode must match fb modifier exactly on gen2/3\n");
-		goto err;
-	}
-
-	max_stride = intel_fb_max_stride(dev_priv, mode_cmd->pixel_format,
-					 mode_cmd->modifier[0]);
-	if (mode_cmd->pitches[0] > max_stride) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "%s pitch (%u) must be at most %d\n",
-			    mode_cmd->modifier[0] != DRM_FORMAT_MOD_LINEAR ?
-			    "tiled" : "linear",
-			    mode_cmd->pitches[0], max_stride);
-		goto err;
-	}
-
-	/*
-	 * If there's a fence, enforce that
-	 * the fb pitch and fence stride match.
-	 */
-	if (tiling != I915_TILING_NONE && mode_cmd->pitches[0] != stride) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "pitch (%d) must match tiling stride (%d)\n",
-			    mode_cmd->pitches[0], stride);
-		goto err;
-	}
-
-	/* FIXME need to adjust LINOFF/TILEOFF accordingly. */
-	if (mode_cmd->offsets[0] != 0) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "plane 0 offset (0x%08x) must be 0\n",
-			    mode_cmd->offsets[0]);
-		goto err;
-	}
-
-	drm_helper_mode_fill_fb_struct(&dev_priv->drm, fb, mode_cmd);
-
-	for (i = 0; i < fb->format->num_planes; i++) {
-		u32 stride_alignment;
-
-		if (mode_cmd->handles[i] != mode_cmd->handles[0]) {
-			drm_dbg_kms(&dev_priv->drm, "bad plane %d handle\n",
-				    i);
-			goto err;
-		}
-
-		stride_alignment = intel_fb_stride_alignment(fb, i);
-		if (fb->pitches[i] & (stride_alignment - 1)) {
-			drm_dbg_kms(&dev_priv->drm,
-				    "plane %d pitch (%d) must be at least %u byte aligned\n",
-				    i, fb->pitches[i], stride_alignment);
-			goto err;
-		}
-
-		if (is_gen12_ccs_plane(fb, i) && !is_gen12_ccs_cc_plane(fb, i)) {
-			int ccs_aux_stride = gen12_ccs_aux_stride(fb, i);
-
-			if (fb->pitches[i] != ccs_aux_stride) {
-				drm_dbg_kms(&dev_priv->drm,
-					    "ccs aux plane %d pitch (%d) must be %d\n",
-					    i,
-					    fb->pitches[i], ccs_aux_stride);
-				goto err;
-			}
-		}
-
-		/* TODO: Add POT stride remapping support for CCS formats as well. */
-		if (IS_ALDERLAKE_P(dev_priv) &&
-		    mode_cmd->modifier[i] != DRM_FORMAT_MOD_LINEAR &&
-		    !intel_fb_needs_pot_stride_remap(intel_fb) &&
-		    !is_power_of_2(mode_cmd->pitches[i])) {
-			drm_dbg_kms(&dev_priv->drm,
-				    "plane %d pitch (%d) must be power of two for tiled buffers\n",
-				    i, mode_cmd->pitches[i]);
-			goto err;
-		}
-
-		fb->obj[i] = &obj->base;
-	}
-
-	ret = intel_fill_fb_info(dev_priv, intel_fb);
-	if (ret)
-		goto err;
-
-	if (intel_fb_uses_dpt(fb)) {
-		struct i915_address_space *vm;
-
-		vm = intel_dpt_create(intel_fb);
-		if (IS_ERR(vm)) {
-			ret = PTR_ERR(vm);
-			goto err;
-		}
-
-		intel_fb->dpt_vm = vm;
-	}
-
-	ret = drm_framebuffer_init(&dev_priv->drm, fb, &intel_fb_funcs);
-	if (ret) {
-		drm_err(&dev_priv->drm, "framebuffer init failed %d\n", ret);
-		goto err;
-	}
-
-	return 0;
-
-err:
-	intel_frontbuffer_put(intel_fb->frontbuffer);
-	return ret;
-}
-
-static struct drm_framebuffer *
-intel_user_framebuffer_create(struct drm_device *dev,
-			      struct drm_file *filp,
-			      const struct drm_mode_fb_cmd2 *user_mode_cmd)
-{
-	struct drm_framebuffer *fb;
-	struct drm_i915_gem_object *obj;
-	struct drm_mode_fb_cmd2 mode_cmd = *user_mode_cmd;
-	struct drm_i915_private *i915;
-
-	obj = i915_gem_object_lookup(filp, mode_cmd.handles[0]);
-	if (!obj)
-		return ERR_PTR(-ENOENT);
-
-	/* object is backed with LMEM for discrete */
-	i915 = to_i915(obj->base.dev);
-	if (HAS_LMEM(i915) && !i915_gem_object_can_migrate(obj, INTEL_REGION_LMEM)) {
-		/* object is "remote", not in local memory */
-		i915_gem_object_put(obj);
-		return ERR_PTR(-EREMOTE);
-	}
-
-	fb = intel_framebuffer_create(obj, &mode_cmd);
-	i915_gem_object_put(obj);
-
-	return fb;
 }
 
 static enum drm_mode_status
