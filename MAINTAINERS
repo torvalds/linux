@@ -14953,13 +14953,6 @@ S:	Maintained
 F:	include/linux/printk.h
 F:	kernel/printk/
 
-PRISM54 WIRELESS DRIVER
-M:	Luis Chamberlain <mcgrof@kernel.org>
-L:	linux-wireless@vger.kernel.org
-S:	Obsolete
-W:	https://wireless.wiki.kernel.org/en/users/Drivers/p54
-F:	drivers/net/wireless/intersil/prism54/
-
 PROC FILESYSTEM
 L:	linux-kernel@vger.kernel.org
 L:	linux-fsdevel@vger.kernel.org

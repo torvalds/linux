@@ -1886,7 +1886,8 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	devinfo->pdev = pdev;
 	pcie_bus_dev = NULL;
-	devinfo->ci = brcmf_chip_attach(devinfo, &brcmf_pcie_buscore_ops);
+	devinfo->ci = brcmf_chip_attach(devinfo, pdev->device,
+					&brcmf_pcie_buscore_ops);
 	if (IS_ERR(devinfo->ci)) {
 		ret = PTR_ERR(devinfo->ci);
 		devinfo->ci = NULL;
