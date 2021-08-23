@@ -492,7 +492,7 @@ int st_gyro_common_probe(struct iio_dev *indio_dev)
 	indio_dev->channels = gdata->sensor_settings->ch;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;
 
-	err = iio_read_mount_matrix(gdata->dev, &gdata->mount_matrix);
+	err = iio_read_mount_matrix(parent, &gdata->mount_matrix);
 	if (err)
 		return err;
 
