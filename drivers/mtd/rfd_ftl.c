@@ -783,7 +783,7 @@ static void rfd_ftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 		printk(KERN_INFO PREFIX "name: '%s' type: %d flags %x\n",
 				mtd->name, mtd->type, mtd->flags);
 
-		if (!add_mtd_blktrans_dev((void*)part))
+		if (!add_mtd_blktrans_dev(&part->mbd))
 			return;
 	}
 out:
