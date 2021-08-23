@@ -816,6 +816,12 @@ static void ax88772_unbind(struct usbnet *dev, struct usb_interface *intf)
 	asix_rx_fixup_common_free(dev->driver_priv);
 }
 
+static void ax88178_unbind(struct usbnet *dev, struct usb_interface *intf)
+{
+	asix_rx_fixup_common_free(dev->driver_priv);
+	kfree(dev->driver_priv);
+}
+
 static const struct ethtool_ops ax88178_ethtool_ops = {
 	.get_drvinfo		= asix_get_drvinfo,
 	.get_link		= asix_get_link,
@@ -1224,7 +1230,7 @@ static const struct driver_info ax88772b_info = {
 static const struct driver_info ax88178_info = {
 	.description = "ASIX AX88178 USB 2.0 Ethernet",
 	.bind = ax88178_bind,
-	.unbind = ax88772_unbind,
+	.unbind = ax88178_unbind,
 	.status = asix_status,
 	.link_reset = ax88178_link_reset,
 	.reset = ax88178_reset,
