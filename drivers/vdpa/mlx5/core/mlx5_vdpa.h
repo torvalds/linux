@@ -56,6 +56,7 @@ struct mlx5_vdpa_dev {
 	u64 actual_features;
 	u8 status;
 	u32 max_vqs;
+	u16 max_idx;
 	u32 generation;
 
 	struct mlx5_vdpa_mr mr;

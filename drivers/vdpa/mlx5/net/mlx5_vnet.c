@@ -45,6 +45,8 @@ MODULE_LICENSE("Dual BSD/GPL");
 	(VIRTIO_CONFIG_S_ACKNOWLEDGE | VIRTIO_CONFIG_S_DRIVER | VIRTIO_CONFIG_S_DRIVER_OK |        \
 	 VIRTIO_CONFIG_S_FEATURES_OK | VIRTIO_CONFIG_S_NEEDS_RESET | VIRTIO_CONFIG_S_FAILED)
 
+#define MLX5_FEATURE(_mvdev, _feature) (!!((_mvdev)->actual_features & BIT_ULL(_feature)))
+
 struct mlx5_vdpa_net_resources {
 	u32 tisn;
 	u32 tdn;
@@ -132,6 +134,14 @@ struct mlx5_vdpa_virtqueue {
  * provides for driver space allocation
  */
 #define MLX5_MAX_SUPPORTED_VQS 16
+
+static bool is_index_valid(struct mlx5_vdpa_dev *mvdev, u16 idx)
+{
+	if (unlikely(idx > mvdev->max_idx))
+		return false;
+
+	return true;
+}
 
 struct mlx5_vdpa_net {
 	struct mlx5_vdpa_dev mvdev;
@@ -1354,6 +1364,9 @@ static void mlx5_vdpa_kick_vq(struct vdpa_device *vdev, u16 idx)
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
 	struct mlx5_vdpa_virtqueue *mvq = &ndev->vqs[idx];
 
+	if (!is_index_valid(mvdev, idx))
+		return;
+
 	if (unlikely(!mvq->ready))
 		return;
 
@@ -1367,6 +1380,9 @@ static int mlx5_vdpa_set_vq_address(struct vdpa_device *vdev, u16 idx, u64 desc_
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
 	struct mlx5_vdpa_virtqueue *mvq = &ndev->vqs[idx];
 
+	if (!is_index_valid(mvdev, idx))
+		return -EINVAL;
+
 	mvq->desc_addr = desc_area;
 	mvq->device_addr = device_area;
 	mvq->driver_addr = driver_area;
@@ -1378,6 +1394,9 @@ static void mlx5_vdpa_set_vq_num(struct vdpa_device *vdev, u16 idx, u32 num)
 	struct mlx5_vdpa_dev *mvdev = to_mvdev(vdev);
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
 	struct mlx5_vdpa_virtqueue *mvq;
+
+	if (!is_index_valid(mvdev, idx))
+		return;
 
 	mvq = &ndev->vqs[idx];
 	mvq->num_ent = num;
@@ -1397,6 +1416,9 @@ static void mlx5_vdpa_set_vq_ready(struct vdpa_device *vdev, u16 idx, bool ready
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
 	struct mlx5_vdpa_virtqueue *mvq = &ndev->vqs[idx];
 
+	if (!is_index_valid(mvdev, idx))
+		return;
+
 	if (!ready)
 		suspend_vq(ndev, mvq);
 
@@ -1409,6 +1431,9 @@ static bool mlx5_vdpa_get_vq_ready(struct vdpa_device *vdev, u16 idx)
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
 	struct mlx5_vdpa_virtqueue *mvq = &ndev->vqs[idx];
 
+	if (!is_index_valid(mvdev, idx))
+		return false;
+
 	return mvq->ready;
 }
 
@@ -1418,6 +1443,9 @@ static int mlx5_vdpa_set_vq_state(struct vdpa_device *vdev, u16 idx,
 	struct mlx5_vdpa_dev *mvdev = to_mvdev(vdev);
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
 	struct mlx5_vdpa_virtqueue *mvq = &ndev->vqs[idx];
+
+	if (!is_index_valid(mvdev, idx))
+		return -EINVAL;
 
 	if (mvq->fw_state == MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY) {
 		mlx5_vdpa_warn(mvdev, "can't modify available index\n");
@@ -1436,6 +1464,9 @@ static int mlx5_vdpa_get_vq_state(struct vdpa_device *vdev, u16 idx, struct vdpa
 	struct mlx5_vdpa_virtqueue *mvq = &ndev->vqs[idx];
 	struct mlx5_virtq_attr attr;
 	int err;
+
+	if (!is_index_valid(mvdev, idx))
+		return -EINVAL;
 
 	/* If the virtq object was destroyed, use the value saved at
 	 * the last minute of suspend_vq. This caters for userspace
@@ -1556,6 +1587,24 @@ static __virtio16 cpu_to_mlx5vdpa16(struct mlx5_vdpa_dev *mvdev, u16 val)
 	return __cpu_to_virtio16(mlx5_vdpa_is_little_endian(mvdev), val);
 }
 
+static void update_cvq_info(struct mlx5_vdpa_dev *mvdev)
+{
+	if (MLX5_FEATURE(mvdev, VIRTIO_NET_F_CTRL_VQ)) {
+		if (MLX5_FEATURE(mvdev, VIRTIO_NET_F_MQ)) {
+			/* MQ supported. CVQ index is right above the last data virtqueue's */
+			mvdev->max_idx = mvdev->max_vqs;
+		} else {
+			/* Only CVQ supportted. data virtqueues occupy indices 0 and 1.
+			 * CVQ gets index 2
+			 */
+			mvdev->max_idx = 2;
+		}
+	} else {
+		/* Two data virtqueues only: one for rx and one for tx */
+		mvdev->max_idx = 1;
+	}
+}
+
 static int mlx5_vdpa_set_features(struct vdpa_device *vdev, u64 features)
 {
 	struct mlx5_vdpa_dev *mvdev = to_mvdev(vdev);
@@ -1571,6 +1620,7 @@ static int mlx5_vdpa_set_features(struct vdpa_device *vdev, u64 features)
 	ndev->mvdev.actual_features = features & ndev->mvdev.mlx_features;
 	ndev->config.mtu = cpu_to_mlx5vdpa16(mvdev, ndev->mtu);
 	ndev->config.status |= cpu_to_mlx5vdpa16(mvdev, VIRTIO_NET_S_LINK_UP);
+	update_cvq_info(mvdev);
 	return err;
 }
 
@@ -1792,6 +1842,7 @@ static void mlx5_vdpa_set_status(struct vdpa_device *vdev, u8 status)
 		ndev->mvdev.status = 0;
 		ndev->mvdev.mlx_features = 0;
 		memset(ndev->event_cbs, 0, sizeof(ndev->event_cbs));
+		ndev->mvdev.actual_features = 0;
 		++mvdev->generation;
 		if (MLX5_CAP_GEN(mvdev->mdev, umem_uid_0)) {
 			if (mlx5_vdpa_create_mr(mvdev, NULL))
@@ -1891,6 +1942,9 @@ static struct vdpa_notification_area mlx5_get_vq_notification(struct vdpa_device
 	struct vdpa_notification_area ret = {};
 	struct mlx5_vdpa_net *ndev;
 	phys_addr_t addr;
+
+	if (!is_index_valid(mvdev, idx))
+		return ret;
 
 	/* If SF BAR size is smaller than PAGE_SIZE, do not use direct
 	 * notification to avoid the risk of mapping pages that contain BAR of more
