@@ -23,7 +23,6 @@
 #include "mtdcore.h"
 
 static LIST_HEAD(blktrans_majors);
-static DEFINE_MUTEX(blktrans_ref_mutex);
 
 static void blktrans_dev_release(struct kref *kref)
 {
@@ -41,18 +40,13 @@ static struct mtd_blktrans_dev *blktrans_dev_get(struct gendisk *disk)
 {
 	struct mtd_blktrans_dev *dev = disk->private_data;
 
-	mutex_lock(&blktrans_ref_mutex);
 	kref_get(&dev->ref);
-	mutex_unlock(&blktrans_ref_mutex);
-
 	return dev;
 }
 
 static void blktrans_dev_put(struct mtd_blktrans_dev *dev)
 {
-	mutex_lock(&blktrans_ref_mutex);
 	kref_put(&dev->ref, blktrans_dev_release);
-	mutex_unlock(&blktrans_ref_mutex);
 }
 
 
@@ -299,7 +293,6 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 
 	lockdep_assert_held(&mtd_table_mutex);
 
-	mutex_lock(&blktrans_ref_mutex);
 	list_for_each_entry(d, &tr->devs, list) {
 		if (new->devnum == -1) {
 			/* Use first free number */
@@ -311,7 +304,6 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 			}
 		} else if (d->devnum == new->devnum) {
 			/* Required number taken */
-			mutex_unlock(&blktrans_ref_mutex);
 			return -EBUSY;
 		} else if (d->devnum > new->devnum) {
 			/* Required number was free */
@@ -329,14 +321,11 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	 * minor numbers and that the disk naming code below can cope
 	 * with this number. */
 	if (new->devnum > (MINORMASK >> tr->part_bits) ||
-	    (tr->part_bits && new->devnum >= 27 * 26)) {
-		mutex_unlock(&blktrans_ref_mutex);
+	    (tr->part_bits && new->devnum >= 27 * 26))
 		return ret;
-	}
 
 	list_add_tail(&new->list, &tr->devs);
  added:
-	mutex_unlock(&blktrans_ref_mutex);
 
 	mutex_init(&new->lock);
 	kref_init(&new->ref);
