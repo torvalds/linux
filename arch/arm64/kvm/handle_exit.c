@@ -113,34 +113,20 @@ static int kvm_handle_wfx(struct kvm_vcpu *vcpu)
  * guest and host are using the same debug facilities it will be up to
  * userspace to re-inject the correct exception for guest delivery.
  *
- * @return: 0 (while setting vcpu->run->exit_reason), -1 for error
+ * @return: 0 (while setting vcpu->run->exit_reason)
  */
 static int kvm_handle_guest_debug(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
 	u32 esr = kvm_vcpu_get_esr(vcpu);
-	int ret = 0;
 
 	run->exit_reason = KVM_EXIT_DEBUG;
 	run->debug.arch.hsr = esr;
 
-	switch (ESR_ELx_EC(esr)) {
-	case ESR_ELx_EC_WATCHPT_LOW:
+	if (ESR_ELx_EC(esr) == ESR_ELx_EC_WATCHPT_LOW)
 		run->debug.arch.far = vcpu->arch.fault.far_el2;
-		fallthrough;
-	case ESR_ELx_EC_SOFTSTP_LOW:
-	case ESR_ELx_EC_BREAKPT_LOW:
-	case ESR_ELx_EC_BKPT32:
-	case ESR_ELx_EC_BRK64:
-		break;
-	default:
-		kvm_err("%s: un-handled case esr: %#08x\n",
-			__func__, (unsigned int) esr);
-		ret = -1;
-		break;
-	}
 
-	return ret;
+	return 0;
 }
 
 static int kvm_handle_unknown_ec(struct kvm_vcpu *vcpu)
