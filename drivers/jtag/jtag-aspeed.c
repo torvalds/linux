@@ -663,7 +663,13 @@ static void aspeed_jtag_set_tap_state_hw2(struct aspeed_jtag *aspeed_jtag,
 				  ASPEED_JTAG_GBLCTRL);
 		udelay(AST26XX_JTAG_CTRL_UDELAY);
 		aspeed_jtag->current_state = JTAG_STATE_TLRESET;
-		return;
+	} else if (tapstate->endstate == JTAG_STATE_IDLE &&
+		   aspeed_jtag->current_state != JTAG_STATE_IDLE) {
+		/* Always go to RTI, do not wait for shift operation */
+		aspeed_jtag_set_tap_state(aspeed_jtag,
+					  aspeed_jtag->current_state,
+					  JTAG_STATE_IDLE);
+		aspeed_jtag->current_state = JTAG_STATE_IDLE;
 	}
 }
 
@@ -1066,6 +1072,7 @@ static int aspeed_jtag_xfer_hw2(struct aspeed_jtag *aspeed_jtag,
 	u32 reg_val;
 	enum jtag_tapstate shift;
 	enum jtag_tapstate exit;
+	enum jtag_tapstate exitx;
 	enum jtag_tapstate pause;
 	enum jtag_tapstate endstate;
 	u32 start_shift;
@@ -1077,11 +1084,13 @@ static int aspeed_jtag_xfer_hw2(struct aspeed_jtag *aspeed_jtag,
 		shift = JTAG_STATE_SHIFTIR;
 		pause = JTAG_STATE_PAUSEIR;
 		exit = JTAG_STATE_EXIT1IR;
+		exitx = JTAG_STATE_EXIT1DR;
 	} else {
 		data_reg = ASPEED_JTAG_SHDATA;
 		shift = JTAG_STATE_SHIFTDR;
 		pause = JTAG_STATE_PAUSEDR;
 		exit = JTAG_STATE_EXIT1DR;
+		exitx = JTAG_STATE_EXIT1IR;
 	}
 #ifdef DEBUG_JTAG
 	dev_dbg(aspeed_jtag->dev,
@@ -1097,7 +1106,8 @@ static int aspeed_jtag_xfer_hw2(struct aspeed_jtag *aspeed_jtag,
 		start_shift = 0;
 	} else if (aspeed_jtag->current_state == JTAG_STATE_IDLE ||
 		   aspeed_jtag->current_state == JTAG_STATE_TLRESET ||
-		   aspeed_jtag->current_state == pause) {
+		   aspeed_jtag->current_state == pause ||
+		   aspeed_jtag->current_state == exitx) {
 		start_shift = ASPEED_JTAG_SHCTRL_START_SHIFT;
 	} else {
 		return -EINVAL;
@@ -1129,7 +1139,7 @@ static int aspeed_jtag_xfer_hw2(struct aspeed_jtag *aspeed_jtag,
 			endstate = shift;
 		}
 	} else if (xfer->endstate == exit) {
-		endstate = JTAG_STATE_IDLE;
+		endstate = exit;
 		end_shift = ASPEED_JTAG_SHCTRL_END_SHIFT;
 	} else if (xfer->endstate == JTAG_STATE_IDLE) {
 		endstate = JTAG_STATE_IDLE;
