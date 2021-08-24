@@ -1847,15 +1847,13 @@ static bool has_uuid_at_pos(struct nd_region *nd_region, u8 *uuid,
 		list_for_each_entry(label_ent, &nd_mapping->labels, list) {
 			struct nd_namespace_label *nd_label = label_ent->label;
 			u16 position, nlabel;
-			u64 isetcookie;
 
 			if (!nd_label)
 				continue;
-			isetcookie = nsl_get_isetcookie(ndd, nd_label);
 			position = nsl_get_position(ndd, nd_label);
 			nlabel = nsl_get_nlabel(ndd, nd_label);
 
-			if (isetcookie != cookie)
+			if (!nsl_validate_isetcookie(ndd, nd_label, cookie))
 				continue;
 
 			if (memcmp(nd_label->uuid, uuid, NSLABEL_UUID_LEN) != 0)
@@ -1968,10 +1966,10 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
 		return ERR_PTR(-ENXIO);
 	}
 
-	if (nsl_get_isetcookie(ndd, nd_label) != cookie) {
+	if (!nsl_validate_isetcookie(ndd, nd_label, cookie)) {
 		dev_dbg(&nd_region->dev, "invalid cookie in label: %pUb\n",
 				nd_label->uuid);
-		if (nsl_get_isetcookie(ndd, nd_label) != altcookie)
+		if (!nsl_validate_isetcookie(ndd, nd_label, altcookie))
 			return ERR_PTR(-EAGAIN);
 
 		dev_dbg(&nd_region->dev, "valid altcookie in label: %pUb\n",
