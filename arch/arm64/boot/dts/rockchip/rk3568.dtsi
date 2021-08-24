@@ -2129,8 +2129,8 @@
 		operating-points-v2 = <&dmc_opp_table>;
 		vop-bw-dmc-freq = <
 		/* min_bw(MB/s) max_bw(MB/s) freq(KHz) */
-			0	505	324000
-			506	99999	528000
+			0	572	324000
+			573	99999	528000
 		>;
 		upthreshold = <40>;
 		downdifferential = <20>;
