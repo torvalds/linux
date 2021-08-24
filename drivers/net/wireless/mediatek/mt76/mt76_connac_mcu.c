@@ -770,8 +770,18 @@ void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
 		mt76_connac_mcu_sta_amsdu_tlv(skb, sta, vif);
 
 	/* starec he */
-	if (sta->he_cap.has_he)
+	if (sta->he_cap.has_he) {
 		mt76_connac_mcu_sta_he_tlv(skb, sta);
+		if (band == NL80211_BAND_6GHZ &&
+		    sta_state == MT76_STA_INFO_STATE_ASSOC) {
+			struct sta_rec_he_6g_capa *he_6g_capa;
+
+			tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_HE_6G,
+						      sizeof(*he_6g_capa));
+			he_6g_capa = (struct sta_rec_he_6g_capa *)tlv;
+			he_6g_capa->capa = sta->he_6ghz_capa.capa;
+		}
+	}
 
 	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_PHY, sizeof(*phy));
 	phy = (struct sta_rec_phy *)tlv;

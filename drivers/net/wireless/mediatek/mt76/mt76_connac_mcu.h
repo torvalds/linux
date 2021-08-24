@@ -145,6 +145,13 @@ struct sta_rec_phy {
 	u8 rsv[2];
 } __packed;
 
+struct sta_rec_he_6g_capa {
+	__le16 tag;
+	__le16 len;
+	__le16 capa;
+	u8 rsv[2];
+} __packed;
+
 /* wtbl_rec */
 
 struct wtbl_req_hdr {
@@ -303,6 +310,7 @@ struct wtbl_raw {
 					 sizeof(struct sta_rec_vht) +	\
 					 sizeof(struct sta_rec_uapsd) + \
 					 sizeof(struct sta_rec_amsdu) +	\
+					 sizeof(struct sta_rec_he_6g_capa) + \
 					 sizeof(struct tlv) +		\
 					 MT76_CONNAC_WTBL_UPDATE_MAX_SIZE)
 
@@ -329,6 +337,7 @@ enum {
 	STA_REC_MUEDCA,
 	STA_REC_BFEE,
 	STA_REC_PHY = 0x15,
+	STA_REC_HE_6G = 0x17,
 	STA_REC_MAX_NUM
 };
 
