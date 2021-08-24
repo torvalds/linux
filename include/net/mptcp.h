@@ -74,7 +74,10 @@ struct mptcp_out_options {
 			struct mptcp_addr_info addr;
 			u64 ahmac;
 		};
-		struct mptcp_ext ext_copy;
+		struct {
+			struct mptcp_ext ext_copy;
+			u64 fail_seq;
+		};
 		struct {
 			u32 nonce;
 			u32 token;
