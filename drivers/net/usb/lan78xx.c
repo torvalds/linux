@@ -100,6 +100,12 @@
 /* statistic update interval (mSec) */
 #define STAT_UPDATE_TIMER		(1 * 1000)
 
+/* time to wait for MAC or FCT to stop (jiffies) */
+#define HW_DISABLE_TIMEOUT		(HZ / 10)
+
+/* time to wait between polling MAC or FCT state (ms) */
+#define HW_DISABLE_DELAY_MS		1
+
 /* defines interrupts from interrupt EP */
 #define MAX_INT_EP			(32)
 #define INT_EP_INTEP			(31)
@@ -485,6 +491,26 @@ static int lan78xx_write_reg(struct lan78xx_net *dev, u32 index, u32 data)
 	kfree(buf);
 
 	return ret;
+}
+
+static int lan78xx_update_reg(struct lan78xx_net *dev, u32 reg, u32 mask,
+			      u32 data)
+{
+	int ret;
+	u32 buf;
+
+	ret = lan78xx_read_reg(dev, reg, &buf);
+	if (ret < 0)
+		return ret;
+
+	buf &= ~mask;
+	buf |= (mask & data);
+
+	ret = lan78xx_write_reg(dev, reg, buf);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int lan78xx_read_stats(struct lan78xx_net *dev,
@@ -2513,6 +2539,156 @@ static void lan78xx_init_ltm(struct lan78xx_net *dev)
 	lan78xx_write_reg(dev, LTM_INACTIVE1, regs[5]);
 }
 
+static int lan78xx_start_hw(struct lan78xx_net *dev, u32 reg, u32 hw_enable)
+{
+	return lan78xx_update_reg(dev, reg, hw_enable, hw_enable);
+}
+
+static int lan78xx_stop_hw(struct lan78xx_net *dev, u32 reg, u32 hw_enabled,
+			   u32 hw_disabled)
+{
+	unsigned long timeout;
+	bool stopped = true;
+	int ret;
+	u32 buf;
+
+	/* Stop the h/w block (if not already stopped) */
+
+	ret = lan78xx_read_reg(dev, reg, &buf);
+	if (ret < 0)
+		return ret;
+
+	if (buf & hw_enabled) {
+		buf &= ~hw_enabled;
+
+		ret = lan78xx_write_reg(dev, reg, buf);
+		if (ret < 0)
+			return ret;
+
+		stopped = false;
+		timeout = jiffies + HW_DISABLE_TIMEOUT;
+		do  {
+			ret = lan78xx_read_reg(dev, reg, &buf);
+			if (ret < 0)
+				return ret;
+
+			if (buf & hw_disabled)
+				stopped = true;
+			else
+				msleep(HW_DISABLE_DELAY_MS);
+		} while (!stopped && !time_after(jiffies, timeout));
+	}
+
+	ret = stopped ? 0 : -ETIME;
+
+	return ret;
+}
+
+static int lan78xx_flush_fifo(struct lan78xx_net *dev, u32 reg, u32 fifo_flush)
+{
+	return lan78xx_update_reg(dev, reg, fifo_flush, fifo_flush);
+}
+
+static int lan78xx_start_tx_path(struct lan78xx_net *dev)
+{
+	int ret;
+
+	netif_dbg(dev, drv, dev->net, "start tx path");
+
+	/* Start the MAC transmitter */
+
+	ret = lan78xx_start_hw(dev, MAC_TX, MAC_TX_TXEN_);
+	if (ret < 0)
+		return ret;
+
+	/* Start the Tx FIFO */
+
+	ret = lan78xx_start_hw(dev, FCT_TX_CTL, FCT_TX_CTL_EN_);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int lan78xx_stop_tx_path(struct lan78xx_net *dev)
+{
+	int ret;
+
+	netif_dbg(dev, drv, dev->net, "stop tx path");
+
+	/* Stop the Tx FIFO */
+
+	ret = lan78xx_stop_hw(dev, FCT_TX_CTL, FCT_TX_CTL_EN_, FCT_TX_CTL_DIS_);
+	if (ret < 0)
+		return ret;
+
+	/* Stop the MAC transmitter */
+
+	ret = lan78xx_stop_hw(dev, MAC_TX, MAC_TX_TXEN_, MAC_TX_TXD_);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+/* The caller must ensure the Tx path is stopped before calling
+ * lan78xx_flush_tx_fifo().
+ */
+static int lan78xx_flush_tx_fifo(struct lan78xx_net *dev)
+{
+	return lan78xx_flush_fifo(dev, FCT_TX_CTL, FCT_TX_CTL_RST_);
+}
+
+static int lan78xx_start_rx_path(struct lan78xx_net *dev)
+{
+	int ret;
+
+	netif_dbg(dev, drv, dev->net, "start rx path");
+
+	/* Start the Rx FIFO */
+
+	ret = lan78xx_start_hw(dev, FCT_RX_CTL, FCT_RX_CTL_EN_);
+	if (ret < 0)
+		return ret;
+
+	/* Start the MAC receiver*/
+
+	ret = lan78xx_start_hw(dev, MAC_RX, MAC_RX_RXEN_);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int lan78xx_stop_rx_path(struct lan78xx_net *dev)
+{
+	int ret;
+
+	netif_dbg(dev, drv, dev->net, "stop rx path");
+
+	/* Stop the MAC receiver */
+
+	ret = lan78xx_stop_hw(dev, MAC_RX, MAC_RX_RXEN_, MAC_RX_RXD_);
+	if (ret < 0)
+		return ret;
+
+	/* Stop the Rx FIFO */
+
+	ret = lan78xx_stop_hw(dev, FCT_RX_CTL, FCT_RX_CTL_EN_, FCT_RX_CTL_DIS_);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+/* The caller must ensure the Rx path is stopped before calling
+ * lan78xx_flush_rx_fifo().
+ */
+static int lan78xx_flush_rx_fifo(struct lan78xx_net *dev)
+{
+	return lan78xx_flush_fifo(dev, FCT_RX_CTL, FCT_RX_CTL_RST_);
+}
+
 static int lan78xx_reset(struct lan78xx_net *dev)
 {
 	struct lan78xx_priv *pdata = (struct lan78xx_priv *)(dev->data[0]);
@@ -2703,23 +2879,7 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 	if (ret < 0)
 		return ret;
 
-	ret = lan78xx_read_reg(dev, MAC_TX, &buf);
-	if (ret < 0)
-		return ret;
-
-	buf |= MAC_TX_TXEN_;
-
-	ret = lan78xx_write_reg(dev, MAC_TX, buf);
-	if (ret < 0)
-		return ret;
-
-	ret = lan78xx_read_reg(dev, FCT_TX_CTL, &buf);
-	if (ret < 0)
-		return ret;
-
-	buf |= FCT_TX_CTL_EN_;
-
-	ret = lan78xx_write_reg(dev, FCT_TX_CTL, buf);
+	ret = lan78xx_start_tx_path(dev);
 	if (ret < 0)
 		return ret;
 
@@ -2728,27 +2888,9 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 	if (ret < 0)
 		return ret;
 
-	ret = lan78xx_read_reg(dev, MAC_RX, &buf);
-	if (ret < 0)
-		return ret;
+	ret = lan78xx_start_rx_path(dev);
 
-	buf |= MAC_RX_RXEN_;
-
-	ret = lan78xx_write_reg(dev, MAC_RX, buf);
-	if (ret < 0)
-		return ret;
-
-	ret = lan78xx_read_reg(dev, FCT_RX_CTL, &buf);
-	if (ret < 0)
-		return ret;
-
-	buf |= FCT_RX_CTL_EN_;
-
-	ret = lan78xx_write_reg(dev, FCT_RX_CTL, buf);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return ret;
 }
 
 static void lan78xx_init_stats(struct lan78xx_net *dev)
@@ -3970,23 +4112,10 @@ static int lan78xx_set_suspend(struct lan78xx_net *dev, u32 wol)
 	u16 crc;
 	int ret;
 
-	ret = lan78xx_read_reg(dev, MAC_TX, &buf);
+	ret = lan78xx_stop_tx_path(dev);
 	if (ret < 0)
 		return ret;
-
-	buf &= ~MAC_TX_TXEN_;
-
-	ret = lan78xx_write_reg(dev, MAC_TX, buf);
-	if (ret < 0)
-		return ret;
-
-	ret = lan78xx_read_reg(dev, MAC_RX, &buf);
-	if (ret < 0)
-		return ret;
-
-	buf &= ~MAC_RX_RXEN_;
-
-	ret = lan78xx_write_reg(dev, MAC_RX, buf);
+	ret = lan78xx_stop_rx_path(dev);
 	if (ret < 0)
 		return ret;
 
@@ -4163,17 +4292,9 @@ static int lan78xx_set_suspend(struct lan78xx_net *dev, u32 wol)
 	if (ret < 0)
 		return ret;
 
-	lan78xx_read_reg(dev, MAC_RX, &buf);
-	if (ret < 0)
-		return ret;
+	ret = lan78xx_start_rx_path(dev);
 
-	buf |= MAC_RX_RXEN_;
-
-	lan78xx_write_reg(dev, MAC_RX, buf);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return ret;
 }
 
 static int lan78xx_suspend(struct usb_interface *intf, pm_message_t message)
@@ -4196,24 +4317,17 @@ static int lan78xx_suspend(struct usb_interface *intf, pm_message_t message)
 			spin_unlock_irq(&dev->txq.lock);
 		}
 
-		/* stop TX & RX */
-		ret = lan78xx_read_reg(dev, MAC_TX, &buf);
+		/* stop RX */
+		ret = lan78xx_stop_rx_path(dev);
 		if (ret < 0)
 			return ret;
 
-		buf &= ~MAC_TX_TXEN_;
-
-		ret = lan78xx_write_reg(dev, MAC_TX, buf);
+		ret = lan78xx_flush_rx_fifo(dev);
 		if (ret < 0)
 			return ret;
 
-		ret = lan78xx_read_reg(dev, MAC_RX, &buf);
-		if (ret < 0)
-			return ret;
-
-		buf &= ~MAC_RX_RXEN_;
-
-		ret = lan78xx_write_reg(dev, MAC_RX, buf);
+		/* stop Tx */
+		ret = lan78xx_stop_tx_path(dev);
 		if (ret < 0)
 			return ret;
 
@@ -4231,23 +4345,11 @@ static int lan78xx_suspend(struct usb_interface *intf, pm_message_t message)
 
 		if (PMSG_IS_AUTO(message)) {
 			/* auto suspend (selective suspend) */
-			ret = lan78xx_read_reg(dev, MAC_TX, &buf);
+			ret = lan78xx_stop_tx_path(dev);
 			if (ret < 0)
 				return ret;
 
-			buf &= ~MAC_TX_TXEN_;
-
-			ret = lan78xx_write_reg(dev, MAC_TX, buf);
-			if (ret < 0)
-				return ret;
-
-			ret = lan78xx_read_reg(dev, MAC_RX, &buf);
-			if (ret < 0)
-				return ret;
-
-			buf &= ~MAC_RX_RXEN_;
-
-			ret = lan78xx_write_reg(dev, MAC_RX, buf);
+			ret = lan78xx_stop_rx_path(dev);
 			if (ret < 0)
 				return ret;
 
@@ -4299,13 +4401,7 @@ static int lan78xx_suspend(struct usb_interface *intf, pm_message_t message)
 			if (ret < 0)
 				return ret;
 
-			ret = lan78xx_read_reg(dev, MAC_RX, &buf);
-			if (ret < 0)
-				return ret;
-
-			buf |= MAC_RX_RXEN_;
-
-			ret = lan78xx_write_reg(dev, MAC_RX, buf);
+			ret = lan78xx_start_rx_path(dev);
 			if (ret < 0)
 				return ret;
 		} else {
@@ -4330,13 +4426,16 @@ static int lan78xx_resume(struct usb_interface *intf)
 	struct sk_buff *skb;
 	struct urb *res;
 	int ret;
-	u32 buf;
 
 	if (!timer_pending(&dev->stat_monitor)) {
 		dev->delta = 1;
 		mod_timer(&dev->stat_monitor,
 			  jiffies + STAT_UPDATE_TIMER);
 	}
+
+	ret = lan78xx_flush_tx_fifo(dev);
+	if (ret < 0)
+		return ret;
 
 	if (!--dev->suspend_count) {
 		/* resume interrupt URBs */
@@ -4397,17 +4496,9 @@ static int lan78xx_resume(struct usb_interface *intf)
 	if (ret < 0)
 		return ret;
 
-	ret = lan78xx_read_reg(dev, MAC_TX, &buf);
-	if (ret < 0)
-		return ret;
+	ret = lan78xx_start_tx_path(dev);
 
-	buf |= MAC_TX_TXEN_;
-
-	ret = lan78xx_write_reg(dev, MAC_TX, buf);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return ret;
 }
 
 static int lan78xx_reset_resume(struct usb_interface *intf)
