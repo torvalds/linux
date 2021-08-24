@@ -59,13 +59,13 @@ static int igt_dmabuf_import_self(void *arg)
 		err = PTR_ERR(import);
 		goto out_dmabuf;
 	}
+	import_obj = to_intel_bo(import);
 
 	if (import != &obj->base) {
 		pr_err("i915_gem_prime_import created a new object!\n");
 		err = -EINVAL;
 		goto out_import;
 	}
-	import_obj = to_intel_bo(import);
 
 	i915_gem_object_lock(import_obj, NULL);
 	err = __i915_gem_object_get_pages(import_obj);
@@ -176,14 +176,13 @@ static int igt_dmabuf_import_same_driver(struct drm_i915_private *i915,
 		err = PTR_ERR(import);
 		goto out_dmabuf;
 	}
+	import_obj = to_intel_bo(import);
 
 	if (import == &obj->base) {
 		pr_err("i915_gem_prime_import reused gem object!\n");
 		err = -EINVAL;
 		goto out_import;
 	}
-
-	import_obj = to_intel_bo(import);
 
 	i915_gem_object_lock(import_obj, NULL);
 	err = __i915_gem_object_get_pages(import_obj);
