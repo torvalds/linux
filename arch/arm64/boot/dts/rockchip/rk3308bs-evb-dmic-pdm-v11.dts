@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3308bs-evb-v11.dtsi"
+
+/ {
+	model = "Rockchip RK3308B-S evb digital-pdm mic v11 board";
+	compatible = "rockchip,rk3308bs-evb-dmic-pdm-v11", "rockchip,rk3308";
+
+	pdm_i2s_dais: pdm-i2s-dais {
+		status = "okay";
+		compatible = "rockchip,rk3308-multi-dais", "rockchip,multi-dais";
+		dais = <&pdm_8ch>, <&i2s_8ch_2>;
+		capture,channel-mapping = <6 2>;
+		playback,channel-mapping = <0 2>;
+		#sound-dai-cells = <0>;
+	};
+
+	pdm-mic-array {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,pdm-mic-array";
+		simple-audio-card,cpu {
+			sound-dai = <&pdm_8ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&dummy_codec>;
+		};
+	};
+
+	vad-sound {
+		status = "okay";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,rk3308-vad";
+		rockchip,cpu = <&pdm_i2s_dais>;
+		rockchip,codec = <&acodec>, <&vad>;
+	};
+};
+
+&i2s_8ch_2 {
+	status = "okay";
+	rockchip,no-dmaengine;
+	#sound-dai-cells = <0>;
+};
+
+&pdm_8ch {
+	status = "okay";
+	#sound-dai-cells = <0>;
+	rockchip,no-dmaengine;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pdm_m2_clk
+		     &pdm_m2_sdi0
+		     &pdm_m2_sdi1
+		     &pdm_m2_sdi2
+		     &pdm_m2_sdi3>;
+};
+
+&vad {
+	status = "okay";
+	rockchip,audio-src = <&pdm_8ch>;
+	rockchip,buffer-time-ms = <200>;
+	rockchip,det-channel = <2>;
+	rockchip,mode = <1>;
+	#sound-dai-cells = <0>;
+};

@@ -1,0 +1,434 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd
+ *
+ */
+#include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/clock/rk618-cru.h>
+
+/ {
+	backlight: backlight {
+		status = "okay";
+		compatible = "pwm-backlight";
+		pwms = <&pwm1 0 25000 0>;
+		brightness-levels = <
+			  0   1   2   3   4   5   6   7
+			  8   9  10  11  12  13  14  15
+			 16  17  18  19  20  21  22  23
+			 24  25  26  27  28  29  30  31
+			 32  33  34  35  36  37  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255>;
+		default-brightness-level = <200>;
+	};
+
+	vcc3v3_lcd_n: vcc3v3-lcd-n {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_lcd_n";
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_en>;
+		gpio = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+};
+
+&i2c0 {
+	clock-frequency = <100000>;
+	status = "okay";
+
+	gt1x: gt1x@14 {
+		compatible = "goodix,gt1x";
+		reg = <0x14>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tp_int>;
+		power-supply = <&vcc3v3_lcd_n>;
+		goodix,rst-gpio = <&gpio0 RK_PC4 GPIO_ACTIVE_LOW>;
+		goodix,irq-gpio = <&gpio0 RK_PC0 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+	rk618@50 {
+		compatible = "rockchip,rk618";
+		reg = <0x50>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_8ch_0_mclk>;
+		clocks = <&cru SCLK_I2S0_8CH_TX_OUT>;
+		clock-names = "clkin";
+		assigned-clocks = <&cru SCLK_I2S0_8CH_TX_OUT>;
+		assigned-clock-rates = <12000000>;
+		power-supply = <&vcc3v3_lcd_n>;
+		reset-gpios = <&gpio2 RK_PB2 GPIO_ACTIVE_LOW>;
+		status = "okay";
+
+		clock: cru {
+			compatible = "rockchip,rk618-cru";
+			clocks = <&cru SCLK_I2S0_8CH_TX_OUT>, <&cru DCLK_VOP>;
+			clock-names = "clkin", "lcdc0_dclkp";
+			assigned-clocks = <&clock SCALER_PLLIN_CLK>,
+					  <&clock VIF_PLLIN_CLK>,
+					  <&clock SCALER_CLK>,
+					  <&clock VIF0_PRE_CLK>,
+					  <&clock CODEC_CLK>,
+					  <&clock DITHER_CLK>;
+			assigned-clock-parents = <&cru SCLK_I2S0_8CH_TX_OUT>,
+						 <&clock LCDC0_CLK>,
+						 <&clock SCALER_PLL_CLK>,
+						 <&clock VIF_PLL_CLK>,
+						 <&cru SCLK_I2S0_8CH_TX_OUT>,
+						 <&clock VIF0_CLK>;
+			#clock-cells = <1>;
+			status = "okay";
+		};
+
+		dsi {
+			compatible = "rockchip,rk618-dsi";
+			clocks = <&clock MIPI_CLK>;
+			clock-names = "dsi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					dsi_in_rgb: endpoint {
+						remote-endpoint = <&rgb_out_dsi>;
+					};
+				};
+			};
+
+			panel@0 {
+				compatible = "sitronix,st7703", "simple-panel-dsi";
+				reg = <0>;
+				power-supply = <&vcc3v3_lcd_n>;
+				backlight = <&backlight>;
+
+				prepare-delay-ms = <0>;
+				reset-delay-ms = <0>;
+				init-delay-ms = <80>;
+				enable-delay-ms = <0>;
+				disable-delay-ms = <10>;
+				unprepare-delay-ms = <60>;
+
+				width-mm = <68>;
+				height-mm = <121>;
+
+				dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+					      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
+				dsi,format = <MIPI_DSI_FMT_RGB888>;
+				dsi,lanes = <4>;
+
+				panel-init-sequence = [
+					39 00 04 ff 98 81 03
+					15 00 02 01 00
+					15 00 02 02 00
+					15 00 02 03 53
+					15 00 02 04 53
+					15 00 02 05 13
+					15 00 02 06 04
+					15 00 02 07 02
+					15 00 02 08 02
+					15 00 02 09 00
+					15 00 02 0a 00
+					15 00 02 0b 00
+					15 00 02 0c 00
+					15 00 02 0d 00
+					15 00 02 0e 00
+					15 00 02 0f 00
+
+					15 00 02 10 00
+					15 00 02 11 00
+					15 00 02 12 00
+					15 00 02 13 00
+					15 00 02 14 00
+					15 00 02 15 08
+					15 00 02 16 10
+					15 00 02 17 00
+					15 00 02 18 08
+					15 00 02 19 00
+					15 00 02 1a 00
+					15 00 02 1b 00
+					15 00 02 1c 00
+					15 00 02 1d 00
+					15 00 02 1e c0
+					15 00 02 1f 80
+
+					15 00 02 20 02
+					15 00 02 21 09
+					15 00 02 22 00
+					15 00 02 23 00
+					15 00 02 24 00
+					15 00 02 25 00
+					15 00 02 26 00
+					15 00 02 27 00
+					15 00 02 28 55
+					15 00 02 29 03
+					15 00 02 2a 00
+					15 00 02 2b 00
+					15 00 02 2c 00
+					15 00 02 2d 00
+					15 00 02 2e 00
+					15 00 02 2f 00
+
+					15 00 02 30 00
+					15 00 02 31 00
+					15 00 02 32 00
+					15 00 02 33 00
+					15 00 02 34 04
+					15 00 02 35 05
+					15 00 02 36 05
+					15 00 02 37 00
+					15 00 02 38 3c
+					15 00 02 39 35
+					15 00 02 3a 00
+					15 00 02 3b 40
+					15 00 02 3c 00
+					15 00 02 3d 00
+					15 00 02 3e 00
+					15 00 02 3f 00
+
+					15 00 02 40 00
+					15 00 02 41 88
+					15 00 02 42 00
+					15 00 02 43 00
+					15 00 02 44 1f
+
+					15 00 02 50 01
+					15 00 02 51 23
+					15 00 02 52 45
+					15 00 02 53 67
+					15 00 02 54 89
+					15 00 02 55 ab
+					15 00 02 56 01
+					15 00 02 57 23
+					15 00 02 58 45
+					15 00 02 59 67
+					15 00 02 5a 89
+					15 00 02 5b ab
+					15 00 02 5c cd
+					15 00 02 5d ef
+					15 00 02 5e 03
+					15 00 02 5f 14
+
+					15 00 02 60 15
+					15 00 02 61 0c
+					15 00 02 62 0d
+					15 00 02 63 0e
+					15 00 02 64 0f
+					15 00 02 65 10
+					15 00 02 66 11
+					15 00 02 67 08
+					15 00 02 68 02
+					15 00 02 69 0a
+					15 00 02 6a 02
+					15 00 02 6b 02
+					15 00 02 6c 02
+					15 00 02 6d 02
+					15 00 02 6e 02
+					15 00 02 6f 02
+
+					15 00 02 70 02
+					15 00 02 71 02
+					15 00 02 72 06
+					15 00 02 73 02
+					15 00 02 74 02
+					15 00 02 75 14
+					15 00 02 76 15
+					15 00 02 77 0f
+					15 00 02 78 0e
+					15 00 02 79 0d
+					15 00 02 7a 0c
+					15 00 02 7b 11
+					15 00 02 7c 10
+					15 00 02 7d 06
+					15 00 02 7e 02
+					15 00 02 7f 0a
+
+					15 00 02 80 02
+					15 00 02 81 02
+					15 00 02 82 02
+					15 00 02 83 02
+					15 00 02 84 02
+					15 00 02 85 02
+					15 00 02 86 02
+					15 00 02 87 02
+					15 00 02 88 08
+					15 00 02 89 02
+					15 00 02 8a 02
+
+					39 00 04 ff 98 81 04
+					15 00 02 00 80
+					15 00 02 70 00
+					15 00 02 71 00
+					15 00 02 66 fe
+					15 00 02 82 15
+					15 00 02 84 15
+					15 00 02 85 15
+					15 00 02 3a 24
+					15 00 02 32 ac
+					15 00 02 8c 80
+					15 00 02 3c f5
+					15 00 02 88 33
+
+					39 00 04 ff 98 81 01
+					15 00 02 22 0a
+					15 00 02 31 00
+					15 00 02 53 78
+					15 00 02 50 5b
+					15 00 02 51 5b
+					15 00 02 60 20
+					15 00 02 61 00
+					15 00 02 62 0d
+					15 00 02 63 00
+
+					15 00 02 a0 00
+					15 00 02 a1 10
+					15 00 02 a2 1c
+					15 00 02 a3 13
+					15 00 02 a4 15
+					15 00 02 a5 26
+					15 00 02 a6 1a
+					15 00 02 a7 1d
+					15 00 02 a8 67
+					15 00 02 a9 1c
+					15 00 02 aa 29
+					15 00 02 ab 5b
+					15 00 02 ac 26
+					15 00 02 ad 28
+					15 00 02 ae 5c
+					15 00 02 af 30
+					15 00 02 b0 31
+					15 00 02 b1 2e
+					15 00 02 b2 32
+					15 00 02 b3 00
+
+					15 00 02 c0 00
+					15 00 02 c1 10
+					15 00 02 c2 1c
+					15 00 02 c3 13
+					15 00 02 c4 15
+					15 00 02 c5 26
+					15 00 02 c6 1a
+					15 00 02 c7 1d
+					15 00 02 c8 67
+					15 00 02 c9 1c
+					15 00 02 ca 29
+					15 00 02 cb 5b
+					15 00 02 cc 26
+					15 00 02 cd 28
+					15 00 02 ce 5c
+					15 00 02 cf 30
+					15 00 02 d0 31
+					15 00 02 d1 2e
+					15 00 02 d2 32
+					15 00 02 d3 00
+					39 00 04 ff 98 81 00
+					05 00 01 11
+					05 01 01 29
+				];
+
+				panel-exit-sequence = [
+					05 00 01 28
+					05 00 01 10
+				];
+
+				display-timings {
+					native-mode = <&timing0>;
+
+					timing0: timing0 {
+						clock-frequency = <65000000>;
+						hactive = <720>;
+						vactive = <1280>;
+						hfront-porch = <48>;
+						hsync-len = <8>;
+						hback-porch = <52>;
+						vfront-porch = <16>;
+						vsync-len = <6>;
+						vback-porch = <15>;
+						hsync-active = <0>;
+						vsync-active = <0>;
+						de-active = <0>;
+						pixelclk-active = <0>;
+					};
+				};
+			};
+		};
+	};
+};
+
+
+&display_subsystem {
+	status = "okay";
+};
+
+&pinctrl {
+	lcd {
+		lcd_en: lcd-en {
+			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		tp_int: tp-int {
+			rockchip,pins =	<0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&rgb {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcdc_ctl &lcdc_rgb888_m1>;
+
+	ports {
+		rgb_out: port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rgb_out_dsi: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&dsi_in_rgb>;
+			};
+		};
+	};
+};
+
+&route_rgb {
+	logo,kernel = "logo_kernel.bmp";
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};

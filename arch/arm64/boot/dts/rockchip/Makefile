@@ -2,6 +2,9 @@
 dtb-$(CONFIG_ARCH_ROCKCHIP) += px30-evb.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-evb.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-roc-cc.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308bs-evb-amic-v11.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308bs-evb-dmic-pdm-v11.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308bs-evb-mipi-display-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3318-a95x-z2.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-odroid-go2.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3328-a1.dtb

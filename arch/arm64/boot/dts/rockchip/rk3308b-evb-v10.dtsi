@@ -109,9 +109,10 @@
 	};
 
 	spdif_rx_sound: spdif-rx-sound {
-		status = "disabled";
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "rockchip,spdif-rx-sound";
+		status = "disabled";
+
 		simple-audio-card,cpu {
 			sound-dai = <&spdif_rx>;
 		};
@@ -121,9 +122,10 @@
 	};
 
 	spdif_tx_sound: spdif-tx-sound {
-		status = "disabled";
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "rockchip,spdif-tx-sound";
+		status = "disabled";
+
 		simple-audio-card,cpu {
 			sound-dai = <&spdif_tx>;
 		};
@@ -231,7 +233,7 @@
 		uart_rts_gpios = <&gpio2 RK_PA3 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
 		pinctrl-0 = <&uart0_rts>;
-		pinctrl-1 = <&uart0_rts_gpio>;
+		pinctrl-1 = <&uart0_rts_pin>;
 		BT,power_gpio    = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
 		BT,wake_host_irq = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
 		status = "okay";
@@ -727,6 +729,14 @@
 	>;
 
 	status = "okay";
+};
+
+&spdif_rx {
+	#sound-dai-cells = <0>;
+};
+
+&spdif_tx {
+	#sound-dai-cells = <0>;
 };
 
 &saradc {
