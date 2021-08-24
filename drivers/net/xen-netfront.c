@@ -131,10 +131,12 @@ struct netfront_queue {
 	struct sk_buff *tx_skbs[NET_TX_RING_SIZE];
 	unsigned short tx_link[NET_TX_RING_SIZE];
 #define TX_LINK_NONE 0xffff
+#define TX_PENDING   0xfffe
 	grant_ref_t gref_tx_head;
 	grant_ref_t grant_tx_ref[NET_TX_RING_SIZE];
 	struct page *grant_tx_page[NET_TX_RING_SIZE];
 	unsigned tx_skb_freelist;
+	unsigned int tx_pend_queue;
 
 	spinlock_t   rx_lock ____cacheline_aligned_in_smp;
 	struct xen_netif_rx_front_ring rx;
@@ -166,6 +168,9 @@ struct netfront_info {
 	/* XDP state */
 	bool netback_has_xdp_headroom;
 	bool netfront_xdp_enabled;
+
+	/* Is device behaving sane? */
+	bool broken;
 
 	atomic_t rx_gso_checksum_fixup;
 };
@@ -349,7 +354,7 @@ static int xennet_open(struct net_device *dev)
 	unsigned int i = 0;
 	struct netfront_queue *queue = NULL;
 
-	if (!np->queues)
+	if (!np->queues || np->broken)
 		return -ENODEV;
 
 	for (i = 0; i < num_queues; ++i) {
@@ -377,11 +382,17 @@ static void xennet_tx_buf_gc(struct netfront_queue *queue)
 	unsigned short id;
 	struct sk_buff *skb;
 	bool more_to_do;
+	const struct device *dev = &queue->info->netdev->dev;
 
 	BUG_ON(!netif_carrier_ok(queue->info->netdev));
 
 	do {
 		prod = queue->tx.sring->rsp_prod;
+		if (RING_RESPONSE_PROD_OVERFLOW(&queue->tx, prod)) {
+			dev_alert(dev, "Illegal number of responses %u\n",
+				  prod - queue->tx.rsp_cons);
+			goto err;
+		}
 		rmb(); /* Ensure we see responses up to 'rp'. */
 
 		for (cons = queue->tx.rsp_cons; cons != prod; cons++) {
@@ -391,14 +402,27 @@ static void xennet_tx_buf_gc(struct netfront_queue *queue)
 			if (txrsp.status == XEN_NETIF_RSP_NULL)
 				continue;
 
-			id  = txrsp.id;
+			id = txrsp.id;
+			if (id >= RING_SIZE(&queue->tx)) {
+				dev_alert(dev,
+					  "Response has incorrect id (%u)\n",
+					  id);
+				goto err;
+			}
+			if (queue->tx_link[id] != TX_PENDING) {
+				dev_alert(dev,
+					  "Response for inactive request\n");
+				goto err;
+			}
+
+			queue->tx_link[id] = TX_LINK_NONE;
 			skb = queue->tx_skbs[id];
 			queue->tx_skbs[id] = NULL;
 			if (unlikely(gnttab_query_foreign_access(
 				queue->grant_tx_ref[id]) != 0)) {
-				pr_alert("%s: warning -- grant still in use by backend domain\n",
-					 __func__);
-				BUG();
+				dev_alert(dev,
+					  "Grant still in use by backend domain\n");
+				goto err;
 			}
 			gnttab_end_foreign_access_ref(
 				queue->grant_tx_ref[id], GNTMAP_readonly);
@@ -416,6 +440,12 @@ static void xennet_tx_buf_gc(struct netfront_queue *queue)
 	} while (more_to_do);
 
 	xennet_maybe_wake_tx(queue);
+
+	return;
+
+ err:
+	queue->info->broken = true;
+	dev_alert(dev, "Disabled for further use\n");
 }
 
 struct xennet_gnttab_make_txreq {
@@ -458,6 +488,12 @@ static void xennet_tx_setup_grant(unsigned long gfn, unsigned int offset,
 	info->tx_local.flags = 0;
 
 	*tx = info->tx_local;
+
+	/*
+	 * Put the request in the pending queue, it will be set to be pending
+	 * when the producer index is about to be raised.
+	 */
+	add_id_to_list(&queue->tx_pend_queue, queue->tx_link, id);
 
 	info->tx = tx;
 	info->size += info->tx_local.size;
@@ -551,6 +587,15 @@ static u16 xennet_select_queue(struct net_device *dev, struct sk_buff *skb,
 	return queue_idx;
 }
 
+static void xennet_mark_tx_pending(struct netfront_queue *queue)
+{
+	unsigned int i;
+
+	while ((i = get_id_from_list(&queue->tx_pend_queue, queue->tx_link)) !=
+	       TX_LINK_NONE)
+		queue->tx_link[i] = TX_PENDING;
+}
+
 static int xennet_xdp_xmit_one(struct net_device *dev,
 			       struct netfront_queue *queue,
 			       struct xdp_frame *xdpf)
@@ -567,6 +612,8 @@ static int xennet_xdp_xmit_one(struct net_device *dev,
 	xennet_make_first_txreq(&info,
 				offset_in_page(xdpf->data),
 				xdpf->len);
+
+	xennet_mark_tx_pending(queue);
 
 	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&queue->tx, notify);
 	if (notify)
@@ -592,6 +639,8 @@ static int xennet_xdp_xmit(struct net_device *dev, int n,
 	int drops = 0;
 	int i, err;
 
+	if (unlikely(np->broken))
+		return -ENODEV;
 	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
 		return -EINVAL;
 
@@ -637,6 +686,8 @@ static netdev_tx_t xennet_start_xmit(struct sk_buff *skb, struct net_device *dev
 
 	/* Drop the packet if no queues are set up */
 	if (num_queues < 1)
+		goto drop;
+	if (unlikely(np->broken))
 		goto drop;
 	/* Determine which queue to transmit this SKB on */
 	queue_index = skb_get_queue_mapping(skb);
@@ -743,6 +794,8 @@ static netdev_tx_t xennet_start_xmit(struct sk_buff *skb, struct net_device *dev
 
 	/* timestamp packet in software */
 	skb_tx_timestamp(skb);
+
+	xennet_mark_tx_pending(queue);
 
 	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&queue->tx, notify);
 	if (notify)
@@ -1143,6 +1196,13 @@ static int xennet_poll(struct napi_struct *napi, int budget)
 	skb_queue_head_init(&tmpq);
 
 	rp = queue->rx.sring->rsp_prod;
+	if (RING_RESPONSE_PROD_OVERFLOW(&queue->rx, rp)) {
+		dev_alert(&dev->dev, "Illegal number of responses %u\n",
+			  rp - queue->rx.rsp_cons);
+		queue->info->broken = true;
+		spin_unlock(&queue->rx_lock);
+		return 0;
+	}
 	rmb(); /* Ensure we see queued responses up to 'rp'. */
 
 	i = queue->rx.rsp_cons;
@@ -1364,6 +1424,9 @@ static irqreturn_t xennet_tx_interrupt(int irq, void *dev_id)
 	struct netfront_queue *queue = dev_id;
 	unsigned long flags;
 
+	if (queue->info->broken)
+		return IRQ_HANDLED;
+
 	spin_lock_irqsave(&queue->tx_lock, flags);
 	xennet_tx_buf_gc(queue);
 	spin_unlock_irqrestore(&queue->tx_lock, flags);
@@ -1375,6 +1438,9 @@ static irqreturn_t xennet_rx_interrupt(int irq, void *dev_id)
 {
 	struct netfront_queue *queue = dev_id;
 	struct net_device *dev = queue->info->netdev;
+
+	if (queue->info->broken)
+		return IRQ_HANDLED;
 
 	if (likely(netif_carrier_ok(dev) &&
 		   RING_HAS_UNCONSUMED_RESPONSES(&queue->rx)))
@@ -1397,6 +1463,10 @@ static void xennet_poll_controller(struct net_device *dev)
 	struct netfront_info *info = netdev_priv(dev);
 	unsigned int num_queues = dev->real_num_tx_queues;
 	unsigned int i;
+
+	if (info->broken)
+		return;
+
 	for (i = 0; i < num_queues; ++i)
 		xennet_interrupt(0, &info->queues[i]);
 }
@@ -1468,6 +1538,11 @@ static int xennet_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 
 static int xennet_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 {
+	struct netfront_info *np = netdev_priv(dev);
+
+	if (np->broken)
+		return -ENODEV;
+
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return xennet_xdp_set(dev, xdp->prog, xdp->extack);
@@ -1847,6 +1922,7 @@ static int xennet_init_queue(struct netfront_queue *queue)
 
 	/* Initialise tx_skb_freelist as a free chain containing every entry. */
 	queue->tx_skb_freelist = 0;
+	queue->tx_pend_queue = TX_LINK_NONE;
 	for (i = 0; i < NET_TX_RING_SIZE; i++) {
 		queue->tx_link[i] = i + 1;
 		queue->grant_tx_ref[i] = GRANT_INVALID_REF;
@@ -2120,6 +2196,9 @@ static int talk_to_netback(struct xenbus_device *dev,
 	rtnl_lock();
 	if (info->queues)
 		xennet_destroy_queues(info);
+
+	/* For the case of a reconnect reset the "broken" indicator. */
+	info->broken = false;
 
 	err = xennet_create_queues(info, &num_queues);
 	if (err < 0) {
