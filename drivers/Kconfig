@@ -239,4 +239,7 @@ source "drivers/most/Kconfig"
 source "drivers/rkflash/Kconfig"
 
 source "drivers/rk_nand/Kconfig"
+
+source "drivers/rknpu/Kconfig"
+
 endmenu

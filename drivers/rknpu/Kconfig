@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
+menu "RKNPU"
+	depends on ARCH_ROCKCHIP && DRM
+
+config ROCKCHIP_RKNPU
+	tristate "ROCKCHIP_RKNPU"
+	help
+	  rknpu module.
+
+endmenu
