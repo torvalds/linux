@@ -2569,7 +2569,7 @@ static int init_active_labels(struct nd_region *nd_region)
 				u32 flags = nsl_get_flags(ndd, label);
 
 				flags &= ~NSLABEL_FLAG_LOCAL;
-				label->flags = __cpu_to_le32(flags);
+				nsl_set_flags(ndd, label, flags);
 			}
 			label_ent->label = label;
 
