@@ -46,7 +46,7 @@ enum TRI_STATE {
 #define EQ_SIZE (8 * PAGE_SIZE)
 #define LOG2_EQ_THROTTLE 3
 
-#define MAX_PORTS_IN_MANA_DEV 16
+#define MAX_PORTS_IN_MANA_DEV 256
 
 struct mana_stats {
 	u64 packets;
@@ -322,6 +322,8 @@ struct mana_context {
 
 	u16 num_ports;
 
+	struct mana_eq *eqs;
+
 	struct net_device *ports[MAX_PORTS_IN_MANA_DEV];
 };
 
@@ -330,8 +332,6 @@ struct mana_port_context {
 	struct net_device *ndev;
 
 	u8 mac_addr[ETH_ALEN];
-
-	struct mana_eq *eqs;
 
 	enum TRI_STATE rss_state;
 
@@ -402,11 +402,11 @@ enum mana_command_code {
 struct mana_query_device_cfg_req {
 	struct gdma_req_hdr hdr;
 
-	/* Driver Capability flags */
-	u64 drv_cap_flags1;
-	u64 drv_cap_flags2;
-	u64 drv_cap_flags3;
-	u64 drv_cap_flags4;
+	/* MANA Nic Driver Capability flags */
+	u64 mn_drv_cap_flags1;
+	u64 mn_drv_cap_flags2;
+	u64 mn_drv_cap_flags3;
+	u64 mn_drv_cap_flags4;
 
 	u32 proto_major_ver;
 	u32 proto_minor_ver;
@@ -523,7 +523,7 @@ struct mana_cfg_rx_steer_resp {
 	struct gdma_resp_hdr hdr;
 }; /* HW DATA */
 
-#define MANA_MAX_NUM_QUEUES 16
+#define MANA_MAX_NUM_QUEUES 64
 
 #define MANA_SHORT_VPORT_OFFSET_MAX ((1U << 8) - 1)
 

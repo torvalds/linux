@@ -312,9 +312,6 @@ struct gdma_queue_spec {
 			void *context;
 
 			unsigned long log2_throttle_limit;
-
-			/* Only used by the MANA device. */
-			struct net_device *ndev;
 		} eq;
 
 		struct {
@@ -489,16 +486,28 @@ enum {
 	GDMA_PROTOCOL_LAST	= GDMA_PROTOCOL_V1,
 };
 
+#define GDMA_DRV_CAP_FLAG_1_EQ_SHARING_MULTI_VPORT BIT(0)
+
+#define GDMA_DRV_CAP_FLAGS1 GDMA_DRV_CAP_FLAG_1_EQ_SHARING_MULTI_VPORT
+
+#define GDMA_DRV_CAP_FLAGS2 0
+
+#define GDMA_DRV_CAP_FLAGS3 0
+
+#define GDMA_DRV_CAP_FLAGS4 0
+
 struct gdma_verify_ver_req {
 	struct gdma_req_hdr hdr;
 
 	/* Mandatory fields required for protocol establishment */
 	u64 protocol_ver_min;
 	u64 protocol_ver_max;
-	u64 drv_cap_flags1;
-	u64 drv_cap_flags2;
-	u64 drv_cap_flags3;
-	u64 drv_cap_flags4;
+
+	/* Gdma Driver Capability Flags */
+	u64 gd_drv_cap_flags1;
+	u64 gd_drv_cap_flags2;
+	u64 gd_drv_cap_flags3;
+	u64 gd_drv_cap_flags4;
 
 	/* Advisory fields */
 	u64 drv_ver;

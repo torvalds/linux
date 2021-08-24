@@ -67,6 +67,10 @@ static int mana_gd_query_max_resources(struct pci_dev *pdev)
 	if (gc->max_num_queues > resp.max_rq)
 		gc->max_num_queues = resp.max_rq;
 
+	/* The Hardware Channel (HWC) used 1 MSI-X */
+	if (gc->max_num_queues > gc->num_msix_usable - 1)
+		gc->max_num_queues = gc->num_msix_usable - 1;
+
 	return 0;
 }
 
@@ -384,28 +388,31 @@ static int mana_gd_register_irq(struct gdma_queue *queue,
 	struct gdma_resource *r;
 	unsigned int msi_index;
 	unsigned long flags;
-	int err;
+	struct device *dev;
+	int err = 0;
 
 	gc = gd->gdma_context;
 	r = &gc->msix_resource;
+	dev = gc->dev;
 
 	spin_lock_irqsave(&r->lock, flags);
 
 	msi_index = find_first_zero_bit(r->map, r->size);
-	if (msi_index >= r->size) {
+	if (msi_index >= r->size || msi_index >= gc->num_msix_usable) {
 		err = -ENOSPC;
 	} else {
 		bitmap_set(r->map, msi_index, 1);
 		queue->eq.msix_index = msi_index;
-		err = 0;
 	}
 
 	spin_unlock_irqrestore(&r->lock, flags);
 
-	if (err)
-		return err;
+	if (err) {
+		dev_err(dev, "Register IRQ err:%d, msi:%u rsize:%u, nMSI:%u",
+			err, msi_index, r->size, gc->num_msix_usable);
 
-	WARN_ON(msi_index >= gc->num_msix_usable);
+		return err;
+	}
 
 	gic = &gc->irq_contexts[msi_index];
 
@@ -836,6 +843,11 @@ int mana_gd_verify_vf_version(struct pci_dev *pdev)
 	req.protocol_ver_min = GDMA_PROTOCOL_FIRST;
 	req.protocol_ver_max = GDMA_PROTOCOL_LAST;
 
+	req.gd_drv_cap_flags1 = GDMA_DRV_CAP_FLAGS1;
+	req.gd_drv_cap_flags2 = GDMA_DRV_CAP_FLAGS2;
+	req.gd_drv_cap_flags3 = GDMA_DRV_CAP_FLAGS3;
+	req.gd_drv_cap_flags4 = GDMA_DRV_CAP_FLAGS4;
+
 	err = mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
 	if (err || resp.hdr.status) {
 		dev_err(gc->dev, "VfVerifyVersionOutput: %d, status=0x%x\n",
@@ -1154,10 +1166,8 @@ static int mana_gd_setup_irqs(struct pci_dev *pdev)
 	if (max_queues_per_port > MANA_MAX_NUM_QUEUES)
 		max_queues_per_port = MANA_MAX_NUM_QUEUES;
 
-	max_irqs = max_queues_per_port * MAX_PORTS_IN_MANA_DEV;
-
 	/* Need 1 interrupt for the Hardware communication Channel (HWC) */
-	max_irqs++;
+	max_irqs = max_queues_per_port + 1;
 
 	nvec = pci_alloc_irq_vectors(pdev, 2, max_irqs, PCI_IRQ_MSIX);
 	if (nvec < 0)
@@ -1243,6 +1253,9 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	void __iomem *bar0_va;
 	int bar = 0;
 	int err;
+
+	/* Each port has 2 CQs, each CQ has at most 1 EQE at a time */
+	BUILD_BUG_ON(2 * MAX_PORTS_IN_MANA_DEV * GDMA_EQE_SIZE > EQ_SIZE);
 
 	err = pci_enable_device(pdev);
 	if (err)
