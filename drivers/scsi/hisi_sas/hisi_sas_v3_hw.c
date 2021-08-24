@@ -1617,7 +1617,7 @@ static irqreturn_t phy_bcast_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 1);
 	bcast_status = hisi_sas_phy_read32(hisi_hba, phy_no, RX_PRIMS_STATUS);
 	if ((bcast_status & RX_BCAST_CHG_MSK) &&
-	    !test_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags))
+	    !test_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags))
 		sas_notify_port_event(sas_phy, PORTE_BROADCAST_RCVD,
 				      GFP_ATOMIC);
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
@@ -4851,7 +4851,7 @@ static void hisi_sas_reset_prepare_v3_hw(struct pci_dev *pdev)
 	int rc;
 
 	dev_info(dev, "FLR prepare\n");
-	set_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
+	set_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags);
 	hisi_sas_controller_reset_prepare(hisi_hba);
 
 	rc = disable_host_v3_hw(hisi_hba);
@@ -4897,7 +4897,7 @@ static int _suspend_v3_hw(struct device *device)
 		return -ENODEV;
 	}
 
-	if (test_and_set_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags))
+	if (test_and_set_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags))
 		return -1;
 
 	scsi_block_requests(shost);
@@ -4908,7 +4908,7 @@ static int _suspend_v3_hw(struct device *device)
 	if (rc) {
 		dev_err(dev, "PM suspend: disable host failed rc=%d\n", rc);
 		clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
-		clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
+		clear_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags);
 		scsi_unblock_requests(shost);
 		return rc;
 	}
@@ -4947,7 +4947,7 @@ static int _resume_v3_hw(struct device *device)
 	}
 	phys_init_v3_hw(hisi_hba);
 	sas_resume_ha(sha);
-	clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
+	clear_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags);
 
 	return 0;
 }

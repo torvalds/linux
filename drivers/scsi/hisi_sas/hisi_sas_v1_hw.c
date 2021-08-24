@@ -1422,7 +1422,7 @@ static irqreturn_t int_bcast_v1_hw(int irq, void *p)
 		goto end;
 	}
 
-	if (!test_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags))
+	if (!test_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags))
 		sas_notify_port_event(sas_phy, PORTE_BROADCAST_RCVD,
 				      GFP_ATOMIC);
 
