@@ -1782,14 +1782,18 @@ enum REPARSE_SIGN ni_parse_reparse(struct ntfs_inode *ni, struct ATTRIB *attr,
 		break;
 	case IO_REPARSE_TAG_COMPRESS:
 		/*
-		 * WOF - Windows Overlay Filter - used to compress files with lzx/xpress
-		 * Unlike native NTFS file compression, the Windows Overlay Filter supports
-		 * only read operations. This means that it doesn't need to sector-align each
-		 * compressed chunk, so the compressed data can be packed more tightly together.
-		 * If you open the file for writing, the Windows Overlay Filter just decompresses
+		 * WOF - Windows Overlay Filter - Used to compress files with
+		 * LZX/Xpress.
+		 *
+		 * Unlike native NTFS file compression, the Windows
+		 * Overlay Filter supports only read operations. This means
+		 * that it doesn't need to sector-align each compressed chunk,
+		 * so the compressed data can be packed more tightly together.
+		 * If you open the file for writing, the WOF just decompresses
 		 * the entire file, turning it back into a plain file.
 		 *
-		 * ntfs3 driver decompresses the entire file only on write or change size requests
+		 * Ntfs3 driver decompresses the entire file only on write or
+		 * change size requests.
 		 */
 
 		cmpr = &rp->CompressReparseBuffer;
