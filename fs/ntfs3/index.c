@@ -557,11 +557,12 @@ static const struct NTFS_DE *hdr_find_split(const struct INDEX_HDR *hdr)
 	size_t o;
 	const struct NTFS_DE *e = hdr_first_de(hdr);
 	u32 used_2 = le32_to_cpu(hdr->used) >> 1;
-	u16 esize = le16_to_cpu(e->size);
+	u16 esize;
 
 	if (!e || de_is_last(e))
 		return NULL;
 
+	esize = le16_to_cpu(e->size);
 	for (o = le32_to_cpu(hdr->de_off) + esize; o < used_2; o += esize) {
 		const struct NTFS_DE *p = e;
 
