@@ -192,7 +192,7 @@ static void sched_boost_disable(int type)
 	 * be disabled. Disable it first and then apply
 	 * the next boost.
 	 */
-	sb->exit();
+	sched_boosts[prev_boost].exit();
 	sched_boosts[next_boost].enter();
 }
 
