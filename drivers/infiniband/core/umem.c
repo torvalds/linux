@@ -59,7 +59,7 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
 		unpin_user_page_range_dirty_lock(sg_page(sg),
 			DIV_ROUND_UP(sg->length, PAGE_SIZE), make_dirty);
 
-	sg_free_table(&umem->sg_head);
+	sg_free_append_table(&umem->sgt_append);
 }
 
 /**
@@ -155,8 +155,7 @@ struct ib_umem *ib_umem_get(struct ib_device *device, unsigned long addr,
 	unsigned long dma_attr = 0;
 	struct mm_struct *mm;
 	unsigned long npages;
-	int ret;
-	struct scatterlist *sg = NULL;
+	int pinned, ret;
 	unsigned int gup_flags = FOLL_WRITE;
 
 	/*
@@ -216,28 +215,33 @@ struct ib_umem *ib_umem_get(struct ib_device *device, unsigned long addr,
 
 	while (npages) {
 		cond_resched();
-		ret = pin_user_pages_fast(cur_base,
+		pinned = pin_user_pages_fast(cur_base,
 					  min_t(unsigned long, npages,
 						PAGE_SIZE /
 						sizeof(struct page *)),
 					  gup_flags | FOLL_LONGTERM, page_list);
-		if (ret < 0)
+		if (pinned < 0) {
+			ret = pinned;
 			goto umem_release;
+		}
 
-		cur_base += ret * PAGE_SIZE;
-		npages -= ret;
-		sg = sg_alloc_append_table_from_pages(&umem->sg_head, page_list,
-				ret, 0, ret << PAGE_SHIFT,
-				ib_dma_max_seg_size(device), sg, npages,
-				GFP_KERNEL);
-		umem->sg_nents = umem->sg_head.nents;
-		if (IS_ERR(sg)) {
-			unpin_user_pages_dirty_lock(page_list, ret, 0);
-			ret = PTR_ERR(sg);
+		cur_base += pinned * PAGE_SIZE;
+		npages -= pinned;
+		ret = sg_alloc_append_table_from_pages(
+			&umem->sgt_append, page_list, pinned, 0,
+			pinned << PAGE_SHIFT, ib_dma_max_seg_size(device),
+			npages, GFP_KERNEL);
+		umem->sg_nents = umem->sgt_append.sgt.nents;
+		if (ret) {
+			memcpy(&umem->sg_head.sgl, &umem->sgt_append.sgt,
+			       sizeof(umem->sgt_append.sgt));
+			unpin_user_pages_dirty_lock(page_list, pinned, 0);
 			goto umem_release;
 		}
 	}
 
+	memcpy(&umem->sg_head.sgl, &umem->sgt_append.sgt,
+	       sizeof(umem->sgt_append.sgt));
 	if (access & IB_ACCESS_RELAXED_ORDERING)
 		dma_attr |= DMA_ATTR_WEAK_ORDERING;
 

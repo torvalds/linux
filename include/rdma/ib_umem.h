@@ -26,6 +26,7 @@ struct ib_umem {
 	u32 is_odp : 1;
 	u32 is_dmabuf : 1;
 	struct work_struct	work;
+	struct sg_append_table  sgt_append;
 	struct sg_table sg_head;
 	int             nmap;
 	unsigned int    sg_nents;
