@@ -153,9 +153,7 @@ config CLK_R8A779A0
 	select CLK_RENESAS_CPG_MSSR
 
 config CLK_R9A06G032
-	bool "Renesas R9A06G032 clock driver"
-	help
-	  This is a driver for R9A06G032 clocks
+	bool "RZ/N1D clock support" if COMPILE_TEST
 
 config CLK_R9A07G044
 	bool "RZ/G2L clock support" if COMPILE_TEST
