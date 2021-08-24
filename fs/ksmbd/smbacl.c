@@ -274,7 +274,7 @@ static int sid_to_id(struct user_namespace *user_ns,
 		uid_t id;
 
 		id = le32_to_cpu(psid->sub_auth[psid->num_subauth - 1]);
-		if (id > 0) {
+		if (id >= 0) {
 			uid = make_kuid(user_ns, id);
 			if (uid_valid(uid) && kuid_has_mapping(user_ns, uid)) {
 				fattr->cf_uid = uid;
@@ -286,7 +286,7 @@ static int sid_to_id(struct user_namespace *user_ns,
 		gid_t id;
 
 		id = le32_to_cpu(psid->sub_auth[psid->num_subauth - 1]);
-		if (id > 0) {
+		if (id >= 0) {
 			gid = make_kgid(user_ns, id);
 			if (gid_valid(gid) && kgid_has_mapping(user_ns, gid)) {
 				fattr->cf_gid = gid;
