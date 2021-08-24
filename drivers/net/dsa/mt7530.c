@@ -1600,6 +1600,21 @@ mt7530_hw_vlan_update(struct mt7530_priv *priv, u16 vid,
 }
 
 static int
+mt7530_setup_vlan0(struct mt7530_priv *priv)
+{
+	u32 val;
+
+	/* Validate the entry with independent learning, keep the original
+	 * ingress tag attribute.
+	 */
+	val = IVL_MAC | EG_CON | PORT_MEM(MT7530_ALL_MEMBERS) | FID(FID_BRIDGED) |
+	      VLAN_VALID;
+	mt7530_write(priv, MT7530_VAWD1, val);
+
+	return mt7530_vlan_cmd(priv, MT7530_VTCR_WR_VID, 0);
+}
+
+static int
 mt7530_port_vlan_add(struct dsa_switch *ds, int port,
 		     const struct switchdev_obj_port_vlan *vlan,
 		     struct netlink_ext_ack *extack)
@@ -2174,6 +2189,11 @@ mt7530_setup(struct dsa_switch *ds)
 			   PVC_EG_TAG(MT7530_VLAN_EG_CONSISTENT));
 	}
 
+	/* Setup VLAN ID 0 for VLAN-unaware bridges */
+	ret = mt7530_setup_vlan0(priv);
+	if (ret)
+		return ret;
+
 	/* Setup port 5 */
 	priv->p5_intf_sel = P5_DISABLED;
 	interface = PHY_INTERFACE_MODE_NA;
@@ -2345,6 +2365,11 @@ mt7531_setup(struct dsa_switch *ds)
 		mt7530_rmw(priv, MT7530_PVC_P(i), PVC_EG_TAG_MASK,
 			   PVC_EG_TAG(MT7530_VLAN_EG_CONSISTENT));
 	}
+
+	/* Setup VLAN ID 0 for VLAN-unaware bridges */
+	ret = mt7530_setup_vlan0(priv);
+	if (ret)
+		return ret;
 
 	ds->assisted_learning_on_cpu_port = true;
 	ds->mtu_enforcement_ingress = true;

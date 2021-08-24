@@ -145,6 +145,8 @@ enum mt7530_vlan_cmd {
 #define  PORT_STAG			BIT(31)
 /* Independent VLAN Learning */
 #define  IVL_MAC			BIT(30)
+/* Egress Tag Consistent */
+#define  EG_CON				BIT(29)
 /* Per VLAN Egress Tag Control */
 #define  VTAG_EN			BIT(28)
 /* VLAN Member Control */
