@@ -151,7 +151,7 @@ static struct trace_eprobe *alloc_event_probe(const char *group,
 
 	ep = kzalloc(struct_size(ep, tp.args, nargs), GFP_KERNEL);
 	if (!ep) {
-		trace_event_put_ref(ep->event);
+		trace_event_put_ref(event);
 		goto error;
 	}
 	ep->event = event;
@@ -851,7 +851,8 @@ static int __trace_eprobe_create(int argc, const char *argv[])
 		ret = PTR_ERR(ep);
 		/* This must return -ENOMEM, else there is a bug */
 		WARN_ON_ONCE(ret != -ENOMEM);
-		goto error;	/* We know ep is not allocated */
+		ep = NULL;
+		goto error;
 	}
 
 	argc -= 2; argv += 2;
