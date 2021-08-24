@@ -900,7 +900,7 @@ static ssize_t ntfs_compress_write(struct kiocb *iocb, struct iov_iter *from)
 		return -EOPNOTSUPP;
 	}
 
-	pages = ntfs_malloc(pages_per_frame * sizeof(struct page *));
+	pages = kmalloc(pages_per_frame * sizeof(struct page *), GFP_NOFS);
 	if (!pages)
 		return -ENOMEM;
 
@@ -1076,7 +1076,7 @@ static ssize_t ntfs_compress_write(struct kiocb *iocb, struct iov_iter *from)
 	}
 
 out:
-	ntfs_free(pages);
+	kfree(pages);
 
 	current->backing_dev_info = NULL;
 

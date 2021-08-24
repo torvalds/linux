@@ -1096,7 +1096,7 @@ ntfs_create_reparse_buffer(struct ntfs_sb_info *sbi, const char *symname,
 	__le16 *rp_name;
 	typeof(rp->SymbolicLinkReparseBuffer) *rs;
 
-	rp = ntfs_zalloc(ntfs_reparse_bytes(2 * size + 2));
+	rp = kzalloc(ntfs_reparse_bytes(2 * size + 2), GFP_NOFS);
 	if (!rp)
 		return ERR_PTR(-ENOMEM);
 
@@ -1151,7 +1151,7 @@ ntfs_create_reparse_buffer(struct ntfs_sb_info *sbi, const char *symname,
 
 	return rp;
 out:
-	ntfs_free(rp);
+	kfree(rp);
 	return ERR_PTR(err);
 }
 
@@ -1619,7 +1619,7 @@ out3:
 
 out2:
 	__putname(new_de);
-	ntfs_free(rp);
+	kfree(rp);
 
 out1:
 	if (err)
@@ -1862,7 +1862,7 @@ static noinline int ntfs_readlink_hlp(struct inode *inode, char *buffer,
 			goto out;
 		}
 	} else {
-		rp = ntfs_malloc(i_size);
+		rp = kmalloc(i_size, GFP_NOFS);
 		if (!rp) {
 			err = -ENOMEM;
 			goto out;
@@ -1972,7 +1972,7 @@ static noinline int ntfs_readlink_hlp(struct inode *inode, char *buffer,
 	/* Always set last zero */
 	buffer[err] = 0;
 out:
-	ntfs_free(to_free);
+	kfree(to_free);
 	return err;
 }
 

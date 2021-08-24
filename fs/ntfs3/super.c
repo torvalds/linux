@@ -468,9 +468,9 @@ static void init_once(void *foo)
 /* noinline to reduce binary size*/
 static noinline void put_ntfs(struct ntfs_sb_info *sbi)
 {
-	ntfs_free(sbi->new_rec);
-	ntfs_vfree(ntfs_put_shared(sbi->upcase));
-	ntfs_free(sbi->def_table);
+	kfree(sbi->new_rec);
+	kvfree(ntfs_put_shared(sbi->upcase));
+	kfree(sbi->def_table);
 
 	wnd_close(&sbi->mft.bitmap);
 	wnd_close(&sbi->used.bitmap);
@@ -496,14 +496,14 @@ static noinline void put_ntfs(struct ntfs_sb_info *sbi)
 	indx_clear(&sbi->security.index_sdh);
 	indx_clear(&sbi->reparse.index_r);
 	indx_clear(&sbi->objid.index_o);
-	ntfs_free(sbi->compress.lznt);
+	kfree(sbi->compress.lznt);
 #ifdef CONFIG_NTFS3_LZX_XPRESS
 	xpress_free_decompressor(sbi->compress.xpress);
 	lzx_free_decompressor(sbi->compress.lzx);
 #endif
 	clear_mount_options(&sbi->options);
 
-	ntfs_free(sbi);
+	kfree(sbi);
 }
 
 static void ntfs_put_super(struct super_block *sb)
@@ -848,7 +848,7 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 
 	sbi->used.bitmap.nbits = clusters;
 
-	rec = ntfs_zalloc(record_size);
+	rec = kzalloc(record_size, GFP_NOFS);
 	if (!rec) {
 		err = -ENOMEM;
 		goto out;
@@ -915,7 +915,7 @@ static int ntfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	ref.high = 0;
 
-	sbi = ntfs_zalloc(sizeof(struct ntfs_sb_info));
+	sbi = kzalloc(sizeof(struct ntfs_sb_info), GFP_NOFS);
 	if (!sbi)
 		return -ENOMEM;
 
@@ -1181,7 +1181,7 @@ static int ntfs_fill_super(struct super_block *sb, void *data, int silent)
 		goto out;
 	}
 	bytes = inode->i_size;
-	sbi->def_table = t = ntfs_malloc(bytes);
+	sbi->def_table = t = kmalloc(bytes, GFP_NOFS);
 	if (!t) {
 		err = -ENOMEM;
 		goto out;
@@ -1247,7 +1247,7 @@ static int ntfs_fill_super(struct super_block *sb, void *data, int silent)
 		goto out;
 	}
 
-	sbi->upcase = upcase = ntfs_vmalloc(0x10000 * sizeof(short));
+	sbi->upcase = upcase = kvmalloc(0x10000 * sizeof(short), GFP_KERNEL);
 	if (!upcase) {
 		err = -ENOMEM;
 		goto out;
@@ -1277,7 +1277,7 @@ static int ntfs_fill_super(struct super_block *sb, void *data, int silent)
 	shared = ntfs_set_shared(upcase, 0x10000 * sizeof(short));
 	if (shared && upcase != shared) {
 		sbi->upcase = shared;
-		ntfs_vfree(upcase);
+		kvfree(upcase);
 	}
 
 	iput(inode);

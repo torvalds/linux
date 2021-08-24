@@ -2035,7 +2035,7 @@ int ntfs_get_security_by_id(struct ntfs_sb_info *sbi, __le32 security_id,
 
 	*size = t32 - SIZEOF_SECURITY_HDR;
 
-	p = ntfs_malloc(*size);
+	p = kmalloc(*size, GFP_NOFS);
 	if (!p) {
 		err = -ENOMEM;
 		goto out;
@@ -2063,7 +2063,7 @@ int ntfs_get_security_by_id(struct ntfs_sb_info *sbi, __le32 security_id,
 	p = NULL;
 
 out:
-	ntfs_free(p);
+	kfree(p);
 	fnd_put(fnd_sii);
 	ni_unlock(ni);
 
@@ -2115,7 +2115,7 @@ int ntfs_insert_security(struct ntfs_sb_info *sbi,
 	*security_id = SECURITY_ID_INVALID;
 
 	/* Allocate a temporal buffer*/
-	d_security = ntfs_zalloc(aligned_sec_size);
+	d_security = kzalloc(aligned_sec_size, GFP_NOFS);
 	if (!d_security)
 		return -ENOMEM;
 
@@ -2279,7 +2279,7 @@ out:
 	fnd_put(fnd_sdh);
 	mark_inode_dirty(&ni->vfs_inode);
 	ni_unlock(ni);
-	ntfs_free(d_security);
+	kfree(d_security);
 
 	return err;
 }

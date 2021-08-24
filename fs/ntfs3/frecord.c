@@ -388,7 +388,7 @@ bool ni_add_subrecord(struct ntfs_inode *ni, CLST rno, struct mft_inode **mi)
 {
 	struct mft_inode *m;
 
-	m = ntfs_zalloc(sizeof(struct mft_inode));
+	m = kzalloc(sizeof(struct mft_inode), GFP_NOFS);
 	if (!m)
 		return false;
 
@@ -752,7 +752,7 @@ static int ni_try_remove_attr_list(struct ntfs_inode *ni)
 	run_deallocate(sbi, &ni->attr_list.run, true);
 	run_close(&ni->attr_list.run);
 	ni->attr_list.size = 0;
-	ntfs_free(ni->attr_list.le);
+	kfree(ni->attr_list.le);
 	ni->attr_list.le = NULL;
 	ni->attr_list.dirty = false;
 
@@ -787,7 +787,7 @@ int ni_create_attr_list(struct ntfs_inode *ni)
 	 * Skip estimating exact memory requirement
 	 * Looks like one record_size is always enough
 	 */
-	le = ntfs_malloc(al_aligned(rs));
+	le = kmalloc(al_aligned(rs), GFP_NOFS);
 	if (!le) {
 		err = -ENOMEM;
 		goto out;
@@ -893,7 +893,7 @@ int ni_create_attr_list(struct ntfs_inode *ni)
 	goto out;
 
 out1:
-	ntfs_free(ni->attr_list.le);
+	kfree(ni->attr_list.le);
 	ni->attr_list.le = NULL;
 	ni->attr_list.size = 0;
 
@@ -2054,7 +2054,7 @@ int ni_readpage_cmpr(struct ntfs_inode *ni, struct page *page)
 	idx = (vbo - frame_vbo) >> PAGE_SHIFT;
 
 	pages_per_frame = frame_size >> PAGE_SHIFT;
-	pages = ntfs_zalloc(pages_per_frame * sizeof(struct page *));
+	pages = kzalloc(pages_per_frame * sizeof(struct page *), GFP_NOFS);
 	if (!pages) {
 		err = -ENOMEM;
 		goto out;
@@ -2092,7 +2092,7 @@ out1:
 
 out:
 	/* At this point, err contains 0 or -EIO depending on the "critical" page */
-	ntfs_free(pages);
+	kfree(pages);
 	unlock_page(page);
 
 	return err;
@@ -2137,7 +2137,7 @@ int ni_decompress_file(struct ntfs_inode *ni)
 	frame_bits = ni_ext_compress_bits(ni);
 	frame_size = 1u << frame_bits;
 	pages_per_frame = frame_size >> PAGE_SHIFT;
-	pages = ntfs_zalloc(pages_per_frame * sizeof(struct page *));
+	pages = kzalloc(pages_per_frame * sizeof(struct page *), GFP_NOFS);
 	if (!pages) {
 		err = -ENOMEM;
 		goto out;
@@ -2298,7 +2298,7 @@ remove_wof:
 	mapping->a_ops = &ntfs_aops;
 
 out:
-	ntfs_free(pages);
+	kfree(pages);
 	if (err) {
 		make_bad_inode(inode);
 		ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
@@ -2564,7 +2564,7 @@ int ni_read_frame(struct ntfs_inode *ni, u64 frame_vbo, struct page **pages,
 		goto out1;
 	}
 
-	pages_disk = ntfs_zalloc(npages_disk * sizeof(struct page *));
+	pages_disk = kzalloc(npages_disk * sizeof(struct page *), GFP_NOFS);
 	if (!pages_disk) {
 		err = -ENOMEM;
 		goto out2;
@@ -2633,7 +2633,7 @@ out3:
 			put_page(pg);
 		}
 	}
-	ntfs_free(pages_disk);
+	kfree(pages_disk);
 
 out2:
 #ifdef CONFIG_NTFS3_LZX_XPRESS
@@ -2709,7 +2709,8 @@ int ni_write_frame(struct ntfs_inode *ni, struct page **pages,
 		goto out;
 	}
 
-	pages_disk = ntfs_zalloc(pages_per_frame * sizeof(struct page *));
+	pages_disk = kzalloc(pages_per_frame * sizeof(struct page *),
+			     GFP_NOFS);
 	if (!pages_disk) {
 		err = -ENOMEM;
 		goto out;
@@ -2769,7 +2770,7 @@ int ni_write_frame(struct ntfs_inode *ni, struct page **pages,
 	compr_size = compress_lznt(frame_mem, frame_size, frame_ondisk,
 				   frame_size, sbi->compress.lznt);
 	mutex_unlock(&sbi->compress.mtx_lznt);
-	ntfs_free(lznt);
+	kfree(lznt);
 
 	if (compr_size + sbi->cluster_size > frame_size) {
 		/* frame is not compressed */
@@ -2818,7 +2819,7 @@ out1:
 			put_page(pg);
 		}
 	}
-	ntfs_free(pages_disk);
+	kfree(pages_disk);
 out:
 	return err;
 }

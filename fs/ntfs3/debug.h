@@ -47,12 +47,5 @@ void ntfs_inode_printk(struct inode *inode, const char *fmt, ...)
 #define ntfs_inode_warn(inode, fmt, ...)                                       \
 	ntfs_inode_printk(inode, KERN_WARNING fmt, ##__VA_ARGS__)
 
-#define ntfs_malloc(s)		kmalloc(s, GFP_NOFS)
-#define ntfs_zalloc(s)		kzalloc(s, GFP_NOFS)
-#define ntfs_vmalloc(s)		kvmalloc(s, GFP_KERNEL)
-#define ntfs_free(p)		kfree(p)
-#define ntfs_vfree(p)		kvfree(p)
-#define ntfs_memdup(src, len)	kmemdup(src, len, GFP_NOFS)
-
 #endif /* _LINUX_NTFS3_DEBUG_H */
 // clang-format on

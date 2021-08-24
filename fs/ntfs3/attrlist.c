@@ -28,7 +28,7 @@ static inline bool al_is_valid_le(const struct ntfs_inode *ni,
 void al_destroy(struct ntfs_inode *ni)
 {
 	run_close(&ni->attr_list.run);
-	ntfs_free(ni->attr_list.le);
+	kfree(ni->attr_list.le);
 	ni->attr_list.le = NULL;
 	ni->attr_list.size = 0;
 	ni->attr_list.dirty = false;
@@ -51,7 +51,7 @@ int ntfs_load_attr_list(struct ntfs_inode *ni, struct ATTRIB *attr)
 
 	if (!attr->non_res) {
 		lsize = le32_to_cpu(attr->res.data_size);
-		le = ntfs_malloc(al_aligned(lsize));
+		le = kmalloc(al_aligned(lsize), GFP_NOFS);
 		if (!le) {
 			err = -ENOMEM;
 			goto out;
@@ -74,7 +74,7 @@ int ntfs_load_attr_list(struct ntfs_inode *ni, struct ATTRIB *attr)
 		if (err < 0)
 			goto out;
 
-		le = ntfs_malloc(al_aligned(lsize));
+		le = kmalloc(al_aligned(lsize), GFP_NOFS);
 		if (!le) {
 			err = -ENOMEM;
 			goto out;
@@ -289,7 +289,7 @@ int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
 	off = PtrOffset(al->le, le);
 
 	if (new_size > asize) {
-		void *ptr = ntfs_malloc(new_asize);
+		void *ptr = kmalloc(new_asize, GFP_NOFS);
 
 		if (!ptr)
 			return -ENOMEM;
@@ -297,7 +297,7 @@ int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
 		memcpy(ptr, al->le, off);
 		memcpy(Add2Ptr(ptr, off + sz), le, al->size - off);
 		le = Add2Ptr(ptr, off);
-		ntfs_free(al->le);
+		kfree(al->le);
 		al->le = ptr;
 	} else {
 		memmove(Add2Ptr(le, sz), le, al->size - off);

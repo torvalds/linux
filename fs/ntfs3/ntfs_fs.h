@@ -603,13 +603,13 @@ int indx_used_bit(struct ntfs_index *indx, struct ntfs_inode *ni, size_t *bit);
 void fnd_clear(struct ntfs_fnd *fnd);
 static inline struct ntfs_fnd *fnd_get(void)
 {
-	return ntfs_zalloc(sizeof(struct ntfs_fnd));
+	return kzalloc(sizeof(struct ntfs_fnd), GFP_NOFS);
 }
 static inline void fnd_put(struct ntfs_fnd *fnd)
 {
 	if (fnd) {
 		fnd_clear(fnd);
-		ntfs_free(fnd);
+		kfree(fnd);
 	}
 }
 void indx_clear(struct ntfs_index *idx);
@@ -875,20 +875,20 @@ static inline void run_init(struct runs_tree *run)
 
 static inline struct runs_tree *run_alloc(void)
 {
-	return ntfs_zalloc(sizeof(struct runs_tree));
+	return kzalloc(sizeof(struct runs_tree), GFP_NOFS);
 }
 
 static inline void run_close(struct runs_tree *run)
 {
-	ntfs_vfree(run->runs);
+	kvfree(run->runs);
 	memset(run, 0, sizeof(*run));
 }
 
 static inline void run_free(struct runs_tree *run)
 {
 	if (run) {
-		ntfs_vfree(run->runs);
-		ntfs_free(run);
+		kvfree(run->runs);
+		kfree(run);
 	}
 }
 
@@ -1044,15 +1044,15 @@ static inline void put_indx_node(struct indx_node *in)
 	if (!in)
 		return;
 
-	ntfs_free(in->index);
+	kfree(in->index);
 	nb_put(&in->nb);
-	ntfs_free(in);
+	kfree(in);
 }
 
 static inline void mi_clear(struct mft_inode *mi)
 {
 	nb_put(&mi->nb);
-	ntfs_free(mi->mrec);
+	kfree(mi->mrec);
 	mi->mrec = NULL;
 }
 

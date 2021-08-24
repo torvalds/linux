@@ -294,8 +294,8 @@ next:
  */
 struct lznt *get_lznt_ctx(int level)
 {
-	struct lznt *r = ntfs_zalloc(level ? offsetof(struct lznt, hash)
-					   : sizeof(struct lznt));
+	struct lznt *r = kzalloc(level ? offsetof(struct lznt, hash) :
+					 sizeof(struct lznt), GFP_NOFS);
 
 	if (r)
 		r->std = !level;

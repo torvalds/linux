@@ -276,7 +276,7 @@ int attr_make_nonresident(struct ntfs_inode *ni, struct ATTRIB *attr,
 	run_init(run);
 
 	/* make a copy of original attribute */
-	attr_s = ntfs_memdup(attr, asize);
+	attr_s = kmemdup(attr, asize, GFP_NOFS);
 	if (!attr_s) {
 		err = -ENOMEM;
 		goto out;
@@ -333,7 +333,7 @@ int attr_make_nonresident(struct ntfs_inode *ni, struct ATTRIB *attr,
 	if (err)
 		goto out3;
 
-	ntfs_free(attr_s);
+	kfree(attr_s);
 	attr->nres.data_size = cpu_to_le64(rsize);
 	attr->nres.valid_size = attr->nres.data_size;
 
@@ -356,7 +356,7 @@ out2:
 	run_deallocate(sbi, run, false);
 	run_close(run);
 out1:
-	ntfs_free(attr_s);
+	kfree(attr_s);
 	/*reinsert le*/
 out:
 	return err;

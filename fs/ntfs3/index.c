@@ -682,7 +682,7 @@ static struct NTFS_DE *hdr_find_e(const struct ntfs_index *indx,
 	if (end > 0x10000)
 		goto next;
 
-	offs = ntfs_malloc(sizeof(u16) * nslots);
+	offs = kmalloc(sizeof(u16) * nslots, GFP_NOFS);
 	if (!offs)
 		goto next;
 
@@ -704,10 +704,10 @@ next1:
 		u16 *ptr;
 		int new_slots = ALIGN(2 * nslots, 8);
 
-		ptr = ntfs_malloc(sizeof(u16) * new_slots);
+		ptr = kmalloc(sizeof(u16) * new_slots, GFP_NOFS);
 		if (ptr)
 			memcpy(ptr, offs, sizeof(u16) * max_idx);
-		ntfs_free(offs);
+		kfree(offs);
 		offs = ptr;
 		nslots = new_slots;
 		if (!ptr)
@@ -764,7 +764,7 @@ next1:
 	e = Add2Ptr(hdr, offs[fnd]);
 
 out1:
-	ntfs_free(offs);
+	kfree(offs);
 
 	return e;
 #endif
@@ -934,21 +934,21 @@ static struct indx_node *indx_new(struct ntfs_index *indx,
 	u16 fn;
 	u32 eo;
 
-	r = ntfs_zalloc(sizeof(struct indx_node));
+	r = kzalloc(sizeof(struct indx_node), GFP_NOFS);
 	if (!r)
 		return ERR_PTR(-ENOMEM);
 
-	index = ntfs_zalloc(bytes);
+	index = kzalloc(bytes, GFP_NOFS);
 	if (!index) {
-		ntfs_free(r);
+		kfree(r);
 		return ERR_PTR(-ENOMEM);
 	}
 
 	err = ntfs_get_bh(ni->mi.sbi, &indx->alloc_run, vbo, bytes, &r->nb);
 
 	if (err) {
-		ntfs_free(index);
-		ntfs_free(r);
+		kfree(index);
+		kfree(r);
 		return ERR_PTR(err);
 	}
 
@@ -1027,7 +1027,7 @@ int indx_read(struct ntfs_index *indx, struct ntfs_inode *ni, CLST vbn,
 	const struct INDEX_NAMES *name;
 
 	if (!in) {
-		in = ntfs_zalloc(sizeof(struct indx_node));
+		in = kzalloc(sizeof(struct indx_node), GFP_NOFS);
 		if (!in)
 			return -ENOMEM;
 	} else {
@@ -1036,7 +1036,7 @@ int indx_read(struct ntfs_index *indx, struct ntfs_inode *ni, CLST vbn,
 
 	ib = in->index;
 	if (!ib) {
-		ib = ntfs_malloc(bytes);
+		ib = kmalloc(bytes, GFP_NOFS);
 		if (!ib) {
 			err = -ENOMEM;
 			goto out;
@@ -1083,11 +1083,11 @@ ok:
 
 out:
 	if (ib != in->index)
-		ntfs_free(ib);
+		kfree(ib);
 
 	if (*node != in) {
 		nb_put(&in->nb);
-		ntfs_free(in);
+		kfree(in);
 	}
 
 	return err;
@@ -1219,7 +1219,7 @@ next_iter:
 		    sizeof(struct NTFS_DE) + sizeof(u64)) {
 			if (n) {
 				fnd_pop(fnd);
-				ntfs_free(n);
+				kfree(n);
 			}
 			return -EINVAL;
 		}
@@ -1232,7 +1232,7 @@ next_iter:
 		/* Try next level */
 		e = hdr_first_de(&n->index->ihdr);
 		if (!e) {
-			ntfs_free(n);
+			kfree(n);
 			return -EINVAL;
 		}
 
@@ -1252,7 +1252,7 @@ pop_level:
 		/* Pop one level */
 		if (n) {
 			fnd_pop(fnd);
-			ntfs_free(n);
+			kfree(n);
 		}
 
 		level = fnd->level;
@@ -1589,7 +1589,7 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 	}
 
 	/* Make a copy of root attribute to restore if error */
-	a_root = ntfs_memdup(attr, asize);
+	a_root = kmemdup(attr, asize, GFP_NOFS);
 	if (!a_root) {
 		err = -ENOMEM;
 		goto out;
@@ -1615,7 +1615,7 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 	if (!to_move) {
 		re = NULL;
 	} else {
-		re = ntfs_memdup(e0, to_move);
+		re = kmemdup(e0, to_move, GFP_NOFS);
 		if (!re) {
 			err = -ENOMEM;
 			goto out;
@@ -1708,7 +1708,7 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 		 * new entry classic case when mft record is 1K and index
 		 * buffer 4K the problem should not occurs
 		 */
-		ntfs_free(re);
+		kfree(re);
 		indx_write(indx, ni, n, 0);
 
 		put_indx_node(n);
@@ -1734,12 +1734,12 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 	n = NULL;
 
 out1:
-	ntfs_free(re);
+	kfree(re);
 	if (n)
 		put_indx_node(n);
 
 out:
-	ntfs_free(a_root);
+	kfree(a_root);
 	return err;
 }
 
@@ -1792,7 +1792,7 @@ indx_insert_into_buffer(struct ntfs_index *indx, struct ntfs_inode *ni,
 		return -EINVAL;
 
 	sp_size = le16_to_cpu(sp->size);
-	up_e = ntfs_malloc(sp_size + sizeof(u64));
+	up_e = kmalloc(sp_size + sizeof(u64), GFP_NOFS);
 	if (!up_e)
 		return -ENOMEM;
 	memcpy(up_e, sp, sp_size);
@@ -1870,7 +1870,7 @@ indx_insert_into_buffer(struct ntfs_index *indx, struct ntfs_inode *ni,
 	}
 
 out:
-	ntfs_free(up_e);
+	kfree(up_e);
 
 	return err;
 }
@@ -2149,7 +2149,7 @@ static int indx_get_entry_to_replace(struct ntfs_index *indx,
 	n = fnd->nodes[level];
 	te = hdr_first_de(&n->index->ihdr);
 	/* Copy the candidate entry into the replacement entry buffer. */
-	re = ntfs_malloc(le16_to_cpu(te->size) + sizeof(u64));
+	re = kmalloc(le16_to_cpu(te->size) + sizeof(u64), GFP_NOFS);
 	if (!re) {
 		err = -ENOMEM;
 		goto out;
@@ -2301,7 +2301,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 							      fnd)
 				    : indx_insert_into_root(indx, ni, re, e,
 							    ctx, fnd);
-			ntfs_free(re);
+			kfree(re);
 
 			if (err)
 				goto out;
@@ -2459,7 +2459,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		 * as appropriate.
 		 */
 		e_size = le16_to_cpu(e->size);
-		me = ntfs_memdup(e, e_size);
+		me = kmemdup(e, e_size, GFP_NOFS);
 		if (!me) {
 			err = -ENOMEM;
 			goto out;
@@ -2505,7 +2505,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		 * Find the spot the tree where we want to insert the new entry.
 		 */
 		err = indx_insert_entry(indx, ni, me, ctx, fnd);
-		ntfs_free(me);
+		kfree(me);
 		if (err)
 			goto out;
 

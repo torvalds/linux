@@ -76,14 +76,14 @@ static __le16 mi_new_attt_id(struct mft_inode *mi)
 int mi_get(struct ntfs_sb_info *sbi, CLST rno, struct mft_inode **mi)
 {
 	int err;
-	struct mft_inode *m = ntfs_zalloc(sizeof(struct mft_inode));
+	struct mft_inode *m = kzalloc(sizeof(struct mft_inode), GFP_NOFS);
 
 	if (!m)
 		return -ENOMEM;
 
 	err = mi_init(m, sbi, rno);
 	if (err) {
-		ntfs_free(m);
+		kfree(m);
 		return err;
 	}
 
@@ -100,14 +100,14 @@ int mi_get(struct ntfs_sb_info *sbi, CLST rno, struct mft_inode **mi)
 void mi_put(struct mft_inode *mi)
 {
 	mi_clear(mi);
-	ntfs_free(mi);
+	kfree(mi);
 }
 
 int mi_init(struct mft_inode *mi, struct ntfs_sb_info *sbi, CLST rno)
 {
 	mi->sbi = sbi;
 	mi->rno = rno;
-	mi->mrec = ntfs_malloc(sbi->record_size);
+	mi->mrec = kmalloc(sbi->record_size, GFP_NOFS);
 	if (!mi->mrec)
 		return -ENOMEM;
 

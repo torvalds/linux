@@ -133,7 +133,7 @@ void wnd_close(struct wnd_bitmap *wnd)
 {
 	struct rb_node *node, *next;
 
-	ntfs_free(wnd->free_bits);
+	kfree(wnd->free_bits);
 	run_close(&wnd->run);
 
 	node = rb_first(&wnd->start_tree);
@@ -683,7 +683,7 @@ int wnd_init(struct wnd_bitmap *wnd, struct super_block *sb, size_t nbits)
 	if (!wnd->bits_last)
 		wnd->bits_last = wbits;
 
-	wnd->free_bits = ntfs_zalloc(wnd->nwnd * sizeof(u16));
+	wnd->free_bits = kzalloc(wnd->nwnd * sizeof(u16), GFP_NOFS);
 	if (!wnd->free_bits)
 		return -ENOMEM;
 
@@ -1354,7 +1354,7 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 		new_last = wbits;
 
 	if (new_wnd != wnd->nwnd) {
-		new_free = ntfs_malloc(new_wnd * sizeof(u16));
+		new_free = kmalloc(new_wnd * sizeof(u16), GFP_NOFS);
 		if (!new_free)
 			return -ENOMEM;
 
@@ -1363,7 +1363,7 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 			       wnd->nwnd * sizeof(short));
 		memset(new_free + wnd->nwnd, 0,
 		       (new_wnd - wnd->nwnd) * sizeof(short));
-		ntfs_free(wnd->free_bits);
+		kfree(wnd->free_bits);
 		wnd->free_bits = new_free;
 	}
 

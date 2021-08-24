@@ -406,9 +406,9 @@ struct lcb {
 static void lcb_put(struct lcb *lcb)
 {
 	if (lcb->alloc)
-		ntfs_free(lcb->log_rec);
-	ntfs_free(lcb->lrh);
-	ntfs_free(lcb);
+		kfree(lcb->log_rec);
+	kfree(lcb->lrh);
+	kfree(lcb);
 }
 
 /*
@@ -807,7 +807,7 @@ static inline struct RESTART_TABLE *init_rsttbl(u16 esize, u16 used)
 	u32 off;
 	u32 bytes = esize * used + sizeof(struct RESTART_TABLE);
 	u32 lf = sizeof(struct RESTART_TABLE) + (used - 1) * esize;
-	struct RESTART_TABLE *t = ntfs_zalloc(bytes);
+	struct RESTART_TABLE *t = kzalloc(bytes, GFP_NOFS);
 
 	t->size = cpu_to_le16(esize);
 	t->used = cpu_to_le16(used);
@@ -849,7 +849,7 @@ static inline struct RESTART_TABLE *extend_rsttbl(struct RESTART_TABLE *tbl,
 
 	rt->total = tbl->total;
 
-	ntfs_free(tbl);
+	kfree(tbl);
 	return rt;
 }
 
@@ -1134,7 +1134,7 @@ static int read_log_page(struct ntfs_log *log, u32 vbo,
 		return -EINVAL;
 
 	if (!*buffer) {
-		to_free = ntfs_malloc(bytes);
+		to_free = kmalloc(bytes, GFP_NOFS);
 		if (!to_free)
 			return -ENOMEM;
 		*buffer = to_free;
@@ -1164,7 +1164,7 @@ static int read_log_page(struct ntfs_log *log, u32 vbo,
 
 out:
 	if (err && to_free) {
-		ntfs_free(to_free);
+		kfree(to_free);
 		*buffer = NULL;
 	}
 
@@ -1181,7 +1181,7 @@ static int log_read_rst(struct ntfs_log *log, u32 l_size, bool first,
 			struct restart_info *info)
 {
 	u32 skip, vbo;
-	struct RESTART_HDR *r_page = ntfs_malloc(DefaultLogPageSize);
+	struct RESTART_HDR *r_page = kmalloc(DefaultLogPageSize, GFP_NOFS);
 
 	if (!r_page)
 		return -ENOMEM;
@@ -1257,8 +1257,8 @@ static int log_read_rst(struct ntfs_log *log, u32 l_size, bool first,
 		/* Read the entire restart area */
 		sys_page_size = le32_to_cpu(r_page->sys_page_size);
 		if (DefaultLogPageSize != sys_page_size) {
-			ntfs_free(r_page);
-			r_page = ntfs_zalloc(sys_page_size);
+			kfree(r_page);
+			r_page = kzalloc(sys_page_size, GFP_NOFS);
 			if (!r_page)
 				return -ENOMEM;
 
@@ -1266,7 +1266,7 @@ static int log_read_rst(struct ntfs_log *log, u32 l_size, bool first,
 					  (struct RECORD_PAGE_HDR **)&r_page,
 					  &usa_error)) {
 				/* ignore any errors */
-				ntfs_free(r_page);
+				kfree(r_page);
 				r_page = NULL;
 				continue;
 			}
@@ -1296,7 +1296,7 @@ check_result:
 		}
 	}
 
-	ntfs_free(r_page);
+	kfree(r_page);
 
 	return 0;
 }
@@ -1397,7 +1397,7 @@ static void log_create(struct ntfs_log *log, u32 l_size, const u64 last_lsn,
 static struct RESTART_AREA *log_create_ra(struct ntfs_log *log)
 {
 	struct CLIENT_REC *cr;
-	struct RESTART_AREA *ra = ntfs_zalloc(log->restart_size);
+	struct RESTART_AREA *ra = kzalloc(log->restart_size, GFP_NOFS);
 
 	if (!ra)
 		return NULL;
@@ -1509,7 +1509,7 @@ static int next_log_lsn(struct ntfs_log *log, const struct LFS_RECORD_HDR *rh,
 	if (!is_lsn_in_file(log, *lsn))
 		*lsn = 0;
 
-	ntfs_free(page);
+	kfree(page);
 
 	return 0;
 }
@@ -1634,7 +1634,7 @@ static int last_log_lsn(struct ntfs_log *log)
 		second_off = 0x12 * log->page_size;
 
 		// 0x10 == 0x12 - 0x2
-		page_bufs = ntfs_malloc(log->page_size * 0x10);
+		page_bufs = kmalloc(log->page_size * 0x10, GFP_NOFS);
 		if (!page_bufs)
 			return -ENOMEM;
 	} else {
@@ -1646,7 +1646,7 @@ next_tail:
 	/* Read second tail page (at pos 3/0x12000) */
 	if (read_log_page(log, second_off, &second_tail, &usa_error) ||
 	    usa_error || second_tail->rhdr.sign != NTFS_RCRD_SIGNATURE) {
-		ntfs_free(second_tail);
+		kfree(second_tail);
 		second_tail = NULL;
 		second_file_off = 0;
 		lsn2 = 0;
@@ -1658,7 +1658,7 @@ next_tail:
 	/* Read first tail page (at pos 2/0x2000 ) */
 	if (read_log_page(log, final_off, &first_tail, &usa_error) ||
 	    usa_error || first_tail->rhdr.sign != NTFS_RCRD_SIGNATURE) {
-		ntfs_free(first_tail);
+		kfree(first_tail);
 		first_tail = NULL;
 		first_file_off = 0;
 		lsn1 = 0;
@@ -1759,17 +1759,17 @@ next_tail:
 			page_pos = page_cnt = 1;
 		}
 	} else {
-		ntfs_free(first_tail);
-		ntfs_free(second_tail);
+		kfree(first_tail);
+		kfree(second_tail);
 		goto tail_read;
 	}
 
-	ntfs_free(first_tail_prev);
+	kfree(first_tail_prev);
 	first_tail_prev = first_tail;
 	final_off_prev = first_file_off;
 	first_tail = NULL;
 
-	ntfs_free(second_tail_prev);
+	kfree(second_tail_prev);
 	second_tail_prev = second_tail;
 	second_off_prev = second_file_off;
 	second_tail = NULL;
@@ -2030,7 +2030,7 @@ next_page_1:
 	}
 
 	curpage_off = nextpage_off;
-	ntfs_free(page);
+	kfree(page);
 	page = NULL;
 	reuse_page = 0;
 	goto next_page;
@@ -2092,7 +2092,7 @@ check_tail:
 	cur_pos = 2;
 
 next_test_page:
-	ntfs_free(tst_page);
+	kfree(tst_page);
 	tst_page = NULL;
 
 	/* Walk through the file, reading log pages */
@@ -2151,7 +2151,7 @@ check_valid:
 	}
 
 	/* Call our routine to check this log page */
-	ntfs_free(tst_page);
+	kfree(tst_page);
 	tst_page = NULL;
 
 	err = read_log_page(log, nextpage_off, &tst_page, &usa_error);
@@ -2186,7 +2186,7 @@ file_is_valid:
 			u64 off = hdr_file_off(log, tmp_page);
 
 			if (!page) {
-				page = ntfs_malloc(log->page_size);
+				page = kmalloc(log->page_size, GFP_NOFS);
 				if (!page)
 					return -ENOMEM;
 			}
@@ -2231,11 +2231,11 @@ file_is_valid:
 	}
 
 out:
-	ntfs_free(second_tail);
-	ntfs_free(first_tail);
-	ntfs_free(page);
-	ntfs_free(tst_page);
-	ntfs_free(page_bufs);
+	kfree(second_tail);
+	kfree(first_tail);
+	kfree(page);
+	kfree(tst_page);
+	kfree(page_bufs);
 
 	return err;
 }
@@ -2311,7 +2311,7 @@ static int read_log_rec_buf(struct ntfs_log *log,
 	}
 
 out:
-	ntfs_free(ph);
+	kfree(ph);
 	return err;
 }
 
@@ -2360,7 +2360,7 @@ static int read_rst_area(struct ntfs_log *log, struct NTFS_RESTART **rst_,
 		goto out;
 	}
 
-	rst = ntfs_malloc(len);
+	rst = kmalloc(len, GFP_NOFS);
 	if (!rst) {
 		err = -ENOMEM;
 		goto out;
@@ -2375,8 +2375,8 @@ static int read_rst_area(struct ntfs_log *log, struct NTFS_RESTART **rst_,
 	rst = NULL;
 
 out:
-	ntfs_free(rh);
-	ntfs_free(rst);
+	kfree(rh);
+	kfree(rst);
 
 	return err;
 }
@@ -2419,7 +2419,7 @@ static int find_log_rec(struct ntfs_log *log, u64 lsn, struct lcb *lcb)
 	 * put a pointer to the log record the context block
 	 */
 	if (rh->flags & LOG_RECORD_MULTI_PAGE) {
-		void *lr = ntfs_malloc(len);
+		void *lr = kmalloc(len, GFP_NOFS);
 
 		if (!lr)
 			return -ENOMEM;
@@ -2472,7 +2472,7 @@ static int read_log_rec_lcb(struct ntfs_log *log, u64 lsn, u32 ctx_mode,
 	if (!verify_client_lsn(log, cr, lsn))
 		return -EINVAL;
 
-	lcb = ntfs_zalloc(sizeof(struct lcb));
+	lcb = kzalloc(sizeof(struct lcb), GFP_NOFS);
 	if (!lcb)
 		return -ENOMEM;
 	lcb->client = log->client_id;
@@ -2521,7 +2521,7 @@ static int find_client_next_lsn(struct ntfs_log *log, struct lcb *lcb, u64 *lsn)
 			break;
 
 		if (hdr != lcb->lrh)
-			ntfs_free(hdr);
+			kfree(hdr);
 
 		hdr = NULL;
 		err = read_log_page(log, lsn_to_vbo(log, current_lsn),
@@ -2533,7 +2533,7 @@ static int find_client_next_lsn(struct ntfs_log *log, struct lcb *lcb, u64 *lsn)
 			   sizeof(struct CLIENT_ID))) {
 			/*err = -EINVAL; */
 		} else if (LfsClientRecord == hdr->record_type) {
-			ntfs_free(lcb->lrh);
+			kfree(lcb->lrh);
 			lcb->lrh = hdr;
 			*lsn = current_lsn;
 			return 0;
@@ -2542,7 +2542,7 @@ static int find_client_next_lsn(struct ntfs_log *log, struct lcb *lcb, u64 *lsn)
 
 out:
 	if (hdr != lcb->lrh)
-		ntfs_free(hdr);
+		kfree(hdr);
 	return err;
 
 check_undo_next:
@@ -2566,7 +2566,7 @@ check_undo_next:
 			    (struct RECORD_PAGE_HDR **)&hdr, NULL);
 	if (err)
 		return err;
-	ntfs_free(lcb->lrh);
+	kfree(lcb->lrh);
 	lcb->lrh = hdr;
 
 	*lsn = next_lsn;
@@ -2586,11 +2586,11 @@ static int read_next_log_rec(struct ntfs_log *log, struct lcb *lcb, u64 *lsn)
 		return 0;
 
 	if (lcb->alloc)
-		ntfs_free(lcb->log_rec);
+		kfree(lcb->log_rec);
 
 	lcb->log_rec = NULL;
 	lcb->alloc = false;
-	ntfs_free(lcb->lrh);
+	kfree(lcb->lrh);
 	lcb->lrh = NULL;
 
 	return find_log_rec(log, *lsn, lcb);
@@ -2987,7 +2987,7 @@ static struct ATTRIB *attr_create_nonres_log(struct ntfs_sb_info *sbi,
 	u32 asize = name_size +
 		    (is_ext ? SIZEOF_NONRESIDENT_EX : SIZEOF_NONRESIDENT);
 
-	attr = ntfs_zalloc(asize);
+	attr = kzalloc(asize, GFP_NOFS);
 	if (!attr)
 		return NULL;
 
@@ -3087,7 +3087,7 @@ static int do_action(struct ntfs_log *log, struct OPEN_ATTR_ENRTY *oe,
 		if (inode) {
 			mi = &ntfs_i(inode)->mi;
 		} else if (op == InitializeFileRecordSegment) {
-			mi = ntfs_zalloc(sizeof(struct mft_inode));
+			mi = kzalloc(sizeof(struct mft_inode), GFP_NOFS);
 			if (!mi)
 				return -ENOMEM;
 			err = mi_format_new(mi, sbi, rno, 0, false);
@@ -3181,7 +3181,7 @@ skip_load_parent:
 		if (attr->type == ATTR_ALLOC)
 			bytes = (bytes + 511) & ~511; // align
 
-		buffer_le = ntfs_malloc(bytes);
+		buffer_le = kmalloc(bytes, GFP_NOFS);
 		if (!buffer_le)
 			return -ENOMEM;
 
@@ -3250,11 +3250,11 @@ skip_load_parent:
 
 		oa2 = find_loaded_attr(log, attr, rno_base);
 		if (oa2) {
-			void *p2 = ntfs_memdup(attr, le32_to_cpu(attr->size));
-
+			void *p2 = kmemdup(attr, le32_to_cpu(attr->size),
+					   GFP_NOFS);
 			if (p2) {
 				// run_close(oa2->run1);
-				ntfs_free(oa2->attr);
+				kfree(oa2->attr);
 				oa2->attr = p2;
 			}
 		}
@@ -3317,12 +3317,12 @@ move_data:
 
 		oa2 = find_loaded_attr(log, attr, rno_base);
 		if (oa2) {
-			void *p2 = ntfs_memdup(attr, le32_to_cpu(attr->size));
-
+			void *p2 = kmemdup(attr, le32_to_cpu(attr->size),
+					   GFP_NOFS);
 			if (p2) {
 				// run_close(&oa2->run0);
 				oa2->run1 = &oa2->run0;
-				ntfs_free(oa2->attr);
+				kfree(oa2->attr);
 				oa2->attr = p2;
 			}
 		}
@@ -3376,10 +3376,10 @@ move_data:
 
 		oa2 = find_loaded_attr(log, attr, rno_base);
 		if (oa2) {
-			void *p2 = ntfs_memdup(attr, le32_to_cpu(attr->size));
-
+			void *p2 = kmemdup(attr, le32_to_cpu(attr->size),
+					   GFP_NOFS);
 			if (p2) {
-				ntfs_free(oa2->attr);
+				kfree(oa2->attr);
 				oa2->attr = p2;
 			}
 		}
@@ -3714,7 +3714,7 @@ out:
 	else if (mi != mi2_child)
 		mi_put(mi);
 
-	ntfs_free(buffer_le);
+	kfree(buffer_le);
 
 	return err;
 
@@ -3783,13 +3783,13 @@ int log_replay(struct ntfs_inode *ni, bool *initialized)
 	if (!page_size)
 		return -EINVAL;
 
-	log = ntfs_zalloc(sizeof(struct ntfs_log));
+	log = kzalloc(sizeof(struct ntfs_log), GFP_NOFS);
 	if (!log)
 		return -ENOMEM;
 
 	log->ni = ni;
 	log->l_size = l_size;
-	log->one_page_buf = ntfs_malloc(page_size);
+	log->one_page_buf = kmalloc(page_size, GFP_NOFS);
 
 	if (!log->one_page_buf) {
 		err = -ENOMEM;
@@ -3854,17 +3854,17 @@ int log_replay(struct ntfs_inode *ni, bool *initialized)
 		    sp->rhdr.sign == NTFS_CHKD_SIGNATURE) {
 			use_second_page = false;
 		}
-		ntfs_free(sp);
+		kfree(sp);
 	}
 
 	if (use_second_page) {
-		ntfs_free(rst_info.r_page);
+		kfree(rst_info.r_page);
 		memcpy(&rst_info, &rst_info2, sizeof(struct restart_info));
 		rst_info2.r_page = NULL;
 	}
 
 use_first_page:
-	ntfs_free(rst_info2.r_page);
+	kfree(rst_info2.r_page);
 
 check_restart_area:
 	/* If the restart area is at offset 0, we want to write the second restart area first */
@@ -4012,7 +4012,7 @@ find_oldest:
 
 	log->current_avail = current_log_avail(log);
 
-	ra = ntfs_zalloc(log->restart_size);
+	ra = kzalloc(log->restart_size, GFP_NOFS);
 	if (!ra) {
 		err = -ENOMEM;
 		goto out;
@@ -4147,7 +4147,7 @@ process_log:
 		goto out;
 	}
 
-	trtbl = ntfs_memdup(rt, t32);
+	trtbl = kmemdup(rt, t32, GFP_NOFS);
 	if (!trtbl) {
 		err = -ENOMEM;
 		goto out;
@@ -4187,7 +4187,7 @@ check_dirty_page_table:
 		goto out;
 	}
 
-	dptbl = ntfs_memdup(rt, t32);
+	dptbl = kmemdup(rt, t32, GFP_NOFS);
 	if (!dptbl) {
 		err = -ENOMEM;
 		goto out;
@@ -4254,7 +4254,7 @@ check_attribute_names:
 	t32 = lrh_length(lrh);
 	rec_len -= t32;
 
-	attr_names = ntfs_memdup(Add2Ptr(lrh, t32), rec_len);
+	attr_names = kmemdup(Add2Ptr(lrh, t32), rec_len, GFP_NOFS);
 
 	lcb_put(lcb);
 	lcb = NULL;
@@ -4289,7 +4289,7 @@ check_attr_table:
 		goto out;
 	}
 
-	oatbl = ntfs_memdup(rt, t32);
+	oatbl = kmemdup(rt, t32, GFP_NOFS);
 	if (!oatbl) {
 		err = -ENOMEM;
 		goto out;
@@ -4472,7 +4472,7 @@ next_log_record_analyze:
 			      sizeof(u64);
 		} else {
 			t32 = log->clst_per_page;
-			ntfs_free(dptbl);
+			kfree(dptbl);
 			dptbl = init_rsttbl(struct_size(dp, page_lcns, t32),
 					    32);
 			if (!dptbl) {
@@ -4575,7 +4575,7 @@ copy_lcns:
 
 		t16 = le16_to_cpu(lrh->undo_len);
 		if (t16) {
-			oe->ptr = ntfs_malloc(t16);
+			oe->ptr = kmalloc(t16, GFP_NOFS);
 			if (!oe->ptr) {
 				err = -ENOMEM;
 				goto out;
@@ -4680,7 +4680,7 @@ next_open_attribute:
 		goto next_dirty_page;
 	}
 
-	oa = ntfs_zalloc(sizeof(struct OpenAttr));
+	oa = kzalloc(sizeof(struct OpenAttr), GFP_NOFS);
 	if (!oa) {
 		err = -ENOMEM;
 		goto out;
@@ -4701,7 +4701,7 @@ fake_attr:
 		attr = attr_create_nonres_log(sbi, oe->type, 0, oe->ptr,
 					      oe->name_len, 0);
 		if (!attr) {
-			ntfs_free(oa);
+			kfree(oa);
 			err = -ENOMEM;
 			goto out;
 		}
@@ -4720,7 +4720,7 @@ fake_attr:
 		goto fake_attr;
 
 	t32 = le32_to_cpu(attr->size);
-	oa->attr = ntfs_memdup(attr, t32);
+	oa->attr = kmemdup(attr, t32, GFP_NOFS);
 	if (!oa->attr)
 		goto fake_attr;
 
@@ -4746,7 +4746,7 @@ fake_attr:
 				 le64_to_cpu(attr->nres.evcn), svcn,
 				 Add2Ptr(attr, roff), t32 - roff);
 		if (err < 0) {
-			ntfs_free(oa->attr);
+			kfree(oa->attr);
 			oa->attr = NULL;
 			goto fake_attr;
 		}
@@ -4757,7 +4757,7 @@ fake_attr:
 
 final_oe:
 	if (oe->is_attr_name == 1)
-		ntfs_free(oe->ptr);
+		kfree(oe->ptr);
 	oe->is_attr_name = 0;
 	oe->ptr = oa;
 	oe->name_len = attr->name_len;
@@ -5090,7 +5090,7 @@ end_reply:
 	if (is_ro)
 		goto out;
 
-	rh = ntfs_zalloc(log->page_size);
+	rh = kzalloc(log->page_size, GFP_NOFS);
 	if (!rh) {
 		err = -ENOMEM;
 		goto out;
@@ -5125,12 +5125,12 @@ end_reply:
 		err = ntfs_sb_write_run(sbi, &log->ni->file.run, log->page_size,
 					rh, log->page_size);
 
-	ntfs_free(rh);
+	kfree(rh);
 	if (err)
 		goto out;
 
 out:
-	ntfs_free(rst);
+	kfree(rst);
 	if (lcb)
 		lcb_put(lcb);
 
@@ -5140,7 +5140,7 @@ out:
 		rno = ino_get(&oe->ref);
 
 		if (oe->is_attr_name == 1) {
-			ntfs_free(oe->ptr);
+			kfree(oe->ptr);
 			oe->ptr = NULL;
 			continue;
 		}
@@ -5153,20 +5153,20 @@ out:
 			continue;
 
 		run_close(&oa->run0);
-		ntfs_free(oa->attr);
+		kfree(oa->attr);
 		if (oa->ni)
 			iput(&oa->ni->vfs_inode);
-		ntfs_free(oa);
+		kfree(oa);
 	}
 
-	ntfs_free(trtbl);
-	ntfs_free(oatbl);
-	ntfs_free(dptbl);
-	ntfs_free(attr_names);
-	ntfs_free(rst_info.r_page);
+	kfree(trtbl);
+	kfree(oatbl);
+	kfree(dptbl);
+	kfree(attr_names);
+	kfree(rst_info.r_page);
 
-	ntfs_free(ra);
-	ntfs_free(log->one_page_buf);
+	kfree(ra);
+	kfree(log->one_page_buf);
 
 	if (err)
 		sbi->flags |= NTFS_FLAGS_NEED_REPLAY;
@@ -5176,7 +5176,7 @@ out:
 	else if (log->set_dirty)
 		ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
 
-	ntfs_free(log);
+	kfree(log);
 
 	return err;
 }
