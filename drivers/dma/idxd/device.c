@@ -462,7 +462,6 @@ int idxd_device_init_reset(struct idxd_device *idxd)
 {
 	struct device *dev = &idxd->pdev->dev;
 	union idxd_command_reg cmd;
-	unsigned long flags;
 
 	if (idxd_device_is_halted(idxd)) {
 		dev_warn(&idxd->pdev->dev, "Device is HALTED!\n");
@@ -472,13 +471,13 @@ int idxd_device_init_reset(struct idxd_device *idxd)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.cmd = IDXD_CMD_RESET_DEVICE;
 	dev_dbg(dev, "%s: sending reset for init.\n", __func__);
-	spin_lock_irqsave(&idxd->cmd_lock, flags);
+	spin_lock(&idxd->cmd_lock);
 	iowrite32(cmd.bits, idxd->reg_base + IDXD_CMD_OFFSET);
 
 	while (ioread32(idxd->reg_base + IDXD_CMDSTS_OFFSET) &
 	       IDXD_CMDSTS_ACTIVE)
 		cpu_relax();
-	spin_unlock_irqrestore(&idxd->cmd_lock, flags);
+	spin_unlock(&idxd->cmd_lock);
 	return 0;
 }
 
@@ -487,7 +486,6 @@ static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
 {
 	union idxd_command_reg cmd;
 	DECLARE_COMPLETION_ONSTACK(done);
-	unsigned long flags;
 	u32 stat;
 
 	if (idxd_device_is_halted(idxd)) {
@@ -502,7 +500,7 @@ static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
 	cmd.operand = operand;
 	cmd.int_req = 1;
 
-	spin_lock_irqsave(&idxd->cmd_lock, flags);
+	spin_lock(&idxd->cmd_lock);
 	wait_event_lock_irq(idxd->cmd_waitq,
 			    !test_bit(IDXD_FLAG_CMD_RUNNING, &idxd->flags),
 			    idxd->cmd_lock);
@@ -519,10 +517,10 @@ static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
 	 * After command submitted, release lock and go to sleep until
 	 * the command completes via interrupt.
 	 */
-	spin_unlock_irqrestore(&idxd->cmd_lock, flags);
+	spin_unlock(&idxd->cmd_lock);
 	wait_for_completion(&done);
 	stat = ioread32(idxd->reg_base + IDXD_CMDSTS_OFFSET);
-	spin_lock_irqsave(&idxd->cmd_lock, flags);
+	spin_lock(&idxd->cmd_lock);
 	if (status)
 		*status = stat;
 	idxd->cmd_status = stat & GENMASK(7, 0);
@@ -530,7 +528,7 @@ static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
 	__clear_bit(IDXD_FLAG_CMD_RUNNING, &idxd->flags);
 	/* Wake up other pending commands */
 	wake_up(&idxd->cmd_waitq);
-	spin_unlock_irqrestore(&idxd->cmd_lock, flags);
+	spin_unlock(&idxd->cmd_lock);
 }
 
 int idxd_device_enable(struct idxd_device *idxd)
@@ -641,7 +639,6 @@ int idxd_device_release_int_handle(struct idxd_device *idxd, int handle,
 	struct device *dev = &idxd->pdev->dev;
 	u32 operand, status;
 	union idxd_command_reg cmd;
-	unsigned long flags;
 
 	if (!(idxd->hw.cmd_cap & BIT(IDXD_CMD_RELEASE_INT_HANDLE)))
 		return -EOPNOTSUPP;
@@ -659,13 +656,13 @@ int idxd_device_release_int_handle(struct idxd_device *idxd, int handle,
 
 	dev_dbg(dev, "cmd: %u operand: %#x\n", IDXD_CMD_RELEASE_INT_HANDLE, operand);
 
-	spin_lock_irqsave(&idxd->cmd_lock, flags);
+	spin_lock(&idxd->cmd_lock);
 	iowrite32(cmd.bits, idxd->reg_base + IDXD_CMD_OFFSET);
 
 	while (ioread32(idxd->reg_base + IDXD_CMDSTS_OFFSET) & IDXD_CMDSTS_ACTIVE)
 		cpu_relax();
 	status = ioread32(idxd->reg_base + IDXD_CMDSTS_OFFSET);
-	spin_unlock_irqrestore(&idxd->cmd_lock, flags);
+	spin_unlock(&idxd->cmd_lock);
 
 	if ((status & IDXD_CMDSTS_ERR_MASK) != IDXD_CMDSTS_SUCCESS) {
 		dev_dbg(dev, "release int handle failed: %#x\n", status);
