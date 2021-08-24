@@ -350,14 +350,14 @@ static bool slot_valid(struct nvdimm_drvdata *ndd,
 		struct nd_namespace_label *nd_label, u32 slot)
 {
 	/* check that we are written where we expect to be written */
-	if (slot != __le32_to_cpu(nd_label->slot))
+	if (slot != nsl_get_slot(ndd, nd_label))
 		return false;
 
 	/* check checksum */
 	if (namespace_label_has(ndd, checksum)) {
 		u64 sum, sum_save;
 
-		sum_save = __le64_to_cpu(nd_label->checksum);
+		sum_save = nsl_get_checksum(ndd, nd_label);
 		nd_label->checksum = __cpu_to_le64(0);
 		sum = nd_fletcher64(nd_label, sizeof_namespace_label(ndd), 1);
 		nd_label->checksum = __cpu_to_le64(sum_save);
@@ -395,13 +395,13 @@ int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd)
 			continue;
 
 		memcpy(label_uuid, nd_label->uuid, NSLABEL_UUID_LEN);
-		flags = __le32_to_cpu(nd_label->flags);
+		flags = nsl_get_flags(ndd, nd_label);
 		if (test_bit(NDD_NOBLK, &nvdimm->flags))
 			flags &= ~NSLABEL_FLAG_LOCAL;
 		nd_label_gen_id(&label_id, label_uuid, flags);
 		res = nvdimm_allocate_dpa(ndd, &label_id,
-				__le64_to_cpu(nd_label->dpa),
-				__le64_to_cpu(nd_label->rawsize));
+					  nsl_get_dpa(ndd, nd_label),
+					  nsl_get_rawsize(ndd, nd_label));
 		nd_dbg_dpa(nd_region, ndd, res, "reserve\n");
 		if (!res)
 			return -EBUSY;
@@ -548,9 +548,9 @@ int nd_label_active_count(struct nvdimm_drvdata *ndd)
 		nd_label = to_label(ndd, slot);
 
 		if (!slot_valid(ndd, nd_label, slot)) {
-			u32 label_slot = __le32_to_cpu(nd_label->slot);
-			u64 size = __le64_to_cpu(nd_label->rawsize);
-			u64 dpa = __le64_to_cpu(nd_label->dpa);
+			u32 label_slot = nsl_get_slot(ndd, nd_label);
+			u64 size = nsl_get_rawsize(ndd, nd_label);
+			u64 dpa = nsl_get_dpa(ndd, nd_label);
 
 			dev_dbg(ndd->dev,
 				"slot%d invalid slot: %d dpa: %llx size: %llx\n",
@@ -879,9 +879,9 @@ static struct resource *to_resource(struct nvdimm_drvdata *ndd,
 	struct resource *res;
 
 	for_each_dpa_resource(ndd, res) {
-		if (res->start != __le64_to_cpu(nd_label->dpa))
+		if (res->start != nsl_get_dpa(ndd, nd_label))
 			continue;
-		if (resource_size(res) != __le64_to_cpu(nd_label->rawsize))
+		if (resource_size(res) != nsl_get_rawsize(ndd, nd_label))
 			continue;
 		return res;
 	}

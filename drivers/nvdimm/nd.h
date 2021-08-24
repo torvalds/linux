@@ -35,6 +35,72 @@ struct nvdimm_drvdata {
 	struct kref kref;
 };
 
+static inline const u8 *nsl_ref_name(struct nvdimm_drvdata *ndd,
+				     struct nd_namespace_label *nd_label)
+{
+	return nd_label->name;
+}
+
+static inline u8 *nsl_get_name(struct nvdimm_drvdata *ndd,
+			       struct nd_namespace_label *nd_label, u8 *name)
+{
+	return memcpy(name, nd_label->name, NSLABEL_NAME_LEN);
+}
+
+static inline u32 nsl_get_slot(struct nvdimm_drvdata *ndd,
+			       struct nd_namespace_label *nd_label)
+{
+	return __le32_to_cpu(nd_label->slot);
+}
+
+static inline u64 nsl_get_checksum(struct nvdimm_drvdata *ndd,
+				   struct nd_namespace_label *nd_label)
+{
+	return __le64_to_cpu(nd_label->checksum);
+}
+
+static inline u32 nsl_get_flags(struct nvdimm_drvdata *ndd,
+				struct nd_namespace_label *nd_label)
+{
+	return __le32_to_cpu(nd_label->flags);
+}
+
+static inline u64 nsl_get_dpa(struct nvdimm_drvdata *ndd,
+			      struct nd_namespace_label *nd_label)
+{
+	return __le64_to_cpu(nd_label->dpa);
+}
+
+static inline u64 nsl_get_rawsize(struct nvdimm_drvdata *ndd,
+				  struct nd_namespace_label *nd_label)
+{
+	return __le64_to_cpu(nd_label->rawsize);
+}
+
+static inline u64 nsl_get_isetcookie(struct nvdimm_drvdata *ndd,
+				     struct nd_namespace_label *nd_label)
+{
+	return __le64_to_cpu(nd_label->isetcookie);
+}
+
+static inline u16 nsl_get_position(struct nvdimm_drvdata *ndd,
+				   struct nd_namespace_label *nd_label)
+{
+	return __le16_to_cpu(nd_label->position);
+}
+
+static inline u16 nsl_get_nlabel(struct nvdimm_drvdata *ndd,
+				 struct nd_namespace_label *nd_label)
+{
+	return __le16_to_cpu(nd_label->nlabel);
+}
+
+static inline u64 nsl_get_lbasize(struct nvdimm_drvdata *ndd,
+				  struct nd_namespace_label *nd_label)
+{
+	return __le64_to_cpu(nd_label->lbasize);
+}
+
 struct nd_region_data {
 	int ns_count;
 	int ns_active;
