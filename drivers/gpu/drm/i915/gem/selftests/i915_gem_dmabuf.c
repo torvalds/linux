@@ -128,6 +128,8 @@ static int igt_dmabuf_import_same_driver_lmem(void *arg)
 		pr_err("i915_gem_prime_import failed with the wrong err=%ld\n",
 		       PTR_ERR(import));
 		err = PTR_ERR(import);
+	} else {
+		err = 0;
 	}
 
 	dma_buf_put(dmabuf);
