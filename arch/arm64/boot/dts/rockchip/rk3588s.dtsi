@@ -121,6 +121,30 @@
 		};
 	};
 
+	mmu600_pcie: iommu@fc900000 {
+		compatible = "arm,smmu-v3";
+		reg = <0x0 0xfc900000 0x0 0x200000>;
+		interrupts = <GIC_SPI 369 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 374 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 367 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "eventq", "gerror", "priq", "cmdq-sync";
+		#iommu-cells = <1>;
+		status = "disabled";
+	};
+
+	mmu600_php: iommu@fcb00000 {
+		compatible = "arm,smmu-v3";
+		reg = <0x0 0xfcb00000 0x0 0x200000>;
+		interrupts = <GIC_SPI 381 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 383 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 386 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 379 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "eventq", "gerror", "priq", "cmdq-sync";
+		#iommu-cells = <1>;
+		status = "disabled";
+	};
+
 	syssram: sram@fd600000 {
 		compatible = "mmio-sram";
 		reg = <0x0 0xfd600000 0x0 0x100000>;
