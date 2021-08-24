@@ -521,7 +521,7 @@ static struct posix_acl *ntfs_get_acl_ex(struct user_namespace *mnt_userns,
 		ni_unlock(ni);
 
 	/* Translate extended attribute to acl */
-	if (err > 0) {
+	if (err >= 0) {
 		acl = posix_acl_from_xattr(mnt_userns, buf, err);
 		if (!IS_ERR(acl))
 			set_cached_acl(inode, type, acl);
