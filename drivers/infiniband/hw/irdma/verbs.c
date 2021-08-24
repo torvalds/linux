@@ -2235,7 +2235,7 @@ static void irdma_copy_user_pgaddrs(struct irdma_mr *iwmr, u64 *pbl,
 	pinfo = (level == PBLE_LEVEL_1) ? NULL : palloc->level2.leaf;
 
 	if (iwmr->type == IRDMA_MEMREG_TYPE_QP)
-		iwpbl->qp_mr.sq_page = sg_page(region->sg_head.sgl);
+		iwpbl->qp_mr.sq_page = sg_page(region->sgt_append.sgt.sgl);
 
 	rdma_umem_for_each_dma_block(region, &biter, iwmr->page_size) {
 		*pbl = rdma_block_iter_dma_address(&biter);

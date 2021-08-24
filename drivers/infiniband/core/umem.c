@@ -51,11 +51,11 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
 	struct scatterlist *sg;
 	unsigned int i;
 
-	if (umem->nmap > 0)
-		ib_dma_unmap_sg(dev, umem->sg_head.sgl, umem->sg_nents,
-				DMA_BIDIRECTIONAL);
+	if (dirty)
+		ib_dma_unmap_sgtable_attrs(dev, &umem->sgt_append.sgt,
+					   DMA_BIDIRECTIONAL, 0);
 
-	for_each_sg(umem->sg_head.sgl, sg, umem->sg_nents, i)
+	for_each_sgtable_sg(&umem->sgt_append.sgt, sg, i)
 		unpin_user_page_range_dirty_lock(sg_page(sg),
 			DIV_ROUND_UP(sg->length, PAGE_SIZE), make_dirty);
 
@@ -111,7 +111,7 @@ unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 	/* offset into first SGL */
 	pgoff = umem->address & ~PAGE_MASK;
 
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, i) {
+	for_each_sgtable_dma_sg(&umem->sgt_append.sgt, sg, i) {
 		/* Walk SGL and reduce max page size if VA/PA bits differ
 		 * for any address.
 		 */
@@ -121,7 +121,7 @@ unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 		 * the maximum possible page size as the low bits of the iova
 		 * must be zero when starting the next chunk.
 		 */
-		if (i != (umem->nmap - 1))
+		if (i != (umem->sgt_append.sgt.nents - 1))
 			mask |= va;
 		pgoff = 0;
 	}
@@ -231,30 +231,19 @@ struct ib_umem *ib_umem_get(struct ib_device *device, unsigned long addr,
 			&umem->sgt_append, page_list, pinned, 0,
 			pinned << PAGE_SHIFT, ib_dma_max_seg_size(device),
 			npages, GFP_KERNEL);
-		umem->sg_nents = umem->sgt_append.sgt.nents;
 		if (ret) {
-			memcpy(&umem->sg_head.sgl, &umem->sgt_append.sgt,
-			       sizeof(umem->sgt_append.sgt));
 			unpin_user_pages_dirty_lock(page_list, pinned, 0);
 			goto umem_release;
 		}
 	}
 
-	memcpy(&umem->sg_head.sgl, &umem->sgt_append.sgt,
-	       sizeof(umem->sgt_append.sgt));
 	if (access & IB_ACCESS_RELAXED_ORDERING)
 		dma_attr |= DMA_ATTR_WEAK_ORDERING;
 
-	umem->nmap =
-		ib_dma_map_sg_attrs(device, umem->sg_head.sgl, umem->sg_nents,
-				    DMA_BIDIRECTIONAL, dma_attr);
-
-	if (!umem->nmap) {
-		ret = -ENOMEM;
+	ret = ib_dma_map_sgtable_attrs(device, &umem->sgt_append.sgt,
+				       DMA_BIDIRECTIONAL, dma_attr);
+	if (ret)
 		goto umem_release;
-	}
-
-	ret = 0;
 	goto out;
 
 umem_release:
@@ -314,7 +303,8 @@ int ib_umem_copy_from(void *dst, struct ib_umem *umem, size_t offset,
 		return -EINVAL;
 	}
 
-	ret = sg_pcopy_to_buffer(umem->sg_head.sgl, umem->sg_nents, dst, length,
+	ret = sg_pcopy_to_buffer(umem->sgt_append.sgt.sgl,
+				 umem->sgt_append.sgt.orig_nents, dst, length,
 				 offset + ib_umem_offset(umem));
 
 	if (ret < 0)
