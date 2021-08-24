@@ -714,13 +714,13 @@ BPF_CALL_0(bpf_get_current_task_btf)
 	return (unsigned long) current;
 }
 
-BTF_ID_LIST_SINGLE(bpf_get_current_btf_ids, struct, task_struct)
+BTF_ID_LIST_GLOBAL_SINGLE(btf_task_struct_ids, struct, task_struct)
 
 static const struct bpf_func_proto bpf_get_current_task_btf_proto = {
 	.func		= bpf_get_current_task_btf,
 	.gpl_only	= true,
 	.ret_type	= RET_PTR_TO_BTF_ID,
-	.ret_btf_id	= &bpf_get_current_btf_ids[0],
+	.ret_btf_id	= &btf_task_struct_ids[0],
 };
 
 BPF_CALL_2(bpf_current_task_under_cgroup, struct bpf_map *, map, u32, idx)
