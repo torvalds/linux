@@ -1860,6 +1860,42 @@ static int kfd_ioctl_svm(struct file *filep, struct kfd_process *p, void *data)
 }
 #endif
 
+uint32_t get_process_num_bos(struct kfd_process *p)
+{
+	uint32_t num_of_bos = 0;
+	int i;
+
+	/* Run over all PDDs of the process */
+	for (i = 0; i < p->n_pdds; i++) {
+		struct kfd_process_device *pdd = p->pdds[i];
+		void *mem;
+		int id;
+
+		idr_for_each_entry(&pdd->alloc_idr, mem, id) {
+			struct kgd_mem *kgd_mem = (struct kgd_mem *)mem;
+
+			if ((uint64_t)kgd_mem->va > pdd->gpuvm_base)
+				num_of_bos++;
+		}
+	}
+	return num_of_bos;
+}
+
+static void criu_get_process_object_info(struct kfd_process *p,
+					 uint32_t *num_bos,
+					 uint64_t *objs_priv_size)
+{
+	uint64_t priv_size;
+
+	*num_bos = get_process_num_bos(p);
+
+	if (objs_priv_size) {
+		priv_size = sizeof(struct kfd_criu_process_priv_data);
+		priv_size += *num_bos * sizeof(struct kfd_criu_bo_priv_data);
+		*objs_priv_size = priv_size;
+	}
+}
+
 static int criu_checkpoint(struct file *filep,
 			   struct kfd_process *p,
 			   struct kfd_ioctl_criu_args *args)
@@ -1892,7 +1928,25 @@ static int criu_process_info(struct file *filep,
 				struct kfd_process *p,
 				struct kfd_ioctl_criu_args *args)
 {
-	return 0;
+	int ret = 0;
+
+	mutex_lock(&p->mutex);
+
+	if (!p->n_pdds) {
+		pr_err("No pdd for given process\n");
+		ret = -ENODEV;
+		goto err_unlock;
+	}
+
+	args->pid = task_pid_nr_ns(p->lead_thread,
+					task_active_pid_ns(p->lead_thread));
+
+	criu_get_process_object_info(p, &args->num_bos, &args->priv_data_size);
+
+	dev_dbg(kfd_device, "Num of bos:%u\n", args->num_bos);
+err_unlock:
+	mutex_unlock(&p->mutex);
+	return ret;
 }
 
 static int kfd_ioctl_criu(struct file *filep, struct kfd_process *p, void *data)
