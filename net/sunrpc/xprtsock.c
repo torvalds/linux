@@ -2099,6 +2099,10 @@ static void xs_tcp_shutdown(struct rpc_xprt *xprt)
 
 	if (sock == NULL)
 		return;
+	if (!xprt->reuseport) {
+		xs_close(xprt);
+		return;
+	}
 	switch (skst) {
 	default:
 		kernel_sock_shutdown(sock, SHUT_RDWR);
