@@ -1555,12 +1555,12 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 	u32 root_size, new_root_size;
 	struct ntfs_sb_info *sbi;
 	int ds_root;
-	struct INDEX_ROOT *root, *a_root = NULL;
+	struct INDEX_ROOT *root, *a_root;
 
 	/* Get the record this root placed in */
 	root = indx_get_root(indx, ni, &attr, &mi);
 	if (!root)
-		goto out;
+		return -EINVAL;
 
 	/*
 	 * Try easy case:
@@ -1592,10 +1592,8 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	/* Make a copy of root attribute to restore if error */
 	a_root = kmemdup(attr, asize, GFP_NOFS);
-	if (!a_root) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!a_root)
+		return -ENOMEM;
 
 	/* copy all the non-end entries from the index root to the new buffer.*/
 	to_move = 0;
@@ -1605,7 +1603,7 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 	for (e = e0;; e = hdr_next_de(hdr, e)) {
 		if (!e) {
 			err = -EINVAL;
-			goto out;
+			goto out_free_root;
 		}
 
 		if (de_is_last(e))
@@ -1613,14 +1611,13 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 		to_move += le16_to_cpu(e->size);
 	}
 
-	n = NULL;
 	if (!to_move) {
 		re = NULL;
 	} else {
 		re = kmemdup(e0, to_move, GFP_NOFS);
 		if (!re) {
 			err = -ENOMEM;
-			goto out;
+			goto out_free_root;
 		}
 	}
 
@@ -1637,7 +1634,7 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 	if (ds_root > 0 && used + ds_root > sbi->max_bytes_per_attr) {
 		/* make root external */
 		err = -EOPNOTSUPP;
-		goto out;
+		goto out_free_re;
 	}
 
 	if (ds_root)
@@ -1667,7 +1664,7 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 		/* bug? */
 		ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
 		err = -EINVAL;
-		goto out1;
+		goto out_free_re;
 	}
 
 	if (err) {
@@ -1678,7 +1675,7 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 			/* bug? */
 			ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
 		}
-		goto out1;
+		goto out_free_re;
 	}
 
 	e = (struct NTFS_DE *)(root + 1);
@@ -1689,7 +1686,7 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 	n = indx_new(indx, ni, new_vbn, sub_vbn);
 	if (IS_ERR(n)) {
 		err = PTR_ERR(n);
-		goto out1;
+		goto out_free_re;
 	}
 
 	hdr = &n->index->ihdr;
@@ -1716,7 +1713,7 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 		put_indx_node(n);
 		fnd_clear(fnd);
 		err = indx_insert_entry(indx, ni, new_de, ctx, fnd);
-		goto out;
+		goto out_free_root;
 	}
 
 	/*
@@ -1726,7 +1723,7 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 	e = hdr_insert_de(indx, hdr, new_de, NULL, ctx);
 	if (!e) {
 		err = -EINVAL;
-		goto out1;
+		goto out_put_n;
 	}
 	fnd_push(fnd, n, e);
 
@@ -1735,12 +1732,11 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	n = NULL;
 
-out1:
+out_put_n:
+	put_indx_node(n);
+out_free_re:
 	kfree(re);
-	if (n)
-		put_indx_node(n);
-
-out:
+out_free_root:
 	kfree(a_root);
 	return err;
 }
