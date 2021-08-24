@@ -964,7 +964,7 @@ struct mt76_connac_tx_power_limit_tlv {
 	__le16 len;
 	/* DW1 - cmd hint */
 	u8 n_chan; /* # channel */
-	u8 band; /* 2.4GHz - 5GHz */
+	u8 band; /* 2.4GHz - 5GHz - 6GHz */
 	u8 last_msg;
 	u8 pad1;
 	/* DW3 */

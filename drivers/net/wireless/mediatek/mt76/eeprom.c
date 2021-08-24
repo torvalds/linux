@@ -285,6 +285,9 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
 	case NL80211_BAND_5GHZ:
 		band = '5';
 		break;
+	case NL80211_BAND_6GHZ:
+		band = '6';
+		break;
 	default:
 		return target_power;
 	}
