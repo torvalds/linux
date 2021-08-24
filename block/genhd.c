@@ -556,7 +556,7 @@ void del_gendisk(struct gendisk *disk)
 {
 	might_sleep();
 
-	if (WARN_ON_ONCE(!disk_live(disk)))
+	if (WARN_ON_ONCE(!disk_live(disk) && !(disk->flags & GENHD_FL_HIDDEN)))
 		return;
 
 	blk_integrity_del(disk);
