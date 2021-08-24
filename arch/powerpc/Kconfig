@@ -161,6 +161,7 @@ config PPC
 	select ARCH_WANT_IRQS_OFF_ACTIVATE_MM
 	select ARCH_WANT_LD_ORPHAN_WARN
 	select ARCH_WEAK_RELEASE_ACQUIRE
+	select AUDIT_ARCH_COMPAT_GENERIC
 	select BINFMT_ELF
 	select BUILDTIME_TABLE_SORT
 	select CLONE_BACKWARDS
@@ -313,10 +314,6 @@ config PPC_UDBG_16550
 config GENERIC_TBSYNC
 	bool
 	default y if PPC32 && SMP
-
-config AUDIT_ARCH
-	bool
-	default y
 
 config GENERIC_BUG
 	bool
