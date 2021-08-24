@@ -107,7 +107,7 @@ ENTRY(_diag308_reset_amode31)
 	larl	%r4,.Lcontinue_psw	# Save PSW flags
 	epsw	%r2,%r3
 	stm	%r2,%r3,0(%r4)
-	larl	%r4,restart_part2	# Setup restart PSW at absolute 0
+	larl	%r4,.Lrestart_part2	# Setup restart PSW at absolute 0
 	larl	%r3,.Lrestart_diag308_psw
 	og	%r4,0(%r3)		# Save PSW
 	lghi	%r3,0
@@ -115,7 +115,7 @@ ENTRY(_diag308_reset_amode31)
 	lghi	%r1,1
 	lghi	%r0,0
 	diag	%r0,%r1,0x308
-restart_part2:
+.Lrestart_part2:
 	lhi	%r0,0			# Load r0 with zero
 	lhi	%r1,2			# Use mode 2 = ESAME (dump)
 	sigp	%r1,%r0,SIGP_SET_ARCHITECTURE	# Switch to ESAME mode
