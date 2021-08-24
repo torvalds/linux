@@ -7,7 +7,6 @@
 #include "../include/drv_types.h"
 #include "../include/wifi.h"
 #include "../include/osdep_intf.h"
-#include "../include/ip.h"
 #include "../include/usb_ops.h"
 #include "../include/usb_osintf.h"
 

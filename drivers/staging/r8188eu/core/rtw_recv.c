@@ -7,7 +7,6 @@
 #include "../include/drv_types.h"
 #include "../include/recv_osdep.h"
 #include "../include/mlme_osdep.h"
-#include "../include/ip.h"
 #include "../include/ethernet.h"
 #include "../include/usb_ops.h"
 #include "../include/wifi.h"
