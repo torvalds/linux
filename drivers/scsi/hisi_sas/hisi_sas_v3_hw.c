@@ -3688,7 +3688,6 @@ static void debugfs_snapshot_regs_v3_hw(struct hisi_hba *hisi_hba)
 
 	do_div(timestamp, NSEC_PER_MSEC);
 	hisi_hba->debugfs_timestamp[debugfs_dump_index] = timestamp;
-	hisi_hba->debugfs_dump_index++;
 
 	debugfs_snapshot_prepare_v3_hw(hisi_hba);
 
@@ -3704,6 +3703,7 @@ static void debugfs_snapshot_regs_v3_hw(struct hisi_hba *hisi_hba)
 	debugfs_create_files_v3_hw(hisi_hba);
 
 	debugfs_snapshot_restore_v3_hw(hisi_hba);
+	hisi_hba->debugfs_dump_index++;
 }
 
 static ssize_t debugfs_trigger_dump_v3_hw_write(struct file *file,
