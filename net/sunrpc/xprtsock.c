@@ -2104,12 +2104,15 @@ static void xs_tcp_shutdown(struct rpc_xprt *xprt)
 		return;
 	}
 	switch (skst) {
-	default:
+	case TCP_FIN_WAIT1:
+	case TCP_FIN_WAIT2:
+		break;
+	case TCP_ESTABLISHED:
+	case TCP_CLOSE_WAIT:
 		kernel_sock_shutdown(sock, SHUT_RDWR);
 		trace_rpc_socket_shutdown(xprt, sock);
 		break;
-	case TCP_CLOSE:
-	case TCP_TIME_WAIT:
+	default:
 		xs_reset_transport(transport);
 	}
 }
