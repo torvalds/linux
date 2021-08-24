@@ -457,7 +457,7 @@ int device_add_disk(struct device *parent, struct gendisk *disk,
 		if (ret < 0)
 			return ret;
 		disk->major = BLOCK_EXT_MAJOR;
-		disk->first_minor = MINOR(ret);
+		disk->first_minor = ret;
 		disk->flags |= GENHD_FL_EXT_DEVT;
 	}
 
