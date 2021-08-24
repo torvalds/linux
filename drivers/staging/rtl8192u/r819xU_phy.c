@@ -1186,11 +1186,11 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct sw_chnl_cmd *pre_cmd;
-	u32 pre_cmd_cnt;
+	u32 pre_cmd_cnt = 0;
 	struct sw_chnl_cmd *post_cmd;
-	u32 post_cmd_cnt;
+	u32 post_cmd_cnt = 0;
 	struct sw_chnl_cmd *rf_cmd;
-	u32 rf_cmd_cnt;
+	u32 rf_cmd_cnt = 0;
 	struct sw_chnl_cmd *current_cmd = NULL;
 	u8 e_rfpath;
 	bool ret;
@@ -1225,7 +1225,6 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 	/* FIXME: need to check whether channel is legal or not here */
 
 	/* <1> Fill up pre common command. */
-	pre_cmd_cnt = 0;
 	rtl8192_phy_SetSwChnlCmdArray(pre_cmd, pre_cmd_cnt++,
 				      MAX_PRECMD_CNT, CMD_ID_SET_TX_PWR_LEVEL,
 				      0, 0, 0);
@@ -1233,12 +1232,10 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 				      MAX_PRECMD_CNT, CMD_ID_END, 0, 0, 0);
 
 	/* <2> Fill up post common command. */
-	post_cmd_cnt = 0;
 	rtl8192_phy_SetSwChnlCmdArray(post_cmd, post_cmd_cnt++,
 				      MAX_POSTCMD_CNT, CMD_ID_END, 0, 0, 0);
 
 	/* <3> Fill up RF dependent command. */
-	rf_cmd_cnt = 0;
 	switch (priv->rf_chip) {
 	case RF_8225:
 		if (!(channel >= 1 && channel <= 14)) {
