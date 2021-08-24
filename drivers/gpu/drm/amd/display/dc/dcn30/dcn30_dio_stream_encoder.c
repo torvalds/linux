@@ -77,7 +77,8 @@ static void enc3_update_hdmi_info_packet(
 		enc1->base.vpg->funcs->update_generic_info_packet(
 				enc1->base.vpg,
 				packet_index,
-				info_packet);
+				info_packet,
+				true);
 
 		/* enable transmission of packet(s) -
 		 * packet transmission begins on the next frame */
@@ -335,7 +336,8 @@ static void enc3_dp_set_dsc_config(struct stream_encoder *enc,
 
 static void enc3_dp_set_dsc_pps_info_packet(struct stream_encoder *enc,
 					bool enable,
-					uint8_t *dsc_packed_pps)
+					uint8_t *dsc_packed_pps,
+					bool immediate_update)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
@@ -365,7 +367,8 @@ static void enc3_dp_set_dsc_pps_info_packet(struct stream_encoder *enc,
 			enc1->base.vpg->funcs->update_generic_info_packet(
 							enc1->base.vpg,
 							11 + i,
-							&pps_sdp);
+							&pps_sdp,
+							immediate_update);
 		}
 
 		/* SW should make sure VBID[6] update line number is bigger
@@ -429,19 +432,22 @@ static void enc3_stream_encoder_update_dp_info_packets(
 		enc->vpg->funcs->update_generic_info_packet(
 				enc->vpg,
 				0,  /* packetIndex */
-				&info_frame->vsc);
+				&info_frame->vsc,
+				true);
 	}
 	if (info_frame->spd.valid) {
 		enc->vpg->funcs->update_generic_info_packet(
 				enc->vpg,
 				2,  /* packetIndex */
-				&info_frame->spd);
+				&info_frame->spd,
+				true);
 	}
 	if (info_frame->hdrsmd.valid) {
 		enc->vpg->funcs->update_generic_info_packet(
 				enc->vpg,
 				3,  /* packetIndex */
-				&info_frame->hdrsmd);
+				&info_frame->hdrsmd,
+				true);
 	}
 	/* packetIndex 4 is used for send immediate sdp message, and please
 	 * use other packetIndex (such as 5,6) for other info packet

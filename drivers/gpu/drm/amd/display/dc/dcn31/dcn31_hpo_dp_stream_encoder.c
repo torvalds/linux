@@ -442,21 +442,24 @@ static void dcn31_hpo_dp_stream_enc_update_dp_info_packets(
 		enc->vpg->funcs->update_generic_info_packet(
 				enc->vpg,
 				0,  /* packetIndex */
-				&info_frame->vsc);
+				&info_frame->vsc,
+				true);
 		sdp_stream_enable = true;
 	}
 	if (info_frame->spd.valid) {
 		enc->vpg->funcs->update_generic_info_packet(
 				enc->vpg,
 				2,  /* packetIndex */
-				&info_frame->spd);
+				&info_frame->spd,
+				true);
 		sdp_stream_enable = true;
 	}
 	if (info_frame->hdrsmd.valid) {
 		enc->vpg->funcs->update_generic_info_packet(
 				enc->vpg,
 				3,  /* packetIndex */
-				&info_frame->hdrsmd);
+				&info_frame->hdrsmd,
+				true);
 		sdp_stream_enable = true;
 	}
 	/* enable/disable transmission of packet(s).
@@ -520,7 +523,8 @@ static uint32_t hpo_dp_is_gsp_enabled(
 static void dcn31_hpo_dp_stream_enc_set_dsc_pps_info_packet(
 		struct hpo_dp_stream_encoder *enc,
 		bool enable,
-		uint8_t *dsc_packed_pps)
+		uint8_t *dsc_packed_pps,
+		bool immediate_update)
 {
 	struct dcn31_hpo_dp_stream_encoder *enc3 = DCN3_1_HPO_DP_STREAM_ENC_FROM_HPO_STREAM_ENC(enc);
 
@@ -544,7 +548,8 @@ static void dcn31_hpo_dp_stream_enc_set_dsc_pps_info_packet(
 			enc3->base.vpg->funcs->update_generic_info_packet(
 							enc3->base.vpg,
 							11 + i,
-							&pps_sdp);
+							&pps_sdp,
+							immediate_update);
 		}
 
 		/* SW should make sure VBID[6] update line number is bigger

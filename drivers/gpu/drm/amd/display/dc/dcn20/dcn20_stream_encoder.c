@@ -292,7 +292,8 @@ static void enc2_dp_set_dsc_config(struct stream_encoder *enc,
 
 static void enc2_dp_set_dsc_pps_info_packet(struct stream_encoder *enc,
 					bool enable,
-					uint8_t *dsc_packed_pps)
+					uint8_t *dsc_packed_pps,
+					bool immediate_update)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
