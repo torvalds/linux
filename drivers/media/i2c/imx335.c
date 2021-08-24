@@ -10,6 +10,7 @@
  * V0.0X01.0X03 add hdr_mode in enum frame interval
  * V0.0X01.0X04 fix hdr ae error
  * V0.0X01.0X05 add quick stream on/off
+ * V0.0X01.0X06 Increase hdr exposure restrictions
  */
 
 #define DEBUG
@@ -32,7 +33,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -924,7 +925,14 @@ static int imx335_set_hdrae(struct imx335 *imx335,
 
 	rhs1_max = min(RHS1_MAX, shr0 - SHR1_MIN);
 	rhs1_max = (rhs1_max & ~0x7) + 2;
-	rhs1_min = (SHR1_MIN + 4u + 7u) / 8 * 8 + 2;
+	rhs1_min = max(SHR1_MIN + 4u, rhs1_old + 2 * BRL - fsc + 2);
+	rhs1_min = (rhs1_min + 7u) / 8 * 8 + 2;
+	if (rhs1_max < rhs1_min) {
+		dev_err(&client->dev,
+			"The total exposure limit makes rhs1 max is %d,but old rhs1 limit makes rhs1 min is %d\n",
+			rhs1_max, rhs1_min);
+		return -EINVAL;
+	}
 
 	rhs1 = SHR1_MIN + s_exp_time;
 	rhs1 = (rhs1 & ~0x7) + 2; /* shall be 8n + 2 */
@@ -932,7 +940,6 @@ static int imx335_set_hdrae(struct imx335 *imx335,
 		rhs1 = rhs1_max;
 	if (rhs1 < rhs1_min)
 		rhs1 = rhs1_min;
-
 	dev_dbg(&client->dev,
 		"line(%d) rhs1 %d, short time %d rhs1_old %d, rhs1_new %d, rhs1_min %d rhs1_max %d\n",
 		__LINE__, rhs1, s_exp_time, rhs1_old, rhs1, rhs1_min, rhs1_max);
@@ -1106,6 +1113,12 @@ static int imx335_set_hdrae_3frame(struct imx335 *imx335,
 	rhs1_change_limit = rhs1_old + 3 * BRL - fsc + 3;
 	rhs1_change_limit = (rhs1_change_limit < 32) ? 32 : rhs1_change_limit;
 	rhs1_change_limit = (rhs1_change_limit + 11) / 12 * 12 + 2;
+	if (rhs1_max < rhs1_change_limit) {
+		dev_err(&client->dev,
+			"The total exposure limit makes rhs1 max is %d,but old rhs1 limit makes rhs1 min is %d\n",
+			rhs1_max, rhs1_change_limit);
+		return -EINVAL;
+	}
 	if (rhs1 < rhs1_change_limit)
 		rhs1 = rhs1_change_limit;
 
@@ -1137,6 +1150,12 @@ static int imx335_set_hdrae_3frame(struct imx335 *imx335,
 	rhs2_change_limit = rhs2_old + 3 * BRL - fsc + 3;
 	rhs2_change_limit = (rhs2_change_limit < 64) ?  64 : rhs2_change_limit;
 	rhs2_change_limit = (rhs2_change_limit + 11) / 12 * 12 + 4;
+	if ((shr0 - 26) < rhs2_change_limit) {
+		dev_err(&client->dev,
+			"The total exposure limit makes rhs2 max is %d,but old rhs1 limit makes rhs2 min is %d\n",
+			shr0 - 26, rhs2_change_limit);
+		return -EINVAL;
+	}
 	if (rhs2 < rhs2_change_limit)
 		rhs2 = rhs2_change_limit;
 
