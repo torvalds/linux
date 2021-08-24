@@ -74,7 +74,7 @@ SECTIONS
 	BOOT_DATA_PRESERVED
 
 	. = ALIGN(8);
-	.amod31.refs : {
+	.amode31.refs : {
 		_start_amode31_refs = .;
 		*(.amode31.refs)
 		_end_amode31_refs = .;
