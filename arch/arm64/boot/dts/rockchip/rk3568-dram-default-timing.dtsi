@@ -7,6 +7,397 @@
 #include <dt-bindings/memory/rk3568-dram.h>
 
 / {
+	ddr3_params: ddr3-params {
+		/* version information */
+		version = <0x100>;
+		expanded_version = <IGNORE_THIS>;
+		reserved = <IGNORE_THIS>;
+		/* freq info, freq_0 is final frequency, unit: MHz */
+		freq_0 = <1056>;
+		freq_1 = <324>;
+		freq_2 = <528>;
+		freq_3 = <780>;
+		freq_4 = <IGNORE_THIS>;
+		freq_5 = <IGNORE_THIS>;
+		/* power save setting */
+		pd_idle = <13>;
+		sr_idle = <93>;
+		sr_mc_gate_idle = <0>;
+		srpd_lite_idle = <0>;
+		standby_idle = <0>;
+		pd_dis_freq = <1066>;
+		sr_dis_freq = <800>;
+		dram_dll_dis_freq = <300>;
+		phy_dll_dis_freq = <IGNORE_THIS>;
+		/* drv when odt on */
+		phy_dq_drv_odten = <33>;
+		phy_ca_drv_odten = <33>;
+		phy_clk_drv_odten = <33>;
+		dram_dq_drv_odten = <34>;
+		/* drv when odt off */
+		phy_dq_drv_odtoff = <33>;
+		phy_ca_drv_odtoff = <33>;
+		phy_clk_drv_odtoff = <33>;
+		dram_dq_drv_odtoff = <34>;
+		/* odt info */
+		dram_odt = <120>;
+		phy_odt = <167>;
+		phy_odt_puup_en = <1>;
+		phy_odt_pudn_en = <1>;
+		/* odt enable freq */
+		dram_dq_odt_en_freq = <333>;
+		phy_odt_en_freq = <333>;
+		/* slew rate when odt enable */
+		phy_dq_sr_odten = <0xf>;
+		phy_ca_sr_odten = <0x3>;
+		phy_clk_sr_odten = <0x0>;
+		/* slew rate when odt disable */
+		phy_dq_sr_odtoff = <0xf>;
+		phy_ca_sr_odtoff = <0x3>;
+		phy_clk_sr_odtoff = <0x0>;
+		/* ssmod setting*/
+		ssmod_downspread = <0>;
+		ssmod_div = <0>;
+		ssmod_spread = <0>;
+		/* 2T mode */
+		mode_2t = <IGNORE_THIS>;
+		/* speed bin */
+		speed_bin = <DDR3_DEFAULT>;
+		/* dram extended temperature support */
+		dram_ext_temp = <0>;
+		/* byte map */
+		byte_map = <((0x3 << 6) | (0x2 << 4) | (0x1 << 2) | (0x0 << 0))>;
+		/* dq map */
+		dq_map_cs0_dq_l = <0>;
+		dq_map_cs0_dq_h = <0>;
+		dq_map_cs1_dq_l = <0>;
+		dq_map_cs1_dq_h = <0>;
+	};
+
+	ddr4_params: ddr4-params {
+		/* version information */
+		version = <0x100>;
+		expanded_version = <IGNORE_THIS>;
+		reserved = <IGNORE_THIS>;
+		/* freq info, freq_0 is final frequency, unit: MHz */
+		freq_0 = <1056>;
+		freq_1 = <324>;
+		freq_2 = <528>;
+		freq_3 = <780>;
+		freq_4 = <IGNORE_THIS>;
+		freq_5 = <IGNORE_THIS>;
+		/* power save setting */
+		pd_idle = <13>;
+		sr_idle = <93>;
+		sr_mc_gate_idle = <0>;
+		srpd_lite_idle = <0>;
+		standby_idle = <0>;
+		pd_dis_freq = <1066>;
+		sr_dis_freq = <800>;
+		dram_dll_dis_freq = <625>;
+		phy_dll_dis_freq = <IGNORE_THIS>;
+		/* drv when odt on */
+		phy_dq_drv_odten = <37>;
+		phy_ca_drv_odten = <37>;
+		phy_clk_drv_odten = <37>;
+		dram_dq_drv_odten = <34>;
+		/* drv when odt off */
+		phy_dq_drv_odtoff = <37>;
+		phy_ca_drv_odtoff = <37>;
+		phy_clk_drv_odtoff = <37>;
+		dram_dq_drv_odtoff = <34>;
+		/* odt info */
+		dram_odt = <120>;
+		phy_odt = <139>;
+		phy_odt_puup_en = <1>;
+		phy_odt_pudn_en = <1>;
+		/* odt enable freq */
+		dram_dq_odt_en_freq = <500>;
+		phy_odt_en_freq = <500>;
+		/* slew rate when odt enable */
+		phy_dq_sr_odten = <0xe>;
+		phy_ca_sr_odten = <0x1>;
+		phy_clk_sr_odten = <0x1>;
+		/* slew rate when odt disable */
+		phy_dq_sr_odtoff = <0xe>;
+		phy_ca_sr_odtoff = <0x1>;
+		phy_clk_sr_odtoff = <0x1>;
+		/* ssmod setting*/
+		ssmod_downspread = <0>;
+		ssmod_div = <0>;
+		ssmod_spread = <0>;
+		/* 2T mode */
+		mode_2t = <IGNORE_THIS>;
+		/* speed bin */
+		speed_bin = <DDR4_DEFAULT>;
+		/* dram extended temperature support */
+		dram_ext_temp = <0>;
+		/* byte map */
+		byte_map = <((0x3 << 6) | (0x2 << 4) | (0x1 << 2) | (0x0 << 0))>;
+		/* dq map */
+		dq_map_cs0_dq_l = <(((0 << 0 | 2 << 2 | 0 << 4 | 2 << 6) << 0) | \
+				    ((3 << 0 | 1 << 2 | 3 << 4 | 1 << 6) << 8) | \
+				    ((3 << 0 | 1 << 2 | 3 << 4 | 1 << 6) << 16) | \
+				    ((2 << 0 | 0 << 2 | 2 << 4 | 0 << 6) << 24))>;
+		dq_map_cs0_dq_h = <(((3 << 0 | 1 << 2 | 3 << 4 | 1 << 6) << 0) | \
+				    ((0 << 0 | 2 << 2 | 0 << 4 | 2 << 6) << 8) | \
+				    ((0 << 0 | 2 << 2 | 0 << 4 | 2 << 6) << 16) | \
+				    ((3 << 0 | 1 << 2 | 1 << 4 | 3 << 6) << 24))>;
+		dq_map_cs1_dq_l = <(((0 << 0 | 2 << 2 | 0 << 4 | 2 << 6) << 0) | \
+				    ((3 << 0 | 1 << 2 | 3 << 4 | 1 << 6) << 8) | \
+				    ((3 << 0 | 1 << 2 | 3 << 4 | 1 << 6) << 16) | \
+				    ((2 << 0 | 0 << 2 | 2 << 4 | 0 << 6) << 24))>;
+		dq_map_cs1_dq_h = <(((3 << 0 | 1 << 2 | 3 << 4 | 1 << 6) << 0) | \
+				    ((0 << 0 | 2 << 2 | 0 << 4 | 2 << 6) << 8) | \
+				    ((0 << 0 | 2 << 2 | 0 << 4 | 2 << 6) << 16) | \
+				    ((3 << 0 | 1 << 2 | 1 << 4 | 3 << 6) << 24))>;
+	};
+
+	lpddr3_params: lpddr3-params {
+		/* version information */
+		version = <0x100>;
+		expanded_version = <IGNORE_THIS>;
+		reserved = <IGNORE_THIS>;
+		/* freq info, freq_0 is final frequency, unit: MHz */
+		freq_0 = <1056>;
+		freq_1 = <324>;
+		freq_2 = <528>;
+		freq_3 = <780>;
+		freq_4 = <IGNORE_THIS>;
+		freq_5 = <IGNORE_THIS>;
+		/* power save setting */
+		pd_idle = <13>;
+		sr_idle = <93>;
+		sr_mc_gate_idle = <0>;
+		srpd_lite_idle = <0>;
+		standby_idle = <0>;
+		pd_dis_freq = <1066>;
+		sr_dis_freq = <800>;
+		dram_dll_dis_freq = <IGNORE_THIS>;
+		phy_dll_dis_freq = <IGNORE_THIS>;
+		/* drv when odt on */
+		phy_dq_drv_odten = <37>;
+		phy_ca_drv_odten = <37>;
+		phy_clk_drv_odten = <39>;
+		dram_dq_drv_odten = <34>;
+		/* drv when odt off */
+		phy_dq_drv_odtoff = <37>;
+		phy_ca_drv_odtoff = <37>;
+		phy_clk_drv_odtoff = <39>;
+		dram_dq_drv_odtoff = <34>;
+		/* odt info */
+		dram_odt = <120>;
+		phy_odt = <148>;
+		phy_odt_puup_en = <1>;
+		phy_odt_pudn_en = <1>;
+		/* odt enable freq */
+		dram_dq_odt_en_freq = <333>;
+		phy_odt_en_freq = <333>;
+		/* slew rate when odt enable */
+		phy_dq_sr_odten = <0xf>;
+		phy_ca_sr_odten = <0x1>;
+		phy_clk_sr_odten = <0xf>;
+		/* slew rate when odt disable */
+		phy_dq_sr_odtoff = <0xf>;
+		phy_ca_sr_odtoff = <0x1>;
+		phy_clk_sr_odtoff = <0xf>;
+		/* ssmod setting*/
+		ssmod_downspread = <0>;
+		ssmod_div = <0>;
+		ssmod_spread = <0>;
+		/* 2T mode */
+		mode_2t = <IGNORE_THIS>;
+		/* speed bin */
+		speed_bin = <IGNORE_THIS>;
+		/* dram extended temperature support */
+		dram_ext_temp = <0>;
+		/* byte map */
+		byte_map = <((0x2 << 6) | (0x0 << 4) | (0x3 << 2) | (0x1 << 0))>;
+		/* dq map */
+		dq_map_cs0_dq_l = <0>;
+		dq_map_cs0_dq_h = <0>;
+		dq_map_cs1_dq_l = <0>;
+		dq_map_cs1_dq_h = <0>;
+	};
+
+	lpddr4_params: lpddr4-params {
+		/* version information */
+		version = <0x100>;
+		expanded_version = <IGNORE_THIS>;
+		reserved = <IGNORE_THIS>;
+		/* freq info, freq_0 is final frequency, unit: MHz */
+		freq_0 = <1560>;
+		freq_1 = <324>;
+		freq_2 = <528>;
+		freq_3 = <780>;
+		freq_4 = <IGNORE_THIS>;
+		freq_5 = <IGNORE_THIS>;
+		/* power save setting */
+		pd_idle = <13>;
+		sr_idle = <93>;
+		sr_mc_gate_idle = <0>;
+		srpd_lite_idle = <0>;
+		standby_idle = <0>;
+		pd_dis_freq = <1066>;
+		sr_dis_freq = <800>;
+		dram_dll_dis_freq = <IGNORE_THIS>;
+		phy_dll_dis_freq = <IGNORE_THIS>;
+		/* drv when odt on */
+		phy_dq_drv_odten = <30>;
+		phy_ca_drv_odten = <38>;
+		phy_clk_drv_odten = <38>;
+		dram_dq_drv_odten = <40>;
+		/* drv when odt off */
+		phy_dq_drv_odtoff = <30>;
+		phy_ca_drv_odtoff = <38>;
+		phy_clk_drv_odtoff = <38>;
+		dram_dq_drv_odtoff = <40>;
+		/* odt info */
+		dram_odt = <80>;
+		phy_odt = <60>;
+		phy_odt_puup_en = <IGNORE_THIS>;
+		phy_odt_pudn_en = <IGNORE_THIS>;
+		/* odt enable freq */
+		dram_dq_odt_en_freq = <800>;
+		phy_odt_en_freq = <800>;
+		/* slew rate when odt enable */
+		phy_dq_sr_odten = <0x0>;
+		phy_ca_sr_odten = <0xf>;
+		phy_clk_sr_odten = <0xf>;
+		/* slew rate when odt disable */
+		phy_dq_sr_odtoff = <0x0>;
+		phy_ca_sr_odtoff = <0xf>;
+		phy_clk_sr_odtoff = <0xf>;
+		/* ssmod setting*/
+		ssmod_downspread = <0>;
+		ssmod_div = <0>;
+		ssmod_spread = <0>;
+		/* 2T mode */
+		mode_2t = <IGNORE_THIS>;
+		/* speed bin */
+		speed_bin = <IGNORE_THIS>;
+		/* dram extended temperature support */
+		dram_ext_temp = <0>;
+		/* byte map */
+		byte_map = <((0x3 << 6) | (0x2 << 4) | (0x1 << 2) | (0x0 << 0))>;
+		/* dq map */
+		dq_map_cs0_dq_l = <0>;
+		dq_map_cs0_dq_h = <0>;
+		dq_map_cs1_dq_l = <0>;
+		dq_map_cs1_dq_h = <0>;
+		/* lp4 odt info */
+		lp4_ca_odt = <120>;
+		lp4_drv_pu_cal_odten = <LP4_VDDQ_3>;
+		lp4_drv_pu_cal_odtoff = <LP4_VDDQ_3>;
+		phy_lp4_drv_pulldown_en_odten = <0>;
+		phy_lp4_drv_pulldown_en_odtoff = <0>;
+		/* lp4 odt enable freq */
+		lp4_ca_odt_en_freq = <800>;
+		/* lp4 cs drv info and ca odt info */
+		phy_lp4_cs_drv_odten = <0>;
+		phy_lp4_cs_drv_odtoff = <0>;
+		lp4_odte_ck_en = <1>;
+		lp4_odte_cs_en = <1>;
+		lp4_odtd_ca_en = <0>;
+		/* lp4 vref info when odt enable */
+		phy_lp4_dq_vref_odten = <166>;
+		lp4_dq_vref_odten = <300>;
+		lp4_ca_vref_odten = <380>;
+		/* lp4 vref info when odt disable */
+		phy_lp4_dq_vref_odtoff = <420>;
+		lp4_dq_vref_odtoff = <420>;
+		lp4_ca_vref_odtoff = <420>;
+	};
+
+	lpddr4x_params: lpddr4x-params {
+		/* version information */
+		version = <0x100>;
+		expanded_version = <IGNORE_THIS>;
+		reserved = <IGNORE_THIS>;
+		/* freq info, freq_0 is final frequency, unit: MHz */
+		freq_0 = <1560>;
+		freq_1 = <324>;
+		freq_2 = <528>;
+		freq_3 = <780>;
+		freq_4 = <IGNORE_THIS>;
+		freq_5 = <IGNORE_THIS>;
+		/* power save setting */
+		pd_idle = <13>;
+		sr_idle = <93>;
+		sr_mc_gate_idle = <0>;
+		srpd_lite_idle = <0>;
+		standby_idle = <0>;
+		pd_dis_freq = <1066>;
+		sr_dis_freq = <800>;
+		dram_dll_dis_freq = <IGNORE_THIS>;
+		phy_dll_dis_freq = <IGNORE_THIS>;
+		/* drv when odt on */
+		phy_dq_drv_odten = <29>;
+		phy_ca_drv_odten = <36>;
+		phy_clk_drv_odten = <36>;
+		dram_dq_drv_odten = <40>;
+		/* drv when odt off */
+		phy_dq_drv_odtoff = <29>;
+		phy_ca_drv_odtoff = <36>;
+		phy_clk_drv_odtoff = <36>;
+		dram_dq_drv_odtoff = <40>;
+		/* odt info */
+		dram_odt = <80>;
+		phy_odt = <60>;
+		phy_odt_puup_en = <IGNORE_THIS>;
+		phy_odt_pudn_en = <IGNORE_THIS>;
+		/* odt enable freq */
+		dram_dq_odt_en_freq = <800>;
+		phy_odt_en_freq = <800>;
+		/* slew rate when odt enable */
+		phy_dq_sr_odten = <0x0>;
+		phy_ca_sr_odten = <0x0>;
+		phy_clk_sr_odten = <0x0>;
+		/* slew rate when odt disable */
+		phy_dq_sr_odtoff = <0x0>;
+		phy_ca_sr_odtoff = <0x0>;
+		phy_clk_sr_odtoff = <0x0>;
+		/* ssmod setting*/
+		ssmod_downspread = <0>;
+		ssmod_div = <0>;
+		ssmod_spread = <0>;
+		/* 2T mode */
+		mode_2t = <IGNORE_THIS>;
+		/* speed bin */
+		speed_bin = <IGNORE_THIS>;
+		/* dram extended temperature support */
+		dram_ext_temp = <0>;
+		/* byte map */
+		byte_map = <((0x3 << 6) | (0x2 << 4) | (0x1 << 2) | (0x0 << 0))>;
+		/* dq map */
+		dq_map_cs0_dq_l = <0>;
+		dq_map_cs0_dq_h = <0>;
+		dq_map_cs1_dq_l = <0>;
+		dq_map_cs1_dq_h = <0>;
+		/* lp4 odt info */
+		lp4_ca_odt = <120>;
+		lp4_drv_pu_cal_odten = <LP4X_VDDQ_0_6>;
+		lp4_drv_pu_cal_odtoff = <LP4X_VDDQ_0_6>;
+		phy_lp4_drv_pulldown_en_odten = <0>;
+		phy_lp4_drv_pulldown_en_odtoff = <0>;
+		/* odt enable freq */
+		lp4_ca_odt_en_freq = <800>;
+		/* lp4 cs drv info and ca odt info */
+		phy_lp4_cs_drv_odten = <0>;
+		phy_lp4_cs_drv_odtoff = <0>;
+		lp4_odte_ck_en = <0>;
+		lp4_odte_cs_en = <0>;
+		lp4_odtd_ca_en = <0>;
+		/* lp4 vref info when odt enable */
+		phy_lp4_dq_vref_odten = <166>;
+		lp4_dq_vref_odten = <228>;
+		lp4_ca_vref_odten = <343>;
+		/* lp4 vref info when odt disable */
+		phy_lp4_dq_vref_odtoff = <420>;
+		lp4_dq_vref_odtoff = <420>;
+		lp4_ca_vref_odtoff = <343>;
+	};
+
 	ddr_timing: ddr_timing {
 		compatible = "rockchip,ddr-timing";
 		ddr2_speed_bin = <DDR2_DEFAULT>;
