@@ -668,10 +668,14 @@ struct mt76_connac_bss_basic_tlv {
 		     * bit(3): GN
 		     * bit(4): AN
 		     * bit(5): AC
+		     * bit(6): AX2
+		     * bit(7): AX5
+		     * bit(8): AX6
 		     */
 	__le16 sta_idx;
-	u8 nonht_basic_phy;
-	u8 pad[3];
+	__le16 nonht_basic_phy;
+	u8 phymode_ext; /* bit(0) AX_6G */
+	u8 pad[1];
 } __packed;
 
 struct mt76_connac_bss_qos_tlv {

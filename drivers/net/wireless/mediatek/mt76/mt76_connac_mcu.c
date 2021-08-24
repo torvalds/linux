@@ -1292,7 +1292,8 @@ int mt76_connac_mcu_uni_add_bss(struct mt76_phy *phy,
 			u8 short_st;
 			u8 ht_op_info;
 			u8 sco;
-			u8 pad[3];
+			u8 band;
+			u8 pad[2];
 		} __packed rlm;
 	} __packed rlm_req = {
 		.hdr = {
@@ -1308,13 +1309,19 @@ int mt76_connac_mcu_uni_add_bss(struct mt76_phy *phy,
 			.ht_op_info = 4, /* set HT 40M allowed */
 			.rx_streams = phy->chainmask,
 			.short_st = true,
+			.band = band,
 		},
 	};
 	int err, conn_type;
-	u8 idx;
+	u8 idx, basic_phy;
 
 	idx = mvif->omac_idx > EXT_BSSID_START ? HW_BSSID_0 : mvif->omac_idx;
 	basic_req.basic.hw_bss_idx = idx;
+	if (band == NL80211_BAND_6GHZ)
+		basic_req.basic.phymode_ext = BIT(0);
+
+	basic_phy = mt76_connac_get_phy_mode_v2(phy, vif, band, NULL);
+	basic_req.basic.nonht_basic_phy = cpu_to_le16(basic_phy);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_MESH_POINT:
