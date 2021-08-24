@@ -413,6 +413,8 @@ static int mhi_pm_mission_mode_transition(struct mhi_controller *mhi_cntrl)
 
 	wake_up_all(&mhi_cntrl->state_event);
 
+	mhi_reset_reg_write_q(mhi_cntrl);
+
 	device_for_each_child(&mhi_cntrl->mhi_dev->dev, &current_ee,
 			      mhi_destroy_device);
 	mhi_cntrl->status_cb(mhi_cntrl, MHI_CB_EE_MISSION_MODE);
@@ -465,6 +467,8 @@ static void mhi_pm_disable_transition(struct mhi_controller *mhi_cntrl)
 
 	dev_dbg(dev, "Processing disable transition with PM state: %s\n",
 		to_mhi_pm_state_str(mhi_cntrl->pm_state));
+
+	mhi_reset_reg_write_q(mhi_cntrl);
 
 	mutex_lock(&mhi_cntrl->pm_mutex);
 
@@ -879,6 +883,9 @@ int mhi_pm_suspend(struct mhi_controller *mhi_cntrl)
 	write_unlock_irq(&mhi_cntrl->pm_lock);
 	dev_dbg(dev, "Waiting for M3 completion\n");
 
+	/* finish reg writes before D3 cold */
+	mhi_force_reg_write(mhi_cntrl);
+
 	ret = wait_event_timeout(mhi_cntrl->state_event,
 				 mhi_cntrl->dev_state == MHI_STATE_M3 ||
 				 MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state),
@@ -995,6 +1002,8 @@ int __mhi_device_get_sync(struct mhi_controller *mhi_cntrl)
 		mhi_trigger_resume(mhi_cntrl);
 	read_unlock_bh(&mhi_cntrl->pm_lock);
 
+	mhi_force_reg_write(mhi_cntrl);
+
 	ret = wait_event_timeout(mhi_cntrl->state_event,
 				 mhi_cntrl->pm_state == MHI_PM_M0 ||
 				 MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state),
@@ -1024,7 +1033,10 @@ static void mhi_assert_dev_wake(struct mhi_controller *mhi_cntrl, bool force)
 		atomic_inc(&mhi_cntrl->dev_wake);
 		if (MHI_WAKE_DB_FORCE_SET_VALID(mhi_cntrl->pm_state) &&
 		    !mhi_cntrl->wake_set) {
-			mhi_write_db(mhi_cntrl, mhi_cntrl->wake_db, 1);
+			if (mhi_cntrl->db_access & MHI_PM_M2)
+				mhi_write_db(mhi_cntrl, mhi_cntrl->wake_db, 1);
+			else
+				mhi_write_offload_wakedb(mhi_cntrl, 1);
 			mhi_cntrl->wake_set = true;
 		}
 		spin_unlock_irqrestore(&mhi_cntrl->wlock, flags);
@@ -1040,7 +1052,10 @@ static void mhi_assert_dev_wake(struct mhi_controller *mhi_cntrl, bool force)
 		if ((atomic_inc_return(&mhi_cntrl->dev_wake) == 1) &&
 		    MHI_WAKE_DB_SET_VALID(mhi_cntrl->pm_state) &&
 		    !mhi_cntrl->wake_set) {
-			mhi_write_db(mhi_cntrl, mhi_cntrl->wake_db, 1);
+			if (mhi_cntrl->db_access & MHI_PM_M2)
+				mhi_write_db(mhi_cntrl, mhi_cntrl->wake_db, 1);
+			else
+				mhi_write_offload_wakedb(mhi_cntrl, 1);
 			mhi_cntrl->wake_set = true;
 		}
 		spin_unlock_irqrestore(&mhi_cntrl->wlock, flags);
@@ -1064,7 +1079,10 @@ static void mhi_deassert_dev_wake(struct mhi_controller *mhi_cntrl,
 	if ((atomic_dec_return(&mhi_cntrl->dev_wake) == 0) &&
 	    MHI_WAKE_DB_CLEAR_VALID(mhi_cntrl->pm_state) && !override &&
 	    mhi_cntrl->wake_set) {
-		mhi_write_db(mhi_cntrl, mhi_cntrl->wake_db, 0);
+		if (mhi_cntrl->db_access & MHI_PM_M2)
+			mhi_write_db(mhi_cntrl, mhi_cntrl->wake_db, 0);
+		else
+			mhi_write_offload_wakedb(mhi_cntrl, 0);
 		mhi_cntrl->wake_set = false;
 	}
 	spin_unlock_irqrestore(&mhi_cntrl->wlock, flags);
