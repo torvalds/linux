@@ -26,7 +26,6 @@
 #include "sja1105_tas.h"
 
 #define SJA1105_UNKNOWN_MULTICAST	0x010000000000ull
-#define SJA1105_DEFAULT_VLAN		(VLAN_N_VID - 1)
 
 static void sja1105_hw_reset(struct gpio_desc *gpio, unsigned int pulse_len,
 			     unsigned int startup_delay)
@@ -136,6 +135,9 @@ static int sja1105_commit_pvid(struct dsa_switch *ds, int port)
 			drop_untagged = true;
 	}
 
+	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
+		drop_untagged = true;
+
 	return sja1105_drop_untagged(ds, port, drop_untagged);
 }
 
@@ -217,6 +219,12 @@ static int sja1105_init_mac_settings(struct sja1105_private *priv)
 		 */
 		if (dsa_port_is_dsa(dp))
 			dp->learning = true;
+
+		/* Disallow untagged packets from being received on the
+		 * CPU and DSA ports.
+		 */
+		if (dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp))
+			mac[dp->index].drpuntag = true;
 	}
 
 	return 0;

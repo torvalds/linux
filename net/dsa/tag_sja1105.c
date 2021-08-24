@@ -168,6 +168,36 @@ static struct sk_buff *sja1105_imprecise_xmit(struct sk_buff *skb,
 	return dsa_8021q_xmit(skb, netdev, sja1105_xmit_tpid(dp), tx_vid);
 }
 
+/* Transform untagged control packets into pvid-tagged control packets so that
+ * all packets sent by this tagger are VLAN-tagged and we can configure the
+ * switch to drop untagged packets coming from the DSA master.
+ */
+static struct sk_buff *sja1105_pvid_tag_control_pkt(struct dsa_port *dp,
+						    struct sk_buff *skb, u8 pcp)
+{
+	__be16 xmit_tpid = htons(sja1105_xmit_tpid(dp));
+	struct vlan_ethhdr *hdr;
+
+	/* If VLAN tag is in hwaccel area, move it to the payload
+	 * to deal with both cases uniformly and to ensure that
+	 * the VLANs are added in the right order.
+	 */
+	if (unlikely(skb_vlan_tag_present(skb))) {
+		skb = __vlan_hwaccel_push_inside(skb);
+		if (!skb)
+			return NULL;
+	}
+
+	hdr = (struct vlan_ethhdr *)skb_mac_header(skb);
+
+	/* If skb is already VLAN-tagged, leave that VLAN ID in place */
+	if (hdr->h_vlan_proto == xmit_tpid)
+		return skb;
+
+	return vlan_insert_tag(skb, xmit_tpid, (pcp << VLAN_PRIO_SHIFT) |
+			       SJA1105_DEFAULT_VLAN);
+}
+
 static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
 				    struct net_device *netdev)
 {
@@ -183,8 +213,13 @@ static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
 	 * but instead SPI-installed management routes. Part 2 of this
 	 * is the .port_deferred_xmit driver callback.
 	 */
-	if (unlikely(sja1105_is_link_local(skb)))
+	if (unlikely(sja1105_is_link_local(skb))) {
+		skb = sja1105_pvid_tag_control_pkt(dp, skb, pcp);
+		if (!skb)
+			return NULL;
+
 		return sja1105_defer_xmit(dp, skb);
+	}
 
 	return dsa_8021q_xmit(skb, netdev, sja1105_xmit_tpid(dp),
 			     ((pcp << VLAN_PRIO_SHIFT) | tx_vid));
@@ -212,6 +247,10 @@ static struct sk_buff *sja1110_xmit(struct sk_buff *skb,
 	if (likely(!sja1105_is_link_local(skb)))
 		return dsa_8021q_xmit(skb, netdev, sja1105_xmit_tpid(dp),
 				     ((pcp << VLAN_PRIO_SHIFT) | tx_vid));
+
+	skb = sja1105_pvid_tag_control_pkt(dp, skb, pcp);
+	if (!skb)
+		return NULL;
 
 	skb_push(skb, SJA1110_HEADER_LEN);
 
