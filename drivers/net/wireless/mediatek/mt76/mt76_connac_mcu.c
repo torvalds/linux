@@ -1458,7 +1458,17 @@ int mt76_connac_mcu_hw_scan(struct mt76_phy *phy, struct ieee80211_vif *vif,
 		else
 			chan = &req->channels[i];
 
-		chan->band = scan_list[i]->band == NL80211_BAND_2GHZ ? 1 : 2;
+		switch (scan_list[i]->band) {
+		case NL80211_BAND_2GHZ:
+			chan->band = 1;
+			break;
+		case NL80211_BAND_6GHZ:
+			chan->band = 3;
+			break;
+		default:
+			chan->band = 2;
+			break;
+		}
 		chan->channel_num = scan_list[i]->hw_value;
 	}
 	req->channel_type = sreq->n_channels ? 4 : 0;
@@ -1567,7 +1577,18 @@ int mt76_connac_mcu_sched_scan_req(struct mt76_phy *phy,
 	req->channels_num = min_t(u8, sreq->n_channels, 64);
 	for (i = 0; i < req->channels_num; i++) {
 		chan = &req->channels[i];
-		chan->band = scan_list[i]->band == NL80211_BAND_2GHZ ? 1 : 2;
+
+		switch (scan_list[i]->band) {
+		case NL80211_BAND_2GHZ:
+			chan->band = 1;
+			break;
+		case NL80211_BAND_6GHZ:
+			chan->band = 3;
+			break;
+		default:
+			chan->band = 2;
+			break;
+		}
 		chan->channel_num = scan_list[i]->hw_value;
 	}
 
