@@ -654,9 +654,20 @@
 			compatible = "qcom,sdm660-a2noc";
 			reg = <0x01704000 0xc100>;
 			#interconnect-cells = <1>;
-			clock-names = "bus", "bus_a";
+			clock-names = "bus",
+				      "bus_a",
+				      "ipa",
+				      "ufs_axi",
+				      "aggre2_ufs_axi",
+				      "aggre2_usb3_axi",
+				      "cfg_noc_usb2_axi";
 			clocks = <&rpmcc RPM_SMD_AGGR2_NOC_CLK>,
-				 <&rpmcc RPM_SMD_AGGR2_NOC_A_CLK>;
+				 <&rpmcc RPM_SMD_AGGR2_NOC_A_CLK>,
+				 <&rpmcc RPM_SMD_IPA_CLK>,
+				 <&gcc GCC_UFS_AXI_CLK>,
+				 <&gcc GCC_AGGRE2_UFS_AXI_CLK>,
+				 <&gcc GCC_AGGRE2_USB3_AXI_CLK>,
+				 <&gcc GCC_CFG_NOC_USB2_AXI_CLK>;
 		};
 
 		mnoc: interconnect@1745000 {
