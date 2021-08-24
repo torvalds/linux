@@ -2744,6 +2744,7 @@ int t4_seeprom_wp(struct adapter *adapter, bool enable)
 int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 {
 	int i, ret = 0, addr;
+	int ec, sn, pn, na;
 	u8 *vpd, csum, base_val = 0;
 	unsigned int vpdr_len, kw_offset, id_len;
 
@@ -2771,6 +2772,23 @@ int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	}
 
 	id_len = pci_vpd_lrdt_size(vpd);
+	if (id_len > ID_LEN)
+		id_len = ID_LEN;
+
+	i = pci_vpd_find_tag(vpd, VPD_LEN, PCI_VPD_LRDT_RO_DATA);
+	if (i < 0) {
+		dev_err(adapter->pdev_dev, "missing VPD-R section\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	vpdr_len = pci_vpd_lrdt_size(&vpd[i]);
+	kw_offset = i + PCI_VPD_LRDT_TAG_SIZE;
+	if (vpdr_len + kw_offset > VPD_LEN) {
+		dev_err(adapter->pdev_dev, "bad VPD-R length %u\n", vpdr_len);
+		ret = -EINVAL;
+		goto out;
+	}
 
 #define FIND_VPD_KW(var, name) do { \
 	var = pci_vpd_find_info_keyword(vpd, kw_offset, vpdr_len, name); \
@@ -2793,14 +2811,28 @@ int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 		goto out;
 	}
 
+	FIND_VPD_KW(ec, "EC");
+	FIND_VPD_KW(sn, "SN");
+	FIND_VPD_KW(pn, "PN");
+	FIND_VPD_KW(na, "NA");
+#undef FIND_VPD_KW
+
+	memcpy(p->id, vpd + PCI_VPD_LRDT_TAG_SIZE, id_len);
+	strim(p->id);
+	memcpy(p->ec, vpd + ec, EC_LEN);
+	strim(p->ec);
+	i = pci_vpd_info_field_size(vpd + sn - PCI_VPD_INFO_FLD_HDR_SIZE);
+	memcpy(p->sn, vpd + sn, min(i, SERNUM_LEN));
+	strim(p->sn);
+	i = pci_vpd_info_field_size(vpd + pn - PCI_VPD_INFO_FLD_HDR_SIZE);
+	memcpy(p->pn, vpd + pn, min(i, PN_LEN));
+	strim(p->pn);
+	memcpy(p->na, vpd + na, min(i, MACADDR_LEN));
+	strim((char *)p->na);
+
 out:
 	vfree(vpd);
-	if (ret < 0) {
-		dev_err(adapter->pdev_dev, "error reading VPD\n");
-		return ret;
-	}
-
-	return 0;
+	return ret < 0 ? ret : 0;
 }
 
 /**
