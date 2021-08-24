@@ -17,6 +17,7 @@
 #include <linux/pci-acpi.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_qos.h>
+#include <linux/rwsem.h>
 #include "pci.h"
 
 /*
@@ -1159,12 +1160,85 @@ void acpi_pci_remove_bus(struct pci_bus *bus)
 }
 
 /* ACPI bus type */
+
+
+static DECLARE_RWSEM(pci_acpi_companion_lookup_sem);
+static struct acpi_device *(*pci_acpi_find_companion_hook)(struct pci_dev *);
+
+/**
+ * pci_acpi_set_companion_lookup_hook - Set ACPI companion lookup callback.
+ * @func: ACPI companion lookup callback pointer or NULL.
+ *
+ * Set a special ACPI companion lookup callback for PCI devices whose companion
+ * objects in the ACPI namespace have _ADR with non-standard bus-device-function
+ * encodings.
+ *
+ * Return 0 on success or a negative error code on failure (in which case no
+ * changes are made).
+ *
+ * The caller is responsible for the appropriate ordering of the invocations of
+ * this function with respect to the enumeration of the PCI devices needing the
+ * callback installed by it.
+ */
+int pci_acpi_set_companion_lookup_hook(struct acpi_device *(*func)(struct pci_dev *))
+{
+	int ret;
+
+	if (!func)
+		return -EINVAL;
+
+	down_write(&pci_acpi_companion_lookup_sem);
+
+	if (pci_acpi_find_companion_hook) {
+		ret = -EBUSY;
+	} else {
+		pci_acpi_find_companion_hook = func;
+		ret = 0;
+	}
+
+	up_write(&pci_acpi_companion_lookup_sem);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pci_acpi_set_companion_lookup_hook);
+
+/**
+ * pci_acpi_clear_companion_lookup_hook - Clear ACPI companion lookup callback.
+ *
+ * Clear the special ACPI companion lookup callback previously set by
+ * pci_acpi_set_companion_lookup_hook().  Block until the last running instance
+ * of the callback returns before clearing it.
+ *
+ * The caller is responsible for the appropriate ordering of the invocations of
+ * this function with respect to the enumeration of the PCI devices needing the
+ * callback cleared by it.
+ */
+void pci_acpi_clear_companion_lookup_hook(void)
+{
+	down_write(&pci_acpi_companion_lookup_sem);
+
+	pci_acpi_find_companion_hook = NULL;
+
+	up_write(&pci_acpi_companion_lookup_sem);
+}
+EXPORT_SYMBOL_GPL(pci_acpi_clear_companion_lookup_hook);
+
 static struct acpi_device *acpi_pci_find_companion(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct acpi_device *adev;
 	bool check_children;
 	u64 addr;
+
+	down_read(&pci_acpi_companion_lookup_sem);
+
+	adev = pci_acpi_find_companion_hook ?
+		pci_acpi_find_companion_hook(pci_dev) : NULL;
+
+	up_read(&pci_acpi_companion_lookup_sem);
+
+	if (adev)
+		return adev;
 
 	check_children = pci_is_bridge(pci_dev);
 	/* Please ref to ACPI spec for the syntax of _ADR */
