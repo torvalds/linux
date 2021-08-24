@@ -687,7 +687,8 @@ static loff_t block_llseek(struct file *file, loff_t offset, int whence)
 	return retval;
 }
 	
-int blkdev_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
+static int blkdev_fsync(struct file *filp, loff_t start, loff_t end,
+		int datasync)
 {
 	struct inode *bd_inode = bdev_file_inode(filp);
 	struct block_device *bdev = I_BDEV(bd_inode);
@@ -708,7 +709,6 @@ int blkdev_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 
 	return error;
 }
-EXPORT_SYMBOL(blkdev_fsync);
 
 /**
  * bdev_read_page() - Start reading a page from a block device
