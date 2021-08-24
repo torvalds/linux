@@ -2689,7 +2689,7 @@ static int __genpd_dev_pm_attach(struct device *dev, struct device *base_dev,
 
 	/* Set the default performance state */
 	pstate = of_get_required_opp_performance_state(dev->of_node, index);
-	if (pstate < 0 && pstate != -ENODEV) {
+	if (pstate < 0 && pstate != -ENODEV && pstate != -EOPNOTSUPP) {
 		ret = pstate;
 		goto err;
 	} else if (pstate > 0) {
