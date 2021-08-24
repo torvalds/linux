@@ -74,7 +74,7 @@ EXPORT_SYMBOL_GPL(mt76_connac_mcu_init_download);
 
 int mt76_connac_mcu_set_channel_domain(struct mt76_phy *phy)
 {
-	struct mt76_dev *dev = phy->dev;
+	int len, i, n_max_channels, n_2ch = 0, n_5ch = 0, n_6ch = 0;
 	struct mt76_connac_mcu_channel_domain {
 		u8 alpha2[4]; /* regulatory_request.alpha2 */
 		u8 bw_2g; /* BW_20_40M		0
@@ -84,25 +84,29 @@ int mt76_connac_mcu_set_channel_domain(struct mt76_phy *phy)
 			   * BW_20_40_80_8080M	4
 			   */
 		u8 bw_5g;
-		__le16 pad;
+		u8 bw_6g;
+		u8 pad;
 		u8 n_2ch;
 		u8 n_5ch;
-		__le16 pad2;
+		u8 n_6ch;
+		u8 pad2;
 	} __packed hdr = {
 		.bw_2g = 0,
-		.bw_5g = 3,
+		.bw_5g = 3, /* BW_20_40_80_160M */
+		.bw_6g = 3,
 	};
 	struct mt76_connac_mcu_chan {
 		__le16 hw_value;
 		__le16 pad;
 		__le32 flags;
 	} __packed channel;
-	int len, i, n_max_channels, n_2ch = 0, n_5ch = 0;
+	struct mt76_dev *dev = phy->dev;
 	struct ieee80211_channel *chan;
 	struct sk_buff *skb;
 
 	n_max_channels = phy->sband_2g.sband.n_channels +
-			 phy->sband_5g.sband.n_channels;
+			 phy->sband_5g.sband.n_channels +
+			 phy->sband_6g.sband.n_channels;
 	len = sizeof(hdr) + n_max_channels * sizeof(channel);
 
 	skb = mt76_mcu_msg_alloc(dev, NULL, len);
@@ -135,11 +139,24 @@ int mt76_connac_mcu_set_channel_domain(struct mt76_phy *phy)
 		skb_put_data(skb, &channel, sizeof(channel));
 		n_5ch++;
 	}
+	for (i = 0; i < phy->sband_6g.sband.n_channels; i++) {
+		chan = &phy->sband_6g.sband.channels[i];
+		if (chan->flags & IEEE80211_CHAN_DISABLED)
+			continue;
+
+		channel.hw_value = cpu_to_le16(chan->hw_value);
+		channel.flags = cpu_to_le32(chan->flags);
+		channel.pad = 0;
+
+		skb_put_data(skb, &channel, sizeof(channel));
+		n_6ch++;
+	}
 
 	BUILD_BUG_ON(sizeof(dev->alpha2) > sizeof(hdr.alpha2));
 	memcpy(hdr.alpha2, dev->alpha2, sizeof(dev->alpha2));
 	hdr.n_2ch = n_2ch;
 	hdr.n_5ch = n_5ch;
+	hdr.n_6ch = n_6ch;
 
 	memcpy(__skb_push(skb, sizeof(hdr)), &hdr, sizeof(hdr));
 

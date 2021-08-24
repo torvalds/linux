@@ -623,6 +623,7 @@ struct mt76_phy {
 	struct mt76_hw_cap cap;
 	struct mt76_sband sband_2g;
 	struct mt76_sband sband_5g;
+	struct mt76_sband sband_6g;
 
 	u8 macaddr[ETH_ALEN];
 
