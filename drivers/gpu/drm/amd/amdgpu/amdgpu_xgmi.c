@@ -848,7 +848,6 @@ static int amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 		}
 		break;
 	case CHIP_VEGA20:
-	default:
 		/* check xgmi pcs error */
 		for (i = 0; i < ARRAY_SIZE(xgmi_pcs_err_status_reg_vg20); i++) {
 			data = RREG32_PCIE(xgmi_pcs_err_status_reg_vg20[i]);
@@ -863,6 +862,9 @@ static int amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 				amdgpu_xgmi_query_pcs_error_status(adev,
 						data, &ue_cnt, &ce_cnt, false);
 		}
+		break;
+	default:
+		dev_warn(adev->dev, "XGMI RAS error query not supported");
 		break;
 	}
 
