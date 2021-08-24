@@ -10,7 +10,6 @@
 #include "../include/recv_osdep.h"
 
 #include "../include/osdep_intf.h"
-#include "../include/ethernet.h"
 #include "../include/usb_ops.h"
 
 /* init os related resource in struct recv_priv */
