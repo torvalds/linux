@@ -724,7 +724,7 @@ static unsigned long nd_label_offset(struct nvdimm_drvdata *ndd,
 		- (unsigned long) to_namespace_index(ndd, 0);
 }
 
-enum nvdimm_claim_class to_nvdimm_cclass(guid_t *guid)
+static enum nvdimm_claim_class to_nvdimm_cclass(guid_t *guid)
 {
 	if (guid_equal(guid, &nvdimm_btt_guid))
 		return NVDIMM_CCLASS_BTT;
@@ -792,6 +792,25 @@ bool nsl_validate_type_guid(struct nvdimm_drvdata *ndd,
 	return true;
 }
 
+static void nsl_set_claim_class(struct nvdimm_drvdata *ndd,
+				struct nd_namespace_label *nd_label,
+				enum nvdimm_claim_class claim_class)
+{
+	if (!namespace_label_has(ndd, abstraction_guid))
+		return;
+	guid_copy(&nd_label->abstraction_guid,
+		  to_abstraction_guid(claim_class,
+				      &nd_label->abstraction_guid));
+}
+
+enum nvdimm_claim_class nsl_get_claim_class(struct nvdimm_drvdata *ndd,
+					    struct nd_namespace_label *nd_label)
+{
+	if (!namespace_label_has(ndd, abstraction_guid))
+		return NVDIMM_CCLASS_NONE;
+	return to_nvdimm_cclass(&nd_label->abstraction_guid);
+}
+
 static int __pmem_label_update(struct nd_region *nd_region,
 		struct nd_mapping *nd_mapping, struct nd_namespace_pmem *nspm,
 		int pos, unsigned long flags)
@@ -843,10 +862,7 @@ static int __pmem_label_update(struct nd_region *nd_region,
 	nsl_set_dpa(ndd, nd_label, res->start);
 	nsl_set_slot(ndd, nd_label, slot);
 	nsl_set_type_guid(ndd, nd_label, &nd_set->type_guid);
-	if (namespace_label_has(ndd, abstraction_guid))
-		guid_copy(&nd_label->abstraction_guid,
-				to_abstraction_guid(ndns->claim_class,
-					&nd_label->abstraction_guid));
+	nsl_set_claim_class(ndd, nd_label, ndns->claim_class);
 	nsl_calculate_checksum(ndd, nd_label);
 	nd_dbg_dpa(nd_region, ndd, res, "\n");
 
@@ -1111,10 +1127,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 		nsl_set_lbasize(ndd, nd_label, nsblk->lbasize);
 		nsl_set_slot(ndd, nd_label, slot);
 		nsl_set_type_guid(ndd, nd_label, &nd_set->type_guid);
-		if (namespace_label_has(ndd, abstraction_guid))
-			guid_copy(&nd_label->abstraction_guid,
-					to_abstraction_guid(ndns->claim_class,
-						&nd_label->abstraction_guid));
+		nsl_set_claim_class(ndd, nd_label, ndns->claim_class);
 		nsl_calculate_checksum(ndd, nd_label);
 
 		/* update label */

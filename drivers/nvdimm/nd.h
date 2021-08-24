@@ -182,6 +182,8 @@ bool nsl_validate_blk_isetcookie(struct nvdimm_drvdata *ndd,
 				 u64 isetcookie);
 bool nsl_validate_type_guid(struct nvdimm_drvdata *ndd,
 			    struct nd_namespace_label *nd_label, guid_t *guid);
+enum nvdimm_claim_class nsl_get_claim_class(struct nvdimm_drvdata *ndd,
+					    struct nd_namespace_label *nd_label);
 
 struct nd_region_data {
 	int ns_count;

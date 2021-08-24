@@ -2042,10 +2042,8 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
 		nspm->uuid = kmemdup((void __force *) label0->uuid,
 				NSLABEL_UUID_LEN, GFP_KERNEL);
 		nspm->lbasize = nsl_get_lbasize(ndd, label0);
-		if (namespace_label_has(ndd, abstraction_guid))
-			nspm->nsio.common.claim_class
-				= to_nvdimm_cclass(&label0->abstraction_guid);
-
+		nspm->nsio.common.claim_class =
+			nsl_get_claim_class(ndd, label0);
 	}
 
 	if (!nspm->alt_name || !nspm->uuid) {
@@ -2273,11 +2271,8 @@ static struct device *create_namespace_blk(struct nd_region *nd_region,
 	dev->parent = &nd_region->dev;
 	nsblk->id = -1;
 	nsblk->lbasize = nsl_get_lbasize(ndd, nd_label);
-	nsblk->uuid = kmemdup(nd_label->uuid, NSLABEL_UUID_LEN,
-			GFP_KERNEL);
-	if (namespace_label_has(ndd, abstraction_guid))
-		nsblk->common.claim_class
-			= to_nvdimm_cclass(&nd_label->abstraction_guid);
+	nsblk->uuid = kmemdup(nd_label->uuid, NSLABEL_UUID_LEN, GFP_KERNEL);
+	nsblk->common.claim_class = nsl_get_claim_class(ndd, nd_label);
 	if (!nsblk->uuid)
 		goto blk_err;
 	nsl_get_name(ndd, nd_label, name);
