@@ -265,6 +265,7 @@ struct ttm_device {
 	 */
 	spinlock_t lru_lock;
 	struct list_head ddestroy;
+	struct list_head pinned;
 
 	/*
 	 * Protected by load / firstopen / lastclose /unload sync.
