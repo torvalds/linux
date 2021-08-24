@@ -121,6 +121,8 @@
  */
 #define MAX_THREADS FUTEX_TID_MASK
 
+EXPORT_TRACEPOINT_SYMBOL_GPL(task_newtask);
+
 /*
  * Protected counters by write_lock_irq(&tasklist_lock)
  */
@@ -441,6 +443,7 @@ void put_task_stack(struct task_struct *tsk)
 	if (refcount_dec_and_test(&tsk->stack_refcount))
 		release_task_stack(tsk);
 }
+EXPORT_SYMBOL_GPL(put_task_stack);
 #endif
 
 void free_task(struct task_struct *tsk)

@@ -112,7 +112,7 @@ static void notify_netlink_uevent(const char *iface, struct idletimer_tg *timer)
 	res = snprintf(iface_msg, NLMSG_MAX_SIZE, "INTERFACE=%s",
 		       iface);
 	if (NLMSG_MAX_SIZE <= res) {
-		pr_err("message too long (%d)", res);
+		pr_err("message too long (%d)\n", res);
 		return;
 	}
 
@@ -122,25 +122,25 @@ static void notify_netlink_uevent(const char *iface, struct idletimer_tg *timer)
 		       state ? "active" : "inactive");
 
 	if (NLMSG_MAX_SIZE <= res) {
-		pr_err("message too long (%d)", res);
+		pr_err("message too long (%d)\n", res);
 		return;
 	}
 
 	if (state) {
 		res = snprintf(uid_msg, NLMSG_MAX_SIZE, "UID=%u", timer->uid);
 		if (NLMSG_MAX_SIZE <= res)
-			pr_err("message too long (%d)", res);
+			pr_err("message too long (%d)\n", res);
 	} else {
 		res = snprintf(uid_msg, NLMSG_MAX_SIZE, "UID=");
 		if (NLMSG_MAX_SIZE <= res)
-			pr_err("message too long (%d)", res);
+			pr_err("message too long (%d)\n", res);
 	}
 
 	time_ns = timespec64_to_ns(&ts);
 	res = snprintf(timestamp_msg, NLMSG_MAX_SIZE, "TIME_NS=%llu", time_ns);
 	if (NLMSG_MAX_SIZE <= res) {
 		timestamp_msg[0] = '\0';
-		pr_err("message too long (%d)", res);
+		pr_err("message too long (%d)\n", res);
 	}
 
 	pr_debug("putting nlmsg: <%s> <%s> <%s> <%s>\n", iface_msg, state_msg,
@@ -323,12 +323,12 @@ static int idletimer_tg_create(struct idletimer_tg_info *info)
 
 	ret = sysfs_create_file(idletimer_tg_kobj, &info->timer->attr.attr);
 	if (ret < 0) {
-		pr_debug("couldn't add file to sysfs");
+		pr_debug("couldn't add file to sysfs\n");
 		goto out_free_attr;
 	}
 
 	list_add(&info->timer->entry, &idletimer_tg_list);
-	pr_debug("timer type value is 0.");
+	pr_debug("timer type value is 0.\n");
 	info->timer->timer_type = 0;
 	info->timer->refcnt = 1;
 	info->timer->send_nl_msg = false;
@@ -389,7 +389,7 @@ static int idletimer_tg_create_v1(struct idletimer_tg_info_v1 *info)
 
 	ret = sysfs_create_file(idletimer_tg_kobj, &info->timer->attr.attr);
 	if (ret < 0) {
-		pr_debug("couldn't add file to sysfs");
+		pr_debug("couldn't add file to sysfs\n");
 		goto out_free_attr;
 	}
 
@@ -397,7 +397,7 @@ static int idletimer_tg_create_v1(struct idletimer_tg_info_v1 *info)
 	kobject_uevent(idletimer_tg_kobj,KOBJ_ADD);
 
 	list_add(&info->timer->entry, &idletimer_tg_list);
-	pr_debug("timer type value is %u", info->timer_type);
+	pr_debug("timer type value is %u\n", info->timer_type);
 	info->timer->timer_type = info->timer_type;
 	info->timer->refcnt = 1;
 	info->timer->send_nl_msg = (info->send_nl_msg != 0);

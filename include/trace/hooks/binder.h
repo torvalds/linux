@@ -17,10 +17,11 @@ struct binder_alloc;
 struct binder_proc;
 struct binder_thread;
 struct binder_transaction_data;
+struct seq_file;
 DECLARE_HOOK(android_vh_binder_transaction_init,
 	TP_PROTO(struct binder_transaction *t),
 	TP_ARGS(t));
-DECLARE_HOOK(android_vh_binder_transaction_priority_skip,
+DECLARE_HOOK(android_vh_binder_priority_skip,
 	TP_PROTO(struct task_struct *task, bool *skip),
 	TP_ARGS(task, skip));
 DECLARE_HOOK(android_vh_binder_set_priority,
@@ -65,6 +66,10 @@ DECLARE_HOOK(android_vh_binder_new_ref,
 DECLARE_HOOK(android_vh_binder_del_ref,
 	TP_PROTO(struct task_struct *proc, uint32_t ref_desc),
 	TP_ARGS(proc, ref_desc));
+DECLARE_HOOK(android_vh_binder_print_transaction_info,
+	TP_PROTO(struct seq_file *m, struct binder_proc *proc,
+		 const char *prefix, struct binder_transaction *t),
+	TP_ARGS(m, proc, prefix, t));
 
 /* macro versions of hooks are no longer required */
 

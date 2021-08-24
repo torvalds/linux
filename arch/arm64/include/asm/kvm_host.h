@@ -405,6 +405,8 @@ struct kvm_vcpu_arch {
 #define KVM_ARM64_GUEST_HAS_PTRAUTH	(1 << 7) /* PTRAUTH exposed to guest */
 #define KVM_ARM64_PENDING_EXCEPTION	(1 << 8) /* Exception pending */
 #define KVM_ARM64_EXCEPT_MASK		(7 << 9) /* Target EL/MODE */
+#define KVM_ARM64_DEBUG_STATE_SAVE_SPE	(1 << 12) /* Save SPE context if active  */
+#define KVM_ARM64_DEBUG_STATE_SAVE_TRBE	(1 << 13) /* Save TRBE context if active  */
 
 /*
  * When KVM_ARM64_PENDING_EXCEPTION is set, KVM_ARM64_EXCEPT_MASK can
@@ -732,6 +734,10 @@ static inline bool kvm_pmu_counter_deferred(struct perf_event_attr *attr)
 {
 	return (!has_vhe() && attr->exclude_host);
 }
+
+/* Flags for host debug state */
+void kvm_arch_vcpu_load_debug_state_flags(struct kvm_vcpu *vcpu);
+void kvm_arch_vcpu_put_debug_state_flags(struct kvm_vcpu *vcpu);
 
 #ifdef CONFIG_KVM /* Avoid conflicts with core headers if CONFIG_KVM=n */
 static inline int kvm_arch_vcpu_run_pid_change(struct kvm_vcpu *vcpu)

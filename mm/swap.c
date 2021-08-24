@@ -634,6 +634,8 @@ static void lru_lazyfree_fn(struct page *page, struct lruvec *lruvec,
 static void lru_lazyfree_movetail_fn(struct page *page, struct lruvec *lruvec,
 			    void *arg)
 {
+	bool *add_to_tail = (bool *)arg;
+
 	if (PageLRU(page) && !PageUnevictable(page) && PageSwapBacked(page) &&
 		!PageSwapCache(page)) {
 		bool active = PageActive(page);
@@ -642,7 +644,10 @@ static void lru_lazyfree_movetail_fn(struct page *page, struct lruvec *lruvec,
 				       LRU_INACTIVE_ANON + active);
 		ClearPageActive(page);
 		ClearPageReferenced(page);
-		add_page_to_lru_list_tail(page, lruvec, LRU_INACTIVE_FILE);
+		if (add_to_tail && *add_to_tail)
+			add_page_to_lru_list_tail(page, lruvec, LRU_INACTIVE_FILE);
+		else
+			add_page_to_lru_list(page, lruvec, LRU_INACTIVE_FILE);
 	}
 }
 
@@ -769,7 +774,7 @@ void mark_page_lazyfree(struct page *page)
  * mark_page_lazyfree_movetail() moves @page to the tail of inactive file list.
  * This is done to accelerate the reclaim of @page.
  */
-void mark_page_lazyfree_movetail(struct page *page)
+void mark_page_lazyfree_movetail(struct page *page, bool tail)
 {
 	if (PageLRU(page) && !PageUnevictable(page) && PageSwapBacked(page) &&
 		!PageSwapCache(page)) {
@@ -780,7 +785,7 @@ void mark_page_lazyfree_movetail(struct page *page)
 		get_page(page);
 		if (pagevec_add_and_need_flush(pvec, page))
 			pagevec_lru_move_fn(pvec,
-					lru_lazyfree_movetail_fn, NULL);
+					lru_lazyfree_movetail_fn, &tail);
 		local_unlock(&lru_pvecs.lock);
 	}
 }
@@ -924,7 +929,18 @@ void lru_add_drain_all(void)
 }
 #endif /* CONFIG_SMP */
 
-atomic_t lru_disable_count = ATOMIC_INIT(0);
+static atomic_t lru_disable_count = ATOMIC_INIT(0);
+
+bool lru_cache_disabled(void)
+{
+	return atomic_read(&lru_disable_count) != 0;
+}
+
+void lru_cache_enable(void)
+{
+	atomic_dec(&lru_disable_count);
+}
+EXPORT_SYMBOL_GPL(lru_cache_enable);
 
 /*
  * lru_cache_disable() needs to be called before we start compiling
@@ -936,7 +952,12 @@ atomic_t lru_disable_count = ATOMIC_INIT(0);
  */
 void lru_cache_disable(void)
 {
-	atomic_inc(&lru_disable_count);
+	/*
+	 * If someone is already disabled lru_cache, just return with
+	 * increasing the lru_disable_count.
+	 */
+	if (atomic_inc_not_zero(&lru_disable_count))
+		return;
 #ifdef CONFIG_SMP
 	/*
 	 * lru_add_drain_all in the force mode will schedule draining on
@@ -950,7 +971,9 @@ void lru_cache_disable(void)
 #else
 	lru_add_drain();
 #endif
+	atomic_inc(&lru_disable_count);
 }
+EXPORT_SYMBOL_GPL(lru_cache_disable);
 
 /**
  * release_pages - batched put_page()

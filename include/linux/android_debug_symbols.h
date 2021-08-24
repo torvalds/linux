@@ -30,6 +30,13 @@ enum android_debug_symbol {
 #ifdef CONFIG_SWAP
 	ADS_NR_SWAP_PAGES,
 #endif
+#ifdef CONFIG_MMU
+	ADS_MMAP_MIN_ADDR,
+#endif
+	ADS_STACK_GUARD_GAP,
+#ifdef CONFIG_SYSCTL
+	ADS_SYSCTL_LEGACY_VA_LAYOUT,
+#endif
 	ADS_END
 };
 
@@ -43,6 +50,9 @@ enum android_debug_per_cpu_symbol {
 void *android_debug_symbol(enum android_debug_symbol symbol);
 void *android_debug_per_cpu_symbol(enum android_debug_per_cpu_symbol symbol);
 
+void android_debug_for_each_module(int (*fn)(const char *mod_name, void *mod_addr, void *data),
+	void *data);
+
 #else /* !CONFIG_ANDROID_DEBUG_SYMBOLS */
 
 static inline void *android_debug_symbol(enum android_debug_symbol symbol)
@@ -53,6 +63,9 @@ static inline void *android_debug_per_cpu_symbol(enum android_debug_per_cpu_symb
 {
 	return NULL;
 }
+
+static inline void android_debug_for_each_module(int (*fn)(const char *mod_name, void *mod_addr,
+	void *data), void *data) {}
 #endif /* CONFIG_ANDROID_DEBUG_SYMBOLS */
 
 #endif /* _ANDROID_DEBUG_SYMBOLS_H */

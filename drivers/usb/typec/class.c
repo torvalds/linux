@@ -12,6 +12,7 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/usb/pd_vdo.h>
+#include <linux/android_kabi.h>
 
 #include "bus.h"
 
@@ -20,6 +21,7 @@ struct typec_plug {
 	enum typec_plug_index		index;
 	struct ida			mode_ids;
 	int				num_altmodes;
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct typec_cable {
@@ -28,6 +30,7 @@ struct typec_cable {
 	struct usb_pd_identity		*identity;
 	unsigned int			active:1;
 	u16				pd_revision; /* 0300H = "3.0" */
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct typec_partner {
@@ -39,6 +42,7 @@ struct typec_partner {
 	int				num_altmodes;
 	u16				pd_revision; /* 0300H = "3.0" */
 	enum usb_pd_svdm_ver		svdm_version;
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct typec_port {
@@ -60,6 +64,7 @@ struct typec_port {
 
 	const struct typec_capability	*cap;
 	const struct typec_operations   *ops;
+	ANDROID_KABI_RESERVE(1);
 };
 
 #define to_typec_port(_dev_) container_of(_dev_, struct typec_port, dev)
@@ -572,8 +577,10 @@ typec_register_altmode(struct device *parent,
 	int ret;
 
 	alt = kzalloc(sizeof(*alt), GFP_KERNEL);
-	if (!alt)
+	if (!alt) {
+		altmode_id_remove(parent, id);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	alt->adev.svid = desc->svid;
 	alt->adev.mode = desc->mode;

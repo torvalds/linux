@@ -89,6 +89,8 @@ struct iomap {
 	void			*inline_data;
 	void			*private; /* filesystem private */
 	const struct iomap_page_ops *page_ops;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 static inline sector_t

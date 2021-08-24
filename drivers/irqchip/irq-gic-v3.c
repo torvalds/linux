@@ -50,20 +50,6 @@ struct redist_region {
 	bool			single_redist;
 };
 
-struct gic_chip_data {
-	struct fwnode_handle	*fwnode;
-	void __iomem		*dist_base;
-	struct redist_region	*redist_regions;
-	struct rdists		rdists;
-	struct irq_domain	*domain;
-	u64			redist_stride;
-	u32			nr_redist_regions;
-	u64			flags;
-	bool			has_rss;
-	unsigned int		ppi_nr;
-	struct partition_desc	**ppi_descs;
-};
-
 static struct gic_chip_data gic_data __read_mostly;
 static DEFINE_STATIC_KEY_TRUE(supports_deactivate_key);
 
@@ -1269,7 +1255,7 @@ static inline void gic_cpu_pm_init(void) { }
 #ifdef CONFIG_PM
 void gic_resume(void)
 {
-	trace_android_vh_gic_resume(gic_data.domain, gic_data.dist_base);
+	trace_android_vh_gic_resume(&gic_data);
 }
 EXPORT_SYMBOL_GPL(gic_resume);
 

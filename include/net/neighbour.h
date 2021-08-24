@@ -28,6 +28,7 @@
 #include <linux/err.h>
 #include <linux/sysctl.h>
 #include <linux/workqueue.h>
+#include <linux/android_kabi.h>
 #include <net/rtnetlink.h>
 
 /*
@@ -83,6 +84,8 @@ struct neigh_parms {
 	int	reachable_time;
 	int	data[NEIGH_VAR_DATA_MAX];
 	DECLARE_BITMAP(data_state, NEIGH_VAR_DATA_MAX);
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 static inline void neigh_var_set(struct neigh_parms *p, int index, int val)
@@ -157,6 +160,9 @@ struct neighbour {
 	struct list_head	gc_list;
 	struct rcu_head		rcu;
 	struct net_device	*dev;
+
+	ANDROID_KABI_RESERVE(1);
+
 	u8			primary_key[0];
 } __randomize_layout;
 
@@ -226,6 +232,8 @@ struct neigh_table {
 	struct neigh_statistics	__percpu *stats;
 	struct neigh_hash_table __rcu *nht;
 	struct pneigh_entry	**phash_buckets;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 enum {

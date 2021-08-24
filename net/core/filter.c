@@ -3244,9 +3244,6 @@ static int bpf_skb_proto_4_to_6(struct sk_buff *skb)
 	u32 off = skb_mac_header_len(skb);
 	int ret;
 
-	if (skb_is_gso(skb) && !skb_is_gso_tcp(skb))
-		return -ENOTSUPP;
-
 	ret = skb_cow(skb, len_diff);
 	if (unlikely(ret < 0))
 		return ret;
@@ -3258,19 +3255,11 @@ static int bpf_skb_proto_4_to_6(struct sk_buff *skb)
 	if (skb_is_gso(skb)) {
 		struct skb_shared_info *shinfo = skb_shinfo(skb);
 
-		/* SKB_GSO_TCPV4 needs to be changed into
-		 * SKB_GSO_TCPV6.
-		 */
+		/* SKB_GSO_TCPV4 needs to be changed into SKB_GSO_TCPV6. */
 		if (shinfo->gso_type & SKB_GSO_TCPV4) {
 			shinfo->gso_type &= ~SKB_GSO_TCPV4;
 			shinfo->gso_type |=  SKB_GSO_TCPV6;
 		}
-
-		/* Due to IPv6 header, MSS needs to be downgraded. */
-		skb_decrease_gso_size(shinfo, len_diff);
-		/* Header must be checked, and gso_segs recomputed. */
-		shinfo->gso_type |= SKB_GSO_DODGY;
-		shinfo->gso_segs = 0;
 	}
 
 	skb->protocol = htons(ETH_P_IPV6);
@@ -3285,9 +3274,6 @@ static int bpf_skb_proto_6_to_4(struct sk_buff *skb)
 	u32 off = skb_mac_header_len(skb);
 	int ret;
 
-	if (skb_is_gso(skb) && !skb_is_gso_tcp(skb))
-		return -ENOTSUPP;
-
 	ret = skb_unclone(skb, GFP_ATOMIC);
 	if (unlikely(ret < 0))
 		return ret;
@@ -3299,19 +3285,11 @@ static int bpf_skb_proto_6_to_4(struct sk_buff *skb)
 	if (skb_is_gso(skb)) {
 		struct skb_shared_info *shinfo = skb_shinfo(skb);
 
-		/* SKB_GSO_TCPV6 needs to be changed into
-		 * SKB_GSO_TCPV4.
-		 */
+		/* SKB_GSO_TCPV6 needs to be changed into SKB_GSO_TCPV4. */
 		if (shinfo->gso_type & SKB_GSO_TCPV6) {
 			shinfo->gso_type &= ~SKB_GSO_TCPV6;
 			shinfo->gso_type |=  SKB_GSO_TCPV4;
 		}
-
-		/* Due to IPv4 header, MSS can be upgraded. */
-		skb_increase_gso_size(shinfo, len_diff);
-		/* Header must be checked, and gso_segs recomputed. */
-		shinfo->gso_type |= SKB_GSO_DODGY;
-		shinfo->gso_segs = 0;
 	}
 
 	skb->protocol = htons(ETH_P_IP);

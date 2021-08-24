@@ -1321,6 +1321,23 @@ static inline void uclamp_rq_dec(struct rq *rq, struct task_struct *p)
 		uclamp_rq_dec_id(rq, p, clamp_id);
 }
 
+static inline void uclamp_rq_reinc_id(struct rq *rq, struct task_struct *p,
+				      enum uclamp_id clamp_id)
+{
+	if (!p->uclamp[clamp_id].active)
+		return;
+
+	uclamp_rq_dec_id(rq, p, clamp_id);
+	uclamp_rq_inc_id(rq, p, clamp_id);
+
+	/*
+	 * Make sure to clear the idle flag if we've transiently reached 0
+	 * active tasks on rq.
+	 */
+	if (clamp_id == UCLAMP_MAX && (rq->uclamp_flags & UCLAMP_FLAG_IDLE))
+		rq->uclamp_flags &= ~UCLAMP_FLAG_IDLE;
+}
+
 static inline void
 uclamp_update_active(struct task_struct *p, enum uclamp_id clamp_id)
 {
@@ -1343,10 +1360,7 @@ uclamp_update_active(struct task_struct *p, enum uclamp_id clamp_id)
 	 * affecting a valid clamp bucket, the next time it's enqueued,
 	 * it will already see the updated clamp bucket value.
 	 */
-	if (p->uclamp[clamp_id].active) {
-		uclamp_rq_dec_id(rq, p, clamp_id);
-		uclamp_rq_inc_id(rq, p, clamp_id);
-	}
+	uclamp_rq_reinc_id(rq, p, clamp_id);
 
 	task_rq_unlock(rq, p, &rf);
 }
@@ -1545,12 +1559,14 @@ static void __setscheduler_uclamp(struct task_struct *p,
 	    attr->sched_util_min != -1) {
 		uclamp_se_set(&p->uclamp_req[UCLAMP_MIN],
 			      attr->sched_util_min, true);
+		trace_android_vh_setscheduler_uclamp(p, UCLAMP_MIN, attr->sched_util_min);
 	}
 
 	if (attr->sched_flags & SCHED_FLAG_UTIL_CLAMP_MAX &&
 	    attr->sched_util_max != -1) {
 		uclamp_se_set(&p->uclamp_req[UCLAMP_MAX],
 			      attr->sched_util_max, true);
+		trace_android_vh_setscheduler_uclamp(p, UCLAMP_MAX, attr->sched_util_max);
 	}
 }
 
@@ -2105,7 +2121,7 @@ void force_compatible_cpus_allowed_ptr(struct task_struct *p)
 	 * offlining of the chosen destination CPU, so take the hotplug
 	 * lock to ensure that the migration succeeds.
 	 */
-	trace_android_vh_force_compatible_pre(NULL);
+	trace_android_rvh_force_compatible_pre(NULL);
 	cpus_read_lock();
 	if (!cpumask_available(new_mask))
 		goto out_set_mask;
@@ -2130,7 +2146,7 @@ out_set_mask:
 	WARN_ON(set_cpus_allowed_ptr(p, override_mask));
 out_free_mask:
 	cpus_read_unlock();
-	trace_android_vh_force_compatible_post(NULL);
+	trace_android_rvh_force_compatible_post(NULL);
 	free_cpumask_var(new_mask);
 }
 
@@ -2480,9 +2496,7 @@ static int select_fallback_rq(int cpu, struct task_struct *p)
 
 		/* Look for allowed, online CPU in same node. */
 		for_each_cpu(dest_cpu, nodemask) {
-			if (!cpu_active(dest_cpu))
-				continue;
-			if (cpumask_test_cpu(dest_cpu, p->cpus_ptr))
+			if (is_cpu_allowed(p, dest_cpu))
 				return dest_cpu;
 		}
 	}
@@ -4203,6 +4217,7 @@ unsigned long long task_sched_runtime(struct task_struct *p)
 
 	return ns;
 }
+EXPORT_SYMBOL_GPL(task_sched_runtime);
 
 /*
  * This function gets called by the timer code, with HZ frequency.
@@ -5540,6 +5555,10 @@ recheck:
 		/* Normal users shall not reset the sched_reset_on_fork flag: */
 		if (p->sched_reset_on_fork && !reset_on_fork)
 			return -EPERM;
+
+		/* Can't change util-clamps */
+		if (attr->sched_flags & SCHED_FLAG_UTIL_CLAMP)
+			return -EPERM;
 	}
 
 	if (user) {
@@ -5887,6 +5906,16 @@ err_size:
 	return -E2BIG;
 }
 
+static void get_params(struct task_struct *p, struct sched_attr *attr)
+{
+	if (task_has_dl_policy(p))
+		__getparam_dl(p, attr);
+	else if (task_has_rt_policy(p))
+		attr->sched_priority = p->rt_priority;
+	else
+		attr->sched_nice = task_nice(p);
+}
+
 /**
  * sys_sched_setscheduler - set/change the scheduler policy and RT priority
  * @pid: the pid in question.
@@ -5948,6 +5977,8 @@ SYSCALL_DEFINE3(sched_setattr, pid_t, pid, struct sched_attr __user *, uattr,
 	rcu_read_unlock();
 
 	if (likely(p)) {
+		if (attr.sched_flags & SCHED_FLAG_KEEP_PARAMS)
+			get_params(p, &attr);
 		retval = sched_setattr(p, &attr);
 		put_task_struct(p);
 	}
@@ -6096,12 +6127,8 @@ SYSCALL_DEFINE4(sched_getattr, pid_t, pid, struct sched_attr __user *, uattr,
 	kattr.sched_policy = p->policy;
 	if (p->sched_reset_on_fork)
 		kattr.sched_flags |= SCHED_FLAG_RESET_ON_FORK;
-	if (task_has_dl_policy(p))
-		__getparam_dl(p, &kattr);
-	else if (task_has_rt_policy(p))
-		kattr.sched_priority = p->rt_priority;
-	else
-		kattr.sched_nice = task_nice(p);
+	get_params(p, &kattr);
+	kattr.sched_flags &= SCHED_FLAG_ALL;
 
 #ifdef CONFIG_UCLAMP_TASK
 	/*

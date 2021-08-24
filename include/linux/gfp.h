@@ -39,16 +39,18 @@ struct vm_area_struct;
 #define ___GFP_HARDWALL		0x100000u
 #define ___GFP_THISNODE		0x200000u
 #define ___GFP_ACCOUNT		0x400000u
+#define ___GFP_ZEROTAGS		0x800000u
+#define ___GFP_SKIP_KASAN_POISON	0x1000000u
 #ifdef CONFIG_CMA
-#define ___GFP_CMA		0x800000u
+#define ___GFP_CMA		0x2000000u
 #else
 #define ___GFP_CMA		0
 #endif
 #ifdef CONFIG_LOCKDEP
 #ifdef CONFIG_CMA
-#define ___GFP_NOLOCKDEP	0x1000000u
+#define ___GFP_NOLOCKDEP	0x4000000u
 #else
-#define ___GFP_NOLOCKDEP	0x800000u
+#define ___GFP_NOLOCKDEP	0x2000000u
 #endif
 #else
 #define ___GFP_NOLOCKDEP	0
@@ -226,19 +228,28 @@ struct vm_area_struct;
  * %__GFP_COMP address compound page metadata.
  *
  * %__GFP_ZERO returns a zeroed page on success.
+ *
+ * %__GFP_ZEROTAGS returns a page with zeroed memory tags on success, if
+ * __GFP_ZERO is set.
+ *
+ * %__GFP_SKIP_KASAN_POISON returns a page which does not need to be poisoned
+ * on deallocation. Typically used for userspace pages. Currently only has an
+ * effect in HW tags mode.
  */
 #define __GFP_NOWARN	((__force gfp_t)___GFP_NOWARN)
 #define __GFP_COMP	((__force gfp_t)___GFP_COMP)
 #define __GFP_ZERO	((__force gfp_t)___GFP_ZERO)
+#define __GFP_ZEROTAGS	((__force gfp_t)___GFP_ZEROTAGS)
+#define __GFP_SKIP_KASAN_POISON	((__force gfp_t)___GFP_SKIP_KASAN_POISON)
 
 /* Disable lockdep for GFP context tracking */
 #define __GFP_NOLOCKDEP ((__force gfp_t)___GFP_NOLOCKDEP)
 
 /* Room for N __GFP_FOO bits */
 #ifdef CONFIG_CMA
-#define __GFP_BITS_SHIFT (24 + IS_ENABLED(CONFIG_LOCKDEP))
+#define __GFP_BITS_SHIFT (26 + IS_ENABLED(CONFIG_LOCKDEP))
 #else
-#define __GFP_BITS_SHIFT (23 + IS_ENABLED(CONFIG_LOCKDEP))
+#define __GFP_BITS_SHIFT (25 + IS_ENABLED(CONFIG_LOCKDEP))
 #endif
 #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
 
@@ -320,7 +331,8 @@ struct vm_area_struct;
 #define GFP_DMA		__GFP_DMA
 #define GFP_DMA32	__GFP_DMA32
 #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
-#define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
+#define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE | \
+			 __GFP_SKIP_KASAN_POISON)
 #define GFP_TRANSHUGE_LIGHT	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
 			 __GFP_NOMEMALLOC | __GFP_NOWARN) & ~__GFP_RECLAIM)
 #define GFP_TRANSHUGE	(GFP_TRANSHUGE_LIGHT | __GFP_DIRECT_RECLAIM)
@@ -630,9 +642,24 @@ static inline bool pm_suspended_storage(void)
 #endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_CONTIG_ALLOC
+extern unsigned long pfn_max_align_up(unsigned long pfn);
+
+#define ACR_ERR_ISOLATE	(1 << 0)
+#define ACR_ERR_MIGRATE	(1 << 1)
+#define ACR_ERR_TEST	(1 << 2)
+
+struct acr_info {
+	unsigned long nr_mapped;
+	unsigned long nr_migrated;
+	unsigned long nr_reclaimed;
+	unsigned int err;
+	unsigned long failed_pfn;
+};
+
 /* The below functions must be run on a range from a single zone. */
 extern int alloc_contig_range(unsigned long start, unsigned long end,
-			      unsigned migratetype, gfp_t gfp_mask);
+			      unsigned migratetype, gfp_t gfp_mask,
+			      struct acr_info *info);
 extern struct page *alloc_contig_pages(unsigned long nr_pages, gfp_t gfp_mask,
 				       int nid, nodemask_t *nodemask);
 #endif

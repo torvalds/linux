@@ -32,18 +32,17 @@
  */
 #define IOMMU_PRIV	(1 << 5)
 /*
- * Non-coherent masters can use this page protection flag to set cacheable
- * memory attributes for only a transparent outer level of cache, also known as
- * the last-level or system cache.
+ * Allow caching in a transparent outer level of cache, also known as
+ * the last-level or system cache, with a read/write allocation policy.
+ * Does not depend on IOMMU_CACHE. Incompatible with IOMMU_SYS_CACHE_NWA.
  */
-#define IOMMU_SYS_CACHE_ONLY	(1 << 6)
+#define IOMMU_SYS_CACHE	(1 << 6)
 /*
- * Non-coherent masters can use this page protection flag to set cacheable
- * memory attributes with a no write allocation cache policy for only a
- * transparent outer level of cache, also known as the last-level or system
- * cache.
+ * Allow caching in a transparent outer level of cache, also known as
+ * the last-level or system cache, with a read allocation policy.
+ * Does not depend on IOMMU_CACHE. Incompatible with IOMMU_SYS_CACHE.
  */
-#define IOMMU_SYS_CACHE_ONLY_NWA (1 << 7)
+#define IOMMU_SYS_CACHE_NWA (1 << 7)
 
 #ifdef CONFIG_NO_GKI
 

@@ -21,6 +21,7 @@
 #include <linux/kallsyms.h>
 #include <linux/capability.h>
 #include <linux/percpu-refcount.h>
+#include <linux/android_kabi.h>
 
 struct bpf_verifier_env;
 struct bpf_verifier_log;
@@ -132,6 +133,9 @@ struct bpf_map_ops {
 
 	/* bpf_iter info used to open a seq_file */
 	const struct bpf_iter_seq_info *iter_seq_info;
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 struct bpf_map_memory {
@@ -218,6 +222,8 @@ struct bpf_map_dev_ops {
 	int (*map_update_elem)(struct bpf_offloaded_map *map,
 			       void *key, void *value, u64 flags);
 	int (*map_delete_elem)(struct bpf_offloaded_map *map, void *key);
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct bpf_offloaded_map {
@@ -459,6 +465,7 @@ struct bpf_verifier_ops {
 				 const struct btf_type *t, int off, int size,
 				 enum bpf_access_type atype,
 				 u32 *next_btf_id);
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct bpf_prog_offload_ops {
@@ -474,6 +481,7 @@ struct bpf_prog_offload_ops {
 	int (*prepare)(struct bpf_prog *prog);
 	int (*translate)(struct bpf_prog *prog);
 	void (*destroy)(struct bpf_prog *prog);
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct bpf_prog_offload {
@@ -851,6 +859,7 @@ struct bpf_prog_aux {
 		struct work_struct work;
 		struct rcu_head	rcu;
 	};
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct bpf_array_aux {

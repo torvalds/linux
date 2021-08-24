@@ -31,6 +31,9 @@
 #include <linux/vmalloc.h>
 #include <asm/dma.h>
 #include <linux/aer.h>
+#ifndef  __GENKSYMS__
+#include <trace/hooks/pci.h>
+#endif
 #include "pci.h"
 
 DEFINE_MUTEX(pci_slot_mutex);
@@ -64,12 +67,16 @@ struct pci_pme_device {
 static void pci_dev_d3_sleep(struct pci_dev *dev)
 {
 	unsigned int delay = dev->d3hot_delay;
+	int err = -EOPNOTSUPP;
 
 	if (delay < pci_pm_d3hot_delay)
 		delay = pci_pm_d3hot_delay;
 
-	if (delay)
-		msleep(delay);
+	if (delay) {
+		trace_android_rvh_pci_d3_sleep(dev, delay, &err);
+		if (err == -EOPNOTSUPP)
+			msleep(delay);
+	}
 }
 
 #ifdef CONFIG_PCI_DOMAINS

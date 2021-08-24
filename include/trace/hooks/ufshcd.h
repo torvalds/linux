@@ -19,6 +19,10 @@ DECLARE_HOOK(android_vh_ufs_fill_prdt,
 		 unsigned int segments, int *err),
 	TP_ARGS(hba, lrbp, segments, err));
 
+DECLARE_RESTRICTED_HOOK(android_rvh_ufs_reprogram_all_keys,
+			TP_PROTO(struct ufs_hba *hba, int *err),
+			TP_ARGS(hba, err), 1);
+
 DECLARE_HOOK(android_vh_ufs_prepare_command,
 	TP_PROTO(struct ufs_hba *hba, struct request *rq,
 		 struct ufshcd_lrb *lrbp, int *err),
@@ -55,6 +59,9 @@ DECLARE_HOOK(android_vh_ufs_update_sdev,
 	TP_PROTO(struct scsi_device *sdev),
 	TP_ARGS(sdev));
 
+DECLARE_HOOK(android_vh_ufs_clock_scaling,
+	TP_PROTO(struct ufs_hba *hba, bool *force_out, bool *force_scaling, bool *scale_up),
+	TP_ARGS(hba, force_out, force_scaling, scale_up));
 #endif /* _TRACE_HOOK_UFSHCD_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>

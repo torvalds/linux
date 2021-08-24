@@ -265,6 +265,14 @@ static inline void clear_highpage(struct page *page)
 	kunmap_atomic(kaddr);
 }
 
+#ifndef __HAVE_ARCH_TAG_CLEAR_HIGHPAGE
+
+static inline void tag_clear_highpage(struct page *page)
+{
+}
+
+#endif
+
 static inline void zero_user_segments(struct page *page,
 	unsigned start1, unsigned end1,
 	unsigned start2, unsigned end2)

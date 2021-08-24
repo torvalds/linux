@@ -38,8 +38,14 @@
 #include <linux/hugetlb.h>
 #include <linux/frontswap.h>
 #include <linux/fs_parser.h>
+#include <linux/mm_inline.h>
 
 #include <asm/tlbflush.h> /* for arch/microblaze update_mmu_cache() */
+
+#include "internal.h"
+
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/shmem_fs.h>
 
 static struct vfsmount *shm_mnt;
 
@@ -1559,7 +1565,11 @@ static struct page *shmem_alloc_page(gfp_t gfp,
 			struct shmem_inode_info *info, pgoff_t index)
 {
 	struct vm_area_struct pvma;
-	struct page *page;
+	struct page *page = NULL;
+
+	trace_android_vh_shmem_alloc_page(&page);
+	if (page)
+		return page;
 
 	shmem_pseudo_vma_init(&pvma, info, index);
 	page = alloc_page_vma(gfp, &pvma, 0);
@@ -4285,8 +4295,46 @@ struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
 }
 EXPORT_SYMBOL_GPL(shmem_read_mapping_page_gfp);
 
-void shmem_mark_page_lazyfree(struct page *page)
+void shmem_mark_page_lazyfree(struct page *page, bool tail)
 {
-	mark_page_lazyfree_movetail(page);
+	mark_page_lazyfree_movetail(page, tail);
 }
 EXPORT_SYMBOL_GPL(shmem_mark_page_lazyfree);
+
+int reclaim_shmem_address_space(struct address_space *mapping)
+{
+	pgoff_t start = 0;
+	struct page *page;
+	LIST_HEAD(page_list);
+	int reclaimed;
+	XA_STATE(xas, &mapping->i_pages, start);
+
+	if (!shmem_mapping(mapping))
+		return -EINVAL;
+
+	lru_add_drain();
+
+	rcu_read_lock();
+	xas_for_each(&xas, page, ULONG_MAX) {
+		if (xas_retry(&xas, page))
+			continue;
+		if (xa_is_value(page))
+			continue;
+		if (isolate_lru_page(page))
+			continue;
+
+		list_add(&page->lru, &page_list);
+		inc_node_page_state(page, NR_ISOLATED_ANON +
+				page_is_file_lru(page));
+
+		if (need_resched()) {
+			xas_pause(&xas);
+			cond_resched_rcu();
+		}
+	}
+	rcu_read_unlock();
+	reclaimed = reclaim_pages_from_list(&page_list);
+
+	return reclaimed;
+}
+EXPORT_SYMBOL_GPL(reclaim_shmem_address_space);

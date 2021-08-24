@@ -618,7 +618,8 @@ static void set_track(struct kmem_cache *s, void *object,
 
 		if (nr_entries < TRACK_ADDRS_COUNT)
 			p->addrs[nr_entries] = 0;
-		trace_android_vh_save_track_hash((unsigned long)p);
+		trace_android_vh_save_track_hash(alloc == TRACK_ALLOC,
+						(unsigned long)p);
 #endif
 		p->addr = addr;
 		p->cpu = smp_processor_id();
@@ -685,8 +686,6 @@ static void slab_bug(struct kmem_cache *s, char *fmt, ...)
 	pr_err("=============================================================================\n");
 	pr_err("BUG %s (%s): %pV\n", s->name, print_tainted(), &vaf);
 	pr_err("-----------------------------------------------------------------------------\n\n");
-
-	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
 	va_end(args);
 }
 
@@ -760,6 +759,7 @@ void object_err(struct kmem_cache *s, struct page *page,
 {
 	slab_bug(s, "%s", reason);
 	print_trailer(s, page, object);
+	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
 }
 
 static __printf(3, 4) void slab_err(struct kmem_cache *s, struct page *page,
@@ -774,6 +774,7 @@ static __printf(3, 4) void slab_err(struct kmem_cache *s, struct page *page,
 	slab_bug(s, "%s", buf);
 	print_page_info(page);
 	dump_stack();
+	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
 }
 
 static void init_object(struct kmem_cache *s, void *object, u8 val)
@@ -822,6 +823,7 @@ static int check_bytes_and_report(struct kmem_cache *s, struct page *page,
 					fault, end - 1, fault - addr,
 					fault[0], value);
 	print_trailer(s, page, object);
+	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
 
 	restore_bytes(s, what, value, fault, end);
 	return 0;
@@ -1376,12 +1378,13 @@ check_slabs:
 static int __init setup_slub_debug(char *str)
 {
 	slab_flags_t flags;
+	slab_flags_t global_flags;
 	char *saved_str;
 	char *slab_list;
 	bool global_slub_debug_changed = false;
 	bool slab_list_specified = false;
 
-	slub_debug = DEBUG_DEFAULT_FLAGS;
+	global_flags = DEBUG_DEFAULT_FLAGS;
 	if (*str++ != '=' || !*str)
 		/*
 		 * No options specified. Switch on full debugging.
@@ -1393,7 +1396,7 @@ static int __init setup_slub_debug(char *str)
 		str = parse_slub_debug_flags(str, &flags, &slab_list, true);
 
 		if (!slab_list) {
-			slub_debug = flags;
+			global_flags = flags;
 			global_slub_debug_changed = true;
 		} else {
 			slab_list_specified = true;
@@ -1402,16 +1405,18 @@ static int __init setup_slub_debug(char *str)
 
 	/*
 	 * For backwards compatibility, a single list of flags with list of
-	 * slabs means debugging is only enabled for those slabs, so the global
-	 * slub_debug should be 0. We can extended that to multiple lists as
+	 * slabs means debugging is only changed for those slabs, so the global
+	 * slub_debug should be unchanged (0 or DEBUG_DEFAULT_FLAGS, depending
+	 * on CONFIG_SLUB_DEBUG_ON). We can extended that to multiple lists as
 	 * long as there is no option specifying flags without a slab list.
 	 */
 	if (slab_list_specified) {
 		if (!global_slub_debug_changed)
-			slub_debug = 0;
+			global_flags = slub_debug;
 		slub_debug_string = saved_str;
 	}
 out:
+	slub_debug = global_flags;
 	if (slub_debug != 0 || slub_debug_string)
 		static_branch_enable(&slub_debug_enabled);
 	if ((static_branch_unlikely(&init_on_alloc) ||
@@ -5748,31 +5753,23 @@ static int slab_debugfs_show(struct seq_file *seq, void *v)
 
 static void slab_debugfs_stop(struct seq_file *seq, void *v)
 {
-	kfree(v);
 }
 
 static void *slab_debugfs_next(struct seq_file *seq, void *v, loff_t *ppos)
 {
-	loff_t *spos = v;
 	struct loc_track *t = seq->private;
 
-	if (*ppos < t->count) {
-		*ppos = ++*spos;
-		return spos;
-	}
-	*ppos = ++*spos;
+	v = ppos;
+	++*ppos;
+	if (*ppos <= t->count)
+		return v;
+
 	return NULL;
 }
 
 static void *slab_debugfs_start(struct seq_file *seq, loff_t *ppos)
 {
-	loff_t *spos = kmalloc(sizeof(loff_t), GFP_KERNEL);
-
-	if (!spos)
-		return NULL;
-
-	*spos = *ppos;
-	return spos;
+	return ppos;
 }
 
 static const struct seq_operations slab_debugfs_sops = {

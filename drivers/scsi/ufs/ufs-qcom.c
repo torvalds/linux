@@ -838,9 +838,9 @@ static u32 ufs_qcom_get_ufs_hci_version(struct ufs_hba *hba)
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 
 	if (host->hw_ver.major == 0x1)
-		return UFSHCI_VERSION_11;
+		return ufshci_version(1, 1);
 	else
-		return UFSHCI_VERSION_20;
+		return ufshci_version(2, 0);
 }
 
 /**

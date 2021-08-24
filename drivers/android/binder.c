@@ -738,7 +738,7 @@ static void binder_transaction_priority(struct task_struct *task,
 	t->saved_priority.sched_policy = task->policy;
 	t->saved_priority.prio = task->normal_prio;
 
-	trace_android_vh_binder_transaction_priority_skip(task, &skip);
+	trace_android_vh_binder_priority_skip(task, &skip);
 	if (skip)
 		return;
 
@@ -2851,9 +2851,28 @@ static void binder_transaction(struct binder_proc *proc,
 	if (target_node && target_node->txn_security_ctx) {
 		u32 secid;
 		size_t added_size;
+		int max_retries = 100;
 
 		security_task_getsecid(proc->tsk, &secid);
+ retry_alloc:
 		ret = security_secid_to_secctx(secid, &secctx, &secctx_sz);
+		if (ret == -ENOMEM && max_retries-- > 0) {
+			struct page *dummy_page;
+
+			/*
+			 * security_secid_to_secctx() can fail because of a
+			 * GFP_ATOMIC allocation in which case -ENOMEM is
+			 * returned. This needs to be retried, but there is
+			 * currently no way to tell userspace to retry so we
+			 * do it here. We make sure there is still available
+			 * memory first and then retry.
+			 */
+			dummy_page = alloc_page(GFP_KERNEL);
+			if (dummy_page) {
+				__free_page(dummy_page);
+				goto retry_alloc;
+			}
+		}
 		if (ret) {
 			return_error = BR_FAILED_REPLY;
 			return_error_param = ret;
@@ -5481,6 +5500,7 @@ static void print_binder_transaction_ilocked(struct seq_file *m,
 	struct binder_buffer *buffer = t->buffer;
 
 	spin_lock(&t->lock);
+	trace_android_vh_binder_print_transaction_info(m, proc, prefix, t);
 	to_proc = t->to_proc;
 	seq_printf(m,
 		   "%s %d: %pK from %d:%d to %d:%d code %x flags %x pri %d:%d r%d",

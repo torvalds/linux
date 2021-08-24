@@ -339,7 +339,6 @@ void flush_thread(void)
 	tls_thread_flush();
 	flush_ptrace_hw_breakpoint(current);
 	flush_tagged_addr_state();
-	flush_mte_state();
 }
 
 void release_thread(struct task_struct *dead_task)
@@ -540,25 +539,22 @@ static void erratum_1418040_thread_switch(struct task_struct *prev,
 	write_sysreg(val, cntkctl_el1);
 }
 
-static void update_sctlr_el1(u64 sctlr)
+/*
+ * __switch_to() checks current->thread.sctlr_user as an optimisation. Therefore
+ * this function must be called with preemption disabled and the update to
+ * sctlr_user must be made in the same preemption disabled block so that
+ * __switch_to() does not see the variable update before the SCTLR_EL1 one.
+ */
+void update_sctlr_el1(u64 sctlr)
 {
-	sysreg_clear_set(sctlr_el1, SCTLR_USER_MASK, sctlr);
+	/*
+	 * EnIA must not be cleared while in the kernel as this is necessary for
+	 * in-kernel PAC. It will be cleared on kernel exit if needed.
+	 */
+	sysreg_clear_set(sctlr_el1, SCTLR_USER_MASK & ~SCTLR_ELx_ENIA, sctlr);
 
 	/* ISB required for the kernel uaccess routines when setting TCF0. */
 	isb();
-}
-
-void set_task_sctlr_el1(u64 sctlr)
-{
-	/*
-	 * __switch_to() checks current->thread.sctlr as an
-	 * optimisation. Disable preemption so that it does not see
-	 * the variable update before the SCTLR_EL1 one.
-	 */
-	preempt_disable();
-	current->thread.sctlr_user = sctlr;
-	update_sctlr_el1(sctlr);
-	preempt_enable();
 }
 
 /*
@@ -577,6 +573,7 @@ __notrace_funcgraph struct task_struct *__switch_to(struct task_struct *prev,
 	uao_thread_switch(next);
 	ssbs_thread_switch(next);
 	erratum_1418040_thread_switch(prev, next);
+	ptrauth_thread_switch_user(next);
 	/*
 	 *  vendor hook is needed before the dsb(),
 	 *  because MPAM is related to cache maintenance.
@@ -668,7 +665,8 @@ void arch_setup_new_exec(void)
 	}
 
 	current->mm->context.flags = mmflags;
-	ptrauth_thread_init_user(current);
+	ptrauth_thread_init_user();
+	mte_thread_init_user();
 
 	if (task_spec_ssb_noexec(current)) {
 		arch_prctl_spec_ctrl_set(current, PR_SPEC_STORE_BYPASS,

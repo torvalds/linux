@@ -3381,7 +3381,7 @@ static int f2fs_ioc_enable_verity(struct file *filp, unsigned long arg)
 
 	if (!f2fs_sb_has_verity(F2FS_I_SB(inode))) {
 		f2fs_warn(F2FS_I_SB(inode),
-			  "Can't enable fs-verity on inode %lu: the verity feature is not enabled on this filesystem.\n",
+			  "Can't enable fs-verity on inode %lu: the verity feature is not enabled on this filesystem",
 			  inode->i_ino);
 		return -EOPNOTSUPP;
 	}
@@ -4165,9 +4165,8 @@ static int f2fs_ioc_decompress_file(struct file *filp, unsigned long arg)
 							LLONG_MAX);
 
 	if (ret)
-		f2fs_warn(sbi, "%s: The file might be partially decompressed "
-				"(errno=%d). Please delete the file.\n",
-				__func__, ret);
+		f2fs_warn(sbi, "%s: The file might be partially decompressed (errno=%d). Please delete the file.",
+			  __func__, ret);
 out:
 	inode_unlock(inode);
 	file_end_write(filp);
@@ -4239,9 +4238,8 @@ static int f2fs_ioc_compress_file(struct file *filp, unsigned long arg)
 	clear_inode_flag(inode, FI_ENABLE_COMPRESS);
 
 	if (ret)
-		f2fs_warn(sbi, "%s: The file might be partially compressed "
-				"(errno=%d). Please delete the file.\n",
-				__func__, ret);
+		f2fs_warn(sbi, "%s: The file might be partially compressed (errno=%d). Please delete the file.",
+			  __func__, ret);
 out:
 	inode_unlock(inode);
 	file_end_write(filp);

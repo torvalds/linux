@@ -14,6 +14,7 @@
 #include <linux/atomic.h>
 #include <linux/cpumask.h>
 #include <linux/rcupdate.h>
+#include <linux/android_kabi.h>
 
 struct workqueue_struct;
 
@@ -106,6 +107,8 @@ struct work_struct {
 #ifdef CONFIG_LOCKDEP
 	struct lockdep_map lockdep_map;
 #endif
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 #define WORK_DATA_INIT()	ATOMIC_LONG_INIT((unsigned long)WORK_STRUCT_NO_POOL)
@@ -119,6 +122,9 @@ struct delayed_work {
 	/* target workqueue and CPU ->timer uses to queue ->work */
 	struct workqueue_struct *wq;
 	int cpu;
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 struct rcu_work {

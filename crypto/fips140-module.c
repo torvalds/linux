@@ -3,15 +3,16 @@
  * Copyright 2021 Google LLC
  * Author: Ard Biesheuvel <ardb@google.com>
  *
- * This file is the core of the fips140.ko, which carries a number of crypto
- * algorithms and chaining mode templates that are also built into vmlinux.
- * This modules performs a load time integrity check, as mandated by FIPS 140,
- * and replaces registered crypto algorithms that appear on the FIPS 140 list
- * with ones provided by this module. This meets the FIPS 140 requirements for
- * a cryptographic software module.
+ * This file is the core of fips140.ko, which contains various crypto algorithms
+ * that are also built into vmlinux.  At load time, this module overrides the
+ * built-in implementations of these algorithms with its implementations.  It
+ * also runs self-tests on these algorithms and verifies the integrity of its
+ * code and data.  If either of these steps fails, the kernel will panic.
+ *
+ * This module is intended to be loaded at early boot time in order to meet
+ * FIPS 140 and NIAP FPT_TST_EXT.1 requirements.  It shouldn't be used if you
+ * don't need to meet these requirements.
  */
-
-#define pr_fmt(fmt) "fips140: " fmt
 
 #include <linux/ctype.h>
 #include <linux/module.h>
@@ -23,7 +24,17 @@
 #include <crypto/rng.h>
 #include <trace/hooks/fips140.h>
 
+#include "fips140-module.h"
 #include "internal.h"
+
+/*
+ * This option allows deliberately failing the self-tests for a particular
+ * algorithm.  This is for FIPS lab testing only.
+ */
+#ifdef CONFIG_CRYPTO_FIPS140_MOD_ERROR_INJECTION
+char *fips140_broken_alg;
+module_param_named(broken_alg, fips140_broken_alg, charp, 0);
+#endif
 
 /*
  * FIPS 140-2 prefers the use of HMAC with a public key over a plain hash.
@@ -52,7 +63,13 @@ const u32 *__initcall_start = &__initcall_start_marker;
 const u8 *__text_start = &__fips140_text_start;
 const u8 *__rodata_start = &__fips140_rodata_start;
 
-static const char fips140_algorithms[][22] __initconst = {
+/*
+ * The list of the crypto API algorithms (by cra_name) that will be unregistered
+ * by this module, in preparation for the module registering its own
+ * implementation(s) of them.  When adding a new algorithm here, make sure to
+ * consider whether it needs a self-test added to fips140_selftests[] as well.
+ */
+static const char * const fips140_algorithms[] __initconst = {
 	"aes",
 
 	"gcm(aes)",
@@ -73,28 +90,7 @@ static const char fips140_algorithms[][22] __initconst = {
 	"sha384",
 	"sha512",
 
-	"drbg_nopr_ctr_aes256",
-	"drbg_nopr_ctr_aes192",
-	"drbg_nopr_ctr_aes128",
-	"drbg_nopr_hmac_sha512",
-	"drbg_nopr_hmac_sha384",
-	"drbg_nopr_hmac_sha256",
-	"drbg_nopr_hmac_sha1",
-	"drbg_nopr_sha512",
-	"drbg_nopr_sha384",
-	"drbg_nopr_sha256",
-	"drbg_nopr_sha1",
-	"drbg_pr_ctr_aes256",
-	"drbg_pr_ctr_aes192",
-	"drbg_pr_ctr_aes128",
-	"drbg_pr_hmac_sha512",
-	"drbg_pr_hmac_sha384",
-	"drbg_pr_hmac_sha256",
-	"drbg_pr_hmac_sha1",
-	"drbg_pr_sha512",
-	"drbg_pr_sha384",
-	"drbg_pr_sha256",
-	"drbg_pr_sha1",
+	"stdrng",
 };
 
 static bool __init is_fips140_algo(struct crypto_alg *alg)
@@ -115,6 +111,38 @@ static bool __init is_fips140_algo(struct crypto_alg *alg)
 }
 
 static LIST_HEAD(unchecked_fips140_algos);
+
+/*
+ * Release a list of algorithms which have been removed from crypto_alg_list.
+ *
+ * Note that even though the list is a private list, we have to hold
+ * crypto_alg_sem while iterating through it because crypto_unregister_alg() may
+ * run concurrently (as we haven't taken a reference to the algorithms on the
+ * list), and crypto_unregister_alg() will remove the algorithm from whichever
+ * list it happens to be on, while holding crypto_alg_sem.  That's okay, since
+ * in that case crypto_unregister_alg() will handle the crypto_alg_put().
+ */
+static void fips140_remove_final(struct list_head *list)
+{
+	struct crypto_alg *alg;
+	struct crypto_alg *n;
+
+	/*
+	 * We need to take crypto_alg_sem to safely traverse the list (see
+	 * comment above), but we have to drop it when doing each
+	 * crypto_alg_put() as that may take crypto_alg_sem again.
+	 */
+	down_write(&crypto_alg_sem);
+	list_for_each_entry_safe(alg, n, list, cra_list) {
+		list_del_init(&alg->cra_list);
+		up_write(&crypto_alg_sem);
+
+		crypto_alg_put(alg);
+
+		down_write(&crypto_alg_sem);
+	}
+	up_write(&crypto_alg_sem);
+}
 
 static void __init unregister_existing_fips140_algos(void)
 {
@@ -152,25 +180,17 @@ static void __init unregister_existing_fips140_algos(void)
 				 * transformations. We will swap these out
 				 * later with integrity checked versions.
 				 */
+				pr_info("found already-live algorithm '%s' ('%s')\n",
+					alg->cra_name, alg->cra_driver_name);
 				list_move(&alg->cra_list,
 					  &unchecked_fips140_algos);
 			}
 		}
 	}
-
-	/*
-	 * We haven't taken a reference to the algorithms on the remove_list,
-	 * so technically, we may be competing with a concurrent invocation of
-	 * crypto_unregister_alg() here. Fortunately, crypto_unregister_alg()
-	 * just gives up with a warning if the algo that is being unregistered
-	 * has already disappeared, so this happens to be safe. That does mean
-	 * we need to hold on to the lock, to ensure that the algo is either on
-	 * the list or it is not, and not in some limbo state.
-	 */
-	crypto_remove_final(&remove_list);
-	crypto_remove_final(&spawns);
-
 	up_write(&crypto_alg_sem);
+
+	fips140_remove_final(&remove_list);
+	fips140_remove_final(&spawns);
 }
 
 static void __init unapply_text_relocations(void *section, int section_size,
@@ -250,8 +270,8 @@ static bool __init check_fips140_module_hmac(void)
 	textsize	= &__fips140_text_end - &__fips140_text_start;
 	rodatasize	= &__fips140_rodata_end - &__fips140_rodata_start;
 
-	pr_warn("text size  : 0x%x\n", textsize);
-	pr_warn("rodata size: 0x%x\n", rodatasize);
+	pr_info("text size  : 0x%x\n", textsize);
+	pr_info("rodata size: 0x%x\n", rodatasize);
 
 	textcopy = kmalloc(textsize + rodatasize, GFP_KERNEL);
 	if (!textcopy) {
@@ -283,7 +303,7 @@ static bool __init check_fips140_module_hmac(void)
 		return false;
 	}
 
-	pr_warn("using '%s' for integrity check\n",
+	pr_info("using '%s' for integrity check\n",
 		crypto_shash_driver_name(desc->tfm));
 
 	err = crypto_shash_setkey(desc->tfm, fips140_integ_hmac_key,
@@ -523,11 +543,12 @@ static bool update_fips140_library_routines(void)
  * let's disable CFI locally when handling the initcall array, to avoid
  * surpises.
  */
-int __init __attribute__((__no_sanitize__("cfi"))) fips140_init(void)
+static int __init __attribute__((__no_sanitize__("cfi")))
+fips140_init(void)
 {
 	const u32 *initcall;
 
-	pr_info("Loading FIPS 140 module\n");
+	pr_info("loading module\n");
 
 	unregister_existing_fips140_algos();
 
@@ -536,8 +557,17 @@ int __init __attribute__((__no_sanitize__("cfi"))) fips140_init(void)
 	     initcall < &__initcall_end_marker;
 	     initcall++) {
 		int (*init)(void) = offset_to_ptr(initcall);
+		int err = init();
 
-		init();
+		/*
+		 * ENODEV is expected from initcalls that only register
+		 * algorithms that depend on non-present CPU features.  Besides
+		 * that, errors aren't expected here.
+		 */
+		if (err && err != -ENODEV) {
+			pr_err("initcall %ps() failed: %d\n", init, err);
+			goto panic;
+		}
 	}
 
 	if (!update_live_fips140_algos())
@@ -553,22 +583,25 @@ int __init __attribute__((__no_sanitize__("cfi"))) fips140_init(void)
 	 */
 	synchronize_rcu_tasks();
 
-	/* insert self tests here */
+	if (!fips140_run_selftests())
+		goto panic;
 
 	/*
 	 * It may seem backward to perform the integrity check last, but this
 	 * is intentional: the check itself uses hmac(sha256) which is one of
 	 * the algorithms that are replaced with versions from this module, and
-	 * the integrity check must use the replacement version.
+	 * the integrity check must use the replacement version.  Also, to be
+	 * ready for FIPS 140-3, the integrity check algorithm must have already
+	 * been self-tested.
 	 */
 
 	if (!check_fips140_module_hmac()) {
-		pr_crit("FIPS 140 integrity check failed -- giving up!\n");
+		pr_crit("integrity check failed -- giving up!\n");
 		goto panic;
 	}
+	pr_info("integrity check passed\n");
 
-	pr_info("FIPS 140 integrity check successful\n");
-	pr_info("FIPS 140 module successfully loaded\n");
+	pr_info("module successfully loaded\n");
 	return 0;
 
 panic:

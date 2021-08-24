@@ -141,7 +141,13 @@ void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu)
  * @vcpu:	the vcpu pointer
  *
  * This is called before each entry into the hypervisor to setup any
- * debug related registers.
+ * debug related registers. Currently this just ensures we will trap
+ * access to:
+ *  - Performance monitors (MDCR_EL2_TPM/MDCR_EL2_TPMCR)
+ *  - Debug ROM Address (MDCR_EL2_TDRA)
+ *  - OS related registers (MDCR_EL2_TDOSA)
+ *  - Statistical profiler (MDCR_EL2_TPMS/MDCR_EL2_E2PB)
+ *  - Self-hosted Trace (MDCR_EL2_TTRF/MDCR_EL2_E2TB)
  *
  * Additionally, KVM only traps guest accesses to the debug registers if
  * the guest is not actively using them (see the KVM_ARM64_DEBUG_DIRTY
@@ -262,4 +268,33 @@ void kvm_arm_clear_debug(struct kvm_vcpu *vcpu)
 						&vcpu->arch.debug_ptr->dbg_wvr[0]);
 		}
 	}
+}
+
+void kvm_arch_vcpu_load_debug_state_flags(struct kvm_vcpu *vcpu)
+{
+	u64 dfr0;
+
+	/* For VHE, there is nothing to do */
+	if (has_vhe())
+		return;
+
+	dfr0 = read_sysreg(id_aa64dfr0_el1);
+	/*
+	 * If SPE is present on this CPU and is available at current EL,
+	 * we may need to check if the host state needs to be saved.
+	 */
+	if (cpuid_feature_extract_unsigned_field(dfr0, ID_AA64DFR0_PMSVER_SHIFT) &&
+	    !(read_sysreg_s(SYS_PMBIDR_EL1) & BIT(SYS_PMBIDR_EL1_P_SHIFT)))
+		vcpu->arch.flags |= KVM_ARM64_DEBUG_STATE_SAVE_SPE;
+
+	/* Check if we have TRBE implemented and available at the host */
+	if (cpuid_feature_extract_unsigned_field(dfr0, ID_AA64DFR0_TRBE_SHIFT) &&
+	    !(read_sysreg_s(SYS_TRBIDR_EL1) & TRBIDR_PROG))
+		vcpu->arch.flags |= KVM_ARM64_DEBUG_STATE_SAVE_TRBE;
+}
+
+void kvm_arch_vcpu_put_debug_state_flags(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.flags &= ~(KVM_ARM64_DEBUG_STATE_SAVE_SPE |
+			      KVM_ARM64_DEBUG_STATE_SAVE_TRBE);
 }

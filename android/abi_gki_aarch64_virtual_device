@@ -34,8 +34,6 @@
   cancel_delayed_work_sync
   cancel_work_sync
   capable
-  cfg80211_inform_bss_data
-  cfg80211_put_bss
   __cfi_slowpath
   __check_object_size
   __class_create
@@ -565,10 +563,6 @@
 
 # required by mac80211_hwsim.ko
   alloc_netdev_mqs
-  __cfg80211_alloc_event_skb
-  __cfg80211_alloc_reply_skb
-  __cfg80211_send_event_skb
-  cfg80211_vendor_cmd_reply
   debugfs_attr_read
   debugfs_attr_write
   dev_alloc_name
@@ -583,28 +577,6 @@
   hrtimer_forward
   hrtimer_init
   hrtimer_start_range_ns
-  ieee80211_alloc_hw_nm
-  ieee80211_beacon_cntdwn_is_complete
-  ieee80211_beacon_get_tim
-  ieee80211_csa_finish
-  ieee80211_free_hw
-  ieee80211_free_txskb
-  ieee80211_get_buffered_bc
-  ieee80211_get_tx_rates
-  ieee80211_iterate_active_interfaces_atomic
-  ieee80211_probereq_get
-  ieee80211_queue_delayed_work
-  ieee80211_radar_detected
-  ieee80211_ready_on_channel
-  ieee80211_register_hw
-  ieee80211_remain_on_channel_expired
-  ieee80211_rx_irqsafe
-  ieee80211_scan_completed
-  ieee80211_stop_queues
-  ieee80211_stop_tx_ba_cb_irqsafe
-  ieee80211_tx_status_irqsafe
-  ieee80211_unregister_hw
-  ieee80211_wake_queues
   init_net
   __netdev_alloc_skb
   netif_rx
@@ -619,7 +591,6 @@
   nla_put
   param_ops_ushort
   register_pernet_device
-  regulatory_hint
   rhashtable_destroy
   rhashtable_init
   rhashtable_insert_slow
@@ -635,7 +606,6 @@
   skb_trim
   skb_unlink
   unregister_pernet_device
-  wiphy_apply_custom_regulatory
 
 # required by md-mod.ko
   ack_all_badblocks
@@ -940,9 +910,6 @@
   devm_mfd_add_devices
 
 # required by virt_wifi.ko
-  cfg80211_connect_done
-  cfg80211_disconnected
-  cfg80211_scan_done
   __dev_get_by_index
   dev_printk
   __module_get
@@ -952,13 +919,8 @@
   rtnl_link_unregister
   skb_clone
   unregister_netdevice_many
-  wiphy_free
-  wiphy_new_nm
-  wiphy_register
-  wiphy_unregister
 
 # required by virt_wifi_sim.ko
-  ieee80211_get_channel_khz
   release_firmware
   request_firmware
 
@@ -1233,6 +1195,8 @@
 # required by virtio_pci.ko
   irq_set_affinity_hint
   pci_alloc_irq_vectors_affinity
+  pci_disable_sriov
+  pci_enable_sriov
   pci_find_capability
   pci_find_ext_capability
   pci_find_next_capability
@@ -1242,6 +1206,7 @@
   pci_irq_vector
   pci_release_selected_regions
   pci_request_selected_regions
+  pci_vfs_assigned
   synchronize_irq
   virtio_device_freeze
   virtio_device_restore
@@ -1322,3 +1287,28 @@
   _raw_read_unlock
   _raw_write_lock
   _raw_write_unlock
+
+# required by gs_usb.ko
+  usb_kill_anchored_urbs
+  alloc_candev_mqs
+  register_candev
+  free_candev
+  can_change_mtu
+  open_candev
+  usb_anchor_urb
+  usb_unanchor_urb
+  alloc_can_skb
+  can_get_echo_skb
+  alloc_can_err_skb
+  close_candev
+  can_put_echo_skb
+  can_free_echo_skb
+  unregister_candev
+
+# required by vcan.ko
+  sock_efree
+
+# required by slcan.ko
+  tty_mode_ioctl
+  tty_hangup
+  hex_asc_upper

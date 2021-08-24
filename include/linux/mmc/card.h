@@ -9,6 +9,7 @@
 
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
+#include <linux/android_kabi.h>
 
 struct mmc_cid {
 	unsigned int		manfid;
@@ -236,6 +237,8 @@ struct mmc_part {
 #define MMC_BLK_DATA_AREA_BOOT	(1<<1)
 #define MMC_BLK_DATA_AREA_GP	(1<<2)
 #define MMC_BLK_DATA_AREA_RPMB	(1<<3)
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /*
@@ -313,6 +316,10 @@ struct mmc_card {
 
 	unsigned int		bouncesz;	/* Bounce buffer size */
 	struct workqueue_struct *complete_wq;	/* Private workqueue */
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_VENDOR_DATA(1);
 };
 
 static inline bool mmc_large_sector(struct mmc_card *card)

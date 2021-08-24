@@ -76,6 +76,7 @@
 #include <linux/capability.h>
 #include <linux/user_namespace.h>
 #include <linux/indirect_call_wrapper.h>
+#include <trace/hooks/net.h>
 
 #include "datagram.h"
 
@@ -701,6 +702,7 @@ void kfree_skb(struct sk_buff *skb)
 	if (!skb_unref(skb))
 		return;
 
+	trace_android_vh_kfree_skb(skb);
 	trace_kfree_skb(skb, __builtin_return_address(0));
 	__kfree_skb(skb);
 }

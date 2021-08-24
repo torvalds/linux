@@ -22,6 +22,9 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
+#ifndef __GENKSYMS__
+#include <trace/hooks/v4l2core.h>
+#endif
 
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 static int subdev_fh_init(struct v4l2_subdev_fh *fh, struct v4l2_subdev *sd)
@@ -511,9 +514,17 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_SUBDEV_S_FMT: {
 		struct v4l2_subdev_format *format = arg;
+		int ret = 0;
 
 		if (format->which != V4L2_SUBDEV_FORMAT_TRY && ro_subdev)
 			return -EPERM;
+
+		trace_android_vh_v4l2subdev_set_fmt(sd, subdev_fh->pad,
+					format, &ret);
+		trace_android_rvh_v4l2subdev_set_fmt(sd, subdev_fh->pad,
+					format, &ret);
+		if (ret)
+			return ret;
 
 		memset(format->reserved, 0, sizeof(format->reserved));
 		memset(format->format.reserved, 0, sizeof(format->format.reserved));
@@ -585,9 +596,15 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_SUBDEV_S_FRAME_INTERVAL: {
 		struct v4l2_subdev_frame_interval *fi = arg;
+		int ret = 0;
 
 		if (ro_subdev)
 			return -EPERM;
+
+		trace_android_vh_v4l2subdev_set_frame_interval(sd, fi, &ret);
+		trace_android_rvh_v4l2subdev_set_frame_interval(sd, fi, &ret);
+		if (ret)
+			return ret;
 
 		memset(fi->reserved, 0, sizeof(fi->reserved));
 		return v4l2_subdev_call(sd, video, s_frame_interval, arg);
@@ -611,9 +628,17 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_SUBDEV_S_SELECTION: {
 		struct v4l2_subdev_selection *sel = arg;
+		int ret = 0;
 
 		if (sel->which != V4L2_SUBDEV_FORMAT_TRY && ro_subdev)
 			return -EPERM;
+
+		trace_android_vh_v4l2subdev_set_selection(sd, subdev_fh->pad,
+					sel, &ret);
+		trace_android_rvh_v4l2subdev_set_selection(sd, subdev_fh->pad,
+					sel, &ret);
+		if (ret)
+			return ret;
 
 		memset(sel->reserved, 0, sizeof(sel->reserved));
 		return v4l2_subdev_call(

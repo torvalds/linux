@@ -116,6 +116,7 @@
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6_stubs.h>
 #endif
+#include <trace/hooks/ipv4.h>
 
 struct udp_table udp_table __read_mostly;
 EXPORT_SYMBOL(udp_table);
@@ -1049,6 +1050,7 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	if (msg->msg_flags & MSG_OOB) /* Mirror BSD error message compatibility */
 		return -EOPNOTSUPP;
+	trace_android_rvh_udp_sendmsg(sk);
 
 	getfrag = is_udplite ? udplite_getfrag : ip_generic_getfrag;
 
@@ -1801,6 +1803,7 @@ try_again:
 	skb = __skb_recv_udp(sk, flags, noblock, &off, &err);
 	if (!skb)
 		return err;
+	trace_android_rvh_udp_recvmsg(sk);
 
 	ulen = udp_skb_len(skb);
 	copied = len;

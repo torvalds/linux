@@ -32,6 +32,8 @@ struct mmc_bus_ops {
 	int (*hw_reset)(struct mmc_host *);
 	int (*sw_reset)(struct mmc_host *);
 	bool (*cache_enabled)(struct mmc_host *);
+
+	ANDROID_VENDOR_DATA_ARRAY(1, 2);
 };
 
 void mmc_attach_bus(struct mmc_host *host, const struct mmc_bus_ops *ops);

@@ -13,6 +13,7 @@
 #define _MEDIA_VIDEOBUF2_V4L2_H
 
 #include <linux/videodev2.h>
+#include <linux/android_kabi.h>
 #include <media/videobuf2-core.h>
 
 #if VB2_MAX_FRAME != VIDEO_MAX_FRAME
@@ -51,6 +52,8 @@ struct vb2_v4l2_buffer {
 	__s32			request_fd;
 	bool			is_held;
 	struct vb2_plane	planes[VB2_MAX_PLANES];
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /* VB2 V4L2 flags as set in vb2_queue.subsystem_flags */

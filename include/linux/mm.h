@@ -573,6 +573,7 @@ struct vm_fault {
 	 */
 	unsigned long vma_flags;
 	pgprot_t vma_page_prot;
+	ANDROID_OEM_DATA_ARRAY(1, 2);
 };
 
 /* page entry size for vm->huge_fault() */
@@ -755,8 +756,13 @@ struct inode;
  */
 static inline int put_page_testzero(struct page *page)
 {
+	int ret;
+
 	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
-	return page_ref_dec_and_test(page);
+	ret = page_ref_dec_and_test(page);
+	page_pinner_put_page(page);
+
+	return ret;
 }
 
 /*
@@ -1231,8 +1237,6 @@ static inline __must_check bool try_get_page(struct page *page)
 static inline void put_page(struct page *page)
 {
 	page = compound_head(page);
-
-	page_pinner_migration_failed(page);
 
 	/*
 	 * For devmap managed pages we need to catch refcount transition from
@@ -3354,6 +3358,8 @@ unsigned long wp_shared_mapping_range(struct address_space *mapping,
 
 extern int sysctl_nr_trim_pages;
 extern bool pte_map_lock_addr(struct vm_fault *vmf, unsigned long addr);
+extern int reclaim_shmem_address_space(struct address_space *mapping);
+extern int reclaim_pages_from_list(struct list_head *page_list);
 
 /**
  * seal_check_future_write - Check for F_SEAL_FUTURE_WRITE flag and handle it

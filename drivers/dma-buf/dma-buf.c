@@ -98,12 +98,12 @@ static void dma_buf_release(struct dentry *dentry)
 	 */
 	BUG_ON(dmabuf->cb_shared.active || dmabuf->cb_excl.active);
 
+	dma_buf_stats_teardown(dmabuf);
 	dmabuf->ops->release(dmabuf);
 
 	if (dmabuf->resv == (struct dma_resv *)&dmabuf[1])
 		dma_resv_fini(dmabuf->resv);
 
-	dma_buf_stats_teardown(dmabuf);
 	module_put(dmabuf->owner);
 	kfree(dmabuf->name);
 	kfree(dmabuf);
@@ -149,54 +149,6 @@ static struct file_system_type dma_buf_fs_type = {
 	.kill_sb = kill_anon_super,
 };
 
-#ifdef CONFIG_DMABUF_SYSFS_STATS
-static void dma_buf_vma_open(struct vm_area_struct *vma)
-{
-	struct dma_buf *dmabuf = vma->vm_file->private_data;
-
-	dmabuf->mmap_count++;
-	/* call the heap provided vma open() op */
-	if (dmabuf->exp_vm_ops->open)
-		dmabuf->exp_vm_ops->open(vma);
-}
-
-static void dma_buf_vma_close(struct vm_area_struct *vma)
-{
-	struct dma_buf *dmabuf = vma->vm_file->private_data;
-
-	if (dmabuf->mmap_count)
-		dmabuf->mmap_count--;
-	/* call the heap provided vma close() op */
-	if (dmabuf->exp_vm_ops->close)
-		dmabuf->exp_vm_ops->close(vma);
-}
-
-static int dma_buf_do_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
-{
-	/* call this first because the exporter might override vma->vm_ops */
-	int ret = dmabuf->ops->mmap(dmabuf, vma);
-
-	if (ret)
-		return ret;
-
-	/* save the exporter provided vm_ops */
-	dmabuf->exp_vm_ops = vma->vm_ops;
-	dmabuf->vm_ops = *(dmabuf->exp_vm_ops);
-	/* override open() and close() to provide buffer mmap count */
-	dmabuf->vm_ops.open = dma_buf_vma_open;
-	dmabuf->vm_ops.close = dma_buf_vma_close;
-	vma->vm_ops = &dmabuf->vm_ops;
-	dmabuf->mmap_count++;
-
-	return ret;
-}
-#else	/* CONFIG_DMABUF_SYSFS_STATS */
-static int dma_buf_do_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
-{
-	return dmabuf->ops->mmap(dmabuf, vma);
-}
-#endif	/* CONFIG_DMABUF_SYSFS_STATS */
-
 static int dma_buf_mmap_internal(struct file *file, struct vm_area_struct *vma)
 {
 	struct dma_buf *dmabuf;
@@ -215,7 +167,7 @@ static int dma_buf_mmap_internal(struct file *file, struct vm_area_struct *vma)
 	    dmabuf->size >> PAGE_SHIFT)
 		return -EINVAL;
 
-	return dma_buf_do_mmap(dmabuf, vma);
+	return dmabuf->ops->mmap(dmabuf, vma);
 }
 
 static loff_t dma_buf_llseek(struct file *file, loff_t offset, int whence)
@@ -778,7 +730,6 @@ dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
 {
 	struct dma_buf_attachment *attach;
 	int ret;
-	unsigned int attach_uid;
 
 	if (WARN_ON(!dmabuf || !dev))
 		return ERR_PTR(-EINVAL);
@@ -804,12 +755,7 @@ dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
 	}
 	dma_resv_lock(dmabuf->resv, NULL);
 	list_add(&attach->node, &dmabuf->attachments);
-	attach_uid = dma_buf_update_attach_uid(dmabuf);
 	dma_resv_unlock(dmabuf->resv);
-
-	ret = dma_buf_attach_stats_setup(attach, attach_uid);
-	if (ret)
-		goto err_sysfs;
 
 	/* When either the importer or the exporter can't handle dynamic
 	 * mappings we cache the mapping here to avoid issues with the
@@ -837,7 +783,6 @@ dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
 			dma_resv_unlock(attach->dmabuf->resv);
 		attach->sgt = sgt;
 		attach->dir = DMA_BIDIRECTIONAL;
-		dma_buf_update_attachment_map_count(attach, 1 /* delta */);
 	}
 
 	return attach;
@@ -854,7 +799,6 @@ err_unlock:
 	if (dma_buf_is_dynamic(attach->dmabuf))
 		dma_resv_unlock(attach->dmabuf->resv);
 
-err_sysfs:
 	dma_buf_detach(dmabuf, attach);
 	return ERR_PTR(ret);
 }
@@ -893,7 +837,6 @@ void dma_buf_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attach)
 			dma_resv_lock(attach->dmabuf->resv, NULL);
 
 		dmabuf->ops->unmap_dma_buf(attach, attach->sgt, attach->dir);
-		dma_buf_update_attachment_map_count(attach, -1 /* delta */);
 
 		if (dma_buf_is_dynamic(attach->dmabuf)) {
 			dma_buf_unpin(attach);
@@ -907,7 +850,6 @@ void dma_buf_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attach)
 	if (dmabuf->ops->detach)
 		dmabuf->ops->detach(dmabuf, attach);
 
-	dma_buf_attach_stats_teardown(attach);
 	kfree(attach);
 }
 EXPORT_SYMBOL_GPL(dma_buf_detach);
@@ -1013,9 +955,6 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 		attach->dir = direction;
 	}
 
-	if (!IS_ERR(sg_table))
-		dma_buf_update_attachment_map_count(attach, 1 /* delta */);
-
 	return sg_table;
 }
 EXPORT_SYMBOL_GPL(dma_buf_map_attachment);
@@ -1053,8 +992,6 @@ void dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
 	if (dma_buf_is_dynamic(attach->dmabuf) &&
 	    !IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY))
 		dma_buf_unpin(attach);
-
-	dma_buf_update_attachment_map_count(attach, -1 /* delta */);
 }
 EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
 

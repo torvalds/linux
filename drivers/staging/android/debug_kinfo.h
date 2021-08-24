@@ -58,6 +58,8 @@ struct kernel_info {
 	__u32 mod_core_layout_offset;
 	__u32 mod_init_layout_offset;
 	__u32 mod_kallsyms_offset;
+	__u64 module_start_va;
+	__u64 module_end_va;
 } __packed;
 
 struct kernel_all_info {
