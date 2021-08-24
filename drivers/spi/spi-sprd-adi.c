@@ -159,7 +159,7 @@ static int sprd_adi_read(struct sprd_adi *sadi, u32 reg, u32 *read_val)
 {
 	int read_timeout = ADI_READ_TIMEOUT;
 	unsigned long flags;
-	u32 val, rd_addr, paddr;
+	u32 val, rd_addr;
 	int ret = 0;
 
 	if (sadi->hwlock) {
@@ -177,11 +177,10 @@ static int sprd_adi_read(struct sprd_adi *sadi, u32 reg, u32 *read_val)
 		goto out;
 
 	/*
-	 * Set the physical register address need to read into RD_CMD register,
+	 * Set the slave address offset need to read into RD_CMD register,
 	 * then ADI controller will start to transfer automatically.
 	 */
-	paddr = sadi->slave_pbase + reg;
-	writel_relaxed(paddr, sadi->base + REG_ADI_RD_CMD);
+	writel_relaxed(reg, sadi->base + REG_ADI_RD_CMD);
 
 	/*
 	 * Wait read operation complete, the BIT_RD_CMD_BUSY will be set
@@ -211,9 +210,9 @@ static int sprd_adi_read(struct sprd_adi *sadi, u32 reg, u32 *read_val)
 	 */
 	rd_addr = (val & RD_ADDR_MASK) >> RD_ADDR_SHIFT;
 
-	if (rd_addr != (paddr & REG_ADDR_LOW_MASK)) {
+	if (rd_addr != (reg & REG_ADDR_LOW_MASK)) {
 		dev_err(sadi->dev, "read error, reg addr = 0x%x, val = 0x%x\n",
-			paddr, val);
+			reg, val);
 		ret = -EIO;
 		goto out;
 	}
