@@ -2179,9 +2179,6 @@ static int platform_profile_get(struct platform_profile_handler *pprof,
 
 	tp = asus->throttle_thermal_policy_mode;
 
-	if (tp < 0)
-		return tp;
-
 	switch (tp) {
 	case ASUS_THROTTLE_THERMAL_POLICY_DEFAULT:
 		*profile = PLATFORM_PROFILE_BALANCED;
