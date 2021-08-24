@@ -225,6 +225,8 @@ struct mana_tx_comp_oob {
 
 struct mana_rxq;
 
+#define CQE_POLLING_BUFFER 512
+
 struct mana_cq {
 	struct gdma_queue *gdma_cq;
 
@@ -244,8 +246,13 @@ struct mana_cq {
 	 */
 	struct mana_txq *txq;
 
-	/* Pointer to a buffer which the CQ handler can copy the CQE's into. */
-	struct gdma_comp *gdma_comp_buf;
+	/* Buffer which the CQ handler can copy the CQE's into. */
+	struct gdma_comp gdma_comp_buf[CQE_POLLING_BUFFER];
+
+	/* NAPI data */
+	struct napi_struct napi;
+	int work_done;
+	int budget;
 };
 
 #define GDMA_MAX_RQE_SGES 15

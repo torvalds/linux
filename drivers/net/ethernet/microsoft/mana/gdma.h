@@ -239,10 +239,8 @@ struct gdma_event {
 
 struct gdma_queue;
 
-#define CQE_POLLING_BUFFER 512
 struct mana_eq {
 	struct gdma_queue *eq;
-	struct gdma_comp cqe_poll[CQE_POLLING_BUFFER];
 };
 
 typedef void gdma_eq_callback(void *context, struct gdma_queue *q,
@@ -291,11 +289,6 @@ struct gdma_queue {
 			unsigned int msix_index;
 
 			u32 log2_throttle_limit;
-
-			/* NAPI data */
-			struct napi_struct napi;
-			int work_done;
-			int budget;
 		} eq;
 
 		struct {
@@ -406,7 +399,7 @@ void mana_gd_destroy_queue(struct gdma_context *gc, struct gdma_queue *queue);
 
 int mana_gd_poll_cq(struct gdma_queue *cq, struct gdma_comp *comp, int num_cqe);
 
-void mana_gd_arm_cq(struct gdma_queue *cq);
+void mana_gd_ring_cq(struct gdma_queue *cq, u8 arm_bit);
 
 struct gdma_wqe {
 	u32 reserved	:24;

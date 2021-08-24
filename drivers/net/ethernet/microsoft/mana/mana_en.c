@@ -696,14 +696,6 @@ static void mana_destroy_wq_obj(struct mana_port_context *apc, u32 wq_type,
 			   resp.hdr.status);
 }
 
-static void mana_init_cqe_poll_buf(struct gdma_comp *cqe_poll_buf)
-{
-	int i;
-
-	for (i = 0; i < CQE_POLLING_BUFFER; i++)
-		memset(&cqe_poll_buf[i], 0, sizeof(struct gdma_comp));
-}
-
 static void mana_destroy_eq(struct gdma_context *gc,
 			    struct mana_port_context *apc)
 {
@@ -746,8 +738,6 @@ static int mana_create_eq(struct mana_port_context *apc)
 	spec.eq.ndev = apc->ndev;
 
 	for (i = 0; i < apc->num_queues; i++) {
-		mana_init_cqe_poll_buf(apc->eqs[i].cqe_poll);
-
 		err = mana_gd_create_mana_eq(gd, &spec, &apc->eqs[i].eq);
 		if (err)
 			goto out;
@@ -790,7 +780,6 @@ static void mana_unmap_skb(struct sk_buff *skb, struct mana_port_context *apc)
 
 static void mana_poll_tx_cq(struct mana_cq *cq)
 {
-	struct gdma_queue *gdma_eq = cq->gdma_cq->cq.parent;
 	struct gdma_comp *completions = cq->gdma_comp_buf;
 	struct gdma_posted_wqe_info *wqe_info;
 	unsigned int pkt_transmitted = 0;
@@ -811,6 +800,9 @@ static void mana_poll_tx_cq(struct mana_cq *cq)
 
 	comp_read = mana_gd_poll_cq(cq->gdma_cq, completions,
 				    CQE_POLLING_BUFFER);
+
+	if (comp_read < 1)
+		return;
 
 	for (i = 0; i < comp_read; i++) {
 		struct mana_tx_comp_oob *cqe_oob;
@@ -861,7 +853,7 @@ static void mana_poll_tx_cq(struct mana_cq *cq)
 
 		mana_unmap_skb(skb, apc);
 
-		napi_consume_skb(skb, gdma_eq->eq.budget);
+		napi_consume_skb(skb, cq->budget);
 
 		pkt_transmitted++;
 	}
@@ -890,6 +882,8 @@ static void mana_poll_tx_cq(struct mana_cq *cq)
 
 	if (atomic_sub_return(pkt_transmitted, &txq->pending_sends) < 0)
 		WARN_ON_ONCE(1);
+
+	cq->work_done = pkt_transmitted;
 }
 
 static void mana_post_pkt_rxq(struct mana_rxq *rxq)
@@ -918,17 +912,13 @@ static void mana_rx_skb(void *buf_va, struct mana_rxcomp_oob *cqe,
 	struct mana_stats *rx_stats = &rxq->stats;
 	struct net_device *ndev = rxq->ndev;
 	uint pkt_len = cqe->ppi[0].pkt_len;
-	struct mana_port_context *apc;
 	u16 rxq_idx = rxq->rxq_idx;
 	struct napi_struct *napi;
-	struct gdma_queue *eq;
 	struct sk_buff *skb;
 	u32 hash_value;
 
-	apc = netdev_priv(ndev);
-	eq = apc->eqs[rxq_idx].eq;
-	eq->eq.work_done++;
-	napi = &eq->eq.napi;
+	rxq->rx_cq.work_done++;
+	napi = &rxq->rx_cq.napi;
 
 	if (!buf_va) {
 		++ndev->stats.rx_dropped;
@@ -1081,6 +1071,7 @@ static void mana_poll_rx_cq(struct mana_cq *cq)
 static void mana_cq_handler(void *context, struct gdma_queue *gdma_queue)
 {
 	struct mana_cq *cq = context;
+	u8 arm_bit;
 
 	WARN_ON_ONCE(cq->gdma_cq != gdma_queue);
 
@@ -1089,7 +1080,33 @@ static void mana_cq_handler(void *context, struct gdma_queue *gdma_queue)
 	else
 		mana_poll_tx_cq(cq);
 
-	mana_gd_arm_cq(gdma_queue);
+	if (cq->work_done < cq->budget &&
+	    napi_complete_done(&cq->napi, cq->work_done)) {
+		arm_bit = SET_ARM_BIT;
+	} else {
+		arm_bit = 0;
+	}
+
+	mana_gd_ring_cq(gdma_queue, arm_bit);
+}
+
+static int mana_poll(struct napi_struct *napi, int budget)
+{
+	struct mana_cq *cq = container_of(napi, struct mana_cq, napi);
+
+	cq->work_done = 0;
+	cq->budget = budget;
+
+	mana_cq_handler(cq, cq->gdma_cq);
+
+	return min(cq->work_done, budget);
+}
+
+static void mana_schedule_napi(void *context, struct gdma_queue *gdma_queue)
+{
+	struct mana_cq *cq = context;
+
+	napi_schedule_irqoff(&cq->napi);
 }
 
 static void mana_deinit_cq(struct mana_port_context *apc, struct mana_cq *cq)
@@ -1114,12 +1131,18 @@ static void mana_deinit_txq(struct mana_port_context *apc, struct mana_txq *txq)
 
 static void mana_destroy_txq(struct mana_port_context *apc)
 {
+	struct napi_struct *napi;
 	int i;
 
 	if (!apc->tx_qp)
 		return;
 
 	for (i = 0; i < apc->num_queues; i++) {
+		napi = &apc->tx_qp[i].tx_cq.napi;
+		napi_synchronize(napi);
+		napi_disable(napi);
+		netif_napi_del(napi);
+
 		mana_destroy_wq_obj(apc, GDMA_SQ, apc->tx_qp[i].tx_object);
 
 		mana_deinit_cq(apc, &apc->tx_qp[i].tx_cq);
@@ -1186,7 +1209,6 @@ static int mana_create_txq(struct mana_port_context *apc,
 
 		/* Create SQ's CQ */
 		cq = &apc->tx_qp[i].tx_cq;
-		cq->gdma_comp_buf = apc->eqs[i].cqe_poll;
 		cq->type = MANA_CQ_TYPE_TX;
 
 		cq->txq = txq;
@@ -1195,7 +1217,7 @@ static int mana_create_txq(struct mana_port_context *apc,
 		spec.type = GDMA_CQ;
 		spec.monitor_avl_buf = false;
 		spec.queue_size = cq_size;
-		spec.cq.callback = mana_cq_handler;
+		spec.cq.callback = mana_schedule_napi;
 		spec.cq.parent_eq = apc->eqs[i].eq;
 		spec.cq.context = cq;
 		err = mana_gd_create_mana_wq_cq(gd, &spec, &cq->gdma_cq);
@@ -1237,28 +1259,16 @@ static int mana_create_txq(struct mana_port_context *apc,
 
 		gc->cq_table[cq->gdma_id] = cq->gdma_cq;
 
-		mana_gd_arm_cq(cq->gdma_cq);
+		netif_tx_napi_add(net, &cq->napi, mana_poll, NAPI_POLL_WEIGHT);
+		napi_enable(&cq->napi);
+
+		mana_gd_ring_cq(cq->gdma_cq, SET_ARM_BIT);
 	}
 
 	return 0;
 out:
 	mana_destroy_txq(apc);
 	return err;
-}
-
-static void mana_napi_sync_for_rx(struct mana_rxq *rxq)
-{
-	struct net_device *ndev = rxq->ndev;
-	struct mana_port_context *apc;
-	u16 rxq_idx = rxq->rxq_idx;
-	struct napi_struct *napi;
-	struct gdma_queue *eq;
-
-	apc = netdev_priv(ndev);
-	eq = apc->eqs[rxq_idx].eq;
-	napi = &eq->eq.napi;
-
-	napi_synchronize(napi);
 }
 
 static void mana_destroy_rxq(struct mana_port_context *apc,
@@ -1268,13 +1278,19 @@ static void mana_destroy_rxq(struct mana_port_context *apc,
 	struct gdma_context *gc = apc->ac->gdma_dev->gdma_context;
 	struct mana_recv_buf_oob *rx_oob;
 	struct device *dev = gc->dev;
+	struct napi_struct *napi;
 	int i;
 
 	if (!rxq)
 		return;
 
+	napi = &rxq->rx_cq.napi;
+
 	if (validate_state)
-		mana_napi_sync_for_rx(rxq);
+		napi_synchronize(napi);
+
+	napi_disable(napi);
+	netif_napi_del(napi);
 
 	mana_destroy_wq_obj(apc, GDMA_RQ, rxq->rxobj);
 
@@ -1418,7 +1434,6 @@ static struct mana_rxq *mana_create_rxq(struct mana_port_context *apc,
 
 	/* Create RQ's CQ */
 	cq = &rxq->rx_cq;
-	cq->gdma_comp_buf = eq->cqe_poll;
 	cq->type = MANA_CQ_TYPE_RX;
 	cq->rxq = rxq;
 
@@ -1426,7 +1441,7 @@ static struct mana_rxq *mana_create_rxq(struct mana_port_context *apc,
 	spec.type = GDMA_CQ;
 	spec.monitor_avl_buf = false;
 	spec.queue_size = cq_size;
-	spec.cq.callback = mana_cq_handler;
+	spec.cq.callback = mana_schedule_napi;
 	spec.cq.parent_eq = eq->eq;
 	spec.cq.context = cq;
 	err = mana_gd_create_mana_wq_cq(gd, &spec, &cq->gdma_cq);
@@ -1466,7 +1481,10 @@ static struct mana_rxq *mana_create_rxq(struct mana_port_context *apc,
 
 	gc->cq_table[cq->gdma_id] = cq->gdma_cq;
 
-	mana_gd_arm_cq(cq->gdma_cq);
+	netif_napi_add(ndev, &cq->napi, mana_poll, 1);
+	napi_enable(&cq->napi);
+
+	mana_gd_ring_cq(cq->gdma_cq, SET_ARM_BIT);
 out:
 	if (!err)
 		return rxq;
