@@ -520,12 +520,6 @@ void sve_alloc(struct task_struct *task)
 	/* This is a small allocation (maximum ~8KB) and Should Not Fail. */
 	task->thread.sve_state =
 		kzalloc(sve_state_size(task), GFP_KERNEL);
-
-	/*
-	 * If future SVE revisions can have larger vectors though,
-	 * this may cease to be true:
-	 */
-	BUG_ON(!task->thread.sve_state);
 }
 
 
@@ -945,6 +939,10 @@ void do_sve_acc(unsigned int esr, struct pt_regs *regs)
 	}
 
 	sve_alloc(current);
+	if (!current->thread.sve_state) {
+		force_sig(SIGKILL);
+		return;
+	}
 
 	get_cpu_fpsimd_context();
 
