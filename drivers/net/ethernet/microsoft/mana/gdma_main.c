@@ -1093,7 +1093,7 @@ static int mana_gd_read_cqe(struct gdma_queue *cq, struct gdma_comp *comp)
 
 	new_bits = (cq->head / num_cqe) & GDMA_CQE_OWNER_MASK;
 	/* Return -1 if overflow detected. */
-	if (owner_bits != new_bits)
+	if (WARN_ON_ONCE(owner_bits != new_bits))
 		return -1;
 
 	comp->wq_num = cqe->cqe_info.wq_num;
