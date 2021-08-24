@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd
+ */
+
+#include "arm64/rockchip/rk3308bs-evb-mipi-display-v11.dts"
+
+/ {
+	model = "Rockchip RK3308B-S evb mipi display v11 board (AArch32)";
+	compatible = "rockchip,rk3308bs-evb-mipi-display-v11-aarch32", "rockchip,rk3308";
+};
+
+&ramoops_mem {
+	reg = <0x0 0x30000 0x0 0x20000>;
+};
+
+&ramoops {
+	record-size = <0x0 0x00000>;
+	console-size = <0x0 0x20000>;
+};

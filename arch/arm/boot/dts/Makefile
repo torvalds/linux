@@ -1018,7 +1018,10 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3288-veyron-pinky.dtb \
 	rk3288-veyron-speedy.dtb \
 	rk3288-veyron-tiger.dtb \
-	rk3288-vyasa.dtb
+	rk3288-vyasa.dtb \
+	rk3308bs-evb-amic-v11-aarch32.dtb \
+	rk3308bs-evb-dmic-pdm-v11-aarch32.dtb \
+	rk3308bs-evb-mipi-display-v11-aarch32.dtb
 dtb-$(CONFIG_ARCH_S3C24XX) += \
 	s3c2416-smdk2416.dtb
 dtb-$(CONFIG_ARCH_S3C64XX) += \
