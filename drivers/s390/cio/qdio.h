@@ -236,7 +236,7 @@ struct qdio_irq {
 	int nr_input_qs;
 	int nr_output_qs;
 
-	struct ccw1 ccw;
+	struct ccw1 *ccw;
 
 	struct qdio_ssqd_desc ssqd_desc;
 	void (*orig_handler) (struct ccw_device *, unsigned long, struct irb *);

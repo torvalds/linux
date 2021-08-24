@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/kmemleak.h>
 #include <linux/delay.h>
 #include <linux/gfp.h>
 #include <linux/io.h>
@@ -874,6 +875,7 @@ int qdio_free(struct ccw_device *cdev)
 	qdio_free_queues(irq_ptr);
 	free_page((unsigned long) irq_ptr->qdr);
 	free_page(irq_ptr->chsc_page);
+	kfree(irq_ptr->ccw);
 	free_page((unsigned long) irq_ptr);
 	return 0;
 }
@@ -899,10 +901,16 @@ int qdio_allocate(struct ccw_device *cdev, unsigned int no_input_qs,
 	    no_output_qs > QDIO_MAX_QUEUES_PER_IRQ)
 		return -EINVAL;
 
-	/* irq_ptr must be in GFP_DMA since it contains ccw1.cda */
-	irq_ptr = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	irq_ptr = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!irq_ptr)
 		return -ENOMEM;
+
+	irq_ptr->ccw = kmalloc(sizeof(*irq_ptr->ccw), GFP_KERNEL | GFP_DMA);
+	if (!irq_ptr->ccw)
+		goto err_ccw;
+
+	/* kmemleak doesn't scan the page-allocated irq_ptr: */
+	kmemleak_not_leak(irq_ptr->ccw);
 
 	irq_ptr->cdev = cdev;
 	mutex_init(&irq_ptr->setup_mutex);
@@ -941,6 +949,8 @@ err_qdr:
 	free_page(irq_ptr->chsc_page);
 err_chsc:
 err_dbf:
+	kfree(irq_ptr->ccw);
+err_ccw:
 	free_page((unsigned long) irq_ptr);
 	return rc;
 }
@@ -1012,15 +1022,15 @@ int qdio_establish(struct ccw_device *cdev,
 		goto err_thinint;
 
 	/* establish q */
-	irq_ptr->ccw.cmd_code = ciw->cmd;
-	irq_ptr->ccw.flags = CCW_FLAG_SLI;
-	irq_ptr->ccw.count = ciw->count;
-	irq_ptr->ccw.cda = (u32) virt_to_phys(irq_ptr->qdr);
+	irq_ptr->ccw->cmd_code = ciw->cmd;
+	irq_ptr->ccw->flags = CCW_FLAG_SLI;
+	irq_ptr->ccw->count = ciw->count;
+	irq_ptr->ccw->cda = (u32) virt_to_phys(irq_ptr->qdr);
 
 	spin_lock_irq(get_ccwdev_lock(cdev));
 	ccw_device_set_options_mask(cdev, 0);
 
-	rc = ccw_device_start(cdev, &irq_ptr->ccw, QDIO_DOING_ESTABLISH, 0, 0);
+	rc = ccw_device_start(cdev, irq_ptr->ccw, QDIO_DOING_ESTABLISH, 0, 0);
 	spin_unlock_irq(get_ccwdev_lock(cdev));
 	if (rc) {
 		DBF_ERROR("%4x est IO ERR", irq_ptr->schid.sch_no);
@@ -1093,15 +1103,15 @@ int qdio_activate(struct ccw_device *cdev)
 		goto out;
 	}
 
-	irq_ptr->ccw.cmd_code = ciw->cmd;
-	irq_ptr->ccw.flags = CCW_FLAG_SLI;
-	irq_ptr->ccw.count = ciw->count;
-	irq_ptr->ccw.cda = 0;
+	irq_ptr->ccw->cmd_code = ciw->cmd;
+	irq_ptr->ccw->flags = CCW_FLAG_SLI;
+	irq_ptr->ccw->count = ciw->count;
+	irq_ptr->ccw->cda = 0;
 
 	spin_lock_irq(get_ccwdev_lock(cdev));
 	ccw_device_set_options(cdev, CCWDEV_REPORT_ALL);
 
-	rc = ccw_device_start(cdev, &irq_ptr->ccw, QDIO_DOING_ACTIVATE,
+	rc = ccw_device_start(cdev, irq_ptr->ccw, QDIO_DOING_ACTIVATE,
 			      0, DOIO_DENY_PREFETCH);
 	spin_unlock_irq(get_ccwdev_lock(cdev));
 	if (rc) {
