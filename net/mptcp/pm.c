@@ -251,8 +251,10 @@ void mptcp_pm_mp_prio_received(struct sock *sk, u8 bkup)
 
 /* path manager helpers */
 
-bool mptcp_pm_add_addr_signal(struct mptcp_sock *msk, unsigned int remaining,
-			      struct mptcp_addr_info *saddr, bool *echo, bool *port)
+bool mptcp_pm_add_addr_signal(struct mptcp_sock *msk, struct sk_buff *skb,
+			      unsigned int opt_size, unsigned int remaining,
+			      struct mptcp_addr_info *saddr, bool *echo,
+			      bool *port, bool *drop_other_suboptions)
 {
 	int ret = false;
 
@@ -261,6 +263,15 @@ bool mptcp_pm_add_addr_signal(struct mptcp_sock *msk, unsigned int remaining,
 	/* double check after the lock is acquired */
 	if (!mptcp_pm_should_add_signal(msk))
 		goto out_unlock;
+
+	/* always drop every other options for pure ack ADD_ADDR; this is a
+	 * plain dup-ack from TCP perspective. The other MPTCP-relevant info,
+	 * if any, will be carried by the 'original' TCP ack
+	 */
+	if (skb && skb_is_tcp_pure_ack(skb)) {
+		remaining += opt_size;
+		*drop_other_suboptions = true;
+	}
 
 	*echo = mptcp_pm_should_add_signal_echo(msk);
 	*port = mptcp_pm_should_add_signal_port(msk);
