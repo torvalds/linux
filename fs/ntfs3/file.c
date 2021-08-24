@@ -12,7 +12,6 @@
 #include <linux/compat.h>
 #include <linux/falloc.h>
 #include <linux/fiemap.h>
-#include <linux/msdos_fs.h> /* FAT_IOCTL_XXX */
 #include <linux/nls.h>
 
 #include "debug.h"
@@ -52,15 +51,8 @@ static long ntfs_ioctl(struct file *filp, u32 cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
 	struct ntfs_sb_info *sbi = inode->i_sb->s_fs_info;
-	u32 __user *user_attr = (u32 __user *)arg;
 
 	switch (cmd) {
-	case FAT_IOCTL_GET_ATTRIBUTES:
-		return put_user(le32_to_cpu(ntfs_i(inode)->std_fa), user_attr);
-
-	case FAT_IOCTL_GET_VOLUME_ID:
-		return put_user(sbi->volume.ser_num, user_attr);
-
 	case FITRIM:
 		return ntfs_ioctl_fitrim(sbi, arg);
 	}
