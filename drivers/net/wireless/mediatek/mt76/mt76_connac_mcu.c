@@ -766,7 +766,7 @@ void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
 	if (!is_mt7921(dev))
 		return;
 
-	if (sta->ht_cap.ht_supported)
+	if (sta->ht_cap.ht_supported || sta->he_cap.has_he)
 		mt76_connac_mcu_sta_amsdu_tlv(skb, sta, vif);
 
 	/* starec he */
