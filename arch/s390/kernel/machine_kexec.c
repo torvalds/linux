@@ -263,7 +263,6 @@ static void __do_machine_kexec(void *data)
  */
 static void __machine_kexec(void *data)
 {
-	__arch_local_irq_stosm(0x04); /* enable DAT */
 	pfault_fini();
 	tracing_off();
 	debug_locks_off();

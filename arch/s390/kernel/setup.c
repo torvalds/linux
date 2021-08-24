@@ -465,7 +465,7 @@ static void __init setup_lowcore_dat_off(void)
 	lc->restart_stack = (unsigned long) restart_stack;
 	lc->restart_fn = (unsigned long) do_restart;
 	lc->restart_data = 0;
-	lc->restart_source = -1UL;
+	lc->restart_source = -1U;
 
 	mcck_stack = (unsigned long)memblock_alloc(THREAD_SIZE, THREAD_SIZE);
 	if (!mcck_stack)
@@ -494,12 +494,19 @@ static void __init setup_lowcore_dat_off(void)
 
 static void __init setup_lowcore_dat_on(void)
 {
+	struct lowcore *lc = lowcore_ptr[0];
+
 	__ctl_clear_bit(0, 28);
 	S390_lowcore.external_new_psw.mask |= PSW_MASK_DAT;
 	S390_lowcore.svc_new_psw.mask |= PSW_MASK_DAT;
 	S390_lowcore.program_new_psw.mask |= PSW_MASK_DAT;
 	S390_lowcore.io_new_psw.mask |= PSW_MASK_DAT;
+	__ctl_store(S390_lowcore.cregs_save_area, 0, 15);
 	__ctl_set_bit(0, 28);
+	mem_assign_absolute(S390_lowcore.restart_flags, RESTART_FLAG_CTLREGS);
+	mem_assign_absolute(S390_lowcore.program_new_psw, lc->program_new_psw);
+	memcpy_absolute(&S390_lowcore.cregs_save_area, lc->cregs_save_area,
+			sizeof(S390_lowcore.cregs_save_area));
 }
 
 static struct resource code_resource = {

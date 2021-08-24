@@ -116,6 +116,7 @@ int main(void)
 	OFFSET(__LC_RESTART_FN, lowcore, restart_fn);
 	OFFSET(__LC_RESTART_DATA, lowcore, restart_data);
 	OFFSET(__LC_RESTART_SOURCE, lowcore, restart_source);
+	OFFSET(__LC_RESTART_FLAGS, lowcore, restart_flags);
 	OFFSET(__LC_KERNEL_ASCE, lowcore, kernel_asce);
 	OFFSET(__LC_USER_ASCE, lowcore, user_asce);
 	OFFSET(__LC_LPP, lowcore, lpp);

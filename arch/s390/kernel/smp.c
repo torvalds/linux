@@ -252,6 +252,7 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 	cpumask_set_cpu(cpu, &init_mm.context.cpu_attach_mask);
 	cpumask_set_cpu(cpu, mm_cpumask(&init_mm));
 	lc->cpu_nr = cpu;
+	lc->restart_flags = RESTART_FLAG_CTLREGS;
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
 	lc->spinlock_index = 0;
 	lc->percpu_offset = __per_cpu_offset[cpu];
@@ -297,7 +298,7 @@ static void pcpu_start_fn(struct pcpu *pcpu, void (*func)(void *), void *data)
 	lc->restart_stack = lc->nodat_stack;
 	lc->restart_fn = (unsigned long) func;
 	lc->restart_data = (unsigned long) data;
-	lc->restart_source = -1UL;
+	lc->restart_source = -1U;
 	pcpu_sigp_retry(pcpu, SIGP_RESTART, 0);
 }
 
@@ -311,12 +312,12 @@ static void __pcpu_delegate(pcpu_delegate_fn *func, void *data)
 	func(data);	/* should not return */
 }
 
-static void __no_sanitize_address pcpu_delegate(struct pcpu *pcpu,
-						pcpu_delegate_fn *func,
-						void *data, unsigned long stack)
+static void pcpu_delegate(struct pcpu *pcpu,
+			  pcpu_delegate_fn *func,
+			  void *data, unsigned long stack)
 {
 	struct lowcore *lc = lowcore_ptr[pcpu - pcpu_devices];
-	unsigned long source_cpu = stap();
+	unsigned int source_cpu = stap();
 
 	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
 	if (pcpu->address == source_cpu) {
@@ -569,6 +570,9 @@ static void smp_ctl_bit_callback(void *info)
 	__ctl_load(cregs, 0, 15);
 }
 
+static DEFINE_SPINLOCK(ctl_lock);
+static unsigned long ctlreg;
+
 /*
  * Set a bit in a control register of all cpus
  */
@@ -576,6 +580,11 @@ void smp_ctl_set_bit(int cr, int bit)
 {
 	struct ec_creg_mask_parms parms = { 1UL << bit, -1UL, cr };
 
+	spin_lock(&ctl_lock);
+	memcpy_absolute(&ctlreg, &S390_lowcore.cregs_save_area[cr], sizeof(ctlreg));
+	__set_bit(bit, &ctlreg);
+	memcpy_absolute(&S390_lowcore.cregs_save_area[cr], &ctlreg, sizeof(ctlreg));
+	spin_unlock(&ctl_lock);
 	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
 }
 EXPORT_SYMBOL(smp_ctl_set_bit);
@@ -587,6 +596,11 @@ void smp_ctl_clear_bit(int cr, int bit)
 {
 	struct ec_creg_mask_parms parms = { 0, ~(1UL << bit), cr };
 
+	spin_lock(&ctl_lock);
+	memcpy_absolute(&ctlreg, &S390_lowcore.cregs_save_area[cr], sizeof(ctlreg));
+	__clear_bit(bit, &ctlreg);
+	memcpy_absolute(&S390_lowcore.cregs_save_area[cr], &ctlreg, sizeof(ctlreg));
+	spin_unlock(&ctl_lock);
 	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
 }
 EXPORT_SYMBOL(smp_ctl_clear_bit);
@@ -895,14 +909,13 @@ static void smp_init_secondary(void)
 /*
  *	Activate a secondary processor.
  */
-static void __no_sanitize_address smp_start_secondary(void *cpuvoid)
+static void smp_start_secondary(void *cpuvoid)
 {
 	S390_lowcore.restart_stack = (unsigned long) restart_stack;
 	S390_lowcore.restart_fn = (unsigned long) do_restart;
 	S390_lowcore.restart_data = 0;
-	S390_lowcore.restart_source = -1UL;
-	__ctl_load(S390_lowcore.cregs_save_area, 0, 15);
-	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
+	S390_lowcore.restart_source = -1U;
+	S390_lowcore.restart_flags = 0;
 	call_on_stack_noreturn(smp_init_secondary, S390_lowcore.kernel_stack);
 }
 
