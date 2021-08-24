@@ -396,6 +396,70 @@
 		};
 	};
 
+	pvtm@fda40000 {
+		compatible = "rockchip,rk3588-bigcore0-pvtm";
+		reg = <0x0 0xfda40000 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pvtm@0 {
+			reg = <0>;
+			clocks = <&cru CLK_BIGCORE0_PVTM>, <&cru PCLK_BIGCORE0_PVTM>;
+			clock-names = "clk", "pclk";
+		};
+	};
+
+	pvtm@fda50000 {
+		compatible = "rockchip,rk3588-bigcore1-pvtm";
+		reg = <0x0 0xfda50000 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pvtm@1 {
+			reg = <1>;
+			clocks = <&cru CLK_BIGCORE1_PVTM>, <&cru PCLK_BIGCORE1_PVTM>;
+			clock-names = "clk", "pclk";
+		};
+	};
+
+	pvtm@fda60000 {
+		compatible = "rockchip,rk3588-litcore-pvtm";
+		reg = <0x0 0xfda60000 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pvtm@2 {
+			reg = <2>;
+			clocks = <&cru CLK_LITCORE_PVTM>, <&cru PCLK_LITCORE_PVTM>;
+			clock-names = "clk", "pclk";
+		};
+	};
+
+	pvtm@fdaf0000 {
+		compatible = "rockchip,rk3588-npu-pvtm";
+		reg = <0x0 0xfdaf0000 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pvtm@3 {
+			reg = <3>;
+			clocks = <&cru CLK_NPU_PVTM>, <&cru PCLK_NPU_PVTM>;
+			clock-names = "clk", "pclk";
+			resets = <&cru SRST_NPU_PVTM>, <&cru SRST_P_NPU_PVTM>;
+			reset-names = "rts", "rst-p";
+		};
+	};
+
+	pvtm@fdb30000 {
+		compatible = "rockchip,rk3588-gpu-pvtm";
+		reg = <0x0 0xfdb30000 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pvtm@4 {
+			reg = <4>;
+			clocks = <&cru CLK_GPU_PVTM>, <&cru PCLK_GPU_PVTM>;
+			clock-names = "clk", "pclk";
+			resets = <&cru SRST_GPU_PVTM>, <&cru SRST_P_GPU_PVTM>;
+			reset-names = "rts", "rst-p";
+		};
+	};
+
 	npu0_mmu: iommu@fdab9000 {
 		compatible = "rockchip,iommu-v2";
 		reg = <0x0 0xfdab9000 0x0 0x100>, <0x0 0xfdaba000 0x0 0x100>;
