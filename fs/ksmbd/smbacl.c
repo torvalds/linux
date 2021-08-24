@@ -275,8 +275,15 @@ static int sid_to_id(struct user_namespace *user_ns,
 
 		id = le32_to_cpu(psid->sub_auth[psid->num_subauth - 1]);
 		if (id >= 0) {
-			uid = make_kuid(user_ns, id);
-			if (uid_valid(uid) && kuid_has_mapping(user_ns, uid)) {
+			/*
+			 * Translate raw sid into kuid in the server's user
+			 * namespace.
+			 */
+			uid = make_kuid(&init_user_ns, id);
+
+			/* If this is an idmapped mount, apply the idmapping. */
+			uid = kuid_from_mnt(user_ns, uid);
+			if (uid_valid(uid)) {
 				fattr->cf_uid = uid;
 				rc = 0;
 			}
@@ -287,8 +294,15 @@ static int sid_to_id(struct user_namespace *user_ns,
 
 		id = le32_to_cpu(psid->sub_auth[psid->num_subauth - 1]);
 		if (id >= 0) {
-			gid = make_kgid(user_ns, id);
-			if (gid_valid(gid) && kgid_has_mapping(user_ns, gid)) {
+			/*
+			 * Translate raw sid into kgid in the server's user
+			 * namespace.
+			 */
+			gid = make_kgid(&init_user_ns, id);
+
+			/* If this is an idmapped mount, apply the idmapping. */
+			gid = kgid_from_mnt(user_ns, gid);
+			if (gid_valid(gid)) {
 				fattr->cf_gid = gid;
 				rc = 0;
 			}
