@@ -1898,6 +1898,12 @@ static int qede_req_msix_irqs(struct qede_dev *edev)
 				 &edev->fp_array[i]);
 		if (rc) {
 			DP_ERR(edev, "Request fp %d irq failed\n", i);
+#ifdef CONFIG_RFS_ACCEL
+			if (edev->ndev->rx_cpu_rmap)
+				free_irq_cpu_rmap(edev->ndev->rx_cpu_rmap);
+
+			edev->ndev->rx_cpu_rmap = NULL;
+#endif
 			qede_sync_free_irqs(edev);
 			return rc;
 		}
@@ -2290,6 +2296,15 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode,
 
 		rc = qede_stop_queues(edev);
 		if (rc) {
+#ifdef CONFIG_RFS_ACCEL
+			if (edev->dev_info.common.b_arfs_capable) {
+				qede_poll_for_freeing_arfs_filters(edev);
+				if (edev->ndev->rx_cpu_rmap)
+					free_irq_cpu_rmap(edev->ndev->rx_cpu_rmap);
+
+				edev->ndev->rx_cpu_rmap = NULL;
+			}
+#endif
 			qede_sync_free_irqs(edev);
 			goto out;
 		}
@@ -2620,8 +2635,10 @@ static void qede_generic_hw_err_handler(struct qede_dev *edev)
 		  "Generic sleepable HW error handling started - err_flags 0x%lx\n",
 		  edev->err_flags);
 
-	if (edev->devlink)
+	if (edev->devlink) {
+		DP_NOTICE(edev, "Reporting fatal error to devlink\n");
 		edev->ops->common->report_fatal_error(edev->devlink, edev->last_err_type);
+	}
 
 	clear_bit(QEDE_ERR_IS_HANDLED, &edev->err_flags);
 
@@ -2643,6 +2660,8 @@ static void qede_set_hw_err_flags(struct qede_dev *edev,
 	case QED_HW_ERR_FW_ASSERT:
 		set_bit(QEDE_ERR_ATTN_CLR_EN, &err_flags);
 		set_bit(QEDE_ERR_GET_DBG_INFO, &err_flags);
+		/* make this error as recoverable and start recovery*/
+		set_bit(QEDE_ERR_IS_RECOVERABLE, &err_flags);
 		break;
 
 	default:

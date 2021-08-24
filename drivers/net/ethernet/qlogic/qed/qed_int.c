@@ -351,6 +351,9 @@ static int qed_fw_assertion(struct qed_hwfn *p_hwfn)
 	qed_hw_err_notify(p_hwfn, p_hwfn->p_dpc_ptt, QED_HW_ERR_FW_ASSERT,
 			  "FW assertion!\n");
 
+	/* Clear assert indications */
+	qed_wr(p_hwfn, p_hwfn->p_dpc_ptt, MISC_REG_AEU_GENERAL_ATTN_32, 0);
+
 	return -EINVAL;
 }
 
@@ -952,6 +955,13 @@ qed_int_deassertion_aeu_bit(struct qed_hwfn *p_hwfn,
 	qed_wr(p_hwfn, p_hwfn->p_dpc_ptt, aeu_en_reg, (val & ~bitmask));
 	DP_INFO(p_hwfn, "`%s' - Disabled future attentions\n",
 		p_bit_name);
+
+	/* Re-enable FW aassertion (Gen 32) interrupts */
+	val = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
+		     MISC_REG_AEU_ENABLE4_IGU_OUT_0);
+	val |= MISC_REG_AEU_ENABLE4_IGU_OUT_0_GENERAL_ATTN32;
+	qed_wr(p_hwfn, p_hwfn->p_dpc_ptt,
+	       MISC_REG_AEU_ENABLE4_IGU_OUT_0, val);
 
 out:
 	return rc;

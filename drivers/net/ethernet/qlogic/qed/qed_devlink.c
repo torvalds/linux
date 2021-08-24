@@ -93,7 +93,7 @@ static const struct devlink_health_reporter_ops qed_fw_fatal_reporter_ops = {
 		.dump = qed_fw_fatal_reporter_dump,
 };
 
-#define QED_REPORTER_FW_GRACEFUL_PERIOD 1200000
+#define QED_REPORTER_FW_GRACEFUL_PERIOD 0
 
 void qed_fw_reporters_create(struct devlink *devlink)
 {
