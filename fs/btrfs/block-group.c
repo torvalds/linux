@@ -2062,15 +2062,18 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 	link_block_group(cache);
 
 	set_avail_alloc_bits(info, cache->flags);
-	if (btrfs_chunk_readonly(info, cache->start)) {
+	if (btrfs_chunk_writeable(info, cache->start)) {
+		if (cache->used == 0) {
+			ASSERT(list_empty(&cache->bg_list));
+			if (btrfs_test_opt(info, DISCARD_ASYNC))
+				btrfs_discard_queue_work(&info->discard_ctl, cache);
+			else
+				btrfs_mark_bg_unused(cache);
+		}
+	} else {
 		inc_block_group_ro(cache, 1);
-	} else if (cache->used == 0) {
-		ASSERT(list_empty(&cache->bg_list));
-		if (btrfs_test_opt(info, DISCARD_ASYNC))
-			btrfs_discard_queue_work(&info->discard_ctl, cache);
-		else
-			btrfs_mark_bg_unused(cache);
 	}
+
 	return 0;
 error:
 	btrfs_put_block_group(cache);
