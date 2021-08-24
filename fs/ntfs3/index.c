@@ -1500,6 +1500,7 @@ static int indx_add_allocate(struct ntfs_index *indx, struct ntfs_inode *ni,
 	alloc = ni_find_attr(ni, NULL, NULL, ATTR_ALLOC, in->name, in->name_len,
 			     NULL, &mi);
 	if (!alloc) {
+		err = -EINVAL;
 		if (bmp)
 			goto out2;
 		goto out1;
