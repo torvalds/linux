@@ -119,7 +119,7 @@ struct sprd_adi {
 
 static int sprd_adi_check_addr(struct sprd_adi *sadi, u32 reg)
 {
-	if (reg > ADI_SLAVE_ADDR_SIZE) {
+	if (reg >= ADI_SLAVE_ADDR_SIZE) {
 		dev_err(sadi->dev,
 			"slave address offset is incorrect, reg = 0x%x\n",
 			reg);
