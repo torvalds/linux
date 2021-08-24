@@ -370,7 +370,7 @@ skip_dma_unmap:
 	/* This may be the last page returned, releasing the pool, so
 	 * it is not safe to reference pool afterwards.
 	 */
-	count = atomic_inc_return(&pool->pages_state_release_cnt);
+	count = atomic_inc_return_relaxed(&pool->pages_state_release_cnt);
 	trace_page_pool_state_release(pool, page, count);
 }
 EXPORT_SYMBOL(page_pool_release_page);
