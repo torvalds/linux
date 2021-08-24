@@ -1028,8 +1028,12 @@ int mt7921_mcu_set_chan_info(struct mt7921_phy *phy, int cmd)
 		.tx_streams_num = hweight8(phy->mt76->antenna_mask),
 		.rx_streams = phy->mt76->antenna_mask,
 		.band_idx = phy != &dev->phy,
-		.channel_band = chandef->chan->band,
 	};
+
+	if (chandef->chan->band == NL80211_BAND_6GHZ)
+		req.channel_band = 2;
+	else
+		req.channel_band = chandef->chan->band;
 
 	if (dev->mt76.hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
 		req.switch_reason = CH_SWITCH_SCAN_BYPASS_DPD;

@@ -112,7 +112,7 @@ struct mt7921_phy {
 	struct mt76_phy *mt76;
 	struct mt7921_dev *dev;
 
-	struct ieee80211_sband_iftype_data iftype[2][NUM_NL80211_IFTYPES];
+	struct ieee80211_sband_iftype_data iftype[NUM_NL80211_BANDS][NUM_NL80211_IFTYPES];
 
 	u32 rxfilter;
 	u64 omac_mask;

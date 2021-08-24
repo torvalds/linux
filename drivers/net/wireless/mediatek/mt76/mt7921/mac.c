@@ -355,7 +355,14 @@ mt7921_get_status_freq_info(struct mt7921_dev *dev, struct mt76_phy *mphy,
 		return;
 	}
 
-	status->band = chfreq <= 14 ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
+	if (chfreq > 180) {
+		status->band = NL80211_BAND_6GHZ;
+		chfreq = (chfreq - 181) * 4 + 1;
+	} else if (chfreq > 14) {
+		status->band = NL80211_BAND_5GHZ;
+	} else {
+		status->band = NL80211_BAND_2GHZ;
+	}
 	status->freq = ieee80211_channel_to_frequency(chfreq, status->band);
 }
 
@@ -441,10 +448,17 @@ mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
 
 	mt7921_get_status_freq_info(dev, mphy, status, chfreq);
 
-	if (status->band == NL80211_BAND_5GHZ)
+	switch (status->band) {
+	case NL80211_BAND_5GHZ:
 		sband = &mphy->sband_5g.sband;
-	else
+		break;
+	case NL80211_BAND_6GHZ:
+		sband = &mphy->sband_6g.sband;
+		break;
+	default:
 		sband = &mphy->sband_2g.sband;
+		break;
+	}
 
 	if (!sband->channels)
 		return -EINVAL;
@@ -994,7 +1008,7 @@ mt7921_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
 	u16 fc, tid;
 	u32 val;
 
-	if (!sta || !sta->ht_cap.ht_supported)
+	if (!sta || !(sta->ht_cap.ht_supported || sta->he_cap.has_he))
 		return;
 
 	tid = FIELD_GET(MT_TXD1_TID, le32_to_cpu(txwi[1]));
@@ -1392,16 +1406,11 @@ void mt7921_mac_set_timing(struct mt7921_phy *phy)
 		  FIELD_PREP(MT_TIMEOUT_VAL_CCA, 48);
 	u32 ofdm = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 60) |
 		   FIELD_PREP(MT_TIMEOUT_VAL_CCA, 28);
-	int sifs, offset;
-	bool is_5ghz = phy->mt76->chandef.chan->band == NL80211_BAND_5GHZ;
+	bool is_2ghz = phy->mt76->chandef.chan->band == NL80211_BAND_2GHZ;
+	int sifs = is_2ghz ? 10 : 16, offset;
 
 	if (!test_bit(MT76_STATE_RUNNING, &phy->mt76->state))
 		return;
-
-	if (is_5ghz)
-		sifs = 16;
-	else
-		sifs = 10;
 
 	mt76_set(dev, MT_ARB_SCR(0),
 		 MT_ARB_SCR_TX_DISABLE | MT_ARB_SCR_RX_DISABLE);
@@ -1419,7 +1428,7 @@ void mt7921_mac_set_timing(struct mt7921_phy *phy)
 		FIELD_PREP(MT_IFS_SIFS, sifs) |
 		FIELD_PREP(MT_IFS_SLOT, phy->slottime));
 
-	if (phy->slottime < 20 || is_5ghz)
+	if (phy->slottime < 20 || !is_2ghz)
 		val = MT7921_CFEND_RATE_DEFAULT;
 	else
 		val = MT7921_CFEND_RATE_11B;
