@@ -4,5 +4,5 @@
 #include <core/os.h>
 struct nvkm_client;
 
-int nvkm_ioctl(struct nvkm_client *, bool, void *, u32, void **);
+int nvkm_ioctl(struct nvkm_client *, void *, u32, void **);
 #endif
