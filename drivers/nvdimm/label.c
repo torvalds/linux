@@ -898,6 +898,10 @@ static struct resource *to_resource(struct nvdimm_drvdata *ndd,
 	return NULL;
 }
 
+/*
+ * Use the presence of the type_guid as a flag to determine isetcookie
+ * usage and nlabel + position policy for blk-aperture namespaces.
+ */
 static void nsl_set_blk_isetcookie(struct nvdimm_drvdata *ndd,
 				   struct nd_namespace_label *nd_label,
 				   u64 isetcookie)
@@ -923,6 +927,28 @@ bool nsl_validate_blk_isetcookie(struct nvdimm_drvdata *ndd,
 	}
 
 	return true;
+}
+
+static void nsl_set_blk_nlabel(struct nvdimm_drvdata *ndd,
+			       struct nd_namespace_label *nd_label, int nlabel,
+			       bool first)
+{
+	if (!namespace_label_has(ndd, type_guid)) {
+		nsl_set_nlabel(ndd, nd_label, 0); /* N/A */
+		return;
+	}
+	nsl_set_nlabel(ndd, nd_label, first ? nlabel : 0xffff);
+}
+
+static void nsl_set_blk_position(struct nvdimm_drvdata *ndd,
+				 struct nd_namespace_label *nd_label,
+				 bool first)
+{
+	if (!namespace_label_has(ndd, type_guid)) {
+		nsl_set_position(ndd, nd_label, 0);
+		return;
+	}
+	nsl_set_position(ndd, nd_label, first ? 0 : 0xffff);
 }
 
 /*
@@ -1056,23 +1082,9 @@ static int __blk_label_update(struct nd_region *nd_region,
 		nsl_set_name(ndd, nd_label, nsblk->alt_name);
 		nsl_set_flags(ndd, nd_label, NSLABEL_FLAG_LOCAL);
 
-		/*
-		 * Use the presence of the type_guid as a flag to
-		 * determine isetcookie usage and nlabel + position
-		 * policy for blk-aperture namespaces.
-		 */
-		if (namespace_label_has(ndd, type_guid)) {
-			if (i == min_dpa_idx) {
-				nsl_set_nlabel(ndd, nd_label, nsblk->num_resources);
-				nsl_set_position(ndd, nd_label, 0);
-			} else {
-				nsl_set_nlabel(ndd, nd_label, 0xffff);
-				nsl_set_position(ndd, nd_label, 0xffff);
-			}
-		} else {
-			nsl_set_nlabel(ndd, nd_label, 0); /* N/A */
-			nsl_set_position(ndd, nd_label, 0); /* N/A */
-		}
+		nsl_set_blk_nlabel(ndd, nd_label, nsblk->num_resources,
+				   i == min_dpa_idx);
+		nsl_set_blk_position(ndd, nd_label, i == min_dpa_idx);
 		nsl_set_blk_isetcookie(ndd, nd_label, nd_set->cookie2);
 
 		nsl_set_dpa(ndd, nd_label, res->start);
