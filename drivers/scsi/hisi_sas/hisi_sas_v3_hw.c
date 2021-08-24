@@ -4762,7 +4762,7 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	rc = interrupt_preinit_v3_hw(hisi_hba);
 	if (rc)
 		goto err_out_debugfs;
-	dev_err(dev, "%d hw queues\n", shost->nr_hw_queues);
+
 	rc = scsi_add_host(shost, dev);
 	if (rc)
 		goto err_out_free_irq_vectors;
