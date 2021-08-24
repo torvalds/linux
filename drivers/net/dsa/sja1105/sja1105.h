@@ -115,12 +115,6 @@ struct sja1105_info {
 	const struct sja1105_dynamic_table_ops *dyn_ops;
 	const struct sja1105_table_ops *static_ops;
 	const struct sja1105_regs *regs;
-	/* Both E/T and P/Q/R/S have quirks when it comes to popping the S-Tag
-	 * from double-tagged frames. E/T will pop it only when it's equal to
-	 * TPID from the General Parameters Table, while P/Q/R/S will only
-	 * pop it when it's equal to TPID2.
-	 */
-	u16 qinq_tpid;
 	bool can_limit_mcast_flood;
 	int (*reset_cmd)(struct dsa_switch *ds);
 	int (*setup_rgmii_delay)(const void *ctx, int port);

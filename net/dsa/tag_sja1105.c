@@ -133,14 +133,44 @@ static struct sk_buff *sja1105_defer_xmit(struct dsa_port *dp,
 	return NULL;
 }
 
+/* Send VLAN tags with a TPID that blends in with whatever VLAN protocol a
+ * bridge spanning ports of this switch might have.
+ */
 static u16 sja1105_xmit_tpid(struct dsa_port *dp)
 {
-	struct sja1105_port *sp = dp->priv;
+	struct dsa_switch *ds = dp->ds;
+	struct dsa_port *other_dp;
+	u16 proto;
 
-	if (unlikely(!dsa_port_is_sja1105(dp)))
-		return ETH_P_8021Q;
+	/* Since VLAN awareness is global, then if this port is VLAN-unaware,
+	 * all ports are. Use the VLAN-unaware TPID used for tag_8021q.
+	 */
+	if (!dsa_port_is_vlan_filtering(dp))
+		return ETH_P_SJA1105;
 
-	return sp->xmit_tpid;
+	/* Port is VLAN-aware, so there is a bridge somewhere (a single one,
+	 * we're sure about that). It may not be on this port though, so we
+	 * need to find it.
+	 */
+	list_for_each_entry(other_dp, &ds->dst->ports, list) {
+		if (other_dp->ds != ds)
+			continue;
+
+		if (!other_dp->bridge_dev)
+			continue;
+
+		/* Error is returned only if CONFIG_BRIDGE_VLAN_FILTERING,
+		 * which seems pointless to handle, as our port cannot become
+		 * VLAN-aware in that case.
+		 */
+		br_vlan_get_proto(other_dp->bridge_dev, &proto);
+
+		return proto;
+	}
+
+	WARN_ONCE(1, "Port is VLAN-aware but cannot find associated bridge!\n");
+
+	return ETH_P_SJA1105;
 }
 
 static struct sk_buff *sja1105_imprecise_xmit(struct sk_buff *skb,
