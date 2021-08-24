@@ -3588,6 +3588,7 @@ out_unlock:
 static int mmu_alloc_special_roots(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
+	bool need_pml5 = mmu->shadow_root_level > PT64_ROOT_4LEVEL;
 	u64 *pml5_root = NULL;
 	u64 *pml4_root = NULL;
 	u64 *pae_root;
@@ -3602,7 +3603,14 @@ static int mmu_alloc_special_roots(struct kvm_vcpu *vcpu)
 	    mmu->shadow_root_level < PT64_ROOT_4LEVEL)
 		return 0;
 
-	if (mmu->pae_root && mmu->pml4_root && mmu->pml5_root)
+	/*
+	 * NPT, the only paging mode that uses this horror, uses a fixed number
+	 * of levels for the shadow page tables, e.g. all MMUs are 4-level or
+	 * all MMus are 5-level.  Thus, this can safely require that pml5_root
+	 * is allocated if the other roots are valid and pml5 is needed, as any
+	 * prior MMU would also have required pml5.
+	 */
+	if (mmu->pae_root && mmu->pml4_root && (!need_pml5 || mmu->pml5_root))
 		return 0;
 
 	/*
@@ -3610,7 +3618,7 @@ static int mmu_alloc_special_roots(struct kvm_vcpu *vcpu)
 	 * bail if KVM ends up in a state where only one of the roots is valid.
 	 */
 	if (WARN_ON_ONCE(!tdp_enabled || mmu->pae_root || mmu->pml4_root ||
-			 mmu->pml5_root))
+			 (need_pml5 && mmu->pml5_root)))
 		return -EIO;
 
 	/*
@@ -3626,7 +3634,7 @@ static int mmu_alloc_special_roots(struct kvm_vcpu *vcpu)
 	if (!pml4_root)
 		goto err_pml4;
 
-	if (mmu->shadow_root_level > PT64_ROOT_4LEVEL) {
+	if (need_pml5) {
 		pml5_root = (void *)get_zeroed_page(GFP_KERNEL_ACCOUNT);
 		if (!pml5_root)
 			goto err_pml5;
