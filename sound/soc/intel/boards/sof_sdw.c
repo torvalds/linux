@@ -328,6 +328,19 @@ static const struct snd_soc_ops sdw_ops = {
 	.shutdown = sdw_shutdown,
 };
 
+static int sof_sdw_mic_codec_mockup_init(const struct snd_soc_acpi_link_adr *link,
+					 struct snd_soc_dai_link *dai_links,
+					 struct sof_sdw_codec_info *info,
+					 bool playback)
+{
+	/*
+	 * force DAI link to use same ID as RT715 and DMIC
+	 * to reuse topologies
+	 */
+	dai_links->id = SDW_DMIC_DAI_ID;
+	return 0;
+}
+
 static struct sof_sdw_codec_info codec_info_list[] = {
 	{
 		.part_id = 0x700,
@@ -409,6 +422,34 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 		.direction = {true, true},
 		.dai_name = "rt5682-sdw",
 		.init = sof_sdw_rt5682_init,
+	},
+	{
+		.part_id = 0xaaaa, /* generic codec mockup */
+		.version_id = 0,
+		.direction = {true, true},
+		.dai_name = "sdw-mockup-aif1",
+		.init = NULL,
+	},
+	{
+		.part_id = 0xaa55, /* headset codec mockup */
+		.version_id = 0,
+		.direction = {true, true},
+		.dai_name = "sdw-mockup-aif1",
+		.init = NULL,
+	},
+	{
+		.part_id = 0x55aa, /* amplifier mockup */
+		.version_id = 0,
+		.direction = {true, false},
+		.dai_name = "sdw-mockup-aif1",
+		.init = NULL,
+	},
+	{
+		.part_id = 0x5555,
+		.version_id = 0,
+		.direction = {false, true},
+		.dai_name = "sdw-mockup-aif1",
+		.init = sof_sdw_mic_codec_mockup_init,
 	},
 };
 
