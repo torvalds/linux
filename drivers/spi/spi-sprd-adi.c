@@ -117,22 +117,16 @@ struct sprd_adi {
 	struct notifier_block	restart_handler;
 };
 
-static int sprd_adi_check_paddr(struct sprd_adi *sadi, u32 paddr)
+static int sprd_adi_check_addr(struct sprd_adi *sadi, u32 reg)
 {
-	if (paddr < sadi->slave_pbase || paddr >
-	    (sadi->slave_pbase + ADI_SLAVE_ADDR_SIZE)) {
+	if (reg > ADI_SLAVE_ADDR_SIZE) {
 		dev_err(sadi->dev,
-			"slave physical address is incorrect, addr = 0x%x\n",
-			paddr);
+			"slave address offset is incorrect, reg = 0x%x\n",
+			reg);
 		return -EINVAL;
 	}
 
 	return 0;
-}
-
-static unsigned long sprd_adi_to_vaddr(struct sprd_adi *sadi, u32 paddr)
-{
-	return (paddr - sadi->slave_pbase + sadi->slave_vbase);
 }
 
 static int sprd_adi_drain_fifo(struct sprd_adi *sadi)
@@ -161,11 +155,11 @@ static int sprd_adi_fifo_is_full(struct sprd_adi *sadi)
 	return readl_relaxed(sadi->base + REG_ADI_ARM_FIFO_STS) & BIT_FIFO_FULL;
 }
 
-static int sprd_adi_read(struct sprd_adi *sadi, u32 reg_paddr, u32 *read_val)
+static int sprd_adi_read(struct sprd_adi *sadi, u32 reg, u32 *read_val)
 {
 	int read_timeout = ADI_READ_TIMEOUT;
 	unsigned long flags;
-	u32 val, rd_addr;
+	u32 val, rd_addr, paddr;
 	int ret = 0;
 
 	if (sadi->hwlock) {
@@ -178,11 +172,16 @@ static int sprd_adi_read(struct sprd_adi *sadi, u32 reg_paddr, u32 *read_val)
 		}
 	}
 
+	ret = sprd_adi_check_addr(sadi, reg);
+	if (ret)
+		goto out;
+
 	/*
 	 * Set the physical register address need to read into RD_CMD register,
 	 * then ADI controller will start to transfer automatically.
 	 */
-	writel_relaxed(reg_paddr, sadi->base + REG_ADI_RD_CMD);
+	paddr = sadi->slave_pbase + reg;
+	writel_relaxed(paddr, sadi->base + REG_ADI_RD_CMD);
 
 	/*
 	 * Wait read operation complete, the BIT_RD_CMD_BUSY will be set
@@ -212,9 +211,9 @@ static int sprd_adi_read(struct sprd_adi *sadi, u32 reg_paddr, u32 *read_val)
 	 */
 	rd_addr = (val & RD_ADDR_MASK) >> RD_ADDR_SHIFT;
 
-	if (rd_addr != (reg_paddr & REG_ADDR_LOW_MASK)) {
+	if (rd_addr != (paddr & REG_ADDR_LOW_MASK)) {
 		dev_err(sadi->dev, "read error, reg addr = 0x%x, val = 0x%x\n",
-			reg_paddr, val);
+			paddr, val);
 		ret = -EIO;
 		goto out;
 	}
@@ -227,9 +226,8 @@ out:
 	return ret;
 }
 
-static int sprd_adi_write(struct sprd_adi *sadi, u32 reg_paddr, u32 val)
+static int sprd_adi_write(struct sprd_adi *sadi, u32 reg, u32 val)
 {
-	unsigned long reg = sprd_adi_to_vaddr(sadi, reg_paddr);
 	u32 timeout = ADI_FIFO_DRAIN_TIMEOUT;
 	unsigned long flags;
 	int ret;
@@ -244,6 +242,10 @@ static int sprd_adi_write(struct sprd_adi *sadi, u32 reg_paddr, u32 val)
 		}
 	}
 
+	ret = sprd_adi_check_addr(sadi, reg);
+	if (ret)
+		goto out;
+
 	ret = sprd_adi_drain_fifo(sadi);
 	if (ret < 0)
 		goto out;
@@ -254,7 +256,8 @@ static int sprd_adi_write(struct sprd_adi *sadi, u32 reg_paddr, u32 val)
 	 */
 	do {
 		if (!sprd_adi_fifo_is_full(sadi)) {
-			writel_relaxed(val, (void __iomem *)reg);
+			/* we need virtual register address to write. */
+			writel_relaxed(val, (void __iomem *)(sadi->slave_vbase + reg));
 			break;
 		}
 
@@ -277,44 +280,24 @@ static int sprd_adi_transfer_one(struct spi_controller *ctlr,
 				 struct spi_transfer *t)
 {
 	struct sprd_adi *sadi = spi_controller_get_devdata(ctlr);
-	u32 phy_reg, val;
+	u32 reg, val;
 	int ret;
 
 	if (t->rx_buf) {
-		phy_reg = *(u32 *)t->rx_buf + sadi->slave_pbase;
-
-		ret = sprd_adi_check_paddr(sadi, phy_reg);
-		if (ret)
-			return ret;
-
-		ret = sprd_adi_read(sadi, phy_reg, &val);
-		if (ret)
-			return ret;
-
+		reg = *(u32 *)t->rx_buf;
+		ret = sprd_adi_read(sadi, reg, &val);
 		*(u32 *)t->rx_buf = val;
 	} else if (t->tx_buf) {
 		u32 *p = (u32 *)t->tx_buf;
-
-		/*
-		 * Get the physical register address need to write and convert
-		 * the physical address to virtual address. Since we need
-		 * virtual register address to write.
-		 */
-		phy_reg = *p++ + sadi->slave_pbase;
-		ret = sprd_adi_check_paddr(sadi, phy_reg);
-		if (ret)
-			return ret;
-
+		reg = *p++;
 		val = *p;
-		ret = sprd_adi_write(sadi, phy_reg, val);
-		if (ret)
-			return ret;
+		ret = sprd_adi_write(sadi, reg, val);
 	} else {
 		dev_err(sadi->dev, "no buffer for transfer\n");
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
-	return 0;
+	return ret;
 }
 
 static void sprd_adi_set_wdt_rst_mode(struct sprd_adi *sadi)
@@ -323,9 +306,9 @@ static void sprd_adi_set_wdt_rst_mode(struct sprd_adi *sadi)
 	u32 val;
 
 	/* Set default watchdog reboot mode */
-	sprd_adi_read(sadi, sadi->slave_pbase + PMIC_RST_STATUS, &val);
+	sprd_adi_read(sadi, PMIC_RST_STATUS, &val);
 	val |= HWRST_STATUS_WATCHDOG;
-	sprd_adi_write(sadi, sadi->slave_pbase + PMIC_RST_STATUS, val);
+	sprd_adi_write(sadi, PMIC_RST_STATUS, val);
 #endif
 }
 
@@ -366,40 +349,40 @@ static int sprd_adi_restart_handler(struct notifier_block *this,
 		reboot_mode = HWRST_STATUS_NORMAL;
 
 	/* Record the reboot mode */
-	sprd_adi_read(sadi, sadi->slave_pbase + PMIC_RST_STATUS, &val);
+	sprd_adi_read(sadi, PMIC_RST_STATUS, &val);
 	val &= ~HWRST_STATUS_WATCHDOG;
 	val |= reboot_mode;
-	sprd_adi_write(sadi, sadi->slave_pbase + PMIC_RST_STATUS, val);
+	sprd_adi_write(sadi, PMIC_RST_STATUS, val);
 
 	/* Enable the interface clock of the watchdog */
-	sprd_adi_read(sadi, sadi->slave_pbase + PMIC_MODULE_EN, &val);
+	sprd_adi_read(sadi, PMIC_MODULE_EN, &val);
 	val |= BIT_WDG_EN;
-	sprd_adi_write(sadi, sadi->slave_pbase + PMIC_MODULE_EN, val);
+	sprd_adi_write(sadi, PMIC_MODULE_EN, val);
 
 	/* Enable the work clock of the watchdog */
-	sprd_adi_read(sadi, sadi->slave_pbase + PMIC_CLK_EN, &val);
+	sprd_adi_read(sadi, PMIC_CLK_EN, &val);
 	val |= BIT_WDG_EN;
-	sprd_adi_write(sadi, sadi->slave_pbase + PMIC_CLK_EN, val);
+	sprd_adi_write(sadi, PMIC_CLK_EN, val);
 
 	/* Unlock the watchdog */
-	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_LOCK, WDG_UNLOCK_KEY);
+	sprd_adi_write(sadi, REG_WDG_LOCK, WDG_UNLOCK_KEY);
 
-	sprd_adi_read(sadi, sadi->slave_pbase + REG_WDG_CTRL, &val);
+	sprd_adi_read(sadi, REG_WDG_CTRL, &val);
 	val |= BIT_WDG_NEW;
-	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_CTRL, val);
+	sprd_adi_write(sadi, REG_WDG_CTRL, val);
 
 	/* Load the watchdog timeout value, 50ms is always enough. */
-	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_LOAD_HIGH, 0);
-	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_LOAD_LOW,
+	sprd_adi_write(sadi, REG_WDG_LOAD_HIGH, 0);
+	sprd_adi_write(sadi, REG_WDG_LOAD_LOW,
 		       WDG_LOAD_VAL & WDG_LOAD_MASK);
 
 	/* Start the watchdog to reset system */
-	sprd_adi_read(sadi, sadi->slave_pbase + REG_WDG_CTRL, &val);
+	sprd_adi_read(sadi, REG_WDG_CTRL, &val);
 	val |= BIT_WDG_RUN | BIT_WDG_RST;
-	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_CTRL, val);
+	sprd_adi_write(sadi, REG_WDG_CTRL, val);
 
 	/* Lock the watchdog */
-	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_LOCK, ~WDG_UNLOCK_KEY);
+	sprd_adi_write(sadi, REG_WDG_LOCK, ~WDG_UNLOCK_KEY);
 
 	mdelay(1000);
 
