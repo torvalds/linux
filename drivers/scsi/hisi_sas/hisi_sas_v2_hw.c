@@ -2368,18 +2368,18 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	case STAT_IO_COMPLETE:
 		/* internal abort command complete */
 		ts->stat = TMF_RESP_FUNC_SUCC;
-		del_timer(&slot->internal_abort_timer);
+		del_timer_sync(&slot->internal_abort_timer);
 		goto out;
 	case STAT_IO_NO_DEVICE:
 		ts->stat = TMF_RESP_FUNC_COMPLETE;
-		del_timer(&slot->internal_abort_timer);
+		del_timer_sync(&slot->internal_abort_timer);
 		goto out;
 	case STAT_IO_NOT_VALID:
 		/* abort single io, controller don't find
 		 * the io need to abort
 		 */
 		ts->stat = TMF_RESP_FUNC_FAILED;
-		del_timer(&slot->internal_abort_timer);
+		del_timer_sync(&slot->internal_abort_timer);
 		goto out;
 	default:
 		break;
