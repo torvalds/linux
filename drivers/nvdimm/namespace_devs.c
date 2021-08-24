@@ -2272,14 +2272,9 @@ static struct device *create_namespace_blk(struct nd_region *nd_region,
 					&nd_label->type_guid);
 			return ERR_PTR(-EAGAIN);
 		}
-
-		if (nd_label->isetcookie != __cpu_to_le64(nd_set->cookie2)) {
-			dev_dbg(ndd->dev, "expect cookie %#llx got %#llx\n",
-					nd_set->cookie2,
-					nsl_get_isetcookie(ndd, nd_label));
-			return ERR_PTR(-EAGAIN);
-		}
 	}
+	if (!nsl_validate_blk_isetcookie(ndd, nd_label, nd_set->cookie2))
+		return ERR_PTR(-EAGAIN);
 
 	nsblk = kzalloc(sizeof(*nsblk), GFP_KERNEL);
 	if (!nsblk)

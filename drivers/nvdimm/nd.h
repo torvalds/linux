@@ -177,6 +177,10 @@ static inline void nsl_set_lbasize(struct nvdimm_drvdata *ndd,
 	nd_label->lbasize = __cpu_to_le64(lbasize);
 }
 
+bool nsl_validate_blk_isetcookie(struct nvdimm_drvdata *ndd,
+				 struct nd_namespace_label *nd_label,
+				 u64 isetcookie);
+
 struct nd_region_data {
 	int ns_count;
 	int ns_active;

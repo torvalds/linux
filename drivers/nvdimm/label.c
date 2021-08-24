@@ -898,6 +898,33 @@ static struct resource *to_resource(struct nvdimm_drvdata *ndd,
 	return NULL;
 }
 
+static void nsl_set_blk_isetcookie(struct nvdimm_drvdata *ndd,
+				   struct nd_namespace_label *nd_label,
+				   u64 isetcookie)
+{
+	if (namespace_label_has(ndd, type_guid)) {
+		nsl_set_isetcookie(ndd, nd_label, isetcookie);
+		return;
+	}
+	nsl_set_isetcookie(ndd, nd_label, 0); /* N/A */
+}
+
+bool nsl_validate_blk_isetcookie(struct nvdimm_drvdata *ndd,
+				 struct nd_namespace_label *nd_label,
+				 u64 isetcookie)
+{
+	if (!namespace_label_has(ndd, type_guid))
+		return true;
+
+	if (nsl_get_isetcookie(ndd, nd_label) != isetcookie) {
+		dev_dbg(ndd->dev, "expect cookie %#llx got %#llx\n", isetcookie,
+			nsl_get_isetcookie(ndd, nd_label));
+		return false;
+	}
+
+	return true;
+}
+
 /*
  * 1/ Account all the labels that can be freed after this update
  * 2/ Allocate and write the label to the staging (next) index
@@ -1042,12 +1069,11 @@ static int __blk_label_update(struct nd_region *nd_region,
 				nsl_set_nlabel(ndd, nd_label, 0xffff);
 				nsl_set_position(ndd, nd_label, 0xffff);
 			}
-			nsl_set_isetcookie(ndd, nd_label, nd_set->cookie2);
 		} else {
 			nsl_set_nlabel(ndd, nd_label, 0); /* N/A */
 			nsl_set_position(ndd, nd_label, 0); /* N/A */
-			nsl_set_isetcookie(ndd, nd_label, 0); /* N/A */
 		}
+		nsl_set_blk_isetcookie(ndd, nd_label, nd_set->cookie2);
 
 		nsl_set_dpa(ndd, nd_label, res->start);
 		nsl_set_rawsize(ndd, nd_label, resource_size(res));
