@@ -1163,6 +1163,52 @@ static int lan78xx_update_flowcontrol(struct lan78xx_net *dev, u8 duplex,
 	return 0;
 }
 
+static int lan78xx_mac_reset(struct lan78xx_net *dev)
+{
+	unsigned long start_time = jiffies;
+	u32 val;
+	int ret;
+
+	mutex_lock(&dev->phy_mutex);
+
+	/* Resetting the device while there is activity on the MDIO
+	 * bus can result in the MAC interface locking up and not
+	 * completing register access transactions.
+	 */
+	ret = lan78xx_phy_wait_not_busy(dev);
+	if (ret < 0)
+		goto done;
+
+	ret = lan78xx_read_reg(dev, MAC_CR, &val);
+	if (ret < 0)
+		goto done;
+
+	val |= MAC_CR_RST_;
+	ret = lan78xx_write_reg(dev, MAC_CR, val);
+	if (ret < 0)
+		goto done;
+
+	/* Wait for the reset to complete before allowing any further
+	 * MAC register accesses otherwise the MAC may lock up.
+	 */
+	do {
+		ret = lan78xx_read_reg(dev, MAC_CR, &val);
+		if (ret < 0)
+			goto done;
+
+		if (!(val & MAC_CR_RST_)) {
+			ret = 0;
+			goto done;
+		}
+	} while (!time_after(jiffies, start_time + HZ));
+
+	ret = -ETIMEDOUT;
+done:
+	mutex_unlock(&dev->phy_mutex);
+
+	return ret;
+}
+
 static int lan78xx_link_reset(struct lan78xx_net *dev)
 {
 	struct phy_device *phydev = dev->net->phydev;
@@ -1184,12 +1230,8 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 		dev->link_on = false;
 
 		/* reset MAC */
-		ret = lan78xx_read_reg(dev, MAC_CR, &buf);
-		if (unlikely(ret < 0))
-			return ret;
-		buf |= MAC_CR_RST_;
-		ret = lan78xx_write_reg(dev, MAC_CR, buf);
-		if (unlikely(ret < 0))
+		ret = lan78xx_mac_reset(dev);
+		if (ret < 0)
 			return ret;
 
 		del_timer(&dev->stat_monitor);
