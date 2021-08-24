@@ -1728,6 +1728,7 @@ static inline struct bkey_i *btree_trans_peek_updates(struct btree_iter *iter)
  */
 struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 {
+	struct btree_iter_level *l = &iter->l[0];
 	struct bpos search_key = btree_iter_search_key(iter);
 	struct bkey_i *next_update;
 	struct bkey_s_c k;
@@ -1741,39 +1742,47 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 		btree_iter_set_search_pos(iter, search_key);
 
 		ret = btree_iter_traverse(iter);
-		if (unlikely(ret))
-			return bkey_s_c_err(ret);
+		if (unlikely(ret)) {
+			/* ensure that iter->k is consistent with iter->pos: */
+			bch2_btree_iter_set_pos(iter, iter->pos);
+			k = bkey_s_c_err(ret);
+			goto out;
+		}
 
-		/*
-		 * btree_iter_level_peek() mutates iter->real_pos, which
-		 * btree_trans_peek_updates() checks against, so we have to call
-		 * them in this order:
-		 */
 		next_update = btree_trans_peek_updates(iter);
-		k = btree_iter_level_peek(iter, &iter->l[0]);
+		k = btree_iter_level_peek_all(iter, l);
+
+		/* * In the btree, deleted keys sort before non deleted: */
+		if (k.k && bkey_deleted(k.k) &&
+		    (!next_update ||
+		     bpos_cmp(k.k->p, next_update->k.p) <= 0)) {
+			search_key = k.k->p;
+			continue;
+		}
+
 		if (next_update &&
-		    bpos_cmp(next_update->k.p, iter->real_pos) <= 0) {
+		    bpos_cmp(next_update->k.p,
+			     k.k ? k.k->p : l->b->key.k.p) <= 0) {
 			iter->k = next_update->k;
 			k = bkey_i_to_s_c(next_update);
 		}
 
 		if (likely(k.k)) {
-			if (bkey_deleted(k.k)) {
-				search_key = bkey_successor(iter, k.k->p);
-				continue;
-			}
+			if (likely(!bkey_deleted(k.k)))
+				break;
 
-			break;
-		}
-
-		if (unlikely(!bpos_cmp(iter->l[0].b->key.k.p, SPOS_MAX))) {
+			/* Advance to next key: */
+			search_key = bkey_successor(iter, k.k->p);
+		} else if (likely(bpos_cmp(l->b->key.k.p, SPOS_MAX))) {
+			/* Advance to next leaf node: */
+			search_key = bpos_successor(l->b->key.k.p);
+		} else {
+			/* End of btree: */
 			bch2_btree_iter_set_pos(iter, SPOS_MAX);
+			iter->real_pos = SPOS_MAX;
 			k = bkey_s_c_null;
 			goto out;
 		}
-
-		/* Advance to next leaf node: */
-		search_key = bpos_successor(iter->l[0].b->key.k.p);
 	}
 
 	/*
@@ -1784,11 +1793,11 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 		iter->pos = k.k->p;
 	else if (bkey_cmp(bkey_start_pos(k.k), iter->pos) > 0)
 		iter->pos = bkey_start_pos(k.k);
-
+	iter->real_pos = k.k->p;
 out:
+	iter->should_be_locked = true;
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(iter);
-	iter->should_be_locked = true;
 	return k;
 }
 
@@ -1825,8 +1834,10 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 
 		ret = btree_iter_traverse(iter);
 		if (unlikely(ret)) {
+			/* ensure that iter->k is consistent with iter->pos: */
+			bch2_btree_iter_set_pos(iter, iter->pos);
 			k = bkey_s_c_err(ret);
-			goto no_key;
+			goto out;
 		}
 
 		k = btree_iter_level_peek(iter, l);
@@ -1836,17 +1847,17 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 		     : bkey_cmp(k.k->p, iter->pos) > 0))
 			k = btree_iter_level_prev(iter, l);
 
-		if (likely(k.k))
+		if (likely(k.k)) {
 			break;
-
-		if (unlikely(!bpos_cmp(iter->l[0].b->data->min_key, POS_MIN))) {
+		} else if (likely(bpos_cmp(l->b->data->min_key, POS_MIN))) {
+			/* Advance to previous leaf node: */
+			search_key = bpos_predecessor(l->b->data->min_key);
+		} else {
+			/* Start of btree: */
 			bch2_btree_iter_set_pos(iter, POS_MIN);
 			k = bkey_s_c_null;
-			goto no_key;
+			goto out;
 		}
-
-		/* Advance to previous leaf node: */
-		search_key = bpos_predecessor(iter->l[0].b->data->min_key);
 	}
 
 	EBUG_ON(bkey_cmp(bkey_start_pos(k.k), iter->pos) > 0);
@@ -1855,19 +1866,10 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 	if (bkey_cmp(k.k->p, iter->pos) < 0)
 		iter->pos = k.k->p;
 out:
+	iter->should_be_locked = true;
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(iter);
-	iter->should_be_locked = true;
 	return k;
-no_key:
-	/*
-	 * btree_iter_level_peek() may have set iter->k to a key we didn't want, and
-	 * then we errored going to the previous leaf - make sure it's
-	 * consistent with iter->pos:
-	 */
-	bkey_init(&iter->k);
-	iter->k.p = iter->pos;
-	goto out;
 }
 
 /**
