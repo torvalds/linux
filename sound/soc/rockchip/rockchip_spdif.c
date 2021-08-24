@@ -247,6 +247,7 @@ static bool rk_spdif_rd_reg(struct device *dev, unsigned int reg)
 	case SPDIF_INTCR:
 	case SPDIF_INTSR:
 	case SPDIF_XFER:
+	case SPDIF_SMPDR:
 		return true;
 	default:
 		return false;
@@ -258,6 +259,7 @@ static bool rk_spdif_volatile_reg(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case SPDIF_INTSR:
 	case SPDIF_SDBLR:
+	case SPDIF_SMPDR:
 		return true;
 	default:
 		return false;
