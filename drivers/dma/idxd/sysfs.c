@@ -1099,16 +1099,15 @@ static ssize_t clients_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	struct idxd_device *idxd = confdev_to_idxd(dev);
-	unsigned long flags;
 	int count = 0, i;
 
-	spin_lock_irqsave(&idxd->dev_lock, flags);
+	spin_lock(&idxd->dev_lock);
 	for (i = 0; i < idxd->max_wqs; i++) {
 		struct idxd_wq *wq = idxd->wqs[i];
 
 		count += wq->client_count;
 	}
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+	spin_unlock(&idxd->dev_lock);
 
 	return sysfs_emit(buf, "%d\n", count);
 }
@@ -1146,12 +1145,11 @@ static ssize_t errors_show(struct device *dev,
 {
 	struct idxd_device *idxd = confdev_to_idxd(dev);
 	int i, out = 0;
-	unsigned long flags;
 
-	spin_lock_irqsave(&idxd->dev_lock, flags);
+	spin_lock(&idxd->dev_lock);
 	for (i = 0; i < 4; i++)
 		out += sysfs_emit_at(buf, out, "%#018llx ", idxd->sw_err.bits[i]);
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+	spin_unlock(&idxd->dev_lock);
 	out--;
 	out += sysfs_emit_at(buf, out, "\n");
 	return out;

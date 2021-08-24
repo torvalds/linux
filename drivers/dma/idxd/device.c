@@ -341,19 +341,18 @@ int idxd_wq_set_pasid(struct idxd_wq *wq, int pasid)
 	int rc;
 	union wqcfg wqcfg;
 	unsigned int offset;
-	unsigned long flags;
 
 	rc = idxd_wq_disable(wq, false);
 	if (rc < 0)
 		return rc;
 
 	offset = WQCFG_OFFSET(idxd, wq->id, WQCFG_PASID_IDX);
-	spin_lock_irqsave(&idxd->dev_lock, flags);
+	spin_lock(&idxd->dev_lock);
 	wqcfg.bits[WQCFG_PASID_IDX] = ioread32(idxd->reg_base + offset);
 	wqcfg.pasid_en = 1;
 	wqcfg.pasid = pasid;
 	iowrite32(wqcfg.bits[WQCFG_PASID_IDX], idxd->reg_base + offset);
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+	spin_unlock(&idxd->dev_lock);
 
 	rc = idxd_wq_enable(wq);
 	if (rc < 0)
@@ -368,19 +367,18 @@ int idxd_wq_disable_pasid(struct idxd_wq *wq)
 	int rc;
 	union wqcfg wqcfg;
 	unsigned int offset;
-	unsigned long flags;
 
 	rc = idxd_wq_disable(wq, false);
 	if (rc < 0)
 		return rc;
 
 	offset = WQCFG_OFFSET(idxd, wq->id, WQCFG_PASID_IDX);
-	spin_lock_irqsave(&idxd->dev_lock, flags);
+	spin_lock(&idxd->dev_lock);
 	wqcfg.bits[WQCFG_PASID_IDX] = ioread32(idxd->reg_base + offset);
 	wqcfg.pasid_en = 0;
 	wqcfg.pasid = 0;
 	iowrite32(wqcfg.bits[WQCFG_PASID_IDX], idxd->reg_base + offset);
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+	spin_unlock(&idxd->dev_lock);
 
 	rc = idxd_wq_enable(wq);
 	if (rc < 0)
@@ -558,7 +556,6 @@ int idxd_device_disable(struct idxd_device *idxd)
 {
 	struct device *dev = &idxd->pdev->dev;
 	u32 status;
-	unsigned long flags;
 
 	if (!idxd_is_enabled(idxd)) {
 		dev_dbg(dev, "Device is not enabled\n");
@@ -574,22 +571,20 @@ int idxd_device_disable(struct idxd_device *idxd)
 		return -ENXIO;
 	}
 
-	spin_lock_irqsave(&idxd->dev_lock, flags);
+	spin_lock(&idxd->dev_lock);
 	idxd_device_clear_state(idxd);
 	idxd->state = IDXD_DEV_DISABLED;
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+	spin_unlock(&idxd->dev_lock);
 	return 0;
 }
 
 void idxd_device_reset(struct idxd_device *idxd)
 {
-	unsigned long flags;
-
 	idxd_cmd_exec(idxd, IDXD_CMD_RESET_DEVICE, 0, NULL);
-	spin_lock_irqsave(&idxd->dev_lock, flags);
+	spin_lock(&idxd->dev_lock);
 	idxd_device_clear_state(idxd);
 	idxd->state = IDXD_DEV_DISABLED;
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+	spin_unlock(&idxd->dev_lock);
 }
 
 void idxd_device_drain_pasid(struct idxd_device *idxd, int pasid)
@@ -1164,7 +1159,6 @@ int __drv_enable_wq(struct idxd_wq *wq)
 {
 	struct idxd_device *idxd = wq->idxd;
 	struct device *dev = &idxd->pdev->dev;
-	unsigned long flags;
 	int rc = -ENXIO;
 
 	lockdep_assert_held(&wq->wq_lock);
@@ -1216,10 +1210,10 @@ int __drv_enable_wq(struct idxd_wq *wq)
 	}
 
 	rc = 0;
-	spin_lock_irqsave(&idxd->dev_lock, flags);
+	spin_lock(&idxd->dev_lock);
 	if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		rc = idxd_device_config(idxd);
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+	spin_unlock(&idxd->dev_lock);
 	if (rc < 0) {
 		dev_dbg(dev, "Writing wq %d config failed: %d\n", wq->id, rc);
 		goto err;
@@ -1288,7 +1282,6 @@ void drv_disable_wq(struct idxd_wq *wq)
 int idxd_device_drv_probe(struct idxd_dev *idxd_dev)
 {
 	struct idxd_device *idxd = idxd_dev_to_idxd(idxd_dev);
-	unsigned long flags;
 	int rc = 0;
 
 	/*
@@ -1302,10 +1295,10 @@ int idxd_device_drv_probe(struct idxd_dev *idxd_dev)
 	}
 
 	/* Device configuration */
-	spin_lock_irqsave(&idxd->dev_lock, flags);
+	spin_lock(&idxd->dev_lock);
 	if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		rc = idxd_device_config(idxd);
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+	spin_unlock(&idxd->dev_lock);
 	if (rc < 0)
 		return -ENXIO;
 

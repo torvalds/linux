@@ -64,7 +64,7 @@ static int process_misc_interrupts(struct idxd_device *idxd, u32 cause)
 	bool err = false;
 
 	if (cause & IDXD_INTC_ERR) {
-		spin_lock_bh(&idxd->dev_lock);
+		spin_lock(&idxd->dev_lock);
 		for (i = 0; i < 4; i++)
 			idxd->sw_err.bits[i] = ioread64(idxd->reg_base +
 					IDXD_SWERR_OFFSET + i * sizeof(u64));
@@ -89,7 +89,7 @@ static int process_misc_interrupts(struct idxd_device *idxd, u32 cause)
 			}
 		}
 
-		spin_unlock_bh(&idxd->dev_lock);
+		spin_unlock(&idxd->dev_lock);
 		val |= IDXD_INTC_ERR;
 
 		for (i = 0; i < 4; i++)
@@ -133,7 +133,7 @@ static int process_misc_interrupts(struct idxd_device *idxd, u32 cause)
 			INIT_WORK(&idxd->work, idxd_device_reinit);
 			queue_work(idxd->wq, &idxd->work);
 		} else {
-			spin_lock_bh(&idxd->dev_lock);
+			spin_lock(&idxd->dev_lock);
 			idxd_wqs_quiesce(idxd);
 			idxd_wqs_unmap_portal(idxd);
 			idxd_device_clear_state(idxd);
@@ -141,7 +141,7 @@ static int process_misc_interrupts(struct idxd_device *idxd, u32 cause)
 				"idxd halted, need %s.\n",
 				gensts.reset_type == IDXD_DEVICE_RESET_FLR ?
 				"FLR" : "system reset");
-			spin_unlock_bh(&idxd->dev_lock);
+			spin_unlock(&idxd->dev_lock);
 			return -ENXIO;
 		}
 	}

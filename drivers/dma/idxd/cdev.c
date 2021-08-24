@@ -218,14 +218,13 @@ static __poll_t idxd_cdev_poll(struct file *filp,
 	struct idxd_user_context *ctx = filp->private_data;
 	struct idxd_wq *wq = ctx->wq;
 	struct idxd_device *idxd = wq->idxd;
-	unsigned long flags;
 	__poll_t out = 0;
 
 	poll_wait(filp, &wq->err_queue, wait);
-	spin_lock_irqsave(&idxd->dev_lock, flags);
+	spin_lock(&idxd->dev_lock);
 	if (idxd->sw_err.valid)
 		out = EPOLLIN | EPOLLRDNORM;
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+	spin_unlock(&idxd->dev_lock);
 
 	return out;
 }
