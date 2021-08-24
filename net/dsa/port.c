@@ -373,6 +373,10 @@ void dsa_port_pre_bridge_leave(struct dsa_port *dp, struct net_device *br)
 {
 	struct net_device *brport_dev = dsa_port_to_bridge_port(dp);
 
+	/* Don't try to unoffload something that is not offloaded */
+	if (!brport_dev)
+		return;
+
 	switchdev_bridge_port_unoffload(brport_dev, dp,
 					&dsa_slave_switchdev_notifier,
 					&dsa_slave_switchdev_blocking_notifier);
@@ -576,6 +580,7 @@ static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
 int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 			    struct netlink_ext_ack *extack)
 {
+	bool old_vlan_filtering = dsa_port_is_vlan_filtering(dp);
 	struct dsa_switch *ds = dp->ds;
 	bool apply;
 	int err;
@@ -601,12 +606,49 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 	if (err)
 		return err;
 
-	if (ds->vlan_filtering_is_global)
+	if (ds->vlan_filtering_is_global) {
+		int port;
+
 		ds->vlan_filtering = vlan_filtering;
-	else
+
+		for (port = 0; port < ds->num_ports; port++) {
+			struct net_device *slave;
+
+			if (!dsa_is_user_port(ds, port))
+				continue;
+
+			/* We might be called in the unbind path, so not
+			 * all slave devices might still be registered.
+			 */
+			slave = dsa_to_port(ds, port)->slave;
+			if (!slave)
+				continue;
+
+			err = dsa_slave_manage_vlan_filtering(slave,
+							      vlan_filtering);
+			if (err)
+				goto restore;
+		}
+	} else {
 		dp->vlan_filtering = vlan_filtering;
 
+		err = dsa_slave_manage_vlan_filtering(dp->slave,
+						      vlan_filtering);
+		if (err)
+			goto restore;
+	}
+
 	return 0;
+
+restore:
+	ds->ops->port_vlan_filtering(ds, dp->index, old_vlan_filtering, NULL);
+
+	if (ds->vlan_filtering_is_global)
+		ds->vlan_filtering = old_vlan_filtering;
+	else
+		dp->vlan_filtering = old_vlan_filtering;
+
+	return err;
 }
 
 /* This enforces legacy behavior for switch drivers which assume they can't
