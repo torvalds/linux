@@ -693,15 +693,16 @@ TRACE_EVENT(waltgov_util_update,
 );
 
 TRACE_EVENT(waltgov_next_freq,
-	    TP_PROTO(unsigned int cpu, unsigned long util, unsigned long max,
+	    TP_PROTO(unsigned int cpu, unsigned long util, unsigned long max, unsigned int raw_freq,
 		     unsigned int freq, unsigned int policy_min_freq, unsigned int policy_max_freq,
 		     unsigned int cached_raw_freq, bool need_freq_update),
-	    TP_ARGS(cpu, util, max, freq, policy_min_freq, policy_max_freq,
+	    TP_ARGS(cpu, util, max, raw_freq, freq, policy_min_freq, policy_max_freq,
 		    cached_raw_freq, need_freq_update),
 	    TP_STRUCT__entry(
 		    __field(unsigned int, cpu)
 		    __field(unsigned long, util)
 		    __field(unsigned long, max)
+		    __field(unsigned int, raw_freq)
 		    __field(unsigned int, freq)
 		    __field(unsigned int, policy_min_freq)
 		    __field(unsigned int, policy_max_freq)
@@ -713,6 +714,7 @@ TRACE_EVENT(waltgov_next_freq,
 		    __entry->cpu		= cpu;
 		    __entry->util		= util;
 		    __entry->max		= max;
+		    __entry->raw_freq		= raw_freq;
 		    __entry->freq		= freq;
 		    __entry->policy_min_freq	= policy_min_freq;
 		    __entry->policy_max_freq	= policy_max_freq;
@@ -720,10 +722,11 @@ TRACE_EVENT(waltgov_next_freq,
 		    __entry->need_freq_update	= need_freq_update;
 		    __entry->rt_util	= cpu_util_rt(cpu_rq(cpu));
 	    ),
-	    TP_printk("cpu=%u util=%lu max=%lu freq=%u policy_min_freq=%u policy_max_freq=%u cached_raw_freq=%u need_update=%d rt_util=%u",
+	    TP_printk("cpu=%u util=%lu max=%lu raw_freq=%lu freq=%u policy_min_freq=%u policy_max_freq=%u cached_raw_freq=%u need_update=%d rt_util=%u",
 		      __entry->cpu,
 		      __entry->util,
 		      __entry->max,
+		      __entry->raw_freq,
 		      __entry->freq,
 		      __entry->policy_min_freq,
 		      __entry->policy_max_freq,
