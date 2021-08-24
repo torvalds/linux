@@ -16,6 +16,15 @@ config SND_SOC_ROCKCHIP_I2S
 	  Rockchip I2S device. The device supports upto maximum of
 	  8 channels each for play and record.
 
+config SND_SOC_ROCKCHIP_I2S_TDM
+	tristate "Rockchip I2S/TDM Device Driver"
+	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP
+	select SND_SOC_ROCKCHIP_PCM
+	help
+	  Say Y or M if you want to add support for I2S/TDM driver for
+	  Rockchip I2S/TDM device. The device supports up to maximum of
+	  8 channels each for play and record.
+
 config SND_SOC_ROCKCHIP_PCM
 	tristate
 	depends on SND_SOC_ROCKCHIP
