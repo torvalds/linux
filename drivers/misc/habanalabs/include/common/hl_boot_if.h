@@ -252,6 +252,11 @@
  *					where a bit is set if the engine is not idle.
  *					Initialized in: linux
  *
+ * CPU_BOOT_DEV_STS0_MAP_HWMON_EN
+ *					If set, means f/w supports proprietary
+ *					HWMON enum mapping to cpucp enums.
+ *					Initialized in: linux
+ *
  * CPU_BOOT_DEV_STS0_ENABLED		Device status register enabled.
  *					This is a main indication that the
  *					running FW populates the device status
@@ -287,6 +292,7 @@
 #define CPU_BOOT_DEV_STS0_FW_NIC_STAT_XPCS91_EN		(1 << 23)
 #define CPU_BOOT_DEV_STS0_FW_NIC_STAT_EXT_EN		(1 << 24)
 #define CPU_BOOT_DEV_STS0_IS_IDLE_CHECK_EN		(1 << 25)
+#define CPU_BOOT_DEV_STS0_MAP_HWMON_EN			(1 << 26)
 #define CPU_BOOT_DEV_STS0_ENABLED			(1 << 31)
 #define CPU_BOOT_DEV_STS1_ENABLED			(1 << 31)
 

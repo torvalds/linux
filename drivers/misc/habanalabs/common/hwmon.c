@@ -113,6 +113,9 @@ static int hl_read(struct device *dev, enum hwmon_sensor_types type,
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
 	int rc;
+	u32 cpucp_attr;
+	bool use_cpucp_enum = (hdev->asic_prop.fw_app_cpu_boot_dev_sts0 &
+				CPU_BOOT_DEV_STS0_MAP_HWMON_EN) ? true : false;
 
 	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
@@ -121,65 +124,117 @@ static int hl_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		switch (attr) {
 		case hwmon_temp_input:
+			cpucp_attr = cpucp_temp_input;
+			break;
 		case hwmon_temp_max:
+			cpucp_attr = cpucp_temp_max;
+			break;
 		case hwmon_temp_crit:
+			cpucp_attr = cpucp_temp_crit;
+			break;
 		case hwmon_temp_max_hyst:
+			cpucp_attr = cpucp_temp_max_hyst;
+			break;
 		case hwmon_temp_crit_hyst:
+			cpucp_attr = cpucp_temp_crit_hyst;
+			break;
 		case hwmon_temp_offset:
+			cpucp_attr = cpucp_temp_offset;
+			break;
 		case hwmon_temp_highest:
+			cpucp_attr = cpucp_temp_highest;
 			break;
 		default:
 			return -EINVAL;
 		}
 
-		rc = hl_get_temperature(hdev, channel, attr, val);
+		if (use_cpucp_enum)
+			rc = hl_get_temperature(hdev, channel, cpucp_attr, val);
+		else
+			rc = hl_get_temperature(hdev, channel, attr, val);
 		break;
 	case hwmon_in:
 		switch (attr) {
 		case hwmon_in_input:
+			cpucp_attr = cpucp_in_input;
+			break;
 		case hwmon_in_min:
+			cpucp_attr = cpucp_in_min;
+			break;
 		case hwmon_in_max:
+			cpucp_attr = cpucp_in_max;
+			break;
 		case hwmon_in_highest:
+			cpucp_attr = cpucp_in_highest;
 			break;
 		default:
 			return -EINVAL;
 		}
 
-		rc = hl_get_voltage(hdev, channel, attr, val);
+		if (use_cpucp_enum)
+			rc = hl_get_voltage(hdev, channel, cpucp_attr, val);
+		else
+			rc = hl_get_voltage(hdev, channel, attr, val);
 		break;
 	case hwmon_curr:
 		switch (attr) {
 		case hwmon_curr_input:
+			cpucp_attr = cpucp_curr_input;
+			break;
 		case hwmon_curr_min:
+			cpucp_attr = cpucp_curr_min;
+			break;
 		case hwmon_curr_max:
+			cpucp_attr = cpucp_curr_max;
+			break;
 		case hwmon_curr_highest:
+			cpucp_attr = cpucp_curr_highest;
 			break;
 		default:
 			return -EINVAL;
 		}
 
-		rc = hl_get_current(hdev, channel, attr, val);
+		if (use_cpucp_enum)
+			rc = hl_get_current(hdev, channel, cpucp_attr, val);
+		else
+			rc = hl_get_current(hdev, channel, attr, val);
 		break;
 	case hwmon_fan:
 		switch (attr) {
 		case hwmon_fan_input:
+			cpucp_attr = cpucp_fan_input;
+			break;
 		case hwmon_fan_min:
+			cpucp_attr = cpucp_fan_min;
+			break;
 		case hwmon_fan_max:
+			cpucp_attr = cpucp_fan_max;
 			break;
 		default:
 			return -EINVAL;
 		}
-		rc = hl_get_fan_speed(hdev, channel, attr, val);
+
+		if (use_cpucp_enum)
+			rc = hl_get_fan_speed(hdev, channel, cpucp_attr, val);
+		else
+			rc = hl_get_fan_speed(hdev, channel, attr, val);
 		break;
 	case hwmon_pwm:
 		switch (attr) {
 		case hwmon_pwm_input:
+			cpucp_attr = cpucp_pwm_input;
+			break;
 		case hwmon_pwm_enable:
+			cpucp_attr = cpucp_pwm_enable;
 			break;
 		default:
 			return -EINVAL;
 		}
-		rc = hl_get_pwm_info(hdev, channel, attr, val);
+
+		if (use_cpucp_enum)
+			rc = hl_get_pwm_info(hdev, channel, cpucp_attr, val);
+		else
+			rc = hl_get_pwm_info(hdev, channel, attr, val);
 		break;
 	default:
 		return -EINVAL;
@@ -191,6 +246,9 @@ static int hl_write(struct device *dev, enum hwmon_sensor_types type,
 			u32 attr, int channel, long val)
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
+	u32 cpucp_attr;
+	bool use_cpucp_enum = (hdev->asic_prop.fw_app_cpu_boot_dev_sts0 &
+				CPU_BOOT_DEV_STS0_MAP_HWMON_EN) ? true : false;
 
 	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
@@ -199,40 +257,64 @@ static int hl_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		switch (attr) {
 		case hwmon_temp_offset:
+			cpucp_attr = cpucp_temp_offset;
+			break;
 		case hwmon_temp_reset_history:
+			cpucp_attr = cpucp_temp_reset_history;
 			break;
 		default:
 			return -EINVAL;
 		}
-		hl_set_temperature(hdev, channel, attr, val);
+
+		if (use_cpucp_enum)
+			hl_set_temperature(hdev, channel, cpucp_attr, val);
+		else
+			hl_set_temperature(hdev, channel, attr, val);
 		break;
 	case hwmon_pwm:
 		switch (attr) {
 		case hwmon_pwm_input:
+			cpucp_attr = cpucp_pwm_input;
+			break;
 		case hwmon_pwm_enable:
+			cpucp_attr = cpucp_pwm_enable;
 			break;
 		default:
 			return -EINVAL;
 		}
-		hl_set_pwm_info(hdev, channel, attr, val);
+
+		if (use_cpucp_enum)
+			hl_set_pwm_info(hdev, channel, cpucp_attr, val);
+		else
+			hl_set_pwm_info(hdev, channel, attr, val);
 		break;
 	case hwmon_in:
 		switch (attr) {
 		case hwmon_in_reset_history:
+			cpucp_attr = cpucp_in_reset_history;
 			break;
 		default:
 			return -EINVAL;
 		}
-		hl_set_voltage(hdev, channel, attr, val);
+
+		if (use_cpucp_enum)
+			hl_set_voltage(hdev, channel, cpucp_attr, val);
+		else
+			hl_set_voltage(hdev, channel, attr, val);
 		break;
 	case hwmon_curr:
 		switch (attr) {
 		case hwmon_curr_reset_history:
+			cpucp_attr = cpucp_curr_reset_history;
 			break;
 		default:
 			return -EINVAL;
 		}
-		hl_set_current(hdev, channel, attr, val);
+
+		if (use_cpucp_enum)
+			hl_set_current(hdev, channel, cpucp_attr, val);
+		else
+			hl_set_current(hdev, channel, attr, val);
 		break;
 	default:
 		return -EINVAL;
