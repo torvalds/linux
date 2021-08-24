@@ -420,7 +420,9 @@ static int ionic_set_fecparam(struct net_device *netdev,
 }
 
 static int ionic_get_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *coalesce)
+			      struct ethtool_coalesce *coalesce,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 
@@ -438,7 +440,9 @@ static int ionic_get_coalesce(struct net_device *netdev,
 }
 
 static int ionic_set_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *coalesce)
+			      struct ethtool_coalesce *coalesce,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 	struct ionic_identity *ident;
