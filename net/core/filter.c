@@ -5051,6 +5051,12 @@ err_clear:
 BPF_CALL_5(bpf_sk_setsockopt, struct sock *, sk, int, level,
 	   int, optname, char *, optval, int, optlen)
 {
+	if (level == SOL_TCP && optname == TCP_CONGESTION) {
+		if (optlen >= sizeof("cdg") - 1 &&
+		    !strncmp("cdg", optval, optlen))
+			return -ENOTSUPP;
+	}
+
 	return _bpf_setsockopt(sk, level, optname, optval, optlen);
 }
 
