@@ -1859,14 +1859,9 @@ static bool has_uuid_at_pos(struct nd_region *nd_region, u8 *uuid,
 			if (memcmp(nd_label->uuid, uuid, NSLABEL_UUID_LEN) != 0)
 				continue;
 
-			if (namespace_label_has(ndd, type_guid)
-					&& !guid_equal(&nd_set->type_guid,
-						&nd_label->type_guid)) {
-				dev_dbg(ndd->dev, "expect type_guid %pUb got %pUb\n",
-						&nd_set->type_guid,
-						&nd_label->type_guid);
+			if (!nsl_validate_type_guid(ndd, nd_label,
+						    &nd_set->type_guid))
 				continue;
-			}
 
 			if (found_uuid) {
 				dev_dbg(ndd->dev, "duplicate entry for uuid\n");
@@ -2265,14 +2260,8 @@ static struct device *create_namespace_blk(struct nd_region *nd_region,
 	struct device *dev = NULL;
 	struct resource *res;
 
-	if (namespace_label_has(ndd, type_guid)) {
-		if (!guid_equal(&nd_set->type_guid, &nd_label->type_guid)) {
-			dev_dbg(ndd->dev, "expect type_guid %pUb got %pUb\n",
-					&nd_set->type_guid,
-					&nd_label->type_guid);
-			return ERR_PTR(-EAGAIN);
-		}
-	}
+	if (!nsl_validate_type_guid(ndd, nd_label, &nd_set->type_guid))
+		return ERR_PTR(-EAGAIN);
 	if (!nsl_validate_blk_isetcookie(ndd, nd_label, nd_set->cookie2))
 		return ERR_PTR(-EAGAIN);
 

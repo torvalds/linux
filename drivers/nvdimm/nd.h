@@ -180,6 +180,8 @@ static inline void nsl_set_lbasize(struct nvdimm_drvdata *ndd,
 bool nsl_validate_blk_isetcookie(struct nvdimm_drvdata *ndd,
 				 struct nd_namespace_label *nd_label,
 				 u64 isetcookie);
+bool nsl_validate_type_guid(struct nvdimm_drvdata *ndd,
+			    struct nd_namespace_label *nd_label, guid_t *guid);
 
 struct nd_region_data {
 	int ns_count;

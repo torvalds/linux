@@ -772,6 +772,26 @@ static void reap_victim(struct nd_mapping *nd_mapping,
 	victim->label = NULL;
 }
 
+static void nsl_set_type_guid(struct nvdimm_drvdata *ndd,
+			      struct nd_namespace_label *nd_label, guid_t *guid)
+{
+	if (namespace_label_has(ndd, type_guid))
+		guid_copy(&nd_label->type_guid, guid);
+}
+
+bool nsl_validate_type_guid(struct nvdimm_drvdata *ndd,
+			    struct nd_namespace_label *nd_label, guid_t *guid)
+{
+	if (!namespace_label_has(ndd, type_guid))
+		return true;
+	if (!guid_equal(&nd_label->type_guid, guid)) {
+		dev_dbg(ndd->dev, "expect type_guid %pUb got %pUb\n", guid,
+			&nd_label->type_guid);
+		return false;
+	}
+	return true;
+}
+
 static int __pmem_label_update(struct nd_region *nd_region,
 		struct nd_mapping *nd_mapping, struct nd_namespace_pmem *nspm,
 		int pos, unsigned long flags)
@@ -822,8 +842,7 @@ static int __pmem_label_update(struct nd_region *nd_region,
 	nsl_set_lbasize(ndd, nd_label, nspm->lbasize);
 	nsl_set_dpa(ndd, nd_label, res->start);
 	nsl_set_slot(ndd, nd_label, slot);
-	if (namespace_label_has(ndd, type_guid))
-		guid_copy(&nd_label->type_guid, &nd_set->type_guid);
+	nsl_set_type_guid(ndd, nd_label, &nd_set->type_guid);
 	if (namespace_label_has(ndd, abstraction_guid))
 		guid_copy(&nd_label->abstraction_guid,
 				to_abstraction_guid(ndns->claim_class,
@@ -1091,8 +1110,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 		nsl_set_rawsize(ndd, nd_label, resource_size(res));
 		nsl_set_lbasize(ndd, nd_label, nsblk->lbasize);
 		nsl_set_slot(ndd, nd_label, slot);
-		if (namespace_label_has(ndd, type_guid))
-			guid_copy(&nd_label->type_guid, &nd_set->type_guid);
+		nsl_set_type_guid(ndd, nd_label, &nd_set->type_guid);
 		if (namespace_label_has(ndd, abstraction_guid))
 			guid_copy(&nd_label->abstraction_guid,
 					to_abstraction_guid(ndns->claim_class,
