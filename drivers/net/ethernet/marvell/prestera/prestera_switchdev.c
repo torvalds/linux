@@ -748,7 +748,7 @@ static void
 prestera_fdb_offload_notify(struct prestera_port *port,
 			    struct switchdev_notifier_fdb_info *info)
 {
-	struct switchdev_notifier_fdb_info send_info;
+	struct switchdev_notifier_fdb_info send_info = {};
 
 	send_info.addr = info->addr;
 	send_info.vid = info->vid;
@@ -1123,7 +1123,7 @@ static int prestera_switchdev_blk_event(struct notifier_block *unused,
 static void prestera_fdb_event(struct prestera_switch *sw,
 			       struct prestera_event *evt, void *arg)
 {
-	struct switchdev_notifier_fdb_info info;
+	struct switchdev_notifier_fdb_info info = {};
 	struct net_device *dev = NULL;
 	struct prestera_port *port;
 	struct prestera_lag *lag;

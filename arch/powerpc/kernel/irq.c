@@ -750,7 +750,7 @@ void __do_irq(struct pt_regs *regs)
 	trace_irq_exit(regs);
 }
 
-DEFINE_INTERRUPT_HANDLER_ASYNC(do_IRQ)
+void __do_IRQ(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	void *cursp, *irqsp, *sirqsp;
@@ -772,6 +772,11 @@ DEFINE_INTERRUPT_HANDLER_ASYNC(do_IRQ)
 	call_do_irq(regs, irqsp);
 
 	set_irq_regs(old_regs);
+}
+
+DEFINE_INTERRUPT_HANDLER_ASYNC(do_IRQ)
+{
+	__do_IRQ(regs);
 }
 
 static void *__init alloc_vm_stack(void)

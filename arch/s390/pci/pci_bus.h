@@ -22,6 +22,11 @@ static inline void zpci_zdev_put(struct zpci_dev *zdev)
 	kref_put(&zdev->kref, zpci_release_device);
 }
 
+static inline void zpci_zdev_get(struct zpci_dev *zdev)
+{
+	kref_get(&zdev->kref);
+}
+
 int zpci_alloc_domain(int domain);
 void zpci_free_domain(int domain);
 int zpci_setup_bus_resources(struct zpci_dev *zdev,

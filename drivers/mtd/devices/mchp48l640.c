@@ -229,7 +229,7 @@ static int mchp48l640_write(struct mtd_info *mtd, loff_t to, size_t len,
 		woff += ws;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int mchp48l640_read_page(struct mtd_info *mtd, loff_t from, size_t len,
@@ -255,6 +255,7 @@ static int mchp48l640_read_page(struct mtd_info *mtd, loff_t from, size_t len,
 	if (!ret)
 		*retlen += len;
 
+	kfree(cmd);
 	return ret;
 
 fail:
@@ -286,7 +287,7 @@ static int mchp48l640_read(struct mtd_info *mtd, loff_t from, size_t len,
 		woff += ws;
 	}
 
-	return ret;
+	return 0;
 };
 
 static const struct mchp48_caps mchp48l640_caps = {

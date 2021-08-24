@@ -33,8 +33,7 @@
  * EL2.
  */
 .macro __init_el2_timers
-	mrs	x0, cnthctl_el2
-	orr	x0, x0, #3			// Enable EL1 physical timers
+	mov	x0, #3				// Enable EL1 physical timers
 	msr	cnthctl_el2, x0
 	msr	cntvoff_el2, xzr		// Clear virtual offset
 .endm
