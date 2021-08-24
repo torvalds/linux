@@ -346,29 +346,45 @@ static bool preamble_next(struct nvdimm_drvdata *ndd,
 			free, nslot);
 }
 
+static bool nsl_validate_checksum(struct nvdimm_drvdata *ndd,
+				  struct nd_namespace_label *nd_label)
+{
+	u64 sum, sum_save;
+
+	if (!namespace_label_has(ndd, checksum))
+		return true;
+
+	sum_save = nsl_get_checksum(ndd, nd_label);
+	nsl_set_checksum(ndd, nd_label, 0);
+	sum = nd_fletcher64(nd_label, sizeof_namespace_label(ndd), 1);
+	nsl_set_checksum(ndd, nd_label, sum_save);
+	return sum == sum_save;
+}
+
+static void nsl_calculate_checksum(struct nvdimm_drvdata *ndd,
+				   struct nd_namespace_label *nd_label)
+{
+	u64 sum;
+
+	if (!namespace_label_has(ndd, checksum))
+		return;
+	nsl_set_checksum(ndd, nd_label, 0);
+	sum = nd_fletcher64(nd_label, sizeof_namespace_label(ndd), 1);
+	nsl_set_checksum(ndd, nd_label, sum);
+}
+
 static bool slot_valid(struct nvdimm_drvdata *ndd,
 		struct nd_namespace_label *nd_label, u32 slot)
 {
+	bool valid;
+
 	/* check that we are written where we expect to be written */
 	if (slot != nsl_get_slot(ndd, nd_label))
 		return false;
-
-	/* check checksum */
-	if (namespace_label_has(ndd, checksum)) {
-		u64 sum, sum_save;
-
-		sum_save = nsl_get_checksum(ndd, nd_label);
-		nsl_set_checksum(ndd, nd_label, 0);
-		sum = nd_fletcher64(nd_label, sizeof_namespace_label(ndd), 1);
-		nsl_set_checksum(ndd, nd_label, sum_save);
-		if (sum != sum_save) {
-			dev_dbg(ndd->dev, "fail checksum. slot: %d expect: %#llx\n",
-				slot, sum);
-			return false;
-		}
-	}
-
-	return true;
+	valid = nsl_validate_checksum(ndd, nd_label);
+	if (!valid)
+		dev_dbg(ndd->dev, "fail checksum. slot: %d\n", slot);
+	return valid;
 }
 
 int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd)
@@ -812,13 +828,7 @@ static int __pmem_label_update(struct nd_region *nd_region,
 		guid_copy(&nd_label->abstraction_guid,
 				to_abstraction_guid(ndns->claim_class,
 					&nd_label->abstraction_guid));
-	if (namespace_label_has(ndd, checksum)) {
-		u64 sum;
-
-		nsl_set_checksum(ndd, nd_label, 0);
-		sum = nd_fletcher64(nd_label, sizeof_namespace_label(ndd), 1);
-		nsl_set_checksum(ndd, nd_label, sum);
-	}
+	nsl_calculate_checksum(ndd, nd_label);
 	nd_dbg_dpa(nd_region, ndd, res, "\n");
 
 	/* update label */
@@ -1049,15 +1059,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 			guid_copy(&nd_label->abstraction_guid,
 					to_abstraction_guid(ndns->claim_class,
 						&nd_label->abstraction_guid));
-
-		if (namespace_label_has(ndd, checksum)) {
-			u64 sum;
-
-			nsl_set_checksum(ndd, nd_label, 0);
-			sum = nd_fletcher64(nd_label,
-					sizeof_namespace_label(ndd), 1);
-			nsl_set_checksum(ndd, nd_label, sum);
-		}
+		nsl_calculate_checksum(ndd, nd_label);
 
 		/* update label */
 		offset = nd_label_offset(ndd, nd_label);
