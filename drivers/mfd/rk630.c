@@ -75,6 +75,7 @@ const struct regmap_config rk630_cru_regmap_config = {
 	.val_format_endian = REGMAP_ENDIAN_NATIVE,
 	.rd_table = &rk630_cru_readable_table,
 };
+EXPORT_SYMBOL_GPL(rk630_cru_regmap_config);
 
 int rk630_core_probe(struct rk630 *rk630)
 {

@@ -164,6 +164,7 @@ const struct regmap_config rk630_tve_regmap_config = {
 	.val_format_endian = REGMAP_ENDIAN_NATIVE,
 	.rd_table = &rk630_tve_readable_table,
 };
+EXPORT_SYMBOL_GPL(rk630_tve_regmap_config);
 
 static struct rk630_tve *bridge_to_tve(struct drm_bridge *bridge)
 {
