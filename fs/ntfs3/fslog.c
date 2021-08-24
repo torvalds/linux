@@ -809,6 +809,9 @@ static inline struct RESTART_TABLE *init_rsttbl(u16 esize, u16 used)
 	u32 lf = sizeof(struct RESTART_TABLE) + (used - 1) * esize;
 	struct RESTART_TABLE *t = kzalloc(bytes, GFP_NOFS);
 
+	if (!t)
+		return NULL;
+
 	t->size = cpu_to_le16(esize);
 	t->used = cpu_to_le16(used);
 	t->free_goal = cpu_to_le32(~0u);
@@ -831,7 +834,11 @@ static inline struct RESTART_TABLE *extend_rsttbl(struct RESTART_TABLE *tbl,
 	u16 esize = le16_to_cpu(tbl->size);
 	__le32 osize = cpu_to_le32(bytes_per_rt(tbl));
 	u32 used = le16_to_cpu(tbl->used);
-	struct RESTART_TABLE *rt = init_rsttbl(esize, used + add);
+	struct RESTART_TABLE *rt;
+
+	rt = init_rsttbl(esize, used + add);
+	if (!rt)
+		return NULL;
 
 	memcpy(rt + 1, tbl + 1, esize * used);
 
@@ -864,8 +871,11 @@ static inline void *alloc_rsttbl_idx(struct RESTART_TABLE **tbl)
 	__le32 *e;
 	struct RESTART_TABLE *t = *tbl;
 
-	if (!t->first_free)
+	if (!t->first_free) {
 		*tbl = t = extend_rsttbl(t, 16, ~0u);
+		if (!t)
+			return NULL;
+	}
 
 	off = le32_to_cpu(t->first_free);
 
@@ -4482,6 +4492,10 @@ next_log_record_analyze:
 		}
 
 		dp = alloc_rsttbl_idx(&dptbl);
+		if (!dp) {
+			err = -ENOMEM;
+			goto out;
+		}
 		dp->target_attr = cpu_to_le32(t16);
 		dp->transfer_len = cpu_to_le32(t32 << sbi->cluster_bits);
 		dp->lcns_follow = cpu_to_le32(t32);
