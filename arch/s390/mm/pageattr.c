@@ -86,7 +86,7 @@ static int walk_pte_level(pmd_t *pmdp, unsigned long addr, unsigned long end,
 {
 	pte_t *ptep, new;
 
-	if ((flags & SET_MEMORY_4K) == SET_MEMORY_4K)
+	if (flags == SET_MEMORY_4K)
 		return 0;
 	ptep = pte_offset_kernel(pmdp, addr);
 	do {
