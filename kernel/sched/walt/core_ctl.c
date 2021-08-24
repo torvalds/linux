@@ -290,7 +290,7 @@ static ssize_t show_active_cpus(const struct cluster_data *state, char *buf)
 	return scnprintf(buf, PAGE_SIZE, "%u\n", state->active_cpus);
 }
 
-static unsigned int nr_paused_cpus(const struct cluster_data *cluster)
+static unsigned int cluster_paused_cpus(const struct cluster_data *cluster)
 {
 	cpumask_t cluster_paused_cpus;
 
@@ -339,8 +339,8 @@ static ssize_t show_global_state(const struct cluster_data *state, char *buf)
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				"\tNeed CPUs: %u\n", cluster->need_cpus);
 		count += scnprintf(buf + count, PAGE_SIZE - count,
-				"\tNr paused CPUs: %u\n",
-				   nr_paused_cpus(cluster));
+				"\tCluster paused CPUs: %u\n",
+				   cluster_paused_cpus(cluster));
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				"\tBoost: %u\n", (unsigned int) cluster->boost);
 	}
@@ -616,7 +616,7 @@ static int prev_cluster_nr_need_assist(int index)
 	 * Next cluster should not assist, while there are paused cpus
 	 * in this cluster.
 	 */
-	if (nr_paused_cpus(prev_cluster))
+	if (cluster_paused_cpus(prev_cluster))
 		return 0;
 
 	for_each_cpu(cpu, &prev_cluster->cpu_mask)
@@ -777,7 +777,7 @@ static bool adjustment_possible(const struct cluster_data *cluster,
 							unsigned int need)
 {
 	return (need < cluster->active_cpus || (need > cluster->active_cpus &&
-						nr_paused_cpus(cluster)));
+						cluster_paused_cpus(cluster)));
 }
 
 static bool need_all_cpus(const struct cluster_data *cluster)
@@ -837,8 +837,8 @@ static bool eval_need(struct cluster_data *cluster)
 		 */
 		if (new_need == last_need && new_need == cluster->active_cpus) {
 			cluster->need_ts = now;
-			spin_unlock_irqrestore(&state_lock, flags);
-			return false;
+			ret = 0;
+			goto unlock;
 		}
 
 		elapsed = now - cluster->need_ts;
@@ -849,8 +849,11 @@ static bool eval_need(struct cluster_data *cluster)
 		cluster->need_ts = now;
 		cluster->need_cpus = new_need;
 	}
+
+unlock:
 	trace_core_ctl_eval_need(cluster->first_cpu, last_need, new_need,
-				 ret && need_flag);
+				 cluster->active_cpus, ret, need_flag,
+				 ret && need_flag, cluster->need_ts);
 	spin_unlock_irqrestore(&state_lock, flags);
 
 	return ret && need_flag;

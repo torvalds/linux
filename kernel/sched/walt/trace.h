@@ -444,23 +444,35 @@ TRACE_EVENT(sched_load_to_gov,
 
 TRACE_EVENT(core_ctl_eval_need,
 
-	TP_PROTO(unsigned int cpu, unsigned int old_need,
-		unsigned int new_need, unsigned int updated),
-	TP_ARGS(cpu, old_need, new_need, updated),
+	TP_PROTO(unsigned int cpu, unsigned int last_need,
+		unsigned int new_need, unsigned int active_cpus,
+		unsigned int ret, unsigned int need_flag,
+		unsigned int updated, s64 need_ts),
+	TP_ARGS(cpu, last_need, new_need, active_cpus, ret, need_flag, updated, need_ts),
 	TP_STRUCT__entry(
 		__field(u32, cpu)
-		__field(u32, old_need)
+		__field(u32, last_need)
 		__field(u32, new_need)
+		__field(u32, active_cpus)
+		__field(u32, ret)
+		__field(u32, need_flag)
 		__field(u32, updated)
+		__field(s64, need_ts)
 	),
 	TP_fast_assign(
 		__entry->cpu		= cpu;
-		__entry->old_need	= old_need;
+		__entry->last_need	= last_need;
 		__entry->new_need	= new_need;
+		__entry->active_cpus	= active_cpus;
+		__entry->ret		= ret;
+		__entry->need_flag	= need_flag;
 		__entry->updated	= updated;
+		__entry->need_ts	= need_ts;
 	),
-	TP_printk("cpu=%u, old_need=%u, new_need=%u, updated=%u", __entry->cpu,
-			__entry->old_need, __entry->new_need, __entry->updated)
+	TP_printk("cpu=%u last_need=%u new_need=%u active_cpus=%u ret=%u need_flag=%u updated=%u need_ts=%llu",
+		  __entry->cpu,	__entry->last_need, __entry->new_need,
+		  __entry->active_cpus, __entry->ret, __entry->need_flag,
+		  __entry->updated, __entry->need_ts)
 );
 
 TRACE_EVENT(core_ctl_set_busy,
