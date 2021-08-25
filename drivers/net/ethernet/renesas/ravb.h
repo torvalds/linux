@@ -979,17 +979,11 @@ struct ravb_ptp {
 	struct ravb_ptp_perout perout[N_PER_OUT];
 };
 
-enum ravb_chip_id {
-	RCAR_GEN2,
-	RCAR_GEN3,
-};
-
 struct ravb_hw_info {
 	const char (*gstrings_stats)[ETH_GSTRING_LEN];
 	size_t gstrings_size;
 	netdev_features_t net_hw_features;
 	netdev_features_t net_features;
-	enum ravb_chip_id chip_id;
 	int stats_len;
 	size_t max_rx_len;
 	unsigned aligned_tx: 1;
@@ -999,6 +993,7 @@ struct ravb_hw_info {
 	unsigned tx_counters:1;		/* E-MAC has TX counters */
 	unsigned multi_irqs:1;		/* AVB-DMAC and E-MAC has multiple irqs */
 	unsigned no_ptp_cfg_active:1;	/* AVB-DMAC does not support gPTP active in config mode */
+	unsigned ptp_cfg_active:1;	/* AVB-DMAC has gPTP support active in config mode */
 };
 
 struct ravb_private {
@@ -1042,7 +1037,6 @@ struct ravb_private {
 	int msg_enable;
 	int speed;
 	int emac_irq;
-	enum ravb_chip_id chip_id;
 	int rx_irqs[NUM_RX_QUEUE];
 	int tx_irqs[NUM_TX_QUEUE];
 

@@ -1941,12 +1941,12 @@ static const struct ravb_hw_info ravb_gen3_hw_info = {
 	.gstrings_size = sizeof(ravb_gstrings_stats),
 	.net_hw_features = NETIF_F_RXCSUM,
 	.net_features = NETIF_F_RXCSUM,
-	.chip_id = RCAR_GEN3,
 	.stats_len = ARRAY_SIZE(ravb_gstrings_stats),
 	.max_rx_len = RX_BUF_SZ + RAVB_ALIGN - 1,
 	.internal_delay = 1,
 	.tx_counters = 1,
 	.multi_irqs = 1,
+	.ptp_cfg_active = 1,
 };
 
 static const struct ravb_hw_info ravb_gen2_hw_info = {
@@ -1954,7 +1954,6 @@ static const struct ravb_hw_info ravb_gen2_hw_info = {
 	.gstrings_size = sizeof(ravb_gstrings_stats),
 	.net_hw_features = NETIF_F_RXCSUM,
 	.net_features = NETIF_F_RXCSUM,
-	.chip_id = RCAR_GEN2,
 	.stats_len = ARRAY_SIZE(ravb_gstrings_stats),
 	.max_rx_len = RX_BUF_SZ + RAVB_ALIGN - 1,
 	.aligned_tx = 1,
@@ -2152,8 +2151,6 @@ static int ravb_probe(struct platform_device *pdev)
 		}
 	}
 
-	priv->chip_id = info->chip_id;
-
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		error = PTR_ERR(priv->clk);
@@ -2216,7 +2213,7 @@ static int ravb_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&priv->ts_skb_list);
 
 	/* Initialise PTP Clock driver */
-	if (info->chip_id != RCAR_GEN2)
+	if (info->ptp_cfg_active)
 		ravb_ptp_init(ndev, pdev);
 
 	/* Debug message level */
@@ -2264,7 +2261,7 @@ out_dma_free:
 			  priv->desc_bat_dma);
 
 	/* Stop PTP Clock driver */
-	if (info->chip_id != RCAR_GEN2)
+	if (info->ptp_cfg_active)
 		ravb_ptp_stop(ndev);
 out_disable_refclk:
 	clk_disable_unprepare(priv->refclk);
@@ -2280,9 +2277,10 @@ static int ravb_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct ravb_private *priv = netdev_priv(ndev);
+	const struct ravb_hw_info *info = priv->info;
 
 	/* Stop PTP Clock driver */
-	if (priv->chip_id != RCAR_GEN2)
+	if (info->ptp_cfg_active)
 		ravb_ptp_stop(ndev);
 
 	clk_disable_unprepare(priv->refclk);
