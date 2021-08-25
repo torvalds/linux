@@ -289,8 +289,10 @@ int otx2_set_flowkey_cfg(struct otx2_nic *pfvf)
 
 	rsp = (struct nix_rss_flowkey_cfg_rsp *)
 			otx2_mbox_get_rsp(&pfvf->mbox.mbox, 0, &req->hdr);
-	if (IS_ERR(rsp))
+	if (IS_ERR(rsp)) {
+		err = PTR_ERR(rsp);
 		goto fail;
+	}
 
 	pfvf->hw.flowkey_alg_idx = rsp->alg_idx;
 fail:
