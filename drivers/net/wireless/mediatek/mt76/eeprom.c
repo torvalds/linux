@@ -15,6 +15,7 @@ int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int offset, int len)
 	struct device_node *np = dev->dev->of_node;
 	struct mtd_info *mtd;
 	const __be32 *list;
+	const void *data;
 	const char *part;
 	phandle phandle;
 	int size;
@@ -23,6 +24,16 @@ int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int offset, int len)
 
 	if (!np)
 		return -ENOENT;
+
+	data = of_get_property(np, "mediatek,eeprom-data", &size);
+	if (data) {
+		if (size > len)
+			return -EINVAL;
+
+		memcpy(eep, data, size);
+
+		return 0;
+	}
 
 	list = of_get_property(np, "mediatek,mtd-eeprom", &size);
 	if (!list)
