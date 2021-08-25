@@ -692,7 +692,7 @@ config MFD_INTEL_PMC_BXT
 
 config MFD_INTEL_PMT
 	tristate "Intel Platform Monitoring Technology (PMT) support"
-	depends on PCI
+	depends on X86 && PCI
 	select MFD_CORE
 	help
 	  The Intel Platform Monitoring Technology (PMT) is an interface that
