@@ -35,6 +35,9 @@ struct zynqmp_pm_domain {
 	bool requested;
 };
 
+#define to_zynqmp_pm_domain(pm_domain) \
+	container_of(pm_domain, struct zynqmp_pm_domain, gpd)
+
 /**
  * zynqmp_gpd_is_active_wakeup_path() - Check if device is in wakeup source
  *					path
@@ -69,10 +72,9 @@ static int zynqmp_gpd_is_active_wakeup_path(struct device *dev, void *not_used)
  */
 static int zynqmp_gpd_power_on(struct generic_pm_domain *domain)
 {
+	struct zynqmp_pm_domain *pd = to_zynqmp_pm_domain(domain);
 	int ret;
-	struct zynqmp_pm_domain *pd;
 
-	pd = container_of(domain, struct zynqmp_pm_domain, gpd);
 	ret = zynqmp_pm_set_requirement(pd->node_id,
 					ZYNQMP_PM_CAPABILITY_ACCESS,
 					ZYNQMP_PM_MAX_QOS,
@@ -101,13 +103,11 @@ static int zynqmp_gpd_power_on(struct generic_pm_domain *domain)
  */
 static int zynqmp_gpd_power_off(struct generic_pm_domain *domain)
 {
+	struct zynqmp_pm_domain *pd = to_zynqmp_pm_domain(domain);
 	int ret;
 	struct pm_domain_data *pdd, *tmp;
-	struct zynqmp_pm_domain *pd;
 	u32 capabilities = min_capability;
 	bool may_wakeup;
-
-	pd = container_of(domain, struct zynqmp_pm_domain, gpd);
 
 	/* If domain is already released there is nothing to be done */
 	if (!pd->requested) {
@@ -152,11 +152,9 @@ static int zynqmp_gpd_power_off(struct generic_pm_domain *domain)
 static int zynqmp_gpd_attach_dev(struct generic_pm_domain *domain,
 				 struct device *dev)
 {
+	struct zynqmp_pm_domain *pd = to_zynqmp_pm_domain(domain);
 	struct device_link *link;
 	int ret;
-	struct zynqmp_pm_domain *pd;
-
-	pd = container_of(domain, struct zynqmp_pm_domain, gpd);
 
 	link = device_link_add(dev, &domain->dev, DL_FLAG_SYNC_STATE_ONLY);
 	if (!link)
@@ -191,10 +189,8 @@ static int zynqmp_gpd_attach_dev(struct generic_pm_domain *domain,
 static void zynqmp_gpd_detach_dev(struct generic_pm_domain *domain,
 				  struct device *dev)
 {
+	struct zynqmp_pm_domain *pd = to_zynqmp_pm_domain(domain);
 	int ret;
-	struct zynqmp_pm_domain *pd;
-
-	pd = container_of(domain, struct zynqmp_pm_domain, gpd);
 
 	/* If this is not the last device to detach there is nothing to do */
 	if (domain->device_count)
@@ -220,7 +216,7 @@ static struct generic_pm_domain *zynqmp_gpd_xlate
 	unsigned int i, idx = genpdspec->args[0];
 	struct zynqmp_pm_domain *pd;
 
-	pd = container_of(genpd_data->domains[0], struct zynqmp_pm_domain, gpd);
+	pd = to_zynqmp_pm_domain(genpd_data->domains[0]);
 
 	if (genpdspec->args_count != 1)
 		return ERR_PTR(-EINVAL);
