@@ -1790,16 +1790,20 @@ out:
 	return ERR_PTR(err);
 }
 
-static struct nbd_device *nbd_find_unused(void)
+static struct nbd_device *nbd_find_get_unused(void)
 {
 	struct nbd_device *nbd;
 	int id;
 
 	lockdep_assert_held(&nbd_index_mutex);
 
-	idr_for_each_entry(&nbd_index_idr, nbd, id)
-		if (!refcount_read(&nbd->config_refs))
+	idr_for_each_entry(&nbd_index_idr, nbd, id) {
+		if (refcount_read(&nbd->config_refs) ||
+		    test_bit(NBD_DESTROY_ON_DISCONNECT, &nbd->flags))
+			continue;
+		if (refcount_inc_not_zero(&nbd->refs))
 			return nbd;
+	}
 
 	return NULL;
 }
@@ -1873,10 +1877,10 @@ static int nbd_genl_connect(struct sk_buff *skb, struct genl_info *info)
 again:
 	mutex_lock(&nbd_index_mutex);
 	if (index == -1)
-		nbd = nbd_find_unused();
+		nbd = nbd_find_get_unused();
 	else
 		nbd = idr_find(&nbd_index_idr, index);
-	if (nbd) {
+	if (nbd && index != -1) {
 		if (test_bit(NBD_DESTROY_ON_DISCONNECT, &nbd->flags) &&
 		    test_bit(NBD_DISCONNECT_REQUESTED, &nbd->flags)) {
 			nbd->destroy_complete = &destroy_complete;
@@ -1889,8 +1893,6 @@ again:
 
 		if (!refcount_inc_not_zero(&nbd->refs)) {
 			mutex_unlock(&nbd_index_mutex);
-			if (index == -1)
-				goto again;
 			pr_err("nbd: device at index %d is going down\n",
 				index);
 			return -EINVAL;
