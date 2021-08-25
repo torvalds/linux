@@ -1634,6 +1634,11 @@ static void cpuset_migrate_mm(struct mm_struct *mm, const nodemask_t *from,
 {
 	struct cpuset_migrate_mm_work *mwork;
 
+	if (nodes_equal(*from, *to)) {
+		mmput(mm);
+		return;
+	}
+
 	mwork = kzalloc(sizeof(*mwork), GFP_KERNEL);
 	if (mwork) {
 		mwork->mm = mm;
