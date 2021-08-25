@@ -17,7 +17,15 @@
 
 	aliases {
 		serial0 = &uart0;
+		serial1 = &uart1;
 		serial2 = &uart2;
+		serial3 = &uart3;
+		serial4 = &uart4;
+		serial5 = &uart5;
+		serial6 = &uart6;
+		serial7 = &uart7;
+		serial8 = &uart8;
+		serial9 = &uart9;
 	};
 
 	cpus {
@@ -188,6 +196,9 @@
 		clock-names = "baudclk", "apb_pclk";
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		dmas = <&dmac0 6>, <&dmac0 7>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart0m0_xfer>;
 		status = "disabled";
 	};
 
@@ -523,6 +534,20 @@
 		arm,pl330-periph-burst;
 	};
 
+	uart1: serial@feb40000 {
+		compatible = "rockchip,rk3588-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xfeb40000 0x0 0x100>;
+		interrupts = <GIC_SPI 332 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART1>, <&cru PCLK_UART1>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&dmac0 8>, <&dmac0 9>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart1m0_xfer>;
+		status = "disabled";
+	};
+
 	uart2: serial@feb50000 {
 		compatible = "rockchip,rk3588-uart", "snps,dw-apb-uart";
 		reg = <0x0 0xfeb50000 0x0 0x100>;
@@ -531,6 +556,9 @@
 		clock-names = "baudclk", "apb_pclk";
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		dmas = <&dmac0 10>, <&dmac0 11>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart2m0_xfer>;
 		status = "disabled";
 	};
 
@@ -542,6 +570,93 @@
 		clock-names = "baudclk", "apb_pclk";
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		dmas = <&dmac0 12>, <&dmac0 13>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart3m0_xfer>;
+		status = "disabled";
+	};
+
+	uart4: serial@feb70000 {
+		compatible = "rockchip,rk3588-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xfeb70000 0x0 0x100>;
+		interrupts = <GIC_SPI 335 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART4>, <&cru PCLK_UART4>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&dmac1 9>, <&dmac1 10>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart4m0_xfer>;
+		status = "disabled";
+	};
+
+	uart5: serial@feb80000 {
+		compatible = "rockchip,rk3588-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xfeb80000 0x0 0x100>;
+		interrupts = <GIC_SPI 336 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART5>, <&cru PCLK_UART5>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&dmac1 11>, <&dmac1 12>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart5m0_xfer>;
+		status = "disabled";
+	};
+
+	uart6: serial@feb90000 {
+		compatible = "rockchip,rk3588-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xfeb90000 0x0 0x100>;
+		interrupts = <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART6>, <&cru PCLK_UART6>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&dmac1 13>, <&dmac1 14>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart6m0_xfer>;
+		status = "disabled";
+	};
+
+	uart7: serial@feba0000 {
+		compatible = "rockchip,rk3588-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xfeba0000 0x0 0x100>;
+		interrupts = <GIC_SPI 338 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART7>, <&cru PCLK_UART7>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&dmac2 7>, <&dmac2 8>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart7m0_xfer>;
+		status = "disabled";
+	};
+
+	uart8: serial@febb0000 {
+		compatible = "rockchip,rk3588-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xfebb0000 0x0 0x100>;
+		interrupts = <GIC_SPI 339 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART8>, <&cru PCLK_UART8>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&dmac2 9>, <&dmac2 10>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart8m0_xfer>;
+		status = "disabled";
+	};
+
+	uart9: serial@febc0000 {
+		compatible = "rockchip,rk3588-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xfebc0000 0x0 0x100>;
+		interrupts = <GIC_SPI 340 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART9>, <&cru PCLK_UART9>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&dmac2 11>, <&dmac2 12>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart9m0_xfer>;
 		status = "disabled";
 	};
 
