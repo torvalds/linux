@@ -30,10 +30,9 @@
 #include <linux/firmware.h>
 #include <acpi/video.h>
 
-#include "display/intel_panel.h"
-
 #include "i915_drv.h"
 #include "intel_acpi.h"
+#include "intel_backlight.h"
 #include "intel_display_types.h"
 #include "intel_opregion.h"
 
