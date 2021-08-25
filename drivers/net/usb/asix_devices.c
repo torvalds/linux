@@ -754,7 +754,7 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		return ret;
 
 	priv->phy_addr = ret;
-	priv->embd_phy = ((priv->phy_addr & 0x1f) == 0x10 ? true : false);
+	priv->embd_phy = ((priv->phy_addr & 0x1f) == 0x10);
 
 	asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG, 0, 0, 1, &chipcode, 0);
 	chipcode &= AX_CHIPCODE_MASK;
