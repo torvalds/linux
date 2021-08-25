@@ -599,14 +599,14 @@ static int __init __fdt_scan_reserved_mem(unsigned long node, const char *uname,
 }
 
 /*
- * reserve_elfcorehdr() - reserves memory for elf core header
+ * fdt_reserve_elfcorehdr() - reserves memory for elf core header
  *
  * This function reserves the memory occupied by an elf core header
  * described in the device tree. This region contains all the
  * information about primary kernel's core image and is used by a dump
  * capture kernel to access the system memory on primary kernel.
  */
-static void __init reserve_elfcorehdr(void)
+static void __init fdt_reserve_elfcorehdr(void)
 {
 	if (!IS_ENABLED(CONFIG_CRASH_DUMP) || !elfcorehdr_size)
 		return;
@@ -647,7 +647,7 @@ void __init early_init_fdt_scan_reserved_mem(void)
 
 	of_scan_flat_dt(__fdt_scan_reserved_mem, NULL);
 	fdt_init_reserved_mem();
-	reserve_elfcorehdr();
+	fdt_reserve_elfcorehdr();
 }
 
 /**
