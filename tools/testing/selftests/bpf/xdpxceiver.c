@@ -1039,62 +1039,70 @@ static void run_pkt_test(int mode, int type)
 	}
 }
 
+static struct ifobject *ifobject_create(void)
+{
+	struct ifobject *ifobj;
+
+	ifobj = calloc(1, sizeof(struct ifobject));
+	if (!ifobj)
+		return NULL;
+
+	ifobj->xsk_arr = calloc(2, sizeof(struct xsk_socket_info *));
+	if (!ifobj->xsk_arr)
+		goto out_xsk_arr;
+
+	ifobj->umem_arr = calloc(2, sizeof(struct xsk_umem_info *));
+	if (!ifobj->umem_arr)
+		goto out_umem_arr;
+
+	return ifobj;
+
+out_umem_arr:
+	free(ifobj->xsk_arr);
+out_xsk_arr:
+	free(ifobj);
+	return NULL;
+}
+
+static void ifobject_delete(struct ifobject *ifobj)
+{
+	free(ifobj->umem_arr);
+	free(ifobj->xsk_arr);
+	free(ifobj);
+}
+
 int main(int argc, char **argv)
 {
 	struct rlimit _rlim = { RLIM_INFINITY, RLIM_INFINITY };
-	bool failure = false;
 	int i, j;
 
 	if (setrlimit(RLIMIT_MEMLOCK, &_rlim))
 		exit_with_error(errno);
 
-	for (int i = 0; i < MAX_INTERFACES; i++) {
-		ifdict[i] = malloc(sizeof(struct ifobject));
+	for (i = 0; i < MAX_INTERFACES; i++) {
+		ifdict[i] = ifobject_create();
 		if (!ifdict[i])
-			exit_with_error(errno);
-
-		ifdict[i]->ifdict_index = i;
-		ifdict[i]->xsk_arr = calloc(2, sizeof(struct xsk_socket_info *));
-		if (!ifdict[i]->xsk_arr) {
-			failure = true;
-			goto cleanup;
-		}
-		ifdict[i]->umem_arr = calloc(2, sizeof(struct xsk_umem_info *));
-		if (!ifdict[i]->umem_arr) {
-			failure = true;
-			goto cleanup;
-		}
+			exit_with_error(ENOMEM);
 	}
 
 	setlocale(LC_ALL, "");
 
 	parse_command_line(argc, argv);
 
-	init_iface(ifdict[0], MAC1, MAC2, IP1, IP2, UDP_PORT1, UDP_PORT2, tx);
-	init_iface(ifdict[1], MAC2, MAC1, IP2, IP1, UDP_PORT2, UDP_PORT1, rx);
+	init_iface(ifdict[tx], MAC1, MAC2, IP1, IP2, UDP_PORT1, UDP_PORT2, tx);
+	init_iface(ifdict[rx], MAC2, MAC1, IP2, IP1, UDP_PORT2, UDP_PORT1, rx);
 
 	ksft_set_plan(TEST_MODE_MAX * TEST_TYPE_MAX);
 
-	for (i = 0; i < TEST_MODE_MAX; i++) {
+	for (i = 0; i < TEST_MODE_MAX; i++)
 		for (j = 0; j < TEST_TYPE_MAX; j++) {
 			run_pkt_test(i, j);
 			usleep(USLEEP_MAX);
 		}
-	}
 
-cleanup:
-	for (int i = 0; i < MAX_INTERFACES; i++) {
-		if (ifdict[i]->ns_fd != -1)
-			close(ifdict[i]->ns_fd);
-		free(ifdict[i]->xsk_arr);
-		free(ifdict[i]->umem_arr);
-		free(ifdict[i]);
-	}
-
-	if (failure)
-		exit_with_error(errno);
+	for (i = 0; i < MAX_INTERFACES; i++)
+		ifobject_delete(ifdict[i]);
 
 	ksft_exit_pass();
-
 	return 0;
 }

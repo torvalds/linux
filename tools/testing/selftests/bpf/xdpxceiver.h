@@ -122,7 +122,6 @@ struct ifobject {
 	void *(*func_ptr)(void *arg);
 	struct flow_vector fv;
 	int ns_fd;
-	int ifdict_index;
 	u32 dst_ip;
 	u32 src_ip;
 	u16 src_port;
