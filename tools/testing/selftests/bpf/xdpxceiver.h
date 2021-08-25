@@ -139,18 +139,4 @@ static struct ifobject *ifdict_tx;
 pthread_barrier_t barr;
 pthread_t t0, t1;
 
-TAILQ_HEAD(head_s, pkt) head = TAILQ_HEAD_INITIALIZER(head);
-struct head_s *head_p;
-struct pkt {
-	char *pkt_frame;
-
-	TAILQ_ENTRY(pkt) pkt_nodes;
-} *pkt_node_rx, *pkt_node_rx_q;
-
-struct pkt_frame {
-	char *payload;
-} *pkt_obj;
-
-struct pkt_frame **pkt_buf;
-
 #endif				/* XDPXCEIVER_H */
