@@ -475,7 +475,7 @@ static int dgpu_disable_write(struct asus_wmi *asus)
 		return err;
 	}
 
-	if (retval > 1 || retval < 0) {
+	if (retval > 1) {
 		pr_warn("Failed to set dgpu disable (retval): 0x%x\n", retval);
 		return -EIO;
 	}
@@ -563,7 +563,7 @@ static int egpu_enable_write(struct asus_wmi *asus)
 		return err;
 	}
 
-	if (retval > 1 || retval < 0) {
+	if (retval > 1) {
 		pr_warn("Failed to set egpu disable (retval): 0x%x\n", retval);
 		return -EIO;
 	}
@@ -1448,7 +1448,7 @@ static int panel_od_write(struct asus_wmi *asus)
 		return err;
 	}
 
-	if (retval > 1 || retval < 0) {
+	if (retval > 1) {
 		pr_warn("Failed to set panel overdrive (retval): 0x%x\n", retval);
 		return -EIO;
 	}
