@@ -2447,11 +2447,12 @@ static void rvu_afvf_queue_flr_work(struct rvu *rvu, int start_vf, int numvfs)
 	for (vf = 0; vf < numvfs; vf++) {
 		if (!(intr & BIT_ULL(vf)))
 			continue;
-		dev = vf + start_vf + rvu->hw->total_pfs;
-		queue_work(rvu->flr_wq, &rvu->flr_wrk[dev].work);
 		/* Clear and disable the interrupt */
 		rvupf_write64(rvu, RVU_PF_VFFLR_INTX(reg), BIT_ULL(vf));
 		rvupf_write64(rvu, RVU_PF_VFFLR_INT_ENA_W1CX(reg), BIT_ULL(vf));
+
+		dev = vf + start_vf + rvu->hw->total_pfs;
+		queue_work(rvu->flr_wq, &rvu->flr_wrk[dev].work);
 	}
 }
 
@@ -2467,14 +2468,14 @@ static irqreturn_t rvu_flr_intr_handler(int irq, void *rvu_irq)
 
 	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
 		if (intr & (1ULL << pf)) {
-			/* PF is already dead do only AF related operations */
-			queue_work(rvu->flr_wq, &rvu->flr_wrk[pf].work);
 			/* clear interrupt */
 			rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFFLR_INT,
 				    BIT_ULL(pf));
 			/* Disable the interrupt */
 			rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFFLR_INT_ENA_W1C,
 				    BIT_ULL(pf));
+			/* PF is already dead do only AF related operations */
+			queue_work(rvu->flr_wq, &rvu->flr_wrk[pf].work);
 		}
 	}
 
