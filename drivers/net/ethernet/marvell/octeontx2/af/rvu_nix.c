@@ -671,9 +671,10 @@ static void nix_ctx_free(struct rvu *rvu, struct rvu_pfvf *pfvf)
 static int nixlf_rss_ctx_init(struct rvu *rvu, int blkaddr,
 			      struct rvu_pfvf *pfvf, int nixlf,
 			      int rss_sz, int rss_grps, int hwctx_size,
-			      u64 way_mask)
+			      u64 way_mask, bool tag_lsb_as_adder)
 {
 	int err, grp, num_indices;
+	u64 val;
 
 	/* RSS is not requested for this NIXLF */
 	if (!rss_sz)
@@ -689,10 +690,13 @@ static int nixlf_rss_ctx_init(struct rvu *rvu, int blkaddr,
 		    (u64)pfvf->rss_ctx->iova);
 
 	/* Config full RSS table size, enable RSS and caching */
-	rvu_write64(rvu, blkaddr, NIX_AF_LFX_RSS_CFG(nixlf),
-		    BIT_ULL(36) | BIT_ULL(4) |
-		    ilog2(num_indices / MAX_RSS_INDIR_TBL_SIZE) |
-		    way_mask << 20);
+	val = BIT_ULL(36) | BIT_ULL(4) | way_mask << 20 |
+			ilog2(num_indices / MAX_RSS_INDIR_TBL_SIZE);
+
+	if (tag_lsb_as_adder)
+		val |= BIT_ULL(5);
+
+	rvu_write64(rvu, blkaddr, NIX_AF_LFX_RSS_CFG(nixlf), val);
 	/* Config RSS group offset and sizes */
 	for (grp = 0; grp < rss_grps; grp++)
 		rvu_write64(rvu, blkaddr, NIX_AF_LFX_RSS_GRPX(nixlf, grp),
@@ -1241,7 +1245,8 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 	/* Initialize receive side scaling (RSS) */
 	hwctx_size = 1UL << ((ctx_cfg >> 12) & 0xF);
 	err = nixlf_rss_ctx_init(rvu, blkaddr, pfvf, nixlf, req->rss_sz,
-				 req->rss_grps, hwctx_size, req->way_mask);
+				 req->rss_grps, hwctx_size, req->way_mask,
+				 !!(req->flags & NIX_LF_RSS_TAG_LSB_AS_ADDER));
 	if (err)
 		goto free_mem;
 
