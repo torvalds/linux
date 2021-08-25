@@ -246,6 +246,7 @@ struct rvu_pfvf {
 	u8	lbkid;	     /* NIX0/1 lbk link ID */
 	u64     lmt_base_addr; /* Preseving the pcifunc's lmtst base addr*/
 	unsigned long flags;
+	struct  sdp_node_info *sdp_info;
 };
 
 enum rvu_pfvf_flags {
@@ -597,6 +598,16 @@ static inline u16 rvu_nix_chan_lbk(struct rvu *rvu, u8 lbkid,
 	return rvu->hw->lbk_chan_base + lbkid * lbk_chans + chan;
 }
 
+static inline u16 rvu_nix_chan_sdp(struct rvu *rvu, u8 chan)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+
+	if (!hw->cap.programmable_chans)
+		return NIX_CHAN_SDP_CHX(chan);
+
+	return hw->sdp_chan_base + chan;
+}
+
 static inline u16 rvu_nix_chan_cpt(struct rvu *rvu, u8 chan)
 {
 	return rvu->hw->cpt_chan_base + chan;
@@ -659,10 +670,17 @@ int rvu_aq_alloc(struct rvu *rvu, struct admin_queue **ad_queue,
 		 int qsize, int inst_size, int res_size);
 void rvu_aq_free(struct rvu *rvu, struct admin_queue *aq);
 
+/* SDP APIs */
+int rvu_sdp_init(struct rvu *rvu);
+bool is_sdp_pfvf(u16 pcifunc);
+bool is_sdp_pf(u16 pcifunc);
+bool is_sdp_vf(u16 pcifunc);
+
 /* CGX APIs */
 static inline bool is_pf_cgxmapped(struct rvu *rvu, u8 pf)
 {
-	return (pf >= PF_CGXMAP_BASE && pf <= rvu->cgx_mapped_pfs);
+	return (pf >= PF_CGXMAP_BASE && pf <= rvu->cgx_mapped_pfs) &&
+		!is_sdp_pf(pf << RVU_PFVF_PF_SHIFT);
 }
 
 static inline void rvu_get_cgx_lmac_id(u8 map, u8 *cgx_id, u8 *lmac_id)

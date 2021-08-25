@@ -1118,6 +1118,12 @@ cpt:
 		goto nix_err;
 	}
 
+	err = rvu_sdp_init(rvu);
+	if (err) {
+		dev_err(rvu->dev, "%s: Failed to initialize sdp\n", __func__);
+		goto nix_err;
+	}
+
 	rvu_program_channels(rvu);
 
 	return 0;
@@ -1370,9 +1376,10 @@ int rvu_get_nix_blkaddr(struct rvu *rvu, u16 pcifunc)
 	int blkaddr = BLKADDR_NIX0, vf;
 	struct rvu_pfvf *pf;
 
+	pf = rvu_get_pfvf(rvu, pcifunc & ~RVU_PFVF_FUNC_MASK);
+
 	/* All CGX mapped PFs are set with assigned NIX block during init */
 	if (is_pf_cgxmapped(rvu, rvu_get_pf(pcifunc))) {
-		pf = rvu_get_pfvf(rvu, pcifunc & ~RVU_PFVF_FUNC_MASK);
 		blkaddr = pf->nix_blkaddr;
 	} else if (is_afvf(pcifunc)) {
 		vf = pcifunc - 1;
@@ -1384,6 +1391,10 @@ int rvu_get_nix_blkaddr(struct rvu *rvu, u16 pcifunc)
 		if (!is_block_implemented(rvu->hw, BLKADDR_NIX1))
 			blkaddr = BLKADDR_NIX0;
 	}
+
+	/* if SDP1 then the blkaddr is NIX1 */
+	if (is_sdp_pfvf(pcifunc) && pf->sdp_info->node_id == 1)
+		blkaddr = BLKADDR_NIX1;
 
 	switch (blkaddr) {
 	case BLKADDR_NIX1:

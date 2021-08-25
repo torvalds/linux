@@ -191,6 +191,9 @@ M(CPT_RD_WR_REGISTER,	0xA02, cpt_rd_wr_register,  cpt_rd_wr_reg_msg,	\
 M(CPT_STATS,            0xA05, cpt_sts, cpt_sts_req, cpt_sts_rsp)	\
 M(CPT_RXC_TIME_CFG,     0xA06, cpt_rxc_time_cfg, cpt_rxc_time_cfg_req,  \
 			       msg_rsp)                                 \
+/* SDP mbox IDs (range 0x1000 - 0x11FF) */				\
+M(SET_SDP_CHAN_INFO, 0x1000, set_sdp_chan_info, sdp_chan_info_msg, msg_rsp) \
+M(GET_SDP_CHAN_INFO, 0x1001, get_sdp_chan_info, msg_req, sdp_get_chan_info_msg) \
 /* NPC mbox IDs (range 0x6000 - 0x7FFF) */				\
 M(NPC_MCAM_ALLOC_ENTRY,	0x6000, npc_mcam_alloc_entry, npc_mcam_alloc_entry_req,\
 				npc_mcam_alloc_entry_rsp)		\
@@ -1444,6 +1447,27 @@ struct cpt_rxc_time_cfg_req {
 	u16 zombie_limit;
 	u16 active_thres;
 	u16 active_limit;
+};
+
+struct sdp_node_info {
+	/* Node to which this PF belons to */
+	u8 node_id;
+	u8 max_vfs;
+	u8 num_pf_rings;
+	u8 pf_srn;
+#define SDP_MAX_VFS	128
+	u8 vf_rings[SDP_MAX_VFS];
+};
+
+struct sdp_chan_info_msg {
+	struct mbox_msghdr hdr;
+	struct sdp_node_info info;
+};
+
+struct sdp_get_chan_info_msg {
+	struct mbox_msghdr hdr;
+	u16 chan_base;
+	u16 num_chan;
 };
 
 /* CGX mailbox error codes

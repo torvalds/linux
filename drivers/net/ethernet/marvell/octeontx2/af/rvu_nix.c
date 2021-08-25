@@ -293,15 +293,19 @@ static bool is_valid_txschq(struct rvu *rvu, int blkaddr,
 static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf,
 			      struct nix_lf_alloc_rsp *rsp, bool loop)
 {
-	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
+	struct rvu_pfvf *parent_pf, *pfvf = rvu_get_pfvf(rvu, pcifunc);
+	u16 req_chan_base, req_chan_end, req_chan_cnt;
 	struct rvu_hwinfo *hw = rvu->hw;
+	struct sdp_node_info *sdp_info;
+	int pkind, pf, vf, lbkid, vfid;
 	struct mac_ops *mac_ops;
-	int pkind, pf, vf, lbkid;
 	u8 cgx_id, lmac_id;
+	bool from_vf;
 	int err;
 
 	pf = rvu_get_pf(pcifunc);
-	if (!is_pf_cgxmapped(rvu, pf) && type != NIX_INTF_TYPE_LBK)
+	if (!is_pf_cgxmapped(rvu, pf) && type != NIX_INTF_TYPE_LBK &&
+	    type != NIX_INTF_TYPE_SDP)
 		return 0;
 
 	switch (type) {
@@ -325,6 +329,7 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf,
 		rvu_npc_set_pkind(rvu, pkind, pfvf);
 
 		mac_ops = get_mac_ops(rvu_cgx_pdata(cgx_id, rvu));
+
 		/* By default we enable pause frames */
 		if ((pcifunc & RVU_PFVF_FUNC_MASK) == 0)
 			mac_ops->mac_enadis_pause_frm(rvu_cgx_pdata(cgx_id,
@@ -376,6 +381,45 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf,
 		rsp->tx_link = hw->cgx_links + lbkid;
 		pfvf->lbkid = lbkid;
 		rvu_npc_set_pkind(rvu, NPC_RX_LBK_PKIND, pfvf);
+		rvu_npc_install_promisc_entry(rvu, pcifunc, nixlf,
+					      pfvf->rx_chan_base,
+					      pfvf->rx_chan_cnt);
+
+		break;
+	case NIX_INTF_TYPE_SDP:
+		from_vf = !!(pcifunc & RVU_PFVF_FUNC_MASK);
+		parent_pf = &rvu->pf[rvu_get_pf(pcifunc)];
+		sdp_info = parent_pf->sdp_info;
+		if (!sdp_info) {
+			dev_err(rvu->dev, "Invalid sdp_info pointer\n");
+			return -EINVAL;
+		}
+		if (from_vf) {
+			req_chan_base = rvu_nix_chan_sdp(rvu, 0) + sdp_info->pf_srn +
+				sdp_info->num_pf_rings;
+			vf = (pcifunc & RVU_PFVF_FUNC_MASK) - 1;
+			for (vfid = 0; vfid < vf; vfid++)
+				req_chan_base += sdp_info->vf_rings[vfid];
+			req_chan_cnt = sdp_info->vf_rings[vf];
+			req_chan_end = req_chan_base + req_chan_cnt - 1;
+			if (req_chan_base < rvu_nix_chan_sdp(rvu, 0) ||
+			    req_chan_end > rvu_nix_chan_sdp(rvu, 255)) {
+				dev_err(rvu->dev,
+					"PF_Func 0x%x: Invalid channel base and count\n",
+					pcifunc);
+				return -EINVAL;
+			}
+		} else {
+			req_chan_base = rvu_nix_chan_sdp(rvu, 0) + sdp_info->pf_srn;
+			req_chan_cnt = sdp_info->num_pf_rings;
+		}
+
+		pfvf->rx_chan_base = req_chan_base;
+		pfvf->rx_chan_cnt = req_chan_cnt;
+		pfvf->tx_chan_base = pfvf->rx_chan_base;
+		pfvf->tx_chan_cnt = pfvf->rx_chan_cnt;
+
+		rsp->tx_link = hw->cgx_links + hw->lbk_links;
 		rvu_npc_install_promisc_entry(rvu, pcifunc, nixlf,
 					      pfvf->rx_chan_base,
 					      pfvf->rx_chan_cnt);
@@ -459,9 +503,9 @@ int rvu_mbox_handler_nix_bp_disable(struct rvu *rvu,
 static int rvu_nix_get_bpid(struct rvu *rvu, struct nix_bp_cfg_req *req,
 			    int type, int chan_id)
 {
-	int bpid, blkaddr, lmac_chan_cnt;
+	int bpid, blkaddr, lmac_chan_cnt, sdp_chan_cnt;
+	u16 cgx_bpid_cnt, lbk_bpid_cnt, sdp_bpid_cnt;
 	struct rvu_hwinfo *hw = rvu->hw;
-	u16 cgx_bpid_cnt, lbk_bpid_cnt;
 	struct rvu_pfvf *pfvf;
 	u8 cgx_id, lmac_id;
 	u64 cfg;
@@ -470,8 +514,12 @@ static int rvu_nix_get_bpid(struct rvu *rvu, struct nix_bp_cfg_req *req,
 	cfg = rvu_read64(rvu, blkaddr, NIX_AF_CONST);
 	lmac_chan_cnt = cfg & 0xFF;
 
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_CONST1);
+	sdp_chan_cnt = cfg & 0xFFF;
+
 	cgx_bpid_cnt = hw->cgx_links * lmac_chan_cnt;
 	lbk_bpid_cnt = hw->lbk_links * ((cfg >> 16) & 0xFF);
+	sdp_bpid_cnt = hw->sdp_links * sdp_chan_cnt;
 
 	pfvf = rvu_get_pfvf(rvu, req->hdr.pcifunc);
 
@@ -509,6 +557,17 @@ static int rvu_nix_get_bpid(struct rvu *rvu, struct nix_bp_cfg_req *req,
 		if (bpid > (cgx_bpid_cnt + lbk_bpid_cnt))
 			return -EINVAL;
 		break;
+	case NIX_INTF_TYPE_SDP:
+		if ((req->chan_base + req->chan_cnt) > 255)
+			return -EINVAL;
+
+		bpid = sdp_bpid_cnt + req->chan_base;
+		if (req->bpid_per_chan)
+			bpid += chan_id;
+
+		if (bpid > (cgx_bpid_cnt + lbk_bpid_cnt + sdp_bpid_cnt))
+			return -EINVAL;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -528,9 +587,12 @@ int rvu_mbox_handler_nix_bp_enable(struct rvu *rvu,
 
 	pf = rvu_get_pf(pcifunc);
 	type = is_afvf(pcifunc) ? NIX_INTF_TYPE_LBK : NIX_INTF_TYPE_CGX;
+	if (is_sdp_pfvf(pcifunc))
+		type = NIX_INTF_TYPE_SDP;
 
-	/* Enable backpressure only for CGX mapped PFs and LBK interface */
-	if (!is_pf_cgxmapped(rvu, pf) && type != NIX_INTF_TYPE_LBK)
+	/* Enable backpressure only for CGX mapped PFs and LBK/SDP interface */
+	if (!is_pf_cgxmapped(rvu, pf) && type != NIX_INTF_TYPE_LBK &&
+	    type != NIX_INTF_TYPE_SDP)
 		return 0;
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
@@ -547,8 +609,9 @@ int rvu_mbox_handler_nix_bp_enable(struct rvu *rvu,
 		}
 
 		cfg = rvu_read64(rvu, blkaddr, NIX_AF_RX_CHANX_CFG(chan));
+		cfg &= ~GENMASK_ULL(8, 0);
 		rvu_write64(rvu, blkaddr, NIX_AF_RX_CHANX_CFG(chan),
-			    cfg | (bpid & 0xFF) | BIT_ULL(16));
+			    cfg | (bpid & GENMASK_ULL(8, 0)) | BIT_ULL(16));
 		chan_id++;
 		bpid = rvu_nix_get_bpid(rvu, req, type, chan_id);
 	}
@@ -1329,6 +1392,9 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_TX_PARSE_CFG(nixlf), cfg);
 
 	intf = is_afvf(pcifunc) ? NIX_INTF_TYPE_LBK : NIX_INTF_TYPE_CGX;
+	if (is_sdp_pfvf(pcifunc))
+		intf = NIX_INTF_TYPE_SDP;
+
 	err = nix_interface_init(rvu, pcifunc, intf, nixlf, rsp,
 				 !!(req->flags & NIX_LF_LBK_BLK_SEL));
 	if (err)
@@ -2772,12 +2838,17 @@ static int nix_update_mce_rule(struct rvu *rvu, u16 pcifunc,
 	struct npc_mcam *mcam = &rvu->hw->mcam;
 	struct rvu_hwinfo *hw = rvu->hw;
 	struct nix_mce_list *mce_list;
+	int pf;
 
-	/* skip multicast pkt replication for AF's VFs */
-	if (is_afvf(pcifunc))
+	/* skip multicast pkt replication for AF's VFs & SDP links */
+	if (is_afvf(pcifunc) || is_sdp_pfvf(pcifunc))
 		return 0;
 
 	if (!hw->cap.nix_rx_multicast)
+		return 0;
+
+	pf = rvu_get_pf(pcifunc);
+	if (!is_pf_cgxmapped(rvu, pf))
 		return 0;
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
