@@ -17,11 +17,13 @@ properties:
           - asahi-kasei,ak8963
           - asahi-kasei,ak09911
           - asahi-kasei,ak09912
+          - asahi-kasei,ak09916
       - enum:
           - ak8975
           - ak8963
           - ak09911
           - ak09912
+          - ak09916
         deprecated: true
 
   reg:
