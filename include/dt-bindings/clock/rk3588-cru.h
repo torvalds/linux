@@ -277,9 +277,9 @@
 #define CLK_GPU				276
 #define CLK_GPU_COREGROUP		277
 #define CLK_GPU_STACKS			278
-#define PCLK_PVTM2			279
-#define CLK_PVTM2			280
-#define CLK_GPU_PVTM			281
+#define PCLK_GPU_PVTM			279
+#define CLK_GPU_PVTM			280
+#define CLK_CORE_GPU_PVTM		281
 #define PCLK_GPU_GRF			282
 #define ACLK_ISP1_ROOT			283
 #define HCLK_ISP1_ROOT			284
@@ -295,10 +295,10 @@
 #define HCLK_NPU_CM0_ROOT		294
 #define FCLK_NPU_CM0_CORE		295
 #define CLK_NPU_CM0_RTC			296
-#define PCLK_PVTM1			297
+#define PCLK_NPU_PVTM			297
 #define PCLK_NPU_GRF			298
-#define CLK_PVTM1			299
-#define CLK_NPU_PVTM			300
+#define CLK_NPU_PVTM			299
+#define CLK_CORE_NPU_PVTM		300
 #define ACLK_NPU0			301
 #define HCLK_NPU0			302
 #define HCLK_NPU_ROOT			303
@@ -684,10 +684,8 @@
 #define PCLK_PMU1WDT			688
 #define TCLK_PMU1WDT			689
 #define CLK_CR_PARA			690
-#define CLK_HDPTX0_REF_XTAL		691
-#define CLK_REF_MIPI_DCPHY0		692
-#define CLK_OTGPHY_U3_0			693
-#define CLK_USBDP_PHY0_REF_XTAL		694
+#define CLK_USB2PHY_HDPTXRXPHY_REF	693
+#define CLK_USBDPPHY_MIPIDCPPHY_REF	694
 #define CLK_REF_PIPE_PHY0_OSC_SRC	695
 #define CLK_REF_PIPE_PHY1_OSC_SRC	696
 #define CLK_REF_PIPE_PHY2_OSC_SRC	697
@@ -1006,9 +1004,9 @@
 #define SRST_NPUTIMER1			473
 #define SRST_P_NPU_WDT			474
 #define SRST_T_NPU_WDT			475
-#define SRST_P_PVTM1			476
+#define SRST_P_NPU_PVTM			476
 #define SRST_P_NPU_GRF			477
-#define SRST_PVTM1			478
+#define SRST_NPU_PVTM			478
 /********Name=SOFTRST_CON30,Offset=0xA78********/
 #define SRST_NPU_PVTPLL			480
 #define SRST_H_NPU_CM0_BIU		482
@@ -1276,9 +1274,9 @@
 #define SRST_A_M2_GPU_BIU		1067
 #define SRST_A_M3_GPU_BIU		1068
 #define SRST_P_GPU_BIU			1070
-#define SRST_P_PVTM2			1071
+#define SRST_P_GPU_PVTM			1071
 /********Name=SOFTRST_CON67,Offset=0xB0C********/
-#define SRST_PVTM2			1072
+#define SRST_GPU_PVTM			1072
 #define SRST_P_GPU_GRF			1074
 #define SRST_GPU_PVTPLL			1075
 #define SRST_GPU_JTAG			1076
