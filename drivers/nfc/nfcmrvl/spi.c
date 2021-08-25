@@ -7,11 +7,8 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/pm_runtime.h>
 #include <linux/nfc.h>
-#include <linux/gpio.h>
 #include <linux/of_irq.h>
-#include <linux/of_gpio.h>
 #include <net/nfc/nci.h>
 #include <net/nfc/nci_core.h>
 #include <linux/spi/spi.h>
