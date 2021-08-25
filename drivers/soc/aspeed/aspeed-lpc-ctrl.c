@@ -295,6 +295,16 @@ static int aspeed_lpc_ctrl_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	if (of_device_is_compatible(dev->of_node, "aspeed,ast2600-lpc-ctrl")) {
+		lpc_ctrl->fwh2ahb = true;
+
+		lpc_ctrl->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2600-scu");
+		if (IS_ERR(lpc_ctrl->scu)) {
+			dev_err(dev, "couldn't find scu\n");
+			return PTR_ERR(lpc_ctrl->scu);
+		}
+	}
+
 	lpc_ctrl->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(lpc_ctrl->clk)) {
 		dev_err(dev, "couldn't get clock\n");
@@ -304,16 +314,6 @@ static int aspeed_lpc_ctrl_probe(struct platform_device *pdev)
 	if (rc) {
 		dev_err(dev, "couldn't enable clock\n");
 		return rc;
-	}
-
-	if (of_device_is_compatible(dev->of_node, "aspeed,ast2600-lpc-ctrl")) {
-		lpc_ctrl->fwh2ahb = true;
-
-		lpc_ctrl->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2600-scu");
-		if (IS_ERR(lpc_ctrl->scu)) {
-			dev_err(dev, "couldn't find scu\n");
-			return PTR_ERR(lpc_ctrl->scu);
-		}
 	}
 
 	lpc_ctrl->miscdev.minor = MISC_DYNAMIC_MINOR;
