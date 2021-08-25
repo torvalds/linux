@@ -1173,6 +1173,8 @@ patternProperties:
     description: Tecon Microprocessor Technologies, LLC.
   "^topeet,.*":
     description: Topeet
+  "^topic,.*":
+    description: Topic Embedded Systems
   "^toppoly,.*":
     description: TPO (deprecated, use tpo)
     deprecated: true
