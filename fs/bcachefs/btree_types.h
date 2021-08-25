@@ -348,6 +348,7 @@ struct btree_insert_entry {
 	unsigned		trans_triggers_run:1;
 	struct bkey_i		*k;
 	struct btree_iter	*iter;
+	unsigned long		ip_allocated;
 };
 
 #ifndef CONFIG_LOCKDEP

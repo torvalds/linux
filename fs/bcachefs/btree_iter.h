@@ -295,6 +295,8 @@ static inline int bkey_err(struct bkey_s_c k)
 
 /* new multiple iterator interface: */
 
+void bch2_dump_trans_iters_updates(struct btree_trans *);
+
 int bch2_trans_iter_put(struct btree_trans *, struct btree_iter *);
 int bch2_trans_iter_free(struct btree_trans *, struct btree_iter *);
 

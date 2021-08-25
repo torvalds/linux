@@ -1012,7 +1012,8 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 		.btree_id	= iter->btree_id,
 		.level		= iter->level,
 		.iter		= iter,
-		.k		= k
+		.k		= k,
+		.ip_allocated	= _RET_IP_,
 	};
 	bool is_extent = (iter->flags & BTREE_ITER_IS_EXTENTS) != 0;
 	int ret = 0;

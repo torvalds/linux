@@ -2256,33 +2256,30 @@ int bch2_trans_iter_free(struct btree_trans *trans,
 }
 
 noinline __cold
-static void btree_trans_iter_alloc_fail(struct btree_trans *trans)
+void bch2_dump_trans_iters_updates(struct btree_trans *trans)
 {
-
 	struct btree_iter *iter;
 	struct btree_insert_entry *i;
 	unsigned idx;
-	char buf[100];
+	char buf1[300], buf2[100];
 
 	btree_trans_sort_iters(trans);
 
 	trans_for_each_iter_inorder(trans, iter, idx)
-		printk(KERN_ERR "iter: btree %s pos %s%s%s%s %pS\n",
+		printk(KERN_ERR "iter: btree %s pos %s real_pos %s%s%s%s %pS\n",
 		       bch2_btree_ids[iter->btree_id],
-		       (bch2_bpos_to_text(&PBUF(buf), iter->real_pos), buf),
+		       (bch2_bpos_to_text(&PBUF(buf1), iter->pos), buf1),
+		       (bch2_bpos_to_text(&PBUF(buf2), iter->real_pos), buf2),
 		       btree_iter_live(trans, iter) ? " live" : "",
 		       (trans->iters_touched & (1ULL << iter->idx)) ? " touched" : "",
 		       iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT ? " keep" : "",
 		       (void *) iter->ip_allocated);
 
-	trans_for_each_update(trans, i) {
-		char buf[300];
-
-		bch2_bkey_val_to_text(&PBUF(buf), trans->c, bkey_i_to_s_c(i->k));
-		printk(KERN_ERR "update: btree %s %s\n",
-		       bch2_btree_ids[i->iter->btree_id], buf);
-	}
-	panic("trans iter oveflow\n");
+	trans_for_each_update(trans, i)
+		printk(KERN_ERR "update: btree %s %s %pS\n",
+		       bch2_btree_ids[i->btree_id],
+		       (bch2_bkey_val_to_text(&PBUF(buf1), trans->c, bkey_i_to_s_c(i->k)), buf1),
+		       (void *) i->ip_allocated);
 }
 
 static struct btree_iter *btree_trans_iter_alloc(struct btree_trans *trans,
@@ -2294,8 +2291,10 @@ static struct btree_iter *btree_trans_iter_alloc(struct btree_trans *trans,
 	btree_trans_verify_sorted_refs(trans);
 
 	if (unlikely(trans->iters_linked ==
-		     ~((~0ULL << 1) << (BTREE_ITER_MAX - 1))))
-		btree_trans_iter_alloc_fail(trans);
+		     ~((~0ULL << 1) << (BTREE_ITER_MAX - 1)))) {
+		bch2_dump_trans_iters_updates(trans);
+		panic("trans iter oveflow\n");
+	}
 
 	idx = __ffs64(~trans->iters_linked);
 	iter = &trans->iters[idx];
