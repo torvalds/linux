@@ -986,6 +986,7 @@ struct ravb_hw_info {
 	bool (*receive)(struct net_device *ndev, int *quota, int q);
 	void (*set_rate)(struct net_device *ndev);
 	int (*set_rx_csum_feature)(struct net_device *ndev, netdev_features_t features);
+	void (*dmac_init)(struct net_device *ndev);
 	const char (*gstrings_stats)[ETH_GSTRING_LEN];
 	size_t gstrings_size;
 	netdev_features_t net_hw_features;
