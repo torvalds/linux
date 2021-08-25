@@ -1082,8 +1082,13 @@ static int __sched task_blocks_on_rt_mutex(struct rt_mutex_base *lock,
 		/* Check whether the waiter should back out immediately */
 		rtm = container_of(lock, struct rt_mutex, rtmutex);
 		res = __ww_mutex_add_waiter(waiter, rtm, ww_ctx);
-		if (res)
+		if (res) {
+			raw_spin_lock(&task->pi_lock);
+			rt_mutex_dequeue(lock, waiter);
+			task->pi_blocked_on = NULL;
+			raw_spin_unlock(&task->pi_lock);
 			return res;
+		}
 	}
 
 	if (!owner)
