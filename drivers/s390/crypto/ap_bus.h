@@ -78,12 +78,6 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_FUNC_APXA  6
 
 /*
- * AP interrupt states
- */
-#define AP_INTR_DISABLED	0	/* AP interrupt disabled */
-#define AP_INTR_ENABLED		1	/* AP interrupt enabled */
-
-/*
  * AP queue state machine states
  */
 enum ap_sm_state {
@@ -109,7 +103,7 @@ enum ap_sm_event {
  * AP queue state wait behaviour
  */
 enum ap_sm_wait {
-	AP_SM_WAIT_AGAIN,	/* retry immediately */
+	AP_SM_WAIT_AGAIN = 0,	/* retry immediately */
 	AP_SM_WAIT_TIMEOUT,	/* wait for timeout */
 	AP_SM_WAIT_INTERRUPT,	/* wait for thin interrupt (if available) */
 	AP_SM_WAIT_NONE,	/* no wait */
@@ -182,7 +176,7 @@ struct ap_queue {
 	enum ap_dev_state dev_state;	/* queue device state */
 	bool config;			/* configured state */
 	ap_qid_t qid;			/* AP queue id. */
-	int interrupt;			/* indicate if interrupts are enabled */
+	bool interrupt;			/* indicate if interrupts are enabled */
 	int queue_count;		/* # messages currently on AP queue. */
 	int pendingq_count;		/* # requests on pendingq list. */
 	int requestq_count;		/* # requests on requestq list. */
