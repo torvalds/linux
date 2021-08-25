@@ -642,23 +642,22 @@ static void tx_only_all(struct ifobject *ifobject)
 	complete_tx_only_all(ifobject);
 }
 
-static void stats_validate(struct ifobject *ifobject)
+static bool rx_stats_are_valid(struct ifobject *ifobject)
 {
+	u32 xsk_stat = 0, expected_stat = opt_pkt_count;
+	struct xsk_socket *xsk = ifobject->xsk->xsk;
+	int fd = xsk_socket__fd(xsk);
 	struct xdp_statistics stats;
 	socklen_t optlen;
 	int err;
-	struct xsk_socket *xsk = stat_test_type == STAT_TEST_TX_INVALID ?
-							ifdict[!ifobject->ifdict_index]->xsk->xsk :
-							ifobject->xsk->xsk;
-	int fd = xsk_socket__fd(xsk);
-	unsigned long xsk_stat = 0, expected_stat = opt_pkt_count;
-
-	sigvar = 0;
 
 	optlen = sizeof(stats);
 	err = getsockopt(fd, SOL_XDP, XDP_STATISTICS, &stats, &optlen);
-	if (err)
-		return;
+	if (err) {
+		ksft_test_result_fail("ERROR: [%s] getsockopt(XDP_STATISTICS) error %u %s\n",
+				      __func__, -err, strerror(-err));
+		return true;
+	}
 
 	if (optlen == sizeof(struct xdp_statistics)) {
 		switch (stat_test_type) {
@@ -666,8 +665,7 @@ static void stats_validate(struct ifobject *ifobject)
 			xsk_stat = stats.rx_dropped;
 			break;
 		case STAT_TEST_TX_INVALID:
-			xsk_stat = stats.tx_invalid_descs;
-			break;
+			return true;
 		case STAT_TEST_RX_FULL:
 			xsk_stat = stats.rx_ring_full;
 			expected_stat -= RX_FULL_RXQSIZE;
@@ -680,8 +678,33 @@ static void stats_validate(struct ifobject *ifobject)
 		}
 
 		if (xsk_stat == expected_stat)
-			sigvar = 1;
+			return true;
 	}
+
+	return false;
+}
+
+static void tx_stats_validate(struct ifobject *ifobject)
+{
+	struct xsk_socket *xsk = ifobject->xsk->xsk;
+	int fd = xsk_socket__fd(xsk);
+	struct xdp_statistics stats;
+	socklen_t optlen;
+	int err;
+
+	optlen = sizeof(stats);
+	err = getsockopt(fd, SOL_XDP, XDP_STATISTICS, &stats, &optlen);
+	if (err) {
+		ksft_test_result_fail("ERROR: [%s] getsockopt(XDP_STATISTICS) error %u %s\n",
+				      __func__, -err, strerror(-err));
+		return;
+	}
+
+	if (stats.tx_invalid_descs == opt_pkt_count)
+		return;
+
+	ksft_test_result_fail("ERROR: [%s] tx_invalid_descs incorrect. Got [%u] expected [%u]\n",
+			      __func__, stats.tx_invalid_descs, opt_pkt_count);
 }
 
 static void thread_common_ops(struct ifobject *ifobject, void *bufs)
@@ -767,6 +790,9 @@ static void *worker_testapp_validate_tx(void *arg)
 	print_verbose("Sending %d packets on interface %s\n", opt_pkt_count, ifobject->ifname);
 	tx_only_all(ifobject);
 
+	if (stat_test_type == STAT_TEST_TX_INVALID)
+		tx_stats_validate(ifobject);
+
 	testapp_cleanup_xsk_res(ifobject);
 	pthread_exit(NULL);
 }
@@ -792,7 +818,8 @@ static void *worker_testapp_validate_rx(void *arg)
 		if (test_type != TEST_TYPE_STATS) {
 			rx_pkt(ifobject->xsk, fds);
 		} else {
-			stats_validate(ifobject);
+			if (rx_stats_are_valid(ifobject))
+				break;
 		}
 		if (sigvar)
 			break;
