@@ -9939,7 +9939,7 @@ F:	Documentation/dev-tools/kselftest*
 F:	tools/testing/selftests/
 
 KERNEL SMB3 SERVER (KSMBD)
-M:	Namjae Jeon <namjae.jeon@samsung.com>
+M:	Namjae Jeon <linkinjeon@kernel.org>
 M:	Sergey Senozhatsky <senozhatsky@chromium.org>
 M:	Steve French <sfrench@samba.org>
 M:	Hyunchul Lee <hyc.lee@gmail.com>
