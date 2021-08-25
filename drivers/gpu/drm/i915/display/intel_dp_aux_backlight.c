@@ -34,10 +34,10 @@
  * for some reason.
  */
 
+#include "intel_backlight.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_aux_backlight.h"
-#include "intel_panel.h"
 
 /* TODO:
  * Implement HDR, right now we just implement the bare minimum to bring us back into SDR mode so we
