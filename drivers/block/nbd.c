@@ -1770,7 +1770,9 @@ static struct nbd_device *nbd_dev_add(int index, unsigned int refs)
 	return nbd;
 
 out_free_idr:
+	mutex_lock(&nbd_index_mutex);
 	idr_remove(&nbd_index_idr, index);
+	mutex_unlock(&nbd_index_mutex);
 out_free_tags:
 	blk_mq_free_tag_set(&nbd->tag_set);
 out_free_nbd:
