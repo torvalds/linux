@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 16 Aug 2021
+Release Date: 24 Aug 2021
 
-Release Version: V_01-00-09 : Limited-tested version
+Release Version: V_01-00-10 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -16,6 +16,15 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
     #make clean
 
     #make
+
+    To compile driver with load firmware header (fw.h) use the below command
+    #make TC956X_LOAD_FW_HEADER=1 
+
+    In order to compile the Driver to include the code for applying Gen3 setting, execute Make with below argument
+    #make TC956X_PCIE_GEN3_SETTING=1
+
+    Please note, incase both fw.h and Gen3 settings are needed, then both arugments need to be specified.
+
 3.	Load phylink module
 
 	#modprobe phylink
@@ -142,3 +151,10 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 ## TC956X_Host_Driver_20210816_V_01-00-09:
 
 1. PHY interrupt mode supported through .config_intr and .ack_interrupt API
+
+## TC956X_Host_Driver_20210824_V_01-00-10:
+
+1. TC956X_PCIE_GEN3_SETTING macro setting supported through makefile. By default Gen3 settings will not be applied by the Driver as TC956X_PCIE_GEN3_SETTING is not defined.
+2. TC956X_LOAD_FW_HEADER macro setting supported through makefile. By default, TC956X_LOAD_FW_HEADER macro is disabled. If FIRMWARE_NAME is not specified in Makefile, the default value shall be TC956X_Firmware_PCIeBridge.bin
+3. Platform APIs supported.
+4. Modified PHY C22/C45 debug message.

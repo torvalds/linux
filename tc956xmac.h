@@ -53,6 +53,9 @@
  *  VERSION     : 01-00-08
  *  16 Aug 2021 : 1. PHY interrupt mode supported through .config_intr and .ack_interrupt API
  *  VERSION     : 01-00-09
+ *  24 Aug 2021 : 1. Disable TC956X_PCIE_GEN3_SETTING and TC956X_LOAD_FW_HEADER macros and provide support via Makefile
+ *		: 2. Platform API supported
+ *  VERSION     : 01-00-10
  */
 
 #ifndef __TC956XMAC_H__
@@ -71,7 +74,7 @@
 #include <net/page_pool.h>
 #include <linux/version.h>
 
-#define TC956X_LOAD_FW_HEADER
+//#define TC956X_LOAD_FW_HEADER
 #define PF_DRIVER 4
 
 // #define CONFIG_TC956XMAC_SELFTESTS  /*Enable this macro to test Feature selftest*/
@@ -94,12 +97,14 @@
 #define TC956X_TX_QUEUES 8
 #define TC956X_RX_QUEUES 8
 
+#ifndef FIRMWARE_NAME
 #define FIRMWARE_NAME "TC956X_Firmware_PCIeBridge.bin"
+#endif
 
 #ifdef TC956X
 
 #define TC956X_RESOURCE_NAME	"tc956x_pci-eth"
-#define DRV_MODULE_VERSION	"V_01-00-09"
+#define DRV_MODULE_VERSION	"V_01-00-10"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800
@@ -540,6 +545,8 @@ struct tc956xmac_priv {
 	/* set to 1 when onestep timestamp is enabled, else 0. */
 	u32 ost_en;
 
+	/* Private data store for platform layer */
+	void *plat_priv;
 #ifdef DMA_OFFLOAD_ENABLE
 	void *client_priv;
 	struct tc956xmac_cm3_tamap cm3_tamap[MAX_CM3_TAMAP_ENTRIES];
@@ -643,5 +650,18 @@ static inline int tc956xmac_selftest_get_count(struct tc956xmac_priv *priv)
 s32 tc956x_load_firmware(struct device *dev, struct tc956xmac_resources *res);
 
 int tc956x_set_pci_speed(struct pci_dev *pdev, u32 speed);
+
+#ifdef CONFIG_TC956X_PLATFORM_SUPPORT
+int tc956x_platform_probe(struct tc956xmac_priv *priv, struct tc956xmac_resources *res);
+int tc956x_platform_remove(struct tc956xmac_priv *priv);
+int tc956x_platform_suspend(struct tc956xmac_priv *priv);
+int tc956x_platform_resume(struct tc956xmac_priv *priv);
+#else
+static inline int tc956x_platform_probe(struct tc956xmac_priv *priv, struct tc956xmac_resources *res) { return 0; }
+static inline int tc956x_platform_remove(struct tc956xmac_priv *priv) { return 0; }
+static inline int tc956x_platform_suspend(struct tc956xmac_priv *priv) { return 0; }
+static inline int tc956x_platform_resume(struct tc956xmac_priv *priv) { return 0; }
+#endif
+
 
 #endif /* __TC956XMAC_H__ */

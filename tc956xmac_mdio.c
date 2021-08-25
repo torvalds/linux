@@ -500,9 +500,12 @@ int tc956xmac_mdio_register(struct net_device *ndev)
 
 		if (phy_reg_read != -EBUSY && phy_reg_read != -ENODEV) {
 			if (phy_reg_read != 0x0000 && phy_reg_read != 0xffff) {
-				NMSGPR_ALERT(priv->device,
+				if (priv->plat->c45_needed == true) 
+					NMSGPR_ALERT(priv->device,
+					    "TC956X: Phy detected C45 at ID/ADDR %d\n", addr);
+				else 
+					NMSGPR_ALERT(priv->device,
 					    "TC956X: Phy detected C22 at ID/ADDR %d\n", addr);
-
 #else
 		struct phy_device *phydev = mdiobus_get_phy(new_bus, addr);
 

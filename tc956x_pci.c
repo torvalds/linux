@@ -51,6 +51,9 @@
  *  VERSION     : 01-00-08
  *  16 Aug 2021 : 1. PHY interrupt mode supported through .config_intr and .ack_interrupt API
  *  VERSION     : 01-00-09
+ *  24 Aug 2021 : 1. Disable TC956X_PCIE_GEN3_SETTING and TC956X_LOAD_FW_HEADER macros and provide support via Makefile
+ *		: 2. Platform API supported 
+ *  VERSION     : 01-00-10
  */
 
 #include <linux/clk-provider.h>
@@ -80,7 +83,7 @@ static unsigned int tc956x_speed = 3;
 static unsigned int tc956x_port0_interface = ENABLE_XFI_INTERFACE;
 static unsigned int tc956x_port1_interface = ENABLE_SGMII_INTERFACE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 0, 9};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 1, 0};
 
 /*
  * This struct is used to associate PCI Function of MAC controller on a board,
@@ -1576,7 +1579,7 @@ static void tc956x_pcie_disable_dsp2_port(struct device *dev,
 }
 #endif /*#ifdef TC956X_PCIE_DISABLE_DSP2*/
 
-#ifdef TC956X_PCIE_GEN3_SETTING
+//#ifdef TC956X_PCIE_GEN3_SETTING
 static int tc956x_replace_aspm(struct pci_dev *pdev, u16 replace_value, u16 *org_value)
 {
 	int err;
@@ -1723,7 +1726,7 @@ int tc956x_set_pci_speed(struct pci_dev *pdev, u32 speed)
 
 	return ret;
 }
-#endif /*#ifdef TC956X_PCIE_GEN3_SETTING*/
+//#endif /*#ifdef TC956X_PCIE_GEN3_SETTING*/
 #endif /*#ifdef TC956X*/
 
 
@@ -2202,6 +2205,10 @@ static void tc956xmac_pci_remove(struct pci_dev *pdev)
 
 	pdev->irq = 0;
 
+	if (tc956x_platform_remove(priv)) {
+		dev_err(priv->device, "Platform remove error\n");
+	}
+
 	/* Enable MSI Operation */
 	pci_disable_msi(pdev);
 
@@ -2247,11 +2254,11 @@ static void tc956xmac_pci_remove(struct pci_dev *pdev)
 static s32 tc956x_pcie_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	s32 ret = 0;
+	struct net_device *ndev = dev_get_drvdata(&pdev->dev);
+	struct tc956xmac_priv *priv = netdev_priv(ndev);
 #ifdef DMA_OFFLOAD_ENABLE
 	u8 i;
 	u32 val;
-	struct net_device *ndev = dev_get_drvdata(&pdev->dev);
-	struct tc956xmac_priv *priv = netdev_priv(ndev);
 #endif
 
 	DBGPR_FUNC(&(pdev->dev), "-->%s\n", __func__);
@@ -2283,6 +2290,13 @@ static s32 tc956x_pcie_suspend(struct pci_dev *pdev, pm_message_t state)
 		}
 	}
 #endif
+
+	ret = tc956x_platform_suspend(priv);
+	if (ret) {
+		NMSGPR_ERR(&(pdev->dev), "%s: error in calling tc956x_platform_suspend", pci_name(pdev));
+		return ret;
+	}
+
 	/* Save the PCI Config Space of the device */
 	ret = pci_save_state(pdev);
 
@@ -2514,6 +2528,13 @@ static s32 tc956x_pcie_resume(struct pci_dev *pdev)
 
 	/* Restore PCI config space of device */
 	pci_restore_state(pdev);
+
+	ret = tc956x_platform_resume(priv);
+	if (ret) {
+		NMSGPR_ERR(&(pdev->dev), "%s: error in calling tc956x_platform_resume", pci_name(pdev));
+		pci_disable_device(pdev);
+		return ret;
+	}
 
 	/* Configure TA map registers */
 #ifdef TC956X

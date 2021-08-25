@@ -47,6 +47,8 @@
  *  VERSION     : 01-00-08
  *  16 Aug 2021 : 1. PHY interrupt mode supported through .config_intr and .ack_interrupt API
  *  VERSION     : 01-00-09
+ *  24 Aug 2021 : 1. Platform API supported
+ *  VERSION     : 01-00-10
  */
 
 #include <linux/clk.h>
@@ -9747,6 +9749,11 @@ int tc956xmac_dvr_probe(struct device *device,
 	priv->device = device;
 	priv->dev = ndev;
 
+	ret = tc956x_platform_probe(priv, res);
+	if (ret) {
+		dev_err(priv->device, "Platform probe error %d\n", ret);
+		return -EPERM;
+	}
 #ifdef TC956X
 	priv->mac_loopback_mode = 0; /* Disable MAC loopback by default */
 	priv->phy_loopback_mode = 0; /* Disable PHY loopback by default */

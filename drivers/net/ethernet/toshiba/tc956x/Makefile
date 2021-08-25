@@ -9,6 +9,14 @@ else
 CCFLAGS += -m32
 endif
 
+ifeq ($(TC956X_PCIE_GEN3_SETTING),1)
+EXTRA_CFLAGS+=-DTC956X_PCIE_GEN3_SETTING
+endif
+
+ifeq ($(TC956X_LOAD_FW_HEADER),1)
+EXTRA_CFLAGS+=-DTC956X_LOAD_FW_HEADER
+endif
+
 DMA_OFFLOAD = 1
 
 obj-m := tc956x_pcie_eth.o
