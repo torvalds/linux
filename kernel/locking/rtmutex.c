@@ -1329,8 +1329,9 @@ static bool rtmutex_spin_on_owner(struct rt_mutex_base *lock,
 		 *    for CONFIG_PREEMPT_RCU=y)
 		 *  - the VCPU on which owner runs is preempted
 		 */
-		if (!owner->on_cpu || waiter != rt_mutex_top_waiter(lock) ||
-		    need_resched() || vcpu_is_preempted(task_cpu(owner))) {
+		if (!owner->on_cpu || need_resched() ||
+		    rt_mutex_waiter_is_top_waiter(lock, waiter) ||
+		    vcpu_is_preempted(task_cpu(owner))) {
 			res = false;
 			break;
 		}

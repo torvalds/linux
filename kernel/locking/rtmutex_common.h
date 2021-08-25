@@ -95,6 +95,19 @@ static inline int rt_mutex_has_waiters(struct rt_mutex_base *lock)
 	return !RB_EMPTY_ROOT(&lock->waiters.rb_root);
 }
 
+/*
+ * Lockless speculative check whether @waiter is still the top waiter on
+ * @lock. This is solely comparing pointers and not derefencing the
+ * leftmost entry which might be about to vanish.
+ */
+static inline bool rt_mutex_waiter_is_top_waiter(struct rt_mutex_base *lock,
+						 struct rt_mutex_waiter *waiter)
+{
+	struct rb_node *leftmost = rb_first_cached(&lock->waiters);
+
+	return rb_entry(leftmost, struct rt_mutex_waiter, tree_entry) == waiter;
+}
+
 static inline struct rt_mutex_waiter *rt_mutex_top_waiter(struct rt_mutex_base *lock)
 {
 	struct rb_node *leftmost = rb_first_cached(&lock->waiters);
