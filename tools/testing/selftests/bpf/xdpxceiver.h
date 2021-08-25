@@ -79,7 +79,6 @@ static u8 opt_verbose;
 
 static u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 static u32 xdp_bind_flags = XDP_USE_NEED_WAKEUP | XDP_COPY;
-static u8 pkt_data[XSK_UMEM__DEFAULT_FRAME_SIZE];
 static u32 pkt_counter;
 static int sigvar;
 static int stat_test_type;
@@ -106,10 +105,6 @@ struct flow_vector {
 		tx,
 		rx,
 	} vector;
-};
-
-struct generic_data {
-	u32 seqnum;
 };
 
 struct ifobject {
