@@ -279,7 +279,9 @@ M(NIX_GET_HW_INFO,	0x801c, nix_get_hw_info, msg_req, nix_hw_info)	\
 M(NIX_BANDPROF_ALLOC,	0x801d, nix_bandprof_alloc, nix_bandprof_alloc_req, \
 				nix_bandprof_alloc_rsp)			    \
 M(NIX_BANDPROF_FREE,	0x801e, nix_bandprof_free, nix_bandprof_free_req,   \
-				msg_rsp)
+				msg_rsp)				    \
+M(NIX_BANDPROF_GET_HWINFO, 0x801f, nix_bandprof_get_hwinfo, msg_req,		\
+				nix_bandprof_get_hwinfo_rsp)
 
 /* Messages initiated by AF (range 0xC00 - 0xDFF) */
 #define MBOX_UP_CGX_MESSAGES						\
@@ -1099,6 +1101,12 @@ struct nix_bandprof_free_req {
 	u8 free_all;
 	u16 prof_count[BAND_PROF_NUM_LAYERS];
 	u16 prof_idx[BAND_PROF_NUM_LAYERS][MAX_BANDPROF_PER_PFFUNC];
+};
+
+struct nix_bandprof_get_hwinfo_rsp {
+	struct mbox_msghdr hdr;
+	u16 prof_count[BAND_PROF_NUM_LAYERS];
+	u32 policer_timeunit;
 };
 
 /* NPC mbox message structs */

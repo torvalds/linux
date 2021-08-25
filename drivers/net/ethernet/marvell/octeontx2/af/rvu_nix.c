@@ -5173,3 +5173,36 @@ static void nix_clear_ratelimit_aggr(struct rvu *rvu, struct nix_hw *nix_hw,
 		rvu_free_rsrc(&ipolicer->band_prof, mid_prof);
 	}
 }
+
+int rvu_mbox_handler_nix_bandprof_get_hwinfo(struct rvu *rvu, struct msg_req *req,
+					     struct nix_bandprof_get_hwinfo_rsp *rsp)
+{
+	struct nix_ipolicer *ipolicer;
+	int blkaddr, layer, err;
+	struct nix_hw *nix_hw;
+	u64 tu;
+
+	if (!rvu->hw->cap.ipolicer)
+		return NIX_AF_ERR_IPOLICER_NOTSUPP;
+
+	err = nix_get_struct_ptrs(rvu, req->hdr.pcifunc, &nix_hw, &blkaddr);
+	if (err)
+		return err;
+
+	/* Return number of bandwidth profiles free at each layer */
+	mutex_lock(&rvu->rsrc_lock);
+	for (layer = 0; layer < BAND_PROF_NUM_LAYERS; layer++) {
+		if (layer == BAND_PROF_INVAL_LAYER)
+			continue;
+
+		ipolicer = &nix_hw->ipolicer[layer];
+		rsp->prof_count[layer] = rvu_rsrc_free_count(&ipolicer->band_prof);
+	}
+	mutex_unlock(&rvu->rsrc_lock);
+
+	/* Set the policer timeunit in nanosec */
+	tu = rvu_read64(rvu, blkaddr, NIX_AF_PL_TS) & GENMASK_ULL(9, 0);
+	rsp->policer_timeunit = (tu + 1) * 100;
+
+	return 0;
+}
