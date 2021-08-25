@@ -304,7 +304,7 @@ static void mana_hwc_comp_event(void *ctx, struct gdma_queue *q_self)
 						&comp_data);
 	}
 
-	mana_gd_arm_cq(q_self);
+	mana_gd_ring_cq(q_self, SET_ARM_BIT);
 }
 
 static void mana_hwc_destroy_cq(struct gdma_context *gc, struct hwc_cq *hwc_cq)
