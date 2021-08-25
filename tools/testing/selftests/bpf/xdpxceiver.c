@@ -745,23 +745,18 @@ static void thread_common_ops(struct ifobject *ifobject, void *bufs)
 	if (bufs == MAP_FAILED)
 		exit_with_error(errno);
 
-	xsk_configure_umem(ifobject, bufs, 0);
-	ifobject->umem = ifobject->umem_arr[0];
-	ret = xsk_configure_socket(ifobject, 0);
-
-	/* Retry Create Socket if it fails as xsk_socket__create()
-	 * is asynchronous
-	 */
-	while (ret && ctr < SOCK_RECONF_CTR) {
+	while (ctr++ < SOCK_RECONF_CTR) {
 		xsk_configure_umem(ifobject, bufs, 0);
 		ifobject->umem = ifobject->umem_arr[0];
 		ret = xsk_configure_socket(ifobject, 0);
-		usleep(USLEEP_MAX);
-		ctr++;
-	}
+		if (!ret)
+			break;
 
-	if (ctr >= SOCK_RECONF_CTR)
-		exit_with_error(ret);
+		/* Retry Create Socket if it fails as xsk_socket__create() is asynchronous */
+		usleep(USLEEP_MAX);
+		if (ctr >= SOCK_RECONF_CTR)
+			exit_with_error(-ret);
+	}
 
 	ifobject->umem = ifobject->umem_arr[0];
 	ifobject->xsk = ifobject->xsk_arr[0];
@@ -1125,8 +1120,10 @@ int main(int argc, char **argv)
 	ksft_set_plan(TEST_MODE_MAX * TEST_TYPE_MAX);
 
 	for (i = 0; i < TEST_MODE_MAX; i++) {
-		for (j = 0; j < TEST_TYPE_MAX; j++)
+		for (j = 0; j < TEST_TYPE_MAX; j++) {
 			run_pkt_test(i, j);
+			usleep(USLEEP_MAX);
+		}
 	}
 
 cleanup:
