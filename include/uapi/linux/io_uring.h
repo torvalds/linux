@@ -55,7 +55,10 @@ struct io_uring_sqe {
 	} __attribute__((packed));
 	/* personality to use, if used */
 	__u16	personality;
-	__s32	splice_fd_in;
+	union {
+		__s32	splice_fd_in;
+		__u32	file_index;
+	};
 	__u64	__pad2[2];
 };
 

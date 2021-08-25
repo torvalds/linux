@@ -580,6 +580,7 @@ struct io_sr_msg {
 struct io_open {
 	struct file			*file;
 	int				dfd;
+	u32				file_slot;
 	struct filename			*filename;
 	struct open_how			how;
 	unsigned long			nofile;
@@ -1062,6 +1063,9 @@ static void io_rsrc_put_work(struct work_struct *work);
 static void io_req_task_queue(struct io_kiocb *req);
 static void io_submit_flush_completions(struct io_ring_ctx *ctx);
 static int io_req_prep_async(struct io_kiocb *req);
+
+static int io_install_fixed_file(struct io_kiocb *req, struct file *file,
+				 unsigned int issue_flags, u32 slot_index);
 
 static struct kmem_cache *req_cachep;
 
@@ -3864,7 +3868,7 @@ static int __io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
-	if (unlikely(sqe->ioprio || sqe->buf_index || sqe->splice_fd_in))
+	if (unlikely(sqe->ioprio || sqe->buf_index))
 		return -EINVAL;
 	if (unlikely(req->flags & REQ_F_FIXED_FILE))
 		return -EBADF;
@@ -3881,6 +3885,11 @@ static int __io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 		req->open.filename = NULL;
 		return ret;
 	}
+
+	req->open.file_slot = READ_ONCE(sqe->file_index);
+	if (req->open.file_slot && (req->open.how.flags & O_CLOEXEC))
+		return -EINVAL;
+
 	req->open.nofile = rlimit(RLIMIT_NOFILE);
 	req->flags |= REQ_F_NEED_CLEANUP;
 	return 0;
@@ -3918,8 +3927,8 @@ static int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct open_flags op;
 	struct file *file;
-	bool nonblock_set;
-	bool resolve_nonblock;
+	bool resolve_nonblock, nonblock_set;
+	bool fixed = !!req->open.file_slot;
 	int ret;
 
 	ret = build_open_flags(&req->open.how, &op);
@@ -3938,9 +3947,11 @@ static int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
 		op.open_flag |= O_NONBLOCK;
 	}
 
-	ret = __get_unused_fd_flags(req->open.how.flags, req->open.nofile);
-	if (ret < 0)
-		goto err;
+	if (!fixed) {
+		ret = __get_unused_fd_flags(req->open.how.flags, req->open.nofile);
+		if (ret < 0)
+			goto err;
+	}
 
 	file = do_filp_open(req->open.dfd, req->open.filename, &op);
 	if (IS_ERR(file)) {
@@ -3949,7 +3960,8 @@ static int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
 		 * marginal gain for something that is now known to be a slower
 		 * path. So just put it, and we'll get a new one when we retry.
 		 */
-		put_unused_fd(ret);
+		if (!fixed)
+			put_unused_fd(ret);
 
 		ret = PTR_ERR(file);
 		/* only retry if RESOLVE_CACHED wasn't already set by application */
@@ -3962,7 +3974,12 @@ static int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
 	if ((issue_flags & IO_URING_F_NONBLOCK) && !nonblock_set)
 		file->f_flags &= ~O_NONBLOCK;
 	fsnotify_open(file);
-	fd_install(ret, file);
+
+	if (!fixed)
+		fd_install(ret, file);
+	else
+		ret = io_install_fixed_file(req, file, issue_flags,
+					    req->open.file_slot - 1);
 err:
 	putname(req->open.filename);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
@@ -7899,6 +7916,46 @@ static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file,
 #endif
 }
 
+static int io_install_fixed_file(struct io_kiocb *req, struct file *file,
+				 unsigned int issue_flags, u32 slot_index)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
+	struct io_fixed_file *file_slot;
+	int ret = -EBADF;
+
+	io_ring_submit_lock(ctx, !force_nonblock);
+	if (file->f_op == &io_uring_fops)
+		goto err;
+	ret = -ENXIO;
+	if (!ctx->file_data)
+		goto err;
+	ret = -EINVAL;
+	if (slot_index >= ctx->nr_user_files)
+		goto err;
+
+	slot_index = array_index_nospec(slot_index, ctx->nr_user_files);
+	file_slot = io_fixed_file_slot(&ctx->file_table, slot_index);
+	ret = -EBADF;
+	if (file_slot->file_ptr)
+		goto err;
+
+	*io_get_tag_slot(ctx->file_data, slot_index) = 0;
+	io_fixed_file_set(file_slot, file);
+	ret = io_sqe_file_register(ctx, file, slot_index);
+	if (ret) {
+		file_slot->file_ptr = 0;
+		goto err;
+	}
+
+	ret = 0;
+err:
+	io_ring_submit_unlock(ctx, !force_nonblock);
+	if (ret)
+		fput(file);
+	return ret;
+}
+
 static int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
 				 struct io_rsrc_node *node, void *rsrc)
 {
@@ -10366,6 +10423,7 @@ static int __init io_uring_init(void)
 	BUILD_BUG_SQE_ELEM(40, __u16,  buf_group);
 	BUILD_BUG_SQE_ELEM(42, __u16,  personality);
 	BUILD_BUG_SQE_ELEM(44, __s32,  splice_fd_in);
+	BUILD_BUG_SQE_ELEM(44, __u32,  file_index);
 
 	BUILD_BUG_ON(sizeof(struct io_uring_files_update) !=
 		     sizeof(struct io_uring_rsrc_update));
