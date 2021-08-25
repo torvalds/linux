@@ -1720,10 +1720,10 @@ static struct nbd_device *nbd_dev_add(int index, unsigned int refs)
 		if (err >= 0)
 			index = err;
 	}
+	nbd->index = index;
 	mutex_unlock(&nbd_index_mutex);
 	if (err < 0)
 		goto out_free_tags;
-	nbd->index = index;
 
 	disk = blk_mq_alloc_disk(&nbd->tag_set, NULL);
 	if (IS_ERR(disk)) {
