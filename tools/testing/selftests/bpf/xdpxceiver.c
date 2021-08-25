@@ -250,7 +250,7 @@ static void gen_eth_frame(struct xsk_umem_info *umem, u64 addr)
 	memcpy(xsk_umem__get_data(umem->buffer, addr), pkt_data, PKT_SIZE);
 }
 
-static void xsk_configure_umem(struct ifobject *data, void *buffer, int idx)
+static void xsk_configure_umem(struct ifobject *data, void *buffer, u64 size, int idx)
 {
 	struct xsk_umem_config cfg = {
 		.fill_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
@@ -259,7 +259,6 @@ static void xsk_configure_umem(struct ifobject *data, void *buffer, int idx)
 		.frame_headroom = frame_headroom,
 		.flags = XSK_UMEM__DEFAULT_FLAGS
 	};
-	int size = num_frames * XSK_UMEM__DEFAULT_FRAME_SIZE;
 	struct xsk_umem_info *umem;
 	int ret;
 
@@ -722,22 +721,23 @@ static void worker_pkt_validate(void)
 
 static void thread_common_ops(struct ifobject *ifobject, void *bufs)
 {
-	int umem_sz = num_frames * XSK_UMEM__DEFAULT_FRAME_SIZE;
+	u64 umem_sz = num_frames * XSK_UMEM__DEFAULT_FRAME_SIZE;
+	int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
+	size_t mmap_sz = umem_sz;
 	int ctr = 0;
 	int ret;
 
 	ifobject->ns_fd = switch_namespace(ifobject->nsname);
 
 	if (test_type == TEST_TYPE_BPF_RES)
-		umem_sz *= 2;
+		mmap_sz *= 2;
 
-	bufs = mmap(NULL, umem_sz,
-		    PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	bufs = mmap(NULL, mmap_sz, PROT_READ | PROT_WRITE, mmap_flags, -1, 0);
 	if (bufs == MAP_FAILED)
 		exit_with_error(errno);
 
 	while (ctr++ < SOCK_RECONF_CTR) {
-		xsk_configure_umem(ifobject, bufs, 0);
+		xsk_configure_umem(ifobject, bufs, umem_sz, 0);
 		ifobject->umem = ifobject->umem_arr[0];
 		ret = xsk_configure_socket(ifobject, 0);
 		if (!ret)
@@ -753,7 +753,7 @@ static void thread_common_ops(struct ifobject *ifobject, void *bufs)
 	ifobject->xsk = ifobject->xsk_arr[0];
 
 	if (test_type == TEST_TYPE_BPF_RES) {
-		xsk_configure_umem(ifobject, (u8 *)bufs + (umem_sz / 2), 1);
+		xsk_configure_umem(ifobject, (u8 *)bufs + umem_sz, umem_sz, 1);
 		ifobject->umem = ifobject->umem_arr[1];
 		ret = xsk_configure_socket(ifobject, 1);
 	}
@@ -1093,8 +1093,6 @@ int main(int argc, char **argv)
 	setlocale(LC_ALL, "");
 
 	parse_command_line(argc, argv);
-
-	num_frames = ++opt_pkt_count;
 
 	init_iface(ifdict[0], MAC1, MAC2, IP1, IP2, UDP_PORT1, UDP_PORT2, tx);
 	init_iface(ifdict[1], MAC2, MAC1, IP2, IP1, UDP_PORT2, UDP_PORT1, rx);

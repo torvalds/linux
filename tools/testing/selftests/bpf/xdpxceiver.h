@@ -70,7 +70,7 @@ enum STAT_TEST_TYPES {
 
 static int configured_mode = TEST_MODE_UNCONFIGURED;
 static u8 debug_pkt_dump;
-static u32 num_frames;
+static u32 num_frames = DEFAULT_PKT_CNT / 4;
 static bool second_step;
 static int test_type;
 
