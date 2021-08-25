@@ -8,11 +8,6 @@ ksft_xfail=2
 ksft_xpass=3
 ksft_skip=4
 
-GREEN='\033[0;92m'
-YELLOW='\033[0;93m'
-RED='\033[0;31m'
-NC='\033[0m'
-STACK_LIM=131072
 SPECFILE=veth.spec
 XSKOBJ=xdpxceiver
 NUMPKTS=10000
@@ -50,22 +45,12 @@ validate_veth_spec_file()
 test_status()
 {
 	statusval=$1
-	if [ -n "${colorconsole+set}" ]; then
-		if [ $statusval -eq 2 ]; then
-			echo -e "${YELLOW}$2${NC}: [ ${RED}FAIL${NC} ]"
-		elif [ $statusval -eq 1 ]; then
-			echo -e "${YELLOW}$2${NC}: [ ${RED}SKIPPED${NC} ]"
-		elif [ $statusval -eq 0 ]; then
-			echo -e "${YELLOW}$2${NC}: [ ${GREEN}PASS${NC} ]"
-		fi
-	else
-		if [ $statusval -eq 2 ]; then
-			echo -e "$2: [ FAIL ]"
-		elif [ $statusval -eq 1 ]; then
-			echo -e "$2: [ SKIPPED ]"
-		elif [ $statusval -eq 0 ]; then
-			echo -e "$2: [ PASS ]"
-		fi
+	if [ $statusval -eq 2 ]; then
+		echo -e "$2: [ FAIL ]"
+	elif [ $statusval -eq 1 ]; then
+		echo -e "$2: [ SKIPPED ]"
+	elif [ $statusval -eq 0 ]; then
+		echo -e "$2: [ PASS ]"
 	fi
 }
 
