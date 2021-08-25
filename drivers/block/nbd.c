@@ -1781,6 +1781,20 @@ out:
 	return ERR_PTR(err);
 }
 
+static struct nbd_device *nbd_find_unused(void)
+{
+	struct nbd_device *nbd;
+	int id;
+
+	lockdep_assert_held(&nbd_index_mutex);
+
+	idr_for_each_entry(&nbd_index_idr, nbd, id)
+		if (!refcount_read(&nbd->config_refs))
+			return nbd;
+
+	return NULL;
+}
+
 /* Netlink interface. */
 static const struct nla_policy nbd_attr_policy[NBD_ATTR_MAX + 1] = {
 	[NBD_ATTR_INDEX]		=	{ .type = NLA_U32 },
@@ -1828,7 +1842,7 @@ static int nbd_genl_size_set(struct genl_info *info, struct nbd_device *nbd)
 static int nbd_genl_connect(struct sk_buff *skb, struct genl_info *info)
 {
 	DECLARE_COMPLETION_ONSTACK(destroy_complete);
-	struct nbd_device *nbd = NULL;
+	struct nbd_device *nbd;
 	struct nbd_config *config;
 	int index = -1;
 	int ret;
@@ -1849,20 +1863,10 @@ static int nbd_genl_connect(struct sk_buff *skb, struct genl_info *info)
 	}
 again:
 	mutex_lock(&nbd_index_mutex);
-	if (index == -1) {
-		struct nbd_device *tmp;
-		int id;
-
-		idr_for_each_entry(&nbd_index_idr, tmp, id) {
-			if (!refcount_read(&tmp->config_refs)) {
-				nbd = tmp;
-				break;
-			}
-		}
-	} else {
+	if (index == -1)
+		nbd = nbd_find_unused();
+	else
 		nbd = idr_find(&nbd_index_idr, index);
-	}
-
 	if (nbd) {
 		if (test_bit(NBD_DESTROY_ON_DISCONNECT, &nbd->flags) &&
 		    test_bit(NBD_DISCONNECT_REQUESTED, &nbd->flags)) {
