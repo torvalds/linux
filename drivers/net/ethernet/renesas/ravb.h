@@ -956,10 +956,6 @@ enum RAVB_QUEUE {
 
 #define RX_BUF_SZ	(2048 - ETH_FCS_LEN + sizeof(__sum16))
 
-/* TX descriptors per packet */
-#define NUM_TX_DESC_GEN2	2
-#define NUM_TX_DESC_GEN3	1
-
 struct ravb_tstamp_skb {
 	struct list_head list;
 	struct sk_buff *skb;
