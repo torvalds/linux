@@ -171,16 +171,10 @@ config PTP_1588_CLOCK_OCP
 	tristate "OpenCompute TimeCard as PTP clock"
 	depends on PTP_1588_CLOCK
 	depends on HAS_IOMEM && PCI
-	depends on SPI && I2C && MTD
+	depends on I2C && MTD
+	depends on SERIAL_8250
 	depends on !S390
-	imply SPI_MEM
-	imply SPI_XILINX
-	imply MTD_SPI_NOR
-	imply I2C_XILINX
-	select SERIAL_8250
 	select NET_DEVLINK
-
-	default n
 	help
 	  This driver adds support for an OpenCompute time card.
 
