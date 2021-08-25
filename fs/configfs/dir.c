@@ -467,9 +467,8 @@ static struct dentry * configfs_lookup(struct inode *dir,
 	 * not complete their initialization, since the dentries of the
 	 * attributes won't be instantiated.
 	 */
-	err = -ENOENT;
 	if (!configfs_dirent_is_ready(parent_sd))
-		goto out;
+		return ERR_PTR(-ENOENT);
 
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
 		if (sd->s_type & CONFIGFS_NOT_PINNED) {
@@ -493,7 +492,6 @@ static struct dentry * configfs_lookup(struct inode *dir,
 		return NULL;
 	}
 
-out:
 	return ERR_PTR(err);
 }
 
