@@ -95,6 +95,22 @@ static int ilk_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 	}
 }
 
+void intel_fdi_pll_freq_update(struct drm_i915_private *i915)
+{
+	if (IS_IRONLAKE(i915)) {
+		u32 fdi_pll_clk =
+			intel_de_read(i915, FDI_PLL_BIOS_0) & FDI_PLL_FB_CLOCK_MASK;
+
+		i915->fdi_pll_freq = (fdi_pll_clk + 2) * 10000;
+	} else if (IS_SANDYBRIDGE(i915) || IS_IVYBRIDGE(i915)) {
+		i915->fdi_pll_freq = 270000;
+	} else {
+		return;
+	}
+
+	drm_dbg(&i915->drm, "FDI PLL freq=%d\n", i915->fdi_pll_freq);
+}
+
 int intel_fdi_link_freq(struct drm_i915_private *i915,
 			const struct intel_crtc_state *pipe_config)
 {
