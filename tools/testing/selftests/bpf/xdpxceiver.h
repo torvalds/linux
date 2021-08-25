@@ -44,10 +44,6 @@
 
 #define print_verbose(x...) do { if (opt_verbose) ksft_print_msg(x); } while (0)
 
-typedef __u32 u32;
-typedef __u16 u16;
-typedef __u8 u8;
-
 enum TEST_MODES {
 	TEST_MODE_UNCONFIGURED = -1,
 	TEST_MODE_SKB,
@@ -104,10 +100,6 @@ struct xsk_socket_info {
 	struct xsk_ring_prod tx;
 	struct xsk_umem_info *umem;
 	struct xsk_socket *xsk;
-	unsigned long rx_npkts;
-	unsigned long tx_npkts;
-	unsigned long prev_rx_npkts;
-	unsigned long prev_tx_npkts;
 	u32 outstanding_tx;
 };
 
