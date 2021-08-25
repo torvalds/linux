@@ -1057,6 +1057,7 @@ struct ravb_private {
 	unsigned int num_tx_desc;	/* TX descriptors per packet */
 
 	const struct ravb_hw_info *info;
+	struct reset_control *rstc;
 };
 
 static inline u32 ravb_read(struct net_device *ndev, enum ravb_reg reg)
