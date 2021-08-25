@@ -465,14 +465,14 @@ static struct snd_soc_jack_pin rt5640_pins2[] = {
 	},
 };
 
-struct snd_soc_jack_gpio rt5640_jack_gpio = {
+static struct snd_soc_jack_gpio rt5640_jack_gpio = {
 	.name = "hp-detect",
 	.report = SND_JACK_HEADSET,
 	.invert = true,
 	.debounce_time = 200,
 };
 
-struct snd_soc_jack_gpio rt5640_jack2_gpio = {
+static struct snd_soc_jack_gpio rt5640_jack2_gpio = {
 	.name = "hp2-detect",
 	.report = SND_JACK_HEADSET,
 	.invert = true,
