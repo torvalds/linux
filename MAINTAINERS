@@ -9939,13 +9939,14 @@ F:	Documentation/dev-tools/kselftest*
 F:	tools/testing/selftests/
 
 KERNEL SMB3 SERVER (KSMBD)
-M:	Namjae Jeon <namjae.jeon@samsung.com>
+M:	Namjae Jeon <linkinjeon@kernel.org>
 M:	Sergey Senozhatsky <senozhatsky@chromium.org>
 M:	Steve French <sfrench@samba.org>
 M:	Hyunchul Lee <hyc.lee@gmail.com>
 L:	linux-cifs@vger.kernel.org
 S:	Maintained
 T:	git git://git.samba.org/ksmbd.git
+F:	fs/cifs_common/
 F:	fs/ksmbd/
 
 KERNEL UNIT TESTING FRAMEWORK (KUnit)
