@@ -2016,7 +2016,7 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 
 	if (oissued) {
 		/* we aren't the only cap.. just remove us */
-		__ceph_remove_cap(cap, true);
+		ceph_remove_cap(cap, true);
 		(*remaining)--;
 	} else {
 		struct dentry *dentry;

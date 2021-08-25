@@ -1114,17 +1114,16 @@ void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release)
 		return;
 	}
 
+	lockdep_assert_held(&ci->i_ceph_lock);
+
 	dout("__ceph_remove_cap %p from %p\n", cap, &ci->vfs_inode);
 
 	mdsc = ceph_inode_to_client(&ci->vfs_inode)->mdsc;
 
 	/* remove from inode's cap rbtree, and clear auth cap */
 	rb_erase(&cap->ci_node, &ci->i_caps);
-	if (ci->i_auth_cap == cap) {
-		WARN_ON_ONCE(!list_empty(&ci->i_dirty_item) &&
-			     !mdsc->fsc->blocklisted);
+	if (ci->i_auth_cap == cap)
 		ci->i_auth_cap = NULL;
-	}
 
 	/* remove from session list */
 	spin_lock(&session->s_cap_lock);
@@ -1174,6 +1173,28 @@ void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release)
 
 		__cap_delay_cancel(mdsc, ci);
 	}
+}
+
+void ceph_remove_cap(struct ceph_cap *cap, bool queue_release)
+{
+	struct ceph_inode_info *ci = cap->ci;
+	struct ceph_fs_client *fsc;
+
+	/* 'ci' being NULL means the remove have already occurred */
+	if (!ci) {
+		dout("%s: cap inode is NULL\n", __func__);
+		return;
+	}
+
+	lockdep_assert_held(&ci->i_ceph_lock);
+
+	fsc = ceph_sb_to_client(ci->vfs_inode.i_sb);
+	WARN_ON_ONCE(ci->i_auth_cap == cap &&
+		     !list_empty(&ci->i_dirty_item) &&
+		     !fsc->blocklisted &&
+		     READ_ONCE(fsc->mount_state) != CEPH_MOUNT_SHUTDOWN);
+
+	__ceph_remove_cap(cap, queue_release);
 }
 
 struct cap_msg_args {
@@ -1304,7 +1325,7 @@ void __ceph_remove_caps(struct ceph_inode_info *ci)
 	while (p) {
 		struct ceph_cap *cap = rb_entry(p, struct ceph_cap, ci_node);
 		p = rb_next(p);
-		__ceph_remove_cap(cap, true);
+		ceph_remove_cap(cap, true);
 	}
 	spin_unlock(&ci->i_ceph_lock);
 }
@@ -3822,7 +3843,7 @@ retry:
 		goto out_unlock;
 
 	if (target < 0) {
-		__ceph_remove_cap(cap, false);
+		ceph_remove_cap(cap, false);
 		goto out_unlock;
 	}
 
@@ -3857,7 +3878,7 @@ retry:
 				change_auth_cap_ses(ci, tcap->session);
 			}
 		}
-		__ceph_remove_cap(cap, false);
+		ceph_remove_cap(cap, false);
 		goto out_unlock;
 	} else if (tsession) {
 		/* add placeholder for the export tagert */
@@ -3874,7 +3895,7 @@ retry:
 			spin_unlock(&mdsc->cap_dirty_lock);
 		}
 
-		__ceph_remove_cap(cap, false);
+		ceph_remove_cap(cap, false);
 		goto out_unlock;
 	}
 
@@ -3985,7 +4006,7 @@ retry:
 					ocap->mseq, mds, le32_to_cpu(ph->seq),
 					le32_to_cpu(ph->mseq));
 		}
-		__ceph_remove_cap(ocap, (ph->flags & CEPH_CAP_FLAG_RELEASE));
+		ceph_remove_cap(ocap, (ph->flags & CEPH_CAP_FLAG_RELEASE));
 	}
 
 	*old_issued = issued;
