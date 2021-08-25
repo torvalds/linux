@@ -270,7 +270,7 @@ static void xsk_configure_umem(struct ifobject *data, void *buffer, int idx)
 	ret = xsk_umem__create(&umem->umem, buffer, size,
 			       &umem->fq, &umem->cq, &cfg);
 	if (ret)
-		exit_with_error(ret);
+		exit_with_error(-ret);
 
 	umem->buffer = buffer;
 
@@ -284,7 +284,7 @@ static void xsk_populate_fill_ring(struct xsk_umem_info *umem)
 
 	ret = xsk_ring_prod__reserve(&umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS, &idx);
 	if (ret != XSK_RING_PROD__DEFAULT_NUM_DESCS)
-		exit_with_error(ret);
+		exit_with_error(-ret);
 	for (i = 0; i < XSK_RING_PROD__DEFAULT_NUM_DESCS; i++)
 		*xsk_ring_prod__fill_addr(&umem->fq, idx++) = i * XSK_UMEM__DEFAULT_FRAME_SIZE;
 	xsk_ring_prod__submit(&umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS);
@@ -467,7 +467,7 @@ static void rx_pkt(struct xsk_socket_info *xsk, struct pollfd *fds)
 		if (xsk_ring_prod__needs_wakeup(&xsk->umem->fq)) {
 			ret = poll(fds, 1, POLL_TMOUT);
 			if (ret < 0)
-				exit_with_error(ret);
+				exit_with_error(-ret);
 		}
 		return;
 	}
@@ -475,11 +475,11 @@ static void rx_pkt(struct xsk_socket_info *xsk, struct pollfd *fds)
 	ret = xsk_ring_prod__reserve(&xsk->umem->fq, rcvd, &idx_fq);
 	while (ret != rcvd) {
 		if (ret < 0)
-			exit_with_error(ret);
+			exit_with_error(-ret);
 		if (xsk_ring_prod__needs_wakeup(&xsk->umem->fq)) {
 			ret = poll(fds, 1, POLL_TMOUT);
 			if (ret < 0)
-				exit_with_error(ret);
+				exit_with_error(-ret);
 		}
 		ret = xsk_ring_prod__reserve(&xsk->umem->fq, rcvd, &idx_fq);
 	}
