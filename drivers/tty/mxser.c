@@ -1039,12 +1039,12 @@ static int mxser_get_serial_info(struct tty_struct *tty,
 	if (closing_wait != ASYNC_CLOSING_WAIT_NONE)
 		closing_wait = jiffies_to_msecs(closing_wait) / 10;
 
-	ss->type = info->type,
-	ss->line = tty->index,
-	ss->port = info->ioaddr,
-	ss->irq = info->board->irq,
-	ss->flags = info->port.flags,
-	ss->baud_base = MXSER_BAUD_BASE,
+	ss->type = info->type;
+	ss->line = tty->index;
+	ss->port = info->ioaddr;
+	ss->irq = info->board->irq;
+	ss->flags = info->port.flags;
+	ss->baud_base = MXSER_BAUD_BASE;
 	ss->close_delay = close_delay;
 	ss->closing_wait = closing_wait;
 	ss->custom_divisor = MXSER_CUSTOM_DIVISOR,
