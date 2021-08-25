@@ -91,4 +91,12 @@
 #define LP4_CA_ODT_40ohm		(0x6 << 4)
 #define LP4_CA_ODT_MASK			(0x7 << 4)
 
+#define LP4_VDDQ_2_5			(0)
+#define LP4_VDDQ_3			(1)
+
+#define LP4X_VDDQ_0_6			(0)
+#define LP4X_VDDQ_0_5			(1)
+
+#define IGNORE_THIS			(0)
+
 #endif /* _DT_BINDINGS_DRAM_ROCKCHIP_H */
