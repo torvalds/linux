@@ -73,14 +73,14 @@ static const unsigned int ldo34_voltages[] = {
  */
 #define HI6421V600_LDO(_id, vtable, ereg, emask, vreg,			       \
 		       odelay, etime, ecomask, ecoamp)			       \
-	[HI6421V600_##_id] = {						       \
+	[hi6421v600_##_id] = {						       \
 		.desc = {						       \
 			.name		= #_id,				       \
 			.of_match        = of_match_ptr(#_id),		       \
 			.regulators_node = of_match_ptr("regulators"),	       \
 			.ops		= &hi6421_spmi_ldo_rops,	       \
 			.type		= REGULATOR_VOLTAGE,		       \
-			.id		= HI6421V600_##_id,		       \
+			.id		= hi6421v600_##_id,		       \
 			.owner		= THIS_MODULE,			       \
 			.volt_table	= vtable,			       \
 			.n_voltages	= ARRAY_SIZE(vtable),		       \
@@ -185,46 +185,46 @@ static const struct regulator_ops hi6421_spmi_ldo_rops = {
 
 /* HI6421v600 regulators with known registers */
 enum hi6421_spmi_regulator_id {
-	HI6421V600_LDO3,
-	HI6421V600_LDO4,
-	HI6421V600_LDO9,
-	HI6421V600_LDO15,
-	HI6421V600_LDO16,
-	HI6421V600_LDO17,
-	HI6421V600_LDO33,
-	HI6421V600_LDO34,
+	hi6421v600_ldo3,
+	hi6421v600_ldo4,
+	hi6421v600_ldo9,
+	hi6421v600_ldo15,
+	hi6421v600_ldo16,
+	hi6421v600_ldo17,
+	hi6421v600_ldo33,
+	hi6421v600_ldo34,
 };
 
 static struct hi6421_spmi_reg_info regulator_info[] = {
-	HI6421V600_LDO(LDO3, ldo3_voltages,
+	HI6421V600_LDO(ldo3, ldo3_voltages,
 		       0x16, 0x01, 0x51,
 		       20000, 120,
 		       0, 0),
-	HI6421V600_LDO(LDO4, ldo4_voltages,
+	HI6421V600_LDO(ldo4, ldo4_voltages,
 		       0x17, 0x01, 0x52,
 		       20000, 120,
 		       0x10, 10000),
-	HI6421V600_LDO(LDO9, ldo9_voltages,
+	HI6421V600_LDO(ldo9, ldo9_voltages,
 		       0x1c, 0x01, 0x57,
 		       20000, 360,
 		       0x10, 10000),
-	HI6421V600_LDO(LDO15, ldo15_voltages,
+	HI6421V600_LDO(ldo15, ldo15_voltages,
 		       0x21, 0x01, 0x5c,
 		       20000, 360,
 		       0x10, 10000),
-	HI6421V600_LDO(LDO16, ldo15_voltages,
+	HI6421V600_LDO(ldo16, ldo15_voltages,
 		       0x22, 0x01, 0x5d,
 		       20000, 360,
 		       0x10, 10000),
-	HI6421V600_LDO(LDO17, ldo17_voltages,
+	HI6421V600_LDO(ldo17, ldo17_voltages,
 		       0x23, 0x01, 0x5e,
 		       20000, 120,
 		       0x10, 10000),
-	HI6421V600_LDO(LDO33, ldo17_voltages,
+	HI6421V600_LDO(ldo33, ldo17_voltages,
 		       0x32, 0x01, 0x6d,
 		       20000, 120,
 		       0, 0),
-	HI6421V600_LDO(LDO34, ldo34_voltages,
+	HI6421V600_LDO(ldo34, ldo34_voltages,
 		       0x33, 0x01, 0x6e,
 		       20000, 120,
 		       0, 0),
