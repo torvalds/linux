@@ -1852,7 +1852,7 @@ void intel_edp_backlight_on(const struct intel_crtc_state *crtc_state,
 
 	drm_dbg_kms(&i915->drm, "\n");
 
-	intel_panel_enable_backlight(crtc_state, conn_state);
+	intel_backlight_enable(crtc_state, conn_state);
 	intel_pps_backlight_on(intel_dp);
 }
 
@@ -1868,7 +1868,7 @@ void intel_edp_backlight_off(const struct drm_connector_state *old_conn_state)
 	drm_dbg_kms(&i915->drm, "\n");
 
 	intel_pps_backlight_off(intel_dp);
-	intel_panel_disable_backlight(old_conn_state);
+	intel_backlight_disable(old_conn_state);
 }
 
 static bool downstream_hpd_needs_d0(struct intel_dp *intel_dp)
@@ -5303,7 +5303,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	intel_panel_init(&intel_connector->panel, fixed_mode, downclock_mode);
 	if (!(dev_priv->quirks & QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK))
 		intel_connector->panel.backlight.power = intel_pps_backlight_power;
-	intel_panel_setup_backlight(connector, pipe);
+	intel_backlight_setup(intel_connector, pipe);
 
 	if (fixed_mode) {
 		drm_connector_set_panel_orientation_with_quirk(connector,

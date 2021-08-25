@@ -1334,7 +1334,7 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 	intel_encoder->get_config = intel_dp_get_config;
 	intel_encoder->sync_state = intel_dp_sync_state;
 	intel_encoder->initial_fastset_check = intel_dp_initial_fastset_check;
-	intel_encoder->update_pipe = intel_panel_update_backlight;
+	intel_encoder->update_pipe = intel_backlight_update;
 	intel_encoder->suspend = intel_dp_encoder_suspend;
 	intel_encoder->shutdown = intel_dp_encoder_shutdown;
 	if (IS_CHERRYVIEW(dev_priv)) {

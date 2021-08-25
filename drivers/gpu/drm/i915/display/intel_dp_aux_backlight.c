@@ -146,7 +146,7 @@ intel_dp_aux_hdr_get_backlight(struct intel_connector *connector, enum pipe pipe
 		if (!panel->backlight.edp.intel.sdr_uses_aux) {
 			u32 pwm_level = panel->backlight.pwm_funcs->get(connector, pipe);
 
-			return intel_panel_backlight_level_from_pwm(connector, pwm_level);
+			return intel_backlight_level_from_pwm(connector, pwm_level);
 		}
 
 		/* Assume 100% brightness if backlight controls aren't enabled yet */
@@ -187,9 +187,9 @@ intel_dp_aux_hdr_set_backlight(const struct drm_connector_state *conn_state, u32
 	if (panel->backlight.edp.intel.sdr_uses_aux) {
 		intel_dp_aux_hdr_set_aux_backlight(conn_state, level);
 	} else {
-		const u32 pwm_level = intel_panel_backlight_level_to_pwm(connector, level);
+		const u32 pwm_level = intel_backlight_level_to_pwm(connector, level);
 
-		intel_panel_set_pwm_level(conn_state, pwm_level);
+		intel_backlight_set_pwm_level(conn_state, pwm_level);
 	}
 }
 
@@ -215,7 +215,7 @@ intel_dp_aux_hdr_enable_backlight(const struct intel_crtc_state *crtc_state,
 		ctrl |= INTEL_EDP_HDR_TCON_BRIGHTNESS_AUX_ENABLE;
 		intel_dp_aux_hdr_set_aux_backlight(conn_state, level);
 	} else {
-		u32 pwm_level = intel_panel_backlight_level_to_pwm(connector, level);
+		u32 pwm_level = intel_backlight_level_to_pwm(connector, level);
 
 		panel->backlight.pwm_funcs->enable(crtc_state, conn_state, pwm_level);
 
@@ -238,7 +238,7 @@ intel_dp_aux_hdr_disable_backlight(const struct drm_connector_state *conn_state,
 		return;
 
 	/* Note we want the actual pwm_level to be 0, regardless of pwm_min */
-	panel->backlight.pwm_funcs->disable(conn_state, intel_panel_invert_pwm_level(connector, 0));
+	panel->backlight.pwm_funcs->disable(conn_state, intel_backlight_invert_pwm_level(connector, 0));
 }
 
 static int

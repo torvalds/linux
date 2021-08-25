@@ -475,7 +475,7 @@ int intel_panel_init(struct intel_panel *panel,
 		     struct drm_display_mode *fixed_mode,
 		     struct drm_display_mode *downclock_mode)
 {
-	intel_panel_init_backlight_funcs(panel);
+	intel_backlight_init_funcs(panel);
 
 	panel->fixed_mode = fixed_mode;
 	panel->downclock_mode = downclock_mode;
@@ -488,7 +488,7 @@ void intel_panel_fini(struct intel_panel *panel)
 	struct intel_connector *intel_connector =
 		container_of(panel, struct intel_connector, panel);
 
-	intel_panel_destroy_backlight(panel);
+	intel_backlight_destroy(panel);
 
 	if (panel->fixed_mode)
 		drm_mode_destroy(intel_connector->base.dev, panel->fixed_mode);
