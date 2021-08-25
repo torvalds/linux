@@ -44,14 +44,13 @@
 
 #define print_verbose(x...) do { if (opt_verbose) ksft_print_msg(x); } while (0)
 
-enum TEST_MODES {
-	TEST_MODE_UNCONFIGURED = -1,
+enum test_mode {
 	TEST_MODE_SKB,
 	TEST_MODE_DRV,
 	TEST_MODE_MAX
 };
 
-enum TEST_TYPES {
+enum test_type {
 	TEST_TYPE_NOPOLL,
 	TEST_TYPE_POLL,
 	TEST_TYPE_TEARDOWN,
@@ -61,7 +60,7 @@ enum TEST_TYPES {
 	TEST_TYPE_MAX
 };
 
-enum STAT_TEST_TYPES {
+enum stat_test_type {
 	STAT_TEST_RX_DROPPED,
 	STAT_TEST_TX_INVALID,
 	STAT_TEST_RX_FULL,
@@ -69,7 +68,7 @@ enum STAT_TEST_TYPES {
 	STAT_TEST_TYPE_MAX
 };
 
-static int configured_mode = TEST_MODE_UNCONFIGURED;
+static int configured_mode;
 static u8 debug_pkt_dump;
 static u32 num_frames = DEFAULT_PKT_CNT / 4;
 static bool second_step;

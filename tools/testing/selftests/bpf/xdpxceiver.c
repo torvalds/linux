@@ -105,14 +105,9 @@ static const u16 UDP_PORT2 = 2121;
 
 static void __exit_with_error(int error, const char *file, const char *func, int line)
 {
-	if (configured_mode == TEST_MODE_UNCONFIGURED) {
-		ksft_exit_fail_msg
-		("[%s:%s:%i]: ERROR: %d/\"%s\"\n", file, func, line, error, strerror(error));
-	} else {
-		ksft_test_result_fail
-		("[%s:%s:%i]: ERROR: %d/\"%s\"\n", file, func, line, error, strerror(error));
-		ksft_exit_xfail();
-	}
+	ksft_test_result_fail("[%s:%s:%i]: ERROR: %d/\"%s\"\n", file, func, line, error,
+			      strerror(error));
+	ksft_exit_xfail();
 }
 
 #define exit_with_error(error) __exit_with_error(error, __FILE__, __func__, __LINE__)
