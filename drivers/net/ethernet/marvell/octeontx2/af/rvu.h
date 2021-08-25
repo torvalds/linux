@@ -314,6 +314,7 @@ struct nix_hw {
 	struct nix_lso lso;
 	struct nix_txvlan txvlan;
 	struct nix_ipolicer *ipolicer;
+	u64    *tx_credits;
 };
 
 /* RVU block's capabilities or functionality,
