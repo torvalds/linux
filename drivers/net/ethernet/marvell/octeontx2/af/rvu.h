@@ -328,6 +328,7 @@ struct hw_cap {
 	u16	nix_txsch_per_sdp_lmac; /* Max Q's transmitting to SDP LMAC */
 	bool	nix_fixed_txschq_mapping; /* Schq mapping fixed or flexible */
 	bool	nix_shaping;		 /* Is shaping and coloring supported */
+	bool    nix_shaper_toggle_wait; /* Shaping toggle needs poll/wait */
 	bool	nix_tx_link_bp;		 /* Can link backpressure TL queues ? */
 	bool	nix_rx_multicast;	 /* Rx packet replication support */
 	bool	nix_common_dwrr_mtu;	 /* Common DWRR MTU for quantum config */
@@ -517,20 +518,34 @@ static inline u64 rvupf_read64(struct rvu *rvu, u64 offset)
 }
 
 /* Silicon revisions */
+static inline bool is_rvu_pre_96xx_C0(struct rvu *rvu)
+{
+	struct pci_dev *pdev = rvu->pdev;
+	/* 96XX A0/B0, 95XX A0/A1/B0 chips */
+	return ((pdev->revision == 0x00) || (pdev->revision == 0x01) ||
+		(pdev->revision == 0x10) || (pdev->revision == 0x11) ||
+		(pdev->revision == 0x14));
+}
+
 static inline bool is_rvu_96xx_A0(struct rvu *rvu)
 {
 	struct pci_dev *pdev = rvu->pdev;
 
-	return (pdev->revision == 0x00) &&
-		(pdev->subsystem_device == PCI_SUBSYS_DEVID_96XX);
+	return (pdev->revision == 0x00);
 }
 
 static inline bool is_rvu_96xx_B0(struct rvu *rvu)
 {
 	struct pci_dev *pdev = rvu->pdev;
 
-	return ((pdev->revision == 0x00) || (pdev->revision == 0x01)) &&
-		(pdev->subsystem_device == PCI_SUBSYS_DEVID_96XX);
+	return (pdev->revision == 0x00) || (pdev->revision == 0x01);
+}
+
+static inline bool is_rvu_95xx_A0(struct rvu *rvu)
+{
+	struct pci_dev *pdev = rvu->pdev;
+
+	return (pdev->revision == 0x10) || (pdev->revision == 0x11);
 }
 
 /* REVID for PCIe devices.

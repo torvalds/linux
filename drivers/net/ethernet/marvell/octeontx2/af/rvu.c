@@ -70,18 +70,21 @@ static void rvu_setup_hw_capabilities(struct rvu *rvu)
 	hw->cap.nix_shaping = true;
 	hw->cap.nix_tx_link_bp = true;
 	hw->cap.nix_rx_multicast = true;
+	hw->cap.nix_shaper_toggle_wait = false;
 	hw->rvu = rvu;
 
-	if (is_rvu_96xx_B0(rvu)) {
+	if (is_rvu_pre_96xx_C0(rvu)) {
 		hw->cap.nix_fixed_txschq_mapping = true;
 		hw->cap.nix_txsch_per_cgx_lmac = 4;
 		hw->cap.nix_txsch_per_lbk_lmac = 132;
 		hw->cap.nix_txsch_per_sdp_lmac = 76;
 		hw->cap.nix_shaping = false;
 		hw->cap.nix_tx_link_bp = false;
-		if (is_rvu_96xx_A0(rvu))
+		if (is_rvu_96xx_A0(rvu) || is_rvu_95xx_A0(rvu))
 			hw->cap.nix_rx_multicast = false;
 	}
+	if (!is_rvu_pre_96xx_C0(rvu))
+		hw->cap.nix_shaper_toggle_wait = true;
 
 	if (!is_rvu_otx2(rvu))
 		hw->cap.per_pf_mbox_regs = true;
