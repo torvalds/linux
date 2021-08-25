@@ -2010,55 +2010,6 @@ static void ilk_pch_transcoder_set_timings(const struct intel_crtc_state *crtc_s
 		       intel_de_read(dev_priv, VSYNCSHIFT(cpu_transcoder)));
 }
 
-static void cpt_set_fdi_bc_bifurcation(struct drm_i915_private *dev_priv, bool enable)
-{
-	u32 temp;
-
-	temp = intel_de_read(dev_priv, SOUTH_CHICKEN1);
-	if (!!(temp & FDI_BC_BIFURCATION_SELECT) == enable)
-		return;
-
-	drm_WARN_ON(&dev_priv->drm,
-		    intel_de_read(dev_priv, FDI_RX_CTL(PIPE_B)) &
-		    FDI_RX_ENABLE);
-	drm_WARN_ON(&dev_priv->drm,
-		    intel_de_read(dev_priv, FDI_RX_CTL(PIPE_C)) &
-		    FDI_RX_ENABLE);
-
-	temp &= ~FDI_BC_BIFURCATION_SELECT;
-	if (enable)
-		temp |= FDI_BC_BIFURCATION_SELECT;
-
-	drm_dbg_kms(&dev_priv->drm, "%sabling fdi C rx\n",
-		    enable ? "en" : "dis");
-	intel_de_write(dev_priv, SOUTH_CHICKEN1, temp);
-	intel_de_posting_read(dev_priv, SOUTH_CHICKEN1);
-}
-
-static void ivb_update_fdi_bc_bifurcation(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-
-	switch (crtc->pipe) {
-	case PIPE_A:
-		break;
-	case PIPE_B:
-		if (crtc_state->fdi_lanes > 2)
-			cpt_set_fdi_bc_bifurcation(dev_priv, false);
-		else
-			cpt_set_fdi_bc_bifurcation(dev_priv, true);
-
-		break;
-	case PIPE_C:
-		cpt_set_fdi_bc_bifurcation(dev_priv, true);
-
-		break;
-	default:
-		BUG();
-	}
-}
-
 /*
  * Finds the encoder associated with the given CRTC. This can only be
  * used when we know that the CRTC isn't feeding multiple encoders!
