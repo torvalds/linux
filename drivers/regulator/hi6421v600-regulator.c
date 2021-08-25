@@ -4,7 +4,7 @@
 //
 // Copyright (c) 2013 Linaro Ltd.
 // Copyright (c) 2011 HiSilicon Ltd.
-// Copyright (c) 2020-2021 Huawei Technologies Co., Ltd
+// Copyright (c) 2020-2021 Huawei Technologies Co., Ltd.
 //
 // Guodong Xu <guodong.xu@linaro.org>
 
@@ -27,34 +27,34 @@ struct hi6421_spmi_reg_info {
 	u32			eco_uA;
 };
 
-static const unsigned int ldo3_voltages[] = {
+static const unsigned int range_1v5_to_2v0[] = {
 	1500000, 1550000, 1600000, 1650000,
 	1700000, 1725000, 1750000, 1775000,
 	1800000, 1825000, 1850000, 1875000,
 	1900000, 1925000, 1950000, 2000000
 };
 
-static const unsigned int ldo4_voltages[] = {
+static const unsigned int range_1v725_to_1v9[] = {
 	1725000, 1750000, 1775000, 1800000,
 	1825000, 1850000, 1875000, 1900000
 };
 
-static const unsigned int ldo9_voltages[] = {
+static const unsigned int range_1v75_to_3v3[] = {
 	1750000, 1800000, 1825000, 2800000,
 	2850000, 2950000, 3000000, 3300000
 };
 
-static const unsigned int ldo15_voltages[] = {
+static const unsigned int range_1v8_to_3v0[] = {
 	1800000, 1850000, 2400000, 2600000,
 	2700000, 2850000, 2950000, 3000000
 };
 
-static const unsigned int ldo17_voltages[] = {
+static const unsigned int range_2v5_to_3v3[] = {
 	2500000, 2600000, 2700000, 2800000,
 	3000000, 3100000, 3200000, 3300000
 };
 
-static const unsigned int ldo34_voltages[] = {
+static const unsigned int range_2v6_to_3v3[] = {
 	2600000, 2700000, 2800000, 2900000,
 	3000000, 3100000, 3200000, 3300000
 };
@@ -196,35 +196,35 @@ enum hi6421_spmi_regulator_id {
 };
 
 static struct hi6421_spmi_reg_info regulator_info[] = {
-	HI6421V600_LDO(ldo3, ldo3_voltages,
+	HI6421V600_LDO(ldo3, range_1v5_to_2v0,
 		       0x16, 0x01, 0x51,
 		       20000, 120,
 		       0, 0),
-	HI6421V600_LDO(ldo4, ldo4_voltages,
+	HI6421V600_LDO(ldo4, range_1v725_to_1v9,
 		       0x17, 0x01, 0x52,
 		       20000, 120,
 		       0x10, 10000),
-	HI6421V600_LDO(ldo9, ldo9_voltages,
+	HI6421V600_LDO(ldo9, range_1v75_to_3v3,
 		       0x1c, 0x01, 0x57,
 		       20000, 360,
 		       0x10, 10000),
-	HI6421V600_LDO(ldo15, ldo15_voltages,
+	HI6421V600_LDO(ldo15, range_1v8_to_3v0,
 		       0x21, 0x01, 0x5c,
 		       20000, 360,
 		       0x10, 10000),
-	HI6421V600_LDO(ldo16, ldo15_voltages,
+	HI6421V600_LDO(ldo16, range_1v8_to_3v0,
 		       0x22, 0x01, 0x5d,
 		       20000, 360,
 		       0x10, 10000),
-	HI6421V600_LDO(ldo17, ldo17_voltages,
+	HI6421V600_LDO(ldo17, range_2v5_to_3v3,
 		       0x23, 0x01, 0x5e,
 		       20000, 120,
 		       0x10, 10000),
-	HI6421V600_LDO(ldo33, ldo17_voltages,
+	HI6421V600_LDO(ldo33, range_2v5_to_3v3,
 		       0x32, 0x01, 0x6d,
 		       20000, 120,
 		       0, 0),
-	HI6421V600_LDO(ldo34, ldo34_voltages,
+	HI6421V600_LDO(ldo34, range_2v6_to_3v3,
 		       0x33, 0x01, 0x6e,
 		       20000, 120,
 		       0, 0),
