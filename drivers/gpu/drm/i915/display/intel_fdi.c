@@ -93,7 +93,8 @@ static int ilk_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 		}
 		return 0;
 	default:
-		BUG();
+		MISSING_CASE(pipe);
+		return 0;
 	}
 }
 
@@ -217,7 +218,7 @@ static void ivb_update_fdi_bc_bifurcation(const struct intel_crtc_state *crtc_st
 
 		break;
 	default:
-		BUG();
+		MISSING_CASE(crtc->pipe);
 	}
 }
 
