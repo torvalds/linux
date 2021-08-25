@@ -998,6 +998,7 @@ struct ravb_hw_info {
 	unsigned internal_delay:1;	/* AVB-DMAC has internal delays */
 	unsigned tx_counters:1;		/* E-MAC has TX counters */
 	unsigned multi_irqs:1;		/* AVB-DMAC and E-MAC has multiple irqs */
+	unsigned no_ptp_cfg_active:1;	/* AVB-DMAC does not support gPTP active in config mode */
 };
 
 struct ravb_private {
