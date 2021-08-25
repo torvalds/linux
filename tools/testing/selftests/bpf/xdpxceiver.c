@@ -589,7 +589,7 @@ static void tx_only_all(struct ifobject *ifobject)
 	complete_tx_only_all(ifobject);
 }
 
-static void worker_pkt_dump(void)
+static void pkt_dump(void)
 {
 	struct ethhdr *ethhdr;
 	struct iphdr *iphdr;
@@ -631,7 +631,7 @@ static void worker_pkt_dump(void)
 	}
 }
 
-static void worker_stats_validate(struct ifobject *ifobject)
+static void stats_validate(struct ifobject *ifobject)
 {
 	struct xdp_statistics stats;
 	socklen_t optlen;
@@ -673,7 +673,7 @@ static void worker_stats_validate(struct ifobject *ifobject)
 	}
 }
 
-static void worker_pkt_validate(void)
+static void pkt_validate(void)
 {
 	u32 payloadseqnum = -2;
 	struct iphdr *iphdr;
@@ -833,9 +833,9 @@ static void *worker_testapp_validate_rx(void *arg)
 	while (1) {
 		if (test_type != TEST_TYPE_STATS) {
 			rx_pkt(ifobject->xsk, fds);
-			worker_pkt_validate();
+			pkt_validate();
 		} else {
-			worker_stats_validate(ifobject);
+			stats_validate(ifobject);
 		}
 		if (sigvar)
 			break;
@@ -873,7 +873,7 @@ static void testapp_validate(void)
 	pthread_join(t0, NULL);
 
 	if (debug_pkt_dump && test_type != TEST_TYPE_STATS) {
-		worker_pkt_dump();
+		pkt_dump();
 		for (int iter = 0; iter < num_frames; iter++) {
 			free(pkt_buf[iter]->payload);
 			free(pkt_buf[iter]);
