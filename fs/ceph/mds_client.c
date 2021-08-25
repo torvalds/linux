@@ -4541,6 +4541,8 @@ static void maybe_recover_session(struct ceph_mds_client *mdsc)
 
 bool check_session_state(struct ceph_mds_session *s)
 {
+	struct ceph_fs_client *fsc = s->s_mdsc->fsc;
+
 	switch (s->s_state) {
 	case CEPH_MDS_SESSION_OPEN:
 		if (s->s_ttl && time_after(jiffies, s->s_ttl)) {
@@ -4549,8 +4551,9 @@ bool check_session_state(struct ceph_mds_session *s)
 		}
 		break;
 	case CEPH_MDS_SESSION_CLOSING:
-		/* Should never reach this when we're unmounting */
-		WARN_ON_ONCE(s->s_ttl);
+		/* Should never reach this when not force unmounting */
+		WARN_ON_ONCE(s->s_ttl &&
+			     READ_ONCE(fsc->mount_state) != CEPH_MOUNT_SHUTDOWN);
 		fallthrough;
 	case CEPH_MDS_SESSION_NEW:
 	case CEPH_MDS_SESSION_RESTARTING:
