@@ -1747,7 +1747,11 @@ static struct nbd_device *nbd_dev_add(int index, unsigned int refs)
 
 	mutex_init(&nbd->config_lock);
 	refcount_set(&nbd->config_refs, 0);
-	refcount_set(&nbd->refs, refs);
+	/*
+	 * Start out with a zero references to keep other threads from using
+	 * this device until it is fully initialized.
+	 */
+	refcount_set(&nbd->refs, 0);
 	INIT_LIST_HEAD(&nbd->list);
 	disk->major = NBD_MAJOR;
 
@@ -1766,6 +1770,11 @@ static struct nbd_device *nbd_dev_add(int index, unsigned int refs)
 	disk->private_data = nbd;
 	sprintf(disk->disk_name, "nbd%d", index);
 	add_disk(disk);
+
+	/*
+	 * Now publish the device.
+	 */
+	refcount_set(&nbd->refs, refs);
 	nbd_total_devices++;
 	return nbd;
 
