@@ -113,23 +113,9 @@ struct btree_update {
 	u64				inline_keys[BKEY_BTREE_PTR_U64s_MAX * 3];
 };
 
-void bch2_btree_node_free_inmem(struct bch_fs *, struct btree *,
-				struct btree_iter *);
-void bch2_btree_node_free_never_inserted(struct bch_fs *, struct btree *);
-
-void bch2_btree_update_get_open_buckets(struct btree_update *, struct btree *);
-
 struct btree *__bch2_btree_node_alloc_replacement(struct btree_update *,
 						  struct btree *,
 						  struct bkey_format);
-
-void bch2_btree_update_done(struct btree_update *);
-struct btree_update *
-bch2_btree_update_start(struct btree_iter *, unsigned, unsigned, unsigned);
-
-void bch2_btree_interior_update_will_free_node(struct btree_update *,
-					       struct btree *);
-void bch2_btree_update_add_new_node(struct btree_update *, struct btree *);
 
 int bch2_btree_split_leaf(struct btree_trans *, struct btree_iter *, unsigned);
 

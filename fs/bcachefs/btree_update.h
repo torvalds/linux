@@ -10,8 +10,9 @@ struct btree;
 
 void bch2_btree_node_lock_for_insert(struct btree_trans *, struct btree_iter *,
 				     struct btree *);
-bool bch2_btree_bset_insert_key(struct btree_iter *, struct btree *,
-				struct btree_node_iter *, struct bkey_i *);
+bool bch2_btree_bset_insert_key(struct btree_trans *, struct btree_iter *,
+				struct btree *, struct btree_node_iter *,
+				struct bkey_i *);
 void bch2_btree_add_journal_pin(struct bch_fs *, struct btree *, u64);
 
 enum btree_insert_flags {

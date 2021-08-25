@@ -2576,7 +2576,7 @@ reassemble:
 		copy.k->k.p.offset += shift >> 9;
 		bch2_btree_iter_set_pos(dst, bkey_start_pos(&copy.k->k));
 
-		ret = bch2_extent_atomic_end(dst, copy.k, &atomic_end);
+		ret = bch2_extent_atomic_end(&trans, dst, copy.k, &atomic_end);
 		if (ret)
 			continue;
 

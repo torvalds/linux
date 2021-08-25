@@ -135,14 +135,13 @@ static inline void bch2_btree_trans_verify_iters(struct btree_trans *trans,
 static inline void bch2_btree_trans_verify_locks(struct btree_trans *iter) {}
 #endif
 
-void bch2_btree_iter_fix_key_modified(struct btree_iter *, struct btree *,
-					   struct bkey_packed *);
-void bch2_btree_node_iter_fix(struct btree_iter *, struct btree *,
-			      struct btree_node_iter *, struct bkey_packed *,
-			      unsigned, unsigned);
+void bch2_btree_iter_fix_key_modified(struct btree_trans *trans, struct btree_iter *,
+				      struct btree *, struct bkey_packed *);
+void bch2_btree_node_iter_fix(struct btree_trans *trans, struct btree_iter *,
+			      struct btree *, struct btree_node_iter *,
+			      struct bkey_packed *, unsigned, unsigned);
 
 bool bch2_btree_iter_relock_intent(struct btree_iter *);
-bool bch2_btree_iter_relock(struct btree_iter *, unsigned long);
 
 bool bch2_trans_relock(struct btree_trans *);
 void bch2_trans_unlock(struct btree_trans *);
@@ -179,10 +178,13 @@ static inline void bch2_btree_iter_downgrade(struct btree_iter *iter)
 
 void bch2_trans_downgrade(struct btree_trans *);
 
-void bch2_btree_iter_node_replace(struct btree_iter *, struct btree *);
-void bch2_btree_iter_node_drop(struct btree_iter *, struct btree *);
+void bch2_btree_iter_node_replace(struct btree_trans *trans,
+				  struct btree_iter *, struct btree *);
+void bch2_btree_iter_node_drop(struct btree_trans *,
+			       struct btree_iter *, struct btree *);
 
-void bch2_btree_iter_reinit_node(struct btree_iter *, struct btree *);
+void bch2_btree_iter_reinit_node(struct btree_trans *,
+				 struct btree_iter *, struct btree *);
 
 int __must_check bch2_btree_iter_traverse(struct btree_iter *);
 
@@ -226,9 +228,10 @@ static inline struct btree_iter *idx_to_btree_iter(struct btree_trans *trans, un
 	return idx != U8_MAX ? trans->iters + idx : NULL;
 }
 
-static inline struct btree_iter *btree_iter_child(struct btree_iter *iter)
+static inline struct btree_iter *btree_iter_child(struct btree_trans *trans,
+						  struct btree_iter *iter)
 {
-	return idx_to_btree_iter(iter->trans, iter->child_idx);
+	return idx_to_btree_iter(trans, iter->child_idx);
 }
 
 /*
@@ -319,7 +322,7 @@ bch2_trans_get_iter(struct btree_trans *trans, enum btree_id btree_id,
 }
 
 struct btree_iter *__bch2_trans_copy_iter(struct btree_trans *,
-					struct btree_iter *);
+					  struct btree_iter *);
 static inline struct btree_iter *
 bch2_trans_copy_iter(struct btree_trans *trans, struct btree_iter *src)
 {

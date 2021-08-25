@@ -42,14 +42,14 @@ inline void bch2_btree_node_lock_for_insert(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 
-	bch2_btree_node_lock_write(b, iter);
+	bch2_btree_node_lock_write(trans, iter, b);
 
 	if (btree_iter_type(iter) == BTREE_ITER_CACHED)
 		return;
 
 	if (unlikely(btree_node_just_written(b)) &&
 	    bch2_btree_post_write_cleanup(c, b))
-		bch2_btree_iter_reinit_node(iter, b);
+		bch2_btree_iter_reinit_node(trans, iter, b);
 
 	/*
 	 * If the last bset has been written, or if it's gotten too big - start
@@ -62,7 +62,8 @@ inline void bch2_btree_node_lock_for_insert(struct btree_trans *trans,
 /* Inserting into a given leaf node (last stage of insert): */
 
 /* Handle overwrites and do insert, for non extents: */
-bool bch2_btree_bset_insert_key(struct btree_iter *iter,
+bool bch2_btree_bset_insert_key(struct btree_trans *trans,
+				struct btree_iter *iter,
 				struct btree *b,
 				struct btree_node_iter *node_iter,
 				struct bkey_i *insert)
@@ -76,7 +77,7 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 	EBUG_ON(bpos_cmp(insert->k.p, b->data->min_key) < 0);
 	EBUG_ON(bpos_cmp(insert->k.p, b->data->max_key) > 0);
 	EBUG_ON(insert->k.u64s >
-		bch_btree_keys_u64s_remaining(iter->trans->c, b));
+		bch_btree_keys_u64s_remaining(trans->c, b));
 	EBUG_ON(iter->flags & BTREE_ITER_IS_EXTENTS);
 
 	k = bch2_btree_node_iter_peek_all(node_iter, b);
@@ -96,7 +97,7 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 		k->type = KEY_TYPE_deleted;
 
 		if (k->needs_whiteout)
-			push_whiteout(iter->trans->c, b, insert->k.p);
+			push_whiteout(trans->c, b, insert->k.p);
 		k->needs_whiteout = false;
 
 		if (k >= btree_bset_last(b)->start) {
@@ -104,7 +105,7 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 			bch2_bset_delete(b, k, clobber_u64s);
 			goto fix_iter;
 		} else {
-			bch2_btree_iter_fix_key_modified(iter, b, k);
+			bch2_btree_iter_fix_key_modified(trans, iter, b, k);
 		}
 
 		return true;
@@ -122,7 +123,7 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 			clobber_u64s = k->u64s;
 			goto overwrite;
 		} else {
-			bch2_btree_iter_fix_key_modified(iter, b, k);
+			bch2_btree_iter_fix_key_modified(trans, iter, b, k);
 		}
 	}
 
@@ -132,7 +133,7 @@ overwrite:
 	new_u64s = k->u64s;
 fix_iter:
 	if (clobber_u64s != new_u64s)
-		bch2_btree_node_iter_fix(iter, b, node_iter, k,
+		bch2_btree_node_iter_fix(trans, iter, b, node_iter, k,
 					 clobber_u64s, new_u64s);
 	return true;
 }
@@ -190,7 +191,7 @@ static bool btree_insert_key_leaf(struct btree_trans *trans,
 	EBUG_ON(!iter->level &&
 		!test_bit(BCH_FS_BTREE_INTERIOR_REPLAY_DONE, &c->flags));
 
-	if (unlikely(!bch2_btree_bset_insert_key(iter, b,
+	if (unlikely(!bch2_btree_bset_insert_key(trans, iter, b,
 					&iter_l(iter)->iter, insert)))
 		return false;
 
@@ -212,7 +213,7 @@ static bool btree_insert_key_leaf(struct btree_trans *trans,
 
 	if (u64s_added > live_u64s_added &&
 	    bch2_maybe_compact_whiteouts(c, b))
-		bch2_btree_iter_reinit_node(iter, b);
+		bch2_btree_iter_reinit_node(trans, iter, b);
 
 	trace_btree_insert_key(c, b, insert);
 	return true;
@@ -610,8 +611,8 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 
 	trans_for_each_update(trans, i)
 		if (!same_leaf_as_prev(trans, i))
-			bch2_btree_node_unlock_write_inlined(iter_l(i->iter)->b,
-							     i->iter);
+			bch2_btree_node_unlock_write_inlined(trans, i->iter,
+							iter_l(i->iter)->b);
 
 	if (!ret && trans->journal_pin)
 		bch2_journal_pin_add(&c->journal, trans->journal_res.seq,
@@ -1178,7 +1179,7 @@ retry:
 			bch2_key_resize(&delete.k, max_sectors);
 			bch2_cut_back(end, &delete);
 
-			ret = bch2_extent_trim_atomic(&delete, iter);
+			ret = bch2_extent_trim_atomic(trans, iter, &delete);
 			if (ret)
 				break;
 		}

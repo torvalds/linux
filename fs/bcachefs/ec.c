@@ -552,19 +552,19 @@ static int __ec_stripe_mem_alloc(struct bch_fs *c, size_t idx, gfp_t gfp)
 	return 0;
 }
 
-static int ec_stripe_mem_alloc(struct bch_fs *c,
+static int ec_stripe_mem_alloc(struct btree_trans *trans,
 			       struct btree_iter *iter)
 {
 	size_t idx = iter->pos.offset;
 	int ret = 0;
 
-	if (!__ec_stripe_mem_alloc(c, idx, GFP_NOWAIT|__GFP_NOWARN))
+	if (!__ec_stripe_mem_alloc(trans->c, idx, GFP_NOWAIT|__GFP_NOWARN))
 		return ret;
 
-	bch2_trans_unlock(iter->trans);
+	bch2_trans_unlock(trans);
 	ret = -EINTR;
 
-	if (!__ec_stripe_mem_alloc(c, idx, GFP_KERNEL))
+	if (!__ec_stripe_mem_alloc(trans->c, idx, GFP_KERNEL))
 		return ret;
 
 	return -ENOMEM;
@@ -735,7 +735,7 @@ retry:
 found_slot:
 	start_pos = iter->pos;
 
-	ret = ec_stripe_mem_alloc(c, iter);
+	ret = ec_stripe_mem_alloc(&trans, iter);
 	if (ret)
 		goto err;
 

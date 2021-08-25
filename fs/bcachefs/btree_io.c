@@ -498,7 +498,7 @@ void bch2_btree_init_next(struct btree_trans *trans,
 	bch2_btree_build_aux_trees(b);
 
 	if (iter && reinit_iter)
-		bch2_btree_iter_reinit_node(iter, b);
+		bch2_btree_iter_reinit_node(trans, iter, b);
 }
 
 static void btree_pos_to_text(struct printbuf *out, struct bch_fs *c,

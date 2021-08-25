@@ -238,7 +238,7 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 	 * XXX: not allowed to be holding read locks when we take a write lock,
 	 * currently
 	 */
-	bch2_btree_node_lock_write(ck_iter->l[0].b, ck_iter);
+	bch2_btree_node_lock_write(trans, ck_iter, ck_iter->l[0].b);
 	if (new_k) {
 		kfree(ck->k);
 		ck->u64s = new_u64s;
@@ -247,7 +247,7 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 
 	bkey_reassemble(ck->k, k);
 	ck->valid = true;
-	bch2_btree_node_unlock_write(ck_iter->l[0].b, ck_iter);
+	bch2_btree_node_unlock_write(trans, ck_iter, ck_iter->l[0].b);
 
 	/* We're not likely to need this iterator again: */
 	set_btree_iter_dontneed(trans, iter);

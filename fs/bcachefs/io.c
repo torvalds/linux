@@ -280,7 +280,7 @@ int bch2_extent_update(struct btree_trans *trans,
 	s64 i_sectors_delta = 0, disk_sectors_delta = 0;
 	int ret;
 
-	ret = bch2_extent_trim_atomic(k, iter);
+	ret = bch2_extent_trim_atomic(trans, iter, k);
 	if (ret)
 		return ret;
 

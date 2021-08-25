@@ -94,11 +94,11 @@ static int count_iters_for_insert(struct btree_trans *trans,
 
 #define EXTENT_ITERS_MAX	(BTREE_ITER_MAX / 3)
 
-int bch2_extent_atomic_end(struct btree_iter *iter,
+int bch2_extent_atomic_end(struct btree_trans *trans,
+			   struct btree_iter *iter,
 			   struct bkey_i *insert,
 			   struct bpos *end)
 {
-	struct btree_trans *trans = iter->trans;
 	struct btree_iter *copy;
 	struct bkey_s_c k;
 	unsigned nr_iters = 0;
@@ -153,27 +153,17 @@ int bch2_extent_atomic_end(struct btree_iter *iter,
 	return ret < 0 ? ret : 0;
 }
 
-int bch2_extent_trim_atomic(struct bkey_i *k, struct btree_iter *iter)
+int bch2_extent_trim_atomic(struct btree_trans *trans,
+			    struct btree_iter *iter,
+			    struct bkey_i *k)
 {
 	struct bpos end;
 	int ret;
 
-	ret = bch2_extent_atomic_end(iter, k, &end);
+	ret = bch2_extent_atomic_end(trans, iter, k, &end);
 	if (ret)
 		return ret;
 
 	bch2_cut_back(end, k);
 	return 0;
-}
-
-int bch2_extent_is_atomic(struct bkey_i *k, struct btree_iter *iter)
-{
-	struct bpos end;
-	int ret;
-
-	ret = bch2_extent_atomic_end(iter, k, &end);
-	if (ret)
-		return ret;
-
-	return !bkey_cmp(end, k->k.p);
 }
