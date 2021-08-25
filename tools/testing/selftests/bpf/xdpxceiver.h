@@ -39,7 +39,7 @@
 #define SOCK_RECONF_CTR 10
 #define BATCH_SIZE 64
 #define POLL_TMOUT 1000
-#define DEFAULT_PKT_CNT 10000
+#define DEFAULT_PKT_CNT (4 * 1024)
 #define RX_FULL_RXQSIZE 32
 
 #define print_verbose(x...) do { if (opt_verbose) ksft_print_msg(x); } while (0)
@@ -79,7 +79,7 @@ static u32 num_frames;
 static bool second_step;
 static int test_type;
 
-static int opt_pkt_count;
+static u32 opt_pkt_count = DEFAULT_PKT_CNT;
 static u8 opt_verbose;
 
 static u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;

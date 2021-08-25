@@ -333,20 +333,19 @@ static struct option long_options[] = {
 	{"queue", optional_argument, 0, 'q'},
 	{"dump-pkts", optional_argument, 0, 'D'},
 	{"verbose", no_argument, 0, 'v'},
-	{"tx-pkt-count", optional_argument, 0, 'C'},
 	{0, 0, 0, 0}
 };
 
 static void usage(const char *prog)
 {
 	const char *str =
-	    "  Usage: %s [OPTIONS]\n"
-	    "  Options:\n"
-	    "  -i, --interface      Use interface\n"
-	    "  -q, --queue=n        Use queue n (default 0)\n"
-	    "  -D, --dump-pkts      Dump packets L2 - L5\n"
-	    "  -v, --verbose        Verbose output\n"
-	    "  -C, --tx-pkt-count=n Number of packets to send\n";
+		"  Usage: %s [OPTIONS]\n"
+		"  Options:\n"
+		"  -i, --interface      Use interface\n"
+		"  -q, --queue=n        Use queue n (default 0)\n"
+		"  -D, --dump-pkts      Dump packets L2 - L5\n"
+		"  -v, --verbose        Verbose output\n";
+
 	ksft_print_msg(str, prog);
 }
 
@@ -392,7 +391,7 @@ static void parse_command_line(int argc, char **argv)
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "i:DC:v", long_options, &option_index);
+		c = getopt_long(argc, argv, "i:Dv", long_options, &option_index);
 
 		if (c == -1)
 			break;
@@ -415,9 +414,6 @@ static void parse_command_line(int argc, char **argv)
 		case 'D':
 			debug_pkt_dump = 1;
 			break;
-		case 'C':
-			opt_pkt_count = atoi(optarg);
-			break;
 		case 'v':
 			opt_verbose = 1;
 			break;
@@ -425,11 +421,6 @@ static void parse_command_line(int argc, char **argv)
 			usage(basename(argv[0]));
 			ksft_exit_xfail();
 		}
-	}
-
-	if (!opt_pkt_count) {
-		print_verbose("No tx-pkt-count specified, using default %u\n", DEFAULT_PKT_CNT);
-		opt_pkt_count = DEFAULT_PKT_CNT;
 	}
 
 	if (!validate_interfaces()) {
@@ -554,9 +545,6 @@ static void tx_only(struct xsk_socket_info *xsk, u32 *frameptr, int batch_size)
 
 static int get_batch_size(int pkt_cnt)
 {
-	if (!opt_pkt_count)
-		return BATCH_SIZE;
-
 	if (pkt_cnt + BATCH_SIZE <= opt_pkt_count)
 		return BATCH_SIZE;
 
@@ -586,7 +574,7 @@ static void tx_only_all(struct ifobject *ifobject)
 	fds[0].fd = xsk_socket__fd(ifobject->xsk->xsk);
 	fds[0].events = POLLOUT;
 
-	while ((opt_pkt_count && pkt_cnt < opt_pkt_count) || !opt_pkt_count) {
+	while (pkt_cnt < opt_pkt_count) {
 		int batch_size = get_batch_size(pkt_cnt);
 
 		if (test_type == TEST_TYPE_POLL) {
@@ -602,8 +590,7 @@ static void tx_only_all(struct ifobject *ifobject)
 		pkt_cnt += batch_size;
 	}
 
-	if (opt_pkt_count)
-		complete_tx_only_all(ifobject);
+	complete_tx_only_all(ifobject);
 }
 
 static void worker_pkt_dump(void)
