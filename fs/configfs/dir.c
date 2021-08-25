@@ -439,13 +439,13 @@ static struct dentry * configfs_lookup(struct inode *dir,
 	if (!configfs_dirent_is_ready(parent_sd))
 		return ERR_PTR(-ENOENT);
 
+	spin_lock(&configfs_dirent_lock);
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
 		if ((sd->s_type & CONFIGFS_NOT_PINNED) &&
 		    !strcmp(configfs_get_name(sd), dentry->d_name.name)) {
 			struct configfs_attribute *attr = sd->s_element;
 			umode_t mode = (attr->ca_mode & S_IALLUGO) | S_IFREG;
 
-			spin_lock(&configfs_dirent_lock);
 			dentry->d_fsdata = configfs_get(sd);
 			sd->s_dentry = dentry;
 			spin_unlock(&configfs_dirent_lock);
@@ -462,10 +462,11 @@ static struct dentry * configfs_lookup(struct inode *dir,
 				inode->i_size = PAGE_SIZE;
 				inode->i_fop = &configfs_file_operations;
 			}
-			break;
+			goto done;
 		}
 	}
-
+	spin_unlock(&configfs_dirent_lock);
+done:
 	d_add(dentry, inode);
 	return NULL;
 }
