@@ -496,6 +496,12 @@ struct hns_roce_bank {
 	u32 next; /* Next ID to allocate. */
 };
 
+struct hns_roce_idx_table {
+	u32 *spare_idx;
+	u32 head;
+	u32 tail;
+};
+
 struct hns_roce_qp_table {
 	struct hns_roce_hem_table	qp_table;
 	struct hns_roce_hem_table	irrl_table;
@@ -504,6 +510,7 @@ struct hns_roce_qp_table {
 	struct mutex			scc_mutex;
 	struct hns_roce_bank bank[HNS_ROCE_QP_BANK_NUM];
 	struct mutex bank_mutex;
+	struct hns_roce_idx_table	idx_table;
 };
 
 struct hns_roce_cq_table {
@@ -1144,7 +1151,7 @@ int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 void hns_roce_init_pd_table(struct hns_roce_dev *hr_dev);
 void hns_roce_init_mr_table(struct hns_roce_dev *hr_dev);
 void hns_roce_init_cq_table(struct hns_roce_dev *hr_dev);
-void hns_roce_init_qp_table(struct hns_roce_dev *hr_dev);
+int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev);
 void hns_roce_init_srq_table(struct hns_roce_dev *hr_dev);
 void hns_roce_init_xrcd_table(struct hns_roce_dev *hr_dev);
 

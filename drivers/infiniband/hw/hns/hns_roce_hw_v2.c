@@ -4501,11 +4501,17 @@ static int get_dip_ctx_idx(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 {
 	const struct ib_global_route *grh = rdma_ah_read_grh(&attr->ah_attr);
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
+	u32 *spare_idx = hr_dev->qp_table.idx_table.spare_idx;
+	u32 *head =  &hr_dev->qp_table.idx_table.head;
+	u32 *tail =  &hr_dev->qp_table.idx_table.tail;
 	struct hns_roce_dip *hr_dip;
 	unsigned long flags;
 	int ret = 0;
 
 	spin_lock_irqsave(&hr_dev->dip_list_lock, flags);
+
+	spare_idx[*tail] = ibqp->qp_num;
+	*tail = (*tail == hr_dev->caps.num_qps - 1) ? 0 : (*tail + 1);
 
 	list_for_each_entry(hr_dip, &hr_dev->dip_list, node) {
 		if (!memcmp(grh->dgid.raw, hr_dip->dgid, 16)) {
@@ -4524,7 +4530,8 @@ static int get_dip_ctx_idx(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	}
 
 	memcpy(hr_dip->dgid, grh->dgid.raw, sizeof(grh->dgid.raw));
-	hr_dip->dip_idx = *dip_idx = ibqp->qp_num;
+	hr_dip->dip_idx = *dip_idx = spare_idx[*head];
+	*head = (*head == hr_dev->caps.num_qps - 1) ? 0 : (*head + 1);
 	list_add_tail(&hr_dip->node, &hr_dev->dip_list);
 
 out:
