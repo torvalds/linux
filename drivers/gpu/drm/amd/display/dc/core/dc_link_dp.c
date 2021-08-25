@@ -2462,12 +2462,16 @@ bool perform_link_training_with_retries(
 			if (type == dc_connection_none)
 				break;
 		} else if (do_fallback) {
+			uint32_t req_bw;
+			uint32_t link_bw;
+
 			decide_fallback_link_setting(*link_setting, &current_setting, status);
 			/* Fail link training if reduced link bandwidth no longer meets
 			 * stream requirements.
 			 */
-			if (dc_bandwidth_in_kbps_from_timing(&stream->timing) <
-					dc_link_bandwidth_kbps(link, &current_setting))
+			req_bw = dc_bandwidth_in_kbps_from_timing(&stream->timing);
+			link_bw = dc_link_bandwidth_kbps(link, &current_setting);
+			if (req_bw > link_bw)
 				break;
 		}
 
