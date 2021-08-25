@@ -291,7 +291,7 @@ static bool is_valid_txschq(struct rvu *rvu, int blkaddr,
 }
 
 static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf,
-			      struct nix_lf_alloc_rsp *rsp)
+			      struct nix_lf_alloc_rsp *rsp, bool loop)
 {
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
 	struct rvu_hwinfo *hw = rvu->hw;
@@ -344,6 +344,25 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf,
 		if (rvu->hw->lbk_links > 1)
 			lbkid = vf & 0x1 ? 0 : 1;
 
+		/* By default NIX0 is configured to send packet on lbk link 1
+		 * (which corresponds to LBK1), same packet will receive on
+		 * NIX1 over lbk link 0. If NIX1 sends packet on lbk link 0
+		 * (which corresponds to LBK2) packet will receive on NIX0 lbk
+		 * link 1.
+		 * But if lbk links for NIX0 and NIX1 are negated, i.e NIX0
+		 * transmits and receives on lbk link 0, whick corresponds
+		 * to LBK1 block, back to back connectivity between NIX and
+		 * LBK can be achieved (which is similar to 96xx)
+		 *
+		 *			RX		TX
+		 * NIX0 lbk link	1 (LBK2)	1 (LBK1)
+		 * NIX0 lbk link	0 (LBK0)	0 (LBK0)
+		 * NIX1 lbk link	0 (LBK1)	0 (LBK2)
+		 * NIX1 lbk link	1 (LBK3)	1 (LBK3)
+		 */
+		if (loop)
+			lbkid = !lbkid;
+
 		/* Note that AF's VFs work in pairs and talk over consecutive
 		 * loopback channels.Therefore if odd number of AF VFs are
 		 * enabled then the last VF remains with no pair.
@@ -355,6 +374,7 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf,
 		pfvf->rx_chan_cnt = 1;
 		pfvf->tx_chan_cnt = 1;
 		rsp->tx_link = hw->cgx_links + lbkid;
+		pfvf->lbkid = lbkid;
 		rvu_npc_set_pkind(rvu, NPC_RX_LBK_PKIND, pfvf);
 		rvu_npc_install_promisc_entry(rvu, pcifunc, nixlf,
 					      pfvf->rx_chan_base,
@@ -1309,7 +1329,8 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_TX_PARSE_CFG(nixlf), cfg);
 
 	intf = is_afvf(pcifunc) ? NIX_INTF_TYPE_LBK : NIX_INTF_TYPE_CGX;
-	err = nix_interface_init(rvu, pcifunc, intf, nixlf, rsp);
+	err = nix_interface_init(rvu, pcifunc, intf, nixlf, rsp,
+				 !!(req->flags & NIX_LF_LBK_BLK_SEL));
 	if (err)
 		goto free_mem;
 
@@ -3766,6 +3787,7 @@ int rvu_mbox_handler_nix_set_hw_frs(struct rvu *rvu, struct nix_frs_cfg *req,
 	struct nix_txsch *txsch;
 	u64 cfg, lmac_fifo_len;
 	struct nix_hw *nix_hw;
+	struct rvu_pfvf *pfvf;
 	u8 cgx = 0, lmac = 0;
 	u16 max_mtu;
 
@@ -3822,7 +3844,8 @@ rx_frscfg:
 		link = (cgx * hw->lmac_per_cgx) + lmac;
 	} else if (pf == 0) {
 		/* For VFs of PF0 ingress is LBK port, so config LBK link */
-		link = hw->cgx_links;
+		pfvf = rvu_get_pfvf(rvu, pcifunc);
+		link = hw->cgx_links + pfvf->lbkid;
 	}
 
 	if (link < 0)

@@ -705,6 +705,7 @@ struct nix_lf_alloc_req {
 	u64 rx_cfg;   /* See NIX_AF_LF(0..127)_RX_CFG */
 	u64 way_mask;
 #define NIX_LF_RSS_TAG_LSB_AS_ADDER BIT_ULL(0)
+#define NIX_LF_LBK_BLK_SEL	    BIT_ULL(1)
 	u64 flags;
 };
 
