@@ -279,12 +279,9 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	if (fixed_mode) {
-		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
+		intel_panel_fixed_mode(fixed_mode, adjusted_mode);
 
-		if (HAS_GMCH(dev_priv))
-			ret = intel_gmch_panel_fitting(pipe_config, conn_state);
-		else
-			ret = intel_pch_panel_fitting(pipe_config, conn_state);
+		ret = intel_panel_fitting(pipe_config, conn_state);
 		if (ret)
 			return ret;
 	}

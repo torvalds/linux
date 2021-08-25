@@ -1652,9 +1652,9 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 	int ret;
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
-	intel_fixed_panel_mode(fixed_mode, adjusted_mode);
+	intel_panel_fixed_mode(fixed_mode, adjusted_mode);
 
-	ret = intel_pch_panel_fitting(pipe_config, conn_state);
+	ret = intel_panel_fitting(pipe_config, conn_state);
 	if (ret)
 		return ret;
 

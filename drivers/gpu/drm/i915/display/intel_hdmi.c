@@ -2210,7 +2210,7 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 		return ret;
 
 	if (pipe_config->output_format == INTEL_OUTPUT_FORMAT_YCBCR420) {
-		ret = intel_pch_panel_fitting(pipe_config, conn_state);
+		ret = intel_panel_fitting(pipe_config, conn_state);
 		if (ret)
 			return ret;
 	}

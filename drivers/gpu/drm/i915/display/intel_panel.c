@@ -45,9 +45,8 @@ bool intel_panel_use_ssc(struct drm_i915_private *i915)
 		&& !(i915->quirks & QUIRK_LVDS_SSC_DISABLE);
 }
 
-void
-intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
-		       struct drm_display_mode *adjusted_mode)
+void intel_panel_fixed_mode(const struct drm_display_mode *fixed_mode,
+			    struct drm_display_mode *adjusted_mode)
 {
 	drm_mode_copy(adjusted_mode, fixed_mode);
 
@@ -179,8 +178,8 @@ intel_panel_vbt_fixed_mode(struct intel_connector *connector)
 }
 
 /* adjusted_mode has been preset to be the panel's fixed mode */
-int intel_pch_panel_fitting(struct intel_crtc_state *crtc_state,
-			    const struct drm_connector_state *conn_state)
+static int pch_panel_fitting(struct intel_crtc_state *crtc_state,
+			     const struct drm_connector_state *conn_state)
 {
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
@@ -385,8 +384,8 @@ static void i9xx_scale_aspect(struct intel_crtc_state *crtc_state,
 	}
 }
 
-int intel_gmch_panel_fitting(struct intel_crtc_state *crtc_state,
-			     const struct drm_connector_state *conn_state)
+static int gmch_panel_fitting(struct intel_crtc_state *crtc_state,
+			      const struct drm_connector_state *conn_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -458,6 +457,18 @@ out:
 	crtc_state->gmch_pfit.lvds_border_bits = border;
 
 	return 0;
+}
+
+int intel_panel_fitting(struct intel_crtc_state *crtc_state,
+			const struct drm_connector_state *conn_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+
+	if (HAS_GMCH(i915))
+		return gmch_panel_fitting(crtc_state, conn_state);
+	else
+		return pch_panel_fitting(crtc_state, conn_state);
 }
 
 enum drm_connector_status
