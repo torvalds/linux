@@ -57,7 +57,6 @@
 
 #include <linux/ip.h>
 #include <linux/if_ether.h>
-#include <ethernet.h>
 
 #define SPEC_DEV_ID_NONE BIT(0)
 #define SPEC_DEV_ID_DISABLE_HT BIT(1)
