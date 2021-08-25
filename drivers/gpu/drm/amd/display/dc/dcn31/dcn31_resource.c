@@ -1999,7 +1999,7 @@ bool dcn31_validate_bandwidth(struct dc *dc,
 	goto validate_out;
 
 validate_fail:
-	DC_LOG_WARNING("Mode Validation Warning: %s failed alidation.\n",
+	DC_LOG_WARNING("Mode Validation Warning: %s failed validation.\n",
 		dml_get_status_message(context->bw_ctx.dml.vba.ValidationStatus[context->bw_ctx.dml.vba.soc.num_states]));
 
 	BW_VAL_TRACE_SKIP(fail);
