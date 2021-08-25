@@ -31,6 +31,5 @@ struct mctp_dev {
 
 struct mctp_dev *mctp_dev_get_rtnl(const struct net_device *dev);
 struct mctp_dev *__mctp_dev_get(const struct net_device *dev);
-struct mctp_dev *mctp_dev_get_rtnl(const struct net_device *dev);
 
 #endif /* __NET_MCTPDEVICE_H */
