@@ -6889,7 +6889,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 		}
 		sqe = io_get_sqe(ctx);
 		if (unlikely(!sqe)) {
-			kmem_cache_free(req_cachep, req);
+			list_add(&req->inflight_entry, &ctx->submit_state.free_list);
 			break;
 		}
 		/* will complete beyond this point, count as submitted */
