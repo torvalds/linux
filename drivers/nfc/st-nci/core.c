@@ -9,8 +9,6 @@
 #include <linux/nfc.h>
 #include <net/nfc/nci.h>
 #include <net/nfc/nci_core.h>
-#include <linux/gpio.h>
-#include <linux/delay.h>
 
 #include "st-nci.h"
 
