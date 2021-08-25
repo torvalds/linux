@@ -36,8 +36,13 @@
 #define AMDGPU_MAX_VCE_RINGS		3
 #define AMDGPU_MAX_UVD_ENC_RINGS	2
 
-#define AMDGPU_RING_PRIO_DEFAULT	1
-#define AMDGPU_RING_PRIO_MAX		AMDGPU_GFX_PIPE_PRIO_MAX
+enum amdgpu_ring_priority_level {
+	AMDGPU_RING_PRIO_0,
+	AMDGPU_RING_PRIO_1,
+	AMDGPU_RING_PRIO_DEFAULT = 1,
+	AMDGPU_RING_PRIO_2,
+	AMDGPU_RING_PRIO_MAX
+};
 
 /* some special values for the owner field */
 #define AMDGPU_FENCE_OWNER_UNDEFINED	((void *)0ul)

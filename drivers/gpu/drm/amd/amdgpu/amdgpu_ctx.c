@@ -109,7 +109,7 @@ static int amdgpu_ctx_priority_permit(struct drm_file *filp,
 	return -EACCES;
 }
 
-static enum gfx_pipe_priority amdgpu_ctx_prio_to_compute_prio(int32_t prio)
+static enum amdgpu_gfx_pipe_priority amdgpu_ctx_prio_to_compute_prio(int32_t prio)
 {
 	switch (prio) {
 	case AMDGPU_CTX_PRIORITY_HIGH:
