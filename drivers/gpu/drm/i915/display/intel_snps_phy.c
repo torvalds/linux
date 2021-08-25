@@ -171,7 +171,7 @@ static const struct intel_mpllb_state dg2_dp_hbr3_100 = {
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_DEN, 1),
 };
 
-static const struct intel_mpllb_state *dg2_dp_100_tables[] = {
+static const struct intel_mpllb_state * const dg2_dp_100_tables[] = {
 	&dg2_dp_rbr_100,
 	&dg2_dp_hbr1_100,
 	&dg2_dp_hbr2_100,
@@ -284,7 +284,7 @@ static const struct intel_mpllb_state dg2_dp_hbr3_38_4 = {
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_FRACN_QUOT, 61440),
 };
 
-static const struct intel_mpllb_state *dg2_dp_38_4_tables[] = {
+static const struct intel_mpllb_state * const dg2_dp_38_4_tables[] = {
 	&dg2_dp_rbr_38_4,
 	&dg2_dp_hbr1_38_4,
 	&dg2_dp_hbr2_38_4,
@@ -421,7 +421,7 @@ static const struct intel_mpllb_state dg2_edp_r432 = {
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_SSC_STEPSIZE, 65752),
 };
 
-static const struct intel_mpllb_state *dg2_edp_tables[] = {
+static const struct intel_mpllb_state * const dg2_edp_tables[] = {
 	&dg2_dp_rbr_100,
 	&dg2_edp_r216,
 	&dg2_edp_r243,
@@ -584,7 +584,7 @@ static const struct intel_mpllb_state dg2_hdmi_594 = {
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_SSC_UP_SPREAD, 1),
 };
 
-static const struct intel_mpllb_state *dg2_hdmi_tables[] = {
+static const struct intel_mpllb_state * const dg2_hdmi_tables[] = {
 	&dg2_hdmi_25_175,
 	&dg2_hdmi_27_0,
 	&dg2_hdmi_74_25,
@@ -593,7 +593,7 @@ static const struct intel_mpllb_state *dg2_hdmi_tables[] = {
 	NULL,
 };
 
-static const struct intel_mpllb_state **
+static const struct intel_mpllb_state * const *
 intel_mpllb_tables_get(struct intel_crtc_state *crtc_state,
 		       struct intel_encoder *encoder)
 {
@@ -627,7 +627,7 @@ intel_mpllb_tables_get(struct intel_crtc_state *crtc_state,
 int intel_mpllb_calc_state(struct intel_crtc_state *crtc_state,
 			   struct intel_encoder *encoder)
 {
-	const struct intel_mpllb_state **tables;
+	const struct intel_mpllb_state * const *tables;
 	int i;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
@@ -823,7 +823,7 @@ void intel_mpllb_readout_hw_state(struct intel_encoder *encoder,
 
 int intel_snps_phy_check_hdmi_link_rate(int clock)
 {
-	const struct intel_mpllb_state **tables = dg2_hdmi_tables;
+	const struct intel_mpllb_state * const *tables = dg2_hdmi_tables;
 	int i;
 
 	for (i = 0; tables[i]; i++) {
