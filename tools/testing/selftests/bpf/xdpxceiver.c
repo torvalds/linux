@@ -395,10 +395,10 @@ static void parse_command_line(int argc, char **argv)
 			interface_index++;
 			break;
 		case 'D':
-			debug_pkt_dump = 1;
+			opt_pkt_dump = true;
 			break;
 		case 'v':
-			opt_verbose = 1;
+			opt_verbose = true;
 			break;
 		default:
 			usage(basename(argv[0]));
@@ -517,7 +517,7 @@ static bool is_pkt_valid(struct pkt *pkt, void *buffer, const struct xdp_desc *d
 	if (iphdr->version == IP_PKT_VER && iphdr->tos == IP_PKT_TOS) {
 		u32 seqnum = ntohl(*((u32 *)(data + PKT_HDR_SIZE)));
 
-		if (debug_pkt_dump && test_type != TEST_TYPE_STATS)
+		if (opt_pkt_dump && test_type != TEST_TYPE_STATS)
 			pkt_dump(data, PKT_SIZE);
 
 		if (pkt->len != desc->len) {

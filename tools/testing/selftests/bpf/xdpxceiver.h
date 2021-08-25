@@ -69,12 +69,12 @@ enum stat_test_type {
 };
 
 static int configured_mode;
-static u8 debug_pkt_dump;
+static bool opt_pkt_dump;
 static u32 num_frames = DEFAULT_PKT_CNT / 4;
 static bool second_step;
 static int test_type;
 
-static u8 opt_verbose;
+static bool opt_verbose;
 
 static u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 static u32 xdp_bind_flags = XDP_USE_NEED_WAKEUP | XDP_COPY;
