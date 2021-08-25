@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/vgaarb.h>
 #include <linux/pm_runtime.h>
+#include <linux/msi.h>
 #include <linux/of.h>
 #include "pci.h"
 
@@ -49,7 +50,28 @@ pci_config_attr(subsystem_vendor, "0x%04x\n");
 pci_config_attr(subsystem_device, "0x%04x\n");
 pci_config_attr(revision, "0x%02x\n");
 pci_config_attr(class, "0x%06x\n");
-pci_config_attr(irq, "%u\n");
+
+static ssize_t irq_show(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+#ifdef CONFIG_PCI_MSI
+	/*
+	 * For MSI, show the first MSI IRQ; for all other cases including
+	 * MSI-X, show the legacy INTx IRQ.
+	 */
+	if (pdev->msi_enabled) {
+		struct msi_desc *desc = first_pci_msi_entry(pdev);
+
+		return sysfs_emit(buf, "%u\n", desc->irq);
+	}
+#endif
+
+	return sysfs_emit(buf, "%u\n", pdev->irq);
+}
+static DEVICE_ATTR_RO(irq);
 
 static ssize_t broken_parity_status_show(struct device *dev,
 					 struct device_attribute *attr,
