@@ -40,6 +40,7 @@
 #define POLL_TMOUT 1000
 #define DEFAULT_PKT_CNT (4 * 1024)
 #define RX_FULL_RXQSIZE 32
+#define XSK_UMEM__INVALID_FRAME_SIZE (XSK_UMEM__DEFAULT_FRAME_SIZE + 1)
 
 #define print_verbose(x...) do { if (opt_verbose) ksft_print_msg(x); } while (0)
 
@@ -74,13 +75,10 @@ static u32 num_frames = DEFAULT_PKT_CNT / 4;
 static bool second_step;
 static int test_type;
 
-static u32 opt_pkt_count = DEFAULT_PKT_CNT;
 static u8 opt_verbose;
 
 static u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 static u32 xdp_bind_flags = XDP_USE_NEED_WAKEUP | XDP_COPY;
-static u32 pkt_counter;
-static int sigvar;
 static int stat_test_type;
 static u32 rxqsize;
 static u32 frame_headroom;
@@ -107,6 +105,17 @@ struct flow_vector {
 	} vector;
 };
 
+struct pkt {
+	u64 addr;
+	u32 len;
+	u32 payload;
+};
+
+struct pkt_stream {
+	u32 nb_pkts;
+	struct pkt *pkts;
+};
+
 struct ifobject {
 	char ifname[MAX_INTERFACE_NAME_CHARS];
 	char nsname[MAX_INTERFACES_NAMESPACE_CHARS];
@@ -116,6 +125,7 @@ struct ifobject {
 	struct xsk_umem_info *umem;
 	void *(*func_ptr)(void *arg);
 	struct flow_vector fv;
+	struct pkt_stream *pkt_stream;
 	int ns_fd;
 	u32 dst_ip;
 	u32 src_ip;

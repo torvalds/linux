@@ -417,18 +417,59 @@ static void parse_command_line(int argc, char **argv)
 	}
 }
 
-static void pkt_generate(struct ifobject *ifobject, u32 pkt_nb, u64 addr)
+static struct pkt *pkt_stream_get_pkt(struct pkt_stream *pkt_stream, u32 pkt_nb)
 {
-	void *data = xsk_umem__get_data(ifobject->umem->buffer, addr);
-	struct udphdr *udp_hdr =
-		(struct udphdr *)(data + sizeof(struct ethhdr) + sizeof(struct iphdr));
-	struct iphdr *ip_hdr = (struct iphdr *)(data + sizeof(struct ethhdr));
-	struct ethhdr *eth_hdr = (struct ethhdr *)data;
+	if (pkt_nb >= pkt_stream->nb_pkts)
+		return NULL;
+
+	return &pkt_stream->pkts[pkt_nb];
+}
+
+static struct pkt_stream *pkt_stream_generate(u32 nb_pkts, u32 pkt_len)
+{
+	struct pkt_stream *pkt_stream;
+	u32 i;
+
+	pkt_stream = malloc(sizeof(*pkt_stream));
+	if (!pkt_stream)
+		exit_with_error(ENOMEM);
+
+	pkt_stream->pkts = calloc(nb_pkts, sizeof(*pkt_stream->pkts));
+	if (!pkt_stream->pkts)
+		exit_with_error(ENOMEM);
+
+	pkt_stream->nb_pkts = nb_pkts;
+	for (i = 0; i < nb_pkts; i++) {
+		pkt_stream->pkts[i].addr = (i % num_frames) * XSK_UMEM__DEFAULT_FRAME_SIZE;
+		pkt_stream->pkts[i].len = pkt_len;
+		pkt_stream->pkts[i].payload = i;
+	}
+
+	return pkt_stream;
+}
+
+static struct pkt *pkt_generate(struct ifobject *ifobject, u32 pkt_nb)
+{
+	struct pkt *pkt = pkt_stream_get_pkt(ifobject->pkt_stream, pkt_nb);
+	struct udphdr *udp_hdr;
+	struct ethhdr *eth_hdr;
+	struct iphdr *ip_hdr;
+	void *data;
+
+	if (!pkt)
+		return NULL;
+
+	data = xsk_umem__get_data(ifobject->umem->buffer, pkt->addr);
+	udp_hdr = (struct udphdr *)(data + sizeof(struct ethhdr) + sizeof(struct iphdr));
+	ip_hdr = (struct iphdr *)(data + sizeof(struct ethhdr));
+	eth_hdr = (struct ethhdr *)data;
 
 	gen_udp_hdr(pkt_nb, data, ifobject, udp_hdr);
 	gen_ip_hdr(ifobject, ip_hdr);
 	gen_udp_csum(udp_hdr, ip_hdr);
 	gen_eth_hdr(ifobject, eth_hdr);
+
+	return pkt;
 }
 
 static void pkt_dump(void *pkt, u32 len)
@@ -468,33 +509,43 @@ static void pkt_dump(void *pkt, u32 len)
 	fprintf(stdout, "---------------------------------------\n");
 }
 
-static void pkt_validate(void *buffer, u64 addr)
+static bool is_pkt_valid(struct pkt *pkt, void *buffer, const struct xdp_desc *desc)
 {
-	void *data = xsk_umem__get_data(buffer, addr);
+	void *data = xsk_umem__get_data(buffer, desc->addr);
 	struct iphdr *iphdr = (struct iphdr *)(data + sizeof(struct ethhdr));
+
+	if (!pkt) {
+		ksft_test_result_fail("ERROR: [%s] too many packets received\n", __func__);
+		return false;
+	}
 
 	if (iphdr->version == IP_PKT_VER && iphdr->tos == IP_PKT_TOS) {
 		u32 seqnum = ntohl(*((u32 *)(data + PKT_HDR_SIZE)));
-		u32 expected_seqnum = pkt_counter % num_frames;
 
 		if (debug_pkt_dump && test_type != TEST_TYPE_STATS)
 			pkt_dump(data, PKT_SIZE);
 
-		if (expected_seqnum != seqnum) {
+		if (pkt->len != desc->len) {
 			ksft_test_result_fail
-				("ERROR: [%s] expected seqnum [%d], got seqnum [%d]\n",
-					__func__, expected_seqnum, seqnum);
-			sigvar = 1;
+				("ERROR: [%s] expected length [%d], got length [%d]\n",
+					__func__, pkt->len, desc->len);
+			return false;
 		}
 
-		if (++pkt_counter == opt_pkt_count)
-			sigvar = 1;
+		if (pkt->payload != seqnum) {
+			ksft_test_result_fail
+				("ERROR: [%s] expected seqnum [%d], got seqnum [%d]\n",
+					__func__, pkt->payload, seqnum);
+			return false;
+		}
 	} else {
 		ksft_print_msg("Invalid frame received: ");
 		ksft_print_msg("[IP_PKT_VER: %02X], [IP_PKT_TOS: %02X]\n", iphdr->version,
 			       iphdr->tos);
-		sigvar = 1;
+		return false;
 	}
+
+	return true;
 }
 
 static void kick_tx(struct xsk_socket_info *xsk)
@@ -507,7 +558,7 @@ static void kick_tx(struct xsk_socket_info *xsk)
 	exit_with_error(errno);
 }
 
-static void complete_tx_only(struct xsk_socket_info *xsk, int batch_size)
+static void complete_pkts(struct xsk_socket_info *xsk, int batch_size)
 {
 	unsigned int rcvd;
 	u32 idx;
@@ -525,116 +576,105 @@ static void complete_tx_only(struct xsk_socket_info *xsk, int batch_size)
 	}
 }
 
-static void rx_pkt(struct xsk_socket_info *xsk, struct pollfd *fds)
+static void receive_pkts(struct pkt_stream *pkt_stream, struct xsk_socket_info *xsk,
+			 struct pollfd *fds)
 {
-	unsigned int rcvd, i;
-	u32 idx_rx = 0, idx_fq = 0;
+	u32 idx_rx = 0, idx_fq = 0, rcvd, i, pkt_count = 0;
+	struct pkt *pkt;
 	int ret;
 
-	rcvd = xsk_ring_cons__peek(&xsk->rx, BATCH_SIZE, &idx_rx);
-	if (!rcvd) {
-		if (xsk_ring_prod__needs_wakeup(&xsk->umem->fq)) {
-			ret = poll(fds, 1, POLL_TMOUT);
-			if (ret < 0)
-				exit_with_error(-ret);
+	pkt = pkt_stream_get_pkt(pkt_stream, pkt_count++);
+	while (pkt) {
+		rcvd = xsk_ring_cons__peek(&xsk->rx, BATCH_SIZE, &idx_rx);
+		if (!rcvd) {
+			if (xsk_ring_prod__needs_wakeup(&xsk->umem->fq)) {
+				ret = poll(fds, 1, POLL_TMOUT);
+				if (ret < 0)
+					exit_with_error(-ret);
+			}
+			continue;
 		}
-		return;
-	}
 
-	ret = xsk_ring_prod__reserve(&xsk->umem->fq, rcvd, &idx_fq);
-	while (ret != rcvd) {
-		if (ret < 0)
-			exit_with_error(-ret);
-		if (xsk_ring_prod__needs_wakeup(&xsk->umem->fq)) {
-			ret = poll(fds, 1, POLL_TMOUT);
-			if (ret < 0)
-				exit_with_error(-ret);
-		}
 		ret = xsk_ring_prod__reserve(&xsk->umem->fq, rcvd, &idx_fq);
+		while (ret != rcvd) {
+			if (ret < 0)
+				exit_with_error(-ret);
+			if (xsk_ring_prod__needs_wakeup(&xsk->umem->fq)) {
+				ret = poll(fds, 1, POLL_TMOUT);
+				if (ret < 0)
+					exit_with_error(-ret);
+			}
+			ret = xsk_ring_prod__reserve(&xsk->umem->fq, rcvd, &idx_fq);
+		}
+
+		for (i = 0; i < rcvd; i++) {
+			const struct xdp_desc *desc = xsk_ring_cons__rx_desc(&xsk->rx, idx_rx++);
+			u64 addr = desc->addr, orig;
+
+			orig = xsk_umem__extract_addr(addr);
+			addr = xsk_umem__add_offset_to_addr(addr);
+			if (!is_pkt_valid(pkt, xsk->umem->buffer, desc))
+				return;
+
+			*xsk_ring_prod__fill_addr(&xsk->umem->fq, idx_fq++) = orig;
+			pkt = pkt_stream_get_pkt(pkt_stream, pkt_count++);
+		}
+
+		xsk_ring_prod__submit(&xsk->umem->fq, rcvd);
+		xsk_ring_cons__release(&xsk->rx, rcvd);
 	}
-
-	for (i = 0; i < rcvd; i++) {
-		u64 addr, orig;
-
-		addr = xsk_ring_cons__rx_desc(&xsk->rx, idx_rx)->addr;
-		xsk_ring_cons__rx_desc(&xsk->rx, idx_rx++);
-		orig = xsk_umem__extract_addr(addr);
-
-		addr = xsk_umem__add_offset_to_addr(addr);
-		pkt_validate(xsk->umem->buffer, addr);
-
-		*xsk_ring_prod__fill_addr(&xsk->umem->fq, idx_fq++) = orig;
-	}
-
-	xsk_ring_prod__submit(&xsk->umem->fq, rcvd);
-	xsk_ring_cons__release(&xsk->rx, rcvd);
 }
 
-static void tx_only(struct ifobject *ifobject, u32 *frameptr, int batch_size)
+static u32 __send_pkts(struct ifobject *ifobject, u32 pkt_nb)
 {
 	struct xsk_socket_info *xsk = ifobject->xsk;
-	u32 idx = 0;
-	unsigned int i;
-	bool tx_invalid_test = stat_test_type == STAT_TEST_TX_INVALID;
-	u32 len = tx_invalid_test ? XSK_UMEM__DEFAULT_FRAME_SIZE + 1 : PKT_SIZE;
+	u32 i, idx;
 
-	while (xsk_ring_prod__reserve(&xsk->tx, batch_size, &idx) < batch_size)
-		complete_tx_only(xsk, batch_size);
+	while (xsk_ring_prod__reserve(&xsk->tx, BATCH_SIZE, &idx) < BATCH_SIZE)
+		complete_pkts(xsk, BATCH_SIZE);
 
-	for (i = 0; i < batch_size; i++) {
+	for (i = 0; i < BATCH_SIZE; i++) {
 		struct xdp_desc *tx_desc = xsk_ring_prod__tx_desc(&xsk->tx, idx + i);
+		struct pkt *pkt = pkt_generate(ifobject, pkt_nb);
 
-		tx_desc->addr = (*frameptr + i) << XSK_UMEM__DEFAULT_FRAME_SHIFT;
-		tx_desc->len = len;
-		pkt_generate(ifobject, *frameptr + i, tx_desc->addr);
+		if (!pkt)
+			break;
+
+		tx_desc->addr = pkt->addr;
+		tx_desc->len = pkt->len;
+		pkt_nb++;
 	}
 
-	xsk_ring_prod__submit(&xsk->tx, batch_size);
-	if (!tx_invalid_test) {
-		xsk->outstanding_tx += batch_size;
-	} else if (xsk_ring_prod__needs_wakeup(&xsk->tx)) {
+	xsk_ring_prod__submit(&xsk->tx, i);
+	if (stat_test_type != STAT_TEST_TX_INVALID)
+		xsk->outstanding_tx += i;
+	else if (xsk_ring_prod__needs_wakeup(&xsk->tx))
 		kick_tx(xsk);
-	}
-	*frameptr += batch_size;
-	*frameptr %= num_frames;
-	complete_tx_only(xsk, batch_size);
+	complete_pkts(xsk, i);
+
+	return i;
 }
 
-static int get_batch_size(int pkt_cnt)
+static void wait_for_tx_completion(struct xsk_socket_info *xsk)
 {
-	if (pkt_cnt + BATCH_SIZE <= opt_pkt_count)
-		return BATCH_SIZE;
-
-	return opt_pkt_count - pkt_cnt;
+	while (xsk->outstanding_tx)
+		complete_pkts(xsk, BATCH_SIZE);
 }
 
-static void complete_tx_only_all(struct ifobject *ifobject)
-{
-	bool pending;
-
-	do {
-		pending = false;
-		if (ifobject->xsk->outstanding_tx) {
-			complete_tx_only(ifobject->xsk, BATCH_SIZE);
-			pending = !!ifobject->xsk->outstanding_tx;
-		}
-	} while (pending);
-}
-
-static void tx_only_all(struct ifobject *ifobject)
+static void send_pkts(struct ifobject *ifobject)
 {
 	struct pollfd fds[MAX_SOCKS] = { };
-	u32 frame_nb = 0;
-	int pkt_cnt = 0;
-	int ret;
+	u32 pkt_cnt = 0;
 
 	fds[0].fd = xsk_socket__fd(ifobject->xsk->xsk);
 	fds[0].events = POLLOUT;
 
-	while (pkt_cnt < opt_pkt_count) {
-		int batch_size = get_batch_size(pkt_cnt);
+	while (pkt_cnt < ifobject->pkt_stream->nb_pkts) {
+		u32 sent;
 
 		if (test_type == TEST_TYPE_POLL) {
+			int ret;
+
 			ret = poll(fds, 1, POLL_TMOUT);
 			if (ret <= 0)
 				continue;
@@ -643,17 +683,17 @@ static void tx_only_all(struct ifobject *ifobject)
 				continue;
 		}
 
-		tx_only(ifobject, &frame_nb, batch_size);
-		pkt_cnt += batch_size;
+		sent = __send_pkts(ifobject, pkt_cnt);
+		pkt_cnt += sent;
 		usleep(10);
 	}
 
-	complete_tx_only_all(ifobject);
+	wait_for_tx_completion(ifobject->xsk);
 }
 
 static bool rx_stats_are_valid(struct ifobject *ifobject)
 {
-	u32 xsk_stat = 0, expected_stat = opt_pkt_count;
+	u32 xsk_stat = 0, expected_stat = ifobject->pkt_stream->nb_pkts;
 	struct xsk_socket *xsk = ifobject->xsk->xsk;
 	int fd = xsk_socket__fd(xsk);
 	struct xdp_statistics stats;
@@ -709,11 +749,11 @@ static void tx_stats_validate(struct ifobject *ifobject)
 		return;
 	}
 
-	if (stats.tx_invalid_descs == opt_pkt_count)
+	if (stats.tx_invalid_descs == ifobject->pkt_stream->nb_pkts)
 		return;
 
 	ksft_test_result_fail("ERROR: [%s] tx_invalid_descs incorrect. Got [%u] expected [%u]\n",
-			      __func__, stats.tx_invalid_descs, opt_pkt_count);
+			      __func__, stats.tx_invalid_descs, ifobject->pkt_stream->nb_pkts);
 }
 
 static void thread_common_ops(struct ifobject *ifobject, void *bufs)
@@ -782,8 +822,9 @@ static void *worker_testapp_validate_tx(void *arg)
 	if (!second_step)
 		thread_common_ops(ifobject, bufs);
 
-	print_verbose("Sending %d packets on interface %s\n", opt_pkt_count, ifobject->ifname);
-	tx_only_all(ifobject);
+	print_verbose("Sending %d packets on interface %s\n", ifobject->pkt_stream->nb_pkts,
+		      ifobject->ifname);
+	send_pkts(ifobject);
 
 	if (stat_test_type == STAT_TEST_TX_INVALID)
 		tx_stats_validate(ifobject);
@@ -809,19 +850,11 @@ static void *worker_testapp_validate_rx(void *arg)
 
 	pthread_barrier_wait(&barr);
 
-	while (1) {
-		if (test_type != TEST_TYPE_STATS) {
-			rx_pkt(ifobject->xsk, fds);
-		} else {
-			if (rx_stats_are_valid(ifobject))
-				break;
-		}
-		if (sigvar)
-			break;
-	}
-
-	print_verbose("Received %d packets on interface %s\n",
-		      pkt_counter, ifobject->ifname);
+	if (test_type == TEST_TYPE_STATS)
+		while (!rx_stats_are_valid(ifobject))
+			continue;
+	else
+		receive_pkts(ifobject->pkt_stream, ifobject->xsk, fds);
 
 	if (test_type == TEST_TYPE_TEARDOWN)
 		print_verbose("Destroying socket\n");
@@ -834,9 +867,17 @@ static void testapp_validate(void)
 {
 	bool bidi = test_type == TEST_TYPE_BIDI;
 	bool bpf = test_type == TEST_TYPE_BPF_RES;
+	struct pkt_stream *pkt_stream;
 
 	if (pthread_barrier_init(&barr, NULL, 2))
 		exit_with_error(errno);
+
+	if (stat_test_type == STAT_TEST_TX_INVALID)
+		pkt_stream = pkt_stream_generate(DEFAULT_PKT_CNT, XSK_UMEM__INVALID_FRAME_SIZE);
+	else
+		pkt_stream = pkt_stream_generate(DEFAULT_PKT_CNT, PKT_SIZE);
+	ifdict_tx->pkt_stream = pkt_stream;
+	ifdict_rx->pkt_stream = pkt_stream;
 
 	/*Spawn RX thread */
 	pthread_create(&t0, NULL, ifdict_rx->func_ptr, ifdict_rx);
@@ -860,8 +901,6 @@ static void testapp_teardown(void)
 	int i;
 
 	for (i = 0; i < MAX_TEARDOWN_ITER; i++) {
-		pkt_counter = 0;
-		sigvar = 0;
 		print_verbose("Creating socket\n");
 		testapp_validate();
 	}
@@ -887,8 +926,6 @@ static void swap_vectors(struct ifobject *ifobj1, struct ifobject *ifobj2)
 static void testapp_bidi(void)
 {
 	for (int i = 0; i < MAX_BIDI_ITER; i++) {
-		pkt_counter = 0;
-		sigvar = 0;
 		print_verbose("Creating socket\n");
 		testapp_validate();
 		if (!second_step) {
@@ -920,8 +957,6 @@ static void testapp_bpf_res(void)
 	int i;
 
 	for (i = 0; i < MAX_BPF_ITER; i++) {
-		pkt_counter = 0;
-		sigvar = 0;
 		print_verbose("Creating socket\n");
 		testapp_validate();
 		if (!second_step)
@@ -949,6 +984,8 @@ static void testapp_stats(void)
 		case STAT_TEST_RX_FULL:
 			rxqsize = RX_FULL_RXQSIZE;
 			break;
+		case STAT_TEST_TX_INVALID:
+			continue;
 		default:
 			break;
 		}
@@ -994,9 +1031,7 @@ static void run_pkt_test(int mode, int type)
 
 	/* reset defaults after potential previous test */
 	xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
-	pkt_counter = 0;
 	second_step = 0;
-	sigvar = 0;
 	stat_test_type = -1;
 	rxqsize = XSK_RING_CONS__DEFAULT_NUM_DESCS;
 	frame_headroom = XSK_UMEM__DEFAULT_FRAME_HEADROOM;
