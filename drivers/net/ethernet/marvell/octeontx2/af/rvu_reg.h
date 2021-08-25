@@ -156,6 +156,7 @@
 #define NPA_AF_AQ_DONE_INT_W1S          (0x0688)
 #define NPA_AF_AQ_DONE_ENA_W1S          (0x0690)
 #define NPA_AF_AQ_DONE_ENA_W1C          (0x0698)
+#define NPA_AF_BATCH_CTL		(0x06a0)
 #define NPA_AF_LFX_AURAS_CFG(a)         (0x4000 | (a) << 18)
 #define NPA_AF_LFX_LOC_AURAS_BASE(a)    (0x4010 | (a) << 18)
 #define NPA_AF_LFX_QINTS_CFG(a)         (0x4100 | (a) << 18)

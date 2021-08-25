@@ -594,6 +594,7 @@ struct npa_lf_alloc_rsp {
 	u32 stack_pg_ptrs;  /* No of ptrs per stack page */
 	u32 stack_pg_bytes; /* Size of stack page */
 	u16 qints; /* NPA_AF_CONST::QINTS */
+	u8 cache_lines; /*BATCH ALLOC DMA */
 };
 
 /* NPA AQ enqueue msg */
