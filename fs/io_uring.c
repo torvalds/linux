@@ -10493,6 +10493,10 @@ static int __init io_uring_init(void)
 		     sizeof(struct io_uring_rsrc_update));
 	BUILD_BUG_ON(sizeof(struct io_uring_rsrc_update) >
 		     sizeof(struct io_uring_rsrc_update2));
+
+	/* ->buf_index is u16 */
+	BUILD_BUG_ON(IORING_MAX_REG_BUFFERS >= (1u << 16));
+
 	/* should fit into one byte */
 	BUILD_BUG_ON(SQE_VALID_FLAGS >= (1 << 8));
 
