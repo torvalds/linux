@@ -1275,6 +1275,11 @@ static int ltc2983_parse_dt(struct ltc2983_data *st)
 			     &st->filter_notch_freq);
 
 	st->num_channels = of_get_available_child_count(dev->of_node);
+	if (!st->num_channels) {
+		dev_err(&st->spi->dev, "At least one channel must be given!");
+		return -EINVAL;
+	}
+
 	st->sensors = devm_kcalloc(dev, st->num_channels, sizeof(*st->sensors),
 				   GFP_KERNEL);
 	if (!st->sensors)
