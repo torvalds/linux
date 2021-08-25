@@ -2168,7 +2168,7 @@ static void io_req_task_cancel(struct io_kiocb *req, bool *locked)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
-	/* ctx is guaranteed to stay alive while we hold uring_lock */
+	/* not needed for normal modes, but SQPOLL depends on it */
 	io_tw_lock(ctx, locked);
 	io_req_complete_failed(req, req->result);
 }
@@ -2177,7 +2177,6 @@ static void io_req_task_submit(struct io_kiocb *req, bool *locked)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
-	/* ctx stays valid until unlock, even if we drop all ours ctx->refs */
 	io_tw_lock(ctx, locked);
 	/* req->task == current here, checking PF_EXITING is safe */
 	if (likely(!(req->task->flags & PF_EXITING)))
