@@ -7,13 +7,26 @@
 #include <linux/hashtable.h>
 #include <linux/mlx5/fs.h>
 
+#define MLX5_MH_ACT_SZ MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto)
+
 struct mlx5e_mod_hdr_handle;
 
 struct mlx5e_tc_mod_hdr_acts {
 	int num_actions;
 	int max_actions;
+	bool is_static;
 	void *actions;
 };
+
+#define DECLARE_MOD_HDR_ACTS_ACTIONS(name, len) \
+	u8 name[len][MLX5_MH_ACT_SZ] = {}
+
+#define DECLARE_MOD_HDR_ACTS(name, acts_arr) \
+	struct mlx5e_tc_mod_hdr_acts name = { \
+		.max_actions = ARRAY_SIZE(acts_arr), \
+		.is_static = true, \
+		.actions = acts_arr, \
+	}
 
 char *mlx5e_mod_hdr_alloc(struct mlx5_core_dev *mdev, int namespace,
 			  struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts);

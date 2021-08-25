@@ -36,6 +36,12 @@
 #define MLX5_CT_LABELS_BITS (mlx5e_tc_attr_to_reg_mappings[LABELS_TO_REG].mlen)
 #define MLX5_CT_LABELS_MASK GENMASK(MLX5_CT_LABELS_BITS - 1, 0)
 
+/* Statically allocate modify actions for
+ * ipv6 and port nat (5) + tuple fields (4) + nic mode zone restore (1) = 10.
+ * This will be increased dynamically if needed (for the ipv6 snat + dnat).
+ */
+#define MLX5_CT_MIN_MOD_ACTS 10
+
 #define ct_dbg(fmt, args...)\
 	netdev_dbg(ct_priv->netdev, "ct_debug: " fmt "\n", ##args)
 
@@ -645,7 +651,8 @@ mlx5_tc_ct_entry_create_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
 				struct mlx5e_mod_hdr_handle **mh,
 				u8 zone_restore_id, bool nat)
 {
-	struct mlx5e_tc_mod_hdr_acts mod_acts = {};
+	DECLARE_MOD_HDR_ACTS_ACTIONS(actions_arr, MLX5_CT_MIN_MOD_ACTS);
+	DECLARE_MOD_HDR_ACTS(mod_acts, actions_arr);
 	struct flow_action_entry *meta;
 	u16 ct_state = 0;
 	int err;
