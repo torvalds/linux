@@ -926,7 +926,7 @@ static int amdgpu_vm_pt_create(struct amdgpu_device *adev,
 	bp.size = amdgpu_vm_bo_size(adev, level);
 	bp.byte_align = AMDGPU_GPU_PAGE_SIZE;
 	bp.domain = AMDGPU_GEM_DOMAIN_VRAM;
-	bp.domain = amdgpu_bo_get_preferred_pin_domain(adev, bp.domain);
+	bp.domain = amdgpu_bo_get_preferred_domain(adev, bp.domain);
 	bp.flags = AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
 		AMDGPU_GEM_CREATE_CPU_GTT_USWC;
 
