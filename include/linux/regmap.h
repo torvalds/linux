@@ -343,6 +343,7 @@ typedef void (*regmap_unlock)(void *);
  * @ranges: Array of configuration entries for virtual address ranges.
  * @num_ranges: Number of range configuration entries.
  * @use_hwlock: Indicate if a hardware spinlock should be used.
+ * @use_raw_spinlock: Indicate if a raw spinlock should be used.
  * @hwlock_id: Specify the hardware spinlock id.
  * @hwlock_mode: The hardware spinlock mode, should be HWLOCK_IRQSTATE,
  *		 HWLOCK_IRQ or 0.
@@ -402,6 +403,7 @@ struct regmap_config {
 	unsigned int num_ranges;
 
 	bool use_hwlock;
+	bool use_raw_spinlock;
 	unsigned int hwlock_id;
 	unsigned int hwlock_mode;
 

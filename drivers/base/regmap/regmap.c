@@ -523,6 +523,23 @@ __releases(&map->spinlock)
 	spin_unlock_irqrestore(&map->spinlock, map->spinlock_flags);
 }
 
+static void regmap_lock_raw_spinlock(void *__map)
+__acquires(&map->raw_spinlock)
+{
+	struct regmap *map = __map;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&map->raw_spinlock, flags);
+	map->raw_spinlock_flags = flags;
+}
+
+static void regmap_unlock_raw_spinlock(void *__map)
+__releases(&map->raw_spinlock)
+{
+	struct regmap *map = __map;
+	raw_spin_unlock_irqrestore(&map->raw_spinlock, map->raw_spinlock_flags);
+}
+
 static void dev_get_regmap_release(struct device *dev, void *res)
 {
 	/*
@@ -760,11 +777,19 @@ struct regmap *__regmap_init(struct device *dev,
 	} else {
 		if ((bus && bus->fast_io) ||
 		    config->fast_io) {
-			spin_lock_init(&map->spinlock);
-			map->lock = regmap_lock_spinlock;
-			map->unlock = regmap_unlock_spinlock;
-			lockdep_set_class_and_name(&map->spinlock,
-						   lock_key, lock_name);
+			if (config->use_raw_spinlock) {
+				raw_spin_lock_init(&map->raw_spinlock);
+				map->lock = regmap_lock_raw_spinlock;
+				map->unlock = regmap_unlock_raw_spinlock;
+				lockdep_set_class_and_name(&map->raw_spinlock,
+							   lock_key, lock_name);
+			} else {
+				spin_lock_init(&map->spinlock);
+				map->lock = regmap_lock_spinlock;
+				map->unlock = regmap_unlock_spinlock;
+				lockdep_set_class_and_name(&map->spinlock,
+							   lock_key, lock_name);
+			}
 		} else {
 			mutex_init(&map->mutex);
 			map->lock = regmap_lock_mutex;
