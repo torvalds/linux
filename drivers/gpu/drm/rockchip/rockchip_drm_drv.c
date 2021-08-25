@@ -15,6 +15,7 @@
 #include <linux/of_address.h>
 #include <linux/of_graph.h>
 #include <linux/of_platform.h>
+#include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/console.h>
 #include <linux/iommu.h>
@@ -596,6 +597,25 @@ static int rockchip_drm_bind(struct device *dev)
 	INIT_LIST_HEAD(&private->psr_list);
 	mutex_init(&private->psr_list_lock);
 	mutex_init(&private->commit_lock);
+
+	private->hdmi_pll.pll = devm_clk_get_optional(dev, "hdmi-tmds-pll");
+	if (PTR_ERR(private->hdmi_pll.pll) == -EPROBE_DEFER) {
+		ret = -EPROBE_DEFER;
+		goto err_free;
+	} else if (IS_ERR(private->hdmi_pll.pll)) {
+		dev_err(dev, "failed to get hdmi-tmds-pll\n");
+		ret = PTR_ERR(private->hdmi_pll.pll);
+		goto err_free;
+	}
+	private->default_pll.pll = devm_clk_get_optional(dev, "default-vop-pll");
+	if (PTR_ERR(private->default_pll.pll) == -EPROBE_DEFER) {
+		ret = -EPROBE_DEFER;
+		goto err_free;
+	} else if (IS_ERR(private->default_pll.pll)) {
+		dev_err(dev, "failed to get default vop pll\n");
+		ret = PTR_ERR(private->default_pll.pll);
+		goto err_free;
+	}
 
 	ret = rockchip_drm_init_iommu(drm_dev);
 	if (ret)
