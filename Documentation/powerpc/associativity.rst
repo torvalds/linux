@@ -1,6 +1,6 @@
 ============================
 NUMA resource associativity
-=============================
+============================
 
 Associativity represents the groupings of the various platform resources into
 domains of substantially similar mean performance relative to resources outside
@@ -20,11 +20,11 @@ A value of 1 indicates the usage of Form 1 associativity. For Form 2 associativi
 bit 2 of byte 5 in the "ibm,architecture-vec-5" property is used.
 
 Form 0
------
+------
 Form 0 associativity supports only two NUMA distances (LOCAL and REMOTE).
 
 Form 1
------
+------
 With Form 1 a combination of ibm,associativity-reference-points, and ibm,associativity
 device tree properties are used to determine the NUMA distance between resource groups/domains.
 
@@ -78,17 +78,18 @@ numa-lookup-index-table.
 
 For ex:
 ibm,numa-lookup-index-table = <3 0 8 40>;
-ibm,numa-distace-table = <9>, /bits/ 8 < 10  20  80
-					 20  10 160
-					 80 160  10>;
-  | 0    8   40
---|------------
-  |
-0 | 10   20  80
-  |
-8 | 20   10  160
-  |
-40| 80   160  10
+ibm,numa-distace-table = <9>, /bits/ 8 < 10  20  80 20  10 160 80 160  10>;
+
+::
+
+	  | 0    8   40
+	--|------------
+	  |
+	0 | 10   20  80
+	  |
+	8 | 20   10  160
+	  |
+	40| 80   160  10
 
 A possible "ibm,associativity" property for resources in node 0, 8 and 40
 
