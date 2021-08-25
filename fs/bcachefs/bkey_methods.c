@@ -215,6 +215,8 @@ void bch2_bpos_to_text(struct printbuf *out, struct bpos pos)
 		pr_buf(out, "POS_MIN");
 	else if (!bpos_cmp(pos, POS_MAX))
 		pr_buf(out, "POS_MAX");
+	else if (!bpos_cmp(pos, SPOS_MAX))
+		pr_buf(out, "SPOS_MAX");
 	else {
 		if (pos.inode == U64_MAX)
 			pr_buf(out, "U64_MAX");
