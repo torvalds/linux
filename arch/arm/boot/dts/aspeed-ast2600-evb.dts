@@ -40,7 +40,12 @@
 			reg = <0x9e770000 0x100>;
 			compatible = "shared-dma-pool";
 		};
-
+		ssp_memory: ssp_memory {
+			size = <0x02000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
 	};
 
 	vcc_sdhci0: regulator-vcc-sdhci0 {
@@ -567,4 +572,8 @@
 
 &i3c1 {
 	status = "okay";
+};
+
+&ssp {
+	memory-region = <&ssp_memory>;
 };

@@ -108,11 +108,46 @@
 			    <0x40462000 0x1000>,
 			    <0x40464000 0x2000>,
 			    <0x40466000 0x2000>;
-			};
+		};
+
+		ssp_tcm: sram@1a000000 {
+			compatible = "mmio-sram";
+			reg = <0x1a000000 0x2000>;
+		};
+
+		ssp: secondary-service-processor {
+			compatible = "aspeed,ast2600-ssp";
+			#address-cells = <2>;
+			#size-cells = <0>;
+			interrupts =	<GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 185 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>;
+			aspeed,cvic = <&cvic>;
+			aspeed,scu = <&syscon>;
+		};
 
 		ahbc: ahbc@1e600000 {
 			compatible = "aspeed,aspeed-ahbc", "syscon";
 			reg = < 0x1e600000 0x100>;
+		};
+
+		cvic: copro-interrupt-controller@1e6c0000 {
+			compatible = "aspeed,ast2600-cvic", "aspeed-cvic";
+			valid-sources = <0xffffffff>;
+			copro-sw-interrupts = <1>;
+			reg = <0x1e6c0000 0x80>;
 		};
 
 		fmc: spi@1e620000 {
