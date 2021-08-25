@@ -425,8 +425,7 @@ error:
 	return -ENOMEM;
 }
 
-/* E-MAC init function */
-static void ravb_emac_init(struct net_device *ndev)
+static void ravb_rcar_emac_init(struct net_device *ndev)
 {
 	/* Receive frame limit set register */
 	ravb_write(ndev, ndev->mtu + ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN, RFLR);
@@ -450,6 +449,15 @@ static void ravb_emac_init(struct net_device *ndev)
 
 	/* E-MAC interrupt enable register */
 	ravb_write(ndev, ECSIPR_ICDIP | ECSIPR_MPDIP | ECSIPR_LCHNGIP, ECSIPR);
+}
+
+/* E-MAC init function */
+static void ravb_emac_init(struct net_device *ndev)
+{
+	struct ravb_private *priv = netdev_priv(ndev);
+	const struct ravb_hw_info *info = priv->info;
+
+	info->emac_init(ndev);
 }
 
 static void ravb_rcar_dmac_init(struct net_device *ndev)
@@ -1999,6 +2007,7 @@ static const struct ravb_hw_info ravb_gen3_hw_info = {
 	.set_rate = ravb_set_rate,
 	.set_rx_csum_feature = ravb_set_features_rx_csum,
 	.dmac_init = ravb_rcar_dmac_init,
+	.emac_init = ravb_rcar_emac_init,
 	.gstrings_stats = ravb_gstrings_stats,
 	.gstrings_size = sizeof(ravb_gstrings_stats),
 	.net_hw_features = NETIF_F_RXCSUM,
@@ -2019,6 +2028,7 @@ static const struct ravb_hw_info ravb_gen2_hw_info = {
 	.set_rate = ravb_set_rate,
 	.set_rx_csum_feature = ravb_set_features_rx_csum,
 	.dmac_init = ravb_rcar_dmac_init,
+	.emac_init = ravb_rcar_emac_init,
 	.gstrings_stats = ravb_gstrings_stats,
 	.gstrings_size = sizeof(ravb_gstrings_stats),
 	.net_hw_features = NETIF_F_RXCSUM,
