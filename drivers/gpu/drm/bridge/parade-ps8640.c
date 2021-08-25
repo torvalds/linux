@@ -18,16 +18,18 @@
 #include <drm/drm_print.h>
 
 #define PAGE2_GPIO_H		0xa7
-#define PS_GPIO9		BIT(1)
+#define  PS_GPIO9		BIT(1)
 #define PAGE2_I2C_BYPASS	0xea
-#define I2C_BYPASS_EN		0xd0
+#define  I2C_BYPASS_EN		0xd0
 #define PAGE2_MCS_EN		0xf3
-#define MCS_EN			BIT(0)
+#define  MCS_EN			BIT(0)
+
 #define PAGE3_SET_ADD		0xfe
-#define VDO_CTL_ADD		0x13
-#define VDO_DIS			0x18
-#define VDO_EN			0x1c
-#define DP_NUM_LANES		4
+#define  VDO_CTL_ADD		0x13
+#define  VDO_DIS		0x18
+#define  VDO_EN			0x1c
+
+#define NUM_MIPI_LANES		4
 
 /*
  * PS8640 uses multiple addresses:
@@ -254,7 +256,7 @@ static int ps8640_bridge_attach(struct drm_bridge *bridge,
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO |
 			  MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->lanes = DP_NUM_LANES;
+	dsi->lanes = NUM_MIPI_LANES;
 	ret = mipi_dsi_attach(dsi);
 	if (ret)
 		goto err_dsi_attach;
