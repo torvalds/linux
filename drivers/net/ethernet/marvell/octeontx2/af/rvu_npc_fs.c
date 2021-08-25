@@ -1173,11 +1173,6 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 	if (err)
 		return NPC_FLOW_NOT_SUPPORTED;
 
-	/* Skip channel validation if AF is installing */
-	if (!is_pffunc_af(req->hdr.pcifunc) &&
-	    npc_mcam_verify_channel(rvu, target, req->intf, req->channel))
-		return NPC_FLOW_CHAN_INVALID;
-
 	pfvf = rvu_get_pfvf(rvu, target);
 
 	/* PF installing for its VF */

@@ -243,8 +243,10 @@ struct rvu_pfvf {
 	u8	nix_blkaddr; /* BLKADDR_NIX0/1 assigned to this PF */
 	u8	nix_rx_intf; /* NIX0_RX/NIX1_RX interface to NPC */
 	u8	nix_tx_intf; /* NIX0_TX/NIX1_TX interface to NPC */
+	u8	lbkid;	     /* NIX0/1 lbk link ID */
 	u64     lmt_base_addr; /* Preseving the pcifunc's lmtst base addr*/
 	unsigned long flags;
+	struct  sdp_node_info *sdp_info;
 };
 
 enum rvu_pfvf_flags {
@@ -328,6 +330,7 @@ struct hw_cap {
 	u16	nix_txsch_per_sdp_lmac; /* Max Q's transmitting to SDP LMAC */
 	bool	nix_fixed_txschq_mapping; /* Schq mapping fixed or flexible */
 	bool	nix_shaping;		 /* Is shaping and coloring supported */
+	bool    nix_shaper_toggle_wait; /* Shaping toggle needs poll/wait */
 	bool	nix_tx_link_bp;		 /* Can link backpressure TL queues ? */
 	bool	nix_rx_multicast;	 /* Rx packet replication support */
 	bool	nix_common_dwrr_mtu;	 /* Common DWRR MTU for quantum config */
@@ -517,20 +520,34 @@ static inline u64 rvupf_read64(struct rvu *rvu, u64 offset)
 }
 
 /* Silicon revisions */
+static inline bool is_rvu_pre_96xx_C0(struct rvu *rvu)
+{
+	struct pci_dev *pdev = rvu->pdev;
+	/* 96XX A0/B0, 95XX A0/A1/B0 chips */
+	return ((pdev->revision == 0x00) || (pdev->revision == 0x01) ||
+		(pdev->revision == 0x10) || (pdev->revision == 0x11) ||
+		(pdev->revision == 0x14));
+}
+
 static inline bool is_rvu_96xx_A0(struct rvu *rvu)
 {
 	struct pci_dev *pdev = rvu->pdev;
 
-	return (pdev->revision == 0x00) &&
-		(pdev->subsystem_device == PCI_SUBSYS_DEVID_96XX);
+	return (pdev->revision == 0x00);
 }
 
 static inline bool is_rvu_96xx_B0(struct rvu *rvu)
 {
 	struct pci_dev *pdev = rvu->pdev;
 
-	return ((pdev->revision == 0x00) || (pdev->revision == 0x01)) &&
-		(pdev->subsystem_device == PCI_SUBSYS_DEVID_96XX);
+	return (pdev->revision == 0x00) || (pdev->revision == 0x01);
+}
+
+static inline bool is_rvu_95xx_A0(struct rvu *rvu)
+{
+	struct pci_dev *pdev = rvu->pdev;
+
+	return (pdev->revision == 0x10) || (pdev->revision == 0x11);
 }
 
 /* REVID for PCIe devices.
@@ -579,6 +596,16 @@ static inline u16 rvu_nix_chan_lbk(struct rvu *rvu, u8 lbkid,
 		return NIX_CHAN_LBK_CHX(lbkid, chan);
 
 	return rvu->hw->lbk_chan_base + lbkid * lbk_chans + chan;
+}
+
+static inline u16 rvu_nix_chan_sdp(struct rvu *rvu, u8 chan)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+
+	if (!hw->cap.programmable_chans)
+		return NIX_CHAN_SDP_CHX(chan);
+
+	return hw->sdp_chan_base + chan;
 }
 
 static inline u16 rvu_nix_chan_cpt(struct rvu *rvu, u8 chan)
@@ -643,10 +670,17 @@ int rvu_aq_alloc(struct rvu *rvu, struct admin_queue **ad_queue,
 		 int qsize, int inst_size, int res_size);
 void rvu_aq_free(struct rvu *rvu, struct admin_queue *aq);
 
+/* SDP APIs */
+int rvu_sdp_init(struct rvu *rvu);
+bool is_sdp_pfvf(u16 pcifunc);
+bool is_sdp_pf(u16 pcifunc);
+bool is_sdp_vf(u16 pcifunc);
+
 /* CGX APIs */
 static inline bool is_pf_cgxmapped(struct rvu *rvu, u8 pf)
 {
-	return (pf >= PF_CGXMAP_BASE && pf <= rvu->cgx_mapped_pfs);
+	return (pf >= PF_CGXMAP_BASE && pf <= rvu->cgx_mapped_pfs) &&
+		!is_sdp_pf(pf << RVU_PFVF_PF_SHIFT);
 }
 
 static inline void rvu_get_cgx_lmac_id(u8 map, u8 *cgx_id, u8 *lmac_id)
@@ -750,7 +784,6 @@ bool is_npc_intf_tx(u8 intf);
 bool is_npc_intf_rx(u8 intf);
 bool is_npc_interface_valid(struct rvu *rvu, u8 intf);
 int rvu_npc_get_tx_nibble_cfg(struct rvu *rvu, u64 nibble_ena);
-int npc_mcam_verify_channel(struct rvu *rvu, u16 pcifunc, u8 intf, u16 channel);
 int npc_flow_steering_init(struct rvu *rvu, int blkaddr);
 const char *npc_get_field_name(u8 hdr);
 int npc_get_bank(struct npc_mcam *mcam, int index);

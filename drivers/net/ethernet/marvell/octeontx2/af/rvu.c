@@ -70,18 +70,21 @@ static void rvu_setup_hw_capabilities(struct rvu *rvu)
 	hw->cap.nix_shaping = true;
 	hw->cap.nix_tx_link_bp = true;
 	hw->cap.nix_rx_multicast = true;
+	hw->cap.nix_shaper_toggle_wait = false;
 	hw->rvu = rvu;
 
-	if (is_rvu_96xx_B0(rvu)) {
+	if (is_rvu_pre_96xx_C0(rvu)) {
 		hw->cap.nix_fixed_txschq_mapping = true;
 		hw->cap.nix_txsch_per_cgx_lmac = 4;
 		hw->cap.nix_txsch_per_lbk_lmac = 132;
 		hw->cap.nix_txsch_per_sdp_lmac = 76;
 		hw->cap.nix_shaping = false;
 		hw->cap.nix_tx_link_bp = false;
-		if (is_rvu_96xx_A0(rvu))
+		if (is_rvu_96xx_A0(rvu) || is_rvu_95xx_A0(rvu))
 			hw->cap.nix_rx_multicast = false;
 	}
+	if (!is_rvu_pre_96xx_C0(rvu))
+		hw->cap.nix_shaper_toggle_wait = true;
 
 	if (!is_rvu_otx2(rvu))
 		hw->cap.per_pf_mbox_regs = true;
@@ -1115,6 +1118,12 @@ cpt:
 		goto nix_err;
 	}
 
+	err = rvu_sdp_init(rvu);
+	if (err) {
+		dev_err(rvu->dev, "%s: Failed to initialize sdp\n", __func__);
+		goto nix_err;
+	}
+
 	rvu_program_channels(rvu);
 
 	return 0;
@@ -1367,9 +1376,10 @@ int rvu_get_nix_blkaddr(struct rvu *rvu, u16 pcifunc)
 	int blkaddr = BLKADDR_NIX0, vf;
 	struct rvu_pfvf *pf;
 
+	pf = rvu_get_pfvf(rvu, pcifunc & ~RVU_PFVF_FUNC_MASK);
+
 	/* All CGX mapped PFs are set with assigned NIX block during init */
 	if (is_pf_cgxmapped(rvu, rvu_get_pf(pcifunc))) {
-		pf = rvu_get_pfvf(rvu, pcifunc & ~RVU_PFVF_FUNC_MASK);
 		blkaddr = pf->nix_blkaddr;
 	} else if (is_afvf(pcifunc)) {
 		vf = pcifunc - 1;
@@ -1381,6 +1391,10 @@ int rvu_get_nix_blkaddr(struct rvu *rvu, u16 pcifunc)
 		if (!is_block_implemented(rvu->hw, BLKADDR_NIX1))
 			blkaddr = BLKADDR_NIX0;
 	}
+
+	/* if SDP1 then the blkaddr is NIX1 */
+	if (is_sdp_pfvf(pcifunc) && pf->sdp_info->node_id == 1)
+		blkaddr = BLKADDR_NIX1;
 
 	switch (blkaddr) {
 	case BLKADDR_NIX1:
@@ -1778,6 +1792,99 @@ int rvu_mbox_handler_msix_offset(struct rvu *rvu, struct msg_req *req,
 		rsp->cpt1_lf_msixoff[slot] =
 			rvu_get_msix_offset(rvu, pfvf, BLKADDR_CPT1, lf);
 	}
+
+	return 0;
+}
+
+int rvu_mbox_handler_free_rsrc_cnt(struct rvu *rvu, struct msg_req *req,
+				   struct free_rsrcs_rsp *rsp)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	struct rvu_block *block;
+	struct nix_txsch *txsch;
+	struct nix_hw *nix_hw;
+
+	mutex_lock(&rvu->rsrc_lock);
+
+	block = &hw->block[BLKADDR_NPA];
+	rsp->npa = rvu_rsrc_free_count(&block->lf);
+
+	block = &hw->block[BLKADDR_NIX0];
+	rsp->nix = rvu_rsrc_free_count(&block->lf);
+
+	block = &hw->block[BLKADDR_NIX1];
+	rsp->nix1 = rvu_rsrc_free_count(&block->lf);
+
+	block = &hw->block[BLKADDR_SSO];
+	rsp->sso = rvu_rsrc_free_count(&block->lf);
+
+	block = &hw->block[BLKADDR_SSOW];
+	rsp->ssow = rvu_rsrc_free_count(&block->lf);
+
+	block = &hw->block[BLKADDR_TIM];
+	rsp->tim = rvu_rsrc_free_count(&block->lf);
+
+	block = &hw->block[BLKADDR_CPT0];
+	rsp->cpt = rvu_rsrc_free_count(&block->lf);
+
+	block = &hw->block[BLKADDR_CPT1];
+	rsp->cpt1 = rvu_rsrc_free_count(&block->lf);
+
+	if (rvu->hw->cap.nix_fixed_txschq_mapping) {
+		rsp->schq[NIX_TXSCH_LVL_SMQ] = 1;
+		rsp->schq[NIX_TXSCH_LVL_TL4] = 1;
+		rsp->schq[NIX_TXSCH_LVL_TL3] = 1;
+		rsp->schq[NIX_TXSCH_LVL_TL2] = 1;
+		/* NIX1 */
+		if (!is_block_implemented(rvu->hw, BLKADDR_NIX1))
+			goto out;
+		rsp->schq_nix1[NIX_TXSCH_LVL_SMQ] = 1;
+		rsp->schq_nix1[NIX_TXSCH_LVL_TL4] = 1;
+		rsp->schq_nix1[NIX_TXSCH_LVL_TL3] = 1;
+		rsp->schq_nix1[NIX_TXSCH_LVL_TL2] = 1;
+	} else {
+		nix_hw = get_nix_hw(hw, BLKADDR_NIX0);
+		txsch = &nix_hw->txsch[NIX_TXSCH_LVL_SMQ];
+		rsp->schq[NIX_TXSCH_LVL_SMQ] =
+				rvu_rsrc_free_count(&txsch->schq);
+
+		txsch = &nix_hw->txsch[NIX_TXSCH_LVL_TL4];
+		rsp->schq[NIX_TXSCH_LVL_TL4] =
+				rvu_rsrc_free_count(&txsch->schq);
+
+		txsch = &nix_hw->txsch[NIX_TXSCH_LVL_TL3];
+		rsp->schq[NIX_TXSCH_LVL_TL3] =
+				rvu_rsrc_free_count(&txsch->schq);
+
+		txsch = &nix_hw->txsch[NIX_TXSCH_LVL_TL2];
+		rsp->schq[NIX_TXSCH_LVL_TL2] =
+				rvu_rsrc_free_count(&txsch->schq);
+
+		if (!is_block_implemented(rvu->hw, BLKADDR_NIX1))
+			goto out;
+
+		nix_hw = get_nix_hw(hw, BLKADDR_NIX1);
+		txsch = &nix_hw->txsch[NIX_TXSCH_LVL_SMQ];
+		rsp->schq_nix1[NIX_TXSCH_LVL_SMQ] =
+				rvu_rsrc_free_count(&txsch->schq);
+
+		txsch = &nix_hw->txsch[NIX_TXSCH_LVL_TL4];
+		rsp->schq_nix1[NIX_TXSCH_LVL_TL4] =
+				rvu_rsrc_free_count(&txsch->schq);
+
+		txsch = &nix_hw->txsch[NIX_TXSCH_LVL_TL3];
+		rsp->schq_nix1[NIX_TXSCH_LVL_TL3] =
+				rvu_rsrc_free_count(&txsch->schq);
+
+		txsch = &nix_hw->txsch[NIX_TXSCH_LVL_TL2];
+		rsp->schq_nix1[NIX_TXSCH_LVL_TL2] =
+				rvu_rsrc_free_count(&txsch->schq);
+	}
+
+	rsp->schq_nix1[NIX_TXSCH_LVL_TL1] = 1;
+out:
+	rsp->schq[NIX_TXSCH_LVL_TL1] = 1;
+	mutex_unlock(&rvu->rsrc_lock);
 
 	return 0;
 }
