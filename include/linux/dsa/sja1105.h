@@ -16,6 +16,8 @@
 #define ETH_P_SJA1105_META			0x0008
 #define ETH_P_SJA1110				0xdadc
 
+#define SJA1105_DEFAULT_VLAN			(VLAN_N_VID - 1)
+
 /* IEEE 802.3 Annex 57A: Slow Protocols PDUs (01:80:C2:xx:xx:xx) */
 #define SJA1105_LINKLOCAL_FILTER_A		0x0180C2000000ull
 #define SJA1105_LINKLOCAL_FILTER_A_MASK		0xFFFFFF000000ull
@@ -65,7 +67,6 @@ struct sja1105_port {
 	struct sja1105_tagger_data *data;
 	struct dsa_port *dp;
 	bool hwts_tx_en;
-	u16 xmit_tpid;
 };
 
 enum sja1110_meta_tstamp {

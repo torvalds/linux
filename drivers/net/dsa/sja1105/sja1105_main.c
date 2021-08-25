@@ -26,7 +26,6 @@
 #include "sja1105_tas.h"
 
 #define SJA1105_UNKNOWN_MULTICAST	0x010000000000ull
-#define SJA1105_DEFAULT_VLAN		(VLAN_N_VID - 1)
 
 static void sja1105_hw_reset(struct gpio_desc *gpio, unsigned int pulse_len,
 			     unsigned int startup_delay)
@@ -120,11 +119,23 @@ static int sja1105_commit_pvid(struct dsa_switch *ds, int port)
 	if (rc)
 		return rc;
 
-	vlan = priv->static_config.tables[BLK_IDX_VLAN_LOOKUP].entries;
+	/* Only force dropping of untagged packets when the port is under a
+	 * VLAN-aware bridge. When the tag_8021q pvid is used, we are
+	 * deliberately removing the RX VLAN from the port's VMEMB_PORT list,
+	 * to prevent DSA tag spoofing from the link partner. Untagged packets
+	 * are the only ones that should be received with tag_8021q, so
+	 * definitely don't drop them.
+	 */
+	if (pvid == priv->bridge_pvid[port]) {
+		vlan = priv->static_config.tables[BLK_IDX_VLAN_LOOKUP].entries;
 
-	match = sja1105_is_vlan_configured(priv, pvid);
+		match = sja1105_is_vlan_configured(priv, pvid);
 
-	if (match < 0 || !(vlan[match].vmemb_port & BIT(port)))
+		if (match < 0 || !(vlan[match].vmemb_port & BIT(port)))
+			drop_untagged = true;
+	}
+
+	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
 		drop_untagged = true;
 
 	return sja1105_drop_untagged(ds, port, drop_untagged);
@@ -208,6 +219,12 @@ static int sja1105_init_mac_settings(struct sja1105_private *priv)
 		 */
 		if (dsa_port_is_dsa(dp))
 			dp->learning = true;
+
+		/* Disallow untagged packets from being received on the
+		 * CPU and DSA ports.
+		 */
+		if (dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp))
+			mac[dp->index].drpuntag = true;
 	}
 
 	return 0;
@@ -2278,15 +2295,6 @@ int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
 		tpid2 = ETH_P_SJA1105;
 	}
 
-	for (port = 0; port < ds->num_ports; port++) {
-		struct sja1105_port *sp = &priv->ports[port];
-
-		if (enabled)
-			sp->xmit_tpid = priv->info->qinq_tpid;
-		else
-			sp->xmit_tpid = ETH_P_SJA1105;
-	}
-
 	if (priv->vlan_aware == enabled)
 		return 0;
 
@@ -2343,7 +2351,7 @@ int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
 }
 
 static int sja1105_vlan_add(struct sja1105_private *priv, int port, u16 vid,
-			    u16 flags)
+			    u16 flags, bool allowed_ingress)
 {
 	struct sja1105_vlan_lookup_entry *vlan;
 	struct sja1105_table *table;
@@ -2365,7 +2373,12 @@ static int sja1105_vlan_add(struct sja1105_private *priv, int port, u16 vid,
 	vlan[match].type_entry = SJA1110_VLAN_D_TAG;
 	vlan[match].vlanid = vid;
 	vlan[match].vlan_bc |= BIT(port);
-	vlan[match].vmemb_port |= BIT(port);
+
+	if (allowed_ingress)
+		vlan[match].vmemb_port |= BIT(port);
+	else
+		vlan[match].vmemb_port &= ~BIT(port);
+
 	if (flags & BRIDGE_VLAN_INFO_UNTAGGED)
 		vlan[match].tag_port &= ~BIT(port);
 	else
@@ -2437,7 +2450,7 @@ static int sja1105_bridge_vlan_add(struct dsa_switch *ds, int port,
 	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
 		flags = 0;
 
-	rc = sja1105_vlan_add(priv, port, vlan->vid, flags);
+	rc = sja1105_vlan_add(priv, port, vlan->vid, flags, true);
 	if (rc)
 		return rc;
 
@@ -2467,9 +2480,16 @@ static int sja1105_dsa_8021q_vlan_add(struct dsa_switch *ds, int port, u16 vid,
 				      u16 flags)
 {
 	struct sja1105_private *priv = ds->priv;
+	bool allowed_ingress = true;
 	int rc;
 
-	rc = sja1105_vlan_add(priv, port, vid, flags);
+	/* Prevent attackers from trying to inject a DSA tag from
+	 * the outside world.
+	 */
+	if (dsa_is_user_port(ds, port))
+		allowed_ingress = false;
+
+	rc = sja1105_vlan_add(priv, port, vid, flags, allowed_ingress);
 	if (rc)
 		return rc;
 
@@ -2959,7 +2979,6 @@ static int sja1105_setup_ports(struct sja1105_private *priv)
 		}
 		sp->xmit_worker = worker;
 		skb_queue_head_init(&sp->xmit_queue);
-		sp->xmit_tpid = ETH_P_SJA1105;
 	}
 
 	return 0;

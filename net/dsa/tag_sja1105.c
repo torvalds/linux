@@ -133,14 +133,44 @@ static struct sk_buff *sja1105_defer_xmit(struct dsa_port *dp,
 	return NULL;
 }
 
+/* Send VLAN tags with a TPID that blends in with whatever VLAN protocol a
+ * bridge spanning ports of this switch might have.
+ */
 static u16 sja1105_xmit_tpid(struct dsa_port *dp)
 {
-	struct sja1105_port *sp = dp->priv;
+	struct dsa_switch *ds = dp->ds;
+	struct dsa_port *other_dp;
+	u16 proto;
 
-	if (unlikely(!dsa_port_is_sja1105(dp)))
-		return ETH_P_8021Q;
+	/* Since VLAN awareness is global, then if this port is VLAN-unaware,
+	 * all ports are. Use the VLAN-unaware TPID used for tag_8021q.
+	 */
+	if (!dsa_port_is_vlan_filtering(dp))
+		return ETH_P_SJA1105;
 
-	return sp->xmit_tpid;
+	/* Port is VLAN-aware, so there is a bridge somewhere (a single one,
+	 * we're sure about that). It may not be on this port though, so we
+	 * need to find it.
+	 */
+	list_for_each_entry(other_dp, &ds->dst->ports, list) {
+		if (other_dp->ds != ds)
+			continue;
+
+		if (!other_dp->bridge_dev)
+			continue;
+
+		/* Error is returned only if CONFIG_BRIDGE_VLAN_FILTERING,
+		 * which seems pointless to handle, as our port cannot become
+		 * VLAN-aware in that case.
+		 */
+		br_vlan_get_proto(other_dp->bridge_dev, &proto);
+
+		return proto;
+	}
+
+	WARN_ONCE(1, "Port is VLAN-aware but cannot find associated bridge!\n");
+
+	return ETH_P_SJA1105;
 }
 
 static struct sk_buff *sja1105_imprecise_xmit(struct sk_buff *skb,
@@ -168,6 +198,36 @@ static struct sk_buff *sja1105_imprecise_xmit(struct sk_buff *skb,
 	return dsa_8021q_xmit(skb, netdev, sja1105_xmit_tpid(dp), tx_vid);
 }
 
+/* Transform untagged control packets into pvid-tagged control packets so that
+ * all packets sent by this tagger are VLAN-tagged and we can configure the
+ * switch to drop untagged packets coming from the DSA master.
+ */
+static struct sk_buff *sja1105_pvid_tag_control_pkt(struct dsa_port *dp,
+						    struct sk_buff *skb, u8 pcp)
+{
+	__be16 xmit_tpid = htons(sja1105_xmit_tpid(dp));
+	struct vlan_ethhdr *hdr;
+
+	/* If VLAN tag is in hwaccel area, move it to the payload
+	 * to deal with both cases uniformly and to ensure that
+	 * the VLANs are added in the right order.
+	 */
+	if (unlikely(skb_vlan_tag_present(skb))) {
+		skb = __vlan_hwaccel_push_inside(skb);
+		if (!skb)
+			return NULL;
+	}
+
+	hdr = (struct vlan_ethhdr *)skb_mac_header(skb);
+
+	/* If skb is already VLAN-tagged, leave that VLAN ID in place */
+	if (hdr->h_vlan_proto == xmit_tpid)
+		return skb;
+
+	return vlan_insert_tag(skb, xmit_tpid, (pcp << VLAN_PRIO_SHIFT) |
+			       SJA1105_DEFAULT_VLAN);
+}
+
 static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
 				    struct net_device *netdev)
 {
@@ -183,8 +243,13 @@ static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
 	 * but instead SPI-installed management routes. Part 2 of this
 	 * is the .port_deferred_xmit driver callback.
 	 */
-	if (unlikely(sja1105_is_link_local(skb)))
+	if (unlikely(sja1105_is_link_local(skb))) {
+		skb = sja1105_pvid_tag_control_pkt(dp, skb, pcp);
+		if (!skb)
+			return NULL;
+
 		return sja1105_defer_xmit(dp, skb);
+	}
 
 	return dsa_8021q_xmit(skb, netdev, sja1105_xmit_tpid(dp),
 			     ((pcp << VLAN_PRIO_SHIFT) | tx_vid));
@@ -212,6 +277,10 @@ static struct sk_buff *sja1110_xmit(struct sk_buff *skb,
 	if (likely(!sja1105_is_link_local(skb)))
 		return dsa_8021q_xmit(skb, netdev, sja1105_xmit_tpid(dp),
 				     ((pcp << VLAN_PRIO_SHIFT) | tx_vid));
+
+	skb = sja1105_pvid_tag_control_pkt(dp, skb, pcp);
+	if (!skb)
+		return NULL;
 
 	skb_push(skb, SJA1110_HEADER_LEN);
 
