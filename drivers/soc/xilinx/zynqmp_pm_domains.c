@@ -80,12 +80,15 @@ static int zynqmp_gpd_power_on(struct generic_pm_domain *domain)
 					ZYNQMP_PM_MAX_QOS,
 					ZYNQMP_PM_REQUEST_ACK_BLOCKING);
 	if (ret) {
-		pr_err("%s() %s set requirement for node %d failed: %d\n",
-		       __func__, domain->name, pd->node_id, ret);
+		dev_err(&domain->dev,
+			"failed to set requirement to 0x%x for PM node id %d: %d\n",
+			ZYNQMP_PM_CAPABILITY_ACCESS, pd->node_id, ret);
 		return ret;
 	}
 
-	pr_debug("%s() Powered on %s domain\n", __func__, domain->name);
+	dev_dbg(&domain->dev, "set requirement to 0x%x for PM node id %d\n",
+		ZYNQMP_PM_CAPABILITY_ACCESS, pd->node_id);
+
 	return 0;
 }
 
@@ -110,8 +113,8 @@ static int zynqmp_gpd_power_off(struct generic_pm_domain *domain)
 
 	/* If domain is already released there is nothing to be done */
 	if (!(pd->flags & ZYNQMP_PM_DOMAIN_REQUESTED)) {
-		pr_debug("%s() %s domain is already released\n",
-			 __func__, domain->name);
+		dev_dbg(&domain->dev, "PM node id %d is already released\n",
+			pd->node_id);
 		return 0;
 	}
 
@@ -128,17 +131,16 @@ static int zynqmp_gpd_power_off(struct generic_pm_domain *domain)
 
 	ret = zynqmp_pm_set_requirement(pd->node_id, capabilities, 0,
 					ZYNQMP_PM_REQUEST_ACK_NO);
-	/**
-	 * If powering down of any node inside this domain fails,
-	 * report and return the error
-	 */
 	if (ret) {
-		pr_err("%s() %s set requirement for node %d failed: %d\n",
-		       __func__, domain->name, pd->node_id, ret);
+		dev_err(&domain->dev,
+			"failed to set requirement to 0x%x for PM node id %d: %d\n",
+			capabilities, pd->node_id, ret);
 		return ret;
 	}
 
-	pr_debug("%s() Powered off %s domain\n", __func__, domain->name);
+	dev_dbg(&domain->dev, "set requirement to 0x%x for PM node id %d\n",
+		capabilities, pd->node_id);
+
 	return 0;
 }
 
@@ -169,17 +171,17 @@ static int zynqmp_gpd_attach_dev(struct generic_pm_domain *domain,
 
 	ret = zynqmp_pm_request_node(pd->node_id, 0, 0,
 				     ZYNQMP_PM_REQUEST_ACK_BLOCKING);
-	/* If requesting a node fails print and return the error */
 	if (ret) {
-		pr_err("%s() %s request failed for node %d: %d\n",
-		       __func__, domain->name, pd->node_id, ret);
+		dev_err(&domain->dev, "%s request failed for node %d: %d\n",
+			domain->name, pd->node_id, ret);
 		return ret;
 	}
 
 	pd->flags |= ZYNQMP_PM_DOMAIN_REQUESTED;
 
-	pr_debug("%s() %s attached to %s domain\n", __func__,
-		 dev_name(dev), domain->name);
+	dev_dbg(&domain->dev, "%s requested PM node id %d\n",
+		dev_name(dev), pd->node_id);
+
 	return 0;
 }
 
@@ -201,17 +203,16 @@ static void zynqmp_gpd_detach_dev(struct generic_pm_domain *domain,
 		return;
 
 	ret = zynqmp_pm_release_node(pd->node_id);
-	/* If releasing a node fails print the error and return */
 	if (ret) {
-		pr_err("%s() %s release failed for node %d: %d\n",
-		       __func__, domain->name, pd->node_id, ret);
+		dev_err(&domain->dev, "failed to release PM node id %d: %d\n",
+			pd->node_id, ret);
 		return;
 	}
 
 	pd->flags &= ~ZYNQMP_PM_DOMAIN_REQUESTED;
 
-	pr_debug("%s() %s detached from %s domain\n", __func__,
-		 dev_name(dev), domain->name);
+	dev_dbg(&domain->dev, "%s released PM node id %d\n",
+		dev_name(dev), pd->node_id);
 }
 
 static struct generic_pm_domain *zynqmp_gpd_xlate
