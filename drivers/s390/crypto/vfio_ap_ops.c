@@ -30,9 +30,10 @@
 #define AP_QUEUE_UNASSIGNED "unassigned"
 #define AP_QUEUE_IN_USE "in use"
 
-static int vfio_ap_mdev_reset_queues(struct ap_matrix_mdev *matrix_mdev);
+static int vfio_ap_mdev_reset_queues(struct ap_queue_table *qtable);
 static struct vfio_ap_queue *vfio_ap_find_queue(int apqn);
 static const struct vfio_device_ops vfio_ap_matrix_dev_ops;
+static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q, unsigned int retry);
 
 /**
  * get_update_locks_for_kvm: Acquire the locks required to dynamically update a
@@ -649,6 +650,7 @@ static bool vfio_ap_mdev_filter_matrix(unsigned long *apm, unsigned long *aqm,
 	unsigned long apid, apqi, apqn;
 	DECLARE_BITMAP(prev_shadow_apm, AP_DEVICES);
 	DECLARE_BITMAP(prev_shadow_aqm, AP_DOMAINS);
+	struct vfio_ap_queue *q;
 
 	ret = ap_qci(&matrix_dev->info);
 	if (ret)
@@ -679,8 +681,8 @@ static bool vfio_ap_mdev_filter_matrix(unsigned long *apm, unsigned long *aqm,
 			 * hardware device.
 			 */
 			apqn = AP_MKQID(apid, apqi);
-
-			if (!vfio_ap_mdev_get_queue(matrix_mdev, apqn)) {
+			q = vfio_ap_mdev_get_queue(matrix_mdev, apqn);
+			if (!q || q->reset_rc) {
 				clear_bit_inv(apid,
 					      matrix_mdev->shadow_apcb.apm);
 				break;
@@ -760,12 +762,6 @@ static void vfio_ap_unlink_mdev_fr_queue(struct vfio_ap_queue *q)
 	q->matrix_mdev = NULL;
 }
 
-static void vfio_ap_mdev_unlink_queue(struct vfio_ap_queue *q)
-{
-	vfio_ap_unlink_queue_fr_mdev(q);
-	vfio_ap_unlink_mdev_fr_queue(q);
-}
-
 static void vfio_ap_mdev_unlink_fr_queues(struct ap_matrix_mdev *matrix_mdev)
 {
 	struct vfio_ap_queue *q;
@@ -790,7 +786,7 @@ static void vfio_ap_mdev_remove(struct mdev_device *mdev)
 
 	mutex_lock(&matrix_dev->guests_lock);
 	mutex_lock(&matrix_dev->mdevs_lock);
-	vfio_ap_mdev_reset_queues(matrix_mdev);
+	vfio_ap_mdev_reset_queues(&matrix_mdev->qtable);
 	vfio_ap_mdev_unlink_fr_queues(matrix_mdev);
 	list_del(&matrix_mdev->node);
 	mutex_unlock(&matrix_dev->mdevs_lock);
@@ -1004,18 +1000,70 @@ done:
 }
 static DEVICE_ATTR_WO(assign_adapter);
 
+static struct vfio_ap_queue
+*vfio_ap_unlink_apqn_fr_mdev(struct ap_matrix_mdev *matrix_mdev,
+			     unsigned long apid, unsigned long apqi)
+{
+	struct vfio_ap_queue *q = NULL;
+
+	q = vfio_ap_mdev_get_queue(matrix_mdev, AP_MKQID(apid, apqi));
+	/* If the queue is assigned to the matrix mdev, unlink it. */
+	if (q)
+		vfio_ap_unlink_queue_fr_mdev(q);
+
+	return q;
+}
+
+/**
+ * vfio_ap_mdev_unlink_adapter - unlink all queues associated with unassigned
+ *				 adapter from the matrix mdev to which the
+ *				 adapter was assigned.
+ * @matrix_mdev: the matrix mediated device to which the adapter was assigned.
+ * @apid: the APID of the unassigned adapter.
+ * @qtable: table for storing queues associated with unassigned adapter.
+ */
 static void vfio_ap_mdev_unlink_adapter(struct ap_matrix_mdev *matrix_mdev,
-					unsigned long apid)
+					unsigned long apid,
+					struct ap_queue_table *qtable)
 {
 	unsigned long apqi;
 	struct vfio_ap_queue *q;
 
 	for_each_set_bit_inv(apqi, matrix_mdev->matrix.aqm, AP_DOMAINS) {
-		q = vfio_ap_mdev_get_queue(matrix_mdev, AP_MKQID(apid, apqi));
+		q = vfio_ap_unlink_apqn_fr_mdev(matrix_mdev, apid, apqi);
 
-		if (q)
-			vfio_ap_mdev_unlink_queue(q);
+		if (q && qtable) {
+			if (test_bit_inv(apid, matrix_mdev->shadow_apcb.apm) &&
+			    test_bit_inv(apqi, matrix_mdev->shadow_apcb.aqm))
+				hash_add(qtable->queues, &q->mdev_qnode,
+					 q->apqn);
+		}
 	}
+}
+
+static void vfio_ap_mdev_hot_unplug_adapter(struct ap_matrix_mdev *matrix_mdev,
+					    unsigned long apid)
+{
+	int loop_cursor;
+	struct vfio_ap_queue *q;
+	struct ap_queue_table *qtable = kzalloc(sizeof(*qtable), GFP_KERNEL);
+
+	hash_init(qtable->queues);
+	vfio_ap_mdev_unlink_adapter(matrix_mdev, apid, qtable);
+
+	if (test_bit_inv(apid, matrix_mdev->shadow_apcb.apm)) {
+		clear_bit_inv(apid, matrix_mdev->shadow_apcb.apm);
+		vfio_ap_mdev_update_guest_apcb(matrix_mdev);
+	}
+
+	vfio_ap_mdev_reset_queues(qtable);
+
+	hash_for_each(qtable->queues, loop_cursor, q, mdev_qnode) {
+		vfio_ap_unlink_mdev_fr_queue(q);
+		hash_del(&q->mdev_qnode);
+	}
+
+	kfree(qtable);
 }
 
 /**
@@ -1053,13 +1101,7 @@ static ssize_t unassign_adapter_store(struct device *dev,
 	}
 
 	clear_bit_inv((unsigned long)apid, matrix_mdev->matrix.apm);
-	vfio_ap_mdev_unlink_adapter(matrix_mdev, apid);
-
-	if (test_bit_inv(apid, matrix_mdev->shadow_apcb.apm)) {
-		clear_bit_inv(apid, matrix_mdev->shadow_apcb.apm);
-		vfio_ap_mdev_update_guest_apcb(matrix_mdev);
-	}
-
+	vfio_ap_mdev_hot_unplug_adapter(matrix_mdev, apid);
 	ret = count;
 done:
 	release_update_locks_for_mdev(matrix_mdev);
@@ -1152,17 +1194,47 @@ done:
 static DEVICE_ATTR_WO(assign_domain);
 
 static void vfio_ap_mdev_unlink_domain(struct ap_matrix_mdev *matrix_mdev,
-				       unsigned long apqi)
+				       unsigned long apqi,
+				       struct ap_queue_table *qtable)
 {
 	unsigned long apid;
 	struct vfio_ap_queue *q;
 
 	for_each_set_bit_inv(apid, matrix_mdev->matrix.apm, AP_DEVICES) {
-		q = vfio_ap_mdev_get_queue(matrix_mdev, AP_MKQID(apid, apqi));
+		q = vfio_ap_unlink_apqn_fr_mdev(matrix_mdev, apid, apqi);
 
-		if (q)
-			vfio_ap_mdev_unlink_queue(q);
+		if (q && qtable) {
+			if (test_bit_inv(apid, matrix_mdev->shadow_apcb.apm) &&
+			    test_bit_inv(apqi, matrix_mdev->shadow_apcb.aqm))
+				hash_add(qtable->queues, &q->mdev_qnode,
+					 q->apqn);
+		}
 	}
+}
+
+static void vfio_ap_mdev_hot_unplug_domain(struct ap_matrix_mdev *matrix_mdev,
+					   unsigned long apqi)
+{
+	int loop_cursor;
+	struct vfio_ap_queue *q;
+	struct ap_queue_table *qtable = kzalloc(sizeof(*qtable), GFP_KERNEL);
+
+	hash_init(qtable->queues);
+	vfio_ap_mdev_unlink_domain(matrix_mdev, apqi, qtable);
+
+	if (test_bit_inv(apqi, matrix_mdev->shadow_apcb.aqm)) {
+		clear_bit_inv(apqi, matrix_mdev->shadow_apcb.aqm);
+		vfio_ap_mdev_update_guest_apcb(matrix_mdev);
+	}
+
+	vfio_ap_mdev_reset_queues(qtable);
+
+	hash_for_each(qtable->queues, loop_cursor, q, mdev_qnode) {
+		vfio_ap_unlink_mdev_fr_queue(q);
+		hash_del(&q->mdev_qnode);
+	}
+
+	kfree(qtable);
 }
 
 /**
@@ -1200,13 +1272,7 @@ static ssize_t unassign_domain_store(struct device *dev,
 	}
 
 	clear_bit_inv((unsigned long)apqi, matrix_mdev->matrix.aqm);
-	vfio_ap_mdev_unlink_domain(matrix_mdev, apqi);
-
-	if (test_bit_inv(apqi, matrix_mdev->shadow_apcb.aqm)) {
-		clear_bit_inv(apqi, matrix_mdev->shadow_apcb.aqm);
-		vfio_ap_mdev_update_guest_apcb(matrix_mdev);
-	}
-
+	vfio_ap_mdev_hot_unplug_domain(matrix_mdev, apqi);
 	ret = count;
 
 done:
@@ -1491,7 +1557,7 @@ static void vfio_ap_mdev_unset_kvm(struct ap_matrix_mdev *matrix_mdev)
 		get_update_locks_for_kvm(kvm);
 
 		kvm_arch_crypto_clear_masks(kvm);
-		vfio_ap_mdev_reset_queues(matrix_mdev);
+		vfio_ap_mdev_reset_queues(&matrix_mdev->qtable);
 		kvm_put_kvm(kvm);
 		matrix_mdev->kvm = NULL;
 
@@ -1525,9 +1591,9 @@ static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q,
 
 	if (!q)
 		return 0;
-
 retry_zapq:
 	status = ap_zapq(q->apqn);
+	q->reset_rc = status.response_code;
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		ret = 0;
@@ -1542,12 +1608,17 @@ retry_zapq:
 	case AP_RESPONSE_Q_NOT_AVAIL:
 	case AP_RESPONSE_DECONFIGURED:
 	case AP_RESPONSE_CHECKSTOPPED:
-		WARN_ON_ONCE(status.irq_enabled);
+		WARN_ONCE(status.irq_enabled,
+			  "PQAP/ZAPQ for %02x.%04x failed with rc=%u while IRQ enabled",
+			  AP_QID_CARD(q->apqn), AP_QID_QUEUE(q->apqn),
+			  status.response_code);
 		ret = -EBUSY;
 		goto free_resources;
 	default:
 		/* things are really broken, give up */
-		WARN(true, "PQAP/ZAPQ completed with invalid rc (%x)\n",
+		WARN(true,
+		     "PQAP/ZAPQ for %02x.%04x failed with invalid rc=%u\n",
+		     AP_QID_CARD(q->apqn), AP_QID_QUEUE(q->apqn),
 		     status.response_code);
 		return -EIO;
 	}
@@ -1559,7 +1630,8 @@ retry_zapq:
 		msleep(20);
 		status = ap_tapq(q->apqn, NULL);
 	}
-	WARN_ON_ONCE(retry2 <= 0);
+	WARN_ONCE(retry2 <= 0, "unable to verify reset of queue %02x.%04x",
+		  AP_QID_CARD(q->apqn), AP_QID_QUEUE(q->apqn));
 
 free_resources:
 	vfio_ap_free_aqic_resources(q);
@@ -1567,12 +1639,12 @@ free_resources:
 	return ret;
 }
 
-static int vfio_ap_mdev_reset_queues(struct ap_matrix_mdev *matrix_mdev)
+static int vfio_ap_mdev_reset_queues(struct ap_queue_table *qtable)
 {
 	int ret, loop_cursor, rc = 0;
 	struct vfio_ap_queue *q;
 
-	hash_for_each(matrix_mdev->qtable.queues, loop_cursor, q, mdev_qnode) {
+	hash_for_each(qtable->queues, loop_cursor, q, mdev_qnode) {
 		ret = vfio_ap_mdev_reset_queue(q, 1);
 		/*
 		 * Regardless whether a queue turns out to be busy, or
@@ -1656,7 +1728,7 @@ static ssize_t vfio_ap_mdev_ioctl(struct vfio_device *vdev,
 		ret = vfio_ap_mdev_get_device_info(arg);
 		break;
 	case VFIO_DEVICE_RESET:
-		ret = vfio_ap_mdev_reset_queues(matrix_mdev);
+		ret = vfio_ap_mdev_reset_queues(&matrix_mdev->qtable);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
