@@ -82,6 +82,9 @@ __BTF_ID_LIST(name, globl)
 #define BTF_ID_LIST_SINGLE(name, prefix, typename)	\
 	BTF_ID_LIST(name) \
 	BTF_ID(prefix, typename)
+#define BTF_ID_LIST_GLOBAL_SINGLE(name, prefix, typename) \
+	BTF_ID_LIST_GLOBAL(name) \
+	BTF_ID(prefix, typename)
 
 /*
  * The BTF_ID_UNUSED macro defines 4 zero bytes.
@@ -184,5 +187,7 @@ MAX_BTF_SOCK_TYPE,
 
 extern u32 btf_sock_ids[];
 #endif
+
+extern u32 btf_task_struct_ids[];
 
 #endif
