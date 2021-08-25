@@ -195,7 +195,7 @@ static void cpt_set_fdi_bc_bifurcation(struct drm_i915_private *dev_priv, bool e
 	intel_de_posting_read(dev_priv, SOUTH_CHICKEN1);
 }
 
-void ivb_update_fdi_bc_bifurcation(const struct intel_crtc_state *crtc_state)
+static void ivb_update_fdi_bc_bifurcation(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -269,6 +269,13 @@ static void ilk_fdi_link_train(struct intel_crtc *crtc,
 	enum pipe pipe = crtc->pipe;
 	i915_reg_t reg;
 	u32 temp, tries;
+
+	/*
+	 * Write the TU size bits before fdi link training, so that error
+	 * detection works.
+	 */
+	intel_de_write(dev_priv, FDI_RX_TUSIZE1(pipe),
+		       intel_de_read(dev_priv, PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
 
 	/* FDI needs bits from pipe first */
 	assert_pipe_enabled(dev_priv, crtc_state->cpu_transcoder);
@@ -372,6 +379,13 @@ static void gen6_fdi_link_train(struct intel_crtc *crtc,
 	enum pipe pipe = crtc->pipe;
 	i915_reg_t reg;
 	u32 temp, i, retry;
+
+	/*
+	 * Write the TU size bits before fdi link training, so that error
+	 * detection works.
+	 */
+	intel_de_write(dev_priv, FDI_RX_TUSIZE1(pipe),
+		       intel_de_read(dev_priv, PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */
@@ -509,6 +523,15 @@ static void ivb_manual_fdi_link_train(struct intel_crtc *crtc,
 	enum pipe pipe = crtc->pipe;
 	i915_reg_t reg;
 	u32 temp, i, j;
+
+	ivb_update_fdi_bc_bifurcation(crtc_state);
+
+	/*
+	 * Write the TU size bits before fdi link training, so that error
+	 * detection works.
+	 */
+	intel_de_write(dev_priv, FDI_RX_TUSIZE1(pipe),
+		       intel_de_read(dev_priv, PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */
