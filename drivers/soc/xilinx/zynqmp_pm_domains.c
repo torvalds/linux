@@ -20,8 +20,6 @@
 #include <linux/firmware/xlnx-zynqmp.h>
 
 #define ZYNQMP_NUM_DOMAINS		(100)
-/* Flag stating if PM nodes mapped to the PM domain has been requested */
-#define ZYNQMP_PM_DOMAIN_REQUESTED	BIT(0)
 
 static int min_capability;
 
@@ -29,12 +27,12 @@ static int min_capability;
  * struct zynqmp_pm_domain - Wrapper around struct generic_pm_domain
  * @gpd:		Generic power domain
  * @node_id:		PM node ID corresponding to device inside PM domain
- * @flags:		ZynqMP PM domain flags
+ * @requested:		The PM node mapped to the PM domain has been requested
  */
 struct zynqmp_pm_domain {
 	struct generic_pm_domain gpd;
 	u32 node_id;
-	u8 flags;
+	bool requested;
 };
 
 /**
@@ -112,7 +110,7 @@ static int zynqmp_gpd_power_off(struct generic_pm_domain *domain)
 	pd = container_of(domain, struct zynqmp_pm_domain, gpd);
 
 	/* If domain is already released there is nothing to be done */
-	if (!(pd->flags & ZYNQMP_PM_DOMAIN_REQUESTED)) {
+	if (!pd->requested) {
 		dev_dbg(&domain->dev, "PM node id %d is already released\n",
 			pd->node_id);
 		return 0;
@@ -177,7 +175,7 @@ static int zynqmp_gpd_attach_dev(struct generic_pm_domain *domain,
 		return ret;
 	}
 
-	pd->flags |= ZYNQMP_PM_DOMAIN_REQUESTED;
+	pd->requested = true;
 
 	dev_dbg(&domain->dev, "%s requested PM node id %d\n",
 		dev_name(dev), pd->node_id);
@@ -209,7 +207,7 @@ static void zynqmp_gpd_detach_dev(struct generic_pm_domain *domain,
 		return;
 	}
 
-	pd->flags &= ~ZYNQMP_PM_DOMAIN_REQUESTED;
+	pd->requested = false;
 
 	dev_dbg(&domain->dev, "%s released PM node id %d\n",
 		dev_name(dev), pd->node_id);
