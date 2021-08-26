@@ -40,9 +40,6 @@ static int numa_enabled = 1;
 
 static char *cmdline __initdata;
 
-static int numa_debug;
-#define dbg(args...) if (numa_debug) { printk(KERN_INFO args); }
-
 int numa_cpu_lookup_table[NR_CPUS];
 cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
 struct pglist_data *node_data[MAX_NUMNODES];
@@ -87,7 +84,7 @@ static void __init setup_node_to_cpumask_map(void)
 		alloc_bootmem_cpumask_var(&node_to_cpumask_map[node]);
 
 	/* cpumask_of_node() will now work */
-	dbg("Node to cpumask map for %u nodes\n", nr_node_ids);
+	pr_debug("Node to cpumask map for %u nodes\n", nr_node_ids);
 }
 
 static int __init fake_numa_create_new_node(unsigned long end_pfn,
@@ -131,7 +128,7 @@ static int __init fake_numa_create_new_node(unsigned long end_pfn,
 		cmdline = p;
 		fake_nid++;
 		*nid = fake_nid;
-		dbg("created new fake_node with id %d\n", fake_nid);
+		pr_debug("created new fake_node with id %d\n", fake_nid);
 		return 1;
 	}
 	return 0;
@@ -149,7 +146,7 @@ static void map_cpu_to_node(int cpu, int node)
 {
 	update_numa_cpu_lookup_table(cpu, node);
 
-	dbg("adding cpu %d to node %d\n", cpu, node);
+	pr_debug("adding cpu %d to node %d\n", cpu, node);
 
 	if (!(cpumask_test_cpu(cpu, node_to_cpumask_map[node])))
 		cpumask_set_cpu(cpu, node_to_cpumask_map[node]);
@@ -160,7 +157,7 @@ static void unmap_cpu_from_node(unsigned long cpu)
 {
 	int node = numa_cpu_lookup_table[cpu];
 
-	dbg("removing cpu %lu from node %d\n", cpu, node);
+	pr_debug("removing cpu %lu from node %d\n", cpu, node);
 
 	if (cpumask_test_cpu(cpu, node_to_cpumask_map[node])) {
 		cpumask_clear_cpu(cpu, node_to_cpumask_map[node]);
@@ -450,10 +447,10 @@ static int __init find_primary_domain_index(void)
 	if (firmware_has_feature(FW_FEATURE_OPAL)) {
 		affinity_form = FORM1_AFFINITY;
 	} else if (firmware_has_feature(FW_FEATURE_FORM2_AFFINITY)) {
-		dbg("Using form 2 affinity\n");
+		pr_debug("Using form 2 affinity\n");
 		affinity_form = FORM2_AFFINITY;
 	} else if (firmware_has_feature(FW_FEATURE_FORM1_AFFINITY)) {
-		dbg("Using form 1 affinity\n");
+		pr_debug("Using form 1 affinity\n");
 		affinity_form = FORM1_AFFINITY;
 	} else
 		affinity_form = FORM0_AFFINITY;
@@ -482,7 +479,7 @@ static int __init find_primary_domain_index(void)
 					&distance_ref_points_depth);
 
 	if (!distance_ref_points) {
-		dbg("NUMA: ibm,associativity-reference-points not found.\n");
+		pr_debug("NUMA: ibm,associativity-reference-points not found.\n");
 		goto err;
 	}
 
@@ -928,7 +925,7 @@ static int __init parse_numa_properties(void)
 		return primary_domain_index;
 	}
 
-	dbg("NUMA associativity depth for CPU/Memory: %d\n", primary_domain_index);
+	pr_debug("NUMA associativity depth for CPU/Memory: %d\n", primary_domain_index);
 
 	/*
 	 * If it is FORM2 initialize the distance table here.
@@ -1251,9 +1248,6 @@ static int __init early_numa(char *p)
 	if (strstr(p, "off"))
 		numa_enabled = 0;
 
-	if (strstr(p, "debug"))
-		numa_debug = 1;
-
 	p = strstr(p, "fake=");
 	if (p)
 		cmdline = p + strlen("fake=");
@@ -1416,7 +1410,7 @@ static long vphn_get_associativity(unsigned long cpu,
 
 	switch (rc) {
 	case H_SUCCESS:
-		dbg("VPHN hcall succeeded. Reset polling...\n");
+		pr_debug("VPHN hcall succeeded. Reset polling...\n");
 		goto out;
 
 	case H_FUNCTION:
