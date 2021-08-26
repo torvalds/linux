@@ -1103,8 +1103,6 @@ static int zynqmp_dma_probe(struct platform_device *pdev)
 	pm_runtime_mark_last_busy(zdev->dev);
 	pm_runtime_put_sync_autosuspend(zdev->dev);
 
-	dev_info(&pdev->dev, "ZynqMP DMA driver Probe success\n");
-
 	return 0;
 
 free_chan_resources:
