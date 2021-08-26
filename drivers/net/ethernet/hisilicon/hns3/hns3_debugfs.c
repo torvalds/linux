@@ -938,20 +938,19 @@ static int hns3_dbg_dev_info(struct hnae3_handle *h, char *buf, int len)
 	return 0;
 }
 
-static int hns3_dbg_get_cmd_index(struct hnae3_handle *handle,
-				  const unsigned char *name, u32 *index)
+static int hns3_dbg_get_cmd_index(struct hns3_dbg_data *dbg_data, u32 *index)
 {
 	u32 i;
 
 	for (i = 0; i < ARRAY_SIZE(hns3_dbg_cmd); i++) {
-		if (!strncmp(name, hns3_dbg_cmd[i].name,
-			     strlen(hns3_dbg_cmd[i].name))) {
+		if (hns3_dbg_cmd[i].cmd == dbg_data->cmd) {
 			*index = i;
 			return 0;
 		}
 	}
 
-	dev_err(&handle->pdev->dev, "unknown command(%s)\n", name);
+	dev_err(&dbg_data->handle->pdev->dev, "unknown command(%d)\n",
+		dbg_data->cmd);
 	return -EINVAL;
 }
 
@@ -1019,8 +1018,7 @@ static ssize_t hns3_dbg_read(struct file *filp, char __user *buffer,
 	u32 index;
 	int ret;
 
-	ret = hns3_dbg_get_cmd_index(handle, filp->f_path.dentry->d_iname,
-				     &index);
+	ret = hns3_dbg_get_cmd_index(dbg_data, &index);
 	if (ret)
 		return ret;
 
@@ -1090,6 +1088,7 @@ static int hns3_dbg_bd_file_init(struct hnae3_handle *handle, u32 cmd)
 		char name[HNS3_DBG_FILE_NAME_LEN];
 
 		data[i].handle = handle;
+		data[i].cmd = hns3_dbg_cmd[cmd].cmd;
 		data[i].qid = i;
 		sprintf(name, "%s%u", hns3_dbg_cmd[cmd].name, i);
 		debugfs_create_file(name, 0400, entry_dir, &data[i],
@@ -1110,6 +1109,7 @@ hns3_dbg_common_file_init(struct hnae3_handle *handle, u32 cmd)
 		return -ENOMEM;
 
 	data->handle = handle;
+	data->cmd = hns3_dbg_cmd[cmd].cmd;
 	entry_dir = hns3_dbg_dentry[hns3_dbg_cmd[cmd].dentry].dentry;
 	debugfs_create_file(hns3_dbg_cmd[cmd].name, 0400, entry_dir,
 			    data, &hns3_dbg_fops);
