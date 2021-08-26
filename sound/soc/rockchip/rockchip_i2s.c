@@ -40,6 +40,9 @@ struct rk_i2s_dev {
 	struct regmap *regmap;
 	struct regmap *grf;
 
+	bool has_capture;
+	bool has_playback;
+
 /*
  * Used to indicate the tx/rx status.
  * I2S controller hopes to start the tx and rx together,
@@ -453,8 +456,9 @@ static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rk_i2s_dev *i2s = snd_soc_dai_get_drvdata(dai);
 
-	dai->capture_dma_data = &i2s->capture_dma_data;
-	dai->playback_dma_data = &i2s->playback_dma_data;
+	snd_soc_dai_init_dma_data(dai,
+		i2s->has_playback ? &i2s->playback_dma_data : NULL,
+		i2s->has_capture  ? &i2s->capture_dma_data  : NULL);
 
 	return 0;
 }
@@ -469,28 +473,6 @@ static const struct snd_soc_dai_ops rockchip_i2s_dai_ops = {
 
 static struct snd_soc_dai_driver rockchip_i2s_dai = {
 	.probe = rockchip_i2s_dai_probe,
-	.playback = {
-		.stream_name = "Playback",
-		.channels_min = 2,
-		.channels_max = 8,
-		.rates = SNDRV_PCM_RATE_8000_192000,
-		.formats = (SNDRV_PCM_FMTBIT_S8 |
-			    SNDRV_PCM_FMTBIT_S16_LE |
-			    SNDRV_PCM_FMTBIT_S20_3LE |
-			    SNDRV_PCM_FMTBIT_S24_LE |
-			    SNDRV_PCM_FMTBIT_S32_LE),
-	},
-	.capture = {
-		.stream_name = "Capture",
-		.channels_min = 2,
-		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_8000_192000,
-		.formats = (SNDRV_PCM_FMTBIT_S8 |
-			    SNDRV_PCM_FMTBIT_S16_LE |
-			    SNDRV_PCM_FMTBIT_S20_3LE |
-			    SNDRV_PCM_FMTBIT_S24_LE |
-			    SNDRV_PCM_FMTBIT_S32_LE),
-	},
 	.ops = &rockchip_i2s_dai_ops,
 	.symmetric_rates = 1,
 };
@@ -595,16 +577,84 @@ static const struct of_device_id rockchip_i2s_match[] __maybe_unused = {
 	{},
 };
 
+static int rockchip_i2s_init_dai(struct rk_i2s_dev *i2s, struct resource *res,
+				 struct snd_soc_dai_driver **dp)
+{
+	struct device_node *node = i2s->dev->of_node;
+	struct snd_soc_dai_driver *dai;
+	struct property *dma_names;
+	const char *dma_name;
+	unsigned int val;
+
+	of_property_for_each_string(node, "dma-names", dma_names, dma_name) {
+		if (!strcmp(dma_name, "tx"))
+			i2s->has_playback = true;
+		if (!strcmp(dma_name, "rx"))
+			i2s->has_capture = true;
+	}
+
+	dai = devm_kmemdup(i2s->dev, &rockchip_i2s_dai,
+			   sizeof(*dai), GFP_KERNEL);
+	if (!dai)
+		return -ENOMEM;
+
+	if (i2s->has_playback) {
+		dai->playback.stream_name = "Playback";
+		dai->playback.channels_min = 2;
+		dai->playback.channels_max = 8;
+		dai->playback.rates = SNDRV_PCM_RATE_8000_192000;
+		dai->playback.formats = SNDRV_PCM_FMTBIT_S8 |
+					SNDRV_PCM_FMTBIT_S16_LE |
+					SNDRV_PCM_FMTBIT_S20_3LE |
+					SNDRV_PCM_FMTBIT_S24_LE |
+					SNDRV_PCM_FMTBIT_S32_LE;
+
+		i2s->playback_dma_data.addr = res->start + I2S_TXDR;
+		i2s->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+		i2s->playback_dma_data.maxburst = 8;
+
+		if (!of_property_read_u32(node, "rockchip,playback-channels", &val)) {
+			if (val >= 2 && val <= 8)
+				dai->playback.channels_max = val;
+		}
+	}
+
+	if (i2s->has_capture) {
+		dai->capture.stream_name = "Capture";
+		dai->capture.channels_min = 2;
+		dai->capture.channels_max = 8;
+		dai->capture.rates = SNDRV_PCM_RATE_8000_192000;
+		dai->capture.formats = SNDRV_PCM_FMTBIT_S8 |
+				       SNDRV_PCM_FMTBIT_S16_LE |
+				       SNDRV_PCM_FMTBIT_S20_3LE |
+				       SNDRV_PCM_FMTBIT_S24_LE |
+				       SNDRV_PCM_FMTBIT_S32_LE;
+
+		i2s->capture_dma_data.addr = res->start + I2S_RXDR;
+		i2s->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+		i2s->capture_dma_data.maxburst = 8;
+
+		if (!of_property_read_u32(node, "rockchip,capture-channels", &val)) {
+			if (val >= 2 && val <= 8)
+				dai->capture.channels_max = val;
+		}
+	}
+
+	if (dp)
+		*dp = dai;
+
+	return 0;
+}
+
 static int rockchip_i2s_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	const struct of_device_id *of_id;
 	struct rk_i2s_dev *i2s;
-	struct snd_soc_dai_driver *soc_dai;
+	struct snd_soc_dai_driver *dai;
 	struct resource *res;
 	void __iomem *regs;
 	int ret;
-	int val;
 
 	i2s = devm_kzalloc(&pdev->dev, sizeof(*i2s), GFP_KERNEL);
 	if (!i2s)
@@ -651,14 +701,6 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 		return PTR_ERR(i2s->regmap);
 	}
 
-	i2s->playback_dma_data.addr = res->start + I2S_TXDR;
-	i2s->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	i2s->playback_dma_data.maxburst = 8;
-
-	i2s->capture_dma_data.addr = res->start + I2S_RXDR;
-	i2s->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	i2s->capture_dma_data.maxburst = 8;
-
 	i2s->bclk_ratio = 64;
 
 	dev_set_drvdata(&pdev->dev, i2s);
@@ -670,26 +712,13 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 			goto err_pm_disable;
 	}
 
-	soc_dai = devm_kmemdup(&pdev->dev, &rockchip_i2s_dai,
-			       sizeof(*soc_dai), GFP_KERNEL);
-	if (!soc_dai) {
-		ret = -ENOMEM;
+	ret = rockchip_i2s_init_dai(i2s, res, &dai);
+	if (ret)
 		goto err_pm_disable;
-	}
-
-	if (!of_property_read_u32(node, "rockchip,playback-channels", &val)) {
-		if (val >= 2 && val <= 8)
-			soc_dai->playback.channels_max = val;
-	}
-
-	if (!of_property_read_u32(node, "rockchip,capture-channels", &val)) {
-		if (val >= 2 && val <= 8)
-			soc_dai->capture.channels_max = val;
-	}
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &rockchip_i2s_component,
-					      soc_dai, 1);
+					      dai, 1);
 
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register DAI\n");
