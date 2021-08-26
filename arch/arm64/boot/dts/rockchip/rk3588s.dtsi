@@ -284,6 +284,11 @@
 		reg = <0x0 0xfd5c8000 0x0 0x4000>;
 	};
 
+	ioc: syscon@fd5f0000 {
+		compatible = "rockchip,rk3588-ioc", "syscon";
+		reg = <0x0 0xfd5f0000 0x0 0x10000>;
+	};
+
 	syssram: sram@fd600000 {
 		compatible = "mmio-sram";
 		reg = <0x0 0xfd600000 0x0 0x100000>;
@@ -1657,8 +1662,7 @@
 
 	pinctrl: pinctrl {
 		compatible = "rockchip,rk3588-pinctrl";
-		//rockchip,grf = <&grf>;
-		//rockchip,pmu = <&pmugrf>;
+		rockchip,grf = <&ioc>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
