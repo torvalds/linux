@@ -50,6 +50,8 @@ properties:
   compatible:
     enum:
       - sprd,sc9860-adi
+      - sprd,sc9863-adi
+      - sprd,ums512-adi
 
   reg:
     maxItems: 1
