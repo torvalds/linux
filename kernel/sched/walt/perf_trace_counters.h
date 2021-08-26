@@ -18,6 +18,7 @@
 #define C4 0x10
 #define C5 0x20
 #define C_ALL (CC | C0 | C1 | C2 | C3 | C4 | C5)
+#define TYPE_MASK 0xFFFF
 #define NUM_L1_CTRS 6
 #define NUM_AMU_CTRS 2
 
@@ -115,6 +116,57 @@ TRACE_EVENT(sched_switch_with_ctrs,
 				__entry->ctr2, __entry->ctr3,
 				__entry->ctr4, __entry->ctr5,
 				__entry->amu0, __entry->amu1)
+);
+
+TRACE_EVENT(sched_switch_ctrs_cfg,
+
+		TP_PROTO(int cpu),
+
+		TP_ARGS(cpu),
+
+		TP_STRUCT__entry(
+			__field(int, cpu)
+			__field(unsigned long, ctr0)
+			__field(unsigned long, ctr1)
+			__field(unsigned long, ctr2)
+			__field(unsigned long, ctr3)
+			__field(unsigned long, ctr4)
+			__field(unsigned long, ctr5)
+		),
+
+		TP_fast_assign(
+			u32 i;
+			u32 cnten_val;
+			u32 ctr_type[NUM_L1_CTRS] = {0};
+
+			cnten_val = per_cpu(cntenset_val, cpu);
+
+			for (i = 0; i < NUM_L1_CTRS; i++) {
+				if (cnten_val & (1 << i)) {
+					/* Select */
+					write_sysreg(i, pmselr_el0);
+					isb();
+					/* Read type */
+					ctr_type[i] = read_sysreg(pmxevtyper_el0)
+								& TYPE_MASK;
+				} else
+					ctr_type[i] = 0;
+			}
+
+			__entry->cpu  = cpu;
+			__entry->ctr0 = ctr_type[0];
+			__entry->ctr1 = ctr_type[1];
+			__entry->ctr2 = ctr_type[2];
+			__entry->ctr3 = ctr_type[3];
+			__entry->ctr4 = ctr_type[4];
+			__entry->ctr5 = ctr_type[5];
+		),
+
+		TP_printk("cpu=%d CTR0=%lu CTR1=%lu CTR2=%lu CTR3=%lu CTR4=%lu CTR5=%lu",
+				__entry->cpu,
+				__entry->ctr0, __entry->ctr1,
+				__entry->ctr2, __entry->ctr3,
+				__entry->ctr4, __entry->ctr5)
 );
 
 #endif

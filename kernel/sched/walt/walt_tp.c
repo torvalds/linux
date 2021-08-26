@@ -20,6 +20,7 @@ DEFINE_PER_CPU(unsigned long[NUM_L1_CTRS], previous_l1_cnts);
 DEFINE_PER_CPU(unsigned long[NUM_AMU_CTRS], previous_amu_cnts);
 DEFINE_PER_CPU(u32, old_pid);
 DEFINE_PER_CPU(u32, hotplug_flag);
+DEFINE_PER_CPU(u64, prev_time);
 
 static int tracectr_cpu_hotplug_coming_up(unsigned int cpu)
 {
@@ -54,6 +55,7 @@ void tracectr_notifier(void *ignore, bool preempt,
 	u32 cnten_val;
 	int current_pid;
 	u32 cpu = task_cpu(next);
+	u64 now;
 
 	if (!trace_sched_switch_with_ctrs_enabled())
 		return;
@@ -71,6 +73,11 @@ void tracectr_notifier(void *ignore, bool preempt,
 		} else {
 			trace_sched_switch_with_ctrs(per_cpu(old_pid, cpu),
 						     current_pid);
+			now = sched_clock();
+			if ((now - per_cpu(prev_time, cpu)) > NSEC_PER_SEC) {
+				trace_sched_switch_ctrs_cfg(cpu);
+				per_cpu(prev_time, cpu) = now;
+			}
 		}
 
 		/* Enable all the counters that were disabled */
