@@ -296,16 +296,25 @@ void *pci_vpd_alloc(struct pci_dev *dev, unsigned int *size)
 }
 EXPORT_SYMBOL_GPL(pci_vpd_alloc);
 
-static int pci_vpd_find_tag(const u8 *buf, unsigned int len, u8 rdt)
+static int pci_vpd_find_tag(const u8 *buf, unsigned int len, u8 rdt, unsigned int *size)
 {
 	int i = 0;
 
 	/* look for LRDT tags only, end tag is the only SRDT tag */
 	while (i + PCI_VPD_LRDT_TAG_SIZE <= len && buf[i] & PCI_VPD_LRDT) {
-		if (buf[i] == rdt)
-			return i;
+		unsigned int lrdt_len = pci_vpd_lrdt_size(buf + i);
+		u8 tag = buf[i];
 
-		i += PCI_VPD_LRDT_TAG_SIZE + pci_vpd_lrdt_size(buf + i);
+		i += PCI_VPD_LRDT_TAG_SIZE;
+		if (tag == rdt) {
+			if (i + lrdt_len > len)
+				lrdt_len = len - i;
+			if (size)
+				*size = lrdt_len;
+			return i;
+		}
+
+		i += lrdt_len;
 	}
 
 	return -ENOENT;
@@ -384,15 +393,9 @@ int pci_vpd_find_ro_info_keyword(const void *buf, unsigned int len,
 	int ro_start, infokw_start;
 	unsigned int ro_len, infokw_size;
 
-	ro_start = pci_vpd_find_tag(buf, len, PCI_VPD_LRDT_RO_DATA);
+	ro_start = pci_vpd_find_tag(buf, len, PCI_VPD_LRDT_RO_DATA, &ro_len);
 	if (ro_start < 0)
 		return ro_start;
-
-	ro_len = pci_vpd_lrdt_size(buf + ro_start);
-	ro_start += PCI_VPD_LRDT_TAG_SIZE;
-
-	if (ro_start + ro_len > len)
-		ro_len = len - ro_start;
 
 	infokw_start = pci_vpd_find_info_keyword(buf, ro_start, ro_len, kw);
 	if (infokw_start < 0)
