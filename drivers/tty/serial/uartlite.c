@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -454,24 +455,15 @@ static const struct uart_ops ulite_ops = {
 static void ulite_console_wait_tx(struct uart_port *port)
 {
 	u8 val;
-	unsigned long timeout;
 
 	/*
 	 * Spin waiting for TX fifo to have space available.
 	 * When using the Microblaze Debug Module this can take up to 1s
 	 */
-	timeout = jiffies + msecs_to_jiffies(1000);
-	while (1) {
-		val = uart_in32(ULITE_STATUS, port);
-		if ((val & ULITE_STATUS_TXFULL) == 0)
-			break;
-		if (time_after(jiffies, timeout)) {
-			dev_warn(port->dev,
-				 "timeout waiting for TX buffer empty\n");
-			break;
-		}
-		cpu_relax();
-	}
+	if (read_poll_timeout_atomic(uart_in32, val, !(val & ULITE_STATUS_TXFULL),
+				     0, 1000000, false, ULITE_STATUS, port))
+		dev_warn(port->dev,
+			 "timeout waiting for TX buffer empty\n");
 }
 
 static void ulite_console_putchar(struct uart_port *port, int ch)
