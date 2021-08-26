@@ -1302,11 +1302,6 @@ static int nvme_identify_ctrl(struct nvme_ctrl *dev, struct nvme_id_ctrl **id)
 	return error;
 }
 
-static bool nvme_multi_css(struct nvme_ctrl *ctrl)
-{
-	return (ctrl->ctrl_config & NVME_CC_CSS_MASK) == NVME_CC_CSS_CSI;
-}
-
 static int nvme_process_ns_desc(struct nvme_ctrl *ctrl, struct nvme_ns_ids *ids,
 		struct nvme_ns_id_desc *cur, bool *csi_seen)
 {
