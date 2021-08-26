@@ -29,16 +29,6 @@
 #include <asm/asm-uaccess.h>
 #include <asm/unistd.h>
 
-/*
- * Context tracking and irqflag tracing need to instrument transitions between
- * user and kernel mode.
- */
-	.macro user_enter_irqoff
-#if defined(CONFIG_CONTEXT_TRACKING) || defined(CONFIG_TRACE_IRQFLAGS)
-	bl	exit_to_user_mode
-#endif
-	.endm
-
 	.macro	clear_gp_regs
 	.irp	n,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29
 	mov	x\n, xzr
@@ -492,18 +482,6 @@ SYM_CODE_END(__swpan_exit_el0)
 /* GPRs used by entry code */
 tsk	.req	x28		// current thread_info
 
-/*
- * Interrupt handling.
- */
-	.macro	gic_prio_kentry_setup, tmp:req
-#ifdef CONFIG_ARM64_PSEUDO_NMI
-	alternative_if ARM64_HAS_IRQ_PRIO_MASKING
-	mov	\tmp, #(GIC_PRIO_PSR_I_SET | GIC_PRIO_IRQON)
-	msr_s	SYS_ICC_PMR_EL1, \tmp
-	alternative_else_nop_endif
-#endif
-	.endm
-
 	.text
 
 /*
@@ -605,35 +583,13 @@ SYM_CODE_START_LOCAL(ret_to_kernel)
 	kernel_exit 1
 SYM_CODE_END(ret_to_kernel)
 
-/*
- * "slow" syscall return path.
- */
 SYM_CODE_START_LOCAL(ret_to_user)
-	disable_daif
-	gic_prio_kentry_setup tmp=x3
-#ifdef CONFIG_TRACE_IRQFLAGS
-	bl	trace_hardirqs_off
-#endif
-	ldr	x19, [tsk, #TSK_TI_FLAGS]
-	and	x2, x19, #_TIF_WORK_MASK
-	cbnz	x2, work_pending
-finish_ret_to_user:
-	user_enter_irqoff
+	ldr	x19, [tsk, #TSK_TI_FLAGS]	// re-check for single-step
 	enable_step_tsk x19, x2
 #ifdef CONFIG_GCC_PLUGIN_STACKLEAK
 	bl	stackleak_erase
 #endif
 	kernel_exit 0
-
-/*
- * Ok, we need to do extra processing, enter the slow path.
- */
-work_pending:
-	mov	x0, sp				// 'regs'
-	mov	x1, x19
-	bl	do_notify_resume
-	ldr	x19, [tsk, #TSK_TI_FLAGS]	// re-check for single-step
-	b	finish_ret_to_user
 SYM_CODE_END(ret_to_user)
 
 	.popsection				// .entry.text
@@ -799,6 +755,8 @@ SYM_CODE_START(ret_from_fork)
 	mov	x0, x20
 	blr	x19
 1:	get_current_task tsk
+	mov	x0, sp
+	bl	asm_exit_to_user_mode
 	b	ret_to_user
 SYM_CODE_END(ret_from_fork)
 NOKPROBE(ret_from_fork)

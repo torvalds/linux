@@ -929,8 +929,7 @@ static bool cpu_affinity_invalid(struct pt_regs *regs)
 				 system_32bit_el0_cpumask());
 }
 
-asmlinkage void do_notify_resume(struct pt_regs *regs,
-				 unsigned long thread_flags)
+void do_notify_resume(struct pt_regs *regs, unsigned long thread_flags)
 {
 	do {
 		if (thread_flags & _TIF_NEED_RESCHED) {
