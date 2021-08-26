@@ -4143,8 +4143,6 @@ static void modify_qp_init_to_init(struct ib_qp *ibqp,
 				   struct hns_roce_v2_qp_context *context,
 				   struct hns_roce_v2_qp_context *qpc_mask)
 {
-	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
-
 	/*
 	 * In v2 engine, software pass context and context mask to hardware
 	 * when modifying qp. If software need modify some fields in context,
@@ -4168,11 +4166,6 @@ static void modify_qp_init_to_init(struct ib_qp *ibqp,
 		hr_reg_clear(qpc_mask, QPC_SRQ_EN);
 		hr_reg_write(context, QPC_SRQN, to_hr_srq(ibqp->srq)->srqn);
 		hr_reg_clear(qpc_mask, QPC_SRQN);
-	}
-
-	if (attr_mask & IB_QP_DEST_QPN) {
-		hr_reg_write(context, QPC_DQPN, hr_qp->qpn);
-		hr_reg_clear(qpc_mask, QPC_DQPN);
 	}
 }
 
