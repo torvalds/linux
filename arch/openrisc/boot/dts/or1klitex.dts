@@ -41,10 +41,10 @@
 		interrupt-controller;
 	};
 
-	serial0: serial@e0002000 {
+	serial0: serial@e0006800 {
 		device_type = "serial";
 		compatible = "litex,liteuart";
-		reg = <0xe0002000 0x100>;
+		reg = <0xe0006800 0x100>;
 	};
 
 	soc_ctrl0: soc_controller@e0000000 {
