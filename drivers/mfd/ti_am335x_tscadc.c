@@ -186,7 +186,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	}
 
 	if (total_channels == 0) {
-		dev_err(&pdev->dev, "Need atleast one channel.\n");
+		dev_err(&pdev->dev, "Need at least one channel.\n");
 		return -EINVAL;
 	}
 
