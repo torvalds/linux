@@ -1909,7 +1909,7 @@ static int mtk_dai_etdm_configure(struct mtk_base_afe *afe,
 		__func__, etdm_data->format, etdm_data->data_mode,
 		etdm_data->lrck_inv, etdm_data->lrck_width, etdm_data->bck_inv,
 		etdm_data->clock_mode, etdm_data->slave_mode);
-	dev_dbg(afe->dev, "%s rate %u channels %u bitwiedh %u, id %d\n",
+	dev_dbg(afe->dev, "%s rate %u channels %u bitwidth %u, id %d\n",
 		__func__, rate, channels, bit_width, dai_id);
 
 	etdm_channels = (etdm_data->data_mode == MTK_DAI_ETDM_DATA_ONE_PIN) ?
