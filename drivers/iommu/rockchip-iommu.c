@@ -1338,8 +1338,7 @@ static void rk_iommu_detach_device(struct iommu_domain *domain,
 
 	dev_dbg(dev, "Detaching from iommu domain\n");
 
-	/* iommu already detached */
-	if (iommu->domain != domain)
+	if (!iommu->domain)
 		return;
 
 	iommu->domain = NULL;
@@ -1373,10 +1372,6 @@ static int rk_iommu_attach_device(struct iommu_domain *domain,
 		return 0;
 
 	dev_dbg(dev, "Attaching to iommu domain\n");
-
-	/* iommu already attached */
-	if (iommu->domain == domain)
-		return 0;
 
 	if (iommu->domain)
 		rk_iommu_detach_device(iommu->domain, dev);
