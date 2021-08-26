@@ -609,7 +609,7 @@ static int mhi_mbim_probe(struct mhi_device *mhi_dev, const struct mhi_device_id
 	INIT_DELAYED_WORK(&mbim->rx_refill, mhi_net_rx_refill_work);
 
 	/* Start MHI channels */
-	err = mhi_prepare_for_transfer(mhi_dev, 0);
+	err = mhi_prepare_for_transfer(mhi_dev);
 	if (err)
 		return err;
 

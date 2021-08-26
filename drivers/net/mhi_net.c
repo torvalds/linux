@@ -319,7 +319,7 @@ static int mhi_net_newlink(struct mhi_device *mhi_dev, struct net_device *ndev)
 	u64_stats_init(&mhi_netdev->stats.tx_syncp);
 
 	/* Start MHI channels */
-	err = mhi_prepare_for_transfer(mhi_dev, 0);
+	err = mhi_prepare_for_transfer(mhi_dev);
 	if (err)
 		goto out_err;
 

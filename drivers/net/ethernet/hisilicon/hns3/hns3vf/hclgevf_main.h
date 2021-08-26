@@ -311,6 +311,8 @@ struct hclgevf_dev {
 	u16 *vector_status;
 	int *vector_irq;
 
+	bool gro_en;
+
 	unsigned long vlan_del_fail_bmap[BITS_TO_LONGS(VLAN_N_VID)];
 
 	struct hclgevf_mac_table_cfg mac_table;

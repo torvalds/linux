@@ -4915,6 +4915,10 @@ read_again:
 
 		prefetch(np);
 
+		/* Ensure a valid XSK buffer before proceed */
+		if (!buf->xdp)
+			break;
+
 		if (priv->extend_desc)
 			stmmac_rx_extended_status(priv, &priv->dev->stats,
 						  &priv->xstats,
@@ -4934,10 +4938,6 @@ read_again:
 			count++;
 			continue;
 		}
-
-		/* Ensure a valid XSK buffer before proceed */
-		if (!buf->xdp)
-			break;
 
 		/* XSK pool expects RX frame 1:1 mapped to XSK buffer */
 		if (likely(status & rx_not_ls)) {
