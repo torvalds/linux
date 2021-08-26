@@ -1,25 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config VFIO_IOMMU_TYPE1
-	tristate
-	depends on VFIO
-	default n
-
-config VFIO_IOMMU_SPAPR_TCE
-	tristate
-	depends on VFIO && SPAPR_TCE_IOMMU
-	default VFIO
-
-config VFIO_SPAPR_EEH
-	tristate
-	depends on EEH && VFIO_IOMMU_SPAPR_TCE
-	default VFIO
-
-config VFIO_VIRQFD
-	tristate
-	depends on VFIO
-	select EVENTFD
-	default n
-
 menuconfig VFIO
 	tristate "VFIO Non-Privileged userspace driver framework"
 	select IOMMU_API
@@ -30,9 +9,28 @@ menuconfig VFIO
 
 	  If you don't know what to do here, say N.
 
+if VFIO
+config VFIO_IOMMU_TYPE1
+	tristate
+	default n
+
+config VFIO_IOMMU_SPAPR_TCE
+	tristate
+	depends on SPAPR_TCE_IOMMU
+	default VFIO
+
+config VFIO_SPAPR_EEH
+	tristate
+	depends on EEH && VFIO_IOMMU_SPAPR_TCE
+	default VFIO
+
+config VFIO_VIRQFD
+	tristate
+	select EVENTFD
+	default n
+
 config VFIO_NOIOMMU
 	bool "VFIO No-IOMMU support"
-	depends on VFIO
 	help
 	  VFIO is built on the ability to isolate devices using the IOMMU.
 	  Only with an IOMMU can userspace access to DMA capable devices be
@@ -49,4 +47,6 @@ source "drivers/vfio/pci/Kconfig"
 source "drivers/vfio/platform/Kconfig"
 source "drivers/vfio/mdev/Kconfig"
 source "drivers/vfio/fsl-mc/Kconfig"
+endif
+
 source "virt/lib/Kconfig"
