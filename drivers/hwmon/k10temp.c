@@ -426,7 +426,6 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	} else if (boot_cpu_data.x86 == 0x17 || boot_cpu_data.x86 == 0x18) {
 		data->temp_adjust_mask = ZEN_CUR_TEMP_RANGE_SEL_MASK;
 		data->read_tempreg = read_tempreg_nb_zen;
-		data->show_temp |= BIT(TDIE_BIT);	/* show Tdie */
 		data->is_zen = true;
 
 		switch (boot_cpu_data.x86_model) {
@@ -446,7 +445,6 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	} else if (boot_cpu_data.x86 == 0x19) {
 		data->temp_adjust_mask = ZEN_CUR_TEMP_RANGE_SEL_MASK;
 		data->read_tempreg = read_tempreg_nb_zen;
-		data->show_temp |= BIT(TDIE_BIT);
 		data->is_zen = true;
 
 		switch (boot_cpu_data.x86_model) {
@@ -466,6 +464,7 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		if (boot_cpu_data.x86 == entry->model &&
 		    strstr(boot_cpu_data.x86_model_id, entry->id)) {
+			data->show_temp |= BIT(TDIE_BIT);	/* show Tdie */
 			data->temp_offset = entry->offset;
 			break;
 		}
