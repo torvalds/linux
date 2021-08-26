@@ -144,6 +144,7 @@ static void perf_env__purge_bpf(struct perf_env *env)
 		node = rb_entry(next, struct bpf_prog_info_node, rb_node);
 		next = rb_next(&node->rb_node);
 		rb_erase(&node->rb_node, root);
+		free(node->info_linear);
 		free(node);
 	}
 
@@ -185,10 +186,12 @@ void perf_env__exit(struct perf_env *env)
 	zfree(&env->cpuid);
 	zfree(&env->cmdline);
 	zfree(&env->cmdline_argv);
+	zfree(&env->sibling_dies);
 	zfree(&env->sibling_cores);
 	zfree(&env->sibling_threads);
 	zfree(&env->pmu_mappings);
 	zfree(&env->cpu);
+	zfree(&env->cpu_pmu_caps);
 	zfree(&env->numa_map);
 
 	for (i = 0; i < env->nr_numa_nodes; i++)
@@ -202,6 +205,18 @@ void perf_env__exit(struct perf_env *env)
 	for (i = 0; i < env->nr_memory_nodes; i++)
 		zfree(&env->memory_nodes[i].set);
 	zfree(&env->memory_nodes);
+
+	for (i = 0; i < env->nr_hybrid_nodes; i++) {
+		zfree(&env->hybrid_nodes[i].pmu_name);
+		zfree(&env->hybrid_nodes[i].cpus);
+	}
+	zfree(&env->hybrid_nodes);
+
+	for (i = 0; i < env->nr_hybrid_cpc_nodes; i++) {
+		zfree(&env->hybrid_cpc_nodes[i].cpu_pmu_caps);
+		zfree(&env->hybrid_cpc_nodes[i].pmu_name);
+	}
+	zfree(&env->hybrid_cpc_nodes);
 }
 
 void perf_env__init(struct perf_env *env __maybe_unused)

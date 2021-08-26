@@ -101,8 +101,8 @@ int rvt_driver_mr_init(struct rvt_dev_info *rdi)
 }
 
 /**
- *rvt_mr_exit: clean up MR
- *@rdi: rvt dev structure
+ * rvt_mr_exit - clean up MR
+ * @rdi: rvt dev structure
  *
  * called when drivers have unregistered or perhaps failed to register with us
  */

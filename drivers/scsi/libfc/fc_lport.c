@@ -93,7 +93,10 @@
 #define FC_LOCAL_PTP_FID_LO   0x010101
 #define FC_LOCAL_PTP_FID_HI   0x010102
 
-#define	DNS_DELAY	      3 /* Discovery delay after RSCN (in seconds)*/
+#define	DNS_DELAY		3 /* Discovery delay after RSCN (in seconds)*/
+#define	MAX_CT_PAYLOAD		2048
+#define	DISCOVERED_PORTS	4
+#define	NUMBER_OF_PORTS		1
 
 static void fc_lport_error(struct fc_lport *, struct fc_frame *);
 
@@ -1185,7 +1188,7 @@ static void fc_lport_ms_resp(struct fc_seq *sp, struct fc_frame *fp,
 	struct fc_lport *lport = lp_arg;
 	struct fc_frame_header *fh;
 	struct fc_ct_hdr *ct;
-
+	struct fc_host_attrs *fc_host = shost_to_fc_host(lport->host);
 	FC_LPORT_DBG(lport, "Received a ms %s\n", fc_els_resp_type(fp));
 
 	if (fp == ERR_PTR(-FC_EX_CLOSED))
@@ -1219,7 +1222,13 @@ static void fc_lport_ms_resp(struct fc_seq *sp, struct fc_frame *fp,
 
 		switch (lport->state) {
 		case LPORT_ST_RHBA:
-			if (ntohs(ct->ct_cmd) == FC_FS_ACC)
+			if ((ntohs(ct->ct_cmd) == FC_FS_RJT) && fc_host->fdmi_version == FDMI_V2) {
+				FC_LPORT_DBG(lport, "Error for FDMI-V2, fall back to FDMI-V1\n");
+				fc_host->fdmi_version = FDMI_V1;
+
+				fc_lport_enter_ms(lport, LPORT_ST_RHBA);
+
+			} else if (ntohs(ct->ct_cmd) == FC_FS_ACC)
 				fc_lport_enter_ms(lport, LPORT_ST_RPA);
 			else /* Error Skip RPA */
 				fc_lport_enter_scr(lport);
@@ -1433,7 +1442,7 @@ static void fc_lport_enter_ms(struct fc_lport *lport, enum fc_lport_state state)
 	int size = sizeof(struct fc_ct_hdr);
 	size_t len;
 	int numattrs;
-
+	struct fc_host_attrs *fc_host = shost_to_fc_host(lport->host);
 	lockdep_assert_held(&lport->lp_mutex);
 
 	FC_LPORT_DBG(lport, "Entered %s state from %s state\n",
@@ -1446,10 +1455,10 @@ static void fc_lport_enter_ms(struct fc_lport *lport, enum fc_lport_state state)
 	case LPORT_ST_RHBA:
 		cmd = FC_FDMI_RHBA;
 		/* Number of HBA Attributes */
-		numattrs = 10;
+		numattrs = 11;
 		len = sizeof(struct fc_fdmi_rhba);
 		len -= sizeof(struct fc_fdmi_attr_entry);
-		len += (numattrs * FC_FDMI_ATTR_ENTRY_HEADER_LEN);
+
 		len += FC_FDMI_HBA_ATTR_NODENAME_LEN;
 		len += FC_FDMI_HBA_ATTR_MANUFACTURER_LEN;
 		len += FC_FDMI_HBA_ATTR_SERIALNUMBER_LEN;
@@ -1460,6 +1469,21 @@ static void fc_lport_enter_ms(struct fc_lport *lport, enum fc_lport_state state)
 		len += FC_FDMI_HBA_ATTR_OPTIONROMVERSION_LEN;
 		len += FC_FDMI_HBA_ATTR_FIRMWAREVERSION_LEN;
 		len += FC_FDMI_HBA_ATTR_OSNAMEVERSION_LEN;
+		len += FC_FDMI_HBA_ATTR_MAXCTPAYLOAD_LEN;
+
+
+		if (fc_host->fdmi_version == FDMI_V2) {
+			numattrs += 7;
+			len += FC_FDMI_HBA_ATTR_NODESYMBLNAME_LEN;
+			len += FC_FDMI_HBA_ATTR_VENDORSPECIFICINFO_LEN;
+			len += FC_FDMI_HBA_ATTR_NUMBEROFPORTS_LEN;
+			len += FC_FDMI_HBA_ATTR_FABRICNAME_LEN;
+			len += FC_FDMI_HBA_ATTR_BIOSVERSION_LEN;
+			len += FC_FDMI_HBA_ATTR_BIOSSTATE_LEN;
+			len += FC_FDMI_HBA_ATTR_VENDORIDENTIFIER_LEN;
+		}
+
+		len += (numattrs * FC_FDMI_ATTR_ENTRY_HEADER_LEN);
 
 		size += len;
 		break;
@@ -1469,13 +1493,28 @@ static void fc_lport_enter_ms(struct fc_lport *lport, enum fc_lport_state state)
 		numattrs = 6;
 		len = sizeof(struct fc_fdmi_rpa);
 		len -= sizeof(struct fc_fdmi_attr_entry);
-		len += (numattrs * FC_FDMI_ATTR_ENTRY_HEADER_LEN);
 		len += FC_FDMI_PORT_ATTR_FC4TYPES_LEN;
 		len += FC_FDMI_PORT_ATTR_SUPPORTEDSPEED_LEN;
 		len += FC_FDMI_PORT_ATTR_CURRENTPORTSPEED_LEN;
 		len += FC_FDMI_PORT_ATTR_MAXFRAMESIZE_LEN;
 		len += FC_FDMI_PORT_ATTR_OSDEVICENAME_LEN;
 		len += FC_FDMI_PORT_ATTR_HOSTNAME_LEN;
+
+		if (fc_host->fdmi_version == FDMI_V2) {
+			numattrs += 10;
+			len += FC_FDMI_PORT_ATTR_NODENAME_LEN;
+			len += FC_FDMI_PORT_ATTR_PORTNAME_LEN;
+			len += FC_FDMI_PORT_ATTR_SYMBOLICNAME_LEN;
+			len += FC_FDMI_PORT_ATTR_PORTTYPE_LEN;
+			len += FC_FDMI_PORT_ATTR_SUPPORTEDCLASSSRVC_LEN;
+			len += FC_FDMI_PORT_ATTR_FABRICNAME_LEN;
+			len += FC_FDMI_PORT_ATTR_CURRENTFC4TYPE_LEN;
+			len += FC_FDMI_PORT_ATTR_PORTSTATE_LEN;
+			len += FC_FDMI_PORT_ATTR_DISCOVEREDPORTS_LEN;
+			len += FC_FDMI_PORT_ATTR_PORTID_LEN;
+		}
+
+		len += (numattrs * FC_FDMI_ATTR_ENTRY_HEADER_LEN);
 
 		size += len;
 		break;
@@ -1546,6 +1585,7 @@ static void fc_lport_timeout(struct work_struct *work)
 	struct fc_lport *lport =
 		container_of(work, struct fc_lport,
 			     retry_work.work);
+	struct fc_host_attrs *fc_host = shost_to_fc_host(lport->host);
 
 	mutex_lock(&lport->lp_mutex);
 
@@ -1573,6 +1613,13 @@ static void fc_lport_timeout(struct work_struct *work)
 		fc_lport_enter_fdmi(lport);
 		break;
 	case LPORT_ST_RHBA:
+		if (fc_host->fdmi_version == FDMI_V2) {
+			FC_LPORT_DBG(lport, "timeout for FDMI-V2 RHBA,fall back to FDMI-V1\n");
+			fc_host->fdmi_version = FDMI_V1;
+			fc_lport_enter_ms(lport, LPORT_ST_RHBA);
+			break;
+		}
+		fallthrough;
 	case LPORT_ST_RPA:
 	case LPORT_ST_DHBA:
 	case LPORT_ST_DPRT:
@@ -1839,6 +1886,13 @@ EXPORT_SYMBOL(fc_lport_config);
  */
 int fc_lport_init(struct fc_lport *lport)
 {
+	struct fc_host_attrs *fc_host;
+
+	fc_host = shost_to_fc_host(lport->host);
+
+	/* Set FDMI version to FDMI-2 specification*/
+	fc_host->fdmi_version = FDMI_V2;
+
 	fc_host_port_type(lport->host) = FC_PORTTYPE_NPORT;
 	fc_host_node_name(lport->host) = lport->wwnn;
 	fc_host_port_name(lport->host) = lport->wwpn;
@@ -1847,6 +1901,7 @@ int fc_lport_init(struct fc_lport *lport)
 	       sizeof(fc_host_supported_fc4s(lport->host)));
 	fc_host_supported_fc4s(lport->host)[2] = 1;
 	fc_host_supported_fc4s(lport->host)[7] = 1;
+	fc_host_num_discovered_ports(lport->host) = 4;
 
 	/* This value is also unchanging */
 	memset(fc_host_active_fc4s(lport->host), 0,
@@ -1859,7 +1914,26 @@ int fc_lport_init(struct fc_lport *lport)
 		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_1GBIT;
 	if (lport->link_supported_speeds & FC_PORTSPEED_10GBIT)
 		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_10GBIT;
+	if (lport->link_supported_speeds & FC_PORTSPEED_40GBIT)
+		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_40GBIT;
+	if (lport->link_supported_speeds & FC_PORTSPEED_100GBIT)
+		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_100GBIT;
+	if (lport->link_supported_speeds & FC_PORTSPEED_25GBIT)
+		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_25GBIT;
+	if (lport->link_supported_speeds & FC_PORTSPEED_50GBIT)
+		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_50GBIT;
+	if (lport->link_supported_speeds & FC_PORTSPEED_100GBIT)
+		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_100GBIT;
+
 	fc_fc4_add_lport(lport);
+
+	fc_host_num_discovered_ports(lport->host) = DISCOVERED_PORTS;
+	fc_host_port_state(lport->host) = FC_PORTSTATE_ONLINE;
+	fc_host_max_ct_payload(lport->host) = MAX_CT_PAYLOAD;
+	fc_host_num_ports(lport->host) = NUMBER_OF_PORTS;
+	fc_host_bootbios_state(lport->host) = 0X00000000;
+	snprintf(fc_host_bootbios_version(lport->host),
+		FC_SYMBOLIC_NAME_SIZE, "%s", "Unknown");
 
 	return 0;
 }

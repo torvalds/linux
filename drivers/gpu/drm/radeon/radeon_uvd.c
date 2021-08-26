@@ -152,9 +152,11 @@ int radeon_uvd_init(struct radeon_device *rdev)
 
 			rdev->uvd.fw_header_present = true;
 
-			family_id = le32_to_cpu(hdr->ucode_version) & 0xff;
-			version_major = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xff;
-			version_minor = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
+			family_id = (__force u32)(hdr->ucode_version) & 0xff;
+			version_major = (le32_to_cpu((__force __le32)(hdr->ucode_version))
+							 >> 24) & 0xff;
+			version_minor = (le32_to_cpu((__force __le32)(hdr->ucode_version))
+							 >> 8) & 0xff;
 			DRM_INFO("Found UVD firmware Version: %u.%u Family ID: %u\n",
 				 version_major, version_minor, family_id);
 
@@ -286,7 +288,7 @@ int radeon_uvd_resume(struct radeon_device *rdev)
 	if (rdev->uvd.vcpu_bo == NULL)
 		return -EINVAL;
 
-	memcpy(rdev->uvd.cpu_addr, rdev->uvd_fw->data, rdev->uvd_fw->size);
+	memcpy_toio((void __iomem *)rdev->uvd.cpu_addr, rdev->uvd_fw->data, rdev->uvd_fw->size);
 
 	size = radeon_bo_size(rdev->uvd.vcpu_bo);
 	size -= rdev->uvd_fw->size;
@@ -294,7 +296,7 @@ int radeon_uvd_resume(struct radeon_device *rdev)
 	ptr = rdev->uvd.cpu_addr;
 	ptr += rdev->uvd_fw->size;
 
-	memset(ptr, 0, size);
+	memset_io((void __iomem *)ptr, 0, size);
 
 	return 0;
 }
@@ -477,7 +479,7 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 		return -EINVAL;
 	}
 
-	f = dma_resv_get_excl(bo->tbo.base.resv);
+	f = dma_resv_excl_fence(bo->tbo.base.resv);
 	if (f) {
 		r = radeon_fence_wait((struct radeon_fence *)f, false);
 		if (r) {
@@ -791,17 +793,17 @@ int radeon_uvd_get_create_msg(struct radeon_device *rdev, int ring,
 		return r;
 
 	/* stitch together an UVD create msg */
-	writel(cpu_to_le32(0x00000de4), &msg[0]);
+	writel((__force u32)cpu_to_le32(0x00000de4), &msg[0]);
 	writel(0x0, (void __iomem *)&msg[1]);
-	writel(cpu_to_le32(handle), &msg[2]);
+	writel((__force u32)cpu_to_le32(handle), &msg[2]);
 	writel(0x0, &msg[3]);
 	writel(0x0, &msg[4]);
 	writel(0x0, &msg[5]);
 	writel(0x0, &msg[6]);
-	writel(cpu_to_le32(0x00000780), &msg[7]);
-	writel(cpu_to_le32(0x00000440), &msg[8]);
+	writel((__force u32)cpu_to_le32(0x00000780), &msg[7]);
+	writel((__force u32)cpu_to_le32(0x00000440), &msg[8]);
 	writel(0x0, &msg[9]);
-	writel(cpu_to_le32(0x01b37000), &msg[10]);
+	writel((__force u32)cpu_to_le32(0x01b37000), &msg[10]);
 	for (i = 11; i < 1024; ++i)
 		writel(0x0, &msg[i]);
 
@@ -827,9 +829,9 @@ int radeon_uvd_get_destroy_msg(struct radeon_device *rdev, int ring,
 		return r;
 
 	/* stitch together an UVD destroy msg */
-	writel(cpu_to_le32(0x00000de4), &msg[0]);
-	writel(cpu_to_le32(0x00000002), &msg[1]);
-	writel(cpu_to_le32(handle), &msg[2]);
+	writel((__force u32)cpu_to_le32(0x00000de4), &msg[0]);
+	writel((__force u32)cpu_to_le32(0x00000002), &msg[1]);
+	writel((__force u32)cpu_to_le32(handle), &msg[2]);
 	writel(0x0, &msg[3]);
 	for (i = 4; i < 1024; ++i)
 		writel(0x0, &msg[i]);

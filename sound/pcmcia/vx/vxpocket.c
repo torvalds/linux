@@ -183,7 +183,8 @@ static int snd_vxpocket_assign_resources(struct vx_core *chip, int port, int irq
 	chip->irq = irq;
 	card->sync_irq = chip->irq;
 
-	if ((err = snd_vx_setup_firmware(chip)) < 0)
+	err = snd_vx_setup_firmware(chip);
+	if (err < 0)
 		return err;
 
 	return 0;

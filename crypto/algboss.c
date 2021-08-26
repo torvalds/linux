@@ -28,16 +28,9 @@ struct cryptomgr_param {
 		struct crypto_attr_type data;
 	} type;
 
-	union {
+	struct {
 		struct rtattr attr;
-		struct {
-			struct rtattr attr;
-			struct crypto_attr_alg data;
-		} alg;
-		struct {
-			struct rtattr attr;
-			struct crypto_attr_u32 data;
-		} nu32;
+		struct crypto_attr_alg data;
 	} attrs[CRYPTO_MAX_ATTRS];
 
 	char template[CRYPTO_MAX_ALG_NAME];
@@ -104,12 +97,10 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 
 	i = 0;
 	for (;;) {
-		int notnum = 0;
-
 		name = ++p;
 
 		for (; isalnum(*p) || *p == '-' || *p == '_'; p++)
-			notnum |= !isdigit(*p);
+			;
 
 		if (*p == '(') {
 			int recursion = 0;
@@ -123,7 +114,6 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 					break;
 			}
 
-			notnum = 1;
 			p++;
 		}
 
@@ -131,18 +121,9 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 		if (!len)
 			goto err_free_param;
 
-		if (notnum) {
-			param->attrs[i].alg.attr.rta_len =
-				sizeof(param->attrs[i].alg);
-			param->attrs[i].alg.attr.rta_type = CRYPTOA_ALG;
-			memcpy(param->attrs[i].alg.data.name, name, len);
-		} else {
-			param->attrs[i].nu32.attr.rta_len =
-				sizeof(param->attrs[i].nu32);
-			param->attrs[i].nu32.attr.rta_type = CRYPTOA_U32;
-			param->attrs[i].nu32.data.num =
-				simple_strtol(name, NULL, 0);
-		}
+		param->attrs[i].attr.rta_len = sizeof(param->attrs[i]);
+		param->attrs[i].attr.rta_type = CRYPTOA_ALG;
+		memcpy(param->attrs[i].data.name, name, len);
 
 		param->tb[i + 1] = &param->attrs[i].attr;
 		i++;

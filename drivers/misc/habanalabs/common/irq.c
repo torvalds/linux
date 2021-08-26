@@ -207,16 +207,32 @@ irqreturn_t hl_irq_handler_eq(int irq, void *arg)
 	struct hl_eq_entry *eq_entry;
 	struct hl_eq_entry *eq_base;
 	struct hl_eqe_work *handle_eqe_work;
+	bool entry_ready;
+	u32 cur_eqe;
+	u16 cur_eqe_index;
 
 	eq_base = eq->kernel_address;
 
 	while (1) {
-		bool entry_ready =
-			((le32_to_cpu(eq_base[eq->ci].hdr.ctl) &
-				EQ_CTL_READY_MASK) >> EQ_CTL_READY_SHIFT);
+		cur_eqe = le32_to_cpu(eq_base[eq->ci].hdr.ctl);
+		entry_ready = !!FIELD_GET(EQ_CTL_READY_MASK, cur_eqe);
 
 		if (!entry_ready)
 			break;
+
+		cur_eqe_index = FIELD_GET(EQ_CTL_INDEX_MASK, cur_eqe);
+		if ((hdev->event_queue.check_eqe_index) &&
+				(((eq->prev_eqe_index + 1) & EQ_CTL_INDEX_MASK)
+							!= cur_eqe_index)) {
+			dev_dbg(hdev->dev,
+				"EQE 0x%x in queue is ready but index does not match %d!=%d",
+				eq_base[eq->ci].hdr.ctl,
+				((eq->prev_eqe_index + 1) & EQ_CTL_INDEX_MASK),
+				cur_eqe_index);
+			break;
+		}
+
+		eq->prev_eqe_index++;
 
 		eq_entry = &eq_base[eq->ci];
 
@@ -341,6 +357,7 @@ int hl_eq_init(struct hl_device *hdev, struct hl_eq *q)
 	q->hdev = hdev;
 	q->kernel_address = p;
 	q->ci = 0;
+	q->prev_eqe_index = 0;
 
 	return 0;
 }
@@ -365,6 +382,7 @@ void hl_eq_fini(struct hl_device *hdev, struct hl_eq *q)
 void hl_eq_reset(struct hl_device *hdev, struct hl_eq *q)
 {
 	q->ci = 0;
+	q->prev_eqe_index = 0;
 
 	/*
 	 * It's not enough to just reset the PI/CI because the H/W may have

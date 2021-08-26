@@ -91,6 +91,10 @@ enum HNAE3_DEV_CAP_BITS {
 	HNAE3_DEV_SUPPORT_STASH_B,
 	HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B,
 	HNAE3_DEV_SUPPORT_PAUSE_B,
+	HNAE3_DEV_SUPPORT_RAS_IMP_B,
+	HNAE3_DEV_SUPPORT_RXD_ADV_LAYOUT_B,
+	HNAE3_DEV_SUPPORT_PORT_VLAN_BYPASS_B,
+	HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B,
 };
 
 #define hnae3_dev_fd_supported(hdev) \
@@ -126,6 +130,9 @@ enum HNAE3_DEV_CAP_BITS {
 #define hnae3_dev_phy_imp_supported(hdev) \
 	test_bit(HNAE3_DEV_SUPPORT_PHY_IMP_B, (hdev)->ae_dev->caps)
 
+#define hnae3_dev_ras_imp_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_RAS_IMP_B, (hdev)->ae_dev->caps)
+
 #define hnae3_dev_tqp_txrx_indep_supported(hdev) \
 	test_bit(HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B, (hdev)->ae_dev->caps)
 
@@ -141,17 +148,16 @@ enum HNAE3_DEV_CAP_BITS {
 #define hnae3_ae_dev_tqp_txrx_indep_supported(ae_dev) \
 	test_bit(HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B, (ae_dev)->caps)
 
+#define hnae3_ae_dev_rxd_adv_layout_supported(ae_dev) \
+	test_bit(HNAE3_DEV_SUPPORT_RXD_ADV_LAYOUT_B, (ae_dev)->caps)
+
+enum HNAE3_PF_CAP_BITS {
+	HNAE3_PF_SUPPORT_VLAN_FLTR_MDF_B = 0,
+};
 #define ring_ptr_move_fw(ring, p) \
 	((ring)->p = ((ring)->p + 1) % (ring)->desc_num)
 #define ring_ptr_move_bw(ring, p) \
 	((ring)->p = ((ring)->p - 1 + (ring)->desc_num) % (ring)->desc_num)
-
-enum hns_desc_type {
-	DESC_TYPE_UNKNOWN,
-	DESC_TYPE_SKB,
-	DESC_TYPE_FRAGLIST_SKB,
-	DESC_TYPE_PAGE,
-};
 
 struct hnae3_handle;
 
@@ -234,7 +240,6 @@ enum hnae3_reset_type {
 	HNAE3_FUNC_RESET,
 	HNAE3_GLOBAL_RESET,
 	HNAE3_IMP_RESET,
-	HNAE3_UNKNOWN_RESET,
 	HNAE3_NONE_RESET,
 	HNAE3_MAX_RESET,
 };
@@ -244,6 +249,52 @@ enum hnae3_port_base_vlan_state {
 	HNAE3_PORT_BASE_VLAN_ENABLE,
 	HNAE3_PORT_BASE_VLAN_MODIFY,
 	HNAE3_PORT_BASE_VLAN_NOCHANGE,
+};
+
+enum hnae3_dbg_cmd {
+	HNAE3_DBG_CMD_TM_NODES,
+	HNAE3_DBG_CMD_TM_PRI,
+	HNAE3_DBG_CMD_TM_QSET,
+	HNAE3_DBG_CMD_TM_MAP,
+	HNAE3_DBG_CMD_TM_PG,
+	HNAE3_DBG_CMD_TM_PORT,
+	HNAE3_DBG_CMD_TC_SCH_INFO,
+	HNAE3_DBG_CMD_QOS_PAUSE_CFG,
+	HNAE3_DBG_CMD_QOS_PRI_MAP,
+	HNAE3_DBG_CMD_QOS_BUF_CFG,
+	HNAE3_DBG_CMD_DEV_INFO,
+	HNAE3_DBG_CMD_TX_BD,
+	HNAE3_DBG_CMD_RX_BD,
+	HNAE3_DBG_CMD_MAC_UC,
+	HNAE3_DBG_CMD_MAC_MC,
+	HNAE3_DBG_CMD_MNG_TBL,
+	HNAE3_DBG_CMD_LOOPBACK,
+	HNAE3_DBG_CMD_PTP_INFO,
+	HNAE3_DBG_CMD_INTERRUPT_INFO,
+	HNAE3_DBG_CMD_RESET_INFO,
+	HNAE3_DBG_CMD_IMP_INFO,
+	HNAE3_DBG_CMD_NCL_CONFIG,
+	HNAE3_DBG_CMD_REG_BIOS_COMMON,
+	HNAE3_DBG_CMD_REG_SSU,
+	HNAE3_DBG_CMD_REG_IGU_EGU,
+	HNAE3_DBG_CMD_REG_RPU,
+	HNAE3_DBG_CMD_REG_NCSI,
+	HNAE3_DBG_CMD_REG_RTC,
+	HNAE3_DBG_CMD_REG_PPP,
+	HNAE3_DBG_CMD_REG_RCB,
+	HNAE3_DBG_CMD_REG_TQP,
+	HNAE3_DBG_CMD_REG_MAC,
+	HNAE3_DBG_CMD_REG_DCB,
+	HNAE3_DBG_CMD_VLAN_CONFIG,
+	HNAE3_DBG_CMD_QUEUE_MAP,
+	HNAE3_DBG_CMD_RX_QUEUE_INFO,
+	HNAE3_DBG_CMD_TX_QUEUE_INFO,
+	HNAE3_DBG_CMD_FD_TCAM,
+	HNAE3_DBG_CMD_FD_COUNTER,
+	HNAE3_DBG_CMD_MAC_TNL_STATUS,
+	HNAE3_DBG_CMD_SERV_INFO,
+	HNAE3_DBG_CMD_UMV_INFO,
+	HNAE3_DBG_CMD_UNKNOWN,
 };
 
 struct hnae3_vector_info {
@@ -470,6 +521,12 @@ struct hnae3_ae_dev {
  *   Check if any cls flower rule exist
  * dbg_read_cmd
  *   Execute debugfs read command.
+ * set_tx_hwts_info
+ *   Save information for 1588 tx packet
+ * get_rx_hwts
+ *   Get 1588 rx hwstamp
+ * get_ts_info
+ *   Get phc info
  */
 struct hnae3_ae_ops {
 	int (*init_ae_dev)(struct hnae3_ae_dev *ae_dev);
@@ -585,7 +642,7 @@ struct hnae3_ae_ops {
 	void (*get_mdix_mode)(struct hnae3_handle *handle,
 			      u8 *tp_mdix_ctrl, u8 *tp_mdix);
 
-	void (*enable_vlan_filter)(struct hnae3_handle *handle, bool enable);
+	int (*enable_vlan_filter)(struct hnae3_handle *handle, bool enable);
 	int (*set_vlan_filter)(struct hnae3_handle *handle, __be16 proto,
 			       u16 vlan_id, bool is_kill);
 	int (*set_vf_vlan_filter)(struct hnae3_handle *handle, int vfid,
@@ -622,8 +679,7 @@ struct hnae3_ae_ops {
 	void (*enable_fd)(struct hnae3_handle *handle, bool enable);
 	int (*add_arfs_entry)(struct hnae3_handle *handle, u16 queue_id,
 			      u16 flow_id, struct flow_keys *fkeys);
-	int (*dbg_run_cmd)(struct hnae3_handle *handle, const char *cmd_buf);
-	int (*dbg_read_cmd)(struct hnae3_handle *handle, const char *cmd_buf,
+	int (*dbg_read_cmd)(struct hnae3_handle *handle, enum hnae3_dbg_cmd cmd,
 			    char *buf, int len);
 	pci_ers_result_t (*handle_hw_ras_error)(struct hnae3_ae_dev *ae_dev);
 	bool (*get_hw_reset_stat)(struct hnae3_handle *handle);
@@ -656,6 +712,12 @@ struct hnae3_ae_ops {
 				      struct ethtool_link_ksettings *cmd);
 	int (*set_phy_link_ksettings)(struct hnae3_handle *handle,
 				      const struct ethtool_link_ksettings *cmd);
+	bool (*set_tx_hwts_info)(struct hnae3_handle *handle,
+				 struct sk_buff *skb);
+	void (*get_rx_hwts)(struct hnae3_handle *handle, struct sk_buff *skb,
+			    u32 nsec, u32 sec);
+	int (*get_ts_info)(struct hnae3_handle *handle,
+			   struct ethtool_ts_info *info);
 };
 
 struct hnae3_dcb_ops {
@@ -700,6 +762,7 @@ struct hnae3_knic_private_info {
 	u16 rx_buf_len;
 	u16 num_tx_desc;
 	u16 num_rx_desc;
+	u32 tx_spare_buf_size;
 
 	struct hnae3_tc_info tc_info;
 
@@ -738,7 +801,6 @@ struct hnae3_roce_private_info {
 #define HNAE3_BPE		BIT(2)	/* broadcast promisc enable */
 #define HNAE3_OVERFLOW_UPE	BIT(3)	/* unicast mac vlan overflow */
 #define HNAE3_OVERFLOW_MPE	BIT(4)	/* multicast mac vlan overflow */
-#define HNAE3_VLAN_FLTR		BIT(5)	/* enable vlan filter */
 #define HNAE3_UPE		(HNAE3_USER_UPE | HNAE3_OVERFLOW_UPE)
 #define HNAE3_MPE		(HNAE3_USER_MPE | HNAE3_OVERFLOW_MPE)
 
@@ -785,10 +847,6 @@ struct hnae3_handle {
 	hnae3_set_field(origin, 0x1 << (shift), shift, val)
 #define hnae3_get_bit(origin, shift) \
 	hnae3_get_field(origin, 0x1 << (shift), shift)
-
-#define HNAE3_DBG_TM_NODES		"tm_nodes"
-#define HNAE3_DBG_TM_PRI		"tm_priority"
-#define HNAE3_DBG_TM_QSET		"tm_qset"
 
 int hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev);
 void hnae3_unregister_ae_dev(struct hnae3_ae_dev *ae_dev);

@@ -1031,7 +1031,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	dev->media_dev = kzalloc(sizeof(*dev->media_dev), GFP_KERNEL);
 	if (!dev->media_dev) {
 		err = -ENOMEM;
-		goto fail0;
+		goto err_free_dev;
 	}
 	media_device_pci_init(dev->media_dev, pci_dev, dev->name);
 	dev->v4l2_dev.mdev = dev->media_dev;
@@ -1039,13 +1039,13 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 
 	err = v4l2_device_register(&pci_dev->dev, &dev->v4l2_dev);
 	if (err)
-		goto fail0;
+		goto err_free_dev;
 
 	/* pci init */
 	dev->pci = pci_dev;
 	if (pci_enable_device(pci_dev)) {
 		err = -EIO;
-		goto fail1;
+		goto err_v4l2_unregister;
 	}
 
 	/* pci quirks */
@@ -1095,7 +1095,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	err = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32));
 	if (err) {
 		pr_warn("%s: Oops: no 32bit PCI DMA ???\n", dev->name);
-		goto fail1;
+		goto err_v4l2_unregister;
 	}
 
 	/* board config */
@@ -1129,7 +1129,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 		err = -EBUSY;
 		pr_err("%s: can't get MMIO memory @ 0x%llx\n",
 		       dev->name,(unsigned long long)pci_resource_start(pci_dev,0));
-		goto fail1;
+		goto err_v4l2_unregister;
 	}
 	dev->lmmio = ioremap(pci_resource_start(pci_dev, 0),
 			     pci_resource_len(pci_dev, 0));
@@ -1138,7 +1138,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 		err = -EIO;
 		pr_err("%s: can't ioremap() MMIO memory\n",
 		       dev->name);
-		goto fail2;
+		goto err_release_mem_reg;
 	}
 
 	/* initialize hardware #1 */
@@ -1151,7 +1151,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	if (err < 0) {
 		pr_err("%s: can't get IRQ %d\n",
 		       dev->name,pci_dev->irq);
-		goto fail3;
+		goto err_iounmap;
 	}
 
 	/* wait a bit, register i2c bus */
@@ -1217,7 +1217,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	if (err < 0) {
 		pr_info("%s: can't register video device\n",
 		       dev->name);
-		goto fail4;
+		goto err_unregister_video;
 	}
 	pr_info("%s: registered device %s [v4l2]\n",
 	       dev->name, video_device_node_name(dev->video_dev));
@@ -1234,7 +1234,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
 				    vbi_nr[dev->nr]);
 	if (err < 0)
-		goto fail4;
+		goto err_unregister_video;
 	pr_info("%s: registered device %s\n",
 	       dev->name, video_device_node_name(dev->vbi_dev));
 
@@ -1248,7 +1248,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 		err = video_register_device(dev->radio_dev,VFL_TYPE_RADIO,
 					    radio_nr[dev->nr]);
 		if (err < 0)
-			goto fail4;
+			goto err_unregister_video;
 		pr_info("%s: registered device %s\n",
 		       dev->name, video_device_node_name(dev->radio_dev));
 	}
@@ -1259,7 +1259,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	err = v4l2_mc_create_media_graph(dev->media_dev);
 	if (err) {
 		pr_err("failed to create media graph\n");
-		goto fail4;
+		goto err_unregister_video;
 	}
 #endif
 	/* everything worked */
@@ -1277,25 +1277,28 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	 */
 #ifdef CONFIG_MEDIA_CONTROLLER
 	err = media_device_register(dev->media_dev);
-	if (err)
-		goto fail4;
+	if (err) {
+		media_device_cleanup(dev->media_dev);
+		goto err_unregister_video;
+	}
 #endif
 
 	return 0;
 
- fail4:
+err_unregister_video:
 	saa7134_unregister_video(dev);
+	list_del(&dev->devlist);
 	saa7134_i2c_unregister(dev);
 	free_irq(pci_dev->irq, dev);
- fail3:
+err_iounmap:
 	saa7134_hwfini(dev);
 	iounmap(dev->lmmio);
- fail2:
+err_release_mem_reg:
 	release_mem_region(pci_resource_start(pci_dev,0),
 			   pci_resource_len(pci_dev,0));
- fail1:
+err_v4l2_unregister:
 	v4l2_device_unregister(&dev->v4l2_dev);
- fail0:
+err_free_dev:
 #ifdef CONFIG_MEDIA_CONTROLLER
 	kfree(dev->media_dev);
 #endif
@@ -1524,7 +1527,6 @@ static struct pci_driver saa7134_pci_driver = {
 
 static int __init saa7134_init(void)
 {
-	INIT_LIST_HEAD(&saa7134_devlist);
 	pr_info("saa7130/34: v4l2 driver version %s loaded\n",
 	       SAA7134_VERSION);
 	return pci_register_driver(&saa7134_pci_driver);

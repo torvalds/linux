@@ -76,7 +76,11 @@ fi
 if arg_contain -S "$@"; then
 	# For scripts/gcc-x86-*-has-stack-protector.sh
 	if arg_contain -fstack-protector "$@"; then
-		echo "%gs"
+		if arg_contain -mstack-protector-guard-reg=fs "$@"; then
+			echo "%fs"
+		else
+			echo "%gs"
+		fi
 		exit 0
 	fi
 

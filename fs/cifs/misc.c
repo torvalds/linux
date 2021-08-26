@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  *   fs/cifs/misc.c
  *
  *   Copyright (C) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/slab.h>
@@ -672,6 +660,11 @@ cifs_add_pending_open(struct cifs_fid *fid, struct tcon_link *tlink,
 	spin_unlock(&tlink_tcon(open->tlink)->open_file_lock);
 }
 
+/*
+ * Critical section which runs after acquiring deferred_lock.
+ * As there is no reference count on cifs_deferred_close, pdclose
+ * should not be used outside deferred_lock.
+ */
 bool
 cifs_is_deferred_close(struct cifsFileInfo *cfile, struct cifs_deferred_close **pdclose)
 {
@@ -688,6 +681,9 @@ cifs_is_deferred_close(struct cifsFileInfo *cfile, struct cifs_deferred_close **
 	return false;
 }
 
+/*
+ * Critical section which runs after acquiring deferred_lock.
+ */
 void
 cifs_add_deferred_close(struct cifsFileInfo *cfile, struct cifs_deferred_close *dclose)
 {
@@ -707,6 +703,9 @@ cifs_add_deferred_close(struct cifsFileInfo *cfile, struct cifs_deferred_close *
 	list_add_tail(&dclose->dlist, &CIFS_I(d_inode(cfile->dentry))->deferred_closes);
 }
 
+/*
+ * Critical section which runs after acquiring deferred_lock.
+ */
 void
 cifs_del_deferred_close(struct cifsFileInfo *cfile)
 {
@@ -724,13 +723,31 @@ void
 cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode)
 {
 	struct cifsFileInfo *cfile = NULL;
-	struct cifs_deferred_close *dclose;
+	struct file_list *tmp_list, *tmp_next_list;
+	struct list_head file_head;
 
+	if (cifs_inode == NULL)
+		return;
+
+	INIT_LIST_HEAD(&file_head);
+	spin_lock(&cifs_inode->open_file_lock);
 	list_for_each_entry(cfile, &cifs_inode->openFileList, flist) {
-		spin_lock(&cifs_inode->deferred_lock);
-		if (cifs_is_deferred_close(cfile, &dclose))
-			mod_delayed_work(deferredclose_wq, &cfile->deferred, 0);
-		spin_unlock(&cifs_inode->deferred_lock);
+		if (delayed_work_pending(&cfile->deferred)) {
+			if (cancel_delayed_work(&cfile->deferred)) {
+				tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
+				if (tmp_list == NULL)
+					continue;
+				tmp_list->cfile = cfile;
+				list_add_tail(&tmp_list->list, &file_head);
+			}
+		}
+	}
+	spin_unlock(&cifs_inode->open_file_lock);
+
+	list_for_each_entry_safe(tmp_list, tmp_next_list, &file_head, list) {
+		_cifsFileInfo_put(tmp_list->cfile, true, false);
+		list_del(&tmp_list->list);
+		kfree(tmp_list);
 	}
 }
 
@@ -738,17 +755,31 @@ void
 cifs_close_all_deferred_files(struct cifs_tcon *tcon)
 {
 	struct cifsFileInfo *cfile;
-	struct cifsInodeInfo *cinode;
 	struct list_head *tmp;
+	struct file_list *tmp_list, *tmp_next_list;
+	struct list_head file_head;
 
+	INIT_LIST_HEAD(&file_head);
 	spin_lock(&tcon->open_file_lock);
 	list_for_each(tmp, &tcon->openFileList) {
 		cfile = list_entry(tmp, struct cifsFileInfo, tlist);
-		cinode = CIFS_I(d_inode(cfile->dentry));
-		if (delayed_work_pending(&cfile->deferred))
-			mod_delayed_work(deferredclose_wq, &cfile->deferred, 0);
+		if (delayed_work_pending(&cfile->deferred)) {
+			if (cancel_delayed_work(&cfile->deferred)) {
+				tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
+				if (tmp_list == NULL)
+					continue;
+				tmp_list->cfile = cfile;
+				list_add_tail(&tmp_list->list, &file_head);
+			}
+		}
 	}
 	spin_unlock(&tcon->open_file_lock);
+
+	list_for_each_entry_safe(tmp_list, tmp_next_list, &file_head, list) {
+		_cifsFileInfo_put(tmp_list->cfile, true, false);
+		list_del(&tmp_list->list);
+		kfree(tmp_list);
+	}
 }
 
 /* parses DFS refferal V3 structure
@@ -1184,7 +1215,7 @@ int match_target_ip(struct TCP_Server_Info *server,
 
 	cifs_dbg(FYI, "%s: target name: %s\n", __func__, target + 2);
 
-	rc = dns_resolve_server_name_to_ip(target, &tip);
+	rc = dns_resolve_server_name_to_ip(target, &tip, NULL);
 	if (rc < 0)
 		goto out;
 

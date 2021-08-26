@@ -4,7 +4,7 @@ Required properties:
 - compatible : Should be one of
 	* "adi,adgs1408"
 	* "adi,adgs1409"
-* Standard mux-controller bindings as described in mux-controller.txt
+* Standard mux-controller bindings as described in mux-controller.yaml
 
 Optional properties for ADGS1408/1409:
 - gpio-controller : if present, #gpio-cells is required.

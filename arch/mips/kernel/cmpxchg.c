@@ -41,7 +41,7 @@ unsigned long __xchg_small(volatile void *ptr, unsigned long val, unsigned int s
 	do {
 		old32 = load32;
 		new32 = (load32 & ~mask) | (val << shift);
-		load32 = cmpxchg(ptr32, old32, new32);
+		load32 = arch_cmpxchg(ptr32, old32, new32);
 	} while (load32 != old32);
 
 	return (load32 & mask) >> shift;
@@ -97,7 +97,7 @@ unsigned long __cmpxchg_small(volatile void *ptr, unsigned long old,
 		 */
 		old32 = (load32 & ~mask) | (old << shift);
 		new32 = (load32 & ~mask) | (new << shift);
-		load32 = cmpxchg(ptr32, old32, new32);
+		load32 = arch_cmpxchg(ptr32, old32, new32);
 		if (load32 == old32)
 			return old;
 	}

@@ -46,7 +46,7 @@ void test_prog_run_xattr(void)
 	tattr.prog_fd = bpf_program__fd(skel->progs.test_pkt_access);
 
 	err = bpf_prog_test_run_xattr(&tattr);
-	CHECK_ATTR(err != -1 || errno != ENOSPC || tattr.retval, "run",
+	CHECK_ATTR(err >= 0 || errno != ENOSPC || tattr.retval, "run",
 	      "err %d errno %d retval %d\n", err, errno, tattr.retval);
 
 	CHECK_ATTR(tattr.data_size_out != sizeof(pkt_v4), "data_size_out",
@@ -78,6 +78,6 @@ void test_prog_run_xattr(void)
 cleanup:
 	if (skel)
 		test_pkt_access__destroy(skel);
-	if (stats_fd != -1)
+	if (stats_fd >= 0)
 		close(stats_fd);
 }

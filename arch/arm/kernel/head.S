@@ -23,7 +23,6 @@
 #if defined(CONFIG_DEBUG_LL) && !defined(CONFIG_DEBUG_SEMIHOSTING)
 #include CONFIG_DEBUG_LL_INCLUDE
 #endif
-
 /*
  * swapper_pg_dir is the virtual address of the initial page table.
  * We place the page tables 16K below KERNEL_RAM_VADDR.  Therefore, we must
@@ -31,7 +30,7 @@
  * the least significant 16 bits to be 0x8000, but we could probably
  * relax this restriction to KERNEL_RAM_VADDR >= PAGE_OFFSET + 0x4000.
  */
-#define KERNEL_RAM_VADDR	(PAGE_OFFSET + TEXT_OFFSET)
+#define KERNEL_RAM_VADDR	(KERNEL_OFFSET + TEXT_OFFSET)
 #if (KERNEL_RAM_VADDR & 0xffff) != 0x8000
 #error KERNEL_RAM_VADDR must start at 0xXXXX8000
 #endif
@@ -47,6 +46,20 @@
 
 	.globl	swapper_pg_dir
 	.equ	swapper_pg_dir, KERNEL_RAM_VADDR - PG_DIR_SIZE
+
+	/*
+	 * This needs to be assigned at runtime when the linker symbols are
+	 * resolved.
+	 */
+	.pushsection .data
+	.align	2
+	.globl	kernel_sec_start
+	.globl	kernel_sec_end
+kernel_sec_start:
+	.long	0
+kernel_sec_end:
+	.long	0
+	.popsection
 
 	.macro	pgtbl, rd, phys
 	add	\rd, \phys, #TEXT_OFFSET
@@ -230,16 +243,23 @@ __create_page_tables:
 	blo	1b
 
 	/*
-	 * Map our RAM from the start to the end of the kernel .bss section.
+	 * The main matter: map in the kernel using section mappings, and
+	 * set two variables to indicate the physical start and end of the
+	 * kernel.
 	 */
-	add	r0, r4, #PAGE_OFFSET >> (SECTION_SHIFT - PMD_ORDER)
+	add	r0, r4, #KERNEL_OFFSET >> (SECTION_SHIFT - PMD_ORDER)
 	ldr	r6, =(_end - 1)
-	orr	r3, r8, r7
+	adr_l	r5, kernel_sec_start		@ _pa(kernel_sec_start)
+	str	r8, [r5]			@ Save physical start of kernel
+	orr	r3, r8, r7			@ Add the MMU flags
 	add	r6, r4, r6, lsr #(SECTION_SHIFT - PMD_ORDER)
 1:	str	r3, [r0], #1 << PMD_ORDER
 	add	r3, r3, #1 << SECTION_SHIFT
 	cmp	r0, r6
 	bls	1b
+	eor	r3, r3, r7			@ Remove the MMU flags
+	adr_l	r5, kernel_sec_end		@ _pa(kernel_sec_end)
+	str	r3, [r5]			@ Save physical end of kernel
 
 #ifdef CONFIG_XIP_KERNEL
 	/*

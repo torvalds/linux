@@ -354,7 +354,7 @@ static long notrace __unsafe_restore_sigcontext(struct task_struct *tsk, sigset_
 	/* get MSR separately, transfer the LE bit if doing signal return */
 	unsafe_get_user(msr, &sc->gp_regs[PT_MSR], efault_out);
 	if (sig)
-		regs->msr = (regs->msr & ~MSR_LE) | (msr & MSR_LE);
+		regs_set_return_msr(regs, (regs->msr & ~MSR_LE) | (msr & MSR_LE));
 	unsafe_get_user(regs->orig_gpr3, &sc->gp_regs[PT_ORIG_R3], efault_out);
 	unsafe_get_user(regs->ctr, &sc->gp_regs[PT_CTR], efault_out);
 	unsafe_get_user(regs->link, &sc->gp_regs[PT_LNK], efault_out);
@@ -376,7 +376,7 @@ static long notrace __unsafe_restore_sigcontext(struct task_struct *tsk, sigset_
 	 * This has to be done before copying stuff into tsk->thread.fpr/vr
 	 * for the reasons explained in the previous comment.
 	 */
-	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1 | MSR_VEC | MSR_VSX);
+	regs_set_return_msr(regs, regs->msr & ~(MSR_FP | MSR_FE0 | MSR_FE1 | MSR_VEC | MSR_VSX));
 
 #ifdef CONFIG_ALTIVEC
 	unsafe_get_user(v_regs, &sc->v_regs, efault_out);
@@ -468,7 +468,7 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 		return -EINVAL;
 
 	/* pull in MSR LE from user context */
-	regs->msr = (regs->msr & ~MSR_LE) | (msr & MSR_LE);
+	regs_set_return_msr(regs, (regs->msr & ~MSR_LE) | (msr & MSR_LE));
 
 	/* The following non-GPR non-FPR non-VR state is also checkpointed: */
 	err |= __get_user(regs->ctr, &tm_sc->gp_regs[PT_CTR]);
@@ -495,7 +495,7 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 	 * This has to be done before copying stuff into tsk->thread.fpr/vr
 	 * for the reasons explained in the previous comment.
 	 */
-	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1 | MSR_VEC | MSR_VSX);
+	regs_set_return_msr(regs, regs->msr & ~(MSR_FP | MSR_FE0 | MSR_FE1 | MSR_VEC | MSR_VSX));
 
 #ifdef CONFIG_ALTIVEC
 	err |= __get_user(v_regs, &sc->v_regs);
@@ -565,7 +565,7 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 	preempt_disable();
 
 	/* pull in MSR TS bits from user context */
-	regs->msr |= msr & MSR_TS_MASK;
+	regs_set_return_msr(regs, regs->msr | (msr & MSR_TS_MASK));
 
 	/*
 	 * Ensure that TM is enabled in regs->msr before we leave the signal
@@ -583,7 +583,7 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 	 * to be de-scheduled with MSR[TS] set but without calling
 	 * tm_recheckpoint(). This can cause a bug.
 	 */
-	regs->msr |= MSR_TM;
+	regs_set_return_msr(regs, regs->msr | MSR_TM);
 
 	/* This loads the checkpointed FP/VEC state, if used */
 	tm_recheckpoint(&tsk->thread);
@@ -591,11 +591,11 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 	msr_check_and_set(msr & (MSR_FP | MSR_VEC));
 	if (msr & MSR_FP) {
 		load_fp_state(&tsk->thread.fp_state);
-		regs->msr |= (MSR_FP | tsk->thread.fpexc_mode);
+		regs_set_return_msr(regs, regs->msr | (MSR_FP | tsk->thread.fpexc_mode));
 	}
 	if (msr & MSR_VEC) {
 		load_vr_state(&tsk->thread.vr_state);
-		regs->msr |= MSR_VEC;
+		regs_set_return_msr(regs, regs->msr | MSR_VEC);
 	}
 
 	preempt_enable();
@@ -618,15 +618,12 @@ static long setup_trampoline(unsigned int syscall, unsigned int __user *tramp)
 	int i;
 	long err = 0;
 
-	/* bctrl # call the handler */
-	err |= __put_user(PPC_INST_BCTRL, &tramp[0]);
-	/* addi r1, r1, __SIGNAL_FRAMESIZE  # Pop the dummy stackframe */
-	err |= __put_user(PPC_INST_ADDI | __PPC_RT(R1) | __PPC_RA(R1) |
-			  (__SIGNAL_FRAMESIZE & 0xffff), &tramp[1]);
-	/* li r0, __NR_[rt_]sigreturn| */
-	err |= __put_user(PPC_INST_ADDI | (syscall & 0xffff), &tramp[2]);
-	/* sc */
-	err |= __put_user(PPC_INST_SC, &tramp[3]);
+	/* Call the handler and pop the dummy stackframe*/
+	err |= __put_user(PPC_RAW_BCTRL(), &tramp[0]);
+	err |= __put_user(PPC_RAW_ADDI(_R1, _R1, __SIGNAL_FRAMESIZE), &tramp[1]);
+
+	err |= __put_user(PPC_RAW_LI(_R0, syscall), &tramp[2]);
+	err |= __put_user(PPC_RAW_SC(), &tramp[3]);
 
 	/* Minimal traceback info */
 	for (i=TRAMP_TRACEBACK; i < TRAMP_SIZE ;i++)
@@ -720,6 +717,7 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 
 	/* This returns like rt_sigreturn */
 	set_thread_flag(TIF_RESTOREALL);
+
 	return 0;
 
 efault_out:
@@ -786,7 +784,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		 * the MSR[TS] that came from user context later, at
 		 * restore_tm_sigcontexts.
 		 */
-		regs->msr &= ~MSR_TS_MASK;
+		regs_set_return_msr(regs, regs->msr & ~MSR_TS_MASK);
 
 		if (__get_user(msr, &uc->uc_mcontext.gp_regs[PT_MSR]))
 			goto badframe;
@@ -818,7 +816,8 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		 * MSR[TS] set, but without CPU in the proper state,
 		 * causing a TM bad thing.
 		 */
-		current->thread.regs->msr &= ~MSR_TS_MASK;
+		regs_set_return_msr(current->thread.regs,
+				current->thread.regs->msr & ~MSR_TS_MASK);
 		if (!user_read_access_begin(&uc->uc_mcontext, sizeof(uc->uc_mcontext)))
 			goto badframe;
 
@@ -832,6 +831,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		goto badframe;
 
 	set_thread_flag(TIF_RESTOREALL);
+
 	return 0;
 
 badframe_block:
@@ -902,23 +902,22 @@ int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 	unsafe_copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set), badframe_block);
 	user_write_access_end();
 
+	/* Save the siginfo outside of the unsafe block. */
+	if (copy_siginfo_to_user(&frame->info, &ksig->info))
+		goto badframe;
+
 	/* Make sure signal handler doesn't get spurious FP exceptions */
 	tsk->thread.fp_state.fpscr = 0;
 
 	/* Set up to return from userspace. */
 	if (tsk->mm->context.vdso) {
-		regs->nip = VDSO64_SYMBOL(tsk->mm->context.vdso, sigtramp_rt64);
+		regs_set_return_ip(regs, VDSO64_SYMBOL(tsk->mm->context.vdso, sigtramp_rt64));
 	} else {
 		err |= setup_trampoline(__NR_rt_sigreturn, &frame->tramp[0]);
 		if (err)
 			goto badframe;
-		regs->nip = (unsigned long) &frame->tramp[0];
+		regs_set_return_ip(regs, (unsigned long) &frame->tramp[0]);
 	}
-
-
-	/* Save the siginfo outside of the unsafe block. */
-	if (copy_siginfo_to_user(&frame->info, &ksig->info))
-		goto badframe;
 
 	/* Allocate a dummy caller frame for the signal handler. */
 	newsp = ((unsigned long)frame) - __SIGNAL_FRAMESIZE;
@@ -942,14 +941,13 @@ int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 	}
 
 	/* enter the signal handler in native-endian mode */
-	regs->msr &= ~MSR_LE;
-	regs->msr |= (MSR_KERNEL & MSR_LE);
+	regs_set_return_msr(regs, (regs->msr & ~MSR_LE) | (MSR_KERNEL & MSR_LE));
 	regs->gpr[1] = newsp;
 	regs->gpr[3] = ksig->sig;
 	regs->result = 0;
 	if (ksig->ka.sa.sa_flags & SA_SIGINFO) {
-		err |= get_user(regs->gpr[4], (unsigned long __user *)&frame->pinfo);
-		err |= get_user(regs->gpr[5], (unsigned long __user *)&frame->puc);
+		regs->gpr[4] = (unsigned long)&frame->info;
+		regs->gpr[5] = (unsigned long)&frame->uc;
 		regs->gpr[6] = (unsigned long) frame;
 	} else {
 		regs->gpr[4] = (unsigned long)&frame->uc.uc_mcontext;

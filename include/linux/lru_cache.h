@@ -32,7 +32,7 @@ This header file (and its .c file; kernel-doc of functions see there)
   Because of this later property, it is called "lru_cache".
   As it actually Tracks Objects in an Active SeT, we could also call it
   toast (incidentally that is what may happen to the data on the
-  backend storage uppon next resync, if we don't get it right).
+  backend storage upon next resync, if we don't get it right).
 
 What for?
 
@@ -152,7 +152,7 @@ struct lc_element {
 	 * for paranoia, and for "lc_element_to_index" */
 	unsigned lc_index;
 	/* if we want to track a larger set of objects,
-	 * it needs to become arch independend u64 */
+	 * it needs to become an architecture independent u64 */
 	unsigned lc_number;
 	/* special label when on free list */
 #define LC_FREE (~0U)
@@ -263,7 +263,7 @@ extern void lc_seq_dump_details(struct seq_file *seq, struct lru_cache *lc, char
  *
  * Allows (expects) the set to be "dirty".  Note that the reference counts and
  * order on the active and lru lists may still change.  Used to serialize
- * changing transactions.  Returns true if we aquired the lock.
+ * changing transactions.  Returns true if we acquired the lock.
  */
 static inline int lc_try_lock_for_transaction(struct lru_cache *lc)
 {
@@ -275,7 +275,7 @@ static inline int lc_try_lock_for_transaction(struct lru_cache *lc)
  * @lc: the lru cache to operate on
  *
  * Note that the reference counts and order on the active and lru lists may
- * still change.  Only works on a "clean" set.  Returns true if we aquired the
+ * still change.  Only works on a "clean" set.  Returns true if we acquired the
  * lock, which means there are no pending changes, and any further attempt to
  * change the set will not succeed until the next lc_unlock().
  */

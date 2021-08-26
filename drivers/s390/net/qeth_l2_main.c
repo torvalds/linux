@@ -279,7 +279,7 @@ static void qeth_l2_set_pnso_mode(struct qeth_card *card,
 
 static void qeth_l2_dev2br_fdb_flush(struct qeth_card *card)
 {
-	struct switchdev_notifier_fdb_info info;
+	struct switchdev_notifier_fdb_info info = {};
 
 	QETH_CARD_TEXT(card, 2, "fdbflush");
 
@@ -679,7 +679,7 @@ static void qeth_l2_dev2br_fdb_notify(struct qeth_card *card, u8 code,
 				      struct net_if_token *token,
 				      struct mac_addr_lnid *addr_lnid)
 {
-	struct switchdev_notifier_fdb_info info;
+	struct switchdev_notifier_fdb_info info = {};
 	u8 ntfy_mac[ETH_ALEN];
 
 	ether_addr_copy(ntfy_mac, addr_lnid->mac);
@@ -805,8 +805,6 @@ static int qeth_l2_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 
 	if (!netif_device_present(dev))
 		return -ENODEV;
-	if (!(priv->brport_hw_features))
-		return -EOPNOTSUPP;
 
 	nlmsg_for_each_attr(attr, nlh, sizeof(struct ifinfomsg), rem1) {
 		if (nla_type(attr) == IFLA_PROTINFO) {
@@ -832,6 +830,16 @@ static int qeth_l2_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 		return 0;
 	if (!bp_tb[IFLA_BRPORT_LEARNING_SYNC])
 		return -EINVAL;
+	if (!(priv->brport_hw_features & BR_LEARNING_SYNC)) {
+		NL_SET_ERR_MSG_ATTR(extack, bp_tb[IFLA_BRPORT_LEARNING_SYNC],
+				    "Operation not supported by HW");
+		return -EOPNOTSUPP;
+	}
+	if (!IS_ENABLED(CONFIG_NET_SWITCHDEV)) {
+		NL_SET_ERR_MSG_ATTR(extack, bp_tb[IFLA_BRPORT_LEARNING_SYNC],
+				    "Requires NET_SWITCHDEV");
+		return -EOPNOTSUPP;
+	}
 	enable = !!nla_get_u8(bp_tb[IFLA_BRPORT_LEARNING_SYNC]);
 
 	if (enable == !!(priv->brport_features & BR_LEARNING_SYNC))

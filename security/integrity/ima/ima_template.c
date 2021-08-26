@@ -22,6 +22,8 @@ static struct ima_template_desc builtin_templates[] = {
 	{.name = "ima-sig", .fmt = "d-ng|n-ng|sig"},
 	{.name = "ima-buf", .fmt = "d-ng|n-ng|buf"},
 	{.name = "ima-modsig", .fmt = "d-ng|n-ng|sig|d-modsig|modsig"},
+	{.name = "evm-sig",
+	 .fmt = "d-ng|n-ng|evmsig|xattrnames|xattrlengths|xattrvalues|iuid|igid|imode"},
 	{.name = "", .fmt = ""},	/* placeholder for a custom format */
 };
 
@@ -45,6 +47,23 @@ static const struct ima_template_field supported_fields[] = {
 	 .field_show = ima_show_template_digest_ng},
 	{.field_id = "modsig", .field_init = ima_eventmodsig_init,
 	 .field_show = ima_show_template_sig},
+	{.field_id = "evmsig", .field_init = ima_eventevmsig_init,
+	 .field_show = ima_show_template_sig},
+	{.field_id = "iuid", .field_init = ima_eventinodeuid_init,
+	 .field_show = ima_show_template_uint},
+	{.field_id = "igid", .field_init = ima_eventinodegid_init,
+	 .field_show = ima_show_template_uint},
+	{.field_id = "imode", .field_init = ima_eventinodemode_init,
+	 .field_show = ima_show_template_uint},
+	{.field_id = "xattrnames",
+	 .field_init = ima_eventinodexattrnames_init,
+	 .field_show = ima_show_template_string},
+	{.field_id = "xattrlengths",
+	 .field_init = ima_eventinodexattrlengths_init,
+	 .field_show = ima_show_template_sig},
+	{.field_id = "xattrvalues",
+	 .field_init = ima_eventinodexattrvalues_init,
+	 .field_show = ima_show_template_sig},
 };
 
 /*
@@ -52,7 +71,8 @@ static const struct ima_template_field supported_fields[] = {
  * need to be accounted for since they shouldn't be defined in the same template
  * description as 'd-ng' and 'n-ng' respectively.
  */
-#define MAX_TEMPLATE_NAME_LEN sizeof("d-ng|n-ng|sig|buf|d-modisg|modsig")
+#define MAX_TEMPLATE_NAME_LEN \
+	sizeof("d-ng|n-ng|evmsig|xattrnames|xattrlengths|xattrvalues|iuid|igid|imode")
 
 static struct ima_template_desc *ima_template;
 static struct ima_template_desc *ima_buf_template;
@@ -403,9 +423,9 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 		return 0;
 
 	if (ima_canonical_fmt) {
-		khdr->version = le16_to_cpu(khdr->version);
-		khdr->count = le64_to_cpu(khdr->count);
-		khdr->buffer_size = le64_to_cpu(khdr->buffer_size);
+		khdr->version = le16_to_cpu((__force __le16)khdr->version);
+		khdr->count = le64_to_cpu((__force __le64)khdr->count);
+		khdr->buffer_size = le64_to_cpu((__force __le64)khdr->buffer_size);
 	}
 
 	if (khdr->version != 1) {
@@ -495,7 +515,7 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 		}
 
 		entry->pcr = !ima_canonical_fmt ? *(u32 *)(hdr[HDR_PCR].data) :
-			     le32_to_cpu(*(u32 *)(hdr[HDR_PCR].data));
+			     le32_to_cpu(*(__le32 *)(hdr[HDR_PCR].data));
 		ret = ima_restore_measurement_entry(entry);
 		if (ret < 0)
 			break;

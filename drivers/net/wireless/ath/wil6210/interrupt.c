@@ -9,7 +9,7 @@
 #include "wil6210.h"
 #include "trace.h"
 
-/**
+/*
  * Theory of operation:
  *
  * There is ISR pseudo-cause register,

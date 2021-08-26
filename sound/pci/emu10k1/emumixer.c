@@ -1119,7 +1119,8 @@ static int snd_audigy_spdif_output_rate_put(struct snd_kcontrol *kcontrol,
 	reg = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, 0);
 	tmp = reg & ~A_SPDIF_RATE_MASK;
 	tmp |= val;
-	if ((change = (tmp != reg)))
+	change = (tmp != reg);
+	if (change)
 		snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, 0, tmp);
 	spin_unlock_irqrestore(&emu->reg_lock, flags);
 	return change;
@@ -1903,7 +1904,8 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 			.read = snd_emu10k1_ac97_read,
 		};
 
-		if ((err = snd_ac97_bus(emu->card, 0, &ops, NULL, &pbus)) < 0)
+		err = snd_ac97_bus(emu->card, 0, &ops, NULL, &pbus);
+		if (err < 0)
 			return err;
 		pbus->no_vra = 1; /* we don't need VRA */
 		
@@ -1911,7 +1913,8 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		ac97.private_data = emu;
 		ac97.private_free = snd_emu10k1_mixer_free_ac97;
 		ac97.scaps = AC97_SCAP_NO_SPDIF;
-		if ((err = snd_ac97_mixer(pbus, &ac97, &emu->ac97)) < 0) {
+		err = snd_ac97_mixer(pbus, &ac97, &emu->ac97);
+		if (err < 0) {
 			if (emu->card_capabilities->ac97_chip == 1)
 				return err;
 			dev_info(emu->card->dev,
@@ -1991,38 +1994,50 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		rename_ctl(card, "Aux2 Capture Volume", "Line3 Capture Volume");
 		rename_ctl(card, "Mic Capture Volume", "Unknown1 Capture Volume");
 	}
-	if ((kctl = emu->ctl_send_routing = snd_ctl_new1(&snd_emu10k1_send_routing_control, emu)) == NULL)
+	kctl = emu->ctl_send_routing = snd_ctl_new1(&snd_emu10k1_send_routing_control, emu);
+	if (!kctl)
 		return -ENOMEM;
 	kctl->id.device = pcm_device;
-	if ((err = snd_ctl_add(card, kctl)))
+	err = snd_ctl_add(card, kctl);
+	if (err)
 		return err;
-	if ((kctl = emu->ctl_send_volume = snd_ctl_new1(&snd_emu10k1_send_volume_control, emu)) == NULL)
+	kctl = emu->ctl_send_volume = snd_ctl_new1(&snd_emu10k1_send_volume_control, emu);
+	if (!kctl)
 		return -ENOMEM;
 	kctl->id.device = pcm_device;
-	if ((err = snd_ctl_add(card, kctl)))
+	err = snd_ctl_add(card, kctl);
+	if (err)
 		return err;
-	if ((kctl = emu->ctl_attn = snd_ctl_new1(&snd_emu10k1_attn_control, emu)) == NULL)
+	kctl = emu->ctl_attn = snd_ctl_new1(&snd_emu10k1_attn_control, emu);
+	if (!kctl)
 		return -ENOMEM;
 	kctl->id.device = pcm_device;
-	if ((err = snd_ctl_add(card, kctl)))
+	err = snd_ctl_add(card, kctl);
+	if (err)
 		return err;
 
-	if ((kctl = emu->ctl_efx_send_routing = snd_ctl_new1(&snd_emu10k1_efx_send_routing_control, emu)) == NULL)
+	kctl = emu->ctl_efx_send_routing = snd_ctl_new1(&snd_emu10k1_efx_send_routing_control, emu);
+	if (!kctl)
 		return -ENOMEM;
 	kctl->id.device = multi_device;
-	if ((err = snd_ctl_add(card, kctl)))
+	err = snd_ctl_add(card, kctl);
+	if (err)
 		return err;
 	
-	if ((kctl = emu->ctl_efx_send_volume = snd_ctl_new1(&snd_emu10k1_efx_send_volume_control, emu)) == NULL)
+	kctl = emu->ctl_efx_send_volume = snd_ctl_new1(&snd_emu10k1_efx_send_volume_control, emu);
+	if (!kctl)
 		return -ENOMEM;
 	kctl->id.device = multi_device;
-	if ((err = snd_ctl_add(card, kctl)))
+	err = snd_ctl_add(card, kctl);
+	if (err)
 		return err;
 	
-	if ((kctl = emu->ctl_efx_attn = snd_ctl_new1(&snd_emu10k1_efx_attn_control, emu)) == NULL)
+	kctl = emu->ctl_efx_attn = snd_ctl_new1(&snd_emu10k1_efx_attn_control, emu);
+	if (!kctl)
 		return -ENOMEM;
 	kctl->id.device = multi_device;
-	if ((err = snd_ctl_add(card, kctl)))
+	err = snd_ctl_add(card, kctl);
+	if (err)
 		return err;
 
 	/* initialize the routing and volume table for each pcm playback stream */
@@ -2069,42 +2084,53 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 	
 	if (! emu->card_capabilities->ecard) { /* FIXME: APS has these controls? */
 		/* sb live! and audigy */
-		if ((kctl = snd_ctl_new1(&snd_emu10k1_spdif_mask_control, emu)) == NULL)
+		kctl = snd_ctl_new1(&snd_emu10k1_spdif_mask_control, emu);
+		if (!kctl)
 			return -ENOMEM;
 		if (!emu->audigy)
 			kctl->id.device = emu->pcm_efx->device;
-		if ((err = snd_ctl_add(card, kctl)))
+		err = snd_ctl_add(card, kctl);
+		if (err)
 			return err;
-		if ((kctl = snd_ctl_new1(&snd_emu10k1_spdif_control, emu)) == NULL)
+		kctl = snd_ctl_new1(&snd_emu10k1_spdif_control, emu);
+		if (!kctl)
 			return -ENOMEM;
 		if (!emu->audigy)
 			kctl->id.device = emu->pcm_efx->device;
-		if ((err = snd_ctl_add(card, kctl)))
+		err = snd_ctl_add(card, kctl);
+		if (err)
 			return err;
 	}
 
 	if (emu->card_capabilities->emu_model) {
 		;  /* Disable the snd_audigy_spdif_shared_spdif */
 	} else if (emu->audigy) {
-		if ((kctl = snd_ctl_new1(&snd_audigy_shared_spdif, emu)) == NULL)
+		kctl = snd_ctl_new1(&snd_audigy_shared_spdif, emu);
+		if (!kctl)
 			return -ENOMEM;
-		if ((err = snd_ctl_add(card, kctl)))
+		err = snd_ctl_add(card, kctl);
+		if (err)
 			return err;
 #if 0
-		if ((kctl = snd_ctl_new1(&snd_audigy_spdif_output_rate, emu)) == NULL)
+		kctl = snd_ctl_new1(&snd_audigy_spdif_output_rate, emu);
+		if (!kctl)
 			return -ENOMEM;
-		if ((err = snd_ctl_add(card, kctl)))
+		err = snd_ctl_add(card, kctl);
+		if (err)
 			return err;
 #endif
 	} else if (! emu->card_capabilities->ecard) {
 		/* sb live! */
-		if ((kctl = snd_ctl_new1(&snd_emu10k1_shared_spdif, emu)) == NULL)
+		kctl = snd_ctl_new1(&snd_emu10k1_shared_spdif, emu);
+		if (!kctl)
 			return -ENOMEM;
-		if ((err = snd_ctl_add(card, kctl)))
+		err = snd_ctl_add(card, kctl);
+		if (err)
 			return err;
 	}
 	if (emu->card_capabilities->ca0151_chip) { /* P16V */
-		if ((err = snd_p16v_mixer(emu)))
+		err = snd_p16v_mixer(emu);
+		if (err)
 			return err;
 	}
 

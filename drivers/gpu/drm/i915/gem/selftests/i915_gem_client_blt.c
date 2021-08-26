@@ -152,8 +152,8 @@ static int prepare_blit(const struct tiled_blits *t,
 			struct blit_buffer *src,
 			struct drm_i915_gem_object *batch)
 {
-	const int gen = INTEL_GEN(to_i915(batch->base.dev));
-	bool use_64b_reloc = gen >= 8;
+	const int ver = GRAPHICS_VER(to_i915(batch->base.dev));
+	bool use_64b_reloc = ver >= 8;
 	u32 src_pitch, dst_pitch;
 	u32 cmd, *cs;
 
@@ -171,7 +171,7 @@ static int prepare_blit(const struct tiled_blits *t,
 	*cs++ = cmd;
 
 	cmd = MI_FLUSH_DW;
-	if (gen >= 8)
+	if (ver >= 8)
 		cmd++;
 	*cs++ = cmd;
 	*cs++ = 0;
@@ -179,7 +179,7 @@ static int prepare_blit(const struct tiled_blits *t,
 	*cs++ = 0;
 
 	cmd = XY_SRC_COPY_BLT_CMD | BLT_WRITE_RGBA | (8 - 2);
-	if (gen >= 8)
+	if (ver >= 8)
 		cmd += 2;
 
 	src_pitch = t->width * 4;
@@ -666,7 +666,7 @@ static int igt_client_tiled_blits(void *arg)
 	int inst = 0;
 
 	/* Test requires explicit BLT tiling controls */
-	if (INTEL_GEN(i915) < 4)
+	if (GRAPHICS_VER(i915) < 4)
 		return 0;
 
 	if (bad_swizzling(i915)) /* Requires sane (sub-page) swizzling */

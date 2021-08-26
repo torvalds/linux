@@ -111,8 +111,6 @@ struct mlme_priv {
 	u8 to_join; /* flag */
 	u8 to_roaming; /*  roaming trying times */
 
-	u8 *nic_hdl;
-
 	struct list_head *pscanned;
 	struct __queue free_bss_pool;
 	struct __queue scanned_queue;
@@ -222,8 +220,6 @@ void rtw_surveydone_event_callback(struct adapter *adapter, u8 *pbuf);
 void rtw_joinbss_event_callback(struct adapter *adapter, u8 *pbuf);
 void rtw_stassoc_event_callback(struct adapter *adapter, u8 *pbuf);
 void rtw_stadel_event_callback(struct adapter *adapter, u8 *pbuf);
-void rtw_atimdone_event_callback(struct adapter *adapter, u8 *pbuf);
-void rtw_cpwm_event_callback(struct adapter *adapter, u8 *pbuf);
 void indicate_wx_scan_complete_event(struct adapter *padapter);
 void rtw_indicate_wx_assoc_event(struct adapter *padapter);
 void rtw_indicate_wx_disassoc_event(struct adapter *padapter);

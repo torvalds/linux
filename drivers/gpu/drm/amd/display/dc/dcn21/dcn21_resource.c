@@ -109,6 +109,7 @@ struct _vcs_dpi_ip_params_st dcn2_1_ip = {
 	.max_page_table_levels = 4,
 	.pte_chunk_size_kbytes = 2,
 	.meta_chunk_size_kbytes = 2,
+	.min_meta_chunk_size_bytes = 256,
 	.writeback_chunk_size_kbytes = 2,
 	.line_buffer_size_bits = 789504,
 	.is_line_buffer_bpp_fixed = 0,
@@ -448,11 +449,11 @@ static const struct dccg_registers dccg_regs = {
 };
 
 static const struct dccg_shift dccg_shift = {
-		DCCG_MASK_SH_LIST_DCN2(__SHIFT)
+		DCCG_MASK_SH_LIST_DCN2_1(__SHIFT)
 };
 
 static const struct dccg_mask dccg_mask = {
-		DCCG_MASK_SH_LIST_DCN2(_MASK)
+		DCCG_MASK_SH_LIST_DCN2_1(_MASK)
 };
 
 #define opp_regs(id)\

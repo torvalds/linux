@@ -96,7 +96,6 @@ unsigned long int_hwcap = 0;
 
 int __bootdata(noexec_disabled);
 unsigned long __bootdata(ident_map_size);
-unsigned long __bootdata(vmalloc_size);
 struct mem_detect_info __bootdata(mem_detect);
 
 struct exception_table_entry *__bootdata_preserved(__start_dma_ex_table);
@@ -108,6 +107,9 @@ unsigned long __bootdata_preserved(__edma);
 unsigned long __bootdata_preserved(__kaslr_offset);
 unsigned int __bootdata_preserved(zlib_dfltcc_support);
 EXPORT_SYMBOL(zlib_dfltcc_support);
+u64 __bootdata_preserved(stfle_fac_list[16]);
+EXPORT_SYMBOL(stfle_fac_list);
+u64 __bootdata_preserved(alt_stfle_fac_list[16]);
 
 unsigned long VMALLOC_START;
 EXPORT_SYMBOL(VMALLOC_START);
@@ -165,7 +167,7 @@ static void __init set_preferred_console(void)
 	else if (CONSOLE_IS_3270)
 		add_preferred_console("tty3270", 0, NULL);
 	else if (CONSOLE_IS_VT220)
-		add_preferred_console("ttyS", 1, NULL);
+		add_preferred_console("ttysclp", 0, NULL);
 	else if (CONSOLE_IS_HVC)
 		add_preferred_console("hvc", 0, NULL);
 }
@@ -338,27 +340,6 @@ int __init arch_early_irq_init(void)
 	return 0;
 }
 
-static int __init stack_realloc(void)
-{
-	unsigned long old, new;
-
-	old = S390_lowcore.async_stack - STACK_INIT_OFFSET;
-	new = stack_alloc();
-	if (!new)
-		panic("Couldn't allocate async stack");
-	WRITE_ONCE(S390_lowcore.async_stack, new + STACK_INIT_OFFSET);
-	free_pages(old, THREAD_SIZE_ORDER);
-
-	old = S390_lowcore.mcck_stack - STACK_INIT_OFFSET;
-	new = stack_alloc();
-	if (!new)
-		panic("Couldn't allocate machine check stack");
-	WRITE_ONCE(S390_lowcore.mcck_stack, new + STACK_INIT_OFFSET);
-	memblock_free_late(old, THREAD_SIZE);
-	return 0;
-}
-early_initcall(stack_realloc);
-
 void __init arch_call_rest_init(void)
 {
 	unsigned long stack;
@@ -373,7 +354,7 @@ void __init arch_call_rest_init(void)
 	set_task_stack_end_magic(current);
 	stack += STACK_INIT_OFFSET;
 	S390_lowcore.kernel_stack = stack;
-	CALL_ON_STACK_NORETURN(rest_init, stack);
+	call_on_stack_noreturn(rest_init, stack);
 }
 
 static void __init setup_lowcore_dat_off(void)
@@ -413,11 +394,6 @@ static void __init setup_lowcore_dat_off(void)
 	lc->lpp = LPP_MAGIC;
 	lc->machine_flags = S390_lowcore.machine_flags;
 	lc->preempt_count = S390_lowcore.preempt_count;
-	lc->stfl_fac_list = S390_lowcore.stfl_fac_list;
-	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
-	       sizeof(lc->stfle_fac_list));
-	memcpy(lc->alt_stfle_fac_list, S390_lowcore.alt_stfle_fac_list,
-	       sizeof(lc->alt_stfle_fac_list));
 	nmi_alloc_boot_cpu(lc);
 	lc->sys_enter_timer = S390_lowcore.sys_enter_timer;
 	lc->exit_timer = S390_lowcore.exit_timer;
@@ -466,6 +442,7 @@ static void __init setup_lowcore_dat_off(void)
 	lc->br_r1_trampoline = 0x07f1;	/* br %r1 */
 	lc->return_lpswe = gen_lpswe(__LC_RETURN_PSW);
 	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
+	lc->preempt_count = PREEMPT_DISABLED;
 
 	set_prefix((u32)(unsigned long) lc);
 	lowcore_ptr[0] = lc;
@@ -568,53 +545,10 @@ static void __init setup_resources(void)
 #endif
 }
 
-static void __init setup_ident_map_size(void)
+static void __init setup_memory_end(void)
 {
-	unsigned long vmax, tmp;
-
-	/* Choose kernel address space layout: 3 or 4 levels. */
-	tmp = ident_map_size / PAGE_SIZE;
-	tmp = tmp * (sizeof(struct page) + PAGE_SIZE);
-	if (tmp + vmalloc_size + MODULES_LEN <= _REGION2_SIZE)
-		vmax = _REGION2_SIZE; /* 3-level kernel page table */
-	else
-		vmax = _REGION1_SIZE; /* 4-level kernel page table */
-	/* module area is at the end of the kernel address space. */
-	MODULES_END = vmax;
-	if (is_prot_virt_host())
-		adjust_to_uv_max(&MODULES_END);
-#ifdef CONFIG_KASAN
-	vmax = _REGION1_SIZE;
-	MODULES_END = kasan_vmax;
-#endif
-	MODULES_VADDR = MODULES_END - MODULES_LEN;
-	VMALLOC_END = MODULES_VADDR;
-	VMALLOC_START = VMALLOC_END - vmalloc_size;
-
-	/* Split remaining virtual space between 1:1 mapping & vmemmap array */
-	tmp = VMALLOC_START / (PAGE_SIZE + sizeof(struct page));
-	/* vmemmap contains a multiple of PAGES_PER_SECTION struct pages */
-	tmp = SECTION_ALIGN_UP(tmp);
-	tmp = VMALLOC_START - tmp * sizeof(struct page);
-	tmp &= ~((vmax >> 11) - 1);	/* align to page table level */
-	tmp = min(tmp, 1UL << MAX_PHYSMEM_BITS);
-	vmemmap = (struct page *) tmp;
-
-	/* Take care that ident_map_size <= vmemmap */
-	ident_map_size = min(ident_map_size, (unsigned long)vmemmap);
-#ifdef CONFIG_KASAN
-	ident_map_size = min(ident_map_size, KASAN_SHADOW_START);
-#endif
-	vmemmap_size = SECTION_ALIGN_UP(ident_map_size / PAGE_SIZE) * sizeof(struct page);
-#ifdef CONFIG_KASAN
-	/* move vmemmap above kasan shadow only if stands in a way */
-	if (KASAN_SHADOW_END > (unsigned long)vmemmap &&
-	    (unsigned long)vmemmap + vmemmap_size > KASAN_SHADOW_START)
-		vmemmap = max(vmemmap, (struct page *)KASAN_SHADOW_END);
-#endif
-	max_pfn = max_low_pfn = PFN_DOWN(ident_map_size);
 	memblock_remove(ident_map_size, ULONG_MAX);
-
+	max_pfn = max_low_pfn = PFN_DOWN(ident_map_size);
 	pr_notice("The maximum memory size is %luMB\n", ident_map_size >> 20);
 }
 
@@ -650,30 +584,6 @@ static struct notifier_block kdump_mem_nb = {
 static void __init reserve_above_ident_map(void)
 {
 	memblock_reserve(ident_map_size, ULONG_MAX);
-}
-
-/*
- * Make sure that oldmem, where the dump is stored, is protected
- */
-static void __init reserve_oldmem(void)
-{
-#ifdef CONFIG_CRASH_DUMP
-	if (OLDMEM_BASE)
-		/* Forget all memory above the running kdump system */
-		memblock_reserve(OLDMEM_SIZE, (phys_addr_t)ULONG_MAX);
-#endif
-}
-
-/*
- * Make sure that oldmem, where the dump is stored, is protected
- */
-static void __init remove_oldmem(void)
-{
-#ifdef CONFIG_CRASH_DUMP
-	if (OLDMEM_BASE)
-		/* Forget all memory above the running kdump system */
-		memblock_remove(OLDMEM_SIZE, (phys_addr_t)ULONG_MAX);
-#endif
 }
 
 /*
@@ -1119,10 +1029,7 @@ void __init setup_arch(char **cmdline_p)
 
         ROOT_DEV = Root_RAM0;
 
-	init_mm.start_code = (unsigned long) _text;
-	init_mm.end_code = (unsigned long) _etext;
-	init_mm.end_data = (unsigned long) _edata;
-	init_mm.brk = (unsigned long) _end;
+	setup_initial_init_mm(_text, _etext, _edata, _end);
 
 	if (IS_ENABLED(CONFIG_EXPOLINE_AUTO))
 		nospec_auto_detect();
@@ -1141,7 +1048,6 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Do some memory reservations *before* memory is added to memblock */
 	reserve_above_ident_map();
-	reserve_oldmem();
 	reserve_kernel();
 	reserve_initrd();
 	reserve_certificate_list();
@@ -1152,10 +1058,9 @@ void __init setup_arch(char **cmdline_p)
 	memblock_add_mem_detect_info();
 
 	free_mem_detect_info();
-	remove_oldmem();
 
 	setup_uv();
-	setup_ident_map_size();
+	setup_memory_end();
 	setup_memory();
 	dma_contiguous_reserve(ident_map_size);
 	vmcp_cma_reserve();

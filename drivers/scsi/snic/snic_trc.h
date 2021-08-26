@@ -46,9 +46,6 @@ struct snic_trc {
 	u32	rd_idx;
 	u32	wr_idx;
 	bool	enable;			/* Control Variable for Tracing */
-
-	struct dentry *trc_enable;	/* debugfs file object */
-	struct dentry *trc_file;
 };
 
 int snic_trc_init(void);

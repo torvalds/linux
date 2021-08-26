@@ -25,6 +25,7 @@ config SOUNDWIRE_INTEL
 	tristate "Intel SoundWire Master driver"
 	select SOUNDWIRE_CADENCE
 	select SOUNDWIRE_GENERIC_ALLOCATION
+	select AUXILIARY_BUS
 	depends on ACPI && SND_SOC
 	help
 	  SoundWire Intel Master driver.

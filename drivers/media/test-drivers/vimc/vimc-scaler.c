@@ -84,20 +84,20 @@ static void vimc_sca_adjust_sink_crop(struct v4l2_rect *r,
 }
 
 static int vimc_sca_init_cfg(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg)
+			     struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *mf;
 	struct v4l2_rect *r;
 	unsigned int i;
 
-	mf = v4l2_subdev_get_try_format(sd, cfg, 0);
+	mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
 	*mf = sink_fmt_default;
 
-	r = v4l2_subdev_get_try_crop(sd, cfg, 0);
+	r = v4l2_subdev_get_try_crop(sd, sd_state, 0);
 	*r = crop_rect_default;
 
 	for (i = 1; i < sd->entity.num_pads; i++) {
-		mf = v4l2_subdev_get_try_format(sd, cfg, i);
+		mf = v4l2_subdev_get_try_format(sd, sd_state, i);
 		*mf = sink_fmt_default;
 		mf->width = mf->width * sca_mult;
 		mf->height = mf->height * sca_mult;
@@ -107,7 +107,7 @@ static int vimc_sca_init_cfg(struct v4l2_subdev *sd,
 }
 
 static int vimc_sca_enum_mbus_code(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_mbus_code_enum *code)
 {
 	u32 mbus_code = vimc_mbus_code_by_index(code->index);
@@ -128,7 +128,7 @@ static int vimc_sca_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int vimc_sca_enum_frame_size(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_pad_config *cfg,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_size_enum *fse)
 {
 	const struct vimc_pix_map *vpix;
@@ -156,7 +156,7 @@ static int vimc_sca_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int vimc_sca_get_fmt(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *format)
 {
 	struct vimc_sca_device *vsca = v4l2_get_subdevdata(sd);
@@ -164,8 +164,8 @@ static int vimc_sca_get_fmt(struct v4l2_subdev *sd,
 
 	/* Get the current sink format */
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		format->format = *v4l2_subdev_get_try_format(sd, cfg, 0);
-		crop_rect = v4l2_subdev_get_try_crop(sd, cfg, 0);
+		format->format = *v4l2_subdev_get_try_format(sd, sd_state, 0);
+		crop_rect = v4l2_subdev_get_try_crop(sd, sd_state, 0);
 	} else {
 		format->format = vsca->sink_fmt;
 		crop_rect = &vsca->crop_rect;
@@ -201,7 +201,7 @@ static void vimc_sca_adjust_sink_fmt(struct v4l2_mbus_framefmt *fmt)
 }
 
 static int vimc_sca_set_fmt(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *fmt)
 {
 	struct vimc_sca_device *vsca = v4l2_get_subdevdata(sd);
@@ -216,8 +216,8 @@ static int vimc_sca_set_fmt(struct v4l2_subdev *sd,
 		sink_fmt = &vsca->sink_fmt;
 		crop_rect = &vsca->crop_rect;
 	} else {
-		sink_fmt = v4l2_subdev_get_try_format(sd, cfg, 0);
-		crop_rect = v4l2_subdev_get_try_crop(sd, cfg, 0);
+		sink_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
+		crop_rect = v4l2_subdev_get_try_crop(sd, sd_state, 0);
 	}
 
 	/*
@@ -254,7 +254,7 @@ static int vimc_sca_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int vimc_sca_get_selection(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_selection *sel)
 {
 	struct vimc_sca_device *vsca = v4l2_get_subdevdata(sd);
@@ -268,8 +268,8 @@ static int vimc_sca_get_selection(struct v4l2_subdev *sd,
 		sink_fmt = &vsca->sink_fmt;
 		crop_rect = &vsca->crop_rect;
 	} else {
-		sink_fmt = v4l2_subdev_get_try_format(sd, cfg, 0);
-		crop_rect = v4l2_subdev_get_try_crop(sd, cfg, 0);
+		sink_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
+		crop_rect = v4l2_subdev_get_try_crop(sd, sd_state, 0);
 	}
 
 	switch (sel->target) {
@@ -287,7 +287,7 @@ static int vimc_sca_get_selection(struct v4l2_subdev *sd,
 }
 
 static int vimc_sca_set_selection(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_selection *sel)
 {
 	struct vimc_sca_device *vsca = v4l2_get_subdevdata(sd);
@@ -305,8 +305,8 @@ static int vimc_sca_set_selection(struct v4l2_subdev *sd,
 		crop_rect = &vsca->crop_rect;
 		sink_fmt = &vsca->sink_fmt;
 	} else {
-		crop_rect = v4l2_subdev_get_try_crop(sd, cfg, 0);
-		sink_fmt = v4l2_subdev_get_try_format(sd, cfg, 0);
+		crop_rect = v4l2_subdev_get_try_crop(sd, sd_state, 0);
+		sink_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
 	}
 
 	switch (sel->target) {

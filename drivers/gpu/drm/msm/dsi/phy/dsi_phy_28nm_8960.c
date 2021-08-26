@@ -8,6 +8,7 @@
 
 #include "dsi_phy.h"
 #include "dsi.xml.h"
+#include "dsi_phy_28nm_8960.xml.h"
 
 /*
  * DSI PLL 28nm (8960/A family) - clock diagram (eg: DSI1):
@@ -403,6 +404,10 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **prov
 
 	vco_name = devm_kzalloc(dev, 32, GFP_KERNEL);
 	if (!vco_name)
+		return -ENOMEM;
+
+	parent_name = devm_kzalloc(dev, 32, GFP_KERNEL);
+	if (!parent_name)
 		return -ENOMEM;
 
 	clk_name = devm_kzalloc(dev, 32, GFP_KERNEL);

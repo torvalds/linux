@@ -1232,7 +1232,7 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
     if (pktlen < ETH_ZLEN)
     {
         if (skb_padto(skb, ETH_ZLEN))
-        	return NETDEV_TX_OK;
+		return NETDEV_TX_OK;
 	pktlen = ETH_ZLEN;
     }
 

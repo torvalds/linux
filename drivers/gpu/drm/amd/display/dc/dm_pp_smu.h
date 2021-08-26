@@ -245,6 +245,8 @@ struct pp_smu_funcs_nv {
 #define PP_SMU_NUM_DCFCLK_DPM_LEVELS  8
 #define PP_SMU_NUM_FCLK_DPM_LEVELS    4
 #define PP_SMU_NUM_MEMCLK_DPM_LEVELS  4
+#define PP_SMU_NUM_DCLK_DPM_LEVELS    8
+#define PP_SMU_NUM_VCLK_DPM_LEVELS    8
 
 struct dpm_clock {
   uint32_t  Freq;    // In MHz
@@ -258,6 +260,8 @@ struct dpm_clocks {
 	struct dpm_clock SocClocks[PP_SMU_NUM_SOCCLK_DPM_LEVELS];
 	struct dpm_clock FClocks[PP_SMU_NUM_FCLK_DPM_LEVELS];
 	struct dpm_clock MemClocks[PP_SMU_NUM_MEMCLK_DPM_LEVELS];
+	struct dpm_clock VClocks[PP_SMU_NUM_VCLK_DPM_LEVELS];
+	struct dpm_clock DClocks[PP_SMU_NUM_DCLK_DPM_LEVELS];
 };
 
 

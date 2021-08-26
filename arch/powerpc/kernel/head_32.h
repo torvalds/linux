@@ -142,42 +142,23 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 
 .macro SYSCALL_ENTRY trapno
 	mfspr	r9, SPRN_SRR1
-	mfspr	r10, SPRN_SRR0
+	mfspr	r12, SPRN_SRR0
 	LOAD_REG_IMMEDIATE(r11, MSR_KERNEL)		/* can take exceptions */
-	lis	r12, 1f@h
-	ori	r12, r12, 1f@l
+	lis	r10, 1f@h
+	ori	r10, r10, 1f@l
 	mtspr	SPRN_SRR1, r11
-	mtspr	SPRN_SRR0, r12
-	mfspr	r12,SPRN_SPRG_THREAD
+	mtspr	SPRN_SRR0, r10
+	mfspr	r10,SPRN_SPRG_THREAD
 	mr	r11, r1
-	lwz	r1,TASK_STACK-THREAD(r12)
-	tovirt(r12, r12)
+	lwz	r1,TASK_STACK-THREAD(r10)
+	tovirt(r10, r10)
 	addi	r1, r1, THREAD_SIZE - INT_FRAME_SIZE
 	rfi
 1:
-	stw	r11,GPR1(r1)
-	stw	r11,0(r1)
-	mr	r11, r1
-	stw	r10,_NIP(r11)
-	mflr	r10
-	stw	r10, _LINK(r11)
-	mfcr	r10
-	rlwinm	r10,r10,0,4,2	/* Clear SO bit in CR */
-	stw	r10,_CCR(r11)		/* save registers */
-#ifdef CONFIG_40x
-	rlwinm	r9,r9,0,14,12		/* clear MSR_WE (necessary?) */
-#endif
-	lis	r10,STACK_FRAME_REGS_MARKER@ha /* exception frame marker */
-	stw	r2,GPR2(r11)
-	addi	r10,r10,STACK_FRAME_REGS_MARKER@l
-	stw	r9,_MSR(r11)
-	li	r2, \trapno
-	stw	r10,8(r11)
-	stw	r2,_TRAP(r11)
-	SAVE_GPR(0, r11)
-	SAVE_4GPRS(3, r11)
-	SAVE_2GPRS(7, r11)
-	addi	r2,r12,-THREAD
+	stw	r12,_NIP(r1)
+	mfcr	r12
+	rlwinm	r12,r12,0,4,2	/* Clear SO bit in CR */
+	stw	r12,_CCR(r1)
 	b	transfer_to_syscall		/* jump to handler */
 .endm
 

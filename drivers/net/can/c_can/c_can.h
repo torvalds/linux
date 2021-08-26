@@ -205,7 +205,6 @@ struct c_can_priv {
 	struct c_can_raminit raminit_sys;	/* RAMINIT via syscon regmap */
 	void (*raminit)(const struct c_can_priv *priv, bool enable);
 	u32 comm_rcv_high;
-	u32 rxmasked;
 	u32 dlc[];
 };
 
@@ -218,5 +217,7 @@ void unregister_c_can_dev(struct net_device *dev);
 int c_can_power_up(struct net_device *dev);
 int c_can_power_down(struct net_device *dev);
 #endif
+
+void c_can_set_ethtool_ops(struct net_device *dev);
 
 #endif /* C_CAN_H */

@@ -937,7 +937,7 @@ static netdev_tx_t lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev_kfree_skb(skb);
 
- 	return NETDEV_TX_OK;
+	return NETDEV_TX_OK;
 }
 
 static void lance_load_multicast(struct net_device *dev)

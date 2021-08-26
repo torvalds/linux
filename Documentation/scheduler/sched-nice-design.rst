@@ -60,7 +60,7 @@ within the constraints of HZ and jiffies and their nasty design level
 coupling to timeslices and granularity it was not really viable.
 
 The second (less frequent but still periodically occurring) complaint
-about Linux's nice level support was its assymetry around the origo
+about Linux's nice level support was its asymmetry around the origin
 (which you can see demonstrated in the picture above), or more
 accurately: the fact that nice level behavior depended on the _absolute_
 nice level as well, while the nice API itself is fundamentally

@@ -1578,17 +1578,12 @@ static int s3cmci_probe(struct platform_device *pdev)
 		goto probe_iounmap;
 	}
 
-	if (request_irq(host->irq, s3cmci_irq, 0, DRIVER_NAME, host)) {
+	if (request_irq(host->irq, s3cmci_irq, IRQF_NO_AUTOEN, DRIVER_NAME, host)) {
 		dev_err(&pdev->dev, "failed to request mci interrupt.\n");
 		ret = -ENOENT;
 		goto probe_iounmap;
 	}
 
-	/* We get spurious interrupts even when we have set the IMSK
-	 * register to ignore everything, so use disable_irq() to make
-	 * ensure we don't lock the system with un-serviceable requests. */
-
-	disable_irq(host->irq);
 	host->irq_state = false;
 
 	/* Depending on the dma state, get a DMA channel to use. */

@@ -1194,9 +1194,8 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 		goto free_ucmd;
 	}
 
-	if (flow_attr->port > dev->num_ports ||
-	    (flow_attr->flags &
-	     ~(IB_FLOW_ATTR_FLAGS_DONT_TRAP | IB_FLOW_ATTR_FLAGS_EGRESS))) {
+	if (flow_attr->flags &
+	    ~(IB_FLOW_ATTR_FLAGS_DONT_TRAP | IB_FLOW_ATTR_FLAGS_EGRESS)) {
 		err = -EINVAL;
 		goto free_ucmd;
 	}
@@ -2134,6 +2133,12 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_MATCHER_CREATE)(
 	if (err)
 		goto end;
 
+	if (obj->ns_type == MLX5_FLOW_NAMESPACE_FDB &&
+	    mlx5_eswitch_mode(dev->mdev) != MLX5_ESWITCH_OFFLOADS) {
+		err = -EINVAL;
+		goto end;
+	}
+
 	uobj->object = obj;
 	obj->mdev = dev->mdev;
 	atomic_set(&obj->usecnt, 0);
@@ -2280,6 +2285,7 @@ static int mlx5_ib_flow_action_create_packet_reformat_ctx(
 	u8 ft_type, u8 dv_prt,
 	void *in, size_t len)
 {
+	struct mlx5_pkt_reformat_params reformat_params;
 	enum mlx5_flow_namespace_type namespace;
 	u8 prm_prt;
 	int ret;
@@ -2292,9 +2298,13 @@ static int mlx5_ib_flow_action_create_packet_reformat_ctx(
 	if (ret)
 		return ret;
 
+	memset(&reformat_params, 0, sizeof(reformat_params));
+	reformat_params.type = prm_prt;
+	reformat_params.size = len;
+	reformat_params.data = in;
 	maction->flow_action_raw.pkt_reformat =
-		mlx5_packet_reformat_alloc(dev->mdev, prm_prt, len,
-					   in, namespace);
+		mlx5_packet_reformat_alloc(dev->mdev, &reformat_params,
+					   namespace);
 	if (IS_ERR(maction->flow_action_raw.pkt_reformat)) {
 		ret = PTR_ERR(maction->flow_action_raw.pkt_reformat);
 		return ret;

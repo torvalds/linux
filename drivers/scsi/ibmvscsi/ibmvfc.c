@@ -13,6 +13,7 @@
 #include <linux/dmapool.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/of.h>
@@ -654,8 +655,10 @@ static void ibmvfc_reinit_host(struct ibmvfc_host *vhost)
  **/
 static void ibmvfc_del_tgt(struct ibmvfc_target *tgt)
 {
-	if (!ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_LOGOUT_RPORT))
+	if (!ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_LOGOUT_RPORT)) {
 		tgt->job_step = ibmvfc_tgt_implicit_logout_and_del;
+		tgt->init_retries = 0;
+	}
 	wake_up(&tgt->vhost->work_wait_q);
 }
 
@@ -804,6 +807,13 @@ static int ibmvfc_init_event_pool(struct ibmvfc_host *vhost,
 	for (i = 0; i < size; ++i) {
 		struct ibmvfc_event *evt = &pool->events[i];
 
+		/*
+		 * evt->active states
+		 *  1 = in flight
+		 *  0 = being completed
+		 * -1 = free/freed
+		 */
+		atomic_set(&evt->active, -1);
 		atomic_set(&evt->free, 1);
 		evt->crq.valid = 0x80;
 		evt->crq.ioba = cpu_to_be64(pool->iu_token + (sizeof(*evt->xfer_iu) * i));
@@ -1014,6 +1024,7 @@ static void ibmvfc_free_event(struct ibmvfc_event *evt)
 
 	BUG_ON(!ibmvfc_valid_event(pool, evt));
 	BUG_ON(atomic_inc_return(&evt->free) != 1);
+	BUG_ON(atomic_dec_and_test(&evt->active));
 
 	spin_lock_irqsave(&evt->queue->l_lock, flags);
 	list_add_tail(&evt->queue_list, &evt->queue->free);
@@ -1069,6 +1080,12 @@ static void ibmvfc_complete_purge(struct list_head *purge_list)
  **/
 static void ibmvfc_fail_request(struct ibmvfc_event *evt, int error_code)
 {
+	/*
+	 * Anything we are failing should still be active. Otherwise, it
+	 * implies we already got a response for the command and are doing
+	 * something bad like double completing it.
+	 */
+	BUG_ON(!atomic_dec_and_test(&evt->active));
 	if (evt->cmnd) {
 		evt->cmnd->result = (error_code << 16);
 		evt->done = ibmvfc_scsi_eh_done;
@@ -1720,6 +1737,7 @@ static int ibmvfc_send_event(struct ibmvfc_event *evt,
 
 		evt->done(evt);
 	} else {
+		atomic_set(&evt->active, 1);
 		spin_unlock_irqrestore(&evt->queue->l_lock, flags);
 		ibmvfc_trc_start(evt);
 	}
@@ -3248,7 +3266,7 @@ static void ibmvfc_handle_crq(struct ibmvfc_crq *crq, struct ibmvfc_host *vhost,
 		return;
 	}
 
-	if (unlikely(atomic_read(&evt->free))) {
+	if (unlikely(atomic_dec_if_positive(&evt->active))) {
 		dev_err(vhost->dev, "Received duplicate correlation_token 0x%08llx!\n",
 			crq->ioba);
 		return;
@@ -3775,7 +3793,7 @@ static void ibmvfc_handle_scrq(struct ibmvfc_crq *crq, struct ibmvfc_host *vhost
 		return;
 	}
 
-	if (unlikely(atomic_read(&evt->free))) {
+	if (unlikely(atomic_dec_if_positive(&evt->active))) {
 		dev_err(vhost->dev, "Received duplicate correlation_token 0x%08llx!\n",
 			crq->ioba);
 		return;
@@ -4299,9 +4317,10 @@ static void ibmvfc_tgt_move_login_done(struct ibmvfc_event *evt)
 	ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_NONE);
 	switch (status) {
 	case IBMVFC_MAD_SUCCESS:
-		tgt_dbg(tgt, "Move Login succeeded for old scsi_id: %llX\n", tgt->old_scsi_id);
+		tgt_dbg(tgt, "Move Login succeeded for new scsi_id: %llX\n", tgt->new_scsi_id);
 		tgt->ids.node_name = wwn_to_u64(rsp->service_parms.node_name);
 		tgt->ids.port_name = wwn_to_u64(rsp->service_parms.port_name);
+		tgt->scsi_id = tgt->new_scsi_id;
 		tgt->ids.port_id = tgt->scsi_id;
 		memcpy(&tgt->service_parms, &rsp->service_parms,
 		       sizeof(tgt->service_parms));
@@ -4319,8 +4338,8 @@ static void ibmvfc_tgt_move_login_done(struct ibmvfc_event *evt)
 		level += ibmvfc_retry_tgt_init(tgt, ibmvfc_tgt_move_login);
 
 		tgt_log(tgt, level,
-			"Move Login failed: old scsi_id: %llX, flags:%x, vios_flags:%x, rc=0x%02X\n",
-			tgt->old_scsi_id, be32_to_cpu(rsp->flags), be16_to_cpu(rsp->vios_flags),
+			"Move Login failed: new scsi_id: %llX, flags:%x, vios_flags:%x, rc=0x%02X\n",
+			tgt->new_scsi_id, be32_to_cpu(rsp->flags), be16_to_cpu(rsp->vios_flags),
 			status);
 		break;
 	}
@@ -4357,8 +4376,8 @@ static void ibmvfc_tgt_move_login(struct ibmvfc_target *tgt)
 	move->common.opcode = cpu_to_be32(IBMVFC_MOVE_LOGIN);
 	move->common.length = cpu_to_be16(sizeof(*move));
 
-	move->old_scsi_id = cpu_to_be64(tgt->old_scsi_id);
-	move->new_scsi_id = cpu_to_be64(tgt->scsi_id);
+	move->old_scsi_id = cpu_to_be64(tgt->scsi_id);
+	move->new_scsi_id = cpu_to_be64(tgt->new_scsi_id);
 	move->wwpn = cpu_to_be64(tgt->wwpn);
 	move->node_name = cpu_to_be64(tgt->ids.node_name);
 
@@ -4367,7 +4386,7 @@ static void ibmvfc_tgt_move_login(struct ibmvfc_target *tgt)
 		ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
 		kref_put(&tgt->kref, ibmvfc_release_tgt);
 	} else
-		tgt_dbg(tgt, "Sent Move Login for old scsi_id: %llX\n", tgt->old_scsi_id);
+		tgt_dbg(tgt, "Sent Move Login for new scsi_id: %llX\n", tgt->new_scsi_id);
 }
 
 /**
@@ -4727,20 +4746,25 @@ static int ibmvfc_alloc_target(struct ibmvfc_host *vhost,
 		 * and it failed for some reason, such as there being I/O
 		 * pending to the target. In this case, we will have already
 		 * deleted the rport from the FC transport so we do a move
-		 * login, which works even with I/O pending, as it will cancel
-		 * any active commands.
+		 * login, which works even with I/O pending, however, if
+		 * there is still I/O pending, it will stay outstanding, so
+		 * we only do this if fast fail is disabled for the rport,
+		 * otherwise we let terminate_rport_io clean up the port
+		 * before we login at the new location.
 		 */
 		if (wtgt->action == IBMVFC_TGT_ACTION_LOGOUT_DELETED_RPORT) {
-			/*
-			 * Do a move login here. The old target is no longer
-			 * known to the transport layer We don't use the
-			 * normal ibmvfc_set_tgt_action to set this, as we
-			 * don't normally want to allow this state change.
-			 */
-			wtgt->old_scsi_id = wtgt->scsi_id;
-			wtgt->scsi_id = scsi_id;
-			wtgt->action = IBMVFC_TGT_ACTION_INIT;
-			ibmvfc_init_tgt(wtgt, ibmvfc_tgt_move_login);
+			if (wtgt->move_login) {
+				/*
+				 * Do a move login here. The old target is no longer
+				 * known to the transport layer We don't use the
+				 * normal ibmvfc_set_tgt_action to set this, as we
+				 * don't normally want to allow this state change.
+				 */
+				wtgt->new_scsi_id = scsi_id;
+				wtgt->action = IBMVFC_TGT_ACTION_INIT;
+				wtgt->init_retries = 0;
+				ibmvfc_init_tgt(wtgt, ibmvfc_tgt_move_login);
+			}
 			goto unlock_out;
 		} else {
 			tgt_err(wtgt, "Unexpected target state: %d, %p\n",
@@ -5331,6 +5355,7 @@ static void ibmvfc_tgt_add_rport(struct ibmvfc_target *tgt)
 		tgt_dbg(tgt, "Deleting rport with outstanding I/O\n");
 		ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_LOGOUT_DELETED_RPORT);
 		tgt->rport = NULL;
+		tgt->init_retries = 0;
 		spin_unlock_irqrestore(vhost->host->host_lock, flags);
 		fc_remote_port_delete(rport);
 		return;
@@ -5485,7 +5510,20 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 				tgt_dbg(tgt, "Deleting rport with I/O outstanding\n");
 				rport = tgt->rport;
 				tgt->rport = NULL;
+				tgt->init_retries = 0;
 				ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_LOGOUT_DELETED_RPORT);
+
+				/*
+				 * If fast fail is enabled, we wait for it to fire and then clean up
+				 * the old port, since we expect the fast fail timer to clean up the
+				 * outstanding I/O faster than waiting for normal command timeouts.
+				 * However, if fast fail is disabled, any I/O outstanding to the
+				 * rport LUNs will stay outstanding indefinitely, since the EH handlers
+				 * won't get invoked for I/O's timing out. If this is a NPIV failover
+				 * scenario, the better alternative is to use the move login.
+				 */
+				if (rport && rport->fast_io_fail_tmo == -1)
+					tgt->move_login = 1;
 				spin_unlock_irqrestore(vhost->host->host_lock, flags);
 				if (rport)
 					fc_remote_port_delete(rport);

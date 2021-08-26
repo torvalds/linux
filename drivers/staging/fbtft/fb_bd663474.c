@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 
 #include "fbtft.h"
@@ -24,9 +23,6 @@
 
 static int init_display(struct fbtft_par *par)
 {
-	if (par->gpio.cs)
-		gpiod_set_value(par->gpio.cs, 0);  /* Activate chip */
-
 	par->fbtftops.reset(par);
 
 	/* Initialization sequence from Lib_UTFT */

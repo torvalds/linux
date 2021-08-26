@@ -111,17 +111,10 @@ properties:
 
   i2c-mux:
     type: object
+    $ref: /schemas/i2c/i2c-mux.yaml#
+    unevaluatedProperties: false
     description: |
-      Each GMSL link is modelled as a child bus of an i2c bus
-      multiplexer/switch, in accordance with bindings described in
-      Documentation/devicetree/bindings/i2c/i2c-mux.txt.
-
-    properties:
-      '#address-cells':
-        const: 1
-
-      '#size-cells':
-        const: 0
+      Each GMSL link is modelled as a child bus of an i2c bus multiplexer/switch.
 
     patternProperties:
       "^i2c@[0-3]$":
@@ -133,12 +126,6 @@ properties:
           channels.
 
         properties:
-          '#address-cells':
-            const: 1
-
-          '#size-cells':
-            const: 0
-
           reg:
             description: The index of the GMSL channel.
             maxItems: 1
@@ -172,10 +159,6 @@ properties:
               - port
 
             additionalProperties: false
-
-        additionalProperties: false
-
-    additionalProperties: false
 
 required:
   - compatible

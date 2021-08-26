@@ -960,7 +960,7 @@ static int ov7670_set_hw(struct v4l2_subdev *sd, int hstart, int hstop,
 
 
 static int ov7670_enum_mbus_code(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad || code->index >= N_OV7670_FMTS)
@@ -1105,7 +1105,7 @@ static int ov7670_apply_fmt(struct v4l2_subdev *sd)
  * Set a format.
  */
 static int ov7670_set_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct ov7670_info *info = to_state(sd);
@@ -1122,7 +1122,8 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 		if (ret)
 			return ret;
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		mbus_fmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		mbus_fmt = v4l2_subdev_get_try_format(sd, sd_state,
+						      format->pad);
 		*mbus_fmt = format->format;
 #endif
 		return 0;
@@ -1144,7 +1145,7 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int ov7670_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
 	struct ov7670_info *info = to_state(sd);
@@ -1154,7 +1155,7 @@ static int ov7670_get_fmt(struct v4l2_subdev *sd,
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		mbus_fmt = v4l2_subdev_get_try_format(sd, cfg, 0);
+		mbus_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
 		format->format = *mbus_fmt;
 		return 0;
 #else
@@ -1202,7 +1203,7 @@ static int ov7670_s_frame_interval(struct v4l2_subdev *sd,
 static int ov7670_frame_rates[] = { 30, 15, 10, 5, 1 };
 
 static int ov7670_enum_frame_interval(struct v4l2_subdev *sd,
-				      struct v4l2_subdev_pad_config *cfg,
+				      struct v4l2_subdev_state *sd_state,
 				      struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct ov7670_info *info = to_state(sd);
@@ -1241,7 +1242,7 @@ static int ov7670_enum_frame_interval(struct v4l2_subdev *sd,
  * Frame size enumeration
  */
 static int ov7670_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct ov7670_info *info = to_state(sd);
@@ -1724,7 +1725,7 @@ static void ov7670_get_default_format(struct v4l2_subdev *sd,
 static int ov7670_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *format =
-				v4l2_subdev_get_try_format(sd, fh->pad, 0);
+				v4l2_subdev_get_try_format(sd, fh->state, 0);
 
 	ov7670_get_default_format(sd, format);
 

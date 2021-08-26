@@ -143,7 +143,7 @@ struct ib_user_mad_hdr {
  */
 struct ib_user_mad {
 	struct ib_user_mad_hdr hdr;
-	__aligned_u64	data[0];
+	__aligned_u64	data[];
 };
 
 /*

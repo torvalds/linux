@@ -1036,7 +1036,7 @@ retry:
 			prealloc_blocks = 0;
 			goto retry;
 		}
-		/*FALLTHRU*/
+		fallthrough;
 	default:
 		goto out_unlock;
 	}

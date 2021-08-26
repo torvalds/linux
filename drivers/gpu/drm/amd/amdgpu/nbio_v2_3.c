@@ -51,6 +51,8 @@
 #define mmBIF_MMSCH1_DOORBELL_RANGE		0x01d8
 #define mmBIF_MMSCH1_DOORBELL_RANGE_BASE_IDX	2
 
+#define smnPCIE_LC_LINK_WIDTH_CNTL		0x11140288
+
 static void nbio_v2_3_remap_hdp_registers(struct amdgpu_device *adev)
 {
 	WREG32_SOC15(NBIO, 0, mmREMAP_HDP_MEM_FLUSH_CNTL,
@@ -218,8 +220,11 @@ static void nbio_v2_3_update_medium_grain_clock_gating(struct amdgpu_device *ade
 {
 	uint32_t def, data;
 
+	if (!(adev->cg_flags & AMD_CG_SUPPORT_BIF_MGCG))
+		return;
+
 	def = data = RREG32_PCIE(smnCPM_CONTROL);
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_BIF_MGCG)) {
+	if (enable) {
 		data |= (CPM_CONTROL__LCLK_DYN_GATE_ENABLE_MASK |
 			 CPM_CONTROL__TXCLK_DYN_GATE_ENABLE_MASK |
 			 CPM_CONTROL__TXCLK_LCNT_GATE_ENABLE_MASK |
@@ -244,8 +249,11 @@ static void nbio_v2_3_update_medium_grain_light_sleep(struct amdgpu_device *adev
 {
 	uint32_t def, data;
 
+	if (!(adev->cg_flags & AMD_CG_SUPPORT_BIF_LS))
+		return;
+
 	def = data = RREG32_PCIE(smnPCIE_CNTL2);
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_BIF_LS)) {
+	if (enable) {
 		data |= (PCIE_CNTL2__SLV_MEM_LS_EN_MASK |
 			 PCIE_CNTL2__MST_MEM_LS_EN_MASK |
 			 PCIE_CNTL2__REPLAY_MEM_LS_EN_MASK);
@@ -463,6 +471,43 @@ static void nbio_v2_3_program_aspm(struct amdgpu_device *adev)
 		WREG32_PCIE(smnPCIE_LC_CNTL3, data);
 }
 
+static void nbio_v2_3_apply_lc_spc_mode_wa(struct amdgpu_device *adev)
+{
+	uint32_t reg_data = 0;
+	uint32_t link_width = 0;
+
+	if (!((adev->asic_type >= CHIP_NAVI10) &&
+	     (adev->asic_type <= CHIP_NAVI12)))
+		return;
+
+	reg_data = RREG32_PCIE(smnPCIE_LC_LINK_WIDTH_CNTL);
+	link_width = (reg_data & PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD_MASK)
+		>> PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD__SHIFT;
+
+	/*
+	 * Program PCIE_LC_CNTL6.LC_SPC_MODE_8GT to 0x2 (4 symbols per clock data)
+	 * if link_width is 0x3 (x4)
+	 */
+	if (0x3 == link_width) {
+		reg_data = RREG32_PCIE(smnPCIE_LC_CNTL6);
+		reg_data &= ~PCIE_LC_CNTL6__LC_SPC_MODE_8GT_MASK;
+		reg_data |= (0x2 << PCIE_LC_CNTL6__LC_SPC_MODE_8GT__SHIFT);
+		WREG32_PCIE(smnPCIE_LC_CNTL6, reg_data);
+	}
+}
+
+static void nbio_v2_3_apply_l1_link_width_reconfig_wa(struct amdgpu_device *adev)
+{
+	uint32_t reg_data = 0;
+
+	if (adev->asic_type != CHIP_NAVI10)
+		return;
+
+	reg_data = RREG32_PCIE(smnPCIE_LC_LINK_WIDTH_CNTL);
+	reg_data |= PCIE_LC_LINK_WIDTH_CNTL__LC_L1_RECONFIG_EN_MASK;
+	WREG32_PCIE(smnPCIE_LC_LINK_WIDTH_CNTL, reg_data);
+}
+
 const struct amdgpu_nbio_funcs nbio_v2_3_funcs = {
 	.get_hdp_flush_req_offset = nbio_v2_3_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v2_3_get_hdp_flush_done_offset,
@@ -484,4 +529,6 @@ const struct amdgpu_nbio_funcs nbio_v2_3_funcs = {
 	.remap_hdp_registers = nbio_v2_3_remap_hdp_registers,
 	.enable_aspm = nbio_v2_3_enable_aspm,
 	.program_aspm =  nbio_v2_3_program_aspm,
+	.apply_lc_spc_mode_wa = nbio_v2_3_apply_lc_spc_mode_wa,
+	.apply_l1_link_width_reconfig_wa = nbio_v2_3_apply_l1_link_width_reconfig_wa,
 };

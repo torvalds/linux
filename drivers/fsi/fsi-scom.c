@@ -38,9 +38,10 @@
 #define SCOM_STATUS_PIB_RESP_MASK	0x00007000
 #define SCOM_STATUS_PIB_RESP_SHIFT	12
 
-#define SCOM_STATUS_ANY_ERR		(SCOM_STATUS_PROTECTION | \
-					 SCOM_STATUS_PARITY |	  \
-					 SCOM_STATUS_PIB_ABORT | \
+#define SCOM_STATUS_FSI2PIB_ERROR	(SCOM_STATUS_PROTECTION |	\
+					 SCOM_STATUS_PARITY |		\
+					 SCOM_STATUS_PIB_ABORT)
+#define SCOM_STATUS_ANY_ERR		(SCOM_STATUS_FSI2PIB_ERROR |	\
 					 SCOM_STATUS_PIB_RESP_MASK)
 /* SCOM address encodings */
 #define XSCOM_ADDR_IND_FLAG		BIT_ULL(63)
@@ -60,7 +61,6 @@
 #define XSCOM_ADDR_FORM1_HI_SHIFT	20
 
 /* Retries */
-#define SCOM_MAX_RETRIES		100	/* Retries on busy */
 #define SCOM_MAX_IND_RETRIES		10	/* Retries indirect not ready */
 
 struct scom_device {
@@ -240,14 +240,15 @@ static int handle_fsi2pib_status(struct scom_device *scom, uint32_t status)
 {
 	uint32_t dummy = -1;
 
-	if (status & SCOM_STATUS_PROTECTION)
-		return -EPERM;
-	if (status & SCOM_STATUS_PARITY) {
+	if (status & SCOM_STATUS_FSI2PIB_ERROR)
 		fsi_device_write(scom->fsi_dev, SCOM_FSI2PIB_RESET_REG, &dummy,
 				 sizeof(uint32_t));
+
+	if (status & SCOM_STATUS_PROTECTION)
+		return -EPERM;
+	if (status & SCOM_STATUS_PARITY)
 		return -EIO;
-	}
-	/* Return -EBUSY on PIB abort to force a retry */
+
 	if (status & SCOM_STATUS_PIB_ABORT)
 		return -EBUSY;
 	return 0;
@@ -284,69 +285,39 @@ static int handle_pib_status(struct scom_device *scom, uint8_t status)
 static int put_scom(struct scom_device *scom, uint64_t value,
 		    uint64_t addr)
 {
-	uint32_t status, dummy = -1;
-	int rc, retries;
+	uint32_t status;
+	int rc;
 
-	for (retries = 0; retries < SCOM_MAX_RETRIES; retries++) {
-		rc = raw_put_scom(scom, value, addr, &status);
-		if (rc) {
-			/* Try resetting the bridge if FSI fails */
-			if (rc != -ENODEV && retries == 0) {
-				fsi_device_write(scom->fsi_dev, SCOM_FSI2PIB_RESET_REG,
-						 &dummy, sizeof(uint32_t));
-				rc = -EBUSY;
-			} else
-				return rc;
-		} else
-			rc = handle_fsi2pib_status(scom, status);
-		if (rc && rc != -EBUSY)
-			break;
-		if (rc == 0) {
-			rc = handle_pib_status(scom,
-					       (status & SCOM_STATUS_PIB_RESP_MASK)
-					       >> SCOM_STATUS_PIB_RESP_SHIFT);
-			if (rc && rc != -EBUSY)
-				break;
-		}
-		if (rc == 0)
-			break;
-		msleep(1);
-	}
-	return rc;
+	rc = raw_put_scom(scom, value, addr, &status);
+	if (rc == -ENODEV)
+		return rc;
+
+	rc = handle_fsi2pib_status(scom, status);
+	if (rc)
+		return rc;
+
+	return handle_pib_status(scom,
+				 (status & SCOM_STATUS_PIB_RESP_MASK)
+				 >> SCOM_STATUS_PIB_RESP_SHIFT);
 }
 
 static int get_scom(struct scom_device *scom, uint64_t *value,
 		    uint64_t addr)
 {
-	uint32_t status, dummy = -1;
-	int rc, retries;
+	uint32_t status;
+	int rc;
 
-	for (retries = 0; retries < SCOM_MAX_RETRIES; retries++) {
-		rc = raw_get_scom(scom, value, addr, &status);
-		if (rc) {
-			/* Try resetting the bridge if FSI fails */
-			if (rc != -ENODEV && retries == 0) {
-				fsi_device_write(scom->fsi_dev, SCOM_FSI2PIB_RESET_REG,
-						 &dummy, sizeof(uint32_t));
-				rc = -EBUSY;
-			} else
-				return rc;
-		} else
-			rc = handle_fsi2pib_status(scom, status);
-		if (rc && rc != -EBUSY)
-			break;
-		if (rc == 0) {
-			rc = handle_pib_status(scom,
-					       (status & SCOM_STATUS_PIB_RESP_MASK)
-					       >> SCOM_STATUS_PIB_RESP_SHIFT);
-			if (rc && rc != -EBUSY)
-				break;
-		}
-		if (rc == 0)
-			break;
-		msleep(1);
-	}
-	return rc;
+	rc = raw_get_scom(scom, value, addr, &status);
+	if (rc == -ENODEV)
+		return rc;
+
+	rc = handle_fsi2pib_status(scom, status);
+	if (rc)
+		return rc;
+
+	return handle_pib_status(scom,
+				 (status & SCOM_STATUS_PIB_RESP_MASK)
+				 >> SCOM_STATUS_PIB_RESP_SHIFT);
 }
 
 static ssize_t scom_read(struct file *filep, char __user *buf, size_t len,

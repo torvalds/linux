@@ -307,11 +307,7 @@ void rtl88eu_dm_antenna_diversity(struct odm_dm_struct *dm_odm)
 		return;
 
 	if (!dm_odm->bLinked) {
-		ODM_RT_TRACE(dm_odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD,
-			     ("ODM_AntennaDiversity_88E(): No Link.\n"));
 		if (dm_fat_tbl->bBecomeLinked) {
-			ODM_RT_TRACE(dm_odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD,
-				     ("Need to Turn off HW AntDiv\n"));
 			phy_set_bb_reg(adapter, ODM_REG_IGI_A_11N, BIT(7), 0);
 			phy_set_bb_reg(adapter, ODM_REG_CCK_ANTDIV_PARA1_11N,
 				       BIT(15), 0);
@@ -324,8 +320,6 @@ void rtl88eu_dm_antenna_diversity(struct odm_dm_struct *dm_odm)
 	}
 
 	if (!dm_fat_tbl->bBecomeLinked) {
-		ODM_RT_TRACE(dm_odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD,
-			     ("Need to Turn on HW AntDiv\n"));
 		phy_set_bb_reg(adapter, ODM_REG_IGI_A_11N, BIT(7), 1);
 		phy_set_bb_reg(adapter, ODM_REG_CCK_ANTDIV_PARA1_11N,
 			       BIT(15), 1);

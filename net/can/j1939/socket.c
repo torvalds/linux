@@ -398,6 +398,9 @@ static int j1939_sk_init(struct sock *sk)
 	atomic_set(&jsk->skb_pending, 0);
 	spin_lock_init(&jsk->sk_session_queue_lock);
 	INIT_LIST_HEAD(&jsk->sk_session_queue);
+
+	/* j1939_sk_sock_destruct() depends on SOCK_RCU_FREE flag */
+	sock_set_flag(sk, SOCK_RCU_FREE);
 	sk->sk_destruct = j1939_sk_sock_destruct;
 	sk->sk_protocol = CAN_J1939;
 
@@ -673,7 +676,7 @@ static int j1939_sk_setsockopt(struct socket *sock, int level, int optname,
 
 	switch (optname) {
 	case SO_J1939_FILTER:
-		if (!sockptr_is_null(optval)) {
+		if (!sockptr_is_null(optval) && optlen != 0) {
 			struct j1939_filter *f;
 			int c;
 
@@ -1009,7 +1012,7 @@ void j1939_sk_send_loop_abort(struct sock *sk, int err)
 {
 	sk->sk_err = err;
 
-	sk->sk_error_report(sk);
+	sk_error_report(sk);
 }
 
 static int j1939_sk_send_loop(struct j1939_priv *priv,  struct sock *sk,
@@ -1189,7 +1192,7 @@ void j1939_sk_netdev_event_netdown(struct j1939_priv *priv)
 	list_for_each_entry(jsk, &priv->j1939_socks, list) {
 		jsk->sk.sk_err = error_code;
 		if (!sock_flag(&jsk->sk, SOCK_DEAD))
-			jsk->sk.sk_error_report(&jsk->sk);
+			sk_error_report(&jsk->sk);
 
 		j1939_sk_queue_drop_all(priv, jsk, error_code);
 	}

@@ -7,8 +7,6 @@
 #ifndef __RTL8723B_SPEC_H__
 #define __RTL8723B_SPEC_H__
 
-#include <autoconf.h>
-
 #define HAL_NAV_UPPER_UNIT_8723B		128		/*  micro-second */
 
 /*  */

@@ -90,10 +90,14 @@ enum mcp16502_reg {
 };
 
 /* Ramp delay (uV/us) for buck1, ldo1, ldo2. */
-static const int mcp16502_ramp_b1l12[] = { 6250, 3125, 2083, 1563 };
+static const unsigned int mcp16502_ramp_b1l12[] = {
+	6250, 3125, 2083, 1563
+};
 
 /* Ramp delay (uV/us) for buck2, buck3, buck4. */
-static const int mcp16502_ramp_b234[] = { 3125, 1563, 1042, 781 };
+static const unsigned int mcp16502_ramp_b234[] = {
+	3125, 1563, 1042, 781
+};
 
 static unsigned int mcp16502_of_map_mode(unsigned int mode)
 {
@@ -103,7 +107,7 @@ static unsigned int mcp16502_of_map_mode(unsigned int mode)
 	return REGULATOR_MODE_INVALID;
 }
 
-#define MCP16502_REGULATOR(_name, _id, _ranges, _ops)			\
+#define MCP16502_REGULATOR(_name, _id, _ranges, _ops, _ramp_table)	\
 	[_id] = {							\
 		.name			= _name,			\
 		.regulators_node	= of_match_ptr("regulators"),	\
@@ -121,6 +125,10 @@ static unsigned int mcp16502_of_map_mode(unsigned int mode)
 		.vsel_mask		= MCP16502_VSEL,		\
 		.enable_reg		= (((_id) + 1) << 4),		\
 		.enable_mask		= MCP16502_EN,			\
+		.ramp_reg		= MCP16502_REG_BASE(_id, CFG),	\
+		.ramp_mask		= MCP16502_DVSR,		\
+		.ramp_delay_table	= _ramp_table,			\
+		.n_ramp_values		= ARRAY_SIZE(_ramp_table),	\
 	}
 
 enum {
@@ -314,42 +322,6 @@ static int mcp16502_set_voltage_time_sel(struct regulator_dev *rdev,
 	return ret;
 }
 
-static int mcp16502_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
-{
-	const int *ramp;
-	int id = rdev_get_id(rdev);
-	unsigned int i, size;
-
-	switch (id) {
-	case BUCK1:
-	case LDO1:
-	case LDO2:
-		ramp = mcp16502_ramp_b1l12;
-		size = ARRAY_SIZE(mcp16502_ramp_b1l12);
-		break;
-
-	case BUCK2:
-	case BUCK3:
-	case BUCK4:
-		ramp = mcp16502_ramp_b234;
-		size = ARRAY_SIZE(mcp16502_ramp_b234);
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	for (i = 0; i < size; i++) {
-		if (ramp[i] == ramp_delay)
-			break;
-	}
-	if (i == size)
-		return -EINVAL;
-
-	return regmap_update_bits(rdev->regmap, MCP16502_REG_BASE(id, CFG),
-				  MCP16502_DVSR, (i << 2));
-}
-
 #ifdef CONFIG_SUSPEND
 /*
  * mcp16502_suspend_get_target_reg() - get the reg of the target suspend PMIC
@@ -445,7 +417,7 @@ static const struct regulator_ops mcp16502_buck_ops = {
 	.is_enabled			= regulator_is_enabled_regmap,
 	.get_status			= mcp16502_get_status,
 	.set_voltage_time_sel		= mcp16502_set_voltage_time_sel,
-	.set_ramp_delay			= mcp16502_set_ramp_delay,
+	.set_ramp_delay			= regulator_set_ramp_delay_regmap,
 
 	.set_mode			= mcp16502_set_mode,
 	.get_mode			= mcp16502_get_mode,
@@ -471,7 +443,7 @@ static const struct regulator_ops mcp16502_ldo_ops = {
 	.is_enabled			= regulator_is_enabled_regmap,
 	.get_status			= mcp16502_get_status,
 	.set_voltage_time_sel		= mcp16502_set_voltage_time_sel,
-	.set_ramp_delay			= mcp16502_set_ramp_delay,
+	.set_ramp_delay			= regulator_set_ramp_delay_regmap,
 
 #ifdef CONFIG_SUSPEND
 	.set_suspend_voltage		= mcp16502_set_suspend_voltage,
@@ -495,13 +467,19 @@ static const struct linear_range b234_ranges[] = {
 };
 
 static const struct regulator_desc mcp16502_desc[] = {
-	/* MCP16502_REGULATOR(_name, _id, ranges, regulator_ops) */
-	MCP16502_REGULATOR("VDD_IO", BUCK1, b1l12_ranges, mcp16502_buck_ops),
-	MCP16502_REGULATOR("VDD_DDR", BUCK2, b234_ranges, mcp16502_buck_ops),
-	MCP16502_REGULATOR("VDD_CORE", BUCK3, b234_ranges, mcp16502_buck_ops),
-	MCP16502_REGULATOR("VDD_OTHER", BUCK4, b234_ranges, mcp16502_buck_ops),
-	MCP16502_REGULATOR("LDO1", LDO1, b1l12_ranges, mcp16502_ldo_ops),
-	MCP16502_REGULATOR("LDO2", LDO2, b1l12_ranges, mcp16502_ldo_ops)
+	/* MCP16502_REGULATOR(_name, _id, ranges, regulator_ops, ramp_table) */
+	MCP16502_REGULATOR("VDD_IO", BUCK1, b1l12_ranges, mcp16502_buck_ops,
+			   mcp16502_ramp_b1l12),
+	MCP16502_REGULATOR("VDD_DDR", BUCK2, b234_ranges, mcp16502_buck_ops,
+			   mcp16502_ramp_b234),
+	MCP16502_REGULATOR("VDD_CORE", BUCK3, b234_ranges, mcp16502_buck_ops,
+			   mcp16502_ramp_b234),
+	MCP16502_REGULATOR("VDD_OTHER", BUCK4, b234_ranges, mcp16502_buck_ops,
+			   mcp16502_ramp_b234),
+	MCP16502_REGULATOR("LDO1", LDO1, b1l12_ranges, mcp16502_ldo_ops,
+			   mcp16502_ramp_b1l12),
+	MCP16502_REGULATOR("LDO2", LDO2, b1l12_ranges, mcp16502_ldo_ops,
+			   mcp16502_ramp_b1l12)
 };
 
 static const struct regmap_range mcp16502_ranges[] = {
@@ -522,8 +500,7 @@ static const struct regmap_config mcp16502_regmap_config = {
 	.wr_table	= &mcp16502_yes_reg_table,
 };
 
-static int mcp16502_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int mcp16502_probe(struct i2c_client *client)
 {
 	struct regulator_config config = { };
 	struct regulator_dev *rdev;
@@ -606,7 +583,7 @@ static const struct i2c_device_id mcp16502_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, mcp16502_i2c_id);
 
 static struct i2c_driver mcp16502_drv = {
-	.probe		= mcp16502_probe,
+	.probe_new	= mcp16502_probe,
 	.driver		= {
 		.name	= "mcp16502-regulator",
 		.of_match_table	= of_match_ptr(mcp16502_ids),

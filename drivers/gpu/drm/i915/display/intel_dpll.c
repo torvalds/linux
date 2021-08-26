@@ -4,6 +4,7 @@
  */
 #include <linux/kernel.h>
 #include "intel_crtc.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_display.h"
 #include "intel_dpll.h"
@@ -366,13 +367,11 @@ static bool intel_pll_is_valid(struct drm_i915_private *dev_priv,
 	if (clock->m1 < limit->m1.min || limit->m1.max < clock->m1)
 		return false;
 
-	if (!IS_PINEVIEW(dev_priv) && !IS_VALLEYVIEW(dev_priv) &&
-	    !IS_CHERRYVIEW(dev_priv) && !IS_GEN9_LP(dev_priv))
+	if (!IS_PINEVIEW(dev_priv) && !IS_LP(dev_priv))
 		if (clock->m1 <= clock->m2)
 			return false;
 
-	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv) &&
-	    !IS_GEN9_LP(dev_priv)) {
+	if (!IS_LP(dev_priv)) {
 		if (clock->p < limit->p.min || limit->p.max < clock->p)
 			return false;
 		if (clock->m < limit->m.min || limit->m.max < clock->m)
@@ -1358,7 +1357,7 @@ intel_dpll_init_clock_hook(struct drm_i915_private *dev_priv)
 		dev_priv->display.crtc_compute_clock = g4x_crtc_compute_clock;
 	else if (IS_PINEVIEW(dev_priv))
 		dev_priv->display.crtc_compute_clock = pnv_crtc_compute_clock;
-	else if (!IS_DISPLAY_VER(dev_priv, 2))
+	else if (DISPLAY_VER(dev_priv) != 2)
 		dev_priv->display.crtc_compute_clock = i9xx_crtc_compute_clock;
 	else
 		dev_priv->display.crtc_compute_clock = i8xx_crtc_compute_clock;

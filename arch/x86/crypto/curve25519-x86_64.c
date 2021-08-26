@@ -1500,7 +1500,7 @@ static int __init curve25519_mod_init(void)
 static void __exit curve25519_mod_exit(void)
 {
 	if (IS_REACHABLE(CONFIG_CRYPTO_KPP) &&
-	    (boot_cpu_has(X86_FEATURE_BMI2) || boot_cpu_has(X86_FEATURE_ADX)))
+	    static_branch_likely(&curve25519_use_bmi2_adx))
 		crypto_unregister_kpp(&curve25519_alg);
 }
 

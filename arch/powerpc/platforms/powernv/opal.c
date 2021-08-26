@@ -773,7 +773,7 @@ bool opal_mce_check_early_recovery(struct pt_regs *regs)
 	 * Setup regs->nip to rfi into fixup address.
 	 */
 	if (recover_addr)
-		regs->nip = recover_addr;
+		regs_set_return_ip(regs, recover_addr);
 
 out:
 	return !!recover_addr;

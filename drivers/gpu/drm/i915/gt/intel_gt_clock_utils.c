@@ -76,7 +76,7 @@ static u32 read_clock_frequency(struct intel_uncore *uncore)
 	u32 f19_2_mhz = 19200000;
 	u32 f24_mhz = 24000000;
 
-	if (INTEL_GEN(uncore->i915) <= 4) {
+	if (GRAPHICS_VER(uncore->i915) <= 4) {
 		/*
 		 * PRMs say:
 		 *
@@ -85,7 +85,7 @@ static u32 read_clock_frequency(struct intel_uncore *uncore)
 		 *      (“CLKCFG”) MCHBAR register)
 		 */
 		return RUNTIME_INFO(uncore->i915)->rawclk_freq * 1000 / 16;
-	} else if (INTEL_GEN(uncore->i915) <= 8) {
+	} else if (GRAPHICS_VER(uncore->i915) <= 8) {
 		/*
 		 * PRMs say:
 		 *
@@ -94,7 +94,7 @@ static u32 read_clock_frequency(struct intel_uncore *uncore)
 		 *      rolling over every 1.5 hours).
 		 */
 		return f12_5_mhz;
-	} else if (INTEL_GEN(uncore->i915) <= 9) {
+	} else if (GRAPHICS_VER(uncore->i915) <= 9) {
 		u32 ctc_reg = intel_uncore_read(uncore, CTC_MODE);
 		u32 freq = 0;
 
@@ -113,7 +113,7 @@ static u32 read_clock_frequency(struct intel_uncore *uncore)
 		}
 
 		return freq;
-	} else if (INTEL_GEN(uncore->i915) <= 12) {
+	} else if (GRAPHICS_VER(uncore->i915) <= 12) {
 		u32 ctc_reg = intel_uncore_read(uncore, CTC_MODE);
 		u32 freq = 0;
 
@@ -128,7 +128,7 @@ static u32 read_clock_frequency(struct intel_uncore *uncore)
 		} else {
 			u32 c0 = intel_uncore_read(uncore, RPM_CONFIG0);
 
-			if (INTEL_GEN(uncore->i915) <= 10)
+			if (GRAPHICS_VER(uncore->i915) <= 10)
 				freq = gen10_get_crystal_clock_freq(uncore, c0);
 			else
 				freq = gen11_get_crystal_clock_freq(uncore, c0);
@@ -211,7 +211,7 @@ u64 intel_gt_ns_to_pm_interval(const struct intel_gt *gt, u64 ns)
 	 * frozen machine.
 	 */
 	val = div_u64_roundup(intel_gt_ns_to_clock_interval(gt, ns), 16);
-	if (IS_GEN(gt->i915, 6))
+	if (GRAPHICS_VER(gt->i915) == 6)
 		val = div_u64_roundup(val, 25) * 25;
 
 	return val;

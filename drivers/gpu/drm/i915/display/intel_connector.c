@@ -282,14 +282,12 @@ void
 intel_attach_hdmi_colorspace_property(struct drm_connector *connector)
 {
 	if (!drm_mode_create_hdmi_colorspace_property(connector))
-		drm_object_attach_property(&connector->base,
-					   connector->colorspace_property, 0);
+		drm_connector_attach_colorspace_property(connector);
 }
 
 void
 intel_attach_dp_colorspace_property(struct drm_connector *connector)
 {
 	if (!drm_mode_create_dp_colorspace_property(connector))
-		drm_object_attach_property(&connector->base,
-					   connector->colorspace_property, 0);
+		drm_connector_attach_colorspace_property(connector);
 }

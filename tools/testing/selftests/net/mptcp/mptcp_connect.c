@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <fcntl.h>
 #include <string.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -25,6 +26,7 @@
 #include <netinet/in.h>
 
 #include <linux/tcp.h>
+#include <linux/time_types.h>
 
 extern int optind;
 
@@ -66,6 +68,13 @@ static unsigned int cfg_do_w;
 static int cfg_wait;
 static uint32_t cfg_mark;
 
+struct cfg_cmsg_types {
+	unsigned int cmsg_enabled:1;
+	unsigned int timestampns:1;
+};
+
+static struct cfg_cmsg_types cfg_cmsg_types;
+
 static void die_usage(void)
 {
 	fprintf(stderr, "Usage: mptcp_connect [-6] [-u] [-s MPTCP|TCP] [-p port] [-m mode]"
@@ -80,8 +89,19 @@ static void die_usage(void)
 	fprintf(stderr, "\t-M mark -- set socket packet mark\n");
 	fprintf(stderr, "\t-u -- check mptcp ulp\n");
 	fprintf(stderr, "\t-w num -- wait num sec before closing the socket\n");
+	fprintf(stderr, "\t-c cmsg -- test cmsg type <cmsg>\n");
 	fprintf(stderr,
 		"\t-P [saveWithPeek|saveAfterPeek] -- save data with/after MSG_PEEK form tcp socket\n");
+	exit(1);
+}
+
+static void xerror(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
 	exit(1);
 }
 
@@ -338,6 +358,58 @@ static size_t do_write(const int fd, char *buf, const size_t len)
 	return offset;
 }
 
+static void process_cmsg(struct msghdr *msgh)
+{
+	struct __kernel_timespec ts;
+	bool ts_found = false;
+	struct cmsghdr *cmsg;
+
+	for (cmsg = CMSG_FIRSTHDR(msgh); cmsg ; cmsg = CMSG_NXTHDR(msgh, cmsg)) {
+		if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SO_TIMESTAMPNS_NEW) {
+			memcpy(&ts, CMSG_DATA(cmsg), sizeof(ts));
+			ts_found = true;
+			continue;
+		}
+	}
+
+	if (cfg_cmsg_types.timestampns) {
+		if (!ts_found)
+			xerror("TIMESTAMPNS not present\n");
+	}
+}
+
+static ssize_t do_recvmsg_cmsg(const int fd, char *buf, const size_t len)
+{
+	char msg_buf[8192];
+	struct iovec iov = {
+		.iov_base = buf,
+		.iov_len = len,
+	};
+	struct msghdr msg = {
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
+		.msg_control = msg_buf,
+		.msg_controllen = sizeof(msg_buf),
+	};
+	int flags = 0;
+	int ret = recvmsg(fd, &msg, flags);
+
+	if (ret <= 0)
+		return ret;
+
+	if (msg.msg_controllen && !cfg_cmsg_types.cmsg_enabled)
+		xerror("got %lu bytes of cmsg data, expected 0\n",
+		       (unsigned long)msg.msg_controllen);
+
+	if (msg.msg_controllen == 0 && cfg_cmsg_types.cmsg_enabled)
+		xerror("%s\n", "got no cmsg data");
+
+	if (msg.msg_controllen)
+		process_cmsg(&msg);
+
+	return ret;
+}
+
 static ssize_t do_rnd_read(const int fd, char *buf, const size_t len)
 {
 	int ret = 0;
@@ -357,6 +429,8 @@ static ssize_t do_rnd_read(const int fd, char *buf, const size_t len)
 	} else if (cfg_peek == CFG_AFTER_PEEK) {
 		ret = recv(fd, buf, cap, MSG_PEEK);
 		ret = (ret < 0) ? ret : read(fd, buf, cap);
+	} else if (cfg_cmsg_types.cmsg_enabled) {
+		ret = do_recvmsg_cmsg(fd, buf, cap);
 	} else {
 		ret = read(fd, buf, cap);
 	}
@@ -786,6 +860,48 @@ static void init_rng(void)
 	srand(foo);
 }
 
+static void xsetsockopt(int fd, int level, int optname, const void *optval, socklen_t optlen)
+{
+	int err;
+
+	err = setsockopt(fd, level, optname, optval, optlen);
+	if (err) {
+		perror("setsockopt");
+		exit(1);
+	}
+}
+
+static void apply_cmsg_types(int fd, const struct cfg_cmsg_types *cmsg)
+{
+	static const unsigned int on = 1;
+
+	if (cmsg->timestampns)
+		xsetsockopt(fd, SOL_SOCKET, SO_TIMESTAMPNS_NEW, &on, sizeof(on));
+}
+
+static void parse_cmsg_types(const char *type)
+{
+	char *next = strchr(type, ',');
+	unsigned int len = 0;
+
+	cfg_cmsg_types.cmsg_enabled = 1;
+
+	if (next) {
+		parse_cmsg_types(next + 1);
+		len = next - type;
+	} else {
+		len = strlen(type);
+	}
+
+	if (strncmp(type, "TIMESTAMPNS", len) == 0) {
+		cfg_cmsg_types.timestampns = 1;
+		return;
+	}
+
+	fprintf(stderr, "Unrecognized cmsg option %s\n", type);
+	exit(1);
+}
+
 int main_loop(void)
 {
 	int fd;
@@ -801,6 +917,8 @@ int main_loop(void)
 		set_rcvbuf(fd, cfg_rcvbuf);
 	if (cfg_sndbuf)
 		set_sndbuf(fd, cfg_sndbuf);
+	if (cfg_cmsg_types.cmsg_enabled)
+		apply_cmsg_types(fd, &cfg_cmsg_types);
 
 	return copyfd_io(0, fd, 1);
 }
@@ -887,7 +1005,7 @@ static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "6jr:lp:s:hut:m:S:R:w:M:P:")) != -1) {
+	while ((c = getopt(argc, argv, "6jr:lp:s:hut:m:S:R:w:M:P:c:")) != -1) {
 		switch (c) {
 		case 'j':
 			cfg_join = true;
@@ -943,6 +1061,9 @@ static void parse_opts(int argc, char **argv)
 		case 'P':
 			cfg_peek = parse_peek(optarg);
 			break;
+		case 'c':
+			parse_cmsg_types(optarg);
+			break;
 		}
 	}
 
@@ -976,6 +1097,8 @@ int main(int argc, char *argv[])
 			set_sndbuf(fd, cfg_sndbuf);
 		if (cfg_mark)
 			set_mark(fd, cfg_mark);
+		if (cfg_cmsg_types.cmsg_enabled)
+			apply_cmsg_types(fd, &cfg_cmsg_types);
 
 		return main_loop_s(fd);
 	}

@@ -46,21 +46,17 @@ struct io_uring_sqe {
 		__u32		unlink_flags;
 	};
 	__u64	user_data;	/* data to be passed back at completion time */
+	/* pack this to avoid bogus arm OABI complaints */
 	union {
-		struct {
-			/* pack this to avoid bogus arm OABI complaints */
-			union {
-				/* index into fixed buffers, if used */
-				__u16	buf_index;
-				/* for grouped buffer selection */
-				__u16	buf_group;
-			} __attribute__((packed));
-			/* personality to use, if used */
-			__u16	personality;
-			__s32	splice_fd_in;
-		};
-		__u64	__pad2[3];
-	};
+		/* index into fixed buffers, if used */
+		__u16	buf_index;
+		/* for grouped buffer selection */
+		__u16	buf_group;
+	} __attribute__((packed));
+	/* personality to use, if used */
+	__u16	personality;
+	__s32	splice_fd_in;
+	__u64	__pad2[2];
 };
 
 enum {
@@ -280,6 +276,7 @@ struct io_uring_params {
 #define IORING_FEAT_SQPOLL_NONFIXED	(1U << 7)
 #define IORING_FEAT_EXT_ARG		(1U << 8)
 #define IORING_FEAT_NATIVE_WORKERS	(1U << 9)
+#define IORING_FEAT_RSRC_TAGS		(1U << 10)
 
 /*
  * io_uring_register(2) opcodes and arguments
@@ -298,8 +295,16 @@ enum {
 	IORING_UNREGISTER_PERSONALITY		= 10,
 	IORING_REGISTER_RESTRICTIONS		= 11,
 	IORING_REGISTER_ENABLE_RINGS		= 12,
-	IORING_REGISTER_RSRC			= 13,
-	IORING_REGISTER_RSRC_UPDATE		= 14,
+
+	/* extended with tagging */
+	IORING_REGISTER_FILES2			= 13,
+	IORING_REGISTER_FILES_UPDATE2		= 14,
+	IORING_REGISTER_BUFFERS2		= 15,
+	IORING_REGISTER_BUFFERS_UPDATE		= 16,
+
+	/* set/clear io-wq thread affinities */
+	IORING_REGISTER_IOWQ_AFF		= 17,
+	IORING_UNREGISTER_IOWQ_AFF		= 18,
 
 	/* this goes last */
 	IORING_REGISTER_LAST
@@ -312,14 +317,10 @@ struct io_uring_files_update {
 	__aligned_u64 /* __s32 * */ fds;
 };
 
-enum {
-	IORING_RSRC_FILE		= 0,
-	IORING_RSRC_BUFFER		= 1,
-};
-
 struct io_uring_rsrc_register {
-	__u32 type;
 	__u32 nr;
+	__u32 resv;
+	__u64 resv2;
 	__aligned_u64 data;
 	__aligned_u64 tags;
 };
@@ -335,8 +336,8 @@ struct io_uring_rsrc_update2 {
 	__u32 resv;
 	__aligned_u64 data;
 	__aligned_u64 tags;
-	__u32 type;
 	__u32 nr;
+	__u32 resv2;
 };
 
 /* Skip updating fd indexes set to this value in the fd table */

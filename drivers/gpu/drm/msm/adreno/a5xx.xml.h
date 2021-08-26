@@ -8,21 +8,21 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/envytools/rnndb/adreno.xml                     (    594 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml        (   1572 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml                (  90159 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml       (  14386 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml          (  65048 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a3xx.xml                (  84226 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a4xx.xml                ( 112556 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml                ( 149461 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml                ( 184695 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml            (  11218 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/ocmem.xml               (   1773 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_control_regs.xml (   4559 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_pipe_regs.xml    (   2872 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno.xml                     (    594 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/freedreno_copyright.xml        (   1572 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a2xx.xml                (  90810 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_common.xml       (  14386 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_pm4.xml          (  67699 bytes, from 2021-05-31 20:21:57)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a3xx.xml                (  84226 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a4xx.xml                ( 112551 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a5xx.xml                ( 150713 bytes, from 2021-06-10 22:34:02)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a6xx.xml                ( 180049 bytes, from 2021-06-02 21:44:19)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/a6xx_gmu.xml            (  11331 bytes, from 2021-05-21 19:18:08)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/ocmem.xml               (   1773 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_control_regs.xml (   6038 bytes, from 2021-05-27 20:22:36)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/adreno/adreno_pipe_regs.xml    (   2924 bytes, from 2021-05-27 20:18:13)
 
-Copyright (C) 2013-2020 by the following authors:
+Copyright (C) 2013-2021 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -2021,6 +2021,7 @@ static inline uint32_t A5XX_RBBM_STATUS_CP_ME_BUSY(uint32_t val)
 #define A5XX_RBBM_STATUS_HI_BUSY				0x00000001
 
 #define REG_A5XX_RBBM_STATUS3					0x00000530
+#define A5XX_RBBM_STATUS3_SMMU_STALLED_ON_FAULT			0x01000000
 
 #define REG_A5XX_RBBM_INT_0_STATUS				0x000004e1
 
@@ -2351,6 +2352,7 @@ static inline uint32_t A5XX_VSC_RESOLVE_CNTL_Y(uint32_t val)
 #define REG_A5XX_VFD_PERFCTR_VFD_SEL_7				0x00000e57
 
 #define REG_A5XX_VPC_DBG_ECO_CNTL				0x00000e60
+#define A5XX_VPC_DBG_ECO_CNTL_ALLFLATOPTDIS			0x00000400
 
 #define REG_A5XX_VPC_ADDR_MODE_CNTL				0x00000e61
 
@@ -2808,7 +2810,19 @@ static inline uint32_t A5XX_VSC_RESOLVE_CNTL_Y(uint32_t val)
 #define REG_A5XX_GRAS_CL_CNTL					0x0000e000
 #define A5XX_GRAS_CL_CNTL_ZERO_GB_SCALE_Z			0x00000040
 
-#define REG_A5XX_UNKNOWN_E001					0x0000e001
+#define REG_A5XX_GRAS_VS_CL_CNTL				0x0000e001
+#define A5XX_GRAS_VS_CL_CNTL_CLIP_MASK__MASK			0x000000ff
+#define A5XX_GRAS_VS_CL_CNTL_CLIP_MASK__SHIFT			0
+static inline uint32_t A5XX_GRAS_VS_CL_CNTL_CLIP_MASK(uint32_t val)
+{
+	return ((val) << A5XX_GRAS_VS_CL_CNTL_CLIP_MASK__SHIFT) & A5XX_GRAS_VS_CL_CNTL_CLIP_MASK__MASK;
+}
+#define A5XX_GRAS_VS_CL_CNTL_CULL_MASK__MASK			0x0000ff00
+#define A5XX_GRAS_VS_CL_CNTL_CULL_MASK__SHIFT			8
+static inline uint32_t A5XX_GRAS_VS_CL_CNTL_CULL_MASK(uint32_t val)
+{
+	return ((val) << A5XX_GRAS_VS_CL_CNTL_CULL_MASK__SHIFT) & A5XX_GRAS_VS_CL_CNTL_CULL_MASK__MASK;
+}
 
 #define REG_A5XX_UNKNOWN_E004					0x0000e004
 
@@ -3345,7 +3359,7 @@ static inline uint32_t A5XX_RB_BLEND_RED_SINT(uint32_t val)
 #define A5XX_RB_BLEND_RED_FLOAT__SHIFT				16
 static inline uint32_t A5XX_RB_BLEND_RED_FLOAT(float val)
 {
-	return ((util_float_to_half(val)) << A5XX_RB_BLEND_RED_FLOAT__SHIFT) & A5XX_RB_BLEND_RED_FLOAT__MASK;
+	return ((_mesa_float_to_half(val)) << A5XX_RB_BLEND_RED_FLOAT__SHIFT) & A5XX_RB_BLEND_RED_FLOAT__MASK;
 }
 
 #define REG_A5XX_RB_BLEND_RED_F32				0x0000e1a1
@@ -3373,7 +3387,7 @@ static inline uint32_t A5XX_RB_BLEND_GREEN_SINT(uint32_t val)
 #define A5XX_RB_BLEND_GREEN_FLOAT__SHIFT			16
 static inline uint32_t A5XX_RB_BLEND_GREEN_FLOAT(float val)
 {
-	return ((util_float_to_half(val)) << A5XX_RB_BLEND_GREEN_FLOAT__SHIFT) & A5XX_RB_BLEND_GREEN_FLOAT__MASK;
+	return ((_mesa_float_to_half(val)) << A5XX_RB_BLEND_GREEN_FLOAT__SHIFT) & A5XX_RB_BLEND_GREEN_FLOAT__MASK;
 }
 
 #define REG_A5XX_RB_BLEND_GREEN_F32				0x0000e1a3
@@ -3401,7 +3415,7 @@ static inline uint32_t A5XX_RB_BLEND_BLUE_SINT(uint32_t val)
 #define A5XX_RB_BLEND_BLUE_FLOAT__SHIFT				16
 static inline uint32_t A5XX_RB_BLEND_BLUE_FLOAT(float val)
 {
-	return ((util_float_to_half(val)) << A5XX_RB_BLEND_BLUE_FLOAT__SHIFT) & A5XX_RB_BLEND_BLUE_FLOAT__MASK;
+	return ((_mesa_float_to_half(val)) << A5XX_RB_BLEND_BLUE_FLOAT__SHIFT) & A5XX_RB_BLEND_BLUE_FLOAT__MASK;
 }
 
 #define REG_A5XX_RB_BLEND_BLUE_F32				0x0000e1a5
@@ -3429,7 +3443,7 @@ static inline uint32_t A5XX_RB_BLEND_ALPHA_SINT(uint32_t val)
 #define A5XX_RB_BLEND_ALPHA_FLOAT__SHIFT			16
 static inline uint32_t A5XX_RB_BLEND_ALPHA_FLOAT(float val)
 {
-	return ((util_float_to_half(val)) << A5XX_RB_BLEND_ALPHA_FLOAT__SHIFT) & A5XX_RB_BLEND_ALPHA_FLOAT__MASK;
+	return ((_mesa_float_to_half(val)) << A5XX_RB_BLEND_ALPHA_FLOAT__SHIFT) & A5XX_RB_BLEND_ALPHA_FLOAT__MASK;
 }
 
 #define REG_A5XX_RB_BLEND_ALPHA_F32				0x0000e1a7
@@ -3806,7 +3820,25 @@ static inline uint32_t REG_A5XX_VPC_VAR_DISABLE(uint32_t i0) { return 0x0000e294
 
 #define REG_A5XX_VPC_GS_SIV_CNTL				0x0000e298
 
-#define REG_A5XX_UNKNOWN_E29A					0x0000e29a
+#define REG_A5XX_VPC_CLIP_CNTL					0x0000e29a
+#define A5XX_VPC_CLIP_CNTL_CLIP_MASK__MASK			0x000000ff
+#define A5XX_VPC_CLIP_CNTL_CLIP_MASK__SHIFT			0
+static inline uint32_t A5XX_VPC_CLIP_CNTL_CLIP_MASK(uint32_t val)
+{
+	return ((val) << A5XX_VPC_CLIP_CNTL_CLIP_MASK__SHIFT) & A5XX_VPC_CLIP_CNTL_CLIP_MASK__MASK;
+}
+#define A5XX_VPC_CLIP_CNTL_CLIP_DIST_03_LOC__MASK		0x0000ff00
+#define A5XX_VPC_CLIP_CNTL_CLIP_DIST_03_LOC__SHIFT		8
+static inline uint32_t A5XX_VPC_CLIP_CNTL_CLIP_DIST_03_LOC(uint32_t val)
+{
+	return ((val) << A5XX_VPC_CLIP_CNTL_CLIP_DIST_03_LOC__SHIFT) & A5XX_VPC_CLIP_CNTL_CLIP_DIST_03_LOC__MASK;
+}
+#define A5XX_VPC_CLIP_CNTL_CLIP_DIST_47_LOC__MASK		0x00ff0000
+#define A5XX_VPC_CLIP_CNTL_CLIP_DIST_47_LOC__SHIFT		16
+static inline uint32_t A5XX_VPC_CLIP_CNTL_CLIP_DIST_47_LOC(uint32_t val)
+{
+	return ((val) << A5XX_VPC_CLIP_CNTL_CLIP_DIST_47_LOC__SHIFT) & A5XX_VPC_CLIP_CNTL_CLIP_DIST_47_LOC__MASK;
+}
 
 #define REG_A5XX_VPC_PACK					0x0000e29d
 #define A5XX_VPC_PACK_NUMNONPOSVAR__MASK			0x000000ff
@@ -3910,7 +3942,13 @@ static inline uint32_t A5XX_PC_RASTER_CNTL_POLYMODE_BACK_PTYPE(enum adreno_pa_su
 }
 #define A5XX_PC_RASTER_CNTL_POLYMODE_ENABLE			0x00000040
 
-#define REG_A5XX_UNKNOWN_E389					0x0000e389
+#define REG_A5XX_PC_CLIP_CNTL					0x0000e389
+#define A5XX_PC_CLIP_CNTL_CLIP_MASK__MASK			0x000000ff
+#define A5XX_PC_CLIP_CNTL_CLIP_MASK__SHIFT			0
+static inline uint32_t A5XX_PC_CLIP_CNTL_CLIP_MASK(uint32_t val)
+{
+	return ((val) << A5XX_PC_CLIP_CNTL_CLIP_MASK__SHIFT) & A5XX_PC_CLIP_CNTL_CLIP_MASK__MASK;
+}
 
 #define REG_A5XX_PC_RESTART_INDEX				0x0000e38c
 
@@ -4302,7 +4340,12 @@ static inline uint32_t A5XX_SP_FS_CTRL_REG0_BRANCHSTACK(uint32_t val)
 #define REG_A5XX_SP_FS_OBJ_START_HI				0x0000e5c4
 
 #define REG_A5XX_SP_BLEND_CNTL					0x0000e5c9
-#define A5XX_SP_BLEND_CNTL_ENABLED				0x00000001
+#define A5XX_SP_BLEND_CNTL_ENABLE_BLEND__MASK			0x000000ff
+#define A5XX_SP_BLEND_CNTL_ENABLE_BLEND__SHIFT			0
+static inline uint32_t A5XX_SP_BLEND_CNTL_ENABLE_BLEND(uint32_t val)
+{
+	return ((val) << A5XX_SP_BLEND_CNTL_ENABLE_BLEND__SHIFT) & A5XX_SP_BLEND_CNTL_ENABLE_BLEND__MASK;
+}
 #define A5XX_SP_BLEND_CNTL_UNK8					0x00000100
 #define A5XX_SP_BLEND_CNTL_ALPHA_TO_COVERAGE			0x00000400
 
@@ -5192,8 +5235,8 @@ static inline uint32_t A5XX_TEX_SAMP_1_MIN_LOD(float val)
 }
 
 #define REG_A5XX_TEX_SAMP_2					0x00000002
-#define A5XX_TEX_SAMP_2_BCOLOR_OFFSET__MASK			0xfffffff0
-#define A5XX_TEX_SAMP_2_BCOLOR_OFFSET__SHIFT			4
+#define A5XX_TEX_SAMP_2_BCOLOR_OFFSET__MASK			0xffffff80
+#define A5XX_TEX_SAMP_2_BCOLOR_OFFSET__SHIFT			7
 static inline uint32_t A5XX_TEX_SAMP_2_BCOLOR_OFFSET(uint32_t val)
 {
 	return ((val) << A5XX_TEX_SAMP_2_BCOLOR_OFFSET__SHIFT) & A5XX_TEX_SAMP_2_BCOLOR_OFFSET__MASK;
@@ -5273,6 +5316,7 @@ static inline uint32_t A5XX_TEX_CONST_1_HEIGHT(uint32_t val)
 }
 
 #define REG_A5XX_TEX_CONST_2					0x00000002
+#define A5XX_TEX_CONST_2_UNK4					0x00000010
 #define A5XX_TEX_CONST_2_PITCHALIGN__MASK			0x0000000f
 #define A5XX_TEX_CONST_2_PITCHALIGN__SHIFT			0
 static inline uint32_t A5XX_TEX_CONST_2_PITCHALIGN(uint32_t val)
@@ -5291,6 +5335,7 @@ static inline uint32_t A5XX_TEX_CONST_2_TYPE(enum a5xx_tex_type val)
 {
 	return ((val) << A5XX_TEX_CONST_2_TYPE__SHIFT) & A5XX_TEX_CONST_2_TYPE__MASK;
 }
+#define A5XX_TEX_CONST_2_UNK31					0x80000000
 
 #define REG_A5XX_TEX_CONST_3					0x00000003
 #define A5XX_TEX_CONST_3_ARRAY_PITCH__MASK			0x00003fff

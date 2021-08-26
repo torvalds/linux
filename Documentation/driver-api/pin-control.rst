@@ -95,7 +95,7 @@ this in our driver::
 To enable the pinctrl subsystem and the subgroups for PINMUX and PINCONF and
 selected drivers, you need to select them from your machine's Kconfig entry,
 since these are so tightly integrated with the machines they are used on.
-See for example arch/arm/mach-u300/Kconfig for an example.
+See for example arch/arm/mach-ux500/Kconfig for an example.
 
 Pins usually have fancier names than this. You can find these in the datasheet
 for your chip. Notice that the core pinctrl.h file provides a fancy macro

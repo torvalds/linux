@@ -213,8 +213,10 @@
 	mov	v\nz\().16b, v\nz\().16b
 .endm
 
-.macro sve_flush
+.macro sve_flush_z
  _for n, 0, 31, _sve_flush_z	\n
+.endm
+.macro sve_flush_p_ffr
  _for n, 0, 15, _sve_pfalse	\n
 		_sve_wrffr	0
 .endm

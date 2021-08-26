@@ -29,7 +29,7 @@ KCOV_INSTRUMENT		:= n
 SVGA_MODE	:= -DSVGA_MODE=NORMAL_VGA
 
 targets		:= vmlinux.bin setup.bin setup.elf bzImage
-targets		+= fdimage fdimage144 fdimage288 image.iso mtools.conf
+targets		+= fdimage fdimage144 fdimage288 image.iso hdimage
 subdir-		:= compressed
 
 setup-y		+= a20.o bioscall.o cmdline.o copy.o cpu.o cpuflags.o cpucheck.o
@@ -115,47 +115,49 @@ $(obj)/compressed/vmlinux: FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
 
 # Set this if you want to pass append arguments to the
-# bzdisk/fdimage/isoimage kernel
+# bzdisk/fdimage/hdimage/isoimage kernel
 FDARGS =
-# Set this if you want an initrd included with the
-# bzdisk/fdimage/isoimage kernel
+# Set this if you want one or more initrds included in the image
 FDINITRD =
 
-image_cmdline = default linux $(FDARGS) $(if $(FDINITRD),initrd=initrd.img,)
+imgdeps = $(obj)/bzImage $(obj)/mtools.conf $(src)/genimage.sh
 
 $(obj)/mtools.conf: $(src)/mtools.conf.in
 	sed -e 's|@OBJ@|$(obj)|g' < $< > $@
 
-quiet_cmd_genimage = GENIMAGE $3
-cmd_genimage = sh $(srctree)/$(src)/genimage.sh $2 $3 $(obj)/bzImage \
-			$(obj)/mtools.conf '$(image_cmdline)' $(FDINITRD)
+targets += mtools.conf
 
-PHONY += bzdisk fdimage fdimage144 fdimage288 isoimage bzlilo install
+# genimage.sh requires bash, but it also has a bunch of other
+# external dependencies.
+quiet_cmd_genimage = GENIMAGE $3
+cmd_genimage = $(BASH) $(srctree)/$(src)/genimage.sh $2 $3 $(obj)/bzImage \
+		$(obj)/mtools.conf '$(FDARGS)' $(FDINITRD)
+
+PHONY += bzdisk fdimage fdimage144 fdimage288 hdimage isoimage install
 
 # This requires write access to /dev/fd0
-bzdisk: $(obj)/bzImage $(obj)/mtools.conf
+# All images require syslinux to be installed; hdimage also requires
+# EDK2/OVMF if the kernel is compiled with the EFI stub.
+bzdisk: $(imgdeps)
 	$(call cmd,genimage,bzdisk,/dev/fd0)
 
-# These require being root or having syslinux 2.02 or higher installed
-fdimage fdimage144: $(obj)/bzImage $(obj)/mtools.conf
+fdimage fdimage144: $(imgdeps)
 	$(call cmd,genimage,fdimage144,$(obj)/fdimage)
 	@$(kecho) 'Kernel: $(obj)/fdimage is ready'
 
-fdimage288: $(obj)/bzImage $(obj)/mtools.conf
+fdimage288: $(imgdeps)
 	$(call cmd,genimage,fdimage288,$(obj)/fdimage)
 	@$(kecho) 'Kernel: $(obj)/fdimage is ready'
 
-isoimage: $(obj)/bzImage
+hdimage: $(imgdeps)
+	$(call cmd,genimage,hdimage,$(obj)/hdimage)
+	@$(kecho) 'Kernel: $(obj)/hdimage is ready'
+
+isoimage: $(imgdeps)
 	$(call cmd,genimage,isoimage,$(obj)/image.iso)
 	@$(kecho) 'Kernel: $(obj)/image.iso is ready'
 
-bzlilo:
-	if [ -f $(INSTALL_PATH)/vmlinuz ]; then mv $(INSTALL_PATH)/vmlinuz $(INSTALL_PATH)/vmlinuz.old; fi
-	if [ -f $(INSTALL_PATH)/System.map ]; then mv $(INSTALL_PATH)/System.map $(INSTALL_PATH)/System.old; fi
-	cat $(obj)/bzImage > $(INSTALL_PATH)/vmlinuz
-	cp System.map $(INSTALL_PATH)/
-	if [ -x /sbin/lilo ]; then /sbin/lilo; else /etc/lilo/install; fi
-
 install:
-	sh $(srctree)/$(src)/install.sh $(KERNELRELEASE) $(obj)/bzImage \
+	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh \
+		$(KERNELRELEASE) $(obj)/bzImage \
 		System.map "$(INSTALL_PATH)"

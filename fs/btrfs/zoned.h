@@ -53,7 +53,7 @@ void btrfs_calc_zone_unusable(struct btrfs_block_group *cache);
 void btrfs_redirty_list_add(struct btrfs_transaction *trans,
 			    struct extent_buffer *eb);
 void btrfs_free_redirty_list(struct btrfs_transaction *trans);
-bool btrfs_use_zone_append(struct btrfs_inode *inode, struct extent_map *em);
+bool btrfs_use_zone_append(struct btrfs_inode *inode, u64 start);
 void btrfs_record_physical_zoned(struct inode *inode, u64 file_offset,
 				 struct bio *bio);
 void btrfs_rewrite_logical_zoned(struct btrfs_ordered_extent *ordered);
@@ -65,6 +65,8 @@ void btrfs_revert_meta_write_pointer(struct btrfs_block_group *cache,
 int btrfs_zoned_issue_zeroout(struct btrfs_device *device, u64 physical, u64 length);
 int btrfs_sync_zone_write_pointer(struct btrfs_device *tgt_dev, u64 logical,
 				  u64 physical_start, u64 physical_pos);
+struct btrfs_device *btrfs_zoned_get_device(struct btrfs_fs_info *fs_info,
+					    u64 logical, u64 length);
 #else /* CONFIG_BLK_DEV_ZONED */
 static inline int btrfs_get_dev_zone(struct btrfs_device *device, u64 pos,
 				     struct blk_zone *zone)
@@ -152,8 +154,7 @@ static inline void btrfs_redirty_list_add(struct btrfs_transaction *trans,
 					  struct extent_buffer *eb) { }
 static inline void btrfs_free_redirty_list(struct btrfs_transaction *trans) { }
 
-static inline bool btrfs_use_zone_append(struct btrfs_inode *inode,
-					 struct extent_map *em)
+static inline bool btrfs_use_zone_append(struct btrfs_inode *inode, u64 start)
 {
 	return false;
 }
@@ -190,6 +191,13 @@ static inline int btrfs_sync_zone_write_pointer(struct btrfs_device *tgt_dev,
 						u64 physical_pos)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline struct btrfs_device *btrfs_zoned_get_device(
+						  struct btrfs_fs_info *fs_info,
+						  u64 logical, u64 length)
+{
+	return ERR_PTR(-EOPNOTSUPP);
 }
 
 #endif

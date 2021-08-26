@@ -481,3 +481,55 @@ void devm_regulator_unregister_notifier(struct regulator *regulator,
 		WARN_ON(rc);
 }
 EXPORT_SYMBOL_GPL(devm_regulator_unregister_notifier);
+
+static void regulator_irq_helper_drop(void *res)
+{
+	regulator_irq_helper_cancel(&res);
+}
+
+/**
+ * devm_regulator_irq_helper - resource managed registration of IRQ based
+ * regulator event/error notifier
+ *
+ * @dev:		device to which lifetime the helper's lifetime is
+ *			bound.
+ * @d:			IRQ helper descriptor.
+ * @irq:		IRQ used to inform events/errors to be notified.
+ * @irq_flags:		Extra IRQ flags to be OR'ed with the default
+ *			IRQF_ONESHOT when requesting the (threaded) irq.
+ * @common_errs:	Errors which can be flagged by this IRQ for all rdevs.
+ *			When IRQ is re-enabled these errors will be cleared
+ *			from all associated regulators
+ * @per_rdev_errs:	Optional error flag array describing errors specific
+ *			for only some of the regulators. These errors will be
+ *			or'ed with common errors. If this is given the array
+ *			should contain rdev_amount flags. Can be set to NULL
+ *			if there is no regulator specific error flags for this
+ *			IRQ.
+ * @rdev:		Array of pointers to regulators associated with this
+ *			IRQ.
+ * @rdev_amount:	Amount of regulators associated with this IRQ.
+ *
+ * Return: handle to irq_helper or an ERR_PTR() encoded error code.
+ */
+void *devm_regulator_irq_helper(struct device *dev,
+				const struct regulator_irq_desc *d, int irq,
+				int irq_flags, int common_errs,
+				int *per_rdev_errs,
+				struct regulator_dev **rdev, int rdev_amount)
+{
+	void *ptr;
+	int ret;
+
+	ptr = regulator_irq_helper(dev, d, irq, irq_flags, common_errs,
+				    per_rdev_errs, rdev, rdev_amount);
+	if (IS_ERR(ptr))
+		return ptr;
+
+	ret = devm_add_action_or_reset(dev, regulator_irq_helper_drop, ptr);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return ptr;
+}
+EXPORT_SYMBOL_GPL(devm_regulator_irq_helper);

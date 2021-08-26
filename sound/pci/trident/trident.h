@@ -251,7 +251,6 @@ struct snd_trident_memblk_arg {
 struct snd_trident_tlb {
 	__le32 *entries;		/* 16k-aligned TLB table */
 	dma_addr_t entries_dmaaddr;	/* 16k-aligned PCI address to TLB table */
-	unsigned long * shadow_entries;	/* shadow entries with virtual addresses */
 	struct snd_dma_buffer buffer;
 	struct snd_util_memhdr * memhdr;	/* page allocation list */
 	struct snd_dma_buffer silent_page;

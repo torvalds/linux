@@ -324,10 +324,10 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 	if (!b)
 		return -ENOMEM;
 
-	if ((result = mutex_lock_interruptible(&dec->usb_mutex))) {
-		kfree(b);
+	result = mutex_lock_interruptible(&dec->usb_mutex);
+	if (result) {
 		printk("%s: Failed to lock usb mutex.\n", __func__);
-		return result;
+		goto err;
 	}
 
 	b[0] = 0xaa;
@@ -349,9 +349,7 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 	if (result) {
 		printk("%s: command bulk message failed: error %d\n",
 		       __func__, result);
-		mutex_unlock(&dec->usb_mutex);
-		kfree(b);
-		return result;
+		goto err;
 	}
 
 	result = usb_bulk_msg(dec->udev, dec->result_pipe, b,
@@ -360,9 +358,7 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 	if (result) {
 		printk("%s: result bulk message failed: error %d\n",
 		       __func__, result);
-		mutex_unlock(&dec->usb_mutex);
-		kfree(b);
-		return result;
+		goto err;
 	} else {
 		if (debug) {
 			printk(KERN_DEBUG "%s: result: %*ph\n",
@@ -373,12 +369,13 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 			*result_length = b[3];
 		if (cmd_result && b[3] > 0)
 			memcpy(cmd_result, &b[4], b[3]);
-
-		mutex_unlock(&dec->usb_mutex);
-
-		kfree(b);
-		return 0;
 	}
+
+err:
+	mutex_unlock(&dec->usb_mutex);
+
+	kfree(b);
+	return result;
 }
 
 static int ttusb_dec_get_stb_state (struct ttusb_dec *dec, unsigned int *mode,

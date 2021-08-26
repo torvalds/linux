@@ -1369,8 +1369,14 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 	if (IS_ERR(device))
 		return PTR_ERR(device);
 
+	if (!try_module_get(device->dev->driver->owner)) {
+		vfio_device_put(device);
+		return -ENODEV;
+	}
+
 	ret = device->ops->open(device);
 	if (ret) {
+		module_put(device->dev->driver->owner);
 		vfio_device_put(device);
 		return ret;
 	}
@@ -1382,6 +1388,7 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 	ret = get_unused_fd_flags(O_CLOEXEC);
 	if (ret < 0) {
 		device->ops->release(device);
+		module_put(device->dev->driver->owner);
 		vfio_device_put(device);
 		return ret;
 	}
@@ -1392,6 +1399,7 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 		put_unused_fd(ret);
 		ret = PTR_ERR(filep);
 		device->ops->release(device);
+		module_put(device->dev->driver->owner);
 		vfio_device_put(device);
 		return ret;
 	}
@@ -1549,6 +1557,8 @@ static int vfio_device_fops_release(struct inode *inode, struct file *filep)
 	struct vfio_device *device = filep->private_data;
 
 	device->ops->release(device);
+
+	module_put(device->dev->driver->owner);
 
 	vfio_group_try_dissolve_container(device->group);
 

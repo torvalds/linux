@@ -199,7 +199,6 @@ static int ag6xx_setup(struct hci_uart *hu)
 			   fwname, err);
 		goto patch;
 	}
-	fw_ptr = fw->data;
 
 	bt_dev_info(hdev, "Applying bddata (%s)", fwname);
 

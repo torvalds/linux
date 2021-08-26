@@ -10,7 +10,7 @@ Overview
 Zswap is a lightweight compressed cache for swap pages. It takes pages that are
 in the process of being swapped out and attempts to compress them into a
 dynamically allocated RAM-based memory pool.  zswap basically trades CPU cycles
-for potentially reduced swap I/O.  This trade-off can also result in a
+for potentially reduced swap I/O.  This trade-off can also result in a
 significant performance improvement if reads from the compressed cache are
 faster than reads from a swap device.
 
@@ -26,7 +26,7 @@ faster than reads from a swap device.
   performance impact of swapping.
 * Overcommitted guests that share a common I/O resource can
   dramatically reduce their swap I/O pressure, avoiding heavy handed I/O
-  throttling by the hypervisor. This allows more work to get done with less
+  throttling by the hypervisor. This allows more work to get done with less
   impact to the guest workload and guests sharing the I/O subsystem
 * Users with SSDs as swap devices can extend the life of the device by
   drastically reducing life-shortening writes.

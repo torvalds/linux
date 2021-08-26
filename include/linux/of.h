@@ -1329,6 +1329,12 @@ static inline int of_get_available_child_count(const struct device_node *np)
 	return num;
 }
 
+#define _OF_DECLARE_STUB(table, name, compat, fn, fn_type)		\
+	static const struct of_device_id __of_table_##name		\
+		__attribute__((unused))					\
+		 = { .compatible = compat,				\
+		     .data = (fn == (fn_type)NULL) ? fn : fn }
+
 #if defined(CONFIG_OF) && !defined(MODULE)
 #define _OF_DECLARE(table, name, compat, fn, fn_type)			\
 	static const struct of_device_id __of_table_##name		\
@@ -1338,10 +1344,7 @@ static inline int of_get_available_child_count(const struct device_node *np)
 		     .data = (fn == (fn_type)NULL) ? fn : fn  }
 #else
 #define _OF_DECLARE(table, name, compat, fn, fn_type)			\
-	static const struct of_device_id __of_table_##name		\
-		__attribute__((unused))					\
-		 = { .compatible = compat,				\
-		     .data = (fn == (fn_type)NULL) ? fn : fn }
+	_OF_DECLARE_STUB(table, name, compat, fn, fn_type)
 #endif
 
 typedef int (*of_init_fn_2)(struct device_node *, struct device_node *);

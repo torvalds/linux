@@ -76,7 +76,8 @@ void lkdtm_FORTIFIED_STRSCPY(void)
 	 */
 	strscpy(dst, src, strlen(src));
 
-	pr_warn("FAIL: No overflow in above strscpy()\n");
+	pr_err("FAIL: strscpy() overflow not detected!\n");
+	pr_expected_config(CONFIG_FORTIFY_SOURCE);
 
 	kfree(src);
 }

@@ -197,6 +197,14 @@ static inline void evmcs_load(u64 phys_addr) {}
 static inline void evmcs_touch_msr_bitmap(void) {}
 #endif /* IS_ENABLED(CONFIG_HYPERV) */
 
+#define EVMPTR_INVALID (-1ULL)
+#define EVMPTR_MAP_PENDING (-2ULL)
+
+static inline bool evmptr_is_valid(u64 evmptr)
+{
+	return evmptr != EVMPTR_INVALID && evmptr != EVMPTR_MAP_PENDING;
+}
+
 enum nested_evmptrld_status {
 	EVMPTRLD_DISABLED,
 	EVMPTRLD_SUCCEEDED,

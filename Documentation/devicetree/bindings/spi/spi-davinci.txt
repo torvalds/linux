@@ -25,7 +25,7 @@ Required properties:
 - interrupts: interrupt number mapped to CPU.
 - clocks: spi clk phandle
           For 66AK2G this property should be set per binding,
-          Documentation/devicetree/bindings/clock/ti,sci-clk.txt
+          Documentation/devicetree/bindings/clock/ti,sci-clk.yaml
 
 SoC-specific Required Properties:
 

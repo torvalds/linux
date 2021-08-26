@@ -315,9 +315,9 @@ static inline void set_status_byte(struct scsi_cmnd *cmd, char status)
 	cmd->result = (cmd->result & 0xffffff00) | status;
 }
 
-static inline void set_msg_byte(struct scsi_cmnd *cmd, char status)
+static inline u8 get_status_byte(struct scsi_cmnd *cmd)
 {
-	cmd->result = (cmd->result & 0xffff00ff) | (status << 8);
+	return cmd->result & 0xff;
 }
 
 static inline void set_host_byte(struct scsi_cmnd *cmd, char status)
@@ -325,9 +325,36 @@ static inline void set_host_byte(struct scsi_cmnd *cmd, char status)
 	cmd->result = (cmd->result & 0xff00ffff) | (status << 16);
 }
 
-static inline void set_driver_byte(struct scsi_cmnd *cmd, char status)
+static inline u8 get_host_byte(struct scsi_cmnd *cmd)
 {
-	cmd->result = (cmd->result & 0x00ffffff) | (status << 24);
+	return (cmd->result >> 16) & 0xff;
+}
+
+/**
+ * scsi_msg_to_host_byte() - translate message byte
+ *
+ * Translate the SCSI parallel message byte to a matching
+ * host byte setting. A message of COMMAND_COMPLETE indicates
+ * a successful command execution, any other message indicate
+ * an error. As the messages themselves only have a meaning
+ * for the SCSI parallel protocol this function translates
+ * them into a matching host byte value for SCSI EH.
+ */
+static inline void scsi_msg_to_host_byte(struct scsi_cmnd *cmd, u8 msg)
+{
+	switch (msg) {
+	case COMMAND_COMPLETE:
+		break;
+	case ABORT_TASK_SET:
+		set_host_byte(cmd, DID_ABORT);
+		break;
+	case TARGET_RESET:
+		set_host_byte(cmd, DID_RESET);
+		break;
+	default:
+		set_host_byte(cmd, DID_ERROR);
+		break;
+	}
 }
 
 static inline unsigned scsi_transfer_length(struct scsi_cmnd *scmd)
@@ -340,5 +367,8 @@ static inline unsigned scsi_transfer_length(struct scsi_cmnd *scmd)
 
 	return xfer_len;
 }
+
+extern void scsi_build_sense(struct scsi_cmnd *scmd, int desc,
+			     u8 key, u8 asc, u8 ascq);
 
 #endif /* _SCSI_SCSI_CMND_H */

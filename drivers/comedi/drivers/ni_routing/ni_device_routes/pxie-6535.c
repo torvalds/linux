@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0+
-/* vim: set ts=8 sw=8 noet tw=80 nowrap: */
 /*
  *  comedi/drivers/ni_routing/ni_device_routes/pxie-6535.c
  *  List of valid routes for specific NI boards.

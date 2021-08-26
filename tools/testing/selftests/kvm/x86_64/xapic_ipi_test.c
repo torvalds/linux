@@ -42,8 +42,6 @@
 #define HALTER_VCPU_ID 0
 #define SENDER_VCPU_ID 1
 
-volatile uint32_t *apic_base = (volatile uint32_t *)APIC_DEFAULT_GPA;
-
 /*
  * Vector for IPI from sender vCPU to halting vCPU.
  * Value is arbitrary and was chosen for the alternating bit pattern. Any
@@ -86,45 +84,6 @@ struct thread_params {
 	uint64_t *pipis_rcvd; /* host address of ipis_rcvd global */
 };
 
-uint32_t read_apic_reg(uint reg)
-{
-	return apic_base[reg >> 2];
-}
-
-void write_apic_reg(uint reg, uint32_t val)
-{
-	apic_base[reg >> 2] = val;
-}
-
-void disable_apic(void)
-{
-	wrmsr(MSR_IA32_APICBASE,
-	      rdmsr(MSR_IA32_APICBASE) &
-		~(MSR_IA32_APICBASE_ENABLE | MSR_IA32_APICBASE_EXTD));
-}
-
-void enable_xapic(void)
-{
-	uint64_t val = rdmsr(MSR_IA32_APICBASE);
-
-	/* Per SDM: to enable xAPIC when in x2APIC must first disable APIC */
-	if (val & MSR_IA32_APICBASE_EXTD) {
-		disable_apic();
-		wrmsr(MSR_IA32_APICBASE,
-		      rdmsr(MSR_IA32_APICBASE) | MSR_IA32_APICBASE_ENABLE);
-	} else if (!(val & MSR_IA32_APICBASE_ENABLE)) {
-		wrmsr(MSR_IA32_APICBASE, val | MSR_IA32_APICBASE_ENABLE);
-	}
-
-	/*
-	 * Per SDM: reset value of spurious interrupt vector register has the
-	 * APIC software enabled bit=0. It must be enabled in addition to the
-	 * enable bit in the MSR.
-	 */
-	val = read_apic_reg(APIC_SPIV) | APIC_SPIV_APIC_ENABLED;
-	write_apic_reg(APIC_SPIV, val);
-}
-
 void verify_apic_base_addr(void)
 {
 	uint64_t msr = rdmsr(MSR_IA32_APICBASE);
@@ -136,10 +95,10 @@ void verify_apic_base_addr(void)
 static void halter_guest_code(struct test_data_page *data)
 {
 	verify_apic_base_addr();
-	enable_xapic();
+	xapic_enable();
 
-	data->halter_apic_id = GET_APIC_ID_FIELD(read_apic_reg(APIC_ID));
-	data->halter_lvr = read_apic_reg(APIC_LVR);
+	data->halter_apic_id = GET_APIC_ID_FIELD(xapic_read_reg(APIC_ID));
+	data->halter_lvr = xapic_read_reg(APIC_LVR);
 
 	/*
 	 * Loop forever HLTing and recording halts & wakes. Disable interrupts
@@ -150,8 +109,8 @@ static void halter_guest_code(struct test_data_page *data)
 	 * TPR and PPR for diagnostic purposes in case the test fails.
 	 */
 	for (;;) {
-		data->halter_tpr = read_apic_reg(APIC_TASKPRI);
-		data->halter_ppr = read_apic_reg(APIC_PROCPRI);
+		data->halter_tpr = xapic_read_reg(APIC_TASKPRI);
+		data->halter_ppr = xapic_read_reg(APIC_PROCPRI);
 		data->hlt_count++;
 		asm volatile("sti; hlt; cli");
 		data->wake_count++;
@@ -166,7 +125,7 @@ static void halter_guest_code(struct test_data_page *data)
 static void guest_ipi_handler(struct ex_regs *regs)
 {
 	ipis_rcvd++;
-	write_apic_reg(APIC_EOI, 77);
+	xapic_write_reg(APIC_EOI, 77);
 }
 
 static void sender_guest_code(struct test_data_page *data)
@@ -179,7 +138,7 @@ static void sender_guest_code(struct test_data_page *data)
 	uint64_t tsc_start;
 
 	verify_apic_base_addr();
-	enable_xapic();
+	xapic_enable();
 
 	/*
 	 * Init interrupt command register for sending IPIs
@@ -206,8 +165,8 @@ static void sender_guest_code(struct test_data_page *data)
 		 * First IPI can be sent unconditionally because halter vCPU
 		 * starts earlier.
 		 */
-		write_apic_reg(APIC_ICR2, icr2_val);
-		write_apic_reg(APIC_ICR, icr_val);
+		xapic_write_reg(APIC_ICR2, icr2_val);
+		xapic_write_reg(APIC_ICR, icr_val);
 		data->ipis_sent++;
 
 		/*
@@ -462,13 +421,13 @@ int main(int argc, char *argv[])
 
 	vm_init_descriptor_tables(vm);
 	vcpu_init_descriptor_tables(vm, HALTER_VCPU_ID);
-	vm_handle_exception(vm, IPI_VECTOR, guest_ipi_handler);
+	vm_install_exception_handler(vm, IPI_VECTOR, guest_ipi_handler);
 
-	virt_pg_map(vm, APIC_DEFAULT_GPA, APIC_DEFAULT_GPA, 0);
+	virt_pg_map(vm, APIC_DEFAULT_GPA, APIC_DEFAULT_GPA);
 
 	vm_vcpu_add_default(vm, SENDER_VCPU_ID, sender_guest_code);
 
-	test_data_page_vaddr = vm_vaddr_alloc(vm, 0x1000, 0x1000, 0, 0);
+	test_data_page_vaddr = vm_vaddr_alloc_page(vm);
 	data =
 	   (struct test_data_page *)addr_gva2hva(vm, test_data_page_vaddr);
 	memset(data, 0, sizeof(*data));

@@ -60,7 +60,7 @@ static inline bool ice_is_dcb_active(struct ice_pf *pf)
 		test_bit(ICE_FLAG_DCB_ENA, pf->flags));
 }
 #else
-#define ice_dcb_rebuild(pf) do {} while (0)
+static inline void ice_dcb_rebuild(struct ice_pf *pf) { }
 
 static inline u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg __always_unused *dcbcfg)
 {
@@ -113,11 +113,12 @@ ice_is_pfc_causing_hung_q(struct ice_pf __always_unused *pf,
 	return false;
 }
 
-#define ice_update_dcb_stats(pf) do {} while (0)
-#define ice_pf_dcb_recfg(pf) do {} while (0)
-#define ice_vsi_cfg_dcb_rings(vsi) do {} while (0)
-#define ice_dcb_process_lldp_set_mib_change(pf, event) do {} while (0)
-#define ice_set_cgd_num(tlan_ctx, ring) do {} while (0)
-#define ice_vsi_cfg_netdev_tc(vsi, ena_tc) do {} while (0)
+static inline void ice_pf_dcb_recfg(struct ice_pf *pf) { }
+static inline void ice_vsi_cfg_dcb_rings(struct ice_vsi *vsi) { }
+static inline void ice_update_dcb_stats(struct ice_pf *pf) { }
+static inline void
+ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf, struct ice_rq_event_info *event) { }
+static inline void ice_vsi_cfg_netdev_tc(struct ice_vsi *vsi, u8 ena_tc) { }
+static inline void ice_set_cgd_num(struct ice_tlan_ctx *tlan_ctx, struct ice_ring *ring) { }
 #endif /* CONFIG_DCB */
 #endif /* _ICE_DCB_LIB_H_ */

@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2018 NXP
+ * Copyright 2018-2021 NXP
  *   Dong Aisheng <aisheng.dong@nxp.com>
  */
 
 #include <dt-bindings/firmware/imx/rsrc.h>
 #include <linux/arm-smccc.h>
+#include <linux/bsearch.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/of_platform.h>
@@ -22,6 +23,7 @@
 static struct imx_sc_ipc *ccm_ipc_handle;
 static struct device_node *pd_np;
 static struct platform_driver imx_clk_scu_driver;
+static const struct imx_clk_scu_rsrc_table *rsrc_table;
 
 struct imx_scu_clk_node {
 	const char *name;
@@ -48,9 +50,27 @@ struct clk_scu {
 	u8 clk_type;
 
 	/* for state save&restore */
+	struct clk_hw *parent;
+	u8 parent_index;
 	bool is_enabled;
 	u32 rate;
 };
+
+/*
+ * struct clk_gpr_scu - Description of one SCU GPR clock
+ * @hw: the common clk_hw
+ * @rsrc_id: resource ID of this SCU clock
+ * @gpr_id: GPR ID index to control the divider
+ */
+struct clk_gpr_scu {
+	struct clk_hw hw;
+	u16 rsrc_id;
+	u8 gpr_id;
+	u8 flags;
+	bool gate_invert;
+};
+
+#define to_clk_gpr_scu(_hw) container_of(_hw, struct clk_gpr_scu, hw)
 
 /*
  * struct imx_sc_msg_req_set_clock_rate - clock set rate protocol
@@ -151,7 +171,26 @@ static inline struct clk_scu *to_clk_scu(struct clk_hw *hw)
 	return container_of(hw, struct clk_scu, hw);
 }
 
-int imx_clk_scu_init(struct device_node *np)
+static inline int imx_scu_clk_search_cmp(const void *rsrc, const void *rsrc_p)
+{
+	return *(u32 *)rsrc - *(u32 *)rsrc_p;
+}
+
+static bool imx_scu_clk_is_valid(u32 rsrc_id)
+{
+	void *p;
+
+	if (!rsrc_table)
+		return true;
+
+	p = bsearch(&rsrc_id, rsrc_table->rsrc, rsrc_table->num,
+		    sizeof(rsrc_table->rsrc[0]), imx_scu_clk_search_cmp);
+
+	return p != NULL;
+}
+
+int imx_clk_scu_init(struct device_node *np,
+		     const struct imx_clk_scu_rsrc_table *data)
 {
 	u32 clk_cells;
 	int ret, i;
@@ -170,6 +209,8 @@ int imx_clk_scu_init(struct device_node *np)
 		pd_np = of_find_compatible_node(NULL, NULL, "fsl,scu-pd");
 		if (!pd_np)
 			return -EINVAL;
+
+		rsrc_table = data;
 	}
 
 	return platform_driver_register(&imx_clk_scu_driver);
@@ -234,8 +275,10 @@ static int clk_scu_atf_set_cpu_rate(struct clk_hw *hw, unsigned long rate,
 	struct arm_smccc_res res;
 	unsigned long cluster_id;
 
-	if (clk->rsrc_id == IMX_SC_R_A35)
+	if (clk->rsrc_id == IMX_SC_R_A35 || clk->rsrc_id == IMX_SC_R_A53)
 		cluster_id = 0;
+	else if (clk->rsrc_id == IMX_SC_R_A72)
+		cluster_id = 1;
 	else
 		return -EINVAL;
 
@@ -296,6 +339,8 @@ static u8 clk_scu_get_parent(struct clk_hw *hw)
 		return 0;
 	}
 
+	clk->parent_index = msg.data.resp.parent;
+
 	return msg.data.resp.parent;
 }
 
@@ -304,6 +349,7 @@ static int clk_scu_set_parent(struct clk_hw *hw, u8 index)
 	struct clk_scu *clk = to_clk_scu(hw);
 	struct imx_sc_msg_set_clock_parent msg;
 	struct imx_sc_rpc_msg *hdr = &msg.hdr;
+	int ret;
 
 	hdr->ver = IMX_SC_RPC_VERSION;
 	hdr->svc = IMX_SC_RPC_SVC_PM;
@@ -314,7 +360,16 @@ static int clk_scu_set_parent(struct clk_hw *hw, u8 index)
 	msg.clk = clk->clk_type;
 	msg.parent = index;
 
-	return imx_scu_call_rpc(ccm_ipc_handle, &msg, true);
+	ret = imx_scu_call_rpc(ccm_ipc_handle, &msg, true);
+	if (ret) {
+		pr_err("%s: failed to set clock parent %d\n",
+		       clk_hw_get_name(hw), ret);
+		return ret;
+	}
+
+	clk->parent_index = index;
+
+	return 0;
 }
 
 static int sc_pm_clock_enable(struct imx_sc_ipc *ipc, u16 resource,
@@ -386,6 +441,12 @@ static const struct clk_ops clk_scu_cpu_ops = {
 	.unprepare = clk_scu_unprepare,
 };
 
+static const struct clk_ops clk_scu_pi_ops = {
+	.recalc_rate = clk_scu_recalc_rate,
+	.round_rate  = clk_scu_round_rate,
+	.set_rate    = clk_scu_set_rate,
+};
+
 struct clk_hw *__imx_clk_scu(struct device *dev, const char *name,
 			     const char * const *parents, int num_parents,
 			     u32 rsrc_id, u8 clk_type)
@@ -404,8 +465,10 @@ struct clk_hw *__imx_clk_scu(struct device *dev, const char *name,
 
 	init.name = name;
 	init.ops = &clk_scu_ops;
-	if (rsrc_id == IMX_SC_R_A35)
+	if (rsrc_id == IMX_SC_R_A35 || rsrc_id == IMX_SC_R_A53 || rsrc_id == IMX_SC_R_A72)
 		init.ops = &clk_scu_cpu_ops;
+	else if (rsrc_id == IMX_SC_R_PI_0_PLL)
+		init.ops = &clk_scu_pi_ops;
 	else
 		init.ops = &clk_scu_ops;
 	init.parent_names = parents;
@@ -458,15 +521,19 @@ static int imx_clk_scu_probe(struct platform_device *pdev)
 	struct clk_hw *hw;
 	int ret;
 
-	pm_runtime_set_suspended(dev);
-	pm_runtime_set_autosuspend_delay(dev, 50);
-	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_enable(dev);
+	if (!((clk->rsrc == IMX_SC_R_A35) || (clk->rsrc == IMX_SC_R_A53) ||
+	    (clk->rsrc == IMX_SC_R_A72))) {
+		pm_runtime_set_suspended(dev);
+		pm_runtime_set_autosuspend_delay(dev, 50);
+		pm_runtime_use_autosuspend(&pdev->dev);
+		pm_runtime_enable(dev);
 
-	ret = pm_runtime_get_sync(dev);
-	if (ret) {
-		pm_runtime_disable(dev);
-		return ret;
+		ret = pm_runtime_get_sync(dev);
+		if (ret) {
+			pm_genpd_remove_device(dev);
+			pm_runtime_disable(dev);
+			return ret;
+		}
 	}
 
 	hw = __imx_clk_scu(dev, clk->name, clk->parents, clk->num_parents,
@@ -479,8 +546,11 @@ static int imx_clk_scu_probe(struct platform_device *pdev)
 	clk->hw = hw;
 	list_add_tail(&clk->node, &imx_scu_clks[clk->rsrc]);
 
-	pm_runtime_mark_last_busy(&pdev->dev);
-	pm_runtime_put_autosuspend(&pdev->dev);
+	if (!((clk->rsrc == IMX_SC_R_A35) || (clk->rsrc == IMX_SC_R_A53) ||
+	    (clk->rsrc == IMX_SC_R_A72))) {
+		pm_runtime_mark_last_busy(&pdev->dev);
+		pm_runtime_put_autosuspend(&pdev->dev);
+	}
 
 	dev_dbg(dev, "register SCU clock rsrc:%d type:%d\n", clk->rsrc,
 		clk->clk_type);
@@ -491,9 +561,27 @@ static int imx_clk_scu_probe(struct platform_device *pdev)
 static int __maybe_unused imx_clk_scu_suspend(struct device *dev)
 {
 	struct clk_scu *clk = dev_get_drvdata(dev);
+	u32 rsrc_id = clk->rsrc_id;
 
-	clk->rate = clk_hw_get_rate(&clk->hw);
+	if ((rsrc_id == IMX_SC_R_A35) || (rsrc_id == IMX_SC_R_A53) ||
+	    (rsrc_id == IMX_SC_R_A72))
+		return 0;
+
+	clk->parent = clk_hw_get_parent(&clk->hw);
+
+	/* DC SS needs to handle bypass clock using non-cached clock rate */
+	if (clk->rsrc_id == IMX_SC_R_DC_0_VIDEO0 ||
+		clk->rsrc_id == IMX_SC_R_DC_0_VIDEO1 ||
+		clk->rsrc_id == IMX_SC_R_DC_1_VIDEO0 ||
+		clk->rsrc_id == IMX_SC_R_DC_1_VIDEO1)
+		clk->rate = clk_scu_recalc_rate(&clk->hw, 0);
+	else
+		clk->rate = clk_hw_get_rate(&clk->hw);
 	clk->is_enabled = clk_hw_is_enabled(&clk->hw);
+
+	if (clk->parent)
+		dev_dbg(dev, "save parent %s idx %u\n", clk_hw_get_name(clk->parent),
+			clk->parent_index);
 
 	if (clk->rate)
 		dev_dbg(dev, "save rate %d\n", clk->rate);
@@ -507,7 +595,19 @@ static int __maybe_unused imx_clk_scu_suspend(struct device *dev)
 static int __maybe_unused imx_clk_scu_resume(struct device *dev)
 {
 	struct clk_scu *clk = dev_get_drvdata(dev);
+	u32 rsrc_id = clk->rsrc_id;
 	int ret = 0;
+
+	if ((rsrc_id == IMX_SC_R_A35) || (rsrc_id == IMX_SC_R_A53) ||
+	    (rsrc_id == IMX_SC_R_A72))
+		return 0;
+
+	if (clk->parent) {
+		ret = clk_scu_set_parent(&clk->hw, clk->parent_index);
+		dev_dbg(dev, "restore parent %s idx %u %s\n",
+			clk_hw_get_name(clk->parent),
+			clk->parent_index, !ret ? "success" : "failed");
+	}
 
 	if (clk->rate) {
 		ret = clk_scu_set_rate(&clk->hw, clk->rate, 0);
@@ -515,7 +615,7 @@ static int __maybe_unused imx_clk_scu_resume(struct device *dev)
 			!ret ? "success" : "failed");
 	}
 
-	if (clk->is_enabled) {
+	if (clk->is_enabled && rsrc_id != IMX_SC_R_PI_0_PLL) {
 		ret = clk_scu_prepare(&clk->hw);
 		dev_dbg(dev, "restore enabled state %s\n",
 			!ret ? "success" : "failed");
@@ -567,6 +667,9 @@ struct clk_hw *imx_clk_scu_alloc_dev(const char *name,
 	struct platform_device *pdev;
 	int ret;
 
+	if (!imx_scu_clk_is_valid(rsrc_id))
+		return ERR_PTR(-EINVAL);
+
 	pdev = platform_device_alloc(name, PLATFORM_DEVID_NONE);
 	if (!pdev) {
 		pr_err("%s: failed to allocate scu clk dev rsrc %d type %d\n",
@@ -604,4 +707,177 @@ void imx_clk_scu_unregister(void)
 			kfree(clk);
 		}
 	}
+}
+
+static unsigned long clk_gpr_div_scu_recalc_rate(struct clk_hw *hw,
+						 unsigned long parent_rate)
+{
+	struct clk_gpr_scu *clk = to_clk_gpr_scu(hw);
+	unsigned long rate = 0;
+	u32 val;
+	int err;
+
+	err = imx_sc_misc_get_control(ccm_ipc_handle, clk->rsrc_id,
+				      clk->gpr_id, &val);
+
+	rate  = val ? parent_rate / 2 : parent_rate;
+
+	return err ? 0 : rate;
+}
+
+static long clk_gpr_div_scu_round_rate(struct clk_hw *hw, unsigned long rate,
+				   unsigned long *prate)
+{
+	if (rate < *prate)
+		rate = *prate / 2;
+	else
+		rate = *prate;
+
+	return rate;
+}
+
+static int clk_gpr_div_scu_set_rate(struct clk_hw *hw, unsigned long rate,
+				    unsigned long parent_rate)
+{
+	struct clk_gpr_scu *clk = to_clk_gpr_scu(hw);
+	uint32_t val;
+	int err;
+
+	val = (rate < parent_rate) ? 1 : 0;
+	err = imx_sc_misc_set_control(ccm_ipc_handle, clk->rsrc_id,
+				      clk->gpr_id, val);
+
+	return err ? -EINVAL : 0;
+}
+
+static const struct clk_ops clk_gpr_div_scu_ops = {
+	.recalc_rate = clk_gpr_div_scu_recalc_rate,
+	.round_rate = clk_gpr_div_scu_round_rate,
+	.set_rate = clk_gpr_div_scu_set_rate,
+};
+
+static u8 clk_gpr_mux_scu_get_parent(struct clk_hw *hw)
+{
+	struct clk_gpr_scu *clk = to_clk_gpr_scu(hw);
+	u32 val = 0;
+
+	imx_sc_misc_get_control(ccm_ipc_handle, clk->rsrc_id,
+				clk->gpr_id, &val);
+
+	return (u8)val;
+}
+
+static int clk_gpr_mux_scu_set_parent(struct clk_hw *hw, u8 index)
+{
+	struct clk_gpr_scu *clk = to_clk_gpr_scu(hw);
+
+	return imx_sc_misc_set_control(ccm_ipc_handle, clk->rsrc_id,
+				       clk->gpr_id, index);
+}
+
+static const struct clk_ops clk_gpr_mux_scu_ops = {
+	.get_parent = clk_gpr_mux_scu_get_parent,
+	.set_parent = clk_gpr_mux_scu_set_parent,
+};
+
+static int clk_gpr_gate_scu_prepare(struct clk_hw *hw)
+{
+	struct clk_gpr_scu *clk = to_clk_gpr_scu(hw);
+
+	return imx_sc_misc_set_control(ccm_ipc_handle, clk->rsrc_id,
+				       clk->gpr_id, !clk->gate_invert);
+}
+
+static void clk_gpr_gate_scu_unprepare(struct clk_hw *hw)
+{
+	struct clk_gpr_scu *clk = to_clk_gpr_scu(hw);
+	int ret;
+
+	ret = imx_sc_misc_set_control(ccm_ipc_handle, clk->rsrc_id,
+				      clk->gpr_id, clk->gate_invert);
+	if (ret)
+		pr_err("%s: clk unprepare failed %d\n", clk_hw_get_name(hw),
+		       ret);
+}
+
+static int clk_gpr_gate_scu_is_prepared(struct clk_hw *hw)
+{
+	struct clk_gpr_scu *clk = to_clk_gpr_scu(hw);
+	int ret;
+	u32 val;
+
+	ret = imx_sc_misc_get_control(ccm_ipc_handle, clk->rsrc_id,
+				      clk->gpr_id, &val);
+	if (ret)
+		return ret;
+
+	return clk->gate_invert ? !val : val;
+}
+
+static const struct clk_ops clk_gpr_gate_scu_ops = {
+	.prepare = clk_gpr_gate_scu_prepare,
+	.unprepare = clk_gpr_gate_scu_unprepare,
+	.is_prepared = clk_gpr_gate_scu_is_prepared,
+};
+
+struct clk_hw *__imx_clk_gpr_scu(const char *name, const char * const *parent_name,
+				 int num_parents, u32 rsrc_id, u8 gpr_id, u8 flags,
+				 bool invert)
+{
+	struct imx_scu_clk_node *clk_node;
+	struct clk_gpr_scu *clk;
+	struct clk_hw *hw;
+	struct clk_init_data init;
+	int ret;
+
+	if (rsrc_id >= IMX_SC_R_LAST || gpr_id >= IMX_SC_C_LAST)
+		return ERR_PTR(-EINVAL);
+
+	clk_node = kzalloc(sizeof(*clk_node), GFP_KERNEL);
+	if (!clk_node)
+		return ERR_PTR(-ENOMEM);
+
+	if (!imx_scu_clk_is_valid(rsrc_id))
+		return ERR_PTR(-EINVAL);
+
+	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+	if (!clk) {
+		kfree(clk_node);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	clk->rsrc_id = rsrc_id;
+	clk->gpr_id = gpr_id;
+	clk->flags = flags;
+	clk->gate_invert = invert;
+
+	if (flags & IMX_SCU_GPR_CLK_GATE)
+		init.ops = &clk_gpr_gate_scu_ops;
+
+	if (flags & IMX_SCU_GPR_CLK_DIV)
+		init.ops = &clk_gpr_div_scu_ops;
+
+	if (flags & IMX_SCU_GPR_CLK_MUX)
+		init.ops = &clk_gpr_mux_scu_ops;
+
+	init.flags = 0;
+	init.name = name;
+	init.parent_names = parent_name;
+	init.num_parents = num_parents;
+
+	clk->hw.init = &init;
+
+	hw = &clk->hw;
+	ret = clk_hw_register(NULL, hw);
+	if (ret) {
+		kfree(clk);
+		kfree(clk_node);
+		hw = ERR_PTR(ret);
+	} else {
+		clk_node->hw = hw;
+		clk_node->clk_type = gpr_id;
+		list_add_tail(&clk_node->node, &imx_scu_clks[rsrc_id]);
+	}
+
+	return hw;
 }

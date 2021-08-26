@@ -150,6 +150,8 @@ enum mlx5_eswitch_vport_event {
 	MLX5_VPORT_PROMISC_CHANGE = BIT(3),
 };
 
+struct mlx5_esw_bridge;
+
 struct mlx5_vport {
 	struct mlx5_core_dev    *dev;
 	struct hlist_head       uc_list[MLX5_L2_ADDR_HASH_SIZE];
@@ -178,6 +180,7 @@ struct mlx5_vport {
 	enum mlx5_eswitch_vport_event enabled_events;
 	int index;
 	struct devlink_port *dl_port;
+	struct mlx5_esw_bridge *bridge;
 };
 
 struct mlx5_esw_indir_table;
@@ -196,6 +199,7 @@ struct mlx5_eswitch_fdb {
 
 		struct offloads_fdb {
 			struct mlx5_flow_namespace *ns;
+			struct mlx5_flow_table *tc_miss_table;
 			struct mlx5_flow_table *slow_fdb;
 			struct mlx5_flow_group *send_to_vport_grp;
 			struct mlx5_flow_group *send_to_vport_meta_grp;
@@ -270,6 +274,8 @@ enum {
 	MLX5_ESWITCH_REG_C1_LOOPBACK_ENABLED = BIT(1),
 };
 
+struct mlx5_esw_bridge_offloads;
+
 struct mlx5_eswitch {
 	struct mlx5_core_dev    *dev;
 	struct mlx5_nb          nb;
@@ -299,6 +305,7 @@ struct mlx5_eswitch {
 		u32             root_tsar_id;
 	} qos;
 
+	struct mlx5_esw_bridge_offloads *br_offloads;
 	struct mlx5_esw_offload offloads;
 	int                     mode;
 	u16                     manager_vport;
@@ -629,7 +636,7 @@ struct esw_vport_tbl_namespace {
 };
 
 struct mlx5_vport_tbl_attr {
-	u16 chain;
+	u32 chain;
 	u16 prio;
 	u16 vport;
 	const struct esw_vport_tbl_namespace *vport_ns;

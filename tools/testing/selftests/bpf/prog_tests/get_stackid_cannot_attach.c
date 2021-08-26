@@ -48,8 +48,7 @@ void test_get_stackid_cannot_attach(void)
 
 	skel->links.oncpu = bpf_program__attach_perf_event(skel->progs.oncpu,
 							   pmu_fd);
-	CHECK(!IS_ERR(skel->links.oncpu), "attach_perf_event_no_callchain",
-	      "should have failed\n");
+	ASSERT_ERR_PTR(skel->links.oncpu, "attach_perf_event_no_callchain");
 	close(pmu_fd);
 
 	/* add PERF_SAMPLE_CALLCHAIN, attach should succeed */
@@ -65,8 +64,7 @@ void test_get_stackid_cannot_attach(void)
 
 	skel->links.oncpu = bpf_program__attach_perf_event(skel->progs.oncpu,
 							   pmu_fd);
-	CHECK(IS_ERR(skel->links.oncpu), "attach_perf_event_callchain",
-	      "err: %ld\n", PTR_ERR(skel->links.oncpu));
+	ASSERT_OK_PTR(skel->links.oncpu, "attach_perf_event_callchain");
 	close(pmu_fd);
 
 	/* add exclude_callchain_kernel, attach should fail */
@@ -82,8 +80,7 @@ void test_get_stackid_cannot_attach(void)
 
 	skel->links.oncpu = bpf_program__attach_perf_event(skel->progs.oncpu,
 							   pmu_fd);
-	CHECK(!IS_ERR(skel->links.oncpu), "attach_perf_event_exclude_callchain_kernel",
-	      "should have failed\n");
+	ASSERT_ERR_PTR(skel->links.oncpu, "attach_perf_event_exclude_callchain_kernel");
 	close(pmu_fd);
 
 cleanup:

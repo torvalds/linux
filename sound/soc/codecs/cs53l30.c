@@ -20,6 +20,7 @@
 #include <sound/tlv.h>
 
 #include "cs53l30.h"
+#include "cirrus_legacy.h"
 
 #define CS53L30_NUM_SUPPLIES 2
 static const char *const cs53l30_supply_names[CS53L30_NUM_SUPPLIES] = {
@@ -912,6 +913,9 @@ static struct regmap_config cs53l30_regmap = {
 	.writeable_reg = cs53l30_writeable_register,
 	.readable_reg = cs53l30_readable_register,
 	.cache_type = REGCACHE_RBTREE,
+
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 static int cs53l30_i2c_probe(struct i2c_client *client,
@@ -920,9 +924,8 @@ static int cs53l30_i2c_probe(struct i2c_client *client,
 	const struct device_node *np = client->dev.of_node;
 	struct device *dev = &client->dev;
 	struct cs53l30_private *cs53l30;
-	unsigned int devid = 0;
 	unsigned int reg;
-	int ret = 0, i;
+	int ret = 0, i, devid;
 	u8 val;
 
 	cs53l30 = devm_kzalloc(dev, sizeof(*cs53l30), GFP_KERNEL);
@@ -951,7 +954,7 @@ static int cs53l30_i2c_probe(struct i2c_client *client,
 						      GPIOD_OUT_LOW);
 	if (IS_ERR(cs53l30->reset_gpio)) {
 		ret = PTR_ERR(cs53l30->reset_gpio);
-		goto error;
+		goto error_supplies;
 	}
 
 	gpiod_set_value_cansleep(cs53l30->reset_gpio, 1);
@@ -968,14 +971,12 @@ static int cs53l30_i2c_probe(struct i2c_client *client,
 	}
 
 	/* Initialize codec */
-	ret = regmap_read(cs53l30->regmap, CS53L30_DEVID_AB, &reg);
-	devid = reg << 12;
-
-	ret = regmap_read(cs53l30->regmap, CS53L30_DEVID_CD, &reg);
-	devid |= reg << 4;
-
-	ret = regmap_read(cs53l30->regmap, CS53L30_DEVID_E, &reg);
-	devid |= (reg & 0xF0) >> 4;
+	devid = cirrus_read_device_id(cs53l30->regmap, CS53L30_DEVID_AB);
+	if (devid < 0) {
+		ret = devid;
+		dev_err(dev, "Failed to read device ID: %d\n", ret);
+		goto error;
+	}
 
 	if (devid != CS53L30_DEVID) {
 		ret = -ENODEV;
@@ -1037,6 +1038,8 @@ static int cs53l30_i2c_probe(struct i2c_client *client,
 	return 0;
 
 error:
+	gpiod_set_value_cansleep(cs53l30->reset_gpio, 0);
+error_supplies:
 	regulator_bulk_disable(ARRAY_SIZE(cs53l30->supplies),
 			       cs53l30->supplies);
 	return ret;

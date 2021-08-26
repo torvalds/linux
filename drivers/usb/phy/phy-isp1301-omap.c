@@ -555,7 +555,7 @@ pullup:
 	case OTG_STATE_A_PERIPHERAL:
 		if (otg_ctrl & OTG_PULLUP)
 			goto pullup;
-		/* FALLTHROUGH */
+		fallthrough;
 	// case OTG_STATE_B_WAIT_ACON:
 	default:
 pulldown:

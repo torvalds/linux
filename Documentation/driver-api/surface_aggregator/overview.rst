@@ -73,5 +73,7 @@ being a direct response to a previous request. We may also refer to requests
 without response as commands. In general, events need to be enabled via one
 of multiple dedicated requests before they are sent by the EC.
 
-See :doc:`ssh` for a more technical protocol documentation and
-:doc:`internal` for an overview of the internal driver architecture.
+See Documentation/driver-api/surface_aggregator/ssh.rst for a
+more technical protocol documentation and
+Documentation/driver-api/surface_aggregator/internal.rst for an
+overview of the internal driver architecture.

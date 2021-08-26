@@ -77,6 +77,7 @@ int amd_sfh_get_report(struct hid_device *hid, int report_id, int report_type)
 static void amd_sfh_work(struct work_struct *work)
 {
 	struct amdtp_cl_data *cli_data = container_of(work, struct amdtp_cl_data, work.work);
+	struct amd_input_data *in_data = cli_data->in_data;
 	struct request_list *req_node;
 	u8 current_index, sensor_index;
 	u8 report_id, node_type;
@@ -88,6 +89,7 @@ static void amd_sfh_work(struct work_struct *work)
 	sensor_index = req_node->sensor_idx;
 	report_id = req_node->report_id;
 	node_type = req_node->report_type;
+	kfree(req_node);
 
 	if (node_type == HID_FEATURE_REPORT) {
 		report_size = get_feature_report(sensor_index, report_id,
@@ -100,13 +102,11 @@ static void amd_sfh_work(struct work_struct *work)
 			pr_err("AMDSFH: Invalid report size\n");
 
 	} else if (node_type == HID_INPUT_REPORT) {
-		report_size = get_input_report(sensor_index, report_id,
-					       cli_data->input_report[current_index],
-					       cli_data->sensor_virt_addr[current_index]);
+		report_size = get_input_report(current_index, sensor_index, report_id, in_data);
 		if (report_size)
 			hid_input_report(cli_data->hid_sensor_hubs[current_index],
 					 cli_data->report_type[current_index],
-					 cli_data->input_report[current_index], report_size, 0);
+					 in_data->input_report[current_index], report_size, 0);
 		else
 			pr_err("AMDSFH: Invalid report size\n");
 	}
@@ -118,21 +118,22 @@ static void amd_sfh_work(struct work_struct *work)
 static void amd_sfh_work_buffer(struct work_struct *work)
 {
 	struct amdtp_cl_data *cli_data = container_of(work, struct amdtp_cl_data, work_buffer.work);
+	struct amd_input_data *in_data = cli_data->in_data;
 	u8 report_size;
 	int i;
 
 	for (i = 0; i < cli_data->num_hid_devices; i++) {
-		report_size = get_input_report(cli_data->sensor_idx[i], cli_data->report_id[i],
-					       cli_data->input_report[i],
-					       cli_data->sensor_virt_addr[i]);
+		report_size = get_input_report(i, cli_data->sensor_idx[i], cli_data->report_id[i],
+					       in_data);
 		hid_input_report(cli_data->hid_sensor_hubs[i], HID_INPUT_REPORT,
-				 cli_data->input_report[i], report_size, 0);
+				 in_data->input_report[i], report_size, 0);
 	}
 	schedule_delayed_work(&cli_data->work_buffer, msecs_to_jiffies(AMD_SFH_IDLE_LOOP));
 }
 
 int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 {
+	struct amd_input_data *in_data = &privdata->in_data;
 	struct amdtp_cl_data *cl_data = privdata->cl_data;
 	struct amd_mp2_sensor_info info;
 	struct device *dev;
@@ -142,18 +143,16 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 	int rc, i;
 
 	dev = &privdata->pdev->dev;
-	cl_data = kzalloc(sizeof(*cl_data), GFP_KERNEL);
-	if (!cl_data)
-		return -ENOMEM;
 
 	cl_data->num_hid_devices = amd_mp2_get_sensor_num(privdata, &cl_data->sensor_idx[0]);
 
 	INIT_DELAYED_WORK(&cl_data->work, amd_sfh_work);
 	INIT_DELAYED_WORK(&cl_data->work_buffer, amd_sfh_work_buffer);
 	INIT_LIST_HEAD(&req_list.list);
+	cl_data->in_data = in_data;
 
 	for (i = 0; i < cl_data->num_hid_devices; i++) {
-		cl_data->sensor_virt_addr[i] = dma_alloc_coherent(dev, sizeof(int) * 8,
+		in_data->sensor_virt_addr[i] = dma_alloc_coherent(dev, sizeof(int) * 8,
 								  &cl_data->sensor_dma_addr[i],
 								  GFP_KERNEL);
 		cl_data->sensor_sts[i] = 0;
@@ -175,13 +174,13 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 			rc = -EINVAL;
 			goto cleanup;
 		}
-		cl_data->feature_report[i] = kzalloc(feature_report_size, GFP_KERNEL);
+		cl_data->feature_report[i] = devm_kzalloc(dev, feature_report_size, GFP_KERNEL);
 		if (!cl_data->feature_report[i]) {
 			rc = -ENOMEM;
 			goto cleanup;
 		}
-		cl_data->input_report[i] = kzalloc(input_report_size, GFP_KERNEL);
-		if (!cl_data->input_report[i]) {
+		in_data->input_report[i] = devm_kzalloc(dev, input_report_size, GFP_KERNEL);
+		if (!in_data->input_report[i]) {
 			rc = -ENOMEM;
 			goto cleanup;
 		}
@@ -189,7 +188,8 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 		info.sensor_idx = cl_idx;
 		info.dma_address = cl_data->sensor_dma_addr[i];
 
-		cl_data->report_descr[i] = kzalloc(cl_data->report_descr_sz[i], GFP_KERNEL);
+		cl_data->report_descr[i] =
+			devm_kzalloc(dev, cl_data->report_descr_sz[i], GFP_KERNEL);
 		if (!cl_data->report_descr[i]) {
 			rc = -ENOMEM;
 			goto cleanup;
@@ -200,47 +200,45 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 		rc = amdtp_hid_probe(cl_data->cur_hid_dev, cl_data);
 		if (rc)
 			return rc;
-		amd_start_sensor(privdata, info);
+		privdata->mp2_ops->start(privdata, info);
 		cl_data->sensor_sts[i] = 1;
 	}
-	privdata->cl_data = cl_data;
 	schedule_delayed_work(&cl_data->work_buffer, msecs_to_jiffies(AMD_SFH_IDLE_LOOP));
 	return 0;
 
 cleanup:
 	for (i = 0; i < cl_data->num_hid_devices; i++) {
-		if (cl_data->sensor_virt_addr[i]) {
+		if (in_data->sensor_virt_addr[i]) {
 			dma_free_coherent(&privdata->pdev->dev, 8 * sizeof(int),
-					  cl_data->sensor_virt_addr[i],
+					  in_data->sensor_virt_addr[i],
 					  cl_data->sensor_dma_addr[i]);
 		}
-		kfree(cl_data->feature_report[i]);
-		kfree(cl_data->input_report[i]);
-		kfree(cl_data->report_descr[i]);
+		devm_kfree(dev, cl_data->feature_report[i]);
+		devm_kfree(dev, in_data->input_report[i]);
+		devm_kfree(dev, cl_data->report_descr[i]);
 	}
-	kfree(cl_data);
 	return rc;
 }
 
 int amd_sfh_hid_client_deinit(struct amd_mp2_dev *privdata)
 {
 	struct amdtp_cl_data *cl_data = privdata->cl_data;
+	struct amd_input_data *in_data = cl_data->in_data;
 	int i;
 
 	for (i = 0; i < cl_data->num_hid_devices; i++)
-		amd_stop_sensor(privdata, i);
+		privdata->mp2_ops->stop(privdata, i);
 
 	cancel_delayed_work_sync(&cl_data->work);
 	cancel_delayed_work_sync(&cl_data->work_buffer);
 	amdtp_hid_remove(cl_data);
 
 	for (i = 0; i < cl_data->num_hid_devices; i++) {
-		if (cl_data->sensor_virt_addr[i]) {
+		if (in_data->sensor_virt_addr[i]) {
 			dma_free_coherent(&privdata->pdev->dev, 8 * sizeof(int),
-					  cl_data->sensor_virt_addr[i],
+					  in_data->sensor_virt_addr[i],
 					  cl_data->sensor_dma_addr[i]);
 		}
 	}
-	kfree(cl_data);
 	return 0;
 }

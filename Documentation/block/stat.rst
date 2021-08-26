@@ -18,7 +18,7 @@ A.
    each, it would be impossible to guarantee that a set of readings
    represent a single point in time.
 
-The stat file consists of a single line of text containing 11 decimal
+The stat file consists of a single line of text containing 17 decimal
 values separated by whitespace.  The fields are summarized in the
 following table, and described in more detail below.
 

@@ -894,7 +894,7 @@ struct hinic_rq_wqe *hinic_rq_read_next_wqe(struct hinic_rq *rq,
 }
 
 /**
- * hinic_put_wqe - release the ci for new wqes
+ * hinic_rq_put_wqe - release the ci for new wqes
  * @rq: recv queue
  * @cons_idx: consumer index of the wqe
  * @wqe_size: the size of the wqe

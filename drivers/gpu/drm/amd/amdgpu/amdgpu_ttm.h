@@ -31,16 +31,12 @@
 #define AMDGPU_PL_GDS		(TTM_PL_PRIV + 0)
 #define AMDGPU_PL_GWS		(TTM_PL_PRIV + 1)
 #define AMDGPU_PL_OA		(TTM_PL_PRIV + 2)
+#define AMDGPU_PL_PREEMPT	(TTM_PL_PRIV + 3)
 
 #define AMDGPU_GTT_MAX_TRANSFER_SIZE	512
 #define AMDGPU_GTT_NUM_TRANSFER_WINDOWS	2
 
 #define AMDGPU_POISON	0xd0bed0be
-
-struct amdgpu_vram_reservation {
-	struct list_head node;
-	struct drm_mm_node mm_node;
-};
 
 struct amdgpu_vram_mgr {
 	struct ttm_resource_manager manager;
@@ -59,6 +55,11 @@ struct amdgpu_gtt_mgr {
 	atomic64_t available;
 };
 
+struct amdgpu_preempt_mgr {
+	struct ttm_resource_manager manager;
+	atomic64_t used;
+};
+
 struct amdgpu_mman {
 	struct ttm_device		bdev;
 	bool				initialized;
@@ -75,12 +76,17 @@ struct amdgpu_mman {
 
 	struct amdgpu_vram_mgr vram_mgr;
 	struct amdgpu_gtt_mgr gtt_mgr;
+	struct amdgpu_preempt_mgr preempt_mgr;
 
 	uint64_t		stolen_vga_size;
 	struct amdgpu_bo	*stolen_vga_memory;
 	uint64_t		stolen_extended_size;
 	struct amdgpu_bo	*stolen_extended_memory;
 	bool			keep_stolen_vga_memory;
+
+	struct amdgpu_bo	*stolen_reserved_memory;
+	uint64_t		stolen_reserved_offset;
+	uint64_t		stolen_reserved_size;
 
 	/* discovery */
 	uint8_t				*discovery_bin;
@@ -102,12 +108,16 @@ struct amdgpu_copy_mem {
 
 int amdgpu_gtt_mgr_init(struct amdgpu_device *adev, uint64_t gtt_size);
 void amdgpu_gtt_mgr_fini(struct amdgpu_device *adev);
+int amdgpu_preempt_mgr_init(struct amdgpu_device *adev);
+void amdgpu_preempt_mgr_fini(struct amdgpu_device *adev);
 int amdgpu_vram_mgr_init(struct amdgpu_device *adev);
 void amdgpu_vram_mgr_fini(struct amdgpu_device *adev);
 
 bool amdgpu_gtt_mgr_has_gart_addr(struct ttm_resource *mem);
 uint64_t amdgpu_gtt_mgr_usage(struct ttm_resource_manager *man);
 int amdgpu_gtt_mgr_recover(struct ttm_resource_manager *man);
+
+uint64_t amdgpu_preempt_mgr_usage(struct ttm_resource_manager *man);
 
 u64 amdgpu_vram_mgr_bo_visible_size(struct amdgpu_bo *bo);
 int amdgpu_vram_mgr_alloc_sgt(struct amdgpu_device *adev,
@@ -147,7 +157,6 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 			struct dma_resv *resv,
 			struct dma_fence **fence);
 
-int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma);
 int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo);
 int amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo);
 uint64_t amdgpu_ttm_domain_start(struct amdgpu_device *adev, uint32_t type);

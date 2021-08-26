@@ -5,13 +5,16 @@
 #include "blk-mq.h"
 #include "blk-mq-tag.h"
 
+#define MAX_SCHED_RQ (16 * BLKDEV_MAX_RQ)
+
 void blk_mq_sched_assign_ioc(struct request *rq);
 
 bool blk_mq_sched_try_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs, struct request **merged_request);
 bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs);
-bool blk_mq_sched_try_insert_merge(struct request_queue *q, struct request *rq);
+bool blk_mq_sched_try_insert_merge(struct request_queue *q, struct request *rq,
+				   struct list_head *free);
 void blk_mq_sched_mark_restart_hctx(struct blk_mq_hw_ctx *hctx);
 void blk_mq_sched_restart(struct blk_mq_hw_ctx *hctx);
 

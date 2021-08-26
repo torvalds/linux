@@ -10,6 +10,7 @@
 #include <linux/thread_info.h>
 #include <linux/init.h>
 #include <linux/uaccess.h>
+#include <linux/delay.h>
 
 #include <asm/cpufeature.h>
 #include <asm/msr.h>
@@ -41,6 +42,7 @@ enum split_lock_detect_state {
 	sld_off = 0,
 	sld_warn,
 	sld_fatal,
+	sld_ratelimit,
 };
 
 /*
@@ -717,8 +719,10 @@ static void init_intel(struct cpuinfo_x86 *c)
 
 	if (tsx_ctrl_state == TSX_CTRL_ENABLE)
 		tsx_enable();
-	if (tsx_ctrl_state == TSX_CTRL_DISABLE)
+	else if (tsx_ctrl_state == TSX_CTRL_DISABLE)
 		tsx_disable();
+	else if (tsx_ctrl_state == TSX_CTRL_RTM_ALWAYS_ABORT)
+		tsx_clear_cpuid();
 
 	split_lock_init();
 	bus_lock_init();
@@ -997,13 +1001,30 @@ static const struct {
 	{ "off",	sld_off   },
 	{ "warn",	sld_warn  },
 	{ "fatal",	sld_fatal },
+	{ "ratelimit:", sld_ratelimit },
 };
+
+static struct ratelimit_state bld_ratelimit;
 
 static inline bool match_option(const char *arg, int arglen, const char *opt)
 {
-	int len = strlen(opt);
+	int len = strlen(opt), ratelimit;
 
-	return len == arglen && !strncmp(arg, opt, len);
+	if (strncmp(arg, opt, len))
+		return false;
+
+	/*
+	 * Min ratelimit is 1 bus lock/sec.
+	 * Max ratelimit is 1000 bus locks/sec.
+	 */
+	if (sscanf(arg, "ratelimit:%d", &ratelimit) == 1 &&
+	    ratelimit > 0 && ratelimit <= 1000) {
+		ratelimit_state_init(&bld_ratelimit, HZ, ratelimit);
+		ratelimit_set_flags(&bld_ratelimit, RATELIMIT_MSG_ON_RELEASE);
+		return true;
+	}
+
+	return len == arglen;
 }
 
 static bool split_lock_verify_msr(bool on)
@@ -1082,6 +1103,15 @@ static void sld_update_msr(bool on)
 
 static void split_lock_init(void)
 {
+	/*
+	 * #DB for bus lock handles ratelimit and #AC for split lock is
+	 * disabled.
+	 */
+	if (sld_state == sld_ratelimit) {
+		split_lock_verify_msr(false);
+		return;
+	}
+
 	if (cpu_model_supports_sld)
 		split_lock_verify_msr(sld_state != sld_off);
 }
@@ -1154,6 +1184,12 @@ void handle_bus_lock(struct pt_regs *regs)
 	switch (sld_state) {
 	case sld_off:
 		break;
+	case sld_ratelimit:
+		/* Enforce no more than bld_ratelimit bus locks/sec. */
+		while (!__ratelimit(&bld_ratelimit))
+			msleep(20);
+		/* Warn on the bus lock. */
+		fallthrough;
 	case sld_warn:
 		pr_warn_ratelimited("#DB: %s/%d took a bus_lock trap at address: 0x%lx\n",
 				    current->comm, current->pid, regs->ip);
@@ -1258,6 +1294,10 @@ static void sld_state_show(void)
 				boot_cpu_has(X86_FEATURE_SPLIT_LOCK_DETECT) ?
 				" from non-WB" : "");
 		}
+		break;
+	case sld_ratelimit:
+		if (boot_cpu_has(X86_FEATURE_BUS_LOCK_DETECT))
+			pr_info("#DB: setting system wide bus lock rate limit to %u/sec\n", bld_ratelimit.burst);
 		break;
 	}
 }

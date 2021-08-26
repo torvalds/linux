@@ -173,13 +173,13 @@ static int pmbus_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	device_info = (struct pmbus_device_info *)i2c_match_id(pmbus_id, client)->driver_data;
-	if (device_info->flags & PMBUS_SKIP_STATUS_CHECK) {
+	if (device_info->flags) {
 		pdata = devm_kzalloc(dev, sizeof(struct pmbus_platform_data),
 				     GFP_KERNEL);
 		if (!pdata)
 			return -ENOMEM;
 
-		pdata->flags = PMBUS_SKIP_STATUS_CHECK;
+		pdata->flags = device_info->flags;
 	}
 
 	info->pages = device_info->pages;
@@ -193,13 +193,20 @@ static const struct pmbus_device_info pmbus_info_one = {
 	.pages = 1,
 	.flags = 0
 };
+
 static const struct pmbus_device_info pmbus_info_zero = {
 	.pages = 0,
 	.flags = 0
 };
+
 static const struct pmbus_device_info pmbus_info_one_skip = {
 	.pages = 1,
 	.flags = PMBUS_SKIP_STATUS_CHECK
+};
+
+static const struct pmbus_device_info pmbus_info_one_status = {
+	.pages = 1,
+	.flags = PMBUS_READ_STATUS_AFTER_FAILED_CHECK
 };
 
 /*
@@ -207,8 +214,16 @@ static const struct pmbus_device_info pmbus_info_one_skip = {
  */
 static const struct i2c_device_id pmbus_id[] = {
 	{"adp4000", (kernel_ulong_t)&pmbus_info_one},
+	{"bmr310", (kernel_ulong_t)&pmbus_info_one_status},
 	{"bmr453", (kernel_ulong_t)&pmbus_info_one},
 	{"bmr454", (kernel_ulong_t)&pmbus_info_one},
+	{"bmr456", (kernel_ulong_t)&pmbus_info_one},
+	{"bmr457", (kernel_ulong_t)&pmbus_info_one},
+	{"bmr458", (kernel_ulong_t)&pmbus_info_one_status},
+	{"bmr480", (kernel_ulong_t)&pmbus_info_one_status},
+	{"bmr490", (kernel_ulong_t)&pmbus_info_one_status},
+	{"bmr491", (kernel_ulong_t)&pmbus_info_one_status},
+	{"bmr492", (kernel_ulong_t)&pmbus_info_one},
 	{"dps460", (kernel_ulong_t)&pmbus_info_one_skip},
 	{"dps650ab", (kernel_ulong_t)&pmbus_info_one_skip},
 	{"dps800", (kernel_ulong_t)&pmbus_info_one_skip},

@@ -4,7 +4,8 @@
 # Copyright IBM Corp. 2008
 
 KVM := ../../../virt/kvm
-common-objs = $(KVM)/kvm_main.o $(KVM)/eventfd.o  $(KVM)/async_pf.o $(KVM)/irqchip.o $(KVM)/vfio.o
+common-objs = $(KVM)/kvm_main.o $(KVM)/eventfd.o  $(KVM)/async_pf.o \
+	      $(KVM)/irqchip.o $(KVM)/vfio.o $(KVM)/binary_stats.o
 
 ccflags-y := -Ivirt/kvm -Iarch/s390/kvm
 

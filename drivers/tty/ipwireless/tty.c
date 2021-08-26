@@ -54,7 +54,6 @@ struct ipw_tty {
 	unsigned int control_lines;
 	struct mutex ipw_tty_mutex;
 	int tx_bytes_queued;
-	int closing;
 };
 
 static struct ipw_tty *ttys[IPWIRELESS_PCMCIA_MINORS];
@@ -228,7 +227,7 @@ static int ipw_write(struct tty_struct *linux_tty,
 	return count;
 }
 
-static int ipw_write_room(struct tty_struct *linux_tty)
+static unsigned int ipw_write_room(struct tty_struct *linux_tty)
 {
 	struct ipw_tty *tty = linux_tty->driver_data;
 	int room;
@@ -270,7 +269,7 @@ static int ipwireless_set_serial_info(struct tty_struct *linux_tty,
 	return 0;	/* Keeps the PCMCIA scripts happy. */
 }
 
-static int ipw_chars_in_buffer(struct tty_struct *linux_tty)
+static unsigned int ipw_chars_in_buffer(struct tty_struct *linux_tty)
 {
 	struct ipw_tty *tty = linux_tty->driver_data;
 
@@ -525,7 +524,6 @@ void ipwireless_tty_free(struct ipw_tty *tty)
 				printk(KERN_INFO IPWIRELESS_PCCARD_NAME
 				       ": deregistering %s device ttyIPWp%d\n",
 				       tty_type_name(ttyj->tty_type), j);
-			ttyj->closing = 1;
 			if (ttyj->port.tty != NULL) {
 				mutex_unlock(&ttyj->ipw_tty_mutex);
 				tty_vhangup(ttyj->port.tty);

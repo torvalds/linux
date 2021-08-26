@@ -259,7 +259,7 @@ Storage family
 	https://web.archive.org/web/20191129073953/http://www.marvell.com/storage/armada-sp/
 
   Core:
-	Sheeva ARMv7 comatible Quad-core PJ4C
+	Sheeva ARMv7 compatible Quad-core PJ4C
 
   (not supported in upstream Linux kernel)
 

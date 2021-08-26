@@ -41,6 +41,7 @@
 #include "dcn21/rn_clk_mgr.h"
 #include "dcn30/dcn30_clk_mgr.h"
 #include "dcn301/vg_clk_mgr.h"
+#include "dcn31/dcn31_clk_mgr.h"
 
 
 int clk_mgr_helper_get_active_display_cnt(
@@ -90,15 +91,20 @@ void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_m
 	struct dc_link *edp_links[MAX_NUM_EDP];
 	struct dc_link *edp_link = NULL;
 	int edp_num;
+	unsigned int panel_inst;
 
 	get_edp_links(dc, edp_links, &edp_num);
 	if (dc->hwss.exit_optimized_pwr_state)
 		dc->hwss.exit_optimized_pwr_state(dc, dc->current_state);
 
 	if (edp_num) {
-		edp_link = edp_links[0];
-		clk_mgr->psr_allow_active_cache = edp_link->psr_settings.psr_allow_active;
-		dc_link_set_psr_allow_active(edp_link, false, false, false);
+		for (panel_inst = 0; panel_inst < edp_num; panel_inst++) {
+			edp_link = edp_links[panel_inst];
+			if (!edp_link->psr_settings.psr_feature_enabled)
+				continue;
+			clk_mgr->psr_allow_active_cache = edp_link->psr_settings.psr_allow_active;
+			dc_link_set_psr_allow_active(edp_link, false, false, false);
+		}
 	}
 
 }
@@ -108,12 +114,17 @@ void clk_mgr_optimize_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr)
 	struct dc_link *edp_links[MAX_NUM_EDP];
 	struct dc_link *edp_link = NULL;
 	int edp_num;
+	unsigned int panel_inst;
 
 	get_edp_links(dc, edp_links, &edp_num);
 	if (edp_num) {
-		edp_link = edp_links[0];
-		dc_link_set_psr_allow_active(edp_link,
-				clk_mgr->psr_allow_active_cache, false, false);
+		for (panel_inst = 0; panel_inst < edp_num; panel_inst++) {
+			edp_link = edp_links[panel_inst];
+			if (!edp_link->psr_settings.psr_feature_enabled)
+				continue;
+			dc_link_set_psr_allow_active(edp_link,
+					clk_mgr->psr_allow_active_cache, false, false);
+		}
 	}
 
 	if (dc->hwss.optimize_pwr_state)
@@ -241,6 +252,10 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 			dcn3_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 			return &clk_mgr->base;
 		}
+		if (ASICREV_IS_BEIGE_GOBY_P(asic_id.hw_internal_rev)) {
+			dcn3_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
+			return &clk_mgr->base;
+		}
 		dcn20_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 		return &clk_mgr->base;
 	}
@@ -256,7 +271,24 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 			return &clk_mgr->base.base;
 		}
 		break;
+	case FAMILY_YELLOW_CARP: {
+		struct clk_mgr_dcn31 *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
+
+		if (clk_mgr == NULL) {
+			BREAK_TO_DEBUGGER();
+			return NULL;
+		}
+		if (ASICREV_IS_YELLOW_CARP(asic_id.hw_internal_rev)) {
+			/* TODO: to add DCN31 clk_mgr support, once CLK IP header files are available,
+			 * for now use DCN3.0 clk mgr.
+			 */
+			dcn31_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
+			return &clk_mgr->base.base;
+		}
+		return &clk_mgr->base.base;
+	}
 #endif
+
 	default:
 		ASSERT(0); /* Unknown Asic */
 		break;
@@ -278,11 +310,19 @@ void dc_destroy_clk_mgr(struct clk_mgr *clk_mgr_base)
 		if (ASICREV_IS_DIMGREY_CAVEFISH_P(clk_mgr_base->ctx->asic_id.hw_internal_rev)) {
 			dcn3_clk_mgr_destroy(clk_mgr);
 		}
+		if (ASICREV_IS_BEIGE_GOBY_P(clk_mgr_base->ctx->asic_id.hw_internal_rev)) {
+			dcn3_clk_mgr_destroy(clk_mgr);
+		}
 		break;
 
 	case FAMILY_VGH:
 		if (ASICREV_IS_VANGOGH(clk_mgr_base->ctx->asic_id.hw_internal_rev))
 			vg_clk_mgr_destroy(clk_mgr);
+		break;
+
+	case FAMILY_YELLOW_CARP:
+		if (ASICREV_IS_YELLOW_CARP(clk_mgr_base->ctx->asic_id.hw_internal_rev))
+			dcn31_clk_mgr_destroy(clk_mgr);
 		break;
 
 	default:

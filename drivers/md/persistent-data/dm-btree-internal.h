@@ -144,4 +144,17 @@ extern struct dm_block_validator btree_node_validator;
 extern void init_le64_type(struct dm_transaction_manager *tm,
 			   struct dm_btree_value_type *vt);
 
+/*
+ * This returns a shadowed btree leaf that you may modify.  In practise
+ * this means overwrites only, since an insert could cause a node to
+ * be split.  Useful if you need access to the old value to calculate the
+ * new one.
+ *
+ * This only works with single level btrees.  The given key must be present in
+ * the tree, otherwise -EINVAL will be returned.
+ */
+int btree_get_overwrite_leaf(struct dm_btree_info *info, dm_block_t root,
+			     uint64_t key, int *index,
+			     dm_block_t *new_root, struct dm_block **leaf);
+
 #endif	/* DM_BTREE_INTERNAL_H */

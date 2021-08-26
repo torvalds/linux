@@ -515,7 +515,7 @@ static void fn_hold(struct vc_data *vc)
 	 * these routines are also activated by ^S/^Q.
 	 * (And SCROLLOCK can also be set by the ioctl KDSKBLED.)
 	 */
-	if (tty->stopped)
+	if (tty->flow.stopped)
 		start_tty(tty);
 	else
 		stop_tty(tty);

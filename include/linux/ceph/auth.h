@@ -50,7 +50,7 @@ struct ceph_auth_client_ops {
 	 * another request.
 	 */
 	int (*build_request)(struct ceph_auth_client *ac, void *buf, void *end);
-	int (*handle_reply)(struct ceph_auth_client *ac, int result,
+	int (*handle_reply)(struct ceph_auth_client *ac, u64 global_id,
 			    void *buf, void *end, u8 *session_key,
 			    int *session_key_len, u8 *con_secret,
 			    int *con_secret_len);
@@ -103,6 +103,8 @@ struct ceph_auth_client {
 
 	struct mutex mutex;
 };
+
+void ceph_auth_set_global_id(struct ceph_auth_client *ac, u64 global_id);
 
 struct ceph_auth_client *ceph_auth_init(const char *name,
 					const struct ceph_crypto_key *key,

@@ -74,8 +74,7 @@ void ceph_handle_quota(struct ceph_mds_client *mdsc,
 		            le64_to_cpu(h->max_files));
 	spin_unlock(&ci->i_ceph_lock);
 
-	/* avoid calling iput_final() in dispatch thread */
-	ceph_async_iput(inode);
+	iput(inode);
 }
 
 static struct ceph_quotarealm_inode *
@@ -247,8 +246,7 @@ restart:
 
 		ci = ceph_inode(in);
 		has_quota = __ceph_has_any_quota(ci);
-		/* avoid calling iput_final() while holding mdsc->snap_rwsem */
-		ceph_async_iput(in);
+		iput(in);
 
 		next = realm->parent;
 		if (has_quota || !next)
@@ -383,8 +381,7 @@ restart:
 			pr_warn("Invalid quota check op (%d)\n", op);
 			exceeded = true; /* Just break the loop */
 		}
-		/* avoid calling iput_final() while holding mdsc->snap_rwsem */
-		ceph_async_iput(in);
+		iput(in);
 
 		next = realm->parent;
 		if (exceeded || !next)

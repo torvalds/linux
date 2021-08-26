@@ -924,6 +924,9 @@ void iommu_group_remove_device(struct device *dev)
 	struct iommu_group *group = dev->iommu_group;
 	struct group_device *tmp_device, *device = NULL;
 
+	if (!group)
+		return;
+
 	dev_info(dev, "Removing from iommu group %d\n", group->id);
 
 	/* Pre-notify listeners that a device is being removed. */
@@ -3058,9 +3061,6 @@ static int iommu_change_dev_def_domain(struct iommu_group *group,
 	struct group_device *grp_dev;
 	int ret, dev_def_dom;
 	struct device *dev;
-
-	if (!group)
-		return -EINVAL;
 
 	mutex_lock(&group->mutex);
 

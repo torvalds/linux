@@ -7,7 +7,7 @@
 
 #include "motu.h"
 
-#define	CALLBACK_TIMEOUT	200
+#define	READY_TIMEOUT_MS	200
 
 #define ISOC_COMM_CONTROL_OFFSET		0x0b00
 #define  ISOC_COMM_CONTROL_MASK			0xffff0000
@@ -153,6 +153,9 @@ int snd_motu_stream_reserve_duplex(struct snd_motu *motu, unsigned int rate,
 		fw_iso_resources_free(&motu->tx_resources);
 		fw_iso_resources_free(&motu->rx_resources);
 
+		kfree(motu->cache.event_offsets);
+		motu->cache.event_offsets = NULL;
+
 		err = snd_motu_protocol_set_clock_rate(motu, rate);
 		if (err < 0) {
 			dev_err(&motu->unit->device,
@@ -180,6 +183,15 @@ int snd_motu_stream_reserve_duplex(struct snd_motu *motu, unsigned int rate,
 			fw_iso_resources_free(&motu->tx_resources);
 			fw_iso_resources_free(&motu->rx_resources);
 			return err;
+		}
+
+		motu->cache.size = motu->tx_stream.syt_interval * frames_per_buffer;
+		motu->cache.event_offsets = kcalloc(motu->cache.size, sizeof(*motu->cache.event_offsets),
+						  GFP_KERNEL);
+		if (!motu->cache.event_offsets) {
+			fw_iso_resources_free(&motu->tx_resources);
+			fw_iso_resources_free(&motu->rx_resources);
+			return -ENOMEM;
 		}
 	}
 
@@ -260,14 +272,19 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu)
 		if (err < 0)
 			goto stop_streams;
 
-		err = amdtp_domain_start(&motu->domain, 0);
+		motu->cache.tail = 0;
+		motu->cache.tx_cycle_count = UINT_MAX;
+		motu->cache.head = 0;
+		motu->cache.rx_cycle_count = UINT_MAX;
+
+		// NOTE: The device requires both of replay; the sequence of the number of data
+		// blocks per packet, and the sequence of source packet header per data block as
+		// presentation time.
+		err = amdtp_domain_start(&motu->domain, 0, true, false);
 		if (err < 0)
 			goto stop_streams;
 
-		if (!amdtp_stream_wait_callback(&motu->tx_stream,
-						CALLBACK_TIMEOUT) ||
-		    !amdtp_stream_wait_callback(&motu->rx_stream,
-						CALLBACK_TIMEOUT)) {
+		if (!amdtp_domain_wait_ready(&motu->domain, READY_TIMEOUT_MS)) {
 			err = -ETIMEDOUT;
 			goto stop_streams;
 		}
@@ -296,6 +313,9 @@ void snd_motu_stream_stop_duplex(struct snd_motu *motu)
 
 		fw_iso_resources_free(&motu->tx_resources);
 		fw_iso_resources_free(&motu->rx_resources);
+
+		kfree(motu->cache.event_offsets);
+		motu->cache.event_offsets = NULL;
 	}
 }
 
@@ -317,7 +337,7 @@ static int init_stream(struct snd_motu *motu, struct amdtp_stream *s)
 	if (err < 0)
 		return err;
 
-	err = amdtp_motu_init(s, motu->unit, dir, motu->spec);
+	err = amdtp_motu_init(s, motu->unit, dir, motu->spec, &motu->cache);
 	if (err < 0)
 		fw_iso_resources_destroy(resources);
 

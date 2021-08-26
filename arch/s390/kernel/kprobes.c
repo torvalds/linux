@@ -44,11 +44,6 @@ void *alloc_insn_page(void)
 	return page;
 }
 
-void free_insn_page(void *page)
-{
-	module_memfree(page);
-}
-
 static void *alloc_s390_insn_page(void)
 {
 	if (xchg(&insn_page_in_use, 1) == 1)
@@ -97,11 +92,6 @@ static void copy_instruction(struct kprobe *p)
 }
 NOKPROBE_SYMBOL(copy_instruction);
 
-static inline int is_kernel_addr(void *addr)
-{
-	return addr < (void *)_end;
-}
-
 static int s390_get_insn_slot(struct kprobe *p)
 {
 	/*
@@ -110,7 +100,7 @@ static int s390_get_insn_slot(struct kprobe *p)
 	 * field can be patched and executed within the insn slot.
 	 */
 	p->ainsn.insn = NULL;
-	if (is_kernel_addr(p->addr))
+	if (is_kernel((unsigned long)p->addr))
 		p->ainsn.insn = get_s390_insn_slot();
 	else if (is_module_addr(p->addr))
 		p->ainsn.insn = get_insn_slot();
@@ -122,7 +112,7 @@ static void s390_free_insn_slot(struct kprobe *p)
 {
 	if (!p->ainsn.insn)
 		return;
-	if (is_kernel_addr(p->addr))
+	if (is_kernel((unsigned long)p->addr))
 		free_s390_insn_slot(p->ainsn.insn, 0);
 	else
 		free_insn_slot(p->ainsn.insn, 0);

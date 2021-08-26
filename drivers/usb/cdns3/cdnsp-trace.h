@@ -138,7 +138,7 @@ DECLARE_EVENT_CLASS(cdnsp_log_simple,
 		__string(text, msg)
 	),
 	TP_fast_assign(
-		__assign_str(text, msg)
+		__assign_str(text, msg);
 	),
 	TP_printk("%s", __get_str(text))
 );

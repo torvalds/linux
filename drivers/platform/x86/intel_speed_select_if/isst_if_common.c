@@ -281,10 +281,69 @@ static int isst_if_get_platform_info(void __user *argp)
 struct isst_if_cpu_info {
 	/* For BUS 0 and BUS 1 only, which we need for PUNIT interface */
 	int bus_info[2];
+	struct pci_dev *pci_dev[2];
 	int punit_cpu_id;
+	int numa_node;
 };
 
 static struct isst_if_cpu_info *isst_cpu_info;
+#define ISST_MAX_PCI_DOMAINS	8
+
+static struct pci_dev *_isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn)
+{
+	struct pci_dev *matched_pci_dev = NULL;
+	struct pci_dev *pci_dev = NULL;
+	int no_matches = 0;
+	int i, bus_number;
+
+	if (bus_no < 0 || bus_no > 1 || cpu < 0 || cpu >= nr_cpu_ids ||
+	    cpu >= num_possible_cpus())
+		return NULL;
+
+	bus_number = isst_cpu_info[cpu].bus_info[bus_no];
+	if (bus_number < 0)
+		return NULL;
+
+	for (i = 0; i < ISST_MAX_PCI_DOMAINS; ++i) {
+		struct pci_dev *_pci_dev;
+		int node;
+
+		_pci_dev = pci_get_domain_bus_and_slot(i, bus_number, PCI_DEVFN(dev, fn));
+		if (!_pci_dev)
+			continue;
+
+		++no_matches;
+		if (!matched_pci_dev)
+			matched_pci_dev = _pci_dev;
+
+		node = dev_to_node(&_pci_dev->dev);
+		if (node == NUMA_NO_NODE) {
+			pr_info("Fail to get numa node for CPU:%d bus:%d dev:%d fn:%d\n",
+				cpu, bus_no, dev, fn);
+			continue;
+		}
+
+		if (node == isst_cpu_info[cpu].numa_node) {
+			pci_dev = _pci_dev;
+			break;
+		}
+	}
+
+	/*
+	 * If there is no numa matched pci_dev, then there can be following cases:
+	 * 1. CONFIG_NUMA is not defined: In this case if there is only single device
+	 *    match, then we don't need numa information. Simply return last match.
+	 *    Othewise return NULL.
+	 * 2. NUMA information is not exposed via _SEG method. In this case it is similar
+	 *    to case 1.
+	 * 3. Numa information doesn't match with CPU numa node and more than one match
+	 *    return NULL.
+	 */
+	if (!pci_dev && no_matches == 1)
+		pci_dev = matched_pci_dev;
+
+	return pci_dev;
+}
 
 /**
  * isst_if_get_pci_dev() - Get the PCI device instance for a CPU
@@ -300,17 +359,18 @@ static struct isst_if_cpu_info *isst_cpu_info;
  */
 struct pci_dev *isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn)
 {
-	int bus_number;
+	struct pci_dev *pci_dev;
 
 	if (bus_no < 0 || bus_no > 1 || cpu < 0 || cpu >= nr_cpu_ids ||
 	    cpu >= num_possible_cpus())
 		return NULL;
 
-	bus_number = isst_cpu_info[cpu].bus_info[bus_no];
-	if (bus_number < 0)
-		return NULL;
+	pci_dev = isst_cpu_info[cpu].pci_dev[bus_no];
 
-	return pci_get_domain_bus_and_slot(0, bus_number, PCI_DEVFN(dev, fn));
+	if (pci_dev && pci_dev->devfn == PCI_DEVFN(dev, fn))
+		return pci_dev;
+
+	return _isst_if_get_pci_dev(cpu, bus_no, dev, fn);
 }
 EXPORT_SYMBOL_GPL(isst_if_get_pci_dev);
 
@@ -327,6 +387,8 @@ static int isst_if_cpu_online(unsigned int cpu)
 	} else {
 		isst_cpu_info[cpu].bus_info[0] = data & 0xff;
 		isst_cpu_info[cpu].bus_info[1] = (data >> 8) & 0xff;
+		isst_cpu_info[cpu].pci_dev[0] = _isst_if_get_pci_dev(cpu, 0, 0, 1);
+		isst_cpu_info[cpu].pci_dev[1] = _isst_if_get_pci_dev(cpu, 1, 30, 1);
 	}
 
 	ret = rdmsrl_safe(MSR_THREAD_ID_INFO, &data);
@@ -335,6 +397,7 @@ static int isst_if_cpu_online(unsigned int cpu)
 		return ret;
 	}
 	isst_cpu_info[cpu].punit_cpu_id = data;
+	isst_cpu_info[cpu].numa_node = cpu_to_node(cpu);
 
 	isst_restore_msr_local(cpu);
 

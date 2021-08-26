@@ -102,6 +102,20 @@ config INDIRECT_PIO
 
 	  When in doubt, say N.
 
+config INDIRECT_IOMEM
+	bool
+	help
+	  This is selected by other options/architectures to provide the
+	  emulated iomem accessors.
+
+config INDIRECT_IOMEM_FALLBACK
+	bool
+	depends on INDIRECT_IOMEM
+	help
+	  If INDIRECT_IOMEM is selected, this enables falling back to plain
+	  mmio accesses when the IO memory address is not a registered
+	  emulated region.
+
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help
@@ -668,9 +682,6 @@ config PARMAN
 
 config OBJAGG
 	tristate "objagg" if COMPILE_TEST
-
-config STRING_SELFTEST
-	tristate "Test string functions"
 
 endmenu
 

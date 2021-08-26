@@ -556,6 +556,13 @@ out:
 	else if (!cs->submitted)
 		cs->fence->error = -EBUSY;
 
+	if (unlikely(cs->skip_reset_on_timeout)) {
+		dev_err(hdev->dev,
+			"Command submission %llu completed after %llu (s)\n",
+			cs->sequence,
+			div_u64(jiffies - cs->submission_time_jiffies, HZ));
+	}
+
 	if (cs->timestamp)
 		cs->fence->timestamp = ktime_get();
 	complete_all(&cs->fence->completion);
@@ -571,6 +578,8 @@ static void cs_timedout(struct work_struct *work)
 	int rc;
 	struct hl_cs *cs = container_of(work, struct hl_cs,
 						 work_tdr.work);
+	bool skip_reset_on_timeout = cs->skip_reset_on_timeout;
+
 	rc = cs_get_unless_zero(cs);
 	if (!rc)
 		return;
@@ -581,7 +590,8 @@ static void cs_timedout(struct work_struct *work)
 	}
 
 	/* Mark the CS is timed out so we won't try to cancel its TDR */
-	cs->timedout = true;
+	if (likely(!skip_reset_on_timeout))
+		cs->timedout = true;
 
 	hdev = cs->ctx->hdev;
 
@@ -613,10 +623,12 @@ static void cs_timedout(struct work_struct *work)
 
 	cs_put(cs);
 
-	if (hdev->reset_on_lockup)
-		hl_device_reset(hdev, 0);
-	else
-		hdev->needs_reset = true;
+	if (likely(!skip_reset_on_timeout)) {
+		if (hdev->reset_on_lockup)
+			hl_device_reset(hdev, HL_RESET_TDR);
+		else
+			hdev->needs_reset = true;
+	}
 }
 
 static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
@@ -650,6 +662,10 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	cs->type = cs_type;
 	cs->timestamp = !!(flags & HL_CS_FLAGS_TIMESTAMP);
 	cs->timeout_jiffies = timeout;
+	cs->skip_reset_on_timeout =
+		hdev->skip_reset_on_timeout ||
+		!!(flags & HL_CS_FLAGS_SKIP_RESET_ON_TIMEOUT);
+	cs->submission_time_jiffies = jiffies;
 	INIT_LIST_HEAD(&cs->job_list);
 	INIT_DELAYED_WORK(&cs->work_tdr, cs_timedout);
 	kref_init(&cs->refcount);
@@ -1481,6 +1497,61 @@ out:
 	return rc;
 }
 
+/*
+ * hl_cs_signal_sob_wraparound_handler: handle SOB value wrapaound case.
+ * if the SOB value reaches the max value move to the other SOB reserved
+ * to the queue.
+ * Note that this function must be called while hw_queues_lock is taken.
+ */
+int hl_cs_signal_sob_wraparound_handler(struct hl_device *hdev, u32 q_idx,
+			struct hl_hw_sob **hw_sob, u32 count)
+{
+	struct hl_sync_stream_properties *prop;
+	struct hl_hw_sob *sob = *hw_sob, *other_sob;
+	u8 other_sob_offset;
+
+	prop = &hdev->kernel_queues[q_idx].sync_stream_prop;
+
+	kref_get(&sob->kref);
+
+	/* check for wraparound */
+	if (prop->next_sob_val + count >= HL_MAX_SOB_VAL) {
+		/*
+		 * Decrement as we reached the max value.
+		 * The release function won't be called here as we've
+		 * just incremented the refcount right before calling this
+		 * function.
+		 */
+		kref_put(&sob->kref, hl_sob_reset_error);
+
+		/*
+		 * check the other sob value, if it still in use then fail
+		 * otherwise make the switch
+		 */
+		other_sob_offset = (prop->curr_sob_offset + 1) % HL_RSVD_SOBS;
+		other_sob = &prop->hw_sob[other_sob_offset];
+
+		if (kref_read(&other_sob->kref) != 1) {
+			dev_err(hdev->dev, "error: Cannot switch SOBs q_idx: %d\n",
+								q_idx);
+			return -EINVAL;
+		}
+
+		prop->next_sob_val = 1;
+
+		/* only two SOBs are currently in use */
+		prop->curr_sob_offset = other_sob_offset;
+		*hw_sob = other_sob;
+
+		dev_dbg(hdev->dev, "switched to SOB %d, q_idx: %d\n",
+				prop->curr_sob_offset, q_idx);
+	} else {
+		prop->next_sob_val += count;
+	}
+
+	return 0;
+}
+
 static int cs_ioctl_extract_signal_seq(struct hl_device *hdev,
 		struct hl_cs_chunk *chunk, u64 *signal_seq, struct hl_ctx *ctx)
 {
@@ -2017,7 +2088,7 @@ wait_again:
 		if (completion_value >= target_value) {
 			*status = CS_WAIT_STATUS_COMPLETED;
 		} else {
-			timeout -= jiffies_to_usecs(completion_rc);
+			timeout = completion_rc;
 			goto wait_again;
 		}
 	} else {

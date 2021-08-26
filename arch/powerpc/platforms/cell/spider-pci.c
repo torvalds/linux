@@ -25,10 +25,9 @@ struct spiderpci_iowa_private {
 static void spiderpci_io_flush(struct iowa_bus *bus)
 {
 	struct spiderpci_iowa_private *priv;
-	u32 val;
 
 	priv = bus->private;
-	val = in_be32(priv->regs + SPIDER_PCI_DUMMY_READ);
+	in_be32(priv->regs + SPIDER_PCI_DUMMY_READ);
 	iosync();
 }
 

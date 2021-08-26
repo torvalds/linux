@@ -405,15 +405,15 @@ static int scftorture_invoker(void *arg)
 
 	VERBOSE_SCFTORTOUT("scftorture_invoker %d: task started", scfp->cpu);
 	cpu = scfp->cpu % nr_cpu_ids;
-	set_cpus_allowed_ptr(current, cpumask_of(cpu));
+	WARN_ON_ONCE(set_cpus_allowed_ptr(current, cpumask_of(cpu)));
 	set_user_nice(current, MAX_NICE);
 	if (holdoff)
 		schedule_timeout_interruptible(holdoff * HZ);
 
-	VERBOSE_SCFTORTOUT("scftorture_invoker %d: Waiting for all SCF torturers from cpu %d", scfp->cpu, smp_processor_id());
+	VERBOSE_SCFTORTOUT("scftorture_invoker %d: Waiting for all SCF torturers from cpu %d", scfp->cpu, raw_smp_processor_id());
 
 	// Make sure that the CPU is affinitized appropriately during testing.
-	curcpu = smp_processor_id();
+	curcpu = raw_smp_processor_id();
 	WARN_ONCE(curcpu != scfp->cpu % nr_cpu_ids,
 		  "%s: Wanted CPU %d, running on %d, nr_cpu_ids = %d\n",
 		  __func__, scfp->cpu, curcpu, nr_cpu_ids);

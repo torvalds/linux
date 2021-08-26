@@ -41,34 +41,6 @@ gen_params_checks()
 	done
 }
 
-# gen_guard(meta, atomic, pfx, name, sfx, order)
-gen_guard()
-{
-	local meta="$1"; shift
-	local atomic="$1"; shift
-	local pfx="$1"; shift
-	local name="$1"; shift
-	local sfx="$1"; shift
-	local order="$1"; shift
-
-	local atomicname="arch_${atomic}_${pfx}${name}${sfx}${order}"
-
-	local template="$(find_fallback_template "${pfx}" "${name}" "${sfx}" "${order}")"
-
-	# We definitely need a preprocessor symbol for this atomic if it is an
-	# ordering variant, or if there's a generic fallback.
-	if [ ! -z "${order}" ] || [ ! -z "${template}" ]; then
-		printf "defined(${atomicname})"
-		return
-	fi
-
-	# If this is a base variant, but a relaxed variant *may* exist, then we
-	# only have a preprocessor symbol if the relaxed variant isn't defined
-	if meta_has_relaxed "${meta}"; then
-		printf "!defined(${atomicname}_relaxed) || defined(${atomicname})"
-	fi
-}
-
 #gen_proto_order_variant(meta, pfx, name, sfx, order, atomic, int, arg...)
 gen_proto_order_variant()
 {
@@ -82,15 +54,11 @@ gen_proto_order_variant()
 
 	local atomicname="${atomic}_${pfx}${name}${sfx}${order}"
 
-	local guard="$(gen_guard "${meta}" "${atomic}" "${pfx}" "${name}" "${sfx}" "${order}")"
-
 	local ret="$(gen_ret_type "${meta}" "${int}")"
 	local params="$(gen_params "${int}" "${atomic}" "$@")"
 	local checks="$(gen_params_checks "${meta}" "$@")"
 	local args="$(gen_args "$@")"
 	local retstmt="$(gen_ret_stmt "${meta}")"
-
-	[ ! -z "${guard}" ] && printf "#if ${guard}\n"
 
 cat <<EOF
 static __always_inline ${ret}
@@ -99,10 +67,7 @@ ${atomicname}(${params})
 ${checks}
 	${retstmt}arch_${atomicname}(${args});
 }
-#define ${atomicname} ${atomicname}
 EOF
-
-	[ ! -z "${guard}" ] && printf "#endif\n"
 
 	printf "\n"
 }
@@ -137,19 +102,6 @@ cat <<EOF
 EOF
 
 	fi
-}
-
-gen_optional_xchg()
-{
-	local name="$1"; shift
-	local sfx="$1"; shift
-	local guard="defined(arch_${name}${sfx})"
-
-	[ -z "${sfx}" ] && guard="!defined(arch_${name}_relaxed) || defined(arch_${name})"
-
-	printf "#if ${guard}\n"
-	gen_xchg "${name}${sfx}" ""
-	printf "#endif\n\n"
 }
 
 cat << EOF
@@ -188,7 +140,8 @@ done
 
 for xchg in "xchg" "cmpxchg" "cmpxchg64" "try_cmpxchg"; do
 	for order in "" "_acquire" "_release" "_relaxed"; do
-		gen_optional_xchg "${xchg}" "${order}"
+		gen_xchg "${xchg}${order}" ""
+		printf "\n"
 	done
 done
 

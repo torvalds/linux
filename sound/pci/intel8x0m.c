@@ -57,7 +57,7 @@ enum { \
 	ICH_REG_##name##_PICB	= base + 0x08,	/* word - position in current buffer */ \
 	ICH_REG_##name##_PIV	= base + 0x0a,	/* byte - prefetched index value */ \
 	ICH_REG_##name##_CR	= base + 0x0b,	/* byte - control register */ \
-};
+}
 
 /* busmaster blocks */
 DEFINE_REGSET(OFF, 0);		/* offset */
@@ -342,7 +342,8 @@ static unsigned short snd_intel8x0m_codec_read(struct snd_ac97 *ac97,
 		res = 0xffff;
 	} else {
 		res = iagetword(chip, reg + ac97->num * 0x80);
-		if ((tmp = igetdword(chip, ICHREG(GLOB_STA))) & ICH_RCS) {
+		tmp = igetdword(chip, ICHREG(GLOB_STA));
+		if (tmp & ICH_RCS) {
 			/* reset RCS and preserve other R/WC bits */
 			iputdword(chip, ICHREG(GLOB_STA),
 				  tmp & ~(ICH_SRI|ICH_PRI|ICH_TRI|ICH_GSCI));
@@ -800,7 +801,8 @@ static int snd_intel8x0m_mixer(struct intel8x0m *chip, int ac97_clock)
 
 	glob_sta = igetdword(chip, ICHREG(GLOB_STA));
 
-	if ((err = snd_ac97_bus(chip->card, 0, &ops, chip, &pbus)) < 0)
+	err = snd_ac97_bus(chip->card, 0, &ops, chip, &pbus);
+	if (err < 0)
 		goto __err;
 	pbus->private_free = snd_intel8x0m_mixer_free_ac97_bus;
 	if (ac97_clock >= 8000 && ac97_clock <= 48000)
@@ -809,7 +811,8 @@ static int snd_intel8x0m_mixer(struct intel8x0m *chip, int ac97_clock)
 
 	ac97.pci = chip->pci;
 	ac97.num = glob_sta & ICH_SCR ? 1 : 0;
-	if ((err = snd_ac97_mixer(pbus, &ac97, &x97)) < 0) {
+	err = snd_ac97_mixer(pbus, &ac97, &x97);
+	if (err < 0) {
 		dev_err(chip->card->dev,
 			"Unable to initialize codec #%d\n", ac97.num);
 		if (ac97.num == 0)
@@ -927,7 +930,8 @@ static int snd_intel8x0m_chip_init(struct intel8x0m *chip, int probing)
 	unsigned int i;
 	int err;
 	
-	if ((err = snd_intel8x0m_ich_chip_init(chip, probing)) < 0)
+	err = snd_intel8x0m_ich_chip_init(chip, probing);
+	if (err < 0)
 		return err;
 	iagetword(chip, 0);	/* clear semaphore flag */
 
@@ -1075,7 +1079,8 @@ static int snd_intel8x0m_create(struct snd_card *card,
 
 	*r_intel8x0m = NULL;
 
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pci_enable_device(pci);
+	if (err < 0)
 		return err;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
@@ -1089,7 +1094,8 @@ static int snd_intel8x0m_create(struct snd_card *card,
 	chip->pci = pci;
 	chip->irq = -1;
 
-	if ((err = pci_request_regions(pci, card->shortname)) < 0) {
+	err = pci_request_regions(pci, card->shortname);
+	if (err < 0) {
 		kfree(chip);
 		pci_disable_device(pci);
 		return err;
@@ -1167,7 +1173,8 @@ port_inited:
 
 	pci_set_master(pci);
 
-	if ((err = snd_intel8x0m_chip_init(chip, 1)) < 0) {
+	err = snd_intel8x0m_chip_init(chip, 1);
+	if (err < 0) {
 		snd_intel8x0m_free(chip);
 		return err;
 	}
@@ -1181,7 +1188,8 @@ port_inited:
 	chip->irq = pci->irq;
 	card->sync_irq = chip->irq;
 
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	if (err < 0) {
 		snd_intel8x0m_free(chip);
 		return err;
 	}
@@ -1238,17 +1246,20 @@ static int snd_intel8x0m_probe(struct pci_dev *pci,
 	}
 	strcat(card->shortname," Modem");
 
-	if ((err = snd_intel8x0m_create(card, pci, pci_id->driver_data, &chip)) < 0) {
+	err = snd_intel8x0m_create(card, pci, pci_id->driver_data, &chip);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
 	card->private_data = chip;
 
-	if ((err = snd_intel8x0m_mixer(chip, ac97_clock)) < 0) {
+	err = snd_intel8x0m_mixer(chip, ac97_clock);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_intel8x0m_pcm(chip)) < 0) {
+	err = snd_intel8x0m_pcm(chip);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -1258,7 +1269,8 @@ static int snd_intel8x0m_probe(struct pci_dev *pci,
 	sprintf(card->longname, "%s at irq %i",
 		card->shortname, chip->irq);
 
-	if ((err = snd_card_register(card)) < 0) {
+	err = snd_card_register(card);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}

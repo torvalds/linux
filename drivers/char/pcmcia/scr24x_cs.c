@@ -265,7 +265,6 @@ static int scr24x_probe(struct pcmcia_device *link)
 
 	cdev_init(&dev->c_dev, &scr24x_fops);
 	dev->c_dev.owner = THIS_MODULE;
-	dev->c_dev.ops = &scr24x_fops;
 	ret = cdev_add(&dev->c_dev, MKDEV(MAJOR(scr24x_devt), dev->devno), 1);
 	if (ret < 0)
 		goto err;

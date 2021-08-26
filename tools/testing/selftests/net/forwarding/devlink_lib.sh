@@ -18,6 +18,12 @@ if [[ ! -v DEVLINK_DEV ]]; then
 
 	DEVLINK_VIDDID=$(lspci -s $(echo $DEVLINK_DEV | cut -d"/" -f2) \
 			 -n | cut -d" " -f3)
+elif [[ ! -z "$DEVLINK_DEV" ]]; then
+	devlink dev show $DEVLINK_DEV &> /dev/null
+	if [ $? -ne 0 ]; then
+		echo "SKIP: devlink device \"$DEVLINK_DEV\" not found"
+		exit 1
+	fi
 fi
 
 ##############################################################################
@@ -318,6 +324,14 @@ devlink_trap_rx_bytes_get()
 		| jq '.[][][]["stats"]["rx"]["bytes"]'
 }
 
+devlink_trap_drop_packets_get()
+{
+	local trap_name=$1; shift
+
+	devlink -js trap show $DEVLINK_DEV trap $trap_name \
+		| jq '.[][][]["stats"]["rx"]["dropped"]'
+}
+
 devlink_trap_stats_idle_test()
 {
 	local trap_name=$1; shift
@@ -333,6 +347,24 @@ devlink_trap_stats_idle_test()
 	t1_bytes=$(devlink_trap_rx_bytes_get $trap_name)
 
 	if [[ $t0_packets -eq $t1_packets && $t0_bytes -eq $t1_bytes ]]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+devlink_trap_drop_stats_idle_test()
+{
+	local trap_name=$1; shift
+	local t0_packets t0_bytes
+
+	t0_packets=$(devlink_trap_drop_packets_get $trap_name)
+
+	sleep 1
+
+	t1_packets=$(devlink_trap_drop_packets_get $trap_name)
+
+	if [[ $t0_packets -eq $t1_packets ]]; then
 		return 0
 	else
 		return 1

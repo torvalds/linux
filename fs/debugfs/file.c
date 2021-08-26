@@ -582,22 +582,12 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_ulong_wo, NULL, debugfs_ulong_set, "%llu\n");
  * This function creates a file in debugfs with the given name that
  * contains the value of the variable @value.  If the @mode variable is so
  * set, it can be read from, and written to.
- *
- * This function will return a pointer to a dentry if it succeeds.  This
- * pointer must be passed to the debugfs_remove() function when the file is
- * to be removed (no automatic cleanup happens if your module is unloaded,
- * you are responsible here.)  If an error occurs, ERR_PTR(-ERROR) will be
- * returned.
- *
- * If debugfs is not enabled in the kernel, the value ERR_PTR(-ENODEV) will
- * be returned.
  */
-struct dentry *debugfs_create_ulong(const char *name, umode_t mode,
-				    struct dentry *parent, unsigned long *value)
+void debugfs_create_ulong(const char *name, umode_t mode, struct dentry *parent,
+			  unsigned long *value)
 {
-	return debugfs_create_mode_unsafe(name, mode, parent, value,
-					&fops_ulong, &fops_ulong_ro,
-					&fops_ulong_wo);
+	debugfs_create_mode_unsafe(name, mode, parent, value, &fops_ulong,
+				   &fops_ulong_ro, &fops_ulong_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_ulong);
 
@@ -846,20 +836,11 @@ static const struct file_operations fops_bool_wo = {
  * This function creates a file in debugfs with the given name that
  * contains the value of the variable @value.  If the @mode variable is so
  * set, it can be read from, and written to.
- *
- * This function will return a pointer to a dentry if it succeeds.  This
- * pointer must be passed to the debugfs_remove() function when the file is
- * to be removed (no automatic cleanup happens if your module is unloaded,
- * you are responsible here.)  If an error occurs, ERR_PTR(-ERROR) will be
- * returned.
- *
- * If debugfs is not enabled in the kernel, the value ERR_PTR(-ENODEV) will
- * be returned.
  */
-struct dentry *debugfs_create_bool(const char *name, umode_t mode,
-				   struct dentry *parent, bool *value)
+void debugfs_create_bool(const char *name, umode_t mode, struct dentry *parent,
+			 bool *value)
 {
-	return debugfs_create_mode_unsafe(name, mode, parent, value, &fops_bool,
+	debugfs_create_mode_unsafe(name, mode, parent, value, &fops_bool,
 				   &fops_bool_ro, &fops_bool_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_bool);
@@ -893,7 +874,7 @@ ssize_t debugfs_read_file_str(struct file *file, char __user *user_buf,
 
 	copy[copy_len] = '\n';
 
-	ret = simple_read_from_buffer(user_buf, count, ppos, copy, copy_len);
+	ret = simple_read_from_buffer(user_buf, count, ppos, copy, len);
 	kfree(copy);
 
 	return ret;
@@ -980,7 +961,8 @@ static const struct file_operations fops_blob = {
 /**
  * debugfs_create_blob - create a debugfs file that is used to read a binary blob
  * @name: a pointer to a string containing the name of the file to create.
- * @mode: the permission that the file should have
+ * @mode: the read permission that the file should have (other permissions are
+ *	  masked out)
  * @parent: a pointer to the parent dentry for this file.  This should be a
  *          directory dentry if set.  If this parameter is %NULL, then the
  *          file will be created in the root of the debugfs filesystem.
@@ -1004,7 +986,7 @@ struct dentry *debugfs_create_blob(const char *name, umode_t mode,
 				   struct dentry *parent,
 				   struct debugfs_blob_wrapper *blob)
 {
-	return debugfs_create_file_unsafe(name, mode, parent, blob, &fops_blob);
+	return debugfs_create_file_unsafe(name, mode & 0444, parent, blob, &fops_blob);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_blob);
 

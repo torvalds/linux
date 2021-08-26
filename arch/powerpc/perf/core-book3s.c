@@ -460,7 +460,7 @@ static __u64 power_pmu_bhrb_to(u64 addr)
 				sizeof(instr)))
 			return 0;
 
-		return branch_target((struct ppc_inst *)&instr);
+		return branch_target(&instr);
 	}
 
 	/* Userspace: need copy instruction here then translate it */
@@ -468,7 +468,7 @@ static __u64 power_pmu_bhrb_to(u64 addr)
 			sizeof(instr)))
 		return 0;
 
-	target = branch_target((struct ppc_inst *)&instr);
+	target = branch_target(&instr);
 	if ((!target) || (instr & BRANCH_ABSOLUTE))
 		return target;
 
@@ -2254,7 +2254,7 @@ unsigned long perf_instruction_pointer(struct pt_regs *regs)
 	bool use_siar = regs_use_siar(regs);
 	unsigned long siar = mfspr(SPRN_SIAR);
 
-	if (ppmu->flags & PPMU_P10_DD1) {
+	if (ppmu && (ppmu->flags & PPMU_P10_DD1)) {
 		if (siar)
 			return siar;
 		else

@@ -222,9 +222,22 @@ static void hdcp_remove_display(struct hdcp_workqueue *hdcp_work,
 			 struct amdgpu_dm_connector *aconnector)
 {
 	struct hdcp_workqueue *hdcp_w = &hdcp_work[link_index];
+	struct drm_connector_state *conn_state = aconnector->base.state;
 
 	mutex_lock(&hdcp_w->mutex);
 	hdcp_w->aconnector = aconnector;
+
+	/* the removal of display will invoke auth reset -> hdcp destroy and
+	 * we'd expect the Content Protection (CP) property changed back to
+	 * DESIRED if at the time ENABLED. CP property change should occur
+	 * before the element removed from linked list.
+	 */
+	if (conn_state && conn_state->content_protection == DRM_MODE_CONTENT_PROTECTION_ENABLED) {
+		conn_state->content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+
+		DRM_DEBUG_DRIVER("[HDCP_DM] display %d, CP 2 -> 1, type %u, DPMS %u\n",
+			 aconnector->base.index, conn_state->hdcp_content_type, aconnector->base.dpms);
+	}
 
 	mod_hdcp_remove_display(&hdcp_w->hdcp, aconnector->base.index, &hdcp_w->output);
 
@@ -454,6 +467,11 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	display->dig_fe = config->dig_fe;
 	link->dig_be = config->dig_be;
 	link->ddc_line = aconnector->dc_link->ddc_hw_inst + 1;
+	display->stream_enc_idx = config->stream_enc_idx;
+	link->link_enc_idx = config->link_enc_idx;
+	link->phy_idx = config->phy_idx;
+	link->hdcp_supported_informational = dc_link_is_hdcp14(aconnector->dc_link,
+			aconnector->dc_sink->sink_signal) ? 1 : 0;
 	link->dp.rev = aconnector->dc_link->dpcd_caps.dpcd_rev.raw;
 	link->dp.assr_enabled = config->assr_enabled;
 	link->dp.mst_enabled = config->mst_enabled;
@@ -462,7 +480,7 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	link->adjust.hdcp1.disable = 0;
 	conn_state = aconnector->base.state;
 
-	pr_debug("[HDCP_DM] display %d, CP %d, type %d\n", aconnector->base.index,
+	DRM_DEBUG_DRIVER("[HDCP_DM] display %d, CP %d, type %d\n", aconnector->base.index,
 			(!!aconnector->base.state) ? aconnector->base.state->content_protection : -1,
 			(!!aconnector->base.state) ? aconnector->base.state->hdcp_content_type : -1);
 
@@ -637,6 +655,10 @@ struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev, struct 
 		INIT_DELAYED_WORK(&hdcp_work[i].property_validate_dwork, event_property_validate);
 
 		hdcp_work[i].hdcp.config.psp.handle = &adev->psp;
+		if (dc->ctx->dce_version == DCN_VERSION_3_1) {
+			hdcp_work[i].hdcp.config.psp.caps.dtm_v3_supported = 1;
+			hdcp_work[i].hdcp.config.psp.caps.opm_state_query_supported = false;
+		}
 		hdcp_work[i].hdcp.config.ddc.handle = dc_get_link_at_index(dc, i);
 		hdcp_work[i].hdcp.config.ddc.funcs.write_i2c = lp_write_i2c;
 		hdcp_work[i].hdcp.config.ddc.funcs.read_i2c = lp_read_i2c;
@@ -650,6 +672,7 @@ struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev, struct 
 
 	/* File created at /sys/class/drm/card0/device/hdcp_srm*/
 	hdcp_work[0].attr = data_attr;
+	sysfs_bin_attr_init(&hdcp_work[0].attr);
 
 	if (sysfs_create_bin_file(&adev->dev->kobj, &hdcp_work[0].attr))
 		DRM_WARN("Failed to create device file hdcp_srm");

@@ -338,6 +338,7 @@ union pipe_update_flags {
 		uint32_t scaler : 1;
 		uint32_t viewport : 1;
 		uint32_t plane_changed : 1;
+		uint32_t det_size : 1;
 	} bits;
 	uint32_t raw;
 };
@@ -365,6 +366,8 @@ struct pipe_ctx {
 	struct _vcs_dpi_display_ttu_regs_st ttu_regs;
 	struct _vcs_dpi_display_rq_regs_st rq_regs;
 	struct _vcs_dpi_display_pipe_dest_params_st pipe_dlg_param;
+	int det_buffer_size_kb;
+	bool unbounded_req;
 #endif
 	union pipe_update_flags update_flags;
 	struct dwbc *dwbc;
@@ -415,6 +418,7 @@ struct dcn_bw_output {
 	struct dc_clocks clk;
 	struct dcn_watermark_set watermarks;
 	struct dcn_bw_writeback bw_writeback;
+	int compbuf_size_kb;
 };
 
 union bw_output {

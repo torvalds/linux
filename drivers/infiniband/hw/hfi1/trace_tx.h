@@ -120,7 +120,7 @@ DECLARE_EVENT_CLASS(hfi1_qpsleepwakeup_template,
 		    __field(unsigned long, iow_flags)
 		    ),
 		    TP_fast_assign(
-		    DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+		    DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
 		    __entry->flags = flags;
 		    __entry->qpn = qp->ibqp.qp_num;
 		    __entry->s_flags = qp->s_flags;
@@ -868,7 +868,7 @@ TRACE_EVENT(
 		__field(int, send_flags)
 	),
 	TP_fast_assign(
-		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
 		__entry->wqe = wqe;
 		__entry->wr_id = wqe->wr.wr_id;
 		__entry->qpn = qp->ibqp.qp_num;
@@ -904,7 +904,7 @@ DECLARE_EVENT_CLASS(
 		__field(bool, flag)
 	),
 	TP_fast_assign(
-		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
 		__entry->qpn = qp->ibqp.qp_num;
 		__entry->flag = flag;
 	),
@@ -952,7 +952,7 @@ DECLARE_EVENT_CLASS(/* AIP  */
 		__field(u8, stopped)
 	),
 	TP_fast_assign(/* assign */
-		DD_DEV_ASSIGN(txq->priv->dd)
+		DD_DEV_ASSIGN(txq->priv->dd);
 		__entry->txq = txq;
 		__entry->sde = txq->sde;
 		__entry->head = txq->tx_ring.head;

@@ -32,12 +32,13 @@ config EEPROM_AT24
 	  will be called at24.
 
 config EEPROM_AT25
-	tristate "SPI EEPROMs from most vendors"
+	tristate "SPI EEPROMs (FRAMs) from most vendors"
 	depends on SPI && SYSFS
 	select NVMEM
 	select NVMEM_SYSFS
 	help
-	  Enable this driver to get read/write support to most SPI EEPROMs,
+	  Enable this driver to get read/write support to most SPI EEPROMs
+	  and Cypress FRAMs,
 	  after you configure the board init code to know about each eeprom
 	  on your target board.
 

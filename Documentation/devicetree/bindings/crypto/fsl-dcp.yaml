@@ -27,7 +27,6 @@ properties:
       - description: MXS DCP DCP interrupt
       - description: MXS DCP secure interrupt
     minItems: 2
-    maxItems: 3
 
   clocks:
     maxItems: 1

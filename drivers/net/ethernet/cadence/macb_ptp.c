@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * 1588 PTP support for Cadence GEM device.
  *
  * Copyright (C) 2017 Cadence Design Systems - https://www.cadence.com

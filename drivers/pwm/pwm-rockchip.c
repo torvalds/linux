@@ -354,11 +354,6 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	pc->chip.ops = &rockchip_pwm_ops;
 	pc->chip.npwm = 1;
 
-	if (pc->data->supports_polarity) {
-		pc->chip.of_xlate = of_pwm_xlate_with_flags;
-		pc->chip.of_pwm_n_cells = 3;
-	}
-
 	enable_conf = pc->data->enable_conf;
 	ctrl = readl_relaxed(pc->base + pc->data->regs.ctrl);
 	enabled = (ctrl & enable_conf) == enable_conf;

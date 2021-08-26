@@ -33,6 +33,8 @@
 struct dchub_init_data;
 struct cstate_pstate_watermarks_st {
 	uint32_t cstate_exit_ns;
+	uint32_t cstate_exit_z8_ns;
+	uint32_t cstate_enter_plus_exit_z8_ns;
 	uint32_t cstate_enter_plus_exit_ns;
 	uint32_t pstate_change_ns;
 };

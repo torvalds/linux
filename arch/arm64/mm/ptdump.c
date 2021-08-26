@@ -159,10 +159,6 @@ static const struct prot_bits pte_bits[] = {
 		.set	= "DEVICE/nGnRE",
 	}, {
 		.mask	= PTE_ATTRINDX_MASK,
-		.val	= PTE_ATTRINDX(MT_DEVICE_GRE),
-		.set	= "DEVICE/GRE",
-	}, {
-		.mask	= PTE_ATTRINDX_MASK,
 		.val	= PTE_ATTRINDX(MT_NORMAL_NC),
 		.set	= "MEM/NORMAL-NC",
 	}, {

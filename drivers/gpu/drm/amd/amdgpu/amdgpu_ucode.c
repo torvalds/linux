@@ -257,36 +257,36 @@ void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr)
 			container_of(hdr, struct psp_firmware_header_v1_0, header);
 
 		DRM_DEBUG("ucode_feature_version: %u\n",
-			  le32_to_cpu(psp_hdr->ucode_feature_version));
+			  le32_to_cpu(psp_hdr->sos.fw_version));
 		DRM_DEBUG("sos_offset_bytes: %u\n",
-			  le32_to_cpu(psp_hdr->sos_offset_bytes));
+			  le32_to_cpu(psp_hdr->sos.offset_bytes));
 		DRM_DEBUG("sos_size_bytes: %u\n",
-			  le32_to_cpu(psp_hdr->sos_size_bytes));
+			  le32_to_cpu(psp_hdr->sos.size_bytes));
 		if (version_minor == 1) {
 			const struct psp_firmware_header_v1_1 *psp_hdr_v1_1 =
 				container_of(psp_hdr, struct psp_firmware_header_v1_1, v1_0);
 			DRM_DEBUG("toc_header_version: %u\n",
-				  le32_to_cpu(psp_hdr_v1_1->toc_header_version));
+				  le32_to_cpu(psp_hdr_v1_1->toc.fw_version));
 			DRM_DEBUG("toc_offset_bytes: %u\n",
-				  le32_to_cpu(psp_hdr_v1_1->toc_offset_bytes));
+				  le32_to_cpu(psp_hdr_v1_1->toc.offset_bytes));
 			DRM_DEBUG("toc_size_bytes: %u\n",
-				  le32_to_cpu(psp_hdr_v1_1->toc_size_bytes));
+				  le32_to_cpu(psp_hdr_v1_1->toc.size_bytes));
 			DRM_DEBUG("kdb_header_version: %u\n",
-				  le32_to_cpu(psp_hdr_v1_1->kdb_header_version));
+				  le32_to_cpu(psp_hdr_v1_1->kdb.fw_version));
 			DRM_DEBUG("kdb_offset_bytes: %u\n",
-				  le32_to_cpu(psp_hdr_v1_1->kdb_offset_bytes));
+				  le32_to_cpu(psp_hdr_v1_1->kdb.offset_bytes));
 			DRM_DEBUG("kdb_size_bytes: %u\n",
-				  le32_to_cpu(psp_hdr_v1_1->kdb_size_bytes));
+				  le32_to_cpu(psp_hdr_v1_1->kdb.size_bytes));
 		}
 		if (version_minor == 2) {
 			const struct psp_firmware_header_v1_2 *psp_hdr_v1_2 =
 				container_of(psp_hdr, struct psp_firmware_header_v1_2, v1_0);
 			DRM_DEBUG("kdb_header_version: %u\n",
-				  le32_to_cpu(psp_hdr_v1_2->kdb_header_version));
+				  le32_to_cpu(psp_hdr_v1_2->kdb.fw_version));
 			DRM_DEBUG("kdb_offset_bytes: %u\n",
-				  le32_to_cpu(psp_hdr_v1_2->kdb_offset_bytes));
+				  le32_to_cpu(psp_hdr_v1_2->kdb.offset_bytes));
 			DRM_DEBUG("kdb_size_bytes: %u\n",
-				  le32_to_cpu(psp_hdr_v1_2->kdb_size_bytes));
+				  le32_to_cpu(psp_hdr_v1_2->kdb.size_bytes));
 		}
 		if (version_minor == 3) {
 			const struct psp_firmware_header_v1_1 *psp_hdr_v1_1 =
@@ -294,23 +294,23 @@ void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr)
 			const struct psp_firmware_header_v1_3 *psp_hdr_v1_3 =
 				container_of(psp_hdr_v1_1, struct psp_firmware_header_v1_3, v1_1);
 			DRM_DEBUG("toc_header_version: %u\n",
-				  le32_to_cpu(psp_hdr_v1_3->v1_1.toc_header_version));
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.toc.fw_version));
 			DRM_DEBUG("toc_offset_bytes: %u\n",
-				  le32_to_cpu(psp_hdr_v1_3->v1_1.toc_offset_bytes));
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.toc.offset_bytes));
 			DRM_DEBUG("toc_size_bytes: %u\n",
-				  le32_to_cpu(psp_hdr_v1_3->v1_1.toc_size_bytes));
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.toc.size_bytes));
 			DRM_DEBUG("kdb_header_version: %u\n",
-				  le32_to_cpu(psp_hdr_v1_3->v1_1.kdb_header_version));
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.kdb.fw_version));
 			DRM_DEBUG("kdb_offset_bytes: %u\n",
-				  le32_to_cpu(psp_hdr_v1_3->v1_1.kdb_offset_bytes));
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.kdb.offset_bytes));
 			DRM_DEBUG("kdb_size_bytes: %u\n",
-				  le32_to_cpu(psp_hdr_v1_3->v1_1.kdb_size_bytes));
+				  le32_to_cpu(psp_hdr_v1_3->v1_1.kdb.size_bytes));
 			DRM_DEBUG("spl_header_version: %u\n",
-				  le32_to_cpu(psp_hdr_v1_3->spl_header_version));
+				  le32_to_cpu(psp_hdr_v1_3->spl.fw_version));
 			DRM_DEBUG("spl_offset_bytes: %u\n",
-				  le32_to_cpu(psp_hdr_v1_3->spl_offset_bytes));
+				  le32_to_cpu(psp_hdr_v1_3->spl.offset_bytes));
 			DRM_DEBUG("spl_size_bytes: %u\n",
-				  le32_to_cpu(psp_hdr_v1_3->spl_size_bytes));
+				  le32_to_cpu(psp_hdr_v1_3->spl.size_bytes));
 		}
 	} else {
 		DRM_ERROR("Unknown PSP ucode version: %u.%u\n",
@@ -403,6 +403,8 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 	case CHIP_VANGOGH:
 	case CHIP_DIMGREY_CAVEFISH:
 	case CHIP_ALDEBARAN:
+	case CHIP_BEIGE_GOBY:
+	case CHIP_YELLOW_CARP:
 		if (!load_type)
 			return AMDGPU_FW_LOAD_DIRECT;
 		else

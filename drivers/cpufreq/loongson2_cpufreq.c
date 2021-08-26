@@ -16,7 +16,6 @@
 #include <linux/cpufreq.h>
 #include <linux/module.h>
 #include <linux/err.h>
-#include <linux/sched.h>	/* set_cpus_allowed() */
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 

@@ -871,15 +871,14 @@ static int nfulnl_recv_config(struct sk_buff *skb, const struct nfnl_info *info,
 			      const struct nlattr * const nfula[])
 {
 	struct nfnl_log_net *log = nfnl_log_pernet(info->net);
-	struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
-	u_int16_t group_num = ntohs(nfmsg->res_id);
+	u_int16_t group_num = ntohs(info->nfmsg->res_id);
 	struct nfulnl_msg_config_cmd *cmd = NULL;
 	struct nfulnl_instance *inst;
 	u16 flags = 0;
 	int ret = 0;
 
 	if (nfula[NFULA_CFG_CMD]) {
-		u_int8_t pf = nfmsg->nfgen_family;
+		u_int8_t pf = info->nfmsg->nfgen_family;
 		cmd = nla_data(nfula[NFULA_CFG_CMD]);
 
 		/* Commands without queue context */

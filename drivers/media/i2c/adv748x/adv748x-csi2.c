@@ -141,26 +141,26 @@ static const struct v4l2_subdev_video_ops adv748x_csi2_video_ops = {
 
 static struct v4l2_mbus_framefmt *
 adv748x_csi2_get_pad_format(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_state *sd_state,
 			    unsigned int pad, u32 which)
 {
 	struct adv748x_csi2 *tx = adv748x_sd_to_csi2(sd);
 
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(sd, cfg, pad);
+		return v4l2_subdev_get_try_format(sd, sd_state, pad);
 
 	return &tx->format;
 }
 
 static int adv748x_csi2_get_format(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_format *sdformat)
 {
 	struct adv748x_csi2 *tx = adv748x_sd_to_csi2(sd);
 	struct adv748x_state *state = tx->state;
 	struct v4l2_mbus_framefmt *mbusformat;
 
-	mbusformat = adv748x_csi2_get_pad_format(sd, cfg, sdformat->pad,
+	mbusformat = adv748x_csi2_get_pad_format(sd, sd_state, sdformat->pad,
 						 sdformat->which);
 	if (!mbusformat)
 		return -EINVAL;
@@ -175,7 +175,7 @@ static int adv748x_csi2_get_format(struct v4l2_subdev *sd,
 }
 
 static int adv748x_csi2_set_format(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_format *sdformat)
 {
 	struct adv748x_csi2 *tx = adv748x_sd_to_csi2(sd);
@@ -183,7 +183,7 @@ static int adv748x_csi2_set_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *mbusformat;
 	int ret = 0;
 
-	mbusformat = adv748x_csi2_get_pad_format(sd, cfg, sdformat->pad,
+	mbusformat = adv748x_csi2_get_pad_format(sd, sd_state, sdformat->pad,
 						 sdformat->which);
 	if (!mbusformat)
 		return -EINVAL;
@@ -193,7 +193,7 @@ static int adv748x_csi2_set_format(struct v4l2_subdev *sd,
 	if (sdformat->pad == ADV748X_CSI2_SOURCE) {
 		const struct v4l2_mbus_framefmt *sink_fmt;
 
-		sink_fmt = adv748x_csi2_get_pad_format(sd, cfg,
+		sink_fmt = adv748x_csi2_get_pad_format(sd, sd_state,
 						       ADV748X_CSI2_SINK,
 						       sdformat->which);
 

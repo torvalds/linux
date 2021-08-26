@@ -2,7 +2,6 @@
 /*
  * Copyright (C) 2017-2018 HUAWEI, Inc.
  *             https://www.huawei.com/
- * Created by Gao Xiang <gaoxiang25@huawei.com>
  */
 #include "internal.h"
 #include <linux/prefetch.h>
@@ -315,4 +314,3 @@ const struct address_space_operations erofs_raw_access_aops = {
 	.readahead = erofs_raw_access_readahead,
 	.bmap = erofs_bmap,
 };
-

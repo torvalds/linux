@@ -64,7 +64,6 @@ static const char * const SCH5627_IN_LABELS[SCH5627_NO_IN] = {
 
 struct sch5627_data {
 	unsigned short addr;
-	struct sch56xx_watchdog_data *watchdog;
 	u8 control;
 	u8 temp_max[SCH5627_NO_TEMPS];
 	u8 temp_crit[SCH5627_NO_TEMPS];
@@ -357,16 +356,6 @@ static const struct hwmon_chip_info sch5627_chip_info = {
 	.info = sch5627_info,
 };
 
-static int sch5627_remove(struct platform_device *pdev)
-{
-	struct sch5627_data *data = platform_get_drvdata(pdev);
-
-	if (data->watchdog)
-		sch56xx_watchdog_unregister(data->watchdog);
-
-	return 0;
-}
-
 static int sch5627_probe(struct platform_device *pdev)
 {
 	struct sch5627_data *data;
@@ -460,9 +449,9 @@ static int sch5627_probe(struct platform_device *pdev)
 		return PTR_ERR(hwmon_dev);
 
 	/* Note failing to register the watchdog is not a fatal error */
-	data->watchdog = sch56xx_watchdog_register(&pdev->dev, data->addr,
-			(build_code << 24) | (build_id << 8) | hwmon_rev,
-			&data->update_lock, 1);
+	sch56xx_watchdog_register(&pdev->dev, data->addr,
+				  (build_code << 24) | (build_id << 8) | hwmon_rev,
+				  &data->update_lock, 1);
 
 	return 0;
 }
@@ -472,7 +461,6 @@ static struct platform_driver sch5627_driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= sch5627_probe,
-	.remove		= sch5627_remove,
 };
 
 module_platform_driver(sch5627_driver);

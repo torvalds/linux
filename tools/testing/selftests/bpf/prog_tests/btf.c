@@ -3811,7 +3811,7 @@ static void do_test_raw(unsigned int test_num)
 			      always_log);
 	free(raw_btf);
 
-	err = ((btf_fd == -1) != test->btf_load_err);
+	err = ((btf_fd < 0) != test->btf_load_err);
 	if (CHECK(err, "btf_fd:%d test->btf_load_err:%u",
 		  btf_fd, test->btf_load_err) ||
 	    CHECK(test->err_str && !strstr(btf_log_buf, test->err_str),
@@ -3820,7 +3820,7 @@ static void do_test_raw(unsigned int test_num)
 		goto done;
 	}
 
-	if (err || btf_fd == -1)
+	if (err || btf_fd < 0)
 		goto done;
 
 	create_attr.name = test->map_name;
@@ -3834,16 +3834,16 @@ static void do_test_raw(unsigned int test_num)
 
 	map_fd = bpf_create_map_xattr(&create_attr);
 
-	err = ((map_fd == -1) != test->map_create_err);
+	err = ((map_fd < 0) != test->map_create_err);
 	CHECK(err, "map_fd:%d test->map_create_err:%u",
 	      map_fd, test->map_create_err);
 
 done:
 	if (*btf_log_buf && (err || always_log))
 		fprintf(stderr, "\n%s", btf_log_buf);
-	if (btf_fd != -1)
+	if (btf_fd >= 0)
 		close(btf_fd);
-	if (map_fd != -1)
+	if (map_fd >= 0)
 		close(map_fd);
 }
 
@@ -3941,7 +3941,7 @@ static int test_big_btf_info(unsigned int test_num)
 	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
 			      btf_log_buf, BTF_LOG_BUF_SIZE,
 			      always_log);
-	if (CHECK(btf_fd == -1, "errno:%d", errno)) {
+	if (CHECK(btf_fd < 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;
 	}
@@ -3987,7 +3987,7 @@ done:
 	free(raw_btf);
 	free(user_btf);
 
-	if (btf_fd != -1)
+	if (btf_fd >= 0)
 		close(btf_fd);
 
 	return err;
@@ -4029,7 +4029,7 @@ static int test_btf_id(unsigned int test_num)
 	btf_fd[0] = bpf_load_btf(raw_btf, raw_btf_size,
 				 btf_log_buf, BTF_LOG_BUF_SIZE,
 				 always_log);
-	if (CHECK(btf_fd[0] == -1, "errno:%d", errno)) {
+	if (CHECK(btf_fd[0] < 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;
 	}
@@ -4043,7 +4043,7 @@ static int test_btf_id(unsigned int test_num)
 	}
 
 	btf_fd[1] = bpf_btf_get_fd_by_id(info[0].id);
-	if (CHECK(btf_fd[1] == -1, "errno:%d", errno)) {
+	if (CHECK(btf_fd[1] < 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;
 	}
@@ -4071,7 +4071,7 @@ static int test_btf_id(unsigned int test_num)
 	create_attr.btf_value_type_id = 2;
 
 	map_fd = bpf_create_map_xattr(&create_attr);
-	if (CHECK(map_fd == -1, "errno:%d", errno)) {
+	if (CHECK(map_fd < 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;
 	}
@@ -4094,7 +4094,7 @@ static int test_btf_id(unsigned int test_num)
 
 	/* Test BTF ID is removed from the kernel */
 	btf_fd[0] = bpf_btf_get_fd_by_id(map_info.btf_id);
-	if (CHECK(btf_fd[0] == -1, "errno:%d", errno)) {
+	if (CHECK(btf_fd[0] < 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;
 	}
@@ -4105,7 +4105,7 @@ static int test_btf_id(unsigned int test_num)
 	close(map_fd);
 	map_fd = -1;
 	btf_fd[0] = bpf_btf_get_fd_by_id(map_info.btf_id);
-	if (CHECK(btf_fd[0] != -1, "BTF lingers")) {
+	if (CHECK(btf_fd[0] >= 0, "BTF lingers")) {
 		err = -1;
 		goto done;
 	}
@@ -4117,11 +4117,11 @@ done:
 		fprintf(stderr, "\n%s", btf_log_buf);
 
 	free(raw_btf);
-	if (map_fd != -1)
+	if (map_fd >= 0)
 		close(map_fd);
 	for (i = 0; i < 2; i++) {
 		free(user_btf[i]);
-		if (btf_fd[i] != -1)
+		if (btf_fd[i] >= 0)
 			close(btf_fd[i]);
 	}
 
@@ -4166,7 +4166,7 @@ static void do_test_get_info(unsigned int test_num)
 	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
 			      btf_log_buf, BTF_LOG_BUF_SIZE,
 			      always_log);
-	if (CHECK(btf_fd == -1, "errno:%d", errno)) {
+	if (CHECK(btf_fd <= 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;
 	}
@@ -4212,7 +4212,7 @@ done:
 	free(raw_btf);
 	free(user_btf);
 
-	if (btf_fd != -1)
+	if (btf_fd >= 0)
 		close(btf_fd);
 }
 
@@ -4249,8 +4249,9 @@ static void do_test_file(unsigned int test_num)
 		return;
 
 	btf = btf__parse_elf(test->file, &btf_ext);
-	if (IS_ERR(btf)) {
-		if (PTR_ERR(btf) == -ENOENT) {
+	err = libbpf_get_error(btf);
+	if (err) {
+		if (err == -ENOENT) {
 			printf("%s:SKIP: No ELF %s found", __func__, BTF_ELF_SEC);
 			test__skip();
 			return;
@@ -4263,7 +4264,8 @@ static void do_test_file(unsigned int test_num)
 	btf_ext__free(btf_ext);
 
 	obj = bpf_object__open(test->file);
-	if (CHECK(IS_ERR(obj), "obj: %ld", PTR_ERR(obj)))
+	err = libbpf_get_error(obj);
+	if (CHECK(err, "obj: %d", err))
 		return;
 
 	prog = bpf_program__next(NULL, obj);
@@ -4298,7 +4300,7 @@ static void do_test_file(unsigned int test_num)
 	info_len = sizeof(struct bpf_prog_info);
 	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
 
-	if (CHECK(err == -1, "invalid get info (1st) errno:%d", errno)) {
+	if (CHECK(err < 0, "invalid get info (1st) errno:%d", errno)) {
 		fprintf(stderr, "%s\n", btf_log_buf);
 		err = -1;
 		goto done;
@@ -4330,7 +4332,7 @@ static void do_test_file(unsigned int test_num)
 
 	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
 
-	if (CHECK(err == -1, "invalid get info (2nd) errno:%d", errno)) {
+	if (CHECK(err < 0, "invalid get info (2nd) errno:%d", errno)) {
 		fprintf(stderr, "%s\n", btf_log_buf);
 		err = -1;
 		goto done;
@@ -4886,7 +4888,7 @@ static void do_test_pprint(int test_num)
 			      always_log);
 	free(raw_btf);
 
-	if (CHECK(btf_fd == -1, "errno:%d", errno)) {
+	if (CHECK(btf_fd < 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;
 	}
@@ -4901,7 +4903,7 @@ static void do_test_pprint(int test_num)
 	create_attr.btf_value_type_id = test->value_type_id;
 
 	map_fd = bpf_create_map_xattr(&create_attr);
-	if (CHECK(map_fd == -1, "errno:%d", errno)) {
+	if (CHECK(map_fd < 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;
 	}
@@ -4982,7 +4984,7 @@ static void do_test_pprint(int test_num)
 
 					err = check_line(expected_line, nexpected_line,
 							 sizeof(expected_line), line);
-					if (err == -1)
+					if (err < 0)
 						goto done;
 				}
 
@@ -4998,7 +5000,7 @@ static void do_test_pprint(int test_num)
 								  cpu, cmapv);
 			err = check_line(expected_line, nexpected_line,
 					 sizeof(expected_line), line);
-			if (err == -1)
+			if (err < 0)
 				goto done;
 
 			cmapv = cmapv + rounded_value_size;
@@ -5036,9 +5038,9 @@ done:
 		fprintf(stderr, "OK");
 	if (*btf_log_buf && (err || always_log))
 		fprintf(stderr, "\n%s", btf_log_buf);
-	if (btf_fd != -1)
+	if (btf_fd >= 0)
 		close(btf_fd);
-	if (map_fd != -1)
+	if (map_fd >= 0)
 		close(map_fd);
 	if (pin_file)
 		fclose(pin_file);
@@ -5950,7 +5952,7 @@ static int test_get_finfo(const struct prog_info_raw_test *test,
 	/* get necessary lens */
 	info_len = sizeof(struct bpf_prog_info);
 	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
-	if (CHECK(err == -1, "invalid get info (1st) errno:%d", errno)) {
+	if (CHECK(err < 0, "invalid get info (1st) errno:%d", errno)) {
 		fprintf(stderr, "%s\n", btf_log_buf);
 		return -1;
 	}
@@ -5980,7 +5982,7 @@ static int test_get_finfo(const struct prog_info_raw_test *test,
 	info.func_info_rec_size = rec_size;
 	info.func_info = ptr_to_u64(func_info);
 	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
-	if (CHECK(err == -1, "invalid get info (2nd) errno:%d", errno)) {
+	if (CHECK(err < 0, "invalid get info (2nd) errno:%d", errno)) {
 		fprintf(stderr, "%s\n", btf_log_buf);
 		err = -1;
 		goto done;
@@ -6044,7 +6046,7 @@ static int test_get_linfo(const struct prog_info_raw_test *test,
 
 	info_len = sizeof(struct bpf_prog_info);
 	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
-	if (CHECK(err == -1, "err:%d errno:%d", err, errno)) {
+	if (CHECK(err < 0, "err:%d errno:%d", err, errno)) {
 		err = -1;
 		goto done;
 	}
@@ -6123,7 +6125,7 @@ static int test_get_linfo(const struct prog_info_raw_test *test,
 	 * Only recheck the info.*line_info* fields.
 	 * Other fields are not the concern of this test.
 	 */
-	if (CHECK(err == -1 ||
+	if (CHECK(err < 0 ||
 		  info.nr_line_info != cnt ||
 		  (jited_cnt && !info.jited_line_info) ||
 		  info.nr_jited_line_info != jited_cnt ||
@@ -6260,7 +6262,7 @@ static void do_test_info_raw(unsigned int test_num)
 			      always_log);
 	free(raw_btf);
 
-	if (CHECK(btf_fd == -1, "invalid btf_fd errno:%d", errno)) {
+	if (CHECK(btf_fd < 0, "invalid btf_fd errno:%d", errno)) {
 		err = -1;
 		goto done;
 	}
@@ -6273,7 +6275,8 @@ static void do_test_info_raw(unsigned int test_num)
 	patched_linfo = patch_name_tbd(test->line_info,
 				       test->str_sec, linfo_str_off,
 				       test->str_sec_size, &linfo_size);
-	if (IS_ERR(patched_linfo)) {
+	err = libbpf_get_error(patched_linfo);
+	if (err) {
 		fprintf(stderr, "error in creating raw bpf_line_info");
 		err = -1;
 		goto done;
@@ -6297,7 +6300,7 @@ static void do_test_info_raw(unsigned int test_num)
 	}
 
 	prog_fd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
-	err = ((prog_fd == -1) != test->expected_prog_load_failure);
+	err = ((prog_fd < 0) != test->expected_prog_load_failure);
 	if (CHECK(err, "prog_fd:%d expected_prog_load_failure:%u errno:%d",
 		  prog_fd, test->expected_prog_load_failure, errno) ||
 	    CHECK(test->err_str && !strstr(btf_log_buf, test->err_str),
@@ -6306,7 +6309,7 @@ static void do_test_info_raw(unsigned int test_num)
 		goto done;
 	}
 
-	if (prog_fd == -1)
+	if (prog_fd < 0)
 		goto done;
 
 	err = test_get_finfo(test, prog_fd);
@@ -6323,12 +6326,12 @@ done:
 	if (*btf_log_buf && (err || always_log))
 		fprintf(stderr, "\n%s", btf_log_buf);
 
-	if (btf_fd != -1)
+	if (btf_fd >= 0)
 		close(btf_fd);
-	if (prog_fd != -1)
+	if (prog_fd >= 0)
 		close(prog_fd);
 
-	if (!IS_ERR(patched_linfo))
+	if (!libbpf_get_error(patched_linfo))
 		free(patched_linfo);
 }
 
@@ -6839,9 +6842,9 @@ static void do_test_dedup(unsigned int test_num)
 		return;
 
 	test_btf = btf__new((__u8 *)raw_btf, raw_btf_size);
+	err = libbpf_get_error(test_btf);
 	free(raw_btf);
-	if (CHECK(IS_ERR(test_btf), "invalid test_btf errno:%ld",
-		  PTR_ERR(test_btf))) {
+	if (CHECK(err, "invalid test_btf errno:%d", err)) {
 		err = -1;
 		goto done;
 	}
@@ -6853,9 +6856,9 @@ static void do_test_dedup(unsigned int test_num)
 	if (!raw_btf)
 		return;
 	expect_btf = btf__new((__u8 *)raw_btf, raw_btf_size);
+	err = libbpf_get_error(expect_btf);
 	free(raw_btf);
-	if (CHECK(IS_ERR(expect_btf), "invalid expect_btf errno:%ld",
-		  PTR_ERR(expect_btf))) {
+	if (CHECK(err, "invalid expect_btf errno:%d", err)) {
 		err = -1;
 		goto done;
 	}
@@ -6966,10 +6969,8 @@ static void do_test_dedup(unsigned int test_num)
 	}
 
 done:
-	if (!IS_ERR(test_btf))
-		btf__free(test_btf);
-	if (!IS_ERR(expect_btf))
-		btf__free(expect_btf);
+	btf__free(test_btf);
+	btf__free(expect_btf);
 }
 
 void test_btf(void)

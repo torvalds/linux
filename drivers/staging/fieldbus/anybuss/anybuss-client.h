@@ -32,7 +32,7 @@ struct anybuss_client {
 struct anybuss_client_driver {
 	struct device_driver driver;
 	int (*probe)(struct anybuss_client *adev);
-	int (*remove)(struct anybuss_client *adev);
+	void (*remove)(struct anybuss_client *adev);
 	u16 anybus_id;
 };
 

@@ -77,7 +77,7 @@ struct emac_regs {
 		struct {
 			u32 rsvd1;
 			u32 revid;
- 			u32 rsvd2[2];
+			u32 rsvd2[2];
 			u32 iaht1;	/* Reset, R     */
 			u32 iaht2;	/* Reset, R     */
 			u32 iaht3;	/* Reset, R     */

@@ -67,6 +67,8 @@ static void usage(const char *prog)
 		"usage: %s [OPTS] interface-list\n"
 		"\nOPTS:\n"
 		"    -d    detach program\n"
+		"    -S    use skb-mode\n"
+		"    -F    force loading prog\n"
 		"    -D    direct table lookups (skip fib rules)\n",
 		prog);
 }

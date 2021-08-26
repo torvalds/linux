@@ -9,8 +9,6 @@
 	mcu_uart0: serial@4a00000 {
 		compatible = "ti,am64-uart", "ti,am654-uart";
 		reg = <0x00 0x04a00000 0x00 0x100>;
-		reg-shift = <2>;
-		reg-io-width = <4>;
 		interrupts = <GIC_SPI 185 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
 		current-speed = <115200>;
@@ -22,8 +20,6 @@
 	mcu_uart1: serial@4a10000 {
 		compatible = "ti,am64-uart", "ti,am654-uart";
 		reg = <0x00 0x04a10000 0x00 0x100>;
-		reg-shift = <2>;
-		reg-io-width = <4>;
 		interrupts = <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
 		current-speed = <115200>;
@@ -74,8 +70,9 @@
 		clocks = <&k3_clks 148 0>;
 	};
 
-	mcu_gpio_intr: interrupt-controller1 {
+	mcu_gpio_intr: interrupt-controller@4210000 {
 		compatible = "ti,sci-intr";
+		reg = <0x00 0x04210000 0x00 0x200>;
 		ti,intr-trigger-type = <1>;
 		interrupt-controller;
 		interrupt-parent = <&gic500>;
@@ -86,7 +83,7 @@
 	};
 
 	mcu_gpio0: gpio@4201000 {
-		compatible = "ti,am64-gpio", "keystone-gpio";
+		compatible = "ti,am64-gpio", "ti,keystone-gpio";
 		reg = <0x0 0x4201000 0x0 0x100>;
 		gpio-controller;
 		#gpio-cells = <2>;

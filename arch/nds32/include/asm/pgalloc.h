@@ -12,11 +12,6 @@
 #define __HAVE_ARCH_PTE_ALLOC_ONE
 #include <asm-generic/pgalloc.h>	/* for pte_{alloc,free}_one */
 
-/*
- * Since we have only two-level page tables, these are trivial
- */
-#define pmd_pgtable(pmd) pmd_page(pmd)
-
 extern pgd_t *pgd_alloc(struct mm_struct *mm);
 extern void pgd_free(struct mm_struct *mm, pgd_t * pgd);
 

@@ -39,7 +39,7 @@ struct sja1105_gating_config {
 };
 
 struct sja1105_tas_data {
-	struct tc_taprio_qopt_offload *offload[SJA1105_NUM_PORTS];
+	struct tc_taprio_qopt_offload *offload[SJA1105_MAX_NUM_PORTS];
 	struct sja1105_gating_config gating_cfg;
 	enum sja1105_tas_state state;
 	enum sja1105_ptp_op last_op;

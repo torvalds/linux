@@ -8,7 +8,6 @@ extern struct list_head acpi_wakeup_device_list;
 extern struct mutex acpi_device_lock;
 
 extern void acpi_resume_power_resources(void);
-extern void acpi_turn_off_unused_power_resources(void);
 
 static inline acpi_status acpi_set_waking_vector(u32 wakeup_address)
 {

@@ -32,8 +32,9 @@ static int btf_dump_all_types(const struct btf *btf,
 	int err = 0, id;
 
 	d = btf_dump__new(btf, NULL, opts, btf_dump_printf);
-	if (IS_ERR(d))
-		return PTR_ERR(d);
+	err = libbpf_get_error(d);
+	if (err)
+		return err;
 
 	for (id = 1; id <= type_cnt; id++) {
 		err = btf_dump__dump_type(d, id);
@@ -56,8 +57,7 @@ static int test_btf_dump_case(int n, struct btf_dump_test_case *t)
 	snprintf(test_file, sizeof(test_file), "%s.o", t->file);
 
 	btf = btf__parse_elf(test_file, NULL);
-	if (CHECK(IS_ERR(btf), "btf_parse_elf",
-	    "failed to load test BTF: %ld\n", PTR_ERR(btf))) {
+	if (!ASSERT_OK_PTR(btf, "btf_parse_elf")) {
 		err = -PTR_ERR(btf);
 		btf = NULL;
 		goto done;

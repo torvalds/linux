@@ -127,7 +127,6 @@ static struct irq_chip mips_mt_cpu_irq_controller = {
 asmlinkage void __weak plat_irq_dispatch(void)
 {
 	unsigned long pending = read_c0_cause() & read_c0_status() & ST0_IM;
-	unsigned int virq;
 	int irq;
 
 	if (!pending) {
@@ -137,12 +136,15 @@ asmlinkage void __weak plat_irq_dispatch(void)
 
 	pending >>= CAUSEB_IP;
 	while (pending) {
+		struct irq_domain *d;
+
 		irq = fls(pending) - 1;
 		if (IS_ENABLED(CONFIG_GENERIC_IRQ_IPI) && irq < 2)
-			virq = irq_linear_revmap(ipi_domain, irq);
+			d = ipi_domain;
 		else
-			virq = irq_linear_revmap(irq_domain, irq);
-		do_IRQ(virq);
+			d = irq_domain;
+
+		do_domain_IRQ(d, irq);
 		pending &= ~BIT(irq);
 	}
 }

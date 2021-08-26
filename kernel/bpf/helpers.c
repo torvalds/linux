@@ -14,6 +14,7 @@
 #include <linux/jiffies.h>
 #include <linux/pid_namespace.h>
 #include <linux/proc_ns.h>
+#include <linux/security.h>
 
 #include "../../lib/kstrtox.h"
 
@@ -28,7 +29,7 @@
  */
 BPF_CALL_2(bpf_map_lookup_elem, struct bpf_map *, map, void *, key)
 {
-	WARN_ON_ONCE(!rcu_read_lock_held());
+	WARN_ON_ONCE(!rcu_read_lock_held() && !rcu_read_lock_bh_held());
 	return (unsigned long) map->ops->map_lookup_elem(map, key);
 }
 
@@ -44,7 +45,7 @@ const struct bpf_func_proto bpf_map_lookup_elem_proto = {
 BPF_CALL_4(bpf_map_update_elem, struct bpf_map *, map, void *, key,
 	   void *, value, u64, flags)
 {
-	WARN_ON_ONCE(!rcu_read_lock_held());
+	WARN_ON_ONCE(!rcu_read_lock_held() && !rcu_read_lock_bh_held());
 	return map->ops->map_update_elem(map, key, value, flags);
 }
 
@@ -61,7 +62,7 @@ const struct bpf_func_proto bpf_map_update_elem_proto = {
 
 BPF_CALL_2(bpf_map_delete_elem, struct bpf_map *, map, void *, key)
 {
-	WARN_ON_ONCE(!rcu_read_lock_held());
+	WARN_ON_ONCE(!rcu_read_lock_held() && !rcu_read_lock_bh_held());
 	return map->ops->map_delete_elem(map, key);
 }
 
@@ -352,9 +353,15 @@ const struct bpf_func_proto bpf_jiffies64_proto = {
 #ifdef CONFIG_CGROUPS
 BPF_CALL_0(bpf_get_current_cgroup_id)
 {
-	struct cgroup *cgrp = task_dfl_cgroup(current);
+	struct cgroup *cgrp;
+	u64 cgrp_id;
 
-	return cgroup_id(cgrp);
+	rcu_read_lock();
+	cgrp = task_dfl_cgroup(current);
+	cgrp_id = cgroup_id(cgrp);
+	rcu_read_unlock();
+
+	return cgrp_id;
 }
 
 const struct bpf_func_proto bpf_get_current_cgroup_id_proto = {
@@ -365,13 +372,17 @@ const struct bpf_func_proto bpf_get_current_cgroup_id_proto = {
 
 BPF_CALL_1(bpf_get_current_ancestor_cgroup_id, int, ancestor_level)
 {
-	struct cgroup *cgrp = task_dfl_cgroup(current);
+	struct cgroup *cgrp;
 	struct cgroup *ancestor;
+	u64 cgrp_id;
 
+	rcu_read_lock();
+	cgrp = task_dfl_cgroup(current);
 	ancestor = cgroup_ancestor(cgrp, ancestor_level);
-	if (!ancestor)
-		return 0;
-	return cgroup_id(ancestor);
+	cgrp_id = ancestor ? cgroup_id(ancestor) : 0;
+	rcu_read_unlock();
+
+	return cgrp_id;
 }
 
 const struct bpf_func_proto bpf_get_current_ancestor_cgroup_id_proto = {
@@ -396,8 +407,8 @@ BPF_CALL_2(bpf_get_local_storage, struct bpf_map *, map, u64, flags)
 	void *ptr;
 	int i;
 
-	for (i = 0; i < BPF_CGROUP_STORAGE_NEST_MAX; i++) {
-		if (unlikely(this_cpu_read(bpf_cgroup_storage_info[i].task) != current))
+	for (i = BPF_CGROUP_STORAGE_NEST_MAX - 1; i >= 0; i--) {
+		if (likely(this_cpu_read(bpf_cgroup_storage_info[i].task) != current))
 			continue;
 
 		storage = this_cpu_read(bpf_cgroup_storage_info[i].storage[stype]);
@@ -692,38 +703,41 @@ static int bpf_trace_copy_string(char *buf, void *unsafe_ptr, char fmt_ptype,
 	return -EINVAL;
 }
 
-/* Per-cpu temp buffers which can be used by printf-like helpers for %s or %p
+/* Per-cpu temp buffers used by printf-like helpers to store the bprintf binary
+ * arguments representation.
  */
-#define MAX_PRINTF_BUF_LEN	512
+#define MAX_BPRINTF_BUF_LEN	512
 
-struct bpf_printf_buf {
-	char tmp_buf[MAX_PRINTF_BUF_LEN];
+/* Support executing three nested bprintf helper calls on a given CPU */
+#define MAX_BPRINTF_NEST_LEVEL	3
+struct bpf_bprintf_buffers {
+	char tmp_bufs[MAX_BPRINTF_NEST_LEVEL][MAX_BPRINTF_BUF_LEN];
 };
-static DEFINE_PER_CPU(struct bpf_printf_buf, bpf_printf_buf);
-static DEFINE_PER_CPU(int, bpf_printf_buf_used);
+static DEFINE_PER_CPU(struct bpf_bprintf_buffers, bpf_bprintf_bufs);
+static DEFINE_PER_CPU(int, bpf_bprintf_nest_level);
 
 static int try_get_fmt_tmp_buf(char **tmp_buf)
 {
-	struct bpf_printf_buf *bufs;
-	int used;
+	struct bpf_bprintf_buffers *bufs;
+	int nest_level;
 
 	preempt_disable();
-	used = this_cpu_inc_return(bpf_printf_buf_used);
-	if (WARN_ON_ONCE(used > 1)) {
-		this_cpu_dec(bpf_printf_buf_used);
+	nest_level = this_cpu_inc_return(bpf_bprintf_nest_level);
+	if (WARN_ON_ONCE(nest_level > MAX_BPRINTF_NEST_LEVEL)) {
+		this_cpu_dec(bpf_bprintf_nest_level);
 		preempt_enable();
 		return -EBUSY;
 	}
-	bufs = this_cpu_ptr(&bpf_printf_buf);
-	*tmp_buf = bufs->tmp_buf;
+	bufs = this_cpu_ptr(&bpf_bprintf_bufs);
+	*tmp_buf = bufs->tmp_bufs[nest_level - 1];
 
 	return 0;
 }
 
 void bpf_bprintf_cleanup(void)
 {
-	if (this_cpu_read(bpf_printf_buf_used)) {
-		this_cpu_dec(bpf_printf_buf_used);
+	if (this_cpu_read(bpf_bprintf_nest_level)) {
+		this_cpu_dec(bpf_bprintf_nest_level);
 		preempt_enable();
 	}
 }
@@ -760,7 +774,7 @@ int bpf_bprintf_prepare(char *fmt, u32 fmt_size, const u64 *raw_args,
 		if (num_args && try_get_fmt_tmp_buf(&tmp_buf))
 			return -EBUSY;
 
-		tmp_buf_end = tmp_buf + MAX_PRINTF_BUF_LEN;
+		tmp_buf_end = tmp_buf + MAX_BPRINTF_BUF_LEN;
 		*bin_args = (u32 *)tmp_buf;
 	}
 
@@ -1066,11 +1080,13 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 	case BPF_FUNC_probe_read_user:
 		return &bpf_probe_read_user_proto;
 	case BPF_FUNC_probe_read_kernel:
-		return &bpf_probe_read_kernel_proto;
+		return security_locked_down(LOCKDOWN_BPF_READ_KERNEL) < 0 ?
+		       NULL : &bpf_probe_read_kernel_proto;
 	case BPF_FUNC_probe_read_user_str:
 		return &bpf_probe_read_user_str_proto;
 	case BPF_FUNC_probe_read_kernel_str:
-		return &bpf_probe_read_kernel_str_proto;
+		return security_locked_down(LOCKDOWN_BPF_READ_KERNEL) < 0 ?
+		       NULL : &bpf_probe_read_kernel_str_proto;
 	case BPF_FUNC_snprintf_btf:
 		return &bpf_snprintf_btf_proto;
 	case BPF_FUNC_snprintf:

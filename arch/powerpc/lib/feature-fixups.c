@@ -14,8 +14,10 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/sched/mm.h>
+#include <linux/stop_machine.h>
 #include <asm/cputable.h>
 #include <asm/code-patching.h>
+#include <asm/interrupt.h>
 #include <asm/page.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
@@ -32,26 +34,25 @@ struct fixup_entry {
 	long		alt_end_off;
 };
 
-static struct ppc_inst *calc_addr(struct fixup_entry *fcur, long offset)
+static u32 *calc_addr(struct fixup_entry *fcur, long offset)
 {
 	/*
 	 * We store the offset to the code as a negative offset from
 	 * the start of the alt_entry, to support the VDSO. This
 	 * routine converts that back into an actual address.
 	 */
-	return (struct ppc_inst *)((unsigned long)fcur + offset);
+	return (u32 *)((unsigned long)fcur + offset);
 }
 
-static int patch_alt_instruction(struct ppc_inst *src, struct ppc_inst *dest,
-				 struct ppc_inst *alt_start, struct ppc_inst *alt_end)
+static int patch_alt_instruction(u32 *src, u32 *dest, u32 *alt_start, u32 *alt_end)
 {
 	int err;
 	struct ppc_inst instr;
 
 	instr = ppc_inst_read(src);
 
-	if (instr_is_relative_branch(*src)) {
-		struct ppc_inst *target = (struct ppc_inst *)branch_target(src);
+	if (instr_is_relative_branch(ppc_inst_read(src))) {
+		u32 *target = (u32 *)branch_target(src);
 
 		/* Branch within the section doesn't need translating */
 		if (target < alt_start || target > alt_end) {
@@ -68,7 +69,7 @@ static int patch_alt_instruction(struct ppc_inst *src, struct ppc_inst *dest,
 
 static int patch_feature_section(unsigned long value, struct fixup_entry *fcur)
 {
-	struct ppc_inst *start, *end, *alt_start, *alt_end, *src, *dest, nop;
+	u32 *start, *end, *alt_start, *alt_end, *src, *dest;
 
 	start = calc_addr(fcur, fcur->start_off);
 	end = calc_addr(fcur, fcur->end_off);
@@ -90,9 +91,8 @@ static int patch_feature_section(unsigned long value, struct fixup_entry *fcur)
 			return 1;
 	}
 
-	nop = ppc_inst(PPC_INST_NOP);
-	for (; dest < end; dest = ppc_inst_next(dest, &nop))
-		raw_patch_instruction(dest, nop);
+	for (; dest < end; dest++)
+		raw_patch_instruction(dest, ppc_inst(PPC_RAW_NOP()));
 
 	return 0;
 }
@@ -127,21 +127,21 @@ static void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
 	start = PTRRELOC(&__start___stf_entry_barrier_fixup);
 	end = PTRRELOC(&__stop___stf_entry_barrier_fixup);
 
-	instrs[0] = 0x60000000; /* nop */
-	instrs[1] = 0x60000000; /* nop */
-	instrs[2] = 0x60000000; /* nop */
+	instrs[0] = PPC_RAW_NOP();
+	instrs[1] = PPC_RAW_NOP();
+	instrs[2] = PPC_RAW_NOP();
 
 	i = 0;
 	if (types & STF_BARRIER_FALLBACK) {
-		instrs[i++] = 0x7d4802a6; /* mflr r10		*/
-		instrs[i++] = 0x60000000; /* branch patched below */
-		instrs[i++] = 0x7d4803a6; /* mtlr r10		*/
+		instrs[i++] = PPC_RAW_MFLR(_R10);
+		instrs[i++] = PPC_RAW_NOP(); /* branch patched below */
+		instrs[i++] = PPC_RAW_MTLR(_R10);
 	} else if (types & STF_BARRIER_EIEIO) {
-		instrs[i++] = 0x7e0006ac; /* eieio + bit 6 hint */
+		instrs[i++] = PPC_RAW_EIEIO() | 0x02000000; /* eieio + bit 6 hint */
 	} else if (types & STF_BARRIER_SYNC_ORI) {
-		instrs[i++] = 0x7c0004ac; /* hwsync		*/
-		instrs[i++] = 0xe94d0000; /* ld r10,0(r13)	*/
-		instrs[i++] = 0x63ff0000; /* ori 31,31,0 speculation barrier */
+		instrs[i++] = PPC_RAW_SYNC();
+		instrs[i++] = PPC_RAW_LD(_R10, _R13, 0);
+		instrs[i++] = PPC_RAW_ORI(_R31, _R31, 0); /* speculation barrier */
 	}
 
 	for (i = 0; start < end; start++, i++) {
@@ -149,17 +149,17 @@ static void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
 
 		pr_devel("patching dest %lx\n", (unsigned long)dest);
 
-		patch_instruction((struct ppc_inst *)dest, ppc_inst(instrs[0]));
-
-		if (types & STF_BARRIER_FALLBACK)
-			patch_branch((struct ppc_inst *)(dest + 1),
-				     (unsigned long)&stf_barrier_fallback,
-				     BRANCH_SET_LINK);
-		else
-			patch_instruction((struct ppc_inst *)(dest + 1),
-					  ppc_inst(instrs[1]));
-
-		patch_instruction((struct ppc_inst *)(dest + 2), ppc_inst(instrs[2]));
+		// See comment in do_entry_flush_fixups() RE order of patching
+		if (types & STF_BARRIER_FALLBACK) {
+			patch_instruction(dest, ppc_inst(instrs[0]));
+			patch_instruction(dest + 2, ppc_inst(instrs[2]));
+			patch_branch(dest + 1,
+				     (unsigned long)&stf_barrier_fallback, BRANCH_SET_LINK);
+		} else {
+			patch_instruction(dest + 1, ppc_inst(instrs[1]));
+			patch_instruction(dest + 2, ppc_inst(instrs[2]));
+			patch_instruction(dest, ppc_inst(instrs[0]));
+		}
 	}
 
 	printk(KERN_DEBUG "stf-barrier: patched %d entry locations (%s barrier)\n", i,
@@ -179,32 +179,31 @@ static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
 	start = PTRRELOC(&__start___stf_exit_barrier_fixup);
 	end = PTRRELOC(&__stop___stf_exit_barrier_fixup);
 
-	instrs[0] = 0x60000000; /* nop */
-	instrs[1] = 0x60000000; /* nop */
-	instrs[2] = 0x60000000; /* nop */
-	instrs[3] = 0x60000000; /* nop */
-	instrs[4] = 0x60000000; /* nop */
-	instrs[5] = 0x60000000; /* nop */
+	instrs[0] = PPC_RAW_NOP();
+	instrs[1] = PPC_RAW_NOP();
+	instrs[2] = PPC_RAW_NOP();
+	instrs[3] = PPC_RAW_NOP();
+	instrs[4] = PPC_RAW_NOP();
+	instrs[5] = PPC_RAW_NOP();
 
 	i = 0;
 	if (types & STF_BARRIER_FALLBACK || types & STF_BARRIER_SYNC_ORI) {
 		if (cpu_has_feature(CPU_FTR_HVMODE)) {
-			instrs[i++] = 0x7db14ba6; /* mtspr 0x131, r13 (HSPRG1) */
-			instrs[i++] = 0x7db04aa6; /* mfspr r13, 0x130 (HSPRG0) */
+			instrs[i++] = PPC_RAW_MTSPR(SPRN_HSPRG1, _R13);
+			instrs[i++] = PPC_RAW_MFSPR(_R13, SPRN_HSPRG0);
 		} else {
-			instrs[i++] = 0x7db243a6; /* mtsprg 2,r13	*/
-			instrs[i++] = 0x7db142a6; /* mfsprg r13,1    */
+			instrs[i++] = PPC_RAW_MTSPR(SPRN_SPRG2, _R13);
+			instrs[i++] = PPC_RAW_MFSPR(_R13, SPRN_SPRG1);
 	        }
-		instrs[i++] = 0x7c0004ac; /* hwsync		*/
-		instrs[i++] = 0xe9ad0000; /* ld r13,0(r13)	*/
-		instrs[i++] = 0x63ff0000; /* ori 31,31,0 speculation barrier */
-		if (cpu_has_feature(CPU_FTR_HVMODE)) {
-			instrs[i++] = 0x7db14aa6; /* mfspr r13, 0x131 (HSPRG1) */
-		} else {
-			instrs[i++] = 0x7db242a6; /* mfsprg r13,2 */
-		}
+		instrs[i++] = PPC_RAW_SYNC();
+		instrs[i++] = PPC_RAW_LD(_R13, _R13, 0);
+		instrs[i++] = PPC_RAW_ORI(_R31, _R31, 0); /* speculation barrier */
+		if (cpu_has_feature(CPU_FTR_HVMODE))
+			instrs[i++] = PPC_RAW_MFSPR(_R13, SPRN_HSPRG1);
+		else
+			instrs[i++] = PPC_RAW_MFSPR(_R13, SPRN_SPRG2);
 	} else if (types & STF_BARRIER_EIEIO) {
-		instrs[i++] = 0x7e0006ac; /* eieio + bit 6 hint */
+		instrs[i++] = PPC_RAW_EIEIO() | 0x02000000; /* eieio + bit 6 hint */
 	}
 
 	for (i = 0; start < end; start++, i++) {
@@ -212,12 +211,12 @@ static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
 
 		pr_devel("patching dest %lx\n", (unsigned long)dest);
 
-		patch_instruction((struct ppc_inst *)dest, ppc_inst(instrs[0]));
-		patch_instruction((struct ppc_inst *)(dest + 1), ppc_inst(instrs[1]));
-		patch_instruction((struct ppc_inst *)(dest + 2), ppc_inst(instrs[2]));
-		patch_instruction((struct ppc_inst *)(dest + 3), ppc_inst(instrs[3]));
-		patch_instruction((struct ppc_inst *)(dest + 4), ppc_inst(instrs[4]));
-		patch_instruction((struct ppc_inst *)(dest + 5), ppc_inst(instrs[5]));
+		patch_instruction(dest, ppc_inst(instrs[0]));
+		patch_instruction(dest + 1, ppc_inst(instrs[1]));
+		patch_instruction(dest + 2, ppc_inst(instrs[2]));
+		patch_instruction(dest + 3, ppc_inst(instrs[3]));
+		patch_instruction(dest + 4, ppc_inst(instrs[4]));
+		patch_instruction(dest + 5, ppc_inst(instrs[5]));
 	}
 	printk(KERN_DEBUG "stf-barrier: patched %d exit locations (%s barrier)\n", i,
 		(types == STF_BARRIER_NONE)                  ? "no" :
@@ -227,11 +226,44 @@ static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
 		                                           : "unknown");
 }
 
+static bool stf_exit_reentrant = false;
+static bool rfi_exit_reentrant = false;
+
+static int __do_stf_barrier_fixups(void *data)
+{
+	enum stf_barrier_type *types = data;
+
+	do_stf_entry_barrier_fixups(*types);
+	do_stf_exit_barrier_fixups(*types);
+
+	return 0;
+}
 
 void do_stf_barrier_fixups(enum stf_barrier_type types)
 {
-	do_stf_entry_barrier_fixups(types);
-	do_stf_exit_barrier_fixups(types);
+	/*
+	 * The call to the fallback entry flush, and the fallback/sync-ori exit
+	 * flush can not be safely patched in/out while other CPUs are
+	 * executing them. So call __do_stf_barrier_fixups() on one CPU while
+	 * all other CPUs spin in the stop machine core with interrupts hard
+	 * disabled.
+	 *
+	 * The branch to mark interrupt exits non-reentrant is enabled first,
+	 * then stop_machine runs which will ensure all CPUs are out of the
+	 * low level interrupt exit code before patching. After the patching,
+	 * if allowed, then flip the branch to allow fast exits.
+	 */
+	static_branch_enable(&interrupt_exit_not_reentrant);
+
+	stop_machine(__do_stf_barrier_fixups, &types, NULL);
+
+	if ((types & STF_BARRIER_FALLBACK) || (types & STF_BARRIER_SYNC_ORI))
+		stf_exit_reentrant = false;
+	else
+		stf_exit_reentrant = true;
+
+	if (stf_exit_reentrant && rfi_exit_reentrant)
+		static_branch_disable(&interrupt_exit_not_reentrant);
 }
 
 void do_uaccess_flush_fixups(enum l1d_flush_type types)
@@ -243,35 +275,35 @@ void do_uaccess_flush_fixups(enum l1d_flush_type types)
 	start = PTRRELOC(&__start___uaccess_flush_fixup);
 	end = PTRRELOC(&__stop___uaccess_flush_fixup);
 
-	instrs[0] = 0x60000000; /* nop */
-	instrs[1] = 0x60000000; /* nop */
-	instrs[2] = 0x60000000; /* nop */
-	instrs[3] = 0x4e800020; /* blr */
+	instrs[0] = PPC_RAW_NOP();
+	instrs[1] = PPC_RAW_NOP();
+	instrs[2] = PPC_RAW_NOP();
+	instrs[3] = PPC_RAW_BLR();
 
 	i = 0;
 	if (types == L1D_FLUSH_FALLBACK) {
-		instrs[3] = 0x60000000; /* nop */
+		instrs[3] = PPC_RAW_NOP();
 		/* fallthrough to fallback flush */
 	}
 
 	if (types & L1D_FLUSH_ORI) {
-		instrs[i++] = 0x63ff0000; /* ori 31,31,0 speculation barrier */
-		instrs[i++] = 0x63de0000; /* ori 30,30,0 L1d flush*/
+		instrs[i++] = PPC_RAW_ORI(_R31, _R31, 0); /* speculation barrier */
+		instrs[i++] = PPC_RAW_ORI(_R30, _R30, 0); /* L1d flush */
 	}
 
 	if (types & L1D_FLUSH_MTTRIG)
-		instrs[i++] = 0x7c12dba6; /* mtspr TRIG2,r0 (SPR #882) */
+		instrs[i++] = PPC_RAW_MTSPR(SPRN_TRIG2, _R0);
 
 	for (i = 0; start < end; start++, i++) {
 		dest = (void *)start + *start;
 
 		pr_devel("patching dest %lx\n", (unsigned long)dest);
 
-		patch_instruction((struct ppc_inst *)dest, ppc_inst(instrs[0]));
+		patch_instruction(dest, ppc_inst(instrs[0]));
 
-		patch_instruction((struct ppc_inst *)(dest + 1), ppc_inst(instrs[1]));
-		patch_instruction((struct ppc_inst *)(dest + 2), ppc_inst(instrs[2]));
-		patch_instruction((struct ppc_inst *)(dest + 3), ppc_inst(instrs[3]));
+		patch_instruction(dest + 1, ppc_inst(instrs[1]));
+		patch_instruction(dest + 2, ppc_inst(instrs[2]));
+		patch_instruction(dest + 3, ppc_inst(instrs[3]));
 	}
 
 	printk(KERN_DEBUG "uaccess-flush: patched %d locations (%s flush)\n", i,
@@ -284,30 +316,56 @@ void do_uaccess_flush_fixups(enum l1d_flush_type types)
 						: "unknown");
 }
 
-void do_entry_flush_fixups(enum l1d_flush_type types)
+static int __do_entry_flush_fixups(void *data)
 {
+	enum l1d_flush_type types = *(enum l1d_flush_type *)data;
 	unsigned int instrs[3], *dest;
 	long *start, *end;
 	int i;
 
-	instrs[0] = 0x60000000; /* nop */
-	instrs[1] = 0x60000000; /* nop */
-	instrs[2] = 0x60000000; /* nop */
+	instrs[0] = PPC_RAW_NOP();
+	instrs[1] = PPC_RAW_NOP();
+	instrs[2] = PPC_RAW_NOP();
 
 	i = 0;
 	if (types == L1D_FLUSH_FALLBACK) {
-		instrs[i++] = 0x7d4802a6; /* mflr r10		*/
-		instrs[i++] = 0x60000000; /* branch patched below */
-		instrs[i++] = 0x7d4803a6; /* mtlr r10		*/
+		instrs[i++] = PPC_RAW_MFLR(_R10);
+		instrs[i++] = PPC_RAW_NOP(); /* branch patched below */
+		instrs[i++] = PPC_RAW_MTLR(_R10);
 	}
 
 	if (types & L1D_FLUSH_ORI) {
-		instrs[i++] = 0x63ff0000; /* ori 31,31,0 speculation barrier */
-		instrs[i++] = 0x63de0000; /* ori 30,30,0 L1d flush*/
+		instrs[i++] = PPC_RAW_ORI(_R31, _R31, 0); /* speculation barrier */
+		instrs[i++] = PPC_RAW_ORI(_R30, _R30, 0); /* L1d flush */
 	}
 
 	if (types & L1D_FLUSH_MTTRIG)
-		instrs[i++] = 0x7c12dba6; /* mtspr TRIG2,r0 (SPR #882) */
+		instrs[i++] = PPC_RAW_MTSPR(SPRN_TRIG2, _R0);
+
+	/*
+	 * If we're patching in or out the fallback flush we need to be careful about the
+	 * order in which we patch instructions. That's because it's possible we could
+	 * take a page fault after patching one instruction, so the sequence of
+	 * instructions must be safe even in a half patched state.
+	 *
+	 * To make that work, when patching in the fallback flush we patch in this order:
+	 *  - the mflr		(dest)
+	 *  - the mtlr		(dest + 2)
+	 *  - the branch	(dest + 1)
+	 *
+	 * That ensures the sequence is safe to execute at any point. In contrast if we
+	 * patch the mtlr last, it's possible we could return from the branch and not
+	 * restore LR, leading to a crash later.
+	 *
+	 * When patching out the fallback flush (either with nops or another flush type),
+	 * we patch in this order:
+	 *  - the branch	(dest + 1)
+	 *  - the mtlr		(dest + 2)
+	 *  - the mflr		(dest)
+	 *
+	 * Note we are protected by stop_machine() from other CPUs executing the code in a
+	 * semi-patched state.
+	 */
 
 	start = PTRRELOC(&__start___entry_flush_fixup);
 	end = PTRRELOC(&__stop___entry_flush_fixup);
@@ -316,15 +374,16 @@ void do_entry_flush_fixups(enum l1d_flush_type types)
 
 		pr_devel("patching dest %lx\n", (unsigned long)dest);
 
-		patch_instruction((struct ppc_inst *)dest, ppc_inst(instrs[0]));
-
-		if (types == L1D_FLUSH_FALLBACK)
-			patch_branch((struct ppc_inst *)(dest + 1), (unsigned long)&entry_flush_fallback,
-				     BRANCH_SET_LINK);
-		else
-			patch_instruction((struct ppc_inst *)(dest + 1), ppc_inst(instrs[1]));
-
-		patch_instruction((struct ppc_inst *)(dest + 2), ppc_inst(instrs[2]));
+		if (types == L1D_FLUSH_FALLBACK) {
+			patch_instruction(dest, ppc_inst(instrs[0]));
+			patch_instruction(dest + 2, ppc_inst(instrs[2]));
+			patch_branch(dest + 1,
+				     (unsigned long)&entry_flush_fallback, BRANCH_SET_LINK);
+		} else {
+			patch_instruction(dest + 1, ppc_inst(instrs[1]));
+			patch_instruction(dest + 2, ppc_inst(instrs[2]));
+			patch_instruction(dest, ppc_inst(instrs[0]));
+		}
 	}
 
 	start = PTRRELOC(&__start___scv_entry_flush_fixup);
@@ -334,15 +393,16 @@ void do_entry_flush_fixups(enum l1d_flush_type types)
 
 		pr_devel("patching dest %lx\n", (unsigned long)dest);
 
-		patch_instruction((struct ppc_inst *)dest, ppc_inst(instrs[0]));
-
-		if (types == L1D_FLUSH_FALLBACK)
-			patch_branch((struct ppc_inst *)(dest + 1), (unsigned long)&scv_entry_flush_fallback,
-				     BRANCH_SET_LINK);
-		else
-			patch_instruction((struct ppc_inst *)(dest + 1), ppc_inst(instrs[1]));
-
-		patch_instruction((struct ppc_inst *)(dest + 2), ppc_inst(instrs[2]));
+		if (types == L1D_FLUSH_FALLBACK) {
+			patch_instruction(dest, ppc_inst(instrs[0]));
+			patch_instruction(dest + 2, ppc_inst(instrs[2]));
+			patch_branch(dest + 1,
+				     (unsigned long)&scv_entry_flush_fallback, BRANCH_SET_LINK);
+		} else {
+			patch_instruction(dest + 1, ppc_inst(instrs[1]));
+			patch_instruction(dest + 2, ppc_inst(instrs[2]));
+			patch_instruction(dest, ppc_inst(instrs[0]));
+		}
 	}
 
 
@@ -354,10 +414,24 @@ void do_entry_flush_fixups(enum l1d_flush_type types)
 							: "ori type" :
 		(types &  L1D_FLUSH_MTTRIG)     ? "mttrig type"
 						: "unknown");
+
+	return 0;
 }
 
-void do_rfi_flush_fixups(enum l1d_flush_type types)
+void do_entry_flush_fixups(enum l1d_flush_type types)
 {
+	/*
+	 * The call to the fallback flush can not be safely patched in/out while
+	 * other CPUs are executing it. So call __do_entry_flush_fixups() on one
+	 * CPU while all other CPUs spin in the stop machine core with interrupts
+	 * hard disabled.
+	 */
+	stop_machine(__do_entry_flush_fixups, &types, NULL);
+}
+
+static int __do_rfi_flush_fixups(void *data)
+{
+	enum l1d_flush_type types = *(enum l1d_flush_type *)data;
 	unsigned int instrs[3], *dest;
 	long *start, *end;
 	int i;
@@ -365,31 +439,31 @@ void do_rfi_flush_fixups(enum l1d_flush_type types)
 	start = PTRRELOC(&__start___rfi_flush_fixup);
 	end = PTRRELOC(&__stop___rfi_flush_fixup);
 
-	instrs[0] = 0x60000000; /* nop */
-	instrs[1] = 0x60000000; /* nop */
-	instrs[2] = 0x60000000; /* nop */
+	instrs[0] = PPC_RAW_NOP();
+	instrs[1] = PPC_RAW_NOP();
+	instrs[2] = PPC_RAW_NOP();
 
 	if (types & L1D_FLUSH_FALLBACK)
 		/* b .+16 to fallback flush */
-		instrs[0] = 0x48000010;
+		instrs[0] = PPC_INST_BRANCH | 16;
 
 	i = 0;
 	if (types & L1D_FLUSH_ORI) {
-		instrs[i++] = 0x63ff0000; /* ori 31,31,0 speculation barrier */
-		instrs[i++] = 0x63de0000; /* ori 30,30,0 L1d flush*/
+		instrs[i++] = PPC_RAW_ORI(_R31, _R31, 0); /* speculation barrier */
+		instrs[i++] = PPC_RAW_ORI(_R30, _R30, 0); /* L1d flush */
 	}
 
 	if (types & L1D_FLUSH_MTTRIG)
-		instrs[i++] = 0x7c12dba6; /* mtspr TRIG2,r0 (SPR #882) */
+		instrs[i++] = PPC_RAW_MTSPR(SPRN_TRIG2, _R0);
 
 	for (i = 0; start < end; start++, i++) {
 		dest = (void *)start + *start;
 
 		pr_devel("patching dest %lx\n", (unsigned long)dest);
 
-		patch_instruction((struct ppc_inst *)dest, ppc_inst(instrs[0]));
-		patch_instruction((struct ppc_inst *)(dest + 1), ppc_inst(instrs[1]));
-		patch_instruction((struct ppc_inst *)(dest + 2), ppc_inst(instrs[2]));
+		patch_instruction(dest, ppc_inst(instrs[0]));
+		patch_instruction(dest + 1, ppc_inst(instrs[1]));
+		patch_instruction(dest + 2, ppc_inst(instrs[2]));
 	}
 
 	printk(KERN_DEBUG "rfi-flush: patched %d locations (%s flush)\n", i,
@@ -400,6 +474,29 @@ void do_rfi_flush_fixups(enum l1d_flush_type types)
 							: "ori type" :
 		(types &  L1D_FLUSH_MTTRIG)     ? "mttrig type"
 						: "unknown");
+
+	return 0;
+}
+
+void do_rfi_flush_fixups(enum l1d_flush_type types)
+{
+	/*
+	 * stop_machine gets all CPUs out of the interrupt exit handler same
+	 * as do_stf_barrier_fixups. do_rfi_flush_fixups patching can run
+	 * without stop_machine, so this could be achieved with a broadcast
+	 * IPI instead, but this matches the stf sequence.
+	 */
+	static_branch_enable(&interrupt_exit_not_reentrant);
+
+	stop_machine(__do_rfi_flush_fixups, &types, NULL);
+
+	if (types & L1D_FLUSH_FALLBACK)
+		rfi_exit_reentrant = false;
+	else
+		rfi_exit_reentrant = true;
+
+	if (stf_exit_reentrant && rfi_exit_reentrant)
+		static_branch_disable(&interrupt_exit_not_reentrant);
 }
 
 void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_end)
@@ -411,18 +508,18 @@ void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_
 	start = fixup_start;
 	end = fixup_end;
 
-	instr = 0x60000000; /* nop */
+	instr = PPC_RAW_NOP();
 
 	if (enable) {
 		pr_info("barrier-nospec: using ORI speculation barrier\n");
-		instr = 0x63ff0000; /* ori 31,31,0 speculation barrier */
+		instr = PPC_RAW_ORI(_R31, _R31, 0); /* speculation barrier */
 	}
 
 	for (i = 0; start < end; start++, i++) {
 		dest = (void *)start + *start;
 
 		pr_devel("patching dest %lx\n", (unsigned long)dest);
-		patch_instruction((struct ppc_inst *)dest, ppc_inst(instr));
+		patch_instruction(dest, ppc_inst(instr));
 	}
 
 	printk(KERN_DEBUG "barrier-nospec: patched %d locations\n", i);
@@ -452,21 +549,21 @@ void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_
 	start = fixup_start;
 	end = fixup_end;
 
-	instr[0] = PPC_INST_NOP;
-	instr[1] = PPC_INST_NOP;
+	instr[0] = PPC_RAW_NOP();
+	instr[1] = PPC_RAW_NOP();
 
 	if (enable) {
 		pr_info("barrier-nospec: using isync; sync as speculation barrier\n");
-		instr[0] = PPC_INST_ISYNC;
-		instr[1] = PPC_INST_SYNC;
+		instr[0] = PPC_RAW_ISYNC();
+		instr[1] = PPC_RAW_SYNC();
 	}
 
 	for (i = 0; start < end; start++, i++) {
 		dest = (void *)start + *start;
 
 		pr_devel("patching dest %lx\n", (unsigned long)dest);
-		patch_instruction((struct ppc_inst *)dest, ppc_inst(instr[0]));
-		patch_instruction((struct ppc_inst *)(dest + 1), ppc_inst(instr[1]));
+		patch_instruction(dest, ppc_inst(instr[0]));
+		patch_instruction(dest + 1, ppc_inst(instr[1]));
 	}
 
 	printk(KERN_DEBUG "barrier-nospec: patched %d locations\n", i);
@@ -480,7 +577,7 @@ static void patch_btb_flush_section(long *curr)
 	end = (void *)curr + *(curr + 1);
 	for (; start < end; start++) {
 		pr_devel("patching dest %lx\n", (unsigned long)start);
-		patch_instruction((struct ppc_inst *)start, ppc_inst(PPC_INST_NOP));
+		patch_instruction(start, ppc_inst(PPC_RAW_NOP()));
 	}
 }
 
@@ -499,7 +596,7 @@ void do_btb_flush_fixups(void)
 void do_lwsync_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 {
 	long *start, *end;
-	struct ppc_inst *dest;
+	u32 *dest;
 
 	if (!(value & CPU_FTR_LWSYNC))
 		return ;
@@ -516,13 +613,14 @@ void do_lwsync_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 static void do_final_fixups(void)
 {
 #if defined(CONFIG_PPC64) && defined(CONFIG_RELOCATABLE)
-	struct ppc_inst inst, *src, *dest, *end;
+	struct ppc_inst inst;
+	u32 *src, *dest, *end;
 
 	if (PHYSICAL_START == 0)
 		return;
 
-	src = (struct ppc_inst *)(KERNELBASE + PHYSICAL_START);
-	dest = (struct ppc_inst *)KERNELBASE;
+	src = (u32 *)(KERNELBASE + PHYSICAL_START);
+	dest = (u32 *)KERNELBASE;
 	end = (void *)src + (__end_interrupts - _stext);
 
 	while (src < end) {

@@ -7,26 +7,28 @@
  * Copyright (C) 2013 Linaro Limited.
  * Author: Sandeepa Prabhu <sandeepa.prabhu@linaro.org>
  */
+#include <linux/extable.h>
 #include <linux/kasan.h>
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
-#include <linux/extable.h>
-#include <linux/slab.h>
-#include <linux/stop_machine.h>
 #include <linux/sched/debug.h>
 #include <linux/set_memory.h>
+#include <linux/slab.h>
+#include <linux/stop_machine.h>
 #include <linux/stringify.h>
-#include <linux/vmalloc.h>
-#include <asm/traps.h>
-#include <asm/ptrace.h>
-#include <asm/cacheflush.h>
-#include <asm/debug-monitors.h>
-#include <asm/daifflags.h>
-#include <asm/system_misc.h>
-#include <asm/insn.h>
 #include <linux/uaccess.h>
+#include <linux/vmalloc.h>
+
+#include <asm/cacheflush.h>
+#include <asm/daifflags.h>
+#include <asm/debug-monitors.h>
+#include <asm/insn.h>
 #include <asm/irq.h>
+#include <asm/patching.h>
+#include <asm/ptrace.h>
 #include <asm/sections.h>
+#include <asm/system_misc.h>
+#include <asm/traps.h>
 
 #include "decode-insn.h"
 

@@ -327,14 +327,14 @@ static int __init cops_probe1(struct net_device *dev, int ioaddr)
 			break;
 	}
 
+	dev->base_addr = ioaddr;
+
 	/* Reserve any actual interrupt. */
 	if (dev->irq) {
 		retval = request_irq(dev->irq, cops_interrupt, 0, dev->name, dev);
 		if (retval)
 			goto err_out;
 	}
-
-	dev->base_addr = ioaddr;
 
         lp = netdev_priv(dev);
         spin_lock_init(&lp->lock);
@@ -609,12 +609,12 @@ static int cops_nodeid (struct net_device *dev, int nodeid)
 
 	if(lp->board == DAYNA)
         {
-        	/* Empty any pending adapter responses. */
+		/* Empty any pending adapter responses. */
                 while((inb(ioaddr+DAYNA_CARD_STATUS)&DAYNA_TX_READY)==0)
                 {
 			outb(0, ioaddr+COPS_CLEAR_INT);	/* Clear interrupts. */
-        		if((inb(ioaddr+DAYNA_CARD_STATUS)&0x03)==DAYNA_RX_REQUEST)
-                		cops_rx(dev);	/* Kick any packets waiting. */
+			if((inb(ioaddr+DAYNA_CARD_STATUS)&0x03)==DAYNA_RX_REQUEST)
+				cops_rx(dev);	/* Kick any packets waiting. */
 			schedule();
                 }
 
@@ -630,13 +630,13 @@ static int cops_nodeid (struct net_device *dev, int nodeid)
                 while(inb(ioaddr+TANG_CARD_STATUS)&TANG_RX_READY)
                 {
 			outb(0, ioaddr+COPS_CLEAR_INT);	/* Clear interrupt. */
-                	cops_rx(dev);          	/* Kick out packets waiting. */
+			cops_rx(dev);          	/* Kick out packets waiting. */
 			schedule();
                 }
 
 		/* Not sure what Tangent does if nodeid picked is used. */
                 if(nodeid == 0)	         		/* Seed. */
-                	nodeid = jiffies&0xFF;		/* Get a random try */
+			nodeid = jiffies&0xFF;		/* Get a random try */
                 outb(2, ioaddr);        		/* Command length LSB */
                 outb(0, ioaddr);       			/* Command length MSB */
                 outb(LAP_INIT, ioaddr); 		/* Send LAP_INIT byte */
@@ -651,13 +651,13 @@ static int cops_nodeid (struct net_device *dev, int nodeid)
 
 		if(lp->board == DAYNA)
 		{
-                	if((inb(ioaddr+DAYNA_CARD_STATUS)&0x03)==DAYNA_RX_REQUEST)
-                		cops_rx(dev);	/* Grab the nodeid put in lp->node_acquire. */
+			if((inb(ioaddr+DAYNA_CARD_STATUS)&0x03)==DAYNA_RX_REQUEST)
+				cops_rx(dev);	/* Grab the nodeid put in lp->node_acquire. */
 		}
 		if(lp->board == TANGENT)
 		{	
 			if(inb(ioaddr+TANG_CARD_STATUS)&TANG_RX_READY)
-                                cops_rx(dev);   /* Grab the nodeid put in lp->node_acquire. */
+				cops_rx(dev);   /* Grab the nodeid put in lp->node_acquire. */
 		}
 		schedule();
 	}
@@ -719,16 +719,16 @@ static irqreturn_t cops_interrupt(int irq, void *dev_id)
 	{
 		do {
 			outb(0, ioaddr + COPS_CLEAR_INT);
-                       	status=inb(ioaddr+DAYNA_CARD_STATUS);
-                       	if((status&0x03)==DAYNA_RX_REQUEST)
-                       	        cops_rx(dev);
-                	netif_wake_queue(dev);
+			status=inb(ioaddr+DAYNA_CARD_STATUS);
+			if((status&0x03)==DAYNA_RX_REQUEST)
+				cops_rx(dev);
+			netif_wake_queue(dev);
 		} while(++boguscount < 20);
 	}
 	else
 	{
 		do {
-                       	status=inb(ioaddr+TANG_CARD_STATUS);
+			status=inb(ioaddr+TANG_CARD_STATUS);
 			if(status & TANG_RX_READY)
 				cops_rx(dev);
 			if(status & TANG_TX_READY)
@@ -855,7 +855,7 @@ static void cops_timeout(struct net_device *dev, unsigned int txqueue)
         if(lp->board==TANGENT)
         {
 		if((inb(ioaddr+TANG_CARD_STATUS)&TANG_TX_READY)==0)
-               		printk(KERN_WARNING "%s: No TX complete interrupt.\n", dev->name);
+			printk(KERN_WARNING "%s: No TX complete interrupt.\n", dev->name);
 	}
 	printk(KERN_WARNING "%s: Transmit timed out.\n", dev->name);
 	cops_jumpstart(dev);	/* Restart the card. */
@@ -897,7 +897,7 @@ static netdev_tx_t cops_send_packet(struct sk_buff *skb,
 	outb(LAP_WRITE, ioaddr);
 
 	if(lp->board == DAYNA)	/* Check the transmit buffer again. */
-        	while((inb(ioaddr+DAYNA_CARD_STATUS)&DAYNA_TX_READY)==0);
+		while((inb(ioaddr+DAYNA_CARD_STATUS)&DAYNA_TX_READY)==0);
 
 	outsb(ioaddr, skb->data, skb->len);	/* Send out the data. */
 

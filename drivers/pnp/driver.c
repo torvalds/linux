@@ -68,6 +68,7 @@ int pnp_device_attach(struct pnp_dev *pnp_dev)
 	mutex_unlock(&pnp_lock);
 	return 0;
 }
+EXPORT_SYMBOL(pnp_device_attach);
 
 void pnp_device_detach(struct pnp_dev *pnp_dev)
 {
@@ -76,6 +77,7 @@ void pnp_device_detach(struct pnp_dev *pnp_dev)
 		pnp_dev->status = PNP_READY;
 	mutex_unlock(&pnp_lock);
 }
+EXPORT_SYMBOL(pnp_device_detach);
 
 static int pnp_device_probe(struct device *dev)
 {
@@ -271,11 +273,13 @@ int pnp_register_driver(struct pnp_driver *drv)
 
 	return driver_register(&drv->driver);
 }
+EXPORT_SYMBOL(pnp_register_driver);
 
 void pnp_unregister_driver(struct pnp_driver *drv)
 {
 	driver_unregister(&drv->driver);
 }
+EXPORT_SYMBOL(pnp_unregister_driver);
 
 /**
  * pnp_add_id - adds an EISA id to the specified device
@@ -310,8 +314,3 @@ struct pnp_id *pnp_add_id(struct pnp_dev *dev, const char *id)
 
 	return dev_id;
 }
-
-EXPORT_SYMBOL(pnp_register_driver);
-EXPORT_SYMBOL(pnp_unregister_driver);
-EXPORT_SYMBOL(pnp_device_attach);
-EXPORT_SYMBOL(pnp_device_detach);

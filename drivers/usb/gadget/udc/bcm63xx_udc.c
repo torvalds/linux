@@ -288,7 +288,6 @@ struct bcm63xx_req {
  * @ep0_req_completed: ep0 request has completed; worker has not seen it yet.
  * @ep0_reply: Pending reply from gadget driver.
  * @ep0_request: Outstanding ep0 request.
- * @debugfs_root: debugfs directory: /sys/kernel/debug/<DRV_MODULE_NAME>.
  */
 struct bcm63xx_udc {
 	spinlock_t			lock;
@@ -327,8 +326,6 @@ struct bcm63xx_udc {
 	unsigned			ep0_req_completed:1;
 	struct usb_request		*ep0_reply;
 	struct usb_request		*ep0_request;
-
-	struct dentry			*debugfs_root;
 };
 
 static const struct usb_ep_ops bcm63xx_udc_ep_ops;
@@ -2250,8 +2247,6 @@ static void bcm63xx_udc_init_debugfs(struct bcm63xx_udc *udc)
 		return;
 
 	root = debugfs_create_dir(udc->gadget.name, usb_debug_root);
-	udc->debugfs_root = root;
-
 	debugfs_create_file("usbd", 0400, root, udc, &bcm63xx_usbd_dbg_fops);
 	debugfs_create_file("iudma", 0400, root, udc, &bcm63xx_iudma_dbg_fops);
 }
@@ -2264,7 +2259,7 @@ static void bcm63xx_udc_init_debugfs(struct bcm63xx_udc *udc)
  */
 static void bcm63xx_udc_cleanup_debugfs(struct bcm63xx_udc *udc)
 {
-	debugfs_remove_recursive(udc->debugfs_root);
+	debugfs_remove(debugfs_lookup(udc->gadget.name, usb_debug_root));
 }
 
 /***********************************************************************

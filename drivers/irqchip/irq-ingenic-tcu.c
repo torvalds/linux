@@ -38,7 +38,7 @@ static void ingenic_tcu_intc_cascade(struct irq_desc *desc)
 	irq_reg &= ~irq_mask;
 
 	for_each_set_bit(i, (unsigned long *)&irq_reg, 32)
-		generic_handle_irq(irq_linear_revmap(domain, i));
+		generic_handle_domain_irq(domain, i);
 
 	chained_irq_exit(irq_chip, desc);
 }

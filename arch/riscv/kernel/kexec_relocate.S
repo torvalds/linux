@@ -20,7 +20,7 @@ SYM_CODE_START(riscv_kexec_relocate)
 	 * s4: Pointer to the destination address for the relocation
 	 * s5: (const) Number of words per page
 	 * s6: (const) 1, used for subtraction
-	 * s7: (const) va_pa_offset, used when switching MMU off
+	 * s7: (const) kernel_map.va_pa_offset, used when switching MMU off
 	 * s8: (const) Physical address of the main loop
 	 * s9: (debug) indirection page counter
 	 * s10: (debug) entry counter
@@ -159,7 +159,7 @@ SYM_CODE_START(riscv_kexec_norelocate)
 	 * s0: (const) Phys address to jump to
 	 * s1: (const) Phys address of the FDT image
 	 * s2: (const) The hartid of the current hart
-	 * s3: (const) va_pa_offset, used when switching MMU off
+	 * s3: (const) kernel_map.va_pa_offset, used when switching MMU off
 	 */
 	mv	s0, a1
 	mv	s1, a2

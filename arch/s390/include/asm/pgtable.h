@@ -17,6 +17,7 @@
 #include <linux/page-flags.h>
 #include <linux/radix-tree.h>
 #include <linux/atomic.h>
+#include <asm/sections.h>
 #include <asm/bug.h>
 #include <asm/page.h>
 #include <asm/uv.h>
@@ -65,8 +66,6 @@ extern unsigned long zero_page_mask;
 
 /* TODO: s390 cannot support io_remap_pfn_range... */
 
-#define FIRST_USER_ADDRESS  0UL
-
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %p.\n", __FILE__, __LINE__, (void *) pte_val(e))
 #define pmd_ERROR(e) \
@@ -86,16 +85,16 @@ extern unsigned long zero_page_mask;
  * happen without trampolines and in addition the placement within a
  * 2GB frame is branch prediction unit friendly.
  */
-extern unsigned long VMALLOC_START;
-extern unsigned long VMALLOC_END;
+extern unsigned long __bootdata_preserved(VMALLOC_START);
+extern unsigned long __bootdata_preserved(VMALLOC_END);
 #define VMALLOC_DEFAULT_SIZE	((512UL << 30) - MODULES_LEN)
-extern struct page *vmemmap;
-extern unsigned long vmemmap_size;
+extern struct page *__bootdata_preserved(vmemmap);
+extern unsigned long __bootdata_preserved(vmemmap_size);
 
 #define VMEM_MAX_PHYS ((unsigned long) vmemmap)
 
-extern unsigned long MODULES_VADDR;
-extern unsigned long MODULES_END;
+extern unsigned long __bootdata_preserved(MODULES_VADDR);
+extern unsigned long __bootdata_preserved(MODULES_END);
 #define MODULES_VADDR	MODULES_VADDR
 #define MODULES_END	MODULES_END
 #define MODULES_LEN	(1UL << 31)
@@ -344,8 +343,6 @@ static inline int is_module_addr(void *addr)
 #define PTRS_PER_P4D	_CRST_ENTRIES
 #define PTRS_PER_PGD	_CRST_ENTRIES
 
-#define MAX_PTRS_PER_P4D	PTRS_PER_P4D
-
 /*
  * Segment table and region3 table entry encoding
  * (R = read-only, I = invalid, y = young bit):
@@ -557,27 +554,25 @@ static inline int mm_uses_skeys(struct mm_struct *mm)
 
 static inline void csp(unsigned int *ptr, unsigned int old, unsigned int new)
 {
-	register unsigned long reg2 asm("2") = old;
-	register unsigned long reg3 asm("3") = new;
+	union register_pair r1 = { .even = old, .odd = new, };
 	unsigned long address = (unsigned long)ptr | 1;
 
 	asm volatile(
-		"	csp	%0,%3"
-		: "+d" (reg2), "+m" (*ptr)
-		: "d" (reg3), "d" (address)
+		"	csp	%[r1],%[address]"
+		: [r1] "+&d" (r1.pair), "+m" (*ptr)
+		: [address] "d" (address)
 		: "cc");
 }
 
 static inline void cspg(unsigned long *ptr, unsigned long old, unsigned long new)
 {
-	register unsigned long reg2 asm("2") = old;
-	register unsigned long reg3 asm("3") = new;
+	union register_pair r1 = { .even = old, .odd = new, };
 	unsigned long address = (unsigned long)ptr | 1;
 
 	asm volatile(
-		"	.insn	rre,0xb98a0000,%0,%3"
-		: "+d" (reg2), "+m" (*ptr)
-		: "d" (reg3), "d" (address)
+		"	.insn	rre,0xb98a0000,%[r1],%[address]"
+		: [r1] "+&d" (r1.pair), "+m" (*ptr)
+		: [address] "d" (address)
 		: "cc");
 }
 
@@ -591,14 +586,12 @@ static inline void crdte(unsigned long old, unsigned long new,
 			 unsigned long table, unsigned long dtt,
 			 unsigned long address, unsigned long asce)
 {
-	register unsigned long reg2 asm("2") = old;
-	register unsigned long reg3 asm("3") = new;
-	register unsigned long reg4 asm("4") = table | dtt;
-	register unsigned long reg5 asm("5") = address;
+	union register_pair r1 = { .even = old, .odd = new, };
+	union register_pair r2 = { .even = table | dtt, .odd = address, };
 
-	asm volatile(".insn rrf,0xb98f0000,%0,%2,%4,0"
-		     : "+d" (reg2)
-		     : "d" (reg3), "d" (reg4), "d" (reg5), "a" (asce)
+	asm volatile(".insn rrf,0xb98f0000,%[r1],%[r2],%[asce],0"
+		     : [r1] "+&d" (r1.pair)
+		     : [r2] "d" (r2.pair), [asce] "a" (asce)
 		     : "memory", "cc");
 }
 
@@ -863,6 +856,25 @@ static inline int pte_young(pte_t pte)
 static inline int pte_unused(pte_t pte)
 {
 	return pte_val(pte) & _PAGE_UNUSED;
+}
+
+/*
+ * Extract the pgprot value from the given pte while at the same time making it
+ * usable for kernel address space mappings where fault driven dirty and
+ * young/old accounting is not supported, i.e _PAGE_PROTECT and _PAGE_INVALID
+ * must not be set.
+ */
+static inline pgprot_t pte_pgprot(pte_t pte)
+{
+	unsigned long pte_flags = pte_val(pte) & _PAGE_CHG_MASK;
+
+	if (pte_write(pte))
+		pte_flags |= pgprot_val(PAGE_KERNEL);
+	else
+		pte_flags |= pgprot_val(PAGE_KERNEL_RO);
+	pte_flags |= pte_val(pte) & mio_wb_bit_mask;
+
+	return __pgprot(pte_flags);
 }
 
 /*
@@ -1712,5 +1724,8 @@ extern void s390_reset_cmma(struct mm_struct *mm);
 /* s390 has a private copy of get unmapped area to deal with cache synonyms */
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
+
+#define pmd_pgtable(pmd) \
+	((pgtable_t)__va(pmd_val(pmd) & -sizeof(pte_t)*PTRS_PER_PTE))
 
 #endif /* _S390_PAGE_H */

@@ -137,7 +137,7 @@ void efi_virtmap_unload(void);
 
 static inline void efi_capsule_flush_cache_range(void *addr, int size)
 {
-	__flush_dcache_area(addr, size);
+	dcache_clean_inval_poc((unsigned long)addr, (unsigned long)addr + size);
 }
 
 #endif /* _ASM_EFI_H */

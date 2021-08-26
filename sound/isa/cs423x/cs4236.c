@@ -339,11 +339,13 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 	int err;
 
 	acard = card->private_data;
-	if (sb_port[dev] > 0 && sb_port[dev] != SNDRV_AUTO_PORT)
-		if ((acard->res_sb_port = request_region(sb_port[dev], 16, IDENT " SB")) == NULL) {
+	if (sb_port[dev] > 0 && sb_port[dev] != SNDRV_AUTO_PORT) {
+		acard->res_sb_port = request_region(sb_port[dev], 16, IDENT " SB");
+		if (!acard->res_sb_port) {
 			printk(KERN_ERR IDENT ": unable to register SB port at 0x%lx\n", sb_port[dev]);
 			return -EBUSY;
 		}
+	}
 
 	err = snd_cs4236_create(card, port[dev], cport[dev],
 			     irq[dev],
@@ -393,7 +395,8 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 				    OPL3_HW_OPL3_CS, 0, &opl3) < 0) {
 			printk(KERN_WARNING IDENT ": OPL3 not detected\n");
 		} else {
-			if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0)
+			err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
+			if (err < 0)
 				return err;
 		}
 	}
@@ -444,7 +447,8 @@ static int snd_cs423x_isa_probe(struct device *pdev,
 	err = snd_cs423x_card_new(pdev, dev, &card);
 	if (err < 0)
 		return err;
-	if ((err = snd_cs423x_probe(card, dev)) < 0) {
+	err = snd_cs423x_probe(card, dev);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -538,7 +542,8 @@ static int snd_cs423x_pnpbios_detect(struct pnp_dev *pdev,
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_cs423x_probe(card, dev)) < 0) {
+	err = snd_cs423x_probe(card, dev);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -592,13 +597,15 @@ static int snd_cs423x_pnpc_detect(struct pnp_card_link *pcard,
 	res = snd_cs423x_card_new(&pcard->card->dev, dev, &card);
 	if (res < 0)
 		return res;
-	if ((res = snd_card_cs423x_pnpc(dev, card->private_data, pcard, pid)) < 0) {
+	res = snd_card_cs423x_pnpc(dev, card->private_data, pcard, pid);
+	if (res < 0) {
 		printk(KERN_ERR "isapnp detection failed and probing for " IDENT
 		       " is not supported\n");
 		snd_card_free(card);
 		return res;
 	}
-	if ((res = snd_cs423x_probe(card, dev)) < 0) {
+	res = snd_cs423x_probe(card, dev);
+	if (res < 0) {
 		snd_card_free(card);
 		return res;
 	}

@@ -31,7 +31,7 @@ extern void __bad_xchg(void);
 	__ret;							\
 })
 
-#define xchg_relaxed(ptr, x) \
+#define arch_xchg_relaxed(ptr, x) \
 		(__xchg_relaxed((x), (ptr), sizeof(*(ptr))))
 
 #define __cmpxchg_relaxed(ptr, old, new, size)			\
@@ -61,14 +61,14 @@ extern void __bad_xchg(void);
 	__ret;							\
 })
 
-#define cmpxchg_relaxed(ptr, o, n) \
+#define arch_cmpxchg_relaxed(ptr, o, n) \
 	(__cmpxchg_relaxed((ptr), (o), (n), sizeof(*(ptr))))
 
-#define cmpxchg(ptr, o, n) 					\
+#define arch_cmpxchg(ptr, o, n) 				\
 ({								\
 	__typeof__(*(ptr)) __ret;				\
 	__smp_release_fence();					\
-	__ret = cmpxchg_relaxed(ptr, o, n);			\
+	__ret = arch_cmpxchg_relaxed(ptr, o, n);		\
 	__smp_acquire_fence();					\
 	__ret;							\
 })

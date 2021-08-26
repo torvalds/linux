@@ -113,8 +113,9 @@ static unsigned long get_user_msr(struct task_struct *task)
 
 static __always_inline int set_user_msr(struct task_struct *task, unsigned long msr)
 {
-	task->thread.regs->msr &= ~MSR_DEBUGCHANGE;
-	task->thread.regs->msr |= msr & MSR_DEBUGCHANGE;
+	unsigned long newmsr = (task->thread.regs->msr & ~MSR_DEBUGCHANGE) |
+				(msr & MSR_DEBUGCHANGE);
+	regs_set_return_msr(task->thread.regs, newmsr);
 	return 0;
 }
 

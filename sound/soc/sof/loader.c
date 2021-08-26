@@ -517,7 +517,7 @@ int sof_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 		return 0;
 
 	/* copy data from the DSP FW ready offset */
-	sof_block_read(sdev, bar, offset, fw_ready, sizeof(*fw_ready));
+	snd_sof_dsp_block_read(sdev, bar, offset, fw_ready, sizeof(*fw_ready));
 
 	/* make sure ABI version is compatible */
 	ret = snd_sof_ipc_valid(sdev);

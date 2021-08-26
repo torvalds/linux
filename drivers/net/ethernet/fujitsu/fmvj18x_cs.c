@@ -548,8 +548,8 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
 
     base = ioremap(link->resource[2]->start, resource_size(link->resource[2]));
     if (!base) {
-	    pcmcia_release_window(link, link->resource[2]);
-	    return -ENOMEM;
+	pcmcia_release_window(link, link->resource[2]);
+	return -1;
     }
 
     pcmcia_map_mem_page(link, link->resource[2], 0);
@@ -812,9 +812,9 @@ static netdev_tx_t fjn_start_xmit(struct sk_buff *skb,
     
     if (length < ETH_ZLEN)
     {
-    	if (skb_padto(skb, ETH_ZLEN))
-    		return NETDEV_TX_OK;
-    	length = ETH_ZLEN;
+	if (skb_padto(skb, ETH_ZLEN))
+		return NETDEV_TX_OK;
+	length = ETH_ZLEN;
     }
 
     netif_stop_queue(dev);

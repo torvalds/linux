@@ -897,7 +897,7 @@ static int rpcs_query_batch(struct drm_i915_gem_object *rpcs, struct i915_vma *v
 {
 	u32 *cmd;
 
-	GEM_BUG_ON(INTEL_GEN(vma->vm->i915) < 8);
+	GEM_BUG_ON(GRAPHICS_VER(vma->vm->i915) < 8);
 
 	cmd = i915_gem_object_pin_map(rpcs, I915_MAP_WB);
 	if (IS_ERR(cmd))
@@ -932,7 +932,7 @@ emit_rpcs_query(struct drm_i915_gem_object *obj,
 
 	GEM_BUG_ON(!intel_engine_can_store_dword(ce->engine));
 
-	if (INTEL_GEN(i915) < 8)
+	if (GRAPHICS_VER(i915) < 8)
 		return -EINVAL;
 
 	vma = i915_vma_instance(obj, ce->vm, NULL);
@@ -1100,7 +1100,7 @@ __read_slice_count(struct intel_context *ce,
 		return ret;
 	}
 
-	if (INTEL_GEN(ce->engine->i915) >= 11) {
+	if (GRAPHICS_VER(ce->engine->i915) >= 11) {
 		s_mask = GEN11_RPCS_S_CNT_MASK;
 		s_shift = GEN11_RPCS_S_CNT_SHIFT;
 	} else {
@@ -1229,7 +1229,7 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 	int inst = 0;
 	int ret = 0;
 
-	if (INTEL_GEN(i915) < 9)
+	if (GRAPHICS_VER(i915) < 9)
 		return 0;
 
 	if (flags & TEST_RESET)
@@ -1518,7 +1518,7 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 	}
 
 	*cmd++ = MI_STORE_DWORD_IMM_GEN4;
-	if (INTEL_GEN(i915) >= 8) {
+	if (GRAPHICS_VER(i915) >= 8) {
 		*cmd++ = lower_32_bits(offset);
 		*cmd++ = upper_32_bits(offset);
 	} else {
@@ -1608,7 +1608,7 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	if (INTEL_GEN(i915) >= 8) {
+	if (GRAPHICS_VER(i915) >= 8) {
 		const u32 GPR0 = engine->mmio_base + 0x600;
 
 		vm = i915_gem_context_get_vm_rcu(ctx);
@@ -1740,7 +1740,6 @@ out:
 static int check_scratch_page(struct i915_gem_context *ctx, u32 *out)
 {
 	struct i915_address_space *vm;
-	struct page *page;
 	u32 *vaddr;
 	int err = 0;
 
@@ -1748,24 +1747,18 @@ static int check_scratch_page(struct i915_gem_context *ctx, u32 *out)
 	if (!vm)
 		return -ENODEV;
 
-	page = __px_page(vm->scratch[0]);
-	if (!page) {
+	if (!vm->scratch[0]) {
 		pr_err("No scratch page!\n");
 		return -EINVAL;
 	}
 
-	vaddr = kmap(page);
-	if (!vaddr) {
-		pr_err("No (mappable) scratch page!\n");
-		return -EINVAL;
-	}
+	vaddr = __px_vaddr(vm->scratch[0]);
 
 	memcpy(out, vaddr, sizeof(*out));
 	if (memchr_inv(vaddr, *out, PAGE_SIZE)) {
 		pr_err("Inconsistent initial state of scratch page!\n");
 		err = -EINVAL;
 	}
-	kunmap(page);
 
 	return err;
 }
@@ -1783,7 +1776,7 @@ static int igt_vm_isolation(void *arg)
 	u32 expected;
 	int err;
 
-	if (INTEL_GEN(i915) < 7)
+	if (GRAPHICS_VER(i915) < 7)
 		return 0;
 
 	/*
@@ -1837,7 +1830,7 @@ static int igt_vm_isolation(void *arg)
 			continue;
 
 		/* Not all engines have their own GPR! */
-		if (INTEL_GEN(i915) < 8 && engine->class != RENDER_CLASS)
+		if (GRAPHICS_VER(i915) < 8 && engine->class != RENDER_CLASS)
 			continue;
 
 		while (!__igt_timeout(end_time, NULL)) {

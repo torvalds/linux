@@ -161,6 +161,9 @@ void lkdtm_UNALIGNED_LOAD_STORE_WRITE(void)
 	if (*p == 0)
 		val = 0x87654321;
 	*p = val;
+
+	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS))
+		pr_err("XFAIL: arch has CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS\n");
 }
 
 void lkdtm_SOFTLOCKUP(void)
@@ -300,8 +303,10 @@ void lkdtm_CORRUPT_LIST_ADD(void)
 
 	if (target[0] == NULL && target[1] == NULL)
 		pr_err("Overwrite did not happen, but no BUG?!\n");
-	else
+	else {
 		pr_err("list_add() corruption not detected!\n");
+		pr_expected_config(CONFIG_DEBUG_LIST);
+	}
 }
 
 void lkdtm_CORRUPT_LIST_DEL(void)
@@ -325,8 +330,10 @@ void lkdtm_CORRUPT_LIST_DEL(void)
 
 	if (target[0] == NULL && target[1] == NULL)
 		pr_err("Overwrite did not happen, but no BUG?!\n");
-	else
+	else {
 		pr_err("list_del() corruption not detected!\n");
+		pr_expected_config(CONFIG_DEBUG_LIST);
+	}
 }
 
 /* Test that VMAP_STACK is actually allocating with a leading guard page */
@@ -463,7 +470,7 @@ void lkdtm_DOUBLE_FAULT(void)
 #ifdef CONFIG_ARM64
 static noinline void change_pac_parameters(void)
 {
-	if (IS_ENABLED(CONFIG_ARM64_PTR_AUTH)) {
+	if (IS_ENABLED(CONFIG_ARM64_PTR_AUTH_KERNEL)) {
 		/* Reset the keys of current task */
 		ptrauth_thread_init_kernel(current);
 		ptrauth_thread_switch_kernel(current);
@@ -477,8 +484,8 @@ noinline void lkdtm_CORRUPT_PAC(void)
 #define CORRUPT_PAC_ITERATE	10
 	int i;
 
-	if (!IS_ENABLED(CONFIG_ARM64_PTR_AUTH))
-		pr_err("FAIL: kernel not built with CONFIG_ARM64_PTR_AUTH\n");
+	if (!IS_ENABLED(CONFIG_ARM64_PTR_AUTH_KERNEL))
+		pr_err("FAIL: kernel not built with CONFIG_ARM64_PTR_AUTH_KERNEL\n");
 
 	if (!system_supports_address_auth()) {
 		pr_err("FAIL: CPU lacks pointer authentication feature\n");

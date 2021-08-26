@@ -121,7 +121,7 @@ struct tcmu_dev {
 #define TCMU_DEV_BIT_BROKEN 1
 #define TCMU_DEV_BIT_BLOCKED 2
 #define TCMU_DEV_BIT_TMR_NOTIFY 3
-#define TCM_DEV_BIT_PLUGGED 4
+#define TCMU_DEV_BIT_PLUGGED 4
 	unsigned long flags;
 
 	struct uio_info uio_info;
@@ -516,8 +516,10 @@ static inline int tcmu_get_empty_block(struct tcmu_dev *udev,
 	dpi = dbi * udev->data_pages_per_blk;
 	/* Count the number of already allocated pages */
 	xas_set(&xas, dpi);
+	rcu_read_lock();
 	for (cnt = 0; xas_next(&xas) && cnt < page_cnt;)
 		cnt++;
+	rcu_read_unlock();
 
 	for (i = cnt; i < page_cnt; i++) {
 		/* try to get new page from the mm */
@@ -699,11 +701,10 @@ static inline void tcmu_copy_data(struct tcmu_dev *udev,
 				  struct scatterlist *sg, unsigned int sg_nents,
 				  struct iovec **iov, size_t data_len)
 {
-	XA_STATE(xas, &udev->data_pages, 0);
 	/* start value of dbi + 1 must not be a valid dbi */
 	int dbi = -2;
 	size_t page_remaining, cp_len;
-	int page_cnt, page_inx;
+	int page_cnt, page_inx, dpi;
 	struct sg_mapping_iter sg_iter;
 	unsigned int sg_flags;
 	struct page *page;
@@ -726,9 +727,10 @@ static inline void tcmu_copy_data(struct tcmu_dev *udev,
 		if (page_cnt > udev->data_pages_per_blk)
 			page_cnt = udev->data_pages_per_blk;
 
-		xas_set(&xas, dbi * udev->data_pages_per_blk);
-		for (page_inx = 0; page_inx < page_cnt && data_len; page_inx++) {
-			page = xas_next(&xas);
+		dpi = dbi * udev->data_pages_per_blk;
+		for (page_inx = 0; page_inx < page_cnt && data_len;
+		     page_inx++, dpi++) {
+			page = xa_load(&udev->data_pages, dpi);
 
 			if (direction == TCMU_DATA_AREA_TO_SG)
 				flush_dcache_page(page);
@@ -980,7 +982,7 @@ static void tcmu_unplug_device(struct se_dev_plug *se_plug)
 	struct se_device *se_dev = se_plug->se_dev;
 	struct tcmu_dev *udev = TCMU_DEV(se_dev);
 
-	clear_bit(TCM_DEV_BIT_PLUGGED, &udev->flags);
+	clear_bit(TCMU_DEV_BIT_PLUGGED, &udev->flags);
 	uio_event_notify(&udev->uio_info);
 }
 
@@ -988,7 +990,7 @@ static struct se_dev_plug *tcmu_plug_device(struct se_device *se_dev)
 {
 	struct tcmu_dev *udev = TCMU_DEV(se_dev);
 
-	if (!test_and_set_bit(TCM_DEV_BIT_PLUGGED, &udev->flags))
+	if (!test_and_set_bit(TCMU_DEV_BIT_PLUGGED, &udev->flags))
 		return &udev->se_plug;
 
 	return NULL;
@@ -1122,7 +1124,7 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 
 	list_add_tail(&tcmu_cmd->queue_entry, &udev->inflight_queue);
 
-	if (!test_bit(TCM_DEV_BIT_PLUGGED, &udev->flags))
+	if (!test_bit(TCMU_DEV_BIT_PLUGGED, &udev->flags))
 		uio_event_notify(&udev->uio_info);
 
 	return 0;
@@ -1421,7 +1423,7 @@ static bool tcmu_handle_completions(struct tcmu_dev *udev)
 
 	if (test_bit(TCMU_DEV_BIT_BROKEN, &udev->flags)) {
 		pr_err("ring broken, not handling completions\n");
-		return 0;
+		return false;
 	}
 
 	mb = udev->mb_addr;

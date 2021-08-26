@@ -180,6 +180,7 @@ struct otx2_hw {
 
 	/* NIX */
 	u16		txschq_list[NIX_TXSCH_LVL_CNT][MAX_TXSCHQ_PER_FUNC];
+	u16			matchall_ipolicer;
 
 	/* HW settings, coalescing etc */
 	u16			rx_chan_base;
@@ -217,10 +218,15 @@ struct otx2_hw {
 	unsigned long		cap_flag;
 
 #define LMT_LINE_SIZE		128
-#define NIX_LMTID_BASE		72 /* RX + TX + XDP */
-	void __iomem		*lmt_base;
+#define LMT_BURST_SIZE		32 /* 32 LMTST lines for burst SQE flush */
+	u64			*lmt_base;
 	u64			*npa_lmt_base;
 	u64			*nix_lmt_base;
+};
+
+enum vfperm {
+	OTX2_RESET_VF_PERM,
+	OTX2_TRUSTED_VF,
 };
 
 struct otx2_vf_config {
@@ -230,6 +236,7 @@ struct otx2_vf_config {
 	u8 mac[ETH_ALEN];
 	u16 vlan;
 	int tx_vtag_idx;
+	bool trusted;
 };
 
 struct flr_work {
@@ -261,24 +268,29 @@ struct otx2_mac_table {
 
 struct otx2_flow_config {
 	u16			entry[NPC_MAX_NONCONTIG_ENTRIES];
-	u32			nr_flows;
-#define OTX2_MAX_NTUPLE_FLOWS	32
-#define OTX2_MAX_UNICAST_FLOWS	8
-#define OTX2_MAX_VLAN_FLOWS	1
-#define OTX2_MAX_TC_FLOWS	OTX2_MAX_NTUPLE_FLOWS
-#define OTX2_MCAM_COUNT		(OTX2_MAX_NTUPLE_FLOWS + \
+	u16			*flow_ent;
+	u16			*def_ent;
+	u16			nr_flows;
+#define OTX2_DEFAULT_FLOWCOUNT		16
+#define OTX2_MAX_UNICAST_FLOWS		8
+#define OTX2_MAX_VLAN_FLOWS		1
+#define OTX2_MAX_TC_FLOWS	OTX2_DEFAULT_FLOWCOUNT
+#define OTX2_MCAM_COUNT		(OTX2_DEFAULT_FLOWCOUNT + \
 				 OTX2_MAX_UNICAST_FLOWS + \
 				 OTX2_MAX_VLAN_FLOWS)
-	u32			ntuple_offset;
-	u32			unicast_offset;
-	u32			rx_vlan_offset;
-	u32			vf_vlan_offset;
-#define OTX2_PER_VF_VLAN_FLOWS	2 /* rx+tx per VF */
+	u16			ntuple_offset;
+	u16			unicast_offset;
+	u16			rx_vlan_offset;
+	u16			vf_vlan_offset;
+#define OTX2_PER_VF_VLAN_FLOWS	2 /* Rx + Tx per VF */
 #define OTX2_VF_VLAN_RX_INDEX	0
 #define OTX2_VF_VLAN_TX_INDEX	1
-	u32			tc_flower_offset;
-	u32                     ntuple_max_flows;
-	u32			tc_max_flows;
+	u16			tc_flower_offset;
+	u16                     ntuple_max_flows;
+	u16			tc_max_flows;
+	u8			dmacflt_max_flows;
+	u8			*bmap_to_dmacindex;
+	unsigned long		dmacflt_bmap;
 	struct list_head	flow_list;
 };
 
@@ -319,6 +331,8 @@ struct otx2_nic {
 #define OTX2_FLAG_TX_PAUSE_ENABLED		BIT_ULL(10)
 #define OTX2_FLAG_TC_FLOWER_SUPPORT		BIT_ULL(11)
 #define OTX2_FLAG_TC_MATCHALL_EGRESS_ENABLED	BIT_ULL(12)
+#define OTX2_FLAG_TC_MATCHALL_INGRESS_ENABLED	BIT_ULL(13)
+#define OTX2_FLAG_DMACFLTR_SUPPORT		BIT_ULL(14)
 	u64			flags;
 
 	struct otx2_qset	qset;
@@ -353,8 +367,9 @@ struct otx2_nic {
 	/* Block address of NIX either BLKADDR_NIX0 or BLKADDR_NIX1 */
 	int			nix_blkaddr;
 	/* LMTST Lines info */
+	struct qmem		*dync_lmt;
 	u16			tot_lmt_lines;
-	u16			nix_lmt_lines;
+	u16			npa_lmt_lines;
 	u32			nix_lmt_size;
 
 	struct otx2_ptp		*ptp;
@@ -362,6 +377,7 @@ struct otx2_nic {
 
 	struct otx2_flow_config	*flow_cfg;
 	struct otx2_tc_info	tc_info;
+	unsigned long		rq_bmap;
 };
 
 static inline bool is_otx2_lbkvf(struct pci_dev *pdev)
@@ -822,4 +838,11 @@ int otx2_init_tc(struct otx2_nic *nic);
 void otx2_shutdown_tc(struct otx2_nic *nic);
 int otx2_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 		  void *type_data);
+/* CGX/RPM DMAC filters support */
+int otx2_dmacflt_get_max_cnt(struct otx2_nic *pf);
+int otx2_dmacflt_add(struct otx2_nic *pf, const u8 *mac, u8 bit_pos);
+int otx2_dmacflt_remove(struct otx2_nic *pf, const u8 *mac, u8 bit_pos);
+int otx2_dmacflt_update(struct otx2_nic *pf, u8 *mac, u8 bit_pos);
+void otx2_dmacflt_reinstall_flows(struct otx2_nic *pf);
+void otx2_dmacflt_update_pfmac_flow(struct otx2_nic *pfvf);
 #endif /* OTX2_COMMON_H */

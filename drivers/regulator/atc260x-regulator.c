@@ -28,16 +28,16 @@ static const struct linear_range atc2609a_dcdc_voltage_ranges[] = {
 
 static const struct linear_range atc2609a_ldo_voltage_ranges0[] = {
 	REGULATOR_LINEAR_RANGE(700000, 0, 15, 100000),
-	REGULATOR_LINEAR_RANGE(2100000, 16, 28, 100000),
+	REGULATOR_LINEAR_RANGE(2100000, 0, 12, 100000),
 };
 
 static const struct linear_range atc2609a_ldo_voltage_ranges1[] = {
 	REGULATOR_LINEAR_RANGE(850000, 0, 15, 100000),
-	REGULATOR_LINEAR_RANGE(2100000, 16, 27, 100000),
+	REGULATOR_LINEAR_RANGE(2100000, 0, 11, 100000),
 };
 
 static const unsigned int atc260x_ldo_voltage_range_sel[] = {
-	0x0, 0x1,
+	0x0, 0x20,
 };
 
 static int atc260x_dcdc_set_voltage_time_sel(struct regulator_dev *rdev,
@@ -411,7 +411,7 @@ enum atc2609a_reg_ids {
 	.owner = THIS_MODULE, \
 }
 
-#define atc2609a_reg_desc_ldo_range_pick(num, n_range) { \
+#define atc2609a_reg_desc_ldo_range_pick(num, n_range, n_volt) { \
 	.name = "LDO"#num, \
 	.supply_name = "ldo"#num, \
 	.of_match = of_match_ptr("ldo"#num), \
@@ -421,6 +421,7 @@ enum atc2609a_reg_ids {
 	.type = REGULATOR_VOLTAGE, \
 	.linear_ranges = atc2609a_ldo_voltage_ranges##n_range, \
 	.n_linear_ranges = ARRAY_SIZE(atc2609a_ldo_voltage_ranges##n_range), \
+	.n_voltages = n_volt, \
 	.vsel_reg = ATC2609A_PMU_LDO##num##_CTL0, \
 	.vsel_mask = GENMASK(4, 1), \
 	.vsel_range_reg = ATC2609A_PMU_LDO##num##_CTL0, \
@@ -458,12 +459,12 @@ static const struct regulator_desc atc2609a_reg[] = {
 	atc2609a_reg_desc_ldo_bypass(0),
 	atc2609a_reg_desc_ldo_bypass(1),
 	atc2609a_reg_desc_ldo_bypass(2),
-	atc2609a_reg_desc_ldo_range_pick(3, 0),
-	atc2609a_reg_desc_ldo_range_pick(4, 0),
+	atc2609a_reg_desc_ldo_range_pick(3, 0, 29),
+	atc2609a_reg_desc_ldo_range_pick(4, 0, 29),
 	atc2609a_reg_desc_ldo(5),
-	atc2609a_reg_desc_ldo_range_pick(6, 1),
-	atc2609a_reg_desc_ldo_range_pick(7, 0),
-	atc2609a_reg_desc_ldo_range_pick(8, 0),
+	atc2609a_reg_desc_ldo_range_pick(6, 1, 28),
+	atc2609a_reg_desc_ldo_range_pick(7, 0, 29),
+	atc2609a_reg_desc_ldo_range_pick(8, 0, 29),
 	atc2609a_reg_desc_ldo_fixed(9),
 };
 

@@ -837,7 +837,7 @@ dev_init:
 	}
 
 	/* runtime power management, turn on ISP */
-	ret = pm_runtime_get_sync(vdev->v4l2_dev->dev);
+	ret = pm_runtime_resume_and_get(vdev->v4l2_dev->dev);
 	if (ret < 0) {
 		dev_err(isp->dev, "Failed to power on device\n");
 		goto error;
@@ -881,9 +881,9 @@ done:
 
 css_error:
 	atomisp_css_uninit(isp);
+	pm_runtime_put(vdev->v4l2_dev->dev);
 error:
 	hmm_pool_unregister(HMM_POOL_TYPE_DYNAMIC);
-	pm_runtime_put(vdev->v4l2_dev->dev);
 	rt_mutex_unlock(&isp->mutex);
 	return ret;
 }
@@ -963,7 +963,7 @@ static int atomisp_release(struct file *file)
 	if (!isp->sw_contex.file_input && asd->fmt_auto->val) {
 		struct v4l2_mbus_framefmt isp_sink_fmt = { 0 };
 
-		atomisp_subdev_set_ffmt(&asd->subdev, fh.pad,
+		atomisp_subdev_set_ffmt(&asd->subdev, fh.state,
 					V4L2_SUBDEV_FORMAT_ACTIVE,
 					ATOMISP_SUBDEV_PAD_SINK, &isp_sink_fmt);
 	}
@@ -975,7 +975,7 @@ subdev_uninit:
 	if (isp->sw_contex.file_input && asd->fmt_auto->val) {
 		struct v4l2_mbus_framefmt isp_sink_fmt = { 0 };
 
-		atomisp_subdev_set_ffmt(&asd->subdev, fh.pad,
+		atomisp_subdev_set_ffmt(&asd->subdev, fh.state,
 					V4L2_SUBDEV_FORMAT_ACTIVE,
 					ATOMISP_SUBDEV_PAD_SINK, &isp_sink_fmt);
 	}
@@ -1016,7 +1016,7 @@ subdev_uninit:
 
 done:
 	if (!acc_node) {
-		atomisp_subdev_set_selection(&asd->subdev, fh.pad,
+		atomisp_subdev_set_selection(&asd->subdev, fh.state,
 					     V4L2_SUBDEV_FORMAT_ACTIVE,
 					     atomisp_subdev_source_pad(vdev),
 					     V4L2_SEL_TGT_COMPOSE, 0,
@@ -1283,7 +1283,8 @@ const struct v4l2_file_operations atomisp_fops = {
 	.unlocked_ioctl = video_ioctl2,
 #ifdef CONFIG_COMPAT
 	/*
-	 * There are problems with this code. Disable this for now.
+	 * this was removed because of bugs, the interface
+	 * needs to be made safe for compat tasks instead.
 	.compat_ioctl32 = atomisp_compat_ioctl32,
 	 */
 #endif
@@ -1297,10 +1298,7 @@ const struct v4l2_file_operations atomisp_file_fops = {
 	.mmap = atomisp_file_mmap,
 	.unlocked_ioctl = video_ioctl2,
 #ifdef CONFIG_COMPAT
-	/*
-	 * There are problems with this code. Disable this for now.
-	.compat_ioctl32 = atomisp_compat_ioctl32,
-	 */
+	/* .compat_ioctl32 = atomisp_compat_ioctl32, */
 #endif
 	.poll = atomisp_poll,
 };

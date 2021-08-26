@@ -314,8 +314,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <70>;
-			dmas = <&edma 58 0 &edma 59 0>;
-			dma-names = "tx", "rx";
 		};
 
 		i2c2: i2c@4802a000 {
@@ -325,8 +323,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <71>;
-			dmas = <&edma 60 0 &edma 61 0>;
-			dma-names = "tx", "rx";
 		};
 
 		intc: interrupt-controller@48200000 {
@@ -351,7 +347,7 @@
 			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
-			mbox_dsp: mbox_dsp {
+			mbox_dsp: mbox-dsp {
 				ti,mbox-tx = <3 0 0>;
 				ti,mbox-rx = <0 0 0>;
 			};

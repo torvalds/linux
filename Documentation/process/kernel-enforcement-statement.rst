@@ -1,4 +1,4 @@
-﻿.. _process_statement_kernel:
+.. _process_statement_kernel:
 
 Linux Kernel Enforcement Statement
 ----------------------------------

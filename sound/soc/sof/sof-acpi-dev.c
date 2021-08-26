@@ -60,7 +60,6 @@ int sof_acpi_probe(struct platform_device *pdev, const struct sof_dev_desc *desc
 {
 	struct device *dev = &pdev->dev;
 	struct snd_sof_pdata *sof_pdata;
-	const struct snd_sof_dsp_ops *ops;
 
 	dev_dbg(dev, "ACPI DSP detected");
 
@@ -68,9 +67,7 @@ int sof_acpi_probe(struct platform_device *pdev, const struct sof_dev_desc *desc
 	if (!sof_pdata)
 		return -ENOMEM;
 
-	/* get ops for platform */
-	ops = desc->ops;
-	if (!ops) {
+	if (!desc->ops) {
 		dev_err(dev, "error: no matching ACPI descriptor ops\n");
 		return -ENODEV;
 	}

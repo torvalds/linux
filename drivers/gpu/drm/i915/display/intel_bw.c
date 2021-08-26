@@ -77,7 +77,7 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 
 	qi->num_points = dram_info->num_qgv_points;
 
-	if (IS_DISPLAY_VER(dev_priv, 12))
+	if (DISPLAY_VER(dev_priv) == 12)
 		switch (dram_info->type) {
 		case INTEL_DRAM_DDR4:
 			qi->t_bl = 4;
@@ -89,7 +89,7 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 			qi->t_bl = 16;
 			break;
 		}
-	else if (IS_DISPLAY_VER(dev_priv, 11))
+	else if (DISPLAY_VER(dev_priv) == 11)
 		qi->t_bl = dev_priv->dram_info.type == INTEL_DRAM_DDR4 ? 4 : 8;
 
 	if (drm_WARN_ON(&dev_priv->drm,
@@ -162,7 +162,7 @@ static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 {
 	struct intel_qgv_info qi = {};
 	bool is_y_tile = true; /* assume y tile may be used */
-	int num_channels = dev_priv->dram_info.num_channels;
+	int num_channels = max_t(u8, 1, dev_priv->dram_info.num_channels);
 	int deinterleave;
 	int ipqdepth, ipqdepthpch;
 	int dclk_max;
@@ -267,13 +267,13 @@ void intel_bw_init_hw(struct drm_i915_private *dev_priv)
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	if (IS_ALDERLAKE_S(dev_priv))
+	if (IS_ALDERLAKE_S(dev_priv) || IS_ALDERLAKE_P(dev_priv))
 		icl_get_bw_info(dev_priv, &adls_sa_info);
 	else if (IS_ROCKETLAKE(dev_priv))
 		icl_get_bw_info(dev_priv, &rkl_sa_info);
-	else if (IS_DISPLAY_VER(dev_priv, 12))
+	else if (DISPLAY_VER(dev_priv) == 12)
 		icl_get_bw_info(dev_priv, &tgl_sa_info);
-	else if (IS_DISPLAY_VER(dev_priv, 11))
+	else if (DISPLAY_VER(dev_priv) == 11)
 		icl_get_bw_info(dev_priv, &icl_sa_info);
 }
 
@@ -344,6 +344,9 @@ static unsigned int intel_bw_data_rate(struct drm_i915_private *dev_priv,
 	for_each_pipe(dev_priv, pipe)
 		data_rate += bw_state->data_rate[pipe];
 
+	if (DISPLAY_VER(dev_priv) >= 13 && intel_vtd_active())
+		data_rate = data_rate * 105 / 100;
+
 	return data_rate;
 }
 
@@ -390,7 +393,6 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 	const struct intel_crtc_state *crtc_state;
 	struct intel_crtc *crtc;
 	int max_bw = 0;
-	int slice_id;
 	enum pipe pipe;
 	int i;
 
@@ -418,6 +420,7 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 				&crtc_state->wm.skl.plane_ddb_uv[plane_id];
 			unsigned int data_rate = crtc_state->data_rate[plane_id];
 			unsigned int dbuf_mask = 0;
+			enum dbuf_slice slice;
 
 			dbuf_mask |= skl_ddb_dbuf_slice_mask(dev_priv, plane_alloc);
 			dbuf_mask |= skl_ddb_dbuf_slice_mask(dev_priv, uv_plane_alloc);
@@ -435,8 +438,8 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 			 * pessimistic, which shouldn't pose any significant
 			 * problem anyway.
 			 */
-			for_each_dbuf_slice_in_mask(slice_id, dbuf_mask)
-				crtc_bw->used_bw[slice_id] += data_rate;
+			for_each_dbuf_slice_in_mask(dev_priv, slice, dbuf_mask)
+				crtc_bw->used_bw[slice] += data_rate;
 		}
 	}
 
@@ -445,10 +448,11 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 
 	for_each_pipe(dev_priv, pipe) {
 		struct intel_dbuf_bw *crtc_bw;
+		enum dbuf_slice slice;
 
 		crtc_bw = &new_bw_state->dbuf_bw[pipe];
 
-		for_each_dbuf_slice(slice_id) {
+		for_each_dbuf_slice(dev_priv, slice) {
 			/*
 			 * Current experimental observations show that contrary
 			 * to BSpec we get underruns once we exceed 64 * CDCLK
@@ -457,7 +461,7 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 			 * bumped up all the time we calculate CDCLK according
 			 * to this formula for  overall bw consumed by slices.
 			 */
-			max_bw += crtc_bw->used_bw[slice_id];
+			max_bw += crtc_bw->used_bw[slice];
 		}
 	}
 

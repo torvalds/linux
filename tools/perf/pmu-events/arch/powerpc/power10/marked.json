@@ -1,146 +1,141 @@
 [
   {
-    "EventCode": "1002C",
+    "EventCode": "0x1002C",
     "EventName": "PM_LD_PREFETCH_CACHE_LINE_MISS",
     "BriefDescription": "The L1 cache was reloaded with a line that fulfills a prefetch request."
   },
   {
-    "EventCode": "10132",
+    "EventCode": "0x10132",
     "EventName": "PM_MRK_INST_ISSUED",
     "BriefDescription": "Marked instruction issued. Note that stores always get issued twice, the address gets issued to the LSU and the data gets issued to the VSU. Also, issues can sometimes get killed/cancelled and cause multiple sequential issues for the same instruction."
   },
   {
-    "EventCode": "101E0",
+    "EventCode": "0x101E0",
     "EventName": "PM_MRK_INST_DISP",
     "BriefDescription": "The thread has dispatched a randomly sampled marked instruction."
   },
   {
-    "EventCode": "101E2",
+    "EventCode": "0x101E2",
     "EventName": "PM_MRK_BR_TAKEN_CMPL",
     "BriefDescription": "Marked Branch Taken instruction completed."
   },
   {
-    "EventCode": "20112",
+    "EventCode": "0x20112",
     "EventName": "PM_MRK_NTF_FIN",
     "BriefDescription": "The marked instruction became the oldest in the pipeline before it finished. It excludes instructions that finish at dispatch."
   },
   {
-    "EventCode": "2C01C",
+    "EventCode": "0x2C01C",
     "EventName": "PM_EXEC_STALL_DMISS_OFF_CHIP",
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting for a load miss to resolve from a remote chip."
   },
   {
-    "EventCode": "20138",
+    "EventCode": "0x20138",
     "EventName": "PM_MRK_ST_NEST",
     "BriefDescription": "A store has been sampled/marked and is at the point of execution where it has completed in the core and can no longer be flushed. At this point the store is sent to the L2."
   },
   {
-    "EventCode": "2013A",
+    "EventCode": "0x2013A",
     "EventName": "PM_MRK_BRU_FIN",
     "BriefDescription": "Marked Branch instruction finished."
   },
   {
-    "EventCode": "2C144",
+    "EventCode": "0x2C144",
     "EventName": "PM_MRK_XFER_FROM_SRC_CYC_PMC2",
     "BriefDescription": "Cycles taken for a marked demand miss to reload a line from the source specified in MMCR3[15:27]."
   },
   {
-    "EventCode": "24156",
+    "EventCode": "0x24156",
     "EventName": "PM_MRK_STCX_FIN",
     "BriefDescription": "Marked conditional store instruction (STCX) finished. LARX and STCX are instructions used to acquire a lock."
   },
   {
-    "EventCode": "24158",
+    "EventCode": "0x24158",
     "EventName": "PM_MRK_INST",
     "BriefDescription": "An instruction was marked. Includes both Random Instruction Sampling (RIS) at decode time and Random Event Sampling (RES) at the time the configured event happens."
   },
   {
-    "EventCode": "2415C",
+    "EventCode": "0x2415C",
     "EventName": "PM_MRK_BR_CMPL",
     "BriefDescription": "A marked branch completed. All branches are included."
   },
   {
-    "EventCode": "200FD",
+    "EventCode": "0x200FD",
     "EventName": "PM_L1_ICACHE_MISS",
     "BriefDescription": "Demand iCache Miss."
   },
   {
-    "EventCode": "30130",
+    "EventCode": "0x30130",
     "EventName": "PM_MRK_INST_FIN",
     "BriefDescription": "marked instruction finished. Excludes instructions that finish at dispatch. Note that stores always finish twice since the address gets issued to the LSU and the data gets issued to the VSU."
   },
   {
-    "EventCode": "34146",
+    "EventCode": "0x34146",
     "EventName": "PM_MRK_LD_CMPL",
     "BriefDescription": "Marked loads completed."
   },
   {
-    "EventCode": "3E158",
+    "EventCode": "0x3E158",
     "EventName": "PM_MRK_STCX_FAIL",
     "BriefDescription": "Marked conditional store instruction (STCX) failed. LARX and STCX are instructions used to acquire a lock."
   },
   {
-    "EventCode": "3E15A",
+    "EventCode": "0x3E15A",
     "EventName": "PM_MRK_ST_FIN",
     "BriefDescription": "The marked instruction was a store of any kind."
   },
   {
-    "EventCode": "30068",
+    "EventCode": "0x30068",
     "EventName": "PM_L1_ICACHE_RELOADED_PREF",
     "BriefDescription": "Counts all Icache prefetch reloads ( includes demand turned into prefetch)."
   },
   {
-    "EventCode": "301E4",
+    "EventCode": "0x301E4",
     "EventName": "PM_MRK_BR_MPRED_CMPL",
     "BriefDescription": "Marked Branch Mispredicted. Includes direction and target."
   },
   {
-    "EventCode": "300F6",
+    "EventCode": "0x300F6",
     "EventName": "PM_LD_DEMAND_MISS_L1",
     "BriefDescription": "The L1 cache was reloaded with a line that fulfills a demand miss request. Counted at reload time, before finish."
   },
   {
-    "EventCode": "300FE",
+    "EventCode": "0x300FE",
     "EventName": "PM_DATA_FROM_L3MISS",
     "BriefDescription": "The processor's data cache was reloaded from a source other than the local core's L1, L2, or L3 due to a demand miss."
   },
   {
-    "EventCode": "40012",
+    "EventCode": "0x40012",
     "EventName": "PM_L1_ICACHE_RELOADED_ALL",
     "BriefDescription": "Counts all Icache reloads includes demand, prefetch, prefetch turned into demand and demand turned into prefetch."
   },
   {
-    "EventCode": "40134",
+    "EventCode": "0x40134",
     "EventName": "PM_MRK_INST_TIMEO",
     "BriefDescription": "Marked instruction finish timeout (instruction was lost)."
   },
   {
-    "EventCode": "4003C",
-    "EventName": "PM_DISP_STALL_HELD_SYNC_CYC",
-    "BriefDescription": "Cycles in which the NTC instruction is held at dispatch because of a synchronizing instruction that requires the ICT to be empty before dispatch."
-  },
-  {
-    "EventCode": "4505A",
+    "EventCode": "0x4505A",
     "EventName": "PM_SP_FLOP_CMPL",
     "BriefDescription": "Single Precision floating point instructions completed."
   },
   {
-    "EventCode": "4D058",
+    "EventCode": "0x4D058",
     "EventName": "PM_VECTOR_FLOP_CMPL",
     "BriefDescription": "Vector floating point instructions completed."
   },
   {
-    "EventCode": "4D05A",
+    "EventCode": "0x4D05A",
     "EventName": "PM_NON_MATH_FLOP_CMPL",
     "BriefDescription": "Non Math instructions completed."
   },
   {
-    "EventCode": "401E0",
+    "EventCode": "0x401E0",
     "EventName": "PM_MRK_INST_CMPL",
     "BriefDescription": "marked instruction completed."
   },
   {
-    "EventCode": "400FE",
+    "EventCode": "0x400FE",
     "EventName": "PM_DATA_FROM_MEMORY",
     "BriefDescription": "The processor's data cache was reloaded from local, remote, or distant memory due to a demand miss."
   }

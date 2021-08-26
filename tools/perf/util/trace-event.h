@@ -11,6 +11,7 @@ union perf_event;
 struct perf_tool;
 struct thread;
 struct tep_plugin_list;
+struct evsel;
 
 struct trace_event {
 	struct tep_handle	*pevent;
@@ -71,16 +72,21 @@ struct perf_stat_config;
 
 struct scripting_ops {
 	const char *name;
-	int (*start_script) (const char *script, int argc, const char **argv);
+	const char *dirname; /* For script path .../scripts/<dirname>/... */
+	int (*start_script)(const char *script, int argc, const char **argv,
+			    struct perf_session *session);
 	int (*flush_script) (void);
 	int (*stop_script) (void);
 	void (*process_event) (union perf_event *event,
 			       struct perf_sample *sample,
 			       struct evsel *evsel,
-			       struct addr_location *al);
+			       struct addr_location *al,
+			       struct addr_location *addr_al);
 	void (*process_switch)(union perf_event *event,
 			       struct perf_sample *sample,
 			       struct machine *machine);
+	void (*process_auxtrace_error)(struct perf_session *session,
+				       union perf_event *event);
 	void (*process_stat)(struct perf_stat_config *config,
 			     struct evsel *evsel, u64 tstamp);
 	void (*process_stat_interval)(u64 tstamp);
@@ -91,16 +97,35 @@ extern unsigned int scripting_max_stack;
 
 int script_spec_register(const char *spec, struct scripting_ops *ops);
 
+void script_fetch_insn(struct perf_sample *sample, struct thread *thread,
+		       struct machine *machine);
+
 void setup_perl_scripting(void);
 void setup_python_scripting(void);
 
 struct scripting_context {
 	struct tep_handle *pevent;
 	void *event_data;
+	union perf_event *event;
+	struct perf_sample *sample;
+	struct evsel *evsel;
+	struct addr_location *al;
+	struct addr_location *addr_al;
+	struct perf_session *session;
 };
+
+void scripting_context__update(struct scripting_context *scripting_context,
+			       union perf_event *event,
+			       struct perf_sample *sample,
+			       struct evsel *evsel,
+			       struct addr_location *al,
+			       struct addr_location *addr_al);
 
 int common_pc(struct scripting_context *context);
 int common_flags(struct scripting_context *context);
 int common_lock_depth(struct scripting_context *context);
+
+#define SAMPLE_FLAGS_BUF_SIZE 64
+int perf_sample__sprintf_flags(u32 flags, char *str, size_t sz);
 
 #endif /* _PERF_UTIL_TRACE_EVENT_H */

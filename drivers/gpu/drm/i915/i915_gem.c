@@ -157,8 +157,18 @@ try_again:
 		if (vma) {
 			ret = -EBUSY;
 			if (flags & I915_GEM_OBJECT_UNBIND_ACTIVE ||
-			    !i915_vma_is_active(vma))
-				ret = i915_vma_unbind(vma);
+			    !i915_vma_is_active(vma)) {
+				if (flags & I915_GEM_OBJECT_UNBIND_VM_TRYLOCK) {
+					if (mutex_trylock(&vma->vm->mutex)) {
+						ret = __i915_vma_unbind(vma);
+						mutex_unlock(&vma->vm->mutex);
+					} else {
+						ret = -EBUSY;
+					}
+				} else {
+					ret = i915_vma_unbind(vma);
+				}
+			}
 
 			__i915_vma_put(vma);
 		}
@@ -432,7 +442,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	/* PREAD is disallowed for all platforms after TGL-LP.  This also
 	 * covers all platforms with local memory.
 	 */
-	if (INTEL_GEN(i915) >= 12 && !IS_TIGERLAKE(i915))
+	if (GRAPHICS_VER(i915) >= 12 && !IS_TIGERLAKE(i915))
 		return -EOPNOTSUPP;
 
 	if (args->size == 0)
@@ -712,7 +722,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	/* PWRITE is disallowed for all platforms after TGL-LP.  This also
 	 * covers all platforms with local memory.
 	 */
-	if (INTEL_GEN(i915) >= 12 && !IS_TIGERLAKE(i915))
+	if (GRAPHICS_VER(i915) >= 12 && !IS_TIGERLAKE(i915))
 		return -EOPNOTSUPP;
 
 	if (args->size == 0)
@@ -999,12 +1009,11 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 		obj->mm.madv = args->madv;
 
 	if (i915_gem_object_has_pages(obj)) {
-		struct list_head *list;
+		unsigned long flags;
 
-		if (i915_gem_object_is_shrinkable(obj)) {
-			unsigned long flags;
-
-			spin_lock_irqsave(&i915->mm.obj_lock, flags);
+		spin_lock_irqsave(&i915->mm.obj_lock, flags);
+		if (!list_empty(&obj->mm.link)) {
+			struct list_head *list;
 
 			if (obj->mm.madv != I915_MADV_WILLNEED)
 				list = &i915->mm.purge_list;
@@ -1012,8 +1021,8 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 				list = &i915->mm.shrink_list;
 			list_move_tail(&obj->mm.link, list);
 
-			spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 		}
+		spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 	}
 
 	/* if the object is no longer attached, discard its backing storage */
@@ -1099,6 +1108,7 @@ err_unlock:
 	}
 
 	i915_gem_drain_freed_objects(dev_priv);
+
 	return ret;
 }
 

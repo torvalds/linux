@@ -756,14 +756,14 @@ static int cs35l36_set_dai_fmt(struct snd_soc_dai *component_dai,
 {
 	struct cs35l36_private *cs35l36 =
 			snd_soc_component_get_drvdata(component_dai->component);
-	unsigned int asp_fmt, lrclk_fmt, sclk_fmt, slave_mode, clk_frc;
+	unsigned int asp_fmt, lrclk_fmt, sclk_fmt, clock_provider, clk_frc;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-		slave_mode = 1;
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
+		clock_provider = 1;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
-		slave_mode = 0;
+	case SND_SOC_DAIFMT_CBC_CFC:
+		clock_provider = 0;
 		break;
 	default:
 		return -EINVAL;
@@ -771,10 +771,10 @@ static int cs35l36_set_dai_fmt(struct snd_soc_dai *component_dai,
 
 	regmap_update_bits(cs35l36->regmap, CS35L36_ASP_TX_PIN_CTRL,
 				CS35L36_SCLK_MSTR_MASK,
-				slave_mode << CS35L36_SCLK_MSTR_SHIFT);
+				clock_provider << CS35L36_SCLK_MSTR_SHIFT);
 	regmap_update_bits(cs35l36->regmap, CS35L36_ASP_RATE_CTRL,
 				CS35L36_LRCLK_MSTR_MASK,
-				slave_mode << CS35L36_LRCLK_MSTR_SHIFT);
+				clock_provider << CS35L36_LRCLK_MSTR_SHIFT);
 
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_MASK) {
 	case SND_SOC_DAIFMT_CONT:
@@ -1156,7 +1156,7 @@ static int cs35l36_component_probe(struct snd_soc_component *component)
 {
 	struct cs35l36_private *cs35l36 =
 			snd_soc_component_get_drvdata(component);
-	int ret = 0;
+	int ret;
 
 	if ((cs35l36->rev_id == CS35L36_REV_A0) && cs35l36->pdata.dcm_mode) {
 		regmap_update_bits(cs35l36->regmap, CS35L36_BSTCVRT_DCM_CTRL,

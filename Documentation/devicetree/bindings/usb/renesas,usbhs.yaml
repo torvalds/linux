@@ -53,7 +53,6 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 3
     items:
       - description: USB 2.0 host
       - description: USB 2.0 peripheral
@@ -86,7 +85,6 @@ properties:
 
   dma-names:
     minItems: 2
-    maxItems: 4
     items:
       - const: ch0
       - const: ch1
@@ -100,7 +98,6 @@ properties:
 
   resets:
     minItems: 1
-    maxItems: 2
     items:
       - description: USB 2.0 host
       - description: USB 2.0 peripheral

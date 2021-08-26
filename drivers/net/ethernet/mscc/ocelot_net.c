@@ -939,7 +939,7 @@ static void ocelot_port_attr_mc_set(struct ocelot *ocelot, int port, bool mc)
 		       ANA_PORT_CPU_FWD_CFG, port);
 }
 
-static int ocelot_port_attr_set(struct net_device *dev,
+static int ocelot_port_attr_set(struct net_device *dev, const void *ctx,
 				const struct switchdev_attr *attr,
 				struct netlink_ext_ack *extack)
 {
@@ -947,6 +947,9 @@ static int ocelot_port_attr_set(struct net_device *dev,
 	struct ocelot *ocelot = priv->port.ocelot;
 	int port = priv->chip_port;
 	int err = 0;
+
+	if (ctx && ctx != priv)
+		return 0;
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_STP_STATE:
@@ -1058,11 +1061,15 @@ ocelot_port_obj_mrp_del_ring_role(struct net_device *dev,
 	return ocelot_mrp_del_ring_role(ocelot, port, mrp);
 }
 
-static int ocelot_port_obj_add(struct net_device *dev,
+static int ocelot_port_obj_add(struct net_device *dev, const void *ctx,
 			       const struct switchdev_obj *obj,
 			       struct netlink_ext_ack *extack)
 {
+	struct ocelot_port_private *priv = netdev_priv(dev);
 	int ret = 0;
+
+	if (ctx && ctx != priv)
+		return 0;
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
@@ -1086,10 +1093,14 @@ static int ocelot_port_obj_add(struct net_device *dev,
 	return ret;
 }
 
-static int ocelot_port_obj_del(struct net_device *dev,
+static int ocelot_port_obj_del(struct net_device *dev, const void *ctx,
 			       const struct switchdev_obj *obj)
 {
+	struct ocelot_port_private *priv = netdev_priv(dev);
 	int ret = 0;
+
+	if (ctx && ctx != priv)
+		return 0;
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
@@ -1143,9 +1154,13 @@ static int ocelot_switchdev_sync(struct ocelot *ocelot, int port,
 				 struct net_device *bridge_dev,
 				 struct netlink_ext_ack *extack)
 {
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	struct ocelot_port_private *priv;
 	clock_t ageing_time;
 	u8 stp_state;
 	int err;
+
+	priv = container_of(ocelot_port, struct ocelot_port_private, port);
 
 	ocelot_inherit_brport_flags(ocelot, port, brport_dev);
 
@@ -1160,16 +1175,12 @@ static int ocelot_switchdev_sync(struct ocelot *ocelot, int port,
 	ageing_time = br_get_ageing_time(bridge_dev);
 	ocelot_port_attr_ageing_set(ocelot, port, ageing_time);
 
-	err = br_mdb_replay(bridge_dev, brport_dev,
+	err = br_mdb_replay(bridge_dev, brport_dev, priv, true,
 			    &ocelot_switchdev_blocking_nb, extack);
 	if (err && err != -EOPNOTSUPP)
 		return err;
 
-	err = br_fdb_replay(bridge_dev, brport_dev, &ocelot_switchdev_nb);
-	if (err)
-		return err;
-
-	err = br_vlan_replay(bridge_dev, brport_dev,
+	err = br_vlan_replay(bridge_dev, brport_dev, priv, true,
 			     &ocelot_switchdev_blocking_nb, extack);
 	if (err && err != -EOPNOTSUPP)
 		return err;
@@ -1287,6 +1298,7 @@ static int ocelot_netdevice_lag_leave(struct net_device *dev,
 }
 
 static int ocelot_netdevice_changeupper(struct net_device *dev,
+					struct net_device *brport_dev,
 					struct netdev_notifier_changeupper_info *info)
 {
 	struct netlink_ext_ack *extack;
@@ -1296,11 +1308,11 @@ static int ocelot_netdevice_changeupper(struct net_device *dev,
 
 	if (netif_is_bridge_master(info->upper_dev)) {
 		if (info->linking)
-			err = ocelot_netdevice_bridge_join(dev, dev,
+			err = ocelot_netdevice_bridge_join(dev, brport_dev,
 							   info->upper_dev,
 							   extack);
 		else
-			err = ocelot_netdevice_bridge_leave(dev, dev,
+			err = ocelot_netdevice_bridge_leave(dev, brport_dev,
 							    info->upper_dev);
 	}
 	if (netif_is_lag_master(info->upper_dev)) {
@@ -1335,7 +1347,7 @@ ocelot_netdevice_lag_changeupper(struct net_device *dev,
 		if (ocelot_port->bond != dev)
 			return NOTIFY_OK;
 
-		err = ocelot_netdevice_changeupper(lower, info);
+		err = ocelot_netdevice_changeupper(lower, dev, info);
 		if (err)
 			return notifier_from_errno(err);
 	}
@@ -1374,7 +1386,7 @@ static int ocelot_netdevice_event(struct notifier_block *unused,
 		struct netdev_notifier_changeupper_info *info = ptr;
 
 		if (ocelot_netdevice_dev_check(dev))
-			return ocelot_netdevice_changeupper(dev, info);
+			return ocelot_netdevice_changeupper(dev, dev, info);
 
 		if (netif_is_lag_master(dev))
 			return ocelot_netdevice_lag_changeupper(dev, info);

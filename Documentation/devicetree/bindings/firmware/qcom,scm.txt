@@ -12,6 +12,7 @@ Required properties:
  * "qcom,scm-ipq4019"
  * "qcom,scm-ipq806x"
  * "qcom,scm-ipq8074"
+ * "qcom,scm-mdm9607"
  * "qcom,scm-msm8660"
  * "qcom,scm-msm8916"
  * "qcom,scm-msm8960"

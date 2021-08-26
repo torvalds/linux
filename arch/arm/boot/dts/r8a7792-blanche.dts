@@ -112,6 +112,9 @@
 	keyboard {
 		compatible = "gpio-keys";
 
+		pinctrl-0 = <&keyboard_pins>;
+		pinctrl-names = "default";
+
 		key-1 {
 			linux,code = <KEY_1>;
 			label = "SW2-1";
@@ -233,6 +236,11 @@
 	du1_pins: du1 {
 		groups = "du1_rgb666", "du1_sync", "du1_disp";
 		function = "du1";
+	};
+
+	keyboard_pins: keyboard {
+		pins = "GP_3_10", "GP_3_11", "GP_3_12", "GP_3_15", "GP_11_02";
+		bias-pull-up;
 	};
 
 	pmic_irq_pins: pmicirq {

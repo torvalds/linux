@@ -138,17 +138,23 @@ cp2615_i2c_send(struct usb_interface *usbif, struct cp2615_i2c_transfer *i2c_w)
 static int
 cp2615_i2c_recv(struct usb_interface *usbif, unsigned char tag, void *buf)
 {
-	struct cp2615_iop_msg *msg = kzalloc(sizeof(*msg), GFP_KERNEL);
-	struct cp2615_i2c_transfer_result *i2c_r = (struct cp2615_i2c_transfer_result *)&msg->data;
 	struct usb_device *usbdev = interface_to_usbdev(usbif);
-	int res = usb_bulk_msg(usbdev, usb_rcvbulkpipe(usbdev, IOP_EP_IN),
-			       msg, sizeof(struct cp2615_iop_msg), NULL, 0);
+	struct cp2615_iop_msg *msg;
+	struct cp2615_i2c_transfer_result *i2c_r;
+	int res;
 
+	msg = kzalloc(sizeof(*msg), GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	res = usb_bulk_msg(usbdev, usb_rcvbulkpipe(usbdev, IOP_EP_IN), msg,
+			   sizeof(struct cp2615_iop_msg), NULL, 0);
 	if (res < 0) {
 		kfree(msg);
 		return res;
 	}
 
+	i2c_r = (struct cp2615_i2c_transfer_result *)&msg->data;
 	if (msg->msg != htons(iop_I2cTransferResult) || i2c_r->tag != tag) {
 		kfree(msg);
 		return -EIO;

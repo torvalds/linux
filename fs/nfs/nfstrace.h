@@ -280,8 +280,6 @@ TRACE_DEFINE_ENUM(LOOKUP_OPEN);
 TRACE_DEFINE_ENUM(LOOKUP_CREATE);
 TRACE_DEFINE_ENUM(LOOKUP_EXCL);
 TRACE_DEFINE_ENUM(LOOKUP_RENAME_TARGET);
-TRACE_DEFINE_ENUM(LOOKUP_JUMPED);
-TRACE_DEFINE_ENUM(LOOKUP_ROOT);
 TRACE_DEFINE_ENUM(LOOKUP_EMPTY);
 TRACE_DEFINE_ENUM(LOOKUP_DOWN);
 
@@ -297,8 +295,6 @@ TRACE_DEFINE_ENUM(LOOKUP_DOWN);
 			{ LOOKUP_CREATE, "CREATE" }, \
 			{ LOOKUP_EXCL, "EXCL" }, \
 			{ LOOKUP_RENAME_TARGET, "RENAME_TARGET" }, \
-			{ LOOKUP_JUMPED, "JUMPED" }, \
-			{ LOOKUP_ROOT, "ROOT" }, \
 			{ LOOKUP_EMPTY, "EMPTY" }, \
 			{ LOOKUP_DOWN, "DOWN" })
 
@@ -429,10 +425,6 @@ TRACE_DEFINE_ENUM(O_CLOEXEC);
 		{ O_NOFOLLOW, "O_NOFOLLOW" }, \
 		{ O_NOATIME, "O_NOATIME" }, \
 		{ O_CLOEXEC, "O_CLOEXEC" })
-
-TRACE_DEFINE_ENUM(FMODE_READ);
-TRACE_DEFINE_ENUM(FMODE_WRITE);
-TRACE_DEFINE_ENUM(FMODE_EXEC);
 
 #define show_fmode_flags(mode) \
 	__print_flags(mode, "|", \
@@ -1431,8 +1423,8 @@ DECLARE_EVENT_CLASS(nfs_xdr_event,
 			__entry->version = task->tk_client->cl_vers;
 			__entry->error = error;
 			__assign_str(program,
-				     task->tk_client->cl_program->name)
-			__assign_str(procedure, task->tk_msg.rpc_proc->p_name)
+				     task->tk_client->cl_program->name);
+			__assign_str(procedure, task->tk_msg.rpc_proc->p_name);
 		),
 
 		TP_printk(

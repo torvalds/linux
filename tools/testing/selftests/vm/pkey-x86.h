@@ -126,6 +126,7 @@ static inline u32 pkey_bit_position(int pkey)
 
 #define XSTATE_PKEY_BIT	(9)
 #define XSTATE_PKEY	0x200
+#define XSTATE_BV_OFFSET	512
 
 int pkey_reg_xstate_offset(void)
 {

@@ -422,12 +422,6 @@ void *alloc_insn_page(void)
 	return page;
 }
 
-/* Recover page to RW mode before releasing it */
-void free_insn_page(void *page)
-{
-	module_memfree(page);
-}
-
 /* Kprobe x86 instruction emulation - only regs->ip or IF flag modifiers */
 
 static void kprobe_emulate_ifmodifiers(struct kprobe *p, struct pt_regs *regs)
@@ -674,7 +668,7 @@ static int prepare_emulation(struct kprobe *p, struct insn *insn)
 			break;
 
 		if (insn->addr_bytes != sizeof(unsigned long))
-			return -EOPNOTSUPP;	/* Don't support differnt size */
+			return -EOPNOTSUPP;	/* Don't support different size */
 		if (X86_MODRM_MOD(opcode) != 3)
 			return -EOPNOTSUPP;	/* TODO: support memory addressing */
 

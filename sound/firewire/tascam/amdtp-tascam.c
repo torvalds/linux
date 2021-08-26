@@ -228,6 +228,7 @@ int amdtp_tscm_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir, unsigned int pcm_channels)
 {
 	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
+	unsigned int flags = CIP_NONBLOCKING | CIP_SKIP_DBC_ZERO_CHECK | CIP_UNAWARE_SYT;
 	struct amdtp_tscm *p;
 	unsigned int fmt;
 	int err;
@@ -240,8 +241,7 @@ int amdtp_tscm_init(struct amdtp_stream *s, struct fw_unit *unit,
 		process_ctx_payloads = process_it_ctx_payloads;
 	}
 
-	err = amdtp_stream_init(s, unit, dir,
-			CIP_NONBLOCKING | CIP_SKIP_DBC_ZERO_CHECK, fmt,
+	err = amdtp_stream_init(s, unit, dir, flags, fmt,
 			process_ctx_payloads, sizeof(struct amdtp_tscm));
 	if (err < 0)
 		return 0;
@@ -249,8 +249,6 @@ int amdtp_tscm_init(struct amdtp_stream *s, struct fw_unit *unit,
 	if (dir == AMDTP_OUT_STREAM) {
 		// Use fixed value for FDF field.
 		s->ctx_data.rx.fdf = 0x00;
-		// Not used.
-		s->ctx_data.rx.syt_override = 0x0000;
 	}
 
 	/* This protocol uses fixed number of data channels for PCM samples. */

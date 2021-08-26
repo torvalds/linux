@@ -52,7 +52,7 @@ static inline int iscsi_sna_gte(u32 n1, u32 n2)
 }
 
 /*
- * useful common(control and data pathes) macro
+ * useful common(control and data paths) macro
  */
 #define ntoh24(p) (((p)[0] << 16) | ((p)[1] << 8) | ((p)[2]))
 #define hton24(p, v) { \

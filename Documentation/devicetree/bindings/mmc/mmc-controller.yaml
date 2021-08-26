@@ -220,6 +220,11 @@ properties:
     description:
       eMMC HS400 enhanced strobe mode is supported
 
+  no-mmc-hs400:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      All eMMC HS400 modes are not supported.
+
   dsr:
     description:
       Value the card Driver Stage Register (DSR) should be programmed
@@ -358,22 +363,6 @@ additionalProperties: true
 
 examples:
   - |
-    mmc@ab000000 {
-        compatible = "sdhci";
-        reg = <0xab000000 0x200>;
-        interrupts = <23>;
-        bus-width = <4>;
-        cd-gpios = <&gpio 69 0>;
-        cd-inverted;
-        wp-gpios = <&gpio 70 0>;
-        max-frequency = <50000000>;
-        keep-power-in-suspend;
-        wakeup-source;
-        mmc-pwrseq = <&sdhci0_pwrseq>;
-        clk-phase-sd-hs = <63>, <72>;
-    };
-
-  - |
     mmc3: mmc@1c12000 {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -385,9 +374,9 @@ examples:
         non-removable;
         mmc-pwrseq = <&sdhci0_pwrseq>;
 
-        brcmf: bcrmf@1 {
+        brcmf: wifi@1 {
             reg = <1>;
-            compatible = "brcm,bcm43xx-fmac";
+            compatible = "brcm,bcm4329-fmac";
             interrupt-parent = <&pio>;
             interrupts = <10 8>;
             interrupt-names = "host-wake";

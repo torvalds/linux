@@ -157,7 +157,6 @@ enum nf_flow_flags {
 	NF_FLOW_HW,
 	NF_FLOW_HW_DYING,
 	NF_FLOW_HW_DEAD,
-	NF_FLOW_HW_REFRESH,
 	NF_FLOW_HW_PENDING,
 };
 
@@ -177,6 +176,8 @@ struct flow_offload {
 
 #define NF_FLOW_TIMEOUT (30 * HZ)
 #define nf_flowtable_time_stamp	(u32)jiffies
+
+unsigned long flow_offload_get_timeout(struct flow_offload *flow);
 
 static inline __s32 nf_flow_timeout_delta(unsigned int timeout)
 {

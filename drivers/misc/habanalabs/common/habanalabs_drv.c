@@ -29,7 +29,8 @@ static DEFINE_MUTEX(hl_devs_idr_lock);
 
 static int timeout_locked = 30;
 static int reset_on_lockup = 1;
-static int memory_scrub = 1;
+static int memory_scrub;
+static ulong boot_error_status_mask = ULONG_MAX;
 
 module_param(timeout_locked, int, 0444);
 MODULE_PARM_DESC(timeout_locked,
@@ -41,7 +42,11 @@ MODULE_PARM_DESC(reset_on_lockup,
 
 module_param(memory_scrub, int, 0444);
 MODULE_PARM_DESC(memory_scrub,
-	"Scrub device memory in various states (0 = no, 1 = yes, default yes)");
+	"Scrub device memory in various states (0 = no, 1 = yes, default no)");
+
+module_param(boot_error_status_mask, ulong, 0444);
+MODULE_PARM_DESC(boot_error_status_mask,
+	"Mask of the error status during device CPU boot (If bitX is cleared then error X is masked. Default all 1's)");
 
 #define PCI_VENDOR_ID_HABANALABS	0x1da3
 
@@ -182,6 +187,9 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 	hl_debugfs_add_file(hpriv);
 
+	hdev->open_counter++;
+	hdev->last_successful_open_jif = jiffies;
+
 	return 0;
 
 out_err:
@@ -259,6 +267,7 @@ static void set_driver_behavior_per_device(struct hl_device *hdev)
 	hdev->bmc_enable = 1;
 	hdev->hard_reset_on_fw_events = 1;
 	hdev->reset_on_preboot_fail = 1;
+	hdev->reset_if_device_not_idle = 1;
 
 	hdev->reset_pcilink = 0;
 	hdev->axi_drain = 0;
@@ -303,10 +312,10 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	}
 
 	if (pdev)
-		hdev->asic_prop.fw_security_disabled =
-				!is_asic_secured(pdev->device);
+		hdev->asic_prop.fw_security_enabled =
+					is_asic_secured(hdev->asic_type);
 	else
-		hdev->asic_prop.fw_security_disabled = true;
+		hdev->asic_prop.fw_security_enabled = false;
 
 	/* Assign status description string */
 	strncpy(hdev->status[HL_DEVICE_STATUS_MALFUNCTION],
@@ -319,9 +328,14 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	hdev->major = hl_major;
 	hdev->reset_on_lockup = reset_on_lockup;
 	hdev->memory_scrub = memory_scrub;
+	hdev->boot_error_status_mask = boot_error_status_mask;
+	hdev->stop_on_err = true;
+
 	hdev->pldm = 0;
 
 	set_driver_behavior_per_device(hdev);
+
+	hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
 
 	if (timeout_locked)
 		hdev->timeout_jiffies = msecs_to_jiffies(timeout_locked * 1000);
@@ -457,6 +471,7 @@ static int hl_pci_probe(struct pci_dev *pdev,
 	return 0;
 
 disable_device:
+	pci_disable_pcie_error_reporting(pdev);
 	pci_set_drvdata(pdev, NULL);
 	destroy_hdev(hdev);
 
@@ -565,7 +580,11 @@ static struct pci_driver hl_pci_driver = {
 	.probe = hl_pci_probe,
 	.remove = hl_pci_remove,
 	.shutdown = hl_pci_remove,
-	.driver.pm = &hl_pm_ops,
+	.driver = {
+		.name = HL_NAME,
+		.pm = &hl_pm_ops,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+	},
 	.err_handler = &hl_pci_err_handler,
 };
 

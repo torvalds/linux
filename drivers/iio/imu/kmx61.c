@@ -750,7 +750,7 @@ static int kmx61_set_power_state(struct kmx61_data *data, bool on, u8 device)
 	}
 
 	if (on) {
-		ret = pm_runtime_get_sync(&data->client->dev);
+		ret = pm_runtime_resume_and_get(&data->client->dev);
 	} else {
 		pm_runtime_mark_last_busy(&data->client->dev);
 		ret = pm_runtime_put_autosuspend(&data->client->dev);
@@ -759,8 +759,6 @@ static int kmx61_set_power_state(struct kmx61_data *data, bool on, u8 device)
 		dev_err(&data->client->dev,
 			"Failed: kmx61_set_power_state for %d, ret %d\n",
 			on, ret);
-		if (on)
-			pm_runtime_put_noidle(&data->client->dev);
 
 		return ret;
 	}
@@ -1264,7 +1262,7 @@ static struct iio_trigger *kmx61_trigger_setup(struct kmx61_data *data,
 				      "%s-%s-dev%d",
 				      indio_dev->name,
 				      tag,
-				      indio_dev->id);
+				      iio_device_id(indio_dev));
 	if (!trig)
 		return ERR_PTR(-ENOMEM);
 
@@ -1426,7 +1424,6 @@ static int kmx61_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
 
 	if (client->irq > 0) {
 		iio_triggered_buffer_cleanup(data->acc_indio_dev);

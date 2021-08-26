@@ -75,6 +75,13 @@ void nfs_mark_delegation_referenced(struct nfs_delegation *delegation)
 	set_bit(NFS_DELEGATION_REFERENCED, &delegation->flags);
 }
 
+static void nfs_mark_return_delegation(struct nfs_server *server,
+				       struct nfs_delegation *delegation)
+{
+	set_bit(NFS_DELEGATION_RETURN, &delegation->flags);
+	set_bit(NFS4CLNT_DELEGRETURN, &server->nfs_client->cl_state);
+}
+
 static bool
 nfs4_is_valid_delegation(const struct nfs_delegation *delegation,
 		fmode_t flags)
@@ -293,6 +300,7 @@ nfs_start_delegation_return_locked(struct nfs_inode *nfsi)
 		goto out;
 	spin_lock(&delegation->lock);
 	if (!test_and_set_bit(NFS_DELEGATION_RETURNING, &delegation->flags)) {
+		clear_bit(NFS_DELEGATION_RETURN_DELAYED, &delegation->flags);
 		/* Refcount matched in nfs_end_delegation_return() */
 		ret = nfs_get_delegation(delegation);
 	}
@@ -314,16 +322,17 @@ nfs_start_delegation_return(struct nfs_inode *nfsi)
 	return delegation;
 }
 
-static void
-nfs_abort_delegation_return(struct nfs_delegation *delegation,
-		struct nfs_client *clp)
+static void nfs_abort_delegation_return(struct nfs_delegation *delegation,
+					struct nfs_client *clp, int err)
 {
 
 	spin_lock(&delegation->lock);
 	clear_bit(NFS_DELEGATION_RETURNING, &delegation->flags);
-	set_bit(NFS_DELEGATION_RETURN, &delegation->flags);
+	if (err == -EAGAIN) {
+		set_bit(NFS_DELEGATION_RETURN_DELAYED, &delegation->flags);
+		set_bit(NFS4CLNT_DELEGRETURN_DELAYED, &clp->cl_state);
+	}
 	spin_unlock(&delegation->lock);
-	set_bit(NFS4CLNT_DELEGRETURN, &clp->cl_state);
 }
 
 static struct nfs_delegation *
@@ -521,11 +530,18 @@ out:
 static int nfs_end_delegation_return(struct inode *inode, struct nfs_delegation *delegation, int issync)
 {
 	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
+	unsigned int mode = O_WRONLY | O_RDWR;
 	int err = 0;
 
 	if (delegation == NULL)
 		return 0;
-	do {
+
+	if (!issync)
+		mode |= O_NONBLOCK;
+	/* Recall of any remaining application leases */
+	err = break_lease(inode, mode);
+
+	while (err == 0) {
 		if (test_bit(NFS_DELEGATION_REVOKED, &delegation->flags))
 			break;
 		err = nfs_delegation_claim_opens(inode, &delegation->stateid,
@@ -536,10 +552,10 @@ static int nfs_end_delegation_return(struct inode *inode, struct nfs_delegation 
 		 * Guard against state recovery
 		 */
 		err = nfs4_wait_clnt_recover(clp);
-	} while (err == 0);
+	}
 
 	if (err) {
-		nfs_abort_delegation_return(delegation, clp);
+		nfs_abort_delegation_return(delegation, clp, err);
 		goto out;
 	}
 
@@ -568,6 +584,7 @@ static bool nfs_delegation_need_return(struct nfs_delegation *delegation)
 	if (ret)
 		clear_bit(NFS_DELEGATION_RETURN_IF_CLOSED, &delegation->flags);
 	if (test_bit(NFS_DELEGATION_RETURNING, &delegation->flags) ||
+	    test_bit(NFS_DELEGATION_RETURN_DELAYED, &delegation->flags) ||
 	    test_bit(NFS_DELEGATION_REVOKED, &delegation->flags))
 		ret = false;
 
@@ -647,6 +664,38 @@ out:
 	return err;
 }
 
+static bool nfs_server_clear_delayed_delegations(struct nfs_server *server)
+{
+	struct nfs_delegation *d;
+	bool ret = false;
+
+	list_for_each_entry_rcu (d, &server->delegations, super_list) {
+		if (!test_bit(NFS_DELEGATION_RETURN_DELAYED, &d->flags))
+			continue;
+		nfs_mark_return_delegation(server, d);
+		clear_bit(NFS_DELEGATION_RETURN_DELAYED, &d->flags);
+		ret = true;
+	}
+	return ret;
+}
+
+static bool nfs_client_clear_delayed_delegations(struct nfs_client *clp)
+{
+	struct nfs_server *server;
+	bool ret = false;
+
+	if (!test_and_clear_bit(NFS4CLNT_DELEGRETURN_DELAYED, &clp->cl_state))
+		goto out;
+	rcu_read_lock();
+	list_for_each_entry_rcu (server, &clp->cl_superblocks, client_link) {
+		if (nfs_server_clear_delayed_delegations(server))
+			ret = true;
+	}
+	rcu_read_unlock();
+out:
+	return ret;
+}
+
 /**
  * nfs_client_return_marked_delegations - return previously marked delegations
  * @clp: nfs_client to process
@@ -659,8 +708,14 @@ out:
  */
 int nfs_client_return_marked_delegations(struct nfs_client *clp)
 {
-	return nfs_client_for_each_server(clp,
-			nfs_server_return_marked_delegations, NULL);
+	int err = nfs_client_for_each_server(
+		clp, nfs_server_return_marked_delegations, NULL);
+	if (err)
+		return err;
+	/* If a return was delayed, sleep to prevent hard looping */
+	if (nfs_client_clear_delayed_delegations(clp))
+		ssleep(1);
+	return 0;
 }
 
 /**
@@ -698,13 +753,14 @@ int nfs4_inode_return_delegation(struct inode *inode)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_delegation *delegation;
-	int err = 0;
 
-	nfs_wb_all(inode);
 	delegation = nfs_start_delegation_return(nfsi);
+	/* Synchronous recall of any application leases */
+	break_lease(inode, O_WRONLY | O_RDWR);
+	nfs_wb_all(inode);
 	if (delegation != NULL)
-		err = nfs_end_delegation_return(inode, delegation, 1);
-	return err;
+		return nfs_end_delegation_return(inode, delegation, 1);
+	return 0;
 }
 
 /**
@@ -772,13 +828,6 @@ static void nfs_mark_return_if_closed_delegation(struct nfs_server *server,
 		struct nfs_delegation *delegation)
 {
 	set_bit(NFS_DELEGATION_RETURN_IF_CLOSED, &delegation->flags);
-	set_bit(NFS4CLNT_DELEGRETURN, &server->nfs_client->cl_state);
-}
-
-static void nfs_mark_return_delegation(struct nfs_server *server,
-		struct nfs_delegation *delegation)
-{
-	set_bit(NFS_DELEGATION_RETURN, &delegation->flags);
 	set_bit(NFS4CLNT_DELEGRETURN, &server->nfs_client->cl_state);
 }
 
@@ -1009,6 +1058,9 @@ int nfs_async_inode_return_delegation(struct inode *inode,
 		goto out_enoent;
 	nfs_mark_return_delegation(server, delegation);
 	rcu_read_unlock();
+
+	/* If there are any application leases or delegations, recall them */
+	break_lease(inode, O_WRONLY | O_RDWR | O_NONBLOCK);
 
 	nfs_delegation_run_state_manager(clp);
 	return 0;

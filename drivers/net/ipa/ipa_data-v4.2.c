@@ -219,92 +219,110 @@ static const struct ipa_resource_data ipa_resource_data = {
 
 /* IPA-resident memory region data for an SoC having IPA v4.2 */
 static const struct ipa_mem ipa_mem_local_data[] = {
-	[IPA_MEM_UC_SHARED] = {
+	{
+		.id		= IPA_MEM_UC_SHARED,
 		.offset		= 0x0000,
 		.size		= 0x0080,
 		.canary_count	= 0,
 	},
-	[IPA_MEM_UC_INFO] = {
+	{
+		.id		= IPA_MEM_UC_INFO,
 		.offset		= 0x0080,
 		.size		= 0x0200,
 		.canary_count	= 0,
 	},
-	[IPA_MEM_V4_FILTER_HASHED] = {
+	{
+		.id		= IPA_MEM_V4_FILTER_HASHED,
 		.offset		= 0x0288,
 		.size		= 0,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_V4_FILTER] = {
+	{
+		.id		= IPA_MEM_V4_FILTER,
 		.offset		= 0x0290,
 		.size		= 0x0078,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_V6_FILTER_HASHED] = {
+	{
+		.id		= IPA_MEM_V6_FILTER_HASHED,
 		.offset		= 0x0310,
 		.size		= 0,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_V6_FILTER] = {
+	{
+		.id		= IPA_MEM_V6_FILTER,
 		.offset		= 0x0318,
 		.size		= 0x0078,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_V4_ROUTE_HASHED] = {
+	{
+		.id		= IPA_MEM_V4_ROUTE_HASHED,
 		.offset		= 0x0398,
 		.size		= 0,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_V4_ROUTE] = {
+	{
+		.id		= IPA_MEM_V4_ROUTE,
 		.offset		= 0x03a0,
 		.size		= 0x0078,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_V6_ROUTE_HASHED] = {
+	{
+		.id		= IPA_MEM_V6_ROUTE_HASHED,
 		.offset		= 0x0420,
 		.size		= 0,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_V6_ROUTE] = {
+	{
+		.id		= IPA_MEM_V6_ROUTE,
 		.offset		= 0x0428,
 		.size		= 0x0078,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_MODEM_HEADER] = {
+	{
+		.id		= IPA_MEM_MODEM_HEADER,
 		.offset		= 0x04a8,
 		.size		= 0x0140,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_MODEM_PROC_CTX] = {
+	{
+		.id		= IPA_MEM_MODEM_PROC_CTX,
 		.offset		= 0x05f0,
 		.size		= 0x0200,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_AP_PROC_CTX] = {
+	{
+		.id		= IPA_MEM_AP_PROC_CTX,
 		.offset		= 0x07f0,
 		.size		= 0x0200,
 		.canary_count	= 0,
 	},
-	[IPA_MEM_PDN_CONFIG] = {
+	{
+		.id		= IPA_MEM_PDN_CONFIG,
 		.offset		= 0x09f8,
 		.size		= 0x0050,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_STATS_QUOTA_MODEM] = {
+	{
+		.id		= IPA_MEM_STATS_QUOTA_MODEM,
 		.offset		= 0x0a50,
 		.size		= 0x0060,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_STATS_TETHERING] = {
+	{
+		.id		= IPA_MEM_STATS_TETHERING,
 		.offset		= 0x0ab0,
 		.size		= 0x0140,
 		.canary_count	= 0,
 	},
-	[IPA_MEM_MODEM] = {
+	{
+		.id		= IPA_MEM_MODEM,
 		.offset		= 0x0bf0,
 		.size		= 0x140c,
 		.canary_count	= 0,
 	},
-	[IPA_MEM_UC_EVENT_RING] = {
+	{
+		.id		= IPA_MEM_END_MARKER,
 		.offset		= 0x2000,
 		.size		= 0,
 		.canary_count	= 1,

@@ -50,6 +50,7 @@ i915-y += i915_drv.o \
 	  intel_memory_region.o \
 	  intel_pch.o \
 	  intel_pm.o \
+	  intel_region_ttm.o \
 	  intel_runtime_pm.o \
 	  intel_sideband.o \
 	  intel_step.o \
@@ -160,7 +161,6 @@ gem-y += \
 i915-y += \
 	  $(gem-y) \
 	  i915_active.o \
-	  i915_buddy.o \
 	  i915_cmd_parser.o \
 	  i915_gem_evict.o \
 	  i915_gem_gtt.o \
@@ -201,10 +201,10 @@ i915-y += \
 	display/intel_combo_phy.o \
 	display/intel_connector.o \
 	display/intel_crtc.o \
-	display/intel_csr.o \
 	display/intel_cursor.o \
 	display/intel_display.o \
 	display/intel_display_power.o \
+	display/intel_dmc.o \
 	display/intel_dpio_phy.o \
 	display/intel_dpll.o \
 	display/intel_dpll_mgr.o \
@@ -263,6 +263,7 @@ i915-y += \
 	display/intel_lvds.o \
 	display/intel_panel.o \
 	display/intel_pps.o \
+	display/intel_qp_tables.o \
 	display/intel_sdvo.o \
 	display/intel_tv.o \
 	display/intel_vdsc.o \

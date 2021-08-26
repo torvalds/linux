@@ -23,7 +23,7 @@ EXPORT_SYMBOL(__virt_to_phys);
 
 phys_addr_t __phys_addr_symbol(unsigned long x)
 {
-	unsigned long kernel_start = (unsigned long)kernel_virt_addr;
+	unsigned long kernel_start = kernel_map.virt_addr;
 	unsigned long kernel_end = (unsigned long)_end;
 
 	/*

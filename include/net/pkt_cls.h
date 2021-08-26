@@ -337,6 +337,9 @@ int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts);
 
 /**
  * struct tcf_pkt_info - packet information
+ *
+ * @ptr: start of the pkt data
+ * @nexthdr: offset of the next header
  */
 struct tcf_pkt_info {
 	unsigned char *		ptr;
@@ -355,6 +358,7 @@ struct tcf_ematch_ops;
  * @ops: the operations lookup table of the corresponding ematch module
  * @datalen: length of the ematch specific configuration data
  * @data: ematch specific data
+ * @net: the network namespace
  */
 struct tcf_ematch {
 	struct tcf_ematch_ops * ops;
@@ -708,6 +712,17 @@ tc_cls_common_offload_init(struct flow_cls_common_offload *cls_common,
 	if (tc_skip_sw(flags) || flags & TCA_CLS_FLAGS_VERBOSE)
 		cls_common->extack = extack;
 }
+
+#if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
+static inline struct tc_skb_ext *tc_skb_ext_alloc(struct sk_buff *skb)
+{
+	struct tc_skb_ext *tc_skb_ext = skb_ext_add(skb, TC_SKB_EXT);
+
+	if (tc_skb_ext)
+		memset(tc_skb_ext, 0, sizeof(*tc_skb_ext));
+	return tc_skb_ext;
+}
+#endif
 
 enum tc_matchall_command {
 	TC_CLSMATCHALL_REPLACE,

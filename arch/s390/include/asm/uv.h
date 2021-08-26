@@ -73,6 +73,10 @@ enum uv_cmds_inst {
 	BIT_UVC_CMD_UNPIN_PAGE_SHARED = 22,
 };
 
+enum uv_feat_ind {
+	BIT_UV_FEAT_MISC = 0,
+};
+
 struct uv_cb_header {
 	u16 len;
 	u16 cmd;	/* Command Code */
@@ -97,7 +101,8 @@ struct uv_cb_qui {
 	u64 max_guest_stor_addr;
 	u8  reserved88[158 - 136];
 	u16 max_guest_cpu_id;
-	u8  reserveda0[200 - 160];
+	u64 uv_feature_indications;
+	u8  reserveda0[200 - 168];
 } __packed __aligned(8);
 
 /* Initialize Ultravisor */
@@ -274,6 +279,7 @@ struct uv_info {
 	unsigned long max_sec_stor_addr;
 	unsigned int max_num_sec_conf;
 	unsigned short max_guest_cpu_id;
+	unsigned long uv_feature_indications;
 };
 
 extern struct uv_info uv_info;

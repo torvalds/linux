@@ -57,8 +57,13 @@ union nft_entry {
 };
 
 static inline void
-nft_compat_set_par(struct xt_action_param *par, void *xt, const void *xt_info)
+nft_compat_set_par(struct xt_action_param *par,
+		   const struct nft_pktinfo *pkt,
+		   const void *xt, const void *xt_info)
 {
+	par->state	= pkt->state;
+	par->thoff	= nft_thoff(pkt);
+	par->fragoff	= pkt->fragoff;
 	par->target	= xt;
 	par->targinfo	= xt_info;
 	par->hotdrop	= false;
@@ -71,13 +76,14 @@ static void nft_target_eval_xt(const struct nft_expr *expr,
 	void *info = nft_expr_priv(expr);
 	struct xt_target *target = expr->ops->data;
 	struct sk_buff *skb = pkt->skb;
+	struct xt_action_param xt;
 	int ret;
 
-	nft_compat_set_par((struct xt_action_param *)&pkt->xt, target, info);
+	nft_compat_set_par(&xt, pkt, target, info);
 
-	ret = target->target(skb, &pkt->xt);
+	ret = target->target(skb, &xt);
 
-	if (pkt->xt.hotdrop)
+	if (xt.hotdrop)
 		ret = NF_DROP;
 
 	switch (ret) {
@@ -97,13 +103,14 @@ static void nft_target_eval_bridge(const struct nft_expr *expr,
 	void *info = nft_expr_priv(expr);
 	struct xt_target *target = expr->ops->data;
 	struct sk_buff *skb = pkt->skb;
+	struct xt_action_param xt;
 	int ret;
 
-	nft_compat_set_par((struct xt_action_param *)&pkt->xt, target, info);
+	nft_compat_set_par(&xt, pkt, target, info);
 
-	ret = target->target(skb, &pkt->xt);
+	ret = target->target(skb, &xt);
 
-	if (pkt->xt.hotdrop)
+	if (xt.hotdrop)
 		ret = NF_DROP;
 
 	switch (ret) {
@@ -350,13 +357,14 @@ static void __nft_match_eval(const struct nft_expr *expr,
 {
 	struct xt_match *match = expr->ops->data;
 	struct sk_buff *skb = pkt->skb;
+	struct xt_action_param xt;
 	bool ret;
 
-	nft_compat_set_par((struct xt_action_param *)&pkt->xt, match, info);
+	nft_compat_set_par(&xt, pkt, match, info);
 
-	ret = match->match(skb, (struct xt_action_param *)&pkt->xt);
+	ret = match->match(skb, &xt);
 
-	if (pkt->xt.hotdrop) {
+	if (xt.hotdrop) {
 		regs->verdict.code = NF_DROP;
 		return;
 	}
@@ -617,7 +625,7 @@ static int nfnl_compat_get_rcu(struct sk_buff *skb,
 			       const struct nfnl_info *info,
 			       const struct nlattr * const tb[])
 {
-	struct nfgenmsg *nfmsg;
+	u8 family = info->nfmsg->nfgen_family;
 	const char *name, *fmt;
 	struct sk_buff *skb2;
 	int ret = 0, target;
@@ -632,9 +640,7 @@ static int nfnl_compat_get_rcu(struct sk_buff *skb,
 	rev = ntohl(nla_get_be32(tb[NFTA_COMPAT_REV]));
 	target = ntohl(nla_get_be32(tb[NFTA_COMPAT_TYPE]));
 
-	nfmsg = nlmsg_data(info->nlh);
-
-	switch(nfmsg->nfgen_family) {
+	switch(family) {
 	case AF_INET:
 		fmt = "ipt_%s";
 		break;
@@ -648,8 +654,7 @@ static int nfnl_compat_get_rcu(struct sk_buff *skb,
 		fmt = "arpt_%s";
 		break;
 	default:
-		pr_err("nft_compat: unsupported protocol %d\n",
-			nfmsg->nfgen_family);
+		pr_err("nft_compat: unsupported protocol %d\n", family);
 		return -EINVAL;
 	}
 
@@ -657,9 +662,8 @@ static int nfnl_compat_get_rcu(struct sk_buff *skb,
 		return -EINVAL;
 
 	rcu_read_unlock();
-	try_then_request_module(xt_find_revision(nfmsg->nfgen_family, name,
-						 rev, target, &ret),
-						 fmt, name);
+	try_then_request_module(xt_find_revision(family, name, rev, target, &ret),
+				fmt, name);
 	if (ret < 0)
 		goto out_put;
 
@@ -674,8 +678,7 @@ static int nfnl_compat_get_rcu(struct sk_buff *skb,
 				  info->nlh->nlmsg_seq,
 				  NFNL_MSG_TYPE(info->nlh->nlmsg_type),
 				  NFNL_MSG_COMPAT_GET,
-				  nfmsg->nfgen_family,
-				  name, ret, target) <= 0) {
+				  family, name, ret, target) <= 0) {
 		kfree_skb(skb2);
 		goto out_put;
 	}

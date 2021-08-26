@@ -97,8 +97,7 @@ void test_perf_event_stackmap(void)
 
 	skel->links.oncpu = bpf_program__attach_perf_event(skel->progs.oncpu,
 							   pmu_fd);
-	if (CHECK(IS_ERR(skel->links.oncpu), "attach_perf_event",
-		  "err %ld\n", PTR_ERR(skel->links.oncpu))) {
+	if (!ASSERT_OK_PTR(skel->links.oncpu, "attach_perf_event")) {
 		close(pmu_fd);
 		goto cleanup;
 	}

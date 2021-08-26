@@ -20,6 +20,7 @@
 #include <linux/bits.h>
 
 #include <asm/svm.h>
+#include <asm/sev-common.h>
 
 #define __sme_page_pa(x) __sme_set(page_to_pfn(x) << PAGE_SHIFT)
 
@@ -30,7 +31,13 @@
 #define MSRPM_OFFSETS	16
 extern u32 msrpm_offsets[MSRPM_OFFSETS] __read_mostly;
 extern bool npt_enabled;
+extern bool intercept_smi;
 
+/*
+ * Clean bits in VMCB.
+ * VMCB_ALL_CLEAN_MASK might also need to
+ * be updated if this enum is modified.
+ */
 enum {
 	VMCB_INTERCEPTS, /* Intercept vectors, TSC offset,
 			    pause filter count */
@@ -48,8 +55,16 @@ enum {
 			  * AVIC PHYSICAL_TABLE pointer,
 			  * AVIC LOGICAL_TABLE pointer
 			  */
-	VMCB_DIRTY_MAX,
+	VMCB_SW = 31,    /* Reserved for hypervisor/software use */
 };
+
+#define VMCB_ALL_CLEAN_MASK (					\
+	(1U << VMCB_INTERCEPTS) | (1U << VMCB_PERM_MAP) |	\
+	(1U << VMCB_ASID) | (1U << VMCB_INTR) |			\
+	(1U << VMCB_NPT) | (1U << VMCB_CR) | (1U << VMCB_DR) |	\
+	(1U << VMCB_DT) | (1U << VMCB_SEG) | (1U << VMCB_CR2) |	\
+	(1U << VMCB_LBR) | (1U << VMCB_AVIC) |			\
+	(1U << VMCB_SW))
 
 /* TPR and CR2 are always written before VMRUN */
 #define VMCB_ALWAYS_DIRTY_MASK	((1U << VMCB_INTR) | (1U << VMCB_CR2))
@@ -237,8 +252,13 @@ static inline void vmcb_mark_all_dirty(struct vmcb *vmcb)
 
 static inline void vmcb_mark_all_clean(struct vmcb *vmcb)
 {
-	vmcb->control.clean = ((1 << VMCB_DIRTY_MAX) - 1)
+	vmcb->control.clean = VMCB_ALL_CLEAN_MASK
 			       & ~VMCB_ALWAYS_DIRTY_MASK;
+}
+
+static inline bool vmcb_is_clean(struct vmcb *vmcb, int bit)
+{
+	return (vmcb->control.clean & (1 << bit));
 }
 
 static inline void vmcb_mark_dirty(struct vmcb *vmcb, int bit)
@@ -444,7 +464,9 @@ void svm_leave_nested(struct vcpu_svm *svm);
 void svm_free_nested(struct vcpu_svm *svm);
 int svm_allocate_nested(struct vcpu_svm *svm);
 int nested_svm_vmrun(struct kvm_vcpu *vcpu);
-void nested_svm_vmloadsave(struct vmcb *from_vmcb, struct vmcb *to_vmcb);
+void svm_copy_vmrun_state(struct vmcb_save_area *to_save,
+			  struct vmcb_save_area *from_save);
+void svm_copy_vmloadsave_state(struct vmcb *to_vmcb, struct vmcb *from_vmcb);
 int nested_svm_vmexit(struct vcpu_svm *svm);
 
 static inline int nested_svm_simple_vmexit(struct vcpu_svm *svm, u32 exit_code)
@@ -460,6 +482,8 @@ int nested_svm_check_permissions(struct kvm_vcpu *vcpu);
 int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 			       bool has_error_code, u32 error_code);
 int nested_svm_exit_special(struct vcpu_svm *svm);
+void nested_load_control_from_vmcb12(struct vcpu_svm *svm,
+				     struct vmcb_control_area *control);
 void nested_sync_control_from_vmcb02(struct vcpu_svm *svm);
 void nested_vmcb02_compute_g_pat(struct vcpu_svm *svm);
 void svm_switch_vmcb(struct vcpu_svm *svm, struct kvm_vmcb_info *target_vmcb);
@@ -478,8 +502,6 @@ extern struct kvm_x86_nested_ops svm_nested_ops;
 #define AVIC_PHYSICAL_ID_ENTRY_VALID_MASK		(1ULL << 63)
 
 #define VMCB_AVIC_APIC_BAR_MASK		0xFFFFFFFFFF000ULL
-
-extern int avic;
 
 static inline void avic_update_vapic_bar(struct vcpu_svm *svm, u64 data)
 {
@@ -525,40 +547,9 @@ void svm_vcpu_unblocking(struct kvm_vcpu *vcpu);
 
 /* sev.c */
 
-#define GHCB_VERSION_MAX		1ULL
-#define GHCB_VERSION_MIN		1ULL
+#define GHCB_VERSION_MAX	1ULL
+#define GHCB_VERSION_MIN	1ULL
 
-#define GHCB_MSR_INFO_POS		0
-#define GHCB_MSR_INFO_MASK		(BIT_ULL(12) - 1)
-
-#define GHCB_MSR_SEV_INFO_RESP		0x001
-#define GHCB_MSR_SEV_INFO_REQ		0x002
-#define GHCB_MSR_VER_MAX_POS		48
-#define GHCB_MSR_VER_MAX_MASK		0xffff
-#define GHCB_MSR_VER_MIN_POS		32
-#define GHCB_MSR_VER_MIN_MASK		0xffff
-#define GHCB_MSR_CBIT_POS		24
-#define GHCB_MSR_CBIT_MASK		0xff
-#define GHCB_MSR_SEV_INFO(_max, _min, _cbit)				\
-	((((_max) & GHCB_MSR_VER_MAX_MASK) << GHCB_MSR_VER_MAX_POS) |	\
-	 (((_min) & GHCB_MSR_VER_MIN_MASK) << GHCB_MSR_VER_MIN_POS) |	\
-	 (((_cbit) & GHCB_MSR_CBIT_MASK) << GHCB_MSR_CBIT_POS) |	\
-	 GHCB_MSR_SEV_INFO_RESP)
-
-#define GHCB_MSR_CPUID_REQ		0x004
-#define GHCB_MSR_CPUID_RESP		0x005
-#define GHCB_MSR_CPUID_FUNC_POS		32
-#define GHCB_MSR_CPUID_FUNC_MASK	0xffffffff
-#define GHCB_MSR_CPUID_VALUE_POS	32
-#define GHCB_MSR_CPUID_VALUE_MASK	0xffffffff
-#define GHCB_MSR_CPUID_REG_POS		30
-#define GHCB_MSR_CPUID_REG_MASK		0x3
-
-#define GHCB_MSR_TERM_REQ		0x100
-#define GHCB_MSR_TERM_REASON_SET_POS	12
-#define GHCB_MSR_TERM_REASON_SET_MASK	0xf
-#define GHCB_MSR_TERM_REASON_POS	16
-#define GHCB_MSR_TERM_REASON_MASK	0xff
 
 extern unsigned int max_sev_asid;
 

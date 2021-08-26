@@ -832,8 +832,8 @@ static struct net_device_stats *de_get_stats(struct net_device *dev)
 
 	/* The chip only need report frame silently dropped. */
 	spin_lock_irq(&de->lock);
- 	if (netif_running(dev) && netif_device_present(dev))
- 		__de_get_stats(de);
+	if (netif_running(dev) && netif_device_present(dev))
+		__de_get_stats(de);
 	spin_unlock_irq(&de->lock);
 
 	return &dev->stats;

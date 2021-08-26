@@ -161,8 +161,6 @@ static int nci_hci_send_data(struct nci_dev *ndev, u8 pipe,
 	*(u8 *)skb_push(skb, 1) = data_type;
 
 	do {
-		len = conn_info->max_pkt_payload_len;
-
 		/* If last packet add NCI_HFP_NO_CHAINING */
 		if (i + conn_info->max_pkt_payload_len -
 		    (skb->len + 1) >= data_len) {
@@ -791,4 +789,9 @@ struct nci_hci_dev *nci_hci_allocate(struct nci_dev *ndev)
 	hdev->ndev = ndev;
 
 	return hdev;
+}
+
+void nci_hci_deallocate(struct nci_dev *ndev)
+{
+	kfree(ndev->hci_dev);
 }

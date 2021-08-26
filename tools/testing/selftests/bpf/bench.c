@@ -43,6 +43,7 @@ void setup_libbpf()
 {
 	int err;
 
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 	libbpf_set_print(libbpf_print_fn);
 
 	err = bump_memlock_rlimit();

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/**
+/*
  * APM X-Gene PCIe Driver
  *
  * Copyright (c) 2014 Applied Micro Circuits Corporation.
@@ -485,7 +485,7 @@ static void xgene_pcie_setup_ib_reg(struct xgene_pcie_port *port,
 {
 	void __iomem *cfg_base = port->cfg_base;
 	struct device *dev = port->dev;
-	void *bar_addr;
+	void __iomem *bar_addr;
 	u32 pim_reg;
 	u64 cpu_addr = entry->res->start;
 	u64 pci_addr = cpu_addr - entry->offset;

@@ -19,9 +19,10 @@ config SENSORS_PMBUS
 	default y
 	help
 	  If you say yes here you get hardware monitoring support for generic
-	  PMBus devices, including but not limited to ADP4000, BMR453, BMR454,
-	  MAX20796, MDT040, NCP4200, NCP4208, PDT003, PDT006, PDT012, TPS40400,
-	  TPS544B20, TPS544B25, TPS544C20, TPS544C25, and UDT020.
+	  PMBus devices, including but not limited to ADP4000, BMR310, BMR453,
+	  BMR454, BMR456, BMR457, BMR458, BMR480, BMR490, BMR491, BMR492,
+	  MAX20796, MDT040, NCP4200, NCP4208, PDT003, PDT006, PDT012,
+	  TPS40400, TPS544B20, TPS544B25, TPS544C20, TPS544C25, and UDT020.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called pmbus.
@@ -84,6 +85,15 @@ config SENSORS_IBM_CFFPS
 
 	  This driver can also be built as a module. If so, the module will
 	  be called ibm-cffps.
+
+config SENSORS_DPS920AB
+	tristate "Delta DPS920AB Power Supply"
+	help
+	  If you say yes here you get hardware monitoring support for Delta
+	  DPS920AB Power Supplies.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called dps920ab.
 
 config SENSORS_INSPUR_IPSPS
 	tristate "INSPUR Power System Power Supply"
@@ -248,6 +258,15 @@ config SENSORS_MAX8688
 	  This driver can also be built as a module. If so, the module will
 	  be called max8688.
 
+config SENSORS_MP2888
+	tristate "MPS MP2888"
+	help
+	  If you say yes here you get hardware monitoring support for MPS
+	  MP2888 Digital, Multi-Phase, Pulse-Width Modulation Controller.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called mp2888.
+
 config SENSORS_MP2975
 	tristate "MPS MP2975"
 	help
@@ -256,6 +275,15 @@ config SENSORS_MP2975
 
 	  This driver can also be built as a module. If so, the module will
 	  be called mp2975.
+
+config SENSORS_PIM4328
+	tristate "Flex PIM4328 and compatibles"
+	help
+	  If you say yes here you get hardware monitoring support for Flex
+	  PIM4328, PIM4820 and PIM4006 Power Interface Modules.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called pim4328.
 
 config SENSORS_PM6764TR
 	tristate "ST PM6764TR"

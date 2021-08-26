@@ -72,7 +72,9 @@ static int probe(struct pci_dev *pdev,
 			   const struct pci_device_id *id)
 {
 	struct uio_pci_generic_dev *gdev;
+	struct uio_mem *uiomem;
 	int err;
+	int i;
 
 	err = pcim_enable_device(pdev);
 	if (err) {
@@ -82,7 +84,7 @@ static int probe(struct pci_dev *pdev,
 	}
 
 	if (pdev->irq && !pci_intx_mask_supported(pdev))
-		return -ENOMEM;
+		return -ENODEV;
 
 	gdev = devm_kzalloc(&pdev->dev, sizeof(struct uio_pci_generic_dev), GFP_KERNEL);
 	if (!gdev)
@@ -99,6 +101,36 @@ static int probe(struct pci_dev *pdev,
 	} else {
 		dev_warn(&pdev->dev, "No IRQ assigned to device: "
 			 "no support for interrupts?\n");
+	}
+
+	uiomem = &gdev->info.mem[0];
+	for (i = 0; i < MAX_UIO_MAPS; ++i) {
+		struct resource *r = &pdev->resource[i];
+
+		if (r->flags != (IORESOURCE_SIZEALIGN | IORESOURCE_MEM))
+			continue;
+
+		if (uiomem >= &gdev->info.mem[MAX_UIO_MAPS]) {
+			dev_warn(
+				&pdev->dev,
+				"device has more than " __stringify(
+					MAX_UIO_MAPS) " I/O memory resources.\n");
+			break;
+		}
+
+		uiomem->memtype = UIO_MEM_PHYS;
+		uiomem->addr = r->start & PAGE_MASK;
+		uiomem->offs = r->start & ~PAGE_MASK;
+		uiomem->size =
+			(uiomem->offs + resource_size(r) + PAGE_SIZE - 1) &
+			PAGE_MASK;
+		uiomem->name = r->name;
+		++uiomem;
+	}
+
+	while (uiomem < &gdev->info.mem[MAX_UIO_MAPS]) {
+		uiomem->size = 0;
+		++uiomem;
 	}
 
 	return devm_uio_register_device(&pdev->dev, &gdev->info);

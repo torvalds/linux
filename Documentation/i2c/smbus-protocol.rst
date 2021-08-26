@@ -27,8 +27,8 @@ a different protocol operation entirely.
 Each transaction type corresponds to a functionality flag. Before calling a
 transaction function, a device driver should always check (just once) for
 the corresponding functionality flag to ensure that the underlying I2C
-adapter supports the transaction in question. See :doc:`functionality` for
-the details.
+adapter supports the transaction in question. See
+Documentation/i2c/functionality.rst for the details.
 
 
 Key to symbols

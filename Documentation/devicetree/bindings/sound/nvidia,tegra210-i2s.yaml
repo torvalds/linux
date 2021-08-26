@@ -34,7 +34,6 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 2
     items:
       - description: I2S bit clock
       - description:
@@ -48,7 +47,6 @@ properties:
 
   clock-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: i2s
       - const: sync_input

@@ -86,9 +86,11 @@ properties:
   power-domains: true
 
   resets:
+    minItems: 1
     maxItems: 11
 
   reset-names:
+    minItems: 1
     maxItems: 11
 
   clocks:
@@ -109,6 +111,13 @@ properties:
         - pattern: '^ctu\.[0-1]$'
         - pattern: '^dvc\.[0-1]$'
         - pattern: '^clk_(a|b|c|i)$'
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    patternProperties:
+      port(@[0-9a-f]+)?:
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
 
   port:
     $ref: audio-graph-port.yaml#
@@ -257,7 +266,6 @@ required:
   - "#sound-dai-cells"
 
 allOf:
-  - $ref: audio-graph.yaml#
   - if:
       properties:
         compatible:

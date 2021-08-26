@@ -25,6 +25,10 @@
 #define OTX2_CPT_NAME_LENGTH 64
 #define OTX2_CPT_DMA_MINALIGN 128
 
+/* HW capability flags */
+#define CN10K_MBOX  0
+#define CN10K_LMTST 1
+
 #define BAD_OTX2_CPT_ENG_TYPE OTX2_CPT_MAX_ENG_TYPES
 
 enum otx2_cpt_eng_type {
@@ -115,6 +119,25 @@ static inline u64 otx2_cpt_read64(void __iomem *reg_base, u64 blk, u64 slot,
 	return readq_relaxed(reg_base +
 			     OTX2_CPT_RVU_FUNC_ADDR_S(blk, slot, offs));
 }
+
+static inline bool is_dev_otx2(struct pci_dev *pdev)
+{
+	if (pdev->device == OTX2_CPT_PCI_PF_DEVICE_ID ||
+	    pdev->device == OTX2_CPT_PCI_VF_DEVICE_ID)
+		return true;
+
+	return false;
+}
+
+static inline void otx2_cpt_set_hw_caps(struct pci_dev *pdev,
+					unsigned long *cap_flag)
+{
+	if (!is_dev_otx2(pdev)) {
+		__set_bit(CN10K_MBOX, cap_flag);
+		__set_bit(CN10K_LMTST, cap_flag);
+	}
+}
+
 
 int otx2_cpt_send_ready_msg(struct otx2_mbox *mbox, struct pci_dev *pdev);
 int otx2_cpt_send_mbox_msg(struct otx2_mbox *mbox, struct pci_dev *pdev);

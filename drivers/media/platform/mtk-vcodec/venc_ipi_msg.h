@@ -12,7 +12,7 @@
 #define AP_IPIMSG_VENC_BASE 0xC000
 #define VPU_IPIMSG_VENC_BASE 0xD000
 
-/**
+/*
  * enum venc_ipi_msg_id - message id between AP and VPU
  * (ipi stands for inter-processor interrupt)
  * @AP_IPIMSG_ENC_XXX:		AP to VPU cmd message id
@@ -111,7 +111,7 @@ struct venc_ap_ipi_msg_deinit {
 	uint32_t vpu_inst_addr;
 };
 
-/**
+/*
  * enum venc_ipi_msg_status - VPU ack AP cmd status
  */
 enum venc_ipi_msg_status {

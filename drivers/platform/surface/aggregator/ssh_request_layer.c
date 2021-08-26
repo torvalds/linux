@@ -2,7 +2,7 @@
 /*
  * SSH request transport layer.
  *
- * Copyright (C) 2019-2020 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #include <asm/unaligned.h>
@@ -863,9 +863,7 @@ static void ssh_rtl_timeout_reap(struct work_struct *work)
 		clear_bit(SSH_REQUEST_SF_PENDING_BIT, &r->state);
 
 		atomic_dec(&rtl->pending.count);
-		list_del(&r->node);
-
-		list_add_tail(&r->node, &claimed);
+		list_move_tail(&r->node, &claimed);
 	}
 	spin_unlock(&rtl->pending.lock);
 
@@ -1204,8 +1202,7 @@ void ssh_rtl_shutdown(struct ssh_rtl *rtl)
 		smp_mb__before_atomic();
 		clear_bit(SSH_REQUEST_SF_QUEUED_BIT, &r->state);
 
-		list_del(&r->node);
-		list_add_tail(&r->node, &claimed);
+		list_move_tail(&r->node, &claimed);
 	}
 	spin_unlock(&rtl->queue.lock);
 
@@ -1238,8 +1235,7 @@ void ssh_rtl_shutdown(struct ssh_rtl *rtl)
 			smp_mb__before_atomic();
 			clear_bit(SSH_REQUEST_SF_PENDING_BIT, &r->state);
 
-			list_del(&r->node);
-			list_add_tail(&r->node, &claimed);
+			list_move_tail(&r->node, &claimed);
 		}
 		spin_unlock(&rtl->pending.lock);
 	}

@@ -91,8 +91,8 @@ static inline int sgx_encl_find(struct mm_struct *mm, unsigned long addr,
 {
 	struct vm_area_struct *result;
 
-	result = find_vma(mm, addr);
-	if (!result || result->vm_ops != &sgx_vm_ops || addr < result->vm_start)
+	result = vma_lookup(mm, addr);
+	if (!result || result->vm_ops != &sgx_vm_ops)
 		return -EINVAL;
 
 	*vma = result;

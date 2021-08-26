@@ -34,39 +34,31 @@
 #include <linux/pci.h>
 #include "hns_roce_device.h"
 
-static int hns_roce_pd_alloc(struct hns_roce_dev *hr_dev, unsigned long *pdn)
+void hns_roce_init_pd_table(struct hns_roce_dev *hr_dev)
 {
-	return hns_roce_bitmap_alloc(&hr_dev->pd_bitmap, pdn) ? -ENOMEM : 0;
-}
+	struct hns_roce_ida *pd_ida = &hr_dev->pd_ida;
 
-static void hns_roce_pd_free(struct hns_roce_dev *hr_dev, unsigned long pdn)
-{
-	hns_roce_bitmap_free(&hr_dev->pd_bitmap, pdn, BITMAP_NO_RR);
-}
-
-int hns_roce_init_pd_table(struct hns_roce_dev *hr_dev)
-{
-	return hns_roce_bitmap_init(&hr_dev->pd_bitmap, hr_dev->caps.num_pds,
-				    hr_dev->caps.num_pds - 1,
-				    hr_dev->caps.reserved_pds, 0);
-}
-
-void hns_roce_cleanup_pd_table(struct hns_roce_dev *hr_dev)
-{
-	hns_roce_bitmap_cleanup(&hr_dev->pd_bitmap);
+	ida_init(&pd_ida->ida);
+	pd_ida->max = hr_dev->caps.num_pds - 1;
+	pd_ida->min = hr_dev->caps.reserved_pds;
 }
 
 int hns_roce_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct ib_device *ib_dev = ibpd->device;
+	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
+	struct hns_roce_ida *pd_ida = &hr_dev->pd_ida;
 	struct hns_roce_pd *pd = to_hr_pd(ibpd);
-	int ret;
+	int ret = 0;
+	int id;
 
-	ret = hns_roce_pd_alloc(to_hr_dev(ib_dev), &pd->pdn);
-	if (ret) {
-		ibdev_err(ib_dev, "failed to alloc pd, ret = %d.\n", ret);
-		return ret;
+	id = ida_alloc_range(&pd_ida->ida, pd_ida->min, pd_ida->max,
+			     GFP_KERNEL);
+	if (id < 0) {
+		ibdev_err(ib_dev, "failed to alloc pd, id = %d.\n", id);
+		return -ENOMEM;
 	}
+	pd->pdn = (unsigned long)id;
 
 	if (udata) {
 		struct hns_roce_ib_alloc_pd_resp resp = {.pdn = pd->pdn};
@@ -74,7 +66,7 @@ int hns_roce_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 		ret = ib_copy_to_udata(udata, &resp,
 				       min(udata->outlen, sizeof(resp)));
 		if (ret) {
-			hns_roce_pd_free(to_hr_dev(ib_dev), pd->pdn);
+			ida_free(&pd_ida->ida, id);
 			ibdev_err(ib_dev, "failed to copy to udata, ret = %d\n", ret);
 		}
 	}
@@ -84,7 +76,10 @@ int hns_roce_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 
 int hns_roce_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
-	hns_roce_pd_free(to_hr_dev(pd->device), to_hr_pd(pd)->pdn);
+	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
+
+	ida_free(&hr_dev->pd_ida.ida, (int)to_hr_pd(pd)->pdn);
+
 	return 0;
 }
 
@@ -121,8 +116,7 @@ int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 
 void hns_roce_uar_free(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 {
-	hns_roce_bitmap_free(&hr_dev->uar_table.bitmap, uar->logic_idx,
-			     BITMAP_NO_RR);
+	hns_roce_bitmap_free(&hr_dev->uar_table.bitmap, uar->logic_idx);
 }
 
 int hns_roce_init_uar_table(struct hns_roce_dev *hr_dev)
@@ -140,35 +134,27 @@ void hns_roce_cleanup_uar_table(struct hns_roce_dev *hr_dev)
 
 static int hns_roce_xrcd_alloc(struct hns_roce_dev *hr_dev, u32 *xrcdn)
 {
-	unsigned long obj;
-	int ret;
+	struct hns_roce_ida *xrcd_ida = &hr_dev->xrcd_ida;
+	int id;
 
-	ret = hns_roce_bitmap_alloc(&hr_dev->xrcd_bitmap, &obj);
-	if (ret)
-		return ret;
-
-	*xrcdn = obj;
+	id = ida_alloc_range(&xrcd_ida->ida, xrcd_ida->min, xrcd_ida->max,
+			     GFP_KERNEL);
+	if (id < 0) {
+		ibdev_err(&hr_dev->ib_dev, "failed to alloc xrcdn(%d).\n", id);
+		return -ENOMEM;
+	}
+	*xrcdn = (u32)id;
 
 	return 0;
 }
 
-static void hns_roce_xrcd_free(struct hns_roce_dev *hr_dev,
-			       u32 xrcdn)
+void hns_roce_init_xrcd_table(struct hns_roce_dev *hr_dev)
 {
-	hns_roce_bitmap_free(&hr_dev->xrcd_bitmap, xrcdn, BITMAP_NO_RR);
-}
+	struct hns_roce_ida *xrcd_ida = &hr_dev->xrcd_ida;
 
-int hns_roce_init_xrcd_table(struct hns_roce_dev *hr_dev)
-{
-	return hns_roce_bitmap_init(&hr_dev->xrcd_bitmap,
-				    hr_dev->caps.num_xrcds,
-				    hr_dev->caps.num_xrcds - 1,
-				    hr_dev->caps.reserved_xrcds, 0);
-}
-
-void hns_roce_cleanup_xrcd_table(struct hns_roce_dev *hr_dev)
-{
-	hns_roce_bitmap_cleanup(&hr_dev->xrcd_bitmap);
+	ida_init(&xrcd_ida->ida);
+	xrcd_ida->max = hr_dev->caps.num_xrcds - 1;
+	xrcd_ida->min = hr_dev->caps.reserved_xrcds;
 }
 
 int hns_roce_alloc_xrcd(struct ib_xrcd *ib_xrcd, struct ib_udata *udata)
@@ -181,18 +167,18 @@ int hns_roce_alloc_xrcd(struct ib_xrcd *ib_xrcd, struct ib_udata *udata)
 		return -EINVAL;
 
 	ret = hns_roce_xrcd_alloc(hr_dev, &xrcd->xrcdn);
-	if (ret) {
-		dev_err(hr_dev->dev, "failed to alloc xrcdn, ret = %d.\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }
 
 int hns_roce_dealloc_xrcd(struct ib_xrcd *ib_xrcd, struct ib_udata *udata)
 {
-	hns_roce_xrcd_free(to_hr_dev(ib_xrcd->device),
-			   to_hr_xrcd(ib_xrcd)->xrcdn);
+	struct hns_roce_dev *hr_dev = to_hr_dev(ib_xrcd->device);
+	u32 xrcdn = to_hr_xrcd(ib_xrcd)->xrcdn;
+
+	ida_free(&hr_dev->xrcd_ida.ida, (int)xrcdn);
 
 	return 0;
 }

@@ -46,21 +46,16 @@ enum rt_ampdu_burst {
 	RT_AMPDU_BURST_8723B	= 7,
 };
 
-#define CHANNEL_MAX_NUMBER		(14 + 24 + 21)	/*  14 is the max channel number */
+#define CHANNEL_MAX_NUMBER		(14)	/*  14 is the max channel number */
 #define CHANNEL_MAX_NUMBER_2G		14
-#define CHANNEL_MAX_NUMBER_5G		54			/*  Please refer to "phy_GetChnlGroup8812A" and "Hal_ReadTxPowerInfo8812A" */
-#define CHANNEL_MAX_NUMBER_5G_80M	7
 #define MAX_PG_GROUP			13
 
 /*  Tx Power Limit Table Size */
 #define MAX_REGULATION_NUM			4
 #define MAX_2_4G_BANDWIDTH_NUM			4
 #define MAX_RATE_SECTION_NUM			10
-#define MAX_5G_BANDWIDTH_NUM			4
 
 #define MAX_BASE_NUM_IN_PHY_REG_PG_2_4G		10 /*   CCK:1, OFDM:1, HT:4, VHT:4 */
-#define MAX_BASE_NUM_IN_PHY_REG_PG_5G		9 /*  OFDM:1, HT:4, VHT:4 */
-
 
 /*  duplicate code, will move to ODM ######### */
 /* define IQK_MAC_REG_NUM		4 */
@@ -182,8 +177,6 @@ struct hal_com_data {
 	/* current WIFI_PHY values */
 	enum wireless_mode CurrentWirelessMode;
 	enum channel_width CurrentChannelBW;
-	enum band_type CurrentBandType;	/* 0:2.4G, 1:5G */
-	enum band_type BandSet;
 	u8 CurrentChannel;
 	u8 CurrentCenterFrequencyIndex1;
 	u8 nCur40MhzPrimeSC;/*  Control channel sub-carrier */
@@ -236,16 +229,8 @@ struct hal_com_data {
 	s8	OFDM_24G_Diff[MAX_RF_PATH][MAX_TX_COUNT];
 	s8	BW20_24G_Diff[MAX_RF_PATH][MAX_TX_COUNT];
 	s8	BW40_24G_Diff[MAX_RF_PATH][MAX_TX_COUNT];
-	/* 3 [5G] */
-	u8 Index5G_BW40_Base[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
-	u8 Index5G_BW80_Base[MAX_RF_PATH][CHANNEL_MAX_NUMBER_5G_80M];
-	s8	OFDM_5G_Diff[MAX_RF_PATH][MAX_TX_COUNT];
-	s8	BW20_5G_Diff[MAX_RF_PATH][MAX_TX_COUNT];
-	s8	BW40_5G_Diff[MAX_RF_PATH][MAX_TX_COUNT];
-	s8	BW80_5G_Diff[MAX_RF_PATH][MAX_TX_COUNT];
 
 	u8 Regulation2_4G;
-	u8 Regulation5G;
 
 	u8 TxPwrInPercentage;
 
@@ -253,15 +238,13 @@ struct hal_com_data {
 	/*  TX power by rate table at most 4RF path. */
 	/*  The register is */
 	/*  VHT TX power by rate off setArray = */
-	/*  Band:-2G&5G = 0 / 1 */
 	/*  RF: at most 4*4 = ABCD = 0/1/2/3 */
 	/*  CCK = 0 OFDM = 1/2 HT-MCS 0-15 =3/4/56 VHT =7/8/9/10/11 */
 	u8 TxPwrByRateTable;
 	u8 TxPwrByRateBand;
-	s8	TxPwrByRateOffset[TX_PWR_BY_RATE_NUM_BAND]
-						 [TX_PWR_BY_RATE_NUM_RF]
-						 [TX_PWR_BY_RATE_NUM_RF]
-						 [TX_PWR_BY_RATE_NUM_RATE];
+	s8 TxPwrByRateOffset[TX_PWR_BY_RATE_NUM_RF]
+			    [TX_PWR_BY_RATE_NUM_RF]
+			    [TX_PWR_BY_RATE_NUM_RATE];
 	/*  */
 
 	/* 2 Power Limit Table */
@@ -278,21 +261,10 @@ struct hal_com_data {
 	                                [CHANNEL_MAX_NUMBER_2G]
 						[MAX_RF_PATH_NUM];
 
-	/*  Power Limit Table for 5G */
-	s8	TxPwrLimit_5G[MAX_REGULATION_NUM]
-						[MAX_5G_BANDWIDTH_NUM]
-						[MAX_RATE_SECTION_NUM]
-						[CHANNEL_MAX_NUMBER_5G]
-						[MAX_RF_PATH_NUM];
-
-
 	/*  Store the original power by rate value of the base of each rate section of rf path A & B */
 	u8 TxPwrByRateBase2_4G[TX_PWR_BY_RATE_NUM_RF]
 						[TX_PWR_BY_RATE_NUM_RF]
 						[MAX_BASE_NUM_IN_PHY_REG_PG_2_4G];
-	u8 TxPwrByRateBase5G[TX_PWR_BY_RATE_NUM_RF]
-						[TX_PWR_BY_RATE_NUM_RF]
-						[MAX_BASE_NUM_IN_PHY_REG_PG_5G];
 
 	/*  For power group */
 	u8 PwrGroupHT20[RF_PATH_MAX_92C_88E][CHANNEL_MAX_NUMBER];
@@ -319,13 +291,9 @@ struct hal_com_data {
 	u32 AntennaRxPath;					/*  Antenna path Rx */
 
 	u8 PAType_2G;
-	u8 PAType_5G;
 	u8 LNAType_2G;
-	u8 LNAType_5G;
 	u8 ExternalPA_2G;
 	u8 ExternalLNA_2G;
-	u8 ExternalPA_5G;
-	u8 ExternalLNA_5G;
 	u8 TypeGLNA;
 	u8 TypeGPA;
 	u8 TypeALNA;

@@ -35,7 +35,7 @@ long prod_pos = 0;
 /* inner state */
 long seq = 0;
 
-SEC("tp/syscalls/sys_enter_getpgid")
+SEC("fentry/__x64_sys_getpgid")
 int test_ringbuf(void *ctx)
 {
 	int cur_pid = bpf_get_current_pid_tgid() >> 32;
@@ -48,7 +48,7 @@ int test_ringbuf(void *ctx)
 	sample = bpf_ringbuf_reserve(&ringbuf, sizeof(*sample), 0);
 	if (!sample) {
 		__sync_fetch_and_add(&dropped, 1);
-		return 1;
+		return 0;
 	}
 
 	sample->pid = pid;

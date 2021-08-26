@@ -33,7 +33,8 @@
 #include <asm/hypervisor.h>
 
 #include "vmwgfx_drv.h"
-#include "vmwgfx_msg.h"
+#include "vmwgfx_msg_x86.h"
+#include "vmwgfx_msg_arm64.h"
 
 #define MESSAGE_STATUS_SUCCESS  0x0001
 #define MESSAGE_STATUS_DORECV   0x0002
@@ -473,30 +474,40 @@ out_open:
 }
 
 
-
 /**
- * vmw_host_log: Sends a log message to the host
+ * vmw_host_printf: Sends a log message to the host
  *
- * @log: NULL terminated string
+ * @fmt: Regular printf format string and arguments
  *
  * Returns: 0 on success
  */
-int vmw_host_log(const char *log)
+__printf(1, 2)
+int vmw_host_printf(const char *fmt, ...)
 {
+	va_list ap;
 	struct rpc_channel channel;
 	char *msg;
+	char *log;
 	int ret = 0;
-
 
 	if (!vmw_msg_enabled)
 		return -ENODEV;
 
-	if (!log)
+	if (!fmt)
 		return ret;
+
+	va_start(ap, fmt);
+	log = kvasprintf(GFP_KERNEL, fmt, ap);
+	va_end(ap);
+	if (!log) {
+		DRM_ERROR("Cannot allocate memory for the log message.\n");
+		return -ENOMEM;
+	}
 
 	msg = kasprintf(GFP_KERNEL, "log %s", log);
 	if (!msg) {
 		DRM_ERROR("Cannot allocate memory for host log message.\n");
+		kfree(log);
 		return -ENOMEM;
 	}
 
@@ -508,6 +519,7 @@ int vmw_host_log(const char *log)
 
 	vmw_close_channel(&channel);
 	kfree(msg);
+	kfree(log);
 
 	return 0;
 
@@ -515,6 +527,7 @@ out_msg:
 	vmw_close_channel(&channel);
 out_open:
 	kfree(msg);
+	kfree(log);
 	DRM_ERROR("Failed to send host log message.\n");
 
 	return -EINVAL;
@@ -537,7 +550,7 @@ int vmw_msg_ioctl(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
 	struct drm_vmw_msg_arg *arg =
-		(struct drm_vmw_msg_arg *) data;
+			(struct drm_vmw_msg_arg *)data;
 	struct rpc_channel channel;
 	char *msg;
 	int length;
@@ -577,7 +590,7 @@ int vmw_msg_ioctl(struct drm_device *dev, void *data,
 		}
 		if (reply && reply_len > 0) {
 			if (copy_to_user((void __user *)((unsigned long)arg->receive),
-							 reply, reply_len)) {
+					 reply, reply_len)) {
 				DRM_ERROR("Failed to copy message to userspace.\n");
 				kfree(reply);
 				goto out_msg;

@@ -98,12 +98,12 @@ struct adv7842_state {
 
 	v4l2_std_id norm;
 	struct {
-		u8 edid[256];
+		u8 edid[512];
 		u32 blocks;
 		u32 present;
 	} hdmi_edid;
 	struct {
-		u8 edid[256];
+		u8 edid[128];
 		u32 blocks;
 		u32 present;
 	} vga_edid;
@@ -720,6 +720,9 @@ static int edid_write_vga_segment(struct v4l2_subdev *sd)
 
 	v4l2_dbg(2, debug, sd, "%s: write EDID on VGA port\n", __func__);
 
+	if (!state->vga_edid.present)
+		return 0;
+
 	/* HPA disable on port A and B */
 	io_write_and_or(sd, 0x20, 0xcf, 0x00);
 
@@ -763,7 +766,7 @@ static int edid_write_hdmi_segment(struct v4l2_subdev *sd, u8 port)
 	struct adv7842_state *state = to_state(sd);
 	const u8 *edid = state->hdmi_edid.edid;
 	u32 blocks = state->hdmi_edid.blocks;
-	int spa_loc;
+	unsigned int spa_loc;
 	u16 pa, parent_pa;
 	int err = 0;
 	int i;
@@ -796,12 +799,14 @@ static int edid_write_hdmi_segment(struct v4l2_subdev *sd, u8 port)
 		pa = (edid[spa_loc] << 8) | edid[spa_loc + 1];
 	}
 
-	/* edid segment pointer '0' for HDMI ports */
-	rep_write_and_or(sd, 0x77, 0xef, 0x00);
 
-	for (i = 0; !err && i < blocks * 128; i += I2C_SMBUS_BLOCK_MAX)
+	for (i = 0; !err && i < blocks * 128; i += I2C_SMBUS_BLOCK_MAX) {
+		/* set edid segment pointer for HDMI ports */
+		if (i % 256 == 0)
+			rep_write_and_or(sd, 0x77, 0xef, i >= 256 ? 0x10 : 0x00);
 		err = i2c_smbus_write_i2c_block_data(state->i2c_edid, i,
 						     I2C_SMBUS_BLOCK_MAX, edid + i);
+	}
 	if (err)
 		return err;
 
@@ -1988,7 +1993,7 @@ static int adv7842_s_routing(struct v4l2_subdev *sd,
 }
 
 static int adv7842_enum_mbus_code(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= ARRAY_SIZE(adv7842_formats))
@@ -2064,7 +2069,7 @@ static void adv7842_setup_format(struct adv7842_state *state)
 }
 
 static int adv7842_get_format(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *format)
 {
 	struct adv7842_state *state = to_state(sd);
@@ -2092,7 +2097,7 @@ static int adv7842_get_format(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *fmt;
 
-		fmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		fmt = v4l2_subdev_get_try_format(sd, sd_state, format->pad);
 		format->format.code = fmt->code;
 	} else {
 		format->format.code = state->format->code;
@@ -2102,7 +2107,7 @@ static int adv7842_get_format(struct v4l2_subdev *sd,
 }
 
 static int adv7842_set_format(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *format)
 {
 	struct adv7842_state *state = to_state(sd);
@@ -2112,7 +2117,7 @@ static int adv7842_set_format(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (state->mode == ADV7842_MODE_SDP)
-		return adv7842_get_format(sd, cfg, format);
+		return adv7842_get_format(sd, sd_state, format);
 
 	info = adv7842_format_info(state, format->format.code);
 	if (info == NULL)
@@ -2124,7 +2129,7 @@ static int adv7842_set_format(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *fmt;
 
-		fmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		fmt = v4l2_subdev_get_try_format(sd, sd_state, format->pad);
 		fmt->code = format->format.code;
 	} else {
 		state->format = info;
@@ -2491,9 +2496,17 @@ static int adv7842_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	return 0;
 }
 
+/*
+ * If the VGA_EDID_ENABLE bit is set (Repeater Map 0x7f, bit 7), then
+ * the first two blocks of the EDID are for the HDMI, and the first block
+ * of segment 1 (i.e. the third block of the EDID) is for VGA.
+ * So if a VGA EDID is installed, then the maximum size of the HDMI EDID
+ * is 2 blocks.
+ */
 static int adv7842_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *e)
 {
 	struct adv7842_state *state = to_state(sd);
+	unsigned int max_blocks = e->pad == ADV7842_EDID_PORT_VGA ? 1 : 4;
 	int err = 0;
 
 	memset(e->reserved, 0, sizeof(e->reserved));
@@ -2502,8 +2515,12 @@ static int adv7842_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *e)
 		return -EINVAL;
 	if (e->start_block != 0)
 		return -EINVAL;
-	if (e->blocks > 2) {
-		e->blocks = 2;
+	if (e->pad < ADV7842_EDID_PORT_VGA && state->vga_edid.blocks)
+		max_blocks = 2;
+	if (e->pad == ADV7842_EDID_PORT_VGA && state->hdmi_edid.blocks > 2)
+		return -EBUSY;
+	if (e->blocks > max_blocks) {
+		e->blocks = max_blocks;
 		return -E2BIG;
 	}
 
@@ -2514,20 +2531,20 @@ static int adv7842_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *e)
 
 	switch (e->pad) {
 	case ADV7842_EDID_PORT_VGA:
-		memset(&state->vga_edid.edid, 0, 256);
+		memset(state->vga_edid.edid, 0, sizeof(state->vga_edid.edid));
 		state->vga_edid.blocks = e->blocks;
 		state->vga_edid.present = e->blocks ? 0x1 : 0x0;
 		if (e->blocks)
-			memcpy(&state->vga_edid.edid, e->edid, 128 * e->blocks);
+			memcpy(state->vga_edid.edid, e->edid, 128);
 		err = edid_write_vga_segment(sd);
 		break;
 	case ADV7842_EDID_PORT_A:
 	case ADV7842_EDID_PORT_B:
-		memset(&state->hdmi_edid.edid, 0, 256);
+		memset(state->hdmi_edid.edid, 0, sizeof(state->hdmi_edid.edid));
 		state->hdmi_edid.blocks = e->blocks;
 		if (e->blocks) {
 			state->hdmi_edid.present |= 0x04 << e->pad;
-			memcpy(&state->hdmi_edid.edid, e->edid, 128 * e->blocks);
+			memcpy(state->hdmi_edid.edid, e->edid, 128 * e->blocks);
 		} else {
 			state->hdmi_edid.present &= ~(0x04 << e->pad);
 			adv7842_s_detect_tx_5v_ctrl(sd);

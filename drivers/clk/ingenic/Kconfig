@@ -25,6 +25,16 @@ config INGENIC_CGU_JZ4725B
 
 	  If building for a JZ4725B SoC, you want to say Y here.
 
+config INGENIC_CGU_JZ4760
+	bool "Ingenic JZ4760 CGU driver"
+	default MACH_JZ4760
+	select INGENIC_CGU_COMMON
+	help
+	  Support the clocks provided by the CGU hardware on Ingenic JZ4760
+	  and compatible SoCs.
+
+	  If building for a JZ4760 SoC, you want to say Y here.
+
 config INGENIC_CGU_JZ4770
 	bool "Ingenic JZ4770 CGU driver"
 	default MACH_JZ4770

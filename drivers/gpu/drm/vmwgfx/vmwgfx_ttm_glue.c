@@ -27,6 +27,32 @@
 
 #include "vmwgfx_drv.h"
 
+static struct ttm_buffer_object *vmw_bo_vm_lookup(struct ttm_device *bdev,
+						  unsigned long offset,
+						  unsigned long pages)
+{
+	struct vmw_private *dev_priv = container_of(bdev, struct vmw_private, bdev);
+	struct drm_device *drm = &dev_priv->drm;
+	struct drm_vma_offset_node *node;
+	struct ttm_buffer_object *bo = NULL;
+
+	drm_vma_offset_lock_lookup(bdev->vma_manager);
+
+	node = drm_vma_offset_lookup_locked(bdev->vma_manager, offset, pages);
+	if (likely(node)) {
+		bo = container_of(node, struct ttm_buffer_object,
+				  base.vma_node);
+		bo = ttm_bo_get_unless_zero(bo);
+	}
+
+	drm_vma_offset_unlock_lookup(bdev->vma_manager);
+
+	if (!bo)
+		drm_err(drm, "Could not find buffer object to map\n");
+
+	return bo;
+}
+
 int vmw_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	static const struct vm_operations_struct vmw_vm_ops = {
@@ -41,10 +67,25 @@ int vmw_mmap(struct file *filp, struct vm_area_struct *vma)
 	};
 	struct drm_file *file_priv = filp->private_data;
 	struct vmw_private *dev_priv = vmw_priv(file_priv->minor->dev);
-	int ret = ttm_bo_mmap(filp, vma, &dev_priv->bdev);
+	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+	struct ttm_device *bdev = &dev_priv->bdev;
+	struct ttm_buffer_object *bo;
+	int ret;
 
-	if (ret)
-		return ret;
+	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET_START))
+		return -EINVAL;
+
+	bo = vmw_bo_vm_lookup(bdev, vma->vm_pgoff, vma_pages(vma));
+	if (unlikely(!bo))
+		return -EINVAL;
+
+	ret = vmw_user_bo_verify_access(bo, tfile);
+	if (unlikely(ret != 0))
+		goto out_unref;
+
+	ret = ttm_bo_mmap_obj(vma, bo);
+	if (unlikely(ret != 0))
+		goto out_unref;
 
 	vma->vm_ops = &vmw_vm_ops;
 
@@ -52,7 +93,13 @@ int vmw_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (!is_cow_mapping(vma->vm_flags))
 		vma->vm_flags = (vma->vm_flags & ~VM_MIXEDMAP) | VM_PFNMAP;
 
+	ttm_bo_put(bo); /* release extra ref taken by ttm_bo_mmap_obj() */
+
 	return 0;
+
+out_unref:
+	ttm_bo_put(bo);
+	return ret;
 }
 
 /* struct vmw_validation_mem callback */

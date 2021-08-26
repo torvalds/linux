@@ -126,7 +126,7 @@ static struct hwrng amd_rng = {
 
 static int __init mod_init(void)
 {
-	int err = -ENODEV;
+	int err;
 	struct pci_dev *pdev = NULL;
 	const struct pci_device_id *ent;
 	u32 pmbase;

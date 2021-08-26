@@ -415,16 +415,17 @@ config HP_ACCEL
 	  To compile this driver as a module, choose M here: the module will
 	  be called hp_accel.
 
-config HP_WIRELESS
-	tristate "HP wireless button"
+config WIRELESS_HOTKEY
+	tristate "Wireless hotkey button"
 	depends on ACPI
 	depends on INPUT
 	help
-	 This driver provides supports for new HP wireless button for Windows 8.
+	 This driver provides supports for the wireless buttons found on some AMD,
+	 HP, & Xioami laptops.
 	 On such systems the driver should load automatically (via ACPI alias).
 
 	 To compile this driver as a module, choose M here: the module will
-	 be called hp-wireless.
+	 be called wireless-hotkey.
 
 config HP_WMI
 	tristate "HP WMI extras"
@@ -507,6 +508,7 @@ config THINKPAD_ACPI
 	depends on RFKILL || RFKILL = n
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on I2C
 	select ACPI_PLATFORM_PROFILE
 	select HWMON
 	select NVRAM
@@ -639,6 +641,19 @@ config THINKPAD_ACPI_HOTKEY_POLL
 	  If you are not sure, say Y here.  The driver enables polling only if
 	  it is strictly necessary to do so.
 
+config THINKPAD_LMI
+	tristate "Lenovo WMI-based systems management driver"
+	depends on ACPI_WMI
+	select FW_ATTR_CLASS
+	help
+	  This driver allows changing BIOS settings on Lenovo machines whose
+	  BIOS support the WMI interface.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called think-lmi.
+
+source "drivers/platform/x86/intel/Kconfig"
+
 config INTEL_ATOMISP2_LED
 	tristate "Intel AtomISP2 camera LED driver"
 	depends on GPIOLIB && LEDS_GPIO
@@ -673,34 +688,11 @@ config INTEL_ATOMISP2_PM
 	  To compile this driver as a module, choose M here: the module
 	  will be called intel_atomisp2_pm.
 
-config INTEL_CHT_INT33FE
-	tristate "Intel Cherry Trail ACPI INT33FE Driver"
-	depends on X86 && ACPI && I2C && REGULATOR
-	depends on CHARGER_BQ24190=y || (CHARGER_BQ24190=m && m)
-	depends on USB_ROLES_INTEL_XHCI=y || (USB_ROLES_INTEL_XHCI=m && m)
-	depends on TYPEC_MUX_PI3USB30532=y || (TYPEC_MUX_PI3USB30532=m && m)
-	help
-	  This driver add support for the INT33FE ACPI device found on
-	  some Intel Cherry Trail devices.
-
-	  There are two kinds of INT33FE ACPI device possible: for hardware
-	  with USB Type-C and Micro-B connectors. This driver supports both.
-
-	  The INT33FE ACPI device has a CRS table with I2cSerialBusV2
-	  resources for Fuel Gauge Controller and (in the Type-C variant)
-	  FUSB302 USB Type-C Controller and PI3USB30532 USB switch.
-	  This driver instantiates i2c-clients for these, so that standard
-	  i2c drivers for these chips can bind to the them.
-
-	  If you enable this driver it is advised to also select
-	  CONFIG_BATTERY_BQ27XXX=m or CONFIG_BATTERY_BQ27XXX_I2C=m for Micro-B
-	  device and CONFIG_TYPEC_FUSB302=m and CONFIG_BATTERY_MAX17042=m
-	  for Type-C device.
-
 config INTEL_HID_EVENT
 	tristate "INTEL HID Event"
 	depends on ACPI
 	depends on INPUT
+	depends on I2C
 	select INPUT_SPARSEKMAP
 	help
 	  This driver provides support for the Intel HID Event hotkey interface.
@@ -711,7 +703,7 @@ config INTEL_HID_EVENT
 
 config INTEL_INT0002_VGPIO
 	tristate "Intel ACPI INT0002 Virtual GPIO driver"
-	depends on GPIOLIB && ACPI
+	depends on GPIOLIB && ACPI && PM_SLEEP
 	select GPIOLIB_IRQCHIP
 	help
 	  Some peripherals on Bay Trail and Cherry Trail platforms signal a
@@ -752,6 +744,7 @@ config INTEL_VBTN
 	tristate "INTEL VIRTUAL BUTTON"
 	depends on ACPI
 	depends on INPUT
+	depends on I2C
 	select INPUT_SPARSEKMAP
 	help
 	  This driver provides support for the Intel Virtual Button interface.
@@ -1075,6 +1068,9 @@ config TOUCHSCREEN_DMI
 	  into the tablet model specific version of the driver shipped with the
 	  the OS-image for the device. This option supplies the missing info.
 	  Enable this for x86 tablets with Silead or Chipone touchscreens.
+
+config FW_ATTR_CLASS
+	tristate
 
 config INTEL_IMR
 	bool "Intel Isolated Memory Region support"

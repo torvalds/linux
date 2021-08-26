@@ -10,7 +10,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 
 #include "fbtft.h"
@@ -84,9 +83,6 @@ MODULE_PARM_DESC(vcm, "Set the internal VcomH voltage");
 static int init_display(struct fbtft_par *par)
 {
 	par->fbtftops.reset(par);
-
-	if (par->gpio.cs)
-		gpiod_set_value(par->gpio.cs, 0);  /* Activate chip */
 
 	bt &= 0x07;
 	vc &= 0x07;

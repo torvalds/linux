@@ -3,7 +3,7 @@
 
 #include <test_progs.h>
 
-#include "trace_printk.skel.h"
+#include "trace_printk.lskel.h"
 
 #define TRACEBUF	"/sys/kernel/debug/tracing/trace_pipe"
 #define SEARCHMSG	"testing,testing"
@@ -20,6 +20,9 @@ void test_trace_printk(void)
 	skel = trace_printk__open();
 	if (CHECK(!skel, "skel_open", "failed to open skeleton\n"))
 		return;
+
+	ASSERT_EQ(skel->rodata->fmt[0], 'T', "invalid printk fmt string");
+	skel->rodata->fmt[0] = 't';
 
 	err = trace_printk__load(skel);
 	if (CHECK(err, "skel_load", "failed to load skeleton: %d\n", err))

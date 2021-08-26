@@ -49,7 +49,7 @@ enum hypervisor_type {
 struct intel_gvt_mpt {
 	enum hypervisor_type type;
 	int (*host_init)(struct device *dev, void *gvt, const void *ops);
-	void (*host_exit)(struct device *dev);
+	void (*host_exit)(struct device *dev, void *gvt);
 	int (*attach_vgpu)(void *vgpu, unsigned long *handle);
 	void (*detach_vgpu)(void *vgpu);
 	int (*inject_msi)(unsigned long handle, u32 addr, u16 data);

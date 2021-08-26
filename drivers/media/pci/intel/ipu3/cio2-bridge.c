@@ -177,14 +177,12 @@ static int cio2_bridge_connect_sensor(const struct cio2_sensor_config *cfg,
 			continue;
 
 		if (bridge->n_sensors >= CIO2_NUM_PORTS) {
+			acpi_dev_put(adev);
 			dev_err(&cio2->dev, "Exceeded available CIO2 ports\n");
-			cio2_bridge_unregister_sensors(bridge);
-			ret = -EINVAL;
-			goto err_out;
+			return -EINVAL;
 		}
 
 		sensor = &bridge->sensors[bridge->n_sensors];
-		sensor->adev = adev;
 		strscpy(sensor->name, cfg->hid, sizeof(sensor->name));
 
 		ret = cio2_bridge_read_acpi_buffer(adev, "SSDB",
@@ -214,6 +212,7 @@ static int cio2_bridge_connect_sensor(const struct cio2_sensor_config *cfg,
 			goto err_free_swnodes;
 		}
 
+		sensor->adev = acpi_dev_get(adev);
 		adev->fwnode.secondary = fwnode;
 
 		dev_info(&cio2->dev, "Found supported sensor %s\n",
@@ -228,7 +227,6 @@ err_free_swnodes:
 	software_node_unregister_nodes(sensor->swnodes);
 err_put_adev:
 	acpi_dev_put(sensor->adev);
-err_out:
 	return ret;
 }
 

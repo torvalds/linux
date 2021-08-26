@@ -993,7 +993,7 @@ static bool is_sc_halted(struct hfi1_devdata *dd, u32 hw_context)
 }
 
 /**
- * sc_wait_for_packet_egress
+ * sc_wait_for_packet_egress - wait for packet
  * @sc: valid send context
  * @pause: wait for credit return
  *

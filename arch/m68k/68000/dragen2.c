@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <asm/machdep.h>
 #include <asm/MC68VZ328.h>
+#include "screen.h"
 
 /***************************************************************************/
 /*                        Init Drangon Engine hardware                     */

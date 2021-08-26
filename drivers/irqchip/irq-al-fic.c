@@ -111,7 +111,6 @@ static void al_fic_irq_handler(struct irq_desc *desc)
 	struct irq_chip *irqchip = irq_desc_get_chip(desc);
 	struct irq_chip_generic *gc = irq_get_domain_generic_chip(domain, 0);
 	unsigned long pending;
-	unsigned int irq;
 	u32 hwirq;
 
 	chained_irq_enter(irqchip, desc);
@@ -119,10 +118,8 @@ static void al_fic_irq_handler(struct irq_desc *desc)
 	pending = readl_relaxed(fic->base + AL_FIC_CAUSE);
 	pending &= ~gc->mask_cache;
 
-	for_each_set_bit(hwirq, &pending, NR_FIC_IRQS) {
-		irq = irq_find_mapping(domain, hwirq);
-		generic_handle_irq(irq);
-	}
+	for_each_set_bit(hwirq, &pending, NR_FIC_IRQS)
+		generic_handle_domain_irq(domain, hwirq);
 
 	chained_irq_exit(irqchip, desc);
 }

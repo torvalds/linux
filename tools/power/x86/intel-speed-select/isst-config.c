@@ -15,7 +15,7 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.9";
+static const char *version_str = "v1.10";
 static const int supported_api_ver = 1;
 static struct isst_if_platform_info isst_platform_info;
 static char *progname;
@@ -101,6 +101,22 @@ int is_clx_n_platform(void)
 int is_skx_based_platform(void)
 {
 	if (cpu_model == 0x55)
+		return 1;
+
+	return 0;
+}
+
+int is_spr_platform(void)
+{
+	if (cpu_model == 0x8F)
+		return 1;
+
+	return 0;
+}
+
+int is_icx_platform(void)
+{
+	if (cpu_model == 0x6A || cpu_model == 0x6C)
 		return 1;
 
 	return 0;

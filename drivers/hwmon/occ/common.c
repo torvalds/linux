@@ -217,9 +217,9 @@ int occ_update_response(struct occ *occ)
 		return rc;
 
 	/* limit the maximum rate of polling the OCC */
-	if (time_after(jiffies, occ->last_update + OCC_UPDATE_FREQUENCY)) {
+	if (time_after(jiffies, occ->next_update)) {
 		rc = occ_poll(occ);
-		occ->last_update = jiffies;
+		occ->next_update = jiffies + OCC_UPDATE_FREQUENCY;
 	} else {
 		rc = occ->last_error;
 	}
@@ -1151,6 +1151,8 @@ int occ_setup(struct occ *occ, const char *name)
 {
 	int rc;
 
+	/* start with 1 to avoid false match with zero-initialized SRAM buffer */
+	occ->seq_no = 1;
 	mutex_init(&occ->lock);
 	occ->groups[0] = &occ->group;
 
@@ -1160,11 +1162,13 @@ int occ_setup(struct occ *occ, const char *name)
 		dev_info(occ->bus_dev, "host is not ready\n");
 		return rc;
 	} else if (rc < 0) {
-		dev_err(occ->bus_dev, "failed to get OCC poll response: %d\n",
-			rc);
+		dev_err(occ->bus_dev,
+			"failed to get OCC poll response=%02x: %d\n",
+			occ->resp.return_status, rc);
 		return rc;
 	}
 
+	occ->next_update = jiffies + OCC_UPDATE_FREQUENCY;
 	occ_parse_poll_response(occ);
 
 	rc = occ_setup_sensor_attrs(occ);

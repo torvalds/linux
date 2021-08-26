@@ -2497,11 +2497,9 @@ static int ov8865_s_stream(struct v4l2_subdev *subdev, int enable)
 	int ret;
 
 	if (enable) {
-		ret = pm_runtime_get_sync(sensor->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(sensor->dev);
+		ret = pm_runtime_resume_and_get(sensor->dev);
+		if (ret < 0)
 			return ret;
-		}
 	}
 
 	mutex_lock(&sensor->mutex);
@@ -2544,7 +2542,7 @@ static const struct v4l2_subdev_video_ops ov8865_subdev_video_ops = {
 /* Subdev Pad Operations */
 
 static int ov8865_enum_mbus_code(struct v4l2_subdev *subdev,
-				 struct v4l2_subdev_pad_config *config,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code_enum)
 {
 	if (code_enum->index >= ARRAY_SIZE(ov8865_mbus_codes))
@@ -2573,7 +2571,7 @@ static void ov8865_mbus_format_fill(struct v4l2_mbus_framefmt *mbus_format,
 }
 
 static int ov8865_get_fmt(struct v4l2_subdev *subdev,
-			  struct v4l2_subdev_pad_config *config,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
 	struct ov8865_sensor *sensor = ov8865_subdev_sensor(subdev);
@@ -2582,7 +2580,7 @@ static int ov8865_get_fmt(struct v4l2_subdev *subdev,
 	mutex_lock(&sensor->mutex);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		*mbus_format = *v4l2_subdev_get_try_format(subdev, config,
+		*mbus_format = *v4l2_subdev_get_try_format(subdev, sd_state,
 							   format->pad);
 	else
 		ov8865_mbus_format_fill(mbus_format, sensor->state.mbus_code,
@@ -2594,7 +2592,7 @@ static int ov8865_get_fmt(struct v4l2_subdev *subdev,
 }
 
 static int ov8865_set_fmt(struct v4l2_subdev *subdev,
-			  struct v4l2_subdev_pad_config *config,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
 	struct ov8865_sensor *sensor = ov8865_subdev_sensor(subdev);
@@ -2635,7 +2633,7 @@ static int ov8865_set_fmt(struct v4l2_subdev *subdev,
 	ov8865_mbus_format_fill(mbus_format, mbus_code, mode);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		*v4l2_subdev_get_try_format(subdev, config, format->pad) =
+		*v4l2_subdev_get_try_format(subdev, sd_state, format->pad) =
 			*mbus_format;
 	else if (sensor->state.mode != mode ||
 		 sensor->state.mbus_code != mbus_code)
@@ -2648,7 +2646,7 @@ complete:
 }
 
 static int ov8865_enum_frame_size(struct v4l2_subdev *subdev,
-				  struct v4l2_subdev_pad_config *config,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *size_enum)
 {
 	const struct ov8865_mode *mode;
@@ -2665,7 +2663,7 @@ static int ov8865_enum_frame_size(struct v4l2_subdev *subdev,
 }
 
 static int ov8865_enum_frame_interval(struct v4l2_subdev *subdev,
-				      struct v4l2_subdev_pad_config *config,
+				      struct v4l2_subdev_state *sd_state,
 				      struct v4l2_subdev_frame_interval_enum *interval_enum)
 {
 	const struct ov8865_mode *mode = NULL;
@@ -2691,7 +2689,7 @@ static int ov8865_enum_frame_interval(struct v4l2_subdev *subdev,
 		}
 	}
 
-	if (mode_index == ARRAY_SIZE(ov8865_modes) || !mode)
+	if (mode_index == ARRAY_SIZE(ov8865_modes))
 		return -EINVAL;
 
 	interval_enum->interval = mode->frame_interval;

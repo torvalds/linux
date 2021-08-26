@@ -234,7 +234,6 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
 		return -ENOMEM;
-	platform_set_drvdata(pdev, ctrl);
 
 	if (np) {
 		err = of_property_read_u32(np, "ngpios", &ath79_gpio_count);
@@ -290,13 +289,7 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 		girq->handler = handle_simple_irq;
 	}
 
-	err = devm_gpiochip_add_data(dev, &ctrl->gc, ctrl);
-	if (err) {
-		dev_err(dev,
-			"cannot add AR71xx GPIO chip, error=%d", err);
-		return err;
-	}
-	return 0;
+	return devm_gpiochip_add_data(dev, &ctrl->gc, ctrl);
 }
 
 static struct platform_driver ath79_gpio_driver = {

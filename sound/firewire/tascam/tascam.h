@@ -70,8 +70,6 @@ struct snd_tscm {
 	struct mutex mutex;
 	spinlock_t lock;
 
-	bool registered;
-	struct delayed_work dwork;
 	const struct snd_tscm_spec *spec;
 
 	struct fw_iso_resources tx_resources;
@@ -99,6 +97,7 @@ struct snd_tscm {
 	unsigned int push_pos;
 
 	struct amdtp_domain domain;
+	bool need_long_tx_init_skip;
 };
 
 #define TSCM_ADDR_BASE			0xffff00000000ull

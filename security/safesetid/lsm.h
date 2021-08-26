@@ -19,7 +19,7 @@
 #include <linux/hashtable.h>
 
 /* Flag indicating whether initialization completed */
-extern int safesetid_initialized;
+extern int safesetid_initialized __initdata;
 
 enum sid_policy_type {
 	SIDPOL_DEFAULT, /* source ID is unaffected by policy */

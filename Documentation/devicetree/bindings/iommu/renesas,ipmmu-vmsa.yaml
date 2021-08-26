@@ -49,7 +49,6 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 2
     description:
       Specifiers for the MMU fault interrupts. Not required for cache IPMMUs.
     items:

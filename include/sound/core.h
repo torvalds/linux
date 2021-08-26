@@ -128,7 +128,9 @@ struct snd_card {
 
 #ifdef CONFIG_PM
 	unsigned int power_state;	/* power state */
+	atomic_t power_ref;
 	wait_queue_head_t power_sleep;
+	wait_queue_head_t power_ref_sleep;
 #endif
 
 #if IS_ENABLED(CONFIG_SND_MIXER_OSS)
@@ -142,21 +144,61 @@ struct snd_card {
 #ifdef CONFIG_PM
 static inline unsigned int snd_power_get_state(struct snd_card *card)
 {
-	return card->power_state;
+	return READ_ONCE(card->power_state);
 }
 
 static inline void snd_power_change_state(struct snd_card *card, unsigned int state)
 {
-	card->power_state = state;
+	WRITE_ONCE(card->power_state, state);
 	wake_up(&card->power_sleep);
 }
 
+/**
+ * snd_power_ref - Take the reference count for power control
+ * @card: sound card object
+ *
+ * The power_ref reference of the card is used for managing to block
+ * the snd_power_sync_ref() operation.  This function increments the reference.
+ * The counterpart snd_power_unref() has to be called appropriately later.
+ */
+static inline void snd_power_ref(struct snd_card *card)
+{
+	atomic_inc(&card->power_ref);
+}
+
+/**
+ * snd_power_unref - Release the reference count for power control
+ * @card: sound card object
+ */
+static inline void snd_power_unref(struct snd_card *card)
+{
+	if (atomic_dec_and_test(&card->power_ref))
+		wake_up(&card->power_ref_sleep);
+}
+
+/**
+ * snd_power_sync_ref - wait until the card power_ref is freed
+ * @card: sound card object
+ *
+ * This function is used to synchronize with the pending power_ref being
+ * released.
+ */
+static inline void snd_power_sync_ref(struct snd_card *card)
+{
+	wait_event(card->power_ref_sleep, !atomic_read(&card->power_ref));
+}
+
 /* init.c */
-int snd_power_wait(struct snd_card *card, unsigned int power_state);
+int snd_power_wait(struct snd_card *card);
+int snd_power_ref_and_wait(struct snd_card *card);
 
 #else /* ! CONFIG_PM */
 
-static inline int snd_power_wait(struct snd_card *card, unsigned int state) { return 0; }
+static inline int snd_power_wait(struct snd_card *card) { return 0; }
+static inline void snd_power_ref(struct snd_card *card) {}
+static inline void snd_power_unref(struct snd_card *card) {}
+static inline int snd_power_ref_and_wait(struct snd_card *card) { return 0; }
+static inline void snd_power_sync_ref(struct snd_card *card) {}
 #define snd_power_get_state(card)	({ (void)(card); SNDRV_CTL_POWER_D0; })
 #define snd_power_change_state(card, state)	do { (void)(card); } while (0)
 

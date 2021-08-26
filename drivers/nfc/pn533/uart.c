@@ -319,7 +319,7 @@ static struct serdev_device_driver pn532_uart_driver = {
 	.remove = pn532_uart_remove,
 	.driver = {
 		.name = "pn532_uart",
-		.of_match_table = of_match_ptr(pn532_uart_of_match),
+		.of_match_table = pn532_uart_of_match,
 	},
 };
 
