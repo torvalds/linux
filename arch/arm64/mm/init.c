@@ -282,7 +282,21 @@ static void __init fdt_enforce_memory_region(void)
 
 void __init arm64_memblock_init(void)
 {
-	const s64 linear_region_size = PAGE_END - _PAGE_OFFSET(vabits_actual);
+	s64 linear_region_size = PAGE_END - _PAGE_OFFSET(vabits_actual);
+
+	/*
+	 * Corner case: 52-bit VA capable systems running KVM in nVHE mode may
+	 * be limited in their ability to support a linear map that exceeds 51
+	 * bits of VA space, depending on the placement of the ID map. Given
+	 * that the placement of the ID map may be randomized, let's simply
+	 * limit the kernel's linear map to 51 bits as well if we detect this
+	 * configuration.
+	 */
+	if (IS_ENABLED(CONFIG_KVM) && vabits_actual == 52 &&
+	    is_hyp_mode_available() && !is_kernel_in_hyp_mode()) {
+		pr_info("Capping linear region to 51 bits for KVM in nVHE mode on LVA capable hardware.\n");
+		linear_region_size = min_t(u64, linear_region_size, BIT(51));
+	}
 
 	/* Handle linux,usable-memory-range property */
 	fdt_enforce_memory_region();
