@@ -273,7 +273,7 @@ M(NIX_BP_ENABLE,	0x8016, nix_bp_enable, nix_bp_cfg_req,	\
 				nix_bp_cfg_rsp)	\
 M(NIX_BP_DISABLE,	0x8017, nix_bp_disable, nix_bp_cfg_req, msg_rsp) \
 M(NIX_GET_MAC_ADDR, 0x8018, nix_get_mac_addr, msg_req, nix_get_mac_addr_rsp) \
-M(NIX_CN10K_AQ_ENQ,	0x8019, nix_cn10k_aq_enq, nix_cn10k_aq_enq_req, \
+M(NIX_CN10K_AQ_ENQ,	0x801b, nix_cn10k_aq_enq, nix_cn10k_aq_enq_req, \
 				nix_cn10k_aq_enq_rsp)			\
 M(NIX_GET_HW_INFO,	0x801c, nix_get_hw_info, msg_req, nix_hw_info)	\
 M(NIX_BANDPROF_ALLOC,	0x801d, nix_bandprof_alloc, nix_bandprof_alloc_req, \
@@ -1383,6 +1383,10 @@ struct set_vf_perm  {
 
 struct lmtst_tbl_setup_req {
 	struct mbox_msghdr hdr;
+	u64 dis_sched_early_comp :1;
+	u64 sch_ena		 :1;
+	u64 dis_line_pref	 :1;
+	u64 ssow_pf_func	 :13;
 	u16 base_pcifunc;
 	u8  use_local_lmt_region;
 	u64 lmt_iova;

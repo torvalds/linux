@@ -704,5 +704,8 @@
 #define	APR_AF_LMT_CFG			(0x000ull)
 #define	APR_AF_LMT_MAP_BASE		(0x008ull)
 #define	APR_AF_LMT_CTL			(0x010ull)
+#define APR_LMT_MAP_ENT_DIS_SCH_CMP_SHIFT	23
+#define APR_LMT_MAP_ENT_SCH_ENA_SHIFT		22
+#define APR_LMT_MAP_ENT_DIS_LINE_PREF_SHIFT	21
 
 #endif /* RVU_REG_H */

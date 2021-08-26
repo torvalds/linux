@@ -49,6 +49,7 @@ static int lmtst_map_table_ops(struct rvu *rvu, u32 index, u64 *val,
 	return 0;
 }
 
+#define LMT_MAP_TBL_W1_OFF  8
 static u32 rvu_get_lmtst_tbl_index(struct rvu *rvu, u16 pcifunc)
 {
 	return ((rvu_get_pf(pcifunc) * rvu->hw->total_vfs) +
@@ -131,9 +132,11 @@ int rvu_mbox_handler_lmtst_tbl_setup(struct rvu *rvu,
 				     struct lmtst_tbl_setup_req *req,
 				     struct msg_rsp *rsp)
 {
-	u64 lmt_addr, val;
-	u32 pri_tbl_idx;
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, req->hdr.pcifunc);
+	u32 pri_tbl_idx, tbl_idx;
+	u64 lmt_addr;
 	int err = 0;
+	u64 val;
 
 	/* Check if PF_FUNC wants to use it's own local memory as LMTLINE
 	 * region, if so, convert that IOVA to physical address and
@@ -170,7 +173,7 @@ int rvu_mbox_handler_lmtst_tbl_setup(struct rvu *rvu,
 			dev_err(rvu->dev,
 				"Failed to read LMT map table: index 0x%x err %d\n",
 				pri_tbl_idx, err);
-			return err;
+			goto error;
 		}
 
 		/* Update the base lmt addr of secondary with primary's base
@@ -181,7 +184,53 @@ int rvu_mbox_handler_lmtst_tbl_setup(struct rvu *rvu,
 			return err;
 	}
 
-	return 0;
+	/* This mailbox can also be used to update word1 of APR_LMT_MAP_ENTRY_S
+	 * like enabling scheduled LMTST, disable LMTLINE prefetch, disable
+	 * early completion for ordered LMTST.
+	 */
+	if (req->sch_ena || req->dis_sched_early_comp || req->dis_line_pref) {
+		tbl_idx = rvu_get_lmtst_tbl_index(rvu, req->hdr.pcifunc);
+		err = lmtst_map_table_ops(rvu, tbl_idx + LMT_MAP_TBL_W1_OFF,
+					  &val, LMT_TBL_OP_READ);
+		if (err) {
+			dev_err(rvu->dev,
+				"Failed to read LMT map table: index 0x%x err %d\n",
+				tbl_idx + LMT_MAP_TBL_W1_OFF, err);
+			goto error;
+		}
+
+		/* Storing lmt map table entry word1 default value as this needs
+		 * to be reverted in FLR. Also making sure this default value
+		 * doesn't get overwritten on multiple calls to this mailbox.
+		 */
+		if (!pfvf->lmt_map_ent_w1)
+			pfvf->lmt_map_ent_w1 = val;
+
+		/* Disable early completion for Ordered LMTSTs. */
+		if (req->dis_sched_early_comp)
+			val |= (req->dis_sched_early_comp <<
+				APR_LMT_MAP_ENT_DIS_SCH_CMP_SHIFT);
+		/* Enable scheduled LMTST */
+		if (req->sch_ena)
+			val |= (req->sch_ena << APR_LMT_MAP_ENT_SCH_ENA_SHIFT) |
+				req->ssow_pf_func;
+		/* Disables LMTLINE prefetch before receiving store data. */
+		if (req->dis_line_pref)
+			val |= (req->dis_line_pref <<
+				APR_LMT_MAP_ENT_DIS_LINE_PREF_SHIFT);
+
+		err = lmtst_map_table_ops(rvu, tbl_idx + LMT_MAP_TBL_W1_OFF,
+					  &val, LMT_TBL_OP_WRITE);
+		if (err) {
+			dev_err(rvu->dev,
+				"Failed to update LMT map table: index 0x%x err %d\n",
+				tbl_idx + LMT_MAP_TBL_W1_OFF, err);
+			goto error;
+		}
+	}
+
+error:
+	return err;
 }
 
 /* Resetting the lmtst map table to original base addresses */
@@ -194,19 +243,36 @@ void rvu_reset_lmt_map_tbl(struct rvu *rvu, u16 pcifunc)
 	if (is_rvu_otx2(rvu))
 		return;
 
-	if (pfvf->lmt_base_addr) {
+	if (pfvf->lmt_base_addr || pfvf->lmt_map_ent_w1) {
 		/* This corresponds to lmt map table index */
 		tbl_idx = rvu_get_lmtst_tbl_index(rvu, pcifunc);
 		/* Reverting back original lmt base addr for respective
 		 * pcifunc.
 		 */
-		err = lmtst_map_table_ops(rvu, tbl_idx, &pfvf->lmt_base_addr,
-					  LMT_TBL_OP_WRITE);
-		if (err)
-			dev_err(rvu->dev,
-				"Failed to update LMT map table: index 0x%x err %d\n",
-				tbl_idx, err);
-		pfvf->lmt_base_addr = 0;
+		if (pfvf->lmt_base_addr) {
+			err = lmtst_map_table_ops(rvu, tbl_idx,
+						  &pfvf->lmt_base_addr,
+						  LMT_TBL_OP_WRITE);
+			if (err)
+				dev_err(rvu->dev,
+					"Failed to update LMT map table: index 0x%x err %d\n",
+					tbl_idx, err);
+			pfvf->lmt_base_addr = 0;
+		}
+		/* Reverting back to orginal word1 val of lmtst map table entry
+		 * which underwent changes.
+		 */
+		if (pfvf->lmt_map_ent_w1) {
+			err = lmtst_map_table_ops(rvu,
+						  tbl_idx + LMT_MAP_TBL_W1_OFF,
+						  &pfvf->lmt_map_ent_w1,
+						  LMT_TBL_OP_WRITE);
+			if (err)
+				dev_err(rvu->dev,
+					"Failed to update LMT map table: index 0x%x err %d\n",
+					tbl_idx + LMT_MAP_TBL_W1_OFF, err);
+			pfvf->lmt_map_ent_w1 = 0;
+		}
 	}
 }
 

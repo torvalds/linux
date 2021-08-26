@@ -245,6 +245,7 @@ struct rvu_pfvf {
 	u8	nix_tx_intf; /* NIX0_TX/NIX1_TX interface to NPC */
 	u8	lbkid;	     /* NIX0/1 lbk link ID */
 	u64     lmt_base_addr; /* Preseving the pcifunc's lmtst base addr*/
+	u64     lmt_map_ent_w1; /* Preseving the word1 of lmtst map table entry*/
 	unsigned long flags;
 	struct  sdp_node_info *sdp_info;
 };
@@ -556,9 +557,10 @@ static inline bool is_rvu_95xx_A0(struct rvu *rvu)
  */
 #define PCI_REVISION_ID_96XX		0x00
 #define PCI_REVISION_ID_95XX		0x10
-#define PCI_REVISION_ID_LOKI		0x20
+#define PCI_REVISION_ID_95XXN		0x20
 #define PCI_REVISION_ID_98XX		0x30
 #define PCI_REVISION_ID_95XXMM		0x40
+#define PCI_REVISION_ID_95XXO		0xE0
 
 static inline bool is_rvu_otx2(struct rvu *rvu)
 {
@@ -567,8 +569,8 @@ static inline bool is_rvu_otx2(struct rvu *rvu)
 	u8 midr = pdev->revision & 0xF0;
 
 	return (midr == PCI_REVISION_ID_96XX || midr == PCI_REVISION_ID_95XX ||
-		midr == PCI_REVISION_ID_LOKI || midr == PCI_REVISION_ID_98XX ||
-		midr == PCI_REVISION_ID_95XXMM);
+		midr == PCI_REVISION_ID_95XXN || midr == PCI_REVISION_ID_98XX ||
+		midr == PCI_REVISION_ID_95XXMM || midr == PCI_REVISION_ID_95XXO);
 }
 
 static inline u16 rvu_nix_chan_cgx(struct rvu *rvu, u8 cgxid,
