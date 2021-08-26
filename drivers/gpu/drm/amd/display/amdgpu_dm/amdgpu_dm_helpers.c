@@ -793,4 +793,10 @@ void dm_set_phyd32clk(struct dc_context *ctx, int freq_khz)
        // FPGA programming for this clock in diags framework that
        // needs to go through dm layer, therefore leave dummy interace here
 }
+
+
+void dm_helpers_enable_periodic_detection(struct dc_context *ctx, bool enable)
+{
+	/* TODO: add peridic detection implementation */
+}
 #endif

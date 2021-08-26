@@ -425,7 +425,7 @@ void dcn31_z10_save_init(struct dc *dc)
 	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
 }
 
-void dcn31_z10_restore(struct dc *dc)
+void dcn31_z10_restore(const struct dc *dc)
 {
 	union dmub_rb_cmd cmd;
 

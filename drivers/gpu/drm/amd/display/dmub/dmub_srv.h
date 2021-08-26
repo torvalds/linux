@@ -358,6 +358,8 @@ struct dmub_srv_hw_funcs {
 	uint32_t (*get_current_time)(struct dmub_srv *dmub);
 
 	void (*get_diagnostic_data)(struct dmub_srv *dmub, struct dmub_diagnostic_data *dmub_oca);
+
+	bool (*should_detect)(struct dmub_srv *dmub);
 };
 
 /**
@@ -723,6 +725,8 @@ enum dmub_status dmub_srv_cmd_with_reply_data(struct dmub_srv *dmub,
 bool dmub_srv_get_outbox0_msg(struct dmub_srv *dmub, struct dmcub_trace_buf_entry *entry);
 
 bool dmub_srv_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_data *diag_data);
+
+bool dmub_srv_should_detect(struct dmub_srv *dmub);
 
 #if defined(__cplusplus)
 }

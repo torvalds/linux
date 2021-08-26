@@ -1363,7 +1363,7 @@ void dc_hardware_release(struct dc *dc);
 
 bool dc_set_psr_allow_active(struct dc *dc, bool enable);
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-void dc_z10_restore(struct dc *dc);
+void dc_z10_restore(const struct dc *dc);
 void dc_z10_save_init(struct dc *dc);
 #endif
 

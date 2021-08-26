@@ -1562,7 +1562,7 @@ static uint8_t get_stream_mask(struct dc *dc, struct dc_state *context)
 }
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-void dc_z10_restore(struct dc *dc)
+void dc_z10_restore(const struct dc *dc)
 {
 	if (dc->hwss.z10_restore)
 		dc->hwss.z10_restore(dc);

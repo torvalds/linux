@@ -160,6 +160,10 @@ void dm_set_dcn_clocks(
 		struct dc_context *ctx,
 		struct dc_clocks *clks);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+void dm_helpers_enable_periodic_detection(struct dc_context *ctx, bool enable);
+#endif
+
 void dm_set_phyd32clk(struct dc_context *ctx, int freq_khz);
 
 bool dm_helpers_dmub_outbox_interrupt_control(struct dc_context *ctx, bool enable);

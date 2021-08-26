@@ -1250,6 +1250,10 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		}
 	}
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	dc_z10_restore(dc);
+#endif
+
 	/* get out of low power state */
 	if (!can_apply_seamless_boot && reason != DETECT_REASON_BOOT)
 		clk_mgr_exit_optimized_pwr_state(dc, dc->clk_mgr);
