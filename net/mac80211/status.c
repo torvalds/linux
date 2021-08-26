@@ -705,13 +705,26 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 			/* Check to see if packet is a TDLS teardown packet */
 			if (ieee80211_is_data(hdr->frame_control) &&
 			    (ieee80211_get_tdls_action(skb, hdr_size) ==
-			     WLAN_TDLS_TEARDOWN))
+			     WLAN_TDLS_TEARDOWN)) {
 				ieee80211_tdls_td_tx_handle(local, sdata, skb,
 							    info->flags);
-			else
+			} else if (ieee80211_s1g_is_twt_setup(skb)) {
+				if (!acked) {
+					struct sk_buff *qskb;
+
+					qskb = skb_clone(skb, GFP_ATOMIC);
+					if (qskb) {
+						skb_queue_tail(&sdata->status_queue,
+							       qskb);
+						ieee80211_queue_work(&local->hw,
+								     &sdata->work);
+					}
+				}
+			} else {
 				ieee80211_mgd_conn_tx_status(sdata,
 							     hdr->frame_control,
 							     acked);
+			}
 		}
 
 		rcu_read_unlock();
