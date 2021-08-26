@@ -35,6 +35,9 @@ struct dc_link_settings;
 /* The approximate time (us) it takes to transmit 9 USB4 DP clock sync packets. */
 #define DPIA_CLK_SYNC_DELAY 16000
 
+/* Extend interval between training status checks for manual testing. */
+#define DPIA_DEBUG_EXTENDED_AUX_RD_INTERVAL_US 60000000
+
 /** @note Can remove once DP tunneling registers in upstream include/drm/drm_dp_helper.h */
 /* DPCD DP Tunneling over USB4 */
 #define DP_TUNNELING_CAPABILITIES_SUPPORT 0xe000d
