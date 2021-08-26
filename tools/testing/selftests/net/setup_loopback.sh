@@ -1,5 +1,11 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
+
+readonly FLUSH_PATH="/sys/class/net/${dev}/gro_flush_timeout"
+readonly IRQ_PATH="/sys/class/net/${dev}/napi_defer_hard_irqs"
+readonly FLUSH_TIMEOUT="$(< ${FLUSH_PATH})"
+readonly HARD_IRQS="$(< ${IRQ_PATH})"
+
 netdev_check_for_carrier() {
 	local -r dev="$1"
 
@@ -18,7 +24,7 @@ netdev_check_for_carrier() {
 
 # Assumes that there is no existing ipvlan device on the physical device
 setup_loopback_environment() {
-    local dev="$1"
+	local dev="$1"
 
 	# Fail hard if cannot turn on loopback mode for current NIC
 	ethtool -K "${dev}" loopback on || exit 1
@@ -79,4 +85,34 @@ cleanup_loopback(){
 		echo "setup_loopback_environment failed"
 		exit 1
 	fi
+}
+
+setup_interrupt() {
+	# Use timer on  host to trigger the network stack
+	# Also disable device interrupt to not depend on NIC interrupt
+	# Reduce test flakiness caused by unexpected interrupts
+	echo 100000 >"${FLUSH_PATH}"
+	echo 50 >"${IRQ_PATH}"
+}
+
+setup_ns() {
+	# Set up server_ns namespace and client_ns namespace
+	setup_macvlan_ns "${dev}" server_ns server "${SERVER_MAC}"
+	setup_macvlan_ns "${dev}" client_ns client "${CLIENT_MAC}"
+}
+
+cleanup_ns() {
+	cleanup_macvlan_ns server_ns server client_ns client
+}
+
+setup() {
+	setup_loopback_environment "${dev}"
+	setup_interrupt
+}
+
+cleanup() {
+	cleanup_loopback "${dev}"
+
+	echo "${FLUSH_TIMEOUT}" >"${FLUSH_PATH}"
+	echo "${HARD_IRQS}" >"${IRQ_PATH}"
 }
