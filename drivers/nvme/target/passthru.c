@@ -20,6 +20,16 @@ MODULE_IMPORT_NS(NVME_TARGET_PASSTHRU);
  */
 static DEFINE_XARRAY(passthru_subsystems);
 
+void nvmet_passthrough_override_cap(struct nvmet_ctrl *ctrl)
+{
+	/*
+	 * Multiple command set support can only be declared if the underlying
+	 * controller actually supports it.
+	 */
+	if (!nvme_multi_css(ctrl->subsys->passthru_ctrl))
+		ctrl->cap &= ~(1ULL << 43);
+}
+
 static u16 nvmet_passthru_override_id_ctrl(struct nvmet_req *req)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;

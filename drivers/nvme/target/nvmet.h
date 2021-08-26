@@ -613,6 +613,8 @@ nvmet_req_passthru_ctrl(struct nvmet_req *req)
 	return nvmet_passthru_ctrl(nvmet_req_subsys(req));
 }
 
+void nvmet_passthrough_override_cap(struct nvmet_ctrl *ctrl);
+
 u16 errno_to_nvme_status(struct nvmet_req *req, int errno);
 u16 nvmet_report_invalid_opcode(struct nvmet_req *req);
 
