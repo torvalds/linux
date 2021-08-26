@@ -1561,8 +1561,6 @@ kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
 
 	if (!cpu)
 		arm64_use_ng_mappings = true;
-
-	return;
 }
 #else
 static void
@@ -1734,7 +1732,7 @@ static void cpu_has_fwb(const struct arm64_cpu_capabilities *__unused)
 	u64 val = read_sysreg_s(SYS_CLIDR_EL1);
 
 	/* Check that CLIDR_EL1.LOU{U,IS} are both 0 */
-	WARN_ON(val & (7 << 27 | 7 << 21));
+	WARN_ON(CLIDR_LOUU(val) || CLIDR_LOUIS(val));
 }
 
 #ifdef CONFIG_ARM64_PAN
@@ -1843,6 +1841,9 @@ static void bti_enable(const struct arm64_cpu_capabilities *__unused)
 #ifdef CONFIG_ARM64_MTE
 static void cpu_enable_mte(struct arm64_cpu_capabilities const *cap)
 {
+	sysreg_clear_set(sctlr_el1, 0, SCTLR_ELx_ATA | SCTLR_EL1_ATA0);
+	isb();
+
 	/*
 	 * Clear the tags in the zero page. This needs to be done via the
 	 * linear map which has the Tagged attribute.
