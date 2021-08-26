@@ -9,6 +9,7 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/sched/signal.h>
+#include <asm/unaligned.h>
 #include "pci.h"
 
 #define PCI_VPD_LRDT_TAG_SIZE		3
@@ -19,7 +20,7 @@
 
 static u16 pci_vpd_lrdt_size(const u8 *lrdt)
 {
-	return (u16)lrdt[1] + ((u16)lrdt[2] << 8);
+	return get_unaligned_le16(lrdt + 1);
 }
 
 static u8 pci_vpd_srdt_tag(const u8 *srdt)
@@ -218,14 +219,8 @@ static ssize_t pci_vpd_write(struct pci_dev *dev, loff_t pos, size_t count,
 		return -EINTR;
 
 	while (pos < end) {
-		u32 val;
-
-		val = *buf++;
-		val |= *buf++ << 8;
-		val |= *buf++ << 16;
-		val |= *buf++ << 24;
-
-		ret = pci_user_write_config_dword(dev, vpd->cap + PCI_VPD_DATA, val);
+		ret = pci_user_write_config_dword(dev, vpd->cap + PCI_VPD_DATA,
+						  get_unaligned_le32(buf));
 		if (ret < 0)
 			break;
 		ret = pci_user_write_config_word(dev, vpd->cap + PCI_VPD_ADDR,
@@ -237,6 +232,7 @@ static ssize_t pci_vpd_write(struct pci_dev *dev, loff_t pos, size_t count,
 		if (ret < 0)
 			break;
 
+		buf += sizeof(u32);
 		pos += sizeof(u32);
 	}
 
