@@ -123,16 +123,9 @@ static inline bool bdev_dax_supported(struct block_device *bdev, int blocksize)
 	return __bdev_dax_supported(bdev, blocksize);
 }
 
-bool __generic_fsdax_supported(struct dax_device *dax_dev,
+bool generic_fsdax_supported(struct dax_device *dax_dev,
 		struct block_device *bdev, int blocksize, sector_t start,
 		sector_t sectors);
-static inline bool generic_fsdax_supported(struct dax_device *dax_dev,
-		struct block_device *bdev, int blocksize, sector_t start,
-		sector_t sectors)
-{
-	return __generic_fsdax_supported(dax_dev, bdev, blocksize, start,
-			sectors);
-}
 
 static inline void fs_put_dax(struct dax_device *dax_dev)
 {
@@ -154,12 +147,7 @@ static inline bool bdev_dax_supported(struct block_device *bdev,
 	return false;
 }
 
-static inline bool generic_fsdax_supported(struct dax_device *dax_dev,
-		struct block_device *bdev, int blocksize, sector_t start,
-		sector_t sectors)
-{
-	return false;
-}
+#define generic_fsdax_supported		NULL
 
 static inline void fs_put_dax(struct dax_device *dax_dev)
 {

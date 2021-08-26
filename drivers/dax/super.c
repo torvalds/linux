@@ -119,9 +119,8 @@ struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
 	return dax_get_by_host(bdev->bd_disk->disk_name);
 }
 EXPORT_SYMBOL_GPL(fs_dax_get_by_bdev);
-#endif
 
-bool __generic_fsdax_supported(struct dax_device *dax_dev,
+bool generic_fsdax_supported(struct dax_device *dax_dev,
 		struct block_device *bdev, int blocksize, sector_t start,
 		sector_t sectors)
 {
@@ -201,7 +200,8 @@ bool __generic_fsdax_supported(struct dax_device *dax_dev,
 	}
 	return true;
 }
-EXPORT_SYMBOL_GPL(__generic_fsdax_supported);
+EXPORT_SYMBOL_GPL(generic_fsdax_supported);
+#endif /* CONFIG_FS_DAX */
 
 /**
  * __bdev_dax_supported() - Check if the device supports dax for filesystem
@@ -360,7 +360,7 @@ bool dax_supported(struct dax_device *dax_dev, struct block_device *bdev,
 		return false;
 
 	id = dax_read_lock();
-	if (dax_alive(dax_dev))
+	if (dax_alive(dax_dev) && dax_dev->ops->dax_supported)
 		ret = dax_dev->ops->dax_supported(dax_dev, bdev, blocksize,
 						  start, len);
 	dax_read_unlock(id);
