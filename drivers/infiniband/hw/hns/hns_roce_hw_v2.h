@@ -1407,7 +1407,6 @@ struct hns_roce_cmq_desc {
 			__le32 rsv[4];
 		} func_info;
 	};
-
 };
 
 struct hns_roce_v2_cmq_ring {

@@ -715,7 +715,6 @@ static int alloc_rq_inline_buf(struct hns_roce_qp *hr_qp,
 	/* allocate recv inline buf */
 	wqe_list = kcalloc(wqe_cnt, sizeof(struct hns_roce_rinl_wqe),
 			   GFP_KERNEL);
-
 	if (!wqe_list)
 		goto err;
 

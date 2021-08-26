@@ -5220,7 +5220,6 @@ static int hns_roce_v2_destroy_qp_common(struct hns_roce_dev *hr_dev,
 
 		if (send_cq && send_cq != recv_cq)
 			__hns_roce_v2_cq_clean(send_cq, hr_qp->qpn, NULL);
-
 	}
 
 	hns_roce_qp_remove(hr_dev, hr_qp);
@@ -6359,7 +6358,6 @@ static int hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 	}
 
 	handle->rinfo.instance_state = HNS_ROCE_STATE_INITED;
-
 
 	return 0;
 
