@@ -1271,6 +1271,26 @@ static void icl_apply_kvmr_pipe_a_wa(struct intel_encoder *encoder,
 			     IGNORE_KVMR_PIPE_A,
 			     enable ? IGNORE_KVMR_PIPE_A : 0);
 }
+
+/*
+ * Wa_16012360555:adl-p
+ * SW will have to program the "LP to HS Wakeup Guardband"
+ * to account for the repeaters on the HS Request/Ready
+ * PPI signaling between the Display engine and the DPHY.
+ */
+static void adlp_set_lp_hs_wakeup_gb(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
+	enum port port;
+
+	if (DISPLAY_VER(i915) == 13) {
+		for_each_dsi_port(port, intel_dsi->ports)
+			intel_de_rmw(i915, TGL_DSI_CHKN_REG(port),
+				     TGL_DSI_CHKN_LSHS_GB, 0x4);
+	}
+}
+
 static void gen11_dsi_enable(struct intel_atomic_state *state,
 			     struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state,
@@ -1283,6 +1303,9 @@ static void gen11_dsi_enable(struct intel_atomic_state *state,
 
 	/* Wa_1409054076:icl,jsl,ehl */
 	icl_apply_kvmr_pipe_a_wa(encoder, crtc->pipe, true);
+
+	/* Wa_16012360555:adl-p */
+	adlp_set_lp_hs_wakeup_gb(encoder);
 
 	/* step6d: enable dsi transcoder */
 	gen11_dsi_enable_transcoder(encoder);
