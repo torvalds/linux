@@ -1432,13 +1432,33 @@ void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	unsigned int pkt_len = iwl_rx_packet_payload_len(pkt);
-	struct iwl_stored_beacon_notif *sb = (void *)pkt->data;
+	struct iwl_stored_beacon_notif_common *sb = (void *)pkt->data;
 	struct ieee80211_rx_status rx_status;
 	struct sk_buff *skb;
+	u8 *data;
 	u32 size = le32_to_cpu(sb->byte_count);
+	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, PROT_OFFLOAD_GROUP,
+					STORED_BEACON_NTF, 0);
 
-	if (size == 0 || pkt_len < struct_size(sb, data, size))
+	if (size == 0)
 		return;
+
+	/* handle per-version differences */
+	if (ver <= 2) {
+		struct iwl_stored_beacon_notif_v2 *sb_v2 = (void *)pkt->data;
+
+		if (pkt_len < struct_size(sb_v2, data, size))
+			return;
+
+		data = sb_v2->data;
+	} else {
+		struct iwl_stored_beacon_notif_v3 *sb_v3 = (void *)pkt->data;
+
+		if (pkt_len < struct_size(sb_v3, data, size))
+			return;
+
+		data = sb_v3->data;
+	}
 
 	skb = alloc_skb(size, GFP_ATOMIC);
 	if (!skb) {
@@ -1460,7 +1480,7 @@ void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,
 					       rx_status.band);
 
 	/* copy the data */
-	skb_put_data(skb, sb->data, size);
+	skb_put_data(skb, data, size);
 	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
 
 	/* pass it as regular rx to mac80211 */

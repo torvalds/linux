@@ -373,7 +373,7 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		       struct iwl_mfu_assert_dump_notif),
 	RX_HANDLER_GRP(PROT_OFFLOAD_GROUP, STORED_BEACON_NTF,
 		       iwl_mvm_rx_stored_beacon_notif, RX_HANDLER_SYNC,
-		       struct iwl_stored_beacon_notif),
+		       struct iwl_stored_beacon_notif_v2),
 	RX_HANDLER_GRP(DATA_PATH_GROUP, MU_GROUP_MGMT_NOTIF,
 		       iwl_mvm_mu_mimo_grp_notif, RX_HANDLER_SYNC,
 		       struct iwl_mu_group_mgmt_notif),
