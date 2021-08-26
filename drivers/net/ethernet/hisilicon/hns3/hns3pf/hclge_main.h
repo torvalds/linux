@@ -927,6 +927,7 @@ struct hclge_dev {
 	unsigned long fd_bmap[BITS_TO_LONGS(MAX_FD_FILTER_NUM)];
 	enum HCLGE_FD_ACTIVE_RULE_TYPE fd_active_type;
 	u8 fd_en;
+	bool gro_en;
 
 	u16 wanted_umv_size;
 	/* max available unicast mac vlan space */
