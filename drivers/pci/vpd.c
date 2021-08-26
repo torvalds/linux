@@ -296,7 +296,7 @@ void *pci_vpd_alloc(struct pci_dev *dev, unsigned int *size)
 }
 EXPORT_SYMBOL_GPL(pci_vpd_alloc);
 
-int pci_vpd_find_tag(const u8 *buf, unsigned int len, u8 rdt)
+static int pci_vpd_find_tag(const u8 *buf, unsigned int len, u8 rdt)
 {
 	int i = 0;
 
@@ -310,7 +310,6 @@ int pci_vpd_find_tag(const u8 *buf, unsigned int len, u8 rdt)
 
 	return -ENOENT;
 }
-EXPORT_SYMBOL_GPL(pci_vpd_find_tag);
 
 int pci_vpd_find_info_keyword(const u8 *buf, unsigned int off,
 			      unsigned int len, const char *kw)
