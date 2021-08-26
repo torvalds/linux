@@ -139,6 +139,8 @@
   __traceiter_android_vh_free_task
   __tracepoint_android_vh_free_task
   jiffies_64
+  free_uid
+  find_user
 
 #required by pm8941-pwrkey.ko module
   console_printk
