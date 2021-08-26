@@ -2340,6 +2340,16 @@ static inline u8 pci_vpd_info_field_size(const u8 *info_field)
 void *pci_vpd_alloc(struct pci_dev *dev, unsigned int *size);
 
 /**
+ * pci_vpd_find_id_string - Locate id string in VPD
+ * @buf: Pointer to buffered VPD data
+ * @len: The length of the buffer area in which to search
+ * @size: Pointer to field where length of id string is returned
+ *
+ * Returns the index of the id string or -ENOENT if not found.
+ */
+int pci_vpd_find_id_string(const u8 *buf, unsigned int len, unsigned int *size);
+
+/**
  * pci_vpd_find_ro_info_keyword - Locate info field keyword in VPD RO section
  * @buf: Pointer to buffered VPD data
  * @len: The length of the buffer area in which to search

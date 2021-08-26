@@ -320,6 +320,12 @@ static int pci_vpd_find_tag(const u8 *buf, unsigned int len, u8 rdt, unsigned in
 	return -ENOENT;
 }
 
+int pci_vpd_find_id_string(const u8 *buf, unsigned int len, unsigned int *size)
+{
+	return pci_vpd_find_tag(buf, len, PCI_VPD_LRDT_ID_STRING, size);
+}
+EXPORT_SYMBOL_GPL(pci_vpd_find_id_string);
+
 static int pci_vpd_find_info_keyword(const u8 *buf, unsigned int off,
 			      unsigned int len, const char *kw)
 {
