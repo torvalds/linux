@@ -37,108 +37,6 @@ enum {
 	P_GPLL1_EARLY_DIV,
 };
 
-static const struct parent_map gcc_parent_map_xo_gpll0_gpll0_early_div[] = {
-	{ P_XO, 0 },
-	{ P_GPLL0, 1 },
-	{ P_GPLL0_EARLY_DIV, 6 },
-};
-
-static const char * const gcc_parent_names_xo_gpll0_gpll0_early_div[] = {
-	"xo",
-	"gpll0",
-	"gpll0_early_div",
-};
-
-static const struct parent_map gcc_parent_map_xo_gpll0[] = {
-	{ P_XO, 0 },
-	{ P_GPLL0, 1 },
-};
-
-static const char * const gcc_parent_names_xo_gpll0[] = {
-	"xo",
-	"gpll0",
-};
-
-static const struct parent_map gcc_parent_map_xo_gpll0_sleep_clk_gpll0_early_div[] = {
-	{ P_XO, 0 },
-	{ P_GPLL0, 1 },
-	{ P_SLEEP_CLK, 5 },
-	{ P_GPLL0_EARLY_DIV, 6 },
-};
-
-static const char * const gcc_parent_names_xo_gpll0_sleep_clk_gpll0_early_div[] = {
-	"xo",
-	"gpll0",
-	"sleep_clk",
-	"gpll0_early_div",
-};
-
-static const struct parent_map gcc_parent_map_xo_sleep_clk[] = {
-	{ P_XO, 0 },
-	{ P_SLEEP_CLK, 5 },
-};
-
-static const char * const gcc_parent_names_xo_sleep_clk[] = {
-	"xo",
-	"sleep_clk",
-};
-
-static const struct parent_map gcc_parent_map_xo_gpll4[] = {
-	{ P_XO, 0 },
-	{ P_GPLL4, 5 },
-};
-
-static const char * const gcc_parent_names_xo_gpll4[] = {
-	"xo",
-	"gpll4",
-};
-
-static const struct parent_map gcc_parent_map_xo_gpll0_gpll0_early_div_gpll1_gpll4_gpll1_early_div[] = {
-	{ P_XO, 0 },
-	{ P_GPLL0, 1 },
-	{ P_GPLL0_EARLY_DIV, 3 },
-	{ P_GPLL1, 4 },
-	{ P_GPLL4, 5 },
-	{ P_GPLL1_EARLY_DIV, 6 },
-};
-
-static const char * const gcc_parent_names_xo_gpll0_gpll0_early_div_gpll1_gpll4_gpll1_early_div[] = {
-	"xo",
-	"gpll0",
-	"gpll0_early_div",
-	"gpll1",
-	"gpll4",
-	"gpll1_early_div",
-};
-
-static const struct parent_map gcc_parent_map_xo_gpll0_gpll4_gpll0_early_div[] = {
-	{ P_XO, 0 },
-	{ P_GPLL0, 1 },
-	{ P_GPLL4, 5 },
-	{ P_GPLL0_EARLY_DIV, 6 },
-};
-
-static const char * const gcc_parent_names_xo_gpll0_gpll4_gpll0_early_div[] = {
-	"xo",
-	"gpll0",
-	"gpll4",
-	"gpll0_early_div",
-};
-
-static const struct parent_map gcc_parent_map_xo_gpll0_gpll0_early_div_gpll4[] = {
-	{ P_XO, 0 },
-	{ P_GPLL0, 1 },
-	{ P_GPLL0_EARLY_DIV, 2 },
-	{ P_GPLL4, 5 },
-};
-
-static const char * const gcc_parent_names_xo_gpll0_gpll0_early_div_gpll4[] = {
-	"xo",
-	"gpll0",
-	"gpll0_early_div",
-	"gpll4",
-};
-
 static struct clk_fixed_factor xo = {
 	.mult = 1,
 	.div = 1,
@@ -249,6 +147,108 @@ static struct clk_alpha_pll_postdiv gpll4 = {
 		.num_parents = 1,
 		.ops = &clk_alpha_pll_postdiv_ops,
 	},
+};
+
+static const struct parent_map gcc_parent_map_xo_gpll0_gpll0_early_div[] = {
+	{ P_XO, 0 },
+	{ P_GPLL0, 1 },
+	{ P_GPLL0_EARLY_DIV, 6 },
+};
+
+static const char * const gcc_parent_names_xo_gpll0_gpll0_early_div[] = {
+	"xo",
+	"gpll0",
+	"gpll0_early_div",
+};
+
+static const struct parent_map gcc_parent_map_xo_gpll0[] = {
+	{ P_XO, 0 },
+	{ P_GPLL0, 1 },
+};
+
+static const char * const gcc_parent_names_xo_gpll0[] = {
+	"xo",
+	"gpll0",
+};
+
+static const struct parent_map gcc_parent_map_xo_gpll0_sleep_clk_gpll0_early_div[] = {
+	{ P_XO, 0 },
+	{ P_GPLL0, 1 },
+	{ P_SLEEP_CLK, 5 },
+	{ P_GPLL0_EARLY_DIV, 6 },
+};
+
+static const char * const gcc_parent_names_xo_gpll0_sleep_clk_gpll0_early_div[] = {
+	"xo",
+	"gpll0",
+	"sleep_clk",
+	"gpll0_early_div",
+};
+
+static const struct parent_map gcc_parent_map_xo_sleep_clk[] = {
+	{ P_XO, 0 },
+	{ P_SLEEP_CLK, 5 },
+};
+
+static const char * const gcc_parent_names_xo_sleep_clk[] = {
+	"xo",
+	"sleep_clk",
+};
+
+static const struct parent_map gcc_parent_map_xo_gpll4[] = {
+	{ P_XO, 0 },
+	{ P_GPLL4, 5 },
+};
+
+static const char * const gcc_parent_names_xo_gpll4[] = {
+	"xo",
+	"gpll4",
+};
+
+static const struct parent_map gcc_parent_map_xo_gpll0_gpll0_early_div_gpll1_gpll4_gpll1_early_div[] = {
+	{ P_XO, 0 },
+	{ P_GPLL0, 1 },
+	{ P_GPLL0_EARLY_DIV, 3 },
+	{ P_GPLL1, 4 },
+	{ P_GPLL4, 5 },
+	{ P_GPLL1_EARLY_DIV, 6 },
+};
+
+static const char * const gcc_parent_names_xo_gpll0_gpll0_early_div_gpll1_gpll4_gpll1_early_div[] = {
+	"xo",
+	"gpll0",
+	"gpll0_early_div",
+	"gpll1",
+	"gpll4",
+	"gpll1_early_div",
+};
+
+static const struct parent_map gcc_parent_map_xo_gpll0_gpll4_gpll0_early_div[] = {
+	{ P_XO, 0 },
+	{ P_GPLL0, 1 },
+	{ P_GPLL4, 5 },
+	{ P_GPLL0_EARLY_DIV, 6 },
+};
+
+static const char * const gcc_parent_names_xo_gpll0_gpll4_gpll0_early_div[] = {
+	"xo",
+	"gpll0",
+	"gpll4",
+	"gpll0_early_div",
+};
+
+static const struct parent_map gcc_parent_map_xo_gpll0_gpll0_early_div_gpll4[] = {
+	{ P_XO, 0 },
+	{ P_GPLL0, 1 },
+	{ P_GPLL0_EARLY_DIV, 2 },
+	{ P_GPLL4, 5 },
+};
+
+static const char * const gcc_parent_names_xo_gpll0_gpll0_early_div_gpll4[] = {
+	"xo",
+	"gpll0",
+	"gpll0_early_div",
+	"gpll4",
 };
 
 static const struct freq_tbl ftbl_blsp1_qup1_i2c_apps_clk_src[] = {
