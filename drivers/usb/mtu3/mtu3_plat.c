@@ -63,6 +63,9 @@ static int wait_for_ip_sleep(struct ssusb_mtk *ssusb)
 	if (ret) {
 		dev_err(ssusb->dev, "ip sleep failed!!!\n");
 		ret = -EBUSY;
+	} else {
+		/* workaround: avoid wrong wakeup signal latch for some soc */
+		usleep_range(100, 200);
 	}
 
 	return ret;
