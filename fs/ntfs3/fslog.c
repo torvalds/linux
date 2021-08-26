@@ -456,7 +456,7 @@ static inline bool is_rst_page_hdr_valid(u32 file_off,
 		return false;
 
 	ro = le16_to_cpu(rhdr->ra_off);
-	if (!IsQuadAligned(ro) || ro > sys_page)
+	if (!IS_ALIGNED(ro, 8) || ro > sys_page)
 		return false;
 
 	end_usa = ((sys_page >> SECTOR_SHIFT) + 1) * sizeof(short);
@@ -488,7 +488,7 @@ static inline bool is_rst_area_valid(const struct RESTART_HDR *rhdr)
 
 	off = le16_to_cpu(ra->client_off);
 
-	if (!IsQuadAligned(off) || ro + off > SECTOR_SIZE - sizeof(short))
+	if (!IS_ALIGNED(off, 8) || ro + off > SECTOR_SIZE - sizeof(short))
 		return false;
 
 	off += cl * sizeof(struct CLIENT_REC);
@@ -526,8 +526,8 @@ static inline bool is_rst_area_valid(const struct RESTART_HDR *rhdr)
 	}
 
 	/* The log page data offset and record header length must be quad-aligned */
-	if (!IsQuadAligned(le16_to_cpu(ra->data_off)) ||
-	    !IsQuadAligned(le16_to_cpu(ra->rec_hdr_len)))
+	if (!IS_ALIGNED(le16_to_cpu(ra->data_off), 8) ||
+	    !IS_ALIGNED(le16_to_cpu(ra->rec_hdr_len), 8))
 		return false;
 
 	return true;
@@ -1355,9 +1355,9 @@ static void log_create(struct ntfs_log *log, u32 l_size, const u64 last_lsn,
 		log->l_flags |= NTFSLOG_MULTIPLE_PAGE_IO;
 
 	/* Compute the log page values */
-	log->data_off = QuadAlign(
+	log->data_off = ALIGN(
 		offsetof(struct RECORD_PAGE_HDR, fixups) +
-		sizeof(short) * ((log->page_size >> SECTOR_SHIFT) + 1));
+		sizeof(short) * ((log->page_size >> SECTOR_SHIFT) + 1), 8);
 	log->data_size = log->page_size - log->data_off;
 	log->record_header_len = sizeof(struct LFS_RECORD_HDR);
 
@@ -1365,9 +1365,9 @@ static void log_create(struct ntfs_log *log, u32 l_size, const u64 last_lsn,
 	log->reserved = log->data_size - log->record_header_len;
 
 	/* Compute the restart page values. */
-	log->ra_off = QuadAlign(
+	log->ra_off = ALIGN(
 		offsetof(struct RESTART_HDR, fixups) +
-		sizeof(short) * ((log->sys_page_size >> SECTOR_SHIFT) + 1));
+		sizeof(short) * ((log->sys_page_size >> SECTOR_SHIFT) + 1), 8);
 	log->restart_size = log->sys_page_size - log->ra_off;
 	log->ra_size = struct_size(log->ra, clients, 1);
 	log->current_openlog_count = open_log_count;
@@ -1496,7 +1496,7 @@ static int next_log_lsn(struct ntfs_log *log, const struct LFS_RECORD_HDR *rh,
 
 		vbo = hdr_off + log->data_off;
 	} else {
-		vbo = QuadAlign(end);
+		vbo = ALIGN(end, 8);
 	}
 
 	/* Compute the lsn based on the file offset and the sequence count */
@@ -2982,7 +2982,7 @@ static struct ATTRIB *attr_create_nonres_log(struct ntfs_sb_info *sbi,
 					     __le16 flags)
 {
 	struct ATTRIB *attr;
-	u32 name_size = QuadAlign(name_len * sizeof(short));
+	u32 name_size = ALIGN(name_len * sizeof(short), 8);
 	bool is_ext = flags & (ATTR_FLAG_COMPRESSED | ATTR_FLAG_SPARSED);
 	u32 asize = name_size +
 		    (is_ext ? SIZEOF_NONRESIDENT_EX : SIZEOF_NONRESIDENT);
@@ -3220,7 +3220,7 @@ skip_load_parent:
 			goto dirty_vol;
 
 		memmove(attr, attr2, dlen);
-		rec->used = cpu_to_le32(QuadAlign(roff + dlen));
+		rec->used = cpu_to_le32(ALIGN(roff + dlen, 8));
 
 		mi->dirty = true;
 		break;
@@ -3231,7 +3231,7 @@ skip_load_parent:
 		used = le32_to_cpu(rec->used);
 
 		if (!check_if_attr(rec, lrh) || dlen < SIZEOF_RESIDENT ||
-		    !IsQuadAligned(asize) ||
+		    !IS_ALIGNED(asize, 8) ||
 		    Add2Ptr(attr2, asize) > Add2Ptr(lrh, rec_len) ||
 		    dlen > record_size - used) {
 			goto dirty_vol;
@@ -3296,7 +3296,7 @@ skip_load_parent:
 		if (nsize > asize && nsize - asize > record_size - used)
 			goto dirty_vol;
 
-		nsize = QuadAlign(nsize);
+		nsize = ALIGN(nsize, 8);
 		data_off = le16_to_cpu(attr->res.data_off);
 
 		if (nsize < asize) {
@@ -3341,7 +3341,7 @@ move_data:
 			goto dirty_vol;
 		}
 
-		nsize = QuadAlign(nsize);
+		nsize = ALIGN(nsize, 8);
 
 		memmove(Add2Ptr(attr, nsize), Add2Ptr(attr, asize),
 			used - le16_to_cpu(lrh->record_off) - asize);
@@ -5103,8 +5103,8 @@ end_reply:
 	rh->sys_page_size = cpu_to_le32(log->page_size);
 	rh->page_size = cpu_to_le32(log->page_size);
 
-	t16 = QuadAlign(offsetof(struct RESTART_HDR, fixups) +
-			sizeof(short) * t16);
+	t16 = ALIGN(offsetof(struct RESTART_HDR, fixups) +
+		    sizeof(short) * t16, 8);
 	rh->ra_off = cpu_to_le16(t16);
 	rh->minor_ver = cpu_to_le16(1); // 0x1A:
 	rh->major_ver = cpu_to_le16(1); // 0x1C:

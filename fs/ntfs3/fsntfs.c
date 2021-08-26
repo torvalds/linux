@@ -1944,7 +1944,7 @@ int ntfs_security_init(struct ntfs_sb_info *sbi)
 	sbi->security.next_id = SECURITY_ID_FIRST;
 	/* Always write new security at the end of bucket */
 	sbi->security.next_off =
-		Quad2Align(sds_size - SecurityDescriptorsBlockSize);
+			ALIGN(sds_size - SecurityDescriptorsBlockSize, 16);
 
 	off = 0;
 	ne = NULL;
@@ -2096,7 +2096,7 @@ int ntfs_insert_security(struct ntfs_sb_info *sbi,
 	struct NTFS_DE_SII sii_e;
 	struct SECURITY_HDR *d_security;
 	u32 new_sec_size = size_sd + SIZEOF_SECURITY_HDR;
-	u32 aligned_sec_size = Quad2Align(new_sec_size);
+	u32 aligned_sec_size = ALIGN(new_sec_size, 16);
 	struct SECURITY_KEY hash_key;
 	struct ntfs_fnd *fnd_sdh = NULL;
 	const struct INDEX_ROOT *root_sdh;

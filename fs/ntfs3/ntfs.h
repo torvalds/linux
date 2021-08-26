@@ -392,8 +392,8 @@ static inline u64 attr_ondisk_size(const struct ATTRIB *attr)
 	return attr->non_res ? ((attr->flags &
 				 (ATTR_FLAG_COMPRESSED | ATTR_FLAG_SPARSED)) ?
 					le64_to_cpu(attr->nres.total_size) :
-					le64_to_cpu(attr->nres.alloc_size)) :
-			       QuadAlign(le32_to_cpu(attr->res.data_size));
+					le64_to_cpu(attr->nres.alloc_size))
+			     : ALIGN(le32_to_cpu(attr->res.data_size), 8);
 }
 
 static inline u64 attr_size(const struct ATTRIB *attr)
@@ -529,8 +529,8 @@ static_assert(sizeof(struct ATTR_LIST_ENTRY) == 0x20);
 
 static inline u32 le_size(u8 name_len)
 {
-	return QuadAlign(offsetof(struct ATTR_LIST_ENTRY, name) +
-			 name_len * sizeof(short));
+	return ALIGN(offsetof(struct ATTR_LIST_ENTRY, name) +
+		     name_len * sizeof(short), 8);
 }
 
 /* returns 0 if 'attr' has the same type and name */
@@ -691,10 +691,10 @@ static inline bool de_has_vcn_ex(const struct NTFS_DE *e)
 							sizeof(__le64)));
 }
 
-#define MAX_BYTES_PER_NAME_ENTRY					       \
-	QuadAlign(sizeof(struct NTFS_DE) +				       \
-		  offsetof(struct ATTR_FILE_NAME, name) +		       \
-		  NTFS_NAME_LEN * sizeof(short))
+#define MAX_BYTES_PER_NAME_ENTRY \
+	ALIGN(sizeof(struct NTFS_DE) + \
+	      offsetof(struct ATTR_FILE_NAME, name) + \
+	      NTFS_NAME_LEN * sizeof(short), 8)
 
 struct INDEX_HDR {
 	__le32 de_off;	// 0x00: The offset from the start of this structure

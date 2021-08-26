@@ -702,7 +702,7 @@ next1:
 
 	if (max_idx >= nslots) {
 		u16 *ptr;
-		int new_slots = QuadAlign(2 * nslots);
+		int new_slots = ALIGN(2 * nslots, 8);
 
 		ptr = ntfs_malloc(sizeof(u16) * new_slots);
 		if (ptr)
@@ -959,7 +959,7 @@ static struct indx_node *indx_new(struct ntfs_index *indx,
 	index->rhdr.fix_num = cpu_to_le16(fn);
 	index->vbn = cpu_to_le64(vbn);
 	hdr = &index->ihdr;
-	eo = QuadAlign(sizeof(struct INDEX_BUFFER) + fn * sizeof(short));
+	eo = ALIGN(sizeof(struct INDEX_BUFFER) + fn * sizeof(short), 8);
 	hdr->de_off = cpu_to_le32(eo);
 
 	e = Add2Ptr(hdr, eo);

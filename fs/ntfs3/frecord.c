@@ -1249,7 +1249,7 @@ static int ni_expand_mft_list(struct ntfs_inode *ni)
 	if (err < 0)
 		goto out;
 
-	run_size = QuadAlign(err);
+	run_size = ALIGN(err, 8);
 	err = 0;
 
 	if (plen < svcn) {
@@ -1269,7 +1269,7 @@ static int ni_expand_mft_list(struct ntfs_inode *ni)
 	if (err < 0)
 		goto out;
 
-	run_size = QuadAlign(err);
+	run_size = ALIGN(err, 8);
 	err = 0;
 
 	if (plen < evcn + 1 - svcn) {
@@ -1392,7 +1392,7 @@ int ni_insert_nonresident(struct ntfs_inode *ni, enum ATTR_TYPE type,
 	struct ATTRIB *attr;
 	bool is_ext =
 		(flags & (ATTR_FLAG_SPARSED | ATTR_FLAG_COMPRESSED)) && !svcn;
-	u32 name_size = QuadAlign(name_len * sizeof(short));
+	u32 name_size = ALIGN(name_len * sizeof(short), 8);
 	u32 name_off = is_ext ? SIZEOF_NONRESIDENT_EX : SIZEOF_NONRESIDENT;
 	u32 run_off = name_off + name_size;
 	u32 run_size, asize;
@@ -1403,7 +1403,7 @@ int ni_insert_nonresident(struct ntfs_inode *ni, enum ATTR_TYPE type,
 	if (err < 0)
 		goto out;
 
-	run_size = QuadAlign(err);
+	run_size = ALIGN(err, 8);
 
 	if (plen < len) {
 		err = -EINVAL;
@@ -1463,8 +1463,8 @@ int ni_insert_resident(struct ntfs_inode *ni, u32 data_size,
 		       struct ATTRIB **new_attr, struct mft_inode **mi)
 {
 	int err;
-	u32 name_size = QuadAlign(name_len * sizeof(short));
-	u32 asize = SIZEOF_RESIDENT + name_size + QuadAlign(data_size);
+	u32 name_size = ALIGN(name_len * sizeof(short), 8);
+	u32 asize = SIZEOF_RESIDENT + name_size + ALIGN(data_size, 8);
 	struct ATTRIB *attr;
 
 	err = ni_insert_attr(ni, type, name, name_len, asize, SIZEOF_RESIDENT,
@@ -2853,7 +2853,7 @@ static bool ni_update_parent(struct ntfs_inode *ni, struct NTFS_DUP_INFO *dup,
 		} else if (!attr->non_res) {
 			u32 data_size = le32_to_cpu(attr->res.data_size);
 
-			dup->alloc_size = cpu_to_le64(QuadAlign(data_size));
+			dup->alloc_size = cpu_to_le64(ALIGN(data_size, 8));
 			dup->data_size = cpu_to_le64(data_size);
 		} else {
 			u64 new_valid = ni->i_valid;

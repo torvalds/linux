@@ -26,9 +26,9 @@
 static inline size_t unpacked_ea_size(const struct EA_FULL *ea)
 {
 	return ea->size ? le32_to_cpu(ea->size)
-			: DwordAlign(struct_size(
-				  ea, name,
-				  1 + ea->name_len + le16_to_cpu(ea->elength)));
+			: ALIGN(struct_size(
+			      ea, name,
+			      1 + ea->name_len + le16_to_cpu(ea->elength)), 4);
 }
 
 static inline size_t packed_ea_size(const struct EA_FULL *ea)
@@ -289,7 +289,7 @@ static noinline int ntfs_set_ea(struct inode *inode, const char *name,
 		goto out;
 	}
 
-	add = DwordAlign(struct_size(ea_all, name, 1 + name_len + val_size));
+	add = ALIGN(struct_size(ea_all, name, 1 + name_len + val_size), 4);
 
 	err = ntfs_read_ea(ni, &ea_all, add, &info);
 	if (err)

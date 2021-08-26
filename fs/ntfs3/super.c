@@ -809,9 +809,9 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 	sbi->attr_size_tr = (5 * record_size >> 4); // ~320 bytes
 
 	sbi->max_bytes_per_attr =
-		record_size - QuadAlign(MFTRECORD_FIXUP_OFFSET_1) -
-		QuadAlign(((record_size >> SECTOR_SHIFT) * sizeof(short))) -
-		QuadAlign(sizeof(enum ATTR_TYPE));
+		record_size - ALIGN(MFTRECORD_FIXUP_OFFSET_1, 8) -
+		ALIGN(((record_size >> SECTOR_SHIFT) * sizeof(short)), 8) -
+		ALIGN(sizeof(enum ATTR_TYPE), 8);
 
 	sbi->index_size = boot->index_size < 0
 				  ? 1u << (-boot->index_size)
@@ -859,9 +859,9 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 	rec->rhdr.fix_off = cpu_to_le16(MFTRECORD_FIXUP_OFFSET_1);
 	fn = (sbi->record_size >> SECTOR_SHIFT) + 1;
 	rec->rhdr.fix_num = cpu_to_le16(fn);
-	ao = QuadAlign(MFTRECORD_FIXUP_OFFSET_1 + sizeof(short) * fn);
+	ao = ALIGN(MFTRECORD_FIXUP_OFFSET_1 + sizeof(short) * fn, 8);
 	rec->attr_off = cpu_to_le16(ao);
-	rec->used = cpu_to_le32(ao + QuadAlign(sizeof(enum ATTR_TYPE)));
+	rec->used = cpu_to_le32(ao + ALIGN(sizeof(enum ATTR_TYPE), 8));
 	rec->total = cpu_to_le32(sbi->record_size);
 	((struct ATTRIB *)Add2Ptr(rec, ao))->type = ATTR_END;
 

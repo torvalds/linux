@@ -380,7 +380,7 @@ static int attr_set_size_res(struct ntfs_inode *ni, struct ATTRIB *attr,
 	u32 rsize = le32_to_cpu(attr->res.data_size);
 	u32 tail = used - aoff - asize;
 	char *next = Add2Ptr(attr, asize);
-	s64 dsize = QuadAlign(new_size) - QuadAlign(rsize);
+	s64 dsize = ALIGN(new_size, 8) - ALIGN(rsize, 8);
 
 	if (dsize < 0) {
 		memmove(next + dsize, next, tail);

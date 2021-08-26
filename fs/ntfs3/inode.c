@@ -1335,7 +1335,7 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 	fname->dup.ea_size = fname->dup.reparse = 0;
 
 	dsize = le16_to_cpu(new_de->key_size);
-	asize = QuadAlign(SIZEOF_RESIDENT + dsize);
+	asize = ALIGN(SIZEOF_RESIDENT + dsize, 8);
 
 	attr->type = ATTR_NAME;
 	attr->size = cpu_to_le32(asize);
@@ -1349,7 +1349,7 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 
 	if (security_id == SECURITY_ID_INVALID) {
 		/* Insert security attribute */
-		asize = SIZEOF_RESIDENT + QuadAlign(sd_size);
+		asize = SIZEOF_RESIDENT + ALIGN(sd_size, 8);
 
 		attr->type = ATTR_SECURE;
 		attr->size = cpu_to_le32(asize);
@@ -1472,7 +1472,7 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 		attr->id = cpu_to_le16(aid++);
 
 		/* resident or non resident? */
-		asize = QuadAlign(SIZEOF_RESIDENT + nsize);
+		asize = ALIGN(SIZEOF_RESIDENT + nsize, 8);
 		t16 = PtrOffset(rec, attr);
 
 		if (asize + t16 + 8 > sbi->record_size) {
@@ -1508,7 +1508,7 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 				goto out5;
 			}
 
-			asize = SIZEOF_NONRESIDENT + QuadAlign(err);
+			asize = SIZEOF_NONRESIDENT + ALIGN(err, 8);
 			inode->i_size = nsize;
 		} else {
 			attr->res.data_off = SIZEOF_RESIDENT_LE;

@@ -57,7 +57,7 @@ int fill_name_de(struct ntfs_sb_info *sbi, void *buf, const struct qstr *name,
 	fname->type = FILE_NAME_POSIX;
 	data_size = fname_full_size(fname);
 
-	e->size = cpu_to_le16(QuadAlign(data_size) + sizeof(struct NTFS_DE));
+	e->size = cpu_to_le16(ALIGN(data_size, 8) + sizeof(struct NTFS_DE));
 	e->key_size = cpu_to_le16(data_size);
 	e->flags = 0;
 	e->res = 0;

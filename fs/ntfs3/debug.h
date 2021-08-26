@@ -15,17 +15,6 @@
 #define PtrOffset(B, O)		((size_t)((size_t)(O) - (size_t)(B)))
 #endif
 
-#define QuadAlign(n)		(((n) + 7u) & (~7u))
-#define IsQuadAligned(n)	(!((size_t)(n)&7u))
-#define Quad2Align(n)		(((n) + 15u) & (~15u))
-#define IsQuad2Aligned(n)	(!((size_t)(n)&15u))
-#define Quad4Align(n)		(((n) + 31u) & (~31u))
-#define IsSizeTAligned(n)	(!((size_t)(n) & (sizeof(size_t) - 1)))
-#define DwordAlign(n)		(((n) + 3u) & (~3u))
-#define IsDwordAligned(n)	(!((size_t)(n)&3u))
-#define WordAlign(n)		(((n) + 1u) & (~1u))
-#define IsWordAligned(n)	(!((size_t)(n)&1u))
-
 #ifdef CONFIG_PRINTK
 __printf(2, 3)
 void ntfs_printk(const struct super_block *sb, const char *fmt, ...);
