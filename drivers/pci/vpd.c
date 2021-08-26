@@ -11,6 +11,32 @@
 #include <linux/sched/signal.h>
 #include "pci.h"
 
+#define PCI_VPD_LRDT_TAG_SIZE		3
+#define PCI_VPD_SRDT_LEN_MASK		0x07
+#define PCI_VPD_SRDT_TAG_SIZE		1
+#define PCI_VPD_STIN_END		0x0f
+#define PCI_VPD_INFO_FLD_HDR_SIZE	3
+
+static u16 pci_vpd_lrdt_size(const u8 *lrdt)
+{
+	return (u16)lrdt[1] + ((u16)lrdt[2] << 8);
+}
+
+static u8 pci_vpd_srdt_tag(const u8 *srdt)
+{
+	return *srdt >> 3;
+}
+
+static u8 pci_vpd_srdt_size(const u8 *srdt)
+{
+	return *srdt & PCI_VPD_SRDT_LEN_MASK;
+}
+
+static u8 pci_vpd_info_field_size(const u8 *info_field)
+{
+	return info_field[2];
+}
+
 /* VPD access through PCI 2.2+ VPD capability */
 
 static struct pci_dev *pci_get_func0_dev(struct pci_dev *dev)
