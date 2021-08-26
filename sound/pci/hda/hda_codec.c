@@ -2986,13 +2986,11 @@ void snd_hda_codec_shutdown(struct hda_codec *codec)
 {
 	struct hda_pcm *cpcm;
 
-	if (pm_runtime_suspended(hda_codec_dev(codec)))
-		return;
-
 	list_for_each_entry(cpcm, &codec->pcm_list_head, list)
 		snd_pcm_suspend_all(cpcm->pcm);
 
-	pm_runtime_suspend(hda_codec_dev(codec));
+	pm_runtime_force_suspend(hda_codec_dev(codec));
+	pm_runtime_disable(hda_codec_dev(codec));
 }
 
 /*
