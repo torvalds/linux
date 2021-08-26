@@ -32,6 +32,10 @@
 #include "wafl/wafl2_4_0_0_smn.h"
 #include "wafl/wafl2_4_0_0_sh_mask.h"
 
+#define smnPCS_XGMI23_PCS_ERROR_STATUS   0x11a01210
+#define smnPCS_XGMI3X16_PCS_ERROR_STATUS 0x11a0020c
+#define smnPCS_GOPX1_PCS_ERROR_STATUS    0x12200210
+
 static DEFINE_MUTEX(xgmi_mutex);
 
 #define AMDGPU_MAX_XGMI_DEVICE_PER_HIVE		4
@@ -61,6 +65,33 @@ static const int xgmi_pcs_err_status_reg_arct[] = {
 static const int wafl_pcs_err_status_reg_arct[] = {
 	smnPCS_GOPX1_0_PCS_GOPX1_PCS_ERROR_STATUS,
 	smnPCS_GOPX1_0_PCS_GOPX1_PCS_ERROR_STATUS + 0x100000,
+};
+
+static const int xgmi23_pcs_err_status_reg_aldebaran[] = {
+	smnPCS_XGMI23_PCS_ERROR_STATUS,
+	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x100000,
+	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x200000,
+	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x300000,
+	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x400000,
+	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x500000,
+	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x600000,
+	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x700000
+};
+
+static const int xgmi3x16_pcs_err_status_reg_aldebaran[] = {
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS,
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS + 0x100000,
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS + 0x200000,
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS + 0x300000,
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS + 0x400000,
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS + 0x500000,
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS + 0x600000,
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS + 0x700000
+};
+
+static const int walf_pcs_err_status_reg_aldebaran[] = {
+	smnPCS_GOPX1_PCS_ERROR_STATUS,
+	smnPCS_GOPX1_PCS_ERROR_STATUS + 0x100000
 };
 
 static const struct amdgpu_pcs_ras_field xgmi_pcs_ras_fields[] = {
@@ -771,6 +802,17 @@ static void amdgpu_xgmi_reset_ras_error_count(struct amdgpu_device *adev)
 			pcs_clear_status(adev,
 					 xgmi_pcs_err_status_reg_vg20[i]);
 		break;
+	case CHIP_ALDEBARAN:
+		for (i = 0; i < ARRAY_SIZE(xgmi23_pcs_err_status_reg_aldebaran); i++)
+			pcs_clear_status(adev,
+					 xgmi23_pcs_err_status_reg_aldebaran[i]);
+		for (i = 0; i < ARRAY_SIZE(xgmi23_pcs_err_status_reg_aldebaran); i++)
+			pcs_clear_status(adev,
+					 xgmi23_pcs_err_status_reg_aldebaran[i]);
+		for (i = 0; i < ARRAY_SIZE(walf_pcs_err_status_reg_aldebaran); i++)
+			pcs_clear_status(adev,
+					 walf_pcs_err_status_reg_aldebaran[i]);
+		break;
 	default:
 		break;
 	}
@@ -858,6 +900,29 @@ static int amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 		/* check wafl pcs error */
 		for (i = 0; i < ARRAY_SIZE(wafl_pcs_err_status_reg_vg20); i++) {
 			data = RREG32_PCIE(wafl_pcs_err_status_reg_vg20[i]);
+			if (data)
+				amdgpu_xgmi_query_pcs_error_status(adev,
+						data, &ue_cnt, &ce_cnt, false);
+		}
+		break;
+	case CHIP_ALDEBARAN:
+		/* check xgmi23 pcs error */
+		for (i = 0; i < ARRAY_SIZE(xgmi23_pcs_err_status_reg_aldebaran); i++) {
+			data = RREG32_PCIE(xgmi23_pcs_err_status_reg_aldebaran[i]);
+			if (data)
+				amdgpu_xgmi_query_pcs_error_status(adev,
+						data, &ue_cnt, &ce_cnt, true);
+		}
+		/* check xgmi3x16 pcs error */
+		for (i = 0; i < ARRAY_SIZE(xgmi3x16_pcs_err_status_reg_aldebaran); i++) {
+			data = RREG32_PCIE(xgmi3x16_pcs_err_status_reg_aldebaran[i]);
+			if (data)
+				amdgpu_xgmi_query_pcs_error_status(adev,
+						data, &ue_cnt, &ce_cnt, true);
+		}
+		/* check wafl pcs error */
+		for (i = 0; i < ARRAY_SIZE(walf_pcs_err_status_reg_aldebaran); i++) {
+			data = RREG32_PCIE(walf_pcs_err_status_reg_aldebaran[i]);
 			if (data)
 				amdgpu_xgmi_query_pcs_error_status(adev,
 						data, &ue_cnt, &ce_cnt, false);
