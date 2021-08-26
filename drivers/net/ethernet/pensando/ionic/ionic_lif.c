@@ -1444,28 +1444,19 @@ static void ionic_lif_rx_mode(struct ionic_lif *lif)
 	mutex_unlock(&lif->config_lock);
 }
 
-static void ionic_set_rx_mode(struct net_device *netdev, bool can_sleep)
+static void ionic_ndo_set_rx_mode(struct net_device *netdev)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 	struct ionic_deferred_work *work;
 
-	if (!can_sleep) {
-		work = kzalloc(sizeof(*work), GFP_ATOMIC);
-		if (!work) {
-			netdev_err(lif->netdev, "rxmode change dropped\n");
-			return;
-		}
-		work->type = IONIC_DW_TYPE_RX_MODE;
-		netdev_dbg(lif->netdev, "deferred: rx_mode\n");
-		ionic_lif_deferred_enqueue(&lif->deferred, work);
-	} else {
-		ionic_lif_rx_mode(lif);
+	work = kzalloc(sizeof(*work), GFP_ATOMIC);
+	if (!work) {
+		netdev_err(lif->netdev, "rxmode change dropped\n");
+		return;
 	}
-}
-
-static void ionic_ndo_set_rx_mode(struct net_device *netdev)
-{
-	ionic_set_rx_mode(netdev, CAN_NOT_SLEEP);
+	work->type = IONIC_DW_TYPE_RX_MODE;
+	netdev_dbg(lif->netdev, "deferred: rx_mode\n");
+	ionic_lif_deferred_enqueue(&lif->deferred, work);
 }
 
 static __le64 ionic_netdev_features_to_nic(netdev_features_t features)
@@ -2101,7 +2092,7 @@ static int ionic_txrx_init(struct ionic_lif *lif)
 	if (lif->netdev->features & NETIF_F_RXHASH)
 		ionic_lif_rss_init(lif);
 
-	ionic_set_rx_mode(lif->netdev, CAN_SLEEP);
+	ionic_lif_rx_mode(lif);
 
 	return 0;
 
