@@ -1015,12 +1015,6 @@ struct drm_i915_private {
 
 	struct list_head global_obj_list;
 
-	/*
-	 * For reading active_pipes holding any crtc lock is
-	 * sufficient, for writing must hold all of them.
-	 */
-	u8 active_pipes;
-
 	struct i915_wa_list gt_wa_list;
 
 	struct i915_frontbuffer_tracking fb_tracking;

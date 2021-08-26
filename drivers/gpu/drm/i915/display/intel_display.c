@@ -3724,7 +3724,6 @@ static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
 
 	intel_display_power_put_all_in_set(dev_priv, &crtc->enabled_power_domains);
 
-	dev_priv->active_pipes &= ~BIT(pipe);
 	cdclk_state->min_cdclk[pipe] = 0;
 	cdclk_state->min_voltage_level[pipe] = 0;
 	cdclk_state->active_pipes &= ~BIT(pipe);
@@ -12180,8 +12179,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			    enableddisabled(crtc_state->hw.active));
 	}
 
-	dev_priv->active_pipes = cdclk_state->active_pipes =
-		dbuf_state->active_pipes = active_pipes;
+	cdclk_state->active_pipes = dbuf_state->active_pipes = active_pipes;
 
 	readout_plane_state(dev_priv);
 
