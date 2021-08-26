@@ -77,6 +77,8 @@ static __read_mostly bool nf_conntrack_locks_all;
 #define GC_SCAN_INTERVAL	(120u * HZ)
 #define GC_SCAN_MAX_DURATION	msecs_to_jiffies(10)
 
+#define MAX_CHAINLEN	64u
+
 static struct conntrack_gc_work conntrack_gc_work;
 
 void nf_conntrack_lock(spinlock_t *lock) __acquires(lock)
@@ -840,7 +842,9 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 	unsigned int hash, reply_hash;
 	struct nf_conntrack_tuple_hash *h;
 	struct hlist_nulls_node *n;
+	unsigned int chainlen = 0;
 	unsigned int sequence;
+	int err = -EEXIST;
 
 	zone = nf_ct_zone(ct);
 
@@ -854,15 +858,24 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 	} while (nf_conntrack_double_lock(net, hash, reply_hash, sequence));
 
 	/* See if there's one in the list already, including reverse */
-	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[hash], hnnode)
+	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[hash], hnnode) {
 		if (nf_ct_key_equal(h, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
 				    zone, net))
 			goto out;
 
-	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[reply_hash], hnnode)
+		if (chainlen++ > MAX_CHAINLEN)
+			goto chaintoolong;
+	}
+
+	chainlen = 0;
+
+	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[reply_hash], hnnode) {
 		if (nf_ct_key_equal(h, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
 				    zone, net))
 			goto out;
+		if (chainlen++ > MAX_CHAINLEN)
+			goto chaintoolong;
+	}
 
 	smp_wmb();
 	/* The caller holds a reference to this object */
@@ -872,11 +885,13 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 	NF_CT_STAT_INC(net, insert);
 	local_bh_enable();
 	return 0;
-
+chaintoolong:
+	NF_CT_STAT_INC(net, chaintoolong);
+	err = -ENOSPC;
 out:
 	nf_conntrack_double_unlock(hash, reply_hash);
 	local_bh_enable();
-	return -EEXIST;
+	return err;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_hash_check_insert);
 
@@ -1089,6 +1104,7 @@ int
 __nf_conntrack_confirm(struct sk_buff *skb)
 {
 	const struct nf_conntrack_zone *zone;
+	unsigned int chainlen = 0, sequence;
 	unsigned int hash, reply_hash;
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conn *ct;
@@ -1096,7 +1112,6 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	struct hlist_nulls_node *n;
 	enum ip_conntrack_info ctinfo;
 	struct net *net;
-	unsigned int sequence;
 	int ret = NF_DROP;
 
 	ct = nf_ct_get(skb, &ctinfo);
@@ -1156,15 +1171,28 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	/* See if there's one in the list already, including reverse:
 	   NAT could have grabbed it without realizing, since we're
 	   not in the hash.  If there is, we lost race. */
-	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[hash], hnnode)
+	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[hash], hnnode) {
 		if (nf_ct_key_equal(h, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
 				    zone, net))
 			goto out;
+		if (chainlen++ > MAX_CHAINLEN)
+			goto chaintoolong;
+	}
 
-	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[reply_hash], hnnode)
+	chainlen = 0;
+	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[reply_hash], hnnode) {
 		if (nf_ct_key_equal(h, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
 				    zone, net))
 			goto out;
+		if (chainlen++ > MAX_CHAINLEN) {
+chaintoolong:
+			nf_ct_add_to_dying_list(ct);
+			NF_CT_STAT_INC(net, chaintoolong);
+			NF_CT_STAT_INC(net, insert_failed);
+			ret = NF_DROP;
+			goto dying;
+		}
+	}
 
 	/* Timer relative to confirmation time, not original
 	   setting time, otherwise we'd get timer wrap in

@@ -2484,7 +2484,9 @@ ctnetlink_ct_stat_cpu_fill_info(struct sk_buff *skb, u32 portid, u32 seq,
 	    nla_put_be32(skb, CTA_STATS_SEARCH_RESTART,
 				htonl(st->search_restart)) ||
 	    nla_put_be32(skb, CTA_STATS_CLASH_RESOLVE,
-				htonl(st->clash_resolve)))
+				htonl(st->clash_resolve)) ||
+	    nla_put_be32(skb, CTA_STATS_CHAIN_TOOLONG,
+			 htonl(st->chaintoolong)))
 		goto nla_put_failure;
 
 	nlmsg_end(skb, nlh);
