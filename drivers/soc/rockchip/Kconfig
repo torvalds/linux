@@ -20,6 +20,12 @@ config NO_GKI
 # Rockchip Soc drivers
 #
 
+config ROCKCHIP_AMP
+	tristate "Rockchip AMP support"
+	help
+	  Say y here to enable Rockchip AMP support.
+	  This option protects resources used by AMP.
+
 config ROCKCHIP_CPUINFO
 	tristate "Rockchip cpuinfo support"
 	depends on (ROCKCHIP_EFUSE || ROCKCHIP_OTP) && (ARM64 || ARM)

@@ -2,6 +2,7 @@
 #
 # Rockchip Soc drivers
 #
+obj-$(CONFIG_ROCKCHIP_AMP) += rockchip_amp.o
 obj-$(CONFIG_ROCKCHIP_CPUINFO) += rockchip-cpuinfo.o
 obj-$(CONFIG_ROCKCHIP_GRF) += grf.o
 obj-$(CONFIG_ROCKCHIP_HW_DECOMPRESS) += rockchip_decompress.o
