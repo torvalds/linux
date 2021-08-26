@@ -1,0 +1,104 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/spi/sprd,spi-adi.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Spreadtrum ADI controller
+
+maintainers:
+  - Orson Zhai <orsonzhai@gmail.com>
+  - Baolin Wang <baolin.wang7@gmail.com>
+  - Chunyan Zhang <zhang.lyra@gmail.com>
+
+description: |
+  ADI is the abbreviation of Anolog-Digital interface, which is used to access
+  analog chip (such as PMIC) from digital chip. ADI controller follows the SPI
+  framework for its hardware implementation is alike to SPI bus and its timing
+  is compatile to SPI timing.
+
+  ADI controller has 50 channels including 2 software read/write channels and
+  48 hardware channels to access analog chip. For 2 software read/write channels,
+  users should set ADI registers to access analog chip. For hardware channels,
+  we can configure them to allow other hardware components to use it independently,
+  which means we can just link one analog chip address to one hardware channel,
+  then users can access the mapped analog chip address by this hardware channel
+  triggered by hardware components instead of ADI software channels.
+
+  Thus we introduce one property named "sprd,hw-channels" to configure hardware
+  channels, the first value specifies the hardware channel id which is used to
+  transfer data triggered by hardware automatically, and the second value specifies
+  the analog chip address where user want to access by hardware components.
+
+  Since we have multi-subsystems will use unique ADI to access analog chip, when
+  one system is reading/writing data by ADI software channels, that should be under
+  one hardware spinlock protection to prevent other systems from reading/writing
+  data by ADI software channels at the same time, or two parallel routine of setting
+  ADI registers will make ADI controller registers chaos to lead incorrect results.
+  Then we need one hardware spinlock to synchronize between the multiple subsystems.
+
+  The new version ADI controller supplies multiple master channels for different
+  subsystem accessing, that means no need to add hardware spinlock to synchronize,
+  thus change the hardware spinlock support to be optional to keep backward
+  compatibility.
+
+allOf:
+  - $ref: /spi/spi-controller.yaml#
+
+properties:
+  compatible:
+    enum:
+      - sprd,sc9860-adi
+      - sprd,sc9863-adi
+      - sprd,ums512-adi
+
+  reg:
+    maxItems: 1
+
+  hwlocks:
+    maxItems: 1
+
+  hwlock-names:
+    const: adi
+
+  sprd,hw-channels:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    description: A list of hardware channels
+    minItems: 1
+    maxItems: 48
+    items:
+      items:
+        - description: The hardware channel id which is used to transfer data
+            triggered by hardware automatically, channel id 0-1 are for software
+            use, 2-49 are hardware channels.
+          minimum: 2
+          maximum: 49
+        - description: The analog chip address where user want to access by
+            hardware components.
+
+required:
+  - compatible
+  - reg
+  - '#address-cells'
+  - '#size-cells'
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    aon {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        adi_bus: spi@40030000 {
+            compatible = "sprd,sc9860-adi";
+            reg = <0 0x40030000 0 0x10000>;
+            hwlocks = <&hwlock1 0>;
+            hwlock-names = "adi";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            sprd,hw-channels = <30 0x8c20>;
+        };
+    };
+...
