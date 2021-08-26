@@ -311,7 +311,7 @@ static int pci_vpd_find_tag(const u8 *buf, unsigned int len, u8 rdt)
 	return -ENOENT;
 }
 
-int pci_vpd_find_info_keyword(const u8 *buf, unsigned int off,
+static int pci_vpd_find_info_keyword(const u8 *buf, unsigned int off,
 			      unsigned int len, const char *kw)
 {
 	int i;
@@ -327,7 +327,6 @@ int pci_vpd_find_info_keyword(const u8 *buf, unsigned int off,
 
 	return -ENOENT;
 }
-EXPORT_SYMBOL_GPL(pci_vpd_find_info_keyword);
 
 /**
  * pci_read_vpd - Read one entry from Vital Product Data
