@@ -1256,6 +1256,8 @@ int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
 			.match = cpu_to_le16(IONIC_RX_FILTER_MATCH_MAC),
 		},
 	};
+	int nfilters = le32_to_cpu(lif->identity->eth.max_ucast_filters);
+	bool mc = is_multicast_ether_addr(addr);
 	struct ionic_rx_filter *f;
 	int err = 0;
 
@@ -1282,7 +1284,13 @@ int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
 
 	netdev_dbg(lif->netdev, "rx_filter add ADDR %pM\n", addr);
 
-	err = ionic_adminq_post_wait(lif, &ctx);
+	/* Don't bother with the write to FW if we know there's no room,
+	 * we can try again on the next sync attempt.
+	 */
+	if ((lif->nucast + lif->nmcast) >= nfilters)
+		err = -ENOSPC;
+	else
+		err = ionic_adminq_post_wait(lif, &ctx);
 
 	spin_lock_bh(&lif->rx_filters.lock);
 	if (err && err != -EEXIST) {
@@ -1292,8 +1300,17 @@ int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
 			f->state = IONIC_FILTER_STATE_NEW;
 
 		spin_unlock_bh(&lif->rx_filters.lock);
-		return err;
+
+		if (err == -ENOSPC)
+			return 0;
+		else
+			return err;
 	}
+
+	if (mc)
+		lif->nmcast++;
+	else
+		lif->nucast++;
 
 	f = ionic_rx_filter_by_addr(lif, addr);
 	if (f && f->state == IONIC_FILTER_STATE_OLD) {
@@ -1340,6 +1357,12 @@ int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr)
 	state = f->state;
 	ctx.cmd.rx_filter_del.filter_id = cpu_to_le32(f->filter_id);
 	ionic_rx_filter_free(lif, f);
+
+	if (is_multicast_ether_addr(addr) && lif->nmcast)
+		lif->nmcast--;
+	else if (!is_multicast_ether_addr(addr) && lif->nucast)
+		lif->nucast--;
+
 	spin_unlock_bh(&lif->rx_filters.lock);
 
 	if (state != IONIC_FILTER_STATE_NEW) {
@@ -1392,21 +1415,16 @@ void ionic_lif_rx_mode(struct ionic_lif *lif)
 	 *       to see if we can disable NIC PROMISC
 	 */
 	nfilters = le32_to_cpu(lif->identity->eth.max_ucast_filters);
-	if (netdev_uc_count(netdev) + 1 > nfilters) {
+	if ((lif->nucast + lif->nmcast) >= nfilters) {
 		rx_mode |= IONIC_RX_MODE_F_PROMISC;
+		rx_mode |= IONIC_RX_MODE_F_ALLMULTI;
 		lif->uc_overflow = true;
+		lif->mc_overflow = true;
 	} else if (lif->uc_overflow) {
 		lif->uc_overflow = false;
+		lif->mc_overflow = false;
 		if (!(nd_flags & IFF_PROMISC))
 			rx_mode &= ~IONIC_RX_MODE_F_PROMISC;
-	}
-
-	nfilters = le32_to_cpu(lif->identity->eth.max_mcast_filters);
-	if (netdev_mc_count(netdev) > nfilters) {
-		rx_mode |= IONIC_RX_MODE_F_ALLMULTI;
-		lif->mc_overflow = true;
-	} else if (lif->mc_overflow) {
-		lif->mc_overflow = false;
 		if (!(nd_flags & IFF_ALLMULTI))
 			rx_mode &= ~IONIC_RX_MODE_F_ALLMULTI;
 	}
