@@ -561,16 +561,15 @@ static void early_uartlite_putc(struct uart_port *port, int c)
 	 * This limit is pretty arbitrary, unless we are at about 10 baud
 	 * we'll never timeout on a working UART.
 	 */
-
 	unsigned retries = 1000000;
-	/* read status bit - 0x8 offset */
-	while (--retries && (readl(port->membase + 8) & (1 << 3)))
+
+	while (--retries &&
+	       (readl(port->membase + ULITE_STATUS) & ULITE_STATUS_TXFULL))
 		;
 
 	/* Only attempt the iowrite if we didn't timeout */
-	/* write to TX_FIFO - 0x4 offset */
 	if (retries)
-		writel(c & 0xff, port->membase + 4);
+		writel(c & 0xff, port->membase + ULITE_TX);
 }
 
 static void early_uartlite_write(struct console *console,
