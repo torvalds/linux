@@ -1302,17 +1302,8 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (ret)
 		goto out;
 
-	if (cur_state == new_state && cur_state == IB_QPS_RESET) {
-		if (hr_dev->hw_rev == HNS_ROCE_HW_VER1) {
-			ret = -EPERM;
-			ibdev_err(&hr_dev->ib_dev,
-				  "RST2RST state is not supported\n");
-		} else {
-			ret = 0;
-		}
-
+	if (cur_state == new_state && cur_state == IB_QPS_RESET)
 		goto out;
-	}
 
 	ret = hr_dev->hw->modify_qp(ibqp, attr, attr_mask, cur_state,
 				    new_state);
