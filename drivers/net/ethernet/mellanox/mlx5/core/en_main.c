@@ -3000,8 +3000,7 @@ static int mlx5e_setup_tc_htb(struct mlx5e_priv *priv, struct tc_htb_qopt_offloa
 		return mlx5e_htb_leaf_to_inner(priv, htb->parent_classid, htb->classid,
 					       htb->rate, htb->ceil, htb->extack);
 	case TC_HTB_LEAF_DEL:
-		return mlx5e_htb_leaf_del(priv, htb->classid, &htb->moved_qid, &htb->qid,
-					  htb->extack);
+		return mlx5e_htb_leaf_del(priv, &htb->classid, htb->extack);
 	case TC_HTB_LEAF_DEL_LAST:
 	case TC_HTB_LEAF_DEL_LAST_FORCE:
 		return mlx5e_htb_leaf_del_last(priv, htb->classid,

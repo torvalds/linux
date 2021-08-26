@@ -733,8 +733,8 @@ static void mlx5e_reset_qdisc(struct net_device *dev, u16 qid)
 	spin_unlock_bh(qdisc_lock(qdisc));
 }
 
-int mlx5e_htb_leaf_del(struct mlx5e_priv *priv, u16 classid, u16 *old_qid,
-		       u16 *new_qid, struct netlink_ext_ack *extack)
+int mlx5e_htb_leaf_del(struct mlx5e_priv *priv, u16 *classid,
+		       struct netlink_ext_ack *extack)
 {
 	struct mlx5e_qos_node *node;
 	struct netdev_queue *txq;
@@ -742,11 +742,9 @@ int mlx5e_htb_leaf_del(struct mlx5e_priv *priv, u16 classid, u16 *old_qid,
 	bool opened;
 	int err;
 
-	qos_dbg(priv->mdev, "TC_HTB_LEAF_DEL classid %04x\n", classid);
+	qos_dbg(priv->mdev, "TC_HTB_LEAF_DEL classid %04x\n", *classid);
 
-	*old_qid = *new_qid = 0;
-
-	node = mlx5e_sw_node_find(priv, classid);
+	node = mlx5e_sw_node_find(priv, *classid);
 	if (!node)
 		return -ENOENT;
 
@@ -764,7 +762,7 @@ int mlx5e_htb_leaf_del(struct mlx5e_priv *priv, u16 classid, u16 *old_qid,
 	err = mlx5_qos_destroy_node(priv->mdev, node->hw_id);
 	if (err) /* Not fatal. */
 		qos_warn(priv->mdev, "Failed to destroy leaf node %u (class %04x), err = %d\n",
-			 node->hw_id, classid, err);
+			 node->hw_id, *classid, err);
 
 	mlx5e_sw_node_delete(priv, node);
 
@@ -826,8 +824,7 @@ int mlx5e_htb_leaf_del(struct mlx5e_priv *priv, u16 classid, u16 *old_qid,
 	if (opened)
 		mlx5e_reactivate_qos_sq(priv, moved_qid, txq);
 
-	*old_qid = mlx5e_qid_from_qos(&priv->channels, moved_qid);
-	*new_qid = mlx5e_qid_from_qos(&priv->channels, qid);
+	*classid = node->classid;
 	return 0;
 }
 

@@ -816,10 +816,9 @@ enum tc_htb_command {
 struct tc_htb_qopt_offload {
 	struct netlink_ext_ack *extack;
 	enum tc_htb_command command;
-	u16 classid;
 	u32 parent_classid;
+	u16 classid;
 	u16 qid;
-	u16 moved_qid;
 	u64 rate;
 	u64 ceil;
 };
