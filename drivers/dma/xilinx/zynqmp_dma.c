@@ -6,15 +6,12 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/dmapool.h>
-#include <linux/dma/xilinx_dma.h>
+#include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
 #include <linux/of_dma.h>
-#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
