@@ -141,7 +141,7 @@ static int create_cpu_entry(__u32 cpu, struct bpf_cpumap_val *value,
 static int mark_cpus_unavailable(void)
 {
 	int ret, i, n_cpus = libbpf_num_possible_cpus();
-	__u32 invalid_cpu;
+	__u32 invalid_cpu = n_cpus;
 
 	for (i = 0; i < n_cpus; i++) {
 		ret = bpf_map_update_elem(avail_fd, &i,
@@ -449,8 +449,9 @@ int main(int argc, char **argv)
 			add_cpu = strtoul(optarg, NULL, 0);
 			if (add_cpu >= n_cpus) {
 				fprintf(stderr,
-				"--cpu nr too large for cpumap err(%d):%s\n",
+				"--cpu nr too large for cpumap err (%d):%s\n",
 					errno, strerror(errno));
+				usage(argv, long_options, __doc__, mask, true, skel->obj);
 				goto end_cpu;
 			}
 			cpu[added_cpus++] = add_cpu;
