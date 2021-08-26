@@ -98,8 +98,6 @@ struct ionic_qcq {
 
 enum ionic_deferred_work_type {
 	IONIC_DW_TYPE_RX_MODE,
-	IONIC_DW_TYPE_RX_ADDR_ADD,
-	IONIC_DW_TYPE_RX_ADDR_DEL,
 	IONIC_DW_TYPE_LINK_STATUS,
 	IONIC_DW_TYPE_LIF_RESET,
 };
@@ -147,6 +145,7 @@ enum ionic_lif_state_flags {
 	IONIC_LIF_F_SW_DEBUG_STATS,
 	IONIC_LIF_F_UP,
 	IONIC_LIF_F_LINK_CHECK_REQUESTED,
+	IONIC_LIF_F_FILTER_SYNC_NEEDED,
 	IONIC_LIF_F_FW_RESET,
 	IONIC_LIF_F_SPLIT_INTR,
 	IONIC_LIF_F_BROKEN,
@@ -295,6 +294,10 @@ int ionic_lif_alloc(struct ionic *ionic);
 int ionic_lif_init(struct ionic_lif *lif);
 void ionic_lif_free(struct ionic_lif *lif);
 void ionic_lif_deinit(struct ionic_lif *lif);
+
+int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr);
+int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr);
+
 int ionic_lif_register(struct ionic_lif *lif);
 void ionic_lif_unregister(struct ionic_lif *lif);
 int ionic_lif_identify(struct ionic *ionic, u8 lif_type,
@@ -342,6 +345,7 @@ int ionic_lif_set_hwstamp_rxfilt(struct ionic_lif *lif, u64 pkt_class);
 
 int ionic_lif_rss_config(struct ionic_lif *lif, u16 types,
 			 const u8 *key, const u32 *indir);
+void ionic_lif_rx_mode(struct ionic_lif *lif);
 int ionic_reconfigure_queues(struct ionic_lif *lif,
 			     struct ionic_queue_params *qparam);
 

@@ -30,9 +30,6 @@ static const u8 ionic_qtype_versions[IONIC_QTYPE_MAX] = {
 				      */
 };
 
-static void ionic_lif_rx_mode(struct ionic_lif *lif);
-static int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr);
-static int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr);
 static void ionic_link_status_check(struct ionic_lif *lif);
 static void ionic_lif_handle_fw_down(struct ionic_lif *lif);
 static void ionic_lif_handle_fw_up(struct ionic_lif *lif);
@@ -91,12 +88,6 @@ static void ionic_lif_deferred_work(struct work_struct *work)
 		switch (w->type) {
 		case IONIC_DW_TYPE_RX_MODE:
 			ionic_lif_rx_mode(lif);
-			break;
-		case IONIC_DW_TYPE_RX_ADDR_ADD:
-			ionic_lif_addr_add(lif, w->addr);
-			break;
-		case IONIC_DW_TYPE_RX_ADDR_DEL:
-			ionic_lif_addr_del(lif, w->addr);
 			break;
 		case IONIC_DW_TYPE_LINK_STATUS:
 			ionic_link_status_check(lif);
@@ -1078,7 +1069,11 @@ static int ionic_lif_add_hwstamp_rxfilt(struct ionic_lif *lif, u64 pkt_class)
 	if (err && err != -EEXIST)
 		return err;
 
-	return ionic_rx_filter_save(lif, 0, qid, 0, &ctx);
+	spin_lock_bh(&lif->rx_filters.lock);
+	err = ionic_rx_filter_save(lif, 0, qid, 0, &ctx, IONIC_FILTER_STATE_SYNCED);
+	spin_unlock_bh(&lif->rx_filters.lock);
+
+	return err;
 }
 
 int ionic_lif_set_hwstamp_rxfilt(struct ionic_lif *lif, u64 pkt_class)
@@ -1251,7 +1246,7 @@ void ionic_get_stats64(struct net_device *netdev,
 	ns->tx_errors = ns->tx_aborted_errors;
 }
 
-static int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
+int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
 {
 	struct ionic_admin_ctx ctx = {
 		.work = COMPLETION_INITIALIZER_ONSTACK(ctx.work),
@@ -1261,27 +1256,82 @@ static int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
 			.match = cpu_to_le16(IONIC_RX_FILTER_MATCH_MAC),
 		},
 	};
+	int nfilters = le32_to_cpu(lif->identity->eth.max_ucast_filters);
+	bool mc = is_multicast_ether_addr(addr);
 	struct ionic_rx_filter *f;
-	int err;
+	int err = 0;
 
-	/* don't bother if we already have it */
 	spin_lock_bh(&lif->rx_filters.lock);
 	f = ionic_rx_filter_by_addr(lif, addr);
+	if (f) {
+		/* don't bother if we already have it and it is sync'd */
+		if (f->state == IONIC_FILTER_STATE_SYNCED) {
+			spin_unlock_bh(&lif->rx_filters.lock);
+			return 0;
+		}
+
+		/* mark preemptively as sync'd to block any parallel attempts */
+		f->state = IONIC_FILTER_STATE_SYNCED;
+	} else {
+		/* save as SYNCED to catch any DEL requests while processing */
+		memcpy(ctx.cmd.rx_filter_add.mac.addr, addr, ETH_ALEN);
+		err = ionic_rx_filter_save(lif, 0, IONIC_RXQ_INDEX_ANY, 0, &ctx,
+					   IONIC_FILTER_STATE_SYNCED);
+	}
 	spin_unlock_bh(&lif->rx_filters.lock);
-	if (f)
-		return 0;
+	if (err)
+		return err;
 
 	netdev_dbg(lif->netdev, "rx_filter add ADDR %pM\n", addr);
 
-	memcpy(ctx.cmd.rx_filter_add.mac.addr, addr, ETH_ALEN);
-	err = ionic_adminq_post_wait(lif, &ctx);
-	if (err && err != -EEXIST)
-		return err;
+	/* Don't bother with the write to FW if we know there's no room,
+	 * we can try again on the next sync attempt.
+	 */
+	if ((lif->nucast + lif->nmcast) >= nfilters)
+		err = -ENOSPC;
+	else
+		err = ionic_adminq_post_wait(lif, &ctx);
 
-	return ionic_rx_filter_save(lif, 0, IONIC_RXQ_INDEX_ANY, 0, &ctx);
+	spin_lock_bh(&lif->rx_filters.lock);
+	if (err && err != -EEXIST) {
+		/* set the state back to NEW so we can try again later */
+		f = ionic_rx_filter_by_addr(lif, addr);
+		if (f && f->state == IONIC_FILTER_STATE_SYNCED)
+			f->state = IONIC_FILTER_STATE_NEW;
+
+		spin_unlock_bh(&lif->rx_filters.lock);
+
+		if (err == -ENOSPC)
+			return 0;
+		else
+			return err;
+	}
+
+	if (mc)
+		lif->nmcast++;
+	else
+		lif->nucast++;
+
+	f = ionic_rx_filter_by_addr(lif, addr);
+	if (f && f->state == IONIC_FILTER_STATE_OLD) {
+		/* Someone requested a delete while we were adding
+		 * so update the filter info with the results from the add
+		 * and the data will be there for the delete on the next
+		 * sync cycle.
+		 */
+		err = ionic_rx_filter_save(lif, 0, IONIC_RXQ_INDEX_ANY, 0, &ctx,
+					   IONIC_FILTER_STATE_OLD);
+	} else {
+		err = ionic_rx_filter_save(lif, 0, IONIC_RXQ_INDEX_ANY, 0, &ctx,
+					   IONIC_FILTER_STATE_SYNCED);
+	}
+
+	spin_unlock_bh(&lif->rx_filters.lock);
+
+	return err;
 }
 
-static int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr)
+int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr)
 {
 	struct ionic_admin_ctx ctx = {
 		.work = COMPLETION_INITIALIZER_ONSTACK(ctx.work),
@@ -1291,6 +1341,7 @@ static int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr)
 		},
 	};
 	struct ionic_rx_filter *f;
+	int state;
 	int err;
 
 	spin_lock_bh(&lif->rx_filters.lock);
@@ -1303,65 +1354,37 @@ static int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr)
 	netdev_dbg(lif->netdev, "rx_filter del ADDR %pM (id %d)\n",
 		   addr, f->filter_id);
 
+	state = f->state;
 	ctx.cmd.rx_filter_del.filter_id = cpu_to_le32(f->filter_id);
 	ionic_rx_filter_free(lif, f);
+
+	if (is_multicast_ether_addr(addr) && lif->nmcast)
+		lif->nmcast--;
+	else if (!is_multicast_ether_addr(addr) && lif->nucast)
+		lif->nucast--;
+
 	spin_unlock_bh(&lif->rx_filters.lock);
 
-	err = ionic_adminq_post_wait(lif, &ctx);
-	if (err && err != -EEXIST)
-		return err;
-
-	return 0;
-}
-
-static int ionic_lif_addr(struct ionic_lif *lif, const u8 *addr, bool add)
-{
-	unsigned int nmfilters;
-	unsigned int nufilters;
-
-	if (add) {
-		/* Do we have space for this filter?  We test the counters
-		 * here before checking the need for deferral so that we
-		 * can return an overflow error to the stack.
-		 */
-		nmfilters = le32_to_cpu(lif->identity->eth.max_mcast_filters);
-		nufilters = le32_to_cpu(lif->identity->eth.max_ucast_filters);
-
-		if ((is_multicast_ether_addr(addr) && lif->nmcast < nmfilters))
-			lif->nmcast++;
-		else if (!is_multicast_ether_addr(addr) &&
-			 lif->nucast < nufilters)
-			lif->nucast++;
-		else
-			return -ENOSPC;
-	} else {
-		if (is_multicast_ether_addr(addr) && lif->nmcast)
-			lif->nmcast--;
-		else if (!is_multicast_ether_addr(addr) && lif->nucast)
-			lif->nucast--;
+	if (state != IONIC_FILTER_STATE_NEW) {
+		err = ionic_adminq_post_wait(lif, &ctx);
+		if (err && err != -EEXIST)
+			return err;
 	}
-
-	netdev_dbg(lif->netdev, "rx_filter %s %pM\n",
-		   add ? "add" : "del", addr);
-	if (add)
-		return ionic_lif_addr_add(lif, addr);
-	else
-		return ionic_lif_addr_del(lif, addr);
 
 	return 0;
 }
 
 static int ionic_addr_add(struct net_device *netdev, const u8 *addr)
 {
-	return ionic_lif_addr(netdev_priv(netdev), addr, ADD_ADDR);
+	return ionic_lif_list_addr(netdev_priv(netdev), addr, ADD_ADDR);
 }
 
 static int ionic_addr_del(struct net_device *netdev, const u8 *addr)
 {
-	return ionic_lif_addr(netdev_priv(netdev), addr, DEL_ADDR);
+	return ionic_lif_list_addr(netdev_priv(netdev), addr, DEL_ADDR);
 }
 
-static void ionic_lif_rx_mode(struct ionic_lif *lif)
+void ionic_lif_rx_mode(struct ionic_lif *lif)
 {
 	struct net_device *netdev = lif->netdev;
 	unsigned int nfilters;
@@ -1382,32 +1405,26 @@ static void ionic_lif_rx_mode(struct ionic_lif *lif)
 	rx_mode |= (nd_flags & IFF_PROMISC) ? IONIC_RX_MODE_F_PROMISC : 0;
 	rx_mode |= (nd_flags & IFF_ALLMULTI) ? IONIC_RX_MODE_F_ALLMULTI : 0;
 
-	/* sync unicast addresses
-	 * next check to see if we're in an overflow state
+	/* sync the mac filters */
+	ionic_rx_filter_sync(lif);
+
+	/* check for overflow state
 	 *    if so, we track that we overflowed and enable NIC PROMISC
 	 *    else if the overflow is set and not needed
 	 *       we remove our overflow flag and check the netdev flags
 	 *       to see if we can disable NIC PROMISC
 	 */
-	__dev_uc_sync(netdev, ionic_addr_add, ionic_addr_del);
 	nfilters = le32_to_cpu(lif->identity->eth.max_ucast_filters);
-	if (netdev_uc_count(netdev) + 1 > nfilters) {
+	if ((lif->nucast + lif->nmcast) >= nfilters) {
 		rx_mode |= IONIC_RX_MODE_F_PROMISC;
+		rx_mode |= IONIC_RX_MODE_F_ALLMULTI;
 		lif->uc_overflow = true;
+		lif->mc_overflow = true;
 	} else if (lif->uc_overflow) {
 		lif->uc_overflow = false;
+		lif->mc_overflow = false;
 		if (!(nd_flags & IFF_PROMISC))
 			rx_mode &= ~IONIC_RX_MODE_F_PROMISC;
-	}
-
-	/* same for multicast */
-	__dev_mc_sync(netdev, ionic_addr_add, ionic_addr_del);
-	nfilters = le32_to_cpu(lif->identity->eth.max_mcast_filters);
-	if (netdev_mc_count(netdev) > nfilters) {
-		rx_mode |= IONIC_RX_MODE_F_ALLMULTI;
-		lif->mc_overflow = true;
-	} else if (lif->mc_overflow) {
-		lif->mc_overflow = false;
 		if (!(nd_flags & IFF_ALLMULTI))
 			rx_mode &= ~IONIC_RX_MODE_F_ALLMULTI;
 	}
@@ -1450,28 +1467,26 @@ static void ionic_lif_rx_mode(struct ionic_lif *lif)
 	mutex_unlock(&lif->config_lock);
 }
 
-static void ionic_set_rx_mode(struct net_device *netdev, bool can_sleep)
+static void ionic_ndo_set_rx_mode(struct net_device *netdev)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 	struct ionic_deferred_work *work;
 
-	if (!can_sleep) {
-		work = kzalloc(sizeof(*work), GFP_ATOMIC);
-		if (!work) {
-			netdev_err(lif->netdev, "rxmode change dropped\n");
-			return;
-		}
-		work->type = IONIC_DW_TYPE_RX_MODE;
-		netdev_dbg(lif->netdev, "deferred: rx_mode\n");
-		ionic_lif_deferred_enqueue(&lif->deferred, work);
-	} else {
-		ionic_lif_rx_mode(lif);
-	}
-}
+	/* Sync the kernel filter list with the driver filter list */
+	__dev_uc_sync(netdev, ionic_addr_add, ionic_addr_del);
+	__dev_mc_sync(netdev, ionic_addr_add, ionic_addr_del);
 
-static void ionic_ndo_set_rx_mode(struct net_device *netdev)
-{
-	ionic_set_rx_mode(netdev, CAN_NOT_SLEEP);
+	/* Shove off the rest of the rxmode work to the work task
+	 * which will include syncing the filters to the firmware.
+	 */
+	work = kzalloc(sizeof(*work), GFP_ATOMIC);
+	if (!work) {
+		netdev_err(lif->netdev, "rxmode change dropped\n");
+		return;
+	}
+	work->type = IONIC_DW_TYPE_RX_MODE;
+	netdev_dbg(lif->netdev, "deferred: rx_mode\n");
+	ionic_lif_deferred_enqueue(&lif->deferred, work);
 }
 
 static __le64 ionic_netdev_features_to_nic(netdev_features_t features)
@@ -1692,13 +1707,13 @@ static int ionic_set_mac_address(struct net_device *netdev, void *sa)
 	if (!is_zero_ether_addr(netdev->dev_addr)) {
 		netdev_info(netdev, "deleting mac addr %pM\n",
 			    netdev->dev_addr);
-		ionic_addr_del(netdev, netdev->dev_addr);
+		ionic_lif_addr_del(netdev_priv(netdev), netdev->dev_addr);
 	}
 
 	eth_commit_mac_addr_change(netdev, addr);
 	netdev_info(netdev, "updating mac addr %pM\n", mac);
 
-	return ionic_addr_add(netdev, mac);
+	return ionic_lif_addr_add(netdev_priv(netdev), mac);
 }
 
 static void ionic_stop_queues_reconfig(struct ionic_lif *lif)
@@ -1804,7 +1819,12 @@ static int ionic_vlan_rx_add_vid(struct net_device *netdev, __be16 proto,
 	if (err)
 		return err;
 
-	return ionic_rx_filter_save(lif, 0, IONIC_RXQ_INDEX_ANY, 0, &ctx);
+	spin_lock_bh(&lif->rx_filters.lock);
+	err = ionic_rx_filter_save(lif, 0, IONIC_RXQ_INDEX_ANY, 0, &ctx,
+				   IONIC_FILTER_STATE_SYNCED);
+	spin_unlock_bh(&lif->rx_filters.lock);
+
+	return err;
 }
 
 static int ionic_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto,
@@ -2107,7 +2127,7 @@ static int ionic_txrx_init(struct ionic_lif *lif)
 	if (lif->netdev->features & NETIF_F_RXHASH)
 		ionic_lif_rss_init(lif);
 
-	ionic_set_rx_mode(lif->netdev, CAN_SLEEP);
+	ionic_lif_rx_mode(lif);
 
 	return 0;
 
@@ -3195,7 +3215,7 @@ static int ionic_station_set(struct ionic_lif *lif)
 		 */
 		if (!ether_addr_equal(ctx.comp.lif_getattr.mac,
 				      netdev->dev_addr))
-			ionic_lif_addr(lif, netdev->dev_addr, ADD_ADDR);
+			ionic_lif_addr_add(lif, netdev->dev_addr);
 	} else {
 		/* Update the netdev mac with the device's mac */
 		memcpy(addr.sa_data, ctx.comp.lif_getattr.mac, netdev->addr_len);
@@ -3212,7 +3232,7 @@ static int ionic_station_set(struct ionic_lif *lif)
 
 	netdev_dbg(lif->netdev, "adding station MAC addr %pM\n",
 		   netdev->dev_addr);
-	ionic_lif_addr(lif, netdev->dev_addr, ADD_ADDR);
+	ionic_lif_addr_add(lif, netdev->dev_addr);
 
 	return 0;
 }

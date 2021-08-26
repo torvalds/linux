@@ -15,6 +15,7 @@ static void ionic_watchdog_cb(struct timer_list *t)
 {
 	struct ionic *ionic = from_timer(ionic, t, watchdog_timer);
 	struct ionic_lif *lif = ionic->lif;
+	struct ionic_deferred_work *work;
 	int hb;
 
 	mod_timer(&ionic->watchdog_timer,
@@ -31,6 +32,18 @@ static void ionic_watchdog_cb(struct timer_list *t)
 	if (hb >= 0 &&
 	    !test_bit(IONIC_LIF_F_FW_RESET, lif->state))
 		ionic_link_status_check_request(lif, CAN_NOT_SLEEP);
+
+	if (test_bit(IONIC_LIF_F_FILTER_SYNC_NEEDED, lif->state)) {
+		work = kzalloc(sizeof(*work), GFP_ATOMIC);
+		if (!work) {
+			netdev_err(lif->netdev, "rxmode change dropped\n");
+			return;
+		}
+
+		work->type = IONIC_DW_TYPE_RX_MODE;
+		netdev_dbg(lif->netdev, "deferred: rx_mode\n");
+		ionic_lif_deferred_enqueue(&lif->deferred, work);
+	}
 }
 
 void ionic_init_devinfo(struct ionic *ionic)
