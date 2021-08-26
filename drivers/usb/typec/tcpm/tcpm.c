@@ -278,7 +278,7 @@ struct pd_mode_data {
  * @req_max_curr: Requested max current of the port partner
  * @req_out_volt: Requested output voltage to the port partner
  * @req_op_curr: Requested operating current to the port partner
- * @supported: Parter has atleast one APDO hence supports PPS
+ * @supported: Parter has at least one APDO hence supports PPS
  * @active: PPS mode is active
  */
 struct pd_pps_data {
@@ -2050,7 +2050,7 @@ enum pdo_err {
 
 static const char * const pdo_err_msg[] = {
 	[PDO_ERR_NO_VSAFE5V] =
-	" err: source/sink caps should atleast have vSafe5V",
+	" err: source/sink caps should at least have vSafe5V",
 	[PDO_ERR_VSAFE5V_NOT_FIRST] =
 	" err: vSafe5V Fixed Supply Object Shall always be the first object",
 	[PDO_ERR_PDO_TYPE_NOT_IN_ORDER] =
