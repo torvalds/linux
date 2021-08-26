@@ -502,6 +502,7 @@ static int mtu3_suspend_common(struct device *dev, pm_message_t msg)
 	ssusb_phy_power_off(ssusb);
 	clk_bulk_disable_unprepare(BULK_CLKS_CNT, ssusb->clks);
 	ssusb_wakeup_set(ssusb, true);
+	return 0;
 
 sleep_err:
 	resume_ip_and_ports(ssusb, msg);
