@@ -32,13 +32,47 @@ properties:
   clock-names:
     const: s_axi_aclk
 
+  current-speed:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      The fixed baud rate that the device was configured for.
+
+  xlnx,data-bits:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [5, 6, 7, 8]
+    description:
+      The fixed number of data bits that the device was configured for.
+
+  xlnx,use-parity:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+    description:
+      Whether parity checking was enabled when the device was configured.
+
+  xlnx,odd-parity:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+    description:
+      Whether odd parity was configured.
+
 required:
   - compatible
   - reg
   - interrupts
+  - current-speed
+  - xlnx,data-bits
+  - xlnx,use-parity
 
 allOf:
   - $ref: /schemas/serial.yaml#
+  - if:
+      properties:
+        xlnx,use-parity:
+          contains:
+            const: 1
+    then:
+      required:
+        - xlnx,odd-parity
 
 unevaluatedProperties: false
 
@@ -49,5 +83,8 @@ examples:
         reg = <0x800c0000 0x10000>;
         interrupts = <0x0 0x6e 0x1>;
         port-number = <0>;
+        current-speed = <115200>;
+        xlnx,data-bits = <8>;
+        xlnx,use-parity = <0>;
       };
 ...
