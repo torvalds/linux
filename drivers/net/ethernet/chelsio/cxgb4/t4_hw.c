@@ -2744,7 +2744,7 @@ int t4_seeprom_wp(struct adapter *adapter, bool enable)
 int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 {
 	unsigned int id_len, pn_len, sn_len, na_len;
-	int sn, pn, na, addr, ret = 0;
+	int id, sn, pn, na, addr, ret = 0;
 	u8 *vpd, base_val = 0;
 
 	vpd = vmalloc(VPD_LEN);
@@ -2764,13 +2764,10 @@ int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	if (ret < 0)
 		goto out;
 
-	if (vpd[0] != PCI_VPD_LRDT_ID_STRING) {
-		dev_err(adapter->pdev_dev, "missing VPD ID string\n");
-		ret = -EINVAL;
+	ret = pci_vpd_find_id_string(vpd, VPD_LEN, &id_len);
+	if (ret < 0)
 		goto out;
-	}
-
-	id_len = pci_vpd_lrdt_size(vpd);
+	id = ret;
 
 	ret = pci_vpd_check_csum(vpd, VPD_LEN);
 	if (ret) {
@@ -2796,7 +2793,7 @@ int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 		goto out;
 	na = ret;
 
-	memcpy(p->id, vpd + PCI_VPD_LRDT_TAG_SIZE, min_t(int, id_len, ID_LEN));
+	memcpy(p->id, vpd + id, min_t(int, id_len, ID_LEN));
 	strim(p->id);
 	memcpy(p->sn, vpd + sn, min_t(int, sn_len, SERNUM_LEN));
 	strim(p->sn);
