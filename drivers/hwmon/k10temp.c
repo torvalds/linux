@@ -437,6 +437,8 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			k10temp_get_ccd_support(pdev, data, 4);
 			break;
 		case 0x31:	/* Zen2 Threadripper */
+		case 0x60:	/* Renoir */
+		case 0x68:	/* Lucienne */
 		case 0x71:	/* Zen2 */
 			k10temp_get_ccd_support(pdev, data, 8);
 			break;
@@ -450,7 +452,7 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		switch (boot_cpu_data.x86_model) {
 		case 0x0 ... 0x1:	/* Zen3 SP3/TR */
 		case 0x21:		/* Zen3 Ryzen Desktop */
-		case 0x50:		/* Zen3 Ryzen APU */
+		case 0x50 ... 0x5f:	/* Green Sardine */
 			k10temp_get_ccd_support(pdev, data, 8);
 			break;
 		}
