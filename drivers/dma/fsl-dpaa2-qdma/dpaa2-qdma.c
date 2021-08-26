@@ -701,7 +701,7 @@ static int dpaa2_qdma_probe(struct fsl_mc_device *dpdmai_dev)
 	/* DPDMAI enable */
 	err = dpdmai_enable(priv->mc_io, 0, dpdmai_dev->mc_handle);
 	if (err) {
-		dev_err(dev, "dpdmai_enable() faile\n");
+		dev_err(dev, "dpdmai_enable() failed\n");
 		goto err_enable;
 	}
 
