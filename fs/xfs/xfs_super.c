@@ -319,7 +319,8 @@ xfs_buftarg_is_dax(
 	struct super_block	*sb,
 	struct xfs_buftarg	*bt)
 {
-	return bdev_dax_supported(bt->bt_bdev, sb->s_blocksize);
+	return dax_supported(bt->bt_daxdev, bt->bt_bdev, sb->s_blocksize, 0,
+			bdev_nr_sectors(bt->bt_bdev));
 }
 
 STATIC int

@@ -109,12 +109,6 @@ static inline bool daxdev_mapping_supported(struct vm_area_struct *vma,
 struct writeback_control;
 int bdev_dax_pgoff(struct block_device *, sector_t, size_t, pgoff_t *pgoff);
 #if IS_ENABLED(CONFIG_FS_DAX)
-bool __bdev_dax_supported(struct block_device *bdev, int blocksize);
-static inline bool bdev_dax_supported(struct block_device *bdev, int blocksize)
-{
-	return __bdev_dax_supported(bdev, blocksize);
-}
-
 bool generic_fsdax_supported(struct dax_device *dax_dev,
 		struct block_device *bdev, int blocksize, sector_t start,
 		sector_t sectors);
@@ -136,12 +130,6 @@ struct page *dax_layout_busy_page_range(struct address_space *mapping, loff_t st
 dax_entry_t dax_lock_page(struct page *page);
 void dax_unlock_page(struct page *page, dax_entry_t cookie);
 #else
-static inline bool bdev_dax_supported(struct block_device *bdev,
-		int blocksize)
-{
-	return false;
-}
-
 #define generic_fsdax_supported		NULL
 
 static inline bool dax_supported(struct dax_device *dax_dev,

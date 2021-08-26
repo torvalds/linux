@@ -220,47 +220,7 @@ bool dax_supported(struct dax_device *dax_dev, struct block_device *bdev,
 }
 EXPORT_SYMBOL_GPL(dax_supported);
 #endif /* CONFIG_FS_DAX */
-
-/**
- * __bdev_dax_supported() - Check if the device supports dax for filesystem
- * @bdev: block device to check
- * @blocksize: The block size of the device
- *
- * This is a library function for filesystems to check if the block device
- * can be mounted with dax option.
- *
- * Return: true if supported, false if unsupported
- */
-bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
-{
-	struct dax_device *dax_dev;
-	struct request_queue *q;
-	char buf[BDEVNAME_SIZE];
-	bool ret;
-
-	q = bdev_get_queue(bdev);
-	if (!q || !blk_queue_dax(q)) {
-		pr_debug("%s: error: request queue doesn't support dax\n",
-				bdevname(bdev, buf));
-		return false;
-	}
-
-	dax_dev = dax_get_by_host(bdev->bd_disk->disk_name);
-	if (!dax_dev) {
-		pr_debug("%s: error: device does not support dax\n",
-				bdevname(bdev, buf));
-		return false;
-	}
-
-	ret = dax_supported(dax_dev, bdev, blocksize, 0,
-			i_size_read(bdev->bd_inode) / 512);
-
-	put_dax(dax_dev);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(__bdev_dax_supported);
-#endif
+#endif /* CONFIG_BLOCK */
 
 enum dax_device_flags {
 	/* !alive + rcu grace period == no new operations / mappings */
