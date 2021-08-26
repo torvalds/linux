@@ -1833,7 +1833,7 @@ static int symbol__disassemble_bpf(struct symbol *sym,
 	ret = 0;
 out:
 	free(prog_linfo);
-	free(btf);
+	btf__free(btf);
 	fclose(s);
 	bfd_close(bfdf);
 	return ret;
