@@ -689,7 +689,7 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 		fakewa_disable_nestedbb_mode(engine, wal);
 
 	if (engine->class != RENDER_CLASS)
-		return;
+		goto done;
 
 	if (IS_DG1(i915))
 		dg1_ctx_workarounds_init(engine, wal);
@@ -720,6 +720,7 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 	else
 		MISSING_CASE(GRAPHICS_VER(i915));
 
+done:
 	wa_init_finish(wal);
 }
 
