@@ -2398,6 +2398,7 @@ static int vop2_crtc_atomic_cubic_lut_set(struct drm_crtc *crtc,
 					  struct drm_crtc_state *old_state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct rockchip_drm_private *private = crtc->dev->dev_private;
 	struct drm_color_lut *lut = vp->cubic_lut;
 	struct vop2 *vop2 = vp->vop2;
 	u32 *cubic_lut_kvaddr;
@@ -2409,16 +2410,22 @@ static int vop2_crtc_atomic_cubic_lut_set(struct drm_crtc *crtc,
 		return -ENODEV;
 	}
 
-	if (!vp->cubic_lut_gem_obj) {
-		size_t size = (vp->cubic_lut_len + 1) / 2 * 16;
+	if (!private->cubic_lut[vp->id].enable) {
+		if (!vp->cubic_lut_gem_obj) {
+			size_t size = (vp->cubic_lut_len + 1) / 2 * 16;
 
-		vp->cubic_lut_gem_obj = rockchip_gem_create_object(crtc->dev, size, true);
-		if (IS_ERR(vp->cubic_lut_gem_obj))
-			return -ENOMEM;
+			vp->cubic_lut_gem_obj = rockchip_gem_create_object(crtc->dev, size, true, 0);
+			if (IS_ERR(vp->cubic_lut_gem_obj))
+				return -ENOMEM;
+		}
+
+		cubic_lut_kvaddr = (u32 *)vp->cubic_lut_gem_obj->kvaddr;
+		cubic_lut_mst = vp->cubic_lut_gem_obj->dma_addr;
+	} else {
+		cubic_lut_kvaddr = private->cubic_lut[vp->id].offset + private->cubic_lut_kvaddr;
+		cubic_lut_mst = private->cubic_lut[vp->id].offset + private->cubic_lut_dma_addr;
 	}
 
-	cubic_lut_kvaddr = (u32 *)vp->cubic_lut_gem_obj->kvaddr;
-	cubic_lut_mst = vp->cubic_lut_gem_obj->dma_addr;
 	for (i = 0; i < vp->cubic_lut_len / 2; i++) {
 		*cubic_lut_kvaddr++ = (lut[2 * i].red & 0xfff) +
 					((lut[2 * i].green & 0xfff) << 12) +
@@ -2473,6 +2480,8 @@ static void vop2_cubic_lut_init(struct vop2 *vop2)
 	for (i = 0; i < vop2_data->nr_vps; i++) {
 		vp = &vop2->vps[i];
 		crtc = &vp->crtc;
+		if (!crtc->dev)
+			continue;
 		vp_data = &vop2_data->vp[vp->id];
 		vp->cubic_lut_len = vp_data->cubic_lut_len;
 
@@ -3651,6 +3660,7 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
+	struct rockchip_drm_private *private = crtc->dev->dev_private;
 
 	if (on == vp->loader_protect)
 		return 0;
@@ -3660,6 +3670,13 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 		vop2_set_system_status(vop2);
 		vop2_initial(crtc);
 		drm_crtc_vblank_on(crtc);
+		if (private->cubic_lut[vp->id].enable) {
+			dma_addr_t cubic_lut_mst;
+			struct loader_cubic_lut *cubic_lut = &private->cubic_lut[vp->id];
+
+			cubic_lut_mst = cubic_lut->offset + private->cubic_lut_dma_addr;
+			VOP_MODULE_SET(vop2, vp, cubic_lut_mst, cubic_lut_mst);
+		}
 		vp->loader_protect = true;
 	} else {
 		vop2_crtc_atomic_disable(crtc, NULL);
@@ -3855,12 +3872,14 @@ static int vop2_cubic_lut_show(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct vop2 *vop2 = node->info_ent->data;
+	struct rockchip_drm_private *private = vop2->drm_dev->dev_private;
 	int i, j;
 
 	for (i = 0; i < vop2->data->nr_vps; i++) {
 		struct vop2_video_port *vp = &vop2->vps[i];
 
-		if (!vp->cubic_lut_gem_obj || !vp->cubic_lut || !vp->crtc.state->enable) {
+		if ((!vp->cubic_lut_gem_obj && !private->cubic_lut[vp->id].enable) ||
+		    !vp->cubic_lut || !vp->crtc.state->enable) {
 			DEBUG_PRINT("Video port%d cubic lut disabled\n", vp->id);
 			continue;
 		}
