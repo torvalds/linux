@@ -46,6 +46,9 @@ static int psp_sysfs_init(struct amdgpu_device *adev);
 static void psp_sysfs_fini(struct amdgpu_device *adev);
 
 static int psp_load_smu_fw(struct psp_context *psp);
+static int psp_ta_unload(struct psp_context *psp, uint32_t session_id);
+static int psp_rap_terminate(struct psp_context *psp);
+static int psp_securedisplay_terminate(struct psp_context *psp);
 
 /*
  * Due to DF Cstate management centralized to PMFW, the firmware
@@ -829,10 +832,28 @@ static void psp_prep_ta_unload_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 	cmd->cmd.cmd_unload_ta.session_id = session_id;
 }
 
-static int psp_asd_unload(struct psp_context *psp)
+static int psp_ta_unload(struct psp_context *psp, uint32_t session_id)
 {
 	int ret;
-	struct psp_gfx_cmd_resp *cmd;
+	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
+
+	psp_prep_ta_unload_cmd_buf(cmd, session_id);
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+
+	release_psp_cmd_buf(psp);
+
+	return ret;
+}
+
+static int psp_asd_unload(struct psp_context *psp)
+{
+	return psp_ta_unload(psp, psp->asd_context.session_id);
+}
+
+static int psp_asd_terminate(struct psp_context *psp)
+{
+	int ret;
 
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -840,16 +861,10 @@ static int psp_asd_unload(struct psp_context *psp)
 	if (!psp->asd_context.asd_initialized)
 		return 0;
 
-	cmd = acquire_psp_cmd_buf(psp);
+	ret = psp_asd_unload(psp);
 
-	psp_prep_ta_unload_cmd_buf(cmd, psp->asd_context.session_id);
-
-	ret = psp_cmd_submit_buf(psp, NULL, cmd,
-				 psp->fence_buf_mc_addr);
 	if (!ret)
 		psp->asd_context.asd_initialized = false;
-
-	release_psp_cmd_buf(psp);
 
 	return ret;
 }
@@ -990,29 +1005,7 @@ static int psp_xgmi_load(struct psp_context *psp)
 
 static int psp_xgmi_unload(struct psp_context *psp)
 {
-	int ret;
-	struct psp_gfx_cmd_resp *cmd;
-	struct amdgpu_device *adev = psp->adev;
-
-	/* XGMI TA unload currently is not supported on Arcturus/Aldebaran A+A */
-	if (adev->asic_type == CHIP_ARCTURUS ||
-		(adev->asic_type == CHIP_ALDEBARAN && adev->gmc.xgmi.connected_to_cpu))
-		return 0;
-
-	/*
-	 * TODO: bypass the unloading in sriov for now
-	 */
-
-	cmd = acquire_psp_cmd_buf(psp);
-
-	psp_prep_ta_unload_cmd_buf(cmd, psp->xgmi_context.context.session_id);
-
-	ret = psp_cmd_submit_buf(psp, NULL, cmd,
-				 psp->fence_buf_mc_addr);
-
-	release_psp_cmd_buf(psp);
-
-	return ret;
+	return psp_ta_unload(psp, psp->xgmi_context.context.session_id);
 }
 
 int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
@@ -1023,6 +1016,12 @@ int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 int psp_xgmi_terminate(struct psp_context *psp)
 {
 	int ret;
+	struct amdgpu_device *adev = psp->adev;
+
+	/* XGMI TA unload currently is not supported on Arcturus/Aldebaran A+A */
+	if (adev->asic_type == CHIP_ARCTURUS ||
+		(adev->asic_type == CHIP_ALDEBARAN && adev->gmc.xgmi.connected_to_cpu))
+		return 0;
 
 	if (!psp->xgmi_context.context.initialized)
 		return 0;
@@ -1337,25 +1336,7 @@ static int psp_ras_load(struct psp_context *psp)
 
 static int psp_ras_unload(struct psp_context *psp)
 {
-	int ret;
-	struct psp_gfx_cmd_resp *cmd;
-
-	/*
-	 * TODO: bypass the unloading in sriov for now
-	 */
-	if (amdgpu_sriov_vf(psp->adev))
-		return 0;
-
-	cmd = acquire_psp_cmd_buf(psp);
-
-	psp_prep_ta_unload_cmd_buf(cmd, psp->ras_context.context.session_id);
-
-	ret = psp_cmd_submit_buf(psp, NULL, cmd,
-			psp->fence_buf_mc_addr);
-
-	release_psp_cmd_buf(psp);
-
-	return ret;
+	return psp_ta_unload(psp, psp->ras_context.context.session_id);
 }
 
 int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
@@ -1644,24 +1625,7 @@ static int psp_hdcp_initialize(struct psp_context *psp)
 
 static int psp_hdcp_unload(struct psp_context *psp)
 {
-	int ret;
-	struct psp_gfx_cmd_resp *cmd;
-
-	/*
-	 * TODO: bypass the unloading in sriov for now
-	 */
-	if (amdgpu_sriov_vf(psp->adev))
-		return 0;
-
-	cmd = acquire_psp_cmd_buf(psp);
-
-	psp_prep_ta_unload_cmd_buf(cmd, psp->hdcp_context.context.session_id);
-
-	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
-
-	release_psp_cmd_buf(psp);
-
-	return ret;
+	return psp_ta_unload(psp, psp->hdcp_context.context.session_id);
 }
 
 int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
@@ -1778,24 +1742,7 @@ static int psp_dtm_initialize(struct psp_context *psp)
 
 static int psp_dtm_unload(struct psp_context *psp)
 {
-	int ret;
-	struct psp_gfx_cmd_resp *cmd;
-
-	/*
-	 * TODO: bypass the unloading in sriov for now
-	 */
-	if (amdgpu_sriov_vf(psp->adev))
-		return 0;
-
-	cmd = acquire_psp_cmd_buf(psp);
-
-	psp_prep_ta_unload_cmd_buf(cmd, psp->dtm_context.context.session_id);
-
-	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
-
-	release_psp_cmd_buf(psp);
-
-	return ret;
+	return psp_ta_unload(psp, psp->dtm_context.context.session_id);
 }
 
 int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
@@ -1877,16 +1824,7 @@ static int psp_rap_load(struct psp_context *psp)
 
 static int psp_rap_unload(struct psp_context *psp)
 {
-	int ret;
-	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
-
-	psp_prep_ta_unload_cmd_buf(cmd, psp->rap_context.context.session_id);
-
-	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
-
-	release_psp_cmd_buf(psp);
-
-	return ret;
+	return psp_ta_unload(psp, psp->rap_context.context.session_id);
 }
 
 static int psp_rap_initialize(struct psp_context *psp)
@@ -1918,11 +1856,7 @@ static int psp_rap_initialize(struct psp_context *psp)
 
 	ret = psp_rap_invoke(psp, TA_CMD_RAP__INITIALIZE, &status);
 	if (ret || status != TA_RAP_STATUS__SUCCESS) {
-		psp_rap_unload(psp);
-
-		psp_ta_free_shared_buf(&psp->rap_context.context.mem_context);
-
-		psp->rap_context.context.initialized = false;
+		psp_rap_terminate(psp);
 
 		dev_warn(psp->adev->dev, "RAP TA initialize fail (%d) status %d.\n",
 			 ret, status);
@@ -2022,16 +1956,7 @@ static int psp_securedisplay_load(struct psp_context *psp)
 
 static int psp_securedisplay_unload(struct psp_context *psp)
 {
-	int ret;
-	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
-
-	psp_prep_ta_unload_cmd_buf(cmd, psp->securedisplay_context.context.session_id);
-
-	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
-
-	release_psp_cmd_buf(psp);
-
-	return ret;
+	return psp_ta_unload(psp, psp->securedisplay_context.context.session_id);
 }
 
 static int psp_securedisplay_initialize(struct psp_context *psp)
@@ -2066,12 +1991,7 @@ static int psp_securedisplay_initialize(struct psp_context *psp)
 
 	ret = psp_securedisplay_invoke(psp, TA_SECUREDISPLAY_COMMAND__QUERY_TA);
 	if (ret) {
-		psp_securedisplay_unload(psp);
-
-		psp_ta_free_shared_buf(&psp->securedisplay_context.context.mem_context);
-
-		psp->securedisplay_context.context.initialized = false;
-
+		psp_securedisplay_terminate(psp);
 		dev_err(psp->adev->dev, "SECUREDISPLAY TA initialize fail.\n");
 		return -EINVAL;
 	}
@@ -2721,7 +2641,7 @@ static int psp_hw_fini(void *handle)
 		psp_hdcp_terminate(psp);
 	}
 
-	psp_asd_unload(psp);
+	psp_asd_terminate(psp);
 
 	psp_tmr_terminate(psp);
 	psp_ring_destroy(psp, PSP_RING_TYPE__KM);
@@ -2779,9 +2699,9 @@ static int psp_suspend(void *handle)
 		}
 	}
 
-	ret = psp_asd_unload(psp);
+	ret = psp_asd_terminate(psp);
 	if (ret) {
-		DRM_ERROR("Failed to unload asd\n");
+		DRM_ERROR("Failed to terminate asd\n");
 		return ret;
 	}
 
