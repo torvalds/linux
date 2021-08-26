@@ -758,9 +758,10 @@ static void zynqmp_dma_do_tasklet(struct tasklet_struct *t)
 
 	while (count) {
 		zynqmp_dma_complete_descriptor(chan);
-		zynqmp_dma_chan_desc_cleanup(chan);
 		count--;
 	}
+
+	zynqmp_dma_chan_desc_cleanup(chan);
 
 	if (chan->idle)
 		zynqmp_dma_start_transfer(chan);
