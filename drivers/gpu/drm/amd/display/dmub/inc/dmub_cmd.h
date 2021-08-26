@@ -47,10 +47,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x6d13d5e2c
+#define DMUB_FW_VERSION_GIT_HASH 0x7383caadc
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 77
+#define DMUB_FW_VERSION_REVISION 79
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -322,6 +322,10 @@ union dmub_fw_boot_status {
 		uint32_t mailbox_rdy : 1; /**< 1 if mailbox ready */
 		uint32_t optimized_init_done : 1; /**< 1 if optimized init done */
 		uint32_t restore_required : 1; /**< 1 if driver should call restore */
+		uint32_t defer_load : 1; /**< 1 if VBIOS data is deferred programmed */
+		uint32_t reserved : 1;
+		uint32_t detection_required: 1; /**<  if detection need to be triggered by driver */
+
 	} bits; /**< status bits */
 	uint32_t all; /**< 32-bit access to status bits */
 };
@@ -335,6 +339,7 @@ enum dmub_fw_boot_status_bit {
 	DMUB_FW_BOOT_STATUS_BIT_OPTIMIZED_INIT_DONE = (1 << 2), /**< 1 if init done */
 	DMUB_FW_BOOT_STATUS_BIT_RESTORE_REQUIRED = (1 << 3), /**< 1 if driver should call restore */
 	DMUB_FW_BOOT_STATUS_BIT_DEFERRED_LOADED = (1 << 4), /**< 1 if VBIOS data is deferred programmed */
+	DMUB_FW_BOOT_STATUS_BIT_DETECTION_REQUIRED = (1 << 6), /**< 1 if detection need to be triggered by driver*/
 };
 
 /* Register bit definition for SCRATCH5 */
@@ -489,6 +494,11 @@ enum dmub_gpint_command {
 	 * RETURN: PSR residency in milli-percent.
 	 */
 	DMUB_GPINT__PSR_RESIDENCY = 9,
+
+	/**
+	 * DESC: Notifies DMCUB detection is done so detection required can be cleared.
+	 */
+	DMUB_GPINT__NOTIFY_DETECTION_DONE = 12,
 };
 
 /**
@@ -860,6 +870,11 @@ enum dmub_cmd_idle_opt_type {
 	 * DCN hardware restore.
 	 */
 	DMUB_CMD__IDLE_OPT_DCN_RESTORE = 0,
+
+	/**
+	 * DCN hardware save.
+	 */
+	DMUB_CMD__IDLE_OPT_DCN_SAVE_INIT = 1
 };
 
 /**
@@ -1438,7 +1453,7 @@ struct dmub_cmd_psr_set_level_data {
 	 * 16-bit value dicated by driver that will enable/disable different functionality.
 	 */
 	uint16_t psr_level;
-		/**
+	/**
 	 * PSR control version.
 	 */
 	uint8_t cmd_version;

@@ -498,6 +498,32 @@ int amdgpu_xgmi_get_num_links(struct amdgpu_device *adev,
 	return	-EINVAL;
 }
 
+/*
+ * Devices that support extended data require the entire hive to initialize with
+ * the shared memory buffer flag set.
+ *
+ * Hive locks and conditions apply - see amdgpu_xgmi_add_device
+ */
+static int amdgpu_xgmi_initialize_hive_get_data_partition(struct amdgpu_hive_info *hive,
+							bool set_extended_data)
+{
+	struct amdgpu_device *tmp_adev;
+	int ret;
+
+	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
+		ret = psp_xgmi_initialize(&tmp_adev->psp, set_extended_data, false);
+		if (ret) {
+			dev_err(tmp_adev->dev,
+				"XGMI: Failed to initialize xgmi session for data partition %i\n",
+				set_extended_data);
+			return ret;
+		}
+
+	}
+
+	return 0;
+}
+
 int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 {
 	struct psp_xgmi_topology_info *top_info;
@@ -512,7 +538,7 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 
 	if (!adev->gmc.xgmi.pending_reset &&
 	    amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_PSP)) {
-		ret = psp_xgmi_initialize(&adev->psp);
+		ret = psp_xgmi_initialize(&adev->psp, false, true);
 		if (ret) {
 			dev_err(adev->dev,
 				"XGMI: Failed to initialize xgmi session\n");
@@ -575,7 +601,7 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 		/* get latest topology info for each device from psp */
 		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
 			ret = psp_xgmi_get_topology_info(&tmp_adev->psp, count,
-					&tmp_adev->psp.xgmi_context.top_info);
+					&tmp_adev->psp.xgmi_context.top_info, false);
 			if (ret) {
 				dev_err(tmp_adev->dev,
 					"XGMI: Get topology failure on device %llx, hive %llx, ret %d",
@@ -584,6 +610,34 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 				/* To do : continue with some node failed or disable the whole hive */
 				goto exit_unlock;
 			}
+		}
+
+		/* get topology again for hives that support extended data */
+		if (adev->psp.xgmi_context.supports_extended_data) {
+
+			/* initialize the hive to get extended data.  */
+			ret = amdgpu_xgmi_initialize_hive_get_data_partition(hive, true);
+			if (ret)
+				goto exit_unlock;
+
+			/* get the extended data. */
+			list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
+				ret = psp_xgmi_get_topology_info(&tmp_adev->psp, count,
+						&tmp_adev->psp.xgmi_context.top_info, true);
+				if (ret) {
+					dev_err(tmp_adev->dev,
+						"XGMI: Get topology for extended data failure on device %llx, hive %llx, ret %d",
+						tmp_adev->gmc.xgmi.node_id,
+						tmp_adev->gmc.xgmi.hive_id, ret);
+					goto exit_unlock;
+				}
+			}
+
+			/* initialize the hive to get non-extended data for the next round. */
+			ret = amdgpu_xgmi_initialize_hive_get_data_partition(hive, false);
+			if (ret)
+				goto exit_unlock;
+
 		}
 	}
 
@@ -663,7 +717,6 @@ static int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev)
 		adev->gmc.xgmi.ras_if->block = AMDGPU_RAS_BLOCK__XGMI_WAFL;
 		adev->gmc.xgmi.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
 		adev->gmc.xgmi.ras_if->sub_block_index = 0;
-		strcpy(adev->gmc.xgmi.ras_if->name, "xgmi_wafl");
 	}
 	ih_info.head = fs_info.head = *adev->gmc.xgmi.ras_if;
 	r = amdgpu_ras_late_init(adev, adev->gmc.xgmi.ras_if,

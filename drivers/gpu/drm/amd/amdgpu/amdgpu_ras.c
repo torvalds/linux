@@ -64,7 +64,6 @@ const char *ras_block_string[] = {
 };
 
 #define ras_err_str(i) (ras_error_string[ffs(i)])
-#define ras_block_str(i) (ras_block_string[i])
 
 #define RAS_DEFAULT_FLAGS (AMDGPU_RAS_FLAG_INIT_BY_VBIOS)
 
@@ -530,7 +529,7 @@ static inline void put_obj(struct ras_manager *obj)
 	if (obj && (--obj->use == 0))
 		list_del(&obj->node);
 	if (obj && (obj->use < 0))
-		DRM_ERROR("RAS ERROR: Unbalance obj(%s) use\n", obj->head.name);
+		DRM_ERROR("RAS ERROR: Unbalance obj(%s) use\n", ras_block_str(obj->head.block));
 }
 
 /* make one obj and return it. */
@@ -793,7 +792,6 @@ static int amdgpu_ras_enable_all_features(struct amdgpu_device *adev,
 			.type = default_ras_type,
 			.sub_block_index = 0,
 		};
-		strcpy(head.name, ras_block_str(i));
 		if (bypass) {
 			/*
 			 * bypass psp. vbios enable ras for us.
@@ -1866,7 +1864,7 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras_eeprom_control *control =
-		&adev->psp.ras.ras->eeprom_control;
+		&adev->psp.ras_context.ras->eeprom_control;
 	struct eeprom_table_record *bps;
 	int ret;
 

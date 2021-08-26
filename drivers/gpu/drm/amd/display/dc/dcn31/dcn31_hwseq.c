@@ -407,6 +407,18 @@ void dcn31_update_info_frame(struct pipe_ctx *pipe_ctx)
 			&pipe_ctx->stream_res.encoder_info_frame);
 	}
 }
+void dcn31_z10_save_init(struct dc *dc)
+{
+	union dmub_rb_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.dcn_restore.header.type = DMUB_CMD__IDLE_OPT;
+	cmd.dcn_restore.header.sub_type = DMUB_CMD__IDLE_OPT_DCN_SAVE_INIT;
+
+	dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
+	dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
+	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
+}
 
 void dcn31_z10_restore(struct dc *dc)
 {
