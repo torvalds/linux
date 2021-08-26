@@ -1061,16 +1061,14 @@ static int zynqmp_dma_probe(struct platform_device *pdev)
 	p->dev = &pdev->dev;
 
 	zdev->clk_main = devm_clk_get(&pdev->dev, "clk_main");
-	if (IS_ERR(zdev->clk_main)) {
-		dev_err(&pdev->dev, "main clock not found.\n");
-		return PTR_ERR(zdev->clk_main);
-	}
+	if (IS_ERR(zdev->clk_main))
+		return dev_err_probe(&pdev->dev, PTR_ERR(zdev->clk_main),
+				     "main clock not found.\n");
 
 	zdev->clk_apb = devm_clk_get(&pdev->dev, "clk_apb");
-	if (IS_ERR(zdev->clk_apb)) {
-		dev_err(&pdev->dev, "apb clock not found.\n");
-		return PTR_ERR(zdev->clk_apb);
-	}
+	if (IS_ERR(zdev->clk_apb))
+		return dev_err_probe(&pdev->dev, PTR_ERR(zdev->clk_apb),
+				     "apb clock not found.\n");
 
 	platform_set_drvdata(pdev, zdev);
 	pm_runtime_set_autosuspend_delay(zdev->dev, ZDMA_PM_TIMEOUT);
@@ -1085,7 +1083,7 @@ static int zynqmp_dma_probe(struct platform_device *pdev)
 
 	ret = zynqmp_dma_chan_probe(zdev, pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "Probing channel failed\n");
+		dev_err_probe(&pdev->dev, ret, "Probing channel failed\n");
 		goto err_disable_pm;
 	}
 
@@ -1097,7 +1095,7 @@ static int zynqmp_dma_probe(struct platform_device *pdev)
 	ret = of_dma_controller_register(pdev->dev.of_node,
 					 of_zynqmp_dma_xlate, zdev);
 	if (ret) {
-		dev_err(&pdev->dev, "Unable to register DMA to DT\n");
+		dev_err_probe(&pdev->dev, ret, "Unable to register DMA to DT\n");
 		dma_async_device_unregister(&zdev->common);
 		goto free_chan_resources;
 	}
