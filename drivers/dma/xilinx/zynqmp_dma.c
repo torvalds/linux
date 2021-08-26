@@ -611,9 +611,9 @@ static void zynqmp_dma_chan_desc_cleanup(struct zynqmp_dma_chan *chan)
 		callback = desc->async_tx.callback;
 		callback_param = desc->async_tx.callback_param;
 		if (callback) {
-			spin_unlock(&chan->lock);
+			spin_unlock_irqrestore(&chan->lock, irqflags);
 			callback(callback_param);
-			spin_lock(&chan->lock);
+			spin_lock_irqsave(&chan->lock, irqflags);
 		}
 
 		/* Run any dependencies, then free the descriptor */
