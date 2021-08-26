@@ -10853,6 +10853,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		intel_ddi_init(dev_priv, PORT_TC2);
 		intel_ddi_init(dev_priv, PORT_TC3);
 		intel_ddi_init(dev_priv, PORT_TC4);
+		icl_dsi_init(dev_priv);
 	} else if (IS_ALDERLAKE_S(dev_priv)) {
 		intel_ddi_init(dev_priv, PORT_A);
 		intel_ddi_init(dev_priv, PORT_TC1);
