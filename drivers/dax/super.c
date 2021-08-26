@@ -219,7 +219,6 @@ bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
 	struct request_queue *q;
 	char buf[BDEVNAME_SIZE];
 	bool ret;
-	int id;
 
 	q = bdev_get_queue(bdev);
 	if (!q || !blk_queue_dax(q)) {
@@ -235,10 +234,8 @@ bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
 		return false;
 	}
 
-	id = dax_read_lock();
 	ret = dax_supported(dax_dev, bdev, blocksize, 0,
 			i_size_read(bdev->bd_inode) / 512);
-	dax_read_unlock(id);
 
 	put_dax(dax_dev);
 
@@ -356,13 +353,18 @@ EXPORT_SYMBOL_GPL(dax_direct_access);
 bool dax_supported(struct dax_device *dax_dev, struct block_device *bdev,
 		int blocksize, sector_t start, sector_t len)
 {
+	bool ret = false;
+	int id;
+
 	if (!dax_dev)
 		return false;
 
-	if (!dax_alive(dax_dev))
-		return false;
-
-	return dax_dev->ops->dax_supported(dax_dev, bdev, blocksize, start, len);
+	id = dax_read_lock();
+	if (dax_alive(dax_dev))
+		ret = dax_dev->ops->dax_supported(dax_dev, bdev, blocksize,
+						  start, len);
+	dax_read_unlock(id);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(dax_supported);
 
