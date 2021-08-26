@@ -37,6 +37,25 @@ config ROCKCHIP_DRM_DEBUG
 	  cat /d/dri/0/ff900000.vop/vop_dump/dump get more help
 	  the upper ff900000.vop is different at different SOC platform.
 
+config ROCKCHIP_VOP
+	bool "Rockchip VOP driver"
+	default y if (CPU_RK3036 || CPU_RK30XX || CPU_RK312X || \
+		      CPU_PX30   || CPU_RK3308 || CPU_RV1106 || \
+		      CPU_RV1126 || CPU_RK3288 || CPU_RK3368 || \
+		      CPU_RK3399 || CPU_RK322X || CPU_RK3328) && \
+		      !ROCKCHIP_MINI_KERNEL
+	help
+	  This selects support for the VOP driver.If you want to
+	  enable VOP on Rockchip SoC, you should select this option.
+
+config ROCKCHIP_VOP2
+	bool "Rockchip VOP2 driver"
+	default y if CPU_RK3568 || CPU_RK3588
+	help
+	  This selects support for the VOP2 driver. If you want to
+	  enable VOP2 on RK3566 and RK3568 based SoC, you should
+	  select this option.
+
 config ROCKCHIP_ANALOGIX_DP
 	bool "Rockchip specific extensions for Analogix DP driver"
 	help
@@ -84,7 +103,6 @@ config ROCKCHIP_INNO_HDMI
 
 config ROCKCHIP_LVDS
 	bool "Rockchip LVDS support"
-	depends on DRM_ROCKCHIP
 	depends on PINCTRL && OF
 	help
 	  Choose this option to enable support for Rockchip LVDS controllers.
@@ -94,7 +112,6 @@ config ROCKCHIP_LVDS
 
 config ROCKCHIP_RGB
 	bool "Rockchip RGB support"
-	depends on DRM_ROCKCHIP
 	depends on PINCTRL
 	help
 	  Choose this option to enable support for Rockchip RGB output.
@@ -104,7 +121,6 @@ config ROCKCHIP_RGB
 
 config ROCKCHIP_RK3066_HDMI
 	bool "Rockchip specific extensions for RK3066 HDMI"
-	depends on DRM_ROCKCHIP
 	help
 	  This selects support for Rockchip SoC specific extensions
 	  for the RK3066 HDMI driver. If you want to enable
@@ -112,7 +128,6 @@ config ROCKCHIP_RK3066_HDMI
 
 config ROCKCHIP_VCONN
 	bool "Rockchip Virtual connector driver for HDMI/DP/DSI"
-	depends on DRM_ROCKCHIP
 	help
 	  This selects support virtual HDMI/DP/DSI drived by
 	  rockchip vop, This is used for some test.
