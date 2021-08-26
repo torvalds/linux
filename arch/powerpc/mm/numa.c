@@ -142,7 +142,7 @@ static void reset_numa_cpu_lookup_table(void)
 		numa_cpu_lookup_table[cpu] = -1;
 }
 
-static void map_cpu_to_node(int cpu, int node)
+void map_cpu_to_node(int cpu, int node)
 {
 	update_numa_cpu_lookup_table(cpu, node);
 
@@ -153,7 +153,7 @@ static void map_cpu_to_node(int cpu, int node)
 }
 
 #if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_PPC_SPLPAR)
-static void unmap_cpu_from_node(unsigned long cpu)
+void unmap_cpu_from_node(unsigned long cpu)
 {
 	int node = numa_cpu_lookup_table[cpu];
 
@@ -800,9 +800,6 @@ static int ppc_numa_cpu_prepare(unsigned int cpu)
 
 static int ppc_numa_cpu_dead(unsigned int cpu)
 {
-#ifdef CONFIG_HOTPLUG_CPU
-	unmap_cpu_from_node(cpu);
-#endif
 	return 0;
 }
 

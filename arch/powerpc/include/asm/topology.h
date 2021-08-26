@@ -66,6 +66,11 @@ static inline int early_cpu_to_node(int cpu)
 int of_drconf_to_nid_single(struct drmem_lmb *lmb);
 void update_numa_distance(struct device_node *node);
 
+extern void map_cpu_to_node(int cpu, int node);
+#ifdef CONFIG_HOTPLUG_CPU
+extern void unmap_cpu_from_node(unsigned long cpu);
+#endif /* CONFIG_HOTPLUG_CPU */
+
 #else
 
 static inline int early_cpu_to_node(int cpu) { return 0; }
@@ -95,6 +100,14 @@ static inline int of_drconf_to_nid_single(struct drmem_lmb *lmb)
 }
 
 static inline void update_numa_distance(struct device_node *node) {}
+
+#ifdef CONFIG_SMP
+static inline void map_cpu_to_node(int cpu, int node) {}
+#ifdef CONFIG_HOTPLUG_CPU
+static inline void unmap_cpu_from_node(unsigned long cpu) {}
+#endif /* CONFIG_HOTPLUG_CPU */
+#endif /* CONFIG_SMP */
+
 #endif /* CONFIG_NUMA */
 
 #if defined(CONFIG_NUMA) && defined(CONFIG_PPC_SPLPAR)
