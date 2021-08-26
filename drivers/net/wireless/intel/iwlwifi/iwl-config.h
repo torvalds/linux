@@ -420,6 +420,7 @@ struct iwl_cfg {
 #define IWL_CFG_MAC_TYPE_SOF		0x43
 #define IWL_CFG_MAC_TYPE_MA		0x44
 #define IWL_CFG_MAC_TYPE_BZ		0x46
+#define IWL_CFG_MAC_TYPE_GL		0x47
 
 #define IWL_CFG_RF_TYPE_TH		0x105
 #define IWL_CFG_RF_TYPE_TH1		0x108
@@ -628,6 +629,8 @@ extern const struct iwl_cfg iwl_cfg_bz_a0_hr_b0;
 extern const struct iwl_cfg iwl_cfg_bz_a0_gf_a0;
 extern const struct iwl_cfg iwl_cfg_bz_a0_gf4_a0;
 extern const struct iwl_cfg iwl_cfg_bz_a0_mr_a0;
+extern const struct iwl_cfg iwl_cfg_bz_a0_fm_a0;
+extern const struct iwl_cfg iwl_cfg_gl_a0_fm_a0;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */
