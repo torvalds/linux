@@ -485,7 +485,7 @@ find_matching_se(struct sched_entity **se, struct sched_entity **pse)
 {
 }
 
-static int tg_is_idle(struct task_group *tg)
+static inline int tg_is_idle(struct task_group *tg)
 {
 	return 0;
 }
