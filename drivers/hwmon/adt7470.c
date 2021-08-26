@@ -174,6 +174,7 @@ struct adt7470_data {
 static inline int adt7470_read_word_data(struct i2c_client *client, u8 reg)
 {
 	u16 foo;
+
 	foo = i2c_smbus_read_byte_data(client, reg);
 	foo |= ((u16)i2c_smbus_read_byte_data(client, reg + 1) << 8);
 	return foo;
@@ -1282,7 +1283,7 @@ static int adt7470_detect(struct i2c_client *client,
 	if (revision != ADT7470_REVISION)
 		return -ENODEV;
 
-	strlcpy(info->type, "adt7470", I2C_NAME_SIZE);
+	strscpy(info->type, "adt7470", I2C_NAME_SIZE);
 
 	return 0;
 }
@@ -1331,9 +1332,8 @@ static int adt7470_probe(struct i2c_client *client)
 
 	data->auto_update = kthread_run(adt7470_update_thread, client, "%s",
 					dev_name(hwmon_dev));
-	if (IS_ERR(data->auto_update)) {
+	if (IS_ERR(data->auto_update))
 		return PTR_ERR(data->auto_update);
-	}
 
 	return 0;
 }
