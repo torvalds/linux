@@ -527,6 +527,7 @@ static void rockchip_drm_set_property_default(struct drm_device *drm)
 	WARN_ON(ret == -EDEADLK);
 	if (ret)
 		DRM_ERROR("Failed to update properties\n");
+	drm_atomic_state_put(state);
 
 err_unlock:
 	drm_modeset_unlock_all(drm);
@@ -630,7 +631,7 @@ static int rockchip_drm_bind(struct device *dev)
 	/* Try to bind all sub drivers. */
 	ret = component_bind_all(dev, drm_dev);
 	if (ret)
-		goto err_iommu_cleanup;
+		goto err_mode_config_cleanup;
 
 	rockchip_attach_connector_property(drm_dev);
 	ret = drm_vblank_init(drm_dev, drm_dev->mode_config.num_crtc);
@@ -673,9 +674,13 @@ err_kms_helper_poll_fini:
 	rockchip_drm_fbdev_fini(drm_dev);
 err_unbind_all:
 	component_unbind_all(dev, drm_dev);
+err_mode_config_cleanup:
+	drm_mode_config_cleanup(drm_dev);
 err_iommu_cleanup:
 	rockchip_iommu_cleanup(drm_dev);
 err_free:
+	drm_dev->dev_private = NULL;
+	dev_set_drvdata(dev, NULL);
 	drm_dev_put(drm_dev);
 	return ret;
 }
@@ -692,8 +697,11 @@ static void rockchip_drm_unbind(struct device *dev)
 
 	drm_atomic_helper_shutdown(drm_dev);
 	component_unbind_all(dev, drm_dev);
+	drm_mode_config_cleanup(drm_dev);
 	rockchip_iommu_cleanup(drm_dev);
 
+	drm_dev->dev_private = NULL;
+	dev_set_drvdata(dev, NULL);
 	drm_dev_put(drm_dev);
 }
 
@@ -730,12 +738,10 @@ static void rockchip_drm_postclose(struct drm_device *dev,
 
 static void rockchip_drm_lastclose(struct drm_device *dev)
 {
-#if 0 /* todo */
 	struct rockchip_drm_private *priv = dev->dev_private;
 
 	if (!priv->logo)
 		drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev_helper);
-#endif
 }
 
 static struct drm_pending_vblank_event *
