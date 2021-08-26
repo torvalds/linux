@@ -1351,43 +1351,6 @@ int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr)
 	return 0;
 }
 
-static int ionic_lif_addr(struct ionic_lif *lif, const u8 *addr, bool add)
-{
-	unsigned int nmfilters;
-	unsigned int nufilters;
-
-	if (add) {
-		/* Do we have space for this filter?  We test the counters
-		 * here before checking the need for deferral so that we
-		 * can return an overflow error to the stack.
-		 */
-		nmfilters = le32_to_cpu(lif->identity->eth.max_mcast_filters);
-		nufilters = le32_to_cpu(lif->identity->eth.max_ucast_filters);
-
-		if ((is_multicast_ether_addr(addr) && lif->nmcast < nmfilters))
-			lif->nmcast++;
-		else if (!is_multicast_ether_addr(addr) &&
-			 lif->nucast < nufilters)
-			lif->nucast++;
-		else
-			return -ENOSPC;
-	} else {
-		if (is_multicast_ether_addr(addr) && lif->nmcast)
-			lif->nmcast--;
-		else if (!is_multicast_ether_addr(addr) && lif->nucast)
-			lif->nucast--;
-	}
-
-	netdev_dbg(lif->netdev, "rx_filter %s %pM\n",
-		   add ? "add" : "del", addr);
-	if (add)
-		return ionic_lif_addr_add(lif, addr);
-	else
-		return ionic_lif_addr_del(lif, addr);
-
-	return 0;
-}
-
 static int ionic_addr_add(struct net_device *netdev, const u8 *addr)
 {
 	return ionic_lif_list_addr(netdev_priv(netdev), addr, ADD_ADDR);
@@ -3234,7 +3197,7 @@ static int ionic_station_set(struct ionic_lif *lif)
 		 */
 		if (!ether_addr_equal(ctx.comp.lif_getattr.mac,
 				      netdev->dev_addr))
-			ionic_lif_addr(lif, netdev->dev_addr, ADD_ADDR);
+			ionic_lif_addr_add(lif, netdev->dev_addr);
 	} else {
 		/* Update the netdev mac with the device's mac */
 		memcpy(addr.sa_data, ctx.comp.lif_getattr.mac, netdev->addr_len);
@@ -3251,7 +3214,7 @@ static int ionic_station_set(struct ionic_lif *lif)
 
 	netdev_dbg(lif->netdev, "adding station MAC addr %pM\n",
 		   netdev->dev_addr);
-	ionic_lif_addr(lif, netdev->dev_addr, ADD_ADDR);
+	ionic_lif_addr_add(lif, netdev->dev_addr);
 
 	return 0;
 }
