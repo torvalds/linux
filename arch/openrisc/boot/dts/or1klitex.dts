@@ -52,4 +52,13 @@
 			reg = <0xe0000000 0xc>;
 			status = "okay";
 	};
+
+	ethernet@e0001000 {
+		compatible = "litex,liteeth";
+		reg = <0xe0001000 0x7c>,
+		      <0xe0001800 0x0a>,
+		      <0x80000000 0x2000>;
+		reg-names = "mac", "mdio", "buffer";
+		interrupts = <2>;
+	};
 };
