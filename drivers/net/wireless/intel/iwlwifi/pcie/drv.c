@@ -1191,6 +1191,92 @@ static const struct iwl_dev_info iwl_dev_info_table[] = {
 #endif /* CONFIG_IWLMVM */
 };
 
+/*
+ * In case that there is no OTP on the NIC, get the rf id and cdb info
+ * from the prph registers.
+ */
+static int get_crf_id(struct iwl_trans *iwl_trans)
+{
+	int ret = 0;
+	u32 wfpm_ctrl_addr;
+	u32 wfpm_otp_cfg_addr;
+	u32 sd_reg_ver_addr;
+	u32 cdb = 0;
+	u32 val;
+
+	if (iwl_trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+		wfpm_ctrl_addr = WFPM_CTRL_REG_GEN2;
+		wfpm_otp_cfg_addr = WFPM_OTP_CFG1_ADDR_GEN2;
+		sd_reg_ver_addr = SD_REG_VER_GEN2;
+	/* Qu/Pu families have other addresses */
+	} else {
+		wfpm_ctrl_addr = WFPM_CTRL_REG;
+		wfpm_otp_cfg_addr = WFPM_OTP_CFG1_ADDR;
+		sd_reg_ver_addr = SD_REG_VER;
+	}
+
+	if (!iwl_trans_grab_nic_access(iwl_trans)) {
+		IWL_ERR(iwl_trans, "Failed to grab nic access before reading crf id\n");
+		ret = -EIO;
+		goto out;
+	}
+
+	/* Enable access to peripheral registers */
+	val = iwl_read_umac_prph_no_grab(iwl_trans, wfpm_ctrl_addr);
+	val |= ENABLE_WFPM;
+	iwl_write_umac_prph_no_grab(iwl_trans, wfpm_ctrl_addr, val);
+
+	/* Read crf info */
+	val = iwl_read_prph_no_grab(iwl_trans, sd_reg_ver_addr);
+
+	/* Read cdb info (also contains the jacket info if needed in the future */
+	cdb = iwl_read_umac_prph_no_grab(iwl_trans, wfpm_otp_cfg_addr);
+
+	/* Map between crf id to rf id */
+	switch (REG_CRF_ID_TYPE(val)) {
+	case REG_CRF_ID_TYPE_JF_1:
+		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_JF1 << 12);
+		break;
+	case REG_CRF_ID_TYPE_JF_2:
+		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_JF2 << 12);
+		break;
+	case REG_CRF_ID_TYPE_HR_NONE_CDB:
+		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_HR1 << 12);
+		break;
+	case REG_CRF_ID_TYPE_HR_CDB:
+		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_HR2 << 12);
+		break;
+	case REG_CRF_ID_TYPE_GF:
+		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_GF << 12);
+		break;
+	case REG_CRF_ID_TYPE_MR:
+		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_MR << 12);
+		break;
+	default:
+		ret = -EIO;
+		IWL_ERR(iwl_trans,
+			"Can find a correct rfid for crf id 0x%x\n",
+			REG_CRF_ID_TYPE(val));
+		goto out_release;
+
+	}
+
+	/* Set CDB capabilities */
+	if (cdb & BIT(4)) {
+		iwl_trans->hw_rf_id += BIT(28);
+		IWL_INFO(iwl_trans, "Adding cdb to rf id\n");
+	}
+
+	IWL_INFO(iwl_trans, "Detected RF 0x%x from crf id 0x%x\n",
+		 iwl_trans->hw_rf_id, REG_CRF_ID_TYPE(val));
+
+out_release:
+	iwl_trans_release_nic_access(iwl_trans);
+
+out:
+	return ret;
+}
+
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
 
@@ -1223,6 +1309,16 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(iwl_trans);
 
 	iwl_trans->hw_rf_id = iwl_read32(iwl_trans, CSR_HW_RF_ID);
+
+	/*
+	 * The RF_ID is set to zero in blank OTP so read version to
+	 * extract the RF_ID.
+	 * This is relevant only for family 9000 and up.
+	 */
+	if (iwl_trans->trans_cfg->rf_id &&
+	    iwl_trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_9000 &&
+	    !CSR_HW_RFID_TYPE(iwl_trans->hw_rf_id) && get_crf_id(iwl_trans))
+		goto out_free_trans;
 
 	for (i = 0; i < ARRAY_SIZE(iwl_dev_info_table); i++) {
 		const struct iwl_dev_info *dev_info = &iwl_dev_info_table[i];
