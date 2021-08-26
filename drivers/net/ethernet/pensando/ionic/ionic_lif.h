@@ -98,8 +98,6 @@ struct ionic_qcq {
 
 enum ionic_deferred_work_type {
 	IONIC_DW_TYPE_RX_MODE,
-	IONIC_DW_TYPE_RX_ADDR_ADD,
-	IONIC_DW_TYPE_RX_ADDR_DEL,
 	IONIC_DW_TYPE_LINK_STATUS,
 	IONIC_DW_TYPE_LIF_RESET,
 };

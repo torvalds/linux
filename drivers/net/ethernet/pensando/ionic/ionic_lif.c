@@ -92,12 +92,6 @@ static void ionic_lif_deferred_work(struct work_struct *work)
 		case IONIC_DW_TYPE_RX_MODE:
 			ionic_lif_rx_mode(lif);
 			break;
-		case IONIC_DW_TYPE_RX_ADDR_ADD:
-			ionic_lif_addr_add(lif, w->addr);
-			break;
-		case IONIC_DW_TYPE_RX_ADDR_DEL:
-			ionic_lif_addr_del(lif, w->addr);
-			break;
 		case IONIC_DW_TYPE_LINK_STATUS:
 			ionic_link_status_check(lif);
 			break;
