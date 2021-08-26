@@ -523,7 +523,7 @@ static int sr_read_sector(Scsi_CD *cd, int lba, int blksize, unsigned char *dest
 			return rc;
 		cd->readcd_known = 0;
 		sr_printk(KERN_INFO, cd,
-			  "CDROM does'nt support READ CD (0xbe) command\n");
+			  "CDROM doesn't support READ CD (0xbe) command\n");
 		/* fall & retry the other way */
 	}
 	/* ... if this fails, we switch the blocksize using MODE SELECT */
