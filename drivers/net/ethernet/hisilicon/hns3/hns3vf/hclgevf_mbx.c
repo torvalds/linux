@@ -236,13 +236,6 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 		case HCLGE_MBX_LINK_STAT_MODE:
 		case HCLGE_MBX_PUSH_VLAN_INFO:
 		case HCLGE_MBX_PUSH_PROMISC_INFO:
-			/* set this mbx event as pending. This is required as we
-			 * might loose interrupt event when mbx task is busy
-			 * handling. This shall be cleared when mbx task just
-			 * enters handling state.
-			 */
-			hdev->mbx_event_pending = true;
-
 			/* we will drop the async msg if we find ARQ as full
 			 * and continue with next message
 			 */
@@ -297,11 +290,6 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 	u32 tail;
 	u8 flag;
 	u8 idx;
-
-	/* we can safely clear it now as we are at start of the async message
-	 * processing
-	 */
-	hdev->mbx_event_pending = false;
 
 	tail = hdev->arq.tail;
 

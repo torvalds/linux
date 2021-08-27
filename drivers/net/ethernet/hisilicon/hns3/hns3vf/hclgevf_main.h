@@ -317,7 +317,6 @@ struct hclgevf_dev {
 
 	struct hclgevf_mac_table_cfg mac_table;
 
-	bool mbx_event_pending;
 	struct hclgevf_mbx_resp_status mbx_resp; /* mailbox response */
 	struct hclgevf_mbx_arq_ring arq; /* mailbox async rx queue */
 
