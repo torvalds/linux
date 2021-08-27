@@ -508,6 +508,7 @@ struct io_timeout_data {
 	struct hrtimer			timer;
 	struct timespec64		ts;
 	enum hrtimer_mode		mode;
+	u32				flags;
 };
 
 struct io_accept {
@@ -5712,6 +5713,22 @@ static int io_timeout_cancel(struct io_ring_ctx *ctx, __u64 user_data)
 	return 0;
 }
 
+static clockid_t io_timeout_get_clock(struct io_timeout_data *data)
+{
+	switch (data->flags & IORING_TIMEOUT_CLOCK_MASK) {
+	case IORING_TIMEOUT_BOOTTIME:
+		return CLOCK_BOOTTIME;
+	case IORING_TIMEOUT_REALTIME:
+		return CLOCK_REALTIME;
+	default:
+		/* can't happen, vetted at prep time */
+		WARN_ON_ONCE(1);
+		fallthrough;
+	case 0:
+		return CLOCK_MONOTONIC;
+	}
+}
+
 static int io_timeout_update(struct io_ring_ctx *ctx, __u64 user_data,
 			     struct timespec64 *ts, enum hrtimer_mode mode)
 	__must_hold(&ctx->timeout_lock)
@@ -5725,7 +5742,7 @@ static int io_timeout_update(struct io_ring_ctx *ctx, __u64 user_data,
 	req->timeout.off = 0; /* noseq */
 	data = req->async_data;
 	list_add_tail(&req->timeout.list, &ctx->timeout_list);
-	hrtimer_init(&data->timer, CLOCK_MONOTONIC, mode);
+	hrtimer_init(&data->timer, io_timeout_get_clock(data), mode);
 	data->timer.function = io_timeout_fn;
 	hrtimer_start(&data->timer, timespec64_to_ktime(*ts), mode);
 	return 0;
@@ -5807,7 +5824,10 @@ static int io_timeout_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	if (off && is_timeout_link)
 		return -EINVAL;
 	flags = READ_ONCE(sqe->timeout_flags);
-	if (flags & ~IORING_TIMEOUT_ABS)
+	if (flags & ~(IORING_TIMEOUT_ABS | IORING_TIMEOUT_CLOCK_MASK))
+		return -EINVAL;
+	/* more than one clock specified is invalid, obviously */
+	if (hweight32(flags & IORING_TIMEOUT_CLOCK_MASK) > 1)
 		return -EINVAL;
 
 	req->timeout.off = off;
@@ -5819,12 +5839,13 @@ static int io_timeout_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 
 	data = req->async_data;
 	data->req = req;
+	data->flags = flags;
 
 	if (get_timespec64(&data->ts, u64_to_user_ptr(sqe->addr)))
 		return -EFAULT;
 
 	data->mode = io_translate_timeout_mode(flags);
-	hrtimer_init(&data->timer, CLOCK_MONOTONIC, data->mode);
+	hrtimer_init(&data->timer, io_timeout_get_clock(data), data->mode);
 
 	if (is_timeout_link) {
 		struct io_submit_link *link = &req->ctx->submit_state.link;
