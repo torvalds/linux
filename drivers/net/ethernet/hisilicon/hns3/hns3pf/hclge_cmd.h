@@ -1201,6 +1201,19 @@ struct hclge_dev_specs_1_cmd {
 	u8 rsv1[18];
 };
 
+/* mac speed type defined in firmware command */
+enum HCLGE_FIRMWARE_MAC_SPEED {
+	HCLGE_FW_MAC_SPEED_1G,
+	HCLGE_FW_MAC_SPEED_10G,
+	HCLGE_FW_MAC_SPEED_25G,
+	HCLGE_FW_MAC_SPEED_40G,
+	HCLGE_FW_MAC_SPEED_50G,
+	HCLGE_FW_MAC_SPEED_100G,
+	HCLGE_FW_MAC_SPEED_10M,
+	HCLGE_FW_MAC_SPEED_100M,
+	HCLGE_FW_MAC_SPEED_200G,
+};
+
 #define HCLGE_PHY_LINK_SETTING_BD_NUM		2
 
 struct hclge_phy_link_ksetting_0_cmd {

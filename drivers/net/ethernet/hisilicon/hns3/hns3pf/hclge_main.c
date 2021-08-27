@@ -959,31 +959,31 @@ static int hclge_query_pf_resource(struct hclge_dev *hdev)
 static int hclge_parse_speed(u8 speed_cmd, u32 *speed)
 {
 	switch (speed_cmd) {
-	case 6:
+	case HCLGE_FW_MAC_SPEED_10M:
 		*speed = HCLGE_MAC_SPEED_10M;
 		break;
-	case 7:
+	case HCLGE_FW_MAC_SPEED_100M:
 		*speed = HCLGE_MAC_SPEED_100M;
 		break;
-	case 0:
+	case HCLGE_FW_MAC_SPEED_1G:
 		*speed = HCLGE_MAC_SPEED_1G;
 		break;
-	case 1:
+	case HCLGE_FW_MAC_SPEED_10G:
 		*speed = HCLGE_MAC_SPEED_10G;
 		break;
-	case 2:
+	case HCLGE_FW_MAC_SPEED_25G:
 		*speed = HCLGE_MAC_SPEED_25G;
 		break;
-	case 3:
+	case HCLGE_FW_MAC_SPEED_40G:
 		*speed = HCLGE_MAC_SPEED_40G;
 		break;
-	case 4:
+	case HCLGE_FW_MAC_SPEED_50G:
 		*speed = HCLGE_MAC_SPEED_50G;
 		break;
-	case 5:
+	case HCLGE_FW_MAC_SPEED_100G:
 		*speed = HCLGE_MAC_SPEED_100G;
 		break;
-	case 8:
+	case HCLGE_FW_MAC_SPEED_200G:
 		*speed = HCLGE_MAC_SPEED_200G;
 		break;
 	default:
@@ -2582,39 +2582,39 @@ static int hclge_cfg_mac_speed_dup_hw(struct hclge_dev *hdev, int speed,
 	switch (speed) {
 	case HCLGE_MAC_SPEED_10M:
 		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, 6);
+				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_10M);
 		break;
 	case HCLGE_MAC_SPEED_100M:
 		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, 7);
+				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_100M);
 		break;
 	case HCLGE_MAC_SPEED_1G:
 		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, 0);
+				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_1G);
 		break;
 	case HCLGE_MAC_SPEED_10G:
 		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, 1);
+				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_10G);
 		break;
 	case HCLGE_MAC_SPEED_25G:
 		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, 2);
+				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_25G);
 		break;
 	case HCLGE_MAC_SPEED_40G:
 		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, 3);
+				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_40G);
 		break;
 	case HCLGE_MAC_SPEED_50G:
 		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, 4);
+				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_50G);
 		break;
 	case HCLGE_MAC_SPEED_100G:
 		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, 5);
+				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_100G);
 		break;
 	case HCLGE_MAC_SPEED_200G:
 		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, 8);
+				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_200G);
 		break;
 	default:
 		dev_err(&hdev->pdev->dev, "invalid speed (%d)\n", speed);
