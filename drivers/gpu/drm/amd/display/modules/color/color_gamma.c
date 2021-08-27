@@ -61,7 +61,7 @@ static const int32_t regamma_numerator03[] = { 55,      99,     0,  0,  0};
 static const int32_t regamma_numerator04[] = { 55,      99,     0,  0,  0};
 static const int32_t regamma_numerator05[] = { 2400,    2200,   2200, 2400, 2600};
 
-static const int32_t degamma_numerator01[] = { 40450,   810000, 0,  0,  0};
+static const int32_t degamma_numerator01[] = { 404500,  180000, 0,  0,  0};
 static const int32_t degamma_numerator02[] = { 12920,   4500,   0,  0,  0};
 static const int32_t degamma_numerator03[] = { 55,      99,     0,  0,  0};
 static const int32_t degamma_numerator04[] = { 55,      99,     0,  0,  0};
