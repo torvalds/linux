@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2020-2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  */
 
 /**
@@ -284,8 +284,8 @@ static int ne_setup_cpu_pool(const char *ne_cpu_list)
 	ne_cpu_pool.nr_parent_vm_cores = nr_cpu_ids / ne_cpu_pool.nr_threads_per_core;
 
 	ne_cpu_pool.avail_threads_per_core = kcalloc(ne_cpu_pool.nr_parent_vm_cores,
-					     sizeof(*ne_cpu_pool.avail_threads_per_core),
-					     GFP_KERNEL);
+						     sizeof(*ne_cpu_pool.avail_threads_per_core),
+						     GFP_KERNEL);
 	if (!ne_cpu_pool.avail_threads_per_core) {
 		rc = -ENOMEM;
 
@@ -735,7 +735,7 @@ static int ne_add_vcpu_ioctl(struct ne_enclave *ne_enclave, u32 vcpu_id)
  * * Negative return value on failure.
  */
 static int ne_sanity_check_user_mem_region(struct ne_enclave *ne_enclave,
-	struct ne_user_memory_region mem_region)
+					   struct ne_user_memory_region mem_region)
 {
 	struct ne_mem_region *ne_mem_region = NULL;
 
@@ -771,7 +771,7 @@ static int ne_sanity_check_user_mem_region(struct ne_enclave *ne_enclave,
 		u64 userspace_addr = ne_mem_region->userspace_addr;
 
 		if ((userspace_addr <= mem_region.userspace_addr &&
-		    mem_region.userspace_addr < (userspace_addr + memory_size)) ||
+		     mem_region.userspace_addr < (userspace_addr + memory_size)) ||
 		    (mem_region.userspace_addr <= userspace_addr &&
 		    (mem_region.userspace_addr + mem_region.memory_size) > userspace_addr)) {
 			dev_err_ratelimited(ne_misc_dev.this_device,
@@ -836,7 +836,7 @@ static int ne_sanity_check_user_mem_region_page(struct ne_enclave *ne_enclave,
  * * Negative return value on failure.
  */
 static int ne_set_user_memory_region_ioctl(struct ne_enclave *ne_enclave,
-	struct ne_user_memory_region mem_region)
+					   struct ne_user_memory_region mem_region)
 {
 	long gup_rc = 0;
 	unsigned long i = 0;
@@ -1014,7 +1014,7 @@ free_mem_region:
  * * Negative return value on failure.
  */
 static int ne_start_enclave_ioctl(struct ne_enclave *ne_enclave,
-	struct ne_enclave_start_info *enclave_start_info)
+				  struct ne_enclave_start_info *enclave_start_info)
 {
 	struct ne_pci_dev_cmd_reply cmd_reply = {};
 	unsigned int cpu = 0;
@@ -1574,7 +1574,8 @@ static int ne_create_vm_ioctl(struct ne_pci_dev *ne_pci_dev, u64 __user *slot_ui
 	mutex_unlock(&ne_cpu_pool.mutex);
 
 	ne_enclave->threads_per_core = kcalloc(ne_enclave->nr_parent_vm_cores,
-		sizeof(*ne_enclave->threads_per_core), GFP_KERNEL);
+					       sizeof(*ne_enclave->threads_per_core),
+					       GFP_KERNEL);
 	if (!ne_enclave->threads_per_core) {
 		rc = -ENOMEM;
 
