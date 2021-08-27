@@ -41,24 +41,104 @@
 	};
 
 	cpus {
-		#address-cells = <2>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu0: cpu@0 {
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu_l0>;
+				};
+				core1 {
+					cpu = <&cpu_l1>;
+				};
+				core2 {
+					cpu = <&cpu_l2>;
+				};
+				core3 {
+					cpu = <&cpu_l3>;
+				};
+			};
+			cluster1 {
+				core0 {
+					cpu = <&cpu_b0>;
+				};
+				core1 {
+					cpu = <&cpu_b1>;
+				};
+			};
+			cluster2 {
+				core0 {
+					cpu = <&cpu_b2>;
+				};
+				core1 {
+					cpu = <&cpu_b3>;
+				};
+			};
+		};
+
+		cpu_l0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a55";
-			reg = <0x0 0x0>;
+			reg = <0x0>;
+			enable-method = "psci";
+		};
+
+		cpu_l1: cpu@100 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a55";
+			reg = <0x100>;
+			enable-method = "psci";
+		};
+
+		cpu_l2: cpu@200 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a55";
+			reg = <0x200>;
+			enable-method = "psci";
+		};
+
+		cpu_l3: cpu@300 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a55";
+			reg = <0x300>;
+			enable-method = "psci";
+		};
+
+		cpu_b0: cpu@400 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a76";
+			reg = <0x400>;
+			enable-method = "psci";
+		};
+
+		cpu_b1: cpu@500 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a76";
+			reg = <0x500>;
+			enable-method = "psci";
+		};
+
+		cpu_b2: cpu@600 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a76";
+			reg = <0x600>;
+			enable-method = "psci";
+		};
+
+		cpu_b3: cpu@700 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a76";
+			reg = <0x700>;
 			enable-method = "psci";
 		};
 	};
 
-	arm-pmu {
-		compatible = "arm,cortex-a55-pmu", "arm,armv8-pmuv3";
-		interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-affinity = <&cpu0>;
+	arm_pmu: arm-pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <GIC_PPI 8 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-affinity = <&cpu_l0>, <&cpu_l1>, <&cpu_l2>, <&cpu_l3>,
+				     <&cpu_b0>, <&cpu_b1>, <&cpu_b2>, <&cpu_b3>;
 	};
 
 	firmware {
