@@ -638,14 +638,17 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 
 /**
  * dc_stream_get_crc() - Get CRC values for the given stream.
- * @dc: DC object
+ *
+ * @dc: DC object.
  * @stream: The DC stream state of the stream to get CRCs from.
- * @r_cr: CRC value for the first of the 3 channels stored here.
- * @g_y:  CRC value for the second of the 3 channels stored here.
- * @b_cb: CRC value for the third of the 3 channels stored here.
+ * @r_cr: CRC value for the red component.
+ * @g_y:  CRC value for the green component.
+ * @b_cb: CRC value for the blue component.
  *
  * dc_stream_configure_crc needs to be called beforehand to enable CRCs.
- * Return false if stream is not found, or if CRCs are not enabled.
+ *
+ * Return:
+ * false if stream is not found, or if CRCs are not enabled.
  */
 bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream,
 		       uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
@@ -4275,8 +4278,8 @@ void dc_mclk_switch_using_fw_based_vblank_stretch_shut_down(struct dc *dc)
 /*
  *****************************************************************************
  * Function: dc_is_dmub_outbox_supported -
- * 
- * @brief 
+ *
+ * @brief
  *      Checks whether DMUB FW supports outbox notifications, if supported
  *		DM should register outbox interrupt prior to actually enabling interrupts
  *		via dc_enable_dmub_outbox
