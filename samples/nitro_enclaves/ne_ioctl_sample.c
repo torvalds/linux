@@ -185,7 +185,6 @@ static int ne_create_vm(int ne_dev_fd, unsigned long *slot_uid, int *enclave_fd)
 	return 0;
 }
 
-
 /**
  * ne_poll_enclave_fd() - Thread function for polling the enclave fd.
  * @data:	Argument provided for the polling function.
@@ -560,8 +559,8 @@ static int ne_add_vcpu(int enclave_fd, unsigned int *vcpu_id)
 
 		default:
 			printf("Error in add vcpu [%m]\n");
-
 		}
+
 		return rc;
 	}
 
