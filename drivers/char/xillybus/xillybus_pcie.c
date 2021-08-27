@@ -69,8 +69,8 @@ static void xilly_pci_unmap(void *ptr)
 {
 	struct xilly_mapping *data = ptr;
 
-	pci_unmap_single(data->device, data->dma_addr,
-			 data->size, data->direction);
+	dma_unmap_single(data->device, data->dma_addr, data->size,
+			 data->direction);
 
 	kfree(ptr);
 }
@@ -105,7 +105,7 @@ static int xilly_map_single_pci(struct xilly_endpoint *ep,
 		return -ENODEV;
 	}
 
-	this->device = ep->pdev;
+	this->device = ep->dev;
 	this->dma_addr = addr;
 	this->size = size;
 	this->direction = pci_direction;
