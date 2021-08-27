@@ -160,11 +160,16 @@ int ndr_encode_dos_attr(struct ndr *n, struct xattr_dos_attrib *da)
 
 int ndr_decode_dos_attr(struct ndr *n, struct xattr_dos_attrib *da)
 {
-	char hex_attr[12] = {0};
+	char *hex_attr;
 	int version2;
 
+	hex_attr = kzalloc(n->length, GFP_KERNEL);
+	if (!hex_attr)
+		return -ENOMEM;
+
 	n->offset = 0;
-	ndr_read_string(n, hex_attr, n->length - n->offset);
+	ndr_read_string(n, hex_attr, n->length);
+	kfree(hex_attr);
 	da->version = ndr_read_int16(n);
 
 	if (da->version != 3 && da->version != 4) {
