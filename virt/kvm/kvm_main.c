@@ -276,14 +276,26 @@ bool kvm_make_vcpus_request_mask(struct kvm *kvm, unsigned int req,
 			continue;
 
 		kvm_make_request(req, vcpu);
-		cpu = vcpu->cpu;
 
 		if (!(req & KVM_REQUEST_NO_WAKEUP) && kvm_vcpu_wake_up(vcpu))
 			continue;
 
-		if (tmp != NULL && cpu != -1 && cpu != me &&
-		    kvm_request_needs_ipi(vcpu, req))
-			__cpumask_set_cpu(cpu, tmp);
+		/*
+		 * Note, the vCPU could get migrated to a different pCPU at any
+		 * point after kvm_request_needs_ipi(), which could result in
+		 * sending an IPI to the previous pCPU.  But, that's ok because
+		 * the purpose of the IPI is to ensure the vCPU returns to
+		 * OUTSIDE_GUEST_MODE, which is satisfied if the vCPU migrates.
+		 * Entering READING_SHADOW_PAGE_TABLES after this point is also
+		 * ok, as the requirement is only that KVM wait for vCPUs that
+		 * were reading SPTEs _before_ any changes were finalized.  See
+		 * kvm_vcpu_kick() for more details on handling requests.
+		 */
+		if (tmp != NULL && kvm_request_needs_ipi(vcpu, req)) {
+			cpu = READ_ONCE(vcpu->cpu);
+			if (cpu != -1 && cpu != me)
+				__cpumask_set_cpu(cpu, tmp);
+		}
 	}
 
 	called = kvm_kick_many_cpus(tmp, !!(req & KVM_REQUEST_WAIT));
@@ -2937,16 +2949,24 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_wake_up);
  */
 void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 {
-	int me;
-	int cpu = vcpu->cpu;
+	int me, cpu;
 
 	if (kvm_vcpu_wake_up(vcpu))
 		return;
 
+	/*
+	 * Note, the vCPU could get migrated to a different pCPU at any point
+	 * after kvm_arch_vcpu_should_kick(), which could result in sending an
+	 * IPI to the previous pCPU.  But, that's ok because the purpose of the
+	 * IPI is to force the vCPU to leave IN_GUEST_MODE, and migrating the
+	 * vCPU also requires it to leave IN_GUEST_MODE.
+	 */
 	me = get_cpu();
-	if (cpu != me && (unsigned)cpu < nr_cpu_ids && cpu_online(cpu))
-		if (kvm_arch_vcpu_should_kick(vcpu))
+	if (kvm_arch_vcpu_should_kick(vcpu)) {
+		cpu = READ_ONCE(vcpu->cpu);
+		if (cpu != me && (unsigned)cpu < nr_cpu_ids && cpu_online(cpu))
 			smp_send_reschedule(cpu);
+	}
 	put_cpu();
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_kick);
