@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2020-2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  */
 
 /**
@@ -638,7 +638,7 @@ static int ne_start_enclave(int enclave_fd,  struct ne_enclave_start_info *encla
 }
 
 /**
- * ne_start_enclave_check_booted() - Start the enclave and wait for a hearbeat
+ * ne_start_enclave_check_booted() - Start the enclave and wait for a heartbeat
  *				     from it, on a newly created vsock channel,
  *				     to check it has booted.
  * @enclave_fd :	The file descriptor associated with the enclave.
