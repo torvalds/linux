@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Marvell OcteonTX2 drivers configuration
+# Marvell RVU Network drivers configuration
 #
 
 config OCTEONTX2_MBOX

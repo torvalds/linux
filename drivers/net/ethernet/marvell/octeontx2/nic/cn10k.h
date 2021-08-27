@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0
- * Marvell OcteonTx2 RVU Ethernet driver
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Marvell RVU Ethernet driver
  *
- * Copyright (C) 2020 Marvell.
+ * Copyright (C) 2021 Marvell.
+ *
  */
 
 #ifndef CN10K_H

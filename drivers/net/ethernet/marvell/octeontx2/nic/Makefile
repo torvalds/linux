@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for Marvell's OcteonTX2 ethernet device drivers
+# Makefile for Marvell's RVU Ethernet device drivers
 #
 
 obj-$(CONFIG_OCTEONTX2_PF) += rvu_nicpf.o
