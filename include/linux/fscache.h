@@ -168,6 +168,7 @@ extern void __fscache_relinquish_cookie(struct fscache_cookie *, bool);
 extern void __fscache_resize_cookie(struct fscache_cookie *, loff_t);
 extern void __fscache_invalidate(struct fscache_cookie *, const void *, loff_t, unsigned int);
 extern int __fscache_begin_read_operation(struct netfs_cache_resources *, struct fscache_cookie *);
+extern int __fscache_begin_write_operation(struct netfs_cache_resources *, struct fscache_cookie *);
 
 extern void __fscache_write_to_cache(struct fscache_cookie *, struct address_space *,
 				     loff_t, size_t, loff_t, netfs_io_terminated_t, void *,
@@ -497,6 +498,33 @@ int fscache_read(struct netfs_cache_resources *cres,
 	const struct netfs_cache_ops *ops = fscache_operation_valid(cres);
 	return ops->read(cres, start_pos, iter, read_hole,
 			 term_func, term_func_priv);
+}
+
+/**
+ * fscache_begin_write_operation - Begin a write operation for the netfs lib
+ * @cres: The cache resources for the write being performed
+ * @cookie: The cookie representing the cache object
+ *
+ * Begin a write operation on behalf of the netfs helper library.  @cres
+ * indicates the cache resources to which the operation state should be
+ * attached; @cookie indicates the cache object that will be accessed.
+ *
+ * @cres->inval_counter is set from @cookie->inval_counter for comparison at
+ * the end of the operation.  This allows invalidation during the operation to
+ * be detected by the caller.
+ *
+ * Returns:
+ * * 0		- Success
+ * * -ENOBUFS	- No caching available
+ * * Other error code from the cache, such as -ENOMEM.
+ */
+static inline
+int fscache_begin_write_operation(struct netfs_cache_resources *cres,
+				  struct fscache_cookie *cookie)
+{
+	if (fscache_cookie_enabled(cookie))
+		return __fscache_begin_write_operation(cres, cookie);
+	return -ENOBUFS;
 }
 
 /**

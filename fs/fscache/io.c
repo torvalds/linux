@@ -150,6 +150,14 @@ int __fscache_begin_read_operation(struct netfs_cache_resources *cres,
 }
 EXPORT_SYMBOL(__fscache_begin_read_operation);
 
+int __fscache_begin_write_operation(struct netfs_cache_resources *cres,
+				    struct fscache_cookie *cookie)
+{
+	return fscache_begin_operation(cres, cookie, FSCACHE_WANT_PARAMS,
+				       fscache_access_io_write);
+}
+EXPORT_SYMBOL(__fscache_begin_write_operation);
+
 /**
  * fscache_set_page_dirty - Mark page dirty and pin a cache object for writeback
  * @page: The page being dirtied
