@@ -29,6 +29,13 @@
 #define OPTION_MPTCP_DSS	BIT(11)
 #define OPTION_MPTCP_FAIL	BIT(12)
 
+#define OPTION_MPTCP_CSUMREQD	BIT(13)
+
+#define OPTIONS_MPTCP_MPC	(OPTION_MPTCP_MPC_SYN | OPTION_MPTCP_MPC_SYNACK | \
+				 OPTION_MPTCP_MPC_ACK)
+#define OPTIONS_MPTCP_MPJ	(OPTION_MPTCP_MPJ_SYN | OPTION_MPTCP_MPJ_SYNACK | \
+				 OPTION_MPTCP_MPJ_SYNACK)
+
 /* MPTCP option subtypes */
 #define MPTCPOPT_MP_CAPABLE	0
 #define MPTCPOPT_MP_JOIN	1
@@ -132,16 +139,7 @@ struct mptcp_options_received {
 	u32	subflow_seq;
 	u16	data_len;
 	__sum16	csum;
-	u16	mp_capable : 1,
-		mp_join : 1,
-		fastclose : 1,
-		reset : 1,
-		dss : 1,
-		add_addr : 1,
-		rm_addr : 1,
-		mp_prio : 1,
-		csum_reqd : 1,
-		mp_fail : 1;
+	u16	suboptions;
 	u32	token;
 	u32	nonce;
 	u16	use_map:1,
