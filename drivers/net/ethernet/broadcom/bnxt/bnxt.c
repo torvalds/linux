@@ -2003,6 +2003,7 @@ static int bnxt_force_rx_discard(struct bnxt *bp,
 	struct rx_cmp *rxcmp;
 	u16 cp_cons;
 	u8 cmp_type;
+	int rc;
 
 	cp_cons = RING_CMP(tmp_raw_cons);
 	rxcmp = (struct rx_cmp *)
@@ -2031,7 +2032,10 @@ static int bnxt_force_rx_discard(struct bnxt *bp,
 		tpa_end1->rx_tpa_end_cmp_errors_v2 |=
 			cpu_to_le32(RX_TPA_END_CMP_ERRORS);
 	}
-	return bnxt_rx_pkt(bp, cpr, raw_cons, event);
+	rc = bnxt_rx_pkt(bp, cpr, raw_cons, event);
+	if (rc && rc != -EBUSY)
+		cpr->sw_stats.rx.rx_netpoll_discards += 1;
+	return rc;
 }
 
 u32 bnxt_fw_health_readl(struct bnxt *bp, int reg_idx)
@@ -10646,6 +10650,8 @@ static void bnxt_get_ring_stats(struct bnxt *bp,
 		stats->multicast += BNXT_GET_RING_STATS64(sw, rx_mcast_pkts);
 
 		stats->tx_dropped += BNXT_GET_RING_STATS64(sw, tx_error_pkts);
+
+		stats->rx_dropped += cpr->sw_stats.rx.rx_netpoll_discards;
 	}
 }
 
@@ -10660,6 +10666,7 @@ static void bnxt_add_prev_stats(struct bnxt *bp,
 	stats->tx_bytes += prev_stats->tx_bytes;
 	stats->rx_missed_errors += prev_stats->rx_missed_errors;
 	stats->multicast += prev_stats->multicast;
+	stats->rx_dropped += prev_stats->rx_dropped;
 	stats->tx_dropped += prev_stats->tx_dropped;
 }
 
