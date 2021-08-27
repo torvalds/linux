@@ -364,41 +364,6 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 	}
 }
 
-static void hsw_psr_setup_aux(struct intel_dp *intel_dp)
-{
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	u32 aux_clock_divider, aux_ctl;
-	int i;
-	static const u8 aux_msg[] = {
-		[0] = DP_AUX_NATIVE_WRITE << 4,
-		[1] = DP_SET_POWER >> 8,
-		[2] = DP_SET_POWER & 0xff,
-		[3] = 1 - 1,
-		[4] = DP_SET_POWER_D0,
-	};
-	u32 psr_aux_mask = EDP_PSR_AUX_CTL_TIME_OUT_MASK |
-			   EDP_PSR_AUX_CTL_MESSAGE_SIZE_MASK |
-			   EDP_PSR_AUX_CTL_PRECHARGE_2US_MASK |
-			   EDP_PSR_AUX_CTL_BIT_CLOCK_2X_MASK;
-
-	BUILD_BUG_ON(sizeof(aux_msg) > 20);
-	for (i = 0; i < sizeof(aux_msg); i += 4)
-		intel_de_write(dev_priv,
-			       EDP_PSR_AUX_DATA(intel_dp->psr.transcoder, i >> 2),
-			       intel_dp_pack_aux(&aux_msg[i], sizeof(aux_msg) - i));
-
-	aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, 0);
-
-	/* Start with bits set for DDI_AUX_CTL register */
-	aux_ctl = intel_dp->get_aux_send_ctl(intel_dp, sizeof(aux_msg),
-					     aux_clock_divider);
-
-	/* Select only valid bits for SRD_AUX_CTL */
-	aux_ctl &= psr_aux_mask;
-	intel_de_write(dev_priv, EDP_PSR_AUX_CTL(intel_dp->psr.transcoder),
-		       aux_ctl);
-}
-
 static void intel_psr_enable_sink(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
@@ -621,9 +586,7 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 static bool
 transcoder_has_psr2(struct drm_i915_private *dev_priv, enum transcoder trans)
 {
-	if (DISPLAY_VER(dev_priv) < 9)
-		return false;
-	else if (DISPLAY_VER(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 12)
 		return trans == TRANSCODER_A;
 	else
 		return trans == TRANSCODER_EDP;
@@ -1114,12 +1077,6 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp)
 	enum transcoder cpu_transcoder = intel_dp->psr.transcoder;
 	u32 mask;
 
-	/* Only HSW and BDW have PSR AUX registers that need to be setup. SKL+
-	 * use hardcoded values PSR AUX transactions
-	 */
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		hsw_psr_setup_aux(intel_dp);
-
 	if (intel_dp->psr.psr2_enabled && DISPLAY_VER(dev_priv) == 9) {
 		i915_reg_t reg = CHICKEN_TRANS(cpu_transcoder);
 		u32 chicken = intel_de_read(dev_priv, reg);
@@ -1460,23 +1417,16 @@ static void psr_force_hw_tracking_exit(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
-	if (DISPLAY_VER(dev_priv) >= 9)
-		/*
-		 * Display WA #0884: skl+
-		 * This documented WA for bxt can be safely applied
-		 * broadly so we can force HW tracking to exit PSR
-		 * instead of disabling and re-enabling.
-		 * Workaround tells us to write 0 to CUR_SURFLIVE_A,
-		 * but it makes more sense write to the current active
-		 * pipe.
-		 */
-		intel_de_write(dev_priv, CURSURFLIVE(intel_dp->psr.pipe), 0);
-	else
-		/*
-		 * A write to CURSURFLIVE do not cause HW tracking to exit PSR
-		 * on older gens so doing the manual exit instead.
-		 */
-		intel_psr_exit(intel_dp);
+	/*
+	 * Display WA #0884: skl+
+	 * This documented WA for bxt can be safely applied
+	 * broadly so we can force HW tracking to exit PSR
+	 * instead of disabling and re-enabling.
+	 * Workaround tells us to write 0 to CUR_SURFLIVE_A,
+	 * but it makes more sense write to the current active
+	 * pipe.
+	 */
+	intel_de_write(dev_priv, CURSURFLIVE(intel_dp->psr.pipe), 0);
 }
 
 void intel_psr2_program_plane_sel_fetch(struct intel_plane *plane,
@@ -1744,7 +1694,6 @@ void intel_psr_update(struct intel_dp *intel_dp,
 		      const struct intel_crtc_state *crtc_state,
 		      const struct drm_connector_state *conn_state)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_psr *psr = &intel_dp->psr;
 	bool enable, psr2_enable;
 
@@ -1761,15 +1710,6 @@ void intel_psr_update(struct intel_dp *intel_dp,
 		/* Force a PSR exit when enabling CRC to avoid CRC timeouts */
 		if (crtc_state->crc_enabled && psr->enabled)
 			psr_force_hw_tracking_exit(intel_dp);
-		else if (DISPLAY_VER(dev_priv) < 9 && psr->enabled) {
-			/*
-			 * Activate PSR again after a force exit when enabling
-			 * CRC in older gens
-			 */
-			if (!intel_dp->psr.active &&
-			    !intel_dp->psr.busy_frontbuffer_bits)
-				schedule_work(&intel_dp->psr.work);
-		}
 
 		goto unlock;
 	}
@@ -2182,23 +2122,12 @@ void intel_psr_init(struct intel_dp *intel_dp)
 
 	intel_dp->psr.source_support = true;
 
-	if (IS_HASWELL(dev_priv))
-		/*
-		 * HSW don't have PSR registers on the same space as transcoder
-		 * so set this to a value that when subtract to the register
-		 * in transcoder space results in the right offset for HSW
-		 */
-		dev_priv->hsw_psr_mmio_adjust = _SRD_CTL_EDP - _HSW_EDP_PSR_BASE;
-
 	if (dev_priv->params.enable_psr == -1)
-		if (DISPLAY_VER(dev_priv) < 9 || !dev_priv->vbt.psr.enable)
+		if (!dev_priv->vbt.psr.enable)
 			dev_priv->params.enable_psr = 0;
 
 	/* Set link_standby x link_off defaults */
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		/* HSW and BDW require workarounds that we don't implement. */
-		intel_dp->psr.link_standby = false;
-	else if (DISPLAY_VER(dev_priv) < 12)
+	if (DISPLAY_VER(dev_priv) < 12)
 		/* For new platforms up to TGL let's respect VBT back again */
 		intel_dp->psr.link_standby = dev_priv->vbt.psr.full_link;
 

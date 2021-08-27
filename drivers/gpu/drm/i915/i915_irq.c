@@ -2123,22 +2123,6 @@ static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
 	if (de_iir & DE_ERR_INT_IVB)
 		ivb_err_int_handler(dev_priv);
 
-	if (de_iir & DE_EDP_PSR_INT_HSW) {
-		struct intel_encoder *encoder;
-
-		for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
-			struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-
-			u32 psr_iir = intel_uncore_read(&dev_priv->uncore,
-							EDP_PSR_IIR);
-
-			intel_psr_irq_handler(intel_dp, psr_iir);
-			intel_uncore_write(&dev_priv->uncore,
-					   EDP_PSR_IIR, psr_iir);
-			break;
-		}
-	}
-
 	if (de_iir & DE_AUX_CHANNEL_A_IVB)
 		dp_aux_irq_handler(dev_priv);
 

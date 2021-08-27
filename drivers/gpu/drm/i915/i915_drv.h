@@ -885,8 +885,6 @@ struct drm_i915_private {
 	 */
 	u32 gpio_mmio_base;
 
-	u32 hsw_psr_mmio_adjust;
-
 	/* MMIO base address for MIPI regs */
 	u32 mipi_mmio_base;
 
