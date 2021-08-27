@@ -5063,6 +5063,24 @@ void hns3_cq_period_mode_init(struct hns3_nic_priv *priv,
 	hns3_set_cq_period_mode(priv, rx_mode, false);
 }
 
+static void hns3_state_init(struct hnae3_handle *handle)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
+	struct net_device *netdev = handle->kinfo.netdev;
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+
+	set_bit(HNS3_NIC_STATE_INITED, &priv->state);
+
+	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3)
+		set_bit(HNAE3_PFLAG_LIMIT_PROMISC, &handle->supported_pflags);
+
+	if (test_bit(HNAE3_DEV_SUPPORT_HW_TX_CSUM_B, ae_dev->caps))
+		set_bit(HNS3_NIC_STATE_HW_TX_CSUM_ENABLE, &priv->state);
+
+	if (hnae3_ae_dev_rxd_adv_layout_supported(ae_dev))
+		set_bit(HNS3_NIC_STATE_RXD_ADV_LAYOUT_ENABLE, &priv->state);
+}
+
 static int hns3_client_init(struct hnae3_handle *handle)
 {
 	struct pci_dev *pdev = handle->pdev;
@@ -5166,16 +5184,7 @@ static int hns3_client_init(struct hnae3_handle *handle)
 
 	netdev->max_mtu = HNS3_MAX_MTU(ae_dev->dev_specs.max_frm_size);
 
-	if (test_bit(HNAE3_DEV_SUPPORT_HW_TX_CSUM_B, ae_dev->caps))
-		set_bit(HNS3_NIC_STATE_HW_TX_CSUM_ENABLE, &priv->state);
-
-	if (hnae3_ae_dev_rxd_adv_layout_supported(ae_dev))
-		set_bit(HNS3_NIC_STATE_RXD_ADV_LAYOUT_ENABLE, &priv->state);
-
-	set_bit(HNS3_NIC_STATE_INITED, &priv->state);
-
-	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3)
-		set_bit(HNAE3_PFLAG_LIMIT_PROMISC, &handle->supported_pflags);
+	hns3_state_init(handle);
 
 	ret = register_netdev(netdev);
 	if (ret) {
