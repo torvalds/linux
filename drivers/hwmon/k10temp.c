@@ -65,10 +65,11 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
 #define F15H_M60H_HARDWARE_TEMP_CTRL_OFFSET	0xd8200c64
 #define F15H_M60H_REPORTED_TEMP_CTRL_OFFSET	0xd8200ca4
 
-/* Common for Zen CPU families (Family 17h and 18h) */
-#define ZEN_REPORTED_TEMP_CTRL_OFFSET		0x00059800
+/* Common for Zen CPU families (Family 17h and 18h and 19h) */
+#define ZEN_REPORTED_TEMP_CTRL_BASE		0x00059800
 
-#define ZEN_CCD_TEMP(x)				(0x00059954 + ((x) * 4))
+#define ZEN_CCD_TEMP(offset, x)			(ZEN_REPORTED_TEMP_CTRL_BASE + \
+						 (offset) + ((x) * 4))
 #define ZEN_CCD_TEMP_VALID			BIT(11)
 #define ZEN_CCD_TEMP_MASK			GENMASK(10, 0)
 
@@ -103,6 +104,7 @@ struct k10temp_data {
 	u32 temp_adjust_mask;
 	u32 show_temp;
 	bool is_zen;
+	u32 ccd_offset;
 };
 
 #define TCTL_BIT	0
@@ -163,7 +165,7 @@ static void read_tempreg_nb_f15(struct pci_dev *pdev, u32 *regval)
 static void read_tempreg_nb_zen(struct pci_dev *pdev, u32 *regval)
 {
 	amd_smn_read(amd_pci_dev_to_node_id(pdev),
-		     ZEN_REPORTED_TEMP_CTRL_OFFSET, regval);
+		     ZEN_REPORTED_TEMP_CTRL_BASE, regval);
 }
 
 static long get_raw_temp(struct k10temp_data *data)
@@ -226,7 +228,8 @@ static int k10temp_read_temp(struct device *dev, u32 attr, int channel,
 			break;
 		case 2 ... 9:		/* Tccd{1-8} */
 			amd_smn_read(amd_pci_dev_to_node_id(data->pdev),
-				     ZEN_CCD_TEMP(channel - 2), &regval);
+				     ZEN_CCD_TEMP(data->ccd_offset, channel - 2),
+						  &regval);
 			*val = (regval & ZEN_CCD_TEMP_MASK) * 125 - 49000;
 			break;
 		default:
@@ -387,7 +390,7 @@ static void k10temp_get_ccd_support(struct pci_dev *pdev,
 
 	for (i = 0; i < limit; i++) {
 		amd_smn_read(amd_pci_dev_to_node_id(pdev),
-			     ZEN_CCD_TEMP(i), &regval);
+			     ZEN_CCD_TEMP(data->ccd_offset, i), &regval);
 		if (regval & ZEN_CCD_TEMP_VALID)
 			data->show_temp |= BIT(TCCD_BIT(i));
 	}
@@ -433,12 +436,14 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		case 0x8:	/* Zen+ */
 		case 0x11:	/* Zen APU */
 		case 0x18:	/* Zen+ APU */
+			data->ccd_offset = 0x154;
 			k10temp_get_ccd_support(pdev, data, 4);
 			break;
 		case 0x31:	/* Zen2 Threadripper */
 		case 0x60:	/* Renoir */
 		case 0x68:	/* Lucienne */
 		case 0x71:	/* Zen2 */
+			data->ccd_offset = 0x154;
 			k10temp_get_ccd_support(pdev, data, 8);
 			break;
 		}
@@ -451,6 +456,7 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		case 0x0 ... 0x1:	/* Zen3 SP3/TR */
 		case 0x21:		/* Zen3 Ryzen Desktop */
 		case 0x50 ... 0x5f:	/* Green Sardine */
+			data->ccd_offset = 0x154;
 			k10temp_get_ccd_support(pdev, data, 8);
 			break;
 		}
