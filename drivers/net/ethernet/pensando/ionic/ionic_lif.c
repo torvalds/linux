@@ -849,10 +849,8 @@ int ionic_lif_create_hwstamp_txq(struct ionic_lif *lif)
 	u64 features;
 	int err;
 
-	mutex_lock(&lif->queue_lock);
-
 	if (lif->hwstamp_txq)
-		goto out;
+		return 0;
 
 	features = IONIC_Q_F_2X_CQ_DESC | IONIC_TXQ_F_HWSTAMP;
 
@@ -894,9 +892,6 @@ int ionic_lif_create_hwstamp_txq(struct ionic_lif *lif)
 		}
 	}
 
-out:
-	mutex_unlock(&lif->queue_lock);
-
 	return 0;
 
 err_qcq_enable:
@@ -907,7 +902,6 @@ err_qcq_init:
 	ionic_qcq_free(lif, txq);
 	devm_kfree(lif->ionic->dev, txq);
 err_qcq_alloc:
-	mutex_unlock(&lif->queue_lock);
 	return err;
 }
 
@@ -919,10 +913,8 @@ int ionic_lif_create_hwstamp_rxq(struct ionic_lif *lif)
 	u64 features;
 	int err;
 
-	mutex_lock(&lif->queue_lock);
-
 	if (lif->hwstamp_rxq)
-		goto out;
+		return 0;
 
 	features = IONIC_Q_F_2X_CQ_DESC | IONIC_RXQ_F_HWSTAMP;
 
@@ -960,9 +952,6 @@ int ionic_lif_create_hwstamp_rxq(struct ionic_lif *lif)
 		}
 	}
 
-out:
-	mutex_unlock(&lif->queue_lock);
-
 	return 0;
 
 err_qcq_enable:
@@ -973,7 +962,6 @@ err_qcq_init:
 	ionic_qcq_free(lif, rxq);
 	devm_kfree(lif->ionic->dev, rxq);
 err_qcq_alloc:
-	mutex_unlock(&lif->queue_lock);
 	return err;
 }
 
