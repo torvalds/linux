@@ -25,7 +25,8 @@
  * round down to the limit value, that means allocating more
  * bandwidth to it.
  */
-#define XHCI_MTK_MAX_ESIT	64
+#define XHCI_MTK_MAX_ESIT	(1 << 6)
+#define XHCI_MTK_BW_INDEX(x)	((x) & (XHCI_MTK_MAX_ESIT - 1))
 
 /**
  * @fs_bus_bw: array to keep track of bandwidth already used for FS
