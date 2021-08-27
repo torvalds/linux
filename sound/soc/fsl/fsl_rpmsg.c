@@ -138,11 +138,42 @@ static const struct snd_soc_component_driver fsl_component = {
 	.name           = "fsl-rpmsg",
 };
 
+static const struct fsl_rpmsg_soc_data imx7ulp_data = {
+	.rates = SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |
+		 SNDRV_PCM_RATE_48000,
+	.formats = SNDRV_PCM_FMTBIT_S16_LE,
+};
+
+static const struct fsl_rpmsg_soc_data imx8mm_data = {
+	.rates = SNDRV_PCM_RATE_KNOT,
+	.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
+		   SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_DSD_U8 |
+		   SNDRV_PCM_FMTBIT_DSD_U16_LE | SNDRV_PCM_FMTBIT_DSD_U32_LE,
+};
+
+static const struct fsl_rpmsg_soc_data imx8mn_data = {
+	.rates = SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |
+		 SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |
+		 SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 |
+		 SNDRV_PCM_RATE_192000,
+	.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
+		   SNDRV_PCM_FMTBIT_S32_LE,
+};
+
+static const struct fsl_rpmsg_soc_data imx8mp_data = {
+	.rates = SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |
+		 SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |
+		 SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 |
+		 SNDRV_PCM_RATE_192000,
+	.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
+		   SNDRV_PCM_FMTBIT_S32_LE,
+};
+
 static const struct of_device_id fsl_rpmsg_ids[] = {
-	{ .compatible = "fsl,imx7ulp-rpmsg-audio"},
-	{ .compatible = "fsl,imx8mm-rpmsg-audio"},
-	{ .compatible = "fsl,imx8mn-rpmsg-audio"},
-	{ .compatible = "fsl,imx8mp-rpmsg-audio"},
+	{ .compatible = "fsl,imx7ulp-rpmsg-audio", .data = &imx7ulp_data},
+	{ .compatible = "fsl,imx8mm-rpmsg-audio", .data = &imx8mm_data},
+	{ .compatible = "fsl,imx8mn-rpmsg-audio", .data = &imx8mn_data},
+	{ .compatible = "fsl,imx8mp-rpmsg-audio", .data = &imx8mp_data},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, fsl_rpmsg_ids);
@@ -156,6 +187,13 @@ static int fsl_rpmsg_probe(struct platform_device *pdev)
 	rpmsg = devm_kzalloc(&pdev->dev, sizeof(struct fsl_rpmsg), GFP_KERNEL);
 	if (!rpmsg)
 		return -ENOMEM;
+
+	rpmsg->soc_data = of_device_get_match_data(&pdev->dev);
+
+	fsl_rpmsg_dai.playback.rates = rpmsg->soc_data->rates;
+	fsl_rpmsg_dai.capture.rates = rpmsg->soc_data->rates;
+	fsl_rpmsg_dai.playback.formats = rpmsg->soc_data->formats;
+	fsl_rpmsg_dai.capture.formats = rpmsg->soc_data->formats;
 
 	if (of_property_read_bool(np, "fsl,enable-lpa")) {
 		rpmsg->enable_lpa = 1;
