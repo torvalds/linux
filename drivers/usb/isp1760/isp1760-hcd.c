@@ -588,8 +588,8 @@ static void init_memory(struct isp1760_hcd *priv)
 
 	payload_addr = PAYLOAD_OFFSET;
 
-	for (i = 0, curr = 0; i < ARRAY_SIZE(mem->blocks); i++) {
-		for (j = 0; j < mem->blocks[i]; j++, curr++) {
+	for (i = 0, curr = 0; i < ARRAY_SIZE(mem->blocks); i++, curr += j) {
+		for (j = 0; j < mem->blocks[i]; j++) {
 			priv->memory_pool[curr + j].start = payload_addr;
 			priv->memory_pool[curr + j].size = mem->blocks_size[i];
 			priv->memory_pool[curr + j].free = 1;
