@@ -302,6 +302,14 @@ static int mlx5_lag_fib_event(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
+void mlx5_lag_mp_reset(struct mlx5_lag *ldev)
+{
+	/* Clear mfi, as it might become stale when a route delete event
+	 * has been missed, see mlx5_lag_fib_route_event().
+	 */
+	ldev->lag_mp.mfi = NULL;
+}
+
 int mlx5_lag_mp_init(struct mlx5_lag *ldev)
 {
 	struct lag_mp *mp = &ldev->lag_mp;
