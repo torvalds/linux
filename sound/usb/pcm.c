@@ -614,6 +614,14 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 	subs->period_elapsed_pending = 0;
 	runtime->delay = 0;
 
+	/* check whether early start is needed for playback stream */
+	subs->early_playback_start =
+		subs->direction == SNDRV_PCM_STREAM_PLAYBACK &&
+		subs->data_endpoint->nominal_queue_size >= subs->buffer_bytes;
+
+	if (subs->early_playback_start)
+		ret = start_endpoints(subs);
+
  unlock:
 	snd_usb_unlock_shutdown(chip);
 	return ret;
@@ -1394,7 +1402,7 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 		subs->trigger_tstamp_pending_update = false;
 	}
 
-	if (period_elapsed && !subs->running) {
+	if (period_elapsed && !subs->running && !subs->early_playback_start) {
 		subs->period_elapsed_pending = 1;
 		period_elapsed = 0;
 	}
@@ -1448,7 +1456,8 @@ static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substrea
 					      prepare_playback_urb,
 					      retire_playback_urb,
 					      subs);
-		if (cmd == SNDRV_PCM_TRIGGER_START) {
+		if (!subs->early_playback_start &&
+		    cmd == SNDRV_PCM_TRIGGER_START) {
 			err = start_endpoints(subs);
 			if (err < 0) {
 				snd_usb_endpoint_set_callback(subs->data_endpoint,
