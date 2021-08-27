@@ -93,16 +93,16 @@ static int stm32_count_function_get(struct counter_device *counter,
 	regmap_read(priv->regmap, TIM_SMCR, &smcr);
 
 	switch (smcr & TIM_SMCR_SMS) {
-	case 0:
+	case TIM_SMCR_SMS_SLAVE_MODE_DISABLED:
 		*function = STM32_COUNT_SLAVE_MODE_DISABLED;
 		return 0;
-	case 1:
+	case TIM_SMCR_SMS_ENCODER_MODE_1:
 		*function = STM32_COUNT_ENCODER_MODE_1;
 		return 0;
-	case 2:
+	case TIM_SMCR_SMS_ENCODER_MODE_2:
 		*function = STM32_COUNT_ENCODER_MODE_2;
 		return 0;
-	case 3:
+	case TIM_SMCR_SMS_ENCODER_MODE_3:
 		*function = STM32_COUNT_ENCODER_MODE_3;
 		return 0;
 	default:
@@ -119,16 +119,16 @@ static int stm32_count_function_set(struct counter_device *counter,
 
 	switch (function) {
 	case STM32_COUNT_SLAVE_MODE_DISABLED:
-		sms = 0;
+		sms = TIM_SMCR_SMS_SLAVE_MODE_DISABLED;
 		break;
 	case STM32_COUNT_ENCODER_MODE_1:
-		sms = 1;
+		sms = TIM_SMCR_SMS_ENCODER_MODE_1;
 		break;
 	case STM32_COUNT_ENCODER_MODE_2:
-		sms = 2;
+		sms = TIM_SMCR_SMS_ENCODER_MODE_2;
 		break;
 	case STM32_COUNT_ENCODER_MODE_3:
-		sms = 3;
+		sms = TIM_SMCR_SMS_ENCODER_MODE_3;
 		break;
 	default:
 		return -EINVAL;
