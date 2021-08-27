@@ -4185,7 +4185,7 @@ static ssize_t qm_qos_value_init(const char *buf, unsigned long *val)
 			return -EINVAL;
 	}
 
-	ret = sscanf(buf, "%ld", val);
+	ret = sscanf(buf, "%lu", val);
 	if (ret != QM_QOS_VAL_NUM)
 		return -EINVAL;
 
