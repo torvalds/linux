@@ -1174,8 +1174,8 @@ static void send_queued_packets(struct s_smc *smc)
 
 		txd = (struct s_smt_fp_txd *) HWM_GET_CURR_TXD(smc, queue);
 
-		dma_address = pci_map_single(&bp->pdev, skb->data,
-					     skb->len, PCI_DMA_TODEVICE);
+		dma_address = dma_map_single(&(&bp->pdev)->dev, skb->data,
+					     skb->len, DMA_TO_DEVICE);
 		if (frame_status & LAN_TX) {
 			txd->txd_os.skb = skb;			// save skb
 			txd->txd_os.dma_addr = dma_address;	// save dma mapping
@@ -1184,8 +1184,8 @@ static void send_queued_packets(struct s_smc *smc)
                       frame_status | FIRST_FRAG | LAST_FRAG | EN_IRQ_EOF);
 
 		if (!(frame_status & LAN_TX)) {		// local only frame
-			pci_unmap_single(&bp->pdev, dma_address,
-					 skb->len, PCI_DMA_TODEVICE);
+			dma_unmap_single(&(&bp->pdev)->dev, dma_address,
+					 skb->len, DMA_TO_DEVICE);
 			dev_kfree_skb_irq(skb);
 		}
 		spin_unlock_irqrestore(&bp->DriverLock, Flags);
@@ -1467,8 +1467,9 @@ void dma_complete(struct s_smc *smc, volatile union s_fp_descr *descr, int flag)
 		if (r->rxd_os.skb && r->rxd_os.dma_addr) {
 			int MaxFrameSize = bp->MaxFrameSize;
 
-			pci_unmap_single(&bp->pdev, r->rxd_os.dma_addr,
-					 MaxFrameSize, PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&(&bp->pdev)->dev,
+					 r->rxd_os.dma_addr, MaxFrameSize,
+					 DMA_FROM_DEVICE);
 			r->rxd_os.dma_addr = 0;
 		}
 	}
@@ -1503,8 +1504,8 @@ void mac_drv_tx_complete(struct s_smc *smc, volatile struct s_smt_fp_txd *txd)
 	txd->txd_os.skb = NULL;
 
 	// release the DMA mapping
-	pci_unmap_single(&smc->os.pdev, txd->txd_os.dma_addr,
-			 skb->len, PCI_DMA_TODEVICE);
+	dma_unmap_single(&(&smc->os.pdev)->dev, txd->txd_os.dma_addr,
+			 skb->len, DMA_TO_DEVICE);
 	txd->txd_os.dma_addr = 0;
 
 	smc->os.MacStat.gen.tx_packets++;	// Count transmitted packets.
@@ -1707,10 +1708,9 @@ void mac_drv_requeue_rxd(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 				skb_reserve(skb, 3);
 				skb_put(skb, MaxFrameSize);
 				v_addr = skb->data;
-				b_addr = pci_map_single(&smc->os.pdev,
-							v_addr,
-							MaxFrameSize,
-							PCI_DMA_FROMDEVICE);
+				b_addr = dma_map_single(&(&smc->os.pdev)->dev,
+							v_addr, MaxFrameSize,
+							DMA_FROM_DEVICE);
 				rxd->rxd_os.dma_addr = b_addr;
 			} else {
 				// no skb available, use local buffer
@@ -1723,10 +1723,8 @@ void mac_drv_requeue_rxd(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 			// we use skb from old rxd
 			rxd->rxd_os.skb = skb;
 			v_addr = skb->data;
-			b_addr = pci_map_single(&smc->os.pdev,
-						v_addr,
-						MaxFrameSize,
-						PCI_DMA_FROMDEVICE);
+			b_addr = dma_map_single(&(&smc->os.pdev)->dev, v_addr,
+						MaxFrameSize, DMA_FROM_DEVICE);
 			rxd->rxd_os.dma_addr = b_addr;
 		}
 		hwm_rx_frag(smc, v_addr, b_addr, MaxFrameSize,
@@ -1778,10 +1776,8 @@ void mac_drv_fill_rxd(struct s_smc *smc)
 			skb_reserve(skb, 3);
 			skb_put(skb, MaxFrameSize);
 			v_addr = skb->data;
-			b_addr = pci_map_single(&smc->os.pdev,
-						v_addr,
-						MaxFrameSize,
-						PCI_DMA_FROMDEVICE);
+			b_addr = dma_map_single(&(&smc->os.pdev)->dev, v_addr,
+						MaxFrameSize, DMA_FROM_DEVICE);
 			rxd->rxd_os.dma_addr = b_addr;
 		} else {
 			// no skb available, use local buffer
@@ -1838,8 +1834,9 @@ void mac_drv_clear_rxd(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 			skfddi_priv *bp = &smc->os;
 			int MaxFrameSize = bp->MaxFrameSize;
 
-			pci_unmap_single(&bp->pdev, rxd->rxd_os.dma_addr,
-					 MaxFrameSize, PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&(&bp->pdev)->dev,
+					 rxd->rxd_os.dma_addr, MaxFrameSize,
+					 DMA_FROM_DEVICE);
 
 			dev_kfree_skb(skb);
 			rxd->rxd_os.skb = NULL;
