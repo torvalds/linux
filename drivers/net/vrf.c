@@ -1313,6 +1313,8 @@ static struct sk_buff *vrf_ip6_rcv(struct net_device *vrf_dev,
 	bool need_strict = rt6_need_strict(&ipv6_hdr(skb)->daddr);
 	bool is_ndisc = ipv6_ndisc_frame(skb);
 
+	nf_reset_ct(skb);
+
 	/* loopback, multicast & non-ND link-local traffic; do not push through
 	 * packet taps again. Reset pkt_type for upper layers to process skb.
 	 * For strict packets with a source LLA, determine the dst using the
@@ -1368,6 +1370,8 @@ static struct sk_buff *vrf_ip_rcv(struct net_device *vrf_dev,
 	skb->dev = vrf_dev;
 	skb->skb_iif = vrf_dev->ifindex;
 	IPCB(skb)->flags |= IPSKB_L3SLAVE;
+
+	nf_reset_ct(skb);
 
 	if (ipv4_is_multicast(ip_hdr(skb)->daddr))
 		goto out;

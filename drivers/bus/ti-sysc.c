@@ -3061,8 +3061,10 @@ static int sysc_probe(struct platform_device *pdev)
 		return error;
 
 	error = sysc_check_active_timer(ddata);
-	if (error == -EBUSY)
+	if (error == -ENXIO)
 		ddata->reserved = true;
+	else if (error)
+		return error;
 
 	error = sysc_get_clocks(ddata);
 	if (error)
