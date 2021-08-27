@@ -1017,16 +1017,6 @@ struct hclge_common_lb_cmd {
 
 #define HCLGE_TYPE_CRQ			0
 #define HCLGE_TYPE_CSQ			1
-#define HCLGE_NIC_CSQ_BASEADDR_L_REG	0x27000
-#define HCLGE_NIC_CSQ_BASEADDR_H_REG	0x27004
-#define HCLGE_NIC_CSQ_DEPTH_REG		0x27008
-#define HCLGE_NIC_CSQ_TAIL_REG		0x27010
-#define HCLGE_NIC_CSQ_HEAD_REG		0x27014
-#define HCLGE_NIC_CRQ_BASEADDR_L_REG	0x27018
-#define HCLGE_NIC_CRQ_BASEADDR_H_REG	0x2701c
-#define HCLGE_NIC_CRQ_DEPTH_REG		0x27020
-#define HCLGE_NIC_CRQ_TAIL_REG		0x27024
-#define HCLGE_NIC_CRQ_HEAD_REG		0x27028
 
 /* this bit indicates that the driver is ready for hardware reset */
 #define HCLGE_NIC_SW_RST_RDY_B		16
