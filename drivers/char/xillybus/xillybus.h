@@ -87,7 +87,6 @@ struct xilly_channel {
 };
 
 struct xilly_endpoint {
-	struct pci_dev *pdev;
 	struct device *dev;
 	struct xilly_endpoint_hardware *ephw;
 

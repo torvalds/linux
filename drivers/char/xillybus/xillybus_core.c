@@ -1783,7 +1783,7 @@ struct xilly_endpoint *xillybus_init_endpoint(struct pci_dev *pdev,
 	if (!endpoint)
 		return NULL;
 
-	endpoint->pdev = pdev;
+	(void)pdev;	// silence a compiler warning, will be removed
 	endpoint->dev = dev;
 	endpoint->ephw = ephw;
 	endpoint->msg_counter = 0x0b;

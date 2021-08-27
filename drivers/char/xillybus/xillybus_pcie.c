@@ -48,10 +48,8 @@ static void xilly_dma_sync_single_for_cpu_pci(struct xilly_endpoint *ep,
 					      size_t size,
 					      int direction)
 {
-	pci_dma_sync_single_for_cpu(ep->pdev,
-				    dma_handle,
-				    size,
-				    xilly_pci_direction(direction));
+	dma_sync_single_for_cpu(ep->dev, dma_handle, size,
+				xilly_pci_direction(direction));
 }
 
 static void xilly_dma_sync_single_for_device_pci(struct xilly_endpoint *ep,
@@ -59,10 +57,8 @@ static void xilly_dma_sync_single_for_device_pci(struct xilly_endpoint *ep,
 						 size_t size,
 						 int direction)
 {
-	pci_dma_sync_single_for_device(ep->pdev,
-				       dma_handle,
-				       size,
-				       xilly_pci_direction(direction));
+	dma_sync_single_for_device(ep->dev, dma_handle, size,
+				   xilly_pci_direction(direction));
 }
 
 static void xilly_pci_unmap(void *ptr)
@@ -98,9 +94,9 @@ static int xilly_map_single_pci(struct xilly_endpoint *ep,
 
 	pci_direction = xilly_pci_direction(direction);
 
-	addr = pci_map_single(ep->pdev, ptr, size, pci_direction);
+	addr = dma_map_single(ep->dev, ptr, size, pci_direction);
 
-	if (pci_dma_mapping_error(ep->pdev, addr)) {
+	if (dma_mapping_error(ep->dev, addr)) {
 		kfree(this);
 		return -ENODEV;
 	}
