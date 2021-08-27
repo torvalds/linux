@@ -69,7 +69,7 @@ static int usbctrl_vendorreq(struct intf_hdl *pintfhdl, u16 value, void *pdata, 
 					adapt->bSurpriseRemoved = true;
 				} else {
 					struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
-					haldata->srestpriv.Wifi_Error_Status = USB_VEN_REQ_CMD_FAIL;
+					haldata->srestpriv.wifi_error_status = USB_VEN_REQ_CMD_FAIL;
 				}
 			} else { /*  status != len && status >= 0 */
 				if (status > 0) {
@@ -417,7 +417,7 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 		case -EOVERFLOW:
 			{
 				struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
-				haldata->srestpriv.Wifi_Error_Status = USB_READ_PORT_FAIL;
+				haldata->srestpriv.wifi_error_status = USB_READ_PORT_FAIL;
 			}
 			precvbuf->reuse = true;
 			rtw_read_port(adapt, precvpriv->ff_hwaddr, 0, (unsigned char *)precvbuf);

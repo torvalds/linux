@@ -10,7 +10,7 @@
 struct sreset_priv {
 	struct mutex	silentreset_mutex;
 	u8	silent_reset_inprogress;
-	u8	Wifi_Error_Status;
+	u8	wifi_error_status;
 	unsigned long last_tx_time;
 	unsigned long last_tx_complete_time;
 };
