@@ -61,6 +61,7 @@ const char *ras_block_string[] = {
 	"mp0",
 	"mp1",
 	"fuse",
+	"mpio",
 };
 
 #define ras_err_str(i) (ras_error_string[ffs(i)])

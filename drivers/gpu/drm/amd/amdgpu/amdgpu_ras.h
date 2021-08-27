@@ -544,6 +544,8 @@ amdgpu_ras_block_to_ta(enum amdgpu_ras_block block) {
 		return TA_RAS_BLOCK__MP1;
 	case AMDGPU_RAS_BLOCK__FUSE:
 		return TA_RAS_BLOCK__FUSE;
+	case AMDGPU_RAS_BLOCK__MPIO:
+		return TA_RAS_BLOCK__MPIO;
 	default:
 		WARN_ONCE(1, "RAS ERROR: unexpected block id %d\n", block);
 		return TA_RAS_BLOCK__UMC;

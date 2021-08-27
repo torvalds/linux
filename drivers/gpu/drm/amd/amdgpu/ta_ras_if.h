@@ -73,6 +73,7 @@ enum ta_ras_block {
 	TA_RAS_BLOCK__MP0,
 	TA_RAS_BLOCK__MP1,
 	TA_RAS_BLOCK__FUSE,
+	TA_RAS_BLOCK__MPIO,
 	TA_NUM_BLOCK_MAX
 };
 
