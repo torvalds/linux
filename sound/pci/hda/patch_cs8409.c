@@ -784,6 +784,8 @@ static void cs42l42_suspend(struct sub_codec *cs42l42)
 	cs8409_i2c_write(cs42l42, 0x1102, 0x9C);
 	cs42l42->suspended = 1;
 	cs42l42->last_page = 0;
+	cs42l42->hp_jack_in = 0;
+	cs42l42->mic_jack_in = 0;
 
 	/* Put CS42L42 into Reset */
 	gpio_data = snd_hda_codec_read(codec, CS8409_PIN_AFG, 0, AC_VERB_GET_GPIO_DATA, 0);
@@ -851,6 +853,8 @@ static int cs8409_cs42l42_suspend(struct hda_codec *codec)
 {
 	struct cs8409_spec *spec = codec->spec;
 	int i;
+
+	spec->init_done = 0;
 
 	cs8409_enable_ur(codec, 0);
 
@@ -1025,14 +1029,21 @@ void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix,
 		break;
 	case HDA_FIXUP_ACT_INIT:
 		cs8409_cs42l42_hw_init(codec);
-		fallthrough;
+		spec->init_done = 1;
+		if (spec->init_done && spec->build_ctrl_done
+			&& !spec->scodecs[CS8409_CODEC0]->hp_jack_in)
+			cs42l42_run_jack_detect(spec->scodecs[CS8409_CODEC0]);
+		break;
 	case HDA_FIXUP_ACT_BUILD:
+		spec->build_ctrl_done = 1;
 		/* Run jack auto detect first time on boot
 		 * after controls have been added, to check if jack has
 		 * been already plugged in.
 		 * Run immediately after init.
 		 */
-		cs42l42_run_jack_detect(spec->scodecs[CS8409_CODEC0]);
+		if (spec->init_done && spec->build_ctrl_done
+			&& !spec->scodecs[CS8409_CODEC0]->hp_jack_in)
+			cs42l42_run_jack_detect(spec->scodecs[CS8409_CODEC0]);
 		break;
 	default:
 		break;
@@ -1223,16 +1234,27 @@ void dolphin_fixups(struct hda_codec *codec, const struct hda_fixup *fix, int ac
 		break;
 	case HDA_FIXUP_ACT_INIT:
 		dolphin_hw_init(codec);
-		fallthrough;
+		spec->init_done = 1;
+		if (spec->init_done && spec->build_ctrl_done) {
+			for (i = 0; i < spec->num_scodecs; i++) {
+				if (!spec->scodecs[i]->hp_jack_in)
+					cs42l42_run_jack_detect(spec->scodecs[i]);
+			}
+		}
+		break;
 	case HDA_FIXUP_ACT_BUILD:
+		spec->build_ctrl_done = 1;
 		/* Run jack auto detect first time on boot
 		 * after controls have been added, to check if jack has
 		 * been already plugged in.
 		 * Run immediately after init.
 		 */
-		for (i = 0; i < spec->num_scodecs; i++)
-			cs42l42_run_jack_detect(spec->scodecs[i]);
-
+		if (spec->init_done && spec->build_ctrl_done) {
+			for (i = 0; i < spec->num_scodecs; i++) {
+				if (!spec->scodecs[i]->hp_jack_in)
+					cs42l42_run_jack_detect(spec->scodecs[i]);
+			}
+		}
 		break;
 	default:
 		break;
