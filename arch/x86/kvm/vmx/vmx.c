@@ -1890,8 +1890,7 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_IA32_RTIT_ADDR0_A ... MSR_IA32_RTIT_ADDR3_B:
 		index = msr_info->index - MSR_IA32_RTIT_ADDR0_A;
 		if (!vmx_pt_mode_is_host_guest() ||
-			(index >= 2 * intel_pt_validate_cap(vmx->pt_desc.caps,
-					PT_CAP_num_address_ranges)))
+		    (index >= 2 * vmx->pt_desc.addr_range))
 			return 1;
 		if (index % 2)
 			msr_info->data = vmx->pt_desc.guest.addr_b[index / 2];
@@ -2206,8 +2205,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (!pt_can_write_msr(vmx))
 			return 1;
 		index = msr_info->index - MSR_IA32_RTIT_ADDR0_A;
-		if (index >= 2 * intel_pt_validate_cap(vmx->pt_desc.caps,
-						       PT_CAP_num_address_ranges))
+		if (index >= 2 * vmx->pt_desc.addr_range)
 			return 1;
 		if (is_noncanonical_address(data, vcpu))
 			return 1;
