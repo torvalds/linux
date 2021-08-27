@@ -222,6 +222,30 @@ void ionic_lif_hwstamp_replay(struct ionic_lif *lif)
 		netdev_info(lif->netdev, "hwstamp replay failed: %d\n", err);
 }
 
+void ionic_lif_hwstamp_recreate_queues(struct ionic_lif *lif)
+{
+	int err;
+
+	if (!lif->phc || !lif->phc->ptp)
+		return;
+
+	mutex_lock(&lif->phc->config_lock);
+
+	if (lif->phc->ts_config_tx_mode) {
+		err = ionic_lif_create_hwstamp_txq(lif);
+		if (err)
+			netdev_info(lif->netdev, "hwstamp recreate txq failed: %d\n", err);
+	}
+
+	if (lif->phc->ts_config_rx_filt) {
+		err = ionic_lif_create_hwstamp_rxq(lif);
+		if (err)
+			netdev_info(lif->netdev, "hwstamp recreate rxq failed: %d\n", err);
+	}
+
+	mutex_unlock(&lif->phc->config_lock);
+}
+
 int ionic_lif_hwstamp_get(struct ionic_lif *lif, struct ifreq *ifr)
 {
 	struct hwtstamp_config config;

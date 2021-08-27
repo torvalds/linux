@@ -2246,7 +2246,13 @@ static int ionic_open(struct net_device *netdev)
 			goto err_txrx_deinit;
 	}
 
+	/* If hardware timestamping is enabled, but the queues were freed by
+	 * ionic_stop, those need to be reallocated and initialized, too.
+	 */
+	ionic_lif_hwstamp_recreate_queues(lif);
+
 	mutex_unlock(&lif->queue_lock);
+
 	return 0;
 
 err_txrx_deinit:
