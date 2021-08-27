@@ -1515,15 +1515,19 @@ void __mptcp_push_pending(struct sock *sk, unsigned int flags)
 			mptcp_flush_join_list(msk);
 			ssk = mptcp_subflow_get_send(msk);
 
-			/* try to keep the subflow socket lock across
-			 * consecutive xmit on the same socket
+			/* First check. If the ssk has changed since
+			 * the last round, release prev_ssk
 			 */
 			if (ssk != prev_ssk && prev_ssk)
 				mptcp_push_release(sk, prev_ssk, &info);
 			if (!ssk)
 				goto out;
 
-			if (ssk != prev_ssk || !prev_ssk)
+			/* Need to lock the new subflow only if different
+			 * from the previous one, otherwise we are still
+			 * helding the relevant lock
+			 */
+			if (ssk != prev_ssk)
 				lock_sock(ssk);
 
 			/* keep it simple and always provide a new skb for the
