@@ -1772,8 +1772,7 @@ static const struct file_operations xillybus_fops = {
 	.poll       = xillybus_poll,
 };
 
-struct xilly_endpoint *xillybus_init_endpoint(struct pci_dev *pdev,
-					      struct device *dev,
+struct xilly_endpoint *xillybus_init_endpoint(struct device *dev,
 					      struct xilly_endpoint_hardware
 					      *ephw)
 {
@@ -1783,7 +1782,6 @@ struct xilly_endpoint *xillybus_init_endpoint(struct pci_dev *pdev,
 	if (!endpoint)
 		return NULL;
 
-	(void)pdev;	// silence a compiler warning, will be removed
 	endpoint->dev = dev;
 	endpoint->ephw = ephw;
 	endpoint->msg_counter = 0x0b;

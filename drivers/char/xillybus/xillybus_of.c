@@ -120,7 +120,7 @@ static int xilly_drv_probe(struct platform_device *op)
 	if (of_property_read_bool(dev->of_node, "dma-coherent"))
 		ephw = &of_hw_coherent;
 
-	endpoint = xillybus_init_endpoint(NULL, dev, ephw);
+	endpoint = xillybus_init_endpoint(dev, ephw);
 
 	if (!endpoint)
 		return -ENOMEM;
