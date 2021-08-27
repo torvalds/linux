@@ -6,6 +6,7 @@
 #include <dt-bindings/clock/rk3588-cru.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/phy/phy.h>
 #include <dt-bindings/power/rk3588-power.h>
 
 / {
@@ -910,6 +911,36 @@
 		resets = <&cru SRST_M_SPDIFRX0>;
 		reset-names = "spdifrx-m";
 		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
+	sata0: sata@fe210000 {
+		compatible = "snps,dwc-ahci";
+		reg = <0 0xfe210000 0 0x1000>;
+		clocks = <&cru ACLK_SATA0>, <&cru CLK_PMALIVE0>,
+			 <&cru CLK_RXOOB0>, <&cru CLK_PIPEPHY0_REF>;
+		clock-names = "sata", "pmalive", "rxoob", "ref";
+		interrupts = <GIC_SPI 273 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "hostc";
+		phys = <&combphy0_ps PHY_TYPE_SATA>;
+		phy-names = "sata-phy";
+		ports-implemented = <0x1>;
+		power-domains = <&power RK3588_PD_PHP>;
+		status = "disabled";
+	};
+
+	sata2: sata@fe230000 {
+		compatible = "snps,dwc-ahci";
+		reg = <0 0xfe230000 0 0x1000>;
+		clocks = <&cru ACLK_SATA2>, <&cru CLK_PMALIVE2>,
+			 <&cru CLK_RXOOB2>, <&cru CLK_PIPEPHY2_REF>;
+		clock-names = "sata", "pmalive", "rxoob", "ref";
+		interrupts = <GIC_SPI 275 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "hostc";
+		phys = <&combphy2_psu PHY_TYPE_SATA>;
+		phy-names = "sata-phy";
+		ports-implemented = <0x1>;
+		power-domains = <&power RK3588_PD_PHP>;
 		status = "disabled";
 	};
 
