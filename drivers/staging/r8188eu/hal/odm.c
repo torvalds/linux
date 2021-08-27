@@ -921,11 +921,11 @@ void odm_DynamicBBPowerSavingInit(struct odm_dm_struct *pDM_Odm)
 {
 	struct rtl_ps *pDM_PSTable = &pDM_Odm->DM_PSTable;
 
-	pDM_PSTable->PreCCAState = CCA_MAX;
-	pDM_PSTable->CurCCAState = CCA_MAX;
-	pDM_PSTable->PreRFState = RF_MAX;
-	pDM_PSTable->CurRFState = RF_MAX;
-	pDM_PSTable->Rssi_val_min = 0;
+	pDM_PSTable->pre_cca_state = CCA_MAX;
+	pDM_PSTable->cur_cca_state = CCA_MAX;
+	pDM_PSTable->pre_rf_state = RF_MAX;
+	pDM_PSTable->cur_rf_state = RF_MAX;
+	pDM_PSTable->rssi_val_min = 0;
 	pDM_PSTable->initialize = 0;
 }
 
@@ -954,23 +954,23 @@ void odm_1R_CCA(struct odm_dm_struct *pDM_Odm)
 	struct rtl_ps *pDM_PSTable = &pDM_Odm->DM_PSTable;
 
 	if (pDM_Odm->RSSI_Min != 0xFF) {
-		if (pDM_PSTable->PreCCAState == CCA_2R) {
+		if (pDM_PSTable->pre_cca_state == CCA_2R) {
 			if (pDM_Odm->RSSI_Min >= 35)
-				pDM_PSTable->CurCCAState = CCA_1R;
+				pDM_PSTable->cur_cca_state = CCA_1R;
 			else
-				pDM_PSTable->CurCCAState = CCA_2R;
+				pDM_PSTable->cur_cca_state = CCA_2R;
 		} else {
 			if (pDM_Odm->RSSI_Min <= 30)
-				pDM_PSTable->CurCCAState = CCA_2R;
+				pDM_PSTable->cur_cca_state = CCA_2R;
 			else
-				pDM_PSTable->CurCCAState = CCA_1R;
+				pDM_PSTable->cur_cca_state = CCA_1R;
 		}
 	} else {
-		pDM_PSTable->CurCCAState = CCA_MAX;
+		pDM_PSTable->cur_cca_state = CCA_MAX;
 	}
 
-	if (pDM_PSTable->PreCCAState != pDM_PSTable->CurCCAState) {
-		if (pDM_PSTable->CurCCAState == CCA_1R) {
+	if (pDM_PSTable->pre_cca_state != pDM_PSTable->cur_cca_state) {
+		if (pDM_PSTable->cur_cca_state == CCA_1R) {
 			if (pDM_Odm->RFType == ODM_2T2R)
 				ODM_SetBBReg(pDM_Odm, 0xc04, bMaskByte0, 0x13);
 			else
@@ -978,7 +978,7 @@ void odm_1R_CCA(struct odm_dm_struct *pDM_Odm)
 		} else {
 			ODM_SetBBReg(pDM_Odm, 0xc04, bMaskByte0, 0x33);
 		}
-		pDM_PSTable->PreCCAState = pDM_PSTable->CurCCAState;
+		pDM_PSTable->pre_cca_state = pDM_PSTable->cur_cca_state;
 	}
 }
 
@@ -993,35 +993,35 @@ void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal)
 		Rssi_Low_bound = 45;
 	}
 	if (pDM_PSTable->initialize == 0) {
-		pDM_PSTable->Reg874 = (ODM_GetBBReg(pDM_Odm, 0x874, bMaskDWord) & 0x1CC000) >> 14;
-		pDM_PSTable->RegC70 = (ODM_GetBBReg(pDM_Odm, 0xc70, bMaskDWord) & BIT(3)) >> 3;
-		pDM_PSTable->Reg85C = (ODM_GetBBReg(pDM_Odm, 0x85c, bMaskDWord) & 0xFF000000) >> 24;
-		pDM_PSTable->RegA74 = (ODM_GetBBReg(pDM_Odm, 0xa74, bMaskDWord) & 0xF000) >> 12;
+		pDM_PSTable->reg_874 = (ODM_GetBBReg(pDM_Odm, 0x874, bMaskDWord) & 0x1CC000) >> 14;
+		pDM_PSTable->reg_c70 = (ODM_GetBBReg(pDM_Odm, 0xc70, bMaskDWord) & BIT(3)) >> 3;
+		pDM_PSTable->reg_85c = (ODM_GetBBReg(pDM_Odm, 0x85c, bMaskDWord) & 0xFF000000) >> 24;
+		pDM_PSTable->reg_a74 = (ODM_GetBBReg(pDM_Odm, 0xa74, bMaskDWord) & 0xF000) >> 12;
 		pDM_PSTable->initialize = 1;
 	}
 
 	if (!bForceInNormal) {
 		if (pDM_Odm->RSSI_Min != 0xFF) {
-			if (pDM_PSTable->PreRFState == RF_Normal) {
+			if (pDM_PSTable->pre_rf_state == RF_Normal) {
 				if (pDM_Odm->RSSI_Min >= Rssi_Up_bound)
-					pDM_PSTable->CurRFState = RF_Save;
+					pDM_PSTable->cur_rf_state = RF_Save;
 				else
-					pDM_PSTable->CurRFState = RF_Normal;
+					pDM_PSTable->cur_rf_state = RF_Normal;
 			} else {
 				if (pDM_Odm->RSSI_Min <= Rssi_Low_bound)
-					pDM_PSTable->CurRFState = RF_Normal;
+					pDM_PSTable->cur_rf_state = RF_Normal;
 				else
-					pDM_PSTable->CurRFState = RF_Save;
+					pDM_PSTable->cur_rf_state = RF_Save;
 			}
 		} else {
-			pDM_PSTable->CurRFState = RF_MAX;
+			pDM_PSTable->cur_rf_state = RF_MAX;
 		}
 	} else {
-		pDM_PSTable->CurRFState = RF_Normal;
+		pDM_PSTable->cur_rf_state = RF_Normal;
 	}
 
-	if (pDM_PSTable->PreRFState != pDM_PSTable->CurRFState) {
-		if (pDM_PSTable->CurRFState == RF_Save) {
+	if (pDM_PSTable->pre_rf_state != pDM_PSTable->cur_rf_state) {
+		if (pDM_PSTable->cur_rf_state == RF_Save) {
 			/*  <tynli_note> 8723 RSSI report will be wrong. Set 0x874[5]=1 when enter BB power saving mode. */
 			/*  Suggested by SD3 Yu-Nan. 2011.01.20. */
 			if (pDM_Odm->SupportICType == ODM_RTL8723A)
@@ -1034,16 +1034,16 @@ void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal)
 			ODM_SetBBReg(pDM_Odm, 0x818, BIT(28), 0x0); /* Reg818[28]=1'b0 */
 			ODM_SetBBReg(pDM_Odm, 0x818, BIT(28), 0x1); /* Reg818[28]=1'b1 */
 		} else {
-			ODM_SetBBReg(pDM_Odm, 0x874, 0x1CC000, pDM_PSTable->Reg874);
-			ODM_SetBBReg(pDM_Odm, 0xc70, BIT(3), pDM_PSTable->RegC70);
-			ODM_SetBBReg(pDM_Odm, 0x85c, 0xFF000000, pDM_PSTable->Reg85C);
-			ODM_SetBBReg(pDM_Odm, 0xa74, 0xF000, pDM_PSTable->RegA74);
+			ODM_SetBBReg(pDM_Odm, 0x874, 0x1CC000, pDM_PSTable->reg_874);
+			ODM_SetBBReg(pDM_Odm, 0xc70, BIT(3), pDM_PSTable->reg_c70);
+			ODM_SetBBReg(pDM_Odm, 0x85c, 0xFF000000, pDM_PSTable->reg_85c);
+			ODM_SetBBReg(pDM_Odm, 0xa74, 0xF000, pDM_PSTable->reg_a74);
 			ODM_SetBBReg(pDM_Odm, 0x818, BIT(28), 0x0);
 
 			if (pDM_Odm->SupportICType == ODM_RTL8723A)
 				ODM_SetBBReg(pDM_Odm, 0x874, BIT(5), 0x0); /* Reg874[5]=1b'0 */
 		}
-		pDM_PSTable->PreRFState = pDM_PSTable->CurRFState;
+		pDM_PSTable->pre_rf_state = pDM_PSTable->cur_rf_state;
 	}
 }
 

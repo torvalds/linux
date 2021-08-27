@@ -123,16 +123,19 @@ struct rtw_dig {
 };
 
 struct rtl_ps {
-	u8		PreCCAState;
-	u8		CurCCAState;
+	u8		pre_cca_state;
+	u8		cur_cca_state;
 
-	u8		PreRFState;
-	u8		CurRFState;
+	u8		pre_rf_state;
+	u8		cur_rf_state;
 
-	int		    Rssi_val_min;
+	int		rssi_val_min;
 
 	u8		initialize;
-	u32		Reg874,RegC70,Reg85C,RegA74;
+	u32		reg_874;
+	u32		reg_c70;
+	u32		reg_85c;
+	u32		reg_a74;
 
 };
 
