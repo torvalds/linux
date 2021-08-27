@@ -10233,6 +10233,31 @@ static int io_unregister_iowq_aff(struct io_ring_ctx *ctx)
 	return io_wq_cpu_affinity(tctx->io_wq, NULL);
 }
 
+static int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
+					void __user *arg)
+{
+	struct io_uring_task *tctx = current->io_uring;
+	__u32 new_count[2];
+	int i, ret;
+
+	if (!tctx || !tctx->io_wq)
+		return -EINVAL;
+	if (copy_from_user(new_count, arg, sizeof(new_count)))
+		return -EFAULT;
+	for (i = 0; i < ARRAY_SIZE(new_count); i++)
+		if (new_count[i] > INT_MAX)
+			return -EINVAL;
+
+	ret = io_wq_max_workers(tctx->io_wq, new_count);
+	if (ret)
+		return ret;
+
+	if (copy_to_user(arg, new_count, sizeof(new_count)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static bool io_register_op_must_quiesce(int op)
 {
 	switch (op) {
@@ -10250,6 +10275,7 @@ static bool io_register_op_must_quiesce(int op)
 	case IORING_REGISTER_BUFFERS_UPDATE:
 	case IORING_REGISTER_IOWQ_AFF:
 	case IORING_UNREGISTER_IOWQ_AFF:
+	case IORING_REGISTER_IOWQ_MAX_WORKERS:
 		return false;
 	default:
 		return true;
@@ -10405,6 +10431,12 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		if (arg || nr_args)
 			break;
 		ret = io_unregister_iowq_aff(ctx);
+		break;
+	case IORING_REGISTER_IOWQ_MAX_WORKERS:
+		ret = -EINVAL;
+		if (!arg || nr_args != 2)
+			break;
+		ret = io_register_iowq_max_workers(ctx, arg);
 		break;
 	default:
 		ret = -EINVAL;
