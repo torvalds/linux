@@ -1268,6 +1268,8 @@ int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
 	struct ionic_rx_filter *f;
 	int err = 0;
 
+	memcpy(ctx.cmd.rx_filter_add.mac.addr, addr, ETH_ALEN);
+
 	spin_lock_bh(&lif->rx_filters.lock);
 	f = ionic_rx_filter_by_addr(lif, addr);
 	if (f) {
@@ -1281,7 +1283,6 @@ int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
 		f->state = IONIC_FILTER_STATE_SYNCED;
 	} else {
 		/* save as SYNCED to catch any DEL requests while processing */
-		memcpy(ctx.cmd.rx_filter_add.mac.addr, addr, ETH_ALEN);
 		err = ionic_rx_filter_save(lif, 0, IONIC_RXQ_INDEX_ANY, 0, &ctx,
 					   IONIC_FILTER_STATE_SYNCED);
 	}
