@@ -81,12 +81,11 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 		 * is if both hosts in their SYNs set A=0."
 		 */
 		if (flags & MPTCP_CAP_CHECKSUM_REQD)
-			mp_opt->csum_reqd = 1;
+			mp_opt->suboptions |= OPTION_MPTCP_CSUMREQD;
 
-		if (flags & MPTCP_CAP_DENY_JOIN_ID0)
-			mp_opt->deny_join_id0 = 1;
+		mp_opt->deny_join_id0 = !!(flags & MPTCP_CAP_DENY_JOIN_ID0);
 
-		mp_opt->mp_capable = 1;
+		mp_opt->suboptions |= OPTIONS_MPTCP_MPC;
 		if (opsize >= TCPOLEN_MPTCP_MPC_SYNACK) {
 			mp_opt->sndr_key = get_unaligned_be64(ptr);
 			ptr += 8;
@@ -101,7 +100,7 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 			 * equivalent to those in a DSS option and can be used
 			 * interchangeably."
 			 */
-			mp_opt->dss = 1;
+			mp_opt->suboptions |= OPTION_MPTCP_DSS;
 			mp_opt->use_map = 1;
 			mp_opt->mpc_map = 1;
 			mp_opt->data_len = get_unaligned_be16(ptr);
@@ -109,7 +108,7 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 		}
 		if (opsize == TCPOLEN_MPTCP_MPC_ACK_DATA_CSUM) {
 			mp_opt->csum = (__force __sum16)get_unaligned_be16(ptr);
-			mp_opt->csum_reqd = 1;
+			mp_opt->suboptions |= OPTION_MPTCP_CSUMREQD;
 			ptr += 2;
 		}
 		pr_debug("MP_CAPABLE version=%x, flags=%x, optlen=%d sndr=%llu, rcvr=%llu len=%d csum=%u",
@@ -118,7 +117,7 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 		break;
 
 	case MPTCPOPT_MP_JOIN:
-		mp_opt->mp_join = 1;
+		mp_opt->suboptions |= OPTIONS_MPTCP_MPJ;
 		if (opsize == TCPOLEN_MPTCP_MPJ_SYN) {
 			mp_opt->backup = *ptr++ & MPTCPOPT_BACKUP;
 			mp_opt->join_id = *ptr++;
@@ -144,7 +143,7 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 			memcpy(mp_opt->hmac, ptr, MPTCPOPT_HMAC_LEN);
 			pr_debug("MP_JOIN hmac");
 		} else {
-			mp_opt->mp_join = 0;
+			mp_opt->suboptions &= ~OPTIONS_MPTCP_MPJ;
 		}
 		break;
 
@@ -192,8 +191,7 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 		    opsize != expected_opsize + TCPOLEN_MPTCP_DSS_CHECKSUM)
 			break;
 
-		mp_opt->dss = 1;
-
+		mp_opt->suboptions |= OPTION_MPTCP_DSS;
 		if (mp_opt->use_ack) {
 			if (mp_opt->ack64) {
 				mp_opt->data_ack = get_unaligned_be64(ptr);
@@ -222,14 +220,15 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 			ptr += 2;
 
 			if (opsize == expected_opsize + TCPOLEN_MPTCP_DSS_CHECKSUM) {
-				mp_opt->csum_reqd = 1;
+				mp_opt->suboptions |= OPTION_MPTCP_CSUMREQD;
 				mp_opt->csum = (__force __sum16)get_unaligned_be16(ptr);
 				ptr += 2;
 			}
 
 			pr_debug("data_seq=%llu subflow_seq=%u data_len=%u csum=%d:%u",
 				 mp_opt->data_seq, mp_opt->subflow_seq,
-				 mp_opt->data_len, mp_opt->csum_reqd, mp_opt->csum);
+				 mp_opt->data_len, !!(mp_opt->suboptions & OPTION_MPTCP_CSUMREQD),
+				 mp_opt->csum);
 		}
 
 		break;
@@ -260,8 +259,10 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 				break;
 		}
 
-		mp_opt->add_addr = 1;
+		mp_opt->suboptions |= OPTION_MPTCP_ADD_ADDR;
 		mp_opt->addr.id = *ptr++;
+		mp_opt->addr.port = 0;
+		mp_opt->ahmac = 0;
 		if (mp_opt->addr.family == AF_INET) {
 			memcpy((u8 *)&mp_opt->addr.addr.s_addr, (u8 *)ptr, 4);
 			ptr += 4;
@@ -298,7 +299,7 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 
 		ptr++;
 
-		mp_opt->rm_addr = 1;
+		mp_opt->suboptions |= OPTION_MPTCP_RM_ADDR;
 		mp_opt->rm_list.nr = opsize - TCPOLEN_MPTCP_RM_ADDR_BASE;
 		for (i = 0; i < mp_opt->rm_list.nr; i++)
 			mp_opt->rm_list.ids[i] = *ptr++;
@@ -309,7 +310,7 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 		if (opsize != TCPOLEN_MPTCP_PRIO)
 			break;
 
-		mp_opt->mp_prio = 1;
+		mp_opt->suboptions |= OPTION_MPTCP_PRIO;
 		mp_opt->backup = *ptr++ & MPTCP_PRIO_BKUP;
 		pr_debug("MP_PRIO: prio=%d", mp_opt->backup);
 		break;
@@ -321,7 +322,7 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 		ptr += 2;
 		mp_opt->rcvr_key = get_unaligned_be64(ptr);
 		ptr += 8;
-		mp_opt->fastclose = 1;
+		mp_opt->suboptions |= OPTION_MPTCP_FASTCLOSE;
 		break;
 
 	case MPTCPOPT_RST:
@@ -330,7 +331,8 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 
 		if (!(TCP_SKB_CB(skb)->tcp_flags & TCPHDR_RST))
 			break;
-		mp_opt->reset = 1;
+
+		mp_opt->suboptions |= OPTION_MPTCP_RST;
 		flags = *ptr++;
 		mp_opt->reset_transient = flags & MPTCP_RST_TRANSIENT;
 		mp_opt->reset_reason = *ptr;
@@ -341,7 +343,7 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 			break;
 
 		ptr += 2;
-		mp_opt->mp_fail = 1;
+		mp_opt->suboptions |= OPTION_MPTCP_FAIL;
 		mp_opt->fail_seq = get_unaligned_be64(ptr);
 		pr_debug("MP_FAIL: data_seq=%llu", mp_opt->fail_seq);
 		break;
@@ -355,26 +357,12 @@ void mptcp_get_options(const struct sock *sk,
 		       const struct sk_buff *skb,
 		       struct mptcp_options_received *mp_opt)
 {
-	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
-	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
 	const struct tcphdr *th = tcp_hdr(skb);
 	const unsigned char *ptr;
 	int length;
 
 	/* initialize option status */
-	mp_opt->mp_capable = 0;
-	mp_opt->mp_join = 0;
-	mp_opt->add_addr = 0;
-	mp_opt->ahmac = 0;
-	mp_opt->fastclose = 0;
-	mp_opt->addr.port = 0;
-	mp_opt->rm_addr = 0;
-	mp_opt->dss = 0;
-	mp_opt->mp_prio = 0;
-	mp_opt->reset = 0;
-	mp_opt->csum_reqd = READ_ONCE(msk->csum_enabled);
-	mp_opt->deny_join_id0 = 0;
-	mp_opt->mp_fail = 0;
+	mp_opt->suboptions = 0;
 
 	length = (th->doff * 4) - sizeof(struct tcphdr);
 	ptr = (const unsigned char *)(th + 1);
@@ -928,7 +916,7 @@ static bool check_fully_established(struct mptcp_sock *msk, struct sock *ssk,
 		 */
 		if (TCP_SKB_CB(skb)->seq == subflow->ssn_offset + 1 &&
 		    TCP_SKB_CB(skb)->end_seq == TCP_SKB_CB(skb)->seq &&
-		    subflow->mp_join && mp_opt->mp_join &&
+		    subflow->mp_join && (mp_opt->suboptions & OPTIONS_MPTCP_MPJ) &&
 		    READ_ONCE(msk->pm.server_side))
 			tcp_send_ack(ssk);
 		goto fully_established;
@@ -945,8 +933,8 @@ static bool check_fully_established(struct mptcp_sock *msk, struct sock *ssk,
 		return subflow->mp_capable;
 	}
 
-	if ((mp_opt->dss && mp_opt->use_ack) ||
-	    (mp_opt->add_addr && !mp_opt->echo)) {
+	if (((mp_opt->suboptions & OPTION_MPTCP_DSS) && mp_opt->use_ack) ||
+	    ((mp_opt->suboptions & OPTION_MPTCP_ADD_ADDR) && !mp_opt->echo)) {
 		/* subflows are fully established as soon as we get any
 		 * additional ack, including ADD_ADDR.
 		 */
@@ -959,7 +947,7 @@ static bool check_fully_established(struct mptcp_sock *msk, struct sock *ssk,
 	 * then fallback to TCP. Fallback scenarios requires a reset for
 	 * MP_JOIN subflows.
 	 */
-	if (!mp_opt->mp_capable) {
+	if (!(mp_opt->suboptions & OPTIONS_MPTCP_MPC)) {
 		if (subflow->mp_join)
 			goto reset;
 		subflow->mp_capable = 0;
@@ -1123,53 +1111,50 @@ bool mptcp_incoming_options(struct sock *sk, struct sk_buff *skb)
 	if (!check_fully_established(msk, sk, subflow, skb, &mp_opt))
 		return sk->sk_state != TCP_CLOSE;
 
-	if (mp_opt.fastclose &&
-	    msk->local_key == mp_opt.rcvr_key) {
-		WRITE_ONCE(msk->rcv_fastclose, true);
-		mptcp_schedule_work((struct sock *)msk);
-	}
-
-	if (mp_opt.add_addr && add_addr_hmac_valid(msk, &mp_opt)) {
-		if (!mp_opt.echo) {
-			mptcp_pm_add_addr_received(msk, &mp_opt.addr);
-			MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_ADDADDR);
-		} else {
-			mptcp_pm_add_addr_echoed(msk, &mp_opt.addr);
-			mptcp_pm_del_add_timer(msk, &mp_opt.addr, true);
-			MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_ECHOADD);
+	if (unlikely(mp_opt.suboptions != OPTION_MPTCP_DSS)) {
+		if ((mp_opt.suboptions & OPTION_MPTCP_FASTCLOSE) &&
+		    msk->local_key == mp_opt.rcvr_key) {
+			WRITE_ONCE(msk->rcv_fastclose, true);
+			mptcp_schedule_work((struct sock *)msk);
 		}
 
-		if (mp_opt.addr.port)
-			MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_PORTADD);
+		if ((mp_opt.suboptions & OPTION_MPTCP_ADD_ADDR) &&
+		    add_addr_hmac_valid(msk, &mp_opt)) {
+			if (!mp_opt.echo) {
+				mptcp_pm_add_addr_received(msk, &mp_opt.addr);
+				MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_ADDADDR);
+			} else {
+				mptcp_pm_add_addr_echoed(msk, &mp_opt.addr);
+				mptcp_pm_del_add_timer(msk, &mp_opt.addr, true);
+				MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_ECHOADD);
+			}
 
-		mp_opt.add_addr = 0;
+			if (mp_opt.addr.port)
+				MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_PORTADD);
+		}
+
+		if (mp_opt.suboptions & OPTION_MPTCP_RM_ADDR)
+			mptcp_pm_rm_addr_received(msk, &mp_opt.rm_list);
+
+		if (mp_opt.suboptions & OPTION_MPTCP_PRIO) {
+			mptcp_pm_mp_prio_received(sk, mp_opt.backup);
+			MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_MPPRIORX);
+		}
+
+		if (mp_opt.suboptions & OPTION_MPTCP_FAIL) {
+			mptcp_pm_mp_fail_received(sk, mp_opt.fail_seq);
+			MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_MPFAILRX);
+		}
+
+		if (mp_opt.suboptions & OPTION_MPTCP_RST) {
+			subflow->reset_seen = 1;
+			subflow->reset_reason = mp_opt.reset_reason;
+			subflow->reset_transient = mp_opt.reset_transient;
+		}
+
+		if (!(mp_opt.suboptions & OPTION_MPTCP_DSS))
+			return true;
 	}
-
-	if (mp_opt.rm_addr) {
-		mptcp_pm_rm_addr_received(msk, &mp_opt.rm_list);
-		mp_opt.rm_addr = 0;
-	}
-
-	if (mp_opt.mp_prio) {
-		mptcp_pm_mp_prio_received(sk, mp_opt.backup);
-		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_MPPRIORX);
-		mp_opt.mp_prio = 0;
-	}
-
-	if (mp_opt.mp_fail) {
-		mptcp_pm_mp_fail_received(sk, mp_opt.fail_seq);
-		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_MPFAILRX);
-		mp_opt.mp_fail = 0;
-	}
-
-	if (mp_opt.reset) {
-		subflow->reset_seen = 1;
-		subflow->reset_reason = mp_opt.reset_reason;
-		subflow->reset_transient = mp_opt.reset_transient;
-	}
-
-	if (!mp_opt.dss)
-		return true;
 
 	/* we can't wait for recvmsg() to update the ack_seq, otherwise
 	 * monodirectional flows will stuck
@@ -1197,7 +1182,7 @@ bool mptcp_incoming_options(struct sock *sk, struct sk_buff *skb)
 
 	memset(mpext, 0, sizeof(*mpext));
 
-	if (mp_opt.use_map) {
+	if (likely(mp_opt.use_map)) {
 		if (mp_opt.mpc_map) {
 			/* this is an MP_CAPABLE carrying MPTCP data
 			 * we know this map the first chunk of data
@@ -1217,7 +1202,7 @@ bool mptcp_incoming_options(struct sock *sk, struct sk_buff *skb)
 		}
 		mpext->data_len = mp_opt.data_len;
 		mpext->use_map = 1;
-		mpext->csum_reqd = mp_opt.csum_reqd;
+		mpext->csum_reqd = !!(mp_opt.suboptions & OPTION_MPTCP_CSUMREQD);
 
 		if (mpext->csum_reqd)
 			mpext->csum = mp_opt.csum;

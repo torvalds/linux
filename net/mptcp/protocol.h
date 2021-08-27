@@ -29,6 +29,13 @@
 #define OPTION_MPTCP_DSS	BIT(11)
 #define OPTION_MPTCP_FAIL	BIT(12)
 
+#define OPTION_MPTCP_CSUMREQD	BIT(13)
+
+#define OPTIONS_MPTCP_MPC	(OPTION_MPTCP_MPC_SYN | OPTION_MPTCP_MPC_SYNACK | \
+				 OPTION_MPTCP_MPC_ACK)
+#define OPTIONS_MPTCP_MPJ	(OPTION_MPTCP_MPJ_SYN | OPTION_MPTCP_MPJ_SYNACK | \
+				 OPTION_MPTCP_MPJ_SYNACK)
+
 /* MPTCP option subtypes */
 #define MPTCPOPT_MP_CAPABLE	0
 #define MPTCPOPT_MP_JOIN	1
@@ -132,36 +139,27 @@ struct mptcp_options_received {
 	u32	subflow_seq;
 	u16	data_len;
 	__sum16	csum;
-	u16	mp_capable : 1,
-		mp_join : 1,
-		fastclose : 1,
-		reset : 1,
-		dss : 1,
-		add_addr : 1,
-		rm_addr : 1,
-		mp_prio : 1,
-		mp_fail : 1,
-		echo : 1,
-		csum_reqd : 1,
-		backup : 1,
-		deny_join_id0 : 1;
+	u16	suboptions;
 	u32	token;
 	u32	nonce;
-	u64	thmac;
-	u8	hmac[MPTCPOPT_HMAC_LEN];
-	u8	join_id;
-	u8	use_map:1,
+	u16	use_map:1,
 		dsn64:1,
 		data_fin:1,
 		use_ack:1,
 		ack64:1,
 		mpc_map:1,
+		reset_reason:4,
+		reset_transient:1,
+		echo:1,
+		backup:1,
+		deny_join_id0:1,
 		__unused:2;
+	u8	join_id;
+	u64	thmac;
+	u8	hmac[MPTCPOPT_HMAC_LEN];
 	struct mptcp_addr_info addr;
 	struct mptcp_rm_list rm_list;
 	u64	ahmac;
-	u8	reset_reason:4;
-	u8	reset_transient:1;
 	u64	fail_seq;
 };
 
