@@ -1829,9 +1829,11 @@ static void packetize_urb(struct usb_hcd *hcd,
 			goto cleanup;
 
 		if (len > mem->blocks_size[ISP176x_BLOCK_NUM - 1])
-			len = mem->blocks_size[ISP176x_BLOCK_NUM - 1];
+			this_qtd_len = mem->blocks_size[ISP176x_BLOCK_NUM - 1];
+		else
+			this_qtd_len = len;
 
-		this_qtd_len = qtd_fill(qtd, buf, len);
+		this_qtd_len = qtd_fill(qtd, buf, this_qtd_len);
 		list_add_tail(&qtd->qtd_list, head);
 
 		len -= this_qtd_len;
