@@ -163,8 +163,6 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 	struct hclgevf_desc *desc;
 	u16 *msg_q;
 	u16 flag;
-	u8 *temp;
-	int i;
 
 	resp = &hdev->mbx_resp;
 	crq = &hdev->hw.cmq.crq;
@@ -212,11 +210,8 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 			resp->resp_status =
 				hclgevf_resp_to_errno(req->msg.resp_status);
 
-			temp = (u8 *)req->msg.resp_data;
-			for (i = 0; i < HCLGE_MBX_MAX_RESP_DATA_SIZE; i++) {
-				resp->additional_info[i] = *temp;
-				temp++;
-			}
+			memcpy(resp->additional_info, req->msg.resp_data,
+			       HCLGE_MBX_MAX_RESP_DATA_SIZE * sizeof(u8));
 
 			/* If match_id is not zero, it means PF support
 			 * match_id. If the match_id is right, VF get the
