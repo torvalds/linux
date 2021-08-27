@@ -44,6 +44,21 @@
 #undef pr_info
 #undef pr_debug
 
+/* unit: MHz */
+#define CYAN_SKILLFISH_SCLK_MIN			1000
+#define CYAN_SKILLFISH_SCLK_MAX			2000
+#define CYAN_SKILLFISH_SCLK_DEFAULT			1800
+
+/* unit: mV */
+#define CYAN_SKILLFISH_VDDC_MIN			700
+#define CYAN_SKILLFISH_VDDC_MAX			1129
+#define CYAN_SKILLFISH_VDDC_MAGIC			5118 // 0x13fe
+
+static struct gfx_user_settings {
+	uint32_t sclk;
+	uint32_t vddc;
+} cyan_skillfish_user_settings;
+
 #define FEATURE_MASK(feature) (1ULL << feature)
 #define SMC_DPM_FEATURE ( \
 	FEATURE_MASK(FEATURE_FCLK_DPM_BIT)	|	\
@@ -297,6 +312,27 @@ static int cyan_skillfish_print_clk_levels(struct smu_context *smu,
 	smu_cmn_get_sysfs_buf(&buf, &size);
 
 	switch (clk_type) {
+	case SMU_OD_SCLK:
+		ret  = cyan_skillfish_get_smu_metrics_data(smu, METRICS_CURR_GFXCLK, &cur_value);
+		if (ret)
+			return ret;
+		size += sysfs_emit_at(buf, size,"%s:\n", "OD_SCLK");
+		size += sysfs_emit_at(buf, size, "0: %uMhz *\n", cur_value);
+		break;
+	case SMU_OD_VDDC_CURVE:
+		ret  = cyan_skillfish_get_smu_metrics_data(smu, METRICS_VOLTAGE_VDDGFX, &cur_value);
+		if (ret)
+			return ret;
+		size += sysfs_emit_at(buf, size,"%s:\n", "OD_VDDC");
+		size += sysfs_emit_at(buf, size, "0: %umV *\n", cur_value);
+		break;
+	case SMU_OD_RANGE:
+		size += sysfs_emit_at(buf, size, "%s:\n", "OD_RANGE");
+		size += sysfs_emit_at(buf, size, "SCLK: %7uMhz %10uMhz\n",
+						CYAN_SKILLFISH_SCLK_MIN, CYAN_SKILLFISH_SCLK_MAX);
+		size += sysfs_emit_at(buf, size, "VDDC: %7umV  %10umV\n",
+						CYAN_SKILLFISH_VDDC_MIN, CYAN_SKILLFISH_VDDC_MAX);
+		break;
 	case SMU_GFXCLK:
 	case SMU_SCLK:
 	case SMU_FCLK:
@@ -394,6 +430,103 @@ static ssize_t cyan_skillfish_get_gpu_metrics(struct smu_context *smu,
 	return sizeof(struct gpu_metrics_v2_2);
 }
 
+static int cyan_skillfish_od_edit_dpm_table(struct smu_context *smu,
+					enum PP_OD_DPM_TABLE_COMMAND type,
+					long input[], uint32_t size)
+{
+	int ret = 0;
+	uint32_t vid;
+
+	switch (type) {
+	case PP_OD_EDIT_VDDC_CURVE:
+		if (size != 3 || input[0] != 0) {
+			dev_err(smu->adev->dev, "Invalid parameter!\n");
+			return -EINVAL;
+		}
+
+		if (input[1] <= CYAN_SKILLFISH_SCLK_MIN ||
+			input[1] > CYAN_SKILLFISH_SCLK_MAX) {
+			dev_err(smu->adev->dev, "Invalid sclk! Valid sclk range: %uMHz - %uMhz\n",
+					CYAN_SKILLFISH_SCLK_MIN, CYAN_SKILLFISH_SCLK_MAX);
+			return -EINVAL;
+		}
+
+		if (input[2] <= CYAN_SKILLFISH_VDDC_MIN ||
+			input[2] > CYAN_SKILLFISH_VDDC_MAX) {
+			dev_err(smu->adev->dev, "Invalid vddc! Valid vddc range: %umV - %umV\n",
+					CYAN_SKILLFISH_VDDC_MIN, CYAN_SKILLFISH_VDDC_MAX);
+			return -EINVAL;
+		}
+
+		cyan_skillfish_user_settings.sclk = input[1];
+		cyan_skillfish_user_settings.vddc = input[2];
+
+		break;
+	case PP_OD_RESTORE_DEFAULT_TABLE:
+		if (size != 0) {
+			dev_err(smu->adev->dev, "Invalid parameter!\n");
+			return -EINVAL;
+		}
+
+		cyan_skillfish_user_settings.sclk = CYAN_SKILLFISH_SCLK_DEFAULT;
+		cyan_skillfish_user_settings.vddc = CYAN_SKILLFISH_VDDC_MAGIC;
+
+		break;
+	case PP_OD_COMMIT_DPM_TABLE:
+		if (size != 0) {
+			dev_err(smu->adev->dev, "Invalid parameter!\n");
+			return -EINVAL;
+		}
+
+		if (cyan_skillfish_user_settings.sclk < CYAN_SKILLFISH_SCLK_MIN ||
+		    cyan_skillfish_user_settings.sclk > CYAN_SKILLFISH_SCLK_MAX) {
+			dev_err(smu->adev->dev, "Invalid sclk! Valid sclk range: %uMHz - %uMhz\n",
+					CYAN_SKILLFISH_SCLK_MIN, CYAN_SKILLFISH_SCLK_MAX);
+			return -EINVAL;
+		}
+
+		if ((cyan_skillfish_user_settings.vddc != CYAN_SKILLFISH_VDDC_MAGIC) &&
+			(cyan_skillfish_user_settings.vddc < CYAN_SKILLFISH_VDDC_MIN ||
+			cyan_skillfish_user_settings.vddc > CYAN_SKILLFISH_VDDC_MAX)) {
+			dev_err(smu->adev->dev, "Invalid vddc! Valid vddc range: %umV - %umV\n",
+					CYAN_SKILLFISH_VDDC_MIN, CYAN_SKILLFISH_VDDC_MAX);
+			return -EINVAL;
+		}
+
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_RequestGfxclk,
+					cyan_skillfish_user_settings.sclk, NULL);
+		if (ret) {
+			dev_err(smu->adev->dev, "Set sclk failed!\n");
+			return ret;
+		}
+
+		if (cyan_skillfish_user_settings.vddc == CYAN_SKILLFISH_VDDC_MAGIC) {
+			ret = smu_cmn_send_smc_msg(smu, SMU_MSG_UnforceGfxVid, NULL);
+			if (ret) {
+				dev_err(smu->adev->dev, "Unforce vddc failed!\n");
+				return ret;
+			}
+		} else {
+			/*
+			 * PMFW accepts SVI2 VID code, convert voltage to VID:
+			 * vid = (uint32_t)((1.55 - voltage) * 160.0 + 0.00001)
+			 */
+			vid = (1550 - cyan_skillfish_user_settings.vddc) * 160 / 1000;
+			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_ForceGfxVid, vid, NULL);
+			if (ret) {
+				dev_err(smu->adev->dev, "Force vddc failed!\n");
+				return ret;
+			}
+		}
+
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs cyan_skillfish_ppt_funcs = {
 
 	.check_fw_status = smu_v11_0_check_fw_status,
@@ -406,6 +539,7 @@ static const struct pptable_funcs cyan_skillfish_ppt_funcs = {
 	.print_clk_levels = cyan_skillfish_print_clk_levels,
 	.is_dpm_running = cyan_skillfish_is_dpm_running,
 	.get_gpu_metrics = cyan_skillfish_get_gpu_metrics,
+	.od_edit_dpm_table = cyan_skillfish_od_edit_dpm_table,
 	.register_irq_handler = smu_v11_0_register_irq_handler,
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
 	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
