@@ -110,7 +110,7 @@ static int mhi_wwan_ctrl_start(struct wwan_port *port)
 	int ret;
 
 	/* Start mhi device's channel(s) */
-	ret = mhi_prepare_for_transfer(mhiwwan->mhi_dev, 0);
+	ret = mhi_prepare_for_transfer(mhiwwan->mhi_dev);
 	if (ret)
 		return ret;
 
