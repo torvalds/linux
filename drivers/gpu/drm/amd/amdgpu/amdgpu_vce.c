@@ -1167,3 +1167,17 @@ error:
 	amdgpu_bo_free_kernel(&bo, NULL, NULL);
 	return r;
 }
+
+enum amdgpu_ring_priority_level amdgpu_vce_get_ring_prio(int ring)
+{
+	switch(ring) {
+	case 0:
+		return AMDGPU_RING_PRIO_0;
+	case 1:
+		return AMDGPU_RING_PRIO_1;
+	case 2:
+		return AMDGPU_RING_PRIO_2;
+	default:
+		return AMDGPU_RING_PRIO_0;
+	}
+}
