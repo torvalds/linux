@@ -99,7 +99,7 @@ struct vepu_dev {
 
 	struct mpp_clk_info aclk_info;
 	struct mpp_clk_info hclk_info;
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 	struct proc_dir_entry *procfs;
 #endif
 	struct reset_control *rst_a;
@@ -467,7 +467,7 @@ static int vepu_init_session(struct mpp_session *session)
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 static int vepu_procfs_remove(struct mpp_dev *mpp)
 {
 	struct vepu_dev *enc = to_vepu_dev(mpp);

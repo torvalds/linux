@@ -863,7 +863,7 @@ err_free_node:
 	return ret;
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 int rkvdec2_link_procfs_init(struct mpp_dev *mpp)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);

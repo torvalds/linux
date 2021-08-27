@@ -144,7 +144,7 @@ static int mpp_remove_service(struct mpp_service *srv)
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 static int mpp_procfs_remove(struct mpp_service *srv)
 {
 	if (srv->procfs) {

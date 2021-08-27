@@ -161,7 +161,7 @@ struct rkvdec_dev {
 	struct mpp_clk_info cabac_clk_info;
 	struct mpp_clk_info hevc_cabac_clk_info;
 	u32 default_max_load;
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 	struct proc_dir_entry *procfs;
 #endif
 	struct reset_control *rst_a;
@@ -1146,7 +1146,7 @@ static int rkvdec_free_task(struct mpp_session *session,
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 static int rkvdec_procfs_remove(struct mpp_dev *mpp)
 {
 	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);

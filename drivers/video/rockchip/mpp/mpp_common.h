@@ -463,7 +463,7 @@ struct mpp_service {
 	dev_t dev_id;
 	struct cdev mpp_cdev;
 	struct device *child_dev;
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 	struct proc_dir_entry *procfs;
 #endif
 	unsigned long hw_support;
@@ -731,7 +731,7 @@ static inline int mpp_reset_up_write(struct mpp_reset_group *group)
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 struct proc_dir_entry *
 mpp_procfs_create_u32(const char *name, umode_t mode,
 		      struct proc_dir_entry *parent, void *data);
@@ -744,7 +744,7 @@ mpp_procfs_create_u32(const char *name, umode_t mode,
 }
 #endif
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 extern const char *mpp_device_name[MPP_DEVICE_BUTT];
 extern const char *enc_info_item_name[ENC_INFO_BUTT];
 #endif

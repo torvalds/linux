@@ -102,7 +102,7 @@ struct vdpu_dev {
 
 	struct mpp_clk_info aclk_info;
 	struct mpp_clk_info hclk_info;
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 	struct proc_dir_entry *procfs;
 #endif
 	struct reset_control *rst_a;
@@ -432,7 +432,7 @@ static int vdpu_free_task(struct mpp_session *session,
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 static int vdpu_procfs_remove(struct mpp_dev *mpp)
 {
 	struct vdpu_dev *dec = to_vdpu_dev(mpp);

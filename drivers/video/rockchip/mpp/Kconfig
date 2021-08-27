@@ -3,11 +3,17 @@
 menuconfig ROCKCHIP_MPP_SERVICE
 	tristate "mpp service framework"
 	depends on ARCH_ROCKCHIP
-	default n
 	help
 	  rockchip mpp service framework.
 
 if ROCKCHIP_MPP_SERVICE
+
+config ROCKCHIP_MPP_PROC_FS
+	bool "mpp service procfs"
+	depends on PROC_FS
+	default y
+	help
+	  rockchip mpp service procfs.
 
 config ROCKCHIP_MPP_RKVDEC
 	bool "RKV decoder device driver"

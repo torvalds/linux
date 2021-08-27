@@ -556,7 +556,7 @@ static int rkvdec2_init_session(struct mpp_session *session)
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 static int rkvdec2_procfs_remove(struct mpp_dev *mpp)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
