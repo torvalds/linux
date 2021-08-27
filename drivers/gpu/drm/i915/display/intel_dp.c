@@ -1782,8 +1782,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	intel_vrr_compute_config(pipe_config, conn_state);
 	intel_psr_compute_config(intel_dp, pipe_config);
-	intel_dp_drrs_compute_config(intel_dp, pipe_config, output_bpp,
-				     constant_n);
+	intel_drrs_compute_config(intel_dp, pipe_config, output_bpp,
+				  constant_n);
 	intel_dp_compute_vsc_sdp(intel_dp, pipe_config, conn_state);
 	intel_dp_compute_hdr_metadata_infoframe_sdp(intel_dp, pipe_config, conn_state);
 
@@ -4802,7 +4802,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 
 	fixed_mode = intel_panel_edid_fixed_mode(intel_connector);
 	if (fixed_mode)
-		downclock_mode = intel_dp_drrs_init(intel_connector, fixed_mode);
+		downclock_mode = intel_drrs_init(intel_connector, fixed_mode);
 
 	/* multiply the mode clock and horizontal timings for MSO */
 	intel_edp_mso_mode_fixup(intel_connector, fixed_mode);
