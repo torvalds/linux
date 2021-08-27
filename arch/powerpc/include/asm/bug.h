@@ -119,7 +119,8 @@ __label_warn_on:						\
 								\
 			WARN_ENTRY(PPC_TLNEI " %4, 0",		\
 				   BUGFLAG_WARNING | BUGFLAG_TAINT(TAINT_WARN),	\
-				   __label_warn_on, "r" (x));	\
+				   __label_warn_on,		\
+				   "r" ((__force long)(x)));	\
 			break;					\
 __label_warn_on:						\
 			__ret_warn_on = true;			\
