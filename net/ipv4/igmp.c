@@ -803,7 +803,7 @@ static void igmp_gq_timer_expire(struct timer_list *t)
 static void igmp_ifc_timer_expire(struct timer_list *t)
 {
 	struct in_device *in_dev = from_timer(in_dev, t, mr_ifc_timer);
-	u32 mr_ifc_count;
+	u8 mr_ifc_count;
 
 	igmpv3_send_cr(in_dev);
 restart:
