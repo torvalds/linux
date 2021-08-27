@@ -82,8 +82,7 @@ config SWIOTLB
 
 config DMA_RESTRICTED_POOL
 	bool "DMA Restricted Pool"
-	depends on OF && OF_RESERVED_MEM
-	select SWIOTLB
+	depends on OF && OF_RESERVED_MEM && SWIOTLB
 	help
 	  This enables support for restricted DMA pools which provide a level of
 	  DMA memory protection on systems with limited hardware protection
