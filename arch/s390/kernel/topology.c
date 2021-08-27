@@ -67,7 +67,7 @@ static void cpu_group_map(cpumask_t *dst, struct mask_info *info, unsigned int c
 	static cpumask_t mask;
 
 	cpumask_clear(&mask);
-	if (!cpu_online(cpu))
+	if (!cpumask_test_cpu(cpu, &cpu_setup_mask))
 		goto out;
 	cpumask_set_cpu(cpu, &mask);
 	switch (topology_mode) {
@@ -88,7 +88,7 @@ static void cpu_group_map(cpumask_t *dst, struct mask_info *info, unsigned int c
 	case TOPOLOGY_MODE_SINGLE:
 		break;
 	}
-	cpumask_and(&mask, &mask, cpu_online_mask);
+	cpumask_and(&mask, &mask, &cpu_setup_mask);
 out:
 	cpumask_copy(dst, &mask);
 }
@@ -99,16 +99,16 @@ static void cpu_thread_map(cpumask_t *dst, unsigned int cpu)
 	int i;
 
 	cpumask_clear(&mask);
-	if (!cpu_online(cpu))
+	if (!cpumask_test_cpu(cpu, &cpu_setup_mask))
 		goto out;
 	cpumask_set_cpu(cpu, &mask);
 	if (topology_mode != TOPOLOGY_MODE_HW)
 		goto out;
 	cpu -= cpu % (smp_cpu_mtid + 1);
-	for (i = 0; i <= smp_cpu_mtid; i++)
-		if (cpu_present(cpu + i))
+	for (i = 0; i <= smp_cpu_mtid; i++) {
+		if (cpumask_test_cpu(cpu + i, &cpu_setup_mask))
 			cpumask_set_cpu(cpu + i, &mask);
-	cpumask_and(&mask, &mask, cpu_online_mask);
+	}
 out:
 	cpumask_copy(dst, &mask);
 }
@@ -569,6 +569,7 @@ void __init topology_init_early(void)
 	alloc_masks(info, &book_info, 2);
 	alloc_masks(info, &drawer_info, 3);
 out:
+	cpumask_set_cpu(0, &cpu_setup_mask);
 	__arch_update_cpu_topology();
 	__arch_update_dedicated_flag(NULL);
 }
