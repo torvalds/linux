@@ -1847,36 +1847,58 @@ static const struct vop_data rv1126_vop = {
 };
 
 static const struct of_device_id vop_driver_dt_match[] = {
+#if IS_ENABLED(CONFIG_CPU_RK3036)
 	{ .compatible = "rockchip,rk3036-vop",
 	  .data = &rk3036_vop },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK30XX)
 	{ .compatible = "rockchip,rk3066-vop",
 	  .data = &rk3066_vop },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK312X)
 	{ .compatible = "rockchip,rk3126-vop",
 	  .data = &rk3126_vop },
+#endif
+#if IS_ENABLED(CONFIG_CPU_PX30)
 	{ .compatible = "rockchip,px30-vop-lit",
 	  .data = &px30_vop_lit },
 	{ .compatible = "rockchip,px30-vop-big",
 	  .data = &px30_vop_big },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3308)
 	{ .compatible = "rockchip,rk3308-vop",
 	  .data = &rk3308_vop },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RV1126)
 	{ .compatible = "rockchip,rv1126-vop",
 	  .data = &rv1126_vop },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3288)
 	{ .compatible = "rockchip,rk3288-vop-big",
 	  .data = &rk3288_vop_big },
 	{ .compatible = "rockchip,rk3288-vop-lit",
 	  .data = &rk3288_vop_lit },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3368)
 	{ .compatible = "rockchip,rk3368-vop",
 	  .data = &rk3368_vop },
 	{ .compatible = "rockchip,rk3366-vop",
 	  .data = &rk3366_vop },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3399)
 	{ .compatible = "rockchip,rk3399-vop-big",
 	  .data = &rk3399_vop_big },
 	{ .compatible = "rockchip,rk3399-vop-lit",
 	  .data = &rk3399_vop_lit },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK322X)
 	{ .compatible = "rockchip,rk3228-vop",
 	  .data = &rk3228_vop },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3328)
 	{ .compatible = "rockchip,rk3328-vop",
 	  .data = &rk3328_vop },
+#endif
 	{},
 };
 MODULE_DEVICE_TABLE(of, vop_driver_dt_match);
