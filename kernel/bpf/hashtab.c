@@ -1425,8 +1425,8 @@ alloc:
 	/* We cannot do copy_from_user or copy_to_user inside
 	 * the rcu_read_lock. Allocate enough space here.
 	 */
-	keys = kvmalloc(key_size * bucket_size, GFP_USER | __GFP_NOWARN);
-	values = kvmalloc(value_size * bucket_size, GFP_USER | __GFP_NOWARN);
+	keys = kvmalloc_array(key_size, bucket_size, GFP_USER | __GFP_NOWARN);
+	values = kvmalloc_array(value_size, bucket_size, GFP_USER | __GFP_NOWARN);
 	if (!keys || !values) {
 		ret = -ENOMEM;
 		goto after_loop;

@@ -790,9 +790,64 @@ static int ksz8795_port_vlan_filtering(struct dsa_switch *ds, int port,
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
 
+	/* Discard packets with VID not enabled on the switch */
 	ksz_cfg(dev, S_MIRROR_CTRL, SW_VLAN_ENABLE, flag);
 
+	/* Discard packets with VID not enabled on the ingress port */
+	for (port = 0; port < dev->phy_port_cnt; ++port)
+		ksz_port_cfg(dev, port, REG_PORT_CTRL_2, PORT_INGRESS_FILTER,
+			     flag);
+
 	return 0;
+}
+
+static bool ksz8795_port_vlan_changes_remove_tag(
+	struct dsa_switch *ds, int port,
+	const struct switchdev_obj_port_vlan *vlan)
+{
+	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
+	struct ksz_device *dev = ds->priv;
+	struct ksz_port *p = &dev->ports[port];
+
+	/* If a VLAN is added with untagged flag different from the
+	 * port's Remove Tag flag, we need to change the latter.
+	 * Ignore VID 0, which is always untagged.
+	 * Ignore CPU port, which will always be tagged.
+	 */
+	return untagged != p->remove_tag &&
+		!(vlan->vid_begin == 0 && vlan->vid_end == 0) &&
+		port != dev->cpu_port;
+}
+
+int ksz8795_port_vlan_prepare(struct dsa_switch *ds, int port,
+			      const struct switchdev_obj_port_vlan *vlan)
+{
+	struct ksz_device *dev = ds->priv;
+
+	/* Reject attempts to add a VLAN that requires the Remove Tag
+	 * flag to be changed, unless there are no other VLANs
+	 * currently configured.
+	 */
+	if (ksz8795_port_vlan_changes_remove_tag(ds, port, vlan)) {
+		unsigned int vid;
+
+		for (vid = 1; vid < dev->num_vlans; ++vid) {
+			u8 fid, member, valid;
+
+			/* Skip the VIDs we are going to add or reconfigure */
+			if (vid == vlan->vid_begin) {
+				vid = vlan->vid_end;
+				continue;
+			}
+
+			ksz8795_from_vlan(dev->vlan_cache[vid].table[0],
+					  &fid, &member, &valid);
+			if (valid && (member & BIT(port)))
+				return -EINVAL;
+		}
+	}
+
+	return ksz_port_vlan_prepare(ds, port, vlan);
 }
 
 static void ksz8795_port_vlan_add(struct dsa_switch *ds, int port,
@@ -800,10 +855,14 @@ static void ksz8795_port_vlan_add(struct dsa_switch *ds, int port,
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct ksz_device *dev = ds->priv;
+	struct ksz_port *p = &dev->ports[port];
 	u16 data, vid, new_pvid = 0;
 	u8 fid, member, valid;
 
-	ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
+	if (ksz8795_port_vlan_changes_remove_tag(ds, port, vlan)) {
+		ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
+		p->remove_tag = untagged;
+	}
 
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
 		ksz8795_r_vlan_table(dev, vid, &data);
@@ -827,24 +886,24 @@ static void ksz8795_port_vlan_add(struct dsa_switch *ds, int port,
 
 	if (new_pvid) {
 		ksz_pread16(dev, port, REG_PORT_CTRL_VID, &vid);
-		vid &= 0xfff;
+		vid &= ~VLAN_VID_MASK;
 		vid |= new_pvid;
 		ksz_pwrite16(dev, port, REG_PORT_CTRL_VID, vid);
+
+		ksz_pwrite8(dev, port, REG_PORT_CTRL_12, 0x0f);
 	}
 }
 
 static int ksz8795_port_vlan_del(struct dsa_switch *ds, int port,
 				 const struct switchdev_obj_port_vlan *vlan)
 {
-	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct ksz_device *dev = ds->priv;
-	u16 data, vid, pvid, new_pvid = 0;
+	u16 data, vid, pvid;
 	u8 fid, member, valid;
+	bool del_pvid = false;
 
 	ksz_pread16(dev, port, REG_PORT_CTRL_VID, &pvid);
 	pvid = pvid & 0xFFF;
-
-	ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
 
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
 		ksz8795_r_vlan_table(dev, vid, &data);
@@ -859,14 +918,14 @@ static int ksz8795_port_vlan_del(struct dsa_switch *ds, int port,
 		}
 
 		if (pvid == vid)
-			new_pvid = 1;
+			del_pvid = true;
 
 		ksz8795_to_vlan(fid, member, valid, &data);
 		ksz8795_w_vlan_table(dev, vid, data);
 	}
 
-	if (new_pvid != pvid)
-		ksz_pwrite16(dev, port, REG_PORT_CTRL_VID, pvid);
+	if (del_pvid)
+		ksz_pwrite8(dev, port, REG_PORT_CTRL_12, 0x00);
 
 	return 0;
 }
@@ -1079,6 +1138,8 @@ static int ksz8795_setup(struct dsa_switch *ds)
 
 	ksz_cfg(dev, S_MIRROR_CTRL, SW_MIRROR_RX_TX, false);
 
+	ksz_cfg(dev, REG_SW_CTRL_19, SW_INS_TAG_ENABLE, true);
+
 	/* set broadcast storm protection 10% rate */
 	regmap_update_bits(dev->regmap[1], S_REPLACE_VID_CTRL,
 			   BROADCAST_STORM_RATE,
@@ -1117,7 +1178,7 @@ static const struct dsa_switch_ops ksz8795_switch_ops = {
 	.port_stp_state_set	= ksz8795_port_stp_state_set,
 	.port_fast_age		= ksz_port_fast_age,
 	.port_vlan_filtering	= ksz8795_port_vlan_filtering,
-	.port_vlan_prepare	= ksz_port_vlan_prepare,
+	.port_vlan_prepare	= ksz8795_port_vlan_prepare,
 	.port_vlan_add		= ksz8795_port_vlan_add,
 	.port_vlan_del		= ksz8795_port_vlan_del,
 	.port_fdb_dump		= ksz_port_fdb_dump,
@@ -1265,6 +1326,16 @@ static int ksz8795_switch_init(struct ksz_device *dev)
 
 	/* set the real number of ports */
 	dev->ds->num_ports = dev->port_cnt + 1;
+
+	/* We rely on software untagging on the CPU port, so that we
+	 * can support both tagged and untagged VLANs
+	 */
+	dev->ds->untag_bridge_pvid = true;
+
+	/* VLAN filtering is partly controlled by the global VLAN
+	 * Enable flag
+	 */
+	dev->ds->vlan_filtering_is_global = true;
 
 	return 0;
 }
