@@ -763,7 +763,7 @@ static int otx2_prepare_ipv6_flow(struct ethtool_rx_flow_spec *fsp,
 	return 0;
 }
 
-int otx2_prepare_flow_request(struct ethtool_rx_flow_spec *fsp,
+static int otx2_prepare_flow_request(struct ethtool_rx_flow_spec *fsp,
 			      struct npc_install_flow_req *req)
 {
 	struct ethhdr *eth_mask = &fsp->m_u.ether_spec;
@@ -819,8 +819,30 @@ int otx2_prepare_flow_request(struct ethtool_rx_flow_spec *fsp,
 		return -EOPNOTSUPP;
 	}
 	if (fsp->flow_type & FLOW_EXT) {
-		if (fsp->m_ext.vlan_etype)
-			return -EINVAL;
+		u16 vlan_etype;
+
+		if (fsp->m_ext.vlan_etype) {
+			/* Partial masks not supported */
+			if (be16_to_cpu(fsp->m_ext.vlan_etype) != 0xFFFF)
+				return -EINVAL;
+
+			vlan_etype = be16_to_cpu(fsp->h_ext.vlan_etype);
+			/* Only ETH_P_8021Q and ETH_P_802AD types supported */
+			if (vlan_etype != ETH_P_8021Q &&
+			    vlan_etype != ETH_P_8021AD)
+				return -EINVAL;
+
+			memcpy(&pkt->vlan_etype, &fsp->h_ext.vlan_etype,
+			       sizeof(pkt->vlan_etype));
+			memcpy(&pmask->vlan_etype, &fsp->m_ext.vlan_etype,
+			       sizeof(pmask->vlan_etype));
+
+			if (vlan_etype == ETH_P_8021Q)
+				req->features |= BIT_ULL(NPC_VLAN_ETYPE_CTAG);
+			else
+				req->features |= BIT_ULL(NPC_VLAN_ETYPE_STAG);
+		}
+
 		if (fsp->m_ext.vlan_tci) {
 			memcpy(&pkt->vlan_tci, &fsp->h_ext.vlan_tci,
 			       sizeof(pkt->vlan_tci));
@@ -996,6 +1018,7 @@ int otx2_add_flow(struct otx2_nic *pfvf, struct ethtool_rxnfc *nfc)
 		if (!flow)
 			return -ENOMEM;
 		flow->location = fsp->location;
+		flow->entry = flow_cfg->flow_ent[flow->location];
 		new = true;
 	}
 	/* struct copy */
@@ -1047,7 +1070,6 @@ int otx2_add_flow(struct otx2_nic *pfvf, struct ethtool_rxnfc *nfc)
 				    flow_cfg->max_flows - 1);
 			err = -EINVAL;
 		} else {
-			flow->entry = flow_cfg->flow_ent[flow->location];
 			err = otx2_add_flow_msg(pfvf, flow);
 		}
 	}

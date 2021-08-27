@@ -20,6 +20,8 @@ static const char * const npc_flow_names[] = {
 	[NPC_DMAC]	= "dmac",
 	[NPC_SMAC]	= "smac",
 	[NPC_ETYPE]	= "ether type",
+	[NPC_VLAN_ETYPE_CTAG] = "vlan ether type ctag",
+	[NPC_VLAN_ETYPE_STAG] = "vlan ether type stag",
 	[NPC_OUTER_VID]	= "outer vlan id",
 	[NPC_TOS]	= "tos",
 	[NPC_SIP_IPV4]	= "ipv4 source ip",
@@ -492,6 +494,11 @@ static void npc_set_features(struct rvu *rvu, int blkaddr, u8 intf)
 	if (*features & BIT_ULL(NPC_OUTER_VID))
 		if (!npc_check_field(rvu, blkaddr, NPC_LB, intf))
 			*features &= ~BIT_ULL(NPC_OUTER_VID);
+
+	/* for vlan ethertypes corresponding layer type should be in the key */
+	if (npc_check_field(rvu, blkaddr, NPC_LB, intf))
+		*features |= BIT_ULL(NPC_VLAN_ETYPE_CTAG) |
+			     BIT_ULL(NPC_VLAN_ETYPE_STAG);
 }
 
 /* Scan key extraction profile and record how fields of our interest
@@ -747,6 +754,28 @@ static void npc_update_ipv6_flow(struct rvu *rvu, struct mcam_entry *entry,
 	}
 }
 
+static void npc_update_vlan_features(struct rvu *rvu, struct mcam_entry *entry,
+				     u64 features, u8 intf)
+{
+	bool ctag = !!(features & BIT_ULL(NPC_VLAN_ETYPE_CTAG));
+	bool stag = !!(features & BIT_ULL(NPC_VLAN_ETYPE_STAG));
+	bool vid = !!(features & BIT_ULL(NPC_OUTER_VID));
+
+	/* If only VLAN id is given then always match outer VLAN id */
+	if (vid && !ctag && !stag) {
+		npc_update_entry(rvu, NPC_LB, entry,
+				 NPC_LT_LB_STAG_QINQ | NPC_LT_LB_CTAG, 0,
+				 NPC_LT_LB_STAG_QINQ & NPC_LT_LB_CTAG, 0, intf);
+		return;
+	}
+	if (ctag)
+		npc_update_entry(rvu, NPC_LB, entry, NPC_LT_LB_CTAG, 0,
+				 ~0ULL, 0, intf);
+	if (stag)
+		npc_update_entry(rvu, NPC_LB, entry, NPC_LT_LB_STAG_QINQ, 0,
+				 ~0ULL, 0, intf);
+}
+
 static void npc_update_flow(struct rvu *rvu, struct mcam_entry *entry,
 			    u64 features, struct flow_msg *pkt,
 			    struct flow_msg *mask,
@@ -778,11 +807,6 @@ static void npc_update_flow(struct rvu *rvu, struct mcam_entry *entry,
 	if (features & BIT_ULL(NPC_IPPROTO_ICMP6))
 		npc_update_entry(rvu, NPC_LD, entry, NPC_LT_LD_ICMP6,
 				 0, ~0ULL, 0, intf);
-
-	if (features & BIT_ULL(NPC_OUTER_VID))
-		npc_update_entry(rvu, NPC_LB, entry,
-				 NPC_LT_LB_STAG_QINQ | NPC_LT_LB_CTAG, 0,
-				 NPC_LT_LB_STAG_QINQ & NPC_LT_LB_CTAG, 0, intf);
 
 	/* For AH, LTYPE should be present in entry */
 	if (features & BIT_ULL(NPC_IPPROTO_AH))
@@ -829,6 +853,7 @@ do {									      \
 		       ntohs(mask->vlan_tci), 0);
 
 	npc_update_ipv6_flow(rvu, entry, features, pkt, mask, output, intf);
+	npc_update_vlan_features(rvu, entry, features, intf);
 }
 
 static struct rvu_npc_mcam_rule *rvu_mcam_find_rule(struct npc_mcam *mcam,
