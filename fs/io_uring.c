@@ -1670,6 +1670,24 @@ static inline void io_put_task(struct task_struct *task, int nr)
 	}
 }
 
+static void io_task_refs_refill(struct io_uring_task *tctx)
+{
+	unsigned int refill = -tctx->cached_refs + IO_TCTX_REFS_CACHE_NR;
+
+	percpu_counter_add(&tctx->inflight, refill);
+	refcount_add(refill, &current->usage);
+	tctx->cached_refs += refill;
+}
+
+static inline void io_get_task_refs(int nr)
+{
+	struct io_uring_task *tctx = current->io_uring;
+
+	tctx->cached_refs -= nr;
+	if (unlikely(tctx->cached_refs < 0))
+		io_task_refs_refill(tctx);
+}
+
 static bool io_cqring_event_overflow(struct io_ring_ctx *ctx, u64 user_data,
 				     long res, unsigned int cflags)
 {
@@ -6890,25 +6908,15 @@ static const struct io_uring_sqe *io_get_sqe(struct io_ring_ctx *ctx)
 static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 	__must_hold(&ctx->uring_lock)
 {
-	struct io_uring_task *tctx;
 	int submitted = 0;
 
 	/* make sure SQ entry isn't read before tail */
 	nr = min3(nr, ctx->sq_entries, io_sqring_entries(ctx));
 	if (!percpu_ref_tryget_many(&ctx->refs, nr))
 		return -EAGAIN;
+	io_get_task_refs(nr);
 
-	tctx = current->io_uring;
-	tctx->cached_refs -= nr;
-	if (unlikely(tctx->cached_refs < 0)) {
-		unsigned int refill = -tctx->cached_refs + IO_TCTX_REFS_CACHE_NR;
-
-		percpu_counter_add(&tctx->inflight, refill);
-		refcount_add(refill, &current->usage);
-		tctx->cached_refs += refill;
-	}
 	io_submit_state_start(&ctx->submit_state, nr);
-
 	while (submitted < nr) {
 		const struct io_uring_sqe *sqe;
 		struct io_kiocb *req;
