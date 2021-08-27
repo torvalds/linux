@@ -553,7 +553,7 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 	mutex_lock(&subsys->lock);
 	ret = 0;
 
-	if (nvmet_passthru_ctrl(subsys)) {
+	if (nvmet_is_passthru_subsys(subsys)) {
 		pr_info("cannot enable both passthru and regular namespaces for a single subsystem");
 		goto out_unlock;
 	}
@@ -869,7 +869,7 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 	if (unlikely(ret))
 		return ret;
 
-	if (nvmet_req_passthru_ctrl(req))
+	if (nvmet_is_passthru_req(req))
 		return nvmet_parse_passthru_io_cmd(req);
 
 	ret = nvmet_req_find_ns(req);
@@ -1207,7 +1207,7 @@ static void nvmet_init_cap(struct nvmet_ctrl *ctrl)
 	/* maximum queue entries supported: */
 	ctrl->cap |= NVMET_QUEUE_SIZE - 1;
 
-	if (nvmet_passthru_ctrl(ctrl->subsys))
+	if (nvmet_is_passthru_subsys(ctrl->subsys))
 		nvmet_passthrough_override_cap(ctrl);
 }
 

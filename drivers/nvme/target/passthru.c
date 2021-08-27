@@ -228,7 +228,7 @@ static int nvmet_passthru_map_sg(struct nvmet_req *req, struct request *rq)
 
 static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 {
-	struct nvme_ctrl *ctrl = nvmet_req_passthru_ctrl(req);
+	struct nvme_ctrl *ctrl = nvmet_req_subsys(req)->passthru_ctrl;
 	struct request_queue *q = ctrl->admin_q;
 	struct nvme_ns *ns = NULL;
 	struct request *rq = NULL;
@@ -309,7 +309,7 @@ out:
  */
 static void nvmet_passthru_set_host_behaviour(struct nvmet_req *req)
 {
-	struct nvme_ctrl *ctrl = nvmet_req_passthru_ctrl(req);
+	struct nvme_ctrl *ctrl = nvmet_req_subsys(req)->passthru_ctrl;
 	struct nvme_feat_host_behavior *host;
 	u16 status = NVME_SC_INTERNAL;
 	int ret;

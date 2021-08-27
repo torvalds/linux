@@ -582,7 +582,7 @@ int nvmet_passthru_ctrl_enable(struct nvmet_subsys *subsys);
 void nvmet_passthru_ctrl_disable(struct nvmet_subsys *subsys);
 u16 nvmet_parse_passthru_admin_cmd(struct nvmet_req *req);
 u16 nvmet_parse_passthru_io_cmd(struct nvmet_req *req);
-static inline struct nvme_ctrl *nvmet_passthru_ctrl(struct nvmet_subsys *subsys)
+static inline bool nvmet_is_passthru_subsys(struct nvmet_subsys *subsys)
 {
 	return subsys->passthru_ctrl;
 }
@@ -601,16 +601,15 @@ static inline u16 nvmet_parse_passthru_io_cmd(struct nvmet_req *req)
 {
 	return 0;
 }
-static inline struct nvme_ctrl *nvmet_passthru_ctrl(struct nvmet_subsys *subsys)
+static inline bool nvmet_is_passthru_subsys(struct nvmet_subsys *subsys)
 {
 	return NULL;
 }
 #endif /* CONFIG_NVME_TARGET_PASSTHRU */
 
-static inline struct nvme_ctrl *
-nvmet_req_passthru_ctrl(struct nvmet_req *req)
+static inline bool nvmet_is_passthru_req(struct nvmet_req *req)
 {
-	return nvmet_passthru_ctrl(nvmet_req_subsys(req));
+	return nvmet_is_passthru_subsys(nvmet_req_subsys(req));
 }
 
 void nvmet_passthrough_override_cap(struct nvmet_ctrl *ctrl);

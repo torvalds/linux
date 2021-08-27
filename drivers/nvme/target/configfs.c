@@ -1028,7 +1028,7 @@ nvmet_subsys_attr_version_store_locked(struct nvmet_subsys *subsys,
 	}
 
 	/* passthru subsystems use the underlying controller's version */
-	if (nvmet_passthru_ctrl(subsys))
+	if (nvmet_is_passthru_subsys(subsys))
 		return -EINVAL;
 
 	ret = sscanf(page, "%d.%d.%d\n", &major, &minor, &tertiary);
