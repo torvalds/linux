@@ -154,11 +154,11 @@ struct false_alarm_stats {
 };
 
 struct dyn_primary_cca {
-	u8		PriCCA_flag;
+	u8		pri_cca_flag;
 	u8		intf_flag;
 	u8		intf_type;
-	u8		DupRTS_flag;
-	u8		Monitor_flag;
+	u8		dup_rts_flag;
+	u8		monitor_flag;
 };
 
 struct rx_hpc {
