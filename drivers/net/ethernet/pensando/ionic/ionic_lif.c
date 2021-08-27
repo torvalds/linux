@@ -93,10 +93,17 @@ static void ionic_lif_deferred_work(struct work_struct *work)
 			ionic_link_status_check(lif);
 			break;
 		case IONIC_DW_TYPE_LIF_RESET:
-			if (w->fw_status)
+			if (w->fw_status) {
 				ionic_lif_handle_fw_up(lif);
-			else
+			} else {
 				ionic_lif_handle_fw_down(lif);
+
+				/* Fire off another watchdog to see
+				 * if the FW is already back rather than
+				 * waiting another whole cycle
+				 */
+				mod_timer(&lif->ionic->watchdog_timer, jiffies + 1);
+			}
 			break;
 		default:
 			break;
