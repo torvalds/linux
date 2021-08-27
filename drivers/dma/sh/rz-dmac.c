@@ -919,7 +919,7 @@ err:
 	for (i = 0; i < channel_num; i++) {
 		struct rz_dmac_chan *channel = &dmac->channels[i];
 
-		dma_free_coherent(NULL,
+		dma_free_coherent(&pdev->dev,
 				  sizeof(struct rz_lmdesc) * DMAC_NR_LMDESC,
 				  channel->lmdesc.base,
 				  channel->lmdesc.base_dma);
@@ -936,7 +936,7 @@ static int rz_dmac_remove(struct platform_device *pdev)
 	for (i = 0; i < dmac->n_channels; i++) {
 		struct rz_dmac_chan *channel = &dmac->channels[i];
 
-		dma_free_coherent(NULL,
+		dma_free_coherent(&pdev->dev,
 				  sizeof(struct rz_lmdesc) * DMAC_NR_LMDESC,
 				  channel->lmdesc.base,
 				  channel->lmdesc.base_dma);
