@@ -333,6 +333,8 @@ struct cs8409_spec {
 
 	unsigned int playback_started:1;
 	unsigned int capture_started:1;
+	unsigned int init_done:1;
+	unsigned int build_ctrl_done:1;
 
 	/* verb exec op override */
 	int (*exec_verb)(struct hdac_device *dev, unsigned int cmd, unsigned int flags,
