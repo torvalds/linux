@@ -171,25 +171,24 @@ static inline __attribute_const__ u32 msi_mask(unsigned x)
  * reliably as devices without an INTx disable bit will then generate a
  * level IRQ which will never be cleared.
  */
-void __pci_msi_desc_mask_irq(struct msi_desc *desc, u32 mask, u32 flag)
+u32 __pci_msi_desc_mask_irq(struct msi_desc *desc, u32 mask, u32 flag)
 {
-	raw_spinlock_t *lock = &desc->dev->msi_lock;
-	unsigned long flags;
+	u32 mask_bits = desc->masked;
 
 	if (pci_msi_ignore_mask || !desc->msi_attrib.maskbit)
-		return;
+		return 0;
 
-	raw_spin_lock_irqsave(lock, flags);
-	desc->masked &= ~mask;
-	desc->masked |= flag;
+	mask_bits &= ~mask;
+	mask_bits |= flag;
 	pci_write_config_dword(msi_desc_to_pci_dev(desc), desc->mask_pos,
-			       desc->masked);
-	raw_spin_unlock_irqrestore(lock, flags);
+			       mask_bits);
+
+	return mask_bits;
 }
 
 static void msi_mask_irq(struct msi_desc *desc, u32 mask, u32 flag)
 {
-	__pci_msi_desc_mask_irq(desc, mask, flag);
+	desc->masked = __pci_msi_desc_mask_irq(desc, mask, flag);
 }
 
 static void __iomem *pci_msix_desc_addr(struct msi_desc *desc)
