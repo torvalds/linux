@@ -910,7 +910,8 @@ static int record__open(struct record *rec)
 		 * Enable the dummy event when the process is forked for
 		 * initial_delay, immediately for system wide.
 		 */
-		if (opts->initial_delay && !pos->immediate)
+		if (opts->initial_delay && !pos->immediate &&
+		    !target__has_cpu(&opts->target))
 			pos->core.attr.enable_on_exec = 1;
 		else
 			pos->immediate = 1;
