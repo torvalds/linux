@@ -962,7 +962,7 @@ static void msdc_set_mclk(struct msdc_host *host, unsigned char timing, u32 hz)
 }
 
 static inline u32 msdc_cmd_find_resp(struct msdc_host *host,
-		struct mmc_request *mrq, struct mmc_command *cmd)
+		struct mmc_command *cmd)
 {
 	u32 resp;
 
@@ -998,7 +998,7 @@ static inline u32 msdc_cmd_prepare_raw_cmd(struct msdc_host *host,
 	 * stop << 14 | rw << 13 | dtype << 11 | rsptyp << 7 | brk << 6 | opcode
 	 */
 	u32 opcode = cmd->opcode;
-	u32 resp = msdc_cmd_find_resp(host, mrq, cmd);
+	u32 resp = msdc_cmd_find_resp(host, cmd);
 	u32 rawcmd = (opcode & 0x3f) | ((resp & 0x7) << 7);
 
 	host->cmd_rsp = resp;
