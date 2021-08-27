@@ -335,10 +335,3 @@ void odm_PrimaryCCA_Init(struct odm_dm_struct *dm_odm)
 	PrimaryCCA->monitor_flag = 0;
 	PrimaryCCA->pri_cca_flag = 0;
 }
-
-bool ODM_DynamicPrimaryCCA_DupRTS(struct odm_dm_struct *dm_odm)
-{
-	struct dyn_primary_cca *PrimaryCCA = &dm_odm->DM_PriCCA;
-
-	return PrimaryCCA->dup_rts_flag;
-}
