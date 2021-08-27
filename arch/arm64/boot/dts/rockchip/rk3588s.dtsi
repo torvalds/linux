@@ -254,6 +254,16 @@
 		};
 	};
 
+	vo0_grf: syscon@fd5a6000 {
+		compatible = "rockchip,rk3588-vo-grf", "syscon";
+		reg = <0x0 0xfd5a6000 0x0 0x2000>;
+	};
+
+	usb_grf: syscon@fd5ac000 {
+		compatible = "rockchip,rk3588-usb-grf", "syscon";
+		reg = <0x0 0xfd5ac000 0x0 0x4000>;
+	};
+
 	php_grf: syscon@fd5b0000 {
 		compatible = "rockchip,rk3588-php-grf", "syscon";
 		reg = <0x0 0xfd5b0000 0x0 0x1000>;
@@ -267,6 +277,11 @@
 	pipe_phy2_grf: syscon@fd5c4000 {
 		compatible = "rockchip,pipe-phy-grf", "syscon";
 		reg = <0x0 0xfd5c4000 0x0 0x100>;
+	};
+
+	usbdpphy0_grf: syscon@fd5c8000 {
+		compatible = "rockchip,rk3588-usbdpphy-grf", "syscon";
+		reg = <0x0 0xfd5c8000 0x0 0x4000>;
 	};
 
 	syssram: sram@fd600000 {
@@ -1558,6 +1573,35 @@
 		clock-names = "apb_pclk";
 		#dma-cells = <1>;
 		arm,pl330-periph-burst;
+	};
+
+	usbdp_phy0: phy@fed80000 {
+		compatible = "rockchip,rk3588-usbdp-phy";
+		reg = <0x0 0xfed80000 0x0 0x10000>;
+		rockchip,usb-grf = <&usb_grf>;
+		rockchip,usbdpphy-grf = <&usbdpphy0_grf>;
+		rockchip,vo-grf = <&vo0_grf>;
+		clocks = <&cru CLK_USBDPPHY_MIPIDCPPHY_REF>,
+			 <&cru CLK_USBDP_PHY0_IMMORTAL>,
+			 <&cru PCLK_USBDPPHY0>;
+		clock-names = "refclk", "immortal", "pclk";
+		resets = <&cru SRST_USBDP_COMBO_PHY0_INIT>,
+			 <&cru SRST_USBDP_COMBO_PHY0_CMN>,
+			 <&cru SRST_USBDP_COMBO_PHY0_LANE>,
+			 <&cru SRST_USBDP_COMBO_PHY0_PCS>,
+			 <&cru SRST_P_USBDPPHY0>;
+		reset-names = "init", "cmn", "lane", "pcs_apb", "pma_apb";
+		status = "disabled";
+
+		usbdp_phy0_dp: dp-port {
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		usbdp_phy0_u3: u3-port {
+			#phy-cells = <0>;
+			status = "disabled";
+		};
 	};
 
 	combphy0_ps: phy@fee00000 {
