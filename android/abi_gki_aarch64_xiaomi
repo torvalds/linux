@@ -1,10 +1,9 @@
 [abi_symbol_list]
 # commonly used symbols
 
-# required by xxx.ko
-
 # required by touch module
   proc_mkdir_data
+  proc_create_seq_private
 
 # required by aw8697-haptic.ko
   devm_gpio_free
@@ -37,6 +36,10 @@
   scsi_report_bus_reset
   scsi_scan_host
   scsi_unblock_requests
+  scsi_change_queue_depth
+  scsi_print_command
+  scsi_dma_map
+  scsi_host_alloc
   sg_copy_from_buffer
   sg_copy_to_buffer
   ufshcd_alloc_host
@@ -47,10 +50,14 @@
   ufshcd_map_desc_id_to_length
   ufshcd_query_attr_retry
   ufshcd_query_flag_retry
+  ufshcd_update_evt_hist
   wait_for_completion_io_timeout
   __scsi_add_device
   __scsi_execute
   blk_mq_free_tag_set
+  blk_queue_update_dma_alignment
+  blk_queue_update_dma_pad
+  blk_ksm_get_slot_idx
 
 #required by cs35l41 module
   regmap_raw_write_async
@@ -112,3 +119,39 @@
   simple_strtoul
   sync_blockdev
   wait_for_device_probe
+
+#required by millet.ko
+  freezer_cgrp_subsys
+  __traceiter_android_vh_do_send_sig_info
+  __traceiter_android_vh_binder_preset
+  __traceiter_android_vh_binder_wait_for_work
+  __traceiter_android_vh_binder_trans
+  __traceiter_android_vh_binder_reply
+  __traceiter_android_vh_binder_alloc_new_buf_locked
+  __tracepoint_android_vh_do_send_sig_info
+  __tracepoint_android_vh_binder_preset
+  __tracepoint_android_vh_binder_wait_for_work
+  __tracepoint_android_vh_binder_trans
+  __tracepoint_android_vh_binder_reply
+  __tracepoint_android_vh_binder_alloc_new_buf_locked
+
+#required by mi_sched.ko
+  __traceiter_android_vh_free_task
+  __tracepoint_android_vh_free_task
+  jiffies_64
+
+#required by pm8941-pwrkey.ko module
+  console_printk
+
+#required by binderinfo.ko module
+  __traceiter_android_vh_binder_transaction_init
+  __traceiter_android_vh_binder_print_transaction_info
+  __tracepoint_android_vh_binder_transaction_init
+  __tracepoint_android_vh_binder_print_transaction_info
+
+#required by reclaim module
+  __traceiter_android_vh_tune_scan_type
+  __tracepoint_android_vh_tune_scan_type
+  __traceiter_android_vh_tune_swappiness
+  __tracepoint_android_vh_tune_swappiness
+

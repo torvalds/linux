@@ -4015,6 +4015,9 @@ out:
 	if (reenable_intr)
 		ufshcd_enable_intr(hba, UIC_COMMAND_COMPL);
 	if (ret) {
+		dev_err(hba->dev,
+			"%s: Changing link power status failed (%d). Scheduling error handler\n",
+			__func__, ret);
 		ufshcd_set_link_broken(hba);
 		ufshcd_schedule_eh_work(hba);
 	}
@@ -5098,6 +5101,10 @@ ufshcd_transfer_rsp_status(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 		result |= DID_ABORT << 16;
 		break;
 	case OCS_INVALID_COMMAND_STATUS:
+		dev_err_ratelimited(hba->dev,
+			"Retrying request with tag %d / cdb %#02x because of invalid command status\n",
+			lrbp->task_tag, lrbp->cmd && lrbp->cmd->cmnd ?
+			lrbp->cmd->cmnd[0] : 0);
 		result |= DID_REQUEUE << 16;
 		break;
 	case OCS_INVALID_CMD_TABLE_ATTR:
@@ -6300,8 +6307,11 @@ static irqreturn_t ufshcd_check_errors(struct ufs_hba *hba, u32 intr_status)
 	if (hba->errors & UIC_ERROR) {
 		hba->uic_error = 0;
 		retval = ufshcd_update_uic_error(hba);
-		if (hba->uic_error)
+		if (hba->uic_error) {
+			dev_err(hba->dev,
+			  "Scheduling error handler because of an UIC error\n");
 			queue_eh_work = true;
+		}
 	}
 
 	if (hba->errors & UFSHCD_UIC_HIBERN8_MASK) {

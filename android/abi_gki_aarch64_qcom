@@ -359,6 +359,7 @@
   dev_alloc_name
   dev_change_net_namespace
   dev_close
+  dev_coredumpm
   dev_coredumpv
   _dev_crit
   __dev_direct_xmit
@@ -1216,6 +1217,7 @@
   __irq_domain_add
   irq_domain_alloc_irqs_parent
   irq_domain_create_hierarchy
+  irq_domain_disconnect_hierarchy
   irq_domain_free_irqs_common
   irq_domain_free_irqs_parent
   irq_domain_get_irq_data
@@ -1438,11 +1440,21 @@
   misc_deregister
   misc_register
   mmc_cqe_request_done
+  mmc_hs200_tuning
+  mmc_issue_type
   mmc_of_parse
   mmc_regulator_get_supply
   mmc_regulator_set_ocr
   mmc_regulator_set_vqmmc
+  mmc_select_bus_width
+  mmc_select_hs
+  mmc_select_hs400
+  mmc_select_hs_ddr
+  mmc_select_timing
   mmc_send_tuning
+  mmc_set_clock
+  mmc_set_initial_state
+  mmc_set_timing
   mmput
   mod_delayed_work_on
   __mod_node_page_state
@@ -2512,6 +2524,7 @@
   __traceiter_android_rvh_schedule_bug
   __traceiter_android_rvh_select_task_rq_fair
   __traceiter_android_rvh_select_task_rq_rt
+  __traceiter_android_rvh_set_balance_anon_file_reclaim
   __traceiter_android_rvh_set_gfp_zone_flags
   __traceiter_android_rvh_set_readahead_gfp_mask
   __traceiter_android_rvh_set_skip_swapcache_flags
@@ -2621,6 +2634,7 @@
   __tracepoint_android_rvh_schedule_bug
   __tracepoint_android_rvh_select_task_rq_fair
   __tracepoint_android_rvh_select_task_rq_rt
+  __tracepoint_android_rvh_set_balance_anon_file_reclaim
   __tracepoint_android_rvh_set_gfp_zone_flags
   __tracepoint_android_rvh_set_readahead_gfp_mask
   __tracepoint_android_rvh_set_skip_swapcache_flags

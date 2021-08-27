@@ -68,6 +68,7 @@
   blkdev_put
   blk_execute_rq_nowait
   blk_get_request
+  blk_ksm_init_passthrough
   blk_put_request
   blk_queue_flag_clear
   blk_queue_flag_set

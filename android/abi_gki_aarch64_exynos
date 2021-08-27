@@ -207,6 +207,8 @@
   cpu_hwcap_keys
   cpu_hwcaps
   cpuidle_get_cpu_driver
+  cpuidle_pause_and_lock
+  cpuidle_resume_and_unlock
   cpumask_next
   cpumask_next_and
   cpu_number
@@ -334,6 +336,7 @@
   devm_gpio_request_one
   devm_hwrng_register
   devm_i2c_new_dummy_device
+  devm_iio_channel_get
   devm_iio_device_alloc
   __devm_iio_device_register
   devm_input_allocate_device
@@ -759,7 +762,11 @@
   enable_percpu_irq
   end_buffer_read_sync
   ether_setup
+  eth_platform_get_mac_address
+  ethtool_op_get_link
+  ethtool_op_get_ts_info
   eth_type_trans
+  eth_validate_addr
   event_triggers_call
   extcon_get_state
   extcon_set_state_sync
@@ -796,6 +803,7 @@
   gcd
   generic_file_llseek
   generic_handle_irq
+  generic_mii_ioctl
   genlmsg_multicast_allns
   genlmsg_put
   genl_register_family
@@ -923,11 +931,14 @@
   ignore_console_lock_warning
   iio_channel_get
   iio_channel_release
+  iio_convert_raw_to_processed
   iio_device_alloc
   iio_device_free
   __iio_device_register
   iio_device_unregister
+  iio_get_channel_type
   iio_read_channel_processed
+  iio_read_channel_raw
   inc_zone_page_state
   inet_csk_get_port
   init_dummy_netdev
@@ -1142,6 +1153,10 @@
   memunmap
   mfd_add_devices
   mfd_remove_devices
+  mii_ethtool_get_link_ksettings
+  mii_ethtool_gset
+  mii_ethtool_set_link_ksettings
+  mii_nway_restart
   mipi_dsi_attach
   mipi_dsi_compression_mode
   mipi_dsi_dcs_read
@@ -1202,6 +1217,8 @@
   napi_schedule_prep
   __netdev_alloc_skb
   netdev_err
+  netdev_info
+  netdev_warn
   netif_carrier_off
   netif_carrier_on
   netif_napi_add
@@ -1261,6 +1278,7 @@
   of_find_device_by_node
   of_find_matching_node_and_match
   of_find_node_by_name
+  of_find_node_by_phandle
   of_find_node_by_type
   of_find_node_opts_by_path
   of_find_node_with_property
@@ -1467,11 +1485,13 @@
   proc_create_data
   proc_create_seq_private
   proc_mkdir
+  proc_mkdir_data
   proc_remove
   proc_set_size
   proc_set_user
   proc_symlink
   __pskb_copy_fclone
+  pskb_expand_head
   __pskb_pull_tail
   put_device
   put_disk
@@ -1897,6 +1917,7 @@
   time64_to_tm
   topology_set_thermal_pressure
   _totalram_pages
+  __trace_bprintk
   trace_event_buffer_commit
   trace_event_buffer_reserve
   trace_event_ignore_this_pid
@@ -1921,8 +1942,10 @@
   __traceiter_android_rvh_select_task_rq_rt
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
+  __traceiter_android_vh_do_wake_up_sync
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_scheduler_tick
+  __traceiter_android_vh_set_wake_flags
   __traceiter_android_vh_show_mem
   __traceiter_android_vh_ufs_compl_command
   __traceiter_android_vh_ufs_prepare_command
@@ -1970,8 +1993,10 @@
   __tracepoint_android_rvh_select_task_rq_rt
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
+  __tracepoint_android_vh_do_wake_up_sync
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_scheduler_tick
+  __tracepoint_android_vh_set_wake_flags
   __tracepoint_android_vh_show_mem
   __tracepoint_android_vh_ufs_compl_command
   __tracepoint_android_vh_ufs_prepare_command
@@ -2077,6 +2102,7 @@
   __udelay
   ufshcd_auto_hibern8_update
   ufshcd_dme_get_attr
+  ufshcd_dme_set_attr
   ufshcd_hold
   ufshcd_pltfrm_init
   ufshcd_query_flag_retry
@@ -2110,6 +2136,7 @@
   usb_choose_configuration
   usb_copy_descriptors
   __usb_create_hcd
+  usb_deregister
   usb_disabled
   usb_enable_autosuspend
   usb_ep_alloc_request
@@ -2123,9 +2150,31 @@
   usb_hcd_platform_shutdown
   usb_hub_find_child
   usb_interface_id
+  usbnet_disconnect
+  usbnet_get_endpoints
+  usbnet_get_msglevel
+  usbnet_get_stats64
+  usbnet_link_change
+  usbnet_nway_reset
+  usbnet_open
+  usbnet_probe
+  usbnet_read_cmd
+  usbnet_read_cmd_nopm
+  usbnet_resume
+  usbnet_set_msglevel
+  usbnet_skb_return
+  usbnet_start_xmit
+  usbnet_stop
+  usbnet_suspend
+  usbnet_tx_timeout
+  usbnet_update_max_qlen
+  usbnet_write_cmd
+  usbnet_write_cmd_async
+  usbnet_write_cmd_nopm
   usb_otg_state_string
   usb_put_function_instance
   usb_put_hcd
+  usb_register_driver
   usb_register_notify
   usb_remove_hcd
   usb_speed_string
@@ -2254,6 +2303,7 @@
   wakeup_source_register
   wakeup_source_unregister
   __wake_up_sync
+  __wake_up_sync_key
   __warn_printk
   watchdog_init_timeout
   watchdog_register_device
