@@ -161,7 +161,6 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 	struct hclge_mbx_pf_to_vf_cmd *req;
 	struct hclgevf_cmq_ring *crq;
 	struct hclgevf_desc *desc;
-	u16 *msg_q;
 	u16 flag;
 
 	resp = &hdev->mbx_resp;
@@ -243,8 +242,7 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 			}
 
 			/* tail the async message in arq */
-			msg_q = hdev->arq.msg_q[hdev->arq.tail];
-			memcpy(&msg_q[0], &req->msg,
+			memcpy(hdev->arq.msg_q[hdev->arq.tail], &req->msg,
 			       HCLGE_MBX_MAX_ARQ_MSG_SIZE * sizeof(u16));
 			hclge_mbx_tail_ptr_move_arq(hdev->arq);
 			atomic_inc(&hdev->arq.count);
