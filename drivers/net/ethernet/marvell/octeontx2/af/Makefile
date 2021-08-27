@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for Marvell's OcteonTX2 RVU Admin Function driver
+# Makefile for Marvell's RVU Admin Function driver
 #
 
 ccflags-y += -I$(src)

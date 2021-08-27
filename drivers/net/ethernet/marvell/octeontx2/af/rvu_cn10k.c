@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/*  Marvell RPM CN10K driver
+/* Marvell RPM CN10K driver
  *
  * Copyright (C) 2020 Marvell.
  */

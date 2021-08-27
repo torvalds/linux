@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Marvell OcteonTx2 RVU Admin Function driver tracepoints
+/* Marvell RVU Admin Function driver
  *
- * Copyright (C) 2020 Marvell International Ltd.
+ * Copyright (C) 2020 Marvell.
+ *
  */
 
 #undef TRACE_SYSTEM
