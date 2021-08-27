@@ -260,6 +260,8 @@ static void ieee80211_restart_work(struct work_struct *work)
 	flush_work(&local->radar_detected_work);
 
 	rtnl_lock();
+	/* we might do interface manipulations, so need both */
+	wiphy_lock(local->hw.wiphy);
 
 	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning),
 	     "%s called with hardware scan in progress\n", __func__);

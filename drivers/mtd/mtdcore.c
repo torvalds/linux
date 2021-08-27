@@ -806,7 +806,9 @@ static ssize_t mtd_otp_size(struct mtd_info *mtd, bool is_user)
 
 err:
 	kfree(info);
-	return ret;
+
+	/* ENODATA means there is no OTP region. */
+	return ret == -ENODATA ? 0 : ret;
 }
 
 static struct nvmem_device *mtd_otp_nvmem_register(struct mtd_info *mtd,

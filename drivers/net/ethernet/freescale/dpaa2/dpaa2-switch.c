@@ -3038,17 +3038,6 @@ static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 	return err;
 }
 
-static void dpaa2_switch_takedown(struct fsl_mc_device *sw_dev)
-{
-	struct device *dev = &sw_dev->dev;
-	struct ethsw_core *ethsw = dev_get_drvdata(dev);
-	int err;
-
-	err = dpsw_close(ethsw->mc_io, 0, ethsw->dpsw_handle);
-	if (err)
-		dev_warn(dev, "dpsw_close err %d\n", err);
-}
-
 static void dpaa2_switch_ctrl_if_teardown(struct ethsw_core *ethsw)
 {
 	dpsw_ctrl_if_disable(ethsw->mc_io, 0, ethsw->dpsw_handle);
@@ -3056,6 +3045,21 @@ static void dpaa2_switch_ctrl_if_teardown(struct ethsw_core *ethsw)
 	dpaa2_switch_destroy_rings(ethsw);
 	dpaa2_switch_drain_bp(ethsw);
 	dpaa2_switch_free_dpbp(ethsw);
+}
+
+static void dpaa2_switch_teardown(struct fsl_mc_device *sw_dev)
+{
+	struct device *dev = &sw_dev->dev;
+	struct ethsw_core *ethsw = dev_get_drvdata(dev);
+	int err;
+
+	dpaa2_switch_ctrl_if_teardown(ethsw);
+
+	destroy_workqueue(ethsw->workqueue);
+
+	err = dpsw_close(ethsw->mc_io, 0, ethsw->dpsw_handle);
+	if (err)
+		dev_warn(dev, "dpsw_close err %d\n", err);
 }
 
 static int dpaa2_switch_remove(struct fsl_mc_device *sw_dev)
@@ -3067,8 +3071,6 @@ static int dpaa2_switch_remove(struct fsl_mc_device *sw_dev)
 
 	dev = &sw_dev->dev;
 	ethsw = dev_get_drvdata(dev);
-
-	dpaa2_switch_ctrl_if_teardown(ethsw);
 
 	dpaa2_switch_teardown_irqs(sw_dev);
 
@@ -3084,9 +3086,7 @@ static int dpaa2_switch_remove(struct fsl_mc_device *sw_dev)
 	kfree(ethsw->acls);
 	kfree(ethsw->ports);
 
-	dpaa2_switch_takedown(sw_dev);
-
-	destroy_workqueue(ethsw->workqueue);
+	dpaa2_switch_teardown(sw_dev);
 
 	fsl_mc_portal_free(ethsw->mc_io);
 
@@ -3199,7 +3199,7 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 			       GFP_KERNEL);
 	if (!(ethsw->ports)) {
 		err = -ENOMEM;
-		goto err_takedown;
+		goto err_teardown;
 	}
 
 	ethsw->fdbs = kcalloc(ethsw->sw_attr.num_ifs, sizeof(*ethsw->fdbs),
@@ -3270,8 +3270,8 @@ err_free_fdbs:
 err_free_ports:
 	kfree(ethsw->ports);
 
-err_takedown:
-	dpaa2_switch_takedown(sw_dev);
+err_teardown:
+	dpaa2_switch_teardown(sw_dev);
 
 err_free_cmdport:
 	fsl_mc_portal_free(ethsw->mc_io);
