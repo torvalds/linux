@@ -97,10 +97,8 @@ static int ccm_init_mac(struct aead_request *req, u8 maciv[], u32 msglen)
 static void ccm_update_mac(struct crypto_aes_ctx *key, u8 mac[], u8 const in[],
 			   u32 abytes, u32 *macp)
 {
-	kernel_neon_begin();
 	ce_aes_ccm_auth_data(mac, in, abytes, macp, key->key_enc,
 			     num_rounds(key));
-	kernel_neon_end();
 }
 
 static void ccm_calculate_auth_mac(struct aead_request *req, u8 mac[])
@@ -136,6 +134,12 @@ static void ccm_calculate_auth_mac(struct aead_request *req, u8 mac[])
 		n = min_t(u32, n, SZ_4K); /* yield NEON at least every 4k */
 		p = scatterwalk_map(&walk);
 		ccm_update_mac(ctx, mac, p, n, &macp);
+
+		if (len / SZ_4K > (len - n) / SZ_4K) {
+			kernel_neon_end();
+			kernel_neon_begin();
+		}
+
 		len -= n;
 
 		scatterwalk_unmap(p);
@@ -158,35 +162,41 @@ static int ccm_encrypt(struct aead_request *req)
 	if (err)
 		return err;
 
-	if (req->assoclen)
-		ccm_calculate_auth_mac(req, mac);
-
 	/* preserve the original iv for the final round */
 	memcpy(buf, req->iv, AES_BLOCK_SIZE);
 
 	err = skcipher_walk_aead_encrypt(&walk, req, false);
+	if (unlikely(err))
+		return err;
 
-	while (walk.nbytes) {
+	kernel_neon_begin();
+
+	if (req->assoclen)
+		ccm_calculate_auth_mac(req, mac);
+
+	do {
 		u32 tail = walk.nbytes % AES_BLOCK_SIZE;
 
 		if (walk.nbytes == walk.total)
 			tail = 0;
 
-		kernel_neon_begin();
 		ce_aes_ccm_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				   walk.nbytes - tail, ctx->key_enc,
 				   num_rounds(ctx), mac, walk.iv);
+
+		if (walk.nbytes == walk.total)
+			ce_aes_ccm_final(mac, buf, ctx->key_enc, num_rounds(ctx));
+
 		kernel_neon_end();
 
-		err = skcipher_walk_done(&walk, tail);
-	}
-	if (!err) {
-		kernel_neon_begin();
-		ce_aes_ccm_final(mac, buf, ctx->key_enc, num_rounds(ctx));
-		kernel_neon_end();
-	}
-	if (err)
-		return err;
+		if (walk.nbytes) {
+			err = skcipher_walk_done(&walk, tail);
+			if (unlikely(err))
+				return err;
+			if (unlikely(walk.nbytes))
+				kernel_neon_begin();
+		}
+	} while (walk.nbytes);
 
 	/* copy authtag to end of dst */
 	scatterwalk_map_and_copy(mac, req->dst, req->assoclen + req->cryptlen,
@@ -210,35 +220,41 @@ static int ccm_decrypt(struct aead_request *req)
 	if (err)
 		return err;
 
-	if (req->assoclen)
-		ccm_calculate_auth_mac(req, mac);
-
 	/* preserve the original iv for the final round */
 	memcpy(buf, req->iv, AES_BLOCK_SIZE);
 
 	err = skcipher_walk_aead_decrypt(&walk, req, false);
+	if (unlikely(err))
+		return err;
 
-	while (walk.nbytes) {
+	kernel_neon_begin();
+
+	if (req->assoclen)
+		ccm_calculate_auth_mac(req, mac);
+
+	do {
 		u32 tail = walk.nbytes % AES_BLOCK_SIZE;
 
 		if (walk.nbytes == walk.total)
 			tail = 0;
 
-		kernel_neon_begin();
 		ce_aes_ccm_decrypt(walk.dst.virt.addr, walk.src.virt.addr,
-					   walk.nbytes - tail, ctx->key_enc,
-					   num_rounds(ctx), mac, walk.iv);
+				   walk.nbytes - tail, ctx->key_enc,
+				   num_rounds(ctx), mac, walk.iv);
+
+		if (walk.nbytes == walk.total)
+			ce_aes_ccm_final(mac, buf, ctx->key_enc, num_rounds(ctx));
+
 		kernel_neon_end();
 
-		err = skcipher_walk_done(&walk, tail);
-	}
-	if (!err) {
-		kernel_neon_begin();
-		ce_aes_ccm_final(mac, buf, ctx->key_enc, num_rounds(ctx));
-		kernel_neon_end();
-	}
-	if (err)
-		return err;
+		if (walk.nbytes) {
+			err = skcipher_walk_done(&walk, tail);
+			if (unlikely(err))
+				return err;
+			if (unlikely(walk.nbytes))
+				kernel_neon_begin();
+		}
+	} while (walk.nbytes);
 
 	/* compare calculated auth tag with the stored one */
 	scatterwalk_map_and_copy(buf, req->src,
