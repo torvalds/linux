@@ -1059,8 +1059,8 @@ static void pt_guest_enter(struct vcpu_vmx *vmx)
 	rdmsrl(MSR_IA32_RTIT_CTL, vmx->pt_desc.host.ctl);
 	if (vmx->pt_desc.guest.ctl & RTIT_CTL_TRACEEN) {
 		wrmsrl(MSR_IA32_RTIT_CTL, 0);
-		pt_save_msr(&vmx->pt_desc.host, vmx->pt_desc.addr_range);
-		pt_load_msr(&vmx->pt_desc.guest, vmx->pt_desc.addr_range);
+		pt_save_msr(&vmx->pt_desc.host, vmx->pt_desc.num_address_ranges);
+		pt_load_msr(&vmx->pt_desc.guest, vmx->pt_desc.num_address_ranges);
 	}
 }
 
@@ -1070,8 +1070,8 @@ static void pt_guest_exit(struct vcpu_vmx *vmx)
 		return;
 
 	if (vmx->pt_desc.guest.ctl & RTIT_CTL_TRACEEN) {
-		pt_save_msr(&vmx->pt_desc.guest, vmx->pt_desc.addr_range);
-		pt_load_msr(&vmx->pt_desc.host, vmx->pt_desc.addr_range);
+		pt_save_msr(&vmx->pt_desc.guest, vmx->pt_desc.num_address_ranges);
+		pt_load_msr(&vmx->pt_desc.host, vmx->pt_desc.num_address_ranges);
 	}
 
 	/*
@@ -1460,16 +1460,16 @@ static int vmx_rtit_ctl_check(struct kvm_vcpu *vcpu, u64 data)
 	 * cause a #GP fault.
 	 */
 	value = (data & RTIT_CTL_ADDR0) >> RTIT_CTL_ADDR0_OFFSET;
-	if ((value && (vmx->pt_desc.addr_range < 1)) || (value > 2))
+	if ((value && (vmx->pt_desc.num_address_ranges < 1)) || (value > 2))
 		return 1;
 	value = (data & RTIT_CTL_ADDR1) >> RTIT_CTL_ADDR1_OFFSET;
-	if ((value && (vmx->pt_desc.addr_range < 2)) || (value > 2))
+	if ((value && (vmx->pt_desc.num_address_ranges < 2)) || (value > 2))
 		return 1;
 	value = (data & RTIT_CTL_ADDR2) >> RTIT_CTL_ADDR2_OFFSET;
-	if ((value && (vmx->pt_desc.addr_range < 3)) || (value > 2))
+	if ((value && (vmx->pt_desc.num_address_ranges < 3)) || (value > 2))
 		return 1;
 	value = (data & RTIT_CTL_ADDR3) >> RTIT_CTL_ADDR3_OFFSET;
-	if ((value && (vmx->pt_desc.addr_range < 4)) || (value > 2))
+	if ((value && (vmx->pt_desc.num_address_ranges < 4)) || (value > 2))
 		return 1;
 
 	return 0;
@@ -1890,7 +1890,7 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_IA32_RTIT_ADDR0_A ... MSR_IA32_RTIT_ADDR3_B:
 		index = msr_info->index - MSR_IA32_RTIT_ADDR0_A;
 		if (!vmx_pt_mode_is_host_guest() ||
-		    (index >= 2 * vmx->pt_desc.addr_range))
+		    (index >= 2 * vmx->pt_desc.num_address_ranges))
 			return 1;
 		if (index % 2)
 			msr_info->data = vmx->pt_desc.guest.addr_b[index / 2];
@@ -2205,7 +2205,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (!pt_can_write_msr(vmx))
 			return 1;
 		index = msr_info->index - MSR_IA32_RTIT_ADDR0_A;
-		if (index >= 2 * vmx->pt_desc.addr_range)
+		if (index >= 2 * vmx->pt_desc.num_address_ranges)
 			return 1;
 		if (is_noncanonical_address(data, vcpu))
 			return 1;
@@ -3881,7 +3881,7 @@ void pt_update_intercept_for_msr(struct kvm_vcpu *vcpu)
 	vmx_set_intercept_for_msr(vcpu, MSR_IA32_RTIT_OUTPUT_BASE, MSR_TYPE_RW, flag);
 	vmx_set_intercept_for_msr(vcpu, MSR_IA32_RTIT_OUTPUT_MASK, MSR_TYPE_RW, flag);
 	vmx_set_intercept_for_msr(vcpu, MSR_IA32_RTIT_CR3_MATCH, MSR_TYPE_RW, flag);
-	for (i = 0; i < vmx->pt_desc.addr_range; i++) {
+	for (i = 0; i < vmx->pt_desc.num_address_ranges; i++) {
 		vmx_set_intercept_for_msr(vcpu, MSR_IA32_RTIT_ADDR0_A + i * 2, MSR_TYPE_RW, flag);
 		vmx_set_intercept_for_msr(vcpu, MSR_IA32_RTIT_ADDR0_B + i * 2, MSR_TYPE_RW, flag);
 	}
@@ -7131,7 +7131,7 @@ static void update_intel_pt_cfg(struct kvm_vcpu *vcpu)
 	}
 
 	/* Get the number of configurable Address Ranges for filtering */
-	vmx->pt_desc.addr_range = intel_pt_validate_cap(vmx->pt_desc.caps,
+	vmx->pt_desc.num_address_ranges = intel_pt_validate_cap(vmx->pt_desc.caps,
 						PT_CAP_num_address_ranges);
 
 	/* Initialize and clear the no dependency bits */
@@ -7179,7 +7179,7 @@ static void update_intel_pt_cfg(struct kvm_vcpu *vcpu)
 		vmx->pt_desc.ctl_bitmask &= ~RTIT_CTL_FABRIC_EN;
 
 	/* unmask address range configure area */
-	for (i = 0; i < vmx->pt_desc.addr_range; i++)
+	for (i = 0; i < vmx->pt_desc.num_address_ranges; i++)
 		vmx->pt_desc.ctl_bitmask &= ~(0xfULL << (32 + i * 4));
 }
 
