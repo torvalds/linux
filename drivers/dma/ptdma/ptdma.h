@@ -31,7 +31,6 @@
 #define MAX_CMD_QLEN			100
 
 #define PT_ENGINE_PASSTHRU		5
-#define PT_OFFSET			0x0
 
 /* Register Mappings */
 #define IRQ_MASK_REG			0x040
