@@ -5086,8 +5086,7 @@ static int dsi_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops dsi_pm_ops = {
-	.runtime_suspend = dsi_runtime_suspend,
-	.runtime_resume = dsi_runtime_resume,
+	SET_RUNTIME_PM_OPS(dsi_runtime_suspend, dsi_runtime_resume, NULL)
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
