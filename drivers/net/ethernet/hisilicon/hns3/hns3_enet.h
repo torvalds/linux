@@ -348,7 +348,7 @@ enum hns3_pkt_l3type {
 	HNS3_L3_TYPE_LLDP,
 	HNS3_L3_TYPE_BPDU,
 	HNS3_L3_TYPE_MAC_PAUSE,
-	HNS3_L3_TYPE_PFC_PAUSE,/* 0x9*/
+	HNS3_L3_TYPE_PFC_PAUSE, /* 0x9 */
 
 	/* reserved for 0xA~0xB */
 

@@ -453,7 +453,7 @@ struct hclge_tc_thrd {
 };
 
 struct hclge_priv_buf {
-	struct hclge_waterline wl;	/* Waterline for low and high*/
+	struct hclge_waterline wl;	/* Waterline for low and high */
 	u32 buf_size;	/* TC private buffer size */
 	u32 tx_buf_size;
 	u32 enable;	/* Enable TC private buffer or not */
