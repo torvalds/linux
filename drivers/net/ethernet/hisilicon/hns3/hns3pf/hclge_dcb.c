@@ -234,9 +234,7 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 		if (ret)
 			goto err_out;
 
-		ret = hclge_notify_init_up(hdev);
-		if (ret)
-			return ret;
+		return hclge_notify_init_up(hdev);
 	}
 
 	return hclge_tm_dwrr_cfg(hdev);
