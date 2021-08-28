@@ -71,7 +71,7 @@ static bool hclgevf_cmd_csq_done(struct hclgevf_hw *hw)
 
 static bool hclgevf_is_special_opcode(u16 opcode)
 {
-	static const u16 spec_opcode[] = {0x30, 0x31, 0x32};
+	const u16 spec_opcode[] = {0x30, 0x31, 0x32};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(spec_opcode); i++) {
