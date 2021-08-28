@@ -191,6 +191,7 @@ static int psp_early_init(void *handle)
 		psp_v12_0_set_psp_funcs(psp);
 		break;
 	case IP_VERSION(13, 0, 2):
+	case IP_VERSION(13, 0, 6):
 		psp_v13_0_set_psp_funcs(psp);
 		break;
 	case IP_VERSION(13, 0, 1):
