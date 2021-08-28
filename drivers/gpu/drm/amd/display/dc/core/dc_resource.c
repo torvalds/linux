@@ -2241,7 +2241,7 @@ enum dc_status dc_validate_global_state(
 	 * Update link encoder to stream assignment.
 	 * TODO: Split out reason allocation from validation.
 	 */
-	if (dc->res_pool->funcs->link_encs_assign)
+	if (dc->res_pool->funcs->link_encs_assign && fast_validate == false)
 		dc->res_pool->funcs->link_encs_assign(
 			dc, new_ctx, new_ctx->streams, new_ctx->stream_count);
 #endif

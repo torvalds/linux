@@ -212,6 +212,7 @@ struct link_enc_assignment {
 	bool valid;
 	struct display_endpoint_id ep_id;
 	enum engine_id eng_id;
+	struct dc_stream_state *stream;
 };
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)

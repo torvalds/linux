@@ -2384,7 +2384,7 @@ bool perform_link_training_with_retries(
 	/* Dynamically assigned link encoders associated with stream rather than
 	 * link.
 	 */
-	if (link->dc->res_pool->funcs->link_encs_assign)
+	if (link->is_dig_mapping_flexible && link->dc->res_pool->funcs->link_encs_assign)
 		link_enc = stream->link_enc;
 	else
 		link_enc = link->link_enc;

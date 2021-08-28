@@ -93,4 +93,7 @@ struct link_encoder *link_enc_cfg_get_link_enc_used_by_stream(
 		struct dc_state *state,
 		const struct dc_stream_state *stream);
 
+/* Returns true if encoder assignments in supplied state pass validity checks. */
+bool link_enc_cfg_validate(struct dc *dc, struct dc_state *state);
+
 #endif /* DC_INC_LINK_ENC_CFG_H_ */
