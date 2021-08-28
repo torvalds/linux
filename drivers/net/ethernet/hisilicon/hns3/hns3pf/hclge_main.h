@@ -1058,6 +1058,11 @@ struct hclge_vport {
 	struct list_head vlan_list;     /* Store VF vlan table */
 };
 
+struct hclge_speed_bit_map {
+	u32 speed;
+	u32 speed_bit;
+};
+
 int hclge_set_vport_promisc_mode(struct hclge_vport *vport, bool en_uc_pmc,
 				 bool en_mc_pmc, bool en_bc_pmc);
 int hclge_add_uc_addr_common(struct hclge_vport *vport,
