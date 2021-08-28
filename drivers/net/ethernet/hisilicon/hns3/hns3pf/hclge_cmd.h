@@ -1234,6 +1234,12 @@ struct hclge_phy_reg_cmd {
 	u8 rsv1[18];
 };
 
+/* capabilities bits map between imp firmware and local driver */
+struct hclge_caps_bit_map {
+	u16 imp_bit;
+	u16 local_bit;
+};
+
 int hclge_cmd_init(struct hclge_dev *hdev);
 static inline void hclge_write_reg(void __iomem *base, u32 reg, u32 value)
 {
