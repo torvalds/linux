@@ -264,21 +264,6 @@ int proc_get_ap_info(char *page, char **start,
 	return len;
 }
 
-int proc_get_adapter_state(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data)
-{
-	struct net_device *dev = data;
-	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
-	int len = 0;
-
-	len += snprintf(page + len, count - len, "bSurpriseRemoved=%d, bDriverStopped=%d\n",
-						padapter->bSurpriseRemoved, padapter->bDriverStopped);
-
-	*eof = 1;
-	return len;
-}
-
 int proc_get_trx_info(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data)
