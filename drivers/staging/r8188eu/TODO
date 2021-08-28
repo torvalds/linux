@@ -11,3 +11,6 @@ To-do list:
   the driver.
 * Switch to use LIB80211.
 * Switch to use MAC80211.
+* Switch to use CFG80211.
+* Improve the error handling of various functions, particularly those that use
+  existing kernel APIs.
