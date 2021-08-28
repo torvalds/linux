@@ -149,7 +149,7 @@
 /* Generic 802.11 Header types */
 
 struct p80211_hdr {
-	u16	frame_control;
+	__le16	frame_control;
 	u16	duration_id;
 	u8	address1[ETH_ALEN];
 	u8	address2[ETH_ALEN];
