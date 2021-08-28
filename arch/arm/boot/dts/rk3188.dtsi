@@ -647,8 +647,7 @@
 	};
 
 	usbphy: usbphy {
-		compatible = "rockchip,rk3188-usb-phy",
-			     "rockchip,rk3288-usb-phy";
+		compatible = "rockchip,rk3188-usb-phy";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
