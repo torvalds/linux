@@ -6,6 +6,7 @@
  */
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -311,9 +312,19 @@ static int ptp_ixp_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id ptp_ixp_match[] = {
+	{
+		.compatible = "intel,ixp46x-ptp-timer",
+	},
+	{ },
+};
+
 static struct platform_driver ptp_ixp_driver = {
-	.driver.name = "ptp-ixp46x",
-	.driver.suppress_bind_attrs = true,
+	.driver = {
+		.name = "ptp-ixp46x",
+		.of_match_table = ptp_ixp_match,
+		.suppress_bind_attrs = true,
+	},
 	.probe = ptp_ixp_probe,
 };
 module_platform_driver(ptp_ixp_driver);
