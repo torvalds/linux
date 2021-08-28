@@ -296,6 +296,12 @@ struct hclgevf_dev_specs_1_cmd {
 	u8 rsv1[18];
 };
 
+/* capabilities bits map between imp firmware and local driver */
+struct hclgevf_caps_bit_map {
+	u16 imp_bit;
+	u16 local_bit;
+};
+
 static inline void hclgevf_write_reg(void __iomem *base, u32 reg, u32 value)
 {
 	writel(value, base + reg);

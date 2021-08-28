@@ -453,7 +453,7 @@ struct hclge_tc_thrd {
 };
 
 struct hclge_priv_buf {
-	struct hclge_waterline wl;	/* Waterline for low and high*/
+	struct hclge_waterline wl;	/* Waterline for low and high */
 	u32 buf_size;	/* TC private buffer size */
 	u32 tx_buf_size;
 	u32 enable;	/* Enable TC private buffer or not */
@@ -1232,6 +1232,12 @@ struct hclge_phy_reg_cmd {
 	u8 rsv0[2];
 	__le16 reg_val;
 	u8 rsv1[18];
+};
+
+/* capabilities bits map between imp firmware and local driver */
+struct hclge_caps_bit_map {
+	u16 imp_bit;
+	u16 local_bit;
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);

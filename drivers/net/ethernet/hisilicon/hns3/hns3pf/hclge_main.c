@@ -993,44 +993,43 @@ static int hclge_parse_speed(u8 speed_cmd, u32 *speed)
 	return 0;
 }
 
+static const struct hclge_speed_bit_map speed_bit_map[] = {
+	{HCLGE_MAC_SPEED_10M, HCLGE_SUPPORT_10M_BIT},
+	{HCLGE_MAC_SPEED_100M, HCLGE_SUPPORT_100M_BIT},
+	{HCLGE_MAC_SPEED_1G, HCLGE_SUPPORT_1G_BIT},
+	{HCLGE_MAC_SPEED_10G, HCLGE_SUPPORT_10G_BIT},
+	{HCLGE_MAC_SPEED_25G, HCLGE_SUPPORT_25G_BIT},
+	{HCLGE_MAC_SPEED_40G, HCLGE_SUPPORT_40G_BIT},
+	{HCLGE_MAC_SPEED_50G, HCLGE_SUPPORT_50G_BIT},
+	{HCLGE_MAC_SPEED_100G, HCLGE_SUPPORT_100G_BIT},
+	{HCLGE_MAC_SPEED_200G, HCLGE_SUPPORT_200G_BIT},
+};
+
+static int hclge_get_speed_bit(u32 speed, u32 *speed_bit)
+{
+	u16 i;
+
+	for (i = 0; i < ARRAY_SIZE(speed_bit_map); i++) {
+		if (speed == speed_bit_map[i].speed) {
+			*speed_bit = speed_bit_map[i].speed_bit;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
 static int hclge_check_port_speed(struct hnae3_handle *handle, u32 speed)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 	u32 speed_ability = hdev->hw.mac.speed_ability;
 	u32 speed_bit = 0;
+	int ret;
 
-	switch (speed) {
-	case HCLGE_MAC_SPEED_10M:
-		speed_bit = HCLGE_SUPPORT_10M_BIT;
-		break;
-	case HCLGE_MAC_SPEED_100M:
-		speed_bit = HCLGE_SUPPORT_100M_BIT;
-		break;
-	case HCLGE_MAC_SPEED_1G:
-		speed_bit = HCLGE_SUPPORT_1G_BIT;
-		break;
-	case HCLGE_MAC_SPEED_10G:
-		speed_bit = HCLGE_SUPPORT_10G_BIT;
-		break;
-	case HCLGE_MAC_SPEED_25G:
-		speed_bit = HCLGE_SUPPORT_25G_BIT;
-		break;
-	case HCLGE_MAC_SPEED_40G:
-		speed_bit = HCLGE_SUPPORT_40G_BIT;
-		break;
-	case HCLGE_MAC_SPEED_50G:
-		speed_bit = HCLGE_SUPPORT_50G_BIT;
-		break;
-	case HCLGE_MAC_SPEED_100G:
-		speed_bit = HCLGE_SUPPORT_100G_BIT;
-		break;
-	case HCLGE_MAC_SPEED_200G:
-		speed_bit = HCLGE_SUPPORT_200G_BIT;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = hclge_get_speed_bit(speed, &speed_bit);
+	if (ret)
+		return ret;
 
 	if (speed_bit & speed_ability)
 		return 0;
@@ -3422,7 +3421,7 @@ static irqreturn_t hclge_misc_irq_handle(int irq, void *data)
 	hclge_enable_vector(&hdev->misc_vector, false);
 	event_cause = hclge_check_event_cause(hdev, &clearval);
 
-	/* vector 0 interrupt is shared with reset and mailbox source events.*/
+	/* vector 0 interrupt is shared with reset and mailbox source events. */
 	switch (event_cause) {
 	case HCLGE_VECTOR0_EVENT_ERR:
 		hclge_errhand_task_schedule(hdev);

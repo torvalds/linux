@@ -66,6 +66,8 @@ static int hclge_gen_resp_to_vf(struct hclge_vport *vport,
 		memcpy(resp_pf_to_vf->msg.resp_data, resp_msg->data,
 		       resp_msg->len);
 
+	trace_hclge_pf_mbx_send(hdev, resp_pf_to_vf);
+
 	status = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (status)
 		dev_err(&hdev->pdev->dev,
