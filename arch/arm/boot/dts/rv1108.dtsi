@@ -557,7 +557,7 @@
 		status = "disabled";
 	};
 
-	gmac: eth@30200000 {
+	gmac: ethernet@30200000 {
 		compatible = "rockchip,rv1108-gmac";
 		reg = <0x30200000 0x10000>;
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
