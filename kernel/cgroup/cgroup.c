@@ -68,6 +68,14 @@
 #define CGROUP_FILE_NOTIFY_MIN_INTV	DIV_ROUND_UP(HZ, 100)
 
 /*
+ * To avoid confusing the compiler (and generating warnings) with code
+ * that attempts to access what would be a 0-element array (i.e. sized
+ * to a potentially empty array when CGROUP_SUBSYS_COUNT == 0), this
+ * constant expression can be added.
+ */
+#define CGROUP_HAS_SUBSYS_CONFIG	(CGROUP_SUBSYS_COUNT > 0)
+
+/*
  * cgroup_mutex is the master lock.  Any modification to cgroup or its
  * hierarchy must be performed while holding it.
  *
@@ -248,7 +256,7 @@ static int cgroup_addrm_files(struct cgroup_subsys_state *css,
  */
 bool cgroup_ssid_enabled(int ssid)
 {
-	if (CGROUP_SUBSYS_COUNT == 0)
+	if (!CGROUP_HAS_SUBSYS_CONFIG)
 		return false;
 
 	return static_key_enabled(cgroup_subsys_enabled_key[ssid]);
@@ -472,7 +480,7 @@ static u16 cgroup_ss_mask(struct cgroup *cgrp)
 static struct cgroup_subsys_state *cgroup_css(struct cgroup *cgrp,
 					      struct cgroup_subsys *ss)
 {
-	if (ss)
+	if (CGROUP_HAS_SUBSYS_CONFIG && ss)
 		return rcu_dereference_check(cgrp->subsys[ss->id],
 					lockdep_is_held(&cgroup_mutex));
 	else
@@ -550,6 +558,9 @@ struct cgroup_subsys_state *cgroup_e_css(struct cgroup *cgrp,
 {
 	struct cgroup_subsys_state *css;
 
+	if (!CGROUP_HAS_SUBSYS_CONFIG)
+		return NULL;
+
 	do {
 		css = cgroup_css(cgrp, ss);
 
@@ -576,6 +587,9 @@ struct cgroup_subsys_state *cgroup_get_e_css(struct cgroup *cgrp,
 					     struct cgroup_subsys *ss)
 {
 	struct cgroup_subsys_state *css;
+
+	if (!CGROUP_HAS_SUBSYS_CONFIG)
+		return NULL;
 
 	rcu_read_lock();
 
@@ -647,7 +661,7 @@ struct cgroup_subsys_state *of_css(struct kernfs_open_file *of)
 	 * the matching css from the cgroup's subsys table is guaranteed to
 	 * be and stay valid until the enclosing operation is complete.
 	 */
-	if (cft->ss)
+	if (CGROUP_HAS_SUBSYS_CONFIG && cft->ss)
 		return rcu_dereference_raw(cgrp->subsys[cft->ss->id]);
 	else
 		return &cgrp->self;
@@ -695,7 +709,7 @@ EXPORT_SYMBOL_GPL(of_css);
  */
 #define do_each_subsys_mask(ss, ssid, ss_mask) do {			\
 	unsigned long __ss_mask = (ss_mask);				\
-	if (!CGROUP_SUBSYS_COUNT) { /* to avoid spurious gcc warning */	\
+	if (!CGROUP_HAS_SUBSYS_CONFIG) {				\
 		(ssid) = 0;						\
 		break;							\
 	}								\
@@ -2372,7 +2386,7 @@ struct task_struct *cgroup_taskset_next(struct cgroup_taskset *tset,
 	struct css_set *cset = tset->cur_cset;
 	struct task_struct *task = tset->cur_task;
 
-	while (&cset->mg_node != tset->csets) {
+	while (CGROUP_HAS_SUBSYS_CONFIG && &cset->mg_node != tset->csets) {
 		if (!task)
 			task = list_first_entry(&cset->mg_tasks,
 						struct task_struct, cg_list);
@@ -4643,7 +4657,7 @@ void css_task_iter_start(struct cgroup_subsys_state *css, unsigned int flags,
 	it->ss = css->ss;
 	it->flags = flags;
 
-	if (it->ss)
+	if (CGROUP_HAS_SUBSYS_CONFIG && it->ss)
 		it->cset_pos = &css->cgroup->e_csets[css->ss->id];
 	else
 		it->cset_pos = &css->cgroup->cset_links;
