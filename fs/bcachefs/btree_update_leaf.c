@@ -36,6 +36,13 @@ static inline bool same_leaf_as_prev(struct btree_trans *trans,
 		iter_l(i[0].iter)->b == iter_l(i[-1].iter)->b;
 }
 
+static inline bool same_leaf_as_next(struct btree_trans *trans,
+				     struct btree_insert_entry *i)
+{
+	return i + 1 < trans->updates + trans->nr_updates &&
+		iter_l(i[0].iter)->b == iter_l(i[1].iter)->b;
+}
+
 inline void bch2_btree_node_lock_for_insert(struct btree_trans *trans,
 					    struct btree_iter *iter,
 					    struct btree *b)
@@ -486,44 +493,6 @@ err:
 	return ret;
 }
 
-static noinline int maybe_do_btree_merge(struct btree_trans *trans, struct btree_iter *iter)
-{
-	struct btree_insert_entry *i;
-	struct btree *b = iter_l(iter)->b;
-	struct bkey_s_c old;
-	int u64s_delta = 0;
-	int ret;
-
-	/*
-	 * Inserting directly into interior nodes is an uncommon operation with
-	 * various weird edge cases: also, a lot of things about
-	 * BTREE_ITER_NODES iters need to be audited
-	 */
-	if (unlikely(btree_iter_type(iter) != BTREE_ITER_KEYS))
-		return 0;
-
-	BUG_ON(iter->level);
-
-	trans_for_each_update(trans, i) {
-		if (iter_l(i->iter)->b != b)
-			continue;
-
-		old = bch2_btree_iter_peek_slot(i->iter);
-		ret = bkey_err(old);
-		if (ret)
-			return ret;
-
-		u64s_delta += !bkey_deleted(&i->k->k) ? i->k->k.u64s : 0;
-		u64s_delta -= !bkey_deleted(old.k) ? old.k->u64s : 0;
-	}
-
-	if (u64s_delta > 0)
-		return 0;
-
-	return bch2_foreground_maybe_merge(trans, iter,
-				iter->level, trans->flags);
-}
-
 /*
  * Get journal reservation, take write locks, and attempt to do btree update(s):
  */
@@ -534,22 +503,34 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
 	struct btree_iter *iter;
-	int ret;
+	struct bkey_s_c old;
+	int ret, u64s_delta = 0;
 
 	trans_for_each_update(trans, i) {
-		struct btree *b;
-
-		BUG_ON(!btree_node_intent_locked(i->iter, i->level));
-
-		if (btree_iter_type(i->iter) == BTREE_ITER_CACHED)
+		/*
+		 * peek_slot() doesn't work on a BTREE_ITER_NODES iter; those
+		 * iterator types should probably go away
+		 */
+		if (btree_iter_type(i->iter) != BTREE_ITER_KEYS)
 			continue;
 
-		b = iter_l(i->iter)->b;
-		if (b->sib_u64s[0] < c->btree_foreground_merge_threshold ||
-		    b->sib_u64s[1] < c->btree_foreground_merge_threshold) {
-			ret = maybe_do_btree_merge(trans, i->iter);
-			if (unlikely(ret))
-				return ret;
+		old = bch2_btree_iter_peek_slot(i->iter);
+		ret = bkey_err(old);
+		if (unlikely(ret))
+			return ret;
+
+		u64s_delta += !bkey_deleted(&i->k->k) ? i->k->k.u64s : 0;
+		u64s_delta -= !bkey_deleted(old.k) ? old.k->u64s : 0;
+
+		if (!same_leaf_as_next(trans, i)) {
+			if (u64s_delta <= 0) {
+				ret = bch2_foreground_maybe_merge(trans, i->iter,
+							i->iter->level, trans->flags);
+				if (unlikely(ret))
+					return ret;
+			}
+
+			u64s_delta = 0;
 		}
 	}
 
