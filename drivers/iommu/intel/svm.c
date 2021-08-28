@@ -789,7 +789,19 @@ prq_retry:
 		goto prq_retry;
 	}
 
+	/*
+	 * A work in IO page fault workqueue may try to lock pasid_mutex now.
+	 * Holding pasid_mutex while waiting in iopf_queue_flush_dev() for
+	 * all works in the workqueue to finish may cause deadlock.
+	 *
+	 * It's unnecessary to hold pasid_mutex in iopf_queue_flush_dev().
+	 * Unlock it to allow the works to be handled while waiting for
+	 * them to finish.
+	 */
+	lockdep_assert_held(&pasid_mutex);
+	mutex_unlock(&pasid_mutex);
 	iopf_queue_flush_dev(dev);
+	mutex_lock(&pasid_mutex);
 
 	/*
 	 * Perform steps described in VT-d spec CH7.10 to drain page
