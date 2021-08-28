@@ -233,6 +233,8 @@
 #define QM_DBG_WRITE_LEN		1024
 #define QM_DBG_TMP_BUF_LEN		22
 #define QM_PCI_COMMAND_INVALID		~0
+#define QM_RESET_STOP_TX_OFFSET		1
+#define QM_RESET_STOP_RX_OFFSET		2
 
 #define WAIT_PERIOD			20
 #define REMOVE_WAIT_DELAY		10
@@ -881,6 +883,20 @@ static irqreturn_t qm_mb_cmd_irq(int irq, void *data)
 	schedule_work(&qm->cmd_process);
 
 	return IRQ_HANDLED;
+}
+
+static void qm_set_qp_disable(struct hisi_qp *qp, int offset)
+{
+	u32 *addr;
+
+	if (qp->is_in_kernel)
+		return;
+
+	addr = (u32 *)(qp->qdma.va + qp->qdma.size) - offset;
+	*addr = 1;
+
+	/* make sure setup is completed */
+	mb();
 }
 
 static irqreturn_t qm_aeq_irq(int irq, void *data)
@@ -2467,6 +2483,15 @@ static void *qm_get_avail_sqe(struct hisi_qp *qp)
 	return qp->sqe + sq_tail * qp->qm->sqe_size;
 }
 
+static void hisi_qm_unset_hw_reset(struct hisi_qp *qp)
+{
+	u64 *addr;
+
+	/* Use last 64 bits of DUS to reset status. */
+	addr = (u64 *)(qp->qdma.va + qp->qdma.size) - QM_RESET_STOP_TX_OFFSET;
+	*addr = 0;
+}
+
 static struct hisi_qp *qm_create_qp_nolock(struct hisi_qm *qm, u8 alg_type)
 {
 	struct device *dev = &qm->pdev->dev;
@@ -2492,7 +2517,7 @@ static struct hisi_qp *qm_create_qp_nolock(struct hisi_qm *qm, u8 alg_type)
 	}
 
 	qp = &qm->qp_array[qp_id];
-
+	hisi_qm_unset_hw_reset(qp);
 	memset(qp->cqe, 0, sizeof(struct qm_cqe) * QM_Q_DEPTH);
 
 	qp->event_cb = NULL;
@@ -2910,6 +2935,14 @@ static void qm_qp_event_notifier(struct hisi_qp *qp)
 static int hisi_qm_get_available_instances(struct uacce_device *uacce)
 {
 	return hisi_qm_get_free_qp_num(uacce->priv);
+}
+
+static void hisi_qm_set_hw_reset(struct hisi_qm *qm, int offset)
+{
+	int i;
+
+	for (i = 0; i < qm->qp_num; i++)
+		qm_set_qp_disable(&qm->qp_array[i], offset);
 }
 
 static int hisi_qm_uacce_get_queue(struct uacce_device *uacce,
@@ -3684,11 +3717,13 @@ int hisi_qm_stop(struct hisi_qm *qm, enum qm_stop_reason r)
 
 	if (qm->status.stop_reason == QM_SOFT_RESET ||
 	    qm->status.stop_reason == QM_FLR) {
+		hisi_qm_set_hw_reset(qm, QM_RESET_STOP_TX_OFFSET);
 		ret = qm_stop_started_qp(qm);
 		if (ret < 0) {
 			dev_err(dev, "Failed to stop started qp!\n");
 			goto err_unlock;
 		}
+		hisi_qm_set_hw_reset(qm, QM_RESET_STOP_RX_OFFSET);
 	}
 
 	/* Mask eq and aeq irq */
@@ -5047,6 +5082,8 @@ static int qm_controller_reset(struct hisi_qm *qm)
 
 	ret = qm_controller_reset_prepare(qm);
 	if (ret) {
+		hisi_qm_set_hw_reset(qm, QM_RESET_STOP_TX_OFFSET);
+		hisi_qm_set_hw_reset(qm, QM_RESET_STOP_RX_OFFSET);
 		clear_bit(QM_RST_SCHED, &qm->misc_ctl);
 		return ret;
 	}
@@ -5133,6 +5170,8 @@ void hisi_qm_reset_prepare(struct pci_dev *pdev)
 	ret = hisi_qm_stop(qm, QM_FLR);
 	if (ret) {
 		pci_err(pdev, "Failed to stop QM, ret = %d.\n", ret);
+		hisi_qm_set_hw_reset(qm, QM_RESET_STOP_TX_OFFSET);
+		hisi_qm_set_hw_reset(qm, QM_RESET_STOP_RX_OFFSET);
 		return;
 	}
 
@@ -5316,9 +5355,14 @@ static void qm_pf_reset_vf_prepare(struct hisi_qm *qm,
 		atomic_set(&qm->status.flags, QM_STOP);
 		cmd = QM_VF_PREPARE_FAIL;
 		goto err_prepare;
+	} else {
+		goto out;
 	}
 
 err_prepare:
+	hisi_qm_set_hw_reset(qm, QM_RESET_STOP_TX_OFFSET);
+	hisi_qm_set_hw_reset(qm, QM_RESET_STOP_RX_OFFSET);
+out:
 	pci_save_state(pdev);
 	ret = qm->ops->ping_pf(qm, cmd);
 	if (ret)
