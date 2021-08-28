@@ -3122,8 +3122,10 @@ static int qm_alloc_uacce(struct hisi_qm *qm)
 	else
 		mmio_page_nr = qm->db_interval / PAGE_SIZE;
 
+	/* Add one more page for device or qp status */
 	dus_page_nr = (PAGE_SIZE - 1 + qm->sqe_size * QM_Q_DEPTH +
-		       sizeof(struct qm_cqe) * QM_Q_DEPTH) >> PAGE_SHIFT;
+		       sizeof(struct qm_cqe) * QM_Q_DEPTH  + PAGE_SIZE) >>
+					 PAGE_SHIFT;
 
 	uacce->qf_pg_num[UACCE_QFRT_MMIO] = mmio_page_nr;
 	uacce->qf_pg_num[UACCE_QFRT_DUS]  = dus_page_nr;
