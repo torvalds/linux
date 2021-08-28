@@ -39,6 +39,7 @@ Hardware Monitoring Kernel Drivers
    adt7475
    aht10
    amc6821
+   aquacomputer_d5next
    asb100
    asc7621
    aspeed-pwm-tacho
