@@ -10008,7 +10008,9 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	bnxt_tx_enable(bp);
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 	/* Poll link status and check for SFP+ module status */
+	mutex_lock(&bp->link_lock);
 	bnxt_get_port_module_status(bp);
+	mutex_unlock(&bp->link_lock);
 
 	/* VF-reps may need to be re-opened after the PF is re-opened */
 	if (BNXT_PF(bp))
@@ -12599,8 +12601,10 @@ static int bnxt_probe_phy(struct bnxt *bp, bool fw_dflt)
 	if (!fw_dflt)
 		return 0;
 
+	mutex_lock(&bp->link_lock);
 	rc = bnxt_update_link(bp, false);
 	if (rc) {
+		mutex_unlock(&bp->link_lock);
 		netdev_err(bp->dev, "Probe phy can't update link (rc: %x)\n",
 			   rc);
 		return rc;
@@ -12613,6 +12617,7 @@ static int bnxt_probe_phy(struct bnxt *bp, bool fw_dflt)
 		link_info->support_auto_speeds = link_info->support_speeds;
 
 	bnxt_init_ethtool_link_settings(bp);
+	mutex_unlock(&bp->link_lock);
 	return 0;
 }
 

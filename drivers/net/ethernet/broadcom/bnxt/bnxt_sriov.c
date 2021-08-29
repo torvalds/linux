@@ -1032,10 +1032,10 @@ static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
 
 		phy_qcfg_req =
 		(struct hwrm_port_phy_qcfg_input *)vf->hwrm_cmd_req_addr;
-		mutex_lock(&bp->hwrm_cmd_lock);
+		mutex_lock(&bp->link_lock);
 		memcpy(&phy_qcfg_resp, &bp->link_info.phy_qcfg_resp,
 		       sizeof(phy_qcfg_resp));
-		mutex_unlock(&bp->hwrm_cmd_lock);
+		mutex_unlock(&bp->link_lock);
 		phy_qcfg_resp.resp_len = cpu_to_le16(sizeof(phy_qcfg_resp));
 		phy_qcfg_resp.seq_id = phy_qcfg_req->seq_id;
 		phy_qcfg_resp.valid = 1;
