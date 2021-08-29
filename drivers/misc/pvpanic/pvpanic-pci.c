@@ -22,11 +22,6 @@ MODULE_AUTHOR("Mihai Carabas <mihai.carabas@oracle.com>");
 MODULE_DESCRIPTION("pvpanic device driver ");
 MODULE_LICENSE("GPL");
 
-static const struct pci_device_id pvpanic_pci_id_tbl[]  = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_REDHAT, PCI_DEVICE_ID_REDHAT_PVPANIC)},
-	{}
-};
-
 static ssize_t capability_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -99,6 +94,12 @@ static int pvpanic_pci_probe(struct pci_dev *pdev,
 	return devm_pvpanic_probe(&pdev->dev, pi);
 }
 
+static const struct pci_device_id pvpanic_pci_id_tbl[]  = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_REDHAT, PCI_DEVICE_ID_REDHAT_PVPANIC)},
+	{}
+};
+MODULE_DEVICE_TABLE(pci, pvpanic_pci_id_tbl);
+
 static struct pci_driver pvpanic_pci_driver = {
 	.name =         "pvpanic-pci",
 	.id_table =     pvpanic_pci_id_tbl,
@@ -107,7 +108,4 @@ static struct pci_driver pvpanic_pci_driver = {
 		.dev_groups = pvpanic_pci_dev_groups,
 	},
 };
-
-MODULE_DEVICE_TABLE(pci, pvpanic_pci_id_tbl);
-
 module_pci_driver(pvpanic_pci_driver);

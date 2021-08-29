@@ -101,6 +101,7 @@ static int pvpanic_init(void)
 
 	return 0;
 }
+module_init(pvpanic_init);
 
 static void pvpanic_exit(void)
 {
@@ -108,6 +109,4 @@ static void pvpanic_exit(void)
 					 &pvpanic_panic_nb);
 
 }
-
-module_init(pvpanic_init);
 module_exit(pvpanic_exit);
