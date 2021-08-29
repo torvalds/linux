@@ -309,11 +309,6 @@ inline void rtw_set_oper_bw(struct adapter *adapter, u8 bw)
 	adapter->mlmeextpriv.oper_bwmode = bw;
 }
 
-inline u8 rtw_get_oper_choffset(struct adapter *adapter)
-{
-	return adapter->mlmeextpriv.oper_ch_offset;
-}
-
 inline void rtw_set_oper_choffset(struct adapter *adapter, u8 offset)
 {
 	adapter->mlmeextpriv.oper_ch_offset = offset;
