@@ -2347,7 +2347,6 @@ static void btree_iter_copy(struct btree_trans *trans, struct btree_iter *dst,
 					   __btree_lock_want(dst, i));
 
 	dst->flags &= ~BTREE_ITER_KEEP_UNTIL_COMMIT;
-	dst->flags &= ~BTREE_ITER_SET_POS_AFTER_COMMIT;
 	trans->iters_sorted = false;
 }
 
@@ -2564,8 +2563,7 @@ void bch2_trans_begin(struct btree_trans *trans)
 	struct btree_iter *iter;
 
 	trans_for_each_iter(trans, iter)
-		iter->flags &= ~(BTREE_ITER_KEEP_UNTIL_COMMIT|
-				 BTREE_ITER_SET_POS_AFTER_COMMIT);
+		iter->flags &= ~BTREE_ITER_KEEP_UNTIL_COMMIT;
 
 	/*
 	 * XXX: we shouldn't be doing this if the transaction was restarted, but

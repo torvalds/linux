@@ -742,7 +742,6 @@ bch2_trans_commit_get_rw_cold(struct btree_trans *trans)
 int __bch2_trans_commit(struct btree_trans *trans)
 {
 	struct btree_insert_entry *i = NULL;
-	struct btree_iter *iter;
 	bool trans_trigger_run;
 	unsigned u64s;
 	int ret = 0;
@@ -840,11 +839,6 @@ retry:
 
 	if (ret)
 		goto err;
-
-	trans_for_each_iter(trans, iter)
-		if (btree_iter_live(trans, iter) &&
-		    (iter->flags & BTREE_ITER_SET_POS_AFTER_COMMIT))
-			bch2_btree_iter_set_pos(iter, iter->pos_after_commit);
 out:
 	bch2_journal_preres_put(&trans->c->journal, &trans->journal_preres);
 
@@ -919,9 +913,6 @@ static int bch2_trans_update_extent(struct btree_trans *trans,
 	struct bkey_s_c k;
 	enum btree_id btree_id = orig_iter->btree_id;
 	int ret = 0, compressed_sectors;
-
-	orig_iter->pos_after_commit = insert->k.p;
-	orig_iter->flags |= BTREE_ITER_SET_POS_AFTER_COMMIT;
 
 	iter = bch2_trans_get_iter(trans, btree_id, start,
 				   BTREE_ITER_INTENT|

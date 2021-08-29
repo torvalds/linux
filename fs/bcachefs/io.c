@@ -276,6 +276,7 @@ int bch2_extent_update(struct btree_trans *trans,
 {
 	/* this must live until after bch2_trans_commit(): */
 	struct bkey_inode_buf inode_p;
+	struct bpos next_pos;
 	bool extending = false, usage_increasing;
 	s64 i_sectors_delta = 0, disk_sectors_delta = 0;
 	int ret;
@@ -354,6 +355,8 @@ int bch2_extent_update(struct btree_trans *trans,
 			return ret;
 	}
 
+	next_pos = k->k.p;
+
 	ret =   bch2_trans_update(trans, iter, k, 0) ?:
 		bch2_trans_commit(trans, disk_res, journal_seq,
 				BTREE_INSERT_NOCHECK_RW|
@@ -361,6 +364,8 @@ int bch2_extent_update(struct btree_trans *trans,
 	BUG_ON(ret == -ENOSPC);
 	if (ret)
 		return ret;
+
+	bch2_btree_iter_set_pos(iter, next_pos);
 
 	if (i_sectors_delta_total)
 		*i_sectors_delta_total += i_sectors_delta;

@@ -79,6 +79,7 @@ int bch2_migrate_index_update(struct bch_write_op *op)
 		struct bkey_i_extent *new;
 		const union bch_extent_entry *entry;
 		struct extent_ptr_decoded p;
+		struct bpos next_pos;
 		bool did_work = false;
 		bool extending = false, should_check_enospc;
 		s64 i_sectors_delta = 0, disk_sectors_delta = 0;
@@ -162,14 +163,18 @@ int bch2_migrate_index_update(struct bch_write_op *op)
 				goto out;
 		}
 
+		next_pos = insert->k.p;
+
 		ret   = bch2_trans_update(&trans, iter, insert, 0) ?:
 			bch2_trans_commit(&trans, &op->res,
 				op_journal_seq(op),
 				BTREE_INSERT_NOFAIL|
 				m->data_opts.btree_insert_flags);
-err:
-		if (!ret)
+		if (!ret) {
+			bch2_btree_iter_set_pos(iter, next_pos);
 			atomic_long_inc(&c->extent_migrate_done);
+		}
+err:
 		if (ret == -EINTR)
 			ret = 0;
 		if (ret)
