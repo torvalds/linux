@@ -34,6 +34,7 @@
 #include "en.h"
 #include "en_accel/tls.h"
 #include "en_accel/en_accel.h"
+#include "en/ptp.h"
 
 static unsigned int stats_grps_num(struct mlx5e_priv *priv)
 {
@@ -2076,7 +2077,7 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(ptp)
 	if (priv->rx_ptp_opened) {
 		for (i = 0; i < NUM_PTP_RQ_STATS; i++)
 			sprintf(data + (idx++) * ETH_GSTRING_LEN,
-				ptp_rq_stats_desc[i].format);
+				ptp_rq_stats_desc[i].format, MLX5E_PTP_CHANNEL_IX);
 	}
 	return idx;
 }
