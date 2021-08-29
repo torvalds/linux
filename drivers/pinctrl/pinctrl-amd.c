@@ -621,14 +621,12 @@ static irqreturn_t amd_gpio_irq_handler(int irq, void *dev_id)
 			if (!(regval & PIN_IRQ_PENDING) ||
 			    !(regval & BIT(INTERRUPT_MASK_OFF)))
 				continue;
-			irq = irq_find_mapping(gc->irq.domain, irqnr + i);
-			if (irq != 0)
-				generic_handle_irq(irq);
+			generic_handle_domain_irq(gc->irq.domain, irqnr + i);
 
 			/* Clear interrupt.
 			 * We must read the pin register again, in case the
 			 * value was changed while executing
-			 * generic_handle_irq() above.
+			 * generic_handle_domain_irq() above.
 			 * If we didn't find a mapping for the interrupt,
 			 * disable it in order to avoid a system hang caused
 			 * by an interrupt storm.

@@ -395,8 +395,8 @@ static void bcm2835_gpio_irq_handle_bank(struct bcm2835_pinctrl *pc,
 	events &= pc->enabled_irq_map[bank];
 	for_each_set_bit(offset, &events, 32) {
 		gpio = (32 * bank) + offset;
-		generic_handle_irq(irq_linear_revmap(pc->gpio_chip.irq.domain,
-						     gpio));
+		generic_handle_domain_irq(pc->gpio_chip.irq.domain,
+					  gpio);
 	}
 }
 
