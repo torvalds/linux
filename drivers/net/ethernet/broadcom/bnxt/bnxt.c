@@ -8036,7 +8036,7 @@ qportcfg_exit:
 	return rc;
 }
 
-static int __bnxt_hwrm_ver_get(struct bnxt *bp, bool silent)
+static int bnxt_hwrm_poll(struct bnxt *bp)
 {
 	struct hwrm_ver_get_input req = {0};
 	int rc;
@@ -8046,21 +8046,26 @@ static int __bnxt_hwrm_ver_get(struct bnxt *bp, bool silent)
 	req.hwrm_intf_min = HWRM_VERSION_MINOR;
 	req.hwrm_intf_upd = HWRM_VERSION_UPDATE;
 
-	rc = bnxt_hwrm_do_send_msg(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT,
-				   silent);
+	rc = _hwrm_send_message_silent(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	return rc;
 }
 
 static int bnxt_hwrm_ver_get(struct bnxt *bp)
 {
 	struct hwrm_ver_get_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_ver_get_input req = {0};
 	u16 fw_maj, fw_min, fw_bld, fw_rsv;
 	u32 dev_caps_cfg, hwrm_ver;
 	int rc, len;
 
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VER_GET, -1, -1);
 	bp->hwrm_max_req_len = HWRM_MAX_REQ_LEN;
+	req.hwrm_intf_maj = HWRM_VERSION_MAJOR;
+	req.hwrm_intf_min = HWRM_VERSION_MINOR;
+	req.hwrm_intf_upd = HWRM_VERSION_UPDATE;
+
 	mutex_lock(&bp->hwrm_cmd_lock);
-	rc = __bnxt_hwrm_ver_get(bp, false);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
 		goto hwrm_ver_get_exit;
 
@@ -9791,7 +9796,7 @@ static int bnxt_try_recover_fw(struct bnxt *bp)
 		mutex_lock(&bp->hwrm_cmd_lock);
 		do {
 			sts = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
-			rc = __bnxt_hwrm_ver_get(bp, true);
+			rc = bnxt_hwrm_poll(bp);
 			if (!BNXT_FW_IS_BOOTING(sts) &&
 			    !BNXT_FW_IS_RECOVERING(sts))
 				break;
@@ -12234,7 +12239,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		fallthrough;
 	case BNXT_FW_RESET_STATE_POLL_FW:
 		bp->hwrm_cmd_timeout = SHORT_HWRM_CMD_TIMEOUT;
-		rc = __bnxt_hwrm_ver_get(bp, true);
+		rc = bnxt_hwrm_poll(bp);
 		if (rc) {
 			if (bnxt_fw_reset_timeout(bp)) {
 				netdev_err(bp->dev, "Firmware reset aborted\n");
