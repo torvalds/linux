@@ -1448,21 +1448,14 @@ static int __init init_ntfs_fs(void)
 {
 	int err;
 
-	pr_notice("ntfs3: Index binary search\n");
-	pr_notice("ntfs3: Hot fix free clusters\n");
-	pr_notice("ntfs3: Max link count %u\n", NTFS_LINK_MAX);
+	pr_info("ntfs3: Max link count %u\n", NTFS_LINK_MAX);
 
-#ifdef CONFIG_NTFS3_FS_POSIX_ACL
-	pr_notice("ntfs3: Enabled Linux POSIX ACLs support\n");
-#endif
-#ifdef CONFIG_NTFS3_64BIT_CLUSTER
-	pr_notice("ntfs3: Activated 64 bits per cluster\n");
-#else
-	pr_notice("ntfs3: Activated 32 bits per cluster\n");
-#endif
-#ifdef CONFIG_NTFS3_LZX_XPRESS
-	pr_notice("ntfs3: Read-only LZX/Xpress compression included\n");
-#endif
+	if (IS_ENABLED(CONFIG_NTFS3_FS_POSIX_ACL))
+		pr_info("ntfs3: Enabled Linux POSIX ACLs support\n");
+	if (IS_ENABLED(CONFIG_NTFS3_64BIT_CLUSTER))
+		pr_notice("ntfs3: Warning: Activated 64 bits per cluster. Windows does not support this\n");
+	if (IS_ENABLED(CONFIG_NTFS3_LZX_XPRESS))
+		pr_info("ntfs3: Read-only LZX/Xpress compression included\n");
 
 	err = ntfs3_init_bitmap();
 	if (err)
@@ -1502,15 +1495,11 @@ static void __exit exit_ntfs_fs(void)
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ntfs3 read/write filesystem");
-MODULE_INFO(behaviour, "Index binary search");
-MODULE_INFO(behaviour, "Hot fix free clusters");
 #ifdef CONFIG_NTFS3_FS_POSIX_ACL
 MODULE_INFO(behaviour, "Enabled Linux POSIX ACLs support");
 #endif
 #ifdef CONFIG_NTFS3_64BIT_CLUSTER
-MODULE_INFO(cluster, "Activated 64 bits per cluster");
-#else
-MODULE_INFO(cluster, "Activated 32 bits per cluster");
+MODULE_INFO(cluster, "Warning: Activated 64 bits per cluster. Windows does not support this");
 #endif
 #ifdef CONFIG_NTFS3_LZX_XPRESS
 MODULE_INFO(compression, "Read-only lzx/xpress compression included");
