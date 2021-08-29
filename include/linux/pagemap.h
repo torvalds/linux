@@ -176,6 +176,22 @@ static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask)
 	m->gfp_mask = mask;
 }
 
+/**
+ * mapping_set_large_folios() - Indicate the file supports large folios.
+ * @mapping: The file.
+ *
+ * The filesystem should call this function in its inode constructor to
+ * indicate that the VFS can use large folios to cache the contents of
+ * the file.
+ *
+ * Context: This should not be called while the inode is active as it
+ * is non-atomic.
+ */
+static inline void mapping_set_large_folios(struct address_space *mapping)
+{
+	__set_bit(AS_THP_SUPPORT, &mapping->flags);
+}
+
 static inline bool mapping_thp_support(struct address_space *mapping)
 {
 	return test_bit(AS_THP_SUPPORT, &mapping->flags);
