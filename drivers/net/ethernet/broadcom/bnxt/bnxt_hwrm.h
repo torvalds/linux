@@ -37,6 +37,25 @@ struct bnxt_hwrm_ctx {
 	gfp_t gfp;
 };
 
+enum bnxt_hwrm_wait_state {
+	BNXT_HWRM_PENDING,
+	BNXT_HWRM_DEFERRED,
+	BNXT_HWRM_COMPLETE,
+	BNXT_HWRM_CANCELLED,
+};
+
+enum bnxt_hwrm_chnl { BNXT_HWRM_CHNL_CHIMP, BNXT_HWRM_CHNL_KONG };
+
+struct bnxt_hwrm_wait_token {
+	struct rcu_head rcu;
+	struct hlist_node node;
+	enum bnxt_hwrm_wait_state state;
+	enum bnxt_hwrm_chnl dst;
+	u16 seq_id;
+};
+
+void hwrm_update_token(struct bnxt *bp, u16 seq, enum bnxt_hwrm_wait_state s);
+
 #define BNXT_HWRM_MAX_REQ_LEN		(bp->hwrm_max_req_len)
 #define BNXT_HWRM_SHORT_REQ_LEN		sizeof(struct hwrm_short_input)
 #define HWRM_CMD_MAX_TIMEOUT		40000
@@ -78,9 +97,6 @@ static inline unsigned int hwrm_total_timeout(unsigned int n)
 
 #define HWRM_VALID_BIT_DELAY_USEC	150
 
-#define BNXT_HWRM_CHNL_CHIMP	0
-#define BNXT_HWRM_CHNL_KONG	1
-
 static inline bool bnxt_cfa_hwrm_message(u16 req_type)
 {
 	switch (req_type) {
@@ -112,17 +128,6 @@ static inline bool bnxt_kong_hwrm_message(struct bnxt *bp, struct input *req)
 	return (bp->fw_cap & BNXT_FW_CAP_KONG_MB_CHNL &&
 		(bnxt_cfa_hwrm_message(le16_to_cpu(req->req_type)) ||
 		 le16_to_cpu(req->target_id) == HWRM_TARGET_ID_KONG));
-}
-
-static inline u16 bnxt_get_hwrm_seq_id(struct bnxt *bp, u16 dst)
-{
-	u16 seq_id;
-
-	if (dst == BNXT_HWRM_CHNL_CHIMP)
-		seq_id = bp->hwrm_cmd_seq++;
-	else
-		seq_id = bp->hwrm_cmd_kong_seq++;
-	return seq_id;
 }
 
 int __hwrm_req_init(struct bnxt *bp, void **req, u16 req_type, u32 req_len);

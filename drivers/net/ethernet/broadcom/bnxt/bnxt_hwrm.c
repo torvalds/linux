@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/skbuff.h>
@@ -363,19 +364,72 @@ static int __hwrm_to_stderr(u32 hwrm_err)
 	}
 }
 
+static struct bnxt_hwrm_wait_token *
+__hwrm_acquire_token(struct bnxt *bp, enum bnxt_hwrm_chnl dst)
+{
+	struct bnxt_hwrm_wait_token *token;
+
+	token = kzalloc(sizeof(*token), GFP_KERNEL);
+	if (!token)
+		return NULL;
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+
+	token->dst = dst;
+	token->state = BNXT_HWRM_PENDING;
+	if (dst == BNXT_HWRM_CHNL_CHIMP) {
+		token->seq_id = bp->hwrm_cmd_seq++;
+		hlist_add_head_rcu(&token->node, &bp->hwrm_pending_list);
+	} else {
+		token->seq_id = bp->hwrm_cmd_kong_seq++;
+	}
+
+	return token;
+}
+
+static void
+__hwrm_release_token(struct bnxt *bp, struct bnxt_hwrm_wait_token *token)
+{
+	if (token->dst == BNXT_HWRM_CHNL_CHIMP) {
+		hlist_del_rcu(&token->node);
+		kfree_rcu(token, rcu);
+	} else {
+		kfree(token);
+	}
+	mutex_unlock(&bp->hwrm_cmd_lock);
+}
+
+void
+hwrm_update_token(struct bnxt *bp, u16 seq_id, enum bnxt_hwrm_wait_state state)
+{
+	struct bnxt_hwrm_wait_token *token;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(token, &bp->hwrm_pending_list, node) {
+		if (token->seq_id == seq_id) {
+			WRITE_ONCE(token->state, state);
+			rcu_read_unlock();
+			return;
+		}
+	}
+	rcu_read_unlock();
+	netdev_err(bp->dev, "Invalid hwrm seq id %d\n", seq_id);
+}
+
 static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 {
 	u32 doorbell_offset = BNXT_GRCPF_REG_CHIMP_COMM_TRIGGER;
+	enum bnxt_hwrm_chnl dst = BNXT_HWRM_CHNL_CHIMP;
 	u32 bar_offset = BNXT_GRCPF_REG_CHIMP_COMM;
+	struct bnxt_hwrm_wait_token *token = NULL;
 	struct hwrm_short_input short_input = {0};
 	u16 max_req_len = BNXT_HWRM_MAX_REQ_LEN;
 	unsigned int i, timeout, tmo_count;
-	u16 dst = BNXT_HWRM_CHNL_CHIMP;
-	int intr_process, rc = -EBUSY;
 	u32 *data = (u32 *)ctx->req;
 	u32 msg_len = ctx->req_len;
-	u16 cp_ring_id, len = 0;
+	int rc = -EBUSY;
 	u32 req_type;
+	u16 len = 0;
 	u8 *valid;
 
 	if (ctx->flags & BNXT_HWRM_INTERNAL_RESP_DIRTY)
@@ -403,13 +457,12 @@ static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 		}
 	}
 
-	cp_ring_id = le16_to_cpu(ctx->req->cmpl_ring);
-	intr_process = (cp_ring_id == INVALID_HW_RING_ID) ? 0 : 1;
-
-	ctx->req->seq_id = cpu_to_le16(bnxt_get_hwrm_seq_id(bp, dst));
-	/* currently supports only one outstanding message */
-	if (intr_process)
-		bp->hwrm_intr_seq_id = le16_to_cpu(ctx->req->seq_id);
+	token = __hwrm_acquire_token(bp, dst);
+	if (!token) {
+		rc = -ENOMEM;
+		goto exit;
+	}
+	ctx->req->seq_id = cpu_to_le16(token->seq_id);
 
 	if ((bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) ||
 	    msg_len > BNXT_HWRM_MAX_REQ_LEN) {
@@ -456,11 +509,9 @@ static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 	timeout = timeout - HWRM_SHORT_MIN_TIMEOUT * HWRM_SHORT_TIMEOUT_COUNTER;
 	tmo_count += DIV_ROUND_UP(timeout, HWRM_MIN_TIMEOUT);
 
-	if (intr_process) {
-		u16 seq_id = bp->hwrm_intr_seq_id;
-
+	if (le16_to_cpu(ctx->req->cmpl_ring) != INVALID_HW_RING_ID) {
 		/* Wait until hwrm response cmpl interrupt is processed */
-		while (bp->hwrm_intr_seq_id != (u16)~seq_id &&
+		while (READ_ONCE(token->state) < BNXT_HWRM_COMPLETE &&
 		       i++ < tmo_count) {
 			/* Abort the wait for completion if the FW health
 			 * check has failed.
@@ -479,7 +530,7 @@ static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 			}
 		}
 
-		if (bp->hwrm_intr_seq_id != (u16)~seq_id) {
+		if (READ_ONCE(token->state) != BNXT_HWRM_COMPLETE) {
 			if (!(ctx->flags & BNXT_HWRM_CTX_SILENT))
 				netdev_err(bp->dev, "Resp cmpl intr err msg: 0x%x\n",
 					   le16_to_cpu(ctx->req->req_type));
@@ -498,6 +549,13 @@ static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 			 */
 			if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state))
 				goto exit;
+
+			if (token &&
+			    READ_ONCE(token->state) == BNXT_HWRM_DEFERRED) {
+				__hwrm_release_token(bp, token);
+				token = NULL;
+			}
+
 			len = le16_to_cpu(READ_ONCE(ctx->resp->resp_len));
 			if (len) {
 				__le16 resp_seq = READ_ONCE(ctx->resp->seq_id);
@@ -569,6 +627,8 @@ timeout_abort:
 	}
 	rc = __hwrm_to_stderr(rc);
 exit:
+	if (token)
+		__hwrm_release_token(bp, token);
 	if (ctx->flags & BNXT_HWRM_INTERNAL_CTX_OWNED)
 		ctx->flags |= BNXT_HWRM_INTERNAL_RESP_DIRTY;
 	else
@@ -609,15 +669,11 @@ exit:
 int hwrm_req_send(struct bnxt *bp, void *req)
 {
 	struct bnxt_hwrm_ctx *ctx = __hwrm_ctx(bp, req);
-	int rc;
 
 	if (!ctx)
 		return -EINVAL;
 
-	mutex_lock(&bp->hwrm_cmd_lock);
-	rc = __hwrm_send(bp, ctx);
-	mutex_unlock(&bp->hwrm_cmd_lock);
-	return rc;
+	return __hwrm_send(bp, ctx);
 }
 
 /**

@@ -1880,8 +1880,8 @@ struct bnxt {
 	u32			hwrm_spec_code;
 	u16			hwrm_cmd_seq;
 	u16                     hwrm_cmd_kong_seq;
-	u16			hwrm_intr_seq_id;
 	struct dma_pool		*hwrm_dma_pool;
+	struct hlist_head	hwrm_pending_list;
 
 	struct rtnl_link_stats64	net_stats_prev;
 	struct bnxt_stats_mem	port_stats;
