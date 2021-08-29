@@ -114,7 +114,7 @@ static struct clk_rcg2_gfx3d gfx3d_clk_src = {
 		.clkr.hw.init = &(struct clk_init_data){
 			.name = "gfx3d_clk_src",
 			.parent_data = gpucc_parent_data_1,
-			.num_parents = 4,
+			.num_parents = ARRAY_SIZE(gpucc_parent_data_1),
 			.ops = &clk_gfx3d_ops,
 			.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 		},
@@ -172,7 +172,7 @@ static struct clk_rcg2 rbbmtimer_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "rbbmtimer_clk_src",
 		.parent_data = gpucc_parent_data_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gpucc_parent_data_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -192,7 +192,7 @@ static struct clk_rcg2 rbcpr_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "rbcpr_clk_src",
 		.parent_data = gpucc_parent_data_0,
-		.num_parents = 3,
+		.num_parents = ARRAY_SIZE(gpucc_parent_data_0),
 		.ops = &clk_rcg2_ops,
 	},
 };
