@@ -754,6 +754,33 @@ iwl_mvm_ftm_set_ndp_params(struct iwl_mvm *mvm,
 	target->i2r_max_total_ltf = IWL_MVM_FTM_I2R_MAX_TOTAL_LTF;
 }
 
+static int
+iwl_mvm_ftm_put_target_v8(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			  struct cfg80211_pmsr_request_peer *peer,
+			  struct iwl_tof_range_req_ap_entry_v8 *target)
+{
+	u32 flags;
+	int ret = iwl_mvm_ftm_put_target_v7(mvm, vif, peer, (void *)target);
+
+	if (ret)
+		return ret;
+
+	iwl_mvm_ftm_set_ndp_params(mvm, target);
+
+	/*
+	 * If secure LTF is turned off, replace the flag with PMF only
+	 */
+	flags = le32_to_cpu(target->initiator_ap_flags);
+	if ((flags & IWL_INITIATOR_AP_FLAGS_SECURED) &&
+	    !IWL_MVM_FTM_INITIATOR_SECURE_LTF) {
+		flags &= ~IWL_INITIATOR_AP_FLAGS_SECURED;
+		flags |= IWL_INITIATOR_AP_FLAGS_PMF;
+		target->initiator_ap_flags = cpu_to_le32(flags);
+	}
+
+	return 0;
+}
+
 static int iwl_mvm_ftm_start_v12(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif,
 				 struct cfg80211_pmsr_request *req)
@@ -773,24 +800,53 @@ static int iwl_mvm_ftm_start_v12(struct iwl_mvm *mvm,
 	for (i = 0; i < cmd.num_of_ap; i++) {
 		struct cfg80211_pmsr_request_peer *peer = &req->peers[i];
 		struct iwl_tof_range_req_ap_entry_v8 *target = &cmd.ap[i];
-		u32 flags;
 
-		err = iwl_mvm_ftm_put_target_v7(mvm, vif, peer, (void *)target);
+		err = iwl_mvm_ftm_put_target_v8(mvm, vif, peer, target);
+		if (err)
+			return err;
+	}
+
+	return iwl_mvm_ftm_send_cmd(mvm, &hcmd);
+}
+
+static int iwl_mvm_ftm_start_v13(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif,
+				 struct cfg80211_pmsr_request *req)
+{
+	struct iwl_tof_range_req_cmd_v13 cmd;
+	struct iwl_host_cmd hcmd = {
+		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
+		.dataflags[0] = IWL_HCMD_DFL_DUP,
+		.data[0] = &cmd,
+		.len[0] = sizeof(cmd),
+	};
+	u8 i;
+	int err;
+
+	iwl_mvm_ftm_cmd_common(mvm, vif, (void *)&cmd, req);
+
+	for (i = 0; i < cmd.num_of_ap; i++) {
+		struct cfg80211_pmsr_request_peer *peer = &req->peers[i];
+		struct iwl_tof_range_req_ap_entry_v9 *target = &cmd.ap[i];
+
+		err = iwl_mvm_ftm_put_target_v8(mvm, vif, peer, (void *)target);
 		if (err)
 			return err;
 
-		iwl_mvm_ftm_set_ndp_params(mvm, target);
+		if (peer->ftm.trigger_based || peer->ftm.non_trigger_based)
+			target->bss_color = peer->ftm.bss_color;
 
-		/*
-		 * If secure LTF is turned off, replace the flag with PMF only
-		 */
-		flags = le32_to_cpu(target->initiator_ap_flags);
-		if ((flags & IWL_INITIATOR_AP_FLAGS_SECURED) &&
-		    !IWL_MVM_FTM_INITIATOR_SECURE_LTF) {
-			flags &= ~IWL_INITIATOR_AP_FLAGS_SECURED;
-			flags |= IWL_INITIATOR_AP_FLAGS_PMF;
-			target->initiator_ap_flags = cpu_to_le32(flags);
+		if (peer->ftm.non_trigger_based) {
+			target->min_time_between_msr =
+				cpu_to_le16(IWL_MVM_FTM_NON_TB_MIN_TIME_BETWEEN_MSR);
+			target->burst_period =
+				cpu_to_le16(IWL_MVM_FTM_NON_TB_MAX_TIME_BETWEEN_MSR);
+		} else {
+			target->min_time_between_msr = cpu_to_le16(0);
 		}
+
+		target->band =
+			iwl_mvm_phy_band_from_nl80211(peer->chandef.chan->band);
 	}
 
 	return iwl_mvm_ftm_send_cmd(mvm, &hcmd);
@@ -814,6 +870,9 @@ int iwl_mvm_ftm_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 						   IWL_FW_CMD_VER_UNKNOWN);
 
 		switch (cmd_ver) {
+		case 13:
+			err = iwl_mvm_ftm_start_v13(mvm, vif, req);
+			break;
 		case 12:
 			err = iwl_mvm_ftm_start_v12(mvm, vif, req);
 			break;
