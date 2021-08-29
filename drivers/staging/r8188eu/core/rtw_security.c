@@ -77,7 +77,7 @@ static void arcfour_encrypt(struct arc4context *parc4ctx, u8 *dest, u8 *src, u32
 /*
 	Need to consider the fragment  situation
 */
-void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
+void rtw_wep_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {	/*  exclude ICV */
 	union {
 		__le32 f0;
@@ -91,17 +91,15 @@ void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	u8	*pframe, *payload, *iv;    /* wepkey */
 	u8	wepkey[16];
 	u8   hw_hdr_offset = 0;
-	struct	pkt_attrib	 *pattrib = &((struct xmit_frame *)pxmitframe)->attrib;
+	struct	pkt_attrib	 *pattrib = &pxmitframe->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
 	struct	xmit_priv		*pxmitpriv = &padapter->xmitpriv;
 
-	if (!((struct xmit_frame *)pxmitframe)->buf_addr)
+	if (!pxmitframe->buf_addr)
 		return;
 
-	hw_hdr_offset = TXDESC_SIZE +
-		 (((struct xmit_frame *)pxmitframe)->pkt_offset * PACKET_OFFSET_SZ);
-
-	pframe = ((struct xmit_frame *)pxmitframe)->buf_addr + hw_hdr_offset;
+	hw_hdr_offset = TXDESC_SIZE + pxmitframe->pkt_offset * PACKET_OFFSET_SZ;
+	pframe = pxmitframe->buf_addr + hw_hdr_offset;
 
 	/* start to encrypt each fragment */
 	if ((pattrib->encrypt == _WEP40_) || (pattrib->encrypt == _WEP104_)) {
@@ -502,7 +500,7 @@ static void phase2(u8 *rc4key, const u8 *tk, const u16 *p1k, u16 iv16)
 }
 
 /* The hlen isn't include the IV */
-u32	rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
+u32 rtw_tkip_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {																	/*  exclude ICV */
 	u16	pnl;
 	u32	pnh;
@@ -519,17 +517,17 @@ u32	rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	u8	*pframe, *payload, *iv, *prwskey;
 	union pn48 dot11txpn;
 	struct	sta_info		*stainfo;
-	struct	pkt_attrib	 *pattrib = &((struct xmit_frame *)pxmitframe)->attrib;
+	struct	pkt_attrib	 *pattrib = &pxmitframe->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
 	struct	xmit_priv		*pxmitpriv = &padapter->xmitpriv;
 	u32	res = _SUCCESS;
 
-	if (!((struct xmit_frame *)pxmitframe)->buf_addr)
+	if (!pxmitframe->buf_addr)
 		return _FAIL;
 
-	hw_hdr_offset = TXDESC_SIZE +
-		 (((struct xmit_frame *)pxmitframe)->pkt_offset * PACKET_OFFSET_SZ);
-	pframe = ((struct xmit_frame *)pxmitframe)->buf_addr + hw_hdr_offset;
+	hw_hdr_offset = TXDESC_SIZE + pxmitframe->pkt_offset * PACKET_OFFSET_SZ;
+	pframe = pxmitframe->buf_addr + hw_hdr_offset;
+
 	/* 4 start to encrypt each fragment */
 	if (pattrib->encrypt == _TKIP_) {
 		if (pattrib->psta)
@@ -1154,7 +1152,7 @@ static int aes_cipher(u8 *key, uint hdrlen, u8 *pframe, uint plen)
 	return _SUCCESS;
 }
 
-u32	rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
+u32 rtw_aes_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {	/*  exclude ICV */
 
 	/*static*/
@@ -1165,20 +1163,18 @@ u32	rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	u8	*pframe, *prwskey;	/*  *payload,*iv */
 	u8   hw_hdr_offset = 0;
 	struct	sta_info		*stainfo;
-	struct	pkt_attrib	 *pattrib = &((struct xmit_frame *)pxmitframe)->attrib;
+	struct	pkt_attrib	 *pattrib = &pxmitframe->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
 	struct	xmit_priv		*pxmitpriv = &padapter->xmitpriv;
 
 /*	uint	offset = 0; */
 	u32 res = _SUCCESS;
 
-	if (!((struct xmit_frame *)pxmitframe)->buf_addr)
+	if (!pxmitframe->buf_addr)
 		return _FAIL;
 
-	hw_hdr_offset = TXDESC_SIZE +
-		 (((struct xmit_frame *)pxmitframe)->pkt_offset * PACKET_OFFSET_SZ);
-
-	pframe = ((struct xmit_frame *)pxmitframe)->buf_addr + hw_hdr_offset;
+	hw_hdr_offset = TXDESC_SIZE + pxmitframe->pkt_offset * PACKET_OFFSET_SZ;
+	pframe = pxmitframe->buf_addr + hw_hdr_offset;
 
 	/* 4 start to encrypt each fragment */
 	if (pattrib->encrypt == _AES_) {

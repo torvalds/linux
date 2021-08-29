@@ -330,9 +330,9 @@ void rtw_secmicappend(struct mic_data *pmicdata, u8 *src, u32 nBytes);
 void rtw_secgetmic(struct mic_data *pmicdata, u8 *dst);
 void rtw_seccalctkipmic(u8 *key, u8 *header, u8 *data, u32 data_len,
 			u8 *Miccode, u8   priority);
-u32 rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe);
-u32 rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe);
-void rtw_wep_encrypt(struct adapter *padapter, u8  *pxmitframe);
+u32 rtw_aes_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe);
+u32 rtw_tkip_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe);
+void rtw_wep_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe);
 u32 rtw_aes_decrypt(struct adapter *padapter, u8  *precvframe);
 u32 rtw_tkip_decrypt(struct adapter *padapter, u8  *precvframe);
 void rtw_wep_decrypt(struct adapter *padapter, u8  *precvframe);

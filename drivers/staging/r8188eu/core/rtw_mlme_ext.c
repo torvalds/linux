@@ -5040,7 +5040,7 @@ void issue_auth(struct adapter *padapter, struct sta_info *psta, unsigned short 
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
-	rtw_wep_encrypt(padapter, (u8 *)pmgntframe);
+	rtw_wep_encrypt(padapter, pmgntframe);
 	DBG_88E("%s\n", __func__);
 	dump_mgntframe(padapter, pmgntframe);
 }
