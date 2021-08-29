@@ -177,7 +177,7 @@ static struct intel_context *pinned_context(struct intel_gt *gt)
 	ce = intel_engine_create_pinned_context(engine, vm, SZ_512K,
 						I915_GEM_HWS_MIGRATE,
 						&key, "migrate");
-	i915_vm_put(ce->vm);
+	i915_vm_put(vm);
 	return ce;
 }
 
