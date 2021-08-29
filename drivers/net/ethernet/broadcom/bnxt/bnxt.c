@@ -3962,30 +3962,6 @@ static void bnxt_free_hwrm_resources(struct bnxt *bp)
 				  bp->hwrm_cmd_resp_dma_addr);
 		bp->hwrm_cmd_resp_addr = NULL;
 	}
-
-	if (bp->hwrm_cmd_kong_resp_addr) {
-		dma_free_coherent(&pdev->dev, PAGE_SIZE,
-				  bp->hwrm_cmd_kong_resp_addr,
-				  bp->hwrm_cmd_kong_resp_dma_addr);
-		bp->hwrm_cmd_kong_resp_addr = NULL;
-	}
-}
-
-static int bnxt_alloc_kong_hwrm_resources(struct bnxt *bp)
-{
-	struct pci_dev *pdev = bp->pdev;
-
-	if (bp->hwrm_cmd_kong_resp_addr)
-		return 0;
-
-	bp->hwrm_cmd_kong_resp_addr =
-		dma_alloc_coherent(&pdev->dev, PAGE_SIZE,
-				   &bp->hwrm_cmd_kong_resp_dma_addr,
-				   GFP_KERNEL);
-	if (!bp->hwrm_cmd_kong_resp_addr)
-		return -ENOMEM;
-
-	return 0;
 }
 
 static int bnxt_alloc_hwrm_resources(struct bnxt *bp)
@@ -4581,10 +4557,7 @@ void bnxt_hwrm_cmd_hdr_init(struct bnxt *bp, void *request, u16 req_type,
 	req->req_type = cpu_to_le16(req_type);
 	req->cmpl_ring = cpu_to_le16(cmpl_ring);
 	req->target_id = cpu_to_le16(target_id);
-	if (bnxt_kong_hwrm_message(bp, req))
-		req->resp_addr = cpu_to_le64(bp->hwrm_cmd_kong_resp_dma_addr);
-	else
-		req->resp_addr = cpu_to_le64(bp->hwrm_cmd_resp_dma_addr);
+	req->resp_addr = cpu_to_le64(bp->hwrm_cmd_resp_dma_addr);
 }
 
 static int bnxt_hwrm_to_stderr(u32 hwrm_err)
@@ -4641,11 +4614,10 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 			return -EINVAL;
 	}
 
-	if (bnxt_hwrm_kong_chnl(bp, req)) {
+	if (bnxt_kong_hwrm_message(bp, req)) {
 		dst = BNXT_HWRM_CHNL_KONG;
 		bar_offset = BNXT_GRCPF_REG_KONG_COMM;
 		doorbell_offset = BNXT_GRCPF_REG_KONG_COMM_TRIGGER;
-		resp = bp->hwrm_cmd_kong_resp_addr;
 	}
 
 	memset(resp, 0, PAGE_SIZE);
@@ -11948,12 +11920,6 @@ static int bnxt_fw_init_one_p1(struct bnxt *bp)
 			return rc;
 	}
 
-	if (bp->fw_cap & BNXT_FW_CAP_KONG_MB_CHNL) {
-		rc = bnxt_alloc_kong_hwrm_resources(bp);
-		if (rc)
-			bp->fw_cap &= ~BNXT_FW_CAP_KONG_MB_CHNL;
-	}
-
 	if ((bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) ||
 	    bp->hwrm_max_ext_req_len > BNXT_HWRM_MAX_REQ_LEN) {
 		rc = bnxt_alloc_hwrm_short_cmd_req(bp);
@@ -12136,8 +12102,8 @@ static void bnxt_reset_all(struct bnxt *bp)
 	} else if (fw_health->flags & ERROR_RECOVERY_QCFG_RESP_FLAGS_CO_CPU) {
 		struct hwrm_fw_reset_input req = {0};
 
-		bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FW_RESET, -1, -1);
-		req.resp_addr = cpu_to_le64(bp->hwrm_cmd_kong_resp_dma_addr);
+		bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FW_RESET, -1,
+				       HWRM_TARGET_ID_KONG);
 		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP;
 		req.selfrst_status = FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP;
 		req.flags = FW_RESET_REQ_FLAGS_RESET_GRACEFUL;

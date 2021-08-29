@@ -1915,8 +1915,6 @@ struct bnxt {
 	dma_addr_t		hwrm_short_cmd_req_dma_addr;
 	void			*hwrm_cmd_resp_addr;
 	dma_addr_t		hwrm_cmd_resp_dma_addr;
-	void			*hwrm_cmd_kong_resp_addr;
-	dma_addr_t		hwrm_cmd_kong_resp_dma_addr;
 
 	struct rtnl_link_stats64	net_stats_prev;
 	struct bnxt_stats_mem	port_stats;
@@ -2216,21 +2214,13 @@ static inline bool bnxt_cfa_hwrm_message(u16 req_type)
 static inline bool bnxt_kong_hwrm_message(struct bnxt *bp, struct input *req)
 {
 	return (bp->fw_cap & BNXT_FW_CAP_KONG_MB_CHNL &&
-		bnxt_cfa_hwrm_message(le16_to_cpu(req->req_type)));
-}
-
-static inline bool bnxt_hwrm_kong_chnl(struct bnxt *bp, struct input *req)
-{
-	return (bp->fw_cap & BNXT_FW_CAP_KONG_MB_CHNL &&
-		req->resp_addr == cpu_to_le64(bp->hwrm_cmd_kong_resp_dma_addr));
+		(bnxt_cfa_hwrm_message(le16_to_cpu(req->req_type)) ||
+		 le16_to_cpu(req->target_id) == HWRM_TARGET_ID_KONG));
 }
 
 static inline void *bnxt_get_hwrm_resp_addr(struct bnxt *bp, void *req)
 {
-	if (bnxt_hwrm_kong_chnl(bp, (struct input *)req))
-		return bp->hwrm_cmd_kong_resp_addr;
-	else
-		return bp->hwrm_cmd_resp_addr;
+	return bp->hwrm_cmd_resp_addr;
 }
 
 static inline u16 bnxt_get_hwrm_seq_id(struct bnxt *bp, u16 dst)
