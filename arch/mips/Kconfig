@@ -1342,19 +1342,14 @@ config LOONGSON3_ENHANCEMENT
 	  new Loongson-3 machines only, please say 'Y' here.
 
 config CPU_LOONGSON3_WORKAROUNDS
-	bool "Old Loongson-3 LLSC Workarounds"
+	bool "Loongson-3 LLSC Workarounds"
 	default y if SMP
 	depends on CPU_LOONGSON64
 	help
 	  Loongson-3 processors have the llsc issues which require workarounds.
 	  Without workarounds the system may hang unexpectedly.
 
-	  Newer Loongson-3 will fix these issues and no workarounds are needed.
-	  The workarounds have no significant side effect on them but may
-	  decrease the performance of the system so this option should be
-	  disabled unless the kernel is intended to be run on old systems.
-
-	  If unsure, please say Y.
+	  Say Y, unless you know what you are doing.
 
 config CPU_LOONGSON3_CPUCFG_EMULATION
 	bool "Emulate the CPUCFG instruction on older Loongson cores"
