@@ -72,7 +72,7 @@
 	};
 
 	mdio-mii-mux {
-		compatible = "mdio-mux-mmioreg";
+		compatible = "mdio-mux-mmioreg", "mdio-mux";
 		reg = <0x1803f1c0 0x4>;
 		mux-mask = <0x2000>;
 		mdio-parent-bus = <&mdio_ext>;

@@ -371,7 +371,7 @@
 		};
 
 		mdio-mux@32000 {
-			compatible = "mdio-mux-mmioreg";
+			compatible = "mdio-mux-mmioreg", "mdio-mux";
 			reg = <0x32000 0x4>;
 			mux-mask = <0x200>;
 			#address-cells = <1>;
