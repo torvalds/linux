@@ -399,9 +399,10 @@ static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 					   le16_to_cpu(ctx->req->req_type));
 			goto exit;
 		}
-		len = le16_to_cpu(ctx->resp->resp_len);
+		len = le16_to_cpu(READ_ONCE(ctx->resp->resp_len));
 		valid = ((u8 *)ctx->resp) + len - 1;
 	} else {
+		__le16 seen_out_of_seq = ctx->req->seq_id; /* will never see */
 		int j;
 
 		/* Check if response len is updated */
@@ -411,9 +412,21 @@ static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 			 */
 			if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state))
 				goto exit;
-			len = le16_to_cpu(ctx->resp->resp_len);
-			if (len)
-				break;
+			len = le16_to_cpu(READ_ONCE(ctx->resp->resp_len));
+			if (len) {
+				__le16 resp_seq = READ_ONCE(ctx->resp->seq_id);
+
+				if (resp_seq == ctx->req->seq_id)
+					break;
+				if (resp_seq != seen_out_of_seq) {
+					netdev_warn(bp->dev, "Discarding out of seq response: 0x%x for msg {0x%x 0x%x}\n",
+						    le16_to_cpu(resp_seq),
+						    le16_to_cpu(ctx->req->req_type),
+						    le16_to_cpu(ctx->req->seq_id));
+					seen_out_of_seq = resp_seq;
+				}
+			}
+
 			/* on first few passes, just barely sleep */
 			if (i < HWRM_SHORT_TIMEOUT_COUNTER) {
 				usleep_range(HWRM_SHORT_MIN_TIMEOUT,
