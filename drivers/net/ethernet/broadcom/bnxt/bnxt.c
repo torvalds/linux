@@ -3963,6 +3963,9 @@ static void bnxt_free_hwrm_resources(struct bnxt *bp)
 				  bp->hwrm_cmd_resp_dma_addr);
 		bp->hwrm_cmd_resp_addr = NULL;
 	}
+
+	dma_pool_destroy(bp->hwrm_dma_pool);
+	bp->hwrm_dma_pool = NULL;
 }
 
 static int bnxt_alloc_hwrm_resources(struct bnxt *bp)
@@ -3975,33 +3978,10 @@ static int bnxt_alloc_hwrm_resources(struct bnxt *bp)
 	if (!bp->hwrm_cmd_resp_addr)
 		return -ENOMEM;
 
-	return 0;
-}
-
-static void bnxt_free_hwrm_short_cmd_req(struct bnxt *bp)
-{
-	if (bp->hwrm_short_cmd_req_addr) {
-		struct pci_dev *pdev = bp->pdev;
-
-		dma_free_coherent(&pdev->dev, bp->hwrm_max_ext_req_len,
-				  bp->hwrm_short_cmd_req_addr,
-				  bp->hwrm_short_cmd_req_dma_addr);
-		bp->hwrm_short_cmd_req_addr = NULL;
-	}
-}
-
-static int bnxt_alloc_hwrm_short_cmd_req(struct bnxt *bp)
-{
-	struct pci_dev *pdev = bp->pdev;
-
-	if (bp->hwrm_short_cmd_req_addr)
-		return 0;
-
-	bp->hwrm_short_cmd_req_addr =
-		dma_alloc_coherent(&pdev->dev, bp->hwrm_max_ext_req_len,
-				   &bp->hwrm_short_cmd_req_dma_addr,
-				   GFP_KERNEL);
-	if (!bp->hwrm_short_cmd_req_addr)
+	bp->hwrm_dma_pool = dma_pool_create("bnxt_hwrm", &pdev->dev,
+					    BNXT_HWRM_DMA_SIZE,
+					    BNXT_HWRM_DMA_ALIGN, 0);
+	if (!bp->hwrm_dma_pool)
 		return -ENOMEM;
 
 	return 0;
@@ -11654,12 +11634,6 @@ static int bnxt_fw_init_one_p1(struct bnxt *bp)
 			return rc;
 	}
 
-	if ((bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) ||
-	    bp->hwrm_max_ext_req_len > BNXT_HWRM_MAX_REQ_LEN) {
-		rc = bnxt_alloc_hwrm_short_cmd_req(bp);
-		if (rc)
-			return rc;
-	}
 	bnxt_nvm_cfg_ver_get(bp);
 
 	rc = bnxt_hwrm_func_reset(bp);
@@ -12588,7 +12562,6 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	bnxt_clear_int_mode(bp);
 	bnxt_hwrm_func_drv_unrgtr(bp);
 	bnxt_free_hwrm_resources(bp);
-	bnxt_free_hwrm_short_cmd_req(bp);
 	bnxt_ethtool_free(bp);
 	bnxt_dcb_free(bp);
 	kfree(bp->edev);
@@ -13188,7 +13161,6 @@ init_err_cleanup:
 
 init_err_pci_clean:
 	bnxt_hwrm_func_drv_unrgtr(bp);
-	bnxt_free_hwrm_short_cmd_req(bp);
 	bnxt_free_hwrm_resources(bp);
 	bnxt_ethtool_free(bp);
 	bnxt_ptp_clear(bp);

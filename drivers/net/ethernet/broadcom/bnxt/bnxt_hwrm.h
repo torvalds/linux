@@ -12,6 +12,26 @@
 
 #include "bnxt_hsi.h"
 
+enum bnxt_hwrm_ctx_flags {
+	/* Update the HWRM_API_FLAGS right below for any new non-internal bit added here */
+	BNXT_HWRM_INTERNAL_CTX_OWNED	= BIT(0), /* caller owns the context */
+	BNXT_HWRM_INTERNAL_RESP_DIRTY	= BIT(1), /* response contains data */
+	BNXT_HWRM_CTX_SILENT		= BIT(2), /* squelch firmware errors */
+	BNXT_HWRM_FULL_WAIT		= BIT(3), /* wait for full timeout of HWRM command */
+};
+
+#define HWRM_API_FLAGS (BNXT_HWRM_CTX_SILENT | BNXT_HWRM_FULL_WAIT)
+
+struct bnxt_hwrm_ctx {
+	u64 sentinel;
+	dma_addr_t dma_handle;
+	struct output *resp;
+	struct input *req;
+	u32 req_len;
+	enum bnxt_hwrm_ctx_flags flags;
+	unsigned int timeout;
+};
+
 #define BNXT_HWRM_MAX_REQ_LEN		(bp->hwrm_max_req_len)
 #define BNXT_HWRM_SHORT_REQ_LEN		sizeof(struct hwrm_short_input)
 #define HWRM_CMD_MAX_TIMEOUT		40000
@@ -19,7 +39,17 @@
 #define HWRM_CMD_TIMEOUT		(bp->hwrm_cmd_timeout)
 #define HWRM_RESET_TIMEOUT		((HWRM_CMD_TIMEOUT) * 4)
 #define HWRM_COREDUMP_TIMEOUT		((HWRM_CMD_TIMEOUT) * 12)
+#define BNXT_HWRM_TARGET		0xffff
+#define BNXT_HWRM_NO_CMPL_RING		-1
 #define BNXT_HWRM_REQ_MAX_SIZE		128
+#define BNXT_HWRM_DMA_SIZE		(2 * PAGE_SIZE) /* space for req+resp */
+#define BNXT_HWRM_RESP_RESERVED		PAGE_SIZE
+#define BNXT_HWRM_RESP_OFFSET		(BNXT_HWRM_DMA_SIZE -		\
+					 BNXT_HWRM_RESP_RESERVED)
+#define BNXT_HWRM_CTX_OFFSET		(BNXT_HWRM_RESP_OFFSET -	\
+					 sizeof(struct bnxt_hwrm_ctx))
+#define BNXT_HWRM_DMA_ALIGN		16
+#define BNXT_HWRM_SENTINEL		0xb6e1f68a12e9a7eb /* arbitrary value */
 #define BNXT_HWRM_REQS_PER_PAGE		(BNXT_PAGE_SIZE /	\
 					 BNXT_HWRM_REQ_MAX_SIZE)
 #define HWRM_SHORT_MIN_TIMEOUT		3
@@ -29,14 +59,17 @@
 #define HWRM_MIN_TIMEOUT		25
 #define HWRM_MAX_TIMEOUT		40
 
-#define HWRM_WAIT_MUST_ABORT(bp, req)					\
-	(le16_to_cpu((req)->req_type) != HWRM_VER_GET &&		\
+#define HWRM_WAIT_MUST_ABORT(bp, ctx)					\
+	(le16_to_cpu((ctx)->req->req_type) != HWRM_VER_GET &&		\
 	 !bnxt_is_fw_healthy(bp))
 
-#define HWRM_TOTAL_TIMEOUT(n)	(((n) <= HWRM_SHORT_TIMEOUT_COUNTER) ?	\
-	((n) * HWRM_SHORT_MIN_TIMEOUT) :				\
-	(HWRM_SHORT_TIMEOUT_COUNTER * HWRM_SHORT_MIN_TIMEOUT +		\
-	 ((n) - HWRM_SHORT_TIMEOUT_COUNTER) * HWRM_MIN_TIMEOUT))
+static inline unsigned int hwrm_total_timeout(unsigned int n)
+{
+	return n <= HWRM_SHORT_TIMEOUT_COUNTER ? n * HWRM_SHORT_MIN_TIMEOUT :
+		HWRM_SHORT_TIMEOUT_COUNTER * HWRM_SHORT_MIN_TIMEOUT +
+		(n - HWRM_SHORT_TIMEOUT_COUNTER) * HWRM_MIN_TIMEOUT;
+}
+
 
 #define HWRM_VALID_BIT_DELAY_USEC	150
 
@@ -97,4 +130,13 @@ int _hwrm_send_message(struct bnxt *bp, void *msg, u32 len, int timeout);
 int _hwrm_send_message_silent(struct bnxt *bp, void *msg, u32 len, int timeout);
 int hwrm_send_message(struct bnxt *bp, void *msg, u32 len, int timeout);
 int hwrm_send_message_silent(struct bnxt *bp, void *msg, u32 len, int timeout);
+int __hwrm_req_init(struct bnxt *bp, void **req, u16 req_type, u32 req_len);
+#define hwrm_req_init(bp, req, req_type) \
+	__hwrm_req_init((bp), (void **)&(req), (req_type), sizeof(*(req)))
+void *hwrm_req_hold(struct bnxt *bp, void *req);
+void hwrm_req_drop(struct bnxt *bp, void *req);
+void hwrm_req_flags(struct bnxt *bp, void *req, enum bnxt_hwrm_ctx_flags flags);
+void hwrm_req_timeout(struct bnxt *bp, void *req, unsigned int timeout);
+int hwrm_req_send(struct bnxt *bp, void *req);
+int hwrm_req_send_silent(struct bnxt *bp, void *req);
 #endif
