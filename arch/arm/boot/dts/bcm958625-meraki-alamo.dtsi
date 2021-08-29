@@ -70,10 +70,12 @@
 			gpios = <&gpioa 31 GPIO_ACTIVE_HIGH>;
 		};
 	};
+};
 
-	mdio-mii-mux {
+&axi {
+	mdio-mux@3f1c0 {
 		compatible = "mdio-mux-mmioreg", "mdio-mux";
-		reg = <0x1803f1c0 0x4>;
+		reg = <0x3f1c0 0x4>;
 		mux-mask = <0x2000>;
 		mdio-parent-bus = <&mdio_ext>;
 		#address-cells = <1>;

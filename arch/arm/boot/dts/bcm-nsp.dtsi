@@ -166,7 +166,7 @@
 		};
 	};
 
-	axi@18000000 {
+	axi: axi@18000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x18000000 0x0011c40c>;
 		#address-cells = <1>;
