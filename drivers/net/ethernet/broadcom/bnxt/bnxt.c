@@ -3956,29 +3956,13 @@ out:
 
 static void bnxt_free_hwrm_resources(struct bnxt *bp)
 {
-	struct pci_dev *pdev = bp->pdev;
-
-	if (bp->hwrm_cmd_resp_addr) {
-		dma_free_coherent(&pdev->dev, PAGE_SIZE, bp->hwrm_cmd_resp_addr,
-				  bp->hwrm_cmd_resp_dma_addr);
-		bp->hwrm_cmd_resp_addr = NULL;
-	}
-
 	dma_pool_destroy(bp->hwrm_dma_pool);
 	bp->hwrm_dma_pool = NULL;
 }
 
 static int bnxt_alloc_hwrm_resources(struct bnxt *bp)
 {
-	struct pci_dev *pdev = bp->pdev;
-
-	bp->hwrm_cmd_resp_addr = dma_alloc_coherent(&pdev->dev, PAGE_SIZE,
-						   &bp->hwrm_cmd_resp_dma_addr,
-						   GFP_KERNEL);
-	if (!bp->hwrm_cmd_resp_addr)
-		return -ENOMEM;
-
-	bp->hwrm_dma_pool = dma_pool_create("bnxt_hwrm", &pdev->dev,
+	bp->hwrm_dma_pool = dma_pool_create("bnxt_hwrm", &bp->pdev->dev,
 					    BNXT_HWRM_DMA_SIZE,
 					    BNXT_HWRM_DMA_ALIGN, 0);
 	if (!bp->hwrm_dma_pool)

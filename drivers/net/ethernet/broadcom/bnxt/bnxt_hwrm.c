@@ -24,17 +24,6 @@
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
 
-void bnxt_hwrm_cmd_hdr_init(struct bnxt *bp, void *request, u16 req_type,
-			    u16 cmpl_ring, u16 target_id)
-{
-	struct input *req = request;
-
-	req->req_type = cpu_to_le16(req_type);
-	req->cmpl_ring = cpu_to_le16(cmpl_ring);
-	req->target_id = cpu_to_le16(target_id);
-	req->resp_addr = cpu_to_le64(bp->hwrm_cmd_resp_dma_addr);
-}
-
 static u64 hwrm_calc_sentinel(struct bnxt_hwrm_ctx *ctx, u16 req_type)
 {
 	return (((uintptr_t)ctx) + req_type) ^ BNXT_HWRM_SENTINEL;
@@ -584,72 +573,6 @@ exit:
 		ctx->flags |= BNXT_HWRM_INTERNAL_RESP_DIRTY;
 	else
 		__hwrm_ctx_drop(bp, ctx);
-	return rc;
-}
-
-static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
-				 int timeout, bool silent)
-{
-	struct bnxt_hwrm_ctx default_ctx = {0};
-	struct bnxt_hwrm_ctx *ctx = &default_ctx;
-	struct input *req = msg;
-	int rc;
-
-	if ((bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) ||
-	    msg_len > BNXT_HWRM_MAX_REQ_LEN) {
-		rc = __hwrm_req_init(bp, (void **)&req,
-				     le16_to_cpu(req->req_type), msg_len);
-		if (rc)
-			return rc;
-		memcpy(req, msg, msg_len); /* also copies resp_addr */
-		ctx = __hwrm_ctx(bp, (u8 *)req);
-		/* belts and brances, NULL ctx shouldn't be possible here */
-		if (!ctx)
-			return -ENOMEM;
-	}
-
-	ctx->req = req;
-	ctx->req_len = msg_len;
-	ctx->resp = bp->hwrm_cmd_resp_addr;
-	/* global response is not reallocated __GFP_ZERO between requests */
-	ctx->flags = BNXT_HWRM_INTERNAL_RESP_DIRTY;
-	ctx->timeout = timeout ?: DFLT_HWRM_CMD_TIMEOUT;
-	if (silent)
-		ctx->flags |= BNXT_HWRM_CTX_SILENT;
-
-	/* will consume req if allocated with __hwrm_req_init() */
-	return __hwrm_send(bp, ctx);
-}
-
-int _hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
-{
-	return bnxt_hwrm_do_send_msg(bp, msg, msg_len, timeout, false);
-}
-
-int _hwrm_send_message_silent(struct bnxt *bp, void *msg, u32 msg_len,
-			      int timeout)
-{
-	return bnxt_hwrm_do_send_msg(bp, msg, msg_len, timeout, true);
-}
-
-int hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
-{
-	int rc;
-
-	mutex_lock(&bp->hwrm_cmd_lock);
-	rc = _hwrm_send_message(bp, msg, msg_len, timeout);
-	mutex_unlock(&bp->hwrm_cmd_lock);
-	return rc;
-}
-
-int hwrm_send_message_silent(struct bnxt *bp, void *msg, u32 msg_len,
-			     int timeout)
-{
-	int rc;
-
-	mutex_lock(&bp->hwrm_cmd_lock);
-	rc = bnxt_hwrm_do_send_msg(bp, msg, msg_len, timeout, true);
-	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
 }
 

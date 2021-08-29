@@ -114,11 +114,6 @@ static inline bool bnxt_kong_hwrm_message(struct bnxt *bp, struct input *req)
 		 le16_to_cpu(req->target_id) == HWRM_TARGET_ID_KONG));
 }
 
-static inline void *bnxt_get_hwrm_resp_addr(struct bnxt *bp, void *req)
-{
-	return bp->hwrm_cmd_resp_addr;
-}
-
 static inline u16 bnxt_get_hwrm_seq_id(struct bnxt *bp, u16 dst)
 {
 	u16 seq_id;
@@ -130,11 +125,6 @@ static inline u16 bnxt_get_hwrm_seq_id(struct bnxt *bp, u16 dst)
 	return seq_id;
 }
 
-void bnxt_hwrm_cmd_hdr_init(struct bnxt *, void *, u16, u16, u16);
-int _hwrm_send_message(struct bnxt *bp, void *msg, u32 len, int timeout);
-int _hwrm_send_message_silent(struct bnxt *bp, void *msg, u32 len, int timeout);
-int hwrm_send_message(struct bnxt *bp, void *msg, u32 len, int timeout);
-int hwrm_send_message_silent(struct bnxt *bp, void *msg, u32 len, int timeout);
 int __hwrm_req_init(struct bnxt *bp, void **req, u16 req_type, u32 req_len);
 #define hwrm_req_init(bp, req, req_type) \
 	__hwrm_req_init((bp), (void **)&(req), (req_type), sizeof(*(req)))
