@@ -22,6 +22,7 @@
 
 #include "bnxt_hsi.h"
 #include "bnxt.h"
+#include "bnxt_hwrm.h"
 #include "bnxt_ulp.h"
 
 static int bnxt_register_dev(struct bnxt_en_dev *edev, int ulp_id,

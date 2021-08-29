@@ -24,6 +24,7 @@
 #include <linux/timecounter.h>
 #include "bnxt_hsi.h"
 #include "bnxt.h"
+#include "bnxt_hwrm.h"
 #include "bnxt_xdp.h"
 #include "bnxt_ptp.h"
 #include "bnxt_ethtool.h"

@@ -18,6 +18,7 @@
 #include <rdma/ib_verbs.h>
 #include "bnxt_hsi.h"
 #include "bnxt.h"
+#include "bnxt_hwrm.h"
 #include "bnxt_dcb.h"
 
 #ifdef CONFIG_BNXT_DCB

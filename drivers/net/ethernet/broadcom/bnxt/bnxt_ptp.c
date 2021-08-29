@@ -18,6 +18,7 @@
 #include <linux/ptp_classify.h>
 #include "bnxt_hsi.h"
 #include "bnxt.h"
+#include "bnxt_hwrm.h"
 #include "bnxt_ptp.h"
 
 int bnxt_ptp_parse(struct sk_buff *skb, u16 *seq_id, u16 *hdr_off)
