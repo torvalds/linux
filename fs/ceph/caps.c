@@ -1755,6 +1755,9 @@ struct ceph_cap_flush *ceph_alloc_cap_flush(void)
 	struct ceph_cap_flush *cf;
 
 	cf = kmem_cache_alloc(ceph_cap_flush_cachep, GFP_KERNEL);
+	if (!cf)
+		return NULL;
+
 	cf->is_capsnap = false;
 	return cf;
 }
