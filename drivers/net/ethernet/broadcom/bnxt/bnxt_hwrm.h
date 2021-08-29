@@ -27,9 +27,14 @@ struct bnxt_hwrm_ctx {
 	dma_addr_t dma_handle;
 	struct output *resp;
 	struct input *req;
+	dma_addr_t slice_handle;
+	void *slice_addr;
+	u32 slice_size;
 	u32 req_len;
 	enum bnxt_hwrm_ctx_flags flags;
 	unsigned int timeout;
+	u32 allocated;
+	gfp_t gfp;
 };
 
 #define BNXT_HWRM_MAX_REQ_LEN		(bp->hwrm_max_req_len)
@@ -140,4 +145,6 @@ void hwrm_req_timeout(struct bnxt *bp, void *req, unsigned int timeout);
 int hwrm_req_send(struct bnxt *bp, void *req);
 int hwrm_req_send_silent(struct bnxt *bp, void *req);
 int hwrm_req_replace(struct bnxt *bp, void *req, void *new_req, u32 len);
+void hwrm_req_alloc_flags(struct bnxt *bp, void *req, gfp_t flags);
+void *hwrm_req_dma_slice(struct bnxt *bp, void *req, u32 size, dma_addr_t *dma);
 #endif

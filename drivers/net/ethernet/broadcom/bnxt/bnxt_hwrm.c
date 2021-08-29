@@ -91,6 +91,9 @@ int __hwrm_req_init(struct bnxt *bp, void **req, u16 req_type, u32 req_len)
 	ctx->dma_handle = dma_handle;
 	ctx->flags = 0; /* __GFP_ZERO, but be explicit regarding ownership */
 	ctx->timeout = bp->hwrm_cmd_timeout ?: DFLT_HWRM_CMD_TIMEOUT;
+	ctx->allocated = BNXT_HWRM_DMA_SIZE - BNXT_HWRM_CTX_OFFSET;
+	ctx->gfp = GFP_KERNEL;
+	ctx->slice_addr = NULL;
 
 	/* initialize common request fields */
 	ctx->req->req_type = cpu_to_le16(req_type);
@@ -148,6 +151,29 @@ void hwrm_req_timeout(struct bnxt *bp, void *req, unsigned int timeout)
 }
 
 /**
+ * hwrm_req_alloc_flags() - Sets GFP allocation flags for slices.
+ * @bp: The driver context.
+ * @req: The request for which calls to hwrm_req_dma_slice() will have altered
+ *	allocation flags.
+ * @flags: A bitmask of GFP flags. These flags are passed to
+ *	dma_alloc_coherent() whenever it is used to allocate backing memory
+ *	for slices. Note that calls to hwrm_req_dma_slice() will not always
+ *	result in new allocations, however, memory suballocated from the
+ *	request buffer is already __GFP_ZERO.
+ *
+ * Sets the GFP allocation flags associated with the request for subsequent
+ * calls to hwrm_req_dma_slice(). This can be useful for specifying __GFP_ZERO
+ * for slice allocations.
+ */
+void hwrm_req_alloc_flags(struct bnxt *bp, void *req, gfp_t gfp)
+{
+	struct bnxt_hwrm_ctx *ctx = __hwrm_ctx(bp, req);
+
+	if (ctx)
+		ctx->gfp = gfp;
+}
+
+/**
  * hwrm_req_replace() - Replace request data.
  * @bp: The driver context.
  * @req: The request to modify. A call to hwrm_req_replace() is conceptually
@@ -166,7 +192,8 @@ void hwrm_req_timeout(struct bnxt *bp, void *req, unsigned int timeout)
  * reference the new request and use it in lieu of req during subsequent
  * calls to hwrm_req_send(). The resource management is associated with
  * req and is independent of and does not apply to new_req. The caller must
- * ensure that the lifetime of new_req is least as long as req.
+ * ensure that the lifetime of new_req is least as long as req. Any slices
+ * that may have been associated with the original request are released.
  *
  * Return: zero on success, negative error code otherwise:
  *     E2BIG: Request is too large.
@@ -183,6 +210,15 @@ int hwrm_req_replace(struct bnxt *bp, void *req, void *new_req, u32 len)
 
 	if (len > BNXT_HWRM_CTX_OFFSET)
 		return -E2BIG;
+
+	/* free any existing slices */
+	ctx->allocated = BNXT_HWRM_DMA_SIZE - BNXT_HWRM_CTX_OFFSET;
+	if (ctx->slice_addr) {
+		dma_free_coherent(&bp->pdev->dev, ctx->slice_size,
+				  ctx->slice_addr, ctx->slice_handle);
+		ctx->slice_addr = NULL;
+	}
+	ctx->gfp = GFP_KERNEL;
 
 	if ((bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) || len > BNXT_HWRM_MAX_REQ_LEN) {
 		memcpy(internal_req, new_req, len);
@@ -274,6 +310,11 @@ static void __hwrm_ctx_drop(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 	void *addr = ((u8 *)ctx) - BNXT_HWRM_CTX_OFFSET;
 	dma_addr_t dma_handle = ctx->dma_handle; /* save before invalidate */
 
+	/* unmap any auxiliary DMA slice */
+	if (ctx->slice_addr)
+		dma_free_coherent(&bp->pdev->dev, ctx->slice_size,
+				  ctx->slice_addr, ctx->slice_handle);
+
 	/* invalidate, ensure ownership, sentinel and dma_handle are cleared */
 	memset(ctx, 0, sizeof(struct bnxt_hwrm_ctx));
 
@@ -286,7 +327,8 @@ static void __hwrm_ctx_drop(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
  * hwrm_req_drop() - Release all resources associated with the request.
  * @bp: The driver context.
  * @req: The request to consume, releasing the associated resources. The
- *	request object and its associated response are no longer valid.
+ *	request object, any slices, and its associated response are no
+ *	longer valid.
  *
  * It is legal to call hwrm_req_drop() on an unowned request, provided it
  * has not already been consumed by hwrm_req_send() (for example, to release
@@ -670,4 +712,73 @@ int hwrm_req_send_silent(struct bnxt *bp, void *req)
 {
 	hwrm_req_flags(bp, req, BNXT_HWRM_CTX_SILENT);
 	return hwrm_req_send(bp, req);
+}
+
+/**
+ * hwrm_req_dma_slice() - Allocate a slice of DMA mapped memory.
+ * @bp: The driver context.
+ * @req: The request for which indirect data will be associated.
+ * @size: The size of the allocation.
+ * @dma: The bus address associated with the allocation. The HWRM API has no
+ *	knowledge about the type of the request and so cannot infer how the
+ *	caller intends to use the indirect data. Thus, the caller is
+ *	responsible for configuring the request object appropriately to
+ *	point to the associated indirect memory. Note, DMA handle has the
+ *	same definition as it does in dma_alloc_coherent(), the caller is
+ *	responsible for endian conversions via cpu_to_le64() before assigning
+ *	this address.
+ *
+ * Allocates DMA mapped memory for indirect data related to a request. The
+ * lifetime of the DMA resources will be bound to that of the request (ie.
+ * they will be automatically released when the request is either consumed by
+ * hwrm_req_send() or dropped by hwrm_req_drop()). Small allocations are
+ * efficiently suballocated out of the request buffer space, hence the name
+ * slice, while larger requests are satisfied via an underlying call to
+ * dma_alloc_coherent(). Multiple suballocations are supported, however, only
+ * one externally mapped region is.
+ *
+ * Return: The kernel virtual address of the DMA mapping.
+ */
+void *
+hwrm_req_dma_slice(struct bnxt *bp, void *req, u32 size, dma_addr_t *dma_handle)
+{
+	struct bnxt_hwrm_ctx *ctx = __hwrm_ctx(bp, req);
+	u8 *end = ((u8 *)req) + BNXT_HWRM_DMA_SIZE;
+	struct input *input = req;
+	u8 *addr, *req_addr = req;
+	u32 max_offset, offset;
+
+	if (!ctx)
+		return NULL;
+
+	max_offset = BNXT_HWRM_DMA_SIZE - ctx->allocated;
+	offset = max_offset - size;
+	offset = ALIGN_DOWN(offset, BNXT_HWRM_DMA_ALIGN);
+	addr = req_addr + offset;
+
+	if (addr < req_addr + max_offset && req_addr + ctx->req_len <= addr) {
+		ctx->allocated = end - addr;
+		*dma_handle = ctx->dma_handle + offset;
+		return addr;
+	}
+
+	/* could not suballocate from ctx buffer, try create a new mapping */
+	if (ctx->slice_addr) {
+		/* if one exists, can only be due to software bug, be loud */
+		netdev_err(bp->dev, "HWRM refusing to reallocate DMA slice, req_type = %u\n",
+			   (u32)le16_to_cpu(input->req_type));
+		dump_stack();
+		return NULL;
+	}
+
+	addr = dma_alloc_coherent(&bp->pdev->dev, size, dma_handle, ctx->gfp);
+
+	if (!addr)
+		return NULL;
+
+	ctx->slice_addr = addr;
+	ctx->slice_size = size;
+	ctx->slice_handle = *dma_handle;
+
+	return addr;
 }
