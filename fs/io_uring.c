@@ -375,6 +375,7 @@ struct io_ring_ctx {
 
 		struct io_submit_state	submit_state;
 		struct list_head	timeout_list;
+		struct list_head	ltimeout_list;
 		struct list_head	cq_overflow_list;
 		struct xarray		io_buffers;
 		struct xarray		personalities;
@@ -1277,6 +1278,7 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->iopoll_list);
 	INIT_LIST_HEAD(&ctx->defer_list);
 	INIT_LIST_HEAD(&ctx->timeout_list);
+	INIT_LIST_HEAD(&ctx->ltimeout_list);
 	spin_lock_init(&ctx->rsrc_ref_lock);
 	INIT_LIST_HEAD(&ctx->rsrc_ref_list);
 	INIT_DELAYED_WORK(&ctx->rsrc_put_work, io_rsrc_put_work);
@@ -1966,6 +1968,7 @@ static bool io_kill_linked_timeout(struct io_kiocb *req)
 		io_remove_next_linked(req);
 		link->timeout.head = NULL;
 		if (hrtimer_try_to_cancel(&io->timer) != -1) {
+			list_del(&link->timeout.list);
 			io_cqring_fill_event(link->ctx, link->user_data,
 					     -ECANCELED, 0);
 			io_put_req_deferred(link);
@@ -5830,6 +5833,7 @@ static int io_timeout_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	if (hweight32(flags & IORING_TIMEOUT_CLOCK_MASK) > 1)
 		return -EINVAL;
 
+	INIT_LIST_HEAD(&req->timeout.list);
 	req->timeout.off = off;
 	if (unlikely(off && !req->ctx->off_timeout_used))
 		req->ctx->off_timeout_used = true;
@@ -6585,6 +6589,7 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 		if (!req_ref_inc_not_zero(prev))
 			prev = NULL;
 	}
+	list_del(&req->timeout.list);
 	req->timeout.prev = prev;
 	spin_unlock_irqrestore(&ctx->timeout_lock, flags);
 
@@ -6608,6 +6613,7 @@ static void io_queue_linked_timeout(struct io_kiocb *req)
 		data->timer.function = io_link_timeout_fn;
 		hrtimer_start(&data->timer, timespec64_to_ktime(data->ts),
 				data->mode);
+		list_add_tail(&req->timeout.list, &ctx->ltimeout_list);
 	}
 	spin_unlock_irq(&ctx->timeout_lock);
 	/* drop submission reference */
@@ -8900,6 +8906,7 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 		sock_release(ctx->ring_sock);
 	}
 #endif
+	WARN_ON_ONCE(!list_empty(&ctx->ltimeout_list));
 
 	io_mem_free(ctx->rings);
 	io_mem_free(ctx->sq_sqes);
