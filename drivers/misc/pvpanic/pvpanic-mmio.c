@@ -24,8 +24,7 @@ MODULE_AUTHOR("Hu Tao <hutao@cn.fujitsu.com>");
 MODULE_DESCRIPTION("pvpanic-mmio device driver");
 MODULE_LICENSE("GPL");
 
-static ssize_t capability_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
+static ssize_t capability_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct pvpanic_instance *pi = dev_get_drvdata(dev);
 
@@ -33,14 +32,14 @@ static ssize_t capability_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(capability);
 
-static ssize_t events_show(struct device *dev,  struct device_attribute *attr, char *buf)
+static ssize_t events_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct pvpanic_instance *pi = dev_get_drvdata(dev);
 
 	return sysfs_emit(buf, "%x\n", pi->events);
 }
 
-static ssize_t events_store(struct device *dev,  struct device_attribute *attr,
+static ssize_t events_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	struct pvpanic_instance *pi = dev_get_drvdata(dev);
