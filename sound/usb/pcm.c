@@ -617,7 +617,8 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 	/* check whether early start is needed for playback stream */
 	subs->early_playback_start =
 		subs->direction == SNDRV_PCM_STREAM_PLAYBACK &&
-		subs->data_endpoint->nominal_queue_size >= subs->buffer_bytes;
+		(!chip->lowlatency ||
+		 (subs->data_endpoint->nominal_queue_size >= subs->buffer_bytes));
 
 	if (subs->early_playback_start)
 		ret = start_endpoints(subs);
