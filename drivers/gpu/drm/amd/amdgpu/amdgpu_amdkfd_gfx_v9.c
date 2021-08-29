@@ -882,7 +882,7 @@ void kgd_gfx_v9_get_cu_occupancy(struct kgd_dev *kgd, int pasid,
 				adev->gfx.cu_info.max_waves_per_simd;
 }
 
-static void kgd_gfx_v9_program_trap_handler_settings(struct kgd_dev *kgd,
+void kgd_gfx_v9_program_trap_handler_settings(struct kgd_dev *kgd,
                         uint32_t vmid, uint64_t tba_addr, uint64_t tma_addr)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);

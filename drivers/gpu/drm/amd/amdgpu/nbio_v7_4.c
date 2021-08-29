@@ -85,6 +85,11 @@
 #define mmRCC_DEV0_EPF0_STRAP0_ALDE			0x0015
 #define mmRCC_DEV0_EPF0_STRAP0_ALDE_BASE_IDX		2
 
+#define mmBIF_DOORBELL_INT_CNTL_ALDE 			0x3878
+#define mmBIF_DOORBELL_INT_CNTL_ALDE_BASE_IDX 		2
+#define BIF_DOORBELL_INT_CNTL_ALDE__DOORBELL_INTERRUPT_DISABLE__SHIFT	0x18
+#define BIF_DOORBELL_INT_CNTL_ALDE__DOORBELL_INTERRUPT_DISABLE_MASK	0x01000000L
+
 static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status);
 
@@ -346,14 +351,21 @@ static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 	struct ras_err_data err_data = {0, 0, 0, NULL};
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
-	bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL);
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL_ALDE);
+	else
+		bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL);
+
 	if (REG_GET_FIELD(bif_doorbell_intr_cntl,
 		BIF_DOORBELL_INT_CNTL, RAS_CNTLR_INTERRUPT_STATUS)) {
 		/* driver has to clear the interrupt status when bif ring is disabled */
 		bif_doorbell_intr_cntl = REG_SET_FIELD(bif_doorbell_intr_cntl,
 						BIF_DOORBELL_INT_CNTL,
 						RAS_CNTLR_INTERRUPT_CLEAR, 1);
-		WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
+		if (adev->asic_type == CHIP_ALDEBARAN)
+			WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL_ALDE, bif_doorbell_intr_cntl);
+		else
+			WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
 
 		if (!ras->disable_ras_err_cnt_harvest) {
 			/*
@@ -395,14 +407,22 @@ static void nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring(struct amdgpu_d
 {
 	uint32_t bif_doorbell_intr_cntl;
 
-	bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL);
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL_ALDE);
+	else
+		bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL);
+
 	if (REG_GET_FIELD(bif_doorbell_intr_cntl,
 		BIF_DOORBELL_INT_CNTL, RAS_ATHUB_ERR_EVENT_INTERRUPT_STATUS)) {
 		/* driver has to clear the interrupt status when bif ring is disabled */
 		bif_doorbell_intr_cntl = REG_SET_FIELD(bif_doorbell_intr_cntl,
 						BIF_DOORBELL_INT_CNTL,
 						RAS_ATHUB_ERR_EVENT_INTERRUPT_CLEAR, 1);
-		WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
+
+		if (adev->asic_type == CHIP_ALDEBARAN)
+			WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL_ALDE, bif_doorbell_intr_cntl);
+		else
+			WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
 
 		amdgpu_ras_global_ras_isr(adev);
 	}
@@ -572,7 +592,11 @@ static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 static void nbio_v7_4_enable_doorbell_interrupt(struct amdgpu_device *adev,
 						bool enable)
 {
-	WREG32_FIELD15(NBIO, 0, BIF_DOORBELL_INT_CNTL,
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		WREG32_FIELD15(NBIO, 0, BIF_DOORBELL_INT_CNTL_ALDE,
+		       DOORBELL_INTERRUPT_DISABLE, enable ? 0 : 1);
+	else
+		WREG32_FIELD15(NBIO, 0, BIF_DOORBELL_INT_CNTL,
 		       DOORBELL_INTERRUPT_DISABLE, enable ? 0 : 1);
 }
 

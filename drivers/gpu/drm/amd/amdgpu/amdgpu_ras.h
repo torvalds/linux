@@ -49,6 +49,7 @@ enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__MP0,
 	AMDGPU_RAS_BLOCK__MP1,
 	AMDGPU_RAS_BLOCK__FUSE,
+	AMDGPU_RAS_BLOCK__MPIO,
 
 	AMDGPU_RAS_BLOCK__LAST
 };
@@ -309,6 +310,7 @@ struct ras_common_if {
 	enum amdgpu_ras_block block;
 	enum amdgpu_ras_error_type type;
 	uint32_t sub_block_index;
+	char name[32];
 };
 
 struct amdgpu_ras {
@@ -419,7 +421,7 @@ struct ras_badpage {
 /* interfaces for IP */
 struct ras_fs_if {
 	struct ras_common_if head;
-	char sysfs_name[32];
+	const char* sysfs_name;
 	char debugfs_name[32];
 };
 
