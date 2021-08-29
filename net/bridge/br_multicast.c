@@ -2731,8 +2731,8 @@ static int br_ip6_multicast_mld2_report(struct net_bridge_mcast *brmctx,
 	struct net_bridge_mdb_entry *mdst;
 	struct net_bridge_port_group *pg;
 	unsigned int nsrcs_offset;
+	struct mld2_report *mld2r;
 	const unsigned char *src;
-	struct icmp6hdr *icmp6h;
 	struct in6_addr *h_addr;
 	struct mld2_grec *grec;
 	unsigned int grec_len;
@@ -2740,12 +2740,12 @@ static int br_ip6_multicast_mld2_report(struct net_bridge_mcast *brmctx,
 	int i, len, num;
 	int err = 0;
 
-	if (!ipv6_mc_may_pull(skb, sizeof(*icmp6h)))
+	if (!ipv6_mc_may_pull(skb, sizeof(*mld2r)))
 		return -EINVAL;
 
-	icmp6h = icmp6_hdr(skb);
-	num = ntohs(icmp6h->icmp6_dataun.un_data16[1]);
-	len = skb_transport_offset(skb) + sizeof(*icmp6h);
+	mld2r = (struct mld2_report *)icmp6_hdr(skb);
+	num = ntohs(mld2r->mld2r_ngrec);
+	len = skb_transport_offset(skb) + sizeof(*mld2r);
 
 	for (i = 0; i < num; i++) {
 		__be16 *_nsrcs, __nsrcs;
