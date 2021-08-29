@@ -139,4 +139,5 @@ void hwrm_req_flags(struct bnxt *bp, void *req, enum bnxt_hwrm_ctx_flags flags);
 void hwrm_req_timeout(struct bnxt *bp, void *req, unsigned int timeout);
 int hwrm_req_send(struct bnxt *bp, void *req);
 int hwrm_req_send_silent(struct bnxt *bp, void *req);
+int hwrm_req_replace(struct bnxt *bp, void *req, void *new_req, u32 len);
 #endif

@@ -148,6 +148,61 @@ void hwrm_req_timeout(struct bnxt *bp, void *req, unsigned int timeout)
 }
 
 /**
+ * hwrm_req_replace() - Replace request data.
+ * @bp: The driver context.
+ * @req: The request to modify. A call to hwrm_req_replace() is conceptually
+ *	an assignment of new_req to req. Subsequent calls to HWRM API functions,
+ *	such as hwrm_req_send(), should thus use req and not new_req (in fact,
+ *	calls to HWRM API functions will fail if non-managed request objects
+ *	are passed).
+ * @len: The length of new_req.
+ * @new_req: The pre-built request to copy or reference.
+ *
+ * Replaces the request data in req with that of new_req. This is useful in
+ * scenarios where a request object has already been constructed by a third
+ * party prior to creating a resource managed request using hwrm_req_init().
+ * Depending on the length, hwrm_req_replace() will either copy the new
+ * request data into the DMA memory allocated for req, or it will simply
+ * reference the new request and use it in lieu of req during subsequent
+ * calls to hwrm_req_send(). The resource management is associated with
+ * req and is independent of and does not apply to new_req. The caller must
+ * ensure that the lifetime of new_req is least as long as req.
+ *
+ * Return: zero on success, negative error code otherwise:
+ *     E2BIG: Request is too large.
+ *     EINVAL: Invalid request to modify.
+ */
+int hwrm_req_replace(struct bnxt *bp, void *req, void *new_req, u32 len)
+{
+	struct bnxt_hwrm_ctx *ctx = __hwrm_ctx(bp, req);
+	struct input *internal_req = req;
+	u16 req_type;
+
+	if (!ctx)
+		return -EINVAL;
+
+	if (len > BNXT_HWRM_CTX_OFFSET)
+		return -E2BIG;
+
+	if ((bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) || len > BNXT_HWRM_MAX_REQ_LEN) {
+		memcpy(internal_req, new_req, len);
+	} else {
+		internal_req->req_type = ((struct input *)new_req)->req_type;
+		ctx->req = new_req;
+	}
+
+	ctx->req_len = len;
+	ctx->req->resp_addr = cpu_to_le64(ctx->dma_handle +
+					  BNXT_HWRM_RESP_OFFSET);
+
+	/* update sentinel for potentially new request type */
+	req_type = le16_to_cpu(internal_req->req_type);
+	ctx->sentinel = hwrm_calc_sentinel(ctx, req_type);
+
+	return 0;
+}
+
+/**
  * hwrm_req_flags() - Set non internal flags of the ctx
  * @bp: The driver context.
  * @req: The request containing the HWRM command
