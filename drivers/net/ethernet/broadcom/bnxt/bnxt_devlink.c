@@ -355,28 +355,34 @@ static void bnxt_copy_from_nvm_data(union devlink_param_value *dst,
 static int bnxt_hwrm_get_nvm_cfg_ver(struct bnxt *bp,
 				     union devlink_param_value *nvm_cfg_ver)
 {
-	struct hwrm_nvm_get_variable_input req = {0};
+	struct hwrm_nvm_get_variable_input *req;
 	union bnxt_nvm_data *data;
 	dma_addr_t data_dma_addr;
 	int rc;
 
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_NVM_GET_VARIABLE, -1, -1);
-	data = dma_alloc_coherent(&bp->pdev->dev, sizeof(*data),
-				  &data_dma_addr, GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
+	rc = hwrm_req_init(bp, req, HWRM_NVM_GET_VARIABLE);
+	if (rc)
+		return rc;
 
-	req.dest_data_addr = cpu_to_le64(data_dma_addr);
-	req.data_len = cpu_to_le16(BNXT_NVM_CFG_VER_BITS);
-	req.option_num = cpu_to_le16(NVM_OFF_NVM_CFG_VER);
+	data = hwrm_req_dma_slice(bp, req, sizeof(*data), &data_dma_addr);
+	if (!data) {
+		rc = -ENOMEM;
+		goto exit;
+	}
 
-	rc = hwrm_send_message_silent(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	hwrm_req_hold(bp, req);
+	req->dest_data_addr = cpu_to_le64(data_dma_addr);
+	req->data_len = cpu_to_le16(BNXT_NVM_CFG_VER_BITS);
+	req->option_num = cpu_to_le16(NVM_OFF_NVM_CFG_VER);
+
+	rc = hwrm_req_send_silent(bp, req);
 	if (!rc)
 		bnxt_copy_from_nvm_data(nvm_cfg_ver, data,
 					BNXT_NVM_CFG_VER_BITS,
 					BNXT_NVM_CFG_VER_BYTES);
 
-	dma_free_coherent(&bp->pdev->dev, sizeof(*data), data, data_dma_addr);
+exit:
+	hwrm_req_drop(bp, req);
 	return rc;
 }
 
@@ -563,17 +569,20 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 }
 
 static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
-			     int msg_len, union devlink_param_value *val)
+			     union devlink_param_value *val)
 {
 	struct hwrm_nvm_get_variable_input *req = msg;
 	struct bnxt_dl_nvm_param nvm_param;
+	struct hwrm_err_output *resp;
 	union bnxt_nvm_data *data;
 	dma_addr_t data_dma_addr;
 	int idx = 0, rc, i;
 
 	/* Get/Set NVM CFG parameter is supported only on PFs */
-	if (BNXT_VF(bp))
+	if (BNXT_VF(bp)) {
+		hwrm_req_drop(bp, req);
 		return -EPERM;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(nvm_params); i++) {
 		if (nvm_params[i].id == param_id) {
@@ -582,18 +591,22 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 		}
 	}
 
-	if (i == ARRAY_SIZE(nvm_params))
+	if (i == ARRAY_SIZE(nvm_params)) {
+		hwrm_req_drop(bp, req);
 		return -EOPNOTSUPP;
+	}
 
 	if (nvm_param.dir_type == BNXT_NVM_PORT_CFG)
 		idx = bp->pf.port_id;
 	else if (nvm_param.dir_type == BNXT_NVM_FUNC_CFG)
 		idx = bp->pf.fw_fid - BNXT_FIRST_PF_FID;
 
-	data = dma_alloc_coherent(&bp->pdev->dev, sizeof(*data),
-				  &data_dma_addr, GFP_KERNEL);
-	if (!data)
+	data = hwrm_req_dma_slice(bp, req, sizeof(*data), &data_dma_addr);
+
+	if (!data) {
+		hwrm_req_drop(bp, req);
 		return -ENOMEM;
+	}
 
 	req->dest_data_addr = cpu_to_le64(data_dma_addr);
 	req->data_len = cpu_to_le16(nvm_param.nvm_num_bits);
@@ -602,26 +615,24 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 	if (idx)
 		req->dimensions = cpu_to_le16(1);
 
+	resp = hwrm_req_hold(bp, req);
 	if (req->req_type == cpu_to_le16(HWRM_NVM_SET_VARIABLE)) {
 		bnxt_copy_to_nvm_data(data, val, nvm_param.nvm_num_bits,
 				      nvm_param.dl_num_bytes);
-		rc = hwrm_send_message(bp, msg, msg_len, HWRM_CMD_TIMEOUT);
+		rc = hwrm_req_send(bp, msg);
 	} else {
-		rc = hwrm_send_message_silent(bp, msg, msg_len,
-					      HWRM_CMD_TIMEOUT);
+		rc = hwrm_req_send_silent(bp, msg);
 		if (!rc) {
 			bnxt_copy_from_nvm_data(val, data,
 						nvm_param.nvm_num_bits,
 						nvm_param.dl_num_bytes);
 		} else {
-			struct hwrm_err_output *resp = bp->hwrm_cmd_resp_addr;
-
 			if (resp->cmd_err ==
 				NVM_GET_VARIABLE_CMD_ERR_CODE_VAR_NOT_EXIST)
 				rc = -EOPNOTSUPP;
 		}
 	}
-	dma_free_coherent(&bp->pdev->dev, sizeof(*data), data, data_dma_addr);
+	hwrm_req_drop(bp, req);
 	if (rc == -EACCES)
 		netdev_err(bp->dev, "PF does not have admin privileges to modify NVM config\n");
 	return rc;
@@ -630,15 +641,17 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 static int bnxt_dl_nvm_param_get(struct devlink *dl, u32 id,
 				 struct devlink_param_gset_ctx *ctx)
 {
-	struct hwrm_nvm_get_variable_input req = {0};
 	struct bnxt *bp = bnxt_get_bp_from_dl(dl);
+	struct hwrm_nvm_get_variable_input *req;
 	int rc;
 
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_NVM_GET_VARIABLE, -1, -1);
-	rc = bnxt_hwrm_nvm_req(bp, id, &req, sizeof(req), &ctx->val);
-	if (!rc)
-		if (id == BNXT_DEVLINK_PARAM_ID_GRE_VER_CHECK)
-			ctx->val.vbool = !ctx->val.vbool;
+	rc = hwrm_req_init(bp, req, HWRM_NVM_GET_VARIABLE);
+	if (rc)
+		return rc;
+
+	rc = bnxt_hwrm_nvm_req(bp, id, req, &ctx->val);
+	if (!rc && id == BNXT_DEVLINK_PARAM_ID_GRE_VER_CHECK)
+		ctx->val.vbool = !ctx->val.vbool;
 
 	return rc;
 }
@@ -646,15 +659,18 @@ static int bnxt_dl_nvm_param_get(struct devlink *dl, u32 id,
 static int bnxt_dl_nvm_param_set(struct devlink *dl, u32 id,
 				 struct devlink_param_gset_ctx *ctx)
 {
-	struct hwrm_nvm_set_variable_input req = {0};
 	struct bnxt *bp = bnxt_get_bp_from_dl(dl);
+	struct hwrm_nvm_set_variable_input *req;
+	int rc;
 
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_NVM_SET_VARIABLE, -1, -1);
+	rc = hwrm_req_init(bp, req, HWRM_NVM_SET_VARIABLE);
+	if (rc)
+		return rc;
 
 	if (id == BNXT_DEVLINK_PARAM_ID_GRE_VER_CHECK)
 		ctx->val.vbool = !ctx->val.vbool;
 
-	return bnxt_hwrm_nvm_req(bp, id, &req, sizeof(req), &ctx->val);
+	return bnxt_hwrm_nvm_req(bp, id, req, &ctx->val);
 }
 
 static int bnxt_dl_msix_validate(struct devlink *dl, u32 id,
