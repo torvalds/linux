@@ -308,11 +308,9 @@ static void rz_dmac_prepare_desc_for_memcpy(struct rz_dmac_chan *channel)
 {
 	struct dma_chan *chan = &channel->vc.chan;
 	struct rz_dmac *dmac = to_rz_dmac(chan->device);
-	struct rz_lmdesc *lmdesc = channel->lmdesc.base;
+	struct rz_lmdesc *lmdesc = channel->lmdesc.tail;
 	struct rz_dmac_desc *d = channel->desc;
 	u32 chcfg = CHCFG_MEM_COPY;
-
-	lmdesc = channel->lmdesc.tail;
 
 	/* prepare descriptor */
 	lmdesc->sa = d->src;
