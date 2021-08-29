@@ -655,7 +655,7 @@ static int acpi_add(struct acpi_device *device)
 		goto out_platform_registered;
 	}
 	product = dmi_get_system_info(DMI_PRODUCT_NAME);
-	if (strlen(product) > 4)
+	if (product && strlen(product) > 4)
 		switch (product[4]) {
 		case '5':
 		case '6':
