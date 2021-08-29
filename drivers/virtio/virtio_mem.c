@@ -1242,12 +1242,19 @@ static void virtio_mem_online_page_cb(struct page *page, unsigned int order)
 			do_online = virtio_mem_bbm_get_bb_state(vm, id) !=
 				    VIRTIO_MEM_BBM_BB_FAKE_OFFLINE;
 		}
+
+		/*
+		 * virtio_mem_set_fake_offline() might sleep, we don't need
+		 * the device anymore. See virtio_mem_remove() how races
+		 * between memory onlining and device removal are handled.
+		 */
+		rcu_read_unlock();
+
 		if (do_online)
 			generic_online_page(page, order);
 		else
 			virtio_mem_set_fake_offline(PFN_DOWN(addr), 1 << order,
 						    false);
-		rcu_read_unlock();
 		return;
 	}
 	rcu_read_unlock();

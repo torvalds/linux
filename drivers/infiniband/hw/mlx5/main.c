@@ -4454,7 +4454,8 @@ static void mlx5r_mp_remove(struct auxiliary_device *adev)
 	mutex_lock(&mlx5_ib_multiport_mutex);
 	if (mpi->ibdev)
 		mlx5_ib_unbind_slave_port(mpi->ibdev, mpi);
-	list_del(&mpi->list);
+	else
+		list_del(&mpi->list);
 	mutex_unlock(&mlx5_ib_multiport_mutex);
 	kfree(mpi);
 }
