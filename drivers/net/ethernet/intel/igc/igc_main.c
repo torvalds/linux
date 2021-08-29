@@ -120,7 +120,7 @@ void igc_reset(struct igc_adapter *adapter)
 	igc_ptp_reset(adapter);
 
 	/* Re-enable TSN offloading, where applicable. */
-	igc_tsn_offload_apply(adapter);
+	igc_tsn_reset(adapter);
 
 	igc_get_phy_info(hw);
 }
@@ -5749,24 +5749,12 @@ static int igc_save_launchtime_params(struct igc_adapter *adapter, int queue,
 				      bool enable)
 {
 	struct igc_ring *ring;
-	int i;
 
 	if (queue < 0 || queue >= adapter->num_tx_queues)
 		return -EINVAL;
 
 	ring = adapter->tx_ring[queue];
 	ring->launchtime_enable = enable;
-
-	if (adapter->base_time)
-		return 0;
-
-	adapter->cycle_time = NSEC_PER_SEC;
-
-	for (i = 0; i < adapter->num_tx_queues; i++) {
-		ring = adapter->tx_ring[i];
-		ring->start_time = 0;
-		ring->end_time = NSEC_PER_SEC;
-	}
 
 	return 0;
 }
@@ -5840,16 +5828,31 @@ static int igc_tsn_enable_launchtime(struct igc_adapter *adapter,
 	return igc_tsn_offload_apply(adapter);
 }
 
+static int igc_tsn_clear_schedule(struct igc_adapter *adapter)
+{
+	int i;
+
+	adapter->base_time = 0;
+	adapter->cycle_time = NSEC_PER_SEC;
+
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		struct igc_ring *ring = adapter->tx_ring[i];
+
+		ring->start_time = 0;
+		ring->end_time = NSEC_PER_SEC;
+	}
+
+	return 0;
+}
+
 static int igc_save_qbv_schedule(struct igc_adapter *adapter,
 				 struct tc_taprio_qopt_offload *qopt)
 {
 	u32 start_time = 0, end_time = 0;
 	size_t n;
 
-	if (!qopt->enable) {
-		adapter->base_time = 0;
-		return 0;
-	}
+	if (!qopt->enable)
+		return igc_tsn_clear_schedule(adapter);
 
 	if (adapter->base_time)
 		return -EALREADY;
@@ -5901,6 +5904,74 @@ static int igc_tsn_enable_qbv_scheduling(struct igc_adapter *adapter,
 	return igc_tsn_offload_apply(adapter);
 }
 
+static int igc_save_cbs_params(struct igc_adapter *adapter, int queue,
+			       bool enable, int idleslope, int sendslope,
+			       int hicredit, int locredit)
+{
+	bool cbs_status[IGC_MAX_SR_QUEUES] = { false };
+	struct net_device *netdev = adapter->netdev;
+	struct igc_ring *ring;
+	int i;
+
+	/* i225 has two sets of credit-based shaper logic.
+	 * Supporting it only on the top two priority queues
+	 */
+	if (queue < 0 || queue > 1)
+		return -EINVAL;
+
+	ring = adapter->tx_ring[queue];
+
+	for (i = 0; i < IGC_MAX_SR_QUEUES; i++)
+		if (adapter->tx_ring[i])
+			cbs_status[i] = adapter->tx_ring[i]->cbs_enable;
+
+	/* CBS should be enabled on the highest priority queue first in order
+	 * for the CBS algorithm to operate as intended.
+	 */
+	if (enable) {
+		if (queue == 1 && !cbs_status[0]) {
+			netdev_err(netdev,
+				   "Enabling CBS on queue1 before queue0\n");
+			return -EINVAL;
+		}
+	} else {
+		if (queue == 0 && cbs_status[1]) {
+			netdev_err(netdev,
+				   "Disabling CBS on queue0 before queue1\n");
+			return -EINVAL;
+		}
+	}
+
+	ring->cbs_enable = enable;
+	ring->idleslope = idleslope;
+	ring->sendslope = sendslope;
+	ring->hicredit = hicredit;
+	ring->locredit = locredit;
+
+	return 0;
+}
+
+static int igc_tsn_enable_cbs(struct igc_adapter *adapter,
+			      struct tc_cbs_qopt_offload *qopt)
+{
+	struct igc_hw *hw = &adapter->hw;
+	int err;
+
+	if (hw->mac.type != igc_i225)
+		return -EOPNOTSUPP;
+
+	if (qopt->queue < 0 || qopt->queue > 1)
+		return -EINVAL;
+
+	err = igc_save_cbs_params(adapter, qopt->queue, qopt->enable,
+				  qopt->idleslope, qopt->sendslope,
+				  qopt->hicredit, qopt->locredit);
+	if (err)
+		return err;
+
+	return igc_tsn_offload_apply(adapter);
+}
+
 static int igc_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			void *type_data)
 {
@@ -5912,6 +5983,9 @@ static int igc_setup_tc(struct net_device *dev, enum tc_setup_type type,
 
 	case TC_SETUP_QDISC_ETF:
 		return igc_tsn_enable_launchtime(adapter, type_data);
+
+	case TC_SETUP_QDISC_CBS:
+		return igc_tsn_enable_cbs(adapter, type_data);
 
 	default:
 		return -EOPNOTSUPP;
@@ -6338,6 +6412,8 @@ static int igc_probe(struct pci_dev *pdev,
 				 adapter->flags & IGC_FLAG_WOL_SUPPORTED);
 
 	igc_ptp_init(adapter);
+
+	igc_tsn_clear_schedule(adapter);
 
 	/* reset the hardware with the new settings */
 	igc_reset(adapter);

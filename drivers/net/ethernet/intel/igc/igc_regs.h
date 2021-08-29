@@ -236,6 +236,9 @@
 #define IGC_ENDQT(_n)		(0x3334 + 0x4 * (_n))
 #define IGC_DTXMXPKTSZ		0x355C
 
+#define IGC_TQAVCC(_n)		(0x3004 + ((_n) * 0x40))
+#define IGC_TQAVHC(_n)		(0x300C + ((_n) * 0x40))
+
 /* System Time Registers */
 #define IGC_SYSTIML	0x0B600  /* System time register Low - RO */
 #define IGC_SYSTIMH	0x0B604  /* System time register High - RO */
