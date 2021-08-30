@@ -695,7 +695,7 @@ static int hns3_dbg_queue_map(struct hnae3_handle *h, char *buf, int len)
 		sprintf(result[j++], "%u", i);
 		sprintf(result[j++], "%u",
 			h->ae_algo->ops->get_global_queue_id(h, i));
-		sprintf(result[j++], "%u",
+		sprintf(result[j++], "%d",
 			priv->ring[i].tqp_vector->vector_irq);
 		hns3_dbg_fill_content(content, sizeof(content), queue_map_items,
 				      (const char **)result,
