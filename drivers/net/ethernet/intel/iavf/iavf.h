@@ -137,9 +137,13 @@ struct iavf_q_vector {
 struct iavf_mac_filter {
 	struct list_head list;
 	u8 macaddr[ETH_ALEN];
-	bool is_new_mac;	/* filter is new, wait for PF decision */
-	bool remove;		/* filter needs to be removed */
-	bool add;		/* filter needs to be added */
+	struct {
+		u8 is_new_mac:1;    /* filter is new, wait for PF decision */
+		u8 remove:1;        /* filter needs to be removed */
+		u8 add:1;           /* filter needs to be added */
+		u8 is_primary:1;    /* filter is a default VF MAC */
+		u8 padding:4;
+	};
 };
 
 struct iavf_vlan_filter {
