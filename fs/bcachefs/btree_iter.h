@@ -127,12 +127,12 @@ __trans_next_iter_with_node(struct btree_trans *trans, struct btree *b,
 						 (_iter)->idx + 1))
 
 #ifdef CONFIG_BCACHEFS_DEBUG
-void bch2_btree_trans_verify_iters(struct btree_trans *, struct btree *);
-void bch2_btree_trans_verify_locks(struct btree_trans *);
+void bch2_trans_verify_iters(struct btree_trans *, struct btree *);
+void bch2_trans_verify_locks(struct btree_trans *);
 #else
-static inline void bch2_btree_trans_verify_iters(struct btree_trans *trans,
-						 struct btree *b) {}
-static inline void bch2_btree_trans_verify_locks(struct btree_trans *iter) {}
+static inline void bch2_trans_verify_iters(struct btree_trans *trans,
+					   struct btree *b) {}
+static inline void bch2_trans_verify_locks(struct btree_trans *iter) {}
 #endif
 
 void bch2_btree_iter_fix_key_modified(struct btree_trans *trans,

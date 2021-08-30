@@ -1451,7 +1451,7 @@ static void btree_split(struct btree_update *as,
 		six_unlock_intent(&n2->c.lock);
 	six_unlock_intent(&n1->c.lock);
 
-	bch2_btree_trans_verify_locks(trans);
+	bch2_trans_verify_locks(trans);
 
 	bch2_time_stats_update(&c->times[BCH_TIME_btree_node_split],
 			       start_time);
@@ -1474,7 +1474,7 @@ bch2_btree_insert_keys_interior(struct btree_update *as,
 	trans_for_each_iter_with_node(trans, b, linked)
 		bch2_btree_node_iter_peek(&linked->l[b->c.level].iter, b);
 
-	bch2_btree_trans_verify_iters(trans, b);
+	bch2_trans_verify_iters(trans, b);
 }
 
 /**
@@ -1706,7 +1706,7 @@ retry:
 
 	bch2_trans_node_add(trans, n);
 
-	bch2_btree_trans_verify_iters(trans, n);
+	bch2_trans_verify_iters(trans, n);
 
 	bch2_btree_node_free_inmem(trans, b);
 	bch2_btree_node_free_inmem(trans, m);
@@ -1715,7 +1715,7 @@ retry:
 
 	bch2_btree_update_done(as);
 out:
-	bch2_btree_trans_verify_locks(trans);
+	bch2_trans_verify_locks(trans);
 	bch2_trans_iter_free(trans, sib_iter);
 
 	/*

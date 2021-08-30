@@ -240,7 +240,7 @@ static inline bool btree_iter_get_locks(struct btree_trans *trans,
 	if (iter->uptodate == BTREE_ITER_NEED_RELOCK)
 		iter->uptodate = BTREE_ITER_NEED_PEEK;
 
-	bch2_btree_trans_verify_locks(trans);
+	bch2_trans_verify_locks(trans);
 
 	return iter->uptodate < BTREE_ITER_NEED_RELOCK;
 }
@@ -380,7 +380,7 @@ static void bch2_btree_iter_verify_locks(struct btree_iter *iter)
 	}
 }
 
-void bch2_btree_trans_verify_locks(struct btree_trans *trans)
+void bch2_trans_verify_locks(struct btree_trans *trans)
 {
 	struct btree_iter *iter;
 
@@ -704,7 +704,7 @@ static void bch2_btree_iter_verify_entry_exit(struct btree_iter *iter)
 		bkey_cmp(iter->pos, iter->k.p) > 0));
 }
 
-void bch2_btree_trans_verify_iters(struct btree_trans *trans, struct btree *b)
+void bch2_trans_verify_iters(struct btree_trans *trans, struct btree *b)
 {
 	struct btree_iter *iter;
 

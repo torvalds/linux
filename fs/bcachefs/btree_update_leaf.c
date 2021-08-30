@@ -580,7 +580,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 		}
 		btree_insert_entry_checks(trans, i);
 	}
-	bch2_btree_trans_verify_locks(trans);
+	bch2_trans_verify_locks(trans);
 
 	trans_for_each_update(trans, i)
 		if (!same_leaf_as_prev(trans, i))
@@ -816,7 +816,7 @@ retry:
 	ret = do_bch2_trans_commit(trans, &i, _RET_IP_);
 
 	/* make sure we didn't drop or screw up locks: */
-	bch2_btree_trans_verify_locks(trans);
+	bch2_trans_verify_locks(trans);
 
 	if (ret)
 		goto err;
