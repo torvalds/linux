@@ -1739,36 +1739,35 @@ struct btree_path *bch2_path_get(struct btree_trans *trans, bool cached,
 				 unsigned locks_want, unsigned level,
 				 bool intent)
 {
-	struct btree_path *path, *best = NULL;
+	struct btree_path *path, *path_pos = NULL;
 	struct bpos pos_min = POS_MIN;
 	int i;
 
 	BUG_ON(trans->restarted);
 
-	trans_for_each_path(trans, path) {
-		if (path->cached != cached ||
-		    path->btree_id != btree_id ||
-		    path->level != level)
-			continue;
+	btree_trans_sort_paths(trans);
 
-		if (best) {
-			int cmp = bkey_cmp(bpos_diff(best->pos, pos),
-					   bpos_diff(path->pos, pos));
+	trans_for_each_path_inorder(trans, path, i) {
+		if (__btree_path_cmp(path,
+				     btree_id,
+				     cached,
+				     pos,
+				     level) > 0)
+			break;
 
-			if (cmp < 0 ||
-			    ((cmp == 0 && (path->ref || path->preserve))))
-				continue;
-		}
-
-		best = path;
+		path_pos = path;
 	}
 
-	if (best) {
-		__btree_path_get(best, intent);
-		path = btree_path_set_pos(trans, best, pos, intent);
+	if (path_pos &&
+	    path_pos->cached	== cached &&
+	    path_pos->btree_id	== btree_id &&
+	    path_pos->level	== level) {
+		__btree_path_get(path_pos, intent);
+		path = btree_path_set_pos(trans, path_pos, pos, intent);
 		path->preserve = true;
 	} else {
-		path = btree_path_alloc(trans, NULL);
+		path = btree_path_alloc(trans, path_pos);
+		path_pos = NULL;
 
 		__btree_path_get(path, intent);
 		path->pos			= pos;
@@ -1808,9 +1807,9 @@ struct btree_path *bch2_path_get(struct btree_trans *trans, bool cached,
 
 	trace_trans_get_path(_RET_IP_, trans->ip, btree_id,
 			     &pos, locks_want, path->uptodate,
-			     best ? &best->pos		: &pos_min,
-			     best ? best->locks_want	: U8_MAX,
-			     best ? best->uptodate	: U8_MAX);
+			     path_pos ? &path_pos->pos		: &pos_min,
+			     path_pos ? path_pos->locks_want	: U8_MAX,
+			     path_pos ? path_pos->uptodate	: U8_MAX);
 
 	return path;
 }
