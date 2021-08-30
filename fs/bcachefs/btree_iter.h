@@ -165,7 +165,7 @@ static inline bool bch2_btree_iter_upgrade(struct btree_trans *trans,
 
 	return iter->locks_want < new_locks_want
 		? __bch2_btree_iter_upgrade(trans, iter, new_locks_want)
-		: iter->uptodate <= BTREE_ITER_NEED_PEEK;
+		: iter->uptodate == BTREE_ITER_UPTODATE;
 }
 
 void __bch2_btree_iter_downgrade(struct btree_iter *, unsigned);

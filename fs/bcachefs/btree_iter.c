@@ -238,7 +238,7 @@ static inline bool btree_iter_get_locks(struct btree_trans *trans,
 	}
 
 	if (iter->uptodate == BTREE_ITER_NEED_RELOCK)
-		iter->uptodate = BTREE_ITER_NEED_PEEK;
+		iter->uptodate = BTREE_ITER_UPTODATE;
 
 	bch2_trans_verify_locks(trans);
 
@@ -752,8 +752,6 @@ static void __bch2_btree_iter_fix_key_modified(struct btree_iter *iter,
 
 	if (bkey_iter_pos_cmp(l->b, where, &iter->real_pos) < 0)
 		bch2_btree_node_iter_advance(&l->iter, l->b);
-
-	btree_iter_set_dirty(iter, BTREE_ITER_NEED_PEEK);
 }
 
 void bch2_btree_iter_fix_key_modified(struct btree_trans *trans,
@@ -859,11 +857,6 @@ fixup_done:
 							    b, t, k2);
 		}
 	}
-
-	if (!b->c.level &&
-	    node_iter == &iter->l[0].iter &&
-	    iter_current_key_modified)
-		btree_iter_set_dirty(iter, BTREE_ITER_NEED_PEEK);
 }
 
 void bch2_btree_node_iter_fix(struct btree_trans *trans,
@@ -1037,8 +1030,6 @@ static inline void __btree_iter_level_init(struct btree_iter *iter,
 	 */
 	if (level)
 		bch2_btree_node_iter_peek(&l->iter, l->b);
-
-	btree_iter_set_dirty(iter, BTREE_ITER_NEED_PEEK);
 }
 
 static inline void btree_iter_level_init(struct btree_trans *trans,
@@ -1482,7 +1473,7 @@ static int btree_iter_traverse_one(struct btree_trans *trans,
 		}
 	}
 
-	iter->uptodate = BTREE_ITER_NEED_PEEK;
+	iter->uptodate = BTREE_ITER_UPTODATE;
 out:
 	BUG_ON((ret == -EINTR) != !!trans->restarted);
 	trace_iter_traverse(trans->ip, trace_ip,
@@ -1672,8 +1663,6 @@ static void btree_iter_set_search_pos(struct btree_iter *iter, struct bpos new_p
 out:
 	if (l != iter->level)
 		btree_iter_set_dirty(iter, BTREE_ITER_NEED_TRAVERSE);
-	else
-		btree_iter_set_dirty(iter, BTREE_ITER_NEED_PEEK);
 
 	bch2_btree_iter_verify(iter);
 #ifdef CONFIG_BCACHEFS_DEBUG

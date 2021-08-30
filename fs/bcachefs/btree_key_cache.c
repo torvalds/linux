@@ -340,7 +340,7 @@ fill:
 	if (!test_bit(BKEY_CACHED_ACCESSED, &ck->flags))
 		set_bit(BKEY_CACHED_ACCESSED, &ck->flags);
 
-	iter->uptodate = BTREE_ITER_NEED_PEEK;
+	iter->uptodate = BTREE_ITER_UPTODATE;
 
 	if ((iter->flags & BTREE_ITER_INTENT) &&
 	    !bch2_btree_iter_upgrade(trans, iter, 1)) {

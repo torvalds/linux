@@ -218,9 +218,8 @@ enum btree_iter_type {
 
 enum btree_iter_uptodate {
 	BTREE_ITER_UPTODATE		= 0,
-	BTREE_ITER_NEED_PEEK		= 1,
-	BTREE_ITER_NEED_RELOCK		= 2,
-	BTREE_ITER_NEED_TRAVERSE	= 3,
+	BTREE_ITER_NEED_RELOCK		= 1,
+	BTREE_ITER_NEED_TRAVERSE	= 2,
 };
 
 #define BTREE_ITER_NO_NODE_GET_LOCKS	((struct btree *) 1)
