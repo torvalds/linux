@@ -1933,7 +1933,7 @@ ret_success:
 void kvm_hv_set_cpuid(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpuid_entry2 *entry;
-	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
+	struct kvm_vcpu_hv *hv_vcpu;
 
 	entry = kvm_find_cpuid_entry(vcpu, HYPERV_CPUID_INTERFACE, 0);
 	if (entry && entry->eax == HYPERV_CPUID_SIGNATURE_EAX) {
@@ -2016,6 +2016,7 @@ static void kvm_hv_hypercall_set_result(struct kvm_vcpu *vcpu, u64 result)
 
 static int kvm_hv_hypercall_complete(struct kvm_vcpu *vcpu, u64 result)
 {
+	trace_kvm_hv_hypercall_done(result);
 	kvm_hv_hypercall_set_result(vcpu, result);
 	++vcpu->stat.hypercalls;
 	return kvm_skip_emulated_instruction(vcpu);
@@ -2139,6 +2140,7 @@ static bool hv_check_hypercall_access(struct kvm_vcpu_hv *hv_vcpu, u16 code)
 
 int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 {
+	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
 	struct kvm_hv_hcall hc;
 	u64 ret = HV_STATUS_SUCCESS;
 
@@ -2173,15 +2175,23 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 	hc.rep_idx = (hc.param >> HV_HYPERCALL_REP_START_OFFSET) & 0xfff;
 	hc.rep = !!(hc.rep_cnt || hc.rep_idx);
 
-	if (hc.fast && is_xmm_fast_hypercall(&hc))
-		kvm_hv_hypercall_read_xmm(&hc);
-
 	trace_kvm_hv_hypercall(hc.code, hc.fast, hc.rep_cnt, hc.rep_idx,
 			       hc.ingpa, hc.outgpa);
 
-	if (unlikely(!hv_check_hypercall_access(to_hv_vcpu(vcpu), hc.code))) {
+	if (unlikely(!hv_check_hypercall_access(hv_vcpu, hc.code))) {
 		ret = HV_STATUS_ACCESS_DENIED;
 		goto hypercall_complete;
+	}
+
+	if (hc.fast && is_xmm_fast_hypercall(&hc)) {
+		if (unlikely(hv_vcpu->enforce_cpuid &&
+			     !(hv_vcpu->cpuid_cache.features_edx &
+			       HV_X64_HYPERCALL_XMM_INPUT_AVAILABLE))) {
+			kvm_queue_exception(vcpu, UD_VECTOR);
+			return 1;
+		}
+
+		kvm_hv_hypercall_read_xmm(&hc);
 	}
 
 	switch (hc.code) {

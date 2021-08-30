@@ -231,6 +231,7 @@ config DMARD10
 
 config FXLS8962AF
 	tristate
+	depends on I2C || !I2C # cannot be built-in for modular I2C
 
 config FXLS8962AF_I2C
 	tristate "NXP FXLS8962AF/FXLS8964AF Accelerometer I2C Driver"
@@ -247,6 +248,7 @@ config FXLS8962AF_I2C
 config FXLS8962AF_SPI
 	tristate "NXP FXLS8962AF/FXLS8964AF Accelerometer SPI Driver"
 	depends on SPI
+	depends on I2C || !I2C
 	select FXLS8962AF
 	select REGMAP_SPI
 	help

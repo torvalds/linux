@@ -1169,7 +1169,7 @@ static int msm_gem_new_impl(struct drm_device *dev,
 	case MSM_BO_CACHED_COHERENT:
 		if (priv->has_cached_coherent)
 			break;
-		/* fallthrough */
+		fallthrough;
 	default:
 		DRM_DEV_ERROR(dev->dev, "invalid cache flag: %x\n",
 				(flags & MSM_BO_CACHE_MASK));

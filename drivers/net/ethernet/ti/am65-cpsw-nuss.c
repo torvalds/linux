@@ -2060,8 +2060,12 @@ static void am65_cpsw_port_offload_fwd_mark_update(struct am65_cpsw_common *comm
 
 	for (i = 1; i <= common->port_num; i++) {
 		struct am65_cpsw_port *port = am65_common_get_port(common, i);
-		struct am65_cpsw_ndev_priv *priv = am65_ndev_to_priv(port->ndev);
+		struct am65_cpsw_ndev_priv *priv;
 
+		if (!port->ndev)
+			continue;
+
+		priv = am65_ndev_to_priv(port->ndev);
 		priv->offload_fwd_mark = set_val;
 	}
 }

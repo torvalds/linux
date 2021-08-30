@@ -874,7 +874,7 @@ int policydb_load_isids(struct policydb *p, struct sidtab *s)
 	rc = sidtab_init(s);
 	if (rc) {
 		pr_err("SELinux:  out of memory on SID table init\n");
-		goto out;
+		return rc;
 	}
 
 	head = p->ocontexts[OCON_ISID];
@@ -885,7 +885,7 @@ int policydb_load_isids(struct policydb *p, struct sidtab *s)
 		if (sid == SECSID_NULL) {
 			pr_err("SELinux:  SID 0 was assigned a context.\n");
 			sidtab_destroy(s);
-			goto out;
+			return -EINVAL;
 		}
 
 		/* Ignore initial SIDs unused by this kernel. */
@@ -897,12 +897,10 @@ int policydb_load_isids(struct policydb *p, struct sidtab *s)
 			pr_err("SELinux:  unable to load initial SID %s.\n",
 			       name);
 			sidtab_destroy(s);
-			goto out;
+			return rc;
 		}
 	}
-	rc = 0;
-out:
-	return rc;
+	return 0;
 }
 
 int policydb_class_isvalid(struct policydb *p, unsigned int class)

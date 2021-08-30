@@ -291,13 +291,6 @@ static int acp_pdm_dma_new(struct snd_soc_component *component,
 	return 0;
 }
 
-static int acp_pdm_dma_mmap(struct snd_soc_component *component,
-			    struct snd_pcm_substream *substream,
-			    struct vm_area_struct *vma)
-{
-	return snd_pcm_lib_default_mmap(substream, vma);
-}
-
 static int acp_pdm_dma_close(struct snd_soc_component *component,
 			     struct snd_pcm_substream *substream)
 {
@@ -375,7 +368,6 @@ static const struct snd_soc_component_driver acp_pdm_component = {
 	.close		= acp_pdm_dma_close,
 	.hw_params	= acp_pdm_dma_hw_params,
 	.pointer	= acp_pdm_dma_pointer,
-	.mmap		= acp_pdm_dma_mmap,
 	.pcm_construct	= acp_pdm_dma_new,
 };
 

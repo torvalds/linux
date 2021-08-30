@@ -1235,8 +1235,6 @@ void fuse_dax_conn_free(struct fuse_conn *fc)
 static int fuse_dax_mem_range_init(struct fuse_conn_dax *fcd)
 {
 	long nr_pages, nr_ranges;
-	void *kaddr;
-	pfn_t pfn;
 	struct fuse_dax_mapping *range;
 	int ret, id;
 	size_t dax_size = -1;
@@ -1248,8 +1246,8 @@ static int fuse_dax_mem_range_init(struct fuse_conn_dax *fcd)
 	INIT_DELAYED_WORK(&fcd->free_work, fuse_dax_free_mem_worker);
 
 	id = dax_read_lock();
-	nr_pages = dax_direct_access(fcd->dev, 0, PHYS_PFN(dax_size), &kaddr,
-				     &pfn);
+	nr_pages = dax_direct_access(fcd->dev, 0, PHYS_PFN(dax_size), NULL,
+				     NULL);
 	dax_read_unlock(id);
 	if (nr_pages < 0) {
 		pr_debug("dax_direct_access() returned %ld\n", nr_pages);

@@ -2375,21 +2375,27 @@ static bool svm_range_skip_recover(struct svm_range *prange)
 
 static void
 svm_range_count_fault(struct amdgpu_device *adev, struct kfd_process *p,
-		      struct svm_range *prange, int32_t gpuidx)
+		      int32_t gpuidx)
 {
 	struct kfd_process_device *pdd;
 
-	if (gpuidx == MAX_GPU_INSTANCE)
-		/* fault is on different page of same range
-		 * or fault is skipped to recover later
-		 */
-		pdd = svm_range_get_pdd_by_adev(prange, adev);
-	else
-		/* fault recovered
-		 * or fault cannot recover because GPU no access on the range
-		 */
-		pdd = kfd_process_device_from_gpuidx(p, gpuidx);
+	/* fault is on different page of same range
+	 * or fault is skipped to recover later
+	 * or fault is on invalid virtual address
+	 */
+	if (gpuidx == MAX_GPU_INSTANCE) {
+		uint32_t gpuid;
+		int r;
 
+		r = kfd_process_gpuid_from_kgd(p, adev, &gpuid, &gpuidx);
+		if (r < 0)
+			return;
+	}
+
+	/* fault is recovered
+	 * or fault cannot recover because GPU no access on the range
+	 */
+	pdd = kfd_process_device_from_gpuidx(p, gpuidx);
 	if (pdd)
 		WRITE_ONCE(pdd->faults, pdd->faults + 1);
 }
@@ -2525,7 +2531,7 @@ out_unlock_svms:
 	mutex_unlock(&svms->lock);
 	mmap_read_unlock(mm);
 
-	svm_range_count_fault(adev, p, prange, gpuidx);
+	svm_range_count_fault(adev, p, gpuidx);
 
 	mmput(mm);
 out:
@@ -3019,6 +3025,14 @@ svm_range_get_attr(struct kfd_process *p, uint64_t start, uint64_t size,
 
 	pr_debug("svms 0x%p [0x%llx 0x%llx] nattr 0x%x\n", &p->svms, start,
 		 start + size - 1, nattr);
+
+	/* Flush pending deferred work to avoid racing with deferred actions from
+	 * previous memory map changes (e.g. munmap). Concurrent memory map changes
+	 * can still race with get_attr because we don't hold the mmap lock. But that
+	 * would be a race condition in the application anyway, and undefined
+	 * behaviour is acceptable in that case.
+	 */
+	flush_work(&p->svms.deferred_list_work);
 
 	mmap_read_lock(mm);
 	if (!svm_range_is_valid(mm, start, size)) {

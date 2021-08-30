@@ -100,6 +100,7 @@ static const char * const clock_names[SYSC_MAX_CLOCKS] = {
  * @cookie: data used by legacy platform callbacks
  * @name: name if available
  * @revision: interconnect target module revision
+ * @reserved: target module is reserved and already in use
  * @enabled: sysc runtime enabled status
  * @needs_resume: runtime resume needed on resume from suspend
  * @child_needs_resume: runtime resume needed for child on resume from suspend
@@ -130,6 +131,7 @@ struct sysc {
 	struct ti_sysc_cookie cookie;
 	const char *name;
 	u32 revision;
+	unsigned int reserved:1;
 	unsigned int enabled:1;
 	unsigned int needs_resume:1;
 	unsigned int child_needs_resume:1;
@@ -2951,6 +2953,8 @@ static int sysc_init_soc(struct sysc *ddata)
 		case SOC_3430 ... SOC_3630:
 			sysc_add_disabled(0x48304000);	/* timer12 */
 			break;
+		case SOC_AM3:
+			sysc_add_disabled(0x48310000);  /* rng */
 		default:
 			break;
 		}
@@ -3093,7 +3097,9 @@ static int sysc_probe(struct platform_device *pdev)
 		return error;
 
 	error = sysc_check_active_timer(ddata);
-	if (error)
+	if (error == -ENXIO)
+		ddata->reserved = true;
+	else if (error)
 		return error;
 
 	error = sysc_get_clocks(ddata);
@@ -3130,11 +3136,15 @@ static int sysc_probe(struct platform_device *pdev)
 	sysc_show_registers(ddata);
 
 	ddata->dev->type = &sysc_device_type;
-	error = of_platform_populate(ddata->dev->of_node, sysc_match_table,
-				     pdata ? pdata->auxdata : NULL,
-				     ddata->dev);
-	if (error)
-		goto err;
+
+	if (!ddata->reserved) {
+		error = of_platform_populate(ddata->dev->of_node,
+					     sysc_match_table,
+					     pdata ? pdata->auxdata : NULL,
+					     ddata->dev);
+		if (error)
+			goto err;
+	}
 
 	INIT_DELAYED_WORK(&ddata->idle_work, ti_sysc_idle);
 

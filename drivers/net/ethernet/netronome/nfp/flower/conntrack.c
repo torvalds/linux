@@ -1141,20 +1141,7 @@ int nfp_fl_ct_del_flow(struct nfp_fl_ct_map_entry *ct_map_ent)
 		nfp_fl_ct_clean_flow_entry(ct_entry);
 		kfree(ct_map_ent);
 
-		/* If this is the last pre_ct_rule it means that it is
-		 * very likely that the nft table will be cleaned up next,
-		 * as this happens on the removal of the last act_ct flow.
-		 * However we cannot deregister the callback on the removal
-		 * of the last nft flow as this runs into a deadlock situation.
-		 * So deregister the callback on removal of the last pre_ct flow
-		 * and remove any remaining nft flow entries. We also cannot
-		 * save this state and delete the callback later since the
-		 * nft table would already have been freed at that time.
-		 */
 		if (!zt->pre_ct_count) {
-			nf_flow_table_offload_del_cb(zt->nft,
-						     nfp_fl_ct_handle_nft_flow,
-						     zt);
 			zt->nft = NULL;
 			nfp_fl_ct_clean_nft_entries(zt);
 		}
@@ -1172,6 +1159,7 @@ int nfp_fl_ct_del_flow(struct nfp_fl_ct_map_entry *ct_map_ent)
 				       nfp_ct_map_params);
 		nfp_fl_ct_clean_flow_entry(ct_map_ent->ct_entry);
 		kfree(ct_map_ent);
+		break;
 	default:
 		break;
 	}

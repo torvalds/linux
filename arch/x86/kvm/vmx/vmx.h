@@ -14,8 +14,6 @@
 #include "vmx_ops.h"
 #include "cpuid.h"
 
-extern const u32 vmx_msr_index[];
-
 #define MSR_TYPE_R	1
 #define MSR_TYPE_W	2
 #define MSR_TYPE_RW	3
@@ -524,7 +522,7 @@ static inline struct vmcs *alloc_vmcs(bool shadow)
 
 static inline bool vmx_has_waitpkg(struct vcpu_vmx *vmx)
 {
-	return vmx->secondary_exec_control &
+	return secondary_exec_controls_get(vmx) &
 		SECONDARY_EXEC_ENABLE_USR_WAIT_PAUSE;
 }
 

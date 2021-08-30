@@ -190,6 +190,10 @@ void dcn3_init_clocks(struct clk_mgr *clk_mgr_base)
 			&clk_mgr_base->bw_params->clk_table.entries[0].dtbclk_mhz,
 			&num_levels);
 
+	/* SOCCLK */
+	dcn3_init_single_clock(clk_mgr, PPCLK_SOCCLK,
+					&clk_mgr_base->bw_params->clk_table.entries[0].socclk_mhz,
+					&num_levels);
 	// DPREFCLK ???
 
 	/* DISPCLK */

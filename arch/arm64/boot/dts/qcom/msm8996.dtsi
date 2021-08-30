@@ -2566,7 +2566,7 @@
 			power-domains = <&gcc USB30_GDSC>;
 			status = "disabled";
 
-			usb@6a00000 {
+			dwc3@6a00000 {
 				compatible = "snps,dwc3";
 				reg = <0x06a00000 0xcc00>;
 				interrupts = <0 131 IRQ_TYPE_LEVEL_HIGH>;
@@ -2873,7 +2873,7 @@
 			qcom,select-utmi-as-pipe-clk;
 			status = "disabled";
 
-			usb@7600000 {
+			dwc3@7600000 {
 				compatible = "snps,dwc3";
 				reg = <0x07600000 0xcc00>;
 				interrupts = <0 138 IRQ_TYPE_LEVEL_HIGH>;

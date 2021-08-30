@@ -1722,42 +1722,43 @@ static int rx_macro_digital_mute(struct snd_soc_dai *dai, int mute, int stream)
 	case RX_MACRO_AIF2_PB:
 	case RX_MACRO_AIF3_PB:
 	case RX_MACRO_AIF4_PB:
-	for (j = 0; j < INTERP_MAX; j++) {
-		reg = CDC_RX_RXn_RX_PATH_CTL(j);
-		mix_reg = CDC_RX_RXn_RX_PATH_MIX_CTL(j);
-		dsm_reg = CDC_RX_RXn_RX_PATH_DSM_CTL(j);
+		for (j = 0; j < INTERP_MAX; j++) {
+			reg = CDC_RX_RXn_RX_PATH_CTL(j);
+			mix_reg = CDC_RX_RXn_RX_PATH_MIX_CTL(j);
+			dsm_reg = CDC_RX_RXn_RX_PATH_DSM_CTL(j);
 
-		if (mute) {
-			snd_soc_component_update_bits(component, reg,
-						      CDC_RX_PATH_PGA_MUTE_MASK,
-						      CDC_RX_PATH_PGA_MUTE_ENABLE);
-			snd_soc_component_update_bits(component, mix_reg,
-						      CDC_RX_PATH_PGA_MUTE_MASK,
-						      CDC_RX_PATH_PGA_MUTE_ENABLE);
-		} else {
-			snd_soc_component_update_bits(component, reg,
-						      CDC_RX_PATH_PGA_MUTE_MASK, 0x0);
-			snd_soc_component_update_bits(component, mix_reg,
-						      CDC_RX_PATH_PGA_MUTE_MASK, 0x0);
-		}
+			if (mute) {
+				snd_soc_component_update_bits(component, reg,
+							      CDC_RX_PATH_PGA_MUTE_MASK,
+							      CDC_RX_PATH_PGA_MUTE_ENABLE);
+				snd_soc_component_update_bits(component, mix_reg,
+							      CDC_RX_PATH_PGA_MUTE_MASK,
+							      CDC_RX_PATH_PGA_MUTE_ENABLE);
+			} else {
+				snd_soc_component_update_bits(component, reg,
+							      CDC_RX_PATH_PGA_MUTE_MASK, 0x0);
+				snd_soc_component_update_bits(component, mix_reg,
+							      CDC_RX_PATH_PGA_MUTE_MASK, 0x0);
+			}
 
-		if (j == INTERP_AUX)
-			dsm_reg = CDC_RX_RX2_RX_PATH_DSM_CTL;
+			if (j == INTERP_AUX)
+				dsm_reg = CDC_RX_RX2_RX_PATH_DSM_CTL;
 
-		int_mux_cfg0 = CDC_RX_INP_MUX_RX_INT0_CFG0 + j * 8;
-		int_mux_cfg1 = int_mux_cfg0 + 4;
-		int_mux_cfg0_val = snd_soc_component_read(component, int_mux_cfg0);
-		int_mux_cfg1_val = snd_soc_component_read(component, int_mux_cfg1);
+			int_mux_cfg0 = CDC_RX_INP_MUX_RX_INT0_CFG0 + j * 8;
+			int_mux_cfg1 = int_mux_cfg0 + 4;
+			int_mux_cfg0_val = snd_soc_component_read(component, int_mux_cfg0);
+			int_mux_cfg1_val = snd_soc_component_read(component, int_mux_cfg1);
 
-		if (snd_soc_component_read(component, dsm_reg) & 0x01) {
-			if (int_mux_cfg0_val || (int_mux_cfg1_val & 0xF0))
-				snd_soc_component_update_bits(component, reg, 0x20, 0x20);
-			if (int_mux_cfg1_val & 0x0F) {
-				snd_soc_component_update_bits(component, reg, 0x20, 0x20);
-				snd_soc_component_update_bits(component, mix_reg, 0x20, 0x20);
+			if (snd_soc_component_read(component, dsm_reg) & 0x01) {
+				if (int_mux_cfg0_val || (int_mux_cfg1_val & 0xF0))
+					snd_soc_component_update_bits(component, reg, 0x20, 0x20);
+				if (int_mux_cfg1_val & 0x0F) {
+					snd_soc_component_update_bits(component, reg, 0x20, 0x20);
+					snd_soc_component_update_bits(component, mix_reg, 0x20,
+								      0x20);
+				}
 			}
 		}
-	}
 		break;
 	default:
 		break;

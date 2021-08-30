@@ -109,6 +109,7 @@ struct _vcs_dpi_ip_params_st dcn2_1_ip = {
 	.max_page_table_levels = 4,
 	.pte_chunk_size_kbytes = 2,
 	.meta_chunk_size_kbytes = 2,
+	.min_meta_chunk_size_bytes = 256,
 	.writeback_chunk_size_kbytes = 2,
 	.line_buffer_size_bits = 789504,
 	.is_line_buffer_bpp_fixed = 0,

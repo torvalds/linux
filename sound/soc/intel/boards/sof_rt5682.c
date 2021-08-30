@@ -162,6 +162,20 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 					SOF_RT5682_SSP_AMP(2) |
 					SOF_RT5682_NUM_HDMIDEV(4)),
 	},
+	{
+		.callback = sof_rt5682_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Alder Lake Client Platform"),
+			DMI_MATCH(DMI_OEM_STRING, "AUDIO-ADL_MAX98373_ALC5682I_I2S"),
+		},
+		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
+					SOF_RT5682_SSP_CODEC(0) |
+					SOF_SPEAKER_AMP_PRESENT |
+					SOF_MAX98373_SPEAKER_AMP_PRESENT |
+					SOF_RT5682_SSP_AMP(2) |
+					SOF_RT5682_NUM_HDMIDEV(4)),
+	},
 	{}
 };
 
@@ -456,19 +470,11 @@ static const struct snd_kcontrol_new sof_controls[] = {
 
 };
 
-static const struct snd_kcontrol_new speaker_controls[] = {
-	SOC_DAPM_PIN_SWITCH("Spk"),
-};
-
 static const struct snd_soc_dapm_widget sof_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_SPK("Left Spk", NULL),
 	SND_SOC_DAPM_SPK("Right Spk", NULL),
-};
-
-static const struct snd_soc_dapm_widget speaker_widgets[] = {
-	SND_SOC_DAPM_SPK("Spk", NULL),
 };
 
 static const struct snd_soc_dapm_widget dmic_widgets[] = {
@@ -482,11 +488,6 @@ static const struct snd_soc_dapm_route sof_map[] = {
 
 	/* other jacks */
 	{ "IN1P", NULL, "Headset Mic" },
-};
-
-static const struct snd_soc_dapm_route speaker_map[] = {
-	/* speaker */
-	{ "Spk", NULL, "Speaker" },
 };
 
 static const struct snd_soc_dapm_route speaker_map_lr[] = {
@@ -503,34 +504,6 @@ static int speaker_codec_init_lr(struct snd_soc_pcm_runtime *rtd)
 {
 	return snd_soc_dapm_add_routes(&rtd->card->dapm, speaker_map_lr,
 				       ARRAY_SIZE(speaker_map_lr));
-}
-
-static int speaker_codec_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_card *card = rtd->card;
-	int ret;
-
-	ret = snd_soc_dapm_new_controls(&card->dapm, speaker_widgets,
-					ARRAY_SIZE(speaker_widgets));
-	if (ret) {
-		dev_err(rtd->dev, "unable to add dapm controls, ret %d\n", ret);
-		/* Don't need to add routes if widget addition failed */
-		return ret;
-	}
-
-	ret = snd_soc_add_card_controls(card, speaker_controls,
-					ARRAY_SIZE(speaker_controls));
-	if (ret) {
-		dev_err(rtd->dev, "unable to add card controls, ret %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_dapm_add_routes(&card->dapm, speaker_map,
-				      ARRAY_SIZE(speaker_map));
-
-	if (ret)
-		dev_err(rtd->dev, "Speaker map addition failed: %d\n", ret);
-	return ret;
 }
 
 static int dmic_init(struct snd_soc_pcm_runtime *rtd)
@@ -591,13 +564,6 @@ static struct snd_soc_dai_link_component dmic_component[] = {
 	{
 		.name = "dmic-codec",
 		.dai_name = "dmic-hifi",
-	}
-};
-
-static struct snd_soc_dai_link_component max98360a_component[] = {
-	{
-		.name = "MX98360A:00",
-		.dai_name = "HiFi",
 	}
 };
 
@@ -775,9 +741,7 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 			links[id].dpcm_capture = 1;
 		} else if (sof_rt5682_quirk &
 				SOF_MAX98360A_SPEAKER_AMP_PRESENT) {
-			links[id].codecs = max98360a_component;
-			links[id].num_codecs = ARRAY_SIZE(max98360a_component);
-			links[id].init = speaker_codec_init;
+			max_98360a_dai_link(&links[id]);
 		} else if (sof_rt5682_quirk &
 				SOF_RT1011_SPEAKER_AMP_PRESENT) {
 			sof_rt1011_dai_link(&links[id]);

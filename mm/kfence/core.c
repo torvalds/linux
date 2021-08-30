@@ -734,6 +734,22 @@ void kfence_shutdown_cache(struct kmem_cache *s)
 void *__kfence_alloc(struct kmem_cache *s, size_t size, gfp_t flags)
 {
 	/*
+	 * Perform size check before switching kfence_allocation_gate, so that
+	 * we don't disable KFENCE without making an allocation.
+	 */
+	if (size > PAGE_SIZE)
+		return NULL;
+
+	/*
+	 * Skip allocations from non-default zones, including DMA. We cannot
+	 * guarantee that pages in the KFENCE pool will have the requested
+	 * properties (e.g. reside in DMAable memory).
+	 */
+	if ((flags & GFP_ZONEMASK) ||
+	    (s->flags & (SLAB_CACHE_DMA | SLAB_CACHE_DMA32)))
+		return NULL;
+
+	/*
 	 * allocation_gate only needs to become non-zero, so it doesn't make
 	 * sense to continue writing to it and pay the associated contention
 	 * cost, in case we have a large number of concurrent allocations.
@@ -755,9 +771,6 @@ void *__kfence_alloc(struct kmem_cache *s, size_t size, gfp_t flags)
 #endif
 
 	if (!READ_ONCE(kfence_enabled))
-		return NULL;
-
-	if (size > PAGE_SIZE)
 		return NULL;
 
 	return kfence_guarded_alloc(s, size, flags);

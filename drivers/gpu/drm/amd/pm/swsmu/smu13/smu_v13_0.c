@@ -210,6 +210,9 @@ int smu_v13_0_check_fw_version(struct smu_context *smu)
 	case CHIP_ALDEBARAN:
 		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_ALDE;
 		break;
+	case CHIP_YELLOW_CARP:
+		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_YELLOW_CARP;
+		break;
 	default:
 		dev_err(smu->adev->dev, "smu unsupported asic type:%d.\n", smu->adev->asic_type);
 		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_INV;
@@ -691,6 +694,27 @@ int smu_v13_0_set_allowed_mask(struct smu_context *smu)
 
 failed:
 	mutex_unlock(&feature->mutex);
+	return ret;
+}
+
+int smu_v13_0_gfx_off_control(struct smu_context *smu, bool enable)
+{
+	int ret = 0;
+	struct amdgpu_device *adev = smu->adev;
+
+	switch (adev->asic_type) {
+	case CHIP_YELLOW_CARP:
+		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
+			return 0;
+		if (enable)
+			ret = smu_cmn_send_smc_msg(smu, SMU_MSG_AllowGfxOff, NULL);
+		else
+			ret = smu_cmn_send_smc_msg(smu, SMU_MSG_DisallowGfxOff, NULL);
+		break;
+	default:
+		break;
+	}
+
 	return ret;
 }
 

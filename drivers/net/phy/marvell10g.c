@@ -78,6 +78,11 @@ enum {
 	/* Temperature read register (88E2110 only) */
 	MV_PCS_TEMP		= 0x8042,
 
+	/* Number of ports on the device */
+	MV_PCS_PORT_INFO	= 0xd00d,
+	MV_PCS_PORT_INFO_NPORTS_MASK	= 0x0380,
+	MV_PCS_PORT_INFO_NPORTS_SHIFT	= 7,
+
 	/* These registers appear at 0x800X and 0xa00X - the 0xa00X control
 	 * registers appear to set themselves to the 0x800X when AN is
 	 * restarted, but status registers appear readable from either.
@@ -966,6 +971,30 @@ static const struct mv3310_chip mv2111_type = {
 #endif
 };
 
+static int mv3310_get_number_of_ports(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_PORT_INFO);
+	if (ret < 0)
+		return ret;
+
+	ret &= MV_PCS_PORT_INFO_NPORTS_MASK;
+	ret >>= MV_PCS_PORT_INFO_NPORTS_SHIFT;
+
+	return ret + 1;
+}
+
+static int mv3310_match_phy_device(struct phy_device *phydev)
+{
+	return mv3310_get_number_of_ports(phydev) == 1;
+}
+
+static int mv3340_match_phy_device(struct phy_device *phydev)
+{
+	return mv3310_get_number_of_ports(phydev) == 4;
+}
+
 static int mv211x_match_phy_device(struct phy_device *phydev, bool has_5g)
 {
 	int val;
@@ -994,7 +1023,8 @@ static int mv2111_match_phy_device(struct phy_device *phydev)
 static struct phy_driver mv3310_drivers[] = {
 	{
 		.phy_id		= MARVELL_PHY_ID_88X3310,
-		.phy_id_mask	= MARVELL_PHY_ID_88X33X0_MASK,
+		.phy_id_mask	= MARVELL_PHY_ID_MASK,
+		.match_phy_device = mv3310_match_phy_device,
 		.name		= "mv88x3310",
 		.driver_data	= &mv3310_type,
 		.get_features	= mv3310_get_features,
@@ -1011,8 +1041,9 @@ static struct phy_driver mv3310_drivers[] = {
 		.set_loopback	= genphy_c45_loopback,
 	},
 	{
-		.phy_id		= MARVELL_PHY_ID_88X3340,
-		.phy_id_mask	= MARVELL_PHY_ID_88X33X0_MASK,
+		.phy_id		= MARVELL_PHY_ID_88X3310,
+		.phy_id_mask	= MARVELL_PHY_ID_MASK,
+		.match_phy_device = mv3340_match_phy_device,
 		.name		= "mv88x3340",
 		.driver_data	= &mv3340_type,
 		.get_features	= mv3310_get_features,
@@ -1069,8 +1100,7 @@ static struct phy_driver mv3310_drivers[] = {
 module_phy_driver(mv3310_drivers);
 
 static struct mdio_device_id __maybe_unused mv3310_tbl[] = {
-	{ MARVELL_PHY_ID_88X3310, MARVELL_PHY_ID_88X33X0_MASK },
-	{ MARVELL_PHY_ID_88X3340, MARVELL_PHY_ID_88X33X0_MASK },
+	{ MARVELL_PHY_ID_88X3310, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E2110, MARVELL_PHY_ID_MASK },
 	{ },
 };

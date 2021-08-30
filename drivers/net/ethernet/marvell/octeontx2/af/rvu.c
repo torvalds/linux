@@ -391,8 +391,10 @@ void rvu_get_pf_numvfs(struct rvu *rvu, int pf, int *numvfs, int *hwvf)
 
 	/* Get numVFs attached to this PF and first HWVF */
 	cfg = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_CFG(pf));
-	*numvfs = (cfg >> 12) & 0xFF;
-	*hwvf = cfg & 0xFFF;
+	if (numvfs)
+		*numvfs = (cfg >> 12) & 0xFF;
+	if (hwvf)
+		*hwvf = cfg & 0xFFF;
 }
 
 static int rvu_get_hwvf(struct rvu *rvu, int pcifunc)
@@ -1314,7 +1316,7 @@ int rvu_mbox_handler_detach_resources(struct rvu *rvu,
 	return rvu_detach_rsrcs(rvu, detach, detach->hdr.pcifunc);
 }
 
-static int rvu_get_nix_blkaddr(struct rvu *rvu, u16 pcifunc)
+int rvu_get_nix_blkaddr(struct rvu *rvu, u16 pcifunc)
 {
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
 	int blkaddr = BLKADDR_NIX0, vf;
@@ -2333,6 +2335,7 @@ static void __rvu_flr_handler(struct rvu *rvu, u16 pcifunc)
 	rvu_blklf_teardown(rvu, pcifunc, BLKADDR_SSOW);
 	rvu_blklf_teardown(rvu, pcifunc, BLKADDR_SSO);
 	rvu_blklf_teardown(rvu, pcifunc, BLKADDR_NPA);
+	rvu_reset_lmt_map_tbl(rvu, pcifunc);
 	rvu_detach_rsrcs(rvu, NULL, pcifunc);
 	mutex_unlock(&rvu->flr_lock);
 }
@@ -2858,6 +2861,12 @@ static int rvu_enable_sriov(struct rvu *rvu)
 	if (!vfs)
 		return 0;
 
+	/* LBK channel number 63 is used for switching packets between
+	 * CGX mapped VFs. Hence limit LBK pairs till 62 only.
+	 */
+	if (vfs > 62)
+		vfs = 62;
+
 	/* Save VFs number for reference in VF interrupts handlers.
 	 * Since interrupts might start arriving during SRIOV enablement
 	 * ordinary API cannot be used to get number of enabled VFs.
@@ -2999,6 +3008,8 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Initialize debugfs */
 	rvu_dbg_init(rvu);
+
+	mutex_init(&rvu->rswitch.switch_lock);
 
 	return 0;
 err_dl:

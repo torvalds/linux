@@ -2,7 +2,7 @@
 VERSION = 5
 PATCHLEVEL = 14
 SUBLEVEL = 0
-EXTRAVERSION = -rc1
+EXTRAVERSION = -rc7
 NAME = Opossums on Parade
 
 # *DOCUMENTATION*
@@ -546,7 +546,6 @@ export RCS_TAR_IGNORE := --exclude SCCS --exclude BitKeeper --exclude .svn \
 PHONY += scripts_basic
 scripts_basic:
 	$(Q)$(MAKE) $(build)=scripts/basic
-	$(Q)rm -f .tmp_quiet_recordmcount
 
 PHONY += outputmakefile
 ifdef building_out_of_srctree
@@ -728,11 +727,12 @@ $(KCONFIG_CONFIG):
 # This exploits the 'multi-target pattern rule' trick.
 # The syncconfig should be executed only once to make all the targets.
 # (Note: use the grouped target '&:' when we bump to GNU Make 4.3)
-quiet_cmd_syncconfig = SYNC    $@
-      cmd_syncconfig = $(MAKE) -f $(srctree)/Makefile syncconfig
-
+#
+# Do not use $(call cmd,...) here. That would suppress prompts from syncconfig,
+# so you cannot notice that Kconfig is waiting for the user input.
 %/config/auto.conf %/config/auto.conf.cmd %/generated/autoconf.h: $(KCONFIG_CONFIG)
-	+$(call cmd,syncconfig)
+	$(Q)$(kecho) "  SYNC    $@"
+	$(Q)$(MAKE) -f $(srctree)/Makefile syncconfig
 else # !may-sync-config
 # External modules and some install targets need include/generated/autoconf.h
 # and include/config/auto.conf but do not care if they are up-to-date.
@@ -802,7 +802,7 @@ else
 # Warn about unmarked fall-throughs in switch statement.
 # Disabled for clang while comment to attribute conversion happens and
 # https://github.com/ClangBuiltLinux/linux/issues/636 is discussed.
-KBUILD_CFLAGS += $(call cc-option,-Wimplicit-fallthrough,)
+KBUILD_CFLAGS += $(call cc-option,-Wimplicit-fallthrough=5,)
 endif
 
 # These warnings generated too much noise in a regular build.
@@ -1315,6 +1315,16 @@ endif
 PHONY += scripts_unifdef
 scripts_unifdef: scripts_basic
 	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
+
+# ---------------------------------------------------------------------------
+# Install
+
+# Many distributions have the custom install script, /sbin/installkernel.
+# If DKMS is installed, 'make install' will eventually recuses back
+# to the this Makefile to build and install external modules.
+# Cancel sub_make_done so that options such as M=, V=, etc. are parsed.
+
+install: sub_make_done :=
 
 # ---------------------------------------------------------------------------
 # Tools

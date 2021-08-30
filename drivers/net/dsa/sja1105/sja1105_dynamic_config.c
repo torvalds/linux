@@ -304,6 +304,15 @@ sja1105pqrs_common_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 			hostcmd = SJA1105_HOSTCMD_INVALIDATE;
 	}
 	sja1105_packing(p, &hostcmd, 25, 23, size, op);
+}
+
+static void
+sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+				  enum packing_op op)
+{
+	int entry_size = SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY;
+
+	sja1105pqrs_common_l2_lookup_cmd_packing(buf, cmd, op, entry_size);
 
 	/* Hack - The hardware takes the 'index' field within
 	 * struct sja1105_l2_lookup_entry as the index on which this command
@@ -313,26 +322,18 @@ sja1105pqrs_common_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 	 * such that our API doesn't need to ask for a full-blown entry
 	 * structure when e.g. a delete is requested.
 	 */
-	sja1105_packing(buf, &cmd->index, 15, 6,
-			SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY, op);
-}
-
-static void
-sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
-				  enum packing_op op)
-{
-	int size = SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY;
-
-	return sja1105pqrs_common_l2_lookup_cmd_packing(buf, cmd, op, size);
+	sja1105_packing(buf, &cmd->index, 15, 6, entry_size, op);
 }
 
 static void
 sja1110_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 			      enum packing_op op)
 {
-	int size = SJA1110_SIZE_L2_LOOKUP_ENTRY;
+	int entry_size = SJA1110_SIZE_L2_LOOKUP_ENTRY;
 
-	return sja1105pqrs_common_l2_lookup_cmd_packing(buf, cmd, op, size);
+	sja1105pqrs_common_l2_lookup_cmd_packing(buf, cmd, op, entry_size);
+
+	sja1105_packing(buf, &cmd->index, 10, 1, entry_size, op);
 }
 
 /* The switch is so retarded that it makes our command/entry abstraction

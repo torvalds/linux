@@ -102,6 +102,8 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
 		spin_lock_init(&idxd->irq_entries[i].list_lock);
 	}
 
+	idxd_msix_perm_setup(idxd);
+
 	irq_entry = &idxd->irq_entries[0];
 	rc = request_threaded_irq(irq_entry->vector, NULL, idxd_misc_thread,
 				  0, "idxd-misc", irq_entry);
@@ -148,7 +150,6 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
 	}
 
 	idxd_unmask_error_interrupts(idxd);
-	idxd_msix_perm_setup(idxd);
 	return 0;
 
  err_wq_irqs:
@@ -162,6 +163,7 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
  err_misc_irq:
 	/* Disable error interrupt generation */
 	idxd_mask_error_interrupts(idxd);
+	idxd_msix_perm_clear(idxd);
  err_irq_entries:
 	pci_free_irq_vectors(pdev);
 	dev_err(dev, "No usable interrupts\n");
@@ -758,32 +760,40 @@ static void idxd_shutdown(struct pci_dev *pdev)
 	for (i = 0; i < msixcnt; i++) {
 		irq_entry = &idxd->irq_entries[i];
 		synchronize_irq(irq_entry->vector);
-		free_irq(irq_entry->vector, irq_entry);
 		if (i == 0)
 			continue;
 		idxd_flush_pending_llist(irq_entry);
 		idxd_flush_work_list(irq_entry);
 	}
-
-	idxd_msix_perm_clear(idxd);
-	idxd_release_int_handles(idxd);
-	pci_free_irq_vectors(pdev);
-	pci_iounmap(pdev, idxd->reg_base);
-	pci_disable_device(pdev);
-	destroy_workqueue(idxd->wq);
+	flush_workqueue(idxd->wq);
 }
 
 static void idxd_remove(struct pci_dev *pdev)
 {
 	struct idxd_device *idxd = pci_get_drvdata(pdev);
+	struct idxd_irq_entry *irq_entry;
+	int msixcnt = pci_msix_vec_count(pdev);
+	int i;
 
 	dev_dbg(&pdev->dev, "%s called\n", __func__);
 	idxd_shutdown(pdev);
 	if (device_pasid_enabled(idxd))
 		idxd_disable_system_pasid(idxd);
 	idxd_unregister_devices(idxd);
-	perfmon_pmu_remove(idxd);
+
+	for (i = 0; i < msixcnt; i++) {
+		irq_entry = &idxd->irq_entries[i];
+		free_irq(irq_entry->vector, irq_entry);
+	}
+	idxd_msix_perm_clear(idxd);
+	idxd_release_int_handles(idxd);
+	pci_free_irq_vectors(pdev);
+	pci_iounmap(pdev, idxd->reg_base);
 	iommu_dev_disable_feature(&pdev->dev, IOMMU_DEV_FEAT_SVA);
+	pci_disable_device(pdev);
+	destroy_workqueue(idxd->wq);
+	perfmon_pmu_remove(idxd);
+	device_unregister(&idxd->conf_dev);
 }
 
 static struct pci_driver idxd_pci_driver = {

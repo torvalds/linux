@@ -646,7 +646,7 @@ out:
 void svm_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	struct vmcb *vmcb = svm->vmcb;
+	struct vmcb *vmcb = svm->vmcb01.ptr;
 	bool activated = kvm_vcpu_apicv_active(vcpu);
 
 	if (!enable_apicv)

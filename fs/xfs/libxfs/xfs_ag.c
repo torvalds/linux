@@ -804,6 +804,14 @@ xfs_ag_shrink_space(
 	args.fsbno = XFS_AGB_TO_FSB(mp, agno, aglen - delta);
 
 	/*
+	 * Make sure that the last inode cluster cannot overlap with the new
+	 * end of the AG, even if it's sparse.
+	 */
+	error = xfs_ialloc_check_shrink(*tpp, agno, agibp, aglen - delta);
+	if (error)
+		return error;
+
+	/*
 	 * Disable perag reservations so it doesn't cause the allocation request
 	 * to fail. We'll reestablish reservation before we return.
 	 */

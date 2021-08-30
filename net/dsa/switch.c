@@ -113,11 +113,11 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 	int err, port;
 
 	if (dst->index == info->tree_index && ds->index == info->sw_index &&
-	    ds->ops->port_bridge_join)
+	    ds->ops->port_bridge_leave)
 		ds->ops->port_bridge_leave(ds, info->port, info->br);
 
 	if ((dst->index != info->tree_index || ds->index != info->sw_index) &&
-	    ds->ops->crosschip_bridge_join)
+	    ds->ops->crosschip_bridge_leave)
 		ds->ops->crosschip_bridge_leave(ds, info->tree_index,
 						info->sw_index, info->port,
 						info->br);
@@ -427,7 +427,7 @@ static int dsa_switch_lag_join(struct dsa_switch *ds,
 						   info->port, info->lag,
 						   info->info);
 
-	return 0;
+	return -EOPNOTSUPP;
 }
 
 static int dsa_switch_lag_leave(struct dsa_switch *ds,
@@ -440,7 +440,7 @@ static int dsa_switch_lag_leave(struct dsa_switch *ds,
 		return ds->ops->crosschip_lag_leave(ds, info->sw_index,
 						    info->port, info->lag);
 
-	return 0;
+	return -EOPNOTSUPP;
 }
 
 static int dsa_switch_mdb_add(struct dsa_switch *ds,
