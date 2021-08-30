@@ -16,14 +16,14 @@
 #define rtw_dbg_regd_dump(_dev, _msg, _args...)			\
 do {								\
 	struct rtw_dev *__d = (_dev);				\
-	const struct rtw_regulatory *__r =  &__d->regd;		\
+	const struct rtw_regd *__r =  &__d->regd;		\
 	rtw_dbg(__d, RTW_DBG_REGD, _msg				\
 		"apply alpha2 %c%c, regd {%d, %d}\n",		\
 		##_args,					\
-		__r->alpha2[0],					\
-		__r->alpha2[1],					\
-		__r->txpwr_regd_2g,				\
-		__r->txpwr_regd_5g);				\
+		__r->regulatory->alpha2[0],			\
+		__r->regulatory->alpha2[1],			\
+		__r->regulatory->txpwr_regd_2g,			\
+		__r->regulatory->txpwr_regd_5g);		\
 } while (0)
 
 /* If country code is not correctly defined in efuse,
@@ -306,67 +306,177 @@ out_5g:
 	}
 }
 
-static struct rtw_regulatory rtw_regd_find_reg_by_name(char *alpha2)
+static bool rtw_reg_is_ww(const struct rtw_regulatory *reg)
+{
+	return reg == &rtw_reg_ww;
+}
+
+static bool rtw_reg_match(const struct rtw_regulatory *reg, const char *alpha2)
+{
+	return memcmp(reg->alpha2, alpha2, 2) == 0;
+}
+
+static const struct rtw_regulatory *rtw_reg_find_by_name(const char *alpha2)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(rtw_reg_map); i++) {
-		if (!memcmp(rtw_reg_map[i].alpha2, alpha2, 2))
-			return rtw_reg_map[i];
+		if (rtw_reg_match(&rtw_reg_map[i], alpha2))
+			return &rtw_reg_map[i];
 	}
 
-	return rtw_reg_ww;
+	return &rtw_reg_ww;
 }
 
-static int rtw_regd_notifier_apply(struct rtw_dev *rtwdev,
-				   struct wiphy *wiphy,
-				   struct regulatory_request *request)
-{
-	if (request->initiator == NL80211_REGDOM_SET_BY_USER)
-		return 0;
-	rtwdev->regd = rtw_regd_find_reg_by_name(request->alpha2);
+static
+void rtw_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request);
 
-	return 0;
-}
-
-static int
-rtw_regd_init_wiphy(struct rtw_regulatory *reg, struct wiphy *wiphy,
-		    void (*reg_notifier)(struct wiphy *wiphy,
-					 struct regulatory_request *request))
-{
-	wiphy->reg_notifier = reg_notifier;
-
-	wiphy->regulatory_flags &= ~REGULATORY_CUSTOM_REG;
-	wiphy->regulatory_flags &= ~REGULATORY_STRICT_REG;
-	wiphy->regulatory_flags &= ~REGULATORY_DISABLE_BEACON_HINTS;
-
-	rtw_regd_apply_hw_cap_flags(wiphy);
-
-	return 0;
-}
-
-int rtw_regd_init(struct rtw_dev *rtwdev,
-		  void (*reg_notifier)(struct wiphy *wiphy,
-				       struct regulatory_request *request))
+/* call this before ieee80211_register_hw() */
+int rtw_regd_init(struct rtw_dev *rtwdev)
 {
 	struct wiphy *wiphy = rtwdev->hw->wiphy;
+	const struct rtw_regulatory *chip_reg;
 
 	if (!wiphy)
 		return -EINVAL;
 
-	rtwdev->regd = rtw_regd_find_reg_by_name(rtwdev->efuse.country_code);
-	rtw_regd_init_wiphy(&rtwdev->regd, wiphy, reg_notifier);
+	wiphy->reg_notifier = rtw_regd_notifier;
+
+	chip_reg = rtw_reg_find_by_name(rtwdev->efuse.country_code);
+	if (!rtw_reg_is_ww(chip_reg)) {
+		rtwdev->regd.state = RTW_REGD_STATE_PROGRAMMED;
+
+		/* Set REGULATORY_STRICT_REG before ieee80211_register_hw(),
+		 * stack will wait for regulatory_hint() and consider it
+		 * as the superset for our regulatory rule.
+		 */
+		wiphy->regulatory_flags |= REGULATORY_STRICT_REG;
+		wiphy->regulatory_flags |= REGULATORY_COUNTRY_IE_IGNORE;
+	} else {
+		rtwdev->regd.state = RTW_REGD_STATE_WORLDWIDE;
+	}
+
+	rtwdev->regd.regulatory = &rtw_reg_ww;
+	rtw_dbg_regd_dump(rtwdev, "regd init state %d: ", rtwdev->regd.state);
+
+	rtw_regd_apply_hw_cap_flags(wiphy);
+	return 0;
+}
+
+/* call this after ieee80211_register_hw() */
+int rtw_regd_hint(struct rtw_dev *rtwdev)
+{
+	struct wiphy *wiphy = rtwdev->hw->wiphy;
+	int ret;
+
+	if (!wiphy)
+		return -EINVAL;
+
+	if (rtwdev->regd.state == RTW_REGD_STATE_PROGRAMMED) {
+		rtw_dbg(rtwdev, RTW_DBG_REGD,
+			"country domain %c%c is PGed on efuse",
+			rtwdev->efuse.country_code[0],
+			rtwdev->efuse.country_code[1]);
+
+		ret = regulatory_hint(wiphy, rtwdev->efuse.country_code);
+		if (ret) {
+			rtw_warn(rtwdev,
+				 "failed to hint regulatory: %d\n", ret);
+			return ret;
+		}
+	}
 
 	return 0;
 }
 
+static bool rtw_regd_mgmt_worldwide(struct rtw_dev *rtwdev,
+				    struct rtw_regd *next_regd,
+				    struct regulatory_request *request)
+{
+	struct wiphy *wiphy = rtwdev->hw->wiphy;
+
+	next_regd->state = RTW_REGD_STATE_WORLDWIDE;
+
+	if (request->initiator == NL80211_REGDOM_SET_BY_USER &&
+	    !rtw_reg_is_ww(next_regd->regulatory)) {
+		next_regd->state = RTW_REGD_STATE_SETTING;
+		wiphy->regulatory_flags |= REGULATORY_COUNTRY_IE_IGNORE;
+	}
+
+	return true;
+}
+
+static bool rtw_regd_mgmt_programmed(struct rtw_dev *rtwdev,
+				     struct rtw_regd *next_regd,
+				     struct regulatory_request *request)
+{
+	if (request->initiator == NL80211_REGDOM_SET_BY_DRIVER &&
+	    rtw_reg_match(next_regd->regulatory, rtwdev->efuse.country_code)) {
+		next_regd->state = RTW_REGD_STATE_PROGRAMMED;
+		return true;
+	}
+
+	return false;
+}
+
+static bool rtw_regd_mgmt_setting(struct rtw_dev *rtwdev,
+				  struct rtw_regd *next_regd,
+				  struct regulatory_request *request)
+{
+	struct wiphy *wiphy = rtwdev->hw->wiphy;
+
+	if (request->initiator != NL80211_REGDOM_SET_BY_USER)
+		return false;
+
+	next_regd->state = RTW_REGD_STATE_SETTING;
+
+	if (rtw_reg_is_ww(next_regd->regulatory)) {
+		next_regd->state = RTW_REGD_STATE_WORLDWIDE;
+		wiphy->regulatory_flags &= ~REGULATORY_COUNTRY_IE_IGNORE;
+	}
+
+	return true;
+}
+
+static bool (*const rtw_regd_handler[RTW_REGD_STATE_NR])
+	(struct rtw_dev *, struct rtw_regd *, struct regulatory_request *) = {
+	[RTW_REGD_STATE_WORLDWIDE] = rtw_regd_mgmt_worldwide,
+	[RTW_REGD_STATE_PROGRAMMED] = rtw_regd_mgmt_programmed,
+	[RTW_REGD_STATE_SETTING] = rtw_regd_mgmt_setting,
+};
+
+static bool rtw_regd_state_hdl(struct rtw_dev *rtwdev,
+			       struct rtw_regd *next_regd,
+			       struct regulatory_request *request)
+{
+	next_regd->regulatory = rtw_reg_find_by_name(request->alpha2);
+	return rtw_regd_handler[rtwdev->regd.state](rtwdev, next_regd, request);
+}
+
+static
 void rtw_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct rtw_dev *rtwdev = hw->priv;
 	struct rtw_hal *hal = &rtwdev->hal;
+	struct rtw_regd next_regd = {0};
+	bool hdl;
 
-	rtw_regd_notifier_apply(rtwdev, wiphy, request);
+	hdl = rtw_regd_state_hdl(rtwdev, &next_regd, request);
+	if (!hdl) {
+		rtw_dbg(rtwdev, RTW_DBG_REGD,
+			"regd state %d: ignore request %c%c of initiator %d\n",
+			rtwdev->regd.state,
+			request->alpha2[0],
+			request->alpha2[1],
+			request->initiator);
+		return;
+	}
+
+	rtw_dbg(rtwdev, RTW_DBG_REGD, "regd state: %d -> %d\n",
+		rtwdev->regd.state, next_regd.state);
+
+	rtwdev->regd = next_regd;
 	rtw_dbg_regd_dump(rtwdev, "get alpha2 %c%c from initiator %d: ",
 			  request->alpha2[0],
 			  request->alpha2[1],
@@ -381,8 +491,8 @@ u8 rtw_regd_get(struct rtw_dev *rtwdev)
 	u8 band = hal->current_band_type;
 
 	return band == RTW_BAND_2G ?
-	       rtwdev->regd.txpwr_regd_2g :
-	       rtwdev->regd.txpwr_regd_5g;
+	       rtwdev->regd.regulatory->txpwr_regd_2g :
+	       rtwdev->regd.regulatory->txpwr_regd_5g;
 }
 EXPORT_SYMBOL(rtw_regd_get);
 
