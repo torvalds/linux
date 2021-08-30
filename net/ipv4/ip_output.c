@@ -825,7 +825,9 @@ int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 
 		/* Everything is OK. Generate! */
 		ip_fraglist_init(skb, iph, hlen, &iter);
-		ip_options_fragment(iter.frag);
+
+		if (iter.frag)
+			ip_options_fragment(iter.frag);
 
 		for (;;) {
 			/* Prepare header of the next frame,
