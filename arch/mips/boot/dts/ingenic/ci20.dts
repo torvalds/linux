@@ -113,9 +113,12 @@
 	 * Use the 32.768 kHz oscillator as the parent of the RTC for a higher
 	 * precision.
 	 */
-	assigned-clocks = <&cgu JZ4780_CLK_OTGPHY>, <&cgu JZ4780_CLK_RTC>;
-	assigned-clock-parents = <0>, <&cgu JZ4780_CLK_RTCLK>;
-	assigned-clock-rates = <48000000>;
+	assigned-clocks = <&cgu JZ4780_CLK_OTGPHY>, <&cgu JZ4780_CLK_RTC>,
+			  <&cgu JZ4780_CLK_SSIPLL>, <&cgu JZ4780_CLK_SSI>;
+	assigned-clock-parents = <0>, <&cgu JZ4780_CLK_RTCLK>,
+				 <&cgu JZ4780_CLK_MPLL>,
+				 <&cgu JZ4780_CLK_SSIPLL>;
+	assigned-clock-rates = <48000000>, <0>, <54000000>;
 };
 
 &tcu {
