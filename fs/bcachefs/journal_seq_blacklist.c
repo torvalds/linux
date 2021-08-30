@@ -250,7 +250,7 @@ void bch2_blacklist_entries_gc(struct work_struct *work)
 	bch2_trans_init(&trans, c, 0, 0);
 
 	for (i = 0; i < BTREE_ID_NR; i++) {
-		struct btree_iter *iter;
+		struct btree_iter iter;
 		struct btree *b;
 
 		for_each_btree_node(&trans, iter, i, POS_MIN,
@@ -259,7 +259,7 @@ void bch2_blacklist_entries_gc(struct work_struct *work)
 				bch2_trans_exit(&trans);
 				return;
 			}
-		bch2_trans_iter_free(&trans, iter);
+		bch2_trans_iter_exit(&trans, &iter);
 	}
 
 	ret = bch2_trans_exit(&trans);

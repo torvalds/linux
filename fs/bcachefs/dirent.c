@@ -183,7 +183,8 @@ int bch2_dirent_rename(struct btree_trans *trans,
 		       const struct qstr *dst_name, u64 *dst_inum, u64 *dst_offset,
 		       enum bch_rename_mode mode)
 {
-	struct btree_iter *src_iter = NULL, *dst_iter = NULL;
+	struct btree_iter src_iter = { NULL };
+	struct btree_iter dst_iter = { NULL };
 	struct bkey_s_c old_src, old_dst;
 	struct bkey_i_dirent *new_src = NULL, *new_dst = NULL;
 	struct bpos dst_pos =
@@ -199,17 +200,16 @@ int bch2_dirent_rename(struct btree_trans *trans,
 	 * the target already exists - we're relying on the VFS
 	 * to do that check for us for correctness:
 	 */
-	dst_iter = mode == BCH_RENAME
-		? bch2_hash_hole(trans, bch2_dirent_hash_desc,
+	ret = mode == BCH_RENAME
+		? bch2_hash_hole(trans, &dst_iter, bch2_dirent_hash_desc,
 				 dst_hash, dst_dir, dst_name)
-		: bch2_hash_lookup(trans, bch2_dirent_hash_desc,
+		: bch2_hash_lookup(trans, &dst_iter, bch2_dirent_hash_desc,
 				   dst_hash, dst_dir, dst_name,
 				   BTREE_ITER_INTENT);
-	ret = PTR_ERR_OR_ZERO(dst_iter);
 	if (ret)
 		goto out;
 
-	old_dst = bch2_btree_iter_peek_slot(dst_iter);
+	old_dst = bch2_btree_iter_peek_slot(&dst_iter);
 	ret = bkey_err(old_dst);
 	if (ret)
 		goto out;
@@ -217,17 +217,16 @@ int bch2_dirent_rename(struct btree_trans *trans,
 	if (mode != BCH_RENAME)
 		*dst_inum = le64_to_cpu(bkey_s_c_to_dirent(old_dst).v->d_inum);
 	if (mode != BCH_RENAME_EXCHANGE)
-		*src_offset = dst_iter->pos.offset;
+		*src_offset = dst_iter.pos.offset;
 
 	/* Lookup src: */
-	src_iter = bch2_hash_lookup(trans, bch2_dirent_hash_desc,
-				    src_hash, src_dir, src_name,
-				    BTREE_ITER_INTENT);
-	ret = PTR_ERR_OR_ZERO(src_iter);
+	ret = bch2_hash_lookup(trans, &src_iter, bch2_dirent_hash_desc,
+			       src_hash, src_dir, src_name,
+			       BTREE_ITER_INTENT);
 	if (ret)
 		goto out;
 
-	old_src = bch2_btree_iter_peek_slot(src_iter);
+	old_src = bch2_btree_iter_peek_slot(&src_iter);
 	ret = bkey_err(old_src);
 	if (ret)
 		goto out;
@@ -241,7 +240,7 @@ int bch2_dirent_rename(struct btree_trans *trans,
 		goto out;
 
 	dirent_copy_target(new_dst, bkey_s_c_to_dirent(old_src));
-	new_dst->k.p = dst_iter->pos;
+	new_dst->k.p = dst_iter.pos;
 
 	/* Create new src key: */
 	if (mode == BCH_RENAME_EXCHANGE) {
@@ -251,7 +250,7 @@ int bch2_dirent_rename(struct btree_trans *trans,
 			goto out;
 
 		dirent_copy_target(new_src, bkey_s_c_to_dirent(old_dst));
-		new_src->k.p = src_iter->pos;
+		new_src->k.p = src_iter.pos;
 	} else {
 		new_src = bch2_trans_kmalloc(trans, sizeof(struct bkey_i));
 		ret = PTR_ERR_OR_ZERO(new_src);
@@ -259,10 +258,10 @@ int bch2_dirent_rename(struct btree_trans *trans,
 			goto out;
 
 		bkey_init(&new_src->k);
-		new_src->k.p = src_iter->pos;
+		new_src->k.p = src_iter.pos;
 
-		if (bkey_cmp(dst_pos, src_iter->pos) <= 0 &&
-		    bkey_cmp(src_iter->pos, dst_iter->pos) < 0) {
+		if (bkey_cmp(dst_pos, src_iter.pos) <= 0 &&
+		    bkey_cmp(src_iter.pos, dst_iter.pos) < 0) {
 			/*
 			 * We have a hash collision for the new dst key,
 			 * and new_src - the key we're deleting - is between
@@ -275,8 +274,8 @@ int bch2_dirent_rename(struct btree_trans *trans,
 				 * If we're not overwriting, we can just insert
 				 * new_dst at the src position:
 				 */
-				new_dst->k.p = src_iter->pos;
-				bch2_trans_update(trans, src_iter,
+				new_dst->k.p = src_iter.pos;
+				bch2_trans_update(trans, &src_iter,
 						  &new_dst->k_i, 0);
 				goto out_set_offset;
 			} else {
@@ -290,7 +289,7 @@ int bch2_dirent_rename(struct btree_trans *trans,
 		} else {
 			/* Check if we need a whiteout to delete src: */
 			ret = bch2_hash_needs_whiteout(trans, bch2_dirent_hash_desc,
-						       src_hash, src_iter);
+						       src_hash, &src_iter);
 			if (ret < 0)
 				goto out;
 
@@ -299,15 +298,15 @@ int bch2_dirent_rename(struct btree_trans *trans,
 		}
 	}
 
-	bch2_trans_update(trans, src_iter, &new_src->k_i, 0);
-	bch2_trans_update(trans, dst_iter, &new_dst->k_i, 0);
+	bch2_trans_update(trans, &src_iter, &new_src->k_i, 0);
+	bch2_trans_update(trans, &dst_iter, &new_dst->k_i, 0);
 out_set_offset:
 	if (mode == BCH_RENAME_EXCHANGE)
 		*src_offset = new_src->k.p.offset;
 	*dst_offset = new_dst->k.p.offset;
 out:
-	bch2_trans_iter_put(trans, src_iter);
-	bch2_trans_iter_put(trans, dst_iter);
+	bch2_trans_iter_exit(trans, &src_iter);
+	bch2_trans_iter_exit(trans, &dst_iter);
 	return ret;
 }
 
@@ -319,12 +318,13 @@ int bch2_dirent_delete_at(struct btree_trans *trans,
 				   hash_info, iter);
 }
 
-struct btree_iter *
-__bch2_dirent_lookup_trans(struct btree_trans *trans, u64 dir_inum,
-			   const struct bch_hash_info *hash_info,
-			   const struct qstr *name, unsigned flags)
+int __bch2_dirent_lookup_trans(struct btree_trans *trans,
+			       struct btree_iter *iter,
+			       u64 dir_inum,
+			       const struct bch_hash_info *hash_info,
+			       const struct qstr *name, unsigned flags)
 {
-	return bch2_hash_lookup(trans, bch2_dirent_hash_desc,
+	return bch2_hash_lookup(trans, iter, bch2_dirent_hash_desc,
 				hash_info, dir_inum, name, flags);
 }
 
@@ -333,26 +333,25 @@ u64 bch2_dirent_lookup(struct bch_fs *c, u64 dir_inum,
 		       const struct qstr *name)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	u64 inum = 0;
 	int ret = 0;
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	iter = __bch2_dirent_lookup_trans(&trans, dir_inum,
-					  hash_info, name, 0);
-	ret = PTR_ERR_OR_ZERO(iter);
+	ret = __bch2_dirent_lookup_trans(&trans, &iter, dir_inum,
+					 hash_info, name, 0);
 	if (ret)
 		goto out;
 
-	k = bch2_btree_iter_peek_slot(iter);
+	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto out;
 
 	inum = le64_to_cpu(bkey_s_c_to_dirent(k).v->d_inum);
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 out:
 	BUG_ON(ret == -EINTR);
 	bch2_trans_exit(&trans);
@@ -361,7 +360,7 @@ out:
 
 int bch2_empty_dir_trans(struct btree_trans *trans, u64 dir_inum)
 {
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret;
 
@@ -375,7 +374,7 @@ int bch2_empty_dir_trans(struct btree_trans *trans, u64 dir_inum)
 			break;
 		}
 	}
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 
 	return ret;
 }
@@ -383,7 +382,7 @@ int bch2_empty_dir_trans(struct btree_trans *trans, u64 dir_inum)
 int bch2_readdir(struct bch_fs *c, u64 inum, struct dir_context *ctx)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_s_c_dirent dirent;
 	int ret;
@@ -412,7 +411,7 @@ int bch2_readdir(struct bch_fs *c, u64 inum, struct dir_context *ctx)
 			break;
 		ctx->pos = dirent.k->p.offset + 1;
 	}
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 
 	ret = bch2_trans_exit(&trans) ?: ret;
 

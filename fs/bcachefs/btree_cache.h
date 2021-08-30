@@ -20,16 +20,15 @@ int bch2_btree_cache_cannibalize_lock(struct bch_fs *, struct closure *);
 struct btree *__bch2_btree_node_mem_alloc(struct bch_fs *);
 struct btree *bch2_btree_node_mem_alloc(struct bch_fs *);
 
-struct btree *bch2_btree_node_get(struct btree_trans *, struct btree_iter *,
+struct btree *bch2_btree_node_get(struct btree_trans *, struct btree_path *,
 				  const struct bkey_i *, unsigned,
 				  enum six_lock_type, unsigned long);
 
 struct btree *bch2_btree_node_get_noiter(struct bch_fs *, const struct bkey_i *,
 					 enum btree_id, unsigned, bool);
 
-int bch2_btree_node_prefetch(struct bch_fs *, struct btree_trans *,
-			     struct btree_iter *, const struct bkey_i *,
-			     enum btree_id, unsigned);
+int bch2_btree_node_prefetch(struct bch_fs *, struct btree_trans *, struct btree_path *,
+			     const struct bkey_i *, enum btree_id, unsigned);
 
 void bch2_btree_node_evict(struct bch_fs *, const struct bkey_i *);
 

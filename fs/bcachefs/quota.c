@@ -357,7 +357,7 @@ static int __bch2_quota_set(struct bch_fs *c, struct bkey_s_c k)
 static int bch2_quota_init_type(struct bch_fs *c, enum quota_types type)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret = 0;
 
@@ -372,7 +372,7 @@ static int bch2_quota_init_type(struct bch_fs *c, enum quota_types type)
 		if (ret)
 			break;
 	}
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 
 	return bch2_trans_exit(&trans) ?: ret;
 }
@@ -419,7 +419,7 @@ int bch2_fs_quota_read(struct bch_fs *c)
 	unsigned i, qtypes = enabled_qtypes(c);
 	struct bch_memquota_type *q;
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bch_inode_unpacked u;
 	struct bkey_s_c k;
 	int ret;
@@ -450,7 +450,7 @@ int bch2_fs_quota_read(struct bch_fs *c)
 					KEY_TYPE_QUOTA_NOCHECK);
 		}
 	}
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 
 	return bch2_trans_exit(&trans) ?: ret;
 }
@@ -717,13 +717,13 @@ static int bch2_set_quota_trans(struct btree_trans *trans,
 				struct bkey_i_quota *new_quota,
 				struct qc_dqblk *qdq)
 {
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_quotas, new_quota->k.p,
-				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek_slot(iter);
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_quotas, new_quota->k.p,
+			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+	k = bch2_btree_iter_peek_slot(&iter);
 
 	ret = bkey_err(k);
 	if (unlikely(ret))
@@ -742,8 +742,8 @@ static int bch2_set_quota_trans(struct btree_trans *trans,
 	if (qdq->d_fieldmask & QC_INO_HARD)
 		new_quota->v.c[Q_INO].hardlimit = cpu_to_le64(qdq->d_ino_hardlimit);
 
-	ret = bch2_trans_update(trans, iter, &new_quota->k_i, 0);
-	bch2_trans_iter_put(trans, iter);
+	ret = bch2_trans_update(trans, &iter, &new_quota->k_i, 0);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 

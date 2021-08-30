@@ -641,7 +641,7 @@ err:
 /* Slowpath, don't want it inlined into btree_iter_traverse() */
 static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 				struct btree_trans *trans,
-				struct btree_iter *iter,
+				struct btree_path *path,
 				const struct bkey_i *k,
 				enum btree_id btree_id,
 				unsigned level,
@@ -657,7 +657,7 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 	 * Parent node must be locked, else we could read in a btree node that's
 	 * been freed:
 	 */
-	if (trans && !bch2_btree_node_relock(trans, iter, level + 1)) {
+	if (trans && !bch2_btree_node_relock(trans, path, level + 1)) {
 		btree_trans_restart(trans);
 		return ERR_PTR(-EINTR);
 	}
@@ -699,7 +699,7 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 
 	if (trans &&
 	    (!bch2_trans_relock(trans) ||
-	     !bch2_btree_iter_relock_intent(trans, iter))) {
+	     !bch2_btree_path_relock_intent(trans, path))) {
 		BUG_ON(!trans->restarted);
 		return ERR_PTR(-EINTR);
 	}
@@ -763,7 +763,7 @@ static inline void btree_check_header(struct bch_fs *c, struct btree *b)
  * The btree node will have either a read or a write lock held, depending on
  * the @write parameter.
  */
-struct btree *bch2_btree_node_get(struct btree_trans *trans, struct btree_iter *iter,
+struct btree *bch2_btree_node_get(struct btree_trans *trans, struct btree_path *path,
 				  const struct bkey_i *k, unsigned level,
 				  enum six_lock_type lock_type,
 				  unsigned long trace_ip)
@@ -788,7 +788,7 @@ retry:
 		 * else we could read in a btree node from disk that's been
 		 * freed:
 		 */
-		b = bch2_btree_node_fill(c, trans, iter, k, iter->btree_id,
+		b = bch2_btree_node_fill(c, trans, path, k, path->btree_id,
 					 level, lock_type, true);
 
 		/* We raced and found the btree node in the cache */
@@ -827,10 +827,10 @@ lock_node:
 		 * the parent was modified, when the pointer to the node we want
 		 * was removed - and we'll bail out:
 		 */
-		if (btree_node_read_locked(iter, level + 1))
-			btree_node_unlock(iter, level + 1);
+		if (btree_node_read_locked(path, level + 1))
+			btree_node_unlock(path, level + 1);
 
-		if (!btree_node_lock(trans, iter, b, k->k.p, level, lock_type,
+		if (!btree_node_lock(trans, path, b, k->k.p, level, lock_type,
 				     lock_node_check_fn, (void *) k, trace_ip)) {
 			if (!trans->restarted)
 				goto retry;
@@ -841,13 +841,13 @@ lock_node:
 			     b->c.level != level ||
 			     race_fault())) {
 			six_unlock_type(&b->c.lock, lock_type);
-			if (bch2_btree_node_relock(trans, iter, level + 1))
+			if (bch2_btree_node_relock(trans, path, level + 1))
 				goto retry;
 
 			trace_trans_restart_btree_node_reused(trans->ip,
 							      trace_ip,
-							      iter->btree_id,
-							      &iter->real_pos);
+							      path->btree_id,
+							      &path->pos);
 			btree_trans_restart(trans);
 			return ERR_PTR(-EINTR);
 		}
@@ -862,12 +862,12 @@ lock_node:
 		bch2_btree_node_wait_on_read(b);
 
 		/*
-		 * should_be_locked is not set on this iterator yet, so we need
-		 * to relock it specifically:
+		 * should_be_locked is not set on this path yet, so we need to
+		 * relock it specifically:
 		 */
 		if (trans &&
 		    (!bch2_trans_relock(trans) ||
-		     !bch2_btree_iter_relock_intent(trans, iter))) {
+		     !bch2_btree_path_relock_intent(trans, path))) {
 			BUG_ON(!trans->restarted);
 			return ERR_PTR(-EINTR);
 		}
@@ -895,7 +895,7 @@ lock_node:
 		return ERR_PTR(-EIO);
 	}
 
-	EBUG_ON(b->c.btree_id != iter->btree_id);
+	EBUG_ON(b->c.btree_id != path->btree_id);
 	EBUG_ON(BTREE_NODE_LEVEL(b->data) != level);
 	btree_check_header(c, b);
 
@@ -986,21 +986,21 @@ out:
 
 int bch2_btree_node_prefetch(struct bch_fs *c,
 			     struct btree_trans *trans,
-			     struct btree_iter *iter,
+			     struct btree_path *path,
 			     const struct bkey_i *k,
 			     enum btree_id btree_id, unsigned level)
 {
 	struct btree_cache *bc = &c->btree_cache;
 	struct btree *b;
 
-	BUG_ON(trans && !btree_node_locked(iter, level + 1));
+	BUG_ON(trans && !btree_node_locked(path, level + 1));
 	BUG_ON(level >= BTREE_MAX_DEPTH);
 
 	b = btree_cache_find(bc, k);
 	if (b)
 		return 0;
 
-	b = bch2_btree_node_fill(c, trans, iter, k, btree_id,
+	b = bch2_btree_node_fill(c, trans, path, k, btree_id,
 				 level, SIX_LOCK_read, false);
 	return PTR_ERR_OR_ZERO(b);
 }

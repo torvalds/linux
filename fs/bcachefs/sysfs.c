@@ -290,7 +290,7 @@ static int fs_alloc_debug_to_text(struct printbuf *out, struct bch_fs *c)
 static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	u64 nr_uncompressed_extents = 0, uncompressed_sectors = 0,
 	    nr_compressed_extents = 0,
@@ -325,6 +325,7 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 				break;
 			}
 		}
+	bch2_trans_iter_exit(&trans, &iter);
 
 	ret = bch2_trans_exit(&trans) ?: ret;
 	if (ret)

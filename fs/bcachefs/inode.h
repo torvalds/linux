@@ -57,8 +57,8 @@ int bch2_inode_unpack(struct bkey_s_c_inode, struct bch_inode_unpacked *);
 
 void bch2_inode_unpacked_to_text(struct printbuf *, struct bch_inode_unpacked *);
 
-struct btree_iter *bch2_inode_peek(struct btree_trans *,
-			struct bch_inode_unpacked *, u64, unsigned);
+int bch2_inode_peek(struct btree_trans *, struct btree_iter *,
+		    struct bch_inode_unpacked *, u64, unsigned);
 int bch2_inode_write(struct btree_trans *, struct btree_iter *,
 		     struct bch_inode_unpacked *);
 
@@ -71,8 +71,8 @@ void bch2_inode_init(struct bch_fs *, struct bch_inode_unpacked *,
 		     uid_t, gid_t, umode_t, dev_t,
 		     struct bch_inode_unpacked *);
 
-struct btree_iter *bch2_inode_create(struct btree_trans *,
-				     struct bch_inode_unpacked *, u32, u64);
+int bch2_inode_create(struct btree_trans *, struct btree_iter *,
+		      struct bch_inode_unpacked *, u32, u64);
 
 int bch2_inode_rm(struct bch_fs *, u64, bool);
 

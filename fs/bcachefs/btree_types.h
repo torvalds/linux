@@ -210,7 +210,7 @@ struct btree_node_iter {
 #define __BTREE_ITER_ALL_SNAPSHOTS	(1 << 11)
 #define BTREE_ITER_ALL_SNAPSHOTS	(1 << 12)
 
-enum btree_iter_uptodate {
+enum btree_path_uptodate {
 	BTREE_ITER_UPTODATE		= 0,
 	BTREE_ITER_NEED_RELOCK		= 1,
 	BTREE_ITER_NEED_TRAVERSE	= 2,
@@ -225,6 +225,44 @@ enum btree_iter_uptodate {
 #define BTREE_ITER_NO_NODE_ERROR	((struct btree *) 7)
 #define BTREE_ITER_NO_NODE_CACHED	((struct btree *) 8)
 
+struct btree_path {
+	u8			idx;
+	u8			sorted_idx;
+	u8			ref;
+	u8			intent_ref;
+
+	/* btree_iter_copy starts here: */
+	struct bpos		pos;
+
+	enum btree_id		btree_id:4;
+	bool			cached:1;
+	bool			preserve:1;
+	enum btree_path_uptodate uptodate:2;
+	/*
+	 * When true, failing to relock this path will cause the transaction to
+	 * restart:
+	 */
+	bool			should_be_locked:1;
+	unsigned		level:3,
+				locks_want:4,
+				nodes_locked:4,
+				nodes_intent_locked:4;
+
+	struct btree_path_level {
+		struct btree	*b;
+		struct btree_node_iter iter;
+		u32		lock_seq;
+	}			l[BTREE_MAX_DEPTH];
+#ifdef CONFIG_BCACHEFS_DEBUG
+	unsigned long		ip_allocated;
+#endif
+};
+
+static inline struct btree_path_level *path_l(struct btree_path *path)
+{
+	return path->l + path->level;
+}
+
 /*
  * @pos			- iterator's current position
  * @level		- current btree depth
@@ -234,11 +272,10 @@ enum btree_iter_uptodate {
  */
 struct btree_iter {
 	struct btree_trans	*trans;
-	unsigned long		ip_allocated;
+	struct btree_path	*path;
 
-	u8			idx;
-	u8			child_idx;
-	u8			sorted_idx;
+	enum btree_id		btree_id:4;
+	unsigned		min_depth:4;
 
 	/* btree_iter_copy starts here: */
 	u16			flags;
@@ -247,40 +284,13 @@ struct btree_iter {
 	unsigned		snapshot;
 
 	struct bpos		pos;
-	struct bpos		real_pos;
-
-	enum btree_id		btree_id:4;
-	bool			cached:1;
-	enum btree_iter_uptodate uptodate:2;
-	/*
-	 * True if we've returned a key (and thus are expected to keep it
-	 * locked), false after set_pos - for avoiding spurious transaction
-	 * restarts in bch2_trans_relock():
-	 */
-	bool			should_be_locked:1;
-	unsigned		level:4,
-				min_depth:4,
-				locks_want:4,
-				nodes_locked:4,
-				nodes_intent_locked:4;
-
-	struct btree_iter_level {
-		struct btree	*b;
-		struct btree_node_iter iter;
-		u32		lock_seq;
-	}			l[BTREE_MAX_DEPTH];
-
+	struct bpos		pos_after_commit;
 	/*
 	 * Current unpacked key - so that bch2_btree_iter_next()/
 	 * bch2_btree_iter_next_slot() can correctly advance pos.
 	 */
 	struct bkey		k;
 };
-
-static inline struct btree_iter_level *iter_l(struct btree_iter *iter)
-{
-	return iter->l + iter->level;
-}
 
 struct btree_key_cache {
 	struct mutex		lock;
@@ -329,7 +339,7 @@ struct btree_insert_entry {
 	bool			cached:1;
 	bool			trans_triggers_run:1;
 	struct bkey_i		*k;
-	struct btree_iter	*iter;
+	struct btree_path	*path;
 	unsigned long		ip_allocated;
 };
 
@@ -354,7 +364,7 @@ struct btree_trans {
 #ifdef CONFIG_BCACHEFS_DEBUG
 	struct list_head	list;
 	struct btree		*locking;
-	unsigned		locking_iter_idx;
+	unsigned		locking_path_idx;
 	struct bpos		locking_pos;
 	u8			locking_btree_id;
 	u8			locking_level;
@@ -369,23 +379,21 @@ struct btree_trans {
 	bool			error:1;
 	bool			in_traverse_all:1;
 	bool			restarted:1;
-	bool			iters_sorted:1;
+	bool			paths_sorted:1;
 	/*
 	 * For when bch2_trans_update notices we'll be splitting a compressed
 	 * extent:
 	 */
 	unsigned		extra_journal_res;
 
-	u64			iters_linked;
-	u64			iters_live;
-	u64			iters_touched;
+	u64			paths_allocated;
 
 	unsigned		mem_top;
 	unsigned		mem_bytes;
 	void			*mem;
 
 	u8			sorted[BTREE_ITER_MAX + 8];
-	struct btree_iter	*iters;
+	struct btree_path	*paths;
 	struct btree_insert_entry *updates;
 
 	/* update path: */
@@ -587,16 +595,6 @@ static inline bool btree_node_type_is_extents(enum btree_node_type type)
 static inline bool btree_node_is_extents(struct btree *b)
 {
 	return btree_node_type_is_extents(btree_node_type(b));
-}
-
-static inline enum btree_node_type btree_iter_key_type(struct btree_iter *iter)
-{
-	return __btree_node_type(iter->level, iter->btree_id);
-}
-
-static inline bool btree_iter_is_extents(struct btree_iter *iter)
-{
-	return btree_node_type_is_extents(btree_iter_key_type(iter));
 }
 
 #define BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS		\

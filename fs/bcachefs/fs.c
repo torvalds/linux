@@ -142,7 +142,7 @@ int __must_check bch2_write_inode(struct bch_fs *c,
 				  void *p, unsigned fields)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter = { NULL };
 	struct bch_inode_unpacked inode_u;
 	int ret;
 
@@ -150,11 +150,10 @@ int __must_check bch2_write_inode(struct bch_fs *c,
 retry:
 	bch2_trans_begin(&trans);
 
-	iter = bch2_inode_peek(&trans, &inode_u, inode->v.i_ino,
-			       BTREE_ITER_INTENT);
-	ret   = PTR_ERR_OR_ZERO(iter) ?:
+	ret   = bch2_inode_peek(&trans, &iter, &inode_u, inode->v.i_ino,
+				BTREE_ITER_INTENT) ?:
 		(set ? set(inode, &inode_u, p) : 0) ?:
-		bch2_inode_write(&trans, iter, &inode_u) ?:
+		bch2_inode_write(&trans, &iter, &inode_u) ?:
 		bch2_trans_commit(&trans, NULL,
 				  &inode->ei_journal_seq,
 				  BTREE_INSERT_NOFAIL);
@@ -166,7 +165,7 @@ retry:
 	if (!ret)
 		bch2_inode_update_after_write(c, inode, &inode_u, fields);
 
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 
 	if (ret == -EINTR)
 		goto retry;
@@ -687,7 +686,7 @@ int bch2_setattr_nonsize(struct mnt_idmap *idmap,
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_qid qid;
 	struct btree_trans trans;
-	struct btree_iter *inode_iter;
+	struct btree_iter inode_iter = { NULL };
 	struct bch_inode_unpacked inode_u;
 	struct posix_acl *acl = NULL;
 	int ret;
@@ -713,9 +712,8 @@ retry:
 	kfree(acl);
 	acl = NULL;
 
-	inode_iter = bch2_inode_peek(&trans, &inode_u, inode->v.i_ino,
-				     BTREE_ITER_INTENT);
-	ret = PTR_ERR_OR_ZERO(inode_iter);
+	ret = bch2_inode_peek(&trans, &inode_iter, &inode_u, inode->v.i_ino,
+			      BTREE_ITER_INTENT);
 	if (ret)
 		goto btree_err;
 
@@ -727,12 +725,12 @@ retry:
 			goto btree_err;
 	}
 
-	ret =   bch2_inode_write(&trans, inode_iter, &inode_u) ?:
+	ret =   bch2_inode_write(&trans, &inode_iter, &inode_u) ?:
 		bch2_trans_commit(&trans, NULL,
 				  &inode->ei_journal_seq,
 				  BTREE_INSERT_NOFAIL);
 btree_err:
-	bch2_trans_iter_put(&trans, inode_iter);
+	bch2_trans_iter_exit(&trans, &inode_iter);
 
 	if (ret == -EINTR)
 		goto retry;
@@ -883,7 +881,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	struct bch_fs *c = vinode->i_sb->s_fs_info;
 	struct bch_inode_info *ei = to_bch_ei(vinode);
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_buf cur, prev;
 	struct bpos end = POS(ei->v.i_ino, (start + len) >> 9);
@@ -902,23 +900,23 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	bch2_bkey_buf_init(&prev);
 	bch2_trans_init(&trans, c, 0, 0);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
-				   POS(ei->v.i_ino, start >> 9), 0);
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_extents,
+			     POS(ei->v.i_ino, start >> 9), 0);
 retry:
 	bch2_trans_begin(&trans);
 
-	while ((k = bch2_btree_iter_peek(iter)).k &&
+	while ((k = bch2_btree_iter_peek(&iter)).k &&
 	       !(ret = bkey_err(k)) &&
-	       bkey_cmp(iter->pos, end) < 0) {
+	       bkey_cmp(iter.pos, end) < 0) {
 		enum btree_id data_btree = BTREE_ID_extents;
 
 		if (!bkey_extent_is_data(k.k) &&
 		    k.k->type != KEY_TYPE_reservation) {
-			bch2_btree_iter_advance(iter);
+			bch2_btree_iter_advance(&iter);
 			continue;
 		}
 
-		offset_into_extent	= iter->pos.offset -
+		offset_into_extent	= iter.pos.offset -
 			bkey_start_offset(k.k);
 		sectors			= k.k->size - offset_into_extent;
 
@@ -939,7 +937,7 @@ retry:
 				   offset_into_extent),
 			       cur.k);
 		bch2_key_resize(&cur.k->k, sectors);
-		cur.k->k.p = iter->pos;
+		cur.k->k.p = iter.pos;
 		cur.k->k.p.offset += cur.k->k.size;
 
 		if (have_extent) {
@@ -952,8 +950,8 @@ retry:
 		bkey_copy(prev.k, cur.k);
 		have_extent = true;
 
-		bch2_btree_iter_set_pos(iter,
-			POS(iter->pos.inode, iter->pos.offset + sectors));
+		bch2_btree_iter_set_pos(&iter,
+			POS(iter.pos.inode, iter.pos.offset + sectors));
 	}
 
 	if (ret == -EINTR)
@@ -963,7 +961,7 @@ retry:
 		ret = bch2_fill_extent(c, info, bkey_i_to_s_c(prev.k),
 				       FIEMAP_EXTENT_LAST);
 
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 	ret = bch2_trans_exit(&trans) ?: ret;
 	bch2_bkey_buf_exit(&cur, c);
 	bch2_bkey_buf_exit(&prev, c);

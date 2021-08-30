@@ -26,10 +26,11 @@ int bch2_btree_key_cache_journal_flush(struct journal *,
 struct bkey_cached *
 bch2_btree_key_cache_find(struct bch_fs *, enum btree_id, struct bpos);
 
-int bch2_btree_iter_traverse_cached(struct btree_trans *, struct btree_iter *);
+int bch2_btree_path_traverse_cached(struct btree_trans *, struct btree_path *,
+				    unsigned);
 
 bool bch2_btree_insert_key_cached(struct btree_trans *,
-			struct btree_iter *, struct bkey_i *);
+			struct btree_path *, struct bkey_i *);
 int bch2_btree_key_cache_flush(struct btree_trans *,
 			       enum btree_id, struct bpos);
 #ifdef CONFIG_BCACHEFS_DEBUG

@@ -429,13 +429,14 @@ static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
 static int get_stripe_key(struct bch_fs *c, u64 idx, struct ec_stripe_buf *stripe)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret;
 
 	bch2_trans_init(&trans, c, 0, 0);
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_stripes, POS(0, idx), BTREE_ITER_SLOTS);
-	k = bch2_btree_iter_peek_slot(iter);
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_stripes,
+			     POS(0, idx), BTREE_ITER_SLOTS);
+	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -445,6 +446,7 @@ static int get_stripe_key(struct bch_fs *c, u64 idx, struct ec_stripe_buf *strip
 	}
 	bkey_reassemble(&stripe->key.k_i, k);
 err:
+	bch2_trans_iter_exit(&trans, &iter);
 	bch2_trans_exit(&trans);
 	return ret;
 }
@@ -704,7 +706,7 @@ static int ec_stripe_bkey_insert(struct bch_fs *c,
 				 struct disk_reservation *res)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bpos min_pos = POS(0, 1);
 	struct bpos start_pos = bpos_max(min_pos, POS(0, c->ec_stripe_hint));
@@ -719,7 +721,7 @@ retry:
 		if (bkey_cmp(k.k->p, POS(0, U32_MAX)) > 0) {
 			if (start_pos.offset) {
 				start_pos = min_pos;
-				bch2_btree_iter_set_pos(iter, start_pos);
+				bch2_btree_iter_set_pos(&iter, start_pos);
 				continue;
 			}
 
@@ -733,19 +735,19 @@ retry:
 
 	goto err;
 found_slot:
-	start_pos = iter->pos;
+	start_pos = iter.pos;
 
-	ret = ec_stripe_mem_alloc(&trans, iter);
+	ret = ec_stripe_mem_alloc(&trans, &iter);
 	if (ret)
 		goto err;
 
-	stripe->k.p = iter->pos;
+	stripe->k.p = iter.pos;
 
-	ret   = bch2_trans_update(&trans, iter, &stripe->k_i, 0) ?:
+	ret   = bch2_trans_update(&trans, &iter, &stripe->k_i, 0) ?:
 		bch2_trans_commit(&trans, res, NULL,
 				BTREE_INSERT_NOFAIL);
 err:
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 
 	if (ret == -EINTR)
 		goto retry;
@@ -759,15 +761,15 @@ err:
 static int ec_stripe_bkey_update(struct btree_trans *trans,
 				 struct bkey_i_stripe *new)
 {
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	const struct bch_stripe *existing;
 	unsigned i;
 	int ret;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_stripes,
-				   new->k.p, BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek_slot(iter);
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_stripes,
+			     new->k.p, BTREE_ITER_INTENT);
+	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -790,9 +792,9 @@ static int ec_stripe_bkey_update(struct btree_trans *trans,
 		stripe_blockcount_set(&new->v, i,
 			stripe_blockcount_get(existing, i));
 
-	ret = bch2_trans_update(trans, iter, &new->k_i, 0);
+	ret = bch2_trans_update(trans, &iter, &new->k_i, 0);
 err:
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -820,7 +822,7 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 				 struct bkey *pos)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_s_extent e;
 	struct bkey_buf sk;
@@ -832,23 +834,23 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 
 	/* XXX this doesn't support the reflink btree */
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
-				   bkey_start_pos(pos),
-				   BTREE_ITER_INTENT);
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_extents,
+			     bkey_start_pos(pos),
+			     BTREE_ITER_INTENT);
 
-	while ((k = bch2_btree_iter_peek(iter)).k &&
+	while ((k = bch2_btree_iter_peek(&iter)).k &&
 	       !(ret = bkey_err(k)) &&
 	       bkey_cmp(bkey_start_pos(k.k), pos->p) < 0) {
 		struct bch_extent_ptr *ptr, *ec_ptr = NULL;
 
 		if (extent_has_stripe_ptr(k, s->key.k.p.offset)) {
-			bch2_btree_iter_advance(iter);
+			bch2_btree_iter_advance(&iter);
 			continue;
 		}
 
 		block = bkey_matches_stripe(&s->key.v, k);
 		if (block < 0) {
-			bch2_btree_iter_advance(iter);
+			bch2_btree_iter_advance(&iter);
 			continue;
 		}
 
@@ -863,21 +865,21 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 
 		extent_stripe_ptr_add(e, s, ec_ptr, block);
 
-		bch2_btree_iter_set_pos(iter, bkey_start_pos(&sk.k->k));
+		bch2_btree_iter_set_pos(&iter, bkey_start_pos(&sk.k->k));
 		next_pos = sk.k->k.p;
 
-		ret   = bch2_btree_iter_traverse(iter) ?:
-			bch2_trans_update(&trans, iter, sk.k, 0) ?:
+		ret   = bch2_btree_iter_traverse(&iter) ?:
+			bch2_trans_update(&trans, &iter, sk.k, 0) ?:
 			bch2_trans_commit(&trans, NULL, NULL,
 					BTREE_INSERT_NOFAIL);
 		if (!ret)
-			bch2_btree_iter_set_pos(iter, next_pos);
+			bch2_btree_iter_set_pos(&iter, next_pos);
 		if (ret == -EINTR)
 			ret = 0;
 		if (ret)
 			break;
 	}
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 
 	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&sk, c);
@@ -1598,7 +1600,7 @@ write:
 int bch2_stripes_write(struct bch_fs *c, unsigned flags)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct genradix_iter giter;
 	struct bkey_i_stripe *new_key;
 	struct stripe *m;
@@ -1609,8 +1611,8 @@ int bch2_stripes_write(struct bch_fs *c, unsigned flags)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_stripes, POS_MIN,
-				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_stripes, POS_MIN,
+			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
 	genradix_for_each(&c->stripes[0], giter, m) {
 		if (!m->alive)
@@ -1618,13 +1620,13 @@ int bch2_stripes_write(struct bch_fs *c, unsigned flags)
 
 		ret = __bch2_trans_do(&trans, NULL, NULL,
 				      BTREE_INSERT_NOFAIL|flags,
-			__bch2_stripe_write_key(&trans, iter, m,
+			__bch2_stripe_write_key(&trans, &iter, m,
 					giter.pos, new_key));
 
 		if (ret)
 			break;
 	}
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 
 	bch2_trans_exit(&trans);
 
@@ -1659,19 +1661,19 @@ int bch2_stripes_read(struct bch_fs *c)
 int bch2_ec_mem_alloc(struct bch_fs *c, bool gc)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	size_t i, idx = 0;
 	int ret = 0;
 
 	bch2_trans_init(&trans, c, 0, 0);
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_stripes, POS(0, U64_MAX), 0);
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_stripes, POS(0, U64_MAX), 0);
 
-	k = bch2_btree_iter_prev(iter);
+	k = bch2_btree_iter_prev(&iter);
 	if (!IS_ERR_OR_NULL(k.k))
 		idx = k.k->p.offset + 1;
 
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 	ret = bch2_trans_exit(&trans);
 	if (ret)
 		return ret;

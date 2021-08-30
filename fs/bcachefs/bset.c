@@ -185,9 +185,11 @@ void bch2_btree_node_iter_verify(struct btree_node_iter *iter,
 		return;
 
 	/* Verify no duplicates: */
-	btree_node_iter_for_each(iter, set)
+	btree_node_iter_for_each(iter, set) {
+		BUG_ON(set->k > set->end);
 		btree_node_iter_for_each(iter, s2)
 			BUG_ON(set != s2 && set->end == s2->end);
+	}
 
 	/* Verify that set->end is correct: */
 	btree_node_iter_for_each(iter, set) {

@@ -202,7 +202,7 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 			       s64 *disk_sectors_delta)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c old;
 	unsigned new_replicas = bch2_bkey_replicas(c, bkey_i_to_s_c(new));
 	bool new_compressed = bch2_bkey_sectors_compressed(bkey_i_to_s_c(new));
@@ -213,7 +213,7 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 	*i_sectors_delta	= 0;
 	*disk_sectors_delta	= 0;
 
-	iter = bch2_trans_copy_iter(trans, extent_iter);
+	bch2_trans_copy_iter(&iter, extent_iter);
 
 	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, old, ret) {
 		s64 sectors = min(new->k.p.offset, old.k->p.offset) -
@@ -246,7 +246,7 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 			 * less:
 			 */
 			if (!bkey_cmp(old.k->p, new->k.p)) {
-				old = bch2_btree_iter_next(iter);
+				old = bch2_btree_iter_next(&iter);
 				ret = bkey_err(old);
 				if (ret)
 					break;
@@ -261,7 +261,7 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 		}
 	}
 
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -311,12 +311,11 @@ int bch2_extent_update(struct btree_trans *trans,
 		: 0;
 
 	if (i_sectors_delta || new_i_size) {
-		struct btree_iter *inode_iter;
+		struct btree_iter inode_iter;
 		struct bch_inode_unpacked inode_u;
 
-		inode_iter = bch2_inode_peek(trans, &inode_u,
+		ret = bch2_inode_peek(trans, &inode_iter, &inode_u,
 				k->k.p.inode, BTREE_ITER_INTENT);
-		ret = PTR_ERR_OR_ZERO(inode_iter);
 		if (ret)
 			return ret;
 
@@ -345,11 +344,11 @@ int bch2_extent_update(struct btree_trans *trans,
 
 			inode_p.inode.k.p.snapshot = iter->snapshot;
 
-			ret = bch2_trans_update(trans, inode_iter,
+			ret = bch2_trans_update(trans, &inode_iter,
 					  &inode_p.inode.k_i, 0);
 		}
 
-		bch2_trans_iter_put(trans, inode_iter);
+		bch2_trans_iter_exit(trans, &inode_iter);
 
 		if (ret)
 			return ret;
@@ -424,18 +423,18 @@ int bch2_fpunch(struct bch_fs *c, u64 inum, u64 start, u64 end,
 		u64 *journal_seq, s64 *i_sectors_delta)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	int ret = 0;
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 1024);
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_extents,
 				   POS(inum, start),
 				   BTREE_ITER_INTENT);
 
-	ret = bch2_fpunch_at(&trans, iter, POS(inum, end),
+	ret = bch2_fpunch_at(&trans, &iter, POS(inum, end),
 			     journal_seq, i_sectors_delta);
 
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 	bch2_trans_exit(&trans);
 
 	if (ret == -EINTR)
@@ -451,28 +450,28 @@ static int bch2_write_index_default(struct bch_write_op *op)
 	struct keylist *keys = &op->insert_keys;
 	struct bkey_i *k = bch2_keylist_front(keys);
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	int ret;
 
 	bch2_bkey_buf_init(&sk);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 1024);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
-				   bkey_start_pos(&k->k),
-				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_extents,
+			     bkey_start_pos(&k->k),
+			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
 	do {
 		bch2_trans_begin(&trans);
 
 		k = bch2_keylist_front(keys);
 
-		k->k.p.snapshot = iter->snapshot;
+		k->k.p.snapshot = iter.snapshot;
 
 		bch2_bkey_buf_realloc(&sk, c, k->k.u64s);
 		bkey_copy(sk.k, k);
-		bch2_cut_front(iter->pos, sk.k);
+		bch2_cut_front(iter.pos, sk.k);
 
-		ret = bch2_extent_update(&trans, iter, sk.k,
+		ret = bch2_extent_update(&trans, &iter, sk.k,
 					 &op->res, op_journal_seq(op),
 					 op->new_i_size, &op->i_sectors_delta,
 					 op->flags & BCH_WRITE_CHECK_ENOSPC);
@@ -481,11 +480,11 @@ static int bch2_write_index_default(struct bch_write_op *op)
 		if (ret)
 			break;
 
-		if (bkey_cmp(iter->pos, k->k.p) >= 0)
+		if (bkey_cmp(iter.pos, k->k.p) >= 0)
 			bch2_keylist_pop_front(keys);
 	} while (!bch2_keylist_empty(keys));
 
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&sk, c);
 
@@ -1638,7 +1637,7 @@ static void bch2_read_retry_nodecode(struct bch_fs *c, struct bch_read_bio *rbio
 				     unsigned flags)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_buf sk;
 	struct bkey_s_c k;
 	int ret;
@@ -1649,12 +1648,12 @@ static void bch2_read_retry_nodecode(struct bch_fs *c, struct bch_read_bio *rbio
 	bch2_bkey_buf_init(&sk);
 	bch2_trans_init(&trans, c, 0, 0);
 
-	iter = bch2_trans_get_iter(&trans, rbio->data_btree,
-				   rbio->read_pos, BTREE_ITER_SLOTS);
+	bch2_trans_iter_init(&trans, &iter, rbio->data_btree,
+			     rbio->read_pos, BTREE_ITER_SLOTS);
 retry:
 	rbio->bio.bi_status = 0;
 
-	k = bch2_btree_iter_peek_slot(iter);
+	k = bch2_btree_iter_peek_slot(&iter);
 	if (bkey_err(k))
 		goto err;
 
@@ -1681,7 +1680,7 @@ retry:
 		goto err;
 out:
 	bch2_rbio_done(rbio);
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&sk, c);
 	return;
@@ -1747,7 +1746,7 @@ static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
 	struct bch_fs *c = rbio->c;
 	u64 data_offset = rbio->data_pos.offset - rbio->pick.crc.offset;
 	struct bch_extent_crc_unpacked new_crc;
-	struct btree_iter *iter = NULL;
+	struct btree_iter iter;
 	struct bkey_i *new;
 	struct bkey_s_c k;
 	int ret = 0;
@@ -1755,9 +1754,9 @@ static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
 	if (crc_is_compressed(rbio->pick.crc))
 		return 0;
 
-	iter = bch2_trans_get_iter(trans, rbio->data_btree, rbio->data_pos,
-				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek_slot(iter);
+	bch2_trans_iter_init(trans, &iter, rbio->data_btree, rbio->data_pos,
+			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+	k = bch2_btree_iter_peek_slot(&iter);
 	if ((ret = bkey_err(k)))
 		goto out;
 
@@ -1792,9 +1791,9 @@ static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
 	if (!bch2_bkey_narrow_crcs(new, new_crc))
 		goto out;
 
-	ret = bch2_trans_update(trans, iter, new, 0);
+	ret = bch2_trans_update(trans, &iter, new, 0);
 out:
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -1965,7 +1964,7 @@ int __bch2_read_indirect_extent(struct btree_trans *trans,
 				unsigned *offset_into_extent,
 				struct bkey_buf *orig_k)
 {
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	u64 reflink_offset;
 	int ret;
@@ -1973,10 +1972,10 @@ int __bch2_read_indirect_extent(struct btree_trans *trans,
 	reflink_offset = le64_to_cpu(bkey_i_to_reflink_p(orig_k->k)->v.idx) +
 		*offset_into_extent;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_reflink,
-				   POS(0, reflink_offset),
-				   BTREE_ITER_SLOTS);
-	k = bch2_btree_iter_peek_slot(iter);
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_reflink,
+			     POS(0, reflink_offset),
+			     BTREE_ITER_SLOTS);
+	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -1993,10 +1992,10 @@ int __bch2_read_indirect_extent(struct btree_trans *trans,
 		goto err;
 	}
 
-	*offset_into_extent = iter->pos.offset - bkey_start_offset(k.k);
+	*offset_into_extent = iter.pos.offset - bkey_start_offset(k.k);
 	bch2_bkey_buf_reassemble(orig_k, trans->c, k);
 err:
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -2273,7 +2272,7 @@ void __bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 		 struct bch_io_failures *failed, unsigned flags)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_buf sk;
 	struct bkey_s_c k;
 	int ret;
@@ -2282,10 +2281,9 @@ void __bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 
 	bch2_bkey_buf_init(&sk);
 	bch2_trans_init(&trans, c, 0, 0);
-
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
-				   POS(inode, bvec_iter.bi_sector),
-				   BTREE_ITER_SLOTS);
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_extents,
+			     POS(inode, bvec_iter.bi_sector),
+			     BTREE_ITER_SLOTS);
 retry:
 	bch2_trans_begin(&trans);
 
@@ -2302,15 +2300,15 @@ retry:
 			break;
 		}
 
-		bch2_btree_iter_set_pos(iter,
+		bch2_btree_iter_set_pos(&iter,
 				POS(inode, bvec_iter.bi_sector));
 
-		k = bch2_btree_iter_peek_slot(iter);
+		k = bch2_btree_iter_peek_slot(&iter);
 		ret = bkey_err(k);
 		if (ret)
 			break;
 
-		offset_into_extent = iter->pos.offset -
+		offset_into_extent = iter.pos.offset -
 			bkey_start_offset(k.k);
 		sectors = k.k->size - offset_into_extent;
 
@@ -2341,7 +2339,7 @@ retry:
 		if (bvec_iter.bi_size == bytes)
 			flags |= BCH_READ_LAST_FRAGMENT;
 
-		ret = __bch2_read_extent(&trans, rbio, bvec_iter, iter->pos,
+		ret = __bch2_read_extent(&trans, rbio, bvec_iter, iter.pos,
 					 data_btree, k,
 					 offset_into_extent, failed, flags);
 		if (ret)
@@ -2357,7 +2355,7 @@ retry:
 	if (ret == -EINTR || ret == READ_RETRY || ret == READ_RETRY_AVOID)
 		goto retry;
 
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&sk, c);
 

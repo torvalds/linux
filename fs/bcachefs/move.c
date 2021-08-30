@@ -56,7 +56,7 @@ int bch2_migrate_index_update(struct bch_write_op *op)
 {
 	struct bch_fs *c = op->c;
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct migrate_write *m =
 		container_of(op, struct migrate_write, op);
 	struct keylist *keys = &op->insert_keys;
@@ -69,9 +69,9 @@ int bch2_migrate_index_update(struct bch_write_op *op)
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 1024);
 
-	iter = bch2_trans_get_iter(&trans, m->btree_id,
-				   bkey_start_pos(&bch2_keylist_front(keys)->k),
-				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+	bch2_trans_iter_init(&trans, &iter, m->btree_id,
+			     bkey_start_pos(&bch2_keylist_front(keys)->k),
+			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
 	while (1) {
 		struct bkey_s_c k;
@@ -86,7 +86,7 @@ int bch2_migrate_index_update(struct bch_write_op *op)
 
 		bch2_trans_begin(&trans);
 
-		k = bch2_btree_iter_peek_slot(iter);
+		k = bch2_btree_iter_peek_slot(&iter);
 		ret = bkey_err(k);
 		if (ret)
 			goto err;
@@ -102,9 +102,9 @@ int bch2_migrate_index_update(struct bch_write_op *op)
 
 		bch2_bkey_buf_copy(&_new, c, bch2_keylist_front(keys));
 		new = bkey_i_to_extent(_new.k);
-		bch2_cut_front(iter->pos, &new->k_i);
+		bch2_cut_front(iter.pos, &new->k_i);
 
-		bch2_cut_front(iter->pos,	insert);
+		bch2_cut_front(iter.pos,	insert);
 		bch2_cut_back(new->k.p,		insert);
 		bch2_cut_back(insert->k.p,	&new->k_i);
 
@@ -146,7 +146,7 @@ int bch2_migrate_index_update(struct bch_write_op *op)
 					       op->opts.background_target,
 					       op->opts.data_replicas);
 
-		ret = bch2_sum_sector_overwrites(&trans, iter, insert,
+		ret = bch2_sum_sector_overwrites(&trans, &iter, insert,
 						 &extending,
 						 &should_check_enospc,
 						 &i_sectors_delta,
@@ -165,13 +165,13 @@ int bch2_migrate_index_update(struct bch_write_op *op)
 
 		next_pos = insert->k.p;
 
-		ret   = bch2_trans_update(&trans, iter, insert, 0) ?:
+		ret   = bch2_trans_update(&trans, &iter, insert, 0) ?:
 			bch2_trans_commit(&trans, &op->res,
 				op_journal_seq(op),
 				BTREE_INSERT_NOFAIL|
 				m->data_opts.btree_insert_flags);
 		if (!ret) {
-			bch2_btree_iter_set_pos(iter, next_pos);
+			bch2_btree_iter_set_pos(&iter, next_pos);
 			atomic_long_inc(&c->extent_migrate_done);
 		}
 err:
@@ -180,7 +180,7 @@ err:
 		if (ret)
 			break;
 next:
-		while (bkey_cmp(iter->pos, bch2_keylist_front(keys)->k.p) >= 0) {
+		while (bkey_cmp(iter.pos, bch2_keylist_front(keys)->k.p) >= 0) {
 			bch2_keylist_pop_front(keys);
 			if (bch2_keylist_empty(keys))
 				goto out;
@@ -188,18 +188,18 @@ next:
 		continue;
 nomatch:
 		if (m->ctxt) {
-			BUG_ON(k.k->p.offset <= iter->pos.offset);
+			BUG_ON(k.k->p.offset <= iter.pos.offset);
 			atomic64_inc(&m->ctxt->stats->keys_raced);
-			atomic64_add(k.k->p.offset - iter->pos.offset,
+			atomic64_add(k.k->p.offset - iter.pos.offset,
 				     &m->ctxt->stats->sectors_raced);
 		}
 		atomic_long_inc(&c->extent_migrate_raced);
 		trace_move_race(&new->k);
-		bch2_btree_iter_advance(iter);
+		bch2_btree_iter_advance(&iter);
 		goto next;
 	}
 out:
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&_insert, c);
 	bch2_bkey_buf_exit(&_new, c);
@@ -524,13 +524,13 @@ err:
 static int lookup_inode(struct btree_trans *trans, struct bpos pos,
 			struct bch_inode_unpacked *inode)
 {
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_inodes, pos,
-				   BTREE_ITER_ALL_SNAPSHOTS);
-	k = bch2_btree_iter_peek(iter);
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_inodes, pos,
+			     BTREE_ITER_ALL_SNAPSHOTS);
+	k = bch2_btree_iter_peek(&iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -548,7 +548,7 @@ static int lookup_inode(struct btree_trans *trans, struct bpos pos,
 	if (ret)
 		goto err;
 err:
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -566,7 +566,7 @@ static int __bch2_move_data(struct bch_fs *c,
 	struct bch_io_opts io_opts = bch2_opts_to_inode_opts(c->opts);
 	struct bkey_buf sk;
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct data_opts data_opts;
 	enum data_cmd data_cmd;
@@ -580,8 +580,8 @@ static int __bch2_move_data(struct bch_fs *c,
 	stats->btree_id	= btree_id;
 	stats->pos	= start;
 
-	iter = bch2_trans_get_iter(&trans, btree_id, start,
-				   BTREE_ITER_PREFETCH);
+	bch2_trans_iter_init(&trans, &iter, btree_id, start,
+			     BTREE_ITER_PREFETCH);
 
 	if (rate)
 		bch2_ratelimit_reset(rate);
@@ -612,9 +612,9 @@ static int __bch2_move_data(struct bch_fs *c,
 
 		bch2_trans_begin(&trans);
 
-		k = bch2_btree_iter_peek(iter);
+		k = bch2_btree_iter_peek(&iter);
 
-		stats->pos = iter->pos;
+		stats->pos = iter.pos;
 
 		if (!k.k)
 			break;
@@ -687,12 +687,12 @@ next:
 		atomic64_add(k.k->size * bch2_bkey_nr_ptrs_allocated(k),
 			     &stats->sectors_seen);
 next_nondata:
-		bch2_btree_iter_advance(iter);
+		bch2_btree_iter_advance(&iter);
 		bch2_trans_cond_resched(&trans);
 	}
 out:
 
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 	ret = bch2_trans_exit(&trans) ?: ret;
 	bch2_bkey_buf_exit(&sk, c);
 
@@ -786,7 +786,7 @@ static int bch2_move_btree(struct bch_fs *c,
 	bool kthread = (current->flags & PF_KTHREAD) != 0;
 	struct bch_io_opts io_opts = bch2_opts_to_inode_opts(c->opts);
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct btree *b;
 	enum btree_id id;
 	struct data_opts data_opts;
@@ -813,7 +813,7 @@ static int bch2_move_btree(struct bch_fs *c,
 			     bpos_cmp(b->key.k.p, end_pos)) > 0)
 				break;
 
-			stats->pos = iter->pos;
+			stats->pos = iter.pos;
 
 			switch ((cmd = pred(c, arg, b, &io_opts, &data_opts))) {
 			case DATA_SKIP:
@@ -827,13 +827,13 @@ static int bch2_move_btree(struct bch_fs *c,
 				BUG();
 			}
 
-			ret = bch2_btree_node_rewrite(&trans, iter,
+			ret = bch2_btree_node_rewrite(&trans, &iter,
 					b->data->keys.seq, 0) ?: ret;
 next:
 			bch2_trans_cond_resched(&trans);
 		}
+		bch2_trans_iter_exit(&trans, &iter);
 
-		ret = bch2_trans_iter_free(&trans, iter) ?: ret;
 		if (kthread && kthread_should_stop())
 			break;
 	}

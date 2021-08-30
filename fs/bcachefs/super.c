@@ -494,11 +494,11 @@ static void __bch2_fs_free(struct bch_fs *c)
 	percpu_free_rwsem(&c->mark_lock);
 	free_percpu(c->online_reserved);
 
-	if (c->btree_iters_bufs)
+	if (c->btree_paths_bufs)
 		for_each_possible_cpu(cpu)
-			kfree(per_cpu_ptr(c->btree_iters_bufs, cpu)->iter);
+			kfree(per_cpu_ptr(c->btree_paths_bufs, cpu)->path);
 
-	free_percpu(c->btree_iters_bufs);
+	free_percpu(c->btree_paths_bufs);
 	free_percpu(c->pcpu);
 	mempool_exit(&c->large_bkey_pool);
 	mempool_exit(&c->btree_bounce_pool);
@@ -783,7 +783,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 			BIOSET_NEED_BVECS) ||
 	    !(c->pcpu = alloc_percpu(struct bch_fs_pcpu)) ||
 	    !(c->online_reserved = alloc_percpu(u64)) ||
-	    !(c->btree_iters_bufs = alloc_percpu(struct btree_iter_buf)) ||
+	    !(c->btree_paths_bufs = alloc_percpu(struct btree_path_buf)) ||
 	    mempool_init_kvpmalloc_pool(&c->btree_bounce_pool, 1,
 					btree_bytes(c)) ||
 	    mempool_init_kmalloc_pool(&c->large_bkey_pool, 1, 2048) ||

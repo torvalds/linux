@@ -39,7 +39,7 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 				   enum btree_id btree_id)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_buf sk;
 	int ret = 0;
@@ -47,13 +47,13 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 	bch2_bkey_buf_init(&sk);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	iter = bch2_trans_get_iter(&trans, btree_id, POS_MIN,
-				   BTREE_ITER_PREFETCH);
+	bch2_trans_iter_init(&trans, &iter, btree_id, POS_MIN,
+			     BTREE_ITER_PREFETCH);
 
-	while ((k = bch2_btree_iter_peek(iter)).k &&
+	while ((k = bch2_btree_iter_peek(&iter)).k &&
 	       !(ret = bkey_err(k))) {
 		if (!bch2_bkey_has_device(k, dev_idx)) {
-			bch2_btree_iter_advance(iter);
+			bch2_btree_iter_advance(&iter);
 			continue;
 		}
 
@@ -71,10 +71,10 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 		 */
 		bch2_extent_normalize(c, bkey_i_to_s(sk.k));
 
-		bch2_btree_iter_set_pos(iter, bkey_start_pos(&sk.k->k));
+		bch2_btree_iter_set_pos(&iter, bkey_start_pos(&sk.k->k));
 
-		ret   = bch2_btree_iter_traverse(iter) ?:
-			bch2_trans_update(&trans, iter, sk.k, 0) ?:
+		ret   = bch2_btree_iter_traverse(&iter) ?:
+			bch2_trans_update(&trans, &iter, sk.k, 0) ?:
 			bch2_trans_commit(&trans, NULL, NULL,
 					BTREE_INSERT_NOFAIL);
 
@@ -88,7 +88,7 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 		if (ret)
 			break;
 	}
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 
 	ret = bch2_trans_exit(&trans) ?: ret;
 	bch2_bkey_buf_exit(&sk, c);
@@ -107,7 +107,7 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct closure cl;
 	struct btree *b;
 	struct bkey_buf k;
@@ -139,9 +139,9 @@ retry:
 				break;
 			}
 
-			ret = bch2_btree_node_update_key(&trans, iter, b, k.k, false);
+			ret = bch2_btree_node_update_key(&trans, &iter, b, k.k, false);
 			if (ret == -EINTR) {
-				b = bch2_btree_iter_peek_node(iter);
+				b = bch2_btree_iter_peek_node(&iter);
 				ret = 0;
 				goto retry;
 			}
@@ -150,7 +150,7 @@ retry:
 				break;
 			}
 		}
-		bch2_trans_iter_free(&trans, iter);
+		bch2_trans_iter_exit(&trans, &iter);
 
 		if (ret)
 			goto err;

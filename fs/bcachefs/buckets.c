@@ -1222,38 +1222,23 @@ int bch2_mark_key(struct bch_fs *c, struct bkey_s_c new, unsigned flags)
 	return ret;
 }
 
-int bch2_mark_update(struct btree_trans *trans, struct btree_iter *iter,
+int bch2_mark_update(struct btree_trans *trans, struct btree_path *path,
 		     struct bkey_i *new, unsigned flags)
 {
 	struct bch_fs		*c = trans->c;
 	struct bkey		_deleted = KEY(0, 0, 0);
 	struct bkey_s_c		deleted = (struct bkey_s_c) { &_deleted, NULL };
 	struct bkey_s_c		old;
-	int iter_flags, ret;
+	struct bkey		unpacked;
+	int ret;
 
 	if (unlikely(flags & BTREE_TRIGGER_NORUN))
 		return 0;
 
-	if (!btree_node_type_needs_gc(iter->btree_id))
+	if (!btree_node_type_needs_gc(path->btree_id))
 		return 0;
 
-	if (likely(!(iter->flags & BTREE_ITER_CACHED_NOFILL))) {
-		iter_flags = iter->flags & BTREE_ITER_WITH_UPDATES;
-		iter->flags &= ~BTREE_ITER_WITH_UPDATES;
-
-		old = bch2_btree_iter_peek_slot(iter);
-		iter->flags |= iter_flags;
-
-		ret = bkey_err(old);
-		if (ret)
-			return ret;
-	} else {
-		/*
-		 * If BTREE_ITER_CACHED_NOFILL was used, we better not be
-		 * running triggers that do anything on removal (alloc btree):
-		 */
-		old = deleted;
-	}
+	old = bch2_btree_path_peek_slot(path, &unpacked);
 
 	if (old.k->type == new->k.type &&
 	    ((1U << old.k->type) & BTREE_TRIGGER_WANTS_OLD_AND_NEW)) {
@@ -1291,22 +1276,13 @@ void fs_usage_apply_warn(struct btree_trans *trans,
 		pr_err("overlapping with");
 
 		if (!i->cached) {
-			struct btree_iter *copy = bch2_trans_copy_iter(trans, i->iter);
-			struct bkey_s_c k;
-			int ret;
+			struct bkey u;
+			struct bkey_s_c k = bch2_btree_path_peek_slot(i->path, &u);
 
-			for_each_btree_key_continue(copy, 0, k, ret) {
-				if (btree_node_type_is_extents(i->iter->btree_id)
-				    ? bkey_cmp(i->k->k.p, bkey_start_pos(k.k)) <= 0
-				    : bkey_cmp(i->k->k.p, k.k->p))
-					break;
-
-				bch2_bkey_val_to_text(&PBUF(buf), c, k);
-				pr_err("%s", buf);
-			}
-			bch2_trans_iter_put(trans, copy);
+			bch2_bkey_val_to_text(&PBUF(buf), c, k);
+			pr_err("%s", buf);
 		} else {
-			struct bkey_cached *ck = (void *) i->iter->l[0].b;
+			struct bkey_cached *ck = (void *) i->path->l[0].b;
 
 			if (ck->valid) {
 				bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(ck->k));
@@ -1385,31 +1361,8 @@ void bch2_trans_fs_usage_apply(struct btree_trans *trans,
 
 /* trans_mark: */
 
-static struct btree_iter *trans_get_update(struct btree_trans *trans,
-			    enum btree_id btree_id, struct bpos pos,
-			    struct bkey_s_c *k)
-{
-	struct btree_insert_entry *i;
-
-	trans_for_each_update(trans, i)
-		if (i->iter->btree_id == btree_id &&
-		    (btree_node_type_is_extents(btree_id)
-		     ? bkey_cmp(pos, bkey_start_pos(&i->k->k)) >= 0 &&
-		       bkey_cmp(pos, i->k->k.p) < 0
-		     : !bkey_cmp(pos, i->iter->pos))) {
-			*k = bkey_i_to_s_c(i->k);
-
-			/* ugly hack.. */
-			BUG_ON(btree_iter_live(trans, i->iter));
-			trans->iters_live |= 1ULL << i->iter->idx;
-			return i->iter;
-		}
-
-	return NULL;
-}
-
 static struct bkey_alloc_buf *
-bch2_trans_start_alloc_update(struct btree_trans *trans, struct btree_iter **_iter,
+bch2_trans_start_alloc_update(struct btree_trans *trans, struct btree_iter *iter,
 			      const struct bch_extent_ptr *ptr,
 			      struct bkey_alloc_unpacked *u)
 {
@@ -1417,36 +1370,34 @@ bch2_trans_start_alloc_update(struct btree_trans *trans, struct btree_iter **_it
 	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
 	struct bpos pos = POS(ptr->dev, PTR_BUCKET_NR(ca, ptr));
 	struct bucket *g;
-	struct btree_iter *iter;
-	struct bkey_s_c k;
 	struct bkey_alloc_buf *a;
+	struct bkey_i *update;
 	int ret;
 
 	a = bch2_trans_kmalloc(trans, sizeof(struct bkey_alloc_buf));
 	if (IS_ERR(a))
 		return a;
 
-	iter = trans_get_update(trans, BTREE_ID_alloc, pos, &k);
-	if (iter) {
-		*u = bch2_alloc_unpack(k);
-	} else {
-		iter = bch2_trans_get_iter(trans, BTREE_ID_alloc, pos,
-					   BTREE_ITER_CACHED|
-					   BTREE_ITER_CACHED_NOFILL|
-					   BTREE_ITER_INTENT);
-		ret = bch2_btree_iter_traverse(iter);
-		if (ret) {
-			bch2_trans_iter_put(trans, iter);
-			return ERR_PTR(ret);
-		}
+	bch2_trans_iter_init(trans, iter, BTREE_ID_alloc, pos,
+			     BTREE_ITER_CACHED|
+			     BTREE_ITER_CACHED_NOFILL|
+			     BTREE_ITER_INTENT);
+	ret = bch2_btree_iter_traverse(iter);
+	if (ret) {
+		bch2_trans_iter_exit(trans, iter);
+		return ERR_PTR(ret);
+	}
 
+	update = __bch2_btree_trans_peek_updates(iter);
+	if (update && !bpos_cmp(update->k.p, pos)) {
+		*u = bch2_alloc_unpack(bkey_i_to_s_c(update));
+	} else {
 		percpu_down_read(&c->mark_lock);
 		g = bucket(ca, pos.offset);
 		*u = alloc_mem_to_key(iter, g, READ_ONCE(g->mark));
 		percpu_up_read(&c->mark_lock);
 	}
 
-	*_iter = iter;
 	return a;
 }
 
@@ -1455,7 +1406,7 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 			s64 sectors, enum bch_data_type data_type)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_alloc_unpacked u;
 	struct bkey_alloc_buf *a;
 	int ret;
@@ -1470,9 +1421,9 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 		goto out;
 
 	bch2_alloc_pack(c, a, u);
-	bch2_trans_update(trans, iter, &a->k, 0);
+	bch2_trans_update(trans, &iter, &a->k, 0);
 out:
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -1481,16 +1432,16 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 			s64 sectors, enum bch_data_type data_type)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_i_stripe *s;
 	struct bch_replicas_padded r;
 	int ret = 0;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_stripes, POS(0, p.ec.idx),
-				   BTREE_ITER_INTENT|
-				   BTREE_ITER_WITH_UPDATES);
-	k = bch2_btree_iter_peek_slot(iter);
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_stripes, POS(0, p.ec.idx),
+			     BTREE_ITER_INTENT|
+			     BTREE_ITER_WITH_UPDATES);
+	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -1521,13 +1472,13 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 	stripe_blockcount_set(&s->v, p.ec.block,
 		stripe_blockcount_get(&s->v, p.ec.block) +
 		sectors);
-	bch2_trans_update(trans, iter, &s->k_i, 0);
+	bch2_trans_update(trans, &iter, &s->k_i, 0);
 
 	bch2_bkey_to_replicas(&r.e, bkey_i_to_s_c(&s->k_i));
 	r.e.data_type = data_type;
 	update_replicas_list(trans, &r.e, sectors);
 err:
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -1599,7 +1550,7 @@ static int bch2_trans_mark_stripe_alloc_ref(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	const struct bch_extent_ptr *ptr = &s.v->ptrs[idx];
 	struct bkey_alloc_buf *a;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_alloc_unpacked u;
 	bool parity = idx >= s.v->nr_blocks - s.v->nr_redundant;
 	int ret = 0;
@@ -1623,7 +1574,7 @@ static int bch2_trans_mark_stripe_alloc_ref(struct btree_trans *trans,
 	if (!deleting) {
 		if (bch2_fs_inconsistent_on(u.stripe && u.stripe != s.k->p.offset, c,
 				"bucket %llu:%llu gen %u: multiple stripes using same bucket (%u, %llu)",
-				iter->pos.inode, iter->pos.offset, u.gen,
+				iter.pos.inode, iter.pos.offset, u.gen,
 				u.stripe, s.k->p.offset)) {
 			ret = -EIO;
 			goto err;
@@ -1637,9 +1588,9 @@ static int bch2_trans_mark_stripe_alloc_ref(struct btree_trans *trans,
 	}
 
 	bch2_alloc_pack(c, a, u);
-	bch2_trans_update(trans, iter, &a->k, 0);
+	bch2_trans_update(trans, &iter, &a->k, 0);
 err:
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -1744,17 +1695,17 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 			u64 idx, unsigned flags)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_i *n;
 	__le64 *refcount;
 	int add = !(flags & BTREE_TRIGGER_OVERWRITE) ? 1 : -1;
 	s64 ret;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_reflink, POS(0, idx),
-				   BTREE_ITER_INTENT|
-				   BTREE_ITER_WITH_UPDATES);
-	k = bch2_btree_iter_peek_slot(iter);
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_reflink, POS(0, idx),
+			     BTREE_ITER_INTENT|
+			     BTREE_ITER_WITH_UPDATES);
+	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -1784,14 +1735,14 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 		set_bkey_val_u64s(&n->k, 0);
 	}
 
-	bch2_btree_iter_set_pos_to_extent_start(iter);
-	ret = bch2_trans_update(trans, iter, n, 0);
+	bch2_btree_iter_set_pos_to_extent_start(&iter);
+	ret = bch2_trans_update(trans, &iter, n, 0);
 	if (ret)
 		goto err;
 
 	ret = k.k->p.offset - idx;
 err:
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -1843,39 +1794,23 @@ int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c old,
 }
 
 int bch2_trans_mark_update(struct btree_trans *trans,
-			   struct btree_iter *iter,
+			   struct btree_path *path,
 			   struct bkey_i *new,
 			   unsigned flags)
 {
 	struct bkey		_deleted = KEY(0, 0, 0);
 	struct bkey_s_c		deleted = (struct bkey_s_c) { &_deleted, NULL };
 	struct bkey_s_c		old;
-	int iter_flags, ret;
+	struct bkey		unpacked;
+	int ret;
 
 	if (unlikely(flags & BTREE_TRIGGER_NORUN))
 		return 0;
 
-	if (!btree_node_type_needs_gc(iter->btree_id))
+	if (!btree_node_type_needs_gc(path->btree_id))
 		return 0;
 
-
-	if (likely(!(iter->flags & BTREE_ITER_CACHED_NOFILL))) {
-		iter_flags = iter->flags & BTREE_ITER_WITH_UPDATES;
-		iter->flags &= ~BTREE_ITER_WITH_UPDATES;
-
-		old = bch2_btree_iter_peek_slot(iter);
-		iter->flags |= iter_flags;
-
-		ret = bkey_err(old);
-		if (ret)
-			return ret;
-	} else {
-		/*
-		 * If BTREE_ITER_CACHED_NOFILL was used, we better not be
-		 * running triggers that do anything on removal (alloc btree):
-		 */
-		old = deleted;
-	}
+	old = bch2_btree_path_peek_slot(path, &unpacked);
 
 	if (old.k->type == new->k.type &&
 	    ((1U << old.k->type) & BTREE_TRIGGER_WANTS_OLD_AND_NEW)) {
@@ -1897,7 +1832,7 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 				    unsigned sectors)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_alloc_unpacked u;
 	struct bkey_alloc_buf *a;
 	struct bch_extent_ptr ptr = {
@@ -1920,7 +1855,7 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
 			"bucket %llu:%llu gen %u different types of data in same bucket: %s, %s\n"
 			"while marking %s",
-			iter->pos.inode, iter->pos.offset, u.gen,
+			iter.pos.inode, iter.pos.offset, u.gen,
 			bch2_data_types[u.data_type],
 			bch2_data_types[type],
 			bch2_data_types[type]);
@@ -1932,9 +1867,9 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 	u.dirty_sectors	= sectors;
 
 	bch2_alloc_pack(c, a, u);
-	bch2_trans_update(trans, iter, &a->k, 0);
+	bch2_trans_update(trans, &iter, &a->k, 0);
 out:
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 

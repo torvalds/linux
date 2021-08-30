@@ -8,9 +8,9 @@
 struct bch_fs;
 struct btree;
 
-void bch2_btree_node_lock_for_insert(struct btree_trans *, struct btree_iter *,
+void bch2_btree_node_lock_for_insert(struct btree_trans *, struct btree_path *,
 				     struct btree *);
-bool bch2_btree_bset_insert_key(struct btree_trans *, struct btree_iter *,
+bool bch2_btree_bset_insert_key(struct btree_trans *, struct btree_path *,
 				struct btree *, struct btree_node_iter *,
 				struct bkey_i *);
 void bch2_btree_add_journal_pin(struct bch_fs *, struct btree *, u64);
@@ -134,5 +134,14 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 	for ((_i) = (_trans)->updates;					\
 	     (_i) < (_trans)->updates + (_trans)->nr_updates;		\
 	     (_i)++)
+
+struct bkey_i *__bch2_btree_trans_peek_updates(struct btree_iter *);
+
+static inline struct bkey_i *btree_trans_peek_updates(struct btree_iter *iter)
+{
+	return iter->flags & BTREE_ITER_WITH_UPDATES
+		? __bch2_btree_trans_peek_updates(iter)
+		: NULL;
+}
 
 #endif /* _BCACHEFS_BTREE_UPDATE_H */

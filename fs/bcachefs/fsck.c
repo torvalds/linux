@@ -19,7 +19,7 @@
 
 static s64 bch2_count_inode_sectors(struct btree_trans *trans, u64 inum)
 {
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	u64 sectors = 0;
 	int ret;
@@ -33,7 +33,7 @@ static s64 bch2_count_inode_sectors(struct btree_trans *trans, u64 inum)
 			sectors += k.k->size;
 	}
 
-	bch2_trans_iter_free(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 
 	return ret ?: sectors;
 }
@@ -42,24 +42,24 @@ static int __lookup_inode(struct btree_trans *trans, u64 inode_nr,
 			  struct bch_inode_unpacked *inode,
 			  u32 *snapshot)
 {
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_inodes,
-			POS(0, inode_nr), 0);
-	k = bch2_btree_iter_peek_slot(iter);
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_inodes,
+			     POS(0, inode_nr), 0);
+	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
 
 	if (snapshot)
-		*snapshot = iter->pos.snapshot;
+		*snapshot = iter.pos.snapshot;
 	ret = k.k->type == KEY_TYPE_inode
 		? bch2_inode_unpack(bkey_s_c_to_inode(k), inode)
 		: -ENOENT;
 err:
-	bch2_trans_iter_free(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -74,13 +74,16 @@ static int __write_inode(struct btree_trans *trans,
 			 struct bch_inode_unpacked *inode,
 			 u32 snapshot)
 {
-	struct btree_iter *inode_iter =
-		bch2_trans_get_iter(trans, BTREE_ID_inodes,
-				    SPOS(0, inode->bi_inum, snapshot),
-				    BTREE_ITER_INTENT);
-	int ret = bch2_btree_iter_traverse(inode_iter) ?:
-		bch2_inode_write(trans, inode_iter, inode);
-	bch2_trans_iter_put(trans, inode_iter);
+	struct btree_iter iter;
+	int ret;
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_inodes,
+			    SPOS(0, inode->bi_inum, snapshot),
+			    BTREE_ITER_INTENT);
+
+	ret   = bch2_btree_iter_traverse(&iter) ?:
+		bch2_inode_write(trans, &iter, inode);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -100,7 +103,7 @@ static int write_inode(struct btree_trans *trans,
 static int __remove_dirent(struct btree_trans *trans, struct bpos pos)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bch_inode_unpacked dir_inode;
 	struct bch_hash_info dir_hash_info;
 	int ret;
@@ -111,11 +114,11 @@ static int __remove_dirent(struct btree_trans *trans, struct bpos pos)
 
 	dir_hash_info = bch2_hash_info_init(c, &dir_inode);
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_dirents, pos, BTREE_ITER_INTENT);
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_dirents, pos, BTREE_ITER_INTENT);
 
 	ret = bch2_hash_delete_at(trans, bch2_dirent_hash_desc,
-				  &dir_hash_info, iter);
-	bch2_trans_iter_put(trans, iter);
+				  &dir_hash_info, &iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -230,13 +233,13 @@ static int reattach_inode(struct btree_trans *trans,
 static int remove_backpointer(struct btree_trans *trans,
 			      struct bch_inode_unpacked *inode)
 {
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_dirents,
-				   POS(inode->bi_dir, inode->bi_dir_offset), 0);
-	k = bch2_btree_iter_peek_slot(iter);
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_dirents,
+			     POS(inode->bi_dir, inode->bi_dir_offset), 0);
+	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto out;
@@ -247,7 +250,7 @@ static int remove_backpointer(struct btree_trans *trans,
 
 	ret = remove_dirent(trans, k.k->p);
 out:
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -343,7 +346,7 @@ static int hash_check_key(struct btree_trans *trans,
 			  struct btree_iter *k_iter, struct bkey_s_c hash_k)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter *iter = NULL;
+	struct btree_iter iter = { NULL };
 	char buf[200];
 	struct bkey_s_c k;
 	u64 hash;
@@ -378,12 +381,12 @@ static int hash_check_key(struct btree_trans *trans,
 		}
 
 		if (bkey_deleted(k.k)) {
-			bch2_trans_iter_free(trans, iter);
+			bch2_trans_iter_exit(trans, &iter);
 			goto bad_hash;
 		}
 
 	}
-	bch2_trans_iter_free(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 bad_hash:
 	if (fsck_err(c, "hash table key at wrong offset: btree %u inode %llu offset %llu, "
@@ -513,7 +516,7 @@ noinline_for_stack
 static int check_inodes(struct bch_fs *c, bool full)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_s_c_inode inode;
 	int ret;
@@ -532,12 +535,12 @@ static int check_inodes(struct bch_fs *c, bool full)
 		    (inode.v->bi_flags & (BCH_INODE_I_SIZE_DIRTY|
 					  BCH_INODE_I_SECTORS_DIRTY|
 					  BCH_INODE_UNLINKED))) {
-			ret = check_inode(&trans, iter, inode);
+			ret = check_inode(&trans, &iter, inode);
 			if (ret)
 				break;
 		}
 	}
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 
 	BUG_ON(ret == -EINTR);
 
@@ -547,7 +550,7 @@ static int check_inodes(struct bch_fs *c, bool full)
 static int fix_overlapping_extent(struct btree_trans *trans,
 				       struct bkey_s_c k, struct bpos cut_at)
 {
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_i *u;
 	int ret;
 
@@ -567,29 +570,29 @@ static int fix_overlapping_extent(struct btree_trans *trans,
 	 * assume things about extent overwrites - we should be running the
 	 * triggers manually here
 	 */
-	iter = bch2_trans_get_iter(trans, BTREE_ID_extents, u->k.p,
-				   BTREE_ITER_INTENT|BTREE_ITER_NOT_EXTENTS);
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents, u->k.p,
+			     BTREE_ITER_INTENT|BTREE_ITER_NOT_EXTENTS);
 
-	BUG_ON(iter->flags & BTREE_ITER_IS_EXTENTS);
-	ret   = bch2_btree_iter_traverse(iter) ?:
-		bch2_trans_update(trans, iter, u, BTREE_TRIGGER_NORUN) ?:
+	BUG_ON(iter.flags & BTREE_ITER_IS_EXTENTS);
+	ret   = bch2_btree_iter_traverse(&iter) ?:
+		bch2_trans_update(trans, &iter, u, BTREE_TRIGGER_NORUN) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 				  BTREE_INSERT_NOFAIL|
 				  BTREE_INSERT_LAZY_RW);
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
 static int inode_backpointer_exists(struct btree_trans *trans,
 				    struct bch_inode_unpacked *inode)
 {
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_dirents,
-				   POS(inode->bi_dir, inode->bi_dir_offset), 0);
-	k = bch2_btree_iter_peek_slot(iter);
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_dirents,
+			     POS(inode->bi_dir, inode->bi_dir_offset), 0);
+	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto out;
@@ -598,7 +601,7 @@ static int inode_backpointer_exists(struct btree_trans *trans,
 
 	ret = le64_to_cpu(bkey_s_c_to_dirent(k).v->d_inum) == inode->bi_inum;
 out:
-	bch2_trans_iter_free(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -618,7 +621,7 @@ static int check_extents(struct bch_fs *c)
 {
 	struct inode_walker w = inode_walker_init();
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_buf prev;
 	u64 i_sectors = 0;
@@ -630,12 +633,12 @@ static int check_extents(struct bch_fs *c)
 
 	bch_verbose(c, "checking extents");
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
-				   POS(BCACHEFS_ROOT_INO, 0),
-				   BTREE_ITER_INTENT|
-				   BTREE_ITER_PREFETCH);
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_extents,
+			     POS(BCACHEFS_ROOT_INO, 0),
+			     BTREE_ITER_INTENT|
+			     BTREE_ITER_PREFETCH);
 retry:
-	while ((k = bch2_btree_iter_peek(iter)).k &&
+	while ((k = bch2_btree_iter_peek(&iter)).k &&
 	       !(ret = bkey_err(k))) {
 		if (w.have_inode &&
 		    w.cur_inum != k.k->p.inode &&
@@ -700,12 +703,12 @@ retry:
 			i_sectors += k.k->size;
 		bch2_bkey_buf_reassemble(&prev, c, k);
 
-		bch2_btree_iter_advance(iter);
+		bch2_btree_iter_advance(&iter);
 	}
 fsck_err:
 	if (ret == -EINTR)
 		goto retry;
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 	bch2_bkey_buf_exit(&prev, c);
 	return bch2_trans_exit(&trans) ?: ret;
 }
@@ -890,7 +893,7 @@ static int check_dirents(struct bch_fs *c)
 	struct inode_walker w = inode_walker_init();
 	struct bch_hash_info hash_info;
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	unsigned nr_subdirs = 0;
 	int ret = 0;
 
@@ -898,18 +901,18 @@ static int check_dirents(struct bch_fs *c)
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_dirents,
-				   POS(BCACHEFS_ROOT_INO, 0),
-				   BTREE_ITER_INTENT|
-				   BTREE_ITER_PREFETCH);
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_dirents,
+			     POS(BCACHEFS_ROOT_INO, 0),
+			     BTREE_ITER_INTENT|
+			     BTREE_ITER_PREFETCH);
 
 	do {
 		ret = lockrestart_do(&trans,
-				check_dirent(&trans, iter, &hash_info, &w, &nr_subdirs));
+				check_dirent(&trans, &iter, &hash_info, &w, &nr_subdirs));
 		if (ret)
 			break;
-	} while (bch2_btree_iter_advance(iter));
-	bch2_trans_iter_put(&trans, iter);
+	} while (bch2_btree_iter_advance(&iter));
+	bch2_trans_iter_exit(&trans, &iter);
 
 	return bch2_trans_exit(&trans) ?: ret;
 }
@@ -923,7 +926,7 @@ static int check_xattrs(struct bch_fs *c)
 	struct inode_walker w = inode_walker_init();
 	struct bch_hash_info hash_info;
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret = 0;
 
@@ -931,12 +934,12 @@ static int check_xattrs(struct bch_fs *c)
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_xattrs,
-				   POS(BCACHEFS_ROOT_INO, 0),
-				   BTREE_ITER_INTENT|
-				   BTREE_ITER_PREFETCH);
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_xattrs,
+			     POS(BCACHEFS_ROOT_INO, 0),
+			     BTREE_ITER_INTENT|
+			     BTREE_ITER_PREFETCH);
 retry:
-	while ((k = bch2_btree_iter_peek(iter)).k &&
+	while ((k = bch2_btree_iter_peek(&iter)).k &&
 	       !(ret = bkey_err(k))) {
 		ret = walk_inode(&trans, &w, k.k->p.inode);
 		if (ret)
@@ -945,7 +948,7 @@ retry:
 		if (fsck_err_on(!w.have_inode, c,
 				"xattr for missing inode %llu",
 				k.k->p.inode)) {
-			ret = bch2_btree_delete_at(&trans, iter, 0);
+			ret = bch2_btree_delete_at(&trans, &iter, 0);
 			if (ret)
 				break;
 			continue;
@@ -955,17 +958,17 @@ retry:
 			hash_info = bch2_hash_info_init(c, &w.inode);
 
 		ret = hash_check_key(&trans, bch2_xattr_hash_desc,
-				     &hash_info, iter, k);
+				     &hash_info, &iter, k);
 		if (ret)
 			break;
 
-		bch2_btree_iter_advance(iter);
+		bch2_btree_iter_advance(&iter);
 	}
 fsck_err:
 	if (ret == -EINTR)
 		goto retry;
 
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 	return bch2_trans_exit(&trans) ?: ret;
 }
 
@@ -1114,7 +1117,7 @@ fsck_err:
 static int check_directory_structure(struct bch_fs *c)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bch_inode_unpacked u;
 	struct pathbuf path = { 0, 0, NULL };
@@ -1139,7 +1142,7 @@ static int check_directory_structure(struct bch_fs *c)
 		if (ret)
 			break;
 	}
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 
 	BUG_ON(ret == -EINTR);
 
@@ -1215,7 +1218,7 @@ static int check_nlinks_find_hardlinks(struct bch_fs *c,
 				       u64 start, u64 *end)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_s_c_inode inode;
 	struct bch_inode_unpacked u;
@@ -1253,7 +1256,7 @@ static int check_nlinks_find_hardlinks(struct bch_fs *c,
 		}
 
 	}
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 	bch2_trans_exit(&trans);
 
 	if (ret)
@@ -1267,7 +1270,7 @@ static int check_nlinks_walk_dirents(struct bch_fs *c, struct nlink_table *links
 				     u64 range_start, u64 range_end)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_s_c_dirent d;
 	int ret;
@@ -1289,7 +1292,7 @@ static int check_nlinks_walk_dirents(struct bch_fs *c, struct nlink_table *links
 
 		bch2_trans_cond_resched(&trans);
 	}
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 
 	ret = bch2_trans_exit(&trans) ?: ret;
 	if (ret)
@@ -1304,7 +1307,7 @@ static int check_nlinks_update_hardlinks(struct bch_fs *c,
 			       u64 range_start, u64 range_end)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_s_c_inode inode;
 	struct bch_inode_unpacked u;
@@ -1346,14 +1349,14 @@ static int check_nlinks_update_hardlinks(struct bch_fs *c,
 			ret = __bch2_trans_do(&trans, NULL, NULL,
 					      BTREE_INSERT_NOFAIL|
 					      BTREE_INSERT_LAZY_RW,
-					      bch2_btree_iter_traverse(iter) ?:
-					bch2_inode_write(&trans, iter, &u));
+					      bch2_btree_iter_traverse(&iter) ?:
+					bch2_inode_write(&trans, &iter, &u));
 			if (ret)
 				bch_err(c, "error in fsck: error %i updating inode", ret);
 		}
 	}
 fsck_err:
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 	bch2_trans_exit(&trans);
 
 	if (ret)

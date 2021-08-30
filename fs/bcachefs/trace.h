@@ -540,7 +540,7 @@ TRACE_EVENT(copygc_wait,
 		  __entry->wait_amount, __entry->until)
 );
 
-TRACE_EVENT(trans_get_iter,
+TRACE_EVENT(trans_get_path,
 	TP_PROTO(unsigned long trans_ip,
 		 unsigned long caller_ip,
 		 enum btree_id btree_id,
@@ -814,7 +814,7 @@ TRACE_EVENT(iter_traverse,
 		  __entry->ret)
 );
 
-TRACE_EVENT(iter_set_search_pos,
+TRACE_EVENT(path_set_pos,
 	TP_PROTO(unsigned long	trans_ip,
 		 unsigned long	caller_ip,
 		 enum btree_id	btree_id,

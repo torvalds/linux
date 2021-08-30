@@ -139,18 +139,18 @@ struct bch_hash_desc {
 	bool		(*cmp_bkey)(struct bkey_s_c, struct bkey_s_c);
 };
 
-static __always_inline struct btree_iter *
+static __always_inline int
 bch2_hash_lookup(struct btree_trans *trans,
+		 struct btree_iter *iter,
 		 const struct bch_hash_desc desc,
 		 const struct bch_hash_info *info,
 		 u64 inode, const void *key,
 		 unsigned flags)
 {
-	struct btree_iter *iter;
 	struct bkey_s_c k;
 	int ret;
 
-	for_each_btree_key(trans, iter, desc.btree_id,
+	for_each_btree_key(trans, *iter, desc.btree_id,
 			   POS(inode, desc.hash_key(info, key)),
 			   BTREE_ITER_SLOTS|flags, k, ret) {
 		if (iter->pos.inode != inode)
@@ -158,7 +158,7 @@ bch2_hash_lookup(struct btree_trans *trans,
 
 		if (k.k->type == desc.key_type) {
 			if (!desc.cmp_key(k, key))
-				return iter;
+				return 0;
 		} else if (k.k->type == KEY_TYPE_hash_whiteout) {
 			;
 		} else {
@@ -166,35 +166,33 @@ bch2_hash_lookup(struct btree_trans *trans,
 			break;
 		}
 	}
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_exit(trans, iter);
 
-	return ERR_PTR(ret ?: -ENOENT);
+	return ret ?: -ENOENT;
 }
 
-static __always_inline struct btree_iter *
+static __always_inline int
 bch2_hash_hole(struct btree_trans *trans,
+	       struct btree_iter *iter,
 	       const struct bch_hash_desc desc,
 	       const struct bch_hash_info *info,
 	       u64 inode, const void *key)
 {
-	struct btree_iter *iter;
 	struct bkey_s_c k;
 	int ret;
 
-	for_each_btree_key(trans, iter, desc.btree_id,
+	for_each_btree_key(trans, *iter, desc.btree_id,
 			   POS(inode, desc.hash_key(info, key)),
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
 		if (iter->pos.inode != inode)
 			break;
 
 		if (k.k->type != desc.key_type)
-			return iter;
+			return 0;
 	}
+	bch2_trans_iter_exit(trans, iter);
 
-	iter->flags |= BTREE_ITER_KEEP_UNTIL_COMMIT;
-	bch2_trans_iter_put(trans, iter);
-
-	return ERR_PTR(ret ?: -ENOSPC);
+	return ret ?: -ENOSPC;
 }
 
 static __always_inline
@@ -203,13 +201,13 @@ int bch2_hash_needs_whiteout(struct btree_trans *trans,
 			     const struct bch_hash_info *info,
 			     struct btree_iter *start)
 {
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret;
 
-	iter = bch2_trans_copy_iter(trans, start);
+	bch2_trans_copy_iter(&iter, start);
 
-	bch2_btree_iter_advance(iter);
+	bch2_btree_iter_advance(&iter);
 
 	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, k, ret) {
 		if (k.k->type != desc.key_type &&
@@ -218,13 +216,12 @@ int bch2_hash_needs_whiteout(struct btree_trans *trans,
 
 		if (k.k->type == desc.key_type &&
 		    desc.hash_bkey(info, k) <= start->pos.offset) {
-			iter->flags |= BTREE_ITER_KEEP_UNTIL_COMMIT;
 			ret = 1;
 			break;
 		}
 	}
 
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -234,7 +231,7 @@ int bch2_hash_set(struct btree_trans *trans,
 		  const struct bch_hash_info *info,
 		  u64 inode, struct bkey_i *insert, int flags)
 {
-	struct btree_iter *iter, *slot = NULL;
+	struct btree_iter iter, slot = { NULL };
 	struct bkey_s_c k;
 	bool found = false;
 	int ret;
@@ -242,7 +239,7 @@ int bch2_hash_set(struct btree_trans *trans,
 	for_each_btree_key(trans, iter, desc.btree_id,
 			   POS(inode, desc.hash_bkey(info, bkey_i_to_s_c(insert))),
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
-		if (iter->pos.inode != inode)
+		if (iter.pos.inode != inode)
 			break;
 
 		if (k.k->type == desc.key_type) {
@@ -253,9 +250,9 @@ int bch2_hash_set(struct btree_trans *trans,
 			continue;
 		}
 
-		if (!slot &&
+		if (!slot.path &&
 		    !(flags & BCH_HASH_SET_MUST_REPLACE))
-			slot = bch2_trans_copy_iter(trans, iter);
+			bch2_trans_copy_iter(&slot, &iter);
 
 		if (k.k->type != KEY_TYPE_hash_whiteout)
 			goto not_found;
@@ -264,8 +261,8 @@ int bch2_hash_set(struct btree_trans *trans,
 	if (!ret)
 		ret = -ENOSPC;
 out:
-	bch2_trans_iter_put(trans, slot);
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_exit(trans, &slot);
+	bch2_trans_iter_exit(trans, &iter);
 
 	return ret;
 found:
@@ -277,11 +274,11 @@ not_found:
 	} else if (found && (flags & BCH_HASH_SET_MUST_CREATE)) {
 		ret = -EEXIST;
 	} else {
-		if (!found && slot)
+		if (!found && slot.path)
 			swap(iter, slot);
 
-		insert->k.p = iter->pos;
-		ret = bch2_trans_update(trans, iter, insert, 0);
+		insert->k.p = iter.pos;
+		ret = bch2_trans_update(trans, &iter, insert, 0);
 	}
 
 	goto out;
@@ -318,16 +315,16 @@ int bch2_hash_delete(struct btree_trans *trans,
 		     const struct bch_hash_info *info,
 		     u64 inode, const void *key)
 {
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	int ret;
 
-	iter = bch2_hash_lookup(trans, desc, info, inode, key,
+	ret = bch2_hash_lookup(trans, &iter, desc, info, inode, key,
 				BTREE_ITER_INTENT);
-	if (IS_ERR(iter))
-		return PTR_ERR(iter);
+	if (ret)
+		return ret;
 
-	ret = bch2_hash_delete_at(trans, desc, info, iter);
-	bch2_trans_iter_put(trans, iter);
+	ret = bch2_hash_delete_at(trans, desc, info, &iter);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 

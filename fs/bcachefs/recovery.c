@@ -327,7 +327,7 @@ static void btree_and_journal_iter_prefetch(struct bch_fs *c, struct btree *b,
 		bch2_bkey_buf_reassemble(&tmp, c, k);
 
 		bch2_btree_node_prefetch(c, NULL, NULL, tmp.k,
-					 b->c.btree_id, b->c.level - 1);
+					b->c.btree_id, b->c.level - 1);
 
 		bch2_btree_and_journal_iter_advance(&iter);
 		i++;
@@ -518,16 +518,16 @@ static int __bch2_journal_replay_key(struct btree_trans *trans,
 				     enum btree_id id, unsigned level,
 				     struct bkey_i *k)
 {
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	int ret;
 
-	iter = bch2_trans_get_node_iter(trans, id, k->k.p,
-					BTREE_MAX_DEPTH, level,
-					BTREE_ITER_INTENT|
-					BTREE_ITER_NOT_EXTENTS);
-	ret   = bch2_btree_iter_traverse(iter) ?:
-		bch2_trans_update(trans, iter, k, BTREE_TRIGGER_NORUN);
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_node_iter_init(trans, &iter, id, k->k.p,
+				  BTREE_MAX_DEPTH, level,
+				  BTREE_ITER_INTENT|
+				  BTREE_ITER_NOT_EXTENTS);
+	ret   = bch2_btree_iter_traverse(&iter) ?:
+		bch2_trans_update(trans, &iter, k, BTREE_TRIGGER_NORUN);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -545,16 +545,16 @@ static int bch2_journal_replay_key(struct bch_fs *c, struct journal_key *k)
 
 static int __bch2_alloc_replay_key(struct btree_trans *trans, struct bkey_i *k)
 {
-	struct btree_iter *iter;
+	struct btree_iter iter;
 	int ret;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_alloc, k->k.p,
-				   BTREE_ITER_CACHED|
-				   BTREE_ITER_CACHED_NOFILL|
-				   BTREE_ITER_INTENT);
-	ret   = bch2_btree_iter_traverse(iter) ?:
-		bch2_trans_update(trans, iter, k, BTREE_TRIGGER_NORUN);
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc, k->k.p,
+			     BTREE_ITER_CACHED|
+			     BTREE_ITER_CACHED_NOFILL|
+			     BTREE_ITER_INTENT);
+	ret   = bch2_btree_iter_traverse(&iter) ?:
+		bch2_trans_update(trans, &iter, k, BTREE_TRIGGER_NORUN);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 

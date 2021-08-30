@@ -292,18 +292,18 @@ int bch2_inode_unpack(struct bkey_s_c_inode inode,
 	return 0;
 }
 
-struct btree_iter *bch2_inode_peek(struct btree_trans *trans,
-				   struct bch_inode_unpacked *inode,
-				   u64 inum, unsigned flags)
+int bch2_inode_peek(struct btree_trans *trans,
+		    struct btree_iter *iter,
+		    struct bch_inode_unpacked *inode,
+		    u64 inum, unsigned flags)
 {
-	struct btree_iter *iter;
 	struct bkey_s_c k;
 	int ret;
 
 	if (trans->c->opts.inodes_use_key_cache)
 		flags |= BTREE_ITER_CACHED;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_inodes, POS(0, inum), flags);
+	bch2_trans_iter_init(trans, iter, BTREE_ID_inodes, POS(0, inum), flags);
 	k = bch2_btree_iter_peek_slot(iter);
 	ret = bkey_err(k);
 	if (ret)
@@ -317,10 +317,10 @@ struct btree_iter *bch2_inode_peek(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	return iter;
+	return 0;
 err:
-	bch2_trans_iter_put(trans, iter);
-	return ERR_PTR(ret);
+	bch2_trans_iter_exit(trans, iter);
+	return ret;
 }
 
 int bch2_inode_write(struct btree_trans *trans,
@@ -482,12 +482,12 @@ static inline u32 bkey_generation(struct bkey_s_c k)
 	}
 }
 
-struct btree_iter *bch2_inode_create(struct btree_trans *trans,
-				     struct bch_inode_unpacked *inode_u,
-				     u32 snapshot, u64 cpu)
+int bch2_inode_create(struct btree_trans *trans,
+		      struct btree_iter *iter,
+		      struct bch_inode_unpacked *inode_u,
+		      u32 snapshot, u64 cpu)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter *iter = NULL;
 	struct bkey_s_c k;
 	u64 min, max, start, pos, *hint;
 	int ret = 0;
@@ -513,9 +513,9 @@ struct btree_iter *bch2_inode_create(struct btree_trans *trans,
 		start = min;
 
 	pos = start;
-	iter = bch2_trans_get_iter(trans, BTREE_ID_inodes, POS(0, pos),
-				   BTREE_ITER_ALL_SNAPSHOTS|
-				   BTREE_ITER_INTENT);
+	bch2_trans_iter_init(trans, iter, BTREE_ID_inodes, POS(0, pos),
+			     BTREE_ITER_ALL_SNAPSHOTS|
+			     BTREE_ITER_INTENT);
 again:
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k)) &&
@@ -553,8 +553,8 @@ again:
 		ret = -ENOSPC;
 
 	if (ret) {
-		bch2_trans_iter_put(trans, iter);
-		return ERR_PTR(ret);
+		bch2_trans_iter_exit(trans, iter);
+		return ret;
 	}
 
 	/* Retry from start */
@@ -566,8 +566,8 @@ found_slot:
 	k = bch2_btree_iter_peek_slot(iter);
 	ret = bkey_err(k);
 	if (ret) {
-		bch2_trans_iter_put(trans, iter);
-		return ERR_PTR(ret);
+		bch2_trans_iter_exit(trans, iter);
+		return ret;
 	}
 
 	/* We may have raced while the iterator wasn't pointing at pos: */
@@ -578,13 +578,13 @@ found_slot:
 	*hint			= k.k->p.offset;
 	inode_u->bi_inum	= k.k->p.offset;
 	inode_u->bi_generation	= bkey_generation(k);
-	return iter;
+	return 0;
 }
 
 int bch2_inode_rm(struct bch_fs *c, u64 inode_nr, bool cached)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter = NULL;
+	struct btree_iter iter = { NULL };
 	struct bkey_i_inode_generation delete;
 	struct bpos start = POS(inode_nr, 0);
 	struct bpos end = POS(inode_nr + 1, 0);
@@ -617,9 +617,9 @@ int bch2_inode_rm(struct bch_fs *c, u64 inode_nr, bool cached)
 retry:
 	bch2_trans_begin(&trans);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_inodes,
-				   POS(0, inode_nr), iter_flags);
-	k = bch2_btree_iter_peek_slot(iter);
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_inodes,
+			     POS(0, inode_nr), iter_flags);
+	k = bch2_btree_iter_peek_slot(&iter);
 
 	ret = bkey_err(k);
 	if (ret)
@@ -636,14 +636,14 @@ retry:
 	bch2_inode_unpack(bkey_s_c_to_inode(k), &inode_u);
 
 	bkey_inode_generation_init(&delete.k_i);
-	delete.k.p = iter->pos;
+	delete.k.p = iter.pos;
 	delete.v.bi_generation = cpu_to_le32(inode_u.bi_generation + 1);
 
-	ret   = bch2_trans_update(&trans, iter, &delete.k_i, 0) ?:
+	ret   = bch2_trans_update(&trans, &iter, &delete.k_i, 0) ?:
 		bch2_trans_commit(&trans, NULL, NULL,
 				BTREE_INSERT_NOFAIL);
 err:
-	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_iter_exit(&trans, &iter);
 	if (ret == -EINTR)
 		goto retry;
 
@@ -654,12 +654,11 @@ err:
 static int bch2_inode_find_by_inum_trans(struct btree_trans *trans, u64 inode_nr,
 					 struct bch_inode_unpacked *inode)
 {
-	struct btree_iter *iter;
+	struct btree_iter iter = { NULL };
 	int ret;
 
-	iter = bch2_inode_peek(trans, inode, inode_nr, 0);
-	ret = PTR_ERR_OR_ZERO(iter);
-	bch2_trans_iter_put(trans, iter);
+	ret = bch2_inode_peek(trans, &iter, inode, inode_nr, 0);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
