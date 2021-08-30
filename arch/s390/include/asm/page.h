@@ -144,9 +144,6 @@ struct page;
 void arch_free_page(struct page *page, int order);
 void arch_alloc_page(struct page *page, int order);
 void arch_set_page_dat(struct page *page, int order);
-void arch_set_page_nodat(struct page *page, int order);
-int arch_test_page_nodat(struct page *page);
-void arch_set_page_states(int make_stable);
 
 static inline int devmem_is_allowed(unsigned long pfn)
 {

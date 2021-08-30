@@ -127,21 +127,12 @@ static struct bus_type ap_bus_type;
 /* Adapter interrupt definitions */
 static void ap_interrupt_handler(struct airq_struct *airq, bool floating);
 
-static int ap_airq_flag;
+static bool ap_irq_flag;
 
 static struct airq_struct ap_airq = {
 	.handler = ap_interrupt_handler,
 	.isc = AP_ISC,
 };
-
-/**
- * ap_using_interrupts() - Returns non-zero if interrupt support is
- * available.
- */
-static inline int ap_using_interrupts(void)
-{
-	return ap_airq_flag;
-}
 
 /**
  * ap_airq_ptr() - Get the address of the adapter interrupt indicator
@@ -152,7 +143,7 @@ static inline int ap_using_interrupts(void)
  */
 void *ap_airq_ptr(void)
 {
-	if (ap_using_interrupts())
+	if (ap_irq_flag)
 		return ap_airq.lsi_ptr;
 	return NULL;
 }
@@ -396,7 +387,7 @@ void ap_wait(enum ap_sm_wait wait)
 	switch (wait) {
 	case AP_SM_WAIT_AGAIN:
 	case AP_SM_WAIT_INTERRUPT:
-		if (ap_using_interrupts())
+		if (ap_irq_flag)
 			break;
 		if (ap_poll_kthread) {
 			wake_up(&ap_poll_wait);
@@ -471,7 +462,7 @@ static void ap_tasklet_fn(unsigned long dummy)
 	 * be received. Doing it in the beginning of the tasklet is therefor
 	 * important that no requests on any AP get lost.
 	 */
-	if (ap_using_interrupts())
+	if (ap_irq_flag)
 		xchg(ap_airq.lsi_ptr, 0);
 
 	spin_lock_bh(&ap_queues_lock);
@@ -541,7 +532,7 @@ static int ap_poll_thread_start(void)
 {
 	int rc;
 
-	if (ap_using_interrupts() || ap_poll_kthread)
+	if (ap_irq_flag || ap_poll_kthread)
 		return 0;
 	mutex_lock(&ap_poll_thread_mutex);
 	ap_poll_kthread = kthread_run(ap_poll_thread, NULL, "appoll");
@@ -703,7 +694,7 @@ static int __ap_calc_helper(struct device *dev, void *arg)
 
 	if (is_queue_dev(dev)) {
 		pctrs->apqns++;
-		if ((to_ap_dev(dev))->drv)
+		if (dev->driver)
 			pctrs->bound++;
 	}
 
@@ -883,7 +874,6 @@ static int ap_device_probe(struct device *dev)
 			 to_ap_queue(dev)->qid);
 	spin_unlock_bh(&ap_queues_lock);
 
-	ap_dev->drv = ap_drv;
 	rc = ap_drv->probe ? ap_drv->probe(ap_dev) : -ENODEV;
 
 	if (rc) {
@@ -891,7 +881,6 @@ static int ap_device_probe(struct device *dev)
 		if (is_queue_dev(dev))
 			hash_del(&to_ap_queue(dev)->hnode);
 		spin_unlock_bh(&ap_queues_lock);
-		ap_dev->drv = NULL;
 	} else
 		ap_check_bindings_complete();
 
@@ -904,7 +893,7 @@ out:
 static int ap_device_remove(struct device *dev)
 {
 	struct ap_device *ap_dev = to_ap_dev(dev);
-	struct ap_driver *ap_drv = ap_dev->drv;
+	struct ap_driver *ap_drv = to_ap_drv(dev->driver);
 
 	/* prepare ap queue device removal */
 	if (is_queue_dev(dev))
@@ -923,7 +912,6 @@ static int ap_device_remove(struct device *dev)
 	if (is_queue_dev(dev))
 		hash_del(&to_ap_queue(dev)->hnode);
 	spin_unlock_bh(&ap_queues_lock);
-	ap_dev->drv = NULL;
 
 	put_device(dev);
 
@@ -1187,7 +1175,7 @@ static BUS_ATTR_RO(ap_adapter_mask);
 static ssize_t ap_interrupts_show(struct bus_type *bus, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n",
-			 ap_using_interrupts() ? 1 : 0);
+			 ap_irq_flag ? 1 : 0);
 }
 
 static BUS_ATTR_RO(ap_interrupts);
@@ -1912,7 +1900,7 @@ static int __init ap_module_init(void)
 	/* enable interrupts if available */
 	if (ap_interrupts_available()) {
 		rc = register_adapter_interrupt(&ap_airq);
-		ap_airq_flag = (rc == 0);
+		ap_irq_flag = (rc == 0);
 	}
 
 	/* Create /sys/bus/ap. */
@@ -1956,7 +1944,7 @@ out_work:
 out_bus:
 	bus_unregister(&ap_bus_type);
 out:
-	if (ap_using_interrupts())
+	if (ap_irq_flag)
 		unregister_adapter_interrupt(&ap_airq);
 	kfree(ap_qci_info);
 	return rc;
