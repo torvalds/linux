@@ -14,6 +14,7 @@
 #include "reg.h"
 #include "debug.h"
 #include "bf.h"
+#include "regd.h"
 
 static const s8 lna_gain_table_0[8] = {22, 8, -6, -22, -31, -40, -46, -52};
 static const s8 lna_gain_table_1[16] = {10, 6, 2, -2, -6, -10, -14, -17,
@@ -993,7 +994,7 @@ static void rtw8821c_pwrtrack_set(struct rtw_dev *rtwdev)
 	s8 pwr_idx_offset_lower;
 	u8 channel = rtwdev->hal.current_channel;
 	u8 band_width = rtwdev->hal.current_band_width;
-	u8 regd = rtwdev->regd.txpwr_regd;
+	u8 regd = rtw_regd_get(rtwdev);
 	u8 tx_rate = dm_info->tx_rate;
 	u8 max_pwr_idx = rtwdev->chip->max_power_index;
 

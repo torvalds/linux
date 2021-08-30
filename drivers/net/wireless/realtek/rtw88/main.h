@@ -800,8 +800,8 @@ struct rtw_vif {
 
 struct rtw_regulatory {
 	char alpha2[2];
-	u8 chplan;
-	u8 txpwr_regd;
+	u8 txpwr_regd_2g;
+	u8 txpwr_regd_5g;
 };
 
 struct rtw_chip_ops {

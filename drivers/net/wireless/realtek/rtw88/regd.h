@@ -68,4 +68,6 @@ int rtw_regd_init(struct rtw_dev *rtwdev,
 		  void (*reg_notifier)(struct wiphy *wiphy,
 				       struct regulatory_request *request));
 void rtw_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request);
+u8 rtw_regd_get(struct rtw_dev *rtwdev);
+bool rtw_regd_has_alt(u8 regd, u8 *regd_alt);
 #endif

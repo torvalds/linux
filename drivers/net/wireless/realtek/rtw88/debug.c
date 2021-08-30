@@ -12,6 +12,7 @@
 #include "phy.h"
 #include "reg.h"
 #include "ps.h"
+#include "regd.h"
 
 #ifdef CONFIG_RTW88_DEBUGFS
 
@@ -587,7 +588,7 @@ static int rtw_debugfs_get_tx_pwr_tbl(struct seq_file *m, void *v)
 	struct rtw_power_params pwr_param = {0};
 	u8 bw = hal->current_band_width;
 	u8 ch = hal->current_channel;
-	u8 regd = rtwdev->regd.txpwr_regd;
+	u8 regd = rtw_regd_get(rtwdev);
 
 	seq_printf(m, "regulatory: %s\n", rtw_get_regd_string(regd));
 	seq_printf(m, "%-4s %-10s %-3s%6s %-4s %4s (%-4s %-4s) %-4s\n",

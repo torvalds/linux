@@ -9,6 +9,7 @@
 #include "fw.h"
 #include "phy.h"
 #include "debug.h"
+#include "regd.h"
 
 struct phy_cfg_pair {
 	u32 addr;
@@ -1564,15 +1565,68 @@ static void rtw_xref_txpwr_lmt(struct rtw_dev *rtwdev)
 		rtw_xref_txpwr_lmt_by_bw(rtwdev, regd);
 }
 
+static void
+__cfg_txpwr_lmt_by_alt(struct rtw_hal *hal, u8 regd, u8 regd_alt, u8 bw, u8 rs)
+{
+	u8 ch;
+
+	for (ch = 0; ch < RTW_MAX_CHANNEL_NUM_2G; ch++)
+		hal->tx_pwr_limit_2g[regd][bw][rs][ch] =
+			hal->tx_pwr_limit_2g[regd_alt][bw][rs][ch];
+
+	for (ch = 0; ch < RTW_MAX_CHANNEL_NUM_5G; ch++)
+		hal->tx_pwr_limit_5g[regd][bw][rs][ch] =
+			hal->tx_pwr_limit_5g[regd_alt][bw][rs][ch];
+}
+
+static void
+rtw_cfg_txpwr_lmt_by_alt(struct rtw_dev *rtwdev, u8 regd, u8 regd_alt)
+{
+	u8 bw, rs;
+
+	for (bw = 0; bw < RTW_CHANNEL_WIDTH_MAX; bw++)
+		for (rs = 0; rs < RTW_RATE_SECTION_MAX; rs++)
+			__cfg_txpwr_lmt_by_alt(&rtwdev->hal, regd, regd_alt,
+					       bw, rs);
+}
+
 void rtw_parse_tbl_txpwr_lmt(struct rtw_dev *rtwdev,
 			     const struct rtw_table *tbl)
 {
 	const struct rtw_txpwr_lmt_cfg_pair *p = tbl->data;
 	const struct rtw_txpwr_lmt_cfg_pair *end = p + tbl->size;
+	u32 regd_cfg_flag = 0;
+	u8 regd_alt;
+	u8 i;
 
 	for (; p < end; p++) {
+		regd_cfg_flag |= BIT(p->regd);
 		rtw_phy_set_tx_power_limit(rtwdev, p->regd, p->band,
 					   p->bw, p->rs, p->ch, p->txpwr_lmt);
+	}
+
+	for (i = 0; i < RTW_REGD_MAX; i++) {
+		if (i == RTW_REGD_WW)
+			continue;
+
+		if (regd_cfg_flag & BIT(i))
+			continue;
+
+		rtw_dbg(rtwdev, RTW_DBG_REGD,
+			"txpwr regd %d does not be configured\n", i);
+
+		if (rtw_regd_has_alt(i, &regd_alt) &&
+		    regd_cfg_flag & BIT(regd_alt)) {
+			rtw_dbg(rtwdev, RTW_DBG_REGD,
+				"cfg txpwr regd %d by regd %d as alternative\n",
+				i, regd_alt);
+
+			rtw_cfg_txpwr_lmt_by_alt(rtwdev, i, regd_alt);
+			continue;
+		}
+
+		rtw_dbg(rtwdev, RTW_DBG_REGD, "cfg txpwr regd %d by WW\n", i);
+		rtw_cfg_txpwr_lmt_by_alt(rtwdev, i, RTW_REGD_WW);
 	}
 
 	rtw_xref_txpwr_lmt(rtwdev);
@@ -2014,7 +2068,7 @@ static void rtw_phy_set_tx_power_index_by_rs(struct rtw_dev *rtwdev,
 					     u8 ch, u8 path, u8 rs)
 {
 	struct rtw_hal *hal = &rtwdev->hal;
-	u8 regd = rtwdev->regd.txpwr_regd;
+	u8 regd = rtw_regd_get(rtwdev);
 	u8 *rates;
 	u8 size;
 	u8 rate;
