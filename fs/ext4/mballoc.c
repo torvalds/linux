@@ -3331,9 +3331,11 @@ static void ext4_discard_work(struct work_struct *work)
 	load_grp = UINT_MAX;
 	list_for_each_entry_safe(fd, nfd, &discard_list, efd_list) {
 		/*
-		 * If filesystem is umounting or no memory, give up the discard
+		 * If filesystem is umounting or no memory or suffering
+		 * from no space, give up the discard
 		 */
-		if ((sb->s_flags & SB_ACTIVE) && !err) {
+		if ((sb->s_flags & SB_ACTIVE) && !err &&
+		    !atomic_read(&sbi->s_retry_alloc_pending)) {
 			grp = fd->efd_group;
 			if (grp != load_grp) {
 				if (load_grp != UINT_MAX)
@@ -3431,6 +3433,7 @@ int ext4_mb_init(struct super_block *sb)
 	INIT_LIST_HEAD(&sbi->s_freed_data_list);
 	INIT_LIST_HEAD(&sbi->s_discard_list);
 	INIT_WORK(&sbi->s_discard_work, ext4_discard_work);
+	atomic_set(&sbi->s_retry_alloc_pending, 0);
 
 	sbi->s_mb_max_to_scan = MB_DEFAULT_MAX_TO_SCAN;
 	sbi->s_mb_min_to_scan = MB_DEFAULT_MIN_TO_SCAN;
