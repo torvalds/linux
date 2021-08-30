@@ -107,7 +107,6 @@ void
 efc_fabric_notify_topology(struct efc_node *node)
 {
 	struct efc_node *tmp_node;
-	enum efc_nport_topology topology = node->nport->topology;
 	unsigned long index;
 
 	/*
@@ -118,7 +117,7 @@ efc_fabric_notify_topology(struct efc_node *node)
 		if (tmp_node != node) {
 			efc_node_post_event(tmp_node,
 					    EFC_EVT_NPORT_TOPOLOGY_NOTIFY,
-					    (void *)topology);
+					    &node->nport->topology);
 		}
 	}
 }
