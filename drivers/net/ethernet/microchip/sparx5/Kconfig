@@ -3,6 +3,7 @@ config SPARX5_SWITCH
 	depends on NET_SWITCHDEV
 	depends on HAS_IOMEM
 	depends on OF
+	depends on ARCH_SPARX5 || COMPILE_TEST
 	select PHYLINK
 	select PHY_SPARX5_SERDES
 	select RESET_CONTROLLER

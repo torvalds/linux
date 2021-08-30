@@ -15,12 +15,12 @@
 #if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 
 DECLARE_HOOK(android_vh_iommu_setup_dma_ops,
-	TP_PROTO(struct device *dev, u64 dma_base, u64 size),
-	TP_ARGS(dev, dma_base, size));
+	TP_PROTO(struct device *dev, u64 dma_base, u64 dma_limit),
+	TP_ARGS(dev, dma_base, dma_limit));
 
 #else
 
-#define trace_android_vh_iommu_setup_dma_ops(dev, dma_base, size)
+#define trace_android_vh_iommu_setup_dma_ops(dev, dma_base, dma_limit)
 
 #endif
 

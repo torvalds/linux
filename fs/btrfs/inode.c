@@ -2992,7 +2992,7 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 		goto out;
 	}
 
-	if (ordered_extent->disk)
+	if (ordered_extent->bdev)
 		btrfs_rewrite_logical_zoned(ordered_extent);
 
 	btrfs_free_io_failure_record(inode, start, end);
@@ -9226,8 +9226,14 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	bool dest_log_pinned = false;
 	bool need_abort = false;
 
-	/* we only allow rename subvolume link between subvolumes */
-	if (old_ino != BTRFS_FIRST_FREE_OBJECTID && root != dest)
+	/*
+	 * For non-subvolumes allow exchange only within one subvolume, in the
+	 * same inode namespace. Two subvolumes (represented as directory) can
+	 * be exchanged as they're a logical link and have a fixed inode number.
+	 */
+	if (root != dest &&
+	    (old_ino != BTRFS_FIRST_FREE_OBJECTID ||
+	     new_ino != BTRFS_FIRST_FREE_OBJECTID))
 		return -EXDEV;
 
 	/* close the race window with snapshot create/destroy ioctl */

@@ -727,9 +727,18 @@ static void err_print_gt(struct drm_i915_error_state_buf *m,
 	if (GRAPHICS_VER(m->i915) >= 12) {
 		int i;
 
-		for (i = 0; i < GEN12_SFC_DONE_MAX; i++)
+		for (i = 0; i < GEN12_SFC_DONE_MAX; i++) {
+			/*
+			 * SFC_DONE resides in the VD forcewake domain, so it
+			 * only exists if the corresponding VCS engine is
+			 * present.
+			 */
+			if (!HAS_ENGINE(gt->_gt, _VCS(i * 2)))
+				continue;
+
 			err_printf(m, "  SFC_DONE[%d]: 0x%08x\n", i,
 				   gt->sfc_done[i]);
+		}
 
 		err_printf(m, "  GAM_DONE: 0x%08x\n", gt->gam_done);
 	}
@@ -1581,6 +1590,14 @@ static void gt_record_regs(struct intel_gt_coredump *gt)
 
 	if (GRAPHICS_VER(i915) >= 12) {
 		for (i = 0; i < GEN12_SFC_DONE_MAX; i++) {
+			/*
+			 * SFC_DONE resides in the VD forcewake domain, so it
+			 * only exists if the corresponding VCS engine is
+			 * present.
+			 */
+			if (!HAS_ENGINE(gt->_gt, _VCS(i * 2)))
+				continue;
+
 			gt->sfc_done[i] =
 				intel_uncore_read(uncore, GEN12_SFC_DONE(i));
 		}

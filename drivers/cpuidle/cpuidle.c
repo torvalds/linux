@@ -212,6 +212,9 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
 	 * broadcast must be assigned after the vendor hook.
 	 */
 	trace_android_vh_cpu_idle_enter(&index, dev);
+	if (index < 0)
+		return index;
+
 	target_state = &drv->states[index];
 	broadcast = !!(target_state->flags & CPUIDLE_FLAG_TIMER_STOP);
 

@@ -58,7 +58,7 @@ static void amd_stop_sensor_v2(struct amd_mp2_dev *privdata, u16 sensor_idx)
 	cmd_base.cmd_v2.sensor_id = sensor_idx;
 	cmd_base.cmd_v2.length  = 16;
 
-	writeq(0x0, privdata->mmio + AMD_C2P_MSG2);
+	writeq(0x0, privdata->mmio + AMD_C2P_MSG1);
 	writel(cmd_base.ul, privdata->mmio + AMD_C2P_MSG0);
 }
 

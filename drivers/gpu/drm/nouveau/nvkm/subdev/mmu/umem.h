@@ -8,7 +8,6 @@ struct nvkm_umem {
 	struct nvkm_object object;
 	struct nvkm_mmu *mmu;
 	u8 type:8;
-	bool priv:1;
 	bool mappable:1;
 	bool io:1;
 

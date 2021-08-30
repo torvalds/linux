@@ -619,6 +619,13 @@ struct amdgpu_video_codec_info {
 	u32 max_level;
 };
 
+#define codec_info_build(type, width, height, level) \
+			 .codec_type = type,\
+			 .max_width = width,\
+			 .max_height = height,\
+			 .max_pixels_per_frame = height * width,\
+			 .max_level = level,
+
 struct amdgpu_video_codecs {
 	const u32 codec_count;
 	const struct amdgpu_video_codec_info *codec_array;

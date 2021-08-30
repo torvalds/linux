@@ -602,7 +602,7 @@ static inline void seccomp_sync_threads(unsigned long flags)
 		smp_store_release(&thread->seccomp.filter,
 				  caller->seccomp.filter);
 		atomic_set(&thread->seccomp.filter_count,
-			   atomic_read(&thread->seccomp.filter_count));
+			   atomic_read(&caller->seccomp.filter_count));
 
 		/*
 		 * Don't let an unprivileged task work around

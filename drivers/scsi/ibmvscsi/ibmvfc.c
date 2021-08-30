@@ -807,6 +807,13 @@ static int ibmvfc_init_event_pool(struct ibmvfc_host *vhost,
 	for (i = 0; i < size; ++i) {
 		struct ibmvfc_event *evt = &pool->events[i];
 
+		/*
+		 * evt->active states
+		 *  1 = in flight
+		 *  0 = being completed
+		 * -1 = free/freed
+		 */
+		atomic_set(&evt->active, -1);
 		atomic_set(&evt->free, 1);
 		evt->crq.valid = 0x80;
 		evt->crq.ioba = cpu_to_be64(pool->iu_token + (sizeof(*evt->xfer_iu) * i));
@@ -1017,6 +1024,7 @@ static void ibmvfc_free_event(struct ibmvfc_event *evt)
 
 	BUG_ON(!ibmvfc_valid_event(pool, evt));
 	BUG_ON(atomic_inc_return(&evt->free) != 1);
+	BUG_ON(atomic_dec_and_test(&evt->active));
 
 	spin_lock_irqsave(&evt->queue->l_lock, flags);
 	list_add_tail(&evt->queue_list, &evt->queue->free);
@@ -1072,6 +1080,12 @@ static void ibmvfc_complete_purge(struct list_head *purge_list)
  **/
 static void ibmvfc_fail_request(struct ibmvfc_event *evt, int error_code)
 {
+	/*
+	 * Anything we are failing should still be active. Otherwise, it
+	 * implies we already got a response for the command and are doing
+	 * something bad like double completing it.
+	 */
+	BUG_ON(!atomic_dec_and_test(&evt->active));
 	if (evt->cmnd) {
 		evt->cmnd->result = (error_code << 16);
 		evt->done = ibmvfc_scsi_eh_done;
@@ -1723,6 +1737,7 @@ static int ibmvfc_send_event(struct ibmvfc_event *evt,
 
 		evt->done(evt);
 	} else {
+		atomic_set(&evt->active, 1);
 		spin_unlock_irqrestore(&evt->queue->l_lock, flags);
 		ibmvfc_trc_start(evt);
 	}
@@ -3251,7 +3266,7 @@ static void ibmvfc_handle_crq(struct ibmvfc_crq *crq, struct ibmvfc_host *vhost,
 		return;
 	}
 
-	if (unlikely(atomic_read(&evt->free))) {
+	if (unlikely(atomic_dec_if_positive(&evt->active))) {
 		dev_err(vhost->dev, "Received duplicate correlation_token 0x%08llx!\n",
 			crq->ioba);
 		return;
@@ -3778,7 +3793,7 @@ static void ibmvfc_handle_scrq(struct ibmvfc_crq *crq, struct ibmvfc_host *vhost
 		return;
 	}
 
-	if (unlikely(atomic_read(&evt->free))) {
+	if (unlikely(atomic_dec_if_positive(&evt->active))) {
 		dev_err(vhost->dev, "Received duplicate correlation_token 0x%08llx!\n",
 			crq->ioba);
 		return;

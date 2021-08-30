@@ -924,12 +924,14 @@ static int otx2_cq_init(struct otx2_nic *pfvf, u16 qidx)
 		aq->cq.drop = RQ_DROP_LVL_CQ(pfvf->hw.rq_skid, cq->cqe_cnt);
 		aq->cq.drop_ena = 1;
 
-		/* Enable receive CQ backpressure */
-		aq->cq.bp_ena = 1;
-		aq->cq.bpid = pfvf->bpid[0];
+		if (!is_otx2_lbkvf(pfvf->pdev)) {
+			/* Enable receive CQ backpressure */
+			aq->cq.bp_ena = 1;
+			aq->cq.bpid = pfvf->bpid[0];
 
-		/* Set backpressure level is same as cq pass level */
-		aq->cq.bp = RQ_PASS_LVL_CQ(pfvf->hw.rq_skid, qset->rqe_cnt);
+			/* Set backpressure level is same as cq pass level */
+			aq->cq.bp = RQ_PASS_LVL_CQ(pfvf->hw.rq_skid, qset->rqe_cnt);
+		}
 	}
 
 	/* Fill AQ info */
@@ -1186,7 +1188,7 @@ static int otx2_aura_init(struct otx2_nic *pfvf, int aura_id,
 	aq->aura.fc_hyst_bits = 0; /* Store count on all updates */
 
 	/* Enable backpressure for RQ aura */
-	if (aura_id < pfvf->hw.rqpool_cnt) {
+	if (aura_id < pfvf->hw.rqpool_cnt && !is_otx2_lbkvf(pfvf->pdev)) {
 		aq->aura.bp_ena = 0;
 		aq->aura.nix0_bpid = pfvf->bpid[0];
 		/* Set backpressure level for RQ's Aura */

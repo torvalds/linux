@@ -1535,14 +1535,8 @@ static int mlx5e_alloc_cq_common(struct mlx5e_priv *priv,
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_core_cq *mcq = &cq->mcq;
-	int eqn_not_used;
-	unsigned int irqn;
 	int err;
 	u32 i;
-
-	err = mlx5_vector2eqn(mdev, param->eq_ix, &eqn_not_used, &irqn);
-	if (err)
-		return err;
 
 	err = mlx5_cqwq_create(mdev, &param->wq, param->cqc, &cq->wq,
 			       &cq->wq_ctrl);
@@ -1557,7 +1551,6 @@ static int mlx5e_alloc_cq_common(struct mlx5e_priv *priv,
 	mcq->vector     = param->eq_ix;
 	mcq->comp       = mlx5e_completion_event;
 	mcq->event      = mlx5e_cq_error_event;
-	mcq->irqn       = irqn;
 
 	for (i = 0; i < mlx5_cqwq_get_size(&cq->wq); i++) {
 		struct mlx5_cqe64 *cqe = mlx5_cqwq_get_wqe(&cq->wq, i);
@@ -1605,11 +1598,10 @@ static int mlx5e_create_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param)
 	void *in;
 	void *cqc;
 	int inlen;
-	unsigned int irqn_not_used;
 	int eqn;
 	int err;
 
-	err = mlx5_vector2eqn(mdev, param->eq_ix, &eqn, &irqn_not_used);
+	err = mlx5_vector2eqn(mdev, param->eq_ix, &eqn);
 	if (err)
 		return err;
 
@@ -1891,29 +1883,29 @@ static int mlx5e_open_queues(struct mlx5e_channel *c,
 	if (err)
 		goto err_close_icosq;
 
+	err = mlx5e_open_rxq_rq(c, params, &cparam->rq);
+	if (err)
+		goto err_close_sqs;
+
 	if (c->xdp) {
 		err = mlx5e_open_xdpsq(c, params, &cparam->xdp_sq, NULL,
 				       &c->rq_xdpsq, false);
 		if (err)
-			goto err_close_sqs;
+			goto err_close_rq;
 	}
-
-	err = mlx5e_open_rxq_rq(c, params, &cparam->rq);
-	if (err)
-		goto err_close_xdp_sq;
 
 	err = mlx5e_open_xdpsq(c, params, &cparam->xdp_sq, NULL, &c->xdpsq, true);
 	if (err)
-		goto err_close_rq;
+		goto err_close_xdp_sq;
 
 	return 0;
-
-err_close_rq:
-	mlx5e_close_rq(&c->rq);
 
 err_close_xdp_sq:
 	if (c->xdp)
 		mlx5e_close_xdpsq(&c->rq_xdpsq);
+
+err_close_rq:
+	mlx5e_close_rq(&c->rq);
 
 err_close_sqs:
 	mlx5e_close_sqs(c);
@@ -1949,9 +1941,9 @@ err_close_async_icosq_cq:
 static void mlx5e_close_queues(struct mlx5e_channel *c)
 {
 	mlx5e_close_xdpsq(&c->xdpsq);
-	mlx5e_close_rq(&c->rq);
 	if (c->xdp)
 		mlx5e_close_xdpsq(&c->rq_xdpsq);
+	mlx5e_close_rq(&c->rq);
 	mlx5e_close_sqs(c);
 	mlx5e_close_icosq(&c->icosq);
 	mlx5e_close_icosq(&c->async_icosq);
@@ -1983,9 +1975,8 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	struct mlx5e_channel *c;
 	unsigned int irq;
 	int err;
-	int eqn;
 
-	err = mlx5_vector2eqn(priv->mdev, ix, &eqn, &irq);
+	err = mlx5_vector2irqn(priv->mdev, ix, &irq);
 	if (err)
 		return err;
 
@@ -3384,7 +3375,7 @@ static int mlx5e_modify_channels_scatter_fcs(struct mlx5e_channels *chs, bool en
 
 static int mlx5e_modify_channels_vsd(struct mlx5e_channels *chs, bool vsd)
 {
-	int err = 0;
+	int err;
 	int i;
 
 	for (i = 0; i < chs->num; i++) {
@@ -3392,6 +3383,8 @@ static int mlx5e_modify_channels_vsd(struct mlx5e_channels *chs, bool vsd)
 		if (err)
 			return err;
 	}
+	if (chs->ptp && test_bit(MLX5E_PTP_STATE_RX, chs->ptp->state))
+		return mlx5e_modify_rq_vsd(&chs->ptp->rq, vsd);
 
 	return 0;
 }
@@ -3829,6 +3822,24 @@ int mlx5e_set_features(struct net_device *netdev, netdev_features_t features)
 	return 0;
 }
 
+static netdev_features_t mlx5e_fix_uplink_rep_features(struct net_device *netdev,
+						       netdev_features_t features)
+{
+	features &= ~NETIF_F_HW_TLS_RX;
+	if (netdev->features & NETIF_F_HW_TLS_RX)
+		netdev_warn(netdev, "Disabling hw_tls_rx, not supported in switchdev mode\n");
+
+	features &= ~NETIF_F_HW_TLS_TX;
+	if (netdev->features & NETIF_F_HW_TLS_TX)
+		netdev_warn(netdev, "Disabling hw_tls_tx, not supported in switchdev mode\n");
+
+	features &= ~NETIF_F_NTUPLE;
+	if (netdev->features & NETIF_F_NTUPLE)
+		netdev_warn(netdev, "Disabling ntuple, not supported in switchdev mode\n");
+
+	return features;
+}
+
 static netdev_features_t mlx5e_fix_features(struct net_device *netdev,
 					    netdev_features_t features)
 {
@@ -3860,15 +3871,8 @@ static netdev_features_t mlx5e_fix_features(struct net_device *netdev,
 			netdev_warn(netdev, "Disabling rxhash, not supported when CQE compress is active\n");
 	}
 
-	if (mlx5e_is_uplink_rep(priv)) {
-		features &= ~NETIF_F_HW_TLS_RX;
-		if (netdev->features & NETIF_F_HW_TLS_RX)
-			netdev_warn(netdev, "Disabling hw_tls_rx, not supported in switchdev mode\n");
-
-		features &= ~NETIF_F_HW_TLS_TX;
-		if (netdev->features & NETIF_F_HW_TLS_TX)
-			netdev_warn(netdev, "Disabling hw_tls_tx, not supported in switchdev mode\n");
-	}
+	if (mlx5e_is_uplink_rep(priv))
+		features = mlx5e_fix_uplink_rep_features(netdev, features);
 
 	mutex_unlock(&priv->state_lock);
 
@@ -4859,6 +4863,9 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	if (MLX5_CAP_ETH(mdev, scatter_fcs))
 		netdev->hw_features |= NETIF_F_RXFCS;
 
+	if (mlx5_qos_is_supported(mdev))
+		netdev->hw_features |= NETIF_F_HW_TC;
+
 	netdev->features          = netdev->hw_features;
 
 	/* Defaults */
@@ -4879,8 +4886,6 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 		netdev->hw_features	 |= NETIF_F_NTUPLE;
 #endif
 	}
-	if (mlx5_qos_is_supported(mdev))
-		netdev->features |= NETIF_F_HW_TC;
 
 	netdev->features         |= NETIF_F_HIGHDMA;
 	netdev->features         |= NETIF_F_HW_VLAN_STAG_FILTER;

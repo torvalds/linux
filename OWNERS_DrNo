@@ -6,10 +6,18 @@
 #
 # See the GKI release documentation (go/gki-dr-no) for further details.
 
+# Main reviewers
 adelva@google.com
 maennich@google.com
-malchev@google.com
 saravanak@google.com
 smuckle@google.com
-sspatil@google.com
 tkjos@google.com
+willdeacon@google.com
+
+# GKI Release Team
+howardsoc@google.com #{LAST_RESORT_SUGGESTION}
+szuweilin@google.com #{LAST_RESORT_SUGGESTION}
+
+# Backup
+sspatil@google.com #{LAST_RESORT_SUGGESTION}
+malchev@google.com #{LAST_RESORT_SUGGESTION}

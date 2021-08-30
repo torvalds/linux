@@ -228,7 +228,7 @@ static void ipc_wwan_dellink(void *ctxt, struct net_device *dev,
 
 	RCU_INIT_POINTER(ipc_wwan->sub_netlist[if_id], NULL);
 	/* unregistering includes synchronize_net() */
-	unregister_netdevice(dev);
+	unregister_netdevice_queue(dev, head);
 
 unlock:
 	mutex_unlock(&ipc_wwan->if_mutex);

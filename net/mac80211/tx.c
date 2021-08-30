@@ -1147,6 +1147,29 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 	return queued;
 }
 
+static void
+ieee80211_aggr_check(struct ieee80211_sub_if_data *sdata,
+		     struct sta_info *sta,
+		     struct sk_buff *skb)
+{
+	struct rate_control_ref *ref = sdata->local->rate_ctrl;
+	u16 tid;
+
+	if (!ref || !(ref->ops->capa & RATE_CTRL_CAPA_AMPDU_TRIGGER))
+		return;
+
+	if (!sta || !sta->sta.ht_cap.ht_supported ||
+	    !sta->sta.wme || skb_get_queue_mapping(skb) == IEEE80211_AC_VO ||
+	    skb->protocol == sdata->control_port_protocol)
+		return;
+
+	tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
+	if (likely(sta->ampdu_mlme.tid_tx[tid]))
+		return;
+
+	ieee80211_start_tx_ba_session(&sta->sta, tid, 0);
+}
+
 /*
  * initialises @tx
  * pass %NULL for the station if unknown, a valid pointer if known
@@ -1160,6 +1183,7 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	bool aggr_check = false;
 	int tid;
 
 	memset(tx, 0, sizeof(*tx));
@@ -1188,8 +1212,10 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 		} else if (tx->sdata->control_port_protocol == tx->skb->protocol) {
 			tx->sta = sta_info_get_bss(sdata, hdr->addr1);
 		}
-		if (!tx->sta && !is_multicast_ether_addr(hdr->addr1))
+		if (!tx->sta && !is_multicast_ether_addr(hdr->addr1)) {
 			tx->sta = sta_info_get(sdata, hdr->addr1);
+			aggr_check = true;
+		}
 	}
 
 	if (tx->sta && ieee80211_is_data_qos(hdr->frame_control) &&
@@ -1199,8 +1225,12 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 		struct tid_ampdu_tx *tid_tx;
 
 		tid = ieee80211_get_tid(hdr);
-
 		tid_tx = rcu_dereference(tx->sta->ampdu_mlme.tid_tx[tid]);
+		if (!tid_tx && aggr_check) {
+			ieee80211_aggr_check(sdata, tx->sta, skb);
+			tid_tx = rcu_dereference(tx->sta->ampdu_mlme.tid_tx[tid]);
+		}
+
 		if (tid_tx) {
 			bool queued;
 
@@ -4119,29 +4149,6 @@ void ieee80211_txq_schedule_start(struct ieee80211_hw *hw, u8 ac)
 	spin_unlock_bh(&air_sched->lock);
 }
 EXPORT_SYMBOL(ieee80211_txq_schedule_start);
-
-static void
-ieee80211_aggr_check(struct ieee80211_sub_if_data *sdata,
-		     struct sta_info *sta,
-		     struct sk_buff *skb)
-{
-	struct rate_control_ref *ref = sdata->local->rate_ctrl;
-	u16 tid;
-
-	if (!ref || !(ref->ops->capa & RATE_CTRL_CAPA_AMPDU_TRIGGER))
-		return;
-
-	if (!sta || !sta->sta.ht_cap.ht_supported ||
-	    !sta->sta.wme || skb_get_queue_mapping(skb) == IEEE80211_AC_VO ||
-	    skb->protocol == sdata->control_port_protocol)
-		return;
-
-	tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
-	if (likely(sta->ampdu_mlme.tid_tx[tid]))
-		return;
-
-	ieee80211_start_tx_ba_session(&sta->sta, tid, 0);
-}
 
 void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 				  struct net_device *dev,

@@ -36,6 +36,9 @@ EXPORT_SYMBOL(kernel_map);
 #define kernel_map	(*(struct kernel_mapping *)XIP_FIXUP(&kernel_map))
 #endif
 
+phys_addr_t phys_ram_base __ro_after_init;
+EXPORT_SYMBOL(phys_ram_base);
+
 #ifdef CONFIG_XIP_KERNEL
 extern char _xiprom[], _exiprom[];
 #endif
@@ -127,10 +130,17 @@ void __init mem_init(void)
 }
 
 /*
- * The default maximal physical memory size is -PAGE_OFFSET,
- * limit the memory size via mem.
+ * The default maximal physical memory size is -PAGE_OFFSET for 32-bit kernel,
+ * whereas for 64-bit kernel, the end of the virtual address space is occupied
+ * by the modules/BPF/kernel mappings which reduces the available size of the
+ * linear mapping.
+ * Limit the memory size via mem.
  */
+#ifdef CONFIG_64BIT
+static phys_addr_t memory_limit = -PAGE_OFFSET - SZ_4G;
+#else
 static phys_addr_t memory_limit = -PAGE_OFFSET;
+#endif
 
 static int __init early_mem(char *p)
 {
@@ -152,8 +162,8 @@ static void __init setup_bootmem(void)
 {
 	phys_addr_t vmlinux_end = __pa_symbol(&_end);
 	phys_addr_t vmlinux_start = __pa_symbol(&_start);
-	phys_addr_t max_mapped_addr = __pa(~(ulong)0);
-	phys_addr_t dram_end;
+	phys_addr_t __maybe_unused max_mapped_addr;
+	phys_addr_t phys_ram_end;
 
 #ifdef CONFIG_XIP_KERNEL
 	vmlinux_start = __pa_symbol(&_sdata);
@@ -174,18 +184,28 @@ static void __init setup_bootmem(void)
 #endif
 	memblock_reserve(vmlinux_start, vmlinux_end - vmlinux_start);
 
-	dram_end = memblock_end_of_DRAM();
+
+	phys_ram_end = memblock_end_of_DRAM();
+#ifndef CONFIG_64BIT
+#ifndef CONFIG_XIP_KERNEL
+	phys_ram_base = memblock_start_of_DRAM();
+#endif
 	/*
 	 * memblock allocator is not aware of the fact that last 4K bytes of
 	 * the addressable memory can not be mapped because of IS_ERR_VALUE
 	 * macro. Make sure that last 4k bytes are not usable by memblock
-	 * if end of dram is equal to maximum addressable memory.
+	 * if end of dram is equal to maximum addressable memory.  For 64-bit
+	 * kernel, this problem can't happen here as the end of the virtual
+	 * address space is occupied by the kernel mapping then this check must
+	 * be done as soon as the kernel mapping base address is determined.
 	 */
-	if (max_mapped_addr == (dram_end - 1))
+	max_mapped_addr = __pa(~(ulong)0);
+	if (max_mapped_addr == (phys_ram_end - 1))
 		memblock_set_current_limit(max_mapped_addr - 4096);
+#endif
 
-	min_low_pfn = PFN_UP(memblock_start_of_DRAM());
-	max_low_pfn = max_pfn = PFN_DOWN(dram_end);
+	min_low_pfn = PFN_UP(phys_ram_base);
+	max_low_pfn = max_pfn = PFN_DOWN(phys_ram_end);
 
 	dma32_phys_limit = min(4UL * SZ_1G, (unsigned long)PFN_PHYS(max_low_pfn));
 	set_max_mapnr(max_low_pfn - ARCH_PFN_OFFSET);
@@ -544,6 +564,7 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 	kernel_map.xiprom = (uintptr_t)CONFIG_XIP_PHYS_ADDR;
 	kernel_map.xiprom_sz = (uintptr_t)(&_exiprom) - (uintptr_t)(&_xiprom);
 
+	phys_ram_base = CONFIG_PHYS_RAM_BASE;
 	kernel_map.phys_addr = (uintptr_t)CONFIG_PHYS_RAM_BASE;
 	kernel_map.size = (uintptr_t)(&_end) - (uintptr_t)(&_sdata);
 
@@ -569,6 +590,14 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 	/* Sanity check alignment and size */
 	BUG_ON((PAGE_OFFSET % PGDIR_SIZE) != 0);
 	BUG_ON((kernel_map.phys_addr % map_size) != 0);
+
+#ifdef CONFIG_64BIT
+	/*
+	 * The last 4K bytes of the addressable memory can not be mapped because
+	 * of IS_ERR_VALUE macro.
+	 */
+	BUG_ON((kernel_map.virt_addr + kernel_map.size) > ADDRESS_SPACE_END - SZ_4K);
+#endif
 
 	pt_ops.alloc_pte = alloc_pte_early;
 	pt_ops.get_pte_virt = get_pte_virt_early;
@@ -709,6 +738,8 @@ static void __init setup_vm_final(void)
 		if (start <= __pa(PAGE_OFFSET) &&
 		    __pa(PAGE_OFFSET) < end)
 			start = __pa(PAGE_OFFSET);
+		if (end >= __pa(PAGE_OFFSET) + memory_limit)
+			end = __pa(PAGE_OFFSET) + memory_limit;
 
 		map_size = best_map_size(start, end - start);
 		for (pa = start; pa < end; pa += map_size) {

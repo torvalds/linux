@@ -67,6 +67,7 @@ static struct irq_domain *xive_irq_domain;
 static struct xive_ipi_desc {
 	unsigned int irq;
 	char name[16];
+	atomic_t started;
 } *xive_ipis;
 
 /*
@@ -1120,7 +1121,7 @@ static const struct irq_domain_ops xive_ipi_irq_domain_ops = {
 	.alloc  = xive_ipi_irq_domain_alloc,
 };
 
-static int __init xive_request_ipi(void)
+static int __init xive_init_ipis(void)
 {
 	struct fwnode_handle *fwnode;
 	struct irq_domain *ipi_domain;
@@ -1144,10 +1145,6 @@ static int __init xive_request_ipi(void)
 		struct xive_ipi_desc *xid = &xive_ipis[node];
 		struct xive_ipi_alloc_info info = { node };
 
-		/* Skip nodes without CPUs */
-		if (cpumask_empty(cpumask_of_node(node)))
-			continue;
-
 		/*
 		 * Map one IPI interrupt per node for all cpus of that node.
 		 * Since the HW interrupt number doesn't have any meaning,
@@ -1159,11 +1156,6 @@ static int __init xive_request_ipi(void)
 		xid->irq = ret;
 
 		snprintf(xid->name, sizeof(xid->name), "IPI-%d", node);
-
-		ret = request_irq(xid->irq, xive_muxed_ipi_action,
-				  IRQF_PERCPU | IRQF_NO_THREAD, xid->name, NULL);
-
-		WARN(ret < 0, "Failed to request IPI %d: %d\n", xid->irq, ret);
 	}
 
 	return ret;
@@ -1175,6 +1167,22 @@ out_free_domain:
 out_free_fwnode:
 	irq_domain_free_fwnode(fwnode);
 out:
+	return ret;
+}
+
+static int xive_request_ipi(unsigned int cpu)
+{
+	struct xive_ipi_desc *xid = &xive_ipis[early_cpu_to_node(cpu)];
+	int ret;
+
+	if (atomic_inc_return(&xid->started) > 1)
+		return 0;
+
+	ret = request_irq(xid->irq, xive_muxed_ipi_action,
+			  IRQF_PERCPU | IRQF_NO_THREAD,
+			  xid->name, NULL);
+
+	WARN(ret < 0, "Failed to request IPI %d: %d\n", xid->irq, ret);
 	return ret;
 }
 
@@ -1191,6 +1199,9 @@ static int xive_setup_cpu_ipi(unsigned int cpu)
 	/* Check if we are already setup */
 	if (xc->hw_ipi != XIVE_BAD_IRQ)
 		return 0;
+
+	/* Register the IPI */
+	xive_request_ipi(cpu);
 
 	/* Grab an IPI from the backend, this will populate xc->hw_ipi */
 	if (xive_ops->get_ipi(cpu, xc))
@@ -1231,6 +1242,8 @@ static void xive_cleanup_cpu_ipi(unsigned int cpu, struct xive_cpu *xc)
 	if (xc->hw_ipi == XIVE_BAD_IRQ)
 		return;
 
+	/* TODO: clear IPI mapping */
+
 	/* Mask the IPI */
 	xive_do_source_set_mask(&xc->ipi_data, true);
 
@@ -1253,7 +1266,7 @@ void __init xive_smp_probe(void)
 	smp_ops->cause_ipi = xive_cause_ipi;
 
 	/* Register the IPI */
-	xive_request_ipi();
+	xive_init_ipis();
 
 	/* Allocate and setup IPI for the boot CPU */
 	xive_setup_cpu_ipi(smp_processor_id());
