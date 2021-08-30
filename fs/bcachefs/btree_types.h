@@ -343,7 +343,8 @@ struct btree_insert_entry {
 	u8			bkey_type;
 	enum btree_id		btree_id:8;
 	u8			level;
-	unsigned		trans_triggers_run:1;
+	bool			cached:1;
+	bool			trans_triggers_run:1;
 	struct bkey_i		*k;
 	struct btree_iter	*iter;
 	unsigned long		ip_allocated;

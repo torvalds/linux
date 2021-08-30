@@ -1290,7 +1290,7 @@ void fs_usage_apply_warn(struct btree_trans *trans,
 		pr_err("%s", buf);
 		pr_err("overlapping with");
 
-		if (btree_iter_type(i->iter) != BTREE_ITER_CACHED) {
+		if (!i->cached) {
 			struct btree_iter *copy = bch2_trans_copy_iter(trans, i->iter);
 			struct bkey_s_c k;
 			int ret;
