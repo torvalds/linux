@@ -399,7 +399,7 @@ static inline int cpuhp_state_remove_instance(enum cpuhp_state state,
 
 /**
  * cpuhp_state_remove_instance_nocalls - Remove hotplug instance from state
- *					 without invoking the reatdown callback
+ *					 without invoking the teardown callback
  * @state:	The state from which the instance is removed
  * @node:	The node for this individual state.
  *
