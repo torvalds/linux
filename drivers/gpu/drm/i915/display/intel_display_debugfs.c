@@ -2442,17 +2442,15 @@ static const struct file_operations i915_dsc_bpp_fops = {
  *
  * Cleanup will be done by drm_connector_unregister() through a call to
  * drm_debugfs_connector_remove().
- *
- * Returns 0 on success, negative error codes on error.
  */
-int intel_connector_debugfs_add(struct drm_connector *connector)
+void intel_connector_debugfs_add(struct drm_connector *connector)
 {
 	struct dentry *root = connector->debugfs_entry;
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 
 	/* The connector must have been registered beforehands. */
 	if (!root)
-		return -ENODEV;
+		return;
 
 	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
 		debugfs_create_file("i915_panel_timings", S_IRUGO, root,
@@ -2492,23 +2490,16 @@ int intel_connector_debugfs_add(struct drm_connector *connector)
 	    connector->connector_type == DRM_MODE_CONNECTOR_HDMIB)
 		debugfs_create_file("i915_lpsp_capability", 0444, root,
 				    connector, &i915_lpsp_capability_fops);
-
-	return 0;
 }
 
 /**
  * intel_crtc_debugfs_add - add i915 specific crtc debugfs files
  * @crtc: pointer to a drm_crtc
  *
- * Returns 0 on success, negative error codes on error.
- *
  * Failure to add debugfs entries should generally be ignored.
  */
-int intel_crtc_debugfs_add(struct drm_crtc *crtc)
+void intel_crtc_debugfs_add(struct drm_crtc *crtc)
 {
-	if (!crtc->debugfs_entry)
-		return -ENODEV;
-
-	crtc_updates_add(crtc);
-	return 0;
+	if (crtc->debugfs_entry)
+		crtc_updates_add(crtc);
 }
