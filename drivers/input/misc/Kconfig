@@ -799,16 +799,6 @@ config INPUT_XEN_KBDDEV_FRONTEND
 	  To compile this driver as a module, choose M here: the
 	  module will be called xen-kbdfront.
 
-config INPUT_SIRFSOC_ONKEY
-	tristate "CSR SiRFSoC power on/off/suspend key support"
-	depends on ARCH_SIRF && OF
-	default y
-	help
-	  Say Y here if you want to support for the SiRFSoC power on/off/suspend key
-	  in Linux, after you press the onkey, system will suspend.
-
-	  If unsure, say N.
-
 config INPUT_IDEAPAD_SLIDEBAR
 	tristate "IdeaPad Laptop Slidebar"
 	depends on INPUT
