@@ -105,10 +105,10 @@ static int vio_device_remove(struct device *dev)
 		 * routines to do so at the moment. TBD
 		 */
 
-		return drv->remove(vdev);
+		drv->remove(vdev);
 	}
 
-	return 1;
+	return 0;
 }
 
 static ssize_t devspec_show(struct device *dev,

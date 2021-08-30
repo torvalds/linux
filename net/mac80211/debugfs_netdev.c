@@ -57,7 +57,6 @@ static ssize_t ieee80211_if_write(
 		return -EFAULT;
 	buf[count] = '\0';
 
-	ret = -ENODEV;
 	rtnl_lock();
 	ret = (*write)(sdata, buf, count);
 	rtnl_unlock();
@@ -513,6 +512,34 @@ static ssize_t ieee80211_if_fmt_aqm(
 }
 IEEE80211_IF_FILE_R(aqm);
 
+static ssize_t ieee80211_if_fmt_airtime(
+	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_txq *txq = sdata->vif.txq;
+	struct airtime_info *air_info;
+	int len;
+
+	if (!txq)
+		return 0;
+
+	spin_lock_bh(&local->airtime[txq->ac].lock);
+	air_info = to_airtime_info(txq);
+	len = scnprintf(buf,
+			buflen,
+			"RX: %llu us\nTX: %llu us\nWeight: %u\n"
+			"Virt-T: %lld us\n",
+			air_info->rx_airtime,
+			air_info->tx_airtime,
+			air_info->weight,
+			air_info->v_t);
+	spin_unlock_bh(&local->airtime[txq->ac].lock);
+
+	return len;
+}
+
+IEEE80211_IF_FILE_R(airtime);
+
 IEEE80211_IF_FILE(multicast_to_unicast, u.ap.multicast_to_unicast, HEX);
 
 /* IBSS attributes */
@@ -658,8 +685,10 @@ static void add_common_files(struct ieee80211_sub_if_data *sdata)
 
 	if (sdata->local->ops->wake_tx_queue &&
 	    sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
-	    sdata->vif.type != NL80211_IFTYPE_NAN)
+	    sdata->vif.type != NL80211_IFTYPE_NAN) {
 		DEBUGFS_ADD(aqm);
+		DEBUGFS_ADD(airtime);
+	}
 }
 
 static void add_sta_files(struct ieee80211_sub_if_data *sdata)

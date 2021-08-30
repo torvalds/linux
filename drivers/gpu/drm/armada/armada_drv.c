@@ -9,6 +9,7 @@
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 
+#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_ioctl.h>
@@ -94,9 +95,7 @@ static int armada_drm_bind(struct device *dev)
 	}
 
 	/* Remove early framebuffers */
-	ret = drm_fb_helper_remove_conflicting_framebuffers(NULL,
-							    "armada-drm-fb",
-							    false);
+	ret = drm_aperture_remove_framebuffers(false, "armada-drm-fb");
 	if (ret) {
 		dev_err(dev, "[" DRM_NAME ":%s] can't kick out simple-fb: %d\n",
 			__func__, ret);

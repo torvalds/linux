@@ -3242,8 +3242,8 @@ static void wl1271_op_configure_filter(struct ieee80211_hw *hw,
 		 * the firmware filters so that all multicast packets are passed
 		 * This is mandatory for MDNS based discovery protocols 
 		 */
- 		if (wlvif->bss_type == BSS_TYPE_AP_BSS) {
- 			if (*total & FIF_ALLMULTI) {
+		if (wlvif->bss_type == BSS_TYPE_AP_BSS) {
+			if (*total & FIF_ALLMULTI) {
 				ret = wl1271_acx_group_address_tbl(wl, wlvif,
 							false,
 							NULL, 0);
@@ -6784,7 +6784,7 @@ int wlcore_probe(struct wl1271 *wl, struct platform_device *pdev)
 
 	if (pdev_data->family && pdev_data->family->nvs_name) {
 		nvs_name = pdev_data->family->nvs_name;
-		ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+		ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 					      nvs_name, &pdev->dev, GFP_KERNEL,
 					      wl, wlcore_nvs_cb);
 		if (ret < 0) {

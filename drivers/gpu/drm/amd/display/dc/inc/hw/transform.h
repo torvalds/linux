@@ -162,9 +162,7 @@ struct scl_inits {
 	struct fixed31_32 h;
 	struct fixed31_32 h_c;
 	struct fixed31_32 v;
-	struct fixed31_32 v_bot;
 	struct fixed31_32 v_c;
-	struct fixed31_32 v_c_bot;
 };
 
 struct scaler_data {
@@ -173,8 +171,6 @@ struct scaler_data {
 	struct scaling_taps taps;
 	struct rect viewport;
 	struct rect viewport_c;
-	struct rect viewport_unadjusted;
-	struct rect viewport_c_unadjusted;
 	struct rect recout;
 	struct scaling_ratios ratios;
 	struct scl_inits inits;

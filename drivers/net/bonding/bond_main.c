@@ -620,7 +620,7 @@ static int bond_check_dev_link(struct bonding *bond,
 		 */
 
 		/* Yes, the mii is overlaid on the ifreq.ifr_ifru */
-		strncpy(ifr.ifr_name, slave_dev->name, IFNAMSIZ);
+		strscpy_pad(ifr.ifr_name, slave_dev->name, IFNAMSIZ);
 		mii = if_mii(&ifr);
 		if (ioctl(slave_dev, &ifr, SIOCGMIIPHY) == 0) {
 			mii->reg_num = MII_BMSR;
@@ -1013,9 +1013,8 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 			if (bond_is_lb(bond))
 				bond_alb_handle_link_change(bond, new_active, BOND_LINK_UP);
 		} else {
-			if (bond_uses_primary(bond)) {
+			if (bond_uses_primary(bond))
 				slave_info(bond->dev, new_active->dev, "making interface the new active one\n");
-			}
 		}
 	}
 
@@ -1600,6 +1599,14 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev,
 	struct sockaddr_storage ss;
 	int link_reporting;
 	int res = 0, i;
+
+	if (slave_dev->flags & IFF_MASTER &&
+	    !netif_is_bond_master(slave_dev)) {
+		NL_SET_ERR_MSG(extack, "Device with IFF_MASTER cannot be enslaved");
+		netdev_err(bond_dev,
+			   "Error: Device with IFF_MASTER cannot be enslaved\n");
+		return -EPERM;
+	}
 
 	if (!bond->params.use_carrier &&
 	    slave_dev->ethtool_ops->get_link == NULL &&
@@ -2272,6 +2279,7 @@ static int bond_release_and_destroy(struct net_device *bond_dev,
 static void bond_info_query(struct net_device *bond_dev, struct ifbond *info)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
+
 	bond_fill_ifbond(bond, info);
 }
 
@@ -4202,16 +4210,16 @@ static u32 bond_rr_gen_slave_id(struct bonding *bond)
 		slave_id = prandom_u32();
 		break;
 	case 1:
-		slave_id = bond->rr_tx_counter;
+		slave_id = this_cpu_inc_return(*bond->rr_tx_counter);
 		break;
 	default:
 		reciprocal_packets_per_slave =
 			bond->params.reciprocal_packets_per_slave;
-		slave_id = reciprocal_divide(bond->rr_tx_counter,
+		slave_id = this_cpu_inc_return(*bond->rr_tx_counter);
+		slave_id = reciprocal_divide(slave_id,
 					     reciprocal_packets_per_slave);
 		break;
 	}
-	bond->rr_tx_counter++;
 
 	return slave_id;
 }
@@ -4849,8 +4857,12 @@ static const struct device_type bond_type = {
 static void bond_destructor(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
+
 	if (bond->wq)
 		destroy_workqueue(bond->wq);
+
+	if (bond->rr_tx_counter)
+		free_percpu(bond->rr_tx_counter);
 }
 
 void bond_setup(struct net_device *bond_dev)
@@ -5329,10 +5341,8 @@ static int bond_check_params(struct bond_params *params)
 			(struct reciprocal_value) { 0 };
 	}
 
-	if (primary) {
-		strncpy(params->primary, primary, IFNAMSIZ);
-		params->primary[IFNAMSIZ - 1] = 0;
-	}
+	if (primary)
+		strscpy_pad(params->primary, primary, sizeof(params->primary));
 
 	memcpy(params->arp_targets, arp_target, sizeof(arp_target));
 
@@ -5350,6 +5360,15 @@ static int bond_init(struct net_device *bond_dev)
 	bond->wq = alloc_ordered_workqueue(bond_dev->name, WQ_MEM_RECLAIM);
 	if (!bond->wq)
 		return -ENOMEM;
+
+	if (BOND_MODE(bond) == BOND_MODE_ROUNDROBIN) {
+		bond->rr_tx_counter = alloc_percpu(u32);
+		if (!bond->rr_tx_counter) {
+			destroy_workqueue(bond->wq);
+			bond->wq = NULL;
+			return -ENOMEM;
+		}
+	}
 
 	spin_lock_init(&bond->stats_lock);
 	netdev_lockdep_set_classes(bond_dev);

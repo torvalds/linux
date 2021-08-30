@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -893,7 +894,7 @@ static void anx7625_power_on(struct anx7625_data *ctx)
 		usleep_range(2000, 2100);
 	}
 
-	usleep_range(4000, 4100);
+	usleep_range(11000, 12000);
 
 	/* Power on pin enable */
 	gpiod_set_value(ctx->pdata.gpio_p_on, 1);
@@ -1005,33 +1006,6 @@ static void anx7625_power_on_init(struct anx7625_data *ctx)
 	}
 }
 
-static void anx7625_chip_control(struct anx7625_data *ctx, int state)
-{
-	struct device *dev = &ctx->client->dev;
-
-	DRM_DEV_DEBUG_DRIVER(dev, "before set, power_state(%d).\n",
-			     atomic_read(&ctx->power_status));
-
-	if (!ctx->pdata.low_power_mode)
-		return;
-
-	if (state) {
-		atomic_inc(&ctx->power_status);
-		if (atomic_read(&ctx->power_status) == 1)
-			anx7625_power_on_init(ctx);
-	} else {
-		if (atomic_read(&ctx->power_status)) {
-			atomic_dec(&ctx->power_status);
-
-			if (atomic_read(&ctx->power_status) == 0)
-				anx7625_power_standby(ctx);
-		}
-	}
-
-	DRM_DEV_DEBUG_DRIVER(dev, "after set, power_state(%d).\n",
-			     atomic_read(&ctx->power_status));
-}
-
 static void anx7625_init_gpio(struct anx7625_data *platform)
 {
 	struct device *dev = &platform->client->dev;
@@ -1061,9 +1035,6 @@ static void anx7625_stop_dp_work(struct anx7625_data *ctx)
 	ctx->hpd_status = 0;
 	ctx->hpd_high_cnt = 0;
 	ctx->display_timing_valid = 0;
-
-	if (ctx->pdata.low_power_mode == 0)
-		anx7625_disable_pd_protocol(ctx);
 }
 
 static void anx7625_start_dp_work(struct anx7625_data *ctx)
@@ -1105,49 +1076,26 @@ static void anx7625_hpd_polling(struct anx7625_data *ctx)
 	int ret, val;
 	struct device *dev = &ctx->client->dev;
 
-	if (atomic_read(&ctx->power_status) != 1) {
-		DRM_DEV_DEBUG_DRIVER(dev, "No need to poling HPD status.\n");
-		return;
-	}
-
 	ret = readx_poll_timeout(anx7625_read_hpd_status_p0,
 				 ctx, val,
 				 ((val & HPD_STATUS) || (val < 0)),
 				 5000,
 				 5000 * 100);
 	if (ret) {
-		DRM_DEV_ERROR(dev, "HPD polling timeout!\n");
-	} else {
-		DRM_DEV_DEBUG_DRIVER(dev, "HPD raise up.\n");
-		anx7625_reg_write(ctx, ctx->i2c.tcpc_client,
-				  INTR_ALERT_1, 0xFF);
-		anx7625_reg_write(ctx, ctx->i2c.rx_p0_client,
-				  INTERFACE_CHANGE_INT, 0);
+		DRM_DEV_ERROR(dev, "no hpd.\n");
+		return;
 	}
+
+	DRM_DEV_DEBUG_DRIVER(dev, "system status: 0x%x. HPD raise up.\n", val);
+	anx7625_reg_write(ctx, ctx->i2c.tcpc_client,
+			  INTR_ALERT_1, 0xFF);
+	anx7625_reg_write(ctx, ctx->i2c.rx_p0_client,
+			  INTERFACE_CHANGE_INT, 0);
 
 	anx7625_start_dp_work(ctx);
-}
 
-static void anx7625_disconnect_check(struct anx7625_data *ctx)
-{
-	if (atomic_read(&ctx->power_status) == 0)
-		anx7625_stop_dp_work(ctx);
-}
-
-static void anx7625_low_power_mode_check(struct anx7625_data *ctx,
-					 int state)
-{
-	struct device *dev = &ctx->client->dev;
-
-	DRM_DEV_DEBUG_DRIVER(dev, "low power mode check, state(%d).\n", state);
-
-	if (ctx->pdata.low_power_mode) {
-		anx7625_chip_control(ctx, state);
-		if (state)
-			anx7625_hpd_polling(ctx);
-		else
-			anx7625_disconnect_check(ctx);
-	}
+	if (!ctx->pdata.panel_bridge && ctx->bridge_attached)
+		drm_helper_hpd_irq_event(ctx->bridge.dev);
 }
 
 static void anx7625_remove_edid(struct anx7625_data *ctx)
@@ -1179,9 +1127,6 @@ static int anx7625_hpd_change_detect(struct anx7625_data *ctx)
 {
 	int intr_vector, status;
 	struct device *dev = &ctx->client->dev;
-
-	DRM_DEV_DEBUG_DRIVER(dev, "power_status=%d\n",
-			     (u32)atomic_read(&ctx->power_status));
 
 	status = anx7625_reg_write(ctx, ctx->i2c.tcpc_client,
 				   INTR_ALERT_1, 0xFF);
@@ -1228,21 +1173,24 @@ static void anx7625_work_func(struct work_struct *work)
 						struct anx7625_data, work);
 
 	mutex_lock(&ctx->lock);
+
+	if (pm_runtime_suspended(&ctx->client->dev))
+		goto unlock;
+
 	event = anx7625_hpd_change_detect(ctx);
-	mutex_unlock(&ctx->lock);
 	if (event < 0)
-		return;
+		goto unlock;
 
 	if (ctx->bridge_attached)
 		drm_helper_hpd_irq_event(ctx->bridge.dev);
+
+unlock:
+	mutex_unlock(&ctx->lock);
 }
 
 static irqreturn_t anx7625_intr_hpd_isr(int irq, void *data)
 {
 	struct anx7625_data *ctx = (struct anx7625_data *)data;
-
-	if (atomic_read(&ctx->power_status) != 1)
-		return IRQ_NONE;
 
 	queue_work(ctx->workqueue, &ctx->work);
 
@@ -1305,9 +1253,9 @@ static struct edid *anx7625_get_edid(struct anx7625_data *ctx)
 		return (struct edid *)edid;
 	}
 
-	anx7625_low_power_mode_check(ctx, 1);
+	pm_runtime_get_sync(dev);
 	edid_num = sp_tx_edid_read(ctx, p_edid->edid_raw_data);
-	anx7625_low_power_mode_check(ctx, 0);
+	pm_runtime_put_sync(dev);
 
 	if (edid_num < 1) {
 		DRM_DEV_ERROR(dev, "Fail to read EDID: %d\n", edid_num);
@@ -1611,10 +1559,7 @@ static void anx7625_bridge_enable(struct drm_bridge *bridge)
 
 	DRM_DEV_DEBUG_DRIVER(dev, "drm enable\n");
 
-	anx7625_low_power_mode_check(ctx, 1);
-
-	if (WARN_ON(!atomic_read(&ctx->power_status)))
-		return;
+	pm_runtime_get_sync(dev);
 
 	anx7625_dp_start(ctx);
 }
@@ -1624,14 +1569,11 @@ static void anx7625_bridge_disable(struct drm_bridge *bridge)
 	struct anx7625_data *ctx = bridge_to_anx7625(bridge);
 	struct device *dev = &ctx->client->dev;
 
-	if (WARN_ON(!atomic_read(&ctx->power_status)))
-		return;
-
 	DRM_DEV_DEBUG_DRIVER(dev, "drm disable\n");
 
 	anx7625_dp_stop(ctx);
 
-	anx7625_low_power_mode_check(ctx, 0);
+	pm_runtime_put_sync(dev);
 }
 
 static enum drm_connector_status
@@ -1735,6 +1677,71 @@ static void anx7625_unregister_i2c_dummy_clients(struct anx7625_data *ctx)
 	i2c_unregister_device(ctx->i2c.tcpc_client);
 }
 
+static int __maybe_unused anx7625_runtime_pm_suspend(struct device *dev)
+{
+	struct anx7625_data *ctx = dev_get_drvdata(dev);
+
+	mutex_lock(&ctx->lock);
+
+	anx7625_stop_dp_work(ctx);
+	anx7625_power_standby(ctx);
+
+	mutex_unlock(&ctx->lock);
+
+	return 0;
+}
+
+static int __maybe_unused anx7625_runtime_pm_resume(struct device *dev)
+{
+	struct anx7625_data *ctx = dev_get_drvdata(dev);
+
+	mutex_lock(&ctx->lock);
+
+	anx7625_power_on_init(ctx);
+	anx7625_hpd_polling(ctx);
+
+	mutex_unlock(&ctx->lock);
+
+	return 0;
+}
+
+static int __maybe_unused anx7625_resume(struct device *dev)
+{
+	struct anx7625_data *ctx = dev_get_drvdata(dev);
+
+	if (!ctx->pdata.intp_irq)
+		return 0;
+
+	if (!pm_runtime_enabled(dev) || !pm_runtime_suspended(dev)) {
+		enable_irq(ctx->pdata.intp_irq);
+		anx7625_runtime_pm_resume(dev);
+	}
+
+	return 0;
+}
+
+static int __maybe_unused anx7625_suspend(struct device *dev)
+{
+	struct anx7625_data *ctx = dev_get_drvdata(dev);
+
+	if (!ctx->pdata.intp_irq)
+		return 0;
+
+	if (!pm_runtime_enabled(dev) || !pm_runtime_suspended(dev)) {
+		anx7625_runtime_pm_suspend(dev);
+		disable_irq(ctx->pdata.intp_irq);
+		flush_workqueue(ctx->workqueue);
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops anx7625_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(anx7625_suspend, anx7625_resume)
+	SET_RUNTIME_PM_OPS(anx7625_runtime_pm_suspend,
+			   anx7625_runtime_pm_resume, NULL)
+};
+
 static int anx7625_i2c_probe(struct i2c_client *client,
 			     const struct i2c_device_id *id)
 {
@@ -1778,8 +1785,6 @@ static int anx7625_i2c_probe(struct i2c_client *client,
 	}
 	anx7625_init_gpio(platform);
 
-	atomic_set(&platform->power_status, 0);
-
 	mutex_init(&platform->lock);
 
 	platform->pdata.intp_irq = client->irq;
@@ -1809,9 +1814,11 @@ static int anx7625_i2c_probe(struct i2c_client *client,
 		goto free_wq;
 	}
 
-	if (platform->pdata.low_power_mode == 0) {
+	pm_runtime_enable(dev);
+
+	if (!platform->pdata.low_power_mode) {
 		anx7625_disable_pd_protocol(platform);
-		atomic_set(&platform->power_status, 1);
+		pm_runtime_get_sync(dev);
 	}
 
 	/* Add work function */
@@ -1847,6 +1854,9 @@ static int anx7625_i2c_remove(struct i2c_client *client)
 	if (platform->pdata.intp_irq)
 		destroy_workqueue(platform->workqueue);
 
+	if (!platform->pdata.low_power_mode)
+		pm_runtime_put_sync_suspend(&client->dev);
+
 	anx7625_unregister_i2c_dummy_clients(platform);
 
 	kfree(platform);
@@ -1869,6 +1879,7 @@ static struct i2c_driver anx7625_driver = {
 	.driver = {
 		.name = "anx7625",
 		.of_match_table = anx_match_table,
+		.pm = &anx7625_pm_ops,
 	},
 	.probe = anx7625_i2c_probe,
 	.remove = anx7625_i2c_remove,

@@ -24,7 +24,7 @@ TEST_GEN_PROGS := reg_access_test event_attributes_test cycles_test	\
 	 fork_cleanup_test ebb_on_child_test			\
 	 ebb_on_willing_child_test back_to_back_ebbs_test	\
 	 lost_exception_test no_handler_test			\
-	 cycles_with_mmcr2_test
+	 cycles_with_mmcr2_test regs_access_pmccext_test
 
 top_srcdir = ../../../../../..
 include ../../../lib.mk

@@ -33,7 +33,7 @@ The following are mandatory properties for 66AK2G SoCs only:
 - power-domains:Should contain a phandle to a PM domain provider node
 		and an args specifier containing the device id
 		value. This property is as per the binding,
-		Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
+		Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml
 
 Optional properties:
 -------------------
@@ -70,7 +70,7 @@ The following are mandatory properties for 66AK2G SoCs only:
 - power-domains:Should contain a phandle to a PM domain provider node
 		and an args specifier containing the device id
 		value. This property is as per the binding,
-		Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
+		Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml
 
 Optional properties:
 -------------------

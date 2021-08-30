@@ -1065,7 +1065,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.timing_trace = false,
 		.clock_trace = true,
 		.disable_pplib_clock_request = true,
-		.pipe_split_policy = MPC_SPLIT_DYNAMIC,
+		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
 		.force_single_disp_pipe_split = false,
 		.disable_dcc = DCC_ENABLE,
 		.vsr_support = true,
@@ -2289,12 +2289,14 @@ int dcn20_populate_dml_pipes_from_context(
 
 			pipes[pipe_cnt].pipe.src.source_scan = pln->rotation == ROTATION_ANGLE_90
 					|| pln->rotation == ROTATION_ANGLE_270 ? dm_vert : dm_horz;
-			pipes[pipe_cnt].pipe.src.viewport_y_y = scl->viewport_unadjusted.y;
-			pipes[pipe_cnt].pipe.src.viewport_y_c = scl->viewport_c_unadjusted.y;
-			pipes[pipe_cnt].pipe.src.viewport_width = scl->viewport_unadjusted.width;
-			pipes[pipe_cnt].pipe.src.viewport_width_c = scl->viewport_c_unadjusted.width;
-			pipes[pipe_cnt].pipe.src.viewport_height = scl->viewport_unadjusted.height;
-			pipes[pipe_cnt].pipe.src.viewport_height_c = scl->viewport_c_unadjusted.height;
+			pipes[pipe_cnt].pipe.src.viewport_y_y = scl->viewport.y;
+			pipes[pipe_cnt].pipe.src.viewport_y_c = scl->viewport_c.y;
+			pipes[pipe_cnt].pipe.src.viewport_width = scl->viewport.width;
+			pipes[pipe_cnt].pipe.src.viewport_width_c = scl->viewport_c.width;
+			pipes[pipe_cnt].pipe.src.viewport_height = scl->viewport.height;
+			pipes[pipe_cnt].pipe.src.viewport_height_c = scl->viewport_c.height;
+			pipes[pipe_cnt].pipe.src.viewport_width_max = pln->src_rect.width;
+			pipes[pipe_cnt].pipe.src.viewport_height_max = pln->src_rect.height;
 			pipes[pipe_cnt].pipe.src.surface_width_y = pln->plane_size.surface_size.width;
 			pipes[pipe_cnt].pipe.src.surface_height_y = pln->plane_size.surface_size.height;
 			pipes[pipe_cnt].pipe.src.surface_width_c = pln->plane_size.chroma_size.width;
@@ -2363,6 +2365,7 @@ int dcn20_populate_dml_pipes_from_context(
 				pipes[pipe_cnt].pipe.src.source_format = dm_420_10;
 				break;
 			case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+			case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
 			case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
 			case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
 				pipes[pipe_cnt].pipe.src.source_format = dm_444_64;
@@ -2786,7 +2789,6 @@ int dcn20_validate_apply_pipe_split_flags(
 				split[i] = 0;
 			} else if (get_num_odm_splits(pipe)) {
 				/* ODM -> MPC transition */
-				ASSERT(0); /* NOT expected yet */
 				if (pipe->prev_odm_pipe) {
 					split[i] = 0;
 					merge[i] = true;
@@ -3067,6 +3069,16 @@ static void dcn20_calculate_wm(
 	context->bw_ctx.bw.dcn.watermarks.a.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 }
 
+static bool is_dtbclk_required(struct dc *dc, struct dc_state *context)
+{
+	int i;
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (!context->res_ctx.pipe_ctx[i].stream)
+			continue;
+	}
+	return false;
+}
+
 void dcn20_calculate_dlg_params(
 		struct dc *dc, struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
@@ -3074,6 +3086,7 @@ void dcn20_calculate_dlg_params(
 		int vlevel)
 {
 	int i, pipe_idx;
+	int plane_count;
 
 	/* Writeback MCIF_WB arbitration parameters */
 	dc->res_pool->funcs->set_mcif_arb_params(dc, context, pipes, pipe_cnt);
@@ -3089,6 +3102,20 @@ void dcn20_calculate_dlg_params(
 							!= dm_dram_clock_change_unsupported;
 	context->bw_ctx.bw.dcn.clk.dppclk_khz = 0;
 
+	context->bw_ctx.bw.dcn.clk.z9_support = (context->bw_ctx.dml.vba.StutterPeriod > 5000.0) ?
+			DCN_Z9_SUPPORT_ALLOW : DCN_Z9_SUPPORT_DISALLOW;
+
+	plane_count = 0;
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (context->res_ctx.pipe_ctx[i].plane_state)
+			plane_count++;
+	}
+
+	if (plane_count == 0)
+		context->bw_ctx.bw.dcn.clk.z9_support = DCN_Z9_SUPPORT_ALLOW;
+
+	context->bw_ctx.bw.dcn.clk.dtbclk_en = is_dtbclk_required(dc, context);
+
 	if (context->bw_ctx.bw.dcn.clk.dispclk_khz < dc->debug.min_disp_clk_khz)
 		context->bw_ctx.bw.dcn.clk.dispclk_khz = dc->debug.min_disp_clk_khz;
 
@@ -3099,6 +3126,9 @@ void dcn20_calculate_dlg_params(
 		pipes[pipe_idx].pipe.dest.vupdate_offset = get_vupdate_offset(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
 		pipes[pipe_idx].pipe.dest.vupdate_width = get_vupdate_width(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
 		pipes[pipe_idx].pipe.dest.vready_offset = get_vready_offset(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
+		context->res_ctx.pipe_ctx[i].det_buffer_size_kb = context->bw_ctx.dml.ip.det_buffer_size_kbytes;
+		context->res_ctx.pipe_ctx[i].unbounded_req = pipes[pipe_idx].pipe.src.unbounded_req_mode;
+
 		if (context->bw_ctx.bw.dcn.clk.dppclk_khz < pipes[pipe_idx].clks_cfg.dppclk_mhz * 1000)
 			context->bw_ctx.bw.dcn.clk.dppclk_khz = pipes[pipe_idx].clks_cfg.dppclk_mhz * 1000;
 		context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz =
@@ -3111,6 +3141,9 @@ void dcn20_calculate_dlg_params(
 	context->bw_ctx.bw.dcn.clk.bw_dispclk_khz = context->bw_ctx.bw.dcn.clk.dispclk_khz;
 	context->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz = context->bw_ctx.dml.soc.clock_limits[vlevel].dppclk_mhz * 1000;
 	context->bw_ctx.bw.dcn.clk.max_supported_dispclk_khz = context->bw_ctx.dml.soc.clock_limits[vlevel].dispclk_mhz * 1000;
+
+	context->bw_ctx.bw.dcn.compbuf_size_kb = context->bw_ctx.dml.ip.config_return_buffer_size_in_kbytes
+						- context->bw_ctx.dml.ip.det_buffer_size_kbytes * pipe_idx;
 
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 		bool cstate_en = context->bw_ctx.dml.vba.PrefetchMode[vlevel][context->bw_ctx.dml.vba.maxMpcComb] != 2;
@@ -3667,7 +3700,7 @@ static bool dcn20_resource_construct(
 	int i;
 	struct dc_context *ctx = dc->ctx;
 	struct irq_service_init_data init_data;
-	struct ddc_service_init_data ddc_init_data;
+	struct ddc_service_init_data ddc_init_data = {0};
 	struct _vcs_dpi_soc_bounding_box_st *loaded_bb =
 			get_asic_rev_soc_bb(ctx->asic_id.hw_internal_rev);
 	struct _vcs_dpi_ip_params_st *loaded_ip =

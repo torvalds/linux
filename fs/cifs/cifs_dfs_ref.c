@@ -125,7 +125,7 @@ cifs_build_devname(char *nodename, const char *prepath)
  * @sb_mountdata:	parent/root DFS mount options (template)
  * @fullpath:		full path in UNC format
  * @ref:		optional server's referral
- *
+ * @devname:		return the built cifs device name if passed pointer not NULL
  * creates mount options for submount based on template options sb_mountdata
  * and replacing unc,ip,prefixpath options with ones we've got form ref_unc.
  *
@@ -151,6 +151,9 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 		return ERR_PTR(-EINVAL);
 
 	if (ref) {
+		if (WARN_ON_ONCE(!ref->node_name || ref->path_consumed < 0))
+			return ERR_PTR(-EINVAL);
+
 		if (strlen(fullpath) - ref->path_consumed) {
 			prepath = fullpath + ref->path_consumed;
 			/* skip initial delimiter */

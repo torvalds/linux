@@ -38,9 +38,9 @@ static int __init early_init_dt_scan_epapr(unsigned long node,
 
 	for (i = 0; i < (len / 4); i++) {
 		struct ppc_inst inst = ppc_inst(be32_to_cpu(insts[i]));
-		patch_instruction((struct ppc_inst *)(epapr_hypercall_start + i), inst);
+		patch_instruction(epapr_hypercall_start + i, inst);
 #if !defined(CONFIG_64BIT) || defined(CONFIG_PPC_BOOK3E_64)
-		patch_instruction((struct ppc_inst *)(epapr_ev_idle_start + i), inst);
+		patch_instruction(epapr_ev_idle_start + i, inst);
 #endif
 	}
 

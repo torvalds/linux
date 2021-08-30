@@ -54,6 +54,9 @@ static int create_uctx(struct mlx5_vdpa_dev *mvdev, u16 *uid)
 	void *in;
 	int err;
 
+	if (MLX5_CAP_GEN(mvdev->mdev, umem_uid_0))
+		return 0;
+
 	/* 0 means not supported */
 	if (!MLX5_CAP_GEN(mvdev->mdev, log_max_uctx))
 		return -EOPNOTSUPP;
@@ -78,6 +81,9 @@ static void destroy_uctx(struct mlx5_vdpa_dev *mvdev, u32 uid)
 {
 	u32 out[MLX5_ST_SZ_DW(destroy_uctx_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(destroy_uctx_in)] = {};
+
+	if (!uid)
+		return;
 
 	MLX5_SET(destroy_uctx_in, in, opcode, MLX5_CMD_OP_DESTROY_UCTX);
 	MLX5_SET(destroy_uctx_in, in, uid, uid);
@@ -247,6 +253,7 @@ int mlx5_vdpa_alloc_resources(struct mlx5_vdpa_dev *mvdev)
 		goto err_key;
 
 	kick_addr = mdev->bar_addr + offset;
+	res->phys_kick_addr = kick_addr;
 
 	res->kick_addr = ioremap(kick_addr, PAGE_SIZE);
 	if (!res->kick_addr) {

@@ -113,7 +113,7 @@
 			the GPE dispatcher.
 			This facility can be used to prevent such uncontrolled
 			GPE floodings.
-			Format: <byte>
+			Format: <byte> or <bitmap-list>
 
 	acpi_no_auto_serialize	[HW,ACPI]
 			Disable auto-serialization of AML methods
@@ -301,6 +301,9 @@
 					  allowed anymore to lift isolation
 					  requirements as needed. This option
 					  does not override iommu=pt
+			force_enable - Force enable the IOMMU on platforms known
+				       to be buggy with IOMMU enabled. Use this
+				       option with care.
 
 	amd_iommu_dump=	[HW,X86-64]
 			Enable AMD IOMMU driver option to dump the ACPI table
@@ -497,16 +500,21 @@
 	ccw_timeout_log	[S390]
 			See Documentation/s390/common_io.rst for details.
 
-	cgroup_disable=	[KNL] Disable a particular controller
-			Format: {name of the controller(s) to disable}
+	cgroup_disable=	[KNL] Disable a particular controller or optional feature
+			Format: {name of the controller(s) or feature(s) to disable}
 			The effects of cgroup_disable=foo are:
 			- foo isn't auto-mounted if you mount all cgroups in
 			  a single hierarchy
 			- foo isn't visible as an individually mountable
 			  subsystem
+			- if foo is an optional feature then the feature is
+			  disabled and corresponding cgroup files are not
+			  created
 			{Currently only "memory" controller deal with this and
 			cut the overhead, others just disable the usage. So
 			only cgroup_disable=memory is actually worthy}
+			Specifying "pressure" disables per-cgroup pressure
+			stall information accounting feature
 
 	cgroup_no_v1=	[KNL] Disable cgroup controllers and named hierarchies in v1
 			Format: { { controller | "all" | "named" }
@@ -580,6 +588,28 @@
 			architected timer so that code using WFE-based polling
 			loops can be debugged more effectively on production
 			systems.
+
+	clocksource.max_cswd_read_retries= [KNL]
+			Number of clocksource_watchdog() retries due to
+			external delays before the clock will be marked
+			unstable.  Defaults to three retries, that is,
+			four attempts to read the clock under test.
+
+	clocksource.verify_n_cpus= [KNL]
+			Limit the number of CPUs checked for clocksources
+			marked with CLOCK_SOURCE_VERIFY_PERCPU that
+			are marked unstable due to excessive skew.
+			A negative value says to check all CPUs, while
+			zero says not to check any.  Values larger than
+			nr_cpu_ids are silently truncated to nr_cpu_ids.
+			The actual CPUs are chosen randomly, with
+			no replacement if the same CPU is chosen twice.
+
+	clocksource-wdtest.holdoff= [KNL]
+			Set the time in seconds that the clocksource
+			watchdog test waits before commencing its tests.
+			Defaults to zero when built as a module and to
+			10 seconds when built into the kernel.
 
 	clearcpuid=BITNUM[,BITNUM...] [X86]
 			Disable CPUID feature X for the kernel. See
@@ -1092,6 +1122,11 @@
 			the driver will use only 32-bit accessors to read/write
 			the device registers.
 
+		liteuart,<addr>
+			Start an early console on a litex serial port at the
+			specified address. The serial port must already be
+			setup and configured. Options are not yet supported.
+
 		meson,<addr>
 			Start an early, polled-mode console on a meson serial
 			port at the specified address. The serial port must
@@ -1567,6 +1602,23 @@
 			Documentation/admin-guide/mm/hugetlbpage.rst.
 			Format: size[KMG]
 
+	hugetlb_free_vmemmap=
+			[KNL] Reguires CONFIG_HUGETLB_PAGE_FREE_VMEMMAP
+			enabled.
+			Allows heavy hugetlb users to free up some more
+			memory (6 * PAGE_SIZE for each 2MB hugetlb page).
+			Format: { on | off (default) }
+
+			on:  enable the feature
+			off: disable the feature
+
+			Built with CONFIG_HUGETLB_PAGE_FREE_VMEMMAP_DEFAULT_ON=y,
+			the default is on.
+
+			This is not compatible with memory_hotplug.memmap_on_memory.
+			If both parameters are enabled, hugetlb_free_vmemmap takes
+			precedence over memory_hotplug.memmap_on_memory.
+
 	hung_task_panic=
 			[KNL] Should the hung task detector generate panics.
 			Format: 0 | 1
@@ -1987,7 +2039,7 @@
 			  forcing Dual Address Cycle for PCI cards supporting
 			  greater than 32-bit addressing.
 
-	iommu.strict=	[ARM64] Configure TLB invalidation behaviour
+	iommu.strict=	[ARM64, X86] Configure TLB invalidation behaviour
 			Format: { "0" | "1" }
 			0 - Lazy mode.
 			  Request that DMA unmap operations use deferred
@@ -1998,6 +2050,10 @@
 			1 - Strict mode (default).
 			  DMA unmap operations invalidate IOMMU hardware TLBs
 			  synchronously.
+			Note: on x86, the default behaviour depends on the
+			equivalent driver-specific parameters, but a strict
+			mode explicitly specified by either method takes
+			precedence.
 
 	iommu.passthrough=
 			[ARM64, X86] Configure DMA to bypass the IOMMU by default.
@@ -2833,6 +2889,10 @@
 			Note that even when enabled, there are a few cases where
 			the feature is not effective.
 
+			This is not compatible with hugetlb_free_vmemmap. If
+			both parameters are enabled, hugetlb_free_vmemmap takes
+			precedence over memory_hotplug.memmap_on_memory.
+
 	memtest=	[KNL,X86,ARM,PPC,RISCV] Enable memtest
 			Format: <integer>
 			default : 0 <disable>
@@ -3569,6 +3629,12 @@
 			off: turn off poisoning (default)
 			on: turn on poisoning
 
+	page_reporting.page_reporting_order=
+			[KNL] Minimal page reporting order
+			Format: <integer>
+			Adjust the minimal page reporting order. The page
+			reporting is disabled when it exceeds (MAX_ORDER-1).
+
 	panic=		[KNL] Kernel behaviour on panic: delay <timeout>
 			timeout > 0: seconds before rebooting
 			timeout = 0: wait forever
@@ -4292,6 +4358,11 @@
 			pressure to page allocator, also it makes the
 			whole algorithm to behave better in low memory
 			condition.
+
+	rcutree.rcu_delay_page_cache_fill_msec= [KNL]
+			Set the page-cache refill delay (in milliseconds)
+			in response to low-memory conditions.  The range
+			of permitted values is in the range 0:100000.
 
 	rcutree.jiffies_till_first_fqs= [KNL]
 			Set delay from grace-period initialization to
@@ -5611,11 +5682,24 @@
 			Note, echoing 1 into this file without the
 			tracepoint_printk kernel cmdline option has no effect.
 
+			The tp_printk_stop_on_boot (see below) can also be used
+			to stop the printing of events to console at
+			late_initcall_sync.
+
 			** CAUTION **
 
 			Having tracepoints sent to printk() and activating high
 			frequency tracepoints such as irq or sched, can cause
 			the system to live lock.
+
+	tp_printk_stop_on_boot[FTRACE]
+			When tp_printk (above) is set, it can cause a lot of noise
+			on the console. It may be useful to only include the
+			printing of events during boot up, as user space may
+			make the system inoperable.
+
+			This command line option will stop the printing of events
+			to console at the late_initcall_sync() time frame.
 
 	traceoff_on_warning
 			[FTRACE] enable this option to disable tracing when a

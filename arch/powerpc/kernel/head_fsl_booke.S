@@ -858,7 +858,7 @@ KernelSPE:
 	ori	r3,r3,87f@l
 	mr	r4,r2		/* current */
 	lwz	r5,_NIP(r1)
-	bl	printk
+	bl	_printk
 #endif
 	b	interrupt_return
 #ifdef CONFIG_PRINTK
@@ -984,20 +984,6 @@ _GLOBAL(abort)
 	lis	r13,(DBCR0_IDM|DBCR0_RST_CHIP)@h
 	mtspr	SPRN_DBCR0,r13
 	isync
-
-_GLOBAL(set_context)
-
-#ifdef CONFIG_BDI_SWITCH
-	/* Context switch the PTE pointer for the Abatron BDI2000.
-	 * The PGDIR is the second parameter.
-	 */
-	lis	r5, abatron_pteptrs@h
-	ori	r5, r5, abatron_pteptrs@l
-	stw	r4, 0x4(r5)
-#endif
-	mtspr	SPRN_PID,r3
-	isync			/* Force context change */
-	blr
 
 #ifdef CONFIG_SMP
 /* When we get here, r24 needs to hold the CPU # */
@@ -1226,26 +1212,3 @@ _GLOBAL(restore_to_as0)
 	*/
 3:	mr	r3,r5
 	bl	_start
-
-/*
- * We put a few things here that have to be page-aligned. This stuff
- * goes at the beginning of the data segment, which is page-aligned.
- */
-	.data
-	.align	12
-	.globl	sdata
-sdata:
-	.globl	empty_zero_page
-empty_zero_page:
-	.space	4096
-EXPORT_SYMBOL(empty_zero_page)
-	.globl	swapper_pg_dir
-swapper_pg_dir:
-	.space	PGD_TABLE_SIZE
-
-/*
- * Room for two PTE pointers, usually the kernel and current user pointers
- * to their respective root page table.
- */
-abatron_pteptrs:
-	.space	8

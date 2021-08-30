@@ -311,4 +311,6 @@ void asm_offsets(void)
 	 * ensures the alignment is sane.
 	 */
 	DEFINE(PT_SIZE_ON_STACK, ALIGN(sizeof(struct pt_regs), STACK_ALIGN));
+
+	OFFSET(KERNEL_MAP_VIRT_ADDR, kernel_mapping, virt_addr);
 }

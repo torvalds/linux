@@ -7,7 +7,7 @@
  * Provides support for non-platform/non-ACPI SSAM clients via dedicated
  * subsystem.
  *
- * Copyright (C) 2019-2020 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #ifndef _LINUX_SURFACE_AGGREGATOR_DEVICE_H

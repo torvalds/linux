@@ -1,0 +1,122 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/can/renesas,rcar-canfd.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas R-Car CAN FD Controller
+
+maintainers:
+  - Fabrizio Castro <fabrizio.castro.jz@renesas.com>
+
+allOf:
+  - $ref: can-controller.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - renesas,r8a774a1-canfd     # RZ/G2M
+              - renesas,r8a774b1-canfd     # RZ/G2N
+              - renesas,r8a774c0-canfd     # RZ/G2E
+              - renesas,r8a774e1-canfd     # RZ/G2H
+              - renesas,r8a7795-canfd      # R-Car H3
+              - renesas,r8a7796-canfd      # R-Car M3-W
+              - renesas,r8a77965-canfd     # R-Car M3-N
+              - renesas,r8a77970-canfd     # R-Car V3M
+              - renesas,r8a77980-canfd     # R-Car V3H
+              - renesas,r8a77990-canfd     # R-Car E3
+              - renesas,r8a77995-canfd     # R-Car D3
+          - const: renesas,rcar-gen3-canfd # R-Car Gen3 and RZ/G2
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: Channel interrupt
+      - description: Global interrupt
+
+  clocks:
+    maxItems: 3
+
+  clock-names:
+    items:
+      - const: fck
+      - const: canfd
+      - const: can_clk
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  renesas,no-can-fd:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      The controller can operate in either CAN FD only mode (default) or
+      Classical CAN only mode.  The mode is global to both the channels.
+      Specify this property to put the controller in Classical CAN only mode.
+
+  assigned-clocks:
+    description:
+      Reference to the CANFD clock.  The CANFD clock is a div6 clock and can be
+      used by both CAN (if present) and CAN FD controllers at the same time.
+      It needs to be scaled to maximum frequency if any of these controllers
+      use it.
+
+  assigned-clock-rates:
+    description: Maximum frequency of the CANFD clock.
+
+patternProperties:
+  "^channel[01]$":
+    type: object
+    description:
+      The controller supports two channels and each is represented as a child
+      node.  Each child node supports the "status" property only, which
+      is used to enable/disable the respective channel.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - power-domains
+  - resets
+  - assigned-clocks
+  - assigned-clock-rates
+  - channel0
+  - channel1
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r8a7795-cpg-mssr.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/r8a7795-sysc.h>
+
+    canfd: can@e66c0000 {
+            compatible = "renesas,r8a7795-canfd",
+                         "renesas,rcar-gen3-canfd";
+            reg = <0xe66c0000 0x8000>;
+            interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&cpg CPG_MOD 914>,
+                     <&cpg CPG_CORE R8A7795_CLK_CANFD>,
+                     <&can_clk>;
+            clock-names = "fck", "canfd", "can_clk";
+            assigned-clocks = <&cpg CPG_CORE R8A7795_CLK_CANFD>;
+            assigned-clock-rates = <40000000>;
+            power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+            resets = <&cpg 914>;
+
+            channel0 {
+            };
+
+            channel1 {
+            };
+    };

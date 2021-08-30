@@ -16,8 +16,8 @@ Optional subnodes:
 The sub-functions of CPCAP get their own node with their own compatible values,
 which are described in the following files:
 
-- Documentation/devicetree/bindings/power/supply/cpcap-battery.txt
-- Documentation/devicetree/bindings/power/supply/cpcap-charger.txt
+- Documentation/devicetree/bindings/power/supply/cpcap-battery.yaml
+- Documentation/devicetree/bindings/power/supply/cpcap-charger.yaml
 - Documentation/devicetree/bindings/regulator/cpcap-regulator.txt
 - Documentation/devicetree/bindings/phy/phy-cpcap-usb.txt
 - Documentation/devicetree/bindings/input/cpcap-pwrbutton.txt

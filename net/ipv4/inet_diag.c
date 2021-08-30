@@ -416,7 +416,7 @@ EXPORT_SYMBOL_GPL(inet_sk_diag_fill);
 static int inet_twsk_diag_fill(struct sock *sk,
 			       struct sk_buff *skb,
 			       struct netlink_callback *cb,
-			       u16 nlmsg_flags)
+			       u16 nlmsg_flags, bool net_admin)
 {
 	struct inet_timewait_sock *tw = inet_twsk(sk);
 	struct inet_diag_msg *r;
@@ -443,6 +443,12 @@ static int inet_twsk_diag_fill(struct sock *sk,
 	r->idiag_wqueue	      = 0;
 	r->idiag_uid	      = 0;
 	r->idiag_inode	      = 0;
+
+	if (net_admin && nla_put_u32(skb, INET_DIAG_MARK,
+				     tw->tw_mark)) {
+		nlmsg_cancel(skb, nlh);
+		return -EMSGSIZE;
+	}
 
 	nlmsg_end(skb, nlh);
 	return 0;
@@ -494,7 +500,7 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 			u16 nlmsg_flags, bool net_admin)
 {
 	if (sk->sk_state == TCP_TIME_WAIT)
-		return inet_twsk_diag_fill(sk, skb, cb, nlmsg_flags);
+		return inet_twsk_diag_fill(sk, skb, cb, nlmsg_flags, net_admin);
 
 	if (sk->sk_state == TCP_NEW_SYN_RECV)
 		return inet_req_diag_fill(sk, skb, cb, nlmsg_flags, net_admin);
@@ -801,6 +807,8 @@ int inet_diag_bc_sk(const struct nlattr *bc, struct sock *sk)
 		entry.mark = sk->sk_mark;
 	else if (sk->sk_state == TCP_NEW_SYN_RECV)
 		entry.mark = inet_rsk(inet_reqsk(sk))->ir_mark;
+	else if (sk->sk_state == TCP_TIME_WAIT)
+		entry.mark = inet_twsk(sk)->tw_mark;
 	else
 		entry.mark = 0;
 #ifdef CONFIG_SOCK_CGROUP_DATA

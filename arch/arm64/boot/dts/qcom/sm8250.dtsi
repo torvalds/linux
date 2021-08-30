@@ -8,6 +8,8 @@
 #include <dt-bindings/clock/qcom,gcc-sm8250.h>
 #include <dt-bindings/clock/qcom,gpucc-sm8250.h>
 #include <dt-bindings/clock/qcom,rpmh.h>
+#include <dt-bindings/dma/qcom-gpi.h>
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interconnect/qcom,osm-l3.h>
 #include <dt-bindings/interconnect/qcom,sm8250.h>
 #include <dt-bindings/mailbox/qcom-ipcc.h>
@@ -519,6 +521,26 @@
 			};
 		};
 
+		gpi_dma2: dma-controller@800000 {
+			compatible = "qcom,sm8250-gpi-dma";
+			reg = <0 0x00800000 0 0x70000>;
+			interrupts = <GIC_SPI 588 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 589 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 590 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 591 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 592 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 593 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 594 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 595 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 596 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 597 IRQ_TYPE_LEVEL_HIGH>;
+			dma-channels = <10>;
+			dma-channel-mask = <0x3f>;
+			iommus = <&apps_smmu 0x76 0x0>;
+			#dma-cells = <3>;
+			status = "disabled";
+		};
+
 		qupv3_id_2: geniqup@8c0000 {
 			compatible = "qcom,geni-se-qup";
 			reg = <0x0 0x008c0000 0x0 0x6000>;
@@ -712,6 +734,29 @@
 				operating-points-v2 = <&qup_opp_table>;
 				status = "disabled";
 			};
+		};
+
+		gpi_dma0: dma-controller@900000 {
+			compatible = "qcom,sm8250-gpi-dma";
+			reg = <0 0x00900000 0 0x70000>;
+			interrupts = <GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 247 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 248 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 249 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 250 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 251 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 252 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 253 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 254 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 255 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 256 IRQ_TYPE_LEVEL_HIGH>;
+			dma-channels = <15>;
+			dma-channel-mask = <0x7ff>;
+			iommus = <&apps_smmu 0x5b6 0x0>;
+			#dma-cells = <3>;
+			status = "disabled";
 		};
 
 		qupv3_id_0: geniqup@9c0000 {
@@ -959,6 +1004,26 @@
 				operating-points-v2 = <&qup_opp_table>;
 				status = "disabled";
 			};
+		};
+
+		gpi_dma1: dma-controller@a00000 {
+			compatible = "qcom,sm8250-gpi-dma";
+			reg = <0 0x00a00000 0 0x70000>;
+			interrupts = <GIC_SPI 279 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 280 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 281 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 282 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 283 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 284 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 293 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 294 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 295 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 296 IRQ_TYPE_LEVEL_HIGH>;
+			dma-channels = <10>;
+			dma-channel-mask = <0x3f>;
+			iommus = <&apps_smmu 0x56 0x0>;
+			#dma-cells = <3>;
+			status = "disabled";
 		};
 
 		qupv3_id_1: geniqup@ac0000 {
@@ -1249,6 +1314,12 @@
 			phys = <&pcie0_lane>;
 			phy-names = "pciephy";
 
+			perst-gpio = <&tlmm 79 GPIO_ACTIVE_LOW>;
+			enable-gpio = <&tlmm 81 GPIO_ACTIVE_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pcie0_default_state>;
+
 			status = "disabled";
 		};
 
@@ -1346,6 +1417,12 @@
 
 			phys = <&pcie1_lane>;
 			phy-names = "pciephy";
+
+			perst-gpio = <&tlmm 82 GPIO_ACTIVE_LOW>;
+			enable-gpio = <&tlmm 84 GPIO_ACTIVE_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pcie1_default_state>;
 
 			status = "disabled";
 		};
@@ -1447,6 +1524,12 @@
 			phys = <&pcie2_lane>;
 			phy-names = "pciephy";
 
+			perst-gpio = <&tlmm 85 GPIO_ACTIVE_LOW>;
+			enable-gpio = <&tlmm 87 GPIO_ACTIVE_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pcie2_default_state>;
+
 			status = "disabled";
 		};
 
@@ -1470,7 +1553,7 @@
 
 			status = "disabled";
 
-			pcie2_lane: lanes@1c0e200 {
+			pcie2_lane: lanes@1c16200 {
 				reg = <0 0x1c16200 0 0x170>, /* tx0 */
 				      <0 0x1c16400 0 0x200>, /* rx0 */
 				      <0 0x1c16a00 0 0x1f0>, /* pcs */
@@ -1746,6 +1829,8 @@
 
 			qcom,gmu = <&gmu>;
 
+			status = "disabled";
+
 			zap-shader {
 				memory-region = <&gpu_mem>;
 			};
@@ -1818,6 +1903,8 @@
 			iommus = <&adreno_smmu 5 0x400>;
 
 			operating-points-v2 = <&gmu_opp_table>;
+
+			status = "disabled";
 
 			gmu_opp_table: opp-table {
 				compatible = "operating-points-v2";
@@ -2323,6 +2410,8 @@
 				 <&videocc VIDEO_CC_MVS0C_CLK_ARES>;
 			reset-names = "bus", "core";
 
+			status = "disabled";
+
 			video-decoder {
 				compatible = "venus-decoder";
 			};
@@ -2370,7 +2459,7 @@
 		};
 
 		mdss: mdss@ae00000 {
-			compatible = "qcom,sdm845-mdss";
+			compatible = "qcom,sm8250-mdss";
 			reg = <0 0x0ae00000 0 0x1000>;
 			reg-names = "mdss";
 
@@ -2402,7 +2491,7 @@
 			ranges;
 
 			mdss_mdp: mdp@ae01000 {
-				compatible = "qcom,sdm845-dpu";
+				compatible = "qcom,sm8250-dpu";
 				reg = <0 0x0ae01000 0 0x8f000>,
 				      <0 0x0aeb0000 0 0x2008>;
 				reg-names = "mdp", "vbif";
@@ -2423,8 +2512,6 @@
 
 				interrupt-parent = <&mdss>;
 				interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
-
-				status = "disabled";
 
 				ports {
 					#address-cells = <1>;
@@ -2499,6 +2586,9 @@
 
 				status = "disabled";
 
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				ports {
 					#address-cells = <1>;
 					#size-cells = <0>;
@@ -2565,6 +2655,9 @@
 				phy-names = "dsi";
 
 				status = "disabled";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
 
 				ports {
 					#address-cells = <1>;
@@ -3393,6 +3486,95 @@
 					function = "mi2s2_ws";
 					drive-strength = <8>;
 					output-high;
+				};
+			};
+
+			sdc2_sleep_state: sdc2-sleep {
+				clk {
+					pins = "sdc2_clk";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				cmd {
+					pins = "sdc2_cmd";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+
+				data {
+					pins = "sdc2_data";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
+
+			pcie0_default_state: pcie0-default {
+				perst {
+					pins = "gpio79";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+
+				clkreq {
+					pins = "gpio80";
+					function = "pci_e0";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+
+				wake {
+					pins = "gpio81";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
+
+			pcie1_default_state: pcie1-default {
+				perst {
+					pins = "gpio82";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+
+				clkreq {
+					pins = "gpio83";
+					function = "pci_e1";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+
+				wake {
+					pins = "gpio84";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
+
+			pcie2_default_state: pcie2-default {
+				perst {
+					pins = "gpio85";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+
+				clkreq {
+					pins = "gpio86";
+					function = "pci_e2";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+
+				wake {
+					pins = "gpio87";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-up;
 				};
 			};
 		};

@@ -30,14 +30,12 @@ properties:
       - description: interrupt line0
       - description: interrupt line1
     minItems: 1
-    maxItems: 2
 
   interrupt-names:
     items:
       - const: int0
       - const: int1
     minItems: 1
-    maxItems: 2
 
   clocks:
     items:

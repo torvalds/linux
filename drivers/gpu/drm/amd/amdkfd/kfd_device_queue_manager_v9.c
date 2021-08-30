@@ -61,10 +61,19 @@ static int update_qpd_v9(struct device_queue_manager *dqm,
 		qpd->sh_mem_config =
 				SH_MEM_ALIGNMENT_MODE_UNALIGNED <<
 					SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT;
-		if (dqm->dev->noretry &&
-		    !dqm->dev->use_iommu_v2)
+
+		if (dqm->dev->device_info->asic_family == CHIP_ALDEBARAN) {
+			/* Aldebaran can safely support different XNACK modes
+			 * per process
+			 */
+			if (!pdd->process->xnack_enabled)
+				qpd->sh_mem_config |=
+					1 << SH_MEM_CONFIG__RETRY_DISABLE__SHIFT;
+		} else if (dqm->dev->noretry &&
+			   !dqm->dev->use_iommu_v2) {
 			qpd->sh_mem_config |=
 				1 << SH_MEM_CONFIG__RETRY_DISABLE__SHIFT;
+		}
 
 		qpd->sh_mem_ape1_limit = 0;
 		qpd->sh_mem_ape1_base = 0;

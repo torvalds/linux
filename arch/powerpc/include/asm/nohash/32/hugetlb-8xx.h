@@ -66,10 +66,9 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
 }
 
 #ifdef CONFIG_PPC_4K_PAGES
-static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
-				       struct page *page, int writable)
+static inline pte_t arch_make_huge_pte(pte_t entry, unsigned int shift, vm_flags_t flags)
 {
-	size_t size = huge_page_size(hstate_vma(vma));
+	size_t size = 1UL << shift;
 
 	if (size == SZ_16K)
 		return __pte(pte_val(entry) & ~_PAGE_HUGE);

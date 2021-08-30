@@ -1257,7 +1257,7 @@ out_err:
 
 static int nvmet_rdma_create_queue_ib(struct nvmet_rdma_queue *queue)
 {
-	struct ib_qp_init_attr qp_attr;
+	struct ib_qp_init_attr qp_attr = { };
 	struct nvmet_rdma_device *ndev = queue->dev;
 	int nr_cqe, ret, i, factor;
 
@@ -1275,7 +1275,6 @@ static int nvmet_rdma_create_queue_ib(struct nvmet_rdma_queue *queue)
 		goto out;
 	}
 
-	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.qp_context = queue;
 	qp_attr.event_handler = nvmet_rdma_qp_event;
 	qp_attr.send_cq = queue->cq;

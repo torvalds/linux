@@ -829,7 +829,7 @@ static u16 calc_avg_temp(struct ips_driver *ips, u16 *array)
 
 static u16 read_mgtv(struct ips_driver *ips)
 {
-	u16 ret;
+	u16 __maybe_unused ret;
 	u64 slope, offset;
 	u64 val;
 

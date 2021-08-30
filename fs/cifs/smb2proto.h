@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: LGPL-2.1 */
 /*
  *   fs/cifs/smb2proto.h
  *
@@ -6,19 +7,6 @@
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *              Pavel Shilovsky (pshilovsky@samba.org) 2012
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #ifndef _SMB2PROTO_H
 #define _SMB2PROTO_H
@@ -64,8 +52,6 @@ extern void smb2_echo_request(struct work_struct *work);
 extern __le32 smb2_get_lease_state(struct cifsInodeInfo *cinode);
 extern bool smb2_is_valid_oplock_break(char *buffer,
 				       struct TCP_Server_Info *srv);
-extern struct cifs_ses *smb2_find_smb_ses(struct TCP_Server_Info *server,
-					  __u64 ses_id);
 extern int smb3_handle_read_data(struct TCP_Server_Info *server,
 				 struct mid_q_entry *mid);
 

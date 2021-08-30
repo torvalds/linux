@@ -988,15 +988,18 @@ int __orinoco_hw_setup_enc(struct orinoco_private *priv)
  * tsc must be NULL or up to 8 bytes
  */
 int __orinoco_hw_set_tkip_key(struct orinoco_private *priv, int key_idx,
-			      int set_tx, const u8 *key, const u8 *rsc,
-			      size_t rsc_len, const u8 *tsc, size_t tsc_len)
+			      int set_tx, const u8 *key, size_t key_len,
+			      const u8 *rsc, size_t rsc_len,
+			      const u8 *tsc, size_t tsc_len)
 {
 	struct {
 		__le16 idx;
 		u8 rsc[ORINOCO_SEQ_LEN];
-		u8 key[TKIP_KEYLEN];
-		u8 tx_mic[MIC_KEYLEN];
-		u8 rx_mic[MIC_KEYLEN];
+		struct {
+			u8 key[TKIP_KEYLEN];
+			u8 tx_mic[MIC_KEYLEN];
+			u8 rx_mic[MIC_KEYLEN];
+		} tkip;
 		u8 tsc[ORINOCO_SEQ_LEN];
 	} __packed buf;
 	struct hermes *hw = &priv->hw;
@@ -1011,8 +1014,9 @@ int __orinoco_hw_set_tkip_key(struct orinoco_private *priv, int key_idx,
 		key_idx |= 0x8000;
 
 	buf.idx = cpu_to_le16(key_idx);
-	memcpy(buf.key, key,
-	       sizeof(buf.key) + sizeof(buf.tx_mic) + sizeof(buf.rx_mic));
+	if (key_len != sizeof(buf.tkip))
+		return -EINVAL;
+	memcpy(&buf.tkip, key, sizeof(buf.tkip));
 
 	if (rsc_len > sizeof(buf.rsc))
 		rsc_len = sizeof(buf.rsc);

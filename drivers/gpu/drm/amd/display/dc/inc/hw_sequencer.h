@@ -235,6 +235,13 @@ struct hw_sequencer_funcs {
 			enum dc_color_depth color_depth,
 			const struct tg_color *solid_color,
 			int width, int height, int offset);
+
+	void (*z10_restore)(struct dc *dc);
+
+	void (*update_visual_confirm_color)(struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			struct tg_color *color,
+			int mpcc_id);
 };
 
 void color_space_to_black_color(
@@ -249,4 +256,17 @@ const uint16_t *find_color_matrix(
 		enum dc_color_space color_space,
 		uint32_t *array_size);
 
+void get_surface_visual_confirm_color(
+		const struct pipe_ctx *pipe_ctx,
+		struct tg_color *color);
+
+void get_hdr_visual_confirm_color(
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color);
+void get_mpctree_visual_confirm_color(
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color);
+void get_surface_tile_visual_confirm_color(
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color);
 #endif /* __DC_HW_SEQUENCER_H__ */

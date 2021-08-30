@@ -467,10 +467,9 @@ fictitious example for ``sha1sum(1)``
 
 .. code-block:: c
 
-	/* Note: the cast is to satisfy overly strict type-checking. */
 	#define TEST_SHA1(in, want) \
 		sha1sum(in, out); \
-		KUNIT_EXPECT_STREQ_MSG(test, (char *)out, want, "sha1sum(%s)", in);
+		KUNIT_EXPECT_STREQ_MSG(test, out, want, "sha1sum(%s)", in);
 
 	char out[40];
 	TEST_SHA1("hello world",  "2aae6c35c94fcfb415dbe95f408b9ce91ee846ed");
@@ -509,7 +508,7 @@ In some cases, it can be helpful to write a *table-driven test* instead, e.g.
 	};
 	for (i = 0; i < ARRAY_SIZE(cases); ++i) {
 		sha1sum(cases[i].str, out);
-		KUNIT_EXPECT_STREQ_MSG(test, (char *)out, cases[i].sha1,
+		KUNIT_EXPECT_STREQ_MSG(test, out, cases[i].sha1,
 		                      "sha1sum(%s)", cases[i].str);
 	}
 
@@ -570,7 +569,7 @@ Reusing the same ``cases`` array from above, we can write the test as a
 		struct sha1_test_case *test_param = (struct sha1_test_case *)(test->param_value);
 
 		sha1sum(test_param->str, out);
-		KUNIT_EXPECT_STREQ_MSG(test, (char *)out, test_param->sha1,
+		KUNIT_EXPECT_STREQ_MSG(test, out, test_param->sha1,
 				      "sha1sum(%s)", test_param->str);
 	}
 
@@ -611,17 +610,45 @@ non-UML architectures:
 None of these are reasons not to run your KUnit tests on real hardware; they are
 only things to be aware of when doing so.
 
-The biggest impediment will likely be that certain KUnit features and
-infrastructure may not support your target environment. For example, at this
-time the KUnit Wrapper (``tools/testing/kunit/kunit.py``) does not work outside
-of UML. Unfortunately, there is no way around this. Using UML (or even just a
-particular architecture) allows us to make a lot of assumptions that make it
-possible to do things which might otherwise be impossible.
+Currently, the KUnit Wrapper (``tools/testing/kunit/kunit.py``) (aka
+kunit_tool) only fully supports running tests inside of UML and QEMU; however,
+this is only due to our own time limitations as humans working on KUnit. It is
+entirely possible to support other emulators and even actual hardware, but for
+now QEMU and UML is what is fully supported within the KUnit Wrapper. Again, to
+be clear, this is just the Wrapper. The actualy KUnit tests and the KUnit
+library they are written in is fully architecture agnostic and can be used in
+virtually any setup, you just won't have the benefit of typing a single command
+out of the box and having everything magically work perfectly.
 
-Nevertheless, all core KUnit framework features are fully supported on all
-architectures, and using them is straightforward: all you need to do is to take
-your kunitconfig, your Kconfig options for the tests you would like to run, and
-merge them into whatever config your are using for your platform. That's it!
+Again, all core KUnit framework features are fully supported on all
+architectures, and using them is straightforward: Most popular architectures
+are supported directly in the KUnit Wrapper via QEMU. Currently, supported
+architectures on QEMU include:
+
+*   i386
+*   x86_64
+*   arm
+*   arm64
+*   alpha
+*   powerpc
+*   riscv
+*   s390
+*   sparc
+
+In order to run KUnit tests on one of these architectures via QEMU with the
+KUnit wrapper, all you need to do is specify the flags ``--arch`` and
+``--cross_compile`` when invoking the KUnit Wrapper. For example, we could run
+the default KUnit tests on ARM in the following manner (assuming we have an ARM
+toolchain installed):
+
+.. code-block:: bash
+
+	tools/testing/kunit/kunit.py run --timeout=60 --jobs=12 --arch=arm --cross_compile=arm-linux-gnueabihf-
+
+Alternatively, if you want to run your tests on real hardware or in some other
+emulation environment, all you need to do is to take your kunitconfig, your
+Kconfig options for the tests you would like to run, and merge them into
+whatever config your are using for your platform. That's it!
 
 For example, let's say you have the following kunitconfig:
 

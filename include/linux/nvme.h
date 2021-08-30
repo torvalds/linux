@@ -636,8 +636,8 @@ struct nvme_lba_range_type {
 	__u8			type;
 	__u8			attributes;
 	__u8			rsvd2[14];
-	__u64			slba;
-	__u64			nlb;
+	__le64			slba;
+	__le64			nlb;
 	__u8			guid[16];
 	__u8			rsvd48[16];
 };
@@ -944,6 +944,13 @@ struct nvme_zone_mgmt_recv_cmd {
 enum {
 	NVME_ZRA_ZONE_REPORT		= 0,
 	NVME_ZRASF_ZONE_REPORT_ALL	= 0,
+	NVME_ZRASF_ZONE_STATE_EMPTY	= 0x01,
+	NVME_ZRASF_ZONE_STATE_IMP_OPEN	= 0x02,
+	NVME_ZRASF_ZONE_STATE_EXP_OPEN	= 0x03,
+	NVME_ZRASF_ZONE_STATE_CLOSED	= 0x04,
+	NVME_ZRASF_ZONE_STATE_READONLY	= 0x05,
+	NVME_ZRASF_ZONE_STATE_FULL	= 0x06,
+	NVME_ZRASF_ZONE_STATE_OFFLINE	= 0x07,
 	NVME_REPORT_ZONE_PARTIAL	= 1,
 };
 
@@ -1504,6 +1511,7 @@ enum {
 	NVME_SC_NS_WRITE_PROTECTED	= 0x20,
 	NVME_SC_CMD_INTERRUPTED		= 0x21,
 	NVME_SC_TRANSIENT_TR_ERR	= 0x22,
+	NVME_SC_INVALID_IO_CMD_SET	= 0x2C,
 
 	NVME_SC_LBA_RANGE		= 0x80,
 	NVME_SC_CAP_EXCEEDED		= 0x81,

@@ -74,6 +74,15 @@ config INTERCONNECT_QCOM_SC7180
 	  This is a driver for the Qualcomm Network-on-Chip on sc7180-based
 	  platforms.
 
+config INTERCONNECT_QCOM_SC7280
+	tristate "Qualcomm SC7280 interconnect driver"
+	depends on INTERCONNECT_QCOM_RPMH_POSSIBLE
+	select INTERCONNECT_QCOM_RPMH
+	select INTERCONNECT_QCOM_BCM_VOTER
+	help
+	  This is a driver for the Qualcomm Network-on-Chip on sc7280-based
+	  platforms.
+
 config INTERCONNECT_QCOM_SDM660
 	tristate "Qualcomm SDM660 interconnect driver"
 	depends on INTERCONNECT_QCOM

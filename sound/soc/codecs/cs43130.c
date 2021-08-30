@@ -36,6 +36,7 @@
 #include <sound/jack.h>
 
 #include "cs43130.h"
+#include "cirrus_legacy.h"
 
 static const struct reg_default cs43130_reg_defaults[] = {
 	{CS43130_SYS_CLK_CTL_1, 0x06},
@@ -1671,14 +1672,14 @@ static int cs43130_show_dc(struct device *dev, char *buf, u8 ch)
 				 cs43130->hpload_dc[ch]);
 }
 
-static ssize_t cs43130_show_dc_l(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t hpload_dc_l_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	return cs43130_show_dc(dev, buf, HP_LEFT);
 }
 
-static ssize_t cs43130_show_dc_r(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t hpload_dc_r_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	return cs43130_show_dc(dev, buf, HP_RIGHT);
 }
@@ -1718,22 +1719,22 @@ static int cs43130_show_ac(struct device *dev, char *buf, u8 ch)
 	}
 }
 
-static ssize_t cs43130_show_ac_l(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t hpload_ac_l_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	return cs43130_show_ac(dev, buf, HP_LEFT);
 }
 
-static ssize_t cs43130_show_ac_r(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t hpload_ac_r_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	return cs43130_show_ac(dev, buf, HP_RIGHT);
 }
 
-static DEVICE_ATTR(hpload_dc_l, 0444, cs43130_show_dc_l, NULL);
-static DEVICE_ATTR(hpload_dc_r, 0444, cs43130_show_dc_r, NULL);
-static DEVICE_ATTR(hpload_ac_l, 0444, cs43130_show_ac_l, NULL);
-static DEVICE_ATTR(hpload_ac_r, 0444, cs43130_show_ac_r, NULL);
+static DEVICE_ATTR_RO(hpload_dc_l);
+static DEVICE_ATTR_RO(hpload_dc_r);
+static DEVICE_ATTR_RO(hpload_ac_l);
+static DEVICE_ATTR_RO(hpload_ac_r);
 
 static struct attribute *hpload_attrs[] = {
 	&dev_attr_hpload_dc_l.attr,
@@ -2422,9 +2423,8 @@ static int cs43130_i2c_probe(struct i2c_client *client,
 {
 	struct cs43130_private *cs43130;
 	int ret;
-	unsigned int devid = 0;
 	unsigned int reg;
-	int i;
+	int i, devid;
 
 	cs43130 = devm_kzalloc(&client->dev, sizeof(*cs43130), GFP_KERNEL);
 	if (!cs43130)
@@ -2462,20 +2462,21 @@ static int cs43130_i2c_probe(struct i2c_client *client,
 
 	cs43130->reset_gpio = devm_gpiod_get_optional(&client->dev,
 						      "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(cs43130->reset_gpio))
-		return PTR_ERR(cs43130->reset_gpio);
+	if (IS_ERR(cs43130->reset_gpio)) {
+		ret = PTR_ERR(cs43130->reset_gpio);
+		goto err_supplies;
+	}
 
 	gpiod_set_value_cansleep(cs43130->reset_gpio, 1);
 
 	usleep_range(2000, 2050);
 
-	ret = regmap_read(cs43130->regmap, CS43130_DEVID_AB, &reg);
-
-	devid = (reg & 0xFF) << 12;
-	ret = regmap_read(cs43130->regmap, CS43130_DEVID_CD, &reg);
-	devid |= (reg & 0xFF) << 4;
-	ret = regmap_read(cs43130->regmap, CS43130_DEVID_E, &reg);
-	devid |= (reg & 0xF0) >> 4;
+	devid = cirrus_read_device_id(cs43130->regmap, CS43130_DEVID_AB);
+	if (devid < 0) {
+		ret = devid;
+		dev_err(&client->dev, "Failed to read device ID: %d\n", ret);
+		goto err;
+	}
 
 	switch (devid) {
 	case CS43130_CHIP_ID:
@@ -2515,7 +2516,7 @@ static int cs43130_i2c_probe(struct i2c_client *client,
 					"cs43130", cs43130);
 	if (ret != 0) {
 		dev_err(&client->dev, "Failed to request IRQ: %d\n", ret);
-		return ret;
+		goto err;
 	}
 
 	cs43130->mclk_int_src = CS43130_MCLK_SRC_RCO;
@@ -2574,7 +2575,13 @@ static int cs43130_i2c_probe(struct i2c_client *client,
 			   CS43130_XSP_3ST_MASK, 0);
 
 	return 0;
+
 err:
+	gpiod_set_value_cansleep(cs43130->reset_gpio, 0);
+err_supplies:
+	regulator_bulk_disable(ARRAY_SIZE(cs43130->supplies),
+			       cs43130->supplies);
+
 	return ret;
 }
 

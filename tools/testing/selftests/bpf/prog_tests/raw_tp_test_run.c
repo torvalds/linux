@@ -77,7 +77,7 @@ void test_raw_tp_test_run(void)
 	/* invalid cpu ID should fail with ENXIO */
 	opts.cpu = 0xffffffff;
 	err = bpf_prog_test_run_opts(prog_fd, &opts);
-	CHECK(err != -1 || errno != ENXIO,
+	CHECK(err >= 0 || errno != ENXIO,
 	      "test_run_opts_fail",
 	      "should failed with ENXIO\n");
 
@@ -85,7 +85,7 @@ void test_raw_tp_test_run(void)
 	opts.cpu = 1;
 	opts.flags = 0;
 	err = bpf_prog_test_run_opts(prog_fd, &opts);
-	CHECK(err != -1 || errno != EINVAL,
+	CHECK(err >= 0 || errno != EINVAL,
 	      "test_run_opts_fail",
 	      "should failed with EINVAL\n");
 

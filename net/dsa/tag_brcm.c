@@ -205,7 +205,7 @@ static const struct dsa_device_ops brcm_netdev_ops = {
 	.proto	= DSA_TAG_PROTO_BRCM,
 	.xmit	= brcm_tag_xmit,
 	.rcv	= brcm_tag_rcv,
-	.overhead = BRCM_TAG_LEN,
+	.needed_headroom = BRCM_TAG_LEN,
 };
 
 DSA_TAG_DRIVER(brcm_netdev_ops);
@@ -286,7 +286,7 @@ static const struct dsa_device_ops brcm_legacy_netdev_ops = {
 	.proto = DSA_TAG_PROTO_BRCM_LEGACY,
 	.xmit = brcm_leg_tag_xmit,
 	.rcv = brcm_leg_tag_rcv,
-	.overhead = BRCM_LEG_TAG_LEN,
+	.needed_headroom = BRCM_LEG_TAG_LEN,
 };
 
 DSA_TAG_DRIVER(brcm_legacy_netdev_ops);
@@ -314,7 +314,7 @@ static const struct dsa_device_ops brcm_prepend_netdev_ops = {
 	.proto	= DSA_TAG_PROTO_BRCM_PREPEND,
 	.xmit	= brcm_tag_xmit_prepend,
 	.rcv	= brcm_tag_rcv_prepend,
-	.overhead = BRCM_TAG_LEN,
+	.needed_headroom = BRCM_TAG_LEN,
 };
 
 DSA_TAG_DRIVER(brcm_prepend_netdev_ops);

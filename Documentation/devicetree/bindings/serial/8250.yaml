@@ -10,7 +10,7 @@ maintainers:
   - devicetree@vger.kernel.org
 
 allOf:
-  - $ref: /schemas/serial.yaml#
+  - $ref: serial.yaml#
   - if:
       anyOf:
         - required:

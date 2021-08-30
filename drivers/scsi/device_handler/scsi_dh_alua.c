@@ -88,6 +88,7 @@ struct alua_dh_data {
 	struct scsi_device	*sdev;
 	int			init_error;
 	struct mutex		init_mutex;
+	bool			disabled;
 };
 
 struct alua_queue_data {
@@ -517,7 +518,8 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_port_group *pg)
 	int len, k, off, bufflen = ALUA_RTPG_SIZE;
 	int group_id_old, state_old, pref_old, valid_states_old;
 	unsigned char *desc, *buff;
-	unsigned err, retval;
+	unsigned err;
+	int retval;
 	unsigned int tpg_desc_tbl_off;
 	unsigned char orig_transition_tmo;
 	unsigned long flags;
@@ -562,13 +564,15 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_port_group *pg)
 			kfree(buff);
 			return SCSI_DH_OK;
 		}
-		if (!scsi_sense_valid(&sense_hdr)) {
+		if (retval < 0 || !scsi_sense_valid(&sense_hdr)) {
 			sdev_printk(KERN_INFO, sdev,
 				    "%s: rtpg failed, result %d\n",
 				    ALUA_DH_NAME, retval);
 			kfree(buff);
-			if (driver_byte(retval) == DRIVER_ERROR)
+			if (retval < 0)
 				return SCSI_DH_DEV_TEMP_BUSY;
+			if (host_byte(retval) == DID_NO_CONNECT)
+				return SCSI_DH_RES_TEMP_UNAVAIL;
 			return SCSI_DH_IO;
 		}
 
@@ -791,11 +795,11 @@ static unsigned alua_stpg(struct scsi_device *sdev, struct alua_port_group *pg)
 	retval = submit_stpg(sdev, pg->group_id, &sense_hdr);
 
 	if (retval) {
-		if (!scsi_sense_valid(&sense_hdr)) {
+		if (retval < 0 || !scsi_sense_valid(&sense_hdr)) {
 			sdev_printk(KERN_INFO, sdev,
 				    "%s: stpg failed, result %d",
 				    ALUA_DH_NAME, retval);
-			if (driver_byte(retval) == DRIVER_ERROR)
+			if (retval < 0)
 				return SCSI_DH_DEV_TEMP_BUSY;
 		} else {
 			sdev_printk(KERN_INFO, sdev, "%s: stpg failed\n",
@@ -807,6 +811,51 @@ static unsigned alua_stpg(struct scsi_device *sdev, struct alua_port_group *pg)
 	return SCSI_DH_RETRY;
 }
 
+static bool alua_rtpg_select_sdev(struct alua_port_group *pg)
+{
+	struct alua_dh_data *h;
+	struct scsi_device *sdev = NULL;
+
+	lockdep_assert_held(&pg->lock);
+	if (WARN_ON(!pg->rtpg_sdev))
+		return false;
+
+	/*
+	 * RCU protection isn't necessary for dh_list here
+	 * as we hold pg->lock, but for access to h->pg.
+	 */
+	rcu_read_lock();
+	list_for_each_entry_rcu(h, &pg->dh_list, node) {
+		if (!h->sdev)
+			continue;
+		if (h->sdev == pg->rtpg_sdev) {
+			h->disabled = true;
+			continue;
+		}
+		if (rcu_dereference(h->pg) == pg &&
+		    !h->disabled &&
+		    !scsi_device_get(h->sdev)) {
+			sdev = h->sdev;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	if (!sdev) {
+		pr_warn("%s: no device found for rtpg\n",
+			(pg->device_id_len ?
+			 (char *)pg->device_id_str : "(nameless PG)"));
+		return false;
+	}
+
+	sdev_printk(KERN_INFO, sdev, "rtpg retry on different device\n");
+
+	scsi_device_put(pg->rtpg_sdev);
+	pg->rtpg_sdev = sdev;
+
+	return true;
+}
+
 static void alua_rtpg_work(struct work_struct *work)
 {
 	struct alua_port_group *pg =
@@ -815,6 +864,7 @@ static void alua_rtpg_work(struct work_struct *work)
 	LIST_HEAD(qdata_list);
 	int err = SCSI_DH_OK;
 	struct alua_queue_data *qdata, *tmp;
+	struct alua_dh_data *h;
 	unsigned long flags;
 
 	spin_lock_irqsave(&pg->lock, flags);
@@ -848,9 +898,18 @@ static void alua_rtpg_work(struct work_struct *work)
 		}
 		err = alua_rtpg(sdev, pg);
 		spin_lock_irqsave(&pg->lock, flags);
-		if (err == SCSI_DH_RETRY || pg->flags & ALUA_PG_RUN_RTPG) {
+
+		/* If RTPG failed on the current device, try using another */
+		if (err == SCSI_DH_RES_TEMP_UNAVAIL &&
+		    alua_rtpg_select_sdev(pg))
+			err = SCSI_DH_IMM_RETRY;
+
+		if (err == SCSI_DH_RETRY || err == SCSI_DH_IMM_RETRY ||
+		    pg->flags & ALUA_PG_RUN_RTPG) {
 			pg->flags &= ~ALUA_PG_RUNNING;
-			if (!pg->interval && !(pg->flags & ALUA_PG_RUN_RTPG))
+			if (err == SCSI_DH_IMM_RETRY)
+				pg->interval = 0;
+			else if (!pg->interval && !(pg->flags & ALUA_PG_RUN_RTPG))
 				pg->interval = ALUA_RTPG_RETRY_DELAY;
 			pg->flags |= ALUA_PG_RUN_RTPG;
 			spin_unlock_irqrestore(&pg->lock, flags);
@@ -878,6 +937,12 @@ static void alua_rtpg_work(struct work_struct *work)
 	}
 
 	list_splice_init(&pg->rtpg_list, &qdata_list);
+	/*
+	 * We went through an RTPG, for good or bad.
+	 * Re-enable all devices for the next attempt.
+	 */
+	list_for_each_entry(h, &pg->dh_list, node)
+		h->disabled = false;
 	pg->rtpg_sdev = NULL;
 	spin_unlock_irqrestore(&pg->lock, flags);
 
@@ -962,6 +1027,7 @@ static int alua_initialize(struct scsi_device *sdev, struct alua_dh_data *h)
 	int err = SCSI_DH_DEV_UNSUPP, tpgs;
 
 	mutex_lock(&h->init_mutex);
+	h->disabled = false;
 	tpgs = alua_check_tpgs(sdev);
 	if (tpgs != TPGS_MODE_NONE)
 		err = alua_check_vpd(sdev, h, tpgs);
@@ -1080,7 +1146,6 @@ static void alua_check(struct scsi_device *sdev, bool force)
 		return;
 	}
 	rcu_read_unlock();
-
 	alua_rtpg_queue(pg, sdev, NULL, force);
 	kref_put(&pg->kref, release_port_group);
 }

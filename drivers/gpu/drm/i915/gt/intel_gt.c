@@ -68,8 +68,6 @@ int intel_gt_probe_lmem(struct intel_gt *gt)
 	id = INTEL_REGION_LMEM;
 
 	mem->id = id;
-	mem->type = INTEL_MEMORY_LOCAL;
-	mem->instance = 0;
 
 	intel_memory_region_set_name(mem, "local%u", mem->instance);
 
@@ -115,10 +113,10 @@ static void init_unused_rings(struct intel_gt *gt)
 		init_unused_ring(gt, SRB1_BASE);
 		init_unused_ring(gt, SRB2_BASE);
 		init_unused_ring(gt, SRB3_BASE);
-	} else if (IS_GEN(i915, 2)) {
+	} else if (GRAPHICS_VER(i915) == 2) {
 		init_unused_ring(gt, SRB0_BASE);
 		init_unused_ring(gt, SRB1_BASE);
-	} else if (IS_GEN(i915, 3)) {
+	} else if (GRAPHICS_VER(i915) == 3) {
 		init_unused_ring(gt, PRB1_BASE);
 		init_unused_ring(gt, PRB2_BASE);
 	}
@@ -135,7 +133,7 @@ int intel_gt_init_hw(struct intel_gt *gt)
 	/* Double layer security blanket, see i915_gem_init() */
 	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 
-	if (HAS_EDRAM(i915) && INTEL_GEN(i915) < 9)
+	if (HAS_EDRAM(i915) && GRAPHICS_VER(i915) < 9)
 		intel_uncore_rmw(uncore, HSW_IDICR, 0, IDIHASHMSK(0xf));
 
 	if (IS_HASWELL(i915))
@@ -208,10 +206,10 @@ intel_gt_clear_error_registers(struct intel_gt *gt,
 	struct intel_uncore *uncore = gt->uncore;
 	u32 eir;
 
-	if (!IS_GEN(i915, 2))
+	if (GRAPHICS_VER(i915) != 2)
 		clear_register(uncore, PGTBL_ER);
 
-	if (INTEL_GEN(i915) < 4)
+	if (GRAPHICS_VER(i915) < 4)
 		clear_register(uncore, IPEIR(RENDER_RING_BASE));
 	else
 		clear_register(uncore, IPEIR_I965);
@@ -229,13 +227,13 @@ intel_gt_clear_error_registers(struct intel_gt *gt,
 				   I915_MASTER_ERROR_INTERRUPT);
 	}
 
-	if (INTEL_GEN(i915) >= 12) {
+	if (GRAPHICS_VER(i915) >= 12) {
 		rmw_clear(uncore, GEN12_RING_FAULT_REG, RING_FAULT_VALID);
 		intel_uncore_posting_read(uncore, GEN12_RING_FAULT_REG);
-	} else if (INTEL_GEN(i915) >= 8) {
+	} else if (GRAPHICS_VER(i915) >= 8) {
 		rmw_clear(uncore, GEN8_RING_FAULT_REG, RING_FAULT_VALID);
 		intel_uncore_posting_read(uncore, GEN8_RING_FAULT_REG);
-	} else if (INTEL_GEN(i915) >= 6) {
+	} else if (GRAPHICS_VER(i915) >= 6) {
 		struct intel_engine_cs *engine;
 		enum intel_engine_id id;
 
@@ -273,7 +271,7 @@ static void gen8_check_faults(struct intel_gt *gt)
 	i915_reg_t fault_reg, fault_data0_reg, fault_data1_reg;
 	u32 fault;
 
-	if (INTEL_GEN(gt->i915) >= 12) {
+	if (GRAPHICS_VER(gt->i915) >= 12) {
 		fault_reg = GEN12_RING_FAULT_REG;
 		fault_data0_reg = GEN12_FAULT_TLB_DATA0;
 		fault_data1_reg = GEN12_FAULT_TLB_DATA1;
@@ -313,9 +311,9 @@ void intel_gt_check_and_clear_faults(struct intel_gt *gt)
 	struct drm_i915_private *i915 = gt->i915;
 
 	/* From GEN8 onwards we only have one 'All Engine Fault Register' */
-	if (INTEL_GEN(i915) >= 8)
+	if (GRAPHICS_VER(i915) >= 8)
 		gen8_check_faults(gt);
-	else if (INTEL_GEN(i915) >= 6)
+	else if (GRAPHICS_VER(i915) >= 6)
 		gen6_check_faults(gt);
 	else
 		return;
@@ -367,7 +365,7 @@ void intel_gt_flush_ggtt_writes(struct intel_gt *gt)
 void intel_gt_chipset_flush(struct intel_gt *gt)
 {
 	wmb();
-	if (INTEL_GEN(gt->i915) < 6)
+	if (GRAPHICS_VER(gt->i915) < 6)
 		intel_gtt_chipset_flush();
 }
 
@@ -591,7 +589,8 @@ int intel_gt_init(struct intel_gt *gt)
 	 */
 	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
 
-	err = intel_gt_init_scratch(gt, IS_GEN(gt->i915, 2) ? SZ_256K : SZ_4K);
+	err = intel_gt_init_scratch(gt,
+				    GRAPHICS_VER(gt->i915) == 2 ? SZ_256K : SZ_4K);
 	if (err)
 		goto out_fw;
 

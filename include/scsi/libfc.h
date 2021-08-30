@@ -399,7 +399,7 @@ struct fc_seq {
  * @sid:          Source FCID
  * @did:          Destination FCID
  * @esb_stat:     ESB exchange status
- * @r_a_tov:      Resouce allocation time out value (in msecs)
+ * @r_a_tov:      Resource allocation time out value (in msecs)
  * @seq_id:       The next sequence ID to use
  * @encaps:       encapsulation information for lower-level driver
  * @f_ctl:        F_CTL flags for the sequence
@@ -668,7 +668,7 @@ enum fc_lport_event {
  * @wwnn:                  World Wide Node Name
  * @service_params:        Common service parameters
  * @e_d_tov:               Error detection timeout value
- * @r_a_tov:               Resouce allocation timeout value
+ * @r_a_tov:               Resource allocation timeout value
  * @rnid_gen:              RNID information
  * @sg_supp:               Indicates if scatter gather is supported
  * @seq_offload:           Indicates if sequence offload is supported
@@ -841,7 +841,7 @@ static inline void fc_lport_free_stats(struct fc_lport *lport)
 
 /**
  * lport_priv() - Return the private data from a local port
- * @lport: The local port whose private data is to be retreived
+ * @lport: The local port whose private data is to be retrieved
  */
 static inline void *lport_priv(const struct fc_lport *lport)
 {

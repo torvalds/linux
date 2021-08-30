@@ -64,7 +64,7 @@ static int debugfs_print_results(struct seq_file *seq, void *v)
 		debugfs_print_result(seq, suite, test_case);
 
 	seq_printf(seq, "%s %d - %s\n",
-		   kunit_status_to_string(success), 1, suite->name);
+		   kunit_status_to_ok_not_ok(success), 1, suite->name);
 	return 0;
 }
 

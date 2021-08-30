@@ -393,6 +393,7 @@
 #define SPRN_PMMAR	0x356	/* Power Management Memory Activity Register */
 #define SPRN_PSSCR	0x357	/* Processor Stop Status and Control Register (ISA 3.0) */
 #define SPRN_PSSCR_PR	0x337	/* PSSCR ISA 3.0, privileged mode access */
+#define SPRN_TRIG2	0x372
 #define SPRN_PMCR	0x374	/* Power Management Control Register */
 #define SPRN_RWMR	0x375	/* Region-Weighting Mode Register */
 
@@ -1435,8 +1436,6 @@ static inline void mtsr(u32 val, u32 idx)
 }
 #endif
 
-#define proc_trap()	asm volatile("trap")
-
 extern unsigned long current_stack_frame(void);
 
 register unsigned long current_stack_pointer asm("r1");
@@ -1447,16 +1446,6 @@ extern void scom970_write(unsigned int address, unsigned long value);
 struct pt_regs;
 
 extern void ppc_save_regs(struct pt_regs *regs);
-
-static inline void update_power8_hid0(unsigned long hid0)
-{
-	/*
-	 *  The HID0 update on Power8 should at the very least be
-	 *  preceded by a SYNC instruction followed by an ISYNC
-	 *  instruction
-	 */
-	asm volatile("sync; mtspr %0,%1; isync":: "i"(SPRN_HID0), "r"(hid0));
-}
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_REG_H */

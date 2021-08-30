@@ -11,6 +11,7 @@
 #include "debug.h"
 #include "phy.h"
 #include "reg.h"
+#include "ps.h"
 
 #ifdef CONFIG_RTW88_DEBUGFS
 
@@ -847,7 +848,13 @@ static ssize_t rtw_debugfs_set_fw_crash(struct file *filp,
 	if (!input)
 		return -EINVAL;
 
+	if (test_bit(RTW_FLAG_RESTARTING, rtwdev->flags))
+		return -EINPROGRESS;
+
+	mutex_lock(&rtwdev->mutex);
+	rtw_leave_lps_deep(rtwdev);
 	rtw_write8(rtwdev, REG_HRCV_MSG, 1);
+	mutex_unlock(&rtwdev->mutex);
 
 	return count;
 }

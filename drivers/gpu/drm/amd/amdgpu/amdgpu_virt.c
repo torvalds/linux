@@ -50,9 +50,12 @@ void amdgpu_virt_init_setting(struct amdgpu_device *adev)
 	struct drm_device *ddev = adev_to_drm(adev);
 
 	/* enable virtual display */
-	if (adev->mode_info.num_crtc == 0)
-		adev->mode_info.num_crtc = 1;
-	adev->enable_virtual_display = true;
+	if (adev->asic_type != CHIP_ALDEBARAN &&
+	    adev->asic_type != CHIP_ARCTURUS) {
+		if (adev->mode_info.num_crtc == 0)
+			adev->mode_info.num_crtc = 1;
+		adev->enable_virtual_display = true;
+	}
 	ddev->driver_features &= ~DRIVER_ATOMIC;
 	adev->cg_flags = 0;
 	adev->pg_flags = 0;
@@ -429,6 +432,9 @@ static int amdgpu_virt_read_pf2vf_data(struct amdgpu_device *adev)
 	uint32_t checksum;
 	uint32_t checkval;
 
+	uint32_t i;
+	uint32_t tmp;
+
 	if (adev->virt.fw_reserve.p_pf2vf == NULL)
 		return -EINVAL;
 
@@ -469,6 +475,29 @@ static int amdgpu_virt_read_pf2vf_data(struct amdgpu_device *adev)
 		adev->virt.reg_access =
 			((struct amd_sriov_msg_pf2vf_info *)pf2vf_info)->reg_access_flags.all;
 
+		adev->virt.decode_max_dimension_pixels = 0;
+		adev->virt.decode_max_frame_pixels = 0;
+		adev->virt.encode_max_dimension_pixels = 0;
+		adev->virt.encode_max_frame_pixels = 0;
+		adev->virt.is_mm_bw_enabled = false;
+		for (i = 0; i < AMD_SRIOV_MSG_RESERVE_VCN_INST; i++) {
+			tmp = ((struct amd_sriov_msg_pf2vf_info *)pf2vf_info)->mm_bw_management[i].decode_max_dimension_pixels;
+			adev->virt.decode_max_dimension_pixels = max(tmp, adev->virt.decode_max_dimension_pixels);
+
+			tmp = ((struct amd_sriov_msg_pf2vf_info *)pf2vf_info)->mm_bw_management[i].decode_max_frame_pixels;
+			adev->virt.decode_max_frame_pixels = max(tmp, adev->virt.decode_max_frame_pixels);
+
+			tmp = ((struct amd_sriov_msg_pf2vf_info *)pf2vf_info)->mm_bw_management[i].encode_max_dimension_pixels;
+			adev->virt.encode_max_dimension_pixels = max(tmp, adev->virt.encode_max_dimension_pixels);
+
+			tmp = ((struct amd_sriov_msg_pf2vf_info *)pf2vf_info)->mm_bw_management[i].encode_max_frame_pixels;
+			adev->virt.encode_max_frame_pixels = max(tmp, adev->virt.encode_max_frame_pixels);
+		}
+		if((adev->virt.decode_max_dimension_pixels > 0) || (adev->virt.encode_max_dimension_pixels > 0))
+			adev->virt.is_mm_bw_enabled = true;
+
+		adev->unique_id =
+			((struct amd_sriov_msg_pf2vf_info *)pf2vf_info)->uuid;
 		break;
 	default:
 		DRM_ERROR("invalid pf2vf version\n");
@@ -679,6 +708,7 @@ void amdgpu_detect_virtualization(struct amdgpu_device *adev)
 		case CHIP_VEGA10:
 		case CHIP_VEGA20:
 		case CHIP_ARCTURUS:
+		case CHIP_ALDEBARAN:
 			soc15_set_virt_ops(adev);
 			break;
 		case CHIP_NAVI10:
@@ -739,4 +769,36 @@ enum amdgpu_sriov_vf_mode amdgpu_virt_get_sriov_vf_mode(struct amdgpu_device *ad
 	}
 
 	return mode;
+}
+
+void amdgpu_virt_update_sriov_video_codec(struct amdgpu_device *adev,
+			struct amdgpu_video_codec_info *encode, uint32_t encode_array_size,
+			struct amdgpu_video_codec_info *decode, uint32_t decode_array_size)
+{
+	uint32_t i;
+
+	if (!adev->virt.is_mm_bw_enabled)
+		return;
+
+	if (encode) {
+		for (i = 0; i < encode_array_size; i++) {
+			encode[i].max_width = adev->virt.encode_max_dimension_pixels;
+			encode[i].max_pixels_per_frame = adev->virt.encode_max_frame_pixels;
+			if (encode[i].max_width > 0)
+				encode[i].max_height = encode[i].max_pixels_per_frame / encode[i].max_width;
+			else
+				encode[i].max_height = 0;
+		}
+	}
+
+	if (decode) {
+		for (i = 0; i < decode_array_size; i++) {
+			decode[i].max_width = adev->virt.decode_max_dimension_pixels;
+			decode[i].max_pixels_per_frame = adev->virt.decode_max_frame_pixels;
+			if (decode[i].max_width > 0)
+				decode[i].max_height = decode[i].max_pixels_per_frame / decode[i].max_width;
+			else
+				decode[i].max_height = 0;
+		}
+	}
 }

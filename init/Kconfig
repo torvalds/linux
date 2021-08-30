@@ -83,6 +83,9 @@ config TOOLS_SUPPORT_RELR
 config CC_HAS_ASM_INLINE
 	def_bool $(success,echo 'void foo(void) { asm inline (""); }' | $(CC) -x c - -c -o /dev/null)
 
+config CC_HAS_NO_PROFILE_FN_ATTR
+	def_bool $(success,echo '__attribute__((no_profile_instrument_function)) int x();' | $(CC) -x c - -c -o /dev/null -Werror)
+
 config CONSTRUCTORS
 	bool
 
@@ -771,6 +774,20 @@ config PRINTK_SAFE_LOG_BUF_SHIFT
 		     14 =>  16 KB for each CPU
 		     13 =>   8 KB for each CPU
 		     12 =>   4 KB for each CPU
+
+config PRINTK_INDEX
+	bool "Printk indexing debugfs interface"
+	depends on PRINTK && DEBUG_FS
+	help
+	  Add support for indexing of all printk formats known at compile time
+	  at <debugfs>/printk/index/<module>.
+
+	  This can be used as part of maintaining daemons which monitor
+	  /dev/kmsg, as it permits auditing the printk formats present in a
+	  kernel, allowing detection of cases where monitored printks are
+	  changed or no longer present.
+
+	  There is no additional runtime cost to printk with this enabled.
 
 #
 # Architectures with an unreliable sched_clock() should select this:
@@ -1844,6 +1861,7 @@ config SLUB_DEBUG
 	default y
 	bool "Enable SLUB debugging support" if EXPERT
 	depends on SLUB && SYSFS
+	select STACKDEPOT if STACKTRACE_SUPPORT
 	help
 	  SLUB has extensive debug support features. Disabling these can
 	  result in significant savings in code size. This also disables

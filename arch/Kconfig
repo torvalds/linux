@@ -285,6 +285,13 @@ config ARCH_THREAD_STACK_ALLOCATOR
 config ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	bool
 
+config ARCH_WANTS_NO_INSTR
+	bool
+	help
+	  An architecture should select this if the noinstr macro is being used on
+	  functions to denote that the toolchain should avoid instrumenting such
+	  functions and is required for correctness.
+
 config ARCH_32BIT_OFF_T
 	bool
 	depends on !64BIT

@@ -150,6 +150,7 @@ enum mlx5_ptys_rate {
 	MLX5_PTYS_RATE_FDR	= 1 << 4,
 	MLX5_PTYS_RATE_EDR	= 1 << 5,
 	MLX5_PTYS_RATE_HDR	= 1 << 6,
+	MLX5_PTYS_RATE_NDR	= 1 << 7,
 };
 
 static inline int mlx5_ptys_rate_enum_to_int(enum mlx5_ptys_rate rate)
@@ -162,6 +163,7 @@ static inline int mlx5_ptys_rate_enum_to_int(enum mlx5_ptys_rate rate)
 	case MLX5_PTYS_RATE_FDR:   return 14000;
 	case MLX5_PTYS_RATE_EDR:   return 25000;
 	case MLX5_PTYS_RATE_HDR:   return 50000;
+	case MLX5_PTYS_RATE_NDR:   return 100000;
 	default:		   return -1;
 	}
 }

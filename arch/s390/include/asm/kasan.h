@@ -16,7 +16,6 @@
 extern void kasan_early_init(void);
 extern void kasan_copy_shadow_mapping(void);
 extern void kasan_free_early_identity(void);
-extern unsigned long kasan_vmax;
 
 /*
  * Estimate kasan memory requirements, which it will reserve

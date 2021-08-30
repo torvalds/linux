@@ -222,8 +222,6 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 	TP_STRUCT__entry(
 		__string(name, dep->name)
 		__field(struct dwc3_trb *, trb)
-		__field(u32, allocated)
-		__field(u32, queued)
 		__field(u32, bpl)
 		__field(u32, bph)
 		__field(u32, size)

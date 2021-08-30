@@ -97,25 +97,16 @@ static const struct gpio_chip template_chip = {
 static int bd9571mwv_gpio_probe(struct platform_device *pdev)
 {
 	struct bd9571mwv_gpio *gpio;
-	int ret;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, gpio);
-
 	gpio->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	gpio->chip = template_chip;
 	gpio->chip.parent = pdev->dev.parent;
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
-		return ret;
-	}
-
-	return 0;
+	return devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
 }
 
 static const struct platform_device_id bd9571mwv_gpio_id_table[] = {

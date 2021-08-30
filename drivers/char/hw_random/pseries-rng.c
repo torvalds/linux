@@ -29,7 +29,7 @@ static int pseries_rng_read(struct hwrng *rng, void *data, size_t max, bool wait
 	return 8;
 }
 
-/**
+/*
  * pseries_rng_get_desired_dma - Return desired DMA allocate for CMO operations
  *
  * This is a required function for a driver to operate in a CMO environment

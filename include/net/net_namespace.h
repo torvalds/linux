@@ -32,6 +32,7 @@
 #include <net/netns/mpls.h>
 #include <net/netns/can.h>
 #include <net/netns/xdp.h>
+#include <net/netns/smc.h>
 #include <net/netns/bpf.h>
 #include <linux/ns_common.h>
 #include <linux/idr.h>
@@ -170,6 +171,9 @@ struct net {
 	struct sock		*crypto_nlsk;
 #endif
 	struct sock		*diag_nlsk;
+#if IS_ENABLED(CONFIG_SMC)
+	struct netns_smc	smc;
+#endif
 } __randomize_layout;
 
 #include <linux/seq_file_net.h>

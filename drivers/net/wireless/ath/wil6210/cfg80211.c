@@ -2842,9 +2842,7 @@ void wil_p2p_wdev_free(struct wil6210_priv *wil)
 	wil->radio_wdev = wil->main_ndev->ieee80211_ptr;
 	mutex_unlock(&wil->vif_mutex);
 	if (p2p_wdev) {
-		wiphy_lock(wil->wiphy);
 		cfg80211_unregister_wdev(p2p_wdev);
-		wiphy_unlock(wil->wiphy);
 		kfree(p2p_wdev);
 	}
 }

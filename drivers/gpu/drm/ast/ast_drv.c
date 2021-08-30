@@ -30,10 +30,10 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
+#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_probe_helper.h>
 
@@ -89,23 +89,18 @@ static const struct pci_device_id ast_pciidlist[] = {
 
 MODULE_DEVICE_TABLE(pci, ast_pciidlist);
 
-static void ast_kick_out_firmware_fb(struct pci_dev *pdev)
+static int ast_remove_conflicting_framebuffers(struct pci_dev *pdev)
 {
-	struct apertures_struct *ap;
 	bool primary = false;
+	resource_size_t base, size;
 
-	ap = alloc_apertures(1);
-	if (!ap)
-		return;
-
-	ap->ranges[0].base = pci_resource_start(pdev, 0);
-	ap->ranges[0].size = pci_resource_len(pdev, 0);
-
+	base = pci_resource_start(pdev, 0);
+	size = pci_resource_len(pdev, 0);
 #ifdef CONFIG_X86
 	primary = pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
 #endif
-	drm_fb_helper_remove_conflicting_framebuffers(ap, "astdrmfb", primary);
-	kfree(ap);
+
+	return drm_aperture_remove_conflicting_framebuffers(base, size, primary, "astdrmfb");
 }
 
 static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -114,7 +109,9 @@ static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct drm_device *dev;
 	int ret;
 
-	ast_kick_out_firmware_fb(pdev);
+	ret = ast_remove_conflicting_framebuffers(pdev);
+	if (ret)
+		return ret;
 
 	ret = pcim_enable_device(pdev);
 	if (ret)

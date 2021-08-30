@@ -264,7 +264,7 @@ static int ifcvf_vdpa_get_vq_state(struct vdpa_device *vdpa_dev, u16 qid,
 {
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
 
-	state->avail_index = ifcvf_get_vq_state(vf, qid);
+	state->split.avail_index = ifcvf_get_vq_state(vf, qid);
 	return 0;
 }
 
@@ -273,7 +273,7 @@ static int ifcvf_vdpa_set_vq_state(struct vdpa_device *vdpa_dev, u16 qid,
 {
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
 
-	return ifcvf_set_vq_state(vf, qid, state->avail_index);
+	return ifcvf_set_vq_state(vf, qid, state->split.avail_index);
 }
 
 static void ifcvf_vdpa_set_vq_cb(struct vdpa_device *vdpa_dev, u16 qid,
@@ -413,6 +413,21 @@ static int ifcvf_vdpa_get_vq_irq(struct vdpa_device *vdpa_dev,
 	return vf->vring[qid].irq;
 }
 
+static struct vdpa_notification_area ifcvf_get_vq_notification(struct vdpa_device *vdpa_dev,
+							       u16 idx)
+{
+	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
+	struct vdpa_notification_area area;
+
+	area.addr = vf->vring[idx].notify_pa;
+	if (!vf->notify_off_multiplier)
+		area.size = PAGE_SIZE;
+	else
+		area.size = vf->notify_off_multiplier;
+
+	return area;
+}
+
 /*
  * IFCVF currently does't have on-chip IOMMU, so not
  * implemented set_map()/dma_map()/dma_unmap()
@@ -440,6 +455,7 @@ static const struct vdpa_config_ops ifc_vdpa_ops = {
 	.get_config	= ifcvf_vdpa_get_config,
 	.set_config	= ifcvf_vdpa_set_config,
 	.set_config_cb  = ifcvf_vdpa_set_config_cb,
+	.get_vq_notification = ifcvf_get_vq_notification,
 };
 
 static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -536,18 +552,21 @@ static void ifcvf_remove(struct pci_dev *pdev)
 }
 
 static struct pci_device_id ifcvf_pci_ids[] = {
-	{ PCI_DEVICE_SUB(N3000_VENDOR_ID,
+	/* N3000 network device */
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_REDHAT_QUMRANET,
 			 N3000_DEVICE_ID,
-			 N3000_SUBSYS_VENDOR_ID,
+			 PCI_VENDOR_ID_INTEL,
 			 N3000_SUBSYS_DEVICE_ID) },
-	{ PCI_DEVICE_SUB(C5000X_PL_VENDOR_ID,
-			 C5000X_PL_DEVICE_ID,
-			 C5000X_PL_SUBSYS_VENDOR_ID,
-			 C5000X_PL_SUBSYS_DEVICE_ID) },
-	{ PCI_DEVICE_SUB(C5000X_PL_BLK_VENDOR_ID,
-			 C5000X_PL_BLK_DEVICE_ID,
-			 C5000X_PL_BLK_SUBSYS_VENDOR_ID,
-			 C5000X_PL_BLK_SUBSYS_DEVICE_ID) },
+	/* C5000X-PL network device */
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_REDHAT_QUMRANET,
+			 VIRTIO_TRANS_ID_NET,
+			 PCI_VENDOR_ID_INTEL,
+			 VIRTIO_ID_NET) },
+	/* C5000X-PL block device */
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_REDHAT_QUMRANET,
+			 VIRTIO_TRANS_ID_BLOCK,
+			 PCI_VENDOR_ID_INTEL,
+			 VIRTIO_ID_BLOCK) },
 
 	{ 0 },
 };

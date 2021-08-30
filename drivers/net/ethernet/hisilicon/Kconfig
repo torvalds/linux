@@ -102,6 +102,7 @@ config HNS3_HCLGE
 	tristate "Hisilicon HNS3 HCLGE Acceleration Engine & Compatibility Layer Support"
 	default m
 	depends on PCI_MSI
+	imply PTP_1588_CLOCK
 	help
 	  This selects the HNS3_HCLGE network acceleration engine & its hardware
 	  compatibility layer. The engine would be used in Hisilicon hip08 family of
@@ -130,6 +131,7 @@ config HNS3_ENET
 	default m
 	depends on 64BIT && PCI
 	depends on INET
+	select DIMLIB
 	help
 	  This selects the Ethernet Driver for Hisilicon Network Subsystem 3 for hip08
 	  family of SoCs. This module depends upon HNAE3 driver to access the HNAE3

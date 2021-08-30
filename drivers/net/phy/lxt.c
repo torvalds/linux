@@ -242,8 +242,8 @@ static int lxt973a2_read_status(struct phy_device *phydev)
 				return lpa;
 
 			/* If both registers are equal, it is suspect but not
-			* impossible, hence a new try
-			*/
+			 * impossible, hence a new try
+			 */
 		} while (lpa == adv && retry--);
 
 		mii_lpa_to_linkmode_lpa_t(phydev->lp_advertising, lpa);

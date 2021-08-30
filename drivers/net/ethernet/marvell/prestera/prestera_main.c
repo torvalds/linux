@@ -8,9 +8,13 @@
 #include <linux/netdev_features.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
+#include <linux/if_vlan.h>
 
 #include "prestera.h"
 #include "prestera_hw.h"
+#include "prestera_acl.h"
+#include "prestera_flow.h"
+#include "prestera_span.h"
 #include "prestera_rxtx.h"
 #include "prestera_devlink.h"
 #include "prestera_ethtool.h"
@@ -199,10 +203,25 @@ static void prestera_port_stats_update(struct work_struct *work)
 			   msecs_to_jiffies(PRESTERA_STATS_DELAY_MS));
 }
 
+static int prestera_port_setup_tc(struct net_device *dev,
+				  enum tc_setup_type type,
+				  void *type_data)
+{
+	struct prestera_port *port = netdev_priv(dev);
+
+	switch (type) {
+	case TC_SETUP_BLOCK:
+		return prestera_flow_block_setup(port, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct net_device_ops prestera_netdev_ops = {
 	.ndo_open = prestera_port_open,
 	.ndo_stop = prestera_port_close,
 	.ndo_start_xmit = prestera_port_xmit,
+	.ndo_setup_tc = prestera_port_setup_tc,
 	.ndo_change_mtu = prestera_port_change_mtu,
 	.ndo_get_stats64 = prestera_port_get_stats64,
 	.ndo_set_mac_address = prestera_port_set_mac_address,
@@ -281,6 +300,7 @@ static int prestera_port_create(struct prestera_switch *sw, u32 id)
 
 	INIT_LIST_HEAD(&port->vlans_list);
 	port->pvid = PRESTERA_DEFAULT_VID;
+	port->lag = NULL;
 	port->dev = dev;
 	port->id = id;
 	port->sw = sw;
@@ -296,7 +316,7 @@ static int prestera_port_create(struct prestera_switch *sw, u32 id)
 	if (err)
 		goto err_dl_port_register;
 
-	dev->features |= NETIF_F_NETNS_LOCAL;
+	dev->features |= NETIF_F_NETNS_LOCAL | NETIF_F_HW_TC;
 	dev->netdev_ops = &prestera_netdev_ops;
 	dev->ethtool_ops = &prestera_ethtool_ops;
 
@@ -472,6 +492,149 @@ static int prestera_switch_set_base_mac_addr(struct prestera_switch *sw)
 	return prestera_hw_switch_mac_set(sw, sw->base_mac);
 }
 
+struct prestera_lag *prestera_lag_by_id(struct prestera_switch *sw, u16 id)
+{
+	return id < sw->lag_max ? &sw->lags[id] : NULL;
+}
+
+static struct prestera_lag *prestera_lag_by_dev(struct prestera_switch *sw,
+						struct net_device *dev)
+{
+	struct prestera_lag *lag;
+	u16 id;
+
+	for (id = 0; id < sw->lag_max; id++) {
+		lag = &sw->lags[id];
+		if (lag->dev == dev)
+			return lag;
+	}
+
+	return NULL;
+}
+
+static struct prestera_lag *prestera_lag_create(struct prestera_switch *sw,
+						struct net_device *lag_dev)
+{
+	struct prestera_lag *lag = NULL;
+	u16 id;
+
+	for (id = 0; id < sw->lag_max; id++) {
+		lag = &sw->lags[id];
+		if (!lag->dev)
+			break;
+	}
+	if (lag) {
+		INIT_LIST_HEAD(&lag->members);
+		lag->dev = lag_dev;
+	}
+
+	return lag;
+}
+
+static void prestera_lag_destroy(struct prestera_switch *sw,
+				 struct prestera_lag *lag)
+{
+	WARN_ON(!list_empty(&lag->members));
+	lag->member_count = 0;
+	lag->dev = NULL;
+}
+
+static int prestera_lag_port_add(struct prestera_port *port,
+				 struct net_device *lag_dev)
+{
+	struct prestera_switch *sw = port->sw;
+	struct prestera_lag *lag;
+	int err;
+
+	lag = prestera_lag_by_dev(sw, lag_dev);
+	if (!lag) {
+		lag = prestera_lag_create(sw, lag_dev);
+		if (!lag)
+			return -ENOSPC;
+	}
+
+	if (lag->member_count >= sw->lag_member_max)
+		return -ENOSPC;
+
+	err = prestera_hw_lag_member_add(port, lag->lag_id);
+	if (err) {
+		if (!lag->member_count)
+			prestera_lag_destroy(sw, lag);
+		return err;
+	}
+
+	list_add(&port->lag_member, &lag->members);
+	lag->member_count++;
+	port->lag = lag;
+
+	return 0;
+}
+
+static int prestera_lag_port_del(struct prestera_port *port)
+{
+	struct prestera_switch *sw = port->sw;
+	struct prestera_lag *lag = port->lag;
+	int err;
+
+	if (!lag || !lag->member_count)
+		return -EINVAL;
+
+	err = prestera_hw_lag_member_del(port, lag->lag_id);
+	if (err)
+		return err;
+
+	list_del(&port->lag_member);
+	lag->member_count--;
+	port->lag = NULL;
+
+	if (netif_is_bridge_port(lag->dev)) {
+		struct net_device *br_dev;
+
+		br_dev = netdev_master_upper_dev_get(lag->dev);
+
+		prestera_bridge_port_leave(br_dev, port);
+	}
+
+	if (!lag->member_count)
+		prestera_lag_destroy(sw, lag);
+
+	return 0;
+}
+
+bool prestera_port_is_lag_member(const struct prestera_port *port)
+{
+	return !!port->lag;
+}
+
+u16 prestera_port_lag_id(const struct prestera_port *port)
+{
+	return port->lag->lag_id;
+}
+
+static int prestera_lag_init(struct prestera_switch *sw)
+{
+	u16 id;
+
+	sw->lags = kcalloc(sw->lag_max, sizeof(*sw->lags), GFP_KERNEL);
+	if (!sw->lags)
+		return -ENOMEM;
+
+	for (id = 0; id < sw->lag_max; id++)
+		sw->lags[id].lag_id = id;
+
+	return 0;
+}
+
+static void prestera_lag_fini(struct prestera_switch *sw)
+{
+	u8 idx;
+
+	for (idx = 0; idx < sw->lag_max; idx++)
+		WARN_ON(sw->lags[idx].member_count);
+
+	kfree(sw->lags);
+}
+
 bool prestera_netdev_check(const struct net_device *dev)
 {
 	return dev->netdev_ops == &prestera_netdev_ops;
@@ -505,16 +668,119 @@ struct prestera_port *prestera_port_dev_lower_find(struct net_device *dev)
 	return port;
 }
 
-static int prestera_netdev_port_event(struct net_device *dev,
+static int prestera_netdev_port_lower_event(struct net_device *dev,
+					    unsigned long event, void *ptr)
+{
+	struct netdev_notifier_changelowerstate_info *info = ptr;
+	struct netdev_lag_lower_state_info *lower_state_info;
+	struct prestera_port *port = netdev_priv(dev);
+	bool enabled;
+
+	if (!netif_is_lag_port(dev))
+		return 0;
+	if (!prestera_port_is_lag_member(port))
+		return 0;
+
+	lower_state_info = info->lower_state_info;
+	enabled = lower_state_info->link_up && lower_state_info->tx_enabled;
+
+	return prestera_hw_lag_member_enable(port, port->lag->lag_id, enabled);
+}
+
+static bool prestera_lag_master_check(struct net_device *lag_dev,
+				      struct netdev_lag_upper_info *info,
+				      struct netlink_ext_ack *ext_ack)
+{
+	if (info->tx_type != NETDEV_LAG_TX_TYPE_HASH) {
+		NL_SET_ERR_MSG_MOD(ext_ack, "Unsupported LAG Tx type");
+		return false;
+	}
+
+	return true;
+}
+
+static int prestera_netdev_port_event(struct net_device *lower,
+				      struct net_device *dev,
 				      unsigned long event, void *ptr)
 {
+	struct netdev_notifier_changeupper_info *info = ptr;
+	struct prestera_port *port = netdev_priv(dev);
+	struct netlink_ext_ack *extack;
+	struct net_device *upper;
+
+	extack = netdev_notifier_info_to_extack(&info->info);
+	upper = info->upper_dev;
+
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
+		if (!netif_is_bridge_master(upper) &&
+		    !netif_is_lag_master(upper)) {
+			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
+			return -EINVAL;
+		}
+
+		if (!info->linking)
+			break;
+
+		if (netdev_has_any_upper_dev(upper)) {
+			NL_SET_ERR_MSG_MOD(extack, "Upper device is already enslaved");
+			return -EINVAL;
+		}
+
+		if (netif_is_lag_master(upper) &&
+		    !prestera_lag_master_check(upper, info->upper_info, extack))
+			return -EOPNOTSUPP;
+		if (netif_is_lag_master(upper) && vlan_uses_dev(dev)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Master device is a LAG master and port has a VLAN");
+			return -EINVAL;
+		}
+		if (netif_is_lag_port(dev) && is_vlan_dev(upper) &&
+		    !netif_is_lag_master(vlan_dev_real_dev(upper))) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Can not put a VLAN on a LAG port");
+			return -EINVAL;
+		}
+		break;
+
 	case NETDEV_CHANGEUPPER:
-		return prestera_bridge_port_event(dev, event, ptr);
-	default:
-		return 0;
+		if (netif_is_bridge_master(upper)) {
+			if (info->linking)
+				return prestera_bridge_port_join(upper, port);
+			else
+				prestera_bridge_port_leave(upper, port);
+		} else if (netif_is_lag_master(upper)) {
+			if (info->linking)
+				return prestera_lag_port_add(port, upper);
+			else
+				prestera_lag_port_del(port);
+		}
+		break;
+
+	case NETDEV_CHANGELOWERSTATE:
+		return prestera_netdev_port_lower_event(dev, event, ptr);
 	}
+
+	return 0;
+}
+
+static int prestera_netdevice_lag_event(struct net_device *lag_dev,
+					unsigned long event, void *ptr)
+{
+	struct net_device *dev;
+	struct list_head *iter;
+	int err;
+
+	netdev_for_each_lower_dev(lag_dev, dev, iter) {
+		if (prestera_netdev_check(dev)) {
+			err = prestera_netdev_port_event(lag_dev, dev, event,
+							 ptr);
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
 }
 
 static int prestera_netdev_event_handler(struct notifier_block *nb,
@@ -524,7 +790,9 @@ static int prestera_netdev_event_handler(struct notifier_block *nb,
 	int err = 0;
 
 	if (prestera_netdev_check(dev))
-		err = prestera_netdev_port_event(dev, event, ptr);
+		err = prestera_netdev_port_event(dev, dev, event, ptr);
+	else if (netif_is_lag_master(dev))
+		err = prestera_netdevice_lag_event(dev, event, ptr);
 
 	return notifier_from_errno(err);
 }
@@ -574,9 +842,21 @@ static int prestera_switch_init(struct prestera_switch *sw)
 	if (err)
 		goto err_handlers_register;
 
+	err = prestera_acl_init(sw);
+	if (err)
+		goto err_acl_init;
+
+	err = prestera_span_init(sw);
+	if (err)
+		goto err_span_init;
+
 	err = prestera_devlink_register(sw);
 	if (err)
 		goto err_dl_register;
+
+	err = prestera_lag_init(sw);
+	if (err)
+		goto err_lag_init;
 
 	err = prestera_create_ports(sw);
 	if (err)
@@ -585,8 +865,14 @@ static int prestera_switch_init(struct prestera_switch *sw)
 	return 0;
 
 err_ports_create:
+	prestera_lag_fini(sw);
+err_lag_init:
 	prestera_devlink_unregister(sw);
 err_dl_register:
+	prestera_span_fini(sw);
+err_span_init:
+	prestera_acl_fini(sw);
+err_acl_init:
 	prestera_event_handlers_unregister(sw);
 err_handlers_register:
 	prestera_rxtx_switch_fini(sw);
@@ -602,7 +888,10 @@ err_swdev_register:
 static void prestera_switch_fini(struct prestera_switch *sw)
 {
 	prestera_destroy_ports(sw);
+	prestera_lag_fini(sw);
 	prestera_devlink_unregister(sw);
+	prestera_span_fini(sw);
+	prestera_acl_fini(sw);
 	prestera_event_handlers_unregister(sw);
 	prestera_rxtx_switch_fini(sw);
 	prestera_switchdev_fini(sw);

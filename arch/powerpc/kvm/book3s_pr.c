@@ -25,6 +25,7 @@
 #include <asm/cputable.h>
 #include <asm/cacheflush.h>
 #include <linux/uaccess.h>
+#include <asm/interrupt.h>
 #include <asm/io.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
@@ -1848,6 +1849,7 @@ static int kvmppc_vcpu_run_pr(struct kvm_vcpu *vcpu)
 	/* Make sure we save the guest TAR/EBB/DSCR state */
 	kvmppc_giveup_fac(vcpu, FSCR_TAR_LG);
 
+	srr_regs_clobbered();
 out:
 	vcpu->mode = OUTSIDE_GUEST_MODE;
 	return ret;

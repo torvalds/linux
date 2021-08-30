@@ -1214,7 +1214,7 @@ void tipc_node_check_dest(struct net *net, u32 addr,
 		/* Peer has changed i/f address without rebooting.
 		 * If so, the link will reset soon, and the next
 		 * discovery will be accepted. So we can ignore it.
-		 * It may also be an cloned or malicious peer having
+		 * It may also be a cloned or malicious peer having
 		 * chosen the same node address and signature as an
 		 * existing one.
 		 * Ignore requests until the link goes down, if ever.

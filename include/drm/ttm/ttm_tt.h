@@ -29,6 +29,7 @@
 
 #include <linux/types.h>
 #include <drm/ttm/ttm_caching.h>
+#include <drm/ttm/ttm_kmap_iter.h>
 
 struct ttm_bo_device;
 struct ttm_tt;
@@ -67,6 +68,18 @@ struct ttm_tt {
 	dma_addr_t *dma_address;
 	struct file *swap_storage;
 	enum ttm_caching caching;
+};
+
+/**
+ * struct ttm_kmap_iter_tt - Specialization of a mappig iterator for a tt.
+ * @base: Embedded struct ttm_kmap_iter providing the usage interface
+ * @tt: Cached struct ttm_tt.
+ * @prot: Cached page protection for mapping.
+ */
+struct ttm_kmap_iter_tt {
+	struct ttm_kmap_iter base;
+	struct ttm_tt *tt;
+	pgprot_t prot;
 };
 
 static inline bool ttm_tt_is_populated(struct ttm_tt *tt)
@@ -157,7 +170,23 @@ int ttm_tt_populate(struct ttm_device *bdev, struct ttm_tt *ttm, struct ttm_oper
  */
 void ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm);
 
+/**
+ * ttm_tt_mark_for_clear - Mark pages for clearing on populate.
+ *
+ * @ttm: Pointer to the ttm_tt structure
+ *
+ * Marks pages for clearing so that the next time the page vector is
+ * populated, the pages will be cleared.
+ */
+static inline void ttm_tt_mark_for_clear(struct ttm_tt *ttm)
+{
+	ttm->page_flags |= TTM_PAGE_FLAG_ZERO_ALLOC;
+}
+
 void ttm_tt_mgr_init(unsigned long num_pages, unsigned long num_dma32_pages);
+
+struct ttm_kmap_iter *ttm_kmap_iter_tt_init(struct ttm_kmap_iter_tt *iter_tt,
+					    struct ttm_tt *tt);
 
 #if IS_ENABLED(CONFIG_AGP)
 #include <linux/agp_backend.h>

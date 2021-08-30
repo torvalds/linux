@@ -57,6 +57,13 @@ static void bochs_pipe_enable(struct drm_simple_display_pipe *pipe,
 	bochs_plane_update(bochs, plane_state);
 }
 
+static void bochs_pipe_disable(struct drm_simple_display_pipe *pipe)
+{
+	struct bochs_device *bochs = pipe->crtc.dev->dev_private;
+
+	bochs_hw_blank(bochs, true);
+}
+
 static void bochs_pipe_update(struct drm_simple_display_pipe *pipe,
 			      struct drm_plane_state *old_state)
 {
@@ -67,6 +74,7 @@ static void bochs_pipe_update(struct drm_simple_display_pipe *pipe,
 
 static const struct drm_simple_display_pipe_funcs bochs_pipe_funcs = {
 	.enable	    = bochs_pipe_enable,
+	.disable    = bochs_pipe_disable,
 	.update	    = bochs_pipe_update,
 	.prepare_fb = drm_gem_vram_simple_display_pipe_prepare_fb,
 	.cleanup_fb = drm_gem_vram_simple_display_pipe_cleanup_fb,

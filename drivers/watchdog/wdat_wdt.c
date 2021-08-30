@@ -208,7 +208,7 @@ static int wdat_wdt_enable_reboot(struct wdat_wdt *wdat)
 	/*
 	 * WDAT specification says that the watchdog is required to reboot
 	 * the system when it fires. However, it also states that it is
-	 * recommeded to make it configurable through hardware register. We
+	 * recommended to make it configurable through hardware register. We
 	 * enable reboot now if it is configurable, just in case.
 	 */
 	ret = wdat_wdt_run_action(wdat, ACPI_WDAT_SET_REBOOT, 0, NULL);
@@ -475,7 +475,7 @@ static int wdat_wdt_suspend_noirq(struct device *dev)
 		return 0;
 
 	/*
-	 * We need to stop the watchdog if firmare is not doing it or if we
+	 * We need to stop the watchdog if firmware is not doing it or if we
 	 * are going suspend to idle (where firmware is not involved). If
 	 * firmware is stopping the watchdog we kick it here one more time
 	 * to give it some time.

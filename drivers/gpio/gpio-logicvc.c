@@ -114,10 +114,8 @@ static int logicvc_gpio_probe(struct platform_device *pdev)
 		}
 
 		base = devm_ioremap_resource(dev, &res);
-		if (IS_ERR(base)) {
-			dev_err(dev, "Failed to map I/O base\n");
+		if (IS_ERR(base))
 			return PTR_ERR(base);
-		}
 
 		logicvc_gpio_regmap_config.max_register = resource_size(&res) -
 			logicvc_gpio_regmap_config.reg_stride;

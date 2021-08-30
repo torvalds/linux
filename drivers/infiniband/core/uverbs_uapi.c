@@ -517,7 +517,7 @@ static void uapi_key_okay(u32 key)
 		count++;
 	if (uapi_key_is_attr(key))
 		count++;
-	WARN(count != 1, "Bad count %d key=%x", count, key);
+	WARN(count != 1, "Bad count %u key=%x", count, key);
 }
 
 static void uapi_finalize_disable(struct uverbs_api *uapi)

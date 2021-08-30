@@ -428,6 +428,7 @@ struct ipr_config_table_entry64 {
 	__be64 lun;
 	__be64 lun_wwn[2];
 #define IPR_MAX_RES_PATH_LENGTH		48
+#define IPR_RES_PATH_BYTES		8
 	__be64 res_path;
 	struct ipr_std_inq_data std_inq_data;
 	u8 reserved2[4];

@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/gpio-zynq.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xilinx Zynq GPIO controller Device Tree Bindings
+
+maintainers:
+  - Michal Simek <michal.simek@xilinx.com>
+
+properties:
+  compatible:
+    const: xlnx,zynq-gpio-1.0
+
+  reg:
+    maxItems: 1
+
+  "#gpio-cells":
+    const: 2
+
+  interrupts:
+    maxItems: 1
+
+  gpio-controller: true
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 2
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - "#gpio-cells"
+  - interrupts
+  - gpio-controller
+  - interrupt-controller
+  - "#interrupt-cells"
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    gpio@e000a000 {
+      #gpio-cells = <2>;
+      compatible = "xlnx,zynq-gpio-1.0";
+      clocks = <&clkc 42>;
+      gpio-controller;
+      interrupt-parent = <&intc>;
+      interrupts = <0 20 4>;
+      interrupt-controller;
+      #interrupt-cells = <2>;
+      reg = <0xe000a000 0x1000>;
+    };

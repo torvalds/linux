@@ -364,6 +364,9 @@ static void sec_close_sva_prefetch(struct hisi_qm *qm)
 	u32 val;
 	int ret;
 
+	if (qm->ver < QM_HW_V3)
+		return;
+
 	val = readl_relaxed(qm->io_base + SEC_PREFETCH_CFG);
 	val |= SEC_PREFETCH_DISABLE;
 	writel(val, qm->io_base + SEC_PREFETCH_CFG);

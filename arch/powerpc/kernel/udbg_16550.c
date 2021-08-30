@@ -296,3 +296,42 @@ void __init udbg_init_40x_realmode(void)
 }
 
 #endif /* CONFIG_PPC_EARLY_DEBUG_40x */
+
+#ifdef CONFIG_PPC_EARLY_DEBUG_MICROWATT
+
+#define UDBG_UART_MW_ADDR	((void __iomem *)0xc0002000)
+
+static u8 udbg_uart_in_isa300_rm(unsigned int reg)
+{
+	uint64_t msr = mfmsr();
+	uint8_t  c;
+
+	mtmsr(msr & ~(MSR_EE|MSR_DR));
+	isync();
+	eieio();
+	c = __raw_rm_readb(UDBG_UART_MW_ADDR + (reg << 2));
+	mtmsr(msr);
+	isync();
+	return c;
+}
+
+static void udbg_uart_out_isa300_rm(unsigned int reg, u8 val)
+{
+	uint64_t msr = mfmsr();
+
+	mtmsr(msr & ~(MSR_EE|MSR_DR));
+	isync();
+	eieio();
+	__raw_rm_writeb(val, UDBG_UART_MW_ADDR + (reg << 2));
+	mtmsr(msr);
+	isync();
+}
+
+void __init udbg_init_debug_microwatt(void)
+{
+	udbg_uart_in = udbg_uart_in_isa300_rm;
+	udbg_uart_out = udbg_uart_out_isa300_rm;
+	udbg_use_uart();
+}
+
+#endif /* CONFIG_PPC_EARLY_DEBUG_MICROWATT */

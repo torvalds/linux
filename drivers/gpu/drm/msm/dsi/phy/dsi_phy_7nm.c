@@ -9,6 +9,7 @@
 
 #include "dsi_phy.h"
 #include "dsi.xml.h"
+#include "dsi_phy_7nm.xml.h"
 
 /*
  * DSI PLL 7nm - clock diagram (eg: DSI0): TODO: updated CPHY diagram
@@ -973,7 +974,11 @@ const struct msm_dsi_phy_cfg dsi_phy_7nm_cfgs = {
 		.restore_pll_state = dsi_7nm_pll_restore_state,
 	},
 	.min_pll_rate = 600000000UL,
-	.max_pll_rate = (5000000000ULL < ULONG_MAX) ? 5000000000ULL : ULONG_MAX,
+#ifdef CONFIG_64BIT
+	.max_pll_rate = 5000000000UL,
+#else
+	.max_pll_rate = ULONG_MAX,
+#endif
 	.io_start = { 0xae94400, 0xae96400 },
 	.num_dsi_phy = 2,
 	.quirks = DSI_PHY_7NM_QUIRK_V4_1,

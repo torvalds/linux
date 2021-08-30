@@ -5,6 +5,7 @@
  * Author: Keerthy <j-keerthy@ti.com>
  */
 
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
@@ -64,6 +65,24 @@ static int lp87565_probe(struct i2c_client *client,
 		return ret;
 	}
 
+	lp87565->reset_gpio = devm_gpiod_get_optional(lp87565->dev, "reset",
+						      GPIOD_OUT_LOW);
+	if (IS_ERR(lp87565->reset_gpio)) {
+		ret = PTR_ERR(lp87565->reset_gpio);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+	}
+
+	if (lp87565->reset_gpio) {
+		gpiod_set_value_cansleep(lp87565->reset_gpio, 1);
+		/* The minimum assertion time is undocumented, just guess */
+		usleep_range(2000, 4000);
+
+		gpiod_set_value_cansleep(lp87565->reset_gpio, 0);
+		/* Min 1.2 ms before first I2C transaction */
+		usleep_range(1500, 3000);
+	}
+
 	ret = regmap_read(lp87565->regmap, LP87565_REG_OTP_REV, &otpid);
 	if (ret) {
 		dev_err(lp87565->dev, "Failed to read OTP ID\n");
@@ -83,6 +102,13 @@ static int lp87565_probe(struct i2c_client *client,
 				    NULL, 0, NULL);
 }
 
+static void lp87565_shutdown(struct i2c_client *client)
+{
+	struct lp87565 *lp87565 = i2c_get_clientdata(client);
+
+	gpiod_set_value_cansleep(lp87565->reset_gpio, 1);
+}
+
 static const struct i2c_device_id lp87565_id_table[] = {
 	{ "lp87565-q1", 0 },
 	{ },
@@ -95,6 +121,7 @@ static struct i2c_driver lp87565_driver = {
 		.of_match_table = of_lp87565_match_table,
 	},
 	.probe = lp87565_probe,
+	.shutdown = lp87565_shutdown,
 	.id_table = lp87565_id_table,
 };
 module_i2c_driver(lp87565_driver);

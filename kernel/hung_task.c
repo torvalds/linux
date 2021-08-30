@@ -15,6 +15,7 @@
 #include <linux/kthread.h>
 #include <linux/lockdep.h>
 #include <linux/export.h>
+#include <linux/panic_notifier.h>
 #include <linux/sysctl.h>
 #include <linux/suspend.h>
 #include <linux/utsname.h>

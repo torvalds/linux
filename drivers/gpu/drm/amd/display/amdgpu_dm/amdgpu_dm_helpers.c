@@ -544,8 +544,10 @@ bool dm_helpers_dp_write_dsc_enable(
 		ret = drm_dp_dpcd_write(aconnector->dsc_aux, DP_DSC_ENABLE, &enable_dsc, 1);
 	}
 
-	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT)
-		return dm_helpers_dp_write_dpcd(ctx, stream->link, DP_DSC_ENABLE, &enable_dsc, 1);
+	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT) {
+		ret = dm_helpers_dp_write_dpcd(ctx, stream->link, DP_DSC_ENABLE, &enable_dsc, 1);
+		DC_LOG_DC("Send DSC %s to sst display\n", enable_dsc ? "enable" : "disable");
+	}
 
 	return (ret > 0);
 }
@@ -640,10 +642,23 @@ enum dc_edid_status dm_helpers_read_local_edid(
 
 	return edid_status;
 }
-
+int dm_helper_dmub_aux_transfer_sync(
+		struct dc_context *ctx,
+		const struct dc_link *link,
+		struct aux_payload *payload,
+		enum aux_return_code_type *operation_result)
+{
+	return amdgpu_dm_process_dmub_aux_transfer_sync(ctx, link->link_index, payload, operation_result);
+}
 void dm_set_dcn_clocks(struct dc_context *ctx, struct dc_clocks *clks)
 {
 	/* TODO: something */
+}
+
+void dm_helpers_smu_timeout(struct dc_context *ctx, unsigned int msg_id, unsigned int param, unsigned int timeout_us)
+{
+	// TODO:
+	//amdgpu_device_gpu_recover(dc_context->driver-context, NULL);
 }
 
 void *dm_helpers_allocate_gpu_mem(
@@ -698,12 +713,12 @@ void dm_helpers_free_gpu_mem(
 	}
 }
 
-bool dm_helpers_dmub_outbox0_interrupt_control(struct dc_context *ctx, bool enable)
+bool dm_helpers_dmub_outbox_interrupt_control(struct dc_context *ctx, bool enable)
 {
 	enum dc_irq_source irq_source;
 	bool ret;
 
-	irq_source = DC_IRQ_SOURCE_DMCUB_OUTBOX0;
+	irq_source = DC_IRQ_SOURCE_DMCUB_OUTBOX;
 
 	ret = dc_interrupt_set(ctx->dc, irq_source, enable);
 

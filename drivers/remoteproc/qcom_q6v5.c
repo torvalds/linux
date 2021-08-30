@@ -280,7 +280,7 @@ int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
 		return ret;
 	}
 
-	q6v5->state = qcom_smem_state_get(&pdev->dev, "stop", &q6v5->stop_bit);
+	q6v5->state = devm_qcom_smem_state_get(&pdev->dev, "stop", &q6v5->stop_bit);
 	if (IS_ERR(q6v5->state)) {
 		dev_err(&pdev->dev, "failed to acquire stop state\n");
 		return PTR_ERR(q6v5->state);

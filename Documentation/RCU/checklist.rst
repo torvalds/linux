@@ -211,27 +211,40 @@ over a rather long period of time, but improvements are always welcome!
 	of the system, especially to real-time workloads running on
 	the rest of the system.
 
-7.	As of v4.20, a given kernel implements only one RCU flavor,
-	which is RCU-sched for PREEMPTION=n and RCU-preempt for PREEMPTION=y.
-	If the updater uses call_rcu() or synchronize_rcu(),
-	then the corresponding readers may use rcu_read_lock() and
-	rcu_read_unlock(), rcu_read_lock_bh() and rcu_read_unlock_bh(),
-	or any pair of primitives that disables and re-enables preemption,
-	for example, rcu_read_lock_sched() and rcu_read_unlock_sched().
-	If the updater uses synchronize_srcu() or call_srcu(),
-	then the corresponding readers must use srcu_read_lock() and
-	srcu_read_unlock(), and with the same srcu_struct.  The rules for
-	the expedited primitives are the same as for their non-expedited
-	counterparts.  Mixing things up will result in confusion and
-	broken kernels, and has even resulted in an exploitable security
-	issue.
+7.	As of v4.20, a given kernel implements only one RCU flavor, which
+	is RCU-sched for PREEMPTION=n and RCU-preempt for PREEMPTION=y.
+	If the updater uses call_rcu() or synchronize_rcu(), then
+	the corresponding readers may use:  (1) rcu_read_lock() and
+	rcu_read_unlock(), (2) any pair of primitives that disables
+	and re-enables softirq, for example, rcu_read_lock_bh() and
+	rcu_read_unlock_bh(), or (3) any pair of primitives that disables
+	and re-enables preemption, for example, rcu_read_lock_sched() and
+	rcu_read_unlock_sched().  If the updater uses synchronize_srcu()
+	or call_srcu(), then the corresponding readers must use
+	srcu_read_lock() and srcu_read_unlock(), and with the same
+	srcu_struct.  The rules for the expedited RCU grace-period-wait
+	primitives are the same as for their non-expedited counterparts.
 
-	One exception to this rule: rcu_read_lock() and rcu_read_unlock()
-	may be substituted for rcu_read_lock_bh() and rcu_read_unlock_bh()
-	in cases where local bottom halves are already known to be
-	disabled, for example, in irq or softirq context.  Commenting
-	such cases is a must, of course!  And the jury is still out on
-	whether the increased speed is worth it.
+	If the updater uses call_rcu_tasks() or synchronize_rcu_tasks(),
+	then the readers must refrain from executing voluntary
+	context switches, that is, from blocking.  If the updater uses
+	call_rcu_tasks_trace() or synchronize_rcu_tasks_trace(), then
+	the corresponding readers must use rcu_read_lock_trace() and
+	rcu_read_unlock_trace().  If an updater uses call_rcu_tasks_rude()
+	or synchronize_rcu_tasks_rude(), then the corresponding readers
+	must use anything that disables interrupts.
+
+	Mixing things up will result in confusion and broken kernels, and
+	has even resulted in an exploitable security issue.  Therefore,
+	when using non-obvious pairs of primitives, commenting is
+	of course a must.  One example of non-obvious pairing is
+	the XDP feature in networking, which calls BPF programs from
+	network-driver NAPI (softirq) context.	BPF relies heavily on RCU
+	protection for its data structures, but because the BPF program
+	invocation happens entirely within a single local_bh_disable()
+	section in a NAPI poll cycle, this usage is safe.  The reason
+	that this usage is safe is that readers can use anything that
+	disables BH when updaters use call_rcu() or synchronize_rcu().
 
 8.	Although synchronize_rcu() is slower than is call_rcu(), it
 	usually results in simpler code.  So, unless update performance is

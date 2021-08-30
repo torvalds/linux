@@ -59,7 +59,7 @@
  * USB Host Controller Driver (usb_hcd) framework
  *
  * Since "struct usb_bus" is so thin, you can't share much code in it.
- * This framework is a layer over that, and should be more sharable.
+ * This framework is a layer over that, and should be more shareable.
  */
 
 /*-------------------------------------------------------------------------*/
@@ -299,7 +299,7 @@ struct hc_driver {
 	 * (optional) these hooks allow an HCD to override the default DMA
 	 * mapping and unmapping routines.  In general, they shouldn't be
 	 * necessary unless the host controller has special DMA requirements,
-	 * such as alignment contraints.  If these are not specified, the
+	 * such as alignment constraints.  If these are not specified, the
 	 * general usb_hcd_(un)?map_urb_for_dma functions will be used instead
 	 * (and it may be a good idea to call these functions in your HCD
 	 * implementation)
@@ -409,7 +409,10 @@ struct hc_driver {
 	int	(*find_raw_port_number)(struct usb_hcd *, int);
 	/* Call for power on/off the port if necessary */
 	int	(*port_power)(struct usb_hcd *hcd, int portnum, bool enable);
-
+	/* Call for SINGLE_STEP_SET_FEATURE Test for USB2 EH certification */
+#define EHSET_TEST_SINGLE_STEP_SET_FEATURE 0x06
+	int	(*submit_single_step_set_feature)(struct usb_hcd *,
+			struct urb *, int);
 };
 
 static inline int hcd_giveback_urb_in_bh(struct usb_hcd *hcd)
@@ -474,6 +477,14 @@ int usb_hcd_setup_local_mem(struct usb_hcd *hcd, phys_addr_t phys_addr,
 
 struct platform_device;
 extern void usb_hcd_platform_shutdown(struct platform_device *dev);
+#ifdef CONFIG_USB_HCD_TEST_MODE
+extern int ehset_single_step_set_feature(struct usb_hcd *hcd, int port);
+#else
+static inline int ehset_single_step_set_feature(struct usb_hcd *hcd, int port)
+{
+	return 0;
+}
+#endif /* CONFIG_USB_HCD_TEST_MODE */
 
 #ifdef CONFIG_USB_PCI
 struct pci_dev;

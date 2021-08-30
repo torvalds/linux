@@ -1092,7 +1092,7 @@ TRACE_EVENT(btrfs_trigger_flush,
 		__entry->flags	= flags;
 		__entry->bytes	= bytes;
 		__entry->flush	= flush;
-		__assign_str(reason, reason)
+		__assign_str(reason, reason);
 	),
 
 	TP_printk_btrfs("%s: flush=%d(%s) flags=%llu(%s) bytes=%llu",

@@ -238,7 +238,7 @@ struct ncsi_package {
 	struct ncsi_dev_priv *ndp;        /* NCSI device            */
 	spinlock_t           lock;        /* Protect the package    */
 	unsigned int         channel_num; /* Number of channels     */
-	struct list_head     channels;    /* List of chanels        */
+	struct list_head     channels;    /* List of channels        */
 	struct list_head     node;        /* Form list of packages  */
 
 	bool                 multi_channel; /* Enable multiple channels  */
@@ -339,7 +339,7 @@ struct ncsi_cmd_arg {
 	unsigned char        type;        /* Command in the NCSI packet    */
 	unsigned char        id;          /* Request ID (sequence number)  */
 	unsigned char        package;     /* Destination package ID        */
-	unsigned char        channel;     /* Detination channel ID or 0x1f */
+	unsigned char        channel;     /* Destination channel ID or 0x1f */
 	unsigned short       payload;     /* Command packet payload length */
 	unsigned int         req_flags;   /* NCSI request properties       */
 	union {

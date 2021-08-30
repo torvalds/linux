@@ -3508,14 +3508,15 @@ field must be set, though).
 
 “IEC958 Playback Con Mask” is used to return the bit-mask for the IEC958
 status bits of consumer mode. Similarly, “IEC958 Playback Pro Mask”
-returns the bitmask for professional mode. They are read-only controls,
-and are defined as MIXER controls (iface =
-``SNDRV_CTL_ELEM_IFACE_MIXER``).
+returns the bitmask for professional mode. They are read-only controls.
 
 Meanwhile, “IEC958 Playback Default” control is defined for getting and
-setting the current default IEC958 bits. Note that this one is usually
-defined as a PCM control (iface = ``SNDRV_CTL_ELEM_IFACE_PCM``),
-although in some places it's defined as a MIXER control.
+setting the current default IEC958 bits.
+
+Due to historical reasons, both variants of the Playback Mask and the
+Playback Default controls can be implemented on either a
+``SNDRV_CTL_ELEM_IFACE_PCM`` or a ``SNDRV_CTL_ELEM_IFACE_MIXER`` iface.
+Drivers should expose the mask and default on the same iface though.
 
 In addition, you can define the control switches to enable/disable or to
 set the raw bit mode. The implementation will depend on the chip, but

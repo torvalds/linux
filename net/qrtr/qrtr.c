@@ -751,7 +751,7 @@ static void qrtr_reset_ports(void)
 	xa_for_each_start(&qrtr_ports, index, ipc, 1) {
 		sock_hold(&ipc->sk);
 		ipc->sk.sk_err = ENETRESET;
-		ipc->sk.sk_error_report(&ipc->sk);
+		sk_error_report(&ipc->sk);
 		sock_put(&ipc->sk);
 	}
 	rcu_read_unlock();

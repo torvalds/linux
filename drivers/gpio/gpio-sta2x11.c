@@ -398,15 +398,7 @@ static int gsta_probe(struct platform_device *dev)
 		return err;
 	}
 
-	err = devm_gpiochip_add_data(&dev->dev, &chip->gpio, chip);
-	if (err < 0) {
-		dev_err(&dev->dev, "sta2x11 gpio: Can't register (%i)\n",
-			-err);
-		return err;
-	}
-
-	platform_set_drvdata(dev, chip);
-	return 0;
+	return devm_gpiochip_add_data(&dev->dev, &chip->gpio, chip);
 }
 
 static struct platform_driver sta2x11_gpio_platform_driver = {

@@ -44,7 +44,6 @@ properties:
 
   clock-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: clk_ahb
       - const: clk_xin

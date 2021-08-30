@@ -346,7 +346,7 @@ static int vmw_gb_context_bind(struct vmw_resource *res,
 	} *cmd;
 	struct ttm_buffer_object *bo = val_buf->bo;
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	BUG_ON(bo->resource->mem_type != VMW_PL_MOB);
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
@@ -355,7 +355,7 @@ static int vmw_gb_context_bind(struct vmw_resource *res,
 	cmd->header.id = SVGA_3D_CMD_BIND_GB_CONTEXT;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = res->id;
-	cmd->body.mobid = bo->mem.start;
+	cmd->body.mobid = bo->resource->start;
 	cmd->body.validContents = res->backup_dirty;
 	res->backup_dirty = false;
 	vmw_cmd_commit(dev_priv, sizeof(*cmd));
@@ -385,7 +385,7 @@ static int vmw_gb_context_unbind(struct vmw_resource *res,
 	uint8_t *cmd;
 
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	BUG_ON(bo->resource->mem_type != VMW_PL_MOB);
 
 	mutex_lock(&dev_priv->binding_mutex);
 	vmw_binding_state_scrub(uctx->cbs);
@@ -513,7 +513,7 @@ static int vmw_dx_context_bind(struct vmw_resource *res,
 	} *cmd;
 	struct ttm_buffer_object *bo = val_buf->bo;
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	BUG_ON(bo->resource->mem_type != VMW_PL_MOB);
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
@@ -522,7 +522,7 @@ static int vmw_dx_context_bind(struct vmw_resource *res,
 	cmd->header.id = SVGA_3D_CMD_DX_BIND_CONTEXT;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = res->id;
-	cmd->body.mobid = bo->mem.start;
+	cmd->body.mobid = bo->resource->start;
 	cmd->body.validContents = res->backup_dirty;
 	res->backup_dirty = false;
 	vmw_cmd_commit(dev_priv, sizeof(*cmd));
@@ -594,7 +594,7 @@ static int vmw_dx_context_unbind(struct vmw_resource *res,
 	uint8_t *cmd;
 
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	BUG_ON(bo->resource->mem_type != VMW_PL_MOB);
 
 	mutex_lock(&dev_priv->binding_mutex);
 	vmw_dx_context_scrub_cotables(res, readback);
@@ -748,10 +748,6 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 		  ((dev_priv->has_mob) ? vmw_cmdbuf_res_man_size() : 0) +
 		  + VMW_IDA_ACC_SIZE + TTM_OBJ_EXTRA_SIZE;
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		return ret;
-
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
 				   vmw_user_context_size,
 				   &ttm_opt_ctx);
@@ -759,7 +755,7 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 		if (ret != -ERESTARTSYS)
 			DRM_ERROR("Out of graphics memory for context"
 				  " creation.\n");
-		goto out_unlock;
+		goto out_ret;
 	}
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
@@ -767,7 +763,7 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 		ttm_mem_global_free(vmw_mem_glob(dev_priv),
 				    vmw_user_context_size);
 		ret = -ENOMEM;
-		goto out_unlock;
+		goto out_ret;
 	}
 
 	res = &ctx->res;
@@ -780,7 +776,7 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 
 	ret = vmw_context_init(dev_priv, res, vmw_user_context_free, dx);
 	if (unlikely(ret != 0))
-		goto out_unlock;
+		goto out_ret;
 
 	tmp = vmw_resource_reference(&ctx->res);
 	ret = ttm_base_object_init(tfile, &ctx->base, false, VMW_RES_CONTEXT,
@@ -794,8 +790,7 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 	arg->cid = ctx->base.handle;
 out_err:
 	vmw_resource_unreference(&res);
-out_unlock:
-	ttm_read_unlock(&dev_priv->reservation_sem);
+out_ret:
 	return ret;
 }
 

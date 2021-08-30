@@ -223,18 +223,14 @@ install_lib: all_cmd
 		$(call do_install_mkdir,$(libdir_SQ)); \
 		cp -fpR $(LIB_FILE) $(DESTDIR)$(libdir_SQ)
 
+INSTALL_HEADERS = bpf.h libbpf.h btf.h libbpf_common.h libbpf_legacy.h xsk.h \
+		  bpf_helpers.h $(BPF_HELPER_DEFS) bpf_tracing.h	     \
+		  bpf_endian.h bpf_core_read.h skel_internal.h
+
 install_headers: $(BPF_HELPER_DEFS)
-	$(call QUIET_INSTALL, headers) \
-		$(call do_install,bpf.h,$(prefix)/include/bpf,644); \
-		$(call do_install,libbpf.h,$(prefix)/include/bpf,644); \
-		$(call do_install,btf.h,$(prefix)/include/bpf,644); \
-		$(call do_install,libbpf_common.h,$(prefix)/include/bpf,644); \
-		$(call do_install,xsk.h,$(prefix)/include/bpf,644); \
-		$(call do_install,bpf_helpers.h,$(prefix)/include/bpf,644); \
-		$(call do_install,$(BPF_HELPER_DEFS),$(prefix)/include/bpf,644); \
-		$(call do_install,bpf_tracing.h,$(prefix)/include/bpf,644); \
-		$(call do_install,bpf_endian.h,$(prefix)/include/bpf,644); \
-		$(call do_install,bpf_core_read.h,$(prefix)/include/bpf,644);
+	$(call QUIET_INSTALL, headers)					     \
+		$(foreach hdr,$(INSTALL_HEADERS),			     \
+			$(call do_install,$(hdr),$(prefix)/include/bpf,644);)
 
 install_pkgconfig: $(PC_FILE)
 	$(call QUIET_INSTALL, $(PC_FILE)) \

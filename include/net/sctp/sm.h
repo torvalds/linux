@@ -151,6 +151,7 @@ sctp_state_fn_t sctp_sf_cookie_wait_icmp_abort;
 /* Prototypes for timeout event state functions.  */
 sctp_state_fn_t sctp_sf_do_6_3_3_rtx;
 sctp_state_fn_t sctp_sf_send_reconf;
+sctp_state_fn_t sctp_sf_send_probe;
 sctp_state_fn_t sctp_sf_do_6_2_sack;
 sctp_state_fn_t sctp_sf_autoclose_timer_expire;
 
@@ -225,11 +226,13 @@ struct sctp_chunk *sctp_make_new_encap_port(
 					const struct sctp_association *asoc,
 					const struct sctp_chunk *chunk);
 struct sctp_chunk *sctp_make_heartbeat(const struct sctp_association *asoc,
-				       const struct sctp_transport *transport);
+				       const struct sctp_transport *transport,
+				       __u32 probe_size);
 struct sctp_chunk *sctp_make_heartbeat_ack(const struct sctp_association *asoc,
 					   const struct sctp_chunk *chunk,
 					   const void *payload,
 					   const size_t paylen);
+struct sctp_chunk *sctp_make_pad(const struct sctp_association *asoc, int len);
 struct sctp_chunk *sctp_make_op_error(const struct sctp_association *asoc,
 				      const struct sctp_chunk *chunk,
 				      __be16 cause_code, const void *payload,
@@ -310,6 +313,7 @@ int sctp_do_sm(struct net *net, enum sctp_event_type event_type,
 void sctp_generate_t3_rtx_event(struct timer_list *t);
 void sctp_generate_heartbeat_event(struct timer_list *t);
 void sctp_generate_reconf_event(struct timer_list *t);
+void sctp_generate_probe_event(struct timer_list *t);
 void sctp_generate_proto_unreach_event(struct timer_list *t);
 
 void sctp_ootb_pkt_free(struct sctp_packet *packet);

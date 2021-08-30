@@ -446,14 +446,15 @@ static void tcp_sack(const struct sk_buff *skb, unsigned int dataoff,
 	}
 }
 
-static bool tcp_in_window(const struct nf_conn *ct,
-			  struct ip_ct_tcp *state,
+static bool tcp_in_window(struct nf_conn *ct,
 			  enum ip_conntrack_dir dir,
 			  unsigned int index,
 			  const struct sk_buff *skb,
 			  unsigned int dataoff,
-			  const struct tcphdr *tcph)
+			  const struct tcphdr *tcph,
+			  const struct nf_hook_state *hook_state)
 {
+	struct ip_ct_tcp *state = &ct->proto.tcp;
 	struct net *net = nf_ct_net(ct);
 	struct nf_tcp_net *tn = nf_tcp_pernet(net);
 	struct ip_ct_tcp_state *sender = &state->seen[dir];
@@ -670,7 +671,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		    tn->tcp_be_liberal)
 			res = true;
 		if (!res) {
-			nf_ct_l4proto_log_invalid(skb, ct,
+			nf_ct_l4proto_log_invalid(skb, ct, hook_state,
 			"%s",
 			before(seq, sender->td_maxend + 1) ?
 			in_recv_win ?
@@ -710,7 +711,7 @@ static void tcp_error_log(const struct sk_buff *skb,
 			  const struct nf_hook_state *state,
 			  const char *msg)
 {
-	nf_l4proto_log_invalid(skb, state->net, state->pf, IPPROTO_TCP, "%s", msg);
+	nf_l4proto_log_invalid(skb, state, IPPROTO_TCP, "%s", msg);
 }
 
 /* Protect conntrack agaist broken packets. Code taken from ipt_unclean.c.  */
@@ -970,7 +971,7 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 					IP_CT_EXP_CHALLENGE_ACK;
 		}
 		spin_unlock_bh(&ct->lock);
-		nf_ct_l4proto_log_invalid(skb, ct,
+		nf_ct_l4proto_log_invalid(skb, ct, state,
 					  "packet (index %d) in dir %d ignored, state %s",
 					  index, dir,
 					  tcp_conntrack_names[old_state]);
@@ -995,7 +996,7 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 		pr_debug("nf_ct_tcp: Invalid dir=%i index=%u ostate=%u\n",
 			 dir, get_conntrack_index(th), old_state);
 		spin_unlock_bh(&ct->lock);
-		nf_ct_l4proto_log_invalid(skb, ct, "invalid state");
+		nf_ct_l4proto_log_invalid(skb, ct, state, "invalid state");
 		return -NF_ACCEPT;
 	case TCP_CONNTRACK_TIME_WAIT:
 		/* RFC5961 compliance cause stack to send "challenge-ACK"
@@ -1010,7 +1011,7 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 			/* Detected RFC5961 challenge ACK */
 			ct->proto.tcp.last_flags &= ~IP_CT_EXP_CHALLENGE_ACK;
 			spin_unlock_bh(&ct->lock);
-			nf_ct_l4proto_log_invalid(skb, ct, "challenge-ack ignored");
+			nf_ct_l4proto_log_invalid(skb, ct, state, "challenge-ack ignored");
 			return NF_ACCEPT; /* Don't change state */
 		}
 		break;
@@ -1035,7 +1036,7 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 			if (before(seq, ct->proto.tcp.seen[!dir].td_maxack)) {
 				/* Invalid RST  */
 				spin_unlock_bh(&ct->lock);
-				nf_ct_l4proto_log_invalid(skb, ct, "invalid rst");
+				nf_ct_l4proto_log_invalid(skb, ct, state, "invalid rst");
 				return -NF_ACCEPT;
 			}
 
@@ -1079,8 +1080,8 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 		break;
 	}
 
-	if (!tcp_in_window(ct, &ct->proto.tcp, dir, index,
-			   skb, dataoff, th)) {
+	if (!tcp_in_window(ct, dir, index,
+			   skb, dataoff, th, state)) {
 		spin_unlock_bh(&ct->lock);
 		return -NF_ACCEPT;
 	}
@@ -1441,6 +1442,11 @@ void nf_conntrack_tcp_init_net(struct net *net)
 	 * will be started.
 	 */
 	tn->tcp_max_retrans = 3;
+
+#if IS_ENABLED(CONFIG_NF_FLOW_TABLE)
+	tn->offload_timeout = 30 * HZ;
+	tn->offload_pickup = 120 * HZ;
+#endif
 }
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp =

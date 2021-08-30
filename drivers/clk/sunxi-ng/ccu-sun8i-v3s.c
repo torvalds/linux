@@ -817,10 +817,10 @@ static void __init sun8i_v3_v3s_ccu_init(struct device_node *node,
 		return;
 	}
 
-	/* Force the PLL-Audio-1x divider to 4 */
+	/* Force the PLL-Audio-1x divider to 1 */
 	val = readl(reg + SUN8I_V3S_PLL_AUDIO_REG);
 	val &= ~GENMASK(19, 16);
-	writel(val | (3 << 16), reg + SUN8I_V3S_PLL_AUDIO_REG);
+	writel(val, reg + SUN8I_V3S_PLL_AUDIO_REG);
 
 	sunxi_ccu_probe(node, reg, ccu_desc);
 }

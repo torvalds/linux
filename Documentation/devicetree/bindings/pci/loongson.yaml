@@ -24,7 +24,6 @@ properties:
 
   reg:
     minItems: 1
-    maxItems: 2
     items:
       - description: CFG0 standard config space register
       - description: CFG1 extended config space register

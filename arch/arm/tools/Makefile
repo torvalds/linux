@@ -33,39 +33,26 @@ _dummy := $(shell [ -d '$(kapi)' ] || mkdir -p '$(kapi)') \
           $(shell [ -d '$(uapi)' ] || mkdir -p '$(uapi)')
 
 quiet_cmd_gen_mach = GEN     $@
-      cmd_gen_mach = mkdir -p $(dir $@) && \
-		     $(AWK) -f $(filter-out $(PHONY),$^) > $@
+      cmd_gen_mach = $(AWK) -f $(real-prereqs) > $@
 
 $(kapi)/mach-types.h: $(src)/gen-mach-types $(src)/mach-types FORCE
 	$(call if_changed,gen_mach)
 
 quiet_cmd_syshdr = SYSHDR  $@
-      cmd_syshdr = $(CONFIG_SHELL) $(syshdr) --abis $(abis) \
+      cmd_syshdr = $(CONFIG_SHELL) $(syshdr) --abis common,$* \
 		   --offset __NR_SYSCALL_BASE $< $@
 
 quiet_cmd_systbl = SYSTBL  $@
-      cmd_systbl = $(CONFIG_SHELL) $(systbl) --abis $(abis) $< $@
+      cmd_systbl = $(CONFIG_SHELL) $(systbl) --abis common,$* $< $@
 
 quiet_cmd_sysnr  = SYSNR   $@
-      cmd_sysnr  = $(CONFIG_SHELL) '$(sysnr)' '$<' '$@' \
-		   '$(syshdr_abi_$(basetarget))'
+      cmd_sysnr  = $(CONFIG_SHELL) $(sysnr) $< $@
 
-$(uapi)/unistd-oabi.h: abis := common,oabi
-$(uapi)/unistd-oabi.h: $(syscall) $(syshdr) FORCE
+$(uapi)/unistd-%.h: $(syscall) $(syshdr) FORCE
 	$(call if_changed,syshdr)
 
-$(uapi)/unistd-eabi.h: abis := common,eabi
-$(uapi)/unistd-eabi.h: $(syscall) $(syshdr) FORCE
-	$(call if_changed,syshdr)
-
-sysnr_abi_unistd-nr := common,oabi,eabi,compat
 $(kapi)/unistd-nr.h: $(syscall) $(sysnr) FORCE
 	$(call if_changed,sysnr)
 
-$(gen)/calls-oabi.S: abis := common,oabi
-$(gen)/calls-oabi.S: $(syscall) $(systbl) FORCE
-	$(call if_changed,systbl)
-
-$(gen)/calls-eabi.S: abis := common,eabi
-$(gen)/calls-eabi.S: $(syscall) $(systbl) FORCE
+$(gen)/calls-%.S: $(syscall) $(systbl) FORCE
 	$(call if_changed,systbl)

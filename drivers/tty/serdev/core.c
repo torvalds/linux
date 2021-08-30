@@ -798,7 +798,7 @@ void serdev_controller_remove(struct serdev_controller *ctrl)
 EXPORT_SYMBOL_GPL(serdev_controller_remove);
 
 /**
- * serdev_driver_register() - Register client driver with serdev core
+ * __serdev_device_driver_register() - Register client driver with serdev core
  * @sdrv:	client driver to be associated with client-device.
  * @owner:	client driver owner to set.
  *

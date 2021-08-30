@@ -976,8 +976,8 @@ int c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	chp = to_c4iw_cq(ib_cq);
 
 	xa_erase_irq(&chp->rhp->cqs, chp->cq.cqid);
-	atomic_dec(&chp->refcnt);
-	wait_event(chp->wait, !atomic_read(&chp->refcnt));
+	refcount_dec(&chp->refcnt);
+	wait_event(chp->wait, !refcount_read(&chp->refcnt));
 
 	ucontext = rdma_udata_to_drv_context(udata, struct c4iw_ucontext,
 					     ibucontext);
@@ -1080,7 +1080,7 @@ int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	chp->ibcq.cqe = entries - 2;
 	spin_lock_init(&chp->lock);
 	spin_lock_init(&chp->comp_handler_lock);
-	atomic_set(&chp->refcnt, 1);
+	refcount_set(&chp->refcnt, 1);
 	init_waitqueue_head(&chp->wait);
 	ret = xa_insert_irq(&rhp->cqs, chp->cq.cqid, chp, GFP_KERNEL);
 	if (ret)

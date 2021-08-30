@@ -41,6 +41,7 @@ static const char *const code_names[CP_CODES] = {
 	"0", "ConfReq", "ConfAck", "ConfNak", "ConfRej", "TermReq",
 	"TermAck", "CodeRej", "ProtoRej", "EchoReq", "EchoReply", "Discard"
 };
+
 static char debug_buffer[64 + 3 * DEBUG_CP];
 #endif
 
@@ -57,7 +58,6 @@ struct cp_header {
 	u8 id;
 	__be16 len;
 };
-
 
 struct proto {
 	struct net_device *dev;
@@ -91,6 +91,7 @@ static const char *const state_names[STATES] = {
 	"Closed", "Stopped", "Stopping", "ReqSent", "AckRecv", "AckSent",
 	"Opened"
 };
+
 static const char *const event_names[EVENTS] = {
 	"Start", "Stop", "TO+", "TO-", "RCR+", "RCR-", "RCA", "RCN",
 	"RTR", "RTA", "RUC", "RXJ+", "RXJ-"
@@ -101,12 +102,12 @@ static struct sk_buff_head tx_queue; /* used when holding the spin lock */
 
 static int ppp_ioctl(struct net_device *dev, struct ifreq *ifr);
 
-static inline struct ppp* get_ppp(struct net_device *dev)
+static inline struct ppp *get_ppp(struct net_device *dev)
 {
 	return (struct ppp *)dev_to_hdlc(dev)->state;
 }
 
-static inline struct proto* get_proto(struct net_device *dev, u16 pid)
+static inline struct proto *get_proto(struct net_device *dev, u16 pid)
 {
 	struct ppp *ppp = get_ppp(dev);
 
@@ -122,7 +123,7 @@ static inline struct proto* get_proto(struct net_device *dev, u16 pid)
 	}
 }
 
-static inline const char* proto_name(u16 pid)
+static inline const char *proto_name(u16 pid)
 {
 	switch (pid) {
 	case PID_LCP:
@@ -138,7 +139,7 @@ static inline const char* proto_name(u16 pid)
 
 static __be16 ppp_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
-	struct hdlc_header *data = (struct hdlc_header*)skb->data;
+	struct hdlc_header *data = (struct hdlc_header *)skb->data;
 
 	if (skb->len < sizeof(struct hdlc_header))
 		return htons(ETH_P_HDLC);
@@ -160,7 +161,6 @@ static __be16 ppp_type_trans(struct sk_buff *skb, struct net_device *dev)
 	}
 }
 
-
 static int ppp_hard_header(struct sk_buff *skb, struct net_device *dev,
 			   u16 type, const void *daddr, const void *saddr,
 			   unsigned int len)
@@ -171,7 +171,7 @@ static int ppp_hard_header(struct sk_buff *skb, struct net_device *dev,
 #endif
 
 	skb_push(skb, sizeof(struct hdlc_header));
-	data = (struct hdlc_header*)skb->data;
+	data = (struct hdlc_header *)skb->data;
 
 	data->address = HDLC_ADDR_ALLSTATIONS;
 	data->control = HDLC_CTRL_UI;
@@ -193,10 +193,10 @@ static int ppp_hard_header(struct sk_buff *skb, struct net_device *dev,
 	return sizeof(struct hdlc_header);
 }
 
-
 static void ppp_tx_flush(void)
 {
 	struct sk_buff *skb;
+
 	while ((skb = skb_dequeue(&tx_queue)) != NULL)
 		dev_queue_xmit(skb);
 }
@@ -219,10 +219,9 @@ static void ppp_tx_cp(struct net_device *dev, u16 pid, u8 code,
 
 	skb = dev_alloc_skb(sizeof(struct hdlc_header) +
 			    sizeof(struct cp_header) + magic_len + len);
-	if (!skb) {
-		netdev_warn(dev, "out of memory in ppp_tx_cp()\n");
+	if (!skb)
 		return;
-	}
+
 	skb_reserve(skb, sizeof(struct hdlc_header));
 
 	cp = skb_put(skb, sizeof(struct cp_header));
@@ -255,7 +254,6 @@ static void ppp_tx_cp(struct net_device *dev, u16 pid, u8 code,
 	skb_reset_network_header(skb);
 	skb_queue_tail(&tx_queue, skb);
 }
-
 
 /* State transition table (compare STD-51)
    Events                                   Actions
@@ -293,7 +291,6 @@ static int cp_table[EVENTS][STATES] = {
 	{    0    ,      1      ,  2  ,    3    ,  3  ,    5    ,    6    }, /* RXJ+ */
 	{    0    ,      1      ,  1  ,    1    ,  1  ,    1    ,IRC|STR|2}, /* RXJ- */
 };
-
 
 /* SCA: RCR+ must supply id, len and data
    SCN: RCR- must supply code, id, len and data
@@ -369,7 +366,6 @@ static void ppp_cp_event(struct net_device *dev, u16 pid, u16 event, u8 code,
 #endif
 }
 
-
 static void ppp_cp_parse_cr(struct net_device *dev, u16 pid, u8 id,
 			    unsigned int req_len, const u8 *data)
 {
@@ -378,7 +374,8 @@ static void ppp_cp_parse_cr(struct net_device *dev, u16 pid, u8 id,
 	u8 *out;
 	unsigned int len = req_len, nak_len = 0, rej_len = 0;
 
-	if (!(out = kmalloc(len, GFP_ATOMIC))) {
+	out = kmalloc(len, GFP_ATOMIC);
+	if (!out) {
 		dev->stats.rx_dropped++;
 		return;	/* out of memory, ignore CR packet */
 	}
@@ -435,7 +432,7 @@ err_out:
 
 static int ppp_rx(struct sk_buff *skb)
 {
-	struct hdlc_header *hdr = (struct hdlc_header*)skb->data;
+	struct hdlc_header *hdr = (struct hdlc_header *)skb->data;
 	struct net_device *dev = skb->dev;
 	struct ppp *ppp = get_ppp(dev);
 	struct proto *proto;
@@ -493,7 +490,7 @@ static int ppp_rx(struct sk_buff *skb)
 	if (pid == PID_LCP)
 		switch (cp->code) {
 		case LCP_PROTO_REJ:
-			pid = ntohs(*(__be16*)skb->data);
+			pid = ntohs(*(__be16 *)skb->data);
 			if (pid == PID_LCP || pid == PID_IPCP ||
 			    pid == PID_IPV6CP)
 				ppp_cp_event(dev, pid, RXJ_BAD, 0, 0,
@@ -615,7 +612,6 @@ static void ppp_timer(struct timer_list *t)
 	ppp_tx_flush();
 }
 
-
 static void ppp_start(struct net_device *dev)
 {
 	struct ppp *ppp = get_ppp(dev);
@@ -623,6 +619,7 @@ static void ppp_start(struct net_device *dev)
 
 	for (i = 0; i < IDX_COUNT; i++) {
 		struct proto *proto = &ppp->protos[i];
+
 		proto->dev = dev;
 		timer_setup(&proto->timer, ppp_timer, 0);
 		proto->state = CLOSED;
@@ -680,7 +677,8 @@ static int ppp_ioctl(struct net_device *dev, struct ifreq *ifr)
 
 		/* no settable parameters */
 
-		result = hdlc->attach(dev, ENCODING_NRZ,PARITY_CRC16_PR1_CCITT);
+		result = hdlc->attach(dev, ENCODING_NRZ,
+				      PARITY_CRC16_PR1_CCITT);
 		if (result)
 			return result;
 
@@ -707,7 +705,6 @@ static int ppp_ioctl(struct net_device *dev, struct ifreq *ifr)
 	return -EINVAL;
 }
 
-
 static int __init mod_init(void)
 {
 	skb_queue_head_init(&tx_queue);
@@ -719,7 +716,6 @@ static void __exit mod_exit(void)
 {
 	unregister_hdlc_protocol(&proto);
 }
-
 
 module_init(mod_init);
 module_exit(mod_exit);

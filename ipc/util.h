@@ -145,6 +145,9 @@ int ipcperms(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp, short flg);
  * ipc_get_maxidx - get the highest assigned index
  * @ids: ipc identifier set
  *
+ * The function returns the highest assigned index for @ids. The function
+ * doesn't scan the idr tree, it uses a cached value.
+ *
  * Called with ipc_ids.rwsem held for reading.
  */
 static inline int ipc_get_maxidx(struct ipc_ids *ids)

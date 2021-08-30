@@ -174,7 +174,7 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 		nr_opp = dev_pm_opp_get_opp_count(cpu_dev);
 		if (nr_opp <= 0) {
 			dev_err(cpu_dev, "%s: No OPPs for this device: %d\n",
-				__func__, ret);
+				__func__, nr_opp);
 
 			ret = -ENODEV;
 			goto out_free_opp;

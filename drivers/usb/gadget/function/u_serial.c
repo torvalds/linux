@@ -774,34 +774,34 @@ static void gs_flush_chars(struct tty_struct *tty)
 	spin_unlock_irqrestore(&port->port_lock, flags);
 }
 
-static int gs_write_room(struct tty_struct *tty)
+static unsigned int gs_write_room(struct tty_struct *tty)
 {
 	struct gs_port	*port = tty->driver_data;
 	unsigned long	flags;
-	int		room = 0;
+	unsigned int room = 0;
 
 	spin_lock_irqsave(&port->port_lock, flags);
 	if (port->port_usb)
 		room = kfifo_avail(&port->port_write_buf);
 	spin_unlock_irqrestore(&port->port_lock, flags);
 
-	pr_vdebug("gs_write_room: (%d,%p) room=%d\n",
+	pr_vdebug("gs_write_room: (%d,%p) room=%u\n",
 		port->port_num, tty, room);
 
 	return room;
 }
 
-static int gs_chars_in_buffer(struct tty_struct *tty)
+static unsigned int gs_chars_in_buffer(struct tty_struct *tty)
 {
 	struct gs_port	*port = tty->driver_data;
 	unsigned long	flags;
-	int		chars = 0;
+	unsigned int	chars;
 
 	spin_lock_irqsave(&port->port_lock, flags);
 	chars = kfifo_len(&port->port_write_buf);
 	spin_unlock_irqrestore(&port->port_lock, flags);
 
-	pr_vdebug("gs_chars_in_buffer: (%d,%p) chars=%d\n",
+	pr_vdebug("gs_chars_in_buffer: (%d,%p) chars=%u\n",
 		port->port_num, tty, chars);
 
 	return chars;

@@ -89,6 +89,10 @@ dml_get_attr_func(wm_memory_trip, mode_lib->vba.UrgentLatency);
 dml_get_attr_func(wm_writeback_urgent, mode_lib->vba.WritebackUrgentWatermark);
 dml_get_attr_func(wm_stutter_exit, mode_lib->vba.StutterExitWatermark);
 dml_get_attr_func(wm_stutter_enter_exit, mode_lib->vba.StutterEnterPlusExitWatermark);
+dml_get_attr_func(wm_z8_stutter_exit, mode_lib->vba.Z8StutterExitWatermark);
+dml_get_attr_func(wm_z8_stutter_enter_exit, mode_lib->vba.Z8StutterEnterPlusExitWatermark);
+dml_get_attr_func(stutter_efficiency_z8, mode_lib->vba.Z8StutterEfficiency);
+dml_get_attr_func(stutter_num_bursts_z8, mode_lib->vba.Z8NumberOfStutterBurstsPerFrame);
 dml_get_attr_func(wm_dram_clock_change, mode_lib->vba.DRAMClockChangeWatermark);
 dml_get_attr_func(wm_writeback_dram_clock_change, mode_lib->vba.WritebackDRAMClockChangeWatermark);
 dml_get_attr_func(stutter_efficiency, mode_lib->vba.StutterEfficiency);
@@ -153,11 +157,12 @@ dml_get_pipe_attr_func(refcyc_per_meta_chunk_vblank_l_in_us, mode_lib->vba.TimeP
 dml_get_pipe_attr_func(refcyc_per_meta_chunk_vblank_c_in_us, mode_lib->vba.TimePerChromaMetaChunkVBlank);
 dml_get_pipe_attr_func(refcyc_per_meta_chunk_flip_l_in_us, mode_lib->vba.TimePerMetaChunkFlip);
 dml_get_pipe_attr_func(refcyc_per_meta_chunk_flip_c_in_us, mode_lib->vba.TimePerChromaMetaChunkFlip);
-
 dml_get_pipe_attr_func(vstartup, mode_lib->vba.VStartup);
 dml_get_pipe_attr_func(vupdate_offset, mode_lib->vba.VUpdateOffsetPix);
 dml_get_pipe_attr_func(vupdate_width, mode_lib->vba.VUpdateWidthPix);
 dml_get_pipe_attr_func(vready_offset, mode_lib->vba.VReadyOffsetPix);
+dml_get_pipe_attr_func(vready_at_or_after_vsync, mode_lib->vba.VREADY_AT_OR_AFTER_VSYNC);
+dml_get_pipe_attr_func(min_dst_y_next_start, mode_lib->vba.MIN_DST_Y_NEXT_START);
 
 double get_total_immediate_flip_bytes(
 		struct display_mode_lib *mode_lib,
@@ -226,6 +231,14 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.WritebackLatency = soc->writeback_latency_us;
 	mode_lib->vba.SRExitTime = soc->sr_exit_time_us;
 	mode_lib->vba.SREnterPlusExitTime = soc->sr_enter_plus_exit_time_us;
+	mode_lib->vba.PercentOfIdealFabricAndSDPPortBWReceivedAfterUrgLatency = soc->pct_ideal_sdp_bw_after_urgent;
+	mode_lib->vba.PercentOfIdealDRAMBWReceivedAfterUrgLatencyPixelMixedWithVMData = soc->pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm;
+	mode_lib->vba.PercentOfIdealDRAMBWReceivedAfterUrgLatencyPixelDataOnly = soc->pct_ideal_dram_sdp_bw_after_urgent_pixel_only;
+	mode_lib->vba.PercentOfIdealDRAMBWReceivedAfterUrgLatencyVMDataOnly = soc->pct_ideal_dram_sdp_bw_after_urgent_vm_only;
+	mode_lib->vba.MaxAveragePercentOfIdealFabricAndSDPPortBWDisplayCanUseInNormalSystemOperation =
+			soc->max_avg_sdp_bw_use_normal_percent;
+	mode_lib->vba.SRExitZ8Time = soc->sr_exit_z8_time_us;
+	mode_lib->vba.SREnterPlusExitZ8Time = soc->sr_enter_plus_exit_z8_time_us;
 	mode_lib->vba.DRAMClockChangeLatency = soc->dram_clock_change_latency_us;
 	mode_lib->vba.DummyPStateCheck = soc->dram_clock_change_latency_us == soc->dummy_pstate_latency_us;
 	mode_lib->vba.DRAMClockChangeSupportsVActive = !soc->disable_dram_clock_change_vactive_support ||
@@ -299,7 +312,15 @@ static void fetch_ip_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.MaxDCHUBToPSCLThroughput = ip->max_dchub_pscl_bw_pix_per_clk;
 	mode_lib->vba.MaxPSCLToLBThroughput = ip->max_pscl_lb_bw_pix_per_clk;
 	mode_lib->vba.ROBBufferSizeInKByte = ip->rob_buffer_size_kbytes;
-	mode_lib->vba.DETBufferSizeInKByte = ip->det_buffer_size_kbytes;
+	mode_lib->vba.DETBufferSizeInKByte[0] = ip->det_buffer_size_kbytes;
+	mode_lib->vba.ConfigReturnBufferSizeInKByte = ip->config_return_buffer_size_in_kbytes;
+	mode_lib->vba.CompressedBufferSegmentSizeInkByte = ip->compressed_buffer_segment_size_in_kbytes;
+	mode_lib->vba.MetaFIFOSizeInKEntries = ip->meta_fifo_size_in_kentries;
+	mode_lib->vba.ZeroSizeBufferEntries = ip->zero_size_buffer_entries;
+	mode_lib->vba.COMPBUF_RESERVED_SPACE_64B = ip->compbuf_reserved_space_64b;
+	mode_lib->vba.COMPBUF_RESERVED_SPACE_ZS = ip->compbuf_reserved_space_zs;
+	mode_lib->vba.MaximumDSCBitsPerComponent = ip->maximum_dsc_bits_per_component;
+	mode_lib->vba.DSC422NativeSupport = ip->dsc422_native_support;
 
 	mode_lib->vba.PixelChunkSizeInKByte = ip->pixel_chunk_size_kbytes;
 	mode_lib->vba.MetaChunkSize = ip->meta_chunk_size_kbytes;
@@ -389,7 +410,6 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		visited[j] = true;
 
 		mode_lib->vba.pipe_plane[j] = mode_lib->vba.NumberOfActivePlanes;
-
 		mode_lib->vba.DPPPerPlane[mode_lib->vba.NumberOfActivePlanes] = 1;
 		mode_lib->vba.SourceScan[mode_lib->vba.NumberOfActivePlanes] =
 				(enum scan_direction_class) (src->source_scan);
@@ -429,6 +449,9 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.VTAPsChroma[mode_lib->vba.NumberOfActivePlanes] = taps->vtaps_c;
 		mode_lib->vba.HTotal[mode_lib->vba.NumberOfActivePlanes] = dst->htotal;
 		mode_lib->vba.VTotal[mode_lib->vba.NumberOfActivePlanes] = dst->vtotal;
+		mode_lib->vba.VFrontPorch[mode_lib->vba.NumberOfActivePlanes] = dst->vfront_porch;
+		mode_lib->vba.DCCFractionOfZeroSizeRequestsLuma[mode_lib->vba.NumberOfActivePlanes] = src->dcc_fraction_of_zs_req_luma;
+		mode_lib->vba.DCCFractionOfZeroSizeRequestsChroma[mode_lib->vba.NumberOfActivePlanes] = src->dcc_fraction_of_zs_req_chroma;
 		mode_lib->vba.DCCEnable[mode_lib->vba.NumberOfActivePlanes] =
 				src->dcc_use_global ?
 						ip->dcc_supported : src->dcc && ip->dcc_supported;
@@ -630,6 +653,19 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 				}
 			}
 		}
+		if (src->viewport_width_max) {
+			int hdiv_c = src->source_format >= dm_420_8 && src->source_format <= dm_422_10 ? 2 : 1;
+			int vdiv_c = src->source_format >= dm_420_8 && src->source_format <= dm_420_12 ? 2 : 1;
+
+			if (mode_lib->vba.ViewportWidth[mode_lib->vba.NumberOfActivePlanes] > src->viewport_width_max)
+				mode_lib->vba.ViewportWidth[mode_lib->vba.NumberOfActivePlanes] = src->viewport_width_max;
+			if (mode_lib->vba.ViewportHeight[mode_lib->vba.NumberOfActivePlanes] > src->viewport_height_max)
+				mode_lib->vba.ViewportHeight[mode_lib->vba.NumberOfActivePlanes] = src->viewport_height_max;
+			if (mode_lib->vba.ViewportWidthChroma[mode_lib->vba.NumberOfActivePlanes] > src->viewport_width_max / hdiv_c)
+				mode_lib->vba.ViewportWidthChroma[mode_lib->vba.NumberOfActivePlanes] = src->viewport_width_max / hdiv_c;
+			if (mode_lib->vba.ViewportHeightChroma[mode_lib->vba.NumberOfActivePlanes] > src->viewport_height_max / vdiv_c)
+				mode_lib->vba.ViewportHeightChroma[mode_lib->vba.NumberOfActivePlanes] = src->viewport_height_max / vdiv_c;
+		}
 
 		if (pipes[k].pipe.src.immediate_flip) {
 			mode_lib->vba.ImmediateFlipSupport = true;
@@ -662,6 +698,11 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		}
 	}
 
+	mode_lib->vba.UseUnboundedRequesting = dm_unbounded_requesting;
+	for (k = 0; k < mode_lib->vba.cache_num_pipes; ++k) {
+		if (pipes[k].pipe.src.unbounded_req_mode == 0)
+			mode_lib->vba.UseUnboundedRequesting = dm_unbounded_requesting_disable;
+	}
 	// TODO: ODMCombineEnabled => 2 * DPPPerPlane...actually maybe not since all pipes are specified
 	// Do we want the dscclk to automatically be halved? Guess not since the value is specified
 	mode_lib->vba.SynchronizedVBlank = pipes[0].pipe.dest.synchronized_vblank_all_planes;

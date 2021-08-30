@@ -18,6 +18,8 @@
 /* RISC-V shim does not initialize PCI bus */
 #define pcibios_assign_all_busses() 1
 
+#define ARCH_GENERIC_PCI_MMAP_RESOURCE 1
+
 extern int isa_dma_bridge_buggy;
 
 #ifdef CONFIG_PCI

@@ -9,7 +9,8 @@
 #include "hgsmi_ch_setup.h"
 
 /**
- * Inform the host of the location of the host flags in VRAM via an HGSMI cmd.
+ * hgsmi_report_flags_location - Inform the host of the location of
+ *                               the host flags in VRAM via an HGSMI cmd.
  * Return: 0 or negative errno value.
  * @ctx:        The context of the guest heap to use.
  * @location:   The offset chosen for the flags within guest VRAM.
@@ -33,7 +34,8 @@ int hgsmi_report_flags_location(struct gen_pool *ctx, u32 location)
 }
 
 /**
- * Notify the host of HGSMI-related guest capabilities via an HGSMI command.
+ * hgsmi_send_caps_info - Notify the host of HGSMI-related guest capabilities
+ *                        via an HGSMI command.
  * Return: 0 or negative errno value.
  * @ctx:        The context of the guest heap to use.
  * @caps:       The capabilities to report, see vbva_caps.
@@ -71,7 +73,8 @@ int hgsmi_test_query_conf(struct gen_pool *ctx)
 }
 
 /**
- * Query the host for an HGSMI configuration parameter via an HGSMI command.
+ * hgsmi_query_conf - Query the host for an HGSMI configuration
+ *                    parameter via an HGSMI command.
  * Return: 0 or negative errno value.
  * @ctx:        The context containing the heap used.
  * @index:      The index of the parameter to query.
@@ -99,7 +102,8 @@ int hgsmi_query_conf(struct gen_pool *ctx, u32 index, u32 *value_ret)
 }
 
 /**
- * Pass the host a new mouse pointer shape via an HGSMI command.
+ * hgsmi_update_pointer_shape - Pass the host a new mouse pointer shape
+ *                              via an HGSMI command.
  * Return: 0 or negative errno value.
  * @ctx:        The context containing the heap to be used.
  * @flags:      Cursor flags.
@@ -171,9 +175,10 @@ int hgsmi_update_pointer_shape(struct gen_pool *ctx, u32 flags,
 }
 
 /**
- * Report the guest cursor position.  The host may wish to use this information
- * to re-position its own cursor (though this is currently unlikely).  The
- * current host cursor position is returned.
+ * hgsmi_cursor_position - Report the guest cursor position.  The host may
+ *                         wish to use this information to re-position its
+ *                         own cursor (though this is currently unlikely).
+ *                         The current host cursor position is returned.
  * Return: 0 or negative errno value.
  * @ctx:              The context containing the heap used.
  * @report_position:  Are we reporting a position?

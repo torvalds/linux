@@ -35,7 +35,6 @@ properties:
 
   reg-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: phy
       - const: phy-ctrl

@@ -23,35 +23,46 @@ struct module;
 
 struct nft_pktinfo {
 	struct sk_buff			*skb;
+	const struct nf_hook_state	*state;
 	bool				tprot_set;
 	u8				tprot;
-	/* for x_tables compatibility */
-	struct xt_action_param		xt;
+	u16				fragoff;
+	unsigned int			thoff;
 };
+
+static inline struct sock *nft_sk(const struct nft_pktinfo *pkt)
+{
+	return pkt->state->sk;
+}
+
+static inline unsigned int nft_thoff(const struct nft_pktinfo *pkt)
+{
+	return pkt->thoff;
+}
 
 static inline struct net *nft_net(const struct nft_pktinfo *pkt)
 {
-	return pkt->xt.state->net;
+	return pkt->state->net;
 }
 
 static inline unsigned int nft_hook(const struct nft_pktinfo *pkt)
 {
-	return pkt->xt.state->hook;
+	return pkt->state->hook;
 }
 
 static inline u8 nft_pf(const struct nft_pktinfo *pkt)
 {
-	return pkt->xt.state->pf;
+	return pkt->state->pf;
 }
 
 static inline const struct net_device *nft_in(const struct nft_pktinfo *pkt)
 {
-	return pkt->xt.state->in;
+	return pkt->state->in;
 }
 
 static inline const struct net_device *nft_out(const struct nft_pktinfo *pkt)
 {
-	return pkt->xt.state->out;
+	return pkt->state->out;
 }
 
 static inline void nft_set_pktinfo(struct nft_pktinfo *pkt,
@@ -59,16 +70,15 @@ static inline void nft_set_pktinfo(struct nft_pktinfo *pkt,
 				   const struct nf_hook_state *state)
 {
 	pkt->skb = skb;
-	pkt->xt.state = state;
+	pkt->state = state;
 }
 
-static inline void nft_set_pktinfo_unspec(struct nft_pktinfo *pkt,
-					  struct sk_buff *skb)
+static inline void nft_set_pktinfo_unspec(struct nft_pktinfo *pkt)
 {
 	pkt->tprot_set = false;
 	pkt->tprot = 0;
-	pkt->xt.thoff = 0;
-	pkt->xt.fragoff = 0;
+	pkt->thoff = 0;
+	pkt->fragoff = 0;
 }
 
 /**

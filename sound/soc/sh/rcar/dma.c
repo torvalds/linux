@@ -44,7 +44,8 @@ struct rsnd_dma {
 };
 
 struct rsnd_dma_ctrl {
-	void __iomem *base;
+	void __iomem *ppbase;
+	phys_addr_t ppres;
 	int dmaen_num;
 	int dmapp_num;
 };
@@ -236,16 +237,18 @@ static int rsnd_dmaen_start(struct rsnd_mod *mod,
 	return 0;
 }
 
-struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
-					  struct rsnd_mod *mod, char *name)
+struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node, char *name,
+					  struct rsnd_mod *mod, char *x)
 {
 	struct dma_chan *chan = NULL;
 	struct device_node *np;
 	int i = 0;
 
 	for_each_child_of_node(of_node, np) {
+		i = rsnd_node_fixed_index(np, name, i);
+
 		if (i == rsnd_mod_id_raw(mod) && (!chan))
-			chan = of_dma_request_slave_channel(np, name);
+			chan = of_dma_request_slave_channel(np, x);
 		i++;
 	}
 
@@ -415,7 +418,7 @@ static u32 rsnd_dmapp_get_chcr(struct rsnd_dai_stream *io,
 }
 
 #define rsnd_dmapp_addr(dmac, dma, reg) \
-	(dmac->base + 0x20 + reg + \
+	(dmac->ppbase + 0x20 + reg + \
 	 (0x10 * rsnd_dma_to_dmapp(dma)->dmapp_id))
 static void rsnd_dmapp_write(struct rsnd_dma *dma, u32 data, u32 reg)
 {
@@ -504,12 +507,31 @@ static int rsnd_dmapp_attach(struct rsnd_dai_stream *io,
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
+static void rsnd_dmapp_debug_info(struct seq_file *m,
+				  struct rsnd_dai_stream *io,
+				  struct rsnd_mod *mod)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_dma_ctrl *dmac = rsnd_priv_to_dmac(priv);
+	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
+	struct rsnd_dmapp *dmapp = rsnd_dma_to_dmapp(dma);
+
+	rsnd_debugfs_reg_show(m, dmac->ppres, dmac->ppbase,
+			      0x20 + 0x10 * dmapp->dmapp_id, 0x10);
+}
+#define DEBUG_INFO .debug_info = rsnd_dmapp_debug_info
+#else
+#define DEBUG_INFO
+#endif
+
 static struct rsnd_mod_ops rsnd_dmapp_ops = {
 	.name		= "audmac-pp",
 	.start		= rsnd_dmapp_start,
 	.stop		= rsnd_dmapp_stop,
 	.quit		= rsnd_dmapp_stop,
 	.get_status	= rsnd_mod_get_status,
+	DEBUG_INFO
 };
 
 /*
@@ -864,9 +886,10 @@ int rsnd_dma_probe(struct rsnd_priv *priv)
 	}
 
 	dmac->dmapp_num = 0;
-	dmac->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(dmac->base))
-		return PTR_ERR(dmac->base);
+	dmac->ppres  = res->start;
+	dmac->ppbase = devm_ioremap_resource(dev, res);
+	if (IS_ERR(dmac->ppbase))
+		return PTR_ERR(dmac->ppbase);
 
 	priv->dma = dmac;
 

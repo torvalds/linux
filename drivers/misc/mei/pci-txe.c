@@ -156,7 +156,7 @@ end:
 }
 
 /**
- * mei_txe_remove - Device Shutdown Routine
+ * mei_txe_shutdown- Device Shutdown Routine
  *
  * @pdev: PCI device structure
  *

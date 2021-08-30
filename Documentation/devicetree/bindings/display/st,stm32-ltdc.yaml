@@ -22,7 +22,6 @@ properties:
       - description: events interrupt line.
       - description: errors interrupt line.
     minItems: 1
-    maxItems: 2
 
   clocks:
     maxItems: 1

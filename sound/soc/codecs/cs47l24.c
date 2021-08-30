@@ -1178,7 +1178,7 @@ static unsigned int cs47l24_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_4L,
 };
 
-static struct snd_compress_ops cs47l24_compress_ops = {
+static const struct snd_compress_ops cs47l24_compress_ops = {
 	.open		= cs47l24_open,
 	.free		= wm_adsp_compr_free,
 	.set_params	= wm_adsp_compr_set_params,

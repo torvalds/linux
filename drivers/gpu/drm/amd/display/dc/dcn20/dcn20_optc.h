@@ -42,7 +42,8 @@
 	SRI(OPTC_WIDTH_CONTROL, ODM, inst),\
 	SRI(OPTC_MEMORY_CONFIG, ODM, inst),\
 	SR(DWB_SOURCE_SELECT),\
-	SRI(OTG_MANUAL_FLOW_CONTROL, OTG, inst)
+	SRI(OTG_MANUAL_FLOW_CONTROL, OTG, inst), \
+	SRI(OTG_DRR_CONTROL, OTG, inst)
 
 #define TG_COMMON_MASK_SH_LIST_DCN2_0(mask_sh)\
 	TG_COMMON_MASK_SH_LIST_DCN(mask_sh),\
@@ -75,9 +76,13 @@
 	SF(ODM0_OPTC_WIDTH_CONTROL, OPTC_SEGMENT_WIDTH, mask_sh),\
 	SF(DWB_SOURCE_SELECT, OPTC_DWB0_SOURCE_SELECT, mask_sh),\
 	SF(DWB_SOURCE_SELECT, OPTC_DWB1_SOURCE_SELECT, mask_sh),\
-	SF(OTG0_OTG_MANUAL_FLOW_CONTROL, MANUAL_FLOW_CONTROL, mask_sh)
+	SF(OTG0_OTG_MANUAL_FLOW_CONTROL, MANUAL_FLOW_CONTROL, mask_sh), \
+	SF(OTG0_OTG_DRR_CONTROL, OTG_V_TOTAL_LAST_USED_BY_DRR, mask_sh)
 
 void dcn20_timing_generator_init(struct optc *optc);
+
+void optc2_get_last_used_drr_vtotal(struct timing_generator *optc,
+		uint32_t *refresh_rate);
 
 bool optc2_enable_crtc(struct timing_generator *optc);
 

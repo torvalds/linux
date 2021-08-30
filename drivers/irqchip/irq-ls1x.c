@@ -50,7 +50,7 @@ static void ls1x_chained_handle_irq(struct irq_desc *desc)
 	while (pending) {
 		int bit = __ffs(pending);
 
-		generic_handle_irq(irq_find_mapping(priv->domain, bit));
+		generic_handle_domain_irq(priv->domain, bit);
 		pending &= ~BIT(bit);
 	}
 

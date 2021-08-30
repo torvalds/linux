@@ -10,7 +10,7 @@
 #include "fw/api/commands.h"
 #include "fw/api/nvm-reg.h"
 #include "fw/api/alive.h"
-#include <linux/efi.h>
+#include "fw/uefi.h"
 
 struct iwl_pnvm_section {
 	__le32 offset;
@@ -220,83 +220,6 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 	return -ENOENT;
 }
 
-#if defined(CONFIG_EFI)
-
-#define IWL_EFI_VAR_GUID EFI_GUID(0x92daaf2f, 0xc02b, 0x455b,	\
-				  0xb2, 0xec, 0xf5, 0xa3,	\
-				  0x59, 0x4f, 0x4a, 0xea)
-
-#define IWL_UEFI_OEM_PNVM_NAME	L"UefiCnvWlanOemSignedPnvm"
-
-#define IWL_HARDCODED_PNVM_SIZE 4096
-
-struct pnvm_sku_package {
-	u8 rev;
-	u8 reserved1[3];
-	u32 total_size;
-	u8 n_skus;
-	u8 reserved2[11];
-	u8 data[];
-};
-
-static int iwl_pnvm_get_from_efi(struct iwl_trans *trans,
-				 u8 **data, size_t *len)
-{
-	struct efivar_entry *pnvm_efivar;
-	struct pnvm_sku_package *package;
-	unsigned long package_size;
-	int err;
-
-	pnvm_efivar = kzalloc(sizeof(*pnvm_efivar), GFP_KERNEL);
-	if (!pnvm_efivar)
-		return -ENOMEM;
-
-	memcpy(&pnvm_efivar->var.VariableName, IWL_UEFI_OEM_PNVM_NAME,
-	       sizeof(IWL_UEFI_OEM_PNVM_NAME));
-	pnvm_efivar->var.VendorGuid = IWL_EFI_VAR_GUID;
-
-	/*
-	 * TODO: we hardcode a maximum length here, because reading
-	 * from the UEFI is not working.  To implement this properly,
-	 * we have to call efivar_entry_size().
-	 */
-	package_size = IWL_HARDCODED_PNVM_SIZE;
-
-	package = kmalloc(package_size, GFP_KERNEL);
-	if (!package) {
-		err = -ENOMEM;
-		goto out;
-	}
-
-	err = efivar_entry_get(pnvm_efivar, NULL, &package_size, package);
-	if (err) {
-		IWL_DEBUG_FW(trans,
-			     "PNVM UEFI variable not found %d (len %lu)\n",
-			     err, package_size);
-		goto out;
-	}
-
-	IWL_DEBUG_FW(trans, "Read PNVM fro UEFI with size %lu\n", package_size);
-
-	*data = kmemdup(package->data, *len, GFP_KERNEL);
-	if (!*data)
-		err = -ENOMEM;
-	*len = package_size - sizeof(*package);
-
-out:
-	kfree(package);
-	kfree(pnvm_efivar);
-
-	return err;
-}
-#else /* CONFIG_EFI */
-static inline int iwl_pnvm_get_from_efi(struct iwl_trans *trans,
-					u8 **data, size_t *len)
-{
-	return -EOPNOTSUPP;
-}
-#endif /* CONFIG_EFI */
-
 static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
 {
 	const struct firmware *pnvm;
@@ -335,6 +258,7 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 {
 	u8 *data;
 	size_t len;
+	struct pnvm_sku_package *package;
 	struct iwl_notification_wait pnvm_wait;
 	static const u16 ntf_cmds[] = { WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						PNVM_INIT_COMPLETE_NTFY) };
@@ -356,9 +280,19 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 	}
 
 	/* First attempt to get the PNVM from BIOS */
-	ret = iwl_pnvm_get_from_efi(trans, &data, &len);
-	if (!ret)
-		goto parse;
+	package = iwl_uefi_get_pnvm(trans, &len);
+	if (!IS_ERR_OR_NULL(package)) {
+		data = kmemdup(package->data, len, GFP_KERNEL);
+
+		/* free package regardless of whether kmemdup succeeded */
+		kfree(package);
+
+		if (data) {
+			/* we need only the data size */
+			len -= sizeof(*package);
+			goto parse;
+		}
+	}
 
 	/* If it's not available, try from the filesystem */
 	ret = iwl_pnvm_get_from_fs(trans, &data, &len);
@@ -379,6 +313,30 @@ parse:
 	kfree(data);
 
 skip_parse:
+	data = NULL;
+	/* now try to get the reduce power table, if not loaded yet */
+	if (!trans->reduce_power_loaded) {
+		data = iwl_uefi_get_reduced_power(trans, &len);
+		if (IS_ERR_OR_NULL(data)) {
+			/*
+			 * Pretend we've loaded it - at least we've tried and
+			 * couldn't load it at all, so there's no point in
+			 * trying again over and over.
+			 */
+			trans->reduce_power_loaded = true;
+
+			goto skip_reduce_power;
+		}
+	}
+
+	ret = iwl_trans_set_reduce_power(trans, data, len);
+	if (ret)
+		IWL_DEBUG_FW(trans,
+			     "Failed to set reduce power table %d\n",
+			     ret);
+	kfree(data);
+
+skip_reduce_power:
 	iwl_init_notification_wait(notif_wait, &pnvm_wait,
 				   ntf_cmds, ARRAY_SIZE(ntf_cmds),
 				   iwl_pnvm_complete_fn, trans);

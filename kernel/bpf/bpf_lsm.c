@@ -127,7 +127,7 @@ bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 }
 
 /* The set of hooks which are called without pagefaults disabled and are allowed
- * to "sleep" and thus can be used for sleeable BPF programs.
+ * to "sleep" and thus can be used for sleepable BPF programs.
  */
 BTF_SET_START(sleepable_lsm_hooks)
 BTF_ID(func, bpf_lsm_bpf)

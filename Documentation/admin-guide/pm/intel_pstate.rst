@@ -365,6 +365,9 @@ argument is passed to the kernel in the command line.
 	inclusive) including both turbo and non-turbo P-states (see
 	`Turbo P-states Support`_).
 
+	This attribute is present only if the value exposed by it is the same
+	for all of the CPUs in the system.
+
 	The value of this attribute is not affected by the ``no_turbo``
 	setting described `below <no_turbo_attr_>`_.
 
@@ -373,6 +376,9 @@ argument is passed to the kernel in the command line.
 ``turbo_pct``
 	Ratio of the `turbo range <turbo_>`_ size to the size of the entire
 	range of supported P-states, in percent.
+
+	This attribute is present only if the value exposed by it is the same
+	for all of the CPUs in the system.
 
 	This attribute is read-only.
 

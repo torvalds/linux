@@ -18,8 +18,25 @@ config SND_DICE
 	select SND_HWDEP
 	select SND_FIREWIRE_LIB
 	help
-	  Say Y here to include support for many DACs based on the DICE
-	  chip family (DICE-II/Jr/Mini) which TC Applied Technologies produces.
+	  Say Y here to include support for devices based on the DICE chip family
+	  (DICE-II/TCD2210(Mini)/TCD2220(Jr.)) which TC Applied Technologies (TCAT) produced.
+	   * Allen and Heath Zed R16
+	   * Alesis iO 14/26 FireWire, MasterControl, MultiMix 8/12/16 FireWire
+	   * Avid Mbox 3 Pro
+	   * FlexRadio Systems FLEX-3000, FLEX-5000
+	   * Focusrite Liquid Saffire 56
+	   * Focusrite Saffire Pro 14, Pro 24, Pro 24 DSP, Pro 26, Pro 40(TCD2220)
+	   * Harman Music Group Lexicon I-ONIX FW810S
+	   * Loud Technologies Mackie Onyx Blackbird, Onyx 820i/1220i/1620i/1640i (latter models)
+	   * M-Audio ProFire 610/2626
+	   * Mytek Stereo192-DSD DAC
+	   * Midas Klark Teknik VeniceF series
+	   * PreSonus FireStudio, FireStudio Mobile, FireStudio Project, FireStudio Tube
+	   * PreSonus StudioLive 16.4.2, 16.0.2, 24.4.2, 32.4.2
+	   * Solid State Logic Duende Classic, Duende Mini
+	   * TC Electronic Studio Konnekt 48, Konnekt 24D, Konnekt Live, Impact Twin
+	   * TC Electronic Digital Konnekt x32, Desktop Konnekt 6
+	   * Weiss Engineering ADC2, Vesta, Minerva, AFI1, DAC1, INT202, DAC202
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-dice.
@@ -38,7 +55,7 @@ config SND_OXFW
 	   * Mackie(Loud) Onyx 1640i (former model)
 	   * Mackie(Loud) Onyx Satellite
 	   * Mackie(Loud) Tapco Link.Firewire
-	   * Mackie(Loud) d.4 pro
+	   * Mackie(Loud) d.2 pro/d.4 pro (built-in FireWire card with OXFW971 ASIC)
 	   * Mackie(Loud) U.420/U.420d
 	   * TASCAM FireOne
 	   * Stanton Controllers & Systems 1 Deck/Mixer
@@ -84,7 +101,7 @@ config SND_BEBOB
 	  * PreSonus FIREBOX/FIREPOD/FP10/Inspire1394
 	  * BridgeCo RDAudio1/Audio5
 	  * Mackie Onyx 1220/1620/1640 (FireWire I/O Card)
-	  * Mackie d.2 (FireWire Option) and d.2 Pro
+	  * Mackie d.2 (optional FireWire card with DM1000 ASIC)
 	  * Stanton FinalScratch 2 (ScratchAmp)
 	  * Tascam IF-FW/DM
 	  * Behringer XENIX UFX 1204/1604
@@ -110,6 +127,7 @@ config SND_BEBOB
 	  * M-Audio Ozonic/NRV10/ProfireLightBridge
 	  * M-Audio FireWire 1814/ProjectMix IO
 	  * Digidesign Mbox 2 Pro
+	  * ToneWeal FW66
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-bebob.
@@ -148,12 +166,16 @@ config SND_FIREWIRE_MOTU
 	select SND_HWDEP
 	help
 	 Say Y here to enable support for FireWire devices which MOTU produced:
+	  * 828
+	  * 896
 	  * 828mk2
 	  * Traveler
 	  * Ultralite
 	  * 8pre
 	  * 828mk3 (FireWire only)
 	  * 828mk3 (Hybrid)
+	  * Ultralite mk3 (FireWire only)
+	  * Ultralite mk3 (Hybrid)
 	  * Audio Express
 	  * 4pre
 

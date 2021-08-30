@@ -315,11 +315,10 @@ void __init idt_setup_early_handler(void)
 
 /**
  * idt_invalidate - Invalidate interrupt descriptor table
- * @addr:	The virtual address of the 'invalid' IDT
  */
-void idt_invalidate(void *addr)
+void idt_invalidate(void)
 {
-	struct desc_ptr idt = { .address = (unsigned long) addr, .size = 0 };
+	static const struct desc_ptr idt = { .address = 0, .size = 0 };
 
 	load_idt(&idt);
 }

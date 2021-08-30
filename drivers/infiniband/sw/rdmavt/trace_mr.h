@@ -195,7 +195,7 @@ TRACE_EVENT(
 		__field(uint, sg_offset)
 	),
 	TP_fast_assign(
-		RDI_DEV_ASSIGN(ib_to_rvt(to_imr(ibmr)->mr.pd->device))
+		RDI_DEV_ASSIGN(ib_to_rvt(to_imr(ibmr)->mr.pd->device));
 		__entry->ibmr_iova = ibmr->iova;
 		__entry->iova = to_imr(ibmr)->mr.iova;
 		__entry->user_base = to_imr(ibmr)->mr.user_base;

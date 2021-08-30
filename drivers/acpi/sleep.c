@@ -8,6 +8,8 @@
  * Copyright (c) 2003 Open Source Development Lab
  */
 
+#define pr_fmt(fmt) "ACPI: PM: " fmt
+
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/dmi.h>
@@ -41,7 +43,7 @@ static void acpi_sleep_tts_switch(u32 acpi_state)
 		 * OS can't evaluate the _TTS object correctly. Some warning
 		 * message will be printed. But it won't break anything.
 		 */
-		printk(KERN_NOTICE "Failure in evaluating _TTS object\n");
+		pr_notice("Failure in evaluating _TTS object\n");
 	}
 }
 
@@ -73,8 +75,7 @@ static int acpi_sleep_prepare(u32 acpi_state)
 	}
 	ACPI_FLUSH_CPU_CACHE();
 #endif
-	printk(KERN_INFO PREFIX "Preparing to enter system sleep state S%d\n",
-		acpi_state);
+	pr_info("Preparing to enter system sleep state S%d\n", acpi_state);
 	acpi_enable_wakeup_devices(acpi_state);
 	acpi_enter_sleep_state_prep(acpi_state);
 	return 0;
@@ -406,7 +407,7 @@ static int acpi_pm_freeze(void)
 }
 
 /**
- * acpi_pre_suspend - Enable wakeup devices, "freeze" EC and save NVS.
+ * acpi_pm_pre_suspend - Enable wakeup devices, "freeze" EC and save NVS.
  */
 static int acpi_pm_pre_suspend(void)
 {
@@ -459,8 +460,7 @@ static void acpi_pm_finish(void)
 	if (acpi_state == ACPI_STATE_S0)
 		return;
 
-	printk(KERN_INFO PREFIX "Waking up from system sleep state S%d\n",
-		acpi_state);
+	pr_info("Waking up from system sleep state S%d\n", acpi_state);
 	acpi_disable_wakeup_devices(acpi_state);
 	acpi_leave_sleep_state(acpi_state);
 
@@ -504,7 +504,7 @@ static void acpi_pm_start(u32 acpi_state)
  */
 static void acpi_pm_end(void)
 {
-	acpi_turn_off_unused_power_resources(false);
+	acpi_turn_off_unused_power_resources();
 	acpi_scan_lock_release();
 	/*
 	 * This is necessary in case acpi_pm_finish() is not called during a
@@ -581,7 +581,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 		error = acpi_suspend_lowlevel();
 		if (error)
 			return error;
-		pr_info(PREFIX "Low-level resume complete\n");
+		pr_info("Low-level resume complete\n");
 		pm_set_resume_via_firmware();
 		break;
 	}
@@ -921,7 +921,7 @@ static void acpi_hibernation_leave(void)
 	acpi_leave_sleep_state_prep(ACPI_STATE_S4);
 	/* Check the hardware signature */
 	if (facs && s4_hardware_signature != facs->hardware_signature)
-		pr_crit("ACPI: Hardware changed while hibernated, success doubtful!\n");
+		pr_crit("Hardware changed while hibernated, success doubtful!\n");
 	/* Restore the NVS memory area */
 	suspend_nvs_restore();
 	/* Allow EC transactions to happen. */
@@ -1027,7 +1027,7 @@ static void acpi_power_off_prepare(void)
 static void acpi_power_off(void)
 {
 	/* acpi_sleep_prepare(ACPI_STATE_S5) should have already been called */
-	printk(KERN_DEBUG "%s called\n", __func__);
+	pr_debug("%s called\n", __func__);
 	local_irq_disable();
 	acpi_enter_sleep_state(ACPI_STATE_S5);
 }
@@ -1059,7 +1059,7 @@ int __init acpi_sleep_init(void)
 		if (sleep_states[i])
 			pos += sprintf(pos, " S%d", i);
 	}
-	pr_info(PREFIX "(supports%s)\n", supported);
+	pr_info("(supports%s)\n", supported);
 
 	/*
 	 * Register the tts_notifier to reboot notifier list so that the _TTS

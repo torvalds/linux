@@ -1141,7 +1141,7 @@ struct __packed atto_ioctl_vda_gsv_cmd {
 
 	u8 rsp_len;
 	u8 reserved[7];
-	u8 version_info[1];
+	u8 version_info[];
 	#define ATTO_VDA_VER_UNSUPPORTED 0xFF
 
 };

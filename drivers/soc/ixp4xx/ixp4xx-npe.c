@@ -21,6 +21,8 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/soc/ixp4xx/npe.h>
+#include <mach/hardware.h>
+#include <linux/soc/ixp4xx/cpu.h>
 
 #define DEBUG_MSG			0
 #define DEBUG_FW			0

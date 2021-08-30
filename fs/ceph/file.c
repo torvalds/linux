@@ -706,6 +706,7 @@ retry:
 		mask |= CEPH_CAP_XATTR_SHARED;
 	req->r_args.open.mask = cpu_to_le32(mask);
 	req->r_parent = dir;
+	ihold(dir);
 
 	if (flags & O_CREAT) {
 		struct ceph_file_layout lo;
@@ -903,7 +904,7 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
 		ceph_update_read_metrics(&fsc->mdsc->metric,
 					 req->r_start_latency,
 					 req->r_end_latency,
-					 ret);
+					 len, ret);
 
 		ceph_osdc_put_request(req);
 
@@ -1035,12 +1036,12 @@ static void ceph_aio_complete_req(struct ceph_osd_request *req)
 	struct ceph_aio_request *aio_req = req->r_priv;
 	struct ceph_osd_data *osd_data = osd_req_op_extent_osd_data(req, 0);
 	struct ceph_client_metric *metric = &ceph_sb_to_mdsc(inode->i_sb)->metric;
+	unsigned int len = osd_data->bvec_pos.iter.bi_size;
 
 	BUG_ON(osd_data->type != CEPH_OSD_DATA_TYPE_BVECS);
 	BUG_ON(!osd_data->num_bvecs);
 
-	dout("ceph_aio_complete_req %p rc %d bytes %u\n",
-	     inode, rc, osd_data->bvec_pos.iter.bi_size);
+	dout("ceph_aio_complete_req %p rc %d bytes %u\n", inode, rc, len);
 
 	if (rc == -EOLDSNAPC) {
 		struct ceph_aio_work *aio_work;
@@ -1058,9 +1059,9 @@ static void ceph_aio_complete_req(struct ceph_osd_request *req)
 	} else if (!aio_req->write) {
 		if (rc == -ENOENT)
 			rc = 0;
-		if (rc >= 0 && osd_data->bvec_pos.iter.bi_size > rc) {
+		if (rc >= 0 && len > rc) {
 			struct iov_iter i;
-			int zlen = osd_data->bvec_pos.iter.bi_size - rc;
+			int zlen = len - rc;
 
 			/*
 			 * If read is satisfied by single OSD request,
@@ -1077,8 +1078,7 @@ static void ceph_aio_complete_req(struct ceph_osd_request *req)
 			}
 
 			iov_iter_bvec(&i, READ, osd_data->bvec_pos.bvecs,
-				      osd_data->num_bvecs,
-				      osd_data->bvec_pos.iter.bi_size);
+				      osd_data->num_bvecs, len);
 			iov_iter_advance(&i, rc);
 			iov_iter_zero(zlen, &i);
 		}
@@ -1088,10 +1088,10 @@ static void ceph_aio_complete_req(struct ceph_osd_request *req)
 	if (req->r_start_latency) {
 		if (aio_req->write)
 			ceph_update_write_metrics(metric, req->r_start_latency,
-						  req->r_end_latency, rc);
+						  req->r_end_latency, len, rc);
 		else
 			ceph_update_read_metrics(metric, req->r_start_latency,
-						 req->r_end_latency, rc);
+						 req->r_end_latency, len, rc);
 	}
 
 	put_bvecs(osd_data->bvec_pos.bvecs, osd_data->num_bvecs,
@@ -1299,10 +1299,10 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 
 		if (write)
 			ceph_update_write_metrics(metric, req->r_start_latency,
-						  req->r_end_latency, ret);
+						  req->r_end_latency, len, ret);
 		else
 			ceph_update_read_metrics(metric, req->r_start_latency,
-						 req->r_end_latency, ret);
+						 req->r_end_latency, len, ret);
 
 		size = i_size_read(inode);
 		if (!write) {
@@ -1476,7 +1476,7 @@ ceph_sync_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos,
 			ret = ceph_osdc_wait_request(&fsc->client->osdc, req);
 
 		ceph_update_write_metrics(&fsc->mdsc->metric, req->r_start_latency,
-					  req->r_end_latency, ret);
+					  req->r_end_latency, len, ret);
 out:
 		ceph_osdc_put_request(req);
 		if (ret != 0) {

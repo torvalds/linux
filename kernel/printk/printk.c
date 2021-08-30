@@ -350,11 +350,6 @@ static int console_msg_format = MSG_FORMAT_DEFAULT;
  * non-prinatable characters are escaped in the "\xff" notation.
  */
 
-enum log_flags {
-	LOG_NEWLINE	= 2,	/* text ended with a newline */
-	LOG_CONT	= 8,	/* text is a fragment of a continuation line */
-};
-
 /* syslog_lock protects syslog_* variables and write access to clear_seq. */
 static DEFINE_RAW_SPINLOCK(syslog_lock);
 
@@ -1961,23 +1956,24 @@ static inline u32 printk_caller_id(void)
 }
 
 /**
- * parse_prefix - Parse level and control flags.
+ * printk_parse_prefix - Parse level and control flags.
  *
  * @text:     The terminated text message.
  * @level:    A pointer to the current level value, will be updated.
- * @lflags:   A pointer to the current log flags, will be updated.
+ * @flags:    A pointer to the current printk_info flags, will be updated.
  *
  * @level may be NULL if the caller is not interested in the parsed value.
  * Otherwise the variable pointed to by @level must be set to
  * LOGLEVEL_DEFAULT in order to be updated with the parsed value.
  *
- * @lflags may be NULL if the caller is not interested in the parsed value.
- * Otherwise the variable pointed to by @lflags will be OR'd with the parsed
+ * @flags may be NULL if the caller is not interested in the parsed value.
+ * Otherwise the variable pointed to by @flags will be OR'd with the parsed
  * value.
  *
  * Return: The length of the parsed level and control flags.
  */
-static u16 parse_prefix(char *text, int *level, enum log_flags *lflags)
+u16 printk_parse_prefix(const char *text, int *level,
+			enum printk_info_flags *flags)
 {
 	u16 prefix_len = 0;
 	int kern_level;
@@ -1993,8 +1989,8 @@ static u16 parse_prefix(char *text, int *level, enum log_flags *lflags)
 				*level = kern_level - '0';
 			break;
 		case 'c':	/* KERN_CONT */
-			if (lflags)
-				*lflags |= LOG_CONT;
+			if (flags)
+				*flags |= LOG_CONT;
 		}
 
 		prefix_len += 2;
@@ -2004,8 +2000,9 @@ static u16 parse_prefix(char *text, int *level, enum log_flags *lflags)
 	return prefix_len;
 }
 
-static u16 printk_sprint(char *text, u16 size, int facility, enum log_flags *lflags,
-			 const char *fmt, va_list args)
+static u16 printk_sprint(char *text, u16 size, int facility,
+			 enum printk_info_flags *flags, const char *fmt,
+			 va_list args)
 {
 	u16 text_len;
 
@@ -2014,14 +2011,14 @@ static u16 printk_sprint(char *text, u16 size, int facility, enum log_flags *lfl
 	/* Mark and strip a trailing newline. */
 	if (text_len && text[text_len - 1] == '\n') {
 		text_len--;
-		*lflags |= LOG_NEWLINE;
+		*flags |= LOG_NEWLINE;
 	}
 
 	/* Strip log level and control flags. */
 	if (facility == 0) {
 		u16 prefix_len;
 
-		prefix_len = parse_prefix(text, NULL, NULL);
+		prefix_len = printk_parse_prefix(text, NULL, NULL);
 		if (prefix_len) {
 			text_len -= prefix_len;
 			memmove(text, text + prefix_len, text_len);
@@ -2038,7 +2035,7 @@ int vprintk_store(int facility, int level,
 {
 	const u32 caller_id = printk_caller_id();
 	struct prb_reserved_entry e;
-	enum log_flags lflags = 0;
+	enum printk_info_flags flags = 0;
 	struct printk_record r;
 	u16 trunc_msg_len = 0;
 	char prefix_buf[8];
@@ -2070,22 +2067,22 @@ int vprintk_store(int facility, int level,
 
 	/* Extract log level or control flags. */
 	if (facility == 0)
-		parse_prefix(&prefix_buf[0], &level, &lflags);
+		printk_parse_prefix(&prefix_buf[0], &level, &flags);
 
 	if (level == LOGLEVEL_DEFAULT)
 		level = default_message_loglevel;
 
 	if (dev_info)
-		lflags |= LOG_NEWLINE;
+		flags |= LOG_NEWLINE;
 
-	if (lflags & LOG_CONT) {
+	if (flags & LOG_CONT) {
 		prb_rec_init_wr(&r, reserve_size);
 		if (prb_reserve_in_last(&e, prb, &r, caller_id, LOG_LINE_MAX)) {
 			text_len = printk_sprint(&r.text_buf[r.info->text_len], reserve_size,
-						 facility, &lflags, fmt, args);
+						 facility, &flags, fmt, args);
 			r.info->text_len += text_len;
 
-			if (lflags & LOG_NEWLINE) {
+			if (flags & LOG_NEWLINE) {
 				r.info->flags |= LOG_NEWLINE;
 				prb_final_commit(&e);
 			} else {
@@ -2112,20 +2109,20 @@ int vprintk_store(int facility, int level,
 	}
 
 	/* fill message */
-	text_len = printk_sprint(&r.text_buf[0], reserve_size, facility, &lflags, fmt, args);
+	text_len = printk_sprint(&r.text_buf[0], reserve_size, facility, &flags, fmt, args);
 	if (trunc_msg_len)
 		memcpy(&r.text_buf[text_len], trunc_msg, trunc_msg_len);
 	r.info->text_len = text_len + trunc_msg_len;
 	r.info->facility = facility;
 	r.info->level = level & 7;
-	r.info->flags = lflags & 0x1f;
+	r.info->flags = flags & 0x1f;
 	r.info->ts_nsec = ts_nsec;
 	r.info->caller_id = caller_id;
 	if (dev_info)
 		memcpy(&r.info->dev_info, dev_info, sizeof(r.info->dev_info));
 
 	/* A message without a trailing newline can be continued. */
-	if (!(lflags & LOG_NEWLINE))
+	if (!(flags & LOG_NEWLINE))
 		prb_commit(&e);
 	else
 		prb_final_commit(&e);
@@ -2186,28 +2183,7 @@ int vprintk_default(const char *fmt, va_list args)
 }
 EXPORT_SYMBOL_GPL(vprintk_default);
 
-/**
- * printk - print a kernel message
- * @fmt: format string
- *
- * This is printk(). It can be called from any context. We want it to work.
- *
- * We try to grab the console_lock. If we succeed, it's easy - we log the
- * output and call the console drivers.  If we fail to get the semaphore, we
- * place the output into the log buffer and return. The current holder of
- * the console_sem will notice the new output in console_unlock(); and will
- * send it to the consoles before releasing the lock.
- *
- * One effect of this deferred printing is that code which calls printk() and
- * then changes console_loglevel may break. This is because console_loglevel
- * is inspected when the actual printing occurs.
- *
- * See also:
- * printf(3)
- *
- * See the vsnprintf() documentation for format string extensions over C99.
- */
-asmlinkage __visible int printk(const char *fmt, ...)
+asmlinkage __visible int _printk(const char *fmt, ...)
 {
 	va_list args;
 	int r;
@@ -2218,7 +2194,7 @@ asmlinkage __visible int printk(const char *fmt, ...)
 
 	return r;
 }
-EXPORT_SYMBOL(printk);
+EXPORT_SYMBOL(_printk);
 
 #else /* CONFIG_PRINTK */
 
@@ -3203,7 +3179,7 @@ int vprintk_deferred(const char *fmt, va_list args)
 	return r;
 }
 
-int printk_deferred(const char *fmt, ...)
+int _printk_deferred(const char *fmt, ...)
 {
 	va_list args;
 	int r;

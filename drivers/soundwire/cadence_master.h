@@ -180,9 +180,6 @@ enum sdw_command_response
 cdns_xfer_msg_defer(struct sdw_bus *bus,
 		    struct sdw_msg *msg, struct sdw_defer *defer);
 
-enum sdw_command_response
-cdns_reset_page_addr(struct sdw_bus *bus, unsigned int dev_num);
-
 int cdns_bus_conf(struct sdw_bus *bus, struct sdw_bus_params *params);
 
 int cdns_set_sdw_stream(struct snd_soc_dai *dai,

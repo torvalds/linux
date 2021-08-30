@@ -220,7 +220,7 @@ static int gamw_echo_dev_rw_ia_write(struct intel_vgpu *vgpu,
 {
 	u32 ips = (*(u32 *)p_data) & GAMW_ECO_ENABLE_64K_IPS_FIELD;
 
-	if (INTEL_GEN(vgpu->gvt->gt->i915) <= 10) {
+	if (GRAPHICS_VER(vgpu->gvt->gt->i915) <= 10) {
 		if (ips == GAMW_ECO_ENABLE_64K_IPS_FIELD)
 			gvt_dbg_core("vgpu%d: ips enabled\n", vgpu->id);
 		else if (!ips)
@@ -286,7 +286,7 @@ static int mul_force_wake_write(struct intel_vgpu *vgpu,
 	old = vgpu_vreg(vgpu, offset);
 	new = CALC_MODE_MASK_REG(old, *(u32 *)p_data);
 
-	if (INTEL_GEN(vgpu->gvt->gt->i915)  >=  9) {
+	if (GRAPHICS_VER(vgpu->gvt->gt->i915)  >=  9) {
 		switch (offset) {
 		case FORCEWAKE_RENDER_GEN9_REG:
 			ack_reg_offset = FORCEWAKE_ACK_RENDER_GEN9_REG;
@@ -1174,7 +1174,7 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 	write_vreg(vgpu, offset, p_data, bytes);
 	data = vgpu_vreg(vgpu, offset);
 
-	if ((INTEL_GEN(vgpu->gvt->gt->i915) >= 9)
+	if ((GRAPHICS_VER(vgpu->gvt->gt->i915) >= 9)
 		&& offset != _REG_SKL_DP_AUX_CH_CTL(port_index)) {
 		/* SKL DPB/C/D aux ctl register changed */
 		return 0;
@@ -3342,9 +3342,9 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(_MMIO(_PLANE_SURF_3_A), D_SKL_PLUS);
 	MMIO_D(_MMIO(_PLANE_SURF_3_B), D_SKL_PLUS);
 
-	MMIO_D(CSR_SSP_BASE, D_SKL_PLUS);
-	MMIO_D(CSR_HTP_SKL, D_SKL_PLUS);
-	MMIO_D(CSR_LAST_WRITE, D_SKL_PLUS);
+	MMIO_D(DMC_SSP_BASE, D_SKL_PLUS);
+	MMIO_D(DMC_HTP_SKL, D_SKL_PLUS);
+	MMIO_D(DMC_LAST_WRITE, D_SKL_PLUS);
 
 	MMIO_DFH(BDW_SCRATCH1, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
 
@@ -3655,7 +3655,7 @@ void intel_gvt_clean_mmio_info(struct intel_gvt *gvt)
  * otherwise, need to update cmd_reg_handler in cmd_parser.c
  */
 static struct gvt_mmio_block mmio_blocks[] = {
-	{D_SKL_PLUS, _MMIO(CSR_MMIO_START_RANGE), 0x3000, NULL, NULL},
+	{D_SKL_PLUS, _MMIO(DMC_MMIO_START_RANGE), 0x3000, NULL, NULL},
 	{D_ALL, _MMIO(MCHBAR_MIRROR_BASE_SNB), 0x40000, NULL, NULL},
 	{D_ALL, _MMIO(VGT_PVINFO_PAGE), VGT_PVINFO_SIZE,
 		pvinfo_mmio_read, pvinfo_mmio_write},

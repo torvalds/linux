@@ -784,8 +784,8 @@ static void dwc2_get_dev_hwparams(struct dwc2_hsotg *hsotg)
 }
 
 /**
- * During device initialization, read various hardware configuration
- * registers and interpret the contents.
+ * dwc2_get_hwparams() - During device initialization, read various hardware
+ *                       configuration registers and interpret the contents.
  *
  * @hsotg: Programming view of the DWC_otg controller
  *

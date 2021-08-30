@@ -15,7 +15,7 @@ config UML
 	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DEBUG_BUGVERBOSE
-	select NO_DMA
+	select NO_DMA if !UML_DMA_EMULATION
 	select GENERIC_IRQ_SHOW
 	select GENERIC_CPU_DEVICES
 	select HAVE_GCC_PLUGINS
@@ -26,7 +26,22 @@ config MMU
 	bool
 	default y
 
+config UML_DMA_EMULATION
+	bool
+
 config NO_IOMEM
+	bool "disable IOMEM" if EXPERT
+	depends on !INDIRECT_IOMEM
+	default y
+
+config UML_IOMEM_EMULATION
+	bool
+	select INDIRECT_IOMEM
+	select GENERIC_PCI_IOMAP
+	select GENERIC_IOMAP
+	select NO_GENERIC_PCI_IOPORT_MAP
+
+config NO_IOPORT_MAP
 	def_bool y
 
 config ISA
@@ -61,6 +76,9 @@ config NR_CPUS
 	range 1 1
 	default 1
 
+config ARCH_HAS_CACHE_LINE_SIZE
+	def_bool y
+
 source "arch/$(HEADER_ARCH)/um/Kconfig"
 
 config MAY_HAVE_RUNTIME_DEPS
@@ -90,6 +108,19 @@ config LD_SCRIPT_DYN
 	default y
 	depends on !LD_SCRIPT_STATIC
 	select MODULE_REL_CRCS if MODVERSIONS
+
+config LD_SCRIPT_DYN_RPATH
+	bool "set rpath in the binary" if EXPERT
+	default y
+	depends on LD_SCRIPT_DYN
+	help
+	  Add /lib (and /lib64 for 64-bit) to the linux binary's rpath
+	  explicitly.
+
+	  You may need to turn this off if compiling for nix systems
+	  that have their libraries in random /nix directories and
+	  might otherwise unexpected use libraries from /lib or /lib64
+	  instead of the desired ones.
 
 config HOSTFS
 	tristate "Host filesystem"

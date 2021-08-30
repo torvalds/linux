@@ -3391,7 +3391,7 @@ static void check_buffer(struct ring_buffer_per_cpu *cpu_buffer,
 		case RINGBUF_TYPE_PADDING:
 			if (event->time_delta == 1)
 				break;
-			/* fall through */
+			fallthrough;
 		case RINGBUF_TYPE_DATA:
 			ts += event->time_delta;
 			break;

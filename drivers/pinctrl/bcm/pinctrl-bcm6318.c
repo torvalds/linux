@@ -452,7 +452,7 @@ static int bcm6318_gpio_request_enable(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinctrl_ops bcm6318_pctl_ops = {
+static const struct pinctrl_ops bcm6318_pctl_ops = {
 	.dt_free_map = pinctrl_utils_free_map,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
 	.get_group_name = bcm6318_pinctrl_get_group_name,
@@ -460,7 +460,7 @@ static struct pinctrl_ops bcm6318_pctl_ops = {
 	.get_groups_count = bcm6318_pinctrl_get_group_count,
 };
 
-static struct pinmux_ops bcm6318_pmx_ops = {
+static const struct pinmux_ops bcm6318_pmx_ops = {
 	.get_function_groups = bcm6318_pinctrl_get_groups,
 	.get_function_name = bcm6318_pinctrl_get_func_name,
 	.get_functions_count = bcm6318_pinctrl_get_func_count,

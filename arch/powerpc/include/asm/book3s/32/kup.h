@@ -7,35 +7,104 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/jump_label.h>
+
+extern struct static_key_false disable_kuap_key;
+extern struct static_key_false disable_kuep_key;
+
+static __always_inline bool kuap_is_disabled(void)
+{
+	return !IS_ENABLED(CONFIG_PPC_KUAP) || static_branch_unlikely(&disable_kuap_key);
+}
+
+static __always_inline bool kuep_is_disabled(void)
+{
+	return !IS_ENABLED(CONFIG_PPC_KUEP) || static_branch_unlikely(&disable_kuep_key);
+}
+
+static inline void kuep_lock(void)
+{
+	if (kuep_is_disabled())
+		return;
+
+	update_user_segments(mfsr(0) | SR_NX);
+}
+
+static inline void kuep_unlock(void)
+{
+	if (kuep_is_disabled())
+		return;
+
+	update_user_segments(mfsr(0) & ~SR_NX);
+}
+
 #ifdef CONFIG_PPC_KUAP
 
 #include <linux/sched.h>
 
-static inline void kuap_update_sr(u32 sr, u32 addr, u32 end)
+#define KUAP_NONE	(~0UL)
+#define KUAP_ALL	(~1UL)
+
+static inline void kuap_lock_one(unsigned long addr)
 {
-	addr &= 0xf0000000;	/* align addr to start of segment */
-	barrier();	/* make sure thread.kuap is updated before playing with SRs */
-	while (addr < end) {
-		mtsr(sr, addr);
-		sr += 0x111;		/* next VSID */
-		sr &= 0xf0ffffff;	/* clear VSID overflow */
-		addr += 0x10000000;	/* address of next segment */
-	}
+	mtsr(mfsr(addr) | SR_KS, addr);
 	isync();	/* Context sync required after mtsr() */
+}
+
+static inline void kuap_unlock_one(unsigned long addr)
+{
+	mtsr(mfsr(addr) & ~SR_KS, addr);
+	isync();	/* Context sync required after mtsr() */
+}
+
+static inline void kuap_lock_all(void)
+{
+	update_user_segments(mfsr(0) | SR_KS);
+	isync();	/* Context sync required after mtsr() */
+}
+
+static inline void kuap_unlock_all(void)
+{
+	update_user_segments(mfsr(0) & ~SR_KS);
+	isync();	/* Context sync required after mtsr() */
+}
+
+void kuap_lock_all_ool(void);
+void kuap_unlock_all_ool(void);
+
+static inline void kuap_lock(unsigned long addr, bool ool)
+{
+	if (likely(addr != KUAP_ALL))
+		kuap_lock_one(addr);
+	else if (!ool)
+		kuap_lock_all();
+	else
+		kuap_lock_all_ool();
+}
+
+static inline void kuap_unlock(unsigned long addr, bool ool)
+{
+	if (likely(addr != KUAP_ALL))
+		kuap_unlock_one(addr);
+	else if (!ool)
+		kuap_unlock_all();
+	else
+		kuap_unlock_all_ool();
 }
 
 static inline void kuap_save_and_lock(struct pt_regs *regs)
 {
 	unsigned long kuap = current->thread.kuap;
-	u32 addr = kuap & 0xf0000000;
-	u32 end = kuap << 28;
 
-	regs->kuap = kuap;
-	if (unlikely(!kuap))
+	if (kuap_is_disabled())
 		return;
 
-	current->thread.kuap = 0;
-	kuap_update_sr(mfsr(addr) | SR_KS, addr, end);	/* Set Ks */
+	regs->kuap = kuap;
+	if (unlikely(kuap == KUAP_NONE))
+		return;
+
+	current->thread.kuap = KUAP_NONE;
+	kuap_lock(kuap, false);
 }
 
 static inline void kuap_user_restore(struct pt_regs *regs)
@@ -44,22 +113,22 @@ static inline void kuap_user_restore(struct pt_regs *regs)
 
 static inline void kuap_kernel_restore(struct pt_regs *regs, unsigned long kuap)
 {
-	u32 addr = regs->kuap & 0xf0000000;
-	u32 end = regs->kuap << 28;
+	if (kuap_is_disabled())
+		return;
 
 	current->thread.kuap = regs->kuap;
 
-	if (unlikely(regs->kuap == kuap))
-		return;
-
-	kuap_update_sr(mfsr(addr) & ~SR_KS, addr, end);	/* Clear Ks */
+	kuap_unlock(regs->kuap, false);
 }
 
 static inline unsigned long kuap_get_and_assert_locked(void)
 {
 	unsigned long kuap = current->thread.kuap;
 
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_PPC_KUAP_DEBUG) && kuap != 0);
+	if (kuap_is_disabled())
+		return KUAP_NONE;
+
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_PPC_KUAP_DEBUG) && kuap != KUAP_NONE);
 
 	return kuap;
 }
@@ -72,84 +141,78 @@ static inline void kuap_assert_locked(void)
 static __always_inline void allow_user_access(void __user *to, const void __user *from,
 					      u32 size, unsigned long dir)
 {
-	u32 addr, end;
+	if (kuap_is_disabled())
+		return;
 
 	BUILD_BUG_ON(!__builtin_constant_p(dir));
-	BUILD_BUG_ON(dir & ~KUAP_READ_WRITE);
 
 	if (!(dir & KUAP_WRITE))
 		return;
 
-	addr = (__force u32)to;
-
-	if (unlikely(addr >= TASK_SIZE || !size))
-		return;
-
-	end = min(addr + size, TASK_SIZE);
-
-	current->thread.kuap = (addr & 0xf0000000) | ((((end - 1) >> 28) + 1) & 0xf);
-	kuap_update_sr(mfsr(addr) & ~SR_KS, addr, end);	/* Clear Ks */
+	current->thread.kuap = (__force u32)to;
+	kuap_unlock_one((__force u32)to);
 }
 
-static __always_inline void prevent_user_access(void __user *to, const void __user *from,
-						u32 size, unsigned long dir)
+static __always_inline void prevent_user_access(unsigned long dir)
 {
-	u32 addr, end;
+	u32 kuap = current->thread.kuap;
+
+	if (kuap_is_disabled())
+		return;
 
 	BUILD_BUG_ON(!__builtin_constant_p(dir));
 
-	if (dir & KUAP_CURRENT_WRITE) {
-		u32 kuap = current->thread.kuap;
-
-		if (unlikely(!kuap))
-			return;
-
-		addr = kuap & 0xf0000000;
-		end = kuap << 28;
-	} else if (dir & KUAP_WRITE) {
-		addr = (__force u32)to;
-		end = min(addr + size, TASK_SIZE);
-
-		if (unlikely(addr >= TASK_SIZE || !size))
-			return;
-	} else {
+	if (!(dir & KUAP_WRITE))
 		return;
-	}
 
-	current->thread.kuap = 0;
-	kuap_update_sr(mfsr(addr) | SR_KS, addr, end);	/* set Ks */
+	current->thread.kuap = KUAP_NONE;
+	kuap_lock(kuap, true);
 }
 
 static inline unsigned long prevent_user_access_return(void)
 {
 	unsigned long flags = current->thread.kuap;
-	unsigned long addr = flags & 0xf0000000;
-	unsigned long end = flags << 28;
-	void __user *to = (__force void __user *)addr;
 
-	if (flags)
-		prevent_user_access(to, to, end - addr, KUAP_READ_WRITE);
+	if (kuap_is_disabled())
+		return KUAP_NONE;
+
+	if (flags != KUAP_NONE) {
+		current->thread.kuap = KUAP_NONE;
+		kuap_lock(flags, true);
+	}
 
 	return flags;
 }
 
 static inline void restore_user_access(unsigned long flags)
 {
-	unsigned long addr = flags & 0xf0000000;
-	unsigned long end = flags << 28;
-	void __user *to = (__force void __user *)addr;
+	if (kuap_is_disabled())
+		return;
 
-	if (flags)
-		allow_user_access(to, to, end - addr, KUAP_READ_WRITE);
+	if (flags != KUAP_NONE) {
+		current->thread.kuap = flags;
+		kuap_unlock(flags, true);
+	}
 }
 
 static inline bool
 bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 {
-	unsigned long begin = regs->kuap & 0xf0000000;
-	unsigned long end = regs->kuap << 28;
+	unsigned long kuap = regs->kuap;
 
-	return is_write && (address < begin || address >= end);
+	if (kuap_is_disabled())
+		return false;
+
+	if (!is_write || kuap == KUAP_ALL)
+		return false;
+	if (kuap == KUAP_NONE)
+		return true;
+
+	/* If faulting address doesn't match unlocked segment, unlock all */
+	if ((kuap ^ address) & 0xf0000000)
+		regs->kuap = KUAP_ALL;
+
+	return false;
 }
 
 #endif /* CONFIG_PPC_KUAP */

@@ -164,6 +164,41 @@ device to instantiate the subfunction device on particular PCI function.
 A subfunction device is created on the :ref:`Documentation/driver-api/auxiliary_bus.rst <auxiliary_bus>`.
 At this point a matching subfunction driver binds to the subfunction's auxiliary device.
 
+Rate object management
+======================
+
+Devlink provides API to manage tx rates of single devlink port or a group.
+This is done through rate objects, which can be one of the two types:
+
+``leaf``
+  Represents a single devlink port; created/destroyed by the driver. Since leaf
+  have 1to1 mapping to its devlink port, in user space it is referred as
+  ``pci/<bus_addr>/<port_index>``;
+
+``node``
+  Represents a group of rate objects (leafs and/or nodes); created/deleted by
+  request from the userspace; initially empty (no rate objects added). In
+  userspace it is referred as ``pci/<bus_addr>/<node_name>``, where
+  ``node_name`` can be any identifier, except decimal number, to avoid
+  collisions with leafs.
+
+API allows to configure following rate object's parameters:
+
+``tx_share``
+  Minimum TX rate value shared among all other rate objects, or rate objects
+  that parts of the parent group, if it is a part of the same group.
+
+``tx_max``
+  Maximum TX rate value.
+
+``parent``
+  Parent node name. Parent node rate limits are considered as additional limits
+  to all node children limits. ``tx_max`` is an upper limit for children.
+  ``tx_share`` is a total bandwidth distributed among children.
+
+Driver implementations are allowed to support both or either rate object types
+and setting methods of their parameters.
+
 Terms and Definitions
 =====================
 

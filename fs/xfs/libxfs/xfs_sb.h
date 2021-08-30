@@ -13,15 +13,6 @@ struct xfs_trans;
 struct xfs_fsop_geom;
 struct xfs_perag;
 
-/*
- * perag get/put wrappers for ref counting
- */
-extern struct xfs_perag *xfs_perag_get(struct xfs_mount *, xfs_agnumber_t);
-extern struct xfs_perag *xfs_perag_get_tag(struct xfs_mount *, xfs_agnumber_t,
-					   int tag);
-extern void	xfs_perag_put(struct xfs_perag *pag);
-extern int	xfs_initialize_perag_data(struct xfs_mount *, xfs_agnumber_t);
-
 extern void	xfs_log_sb(struct xfs_trans *tp);
 extern int	xfs_sync_sb(struct xfs_mount *mp, bool wait);
 extern int	xfs_sync_sb_buf(struct xfs_mount *mp);

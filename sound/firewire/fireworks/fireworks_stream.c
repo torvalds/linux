@@ -6,7 +6,7 @@
  */
 #include "./fireworks.h"
 
-#define CALLBACK_TIMEOUT	100
+#define READY_TIMEOUT_MS	1000
 
 static int init_stream(struct snd_efw *efw, struct amdtp_stream *stream)
 {
@@ -29,7 +29,7 @@ static int init_stream(struct snd_efw *efw, struct amdtp_stream *stream)
 	if (err < 0)
 		return err;
 
-	err = amdtp_am824_init(stream, efw->unit, s_dir, CIP_BLOCKING);
+	err = amdtp_am824_init(stream, efw->unit, s_dir, CIP_BLOCKING | CIP_UNAWARE_SYT);
 	if (err < 0) {
 		amdtp_stream_destroy(stream);
 		cmp_connection_destroy(conn);
@@ -264,6 +264,15 @@ int snd_efw_stream_start_duplex(struct snd_efw *efw)
 		return err;
 
 	if (!amdtp_stream_running(&efw->rx_stream)) {
+		unsigned int tx_init_skip_cycles;
+
+		// Audiofire 2/4 skip an isochronous cycle several thousands after starting
+		// packet transmission.
+		if (efw->is_fireworks3 && !efw->is_af9)
+			tx_init_skip_cycles = 6000;
+		else
+			tx_init_skip_cycles = 0;
+
 		err = start_stream(efw, &efw->rx_stream, rate);
 		if (err < 0)
 			goto error;
@@ -272,15 +281,14 @@ int snd_efw_stream_start_duplex(struct snd_efw *efw)
 		if (err < 0)
 			goto error;
 
-		err = amdtp_domain_start(&efw->domain, 0);
+		// NOTE: The device ignores presentation time expressed by the value of syt field
+		// of CIP header in received packets. The sequence of the number of data blocks per
+		// packet is important for media clock recovery.
+		err = amdtp_domain_start(&efw->domain, tx_init_skip_cycles, true, false);
 		if (err < 0)
 			goto error;
 
-		// Wait first callback.
-		if (!amdtp_stream_wait_callback(&efw->rx_stream,
-						CALLBACK_TIMEOUT) ||
-		    !amdtp_stream_wait_callback(&efw->tx_stream,
-						CALLBACK_TIMEOUT)) {
+		if (!amdtp_domain_wait_ready(&efw->domain, READY_TIMEOUT_MS)) {
 			err = -ETIMEDOUT;
 			goto error;
 		}

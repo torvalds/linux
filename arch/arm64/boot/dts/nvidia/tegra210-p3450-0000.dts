@@ -441,7 +441,7 @@
 	};
 
 	hda@70030000 {
-		nvidia,model = "jetson-nano-hda";
+		nvidia,model = "NVIDIA Jetson Nano HDA";
 
 		status = "okay";
 	};
@@ -1043,6 +1043,6 @@
 		       <&i2s3_port>, <&i2s4_port>,
 		       <&dmic1_port>, <&dmic2_port>;
 
-		label = "jetson-nano-ape";
+		label = "NVIDIA Jetson Nano APE";
 	};
 };

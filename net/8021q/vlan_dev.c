@@ -239,9 +239,9 @@ int vlan_dev_change_flags(const struct net_device *dev, u32 flags, u32 mask)
 	return 0;
 }
 
-void vlan_dev_get_realdev_name(const struct net_device *dev, char *result)
+void vlan_dev_get_realdev_name(const struct net_device *dev, char *result, size_t size)
 {
-	strncpy(result, vlan_dev_priv(dev)->real_dev->name, 23);
+	strscpy_pad(result, vlan_dev_priv(dev)->real_dev->name, size);
 }
 
 bool vlan_dev_inherit_address(struct net_device *dev,
@@ -360,7 +360,7 @@ static int vlan_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct ifreq ifrr;
 	int err = -EOPNOTSUPP;
 
-	strncpy(ifrr.ifr_name, real_dev->name, IFNAMSIZ);
+	strscpy_pad(ifrr.ifr_name, real_dev->name, IFNAMSIZ);
 	ifrr.ifr_ifru = ifr->ifr_ifru;
 
 	switch (cmd) {

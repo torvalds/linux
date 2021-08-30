@@ -162,6 +162,7 @@ struct ath11k_hw_params {
 	bool cold_boot_calib;
 	bool supports_suspend;
 	u32 hal_desc_sz;
+	bool fix_l1ss;
 };
 
 struct ath11k_hw_ops {
@@ -199,12 +200,15 @@ struct ath11k_hw_ops {
 	void (*rx_desc_set_msdu_len)(struct hal_rx_desc *desc, u16 len);
 	struct rx_attention *(*rx_desc_get_attention)(struct hal_rx_desc *desc);
 	u8 *(*rx_desc_get_msdu_payload)(struct hal_rx_desc *desc);
+	void (*reo_setup)(struct ath11k_base *ab);
+	u16 (*mpdu_info_get_peerid)(u8 *tlv_data);
 };
 
 extern const struct ath11k_hw_ops ipq8074_ops;
 extern const struct ath11k_hw_ops ipq6018_ops;
 extern const struct ath11k_hw_ops qca6390_ops;
 extern const struct ath11k_hw_ops qcn9074_ops;
+extern const struct ath11k_hw_ops wcn6855_ops;
 
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_ipq8074;
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_qca6390;
@@ -318,5 +322,6 @@ struct ath11k_hw_regs {
 extern const struct ath11k_hw_regs ipq8074_regs;
 extern const struct ath11k_hw_regs qca6390_regs;
 extern const struct ath11k_hw_regs qcn9074_regs;
+extern const struct ath11k_hw_regs wcn6855_regs;
 
 #endif

@@ -66,7 +66,7 @@ void rtw_ips_pwr_down(struct adapter *padapter);
 int rtw_drv_register_netdev(struct adapter *padapter);
 void rtw_ndev_destructor(struct net_device *ndev);
 
-int rtw_suspend_common(struct adapter *padapter);
+void rtw_suspend_common(struct adapter *padapter);
 int rtw_resume_common(struct adapter *padapter);
 
 int netdev_open(struct net_device *pnetdev);

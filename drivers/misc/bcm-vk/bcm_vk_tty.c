@@ -214,7 +214,7 @@ static int bcm_vk_tty_write(struct tty_struct *tty,
 	return count;
 }
 
-static int bcm_vk_tty_write_room(struct tty_struct *tty)
+static unsigned int bcm_vk_tty_write_room(struct tty_struct *tty)
 {
 	struct bcm_vk *vk = dev_get_drvdata(tty->dev);
 

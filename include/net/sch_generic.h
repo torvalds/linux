@@ -37,7 +37,14 @@ enum qdisc_state_t {
 	__QDISC_STATE_SCHED,
 	__QDISC_STATE_DEACTIVATED,
 	__QDISC_STATE_MISSED,
+	__QDISC_STATE_DRAINING,
 };
+
+#define QDISC_STATE_MISSED	BIT(__QDISC_STATE_MISSED)
+#define QDISC_STATE_DRAINING	BIT(__QDISC_STATE_DRAINING)
+
+#define QDISC_STATE_NON_EMPTY	(QDISC_STATE_MISSED | \
+					QDISC_STATE_DRAINING)
 
 struct qdisc_size_table {
 	struct rcu_head		rcu;
@@ -110,8 +117,6 @@ struct Qdisc {
 	spinlock_t		busylock ____cacheline_aligned_in_smp;
 	spinlock_t		seqlock;
 
-	/* for NOLOCK qdisc, true if there are no enqueued skbs */
-	bool			empty;
 	struct rcu_head		rcu;
 
 	/* private data */
@@ -145,6 +150,11 @@ static inline bool qdisc_is_running(struct Qdisc *qdisc)
 	return (raw_read_seqcount(&qdisc->running) & 1) ? true : false;
 }
 
+static inline bool nolock_qdisc_is_empty(const struct Qdisc *qdisc)
+{
+	return !(READ_ONCE(qdisc->state) & QDISC_STATE_NON_EMPTY);
+}
+
 static inline bool qdisc_is_percpu_stats(const struct Qdisc *q)
 {
 	return q->flags & TCQ_F_CPUSTATS;
@@ -153,7 +163,7 @@ static inline bool qdisc_is_percpu_stats(const struct Qdisc *q)
 static inline bool qdisc_is_empty(const struct Qdisc *qdisc)
 {
 	if (qdisc_is_percpu_stats(qdisc))
-		return READ_ONCE(qdisc->empty);
+		return nolock_qdisc_is_empty(qdisc);
 	return !READ_ONCE(qdisc->q.qlen);
 }
 
@@ -161,7 +171,13 @@ static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 {
 	if (qdisc->flags & TCQ_F_NOLOCK) {
 		if (spin_trylock(&qdisc->seqlock))
-			goto nolock_empty;
+			return true;
+
+		/* Paired with smp_mb__after_atomic() to make sure
+		 * STATE_MISSED checking is synchronized with clearing
+		 * in pfifo_fast_dequeue().
+		 */
+		smp_mb__before_atomic();
 
 		/* If the MISSED flag is set, it means other thread has
 		 * set the MISSED flag before second spin_trylock(), so
@@ -180,14 +196,16 @@ static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 		 */
 		set_bit(__QDISC_STATE_MISSED, &qdisc->state);
 
+		/* spin_trylock() only has load-acquire semantic, so use
+		 * smp_mb__after_atomic() to ensure STATE_MISSED is set
+		 * before doing the second spin_trylock().
+		 */
+		smp_mb__after_atomic();
+
 		/* Retry again in case other CPU may not see the new flag
 		 * after it releases the lock at the end of qdisc_run_end().
 		 */
-		if (!spin_trylock(&qdisc->seqlock))
-			return false;
-
-nolock_empty:
-		WRITE_ONCE(qdisc->empty, false);
+		return spin_trylock(&qdisc->seqlock);
 	} else if (qdisc_is_running(qdisc)) {
 		return false;
 	}
@@ -201,15 +219,14 @@ nolock_empty:
 
 static inline void qdisc_run_end(struct Qdisc *qdisc)
 {
-	write_seqcount_end(&qdisc->running);
 	if (qdisc->flags & TCQ_F_NOLOCK) {
 		spin_unlock(&qdisc->seqlock);
 
 		if (unlikely(test_bit(__QDISC_STATE_MISSED,
-				      &qdisc->state))) {
-			clear_bit(__QDISC_STATE_MISSED, &qdisc->state);
+				      &qdisc->state)))
 			__netif_schedule(qdisc);
-		}
+	} else {
+		write_seqcount_end(&qdisc->running);
 	}
 }
 

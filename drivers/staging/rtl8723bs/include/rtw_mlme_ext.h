@@ -195,47 +195,6 @@ enum {
 	RT_CHANNEL_DOMAIN_2G_MAX,
 };
 
-enum {
-	RT_CHANNEL_DOMAIN_5G_NULL = 0x00,
-	RT_CHANNEL_DOMAIN_5G_ETSI1 = 0x01,		/* Europe */
-	RT_CHANNEL_DOMAIN_5G_ETSI2 = 0x02,		/* Australia, New Zealand */
-	RT_CHANNEL_DOMAIN_5G_ETSI3 = 0x03,		/* Russia */
-	RT_CHANNEL_DOMAIN_5G_FCC1 = 0x04,		/* US */
-	RT_CHANNEL_DOMAIN_5G_FCC2 = 0x05,		/* FCC o/w DFS Channels */
-	RT_CHANNEL_DOMAIN_5G_FCC3 = 0x06,		/* India, Mexico */
-	RT_CHANNEL_DOMAIN_5G_FCC4 = 0x07,		/* Venezuela */
-	RT_CHANNEL_DOMAIN_5G_FCC5 = 0x08,		/* China */
-	RT_CHANNEL_DOMAIN_5G_FCC6 = 0x09,		/* Israel */
-	RT_CHANNEL_DOMAIN_5G_FCC7_IC1 = 0x0A,	/* US, Canada */
-	RT_CHANNEL_DOMAIN_5G_KCC1 = 0x0B,		/* Korea */
-	RT_CHANNEL_DOMAIN_5G_MKK1 = 0x0C,		/* Japan */
-	RT_CHANNEL_DOMAIN_5G_MKK2 = 0x0D,		/* Japan (W52, W53) */
-	RT_CHANNEL_DOMAIN_5G_MKK3 = 0x0E,		/* Japan (W56) */
-	RT_CHANNEL_DOMAIN_5G_NCC1 = 0x0F,		/* Taiwan */
-	RT_CHANNEL_DOMAIN_5G_NCC2 = 0x10,		/* Taiwan o/w DFS */
-	RT_CHANNEL_DOMAIN_5G_NCC3 = 0x11,		/* Taiwan w/o DFS, Band4 only */
-	RT_CHANNEL_DOMAIN_5G_ETSI4 = 0x12,		/* Europe w/o DFS, Band1 only */
-	RT_CHANNEL_DOMAIN_5G_ETSI5 = 0x13,		/* Australia, New Zealand(w/o Weather radar) */
-	RT_CHANNEL_DOMAIN_5G_FCC8 = 0x14,		/* Latin America */
-	RT_CHANNEL_DOMAIN_5G_ETSI6 = 0x15,		/* Israel, Bahrain, Egypt, India, China, Malaysia */
-	RT_CHANNEL_DOMAIN_5G_ETSI7 = 0x16,		/* China */
-	RT_CHANNEL_DOMAIN_5G_ETSI8 = 0x17,		/* Jordan */
-	RT_CHANNEL_DOMAIN_5G_ETSI9 = 0x18,		/* Lebanon */
-	RT_CHANNEL_DOMAIN_5G_ETSI10 = 0x19,		/* Qatar */
-	RT_CHANNEL_DOMAIN_5G_ETSI11 = 0x1A,		/* Russia */
-	RT_CHANNEL_DOMAIN_5G_NCC4 = 0x1B,		/* Taiwan, (w/o Weather radar) */
-	RT_CHANNEL_DOMAIN_5G_ETSI12 = 0x1C,		/* Indonesia */
-	RT_CHANNEL_DOMAIN_5G_FCC9 = 0x1D,		/* w/o Weather radar) */
-	RT_CHANNEL_DOMAIN_5G_ETSI13 = 0x1E,		/* w/o Weather radar) */
-	RT_CHANNEL_DOMAIN_5G_FCC10 = 0x1F,		/* Argentina (w/o Weather radar) */
-	/*  Add new channel plan above this line =============== */
-	/*  Driver Self Defined ===== */
-	RT_CHANNEL_DOMAIN_5G_FCC = 0x20,
-	RT_CHANNEL_DOMAIN_5G_JAPAN_NO_DFS = 0x21,
-	RT_CHANNEL_DOMAIN_5G_FCC4_NO_DFS = 0x22,
-	RT_CHANNEL_DOMAIN_5G_MAX,
-};
-
 #define rtw_is_channel_plan_valid(chplan) (chplan < RT_CHANNEL_DOMAIN_MAX || chplan == RT_CHANNEL_DOMAIN_REALTEK_DEFINE)
 
 struct rt_channel_plan {
@@ -248,14 +207,8 @@ struct rt_channel_plan_2g {
 	unsigned char Len;
 };
 
-struct rt_channel_plan_5g {
-	unsigned char Channel[MAX_CHANNEL_NUM_5G];
-	unsigned char Len;
-};
-
 struct rt_channel_plan_map {
 	unsigned char Index2G;
-	unsigned char Index5G;
 };
 
 enum {
@@ -348,13 +301,13 @@ struct FW_Sta_Info {
  * When the driver scanned RTW_SCAN_NUM_OF_CH channels, it would switch back to AP's operating channel for
  * RTW_STAY_AP_CH_MILLISECOND * SURVEY_TO milliseconds.
  * Example:
- * For chip supports 2.4G + 5GHz and AP mode is operating in channel 1,
+ * For chip supports 2.4G and AP mode is operating in channel 1,
  * RTW_SCAN_NUM_OF_CH is 8, RTW_STAY_AP_CH_MILLISECOND is 3 and SURVEY_TO is 100.
  * When it's STA mode gets set_scan command,
  * it would
  * 1. Doing the scan on channel 1.2.3.4.5.6.7.8
  * 2. Back to channel 1 for 300 milliseconds
- * 3. Go through doing site survey on channel 9.10.11.36.40.44.48.52
+ * 3. Go through doing site survey on channel 9.10.11
  * 4. Back to channel 1 for 300 milliseconds
  * 5. ... and so on, till survey done.
  */
@@ -411,7 +364,6 @@ struct rt_channel_info {
 };
 
 int rtw_ch_set_search_ch(struct rt_channel_info *ch_set, const u32 ch);
-bool rtw_mlme_band_check(struct adapter *adapter, const u32 ch);
 
 /*  P2P_MAX_REG_CLASSES - Maximum number of regulatory classes */
 #define P2P_MAX_REG_CLASSES 10
@@ -804,38 +756,6 @@ enum {
 
 
 #ifdef _RTW_MLME_EXT_C_
-
-static struct fwevent wlanevents[] =
-{
-	{0, rtw_dummy_event_callback},	/*0*/
-	{0, NULL},
-	{0, NULL},
-	{0, NULL},
-	{0, NULL},
-	{0, NULL},
-	{0, NULL},
-	{0, NULL},
-	{0, &rtw_survey_event_callback},		/*8*/
-	{sizeof(struct surveydone_event), &rtw_surveydone_event_callback},	/*9*/
-
-	{0, &rtw_joinbss_event_callback},		/*10*/
-	{sizeof(struct stassoc_event), &rtw_stassoc_event_callback},
-	{sizeof(struct stadel_event), &rtw_stadel_event_callback},
-	{0, &rtw_atimdone_event_callback},
-	{0, rtw_dummy_event_callback},
-	{0, NULL},	/*15*/
-	{0, NULL},
-	{0, NULL},
-	{0, NULL},
-	{0, rtw_fwdbg_event_callback},
-	{0, NULL},	 /*20*/
-	{0, NULL},
-	{0, NULL},
-	{0, &rtw_cpwm_event_callback},
-	{0, NULL},
-	{0, &rtw_wmm_event_callback},
-
-};
 
 #endif/* _RTL8192C_CMD_C_ */
 

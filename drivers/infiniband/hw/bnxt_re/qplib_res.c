@@ -959,3 +959,20 @@ fail:
 	bnxt_qplib_free_res(res);
 	return rc;
 }
+
+int bnxt_qplib_determine_atomics(struct pci_dev *dev)
+{
+	int comp;
+	u16 ctl2;
+
+	comp = pci_enable_atomic_ops_to_root(dev,
+					     PCI_EXP_DEVCAP2_ATOMIC_COMP32);
+	if (comp)
+		return -EOPNOTSUPP;
+	comp = pci_enable_atomic_ops_to_root(dev,
+					     PCI_EXP_DEVCAP2_ATOMIC_COMP64);
+	if (comp)
+		return -EOPNOTSUPP;
+	pcie_capability_read_word(dev, PCI_EXP_DEVCTL2, &ctl2);
+	return !(ctl2 & PCI_EXP_DEVCTL2_ATOMIC_REQ);
+}

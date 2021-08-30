@@ -20,6 +20,7 @@
  * OF THIS SOFTWARE.
  */
 
+#include <drm/drm_auth.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
@@ -279,7 +280,8 @@ int drm_connector_init(struct drm_device *dev,
 	drm_connector_get_cmdline_mode(connector);
 
 	/* We should add connectors at the end to avoid upsetting the connector
-	 * index too much. */
+	 * index too much.
+	 */
 	spin_lock_irq(&config->connector_list_lock);
 	list_add_tail(&connector->head, &config->connector_list);
 	config->num_connector++;
@@ -1958,11 +1960,11 @@ int drm_connector_set_path_property(struct drm_connector *connector,
 	int ret;
 
 	ret = drm_property_replace_global_blob(dev,
-	                                       &connector->path_blob_ptr,
-	                                       strlen(path) + 1,
-	                                       path,
-	                                       &connector->base,
-	                                       dev->mode_config.path_property);
+					       &connector->path_blob_ptr,
+					       strlen(path) + 1,
+					       path,
+					       &connector->base,
+					       dev->mode_config.path_property);
 	return ret;
 }
 EXPORT_SYMBOL(drm_connector_set_path_property);
@@ -1988,11 +1990,11 @@ int drm_connector_set_tile_property(struct drm_connector *connector)
 
 	if (!connector->has_tile) {
 		ret  = drm_property_replace_global_blob(dev,
-		                                        &connector->tile_blob_ptr,
-		                                        0,
-		                                        NULL,
-		                                        &connector->base,
-		                                        dev->mode_config.tile_property);
+							&connector->tile_blob_ptr,
+							0,
+							NULL,
+							&connector->base,
+							dev->mode_config.tile_property);
 		return ret;
 	}
 
@@ -2003,11 +2005,11 @@ int drm_connector_set_tile_property(struct drm_connector *connector)
 		 connector->tile_h_size, connector->tile_v_size);
 
 	ret = drm_property_replace_global_blob(dev,
-	                                       &connector->tile_blob_ptr,
-	                                       strlen(tile) + 1,
-	                                       tile,
-	                                       &connector->base,
-	                                       dev->mode_config.tile_property);
+					       &connector->tile_blob_ptr,
+					       strlen(tile) + 1,
+					       tile,
+					       &connector->base,
+					       dev->mode_config.tile_property);
 	return ret;
 }
 EXPORT_SYMBOL(drm_connector_set_tile_property);
@@ -2076,10 +2078,10 @@ int drm_connector_update_edid_property(struct drm_connector *connector,
 
 	ret = drm_property_replace_global_blob(dev,
 					       &connector->edid_blob_ptr,
-	                                       size,
-	                                       edid,
-	                                       &connector->base,
-	                                       dev->mode_config.edid_property);
+					       size,
+					       edid,
+					       &connector->base,
+					       dev->mode_config.edid_property);
 	if (ret)
 		return ret;
 	return drm_connector_set_tile_property(connector);
@@ -2149,6 +2151,75 @@ int drm_connector_attach_max_bpc_property(struct drm_connector *connector,
 	return 0;
 }
 EXPORT_SYMBOL(drm_connector_attach_max_bpc_property);
+
+/**
+ * drm_connector_attach_hdr_output_metadata_property - attach "HDR_OUTPUT_METADA" property
+ * @connector: connector to attach the property on.
+ *
+ * This is used to allow the userspace to send HDR Metadata to the
+ * driver.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_connector_attach_hdr_output_metadata_property(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop = dev->mode_config.hdr_output_metadata_property;
+
+	drm_object_attach_property(&connector->base, prop, 0);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_connector_attach_hdr_output_metadata_property);
+
+/**
+ * drm_connector_attach_colorspace_property - attach "Colorspace" property
+ * @connector: connector to attach the property on.
+ *
+ * This is used to allow the userspace to signal the output colorspace
+ * to the driver.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_connector_attach_colorspace_property(struct drm_connector *connector)
+{
+	struct drm_property *prop = connector->colorspace_property;
+
+	drm_object_attach_property(&connector->base, prop, DRM_MODE_COLORIMETRY_DEFAULT);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_connector_attach_colorspace_property);
+
+/**
+ * drm_connector_atomic_hdr_metadata_equal - checks if the hdr metadata changed
+ * @old_state: old connector state to compare
+ * @new_state: new connector state to compare
+ *
+ * This is used by HDR-enabled drivers to test whether the HDR metadata
+ * have changed between two different connector state (and thus probably
+ * requires a full blown mode change).
+ *
+ * Returns:
+ * True if the metadata are equal, False otherwise
+ */
+bool drm_connector_atomic_hdr_metadata_equal(struct drm_connector_state *old_state,
+					     struct drm_connector_state *new_state)
+{
+	struct drm_property_blob *old_blob = old_state->hdr_output_metadata;
+	struct drm_property_blob *new_blob = new_state->hdr_output_metadata;
+
+	if (!old_blob || !new_blob)
+		return old_blob == new_blob;
+
+	if (old_blob->length != new_blob->length)
+		return false;
+
+	return !memcmp(old_blob->data, new_blob->data, old_blob->length);
+}
+EXPORT_SYMBOL(drm_connector_atomic_hdr_metadata_equal);
 
 /**
  * drm_connector_set_vrr_capable_property - sets the variable refresh rate
@@ -2288,7 +2359,8 @@ int drm_connector_property_set_ioctl(struct drm_device *dev,
 static struct drm_encoder *drm_connector_get_encoder(struct drm_connector *connector)
 {
 	/* For atomic drivers only state objects are synchronously updated and
-	 * protected by modeset locks, so check those first. */
+	 * protected by modeset locks, so check those first.
+	 */
 	if (connector->state)
 		return connector->state->best_encoder;
 	return connector->encoder;
@@ -2374,9 +2446,13 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 	mutex_lock(&dev->mode_config.mutex);
 	if (out_resp->count_modes == 0) {
-		connector->funcs->fill_modes(connector,
-					     dev->mode_config.max_width,
-					     dev->mode_config.max_height);
+		if (drm_is_current_master(file_priv))
+			connector->funcs->fill_modes(connector,
+						     dev->mode_config.max_width,
+						     dev->mode_config.max_height);
+		else
+			drm_dbg_kms(dev, "User-space requested a forced probe on [CONNECTOR:%d:%s] but is not the DRM master, demoting to read-only probe",
+				    connector->base.id, connector->name);
 	}
 
 	out_resp->mm_width = connector->display_info.width_mm;
@@ -2450,7 +2526,8 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 		out_resp->encoder_id = 0;
 
 	/* Only grab properties after probing, to make sure EDID and other
-	 * properties reflect the latest status. */
+	 * properties reflect the latest status.
+	 */
 	ret = drm_mode_object_get_properties(&connector->base, file_priv->atomic,
 			(uint32_t __user *)(unsigned long)(out_resp->props_ptr),
 			(uint64_t __user *)(unsigned long)(out_resp->prop_values_ptr),

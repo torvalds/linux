@@ -64,7 +64,7 @@ static bool get_ia_constants(struct intel_llc *llc,
 
 	consts->min_gpu_freq = rps->min_freq;
 	consts->max_gpu_freq = rps->max_freq;
-	if (INTEL_GEN(i915) >= 9) {
+	if (GRAPHICS_VER(i915) >= 9) {
 		/* Convert GT frequency to 50 HZ units */
 		consts->min_gpu_freq /= GEN9_FREQ_SCALER;
 		consts->max_gpu_freq /= GEN9_FREQ_SCALER;
@@ -83,13 +83,13 @@ static void calc_ia_freq(struct intel_llc *llc,
 	const int diff = consts->max_gpu_freq - gpu_freq;
 	unsigned int ia_freq = 0, ring_freq = 0;
 
-	if (INTEL_GEN(i915) >= 9) {
+	if (GRAPHICS_VER(i915) >= 9) {
 		/*
 		 * ring_freq = 2 * GT. ring_freq is in 100MHz units
 		 * No floor required for ring frequency on SKL.
 		 */
 		ring_freq = gpu_freq;
-	} else if (INTEL_GEN(i915) >= 8) {
+	} else if (GRAPHICS_VER(i915) >= 8) {
 		/* max(2 * GT, DDR). NB: GT is 50MHz units */
 		ring_freq = max(consts->min_ring_freq, gpu_freq);
 	} else if (IS_HASWELL(i915)) {

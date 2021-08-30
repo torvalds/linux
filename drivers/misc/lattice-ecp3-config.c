@@ -198,7 +198,7 @@ static int lattice_ecp3_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, data);
 
 	init_completion(&data->fw_loaded);
-	err = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+	err = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				      FIRMWARE_NAME, &spi->dev,
 				      GFP_KERNEL, spi, firmware_load);
 	if (err) {

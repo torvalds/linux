@@ -37,6 +37,10 @@ struct vkms_plane_state {
 	struct vkms_composer *composer;
 };
 
+struct vkms_plane {
+	struct drm_plane base;
+};
+
 /**
  * vkms_crtc_state - Driver specific CRTC state
  * @base: base CRTC state
@@ -85,6 +89,7 @@ struct vkms_device;
 struct vkms_config {
 	bool writeback;
 	bool cursor;
+	bool overlay;
 	/* only set when instantiated */
 	struct vkms_device *dev;
 };
@@ -114,8 +119,8 @@ int vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 
 int vkms_output_init(struct vkms_device *vkmsdev, int index);
 
-struct drm_plane *vkms_plane_init(struct vkms_device *vkmsdev,
-				  enum drm_plane_type type, int index);
+struct vkms_plane *vkms_plane_init(struct vkms_device *vkmsdev,
+				   enum drm_plane_type type, int index);
 
 /* CRC Support */
 const char *const *vkms_get_crc_sources(struct drm_crtc *crtc,

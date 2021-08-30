@@ -1070,7 +1070,7 @@ out_free_interp:
 		elf_prot = make_prot(elf_ppnt->p_flags, &arch_state,
 				     !!interpreter, false);
 
-		elf_flags = MAP_PRIVATE | MAP_DENYWRITE | MAP_EXECUTABLE;
+		elf_flags = MAP_PRIVATE | MAP_DENYWRITE;
 
 		vaddr = elf_ppnt->p_vaddr;
 		/*

@@ -181,7 +181,6 @@ static struct snd_soc_dai_link ehl_rt5660_dailink[] = {
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.ops = &rt5660_ops,
-		.nonatomic = true,
 		SND_SOC_DAILINK_REG(ssp0_pin, rt5660_codec, platform),
 	},
 	{
@@ -305,6 +304,7 @@ static const struct platform_device_id ehl_board_ids[] = {
 	{ .name = "ehl_rt5660" },
 	{ }
 };
+MODULE_DEVICE_TABLE(platform, ehl_board_ids);
 
 static struct platform_driver snd_ehl_rt5660_driver = {
 	.driver = {
@@ -320,4 +320,4 @@ module_platform_driver(snd_ehl_rt5660_driver);
 MODULE_DESCRIPTION("ASoC Intel(R) Elkhartlake + rt5660 Machine driver");
 MODULE_AUTHOR("libin.yang@intel.com");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:ehl_rt5660");
+MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);

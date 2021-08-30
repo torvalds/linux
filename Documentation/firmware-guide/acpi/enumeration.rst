@@ -258,6 +258,38 @@ input driver::
 		.id_table	= mpu3050_ids,
 	};
 
+Reference to PWM device
+=======================
+
+Sometimes a device can be a consumer of PWM channel. Obviously OS would like
+to know which one. To provide this mapping the special property has been
+introduced, i.e.::
+
+    Device (DEV)
+    {
+        Name (_DSD, Package ()
+        {
+            ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+            Package () {
+                Package () { "compatible", Package () { "pwm-leds" } },
+                Package () { "label", "alarm-led" },
+                Package () { "pwms",
+                    Package () {
+                        "\\_SB.PCI0.PWM",  // <PWM device reference>
+                        0,                 // <PWM index>
+                        600000000,         // <PWM period>
+                        0,                 // <PWM flags>
+                    }
+                }
+            }
+
+        })
+        ...
+
+In the above example the PWM-based LED driver references to the PWM channel 0
+of \_SB.PCI0.PWM device with initial period setting equal to 600 ms (note that
+value is given in nanoseconds).
+
 GPIO support
 ============
 

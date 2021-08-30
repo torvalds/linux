@@ -21,6 +21,7 @@
 #include "smc_cdc.h"
 #include "smc_tx.h" /* smc_tx_consumer_update() */
 #include "smc_rx.h"
+#include "smc_stats.h"
 
 /* callback implementation to wakeup consumers blocked with smc_rx_wait().
  * indirectly called by smc_cdc_msg_recv_action().
@@ -227,6 +228,7 @@ static int smc_rx_recv_urg(struct smc_sock *smc, struct msghdr *msg, int len,
 	    conn->urg_state == SMC_URG_READ)
 		return -EINVAL;
 
+	SMC_STAT_INC(smc, urg_data_cnt);
 	if (conn->urg_state == SMC_URG_VALID) {
 		if (!(flags & MSG_PEEK))
 			smc->conn.urg_state = SMC_URG_READ;
@@ -303,6 +305,12 @@ int smc_rx_recvmsg(struct smc_sock *smc, struct msghdr *msg,
 	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
 
+	readable = atomic_read(&conn->bytes_to_rcv);
+	if (readable >= conn->rmb_desc->len)
+		SMC_STAT_RMB_RX_FULL(smc, !conn->lnk);
+
+	if (len < readable)
+		SMC_STAT_RMB_RX_SIZE_SMALL(smc, !conn->lnk);
 	/* we currently use 1 RMBE per RMB, so RMBE == RMB base addr */
 	rcvbuf_base = conn->rx_off + conn->rmb_desc->cpu_addr;
 

@@ -136,7 +136,6 @@ static void free_rd_atomic_resources(struct rxe_qp *qp)
 void free_rd_atomic_resource(struct rxe_qp *qp, struct resp_res *res)
 {
 	if (res->type == RXE_ATOMIC_MASK) {
-		rxe_drop_ref(qp);
 		kfree_skb(res->atomic.skb);
 	} else if (res->type == RXE_READ_MASK) {
 		if (res->read.mr)
@@ -206,6 +205,7 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 {
 	int err;
 	int wqe_size;
+	enum queue_type type;
 
 	err = sock_create_kern(&init_net, AF_INET, SOCK_DGRAM, 0, &qp->sk);
 	if (err < 0)
@@ -231,7 +231,9 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 	qp->sq.max_inline = init->cap.max_inline_data = wqe_size;
 	wqe_size += sizeof(struct rxe_send_wqe);
 
-	qp->sq.queue = rxe_queue_init(rxe, &qp->sq.max_wr, wqe_size);
+	type = uresp ? QUEUE_TYPE_FROM_USER : QUEUE_TYPE_KERNEL;
+	qp->sq.queue = rxe_queue_init(rxe, &qp->sq.max_wr,
+				wqe_size, type);
 	if (!qp->sq.queue)
 		return -ENOMEM;
 
@@ -246,7 +248,13 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 		return err;
 	}
 
-	qp->req.wqe_index	= producer_index(qp->sq.queue);
+	if (qp->is_user)
+		qp->req.wqe_index = producer_index(qp->sq.queue,
+						QUEUE_TYPE_FROM_USER);
+	else
+		qp->req.wqe_index = producer_index(qp->sq.queue,
+						QUEUE_TYPE_KERNEL);
+
 	qp->req.state		= QP_STATE_RESET;
 	qp->req.opcode		= -1;
 	qp->comp.opcode		= -1;
@@ -274,6 +282,7 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 {
 	int err;
 	int wqe_size;
+	enum queue_type type;
 
 	if (!qp->srq) {
 		qp->rq.max_wr		= init->cap.max_recv_wr;
@@ -284,9 +293,9 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 		pr_debug("qp#%d max_wr = %d, max_sge = %d, wqe_size = %d\n",
 			 qp_num(qp), qp->rq.max_wr, qp->rq.max_sge, wqe_size);
 
-		qp->rq.queue = rxe_queue_init(rxe,
-					      &qp->rq.max_wr,
-					      wqe_size);
+		type = uresp ? QUEUE_TYPE_FROM_USER : QUEUE_TYPE_KERNEL;
+		qp->rq.queue = rxe_queue_init(rxe, &qp->rq.max_wr,
+					wqe_size, type);
 		if (!qp->rq.queue)
 			return -ENOMEM;
 
@@ -303,6 +312,8 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 	spin_lock_init(&qp->rq.producer_lock);
 	spin_lock_init(&qp->rq.consumer_lock);
+
+	qp->rq.is_user = qp->is_user;
 
 	skb_queue_head_init(&qp->resp_pkts);
 

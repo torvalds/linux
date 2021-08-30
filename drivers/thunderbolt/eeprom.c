@@ -214,7 +214,10 @@ static u32 tb_crc32(void *data, size_t len)
 	return ~__crc32c_le(~0, data, len);
 }
 
-#define TB_DROM_DATA_START 13
+#define TB_DROM_DATA_START		13
+#define TB_DROM_HEADER_SIZE		22
+#define USB4_DROM_HEADER_SIZE		16
+
 struct tb_drom_header {
 	/* BYTE 0 */
 	u8 uid_crc8; /* checksum for uid */
@@ -224,9 +227,9 @@ struct tb_drom_header {
 	u32 data_crc32; /* checksum for data_len bytes starting at byte 13 */
 	/* BYTE 13 */
 	u8 device_rom_revision; /* should be <= 1 */
-	u16 data_len:10;
-	u8 __unknown1:6;
-	/* BYTES 16-21 */
+	u16 data_len:12;
+	u8 reserved:4;
+	/* BYTES 16-21 - Only for TBT DROM, nonexistent in USB4 DROM */
 	u16 vendor_id;
 	u16 model_id;
 	u8 model_rev;
@@ -401,10 +404,10 @@ static int tb_drom_parse_entry_port(struct tb_switch *sw,
  *
  * Drom must have been copied to sw->drom.
  */
-static int tb_drom_parse_entries(struct tb_switch *sw)
+static int tb_drom_parse_entries(struct tb_switch *sw, size_t header_size)
 {
 	struct tb_drom_header *header = (void *) sw->drom;
-	u16 pos = sizeof(*header);
+	u16 pos = header_size;
 	u16 drom_size = header->data_len + TB_DROM_DATA_START;
 	int res;
 
@@ -566,7 +569,7 @@ static int tb_drom_parse(struct tb_switch *sw)
 			header->data_crc32, crc);
 	}
 
-	return tb_drom_parse_entries(sw);
+	return tb_drom_parse_entries(sw, TB_DROM_HEADER_SIZE);
 }
 
 static int usb4_drom_parse(struct tb_switch *sw)
@@ -583,7 +586,7 @@ static int usb4_drom_parse(struct tb_switch *sw)
 		return -EINVAL;
 	}
 
-	return tb_drom_parse_entries(sw);
+	return tb_drom_parse_entries(sw, USB4_DROM_HEADER_SIZE);
 }
 
 /**

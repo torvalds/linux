@@ -1461,9 +1461,7 @@ static void btmrvl_sdio_coredump(struct device *dev)
 					BT_ERR("Allocated buffer not enough");
 			}
 
-			if (stat != RDWR_STATUS_DONE) {
-				continue;
-			} else {
+			if (stat == RDWR_STATUS_DONE) {
 				BT_INFO("%s done: size=0x%tx",
 					entry->mem_name,
 					dbg_ptr - entry->mem_ptr);

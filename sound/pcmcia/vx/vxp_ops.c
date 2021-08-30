@@ -237,9 +237,11 @@ static int vxp_load_dsp(struct vx_core *vx, int index, const struct firmware *fw
 	switch (index) {
 	case 0:
 		/* xilinx boot */
-		if ((err = vx_check_magic(vx)) < 0)
+		err = vx_check_magic(vx);
+		if (err < 0)
 			return err;
-		if ((err = snd_vx_load_boot_image(vx, fw)) < 0)
+		err = snd_vx_load_boot_image(vx, fw);
+		if (err < 0)
 			return err;
 		return 0;
 	case 1:

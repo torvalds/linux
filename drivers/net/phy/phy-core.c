@@ -76,7 +76,8 @@ EXPORT_SYMBOL_GPL(phy_duplex_to_str);
 
 /* A mapping of all SUPPORTED settings to speed/duplex.  This table
  * must be grouped by speed and sorted in descending match priority
- * - iow, descending speed. */
+ * - iow, descending speed.
+ */
 
 #define PHY_SETTING(s, d, b) { .speed = SPEED_ ## s, .duplex = DUPLEX_ ## d, \
 			       .bit = ETHTOOL_LINK_MODE_ ## b ## _BIT}

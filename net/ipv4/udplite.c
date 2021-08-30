@@ -31,7 +31,6 @@ static const struct net_protocol udplite_protocol = {
 	.handler	= udplite_rcv,
 	.err_handler	= udplite_err,
 	.no_policy	= 1,
-	.netns_ok	= 1,
 };
 
 struct proto 	udplite_prot = {

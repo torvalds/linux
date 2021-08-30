@@ -57,7 +57,7 @@ int main(void)
 {
 	debug_f = fopen("/dev/kmsg", "w");
 	setvbuf(debug_f, 0, _IOLBF, 0);
-	fprintf(debug_f, "Started bpfilter\n");
+	fprintf(debug_f, "<5>Started bpfilter\n");
 	loop();
 	fclose(debug_f);
 	return 0;

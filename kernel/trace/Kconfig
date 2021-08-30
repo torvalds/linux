@@ -356,6 +356,68 @@ config HWLAT_TRACER
 	 file. Every time a latency is greater than tracing_thresh, it will
 	 be recorded into the ring buffer.
 
+config OSNOISE_TRACER
+	bool "OS Noise tracer"
+	select GENERIC_TRACER
+	help
+	  In the context of high-performance computing (HPC), the Operating
+	  System Noise (osnoise) refers to the interference experienced by an
+	  application due to activities inside the operating system. In the
+	  context of Linux, NMIs, IRQs, SoftIRQs, and any other system thread
+	  can cause noise to the system. Moreover, hardware-related jobs can
+	  also cause noise, for example, via SMIs.
+
+	  The osnoise tracer leverages the hwlat_detector by running a similar
+	  loop with preemption, SoftIRQs and IRQs enabled, thus allowing all
+	  the sources of osnoise during its execution. The osnoise tracer takes
+	  note of the entry and exit point of any source of interferences,
+	  increasing a per-cpu interference counter. It saves an interference
+	  counter for each source of interference. The interference counter for
+	  NMI, IRQs, SoftIRQs, and threads is increased anytime the tool
+	  observes these interferences' entry events. When a noise happens
+	  without any interference from the operating system level, the
+	  hardware noise counter increases, pointing to a hardware-related
+	  noise. In this way, osnoise can account for any source of
+	  interference. At the end of the period, the osnoise tracer prints
+	  the sum of all noise, the max single noise, the percentage of CPU
+	  available for the thread, and the counters for the noise sources.
+
+	  In addition to the tracer, a set of tracepoints were added to
+	  facilitate the identification of the osnoise source.
+
+	  The output will appear in the trace and trace_pipe files.
+
+	  To enable this tracer, echo in "osnoise" into the current_tracer
+          file.
+
+config TIMERLAT_TRACER
+	bool "Timerlat tracer"
+	select OSNOISE_TRACER
+	select GENERIC_TRACER
+	help
+	  The timerlat tracer aims to help the preemptive kernel developers
+	  to find sources of wakeup latencies of real-time threads.
+
+	  The tracer creates a per-cpu kernel thread with real-time priority.
+	  The tracer thread sets a periodic timer to wakeup itself, and goes
+	  to sleep waiting for the timer to fire. At the wakeup, the thread
+	  then computes a wakeup latency value as the difference between
+	  the current time and the absolute time that the timer was set
+	  to expire.
+
+	  The tracer prints two lines at every activation. The first is the
+	  timer latency observed at the hardirq context before the
+	  activation of the thread. The second is the timer latency observed
+	  by the thread, which is the same level that cyclictest reports. The
+	  ACTIVATION ID field serves to relate the irq execution to its
+	  respective thread execution.
+
+	  The tracer is build on top of osnoise tracer, and the osnoise:
+	  events can be used to trace the source of interference from NMI,
+	  IRQs and other threads. It also enables the capture of the
+	  stacktrace at the IRQ context, which helps to identify the code
+	  path that can cause thread delay.
+
 config MMIOTRACE
 	bool "Memory mapped IO tracing"
 	depends on HAVE_MMIOTRACE_SUPPORT && PCI

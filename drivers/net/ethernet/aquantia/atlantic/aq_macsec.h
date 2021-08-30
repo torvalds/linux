@@ -91,7 +91,7 @@ struct aq_macsec_txsc {
 	u32 hw_sc_idx;
 	unsigned long tx_sa_idx_busy;
 	const struct macsec_secy *sw_secy;
-	u8 tx_sa_key[MACSEC_NUM_AN][MACSEC_KEYID_LEN];
+	u8 tx_sa_key[MACSEC_NUM_AN][MACSEC_MAX_KEY_LEN];
 	struct aq_macsec_tx_sc_stats stats;
 	struct aq_macsec_tx_sa_stats tx_sa_stats[MACSEC_NUM_AN];
 };
@@ -101,7 +101,7 @@ struct aq_macsec_rxsc {
 	unsigned long rx_sa_idx_busy;
 	const struct macsec_secy *sw_secy;
 	const struct macsec_rx_sc *sw_rxsc;
-	u8 rx_sa_key[MACSEC_NUM_AN][MACSEC_KEYID_LEN];
+	u8 rx_sa_key[MACSEC_NUM_AN][MACSEC_MAX_KEY_LEN];
 	struct aq_macsec_rx_sa_stats rx_sa_stats[MACSEC_NUM_AN];
 };
 

@@ -94,7 +94,7 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 		 * save/restore LR unless we call other functions
 		 */
 		if (ctx->seen & SEEN_FUNC) {
-			EMIT(PPC_INST_MFLR | __PPC_RT(R0));
+			EMIT(PPC_RAW_MFLR(_R0));
 			PPC_BPF_STL(0, 1, PPC_LR_STKOFF);
 		}
 
@@ -153,8 +153,8 @@ static void bpf_jit_emit_func_call_hlp(u32 *image, struct codegen_context *ctx,
 	PPC_LI64(b2p[TMP_REG_2], func);
 	/* Load actual entry point from function descriptor */
 	PPC_BPF_LL(b2p[TMP_REG_1], b2p[TMP_REG_2], 0);
-	/* ... and move it to LR */
-	EMIT(PPC_RAW_MTLR(b2p[TMP_REG_1]));
+	/* ... and move it to CTR */
+	EMIT(PPC_RAW_MTCTR(b2p[TMP_REG_1]));
 	/*
 	 * Load TOC from function descriptor at offset 8.
 	 * We can clobber r2 since we get called through a
@@ -165,9 +165,9 @@ static void bpf_jit_emit_func_call_hlp(u32 *image, struct codegen_context *ctx,
 #else
 	/* We can clobber r12 */
 	PPC_FUNC_ADDR(12, func);
-	EMIT(PPC_RAW_MTLR(12));
+	EMIT(PPC_RAW_MTCTR(12));
 #endif
-	EMIT(PPC_RAW_BLRL());
+	EMIT(PPC_RAW_BCTRL());
 }
 
 void bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx, u64 func)
@@ -202,8 +202,8 @@ void bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx, u64 fun
 	PPC_BPF_LL(12, 12, 0);
 #endif
 
-	EMIT(PPC_RAW_MTLR(12));
-	EMIT(PPC_RAW_BLRL());
+	EMIT(PPC_RAW_MTCTR(12));
+	EMIT(PPC_RAW_BCTRL());
 }
 
 static void bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 out)
@@ -667,7 +667,7 @@ emit_clear:
 		 * BPF_STX ATOMIC (atomic ops)
 		 */
 		case BPF_STX | BPF_ATOMIC | BPF_W:
-			if (insn->imm != BPF_ADD) {
+			if (imm != BPF_ADD) {
 				pr_err_ratelimited(
 					"eBPF filter atomic op code %02x (@%d) unsupported\n",
 					code, i);
@@ -689,7 +689,7 @@ emit_clear:
 			PPC_BCC_SHORT(COND_NE, tmp_idx);
 			break;
 		case BPF_STX | BPF_ATOMIC | BPF_DW:
-			if (insn->imm != BPF_ADD) {
+			if (imm != BPF_ADD) {
 				pr_err_ratelimited(
 					"eBPF filter atomic op code %02x (@%d) unsupported\n",
 					code, i);

@@ -184,8 +184,8 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 		int init_hw)
 {
 	struct uart_port *uport = uart_port_check(state);
+	unsigned long flags;
 	unsigned long page;
-	unsigned long flags = 0;
 	int retval = 0;
 
 	if (uport->type == PORT_UNKNOWN)
@@ -275,7 +275,7 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 {
 	struct uart_port *uport = uart_port_check(state);
 	struct tty_port *port = &state->port;
-	unsigned long flags = 0;
+	unsigned long flags;
 	char *xmit_buf = NULL;
 
 	/*
@@ -334,39 +334,15 @@ void
 uart_update_timeout(struct uart_port *port, unsigned int cflag,
 		    unsigned int baud)
 {
-	unsigned int bits;
+	unsigned int size;
 
-	/* byte size and parity */
-	switch (cflag & CSIZE) {
-	case CS5:
-		bits = 7;
-		break;
-	case CS6:
-		bits = 8;
-		break;
-	case CS7:
-		bits = 9;
-		break;
-	default:
-		bits = 10;
-		break; /* CS8 */
-	}
-
-	if (cflag & CSTOPB)
-		bits++;
-	if (cflag & PARENB)
-		bits++;
-
-	/*
-	 * The total number of bits to be transmitted in the fifo.
-	 */
-	bits = bits * port->fifosize;
+	size = tty_get_frame_size(cflag) * port->fifosize;
 
 	/*
 	 * Figure the timeout to send the above number of bits.
 	 * Add .02 seconds of slop
 	 */
-	port->timeout = (HZ * bits) / baud + HZ/50;
+	port->timeout = (HZ * size) / baud + HZ/50;
 }
 
 EXPORT_SYMBOL(uart_update_timeout);
@@ -616,12 +592,12 @@ static int uart_write(struct tty_struct *tty,
 	return ret;
 }
 
-static int uart_write_room(struct tty_struct *tty)
+static unsigned int uart_write_room(struct tty_struct *tty)
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port;
 	unsigned long flags;
-	int ret;
+	unsigned int ret;
 
 	port = uart_port_lock(state, flags);
 	ret = uart_circ_chars_free(&state->xmit);
@@ -629,12 +605,12 @@ static int uart_write_room(struct tty_struct *tty)
 	return ret;
 }
 
-static int uart_chars_in_buffer(struct tty_struct *tty)
+static unsigned int uart_chars_in_buffer(struct tty_struct *tty)
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port;
 	unsigned long flags;
-	int ret;
+	unsigned int ret;
 
 	port = uart_port_lock(state, flags);
 	ret = uart_circ_chars_pending(&state->xmit);
@@ -3029,26 +3005,28 @@ out:
 /*
  *	Are the two ports equivalent?
  */
-int uart_match_port(struct uart_port *port1, struct uart_port *port2)
+bool uart_match_port(const struct uart_port *port1,
+		const struct uart_port *port2)
 {
 	if (port1->iotype != port2->iotype)
-		return 0;
+		return false;
 
 	switch (port1->iotype) {
 	case UPIO_PORT:
-		return (port1->iobase == port2->iobase);
+		return port1->iobase == port2->iobase;
 	case UPIO_HUB6:
-		return (port1->iobase == port2->iobase) &&
-		       (port1->hub6   == port2->hub6);
+		return port1->iobase == port2->iobase &&
+		       port1->hub6   == port2->hub6;
 	case UPIO_MEM:
 	case UPIO_MEM16:
 	case UPIO_MEM32:
 	case UPIO_MEM32BE:
 	case UPIO_AU:
 	case UPIO_TSI:
-		return (port1->mapbase == port2->mapbase);
+		return port1->mapbase == port2->mapbase;
 	}
-	return 0;
+
+	return false;
 }
 EXPORT_SYMBOL(uart_match_port);
 

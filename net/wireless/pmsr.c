@@ -168,6 +168,18 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 		return -EINVAL;
 	}
 
+	if (tb[NL80211_PMSR_FTM_REQ_ATTR_BSS_COLOR]) {
+		if (!out->ftm.non_trigger_based && !out->ftm.trigger_based) {
+			NL_SET_ERR_MSG_ATTR(info->extack,
+					    tb[NL80211_PMSR_FTM_REQ_ATTR_BSS_COLOR],
+					    "FTM: BSS color set for EDCA based ranging");
+			return -EINVAL;
+		}
+
+		out->ftm.bss_color =
+			nla_get_u8(tb[NL80211_PMSR_FTM_REQ_ATTR_BSS_COLOR]);
+	}
+
 	return 0;
 }
 

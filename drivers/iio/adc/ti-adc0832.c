@@ -236,6 +236,11 @@ out:
 	return IRQ_HANDLED;
 }
 
+static void adc0832_reg_disable(void *reg)
+{
+	regulator_disable(reg);
+}
+
 static int adc0832_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
@@ -287,36 +292,17 @@ static int adc0832_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	spi_set_drvdata(spi, indio_dev);
-
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
-					 adc0832_trigger_handler, NULL);
+	ret = devm_add_action_or_reset(&spi->dev, adc0832_reg_disable,
+				       adc->reg);
 	if (ret)
-		goto err_reg_disable;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev, NULL,
+					      adc0832_trigger_handler, NULL);
 	if (ret)
-		goto err_buffer_cleanup;
+		return ret;
 
-	return 0;
-err_buffer_cleanup:
-	iio_triggered_buffer_cleanup(indio_dev);
-err_reg_disable:
-	regulator_disable(adc->reg);
-
-	return ret;
-}
-
-static int adc0832_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct adc0832 *adc = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-	regulator_disable(adc->reg);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct of_device_id adc0832_dt_ids[] = {
@@ -343,7 +329,6 @@ static struct spi_driver adc0832_driver = {
 		.of_match_table = adc0832_dt_ids,
 	},
 	.probe = adc0832_probe,
-	.remove = adc0832_remove,
 	.id_table = adc0832_id,
 };
 module_spi_driver(adc0832_driver);

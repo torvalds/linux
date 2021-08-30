@@ -43,7 +43,6 @@ struct net_protocol {
 	int			(*err_handler)(struct sk_buff *skb, u32 info);
 
 	unsigned int		no_policy:1,
-				netns_ok:1,
 				/* does the protocol do more stringent
 				 * icmp tag validation than simple
 				 * socket lookup?

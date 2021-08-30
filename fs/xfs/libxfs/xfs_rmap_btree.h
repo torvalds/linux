@@ -43,9 +43,9 @@ struct xbtree_afakeroot;
 
 struct xfs_btree_cur *xfs_rmapbt_init_cursor(struct xfs_mount *mp,
 				struct xfs_trans *tp, struct xfs_buf *bp,
-				xfs_agnumber_t agno);
+				struct xfs_perag *pag);
 struct xfs_btree_cur *xfs_rmapbt_stage_cursor(struct xfs_mount *mp,
-		struct xbtree_afakeroot *afake, xfs_agnumber_t agno);
+		struct xbtree_afakeroot *afake, struct xfs_perag *pag);
 void xfs_rmapbt_commit_staged_btree(struct xfs_btree_cur *cur,
 		struct xfs_trans *tp, struct xfs_buf *agbp);
 int xfs_rmapbt_maxrecs(int blocklen, int leaf);
@@ -57,6 +57,6 @@ extern xfs_extlen_t xfs_rmapbt_max_size(struct xfs_mount *mp,
 		xfs_agblock_t agblocks);
 
 extern int xfs_rmapbt_calc_reserves(struct xfs_mount *mp, struct xfs_trans *tp,
-		xfs_agnumber_t agno, xfs_extlen_t *ask, xfs_extlen_t *used);
+		struct xfs_perag *pag, xfs_extlen_t *ask, xfs_extlen_t *used);
 
 #endif	/* __XFS_RMAP_BTREE_H__ */

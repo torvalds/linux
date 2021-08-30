@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/rtc.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
@@ -810,6 +811,9 @@ static int __init dryice_rtc_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, imxdi);
+
+	device_init_wakeup(&pdev->dev, true);
+	dev_pm_set_wake_irq(&pdev->dev, norm_irq);
 
 	imxdi->rtc->ops = &dryice_rtc_ops;
 	imxdi->rtc->range_max = U32_MAX;

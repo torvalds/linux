@@ -156,7 +156,7 @@ void update_recvframe_phyinfo_88e(struct recv_frame *precvframe,
 				  myid(&padapter->eeprompriv), ETH_ALEN));
 
 	pkt_info.bPacketBeacon = pkt_info.bPacketMatchBSSID &&
-				 (GetFrameSubType(wlanhdr) == WIFI_BEACON);
+				 (GetFrameSubType(wlanhdr) == IEEE80211_STYPE_BEACON);
 
 	if (pkt_info.bPacketBeacon) {
 		if (check_fwstate(&padapter->mlmepriv, WIFI_STATION_STATE))

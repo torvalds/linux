@@ -328,6 +328,7 @@ struct msm_gem_submit {
 	struct dma_fence *fence;
 	struct msm_gpu_submitqueue *queue;
 	struct pid *pid;    /* submitting process */
+	bool fault_dumped;  /* Limit devcoredump dumping to one per submit */
 	bool valid;         /* true if no cmdstream patching needed */
 	bool in_rb;         /* "sudo" mode, copy cmds into RB */
 	struct msm_ringbuffer *ring;

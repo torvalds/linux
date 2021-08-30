@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/gpio-mux-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Simple GPIO clock multiplexer
+
+maintainers:
+  - Sergej Sawazki <ce3a@gmx.de>
+
+properties:
+  compatible:
+    const: gpio-mux-clock
+
+  clocks:
+    items:
+      - description: First parent clock
+      - description: Second parent clock
+
+  '#clock-cells':
+    const: 0
+
+  select-gpios:
+    description: GPIO reference for selecting the parent clock.
+    maxItems: 1
+
+required:
+  - compatible
+  - clocks
+  - '#clock-cells'
+  - select-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    clock {
+            compatible = "gpio-mux-clock";
+            clocks = <&parentclk1>, <&parentclk2>;
+            #clock-cells = <0>;
+            select-gpios = <&gpio 1 GPIO_ACTIVE_HIGH>;
+    };

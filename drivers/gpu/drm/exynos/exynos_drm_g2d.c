@@ -892,7 +892,14 @@ static void g2d_runqueue_worker(struct work_struct *work)
 		g2d->runqueue_node = g2d_get_runqueue_node(g2d);
 
 		if (g2d->runqueue_node) {
-			pm_runtime_get_sync(g2d->dev);
+			int ret;
+
+			ret = pm_runtime_resume_and_get(g2d->dev);
+			if (ret < 0) {
+				dev_err(g2d->dev, "failed to enable G2D device.\n");
+				return;
+			}
+
 			g2d_dma_start(g2d, g2d->runqueue_node);
 		}
 	}

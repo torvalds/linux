@@ -224,7 +224,7 @@ struct auth_no_hdr {
 u8 led_polarity = LED_POLARITY_LOW_ACTIVE;
 
 /**
- * return AHB address for given firmware internal (linker) address
+ * wmi_addr_remap - return AHB address for given firmware internal (linker) address
  * @x: internal address
  * If address have no valid AHB mapping, return 0
  */
@@ -242,7 +242,7 @@ static u32 wmi_addr_remap(u32 x)
 }
 
 /**
- * find fw_mapping entry by section name
+ * wil_find_fw_mapping - find fw_mapping entry by section name
  * @section: section name
  *
  * Return pointer to section or NULL if not found
@@ -260,7 +260,7 @@ struct fw_map *wil_find_fw_mapping(const char *section)
 }
 
 /**
- * Check address validity for WMI buffer; remap if needed
+ * wmi_buffer_block - Check address validity for WMI buffer; remap if needed
  * @wil: driver data
  * @ptr_: internal (linker) fw/ucode address
  * @size: if non zero, validate the block does not

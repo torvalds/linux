@@ -102,7 +102,6 @@ config PREEMPT_DYNAMIC
 
 config SCHED_CORE
 	bool "Core Scheduling for SMT"
-	default y
 	depends on SCHED_SMT
 	help
 	  This option permits Core Scheduling, a means of coordinated task
@@ -115,7 +114,8 @@ config SCHED_CORE
 	   - mitigation of some (not all) SMT side channels;
 	   - limiting SMT interference to improve determinism and/or performance.
 
-	  SCHED_CORE is default enabled when SCHED_SMT is enabled -- when
-	  unused there should be no impact on performance.
+	  SCHED_CORE is default disabled. When it is enabled and unused,
+	  which is the likely usage by Linux distributions, there should
+	  be no measurable impact on performance.
 
 

@@ -677,7 +677,7 @@ static int cdns3_gadget_ep0_set_halt(struct usb_ep *ep, int value)
 }
 
 /**
- * cdns3_gadget_ep0_queue Transfer data on endpoint zero
+ * cdns3_gadget_ep0_queue - Transfer data on endpoint zero
  * @ep: pointer to endpoint zero object
  * @request: pointer to request object
  * @gfp_flags: gfp flags
@@ -772,7 +772,7 @@ static int cdns3_gadget_ep0_queue(struct usb_ep *ep,
 }
 
 /**
- * cdns3_gadget_ep_set_wedge Set wedge on selected endpoint
+ * cdns3_gadget_ep_set_wedge - Set wedge on selected endpoint
  * @ep: endpoint object
  *
  * Returns 0
@@ -865,7 +865,7 @@ void cdns3_ep0_config(struct cdns3_device *priv_dev)
 }
 
 /**
- * cdns3_init_ep0 Initializes software endpoint 0 of gadget
+ * cdns3_init_ep0 - Initializes software endpoint 0 of gadget
  * @priv_dev: extended gadget object
  * @priv_ep: extended endpoint object
  *

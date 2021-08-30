@@ -2499,7 +2499,7 @@ again:
 
 			/* Which index block gets the new entry? */
 			if (at - entries >= icount1) {
-				frame->at = at = at - entries - icount1 + entries2;
+				frame->at = at - entries - icount1 + entries2;
 				frame->entries = entries = entries2;
 				swap(frame->bh, bh2);
 			}

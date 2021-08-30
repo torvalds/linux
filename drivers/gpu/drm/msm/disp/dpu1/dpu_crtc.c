@@ -57,8 +57,6 @@ static void dpu_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 
-	DPU_DEBUG("\n");
-
 	if (!crtc)
 		return;
 
@@ -163,7 +161,7 @@ static void _dpu_crtc_setup_blend_cfg(struct dpu_crtc_mixer *mixer,
 	lm->ops.setup_blend_config(lm, pstate->stage,
 				0xFF, 0, blend_op);
 
-	DPU_DEBUG("format:%p4cc, alpha_en:%u blend_op:0x%x\n",
+	DRM_DEBUG_ATOMIC("format:%p4cc, alpha_en:%u blend_op:0x%x\n",
 		  &format->base.pixel_format, format->alpha_enable, blend_op);
 }
 
@@ -220,7 +218,8 @@ static void _dpu_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 
 		dpu_plane_get_ctl_flush(plane, ctl, &flush_mask);
 		set_bit(dpu_plane_pipe(plane), fetch_active);
-		DPU_DEBUG("crtc %d stage:%d - plane %d sspp %d fb %d\n",
+
+		DRM_DEBUG_ATOMIC("crtc %d stage:%d - plane %d sspp %d fb %d\n",
 				crtc->base.id,
 				pstate->stage,
 				plane->base.id,
@@ -278,7 +277,7 @@ static void _dpu_crtc_blend_setup(struct drm_crtc *crtc)
 	struct dpu_hw_mixer *lm;
 	int i;
 
-	DPU_DEBUG("%s\n", dpu_crtc->name);
+	DRM_DEBUG_ATOMIC("%s\n", dpu_crtc->name);
 
 	for (i = 0; i < cstate->num_mixers; i++) {
 		mixer[i].mixer_op_mode = 0;
@@ -305,7 +304,7 @@ static void _dpu_crtc_blend_setup(struct drm_crtc *crtc)
 		/* stage config flush mask */
 		ctl->ops.update_pending_flush(ctl, mixer[i].flush_mask);
 
-		DPU_DEBUG("lm %d, op_mode 0x%X, ctl %d, flush mask 0x%x\n",
+		DRM_DEBUG_ATOMIC("lm %d, op_mode 0x%X, ctl %d, flush mask 0x%x\n",
 			mixer[i].hw_lm->idx - LM_0,
 			mixer[i].mixer_op_mode,
 			ctl->idx - CTL_0,
@@ -388,7 +387,7 @@ static void dpu_crtc_frame_event_work(struct kthread_work *work)
 
 	DPU_ATRACE_BEGIN("crtc_frame_event");
 
-	DRM_DEBUG_KMS("crtc%d event:%u ts:%lld\n", crtc->base.id, fevent->event,
+	DRM_DEBUG_ATOMIC("crtc%d event:%u ts:%lld\n", crtc->base.id, fevent->event,
 			ktime_to_ns(fevent->ts));
 
 	if (fevent->event & (DPU_ENCODER_FRAME_EVENT_DONE
@@ -406,9 +405,6 @@ static void dpu_crtc_frame_event_work(struct kthread_work *work)
 			trace_dpu_crtc_frame_event_more_pending(DRMID(crtc),
 								fevent->event);
 		}
-
-		if (fevent->event & DPU_ENCODER_FRAME_EVENT_DONE)
-			dpu_core_perf_crtc_update(crtc, 0, false);
 
 		if (fevent->event & (DPU_ENCODER_FRAME_EVENT_DONE
 					| DPU_ENCODER_FRAME_EVENT_ERROR))
@@ -477,6 +473,7 @@ static void dpu_crtc_frame_event_cb(void *data, u32 event)
 void dpu_crtc_complete_commit(struct drm_crtc *crtc)
 {
 	trace_dpu_crtc_complete_commit(DRMID(crtc));
+	dpu_core_perf_crtc_update(crtc, 0, false);
 	_dpu_crtc_complete_flip(crtc);
 }
 
@@ -558,7 +555,7 @@ static void _dpu_crtc_setup_cp_blocks(struct drm_crtc *crtc)
 		/* stage config flush mask */
 		ctl->ops.update_pending_flush(ctl, mixer[i].flush_mask);
 
-		DPU_DEBUG("lm %d, ctl %d, flush mask 0x%x\n",
+		DRM_DEBUG_ATOMIC("lm %d, ctl %d, flush mask 0x%x\n",
 			mixer[i].hw_lm->idx - DSPP_0,
 			ctl->idx - CTL_0,
 			mixer[i].flush_mask);
@@ -572,12 +569,12 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 	struct drm_encoder *encoder;
 
 	if (!crtc->state->enable) {
-		DPU_DEBUG("crtc%d -> enable %d, skip atomic_begin\n",
+		DRM_DEBUG_ATOMIC("crtc%d -> enable %d, skip atomic_begin\n",
 				crtc->base.id, crtc->state->enable);
 		return;
 	}
 
-	DPU_DEBUG("crtc%d\n", crtc->base.id);
+	DRM_DEBUG_ATOMIC("crtc%d\n", crtc->base.id);
 
 	_dpu_crtc_setup_lm_bounds(crtc, crtc->state);
 
@@ -617,12 +614,12 @@ static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct dpu_crtc_state *cstate;
 
 	if (!crtc->state->enable) {
-		DPU_DEBUG("crtc%d -> enable %d, skip atomic_flush\n",
+		DRM_DEBUG_ATOMIC("crtc%d -> enable %d, skip atomic_flush\n",
 				crtc->base.id, crtc->state->enable);
 		return;
 	}
 
-	DPU_DEBUG("crtc%d\n", crtc->base.id);
+	DRM_DEBUG_ATOMIC("crtc%d\n", crtc->base.id);
 
 	dpu_crtc = to_dpu_crtc(crtc);
 	cstate = to_dpu_crtc_state(crtc->state);
@@ -675,7 +672,7 @@ static void dpu_crtc_destroy_state(struct drm_crtc *crtc,
 {
 	struct dpu_crtc_state *cstate = to_dpu_crtc_state(state);
 
-	DPU_DEBUG("crtc%d\n", crtc->base.id);
+	DRM_DEBUG_ATOMIC("crtc%d\n", crtc->base.id);
 
 	__drm_atomic_helper_crtc_destroy_state(state);
 
@@ -688,7 +685,7 @@ static int _dpu_crtc_wait_for_frame_done(struct drm_crtc *crtc)
 	int ret, rc = 0;
 
 	if (!atomic_read(&dpu_crtc->frame_pending)) {
-		DPU_DEBUG("no frames pending\n");
+		DRM_DEBUG_ATOMIC("no frames pending\n");
 		return 0;
 	}
 
@@ -731,9 +728,9 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc)
 
 	if (atomic_inc_return(&dpu_crtc->frame_pending) == 1) {
 		/* acquire bandwidth and other resources */
-		DPU_DEBUG("crtc%d first commit\n", crtc->base.id);
+		DRM_DEBUG_ATOMIC("crtc%d first commit\n", crtc->base.id);
 	} else
-		DPU_DEBUG("crtc%d commit\n", crtc->base.id);
+		DRM_DEBUG_ATOMIC("crtc%d commit\n", crtc->base.id);
 
 	dpu_crtc->play_count++;
 
@@ -908,7 +905,7 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 	pstates = kzalloc(sizeof(*pstates) * DPU_STAGE_MAX * 4, GFP_KERNEL);
 
 	if (!crtc_state->enable || !crtc_state->active) {
-		DPU_DEBUG("crtc%d -> enable %d, active %d, skip atomic_check\n",
+		DRM_DEBUG_ATOMIC("crtc%d -> enable %d, active %d, skip atomic_check\n",
 				crtc->base.id, crtc_state->enable,
 				crtc_state->active);
 		memset(&cstate->new_perf, 0, sizeof(cstate->new_perf));
@@ -916,7 +913,7 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	mode = &crtc_state->adjusted_mode;
-	DPU_DEBUG("%s: check\n", dpu_crtc->name);
+	DRM_DEBUG_ATOMIC("%s: check\n", dpu_crtc->name);
 
 	/* force a full mode set if active state changed */
 	if (crtc_state->active_changed)
@@ -1024,7 +1021,7 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 		}
 
 		pstates[i].dpu_pstate->stage = z_pos + DPU_STAGE_0;
-		DPU_DEBUG("%s: zpos %d\n", dpu_crtc->name, z_pos);
+		DRM_DEBUG_ATOMIC("%s: zpos %d\n", dpu_crtc->name, z_pos);
 	}
 
 	for (i = 0; i < multirect_count; i++) {
@@ -1376,6 +1373,6 @@ struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane,
 	/* initialize event handling */
 	spin_lock_init(&dpu_crtc->event_lock);
 
-	DPU_DEBUG("%s: successfully initialized crtc\n", dpu_crtc->name);
+	DRM_DEBUG_KMS("%s: successfully initialized crtc\n", dpu_crtc->name);
 	return crtc;
 }

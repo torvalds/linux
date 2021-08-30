@@ -702,6 +702,10 @@ int wait_on_page_writeback_killable(struct page *page);
 extern void end_page_writeback(struct page *page);
 void wait_for_stable_page(struct page *page);
 
+void __set_page_dirty(struct page *, struct address_space *, int warn);
+int __set_page_dirty_nobuffers(struct page *page);
+int __set_page_dirty_no_writeback(struct page *page);
+
 void page_endio(struct page *page, bool is_write, int err);
 
 /**

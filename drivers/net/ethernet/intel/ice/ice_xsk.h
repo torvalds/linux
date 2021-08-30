@@ -60,7 +60,7 @@ ice_xsk_wakeup(struct net_device __always_unused *netdev,
 	return -EOPNOTSUPP;
 }
 
-#define ice_xsk_clean_rx_ring(rx_ring) do {} while (0)
-#define ice_xsk_clean_xdp_ring(xdp_ring) do {} while (0)
+static inline void ice_xsk_clean_rx_ring(struct ice_ring *rx_ring) { }
+static inline void ice_xsk_clean_xdp_ring(struct ice_ring *xdp_ring) { }
 #endif /* CONFIG_XDP_SOCKETS */
 #endif /* !_ICE_XSK_H_ */

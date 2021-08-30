@@ -10,6 +10,7 @@
 
 #include <linux/types.h>
 #include <linux/spinlock.h>
+#include <linux/intel-ish-client-if.h>
 #include "bus.h"
 #include "hbm.h"
 
@@ -118,6 +119,7 @@ struct ishtp_hw_ops {
 			unsigned long buffer_length);
 	uint32_t	(*get_fw_status)(struct ishtp_device *dev);
 	void	(*sync_fw_clock)(struct ishtp_device *dev);
+	bool	(*dma_no_cache_snooping)(struct ishtp_device *dev);
 };
 
 /**
@@ -202,8 +204,7 @@ struct ishtp_device {
 	uint64_t ishtp_host_dma_rx_buf_phys;
 
 	/* Dump to trace buffers if enabled*/
-	__printf(2, 3) void (*print_log)(struct ishtp_device *dev,
-					 const char *format, ...);
+	ishtp_print_log print_log;
 
 	/* Debug stats */
 	unsigned int	ipc_rx_cnt;

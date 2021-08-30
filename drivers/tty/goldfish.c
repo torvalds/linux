@@ -193,12 +193,12 @@ static int goldfish_tty_write(struct tty_struct *tty, const unsigned char *buf,
 	return count;
 }
 
-static int goldfish_tty_write_room(struct tty_struct *tty)
+static unsigned int goldfish_tty_write_room(struct tty_struct *tty)
 {
 	return 0x10000;
 }
 
-static int goldfish_tty_chars_in_buffer(struct tty_struct *tty)
+static unsigned int goldfish_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct goldfish_tty *qtty = &goldfish_ttys[tty->index];
 	void __iomem *base = qtty->base;

@@ -36,6 +36,7 @@ void uv_query_info(void)
 		uv_info.max_sec_stor_addr = ALIGN(uvcb.max_guest_stor_addr, PAGE_SIZE);
 		uv_info.max_num_sec_conf = uvcb.max_num_sec_conf;
 		uv_info.max_guest_cpu_id = uvcb.max_guest_cpu_id;
+		uv_info.uv_feature_indications = uvcb.uv_feature_indications;
 	}
 
 #ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
@@ -44,3 +45,28 @@ void uv_query_info(void)
 		prot_virt_guest = 1;
 #endif
 }
+
+#if IS_ENABLED(CONFIG_KVM)
+static bool has_uv_sec_stor_limit(void)
+{
+	/*
+	 * keep these conditions in line with setup_uv()
+	 */
+	if (!is_prot_virt_host())
+		return false;
+
+	if (is_prot_virt_guest())
+		return false;
+
+	if (!test_facility(158))
+		return false;
+
+	return !!uv_info.max_sec_stor_addr;
+}
+
+void adjust_to_uv_max(unsigned long *vmax)
+{
+	if (has_uv_sec_stor_limit())
+		*vmax = min_t(unsigned long, *vmax, uv_info.max_sec_stor_addr);
+}
+#endif

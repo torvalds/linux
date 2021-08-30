@@ -20,7 +20,7 @@ struct uniphier_reset_data {
 #define UNIPHIER_RESET_ACTIVE_LOW		BIT(0)
 };
 
-#define UNIPHIER_RESET_ID_END		(unsigned int)(-1)
+#define UNIPHIER_RESET_ID_END		((unsigned int)(-1))
 
 #define UNIPHIER_RESET_END				\
 	{ .id = UNIPHIER_RESET_ID_END }

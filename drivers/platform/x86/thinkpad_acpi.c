@@ -7938,7 +7938,7 @@ static int volume_write(char *buf)
 				continue;
 			} else if (sscanf(cmd, "level %u", &l) == 1 &&
 				   l >= 0 && l <= TP_EC_VOLUME_MAX) {
-					new_level = l;
+				new_level = l;
 				continue;
 			}
 		}

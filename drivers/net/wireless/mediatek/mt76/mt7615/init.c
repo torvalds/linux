@@ -8,10 +8,60 @@
  */
 
 #include <linux/etherdevice.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
 #include "mt7615.h"
 #include "mac.h"
 #include "mcu.h"
 #include "eeprom.h"
+
+static ssize_t mt7615_thermal_show_temp(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct mt7615_dev *mdev = dev_get_drvdata(dev);
+	int temperature;
+
+	if (!mt7615_wait_for_mcu_init(mdev))
+		return 0;
+
+	mt7615_mutex_acquire(mdev);
+	temperature = mt7615_mcu_get_temperature(mdev);
+	mt7615_mutex_release(mdev);
+
+	if (temperature < 0)
+		return temperature;
+
+	/* display in millidegree celcius */
+	return sprintf(buf, "%u\n", temperature * 1000);
+}
+
+static SENSOR_DEVICE_ATTR(temp1_input, 0444, mt7615_thermal_show_temp,
+			  NULL, 0);
+
+static struct attribute *mt7615_hwmon_attrs[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(mt7615_hwmon);
+
+int mt7615_thermal_init(struct mt7615_dev *dev)
+{
+	struct wiphy *wiphy = mt76_hw(dev)->wiphy;
+	struct device *hwmon;
+
+	if (!IS_REACHABLE(CONFIG_HWMON))
+		return 0;
+
+	hwmon = devm_hwmon_device_register_with_groups(&wiphy->dev,
+						       wiphy_name(wiphy), dev,
+						       mt7615_hwmon_groups);
+	if (IS_ERR(hwmon))
+		return PTR_ERR(hwmon);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt7615_thermal_init);
 
 static void
 mt7615_phy_init(struct mt7615_dev *dev)
@@ -174,35 +224,6 @@ bool mt7615_wait_for_mcu_init(struct mt7615_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt7615_wait_for_mcu_init);
 
-#define CCK_RATE(_idx, _rate) {						\
-	.bitrate = _rate,						\
-	.flags = IEEE80211_RATE_SHORT_PREAMBLE,				\
-	.hw_value = (MT_PHY_TYPE_CCK << 8) | (_idx),			\
-	.hw_value_short = (MT_PHY_TYPE_CCK << 8) | (4 + (_idx)),	\
-}
-
-#define OFDM_RATE(_idx, _rate) {					\
-	.bitrate = _rate,						\
-	.hw_value = (MT_PHY_TYPE_OFDM << 8) | (_idx),			\
-	.hw_value_short = (MT_PHY_TYPE_OFDM << 8) | (_idx),		\
-}
-
-struct ieee80211_rate mt7615_rates[] = {
-	CCK_RATE(0, 10),
-	CCK_RATE(1, 20),
-	CCK_RATE(2, 55),
-	CCK_RATE(3, 110),
-	OFDM_RATE(11, 60),
-	OFDM_RATE(15, 90),
-	OFDM_RATE(10, 120),
-	OFDM_RATE(14, 180),
-	OFDM_RATE(9,  240),
-	OFDM_RATE(13, 360),
-	OFDM_RATE(8,  480),
-	OFDM_RATE(12, 540),
-};
-EXPORT_SYMBOL_GPL(mt7615_rates);
-
 static const struct ieee80211_iface_limit if_limits[] = {
 	{
 		.max = 1,
@@ -362,7 +383,7 @@ mt7615_init_wiphy(struct ieee80211_hw *hw)
 	wiphy->reg_notifier = mt7615_regd_notifier;
 
 	wiphy->max_sched_scan_plan_interval =
-		MT76_CONNAC_MAX_SCHED_SCAN_INTERVAL;
+		MT76_CONNAC_MAX_TIME_SCHED_SCAN_INTERVAL;
 	wiphy->max_sched_scan_ie_len = IEEE80211_MAX_DATA_LEN;
 	wiphy->max_scan_ie_len = MT76_CONNAC_SCAN_IE_LEN;
 	wiphy->max_sched_scan_ssids = MT76_CONNAC_MAX_SCHED_SCAN_SSID;
@@ -472,8 +493,8 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 	for (i = 0; i <= MT_TXQ_PSD ; i++)
 		mphy->q_tx[i] = dev->mphy.q_tx[i];
 
-	ret = mt76_register_phy(mphy, true, mt7615_rates,
-				ARRAY_SIZE(mt7615_rates));
+	ret = mt76_register_phy(mphy, true, mt76_rates,
+				ARRAY_SIZE(mt76_rates));
 	if (ret)
 		ieee80211_free_hw(mphy->hw);
 

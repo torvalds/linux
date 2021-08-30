@@ -568,10 +568,13 @@ void mlxsw_sp1_ptp_got_timestamp(struct mlxsw_sp *mlxsw_sp, bool ingress,
 				 u8 domain_number, u16 sequence_id,
 				 u64 timestamp)
 {
+	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_sp->core);
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct mlxsw_sp1_ptp_key key;
 	u8 types;
 
+	if (WARN_ON_ONCE(local_port >= max_ports))
+		return;
 	mlxsw_sp_port = mlxsw_sp->ports[local_port];
 	if (!mlxsw_sp_port)
 		return;

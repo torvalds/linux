@@ -109,11 +109,5 @@ int	nlmsvc_decode_shareargs(struct svc_rqst *, __be32 *);
 int	nlmsvc_encode_shareres(struct svc_rqst *, __be32 *);
 int	nlmsvc_decode_notify(struct svc_rqst *, __be32 *);
 int	nlmsvc_decode_reboot(struct svc_rqst *, __be32 *);
-/*
-int	nlmclt_encode_testargs(struct rpc_rqst *, u32 *, struct nlm_args *);
-int	nlmclt_encode_lockargs(struct rpc_rqst *, u32 *, struct nlm_args *);
-int	nlmclt_encode_cancargs(struct rpc_rqst *, u32 *, struct nlm_args *);
-int	nlmclt_encode_unlockargs(struct rpc_rqst *, u32 *, struct nlm_args *);
- */
 
 #endif /* LOCKD_XDR_H */

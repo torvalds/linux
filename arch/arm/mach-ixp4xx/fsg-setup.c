@@ -28,6 +28,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
+#include <mach/hardware.h>
 
 #include "irqs.h"
 

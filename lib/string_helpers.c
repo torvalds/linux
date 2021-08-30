@@ -361,6 +361,9 @@ static bool escape_special(unsigned char c, char **dst, char *end)
 	case '\e':
 		to = 'e';
 		break;
+	case '"':
+		to = '"';
+		break;
 	default:
 		return false;
 	}
@@ -452,18 +455,20 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  * The process of escaping byte buffer includes several parts. They are applied
  * in the following sequence.
  *
- *	1. The character is matched to the printable class, if asked, and in
- *	   case of match it passes through to the output.
- *	2. The character is not matched to the one from @only string and thus
+ *	1. The character is not matched to the one from @only string and thus
  *	   must go as-is to the output.
- *	3. The character is checked if it falls into the class given by @flags.
+ *	2. The character is matched to the printable and ASCII classes, if asked,
+ *	   and in case of match it passes through to the output.
+ *	3. The character is matched to the printable or ASCII class, if asked,
+ *	   and in case of match it passes through to the output.
+ *	4. The character is checked if it falls into the class given by @flags.
  *	   %ESCAPE_OCTAL and %ESCAPE_HEX are going last since they cover any
  *	   character. Note that they actually can't go together, otherwise
  *	   %ESCAPE_HEX will be ignored.
  *
  * Caller must provide valid source and destination pointers. Be aware that
  * destination buffer will not be NULL-terminated, thus caller have to append
- * it if needs.   The supported flags are::
+ * it if needs. The supported flags are::
  *
  *	%ESCAPE_SPACE: (special white space, not space itself)
  *		'\f' - form feed
@@ -472,6 +477,7 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  *		'\t' - horizontal tab
  *		'\v' - vertical tab
  *	%ESCAPE_SPECIAL:
+ *		'\"' - double quote
  *		'\\' - backslash
  *		'\a' - alert (BEL)
  *		'\e' - escape
@@ -482,11 +488,27 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  *	%ESCAPE_ANY:
  *		all previous together
  *	%ESCAPE_NP:
- *		escape only non-printable characters (checked by isprint)
+ *		escape only non-printable characters, checked by isprint()
  *	%ESCAPE_ANY_NP:
  *		all previous together
  *	%ESCAPE_HEX:
  *		'\xHH' - byte with hexadecimal value HH (2 digits)
+ *	%ESCAPE_NA:
+ *		escape only non-ascii characters, checked by isascii()
+ *	%ESCAPE_NAP:
+ *		escape only non-printable or non-ascii characters
+ *	%ESCAPE_APPEND:
+ *		append characters from @only to be escaped by the given classes
+ *
+ * %ESCAPE_APPEND would help to pass additional characters to the escaped, when
+ * one of %ESCAPE_NP, %ESCAPE_NA, or %ESCAPE_NAP is provided.
+ *
+ * One notable caveat, the %ESCAPE_NAP, %ESCAPE_NP and %ESCAPE_NA have the
+ * higher priority than the rest of the flags (%ESCAPE_NAP is the highest).
+ * It doesn't make much sense to use either of them without %ESCAPE_OCTAL
+ * or %ESCAPE_HEX, because they cover most of the other character classes.
+ * %ESCAPE_NAP can utilize %ESCAPE_SPACE or %ESCAPE_SPECIAL in addition to
+ * the above.
  *
  * Return:
  * The total size of the escaped output that would be generated for
@@ -500,41 +522,62 @@ int string_escape_mem(const char *src, size_t isz, char *dst, size_t osz,
 	char *p = dst;
 	char *end = p + osz;
 	bool is_dict = only && *only;
+	bool is_append = flags & ESCAPE_APPEND;
 
 	while (isz--) {
 		unsigned char c = *src++;
+		bool in_dict = is_dict && strchr(only, c);
 
 		/*
 		 * Apply rules in the following sequence:
-		 *	- the character is printable, when @flags has
-		 *	  %ESCAPE_NP bit set
 		 *	- the @only string is supplied and does not contain a
 		 *	  character under question
+		 *	- the character is printable and ASCII, when @flags has
+		 *	  %ESCAPE_NAP bit set
+		 *	- the character is printable, when @flags has
+		 *	  %ESCAPE_NP bit set
+		 *	- the character is ASCII, when @flags has
+		 *	  %ESCAPE_NA bit set
 		 *	- the character doesn't fall into a class of symbols
 		 *	  defined by given @flags
 		 * In these cases we just pass through a character to the
 		 * output buffer.
+		 *
+		 * When %ESCAPE_APPEND is passed, the characters from @only
+		 * have been excluded from the %ESCAPE_NAP, %ESCAPE_NP, and
+		 * %ESCAPE_NA cases.
 		 */
-		if ((flags & ESCAPE_NP && isprint(c)) ||
-		    (is_dict && !strchr(only, c))) {
-			/* do nothing */
-		} else {
-			if (flags & ESCAPE_SPACE && escape_space(c, &p, end))
-				continue;
+		if (!(is_append || in_dict) && is_dict &&
+					  escape_passthrough(c, &p, end))
+			continue;
 
-			if (flags & ESCAPE_SPECIAL && escape_special(c, &p, end))
-				continue;
+		if (!(is_append && in_dict) && isascii(c) && isprint(c) &&
+		    flags & ESCAPE_NAP && escape_passthrough(c, &p, end))
+			continue;
 
-			if (flags & ESCAPE_NULL && escape_null(c, &p, end))
-				continue;
+		if (!(is_append && in_dict) && isprint(c) &&
+		    flags & ESCAPE_NP && escape_passthrough(c, &p, end))
+			continue;
 
-			/* ESCAPE_OCTAL and ESCAPE_HEX always go last */
-			if (flags & ESCAPE_OCTAL && escape_octal(c, &p, end))
-				continue;
+		if (!(is_append && in_dict) && isascii(c) &&
+		    flags & ESCAPE_NA && escape_passthrough(c, &p, end))
+			continue;
 
-			if (flags & ESCAPE_HEX && escape_hex(c, &p, end))
-				continue;
-		}
+		if (flags & ESCAPE_SPACE && escape_space(c, &p, end))
+			continue;
+
+		if (flags & ESCAPE_SPECIAL && escape_special(c, &p, end))
+			continue;
+
+		if (flags & ESCAPE_NULL && escape_null(c, &p, end))
+			continue;
+
+		/* ESCAPE_OCTAL and ESCAPE_HEX always go last */
+		if (flags & ESCAPE_OCTAL && escape_octal(c, &p, end))
+			continue;
+
+		if (flags & ESCAPE_HEX && escape_hex(c, &p, end))
+			continue;
 
 		escape_passthrough(c, &p, end);
 	}
@@ -542,25 +585,6 @@ int string_escape_mem(const char *src, size_t isz, char *dst, size_t osz,
 	return p - dst;
 }
 EXPORT_SYMBOL(string_escape_mem);
-
-int string_escape_mem_ascii(const char *src, size_t isz, char *dst,
-					size_t osz)
-{
-	char *p = dst;
-	char *end = p + osz;
-
-	while (isz--) {
-		unsigned char c = *src++;
-
-		if (!isprint(c) || !isascii(c) || c == '"' || c == '\\')
-			escape_hex(c, &p, end);
-		else
-			escape_passthrough(c, &p, end);
-	}
-
-	return p - dst;
-}
-EXPORT_SYMBOL(string_escape_mem_ascii);
 
 /*
  * Return an allocated string that has been escaped of special characters

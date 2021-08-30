@@ -179,6 +179,10 @@ static __init int strnchr_selftest(void)
 	return 0;
 }
 
+static __exit void string_selftest_remove(void)
+{
+}
+
 static __init int string_selftest_init(void)
 {
 	int test, subtest;
@@ -216,4 +220,5 @@ fail:
 }
 
 module_init(string_selftest_init);
+module_exit(string_selftest_remove);
 MODULE_LICENSE("GPL v2");

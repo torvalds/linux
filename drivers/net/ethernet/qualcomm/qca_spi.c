@@ -504,8 +504,12 @@ qcaspi_qca7k_sync(struct qcaspi *qca, int event)
 		qcaspi_read_register(qca, SPI_REG_SIGNATURE, &signature);
 		qcaspi_read_register(qca, SPI_REG_SIGNATURE, &signature);
 		if (signature != QCASPI_GOOD_SIGNATURE) {
+			if (qca->sync == QCASPI_SYNC_READY)
+				qca->stats.bad_signature++;
+
 			qca->sync = QCASPI_SYNC_UNKNOWN;
 			netdev_dbg(qca->net_dev, "sync: got CPU on, but signature was invalid, restart\n");
+			return;
 		} else {
 			/* ensure that the WRBUF is empty */
 			qcaspi_read_register(qca, SPI_REG_WRBUF_SPC_AVA,
@@ -523,10 +527,14 @@ qcaspi_qca7k_sync(struct qcaspi *qca, int event)
 
 	switch (qca->sync) {
 	case QCASPI_SYNC_READY:
-		/* Read signature, if not valid go to unknown state. */
+		/* Check signature twice, if not valid go to unknown state. */
 		qcaspi_read_register(qca, SPI_REG_SIGNATURE, &signature);
+		if (signature != QCASPI_GOOD_SIGNATURE)
+			qcaspi_read_register(qca, SPI_REG_SIGNATURE, &signature);
+
 		if (signature != QCASPI_GOOD_SIGNATURE) {
 			qca->sync = QCASPI_SYNC_UNKNOWN;
+			qca->stats.bad_signature++;
 			netdev_dbg(qca->net_dev, "sync: bad signature, restart\n");
 			/* don't reset right away */
 			return;

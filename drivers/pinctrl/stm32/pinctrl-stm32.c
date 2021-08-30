@@ -414,33 +414,15 @@ static int stm32_gpio_domain_activate(struct irq_domain *d,
 {
 	struct stm32_gpio_bank *bank = d->host_data;
 	struct stm32_pinctrl *pctl = dev_get_drvdata(bank->gpio_chip.parent);
-	unsigned long flags;
 	int ret = 0;
-
-	/*
-	 * gpio irq mux is shared between several banks, a lock has to be done
-	 * to avoid overriding.
-	 */
-	spin_lock_irqsave(&pctl->irqmux_lock, flags);
 
 	if (pctl->hwlock) {
 		ret = hwspin_lock_timeout_in_atomic(pctl->hwlock,
 						    HWSPNLCK_TIMEOUT);
 		if (ret) {
 			dev_err(pctl->dev, "Can't get hwspinlock\n");
-			goto unlock;
+			return ret;
 		}
-	}
-
-	if (pctl->irqmux_map & BIT(irq_data->hwirq)) {
-		dev_err(pctl->dev, "irq line %ld already requested.\n",
-			irq_data->hwirq);
-		ret = -EBUSY;
-		if (pctl->hwlock)
-			hwspin_unlock_in_atomic(pctl->hwlock);
-		goto unlock;
-	} else {
-		pctl->irqmux_map |= BIT(irq_data->hwirq);
 	}
 
 	regmap_field_write(pctl->irqmux[irq_data->hwirq], bank->bank_ioport_nr);
@@ -448,21 +430,7 @@ static int stm32_gpio_domain_activate(struct irq_domain *d,
 	if (pctl->hwlock)
 		hwspin_unlock_in_atomic(pctl->hwlock);
 
-unlock:
-	spin_unlock_irqrestore(&pctl->irqmux_lock, flags);
 	return ret;
-}
-
-static void stm32_gpio_domain_deactivate(struct irq_domain *d,
-					 struct irq_data *irq_data)
-{
-	struct stm32_gpio_bank *bank = d->host_data;
-	struct stm32_pinctrl *pctl = dev_get_drvdata(bank->gpio_chip.parent);
-	unsigned long flags;
-
-	spin_lock_irqsave(&pctl->irqmux_lock, flags);
-	pctl->irqmux_map &= ~BIT(irq_data->hwirq);
-	spin_unlock_irqrestore(&pctl->irqmux_lock, flags);
 }
 
 static int stm32_gpio_domain_alloc(struct irq_domain *d,
@@ -472,9 +440,28 @@ static int stm32_gpio_domain_alloc(struct irq_domain *d,
 	struct stm32_gpio_bank *bank = d->host_data;
 	struct irq_fwspec *fwspec = data;
 	struct irq_fwspec parent_fwspec;
-	irq_hw_number_t hwirq;
+	struct stm32_pinctrl *pctl = dev_get_drvdata(bank->gpio_chip.parent);
+	irq_hw_number_t hwirq = fwspec->param[0];
+	unsigned long flags;
+	int ret = 0;
 
-	hwirq = fwspec->param[0];
+	/*
+	 * Check first that the IRQ MUX of that line is free.
+	 * gpio irq mux is shared between several banks, protect with a lock
+	 */
+	spin_lock_irqsave(&pctl->irqmux_lock, flags);
+
+	if (pctl->irqmux_map & BIT(hwirq)) {
+		dev_err(pctl->dev, "irq line %ld already requested.\n", hwirq);
+		ret = -EBUSY;
+	} else {
+		pctl->irqmux_map |= BIT(hwirq);
+	}
+
+	spin_unlock_irqrestore(&pctl->irqmux_lock, flags);
+	if (ret)
+		return ret;
+
 	parent_fwspec.fwnode = d->parent->fwnode;
 	parent_fwspec.param_count = 2;
 	parent_fwspec.param[0] = fwspec->param[0];
@@ -486,12 +473,26 @@ static int stm32_gpio_domain_alloc(struct irq_domain *d,
 	return irq_domain_alloc_irqs_parent(d, virq, nr_irqs, &parent_fwspec);
 }
 
+static void stm32_gpio_domain_free(struct irq_domain *d, unsigned int virq,
+				   unsigned int nr_irqs)
+{
+	struct stm32_gpio_bank *bank = d->host_data;
+	struct stm32_pinctrl *pctl = dev_get_drvdata(bank->gpio_chip.parent);
+	struct irq_data *irq_data = irq_domain_get_irq_data(d, virq);
+	unsigned long flags, hwirq = irq_data->hwirq;
+
+	irq_domain_free_irqs_common(d, virq, nr_irqs);
+
+	spin_lock_irqsave(&pctl->irqmux_lock, flags);
+	pctl->irqmux_map &= ~BIT(hwirq);
+	spin_unlock_irqrestore(&pctl->irqmux_lock, flags);
+}
+
 static const struct irq_domain_ops stm32_gpio_domain_ops = {
-	.translate      = stm32_gpio_domain_translate,
-	.alloc          = stm32_gpio_domain_alloc,
-	.free           = irq_domain_free_irqs_common,
+	.translate	= stm32_gpio_domain_translate,
+	.alloc		= stm32_gpio_domain_alloc,
+	.free		= stm32_gpio_domain_free,
 	.activate	= stm32_gpio_domain_activate,
-	.deactivate	= stm32_gpio_domain_deactivate,
 };
 
 /* Pinctrl functions */

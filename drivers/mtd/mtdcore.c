@@ -96,6 +96,12 @@ static void mtd_release(struct device *dev)
 	device_destroy(&mtd_class, index + 1);
 }
 
+#define MTD_DEVICE_ATTR_RO(name) \
+static DEVICE_ATTR(name, 0444, mtd_##name##_show, NULL)
+
+#define MTD_DEVICE_ATTR_RW(name) \
+static DEVICE_ATTR(name, 0644, mtd_##name##_show, mtd_##name##_store)
+
 static ssize_t mtd_type_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -131,46 +137,45 @@ static ssize_t mtd_type_show(struct device *dev,
 		type = "unknown";
 	}
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", type);
+	return sysfs_emit(buf, "%s\n", type);
 }
-static DEVICE_ATTR(type, S_IRUGO, mtd_type_show, NULL);
+MTD_DEVICE_ATTR_RO(type);
 
 static ssize_t mtd_flags_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "0x%lx\n", (unsigned long)mtd->flags);
+	return sysfs_emit(buf, "0x%lx\n", (unsigned long)mtd->flags);
 }
-static DEVICE_ATTR(flags, S_IRUGO, mtd_flags_show, NULL);
+MTD_DEVICE_ATTR_RO(flags);
 
 static ssize_t mtd_size_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n",
-		(unsigned long long)mtd->size);
+	return sysfs_emit(buf, "%llu\n", (unsigned long long)mtd->size);
 }
-static DEVICE_ATTR(size, S_IRUGO, mtd_size_show, NULL);
+MTD_DEVICE_ATTR_RO(size);
 
 static ssize_t mtd_erasesize_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->erasesize);
+	return sysfs_emit(buf, "%lu\n", (unsigned long)mtd->erasesize);
 }
-static DEVICE_ATTR(erasesize, S_IRUGO, mtd_erasesize_show, NULL);
+MTD_DEVICE_ATTR_RO(erasesize);
 
 static ssize_t mtd_writesize_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->writesize);
+	return sysfs_emit(buf, "%lu\n", (unsigned long)mtd->writesize);
 }
-static DEVICE_ATTR(writesize, S_IRUGO, mtd_writesize_show, NULL);
+MTD_DEVICE_ATTR_RO(writesize);
 
 static ssize_t mtd_subpagesize_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -178,55 +183,54 @@ static ssize_t mtd_subpagesize_show(struct device *dev,
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 	unsigned int subpagesize = mtd->writesize >> mtd->subpage_sft;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", subpagesize);
+	return sysfs_emit(buf, "%u\n", subpagesize);
 }
-static DEVICE_ATTR(subpagesize, S_IRUGO, mtd_subpagesize_show, NULL);
+MTD_DEVICE_ATTR_RO(subpagesize);
 
 static ssize_t mtd_oobsize_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->oobsize);
+	return sysfs_emit(buf, "%lu\n", (unsigned long)mtd->oobsize);
 }
-static DEVICE_ATTR(oobsize, S_IRUGO, mtd_oobsize_show, NULL);
+MTD_DEVICE_ATTR_RO(oobsize);
 
 static ssize_t mtd_oobavail_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", mtd->oobavail);
+	return sysfs_emit(buf, "%u\n", mtd->oobavail);
 }
-static DEVICE_ATTR(oobavail, S_IRUGO, mtd_oobavail_show, NULL);
+MTD_DEVICE_ATTR_RO(oobavail);
 
 static ssize_t mtd_numeraseregions_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", mtd->numeraseregions);
+	return sysfs_emit(buf, "%u\n", mtd->numeraseregions);
 }
-static DEVICE_ATTR(numeraseregions, S_IRUGO, mtd_numeraseregions_show,
-	NULL);
+MTD_DEVICE_ATTR_RO(numeraseregions);
 
 static ssize_t mtd_name_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", mtd->name);
+	return sysfs_emit(buf, "%s\n", mtd->name);
 }
-static DEVICE_ATTR(name, S_IRUGO, mtd_name_show, NULL);
+MTD_DEVICE_ATTR_RO(name);
 
 static ssize_t mtd_ecc_strength_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", mtd->ecc_strength);
+	return sysfs_emit(buf, "%u\n", mtd->ecc_strength);
 }
-static DEVICE_ATTR(ecc_strength, S_IRUGO, mtd_ecc_strength_show, NULL);
+MTD_DEVICE_ATTR_RO(ecc_strength);
 
 static ssize_t mtd_bitflip_threshold_show(struct device *dev,
 					  struct device_attribute *attr,
@@ -234,7 +238,7 @@ static ssize_t mtd_bitflip_threshold_show(struct device *dev,
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", mtd->bitflip_threshold);
+	return sysfs_emit(buf, "%u\n", mtd->bitflip_threshold);
 }
 
 static ssize_t mtd_bitflip_threshold_store(struct device *dev,
@@ -252,60 +256,57 @@ static ssize_t mtd_bitflip_threshold_store(struct device *dev,
 	mtd->bitflip_threshold = bitflip_threshold;
 	return count;
 }
-static DEVICE_ATTR(bitflip_threshold, S_IRUGO | S_IWUSR,
-		   mtd_bitflip_threshold_show,
-		   mtd_bitflip_threshold_store);
+MTD_DEVICE_ATTR_RW(bitflip_threshold);
 
 static ssize_t mtd_ecc_step_size_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", mtd->ecc_step_size);
+	return sysfs_emit(buf, "%u\n", mtd->ecc_step_size);
 
 }
-static DEVICE_ATTR(ecc_step_size, S_IRUGO, mtd_ecc_step_size_show, NULL);
+MTD_DEVICE_ATTR_RO(ecc_step_size);
 
-static ssize_t mtd_ecc_stats_corrected_show(struct device *dev,
+static ssize_t mtd_corrected_bits_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 	struct mtd_ecc_stats *ecc_stats = &mtd->ecc_stats;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", ecc_stats->corrected);
+	return sysfs_emit(buf, "%u\n", ecc_stats->corrected);
 }
-static DEVICE_ATTR(corrected_bits, S_IRUGO,
-		   mtd_ecc_stats_corrected_show, NULL);
+MTD_DEVICE_ATTR_RO(corrected_bits);	/* ecc stats corrected */
 
-static ssize_t mtd_ecc_stats_errors_show(struct device *dev,
+static ssize_t mtd_ecc_failures_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 	struct mtd_ecc_stats *ecc_stats = &mtd->ecc_stats;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", ecc_stats->failed);
+	return sysfs_emit(buf, "%u\n", ecc_stats->failed);
 }
-static DEVICE_ATTR(ecc_failures, S_IRUGO, mtd_ecc_stats_errors_show, NULL);
+MTD_DEVICE_ATTR_RO(ecc_failures);	/* ecc stats errors */
 
-static ssize_t mtd_badblocks_show(struct device *dev,
+static ssize_t mtd_bad_blocks_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 	struct mtd_ecc_stats *ecc_stats = &mtd->ecc_stats;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", ecc_stats->badblocks);
+	return sysfs_emit(buf, "%u\n", ecc_stats->badblocks);
 }
-static DEVICE_ATTR(bad_blocks, S_IRUGO, mtd_badblocks_show, NULL);
+MTD_DEVICE_ATTR_RO(bad_blocks);
 
-static ssize_t mtd_bbtblocks_show(struct device *dev,
+static ssize_t mtd_bbt_blocks_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 	struct mtd_ecc_stats *ecc_stats = &mtd->ecc_stats;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", ecc_stats->bbtblocks);
+	return sysfs_emit(buf, "%u\n", ecc_stats->bbtblocks);
 }
-static DEVICE_ATTR(bbt_blocks, S_IRUGO, mtd_bbtblocks_show, NULL);
+MTD_DEVICE_ATTR_RO(bbt_blocks);
 
 static struct attribute *mtd_attrs[] = {
 	&dev_attr_type.attr,
@@ -361,6 +362,7 @@ static struct dentry *dfs_dir_mtd;
 
 static void mtd_debugfs_populate(struct mtd_info *mtd)
 {
+	struct mtd_info *master = mtd_get_master(mtd);
 	struct device *dev = &mtd->dev;
 	struct dentry *root;
 
@@ -370,12 +372,12 @@ static void mtd_debugfs_populate(struct mtd_info *mtd)
 	root = debugfs_create_dir(dev_name(dev), dfs_dir_mtd);
 	mtd->dbg.dfs_dir = root;
 
-	if (mtd->dbg.partid)
-		debugfs_create_file("partid", 0400, root, mtd,
+	if (master->dbg.partid)
+		debugfs_create_file("partid", 0400, root, master,
 				    &mtd_partid_debug_fops);
 
-	if (mtd->dbg.partname)
-		debugfs_create_file("partname", 0400, root, mtd,
+	if (master->dbg.partname)
+		debugfs_create_file("partname", 0400, root, master,
 				    &mtd_partname_debug_fops);
 }
 
@@ -777,6 +779,148 @@ static void mtd_set_dev_defaults(struct mtd_info *mtd)
 	mutex_init(&mtd->master.chrdev_lock);
 }
 
+static ssize_t mtd_otp_size(struct mtd_info *mtd, bool is_user)
+{
+	struct otp_info *info;
+	ssize_t size = 0;
+	unsigned int i;
+	size_t retlen;
+	int ret;
+
+	info = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	if (is_user)
+		ret = mtd_get_user_prot_info(mtd, PAGE_SIZE, &retlen, info);
+	else
+		ret = mtd_get_fact_prot_info(mtd, PAGE_SIZE, &retlen, info);
+	if (ret)
+		goto err;
+
+	for (i = 0; i < retlen / sizeof(*info); i++)
+		size += info[i].length;
+
+	kfree(info);
+	return size;
+
+err:
+	kfree(info);
+	return ret;
+}
+
+static struct nvmem_device *mtd_otp_nvmem_register(struct mtd_info *mtd,
+						   const char *compatible,
+						   int size,
+						   nvmem_reg_read_t reg_read)
+{
+	struct nvmem_device *nvmem = NULL;
+	struct nvmem_config config = {};
+	struct device_node *np;
+
+	/* DT binding is optional */
+	np = of_get_compatible_child(mtd->dev.of_node, compatible);
+
+	/* OTP nvmem will be registered on the physical device */
+	config.dev = mtd->dev.parent;
+	/* just reuse the compatible as name */
+	config.name = compatible;
+	config.id = NVMEM_DEVID_NONE;
+	config.owner = THIS_MODULE;
+	config.type = NVMEM_TYPE_OTP;
+	config.root_only = true;
+	config.reg_read = reg_read;
+	config.size = size;
+	config.of_node = np;
+	config.priv = mtd;
+
+	nvmem = nvmem_register(&config);
+	/* Just ignore if there is no NVMEM support in the kernel */
+	if (IS_ERR(nvmem) && PTR_ERR(nvmem) == -EOPNOTSUPP)
+		nvmem = NULL;
+
+	of_node_put(np);
+
+	return nvmem;
+}
+
+static int mtd_nvmem_user_otp_reg_read(void *priv, unsigned int offset,
+				       void *val, size_t bytes)
+{
+	struct mtd_info *mtd = priv;
+	size_t retlen;
+	int ret;
+
+	ret = mtd_read_user_prot_reg(mtd, offset, bytes, &retlen, val);
+	if (ret)
+		return ret;
+
+	return retlen == bytes ? 0 : -EIO;
+}
+
+static int mtd_nvmem_fact_otp_reg_read(void *priv, unsigned int offset,
+				       void *val, size_t bytes)
+{
+	struct mtd_info *mtd = priv;
+	size_t retlen;
+	int ret;
+
+	ret = mtd_read_fact_prot_reg(mtd, offset, bytes, &retlen, val);
+	if (ret)
+		return ret;
+
+	return retlen == bytes ? 0 : -EIO;
+}
+
+static int mtd_otp_nvmem_add(struct mtd_info *mtd)
+{
+	struct nvmem_device *nvmem;
+	ssize_t size;
+	int err;
+
+	if (mtd->_get_user_prot_info && mtd->_read_user_prot_reg) {
+		size = mtd_otp_size(mtd, true);
+		if (size < 0)
+			return size;
+
+		if (size > 0) {
+			nvmem = mtd_otp_nvmem_register(mtd, "user-otp", size,
+						       mtd_nvmem_user_otp_reg_read);
+			if (IS_ERR(nvmem)) {
+				dev_err(&mtd->dev, "Failed to register OTP NVMEM device\n");
+				return PTR_ERR(nvmem);
+			}
+			mtd->otp_user_nvmem = nvmem;
+		}
+	}
+
+	if (mtd->_get_fact_prot_info && mtd->_read_fact_prot_reg) {
+		size = mtd_otp_size(mtd, false);
+		if (size < 0) {
+			err = size;
+			goto err;
+		}
+
+		if (size > 0) {
+			nvmem = mtd_otp_nvmem_register(mtd, "factory-otp", size,
+						       mtd_nvmem_fact_otp_reg_read);
+			if (IS_ERR(nvmem)) {
+				dev_err(&mtd->dev, "Failed to register OTP NVMEM device\n");
+				err = PTR_ERR(nvmem);
+				goto err;
+			}
+			mtd->otp_factory_nvmem = nvmem;
+		}
+	}
+
+	return 0;
+
+err:
+	if (mtd->otp_user_nvmem)
+		nvmem_unregister(mtd->otp_user_nvmem);
+	return err;
+}
+
 /**
  * mtd_device_parse_register - parse partitions and register an MTD device.
  *
@@ -852,6 +996,8 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 		register_reboot_notifier(&mtd->reboot_notifier);
 	}
 
+	ret = mtd_otp_nvmem_add(mtd);
+
 out:
 	if (ret && device_is_registered(&mtd->dev))
 		del_mtd_device(mtd);
@@ -872,6 +1018,12 @@ int mtd_device_unregister(struct mtd_info *master)
 
 	if (master->_reboot)
 		unregister_reboot_notifier(&master->reboot_notifier);
+
+	if (master->otp_user_nvmem)
+		nvmem_unregister(master->otp_user_nvmem);
+
+	if (master->otp_factory_nvmem)
+		nvmem_unregister(master->otp_factory_nvmem);
 
 	err = del_mtd_partitions(master);
 	if (err)

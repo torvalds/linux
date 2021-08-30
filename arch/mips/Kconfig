@@ -112,6 +112,7 @@ config MACH_INGENIC
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_ZBOOT
 	select DMA_NONCOHERENT
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select IRQ_MIPS_CPU
 	select PINCTRL
 	select GPIOLIB
@@ -201,6 +202,7 @@ config MIPS_ALCHEMY
 config AR7
 	bool "Texas Instruments AR7"
 	select BOOT_ELF32
+	select COMMON_CLK
 	select DMA_NONCOHERENT
 	select CEVT_R4K
 	select CSRC_R4K
@@ -215,7 +217,6 @@ config AR7
 	select SYS_SUPPORTS_ZBOOT_UART16550
 	select GPIOLIB
 	select VLYNQ
-	select HAVE_LEGACY_CLK
 	help
 	  Support for the Texas Instruments AR7 System-on-a-Chip
 	  family: TNETD7100, 7200 and 7300.
@@ -332,7 +333,6 @@ config BCM63XX
 	select SWAP_IO_SPACE
 	select GPIOLIB
 	select MIPS_L1_CACHE_SHIFT_4
-	select CLKDEV_LOOKUP
 	select HAVE_LEGACY_CLK
 	help
 	  Support for BCM63XX based boards
@@ -428,6 +428,8 @@ config MACH_INGENIC_SOC
 	select MIPS_GENERIC
 	select MACH_INGENIC
 	select SYS_SUPPORTS_ZBOOT_UART16550
+	select CPU_SUPPORTS_CPUFREQ
+	select MIPS_EXTERNAL_TIMER
 
 config LANTIQ
 	bool "Lantiq based platforms"
@@ -446,7 +448,6 @@ config LANTIQ
 	select GPIOLIB
 	select SWAP_IO_SPACE
 	select BOOT_RAW
-	select CLKDEV_LOOKUP
 	select HAVE_LEGACY_CLK
 	select USE_OF
 	select PINCTRL
@@ -630,6 +631,7 @@ config MACH_NINTENDO64
 config RALINK
 	bool "Ralink based machines"
 	select CEVT_R4K
+	select COMMON_CLK
 	select CSRC_R4K
 	select BOOT_RAW
 	select DMA_NONCOHERENT
@@ -642,7 +644,6 @@ config RALINK
 	select SYS_SUPPORTS_MIPS16
 	select SYS_SUPPORTS_ZBOOT
 	select SYS_HAS_EARLY_PRINTK
-	select CLKDEV_LOOKUP
 	select ARCH_HAS_RESET_CONTROLLER
 	select RESET_CONTROLLER
 
@@ -996,7 +997,6 @@ config CAVIUM_OCTEON_SOC
 	select HAVE_PLAT_FW_INIT_CMDLINE
 	select HAVE_PLAT_MEMCPY
 	select ZONE_DMA32
-	select HOLES_IN_ZONE
 	select GPIOLIB
 	select USE_OF
 	select ARCH_SPARSEMEM_ENABLE
@@ -1231,9 +1231,6 @@ config HAVE_PLAT_MEMCPY
 	bool
 
 config ISA_DMA_API
-	bool
-
-config HOLES_IN_ZONE
 	bool
 
 config SYS_SUPPORTS_RELOCATABLE
@@ -2867,7 +2864,7 @@ config RANDOMIZE_BASE_MAX_OFFSET
 config NODES_SHIFT
 	int
 	default "6"
-	depends on NEED_MULTIPLE_NODES
+	depends on NUMA
 
 config HW_PERF_EVENTS
 	bool "Enable hardware performance counter support for perf events"
@@ -3277,13 +3274,6 @@ config I8253
 	select CLKSRC_I8253
 	select CLKEVT_I8253
 	select MIPS_EXTERNAL_TIMER
-
-config ZONE_DMA
-	bool
-
-config ZONE_DMA32
-	bool
-
 endmenu
 
 config TRAD_SIGNALS

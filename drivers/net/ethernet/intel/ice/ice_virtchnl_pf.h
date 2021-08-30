@@ -58,6 +58,11 @@ enum ice_virtchnl_cap {
 	ICE_VIRTCHNL_VF_CAP_PRIVILEGE,
 };
 
+struct ice_time_mac {
+	unsigned long time_modified;
+	u8 addr[ETH_ALEN];
+};
+
 /* VF MDD events print structure */
 struct ice_mdd_vf_events {
 	u16 count;			/* total count of Rx|Tx events */
@@ -78,7 +83,9 @@ struct ice_vf {
 	struct ice_sw *vf_sw_id;	/* switch ID the VF VSIs connect to */
 	struct virtchnl_version_info vf_ver;
 	u32 driver_caps;		/* reported by VF driver */
-	struct virtchnl_ether_addr dflt_lan_addr;
+	struct virtchnl_ether_addr dev_lan_addr;
+	struct virtchnl_ether_addr hw_lan_addr;
+	struct ice_time_mac legacy_last_added_umac;
 	DECLARE_BITMAP(txq_ena, ICE_MAX_RSS_QS_PER_VF);
 	DECLARE_BITMAP(rxq_ena, ICE_MAX_RSS_QS_PER_VF);
 	u16 port_vlan_info;		/* Port VLAN ID and QoS */
@@ -151,16 +158,18 @@ ice_vc_send_msg_to_vf(struct ice_vf *vf, u32 v_opcode,
 		      enum virtchnl_status_code v_retval, u8 *msg, u16 msglen);
 bool ice_vc_isvalid_vsi_id(struct ice_vf *vf, u16 vsi_id);
 #else /* CONFIG_PCI_IOV */
-#define ice_process_vflr_event(pf) do {} while (0)
-#define ice_free_vfs(pf) do {} while (0)
-#define ice_vc_process_vf_msg(pf, event) do {} while (0)
-#define ice_vc_notify_link_state(pf) do {} while (0)
-#define ice_vc_notify_reset(pf) do {} while (0)
-#define ice_set_vf_state_qs_dis(vf) do {} while (0)
-#define ice_vf_lan_overflow_event(pf, event) do {} while (0)
-#define ice_print_vfs_mdd_events(pf) do {} while (0)
-#define ice_print_vf_rx_mdd_event(vf) do {} while (0)
-#define ice_restore_all_vfs_msi_state(pdev) do {} while (0)
+static inline void ice_process_vflr_event(struct ice_pf *pf) { }
+static inline void ice_free_vfs(struct ice_pf *pf) { }
+static inline
+void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event) { }
+static inline void ice_vc_notify_link_state(struct ice_pf *pf) { }
+static inline void ice_vc_notify_reset(struct ice_pf *pf) { }
+static inline void ice_set_vf_state_qs_dis(struct ice_vf *vf) { }
+static inline
+void ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event) { }
+static inline void ice_print_vfs_mdd_events(struct ice_pf *pf) { }
+static inline void ice_print_vf_rx_mdd_event(struct ice_vf *vf) { }
+static inline void ice_restore_all_vfs_msi_state(struct pci_dev *pdev) { }
 
 static inline bool
 ice_is_malicious_vf(struct ice_pf __always_unused *pf,

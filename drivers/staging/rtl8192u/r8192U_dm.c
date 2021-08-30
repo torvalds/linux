@@ -2876,7 +2876,8 @@ void dm_check_fsync(struct net_device *dev)
  *	When		Who		Remark
  *	05/29/2008	amy		Create Version 0 porting from windows code.
  *
- *---------------------------------------------------------------------------*/
+ *---------------------------------------------------------------------------
+ */
 void dm_shadow_init(struct net_device *dev)
 {
 	u8	page;
@@ -2915,7 +2916,8 @@ void dm_shadow_init(struct net_device *dev)
  *	When		Who		Remark
  *	03/06/2008	Jacken	Create Version 0.
  *
- *---------------------------------------------------------------------------*/
+ *---------------------------------------------------------------------------
+ */
 static void dm_init_dynamic_txpower(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);

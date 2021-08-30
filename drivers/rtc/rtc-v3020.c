@@ -282,7 +282,7 @@ static int rtc_probe(struct platform_device *pdev)
 {
 	struct v3020_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct v3020 *chip;
-	int retval = -EBUSY;
+	int retval;
 	int i;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);

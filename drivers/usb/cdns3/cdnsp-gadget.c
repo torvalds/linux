@@ -56,7 +56,8 @@ u32 cdnsp_port_state_to_neutral(u32 state)
 }
 
 /**
- * Find the offset of the extended capabilities with capability ID id.
+ * cdnsp_find_next_ext_cap - Find the offset of the extended capabilities
+ *                           with capability ID id.
  * @base: PCI MMIO registers base address.
  * @start: Address at which to start looking, (0 or HCC_PARAMS to start at
  *         beginning of list)
@@ -1151,7 +1152,7 @@ static int cdnsp_gadget_ep_set_halt(struct usb_ep *ep, int value)
 	struct cdnsp_ep *pep = to_cdnsp_ep(ep);
 	struct cdnsp_device *pdev = pep->pdev;
 	struct cdnsp_request *preq;
-	unsigned long flags = 0;
+	unsigned long flags;
 	int ret;
 
 	spin_lock_irqsave(&pdev->lock, flags);
@@ -1176,7 +1177,7 @@ static int cdnsp_gadget_ep_set_wedge(struct usb_ep *ep)
 {
 	struct cdnsp_ep *pep = to_cdnsp_ep(ep);
 	struct cdnsp_device *pdev = pep->pdev;
-	unsigned long flags = 0;
+	unsigned long flags;
 	int ret;
 
 	spin_lock_irqsave(&pdev->lock, flags);

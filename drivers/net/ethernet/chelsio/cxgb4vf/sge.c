@@ -954,7 +954,7 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *tq,
 }
 
 /**
- *	check_ring_tx_db - check and potentially ring a TX queue's doorbell
+ *	ring_tx_db - check and potentially ring a TX queue's doorbell
  *	@adapter: the adapter
  *	@tq: the TX queue
  *	@n: number of new descriptors to give to HW

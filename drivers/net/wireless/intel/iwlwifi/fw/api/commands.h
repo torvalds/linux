@@ -535,11 +535,6 @@ enum iwl_legacy_cmds {
 	OFFLOADS_QUERY_CMD = 0xd5,
 
 	/**
-	 * @REMOTE_WAKE_CONFIG_CMD: &struct iwl_wowlan_remote_wake_config
-	 */
-	REMOTE_WAKE_CONFIG_CMD = 0xd6,
-
-	/**
 	 * @D0I3_END_CMD: End D0i3/D3 state, no command data
 	 */
 	D0I3_END_CMD = 0xed,

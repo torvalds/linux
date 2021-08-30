@@ -98,6 +98,7 @@ int via_map_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 
 int via_driver_load(struct drm_device *dev, unsigned long chipset)
 {
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	drm_via_private_t *dev_priv;
 	int ret = 0;
 
@@ -110,7 +111,7 @@ int via_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	dev_priv->chipset = chipset;
 
-	pci_set_master(dev->pdev);
+	pci_set_master(pdev);
 
 	ret = drm_vblank_init(dev, 1);
 	if (ret) {

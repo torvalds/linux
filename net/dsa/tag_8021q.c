@@ -471,4 +471,27 @@ struct sk_buff *dsa_8021q_xmit(struct sk_buff *skb, struct net_device *netdev,
 }
 EXPORT_SYMBOL_GPL(dsa_8021q_xmit);
 
+void dsa_8021q_rcv(struct sk_buff *skb, int *source_port, int *switch_id,
+		   int *subvlan)
+{
+	u16 vid, tci;
+
+	skb_push_rcsum(skb, ETH_HLEN);
+	if (skb_vlan_tag_present(skb)) {
+		tci = skb_vlan_tag_get(skb);
+		__vlan_hwaccel_clear_tag(skb);
+	} else {
+		__skb_vlan_pop(skb, &tci);
+	}
+	skb_pull_rcsum(skb, ETH_HLEN);
+
+	vid = tci & VLAN_VID_MASK;
+
+	*source_port = dsa_8021q_rx_source_port(vid);
+	*switch_id = dsa_8021q_rx_switch_id(vid);
+	*subvlan = dsa_8021q_rx_subvlan(vid);
+	skb->priority = (tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+}
+EXPORT_SYMBOL_GPL(dsa_8021q_rcv);
+
 MODULE_LICENSE("GPL v2");

@@ -430,17 +430,19 @@ static int snd_gf1_pcm_playback_hw_params(struct snd_pcm_substream *substream,
 			snd_gf1_mem_free(&gus->gf1.mem_alloc, pcmp->memory);
 			pcmp->memory = 0;
 		}
-		if ((block = snd_gf1_mem_alloc(&gus->gf1.mem_alloc,
-		                               SNDRV_GF1_MEM_OWNER_DRIVER,
-					       "GF1 PCM",
-		                               runtime->dma_bytes, 1, 32,
-		                               NULL)) == NULL)
+		block = snd_gf1_mem_alloc(&gus->gf1.mem_alloc,
+					  SNDRV_GF1_MEM_OWNER_DRIVER,
+					  "GF1 PCM",
+					  runtime->dma_bytes, 1, 32,
+					  NULL);
+		if (!block)
 			return -ENOMEM;
 		pcmp->memory = block->ptr;
 	}
 	pcmp->voices = params_channels(hw_params);
 	if (pcmp->pvoices[0] == NULL) {
-		if ((pcmp->pvoices[0] = snd_gf1_alloc_voice(pcmp->gus, SNDRV_GF1_VOICE_TYPE_PCM, 0, 0)) == NULL)
+		pcmp->pvoices[0] = snd_gf1_alloc_voice(pcmp->gus, SNDRV_GF1_VOICE_TYPE_PCM, 0, 0);
+		if (!pcmp->pvoices[0])
 			return -ENOMEM;
 		pcmp->pvoices[0]->handler_wave = snd_gf1_pcm_interrupt_wave;
 		pcmp->pvoices[0]->handler_volume = snd_gf1_pcm_interrupt_volume;
@@ -448,7 +450,8 @@ static int snd_gf1_pcm_playback_hw_params(struct snd_pcm_substream *substream,
 		pcmp->pvoices[0]->private_data = pcmp;
 	}
 	if (pcmp->voices > 1 && pcmp->pvoices[1] == NULL) {
-		if ((pcmp->pvoices[1] = snd_gf1_alloc_voice(pcmp->gus, SNDRV_GF1_VOICE_TYPE_PCM, 0, 0)) == NULL)
+		pcmp->pvoices[1] = snd_gf1_alloc_voice(pcmp->gus, SNDRV_GF1_VOICE_TYPE_PCM, 0, 0);
+		if (!pcmp->pvoices[1])
 			return -ENOMEM;
 		pcmp->pvoices[1]->handler_wave = snd_gf1_pcm_interrupt_wave;
 		pcmp->pvoices[1]->handler_volume = snd_gf1_pcm_interrupt_volume;
@@ -689,7 +692,8 @@ static int snd_gf1_pcm_playback_open(struct snd_pcm_substream *substream)
 	printk(KERN_DEBUG "playback.buffer = 0x%lx, gf1.pcm_buffer = 0x%lx\n",
 	       (long) pcm->playback.buffer, (long) gus->gf1.pcm_buffer);
 #endif
-	if ((err = snd_gf1_dma_init(gus)) < 0)
+	err = snd_gf1_dma_init(gus);
+	if (err < 0)
 		return err;
 	pcmp->flags = SNDRV_GF1_PCM_PFLG_NONE;
 	pcmp->substream = substream;
@@ -888,7 +892,8 @@ int snd_gf1_pcm_new(struct snd_gus_card *gus, int pcm_dev, int control_index)
 		kctl = snd_ctl_new1(&snd_gf1_pcm_volume_control1, gus);
 	else
 		kctl = snd_ctl_new1(&snd_gf1_pcm_volume_control, gus);
-	if ((err = snd_ctl_add(card, kctl)) < 0)
+	err = snd_ctl_add(card, kctl);
+	if (err < 0)
 		return err;
 	kctl->id.index = control_index;
 

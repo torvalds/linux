@@ -1979,7 +1979,8 @@ int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 		if (rc)
 			return rc;
 
-		if (get_resp.u.max_queue_ext.version != ENA_FEATURE_MAX_QUEUE_EXT_VER)
+		if (get_resp.u.max_queue_ext.version !=
+		    ENA_FEATURE_MAX_QUEUE_EXT_VER)
 			return -EINVAL;
 
 		memcpy(&get_feat_ctx->max_queue_ext, &get_resp.u.max_queue_ext,

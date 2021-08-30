@@ -544,7 +544,7 @@ static int vega10_get_socclk_for_voltage_evv(struct pp_hwmgr *hwmgr,
 
 #define ATOM_VIRTUAL_VOLTAGE_ID0             0xff01
 /**
- * Get Leakage VDDC based on leakage ID.
+ * vega10_get_evv_voltages - Get Leakage VDDC based on leakage ID.
  *
  * @hwmgr:  the address of the powerplay hardware manager.
  * return:  always 0.
@@ -600,7 +600,7 @@ static int vega10_get_evv_voltages(struct pp_hwmgr *hwmgr)
 }
 
 /**
- * Change virtual leakage voltage to actual value.
+ * vega10_patch_with_vdd_leakage - Change virtual leakage voltage to actual value.
  *
  * @hwmgr:         the address of the powerplay hardware manager.
  * @voltage:       pointer to changing voltage
@@ -626,7 +626,7 @@ static void vega10_patch_with_vdd_leakage(struct pp_hwmgr *hwmgr,
 }
 
 /**
- * Patch voltage lookup table by EVV leakages.
+ * vega10_patch_lookup_table_with_leakage - Patch voltage lookup table by EVV leakages.
  *
  * @hwmgr:         the address of the powerplay hardware manager.
  * @lookup_table:  pointer to voltage lookup table
@@ -1003,7 +1003,7 @@ static int vega10_setup_asic_task(struct pp_hwmgr *hwmgr)
 }
 
 /**
- * Remove repeated voltage values and create table with unique values.
+ * vega10_trim_voltage_table - Remove repeated voltage values and create table with unique values.
  *
  * @hwmgr:      the address of the powerplay hardware manager.
  * @vol_table:  the pointer to changing voltage table
@@ -1152,7 +1152,7 @@ static void vega10_trim_voltage_table_to_fit_state_table(
 }
 
 /**
- * Create Voltage Tables.
+ * vega10_construct_voltage_tables - Create Voltage Tables.
  *
  * @hwmgr:  the address of the powerplay hardware manager.
  * return:  always 0
@@ -1595,7 +1595,8 @@ static int vega10_populate_smc_link_levels(struct pp_hwmgr *hwmgr)
 }
 
 /**
- * Populates single SMC GFXSCLK structure using the provided engine clock
+ * vega10_populate_single_gfx_level - Populates single SMC GFXSCLK structure
+ *                                    using the provided engine clock
  *
  * @hwmgr:      the address of the hardware manager
  * @gfx_clock:  the GFX clock to use to populate the structure.
@@ -1660,7 +1661,8 @@ static int vega10_populate_single_gfx_level(struct pp_hwmgr *hwmgr,
 }
 
 /**
- * Populates single SMC SOCCLK structure using the provided clock.
+ * vega10_populate_single_soc_level - Populates single SMC SOCCLK structure
+ *                                    using the provided clock.
  *
  * @hwmgr:     the address of the hardware manager.
  * @soc_clock: the SOC clock to use to populate the structure.
@@ -1710,7 +1712,8 @@ static int vega10_populate_single_soc_level(struct pp_hwmgr *hwmgr,
 }
 
 /**
- * Populates all SMC SCLK levels' structure based on the trimmed allowed dpm engine clock states
+ * vega10_populate_all_graphic_levels - Populates all SMC SCLK levels' structure
+ *                                      based on the trimmed allowed dpm engine clock states
  *
  * @hwmgr:      the address of the hardware manager
  */
@@ -1859,7 +1862,8 @@ static int vega10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 }
 
 /**
- * Populates all SMC MCLK levels' structure based on the trimmed allowed dpm memory clock states.
+ * vega10_populate_all_memory_levels - Populates all SMC MCLK levels' structure
+ *                                     based on the trimmed allowed dpm memory clock states.
  *
  * @hwmgr:  the address of the hardware manager.
  * return:   PP_Result_OK on success.
@@ -2537,7 +2541,7 @@ static void vega10_check_dpm_table_updated(struct pp_hwmgr *hwmgr)
 }
 
 /**
- * Initializes the SMC table and uploads it
+ * vega10_init_smc_table - Initializes the SMC table and uploads it
  *
  * @hwmgr:  the address of the powerplay hardware manager.
  * return:  always 0
@@ -2919,7 +2923,7 @@ static int vega10_stop_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 }
 
 /**
- * Tell SMC to enabled the supported DPMs.
+ * vega10_start_dpm - Tell SMC to enabled the supported DPMs.
  *
  * @hwmgr:   the address of the powerplay hardware manager.
  * @bitmap:  bitmap for the features to enabled.

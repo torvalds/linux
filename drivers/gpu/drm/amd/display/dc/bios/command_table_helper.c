@@ -114,7 +114,7 @@ bool dal_cmd_table_helper_controller_id_to_atom(
 }
 
 /**
- * translate_transmitter_bp_to_atom - Translate the Transmitter to the
+ * dal_cmd_table_helper_transmitter_bp_to_atom - Translate the Transmitter to the
  *                                    corresponding ATOM BIOS value
  * @t: transmitter
  * returns: output digitalTransmitter

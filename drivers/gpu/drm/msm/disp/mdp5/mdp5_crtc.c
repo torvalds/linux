@@ -291,8 +291,8 @@ static void blend_setup(struct drm_crtc *crtc)
 		plane = pstates[i]->base.plane;
 		blend_op = MDP5_LM_BLEND_OP_MODE_FG_ALPHA(FG_CONST) |
 			MDP5_LM_BLEND_OP_MODE_BG_ALPHA(BG_CONST);
-		fg_alpha = pstates[i]->alpha;
-		bg_alpha = 0xFF - pstates[i]->alpha;
+		fg_alpha = pstates[i]->base.alpha >> 8;
+		bg_alpha = 0xFF - fg_alpha;
 
 		if (!format->alpha_enable && bg_alpha_enabled)
 			mixer_op_mode = 0;
@@ -301,7 +301,8 @@ static void blend_setup(struct drm_crtc *crtc)
 
 		DBG("Stage %d fg_alpha %x bg_alpha %x", i, fg_alpha, bg_alpha);
 
-		if (format->alpha_enable && pstates[i]->premultiplied) {
+		if (format->alpha_enable &&
+		    pstates[i]->base.pixel_blend_mode == DRM_MODE_BLEND_PREMULTI) {
 			blend_op = MDP5_LM_BLEND_OP_MODE_FG_ALPHA(FG_CONST) |
 				MDP5_LM_BLEND_OP_MODE_BG_ALPHA(FG_PIXEL);
 			if (fg_alpha != 0xff) {
@@ -312,7 +313,8 @@ static void blend_setup(struct drm_crtc *crtc)
 			} else {
 				blend_op |= MDP5_LM_BLEND_OP_MODE_BG_INV_ALPHA;
 			}
-		} else if (format->alpha_enable) {
+		} else if (format->alpha_enable &&
+			   pstates[i]->base.pixel_blend_mode == DRM_MODE_BLEND_COVERAGE) {
 			blend_op = MDP5_LM_BLEND_OP_MODE_FG_ALPHA(FG_PIXEL) |
 				MDP5_LM_BLEND_OP_MODE_BG_ALPHA(FG_PIXEL);
 			if (fg_alpha != 0xff) {
@@ -648,7 +650,7 @@ static int pstate_cmp(const void *a, const void *b)
 {
 	struct plane_state *pa = (struct plane_state *)a;
 	struct plane_state *pb = (struct plane_state *)b;
-	return pa->state->zpos - pb->state->zpos;
+	return pa->state->base.normalized_zpos - pb->state->base.normalized_zpos;
 }
 
 /* is there a helper for this? */

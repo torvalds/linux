@@ -74,7 +74,7 @@ static void test_perf_branches_common(int perf_fd,
 
 	/* attach perf_event */
 	link = bpf_program__attach_perf_event(skel->progs.perf_branches, perf_fd);
-	if (CHECK(IS_ERR(link), "attach_perf_event", "err %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_perf_event"))
 		goto out_destroy_skel;
 
 	/* generate some branches on cpu 0 */
@@ -119,7 +119,7 @@ static void test_perf_branches_hw(void)
 	 * Some setups don't support branch records (virtual machines, !x86),
 	 * so skip test in this case.
 	 */
-	if (pfd == -1) {
+	if (pfd < 0) {
 		if (errno == ENOENT || errno == EOPNOTSUPP) {
 			printf("%s:SKIP:no PERF_SAMPLE_BRANCH_STACK\n",
 			       __func__);

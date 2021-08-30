@@ -22,6 +22,7 @@ absolut||absolute
 absoulte||absolute
 acccess||access
 acceess||access
+accelaration||acceleration
 acceleratoin||acceleration
 accelleration||acceleration
 accesing||accessing
@@ -264,6 +265,7 @@ calucate||calculate
 calulate||calculate
 cancelation||cancellation
 cancle||cancel
+canot||cannot
 capabilites||capabilities
 capabilties||capabilities
 capabilty||capability
@@ -494,7 +496,10 @@ digial||digital
 dimention||dimension
 dimesions||dimensions
 diconnected||disconnected
+disabed||disabled
+disble||disable
 disgest||digest
+disired||desired
 dispalying||displaying
 diplay||display
 directon||direction
@@ -710,6 +715,7 @@ havind||having
 heirarchically||hierarchically
 heirarchy||hierarchy
 helpfull||helpful
+hearbeat||heartbeat
 heterogenous||heterogeneous
 hexdecimal||hexadecimal
 hybernate||hibernate
@@ -989,6 +995,7 @@ notications||notifications
 notifcations||notifications
 notifed||notified
 notity||notify
+nubmer||number
 numebr||number
 numner||number
 obtaion||obtain
@@ -1014,8 +1021,10 @@ ommiting||omitting
 ommitted||omitted
 onself||oneself
 ony||only
+openning||opening
 operatione||operation
 opertaions||operations
+opportunies||opportunities
 optionnal||optional
 optmizations||optimizations
 orientatied||orientated
@@ -1111,6 +1120,7 @@ prefitler||prefilter
 preform||perform
 premption||preemption
 prepaired||prepared
+prepate||prepare
 preperation||preparation
 preprare||prepare
 pressre||pressure
@@ -1123,6 +1133,7 @@ privilaged||privileged
 privilage||privilege
 priviledge||privilege
 priviledges||privileges
+privleges||privileges
 probaly||probably
 procceed||proceed
 proccesors||processors
@@ -1167,6 +1178,7 @@ promixity||proximity
 psudo||pseudo
 psuedo||pseudo
 psychadelic||psychedelic
+purgable||purgeable
 pwoer||power
 queing||queuing
 quering||querying
@@ -1180,6 +1192,7 @@ receieve||receive
 recepient||recipient
 recevied||received
 receving||receiving
+recievd||received
 recieved||received
 recieve||receive
 reciever||receiver
@@ -1228,6 +1241,7 @@ reponse||response
 representaion||representation
 reqeust||request
 reqister||register
+requed||requeued
 requestied||requested
 requiere||require
 requirment||requirement
@@ -1332,6 +1346,7 @@ singal||signal
 singed||signed
 sleeped||slept
 sliped||slipped
+softwade||software
 softwares||software
 soley||solely
 souce||source
@@ -1510,6 +1525,7 @@ unintialized||uninitialized
 unitialized||uninitialized
 unkmown||unknown
 unknonw||unknown
+unknouwn||unknown
 unknow||unknown
 unkown||unknown
 unamed||unnamed

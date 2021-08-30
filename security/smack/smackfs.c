@@ -380,7 +380,7 @@ static int smk_parse_rule(const char *data, struct smack_parsed_rule *rule,
  * @data: string to be parsed, null terminated
  * @rule: Will be filled with Smack parsed rule
  * @import: if non-zero, import labels
- * @tokens: numer of substrings expected in data
+ * @tokens: number of substrings expected in data
  *
  * Returns number of processed bytes on success, -ERRNO on failure.
  */
@@ -854,6 +854,8 @@ static ssize_t smk_set_cipso(struct file *file, const char __user *buf,
 		return -EINVAL;
 	if (format == SMK_FIXED24_FMT &&
 	    (count < SMK_CIPSOMIN || count > SMK_CIPSOMAX))
+		return -EINVAL;
+	if (count > PAGE_SIZE)
 		return -EINVAL;
 
 	data = memdup_user_nul(buf, count);

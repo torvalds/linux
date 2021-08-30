@@ -20,6 +20,8 @@
 #include <linux/input.h>
 #include <linux/spi/spi.h>
 
+#define CY_SPI_NAME		"cyttsp-spi"
+
 #define CY_SPI_WR_OP		0x00 /* r/~w */
 #define CY_SPI_RD_OP		0x01
 #define CY_SPI_CMD_BYTES	4
@@ -160,10 +162,18 @@ static int cyttsp_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id cyttsp_of_spi_match[] = {
+	{ .compatible = "cypress,cy8ctma340", },
+	{ .compatible = "cypress,cy8ctst341", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, cyttsp_of_spi_match);
+
 static struct spi_driver cyttsp_spi_driver = {
 	.driver = {
 		.name	= CY_SPI_NAME,
 		.pm	= &cyttsp_pm_ops,
+		.of_match_table = cyttsp_of_spi_match,
 	},
 	.probe  = cyttsp_spi_probe,
 };

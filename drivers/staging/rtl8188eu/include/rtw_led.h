@@ -52,7 +52,7 @@ struct LED_871x {
 						   * either RTW_LED_ON or RTW_LED_OFF are.
 						   */
 
-	u8 bLedOn; /*  true if LED is ON, false if LED is OFF. */
+	u8 led_on; /*  true if LED is ON, false if LED is OFF. */
 
 	u8 bLedBlinkInProgress; /*  true if it is blinking, false o.w.. */
 

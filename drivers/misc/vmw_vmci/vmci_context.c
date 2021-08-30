@@ -107,7 +107,7 @@ struct vmci_ctx *vmci_ctx_create(u32 cid, u32 priv_flags,
 	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context) {
 		pr_warn("Failed to allocate memory for VMCI context\n");
-		error = -EINVAL;
+		error = -ENOMEM;
 		goto err_out;
 	}
 

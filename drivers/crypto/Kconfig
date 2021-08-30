@@ -267,14 +267,14 @@ config CRYPTO_DEV_NIAGARA2
 	  checksumming, and raw copies.
 
 config CRYPTO_DEV_SL3516
-	tristate "Stormlink SL3516 crypto offloader"
-	depends on HAS_IOMEM
+	tristate "Storlink SL3516 crypto offloader"
+	depends on ARCH_GEMINI || COMPILE_TEST
+	depends on HAS_IOMEM && PM
 	select CRYPTO_SKCIPHER
 	select CRYPTO_ENGINE
 	select CRYPTO_ECB
 	select CRYPTO_AES
 	select HW_RANDOM
-	depends on PM
 	help
 	  This option allows you to have support for SL3516 crypto offloader.
 

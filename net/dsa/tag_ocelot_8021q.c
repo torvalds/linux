@@ -41,29 +41,15 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 				  struct net_device *netdev,
 				  struct packet_type *pt)
 {
-	int src_port, switch_id, qos_class;
-	u16 vid, tci;
+	int src_port, switch_id, subvlan;
 
-	skb_push_rcsum(skb, ETH_HLEN);
-	if (skb_vlan_tag_present(skb)) {
-		tci = skb_vlan_tag_get(skb);
-		__vlan_hwaccel_clear_tag(skb);
-	} else {
-		__skb_vlan_pop(skb, &tci);
-	}
-	skb_pull_rcsum(skb, ETH_HLEN);
-
-	vid = tci & VLAN_VID_MASK;
-	src_port = dsa_8021q_rx_source_port(vid);
-	switch_id = dsa_8021q_rx_switch_id(vid);
-	qos_class = (tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+	dsa_8021q_rcv(skb, &src_port, &switch_id, &subvlan);
 
 	skb->dev = dsa_master_find_slave(netdev, switch_id, src_port);
 	if (!skb->dev)
 		return NULL;
 
 	skb->offload_fwd_mark = 1;
-	skb->priority = qos_class;
 
 	return skb;
 }
@@ -73,7 +59,7 @@ static const struct dsa_device_ops ocelot_8021q_netdev_ops = {
 	.proto			= DSA_TAG_PROTO_OCELOT_8021Q,
 	.xmit			= ocelot_xmit,
 	.rcv			= ocelot_rcv,
-	.overhead		= VLAN_HLEN,
+	.needed_headroom	= VLAN_HLEN,
 	.promisc_on_master	= true,
 };
 

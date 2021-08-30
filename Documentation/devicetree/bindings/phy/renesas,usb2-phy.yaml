@@ -39,7 +39,6 @@ properties:
 
   clock-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: fck
       - const: usb_x1
@@ -61,7 +60,6 @@ properties:
 
   resets:
     minItems: 1
-    maxItems: 2
     items:
       - description: reset of USB 2.0 host side
       - description: reset of USB 2.0 peripheral side

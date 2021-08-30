@@ -63,7 +63,7 @@ TRACE_EVENT(hfi1_interrupt,
 			     __array(char, buf, 64)
 			     __field(int, src)
 			     ),
-	    TP_fast_assign(DD_DEV_ASSIGN(dd)
+	    TP_fast_assign(DD_DEV_ASSIGN(dd);
 			   is_entry->is_name(__entry->buf, 64,
 					     src - is_entry->start);
 			   __entry->src = src;
@@ -100,7 +100,7 @@ TRACE_EVENT(hfi1_fault_opcode,
 			     __field(u32, qpn)
 			     __field(u8, opcode)
 			     ),
-	    TP_fast_assign(DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+	    TP_fast_assign(DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
 			   __entry->qpn = qp->ibqp.qp_num;
 			   __entry->opcode = opcode;
 			   ),

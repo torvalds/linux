@@ -29,7 +29,7 @@ struct notifier_block;		/* in notifier.h */
 #define VM_NO_HUGE_VMAP		0x00000400	/* force PAGE_SIZE pte mapping */
 
 /*
- * VM_KASAN is used slighly differently depending on CONFIG_KASAN_VMALLOC.
+ * VM_KASAN is used slightly differently depending on CONFIG_KASAN_VMALLOC.
  *
  * If IS_ENABLED(CONFIG_KASAN_VMALLOC), VM_KASAN is set on a vm_struct after
  * shadow memory has been mapped. It's used to handle allocation errors so that
@@ -101,6 +101,21 @@ static inline bool arch_vmap_pud_supported(pgprot_t prot)
 static inline bool arch_vmap_pmd_supported(pgprot_t prot)
 {
 	return false;
+}
+#endif
+
+#ifndef arch_vmap_pte_range_map_size
+static inline unsigned long arch_vmap_pte_range_map_size(unsigned long addr, unsigned long end,
+							 u64 pfn, unsigned int max_page_shift)
+{
+	return PAGE_SIZE;
+}
+#endif
+
+#ifndef arch_vmap_pte_supported_shift
+static inline int arch_vmap_pte_supported_shift(unsigned long size)
+{
+	return PAGE_SHIFT;
 }
 #endif
 
@@ -232,7 +247,7 @@ static inline void set_vm_flush_reset_perms(void *addr)
 extern long vread(char *buf, char *addr, unsigned long count);
 
 /*
- *	Internals.  Dont't use..
+ *	Internals.  Don't use..
  */
 extern struct list_head vmap_area_list;
 extern __init void vm_area_add_early(struct vm_struct *vm);

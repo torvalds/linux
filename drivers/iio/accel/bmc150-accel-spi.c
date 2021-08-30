@@ -34,26 +34,27 @@ static int bmc150_accel_remove(struct spi_device *spi)
 }
 
 static const struct acpi_device_id bmc150_accel_acpi_match[] = {
-	{"BSBA0150",	bmc150},
-	{"BMC150A",	bmc150},
-	{"BMI055A",	bmi055},
-	{"BMA0255",	bma255},
-	{"BMA250E",	bma250e},
-	{"BMA222",	bma222},
-	{"BMA222E",	bma222e},
-	{"BMA0280",	bma280},
+	{"BMA0255"},
+	{"BMA0280"},
+	{"BMA222"},
+	{"BMA222E"},
+	{"BMA250E"},
+	{"BMC150A"},
+	{"BMI055A"},
+	{"BSBA0150"},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, bmc150_accel_acpi_match);
 
 static const struct spi_device_id bmc150_accel_id[] = {
-	{"bmc150_accel",	bmc150},
-	{"bmi055_accel",	bmi055},
-	{"bma255",		bma255},
-	{"bma250e",		bma250e},
-	{"bma222",		bma222},
-	{"bma222e",		bma222e},
-	{"bma280",		bma280},
+	{"bma222"},
+	{"bma222e"},
+	{"bma250e"},
+	{"bma253"},
+	{"bma255"},
+	{"bma280"},
+	{"bmc150_accel"},
+	{"bmi055_accel"},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, bmc150_accel_id);

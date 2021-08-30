@@ -597,9 +597,14 @@ static int __init acpi_ipmi_init(void)
 		pr_warn("Can't register IPMI opregion space handle\n");
 		return -EINVAL;
 	}
+
 	result = ipmi_smi_watcher_register(&driver_data.bmc_events);
-	if (result)
+	if (result) {
+		acpi_remove_address_space_handler(ACPI_ROOT_OBJECT,
+										  ACPI_ADR_SPACE_IPMI,
+										  &acpi_ipmi_space_handler);
 		pr_err("Can't register IPMI system interface watcher\n");
+	}
 
 	return result;
 }

@@ -1717,6 +1717,9 @@ static void qedf_setup_fdmi(struct qedf_ctx *qedf)
 	    FW_MAJOR_VERSION, FW_MINOR_VERSION, FW_REVISION_VERSION,
 	    FW_ENGINEERING_VERSION);
 
+	snprintf(fc_host_vendor_identifier(lport->host),
+		FC_VENDOR_IDENTIFIER, "%s", "Marvell");
+
 }
 
 static int qedf_lport_setup(struct qedf_ctx *qedf)
@@ -1877,6 +1880,7 @@ static int qedf_vport_create(struct fc_vport *vport, bool disabled)
 	vn_port->host->max_lun = qedf_max_lun;
 	vn_port->host->sg_tablesize = QEDF_MAX_BDS_PER_CMD;
 	vn_port->host->max_cmd_len = QEDF_MAX_CDB_LEN;
+	vn_port->host->max_id = QEDF_MAX_SESSIONS;
 
 	rc = scsi_add_host(vn_port->host, &vport->dev);
 	if (rc) {
@@ -3528,6 +3532,7 @@ retry_probe:
 		host->transportt = qedf_fc_transport_template;
 		host->max_lun = qedf_max_lun;
 		host->max_cmd_len = QEDF_MAX_CDB_LEN;
+		host->max_id = QEDF_MAX_SESSIONS;
 		host->can_queue = FCOE_PARAMS_NUM_TASKS;
 		rc = scsi_add_host(host, &pdev->dev);
 		if (rc) {
@@ -3971,10 +3976,6 @@ void qedf_stag_change_work(struct work_struct *work)
 	struct qedf_ctx *qedf =
 	    container_of(work, struct qedf_ctx, stag_work.work);
 
-	if (!qedf) {
-		QEDF_ERR(NULL, "qedf is NULL");
-		return;
-	}
 	QEDF_ERR(&qedf->dbg_ctx, "Performing software context reset.\n");
 	qedf_ctx_soft_reset(qedf->lport);
 }

@@ -101,11 +101,19 @@ examples:
             clocks = <&clock 0 2 1>;
             clock-names = "apb_pclk";
         };
+    };
 
-        mhu_client_scb: scb@2e000000 {
-            compatible = "fujitsu,mb86s70-scb-1.0";
-            reg = <0 0x2e000000 0 0x4000>;
+    firmware {
+        scpi {
+            compatible = "arm,scpi";
             mboxes = <&mhuA 1>; /* HP-NonSecure */
+            shmem = <&cpu_scp_hpri>; /* HP-NonSecure */
+
+            scpi_devpd: power-controller {
+                compatible = "arm,scpi-power-domains";
+                num-domains = <2>;
+                #power-domain-cells = <1>;
+            };
         };
     };
 
@@ -125,10 +133,36 @@ examples:
             clocks = <&clock 0 2 1>;
             clock-names = "apb_pclk";
         };
+    };
 
-        mhu_client_scpi: scpi@2f000000 {
-            compatible = "arm,scpi";
-            reg = <0 0x2f000000 0 0x200>;
-            mboxes = <&mhuB 1 4>; /* HP-NonSecure, 5th doorbell */
+    firmware {
+        scmi {
+            compatible = "arm,scmi";
+            mboxes = <&mhuB 0 0>, /* LP-NonSecure, 1st doorbell */
+                     <&mhuB 0 1>; /* LP-NonSecure, 2nd doorbell */
+            mbox-names = "tx", "rx";
+            shmem = <&cpu_scp_lpri0>,
+                    <&cpu_scp_lpri1>;
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            scmi_devpd: protocol@11 {
+                reg = <0x11>;
+                #power-domain-cells = <1>;
+            };
+
+            scmi_dvfs: protocol@13 {
+                reg = <0x13>;
+                #clock-cells = <1>;
+
+                mboxes = <&mhuB 1 2>, /* HP-NonSecure, 3rd doorbell */
+                         <&mhuB 1 3>; /* HP-NonSecure, 4th doorbell */
+                mbox-names = "tx", "rx";
+                shmem = <&cpu_scp_hpri0>,
+                        <&cpu_scp_hpri1>;
+            };
         };
     };
+
+...

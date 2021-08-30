@@ -404,19 +404,24 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 
 	drm_plane_helper_add(primary, &vmw_ldu_primary_plane_helper_funcs);
 
-	/* Initialize cursor plane */
-	ret = drm_universal_plane_init(dev, &ldu->base.cursor,
-			0, &vmw_ldu_cursor_funcs,
-			vmw_cursor_plane_formats,
-			ARRAY_SIZE(vmw_cursor_plane_formats),
-			NULL, DRM_PLANE_TYPE_CURSOR, NULL);
-	if (ret) {
-		DRM_ERROR("Failed to initialize cursor plane");
-		drm_plane_cleanup(&ldu->base.primary);
-		goto err_free;
-	}
+	/*
+	 * We're going to be using traces and software cursors
+	 */
+	if (vmw_cmd_supported(dev_priv)) {
+		/* Initialize cursor plane */
+		ret = drm_universal_plane_init(dev, &ldu->base.cursor,
+					       0, &vmw_ldu_cursor_funcs,
+					       vmw_cursor_plane_formats,
+					       ARRAY_SIZE(vmw_cursor_plane_formats),
+					       NULL, DRM_PLANE_TYPE_CURSOR, NULL);
+		if (ret) {
+			DRM_ERROR("Failed to initialize cursor plane");
+			drm_plane_cleanup(&ldu->base.primary);
+			goto err_free;
+		}
 
-	drm_plane_helper_add(cursor, &vmw_ldu_cursor_plane_helper_funcs);
+		drm_plane_helper_add(cursor, &vmw_ldu_cursor_plane_helper_funcs);
+	}
 
 	ret = drm_connector_init(dev, connector, &vmw_legacy_connector_funcs,
 				 DRM_MODE_CONNECTOR_VIRTUAL);
@@ -445,9 +450,10 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 		goto err_free_encoder;
 	}
 
-	ret = drm_crtc_init_with_planes(dev, crtc, &ldu->base.primary,
-					&ldu->base.cursor,
-					&vmw_legacy_crtc_funcs, NULL);
+	ret = drm_crtc_init_with_planes(
+		      dev, crtc, &ldu->base.primary,
+		      vmw_cmd_supported(dev_priv) ? &ldu->base.cursor : NULL,
+		      &vmw_legacy_crtc_funcs, NULL);
 	if (ret) {
 		DRM_ERROR("Failed to initialize CRTC\n");
 		goto err_free_unregister;

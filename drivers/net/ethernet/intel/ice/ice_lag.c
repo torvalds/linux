@@ -172,6 +172,7 @@ ice_lag_link(struct ice_lag *lag, struct netdev_notifier_changeupper_info *info)
 	}
 
 	ice_clear_sriov_cap(pf);
+	ice_clear_rdma_cap(pf);
 
 	lag->bonded = true;
 	lag->role = ICE_LAG_UNSET;
@@ -222,6 +223,7 @@ ice_lag_unlink(struct ice_lag *lag,
 	}
 
 	ice_set_sriov_cap(pf);
+	ice_set_rdma_cap(pf);
 	lag->bonded = false;
 	lag->role = ICE_LAG_NONE;
 }

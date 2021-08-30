@@ -6,7 +6,9 @@
 #include <dt-bindings/clock/qcom,gcc-msm8996.h>
 #include <dt-bindings/clock/qcom,mmcc-msm8996.h>
 #include <dt-bindings/clock/qcom,rpmcc.h>
+#include <dt-bindings/power/qcom-rpmpd.h>
 #include <dt-bindings/soc/qcom,apr.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	interrupt-parent = <&intc>;
@@ -43,6 +45,9 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
 			capacity-dmips-mhz = <1024>;
+			clocks = <&kryocc 0>;
+			operating-points-v2 = <&cluster0_opp>;
+			#cooling-cells = <2>;
 			next-level-cache = <&L2_0>;
 			L2_0: l2-cache {
 			      compatible = "cache";
@@ -57,6 +62,9 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
 			capacity-dmips-mhz = <1024>;
+			clocks = <&kryocc 0>;
+			operating-points-v2 = <&cluster0_opp>;
+			#cooling-cells = <2>;
 			next-level-cache = <&L2_0>;
 		};
 
@@ -67,6 +75,9 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
 			capacity-dmips-mhz = <1024>;
+			clocks = <&kryocc 1>;
+			operating-points-v2 = <&cluster1_opp>;
+			#cooling-cells = <2>;
 			next-level-cache = <&L2_1>;
 			L2_1: l2-cache {
 			      compatible = "cache";
@@ -81,6 +92,9 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
 			capacity-dmips-mhz = <1024>;
+			clocks = <&kryocc 1>;
+			operating-points-v2 = <&cluster1_opp>;
+			#cooling-cells = <2>;
 			next-level-cache = <&L2_1>;
 		};
 
@@ -117,6 +131,227 @@
 				exit-latency-us = <80>;
 				min-residency-us = <300>;
 			};
+		};
+	};
+
+	cluster0_opp: opp_table0 {
+		compatible = "operating-points-v2-kryo-cpu";
+		nvmem-cells = <&speedbin_efuse>;
+		opp-shared;
+
+		/* Nominal fmax for now */
+		opp-307200000 {
+			opp-hz = /bits/ 64 <307200000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-422400000 {
+			opp-hz = /bits/ 64 <422400000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-480000000 {
+			opp-hz = /bits/ 64 <480000000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-556800000 {
+			opp-hz = /bits/ 64 <556800000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-652800000 {
+			opp-hz = /bits/ 64 <652800000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-729600000 {
+			opp-hz = /bits/ 64 <729600000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-844800000 {
+			opp-hz = /bits/ 64 <844800000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-960000000 {
+			opp-hz = /bits/ 64 <960000000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1036800000 {
+			opp-hz = /bits/ 64 <1036800000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1113600000 {
+			opp-hz = /bits/ 64 <1113600000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1190400000 {
+			opp-hz = /bits/ 64 <1190400000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1228800000 {
+			opp-hz = /bits/ 64 <1228800000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1324800000 {
+			opp-hz = /bits/ 64 <1324800000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1401600000 {
+			opp-hz = /bits/ 64 <1401600000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1478400000 {
+			opp-hz = /bits/ 64 <1478400000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1593600000 {
+			opp-hz = /bits/ 64 <1593600000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+	};
+
+	cluster1_opp: opp_table1 {
+		compatible = "operating-points-v2-kryo-cpu";
+		nvmem-cells = <&speedbin_efuse>;
+		opp-shared;
+
+		/* Nominal fmax for now */
+		opp-307200000 {
+			opp-hz = /bits/ 64 <307200000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-403200000 {
+			opp-hz = /bits/ 64 <403200000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-480000000 {
+			opp-hz = /bits/ 64 <480000000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-556800000 {
+			opp-hz = /bits/ 64 <556800000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-652800000 {
+			opp-hz = /bits/ 64 <652800000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-729600000 {
+			opp-hz = /bits/ 64 <729600000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-806400000 {
+			opp-hz = /bits/ 64 <806400000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-883200000 {
+			opp-hz = /bits/ 64 <883200000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-940800000 {
+			opp-hz = /bits/ 64 <940800000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1036800000 {
+			opp-hz = /bits/ 64 <1036800000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1113600000 {
+			opp-hz = /bits/ 64 <1113600000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1190400000 {
+			opp-hz = /bits/ 64 <1190400000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1248000000 {
+			opp-hz = /bits/ 64 <1248000000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1324800000 {
+			opp-hz = /bits/ 64 <1324800000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1401600000 {
+			opp-hz = /bits/ 64 <1401600000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1478400000 {
+			opp-hz = /bits/ 64 <1478400000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1555200000 {
+			opp-hz = /bits/ 64 <1555200000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1632000000 {
+			opp-hz = /bits/ 64 <1632000000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1708800000 {
+			opp-hz = /bits/ 64 <1708800000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1785600000 {
+			opp-hz = /bits/ 64 <1785600000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1824000000 {
+			opp-hz = /bits/ 64 <1824000000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1920000000 {
+			opp-hz = /bits/ 64 <1920000000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-1996800000 {
+			opp-hz = /bits/ 64 <1996800000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-2073600000 {
+			opp-hz = /bits/ 64 <2073600000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
+		};
+		opp-2150400000 {
+			opp-hz = /bits/ 64 <2150400000>;
+			opp-supported-hw = <0x77>;
+			clock-latency-ns = <200000>;
 		};
 	};
 
@@ -424,7 +659,7 @@
 				bits = <1 4>;
 			};
 
-			gpu_speed_bin: gpu_speed_bin@133 {
+			speedbin_efuse: speedbin@133 {
 				reg = <0x133 0x1>;
 				bits = <5 3>;
 			};
@@ -472,7 +707,7 @@
 
 		tcsr_mutex_regs: syscon@740000 {
 			compatible = "syscon";
-			reg = <0x00740000 0x20000>;
+			reg = <0x00740000 0x40000>;
 		};
 
 		tcsr: syscon@7a0000 {
@@ -521,6 +756,8 @@
 			#size-cells = <1>;
 			ranges;
 
+			status = "disabled";
+
 			mdp: mdp@901000 {
 				compatible = "qcom,mdp5";
 				reg = <0x00901000 0x90000>;
@@ -542,6 +779,11 @@
 
 				iommus = <&mdp_smmu 0>;
 
+				assigned-clocks = <&mmcc MDSS_MDP_CLK>,
+					 <&mmcc MDSS_VSYNC_CLK>;
+				assigned-clock-rates = <300000000>,
+					 <19200000>;
+
 				ports {
 					#address-cells = <1>;
 					#size-cells = <0>;
@@ -552,7 +794,80 @@
 							remote-endpoint = <&hdmi_in>;
 						};
 					};
+
+					port@1 {
+						reg = <1>;
+						mdp5_intf1_out: endpoint {
+							remote-endpoint = <&dsi0_in>;
+						};
+					};
 				};
+			};
+
+			dsi0: dsi@994000 {
+				compatible = "qcom,mdss-dsi-ctrl";
+				reg = <0x00994000 0x400>;
+				reg-names = "dsi_ctrl";
+
+				interrupt-parent = <&mdss>;
+				interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
+
+				clocks = <&mmcc MDSS_MDP_CLK>,
+					 <&mmcc MDSS_BYTE0_CLK>,
+					 <&mmcc MDSS_AHB_CLK>,
+					 <&mmcc MDSS_AXI_CLK>,
+					 <&mmcc MMSS_MISC_AHB_CLK>,
+					 <&mmcc MDSS_PCLK0_CLK>,
+					 <&mmcc MDSS_ESC0_CLK>;
+				clock-names = "mdp_core",
+					      "byte",
+					      "iface",
+					      "bus",
+					      "core_mmss",
+					      "pixel",
+					      "core";
+
+				phys = <&dsi0_phy>;
+				phy-names = "dsi";
+				status = "disabled";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						dsi0_in: endpoint {
+							remote-endpoint = <&mdp5_intf1_out>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+						dsi0_out: endpoint {
+						};
+					};
+				};
+			};
+
+			dsi0_phy: dsi-phy@994400 {
+				compatible = "qcom,dsi-phy-14nm";
+				reg = <0x00994400 0x100>,
+				      <0x00994500 0x300>,
+				      <0x00994800 0x188>;
+				reg-names = "dsi_phy",
+					    "dsi_phy_lane",
+					    "dsi_pll";
+
+				#clock-cells = <1>;
+				#phy-cells = <0>;
+
+				clocks = <&mmcc MDSS_AHB_CLK>, <&xo_board>;
+				clock-names = "iface", "ref";
+				status = "disabled";
 			};
 
 			hdmi: hdmi-tx@9a0000 {
@@ -618,7 +933,8 @@
 					      "ref";
 			};
 		};
-		gpu@b00000 {
+
+		gpu: gpu@b00000 {
 			compatible = "qcom,adreno-530.2", "qcom,adreno";
 			#stream-id-cells = <16>;
 
@@ -642,13 +958,15 @@
 			power-domains = <&mmcc GPU_GX_GDSC>;
 			iommus = <&adreno_smmu 0>;
 
-			nvmem-cells = <&gpu_speed_bin>;
+			nvmem-cells = <&speedbin_efuse>;
 			nvmem-cell-names = "speed_bin";
 
 			qcom,gpu-quirk-two-pass-use-wfi;
 			qcom,gpu-quirk-fault-detect-mask;
 
 			operating-points-v2 = <&gpu_opp_table>;
+
+			status = "disabled";
 
 			gpu_opp_table: opp-table {
 				compatible  ="operating-points-v2";
@@ -693,15 +1011,482 @@
 			};
 		};
 
-		msmgpio: pinctrl@1010000 {
+		tlmm: pinctrl@1010000 {
 			compatible = "qcom,msm8996-pinctrl";
 			reg = <0x01010000 0x300000>;
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
-			gpio-ranges = <&msmgpio 0 0 150>;
+			gpio-ranges = <&tlmm 0 0 150>;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+
+			blsp1_spi1_default: blsp1-spi1-default {
+				spi {
+					pins = "gpio0", "gpio1", "gpio3";
+					function = "blsp_spi1";
+					drive-strength = <12>;
+					bias-disable;
+				};
+
+				cs {
+					pins = "gpio2";
+					function = "gpio";
+					drive-strength = <16>;
+					bias-disable;
+					output-high;
+				};
+			};
+
+			blsp1_spi1_sleep: blsp1-spi1-sleep {
+				pins = "gpio0", "gpio1", "gpio2", "gpio3";
+				function = "gpio";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+
+			blsp2_uart2_2pins_default: blsp2-uart1-2pins {
+				pins = "gpio4", "gpio5";
+				function = "blsp_uart8";
+				drive-strength = <16>;
+				bias-disable;
+			};
+
+			blsp2_uart2_2pins_sleep: blsp2-uart1-2pins-sleep {
+				pins = "gpio4", "gpio5";
+				function = "gpio";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp2_i2c2_default: blsp2-i2c2 {
+				pins = "gpio6", "gpio7";
+				function = "blsp_i2c8";
+				drive-strength = <16>;
+				bias-disable;
+			};
+
+			blsp2_i2c2_sleep: blsp2-i2c2-sleep {
+				pins = "gpio6", "gpio7";
+				function = "gpio";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			cci0_default: cci0-default {
+				pins = "gpio17", "gpio18";
+				function = "cci_i2c";
+				drive-strength = <16>;
+				bias-disable;
+			};
+
+			camera0_state_on:
+			camera_rear_default: camera-rear-default {
+				mclk0 {
+					pins = "gpio13";
+					function = "cam_mclk";
+					drive-strength = <16>;
+					bias-disable;
+				};
+
+				rst {
+					pins = "gpio25";
+					function = "gpio";
+					drive-strength = <16>;
+					bias-disable;
+				};
+
+				pwdn {
+					pins = "gpio26";
+					function = "gpio";
+					drive-strength = <16>;
+					bias-disable;
+				};
+			};
+
+			cci1_default: cci1-default {
+				pins = "gpio19", "gpio20";
+				function = "cci_i2c";
+				drive-strength = <16>;
+				bias-disable;
+			};
+
+			camera1_state_on:
+			camera_board_default: camera-board-default {
+				mclk1 {
+					pins = "gpio14";
+					function = "cam_mclk";
+					drive-strength = <16>;
+					bias-disable;
+				};
+
+				pwdn {
+					pins = "gpio98";
+					function = "gpio";
+					drive-strength = <16>;
+					bias-disable;
+				};
+
+				rst {
+					pins = "gpio104";
+					function = "gpio";
+					drive-strength = <16>;
+					bias-disable;
+				};
+			};
+
+			camera2_state_on:
+			camera_front_default: camera-front-default {
+				mclk2 {
+					pins = "gpio15";
+					function = "cam_mclk";
+					drive-strength = <16>;
+					bias-disable;
+				};
+
+				rst {
+					pins = "gpio23";
+					function = "gpio";
+					drive-strength = <16>;
+					bias-disable;
+				};
+
+				pwdn {
+					pins = "gpio133";
+					function = "gpio";
+					drive-strength = <16>;
+					bias-disable;
+				};
+			};
+
+			pcie0_state_on: pcie0-state-on {
+				perst {
+					pins = "gpio35";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+
+				clkreq {
+					pins = "gpio36";
+					function = "pci_e0";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+
+				wake {
+					pins = "gpio37";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
+
+			pcie0_state_off: pcie0-state-off {
+				perst {
+					pins = "gpio35";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+
+				clkreq {
+					pins = "gpio36";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				wake {
+					pins = "gpio37";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-disable;
+				};
+			};
+
+			blsp1_i2c3_default: blsp1-i2c2-default {
+				pins = "gpio47", "gpio48";
+				function = "blsp_i2c3";
+				drive-strength = <16>;
+				bias-disable = <0>;
+			};
+
+			blsp1_i2c3_sleep: blsp1-i2c2-sleep {
+				pins = "gpio47", "gpio48";
+				function = "gpio";
+				drive-strength = <2>;
+				bias-disable = <0>;
+			};
+
+			blsp2_uart3_4pins_default: blsp2-uart2-4pins {
+				pins = "gpio49", "gpio50", "gpio51", "gpio52";
+				function = "blsp_uart9";
+				drive-strength = <16>;
+				bias-disable;
+			};
+
+			blsp2_uart3_4pins_sleep: blsp2-uart2-4pins-sleep {
+				pins = "gpio49", "gpio50", "gpio51", "gpio52";
+				function = "blsp_uart9";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			wcd_intr_default: wcd-intr-default{
+				pins = "gpio54";
+				function = "gpio";
+				drive-strength = <2>;
+				bias-pull-down;
+				input-enable;
+			};
+
+			blsp2_i2c1_default: blsp2-i2c1 {
+				pins = "gpio55", "gpio56";
+				function = "blsp_i2c7";
+				drive-strength = <16>;
+				bias-disable;
+			};
+
+			blsp2_i2c1_sleep: blsp2-i2c0-sleep {
+				pins = "gpio55", "gpio56";
+				function = "gpio";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp2_i2c5_default: blsp2-i2c5 {
+				pins = "gpio60", "gpio61";
+				function = "blsp_i2c11";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			/* Sleep state for BLSP2_I2C5 is missing.. */
+
+			cdc_reset_active: cdc-reset-active {
+				pins = "gpio64";
+				function = "gpio";
+				drive-strength = <16>;
+				bias-pull-down;
+				output-high;
+			};
+
+			cdc_reset_sleep: cdc-reset-sleep {
+				pins = "gpio64";
+				function = "gpio";
+				drive-strength = <16>;
+				bias-disable;
+				output-low;
+			};
+
+			blsp2_spi6_default: blsp2-spi5-default {
+				spi {
+					pins = "gpio85", "gpio86", "gpio88";
+					function = "blsp_spi12";
+					drive-strength = <12>;
+					bias-disable;
+				};
+
+				cs {
+					pins = "gpio87";
+					function = "gpio";
+					drive-strength = <16>;
+					bias-disable;
+					output-high;
+				};
+			};
+
+			blsp2_spi6_sleep: blsp2-spi5-sleep {
+				pins = "gpio85", "gpio86", "gpio87", "gpio88";
+				function = "gpio";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+
+			blsp2_i2c6_default: blsp2-i2c6 {
+				pins = "gpio87", "gpio88";
+				function = "blsp_i2c12";
+				drive-strength = <16>;
+				bias-disable;
+			};
+
+			blsp2_i2c6_sleep: blsp2-i2c6-sleep {
+				pins = "gpio87", "gpio88";
+				function = "gpio";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			pcie1_state_on: pcie1-state-on {
+				perst {
+					pins = "gpio130";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+
+				clkreq {
+					pins = "gpio131";
+					function = "pci_e1";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+
+				wake {
+					pins = "gpio132";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+			};
+
+			pcie1_state_off: pcie1-state-off {
+				/* Perst is missing? */
+				clkreq {
+					pins = "gpio131";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				wake {
+					pins = "gpio132";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-disable;
+				};
+			};
+
+			pcie2_state_on: pcie2-state-on {
+				perst {
+					pins = "gpio114";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+
+				clkreq {
+					pins = "gpio115";
+					function = "pci_e2";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+
+				wake {
+					pins = "gpio116";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+			};
+
+			pcie2_state_off: pcie2-state-off {
+				/* Perst is missing? */
+				clkreq {
+					pins = "gpio115";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				wake {
+					pins = "gpio116";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-disable;
+				};
+			};
+
+			sdc1_state_on: sdc1-state-on {
+				clk {
+					pins = "sdc1_clk";
+					bias-disable;
+					drive-strength = <16>;
+				};
+
+				cmd {
+					pins = "sdc1_cmd";
+					bias-pull-up;
+					drive-strength = <10>;
+				};
+
+				data {
+					pins = "sdc1_data";
+					bias-pull-up;
+					drive-strength = <10>;
+				};
+
+				rclk {
+					pins = "sdc1_rclk";
+					bias-pull-down;
+				};
+			};
+
+			sdc1_state_off: sdc1-state-off {
+				clk {
+					pins = "sdc1_clk";
+					bias-disable;
+					drive-strength = <2>;
+				};
+
+				cmd {
+					pins = "sdc1_cmd";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+
+				data {
+					pins = "sdc1_data";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+
+				rclk {
+					pins = "sdc1_rclk";
+					bias-pull-down;
+				};
+			};
+
+			sdc2_state_on: sdc2-clk-on {
+				clk {
+					pins = "sdc2_clk";
+					bias-disable;
+					drive-strength = <16>;
+				};
+
+				cmd {
+					pins = "sdc2_cmd";
+					bias-pull-up;
+					drive-strength = <10>;
+				};
+
+				data {
+					pins = "sdc2_data";
+					bias-pull-up;
+					drive-strength = <10>;
+				};
+			};
+
+			sdc2_state_off: sdc2-clk-off {
+				clk {
+					pins = "sdc2_clk";
+					bias-disable;
+					drive-strength = <2>;
+				};
+
+				cmd {
+					pins = "sdc2_cmd";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+
+				data {
+					pins = "sdc2_data";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+			};
 		};
 
 		spmi_bus: qcom,spmi@400f000 {
@@ -762,8 +1547,8 @@
 						<0 0 0 4 &intc 0 248 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
 
 				pinctrl-names = "default", "sleep";
-				pinctrl-0 = <&pcie0_clkreq_default &pcie0_perst_default &pcie0_wake_default>;
-				pinctrl-1 = <&pcie0_clkreq_sleep &pcie0_perst_default &pcie0_wake_sleep>;
+				pinctrl-0 = <&pcie0_state_on>;
+				pinctrl-1 = <&pcie0_state_off>;
 
 				linux,pci-domain = <0>;
 
@@ -816,8 +1601,8 @@
 						<0 0 0 4 &intc 0 275 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
 
 				pinctrl-names = "default", "sleep";
-				pinctrl-0 = <&pcie1_clkreq_default &pcie1_perst_default &pcie1_wake_default>;
-				pinctrl-1 = <&pcie1_clkreq_sleep &pcie1_perst_default &pcie1_wake_sleep>;
+				pinctrl-0 = <&pcie1_state_on>;
+				pinctrl-1 = <&pcie1_state_off>;
 
 				linux,pci-domain = <1>;
 
@@ -867,8 +1652,8 @@
 						<0 0 0 4 &intc 0 145 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
 
 				pinctrl-names = "default", "sleep";
-				pinctrl-0 = <&pcie2_clkreq_default &pcie2_perst_default &pcie2_wake_default>;
-				pinctrl-1 = <&pcie2_clkreq_sleep &pcie2_perst_default &pcie2_wake_sleep >;
+				pinctrl-0 = <&pcie2_state_on>;
+				pinctrl-1 = <&pcie2_state_off>;
 
 				linux,pci-domain = <2>;
 				clocks = <&gcc GCC_PCIE_2_PIPE_CLK>,
@@ -1136,7 +1921,7 @@
 		};
 
 		adreno_smmu: iommu@b40000 {
-			compatible = "qcom,msm8996-smmu-v2", "qcom,smmu-v2";
+			compatible = "qcom,msm8996-smmu-v2", "qcom,adreno-smmu", "qcom,smmu-v2";
 			reg = <0x00b40000 0x10000>;
 
 			#global-interrupts = <1>;
@@ -1152,7 +1937,7 @@
 			power-domains = <&mmcc GPU_GDSC>;
 		};
 
-		video-codec@c00000 {
+		venus: video-codec@c00000 {
 			compatible = "qcom,msm8996-venus";
 			reg = <0x00c00000 0xff000>;
 			interrupts = <GIC_SPI 287 IRQ_TYPE_LEVEL_HIGH>;
@@ -1183,7 +1968,7 @@
 				 <&venus_smmu 0x2d>,
 				 <&venus_smmu 0x31>;
 			memory-region = <&venus_region>;
-			status = "okay";
+			status = "disabled";
 
 			video-decoder {
 				compatible = "venus-decoder";
@@ -1745,9 +2530,14 @@
 				};
 			};
 		};
+
 		kryocc: clock-controller@6400000 {
-			compatible = "qcom,apcc-msm8996";
+			compatible = "qcom,msm8996-apcc";
 			reg = <0x06400000 0x90000>;
+
+			clock-names = "xo";
+			clocks = <&xo_board>;
+
 			#clock-cells = <1>;
 		};
 
@@ -1757,6 +2547,10 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
+
+			interrupts = <GIC_SPI 347 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 243 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "hs_phy_irq", "ss_phy_irq";
 
 			clocks = <&gcc GCC_SYS_NOC_USB3_AXI_CLK>,
 				<&gcc GCC_USB30_MASTER_CLK>,
@@ -1772,7 +2566,7 @@
 			power-domains = <&gcc USB30_GDSC>;
 			status = "disabled";
 
-			dwc3@6a00000 {
+			usb@6a00000 {
 				compatible = "snps,dwc3";
 				reg = <0x06a00000 0xcc00>;
 				interrupts = <0 131 IRQ_TYPE_LEVEL_HIGH>;
@@ -1841,34 +2635,75 @@
 			status = "disabled";
 		};
 
+		sdhc1: sdhci@7464900 {
+			compatible = "qcom,sdhci-msm-v4";
+			reg = <0x07464900 0x11c>, <0x07464000 0x800>;
+			reg-names = "hc_mem", "core_mem";
+
+			interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "hc_irq", "pwr_irq";
+
+			clock-names = "iface", "core", "xo";
+			clocks = <&gcc GCC_SDCC1_AHB_CLK>,
+				<&gcc GCC_SDCC1_APPS_CLK>,
+				<&xo_board>;
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdc1_state_on>;
+			pinctrl-1 = <&sdc1_state_off>;
+
+			bus-width = <8>;
+			non-removable;
+			status = "disabled";
+		};
+
 		sdhc2: sdhci@74a4900 {
-			 status = "disabled";
-			 compatible = "qcom,sdhci-msm-v4";
-			 reg = <0x074a4900 0x314>, <0x074a4000 0x800>;
-			 reg-names = "hc_mem", "core_mem";
+			compatible = "qcom,sdhci-msm-v4";
+			reg = <0x074a4900 0x314>, <0x074a4000 0x800>;
+			reg-names = "hc_mem", "core_mem";
 
-			 interrupts = <0 125 IRQ_TYPE_LEVEL_HIGH>,
-				      <0 221 IRQ_TYPE_LEVEL_HIGH>;
-			 interrupt-names = "hc_irq", "pwr_irq";
+			interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "hc_irq", "pwr_irq";
 
-			 clock-names = "iface", "core", "xo";
-			 clocks = <&gcc GCC_SDCC2_AHB_CLK>,
-			 <&gcc GCC_SDCC2_APPS_CLK>,
-			 <&xo_board>;
-			 bus-width = <4>;
+			clock-names = "iface", "core", "xo";
+			clocks = <&gcc GCC_SDCC2_AHB_CLK>,
+				<&gcc GCC_SDCC2_APPS_CLK>,
+				<&xo_board>;
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdc2_state_on>;
+			pinctrl-1 = <&sdc2_state_off>;
+
+			bus-width = <4>;
+			status = "disabled";
 		 };
 
-		blsp1_uart1: serial@7570000 {
+		blsp1_dma: dma@7544000 {
+			compatible = "qcom,bam-v1.7.0";
+			reg = <0x07544000 0x2b000>;
+			interrupts = <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "bam_clk";
+			qcom,controlled-remotely;
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+		};
+
+		blsp1_uart2: serial@7570000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x07570000 0x1000>;
 			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_UART2_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp1_dma 2>, <&blsp1_dma 3>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
-		blsp1_spi0: spi@7575000 {
+		blsp1_spi1: spi@7575000 {
 			compatible = "qcom,spi-qup-v2.2.1";
 			reg = <0x07575000 0x600>;
 			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
@@ -1876,14 +2711,16 @@
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&blsp1_spi0_default>;
-			pinctrl-1 = <&blsp1_spi0_sleep>;
+			pinctrl-0 = <&blsp1_spi1_default>;
+			pinctrl-1 = <&blsp1_spi1_sleep>;
+			dmas = <&blsp1_dma 12>, <&blsp1_dma 13>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
 		};
 
-		blsp1_i2c2: i2c@7577000 {
+		blsp1_i2c3: i2c@7577000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x07577000 0x1000>;
 			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
@@ -1891,14 +2728,27 @@
 				<&gcc GCC_BLSP1_QUP3_I2C_APPS_CLK>;
 			clock-names = "iface", "core";
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&blsp1_i2c2_default>;
-			pinctrl-1 = <&blsp1_i2c2_sleep>;
+			pinctrl-0 = <&blsp1_i2c3_default>;
+			pinctrl-1 = <&blsp1_i2c3_sleep>;
+			dmas = <&blsp1_dma 16>, <&blsp1_dma 17>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
 		};
 
-		blsp2_uart1: serial@75b0000 {
+		blsp2_dma: dma@7584000 {
+			compatible = "qcom,bam-v1.7.0";
+			reg = <0x07584000 0x2b000>;
+			interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP2_AHB_CLK>;
+			clock-names = "bam_clk";
+			qcom,controlled-remotely;
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+		};
+
+		blsp2_uart2: serial@75b0000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x075b0000 0x1000>;
 			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
@@ -1908,7 +2758,7 @@
 			status = "disabled";
 		};
 
-		blsp2_uart2: serial@75b1000 {
+		blsp2_uart3: serial@75b1000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x075b1000 0x1000>;
 			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
@@ -1918,7 +2768,7 @@
 			status = "disabled";
 		};
 
-		blsp2_i2c0: i2c@75b5000 {
+		blsp2_i2c1: i2c@75b5000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x075b5000 0x1000>;
 			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
@@ -1926,14 +2776,16 @@
 				<&gcc GCC_BLSP2_QUP1_I2C_APPS_CLK>;
 			clock-names = "iface", "core";
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&blsp2_i2c0_default>;
-			pinctrl-1 = <&blsp2_i2c0_sleep>;
+			pinctrl-0 = <&blsp2_i2c1_default>;
+			pinctrl-1 = <&blsp2_i2c1_sleep>;
+			dmas = <&blsp2_dma 12>, <&blsp2_dma 13>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
 		};
 
-		blsp2_i2c1: i2c@75b6000 {
+		blsp2_i2c2: i2c@75b6000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x075b6000 0x1000>;
 			interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
@@ -1941,14 +2793,49 @@
 				<&gcc GCC_BLSP2_QUP2_I2C_APPS_CLK>;
 			clock-names = "iface", "core";
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&blsp2_i2c1_default>;
-			pinctrl-1 = <&blsp2_i2c1_sleep>;
+			pinctrl-0 = <&blsp2_i2c2_default>;
+			pinctrl-1 = <&blsp2_i2c2_sleep>;
+			dmas = <&blsp2_dma 14>, <&blsp2_dma 15>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
 		};
 
-		blsp2_spi5: spi@75ba000{
+		blsp2_i2c5: i2c@75b9000 {
+			compatible = "qcom,i2c-qup-v2.2.1";
+			reg = <0x75b9000 0x1000>;
+			interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP2_AHB_CLK>,
+				<&gcc GCC_BLSP2_QUP5_I2C_APPS_CLK>;
+			clock-names = "iface", "core";
+			pinctrl-names = "default";
+			pinctrl-0 = <&blsp2_i2c5_default>;
+			dmas = <&blsp2_dma 20>, <&blsp2_dma 21>;
+			dma-names = "tx", "rx";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		blsp2_i2c6: i2c@75ba000 {
+			compatible = "qcom,i2c-qup-v2.2.1";
+			reg = <0x75ba000 0x1000>;
+			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP2_AHB_CLK>,
+				<&gcc GCC_BLSP2_QUP6_I2C_APPS_CLK>;
+			clock-names = "iface", "core";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp2_i2c6_default>;
+			pinctrl-1 = <&blsp2_i2c6_sleep>;
+			dmas = <&blsp2_dma 22>, <&blsp2_dma 23>;
+			dma-names = "tx", "rx";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		blsp2_spi6: spi@75ba000{
 			compatible = "qcom,spi-qup-v2.2.1";
 			reg = <0x075ba000 0x600>;
 			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
@@ -1956,8 +2843,10 @@
 				 <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "core", "iface";
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&blsp2_spi5_default>;
-			pinctrl-1 = <&blsp2_spi5_sleep>;
+			pinctrl-0 = <&blsp2_spi6_default>;
+			pinctrl-1 = <&blsp2_spi6_sleep>;
+			dmas = <&blsp2_dma 22>, <&blsp2_dma 23>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -1981,14 +2870,16 @@
 			assigned-clock-rates = <19200000>, <60000000>;
 
 			power-domains = <&gcc USB30_GDSC>;
+			qcom,select-utmi-as-pipe-clk;
 			status = "disabled";
 
-			dwc3@7600000 {
+			usb@7600000 {
 				compatible = "snps,dwc3";
 				reg = <0x07600000 0xcc00>;
 				interrupts = <0 138 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&hsusb_phy2>;
 				phy-names = "usb2-phy";
+				maximum-speed = "high-speed";
 				snps,dis_u2_susphy_quirk;
 				snps,dis_enblslpm_quirk;
 			};
@@ -2032,13 +2923,13 @@
 					compatible = "slim217,1a0";
 					reg  = <1 0>;
 
-					interrupt-parent = <&msmgpio>;
+					interrupt-parent = <&tlmm>;
 					interrupts = <54 IRQ_TYPE_LEVEL_HIGH>,
 						     <53 IRQ_TYPE_LEVEL_HIGH>;
 					interrupt-names  = "intr1", "intr2";
 					interrupt-controller;
 					#interrupt-cells = <1>;
-					reset-gpios = <&msmgpio 64 0>;
+					reset-gpios = <&tlmm 64 0>;
 
 					slim-ifc-dev  = <&tasha_ifd>;
 
@@ -2066,6 +2957,11 @@
 
 			qcom,smem-states = <&smp2p_adsp_out 0>;
 			qcom,smem-state-names = "stop";
+
+			power-domains = <&rpmpd MSM8996_VDDCX>;
+			power-domain-names = "cx";
+
+			status = "disabled";
 
 			smd-edge {
 				interrupts = <GIC_SPI 156 IRQ_TYPE_EDGE_RISING>;
@@ -2458,4 +3354,3 @@
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
-#include "msm8996-pins.dtsi"

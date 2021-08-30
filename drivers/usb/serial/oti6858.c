@@ -126,8 +126,8 @@ static void oti6858_read_bulk_callback(struct urb *urb);
 static void oti6858_write_bulk_callback(struct urb *urb);
 static int oti6858_write(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count);
-static int oti6858_write_room(struct tty_struct *tty);
-static int oti6858_chars_in_buffer(struct tty_struct *tty);
+static unsigned int oti6858_write_room(struct tty_struct *tty);
+static unsigned int oti6858_chars_in_buffer(struct tty_struct *tty);
 static int oti6858_tiocmget(struct tty_struct *tty);
 static int oti6858_tiocmset(struct tty_struct *tty,
 				unsigned int set, unsigned int clear);
@@ -363,10 +363,10 @@ static int oti6858_write(struct tty_struct *tty, struct usb_serial_port *port,
 	return count;
 }
 
-static int oti6858_write_room(struct tty_struct *tty)
+static unsigned int oti6858_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	int room = 0;
+	unsigned int room;
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
@@ -376,10 +376,10 @@ static int oti6858_write_room(struct tty_struct *tty)
 	return room;
 }
 
-static int oti6858_chars_in_buffer(struct tty_struct *tty)
+static unsigned int oti6858_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	int chars = 0;
+	unsigned int chars;
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);

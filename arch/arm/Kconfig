@@ -218,9 +218,6 @@ config GENERIC_CALIBRATE_DELAY
 config ARCH_MAY_HAVE_PC_FDC
 	bool
 
-config ZONE_DMA
-	bool
-
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
 
@@ -353,7 +350,6 @@ config ARCH_EP93XX
 	select ARM_VIC
 	select GENERIC_IRQ_MULTI_HANDLER
 	select AUTO_ZRELADDR
-	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select CPU_ARM920T
 	select GPIOLIB
@@ -398,7 +394,8 @@ config ARCH_IXP4XX
 	select HAVE_PCI
 	select IXP4XX_IRQ
 	select IXP4XX_TIMER
-	select NEED_MACH_IO_H
+	# With the new PCI driver this is not needed
+	select NEED_MACH_IO_H if PCI_IXP4XX_LEGACY
 	select USB_EHCI_BIG_ENDIAN_DESC
 	select USB_EHCI_BIG_ENDIAN_MMIO
 	help
@@ -504,7 +501,6 @@ config ARCH_OMAP1
 	bool "TI OMAP1"
 	depends on MMU
 	select ARCH_OMAP
-	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
 	select GENERIC_IRQ_MULTI_HANDLER

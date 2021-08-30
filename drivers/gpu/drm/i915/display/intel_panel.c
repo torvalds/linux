@@ -35,6 +35,7 @@
 #include <linux/pwm.h>
 
 #include "intel_connector.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dp_aux_backlight.h"
 #include "intel_dsi_dcs_backlight.h"
@@ -667,7 +668,7 @@ static void i9xx_set_backlight(const struct drm_connector_state *conn_state, u32
 		pci_write_config_byte(to_pci_dev(dev_priv->drm.dev), LBPC, lbpc);
 	}
 
-	if (IS_DISPLAY_VER(dev_priv, 4)) {
+	if (DISPLAY_VER(dev_priv) == 4) {
 		mask = BACKLIGHT_DUTY_CYCLE_MASK;
 	} else {
 		level <<= 1;
@@ -1040,7 +1041,7 @@ static void i9xx_enable_backlight(const struct intel_crtc_state *crtc_state,
 	 * 855gm only, but checking for gen2 is safe, as 855gm is the only gen2
 	 * that has backlight.
 	 */
-	if (IS_DISPLAY_VER(dev_priv, 2))
+	if (DISPLAY_VER(dev_priv) == 2)
 		intel_de_write(dev_priv, BLC_HIST_CTL, BLM_HISTOGRAM_ENABLE);
 }
 
@@ -1372,6 +1373,9 @@ int intel_backlight_device_register(struct intel_connector *connector)
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
 	struct backlight_properties props;
+	struct backlight_device *bd;
+	const char *name;
+	int ret = 0;
 
 	if (WARN_ON(panel->backlight.device))
 		return -ENODEV;
@@ -1398,28 +1402,49 @@ int intel_backlight_device_register(struct intel_connector *connector)
 	else
 		props.power = FB_BLANK_POWERDOWN;
 
-	/*
-	 * Note: using the same name independent of the connector prevents
-	 * registration of multiple backlight devices in the driver.
-	 */
-	panel->backlight.device =
-		backlight_device_register("intel_backlight",
-					  connector->base.kdev,
-					  connector,
-					  &intel_backlight_device_ops, &props);
+	name = kstrdup("intel_backlight", GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
 
-	if (IS_ERR(panel->backlight.device)) {
-		drm_err(&i915->drm, "Failed to register backlight: %ld\n",
-			PTR_ERR(panel->backlight.device));
-		panel->backlight.device = NULL;
-		return -ENODEV;
+	bd = backlight_device_register(name, connector->base.kdev, connector,
+				       &intel_backlight_device_ops, &props);
+
+	/*
+	 * Using the same name independent of the drm device or connector
+	 * prevents registration of multiple backlight devices in the
+	 * driver. However, we need to use the default name for backward
+	 * compatibility. Use unique names for subsequent backlight devices as a
+	 * fallback when the default name already exists.
+	 */
+	if (IS_ERR(bd) && PTR_ERR(bd) == -EEXIST) {
+		kfree(name);
+		name = kasprintf(GFP_KERNEL, "card%d-%s-backlight",
+				 i915->drm.primary->index, connector->base.name);
+		if (!name)
+			return -ENOMEM;
+
+		bd = backlight_device_register(name, connector->base.kdev, connector,
+					       &intel_backlight_device_ops, &props);
 	}
 
-	drm_dbg_kms(&i915->drm,
-		    "Connector %s backlight sysfs interface registered\n",
-		    connector->base.name);
+	if (IS_ERR(bd)) {
+		drm_err(&i915->drm,
+			"[CONNECTOR:%d:%s] backlight device %s register failed: %ld\n",
+			connector->base.base.id, connector->base.name, name, PTR_ERR(bd));
+		ret = PTR_ERR(bd);
+		goto out;
+	}
 
-	return 0;
+	panel->backlight.device = bd;
+
+	drm_dbg_kms(&i915->drm,
+		    "[CONNECTOR:%d:%s] backlight device %s registered\n",
+		    connector->base.base.id, connector->base.name, name);
+
+out:
+	kfree(name);
+
+	return ret;
 }
 
 void intel_backlight_device_unregister(struct intel_connector *connector)
@@ -1728,7 +1753,7 @@ static int i9xx_setup_backlight(struct intel_connector *connector, enum pipe unu
 
 	ctl = intel_de_read(dev_priv, BLC_PWM_CTL);
 
-	if (IS_DISPLAY_VER(dev_priv, 2) || IS_I915GM(dev_priv) || IS_I945GM(dev_priv))
+	if (DISPLAY_VER(dev_priv) == 2 || IS_I915GM(dev_priv) || IS_I945GM(dev_priv))
 		panel->backlight.combination_mode = ctl & BLM_LEGACY_MODE;
 
 	if (IS_PINEVIEW(dev_priv))
@@ -2161,7 +2186,7 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 	    intel_dsi_dcs_init_backlight_funcs(connector) == 0)
 		return;
 
-	if (IS_GEN9_LP(dev_priv)) {
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 		panel->backlight.pwm_funcs = &bxt_pwm_funcs;
 	} else if (INTEL_PCH_TYPE(dev_priv) >= PCH_CNP) {
 		panel->backlight.pwm_funcs = &cnp_pwm_funcs;
@@ -2178,7 +2203,7 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 		} else {
 			panel->backlight.pwm_funcs = &vlv_pwm_funcs;
 		}
-	} else if (IS_DISPLAY_VER(dev_priv, 4)) {
+	} else if (DISPLAY_VER(dev_priv) == 4) {
 		panel->backlight.pwm_funcs = &i965_pwm_funcs;
 	} else {
 		panel->backlight.pwm_funcs = &i9xx_pwm_funcs;

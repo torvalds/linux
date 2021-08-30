@@ -642,6 +642,24 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 }
 EXPORT_SYMBOL_GPL(__nvdimm_create);
 
+void nvdimm_delete(struct nvdimm *nvdimm)
+{
+	struct device *dev = &nvdimm->dev;
+	bool dev_put = false;
+
+	/* We are shutting down. Make state frozen artificially. */
+	nvdimm_bus_lock(dev);
+	set_bit(NVDIMM_SECURITY_FROZEN, &nvdimm->sec.flags);
+	if (test_and_clear_bit(NDD_WORK_PENDING, &nvdimm->flags))
+		dev_put = true;
+	nvdimm_bus_unlock(dev);
+	cancel_delayed_work_sync(&nvdimm->dwork);
+	if (dev_put)
+		put_device(dev);
+	nd_device_unregister(dev, ND_SYNC);
+}
+EXPORT_SYMBOL_GPL(nvdimm_delete);
+
 static void shutdown_security_notify(void *data)
 {
 	struct nvdimm *nvdimm = data;

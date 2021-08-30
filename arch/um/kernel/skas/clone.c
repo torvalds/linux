@@ -29,7 +29,7 @@ stub_clone_handler(void)
 	long err;
 
 	err = stub_syscall2(__NR_clone, CLONE_PARENT | CLONE_FILES | SIGCHLD,
-			    (unsigned long)data + UM_KERN_PAGE_SIZE / 2 - sizeof(void *));
+			    (unsigned long)data + UM_KERN_PAGE_SIZE / 2);
 	if (err) {
 		data->parent_err = err;
 		goto done;

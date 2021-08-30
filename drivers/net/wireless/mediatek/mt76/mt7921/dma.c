@@ -74,7 +74,7 @@ static int mt7921_poll_tx(struct napi_struct *napi, int budget)
 	mt7921_tx_cleanup(dev);
 	if (napi_complete(napi))
 		mt7921_irq_enable(dev, MT_INT_TX_DONE_ALL);
-	mt76_connac_pm_unref(&dev->pm);
+	mt76_connac_pm_unref(&dev->mphy, &dev->pm);
 
 	return 0;
 }
@@ -92,7 +92,7 @@ static int mt7921_poll_rx(struct napi_struct *napi, int budget)
 		return 0;
 	}
 	done = mt76_dma_rx_poll(napi, budget);
-	mt76_connac_pm_unref(&dev->pm);
+	mt76_connac_pm_unref(&dev->mphy, &dev->pm);
 
 	return done;
 }
@@ -313,9 +313,9 @@ static int mt7921_dma_reset(struct mt7921_dev *dev, bool force)
 
 int mt7921_wfsys_reset(struct mt7921_dev *dev)
 {
-	mt76_set(dev, 0x70002600, BIT(0));
-	msleep(200);
-	mt76_clear(dev, 0x70002600, BIT(0));
+	mt76_clear(dev, MT_WFSYS_SW_RST_B, WFSYS_SW_RST_B);
+	msleep(50);
+	mt76_set(dev, MT_WFSYS_SW_RST_B, WFSYS_SW_RST_B);
 
 	if (!__mt76_poll_msec(&dev->mt76, MT_WFSYS_SW_RST_B,
 			      WFSYS_SW_INIT_DONE, WFSYS_SW_INIT_DONE, 500))
@@ -380,9 +380,7 @@ int mt7921_wpdma_reinit_cond(struct mt7921_dev *dev)
 
 int mt7921_dma_init(struct mt7921_dev *dev)
 {
-	/* Increase buffer size to receive large VHT/HE MPDUs */
 	struct mt76_bus_ops *bus_ops;
-	int rx_buf_size = MT_RX_BUF_SIZE * 2;
 	int ret;
 
 	dev->bus_ops = dev->mt76.bus;
@@ -399,6 +397,10 @@ int mt7921_dma_init(struct mt7921_dev *dev)
 	mt76_dma_attach(&dev->mt76);
 
 	ret = mt7921_dma_disable(dev, true);
+	if (ret)
+		return ret;
+
+	ret = mt7921_wfsys_reset(dev);
 	if (ret)
 		return ret;
 
@@ -426,7 +428,7 @@ int mt7921_dma_init(struct mt7921_dev *dev)
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU],
 			       MT7921_RXQ_MCU_WM,
 			       MT7921_RX_MCU_RING_SIZE,
-			       rx_buf_size, MT_RX_EVENT_RING_BASE);
+			       MT_RX_BUF_SIZE, MT_RX_EVENT_RING_BASE);
 	if (ret)
 		return ret;
 
@@ -434,14 +436,14 @@ int mt7921_dma_init(struct mt7921_dev *dev)
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU_WA],
 			       MT7921_RXQ_MCU_WM,
 			       MT7921_RX_MCU_RING_SIZE,
-			       rx_buf_size, MT_WFDMA0(0x540));
+			       MT_RX_BUF_SIZE, MT_WFDMA0(0x540));
 	if (ret)
 		return ret;
 
 	/* rx data */
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN],
 			       MT7921_RXQ_BAND0, MT7921_RX_RING_SIZE,
-			       rx_buf_size, MT_RX_DATA_RING_BASE);
+			       MT_RX_BUF_SIZE, MT_RX_DATA_RING_BASE);
 	if (ret)
 		return ret;
 

@@ -117,7 +117,7 @@ static void orion_bridge_irq_handler(struct irq_desc *desc)
 	while (stat) {
 		u32 hwirq = __fls(stat);
 
-		generic_handle_irq(irq_find_mapping(d, gc->irq_base + hwirq));
+		generic_handle_domain_irq(d, gc->irq_base + hwirq);
 		stat &= ~(1 << hwirq);
 	}
 }

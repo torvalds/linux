@@ -1408,7 +1408,8 @@ static int zpa2326_init_managed_trigger(struct device          *parent,
 		return 0;
 
 	trigger = devm_iio_trigger_alloc(parent, "%s-dev%d",
-					 indio_dev->name, indio_dev->id);
+					 indio_dev->name,
+					 iio_device_id(indio_dev));
 	if (!trigger)
 		return -ENOMEM;
 

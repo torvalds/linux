@@ -329,9 +329,6 @@ static int pwm_imx27_probe(struct platform_device *pdev)
 	imx->chip.dev = &pdev->dev;
 	imx->chip.npwm = 1;
 
-	imx->chip.of_xlate = of_pwm_xlate_with_flags;
-	imx->chip.of_pwm_n_cells = 3;
-
 	imx->mmio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(imx->mmio_base))
 		return PTR_ERR(imx->mmio_base);

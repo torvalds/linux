@@ -300,9 +300,7 @@ static void stf_barrier_enable(bool enable)
 void setup_stf_barrier(void)
 {
 	enum stf_barrier_type type;
-	bool enable, hv;
-
-	hv = cpu_has_feature(CPU_FTR_HVMODE);
+	bool enable;
 
 	/* Default to fallback in case fw-features are not available */
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
@@ -315,8 +313,7 @@ void setup_stf_barrier(void)
 		type = STF_BARRIER_NONE;
 
 	enable = security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) &&
-		(security_ftr_enabled(SEC_FTR_L1D_FLUSH_PR) ||
-		 (security_ftr_enabled(SEC_FTR_L1D_FLUSH_HV) && hv));
+		 security_ftr_enabled(SEC_FTR_STF_BARRIER);
 
 	if (type == STF_BARRIER_FALLBACK) {
 		pr_info("stf-barrier: fallback barrier available\n");
@@ -439,8 +436,8 @@ static void update_branch_cache_flush(void)
 	site2 = &patch__call_kvm_flush_link_stack_p9;
 	// This controls the branch from guest_exit_cont to kvm_flush_link_stack
 	if (link_stack_flush_type == BRANCH_CACHE_FLUSH_NONE) {
-		patch_instruction_site(site, ppc_inst(PPC_INST_NOP));
-		patch_instruction_site(site2, ppc_inst(PPC_INST_NOP));
+		patch_instruction_site(site, ppc_inst(PPC_RAW_NOP()));
+		patch_instruction_site(site2, ppc_inst(PPC_RAW_NOP()));
 	} else {
 		// Could use HW flush, but that could also flush count cache
 		patch_branch_site(site, (u64)&kvm_flush_link_stack, BRANCH_SET_LINK);
@@ -450,11 +447,11 @@ static void update_branch_cache_flush(void)
 
 	// Patch out the bcctr first, then nop the rest
 	site = &patch__call_flush_branch_caches3;
-	patch_instruction_site(site, ppc_inst(PPC_INST_NOP));
+	patch_instruction_site(site, ppc_inst(PPC_RAW_NOP()));
 	site = &patch__call_flush_branch_caches2;
-	patch_instruction_site(site, ppc_inst(PPC_INST_NOP));
+	patch_instruction_site(site, ppc_inst(PPC_RAW_NOP()));
 	site = &patch__call_flush_branch_caches1;
-	patch_instruction_site(site, ppc_inst(PPC_INST_NOP));
+	patch_instruction_site(site, ppc_inst(PPC_RAW_NOP()));
 
 	// This controls the branch from _switch to flush_branch_caches
 	if (count_cache_flush_type == BRANCH_CACHE_FLUSH_NONE &&
@@ -477,12 +474,12 @@ static void update_branch_cache_flush(void)
 		// If we just need to flush the link stack, early return
 		if (count_cache_flush_type == BRANCH_CACHE_FLUSH_NONE) {
 			patch_instruction_site(&patch__flush_link_stack_return,
-					       ppc_inst(PPC_INST_BLR));
+					       ppc_inst(PPC_RAW_BLR()));
 
 		// If we have flush instruction, early return
 		} else if (count_cache_flush_type == BRANCH_CACHE_FLUSH_HW) {
 			patch_instruction_site(&patch__flush_count_cache_return,
-					       ppc_inst(PPC_INST_BLR));
+					       ppc_inst(PPC_RAW_BLR()));
 		}
 	}
 }

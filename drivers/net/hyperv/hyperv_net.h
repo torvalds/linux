@@ -1170,6 +1170,7 @@ struct rndis_set_request {
 	u32 info_buflen;
 	u32 info_buf_offset;
 	u32 dev_vc_handle;
+	u8  info_buf[];
 };
 
 /* Response to NdisSetRequest */

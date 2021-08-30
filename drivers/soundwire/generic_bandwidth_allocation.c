@@ -382,12 +382,18 @@ static int sdw_compute_bus_params(struct sdw_bus *bus)
 		 */
 	}
 
-	if (i == clk_values)
+	if (i == clk_values) {
+		dev_err(bus->dev, "%s: could not find clock value for bandwidth %d\n",
+			__func__, bus->params.bandwidth);
 		return -EINVAL;
+	}
 
 	ret = sdw_select_row_col(bus, curr_dr_freq);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(bus->dev, "%s: could not find frame configuration for bus dr_freq %d\n",
+			__func__, curr_dr_freq);
 		return -EINVAL;
+	}
 
 	bus->params.curr_dr_freq = curr_dr_freq;
 	return 0;
@@ -404,10 +410,8 @@ int sdw_compute_params(struct sdw_bus *bus)
 
 	/* Computes clock frequency, frame shape and frame frequency */
 	ret = sdw_compute_bus_params(bus);
-	if (ret < 0) {
-		dev_err(bus->dev, "Compute bus params failed: %d\n", ret);
+	if (ret < 0)
 		return ret;
-	}
 
 	/* Compute transport and port params */
 	ret = sdw_compute_port_params(bus);

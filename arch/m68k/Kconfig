@@ -21,6 +21,7 @@ config M68K
 	select HAVE_AOUT if MMU
 	select HAVE_ASM_MODVERSIONS
 	select HAVE_DEBUG_BUGVERBOSE
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS if !CPU_HAS_NO_UNALIGNED
 	select HAVE_FUTEX_CMPXCHG if MMU && FUTEX
 	select HAVE_IDE
 	select HAVE_MOD_ARCH_SPECIFIC
@@ -34,6 +35,7 @@ config M68K
 	select SET_FS
 	select UACCESS_MEMCPY if !MMU
 	select VIRT_TO_BUS
+	select ZONE_DMA
 
 config CPU_BIG_ENDIAN
 	def_bool y
@@ -61,10 +63,6 @@ config TIME_LOW_RES
 
 config NO_IOPORT_MAP
 	def_bool y
-
-config ZONE_DMA
-	bool
-	default y
 
 config HZ
 	int

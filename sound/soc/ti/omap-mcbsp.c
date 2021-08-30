@@ -539,7 +539,7 @@ static ssize_t prop##_store(struct device *dev,				\
 	return size;							\
 }									\
 									\
-static DEVICE_ATTR(prop, 0644, prop##_show, prop##_store)
+static DEVICE_ATTR_RW(prop)
 
 THRESHOLD_PROP_BUILDER(max_tx_thres);
 THRESHOLD_PROP_BUILDER(max_rx_thres);

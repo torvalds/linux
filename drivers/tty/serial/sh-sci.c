@@ -289,7 +289,7 @@ static const struct sci_port_params sci_port_params[SCIx_NR_REGTYPES] = {
 	},
 
 	/*
-	 * The "SCIFA" that is in RZ/T and RZ/A2.
+	 * The "SCIFA" that is in RZ/A2, RZ/G2L and RZ/T.
 	 * It looks like a normal SCIF with FIFO data, but with a
 	 * compressed address space. Also, the break out of interrupts
 	 * are different: ERI/BRI, RXI, TXI, TEI, DRI.
@@ -306,6 +306,7 @@ static const struct sci_port_params sci_port_params[SCIx_NR_REGTYPES] = {
 			[SCFDR]		= { 0x0E, 16 },
 			[SCSPTR]	= { 0x10, 16 },
 			[SCLSR]		= { 0x12, 16 },
+			[SEMR]		= { 0x14, 8 },
 		},
 		.fifosize = 16,
 		.overrun_reg = SCLSR,
@@ -610,6 +611,14 @@ static void sci_stop_tx(struct uart_port *port)
 	ctrl &= ~SCSCR_TIE;
 
 	serial_port_out(port, SCSCR, ctrl);
+
+#ifdef CONFIG_SERIAL_SH_SCI_DMA
+	if (to_sci_port(port)->chan_tx &&
+	    !dma_submit_error(to_sci_port(port)->cookie_tx)) {
+		dmaengine_terminate_async(to_sci_port(port)->chan_tx);
+		to_sci_port(port)->cookie_tx = -EINVAL;
+	}
+#endif
 }
 
 static void sci_start_rx(struct uart_port *port)
@@ -839,9 +848,6 @@ static void sci_transmit_chars(struct uart_port *port)
 		sci_stop_tx(port);
 
 }
-
-/* On SH3, SCIF may read end-of-break as a space->mark char */
-#define STEPFN(c)  ({int __c = (c); (((__c-1)|(__c)) == -1); })
 
 static void sci_receive_chars(struct uart_port *port)
 {
@@ -2494,25 +2500,10 @@ done:
 	uart_update_timeout(port, termios->c_cflag, baud);
 
 	/* byte size and parity */
-	switch (termios->c_cflag & CSIZE) {
-	case CS5:
-		bits = 7;
-		break;
-	case CS6:
-		bits = 8;
-		break;
-	case CS7:
-		bits = 9;
-		break;
-	default:
-		bits = 10;
-		break;
-	}
+	bits = tty_get_frame_size(termios->c_cflag);
 
-	if (termios->c_cflag & CSTOPB)
-		bits++;
-	if (termios->c_cflag & PARENB)
-		bits++;
+	if (sci_getreg(port, SEMR)->size)
+		serial_port_out(port, SEMR, 0);
 
 	if (best_clk >= 0) {
 		if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
@@ -3170,6 +3161,10 @@ static const struct of_device_id of_sci_match[] = {
 		.compatible = "renesas,scif-r7s9210",
 		.data = SCI_OF_DATA(PORT_SCIF, SCIx_RZ_SCIFA_REGTYPE),
 	},
+	{
+		.compatible = "renesas,scif-r9a07g044",
+		.data = SCI_OF_DATA(PORT_SCIF, SCIx_RZ_SCIFA_REGTYPE),
+	},
 	/* Family-specific types */
 	{
 		.compatible = "renesas,rcar-gen1-scif",
@@ -3452,6 +3447,7 @@ static int __init rzscifa_early_console_setup(struct earlycon_device *device,
 	port_cfg.regtype = SCIx_RZ_SCIFA_REGTYPE;
 	return early_console_setup(device, PORT_SCIF);
 }
+
 static int __init scifa_early_console_setup(struct earlycon_device *device,
 					  const char *opt)
 {
@@ -3471,6 +3467,7 @@ static int __init hscif_early_console_setup(struct earlycon_device *device,
 OF_EARLYCON_DECLARE(sci, "renesas,sci", sci_early_console_setup);
 OF_EARLYCON_DECLARE(scif, "renesas,scif", scif_early_console_setup);
 OF_EARLYCON_DECLARE(scif, "renesas,scif-r7s9210", rzscifa_early_console_setup);
+OF_EARLYCON_DECLARE(scif, "renesas,scif-r9a07g044", rzscifa_early_console_setup);
 OF_EARLYCON_DECLARE(scifa, "renesas,scifa", scifa_early_console_setup);
 OF_EARLYCON_DECLARE(scifb, "renesas,scifb", scifb_early_console_setup);
 OF_EARLYCON_DECLARE(hscif, "renesas,hscif", hscif_early_console_setup);

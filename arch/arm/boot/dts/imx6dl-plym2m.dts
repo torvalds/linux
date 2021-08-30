@@ -138,8 +138,6 @@
 		interrupts-extended = <&gpio3 20 IRQ_TYPE_EDGE_FALLING>;
 		pendown-gpio = <&gpio3 20 GPIO_ACTIVE_LOW>;
 
-		touchscreen-size-x = <800>;
-		touchscreen-size-y = <480>;
 		touchscreen-inverted-x;
 		touchscreen-inverted-y;
 		touchscreen-max-pressure = <4095>;
@@ -147,7 +145,9 @@
 		ti,vref-delay-usecs = /bits/ 16 <100>;
 		ti,x-plate-ohms = /bits/ 16 <800>;
 		ti,y-plate-ohms = /bits/ 16 <300>;
-
+		ti,debounce-max = /bits/ 16 <3>;
+		ti,debounce-tol = /bits/ 16 <70>;
+		ti,debounce-rep = /bits/ 16 <3>;
 		wakeup-source;
 	};
 };

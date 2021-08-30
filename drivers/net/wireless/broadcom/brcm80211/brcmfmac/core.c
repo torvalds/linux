@@ -188,9 +188,14 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 	/*Finally, pick up the PROMISC flag */
 	cmd_value = (ndev->flags & IFF_PROMISC) ? true : false;
 	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PROMISC, cmd_value);
-	if (err < 0)
-		bphy_err(drvr, "Setting BRCMF_C_SET_PROMISC failed, %d\n",
-			 err);
+	if (err < 0) {
+		/* PROMISC unsupported by firmware of older chips */
+		if (err == -EBADE)
+			bphy_info_once(drvr, "BRCMF_C_SET_PROMISC unsupported\n");
+		else
+			bphy_err(drvr, "Setting BRCMF_C_SET_PROMISC failed, err=%d\n",
+				 err);
+	}
 	brcmf_configure_arp_nd_offload(ifp, !cmd_value);
 }
 

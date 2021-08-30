@@ -3,6 +3,7 @@
 #define _NET_NF_TABLES_CORE_H
 
 #include <net/netfilter/nf_tables.h>
+#include <linux/indirect_call_wrapper.h>
 
 extern struct nft_expr_type nft_imm_type;
 extern struct nft_expr_type nft_cmp_type;
@@ -15,6 +16,7 @@ extern struct nft_expr_type nft_range_type;
 extern struct nft_expr_type nft_meta_type;
 extern struct nft_expr_type nft_rt_type;
 extern struct nft_expr_type nft_exthdr_type;
+extern struct nft_expr_type nft_last_type;
 
 #ifdef CONFIG_NETWORK_SECMARK
 extern struct nft_object_type nft_secmark_obj_type;
@@ -87,6 +89,36 @@ extern const struct nft_set_type nft_set_rbtree_type;
 extern const struct nft_set_type nft_set_bitmap_type;
 extern const struct nft_set_type nft_set_pipapo_type;
 extern const struct nft_set_type nft_set_pipapo_avx2_type;
+
+#ifdef CONFIG_RETPOLINE
+bool nft_rhash_lookup(const struct net *net, const struct nft_set *set,
+		      const u32 *key, const struct nft_set_ext **ext);
+bool nft_rbtree_lookup(const struct net *net, const struct nft_set *set,
+		       const u32 *key, const struct nft_set_ext **ext);
+bool nft_bitmap_lookup(const struct net *net, const struct nft_set *set,
+		       const u32 *key, const struct nft_set_ext **ext);
+bool nft_hash_lookup_fast(const struct net *net,
+			  const struct nft_set *set,
+			  const u32 *key, const struct nft_set_ext **ext);
+bool nft_hash_lookup(const struct net *net, const struct nft_set *set,
+		     const u32 *key, const struct nft_set_ext **ext);
+bool nft_set_do_lookup(const struct net *net, const struct nft_set *set,
+		       const u32 *key, const struct nft_set_ext **ext);
+#else
+static inline bool
+nft_set_do_lookup(const struct net *net, const struct nft_set *set,
+		  const u32 *key, const struct nft_set_ext **ext)
+{
+	return set->ops->lookup(net, set, key, ext);
+}
+#endif
+
+/* called from nft_pipapo_avx2.c */
+bool nft_pipapo_lookup(const struct net *net, const struct nft_set *set,
+		       const u32 *key, const struct nft_set_ext **ext);
+/* called from nft_set_pipapo.c */
+bool nft_pipapo_avx2_lookup(const struct net *net, const struct nft_set *set,
+			    const u32 *key, const struct nft_set_ext **ext);
 
 struct nft_expr;
 struct nft_regs;

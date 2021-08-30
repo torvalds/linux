@@ -635,6 +635,8 @@ static irqreturn_t mpc_i2c_isr(int irq, void *dev_id)
 
 	status = readb(i2c->base + MPC_I2C_SR);
 	if (status & CSR_MIF) {
+		/* Read again to allow register to stabilise */
+		status = readb(i2c->base + MPC_I2C_SR);
 		writeb(0, i2c->base + MPC_I2C_SR);
 		mpc_i2c_do_intr(i2c, status);
 		return IRQ_HANDLED;

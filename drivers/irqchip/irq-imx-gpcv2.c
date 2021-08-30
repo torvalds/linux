@@ -228,10 +228,8 @@ static int __init imx_gpcv2_irqchip_init(struct device_node *node,
 	}
 
 	cd = kzalloc(sizeof(struct gpcv2_irqchip_data), GFP_KERNEL);
-	if (!cd) {
-		pr_err("%pOF: kzalloc failed!\n", node);
+	if (!cd)
 		return -ENOMEM;
-	}
 
 	raw_spin_lock_init(&cd->rlock);
 

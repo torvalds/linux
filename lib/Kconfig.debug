@@ -35,6 +35,17 @@ config PRINTK_CALLER
 	  no option to enable/disable at the kernel command line parameter or
 	  sysfs interface.
 
+config STACKTRACE_BUILD_ID
+	bool "Show build ID information in stacktraces"
+	depends on PRINTK
+	help
+	  Selecting this option adds build ID information for symbols in
+	  stacktraces printed with the printk format '%p[SR]b'.
+
+	  This option is intended for distros where debuginfo is not easily
+	  accessible but can be downloaded given the build ID of the vmlinux or
+	  kernel module where the function is located.
+
 config CONSOLE_LOGLEVEL_DEFAULT
 	int "Default console loglevel (1-15)"
 	range 1 15
@@ -400,8 +411,8 @@ config SECTION_MISMATCH_WARN_ONLY
 
 	  If unsure, say Y.
 
-config DEBUG_FORCE_FUNCTION_ALIGN_32B
-	bool "Force all function address 32B aligned" if EXPERT
+config DEBUG_FORCE_FUNCTION_ALIGN_64B
+	bool "Force all function address 64B aligned" if EXPERT
 	help
 	  There are cases that a commit from one domain changes the function
 	  address alignment of other domains, and cause magic performance
@@ -1279,7 +1290,7 @@ config PROVE_RAW_LOCK_NESTING
 	 option expect lockdep splats until these problems have been fully
 	 addressed which is work in progress. This config switch allows to
 	 identify and analyze these problems. It will be removed and the
-	 check permanentely enabled once the main issues have been fixed.
+	 check permanently enabled once the main issues have been fixed.
 
 	 If unsure, select N.
 
@@ -1445,7 +1456,7 @@ config DEBUG_LOCKING_API_SELFTESTS
 	  Say Y here if you want the kernel to run a short self-test during
 	  bootup. The self-test checks whether common types of locking bugs
 	  are detected by debugging mechanisms or not. (if you disable
-	  lock debugging then those bugs wont be detected of course.)
+	  lock debugging then those bugs won't be detected of course.)
 	  The following locking APIs are covered: spinlocks, rwlocks,
 	  mutexes and rwsems.
 
@@ -1925,7 +1936,7 @@ config FAIL_IO_TIMEOUT
 	  thus exercising the error handling.
 
 	  Only works with drivers that use the generic timeout handling,
-	  for others it wont do anything.
+	  for others it won't do anything.
 
 config FAIL_FUTEX
 	bool "Fault-injection capability for futexes"
@@ -2046,8 +2057,9 @@ config LKDTM
 	Documentation/fault-injection/provoke-crashes.rst
 
 config TEST_LIST_SORT
-	tristate "Linked list sorting test"
-	depends on DEBUG_KERNEL || m
+	tristate "Linked list sorting test" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
 	help
 	  Enable this to turn on 'list_sort()' function test. This test is
 	  executed only once during system boot (so affects only boot time),
@@ -2431,6 +2443,30 @@ config BITS_TEST
 
 	  If unsure, say N.
 
+config SLUB_KUNIT_TEST
+	tristate "KUnit test for SLUB cache error detection" if !KUNIT_ALL_TESTS
+	depends on SLUB_DEBUG && KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds SLUB allocator unit test.
+	  Tests SLUB cache debugging functionality.
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
+config RATIONAL_KUNIT_TEST
+	tristate "KUnit test for rational.c" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	select RATIONAL
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the rational math unit test.
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
 config TEST_UDELAY
 	tristate "udelay test driver"
 	help
@@ -2570,6 +2606,18 @@ config TEST_FPU
 	  which will trigger a sequence of floating point operations. This is used
 	  for self-testing floating point control register setting in
 	  kernel_fpu_begin().
+
+	  If unsure, say N.
+
+config TEST_CLOCKSOURCE_WATCHDOG
+	tristate "Test clocksource watchdog in kernel space"
+	depends on CLOCKSOURCE_WATCHDOG
+	help
+	  Enable this option to create a kernel module that will trigger
+	  a test of the clocksource watchdog.  This module may be loaded
+	  via modprobe or insmod in which case it will run upon being
+	  loaded, or it may be built in, in which case it will run
+	  shortly after boot.
 
 	  If unsure, say N.
 

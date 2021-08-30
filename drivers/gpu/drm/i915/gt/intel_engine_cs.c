@@ -45,9 +45,9 @@ struct engine_info {
 	unsigned int hw_id;
 	u8 class;
 	u8 instance;
-	/* mmio bases table *must* be sorted in reverse gen order */
+	/* mmio bases table *must* be sorted in reverse graphics_ver order */
 	struct engine_mmio_base {
-		u32 gen : 8;
+		u32 graphics_ver : 8;
 		u32 base : 24;
 	} mmio_bases[MAX_MMIO_BASES];
 };
@@ -58,7 +58,7 @@ static const struct engine_info intel_engines[] = {
 		.class = RENDER_CLASS,
 		.instance = 0,
 		.mmio_bases = {
-			{ .gen = 1, .base = RENDER_RING_BASE }
+			{ .graphics_ver = 1, .base = RENDER_RING_BASE }
 		},
 	},
 	[BCS0] = {
@@ -66,7 +66,7 @@ static const struct engine_info intel_engines[] = {
 		.class = COPY_ENGINE_CLASS,
 		.instance = 0,
 		.mmio_bases = {
-			{ .gen = 6, .base = BLT_RING_BASE }
+			{ .graphics_ver = 6, .base = BLT_RING_BASE }
 		},
 	},
 	[VCS0] = {
@@ -74,9 +74,9 @@ static const struct engine_info intel_engines[] = {
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 0,
 		.mmio_bases = {
-			{ .gen = 11, .base = GEN11_BSD_RING_BASE },
-			{ .gen = 6, .base = GEN6_BSD_RING_BASE },
-			{ .gen = 4, .base = BSD_RING_BASE }
+			{ .graphics_ver = 11, .base = GEN11_BSD_RING_BASE },
+			{ .graphics_ver = 6, .base = GEN6_BSD_RING_BASE },
+			{ .graphics_ver = 4, .base = BSD_RING_BASE }
 		},
 	},
 	[VCS1] = {
@@ -84,8 +84,8 @@ static const struct engine_info intel_engines[] = {
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 1,
 		.mmio_bases = {
-			{ .gen = 11, .base = GEN11_BSD2_RING_BASE },
-			{ .gen = 8, .base = GEN8_BSD2_RING_BASE }
+			{ .graphics_ver = 11, .base = GEN11_BSD2_RING_BASE },
+			{ .graphics_ver = 8, .base = GEN8_BSD2_RING_BASE }
 		},
 	},
 	[VCS2] = {
@@ -93,7 +93,7 @@ static const struct engine_info intel_engines[] = {
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 2,
 		.mmio_bases = {
-			{ .gen = 11, .base = GEN11_BSD3_RING_BASE }
+			{ .graphics_ver = 11, .base = GEN11_BSD3_RING_BASE }
 		},
 	},
 	[VCS3] = {
@@ -101,7 +101,7 @@ static const struct engine_info intel_engines[] = {
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 3,
 		.mmio_bases = {
-			{ .gen = 11, .base = GEN11_BSD4_RING_BASE }
+			{ .graphics_ver = 11, .base = GEN11_BSD4_RING_BASE }
 		},
 	},
 	[VECS0] = {
@@ -109,8 +109,8 @@ static const struct engine_info intel_engines[] = {
 		.class = VIDEO_ENHANCEMENT_CLASS,
 		.instance = 0,
 		.mmio_bases = {
-			{ .gen = 11, .base = GEN11_VEBOX_RING_BASE },
-			{ .gen = 7, .base = VEBOX_RING_BASE }
+			{ .graphics_ver = 11, .base = GEN11_VEBOX_RING_BASE },
+			{ .graphics_ver = 7, .base = VEBOX_RING_BASE }
 		},
 	},
 	[VECS1] = {
@@ -118,7 +118,7 @@ static const struct engine_info intel_engines[] = {
 		.class = VIDEO_ENHANCEMENT_CLASS,
 		.instance = 1,
 		.mmio_bases = {
-			{ .gen = 11, .base = GEN11_VEBOX2_RING_BASE }
+			{ .graphics_ver = 11, .base = GEN11_VEBOX2_RING_BASE }
 		},
 	},
 };
@@ -146,9 +146,9 @@ u32 intel_engine_context_size(struct intel_gt *gt, u8 class)
 
 	switch (class) {
 	case RENDER_CLASS:
-		switch (INTEL_GEN(gt->i915)) {
+		switch (GRAPHICS_VER(gt->i915)) {
 		default:
-			MISSING_CASE(INTEL_GEN(gt->i915));
+			MISSING_CASE(GRAPHICS_VER(gt->i915));
 			return DEFAULT_LR_CONTEXT_RENDER_SIZE;
 		case 12:
 		case 11:
@@ -184,8 +184,8 @@ u32 intel_engine_context_size(struct intel_gt *gt, u8 class)
 			 */
 			cxt_size = intel_uncore_read(uncore, CXT_SIZE) + 1;
 			drm_dbg(&gt->i915->drm,
-				"gen%d CXT_SIZE = %d bytes [0x%08x]\n",
-				INTEL_GEN(gt->i915), cxt_size * 64,
+				"graphics_ver = %d CXT_SIZE = %d bytes [0x%08x]\n",
+				GRAPHICS_VER(gt->i915), cxt_size * 64,
 				cxt_size - 1);
 			return round_up(cxt_size * 64, PAGE_SIZE);
 		case 3:
@@ -201,7 +201,7 @@ u32 intel_engine_context_size(struct intel_gt *gt, u8 class)
 	case VIDEO_DECODE_CLASS:
 	case VIDEO_ENHANCEMENT_CLASS:
 	case COPY_ENGINE_CLASS:
-		if (INTEL_GEN(gt->i915) < 8)
+		if (GRAPHICS_VER(gt->i915) < 8)
 			return 0;
 		return GEN8_LR_CONTEXT_OTHER_SIZE;
 	}
@@ -213,7 +213,7 @@ static u32 __engine_mmio_base(struct drm_i915_private *i915,
 	int i;
 
 	for (i = 0; i < MAX_MMIO_BASES; i++)
-		if (INTEL_GEN(i915) >= bases[i].gen)
+		if (GRAPHICS_VER(i915) >= bases[i].graphics_ver)
 			break;
 
 	GEM_BUG_ON(i == MAX_MMIO_BASES);
@@ -240,10 +240,10 @@ void intel_engine_set_hwsp_writemask(struct intel_engine_cs *engine, u32 mask)
 	 * Though they added more rings on g4x/ilk, they did not add
 	 * per-engine HWSTAM until gen6.
 	 */
-	if (INTEL_GEN(engine->i915) < 6 && engine->class != RENDER_CLASS)
+	if (GRAPHICS_VER(engine->i915) < 6 && engine->class != RENDER_CLASS)
 		return;
 
-	if (INTEL_GEN(engine->i915) >= 3)
+	if (GRAPHICS_VER(engine->i915) >= 3)
 		ENGINE_WRITE(engine, RING_HWSTAM, mask);
 	else
 		ENGINE_WRITE16(engine, RING_HWSTAM, mask);
@@ -255,11 +255,17 @@ static void intel_engine_sanitize_mmio(struct intel_engine_cs *engine)
 	intel_engine_set_hwsp_writemask(engine, ~0u);
 }
 
+static void nop_irq_handler(struct intel_engine_cs *engine, u16 iir)
+{
+	GEM_DEBUG_WARN_ON(iir);
+}
+
 static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 {
 	const struct engine_info *info = &intel_engines[id];
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_engine_cs *engine;
+	u8 guc_class;
 
 	BUILD_BUG_ON(MAX_ENGINE_CLASS >= BIT(GEN11_ENGINE_CLASS_WIDTH));
 	BUILD_BUG_ON(MAX_ENGINE_INSTANCE >= BIT(GEN11_ENGINE_INSTANCE_WIDTH));
@@ -288,9 +294,12 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	engine->i915 = i915;
 	engine->gt = gt;
 	engine->uncore = gt->uncore;
-	engine->mmio_base = __engine_mmio_base(i915, info->mmio_bases);
 	engine->hw_id = info->hw_id;
-	engine->guc_id = MAKE_GUC_ID(info->class, info->instance);
+	guc_class = engine_class_to_guc_class(info->class);
+	engine->guc_id = MAKE_GUC_ID(guc_class, info->instance);
+	engine->mmio_base = __engine_mmio_base(i915, info->mmio_bases);
+
+	engine->irq_handler = nop_irq_handler;
 
 	engine->class = info->class;
 	engine->instance = info->instance;
@@ -308,7 +317,7 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 		CONFIG_DRM_I915_TIMESLICE_DURATION;
 
 	/* Override to uninterruptible for OpenCL workloads. */
-	if (INTEL_GEN(i915) == 12 && engine->class == RENDER_CLASS)
+	if (GRAPHICS_VER(i915) == 12 && engine->class == RENDER_CLASS)
 		engine->props.preempt_timeout_ms = 0;
 
 	engine->defaults = engine->props; /* never to change again */
@@ -345,8 +354,8 @@ static void __setup_engine_capabilities(struct intel_engine_cs *engine)
 		 * HEVC support is present on first engine instance
 		 * before Gen11 and on all instances afterwards.
 		 */
-		if (INTEL_GEN(i915) >= 11 ||
-		    (INTEL_GEN(i915) >= 9 && engine->instance == 0))
+		if (GRAPHICS_VER(i915) >= 11 ||
+		    (GRAPHICS_VER(i915) >= 9 && engine->instance == 0))
 			engine->uabi_capabilities |=
 				I915_VIDEO_CLASS_CAPABILITY_HEVC;
 
@@ -354,14 +363,14 @@ static void __setup_engine_capabilities(struct intel_engine_cs *engine)
 		 * SFC block is present only on even logical engine
 		 * instances.
 		 */
-		if ((INTEL_GEN(i915) >= 11 &&
+		if ((GRAPHICS_VER(i915) >= 11 &&
 		     (engine->gt->info.vdbox_sfc_access &
 		      BIT(engine->instance))) ||
-		    (INTEL_GEN(i915) >= 9 && engine->instance == 0))
+		    (GRAPHICS_VER(i915) >= 9 && engine->instance == 0))
 			engine->uabi_capabilities |=
 				I915_VIDEO_AND_ENHANCE_CLASS_CAPABILITY_SFC;
 	} else if (engine->class == VIDEO_ENHANCEMENT_CLASS) {
-		if (INTEL_GEN(i915) >= 9)
+		if (GRAPHICS_VER(i915) >= 9)
 			engine->uabi_capabilities |=
 				I915_VIDEO_AND_ENHANCE_CLASS_CAPABILITY_SFC;
 	}
@@ -459,7 +468,7 @@ static intel_engine_mask_t init_engine_mask(struct intel_gt *gt)
 
 	info->engine_mask = INTEL_INFO(i915)->platform_engine_mask;
 
-	if (INTEL_GEN(i915) < 11)
+	if (GRAPHICS_VER(i915) < 11)
 		return info->engine_mask;
 
 	media_fuse = ~intel_uncore_read(uncore, GEN11_GT_VEBOX_VDBOX_DISABLE);
@@ -485,7 +494,7 @@ static intel_engine_mask_t init_engine_mask(struct intel_gt *gt)
 		 * hooked up to an SFC (Scaler & Format Converter) unit.
 		 * In TGL each VDBOX has access to an SFC.
 		 */
-		if (INTEL_GEN(i915) >= 12 || logical_vdbox++ % 2 == 0)
+		if (GRAPHICS_VER(i915) >= 12 || logical_vdbox++ % 2 == 0)
 			gt->info.vdbox_sfc_access |= BIT(i);
 	}
 	drm_dbg(&i915->drm, "vdbox enable: %04x, instances: %04lx\n",
@@ -722,7 +731,7 @@ static int engine_setup_common(struct intel_engine_cs *engine)
 	intel_engine_init_whitelist(engine);
 	intel_engine_init_ctx_wa(engine);
 
-	if (INTEL_GEN(engine->i915) >= 12)
+	if (GRAPHICS_VER(engine->i915) >= 12)
 		engine->flags |= I915_ENGINE_HAS_RELATIVE_MMIO;
 
 	return 0;
@@ -898,7 +907,7 @@ static int engine_init_common(struct intel_engine_cs *engine)
 	return 0;
 
 err_context:
-	intel_context_put(ce);
+	destroy_pinned_context(ce);
 	return ret;
 }
 
@@ -909,12 +918,16 @@ int intel_engines_init(struct intel_gt *gt)
 	enum intel_engine_id id;
 	int err;
 
-	if (intel_uc_uses_guc_submission(&gt->uc))
+	if (intel_uc_uses_guc_submission(&gt->uc)) {
+		gt->submission_method = INTEL_SUBMISSION_GUC;
 		setup = intel_guc_submission_setup;
-	else if (HAS_EXECLISTS(gt->i915))
+	} else if (HAS_EXECLISTS(gt->i915)) {
+		gt->submission_method = INTEL_SUBMISSION_ELSP;
 		setup = intel_execlists_submission_setup;
-	else
+	} else {
+		gt->submission_method = INTEL_SUBMISSION_RING;
 		setup = intel_ring_submission_setup;
+	}
 
 	for_each_engine(engine, gt, id) {
 		err = engine_setup_common(engine);
@@ -986,9 +999,9 @@ u64 intel_engine_get_active_head(const struct intel_engine_cs *engine)
 
 	u64 acthd;
 
-	if (INTEL_GEN(i915) >= 8)
+	if (GRAPHICS_VER(i915) >= 8)
 		acthd = ENGINE_READ64(engine, RING_ACTHD, RING_ACTHD_UDW);
-	else if (INTEL_GEN(i915) >= 4)
+	else if (GRAPHICS_VER(i915) >= 4)
 		acthd = ENGINE_READ(engine, RING_ACTHD);
 	else
 		acthd = ENGINE_READ(engine, ACTHD);
@@ -1000,7 +1013,7 @@ u64 intel_engine_get_last_batch_head(const struct intel_engine_cs *engine)
 {
 	u64 bbaddr;
 
-	if (INTEL_GEN(engine->i915) >= 8)
+	if (GRAPHICS_VER(engine->i915) >= 8)
 		bbaddr = ENGINE_READ64(engine, RING_BBADDR, RING_BBADDR_UDW);
 	else
 		bbaddr = ENGINE_READ(engine, RING_BBADDR);
@@ -1047,7 +1060,7 @@ int intel_engine_stop_cs(struct intel_engine_cs *engine)
 {
 	int err = 0;
 
-	if (INTEL_GEN(engine->i915) < 3)
+	if (GRAPHICS_VER(engine->i915) < 3)
 		return -ENODEV;
 
 	ENGINE_TRACE(engine, "\n");
@@ -1097,7 +1110,7 @@ read_subslice_reg(const struct intel_engine_cs *engine,
 	u32 mcr_mask, mcr_ss, mcr, old_mcr, val;
 	enum forcewake_domains fw_domains;
 
-	if (INTEL_GEN(i915) >= 11) {
+	if (GRAPHICS_VER(i915) >= 11) {
 		mcr_mask = GEN11_MCR_SLICE_MASK | GEN11_MCR_SUBSLICE_MASK;
 		mcr_ss = GEN11_MCR_SLICE(slice) | GEN11_MCR_SUBSLICE(subslice);
 	} else {
@@ -1146,7 +1159,7 @@ void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 
 	memset(instdone, 0, sizeof(*instdone));
 
-	switch (INTEL_GEN(i915)) {
+	switch (GRAPHICS_VER(i915)) {
 	default:
 		instdone->instdone =
 			intel_uncore_read(uncore, RING_INSTDONE(mmio_base));
@@ -1156,7 +1169,7 @@ void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 
 		instdone->slice_common =
 			intel_uncore_read(uncore, GEN7_SC_INSTDONE);
-		if (INTEL_GEN(i915) >= 12) {
+		if (GRAPHICS_VER(i915) >= 12) {
 			instdone->slice_common_extra[0] =
 				intel_uncore_read(uncore, GEN12_SC_INSTDONE_EXTRA);
 			instdone->slice_common_extra[1] =
@@ -1219,7 +1232,7 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 		idle = false;
 
 	/* No bit for gen2, so assume the CS parser is idle */
-	if (INTEL_GEN(engine->i915) > 2 &&
+	if (GRAPHICS_VER(engine->i915) > 2 &&
 	    !(ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE))
 		idle = false;
 
@@ -1266,7 +1279,7 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 		return true;
 
 	/* Waiting to drain ELSP? */
-	synchronize_hardirq(to_pci_dev(engine->i915->drm.dev)->irq);
+	intel_synchronize_hardirq(engine->i915);
 	intel_engine_flush_submission(engine);
 
 	/* ELSP is empty, but there are ready requests? E.g. after reset */
@@ -1316,7 +1329,7 @@ void intel_engines_reset_default_submission(struct intel_gt *gt)
 
 bool intel_engine_can_store_dword(struct intel_engine_cs *engine)
 {
-	switch (INTEL_GEN(engine->i915)) {
+	switch (GRAPHICS_VER(engine->i915)) {
 	case 2:
 		return false; /* uses physical not virtual addresses */
 	case 3:
@@ -1421,7 +1434,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	u64 addr;
 
-	if (engine->id == RENDER_CLASS && IS_GEN_RANGE(dev_priv, 4, 7))
+	if (engine->id == RENDER_CLASS && IS_GRAPHICS_VER(dev_priv, 4, 7))
 		drm_printf(m, "\tCCID: 0x%08x\n", ENGINE_READ(engine, CCID));
 	if (HAS_EXECLISTS(dev_priv)) {
 		drm_printf(m, "\tEL_STAT_HI: 0x%08x\n",
@@ -1438,13 +1451,13 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 	drm_printf(m, "\tRING_CTL:   0x%08x%s\n",
 		   ENGINE_READ(engine, RING_CTL),
 		   ENGINE_READ(engine, RING_CTL) & (RING_WAIT | RING_WAIT_SEMAPHORE) ? " [waiting]" : "");
-	if (INTEL_GEN(engine->i915) > 2) {
+	if (GRAPHICS_VER(engine->i915) > 2) {
 		drm_printf(m, "\tRING_MODE:  0x%08x%s\n",
 			   ENGINE_READ(engine, RING_MI_MODE),
 			   ENGINE_READ(engine, RING_MI_MODE) & (MODE_IDLE) ? " [idle]" : "");
 	}
 
-	if (INTEL_GEN(dev_priv) >= 6) {
+	if (GRAPHICS_VER(dev_priv) >= 6) {
 		drm_printf(m, "\tRING_IMR:   0x%08x\n",
 			   ENGINE_READ(engine, RING_IMR));
 		drm_printf(m, "\tRING_ESR:   0x%08x\n",
@@ -1461,15 +1474,15 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 	addr = intel_engine_get_last_batch_head(engine);
 	drm_printf(m, "\tBBADDR: 0x%08x_%08x\n",
 		   upper_32_bits(addr), lower_32_bits(addr));
-	if (INTEL_GEN(dev_priv) >= 8)
+	if (GRAPHICS_VER(dev_priv) >= 8)
 		addr = ENGINE_READ64(engine, RING_DMA_FADD, RING_DMA_FADD_UDW);
-	else if (INTEL_GEN(dev_priv) >= 4)
+	else if (GRAPHICS_VER(dev_priv) >= 4)
 		addr = ENGINE_READ(engine, RING_DMA_FADD);
 	else
 		addr = ENGINE_READ(engine, DMA_FADD_I8XX);
 	drm_printf(m, "\tDMA_FADDR: 0x%08x_%08x\n",
 		   upper_32_bits(addr), lower_32_bits(addr));
-	if (INTEL_GEN(dev_priv) >= 4) {
+	if (GRAPHICS_VER(dev_priv) >= 4) {
 		drm_printf(m, "\tIPEIR: 0x%08x\n",
 			   ENGINE_READ(engine, RING_IPEIR));
 		drm_printf(m, "\tIPEHR: 0x%08x\n",
@@ -1479,7 +1492,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 		drm_printf(m, "\tIPEHR: 0x%08x\n", ENGINE_READ(engine, IPEHR));
 	}
 
-	if (intel_engine_in_guc_submission_mode(engine)) {
+	if (intel_engine_uses_guc(engine)) {
 		/* nothing to print yet */
 	} else if (HAS_EXECLISTS(dev_priv)) {
 		struct i915_request * const *port, *rq;
@@ -1548,7 +1561,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 		}
 		rcu_read_unlock();
 		execlists_active_unlock_bh(execlists);
-	} else if (INTEL_GEN(dev_priv) > 6) {
+	} else if (GRAPHICS_VER(dev_priv) > 6) {
 		drm_printf(m, "\tPP_DIR_BASE: 0x%08x\n",
 			   ENGINE_READ(engine, RING_PP_DIR_BASE));
 		drm_printf(m, "\tPP_DIR_BASE_READ: 0x%08x\n",

@@ -1686,7 +1686,7 @@ store_fc_vport_delete(struct device *dev, struct device_attribute *attr,
 	unsigned long flags;
 
 	spin_lock_irqsave(shost->host_lock, flags);
-	if (vport->flags & (FC_VPORT_DEL | FC_VPORT_CREATING | FC_VPORT_DELETING)) {
+	if (vport->flags & (FC_VPORT_DEL | FC_VPORT_CREATING)) {
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		return -EBUSY;
 	}

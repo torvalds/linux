@@ -49,7 +49,7 @@ static void rawsock_report_error(struct sock *sk, int err)
 
 	sk->sk_shutdown = SHUTDOWN_MASK;
 	sk->sk_err = -err;
-	sk->sk_error_report(sk);
+	sk_error_report(sk);
 
 	rawsock_write_queue_purge(sk);
 }

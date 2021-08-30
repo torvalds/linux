@@ -254,6 +254,9 @@ struct mtk_pinctrl_devdata {
 	unsigned char  port_align;
 	struct mtk_eint_hw eint_hw;
 	struct mtk_eint_regs *eint_regs;
+	unsigned int mode_mask;
+	unsigned int mode_per_reg;
+	unsigned int mode_shf;
 };
 
 struct mtk_pinctrl {

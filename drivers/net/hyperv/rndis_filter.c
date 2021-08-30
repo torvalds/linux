@@ -1051,10 +1051,8 @@ static int rndis_filter_set_packet_filter(struct rndis_device *dev,
 	set = &request->request_msg.msg.set_req;
 	set->oid = RNDIS_OID_GEN_CURRENT_PACKET_FILTER;
 	set->info_buflen = sizeof(u32);
-	set->info_buf_offset = sizeof(struct rndis_set_request);
-
-	memcpy((void *)(unsigned long)set + sizeof(struct rndis_set_request),
-	       &new_filter, sizeof(u32));
+	set->info_buf_offset = offsetof(typeof(*set), info_buf);
+	memcpy(set->info_buf, &new_filter, sizeof(u32));
 
 	ret = rndis_filter_send_request(dev, request);
 	if (ret == 0) {

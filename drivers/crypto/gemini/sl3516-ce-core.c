@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * sl3516-ce-core.c - hardware cryptographic offloader for Stormlink SL3516 SoC
+ * sl3516-ce-core.c - hardware cryptographic offloader for Storlink SL3516 SoC
  *
  * Copyright (C) 2021 Corentin Labbe <clabbe@baylibre.com>
  *

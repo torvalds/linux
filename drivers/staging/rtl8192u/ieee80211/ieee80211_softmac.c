@@ -33,9 +33,9 @@ short ieee80211_is_shortslot(const struct ieee80211_network *net)
 }
 EXPORT_SYMBOL(ieee80211_is_shortslot);
 
-/* returns the total length needed for pleacing the RATE MFIE
+/* returns the total length needed for placing the RATE MFIE
  * tag and the EXTENDED RATE MFIE tag if needed.
- * It encludes two bytes per tag for the tag itself and its len
+ * It includes two bytes per tag for the tag itself and its len
  */
 static unsigned int ieee80211_MFIE_rate_len(struct ieee80211_device *ieee)
 {
@@ -50,7 +50,7 @@ static unsigned int ieee80211_MFIE_rate_len(struct ieee80211_device *ieee)
 	return rate_len;
 }
 
-/* pleace the MFIE rate, tag to the memory (double) poined.
+/* place the MFIE rate, tag to the memory (double) pointer.
  * Then it updates the pointer so that
  * it points after the new MFIE tag added.
  */
@@ -436,7 +436,7 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 		 *    So we switch to IEEE80211_LINKED_SCANNING to remember
 		 *    that we are still logically linked (not interested in
 		 *    new network events, despite for updating the net list,
-		 *    but we are temporarly 'unlinked' as the driver shall
+		 *    but we are temporarily 'unlinked' as the driver shall
 		 *    not filter RX frames and the channel is changing.
 		 * So the only situation in witch are interested is to check
 		 * if the state become LINKED because of the #1 situation
@@ -1162,7 +1162,7 @@ void ieee80211_associate_abort(struct ieee80211_device *ieee)
 
 	ieee->associate_seq++;
 
-	/* don't scan, and avoid to have the RX path possibily
+	/* don't scan, and avoid having the RX path possibly
 	 * try again to associate. Even do not react to AUTH or
 	 * ASSOC response. Just wait for the retry wq to be scheduled.
 	 * Here we will check if there are good nets to associate
@@ -1373,7 +1373,7 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 		/* if the user set the AP check if match.
 		 * if the network does not broadcast essid we check the user supplyed ANY essid
 		 * if the network does broadcast and the user does not set essid it is OK
-		 * if the network does broadcast and the user did set essid chech if essid match
+		 * if the network does broadcast and the user did set essid check if essid match
 		 */
 		if ((apset && apmatch &&
 		     ((ssidset && ssidbroad && ssidmatch) || (ssidbroad && !ssidset) || (!ssidbroad && ssidset))) ||
@@ -1911,8 +1911,11 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 		if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
 		    ieee->state == IEEE80211_ASSOCIATING_AUTHENTICATED &&
 		    ieee->iw_mode == IW_MODE_INFRA) {
-			struct ieee80211_network network_resp;
-			struct ieee80211_network *network = &network_resp;
+			struct ieee80211_network *network;
+
+			network = kzalloc(sizeof(*network), GFP_KERNEL);
+			if (!network)
+				return -ENOMEM;
 
 			errcode = assoc_parse(ieee, skb, &aid);
 			if (!errcode) {
@@ -1923,7 +1926,6 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 				/* Let the register setting defaultly with Legacy station */
 				if (ieee->qos_support) {
 					assoc_resp = (struct ieee80211_assoc_response_frame *)skb->data;
-					memset(network, 0, sizeof(*network));
 					if (ieee80211_parse_info_param(ieee, assoc_resp->info_element,\
 								       rx_stats->len - sizeof(*assoc_resp), \
 								       network, rx_stats)) {
@@ -1949,6 +1951,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 				else
 					ieee80211_associate_abort(ieee);
 			}
+			kfree(network);
 		}
 		break;
 
@@ -2240,9 +2243,9 @@ static void ieee80211_start_ibss_wq(struct work_struct *work)
 	 * time to scan all the chans..) or we have just run up the iface
 	 * after setting ad-hoc mode. So we have to give another try..
 	 * Here, in ibss mode, should be safe to do this without extra care
-	 * (in bss mode we had to make sure no-one tryed to associate when
+	 * (in bss mode we had to make sure no-one tried to associate when
 	 * we had just checked the ieee->state and we was going to start the
-	 * scan) beacause in ibss mode the ieee80211_new_net function, when
+	 * scan) because in ibss mode the ieee80211_new_net function, when
 	 * finds a good net, just set the ieee->state to IEEE80211_LINKED,
 	 * so, at worst, we waste a bit of time to initiate an unneeded syncro
 	 * scan, that will stop at the first round because it sees the state

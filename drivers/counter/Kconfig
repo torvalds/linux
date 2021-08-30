@@ -91,4 +91,14 @@ config MICROCHIP_TCB_CAPTURE
 	  To compile this driver as a module, choose M here: the
 	  module will be called microchip-tcb-capture.
 
+config INTEL_QEP
+	tristate "Intel Quadrature Encoder Peripheral driver"
+	depends on PCI
+	help
+	  Select this option to enable the Intel Quadrature Encoder Peripheral
+	  driver.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel-qep.
+
 endif # COUNTER

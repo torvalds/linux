@@ -794,7 +794,7 @@ static void program_bit_depth_reduction(
 	enum dcp_out_trunc_round_mode trunc_mode;
 	bool spatial_dither_enable;
 
-	ASSERT(depth < COLOR_DEPTH_121212); /* Invalid clamp bit depth */
+	ASSERT(depth <= COLOR_DEPTH_121212); /* Invalid clamp bit depth */
 
 	spatial_dither_enable = bit_depth_params->flags.SPATIAL_DITHER_ENABLED;
 	/* Default to 12 bit truncation without rounding */
@@ -854,7 +854,7 @@ static void dce60_program_bit_depth_reduction(
 	enum dcp_out_trunc_round_mode trunc_mode;
 	bool spatial_dither_enable;
 
-	ASSERT(depth < COLOR_DEPTH_121212); /* Invalid clamp bit depth */
+	ASSERT(depth <= COLOR_DEPTH_121212); /* Invalid clamp bit depth */
 
 	spatial_dither_enable = bit_depth_params->flags.SPATIAL_DITHER_ENABLED;
 	/* Default to 12 bit truncation without rounding */
@@ -1647,7 +1647,8 @@ void dce_transform_construct(
 	xfm_dce->lb_pixel_depth_supported =
 			LB_PIXEL_DEPTH_18BPP |
 			LB_PIXEL_DEPTH_24BPP |
-			LB_PIXEL_DEPTH_30BPP;
+			LB_PIXEL_DEPTH_30BPP |
+			LB_PIXEL_DEPTH_36BPP;
 
 	xfm_dce->lb_bits_per_entry = LB_BITS_PER_ENTRY;
 	xfm_dce->lb_memory_size = LB_TOTAL_NUMBER_OF_ENTRIES; /*0x6B0*/
@@ -1675,7 +1676,8 @@ void dce60_transform_construct(
 	xfm_dce->lb_pixel_depth_supported =
 			LB_PIXEL_DEPTH_18BPP |
 			LB_PIXEL_DEPTH_24BPP |
-			LB_PIXEL_DEPTH_30BPP;
+			LB_PIXEL_DEPTH_30BPP |
+			LB_PIXEL_DEPTH_36BPP;
 
 	xfm_dce->lb_bits_per_entry = LB_BITS_PER_ENTRY;
 	xfm_dce->lb_memory_size = LB_TOTAL_NUMBER_OF_ENTRIES; /*0x6B0*/

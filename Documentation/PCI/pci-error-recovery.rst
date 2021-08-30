@@ -295,7 +295,7 @@ and let the driver restart normal I/O processing.
 A driver can still return a critical failure for this function if
 it can't get the device operational after reset.  If the platform
 previously tried a soft reset, it might now try a hard reset (power
-cycle) and then call slot_reset() again.  It the device still can't
+cycle) and then call slot_reset() again.  If the device still can't
 be recovered, there is nothing more that can be done;  the platform
 will typically report a "permanent failure" in such a case.  The
 device will be considered "dead" in this case.

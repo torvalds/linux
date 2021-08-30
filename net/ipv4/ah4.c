@@ -555,7 +555,6 @@ static int ah4_rcv_cb(struct sk_buff *skb, int err)
 
 static const struct xfrm_type ah_type =
 {
-	.description	= "AH4",
 	.owner		= THIS_MODULE,
 	.proto	     	= IPPROTO_AH,
 	.flags		= XFRM_TYPE_REPLAY_PROT,

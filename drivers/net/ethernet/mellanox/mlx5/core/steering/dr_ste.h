@@ -156,6 +156,7 @@ struct mlx5dr_ste_ctx {
 	u16  (*get_byte_mask)(u8 *hw_ste_p);
 
 	/* Actions */
+	u32 actions_caps;
 	void (*set_actions_rx)(struct mlx5dr_domain *dmn,
 			       u8 *action_type_set,
 			       u8 *hw_ste_arr,

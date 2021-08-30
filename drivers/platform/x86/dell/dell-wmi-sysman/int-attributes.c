@@ -141,20 +141,36 @@ int populate_int_data(union acpi_object *integer_obj, int instance_id,
 			struct kobject *attr_name_kobj)
 {
 	wmi_priv.integer_data[instance_id].attr_name_kobj = attr_name_kobj;
+	if (check_property_type(integer, ATTR_NAME, ACPI_TYPE_STRING))
+		return -EINVAL;
 	strlcpy_attr(wmi_priv.integer_data[instance_id].attribute_name,
 		integer_obj[ATTR_NAME].string.pointer);
+	if (check_property_type(integer, DISPL_NAME_LANG_CODE, ACPI_TYPE_STRING))
+		return -EINVAL;
 	strlcpy_attr(wmi_priv.integer_data[instance_id].display_name_language_code,
 		integer_obj[DISPL_NAME_LANG_CODE].string.pointer);
+	if (check_property_type(integer, DISPLAY_NAME, ACPI_TYPE_STRING))
+		return -EINVAL;
 	strlcpy_attr(wmi_priv.integer_data[instance_id].display_name,
 		integer_obj[DISPLAY_NAME].string.pointer);
+	if (check_property_type(integer, DEFAULT_VAL, ACPI_TYPE_INTEGER))
+		return -EINVAL;
 	wmi_priv.integer_data[instance_id].default_value =
 		(uintptr_t)integer_obj[DEFAULT_VAL].string.pointer;
+	if (check_property_type(integer, MODIFIER, ACPI_TYPE_STRING))
+		return -EINVAL;
 	strlcpy_attr(wmi_priv.integer_data[instance_id].dell_modifier,
 		integer_obj[MODIFIER].string.pointer);
+	if (check_property_type(integer, MIN_VALUE, ACPI_TYPE_INTEGER))
+		return -EINVAL;
 	wmi_priv.integer_data[instance_id].min_value =
 		(uintptr_t)integer_obj[MIN_VALUE].string.pointer;
+	if (check_property_type(integer, MAX_VALUE, ACPI_TYPE_INTEGER))
+		return -EINVAL;
 	wmi_priv.integer_data[instance_id].max_value =
 		(uintptr_t)integer_obj[MAX_VALUE].string.pointer;
+	if (check_property_type(integer, SCALAR_INCR, ACPI_TYPE_INTEGER))
+		return -EINVAL;
 	wmi_priv.integer_data[instance_id].scalar_increment =
 		(uintptr_t)integer_obj[SCALAR_INCR].string.pointer;
 

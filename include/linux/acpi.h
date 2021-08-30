@@ -132,6 +132,7 @@ enum acpi_address_range_id {
 union acpi_subtable_headers {
 	struct acpi_subtable_header common;
 	struct acpi_hmat_structure hmat;
+	struct acpi_prmt_module_header prmt;
 };
 
 typedef int (*acpi_tbl_table_handler)(struct acpi_table_header *table);
@@ -259,9 +260,12 @@ void acpi_numa_x2apic_affinity_init(struct acpi_srat_x2apic_cpu_affinity *pa);
 
 #ifdef CONFIG_ARM64
 void acpi_numa_gicc_affinity_init(struct acpi_srat_gicc_affinity *pa);
+void acpi_arch_dma_setup(struct device *dev, u64 *dma_addr, u64 *dma_size);
 #else
 static inline void
 acpi_numa_gicc_affinity_init(struct acpi_srat_gicc_affinity *pa) { }
+static inline void
+acpi_arch_dma_setup(struct device *dev, u64 *dma_addr, u64 *dma_size) { }
 #endif
 
 int acpi_numa_memory_affinity_init (struct acpi_srat_mem_affinity *ma);
@@ -551,6 +555,7 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 #define OSC_SB_CPC_DIVERSE_HIGH_SUPPORT		0x00001000
 #define OSC_SB_GENERIC_INITIATOR_SUPPORT	0x00002000
 #define OSC_SB_NATIVE_USB4_SUPPORT		0x00040000
+#define OSC_SB_PRM_SUPPORT			0x00200000
 
 extern bool osc_sb_apei_support_acked;
 extern bool osc_pc_lpi_support_confirmed;
@@ -666,7 +671,6 @@ extern bool acpi_driver_match_device(struct device *dev,
 				     const struct device_driver *drv);
 int acpi_device_uevent_modalias(struct device *, struct kobj_uevent_env *);
 int acpi_device_modalias(struct device *, char *, int);
-void acpi_walk_dep_device_list(acpi_handle handle);
 
 struct platform_device *acpi_create_platform_device(struct acpi_device *,
 						    struct property_entry *);
@@ -709,6 +713,8 @@ static inline u64 acpi_arch_get_root_pointer(void)
 	return 0;
 }
 #endif
+
+int acpi_get_local_address(acpi_handle handle, u32 *addr);
 
 #else	/* !CONFIG_ACPI */
 
@@ -765,7 +771,7 @@ static inline bool is_acpi_device_node(const struct fwnode_handle *fwnode)
 	return false;
 }
 
-static inline struct acpi_device *to_acpi_device_node(struct fwnode_handle *fwnode)
+static inline struct acpi_device *to_acpi_device_node(const struct fwnode_handle *fwnode)
 {
 	return NULL;
 }
@@ -775,12 +781,12 @@ static inline bool is_acpi_data_node(const struct fwnode_handle *fwnode)
 	return false;
 }
 
-static inline struct acpi_data_node *to_acpi_data_node(struct fwnode_handle *fwnode)
+static inline struct acpi_data_node *to_acpi_data_node(const struct fwnode_handle *fwnode)
 {
 	return NULL;
 }
 
-static inline bool acpi_data_node_match(struct fwnode_handle *fwnode,
+static inline bool acpi_data_node_match(const struct fwnode_handle *fwnode,
 					const char *name)
 {
 	return false;
@@ -911,7 +917,7 @@ acpi_create_platform_device(struct acpi_device *adev,
 	return NULL;
 }
 
-static inline bool acpi_dma_supported(struct acpi_device *adev)
+static inline bool acpi_dma_supported(const struct acpi_device *adev)
 {
 	return false;
 }
@@ -965,6 +971,11 @@ static inline struct acpi_device *acpi_resource_consumer(struct resource *res)
 	return NULL;
 }
 
+static inline int acpi_get_local_address(acpi_handle handle, u32 *addr)
+{
+	return -ENODEV;
+}
+
 #endif	/* !CONFIG_ACPI */
 
 #ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
@@ -1004,12 +1015,17 @@ int acpi_dev_resume(struct device *dev);
 int acpi_subsys_runtime_suspend(struct device *dev);
 int acpi_subsys_runtime_resume(struct device *dev);
 int acpi_dev_pm_attach(struct device *dev, bool power_on);
+bool acpi_storage_d3(struct device *dev);
 #else
 static inline int acpi_subsys_runtime_suspend(struct device *dev) { return 0; }
 static inline int acpi_subsys_runtime_resume(struct device *dev) { return 0; }
 static inline int acpi_dev_pm_attach(struct device *dev, bool power_on)
 {
 	return 0;
+}
+static inline bool acpi_storage_d3(struct device *dev)
+{
+	return false;
 }
 #endif
 
@@ -1096,10 +1112,17 @@ void __acpi_handle_debug(struct _ddebug *descriptor, acpi_handle handle, const c
 #if defined(CONFIG_ACPI) && defined(CONFIG_GPIOLIB)
 bool acpi_gpio_get_irq_resource(struct acpi_resource *ares,
 				struct acpi_resource_gpio **agpio);
+bool acpi_gpio_get_io_resource(struct acpi_resource *ares,
+			       struct acpi_resource_gpio **agpio);
 int acpi_dev_gpio_irq_get_by(struct acpi_device *adev, const char *name, int index);
 #else
 static inline bool acpi_gpio_get_irq_resource(struct acpi_resource *ares,
 					      struct acpi_resource_gpio **agpio)
+{
+	return false;
+}
+static inline bool acpi_gpio_get_io_resource(struct acpi_resource *ares,
+					     struct acpi_resource_gpio **agpio)
 {
 	return false;
 }
