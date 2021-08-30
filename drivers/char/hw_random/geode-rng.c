@@ -83,7 +83,7 @@ static struct hwrng geode_rng = {
 };
 
 
-static int __init mod_init(void)
+static int __init geode_rng_init(void)
 {
 	int err = -ENODEV;
 	struct pci_dev *pdev = NULL;
@@ -124,7 +124,7 @@ err_unmap:
 	goto out;
 }
 
-static void __exit mod_exit(void)
+static void __exit geode_rng_exit(void)
 {
 	void __iomem *mem = (void __iomem *)geode_rng.priv;
 
@@ -132,8 +132,8 @@ static void __exit mod_exit(void)
 	iounmap(mem);
 }
 
-module_init(mod_init);
-module_exit(mod_exit);
+module_init(geode_rng_init);
+module_exit(geode_rng_exit);
 
 MODULE_DESCRIPTION("H/W RNG driver for AMD Geode LX CPUs");
 MODULE_LICENSE("GPL");
