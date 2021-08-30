@@ -1495,7 +1495,7 @@ static int qedr_init_srq_user_params(struct ib_udata *udata,
 		return PTR_ERR(srq->prod_umem);
 	}
 
-	sg = srq->prod_umem->sg_head.sgl;
+	sg = srq->prod_umem->sgt_append.sgt.sgl;
 	srq->hw_srq.phy_prod_pair_addr = sg_dma_address(sg);
 
 	return 0;

@@ -327,7 +327,7 @@ static void move_to_next_cpu(void)
 
 	get_online_cpus();
 	cpumask_and(current_mask, cpu_online_mask, tr->tracing_cpumask);
-	next_cpu = cpumask_next(smp_processor_id(), current_mask);
+	next_cpu = cpumask_next(raw_smp_processor_id(), current_mask);
 	put_online_cpus();
 
 	if (next_cpu >= nr_cpu_ids)

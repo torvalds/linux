@@ -104,6 +104,7 @@
 #include <linux/sockios.h>
 #include <net/busy_poll.h>
 #include <linux/errqueue.h>
+#include <linux/ptp_clock_kernel.h>
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 unsigned int sysctl_net_busy_read __read_mostly;
@@ -873,12 +874,18 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 		empty = 0;
 	if (shhwtstamps &&
 	    (sk->sk_tsflags & SOF_TIMESTAMPING_RAW_HARDWARE) &&
-	    !skb_is_swtx_tstamp(skb, false_tstamp) &&
-	    ktime_to_timespec64_cond(shhwtstamps->hwtstamp, tss.ts + 2)) {
-		empty = 0;
-		if ((sk->sk_tsflags & SOF_TIMESTAMPING_OPT_PKTINFO) &&
-		    !skb_is_err_queue(skb))
-			put_ts_pktinfo(msg, skb);
+	    !skb_is_swtx_tstamp(skb, false_tstamp)) {
+		if (sk->sk_tsflags & SOF_TIMESTAMPING_BIND_PHC)
+			ptp_convert_timestamp(shhwtstamps, sk->sk_bind_phc);
+
+		if (ktime_to_timespec64_cond(shhwtstamps->hwtstamp,
+					     tss.ts + 2)) {
+			empty = 0;
+
+			if ((sk->sk_tsflags & SOF_TIMESTAMPING_OPT_PKTINFO) &&
+			    !skb_is_err_queue(skb))
+				put_ts_pktinfo(msg, skb);
+		}
 	}
 	if (!empty) {
 		if (sock_flag(sk, SOCK_TSTAMP_NEW))

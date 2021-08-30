@@ -368,7 +368,7 @@ static int cpsw_port_obj_del(struct net_device *ndev, const void *ctx,
 static void cpsw_fdb_offload_notify(struct net_device *ndev,
 				    struct switchdev_notifier_fdb_info *rcv)
 {
-	struct switchdev_notifier_fdb_info info;
+	struct switchdev_notifier_fdb_info info = {};
 
 	info.addr = rcv->addr;
 	info.vid = rcv->vid;

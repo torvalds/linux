@@ -10136,7 +10136,7 @@ int bpf_link__unpin(struct bpf_link *link)
 
 	err = unlink(link->pin_path);
 	if (err != 0)
-		return libbpf_err_errno(err);
+		return -errno;
 
 	pr_debug("link fd=%d: unpinned from %s\n", link->fd, link->pin_path);
 	zfree(&link->pin_path);
@@ -11197,7 +11197,7 @@ int perf_buffer__poll(struct perf_buffer *pb, int timeout_ms)
 
 	cnt = epoll_wait(pb->epoll_fd, pb->events, pb->cpu_cnt, timeout_ms);
 	if (cnt < 0)
-		return libbpf_err_errno(cnt);
+		return -errno;
 
 	for (i = 0; i < cnt; i++) {
 		struct perf_cpu_buf *cpu_buf = pb->events[i].data.ptr;

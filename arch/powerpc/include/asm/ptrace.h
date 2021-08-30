@@ -70,6 +70,22 @@ struct pt_regs
 		unsigned long __pad[4];	/* Maintain 16 byte interrupt stack alignment */
 	};
 #endif
+#if defined(CONFIG_PPC32) && defined(CONFIG_BOOKE)
+	struct { /* Must be a multiple of 16 bytes */
+		unsigned long mas0;
+		unsigned long mas1;
+		unsigned long mas2;
+		unsigned long mas3;
+		unsigned long mas6;
+		unsigned long mas7;
+		unsigned long srr0;
+		unsigned long srr1;
+		unsigned long csrr0;
+		unsigned long csrr1;
+		unsigned long dsrr0;
+		unsigned long dsrr1;
+	};
+#endif
 };
 #endif
 

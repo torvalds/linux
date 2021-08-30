@@ -557,7 +557,7 @@ static int irdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
  * @iwqp: qp ptr
  * @init_info: initialize info to return
  */
-static int irdma_setup_virt_qp(struct irdma_device *iwdev,
+static void irdma_setup_virt_qp(struct irdma_device *iwdev,
 			       struct irdma_qp *iwqp,
 			       struct irdma_qp_init_info *init_info)
 {
@@ -574,8 +574,6 @@ static int irdma_setup_virt_qp(struct irdma_device *iwdev,
 		init_info->sq_pa = qpmr->sq_pbl.addr;
 		init_info->rq_pa = qpmr->rq_pbl.addr;
 	}
-
-	return 0;
 }
 
 /**
@@ -909,7 +907,7 @@ static int irdma_create_qp(struct ib_qp *ibqp,
 			}
 		}
 		init_info.qp_uk_init_info.abi_ver = iwpd->sc_pd.abi_ver;
-		err_code = irdma_setup_virt_qp(iwdev, iwqp, &init_info);
+		irdma_setup_virt_qp(iwdev, iwqp, &init_info);
 	} else {
 		init_info.qp_uk_init_info.abi_ver = IRDMA_ABI_VER;
 		err_code = irdma_setup_kmode_qp(iwdev, iwqp, &init_info, init_attr);
@@ -2231,7 +2229,7 @@ static void irdma_copy_user_pgaddrs(struct irdma_mr *iwmr, u64 *pbl,
 	pinfo = (level == PBLE_LEVEL_1) ? NULL : palloc->level2.leaf;
 
 	if (iwmr->type == IRDMA_MEMREG_TYPE_QP)
-		iwpbl->qp_mr.sq_page = sg_page(region->sg_head.sgl);
+		iwpbl->qp_mr.sq_page = sg_page(region->sgt_append.sgt.sgl);
 
 	rdma_umem_for_each_dma_block(region, &biter, iwmr->page_size) {
 		*pbl = rdma_block_iter_dma_address(&biter);

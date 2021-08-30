@@ -1625,7 +1625,7 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 		goto unlink_out;
 	}
 
-	cifs_close_all_deferred_files(tcon);
+	cifs_close_deferred_file(CIFS_I(inode));
 	if (cap_unix(tcon->ses) && (CIFS_UNIX_POSIX_PATH_OPS_CAP &
 				le64_to_cpu(tcon->fsUnixInfo.Capability))) {
 		rc = CIFSPOSIXDelFile(xid, tcon, full_path,
@@ -2084,6 +2084,7 @@ cifs_rename2(struct user_namespace *mnt_userns, struct inode *source_dir,
 	FILE_UNIX_BASIC_INFO *info_buf_target;
 	unsigned int xid;
 	int rc, tmprc;
+	int retry_count = 0;
 
 	if (flags & ~RENAME_NOREPLACE)
 		return -EINVAL;
@@ -2113,9 +2114,23 @@ cifs_rename2(struct user_namespace *mnt_userns, struct inode *source_dir,
 		goto cifs_rename_exit;
 	}
 
-	cifs_close_all_deferred_files(tcon);
+	cifs_close_deferred_file(CIFS_I(d_inode(source_dentry)));
+	if (d_inode(target_dentry) != NULL)
+		cifs_close_deferred_file(CIFS_I(d_inode(target_dentry)));
+
 	rc = cifs_do_rename(xid, source_dentry, from_name, target_dentry,
 			    to_name);
+
+	if (rc == -EACCES) {
+		while (retry_count < 3) {
+			cifs_close_all_deferred_files(tcon);
+			rc = cifs_do_rename(xid, source_dentry, from_name, target_dentry,
+					    to_name);
+			if (rc != -EACCES)
+				break;
+			retry_count++;
+		}
+	}
 
 	/*
 	 * No-replace is the natural behavior for CIFS, so skip unlink hacks.

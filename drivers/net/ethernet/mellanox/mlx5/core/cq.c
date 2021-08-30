@@ -135,6 +135,7 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 			      cq->cqn);
 
 	cq->uar = dev->priv.uar;
+	cq->irqn = eq->core.irqn;
 
 	return 0;
 

@@ -154,6 +154,10 @@ void recalc_intercepts(struct vcpu_svm *svm)
 
 	for (i = 0; i < MAX_INTERCEPT; i++)
 		c->intercepts[i] |= g->intercepts[i];
+
+	/* If SMI is not intercepted, ignore guest SMI intercept as well  */
+	if (!intercept_smi)
+		vmcb_clr_intercept(c, INTERCEPT_SMI);
 }
 
 static void copy_vmcb_control_area(struct vmcb_control_area *dst,
@@ -304,8 +308,8 @@ static bool nested_vmcb_valid_sregs(struct kvm_vcpu *vcpu,
 	return true;
 }
 
-static void nested_load_control_from_vmcb12(struct vcpu_svm *svm,
-					    struct vmcb_control_area *control)
+void nested_load_control_from_vmcb12(struct vcpu_svm *svm,
+				     struct vmcb_control_area *control)
 {
 	copy_vmcb_control_area(&svm->nested.ctl, control);
 
@@ -511,7 +515,7 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	 * Also covers avic_vapic_bar, avic_backing_page, avic_logical_id,
 	 * avic_physical_id.
 	 */
-	WARN_ON(svm->vmcb01.ptr->control.int_ctl & AVIC_ENABLE_MASK);
+	WARN_ON(kvm_apicv_activated(svm->vcpu.kvm));
 
 	/* Copied from vmcb01.  msrpm_base can be overwritten later.  */
 	svm->vmcb->control.nested_ctl = svm->vmcb01.ptr->control.nested_ctl;
@@ -618,6 +622,11 @@ int nested_svm_vmrun(struct kvm_vcpu *vcpu)
 	struct kvm_host_map map;
 	u64 vmcb12_gpa;
 
+	if (!svm->nested.hsave_msr) {
+		kvm_inject_gp(vcpu, 0);
+		return 1;
+	}
+
 	if (is_smm(vcpu)) {
 		kvm_queue_exception(vcpu, UD_VECTOR);
 		return 1;
@@ -692,7 +701,28 @@ out:
 	return ret;
 }
 
-void nested_svm_vmloadsave(struct vmcb *from_vmcb, struct vmcb *to_vmcb)
+/* Copy state save area fields which are handled by VMRUN */
+void svm_copy_vmrun_state(struct vmcb_save_area *to_save,
+			  struct vmcb_save_area *from_save)
+{
+	to_save->es = from_save->es;
+	to_save->cs = from_save->cs;
+	to_save->ss = from_save->ss;
+	to_save->ds = from_save->ds;
+	to_save->gdtr = from_save->gdtr;
+	to_save->idtr = from_save->idtr;
+	to_save->rflags = from_save->rflags | X86_EFLAGS_FIXED;
+	to_save->efer = from_save->efer;
+	to_save->cr0 = from_save->cr0;
+	to_save->cr3 = from_save->cr3;
+	to_save->cr4 = from_save->cr4;
+	to_save->rax = from_save->rax;
+	to_save->rsp = from_save->rsp;
+	to_save->rip = from_save->rip;
+	to_save->cpl = 0;
+}
+
+void svm_copy_vmloadsave_state(struct vmcb *to_vmcb, struct vmcb *from_vmcb)
 {
 	to_vmcb->save.fs = from_vmcb->save.fs;
 	to_vmcb->save.gs = from_vmcb->save.gs;
@@ -1355,28 +1385,11 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 
 	svm->nested.vmcb12_gpa = kvm_state->hdr.svm.vmcb_pa;
 
-	svm->vmcb01.ptr->save.es = save->es;
-	svm->vmcb01.ptr->save.cs = save->cs;
-	svm->vmcb01.ptr->save.ss = save->ss;
-	svm->vmcb01.ptr->save.ds = save->ds;
-	svm->vmcb01.ptr->save.gdtr = save->gdtr;
-	svm->vmcb01.ptr->save.idtr = save->idtr;
-	svm->vmcb01.ptr->save.rflags = save->rflags | X86_EFLAGS_FIXED;
-	svm->vmcb01.ptr->save.efer = save->efer;
-	svm->vmcb01.ptr->save.cr0 = save->cr0;
-	svm->vmcb01.ptr->save.cr3 = save->cr3;
-	svm->vmcb01.ptr->save.cr4 = save->cr4;
-	svm->vmcb01.ptr->save.rax = save->rax;
-	svm->vmcb01.ptr->save.rsp = save->rsp;
-	svm->vmcb01.ptr->save.rip = save->rip;
-	svm->vmcb01.ptr->save.cpl = 0;
-
+	svm_copy_vmrun_state(&svm->vmcb01.ptr->save, save);
 	nested_load_control_from_vmcb12(svm, ctl);
 
 	svm_switch_vmcb(svm, &svm->nested.vmcb02);
-
 	nested_vmcb02_prepare_control(svm);
-
 	kvm_make_request(KVM_REQ_GET_NESTED_STATE_PAGES, vcpu);
 	ret = 0;
 out_free:

@@ -14,6 +14,8 @@
 #include <linux/kernel.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/soc/ixp4xx/cpu.h>
+#include <linux/module.h>
+#include <mach/ixp4xx-regs.h>
 
 #include "ixp46x_ts.h"
 

@@ -46,9 +46,6 @@ static int ffa_device_probe(struct device *dev)
 	struct ffa_driver *ffa_drv = to_ffa_driver(dev->driver);
 	struct ffa_device *ffa_dev = to_ffa_dev(dev);
 
-	if (!ffa_device_match(dev, dev->driver))
-		return -ENODEV;
-
 	return ffa_drv->probe(ffa_dev);
 }
 
@@ -98,6 +95,9 @@ int ffa_driver_register(struct ffa_driver *driver, struct module *owner,
 			const char *mod_name)
 {
 	int ret;
+
+	if (!driver->probe)
+		return -EINVAL;
 
 	driver->driver.bus = &ffa_bus_type;
 	driver->driver.name = driver->name;

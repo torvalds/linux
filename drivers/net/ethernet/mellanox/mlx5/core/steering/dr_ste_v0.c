@@ -352,6 +352,7 @@ static void dr_ste_v0_set_rx_decap(u8 *hw_ste_p)
 {
 	MLX5_SET(ste_rx_steering_mult, hw_ste_p, tunneling_action,
 		 DR_STE_TUNL_ACTION_DECAP);
+	MLX5_SET(ste_rx_steering_mult, hw_ste_p, fail_on_error, 1);
 }
 
 static void dr_ste_v0_set_rx_pop_vlan(u8 *hw_ste_p)
@@ -365,6 +366,7 @@ static void dr_ste_v0_set_rx_decap_l3(u8 *hw_ste_p, bool vlan)
 	MLX5_SET(ste_rx_steering_mult, hw_ste_p, tunneling_action,
 		 DR_STE_TUNL_ACTION_L3_DECAP);
 	MLX5_SET(ste_modify_packet, hw_ste_p, action_description, vlan ? 1 : 0);
+	MLX5_SET(ste_rx_steering_mult, hw_ste_p, fail_on_error, 1);
 }
 
 static void dr_ste_v0_set_rewrite_actions(u8 *hw_ste_p, u16 num_of_actions,

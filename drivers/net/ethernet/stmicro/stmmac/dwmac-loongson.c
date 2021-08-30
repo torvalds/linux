@@ -49,9 +49,9 @@ static int loongson_dwmac_probe(struct pci_dev *pdev, const struct pci_device_id
 {
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_resources res;
-	bool mdio = false;
-	int ret, i;
 	struct device_node *np;
+	int ret, i, phy_mode;
+	bool mdio = false;
 
 	np = dev_of_node(&pdev->dev);
 
@@ -108,10 +108,11 @@ static int loongson_dwmac_probe(struct pci_dev *pdev, const struct pci_device_id
 	if (plat->bus_id < 0)
 		plat->bus_id = pci_dev_id(pdev);
 
-	plat->phy_interface = device_get_phy_mode(&pdev->dev);
-	if (plat->phy_interface < 0)
+	phy_mode = device_get_phy_mode(&pdev->dev);
+	if (phy_mode < 0)
 		dev_err(&pdev->dev, "phy_mode not found\n");
 
+	plat->phy_interface = phy_mode;
 	plat->interface = PHY_INTERFACE_MODE_GMII;
 
 	pci_set_master(pdev);

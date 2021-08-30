@@ -1110,6 +1110,11 @@ static int otx2_cgx_config_loopback(struct otx2_nic *pf, bool enable)
 	struct msg_req *msg;
 	int err;
 
+	if (enable && bitmap_weight(&pf->flow_cfg->dmacflt_bmap,
+				    pf->flow_cfg->dmacflt_max_flows))
+		netdev_warn(pf->netdev,
+			    "CGX/RPM internal loopback might not work as DMAC filters are active\n");
+
 	mutex_lock(&pf->mbox.lock);
 	if (enable)
 		msg = otx2_mbox_alloc_msg_cgx_intlbk_enable(&pf->mbox);
@@ -1533,10 +1538,10 @@ int otx2_open(struct net_device *netdev)
 
 	if (test_bit(CN10K_LMTST, &pf->hw.cap_flag)) {
 		/* Reserve LMT lines for NPA AURA batch free */
-		pf->hw.npa_lmt_base = (__force u64 *)pf->hw.lmt_base;
+		pf->hw.npa_lmt_base = pf->hw.lmt_base;
 		/* Reserve LMT lines for NIX TX */
-		pf->hw.nix_lmt_base = (__force u64 *)((u64)pf->hw.npa_lmt_base +
-				      (NIX_LMTID_BASE * LMT_LINE_SIZE));
+		pf->hw.nix_lmt_base = (u64 *)((u64)pf->hw.npa_lmt_base +
+				      (pf->npa_lmt_lines * LMT_LINE_SIZE));
 	}
 
 	err = otx2_init_hw_resources(pf);
@@ -1644,6 +1649,10 @@ int otx2_open(struct net_device *netdev)
 	/* Restore pause frame settings */
 	otx2_config_pause_frm(pf);
 
+	/* Install DMAC Filters */
+	if (pf->flags & OTX2_FLAG_DMACFLTR_SUPPORT)
+		otx2_dmacflt_reinstall_flows(pf);
+
 	err = otx2_rxtx_enable(pf, true);
 	if (err)
 		goto err_tx_stop_queues;
@@ -1653,6 +1662,7 @@ int otx2_open(struct net_device *netdev)
 err_tx_stop_queues:
 	netif_tx_stop_all_queues(netdev);
 	netif_carrier_off(netdev);
+	pf->flags |= OTX2_FLAG_INTF_DOWN;
 err_free_cints:
 	otx2_free_cints(pf, qidx);
 	vec = pci_irq_vector(pf->pdev,
@@ -1679,6 +1689,10 @@ int otx2_stop(struct net_device *netdev)
 	struct otx2_qset *qset = &pf->qset;
 	struct otx2_rss_info *rss;
 	int qidx, vec, wrk;
+
+	/* If the DOWN flag is set resources are already freed */
+	if (pf->flags & OTX2_FLAG_INTF_DOWN)
+		return 0;
 
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(netdev);
@@ -2526,7 +2540,7 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_detach_rsrc;
 
-	err = cn10k_pf_lmtst_init(pf);
+	err = cn10k_lmtst_init(pf);
 	if (err)
 		goto err_detach_rsrc;
 
@@ -2630,8 +2644,8 @@ err_del_mcam_entries:
 err_ptp_destroy:
 	otx2_ptp_destroy(pf);
 err_detach_rsrc:
-	if (hw->lmt_base)
-		iounmap(hw->lmt_base);
+	if (test_bit(CN10K_LMTST, &pf->hw.cap_flag))
+		qmem_free(pf->dev, pf->dync_lmt);
 	otx2_detach_resources(&pf->mbox);
 err_disable_mbox_intr:
 	otx2_disable_mbox_intr(pf);
@@ -2772,9 +2786,8 @@ static void otx2_remove(struct pci_dev *pdev)
 	otx2_mcam_flow_del(pf);
 	otx2_shutdown_tc(pf);
 	otx2_detach_resources(&pf->mbox);
-	if (pf->hw.lmt_base)
-		iounmap(pf->hw.lmt_base);
-
+	if (test_bit(CN10K_LMTST, &pf->hw.cap_flag))
+		qmem_free(pf->dev, pf->dync_lmt);
 	otx2_disable_mbox_intr(pf);
 	otx2_pfaf_mbox_destroy(pf);
 	pci_free_irq_vectors(pf->pdev);

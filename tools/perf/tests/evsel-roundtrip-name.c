@@ -5,6 +5,7 @@
 #include "tests.h"
 #include "debug.h"
 #include "pmu.h"
+#include "pmu-hybrid.h"
 #include <errno.h>
 #include <linux/kernel.h>
 
@@ -102,7 +103,7 @@ int test__perf_evsel__roundtrip_name_test(struct test *test __maybe_unused, int 
 {
 	int err = 0, ret = 0;
 
-	if (perf_pmu__has_hybrid())
+	if (perf_pmu__has_hybrid() && perf_pmu__hybrid_mounted("cpu_atom"))
 		return perf_evsel__name_array_test(evsel__hw_names, 2);
 
 	err = perf_evsel__name_array_test(evsel__hw_names, 1);

@@ -152,47 +152,6 @@ allOf:
           maxItems: 1
         st,drdy-int-pin: false
 
-  - if:
-      properties:
-        compatible:
-          enum:
-            # Two intertial interrupts i.e. accelerometer/gyro interrupts
-            - st,h3lis331dl-accel
-            - st,l3g4200d-gyro
-            - st,l3g4is-gyro
-            - st,l3gd20-gyro
-            - st,l3gd20h-gyro
-            - st,lis2de12
-            - st,lis2dw12
-            - st,lis2hh12
-            - st,lis2dh12-accel
-            - st,lis331dl-accel
-            - st,lis331dlh-accel
-            - st,lis3de
-            - st,lis3dh-accel
-            - st,lis3dhh
-            - st,lis3mdl-magn
-            - st,lng2dm-accel
-            - st,lps331ap-press
-            - st,lsm303agr-accel
-            - st,lsm303dlh-accel
-            - st,lsm303dlhc-accel
-            - st,lsm303dlm-accel
-            - st,lsm330-accel
-            - st,lsm330-gyro
-            - st,lsm330d-accel
-            - st,lsm330d-gyro
-            - st,lsm330dl-accel
-            - st,lsm330dl-gyro
-            - st,lsm330dlc-accel
-            - st,lsm330dlc-gyro
-            - st,lsm9ds0-gyro
-            - st,lsm9ds1-magn
-    then:
-      properties:
-        interrupts:
-          maxItems: 2
-
 required:
   - compatible
   - reg

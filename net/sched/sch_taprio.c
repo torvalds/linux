@@ -564,7 +564,7 @@ static struct sk_buff *taprio_dequeue_soft(struct Qdisc *sch)
 	/* if there's no entry, it means that the schedule didn't
 	 * start yet, so force all gates to be open, this is in
 	 * accordance to IEEE 802.1Qbv-2015 Section 8.6.9.4.5
-	 * "AdminGateSates"
+	 * "AdminGateStates"
 	 */
 	gate_mask = entry ? entry->gate_mask : TAPRIO_ALL_GATES_OPEN;
 
@@ -1739,8 +1739,6 @@ static void taprio_attach(struct Qdisc *sch)
 		if (FULL_OFFLOAD_IS_ENABLED(q->flags)) {
 			qdisc->flags |= TCQ_F_ONETXQUEUE | TCQ_F_NOPARENT;
 			old = dev_graft_qdisc(qdisc->dev_queue, qdisc);
-			if (ntx < dev->real_num_tx_queues)
-				qdisc_hash_add(qdisc, false);
 		} else {
 			old = dev_graft_qdisc(qdisc->dev_queue, sch);
 			qdisc_refcount_inc(sch);

@@ -8,6 +8,7 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/mte-def.h>
 
 /* Assumptions:
  *
@@ -42,7 +43,16 @@
 #define REP8_7f 0x7f7f7f7f7f7f7f7f
 #define REP8_80 0x8080808080808080
 
+/*
+ * When KASAN_HW_TAGS is in use, memory is checked at MTE_GRANULE_SIZE
+ * (16-byte) granularity, and we must ensure that no access straddles this
+ * alignment boundary.
+ */
+#ifdef CONFIG_KASAN_HW_TAGS
+#define MIN_PAGE_SIZE MTE_GRANULE_SIZE
+#else
 #define MIN_PAGE_SIZE 4096
+#endif
 
 	/* Since strings are short on average, we check the first 16 bytes
 	   of the string for a NUL character.  In order to do an unaligned ldp
