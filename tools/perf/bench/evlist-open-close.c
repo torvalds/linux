@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -170,7 +171,7 @@ static int bench_evlist_open_close__run(char *evstr)
 		update_stats(&time_stats, runtime_us);
 
 		evlist__delete(evlist);
-		pr_debug("Iteration %d took:\t%ldus\n", i, runtime_us);
+		pr_debug("Iteration %d took:\t%" PRIu64 "us\n", i, runtime_us);
 	}
 
 	time_average = avg_stats(&time_stats);
