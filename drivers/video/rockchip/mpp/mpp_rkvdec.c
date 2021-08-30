@@ -37,6 +37,8 @@
 #include "mpp_common.h"
 #include "mpp_iommu.h"
 
+#include "hack/mpp_hack_px30.h"
+
 #define RKVDEC_DRIVER_NAME		"mpp_rkvdec"
 
 #define IOMMU_GET_BUS_ID(x)		(((x) >> 6) & 0x1f)

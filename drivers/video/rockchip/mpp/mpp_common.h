@@ -36,6 +36,9 @@
 #define MPP_FLAGS_REG_NO_OFFSET		(0x00000010)
 #define MPP_FLAGS_SECURE_MODE		(0x00010000)
 
+/* grf mask for get value */
+#define MPP_GRF_VAL_MASK		(0xFFFF)
+
 /**
  * Device type: classified by hardware feature
  */
@@ -748,10 +751,6 @@ mpp_procfs_create_u32(const char *name, umode_t mode,
 extern const char *mpp_device_name[MPP_DEVICE_BUTT];
 extern const char *enc_info_item_name[ENC_INFO_BUTT];
 #endif
-
-/* workaround according hardware */
-int px30_workaround_combo_init(struct mpp_dev *mpp);
-int px30_workaround_combo_switch_grf(struct mpp_dev *mpp);
 
 extern const struct file_operations rockchip_mpp_fops;
 

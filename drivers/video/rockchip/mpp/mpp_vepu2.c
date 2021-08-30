@@ -26,6 +26,7 @@
 #include "mpp_debug.h"
 #include "mpp_common.h"
 #include "mpp_iommu.h"
+#include "hack/mpp_hack_px30.h"
 
 #define VEPU2_DRIVER_NAME		"mpp_vepu2"
 

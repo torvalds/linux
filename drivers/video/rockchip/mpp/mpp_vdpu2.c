@@ -25,6 +25,7 @@
 #include "mpp_debug.h"
 #include "mpp_common.h"
 #include "mpp_iommu.h"
+#include "hack/mpp_hack_px30.h"
 
 #define VDPU2_DRIVER_NAME		"mpp_vdpu2"
 

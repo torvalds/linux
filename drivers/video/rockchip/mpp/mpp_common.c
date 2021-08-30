@@ -1997,8 +1997,6 @@ irqreturn_t mpp_dev_isr_sched(int irq, void *param)
 	return ret;
 }
 
-#define MPP_GRF_VAL_MASK	0xFFFF
-
 u32 mpp_get_grf(struct mpp_grf_info *grf_info)
 {
 	u32 val = 0;
@@ -2234,89 +2232,3 @@ mpp_procfs_create_u32(const char *name, umode_t mode,
 	return proc_create_data(name, mode, parent, &procfs_fops_u32, data);
 }
 #endif
-
-int px30_workaround_combo_init(struct mpp_dev *mpp)
-{
-	struct mpp_rk_iommu *iommu = NULL, *loop = NULL, *n;
-	struct platform_device *pdev = mpp->iommu_info->pdev;
-
-	/* find whether exist in iommu link */
-	list_for_each_entry_safe(loop, n, &mpp->queue->mmu_list, link) {
-		if (loop->base_addr[0] == pdev->resource[0].start) {
-			iommu = loop;
-			break;
-		}
-	}
-	/* if not exist, add it */
-	if (!iommu) {
-		int i;
-		struct resource *res;
-		void __iomem *base;
-
-		iommu = devm_kzalloc(mpp->srv->dev, sizeof(*iommu), GFP_KERNEL);
-		for (i = 0; i < pdev->num_resources; i++) {
-			res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-			if (!res)
-				continue;
-			base = devm_ioremap(&pdev->dev,
-					    res->start, resource_size(res));
-			if (IS_ERR(base))
-				continue;
-			iommu->base_addr[i] = res->start;
-			iommu->bases[i] = base;
-			iommu->mmu_num++;
-		}
-		iommu->grf_val = mpp->grf_info->val & MPP_GRF_VAL_MASK;
-		if (mpp->hw_ops->clk_on)
-			mpp->hw_ops->clk_on(mpp);
-		iommu->dte_addr =  mpp_iommu_get_dte_addr(iommu);
-		if (mpp->hw_ops->clk_off)
-			mpp->hw_ops->clk_off(mpp);
-		INIT_LIST_HEAD(&iommu->link);
-		mutex_lock(&mpp->queue->mmu_lock);
-		list_add_tail(&iommu->link, &mpp->queue->mmu_list);
-		mutex_unlock(&mpp->queue->mmu_lock);
-	}
-	mpp->iommu_info->iommu = iommu;
-
-	return 0;
-}
-
-int px30_workaround_combo_switch_grf(struct mpp_dev *mpp)
-{
-	int ret = 0;
-	u32 curr_val;
-	u32 next_val;
-	bool pd_is_on;
-	struct mpp_rk_iommu *loop = NULL, *n;
-
-	if (!mpp->grf_info->grf || !mpp->grf_info->val)
-		return 0;
-
-	curr_val = mpp_get_grf(mpp->grf_info);
-	next_val = mpp->grf_info->val & MPP_GRF_VAL_MASK;
-	if (curr_val == next_val)
-		return 0;
-
-	pd_is_on = rockchip_pmu_pd_is_on(mpp->dev);
-	if (!pd_is_on)
-		rockchip_pmu_pd_on(mpp->dev);
-	mpp->hw_ops->clk_on(mpp);
-
-	list_for_each_entry_safe(loop, n, &mpp->queue->mmu_list, link) {
-		/* update iommu parameters */
-		if (loop->grf_val == curr_val)
-			loop->is_paged = mpp_iommu_is_paged(loop);
-		/* disable all iommu */
-		mpp_iommu_disable(loop);
-	}
-	mpp_set_grf(mpp->grf_info);
-	/* enable current iommu */
-	ret = mpp_iommu_enable(mpp->iommu_info->iommu);
-
-	mpp->hw_ops->clk_off(mpp);
-	if (!pd_is_on)
-		rockchip_pmu_pd_off(mpp->dev);
-
-	return ret;
-}
