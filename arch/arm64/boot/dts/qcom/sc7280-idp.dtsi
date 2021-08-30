@@ -340,6 +340,7 @@
 	};
 
 	sd-cd {
+		pins = "gpio91";
 		bias-pull-up;
 	};
 };
