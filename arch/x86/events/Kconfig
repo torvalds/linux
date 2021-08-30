@@ -34,4 +34,14 @@ config PERF_EVENTS_AMD_POWER
 	  (CPUID Fn8000_0007_EDX[12]) interface to calculate the
 	  average power consumption on Family 15h processors.
 
+config PERF_EVENTS_AMD_UNCORE
+	tristate "AMD Uncore performance events"
+	depends on PERF_EVENTS && CPU_SUP_AMD
+	default y
+	help
+	  Include support for AMD uncore performance events for use with
+	  e.g., perf stat -e amd_l3/.../,amd_df/.../.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called 'amd-uncore'.
 endmenu

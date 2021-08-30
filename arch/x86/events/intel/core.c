@@ -5032,9 +5032,9 @@ static ssize_t freeze_on_smi_store(struct device *cdev,
 
 	x86_pmu.attr_freeze_on_smi = val;
 
-	get_online_cpus();
+	cpus_read_lock();
 	on_each_cpu(flip_smm_bit, &val, 1);
-	put_online_cpus();
+	cpus_read_unlock();
 done:
 	mutex_unlock(&freeze_on_smi_mutex);
 
@@ -5077,9 +5077,9 @@ static ssize_t set_sysctl_tfa(struct device *cdev,
 
 	allow_tsx_force_abort = val;
 
-	get_online_cpus();
+	cpus_read_lock();
 	on_each_cpu(update_tfa_sched, NULL, 1);
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return count;
 }
