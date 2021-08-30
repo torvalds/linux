@@ -141,7 +141,7 @@ void bch2_btree_node_iter_fix(struct btree_trans *trans, struct btree_iter *,
 			      struct btree *, struct btree_node_iter *,
 			      struct bkey_packed *, unsigned, unsigned);
 
-bool bch2_btree_iter_relock_intent(struct btree_iter *);
+bool bch2_btree_iter_relock_intent(struct btree_trans *, struct btree_iter *);
 
 bool bch2_trans_relock(struct btree_trans *);
 void bch2_trans_unlock(struct btree_trans *);
@@ -154,15 +154,17 @@ static inline int btree_trans_restart(struct btree_trans *trans)
 	return -EINTR;
 }
 
-bool __bch2_btree_iter_upgrade(struct btree_iter *, unsigned);
+bool __bch2_btree_iter_upgrade(struct btree_trans *,
+			       struct btree_iter *, unsigned);
 
-static inline bool bch2_btree_iter_upgrade(struct btree_iter *iter,
+static inline bool bch2_btree_iter_upgrade(struct btree_trans *trans,
+					   struct btree_iter *iter,
 					   unsigned new_locks_want)
 {
 	new_locks_want = min(new_locks_want, BTREE_MAX_DEPTH);
 
 	return iter->locks_want < new_locks_want
-		? __bch2_btree_iter_upgrade(iter, new_locks_want)
+		? __bch2_btree_iter_upgrade(trans, iter, new_locks_want)
 		: iter->uptodate <= BTREE_ITER_NEED_PEEK;
 }
 

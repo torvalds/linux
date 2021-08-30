@@ -166,40 +166,38 @@ static inline bool btree_node_lock_increment(struct btree_trans *trans,
 	return false;
 }
 
-bool __bch2_btree_node_lock(struct btree *, struct bpos, unsigned,
-			    struct btree_iter *, enum six_lock_type,
-			    six_lock_should_sleep_fn, void *,
-			    unsigned long);
+bool __bch2_btree_node_lock(struct btree_trans *, struct btree_iter *,
+			    struct btree *, struct bpos, unsigned,
+			    enum six_lock_type, six_lock_should_sleep_fn,
+			    void *, unsigned long);
 
-static inline bool btree_node_lock(struct btree *b,
-			struct bpos pos, unsigned level,
+static inline bool btree_node_lock(struct btree_trans *trans,
 			struct btree_iter *iter,
+			struct btree *b, struct bpos pos, unsigned level,
 			enum six_lock_type type,
 			six_lock_should_sleep_fn should_sleep_fn, void *p,
 			unsigned long ip)
 {
-	struct btree_trans *trans = iter->trans;
-
 	EBUG_ON(level >= BTREE_MAX_DEPTH);
 	EBUG_ON(!(trans->iters_linked & (1ULL << iter->idx)));
 
 	return likely(six_trylock_type(&b->c.lock, type)) ||
 		btree_node_lock_increment(trans, b, level, type) ||
-		__bch2_btree_node_lock(b, pos, level, iter, type,
+		__bch2_btree_node_lock(trans, iter, b, pos, level, type,
 				       should_sleep_fn, p, ip);
 }
 
-bool __bch2_btree_node_relock(struct btree_iter *, unsigned);
+bool __bch2_btree_node_relock(struct btree_trans *, struct btree_iter *, unsigned);
 
-static inline bool bch2_btree_node_relock(struct btree_iter *iter,
-					  unsigned level)
+static inline bool bch2_btree_node_relock(struct btree_trans *trans,
+					  struct btree_iter *iter, unsigned level)
 {
 	EBUG_ON(btree_node_locked(iter, level) &&
 		btree_node_locked_type(iter, level) !=
 		__btree_lock_want(iter, level));
 
 	return likely(btree_node_locked(iter, level)) ||
-		__bch2_btree_node_relock(iter, level);
+		__bch2_btree_node_relock(trans, iter, level);
 }
 
 /*
@@ -224,8 +222,7 @@ bch2_btree_node_unlock_write_inlined(struct btree_trans *trans, struct btree_ite
 void bch2_btree_node_unlock_write(struct btree_trans *,
 			struct btree_iter *, struct btree *);
 
-void __bch2_btree_node_lock_write(struct btree_trans *,
-			struct btree_iter *, struct btree *);
+void __bch2_btree_node_lock_write(struct btree_trans *, struct btree *);
 
 static inline void bch2_btree_node_lock_write(struct btree_trans *trans,
 					      struct btree_iter *iter,
@@ -233,9 +230,10 @@ static inline void bch2_btree_node_lock_write(struct btree_trans *trans,
 {
 	EBUG_ON(iter->l[b->c.level].b != b);
 	EBUG_ON(iter->l[b->c.level].lock_seq != b->c.lock.state.seq);
+	EBUG_ON(!btree_node_intent_locked(iter, b->c.level));
 
 	if (unlikely(!six_trylock_write(&b->c.lock)))
-		__bch2_btree_node_lock_write(trans, iter, b);
+		__bch2_btree_node_lock_write(trans, b);
 }
 
 #endif /* _BCACHEFS_BTREE_LOCKING_H */

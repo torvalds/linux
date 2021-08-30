@@ -639,6 +639,7 @@ err:
 
 /* Slowpath, don't want it inlined into btree_iter_traverse() */
 static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
+				struct btree_trans *trans,
 				struct btree_iter *iter,
 				const struct bkey_i *k,
 				enum btree_id btree_id,
@@ -655,8 +656,8 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 	 * Parent node must be locked, else we could read in a btree node that's
 	 * been freed:
 	 */
-	if (iter && !bch2_btree_node_relock(iter, level + 1)) {
-		btree_trans_restart(iter->trans);
+	if (trans && !bch2_btree_node_relock(trans, iter, level + 1)) {
+		btree_trans_restart(trans);
 		return ERR_PTR(-EINTR);
 	}
 
@@ -687,23 +688,23 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 	six_unlock_intent(&b->c.lock);
 
 	/* Unlock before doing IO: */
-	if (iter && sync)
-		bch2_trans_unlock(iter->trans);
+	if (trans && sync)
+		bch2_trans_unlock(trans);
 
 	bch2_btree_node_read(c, b, sync);
 
 	if (!sync)
 		return NULL;
 
-	if (iter &&
-	    (!bch2_trans_relock(iter->trans) ||
-	     !bch2_btree_iter_relock_intent(iter))) {
-		BUG_ON(!iter->trans->restarted);
+	if (trans &&
+	    (!bch2_trans_relock(trans) ||
+	     !bch2_btree_iter_relock_intent(trans, iter))) {
+		BUG_ON(!trans->restarted);
 		return ERR_PTR(-EINTR);
 	}
 
 	if (!six_relock_type(&b->c.lock, lock_type, seq)) {
-		btree_trans_restart(iter->trans);
+		btree_trans_restart(trans);
 		return ERR_PTR(-EINTR);
 	}
 
@@ -786,7 +787,7 @@ retry:
 		 * else we could read in a btree node from disk that's been
 		 * freed:
 		 */
-		b = bch2_btree_node_fill(c, iter, k, iter->btree_id,
+		b = bch2_btree_node_fill(c, trans, iter, k, iter->btree_id,
 					 level, lock_type, true);
 
 		/* We raced and found the btree node in the cache */
@@ -828,7 +829,7 @@ lock_node:
 		if (btree_node_read_locked(iter, level + 1))
 			btree_node_unlock(iter, level + 1);
 
-		if (!btree_node_lock(b, k->k.p, level, iter, lock_type,
+		if (!btree_node_lock(trans, iter, b, k->k.p, level, lock_type,
 				     lock_node_check_fn, (void *) k, trace_ip)) {
 			if (!trans->restarted)
 				goto retry;
@@ -839,7 +840,7 @@ lock_node:
 			     b->c.level != level ||
 			     race_fault())) {
 			six_unlock_type(&b->c.lock, lock_type);
-			if (bch2_btree_node_relock(iter, level + 1))
+			if (bch2_btree_node_relock(trans, iter, level + 1))
 				goto retry;
 
 			trace_trans_restart_btree_node_reused(trans->ip,
@@ -863,9 +864,9 @@ lock_node:
 		 * should_be_locked is not set on this iterator yet, so we need
 		 * to relock it specifically:
 		 */
-		if (iter &&
+		if (trans &&
 		    (!bch2_trans_relock(trans) ||
-		     !bch2_btree_iter_relock_intent(iter))) {
+		     !bch2_btree_iter_relock_intent(trans, iter))) {
 			BUG_ON(!trans->restarted);
 			return ERR_PTR(-EINTR);
 		}
@@ -924,7 +925,7 @@ retry:
 		if (nofill)
 			goto out;
 
-		b = bch2_btree_node_fill(c, NULL, k, btree_id,
+		b = bch2_btree_node_fill(c, NULL, NULL, k, btree_id,
 					 level, SIX_LOCK_read, true);
 
 		/* We raced and found the btree node in the cache */
@@ -982,21 +983,24 @@ out:
 	return b;
 }
 
-int bch2_btree_node_prefetch(struct bch_fs *c, struct btree_iter *iter,
+int bch2_btree_node_prefetch(struct bch_fs *c,
+			     struct btree_trans *trans,
+			     struct btree_iter *iter,
 			     const struct bkey_i *k,
 			     enum btree_id btree_id, unsigned level)
 {
 	struct btree_cache *bc = &c->btree_cache;
 	struct btree *b;
 
-	BUG_ON(iter && !btree_node_locked(iter, level + 1));
+	BUG_ON(trans && !btree_node_locked(iter, level + 1));
 	BUG_ON(level >= BTREE_MAX_DEPTH);
 
 	b = btree_cache_find(bc, k);
 	if (b)
 		return 0;
 
-	b = bch2_btree_node_fill(c, iter, k, btree_id, level, SIX_LOCK_read, false);
+	b = bch2_btree_node_fill(c, trans, iter, k, btree_id,
+				 level, SIX_LOCK_read, false);
 	return PTR_ERR_OR_ZERO(b);
 }
 

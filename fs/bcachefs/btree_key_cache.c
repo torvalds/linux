@@ -213,7 +213,7 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	if (!bch2_btree_node_relock(ck_iter, 0)) {
+	if (!bch2_btree_node_relock(trans, ck_iter, 0)) {
 		trace_transaction_restart_ip(trans->ip, _THIS_IP_);
 		ret = btree_trans_restart(trans);
 		goto err;
@@ -266,9 +266,8 @@ static int bkey_cached_check_fn(struct six_lock *lock, void *p)
 }
 
 __flatten
-int bch2_btree_iter_traverse_cached(struct btree_iter *iter)
+int bch2_btree_iter_traverse_cached(struct btree_trans *trans, struct btree_iter *iter)
 {
-	struct btree_trans *trans = iter->trans;
 	struct bch_fs *c = trans->c;
 	struct bkey_cached *ck;
 	int ret = 0;
@@ -277,7 +276,7 @@ int bch2_btree_iter_traverse_cached(struct btree_iter *iter)
 
 	iter->l[1].b = NULL;
 
-	if (bch2_btree_node_relock(iter, 0)) {
+	if (bch2_btree_node_relock(trans, iter, 0)) {
 		ck = (void *) iter->l[0].b;
 		goto fill;
 	}
@@ -302,7 +301,7 @@ retry:
 	} else {
 		enum six_lock_type lock_want = __btree_lock_want(iter, 0);
 
-		if (!btree_node_lock((void *) ck, iter->pos, 0, iter, lock_want,
+		if (!btree_node_lock(trans, iter, (void *) ck, iter->pos, 0, lock_want,
 				     bkey_cached_check_fn, iter, _THIS_IP_)) {
 			if (!trans->restarted)
 				goto retry;
@@ -326,7 +325,7 @@ retry:
 fill:
 	if (!ck->valid && !(iter->flags & BTREE_ITER_CACHED_NOFILL)) {
 		if (!iter->locks_want &&
-		    !!__bch2_btree_iter_upgrade(iter, 1)) {
+		    !!__bch2_btree_iter_upgrade(trans, iter, 1)) {
 			trace_transaction_restart_ip(trans->ip, _THIS_IP_);
 			BUG_ON(!trans->restarted);
 			ret = -EINTR;
@@ -344,7 +343,7 @@ fill:
 	iter->uptodate = BTREE_ITER_NEED_PEEK;
 
 	if ((iter->flags & BTREE_ITER_INTENT) &&
-	    !bch2_btree_iter_upgrade(iter, 1)) {
+	    !bch2_btree_iter_upgrade(trans, iter, 1)) {
 		BUG_ON(!trans->restarted);
 		ret = -EINTR;
 	}

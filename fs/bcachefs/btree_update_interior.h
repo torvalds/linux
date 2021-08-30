@@ -132,7 +132,7 @@ static inline int bch2_foreground_maybe_merge_sibling(struct btree_trans *trans,
 	if (iter->uptodate >= BTREE_ITER_NEED_TRAVERSE)
 		return 0;
 
-	if (!bch2_btree_node_relock(iter, level))
+	if (!bch2_btree_node_relock(trans, iter, level))
 		return 0;
 
 	b = iter->l[level].b;

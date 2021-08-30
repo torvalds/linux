@@ -561,7 +561,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 	 */
 	trans_for_each_iter(trans, iter)
 		if (iter->nodes_locked != iter->nodes_intent_locked &&
-		    !bch2_btree_iter_upgrade(iter, 1)) {
+		    !bch2_btree_iter_upgrade(trans, iter, 1)) {
 			trace_trans_restart_upgrade(trans->ip, trace_ip,
 						    iter->btree_id,
 						    &iter->real_pos);
@@ -783,7 +783,8 @@ int __bch2_trans_commit(struct btree_trans *trans)
 	trans_for_each_update(trans, i) {
 		BUG_ON(!i->iter->should_be_locked);
 
-		if (unlikely(!bch2_btree_iter_upgrade(i->iter, i->level + 1))) {
+		if (unlikely(!bch2_btree_iter_upgrade(trans, i->iter,
+						      i->level + 1))) {
 			trace_trans_restart_upgrade(trans->ip, _RET_IP_,
 						    i->iter->btree_id,
 						    &i->iter->pos);

@@ -937,7 +937,7 @@ retry:
 	 * XXX: figure out how far we might need to split,
 	 * instead of locking/reserving all the way to the root:
 	 */
-	if (!bch2_btree_iter_upgrade(iter, U8_MAX)) {
+	if (!bch2_btree_iter_upgrade(trans, iter, U8_MAX)) {
 		trace_trans_restart_iter_upgrade(trans->ip, _RET_IP_,
 						 iter->btree_id,
 						 &iter->real_pos);
