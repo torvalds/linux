@@ -221,23 +221,9 @@ void Hal_SetAntennaPathPower(struct adapter *pAdapter)
 {
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(pAdapter);
 	u8 TxPowerLevel[RF_PATH_MAX];
-	u8 rfPath;
 
 	TxPowerLevel[RF_PATH_A] = pAdapter->mppriv.txpoweridx;
 	TxPowerLevel[RF_PATH_B] = pAdapter->mppriv.txpoweridx_b;
-
-	switch (pAdapter->mppriv.antenna_tx) {
-	case ANTENNA_A:
-	default:
-		rfPath = RF_PATH_A;
-		break;
-	case ANTENNA_B:
-		rfPath = RF_PATH_B;
-		break;
-	case ANTENNA_C:
-		rfPath = RF_PATH_C;
-		break;
-	}
 
 	switch (pHalData->rf_chip) {
 	case RF_8225:
@@ -256,23 +242,10 @@ void Hal_SetTxPower(struct adapter *pAdapter)
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(pAdapter);
 	u8 TxPower = pAdapter->mppriv.txpoweridx;
 	u8 TxPowerLevel[RF_PATH_MAX];
-	u8 rf, rfPath;
+	u8 rf;
 
 	for (rf = 0; rf < RF_PATH_MAX; rf++)
 		TxPowerLevel[rf] = TxPower;
-
-	switch (pAdapter->mppriv.antenna_tx) {
-	case ANTENNA_A:
-	default:
-		rfPath = RF_PATH_A;
-		break;
-	case ANTENNA_B:
-		rfPath = RF_PATH_B;
-		break;
-	case ANTENNA_C:
-		rfPath = RF_PATH_C;
-		break;
-	}
 
 	switch (pHalData->rf_chip) {
 	/*  2008/09/12 MH Test only !! We enable the TX power tracking for MP!!!!! */
