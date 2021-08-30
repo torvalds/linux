@@ -112,6 +112,8 @@ static int __init iptable_mangle_init(void)
 {
 	int ret = xt_register_template(&packet_mangler,
 				       iptable_mangle_table_init);
+	if (ret < 0)
+		return ret;
 
 	mangle_ops = xt_hook_ops_alloc(&packet_mangler, iptable_mangle_hook);
 	if (IS_ERR(mangle_ops)) {

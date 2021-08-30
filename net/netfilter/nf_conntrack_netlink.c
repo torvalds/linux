@@ -706,7 +706,7 @@ static size_t ctnetlink_nlmsg_size(const struct nf_conn *ct)
 }
 
 static int
-ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
+ctnetlink_conntrack_event(unsigned int events, const struct nf_ct_event *item)
 {
 	const struct nf_conntrack_zone *zone;
 	struct net *net;
@@ -2669,6 +2669,8 @@ ctnetlink_glue_build_size(const struct nf_conn *ct)
 	       + nla_total_size(0) /* CTA_HELP */
 	       + nla_total_size(NF_CT_HELPER_NAME_LEN) /* CTA_HELP_NAME */
 	       + ctnetlink_secctx_size(ct)
+	       + ctnetlink_acct_size(ct)
+	       + ctnetlink_timestamp_size(ct)
 #if IS_ENABLED(CONFIG_NF_NAT)
 	       + 2 * nla_total_size(0) /* CTA_NAT_SEQ_ADJ_ORIG|REPL */
 	       + 6 * nla_total_size(sizeof(u_int32_t)) /* CTA_NAT_SEQ_OFFSET */
@@ -2724,6 +2726,10 @@ static int __ctnetlink_glue_build(struct sk_buff *skb, struct nf_conn *ct)
 		goto nla_put_failure;
 
 	if (ctnetlink_dump_protoinfo(skb, ct, false) < 0)
+		goto nla_put_failure;
+
+	if (ctnetlink_dump_acct(skb, ct, IPCTNL_MSG_CT_GET) < 0 ||
+	    ctnetlink_dump_timestamp(skb, ct) < 0)
 		goto nla_put_failure;
 
 	if (ctnetlink_dump_helpinfo(skb, ct) < 0)
@@ -3104,7 +3110,7 @@ nla_put_failure:
 
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 static int
-ctnetlink_expect_event(unsigned int events, struct nf_exp_event *item)
+ctnetlink_expect_event(unsigned int events, const struct nf_exp_event *item)
 {
 	struct nf_conntrack_expect *exp = item->exp;
 	struct net *net = nf_ct_exp_net(exp);
@@ -3755,11 +3761,8 @@ static int ctnetlink_stat_exp_cpu(struct sk_buff *skb,
 
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 static struct nf_ct_event_notifier ctnl_notifier = {
-	.fcn = ctnetlink_conntrack_event,
-};
-
-static struct nf_exp_event_notifier ctnl_notifier_exp = {
-	.fcn = ctnetlink_expect_event,
+	.ct_event = ctnetlink_conntrack_event,
+	.exp_event = ctnetlink_expect_event,
 };
 #endif
 
@@ -3852,52 +3855,21 @@ MODULE_ALIAS_NFNL_SUBSYS(NFNL_SUBSYS_CTNETLINK_EXP);
 static int __net_init ctnetlink_net_init(struct net *net)
 {
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-	int ret;
-
-	ret = nf_conntrack_register_notifier(net, &ctnl_notifier);
-	if (ret < 0) {
-		pr_err("ctnetlink_init: cannot register notifier.\n");
-		goto err_out;
-	}
-
-	ret = nf_ct_expect_register_notifier(net, &ctnl_notifier_exp);
-	if (ret < 0) {
-		pr_err("ctnetlink_init: cannot expect register notifier.\n");
-		goto err_unreg_notifier;
-	}
+	nf_conntrack_register_notifier(net, &ctnl_notifier);
 #endif
 	return 0;
-
-#ifdef CONFIG_NF_CONNTRACK_EVENTS
-err_unreg_notifier:
-	nf_conntrack_unregister_notifier(net, &ctnl_notifier);
-err_out:
-	return ret;
-#endif
 }
 
-static void ctnetlink_net_exit(struct net *net)
+static void ctnetlink_net_pre_exit(struct net *net)
 {
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-	nf_ct_expect_unregister_notifier(net, &ctnl_notifier_exp);
-	nf_conntrack_unregister_notifier(net, &ctnl_notifier);
+	nf_conntrack_unregister_notifier(net);
 #endif
-}
-
-static void __net_exit ctnetlink_net_exit_batch(struct list_head *net_exit_list)
-{
-	struct net *net;
-
-	list_for_each_entry(net, net_exit_list, exit_list)
-		ctnetlink_net_exit(net);
-
-	/* wait for other cpus until they are done with ctnl_notifiers */
-	synchronize_rcu();
 }
 
 static struct pernet_operations ctnetlink_net_ops = {
 	.init		= ctnetlink_net_init,
-	.exit_batch	= ctnetlink_net_exit_batch,
+	.pre_exit	= ctnetlink_net_pre_exit,
 };
 
 static int __init ctnetlink_init(void)
