@@ -2031,10 +2031,9 @@ static struct wm_coeff_ctl *wm_adsp_get_ctl(struct wm_adsp *dsp,
 		if (!pos->subname)
 			continue;
 		if (strncmp(pos->subname, name, pos->subname_len) == 0 &&
-		    strncmp(pos->fw_name, fw_txt,
-			    SNDRV_CTL_ELEM_ID_NAME_MAXLEN) == 0 &&
-				pos->alg_region.alg == alg &&
-				pos->alg_region.type == type) {
+		    pos->fw_name == fw_txt &&
+		    pos->alg_region.alg == alg &&
+		    pos->alg_region.type == type) {
 			rslt = pos;
 			break;
 		}
