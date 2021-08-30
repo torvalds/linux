@@ -135,7 +135,7 @@ static inline void bch2_btree_trans_verify_iters(struct btree_trans *trans,
 static inline void bch2_btree_trans_verify_locks(struct btree_trans *iter) {}
 #endif
 
-void bch2_btree_iter_fix_key_modified(struct btree_trans *trans, struct btree_iter *,
+void bch2_btree_iter_fix_key_modified(struct btree_trans *trans,
 				      struct btree *, struct bkey_packed *);
 void bch2_btree_node_iter_fix(struct btree_trans *trans, struct btree_iter *,
 			      struct btree *, struct btree_node_iter *,
@@ -180,13 +180,9 @@ static inline void bch2_btree_iter_downgrade(struct btree_iter *iter)
 
 void bch2_trans_downgrade(struct btree_trans *);
 
-void bch2_btree_iter_node_replace(struct btree_trans *trans,
-				  struct btree_iter *, struct btree *);
-void bch2_btree_iter_node_drop(struct btree_trans *,
-			       struct btree_iter *, struct btree *);
-
-void bch2_btree_iter_reinit_node(struct btree_trans *,
-				 struct btree_iter *, struct btree *);
+void bch2_trans_node_add(struct btree_trans *trans, struct btree *);
+void bch2_trans_node_drop(struct btree_trans *, struct btree *);
+void bch2_trans_node_reinit_iter(struct btree_trans *, struct btree *);
 
 int __must_check bch2_btree_iter_traverse(struct btree_iter *);
 

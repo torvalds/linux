@@ -459,16 +459,13 @@ void bch2_btree_build_aux_trees(struct btree *b)
  *
  * Returns true if we sorted (i.e. invalidated iterators
  */
-void bch2_btree_init_next(struct btree_trans *trans,
-			  struct btree_iter *iter,
-			  struct btree *b)
+void bch2_btree_init_next(struct btree_trans *trans, struct btree *b)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_node_entry *bne;
 	bool reinit_iter = false;
 
 	EBUG_ON(!(b->c.lock.state.seq & 1));
-	EBUG_ON(iter && iter->l[b->c.level].b != b);
 	BUG_ON(bset_written(b, bset(b, &b->set[1])));
 
 	if (b->nsets == MAX_BSETS &&
@@ -497,8 +494,8 @@ void bch2_btree_init_next(struct btree_trans *trans,
 
 	bch2_btree_build_aux_trees(b);
 
-	if (iter && reinit_iter)
-		bch2_btree_iter_reinit_node(trans, iter, b);
+	if (reinit_iter)
+		bch2_trans_node_reinit_iter(trans, b);
 }
 
 static void btree_pos_to_text(struct printbuf *out, struct bch_fs *c,

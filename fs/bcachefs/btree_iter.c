@@ -757,15 +757,14 @@ static void __bch2_btree_iter_fix_key_modified(struct btree_iter *iter,
 }
 
 void bch2_btree_iter_fix_key_modified(struct btree_trans *trans,
-				      struct btree_iter *iter,
 				      struct btree *b,
 				      struct bkey_packed *where)
 {
-	struct btree_iter *linked;
+	struct btree_iter *iter;
 
-	trans_for_each_iter_with_node(trans, b, linked) {
-		__bch2_btree_iter_fix_key_modified(linked, b, where);
-		bch2_btree_iter_verify_level(trans, linked, b->c.level);
+	trans_for_each_iter_with_node(trans, b, iter) {
+		__bch2_btree_iter_fix_key_modified(iter, b, where);
+		bch2_btree_iter_verify_level(trans, iter, b->c.level);
 	}
 }
 
@@ -1062,42 +1061,40 @@ static inline void btree_iter_level_init(struct btree_trans *trans,
  * A btree node is being replaced - update the iterator to point to the new
  * node:
  */
-void bch2_btree_iter_node_replace(struct btree_trans *trans,
-			struct btree_iter *iter, struct btree *b)
+void bch2_trans_node_add(struct btree_trans *trans, struct btree *b)
 {
 	enum btree_node_locked_type t;
-	struct btree_iter *linked;
+	struct btree_iter *iter;
 
-	trans_for_each_iter(trans, linked)
-		if (btree_iter_type(linked) != BTREE_ITER_CACHED &&
-		    btree_iter_pos_in_node(linked, b)) {
+	trans_for_each_iter(trans, iter)
+		if (btree_iter_type(iter) != BTREE_ITER_CACHED &&
+		    btree_iter_pos_in_node(iter, b)) {
 			/*
-			 * bch2_btree_iter_node_drop() has already been called -
+			 * bch2_trans_node_drop() has already been called -
 			 * the old node we're replacing has already been
 			 * unlocked and the pointer invalidated
 			 */
-			BUG_ON(btree_node_locked(linked, b->c.level));
+			BUG_ON(btree_node_locked(iter, b->c.level));
 
-			t = btree_lock_want(linked, b->c.level);
+			t = btree_lock_want(iter, b->c.level);
 			if (t != BTREE_NODE_UNLOCKED) {
 				six_lock_increment(&b->c.lock, (enum six_lock_type) t);
-				mark_btree_node_locked(linked, b->c.level, (enum six_lock_type) t);
+				mark_btree_node_locked(iter, b->c.level, (enum six_lock_type) t);
 			}
 
-			btree_iter_level_init(trans, linked, b);
+			btree_iter_level_init(trans, iter, b);
 		}
 }
 
-void bch2_btree_iter_node_drop(struct btree_trans *trans,
-			struct btree_iter *iter, struct btree *b)
+void bch2_trans_node_drop(struct btree_trans *trans, struct btree *b)
 {
-	struct btree_iter *linked;
+	struct btree_iter *iter;
 	unsigned level = b->c.level;
 
-	trans_for_each_iter(trans, linked)
-		if (linked->l[level].b == b) {
-			btree_node_unlock(linked, level);
-			linked->l[level].b = BTREE_ITER_NO_NODE_DROP;
+	trans_for_each_iter(trans, iter)
+		if (iter->l[level].b == b) {
+			btree_node_unlock(iter, level);
+			iter->l[level].b = BTREE_ITER_NO_NODE_DROP;
 		}
 }
 
@@ -1105,13 +1102,12 @@ void bch2_btree_iter_node_drop(struct btree_trans *trans,
  * A btree node has been modified in such a way as to invalidate iterators - fix
  * them:
  */
-void bch2_btree_iter_reinit_node(struct btree_trans *trans,
-			struct btree_iter *iter, struct btree *b)
+void bch2_trans_node_reinit_iter(struct btree_trans *trans, struct btree *b)
 {
-	struct btree_iter *linked;
+	struct btree_iter *iter;
 
-	trans_for_each_iter_with_node(trans, b, linked)
-		__btree_iter_level_init(linked, b->c.level);
+	trans_for_each_iter_with_node(trans, b, iter)
+		__btree_iter_level_init(iter, b->c.level);
 }
 
 static int lock_root_check_fn(struct six_lock *lock, void *p)

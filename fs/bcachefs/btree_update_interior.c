@@ -161,14 +161,13 @@ static void __btree_node_free(struct bch_fs *c, struct btree *b)
 }
 
 static void bch2_btree_node_free_inmem(struct btree_trans *trans,
-				       struct btree_iter *iter,
 				       struct btree *b)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter *linked;
+	struct btree_iter *iter;
 
-	trans_for_each_iter(trans, linked)
-		BUG_ON(linked->l[b->c.level].b == b);
+	trans_for_each_iter(trans, iter)
+		BUG_ON(iter->l[b->c.level].b == b);
 
 	six_lock_write(&b->c.lock, NULL, NULL);
 	__btree_node_free(c, b);
@@ -1431,12 +1430,12 @@ static void btree_split(struct btree_update *as,
 	/* Successful split, update the iterator to point to the new nodes: */
 
 	six_lock_increment(&b->c.lock, SIX_LOCK_intent);
-	bch2_btree_iter_node_drop(trans, iter, b);
+	bch2_trans_node_drop(trans, b);
 	if (n3)
-		bch2_btree_iter_node_replace(trans, iter, n3);
+		bch2_trans_node_add(trans, n3);
 	if (n2)
-		bch2_btree_iter_node_replace(trans, iter, n2);
-	bch2_btree_iter_node_replace(trans, iter, n1);
+		bch2_trans_node_add(trans, n2);
+	bch2_trans_node_add(trans, n1);
 
 	/*
 	 * The old node must be freed (in memory) _before_ unlocking the new
@@ -1444,7 +1443,7 @@ static void btree_split(struct btree_update *as,
 	 * node after another thread has locked and updated the new node, thus
 	 * seeing stale data:
 	 */
-	bch2_btree_node_free_inmem(trans, iter, b);
+	bch2_btree_node_free_inmem(trans, b);
 
 	if (n3)
 		six_unlock_intent(&n3->c.lock);
@@ -1527,7 +1526,7 @@ static void bch2_btree_insert_node(struct btree_update *as,
 
 	if (u64s_added > live_u64s_added &&
 	    bch2_maybe_compact_whiteouts(c, b))
-		bch2_btree_iter_reinit_node(trans, iter, b);
+		bch2_trans_node_reinit_iter(trans, b);
 
 	bch2_btree_node_unlock_write(trans, iter, b);
 
@@ -1702,15 +1701,15 @@ retry:
 
 	six_lock_increment(&b->c.lock, SIX_LOCK_intent);
 	six_lock_increment(&m->c.lock, SIX_LOCK_intent);
-	bch2_btree_iter_node_drop(trans, iter, b);
-	bch2_btree_iter_node_drop(trans, iter, m);
+	bch2_trans_node_drop(trans, b);
+	bch2_trans_node_drop(trans, m);
 
-	bch2_btree_iter_node_replace(trans, iter, n);
+	bch2_trans_node_add(trans, n);
 
 	bch2_btree_trans_verify_iters(trans, n);
 
-	bch2_btree_node_free_inmem(trans, iter, b);
-	bch2_btree_node_free_inmem(trans, iter, m);
+	bch2_btree_node_free_inmem(trans, b);
+	bch2_btree_node_free_inmem(trans, m);
 
 	six_unlock_intent(&n->c.lock);
 
@@ -1798,9 +1797,9 @@ retry:
 	bch2_btree_update_get_open_buckets(as, n);
 
 	six_lock_increment(&b->c.lock, SIX_LOCK_intent);
-	bch2_btree_iter_node_drop(trans, iter, b);
-	bch2_btree_iter_node_replace(trans, iter, n);
-	bch2_btree_node_free_inmem(trans, iter, b);
+	bch2_trans_node_drop(trans, b);
+	bch2_trans_node_add(trans, n);
+	bch2_btree_node_free_inmem(trans, b);
 	six_unlock_intent(&n->c.lock);
 
 	bch2_btree_update_done(as);

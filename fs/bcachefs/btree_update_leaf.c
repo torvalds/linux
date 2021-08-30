@@ -56,14 +56,14 @@ inline void bch2_btree_node_lock_for_insert(struct btree_trans *trans,
 
 	if (unlikely(btree_node_just_written(b)) &&
 	    bch2_btree_post_write_cleanup(c, b))
-		bch2_btree_iter_reinit_node(trans, iter, b);
+		bch2_trans_node_reinit_iter(trans, b);
 
 	/*
 	 * If the last bset has been written, or if it's gotten too big - start
 	 * a new bset to insert into:
 	 */
 	if (want_new_bset(c, b))
-		bch2_btree_init_next(trans, iter, b);
+		bch2_btree_init_next(trans, b);
 }
 
 /* Inserting into a given leaf node (last stage of insert): */
@@ -85,7 +85,6 @@ bool bch2_btree_bset_insert_key(struct btree_trans *trans,
 	EBUG_ON(bpos_cmp(insert->k.p, b->data->max_key) > 0);
 	EBUG_ON(insert->k.u64s >
 		bch_btree_keys_u64s_remaining(trans->c, b));
-	EBUG_ON(iter->flags & BTREE_ITER_IS_EXTENTS);
 
 	k = bch2_btree_node_iter_peek_all(node_iter, b);
 	if (k && bkey_cmp_left_packed(b, k, &insert->k.p))
@@ -112,7 +111,7 @@ bool bch2_btree_bset_insert_key(struct btree_trans *trans,
 			bch2_bset_delete(b, k, clobber_u64s);
 			goto fix_iter;
 		} else {
-			bch2_btree_iter_fix_key_modified(trans, iter, b, k);
+			bch2_btree_iter_fix_key_modified(trans, b, k);
 		}
 
 		return true;
@@ -130,7 +129,7 @@ bool bch2_btree_bset_insert_key(struct btree_trans *trans,
 			clobber_u64s = k->u64s;
 			goto overwrite;
 		} else {
-			bch2_btree_iter_fix_key_modified(trans, iter, b, k);
+			bch2_btree_iter_fix_key_modified(trans, b, k);
 		}
 	}
 
@@ -220,7 +219,7 @@ static bool btree_insert_key_leaf(struct btree_trans *trans,
 
 	if (u64s_added > live_u64s_added &&
 	    bch2_maybe_compact_whiteouts(c, b))
-		bch2_btree_iter_reinit_node(trans, iter, b);
+		bch2_trans_node_reinit_iter(trans, b);
 
 	trace_btree_insert_key(c, b, insert);
 	return true;
