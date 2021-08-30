@@ -162,7 +162,7 @@ int vmw_gmrid_man_init(struct vmw_private *dev_priv, int type)
 
 	man->func = &vmw_gmrid_manager_func;
 	man->use_tt = true;
-	ttm_resource_manager_init(man, 0);
+	ttm_resource_manager_init(man, &dev_priv->bdev, 0);
 	spin_lock_init(&gman->lock);
 	gman->used_gmr_pages = 0;
 	ida_init(&gman->gmr_ida);

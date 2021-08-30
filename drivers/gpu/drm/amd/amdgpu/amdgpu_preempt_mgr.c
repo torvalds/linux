@@ -153,7 +153,7 @@ int amdgpu_preempt_mgr_init(struct amdgpu_device *adev)
 	man->use_tt = true;
 	man->func = &amdgpu_preempt_mgr_func;
 
-	ttm_resource_manager_init(man, (1 << 30));
+	ttm_resource_manager_init(man, &adev->mman.bdev, (1 << 30));
 
 	atomic64_set(&mgr->used, 0);
 

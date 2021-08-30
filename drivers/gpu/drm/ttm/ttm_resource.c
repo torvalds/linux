@@ -143,16 +143,19 @@ EXPORT_SYMBOL(ttm_resource_compat);
  * ttm_resource_manager_init
  *
  * @man: memory manager object to init
+ * @bdev: ttm device this manager belongs to
  * @p_size: size managed area in pages.
  *
  * Initialise core parts of a manager object.
  */
 void ttm_resource_manager_init(struct ttm_resource_manager *man,
+			       struct ttm_device *bdev,
 			       unsigned long p_size)
 {
 	unsigned i;
 
 	spin_lock_init(&man->move_lock);
+	man->bdev = bdev;
 	man->size = p_size;
 
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)

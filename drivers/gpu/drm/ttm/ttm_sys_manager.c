@@ -43,7 +43,7 @@ void ttm_sys_man_init(struct ttm_device *bdev)
 	man->use_tt = true;
 	man->func = &ttm_sys_manager_func;
 
-	ttm_resource_manager_init(man, 0);
+	ttm_resource_manager_init(man, bdev, 0);
 	ttm_set_driver_manager(bdev, TTM_PL_SYSTEM, man);
 	ttm_resource_manager_set_used(man, true);
 }
