@@ -1189,6 +1189,47 @@
 		status = "disabled";
 	};
 
+	isp: isp@ff4a0000 {
+		compatible = "rockchip,px30-cif-isp"; /*rk3326-rkisp1*/
+		reg = <0x0 0xff4a0000 0x0 0x8000>;
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "isp", "mi", "mipi";
+		clocks = <&cru SCLK_ISP>,
+			 <&cru ACLK_ISP>,
+			 <&cru HCLK_ISP>,
+			 <&cru PCLK_ISP>;
+		clock-names = "isp", "aclk", "hclk", "pclk";
+		iommus = <&isp_mmu>;
+		phys = <&csi_dphy>;
+		phy-names = "dphy";
+		power-domains = <&power PX30_PD_VI>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+	};
+
+	isp_mmu: iommu@ff4a8000 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff4a8000 0x0 0x100>;
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power PX30_PD_VI>;
+		rockchip,disable-mmu-reset;
+		#iommu-cells = <0>;
+	};
+
 	qos_gmac: qos@ff518000 {
 		compatible = "rockchip,px30-qos", "syscon";
 		reg = <0x0 0xff518000 0x0 0x20>;
