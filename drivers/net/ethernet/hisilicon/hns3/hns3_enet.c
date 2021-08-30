@@ -971,8 +971,7 @@ static u32 hns3_tx_spare_space(struct hns3_enet_ring *ring)
 	/* The free tx buffer is divided into two part, so pick the
 	 * larger one.
 	 */
-	return (ntc > (tx_spare->len - ntu) ? ntc :
-			(tx_spare->len - ntu)) - 1;
+	return max(ntc, tx_spare->len - ntu) - 1;
 }
 
 static void hns3_tx_spare_update(struct hns3_enet_ring *ring)
