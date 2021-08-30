@@ -388,10 +388,27 @@ static inline unsigned int ns2ui(struct dw_mipi_dsi_rockchip *dsi, int ns)
 	return DIV_ROUND_UP(ns * dsi->lane_mbps, 1000);
 }
 
+static void dw_mipi_dsi_phy_tx_config(struct dw_mipi_dsi_rockchip *dsi)
+{
+	if (dsi->cdata->lanecfg1_grf_reg)
+		regmap_write(dsi->grf_regmap, dsi->cdata->lanecfg1_grf_reg,
+					      dsi->cdata->lanecfg1);
+
+	if (dsi->cdata->lanecfg2_grf_reg)
+		regmap_write(dsi->grf_regmap, dsi->cdata->lanecfg2_grf_reg,
+					      dsi->cdata->lanecfg2);
+
+	if (dsi->cdata->enable_grf_reg)
+		regmap_write(dsi->grf_regmap, dsi->cdata->enable_grf_reg,
+					      dsi->cdata->enable);
+}
+
 static int dw_mipi_dsi_phy_init(void *priv_data)
 {
 	struct dw_mipi_dsi_rockchip *dsi = priv_data;
 	int i, vco;
+
+	dw_mipi_dsi_phy_tx_config(dsi);
 
 	if (dsi->phy)
 		return 0;
@@ -470,7 +487,7 @@ static int dw_mipi_dsi_phy_init(void *priv_data)
 			      TER_RESISTORS_ON);
 
 	dw_mipi_dsi_phy_write(dsi, HS_TX_CLOCK_LANE_REQUEST_STATE_TIME_CONTROL,
-			      TLP_PROGRAM_EN | ns2bc(dsi, 500));
+			      TLP_PROGRAM_EN | ns2bc(dsi, 60));
 	dw_mipi_dsi_phy_write(dsi, HS_TX_CLOCK_LANE_PREPARE_STATE_TIME_CONTROL,
 			      THS_PRE_PROGRAM_EN | ns2ui(dsi, 40));
 	dw_mipi_dsi_phy_write(dsi, HS_TX_CLOCK_LANE_HS_ZERO_STATE_TIME_CONTROL,
@@ -483,7 +500,7 @@ static int dw_mipi_dsi_phy_init(void *priv_data)
 			      BIT(5) | (ns2bc(dsi, 60) + 7));
 
 	dw_mipi_dsi_phy_write(dsi, HS_TX_DATA_LANE_REQUEST_STATE_TIME_CONTROL,
-			      TLP_PROGRAM_EN | ns2bc(dsi, 500));
+			      TLP_PROGRAM_EN | ns2bc(dsi, 60));
 	dw_mipi_dsi_phy_write(dsi, HS_TX_DATA_LANE_PREPARE_STATE_TIME_CONTROL,
 			      THS_PRE_PROGRAM_EN | (ns2ui(dsi, 50) + 20));
 	dw_mipi_dsi_phy_write(dsi, HS_TX_DATA_LANE_HS_ZERO_STATE_TIME_CONTROL,
@@ -741,24 +758,25 @@ static const struct dw_mipi_dsi_phy_ops dw_mipi_dsi_rockchip_phy_ops = {
 	.get_timing = dw_mipi_dsi_phy_get_timing,
 };
 
-static void dw_mipi_dsi_rockchip_config(struct dw_mipi_dsi_rockchip *dsi,
-					int mux)
+static void dw_mipi_dsi_rockchip_vop_routing(struct dw_mipi_dsi_rockchip *dsi)
 {
-	if (dsi->cdata->lcdsel_grf_reg)
+	int mux;
+
+	mux = drm_of_encoder_active_endpoint_id(dsi->dev->of_node,
+						&dsi->encoder);
+	if (mux < 0)
+		return;
+
+	if (dsi->cdata->lcdsel_grf_reg) {
 		regmap_write(dsi->grf_regmap, dsi->cdata->lcdsel_grf_reg,
 			mux ? dsi->cdata->lcdsel_lit : dsi->cdata->lcdsel_big);
 
-	if (dsi->cdata->lanecfg1_grf_reg)
-		regmap_write(dsi->grf_regmap, dsi->cdata->lanecfg1_grf_reg,
-					      dsi->cdata->lanecfg1);
-
-	if (dsi->cdata->lanecfg2_grf_reg)
-		regmap_write(dsi->grf_regmap, dsi->cdata->lanecfg2_grf_reg,
-					      dsi->cdata->lanecfg2);
-
-	if (dsi->cdata->enable_grf_reg)
-		regmap_write(dsi->grf_regmap, dsi->cdata->enable_grf_reg,
-					      dsi->cdata->enable);
+		if (dsi->slave && dsi->slave->cdata->lcdsel_grf_reg)
+			regmap_write(dsi->slave->grf_regmap,
+				     dsi->slave->cdata->lcdsel_grf_reg,
+				     mux ? dsi->slave->cdata->lcdsel_lit :
+				     dsi->slave->cdata->lcdsel_big);
+	}
 }
 
 static int
@@ -815,29 +833,12 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi_rockchip *dsi = to_dsi(encoder);
-	int mux;
 
-	mux = drm_of_encoder_active_endpoint_id(dsi->dev->of_node,
-						&dsi->encoder);
-	if (mux < 0)
-		return;
-
-	pm_runtime_get_sync(dsi->dev);
-	if (dsi->slave)
-		pm_runtime_get_sync(dsi->slave->dev);
-
-	dw_mipi_dsi_rockchip_config(dsi, mux);
-	if (dsi->slave)
-		dw_mipi_dsi_rockchip_config(dsi->slave, mux);
+	dw_mipi_dsi_rockchip_vop_routing(dsi);
 }
 
 static void dw_mipi_dsi_encoder_disable(struct drm_encoder *encoder)
 {
-	struct dw_mipi_dsi_rockchip *dsi = to_dsi(encoder);
-
-	if (dsi->slave)
-		pm_runtime_put(dsi->slave->dev);
-	pm_runtime_put(dsi->dev);
 }
 
 static void dw_mipi_dsi_rockchip_loader_protect(struct dw_mipi_dsi_rockchip *dsi, bool on)
