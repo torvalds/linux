@@ -14,8 +14,8 @@
  * arch_ variants (i.e. arch_atomic_read()/arch_atomic_cmpxchg()) to avoid
  * double instrumentation.
  */
-#ifndef _ASM_GENERIC_ATOMIC_INSTRUMENTED_H
-#define _ASM_GENERIC_ATOMIC_INSTRUMENTED_H
+#ifndef _LINUX_ATOMIC_INSTRUMENTED_H
+#define _LINUX_ATOMIC_INSTRUMENTED_H
 
 #include <linux/build_bug.h>
 #include <linux/compiler.h>
@@ -1177,6 +1177,584 @@ atomic64_dec_if_positive(atomic64_t *v)
 	return arch_atomic64_dec_if_positive(v);
 }
 
+static __always_inline long
+atomic_long_read(const atomic_long_t *v)
+{
+	instrument_atomic_read(v, sizeof(*v));
+	return arch_atomic_long_read(v);
+}
+
+static __always_inline long
+atomic_long_read_acquire(const atomic_long_t *v)
+{
+	instrument_atomic_read(v, sizeof(*v));
+	return arch_atomic_long_read_acquire(v);
+}
+
+static __always_inline void
+atomic_long_set(atomic_long_t *v, long i)
+{
+	instrument_atomic_write(v, sizeof(*v));
+	arch_atomic_long_set(v, i);
+}
+
+static __always_inline void
+atomic_long_set_release(atomic_long_t *v, long i)
+{
+	instrument_atomic_write(v, sizeof(*v));
+	arch_atomic_long_set_release(v, i);
+}
+
+static __always_inline void
+atomic_long_add(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	arch_atomic_long_add(i, v);
+}
+
+static __always_inline long
+atomic_long_add_return(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_add_return(i, v);
+}
+
+static __always_inline long
+atomic_long_add_return_acquire(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_add_return_acquire(i, v);
+}
+
+static __always_inline long
+atomic_long_add_return_release(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_add_return_release(i, v);
+}
+
+static __always_inline long
+atomic_long_add_return_relaxed(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_add_return_relaxed(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_add(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_add(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_add_acquire(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_add_acquire(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_add_release(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_add_release(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_add_relaxed(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_add_relaxed(i, v);
+}
+
+static __always_inline void
+atomic_long_sub(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	arch_atomic_long_sub(i, v);
+}
+
+static __always_inline long
+atomic_long_sub_return(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_sub_return(i, v);
+}
+
+static __always_inline long
+atomic_long_sub_return_acquire(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_sub_return_acquire(i, v);
+}
+
+static __always_inline long
+atomic_long_sub_return_release(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_sub_return_release(i, v);
+}
+
+static __always_inline long
+atomic_long_sub_return_relaxed(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_sub_return_relaxed(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_sub(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_sub(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_sub_acquire(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_sub_acquire(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_sub_release(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_sub_release(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_sub_relaxed(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_sub_relaxed(i, v);
+}
+
+static __always_inline void
+atomic_long_inc(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	arch_atomic_long_inc(v);
+}
+
+static __always_inline long
+atomic_long_inc_return(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_inc_return(v);
+}
+
+static __always_inline long
+atomic_long_inc_return_acquire(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_inc_return_acquire(v);
+}
+
+static __always_inline long
+atomic_long_inc_return_release(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_inc_return_release(v);
+}
+
+static __always_inline long
+atomic_long_inc_return_relaxed(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_inc_return_relaxed(v);
+}
+
+static __always_inline long
+atomic_long_fetch_inc(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_inc(v);
+}
+
+static __always_inline long
+atomic_long_fetch_inc_acquire(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_inc_acquire(v);
+}
+
+static __always_inline long
+atomic_long_fetch_inc_release(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_inc_release(v);
+}
+
+static __always_inline long
+atomic_long_fetch_inc_relaxed(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_inc_relaxed(v);
+}
+
+static __always_inline void
+atomic_long_dec(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	arch_atomic_long_dec(v);
+}
+
+static __always_inline long
+atomic_long_dec_return(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_dec_return(v);
+}
+
+static __always_inline long
+atomic_long_dec_return_acquire(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_dec_return_acquire(v);
+}
+
+static __always_inline long
+atomic_long_dec_return_release(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_dec_return_release(v);
+}
+
+static __always_inline long
+atomic_long_dec_return_relaxed(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_dec_return_relaxed(v);
+}
+
+static __always_inline long
+atomic_long_fetch_dec(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_dec(v);
+}
+
+static __always_inline long
+atomic_long_fetch_dec_acquire(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_dec_acquire(v);
+}
+
+static __always_inline long
+atomic_long_fetch_dec_release(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_dec_release(v);
+}
+
+static __always_inline long
+atomic_long_fetch_dec_relaxed(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_dec_relaxed(v);
+}
+
+static __always_inline void
+atomic_long_and(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	arch_atomic_long_and(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_and(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_and(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_and_acquire(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_and_acquire(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_and_release(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_and_release(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_and_relaxed(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_and_relaxed(i, v);
+}
+
+static __always_inline void
+atomic_long_andnot(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	arch_atomic_long_andnot(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_andnot(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_andnot(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_andnot_acquire(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_andnot_acquire(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_andnot_release(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_andnot_release(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_andnot_relaxed(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_andnot_relaxed(i, v);
+}
+
+static __always_inline void
+atomic_long_or(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	arch_atomic_long_or(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_or(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_or(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_or_acquire(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_or_acquire(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_or_release(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_or_release(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_or_relaxed(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_or_relaxed(i, v);
+}
+
+static __always_inline void
+atomic_long_xor(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	arch_atomic_long_xor(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_xor(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_xor(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_xor_acquire(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_xor_acquire(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_xor_release(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_xor_release(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_xor_relaxed(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_xor_relaxed(i, v);
+}
+
+static __always_inline long
+atomic_long_xchg(atomic_long_t *v, long i)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_xchg(v, i);
+}
+
+static __always_inline long
+atomic_long_xchg_acquire(atomic_long_t *v, long i)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_xchg_acquire(v, i);
+}
+
+static __always_inline long
+atomic_long_xchg_release(atomic_long_t *v, long i)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_xchg_release(v, i);
+}
+
+static __always_inline long
+atomic_long_xchg_relaxed(atomic_long_t *v, long i)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_xchg_relaxed(v, i);
+}
+
+static __always_inline long
+atomic_long_cmpxchg(atomic_long_t *v, long old, long new)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_cmpxchg(v, old, new);
+}
+
+static __always_inline long
+atomic_long_cmpxchg_acquire(atomic_long_t *v, long old, long new)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_cmpxchg_acquire(v, old, new);
+}
+
+static __always_inline long
+atomic_long_cmpxchg_release(atomic_long_t *v, long old, long new)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_cmpxchg_release(v, old, new);
+}
+
+static __always_inline long
+atomic_long_cmpxchg_relaxed(atomic_long_t *v, long old, long new)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_cmpxchg_relaxed(v, old, new);
+}
+
+static __always_inline bool
+atomic_long_try_cmpxchg(atomic_long_t *v, long *old, long new)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	instrument_atomic_read_write(old, sizeof(*old));
+	return arch_atomic_long_try_cmpxchg(v, old, new);
+}
+
+static __always_inline bool
+atomic_long_try_cmpxchg_acquire(atomic_long_t *v, long *old, long new)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	instrument_atomic_read_write(old, sizeof(*old));
+	return arch_atomic_long_try_cmpxchg_acquire(v, old, new);
+}
+
+static __always_inline bool
+atomic_long_try_cmpxchg_release(atomic_long_t *v, long *old, long new)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	instrument_atomic_read_write(old, sizeof(*old));
+	return arch_atomic_long_try_cmpxchg_release(v, old, new);
+}
+
+static __always_inline bool
+atomic_long_try_cmpxchg_relaxed(atomic_long_t *v, long *old, long new)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	instrument_atomic_read_write(old, sizeof(*old));
+	return arch_atomic_long_try_cmpxchg_relaxed(v, old, new);
+}
+
+static __always_inline bool
+atomic_long_sub_and_test(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_sub_and_test(i, v);
+}
+
+static __always_inline bool
+atomic_long_dec_and_test(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_dec_and_test(v);
+}
+
+static __always_inline bool
+atomic_long_inc_and_test(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_inc_and_test(v);
+}
+
+static __always_inline bool
+atomic_long_add_negative(long i, atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_add_negative(i, v);
+}
+
+static __always_inline long
+atomic_long_fetch_add_unless(atomic_long_t *v, long a, long u)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_fetch_add_unless(v, a, u);
+}
+
+static __always_inline bool
+atomic_long_add_unless(atomic_long_t *v, long a, long u)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_add_unless(v, a, u);
+}
+
+static __always_inline bool
+atomic_long_inc_not_zero(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_inc_not_zero(v);
+}
+
+static __always_inline bool
+atomic_long_inc_unless_negative(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_inc_unless_negative(v);
+}
+
+static __always_inline bool
+atomic_long_dec_unless_positive(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_dec_unless_positive(v);
+}
+
+static __always_inline long
+atomic_long_dec_if_positive(atomic_long_t *v)
+{
+	instrument_atomic_read_write(v, sizeof(*v));
+	return arch_atomic_long_dec_if_positive(v);
+}
+
 #define xchg(ptr, ...) \
 ({ \
 	typeof(ptr) __ai_ptr = (ptr); \
@@ -1333,5 +1911,5 @@ atomic64_dec_if_positive(atomic64_t *v)
 	arch_cmpxchg_double_local(__ai_ptr, __VA_ARGS__); \
 })
 
-#endif /* _ASM_GENERIC_ATOMIC_INSTRUMENTED_H */
-// 1d7c3a25aca5c7fb031c307be4c3d24c7b48fcd5
+#endif /* _LINUX_ATOMIC_INSTRUMENTED_H */
+// 2a9553f0a9d5619f19151092df5cabbbf16ce835
