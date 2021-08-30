@@ -496,6 +496,18 @@
 		status = "disabled";
 	};
 
+	vdpu_mmu: iommu@fdb50800 {
+		compatible = "rockchip,iommu-v2";
+		reg = <0x0 0xfdb50800 0x0 0x40>;
+		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_vdpu_mmu";
+		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power RK3588_PD_VDPU>;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
 	rga3_0_mmu: iommu@fdb60f00 {
 		compatible = "rockchip,iommu-v2";
 		reg = <0x0 0xfdb60f00 0x0 0x100>;
@@ -517,6 +529,136 @@
 		clock-names = "aclk", "iface";
 		power-domains = <&power RK3588_PD_RGA31>;
 		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	jpegd_mmu: iommu@fdb90480 {
+		compatible = "rockchip,iommu-v2";
+		reg = <0x0 0xfdb90480 0x0 0x40>;
+		interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_jpegd_mmu";
+		clocks = <&cru ACLK_JPEG_DECODER>, <&cru HCLK_JPEG_DECODER>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power RK3588_PD_VDPU>;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	jpege0_mmu: iommu@fdba0800 {
+		compatible = "rockchip,iommu-v2";
+		reg = <0x0 0xfdba0800 0x0 0x40>;
+		interrupts = <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_jpege0_mmu";
+		clocks = <&cru ACLK_JPEG_ENCODER0>, <&cru HCLK_JPEG_ENCODER0>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power RK3588_PD_VDPU>;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	jpege1_mmu: iommu@fdba4800 {
+		compatible = "rockchip,iommu-v2";
+		reg = <0x0 0xfdba4800 0x0 0x40>;
+		interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_jpege1_mmu";
+		clocks = <&cru ACLK_JPEG_ENCODER1>, <&cru HCLK_JPEG_ENCODER1>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power RK3588_PD_VDPU>;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	jpege2_mmu: iommu@fdba8800 {
+		compatible = "rockchip,iommu-v2";
+		reg = <0x0 0xfdba8800 0x0 0x40>;
+		interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_jpege2_mmu";
+		clocks = <&cru ACLK_JPEG_ENCODER2>, <&cru HCLK_JPEG_ENCODER2>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power RK3588_PD_VDPU>;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	jpege3_mmu: iommu@fdbac800 {
+		compatible = "rockchip,iommu-v2";
+		reg = <0x0 0xfdbac800 0x0 0x40>;
+		interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_jpege3_mmu";
+		clocks = <&cru ACLK_JPEG_ENCODER3>, <&cru HCLK_JPEG_ENCODER3>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power RK3588_PD_VDPU>;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	iep_mmu: iommu@fdbb0800 {
+		compatible = "rockchip,iommu-v2";
+		reg = <0x0 0xfdbb0800 0x0 0x100>;
+		interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_iep_mmu";
+		clocks = <&cru ACLK_IEP2P0>, <&cru HCLK_IEP2P0>;
+		clock-names = "aclk", "iface";
+		#iommu-cells = <0>;
+		power-domains = <&power RK3588_PD_VDPU>;
+		status = "disabled";
+	};
+
+	rkvenc0_mmu: iommu@fdbdf000 {
+		compatible = "rockchip,iommu-v2";
+		reg = <0x0 0xfdbdf000 0x0 0x40>, <0x0 0xfdbdf040 0x0 0x40>;
+		interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_rkvenc0_mmu0", "irq_rkvenc0_mmu1";
+		clocks = <&cru ACLK_RKVENC0>, <&cru HCLK_RKVENC0>;
+		clock-names = "aclk", "iface";
+		rockchip,disable-mmu-reset;
+		rockchip,enable-cmd-retry;
+		#iommu-cells = <0>;
+		power-domains = <&power RK3588_PD_VENC0>;
+		status = "disabled";
+	};
+
+	rkvenc1_mmu: iommu@fdbef000 {
+		compatible = "rockchip,iommu-v2";
+		reg = <0x0 0xfdbef000 0x0 0x40>, <0x0 0xfdbef040 0x0 0x40>;
+		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_rkvenc1_mmu0", "irq_rkvenc1_mmu1";
+		clocks = <&cru ACLK_RKVENC1>, <&cru HCLK_RKVENC1>;
+		lock-names = "aclk", "iface";
+		rockchip,disable-mmu-reset;
+		rockchip,enable-cmd-retry;
+		#iommu-cells = <0>;
+		power-domains = <&power RK3588_PD_VENC1>;
+		status = "disabled";
+	};
+
+	rkvdec0_mmu: iommu@0xfdc38700 {
+		compatible = "rockchip,iommu-v2";
+		reg = <0x0 0xfdc38700 0x0 0x40>, <0x0 0xfdc38740 0x0 0x40>;
+		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_rkvdec0_mmu";
+		locks = <&cru ACLK_RKVDEC0>, <&cru HCLK_RKVDEC0>;
+		clock-names = "aclk", "iface";
+		rockchip,disable-mmu-reset;
+		rockchip,enable-cmd-retry;
+		#iommu-cells = <0>;
+		power-domains = <&power RK3588_PD_RKVDEC0>;
+		status = "disabled";
+	};
+
+	rkvdec1_mmu: iommu@0xfdc48700 {
+		compatible = "rockchip,iommu-v2";
+		reg = <0x0 0xfdc48700 0x0 0x40>, <0x0 0xfdc48740 0x0 0x40>;
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_rkvdec1_mmu";
+		clocks = <&cru ACLK_RKVDEC1>, <&cru HCLK_RKVDEC1>;
+		clock-names = "aclk", "iface";
+		rockchip,disable-mmu-reset;
+		rockchip,enable-cmd-retry;
+		#iommu-cells = <0>;
+		power-domains = <&power RK3588_PD_RKVDEC1>;
 		status = "disabled";
 	};
 
