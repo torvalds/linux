@@ -7111,8 +7111,8 @@ static int fsctl_query_iface_info_ioctl(struct ksmbd_conn *conn,
 			netdev->ethtool_ops->get_link_ksettings(netdev, &cmd);
 			speed = cmd.base.speed;
 		} else {
-			pr_err("%s %s\n", netdev->name,
-			       "speed is unknown, defaulting to 1Gb/sec");
+			ksmbd_debug(SMB, "%s %s\n", netdev->name,
+				    "speed is unknown, defaulting to 1Gb/sec");
 			speed = SPEED_1000;
 		}
 
