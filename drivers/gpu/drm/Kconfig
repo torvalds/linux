@@ -39,6 +39,14 @@ config DRM_MIPI_DSI
 	bool
 	depends on DRM
 
+config DRM_DP
+	bool "DRM DisplayPort support"
+	depends on DRM
+	depends on DRM_KMS_HELPER
+	default y if DRM_ANALOGIX_DP
+	help
+	  Choose this option to support DP interface.
+
 config DRM_DP_AUX_CHARDEV
 	bool "DRM DP AUX Interface"
 	depends on DRM
