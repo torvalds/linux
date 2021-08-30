@@ -1534,7 +1534,7 @@ int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 			be->dpcm[stream].state = SND_SOC_DPCM_STATE_CLOSE;
 			goto unwind;
 		}
-		be->dpcm[stream].be_start = 0;
+
 		be->dpcm[stream].state = SND_SOC_DPCM_STATE_OPEN;
 		count++;
 	}
@@ -1999,9 +1999,6 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 	struct snd_soc_pcm_runtime *be;
 	struct snd_soc_dpcm *dpcm;
 	int ret = 0;
-	unsigned long flags;
-	enum snd_soc_dpcm_state state;
-	bool do_trigger;
 
 	for_each_dpcm_be(fe, stream, dpcm) {
 		struct snd_pcm_substream *be_substream;
@@ -2016,180 +2013,78 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 		dev_dbg(be->dev, "ASoC: trigger BE %s cmd %d\n",
 			be->dai_link->name, cmd);
 
-		do_trigger = false;
 		switch (cmd) {
 		case SNDRV_PCM_TRIGGER_START:
-			spin_lock_irqsave(&fe->card->dpcm_lock, flags);
 			if ((be->dpcm[stream].state != SND_SOC_DPCM_STATE_PREPARE) &&
 			    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_STOP) &&
-			    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_PAUSED)) {
-				spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
-				continue;
-			}
-			state = be->dpcm[stream].state;
-			if (be->dpcm[stream].be_start == 0)
-				do_trigger = true;
-			be->dpcm[stream].be_start++;
-			be->dpcm[stream].state = SND_SOC_DPCM_STATE_START;
-			spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
-
-			if (!do_trigger)
+			    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_PAUSED))
 				continue;
 
 			ret = soc_pcm_trigger(be_substream, cmd);
-			if (ret) {
-				spin_lock_irqsave(&fe->card->dpcm_lock, flags);
-				be->dpcm[stream].state = state;
-				be->dpcm[stream].be_start--;
-				spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
+			if (ret)
 				goto end;
-			}
 
+			be->dpcm[stream].state = SND_SOC_DPCM_STATE_START;
 			break;
 		case SNDRV_PCM_TRIGGER_RESUME:
-			spin_lock_irqsave(&fe->card->dpcm_lock, flags);
-			if (be->dpcm[stream].state != SND_SOC_DPCM_STATE_SUSPEND) {
-				spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
-				continue;
-			}
-
-			state = be->dpcm[stream].state;
-			if (be->dpcm[stream].be_start == 0)
-				do_trigger = true;
-			be->dpcm[stream].be_start++;
-			be->dpcm[stream].state = SND_SOC_DPCM_STATE_START;
-			spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
-
-			if (!do_trigger)
+			if ((be->dpcm[stream].state != SND_SOC_DPCM_STATE_SUSPEND))
 				continue;
 
 			ret = soc_pcm_trigger(be_substream, cmd);
-			if (ret) {
-				spin_lock_irqsave(&fe->card->dpcm_lock, flags);
-				be->dpcm[stream].state = state;
-				be->dpcm[stream].be_start--;
-				spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
+			if (ret)
 				goto end;
-			}
 
+			be->dpcm[stream].state = SND_SOC_DPCM_STATE_START;
 			break;
 		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-			spin_lock_irqsave(&fe->card->dpcm_lock, flags);
-			if (be->dpcm[stream].state != SND_SOC_DPCM_STATE_PAUSED) {
-				spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
-				continue;
-			}
-
-			state = be->dpcm[stream].state;
-			if (be->dpcm[stream].be_start == 0)
-				do_trigger = true;
-			be->dpcm[stream].be_start++;
-			be->dpcm[stream].state = SND_SOC_DPCM_STATE_START;
-			spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
-
-			if (!do_trigger)
+			if ((be->dpcm[stream].state != SND_SOC_DPCM_STATE_PAUSED))
 				continue;
 
 			ret = soc_pcm_trigger(be_substream, cmd);
-			if (ret) {
-				spin_lock_irqsave(&fe->card->dpcm_lock, flags);
-				be->dpcm[stream].state = state;
-				be->dpcm[stream].be_start--;
-				spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
+			if (ret)
 				goto end;
-			}
 
+			be->dpcm[stream].state = SND_SOC_DPCM_STATE_START;
 			break;
 		case SNDRV_PCM_TRIGGER_STOP:
-			spin_lock_irqsave(&fe->card->dpcm_lock, flags);
 			if ((be->dpcm[stream].state != SND_SOC_DPCM_STATE_START) &&
-			    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_PAUSED)) {
-				spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
-				continue;
-			}
-			if ((be->dpcm[stream].state == SND_SOC_DPCM_STATE_START &&
-			     be->dpcm[stream].be_start == 1) ||
-			    (be->dpcm[stream].state == SND_SOC_DPCM_STATE_PAUSED &&
-			     be->dpcm[stream].be_start == 0))
-				do_trigger = true;
-			be->dpcm[stream].be_start--;
-			spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
-
-			if (!do_trigger)
+			    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_PAUSED))
 				continue;
 
-			spin_lock_irqsave(&fe->card->dpcm_lock, flags);
-			state = be->dpcm[stream].state;
-			be->dpcm[stream].state = SND_SOC_DPCM_STATE_STOP;
-			spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
+			if (!snd_soc_dpcm_can_be_free_stop(fe, be, stream))
+				continue;
 
 			ret = soc_pcm_trigger(be_substream, cmd);
-			if (ret) {
-				spin_lock_irqsave(&fe->card->dpcm_lock, flags);
-				be->dpcm[stream].state = state;
-				be->dpcm[stream].be_start++;
-				spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
+			if (ret)
 				goto end;
-			}
 
+			be->dpcm[stream].state = SND_SOC_DPCM_STATE_STOP;
 			break;
 		case SNDRV_PCM_TRIGGER_SUSPEND:
-			spin_lock_irqsave(&fe->card->dpcm_lock, flags);
-			if (be->dpcm[stream].state != SND_SOC_DPCM_STATE_START) {
-				spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
-				continue;
-			}
-			if (be->dpcm[stream].be_start == 1)
-				do_trigger = true;
-			be->dpcm[stream].be_start--;
-			spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
-
-			if (!do_trigger)
+			if (be->dpcm[stream].state != SND_SOC_DPCM_STATE_START)
 				continue;
 
-			spin_lock_irqsave(&fe->card->dpcm_lock, flags);
-			state = be->dpcm[stream].state;
-			be->dpcm[stream].state = SND_SOC_DPCM_STATE_STOP;
-			spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
+			if (!snd_soc_dpcm_can_be_free_stop(fe, be, stream))
+				continue;
 
 			ret = soc_pcm_trigger(be_substream, cmd);
-			if (ret) {
-				spin_lock_irqsave(&fe->card->dpcm_lock, flags);
-				be->dpcm[stream].state = state;
-				be->dpcm[stream].be_start++;
-				spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
+			if (ret)
 				goto end;
-			}
 
+			be->dpcm[stream].state = SND_SOC_DPCM_STATE_SUSPEND;
 			break;
 		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-			spin_lock_irqsave(&fe->card->dpcm_lock, flags);
-			if (be->dpcm[stream].state != SND_SOC_DPCM_STATE_START) {
-				spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
-				continue;
-			}
-			if (be->dpcm[stream].be_start == 1)
-				do_trigger = true;
-			be->dpcm[stream].be_start--;
-			spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
-
-			if (!do_trigger)
+			if (be->dpcm[stream].state != SND_SOC_DPCM_STATE_START)
 				continue;
 
-			spin_lock_irqsave(&fe->card->dpcm_lock, flags);
-			state = be->dpcm[stream].state;
-			be->dpcm[stream].state = SND_SOC_DPCM_STATE_PAUSED;
-			spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
+			if (!snd_soc_dpcm_can_be_free_stop(fe, be, stream))
+				continue;
 
 			ret = soc_pcm_trigger(be_substream, cmd);
-			if (ret) {
-				spin_lock_irqsave(&fe->card->dpcm_lock, flags);
-				be->dpcm[stream].state = state;
-				be->dpcm[stream].be_start++;
-				spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
+			if (ret)
 				goto end;
-			}
 
+			be->dpcm[stream].state = SND_SOC_DPCM_STATE_PAUSED;
 			break;
 		}
 	}
