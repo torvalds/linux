@@ -47,12 +47,26 @@ struct at91_pm_bu {
 	unsigned long ddr_phy_calibration[BACKUP_DDR_PHY_CALIBRATION];
 };
 
+/*
+ * struct at91_pm_sfrbu_offsets: registers mapping for SFRBU
+ * @pswbu: power switch BU control registers
+ */
+struct at91_pm_sfrbu_regs {
+	struct {
+		u32 key;
+		u32 ctrl;
+		u32 state;
+		u32 softsw;
+	} pswbu;
+};
+
 /**
  * struct at91_soc_pm - AT91 SoC power management data structure
  * @config_shdwc_ws: wakeup sources configuration function for SHDWC
  * @config_pmc_ws: wakeup srouces configuration function for PMC
  * @ws_ids: wakup sources of_device_id array
  * @data: PM data to be used on last phase of suspend
+ * @sfrbu_regs: SFRBU registers mapping
  * @bu: backup unit mapped data (for backup mode)
  * @memcs: memory chip select
  */
@@ -62,6 +76,7 @@ struct at91_soc_pm {
 	const struct of_device_id *ws_ids;
 	struct at91_pm_bu *bu;
 	struct at91_pm_data data;
+	struct at91_pm_sfrbu_regs sfrbu_regs;
 	void *memcs;
 };
 
@@ -356,9 +371,36 @@ static int at91_suspend_finish(unsigned long val)
 	return 0;
 }
 
+static void at91_pm_switch_ba_to_vbat(void)
+{
+	unsigned int offset = offsetof(struct at91_pm_sfrbu_regs, pswbu);
+	unsigned int val;
+
+	/* Just for safety. */
+	if (!soc_pm.data.sfrbu)
+		return;
+
+	val = readl(soc_pm.data.sfrbu + offset);
+
+	/* Already on VBAT. */
+	if (!(val & soc_pm.sfrbu_regs.pswbu.state))
+		return;
+
+	val &= ~soc_pm.sfrbu_regs.pswbu.softsw;
+	val |= soc_pm.sfrbu_regs.pswbu.key | soc_pm.sfrbu_regs.pswbu.ctrl;
+	writel(val, soc_pm.data.sfrbu + offset);
+
+	/* Wait for update. */
+	val = readl(soc_pm.data.sfrbu + offset);
+	while (val & soc_pm.sfrbu_regs.pswbu.state)
+		val = readl(soc_pm.data.sfrbu + offset);
+}
+
 static void at91_pm_suspend(suspend_state_t state)
 {
 	if (soc_pm.data.mode == AT91_PM_BACKUP) {
+		at91_pm_switch_ba_to_vbat();
+
 		cpu_suspend(0, at91_suspend_finish);
 
 		/* The SRAM is lost between suspend cycles */
@@ -1155,6 +1197,11 @@ void __init sama5d2_pm_init(void)
 	soc_pm.ws_ids = sama5d2_ws_ids;
 	soc_pm.config_shdwc_ws = at91_sama5d2_config_shdwc_ws;
 	soc_pm.config_pmc_ws = at91_sama5d2_config_pmc_ws;
+
+	soc_pm.sfrbu_regs.pswbu.key = (0x4BD20C << 8);
+	soc_pm.sfrbu_regs.pswbu.ctrl = BIT(0);
+	soc_pm.sfrbu_regs.pswbu.softsw = BIT(1);
+	soc_pm.sfrbu_regs.pswbu.state = BIT(3);
 }
 
 void __init sama7_pm_init(void)
@@ -1185,6 +1232,11 @@ void __init sama7_pm_init(void)
 
 	soc_pm.ws_ids = sama7g5_ws_ids;
 	soc_pm.config_pmc_ws = at91_sam9x60_config_pmc_ws;
+
+	soc_pm.sfrbu_regs.pswbu.key = (0x4BD20C << 8);
+	soc_pm.sfrbu_regs.pswbu.ctrl = BIT(0);
+	soc_pm.sfrbu_regs.pswbu.softsw = BIT(1);
+	soc_pm.sfrbu_regs.pswbu.state = BIT(2);
 }
 
 static int __init at91_pm_modes_select(char *str)
