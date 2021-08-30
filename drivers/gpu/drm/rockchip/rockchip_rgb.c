@@ -59,7 +59,7 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 		break;
 	}
 
-	s->output_type = DRM_MODE_CONNECTOR_LVDS;
+	s->output_type = DRM_MODE_CONNECTOR_DPI;
 
 	return 0;
 }
@@ -136,7 +136,7 @@ struct rockchip_rgb *rockchip_rgb_init(struct device *dev,
 
 	if (panel) {
 		bridge = drm_panel_bridge_add_typed(panel,
-						    DRM_MODE_CONNECTOR_LVDS);
+						    DRM_MODE_CONNECTOR_DPI);
 		if (IS_ERR(bridge))
 			return ERR_CAST(bridge);
 	}
