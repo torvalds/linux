@@ -336,9 +336,6 @@ struct qdio_initialize {
 	struct qdio_buffer ***output_sbal_addr_array;
 };
 
-#define QDIO_FLAG_SYNC_INPUT		0x01
-#define QDIO_FLAG_SYNC_OUTPUT		0x02
-
 int qdio_alloc_buffers(struct qdio_buffer **buf, unsigned int count);
 void qdio_free_buffers(struct qdio_buffer **buf, unsigned int count);
 void qdio_reset_buffers(struct qdio_buffer **buf, unsigned int count);
@@ -348,14 +345,18 @@ extern int qdio_allocate(struct ccw_device *cdev, unsigned int no_input_qs,
 extern int qdio_establish(struct ccw_device *cdev,
 			  struct qdio_initialize *init_data);
 extern int qdio_activate(struct ccw_device *);
-extern int do_QDIO(struct ccw_device *cdev, unsigned int callflags, int q_nr,
-		   unsigned int bufnr, unsigned int count, struct qaob *aob);
 extern int qdio_start_irq(struct ccw_device *cdev);
 extern int qdio_stop_irq(struct ccw_device *cdev);
 extern int qdio_inspect_input_queue(struct ccw_device *cdev, unsigned int nr,
 				    unsigned int *bufnr, unsigned int *error);
 extern int qdio_inspect_output_queue(struct ccw_device *cdev, unsigned int nr,
 				     unsigned int *bufnr, unsigned int *error);
+extern int qdio_add_bufs_to_input_queue(struct ccw_device *cdev,
+					unsigned int q_nr, unsigned int bufnr,
+					unsigned int count);
+extern int qdio_add_bufs_to_output_queue(struct ccw_device *cdev,
+					 unsigned int q_nr, unsigned int bufnr,
+					 unsigned int count, struct qaob *aob);
 extern int qdio_shutdown(struct ccw_device *, int);
 extern int qdio_free(struct ccw_device *);
 extern int qdio_get_ssqd_desc(struct ccw_device *, struct qdio_ssqd_desc *);

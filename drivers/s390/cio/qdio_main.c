@@ -1215,6 +1215,35 @@ static int handle_inbound(struct qdio_q *q, int bufnr, int count)
 }
 
 /**
+ * qdio_add_bufs_to_input_queue - process buffers on an Input Queue
+ * @cdev: associated ccw_device for the qdio subchannel
+ * @q_nr: queue number
+ * @bufnr: buffer number
+ * @count: how many buffers to process
+ */
+int qdio_add_bufs_to_input_queue(struct ccw_device *cdev, unsigned int q_nr,
+				 unsigned int bufnr, unsigned int count)
+{
+	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
+
+	if (bufnr >= QDIO_MAX_BUFFERS_PER_Q || count > QDIO_MAX_BUFFERS_PER_Q)
+		return -EINVAL;
+
+	if (!irq_ptr)
+		return -ENODEV;
+
+	DBF_DEV_EVENT(DBF_INFO, irq_ptr, "addi b:%02x c:%02x", bufnr, count);
+
+	if (irq_ptr->state != QDIO_IRQ_STATE_ACTIVE)
+		return -EIO;
+	if (!count)
+		return 0;
+
+	return handle_inbound(irq_ptr->input_qs[q_nr], bufnr, count);
+}
+EXPORT_SYMBOL_GPL(qdio_add_bufs_to_input_queue);
+
+/**
  * handle_outbound - process filled outbound buffers
  * @q: queue containing the buffers
  * @bufnr: first buffer to process
@@ -1255,16 +1284,16 @@ static int handle_outbound(struct qdio_q *q, unsigned int bufnr, unsigned int co
 }
 
 /**
- * do_QDIO - process input or output buffers
+ * qdio_add_bufs_to_output_queue - process buffers on an Output Queue
  * @cdev: associated ccw_device for the qdio subchannel
- * @callflags: input or output and special flags from the program
  * @q_nr: queue number
  * @bufnr: buffer number
  * @count: how many buffers to process
- * @aob: asynchronous operation block (outbound only)
+ * @aob: asynchronous operation block
  */
-int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
-	    int q_nr, unsigned int bufnr, unsigned int count, struct qaob *aob)
+int qdio_add_bufs_to_output_queue(struct ccw_device *cdev, unsigned int q_nr,
+				  unsigned int bufnr, unsigned int count,
+				  struct qaob *aob)
 {
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 
@@ -1274,20 +1303,16 @@ int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 	if (!irq_ptr)
 		return -ENODEV;
 
-	DBF_DEV_EVENT(DBF_INFO, irq_ptr,
-		      "do%02x b:%02x c:%02x", callflags, bufnr, count);
+	DBF_DEV_EVENT(DBF_INFO, irq_ptr, "addo b:%02x c:%02x", bufnr, count);
 
 	if (irq_ptr->state != QDIO_IRQ_STATE_ACTIVE)
 		return -EIO;
 	if (!count)
 		return 0;
-	if (callflags & QDIO_FLAG_SYNC_INPUT)
-		return handle_inbound(irq_ptr->input_qs[q_nr], bufnr, count);
-	else if (callflags & QDIO_FLAG_SYNC_OUTPUT)
-		return handle_outbound(irq_ptr->output_qs[q_nr], bufnr, count, aob);
-	return -EINVAL;
+
+	return handle_outbound(irq_ptr->output_qs[q_nr], bufnr, count, aob);
 }
-EXPORT_SYMBOL_GPL(do_QDIO);
+EXPORT_SYMBOL_GPL(qdio_add_bufs_to_output_queue);
 
 /**
  * qdio_start_irq - enable interrupt processing for the device
