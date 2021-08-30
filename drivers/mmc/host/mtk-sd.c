@@ -1044,8 +1044,8 @@ static inline u32 msdc_cmd_prepare_raw_cmd(struct msdc_host *host,
 	return rawcmd;
 }
 
-static void msdc_start_data(struct msdc_host *host, struct mmc_request *mrq,
-			    struct mmc_command *cmd, struct mmc_data *data)
+static void msdc_start_data(struct msdc_host *host, struct mmc_command *cmd,
+		struct mmc_data *data)
 {
 	bool read;
 
@@ -1113,8 +1113,7 @@ static void msdc_recheck_sdio_irq(struct msdc_host *host)
 	}
 }
 
-static void msdc_track_cmd_data(struct msdc_host *host,
-				struct mmc_command *cmd, struct mmc_data *data)
+static void msdc_track_cmd_data(struct msdc_host *host, struct mmc_command *cmd)
 {
 	if (host->error)
 		dev_dbg(host->dev, "%s: cmd=%d arg=%08X; host->error=0x%08X\n",
@@ -1135,7 +1134,7 @@ static void msdc_request_done(struct msdc_host *host, struct mmc_request *mrq)
 	host->mrq = NULL;
 	spin_unlock_irqrestore(&host->lock, flags);
 
-	msdc_track_cmd_data(host, mrq->cmd, mrq->data);
+	msdc_track_cmd_data(host, mrq->cmd);
 	if (mrq->data)
 		msdc_unprepare_data(host, mrq->data);
 	if (host->error)
@@ -1296,7 +1295,7 @@ static void msdc_cmd_next(struct msdc_host *host,
 	else if (!cmd->data)
 		msdc_request_done(host, mrq);
 	else
-		msdc_start_data(host, mrq, cmd, cmd->data);
+		msdc_start_data(host, cmd, cmd->data);
 }
 
 static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
