@@ -54,18 +54,17 @@ static struct hw_x_point coordinates_x[MAX_HW_POINTS + 2];
  * just multiply with 2^gamma which can be computed once, and save the result so we
  * recursively compute all the values.
  */
-											 /*sRGB     709     2.2 2.4 P3*/
-static const int32_t regamma_numerator01[] = { 31308,   180000, 0,  0,  0};
-static const int32_t regamma_numerator02[] = { 12920,   4500,   0,  0,  0};
-static const int32_t regamma_numerator03[] = { 55,      99,     0,  0,  0};
-static const int32_t regamma_numerator04[] = { 55,      99,     0,  0,  0};
-static const int32_t regamma_numerator05[] = { 2400,    2200,   2200, 2400, 2600};
 
-static const int32_t degamma_numerator01[] = { 404500,  180000, 0,  0,  0};
-static const int32_t degamma_numerator02[] = { 12920,   4500,   0,  0,  0};
-static const int32_t degamma_numerator03[] = { 55,      99,     0,  0,  0};
-static const int32_t degamma_numerator04[] = { 55,      99,     0,  0,  0};
-static const int32_t degamma_numerator05[] = { 2400,    2200,   2200, 2400, 2600};
+/*
+ * Regamma coefficients are used for both regamma and degamma. Degamma
+ * coefficients are calculated in our formula using the regamma coefficients.
+ */
+									 /*sRGB     709     2.2 2.4 P3*/
+static const int32_t numerator01[] = { 31308,   180000, 0,  0,  0};
+static const int32_t numerator02[] = { 12920,   4500,   0,  0,  0};
+static const int32_t numerator03[] = { 55,      99,     0,  0,  0};
+static const int32_t numerator04[] = { 55,      99,     0,  0,  0};
+static const int32_t numerator05[] = { 2400,    2200,   2200, 2400, 2600};
 
 /* one-time setup of X points */
 void setup_x_points_distribution(void)
@@ -295,7 +294,7 @@ struct dividers {
 
 
 static bool build_coefficients(struct gamma_coefficients *coefficients,
-		enum dc_transfer_func_predefined type, bool isRegamma)
+		enum dc_transfer_func_predefined type)
 {
 
 	uint32_t i = 0;
@@ -318,29 +317,16 @@ static bool build_coefficients(struct gamma_coefficients *coefficients,
 	}
 
 	do {
-		if (isRegamma) {
-			coefficients->a0[i] = dc_fixpt_from_fraction(
-				regamma_numerator01[index], 10000000);
-			coefficients->a1[i] = dc_fixpt_from_fraction(
-				regamma_numerator02[index], 1000);
-			coefficients->a2[i] = dc_fixpt_from_fraction(
-				regamma_numerator03[index], 1000);
-			coefficients->a3[i] = dc_fixpt_from_fraction(
-				regamma_numerator04[index], 1000);
-			coefficients->user_gamma[i] = dc_fixpt_from_fraction(
-				regamma_numerator05[index], 1000);
-		} else {
-			coefficients->a0[i] = dc_fixpt_from_fraction(
-				degamma_numerator01[index], 10000000);
-			coefficients->a1[i] = dc_fixpt_from_fraction(
-				degamma_numerator02[index], 1000);
-			coefficients->a2[i] = dc_fixpt_from_fraction(
-				degamma_numerator03[index], 1000);
-			coefficients->a3[i] = dc_fixpt_from_fraction(
-				degamma_numerator04[index], 1000);
-			coefficients->user_gamma[i] = dc_fixpt_from_fraction(
-				degamma_numerator05[index], 1000);
-		}
+		coefficients->a0[i] = dc_fixpt_from_fraction(
+			numerator01[index], 10000000);
+		coefficients->a1[i] = dc_fixpt_from_fraction(
+			numerator02[index], 1000);
+		coefficients->a2[i] = dc_fixpt_from_fraction(
+			numerator03[index], 1000);
+		coefficients->a3[i] = dc_fixpt_from_fraction(
+			numerator04[index], 1000);
+		coefficients->user_gamma[i] = dc_fixpt_from_fraction(
+			numerator05[index], 1000);
 
 		++i;
 	} while (i != ARRAY_SIZE(coefficients->a0));
@@ -853,7 +839,7 @@ static bool build_regamma(struct pwl_float_data_ex *rgb_regamma,
 	if (!coeff)
 		goto release;
 
-	if (!build_coefficients(coeff, type, true))
+	if (!build_coefficients(coeff, type))
 		goto release;
 
 	memset(cal_buffer->buffer, 0, NUM_PTS_IN_REGION * sizeof(struct fixed31_32));
@@ -1102,7 +1088,7 @@ static bool build_degamma(struct pwl_float_data_ex *curve,
 	uint32_t begin_index, end_index;
 	bool ret = false;
 
-	if (!build_coefficients(&coeff, type, false))
+	if (!build_coefficients(&coeff, type))
 		goto release;
 
 	i = 0;
@@ -1705,7 +1691,7 @@ static void apply_degamma_for_user_regamma(struct pwl_float_data_ex *rgb_regamma
 	struct pwl_float_data_ex *rgb = rgb_regamma;
 	const struct hw_x_point *coord_x = coordinates_x;
 
-	build_coefficients(&coeff, TRANSFER_FUNCTION_SRGB, true);
+	build_coefficients(&coeff, true);
 
 	i = 0;
 	while (i != hw_points_num + 1) {
