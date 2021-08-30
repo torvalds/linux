@@ -2433,9 +2433,13 @@ bool perform_link_training_with_retries(
 		dp_disable_link_phy(link, signal);
 
 		/* Abort link training if failure due to sink being unplugged. */
-		if (status == LINK_TRAINING_ABORT)
-			break;
-		else if (do_fallback) {
+		if (status == LINK_TRAINING_ABORT) {
+			enum dc_connection_type type = dc_connection_none;
+
+			dc_link_detect_sink(link, &type);
+			if (type == dc_connection_none)
+				break;
+		} else if (do_fallback) {
 			decide_fallback_link_setting(*link_setting, &current_setting, status);
 			/* Fail link training if reduced link bandwidth no longer meets
 			 * stream requirements.
