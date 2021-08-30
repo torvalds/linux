@@ -92,7 +92,7 @@ TRACE_EVENT(cros_ec_sensorhub_timestamp,
 		__entry->current_time = current_time;
 		__entry->delta = current_timestamp - current_time;
 	),
-	TP_printk("ec_ts: %12lld, ec_fifo_ts: %12lld, fifo_ts: %12lld, curr_ts: %12lld, curr_time: %12lld, delta %12lld",
+	TP_printk("ec_ts: %9u, ec_fifo_ts: %9u, fifo_ts: %12lld, curr_ts: %12lld, curr_time: %12lld, delta %12lld",
 		  __entry->ec_sample_timestamp,
 		__entry->ec_fifo_timestamp,
 		__entry->fifo_timestamp,
@@ -122,7 +122,7 @@ TRACE_EVENT(cros_ec_sensorhub_data,
 		__entry->current_time = current_time;
 		__entry->delta = current_timestamp - current_time;
 	),
-	TP_printk("ec_num: %4d, ec_fifo_ts: %12lld, fifo_ts: %12lld, curr_ts: %12lld, curr_time: %12lld, delta %12lld",
+	TP_printk("ec_num: %4u, ec_fifo_ts: %9u, fifo_ts: %12lld, curr_ts: %12lld, curr_time: %12lld, delta %12lld",
 		  __entry->ec_sensor_num,
 		__entry->ec_fifo_timestamp,
 		__entry->fifo_timestamp,
@@ -153,7 +153,7 @@ TRACE_EVENT(cros_ec_sensorhub_filter,
 		__entry->x = state->x_offset;
 		__entry->y = state->y_offset;
 	),
-	TP_printk("dx: %12lld. dy: %12lld median_m: %12lld median_error: %12lld len: %d x: %12lld y: %12lld",
+	TP_printk("dx: %12lld. dy: %12lld median_m: %12lld median_error: %12lld len: %lld x: %12lld y: %12lld",
 		  __entry->dx,
 		__entry->dy,
 		__entry->median_m,
