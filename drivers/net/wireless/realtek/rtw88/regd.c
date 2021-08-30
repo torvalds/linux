@@ -18,12 +18,13 @@ do {								\
 	struct rtw_dev *__d = (_dev);				\
 	const struct rtw_regd *__r =  &__d->regd;		\
 	rtw_dbg(__d, RTW_DBG_REGD, _msg				\
-		"apply alpha2 %c%c, regd {%d, %d}\n",		\
+		"apply alpha2 %c%c, regd {%d, %d}, dfs_region %d\n",\
 		##_args,					\
 		__r->regulatory->alpha2[0],			\
 		__r->regulatory->alpha2[1],			\
 		__r->regulatory->txpwr_regd_2g,			\
-		__r->regulatory->txpwr_regd_5g);		\
+		__r->regulatory->txpwr_regd_5g,			\
+		__r->dfs_region);				\
 } while (0)
 
 /* If country code is not correctly defined in efuse,
@@ -357,6 +358,7 @@ int rtw_regd_init(struct rtw_dev *rtwdev)
 	}
 
 	rtwdev->regd.regulatory = &rtw_reg_ww;
+	rtwdev->regd.dfs_region = NL80211_DFS_UNSET;
 	rtw_dbg_regd_dump(rtwdev, "regd init state %d: ", rtwdev->regd.state);
 
 	rtw_regd_apply_hw_cap_flags(wiphy);
@@ -450,6 +452,7 @@ static bool rtw_regd_state_hdl(struct rtw_dev *rtwdev,
 			       struct regulatory_request *request)
 {
 	next_regd->regulatory = rtw_reg_find_by_name(request->alpha2);
+	next_regd->dfs_region = request->dfs_region;
 	return rtw_regd_handler[rtwdev->regd.state](rtwdev, next_regd, request);
 }
 
@@ -482,6 +485,7 @@ void rtw_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 			  request->alpha2[1],
 			  request->initiator);
 
+	rtw_phy_adaptivity_set_mode(rtwdev);
 	rtw_phy_set_tx_power_level(rtwdev, hal->current_channel);
 }
 
