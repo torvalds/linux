@@ -785,10 +785,10 @@ endif
 
 $(OUTPUT)dlfilters/%.o: dlfilters/%.c include/perf/perf_dlfilter.h
 	$(Q)$(MKDIR) -p $(OUTPUT)dlfilters
-	$(QUIET_CC)$(CC) -c -Iinclude -o $@ -fpic $<
+	$(QUIET_CC)$(CC) -c -Iinclude $(EXTRA_CFLAGS) -o $@ -fpic $<
 
 $(OUTPUT)dlfilters/%.so: $(OUTPUT)dlfilters/%.o
-	$(QUIET_LINK)$(CC) -shared -o $@ $<
+	$(QUIET_LINK)$(CC) $(EXTRA_CFLAGS) -shared -o $@ $<
 
 ifndef NO_JVMTI
 LIBJVMTI_IN := $(OUTPUT)jvmti/jvmti-in.o
