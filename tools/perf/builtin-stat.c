@@ -2386,7 +2386,8 @@ int cmd_stat(int argc, const char **argv)
 	 * --per-thread is aggregated per thread, we dont mix it with cpu mode
 	 */
 	if (((stat_config.aggr_mode != AGGR_GLOBAL &&
-	      stat_config.aggr_mode != AGGR_THREAD) || nr_cgroups) &&
+	      stat_config.aggr_mode != AGGR_THREAD) ||
+	     (nr_cgroups || stat_config.cgroup_list)) &&
 	    !target__has_cpu(&target)) {
 		fprintf(stderr, "both cgroup and no-aggregation "
 			"modes only available in system-wide mode\n");
@@ -2394,6 +2395,7 @@ int cmd_stat(int argc, const char **argv)
 		parse_options_usage(stat_usage, stat_options, "G", 1);
 		parse_options_usage(NULL, stat_options, "A", 1);
 		parse_options_usage(NULL, stat_options, "a", 1);
+		parse_options_usage(NULL, stat_options, "for-each-cgroup", 0);
 		goto out;
 	}
 
