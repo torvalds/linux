@@ -248,13 +248,22 @@ struct rlc_firmware_header_v2_1 {
 	uint32_t save_restore_list_srm_offset_bytes;
 };
 
-/* version_major=2, version_minor=1 */
+/* version_major=2, version_minor=2 */
 struct rlc_firmware_header_v2_2 {
 	struct rlc_firmware_header_v2_1 v2_1;
 	uint32_t rlc_iram_ucode_size_bytes;
 	uint32_t rlc_iram_ucode_offset_bytes;
 	uint32_t rlc_dram_ucode_size_bytes;
 	uint32_t rlc_dram_ucode_offset_bytes;
+};
+
+/* version_major=2, version_minor=3 */
+struct rlc_firmware_header_v2_3 {
+    struct rlc_firmware_header_v2_2 v2_2;
+    uint32_t rlcp_ucode_size_bytes;
+    uint32_t rlcp_ucode_offset_bytes;
+    uint32_t rlcv_ucode_size_bytes;
+    uint32_t rlcv_ucode_offset_bytes;
 };
 
 /* version_major=1, version_minor=0 */
@@ -342,6 +351,8 @@ union amdgpu_firmware_header {
 	struct rlc_firmware_header_v1_0 rlc;
 	struct rlc_firmware_header_v2_0 rlc_v2_0;
 	struct rlc_firmware_header_v2_1 rlc_v2_1;
+	struct rlc_firmware_header_v2_2 rlc_v2_2;
+	struct rlc_firmware_header_v2_3 rlc_v2_3;
 	struct sdma_firmware_header_v1_0 sdma;
 	struct sdma_firmware_header_v1_1 sdma_v1_1;
 	struct gpu_info_firmware_header_v1_0 gpu_info;
