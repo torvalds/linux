@@ -193,6 +193,8 @@ enum kern_feature_id {
 	FEAT_MODULE_BTF,
 	/* BTF_KIND_FLOAT support */
 	FEAT_BTF_FLOAT,
+	/* BPF perf link support */
+	FEAT_PERF_LINK,
 	__FEAT_CNT,
 };
 
@@ -4337,6 +4339,37 @@ static int probe_module_btf(void)
 	return !err;
 }
 
+static int probe_perf_link(void)
+{
+	struct bpf_load_program_attr attr;
+	struct bpf_insn insns[] = {
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	};
+	int prog_fd, link_fd, err;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.prog_type = BPF_PROG_TYPE_TRACEPOINT;
+	attr.insns = insns;
+	attr.insns_cnt = ARRAY_SIZE(insns);
+	attr.license = "GPL";
+	prog_fd = bpf_load_program_xattr(&attr, NULL, 0);
+	if (prog_fd < 0)
+		return -errno;
+
+	/* use invalid perf_event FD to get EBADF, if link is supported;
+	 * otherwise EINVAL should be returned
+	 */
+	link_fd = bpf_link_create(prog_fd, -1, BPF_PERF_EVENT, NULL);
+	err = -errno; /* close() can clobber errno */
+
+	if (link_fd >= 0)
+		close(link_fd);
+	close(prog_fd);
+
+	return link_fd < 0 && err == -EBADF;
+}
+
 enum kern_feature_result {
 	FEAT_UNKNOWN = 0,
 	FEAT_SUPPORTED = 1,
@@ -4386,6 +4419,9 @@ static struct kern_feature_desc {
 	},
 	[FEAT_BTF_FLOAT] = {
 		"BTF_KIND_FLOAT support", probe_kern_btf_float,
+	},
+	[FEAT_PERF_LINK] = {
+		"BPF perf link support", probe_perf_link,
 	},
 };
 
@@ -5277,11 +5313,11 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 				}
 				insn[1].imm = ext->kcfg.data_off;
 			} else /* EXT_KSYM */ {
-				if (ext->ksym.type_id) { /* typed ksyms */
+				if (ext->ksym.type_id && ext->is_set) { /* typed ksyms */
 					insn[0].src_reg = BPF_PSEUDO_BTF_ID;
 					insn[0].imm = ext->ksym.kernel_btf_id;
 					insn[1].imm = ext->ksym.kernel_btf_obj_fd;
-				} else { /* typeless ksyms */
+				} else { /* typeless ksyms or unresolved typed ksyms */
 					insn[0].imm = (__u32)ext->ksym.addr;
 					insn[1].imm = ext->ksym.addr >> 32;
 				}
@@ -6608,11 +6644,8 @@ static int find_ksym_btf_id(struct bpf_object *obj, const char *ksym_name,
 				break;
 		}
 	}
-	if (id <= 0) {
-		pr_warn("extern (%s ksym) '%s': failed to find BTF ID in kernel BTF(s).\n",
-			__btf_kind_str(kind), ksym_name);
+	if (id <= 0)
 		return -ESRCH;
-	}
 
 	*res_btf = btf;
 	*res_btf_fd = btf_fd;
@@ -6629,8 +6662,13 @@ static int bpf_object__resolve_ksym_var_btf_id(struct bpf_object *obj,
 	struct btf *btf = NULL;
 
 	id = find_ksym_btf_id(obj, ext->name, BTF_KIND_VAR, &btf, &btf_fd);
-	if (id < 0)
+	if (id == -ESRCH && ext->is_weak) {
+		return 0;
+	} else if (id < 0) {
+		pr_warn("extern (var ksym) '%s': not found in kernel BTF\n",
+			ext->name);
 		return id;
+	}
 
 	/* find local type_id */
 	local_type_id = ext->ksym.type_id;
@@ -8808,7 +8846,7 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 
 struct bpf_link {
 	int (*detach)(struct bpf_link *link);
-	int (*destroy)(struct bpf_link *link);
+	void (*dealloc)(struct bpf_link *link);
 	char *pin_path;		/* NULL, if not pinned */
 	int fd;			/* hook FD, -1 if not applicable */
 	bool disconnected;
@@ -8847,11 +8885,12 @@ int bpf_link__destroy(struct bpf_link *link)
 
 	if (!link->disconnected && link->detach)
 		err = link->detach(link);
-	if (link->destroy)
-		link->destroy(link);
 	if (link->pin_path)
 		free(link->pin_path);
-	free(link);
+	if (link->dealloc)
+		link->dealloc(link);
+	else
+		free(link);
 
 	return libbpf_err(err);
 }
@@ -8948,23 +8987,42 @@ int bpf_link__unpin(struct bpf_link *link)
 	return 0;
 }
 
-static int bpf_link__detach_perf_event(struct bpf_link *link)
-{
-	int err;
+struct bpf_link_perf {
+	struct bpf_link link;
+	int perf_event_fd;
+};
 
-	err = ioctl(link->fd, PERF_EVENT_IOC_DISABLE, 0);
-	if (err)
+static int bpf_link_perf_detach(struct bpf_link *link)
+{
+	struct bpf_link_perf *perf_link = container_of(link, struct bpf_link_perf, link);
+	int err = 0;
+
+	if (ioctl(perf_link->perf_event_fd, PERF_EVENT_IOC_DISABLE, 0) < 0)
 		err = -errno;
 
+	if (perf_link->perf_event_fd != link->fd)
+		close(perf_link->perf_event_fd);
 	close(link->fd);
+
 	return libbpf_err(err);
 }
 
-struct bpf_link *bpf_program__attach_perf_event(struct bpf_program *prog, int pfd)
+static void bpf_link_perf_dealloc(struct bpf_link *link)
+{
+	struct bpf_link_perf *perf_link = container_of(link, struct bpf_link_perf, link);
+
+	free(perf_link);
+}
+
+struct bpf_link *bpf_program__attach_perf_event_opts(struct bpf_program *prog, int pfd,
+						     const struct bpf_perf_event_opts *opts)
 {
 	char errmsg[STRERR_BUFSIZE];
-	struct bpf_link *link;
-	int prog_fd, err;
+	struct bpf_link_perf *link;
+	int prog_fd, link_fd = -1, err;
+
+	if (!OPTS_VALID(opts, bpf_perf_event_opts))
+		return libbpf_err_ptr(-EINVAL);
 
 	if (pfd < 0) {
 		pr_warn("prog '%s': invalid perf event FD %d\n",
@@ -8981,27 +9039,59 @@ struct bpf_link *bpf_program__attach_perf_event(struct bpf_program *prog, int pf
 	link = calloc(1, sizeof(*link));
 	if (!link)
 		return libbpf_err_ptr(-ENOMEM);
-	link->detach = &bpf_link__detach_perf_event;
-	link->fd = pfd;
+	link->link.detach = &bpf_link_perf_detach;
+	link->link.dealloc = &bpf_link_perf_dealloc;
+	link->perf_event_fd = pfd;
 
-	if (ioctl(pfd, PERF_EVENT_IOC_SET_BPF, prog_fd) < 0) {
-		err = -errno;
-		free(link);
-		pr_warn("prog '%s': failed to attach to pfd %d: %s\n",
-			prog->name, pfd, libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
-		if (err == -EPROTO)
-			pr_warn("prog '%s': try add PERF_SAMPLE_CALLCHAIN to or remove exclude_callchain_[kernel|user] from pfd %d\n",
-				prog->name, pfd);
-		return libbpf_err_ptr(err);
+	if (kernel_supports(prog->obj, FEAT_PERF_LINK)) {
+		DECLARE_LIBBPF_OPTS(bpf_link_create_opts, link_opts,
+			.perf_event.bpf_cookie = OPTS_GET(opts, bpf_cookie, 0));
+
+		link_fd = bpf_link_create(prog_fd, pfd, BPF_PERF_EVENT, &link_opts);
+		if (link_fd < 0) {
+			err = -errno;
+			pr_warn("prog '%s': failed to create BPF link for perf_event FD %d: %d (%s)\n",
+				prog->name, pfd,
+				err, libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
+			goto err_out;
+		}
+		link->link.fd = link_fd;
+	} else {
+		if (OPTS_GET(opts, bpf_cookie, 0)) {
+			pr_warn("prog '%s': user context value is not supported\n", prog->name);
+			err = -EOPNOTSUPP;
+			goto err_out;
+		}
+
+		if (ioctl(pfd, PERF_EVENT_IOC_SET_BPF, prog_fd) < 0) {
+			err = -errno;
+			pr_warn("prog '%s': failed to attach to perf_event FD %d: %s\n",
+				prog->name, pfd, libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
+			if (err == -EPROTO)
+				pr_warn("prog '%s': try add PERF_SAMPLE_CALLCHAIN to or remove exclude_callchain_[kernel|user] from pfd %d\n",
+					prog->name, pfd);
+			goto err_out;
+		}
+		link->link.fd = pfd;
 	}
 	if (ioctl(pfd, PERF_EVENT_IOC_ENABLE, 0) < 0) {
 		err = -errno;
-		free(link);
-		pr_warn("prog '%s': failed to enable pfd %d: %s\n",
+		pr_warn("prog '%s': failed to enable perf_event FD %d: %s\n",
 			prog->name, pfd, libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
-		return libbpf_err_ptr(err);
+		goto err_out;
 	}
-	return link;
+
+	return &link->link;
+err_out:
+	if (link_fd >= 0)
+		close(link_fd);
+	free(link);
+	return libbpf_err_ptr(err);
+}
+
+struct bpf_link *bpf_program__attach_perf_event(struct bpf_program *prog, int pfd)
+{
+	return bpf_program__attach_perf_event_opts(prog, pfd, NULL);
 }
 
 /*
@@ -9062,12 +9152,18 @@ static int determine_uprobe_retprobe_bit(void)
 	return parse_uint_from_file(file, "config:%d\n");
 }
 
+#define PERF_UPROBE_REF_CTR_OFFSET_BITS 32
+#define PERF_UPROBE_REF_CTR_OFFSET_SHIFT 32
+
 static int perf_event_open_probe(bool uprobe, bool retprobe, const char *name,
-				 uint64_t offset, int pid)
+				 uint64_t offset, int pid, size_t ref_ctr_off)
 {
 	struct perf_event_attr attr = {};
 	char errmsg[STRERR_BUFSIZE];
 	int type, pfd, err;
+
+	if (ref_ctr_off >= (1ULL << PERF_UPROBE_REF_CTR_OFFSET_BITS))
+		return -EINVAL;
 
 	type = uprobe ? determine_uprobe_perf_type()
 		      : determine_kprobe_perf_type();
@@ -9091,6 +9187,7 @@ static int perf_event_open_probe(bool uprobe, bool retprobe, const char *name,
 	}
 	attr.size = sizeof(attr);
 	attr.type = type;
+	attr.config |= (__u64)ref_ctr_off << PERF_UPROBE_REF_CTR_OFFSET_SHIFT;
 	attr.config1 = ptr_to_u64(name); /* kprobe_func or uprobe_path */
 	attr.config2 = offset;		 /* kprobe_addr or probe_offset */
 
@@ -9112,8 +9209,9 @@ static int perf_event_open_probe(bool uprobe, bool retprobe, const char *name,
 struct bpf_link *
 bpf_program__attach_kprobe_opts(struct bpf_program *prog,
 				const char *func_name,
-				struct bpf_kprobe_opts *opts)
+				const struct bpf_kprobe_opts *opts)
 {
+	DECLARE_LIBBPF_OPTS(bpf_perf_event_opts, pe_opts);
 	char errmsg[STRERR_BUFSIZE];
 	struct bpf_link *link;
 	unsigned long offset;
@@ -9125,16 +9223,17 @@ bpf_program__attach_kprobe_opts(struct bpf_program *prog,
 
 	retprobe = OPTS_GET(opts, retprobe, false);
 	offset = OPTS_GET(opts, offset, 0);
+	pe_opts.bpf_cookie = OPTS_GET(opts, bpf_cookie, 0);
 
 	pfd = perf_event_open_probe(false /* uprobe */, retprobe, func_name,
-				    offset, -1 /* pid */);
+				    offset, -1 /* pid */, 0 /* ref_ctr_off */);
 	if (pfd < 0) {
 		pr_warn("prog '%s': failed to create %s '%s' perf event: %s\n",
 			prog->name, retprobe ? "kretprobe" : "kprobe", func_name,
 			libbpf_strerror_r(pfd, errmsg, sizeof(errmsg)));
 		return libbpf_err_ptr(pfd);
 	}
-	link = bpf_program__attach_perf_event(prog, pfd);
+	link = bpf_program__attach_perf_event_opts(prog, pfd, &pe_opts);
 	err = libbpf_get_error(link);
 	if (err) {
 		close(pfd);
@@ -9189,17 +9288,27 @@ static struct bpf_link *attach_kprobe(const struct bpf_sec_def *sec,
 	return link;
 }
 
-struct bpf_link *bpf_program__attach_uprobe(struct bpf_program *prog,
-					    bool retprobe, pid_t pid,
-					    const char *binary_path,
-					    size_t func_offset)
+LIBBPF_API struct bpf_link *
+bpf_program__attach_uprobe_opts(struct bpf_program *prog, pid_t pid,
+				const char *binary_path, size_t func_offset,
+				const struct bpf_uprobe_opts *opts)
 {
+	DECLARE_LIBBPF_OPTS(bpf_perf_event_opts, pe_opts);
 	char errmsg[STRERR_BUFSIZE];
 	struct bpf_link *link;
+	size_t ref_ctr_off;
 	int pfd, err;
+	bool retprobe;
 
-	pfd = perf_event_open_probe(true /* uprobe */, retprobe,
-				    binary_path, func_offset, pid);
+	if (!OPTS_VALID(opts, bpf_uprobe_opts))
+		return libbpf_err_ptr(-EINVAL);
+
+	retprobe = OPTS_GET(opts, retprobe, false);
+	ref_ctr_off = OPTS_GET(opts, ref_ctr_offset, 0);
+	pe_opts.bpf_cookie = OPTS_GET(opts, bpf_cookie, 0);
+
+	pfd = perf_event_open_probe(true /* uprobe */, retprobe, binary_path,
+				    func_offset, pid, ref_ctr_off);
 	if (pfd < 0) {
 		pr_warn("prog '%s': failed to create %s '%s:0x%zx' perf event: %s\n",
 			prog->name, retprobe ? "uretprobe" : "uprobe",
@@ -9207,7 +9316,7 @@ struct bpf_link *bpf_program__attach_uprobe(struct bpf_program *prog,
 			libbpf_strerror_r(pfd, errmsg, sizeof(errmsg)));
 		return libbpf_err_ptr(pfd);
 	}
-	link = bpf_program__attach_perf_event(prog, pfd);
+	link = bpf_program__attach_perf_event_opts(prog, pfd, &pe_opts);
 	err = libbpf_get_error(link);
 	if (err) {
 		close(pfd);
@@ -9218,6 +9327,16 @@ struct bpf_link *bpf_program__attach_uprobe(struct bpf_program *prog,
 		return libbpf_err_ptr(err);
 	}
 	return link;
+}
+
+struct bpf_link *bpf_program__attach_uprobe(struct bpf_program *prog,
+					    bool retprobe, pid_t pid,
+					    const char *binary_path,
+					    size_t func_offset)
+{
+	DECLARE_LIBBPF_OPTS(bpf_uprobe_opts, opts, .retprobe = retprobe);
+
+	return bpf_program__attach_uprobe_opts(prog, pid, binary_path, func_offset, &opts);
 }
 
 static int determine_tracepoint_id(const char *tp_category,
@@ -9270,13 +9389,20 @@ static int perf_event_open_tracepoint(const char *tp_category,
 	return pfd;
 }
 
-struct bpf_link *bpf_program__attach_tracepoint(struct bpf_program *prog,
-						const char *tp_category,
-						const char *tp_name)
+struct bpf_link *bpf_program__attach_tracepoint_opts(struct bpf_program *prog,
+						     const char *tp_category,
+						     const char *tp_name,
+						     const struct bpf_tracepoint_opts *opts)
 {
+	DECLARE_LIBBPF_OPTS(bpf_perf_event_opts, pe_opts);
 	char errmsg[STRERR_BUFSIZE];
 	struct bpf_link *link;
 	int pfd, err;
+
+	if (!OPTS_VALID(opts, bpf_tracepoint_opts))
+		return libbpf_err_ptr(-EINVAL);
+
+	pe_opts.bpf_cookie = OPTS_GET(opts, bpf_cookie, 0);
 
 	pfd = perf_event_open_tracepoint(tp_category, tp_name);
 	if (pfd < 0) {
@@ -9285,7 +9411,7 @@ struct bpf_link *bpf_program__attach_tracepoint(struct bpf_program *prog,
 			libbpf_strerror_r(pfd, errmsg, sizeof(errmsg)));
 		return libbpf_err_ptr(pfd);
 	}
-	link = bpf_program__attach_perf_event(prog, pfd);
+	link = bpf_program__attach_perf_event_opts(prog, pfd, &pe_opts);
 	err = libbpf_get_error(link);
 	if (err) {
 		close(pfd);
@@ -9295,6 +9421,13 @@ struct bpf_link *bpf_program__attach_tracepoint(struct bpf_program *prog,
 		return libbpf_err_ptr(err);
 	}
 	return link;
+}
+
+struct bpf_link *bpf_program__attach_tracepoint(struct bpf_program *prog,
+						const char *tp_category,
+						const char *tp_name)
+{
+	return bpf_program__attach_tracepoint_opts(prog, tp_category, tp_name, NULL);
 }
 
 static struct bpf_link *attach_tp(const struct bpf_sec_def *sec,

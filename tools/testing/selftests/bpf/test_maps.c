@@ -985,7 +985,7 @@ static void test_sockmap(unsigned int tasks, void *data)
 
 		FD_ZERO(&w);
 		FD_SET(sfd[3], &w);
-		to.tv_sec = 1;
+		to.tv_sec = 30;
 		to.tv_usec = 0;
 		s = select(sfd[3] + 1, &w, NULL, NULL, &to);
 		if (s == -1) {
@@ -1396,15 +1396,22 @@ static void test_map_stress(void)
 #define DO_DELETE 0
 
 #define MAP_RETRIES 20
+#define MAX_DELAY_US 50000
+#define MIN_DELAY_RANGE_US 5000
 
 static int map_update_retriable(int map_fd, const void *key, const void *value,
 				int flags, int attempts)
 {
+	int delay = rand() % MIN_DELAY_RANGE_US;
+
 	while (bpf_map_update_elem(map_fd, key, value, flags)) {
 		if (!attempts || (errno != EAGAIN && errno != EBUSY))
 			return -errno;
 
-		usleep(1);
+		if (delay <= MAX_DELAY_US / 2)
+			delay *= 2;
+
+		usleep(delay);
 		attempts--;
 	}
 
@@ -1413,11 +1420,16 @@ static int map_update_retriable(int map_fd, const void *key, const void *value,
 
 static int map_delete_retriable(int map_fd, const void *key, int attempts)
 {
+	int delay = rand() % MIN_DELAY_RANGE_US;
+
 	while (bpf_map_delete_elem(map_fd, key)) {
 		if (!attempts || (errno != EAGAIN && errno != EBUSY))
 			return -errno;
 
-		usleep(1);
+		if (delay <= MAX_DELAY_US / 2)
+			delay *= 2;
+
+		usleep(delay);
 		attempts--;
 	}
 

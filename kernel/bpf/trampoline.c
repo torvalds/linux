@@ -548,7 +548,7 @@ static void notrace inc_misses_counter(struct bpf_prog *prog)
 	u64_stats_update_end(&stats->syncp);
 }
 
-/* The logic is similar to BPF_PROG_RUN, but with an explicit
+/* The logic is similar to bpf_prog_run(), but with an explicit
  * rcu_read_lock() and migrate_disable() which are required
  * for the trampoline. The macro is split into
  * call __bpf_prog_enter

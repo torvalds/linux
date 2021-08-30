@@ -493,20 +493,20 @@ void test_xdp_bonding(void)
 			   "xdp_redirect_multi_kern__open_and_load"))
 		goto out;
 
-	if (!test__start_subtest("xdp_bonding_attach"))
+	if (test__start_subtest("xdp_bonding_attach"))
 		test_xdp_bonding_attach(&skeletons);
 
 	for (i = 0; i < ARRAY_SIZE(bond_test_cases); i++) {
 		struct bond_test_case *test_case = &bond_test_cases[i];
 
-		if (!test__start_subtest(test_case->name))
+		if (test__start_subtest(test_case->name))
 			test_xdp_bonding_with_mode(
 				&skeletons,
 				test_case->mode,
 				test_case->xmit_policy);
 	}
 
-	if (!test__start_subtest("xdp_bonding_redirect_multi"))
+	if (test__start_subtest("xdp_bonding_redirect_multi"))
 		test_xdp_bonding_redirect_multi(&skeletons);
 
 out:

@@ -1744,7 +1744,7 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 		   a four-byte PPP header on each packet */
 		*(u8 *)skb_push(skb, 2) = 1;
 		if (ppp->pass_filter &&
-		    BPF_PROG_RUN(ppp->pass_filter, skb) == 0) {
+		    bpf_prog_run(ppp->pass_filter, skb) == 0) {
 			if (ppp->debug & 1)
 				netdev_printk(KERN_DEBUG, ppp->dev,
 					      "PPP: outbound frame "
@@ -1754,7 +1754,7 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 		}
 		/* if this packet passes the active filter, record the time */
 		if (!(ppp->active_filter &&
-		      BPF_PROG_RUN(ppp->active_filter, skb) == 0))
+		      bpf_prog_run(ppp->active_filter, skb) == 0))
 			ppp->last_xmit = jiffies;
 		skb_pull(skb, 2);
 #else
@@ -2468,7 +2468,7 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 
 			*(u8 *)skb_push(skb, 2) = 0;
 			if (ppp->pass_filter &&
-			    BPF_PROG_RUN(ppp->pass_filter, skb) == 0) {
+			    bpf_prog_run(ppp->pass_filter, skb) == 0) {
 				if (ppp->debug & 1)
 					netdev_printk(KERN_DEBUG, ppp->dev,
 						      "PPP: inbound frame "
@@ -2477,7 +2477,7 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 				return;
 			}
 			if (!(ppp->active_filter &&
-			      BPF_PROG_RUN(ppp->active_filter, skb) == 0))
+			      bpf_prog_run(ppp->active_filter, skb) == 0))
 				ppp->last_recv = jiffies;
 			__skb_pull(skb, 2);
 		} else

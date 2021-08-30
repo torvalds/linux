@@ -104,17 +104,6 @@ struct bpf_object_open_opts {
 };
 #define bpf_object_open_opts__last_field btf_custom_path
 
-struct bpf_kprobe_opts {
-	/* size of this struct, for forward/backward compatiblity */
-	size_t sz;
-	/* function's offset to install kprobe to */
-	unsigned long offset;
-	/* kprobe is return probe */
-	bool retprobe;
-	size_t :0;
-};
-#define bpf_kprobe_opts__last_field retprobe
-
 LIBBPF_API struct bpf_object *bpf_object__open(const char *path);
 LIBBPF_API struct bpf_object *
 bpf_object__open_file(const char *path, const struct bpf_object_open_opts *opts);
@@ -255,23 +244,85 @@ LIBBPF_API int bpf_link__destroy(struct bpf_link *link);
 
 LIBBPF_API struct bpf_link *
 bpf_program__attach(struct bpf_program *prog);
+
+struct bpf_perf_event_opts {
+	/* size of this struct, for forward/backward compatiblity */
+	size_t sz;
+	/* custom user-provided value fetchable through bpf_get_attach_cookie() */
+	__u64 bpf_cookie;
+};
+#define bpf_perf_event_opts__last_field bpf_cookie
+
 LIBBPF_API struct bpf_link *
 bpf_program__attach_perf_event(struct bpf_program *prog, int pfd);
+
+LIBBPF_API struct bpf_link *
+bpf_program__attach_perf_event_opts(struct bpf_program *prog, int pfd,
+				    const struct bpf_perf_event_opts *opts);
+
+struct bpf_kprobe_opts {
+	/* size of this struct, for forward/backward compatiblity */
+	size_t sz;
+	/* custom user-provided value fetchable through bpf_get_attach_cookie() */
+	__u64 bpf_cookie;
+	/* function's offset to install kprobe to */
+	unsigned long offset;
+	/* kprobe is return probe */
+	bool retprobe;
+	size_t :0;
+};
+#define bpf_kprobe_opts__last_field retprobe
+
 LIBBPF_API struct bpf_link *
 bpf_program__attach_kprobe(struct bpf_program *prog, bool retprobe,
 			   const char *func_name);
 LIBBPF_API struct bpf_link *
 bpf_program__attach_kprobe_opts(struct bpf_program *prog,
                                 const char *func_name,
-                                struct bpf_kprobe_opts *opts);
+                                const struct bpf_kprobe_opts *opts);
+
+struct bpf_uprobe_opts {
+	/* size of this struct, for forward/backward compatiblity */
+	size_t sz;
+	/* offset of kernel reference counted USDT semaphore, added in
+	 * a6ca88b241d5 ("trace_uprobe: support reference counter in fd-based uprobe")
+	 */
+	size_t ref_ctr_offset;
+	/* custom user-provided value fetchable through bpf_get_attach_cookie() */
+	__u64 bpf_cookie;
+	/* uprobe is return probe, invoked at function return time */
+	bool retprobe;
+	size_t :0;
+};
+#define bpf_uprobe_opts__last_field retprobe
+
 LIBBPF_API struct bpf_link *
 bpf_program__attach_uprobe(struct bpf_program *prog, bool retprobe,
 			   pid_t pid, const char *binary_path,
 			   size_t func_offset);
 LIBBPF_API struct bpf_link *
+bpf_program__attach_uprobe_opts(struct bpf_program *prog, pid_t pid,
+				const char *binary_path, size_t func_offset,
+				const struct bpf_uprobe_opts *opts);
+
+struct bpf_tracepoint_opts {
+	/* size of this struct, for forward/backward compatiblity */
+	size_t sz;
+	/* custom user-provided value fetchable through bpf_get_attach_cookie() */
+	__u64 bpf_cookie;
+};
+#define bpf_tracepoint_opts__last_field bpf_cookie
+
+LIBBPF_API struct bpf_link *
 bpf_program__attach_tracepoint(struct bpf_program *prog,
 			       const char *tp_category,
 			       const char *tp_name);
+LIBBPF_API struct bpf_link *
+bpf_program__attach_tracepoint_opts(struct bpf_program *prog,
+				    const char *tp_category,
+				    const char *tp_name,
+				    const struct bpf_tracepoint_opts *opts);
+
 LIBBPF_API struct bpf_link *
 bpf_program__attach_raw_tracepoint(struct bpf_program *prog,
 				   const char *tp_name);

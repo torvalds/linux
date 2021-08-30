@@ -12300,6 +12300,10 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 		if (is_narrower_load && size < target_size) {
 			u8 shift = bpf_ctx_narrow_access_offset(
 				off, size, size_default) * 8;
+			if (shift && cnt + 1 >= ARRAY_SIZE(insn_buf)) {
+				verbose(env, "bpf verifier narrow ctx load misconfigured\n");
+				return -EINVAL;
+			}
 			if (ctx_field_size <= 4) {
 				if (shift)
 					insn_buf[cnt++] = BPF_ALU32_IMM(BPF_RSH,
@@ -12388,7 +12392,7 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		subprog_end = env->subprog_info[i + 1].start;
 
 		len = subprog_end - subprog_start;
-		/* BPF_PROG_RUN doesn't call subprogs directly,
+		/* bpf_prog_run() doesn't call subprogs directly,
 		 * hence main prog stats include the runtime of subprogs.
 		 * subprogs don't have IDs and not reachable via prog_get_next_id
 		 * func[i]->stats will never be accessed and stays NULL

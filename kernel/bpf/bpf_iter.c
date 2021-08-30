@@ -686,7 +686,7 @@ int bpf_iter_run_prog(struct bpf_prog *prog, void *ctx)
 
 	rcu_read_lock();
 	migrate_disable();
-	ret = BPF_PROG_RUN(prog, ctx);
+	ret = bpf_prog_run(prog, ctx);
 	migrate_enable();
 	rcu_read_unlock();
 

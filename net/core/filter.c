@@ -114,7 +114,7 @@ EXPORT_SYMBOL_GPL(copy_bpf_fprog_from_user);
  * Run the eBPF program and then cut skb->data to correct size returned by
  * the program. If pkt_len is 0 we toss packet. If skb->len is smaller
  * than pkt_len we keep whole skb->data. This is the socket level
- * wrapper to BPF_PROG_RUN. It returns 0 if the packet should
+ * wrapper to bpf_prog_run. It returns 0 if the packet should
  * be accepted or -EPERM if the packet should be tossed.
  *
  */
@@ -4676,6 +4676,30 @@ static const struct bpf_func_proto bpf_get_netns_cookie_sock_addr_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX_OR_NULL,
 };
 
+BPF_CALL_1(bpf_get_netns_cookie_sock_ops, struct bpf_sock_ops_kern *, ctx)
+{
+	return __bpf_get_netns_cookie(ctx ? ctx->sk : NULL);
+}
+
+static const struct bpf_func_proto bpf_get_netns_cookie_sock_ops_proto = {
+	.func		= bpf_get_netns_cookie_sock_ops,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX_OR_NULL,
+};
+
+BPF_CALL_1(bpf_get_netns_cookie_sk_msg, struct sk_msg *, ctx)
+{
+	return __bpf_get_netns_cookie(ctx ? ctx->sk : NULL);
+}
+
+static const struct bpf_func_proto bpf_get_netns_cookie_sk_msg_proto = {
+	.func		= bpf_get_netns_cookie_sk_msg,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX_OR_NULL,
+};
+
 BPF_CALL_1(bpf_get_socket_uid, struct sk_buff *, skb)
 {
 	struct sock *sk = sk_to_full_sk(skb->sk);
@@ -5027,6 +5051,12 @@ err_clear:
 BPF_CALL_5(bpf_sk_setsockopt, struct sock *, sk, int, level,
 	   int, optname, char *, optval, int, optlen)
 {
+	if (level == SOL_TCP && optname == TCP_CONGESTION) {
+		if (optlen >= sizeof("cdg") - 1 &&
+		    !strncmp("cdg", optval, optlen))
+			return -ENOTSUPP;
+	}
+
 	return _bpf_setsockopt(sk, level, optname, optval, optlen);
 }
 
@@ -7491,6 +7521,8 @@ sock_ops_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_sk_storage_get_proto;
 	case BPF_FUNC_sk_storage_delete:
 		return &bpf_sk_storage_delete_proto;
+	case BPF_FUNC_get_netns_cookie:
+		return &bpf_get_netns_cookie_sock_ops_proto;
 #ifdef CONFIG_INET
 	case BPF_FUNC_load_hdr_opt:
 		return &bpf_sock_ops_load_hdr_opt_proto;
@@ -7537,6 +7569,8 @@ sk_msg_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_sk_storage_get_proto;
 	case BPF_FUNC_sk_storage_delete:
 		return &bpf_sk_storage_delete_proto;
+	case BPF_FUNC_get_netns_cookie:
+		return &bpf_get_netns_cookie_sk_msg_proto;
 #ifdef CONFIG_CGROUPS
 	case BPF_FUNC_get_current_cgroup_id:
 		return &bpf_get_current_cgroup_id_proto;
@@ -10115,7 +10149,7 @@ struct sock *bpf_run_sk_reuseport(struct sock_reuseport *reuse, struct sock *sk,
 	enum sk_action action;
 
 	bpf_init_reuseport_kern(&reuse_kern, reuse, sk, skb, migrating_sk, hash);
-	action = BPF_PROG_RUN(prog, &reuse_kern);
+	action = bpf_prog_run(prog, &reuse_kern);
 
 	if (action == SK_PASS)
 		return reuse_kern.selected_sk;

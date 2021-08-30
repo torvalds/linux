@@ -23,8 +23,12 @@ static int timer_mim(struct timer_mim *timer_skel)
 
 	/* check that timer_cb[12] are incrementing 'cnt' */
 	cnt1 = READ_ONCE(timer_skel->bss->cnt);
-	usleep(200); /* 100 times more than interval */
-	cnt2 = READ_ONCE(timer_skel->bss->cnt);
+	for (int i = 0; i < 100; i++) {
+		cnt2 = READ_ONCE(timer_skel->bss->cnt);
+		if (cnt2 != cnt1)
+			break;
+		usleep(200); /* 100 times more than interval */
+	}
 	ASSERT_GT(cnt2, cnt1, "cnt");
 
 	ASSERT_EQ(timer_skel->bss->err, 0, "err");
@@ -37,8 +41,12 @@ static int timer_mim(struct timer_mim *timer_skel)
 
 	/* check that timer_cb[12] are no longer running */
 	cnt1 = READ_ONCE(timer_skel->bss->cnt);
-	usleep(200);
-	cnt2 = READ_ONCE(timer_skel->bss->cnt);
+	for (int i = 0; i < 100; i++) {
+		usleep(200); /* 100 times more than interval */
+		cnt2 = READ_ONCE(timer_skel->bss->cnt);
+		if (cnt2 == cnt1)
+			break;
+	}
 	ASSERT_EQ(cnt2, cnt1, "cnt");
 
 	return 0;
