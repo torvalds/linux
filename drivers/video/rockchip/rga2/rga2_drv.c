@@ -42,7 +42,6 @@
 #include <linux/wakelock.h>
 #include <linux/scatterlist.h>
 #include <linux/version.h>
-#include <linux/debugfs.h>
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
 #include <linux/pm_runtime.h>
@@ -53,6 +52,7 @@
 #include "rga2_reg_info.h"
 #include "rga2_mmu_info.h"
 #include "RGA2_API.h"
+#include "rga2_debugger.h"
 
 #if IS_ENABLED(CONFIG_ION_ROCKCHIP) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0))
 #include <linux/rockchip_ion.h>
@@ -75,25 +75,11 @@
  */
 #define RGA2_PHY_PAGE_SIZE	(((8192 * 8192 * 4) / 4096) + 1)
 
-
-/* Driver information */
-#define DRIVER_DESC		"RGA2 Device Driver"
-#define DRIVER_NAME		"rga2"
-#define RGA2_VERSION   "2.000"
-
 ktime_t rga2_start;
 ktime_t rga2_end;
 int rga2_flag;
 int first_RGA2_proc;
 static int rk3368;
-#if RGA2_DEBUGFS
-int RGA2_TEST_REG;
-int RGA2_TEST_MSG;
-int RGA2_TEST_TIME;
-int RGA2_CHECK_MODE;
-int RGA2_NONUSE;
-int RGA2_INT_FLAG;
-#endif
 
 rga2_session rga2_session_global;
 long (*rga2_ioctl_kernel_p)(struct rga_req *);
@@ -111,22 +97,7 @@ static void rga2_del_running_list(void);
 static void rga2_del_running_list_timeout(void);
 static void rga2_try_set_reg(void);
 
-
-/* Logging */
-#define RGA_DEBUG 1
-#if RGA_DEBUG
-#define DBG(format, args...) printk(KERN_DEBUG "%s: " format, DRIVER_NAME, ## args)
-#define ERR(format, args...) printk(KERN_ERR "%s: " format, DRIVER_NAME, ## args)
-#define WARNING(format, args...) printk(KERN_WARN "%s: " format, DRIVER_NAME, ## args)
-#define INFO(format, args...) printk(KERN_INFO "%s: " format, DRIVER_NAME, ## args)
-#else
-#define DBG(format, args...)
-#define ERR(format, args...)
-#define WARNING(format, args...)
-#define INFO(format, args...)
-#endif
-
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 static const char *rga2_get_cmd_mode_str(u32 cmd)
 {
 	switch (cmd) {
@@ -711,7 +682,7 @@ static int rga2_flush(rga2_session *session, unsigned long arg)
 	int ret = 0;
 	int ret_timeout;
 
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 	ktime_t start = ktime_set(0, 0);
 	ktime_t end = ktime_set(0, 0);
 
@@ -760,7 +731,7 @@ static int rga2_flush(rga2_session *session, unsigned long arg)
 		ret = -ETIMEDOUT;
 	}
 
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 	if (RGA2_TEST_TIME) {
 		end = ktime_get();
 		end = ktime_sub(end, start);
@@ -977,7 +948,7 @@ static void rga2_try_set_reg(void)
 				rga2_write(reg->csc_reg[i], RGA2_CSC_COE_BASE + i * 4);
 			}
 
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 			if (RGA2_TEST_REG) {
 				if (rga2_flag) {
 					int32_t *p;
@@ -1005,7 +976,7 @@ static void rga2_try_set_reg(void)
 			/* All CMD finish int */
 			rga2_write(rga2_read(RGA2_INT)|(0x1<<10)|(0x1<<9)|(0x1<<8), RGA2_INT);
 
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 			if (RGA2_TEST_TIME)
 				rga2_start = ktime_get();
 #endif
@@ -1013,7 +984,7 @@ static void rga2_try_set_reg(void)
 			/* Start proc */
 			atomic_set(&reg->session->done, 0);
 			rga2_write(0x1, RGA2_CMD_CTRL);
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 			if (RGA2_TEST_REG) {
 				if (rga2_flag) {
 					INFO("CMD_READ_BACK_REG\n");
@@ -1187,7 +1158,7 @@ static int rga2_get_img_info(rga_img_info_t *img,
 			pr_err("Failed to attach dma_buf\n");
 			return ret;
 		}
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 	if (RGA2_CHECK_MODE) {
 		void *vaddr = dma_buf_vmap(dma_buf);
 		if (vaddr)
@@ -1344,7 +1315,7 @@ static int rga2_convert_dma_buf(struct rga2_req *req)
 			pr_err("RGA2 SRC ERROR ion buf handle\n");
 			return ret;
 		}
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 	if (RGA2_CHECK_MODE) {
 		vaddr = ion_map_kernel(rga2_drvdata->ion_client, hdl);
 		if (vaddr)
@@ -1386,7 +1357,7 @@ static int rga2_convert_dma_buf(struct rga2_req *req)
 			pr_err("RGA2 DST ERROR ion buf handle\n");
 			return ret;
 		}
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 	if (RGA2_CHECK_MODE) {
 		vaddr = ion_map_kernel(rga2_drvdata->ion_client, hdl);
 		if (vaddr)
@@ -1569,7 +1540,7 @@ err_put_dma_buf:
 static int rga2_blit_async(rga2_session *session, struct rga2_req *req)
 {
 	int ret = -1;
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 	if (RGA2_TEST_MSG) {
 		if (1) {
 			print_debug_info(req);
@@ -1597,7 +1568,7 @@ static int rga2_blit_sync(rga2_session *session, struct rga2_req *req)
 	memcpy(&req_bak, req, sizeof(req_bak));
 retry:
 
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 	if (RGA2_TEST_MSG) {
 		if (1) {
 			print_debug_info(req);
@@ -1669,7 +1640,7 @@ retry:
 		ret = -ETIMEDOUT;
 	}
 
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 	if (RGA2_TEST_TIME) {
 		rga2_end = ktime_get();
 		rga2_end = ktime_sub(rga2_end, rga2_start);
@@ -1731,7 +1702,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	}
 
 	memset(&req, 0x0, sizeof(req));
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 	if (RGA2_TEST_MSG)
 		INFO("cmd is %s\n", rga2_get_cmd_mode_str(cmd));
 	if (RGA2_NONUSE) {
@@ -1913,7 +1884,7 @@ static long compat_rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 
 	session = (rga2_session *)file->private_data;
 
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 	if (RGA2_TEST_MSG)
 		INFO("using %s\n", __func__);
 #endif
@@ -2145,7 +2116,7 @@ static void RGA2_flush_page(void)
 
 static irqreturn_t rga2_irq_thread(int irq, void *dev_id)
 {
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 	if (RGA2_INT_FLAG)
 		INFO("irqthread INT[%x],STATS[%x]\n", rga2_read(RGA2_INT),
 		     rga2_read(RGA2_STATUS));
@@ -2163,7 +2134,7 @@ static irqreturn_t rga2_irq_thread(int irq, void *dev_id)
 
 static irqreturn_t rga2_irq(int irq,  void *dev_id)
 {
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 	if (RGA2_INT_FLAG)
 		INFO("irq INT[%x], STATS[%x]\n", rga2_read(RGA2_INT),
 		     rga2_read(RGA2_STATUS));
@@ -2200,6 +2171,47 @@ static const struct of_device_id rockchip_rga_dt_ids[] = {
 	{ .compatible = "rockchip,rga2", },
 	{},
 };
+
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
+static int rga2_debugger_init(struct rga_debugger **debugger_p)
+{
+	struct rga_debugger *debugger;
+
+	*debugger_p = kzalloc(sizeof(struct rga_debugger), GFP_KERNEL);
+	if (*debugger_p == NULL) {
+		ERR("can not alloc for rga2 debugger\n");
+		return -ENOMEM;
+	}
+
+	debugger = *debugger_p;
+
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUG_FS
+	mutex_init(&debugger->debugfs_lock);
+	INIT_LIST_HEAD(&debugger->debugfs_entry_list);
+#endif
+
+#ifdef CONFIG_ROCKCHIP_RGA2_PROC_FS
+	mutex_init(&debugger->procfs_lock);
+	INIT_LIST_HEAD(&debugger->procfs_entry_list);
+#endif
+
+	rga2_debugfs_init();
+	rga2_procfs_init();
+
+	return 0;
+}
+
+static int rga2_debugger_remove(struct rga_debugger **debugger_p)
+{
+	rga2_debugfs_remove();
+	rga2_procfs_remove();
+
+	kfree(*debugger_p);
+	*debugger_p = NULL;
+
+	return 0;
+}
+#endif
 
 static int rga2_drv_probe(struct platform_device *pdev)
 {
@@ -2284,6 +2296,11 @@ static int rga2_drv_probe(struct platform_device *pdev)
 		ERR("cannot register miscdev (%d)\n", ret);
 		goto err_misc_register;
 	}
+
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
+	rga2_debugger_init(&rga2_drvdata->debugger);
+#endif
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 1, 0))
 	rga2_init_version();
 	INFO("Driver loaded successfully ver:%s\n", rga2_drvdata->version);
@@ -2307,6 +2324,10 @@ static int rga2_drv_remove(struct platform_device *pdev)
 {
 	struct rga2_drvdata_t *data = platform_get_drvdata(pdev);
 	DBG("%s [%d]\n",__FUNCTION__,__LINE__);
+
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
+	rga2_debugger_remove(&data->debugger);
+#endif
 
 	wake_lock_destroy(&data->wake_lock);
 	misc_deregister(&(data->miscdev));
@@ -2336,116 +2357,7 @@ static struct platform_driver rga2_driver = {
 	},
 };
 
-#if RGA2_DEBUGFS
-void rga2_slt(void);
-
-static int rga2_debug_show(struct seq_file *m, void *data)
-{
-	seq_puts(m, "echo reg > rga2 to open rga reg MSG\n");
-	seq_puts(m, "echo msg  > rga2 to open rga msg MSG\n");
-	seq_puts(m, "echo time > rga2 to open rga time MSG\n");
-	seq_puts(m, "echo check > rga2 to open rga check flag\n");
-	seq_puts(m, "echo stop > rga2 to stop using hardware\n");
-	seq_puts(m, "echo int > rga2 to open interruppt MSG\n");
-	return 0;
-}
-
-static ssize_t rga2_debug_write(struct file *file, const char __user *ubuf,
-			      size_t len, loff_t *offp)
-{
-	char buf[14];
-
-	if (len > sizeof(buf) - 1)
-		return -EINVAL;
-	if (copy_from_user(buf, ubuf, len))
-		return -EFAULT;
-	buf[len - 1] = '\0';
-
-	if (strncmp(buf, "reg", 4) == 0) {
-		if (RGA2_TEST_REG) {
-			RGA2_TEST_REG = 0;
-			INFO("close rga2 reg!\n");
-		} else {
-			RGA2_TEST_REG = 1;
-			INFO("open rga2 reg!\n");
-		}
-	} else if (strncmp(buf, "msg", 3) == 0) {
-		if (RGA2_TEST_MSG) {
-			RGA2_TEST_MSG = 0;
-			INFO("close rga2 test MSG!\n");
-		} else {
-			RGA2_TEST_MSG = 1;
-			INFO("open rga2 test MSG!\n");
-		}
-	} else if (strncmp(buf, "time", 4) == 0) {
-		if (RGA2_TEST_TIME) {
-			RGA2_TEST_TIME = 0;
-			INFO("close rga2 test time!\n");
-		} else {
-			RGA2_TEST_TIME = 1;
-			INFO("open rga2 test time!\n");
-		}
-	} else if (strncmp(buf, "check", 5) == 0) {
-		if (RGA2_CHECK_MODE) {
-			RGA2_CHECK_MODE = 0;
-			INFO("close rga2 check flag!\n");
-		} else {
-			RGA2_CHECK_MODE = 1;
-			INFO("open rga2 check flag!\n");
-		}
-	} else if (strncmp(buf, "stop", 4) == 0) {
-		if (RGA2_NONUSE) {
-			RGA2_NONUSE = 0;
-			INFO("stop using rga hardware!\n");
-		} else {
-			RGA2_NONUSE = 1;
-			INFO("use rga hardware!\n");
-		}
-	} else if (strncmp(buf, "int", 3) == 0) {
-		if (RGA2_INT_FLAG) {
-			RGA2_INT_FLAG = 0;
-			INFO("close inturrupt MSG!\n");
-		} else {
-			RGA2_INT_FLAG = 1;
-			INFO("open inturrupt MSG!\n");
-		}
-	} else if (strncmp(buf, "slt", 3) == 0) {
-		rga2_slt();
-	}
-
-	return len;
-}
-
-static int rga2_debug_open(struct inode *inode, struct file *file)
-
-{
-	return single_open(file, rga2_debug_show, NULL);
-}
-
-static const struct file_operations rga2_debug_fops = {
-	.owner = THIS_MODULE,
-	.open = rga2_debug_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.write = rga2_debug_write,
-};
-
-static void rga2_debugfs_add(void)
-{
-	struct dentry *rga2_debug_root;
-	struct dentry *ent;
-
-	rga2_debug_root = debugfs_create_dir("rga2_debug", NULL);
-
-	ent = debugfs_create_file("rga2", 0644, rga2_debug_root,
-				  NULL, &rga2_debug_fops);
-	if (!ent) {
-		pr_err("create rga2_debugfs err\n");
-		debugfs_remove_recursive(rga2_debug_root);
-	}
-}
-
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 void rga2_slt(void)
 {
 	int i;
@@ -2641,9 +2553,6 @@ static int __init rga2_init(void)
 
 #if RGA2_TEST_CASE
 	rga2_test_0();
-#endif
-#if RGA2_DEBUGFS
-	rga2_debugfs_add();
 #endif
 	INFO("Module initialized.\n");
 

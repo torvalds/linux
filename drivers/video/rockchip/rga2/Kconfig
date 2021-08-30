@@ -1,10 +1,30 @@
 # SPDX-License-Identifier: GPL-2.0
-menu "RGA2"
+menuconfig ROCKCHIP_RGA2
+	tristate "RGA2"
 	depends on ARCH_ROCKCHIP
-
-config ROCKCHIP_RGA2
-	tristate "ROCKCHIP_RGA2"
 	help
 	  rk32 rga2 module.
 
-endmenu
+if ROCKCHIP_RGA2
+
+config ROCKCHIP_RGA2_PROC_FS
+	bool "Enable RGA2 procfs"
+	select ROCKCHIP_RGA2_DEBUGGER
+	depends on PROC_FS
+	help
+	  Enable procfs to debug RGA driver.
+
+config ROCKCHIP_RGA2_DEBUG_FS
+	bool "Enable RGA2 debugfs"
+	select ROCKCHIP_RGA2_DEBUGGER
+	depends on DEBUG_FS
+	default y
+	help
+	  Enable debugfs to debug RGA driver.
+
+config ROCKCHIP_RGA2_DEBUGGER
+	bool
+	help
+	  Enabling the debugger of RGA2, you can use procfs and debugfs for debugging.
+
+endif

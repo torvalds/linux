@@ -20,9 +20,8 @@
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
 #include "rga2_mmu_info.h"
-#if RGA2_DEBUGFS
-extern int RGA2_CHECK_MODE;
-#endif
+#include "rga2_debugger.h"
+
 extern struct rga2_service_info rga2_service;
 extern struct rga2_mmu_buf_t rga2_mmu_buf;
 
@@ -345,7 +344,7 @@ static int rga2_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr, uns
     return pageCount;
 }
 
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 static int rga2_UserMemory_cheeck(struct page **pages, u32 w, u32 h, u32 format, int flag)
 {
 	int bits;
@@ -646,7 +645,7 @@ static int rga2_mmu_flush_cache(struct rga2_reg *reg, struct rga2_req *req)
 						 MMU_Base,
 						 DstStart, DstPageCount, 1,
 						 MMU_MAP_CLEAN | MMU_MAP_INVALID);
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 			if (RGA2_CHECK_MODE)
 				rga2_UserMemory_cheeck(&pages[0],
 						       req->dst.vir_w,
@@ -757,7 +756,7 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 			ret = rga2_MapUserMemory(&pages[0], &MMU_Base[0],
 						 Src0Start, Src0PageCount,
 						 0, MMU_MAP_CLEAN);
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 			if (RGA2_CHECK_MODE)
 				rga2_UserMemory_cheeck(&pages[0],
 						       req->src.vir_w,
@@ -823,7 +822,7 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 						 + Src0MemSize + Src1MemSize,
 						 DstStart, DstPageCount, 1,
 						 MMU_MAP_CLEAN | MMU_MAP_INVALID);
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 			if (RGA2_CHECK_MODE)
 				rga2_UserMemory_cheeck(&pages[0],
 						       req->dst.vir_w,
@@ -840,7 +839,7 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 						 + Src0MemSize + Src1MemSize,
 						 DstStart, DstPageCount,
 						 1, MMU_MAP_INVALID);
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 			if (RGA2_CHECK_MODE)
 				rga2_UserMemory_cheeck(&pages[0],
 						       req->dst.vir_w,
@@ -968,7 +967,7 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_reg *reg, struct rga2_re
             } else {
                 ret = rga2_MapUserMemory(&pages[0], &MMU_Base[0],
                 SrcStart, SrcPageCount, 0, MMU_MAP_CLEAN);
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
                 if (RGA2_CHECK_MODE)
                 rga2_UserMemory_cheeck(&pages[0], req->src.vir_w,
                 req->src.vir_h, req->src.format,
@@ -997,7 +996,7 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_reg *reg, struct rga2_re
             } else {
                 ret = rga2_MapUserMemory(&pages[0], MMU_Base + SrcMemSize,
                 DstStart, DstPageCount, 1, MMU_MAP_INVALID);
-#if RGA2_DEBUGFS
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
                 if (RGA2_CHECK_MODE)
                 rga2_UserMemory_cheeck(&pages[0], req->dst.vir_w,
                 req->dst.vir_h, req->dst.format,
