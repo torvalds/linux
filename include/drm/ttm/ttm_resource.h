@@ -40,6 +40,7 @@ struct ttm_resource_manager;
 struct ttm_resource;
 struct ttm_place;
 struct ttm_buffer_object;
+struct ttm_placement;
 struct dma_buf_map;
 struct io_mapping;
 struct sg_table;
@@ -266,6 +267,8 @@ int ttm_resource_alloc(struct ttm_buffer_object *bo,
 		       const struct ttm_place *place,
 		       struct ttm_resource **res);
 void ttm_resource_free(struct ttm_buffer_object *bo, struct ttm_resource **res);
+bool ttm_resource_compat(struct ttm_resource *res,
+			 struct ttm_placement *placement);
 
 void ttm_resource_manager_init(struct ttm_resource_manager *man,
 			       unsigned long p_size);
