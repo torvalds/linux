@@ -2811,8 +2811,7 @@ static int process_vendor_flags(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	process_vendor_flag(dev, &flags, MLX5_QP_FLAG_TYPE_DCI, true, qp);
 	process_vendor_flag(dev, &flags, MLX5_QP_FLAG_TYPE_DCT, true, qp);
 	process_vendor_flag(dev, &flags, MLX5_QP_FLAG_DCI_STREAM,
-			    MLX5_CAP_GEN(mdev, log_max_dci_stream_channels) &&
-			    MLX5_CAP_GEN(mdev, log_max_dci_errored_streams),
+			    MLX5_CAP_GEN(mdev, log_max_dci_stream_channels),
 			    qp);
 
 	process_vendor_flag(dev, &flags, MLX5_QP_FLAG_SIGNATURE, true, qp);
