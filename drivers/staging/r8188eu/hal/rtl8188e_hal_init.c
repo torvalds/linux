@@ -1698,7 +1698,6 @@ static struct HAL_VERSION ReadChipVersion8188E(struct adapter *padapter)
 	pHalData = GET_HAL_DATA(padapter);
 
 	value32 = rtw_read32(padapter, REG_SYS_CFG);
-	ChipVersion.ICType = CHIP_8188E;
 	ChipVersion.ChipType = ((value32 & RTL_ID) ? TEST_CHIP : NORMAL_CHIP);
 
 	ChipVersion.RFType = RF_TYPE_1T1R;

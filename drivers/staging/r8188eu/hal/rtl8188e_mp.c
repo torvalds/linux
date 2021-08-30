@@ -487,9 +487,6 @@ void Hal_SetSingleCarrierTx(struct adapter *pAdapter, u8 bStart)
 
 void Hal_SetSingleToneTx(struct adapter *pAdapter, u8 bStart)
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(pAdapter);
-	bool		is92C = IS_92C_SERIAL(pHalData->VersionID);
-
 	u8 rfPath;
 	u32              reg58 = 0x0;
 	switch (pAdapter->mppriv.antenna_tx) {
@@ -518,21 +515,10 @@ void Hal_SetSingleToneTx(struct adapter *pAdapter, u8 bStart)
 		PHY_SetBBReg(pAdapter, rFPGA0_RFMOD, bCCKEn, 0x0);
 		PHY_SetBBReg(pAdapter, rFPGA0_RFMOD, bOFDMEn, 0x0);
 
-		if (is92C) {
-			_write_rfreg(pAdapter, RF_PATH_A, 0x21, BIT(19), 0x01);
-			rtw_usleep_os(100);
-			if (rfPath == RF_PATH_A)
-				write_rfreg(pAdapter, RF_PATH_B, 0x00, 0x10000); /*  PAD all on. */
-			else if (rfPath == RF_PATH_B)
-				write_rfreg(pAdapter, RF_PATH_A, 0x00, 0x10000); /*  PAD all on. */
-			write_rfreg(pAdapter, rfPath, 0x00, 0x2001f); /*  PAD all on. */
-			rtw_usleep_os(100);
-		} else {
-			write_rfreg(pAdapter, rfPath, 0x21, 0xd4000);
-			rtw_usleep_os(100);
-			write_rfreg(pAdapter, rfPath, 0x00, 0x2001f); /*  PAD all on. */
-			rtw_usleep_os(100);
-		}
+		write_rfreg(pAdapter, rfPath, 0x21, 0xd4000);
+		rtw_usleep_os(100);
+		write_rfreg(pAdapter, rfPath, 0x00, 0x2001f); /*  PAD all on. */
+		rtw_usleep_os(100);
 
 		/* for dynamic set Power index. */
 		write_bbreg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000500);
@@ -549,18 +535,11 @@ void Hal_SetSingleToneTx(struct adapter *pAdapter, u8 bStart)
 		}
 		write_bbreg(pAdapter, rFPGA0_RFMOD, bCCKEn, 0x1);
 		write_bbreg(pAdapter, rFPGA0_RFMOD, bOFDMEn, 0x1);
-		if (is92C) {
-			_write_rfreg(pAdapter, RF_PATH_A, 0x21, BIT(19), 0x00);
-			rtw_usleep_os(100);
-			write_rfreg(pAdapter, RF_PATH_A, 0x00, 0x32d75); /*  PAD all on. */
-			write_rfreg(pAdapter, RF_PATH_B, 0x00, 0x32d75); /*  PAD all on. */
-			rtw_usleep_os(100);
-		} else {
-			write_rfreg(pAdapter, rfPath, 0x21, 0x54000);
-			rtw_usleep_os(100);
-			write_rfreg(pAdapter, rfPath, 0x00, 0x30000); /*  PAD all on. */
-			rtw_usleep_os(100);
-		}
+
+		write_rfreg(pAdapter, rfPath, 0x21, 0x54000);
+		rtw_usleep_os(100);
+		write_rfreg(pAdapter, rfPath, 0x00, 0x30000); /*  PAD all on. */
+		rtw_usleep_os(100);
 
 		/* Stop for dynamic set Power index. */
 		write_bbreg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000100);

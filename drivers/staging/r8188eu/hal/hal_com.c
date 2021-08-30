@@ -15,18 +15,7 @@ void dump_chip_info(struct HAL_VERSION	chip_vers)
 	uint cnt = 0;
 	char buf[128];
 
-	if (IS_81XXC(chip_vers)) {
-		cnt += sprintf((buf + cnt), "Chip Version Info: %s_",
-			       IS_92C_SERIAL(chip_vers) ?
-			       "CHIP_8192C" : "CHIP_8188C");
-	} else if (IS_92D(chip_vers)) {
-		cnt += sprintf((buf + cnt), "Chip Version Info: CHIP_8192D_");
-	} else if (IS_8723_SERIES(chip_vers)) {
-		cnt += sprintf((buf + cnt), "Chip Version Info: CHIP_8723A_");
-	} else if (IS_8188E(chip_vers)) {
-		cnt += sprintf((buf + cnt), "Chip Version Info: CHIP_8188E_");
-	}
-
+	cnt += sprintf((buf + cnt), "Chip Version Info: CHIP_8188E_");
 	cnt += sprintf((buf + cnt), "%s_", IS_NORMAL_CHIP(chip_vers) ?
 		       "Normal_Chip" : "Test_Chip");
 	cnt += sprintf((buf + cnt), "%s_", IS_CHIP_VENDOR_TSMC(chip_vers) ?
