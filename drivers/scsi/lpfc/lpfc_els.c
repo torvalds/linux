@@ -4015,11 +4015,11 @@ lpfc_cmpl_els_edc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				be32_to_cpu(pcgd->desc_tag),
 				be32_to_cpu(pcgd->desc_len),
 				be32_to_cpu(pcgd->xmt_signal_capability),
-				be32_to_cpu(pcgd->xmt_signal_frequency.count),
-				be32_to_cpu(pcgd->xmt_signal_frequency.units),
+				be16_to_cpu(pcgd->xmt_signal_frequency.count),
+				be16_to_cpu(pcgd->xmt_signal_frequency.units),
 				be32_to_cpu(pcgd->rcv_signal_capability),
-				be32_to_cpu(pcgd->rcv_signal_frequency.count),
-				be32_to_cpu(pcgd->rcv_signal_frequency.units));
+				be16_to_cpu(pcgd->rcv_signal_frequency.count),
+				be16_to_cpu(pcgd->rcv_signal_frequency.units));
 
 			/* Compare driver and Fport capabilities and choose
 			 * least common.
