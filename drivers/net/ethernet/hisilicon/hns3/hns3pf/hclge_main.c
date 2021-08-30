@@ -375,14 +375,14 @@ static const enum hclge_opcode_type hclge_dfx_reg_opcode_list[] = {
 };
 
 static const struct key_info meta_data_key_info[] = {
-	{ PACKET_TYPE_ID, 6},
-	{ IP_FRAGEMENT, 1},
-	{ ROCE_TYPE, 1},
-	{ NEXT_KEY, 5},
-	{ VLAN_NUMBER, 2},
-	{ SRC_VPORT, 12},
-	{ DST_VPORT, 12},
-	{ TUNNEL_PACKET, 1},
+	{ PACKET_TYPE_ID, 6 },
+	{ IP_FRAGEMENT, 1 },
+	{ ROCE_TYPE, 1 },
+	{ NEXT_KEY, 5 },
+	{ VLAN_NUMBER, 2 },
+	{ SRC_VPORT, 12 },
+	{ DST_VPORT, 12 },
+	{ TUNNEL_PACKET, 1 },
 };
 
 static const struct key_info tuple_key_info[] = {
@@ -749,9 +749,9 @@ static void hclge_update_stats(struct hnae3_handle *handle,
 
 static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 {
-#define HCLGE_LOOPBACK_TEST_FLAGS (HNAE3_SUPPORT_APP_LOOPBACK |\
-		HNAE3_SUPPORT_PHY_LOOPBACK |\
-		HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK |\
+#define HCLGE_LOOPBACK_TEST_FLAGS (HNAE3_SUPPORT_APP_LOOPBACK | \
+		HNAE3_SUPPORT_PHY_LOOPBACK | \
+		HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK | \
 		HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK)
 
 	struct hclge_vport *vport = hclge_get_vport(handle);

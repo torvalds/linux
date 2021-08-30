@@ -392,11 +392,11 @@ enum hns3_pkt_ol4type {
 };
 
 struct hns3_rx_ptype {
-	u32 ptype:8;
-	u32 csum_level:2;
-	u32 ip_summed:2;
-	u32 l3_type:4;
-	u32 valid:1;
+	u32 ptype : 8;
+	u32 csum_level : 2;
+	u32 ip_summed : 2;
+	u32 l3_type : 4;
+	u32 valid : 1;
 };
 
 struct ring_stats {
@@ -522,9 +522,9 @@ struct hns3_enet_coalesce {
 	u16 int_gl;
 	u16 int_ql;
 	u16 int_ql_max;
-	u8 adapt_enable:1;
-	u8 ql_enable:1;
-	u8 unit_1us:1;
+	u8 adapt_enable : 1;
+	u8 ql_enable : 1;
+	u8 unit_1us : 1;
 	enum hns3_flow_level_range flow_level;
 };
 

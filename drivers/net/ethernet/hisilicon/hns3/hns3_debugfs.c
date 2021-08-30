@@ -797,10 +797,10 @@ static const struct hns3_dbg_item tx_bd_info_items[] = {
 	{ "T_CS_VLAN_TSO", 2 },
 	{ "OT_VLAN_TAG", 3 },
 	{ "TV", 2 },
-	{ "OLT_VLAN_LEN", 2},
-	{ "PAYLEN_OL4CS", 2},
-	{ "BD_FE_SC_VLD", 2},
-	{ "MSS_HW_CSUM", 0},
+	{ "OLT_VLAN_LEN", 2 },
+	{ "PAYLEN_OL4CS", 2 },
+	{ "BD_FE_SC_VLD", 2 },
+	{ "MSS_HW_CSUM", 0 },
 };
 
 static void hns3_dump_tx_bd_info(struct hns3_nic_priv *priv,
