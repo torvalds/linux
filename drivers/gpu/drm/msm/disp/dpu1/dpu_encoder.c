@@ -395,19 +395,11 @@ int dpu_encoder_helper_unregister_irq(struct dpu_encoder_phys *phys_enc,
 	return 0;
 }
 
-int dpu_encoder_get_frame_count(struct drm_encoder *drm_enc)
+int dpu_encoder_get_vsync_count(struct drm_encoder *drm_enc)
 {
-	struct dpu_encoder_virt *dpu_enc;
-	struct dpu_encoder_phys *phys;
-	int framecount = 0;
-
-	dpu_enc = to_dpu_encoder_virt(drm_enc);
-	phys = dpu_enc ? dpu_enc->cur_master : NULL;
-
-	if (phys && phys->ops.get_frame_count)
-		framecount = phys->ops.get_frame_count(phys);
-
-	return framecount;
+	struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(drm_enc);
+	struct dpu_encoder_phys *phys = dpu_enc ? dpu_enc->cur_master : NULL;
+	return phys ? atomic_read(&phys->vsync_cnt) : 0;
 }
 
 int dpu_encoder_get_linecount(struct drm_encoder *drm_enc)

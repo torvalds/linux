@@ -72,15 +72,13 @@ static struct drm_encoder *get_encoder_from_crtc(struct drm_crtc *crtc)
 
 static u32 dpu_crtc_get_vblank_counter(struct drm_crtc *crtc)
 {
-	struct drm_encoder *encoder;
-
-	encoder = get_encoder_from_crtc(crtc);
+	struct drm_encoder *encoder = get_encoder_from_crtc(crtc);
 	if (!encoder) {
 		DRM_ERROR("no encoder found for crtc %d\n", crtc->index);
-		return false;
+		return 0;
 	}
 
-	return dpu_encoder_get_frame_count(encoder);
+	return dpu_encoder_get_vsync_count(encoder);
 }
 
 static bool dpu_crtc_get_scanout_position(struct drm_crtc *crtc,
