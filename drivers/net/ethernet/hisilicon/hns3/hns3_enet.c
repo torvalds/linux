@@ -100,7 +100,7 @@ static const struct pci_device_id hns3_pci_tbl[] = {
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_RDMA_DCB_PFC_VF),
 	 HNAE3_DEV_SUPPORT_ROCE_DCB_BITS},
 	/* required last entry */
-	{0, }
+	{0,}
 };
 MODULE_DEVICE_TABLE(pci, hns3_pci_tbl);
 
