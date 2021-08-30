@@ -56,7 +56,7 @@ inline void bch2_btree_node_lock_for_insert(struct btree_trans *trans,
 
 	bch2_btree_node_lock_write(trans, iter, b);
 
-	if (btree_iter_type(iter) == BTREE_ITER_CACHED)
+	if (iter->cached)
 		return;
 
 	if (unlikely(btree_node_just_written(b)) &&
@@ -509,10 +509,10 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 
 	trans_for_each_update(trans, i) {
 		/*
-		 * peek_slot() doesn't work on a BTREE_ITER_NODES iter; those
-		 * iterator types should probably go away
+		 * peek_slot() doesn't yet work on iterators that point to
+		 * interior nodes:
 		 */
-		if (btree_iter_type(i->iter) != BTREE_ITER_KEYS)
+		if (i->cached || i->level)
 			continue;
 
 		old = bch2_btree_iter_peek_slot(i->iter);
@@ -1005,7 +1005,7 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 		.bkey_type	= __btree_node_type(iter->level, iter->btree_id),
 		.btree_id	= iter->btree_id,
 		.level		= iter->level,
-		.cached		= btree_iter_is_cached(iter),
+		.cached		= iter->cached,
 		.iter		= iter,
 		.k		= k,
 		.ip_allocated	= _RET_IP_,
