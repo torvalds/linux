@@ -49,13 +49,6 @@ inline int _rtw_netif_rx(struct net_device *ndev, struct sk_buff *skb)
 	return netif_rx(skb);
 }
 
-void _rtw_init_queue(struct __queue *pqueue)
-{
-	INIT_LIST_HEAD(&(pqueue->queue));
-
-	spin_lock_init(&(pqueue->lock));
-}
-
 struct net_device *rtw_alloc_etherdev_with_old_priv(int sizeof_priv, void *old_priv)
 {
 	struct net_device *pnetdev;
