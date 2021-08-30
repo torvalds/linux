@@ -2380,6 +2380,18 @@ module_param_named(console_suspend, console_suspend_enabled,
 MODULE_PARM_DESC(console_suspend, "suspend console during suspend"
 	" and hibernate operations");
 
+static bool printk_console_no_auto_verbose;
+
+void console_verbose(void)
+{
+	if (console_loglevel && !printk_console_no_auto_verbose)
+		console_loglevel = CONSOLE_LOGLEVEL_MOTORMOUTH;
+}
+EXPORT_SYMBOL_GPL(console_verbose);
+
+module_param_named(console_no_auto_verbose, printk_console_no_auto_verbose, bool, 0644);
+MODULE_PARM_DESC(console_no_auto_verbose, "Disable console loglevel raise to highest on oops/panic/etc");
+
 /**
  * suspend_console - suspend the console subsystem
  *
