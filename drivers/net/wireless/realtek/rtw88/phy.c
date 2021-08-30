@@ -770,7 +770,11 @@ void rtw_phy_dynamic_mechanism(struct rtw_dev *rtwdev)
 	rtw_phy_cfo_track(rtwdev);
 	rtw_phy_dpk_track(rtwdev);
 	rtw_phy_pwr_track(rtwdev);
-	rtw_phy_adaptivity(rtwdev);
+
+	if (rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_ADAPTIVITY))
+		rtw_fw_adaptivity(rtwdev);
+	else
+		rtw_phy_adaptivity(rtwdev);
 }
 
 #define FRAC_BITS 3

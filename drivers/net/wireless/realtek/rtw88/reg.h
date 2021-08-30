@@ -642,6 +642,9 @@
 
 #define REG_HRCV_MSG	0x1cf
 
+#define REG_EDCCA_REPORT	0x2d38
+#define BIT_EDCCA_FLAG		BIT(24)
+
 #define REG_IGN_GNTBT4	0x4160
 
 #define RF_MODE		0x00
