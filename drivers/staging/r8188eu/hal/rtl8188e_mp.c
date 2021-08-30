@@ -130,73 +130,6 @@ void Hal_MPT_CCKTxPowerAdjust(struct adapter *Adapter, bool bInCH14)
 	write_bbreg(Adapter, rCCK0_TxFilter2, bMaskDWord, TempVal2);
 	write_bbreg(Adapter, rCCK0_DebugPort, bMaskLWord, TempVal3);
 }
-
-void Hal_MPT_CCKTxPowerAdjustbyIndex(struct adapter *pAdapter, bool beven)
-{
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(pAdapter);
-	struct mpt_context *pMptCtx = &pAdapter->mppriv.MptCtx;
-	struct odm_dm_struct *pDM_Odm = &pHalData->odmpriv;
-	s32		TempCCk;
-	u8		CCK_index, CCK_index_old = 0;
-	u8		Action = 0;	/* 0: no action, 1: even->odd, 2:odd->even */
-	s32		i = 0;
-
-	if (!IS_92C_SERIAL(pHalData->VersionID))
-		return;
-	if (beven && !pMptCtx->bMptIndexEven) {
-		/* odd->even */
-		Action = 2;
-		pMptCtx->bMptIndexEven = true;
-	} else if (!beven && pMptCtx->bMptIndexEven) {
-		/* even->odd */
-		Action = 1;
-		pMptCtx->bMptIndexEven = false;
-	}
-
-	if (Action != 0) {
-		/* Query CCK default setting From 0xa24 */
-		TempCCk = read_bbreg(pAdapter, rCCK0_TxFilter2, bMaskDWord) & bMaskCCK;
-		for (i = 0; i < CCK_TABLE_SIZE; i++) {
-			if (pDM_Odm->RFCalibrateInfo.bCCKinCH14) {
-				if (!memcmp((void *)&TempCCk, (void *)&CCKSwingTable_Ch14[i][2], 4)) {
-					CCK_index_old = (u8)i;
-					break;
-				}
-			} else {
-				if (!memcmp((void *)&TempCCk, (void *)&CCKSwingTable_Ch1_Ch13[i][2], 4)) {
-					CCK_index_old = (u8)i;
-					break;
-				}
-			}
-		}
-
-		if (Action == 1)
-			CCK_index = CCK_index_old - 1;
-		else
-			CCK_index = CCK_index_old + 1;
-
-		/* Adjust CCK according to gain index */
-		if (!pDM_Odm->RFCalibrateInfo.bCCKinCH14) {
-			rtw_write8(pAdapter, 0xa22, CCKSwingTable_Ch1_Ch13[CCK_index][0]);
-			rtw_write8(pAdapter, 0xa23, CCKSwingTable_Ch1_Ch13[CCK_index][1]);
-			rtw_write8(pAdapter, 0xa24, CCKSwingTable_Ch1_Ch13[CCK_index][2]);
-			rtw_write8(pAdapter, 0xa25, CCKSwingTable_Ch1_Ch13[CCK_index][3]);
-			rtw_write8(pAdapter, 0xa26, CCKSwingTable_Ch1_Ch13[CCK_index][4]);
-			rtw_write8(pAdapter, 0xa27, CCKSwingTable_Ch1_Ch13[CCK_index][5]);
-			rtw_write8(pAdapter, 0xa28, CCKSwingTable_Ch1_Ch13[CCK_index][6]);
-			rtw_write8(pAdapter, 0xa29, CCKSwingTable_Ch1_Ch13[CCK_index][7]);
-		} else {
-			rtw_write8(pAdapter, 0xa22, CCKSwingTable_Ch14[CCK_index][0]);
-			rtw_write8(pAdapter, 0xa23, CCKSwingTable_Ch14[CCK_index][1]);
-			rtw_write8(pAdapter, 0xa24, CCKSwingTable_Ch14[CCK_index][2]);
-			rtw_write8(pAdapter, 0xa25, CCKSwingTable_Ch14[CCK_index][3]);
-			rtw_write8(pAdapter, 0xa26, CCKSwingTable_Ch14[CCK_index][4]);
-			rtw_write8(pAdapter, 0xa27, CCKSwingTable_Ch14[CCK_index][5]);
-			rtw_write8(pAdapter, 0xa28, CCKSwingTable_Ch14[CCK_index][6]);
-			rtw_write8(pAdapter, 0xa29, CCKSwingTable_Ch14[CCK_index][7]);
-		}
-	}
-}
 /*---------------------------hal\rtl8192c\MPT_HelperFunc.c---------------------------*/
 
 /*
@@ -311,8 +244,6 @@ void Hal_SetAntennaPathPower(struct adapter *pAdapter)
 	case RF_8256:
 	case RF_6052:
 		Hal_SetCCKTxPower(pAdapter, TxPowerLevel);
-		if (pAdapter->mppriv.rateidx < MPT_RATE_6M)	/*  CCK rate */
-			Hal_MPT_CCKTxPowerAdjustbyIndex(pAdapter, TxPowerLevel[rfPath] % 2 == 0);
 		Hal_SetOFDMTxPower(pAdapter, TxPowerLevel);
 		break;
 	default:
@@ -350,8 +281,6 @@ void Hal_SetTxPower(struct adapter *pAdapter)
 	case RF_8256:
 	case RF_6052:
 		Hal_SetCCKTxPower(pAdapter, TxPowerLevel);
-		if (pAdapter->mppriv.rateidx < MPT_RATE_6M)	/*  CCK rate */
-			Hal_MPT_CCKTxPowerAdjustbyIndex(pAdapter, TxPowerLevel[rfPath] % 2 == 0);
 		Hal_SetOFDMTxPower(pAdapter, TxPowerLevel);
 		break;
 	default:

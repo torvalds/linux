@@ -460,7 +460,6 @@ void Hal_GetPowerTracking(struct adapter *padapter, u8 * enable);
 void Hal_GetThermalMeter(struct adapter *pAdapter, u8 *value);
 void Hal_mpt_SwitchRfSetting(struct adapter *pAdapter);
 void Hal_MPT_CCKTxPowerAdjust(struct adapter * Adapter, bool bInCH14);
-void Hal_MPT_CCKTxPowerAdjustbyIndex(struct adapter *pAdapter, bool beven);
 void Hal_SetCCKTxPower(struct adapter *pAdapter, u8 * TxPower);
 void Hal_SetOFDMTxPower(struct adapter *pAdapter, u8 * TxPower);
 void Hal_TriggerRFThermalMeter(struct adapter *pAdapter);
