@@ -37,7 +37,6 @@ struct kvm_mmu_page {
 
 	bool unsync;
 	u8 mmu_valid_gen;
-	bool mmio_cached;
 	bool lpage_disallowed; /* Can't be replaced by an equiv large page */
 
 	/*
