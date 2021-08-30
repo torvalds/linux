@@ -166,7 +166,8 @@ int rtw_init_cmd_priv(struct	cmd_priv *pcmdpriv)
 	init_completion(&pcmdpriv->cmd_queue_comp);
 	init_completion(&pcmdpriv->terminate_cmdthread_comp);
 
-	_rtw_init_queue(&(pcmdpriv->cmd_queue));
+	INIT_LIST_HEAD(&(pcmdpriv->cmd_queue).queue);
+	spin_lock_init(&(pcmdpriv->cmd_queue).lock);
 
 	/* allocate DMA-able/Non-Page memory for cmd_buf and rsp_buf */
 

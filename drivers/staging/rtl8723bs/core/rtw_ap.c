@@ -18,7 +18,8 @@ void init_mlme_ap_info(struct adapter *padapter)
 	spin_lock_init(&pmlmepriv->bcn_update_lock);
 
 	/* for ACL */
-	_rtw_init_queue(&pacl_list->acl_node_q);
+	INIT_LIST_HEAD(&pacl_list->acl_node_q.queue);
+	spin_lock_init(&pacl_list->acl_node_q.lock);
 
 	/* pmlmeext->bstart_bss = false; */
 
