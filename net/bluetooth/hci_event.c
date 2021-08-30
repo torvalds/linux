@@ -2367,6 +2367,22 @@ static void hci_cs_disconnect(struct hci_dev *hdev, u8 status)
 	hci_dev_unlock(hdev);
 }
 
+static u8 ev_bdaddr_type(struct hci_dev *hdev, u8 type)
+{
+	/* When using controller based address resolution, then the new
+	 * address types 0x02 and 0x03 are used. These types need to be
+	 * converted back into either public address or random address type
+	 */
+	switch (type) {
+	case ADDR_LE_DEV_PUBLIC_RESOLVED:
+		return ADDR_LE_DEV_PUBLIC;
+	case ADDR_LE_DEV_RANDOM_RESOLVED:
+		return ADDR_LE_DEV_RANDOM;
+	}
+
+	return type;
+}
+
 static void cs_le_create_conn(struct hci_dev *hdev, bdaddr_t *peer_addr,
 			      u8 peer_addr_type, u8 own_address_type,
 			      u8 filter_policy)
@@ -2378,21 +2394,7 @@ static void cs_le_create_conn(struct hci_dev *hdev, bdaddr_t *peer_addr,
 	if (!conn)
 		return;
 
-	/* When using controller based address resolution, then the new
-	 * address types 0x02 and 0x03 are used. These types need to be
-	 * converted back into either public address or random address type
-	 */
-	if (use_ll_privacy(hdev) &&
-	    hci_dev_test_flag(hdev, HCI_LL_RPA_RESOLUTION)) {
-		switch (own_address_type) {
-		case ADDR_LE_DEV_PUBLIC_RESOLVED:
-			own_address_type = ADDR_LE_DEV_PUBLIC;
-			break;
-		case ADDR_LE_DEV_RANDOM_RESOLVED:
-			own_address_type = ADDR_LE_DEV_RANDOM;
-			break;
-		}
-	}
+	own_address_type = ev_bdaddr_type(hdev, own_address_type);
 
 	/* Store the initiator and responder address information which
 	 * is needed for SMP. These values will not change during the
@@ -5282,22 +5284,7 @@ static void le_conn_complete_evt(struct hci_dev *hdev, u8 status,
 		conn->dst_type = irk->addr_type;
 	}
 
-	/* When using controller based address resolution, then the new
-	 * address types 0x02 and 0x03 are used. These types need to be
-	 * converted back into either public address or random address type
-	 */
-	if (use_ll_privacy(hdev) &&
-	    hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY) &&
-	    hci_dev_test_flag(hdev, HCI_LL_RPA_RESOLUTION)) {
-		switch (conn->dst_type) {
-		case ADDR_LE_DEV_PUBLIC_RESOLVED:
-			conn->dst_type = ADDR_LE_DEV_PUBLIC;
-			break;
-		case ADDR_LE_DEV_RANDOM_RESOLVED:
-			conn->dst_type = ADDR_LE_DEV_RANDOM;
-			break;
-		}
-	}
+	conn->dst_type = ev_bdaddr_type(hdev, conn->dst_type);
 
 	if (status) {
 		hci_le_conn_failed(conn, status);
@@ -5619,6 +5606,8 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	 * controller address.
 	 */
 	if (direct_addr) {
+		direct_addr_type = ev_bdaddr_type(hdev, direct_addr_type);
+
 		/* Only resolvable random addresses are valid for these
 		 * kind of reports and others can be ignored.
 		 */
@@ -5645,6 +5634,8 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		bdaddr = &irk->bdaddr;
 		bdaddr_type = irk->addr_type;
 	}
+
+	bdaddr_type = ev_bdaddr_type(hdev, bdaddr_type);
 
 	/* Check if we have been requested to connect to this device.
 	 *
