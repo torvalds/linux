@@ -30,6 +30,10 @@
 
 #define DRV_NAME "rockchip-i2s-tdm"
 
+#if IS_ENABLED(CONFIG_CPU_PX30) || IS_ENABLED(CONFIG_CPU_RK1808) || IS_ENABLED(CONFIG_CPU_RK3308)
+#define HAVE_SYNC_RESET
+#endif
+
 #define DEFAULT_MCLK_FS				256
 #define CH_GRP_MAX				4  /* The max channel 8 / 2 */
 #define MULTIPLEX_CH_MAX			10
@@ -78,7 +82,11 @@ struct rk_i2s_tdm_dev {
 	struct reset_control *tx_reset;
 	struct reset_control *rx_reset;
 	const struct rk_i2s_soc_data *soc_data;
+#ifdef HAVE_SYNC_RESET
 	void __iomem *cru_base;
+	int tx_reset_id;
+	int rx_reset_id;
+#endif
 	bool is_master_mode;
 	bool io_multiplex;
 	bool mclk_calibrate;
@@ -95,8 +103,6 @@ struct rk_i2s_tdm_dev {
 	unsigned int i2s_sdis[CH_GRP_MAX];
 	unsigned int i2s_sdos[CH_GRP_MAX];
 	int clk_ppm;
-	int tx_reset_id;
-	int rx_reset_id;
 	atomic_t refcount;
 	spinlock_t lock; /* xfer lock */
 };
@@ -165,6 +171,7 @@ static inline struct rk_i2s_tdm_dev *to_info(struct snd_soc_dai *dai)
 	return snd_soc_dai_get_drvdata(dai);
 }
 
+#ifdef HAVE_SYNC_RESET
 #if defined(CONFIG_ARM) && !defined(writeq)
 static inline void __raw_writeq(u64 val, volatile void __iomem *addr)
 {
@@ -296,6 +303,11 @@ static void rockchip_snd_xfer_sync_reset(struct rk_i2s_tdm_dev *i2s_tdm)
 	rockchip_snd_xfer_reset_deassert(i2s_tdm, tx_bank, tx_offset,
 					 rx_bank, rx_offset);
 }
+#else
+static inline void rockchip_snd_xfer_sync_reset(struct rk_i2s_tdm_dev *i2s_tdm)
+{
+}
+#endif
 
 /* only used when clk_trcm > 0 */
 static void rockchip_snd_txrxctrl(struct snd_pcm_substream *substream,
@@ -1490,6 +1502,7 @@ static const struct of_device_id rockchip_i2s_tdm_match[] = {
 	{},
 };
 
+#ifdef HAVE_SYNC_RESET
 static int of_i2s_resetid_get(struct device_node *node,
 			      const char *id)
 {
@@ -1507,6 +1520,7 @@ static int of_i2s_resetid_get(struct device_node *node,
 
 	return args.args[0];
 }
+#endif
 
 static int rockchip_i2s_tdm_dai_prepare(struct platform_device *pdev,
 					struct snd_soc_dai_driver **soc_dai)
@@ -1694,13 +1708,14 @@ static int rockchip_i2s_tdm_rx_path_prepare(struct rk_i2s_tdm_dev *i2s_tdm,
 static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
-	struct device_node *cru_node;
 	const struct of_device_id *of_id;
 	struct rk_i2s_tdm_dev *i2s_tdm;
 	struct snd_soc_dai_driver *soc_dai;
 	struct resource *res;
 	void __iomem *regs;
+#ifdef HAVE_SYNC_RESET
 	bool sync;
+#endif
 	int ret;
 	int val;
 
@@ -1746,11 +1761,14 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 
 	i2s_tdm->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
 
+#ifdef HAVE_SYNC_RESET
 	sync = of_device_is_compatible(node, "rockchip,px30-i2s-tdm") ||
 	       of_device_is_compatible(node, "rockchip,rk1808-i2s-tdm") ||
 	       of_device_is_compatible(node, "rockchip,rk3308-i2s-tdm");
 
 	if (i2s_tdm->clk_trcm && sync) {
+		struct device_node *cru_node;
+
 		cru_node = of_parse_phandle(node, "rockchip,cru", 0);
 		i2s_tdm->cru_base = of_iomap(cru_node, 0);
 		if (!i2s_tdm->cru_base)
@@ -1759,6 +1777,7 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 		i2s_tdm->tx_reset_id = of_i2s_resetid_get(node, "tx-m");
 		i2s_tdm->rx_reset_id = of_i2s_resetid_get(node, "rx-m");
 	}
+#endif
 
 	i2s_tdm->tx_reset = devm_reset_control_get(&pdev->dev, "tx-m");
 	if (IS_ERR(i2s_tdm->tx_reset)) {
