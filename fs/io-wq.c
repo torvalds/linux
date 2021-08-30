@@ -129,7 +129,7 @@ struct io_cb_cancel_data {
 	bool cancel_all;
 };
 
-static void create_io_worker(struct io_wq *wq, struct io_wqe *wqe, int index);
+static void create_io_worker(struct io_wq *wq, struct io_wqe *wqe, int index, bool first);
 static void io_wqe_dec_running(struct io_worker *worker);
 
 static bool io_worker_get(struct io_worker *worker)
@@ -248,18 +248,20 @@ static void io_wqe_wake_worker(struct io_wqe *wqe, struct io_wqe_acct *acct)
 	rcu_read_unlock();
 
 	if (!ret) {
-		bool do_create = false;
+		bool do_create = false, first = false;
 
 		raw_spin_lock_irq(&wqe->lock);
 		if (acct->nr_workers < acct->max_workers) {
 			atomic_inc(&acct->nr_running);
 			atomic_inc(&wqe->wq->worker_refs);
+			if (!acct->nr_workers)
+				first = true;
 			acct->nr_workers++;
 			do_create = true;
 		}
 		raw_spin_unlock_irq(&wqe->lock);
 		if (do_create)
-			create_io_worker(wqe->wq, wqe, acct->index);
+			create_io_worker(wqe->wq, wqe, acct->index, first);
 	}
 }
 
@@ -282,16 +284,26 @@ static void create_worker_cb(struct callback_head *cb)
 	struct io_wq *wq;
 	struct io_wqe *wqe;
 	struct io_wqe_acct *acct;
+	bool do_create = false, first = false;
 
 	cwd = container_of(cb, struct create_worker_data, work);
 	wqe = cwd->wqe;
 	wq = wqe->wq;
 	acct = &wqe->acct[cwd->index];
 	raw_spin_lock_irq(&wqe->lock);
-	if (acct->nr_workers < acct->max_workers)
+	if (acct->nr_workers < acct->max_workers) {
+		if (!acct->nr_workers)
+			first = true;
 		acct->nr_workers++;
+		do_create = true;
+	}
 	raw_spin_unlock_irq(&wqe->lock);
-	create_io_worker(wq, cwd->wqe, cwd->index);
+	if (do_create) {
+		create_io_worker(wq, wqe, cwd->index, first);
+	} else {
+		atomic_dec(&acct->nr_running);
+		io_worker_ref_put(wq);
+	}
 	kfree(cwd);
 }
 
@@ -629,7 +641,7 @@ void io_wq_worker_sleeping(struct task_struct *tsk)
 	raw_spin_unlock_irq(&worker->wqe->lock);
 }
 
-static void create_io_worker(struct io_wq *wq, struct io_wqe *wqe, int index)
+static void create_io_worker(struct io_wq *wq, struct io_wqe *wqe, int index, bool first)
 {
 	struct io_wqe_acct *acct = &wqe->acct[index];
 	struct io_worker *worker;
@@ -670,7 +682,7 @@ fail:
 	worker->flags |= IO_WORKER_F_FREE;
 	if (index == IO_WQ_ACCT_BOUND)
 		worker->flags |= IO_WORKER_F_BOUND;
-	if ((acct->nr_workers == 1) && (worker->flags & IO_WORKER_F_BOUND))
+	if (first && (worker->flags & IO_WORKER_F_BOUND))
 		worker->flags |= IO_WORKER_F_FIXED;
 	raw_spin_unlock_irq(&wqe->lock);
 	wake_up_new_task(tsk);

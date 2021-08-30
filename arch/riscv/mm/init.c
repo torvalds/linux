@@ -197,7 +197,7 @@ static void __init setup_bootmem(void)
 	 * if end of dram is equal to maximum addressable memory.  For 64-bit
 	 * kernel, this problem can't happen here as the end of the virtual
 	 * address space is occupied by the kernel mapping then this check must
-	 * be done in create_kernel_page_table.
+	 * be done as soon as the kernel mapping base address is determined.
 	 */
 	max_mapped_addr = __pa(~(ulong)0);
 	if (max_mapped_addr == (phys_ram_end - 1))

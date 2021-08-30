@@ -570,11 +570,9 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	}
 
 	client->route = NVDRM_OBJECT_ABI16;
-	client->super = true;
 	ret = nvif_object_ctor(&chan->chan->user, "abi16Ntfy", info->handle,
 			       NV_DMA_IN_MEMORY, &args, sizeof(args),
 			       &ntfy->object);
-	client->super = false;
 	client->route = NVDRM_OBJECT_NVIF;
 	if (ret)
 		goto done;

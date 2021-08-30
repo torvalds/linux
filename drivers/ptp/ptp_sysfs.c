@@ -154,7 +154,7 @@ static int unregister_vclock(struct device *dev, void *data)
 	struct ptp_clock *ptp = dev_get_drvdata(dev);
 	struct ptp_clock_info *info = ptp->info;
 	struct ptp_vclock *vclock;
-	u8 *num = data;
+	u32 *num = data;
 
 	vclock = info_to_vclock(info);
 	dev_info(dev->parent, "delete virtual clock ptp%d\n",

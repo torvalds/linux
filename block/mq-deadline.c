@@ -25,18 +25,12 @@
 #include "blk-mq-debugfs.h"
 #include "blk-mq-tag.h"
 #include "blk-mq-sched.h"
-#include "mq-deadline-cgroup.h"
 
 /*
  * See Documentation/block/deadline-iosched.rst
  */
 static const int read_expire = HZ / 2;  /* max time before a read is submitted. */
 static const int write_expire = 5 * HZ; /* ditto for writes, these limits are SOFT! */
-/*
- * Time after which to dispatch lower priority requests even if higher
- * priority requests are pending.
- */
-static const int aging_expire = 10 * HZ;
 static const int writes_starved = 2;    /* max times reads can starve a write */
 static const int fifo_batch = 16;       /* # of sequential requests treated as one
 				     by the above parameters. For throughput. */
@@ -56,6 +50,14 @@ enum dd_prio {
 };
 
 enum { DD_PRIO_COUNT = 3 };
+
+/* I/O statistics per I/O priority. */
+struct io_stats_per_prio {
+	local_t inserted;
+	local_t merged;
+	local_t dispatched;
+	local_t completed;
+};
 
 /* I/O statistics for all I/O priorities (enum dd_prio). */
 struct io_stats {
@@ -79,9 +81,6 @@ struct deadline_data {
 	 * run time data
 	 */
 
-	/* Request queue that owns this data structure. */
-	struct request_queue *queue;
-
 	struct dd_per_prio per_prio[DD_PRIO_COUNT];
 
 	/* Data direction of latest dispatched request. */
@@ -99,7 +98,6 @@ struct deadline_data {
 	int writes_starved;
 	int front_merges;
 	u32 async_depth;
-	int aging_expire;
 
 	spinlock_t lock;
 	spinlock_t zone_lock;
@@ -234,10 +232,8 @@ static void dd_merged_requests(struct request_queue *q, struct request *req,
 	struct deadline_data *dd = q->elevator->elevator_data;
 	const u8 ioprio_class = dd_rq_ioclass(next);
 	const enum dd_prio prio = ioprio_class_to_prio[ioprio_class];
-	struct dd_blkcg *blkcg = next->elv.priv[0];
 
 	dd_count(dd, merged, prio);
-	ddcg_count(blkcg, merged, ioprio_class);
 
 	/*
 	 * if next expires before rq, assign its expire time to rq
@@ -367,15 +363,13 @@ deadline_next_request(struct deadline_data *dd, struct dd_per_prio *per_prio,
 
 /*
  * deadline_dispatch_requests selects the best request according to
- * read/write expire, fifo_batch, etc and with a start time <= @latest.
+ * read/write expire, fifo_batch, etc
  */
 static struct request *__dd_dispatch_request(struct deadline_data *dd,
-					     struct dd_per_prio *per_prio,
-					     u64 latest_start_ns)
+					     struct dd_per_prio *per_prio)
 {
 	struct request *rq, *next_rq;
 	enum dd_data_dir data_dir;
-	struct dd_blkcg *blkcg;
 	enum dd_prio prio;
 	u8 ioprio_class;
 
@@ -384,8 +378,6 @@ static struct request *__dd_dispatch_request(struct deadline_data *dd,
 	if (!list_empty(&per_prio->dispatch)) {
 		rq = list_first_entry(&per_prio->dispatch, struct request,
 				      queuelist);
-		if (rq->start_time_ns > latest_start_ns)
-			return NULL;
 		list_del_init(&rq->queuelist);
 		goto done;
 	}
@@ -463,8 +455,6 @@ dispatch_find_request:
 	dd->batching = 0;
 
 dispatch_request:
-	if (rq->start_time_ns > latest_start_ns)
-		return NULL;
 	/*
 	 * rq is the selected appropriate request.
 	 */
@@ -474,8 +464,6 @@ done:
 	ioprio_class = dd_rq_ioclass(rq);
 	prio = ioprio_class_to_prio[ioprio_class];
 	dd_count(dd, dispatched, prio);
-	blkcg = rq->elv.priv[0];
-	ddcg_count(blkcg, dispatched, ioprio_class);
 	/*
 	 * If the request needs its target zone locked, do it.
 	 */
@@ -495,32 +483,15 @@ done:
 static struct request *dd_dispatch_request(struct blk_mq_hw_ctx *hctx)
 {
 	struct deadline_data *dd = hctx->queue->elevator->elevator_data;
-	const u64 now_ns = ktime_get_ns();
-	struct request *rq = NULL;
+	struct request *rq;
 	enum dd_prio prio;
 
 	spin_lock(&dd->lock);
-	/*
-	 * Start with dispatching requests whose deadline expired more than
-	 * aging_expire jiffies ago.
-	 */
-	for (prio = DD_BE_PRIO; prio <= DD_PRIO_MAX; prio++) {
-		rq = __dd_dispatch_request(dd, &dd->per_prio[prio], now_ns -
-					   jiffies_to_nsecs(dd->aging_expire));
-		if (rq)
-			goto unlock;
-	}
-	/*
-	 * Next, dispatch requests in priority order. Ignore lower priority
-	 * requests if any higher priority requests are pending.
-	 */
 	for (prio = 0; prio <= DD_PRIO_MAX; prio++) {
-		rq = __dd_dispatch_request(dd, &dd->per_prio[prio], now_ns);
-		if (rq || dd_queued(dd, prio))
+		rq = __dd_dispatch_request(dd, &dd->per_prio[prio]);
+		if (rq)
 			break;
 	}
-
-unlock:
 	spin_unlock(&dd->lock);
 
 	return rq;
@@ -569,8 +540,6 @@ static void dd_exit_sched(struct elevator_queue *e)
 	struct deadline_data *dd = e->elevator_data;
 	enum dd_prio prio;
 
-	dd_deactivate_policy(dd->queue);
-
 	for (prio = 0; prio <= DD_PRIO_MAX; prio++) {
 		struct dd_per_prio *per_prio = &dd->per_prio[prio];
 
@@ -584,7 +553,7 @@ static void dd_exit_sched(struct elevator_queue *e)
 }
 
 /*
- * Initialize elevator private data (deadline_data) and associate with blkcg.
+ * initialize elevator private data (deadline_data).
  */
 static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
 {
@@ -592,12 +561,6 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
 	struct elevator_queue *eq;
 	enum dd_prio prio;
 	int ret = -ENOMEM;
-
-	/*
-	 * Initialization would be very tricky if the queue is not frozen,
-	 * hence the warning statement below.
-	 */
-	WARN_ON_ONCE(!percpu_ref_is_zero(&q->q_usage_counter));
 
 	eq = elevator_alloc(q, e);
 	if (!eq)
@@ -614,8 +577,6 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
 	if (!dd->stats)
 		goto free_dd;
 
-	dd->queue = q;
-
 	for (prio = 0; prio <= DD_PRIO_MAX; prio++) {
 		struct dd_per_prio *per_prio = &dd->per_prio[prio];
 
@@ -631,20 +592,11 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
 	dd->front_merges = 1;
 	dd->last_dir = DD_WRITE;
 	dd->fifo_batch = fifo_batch;
-	dd->aging_expire = aging_expire;
 	spin_lock_init(&dd->lock);
 	spin_lock_init(&dd->zone_lock);
 
-	ret = dd_activate_policy(q);
-	if (ret)
-		goto free_stats;
-
-	ret = 0;
 	q->elevator = eq;
 	return 0;
-
-free_stats:
-	free_percpu(dd->stats);
 
 free_dd:
 	kfree(dd);
@@ -718,7 +670,6 @@ static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	u8 ioprio_class = IOPRIO_PRIO_CLASS(ioprio);
 	struct dd_per_prio *per_prio;
 	enum dd_prio prio;
-	struct dd_blkcg *blkcg;
 	LIST_HEAD(free);
 
 	lockdep_assert_held(&dd->lock);
@@ -729,18 +680,9 @@ static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	 */
 	blk_req_zone_write_unlock(rq);
 
-	/*
-	 * If a block cgroup has been associated with the submitter and if an
-	 * I/O priority has been set in the associated block cgroup, use the
-	 * lowest of the cgroup priority and the request priority for the
-	 * request. If no priority has been set in the request, use the cgroup
-	 * priority.
-	 */
 	prio = ioprio_class_to_prio[ioprio_class];
 	dd_count(dd, inserted, prio);
-	blkcg = dd_blkcg_from_bio(rq->bio);
-	ddcg_count(blkcg, inserted, ioprio_class);
-	rq->elv.priv[0] = blkcg;
+	rq->elv.priv[0] = (void *)(uintptr_t)1;
 
 	if (blk_mq_sched_try_insert_merge(q, rq, &free)) {
 		blk_mq_free_requests(&free);
@@ -815,13 +757,18 @@ static void dd_finish_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 	struct deadline_data *dd = q->elevator->elevator_data;
-	struct dd_blkcg *blkcg = rq->elv.priv[0];
 	const u8 ioprio_class = dd_rq_ioclass(rq);
 	const enum dd_prio prio = ioprio_class_to_prio[ioprio_class];
 	struct dd_per_prio *per_prio = &dd->per_prio[prio];
 
-	dd_count(dd, completed, prio);
-	ddcg_count(blkcg, completed, ioprio_class);
+	/*
+	 * The block layer core may call dd_finish_request() without having
+	 * called dd_insert_requests(). Hence only update statistics for
+	 * requests for which dd_insert_requests() has been called. See also
+	 * blk_mq_request_bypass_insert().
+	 */
+	if (rq->elv.priv[0])
+		dd_count(dd, completed, prio);
 
 	if (blk_queue_is_zoned(q)) {
 		unsigned long flags;
@@ -866,7 +813,6 @@ static ssize_t __FUNC(struct elevator_queue *e, char *page)		\
 #define SHOW_JIFFIES(__FUNC, __VAR) SHOW_INT(__FUNC, jiffies_to_msecs(__VAR))
 SHOW_JIFFIES(deadline_read_expire_show, dd->fifo_expire[DD_READ]);
 SHOW_JIFFIES(deadline_write_expire_show, dd->fifo_expire[DD_WRITE]);
-SHOW_JIFFIES(deadline_aging_expire_show, dd->aging_expire);
 SHOW_INT(deadline_writes_starved_show, dd->writes_starved);
 SHOW_INT(deadline_front_merges_show, dd->front_merges);
 SHOW_INT(deadline_async_depth_show, dd->front_merges);
@@ -896,7 +842,6 @@ static ssize_t __FUNC(struct elevator_queue *e, const char *page, size_t count)	
 	STORE_FUNCTION(__FUNC, __PTR, MIN, MAX, msecs_to_jiffies)
 STORE_JIFFIES(deadline_read_expire_store, &dd->fifo_expire[DD_READ], 0, INT_MAX);
 STORE_JIFFIES(deadline_write_expire_store, &dd->fifo_expire[DD_WRITE], 0, INT_MAX);
-STORE_JIFFIES(deadline_aging_expire_store, &dd->aging_expire, 0, INT_MAX);
 STORE_INT(deadline_writes_starved_store, &dd->writes_starved, INT_MIN, INT_MAX);
 STORE_INT(deadline_front_merges_store, &dd->front_merges, 0, 1);
 STORE_INT(deadline_async_depth_store, &dd->front_merges, 1, INT_MAX);
@@ -915,7 +860,6 @@ static struct elv_fs_entry deadline_attrs[] = {
 	DD_ATTR(front_merges),
 	DD_ATTR(async_depth),
 	DD_ATTR(fifo_batch),
-	DD_ATTR(aging_expire),
 	__ATTR_NULL
 };
 
@@ -1144,26 +1088,11 @@ MODULE_ALIAS("mq-deadline-iosched");
 
 static int __init deadline_init(void)
 {
-	int ret;
-
-	ret = elv_register(&mq_deadline);
-	if (ret)
-		goto out;
-	ret = dd_blkcg_init();
-	if (ret)
-		goto unreg;
-
-out:
-	return ret;
-
-unreg:
-	elv_unregister(&mq_deadline);
-	goto out;
+	return elv_register(&mq_deadline);
 }
 
 static void __exit deadline_exit(void)
 {
-	dd_blkcg_exit();
 	elv_unregister(&mq_deadline);
 }
 

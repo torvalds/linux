@@ -20,7 +20,7 @@
 #include "bnxt.h"
 #include "bnxt_ptp.h"
 
-int bnxt_ptp_parse(struct sk_buff *skb, u16 *seq_id)
+int bnxt_ptp_parse(struct sk_buff *skb, u16 *seq_id, u16 *hdr_off)
 {
 	unsigned int ptp_class;
 	struct ptp_header *hdr;
@@ -34,6 +34,7 @@ int bnxt_ptp_parse(struct sk_buff *skb, u16 *seq_id)
 		if (!hdr)
 			return -EINVAL;
 
+		*hdr_off = (u8 *)hdr - skb->data;
 		*seq_id	 = ntohs(hdr->sequence_id);
 		return 0;
 	default:
@@ -91,6 +92,7 @@ static int bnxt_hwrm_port_ts_query(struct bnxt *bp, u32 flags, u64 *ts)
 	    PORT_TS_QUERY_REQ_FLAGS_PATH_TX) {
 		req.enables = cpu_to_le16(BNXT_PTP_QTS_TX_ENABLES);
 		req.ptp_seq_id = cpu_to_le32(bp->ptp_cfg->tx_seqid);
+		req.ptp_hdr_offset = cpu_to_le16(bp->ptp_cfg->tx_hdr_off);
 		req.ts_req_timeout = cpu_to_le16(BNXT_PTP_QTS_TIMEOUT);
 	}
 	mutex_lock(&bp->hwrm_cmd_lock);

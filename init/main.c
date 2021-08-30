@@ -397,6 +397,12 @@ static int __init bootconfig_params(char *param, char *val,
 	return 0;
 }
 
+static int __init warn_bootconfig(char *str)
+{
+	/* The 'bootconfig' has been handled by bootconfig_params(). */
+	return 0;
+}
+
 static void __init setup_boot_config(void)
 {
 	static char tmp_cmdline[COMMAND_LINE_SIZE] __initdata;
@@ -475,9 +481,8 @@ static int __init warn_bootconfig(char *str)
 	pr_warn("WARNING: 'bootconfig' found on the kernel command line but CONFIG_BOOT_CONFIG is not set.\n");
 	return 0;
 }
-early_param("bootconfig", warn_bootconfig);
-
 #endif
+early_param("bootconfig", warn_bootconfig);
 
 /* Change NUL term back to "=", to make "param" the whole string. */
 static void __init repair_env_string(char *param, char *val)

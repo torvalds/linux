@@ -1199,14 +1199,24 @@ static void storvsc_on_io_completion(struct storvsc_device *stor_device,
 		vstor_packet->vm_srb.sense_info_length);
 
 	if (vstor_packet->vm_srb.scsi_status != 0 ||
-	    vstor_packet->vm_srb.srb_status != SRB_STATUS_SUCCESS)
-		storvsc_log(device, STORVSC_LOGGING_ERROR,
+	    vstor_packet->vm_srb.srb_status != SRB_STATUS_SUCCESS) {
+
+		/*
+		 * Log TEST_UNIT_READY errors only as warnings. Hyper-V can
+		 * return errors when detecting devices using TEST_UNIT_READY,
+		 * and logging these as errors produces unhelpful noise.
+		 */
+		int loglevel = (stor_pkt->vm_srb.cdb[0] == TEST_UNIT_READY) ?
+			STORVSC_LOGGING_WARN : STORVSC_LOGGING_ERROR;
+
+		storvsc_log(device, loglevel,
 			"tag#%d cmd 0x%x status: scsi 0x%x srb 0x%x hv 0x%x\n",
 			request->cmd->request->tag,
 			stor_pkt->vm_srb.cdb[0],
 			vstor_packet->vm_srb.scsi_status,
 			vstor_packet->vm_srb.srb_status,
 			vstor_packet->status);
+	}
 
 	if (vstor_packet->vm_srb.scsi_status == SAM_STAT_CHECK_CONDITION &&
 	    (vstor_packet->vm_srb.srb_status & SRB_STATUS_AUTOSENSE_VALID))

@@ -354,24 +354,23 @@ out:
 static int ax88772_hw_reset(struct usbnet *dev, int in_pm)
 {
 	struct asix_data *data = (struct asix_data *)&dev->data;
-	int ret, embd_phy;
+	struct asix_common_private *priv = dev->driver_priv;
 	u16 rx_ctl;
+	int ret;
 
 	ret = asix_write_gpio(dev, AX_GPIO_RSE | AX_GPIO_GPO_2 |
 			      AX_GPIO_GPO2EN, 5, in_pm);
 	if (ret < 0)
 		goto out;
 
-	embd_phy = ((dev->mii.phy_id & 0x1f) == 0x10 ? 1 : 0);
-
-	ret = asix_write_cmd(dev, AX_CMD_SW_PHY_SELECT, embd_phy,
+	ret = asix_write_cmd(dev, AX_CMD_SW_PHY_SELECT, priv->embd_phy,
 			     0, 0, NULL, in_pm);
 	if (ret < 0) {
 		netdev_dbg(dev->net, "Select PHY #1 failed: %d\n", ret);
 		goto out;
 	}
 
-	if (embd_phy) {
+	if (priv->embd_phy) {
 		ret = asix_sw_reset(dev, AX_SWRESET_IPPD, in_pm);
 		if (ret < 0)
 			goto out;
@@ -449,17 +448,16 @@ out:
 static int ax88772a_hw_reset(struct usbnet *dev, int in_pm)
 {
 	struct asix_data *data = (struct asix_data *)&dev->data;
-	int ret, embd_phy;
+	struct asix_common_private *priv = dev->driver_priv;
 	u16 rx_ctl, phy14h, phy15h, phy16h;
 	u8 chipcode = 0;
+	int ret;
 
 	ret = asix_write_gpio(dev, AX_GPIO_RSE, 5, in_pm);
 	if (ret < 0)
 		goto out;
 
-	embd_phy = ((dev->mii.phy_id & 0x1f) == 0x10 ? 1 : 0);
-
-	ret = asix_write_cmd(dev, AX_CMD_SW_PHY_SELECT, embd_phy |
+	ret = asix_write_cmd(dev, AX_CMD_SW_PHY_SELECT, priv->embd_phy |
 			     AX_PHYSEL_SSEN, 0, 0, NULL, in_pm);
 	if (ret < 0) {
 		netdev_dbg(dev->net, "Select PHY #1 failed: %d\n", ret);
@@ -683,12 +681,6 @@ static int ax88772_init_phy(struct usbnet *dev)
 	struct asix_common_private *priv = dev->driver_priv;
 	int ret;
 
-	ret = asix_read_phy_addr(dev, true);
-	if (ret < 0)
-		return ret;
-
-	priv->phy_addr = ret;
-
 	snprintf(priv->phy_name, sizeof(priv->phy_name), PHY_ID_FMT,
 		 priv->mdio->id, priv->phy_addr);
 
@@ -715,6 +707,12 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 	struct asix_common_private *priv;
 	int ret, i;
 	u32 phyid;
+
+	priv = devm_kzalloc(&dev->udev->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	dev->driver_priv = priv;
 
 	usbnet_get_endpoints(dev, intf);
 
@@ -751,6 +749,13 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->needed_headroom = 4; /* cf asix_tx_fixup() */
 	dev->net->needed_tailroom = 4; /* cf asix_tx_fixup() */
 
+	ret = asix_read_phy_addr(dev, true);
+	if (ret < 0)
+		return ret;
+
+	priv->phy_addr = ret;
+	priv->embd_phy = ((priv->phy_addr & 0x1f) == 0x10);
+
 	asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG, 0, 0, 1, &chipcode, 0);
 	chipcode &= AX_CHIPCODE_MASK;
 
@@ -772,12 +777,6 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		   jumbo eth frames */
 		dev->rx_urb_size = 2048;
 	}
-
-	priv = devm_kzalloc(&dev->udev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	dev->driver_priv = priv;
 
 	priv->presvd_phy_bmcr = 0;
 	priv->presvd_phy_advertise = 0;
@@ -815,6 +814,12 @@ static void ax88772_unbind(struct usbnet *dev, struct usb_interface *intf)
 
 	phy_disconnect(priv->phydev);
 	asix_rx_fixup_common_free(dev->driver_priv);
+}
+
+static void ax88178_unbind(struct usbnet *dev, struct usb_interface *intf)
+{
+	asix_rx_fixup_common_free(dev->driver_priv);
+	kfree(dev->driver_priv);
 }
 
 static const struct ethtool_ops ax88178_ethtool_ops = {
@@ -1225,7 +1230,7 @@ static const struct driver_info ax88772b_info = {
 static const struct driver_info ax88178_info = {
 	.description = "ASIX AX88178 USB 2.0 Ethernet",
 	.bind = ax88178_bind,
-	.unbind = ax88772_unbind,
+	.unbind = ax88178_unbind,
 	.status = asix_status,
 	.link_reset = ax88178_link_reset,
 	.reset = ax88178_reset,

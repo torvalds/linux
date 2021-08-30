@@ -319,14 +319,12 @@ flow_action_mixed_hw_stats_check(const struct flow_action *action,
 	if (flow_offload_has_one_action(action))
 		return true;
 
-	if (action) {
-		flow_action_for_each(i, action_entry, action) {
-			if (i && action_entry->hw_stats != last_hw_stats) {
-				NL_SET_ERR_MSG_MOD(extack, "Mixing HW stats types for actions is not supported");
-				return false;
-			}
-			last_hw_stats = action_entry->hw_stats;
+	flow_action_for_each(i, action_entry, action) {
+		if (i && action_entry->hw_stats != last_hw_stats) {
+			NL_SET_ERR_MSG_MOD(extack, "Mixing HW stats types for actions is not supported");
+			return false;
 		}
+		last_hw_stats = action_entry->hw_stats;
 	}
 	return true;
 }
