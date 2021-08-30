@@ -412,6 +412,134 @@ static int da9063_ldo_set_suspend_mode(struct regulator_dev *rdev,
 	return regmap_field_write(regl->suspend_sleep, val);
 }
 
+static unsigned int da9063_get_overdrive_mask(const struct regulator_desc *desc)
+{
+	switch (desc->id) {
+	case DA9063_ID_BCORES_MERGED:
+	case DA9063_ID_BCORE1:
+		return DA9063_BCORE1_OD;
+	case DA9063_ID_BCORE2:
+		return DA9063_BCORE2_OD;
+	case DA9063_ID_BPRO:
+		return DA9063_BPRO_OD;
+	default:
+		return 0;
+	}
+}
+
+static int da9063_buck_set_limit_set_overdrive(struct regulator_dev *rdev,
+					       int min_uA, int max_uA,
+					       unsigned int overdrive_mask)
+{
+	/*
+	 * When enabling overdrive, do it before changing the current limit to
+	 * ensure sufficient supply throughout the switch.
+	 */
+	struct da9063_regulator *regl = rdev_get_drvdata(rdev);
+	int ret;
+	unsigned int orig_overdrive;
+
+	ret = regmap_read(regl->hw->regmap, DA9063_REG_CONFIG_H,
+			  &orig_overdrive);
+	if (ret < 0)
+		return ret;
+	orig_overdrive &= overdrive_mask;
+
+	if (orig_overdrive == 0) {
+		ret = regmap_set_bits(regl->hw->regmap, DA9063_REG_CONFIG_H,
+				overdrive_mask);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = regulator_set_current_limit_regmap(rdev, min_uA / 2, max_uA / 2);
+	if (ret < 0 && orig_overdrive == 0)
+		/*
+		 * regulator_set_current_limit_regmap may have rejected the
+		 * change because of unusable min_uA and/or max_uA inputs.
+		 * Attempt to restore original overdrive state, ignore failure-
+		 * on-failure.
+		 */
+		regmap_clear_bits(regl->hw->regmap, DA9063_REG_CONFIG_H,
+				  overdrive_mask);
+
+	return ret;
+}
+
+static int da9063_buck_set_limit_clear_overdrive(struct regulator_dev *rdev,
+						 int min_uA, int max_uA,
+						 unsigned int overdrive_mask)
+{
+	/*
+	 * When disabling overdrive, do it after changing the current limit to
+	 * ensure sufficient supply throughout the switch.
+	 */
+	struct da9063_regulator *regl = rdev_get_drvdata(rdev);
+	int ret, orig_limit;
+
+	ret = regmap_read(rdev->regmap, rdev->desc->csel_reg, &orig_limit);
+	if (ret < 0)
+		return ret;
+
+	ret = regulator_set_current_limit_regmap(rdev, min_uA, max_uA);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_clear_bits(regl->hw->regmap, DA9063_REG_CONFIG_H,
+				overdrive_mask);
+	if (ret < 0)
+		/*
+		 * Attempt to restore original current limit, ignore failure-
+		 * on-failure.
+		 */
+		regmap_write(rdev->regmap, rdev->desc->csel_reg, orig_limit);
+
+	return ret;
+}
+
+static int da9063_buck_set_current_limit(struct regulator_dev *rdev,
+					 int min_uA, int max_uA)
+{
+	unsigned int overdrive_mask, n_currents;
+
+	overdrive_mask = da9063_get_overdrive_mask(rdev->desc);
+	if (overdrive_mask) {
+		n_currents = rdev->desc->n_current_limits;
+		if (n_currents == 0)
+			return -EINVAL;
+
+		if (max_uA > rdev->desc->curr_table[n_currents - 1])
+			return da9063_buck_set_limit_set_overdrive(rdev, min_uA,
+								   max_uA,
+								   overdrive_mask);
+
+		return da9063_buck_set_limit_clear_overdrive(rdev, min_uA,
+							     max_uA,
+							     overdrive_mask);
+	}
+	return regulator_set_current_limit_regmap(rdev, min_uA, max_uA);
+}
+
+static int da9063_buck_get_current_limit(struct regulator_dev *rdev)
+{
+	struct da9063_regulator *regl = rdev_get_drvdata(rdev);
+	int val, ret, limit;
+	unsigned int mask;
+
+	limit = regulator_get_current_limit_regmap(rdev);
+	if (limit < 0)
+		return limit;
+	mask = da9063_get_overdrive_mask(rdev->desc);
+	if (mask) {
+		ret = regmap_read(regl->hw->regmap, DA9063_REG_CONFIG_H, &val);
+		if (ret < 0)
+			return ret;
+		if (val & mask)
+			limit *= 2;
+	}
+	return limit;
+}
+
 static const struct regulator_ops da9063_buck_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -419,8 +547,8 @@ static const struct regulator_ops da9063_buck_ops = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.list_voltage		= regulator_list_voltage_linear,
-	.set_current_limit	= regulator_set_current_limit_regmap,
-	.get_current_limit	= regulator_get_current_limit_regmap,
+	.set_current_limit	= da9063_buck_set_current_limit,
+	.get_current_limit	= da9063_buck_get_current_limit,
 	.set_mode		= da9063_buck_set_mode,
 	.get_mode		= da9063_buck_get_mode,
 	.get_status		= da9063_buck_get_status,
