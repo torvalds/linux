@@ -809,7 +809,7 @@ static int amdgpu_ras_enable_all_features(struct amdgpu_device *adev,
 
 /* query/inject/cure begin */
 int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
-	struct ras_query_if *info)
+				  struct ras_query_if *info)
 {
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, &info->head);
 	struct ras_err_data err_data = {0, 0, 0, NULL};
@@ -1043,17 +1043,32 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 	return ret;
 }
 
-/* get the total error counts on all IPs */
-void amdgpu_ras_query_error_count(struct amdgpu_device *adev,
-				  unsigned long *ce_count,
-				  unsigned long *ue_count)
+/**
+ * amdgpu_ras_query_error_count -- Get error counts of all IPs
+ * adev: pointer to AMD GPU device
+ * ce_count: pointer to an integer to be set to the count of correctible errors.
+ * ue_count: pointer to an integer to be set to the count of uncorrectible
+ * errors.
+ *
+ * If set, @ce_count or @ue_count, count and return the corresponding
+ * error counts in those integer pointers. Return 0 if the device
+ * supports RAS. Return -EOPNOTSUPP if the device doesn't support RAS.
+ */
+int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
+				 unsigned long *ce_count,
+				 unsigned long *ue_count)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj;
 	unsigned long ce, ue;
 
 	if (!adev->ras_enabled || !con)
-		return;
+		return -EOPNOTSUPP;
+
+	/* Don't count since no reporting.
+	 */
+	if (!ce_count && !ue_count)
+		return 0;
 
 	ce = 0;
 	ue = 0;
@@ -1061,9 +1076,11 @@ void amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 		struct ras_query_if info = {
 			.head = obj->head,
 		};
+		int res;
 
-		if (amdgpu_ras_query_error_status(adev, &info))
-			return;
+		res = amdgpu_ras_query_error_status(adev, &info);
+		if (res)
+			return res;
 
 		ce += info.ce_count;
 		ue += info.ue_count;
@@ -1074,6 +1091,8 @@ void amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 
 	if (ue_count)
 		*ue_count = ue;
+
+	return 0;
 }
 /* query/inject/cure end */
 
@@ -2137,9 +2156,10 @@ static void amdgpu_ras_counte_dw(struct work_struct *work)
 
 	/* Cache new values.
 	 */
-	amdgpu_ras_query_error_count(adev, &ce_count, &ue_count);
-	atomic_set(&con->ras_ce_count, ce_count);
-	atomic_set(&con->ras_ue_count, ue_count);
+	if (amdgpu_ras_query_error_count(adev, &ce_count, &ue_count) == 0) {
+		atomic_set(&con->ras_ce_count, ce_count);
+		atomic_set(&con->ras_ue_count, ue_count);
+	}
 
 	pm_runtime_mark_last_busy(dev->dev);
 Out:
@@ -2312,9 +2332,10 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev,
 
 	/* Those are the cached values at init.
 	 */
-	amdgpu_ras_query_error_count(adev, &ce_count, &ue_count);
-	atomic_set(&con->ras_ce_count, ce_count);
-	atomic_set(&con->ras_ue_count, ue_count);
+	if (amdgpu_ras_query_error_count(adev, &ce_count, &ue_count) == 0) {
+		atomic_set(&con->ras_ce_count, ce_count);
+		atomic_set(&con->ras_ue_count, ue_count);
+	}
 
 	return 0;
 cleanup:

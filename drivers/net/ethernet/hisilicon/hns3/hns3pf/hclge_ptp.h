@@ -29,6 +29,7 @@
 #define HCLGE_PTP_TIME_ADJ_REG		0x60
 #define HCLGE_PTP_TIME_ADJ_EN		BIT(0)
 #define HCLGE_PTP_CYCLE_QUO_REG		0x64
+#define HCLGE_PTP_CYCLE_QUO_MASK	GENMASK(7, 0)
 #define HCLGE_PTP_CYCLE_DEN_REG		0x68
 #define HCLGE_PTP_CYCLE_NUM_REG		0x6C
 #define HCLGE_PTP_CYCLE_CFG_REG		0x70
@@ -37,15 +38,19 @@
 #define HCLGE_PTP_CUR_TIME_SEC_L_REG	0x78
 #define HCLGE_PTP_CUR_TIME_NSEC_REG	0x7C
 
-#define HCLGE_PTP_CYCLE_ADJ_BASE	2
 #define HCLGE_PTP_CYCLE_ADJ_MAX		500000000
-#define HCLGE_PTP_CYCLE_ADJ_UNIT	100000000
 #define HCLGE_PTP_SEC_H_OFFSET		32u
 #define HCLGE_PTP_SEC_L_MASK		GENMASK(31, 0)
 
 #define HCLGE_PTP_FLAG_EN		0
 #define HCLGE_PTP_FLAG_TX_EN		1
 #define HCLGE_PTP_FLAG_RX_EN		2
+
+struct hclge_ptp_cycle {
+	u32 quo;
+	u32 numer;
+	u32 den;
+};
 
 struct hclge_ptp {
 	struct hclge_dev *hdev;
@@ -58,6 +63,7 @@ struct hclge_ptp {
 	spinlock_t lock;	/* protects ptp registers */
 	u32 ptp_cfg;
 	u32 last_tx_seqid;
+	struct hclge_ptp_cycle cycle;
 	unsigned long tx_start;
 	unsigned long tx_cnt;
 	unsigned long tx_skipped;

@@ -41,8 +41,6 @@ nouveau_mem_map(struct nouveau_mem *mem,
 		struct gf100_vmm_map_v0 gf100;
 	} args;
 	u32 argc = 0;
-	bool super;
-	int ret;
 
 	switch (vmm->object.oclass) {
 	case NVIF_CLASS_VMM_NV04:
@@ -73,12 +71,7 @@ nouveau_mem_map(struct nouveau_mem *mem,
 		return -ENOSYS;
 	}
 
-	super = vmm->object.client->super;
-	vmm->object.client->super = true;
-	ret = nvif_vmm_map(vmm, vma->addr, mem->mem.size, &args, argc,
-			   &mem->mem, 0);
-	vmm->object.client->super = super;
-	return ret;
+	return nvif_vmm_map(vmm, vma->addr, mem->mem.size, &args, argc, &mem->mem, 0);
 }
 
 void
@@ -99,7 +92,6 @@ nouveau_mem_host(struct ttm_resource *reg, struct ttm_tt *tt)
 	struct nouveau_drm *drm = cli->drm;
 	struct nvif_mmu *mmu = &cli->mmu;
 	struct nvif_mem_ram_v0 args = {};
-	bool super = cli->base.super;
 	u8 type;
 	int ret;
 
@@ -122,11 +114,9 @@ nouveau_mem_host(struct ttm_resource *reg, struct ttm_tt *tt)
 		args.dma = tt->dma_address;
 
 	mutex_lock(&drm->master.lock);
-	cli->base.super = true;
 	ret = nvif_mem_ctor_type(mmu, "ttmHostMem", cli->mem->oclass, type, PAGE_SHIFT,
 				 reg->num_pages << PAGE_SHIFT,
 				 &args, sizeof(args), &mem->mem);
-	cli->base.super = super;
 	mutex_unlock(&drm->master.lock);
 	return ret;
 }
@@ -138,12 +128,10 @@ nouveau_mem_vram(struct ttm_resource *reg, bool contig, u8 page)
 	struct nouveau_cli *cli = mem->cli;
 	struct nouveau_drm *drm = cli->drm;
 	struct nvif_mmu *mmu = &cli->mmu;
-	bool super = cli->base.super;
 	u64 size = ALIGN(reg->num_pages << PAGE_SHIFT, 1 << page);
 	int ret;
 
 	mutex_lock(&drm->master.lock);
-	cli->base.super = true;
 	switch (cli->mem->oclass) {
 	case NVIF_CLASS_MEM_GF100:
 		ret = nvif_mem_ctor_type(mmu, "ttmVram", cli->mem->oclass,
@@ -167,7 +155,6 @@ nouveau_mem_vram(struct ttm_resource *reg, bool contig, u8 page)
 		WARN_ON(1);
 		break;
 	}
-	cli->base.super = super;
 	mutex_unlock(&drm->master.lock);
 
 	reg->start = mem->mem.addr >> PAGE_SHIFT;

@@ -145,8 +145,7 @@ struct btrfs_ordered_extent {
 	 * command in a workqueue context
 	 */
 	u64 physical;
-	struct gendisk *disk;
-	u8 partno;
+	struct block_device *bdev;
 };
 
 /*

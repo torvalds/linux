@@ -406,14 +406,14 @@
 		reg = <0x69>;
 	};
 
-	power-supply@6a {
-		compatible = "ibm,cffps";
-		reg = <0x6a>;
-	};
-
 	power-supply@6b {
 		compatible = "ibm,cffps";
 		reg = <0x6b>;
+	};
+
+	power-supply@6d {
+		compatible = "ibm,cffps";
+		reg = <0x6d>;
 	};
 };
 
@@ -2832,6 +2832,7 @@
 
 &emmc {
 	status = "okay";
+	clk-phase-mmc-hs200 = <180>, <180>;
 };
 
 &fsim0 {

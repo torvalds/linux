@@ -77,6 +77,34 @@ properties:
       Type-C spec states minimum CC pin debounce of 100 ms and maximum
       of 200 ms. However, some solutions might need more than 200 ms.
 
+  refclk-dig:
+    type: object
+    description: |
+      WIZ node should have subnode for refclk_dig to select the reference
+      clock source for the reference clock used in the PHY and PMA digital
+      logic.
+    properties:
+      clocks:
+        minItems: 2
+        maxItems: 4
+        description: Phandle to two (Torrent) or four (Sierra) clock nodes representing
+          the inputs to refclk_dig
+
+      "#clock-cells":
+        const: 0
+
+      assigned-clocks:
+        maxItems: 1
+
+      assigned-clock-parents:
+        maxItems: 1
+
+    required:
+      - clocks
+      - "#clock-cells"
+      - assigned-clocks
+      - assigned-clock-parents
+
 patternProperties:
   "^pll[0|1]-refclk$":
     type: object
@@ -120,34 +148,6 @@ patternProperties:
     required:
       - clocks
       - "#clock-cells"
-
-  "^refclk-dig$":
-    type: object
-    description: |
-      WIZ node should have subnode for refclk_dig to select the reference
-      clock source for the reference clock used in the PHY and PMA digital
-      logic.
-    properties:
-      clocks:
-        minItems: 2
-        maxItems: 4
-        description: Phandle to two (Torrent) or four (Sierra) clock nodes representing
-          the inputs to refclk_dig
-
-      "#clock-cells":
-        const: 0
-
-      assigned-clocks:
-        maxItems: 1
-
-      assigned-clock-parents:
-        maxItems: 1
-
-    required:
-      - clocks
-      - "#clock-cells"
-      - assigned-clocks
-      - assigned-clock-parents
 
   "^serdes@[0-9a-f]+$":
     type: object

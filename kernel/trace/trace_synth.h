@@ -14,10 +14,10 @@ struct synth_field {
 	char *name;
 	size_t size;
 	unsigned int offset;
+	unsigned int field_pos;
 	bool is_signed;
 	bool is_string;
 	bool is_dynamic;
-	bool field_pos;
 };
 
 struct synth_event {

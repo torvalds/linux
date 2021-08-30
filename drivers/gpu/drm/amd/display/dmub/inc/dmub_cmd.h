@@ -856,6 +856,11 @@ enum dmub_cmd_idle_opt_type {
 	 * DCN hardware restore.
 	 */
 	DMUB_CMD__IDLE_OPT_DCN_RESTORE = 0,
+
+	/**
+	 * DCN hardware save.
+	 */
+	DMUB_CMD__IDLE_OPT_DCN_SAVE_INIT = 1
 };
 
 /**

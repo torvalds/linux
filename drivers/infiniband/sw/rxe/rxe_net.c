@@ -259,6 +259,7 @@ static void prepare_ipv4_hdr(struct dst_entry *dst, struct sk_buff *skb,
 
 	iph->version	=	IPVERSION;
 	iph->ihl	=	sizeof(struct iphdr) >> 2;
+	iph->tot_len	=	htons(skb->len);
 	iph->frag_off	=	df;
 	iph->protocol	=	proto;
 	iph->tos	=	tos;

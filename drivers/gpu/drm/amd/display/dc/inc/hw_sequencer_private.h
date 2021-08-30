@@ -41,6 +41,7 @@ struct dce_hwseq_wa {
 	bool DEGVIDCN10_254;
 	bool DEGVIDCN21;
 	bool disallow_self_refresh_during_multi_plane_transition;
+	bool early_riommu_invalidation;
 };
 
 struct hwseq_wa_state {

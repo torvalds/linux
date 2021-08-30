@@ -51,7 +51,6 @@ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
 				  struct page *newpage, struct page *page);
 extern int migrate_page_move_mapping(struct address_space *mapping,
 		struct page *newpage, struct page *page, int extra_count);
-extern void copy_huge_page(struct page *dst, struct page *src);
 #else
 
 static inline void putback_movable_pages(struct list_head *l) {}
@@ -76,10 +75,6 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
 				  struct page *newpage, struct page *page)
 {
 	return -ENOSYS;
-}
-
-static inline void copy_huge_page(struct page *dst, struct page *src)
-{
 }
 #endif /* CONFIG_MIGRATION */
 

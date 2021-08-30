@@ -1528,6 +1528,7 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 		case CHIP_SIENNA_CICHLID:
 		case CHIP_NAVY_FLOUNDER:
 		case CHIP_DIMGREY_CAVEFISH:
+		case CHIP_BEIGE_GOBY:
 			if (amdgpu_runtime_pm == 2)
 				ret = smu_cmn_send_smc_msg_with_param(smu,
 								      SMU_MSG_EnterBaco,

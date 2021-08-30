@@ -243,6 +243,7 @@ struct rvu_pfvf {
 	u8	nix_blkaddr; /* BLKADDR_NIX0/1 assigned to this PF */
 	u8	nix_rx_intf; /* NIX0_RX/NIX1_RX interface to NPC */
 	u8	nix_tx_intf; /* NIX0_TX/NIX1_TX interface to NPC */
+	u64     lmt_base_addr; /* Preseving the pcifunc's lmtst base addr*/
 	unsigned long flags;
 };
 
@@ -414,6 +415,16 @@ struct npc_kpu_profile_adapter {
 	size_t				kpus;
 };
 
+#define RVU_SWITCH_LBK_CHAN	63
+
+struct rvu_switch {
+	struct mutex switch_lock; /* Serialize flow installation */
+	u32 used_entries;
+	u16 *entry2pcifunc;
+	u16 mode;
+	u16 start_entry;
+};
+
 struct rvu {
 	void __iomem		*afreg_base;
 	void __iomem		*pfreg_base;
@@ -444,6 +455,7 @@ struct rvu {
 
 	/* CGX */
 #define PF_CGXMAP_BASE		1 /* PF 0 is reserved for RVU PF */
+	u16			cgx_mapped_vfs; /* maximum CGX mapped VFs */
 	u8			cgx_mapped_pfs;
 	u8			cgx_cnt_max;	 /* CGX port count max */
 	u8			*pf2cgxlmac_map; /* pf to cgx_lmac map */
@@ -476,6 +488,9 @@ struct rvu {
 	struct rvu_debugfs	rvu_dbg;
 #endif
 	struct rvu_devlink	*rvu_dl;
+
+	/* RVU switch implementation over NPC with DMAC rules */
+	struct rvu_switch	rswitch;
 };
 
 static inline void rvu_write64(struct rvu *rvu, u64 block, u64 offset, u64 val)
@@ -656,6 +671,8 @@ void rvu_cgx_enadis_rx_bp(struct rvu *rvu, int pf, bool enable);
 int rvu_cgx_start_stop_io(struct rvu *rvu, u16 pcifunc, bool start);
 int rvu_cgx_nix_cuml_stats(struct rvu *rvu, void *cgxd, int lmac_id, int index,
 			   int rxtxflag, u64 *stat);
+void rvu_cgx_disable_dmac_entries(struct rvu *rvu, u16 pcifunc);
+
 /* NPA APIs */
 int rvu_npa_init(struct rvu *rvu);
 void rvu_npa_freemem(struct rvu *rvu);
@@ -688,6 +705,7 @@ int nix_aq_context_read(struct rvu *rvu, struct nix_hw *nix_hw,
 			struct nix_cn10k_aq_enq_req *aq_req,
 			struct nix_cn10k_aq_enq_rsp *aq_rsp,
 			u16 pcifunc, u8 ctype, u32 qidx);
+int rvu_get_nix_blkaddr(struct rvu *rvu, u16 pcifunc);
 
 /* NPC APIs */
 int rvu_npc_init(struct rvu *rvu);
@@ -741,6 +759,7 @@ void npc_read_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
 bool is_mac_feature_supported(struct rvu *rvu, int pf, int feature);
 u32  rvu_cgx_get_fifolen(struct rvu *rvu);
 void *rvu_first_cgx_pdata(struct rvu *rvu);
+int cgxlmac_to_pf(struct rvu *rvu, int cgx_id, int lmac_id);
 
 int npc_get_nixlf_mcam_index(struct npc_mcam *mcam, u16 pcifunc, int nixlf,
 			     int type);
@@ -754,6 +773,9 @@ int rvu_cpt_lf_teardown(struct rvu *rvu, u16 pcifunc, int lf, int slot);
 int rvu_set_channels_base(struct rvu *rvu);
 void rvu_program_channels(struct rvu *rvu);
 
+/* CN10K RVU - LMT*/
+void rvu_reset_lmt_map_tbl(struct rvu *rvu, u16 pcifunc);
+
 #ifdef CONFIG_DEBUG_FS
 void rvu_dbg_init(struct rvu *rvu);
 void rvu_dbg_exit(struct rvu *rvu);
@@ -761,4 +783,10 @@ void rvu_dbg_exit(struct rvu *rvu);
 static inline void rvu_dbg_init(struct rvu *rvu) {}
 static inline void rvu_dbg_exit(struct rvu *rvu) {}
 #endif
+
+/* RVU Switch */
+void rvu_switch_enable(struct rvu *rvu);
+void rvu_switch_disable(struct rvu *rvu);
+void rvu_switch_update_rules(struct rvu *rvu, u16 pcifunc);
+
 #endif /* RVU_H */

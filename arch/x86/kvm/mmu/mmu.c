@@ -53,6 +53,8 @@
 #include <asm/kvm_page_track.h>
 #include "trace.h"
 
+#include "paging.h"
+
 extern bool itlb_multihit_kvm_mitigation;
 
 int __read_mostly nx_huge_pages = -1;
@@ -1642,7 +1644,7 @@ static int is_empty_shadow_page(u64 *spt)
  * aggregate version in order to make the slab shrinker
  * faster
  */
-static inline void kvm_mod_used_mmu_pages(struct kvm *kvm, unsigned long nr)
+static inline void kvm_mod_used_mmu_pages(struct kvm *kvm, long nr)
 {
 	kvm->arch.n_used_mmu_pages += nr;
 	percpu_counter_add(&kvm_total_used_mmu_pages, nr);
@@ -2533,6 +2535,7 @@ static void kvm_unsync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 int mmu_try_to_unsync_pages(struct kvm_vcpu *vcpu, gfn_t gfn, bool can_unsync)
 {
 	struct kvm_mmu_page *sp;
+	bool locked = false;
 
 	/*
 	 * Force write-protection if the page is being tracked.  Note, the page
@@ -2555,9 +2558,34 @@ int mmu_try_to_unsync_pages(struct kvm_vcpu *vcpu, gfn_t gfn, bool can_unsync)
 		if (sp->unsync)
 			continue;
 
+		/*
+		 * TDP MMU page faults require an additional spinlock as they
+		 * run with mmu_lock held for read, not write, and the unsync
+		 * logic is not thread safe.  Take the spinklock regardless of
+		 * the MMU type to avoid extra conditionals/parameters, there's
+		 * no meaningful penalty if mmu_lock is held for write.
+		 */
+		if (!locked) {
+			locked = true;
+			spin_lock(&vcpu->kvm->arch.mmu_unsync_pages_lock);
+
+			/*
+			 * Recheck after taking the spinlock, a different vCPU
+			 * may have since marked the page unsync.  A false
+			 * positive on the unprotected check above is not
+			 * possible as clearing sp->unsync _must_ hold mmu_lock
+			 * for write, i.e. unsync cannot transition from 0->1
+			 * while this CPU holds mmu_lock for read (or write).
+			 */
+			if (READ_ONCE(sp->unsync))
+				continue;
+		}
+
 		WARN_ON(sp->role.level != PG_LEVEL_4K);
 		kvm_unsync_page(vcpu, sp);
 	}
+	if (locked)
+		spin_unlock(&vcpu->kvm->arch.mmu_unsync_pages_lock);
 
 	/*
 	 * We need to ensure that the marking of unsync pages is visible
@@ -5534,6 +5562,8 @@ static void kvm_mmu_invalidate_zap_pages_in_memslot(struct kvm *kvm,
 void kvm_mmu_init_vm(struct kvm *kvm)
 {
 	struct kvm_page_track_notifier_node *node = &kvm->arch.mmu_sp_tracker;
+
+	spin_lock_init(&kvm->arch.mmu_unsync_pages_lock);
 
 	if (!kvm_mmu_init_tdp_mmu(kvm))
 		/*

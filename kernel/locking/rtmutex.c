@@ -343,7 +343,7 @@ static __always_inline bool
 rt_mutex_cond_detect_deadlock(struct rt_mutex_waiter *waiter,
 			      enum rtmutex_chainwalk chwalk)
 {
-	if (IS_ENABLED(CONFIG_DEBUG_RT_MUTEX))
+	if (IS_ENABLED(CONFIG_DEBUG_RT_MUTEXES))
 		return waiter != NULL;
 	return chwalk == RT_MUTEX_FULL_CHAINWALK;
 }

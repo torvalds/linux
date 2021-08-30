@@ -756,15 +756,9 @@ static int cz_probe(struct platform_device *pdev)
 	snd_soc_card_set_drvdata(card, machine);
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"devm_snd_soc_register_card(%s) failed: %d\n",
-				card->name, ret);
-		else
-			dev_dbg(&pdev->dev,
-				"devm_snd_soc_register_card(%s) probe deferred: %d\n",
-				card->name, ret);
-		return ret;
+		return dev_err_probe(&pdev->dev, ret,
+				"devm_snd_soc_register_card(%s) failed\n",
+				card->name);
 	}
 	bt_uart_enable = !device_property_read_bool(&pdev->dev,
 						    "bt-pad-enable");

@@ -354,7 +354,6 @@ static void vmw_otable_batch_takedown(struct vmw_private *dev_priv,
 	ttm_bo_unpin(bo);
 	ttm_bo_unreserve(bo);
 
-	ttm_bo_unpin(batch->otable_bo);
 	ttm_bo_put(batch->otable_bo);
 	batch->otable_bo = NULL;
 }

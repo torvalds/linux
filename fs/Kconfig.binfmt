@@ -168,21 +168,6 @@ config OSF4_COMPAT
 	  with v4 shared libraries freely available from Compaq. If you're
 	  going to use shared libraries from Tru64 version 5.0 or later, say N.
 
-config BINFMT_EM86
-	tristate "Kernel support for Linux/Intel ELF binaries"
-	depends on ALPHA
-	help
-	  Say Y here if you want to be able to execute Linux/Intel ELF
-	  binaries just like native Alpha binaries on your Alpha machine. For
-	  this to work, you need to have the emulator /usr/bin/em86 in place.
-
-	  You can get the same functionality by saying N here and saying Y to
-	  "Kernel support for MISC binaries".
-
-	  You may answer M to compile the emulation support as a module and
-	  later load the module when you want to use a Linux/Intel binary. The
-	  module will be called binfmt_em86. If unsure, say Y.
-
 config BINFMT_MISC
 	tristate "Kernel support for MISC binaries"
 	help

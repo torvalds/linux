@@ -31,8 +31,8 @@
 #include "dcn31_smu.h"
 
 #include "yellow_carp_offset.h"
-#include "mp/mp_13_0_1_offset.h"
-#include "mp/mp_13_0_1_sh_mask.h"
+#include "mp/mp_13_0_2_offset.h"
+#include "mp/mp_13_0_2_sh_mask.h"
 
 #define REG(reg_name) \
 	(MP0_BASE.instance[0].segment[reg ## reg_name ## _BASE_IDX] + reg ## reg_name)

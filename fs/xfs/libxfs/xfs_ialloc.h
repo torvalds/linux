@@ -122,4 +122,7 @@ int xfs_ialloc_cluster_alignment(struct xfs_mount *mp);
 void xfs_ialloc_setup_geometry(struct xfs_mount *mp);
 xfs_ino_t xfs_ialloc_calc_rootino(struct xfs_mount *mp, int sunit);
 
+int xfs_ialloc_check_shrink(struct xfs_trans *tp, xfs_agnumber_t agno,
+		struct xfs_buf *agibp, xfs_agblock_t new_length);
+
 #endif	/* __XFS_IALLOC_H__ */

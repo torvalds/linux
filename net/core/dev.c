@@ -131,6 +131,7 @@
 #include <trace/events/napi.h>
 #include <trace/events/net.h>
 #include <trace/events/skb.h>
+#include <trace/events/qdisc.h>
 #include <linux/inetdevice.h>
 #include <linux/cpu_rmap.h>
 #include <linux/static_key.h>
@@ -3844,6 +3845,18 @@ static void qdisc_pkt_len_init(struct sk_buff *skb)
 	}
 }
 
+static int dev_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *q,
+			     struct sk_buff **to_free,
+			     struct netdev_queue *txq)
+{
+	int rc;
+
+	rc = q->enqueue(skb, q, to_free) & NET_XMIT_MASK;
+	if (rc == NET_XMIT_SUCCESS)
+		trace_qdisc_enqueue(q, txq, skb);
+	return rc;
+}
+
 static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 				 struct net_device *dev,
 				 struct netdev_queue *txq)
@@ -3862,8 +3875,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 			 * of q->seqlock to protect from racing with requeuing.
 			 */
 			if (unlikely(!nolock_qdisc_is_empty(q))) {
-				rc = q->enqueue(skb, q, &to_free) &
-					NET_XMIT_MASK;
+				rc = dev_qdisc_enqueue(skb, q, &to_free, txq);
 				__qdisc_run(q);
 				qdisc_run_end(q);
 
@@ -3879,7 +3891,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 			return NET_XMIT_SUCCESS;
 		}
 
-		rc = q->enqueue(skb, q, &to_free) & NET_XMIT_MASK;
+		rc = dev_qdisc_enqueue(skb, q, &to_free, txq);
 		qdisc_run(q);
 
 no_lock_out:
@@ -3923,7 +3935,7 @@ no_lock_out:
 		qdisc_run_end(q);
 		rc = NET_XMIT_SUCCESS;
 	} else {
-		rc = q->enqueue(skb, q, &to_free) & NET_XMIT_MASK;
+		rc = dev_qdisc_enqueue(skb, q, &to_free, txq);
 		if (qdisc_run_begin(q)) {
 			if (unlikely(contended)) {
 				spin_unlock(&q->busylock);
@@ -6008,6 +6020,19 @@ static void gro_list_prepare(const struct list_head *head,
 			diffs = memcmp(skb_mac_header(p),
 				       skb_mac_header(skb),
 				       maclen);
+
+		diffs |= skb_get_nfct(p) ^ skb_get_nfct(skb);
+#if IS_ENABLED(CONFIG_SKB_EXTENSIONS) && IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
+		if (!diffs) {
+			struct tc_skb_ext *skb_ext = skb_ext_find(skb, TC_SKB_EXT);
+			struct tc_skb_ext *p_ext = skb_ext_find(p, TC_SKB_EXT);
+
+			diffs |= (!!p_ext) ^ (!!skb_ext);
+			if (!diffs && unlikely(skb_ext))
+				diffs |= p_ext->chain ^ skb_ext->chain;
+		}
+#endif
+
 		NAPI_GRO_CB(p)->same_flow = !diffs;
 	}
 }
@@ -6221,6 +6246,8 @@ static gro_result_t napi_skb_finish(struct napi_struct *napi,
 	case GRO_MERGED_FREE:
 		if (NAPI_GRO_CB(skb)->free == NAPI_GRO_FREE_STOLEN_HEAD)
 			napi_skb_free_stolen_head(skb);
+		else if (skb->fclone != SKB_FCLONE_UNAVAILABLE)
+			__kfree_skb(skb);
 		else
 			__kfree_skb_defer(skb);
 		break;
@@ -6270,6 +6297,7 @@ static void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
 	skb_shinfo(skb)->gso_type = 0;
 	skb->truesize = SKB_TRUESIZE(skb_end_offset(skb));
 	skb_ext_reset(skb);
+	nf_reset_ct(skb);
 
 	napi->skb = skb;
 }
@@ -9684,14 +9712,17 @@ int bpf_xdp_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 	struct net_device *dev;
 	int err, fd;
 
+	rtnl_lock();
 	dev = dev_get_by_index(net, attr->link_create.target_ifindex);
-	if (!dev)
+	if (!dev) {
+		rtnl_unlock();
 		return -EINVAL;
+	}
 
 	link = kzalloc(sizeof(*link), GFP_USER);
 	if (!link) {
 		err = -ENOMEM;
-		goto out_put_dev;
+		goto unlock;
 	}
 
 	bpf_link_init(&link->link, BPF_LINK_TYPE_XDP, &bpf_xdp_link_lops, prog);
@@ -9701,14 +9732,14 @@ int bpf_xdp_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 	err = bpf_link_prime(&link->link, &link_primer);
 	if (err) {
 		kfree(link);
-		goto out_put_dev;
+		goto unlock;
 	}
 
-	rtnl_lock();
 	err = dev_xdp_attach_link(dev, NULL, link);
 	rtnl_unlock();
 
 	if (err) {
+		link->dev = NULL;
 		bpf_link_cleanup(&link_primer);
 		goto out_put_dev;
 	}
@@ -9717,6 +9748,9 @@ int bpf_xdp_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 	/* link itself doesn't hold dev's refcnt to not complicate shutdown */
 	dev_put(dev);
 	return fd;
+
+unlock:
+	rtnl_unlock();
 
 out_put_dev:
 	dev_put(dev);

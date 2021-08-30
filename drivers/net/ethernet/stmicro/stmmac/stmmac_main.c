@@ -7171,6 +7171,7 @@ int stmmac_suspend(struct device *dev)
 				     priv->plat->rx_queues_to_use, false);
 
 		stmmac_fpe_handshake(priv, false);
+		stmmac_fpe_stop_wq(priv);
 	}
 
 	priv->speed = SPEED_UNKNOWN;

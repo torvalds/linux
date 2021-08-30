@@ -637,7 +637,7 @@ static int fxls8962af_i2c_raw_read_errata3(struct fxls8962af_data *data,
 			return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int fxls8962af_fifo_transfer(struct fxls8962af_data *data,

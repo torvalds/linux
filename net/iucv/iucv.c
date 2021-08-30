@@ -1635,14 +1635,16 @@ struct iucv_message_pending {
 	u8  iptype;
 	u32 ipmsgid;
 	u32 iptrgcls;
-	union {
-		u32 iprmmsg1_u32;
-		u8  iprmmsg1[4];
-	} ln1msg1;
-	union {
-		u32 ipbfln1f;
-		u8  iprmmsg2[4];
-	} ln1msg2;
+	struct {
+		union {
+			u32 iprmmsg1_u32;
+			u8  iprmmsg1[4];
+		} ln1msg1;
+		union {
+			u32 ipbfln1f;
+			u8  iprmmsg2[4];
+		} ln1msg2;
+	} rmmsg;
 	u32 res1[3];
 	u32 ipbfln2f;
 	u8  ippollfg;
@@ -1660,10 +1662,10 @@ static void iucv_message_pending(struct iucv_irq_data *data)
 		msg.id = imp->ipmsgid;
 		msg.class = imp->iptrgcls;
 		if (imp->ipflags1 & IUCV_IPRMDATA) {
-			memcpy(msg.rmmsg, imp->ln1msg1.iprmmsg1, 8);
+			memcpy(msg.rmmsg, &imp->rmmsg, 8);
 			msg.length = 8;
 		} else
-			msg.length = imp->ln1msg2.ipbfln1f;
+			msg.length = imp->rmmsg.ln1msg2.ipbfln1f;
 		msg.reply_size = imp->ipbfln2f;
 		path->handler->message_pending(path, &msg);
 	}

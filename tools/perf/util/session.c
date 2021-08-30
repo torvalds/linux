@@ -306,6 +306,7 @@ void perf_session__delete(struct perf_session *session)
 			evlist__delete(session->evlist);
 		perf_data__close(session->data);
 	}
+	trace_event__cleanup(&session->tevent);
 	free(session);
 }
 

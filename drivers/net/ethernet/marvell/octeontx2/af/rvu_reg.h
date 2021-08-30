@@ -49,6 +49,11 @@
 #define RVU_AF_PFX_VF_BAR4_ADDR             (0x5400 | (a) << 4)
 #define RVU_AF_PFX_VF_BAR4_CFG              (0x5600 | (a) << 4)
 #define RVU_AF_PFX_LMTLINE_ADDR             (0x5800 | (a) << 4)
+#define RVU_AF_SMMU_ADDR_REQ		    (0x6000)
+#define RVU_AF_SMMU_TXN_REQ		    (0x6008)
+#define RVU_AF_SMMU_ADDR_RSP_STS	    (0x6010)
+#define RVU_AF_SMMU_ADDR_TLN		    (0x6018)
+#define RVU_AF_SMMU_TLN_FLIT1		    (0x6030)
 
 /* Admin function's privileged PF/VF registers */
 #define RVU_PRIV_CONST                      (0x8000000)
@@ -691,5 +696,10 @@
 #define LBK_LINK_CFG_RANGE_MASK		GENMASK_ULL(19, 16)
 #define LBK_LINK_CFG_ID_MASK		GENMASK_ULL(11, 6)
 #define LBK_LINK_CFG_BASE_MASK		GENMASK_ULL(5, 0)
+
+/* APR */
+#define	APR_AF_LMT_CFG			(0x000ull)
+#define	APR_AF_LMT_MAP_BASE		(0x008ull)
+#define	APR_AF_LMT_CTL			(0x010ull)
 
 #endif /* RVU_REG_H */

@@ -142,6 +142,9 @@ static const struct iommu_flush_ops null_tlb_ops = {
 	.tlb_add_page = msm_iommu_tlb_add_page,
 };
 
+static int msm_fault_handler(struct iommu_domain *domain, struct device *dev,
+		unsigned long iova, int flags, void *arg);
+
 struct msm_mmu *msm_iommu_pagetable_create(struct msm_mmu *parent)
 {
 	struct adreno_smmu_priv *adreno_smmu = dev_get_drvdata(parent->dev);
@@ -156,6 +159,13 @@ struct msm_mmu *msm_iommu_pagetable_create(struct msm_mmu *parent)
 		ttbr1_cfg = adreno_smmu->get_ttbr1_cfg(adreno_smmu->cookie);
 	if (!ttbr1_cfg)
 		return ERR_PTR(-ENODEV);
+
+	/*
+	 * Defer setting the fault handler until we have a valid adreno_smmu
+	 * to avoid accidentially installing a GPU specific fault handler for
+	 * the display's iommu
+	 */
+	iommu_set_fault_handler(iommu->domain, msm_fault_handler, iommu);
 
 	pagetable = kzalloc(sizeof(*pagetable), GFP_KERNEL);
 	if (!pagetable)
@@ -300,7 +310,6 @@ struct msm_mmu *msm_iommu_new(struct device *dev, struct iommu_domain *domain)
 
 	iommu->domain = domain;
 	msm_mmu_init(&iommu->base, dev, &funcs, MSM_MMU_IOMMU);
-	iommu_set_fault_handler(domain, msm_fault_handler, iommu);
 
 	atomic_set(&iommu->pagetables, 0);
 

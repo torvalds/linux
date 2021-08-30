@@ -237,6 +237,7 @@ struct hw_sequencer_funcs {
 			int width, int height, int offset);
 
 	void (*z10_restore)(struct dc *dc);
+	void (*z10_save_init)(struct dc *dc);
 
 	void (*update_visual_confirm_color)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx,

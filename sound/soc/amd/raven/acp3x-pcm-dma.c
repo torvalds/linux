@@ -147,7 +147,7 @@ static void config_acp3x_dma(struct i2s_stream_instance *rtd, int direction)
 		high |= BIT(31);
 		rv_writel(high, rtd->acp3x_base + mmACP_SCRATCH_REG_0 + val
 				+ 4);
-		/* Move to next physically contiguos page */
+		/* Move to next physically contiguous page */
 		val += 8;
 		addr += PAGE_SIZE;
 	}
@@ -320,13 +320,6 @@ static int acp3x_dma_new(struct snd_soc_component *component,
 	return 0;
 }
 
-static int acp3x_dma_mmap(struct snd_soc_component *component,
-			  struct snd_pcm_substream *substream,
-			  struct vm_area_struct *vma)
-{
-	return snd_pcm_lib_default_mmap(substream, vma);
-}
-
 static int acp3x_dma_close(struct snd_soc_component *component,
 			   struct snd_pcm_substream *substream)
 {
@@ -370,7 +363,6 @@ static const struct snd_soc_component_driver acp3x_i2s_component = {
 	.close		= acp3x_dma_close,
 	.hw_params	= acp3x_dma_hw_params,
 	.pointer	= acp3x_dma_pointer,
-	.mmap		= acp3x_dma_mmap,
 	.pcm_construct	= acp3x_dma_new,
 };
 

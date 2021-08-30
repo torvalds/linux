@@ -445,7 +445,7 @@ F:	drivers/platform/x86/wmi.c
 F:	include/uapi/linux/wmi.h
 
 ACRN HYPERVISOR SERVICE MODULE
-M:	Shuo Liu <shuo.a.liu@intel.com>
+M:	Fei Li <fei1.li@intel.com>
 L:	acrn-dev@lists.projectacrn.org (subscribers-only)
 S:	Supported
 W:	https://projectacrn.org
@@ -933,6 +933,7 @@ F:	drivers/video/fbdev/geode/
 
 AMD IOMMU (AMD-VI)
 M:	Joerg Roedel <joro@8bytes.org>
+R:	Suravee Suthikulpanit <suravee.suthikulpanit@amd.com>
 L:	iommu@lists.linux-foundation.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joro/iommu.git
@@ -3865,6 +3866,16 @@ L:	bcm-kernel-feedback-list@broadcom.com
 S:	Maintained
 F:	drivers/mtd/nand/raw/brcmnand/
 
+BROADCOM STB PCIE DRIVER
+M:	Jim Quinlan <jim2101024@gmail.com>
+M:	Nicolas Saenz Julienne <nsaenz@kernel.org>
+M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	bcm-kernel-feedback-list@broadcom.com
+L:	linux-pci@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/pci/brcm,stb-pcie.yaml
+F:	drivers/pci/controller/pcie-brcmstb.c
+
 BROADCOM SYSTEMPORT ETHERNET DRIVER
 M:	Florian Fainelli <f.fainelli@gmail.com>
 L:	bcm-kernel-feedback-list@broadcom.com
@@ -4497,7 +4508,7 @@ L:	clang-built-linux@googlegroups.com
 S:	Supported
 W:	https://clangbuiltlinux.github.io/
 B:	https://github.com/ClangBuiltLinux/linux/issues
-C:	irc://chat.freenode.net/clangbuiltlinux
+C:	irc://irc.libera.chat/clangbuiltlinux
 F:	Documentation/kbuild/llvm.rst
 F:	include/linux/compiler-clang.h
 F:	scripts/clang-tools/
@@ -7857,9 +7868,9 @@ S:	Maintained
 F:	drivers/input/touchscreen/goodix.c
 
 GOOGLE ETHERNET DRIVERS
-M:	Catherine Sullivan <csully@google.com>
-R:	Sagi Shahar <sagis@google.com>
-R:	Jon Olson <jonolson@google.com>
+M:	Jeroen de Borst <jeroendb@google.com>
+R:	Catherine Sullivan <csully@google.com>
+R:	David Awogbemila <awogbemila@google.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/device_drivers/ethernet/google/gve.rst
@@ -11326,6 +11337,12 @@ W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/radio/radio-maxiradio*
 
+MCBA MICROCHIP CAN BUS ANALYZER TOOL DRIVER
+R:	Yasushi SHOJI <yashi@spacecubics.com>
+L:	linux-can@vger.kernel.org
+S:	Maintained
+F:	drivers/net/can/usb/mcba_usb.c
+
 MCAN MMIO DEVICE DRIVER
 M:	Chandrasekar Ramakrishnan <rcsekar@samsung.com>
 L:	linux-can@vger.kernel.org
@@ -11757,6 +11774,7 @@ F:	drivers/char/hw_random/mtk-rng.c
 MEDIATEK SWITCH DRIVER
 M:	Sean Wang <sean.wang@mediatek.com>
 M:	Landen Chao <Landen.Chao@mediatek.com>
+M:	DENG Qingfang <dqfext@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/dsa/mt7530.*
@@ -14422,6 +14440,13 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/pci/hisilicon-histb-pcie.txt
 F:	drivers/pci/controller/dwc/pcie-histb.c
 
+PCIE DRIVER FOR INTEL LGM GW SOC
+M:	Rahul Tanwar <rtanwar@maxlinear.com>
+L:	linux-pci@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/pci/intel-gw-pcie.yaml
+F:	drivers/pci/controller/dwc/pcie-intel-gw.c
+
 PCIE DRIVER FOR MEDIATEK
 M:	Ryder Lee <ryder.lee@mediatek.com>
 M:	Jianjun Wang <jianjun.wang@mediatek.com>
@@ -15009,6 +15034,13 @@ F:	drivers/net/phy/dp83640*
 F:	drivers/ptp/*
 F:	include/linux/ptp_cl*
 
+PTP VIRTUAL CLOCK SUPPORT
+M:	Yangbo Lu <yangbo.lu@nxp.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/ptp/ptp_vclock.c
+F:	net/ethtool/phc_vclocks.c
+
 PTRACE SUPPORT
 M:	Oleg Nesterov <oleg@redhat.com>
 S:	Maintained
@@ -15459,6 +15491,8 @@ M:	Pan, Xinhui <Xinhui.Pan@amd.com>
 L:	amd-gfx@lists.freedesktop.org
 S:	Supported
 T:	git https://gitlab.freedesktop.org/agd5f/linux.git
+B:	https://gitlab.freedesktop.org/drm/amd/-/issues
+C:	irc://irc.oftc.net/radeon
 F:	drivers/gpu/drm/amd/
 F:	drivers/gpu/drm/radeon/
 F:	include/uapi/drm/amdgpu_drm.h
@@ -15786,7 +15820,7 @@ F:	Documentation/devicetree/bindings/i2c/renesas,iic-emev2.yaml
 F:	drivers/i2c/busses/i2c-emev2.c
 
 RENESAS ETHERNET DRIVERS
-R:	Sergei Shtylyov <sergei.shtylyov@gmail.com>
+R:	Sergey Shtylyov <s.shtylyov@omp.ru>
 L:	netdev@vger.kernel.org
 L:	linux-renesas-soc@vger.kernel.org
 F:	Documentation/devicetree/bindings/net/renesas,*.yaml
@@ -17798,7 +17832,7 @@ F:	include/linux/sync_file.h
 F:	include/uapi/linux/sync_file.h
 
 SYNOPSYS ARC ARCHITECTURE
-M:	Vineet Gupta <vgupta@synopsys.com>
+M:	Vineet Gupta <vgupta@kernel.org>
 L:	linux-snps-arc@lists.infradead.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vgupta/arc.git
@@ -19114,7 +19148,7 @@ M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/phy/hisilicon,hi3670-usb3.yaml
-F:	drivers/phy/hisilicon/phy-kirin970-usb3.c
+F:	drivers/phy/hisilicon/phy-hi3670-usb3.c
 
 USB ISP116X DRIVER
 M:	Olav Kongas <ok@artecdesign.ee>
@@ -19791,6 +19825,14 @@ M:	"VMware, Inc." <pv-drivers@vmware.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/ptp/ptp_vmw.c
+
+VMWARE VMCI DRIVER
+M:	Jorgen Hansen <jhansen@vmware.com>
+M:	Vishnu Dasa <vdasa@vmware.com>
+L:	linux-kernel@vger.kernel.org
+L:	pv-drivers@vmware.com (private)
+S:	Maintained
+F:	drivers/misc/vmw_vmci/
 
 VMWARE VMMOUSE SUBDRIVER
 M:	"VMware Graphics" <linux-graphics-maintainer@vmware.com>
