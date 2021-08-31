@@ -2714,7 +2714,7 @@
 			status = "disabled";
 		 };
 
-		blsp1_dma: dma@7544000 {
+		blsp1_dma: dma-controller@7544000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x07544000 0x2b000>;
 			interrupts = <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
@@ -2774,7 +2774,7 @@
 			status = "disabled";
 		};
 
-		blsp2_dma: dma@7584000 {
+		blsp2_dma: dma-controller@7584000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x07584000 0x2b000>;
 			interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>;

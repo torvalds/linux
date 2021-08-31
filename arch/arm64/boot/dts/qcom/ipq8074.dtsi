@@ -212,7 +212,7 @@
 			status = "disabled";
 		};
 
-		cryptobam: dma@704000 {
+		cryptobam: dma-controller@704000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x00704000 0x20000>;
 			interrupts = <GIC_SPI 207 IRQ_TYPE_LEVEL_HIGH>;

@@ -2307,7 +2307,7 @@
 			};
 		};
 
-		cryptobam: dma@1dc4000 {
+		cryptobam: dma-controller@1dc4000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0 0x01dc4000 0 0x24000>;
 			interrupts = <GIC_SPI 272 IRQ_TYPE_LEVEL_HIGH>;
