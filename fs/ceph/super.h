@@ -581,6 +581,7 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
 #define CEPH_I_ODIRECT		(1 << 11) /* inode in direct I/O mode */
 #define CEPH_ASYNC_CREATE_BIT	(12)	  /* async create in flight for this */
 #define CEPH_I_ASYNC_CREATE	(1 << CEPH_ASYNC_CREATE_BIT)
+#define CEPH_I_SHUTDOWN		(1 << 13) /* inode is no longer usable */
 
 /*
  * Masks of ceph inode work.
@@ -1028,6 +1029,16 @@ extern int ceph_setattr(struct user_namespace *mnt_userns,
 extern int ceph_getattr(struct user_namespace *mnt_userns,
 			const struct path *path, struct kstat *stat,
 			u32 request_mask, unsigned int flags);
+void ceph_inode_shutdown(struct inode *inode);
+
+static inline bool ceph_inode_is_shutdown(struct inode *inode)
+{
+	unsigned long flags = READ_ONCE(ceph_inode(inode)->i_ceph_flags);
+	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	int state = READ_ONCE(fsc->mount_state);
+
+	return (flags & CEPH_I_SHUTDOWN) || state >= CEPH_MOUNT_SHUTDOWN;
+}
 
 /* xattr.c */
 int __ceph_setxattr(struct inode *, const char *, const void *, size_t, int);

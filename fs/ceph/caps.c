@@ -1188,11 +1188,11 @@ void ceph_remove_cap(struct ceph_cap *cap, bool queue_release)
 
 	lockdep_assert_held(&ci->i_ceph_lock);
 
-	fsc = ceph_sb_to_client(ci->vfs_inode.i_sb);
+	fsc = ceph_inode_to_client(&ci->vfs_inode);
 	WARN_ON_ONCE(ci->i_auth_cap == cap &&
 		     !list_empty(&ci->i_dirty_item) &&
 		     !fsc->blocklisted &&
-		     READ_ONCE(fsc->mount_state) != CEPH_MOUNT_SHUTDOWN);
+		     !ceph_inode_is_shutdown(&ci->vfs_inode));
 
 	__ceph_remove_cap(cap, queue_release);
 }
@@ -2750,9 +2750,9 @@ again:
 			goto out_unlock;
 		}
 
-		if (READ_ONCE(mdsc->fsc->mount_state) >= CEPH_MOUNT_SHUTDOWN) {
-			dout("get_cap_refs %p forced umount\n", inode);
-			ret = -EIO;
+		if (ceph_inode_is_shutdown(inode)) {
+			dout("get_cap_refs %p inode is shutdown\n", inode);
+			ret = -ESTALE;
 			goto out_unlock;
 		}
 		mds_wanted = __ceph_caps_mds_wanted(ci, false);
@@ -4604,7 +4604,7 @@ int ceph_purge_inode_cap(struct inode *inode, struct ceph_cap *cap, bool *invali
 	if (is_auth) {
 		struct ceph_cap_flush *cf;
 
-		if (READ_ONCE(fsc->mount_state) >= CEPH_MOUNT_SHUTDOWN) {
+		if (ceph_inode_is_shutdown(inode)) {
 			if (inode->i_data.nrpages > 0)
 				*invalidate = true;
 			if (ci->i_wrbuffer_ref > 0)
