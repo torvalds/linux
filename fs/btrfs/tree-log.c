@@ -207,7 +207,7 @@ again:
 	}
 
 	atomic_inc(&root->log_writers);
-	if (ctx && !ctx->logging_new_name) {
+	if (!ctx->logging_new_name) {
 		int index = root->log_transid % 2;
 		list_add_tail(&ctx->list, &root->log_ctxs[index]);
 		ctx->log_transid = root->log_transid;
@@ -3037,9 +3037,6 @@ static void wait_for_writer(struct btrfs_root *root)
 static inline void btrfs_remove_log_ctx(struct btrfs_root *root,
 					struct btrfs_log_ctx *ctx)
 {
-	if (!ctx)
-		return;
-
 	mutex_lock(&root->log_mutex);
 	list_del_init(&ctx->list);
 	mutex_unlock(&root->log_mutex);
@@ -3782,8 +3779,7 @@ search:
 			 */
 			di = btrfs_item_ptr(src, i, struct btrfs_dir_item);
 			btrfs_dir_item_key_to_cpu(src, di, &tmp);
-			if (ctx &&
-			    (btrfs_dir_transid(src, di) == trans->transid ||
+			if ((btrfs_dir_transid(src, di) == trans->transid ||
 			     btrfs_dir_type(src, di) == BTRFS_FT_DIR) &&
 			    tmp.type != BTRFS_ROOT_ITEM_KEY)
 				ctx->log_new_dentries = true;
@@ -5242,7 +5238,7 @@ again:
 					&other_ino, &other_parent);
 			if (ret < 0) {
 				return ret;
-			} else if (ret > 0 && ctx &&
+			} else if (ret > 0 &&
 				   other_ino != btrfs_ino(BTRFS_I(ctx->inode))) {
 				if (ins_nr > 0) {
 					ins_nr++;
@@ -5583,8 +5579,7 @@ log_extents:
 	 * So keep it simple for this case and just don't flag the ancestors as
 	 * logged.
 	 */
-	if (!ctx ||
-	    !(S_ISDIR(inode->vfs_inode.i_mode) && ctx->logging_new_name &&
+	if (!(S_ISDIR(inode->vfs_inode.i_mode) && ctx->logging_new_name &&
 	      &inode->vfs_inode != ctx->inode)) {
 		spin_lock(&inode->lock);
 		inode->logged_trans = trans->transid;
@@ -5937,11 +5932,10 @@ static int btrfs_log_all_parents(struct btrfs_trans_handle *trans,
 				continue;
 			}
 
-			if (ctx)
-				ctx->log_new_dentries = false;
+			ctx->log_new_dentries = false;
 			ret = btrfs_log_inode(trans, root, BTRFS_I(dir_inode),
 					      LOG_INODE_ALL, ctx);
-			if (!ret && ctx && ctx->log_new_dentries)
+			if (!ret && ctx->log_new_dentries)
 				ret = log_new_dir_dentries(trans, root,
 						   BTRFS_I(dir_inode), ctx);
 			btrfs_add_delayed_iput(dir_inode);
@@ -6202,7 +6196,7 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 		goto end_trans;
 	}
 
-	if (S_ISDIR(inode->vfs_inode.i_mode) && ctx && ctx->log_new_dentries)
+	if (S_ISDIR(inode->vfs_inode.i_mode) && ctx->log_new_dentries)
 		log_dentries = true;
 
 	/*
