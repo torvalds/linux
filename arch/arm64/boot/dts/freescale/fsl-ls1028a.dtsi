@@ -80,13 +80,6 @@
 		clock-output-names = "phy_27m";
 	};
 
-	dpclk: clock-controller@f1f0000 {
-		compatible = "fsl,ls1028a-plldig";
-		reg = <0x0 0xf1f0000 0x0 0xffff>;
-		#clock-cells = <0>;
-		clocks = <&osc_27m>;
-	};
-
 	firmware {
 		optee: optee  {
 			compatible = "linaro,optee-tz";
@@ -924,6 +917,13 @@
 			       <&edma0 1 13>;
 			fsl,sai-asynchronous;
 			status = "disabled";
+		};
+
+		dpclk: clock-controller@f1f0000 {
+			compatible = "fsl,ls1028a-plldig";
+			reg = <0x0 0xf1f0000 0x0 0x10000>;
+			#clock-cells = <0>;
+			clocks = <&osc_27m>;
 		};
 
 		tmu: tmu@1f80000 {
