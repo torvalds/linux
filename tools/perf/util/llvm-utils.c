@@ -38,6 +38,8 @@ struct llvm_param llvm_param = {
 	.user_set_param = false,
 };
 
+static void version_notice(void);
+
 int perf_llvm_config(const char *var, const char *value)
 {
 	if (!strstarts(var, "llvm."))
@@ -105,6 +107,21 @@ search_program(const char *def, const char *name,
 	}
 
 	free(env);
+	return ret;
+}
+
+static int search_program_and_warn(const char *def, const char *name,
+				   char *output)
+{
+	int ret = search_program(def, name, output);
+
+	if (ret) {
+		pr_err("ERROR:\tunable to find %s.\n"
+		       "Hint:\tTry to install latest clang/llvm to support BPF. Check your $PATH\n"
+		       "     \tand '%s-path' option in [llvm] section of ~/.perfconfig.\n",
+		       name, name);
+		version_notice();
+	}
 	return ret;
 }
 
@@ -458,16 +475,10 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	if (!template)
 		template = CLANG_BPF_CMD_DEFAULT_TEMPLATE;
 
-	err = search_program(llvm_param.clang_path,
+	err = search_program_and_warn(llvm_param.clang_path,
 			     "clang", clang_path);
-	if (err) {
-		pr_err(
-"ERROR:\tunable to find clang.\n"
-"Hint:\tTry to install latest clang/llvm to support BPF. Check your $PATH\n"
-"     \tand 'clang-path' option in [llvm] section of ~/.perfconfig.\n");
-		version_notice();
+	if (err)
 		return -ENOENT;
-	}
 
 	/*
 	 * This is an optional work. Even it fail we can continue our
@@ -495,14 +506,9 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	force_set_env("WORKING_DIR", kbuild_dir ? : ".");
 
 	if (opts) {
-		err = search_program(llvm_param.llc_path, "llc", llc_path);
-		if (err) {
-			pr_err("ERROR:\tunable to find llc.\n"
-			       "Hint:\tTry to install latest clang/llvm to support BPF. Check your $PATH\n"
-			       "     \tand 'llc-path' option in [llvm] section of ~/.perfconfig.\n");
-			version_notice();
+		err = search_program_and_warn(llvm_param.llc_path, "llc", llc_path);
+		if (err)
 			goto errout;
-		}
 
 		err = -ENOMEM;
 		if (asprintf(&pipe_template, "%s -emit-llvm | %s -march=bpf %s -filetype=obj -o -",
