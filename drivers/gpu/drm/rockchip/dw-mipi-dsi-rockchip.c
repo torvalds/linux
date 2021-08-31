@@ -665,61 +665,7 @@ struct hstt {
 	struct dw_mipi_dsi_dphy_timing timing;
 };
 
-#define HSTT(_maxfreq, _c_lp2hs, _c_hs2lp, _d_lp2hs, _d_hs2lp)	\
-{					\
-	.maxfreq = _maxfreq,		\
-	.timing = {			\
-		.clk_lp2hs = _c_lp2hs,	\
-		.clk_hs2lp = _c_hs2lp,	\
-		.data_lp2hs = _d_lp2hs,	\
-		.data_hs2lp = _d_hs2lp,	\
-	}				\
-}
-
-/* Table A-3 High-Speed Transition Times */
-struct hstt hstt_table[] = {
-	HSTT(  90,  32, 20,  26, 13),
-	HSTT( 100,  35, 23,  28, 14),
-	HSTT( 110,  32, 22,  26, 13),
-	HSTT( 130,  31, 20,  27, 13),
-	HSTT( 140,  33, 22,  26, 14),
-	HSTT( 150,  33, 21,  26, 14),
-	HSTT( 170,  32, 20,  27, 13),
-	HSTT( 180,  36, 23,  30, 15),
-	HSTT( 200,  40, 22,  33, 15),
-	HSTT( 220,  40, 22,  33, 15),
-	HSTT( 240,  44, 24,  36, 16),
-	HSTT( 250,  48, 24,  38, 17),
-	HSTT( 270,  48, 24,  38, 17),
-	HSTT( 300,  50, 27,  41, 18),
-	HSTT( 330,  56, 28,  45, 18),
-	HSTT( 360,  59, 28,  48, 19),
-	HSTT( 400,  61, 30,  50, 20),
-	HSTT( 450,  67, 31,  55, 21),
-	HSTT( 500,  73, 31,  59, 22),
-	HSTT( 550,  79, 36,  63, 24),
-	HSTT( 600,  83, 37,  68, 25),
-	HSTT( 650,  90, 38,  73, 27),
-	HSTT( 700,  95, 40,  77, 28),
-	HSTT( 750, 102, 40,  84, 28),
-	HSTT( 800, 106, 42,  87, 30),
-	HSTT( 850, 113, 44,  93, 31),
-	HSTT( 900, 118, 47,  98, 32),
-	HSTT( 950, 124, 47, 102, 34),
-	HSTT(1000, 130, 49, 107, 35),
-	HSTT(1050, 135, 51, 111, 37),
-	HSTT(1100, 139, 51, 114, 38),
-	HSTT(1150, 146, 54, 120, 40),
-	HSTT(1200, 153, 57, 125, 41),
-	HSTT(1250, 158, 58, 130, 42),
-	HSTT(1300, 163, 58, 135, 44),
-	HSTT(1350, 168, 60, 140, 45),
-	HSTT(1400, 172, 64, 144, 47),
-	HSTT(1450, 176, 65, 148, 48),
-	HSTT(1500, 181, 66, 153, 50)
-};
-
-struct dw_mipi_dsi_dphy_timing ext_dphy_timing = {
+struct dw_mipi_dsi_dphy_timing dphy_hstt = {
 	.clk_lp2hs = 0x40,
 	.clk_hs2lp = 0x40,
 	.data_lp2hs = 0x10,
@@ -730,22 +676,7 @@ static int
 dw_mipi_dsi_phy_get_timing(void *priv_data, unsigned int lane_mbps,
 			   struct dw_mipi_dsi_dphy_timing *timing)
 {
-	struct dw_mipi_dsi_rockchip *dsi = priv_data;
-	int i;
-
-	if (dsi->phy) {
-		*timing = ext_dphy_timing;
-		return 0;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(hstt_table); i++)
-		if (lane_mbps < hstt_table[i].maxfreq)
-			break;
-
-	if (i == ARRAY_SIZE(hstt_table))
-		i--;
-
-	*timing = hstt_table[i].timing;
+	*timing = dphy_hstt;
 
 	return 0;
 }
