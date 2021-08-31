@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2014, 2019-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014, 2019-2021 The Linux Foundation. All rights reserved.
  */
 
 #include <linux/device.h>
@@ -195,7 +195,7 @@ EXPORT_SYMBOL(clk_post_change_regmap);
 int clk_prepare_regmap(struct clk_hw *hw)
 {
 	struct clk_regmap *rclk = to_clk_regmap(hw);
-	int rate = clk_hw_get_rate(hw);
+	unsigned long rate = clk_hw_get_rate(hw);
 	int vdd_level;
 
 	if (!rclk->vdd_data.rate_max)
