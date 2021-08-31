@@ -1823,6 +1823,17 @@ static void io_req_complete_failed(struct io_kiocb *req, long res)
 	io_req_complete_post(req, res, 0);
 }
 
+static void io_req_complete_fail_submit(struct io_kiocb *req)
+{
+	/*
+	 * We don't submit, fail them all, for that replace hardlinks with
+	 * normal links. Extra REQ_F_LINK is tolerated.
+	 */
+	req->flags &= ~REQ_F_HARDLINK;
+	req->flags |= REQ_F_LINK;
+	io_req_complete_failed(req, req->result);
+}
+
 /*
  * Don't initialise the fields below on every allocation, but do that in
  * advance and keep them valid across allocations.
@@ -6723,7 +6734,7 @@ static inline void io_queue_sqe(struct io_kiocb *req)
 	if (likely(!(req->flags & (REQ_F_FORCE_ASYNC | REQ_F_FAIL)))) {
 		__io_queue_sqe(req);
 	} else if (req->flags & REQ_F_FAIL) {
-		io_req_complete_failed(req, req->result);
+		io_req_complete_fail_submit(req);
 	} else {
 		int ret = io_req_prep_async(req);
 
