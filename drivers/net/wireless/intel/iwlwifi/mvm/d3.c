@@ -160,6 +160,7 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		mvm->ptk_icvlen = key->icv_len;
 		mvm->gtk_ivlen = key->iv_len;
 		mvm->gtk_icvlen = key->icv_len;
+		mutex_unlock(&mvm->mutex);
 
 		/* don't upload key again */
 		return;
