@@ -1267,6 +1267,15 @@
 		clock-names = "pclk", "timer";
 	};
 
+	wdt: watchdog@feaf0000 {
+		compatible = "snps,dw-wdt";
+		reg = <0x0 0xfeaf0000 0x0 0x100>;
+		clocks = <&cru TCLK_WDT0>, <&cru PCLK_WDT0>;
+		clock-names = "tclk", "pclk";
+		interrupts = <GIC_SPI 315 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
 	uart1: serial@feb40000 {
 		compatible = "rockchip,rk3588-uart", "snps,dw-apb-uart";
 		reg = <0x0 0xfeb40000 0x0 0x100>;
