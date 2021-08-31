@@ -33,6 +33,16 @@ config VDPA_SIM_BLOCK
 	  vDPA block device simulator which terminates IO request in a
 	  memory buffer.
 
+config VDPA_USER
+	tristate "VDUSE (vDPA Device in Userspace) support"
+	depends on EVENTFD && MMU && HAS_DMA
+	select DMA_OPS
+	select VHOST_IOTLB
+	select IOMMU_IOVA
+	help
+	  With VDUSE it is possible to emulate a vDPA Device
+	  in a userspace program.
+
 config IFCVF
 	tristate "Intel IFC VF vDPA driver"
 	depends on PCI_MSI
