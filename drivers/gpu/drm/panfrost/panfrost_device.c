@@ -198,7 +198,6 @@ err:
 int panfrost_device_init(struct panfrost_device *pfdev)
 {
 	int err;
-	struct resource *res;
 
 	mutex_init(&pfdev->sched_lock);
 	INIT_LIST_HEAD(&pfdev->scheduled_jobs);
@@ -236,8 +235,7 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 	if (err)
 		goto out_reset;
 
-	res = platform_get_resource(pfdev->pdev, IORESOURCE_MEM, 0);
-	pfdev->iomem = devm_ioremap_resource(pfdev->dev, res);
+	pfdev->iomem = devm_platform_ioremap_resource(pfdev->pdev, 0);
 	if (IS_ERR(pfdev->iomem)) {
 		err = PTR_ERR(pfdev->iomem);
 		goto out_pm_domain;
