@@ -267,6 +267,10 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 
 	pwrkey->dev = &pdev->dev;
 	pwrkey->data = of_device_get_match_data(&pdev->dev);
+	if (!pwrkey->data) {
+		dev_err(&pdev->dev, "match data not found\n");
+		return -ENODEV;
+	}
 
 	parent = pdev->dev.parent;
 	regmap_node = pdev->dev.of_node;
