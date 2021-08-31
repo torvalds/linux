@@ -33,6 +33,7 @@
 #define CMD_WRITE_EN            (0x06)
 #define CMD_WRITE_DIS           (0x04)
 #define CMD_PAGE_READ           (0x13)
+#define CMD_PAGE_FASTREAD4B     (0x0C)
 #define CMD_GET_FEATURE         (0x0F)
 #define CMD_SET_FEATURE         (0x1F)
 #define CMD_PROG_LOAD           (0x02)
