@@ -452,6 +452,7 @@
   devres_alloc_node
   devres_free
   devres_release
+  dev_set_mac_address
   dev_set_name
   _dev_warn
   disable_irq
@@ -2195,6 +2196,7 @@
   usbnet_write_cmd
   usbnet_write_cmd_async
   usbnet_write_cmd_nopm
+  usb_os_desc_prepare_interf_dir
   usb_put_function
   usb_put_function_instance
   usb_put_hcd
