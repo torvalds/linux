@@ -445,6 +445,7 @@ static int amd_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct amd_gpio *gpio_dev = gpiochip_get_data(gc);
 	u32 wake_mask = BIT(WAKE_CNTRL_OFF_S0I3) | BIT(WAKE_CNTRL_OFF_S3);
+	int err;
 
 	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
 	pin_reg = readl(gpio_dev->base + (d->hwirq)*4);
@@ -456,6 +457,15 @@ static int amd_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 
 	writel(pin_reg, gpio_dev->base + (d->hwirq)*4);
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
+
+	if (on)
+		err = enable_irq_wake(gpio_dev->irq);
+	else
+		err = disable_irq_wake(gpio_dev->irq);
+
+	if (err)
+		dev_err(&gpio_dev->pdev->dev, "failed to %s wake-up interrupt\n",
+			on ? "enable" : "disable");
 
 	return 0;
 }
