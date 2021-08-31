@@ -1822,30 +1822,40 @@ static const struct of_device_id mpp_rkvdec_dt_match[] = {
 		.compatible = "rockchip,hevc-decoder",
 		.data = &rk_hevcdec_data,
 	},
+#ifdef CONFIG_CPU_PX30
 	{
 		.compatible = "rockchip,hevc-decoder-px30",
 		.data = &rk_hevcdec_px30_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3368
 	{
 		.compatible = "rockchip,hevc-decoder-rk3368",
 		.data = &rk_hevcdec_3368_data,
 	},
+#endif
 	{
 		.compatible = "rockchip,rkv-decoder-v1",
 		.data = &rkvdec_v1_data,
 	},
+#ifdef CONFIG_CPU_RK3399
 	{
 		.compatible = "rockchip,rkv-decoder-rk3399",
 		.data = &rkvdec_3399_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3328
 	{
 		.compatible = "rockchip,rkv-decoder-rk3328",
 		.data = &rkvdec_3328_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RV1126
 	{
 		.compatible = "rockchip,rkv-decoder-rv1126",
 		.data = &rkvdec_1126_data,
 	},
+#endif
 	{},
 };
 

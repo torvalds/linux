@@ -792,10 +792,12 @@ static const struct of_device_id mpp_vepu2_dt_match[] = {
 		.compatible = "rockchip,vpu-encoder-v2",
 		.data = &vepu_v2_data,
 	},
+#ifdef CONFIG_CPU_PX30
 	{
 		.compatible = "rockchip,vpu-encoder-px30",
 		.data = &vepu_px30_data,
 	},
+#endif
 	{},
 };
 

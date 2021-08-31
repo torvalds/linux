@@ -666,10 +666,12 @@ static const struct of_device_id mpp_vdpu2_dt_match[] = {
 		.compatible = "rockchip,vpu-decoder-v2",
 		.data = &vdpu_v2_data,
 	},
+#ifdef CONFIG_CPU_PX30
 	{
 		.compatible = "rockchip,vpu-decoder-px30",
 		.data = &vdpu_px30_data,
 	},
+#endif
 	{},
 };
 

@@ -873,10 +873,12 @@ static const struct of_device_id mpp_rkvdec2_dt_match[] = {
 		.compatible = "rockchip,rkv-decoder-v2",
 		.data = &rkvdec_v2_data,
 	},
+#ifdef CONFIG_CPU_RK3568
 	{
 		.compatible = "rockchip,rkv-decoder-rk3568",
 		.data = &rkvdec_rk3568_data,
 	},
+#endif
 	{},
 };
 

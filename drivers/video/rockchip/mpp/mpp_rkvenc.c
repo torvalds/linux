@@ -961,8 +961,9 @@ static struct monitor_dev_profile enc_mdevp = {
 	.high_temp_adjust = rockchip_monitor_dev_high_temp_adjust,
 };
 
-static int rv1126_get_soc_info(struct device *dev, struct device_node *np,
-			       int *bin, int *process)
+static int __maybe_unused rv1126_get_soc_info(struct device *dev,
+					      struct device_node *np,
+					      int *bin, int *process)
 {
 	int ret = 0;
 	u8 value = 0;
@@ -985,6 +986,7 @@ static int rv1126_get_soc_info(struct device *dev, struct device_node *np,
 }
 
 static const struct of_device_id rockchip_rkvenc_of_match[] = {
+#ifdef CONFIG_CPU_RV1126
 	{
 		.compatible = "rockchip,rv1109",
 		.data = (void *)&rv1126_get_soc_info,
@@ -993,6 +995,7 @@ static const struct of_device_id rockchip_rkvenc_of_match[] = {
 		.compatible = "rockchip,rv1126",
 		.data = (void *)&rv1126_get_soc_info,
 	},
+#endif
 	{},
 };
 

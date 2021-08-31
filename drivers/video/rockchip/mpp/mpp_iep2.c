@@ -918,10 +918,12 @@ static const struct of_device_id mpp_iep2_match[] = {
 		.compatible = "rockchip,iep-v2",
 		.data = &iep2_v2_data,
 	},
+#ifdef CONFIG_CPU_RV1126
 	{
 		.compatible = "rockchip,rv1126-iep",
 		.data = &iep2_v2_data,
 	},
+#endif
 	{},
 };
 
