@@ -29,7 +29,6 @@ struct machdep_calls {
 	char		*name;
 #ifdef CONFIG_PPC64
 #ifdef CONFIG_PM
-	void		(*iommu_save)(void);
 	void		(*iommu_restore)(void);
 #endif
 #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
@@ -43,7 +42,6 @@ struct machdep_calls {
 	void		(*setup_arch)(void); /* Optional, may be NULL */
 	/* Optional, may be NULL. */
 	void		(*show_cpuinfo)(struct seq_file *m);
-	void		(*show_percpuinfo)(struct seq_file *m, int i);
 	/* Returns the current operating frequency of "cpu" in Hz */
 	unsigned long  	(*get_proc_freq)(unsigned int cpu);
 
@@ -74,8 +72,6 @@ struct machdep_calls {
 	int		(*set_rtc_time)(struct rtc_time *);
 	void		(*get_rtc_time)(struct rtc_time *);
 	time64_t	(*get_boot_time)(void);
-	unsigned char 	(*rtc_read_val)(int addr);
-	void		(*rtc_write_val)(int addr, unsigned char val);
 
 	void		(*calibrate_decr)(void);
 
@@ -141,8 +137,6 @@ struct machdep_calls {
 	   May be NULL. */
 	void		(*init)(void);
 
-	void		(*kgdb_map_scc)(void);
-
 	/*
 	 * optional PCI "hooks"
 	 */
@@ -186,13 +180,6 @@ struct machdep_calls {
 
 #ifdef CONFIG_KEXEC_CORE
 	void (*kexec_cpu_down)(int crash_shutdown, int secondary);
-
-	/* Called to do what every setup is needed on image and the
-	 * reboot code buffer. Returns 0 on success.
-	 * Provide your own (maybe dummy) implementation if your platform
-	 * claims to support kexec.
-	 */
-	int (*machine_kexec_prepare)(struct kimage *image);
 
 	/* Called to perform the _real_ kexec.
 	 * Do NOT allocate memory or fail here. We are past the point of
