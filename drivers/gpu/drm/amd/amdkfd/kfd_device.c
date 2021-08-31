@@ -468,6 +468,7 @@ static const struct kfd_device_info navi10_device_info = {
 	.needs_iommu_device = false,
 	.supports_cwsr = true,
 	.needs_pci_atomics = true,
+	.no_atomic_fw_version = 145,
 	.num_sdma_engines = 2,
 	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
@@ -487,6 +488,7 @@ static const struct kfd_device_info navi12_device_info = {
 	.needs_iommu_device = false,
 	.supports_cwsr = true,
 	.needs_pci_atomics = true,
+	.no_atomic_fw_version = 145,
 	.num_sdma_engines = 2,
 	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
@@ -506,6 +508,7 @@ static const struct kfd_device_info navi14_device_info = {
 	.needs_iommu_device = false,
 	.supports_cwsr = true,
 	.needs_pci_atomics = true,
+	.no_atomic_fw_version = 145,
 	.num_sdma_engines = 2,
 	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
@@ -525,6 +528,7 @@ static const struct kfd_device_info sienna_cichlid_device_info = {
 	.needs_iommu_device = false,
 	.supports_cwsr = true,
 	.needs_pci_atomics = true,
+	.no_atomic_fw_version = 92,
 	.num_sdma_engines = 4,
 	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
@@ -544,6 +548,7 @@ static const struct kfd_device_info navy_flounder_device_info = {
 	.needs_iommu_device = false,
 	.supports_cwsr = true,
 	.needs_pci_atomics = true,
+	.no_atomic_fw_version = 92,
 	.num_sdma_engines = 2,
 	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
@@ -562,7 +567,8 @@ static const struct kfd_device_info vangogh_device_info = {
 	.mqd_size_aligned = MQD_SIZE_ALIGNED,
 	.needs_iommu_device = false,
 	.supports_cwsr = true,
-	.needs_pci_atomics = false,
+	.needs_pci_atomics = true,
+	.no_atomic_fw_version = 92,
 	.num_sdma_engines = 1,
 	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
@@ -582,6 +588,7 @@ static const struct kfd_device_info dimgrey_cavefish_device_info = {
 	.needs_iommu_device = false,
 	.supports_cwsr = true,
 	.needs_pci_atomics = true,
+	.no_atomic_fw_version = 92,
 	.num_sdma_engines = 2,
 	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
@@ -601,6 +608,7 @@ static const struct kfd_device_info beige_goby_device_info = {
 	.needs_iommu_device = false,
 	.supports_cwsr = true,
 	.needs_pci_atomics = true,
+	.no_atomic_fw_version = 92,
 	.num_sdma_engines = 1,
 	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
@@ -619,7 +627,8 @@ static const struct kfd_device_info yellow_carp_device_info = {
 	.mqd_size_aligned = MQD_SIZE_ALIGNED,
 	.needs_iommu_device = false,
 	.supports_cwsr = true,
-	.needs_pci_atomics = false,
+	.needs_pci_atomics = true,
+	.no_atomic_fw_version = 92,
 	.num_sdma_engines = 1,
 	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
@@ -707,20 +716,6 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	kfd = kzalloc(sizeof(*kfd), GFP_KERNEL);
 	if (!kfd)
 		return NULL;
-
-	/* Allow BIF to recode atomics to PCIe 3.0 AtomicOps.
-	 * 32 and 64-bit requests are possible and must be
-	 * supported.
-	 */
-	kfd->pci_atomic_requested = amdgpu_amdkfd_have_atomics_support(kgd);
-	if (device_info->needs_pci_atomics &&
-	    !kfd->pci_atomic_requested) {
-		dev_info(kfd_device,
-			 "skipped device %x:%x, PCI rejects atomics\n",
-			 pdev->vendor, pdev->device);
-		kfree(kfd);
-		return NULL;
-	}
 
 	kfd->kgd = kgd;
 	kfd->device_info = device_info;
@@ -820,6 +815,23 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	kfd->vm_info.last_vmid_kfd = fls(gpu_resources->compute_vmid_bitmap)-1;
 	kfd->vm_info.vmid_num_kfd = kfd->vm_info.last_vmid_kfd
 			- kfd->vm_info.first_vmid_kfd + 1;
+
+	/* Allow BIF to recode atomics to PCIe 3.0 AtomicOps.
+	 * 32 and 64-bit requests are possible and must be
+	 * supported.
+	 */
+	kfd->pci_atomic_requested = amdgpu_amdkfd_have_atomics_support(kfd->kgd);
+	if (!kfd->pci_atomic_requested &&
+	    kfd->device_info->needs_pci_atomics &&
+	    (!kfd->device_info->no_atomic_fw_version ||
+	     kfd->mec_fw_version < kfd->device_info->no_atomic_fw_version)) {
+		dev_info(kfd_device,
+			 "skipped device %x:%x, PCI rejects atomics %d<%d\n",
+			 kfd->pdev->vendor, kfd->pdev->device,
+			 kfd->mec_fw_version,
+			 kfd->device_info->no_atomic_fw_version);
+		return false;
+	}
 
 	/* Verify module parameters regarding mapped process number*/
 	if ((hws_max_conc_proc < 0)
