@@ -255,7 +255,8 @@
 };
 
 &pcie0 {
-	pci@1,0 {
+	pci@0,0 {
+		device_type = "pci";
 		#address-cells = <3>;
 		#size-cells = <2>;
 		ranges;
