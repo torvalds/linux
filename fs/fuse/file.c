@@ -2884,7 +2884,7 @@ fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 
 static int fuse_writeback_range(struct inode *inode, loff_t start, loff_t end)
 {
-	int err = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	int err = filemap_write_and_wait_range(inode->i_mapping, start, -1);
 
 	if (!err)
 		fuse_sync_writes(inode);
