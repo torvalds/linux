@@ -8,6 +8,7 @@
 #define _UAPI_RKMODULE_CAMERA_H
 
 #include <linux/types.h>
+#include <linux/rk-video-format.h>
 
 #define RKMODULE_API_VERSION		KERNEL_VERSION(0, 1, 0x2)
 
