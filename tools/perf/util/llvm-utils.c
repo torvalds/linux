@@ -585,5 +585,5 @@ int llvm__search_clang(void)
 {
 	char clang_path[PATH_MAX];
 
-	return search_program(llvm_param.clang_path, "clang", clang_path);
+	return search_program_and_warn(llvm_param.clang_path, "clang", clang_path);
 }
