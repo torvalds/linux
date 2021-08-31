@@ -180,6 +180,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT5677
 	imply SND_SOC_RT5682_I2C
 	imply SND_SOC_RT5682_SDW
+	imply SND_SOC_RT5682S
 	imply SND_SOC_RT700_SDW
 	imply SND_SOC_RT711_SDW
 	imply SND_SOC_RT711_SDCA_SDW
@@ -1248,6 +1249,10 @@ config SND_SOC_RT5682_SDW
 	depends on SOUNDWIRE
 	select SND_SOC_RT5682
 	select REGMAP_SOUNDWIRE
+
+config SND_SOC_RT5682S
+	tristate
+	depends on I2C
 
 config SND_SOC_RT700
 	tristate
