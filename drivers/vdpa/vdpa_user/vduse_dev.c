@@ -486,11 +486,6 @@ static void vduse_vdpa_kick_vq(struct vdpa_device *vdpa, u16 idx)
 	struct vduse_dev *dev = vdpa_to_vduse(vdpa);
 	struct vduse_virtqueue *vq = &dev->vqs[idx];
 
-	/*
-	 * TODO: after applying b542e383d8c0 ("eventfd: Make signal recursion protection a task bit")
-	 * replace eventfd_signal_count with eventfd_signal_allowed, and
-	 * drop the previous ("eventfd: Export eventfd_wake_count to modules") 
-	 * */
 	if (eventfd_signal_count()) {
 		schedule_work(&vq->kick);
 		return;
