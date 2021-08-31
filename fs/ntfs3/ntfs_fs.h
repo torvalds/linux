@@ -478,7 +478,7 @@ struct ATTR_STD_INFO *ni_std(struct ntfs_inode *ni);
 struct ATTR_STD_INFO5 *ni_std5(struct ntfs_inode *ni);
 void ni_clear(struct ntfs_inode *ni);
 int ni_load_mi_ex(struct ntfs_inode *ni, CLST rno, struct mft_inode **mi);
-int ni_load_mi(struct ntfs_inode *ni, struct ATTR_LIST_ENTRY *le,
+int ni_load_mi(struct ntfs_inode *ni, const struct ATTR_LIST_ENTRY *le,
 	       struct mft_inode **mi);
 struct ATTRIB *ni_find_attr(struct ntfs_inode *ni, struct ATTRIB *attr,
 			    struct ATTR_LIST_ENTRY **entry_o,
@@ -505,15 +505,18 @@ int ni_insert_nonresident(struct ntfs_inode *ni, enum ATTR_TYPE type,
 			  struct mft_inode **mi);
 int ni_insert_resident(struct ntfs_inode *ni, u32 data_size,
 		       enum ATTR_TYPE type, const __le16 *name, u8 name_len,
-		       struct ATTRIB **new_attr, struct mft_inode **mi);
-int ni_remove_attr_le(struct ntfs_inode *ni, struct ATTRIB *attr,
-		      struct ATTR_LIST_ENTRY *le);
+		       struct ATTRIB **new_attr, struct mft_inode **mi,
+		       struct ATTR_LIST_ENTRY **le);
+void ni_remove_attr_le(struct ntfs_inode *ni, struct ATTRIB *attr,
+		       struct mft_inode *mi, struct ATTR_LIST_ENTRY *le);
 int ni_delete_all(struct ntfs_inode *ni);
 struct ATTR_FILE_NAME *ni_fname_name(struct ntfs_inode *ni,
 				     const struct cpu_str *uni,
 				     const struct MFT_REF *home,
+				     struct mft_inode **mi,
 				     struct ATTR_LIST_ENTRY **entry);
 struct ATTR_FILE_NAME *ni_fname_type(struct ntfs_inode *ni, u8 name_type,
+				     struct mft_inode **mi,
 				     struct ATTR_LIST_ENTRY **entry);
 int ni_new_attr_flags(struct ntfs_inode *ni, enum FILE_ATTRIBUTE new_fa);
 enum REPARSE_SIGN ni_parse_reparse(struct ntfs_inode *ni, struct ATTRIB *attr,
@@ -528,6 +531,21 @@ int ni_read_frame(struct ntfs_inode *ni, u64 frame_vbo, struct page **pages,
 		  u32 pages_per_frame);
 int ni_write_frame(struct ntfs_inode *ni, struct page **pages,
 		   u32 pages_per_frame);
+int ni_remove_name(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
+		   struct NTFS_DE *de, struct NTFS_DE **de2, int *undo_step);
+
+bool ni_remove_name_undo(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
+			 struct NTFS_DE *de, struct NTFS_DE *de2,
+			 int undo_step);
+
+int ni_add_name(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
+		struct NTFS_DE *de);
+
+int ni_rename(struct ntfs_inode *dir_ni, struct ntfs_inode *new_dir_ni,
+	      struct ntfs_inode *ni, struct NTFS_DE *de, struct NTFS_DE *new_de,
+	      bool *is_bad);
+
+bool ni_is_dirty(struct inode *inode);
 
 /* Globals from fslog.c */
 int log_replay(struct ntfs_inode *ni, bool *initialized);
@@ -631,7 +649,7 @@ int indx_find_raw(struct ntfs_index *indx, struct ntfs_inode *ni,
 		  size_t *off, struct ntfs_fnd *fnd);
 int indx_insert_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		      const struct NTFS_DE *new_de, const void *param,
-		      struct ntfs_fnd *fnd);
+		      struct ntfs_fnd *fnd, bool undo);
 int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		      const void *key, u32 key_len, const void *param);
 int indx_update_dup(struct ntfs_inode *ni, struct ntfs_sb_info *sbi,
@@ -694,7 +712,8 @@ struct ATTRIB *mi_insert_attr(struct mft_inode *mi, enum ATTR_TYPE type,
 			      const __le16 *name, u8 name_len, u32 asize,
 			      u16 name_off);
 
-bool mi_remove_attr(struct mft_inode *mi, struct ATTRIB *attr);
+bool mi_remove_attr(struct ntfs_inode *ni, struct mft_inode *mi,
+		    struct ATTRIB *attr);
 bool mi_resize_attr(struct mft_inode *mi, struct ATTRIB *attr, int bytes);
 int mi_pack_runs(struct mft_inode *mi, struct ATTRIB *attr,
 		 struct runs_tree *run, CLST len);

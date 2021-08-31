@@ -395,11 +395,13 @@ update_ea:
 		}
 
 		err = ni_insert_resident(ni, sizeof(struct EA_INFO),
-					 ATTR_EA_INFO, NULL, 0, NULL, NULL);
+					 ATTR_EA_INFO, NULL, 0, NULL, NULL,
+					 NULL);
 		if (err)
 			goto out;
 
-		err = ni_insert_resident(ni, 0, ATTR_EA, NULL, 0, NULL, NULL);
+		err = ni_insert_resident(ni, 0, ATTR_EA, NULL, 0, NULL, NULL,
+					 NULL);
 		if (err)
 			goto out;
 	}
@@ -419,9 +421,7 @@ update_ea:
 
 	if (!size) {
 		/* Delete xattr, ATTR_EA_INFO */
-		err = ni_remove_attr_le(ni, attr, le);
-		if (err)
-			goto out;
+		ni_remove_attr_le(ni, attr, mi, le);
 	} else {
 		p = resident_data_ex(attr, sizeof(struct EA_INFO));
 		if (!p) {
@@ -441,9 +441,7 @@ update_ea:
 
 	if (!size) {
 		/* Delete xattr, ATTR_EA */
-		err = ni_remove_attr_le(ni, attr, le);
-		if (err)
-			goto out;
+		ni_remove_attr_le(ni, attr, mi, le);
 	} else if (attr->non_res) {
 		err = ntfs_sb_write_run(sbi, &ea_run, 0, ea_all, size);
 		if (err)
@@ -605,8 +603,7 @@ static noinline int ntfs_set_acl_ex(struct user_namespace *mnt_userns,
 			goto out;
 	}
 
-	err = ntfs_set_ea(inode, name, name_len, value, size,
-			  acl ? 0 : XATTR_REPLACE, locked);
+	err = ntfs_set_ea(inode, name, name_len, value, size, 0, locked);
 	if (!err)
 		set_cached_acl(inode, type, acl);
 
@@ -632,8 +629,10 @@ static int ntfs_xattr_get_acl(struct user_namespace *mnt_userns,
 	struct posix_acl *acl;
 	int err;
 
-	if (!(inode->i_sb->s_flags & SB_POSIXACL))
+	if (!(inode->i_sb->s_flags & SB_POSIXACL)) {
+		ntfs_inode_warn(inode, "add mount option \"acl\" to use acl");
 		return -EOPNOTSUPP;
+	}
 
 	acl = ntfs_get_acl(inode, type);
 	if (IS_ERR(acl))
@@ -655,8 +654,10 @@ static int ntfs_xattr_set_acl(struct user_namespace *mnt_userns,
 	struct posix_acl *acl;
 	int err;
 
-	if (!(inode->i_sb->s_flags & SB_POSIXACL))
+	if (!(inode->i_sb->s_flags & SB_POSIXACL)) {
+		ntfs_inode_warn(inode, "add mount option \"acl\" to use acl");
 		return -EOPNOTSUPP;
+	}
 
 	if (!inode_owner_or_capable(mnt_userns, inode))
 		return -EPERM;

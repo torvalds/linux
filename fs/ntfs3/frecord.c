@@ -163,7 +163,7 @@ out:
 /*
  * ni_load_mi - Load mft_inode corresponded list_entry.
  */
-int ni_load_mi(struct ntfs_inode *ni, struct ATTR_LIST_ENTRY *le,
+int ni_load_mi(struct ntfs_inode *ni, const struct ATTR_LIST_ENTRY *le,
 	       struct mft_inode **mi)
 {
 	CLST rno;
@@ -402,7 +402,7 @@ int ni_remove_attr(struct ntfs_inode *ni, enum ATTR_TYPE type,
 		if (!attr)
 			return -ENOENT;
 
-		mi_remove_attr(&ni->mi, attr);
+		mi_remove_attr(ni, &ni->mi, attr);
 		return 0;
 	}
 
@@ -441,7 +441,7 @@ next_le2:
 		if (!attr)
 			return -ENOENT;
 
-		mi_remove_attr(mi, attr);
+		mi_remove_attr(ni, mi, attr);
 
 		if (PtrOffset(ni->attr_list.le, le) >= ni->attr_list.size)
 			return 0;
@@ -454,12 +454,11 @@ next_le2:
  *
  * Return: Not full constructed attribute or NULL if not possible to create.
  */
-static struct ATTRIB *ni_ins_new_attr(struct ntfs_inode *ni,
-				      struct mft_inode *mi,
-				      struct ATTR_LIST_ENTRY *le,
-				      enum ATTR_TYPE type, const __le16 *name,
-				      u8 name_len, u32 asize, u16 name_off,
-				      CLST svcn)
+static struct ATTRIB *
+ni_ins_new_attr(struct ntfs_inode *ni, struct mft_inode *mi,
+		struct ATTR_LIST_ENTRY *le, enum ATTR_TYPE type,
+		const __le16 *name, u8 name_len, u32 asize, u16 name_off,
+		CLST svcn, struct ATTR_LIST_ENTRY **ins_le)
 {
 	int err;
 	struct ATTRIB *attr;
@@ -507,6 +506,8 @@ static struct ATTRIB *ni_ins_new_attr(struct ntfs_inode *ni,
 	le->ref = ref;
 
 out:
+	if (ins_le)
+		*ins_le = le;
 	return attr;
 }
 
@@ -599,7 +600,7 @@ static int ni_repack(struct ntfs_inode *ni)
 		if (next_svcn >= evcn + 1) {
 			/* We can remove this attribute segment. */
 			al_remove_le(ni, le);
-			mi_remove_attr(mi, attr);
+			mi_remove_attr(NULL, mi, attr);
 			le = le_p;
 			continue;
 		}
@@ -695,8 +696,8 @@ static int ni_try_remove_attr_list(struct ntfs_inode *ni)
 		free -= asize;
 	}
 
-	/* Is seems that attribute list can be removed from primary record. */
-	mi_remove_attr(&ni->mi, attr_list);
+	/* It seems that attribute list can be removed from primary record. */
+	mi_remove_attr(NULL, &ni->mi, attr_list);
 
 	/*
 	 * Repeat the cycle above and move all attributes to primary record.
@@ -724,7 +725,7 @@ static int ni_try_remove_attr_list(struct ntfs_inode *ni)
 		attr_ins->id = id;
 
 		/* Remove from original record. */
-		mi_remove_attr(mi, attr);
+		mi_remove_attr(NULL, mi, attr);
 	}
 
 	run_deallocate(sbi, &ni->attr_list.run, true);
@@ -842,7 +843,8 @@ int ni_create_attr_list(struct ntfs_inode *ni)
 		memcpy(attr, b, asize);
 		attr->id = le_b[nb]->id;
 
-		WARN_ON(!mi_remove_attr(&ni->mi, b));
+		/* Remove from primary record. */
+		WARN_ON(!mi_remove_attr(NULL, &ni->mi, b));
 
 		if (to_free <= asize)
 			break;
@@ -883,7 +885,8 @@ out:
 static int ni_ins_attr_ext(struct ntfs_inode *ni, struct ATTR_LIST_ENTRY *le,
 			   enum ATTR_TYPE type, const __le16 *name, u8 name_len,
 			   u32 asize, CLST svcn, u16 name_off, bool force_ext,
-			   struct ATTRIB **ins_attr, struct mft_inode **ins_mi)
+			   struct ATTRIB **ins_attr, struct mft_inode **ins_mi,
+			   struct ATTR_LIST_ENTRY **ins_le)
 {
 	struct ATTRIB *attr;
 	struct mft_inode *mi;
@@ -956,12 +959,14 @@ static int ni_ins_attr_ext(struct ntfs_inode *ni, struct ATTR_LIST_ENTRY *le,
 
 		/* Try to insert attribute into this subrecord. */
 		attr = ni_ins_new_attr(ni, mi, le, type, name, name_len, asize,
-				       name_off, svcn);
+				       name_off, svcn, ins_le);
 		if (!attr)
 			continue;
 
 		if (ins_attr)
 			*ins_attr = attr;
+		if (ins_mi)
+			*ins_mi = mi;
 		return 0;
 	}
 
@@ -977,7 +982,7 @@ insert_ext:
 	}
 
 	attr = ni_ins_new_attr(ni, mi, le, type, name, name_len, asize,
-			       name_off, svcn);
+			       name_off, svcn, ins_le);
 	if (!attr)
 		goto out2;
 
@@ -1016,7 +1021,8 @@ out:
 static int ni_insert_attr(struct ntfs_inode *ni, enum ATTR_TYPE type,
 			  const __le16 *name, u8 name_len, u32 asize,
 			  u16 name_off, CLST svcn, struct ATTRIB **ins_attr,
-			  struct mft_inode **ins_mi)
+			  struct mft_inode **ins_mi,
+			  struct ATTR_LIST_ENTRY **ins_le)
 {
 	struct ntfs_sb_info *sbi = ni->mi.sbi;
 	int err;
@@ -1045,7 +1051,7 @@ static int ni_insert_attr(struct ntfs_inode *ni, enum ATTR_TYPE type,
 
 	if (asize <= free) {
 		attr = ni_ins_new_attr(ni, &ni->mi, NULL, type, name, name_len,
-				       asize, name_off, svcn);
+				       asize, name_off, svcn, ins_le);
 		if (attr) {
 			if (ins_attr)
 				*ins_attr = attr;
@@ -1059,7 +1065,8 @@ static int ni_insert_attr(struct ntfs_inode *ni, enum ATTR_TYPE type,
 	if (!is_mft || type != ATTR_DATA || svcn) {
 		/* This ATTRIB will be external. */
 		err = ni_ins_attr_ext(ni, NULL, type, name, name_len, asize,
-				      svcn, name_off, false, ins_attr, ins_mi);
+				      svcn, name_off, false, ins_attr, ins_mi,
+				      ins_le);
 		goto out;
 	}
 
@@ -1117,7 +1124,7 @@ static int ni_insert_attr(struct ntfs_inode *ni, enum ATTR_TYPE type,
 		t16 = le16_to_cpu(attr->name_off);
 		err = ni_ins_attr_ext(ni, le, attr->type, Add2Ptr(attr, t16),
 				      attr->name_len, t32, attr_svcn(attr), t16,
-				      false, &eattr, NULL);
+				      false, &eattr, NULL, NULL);
 		if (err)
 			return err;
 
@@ -1125,8 +1132,8 @@ static int ni_insert_attr(struct ntfs_inode *ni, enum ATTR_TYPE type,
 		memcpy(eattr, attr, t32);
 		eattr->id = id;
 
-		/* Remove attrib from primary record. */
-		mi_remove_attr(&ni->mi, attr);
+		/* Remove from primary record. */
+		mi_remove_attr(NULL, &ni->mi, attr);
 
 		/* attr now points to next attribute. */
 		if (attr->type == ATTR_END)
@@ -1136,7 +1143,7 @@ static int ni_insert_attr(struct ntfs_inode *ni, enum ATTR_TYPE type,
 		;
 
 	attr = ni_ins_new_attr(ni, &ni->mi, NULL, type, name, name_len, asize,
-			       name_off, svcn);
+			       name_off, svcn, ins_le);
 	if (!attr) {
 		err = -EINVAL;
 		goto out;
@@ -1251,7 +1258,7 @@ static int ni_expand_mft_list(struct ntfs_inode *ni)
 	 */
 	attr = ni_ins_new_attr(ni, mi_min, NULL, ATTR_DATA, NULL, 0,
 			       SIZEOF_NONRESIDENT + run_size,
-			       SIZEOF_NONRESIDENT, svcn);
+			       SIZEOF_NONRESIDENT, svcn, NULL);
 	if (!attr) {
 		err = -EINVAL;
 		goto out;
@@ -1315,14 +1322,15 @@ int ni_expand_list(struct ntfs_inode *ni)
 		err = ni_ins_attr_ext(ni, le, attr->type, attr_name(attr),
 				      attr->name_len, asize, attr_svcn(attr),
 				      le16_to_cpu(attr->name_off), true,
-				      &ins_attr, NULL);
+				      &ins_attr, NULL, NULL);
 
 		if (err)
 			goto out;
 
 		memcpy(ins_attr, attr, asize);
 		ins_attr->id = le->id;
-		mi_remove_attr(&ni->mi, attr);
+		/* Remove from primary record. */
+		mi_remove_attr(NULL, &ni->mi, attr);
 
 		done += asize;
 		goto out;
@@ -1382,7 +1390,7 @@ int ni_insert_nonresident(struct ntfs_inode *ni, enum ATTR_TYPE type,
 	}
 
 	err = ni_insert_attr(ni, type, name, name_len, asize, name_off, svcn,
-			     &attr, mi);
+			     &attr, mi, NULL);
 
 	if (err)
 		goto out;
@@ -1422,7 +1430,8 @@ out:
  */
 int ni_insert_resident(struct ntfs_inode *ni, u32 data_size,
 		       enum ATTR_TYPE type, const __le16 *name, u8 name_len,
-		       struct ATTRIB **new_attr, struct mft_inode **mi)
+		       struct ATTRIB **new_attr, struct mft_inode **mi,
+		       struct ATTR_LIST_ENTRY **le)
 {
 	int err;
 	u32 name_size = ALIGN(name_len * sizeof(short), 8);
@@ -1430,7 +1439,7 @@ int ni_insert_resident(struct ntfs_inode *ni, u32 data_size,
 	struct ATTRIB *attr;
 
 	err = ni_insert_attr(ni, type, name, name_len, asize, SIZEOF_RESIDENT,
-			     0, &attr, mi);
+			     0, &attr, mi, le);
 	if (err)
 		return err;
 
@@ -1439,8 +1448,13 @@ int ni_insert_resident(struct ntfs_inode *ni, u32 data_size,
 
 	attr->res.data_size = cpu_to_le32(data_size);
 	attr->res.data_off = cpu_to_le16(SIZEOF_RESIDENT + name_size);
-	if (type == ATTR_NAME)
+	if (type == ATTR_NAME) {
 		attr->res.flags = RESIDENT_FLAG_INDEXED;
+
+		/* is_attr_indexed(attr)) == true */
+		le16_add_cpu(&ni->mi.mrec->hard_links, +1);
+		ni->mi.dirty = true;
+	}
 	attr->res.res = 0;
 
 	if (new_attr)
@@ -1452,22 +1466,13 @@ int ni_insert_resident(struct ntfs_inode *ni, u32 data_size,
 /*
  * ni_remove_attr_le - Remove attribute from record.
  */
-int ni_remove_attr_le(struct ntfs_inode *ni, struct ATTRIB *attr,
-		      struct ATTR_LIST_ENTRY *le)
+void ni_remove_attr_le(struct ntfs_inode *ni, struct ATTRIB *attr,
+		       struct mft_inode *mi, struct ATTR_LIST_ENTRY *le)
 {
-	int err;
-	struct mft_inode *mi;
-
-	err = ni_load_mi(ni, le, &mi);
-	if (err)
-		return err;
-
-	mi_remove_attr(mi, attr);
+	mi_remove_attr(ni, mi, attr);
 
 	if (le)
 		al_remove_le(ni, le);
-
-	return 0;
 }
 
 /*
@@ -1549,10 +1554,12 @@ int ni_delete_all(struct ntfs_inode *ni)
 
 /* ni_fname_name
  *
- *Return: File name attribute by its value. */
+ * Return: File name attribute by its value.
+ */
 struct ATTR_FILE_NAME *ni_fname_name(struct ntfs_inode *ni,
 				     const struct cpu_str *uni,
 				     const struct MFT_REF *home_dir,
+				     struct mft_inode **mi,
 				     struct ATTR_LIST_ENTRY **le)
 {
 	struct ATTRIB *attr = NULL;
@@ -1562,7 +1569,7 @@ struct ATTR_FILE_NAME *ni_fname_name(struct ntfs_inode *ni,
 
 	/* Enumerate all names. */
 next:
-	attr = ni_find_attr(ni, attr, le, ATTR_NAME, NULL, 0, NULL, NULL);
+	attr = ni_find_attr(ni, attr, le, ATTR_NAME, NULL, 0, NULL, mi);
 	if (!attr)
 		return NULL;
 
@@ -1592,6 +1599,7 @@ next:
  * Return: File name attribute with given type.
  */
 struct ATTR_FILE_NAME *ni_fname_type(struct ntfs_inode *ni, u8 name_type,
+				     struct mft_inode **mi,
 				     struct ATTR_LIST_ENTRY **le)
 {
 	struct ATTRIB *attr = NULL;
@@ -1599,10 +1607,12 @@ struct ATTR_FILE_NAME *ni_fname_type(struct ntfs_inode *ni, u8 name_type,
 
 	*le = NULL;
 
+	if (FILE_NAME_POSIX == name_type)
+		return NULL;
+
 	/* Enumerate all names. */
 	for (;;) {
-		attr = ni_find_attr(ni, attr, le, ATTR_NAME, NULL, 0, NULL,
-				    NULL);
+		attr = ni_find_attr(ni, attr, le, ATTR_NAME, NULL, 0, NULL, mi);
 		if (!attr)
 			return NULL;
 
@@ -2789,6 +2799,222 @@ out:
 }
 
 /*
+ * ni_remove_name - Removes name 'de' from MFT and from directory.
+ * 'de2' and 'undo_step' are used to restore MFT/dir, if error occurs.
+ */
+int ni_remove_name(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
+		   struct NTFS_DE *de, struct NTFS_DE **de2, int *undo_step)
+{
+	int err;
+	struct ntfs_sb_info *sbi = ni->mi.sbi;
+	struct ATTR_FILE_NAME *de_name = (struct ATTR_FILE_NAME *)(de + 1);
+	struct ATTR_FILE_NAME *fname;
+	struct ATTR_LIST_ENTRY *le;
+	struct mft_inode *mi;
+	u16 de_key_size = le16_to_cpu(de->key_size);
+	u8 name_type;
+
+	*undo_step = 0;
+
+	/* Find name in record. */
+	mi_get_ref(&dir_ni->mi, &de_name->home);
+
+	fname = ni_fname_name(ni, (struct cpu_str *)&de_name->name_len,
+			      &de_name->home, &mi, &le);
+	if (!fname)
+		return -ENOENT;
+
+	memcpy(&de_name->dup, &fname->dup, sizeof(struct NTFS_DUP_INFO));
+	name_type = paired_name(fname->type);
+
+	/* Mark ntfs as dirty. It will be cleared at umount. */
+	ntfs_set_state(sbi, NTFS_DIRTY_DIRTY);
+
+	/* Step 1: Remove name from directory. */
+	err = indx_delete_entry(&dir_ni->dir, dir_ni, fname, de_key_size, sbi);
+	if (err)
+		return err;
+
+	/* Step 2: Remove name from MFT. */
+	ni_remove_attr_le(ni, attr_from_name(fname), mi, le);
+
+	*undo_step = 2;
+
+	/* Get paired name. */
+	fname = ni_fname_type(ni, name_type, &mi, &le);
+	if (fname) {
+		u16 de2_key_size = fname_full_size(fname);
+
+		*de2 = Add2Ptr(de, 1024);
+		(*de2)->key_size = cpu_to_le16(de2_key_size);
+
+		memcpy(*de2 + 1, fname, de2_key_size);
+
+		/* Step 3: Remove paired name from directory. */
+		err = indx_delete_entry(&dir_ni->dir, dir_ni, fname,
+					de2_key_size, sbi);
+		if (err)
+			return err;
+
+		/* Step 4: Remove paired name from MFT. */
+		ni_remove_attr_le(ni, attr_from_name(fname), mi, le);
+
+		*undo_step = 4;
+	}
+	return 0;
+}
+
+/*
+ * ni_remove_name_undo - Paired function for ni_remove_name.
+ *
+ * Return: True if ok
+ */
+bool ni_remove_name_undo(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
+			 struct NTFS_DE *de, struct NTFS_DE *de2, int undo_step)
+{
+	struct ntfs_sb_info *sbi = ni->mi.sbi;
+	struct ATTRIB *attr;
+	u16 de_key_size = de2 ? le16_to_cpu(de2->key_size) : 0;
+
+	switch (undo_step) {
+	case 4:
+		if (ni_insert_resident(ni, de_key_size, ATTR_NAME, NULL, 0,
+				       &attr, NULL, NULL)) {
+			return false;
+		}
+		memcpy(Add2Ptr(attr, SIZEOF_RESIDENT), de2 + 1, de_key_size);
+
+		mi_get_ref(&ni->mi, &de2->ref);
+		de2->size = cpu_to_le16(ALIGN(de_key_size, 8) +
+					sizeof(struct NTFS_DE));
+		de2->flags = 0;
+		de2->res = 0;
+
+		if (indx_insert_entry(&dir_ni->dir, dir_ni, de2, sbi, NULL,
+				      1)) {
+			return false;
+		}
+		fallthrough;
+
+	case 2:
+		de_key_size = le16_to_cpu(de->key_size);
+
+		if (ni_insert_resident(ni, de_key_size, ATTR_NAME, NULL, 0,
+				       &attr, NULL, NULL)) {
+			return false;
+		}
+
+		memcpy(Add2Ptr(attr, SIZEOF_RESIDENT), de + 1, de_key_size);
+		mi_get_ref(&ni->mi, &de->ref);
+
+		if (indx_insert_entry(&dir_ni->dir, dir_ni, de, sbi, NULL, 1)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/*
+ * ni_add_name - Add new name in MFT and in directory.
+ */
+int ni_add_name(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
+		struct NTFS_DE *de)
+{
+	int err;
+	struct ATTRIB *attr;
+	struct ATTR_LIST_ENTRY *le;
+	struct mft_inode *mi;
+	struct ATTR_FILE_NAME *de_name = (struct ATTR_FILE_NAME *)(de + 1);
+	u16 de_key_size = le16_to_cpu(de->key_size);
+
+	mi_get_ref(&ni->mi, &de->ref);
+	mi_get_ref(&dir_ni->mi, &de_name->home);
+
+	/* Insert new name in MFT. */
+	err = ni_insert_resident(ni, de_key_size, ATTR_NAME, NULL, 0, &attr,
+				 &mi, &le);
+	if (err)
+		return err;
+
+	memcpy(Add2Ptr(attr, SIZEOF_RESIDENT), de_name, de_key_size);
+
+	/* Insert new name in directory. */
+	err = indx_insert_entry(&dir_ni->dir, dir_ni, de, ni->mi.sbi, NULL, 0);
+	if (err)
+		ni_remove_attr_le(ni, attr, mi, le);
+
+	return err;
+}
+
+/*
+ * ni_rename - Remove one name and insert new name.
+ */
+int ni_rename(struct ntfs_inode *dir_ni, struct ntfs_inode *new_dir_ni,
+	      struct ntfs_inode *ni, struct NTFS_DE *de, struct NTFS_DE *new_de,
+	      bool *is_bad)
+{
+	int err;
+	struct NTFS_DE *de2 = NULL;
+	int undo = 0;
+
+	/*
+	 * There are two possible ways to rename:
+	 * 1) Add new name and remove old name.
+	 * 2) Remove old name and add new name.
+	 *
+	 * In most cases (not all!) adding new name in MFT and in directory can
+	 * allocate additional cluster(s).
+	 * Second way may result to bad inode if we can't add new name
+	 * and then can't restore (add) old name.
+	 */
+
+	/*
+	 * Way 1 - Add new + remove old.
+	 */
+	err = ni_add_name(new_dir_ni, ni, new_de);
+	if (!err) {
+		err = ni_remove_name(dir_ni, ni, de, &de2, &undo);
+		if (err && ni_remove_name(new_dir_ni, ni, new_de, &de2, &undo))
+			*is_bad = true;
+	}
+
+	/*
+	 * Way 2 - Remove old + add new.
+	 */
+	/*
+	 *	err = ni_remove_name(dir_ni, ni, de, &de2, &undo);
+	 *	if (!err) {
+	 *		err = ni_add_name(new_dir_ni, ni, new_de);
+	 *		if (err && !ni_remove_name_undo(dir_ni, ni, de, de2, undo))
+	 *			*is_bad = true;
+	 *	}
+	 */
+
+	return err;
+}
+
+/*
+ * ni_is_dirty - Return: True if 'ni' requires ni_write_inode.
+ */
+bool ni_is_dirty(struct inode *inode)
+{
+	struct ntfs_inode *ni = ntfs_i(inode);
+	struct rb_node *node;
+
+	if (ni->mi.dirty || ni->attr_list.dirty ||
+	    (ni->ni_flags & NI_FLAG_UPDATE_PARENT))
+		return true;
+
+	for (node = rb_first(&ni->mi_tree); node; node = rb_next(node)) {
+		if (rb_entry(node, struct mft_inode, node)->dirty)
+			return true;
+	}
+
+	return false;
+}
+
+/*
  * ni_update_parent
  *
  * Update duplicate info of ATTR_FILE_NAME in MFT and in parent directories.
@@ -2802,8 +3028,6 @@ static bool ni_update_parent(struct ntfs_inode *ni, struct NTFS_DUP_INFO *dup,
 	struct ntfs_sb_info *sbi = ni->mi.sbi;
 	struct super_block *sb = sbi->sb;
 	bool re_dirty = false;
-	bool active = sb->s_flags & SB_ACTIVE;
-	bool upd_parent = ni->ni_flags & NI_FLAG_UPDATE_PARENT;
 
 	if (ni->mi.mrec->flags & RECORD_FLAG_DIR) {
 		dup->fa |= FILE_ATTRIBUTE_DIRECTORY;
@@ -2867,18 +3091,8 @@ static bool ni_update_parent(struct ntfs_inode *ni, struct NTFS_DUP_INFO *dup,
 		struct ATTR_FILE_NAME *fname;
 
 		fname = resident_data_ex(attr, SIZEOF_ATTRIBUTE_FILENAME);
-		if (!fname)
+		if (!fname || !memcmp(&fname->dup, dup, sizeof(fname->dup)))
 			continue;
-
-		if (memcmp(&fname->dup, dup, sizeof(fname->dup))) {
-			memcpy(&fname->dup, dup, sizeof(fname->dup));
-			mi->dirty = true;
-		} else if (!upd_parent) {
-			continue;
-		}
-
-		if (!active)
-			continue; /* Avoid __wait_on_freeing_inode(inode); */
 
 		/* ntfs_iget5 may sleep. */
 		dir = ntfs_iget5(sb, &fname->home, NULL);
@@ -2898,6 +3112,8 @@ static bool ni_update_parent(struct ntfs_inode *ni, struct NTFS_DUP_INFO *dup,
 			} else {
 				indx_update_dup(dir_ni, sbi, fname, dup, sync);
 				ni_unlock(dir_ni);
+				memcpy(&fname->dup, dup, sizeof(fname->dup));
+				mi->dirty = true;
 			}
 		}
 		iput(dir);
@@ -2969,7 +3185,9 @@ int ni_write_inode(struct inode *inode, int sync, const char *hint)
 			ni->mi.dirty = true;
 
 		if (!ntfs_is_meta_file(sbi, inode->i_ino) &&
-		    (modified || (ni->ni_flags & NI_FLAG_UPDATE_PARENT))) {
+		    (modified || (ni->ni_flags & NI_FLAG_UPDATE_PARENT))
+		    /* Avoid __wait_on_freeing_inode(inode). */
+		    && (sb->s_flags & SB_ACTIVE)) {
 			dup.cr_time = std->cr_time;
 			/* Not critical if this function fail. */
 			re_dirty = ni_update_parent(ni, &dup, sync);
@@ -3033,7 +3251,7 @@ out:
 		return err;
 	}
 
-	if (re_dirty && (sb->s_flags & SB_ACTIVE))
+	if (re_dirty)
 		mark_inode_dirty_sync(inode);
 
 	return 0;

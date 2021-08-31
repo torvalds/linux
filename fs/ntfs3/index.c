@@ -1427,7 +1427,7 @@ static int indx_create_allocate(struct ntfs_index *indx, struct ntfs_inode *ni,
 	alloc->nres.valid_size = alloc->nres.data_size = cpu_to_le64(data_size);
 
 	err = ni_insert_resident(ni, bitmap_size(1), ATTR_BITMAP, in->name,
-				 in->name_len, &bitmap, NULL);
+				 in->name_len, &bitmap, NULL, NULL);
 	if (err)
 		goto out2;
 
@@ -1443,7 +1443,7 @@ static int indx_create_allocate(struct ntfs_index *indx, struct ntfs_inode *ni,
 	return 0;
 
 out2:
-	mi_remove_attr(&ni->mi, alloc);
+	mi_remove_attr(NULL, &ni->mi, alloc);
 
 out1:
 	run_deallocate(sbi, &run, false);
@@ -1529,24 +1529,24 @@ out1:
 /*
  * indx_insert_into_root - Attempt to insert an entry into the index root.
  *
+ * @undo - True if we undoing previous remove.
  * If necessary, it will twiddle the index b-tree.
  */
 static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 				 const struct NTFS_DE *new_de,
 				 struct NTFS_DE *root_de, const void *ctx,
-				 struct ntfs_fnd *fnd)
+				 struct ntfs_fnd *fnd, bool undo)
 {
 	int err = 0;
 	struct NTFS_DE *e, *e0, *re;
 	struct mft_inode *mi;
 	struct ATTRIB *attr;
-	struct MFT_REC *rec;
 	struct INDEX_HDR *hdr;
 	struct indx_node *n;
 	CLST new_vbn;
 	__le64 *sub_vbn, t_vbn;
 	u16 new_de_size;
-	u32 hdr_used, hdr_total, asize, used, to_move;
+	u32 hdr_used, hdr_total, asize, to_move;
 	u32 root_size, new_root_size;
 	struct ntfs_sb_info *sbi;
 	int ds_root;
@@ -1559,12 +1559,11 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	/*
 	 * Try easy case:
-	 * hdr_insert_de will succeed if there's room the root for the new entry.
+	 * hdr_insert_de will succeed if there's
+	 * room the root for the new entry.
 	 */
 	hdr = &root->ihdr;
 	sbi = ni->mi.sbi;
-	rec = mi->mrec;
-	used = le32_to_cpu(rec->used);
 	new_de_size = le16_to_cpu(new_de->size);
 	hdr_used = le32_to_cpu(hdr->used);
 	hdr_total = le32_to_cpu(hdr->total);
@@ -1573,9 +1572,9 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	ds_root = new_de_size + hdr_used - hdr_total;
 
-	if (used + ds_root < sbi->max_bytes_per_attr) {
-		/* Make a room for new elements. */
-		mi_resize_attr(mi, attr, ds_root);
+	/* If 'undo' is set then reduce requirements. */
+	if ((undo || asize + ds_root < sbi->max_bytes_per_attr) &&
+	    mi_resize_attr(mi, attr, ds_root)) {
 		hdr->total = cpu_to_le32(hdr_total + ds_root);
 		e = hdr_insert_de(indx, hdr, new_de, root_de, ctx);
 		WARN_ON(!e);
@@ -1629,7 +1628,7 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 			sizeof(u64);
 	ds_root = new_root_size - root_size;
 
-	if (ds_root > 0 && used + ds_root > sbi->max_bytes_per_attr) {
+	if (ds_root > 0 && asize + ds_root > sbi->max_bytes_per_attr) {
 		/* Make root external. */
 		err = -EOPNOTSUPP;
 		goto out_free_re;
@@ -1710,7 +1709,7 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 		put_indx_node(n);
 		fnd_clear(fnd);
-		err = indx_insert_entry(indx, ni, new_de, ctx, fnd);
+		err = indx_insert_entry(indx, ni, new_de, ctx, fnd, undo);
 		goto out_free_root;
 	}
 
@@ -1854,7 +1853,7 @@ indx_insert_into_buffer(struct ntfs_index *indx, struct ntfs_inode *ni,
 	 */
 	if (!level) {
 		/* Insert in root. */
-		err = indx_insert_into_root(indx, ni, up_e, NULL, ctx, fnd);
+		err = indx_insert_into_root(indx, ni, up_e, NULL, ctx, fnd, 0);
 		if (err)
 			goto out;
 	} else {
@@ -1876,10 +1875,12 @@ out:
 
 /*
  * indx_insert_entry - Insert new entry into index.
+ *
+ * @undo - True if we undoing previous remove.
  */
 int indx_insert_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		      const struct NTFS_DE *new_de, const void *ctx,
-		      struct ntfs_fnd *fnd)
+		      struct ntfs_fnd *fnd, bool undo)
 {
 	int err;
 	int diff;
@@ -1925,7 +1926,7 @@ int indx_insert_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		 * new entry into it.
 		 */
 		err = indx_insert_into_root(indx, ni, new_de, fnd->root_de, ctx,
-					    fnd);
+					    fnd, undo);
 		if (err)
 			goto out;
 	} else {
@@ -2302,7 +2303,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 							      fnd->level - 1,
 							      fnd)
 				    : indx_insert_into_root(indx, ni, re, e,
-							    ctx, fnd);
+							    ctx, fnd, 0);
 			kfree(re);
 
 			if (err)
@@ -2507,7 +2508,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		 * Re-insert the entry into the tree.
 		 * Find the spot the tree where we want to insert the new entry.
 		 */
-		err = indx_insert_entry(indx, ni, me, ctx, fnd);
+		err = indx_insert_entry(indx, ni, me, ctx, fnd, 0);
 		kfree(me);
 		if (err)
 			goto out;
@@ -2595,10 +2596,8 @@ int indx_update_dup(struct ntfs_inode *ni, struct ntfs_sb_info *sbi,
 	struct ntfs_index *indx = &ni->dir;
 
 	fnd = fnd_get();
-	if (!fnd) {
-		err = -ENOMEM;
-		goto out1;
-	}
+	if (!fnd)
+		return -ENOMEM;
 
 	root = indx_get_root(indx, ni, NULL, &mi);
 	if (!root) {
@@ -2645,7 +2644,5 @@ int indx_update_dup(struct ntfs_inode *ni, struct ntfs_sb_info *sbi,
 
 out:
 	fnd_put(fnd);
-
-out1:
 	return err;
 }

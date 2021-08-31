@@ -279,7 +279,7 @@ int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
 	struct ATTR_LIST_ENTRY *le;
 	size_t off;
 	u16 sz;
-	size_t asize, new_asize;
+	size_t asize, new_asize, old_size;
 	u64 new_size;
 	typeof(ni->attr_list) *al = &ni->attr_list;
 
@@ -287,8 +287,9 @@ int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
 	 * Compute the size of the new 'le'
 	 */
 	sz = le_size(name_len);
-	new_size = al->size + sz;
-	asize = al_aligned(al->size);
+	old_size = al->size;
+	new_size = old_size + sz;
+	asize = al_aligned(old_size);
 	new_asize = al_aligned(new_size);
 
 	/* Scan forward to the point at which the new 'le' should be inserted. */
@@ -302,13 +303,14 @@ int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
 			return -ENOMEM;
 
 		memcpy(ptr, al->le, off);
-		memcpy(Add2Ptr(ptr, off + sz), le, al->size - off);
+		memcpy(Add2Ptr(ptr, off + sz), le, old_size - off);
 		le = Add2Ptr(ptr, off);
 		kfree(al->le);
 		al->le = ptr;
 	} else {
-		memmove(Add2Ptr(le, sz), le, al->size - off);
+		memmove(Add2Ptr(le, sz), le, old_size - off);
 	}
+	*new_le = le;
 
 	al->size = new_size;
 
@@ -321,22 +323,24 @@ int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
 	le->id = id;
 	memcpy(le->name, name, sizeof(short) * name_len);
 
-	al->dirty = true;
-
 	err = attr_set_size(ni, ATTR_LIST, NULL, 0, &al->run, new_size,
 			    &new_size, true, &attr);
-	if (err)
+	if (err) {
+		/* Undo memmove above. */
+		memmove(le, Add2Ptr(le, sz), old_size - off);
+		al->size = old_size;
 		return err;
+	}
+
+	al->dirty = true;
 
 	if (attr && attr->non_res) {
 		err = ntfs_sb_write_run(ni->mi.sbi, &al->run, 0, al->le,
 					al->size);
 		if (err)
 			return err;
+		al->dirty = false;
 	}
-
-	al->dirty = false;
-	*new_le = le;
 
 	return 0;
 }

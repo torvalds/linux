@@ -218,9 +218,11 @@ int attr_allocate_clusters(struct ntfs_sb_info *sbi, struct runs_tree *run,
 	}
 
 out:
-	/* Undo. */
-	run_deallocate_ex(sbi, run, vcn0, vcn - vcn0, NULL, false);
-	run_truncate(run, vcn0);
+	/* Undo 'ntfs_look_for_free_space' */
+	if (vcn - vcn0) {
+		run_deallocate_ex(sbi, run, vcn0, vcn - vcn0, NULL, false);
+		run_truncate(run, vcn0);
+	}
 
 	return err;
 }
@@ -701,7 +703,7 @@ pack_runs:
 			 * (list entry for std attribute always first).
 			 * So it is safe to step back.
 			 */
-			mi_remove_attr(mi, attr);
+			mi_remove_attr(NULL, mi, attr);
 
 			if (!al_remove_le(ni, le)) {
 				err = -EINVAL;
@@ -1004,7 +1006,7 @@ repack:
 			end = next_svcn;
 		while (end > evcn) {
 			/* Remove segment [svcn : evcn). */
-			mi_remove_attr(mi, attr);
+			mi_remove_attr(NULL, mi, attr);
 
 			if (!al_remove_le(ni, le)) {
 				err = -EINVAL;
@@ -1600,7 +1602,7 @@ repack:
 			end = next_svcn;
 		while (end > evcn) {
 			/* Remove segment [svcn : evcn). */
-			mi_remove_attr(mi, attr);
+			mi_remove_attr(NULL, mi, attr);
 
 			if (!al_remove_le(ni, le)) {
 				err = -EINVAL;
@@ -1836,13 +1838,12 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 			u16 le_sz;
 			u16 roff = le16_to_cpu(attr->nres.run_off);
 
-			/* run==1 means unpack and deallocate. */
 			run_unpack_ex(RUN_DEALLOCATE, sbi, ni->mi.rno, svcn,
 				      evcn1 - 1, svcn, Add2Ptr(attr, roff),
 				      le32_to_cpu(attr->size) - roff);
 
 			/* Delete this attribute segment. */
-			mi_remove_attr(mi, attr);
+			mi_remove_attr(NULL, mi, attr);
 			if (!le)
 				break;
 

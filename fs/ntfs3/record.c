@@ -489,7 +489,8 @@ struct ATTRIB *mi_insert_attr(struct mft_inode *mi, enum ATTR_TYPE type,
  *
  * NOTE: The source attr will point to next attribute.
  */
-bool mi_remove_attr(struct mft_inode *mi, struct ATTRIB *attr)
+bool mi_remove_attr(struct ntfs_inode *ni, struct mft_inode *mi,
+		    struct ATTRIB *attr)
 {
 	struct MFT_REC *rec = mi->mrec;
 	u32 aoff = PtrOffset(rec, attr);
@@ -498,6 +499,11 @@ bool mi_remove_attr(struct mft_inode *mi, struct ATTRIB *attr)
 
 	if (aoff + asize > used)
 		return false;
+
+	if (ni && is_attr_indexed(attr)) {
+		le16_add_cpu(&ni->mi.mrec->hard_links, -1);
+		ni->mi.dirty = true;
+	}
 
 	used -= asize;
 	memmove(attr, Add2Ptr(attr, asize), used - aoff);

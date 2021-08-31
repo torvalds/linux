@@ -358,29 +358,25 @@ int ntfs_look_for_free_space(struct ntfs_sb_info *sbi, CLST lcn, CLST len,
 			     enum ALLOCATE_OPT opt)
 {
 	int err;
+	CLST alen = 0;
 	struct super_block *sb = sbi->sb;
-	size_t a_lcn, zlen, zeroes, zlcn, zlen2, ztrim, new_zlen;
+	size_t alcn, zlen, zeroes, zlcn, zlen2, ztrim, new_zlen;
 	struct wnd_bitmap *wnd = &sbi->used.bitmap;
 
 	down_write_nested(&wnd->rw_lock, BITMAP_MUTEX_CLUSTERS);
 	if (opt & ALLOCATE_MFT) {
-		CLST alen;
-
 		zlen = wnd_zone_len(wnd);
 
 		if (!zlen) {
 			err = ntfs_refresh_zone(sbi);
 			if (err)
 				goto out;
-
 			zlen = wnd_zone_len(wnd);
+		}
 
-			if (!zlen) {
-				ntfs_err(sbi->sb,
-					 "no free space to extend mft");
-				err = -ENOSPC;
-				goto out;
-			}
+		if (!zlen) {
+			ntfs_err(sbi->sb, "no free space to extend mft");
+			goto out;
 		}
 
 		lcn = wnd_zone_bit(wnd);
@@ -389,14 +385,13 @@ int ntfs_look_for_free_space(struct ntfs_sb_info *sbi, CLST lcn, CLST len,
 		wnd_zone_set(wnd, lcn + alen, zlen - alen);
 
 		err = wnd_set_used(wnd, lcn, alen);
-		if (err)
-			goto out;
-
-		*new_lcn = lcn;
-		*new_len = alen;
-		goto ok;
+		if (err) {
+			up_write(&wnd->rw_lock);
+			return err;
+		}
+		alcn = lcn;
+		goto out;
 	}
-
 	/*
 	 * 'Cause cluster 0 is always used this value means that we should use
 	 * cached value of 'next_free_lcn' to improve performance.
@@ -407,22 +402,17 @@ int ntfs_look_for_free_space(struct ntfs_sb_info *sbi, CLST lcn, CLST len,
 	if (lcn >= wnd->nbits)
 		lcn = 0;
 
-	*new_len = wnd_find(wnd, len, lcn, BITMAP_FIND_MARK_AS_USED, &a_lcn);
-	if (*new_len) {
-		*new_lcn = a_lcn;
-		goto ok;
-	}
+	alen = wnd_find(wnd, len, lcn, BITMAP_FIND_MARK_AS_USED, &alcn);
+	if (alen)
+		goto out;
 
 	/* Try to use clusters from MftZone. */
 	zlen = wnd_zone_len(wnd);
 	zeroes = wnd_zeroes(wnd);
 
-	/* Check too big request. */
-	if (len > zeroes + zlen)
-		goto no_space;
-
-	if (zlen <= NTFS_MIN_MFT_ZONE)
-		goto no_space;
+	/* Check too big request */
+	if (len > zeroes + zlen || zlen <= NTFS_MIN_MFT_ZONE)
+		goto out;
 
 	/* How many clusters to cat from zone. */
 	zlcn = wnd_zone_bit(wnd);
@@ -439,31 +429,24 @@ int ntfs_look_for_free_space(struct ntfs_sb_info *sbi, CLST lcn, CLST len,
 	wnd_zone_set(wnd, zlcn, new_zlen);
 
 	/* Allocate continues clusters. */
-	*new_len =
-		wnd_find(wnd, len, 0,
-			 BITMAP_FIND_MARK_AS_USED | BITMAP_FIND_FULL, &a_lcn);
-	if (*new_len) {
-		*new_lcn = a_lcn;
-		goto ok;
-	}
-
-no_space:
-	up_write(&wnd->rw_lock);
-
-	return -ENOSPC;
-
-ok:
-	err = 0;
-
-	ntfs_unmap_meta(sb, *new_lcn, *new_len);
-
-	if (opt & ALLOCATE_MFT)
-		goto out;
-
-	/* Set hint for next requests. */
-	sbi->used.next_free_lcn = *new_lcn + *new_len;
+	alen = wnd_find(wnd, len, 0,
+			BITMAP_FIND_MARK_AS_USED | BITMAP_FIND_FULL, &alcn);
 
 out:
+	if (alen) {
+		err = 0;
+		*new_len = alen;
+		*new_lcn = alcn;
+
+		ntfs_unmap_meta(sb, alcn, alen);
+
+		/* Set hint for next requests. */
+		if (!(opt & ALLOCATE_MFT))
+			sbi->used.next_free_lcn = alcn + alen;
+	} else {
+		err = -ENOSPC;
+	}
+
 	up_write(&wnd->rw_lock);
 	return err;
 }
@@ -2226,7 +2209,7 @@ int ntfs_insert_security(struct ntfs_sb_info *sbi,
 	sii_e.sec_id = d_security->key.sec_id;
 	memcpy(&sii_e.sec_hdr, d_security, SIZEOF_SECURITY_HDR);
 
-	err = indx_insert_entry(indx_sii, ni, &sii_e.de, NULL, NULL);
+	err = indx_insert_entry(indx_sii, ni, &sii_e.de, NULL, NULL, 0);
 	if (err)
 		goto out;
 
@@ -2247,7 +2230,7 @@ int ntfs_insert_security(struct ntfs_sb_info *sbi,
 
 	fnd_clear(fnd_sdh);
 	err = indx_insert_entry(indx_sdh, ni, &sdh_e.de, (void *)(size_t)1,
-				fnd_sdh);
+				fnd_sdh, 0);
 	if (err)
 		goto out;
 
@@ -2385,7 +2368,7 @@ int ntfs_insert_reparse(struct ntfs_sb_info *sbi, __le32 rtag,
 
 	mutex_lock_nested(&ni->ni_lock, NTFS_INODE_MUTEX_REPARSE);
 
-	err = indx_insert_entry(indx, ni, &re.de, NULL, NULL);
+	err = indx_insert_entry(indx, ni, &re.de, NULL, NULL, 0);
 
 	mark_inode_dirty(&ni->vfs_inode);
 	ni_unlock(ni);

@@ -399,6 +399,12 @@ end_enum:
 		goto out;
 	}
 
+	if (names != le16_to_cpu(rec->hard_links)) {
+		/* Correct minor error on the fly. Do not mark inode as dirty. */
+		rec->hard_links = cpu_to_le16(names);
+		ni->mi.dirty = true;
+	}
+
 	set_nlink(inode, names);
 
 	if (S_ISDIR(mode)) {
@@ -1279,6 +1285,7 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 	}
 	inode = &ni->vfs_inode;
 	inode_init_owner(mnt_userns, inode, dir, mode);
+	mode = inode->i_mode;
 
 	inode->i_atime = inode->i_mtime = inode->i_ctime = ni->i_crtime =
 		current_time(inode);
@@ -1371,6 +1378,7 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 		attr = Add2Ptr(attr, asize);
 	}
 
+	attr->id = cpu_to_le16(aid++);
 	if (fa & FILE_ATTRIBUTE_DIRECTORY) {
 		/*
 		 * Regular directory or symlink to directory.
@@ -1381,7 +1389,6 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 
 		attr->type = ATTR_ROOT;
 		attr->size = cpu_to_le32(asize);
-		attr->id = cpu_to_le16(aid++);
 
 		attr->name_len = ARRAY_SIZE(I30_NAME);
 		attr->name_off = SIZEOF_RESIDENT_LE;
@@ -1412,52 +1419,46 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 		/* Insert empty ATTR_DATA */
 		attr->type = ATTR_DATA;
 		attr->size = cpu_to_le32(SIZEOF_RESIDENT);
-		attr->id = cpu_to_le16(aid++);
 		attr->name_off = SIZEOF_RESIDENT_LE;
 		attr->res.data_off = SIZEOF_RESIDENT_LE;
-	} else {
+	} else if (S_ISREG(mode)) {
 		/*
-		 * Regular file or node.
+		 * Regular file. Create empty non resident data attribute.
 		 */
 		attr->type = ATTR_DATA;
-		attr->id = cpu_to_le16(aid++);
-
-		if (S_ISREG(mode)) {
-			/* Create empty non resident data attribute. */
-			attr->non_res = 1;
-			attr->nres.evcn = cpu_to_le64(-1ll);
-			if (fa & FILE_ATTRIBUTE_SPARSE_FILE) {
-				attr->size =
-					cpu_to_le32(SIZEOF_NONRESIDENT_EX + 8);
-				attr->name_off = SIZEOF_NONRESIDENT_EX_LE;
-				attr->flags = ATTR_FLAG_SPARSED;
-				asize = SIZEOF_NONRESIDENT_EX + 8;
-			} else if (fa & FILE_ATTRIBUTE_COMPRESSED) {
-				attr->size =
-					cpu_to_le32(SIZEOF_NONRESIDENT_EX + 8);
-				attr->name_off = SIZEOF_NONRESIDENT_EX_LE;
-				attr->flags = ATTR_FLAG_COMPRESSED;
-				attr->nres.c_unit = COMPRESSION_UNIT;
-				asize = SIZEOF_NONRESIDENT_EX + 8;
-			} else {
-				attr->size =
-					cpu_to_le32(SIZEOF_NONRESIDENT + 8);
-				attr->name_off = SIZEOF_NONRESIDENT_LE;
-				asize = SIZEOF_NONRESIDENT + 8;
-			}
-			attr->nres.run_off = attr->name_off;
+		attr->non_res = 1;
+		attr->nres.evcn = cpu_to_le64(-1ll);
+		if (fa & FILE_ATTRIBUTE_SPARSE_FILE) {
+			attr->size = cpu_to_le32(SIZEOF_NONRESIDENT_EX + 8);
+			attr->name_off = SIZEOF_NONRESIDENT_EX_LE;
+			attr->flags = ATTR_FLAG_SPARSED;
+			asize = SIZEOF_NONRESIDENT_EX + 8;
+		} else if (fa & FILE_ATTRIBUTE_COMPRESSED) {
+			attr->size = cpu_to_le32(SIZEOF_NONRESIDENT_EX + 8);
+			attr->name_off = SIZEOF_NONRESIDENT_EX_LE;
+			attr->flags = ATTR_FLAG_COMPRESSED;
+			attr->nres.c_unit = COMPRESSION_UNIT;
+			asize = SIZEOF_NONRESIDENT_EX + 8;
 		} else {
-			/* Create empty resident data attribute. */
-			attr->size = cpu_to_le32(SIZEOF_RESIDENT);
-			attr->name_off = SIZEOF_RESIDENT_LE;
-			if (fa & FILE_ATTRIBUTE_SPARSE_FILE)
-				attr->flags = ATTR_FLAG_SPARSED;
-			else if (fa & FILE_ATTRIBUTE_COMPRESSED)
-				attr->flags = ATTR_FLAG_COMPRESSED;
-			attr->res.data_off = SIZEOF_RESIDENT_LE;
-			asize = SIZEOF_RESIDENT;
-			ni->ni_flags |= NI_FLAG_RESIDENT;
+			attr->size = cpu_to_le32(SIZEOF_NONRESIDENT + 8);
+			attr->name_off = SIZEOF_NONRESIDENT_LE;
+			asize = SIZEOF_NONRESIDENT + 8;
 		}
+		attr->nres.run_off = attr->name_off;
+	} else {
+		/*
+		 * Node. Create empty resident data attribute.
+		 */
+		attr->type = ATTR_DATA;
+		attr->size = cpu_to_le32(SIZEOF_RESIDENT);
+		attr->name_off = SIZEOF_RESIDENT_LE;
+		if (fa & FILE_ATTRIBUTE_SPARSE_FILE)
+			attr->flags = ATTR_FLAG_SPARSED;
+		else if (fa & FILE_ATTRIBUTE_COMPRESSED)
+			attr->flags = ATTR_FLAG_COMPRESSED;
+		attr->res.data_off = SIZEOF_RESIDENT_LE;
+		asize = SIZEOF_RESIDENT;
+		ni->ni_flags |= NI_FLAG_RESIDENT;
 	}
 
 	if (S_ISDIR(mode)) {
@@ -1485,7 +1486,8 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 		asize = ALIGN(SIZEOF_RESIDENT + nsize, 8);
 		t16 = PtrOffset(rec, attr);
 
-		if (asize + t16 + 8 > sbi->record_size) {
+		/* 0x78 - the size of EA + EAINFO to store WSL */
+		if (asize + t16 + 0x78 + 8 > sbi->record_size) {
 			CLST alen;
 			CLST clst = bytes_to_cluster(sbi, nsize);
 
@@ -1545,20 +1547,15 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 	rec->next_attr_id = cpu_to_le16(aid);
 
 	/* Step 2: Add new name in index. */
-	err = indx_insert_entry(&dir_ni->dir, dir_ni, new_de, sbi, fnd);
+	err = indx_insert_entry(&dir_ni->dir, dir_ni, new_de, sbi, fnd, 0);
 	if (err)
 		goto out6;
-
-	/* Update current directory record. */
-	mark_inode_dirty(dir);
 
 	inode->i_generation = le16_to_cpu(rec->seq);
 
 	dir->i_mtime = dir->i_ctime = inode->i_atime;
 
 	if (S_ISDIR(mode)) {
-		if (dir->i_mode & S_ISGID)
-			mode |= S_ISGID;
 		inode->i_op = &ntfs_dir_inode_operations;
 		inode->i_fop = &ntfs_dir_operations;
 	} else if (S_ISLNK(mode)) {
@@ -1601,8 +1598,8 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 	d_instantiate(dentry, inode);
 
 	ntfs_save_wsl_perm(inode);
-	mark_inode_dirty(inode);
 	mark_inode_dirty(dir);
+	mark_inode_dirty(inode);
 
 	/* Normal exit. */
 	goto out2;
@@ -1646,61 +1643,36 @@ out1:
 int ntfs_link_inode(struct inode *inode, struct dentry *dentry)
 {
 	int err;
-	struct inode *dir = d_inode(dentry->d_parent);
-	struct ntfs_inode *dir_ni = ntfs_i(dir);
 	struct ntfs_inode *ni = ntfs_i(inode);
-	struct super_block *sb = inode->i_sb;
-	struct ntfs_sb_info *sbi = sb->s_fs_info;
-	const struct qstr *name = &dentry->d_name;
-	struct NTFS_DE *new_de = NULL;
-	struct ATTR_FILE_NAME *fname;
-	struct ATTRIB *attr;
-	u16 key_size;
-	struct INDEX_ROOT *dir_root;
-
-	dir_root = indx_get_root(&dir_ni->dir, dir_ni, NULL, NULL);
-	if (!dir_root)
-		return -EINVAL;
+	struct ntfs_sb_info *sbi = inode->i_sb->s_fs_info;
+	struct NTFS_DE *de;
+	struct ATTR_FILE_NAME *de_name;
 
 	/* Allocate PATH_MAX bytes. */
-	new_de = __getname();
-	if (!new_de)
+	de = __getname();
+	if (!de)
 		return -ENOMEM;
 
-	/* Mark rw ntfs as dirty.  It will be cleared at umount. */
-	ntfs_set_state(ni->mi.sbi, NTFS_DIRTY_DIRTY);
+	/* Mark rw ntfs as dirty. It will be cleared at umount. */
+	ntfs_set_state(sbi, NTFS_DIRTY_DIRTY);
 
-	/* Insert file name. */
-	err = fill_name_de(sbi, new_de, name, NULL);
+	/* Construct 'de'. */
+	err = fill_name_de(sbi, de, &dentry->d_name, NULL);
 	if (err)
 		goto out;
 
-	key_size = le16_to_cpu(new_de->key_size);
-	err = ni_insert_resident(ni, key_size, ATTR_NAME, NULL, 0, &attr, NULL);
-	if (err)
-		goto out;
+	de_name = (struct ATTR_FILE_NAME *)(de + 1);
+	/* Fill duplicate info. */
+	de_name->dup.cr_time = de_name->dup.m_time = de_name->dup.c_time =
+		de_name->dup.a_time = kernel2nt(&inode->i_ctime);
+	de_name->dup.alloc_size = de_name->dup.data_size =
+		cpu_to_le64(inode->i_size);
+	de_name->dup.fa = ni->std_fa;
+	de_name->dup.ea_size = de_name->dup.reparse = 0;
 
-	mi_get_ref(&ni->mi, &new_de->ref);
-
-	fname = (struct ATTR_FILE_NAME *)(new_de + 1);
-	mi_get_ref(&dir_ni->mi, &fname->home);
-	fname->dup.cr_time = fname->dup.m_time = fname->dup.c_time =
-		fname->dup.a_time = kernel2nt(&inode->i_ctime);
-	fname->dup.alloc_size = fname->dup.data_size = 0;
-	fname->dup.fa = ni->std_fa;
-	fname->dup.ea_size = fname->dup.reparse = 0;
-
-	memcpy(Add2Ptr(attr, SIZEOF_RESIDENT), fname, key_size);
-
-	err = indx_insert_entry(&dir_ni->dir, dir_ni, new_de, sbi, NULL);
-	if (err)
-		goto out;
-
-	le16_add_cpu(&ni->mi.mrec->hard_links, 1);
-	ni->mi.dirty = true;
-
+	err = ni_add_name(ntfs_i(d_inode(dentry->d_parent)), ni, de);
 out:
-	__putname(new_de);
+	__putname(de);
 	return err;
 }
 
@@ -1713,113 +1685,56 @@ out:
 int ntfs_unlink_inode(struct inode *dir, const struct dentry *dentry)
 {
 	int err;
-	struct super_block *sb = dir->i_sb;
-	struct ntfs_sb_info *sbi = sb->s_fs_info;
+	struct ntfs_sb_info *sbi = dir->i_sb->s_fs_info;
 	struct inode *inode = d_inode(dentry);
 	struct ntfs_inode *ni = ntfs_i(inode);
-	const struct qstr *name = &dentry->d_name;
 	struct ntfs_inode *dir_ni = ntfs_i(dir);
-	struct ntfs_index *indx = &dir_ni->dir;
-	struct cpu_str *uni = NULL;
-	struct ATTR_FILE_NAME *fname;
-	u8 name_type;
-	struct ATTR_LIST_ENTRY *le;
-	struct MFT_REF ref;
-	bool is_dir = S_ISDIR(inode->i_mode);
-	struct INDEX_ROOT *dir_root;
+	struct NTFS_DE *de, *de2 = NULL;
+	int undo_remove;
 
-	dir_root = indx_get_root(indx, dir_ni, NULL, NULL);
-	if (!dir_root)
+	if (ntfs_is_meta_file(sbi, ni->mi.rno))
 		return -EINVAL;
+
+	/* Allocate PATH_MAX bytes. */
+	de = __getname();
+	if (!de)
+		return -ENOMEM;
 
 	ni_lock(ni);
 
-	if (is_dir && !dir_is_empty(inode)) {
+	if (S_ISDIR(inode->i_mode) && !dir_is_empty(inode)) {
 		err = -ENOTEMPTY;
-		goto out1;
+		goto out;
 	}
 
-	if (ntfs_is_meta_file(sbi, inode->i_ino)) {
-		err = -EINVAL;
-		goto out1;
-	}
-
-	/* Allocate PATH_MAX bytes. */
-	uni = __getname();
-	if (!uni) {
-		err = -ENOMEM;
-		goto out1;
-	}
-
-	/* Convert input string to unicode. */
-	err = ntfs_nls_to_utf16(sbi, name->name, name->len, uni, NTFS_NAME_LEN,
-				UTF16_HOST_ENDIAN);
+	err = fill_name_de(sbi, de, &dentry->d_name, NULL);
 	if (err < 0)
-		goto out2;
+		goto out;
 
-	/* Mark rw ntfs as dirty.  It will be cleared at umount. */
-	ntfs_set_state(sbi, NTFS_DIRTY_DIRTY);
+	undo_remove = 0;
+	err = ni_remove_name(dir_ni, ni, de, &de2, &undo_remove);
 
-	/* Find name in record. */
-	mi_get_ref(&dir_ni->mi, &ref);
-
-	le = NULL;
-	fname = ni_fname_name(ni, uni, &ref, &le);
-	if (!fname) {
-		err = -ENOENT;
-		goto out3;
-	}
-
-	name_type = paired_name(fname->type);
-
-	err = indx_delete_entry(indx, dir_ni, fname, fname_full_size(fname),
-				sbi);
-	if (err)
-		goto out3;
-
-	/* Then remove name from MFT. */
-	ni_remove_attr_le(ni, attr_from_name(fname), le);
-
-	le16_add_cpu(&ni->mi.mrec->hard_links, -1);
-	ni->mi.dirty = true;
-
-	if (name_type != FILE_NAME_POSIX) {
-		/* Now we should delete name by type. */
-		fname = ni_fname_type(ni, name_type, &le);
-		if (fname) {
-			err = indx_delete_entry(indx, dir_ni, fname,
-						fname_full_size(fname), sbi);
-			if (err)
-				goto out3;
-
-			ni_remove_attr_le(ni, attr_from_name(fname), le);
-
-			le16_add_cpu(&ni->mi.mrec->hard_links, -1);
-		}
-	}
-out3:
-	switch (err) {
-	case 0:
+	if (!err) {
 		drop_nlink(inode);
-		break;
-	case -ENOTEMPTY:
-	case -ENOSPC:
-	case -EROFS:
-		break;
-	default:
+		dir->i_mtime = dir->i_ctime = current_time(dir);
+		mark_inode_dirty(dir);
+		inode->i_ctime = dir->i_ctime;
+		if (inode->i_nlink)
+			mark_inode_dirty(inode);
+	} else if (!ni_remove_name_undo(dir_ni, ni, de, de2, undo_remove)) {
 		make_bad_inode(inode);
+		ntfs_inode_err(inode, "failed to undo unlink");
+		ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
+	} else {
+		if (ni_is_dirty(dir))
+			mark_inode_dirty(dir);
+		if (ni_is_dirty(inode))
+			mark_inode_dirty(inode);
 	}
 
-	dir->i_mtime = dir->i_ctime = current_time(dir);
-	mark_inode_dirty(dir);
-	inode->i_ctime = dir->i_ctime;
-	if (inode->i_nlink)
-		mark_inode_dirty(inode);
-
-out2:
-	__putname(uni);
-out1:
+out:
 	ni_unlock(ni);
+	__putname(de);
 	return err;
 }
 

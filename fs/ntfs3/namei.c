@@ -152,12 +152,14 @@ static int ntfs_link(struct dentry *ode, struct inode *dir, struct dentry *de)
 	if (inode != dir)
 		ni_lock(ni);
 
-	dir->i_ctime = dir->i_mtime = inode->i_ctime = current_time(inode);
 	inc_nlink(inode);
 	ihold(inode);
 
 	err = ntfs_link_inode(inode, de);
+
 	if (!err) {
+		dir->i_ctime = dir->i_mtime = inode->i_ctime =
+			current_time(dir);
 		mark_inode_dirty(inode);
 		mark_inode_dirty(dir);
 		d_instantiate(de, inode);
@@ -249,25 +251,26 @@ static int ntfs_rmdir(struct inode *dir, struct dentry *dentry)
 /*
  * ntfs_rename - inode_operations::rename
  */
-static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
-		       struct dentry *old_dentry, struct inode *new_dir,
+static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *dir,
+		       struct dentry *dentry, struct inode *new_dir,
 		       struct dentry *new_dentry, u32 flags)
 {
 	int err;
-	struct super_block *sb = old_dir->i_sb;
+	struct super_block *sb = dir->i_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
-	struct ntfs_inode *old_dir_ni = ntfs_i(old_dir);
+	struct ntfs_inode *dir_ni = ntfs_i(dir);
 	struct ntfs_inode *new_dir_ni = ntfs_i(new_dir);
-	struct ntfs_inode *old_ni;
-	struct ATTR_FILE_NAME *old_name, *new_name, *fname;
-	u8 name_type;
-	bool is_same;
-	struct inode *old_inode, *new_inode;
-	struct NTFS_DE *old_de, *new_de;
-	struct ATTRIB *attr;
-	struct ATTR_LIST_ENTRY *le;
-	u16 new_de_key_size;
-
+	struct inode *inode = d_inode(dentry);
+	struct ntfs_inode *ni = ntfs_i(inode);
+	struct inode *new_inode = d_inode(new_dentry);
+	struct NTFS_DE *de, *new_de;
+	bool is_same, is_bad;
+	/*
+	 * de		- memory of PATH_MAX bytes:
+	 * [0-1024)	- original name (dentry->d_name)
+	 * [1024-2048)	- paired to original name, usually DOS variant of dentry->d_name
+	 * [2048-3072)	- new name (new_dentry->d_name)
+	 */
 	static_assert(SIZEOF_ATTRIBUTE_FILENAME_MAX + SIZEOF_RESIDENT < 1024);
 	static_assert(SIZEOF_ATTRIBUTE_FILENAME_MAX + sizeof(struct NTFS_DE) <
 		      1024);
@@ -276,24 +279,18 @@ static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 	if (flags & ~RENAME_NOREPLACE)
 		return -EINVAL;
 
-	old_inode = d_inode(old_dentry);
-	new_inode = d_inode(new_dentry);
+	is_same = dentry->d_name.len == new_dentry->d_name.len &&
+		  !memcmp(dentry->d_name.name, new_dentry->d_name.name,
+			  dentry->d_name.len);
 
-	old_ni = ntfs_i(old_inode);
-
-	is_same = old_dentry->d_name.len == new_dentry->d_name.len &&
-		  !memcmp(old_dentry->d_name.name, new_dentry->d_name.name,
-			  old_dentry->d_name.len);
-
-	if (is_same && old_dir == new_dir) {
+	if (is_same && dir == new_dir) {
 		/* Nothing to do. */
-		err = 0;
-		goto out;
+		return 0;
 	}
 
-	if (ntfs_is_meta_file(sbi, old_inode->i_ino)) {
-		err = -EINVAL;
-		goto out;
+	if (ntfs_is_meta_file(sbi, inode->i_ino)) {
+		/* Should we print an error? */
+		return -EINVAL;
 	}
 
 	if (new_inode) {
@@ -304,168 +301,61 @@ static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 		ni_unlock(new_dir_ni);
 		dput(new_dentry);
 		if (err)
-			goto out;
+			return err;
 	}
 
 	/* Allocate PATH_MAX bytes. */
-	old_de = __getname();
-	if (!old_de) {
-		err = -ENOMEM;
-		goto out;
-	}
+	de = __getname();
+	if (!de)
+		return -ENOMEM;
 
-	err = fill_name_de(sbi, old_de, &old_dentry->d_name, NULL);
+	/* Translate dentry->d_name into unicode form. */
+	err = fill_name_de(sbi, de, &dentry->d_name, NULL);
 	if (err < 0)
-		goto out1;
-
-	old_name = (struct ATTR_FILE_NAME *)(old_de + 1);
+		goto out;
 
 	if (is_same) {
-		new_de = old_de;
+		/* Reuse 'de'. */
+		new_de = de;
 	} else {
-		new_de = Add2Ptr(old_de, 1024);
+		/* Translate new_dentry->d_name into unicode form. */
+		new_de = Add2Ptr(de, 2048);
 		err = fill_name_de(sbi, new_de, &new_dentry->d_name, NULL);
 		if (err < 0)
-			goto out1;
+			goto out;
 	}
 
-	ni_lock_dir(old_dir_ni);
-	ni_lock(old_ni);
+	ni_lock_dir(dir_ni);
+	ni_lock(ni);
 
-	mi_get_ref(&old_dir_ni->mi, &old_name->home);
-
-	/* Get pointer to file_name in MFT. */
-	fname = ni_fname_name(old_ni, (struct cpu_str *)&old_name->name_len,
-			      &old_name->home, &le);
-	if (!fname) {
-		err = -EINVAL;
-		goto out2;
-	}
-
-	/* Copy fname info from record into new fname. */
-	new_name = (struct ATTR_FILE_NAME *)(new_de + 1);
-	memcpy(&new_name->dup, &fname->dup, sizeof(fname->dup));
-
-	name_type = paired_name(fname->type);
-
-	/* Remove first name from directory. */
-	err = indx_delete_entry(&old_dir_ni->dir, old_dir_ni, old_de + 1,
-				le16_to_cpu(old_de->key_size), sbi);
-	if (err)
-		goto out3;
-
-	/* Remove first name from MFT. */
-	err = ni_remove_attr_le(old_ni, attr_from_name(fname), le);
-	if (err)
-		goto out4;
-
-	le16_add_cpu(&old_ni->mi.mrec->hard_links, -1);
-	old_ni->mi.dirty = true;
-
-	if (name_type != FILE_NAME_POSIX) {
-		/* Get paired name. */
-		fname = ni_fname_type(old_ni, name_type, &le);
-		if (fname) {
-			/* Remove second name from directory. */
-			err = indx_delete_entry(&old_dir_ni->dir, old_dir_ni,
-						fname, fname_full_size(fname),
-						sbi);
-			if (err)
-				goto out5;
-
-			/* Remove second name from MFT. */
-			err = ni_remove_attr_le(old_ni, attr_from_name(fname),
-						le);
-			if (err)
-				goto out6;
-
-			le16_add_cpu(&old_ni->mi.mrec->hard_links, -1);
-			old_ni->mi.dirty = true;
+	is_bad = false;
+	err = ni_rename(dir_ni, new_dir_ni, ni, de, new_de, &is_bad);
+	if (is_bad) {
+		/* Restore after failed rename failed too. */
+		make_bad_inode(inode);
+		ntfs_inode_err(inode, "failed to undo rename");
+		ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
+	} else if (!err) {
+		inode->i_ctime = dir->i_ctime = dir->i_mtime =
+			current_time(dir);
+		mark_inode_dirty(inode);
+		mark_inode_dirty(dir);
+		if (dir != new_dir) {
+			new_dir->i_mtime = new_dir->i_ctime = dir->i_ctime;
+			mark_inode_dirty(new_dir);
 		}
+
+		if (IS_DIRSYNC(dir))
+			ntfs_sync_inode(dir);
+
+		if (IS_DIRSYNC(new_dir))
+			ntfs_sync_inode(inode);
 	}
 
-	/* Add new name. */
-	mi_get_ref(&old_ni->mi, &new_de->ref);
-	mi_get_ref(&ntfs_i(new_dir)->mi, &new_name->home);
-
-	new_de_key_size = le16_to_cpu(new_de->key_size);
-
-	/* Insert new name in MFT. */
-	err = ni_insert_resident(old_ni, new_de_key_size, ATTR_NAME, NULL, 0,
-				 &attr, NULL);
-	if (err)
-		goto out7;
-
-	attr->res.flags = RESIDENT_FLAG_INDEXED;
-
-	memcpy(Add2Ptr(attr, SIZEOF_RESIDENT), new_name, new_de_key_size);
-
-	le16_add_cpu(&old_ni->mi.mrec->hard_links, 1);
-	old_ni->mi.dirty = true;
-
-	/* Insert new name in directory. */
-	err = indx_insert_entry(&new_dir_ni->dir, new_dir_ni, new_de, sbi,
-				NULL);
-	if (err)
-		goto out8;
-
-	if (IS_DIRSYNC(new_dir))
-		err = ntfs_sync_inode(old_inode);
-	else
-		mark_inode_dirty(old_inode);
-
-	old_dir->i_ctime = old_dir->i_mtime = current_time(old_dir);
-	if (IS_DIRSYNC(old_dir))
-		(void)ntfs_sync_inode(old_dir);
-	else
-		mark_inode_dirty(old_dir);
-
-	if (old_dir != new_dir) {
-		new_dir->i_mtime = new_dir->i_ctime = old_dir->i_ctime;
-		mark_inode_dirty(new_dir);
-	}
-
-	if (old_inode) {
-		old_inode->i_ctime = old_dir->i_ctime;
-		mark_inode_dirty(old_inode);
-	}
-
-	err = 0;
-	/* Normal way* */
-	goto out2;
-
-out8:
-	/* undo
-	 * ni_insert_resident(old_ni, new_de_key_size, ATTR_NAME, NULL, 0,
-	 *			 &attr, NULL);
-	 */
-	mi_remove_attr(&old_ni->mi, attr);
-out7:
-	/* undo
-	 * ni_remove_attr_le(old_ni, attr_from_name(fname), le);
-	 */
-out6:
-	/* undo
-	 * indx_delete_entry(&old_dir_ni->dir, old_dir_ni,
-	 *					fname, fname_full_size(fname),
-	 *					sbi);
-	 */
-out5:
-	/* undo
-	 * ni_remove_attr_le(old_ni, attr_from_name(fname), le);
-	 */
-out4:
-	/* undo:
-	 * indx_delete_entry(&old_dir_ni->dir, old_dir_ni, old_de + 1,
-	 *			old_de->key_size, NULL);
-	 */
-out3:
-out2:
-	ni_unlock(old_ni);
-	ni_unlock(old_dir_ni);
-out1:
-	__putname(old_de);
+	ni_unlock(ni);
+	ni_unlock(dir_ni);
 out:
+	__putname(de);
 	return err;
 }
 
