@@ -30,7 +30,6 @@
 #include <net/seg6_local.h>
 #include <linux/etherdevice.h>
 #include <linux/bpf.h>
-#include <net/lwtunnel.h>
 #include <linux/netfilter.h>
 
 #define SEG6_F_ATTR(i)		BIT(i)
