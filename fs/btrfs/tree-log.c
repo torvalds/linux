@@ -3452,6 +3452,9 @@ static bool inode_logged(struct btrfs_trans_handle *trans,
 	if (inode->logged_trans == trans->transid)
 		return true;
 
+	if (!test_bit(BTRFS_ROOT_HAS_LOG_TREE, &inode->root->state))
+		return false;
+
 	/*
 	 * The inode's logged_trans is always 0 when we load it (because it is
 	 * not persisted in the inode item or elsewhere). So if it is 0, the
