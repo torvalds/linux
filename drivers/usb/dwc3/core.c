@@ -1642,7 +1642,14 @@ static int dwc3_probe(struct platform_device *pdev)
 		goto err5;
 
 	dwc3_debugfs_init(dwc);
-	pm_runtime_put(dev);
+
+	if (of_device_is_compatible(dev->parent->of_node,
+				    "rockchip,rk3399-dwc3")) {
+		pm_runtime_allow(dev);
+		pm_runtime_put_sync_suspend(dev);
+	} else {
+		pm_runtime_put(dev);
+	}
 
 	return 0;
 

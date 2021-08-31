@@ -2582,6 +2582,15 @@ static int __dwc3_gadget_start(struct dwc3 *dwc)
 	u32			reg;
 
 	/*
+	 * If the DWC3 is in runtime suspend, the clocks maybe
+	 * disabled, so avoid enable the DWC3 endpoints here.
+	 * The DWC3 runtime PM resume routine will handle the
+	 * gadget start sequence.
+	 */
+	if (pm_runtime_suspended(dwc->dev))
+		return ret;
+
+	/*
 	 * Use IMOD if enabled via dwc->imod_interval. Otherwise, if
 	 * the core supports IMOD, disable it.
 	 */
