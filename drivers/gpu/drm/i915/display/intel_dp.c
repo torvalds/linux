@@ -2568,8 +2568,6 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 	 */
 	intel_edp_init_source_oui(intel_dp, true);
 
-	intel_edp_mso_init(intel_dp);
-
 	return true;
 }
 
@@ -4847,6 +4845,9 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	fixed_mode = intel_panel_edid_fixed_mode(intel_connector);
 	if (fixed_mode)
 		downclock_mode = intel_drrs_init(intel_connector, fixed_mode);
+
+	/* MSO requires information from the EDID */
+	intel_edp_mso_init(intel_dp);
 
 	/* multiply the mode clock and horizontal timings for MSO */
 	intel_edp_mso_mode_fixup(intel_connector, fixed_mode);
