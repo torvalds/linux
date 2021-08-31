@@ -336,6 +336,17 @@ config VIDEO_KS0127
 	  To compile this driver as a module, choose M here: the
 	  module will be called ks0127.
 
+config VIDEO_LT6911UXC
+	tristate "Lontium LT6911UXC decoder"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	select HDMI
+	select V4L2_FWNODE
+	help
+	  Support for the Lontium LT6911UXC series HDMI to MIPI CSI-2 bridge.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lt6911uxc.
+
 config VIDEO_ML86V7667
 	tristate "OKI ML86V7667 video decoder"
 	depends on VIDEO_V4L2 && I2C
