@@ -227,7 +227,6 @@ static int liteeth_probe(struct platform_device *pdev)
 {
 	struct net_device *netdev;
 	void __iomem *buf_base;
-	struct resource *res;
 	struct liteeth *priv;
 	int irq, err;
 
@@ -249,13 +248,11 @@ static int liteeth_probe(struct platform_device *pdev)
 	}
 	netdev->irq = irq;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mac");
-	priv->base = devm_ioremap_resource(&pdev->dev, res);
+	priv->base = devm_platform_ioremap_resource_byname(pdev, "mac");
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "buffer");
-	buf_base = devm_ioremap_resource(&pdev->dev, res);
+	buf_base = devm_platform_ioremap_resource_byname(pdev, "buffer");
 	if (IS_ERR(buf_base))
 		return PTR_ERR(buf_base);
 

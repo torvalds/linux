@@ -269,9 +269,6 @@ static int mlxbf_gige_probe(struct platform_device *pdev)
 {
 	struct phy_device *phydev;
 	struct net_device *netdev;
-	struct resource *mac_res;
-	struct resource *llu_res;
-	struct resource *plu_res;
 	struct mlxbf_gige *priv;
 	void __iomem *llu_base;
 	void __iomem *plu_base;
@@ -280,27 +277,15 @@ static int mlxbf_gige_probe(struct platform_device *pdev)
 	int addr;
 	int err;
 
-	mac_res = platform_get_resource(pdev, IORESOURCE_MEM, MLXBF_GIGE_RES_MAC);
-	if (!mac_res)
-		return -ENXIO;
-
-	base = devm_ioremap_resource(&pdev->dev, mac_res);
+	base = devm_platform_ioremap_resource(pdev, MLXBF_GIGE_RES_MAC);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	llu_res = platform_get_resource(pdev, IORESOURCE_MEM, MLXBF_GIGE_RES_LLU);
-	if (!llu_res)
-		return -ENXIO;
-
-	llu_base = devm_ioremap_resource(&pdev->dev, llu_res);
+	llu_base = devm_platform_ioremap_resource(pdev, MLXBF_GIGE_RES_LLU);
 	if (IS_ERR(llu_base))
 		return PTR_ERR(llu_base);
 
-	plu_res = platform_get_resource(pdev, IORESOURCE_MEM, MLXBF_GIGE_RES_PLU);
-	if (!plu_res)
-		return -ENXIO;
-
-	plu_base = devm_ioremap_resource(&pdev->dev, plu_res);
+	plu_base = devm_platform_ioremap_resource(pdev, MLXBF_GIGE_RES_PLU);
 	if (IS_ERR(plu_base))
 		return PTR_ERR(plu_base);
 

@@ -1229,7 +1229,6 @@ static int nixge_of_get_resources(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
 	enum nixge_version version;
-	struct resource *ctrlres;
 	struct net_device *ndev;
 	struct nixge_priv *priv;
 
@@ -1248,13 +1247,10 @@ static int nixge_of_get_resources(struct platform_device *pdev)
 		netdev_err(ndev, "failed to map dma regs\n");
 		return PTR_ERR(priv->dma_regs);
 	}
-	if (version <= NIXGE_V2) {
+	if (version <= NIXGE_V2)
 		priv->ctrl_regs = priv->dma_regs + NIXGE_REG_CTRL_OFFSET;
-	} else {
-		ctrlres = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						       "ctrl");
-		priv->ctrl_regs = devm_ioremap_resource(&pdev->dev, ctrlres);
-	}
+	else
+		priv->ctrl_regs = devm_platform_ioremap_resource_byname(pdev, "ctrl");
 	if (IS_ERR(priv->ctrl_regs)) {
 		netdev_err(ndev, "failed to map ctrl regs\n");
 		return PTR_ERR(priv->ctrl_regs);
