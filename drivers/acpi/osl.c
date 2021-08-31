@@ -284,7 +284,8 @@ acpi_map_lookup_virt(void __iomem *virt, acpi_size size)
 #define should_use_kmap(pfn)   page_is_ram(pfn)
 #endif
 
-static void __iomem *acpi_map(acpi_physical_address pg_off, unsigned long pg_sz)
+static void __iomem *acpi_map(acpi_physical_address pg_off, unsigned long pg_sz,
+			      bool memory)
 {
 	unsigned long pfn;
 
@@ -294,7 +295,8 @@ static void __iomem *acpi_map(acpi_physical_address pg_off, unsigned long pg_sz)
 			return NULL;
 		return (void __iomem __force *)kmap(pfn_to_page(pfn));
 	} else
-		return acpi_os_ioremap(pg_off, pg_sz);
+		return memory ? acpi_os_memmap(pg_off, pg_sz) :
+				acpi_os_ioremap(pg_off, pg_sz);
 }
 
 static void acpi_unmap(acpi_physical_address pg_off, void __iomem *vaddr)
@@ -309,9 +311,10 @@ static void acpi_unmap(acpi_physical_address pg_off, void __iomem *vaddr)
 }
 
 /**
- * acpi_os_map_iomem - Get a virtual address for a given physical address range.
+ * __acpi_os_map_iomem - Get a virtual address for a given physical address range.
  * @phys: Start of the physical address range to map.
  * @size: Size of the physical address range to map.
+ * @memory: true if remapping memory, false if IO
  *
  * Look up the given physical address range in the list of existing ACPI memory
  * mappings.  If found, get a reference to it and return a pointer to it (its
@@ -321,8 +324,8 @@ static void acpi_unmap(acpi_physical_address pg_off, void __iomem *vaddr)
  * During early init (when acpi_permanent_mmap has not been set yet) this
  * routine simply calls __acpi_map_table() to get the job done.
  */
-void __iomem __ref
-*acpi_os_map_iomem(acpi_physical_address phys, acpi_size size)
+static void __iomem __ref
+*__acpi_os_map_iomem(acpi_physical_address phys, acpi_size size, bool memory)
 {
 	struct acpi_ioremap *map;
 	void __iomem *virt;
@@ -353,7 +356,7 @@ void __iomem __ref
 
 	pg_off = round_down(phys, PAGE_SIZE);
 	pg_sz = round_up(phys + size, PAGE_SIZE) - pg_off;
-	virt = acpi_map(phys, size);
+	virt = acpi_map(phys, size, memory);
 	if (!virt) {
 		mutex_unlock(&acpi_ioremap_lock);
 		kfree(map);
@@ -372,11 +375,17 @@ out:
 	mutex_unlock(&acpi_ioremap_lock);
 	return map->virt + (phys - map->phys);
 }
+
+void __iomem *__ref
+acpi_os_map_iomem(acpi_physical_address phys, acpi_size size)
+{
+	return __acpi_os_map_iomem(phys, size, false);
+}
 EXPORT_SYMBOL_GPL(acpi_os_map_iomem);
 
 void *__ref acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 {
-	return (void *)acpi_os_map_iomem(phys, size);
+	return (void *)__acpi_os_map_iomem(phys, size, true);
 }
 EXPORT_SYMBOL_GPL(acpi_os_map_memory);
 

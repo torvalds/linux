@@ -1301,7 +1301,7 @@ int acpi_processor_power_state_has_changed(struct acpi_processor *pr)
 	if (pr->id == 0 && cpuidle_get_driver() == &acpi_idle_driver) {
 
 		/* Protect against cpu-hotplug */
-		get_online_cpus();
+		cpus_read_lock();
 		cpuidle_pause_and_lock();
 
 		/* Disable all cpuidle devices */
@@ -1330,7 +1330,7 @@ int acpi_processor_power_state_has_changed(struct acpi_processor *pr)
 			}
 		}
 		cpuidle_resume_and_unlock();
-		put_online_cpus();
+		cpus_read_unlock();
 	}
 
 	return 0;
