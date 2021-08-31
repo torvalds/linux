@@ -801,7 +801,6 @@ static inline u64 pdptr_rsvd_bits(struct kvm_vcpu *vcpu)
 int load_pdptrs(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu, unsigned long cr3)
 {
 	gfn_t pdpt_gfn = cr3 >> PAGE_SHIFT;
-	unsigned offset = (((cr3 & (PAGE_SIZE-1)) >> 5) << 2) * sizeof(u64);
 	gpa_t real_gpa;
 	int i;
 	int ret;
@@ -816,8 +815,9 @@ int load_pdptrs(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu, unsigned long cr3)
 	if (real_gpa == UNMAPPED_GVA)
 		return 0;
 
+	/* Note the offset, PDPTRs are 32 byte aligned when using PAE paging. */
 	ret = kvm_vcpu_read_guest_page(vcpu, gpa_to_gfn(real_gpa), pdpte,
-				       offset, sizeof(pdpte));
+				       cr3 & GENMASK(11, 5), sizeof(pdpte));
 	if (ret < 0)
 		return 0;
 
