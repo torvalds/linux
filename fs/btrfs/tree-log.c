@@ -5459,7 +5459,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 			max_key_type = BTRFS_XATTR_ITEM_KEY;
 		ret = drop_inode_items(trans, log, path, inode, max_key_type);
 	} else {
-		if (inode_only == LOG_INODE_EXISTS) {
+		if (inode_only == LOG_INODE_EXISTS && inode_logged(trans, inode)) {
 			/*
 			 * Make sure the new inode item we write to the log has
 			 * the same isize as the current one (if it exists).
