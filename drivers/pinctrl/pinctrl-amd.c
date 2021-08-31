@@ -902,7 +902,6 @@ static struct pinctrl_desc amd_pinctrl_desc = {
 static int amd_gpio_probe(struct platform_device *pdev)
 {
 	int ret = 0;
-	int irq_base;
 	struct resource *res;
 	struct amd_gpio *gpio_dev;
 	struct gpio_irq_chip *girq;
@@ -925,9 +924,9 @@ static int amd_gpio_probe(struct platform_device *pdev)
 	if (!gpio_dev->base)
 		return -ENOMEM;
 
-	irq_base = platform_get_irq(pdev, 0);
-	if (irq_base < 0)
-		return irq_base;
+	gpio_dev->irq = platform_get_irq(pdev, 0);
+	if (gpio_dev->irq < 0)
+		return gpio_dev->irq;
 
 #ifdef CONFIG_PM_SLEEP
 	gpio_dev->saved_regs = devm_kcalloc(&pdev->dev, amd_pinctrl_desc.npins,
@@ -987,7 +986,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 		goto out2;
 	}
 
-	ret = devm_request_irq(&pdev->dev, irq_base, amd_gpio_irq_handler,
+	ret = devm_request_irq(&pdev->dev, gpio_dev->irq, amd_gpio_irq_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, gpio_dev);
 	if (ret)
 		goto out2;
