@@ -6,6 +6,33 @@
 #include "rk3588s.dtsi"
 
 / {
+	usbdrd3_1: usbdrd3_1 {
+		compatible = "rockchip,rk3588-dwc3", "rockchip,rk3399-dwc3";
+		clocks = <&cru REF_CLK_USB3OTG1>, <&cru SUSPEND_CLK_USB3OTG1>,
+			 <&cru ACLK_USB3OTG1>;
+		clock-names = "ref", "suspend", "bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		status = "disabled";
+
+		usbdrd_dwc3_1: usb@fc400000 {
+			compatible = "snps,dwc3";
+			reg = <0x0 0xfc400000 0x0 0x400000>;
+			interrupts = <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&power RK3588_PD_USB>;
+			resets = <&cru SRST_A_USB3OTG1>;
+			reset-names = "usb3-otg";
+			dr_mode = "host";
+			phy_type = "utmi_wide";
+			snps,dis_enblslpm_quirk;
+			snps,dis-u2-freeclk-exists-quirk;
+			snps,dis-del-phy-power-chg-quirk;
+			snps,dis-tx-ipgap-linecheck-quirk;
+			status = "disabled";
+		};
+	};
+
 	pipe_phy1_grf: syscon@fd5c0000 {
 		compatible = "rockchip,pipe-phy-grf", "syscon";
 		reg = <0x0 0xfd5c0000 0x0 0x100>;
