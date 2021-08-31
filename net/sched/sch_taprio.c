@@ -1739,8 +1739,6 @@ static void taprio_attach(struct Qdisc *sch)
 		if (FULL_OFFLOAD_IS_ENABLED(q->flags)) {
 			qdisc->flags |= TCQ_F_ONETXQUEUE | TCQ_F_NOPARENT;
 			old = dev_graft_qdisc(qdisc->dev_queue, qdisc);
-			if (ntx < dev->real_num_tx_queues)
-				qdisc_hash_add(qdisc, false);
 		} else {
 			old = dev_graft_qdisc(qdisc->dev_queue, sch);
 			qdisc_refcount_inc(sch);

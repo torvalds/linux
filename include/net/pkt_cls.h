@@ -337,6 +337,9 @@ int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts);
 
 /**
  * struct tcf_pkt_info - packet information
+ *
+ * @ptr: start of the pkt data
+ * @nexthdr: offset of the next header
  */
 struct tcf_pkt_info {
 	unsigned char *		ptr;
@@ -355,6 +358,7 @@ struct tcf_ematch_ops;
  * @ops: the operations lookup table of the corresponding ematch module
  * @datalen: length of the ematch specific configuration data
  * @data: ematch specific data
+ * @net: the network namespace
  */
 struct tcf_ematch {
 	struct tcf_ematch_ops * ops;

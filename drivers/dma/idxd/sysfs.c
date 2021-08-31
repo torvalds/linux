@@ -1744,8 +1744,6 @@ void idxd_unregister_devices(struct idxd_device *idxd)
 
 		device_unregister(&group->conf_dev);
 	}
-
-	device_unregister(&idxd->conf_dev);
 }
 
 int idxd_register_bus_type(void)

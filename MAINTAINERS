@@ -7858,9 +7858,9 @@ S:	Maintained
 F:	drivers/input/touchscreen/goodix.c
 
 GOOGLE ETHERNET DRIVERS
-M:	Catherine Sullivan <csully@google.com>
-R:	Sagi Shahar <sagis@google.com>
-R:	Jon Olson <jonolson@google.com>
+M:	Jeroen de Borst <jeroendb@google.com>
+R:	Catherine Sullivan <csully@google.com>
+R:	David Awogbemila <awogbemila@google.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/device_drivers/ethernet/google/gve.rst
@@ -11326,6 +11326,12 @@ S:	Maintained
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/radio/radio-maxiradio*
+
+MCBA MICROCHIP CAN BUS ANALYZER TOOL DRIVER
+R:	Yasushi SHOJI <yashi@spacecubics.com>
+L:	linux-can@vger.kernel.org
+S:	Maintained
+F:	drivers/net/can/usb/mcba_usb.c
 
 MCAN MMIO DEVICE DRIVER
 M:	Chandrasekar Ramakrishnan <rcsekar@samsung.com>
@@ -15468,6 +15474,8 @@ M:	Pan, Xinhui <Xinhui.Pan@amd.com>
 L:	amd-gfx@lists.freedesktop.org
 S:	Supported
 T:	git https://gitlab.freedesktop.org/agd5f/linux.git
+B:	https://gitlab.freedesktop.org/drm/amd/-/issues
+C:	irc://irc.oftc.net/radeon
 F:	drivers/gpu/drm/amd/
 F:	drivers/gpu/drm/radeon/
 F:	include/uapi/drm/amdgpu_drm.h
@@ -15795,7 +15803,7 @@ F:	Documentation/devicetree/bindings/i2c/renesas,iic-emev2.yaml
 F:	drivers/i2c/busses/i2c-emev2.c
 
 RENESAS ETHERNET DRIVERS
-R:	Sergei Shtylyov <sergei.shtylyov@gmail.com>
+R:	Sergey Shtylyov <s.shtylyov@omp.ru>
 L:	netdev@vger.kernel.org
 L:	linux-renesas-soc@vger.kernel.org
 F:	Documentation/devicetree/bindings/net/renesas,*.yaml
@@ -17807,7 +17815,7 @@ F:	include/linux/sync_file.h
 F:	include/uapi/linux/sync_file.h
 
 SYNOPSYS ARC ARCHITECTURE
-M:	Vineet Gupta <vgupta@synopsys.com>
+M:	Vineet Gupta <vgupta@kernel.org>
 L:	linux-snps-arc@lists.infradead.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vgupta/arc.git
@@ -20009,7 +20017,8 @@ F:	Documentation/devicetree/bindings/extcon/wlf,arizona.yaml
 F:	Documentation/devicetree/bindings/mfd/wlf,arizona.yaml
 F:	Documentation/devicetree/bindings/mfd/wm831x.txt
 F:	Documentation/devicetree/bindings/regulator/wlf,arizona.yaml
-F:	Documentation/devicetree/bindings/sound/wlf,arizona.yaml
+F:	Documentation/devicetree/bindings/sound/wlf,*.yaml
+F:	Documentation/devicetree/bindings/sound/wm*
 F:	Documentation/hwmon/wm83??.rst
 F:	arch/arm/mach-s3c/mach-crag6410*
 F:	drivers/clk/clk-wm83*.c

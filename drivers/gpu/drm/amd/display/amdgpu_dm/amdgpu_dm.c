@@ -1548,6 +1548,7 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	}
 
 	hdr = (const struct dmcub_firmware_header_v1_0 *)adev->dm.dmub_fw->data;
+	adev->dm.dmcub_fw_version = le32_to_cpu(hdr->header.ucode_version);
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 		adev->firmware.ucode[AMDGPU_UCODE_ID_DMCUB].ucode_id =
@@ -1561,7 +1562,6 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 			 adev->dm.dmcub_fw_version);
 	}
 
-	adev->dm.dmcub_fw_version = le32_to_cpu(hdr->header.ucode_version);
 
 	adev->dm.dmub_srv = kzalloc(sizeof(*adev->dm.dmub_srv), GFP_KERNEL);
 	dmub_srv = adev->dm.dmub_srv;
@@ -2429,9 +2429,9 @@ static void update_connector_ext_caps(struct amdgpu_dm_connector *aconnector)
 	max_cll = conn_base->hdr_sink_metadata.hdmi_type1.max_cll;
 	min_cll = conn_base->hdr_sink_metadata.hdmi_type1.min_cll;
 
-	if (caps->ext_caps->bits.oled == 1 ||
+	if (caps->ext_caps->bits.oled == 1 /*||
 	    caps->ext_caps->bits.sdr_aux_backlight_control == 1 ||
-	    caps->ext_caps->bits.hdr_aux_backlight_control == 1)
+	    caps->ext_caps->bits.hdr_aux_backlight_control == 1*/)
 		caps->aux_support = true;
 
 	if (amdgpu_backlight == 0)
@@ -9605,7 +9605,12 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 		} else if (amdgpu_freesync_vid_mode && aconnector &&
 			   is_freesync_video_mode(&new_crtc_state->mode,
 						  aconnector)) {
-			set_freesync_fixed_config(dm_new_crtc_state);
+			struct drm_display_mode *high_mode;
+
+			high_mode = get_highest_refresh_rate_mode(aconnector, false);
+			if (!drm_mode_equal(&new_crtc_state->mode, high_mode)) {
+				set_freesync_fixed_config(dm_new_crtc_state);
+			}
 		}
 
 		ret = dm_atomic_get_state(state, &dm_state);

@@ -549,9 +549,10 @@ int ip6_forward(struct sk_buff *skb)
 	if (net->ipv6.devconf_all->proxy_ndp &&
 	    pneigh_lookup(&nd_tbl, net, &hdr->daddr, skb->dev, 0)) {
 		int proxied = ip6_forward_proxy_check(skb);
-		if (proxied > 0)
+		if (proxied > 0) {
+			hdr->hop_limit--;
 			return ip6_input(skb);
-		else if (proxied < 0) {
+		} else if (proxied < 0) {
 			__IP6_INC_STATS(net, idev, IPSTATS_MIB_INDISCARDS);
 			goto drop;
 		}

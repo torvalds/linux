@@ -187,10 +187,14 @@ static int hda_sdw_probe(struct snd_sof_dev *sdev)
 int hda_sdw_startup(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hdev;
+	struct snd_sof_pdata *pdata = sdev->pdata;
 
 	hdev = sdev->pdata->hw_pdata;
 
 	if (!hdev->sdw)
+		return 0;
+
+	if (pdata->machine && !pdata->machine->mach_params.link_mask)
 		return 0;
 
 	return sdw_intel_startup(hdev->sdw);
@@ -1002,6 +1006,14 @@ static int hda_generic_machine_select(struct snd_sof_dev *sdev)
 			hda_mach->mach_params.dmic_num = dmic_num;
 			pdata->machine = hda_mach;
 			pdata->tplg_filename = tplg_filename;
+
+			if (codec_num == 2) {
+				/*
+				 * Prevent SoundWire links from starting when an external
+				 * HDaudio codec is used
+				 */
+				hda_mach->mach_params.link_mask = 0;
+			}
 		}
 	}
 

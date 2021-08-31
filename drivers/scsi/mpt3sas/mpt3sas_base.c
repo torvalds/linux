@@ -7851,7 +7851,7 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
 			return r;
 	}
 
-	rc = _base_static_config_pages(ioc);
+	r = _base_static_config_pages(ioc);
 	if (r)
 		return r;
 

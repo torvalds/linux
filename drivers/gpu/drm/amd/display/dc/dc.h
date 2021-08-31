@@ -183,6 +183,8 @@ struct dc_caps {
 	unsigned int cursor_cache_size;
 	struct dc_plane_cap planes[MAX_PLANES];
 	struct dc_color_caps color;
+	bool vbios_lttpr_aware;
+	bool vbios_lttpr_enable;
 };
 
 struct dc_bug_wa {

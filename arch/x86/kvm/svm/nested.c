@@ -515,7 +515,7 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	 * Also covers avic_vapic_bar, avic_backing_page, avic_logical_id,
 	 * avic_physical_id.
 	 */
-	WARN_ON(svm->vmcb01.ptr->control.int_ctl & AVIC_ENABLE_MASK);
+	WARN_ON(kvm_apicv_activated(svm->vcpu.kvm));
 
 	/* Copied from vmcb01.  msrpm_base can be overwritten later.  */
 	svm->vmcb->control.nested_ctl = svm->vmcb01.ptr->control.nested_ctl;
@@ -702,8 +702,8 @@ out:
 }
 
 /* Copy state save area fields which are handled by VMRUN */
-void svm_copy_vmrun_state(struct vmcb_save_area *from_save,
-			  struct vmcb_save_area *to_save)
+void svm_copy_vmrun_state(struct vmcb_save_area *to_save,
+			  struct vmcb_save_area *from_save)
 {
 	to_save->es = from_save->es;
 	to_save->cs = from_save->cs;
@@ -722,7 +722,7 @@ void svm_copy_vmrun_state(struct vmcb_save_area *from_save,
 	to_save->cpl = 0;
 }
 
-void nested_svm_vmloadsave(struct vmcb *from_vmcb, struct vmcb *to_vmcb)
+void svm_copy_vmloadsave_state(struct vmcb *to_vmcb, struct vmcb *from_vmcb)
 {
 	to_vmcb->save.fs = from_vmcb->save.fs;
 	to_vmcb->save.gs = from_vmcb->save.gs;
@@ -1385,7 +1385,7 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 
 	svm->nested.vmcb12_gpa = kvm_state->hdr.svm.vmcb_pa;
 
-	svm_copy_vmrun_state(save, &svm->vmcb01.ptr->save);
+	svm_copy_vmrun_state(&svm->vmcb01.ptr->save, save);
 	nested_load_control_from_vmcb12(svm, ctl);
 
 	svm_switch_vmcb(svm, &svm->nested.vmcb02);

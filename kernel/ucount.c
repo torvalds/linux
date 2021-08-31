@@ -58,14 +58,17 @@ static struct ctl_table_root set_root = {
 	.permissions = set_permissions,
 };
 
-#define UCOUNT_ENTRY(name)				\
-	{						\
-		.procname	= name,			\
-		.maxlen		= sizeof(int),		\
-		.mode		= 0644,			\
-		.proc_handler	= proc_dointvec_minmax,	\
-		.extra1		= SYSCTL_ZERO,		\
-		.extra2		= SYSCTL_INT_MAX,	\
+static long ue_zero = 0;
+static long ue_int_max = INT_MAX;
+
+#define UCOUNT_ENTRY(name)					\
+	{							\
+		.procname	= name,				\
+		.maxlen		= sizeof(long),			\
+		.mode		= 0644,				\
+		.proc_handler	= proc_doulongvec_minmax,	\
+		.extra1		= &ue_zero,			\
+		.extra2		= &ue_int_max,			\
 	}
 static struct ctl_table user_table[] = {
 	UCOUNT_ENTRY("max_user_namespaces"),
@@ -160,6 +163,7 @@ struct ucounts *alloc_ucounts(struct user_namespace *ns, kuid_t uid)
 {
 	struct hlist_head *hashent = ucounts_hashentry(ns, uid);
 	struct ucounts *ucounts, *new;
+	long overflow;
 
 	spin_lock_irq(&ucounts_lock);
 	ucounts = find_ucounts(ns, uid, hashent);
@@ -184,8 +188,12 @@ struct ucounts *alloc_ucounts(struct user_namespace *ns, kuid_t uid)
 			return new;
 		}
 	}
+	overflow = atomic_add_negative(1, &ucounts->count);
 	spin_unlock_irq(&ucounts_lock);
-	ucounts = get_ucounts(ucounts);
+	if (overflow) {
+		put_ucounts(ucounts);
+		return NULL;
+	}
 	return ucounts;
 }
 
@@ -193,8 +201,7 @@ void put_ucounts(struct ucounts *ucounts)
 {
 	unsigned long flags;
 
-	if (atomic_dec_and_test(&ucounts->count)) {
-		spin_lock_irqsave(&ucounts_lock, flags);
+	if (atomic_dec_and_lock_irqsave(&ucounts->count, &ucounts_lock, flags)) {
 		hlist_del_init(&ucounts->node);
 		spin_unlock_irqrestore(&ucounts_lock, flags);
 		kfree(ucounts);

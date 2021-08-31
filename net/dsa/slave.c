@@ -2291,8 +2291,8 @@ static int dsa_slave_netdevice_event(struct notifier_block *nb,
 static void
 dsa_fdb_offload_notify(struct dsa_switchdev_event_work *switchdev_work)
 {
+	struct switchdev_notifier_fdb_info info = {};
 	struct dsa_switch *ds = switchdev_work->ds;
-	struct switchdev_notifier_fdb_info info;
 	struct dsa_port *dp;
 
 	if (!dsa_is_user_port(ds, switchdev_work->port))

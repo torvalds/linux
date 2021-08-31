@@ -19,7 +19,6 @@ config SPARC
 	select OF
 	select OF_PROMTREE
 	select HAVE_ASM_MODVERSIONS
-	select HAVE_IDE
 	select HAVE_ARCH_KGDB if !SMP || SPARC64
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_SECCOMP if SPARC64

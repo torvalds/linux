@@ -841,6 +841,9 @@ static bool CalculatePrefetchSchedule(
 	else
 		*DestinationLinesForPrefetch = dst_y_prefetch_equ;
 
+	// Limit to prevent overflow in DST_Y_PREFETCH register
+	*DestinationLinesForPrefetch = dml_min(*DestinationLinesForPrefetch, 63.75);
+
 	dml_print("DML: VStartup: %d\n", VStartup);
 	dml_print("DML: TCalc: %f\n", TCalc);
 	dml_print("DML: TWait: %f\n", TWait);

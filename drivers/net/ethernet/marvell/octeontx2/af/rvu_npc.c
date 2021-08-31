@@ -1721,7 +1721,6 @@ static void npc_parser_profile_init(struct rvu *rvu, int blkaddr)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
 	int num_pkinds, num_kpus, idx;
-	struct npc_pkind *pkind;
 
 	/* Disable all KPUs and their entries */
 	for (idx = 0; idx < hw->npc_kpus; idx++) {
@@ -1739,9 +1738,8 @@ static void npc_parser_profile_init(struct rvu *rvu, int blkaddr)
 	 * Check HW max count to avoid configuring junk or
 	 * writing to unsupported CSR addresses.
 	 */
-	pkind = &hw->pkind;
 	num_pkinds = rvu->kpu.pkinds;
-	num_pkinds = min_t(int, pkind->rsrc.max, num_pkinds);
+	num_pkinds = min_t(int, hw->npc_pkinds, num_pkinds);
 
 	for (idx = 0; idx < num_pkinds; idx++)
 		npc_config_kpuaction(rvu, blkaddr, &rvu->kpu.ikpu[idx], 0, idx, true);
@@ -1891,7 +1889,8 @@ static void rvu_npc_hw_init(struct rvu *rvu, int blkaddr)
 	if (npc_const1 & BIT_ULL(63))
 		npc_const2 = rvu_read64(rvu, blkaddr, NPC_AF_CONST2);
 
-	pkind->rsrc.max = (npc_const1 >> 12) & 0xFFULL;
+	pkind->rsrc.max = NPC_UNRESERVED_PKIND_COUNT;
+	hw->npc_pkinds = (npc_const1 >> 12) & 0xFFULL;
 	hw->npc_kpu_entries = npc_const1 & 0xFFFULL;
 	hw->npc_kpus = (npc_const >> 8) & 0x1FULL;
 	hw->npc_intfs = npc_const & 0xFULL;
@@ -2002,6 +2001,10 @@ int rvu_npc_init(struct rvu *rvu)
 	err = rvu_alloc_bitmap(&pkind->rsrc);
 	if (err)
 		return err;
+	/* Reserve PKIND#0 for LBKs. Power reset value of LBK_CH_PKIND is '0',
+	 * no need to configure PKIND for all LBKs separately.
+	 */
+	rvu_alloc_rsrc(&pkind->rsrc);
 
 	/* Allocate mem for pkind to PF and channel mapping info */
 	pkind->pfchan_map = devm_kcalloc(rvu->dev, pkind->rsrc.max,

@@ -390,7 +390,7 @@ int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 		tunnel->i_seqno = ntohl(tpi->seq) + 1;
 	}
 
-	skb_reset_network_header(skb);
+	skb_set_network_header(skb, (tunnel->dev->type == ARPHRD_ETHER) ? ETH_HLEN : 0);
 
 	err = IP_ECN_decapsulate(iph, skb);
 	if (unlikely(err)) {

@@ -94,10 +94,14 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		kvm->arch.return_nisv_io_abort_to_user = true;
 		break;
 	case KVM_CAP_ARM_MTE:
-		if (!system_supports_mte() || kvm->created_vcpus)
-			return -EINVAL;
-		r = 0;
-		kvm->arch.mte_enabled = true;
+		mutex_lock(&kvm->lock);
+		if (!system_supports_mte() || kvm->created_vcpus) {
+			r = -EINVAL;
+		} else {
+			r = 0;
+			kvm->arch.mte_enabled = true;
+		}
+		mutex_unlock(&kvm->lock);
 		break;
 	default:
 		r = -EINVAL;

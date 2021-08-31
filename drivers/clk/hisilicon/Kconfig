@@ -18,6 +18,7 @@ config COMMON_CLK_HI3519
 config COMMON_CLK_HI3559A
 	bool "Hi3559A Clock Driver"
 	depends on ARCH_HISI || COMPILE_TEST
+	select RESET_HISI
 	default ARCH_HISI
 	help
 	  Build the clock driver for hi3559a.

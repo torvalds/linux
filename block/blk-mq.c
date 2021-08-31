@@ -2994,10 +2994,12 @@ static void queue_set_hctx_shared(struct request_queue *q, bool shared)
 	int i;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
-		if (shared)
+		if (shared) {
 			hctx->flags |= BLK_MQ_F_TAG_QUEUE_SHARED;
-		else
+		} else {
+			blk_mq_tag_idle(hctx);
 			hctx->flags &= ~BLK_MQ_F_TAG_QUEUE_SHARED;
+		}
 	}
 }
 

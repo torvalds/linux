@@ -1506,11 +1506,6 @@ static int iavf_reinit_interrupt_scheme(struct iavf_adapter *adapter)
 	set_bit(__IAVF_VSI_DOWN, adapter->vsi.state);
 
 	iavf_map_rings_to_vectors(adapter);
-
-	if (RSS_AQ(adapter))
-		adapter->aq_required |= IAVF_FLAG_AQ_CONFIGURE_RSS;
-	else
-		err = iavf_init_rss(adapter);
 err:
 	return err;
 }
@@ -2196,6 +2191,14 @@ continue_reset:
 
 	if (adapter->flags & IAVF_FLAG_REINIT_ITR_NEEDED) {
 		err = iavf_reinit_interrupt_scheme(adapter);
+		if (err)
+			goto reset_err;
+	}
+
+	if (RSS_AQ(adapter)) {
+		adapter->aq_required |= IAVF_FLAG_AQ_CONFIGURE_RSS;
+	} else {
+		err = iavf_init_rss(adapter);
 		if (err)
 			goto reset_err;
 	}

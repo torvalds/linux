@@ -2068,7 +2068,7 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
 	LIST_HEAD(migratepages);
 	new_page_t *new;
 	bool compound;
-	unsigned int nr_pages = thp_nr_pages(page);
+	int nr_pages = thp_nr_pages(page);
 
 	/*
 	 * PTE mapped THP or HugeTLB page can't reach here so the page could
