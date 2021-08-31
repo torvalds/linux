@@ -612,12 +612,7 @@ static void v9fs_mmap_vm_close(struct vm_area_struct *vma)
 	p9_debug(P9_DEBUG_VFS, "9p VMA close, %p, flushing", vma);
 
 	inode = file_inode(vma->vm_file);
-
-	if (!mapping_can_writeback(inode->i_mapping))
-		wbc.nr_to_write = 0;
-
-	might_sleep();
-	sync_inode(inode, &wbc);
+	filemap_fdatawrite_wbc(inode->i_mapping, &wbc);
 }
 
 

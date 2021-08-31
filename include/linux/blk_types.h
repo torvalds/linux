@@ -277,6 +277,7 @@ struct bio {
 };
 
 #define BIO_RESET_BYTES		offsetof(struct bio, bi_max_vecs)
+#define BIO_MAX_SECTORS		(UINT_MAX >> SECTOR_SHIFT)
 
 /*
  * bio flags

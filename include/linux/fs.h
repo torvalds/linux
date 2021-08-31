@@ -2500,7 +2500,6 @@ static inline void file_accessed(struct file *file)
 
 extern int file_modified(struct file *file);
 
-int sync_inode(struct inode *inode, struct writeback_control *wbc);
 int sync_inode_metadata(struct inode *inode, int wait);
 
 struct file_system_type {
@@ -2852,6 +2851,8 @@ extern int filemap_fdatawrite_range(struct address_space *mapping,
 				loff_t start, loff_t end);
 extern int filemap_check_errors(struct address_space *mapping);
 extern void __filemap_set_wb_err(struct address_space *mapping, int err);
+int filemap_fdatawrite_wbc(struct address_space *mapping,
+			   struct writeback_control *wbc);
 
 static inline int filemap_write_and_wait(struct address_space *mapping)
 {

@@ -1544,12 +1544,15 @@ EXPORT_SYMBOL(bio_split);
  * @bio:	bio to trim
  * @offset:	number of sectors to trim from the front of @bio
  * @size:	size we want to trim @bio to, in sectors
+ *
+ * This function is typically used for bios that are cloned and submitted
+ * to the underlying device in parts.
  */
-void bio_trim(struct bio *bio, int offset, int size)
+void bio_trim(struct bio *bio, sector_t offset, sector_t size)
 {
-	/* 'bio' is a cloned bio which we need to trim to match
-	 * the given offset and size.
-	 */
+	if (WARN_ON_ONCE(offset > BIO_MAX_SECTORS || size > BIO_MAX_SECTORS ||
+			 offset + size > bio->bi_iter.bi_size))
+		return;
 
 	size <<= 9;
 	if (offset == 0 && size == bio->bi_iter.bi_size)
@@ -1560,7 +1563,6 @@ void bio_trim(struct bio *bio, int offset, int size)
 
 	if (bio_integrity(bio))
 		bio_integrity_trim(bio);
-
 }
 EXPORT_SYMBOL_GPL(bio_trim);
 
