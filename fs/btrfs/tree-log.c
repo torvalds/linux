@@ -5712,6 +5712,14 @@ static int log_new_dir_dentries(struct btrfs_trans_handle *trans,
 	struct btrfs_dir_list *dir_elem;
 	int ret = 0;
 
+	/*
+	 * If we are logging a new name, as part of a link or rename operation,
+	 * don't bother logging new dentries, as we just want to log the names
+	 * of an inode and that any new parents exist.
+	 */
+	if (ctx->logging_new_name)
+		return 0;
+
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
