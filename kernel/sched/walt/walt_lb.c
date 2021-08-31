@@ -356,7 +356,7 @@ static int walt_lb_find_busiest_higher_cap_cpu(int dst_cpu, const cpumask_t *src
 	unsigned long total_capacity = 0, total_util = 0, total_nr = 0;
 	int total_cpus = 0;
 	struct walt_rq *wrq;
-
+	bool asymcap_boost = ASYMCAP_BOOST(dst_cpu);
 	for_each_cpu(i, src_mask) {
 
 		if (!cpu_active(i))
@@ -384,7 +384,8 @@ static int walt_lb_find_busiest_higher_cap_cpu(int dst_cpu, const cpumask_t *src
 		 * overutilized but for rotation, we have to
 		 * spread out.
 		 */
-		if (!walt_rotation_enabled && !cpu_overutilized(i))
+		if (!walt_rotation_enabled && !cpu_overutilized(i) &&
+			!asymcap_boost)
 			continue;
 
 		if (util < busiest_util)
@@ -398,7 +399,7 @@ static int walt_lb_find_busiest_higher_cap_cpu(int dst_cpu, const cpumask_t *src
 	 * Don't allow migrating to lower cluster unless this high
 	 * capacity cluster is sufficiently loaded.
 	 */
-	if (!walt_rotation_enabled) {
+	if (!walt_rotation_enabled && !asymcap_boost) {
 		if (total_nr <= total_cpus || total_util * 1280 < total_capacity * 1024)
 			busiest_cpu = -1;
 	}
@@ -449,7 +450,8 @@ static int walt_lb_find_busiest_lower_cap_cpu(int dst_cpu, const cpumask_t *src_
 			(!wrq->walt_stats.nr_big_tasks || !available_idle_cpu(dst_cpu)))
 			continue;
 
-		if (!walt_rotation_enabled && !cpu_overutilized(i))
+		if (!walt_rotation_enabled && !cpu_overutilized(i) &&
+			!ASYMCAP_BOOST(i))
 			continue;
 
 		if (util < busiest_util)
@@ -460,7 +462,8 @@ static int walt_lb_find_busiest_lower_cap_cpu(int dst_cpu, const cpumask_t *src_
 		busy_nr_big_tasks = wrq->walt_stats.nr_big_tasks;
 	}
 
-	if (!walt_rotation_enabled && !busy_nr_big_tasks) {
+	if (!walt_rotation_enabled && !busy_nr_big_tasks &&
+		!(busiest_cpu != -1 && ASYMCAP_BOOST(busiest_cpu))) {
 		if (total_nr <= total_cpus || total_util * 1280 < total_capacity * 1024)
 			busiest_cpu = -1;
 	}

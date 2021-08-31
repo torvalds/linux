@@ -292,6 +292,7 @@ extern unsigned int sysctl_sched_sync_hint_enable;
 extern unsigned int sysctl_sched_bug_on_rt_throttle;
 extern unsigned int sysctl_sched_suppress_region2;
 extern unsigned int sysctl_sched_skip_sp_newly_idle_lb;
+extern unsigned int sysctl_sched_asymcap_boost;
 extern struct ctl_table walt_table[];
 extern struct ctl_table walt_base_table[];
 extern void walt_tunables(void);
@@ -908,6 +909,8 @@ void walt_lb_tick(struct rq *rq);
 
 extern __read_mostly unsigned int walt_scale_demand_divisor;
 #define scale_demand(d) ((d)/walt_scale_demand_divisor)
+
+#define ASYMCAP_BOOST(cpu)	(sysctl_sched_asymcap_boost && !is_min_capacity_cpu(cpu))
 
 void create_util_to_cost(void);
 struct compute_energy_output {

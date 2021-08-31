@@ -187,6 +187,10 @@ static void walt_get_indicies(struct task_struct *p, int *order_index,
 		walt_task_skip_min_cpu(p)) {
 		*energy_eval_needed = false;
 		*order_index = 1;
+		if (sysctl_sched_asymcap_boost) {
+			*end_index = 1;
+			return;
+		}
 	}
 
 	for (i = *order_index ; i < num_sched_clusters - 1; i++) {

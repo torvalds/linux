@@ -66,6 +66,7 @@ unsigned int sysctl_panic_on_walt_bug;
 unsigned int sysctl_sched_suppress_region2;
 unsigned int sysctl_sched_skip_sp_newly_idle_lb = 1;
 unsigned int sysctl_sched_hyst_min_coloc_ns = 80000000;
+unsigned int sysctl_sched_asymcap_boost;
 
 /* range is [1 .. INT_MAX] */
 static int sysctl_task_read_pid = 1;
@@ -856,6 +857,15 @@ struct ctl_table walt_table[] = {
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= sched_dynamic_tp_handler,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	},
+	{
+		.procname	= "sched_asymcap_boost",
+		.data		= &sysctl_sched_asymcap_boost,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_douintvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
