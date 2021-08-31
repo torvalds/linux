@@ -253,7 +253,7 @@ static int panfrost_ioctl_submit(struct drm_device *dev, void *data,
 	job = kzalloc(sizeof(*job), GFP_KERNEL);
 	if (!job) {
 		ret = -ENOMEM;
-		goto fail_out_sync;
+		goto out_put_syncout;
 	}
 
 	kref_init(&job->refcount);
@@ -270,29 +270,30 @@ static int panfrost_ioctl_submit(struct drm_device *dev, void *data,
 				 &job->file_priv->sched_entity[slot],
 				 NULL);
 	if (ret)
-		goto fail_job_put;
+		goto out_put_job;
 
 	ret = panfrost_copy_in_sync(dev, file, args, job);
 	if (ret)
-		goto fail_job;
+		goto out_cleanup_job;
 
 	ret = panfrost_lookup_bos(dev, file, args, job);
 	if (ret)
-		goto fail_job;
+		goto out_cleanup_job;
 
 	ret = panfrost_job_push(job);
 	if (ret)
-		goto fail_job;
+		goto out_cleanup_job;
 
 	/* Update the return sync object for the job */
 	if (sync_out)
 		drm_syncobj_replace_fence(sync_out, job->render_done_fence);
 
-fail_job:
-	drm_sched_job_cleanup(&job->base);
-fail_job_put:
+out_cleanup_job:
+	if (ret)
+		drm_sched_job_cleanup(&job->base);
+out_put_job:
 	panfrost_job_put(job);
-fail_out_sync:
+out_put_syncout:
 	if (sync_out)
 		drm_syncobj_put(sync_out);
 
