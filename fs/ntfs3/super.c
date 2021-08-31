@@ -1053,7 +1053,7 @@ static int ntfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	iput(inode);
 
-	/* Load $LogFile to replay. */
+	/* Load LogFile to replay. */
 	ref.low = cpu_to_le32(MFT_REC_LOG);
 	ref.seq = cpu_to_le16(MFT_REC_LOG);
 	inode = ntfs_iget5(sb, &ref, &NAME_LOGFILE);

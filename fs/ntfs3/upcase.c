@@ -34,7 +34,7 @@ static inline u16 upcase_unicode_char(const u16 *upcase, u16 chr)
  * - Case insensitive
  * - If name equals and 'bothcases' then
  * - Case sensitive
- * 'Straigth way' code scans input names twice in worst case.
+ * 'Straight way' code scans input names twice in worst case.
  * Optimized code scans input names only once.
  */
 int ntfs_cmp_names(const __le16 *s1, size_t l1, const __le16 *s2, size_t l2,

@@ -29,7 +29,6 @@ struct rb_node_key {
 	size_t key;
 };
 
-/* Tree is sorted by start (key). */
 struct e_node {
 	struct rb_node_key start; /* Tree sorted by start. */
 	struct rb_node_key count; /* Tree sorted by len. */
@@ -1117,7 +1116,7 @@ scan_bitmap:
 	sb = wnd->sb;
 	log2_bits = sb->s_blocksize_bits + 3;
 
-	/* At most two ranges [hint, max_alloc) + [0, hint) */
+	/* At most two ranges [hint, max_alloc) + [0, hint). */
 Again:
 
 	/* TODO: Optimize request for case nbits > wbits. */
@@ -1241,7 +1240,7 @@ Again:
 			continue;
 		}
 
-		/* Read window */
+		/* Read window. */
 		bh = wnd_map(wnd, iw);
 		if (IS_ERR(bh)) {
 			// TODO: Error.

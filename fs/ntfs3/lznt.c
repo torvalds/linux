@@ -296,8 +296,9 @@ next:
  */
 struct lznt *get_lznt_ctx(int level)
 {
-	struct lznt *r = kzalloc(level ? offsetof(struct lznt, hash) :
-					 sizeof(struct lznt), GFP_NOFS);
+	struct lznt *r = kzalloc(level ? offsetof(struct lznt, hash)
+				       : sizeof(struct lznt),
+				 GFP_NOFS);
 
 	if (r)
 		r->std = !level;

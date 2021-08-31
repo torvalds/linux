@@ -219,7 +219,7 @@ struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr)
 
 		asize = le32_to_cpu(attr->size);
 		if (asize < SIZEOF_RESIDENT) {
-			/* Impossible 'cause we should not return such attribute */
+			/* Impossible 'cause we should not return such attribute. */
 			return NULL;
 		}
 

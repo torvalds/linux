@@ -190,7 +190,8 @@ out:
 
 /*
  * ntfs_zero_range - Helper function for punch_hole.
- * It zeroes a range [vbo, vbo_to)
+ *
+ * It zeroes a range [vbo, vbo_to).
  */
 static int ntfs_zero_range(struct inode *inode, u64 vbo, u64 vbo_to)
 {
@@ -231,12 +232,12 @@ static int ntfs_zero_range(struct inode *inode, u64 vbo, u64 vbo_to)
 
 			if (!buffer_mapped(bh)) {
 				ntfs_get_block(inode, iblock, bh, 0);
-				/* unmapped? It's a hole - nothing to do */
+				/* Unmapped? It's a hole - nothing to do. */
 				if (!buffer_mapped(bh))
 					continue;
 			}
 
-			/* Ok, it's mapped. Make sure it's up-to-date */
+			/* Ok, it's mapped. Make sure it's up-to-date. */
 			if (PageUptodate(page))
 				set_buffer_uptodate(bh);
 
@@ -272,9 +273,8 @@ out:
 }
 
 /*
- * ntfs_sparse_cluster
+ * ntfs_sparse_cluster - Helper function to zero a new allocated clusters.
  *
- * Helper function to zero a new allocated clusters
  * NOTE: 512 <= cluster size <= 2M
  */
 void ntfs_sparse_cluster(struct inode *inode, struct page *page0, CLST vcn,
@@ -588,7 +588,7 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 		truncate_pagecache(inode, vbo_down);
 
 		if (!is_sparsed(ni) && !is_compressed(ni)) {
-			/* normal file */
+			/* Normal file. */
 			err = ntfs_zero_range(inode, vbo, end);
 			goto out;
 		}
@@ -599,7 +599,7 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 		if (err != E_NTFS_NOTALIGNED)
 			goto out;
 
-		/* process not aligned punch */
+		/* Process not aligned punch. */
 		mask = frame_size - 1;
 		vbo_a = (vbo + mask) & ~mask;
 		end_a = end & ~mask;
@@ -647,7 +647,7 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 		if (err)
 			goto out;
 
-		/* Wait for existing dio to complete */
+		/* Wait for existing dio to complete. */
 		inode_dio_wait(inode);
 
 		truncate_pagecache(inode, vbo_down);
@@ -1127,7 +1127,7 @@ static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		goto out;
 
 	if (WARN_ON(ni->ni_flags & NI_FLAG_COMPRESSED_MASK)) {
-		/* Should never be here, see ntfs_file_open() */
+		/* Should never be here, see ntfs_file_open(). */
 		ret = -EOPNOTSUPP;
 		goto out;
 	}

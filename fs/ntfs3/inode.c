@@ -89,7 +89,7 @@ static struct inode *ntfs_read_mft(struct inode *inode,
 	}
 
 	if (le32_to_cpu(rec->total) != sbi->record_size) {
-		// Bad inode?
+		/* Bad inode? */
 		err = -EINVAL;
 		goto out;
 	}
@@ -605,7 +605,7 @@ static noinline int ntfs_get_block_vbo(struct inode *inode, u64 vbo,
 		if (vbo >= valid)
 			set_buffer_new(bh);
 	} else if (create) {
-		/*normal write*/
+		/* Normal write. */
 		if (bytes > bh->b_size)
 			bytes = bh->b_size;
 
@@ -1091,7 +1091,7 @@ int inode_write_data(struct inode *inode, const void *data, size_t bytes)
 /*
  * ntfs_reparse_bytes
  *
- * Number of bytes to for REPARSE_DATA_BUFFER(IO_REPARSE_TAG_SYMLINK)
+ * Number of bytes for REPARSE_DATA_BUFFER(IO_REPARSE_TAG_SYMLINK)
  * for unicode string of @uni_len length.
  */
 static inline u32 ntfs_reparse_bytes(u32 uni_len)
@@ -1205,13 +1205,13 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 		return ERR_PTR(-EINVAL);
 
 	if (S_ISDIR(mode)) {
-		/* use parent's directory attributes */
+		/* Use parent's directory attributes. */
 		fa = dir_ni->std_fa | FILE_ATTRIBUTE_DIRECTORY |
 		     FILE_ATTRIBUTE_ARCHIVE;
 		/*
-		 * By default child directory inherits parent attributes
-		 * root directory is hidden + system
-		 * Make an exception for children in root
+		 * By default child directory inherits parent attributes.
+		 * Root directory is hidden + system.
+		 * Make an exception for children in root.
 		 */
 		if (dir->i_ino == MFT_REC_ROOT)
 			fa &= ~(FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM);
@@ -1220,8 +1220,8 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 		fa = FILE_ATTRIBUTE_REPARSE_POINT;
 
 		/*
-		 * linux: there are dir/file/symlink and so on.
-		 * NTFS: symlinks are "dir + reparse" or "file + reparse".
+		 * Linux: there are dir/file/symlink and so on.
+		 * NTFS: symlinks are "dir + reparse" or "file + reparse"
 		 * It is good idea to create:
 		 * dir + reparse if 'symname' points to directory
 		 * or
@@ -1860,7 +1860,7 @@ static noinline int ntfs_readlink_hlp(struct inode *inode, char *buffer,
 
 	default:
 		if (IsReparseTagMicrosoft(rp->ReparseTag)) {
-			/* unknown Microsoft Tag */
+			/* Unknown Microsoft Tag. */
 			goto out;
 		}
 		if (!IsReparseTagNameSurrogate(rp->ReparseTag) ||

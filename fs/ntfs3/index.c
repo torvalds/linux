@@ -2624,17 +2624,19 @@ int indx_update_dup(struct ntfs_inode *ni, struct ntfs_sb_info *sbi,
 	e_fname = (struct ATTR_FILE_NAME *)(e + 1);
 
 	if (!memcmp(&e_fname->dup, dup, sizeof(*dup))) {
-		/* Nothing to update in index! Try to avoid this call. */
+		/*
+		 * Nothing to update in index! Try to avoid this call.
+		 */
 		goto out;
 	}
 
 	memcpy(&e_fname->dup, dup, sizeof(*dup));
 
 	if (fnd->level) {
-		/* directory entry in index */
+		/* Directory entry in index. */
 		err = indx_write(indx, ni, fnd->nodes[fnd->level - 1], sync);
 	} else {
-		/* directory entry in directory MFT record */
+		/* Directory entry in directory MFT record. */
 		mi->dirty = true;
 		if (sync)
 			err = mi_write(mi, 1);

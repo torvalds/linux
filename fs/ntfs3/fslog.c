@@ -1362,7 +1362,8 @@ static void log_create(struct ntfs_log *log, u32 l_size, const u64 last_lsn,
 	/* Compute the log page values. */
 	log->data_off = ALIGN(
 		offsetof(struct RECORD_PAGE_HDR, fixups) +
-		sizeof(short) * ((log->page_size >> SECTOR_SHIFT) + 1), 8);
+			sizeof(short) * ((log->page_size >> SECTOR_SHIFT) + 1),
+		8);
 	log->data_size = log->page_size - log->data_off;
 	log->record_header_len = sizeof(struct LFS_RECORD_HDR);
 
@@ -1372,7 +1373,9 @@ static void log_create(struct ntfs_log *log, u32 l_size, const u64 last_lsn,
 	/* Compute the restart page values. */
 	log->ra_off = ALIGN(
 		offsetof(struct RESTART_HDR, fixups) +
-		sizeof(short) * ((log->sys_page_size >> SECTOR_SHIFT) + 1), 8);
+			sizeof(short) *
+				((log->sys_page_size >> SECTOR_SHIFT) + 1),
+		8);
 	log->restart_size = log->sys_page_size - log->ra_off;
 	log->ra_size = struct_size(log->ra, clients, 1);
 	log->current_openlog_count = open_log_count;
@@ -5132,8 +5135,8 @@ end_reply:
 	rh->sys_page_size = cpu_to_le32(log->page_size);
 	rh->page_size = cpu_to_le32(log->page_size);
 
-	t16 = ALIGN(offsetof(struct RESTART_HDR, fixups) +
-		    sizeof(short) * t16, 8);
+	t16 = ALIGN(offsetof(struct RESTART_HDR, fixups) + sizeof(short) * t16,
+		    8);
 	rh->ra_off = cpu_to_le16(t16);
 	rh->minor_ver = cpu_to_le16(1); // 0x1A:
 	rh->major_ver = cpu_to_le16(1); // 0x1C:

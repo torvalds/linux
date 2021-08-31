@@ -262,7 +262,7 @@ enum RECORD_FLAG {
 	RECORD_FLAG_UNKNOWN	= cpu_to_le16(0x0008),
 };
 
-/* MFT Record structure, */
+/* MFT Record structure. */
 struct MFT_REC {
 	struct NTFS_RECORD_HEADER rhdr; // 'FILE'
 

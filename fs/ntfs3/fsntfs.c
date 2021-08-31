@@ -312,7 +312,7 @@ int ntfs_loadlog_and_replay(struct ntfs_inode *ni, struct ntfs_sb_info *sbi)
 	if (sb_rdonly(sb) || !initialized)
 		goto out;
 
-	/* Fill LogFile by '-1' if it is initialized.ssss */
+	/* Fill LogFile by '-1' if it is initialized. */
 	err = ntfs_bio_fill_1(sbi, &ni->file.run);
 
 out:
@@ -960,10 +960,10 @@ out:
 	/* verify(!ntfs_update_mftmirr()); */
 
 	/*
-	 * if we used wait=1, sync_inode_metadata waits for the io for the
+	 * If we used wait=1, sync_inode_metadata waits for the io for the
 	 * inode to finish. It hangs when media is removed.
 	 * So wait=0 is sent down to sync_inode_metadata
-	 * and filemap_fdatawrite is used for the data blocks
+	 * and filemap_fdatawrite is used for the data blocks.
 	 */
 	err = sync_inode_metadata(&ni->vfs_inode, 0);
 	if (!err)
@@ -1917,7 +1917,7 @@ int ntfs_security_init(struct ntfs_sb_info *sbi)
 	sbi->security.next_id = SECURITY_ID_FIRST;
 	/* Always write new security at the end of bucket. */
 	sbi->security.next_off =
-			ALIGN(sds_size - SecurityDescriptorsBlockSize, 16);
+		ALIGN(sds_size - SecurityDescriptorsBlockSize, 16);
 
 	off = 0;
 	ne = NULL;
