@@ -1124,6 +1124,9 @@ static long sock_do_ioctl(struct net *net, struct socket *sock,
 	if (err != -ENOIOCTLCMD)
 		return err;
 
+	if (!is_socket_ioctl_cmd(cmd))
+		return -ENOTTY;
+
 	if (get_user_ifreq(&ifr, &data, argp))
 		return -EFAULT;
 	err = dev_ioctl(net, cmd, &ifr, data, &need_copyout);
@@ -3218,6 +3221,8 @@ static int compat_ifr_data_ioctl(struct net *net, unsigned int cmd,
 	struct ifreq ifreq;
 	void __user *data;
 
+	if (!is_socket_ioctl_cmd(cmd))
+		return -ENOTTY;
 	if (get_user_ifreq(&ifreq, &data, u_ifreq32))
 		return -EFAULT;
 	ifreq.ifr_data = data;
