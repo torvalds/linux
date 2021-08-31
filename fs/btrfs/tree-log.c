@@ -4375,14 +4375,25 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	if (ret)
 		return ret;
 
-	drop_args.path = path;
-	drop_args.start = em->start;
-	drop_args.end = em->start + em->len;
-	drop_args.replace_extent = true;
-	drop_args.extent_item_size = sizeof(*fi);
-	ret = btrfs_drop_extents(trans, log, inode, &drop_args);
-	if (ret)
-		return ret;
+	/*
+	 * If this is the first time we are logging the inode in the current
+	 * transaction, we can avoid btrfs_drop_extents(), which is expensive
+	 * because it does a deletion search, which always acquires write locks
+	 * for extent buffers at levels 2, 1 and 0. This not only wastes time
+	 * but also adds significant contention in a log tree, since log trees
+	 * are small, with a root at level 2 or 3 at most, due to their short
+	 * life span.
+	 */
+	if (inode_logged(trans, inode)) {
+		drop_args.path = path;
+		drop_args.start = em->start;
+		drop_args.end = em->start + em->len;
+		drop_args.replace_extent = true;
+		drop_args.extent_item_size = sizeof(*fi);
+		ret = btrfs_drop_extents(trans, log, inode, &drop_args);
+		if (ret)
+			return ret;
+	}
 
 	if (!drop_args.extent_inserted) {
 		key.objectid = btrfs_ino(inode);
