@@ -152,7 +152,6 @@ void ksmbd_close_session_fds(struct ksmbd_work *work);
 int ksmbd_close_inode_fds(struct ksmbd_work *work, struct inode *inode);
 int ksmbd_init_global_file_table(void);
 void ksmbd_free_global_file_table(void);
-int ksmbd_file_table_flush(struct ksmbd_work *work);
 void ksmbd_set_fd_limit(unsigned long limit);
 
 /*
