@@ -359,6 +359,8 @@ static int __init ptdump_init(void)
 		ptdump_range[0].start = KERN_VIRT_START;
 	else
 		ptdump_range[0].start = PAGE_OFFSET;
+
+	ptdump_range[0].end = PAGE_OFFSET + (PGDIR_SIZE * PTRS_PER_PGD);
 #endif
 
 	populate_markers();
