@@ -28,6 +28,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/bitfield.h>
 #include <linux/hdmi.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
@@ -5145,6 +5146,71 @@ void drm_get_monitor_range(struct drm_connector *connector,
 		      info->monitor_range.max_vfreq);
 }
 
+static void drm_parse_vesa_mso_data(struct drm_connector *connector,
+				    const struct displayid_block *block)
+{
+	struct displayid_vesa_vendor_specific_block *vesa =
+		(struct displayid_vesa_vendor_specific_block *)block;
+	struct drm_display_info *info = &connector->display_info;
+
+	if (block->num_bytes < 3) {
+		drm_dbg_kms(connector->dev, "Unexpected vendor block size %u\n",
+			    block->num_bytes);
+		return;
+	}
+
+	if (oui(vesa->oui[0], vesa->oui[1], vesa->oui[2]) != VESA_IEEE_OUI)
+		return;
+
+	if (sizeof(*vesa) != sizeof(*block) + block->num_bytes) {
+		drm_dbg_kms(connector->dev, "Unexpected VESA vendor block size\n");
+		return;
+	}
+
+	switch (FIELD_GET(DISPLAYID_VESA_MSO_MODE, vesa->mso)) {
+	default:
+		drm_dbg_kms(connector->dev, "Reserved MSO mode value\n");
+		fallthrough;
+	case 0:
+		info->mso_stream_count = 0;
+		break;
+	case 1:
+		info->mso_stream_count = 2; /* 2 or 4 links */
+		break;
+	case 2:
+		info->mso_stream_count = 4; /* 4 links */
+		break;
+	}
+
+	if (!info->mso_stream_count) {
+		info->mso_pixel_overlap = 0;
+		return;
+	}
+
+	info->mso_pixel_overlap = FIELD_GET(DISPLAYID_VESA_MSO_OVERLAP, vesa->mso);
+	if (info->mso_pixel_overlap > 8) {
+		drm_dbg_kms(connector->dev, "Reserved MSO pixel overlap value %u\n",
+			    info->mso_pixel_overlap);
+		info->mso_pixel_overlap = 8;
+	}
+
+	drm_dbg_kms(connector->dev, "MSO stream count %u, pixel overlap %u\n",
+		    info->mso_stream_count, info->mso_pixel_overlap);
+}
+
+static void drm_update_mso(struct drm_connector *connector, const struct edid *edid)
+{
+	const struct displayid_block *block;
+	struct displayid_iter iter;
+
+	displayid_iter_edid_begin(edid, &iter);
+	displayid_iter_for_each(block, &iter) {
+		if (block->tag == DATA_BLOCK_2_VENDOR_SPECIFIC)
+			drm_parse_vesa_mso_data(connector, block);
+	}
+	displayid_iter_end(&iter);
+}
+
 /* A connector has no EDID information, so we've got no EDID to compute quirks from. Reset
  * all of the values which would have been set from EDID
  */
@@ -5168,6 +5234,9 @@ drm_reset_display_info(struct drm_connector *connector)
 
 	info->non_desktop = 0;
 	memset(&info->monitor_range, 0, sizeof(info->monitor_range));
+
+	info->mso_stream_count = 0;
+	info->mso_pixel_overlap = 0;
 }
 
 u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid)
@@ -5246,6 +5315,9 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 		info->color_formats |= DRM_COLOR_FORMAT_YCRCB444;
 	if (edid->features & DRM_EDID_FEATURE_RGB_YCRCB422)
 		info->color_formats |= DRM_COLOR_FORMAT_YCRCB422;
+
+	drm_update_mso(connector, edid);
+
 	return quirks;
 }
 

@@ -23,8 +23,11 @@
 #define DRM_DISPLAYID_H
 
 #include <linux/types.h>
+#include <linux/bits.h>
 
 struct edid;
+
+#define VESA_IEEE_OUI				0x3a0292
 
 /* DisplayID Structure versions */
 #define DISPLAY_ID_STRUCTURE_VER_12		0x12
@@ -125,6 +128,16 @@ struct displayid_detailed_timing_block {
 	struct displayid_block base;
 	struct displayid_detailed_timings_1 timings[];
 };
+
+#define DISPLAYID_VESA_MSO_OVERLAP	GENMASK(3, 0)
+#define DISPLAYID_VESA_MSO_MODE		GENMASK(6, 5)
+
+struct displayid_vesa_vendor_specific_block {
+	struct displayid_block base;
+	u8 oui[3];
+	u8 data_structure_type;
+	u8 mso;
+} __packed;
 
 /* DisplayID iteration */
 struct displayid_iter {
