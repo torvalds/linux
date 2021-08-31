@@ -22,16 +22,16 @@
 #define VIRTIO_GPIO_DIRECTION_IN		0x02
 
 struct virtio_gpio_config {
-	__u16 ngpio;
+	__le16 ngpio;
 	__u8 padding[2];
-	__u32 gpio_names_size;
+	__le32 gpio_names_size;
 } __packed;
 
 /* Virtio GPIO Request / Response */
 struct virtio_gpio_request {
-	__u16 type;
-	__u16 gpio;
-	__u32 value;
+	__le16 type;
+	__le16 gpio;
+	__le32 value;
 };
 
 struct virtio_gpio_response {

@@ -32,7 +32,6 @@ struct virtio_gpio {
 	struct virtio_device *vdev;
 	struct mutex lock; /* Protects virtqueue operation */
 	struct gpio_chip gc;
-	struct virtio_gpio_config config;
 	struct virtio_gpio_line *lines;
 	struct virtqueue *request_vq;
 };
@@ -57,7 +56,7 @@ static int _virtio_gpio_req(struct virtio_gpio *vgpio, u16 type, u16 gpio,
 
 	req->type = cpu_to_le16(type);
 	req->gpio = cpu_to_le16(gpio);
-	req->value = txvalue;
+	req->value = cpu_to_le32(txvalue);
 
 	sg_init_one(&req_sg, req, sizeof(*req));
 	sg_init_one(&res_sg, res, rxlen);
@@ -233,19 +232,19 @@ static int virtio_gpio_alloc_vqs(struct virtio_gpio *vgpio,
 	return 0;
 }
 
-static const char **virtio_gpio_get_names(struct virtio_gpio *vgpio)
+static const char **virtio_gpio_get_names(struct virtio_gpio *vgpio,
+					  u32 gpio_names_size, u16 ngpio)
 {
-	struct virtio_gpio_config *config = &vgpio->config;
 	struct virtio_gpio_response_get_names *res;
 	struct device *dev = &vgpio->vdev->dev;
 	u8 *gpio_names, *str;
 	const char **names;
 	int i, ret, len;
 
-	if (!config->gpio_names_size)
+	if (!gpio_names_size)
 		return NULL;
 
-	len = sizeof(*res) + config->gpio_names_size;
+	len = sizeof(*res) + gpio_names_size;
 	res = devm_kzalloc(dev, len, GFP_KERNEL);
 	if (!res)
 		return NULL;
@@ -258,18 +257,18 @@ static const char **virtio_gpio_get_names(struct virtio_gpio *vgpio)
 		return NULL;
 	}
 
-	names = devm_kcalloc(dev, config->ngpio, sizeof(*names), GFP_KERNEL);
+	names = devm_kcalloc(dev, ngpio, sizeof(*names), GFP_KERNEL);
 	if (!names)
 		return NULL;
 
 	/* NULL terminate the string instead of checking it */
-	gpio_names[config->gpio_names_size - 1] = '\0';
+	gpio_names[gpio_names_size - 1] = '\0';
 
-	for (i = 0, str = gpio_names; i < config->ngpio; i++) {
+	for (i = 0, str = gpio_names; i < ngpio; i++) {
 		names[i] = str;
 		str += strlen(str) + 1; /* zero-length strings are allowed */
 
-		if (str > gpio_names + config->gpio_names_size) {
+		if (str > gpio_names + gpio_names_size) {
 			dev_err(dev, "gpio_names block is too short (%d)\n", i);
 			return NULL;
 		}
@@ -280,31 +279,31 @@ static const char **virtio_gpio_get_names(struct virtio_gpio *vgpio)
 
 static int virtio_gpio_probe(struct virtio_device *vdev)
 {
-	struct virtio_gpio_config *config;
+	struct virtio_gpio_config config;
 	struct device *dev = &vdev->dev;
 	struct virtio_gpio *vgpio;
+	u32 gpio_names_size;
+	u16 ngpio;
 	int ret, i;
 
 	vgpio = devm_kzalloc(dev, sizeof(*vgpio), GFP_KERNEL);
 	if (!vgpio)
 		return -ENOMEM;
 
-	config = &vgpio->config;
-
 	/* Read configuration */
-	virtio_cread_bytes(vdev, 0, config, sizeof(*config));
-	config->gpio_names_size = le32_to_cpu(config->gpio_names_size);
-	config->ngpio = le16_to_cpu(config->ngpio);
-	if (!config->ngpio) {
+	virtio_cread_bytes(vdev, 0, &config, sizeof(config));
+	gpio_names_size = le32_to_cpu(config.gpio_names_size);
+	ngpio = le16_to_cpu(config.ngpio);
+	if (!ngpio) {
 		dev_err(dev, "Number of GPIOs can't be zero\n");
 		return -EINVAL;
 	}
 
-	vgpio->lines = devm_kcalloc(dev, config->ngpio, sizeof(*vgpio->lines), GFP_KERNEL);
+	vgpio->lines = devm_kcalloc(dev, ngpio, sizeof(*vgpio->lines), GFP_KERNEL);
 	if (!vgpio->lines)
 		return -ENOMEM;
 
-	for (i = 0; i < config->ngpio; i++) {
+	for (i = 0; i < ngpio; i++) {
 		mutex_init(&vgpio->lines[i].lock);
 		init_completion(&vgpio->lines[i].completion);
 	}
@@ -319,7 +318,7 @@ static int virtio_gpio_probe(struct virtio_device *vdev)
 	vgpio->gc.direction_output	= virtio_gpio_direction_output;
 	vgpio->gc.get			= virtio_gpio_get;
 	vgpio->gc.set			= virtio_gpio_set;
-	vgpio->gc.ngpio			= config->ngpio;
+	vgpio->gc.ngpio			= ngpio;
 	vgpio->gc.base			= -1; /* Allocate base dynamically */
 	vgpio->gc.label			= dev_name(dev);
 	vgpio->gc.parent		= dev;
@@ -333,7 +332,7 @@ static int virtio_gpio_probe(struct virtio_device *vdev)
 	/* Mark the device ready to perform operations from within probe() */
 	virtio_device_ready(vdev);
 
-	vgpio->gc.names = virtio_gpio_get_names(vgpio);
+	vgpio->gc.names = virtio_gpio_get_names(vgpio, gpio_names_size, ngpio);
 
 	ret = gpiochip_add_data(&vgpio->gc, vgpio);
 	if (ret) {
