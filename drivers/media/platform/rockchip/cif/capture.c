@@ -1422,8 +1422,12 @@ static int rkcif_assign_new_buffer_update(struct rkcif_stream *stream,
 			}
 		} else if (stream->frame_phase == CIF_CSI_FRAME1_READY) {
 			if (stream->cif_fmt_in->field == V4L2_FIELD_INTERLACED) {
-				stream->next_buf = stream->curr_buf;
-				buffer = stream->next_buf;
+				if (stream->next_buf != stream->curr_buf) {
+					stream->next_buf = stream->curr_buf;
+					buffer = stream->next_buf;
+				} else {
+					buffer = NULL;
+				}
 
 			} else {
 				stream->next_buf = list_first_entry(&stream->buf_head,
@@ -1437,10 +1441,16 @@ static int rkcif_assign_new_buffer_update(struct rkcif_stream *stream,
 	} else {
 		buffer = NULL;
 		if (dummy_buf->vaddr) {
-			if (stream->frame_phase == CIF_CSI_FRAME0_READY)
+			if (stream->frame_phase == CIF_CSI_FRAME0_READY) {
 				stream->curr_buf = NULL;
-			else if (stream->frame_phase == CIF_CSI_FRAME1_READY)
-				stream->next_buf = NULL;
+			} else if (stream->frame_phase == CIF_CSI_FRAME1_READY) {
+				if (stream->cif_fmt_in->field == V4L2_FIELD_INTERLACED) {
+					stream->next_buf = stream->curr_buf;
+					buffer = stream->next_buf;
+				} else {
+					stream->next_buf = NULL;
+				}
+			}
 		} else if (stream->curr_buf != stream->next_buf) {
 			if (stream->frame_phase == CIF_CSI_FRAME0_READY) {
 				stream->curr_buf = stream->next_buf;
@@ -5304,8 +5314,22 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 	}
 
 	for (i = 0; i < j; i++) {
-		resume_stream[i]->fs_cnt_in_single_frame = 0;
-		ret = rkcif_csi_stream_start(resume_stream[i]);
+		stream = resume_stream[i];
+		stream->fs_cnt_in_single_frame = 0;
+		if (stream->cif_fmt_in->field == V4L2_FIELD_INTERLACED) {
+			if (stream->curr_buf == stream->next_buf) {
+				if (stream->curr_buf)
+					list_add_tail(&stream->curr_buf->queue, &stream->buf_head);
+			} else {
+				if (stream->curr_buf)
+					list_add_tail(&stream->curr_buf->queue, &stream->buf_head);
+				if (stream->next_buf)
+					list_add_tail(&stream->next_buf->queue, &stream->buf_head);
+			}
+			stream->curr_buf = NULL;
+			stream->next_buf = NULL;
+		}
+		ret = rkcif_csi_stream_start(stream);
 		if (ret) {
 			v4l2_err(&cif_dev->v4l2_dev, "%s:resume stream[%d] failed\n",
 				 __func__, stream->id);
@@ -5314,7 +5338,7 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 
 		v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
 			 "resume stream[%d], frm_idx:%d, csi_sof:%d\n",
-			 resume_stream[i]->id, resume_stream[i]->frame_idx,
+			 stream->id, stream->frame_idx,
 			 rkcif_csi2_get_sof());
 	}
 
