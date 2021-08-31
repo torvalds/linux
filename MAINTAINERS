@@ -19736,6 +19736,15 @@ S:	Maintained
 F:	include/uapi/linux/virtio_snd.h
 F:	sound/virtio/*
 
+VIRTIO I2C DRIVER
+M:	Jie Deng <jie.deng@intel.com>
+M:	Viresh Kumar <viresh.kumar@linaro.org>
+L:	linux-i2c@vger.kernel.org
+L:	virtualization@lists.linux-foundation.org
+S:	Maintained
+F:	drivers/i2c/busses/i2c-virtio.c
+F:	include/uapi/linux/virtio_i2c.h
+
 VIRTUAL BOX GUEST DEVICE DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>
 M:	Arnd Bergmann <arnd@arndb.de>
