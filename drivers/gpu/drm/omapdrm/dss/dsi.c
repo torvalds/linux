@@ -4884,7 +4884,6 @@ static int dsi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct dsi_data *dsi;
 	struct resource *dsi_mem;
-	struct resource *res;
 	unsigned int i;
 	int r;
 
@@ -4921,13 +4920,11 @@ static int dsi_probe(struct platform_device *pdev)
 	if (IS_ERR(dsi->proto_base))
 		return PTR_ERR(dsi->proto_base);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
-	dsi->phy_base = devm_ioremap_resource(dev, res);
+	dsi->phy_base = devm_platform_ioremap_resource_byname(pdev, "phy");
 	if (IS_ERR(dsi->phy_base))
 		return PTR_ERR(dsi->phy_base);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pll");
-	dsi->pll_base = devm_ioremap_resource(dev, res);
+	dsi->pll_base = devm_platform_ioremap_resource_byname(pdev, "pll");
 	if (IS_ERR(dsi->pll_base))
 		return PTR_ERR(dsi->pll_base);
 

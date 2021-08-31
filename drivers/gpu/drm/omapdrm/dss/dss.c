@@ -1424,7 +1424,6 @@ static int dss_probe(struct platform_device *pdev)
 	const struct soc_device_attribute *soc;
 	struct dss_component_match_data cmatch;
 	struct component_match *match = NULL;
-	struct resource *dss_mem;
 	struct dss_device *dss;
 	int r;
 
@@ -1452,8 +1451,7 @@ static int dss_probe(struct platform_device *pdev)
 		dss->feat = of_match_device(dss_of_match, &pdev->dev)->data;
 
 	/* Map I/O registers, get and setup clocks. */
-	dss_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dss->base = devm_ioremap_resource(&pdev->dev, dss_mem);
+	dss->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dss->base)) {
 		r = PTR_ERR(dss->base);
 		goto err_free_dss;

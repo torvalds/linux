@@ -806,7 +806,6 @@ static const struct soc_device_attribute venc_soc_devices[] = {
 static int venc_probe(struct platform_device *pdev)
 {
 	struct venc_device *venc;
-	struct resource *venc_mem;
 	int r;
 
 	venc = kzalloc(sizeof(*venc), GFP_KERNEL);
@@ -823,8 +822,7 @@ static int venc_probe(struct platform_device *pdev)
 
 	venc->config = &venc_config_pal_trm;
 
-	venc_mem = platform_get_resource(venc->pdev, IORESOURCE_MEM, 0);
-	venc->base = devm_ioremap_resource(&pdev->dev, venc_mem);
+	venc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(venc->base)) {
 		r = PTR_ERR(venc->base);
 		goto err_free;

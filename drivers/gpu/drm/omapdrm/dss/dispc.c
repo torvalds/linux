@@ -4725,7 +4725,6 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 	struct dispc_device *dispc;
 	u32 rev;
 	int r = 0;
-	struct resource *dispc_mem;
 	struct device_node *np = pdev->dev.of_node;
 
 	dispc = kzalloc(sizeof(*dispc), GFP_KERNEL);
@@ -4750,8 +4749,7 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 	if (r)
 		goto err_free;
 
-	dispc_mem = platform_get_resource(dispc->pdev, IORESOURCE_MEM, 0);
-	dispc->base = devm_ioremap_resource(&pdev->dev, dispc_mem);
+	dispc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dispc->base)) {
 		r = PTR_ERR(dispc->base);
 		goto err_free;
