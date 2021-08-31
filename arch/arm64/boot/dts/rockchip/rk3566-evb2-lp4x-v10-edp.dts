@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rk3566-evb2-lp4x-v10.dtsi"
+#include "rk3568-android.dtsi"
+
+/ {
+	panel-edp {
+		compatible = "simple-panel";
+		backlight = <&backlight>;
+		power-supply = <&vcc3v3_lcd0_n>;
+		prepare-delay-ms = <120>;
+		enable-delay-ms = <120>;
+		unprepare-delay-ms = <120>;
+		disable-delay-ms = <120>;
+
+		panel-timing {
+			clock-frequency = <200000000>;
+			hactive = <1536>;
+			vactive = <2048>;
+			hfront-porch = <12>;
+			hsync-len = <16>;
+			hback-porch = <48>;
+			vfront-porch = <8>;
+			vsync-len = <4>;
+			vback-porch = <8>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
+
+		port {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&edp_out_panel>;
+			};
+		};
+	};
+};
+
+&dsi0 {
+	status = "disabled";
+};
+
+&edp {
+	force-hpd;
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			edp_out_panel: endpoint {
+				remote-endpoint = <&panel_in_edp>;
+			};
+		};
+	};
+};
+
+&edp_phy {
+	status = "okay";
+};
+
+&edp_in_vp0 {
+	status = "disabled";
+};
+
+&edp_in_vp1 {
+	status = "okay";
+};
+
+&route_edp {
+	connect = <&vp1_out_edp>;
+	status = "okay";
+};
