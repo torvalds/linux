@@ -287,7 +287,9 @@ static ssize_t show_need_cpus(const struct cluster_data *state, char *buf)
 
 static ssize_t show_active_cpus(const struct cluster_data *state, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%u\n", state->active_cpus);
+	int active_cpus = get_active_cpu_count(state);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", active_cpus);
 }
 
 static unsigned int cluster_paused_cpus(const struct cluster_data *cluster)
