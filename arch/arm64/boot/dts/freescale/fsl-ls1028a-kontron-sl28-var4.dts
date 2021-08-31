@@ -42,6 +42,6 @@
 
 &enetc_port1 {
 	phy-handle = <&phy1>;
-	phy-connection-type = "rgmii-id";
+	phy-mode = "rgmii-id";
 	status = "okay";
 };
