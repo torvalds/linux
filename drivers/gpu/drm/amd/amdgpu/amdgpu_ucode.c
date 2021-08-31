@@ -248,6 +248,8 @@ void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr)
 {
 	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
 	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+	uint32_t fw_index;
+	const struct psp_fw_bin_desc *desc;
 
 	DRM_DEBUG("PSP\n");
 	amdgpu_ucode_print_common_hdr(hdr);
@@ -311,6 +313,71 @@ void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr)
 				  le32_to_cpu(psp_hdr_v1_3->spl.offset_bytes));
 			DRM_DEBUG("spl_size_bytes: %u\n",
 				  le32_to_cpu(psp_hdr_v1_3->spl.size_bytes));
+		}
+	} else if (version_major == 2) {
+		const struct psp_firmware_header_v2_0 *psp_hdr_v2_0 =
+			 container_of(hdr, struct psp_firmware_header_v2_0, header);
+		for (fw_index = 0; fw_index < le32_to_cpu(psp_hdr_v2_0->psp_fw_bin_count); fw_index++) {
+			desc = &(psp_hdr_v2_0->psp_fw_bin[fw_index]);
+			switch (desc->fw_type) {
+			case PSP_FW_TYPE_PSP_SOS:
+				DRM_DEBUG("psp_sos_version: %u\n",
+					  le32_to_cpu(desc->fw_version));
+				DRM_DEBUG("psp_sos_size_bytes: %u\n",
+					  le32_to_cpu(desc->size_bytes));
+				break;
+			case PSP_FW_TYPE_PSP_SYS_DRV:
+				DRM_DEBUG("psp_sys_drv_version: %u\n",
+					  le32_to_cpu(desc->fw_version));
+				DRM_DEBUG("psp_sys_drv_size_bytes: %u\n",
+					  le32_to_cpu(desc->size_bytes));
+				break;
+			case PSP_FW_TYPE_PSP_KDB:
+				DRM_DEBUG("psp_kdb_version: %u\n",
+					  le32_to_cpu(desc->fw_version));
+				DRM_DEBUG("psp_kdb_size_bytes: %u\n",
+					  le32_to_cpu(desc->size_bytes));
+				break;
+			case PSP_FW_TYPE_PSP_TOC:
+				DRM_DEBUG("psp_toc_version: %u\n",
+					  le32_to_cpu(desc->fw_version));
+				DRM_DEBUG("psp_toc_size_bytes: %u\n",
+					  le32_to_cpu(desc->size_bytes));
+				break;
+			case PSP_FW_TYPE_PSP_SPL:
+				DRM_DEBUG("psp_spl_version: %u\n",
+					  le32_to_cpu(desc->fw_version));
+				DRM_DEBUG("psp_spl_size_bytes: %u\n",
+					  le32_to_cpu(desc->size_bytes));
+				break;
+			case PSP_FW_TYPE_PSP_RL:
+				DRM_DEBUG("psp_rl_version: %u\n",
+					  le32_to_cpu(desc->fw_version));
+				DRM_DEBUG("psp_rl_size_bytes: %u\n",
+					  le32_to_cpu(desc->size_bytes));
+				break;
+			case PSP_FW_TYPE_PSP_SOC_DRV:
+				DRM_DEBUG("psp_soc_drv_version: %u\n",
+					  le32_to_cpu(desc->fw_version));
+				DRM_DEBUG("psp_soc_drv_size_bytes: %u\n",
+					  le32_to_cpu(desc->size_bytes));
+				break;
+			case PSP_FW_TYPE_PSP_INTF_DRV:
+				DRM_DEBUG("psp_intf_drv_version: %u\n",
+					  le32_to_cpu(desc->fw_version));
+				DRM_DEBUG("psp_intf_drv_size_bytes: %u\n",
+					  le32_to_cpu(desc->size_bytes));
+				break;
+			case PSP_FW_TYPE_PSP_DBG_DRV:
+				DRM_DEBUG("psp_dbg_drv_version: %u\n",
+					  le32_to_cpu(desc->fw_version));
+				DRM_DEBUG("psp_dbg_drv_size_bytes: %u\n",
+					  le32_to_cpu(desc->size_bytes));
+				break;
+			default:
+				DRM_DEBUG("Unsupported PSP fw type: %d\n", desc->fw_type);
+				break;
+			}
 		}
 	} else {
 		DRM_ERROR("Unknown PSP ucode version: %u.%u\n",
