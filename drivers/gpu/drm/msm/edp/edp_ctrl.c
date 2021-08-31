@@ -1243,8 +1243,6 @@ bool msm_edp_ctrl_panel_connected(struct edp_ctrl *ctrl)
 int msm_edp_ctrl_get_panel_info(struct edp_ctrl *ctrl,
 		struct drm_connector *connector, struct edid **edid)
 {
-	int ret = 0;
-
 	mutex_lock(&ctrl->dev_mutex);
 
 	if (ctrl->edid) {
@@ -1279,7 +1277,7 @@ disable_ret:
 	}
 unlock_ret:
 	mutex_unlock(&ctrl->dev_mutex);
-	return ret;
+	return 0;
 }
 
 int msm_edp_ctrl_timing_cfg(struct edp_ctrl *ctrl,
