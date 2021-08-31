@@ -5569,47 +5569,42 @@ log_extents:
 		}
 	}
 
+	spin_lock(&inode->lock);
+	inode->logged_trans = trans->transid;
 	/*
-	 * If we are logging that an ancestor inode exists as part of logging a
-	 * new name from a link or rename operation, don't mark the inode as
-	 * logged - otherwise if an explicit fsync is made against an ancestor,
-	 * the fsync considers the inode in the log and doesn't sync the log,
-	 * resulting in the ancestor missing after a power failure unless the
-	 * log was synced as part of an fsync against any other unrelated inode.
-	 * So keep it simple for this case and just don't flag the ancestors as
-	 * logged.
+	 * Don't update last_log_commit if we logged that an inode exists.
+	 * We do this for three reasons:
+	 *
+	 * 1) We might have had buffered writes to this inode that were
+	 *    flushed and had their ordered extents completed in this
+	 *    transaction, but we did not previously log the inode with
+	 *    LOG_INODE_ALL. Later the inode was evicted and after that
+	 *    it was loaded again and this LOG_INODE_EXISTS log operation
+	 *    happened. We must make sure that if an explicit fsync against
+	 *    the inode is performed later, it logs the new extents, an
+	 *    updated inode item, etc, and syncs the log. The same logic
+	 *    applies to direct IO writes instead of buffered writes.
+	 *
+	 * 2) When we log the inode with LOG_INODE_EXISTS, its inode item
+	 *    is logged with an i_size of 0 or whatever value was logged
+	 *    before. If later the i_size of the inode is increased by a
+	 *    truncate operation, the log is synced through an fsync of
+	 *    some other inode and then finally an explicit fsync against
+	 *    this inode is made, we must make sure this fsync logs the
+	 *    inode with the new i_size, the hole between old i_size and
+	 *    the new i_size, and syncs the log.
+	 *
+	 * 3) If we are logging that an ancestor inode exists as part of
+	 *    logging a new name from a link or rename operation, don't update
+	 *    its last_log_commit - otherwise if an explicit fsync is made
+	 *    against an ancestor, the fsync considers the inode in the log
+	 *    and doesn't sync the log, resulting in the ancestor missing after
+	 *    a power failure unless the log was synced as part of an fsync
+	 *    against any other unrelated inode.
 	 */
-	if (!(S_ISDIR(inode->vfs_inode.i_mode) && ctx->logging_new_name &&
-	      &inode->vfs_inode != ctx->inode)) {
-		spin_lock(&inode->lock);
-		inode->logged_trans = trans->transid;
-		/*
-		 * Don't update last_log_commit if we logged that an inode exists.
-		 * We do this for two reasons:
-		 *
-		 * 1) We might have had buffered writes to this inode that were
-		 *    flushed and had their ordered extents completed in this
-		 *    transaction, but we did not previously log the inode with
-		 *    LOG_INODE_ALL. Later the inode was evicted and after that
-		 *    it was loaded again and this LOG_INODE_EXISTS log operation
-		 *    happened. We must make sure that if an explicit fsync against
-		 *    the inode is performed later, it logs the new extents, an
-		 *    updated inode item, etc, and syncs the log. The same logic
-		 *    applies to direct IO writes instead of buffered writes.
-		 *
-		 * 2) When we log the inode with LOG_INODE_EXISTS, its inode item
-		 *    is logged with an i_size of 0 or whatever value was logged
-		 *    before. If later the i_size of the inode is increased by a
-		 *    truncate operation, the log is synced through an fsync of
-		 *    some other inode and then finally an explicit fsync against
-		 *    this inode is made, we must make sure this fsync logs the
-		 *    inode with the new i_size, the hole between old i_size and
-		 *    the new i_size, and syncs the log.
-		 */
-		if (inode_only != LOG_INODE_EXISTS)
-			inode->last_log_commit = inode->last_sub_trans;
-		spin_unlock(&inode->lock);
-	}
+	if (inode_only != LOG_INODE_EXISTS)
+		inode->last_log_commit = inode->last_sub_trans;
+	spin_unlock(&inode->lock);
 out_unlock:
 	mutex_unlock(&inode->log_mutex);
 
