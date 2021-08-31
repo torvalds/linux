@@ -69,7 +69,7 @@ functions. These can be mixed and matched. Note that these functions
 are not reentrant for performance reasons.
 
 ABI
-==========
+---
 
 libbpf can be both linked statically or used as DSO. To avoid possible
 conflicts with other libraries an application is linked with, all

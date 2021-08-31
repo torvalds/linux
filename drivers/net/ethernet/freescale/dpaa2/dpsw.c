@@ -1579,3 +1579,83 @@ int dpsw_acl_remove_entry(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
+
+/**
+ * dpsw_set_reflection_if() - Set target interface for traffic mirrored
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @if_id:	Interface Id
+ *
+ * Only one mirroring destination is allowed per switch
+ *
+ * Return:	Completion status. '0' on Success; Error code otherwise.
+ */
+int dpsw_set_reflection_if(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			   u16 if_id)
+{
+	struct dpsw_cmd_set_reflection_if *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_SET_REFLECTION_IF,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_set_reflection_if *)cmd.params;
+	cmd_params->if_id = cpu_to_le16(if_id);
+
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
+ * dpsw_if_add_reflection() - Setup mirroring rule
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @if_id:	Interface Identifier
+ * @cfg:	Reflection configuration
+ *
+ * Return:	Completion status. '0' on Success; Error code otherwise.
+ */
+int dpsw_if_add_reflection(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			   u16 if_id, const struct dpsw_reflection_cfg *cfg)
+{
+	struct dpsw_cmd_if_reflection *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_IF_ADD_REFLECTION,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_if_reflection *)cmd.params;
+	cmd_params->if_id = cpu_to_le16(if_id);
+	cmd_params->vlan_id = cpu_to_le16(cfg->vlan_id);
+	dpsw_set_field(cmd_params->filter, FILTER, cfg->filter);
+
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
+ * dpsw_if_remove_reflection() - Remove mirroring rule
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @if_id:	Interface Identifier
+ * @cfg:	Reflection configuration
+ *
+ * Return:	Completion status. '0' on Success; Error code otherwise.
+ */
+int dpsw_if_remove_reflection(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			      u16 if_id, const struct dpsw_reflection_cfg *cfg)
+{
+	struct dpsw_cmd_if_reflection *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_IF_REMOVE_REFLECTION,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_if_reflection *)cmd.params;
+	cmd_params->if_id = cpu_to_le16(if_id);
+	cmd_params->vlan_id = cpu_to_le16(cfg->vlan_id);
+	dpsw_set_field(cmd_params->filter, FILTER, cfg->filter);
+
+	return mc_send_command(mc_io, &cmd);
+}

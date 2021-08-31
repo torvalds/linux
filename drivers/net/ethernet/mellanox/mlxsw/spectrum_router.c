@@ -9484,6 +9484,7 @@ struct mlxsw_sp_mp_hash_config {
 	DECLARE_BITMAP(fields, __MLXSW_REG_RECR2_FIELD_CNT);
 	DECLARE_BITMAP(inner_headers, __MLXSW_REG_RECR2_HEADER_CNT);
 	DECLARE_BITMAP(inner_fields, __MLXSW_REG_RECR2_INNER_FIELD_CNT);
+	bool inc_parsing_depth;
 };
 
 #define MLXSW_SP_MP_HASH_HEADER_SET(_headers, _header) \
@@ -9654,6 +9655,7 @@ static void mlxsw_sp_mp6_hash_init(struct mlxsw_sp *mlxsw_sp,
 		MLXSW_SP_MP_HASH_FIELD_SET(fields, IPV6_FLOW_LABEL);
 		/* Inner */
 		mlxsw_sp_mp_hash_inner_l3(config);
+		config->inc_parsing_depth = true;
 		break;
 	case 3:
 		/* Outer */
@@ -9678,21 +9680,52 @@ static void mlxsw_sp_mp6_hash_init(struct mlxsw_sp *mlxsw_sp,
 			MLXSW_SP_MP_HASH_FIELD_SET(fields, TCP_UDP_DPORT);
 		/* Inner */
 		mlxsw_sp_mp_hash_inner_custom(config, hash_fields);
+		if (hash_fields & FIB_MULTIPATH_HASH_FIELD_INNER_MASK)
+			config->inc_parsing_depth = true;
 		break;
 	}
 }
 
+static int mlxsw_sp_mp_hash_parsing_depth_adjust(struct mlxsw_sp *mlxsw_sp,
+						 bool old_inc_parsing_depth,
+						 bool new_inc_parsing_depth)
+{
+	int err;
+
+	if (!old_inc_parsing_depth && new_inc_parsing_depth) {
+		err = mlxsw_sp_parsing_depth_inc(mlxsw_sp);
+		if (err)
+			return err;
+		mlxsw_sp->router->inc_parsing_depth = true;
+	} else if (old_inc_parsing_depth && !new_inc_parsing_depth) {
+		mlxsw_sp_parsing_depth_dec(mlxsw_sp);
+		mlxsw_sp->router->inc_parsing_depth = false;
+	}
+
+	return 0;
+}
+
 static int mlxsw_sp_mp_hash_init(struct mlxsw_sp *mlxsw_sp)
 {
+	bool old_inc_parsing_depth, new_inc_parsing_depth;
 	struct mlxsw_sp_mp_hash_config config = {};
 	char recr2_pl[MLXSW_REG_RECR2_LEN];
 	unsigned long bit;
 	u32 seed;
+	int err;
 
 	seed = jhash(mlxsw_sp->base_mac, sizeof(mlxsw_sp->base_mac), 0);
 	mlxsw_reg_recr2_pack(recr2_pl, seed);
 	mlxsw_sp_mp4_hash_init(mlxsw_sp, &config);
 	mlxsw_sp_mp6_hash_init(mlxsw_sp, &config);
+
+	old_inc_parsing_depth = mlxsw_sp->router->inc_parsing_depth;
+	new_inc_parsing_depth = config.inc_parsing_depth;
+	err = mlxsw_sp_mp_hash_parsing_depth_adjust(mlxsw_sp,
+						    old_inc_parsing_depth,
+						    new_inc_parsing_depth);
+	if (err)
+		return err;
 
 	for_each_set_bit(bit, config.headers, __MLXSW_REG_RECR2_HEADER_CNT)
 		mlxsw_reg_recr2_outer_header_enables_set(recr2_pl, bit, 1);
@@ -9703,7 +9736,16 @@ static int mlxsw_sp_mp_hash_init(struct mlxsw_sp *mlxsw_sp)
 	for_each_set_bit(bit, config.inner_fields, __MLXSW_REG_RECR2_INNER_FIELD_CNT)
 		mlxsw_reg_recr2_inner_header_fields_enable_set(recr2_pl, bit, 1);
 
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(recr2), recr2_pl);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(recr2), recr2_pl);
+	if (err)
+		goto err_reg_write;
+
+	return 0;
+
+err_reg_write:
+	mlxsw_sp_mp_hash_parsing_depth_adjust(mlxsw_sp, new_inc_parsing_depth,
+					      old_inc_parsing_depth);
+	return err;
 }
 #else
 static int mlxsw_sp_mp_hash_init(struct mlxsw_sp *mlxsw_sp)

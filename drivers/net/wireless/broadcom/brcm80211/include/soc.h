@@ -6,7 +6,7 @@
 #ifndef	_BRCM_SOC_H
 #define	_BRCM_SOC_H
 
-#define SI_ENUM_BASE		0x18000000	/* Enumeration space base */
+#define SI_ENUM_BASE_DEFAULT	0x18000000
 
 /* Common core control flags */
 #define	SICF_BIST_EN		0x8000

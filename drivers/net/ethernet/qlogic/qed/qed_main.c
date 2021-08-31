@@ -49,11 +49,10 @@
 #define QED_NVM_CFG_MAX_ATTRS		50
 
 static char version[] =
-	"QLogic FastLinQ 4xxxx Core Module qed " DRV_MODULE_VERSION "\n";
+	"QLogic FastLinQ 4xxxx Core Module qed\n";
 
 MODULE_DESCRIPTION("QLogic FastLinQ 4xxxx Core Module");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_MODULE_VERSION);
 
 #define FW_FILE_VERSION				\
 	__stringify(FW_MAJOR_VERSION) "."	\
@@ -1221,6 +1220,10 @@ static void qed_slowpath_task(struct work_struct *work)
 
 	if (test_and_clear_bit(QED_SLOWPATH_PERIODIC_DB_REC,
 			       &hwfn->slowpath_task_flags)) {
+		/* skip qed_db_rec_handler during recovery/unload */
+		if (hwfn->cdev->recov_in_prog || !hwfn->slowpath_wq_active)
+			goto out;
+
 		qed_db_rec_handler(hwfn, ptt);
 		if (hwfn->periodic_db_rec_count--)
 			qed_slowpath_delayed_work(hwfn,
@@ -1228,6 +1231,7 @@ static void qed_slowpath_task(struct work_struct *work)
 						  QED_PERIODIC_DB_REC_INTERVAL);
 	}
 
+out:
 	qed_ptt_release(hwfn, ptt);
 }
 

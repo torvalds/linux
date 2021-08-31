@@ -1624,8 +1624,6 @@ qed_iwarp_get_listener(struct qed_hwfn *p_hwfn,
 	static const u32 ip_zero[4] = { 0, 0, 0, 0 };
 	bool found = false;
 
-	qed_iwarp_print_cm_info(p_hwfn, cm_info);
-
 	list_for_each_entry(listener,
 			    &p_hwfn->p_rdma_info->iwarp.listen_list,
 			    list_entry) {

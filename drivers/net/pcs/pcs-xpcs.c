@@ -65,6 +65,9 @@ static const int xpcs_xlgmii_features[] = {
 };
 
 static const int xpcs_sgmii_features[] = {
+	ETHTOOL_LINK_MODE_Pause_BIT,
+	ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+	ETHTOOL_LINK_MODE_Autoneg_BIT,
 	ETHTOOL_LINK_MODE_10baseT_Half_BIT,
 	ETHTOOL_LINK_MODE_10baseT_Full_BIT,
 	ETHTOOL_LINK_MODE_100baseT_Half_BIT,
@@ -75,6 +78,7 @@ static const int xpcs_sgmii_features[] = {
 };
 
 static const int xpcs_2500basex_features[] = {
+	ETHTOOL_LINK_MODE_Pause_BIT,
 	ETHTOOL_LINK_MODE_Asym_Pause_BIT,
 	ETHTOOL_LINK_MODE_Autoneg_BIT,
 	ETHTOOL_LINK_MODE_2500baseX_Full_BIT,
