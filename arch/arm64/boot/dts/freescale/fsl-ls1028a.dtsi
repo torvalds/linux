@@ -814,6 +814,17 @@
 			};
 		};
 
+		gpu: gpu@f0c0000 {
+			compatible = "vivante,gc";
+			reg = <0x0 0xf0c0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clockgen QORIQ_CLK_HWACCEL 2>,
+				 <&clockgen QORIQ_CLK_HWACCEL 2>,
+				 <&clockgen QORIQ_CLK_HWACCEL 2>;
+			clock-names = "core", "shader", "bus";
+			#cooling-cells = <2>;
+		};
+
 		sai1: audio-controller@f100000 {
 			#sound-dai-cells = <0>;
 			compatible = "fsl,vf610-sai";
