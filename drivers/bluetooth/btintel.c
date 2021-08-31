@@ -1037,8 +1037,9 @@ static bool btintel_firmware_version(struct hci_dev *hdev,
 
 			params = (void *)(fw_ptr + sizeof(*cmd));
 
-			bt_dev_info(hdev, "Boot Address: 0x%x",
-				    le32_to_cpu(params->boot_addr));
+			*boot_addr = le32_to_cpu(params->boot_addr);
+
+			bt_dev_info(hdev, "Boot Address: 0x%x", *boot_addr);
 
 			bt_dev_info(hdev, "Firmware Version: %u-%u.%u",
 				    params->fw_build_num, params->fw_build_ww,
