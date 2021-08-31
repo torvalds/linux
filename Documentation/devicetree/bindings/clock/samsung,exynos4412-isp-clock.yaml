@@ -52,7 +52,7 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/exynos4412.h>
+    #include <dt-bindings/clock/exynos4.h>
     clock-controller@10048000 {
         compatible = "samsung,exynos4412-isp-clock";
         reg = <0x10048000 0x1000>;
