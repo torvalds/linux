@@ -287,6 +287,11 @@
 	status = "okay";
 };
 
+&usb0 {
+	status = "okay";
+};
+
 &usb1 {
 	dr_mode = "otg";
+	status = "okay";
 };
