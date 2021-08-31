@@ -15,6 +15,9 @@
 #include <linux/rpmsg.h>
 #include <trace/events/rproc_qcom.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/rproc_qcom.h>
+
 #include "qcom_common.h"
 
 #define SYSMON_NOTIF_TIMEOUT CONFIG_RPROC_SYSMON_NOTIF_TIMEOUT
