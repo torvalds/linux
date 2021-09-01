@@ -77,7 +77,7 @@
 		sound-name-prefix = "Speaker Amp";
 	};
 
-	vdd_bl: regulator@0 {
+	vdd_bl: regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "bl-3v3";
 		regulator-min-microvolt = <3300000>;
