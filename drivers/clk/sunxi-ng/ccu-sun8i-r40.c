@@ -1346,7 +1346,7 @@ static int sun8i_r40_ccu_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	ret = sunxi_ccu_probe(pdev->dev.of_node, reg, &sun8i_r40_ccu_desc);
+	ret = devm_sunxi_ccu_probe(&pdev->dev, reg, &sun8i_r40_ccu_desc);
 	if (ret)
 		return ret;
 
