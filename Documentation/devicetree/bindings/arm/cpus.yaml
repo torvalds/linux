@@ -240,6 +240,8 @@ properties:
       DMIPS/MHz, relative to highest capacity-dmips-mhz
       in the system.
 
+  cci-control-port: true
+
   dynamic-power-coefficient:
     $ref: '/schemas/types.yaml#/definitions/uint32'
     description:
