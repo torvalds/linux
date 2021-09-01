@@ -641,10 +641,6 @@ struct ddi_vbt_port_info {
 
 	int max_tmds_clock;
 
-	/* This is an index in the HDMI/DVI DDI buffer translation table. */
-	u8 hdmi_level_shift;
-	u8 hdmi_level_shift_set:1;
-
 	u8 alternate_aux_channel;
 	u8 alternate_ddc_pin;
 

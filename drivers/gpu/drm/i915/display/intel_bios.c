@@ -1868,6 +1868,14 @@ intel_bios_encoder_supports_edp(const struct intel_bios_encoder_data *devdata)
 		devdata->child.device_type & DEVICE_TYPE_INTERNAL_CONNECTOR;
 }
 
+static int _intel_bios_hdmi_level_shift(const struct intel_bios_encoder_data *devdata)
+{
+	if (!devdata || devdata->i915->vbt.version < 158)
+		return -1;
+
+	return devdata->child.hdmi_level_shifter_value;
+}
+
 static bool is_port_valid(struct drm_i915_private *i915, enum port port)
 {
 	/*
@@ -1887,7 +1895,7 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 	const struct child_device_config *child = &devdata->child;
 	struct ddi_vbt_port_info *info;
 	bool is_dvi, is_hdmi, is_dp, is_edp, is_crt, supports_typec_usb, supports_tbt;
-	int dp_boost_level, hdmi_boost_level;
+	int dp_boost_level, hdmi_boost_level, hdmi_level_shift;
 	enum port port;
 
 	port = dvo_port_to_port(i915, child->dvo_port);
@@ -1949,15 +1957,11 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 		sanitize_aux_ch(i915, port);
 	}
 
-	if (i915->vbt.version >= 158) {
-		/* The VBT HDMI level shift values match the table we have. */
-		u8 hdmi_level_shift = child->hdmi_level_shifter_value;
+	hdmi_level_shift = _intel_bios_hdmi_level_shift(devdata);
+	if (hdmi_level_shift >= 0) {
 		drm_dbg_kms(&i915->drm,
 			    "Port %c VBT HDMI level shift: %d\n",
-			    port_name(port),
-			    hdmi_level_shift);
-		info->hdmi_level_shift = hdmi_level_shift;
-		info->hdmi_level_shift_set = true;
+			    port_name(port), hdmi_level_shift);
 	}
 
 	if (i915->vbt.version >= 204) {
@@ -2950,13 +2954,13 @@ int intel_bios_max_tmds_clock(struct intel_encoder *encoder)
 	return i915->vbt.ddi_port_info[encoder->port].max_tmds_clock;
 }
 
+/* This is an index in the HDMI/DVI DDI buffer translation table, or -1 */
 int intel_bios_hdmi_level_shift(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
-	const struct ddi_vbt_port_info *info =
-		&i915->vbt.ddi_port_info[encoder->port];
+	const struct intel_bios_encoder_data *devdata = i915->vbt.ddi_port_info[encoder->port].devdata;
 
-	return info->hdmi_level_shift_set ? info->hdmi_level_shift : -1;
+	return _intel_bios_hdmi_level_shift(devdata);
 }
 
 int intel_bios_encoder_dp_boost_level(const struct intel_bios_encoder_data *devdata)
