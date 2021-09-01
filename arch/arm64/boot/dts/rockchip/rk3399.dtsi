@@ -1803,8 +1803,6 @@
 		compatible = "rockchip,rk3399-vop-lit";
 		reg = <0x0 0xff8f0000 0x0 0x3efc>;
 		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH 0>;
-		assigned-clocks = <&cru ACLK_VOP1>, <&cru HCLK_VOP1>;
-		assigned-clock-rates = <400000000>, <100000000>;
 		clocks = <&cru ACLK_VOP1>, <&cru DCLK_VOP1>, <&cru HCLK_VOP1>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
 		iommus = <&vopl_mmu>;
@@ -1871,8 +1869,6 @@
 		compatible = "rockchip,rk3399-vop-big";
 		reg = <0x0 0xff900000 0x0 0x3efc>;
 		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH 0>;
-		assigned-clocks = <&cru ACLK_VOP0>, <&cru HCLK_VOP0>;
-		assigned-clock-rates = <400000000>, <100000000>;
 		clocks = <&cru ACLK_VOP0>, <&cru DCLK_VOP0>, <&cru HCLK_VOP0>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
 		iommus = <&vopb_mmu>;
