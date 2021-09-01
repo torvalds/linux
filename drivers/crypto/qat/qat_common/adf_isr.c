@@ -203,7 +203,6 @@ static void adf_free_irqs(struct adf_accel_dev *accel_dev)
 	}
 
 	irq = pci_irq_vector(pci_dev_info->pci_dev, clust_irq);
-	irq_set_affinity_hint(irq, NULL);
 	free_irq(irq, accel_dev);
 }
 
