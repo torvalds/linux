@@ -129,7 +129,8 @@ struct btree *__bch2_btree_node_mem_alloc(struct bch_fs *c)
 
 void bch2_btree_node_hash_remove(struct btree_cache *bc, struct btree *b)
 {
-	rhashtable_remove_fast(&bc->table, &b->hash, bch_btree_cache_params);
+	int ret = rhashtable_remove_fast(&bc->table, &b->hash, bch_btree_cache_params);
+	BUG_ON(ret);
 
 	/* Cause future lookups for this node to fail: */
 	b->hash_val = 0;
