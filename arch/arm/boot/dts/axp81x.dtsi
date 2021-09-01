@@ -48,7 +48,7 @@
 	interrupt-controller;
 	#interrupt-cells = <1>;
 
-	ac_power_supply: ac-power-supply {
+	ac_power_supply: ac-power {
 		compatible = "x-powers,axp813-ac-power-supply";
 		status = "disabled";
 	};
@@ -74,7 +74,7 @@
 		};
 	};
 
-	battery_power_supply: battery-power-supply {
+	battery_power_supply: battery-power {
 		compatible = "x-powers,axp813-battery-power-supply";
 		status = "disabled";
 	};
@@ -172,7 +172,7 @@
 		};
 	};
 
-	usb_power_supply: usb-power-supply {
+	usb_power_supply: usb-power {
 		compatible = "x-powers,axp813-usb-power-supply";
 	};
 };
