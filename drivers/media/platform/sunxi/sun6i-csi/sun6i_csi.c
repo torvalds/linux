@@ -833,13 +833,11 @@ static const struct regmap_config sun6i_csi_regmap_config = {
 static int sun6i_csi_resource_request(struct sun6i_csi_dev *sdev,
 				      struct platform_device *pdev)
 {
-	struct resource *res;
 	void __iomem *io_base;
 	int ret;
 	int irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	io_base = devm_ioremap_resource(&pdev->dev, res);
+	io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(io_base))
 		return PTR_ERR(io_base);
 

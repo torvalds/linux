@@ -154,7 +154,6 @@ static int sun4i_csi_probe(struct platform_device *pdev)
 	struct v4l2_subdev *subdev;
 	struct video_device *vdev;
 	struct sun4i_csi *csi;
-	struct resource *res;
 	int ret;
 	int irq;
 
@@ -179,8 +178,7 @@ static int sun4i_csi_probe(struct platform_device *pdev)
 	media_device_init(&csi->mdev);
 	csi->v4l.mdev = &csi->mdev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	csi->regs = devm_ioremap_resource(&pdev->dev, res);
+	csi->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(csi->regs))
 		return PTR_ERR(csi->regs);
 
