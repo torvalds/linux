@@ -4852,9 +4852,8 @@ bad_inode:
 	return ERR_PTR(ret);
 }
 
-static int ext4_inode_blocks_set(handle_t *handle,
-				struct ext4_inode *raw_inode,
-				struct ext4_inode_info *ei)
+static int ext4_inode_blocks_set(struct ext4_inode *raw_inode,
+				 struct ext4_inode_info *ei)
 {
 	struct inode *inode = &(ei->vfs_inode);
 	u64 i_blocks = READ_ONCE(inode->i_blocks);
@@ -4957,37 +4956,16 @@ static void ext4_update_other_inodes_time(struct super_block *sb,
 	rcu_read_unlock();
 }
 
-/*
- * Post the struct inode info into an on-disk inode location in the
- * buffer-cache.  This gobbles the caller's reference to the
- * buffer_head in the inode location struct.
- *
- * The caller must have write access to iloc->bh.
- */
-static int ext4_do_update_inode(handle_t *handle,
-				struct inode *inode,
-				struct ext4_iloc *iloc)
+static int ext4_fill_raw_inode(struct inode *inode, struct ext4_inode *raw_inode)
 {
-	struct ext4_inode *raw_inode = ext4_raw_inode(iloc);
 	struct ext4_inode_info *ei = EXT4_I(inode);
-	struct buffer_head *bh = iloc->bh;
-	struct super_block *sb = inode->i_sb;
-	int err = 0, block;
-	int need_datasync = 0, set_large_file = 0;
 	uid_t i_uid;
 	gid_t i_gid;
 	projid_t i_projid;
+	int block;
+	int err;
 
-	spin_lock(&ei->i_raw_lock);
-
-	/*
-	 * For fields not tracked in the in-memory inode, initialise them
-	 * to zero for new inodes.
-	 */
-	if (ext4_test_inode_state(inode, EXT4_STATE_NEW))
-		memset(raw_inode, 0, EXT4_SB(inode->i_sb)->s_inode_size);
-
-	err = ext4_inode_blocks_set(handle, raw_inode, ei);
+	err = ext4_inode_blocks_set(raw_inode, ei);
 
 	raw_inode->i_mode = cpu_to_le16(inode->i_mode);
 	i_uid = i_uid_read(inode);
@@ -5029,16 +5007,8 @@ static int ext4_do_update_inode(handle_t *handle,
 		raw_inode->i_file_acl_high =
 			cpu_to_le16(ei->i_file_acl >> 32);
 	raw_inode->i_file_acl_lo = cpu_to_le32(ei->i_file_acl);
-	if (READ_ONCE(ei->i_disksize) != ext4_isize(inode->i_sb, raw_inode)) {
-		ext4_isize_set(raw_inode, ei->i_disksize);
-		need_datasync = 1;
-	}
-	if (ei->i_disksize > 0x7fffffffULL) {
-		if (!ext4_has_feature_large_file(sb) ||
-				EXT4_SB(sb)->s_es->s_rev_level ==
-		    cpu_to_le32(EXT4_GOOD_OLD_REV))
-			set_large_file = 1;
-	}
+	ext4_isize_set(raw_inode, ei->i_disksize);
+
 	raw_inode->i_generation = cpu_to_le32(inode->i_generation);
 	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode)) {
 		if (old_valid_dev(inode->i_rdev)) {
@@ -5078,6 +5048,45 @@ static int ext4_do_update_inode(handle_t *handle,
 		raw_inode->i_projid = cpu_to_le32(i_projid);
 
 	ext4_inode_csum_set(inode, raw_inode, ei);
+	return err;
+}
+
+/*
+ * Post the struct inode info into an on-disk inode location in the
+ * buffer-cache.  This gobbles the caller's reference to the
+ * buffer_head in the inode location struct.
+ *
+ * The caller must have write access to iloc->bh.
+ */
+static int ext4_do_update_inode(handle_t *handle,
+				struct inode *inode,
+				struct ext4_iloc *iloc)
+{
+	struct ext4_inode *raw_inode = ext4_raw_inode(iloc);
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct buffer_head *bh = iloc->bh;
+	struct super_block *sb = inode->i_sb;
+	int err;
+	int need_datasync = 0, set_large_file = 0;
+
+	spin_lock(&ei->i_raw_lock);
+
+	/*
+	 * For fields not tracked in the in-memory inode, initialise them
+	 * to zero for new inodes.
+	 */
+	if (ext4_test_inode_state(inode, EXT4_STATE_NEW))
+		memset(raw_inode, 0, EXT4_SB(inode->i_sb)->s_inode_size);
+
+	if (READ_ONCE(ei->i_disksize) != ext4_isize(inode->i_sb, raw_inode))
+		need_datasync = 1;
+	if (ei->i_disksize > 0x7fffffffULL) {
+		if (!ext4_has_feature_large_file(sb) ||
+		    EXT4_SB(sb)->s_es->s_rev_level == cpu_to_le32(EXT4_GOOD_OLD_REV))
+			set_large_file = 1;
+	}
+
+	err = ext4_fill_raw_inode(inode, raw_inode);
 	spin_unlock(&ei->i_raw_lock);
 	if (err) {
 		EXT4_ERROR_INODE(inode, "corrupted inode contents");
