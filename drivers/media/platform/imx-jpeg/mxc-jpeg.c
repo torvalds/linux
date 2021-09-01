@@ -1959,7 +1959,6 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 {
 	struct mxc_jpeg_dev *jpeg;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	int dec_irq;
 	int ret;
 	int mode;
@@ -1982,8 +1981,7 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	jpeg->base_reg = devm_ioremap_resource(&pdev->dev, res);
+	jpeg->base_reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(jpeg->base_reg))
 		return PTR_ERR(jpeg->base_reg);
 
