@@ -2821,6 +2821,7 @@ static int btusb_mtk_setup(struct hci_dev *hdev)
 	case 0x7668:
 		fwname = FIRMWARE_MT7668;
 		break;
+	case 0x7922:
 	case 0x7961:
 		snprintf(fw_bin_name, sizeof(fw_bin_name),
 			"mediatek/BT_RAM_CODE_MT%04x_1_%x_hdr.bin",
