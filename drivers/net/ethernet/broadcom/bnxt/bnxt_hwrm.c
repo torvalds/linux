@@ -145,11 +145,11 @@ void hwrm_req_timeout(struct bnxt *bp, void *req, unsigned int timeout)
  * @bp: The driver context.
  * @req: The request for which calls to hwrm_req_dma_slice() will have altered
  *	allocation flags.
- * @flags: A bitmask of GFP flags. These flags are passed to
- *	dma_alloc_coherent() whenever it is used to allocate backing memory
- *	for slices. Note that calls to hwrm_req_dma_slice() will not always
- *	result in new allocations, however, memory suballocated from the
- *	request buffer is already __GFP_ZERO.
+ * @gfp: A bitmask of GFP flags. These flags are passed to dma_alloc_coherent()
+ *	whenever it is used to allocate backing memory for slices. Note that
+ *	calls to hwrm_req_dma_slice() will not always result in new allocations,
+ *	however, memory suballocated from the request buffer is already
+ *	__GFP_ZERO.
  *
  * Sets the GFP allocation flags associated with the request for subsequent
  * calls to hwrm_req_dma_slice(). This can be useful for specifying __GFP_ZERO
@@ -698,8 +698,8 @@ int hwrm_req_send_silent(struct bnxt *bp, void *req)
  * @bp: The driver context.
  * @req: The request for which indirect data will be associated.
  * @size: The size of the allocation.
- * @dma: The bus address associated with the allocation. The HWRM API has no
- *	knowledge about the type of the request and so cannot infer how the
+ * @dma_handle: The bus address associated with the allocation. The HWRM API has
+ *	no knowledge about the type of the request and so cannot infer how the
  *	caller intends to use the indirect data. Thus, the caller is
  *	responsible for configuring the request object appropriately to
  *	point to the associated indirect memory. Note, DMA handle has the
