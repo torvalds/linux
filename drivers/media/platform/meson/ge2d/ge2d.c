@@ -922,7 +922,6 @@ static int ge2d_probe(struct platform_device *pdev)
 	struct reset_control *rst;
 	struct video_device *vfd;
 	struct meson_ge2d *ge2d;
-	struct resource *res;
 	void __iomem *regs;
 	int ret = 0;
 	int irq;
@@ -937,8 +936,7 @@ static int ge2d_probe(struct platform_device *pdev)
 	ge2d->dev = &pdev->dev;
 	mutex_init(&ge2d->mutex);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(ge2d->dev, res);
+	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
