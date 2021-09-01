@@ -259,10 +259,11 @@ config HID_PRODIKEYS
 	  and some additional multimedia keys.
 
 config HID_CMEDIA
-	tristate "CMedia CM6533 HID audio jack controls"
+	tristate "CMedia audio chips"
 	depends on HID
 	help
-	Support for CMedia CM6533 HID audio jack controls.
+	Support for CMedia CM6533 HID audio jack controls
+        and HS100B mute buttons.
 
 config HID_CP2112
 	tristate "Silicon Labs CP2112 HID USB-to-SMBus Bridge support"
