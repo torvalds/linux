@@ -255,7 +255,7 @@ static int ishtp_cl_bus_match(struct device *dev, struct device_driver *drv)
  *
  * Return: Return value from driver remove() call.
  */
-static int ishtp_cl_device_remove(struct device *dev)
+static void ishtp_cl_device_remove(struct device *dev)
 {
 	struct ishtp_cl_device *device = to_ishtp_cl_device(dev);
 	struct ishtp_cl_driver *driver = to_ishtp_cl_driver(dev->driver);
@@ -267,8 +267,6 @@ static int ishtp_cl_device_remove(struct device *dev)
 
 	if (driver->remove)
 		driver->remove(device);
-
-	return 0;
 }
 
 /**
