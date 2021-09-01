@@ -151,8 +151,8 @@ struct at91_adc_reg_layout {
 	u16				CGR;
 /* Channel Offset Register */
 	u16				COR;
-#define AT91_SAMA5D2_COR_DIFF_OFFSET	16
-
+/* Channel Offset Register differential offset - constant, not a register */
+	u16				COR_diff_offset;
 /* Analog Control Register */
 	u16				ACR;
 /* Analog Control Register - Pen detect sensitivity mask */
@@ -246,6 +246,7 @@ static const struct at91_adc_reg_layout sama5d2_layout = {
 	.CWR =			0x44,
 	.CGR =			0x48,
 	.COR =			0x4c,
+	.COR_diff_offset =	16,
 	.ACR =			0x94,
 	.TSMR =			0xb0,
 	.XPOSR =		0xb4,
@@ -592,6 +593,21 @@ static unsigned int at91_adc_active_scan_mask_to_reg(struct iio_dev *indio_dev)
 	}
 
 	return mask & GENMASK(st->soc_info.platform->nr_channels, 0);
+}
+
+static void at91_adc_cor(struct at91_adc_state *st,
+			 struct iio_chan_spec const *chan)
+{
+	u32 cor, cur_cor;
+
+	cor = BIT(chan->channel) | BIT(chan->channel2);
+
+	cur_cor = at91_adc_readl(st, COR);
+	cor <<= st->soc_info.platform->layout->COR_diff_offset;
+	if (chan->differential)
+		at91_adc_writel(st, COR, cur_cor | cor);
+	else
+		at91_adc_writel(st, COR, cur_cor & ~cor);
 }
 
 static void at91_adc_irq_status(struct at91_adc_state *st, u32 *status,
@@ -1038,8 +1054,6 @@ static int at91_adc_buffer_prepare(struct iio_dev *indio_dev)
 			 indio_dev->num_channels) {
 		struct iio_chan_spec const *chan =
 					at91_adc_chan_get(indio_dev, bit);
-		u32 cor;
-
 		if (!chan)
 			continue;
 		/* these channel types cannot be handled by this trigger */
@@ -1047,16 +1061,7 @@ static int at91_adc_buffer_prepare(struct iio_dev *indio_dev)
 		    chan->type == IIO_PRESSURE)
 			continue;
 
-		cor = at91_adc_readl(st, COR);
-
-		if (chan->differential)
-			cor |= (BIT(chan->channel) | BIT(chan->channel2)) <<
-				AT91_SAMA5D2_COR_DIFF_OFFSET;
-		else
-			cor &= ~(BIT(chan->channel) <<
-			       AT91_SAMA5D2_COR_DIFF_OFFSET);
-
-		at91_adc_writel(st, COR, cor);
+		at91_adc_cor(st, chan);
 
 		at91_adc_writel(st, CHER, BIT(chan->channel));
 	}
@@ -1444,7 +1449,6 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 				  struct iio_chan_spec const *chan, int *val)
 {
 	struct at91_adc_state *st = iio_priv(indio_dev);
-	u32 cor = 0;
 	u16 tmp_val;
 	int ret;
 
@@ -1490,11 +1494,7 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 
 	st->chan = chan;
 
-	if (chan->differential)
-		cor = (BIT(chan->channel) | BIT(chan->channel2)) <<
-		      AT91_SAMA5D2_COR_DIFF_OFFSET;
-
-	at91_adc_writel(st, COR, cor);
+	at91_adc_cor(st, chan);
 	at91_adc_writel(st, CHER, BIT(chan->channel));
 	at91_adc_eoc_ena(st, chan->channel);
 	at91_adc_writel(st, CR, AT91_SAMA5D2_CR_START);
