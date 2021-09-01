@@ -2493,6 +2493,17 @@ process_lost_event(struct perf_tool *tool,
 }
 
 static int
+process_throttle_event(struct perf_tool *tool __maybe_unused,
+		       union perf_event *event,
+		       struct perf_sample *sample,
+		       struct machine *machine)
+{
+	if (scripting_ops && scripting_ops->process_throttle)
+		scripting_ops->process_throttle(event, sample, machine);
+	return 0;
+}
+
+static int
 process_finished_round_event(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
 			     struct ordered_events *oe __maybe_unused)
@@ -3652,6 +3663,8 @@ int cmd_script(int argc, const char **argv)
 			.stat_config	 = process_stat_config_event,
 			.thread_map	 = process_thread_map_event,
 			.cpu_map	 = process_cpu_map_event,
+			.throttle	 = process_throttle_event,
+			.unthrottle	 = process_throttle_event,
 			.ordered_events	 = true,
 			.ordering_requires_timestamps = true,
 		},
