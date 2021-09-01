@@ -102,6 +102,9 @@ def parse_options():
                      "continue.")
 
     if args.commit:
+        if args.commit.startswith('HEAD'):
+            sys.exit("The --commit option can't use the HEAD ref")
+
         args.find = False
 
     if args.ignore:
