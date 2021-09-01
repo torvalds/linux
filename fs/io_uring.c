@@ -2656,7 +2656,7 @@ static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
 {
 	if (__io_complete_rw_common(req, res))
 		return;
-	__io_req_complete(req, 0, req->result, io_put_rw_kbuf(req));
+	__io_req_complete(req, issue_flags, req->result, io_put_rw_kbuf(req));
 }
 
 static void io_complete_rw(struct kiocb *kiocb, long res, long res2)
