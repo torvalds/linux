@@ -206,10 +206,7 @@ MODULE_DEVICE_TABLE(of, v3d_of_match);
 static int
 map_regs(struct v3d_dev *v3d, void __iomem **regs, const char *name)
 {
-	struct resource *res =
-		platform_get_resource_byname(v3d_to_pdev(v3d), IORESOURCE_MEM, name);
-
-	*regs = devm_ioremap_resource(v3d->drm.dev, res);
+	*regs = devm_platform_ioremap_resource_byname(v3d_to_pdev(v3d), name);
 	return PTR_ERR_OR_ZERO(*regs);
 }
 
