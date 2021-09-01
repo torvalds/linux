@@ -5035,9 +5035,11 @@ int mlx5e_tc_esw_init(struct rhashtable *tc_ht)
 	}
 	uplink_priv->tunnel_mapping = mapping;
 
-	/* 0xFFF is reserved for stack devices slow path table mark */
+	/* Two last values are reserved for stack devices slow path table mark
+	 * and bridge ingress push mark.
+	 */
 	mapping = mapping_create_for_id(mapping_id, MAPPING_TYPE_TUNNEL_ENC_OPTS,
-					sz_enc_opts, ENC_OPTS_BITS_MASK - 1, true);
+					sz_enc_opts, ENC_OPTS_BITS_MASK - 2, true);
 	if (IS_ERR(mapping)) {
 		err = PTR_ERR(mapping);
 		goto err_enc_opts_mapping;
