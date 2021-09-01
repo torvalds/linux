@@ -575,7 +575,9 @@ loop:
 
 			if (!get_signal(&ksig))
 				continue;
-			break;
+			if (fatal_signal_pending(current))
+				break;
+			continue;
 		}
 		if (ret)
 			continue;
