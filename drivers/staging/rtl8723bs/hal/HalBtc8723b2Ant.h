@@ -144,4 +144,3 @@ void EXhalbtc8723b2ant_BtInfoNotify(
 void EXhalbtc8723b2ant_HaltNotify(struct btc_coexist *pBtCoexist);
 void EXhalbtc8723b2ant_PnpNotify(struct btc_coexist *pBtCoexist, u8 pnpState);
 void EXhalbtc8723b2ant_Periodical(struct btc_coexist *pBtCoexist);
-void EXhalbtc8723b2ant_DisplayCoexInfo(struct btc_coexist *pBtCoexist);

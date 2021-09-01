@@ -3716,7 +3716,7 @@ int vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 					sizeof(remoteport) - len2,
 					" (client %x)", service->client_id);
 		} else {
-			strcpy(remoteport, "n/a");
+			strscpy(remoteport, "n/a", sizeof(remoteport));
 		}
 
 		len += scnprintf(buf + len, sizeof(buf) - len,
