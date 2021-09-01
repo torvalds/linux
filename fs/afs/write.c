@@ -807,6 +807,7 @@ int afs_writepages(struct address_space *mapping,
 ssize_t afs_file_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct afs_vnode *vnode = AFS_FS_I(file_inode(iocb->ki_filp));
+	struct afs_file *af = iocb->ki_filp->private_data;
 	ssize_t result;
 	size_t count = iov_iter_count(from);
 
@@ -822,6 +823,10 @@ ssize_t afs_file_write(struct kiocb *iocb, struct iov_iter *from)
 	if (!count)
 		return 0;
 
+	result = afs_validate(vnode, af->key);
+	if (result < 0)
+		return result;
+
 	result = generic_file_write_iter(iocb, from);
 
 	_leave(" = %zd", result);
@@ -835,12 +840,17 @@ ssize_t afs_file_write(struct kiocb *iocb, struct iov_iter *from)
  */
 int afs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	struct inode *inode = file_inode(file);
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
+	struct afs_file *af = file->private_data;
+	int ret;
 
 	_enter("{%llx:%llu},{n=%pD},%d",
 	       vnode->fid.vid, vnode->fid.vnode, file,
 	       datasync);
+
+	ret = afs_validate(vnode, af->key);
+	if (ret < 0)
+		return ret;
 
 	return file_write_and_wait_range(file, start, end);
 }
@@ -855,10 +865,13 @@ vm_fault_t afs_page_mkwrite(struct vm_fault *vmf)
 	struct file *file = vmf->vma->vm_file;
 	struct inode *inode = file_inode(file);
 	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_file *af = file->private_data;
 	unsigned long priv;
 	vm_fault_t ret = VM_FAULT_RETRY;
 
 	_enter("{{%llx:%llu}},{%lx}", vnode->fid.vid, vnode->fid.vnode, page->index);
+
+	afs_validate(vnode, af->key);
 
 	sb_start_pagefault(inode->i_sb);
 

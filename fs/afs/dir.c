@@ -1792,6 +1792,10 @@ static int afs_link(struct dentry *from, struct inode *dir,
 		goto error;
 	}
 
+	ret = afs_validate(vnode, op->key);
+	if (ret < 0)
+		goto error_op;
+
 	afs_op_set_vnode(op, 0, dvnode);
 	afs_op_set_vnode(op, 1, vnode);
 	op->file[0].dv_delta = 1;
@@ -1805,6 +1809,8 @@ static int afs_link(struct dentry *from, struct inode *dir,
 	op->create.reason	= afs_edit_dir_for_link;
 	return afs_do_sync_operation(op);
 
+error_op:
+	afs_put_operation(op);
 error:
 	d_drop(dentry);
 	_leave(" = %d", ret);
@@ -1988,6 +1994,11 @@ static int afs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 	op = afs_alloc_operation(NULL, orig_dvnode->volume);
 	if (IS_ERR(op))
 		return PTR_ERR(op);
+
+	ret = afs_validate(vnode, op->key);
+	op->error = ret;
+	if (ret < 0)
+		goto error;
 
 	afs_op_set_vnode(op, 0, orig_dvnode);
 	afs_op_set_vnode(op, 1, new_dvnode); /* May be same as orig_dvnode */
