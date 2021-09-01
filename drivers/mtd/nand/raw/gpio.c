@@ -303,8 +303,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 
 	chip = &gpiomtd->nand_chip;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	gpiomtd->io = devm_ioremap_resource(dev, res);
+	gpiomtd->io = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gpiomtd->io))
 		return PTR_ERR(gpiomtd->io);
 
