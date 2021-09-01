@@ -5725,12 +5725,12 @@ static int md_alloc(dev_t dev, char *name)
 		error = 0;
 	}
  abort:
-	mutex_unlock(&disks_mutex);
 	if (!error && mddev->kobj.sd) {
 		kobject_uevent(&mddev->kobj, KOBJ_ADD);
 		mddev->sysfs_state = sysfs_get_dirent_safe(mddev->kobj.sd, "array_state");
 		mddev->sysfs_level = sysfs_get_dirent_safe(mddev->kobj.sd, "level");
 	}
+	mutex_unlock(&disks_mutex);
 	mddev_put(mddev);
 	return error;
 }
