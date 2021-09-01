@@ -37,6 +37,17 @@ config DRM_PANEL_ASUS_Z00T_TM5P5_NT35596
 	  NT35596 1080x1920 video mode panel as found in some Asus
 	  Zenfone 2 Laser Z00T devices.
 
+config DRM_PANEL_BOE_BF060Y8M_AJ0
+	tristate "Boe BF060Y8M-AJ0 panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Boe BF060Y8M-AJ0
+	  5.99" AMOLED modules. The panel has a 1080x2160 resolution and
+	  uses 24 bit RGB per pixel. It provides a MIPI DSI interface to
+	  the host and backlight is controlled through DSI commands.
+
 config DRM_PANEL_BOE_HIMAX8279D
 	tristate "Boe Himax8279d panel"
 	depends on OF
