@@ -167,7 +167,6 @@ static int xway_nand_probe(struct platform_device *pdev)
 {
 	struct xway_nand_data *data;
 	struct mtd_info *mtd;
-	struct resource *res;
 	int err;
 	u32 cs;
 	u32 cs_flag = 0;
@@ -178,8 +177,7 @@ static int xway_nand_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->nandaddr = devm_ioremap_resource(&pdev->dev, res);
+	data->nandaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->nandaddr))
 		return PTR_ERR(data->nandaddr);
 
