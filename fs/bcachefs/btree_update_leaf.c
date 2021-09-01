@@ -577,7 +577,9 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 			char buf[200];
 
 			bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(i->k));
-			bch_err(c, "invalid bkey %s on insert: %s\n", buf, invalid);
+			bch_err(c, "invalid bkey %s on insert from %ps -> %ps: %s\n",
+				buf, (void *) trans->ip,
+				(void *) i->ip_allocated, invalid);
 			bch2_fatal_error(c);
 		}
 		btree_insert_entry_checks(trans, i);
