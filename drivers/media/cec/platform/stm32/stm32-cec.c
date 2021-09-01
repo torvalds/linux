@@ -255,7 +255,6 @@ static const struct regmap_config stm32_cec_regmap_cfg = {
 static int stm32_cec_probe(struct platform_device *pdev)
 {
 	u32 caps = CEC_CAP_DEFAULTS | CEC_CAP_PHYS_ADDR | CEC_MODE_MONITOR_ALL;
-	struct resource *res;
 	struct stm32_cec *cec;
 	void __iomem *mmio;
 	int ret;
@@ -266,8 +265,7 @@ static int stm32_cec_probe(struct platform_device *pdev)
 
 	cec->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mmio = devm_ioremap_resource(&pdev->dev, res);
+	mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mmio))
 		return PTR_ERR(mmio);
 
