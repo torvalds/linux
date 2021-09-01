@@ -4231,6 +4231,153 @@ out_trace:
 	return err;
 }
 
+static inline u64 ext4_inode_peek_iversion(const struct inode *inode)
+{
+	if (unlikely(EXT4_I(inode)->i_flags & EXT4_EA_INODE_FL))
+		return inode_peek_iversion_raw(inode);
+	else
+		return inode_peek_iversion(inode);
+}
+
+static int ext4_inode_blocks_set(struct ext4_inode *raw_inode,
+				 struct ext4_inode_info *ei)
+{
+	struct inode *inode = &(ei->vfs_inode);
+	u64 i_blocks = READ_ONCE(inode->i_blocks);
+	struct super_block *sb = inode->i_sb;
+
+	if (i_blocks <= ~0U) {
+		/*
+		 * i_blocks can be represented in a 32 bit variable
+		 * as multiple of 512 bytes
+		 */
+		raw_inode->i_blocks_lo   = cpu_to_le32(i_blocks);
+		raw_inode->i_blocks_high = 0;
+		ext4_clear_inode_flag(inode, EXT4_INODE_HUGE_FILE);
+		return 0;
+	}
+
+	/*
+	 * This should never happen since sb->s_maxbytes should not have
+	 * allowed this, sb->s_maxbytes was set according to the huge_file
+	 * feature in ext4_fill_super().
+	 */
+	if (!ext4_has_feature_huge_file(sb))
+		return -EFSCORRUPTED;
+
+	if (i_blocks <= 0xffffffffffffULL) {
+		/*
+		 * i_blocks can be represented in a 48 bit variable
+		 * as multiple of 512 bytes
+		 */
+		raw_inode->i_blocks_lo   = cpu_to_le32(i_blocks);
+		raw_inode->i_blocks_high = cpu_to_le16(i_blocks >> 32);
+		ext4_clear_inode_flag(inode, EXT4_INODE_HUGE_FILE);
+	} else {
+		ext4_set_inode_flag(inode, EXT4_INODE_HUGE_FILE);
+		/* i_block is stored in file system block size */
+		i_blocks = i_blocks >> (inode->i_blkbits - 9);
+		raw_inode->i_blocks_lo   = cpu_to_le32(i_blocks);
+		raw_inode->i_blocks_high = cpu_to_le16(i_blocks >> 32);
+	}
+	return 0;
+}
+
+static int ext4_fill_raw_inode(struct inode *inode, struct ext4_inode *raw_inode)
+{
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	uid_t i_uid;
+	gid_t i_gid;
+	projid_t i_projid;
+	int block;
+	int err;
+
+	err = ext4_inode_blocks_set(raw_inode, ei);
+
+	raw_inode->i_mode = cpu_to_le16(inode->i_mode);
+	i_uid = i_uid_read(inode);
+	i_gid = i_gid_read(inode);
+	i_projid = from_kprojid(&init_user_ns, ei->i_projid);
+	if (!(test_opt(inode->i_sb, NO_UID32))) {
+		raw_inode->i_uid_low = cpu_to_le16(low_16_bits(i_uid));
+		raw_inode->i_gid_low = cpu_to_le16(low_16_bits(i_gid));
+		/*
+		 * Fix up interoperability with old kernels. Otherwise,
+		 * old inodes get re-used with the upper 16 bits of the
+		 * uid/gid intact.
+		 */
+		if (ei->i_dtime && list_empty(&ei->i_orphan)) {
+			raw_inode->i_uid_high = 0;
+			raw_inode->i_gid_high = 0;
+		} else {
+			raw_inode->i_uid_high =
+				cpu_to_le16(high_16_bits(i_uid));
+			raw_inode->i_gid_high =
+				cpu_to_le16(high_16_bits(i_gid));
+		}
+	} else {
+		raw_inode->i_uid_low = cpu_to_le16(fs_high2lowuid(i_uid));
+		raw_inode->i_gid_low = cpu_to_le16(fs_high2lowgid(i_gid));
+		raw_inode->i_uid_high = 0;
+		raw_inode->i_gid_high = 0;
+	}
+	raw_inode->i_links_count = cpu_to_le16(inode->i_nlink);
+
+	EXT4_INODE_SET_XTIME(i_ctime, inode, raw_inode);
+	EXT4_INODE_SET_XTIME(i_mtime, inode, raw_inode);
+	EXT4_INODE_SET_XTIME(i_atime, inode, raw_inode);
+	EXT4_EINODE_SET_XTIME(i_crtime, ei, raw_inode);
+
+	raw_inode->i_dtime = cpu_to_le32(ei->i_dtime);
+	raw_inode->i_flags = cpu_to_le32(ei->i_flags & 0xFFFFFFFF);
+	if (likely(!test_opt2(inode->i_sb, HURD_COMPAT)))
+		raw_inode->i_file_acl_high =
+			cpu_to_le16(ei->i_file_acl >> 32);
+	raw_inode->i_file_acl_lo = cpu_to_le32(ei->i_file_acl);
+	ext4_isize_set(raw_inode, ei->i_disksize);
+
+	raw_inode->i_generation = cpu_to_le32(inode->i_generation);
+	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode)) {
+		if (old_valid_dev(inode->i_rdev)) {
+			raw_inode->i_block[0] =
+				cpu_to_le32(old_encode_dev(inode->i_rdev));
+			raw_inode->i_block[1] = 0;
+		} else {
+			raw_inode->i_block[0] = 0;
+			raw_inode->i_block[1] =
+				cpu_to_le32(new_encode_dev(inode->i_rdev));
+			raw_inode->i_block[2] = 0;
+		}
+	} else if (!ext4_has_inline_data(inode)) {
+		for (block = 0; block < EXT4_N_BLOCKS; block++)
+			raw_inode->i_block[block] = ei->i_data[block];
+	}
+
+	if (likely(!test_opt2(inode->i_sb, HURD_COMPAT))) {
+		u64 ivers = ext4_inode_peek_iversion(inode);
+
+		raw_inode->i_disk_version = cpu_to_le32(ivers);
+		if (ei->i_extra_isize) {
+			if (EXT4_FITS_IN_INODE(raw_inode, ei, i_version_hi))
+				raw_inode->i_version_hi =
+					cpu_to_le32(ivers >> 32);
+			raw_inode->i_extra_isize =
+				cpu_to_le16(ei->i_extra_isize);
+		}
+	}
+
+	if (i_projid != EXT4_DEF_PROJID &&
+	    !ext4_has_feature_project(inode->i_sb))
+		err = err ?: -EFSCORRUPTED;
+
+	if (EXT4_INODE_SIZE(inode->i_sb) > EXT4_GOOD_OLD_INODE_SIZE &&
+	    EXT4_FITS_IN_INODE(raw_inode, ei, i_projid))
+		raw_inode->i_projid = cpu_to_le32(i_projid);
+
+	ext4_inode_csum_set(inode, raw_inode, ei);
+	return err;
+}
+
 /*
  * ext4_get_inode_loc returns with an extra refcount against the inode's
  * underlying buffer_head on success. If 'in_mem' is true, we have all
@@ -4524,13 +4671,6 @@ static inline void ext4_inode_set_iversion_queried(struct inode *inode, u64 val)
 		inode_set_iversion_raw(inode, val);
 	else
 		inode_set_iversion_queried(inode, val);
-}
-static inline u64 ext4_inode_peek_iversion(const struct inode *inode)
-{
-	if (unlikely(EXT4_I(inode)->i_flags & EXT4_EA_INODE_FL))
-		return inode_peek_iversion_raw(inode);
-	else
-		return inode_peek_iversion(inode);
 }
 
 struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
@@ -4852,50 +4992,6 @@ bad_inode:
 	return ERR_PTR(ret);
 }
 
-static int ext4_inode_blocks_set(struct ext4_inode *raw_inode,
-				 struct ext4_inode_info *ei)
-{
-	struct inode *inode = &(ei->vfs_inode);
-	u64 i_blocks = READ_ONCE(inode->i_blocks);
-	struct super_block *sb = inode->i_sb;
-
-	if (i_blocks <= ~0U) {
-		/*
-		 * i_blocks can be represented in a 32 bit variable
-		 * as multiple of 512 bytes
-		 */
-		raw_inode->i_blocks_lo   = cpu_to_le32(i_blocks);
-		raw_inode->i_blocks_high = 0;
-		ext4_clear_inode_flag(inode, EXT4_INODE_HUGE_FILE);
-		return 0;
-	}
-
-	/*
-	 * This should never happen since sb->s_maxbytes should not have
-	 * allowed this, sb->s_maxbytes was set according to the huge_file
-	 * feature in ext4_fill_super().
-	 */
-	if (!ext4_has_feature_huge_file(sb))
-		return -EFSCORRUPTED;
-
-	if (i_blocks <= 0xffffffffffffULL) {
-		/*
-		 * i_blocks can be represented in a 48 bit variable
-		 * as multiple of 512 bytes
-		 */
-		raw_inode->i_blocks_lo   = cpu_to_le32(i_blocks);
-		raw_inode->i_blocks_high = cpu_to_le16(i_blocks >> 32);
-		ext4_clear_inode_flag(inode, EXT4_INODE_HUGE_FILE);
-	} else {
-		ext4_set_inode_flag(inode, EXT4_INODE_HUGE_FILE);
-		/* i_block is stored in file system block size */
-		i_blocks = i_blocks >> (inode->i_blkbits - 9);
-		raw_inode->i_blocks_lo   = cpu_to_le32(i_blocks);
-		raw_inode->i_blocks_high = cpu_to_le16(i_blocks >> 32);
-	}
-	return 0;
-}
-
 static void __ext4_update_other_inode_time(struct super_block *sb,
 					   unsigned long orig_ino,
 					   unsigned long ino,
@@ -4954,101 +5050,6 @@ static void ext4_update_other_inodes_time(struct super_block *sb,
 					       (struct ext4_inode *)buf);
 	}
 	rcu_read_unlock();
-}
-
-static int ext4_fill_raw_inode(struct inode *inode, struct ext4_inode *raw_inode)
-{
-	struct ext4_inode_info *ei = EXT4_I(inode);
-	uid_t i_uid;
-	gid_t i_gid;
-	projid_t i_projid;
-	int block;
-	int err;
-
-	err = ext4_inode_blocks_set(raw_inode, ei);
-
-	raw_inode->i_mode = cpu_to_le16(inode->i_mode);
-	i_uid = i_uid_read(inode);
-	i_gid = i_gid_read(inode);
-	i_projid = from_kprojid(&init_user_ns, ei->i_projid);
-	if (!(test_opt(inode->i_sb, NO_UID32))) {
-		raw_inode->i_uid_low = cpu_to_le16(low_16_bits(i_uid));
-		raw_inode->i_gid_low = cpu_to_le16(low_16_bits(i_gid));
-		/*
-		 * Fix up interoperability with old kernels. Otherwise,
-		 * old inodes get re-used with the upper 16 bits of the
-		 * uid/gid intact.
-		 */
-		if (ei->i_dtime && list_empty(&ei->i_orphan)) {
-			raw_inode->i_uid_high = 0;
-			raw_inode->i_gid_high = 0;
-		} else {
-			raw_inode->i_uid_high =
-				cpu_to_le16(high_16_bits(i_uid));
-			raw_inode->i_gid_high =
-				cpu_to_le16(high_16_bits(i_gid));
-		}
-	} else {
-		raw_inode->i_uid_low = cpu_to_le16(fs_high2lowuid(i_uid));
-		raw_inode->i_gid_low = cpu_to_le16(fs_high2lowgid(i_gid));
-		raw_inode->i_uid_high = 0;
-		raw_inode->i_gid_high = 0;
-	}
-	raw_inode->i_links_count = cpu_to_le16(inode->i_nlink);
-
-	EXT4_INODE_SET_XTIME(i_ctime, inode, raw_inode);
-	EXT4_INODE_SET_XTIME(i_mtime, inode, raw_inode);
-	EXT4_INODE_SET_XTIME(i_atime, inode, raw_inode);
-	EXT4_EINODE_SET_XTIME(i_crtime, ei, raw_inode);
-
-	raw_inode->i_dtime = cpu_to_le32(ei->i_dtime);
-	raw_inode->i_flags = cpu_to_le32(ei->i_flags & 0xFFFFFFFF);
-	if (likely(!test_opt2(inode->i_sb, HURD_COMPAT)))
-		raw_inode->i_file_acl_high =
-			cpu_to_le16(ei->i_file_acl >> 32);
-	raw_inode->i_file_acl_lo = cpu_to_le32(ei->i_file_acl);
-	ext4_isize_set(raw_inode, ei->i_disksize);
-
-	raw_inode->i_generation = cpu_to_le32(inode->i_generation);
-	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode)) {
-		if (old_valid_dev(inode->i_rdev)) {
-			raw_inode->i_block[0] =
-				cpu_to_le32(old_encode_dev(inode->i_rdev));
-			raw_inode->i_block[1] = 0;
-		} else {
-			raw_inode->i_block[0] = 0;
-			raw_inode->i_block[1] =
-				cpu_to_le32(new_encode_dev(inode->i_rdev));
-			raw_inode->i_block[2] = 0;
-		}
-	} else if (!ext4_has_inline_data(inode)) {
-		for (block = 0; block < EXT4_N_BLOCKS; block++)
-			raw_inode->i_block[block] = ei->i_data[block];
-	}
-
-	if (likely(!test_opt2(inode->i_sb, HURD_COMPAT))) {
-		u64 ivers = ext4_inode_peek_iversion(inode);
-
-		raw_inode->i_disk_version = cpu_to_le32(ivers);
-		if (ei->i_extra_isize) {
-			if (EXT4_FITS_IN_INODE(raw_inode, ei, i_version_hi))
-				raw_inode->i_version_hi =
-					cpu_to_le32(ivers >> 32);
-			raw_inode->i_extra_isize =
-				cpu_to_le16(ei->i_extra_isize);
-		}
-	}
-
-	if (i_projid != EXT4_DEF_PROJID &&
-	    !ext4_has_feature_project(inode->i_sb))
-		err = err ?: -EFSCORRUPTED;
-
-	if (EXT4_INODE_SIZE(inode->i_sb) > EXT4_GOOD_OLD_INODE_SIZE &&
-	    EXT4_FITS_IN_INODE(raw_inode, ei, i_projid))
-		raw_inode->i_projid = cpu_to_le32(i_projid);
-
-	ext4_inode_csum_set(inode, raw_inode, ei);
-	return err;
 }
 
 /*
