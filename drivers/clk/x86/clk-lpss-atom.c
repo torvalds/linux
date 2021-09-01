@@ -13,7 +13,7 @@
 #include <linux/platform_data/x86/clk-lpss.h>
 #include <linux/platform_device.h>
 
-static int lpt_clk_probe(struct platform_device *pdev)
+static int lpss_atom_clk_probe(struct platform_device *pdev)
 {
 	struct lpss_clk_data *drvdata;
 	struct clk *clk;
@@ -34,14 +34,14 @@ static int lpt_clk_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver lpt_clk_driver = {
+static struct platform_driver lpss_atom_clk_driver = {
 	.driver = {
-		.name = "clk-lpt",
+		.name = "clk-lpss-atom",
 	},
-	.probe = lpt_clk_probe,
+	.probe = lpss_atom_clk_probe,
 };
 
-int __init lpt_clk_init(void)
+int __init lpss_atom_clk_init(void)
 {
-	return platform_driver_register(&lpt_clk_driver);
+	return platform_driver_register(&lpss_atom_clk_driver);
 }
