@@ -143,8 +143,6 @@
 #define AT91_SAMA5D2_COR	0x4c
 #define AT91_SAMA5D2_COR_DIFF_OFFSET	16
 
-/* Channel Data Register 0 */
-#define AT91_SAMA5D2_CDR0	0x50
 /* Analog Control Register */
 #define AT91_SAMA5D2_ACR	0x94
 /* Analog Control Register - Pen detect sensitivity mask */
