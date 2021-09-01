@@ -2467,7 +2467,7 @@ static int path_lookupat(struct nameidata *nd, unsigned flags, struct path *path
 	return err;
 }
 
-static int __filename_lookup(int dfd, struct filename *name, unsigned flags,
+int filename_lookup(int dfd, struct filename *name, unsigned flags,
 		    struct path *path, struct path *root)
 {
 	int retval;
@@ -2485,15 +2485,6 @@ static int __filename_lookup(int dfd, struct filename *name, unsigned flags,
 		audit_inode(name, path->dentry,
 			    flags & LOOKUP_MOUNTPOINT ? AUDIT_INODE_NOEVAL : 0);
 	restore_nameidata();
-	return retval;
-}
-
-int filename_lookup(int dfd, struct filename *name, unsigned flags,
-		    struct path *path, struct path *root)
-{
-	int retval = __filename_lookup(dfd, name, flags, path, root);
-
-	putname(name);
 	return retval;
 }
 
@@ -2573,8 +2564,12 @@ struct dentry *kern_path_locked(const char *name, struct path *path)
 
 int kern_path(const char *name, unsigned int flags, struct path *path)
 {
-	return filename_lookup(AT_FDCWD, getname_kernel(name),
-			       flags, path, NULL);
+	struct filename *filename = getname_kernel(name);
+	int ret = filename_lookup(AT_FDCWD, filename, flags, path, NULL);
+
+	putname(filename);
+	return ret;
+
 }
 EXPORT_SYMBOL(kern_path);
 
@@ -2590,10 +2585,15 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 		    const char *name, unsigned int flags,
 		    struct path *path)
 {
+	struct filename *filename;
 	struct path root = {.mnt = mnt, .dentry = dentry};
+	int ret;
+
+	filename = getname_kernel(name);
 	/* the first argument of filename_lookup() is ignored with root */
-	return filename_lookup(AT_FDCWD, getname_kernel(name),
-			       flags , path, &root);
+	ret = filename_lookup(AT_FDCWD, filename, flags, path, &root);
+	putname(filename);
+	return ret;
 }
 EXPORT_SYMBOL(vfs_path_lookup);
 
@@ -2797,8 +2797,11 @@ int path_pts(struct path *path)
 int user_path_at_empty(int dfd, const char __user *name, unsigned flags,
 		 struct path *path, int *empty)
 {
-	return filename_lookup(dfd, getname_flags(name, flags, empty),
-			       flags, path, NULL);
+	struct filename *filename = getname_flags(name, flags, empty);
+	int ret = filename_lookup(dfd, filename, flags, path, NULL);
+
+	putname(filename);
+	return ret;
 }
 EXPORT_SYMBOL(user_path_at_empty);
 
@@ -4425,7 +4428,7 @@ int do_linkat(int olddfd, struct filename *old, int newdfd,
 	if (flags & AT_SYMLINK_FOLLOW)
 		how |= LOOKUP_FOLLOW;
 retry:
-	error = __filename_lookup(olddfd, old, how, &old_path, NULL);
+	error = filename_lookup(olddfd, old, how, &old_path, NULL);
 	if (error)
 		goto out_putnames;
 
