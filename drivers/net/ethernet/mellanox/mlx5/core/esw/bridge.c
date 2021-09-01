@@ -465,8 +465,10 @@ mlx5_esw_bridge_ingress_flow_with_esw_create(u16 vport_num, const unsigned char 
 		 mlx5_eswitch_get_vport_metadata_for_match(esw, vport_num));
 
 	if (vlan && vlan->pkt_reformat_push) {
-		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT |
+			MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 		flow_act.pkt_reformat = vlan->pkt_reformat_push;
+		flow_act.modify_hdr = vlan->pkt_mod_hdr_push_mark;
 	} else if (vlan) {
 		MLX5_SET_TO_ONES(fte_match_param, rule_spec->match_criteria,
 				 outer_headers.cvlan_tag);
@@ -845,6 +847,33 @@ mlx5_esw_bridge_vlan_pop_cleanup(struct mlx5_esw_bridge_vlan *vlan, struct mlx5_
 	vlan->pkt_reformat_pop = NULL;
 }
 
+static int
+mlx5_esw_bridge_vlan_push_mark_create(struct mlx5_esw_bridge_vlan *vlan, struct mlx5_eswitch *esw)
+{
+	u8 action[MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto)] = {};
+	struct mlx5_modify_hdr *pkt_mod_hdr;
+
+	MLX5_SET(set_action_in, action, action_type, MLX5_ACTION_TYPE_SET);
+	MLX5_SET(set_action_in, action, field, MLX5_ACTION_IN_FIELD_METADATA_REG_C_1);
+	MLX5_SET(set_action_in, action, offset, 8);
+	MLX5_SET(set_action_in, action, length, ESW_TUN_OPTS_BITS + ESW_TUN_ID_BITS);
+	MLX5_SET(set_action_in, action, data, ESW_TUN_BRIDGE_INGRESS_PUSH_VLAN);
+
+	pkt_mod_hdr = mlx5_modify_header_alloc(esw->dev, MLX5_FLOW_NAMESPACE_FDB, 1, action);
+	if (IS_ERR(pkt_mod_hdr))
+		return PTR_ERR(pkt_mod_hdr);
+
+	vlan->pkt_mod_hdr_push_mark = pkt_mod_hdr;
+	return 0;
+}
+
+static void
+mlx5_esw_bridge_vlan_push_mark_cleanup(struct mlx5_esw_bridge_vlan *vlan, struct mlx5_eswitch *esw)
+{
+	mlx5_modify_header_dealloc(esw->dev, vlan->pkt_mod_hdr_push_mark);
+	vlan->pkt_mod_hdr_push_mark = NULL;
+}
+
 static struct mlx5_esw_bridge_vlan *
 mlx5_esw_bridge_vlan_create(u16 vid, u16 flags, struct mlx5_esw_bridge_port *port,
 			    struct mlx5_eswitch *esw)
@@ -864,6 +893,10 @@ mlx5_esw_bridge_vlan_create(u16 vid, u16 flags, struct mlx5_esw_bridge_port *por
 		err = mlx5_esw_bridge_vlan_push_create(vlan, esw);
 		if (err)
 			goto err_vlan_push;
+
+		err = mlx5_esw_bridge_vlan_push_mark_create(vlan, esw);
+		if (err)
+			goto err_vlan_push_mark;
 	}
 	if (flags & BRIDGE_VLAN_INFO_UNTAGGED) {
 		err = mlx5_esw_bridge_vlan_pop_create(vlan, esw);
@@ -882,6 +915,9 @@ err_xa_insert:
 	if (vlan->pkt_reformat_pop)
 		mlx5_esw_bridge_vlan_pop_cleanup(vlan, esw);
 err_vlan_pop:
+	if (vlan->pkt_mod_hdr_push_mark)
+		mlx5_esw_bridge_vlan_push_mark_cleanup(vlan, esw);
+err_vlan_push_mark:
 	if (vlan->pkt_reformat_push)
 		mlx5_esw_bridge_vlan_push_cleanup(vlan, esw);
 err_vlan_push:
@@ -908,6 +944,8 @@ static void mlx5_esw_bridge_vlan_flush(struct mlx5_esw_bridge_vlan *vlan,
 
 	if (vlan->pkt_reformat_pop)
 		mlx5_esw_bridge_vlan_pop_cleanup(vlan, esw);
+	if (vlan->pkt_mod_hdr_push_mark)
+		mlx5_esw_bridge_vlan_push_mark_cleanup(vlan, esw);
 	if (vlan->pkt_reformat_push)
 		mlx5_esw_bridge_vlan_push_cleanup(vlan, esw);
 }
