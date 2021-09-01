@@ -1499,6 +1499,7 @@
   irq_chip_retrigger_hierarchy
   irq_domain_alloc_irqs_parent
   irq_domain_create_hierarchy
+  irq_domain_disconnect_hierarchy
   irq_domain_set_hwirq_and_chip
   irq_domain_update_bus_token
 
@@ -1660,6 +1661,7 @@
   sdhci_reset
   sdhci_set_bus_width
   sdhci_set_power_noreg
+  __sdhci_set_timeout
   sdhci_setup_host
 
 # required by slim-qcom-ngd-ctrl.ko
