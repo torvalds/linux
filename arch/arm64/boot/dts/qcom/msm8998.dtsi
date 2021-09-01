@@ -870,14 +870,14 @@
 			reg = <0x00778000 0x7000>;
 		};
 
-		qfprom: qfprom@780000 {
+		qfprom: qfprom@784000 {
 			compatible = "qcom,qfprom";
-			reg = <0x00780000 0x621c>;
+			reg = <0x00784000 0x621c>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			qusb2_hstx_trim: hstx-trim@423a {
-				reg = <0x423a 0x1>;
+			qusb2_hstx_trim: hstx-trim@23a {
+				reg = <0x23a 0x1>;
 				bits = <0 4>;
 			};
 		};
