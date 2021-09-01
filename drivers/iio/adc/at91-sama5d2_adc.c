@@ -1833,11 +1833,11 @@ static int at91_adc_probe(struct platform_device *pdev)
 		goto vref_disable;
 	}
 
-	at91_adc_hw_init(indio_dev);
-
 	ret = clk_prepare_enable(st->per_clk);
 	if (ret)
 		goto vref_disable;
+
+	at91_adc_hw_init(indio_dev);
 
 	platform_set_drvdata(pdev, indio_dev);
 
