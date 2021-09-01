@@ -404,8 +404,8 @@ static int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
 	 *
 	 * do_exit:
 	 *	The caller holds mm->mmap_lock. This means that the task which
-	 *	uses this mm can't pass exit_mm(), so it can't exit or clear
-	 *	its ->mm.
+	 *	uses this mm can't pass coredump_exit_mm(), so it can't exit or
+	 *	clear its ->mm.
 	 *
 	 * de_thread:
 	 *	It does list_replace_rcu(&leader->tasks, &current->tasks),
@@ -500,7 +500,7 @@ static void coredump_finish(struct mm_struct *mm, bool core_dumped)
 		next = curr->next;
 		task = curr->task;
 		/*
-		 * see exit_mm(), curr->task must not see
+		 * see coredump_exit_mm(), curr->task must not see
 		 * ->task == NULL before we read ->next.
 		 */
 		smp_mb();
