@@ -117,6 +117,14 @@ struct at91_adc_reg_layout {
 	u16				IMR;
 /* Interrupt Status Register */
 	u16				ISR;
+/* End of Conversion Interrupt Enable Register */
+	u16				EOC_IER;
+/* End of Conversion Interrupt Disable Register */
+	u16				EOC_IDR;
+/* End of Conversion Interrupt Mask Register */
+	u16				EOC_IMR;
+/* End of Conversion Interrupt Status Register */
+	u16				EOC_ISR;
 /* Interrupt Status Register - Pen touching sense status */
 #define AT91_SAMA5D2_ISR_PENS   BIT(31)
 /* Last Channel Trigger Mode Register */
@@ -584,6 +592,44 @@ static unsigned int at91_adc_active_scan_mask_to_reg(struct iio_dev *indio_dev)
 	}
 
 	return mask & GENMASK(st->soc_info.platform->nr_channels, 0);
+}
+
+static void at91_adc_irq_status(struct at91_adc_state *st, u32 *status,
+				u32 *eoc)
+{
+	*status = at91_adc_readl(st, ISR);
+	if (st->soc_info.platform->layout->EOC_ISR)
+		*eoc = at91_adc_readl(st, EOC_ISR);
+	else
+		*eoc = *status;
+}
+
+static void at91_adc_irq_mask(struct at91_adc_state *st, u32 *status, u32 *eoc)
+{
+	*status = at91_adc_readl(st, IMR);
+	if (st->soc_info.platform->layout->EOC_IMR)
+		*eoc = at91_adc_readl(st, EOC_IMR);
+	else
+		*eoc = *status;
+}
+
+static void at91_adc_eoc_dis(struct at91_adc_state *st, unsigned int channel)
+{
+	/*
+	 * On some products having the EOC bits in a separate register,
+	 * errata recommends not writing this register (EOC_IDR).
+	 * On products having the EOC bits in the IDR register, it's fine to write it.
+	 */
+	if (!st->soc_info.platform->layout->EOC_IDR)
+		at91_adc_writel(st, IDR, BIT(channel));
+}
+
+static void at91_adc_eoc_ena(struct at91_adc_state *st, unsigned int channel)
+{
+	if (!st->soc_info.platform->layout->EOC_IDR)
+		at91_adc_writel(st, IER, BIT(channel));
+	else
+		at91_adc_writel(st, EOC_IER, BIT(channel));
 }
 
 static void at91_adc_config_emr(struct at91_adc_state *st)
@@ -1105,13 +1151,15 @@ static void at91_adc_trigger_handler_nodma(struct iio_dev *indio_dev,
 	u8 bit;
 	u32 mask = at91_adc_active_scan_mask_to_reg(indio_dev);
 	unsigned int timeout = 50;
+	u32 status, imr, eoc = 0, eoc_imr;
 
 	/*
 	 * Check if the conversion is ready. If not, wait a little bit, and
 	 * in case of timeout exit with an error.
 	 */
-	while ((at91_adc_readl(st, ISR) & mask) != mask &&
-	       timeout) {
+	while (((eoc & mask) != mask) && timeout) {
+		at91_adc_irq_status(st, &status, &eoc);
+		at91_adc_irq_mask(st, &imr, &eoc_imr);
 		usleep_range(50, 100);
 		timeout--;
 	}
@@ -1347,12 +1395,14 @@ static irqreturn_t at91_adc_interrupt(int irq, void *private)
 {
 	struct iio_dev *indio = private;
 	struct at91_adc_state *st = iio_priv(indio);
-	u32 status = at91_adc_readl(st, ISR);
-	u32 imr = at91_adc_readl(st, IMR);
+	u32 status, eoc, imr, eoc_imr;
 	u32 rdy_mask = AT91_SAMA5D2_IER_XRDY | AT91_SAMA5D2_IER_YRDY |
 			AT91_SAMA5D2_IER_PRDY;
 
-	if (!(status & imr))
+	at91_adc_irq_status(st, &status, &eoc);
+	at91_adc_irq_mask(st, &imr, &eoc_imr);
+
+	if (!(status & imr) && !(eoc & eoc_imr))
 		return IRQ_NONE;
 	if (status & AT91_SAMA5D2_IER_PEN) {
 		/* pen detected IRQ */
@@ -1446,7 +1496,7 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 
 	at91_adc_writel(st, COR, cor);
 	at91_adc_writel(st, CHER, BIT(chan->channel));
-	at91_adc_writel(st, IER, BIT(chan->channel));
+	at91_adc_eoc_ena(st, chan->channel);
 	at91_adc_writel(st, CR, AT91_SAMA5D2_CR_START);
 
 	ret = wait_event_interruptible_timeout(st->wq_data_available,
@@ -1463,7 +1513,7 @@ static int at91_adc_read_info_raw(struct iio_dev *indio_dev,
 		st->conversion_done = false;
 	}
 
-	at91_adc_writel(st, IDR, BIT(chan->channel));
+	at91_adc_eoc_dis(st, st->chan->channel);
 	at91_adc_writel(st, CHDR, BIT(chan->channel));
 
 	/* Needed to ACK the DRDY interruption */
@@ -1681,6 +1731,8 @@ static void at91_adc_hw_init(struct iio_dev *indio_dev)
 	struct at91_adc_state *st = iio_priv(indio_dev);
 
 	at91_adc_writel(st, CR, AT91_SAMA5D2_CR_SWRST);
+	if (st->soc_info.platform->layout->EOC_IDR)
+		at91_adc_writel(st, EOC_IDR, 0xffffffff);
 	at91_adc_writel(st, IDR, 0xffffffff);
 	/*
 	 * Transfer field must be set to 2 according to the datasheet and
