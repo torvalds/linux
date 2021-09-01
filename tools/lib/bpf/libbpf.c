@@ -2993,6 +2993,12 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		}
 	}
 
+	if (!obj->efile.symbols) {
+		pr_warn("elf: couldn't find symbol table in %s, stripped object file?\n",
+			obj->path);
+		return -ENOENT;
+	}
+
 	scn = NULL;
 	while ((scn = elf_nextscn(elf, scn)) != NULL) {
 		idx++;
