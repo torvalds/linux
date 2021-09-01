@@ -76,7 +76,6 @@ static void img_ir_ident(struct img_ir_priv *priv)
 static int img_ir_probe(struct platform_device *pdev)
 {
 	struct img_ir_priv *priv;
-	struct resource *res_regs;
 	int irq, error, error2;
 
 	/* Get resources from platform device */
@@ -94,8 +93,7 @@ static int img_ir_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->lock);
 
 	/* Ioremap the registers */
-	res_regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->reg_base = devm_ioremap_resource(&pdev->dev, res_regs);
+	priv->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->reg_base))
 		return PTR_ERR(priv->reg_base);
 
