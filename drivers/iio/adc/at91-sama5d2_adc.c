@@ -4,6 +4,8 @@
  *
  * Copyright (C) 2015 Atmel,
  *               2015 Ludovic Desroches <ludovic.desroches@atmel.com>
+ *		 2021 Microchip Technology, Inc. and its subsidiaries
+ *		 2021 Eugen Hristev <eugen.hristev@microchip.com>
  */
 
 #include <linux/bitops.h>
@@ -2194,6 +2196,7 @@ static struct platform_driver at91_adc_driver = {
 };
 module_platform_driver(at91_adc_driver)
 
-MODULE_AUTHOR("Ludovic Desroches <ludovic.desroches@atmel.com>");
+MODULE_AUTHOR("Ludovic Desroches <ludovic.desroches@microchip.com>");
+MODULE_AUTHOR("Eugen Hristev <eugen.hristev@microchip.com");
 MODULE_DESCRIPTION("Atmel AT91 SAMA5D2 ADC");
 MODULE_LICENSE("GPL v2");
