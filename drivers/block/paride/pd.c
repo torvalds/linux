@@ -892,7 +892,7 @@ static void pd_probe_drive(struct pd_unit *disk)
 		return;
 
 	p = blk_mq_alloc_disk(&disk->tag_set, disk);
-	if (!p) {
+	if (IS_ERR(p)) {
 		blk_mq_free_tag_set(&disk->tag_set);
 		return;
 	}

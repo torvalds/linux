@@ -506,10 +506,10 @@ void hclgevf_update_link_status(struct hclgevf_dev *hdev, int link_state)
 	link_state =
 		test_bit(HCLGEVF_STATE_DOWN, &hdev->state) ? 0 : link_state;
 	if (link_state != hdev->hw.mac.link) {
+		hdev->hw.mac.link = link_state;
 		client->ops->link_status_change(handle, !!link_state);
 		if (rclient && rclient->ops->link_status_change)
 			rclient->ops->link_status_change(rhandle, !!link_state);
-		hdev->hw.mac.link = link_state;
 	}
 
 	clear_bit(HCLGEVF_STATE_LINK_UPDATING, &hdev->state);
@@ -2487,6 +2487,8 @@ static int hclgevf_configure(struct hclgevf_dev *hdev)
 {
 	int ret;
 
+	hdev->gro_en = true;
+
 	ret = hclgevf_get_basic_info(hdev);
 	if (ret)
 		return ret;
@@ -2549,7 +2551,7 @@ static int hclgevf_init_roce_base_info(struct hclgevf_dev *hdev)
 	return 0;
 }
 
-static int hclgevf_config_gro(struct hclgevf_dev *hdev, bool en)
+static int hclgevf_config_gro(struct hclgevf_dev *hdev)
 {
 	struct hclgevf_cfg_gro_status_cmd *req;
 	struct hclgevf_desc desc;
@@ -2562,7 +2564,7 @@ static int hclgevf_config_gro(struct hclgevf_dev *hdev, bool en)
 				     false);
 	req = (struct hclgevf_cfg_gro_status_cmd *)desc.data;
 
-	req->gro_en = en ? 1 : 0;
+	req->gro_en = hdev->gro_en ? 1 : 0;
 
 	ret = hclgevf_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)
@@ -3308,7 +3310,7 @@ static int hclgevf_reset_hdev(struct hclgevf_dev *hdev)
 		return ret;
 	}
 
-	ret = hclgevf_config_gro(hdev, true);
+	ret = hclgevf_config_gro(hdev);
 	if (ret)
 		return ret;
 
@@ -3389,7 +3391,7 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	if (ret)
 		goto err_config;
 
-	ret = hclgevf_config_gro(hdev, true);
+	ret = hclgevf_config_gro(hdev);
 	if (ret)
 		goto err_config;
 
@@ -3638,8 +3640,15 @@ void hclgevf_update_speed_duplex(struct hclgevf_dev *hdev, u32 speed,
 static int hclgevf_gro_en(struct hnae3_handle *handle, bool enable)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	bool gro_en_old = hdev->gro_en;
+	int ret;
 
-	return hclgevf_config_gro(hdev, enable);
+	hdev->gro_en = enable;
+	ret = hclgevf_config_gro(hdev);
+	if (ret)
+		hdev->gro_en = gro_en_old;
+
+	return ret;
 }
 
 static void hclgevf_get_media_type(struct hnae3_handle *handle, u8 *media_type,

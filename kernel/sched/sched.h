@@ -1100,7 +1100,7 @@ struct rq {
 	unsigned int		core_sched_seq;
 	struct rb_root		core_tree;
 
-	/* shared state */
+	/* shared state -- careful with sched_core_cpu_deactivate() */
 	unsigned int		core_task_seq;
 	unsigned int		core_pick_seq;
 	unsigned long		core_cookie;
@@ -2263,6 +2263,9 @@ static inline struct task_struct *get_push_task(struct rq *rq)
 		return NULL;
 
 	if (p->nr_cpus_allowed == 1)
+		return NULL;
+
+	if (p->migration_disabled)
 		return NULL;
 
 	rq->push_busy = true;
