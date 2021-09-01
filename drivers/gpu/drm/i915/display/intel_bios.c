@@ -1565,28 +1565,29 @@ static enum port get_port_by_aux_ch(struct drm_i915_private *i915, u8 aux_ch)
 	for_each_port(port) {
 		info = &i915->vbt.ddi_port_info[port];
 
-		if (info->devdata && aux_ch == info->alternate_aux_channel)
+		if (info->devdata && aux_ch == info->devdata->child.aux_channel)
 			return port;
 	}
 
 	return PORT_NONE;
 }
 
-static void sanitize_aux_ch(struct drm_i915_private *i915,
+static void sanitize_aux_ch(struct intel_bios_encoder_data *devdata,
 			    enum port port)
 {
-	struct ddi_vbt_port_info *info = &i915->vbt.ddi_port_info[port];
+	struct drm_i915_private *i915 = devdata->i915;
+	struct ddi_vbt_port_info *info;
 	struct child_device_config *child;
 	enum port p;
 
-	p = get_port_by_aux_ch(i915, info->alternate_aux_channel);
+	p = get_port_by_aux_ch(i915, devdata->child.aux_channel);
 	if (p == PORT_NONE)
 		return;
 
 	drm_dbg_kms(&i915->drm,
 		    "port %c trying to use the same AUX CH (0x%x) as port %c, "
 		    "disabling port %c DP support\n",
-		    port_name(port), info->alternate_aux_channel,
+		    port_name(port), devdata->child.aux_channel,
 		    port_name(p), port_name(p));
 
 	/*
@@ -1602,7 +1603,7 @@ static void sanitize_aux_ch(struct drm_i915_private *i915,
 	child = &info->devdata->child;
 
 	child->device_type &= ~DEVICE_TYPE_DISPLAYPORT_OUTPUT;
-	info->alternate_aux_channel = 0;
+	child->aux_channel = 0;
 }
 
 static const u8 cnp_ddc_pin_map[] = {
@@ -1980,11 +1981,8 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 		}
 	}
 
-	if (is_dp) {
-		info->alternate_aux_channel = child->aux_channel;
-
-		sanitize_aux_ch(i915, port);
-	}
+	if (is_dp)
+		sanitize_aux_ch(devdata, port);
 
 	hdmi_level_shift = _intel_bios_hdmi_level_shift(devdata);
 	if (hdmi_level_shift >= 0) {
@@ -2863,7 +2861,7 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *i915,
 		&i915->vbt.ddi_port_info[port];
 	enum aux_ch aux_ch;
 
-	if (!info->alternate_aux_channel) {
+	if (!info->devdata || !info->devdata->child.aux_channel) {
 		aux_ch = (enum aux_ch)port;
 
 		drm_dbg_kms(&i915->drm,
@@ -2879,7 +2877,7 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *i915,
 	 * ADL-S VBT uses PHY based mapping. Combo PHYs A,B,C,D,E
 	 * map to DDI A,TC1,TC2,TC3,TC4 respectively.
 	 */
-	switch (info->alternate_aux_channel) {
+	switch (info->devdata->child.aux_channel) {
 	case DP_AUX_A:
 		aux_ch = AUX_CH_A;
 		break;
@@ -2940,7 +2938,7 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *i915,
 			aux_ch = AUX_CH_I;
 		break;
 	default:
-		MISSING_CASE(info->alternate_aux_channel);
+		MISSING_CASE(info->devdata->child.aux_channel);
 		aux_ch = AUX_CH_A;
 		break;
 	}

@@ -639,7 +639,6 @@ struct ddi_vbt_port_info {
 	/* Non-NULL if port present. */
 	struct intel_bios_encoder_data *devdata;
 
-	u8 alternate_aux_channel;
 	u8 alternate_ddc_pin;
 };
 
