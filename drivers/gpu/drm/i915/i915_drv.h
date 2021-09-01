@@ -638,8 +638,6 @@ i915_fence_timeout(const struct drm_i915_private *i915)
 struct ddi_vbt_port_info {
 	/* Non-NULL if port present. */
 	struct intel_bios_encoder_data *devdata;
-
-	u8 alternate_ddc_pin;
 };
 
 enum psr_lines_to_wait {

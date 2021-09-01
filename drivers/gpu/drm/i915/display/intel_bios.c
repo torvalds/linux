@@ -1589,28 +1589,43 @@ static enum port get_port_by_ddc_pin(struct drm_i915_private *i915, u8 ddc_pin)
 	for_each_port(port) {
 		info = &i915->vbt.ddi_port_info[port];
 
-		if (info->devdata && ddc_pin == info->alternate_ddc_pin)
+		if (info->devdata && ddc_pin == info->devdata->child.ddc_pin)
 			return port;
 	}
 
 	return PORT_NONE;
 }
 
-static void sanitize_ddc_pin(struct drm_i915_private *i915,
+static void sanitize_ddc_pin(struct intel_bios_encoder_data *devdata,
 			     enum port port)
 {
-	struct ddi_vbt_port_info *info = &i915->vbt.ddi_port_info[port];
+	struct drm_i915_private *i915 = devdata->i915;
+	struct ddi_vbt_port_info *info;
 	struct child_device_config *child;
+	u8 mapped_ddc_pin;
 	enum port p;
 
-	p = get_port_by_ddc_pin(i915, info->alternate_ddc_pin);
+	if (!devdata->child.ddc_pin)
+		return;
+
+	mapped_ddc_pin = map_ddc_pin(i915, devdata->child.ddc_pin);
+	if (!intel_gmbus_is_valid_pin(i915, mapped_ddc_pin)) {
+		drm_dbg_kms(&i915->drm,
+			    "Port %c has invalid DDC pin %d, "
+			    "sticking to defaults\n",
+			    port_name(port), mapped_ddc_pin);
+		devdata->child.ddc_pin = 0;
+		return;
+	}
+
+	p = get_port_by_ddc_pin(i915, devdata->child.ddc_pin);
 	if (p == PORT_NONE)
 		return;
 
 	drm_dbg_kms(&i915->drm,
 		    "port %c trying to use the same DDC pin (0x%x) as port %c, "
 		    "disabling port %c DVI/HDMI support\n",
-		    port_name(port), info->alternate_ddc_pin,
+		    port_name(port), mapped_ddc_pin,
 		    port_name(p), port_name(p));
 
 	/*
@@ -1628,7 +1643,7 @@ static void sanitize_ddc_pin(struct drm_i915_private *i915,
 	child->device_type &= ~DEVICE_TYPE_TMDS_DVI_SIGNALING;
 	child->device_type |= DEVICE_TYPE_NOT_HDMI_OUTPUT;
 
-	info->alternate_ddc_pin = 0;
+	child->ddc_pin = 0;
 }
 
 static enum port get_port_by_aux_ch(struct drm_i915_private *i915, u8 aux_ch)
@@ -1966,20 +1981,8 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 		    supports_typec_usb, supports_tbt,
 		    devdata->dsc != NULL);
 
-	if (is_dvi) {
-		u8 ddc_pin;
-
-		ddc_pin = map_ddc_pin(i915, child->ddc_pin);
-		if (intel_gmbus_is_valid_pin(i915, ddc_pin)) {
-			info->alternate_ddc_pin = ddc_pin;
-			sanitize_ddc_pin(i915, port);
-		} else {
-			drm_dbg_kms(&i915->drm,
-				    "Port %c has invalid DDC pin %d, "
-				    "sticking to defaults\n",
-				    port_name(port), ddc_pin);
-		}
-	}
+	if (is_dvi)
+		sanitize_ddc_pin(devdata, port);
 
 	if (is_dp)
 		sanitize_aux_ch(devdata, port);
@@ -2993,8 +2996,12 @@ int intel_bios_dp_max_link_rate(struct intel_encoder *encoder)
 int intel_bios_alternate_ddc_pin(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	const struct intel_bios_encoder_data *devdata = i915->vbt.ddi_port_info[encoder->port].devdata;
 
-	return i915->vbt.ddi_port_info[encoder->port].alternate_ddc_pin;
+	if (!devdata || !devdata->child.ddc_pin)
+		return 0;
+
+	return map_ddc_pin(i915, devdata->child.ddc_pin);
 }
 
 bool intel_bios_encoder_supports_typec_usb(const struct intel_bios_encoder_data *devdata)
