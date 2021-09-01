@@ -468,6 +468,46 @@ bool amdgpu_atomfirmware_dynamic_boot_config_supported(struct amdgpu_device *ade
 	return (fw_cap & ATOM_FIRMWARE_CAP_DYNAMIC_BOOT_CFG_ENABLE) ? true : false;
 }
 
+/*
+ * Helper function to query RAS EEPROM address
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Return true if vbios supports ras rom address reporting
+ */
+bool amdgpu_atomfirmware_ras_rom_addr(struct amdgpu_device *adev, uint8_t* i2c_address)
+{
+	struct amdgpu_mode_info *mode_info = &adev->mode_info;
+	int index;
+	u16 data_offset, size;
+	union firmware_info *firmware_info;
+	u8 frev, crev;
+
+	if (i2c_address == NULL)
+		return false;
+
+	*i2c_address = 0;
+
+	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
+			firmwareinfo);
+
+	if (amdgpu_atom_parse_data_header(adev->mode_info.atom_context,
+				index, &size, &frev, &crev, &data_offset)) {
+		/* support firmware_info 3.4 + */
+		if ((frev == 3 && crev >=4) || (frev > 3)) {
+			firmware_info = (union firmware_info *)
+				(mode_info->atom_context->bios + data_offset);
+			*i2c_address = firmware_info->v34.ras_rom_i2c_slave_addr;
+		}
+	}
+
+	if (*i2c_address != 0)
+		return true;
+
+	return false;
+}
+
+
 union smu_info {
 	struct atom_smu_info_v3_1 v31;
 };

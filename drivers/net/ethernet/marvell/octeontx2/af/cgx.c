@@ -1504,8 +1504,8 @@ static int cgx_lmac_init(struct cgx *cgx)
 
 		/* Add reference */
 		cgx->lmac_idmap[lmac->lmac_id] = lmac;
-		cgx->mac_ops->mac_pause_frm_config(cgx, lmac->lmac_id, true);
 		set_bit(lmac->lmac_id, &cgx->lmac_bmap);
+		cgx->mac_ops->mac_pause_frm_config(cgx, lmac->lmac_id, true);
 	}
 
 	return cgx_lmac_verify_fwi_version(cgx);

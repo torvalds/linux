@@ -1478,7 +1478,6 @@ void nf_conntrack_tcp_init_net(struct net *net)
 
 #if IS_ENABLED(CONFIG_NF_FLOW_TABLE)
 	tn->offload_timeout = 30 * HZ;
-	tn->offload_pickup = 120 * HZ;
 #endif
 }
 

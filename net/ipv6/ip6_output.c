@@ -74,7 +74,7 @@ static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *
 
 			if (likely(nskb)) {
 				if (skb->sk)
-					skb_set_owner_w(skb, skb->sk);
+					skb_set_owner_w(nskb, skb->sk);
 				consume_skb(skb);
 			} else {
 				kfree_skb(skb);
@@ -549,9 +549,10 @@ int ip6_forward(struct sk_buff *skb)
 	if (net->ipv6.devconf_all->proxy_ndp &&
 	    pneigh_lookup(&nd_tbl, net, &hdr->daddr, skb->dev, 0)) {
 		int proxied = ip6_forward_proxy_check(skb);
-		if (proxied > 0)
+		if (proxied > 0) {
+			hdr->hop_limit--;
 			return ip6_input(skb);
-		else if (proxied < 0) {
+		} else if (proxied < 0) {
 			__IP6_INC_STATS(net, idev, IPSTATS_MIB_INDISCARDS);
 			goto drop;
 		}

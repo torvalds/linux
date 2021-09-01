@@ -292,6 +292,12 @@ void __init init_prmt(void)
 	int mc = acpi_table_parse_entries(ACPI_SIG_PRMT, sizeof(struct acpi_table_prmt) +
 					  sizeof (struct acpi_table_prmt_header),
 					  0, acpi_parse_prmt, 0);
+	/*
+	 * Return immediately if PRMT table is not present or no PRM module found.
+	 */
+	if (mc <= 0)
+		return;
+
 	pr_info("PRM: found %u modules\n", mc);
 
 	status = acpi_install_address_space_handler(ACPI_ROOT_OBJECT,

@@ -481,6 +481,8 @@ static int ovl_cache_update_ino(struct path *path, struct ovl_cache_entry *p)
 	}
 	this = lookup_one_len(p->name, dir, p->len);
 	if (IS_ERR_OR_NULL(this) || !this->d_inode) {
+		/* Mark a stale entry */
+		p->is_whiteout = true;
 		if (IS_ERR(this)) {
 			err = PTR_ERR(this);
 			this = NULL;
@@ -776,6 +778,9 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 				if (err)
 					goto out;
 			}
+		}
+		/* ovl_cache_update_ino() sets is_whiteout on stale entry */
+		if (!p->is_whiteout) {
 			if (!dir_emit(ctx, p->name, p->len, p->ino, p->type))
 				break;
 		}

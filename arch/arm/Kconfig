@@ -95,7 +95,6 @@ config ARM
 	select HAVE_FUNCTION_TRACER if !XIP_KERNEL
 	select HAVE_GCC_PLUGINS
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS && (CPU_V6 || CPU_V6K || CPU_V7)
-	select HAVE_IDE if PCI || ISA || PCMCIA
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZ4
@@ -361,7 +360,6 @@ config ARCH_FOOTBRIDGE
 	bool "FootBridge"
 	select CPU_SA110
 	select FOOTBRIDGE
-	select HAVE_IDE
 	select NEED_MACH_IO_H if !MMU
 	select NEED_MACH_MEMORY_H
 	help
@@ -430,7 +428,6 @@ config ARCH_PXA
 	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIO_PXA
 	select GPIOLIB
-	select HAVE_IDE
 	select IRQ_DOMAIN
 	select PLAT_PXA
 	select SPARSE_IRQ
@@ -446,7 +443,6 @@ config ARCH_RPC
 	select ARM_HAS_SG_CHAIN
 	select CPU_SA110
 	select FIQ
-	select HAVE_IDE
 	select HAVE_PATA_PLATFORM
 	select ISA_DMA_API
 	select LEGACY_TIMER_TICK
@@ -469,7 +465,6 @@ config ARCH_SA1100
 	select CPU_SA1100
 	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
-	select HAVE_IDE
 	select IRQ_DOMAIN
 	select ISA
 	select NEED_MACH_MEMORY_H
@@ -505,7 +500,6 @@ config ARCH_OMAP1
 	select GENERIC_IRQ_CHIP
 	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
-	select HAVE_IDE
 	select HAVE_LEGACY_CLK
 	select IRQ_DOMAIN
 	select NEED_MACH_IO_H if PCCARD

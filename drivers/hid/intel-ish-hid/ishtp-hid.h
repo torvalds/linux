@@ -135,6 +135,7 @@ struct ishtp_cl_data {
 	int multi_packet_cnt;
 
 	struct work_struct work;
+	struct work_struct resume_work;
 	struct ishtp_cl_device *cl_device;
 };
 
