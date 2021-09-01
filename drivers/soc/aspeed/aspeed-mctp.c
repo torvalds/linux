@@ -25,6 +25,7 @@
 #include <linux/swab.h>
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
+
 #include <uapi/linux/aspeed-mctp.h>
 
 /* AST2600 MCTP Controller registers */
@@ -603,6 +604,7 @@ static void aspeed_mctp_tx_chan_init(struct mctp_channel *tx)
 {
 	struct aspeed_mctp *priv = container_of(tx, typeof(*priv), tx);
 
+	tx->wr_ptr = 0;
 	regmap_update_bits(priv->map, ASPEED_MCTP_CTRL, TX_CMD_TRIGGER, 0);
 	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_SIZE, TX_PACKET_COUNT);
 	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_WR_PTR, 0);
@@ -680,6 +682,22 @@ static int aspeed_mctp_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static u16 _get_bdf(struct aspeed_mctp *priv)
+{
+	u16 bdf;
+
+	bdf = READ_ONCE(priv->pcie.bdf);
+	smp_rmb(); /* enforce ordering between flush and producer */
+
+	return bdf;
+}
+
+static void _set_bdf(struct aspeed_mctp *priv, u16 bdf)
+{
+	smp_wmb(); /* enforce ordering between flush and producer */
+	WRITE_ONCE(priv->pcie.bdf, bdf);
+}
+
 #define LEN_MASK_HI GENMASK(9, 8)
 #define LEN_MASK_LO GENMASK(7, 0)
 #define PCI_VDM_HDR_LEN_MASK_LO GENMASK(31, 24)
@@ -695,8 +713,10 @@ int aspeed_mctp_send_packet(struct mctp_client *client,
 	u16 packet_data_sz_dw;
 	u16 pci_data_len_dw;
 	int ret;
+	u16 bdf;
 
-	if (priv->pcie.bdf == 0)
+	bdf = _get_bdf(priv);
+	if (bdf == 0)
 		return -EIO;
 
 	/*
@@ -713,7 +733,7 @@ int aspeed_mctp_send_packet(struct mctp_client *client,
 	if (packet_data_sz_dw != pci_data_len_dw)
 		return -EINVAL;
 
-	be32p_replace_bits(&hdr_dw[1], priv->pcie.bdf, PCIE_VDM_HDR_REQUESTER_BDF_MASK);
+	be32p_replace_bits(&hdr_dw[1], bdf, PCIE_VDM_HDR_REQUESTER_BDF_MASK);
 
 	/*
 	 * XXX Don't update EID for MCTP Control messages - old EID may
@@ -734,9 +754,10 @@ struct mctp_pcie_packet *aspeed_mctp_receive_packet(struct mctp_client *client,
 						    unsigned long timeout)
 {
 	struct aspeed_mctp *priv = client->priv;
+	u16 bdf = _get_bdf(priv);
 	int ret;
 
-	if (priv->pcie.bdf == 0)
+	if (bdf == 0)
 		return ERR_PTR(-EIO);
 
 	ret = wait_event_interruptible_timeout(client->wait_queue,
@@ -766,11 +787,13 @@ static ssize_t aspeed_mctp_read(struct file *file, char __user *buf,
 	struct mctp_client *client = file->private_data;
 	struct aspeed_mctp *priv = client->priv;
 	struct mctp_pcie_packet *rx_packet;
+	u16 bdf;
 
 	if (count < PCIE_MCTP_MIN_PACKET_SIZE)
 		return -EINVAL;
 
-	if (priv->pcie.bdf == 0)
+	bdf = _get_bdf(priv);
+	if (bdf == 0)
 		return -EIO;
 
 	if (count > sizeof(rx_packet->data))
@@ -788,6 +811,24 @@ static ssize_t aspeed_mctp_read(struct file *file, char __user *buf,
 	aspeed_mctp_packet_free(rx_packet);
 
 	return count;
+}
+
+static void aspeed_mctp_flush_tx_queue(struct mctp_client *client)
+{
+	struct mctp_pcie_packet *packet;
+
+	while ((packet = ptr_ring_consume_bh(&client->tx_queue)))
+		aspeed_mctp_packet_free(packet);
+}
+
+static void aspeed_mctp_flush_all_tx_queues(struct aspeed_mctp *priv)
+{
+	struct mctp_client *client;
+
+	spin_lock_bh(&priv->clients_lock);
+	list_for_each_entry(client, &priv->clients, link)
+		aspeed_mctp_flush_tx_queue(client);
+	spin_unlock_bh(&priv->clients_lock);
 }
 
 static ssize_t aspeed_mctp_write(struct file *file, const char __user *buf,
@@ -980,7 +1021,7 @@ aspeed_mctp_filter_eid(struct aspeed_mctp *priv, void __user *userbuf)
 
 static int aspeed_mctp_get_bdf(struct aspeed_mctp *priv, void __user *userbuf)
 {
-	struct aspeed_mctp_get_bdf bdf = { priv->pcie.bdf };
+	struct aspeed_mctp_get_bdf bdf = { _get_bdf(priv) };
 
 	if (copy_to_user(userbuf, &bdf, sizeof(bdf))) {
 		dev_err(priv->dev, "copy to user failed\n");
@@ -1167,7 +1208,7 @@ aspeed_mctp_set_eid_info(struct aspeed_mctp *priv, void __user *userbuf)
 		}
 
 		/* Detect self EID */
-		if (priv->pcie.bdf == endpoint->data.bdf) {
+		if (_get_bdf(priv) == endpoint->data.bdf) {
 			/*
 			 * XXX Use smallest EID with matching BDF.
 			 * On some platforms there could be multiple endpoints
@@ -1305,18 +1346,21 @@ static void aspeed_mctp_send_pcie_uevent(struct kobject *kobj, bool ready)
 			   ready ? pcie_ready_event : pcie_not_ready_event);
 }
 
-static void aspeed_mctp_pcie_setup(struct aspeed_mctp *priv)
+static u16 aspeed_mctp_pcie_setup(struct aspeed_mctp *priv)
 {
 	u32 reg;
+	u16 bdf;
 
 	regmap_read(priv->pcie.map, ASPEED_PCIE_MISC_STS_1, &reg);
 
-	priv->pcie.bdf = PCI_DEVID(GET_PCI_BUS_NUM(reg), GET_PCI_DEV_NUM(reg));
-	if (priv->pcie.bdf != 0)
+	bdf = PCI_DEVID(GET_PCI_BUS_NUM(reg), GET_PCI_DEV_NUM(reg));
+	if (bdf != 0)
 		cancel_delayed_work(&priv->pcie.rst_dwork);
 	else
 		schedule_delayed_work(&priv->pcie.rst_dwork,
 				      msecs_to_jiffies(1000));
+
+	return bdf;
 }
 
 static void aspeed_mctp_irq_enable(struct aspeed_mctp *priv)
@@ -1337,18 +1381,20 @@ static void aspeed_mctp_reset_work(struct work_struct *work)
 	struct aspeed_mctp *priv = container_of(work, typeof(*priv),
 						pcie.rst_dwork.work);
 	struct kobject *kobj = &aspeed_mctp_miscdev.this_device->kobj;
+	u16 bdf;
 
 	if (priv->pcie.need_uevent) {
 		aspeed_mctp_send_pcie_uevent(kobj, false);
 		priv->pcie.need_uevent = false;
 	}
 
-	aspeed_mctp_pcie_setup(priv);
-
-	if (priv->pcie.bdf) {
-		aspeed_mctp_send_pcie_uevent(kobj, true);
+	bdf = aspeed_mctp_pcie_setup(priv);
+	if (bdf) {
+		aspeed_mctp_flush_all_tx_queues(priv);
 		aspeed_mctp_irq_enable(priv);
 		aspeed_mctp_rx_trigger(&priv->rx);
+		_set_bdf(priv, bdf);
+		aspeed_mctp_send_pcie_uevent(kobj, true);
 	}
 }
 
@@ -1407,7 +1453,7 @@ static irqreturn_t aspeed_mctp_pcie_rst_irq_handler(int irq, void *arg)
 	aspeed_mctp_channels_init(priv);
 
 	priv->pcie.need_uevent = true;
-	priv->pcie.bdf = 0;
+	_set_bdf(priv, 0);
 	priv->eid = 0;
 
 	schedule_delayed_work(&priv->pcie.rst_dwork, 0);
@@ -1600,6 +1646,7 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 {
 	struct aspeed_mctp *priv;
 	int ret;
+	u16 bdf;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
@@ -1642,7 +1689,9 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 
 	aspeed_mctp_irq_enable(priv);
 
-	aspeed_mctp_pcie_setup(priv);
+	bdf = aspeed_mctp_pcie_setup(priv);
+	if (bdf != 0)
+		_set_bdf(priv, bdf);
 
 	priv->peci_mctp =
 		platform_device_register_data(priv->dev, "peci-mctp",
