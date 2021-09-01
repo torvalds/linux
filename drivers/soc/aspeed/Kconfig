@@ -52,6 +52,34 @@ config ASPEED_SOCINFO
 	help
 	  Say yes to support decoding of ASPEED BMC information.
 
+config ASPEED_XDMA
+	tristate "ASPEED XDMA Engine Driver"
+	select REGMAP
+	select MFD_SYSCON
+	depends on HAS_DMA
+	help
+	  Enable support for the XDMA Engine found on the ASPEED BMC
+	  SoCs. The XDMA engine can perform PCIe DMA operations between the BMC
+	  and a host processor.
+
+config ASPEED_SBC
+	bool "ASPEED Secure Boot Controller driver"
+	default MACH_ASPEED_G6
+	help
+	  Say yes to provide information about the secure boot controller in
+	  debugfs.
+
+config ASPEED_ESPI
+	bool "ASPEED eSPI slave driver"
+	select REGMAP
+	select MFD_SYSCON
+	default n
+	help
+	  Enable driver support for the Aspeed eSPI engine. The eSPI engine
+	  plays as a slave device in BMC to communicate with the Host over
+	  the eSPI interface. The four eSPI channels, namely peripheral,
+	  virtual wire, out-of-band, and flash are supported.
+
 endmenu
 
 endif
