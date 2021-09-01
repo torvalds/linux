@@ -1876,6 +1876,24 @@ static int _intel_bios_hdmi_level_shift(const struct intel_bios_encoder_data *de
 	return devdata->child.hdmi_level_shifter_value;
 }
 
+static int _intel_bios_max_tmds_clock(const struct intel_bios_encoder_data *devdata)
+{
+	if (!devdata || devdata->i915->vbt.version < 204)
+		return 0;
+
+	switch (devdata->child.hdmi_max_data_rate) {
+	default:
+		MISSING_CASE(devdata->child.hdmi_max_data_rate);
+		fallthrough;
+	case HDMI_MAX_DATA_RATE_PLATFORM:
+		return 0;
+	case HDMI_MAX_DATA_RATE_297:
+		return 297000;
+	case HDMI_MAX_DATA_RATE_165:
+		return 165000;
+	}
+}
+
 static bool is_port_valid(struct drm_i915_private *i915, enum port port)
 {
 	/*
@@ -1895,7 +1913,7 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 	const struct child_device_config *child = &devdata->child;
 	struct ddi_vbt_port_info *info;
 	bool is_dvi, is_hdmi, is_dp, is_edp, is_crt, supports_typec_usb, supports_tbt;
-	int dp_boost_level, hdmi_boost_level, hdmi_level_shift;
+	int dp_boost_level, hdmi_boost_level, hdmi_level_shift, max_tmds_clock;
 	enum port port;
 
 	port = dvo_port_to_port(i915, child->dvo_port);
@@ -1964,30 +1982,11 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 			    port_name(port), hdmi_level_shift);
 	}
 
-	if (i915->vbt.version >= 204) {
-		int max_tmds_clock;
-
-		switch (child->hdmi_max_data_rate) {
-		default:
-			MISSING_CASE(child->hdmi_max_data_rate);
-			fallthrough;
-		case HDMI_MAX_DATA_RATE_PLATFORM:
-			max_tmds_clock = 0;
-			break;
-		case HDMI_MAX_DATA_RATE_297:
-			max_tmds_clock = 297000;
-			break;
-		case HDMI_MAX_DATA_RATE_165:
-			max_tmds_clock = 165000;
-			break;
-		}
-
-		if (max_tmds_clock)
-			drm_dbg_kms(&i915->drm,
-				    "Port %c VBT HDMI max TMDS clock: %d kHz\n",
-				    port_name(port), max_tmds_clock);
-		info->max_tmds_clock = max_tmds_clock;
-	}
+	max_tmds_clock = _intel_bios_max_tmds_clock(devdata);
+	if (max_tmds_clock)
+		drm_dbg_kms(&i915->drm,
+			    "Port %c VBT HDMI max TMDS clock: %d kHz\n",
+			    port_name(port), max_tmds_clock);
 
 	/* I_boost config for SKL and above */
 	dp_boost_level = intel_bios_encoder_dp_boost_level(devdata);
@@ -2950,8 +2949,9 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *i915,
 int intel_bios_max_tmds_clock(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	const struct intel_bios_encoder_data *devdata = i915->vbt.ddi_port_info[encoder->port].devdata;
 
-	return i915->vbt.ddi_port_info[encoder->port].max_tmds_clock;
+	return _intel_bios_max_tmds_clock(devdata);
 }
 
 /* This is an index in the HDMI/DVI DDI buffer translation table, or -1 */
