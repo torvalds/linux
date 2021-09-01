@@ -2514,9 +2514,10 @@ static int path_parentat(struct nameidata *nd, unsigned flags,
 	return err;
 }
 
+/* Note: this does not consume "name" */
 static int __filename_parentat(int dfd, struct filename *name,
-				unsigned int flags, struct path *parent,
-				struct qstr *last, int *type)
+			     unsigned int flags, struct path *parent,
+			     struct qstr *last, int *type)
 {
 	int retval;
 	struct nameidata nd;
@@ -2538,25 +2539,14 @@ static int __filename_parentat(int dfd, struct filename *name,
 	return retval;
 }
 
-static int filename_parentat(int dfd, struct filename *name,
-				unsigned int flags, struct path *parent,
-				struct qstr *last, int *type)
-{
-	int retval = __filename_parentat(dfd, name, flags, parent, last, type);
-
-	putname(name);
-	return retval;
-}
-
 /* does lookup, returns the object with parent locked */
-struct dentry *kern_path_locked(const char *name, struct path *path)
+static struct dentry *__kern_path_locked(struct filename *name, struct path *path)
 {
 	struct dentry *d;
 	struct qstr last;
 	int type, error;
 
-	error = filename_parentat(AT_FDCWD, getname_kernel(name), 0, path,
-				    &last, &type);
+	error = __filename_parentat(AT_FDCWD, name, 0, path, &last, &type);
 	if (error)
 		return ERR_PTR(error);
 	if (unlikely(type != LAST_NORM)) {
@@ -2570,6 +2560,15 @@ struct dentry *kern_path_locked(const char *name, struct path *path)
 		path_put(path);
 	}
 	return d;
+}
+
+struct dentry *kern_path_locked(const char *name, struct path *path)
+{
+	struct filename *filename = getname_kernel(name);
+	struct dentry *res = __kern_path_locked(filename, path);
+
+	putname(filename);
+	return res;
 }
 
 int kern_path(const char *name, unsigned int flags, struct path *path)
