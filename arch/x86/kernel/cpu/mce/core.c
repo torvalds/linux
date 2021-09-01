@@ -1328,6 +1328,15 @@ static void queue_task_work(struct mce *m, char *msg, void (*func)(struct callba
 	task_work_add(current, &current->mce_kill_me, TWA_RESUME);
 }
 
+/* Handle unconfigured int18 (should never happen) */
+static noinstr void unexpected_machine_check(struct pt_regs *regs)
+{
+	instrumentation_begin();
+	pr_err("CPU#%d: Unexpected int18 (Machine Check)\n",
+	       smp_processor_id());
+	instrumentation_end();
+}
+
 /*
  * The actual machine check handler. This only handles real
  * exceptions when something got corrupted coming in through int 18.
@@ -1348,36 +1357,43 @@ static void queue_task_work(struct mce *m, char *msg, void (*func)(struct callba
  */
 noinstr void do_machine_check(struct pt_regs *regs)
 {
+	int worst = 0, order, no_way_out, kill_current_task, lmce;
 	DECLARE_BITMAP(valid_banks, MAX_NR_BANKS);
 	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
 	struct mca_config *cfg = &mca_cfg;
 	struct mce m, *final;
 	char *msg = NULL;
-	int worst = 0;
+
+	if (unlikely(mce_flags.p5))
+		return pentium_machine_check(regs);
+	else if (unlikely(mce_flags.winchip))
+		return winchip_machine_check(regs);
+	else if (unlikely(!mca_cfg.initialized))
+		return unexpected_machine_check(regs);
 
 	/*
 	 * Establish sequential order between the CPUs entering the machine
 	 * check handler.
 	 */
-	int order = -1;
+	order = -1;
 
 	/*
 	 * If no_way_out gets set, there is no safe way to recover from this
 	 * MCE.  If mca_cfg.tolerant is cranked up, we'll try anyway.
 	 */
-	int no_way_out = 0;
+	no_way_out = 0;
 
 	/*
 	 * If kill_current_task is not set, there might be a way to recover from this
 	 * error.
 	 */
-	int kill_current_task = 0;
+	kill_current_task = 0;
 
 	/*
 	 * MCEs are always local on AMD. Same is determined by MCG_STATUS_LMCES
 	 * on Intel.
 	 */
-	int lmce = 1;
+	lmce = 1;
 
 	this_cpu_inc(mce_exception_count);
 
@@ -1855,9 +1871,11 @@ static int __mcheck_cpu_ancient_init(struct cpuinfo_x86 *c)
 	switch (c->x86_vendor) {
 	case X86_VENDOR_INTEL:
 		intel_p5_mcheck_init(c);
+		mce_flags.p5 = 1;
 		return 1;
 	case X86_VENDOR_CENTAUR:
 		winchip_mcheck_init(c);
+		mce_flags.winchip = 1;
 		return 1;
 	default:
 		return 0;
@@ -2012,18 +2030,6 @@ bool filter_mce(struct mce *m)
 	return false;
 }
 
-/* Handle unconfigured int18 (should never happen) */
-static noinstr void unexpected_machine_check(struct pt_regs *regs)
-{
-	instrumentation_begin();
-	pr_err("CPU#%d: Unexpected int18 (Machine Check)\n",
-	       smp_processor_id());
-	instrumentation_end();
-}
-
-/* Call the installed machine check handler for this CPU setup. */
-void (*machine_check_vector)(struct pt_regs *) = unexpected_machine_check;
-
 static __always_inline void exc_machine_check_kernel(struct pt_regs *regs)
 {
 	irqentry_state_t irq_state;
@@ -2034,31 +2040,22 @@ static __always_inline void exc_machine_check_kernel(struct pt_regs *regs)
 	 * Only required when from kernel mode. See
 	 * mce_check_crashing_cpu() for details.
 	 */
-	if (machine_check_vector == do_machine_check &&
-	    mce_check_crashing_cpu())
+	if (mca_cfg.initialized && mce_check_crashing_cpu())
 		return;
 
 	irq_state = irqentry_nmi_enter(regs);
-	/*
-	 * The call targets are marked noinstr, but objtool can't figure
-	 * that out because it's an indirect call. Annotate it.
-	 */
-	instrumentation_begin();
 
-	machine_check_vector(regs);
+	do_machine_check(regs);
 
-	instrumentation_end();
 	irqentry_nmi_exit(regs, irq_state);
 }
 
 static __always_inline void exc_machine_check_user(struct pt_regs *regs)
 {
 	irqentry_enter_from_user_mode(regs);
-	instrumentation_begin();
 
-	machine_check_vector(regs);
+	do_machine_check(regs);
 
-	instrumentation_end();
 	irqentry_exit_to_user_mode(regs);
 }
 
@@ -2125,7 +2122,7 @@ void mcheck_cpu_init(struct cpuinfo_x86 *c)
 		return;
 	}
 
-	machine_check_vector = do_machine_check;
+	mca_cfg.initialized = 1;
 
 	__mcheck_cpu_init_early(c);
 	__mcheck_cpu_init_generic();
