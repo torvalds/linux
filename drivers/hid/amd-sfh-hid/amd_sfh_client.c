@@ -17,7 +17,6 @@
 #include "amd_sfh_pcie.h"
 #include "amd_sfh_hid.h"
 
-#define AMD_SFH_IDLE_LOOP	200
 
 struct request_list {
 	struct hid_device *hid;
@@ -123,12 +122,22 @@ static void amd_sfh_work_buffer(struct work_struct *work)
 	int i;
 
 	for (i = 0; i < cli_data->num_hid_devices; i++) {
-		report_size = get_input_report(i, cli_data->sensor_idx[i], cli_data->report_id[i],
-					       in_data);
-		hid_input_report(cli_data->hid_sensor_hubs[i], HID_INPUT_REPORT,
-				 in_data->input_report[i], report_size, 0);
+		if (cli_data->sensor_sts[i] == SENSOR_ENABLED) {
+			report_size = get_input_report
+				(i, cli_data->sensor_idx[i], cli_data->report_id[i], in_data);
+			hid_input_report(cli_data->hid_sensor_hubs[i], HID_INPUT_REPORT,
+					 in_data->input_report[i], report_size, 0);
+		}
 	}
 	schedule_delayed_work(&cli_data->work_buffer, msecs_to_jiffies(AMD_SFH_IDLE_LOOP));
+}
+
+u32 amd_sfh_wait_for_response(struct amd_mp2_dev *mp2, u8 sid, u32 sensor_sts)
+{
+	if (mp2->mp2_ops->response)
+		sensor_sts = mp2->mp2_ops->response(mp2, sid, sensor_sts);
+
+	return sensor_sts;
 }
 
 int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
@@ -139,8 +148,8 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 	struct device *dev;
 	u32 feature_report_size;
 	u32 input_report_size;
+	int rc, i, status;
 	u8 cl_idx;
-	int rc, i;
 
 	dev = &privdata->pdev->dev;
 
@@ -155,7 +164,7 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 		in_data->sensor_virt_addr[i] = dma_alloc_coherent(dev, sizeof(int) * 8,
 								  &cl_data->sensor_dma_addr[i],
 								  GFP_KERNEL);
-		cl_data->sensor_sts[i] = 0;
+		cl_data->sensor_sts[i] = SENSOR_DISABLED;
 		cl_data->sensor_requested_cnt[i] = 0;
 		cl_data->cur_hid_dev = i;
 		cl_idx = cl_data->sensor_idx[i];
@@ -184,7 +193,7 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 			rc = -ENOMEM;
 			goto cleanup;
 		}
-		info.period = msecs_to_jiffies(AMD_SFH_IDLE_LOOP);
+		info.period = AMD_SFH_IDLE_LOOP;
 		info.sensor_idx = cl_idx;
 		info.dma_address = cl_data->sensor_dma_addr[i];
 
@@ -197,11 +206,25 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 		rc = get_report_descriptor(cl_idx, cl_data->report_descr[i]);
 		if (rc)
 			return rc;
-		rc = amdtp_hid_probe(cl_data->cur_hid_dev, cl_data);
-		if (rc)
-			return rc;
 		privdata->mp2_ops->start(privdata, info);
-		cl_data->sensor_sts[i] = 1;
+		status = amd_sfh_wait_for_response
+				(privdata, cl_data->sensor_idx[i], SENSOR_ENABLED);
+		if (status == SENSOR_ENABLED) {
+			cl_data->sensor_sts[i] = SENSOR_ENABLED;
+			rc = amdtp_hid_probe(cl_data->cur_hid_dev, cl_data);
+			if (rc) {
+				privdata->mp2_ops->stop(privdata, cl_data->sensor_idx[i]);
+				status = amd_sfh_wait_for_response
+					(privdata, cl_data->sensor_idx[i], SENSOR_DISABLED);
+				if (status != SENSOR_ENABLED)
+					cl_data->sensor_sts[i] = SENSOR_DISABLED;
+				dev_dbg(dev, "sid 0x%x status 0x%x\n",
+					cl_data->sensor_idx[i], cl_data->sensor_sts[i]);
+				goto cleanup;
+			}
+		}
+		dev_dbg(dev, "sid 0x%x status 0x%x\n",
+			cl_data->sensor_idx[i], cl_data->sensor_sts[i]);
 	}
 	schedule_delayed_work(&cl_data->work_buffer, msecs_to_jiffies(AMD_SFH_IDLE_LOOP));
 	return 0;
@@ -224,10 +247,19 @@ int amd_sfh_hid_client_deinit(struct amd_mp2_dev *privdata)
 {
 	struct amdtp_cl_data *cl_data = privdata->cl_data;
 	struct amd_input_data *in_data = cl_data->in_data;
-	int i;
+	int i, status;
 
-	for (i = 0; i < cl_data->num_hid_devices; i++)
-		privdata->mp2_ops->stop(privdata, i);
+	for (i = 0; i < cl_data->num_hid_devices; i++) {
+		if (cl_data->sensor_sts[i] == SENSOR_ENABLED) {
+			privdata->mp2_ops->stop(privdata, cl_data->sensor_idx[i]);
+			status = amd_sfh_wait_for_response
+					(privdata, cl_data->sensor_idx[i], SENSOR_DISABLED);
+			if (status != SENSOR_ENABLED)
+				cl_data->sensor_sts[i] = SENSOR_DISABLED;
+			dev_dbg(&privdata->pdev->dev, "stopping sid 0x%x status 0x%x\n",
+				cl_data->sensor_idx[i], cl_data->sensor_sts[i]);
+		}
+	}
 
 	cancel_delayed_work_sync(&cl_data->work);
 	cancel_delayed_work_sync(&cl_data->work_buffer);
