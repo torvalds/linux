@@ -202,7 +202,11 @@
 		label = "rcar-sound";
 
 		dais = <&rsnd_port0	/* ak4613 */
-			&rsnd_port1>;	/* HDMI0  */
+			&rsnd_port1	/* HDMI0  */
+#ifdef SOC_HAS_HDMI1
+			&rsnd_port2	/* HDMI1  */
+#endif
+			>;
 	};
 
 	vbus0_usb2: regulator-vbus0-usb2 {
@@ -421,6 +425,31 @@
 &hdmi0_con {
 	remote-endpoint = <&rcar_dw_hdmi0_out>;
 };
+
+#ifdef SOC_HAS_HDMI1
+&hdmi1 {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+			rcar_dw_hdmi1_out: endpoint {
+				remote-endpoint = <&hdmi1_con>;
+			};
+		};
+		port@2 {
+			reg = <2>;
+			dw_hdmi1_snd_in: endpoint {
+				remote-endpoint = <&rsnd_endpoint2>;
+			};
+		};
+	};
+};
+
+&hdmi1_con {
+	remote-endpoint = <&rcar_dw_hdmi1_out>;
+};
+#endif /* SOC_HAS_HDMI1 */
 
 &hscif1 {
 	pinctrl-0 = <&hscif1_pins>;
@@ -818,6 +847,21 @@
 				playback = <&ssi2>;
 			};
 		};
+
+#ifdef SOC_HAS_HDMI1
+		rsnd_port2: port@2 {
+			reg = <2>;
+			rsnd_endpoint2: endpoint {
+				remote-endpoint = <&dw_hdmi1_snd_in>;
+
+				dai-format = "i2s";
+				bitclock-master = <&rsnd_endpoint2>;
+				frame-master = <&rsnd_endpoint2>;
+
+				playback = <&ssi3>;
+			};
+		};
+#endif /* SOC_HAS_HDMI1 */
 	};
 };
 
@@ -825,6 +869,12 @@
 	timeout-sec = <60>;
 	status = "okay";
 };
+
+#ifdef SOC_HAS_SATA
+&sata {
+	status = "okay";
+};
+#endif /* SOC_HAS_SATA */
 
 &scif1 {
 	pinctrl-0 = <&scif1_pins>;
@@ -973,3 +1023,27 @@
 
 	status = "okay";
 };
+
+#ifdef SOC_HAS_USB2_CH2
+&ehci2 {
+	status = "okay";
+};
+
+&ohci2 {
+	status = "okay";
+};
+
+&pfc {
+	usb2_pins: usb2 {
+		groups = "usb2";
+		function = "usb2";
+	};
+};
+
+&usb2_phy2 {
+	pinctrl-0 = <&usb2_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+#endif /* SOC_HAS_USB2_CH2 */

@@ -48,6 +48,14 @@
 	pinctrl-0 = <&pinctrl_gpio0_default>;
 };
 
+&nfc0 {
+	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+	};
+};
+
 &pinctrl0 {
 	pinctrl_gpio0_default: gpio0-default {
 		mux {
@@ -116,6 +124,10 @@
 			bias-disable;
 		};
 	};
+};
+
+&smcc {
+	status = "okay";
 };
 
 &sdhci0 {

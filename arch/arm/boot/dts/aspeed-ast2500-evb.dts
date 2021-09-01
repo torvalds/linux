@@ -129,3 +129,7 @@
      status = "okay";
      memory-region = <&gfx_memory>;
 };
+
+&rtc {
+	status = "okay";
+};

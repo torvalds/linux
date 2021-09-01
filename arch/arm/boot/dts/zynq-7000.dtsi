@@ -252,6 +252,27 @@
 			#size-cells = <0>;
 		};
 
+		smcc: memory-controller@e000e000 {
+			compatible = "arm,pl353-smc-r2p1", "arm,primecell";
+			reg = <0xe000e000 0x0001000>;
+			status = "disabled";
+			clock-names = "memclk", "apb_pclk";
+			clocks = <&clkc 11>, <&clkc 44>;
+			ranges = <0x0 0x0 0xe1000000 0x1000000 /* Nand CS region */
+				  0x1 0x0 0xe2000000 0x2000000 /* SRAM/NOR CS0 region */
+				  0x2 0x0 0xe4000000 0x2000000>; /* SRAM/NOR CS1 region */
+			#address-cells = <2>;
+			#size-cells = <1>;
+
+			nfc0: nand-controller@0,0 {
+				compatible = "arm,pl353-nand-r2p1";
+				reg = <0 0 0x1000000>;
+				status = "disabled";
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+
 		sdhci0: mmc@e0100000 {
 			compatible = "arasan,sdhci-8.9a";
 			status = "disabled";

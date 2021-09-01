@@ -146,6 +146,11 @@ properties:
           - const: atmel,sama5
 
       - items:
+          - const: microchip,sama7g5ek # SAMA7G5 Evaluation Kit
+          - const: microchip,sama7g5
+          - const: microchip,sama7
+
+      - items:
           - enum:
               - atmel,sams70j19
               - atmel,sams70j20

@@ -54,40 +54,40 @@
 					#io-channel-cells = <1>;
 
 					/* GPADC channels */
-					bat_ctrl: channel@01 {
+					bat_ctrl: channel@1 {
 						reg = <0x01>;
 					};
-					btemp_ball: channel@02 {
+					btemp_ball: channel@2 {
 						reg = <0x02>;
 					};
-					acc_detect1: channel@04 {
+					acc_detect1: channel@4 {
 						reg = <0x04>;
 					};
-					acc_detect2: channel@05 {
+					acc_detect2: channel@5 {
 						reg = <0x05>;
 					};
-					adc_aux1: channel@06 {
+					adc_aux1: channel@6 {
 						reg = <0x06>;
 					};
-					adc_aux2: channel@07 {
+					adc_aux2: channel@7 {
 						reg = <0x07>;
 					};
-					main_batt_v: channel@08 {
+					main_batt_v: channel@8 {
 						reg = <0x08>;
 					};
-					vbus_v: channel@09 {
+					vbus_v: channel@9 {
 						reg = <0x09>;
 					};
-					charger_c: channel@0b {
+					charger_c: channel@b {
 						reg = <0x0b>;
 					};
-					bk_bat_v: channel@0c {
+					bk_bat_v: channel@c {
 						reg = <0x0c>;
 					};
-					die_temp: channel@0d {
+					die_temp: channel@d {
 						reg = <0x0d>;
 					};
-					usb_id: channel@0e {
+					usb_id: channel@e {
 						reg = <0x0e>;
 					};
 				};
@@ -201,6 +201,7 @@
 					musb_1v8-supply = <&db8500_vsmps2_reg>;
 					clocks = <&prcmu_clk PRCMU_SYSCLK>;
 					clock-names = "sysclk";
+					#phy-cells = <0>;
 				};
 
 				ab8500-ponkey {
@@ -321,6 +322,11 @@
 			dsi@a0353000 {
 				vana-supply = <&ab8500_ldo_ana_reg>;
 			};
+		};
+
+		usb_per5@a03e0000 {
+			phys = <&ab8500_usb>;
+			phy-names = "usb";
 		};
 	};
 };
