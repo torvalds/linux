@@ -26,12 +26,12 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 
-		gpio0_ldo: gpio0-ldo {
+		gpio0_ldo: gpio0-ldo-pin {
 			pins = "GPIO0";
 			function = "ldo";
 		};
 
-		gpio1_ldo: gpio1-ldo {
+		gpio1_ldo: gpio1-ldo-pin {
 			pins = "GPIO1";
 			function = "ldo";
 		};
