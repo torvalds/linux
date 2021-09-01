@@ -279,13 +279,11 @@ static const struct v4l2_async_notifier_operations csi2rx_notifier_ops = {
 static int csi2rx_get_resources(struct csi2rx_priv *csi2rx,
 				struct platform_device *pdev)
 {
-	struct resource *res;
 	unsigned char i;
 	u32 dev_cfg;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	csi2rx->base = devm_ioremap_resource(&pdev->dev, res);
+	csi2rx->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(csi2rx->base))
 		return PTR_ERR(csi2rx->base);
 
