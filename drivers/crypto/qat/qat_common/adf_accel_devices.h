@@ -44,8 +44,13 @@ struct adf_bar {
 	resource_size_t size;
 } __packed;
 
+struct adf_irq {
+	bool enabled;
+	char name[ADF_MAX_MSIX_VECTOR_NAME];
+};
+
 struct adf_accel_msix {
-	char **names;
+	struct adf_irq *irqs;
 	u32 num_entries;
 } __packed;
 
@@ -250,7 +255,8 @@ struct adf_accel_dev {
 			struct adf_accel_vf_info *vf_info;
 		} pf;
 		struct {
-			char *irq_name;
+			bool irq_enabled;
+			char irq_name[ADF_MAX_MSIX_VECTOR_NAME];
 			struct tasklet_struct pf2vf_bh_tasklet;
 			struct mutex vf2pf_lock; /* protect CSR access */
 			struct completion iov_msg_completion;

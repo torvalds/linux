@@ -61,10 +61,6 @@ static int adf_enable_msi(struct adf_accel_dev *accel_dev)
 		return stat;
 	}
 
-	accel_dev->vf.irq_name = kzalloc(ADF_MAX_MSIX_VECTOR_NAME, GFP_KERNEL);
-	if (!accel_dev->vf.irq_name)
-		return -ENOMEM;
-
 	return 0;
 }
 
@@ -72,7 +68,6 @@ static void adf_disable_msi(struct adf_accel_dev *accel_dev)
 {
 	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
 
-	kfree(accel_dev->vf.irq_name);
 	pci_free_irq_vectors(pdev);
 }
 
@@ -240,6 +235,7 @@ static int adf_request_msi_irq(struct adf_accel_dev *accel_dev)
 	}
 	cpu = accel_dev->accel_id % num_online_cpus();
 	irq_set_affinity_hint(pdev->irq, get_cpu_mask(cpu));
+	accel_dev->vf.irq_enabled = true;
 
 	return ret;
 }
@@ -271,8 +267,10 @@ void adf_vf_isr_resource_free(struct adf_accel_dev *accel_dev)
 {
 	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
 
-	irq_set_affinity_hint(pdev->irq, NULL);
-	free_irq(pdev->irq, (void *)accel_dev);
+	if (accel_dev->vf.irq_enabled) {
+		irq_set_affinity_hint(pdev->irq, NULL);
+		free_irq(pdev->irq, accel_dev);
+	}
 	adf_cleanup_bh(accel_dev);
 	adf_cleanup_pf2vf_bh(accel_dev);
 	adf_disable_msi(accel_dev);
