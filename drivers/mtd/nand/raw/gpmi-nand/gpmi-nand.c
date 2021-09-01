@@ -951,11 +951,9 @@ static int acquire_register_block(struct gpmi_nand_data *this,
 {
 	struct platform_device *pdev = this->pdev;
 	struct resources *res = &this->resources;
-	struct resource *r;
 	void __iomem *p;
 
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res_name);
-	p = devm_ioremap_resource(&pdev->dev, r);
+	p = devm_platform_ioremap_resource_byname(pdev, res_name);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 
