@@ -251,8 +251,7 @@ int snd_soc_component_set_jack(struct snd_soc_component *component,
 EXPORT_SYMBOL_GPL(snd_soc_component_set_jack);
 
 int snd_soc_component_module_get(struct snd_soc_component *component,
-				 struct snd_pcm_substream *substream,
-				 int upon_open)
+				 void *mark, int upon_open)
 {
 	int ret = 0;
 
@@ -260,25 +259,24 @@ int snd_soc_component_module_get(struct snd_soc_component *component,
 	    !try_module_get(component->dev->driver->owner))
 		ret = -ENODEV;
 
-	/* mark substream if succeeded */
+	/* mark module if succeeded */
 	if (ret == 0)
-		soc_component_mark_push(component, substream, module);
+		soc_component_mark_push(component, mark, module);
 
 	return soc_component_ret(component, ret);
 }
 
 void snd_soc_component_module_put(struct snd_soc_component *component,
-				  struct snd_pcm_substream *substream,
-				  int upon_open, int rollback)
+				  void *mark, int upon_open, int rollback)
 {
-	if (rollback && !soc_component_mark_match(component, substream, module))
+	if (rollback && !soc_component_mark_match(component, mark, module))
 		return;
 
 	if (component->driver->module_get_upon_open == !!upon_open)
 		module_put(component->dev->driver->owner);
 
-	/* remove marked substream */
-	soc_component_mark_pop(component, substream, module);
+	/* remove the mark from module */
+	soc_component_mark_pop(component, mark, module);
 }
 
 int snd_soc_component_open(struct snd_soc_component *component,
