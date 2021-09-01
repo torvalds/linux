@@ -305,13 +305,15 @@ static bool bnxt_vf_pciid(enum board_idx idx)
 	writel(DB_CP_FLAGS | RING_CMP(idx), (db)->doorbell)
 
 #define BNXT_DB_NQ_P5(db, idx)						\
-	writeq((db)->db_key64 | DBR_TYPE_NQ | RING_CMP(idx), (db)->doorbell)
+	bnxt_writeq(bp, (db)->db_key64 | DBR_TYPE_NQ | RING_CMP(idx),	\
+		    (db)->doorbell)
 
 #define BNXT_DB_CQ_ARM(db, idx)						\
 	writel(DB_CP_REARM_FLAGS | RING_CMP(idx), (db)->doorbell)
 
 #define BNXT_DB_NQ_ARM_P5(db, idx)					\
-	writeq((db)->db_key64 | DBR_TYPE_NQ_ARM | RING_CMP(idx), (db)->doorbell)
+	bnxt_writeq(bp, (db)->db_key64 | DBR_TYPE_NQ_ARM | RING_CMP(idx),\
+		    (db)->doorbell)
 
 static void bnxt_db_nq(struct bnxt *bp, struct bnxt_db_info *db, u32 idx)
 {
@@ -332,8 +334,8 @@ static void bnxt_db_nq_arm(struct bnxt *bp, struct bnxt_db_info *db, u32 idx)
 static void bnxt_db_cq(struct bnxt *bp, struct bnxt_db_info *db, u32 idx)
 {
 	if (bp->flags & BNXT_FLAG_CHIP_P5)
-		writeq(db->db_key64 | DBR_TYPE_CQ_ARMALL | RING_CMP(idx),
-		       db->doorbell);
+		bnxt_writeq(bp, db->db_key64 | DBR_TYPE_CQ_ARMALL |
+			    RING_CMP(idx), db->doorbell);
 	else
 		BNXT_DB_CQ(db, idx);
 }
@@ -2638,8 +2640,8 @@ static void __bnxt_poll_cqs_done(struct bnxt *bp, struct bnxt_napi *bnapi,
 
 		if (cpr2 && cpr2->had_work_done) {
 			db = &cpr2->cp_db;
-			writeq(db->db_key64 | dbr_type |
-			       RING_CMP(cpr2->cp_raw_cons), db->doorbell);
+			bnxt_writeq(bp, db->db_key64 | dbr_type |
+				    RING_CMP(cpr2->cp_raw_cons), db->doorbell);
 			cpr2->had_work_done = 0;
 		}
 	}

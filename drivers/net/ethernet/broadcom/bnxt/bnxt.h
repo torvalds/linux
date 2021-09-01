@@ -28,6 +28,7 @@
 #include <net/dst_metadata.h>
 #include <net/xdp.h>
 #include <linux/dim.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #ifdef CONFIG_TEE_BNXT_FW
 #include <linux/firmware/broadcom/tee_bnxt_fw.h>
 #endif
@@ -1981,7 +1982,7 @@ struct bnxt {
 	struct mutex		sriov_lock;
 #endif
 
-#ifndef writeq
+#if BITS_PER_LONG == 32
 	/* ensure atomic 64-bit doorbell writes on 32-bit systems. */
 	spinlock_t		db_lock;
 #endif
@@ -2110,24 +2111,36 @@ static inline u32 bnxt_tx_avail(struct bnxt *bp, struct bnxt_tx_ring_info *txr)
 		((txr->tx_prod - txr->tx_cons) & bp->tx_ring_mask);
 }
 
-#ifndef writeq
-#define writeq(val64, db)			\
-do {						\
-	spin_lock(&bp->db_lock);		\
-	writel((val64) & 0xffffffff, db);	\
-	writel((val64) >> 32, (db) + 4);	\
-	spin_unlock(&bp->db_lock);		\
-} while (0)
-
-#define writeq_relaxed writeq
+static inline void bnxt_writeq(struct bnxt *bp, u64 val,
+			       volatile void __iomem *addr)
+{
+#if BITS_PER_LONG == 32
+	spin_lock(&bp->db_lock);
+	lo_hi_writeq(val, addr);
+	spin_unlock(&bp->db_lock);
+#else
+	writeq(val, addr);
 #endif
+}
+
+static inline void bnxt_writeq_relaxed(struct bnxt *bp, u64 val,
+				       volatile void __iomem *addr)
+{
+#if BITS_PER_LONG == 32
+	spin_lock(&bp->db_lock);
+	lo_hi_writeq_relaxed(val, addr);
+	spin_unlock(&bp->db_lock);
+#else
+	writeq_relaxed(val, addr);
+#endif
+}
 
 /* For TX and RX ring doorbells with no ordering guarantee*/
 static inline void bnxt_db_write_relaxed(struct bnxt *bp,
 					 struct bnxt_db_info *db, u32 idx)
 {
 	if (bp->flags & BNXT_FLAG_CHIP_P5) {
-		writeq_relaxed(db->db_key64 | idx, db->doorbell);
+		bnxt_writeq_relaxed(bp, db->db_key64 | idx, db->doorbell);
 	} else {
 		u32 db_val = db->db_key32 | idx;
 
@@ -2142,7 +2155,7 @@ static inline void bnxt_db_write(struct bnxt *bp, struct bnxt_db_info *db,
 				 u32 idx)
 {
 	if (bp->flags & BNXT_FLAG_CHIP_P5) {
-		writeq(db->db_key64 | idx, db->doorbell);
+		bnxt_writeq(bp, db->db_key64 | idx, db->doorbell);
 	} else {
 		u32 db_val = db->db_key32 | idx;
 
