@@ -1517,10 +1517,6 @@ static int cpufreq_online(unsigned int cpu)
 
 	kobject_uevent(&policy->kobj, KOBJ_ADD);
 
-	/* Callback for handling stuff after policy is ready */
-	if (cpufreq_driver->ready)
-		cpufreq_driver->ready(policy);
-
 	if (cpufreq_thermal_control_enabled(cpufreq_driver))
 		policy->cdev = of_cpufreq_cooling_register(policy);
 
