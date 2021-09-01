@@ -2178,13 +2178,13 @@ static const struct drm_connector_helper_funcs vop2_wb_connector_helper_funcs = 
 };
 
 
-static int vop2_wb_connector_init(struct vop2 *vop2)
+static int vop2_wb_connector_init(struct vop2 *vop2, int nr_crtcs)
 {
 	const struct vop2_data *vop2_data = vop2->data;
 	int ret;
 
 	vop2->wb.regs = vop2_data->wb->regs;
-	vop2->wb.conn.encoder.possible_crtcs = (1 << vop2_data->nr_vps) - 1;
+	vop2->wb.conn.encoder.possible_crtcs = (1 << nr_crtcs) - 1;
 	spin_lock_init(&vop2->wb.job_lock);
 	drm_connector_helper_add(&vop2->wb.conn.base, &vop2_wb_connector_helper_funcs);
 
@@ -6159,6 +6159,10 @@ static int vop2_crtc_create_plane_mask_property(struct vop2 *vop2,
 	return 0;
 }
 
+/*
+ * Returns:
+ * Registered crtc number on success, negative error code on failure.
+ */
 static int vop2_create_crtc(struct vop2 *vop2)
 {
 	const struct vop2_data *vop2_data = vop2->data;
@@ -6369,7 +6373,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 			DRM_WARN("failed to init overlay plane %s\n", win->name);
 	}
 
-	return 0;
+	return registered_num_crtcs;
 }
 
 static void vop2_destroy_crtc(struct drm_crtc *crtc)
@@ -6524,6 +6528,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	size_t alloc_size;
 	int ret, i;
 	int num_wins = 0;
+	int registered_num_crtcs;
 	struct device_node *vop_out_node;
 
 	vop2_data = of_device_get_match_data(dev);
@@ -6629,14 +6634,14 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		return ret;
 
-	ret = vop2_create_crtc(vop2);
-	if (ret)
-		return ret;
+	registered_num_crtcs = vop2_create_crtc(vop2);
+	if (registered_num_crtcs <= 0)
+		return -ENODEV;
 	ret = vop2_gamma_init(vop2);
 	if (ret)
 		return ret;
 	vop2_cubic_lut_init(vop2);
-	vop2_wb_connector_init(vop2);
+	vop2_wb_connector_init(vop2, registered_num_crtcs);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
