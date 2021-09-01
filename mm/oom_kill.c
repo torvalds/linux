@@ -788,7 +788,7 @@ static inline bool __task_will_free_mem(struct task_struct *task)
 
 	/*
 	 * A coredumping process may sleep for an extended period in
-	 * coredump_exit_mm(), so the oom killer cannot assume that
+	 * coredump_task_exit(), so the oom killer cannot assume that
 	 * the process will promptly exit and release memory.
 	 */
 	if (sig->flags & SIGNAL_GROUP_COREDUMP)

@@ -339,22 +339,28 @@ kill_orphaned_pgrp(struct task_struct *tsk, struct task_struct *parent)
 	}
 }
 
-static void coredump_exit_mm(struct mm_struct *mm)
+static void coredump_task_exit(struct task_struct *tsk)
 {
 	struct core_state *core_state;
+	struct mm_struct *mm;
+
+	mm = tsk->mm;
+	if (!mm)
+		return;
 
 	/*
 	 * Serialize with any possible pending coredump.
 	 * We must hold mmap_lock around checking core_state
-	 * and clearing tsk->mm.  The core-inducing thread
+	 * and setting PF_POSTCOREDUMP.  The core-inducing thread
 	 * will increment ->nr_threads for each thread in the
-	 * group with ->mm != NULL.
+	 * group without PF_POSTCOREDUMP set.
 	 */
+	mmap_read_lock(mm);
+	tsk->flags |= PF_POSTCOREDUMP;
 	core_state = mm->core_state;
+	mmap_read_unlock(mm);
 	if (core_state) {
 		struct core_thread self;
-
-		mmap_read_unlock(mm);
 
 		self.task = current;
 		if (self.task->flags & PF_SIGNALED)
@@ -375,7 +381,6 @@ static void coredump_exit_mm(struct mm_struct *mm)
 			freezable_schedule();
 		}
 		__set_current_state(TASK_RUNNING);
-		mmap_read_lock(mm);
 	}
 }
 
@@ -480,7 +485,6 @@ static void exit_mm(void)
 		return;
 	sync_mm_rss(mm);
 	mmap_read_lock(mm);
-	coredump_exit_mm(mm);
 	mmgrab(mm);
 	BUG_ON(mm != current->active_mm);
 	/* more a memory barrier than a real lock */
@@ -768,6 +772,7 @@ void __noreturn do_exit(long code)
 	profile_task_exit(tsk);
 	kcov_task_exit(tsk);
 
+	coredump_task_exit(tsk);
 	ptrace_event(PTRACE_EVENT_EXIT, code);
 
 	validate_creds_for_do_exit(tsk);

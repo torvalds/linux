@@ -359,7 +359,7 @@ static int zap_process(struct task_struct *start, int exit_code, int flags)
 
 	for_each_thread(start, t) {
 		task_clear_jobctl_pending(t, JOBCTL_PENDING_MASK);
-		if (t != current && t->mm) {
+		if (t != current && !(t->flags & PF_POSTCOREDUMP)) {
 			sigaddset(&t->pending.signal, SIGKILL);
 			signal_wake_up(t, 1);
 			nr++;
@@ -404,8 +404,8 @@ static int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
 	 *
 	 * do_exit:
 	 *	The caller holds mm->mmap_lock. This means that the task which
-	 *	uses this mm can't pass coredump_exit_mm(), so it can't exit or
-	 *	clear its ->mm.
+	 *	uses this mm can't pass coredump_task_exit(), so it can't exit
+	 *	or clear its ->mm.
 	 *
 	 * de_thread:
 	 *	It does list_replace_rcu(&leader->tasks, &current->tasks),
@@ -500,7 +500,7 @@ static void coredump_finish(struct mm_struct *mm, bool core_dumped)
 		next = curr->next;
 		task = curr->task;
 		/*
-		 * see coredump_exit_mm(), curr->task must not see
+		 * see coredump_task_exit(), curr->task must not see
 		 * ->task == NULL before we read ->next.
 		 */
 		smp_mb();
