@@ -785,7 +785,6 @@ static int vsp1_probe(struct platform_device *pdev)
 	struct vsp1_device *vsp1;
 	struct device_node *fcp_node;
 	struct resource *irq;
-	struct resource *io;
 	unsigned int i;
 	int ret;
 
@@ -800,8 +799,7 @@ static int vsp1_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, vsp1);
 
 	/* I/O and IRQ resources (clock managed by the clock PM domain). */
-	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	vsp1->mmio = devm_ioremap_resource(&pdev->dev, io);
+	vsp1->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(vsp1->mmio))
 		return PTR_ERR(vsp1->mmio);
 
