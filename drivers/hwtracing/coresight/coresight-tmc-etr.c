@@ -982,7 +982,8 @@ static void __tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 
 	axictl = readl_relaxed(drvdata->base + TMC_AXICTL);
 	axictl &= ~TMC_AXICTL_CLEAR_MASK;
-	axictl |= (TMC_AXICTL_PROT_CTL_B1 | TMC_AXICTL_WR_BURST_16);
+	axictl |= TMC_AXICTL_PROT_CTL_B1;
+	axictl |= TMC_AXICTL_WR_BURST(drvdata->max_burst_size);
 	axictl |= TMC_AXICTL_AXCACHE_OS;
 
 	if (tmc_etr_has_cap(drvdata, TMC_ETR_AXI_ARCACHE)) {
