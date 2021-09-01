@@ -45,7 +45,6 @@ struct adf_bar {
 } __packed;
 
 struct adf_accel_msix {
-	struct msix_entry *entries;
 	char **names;
 	u32 num_entries;
 } __packed;

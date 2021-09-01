@@ -53,11 +53,11 @@ EXPORT_SYMBOL_GPL(adf_disable_pf2vf_interrupts);
 static int adf_enable_msi(struct adf_accel_dev *accel_dev)
 {
 	struct adf_accel_pci *pci_dev_info = &accel_dev->accel_pci_dev;
-	int stat = pci_enable_msi(pci_dev_info->pci_dev);
-
-	if (stat) {
+	int stat = pci_alloc_irq_vectors(pci_dev_info->pci_dev, 1, 1,
+					 PCI_IRQ_MSI);
+	if (unlikely(stat < 0)) {
 		dev_err(&GET_DEV(accel_dev),
-			"Failed to enable MSI interrupts\n");
+			"Failed to enable MSI interrupt: %d\n", stat);
 		return stat;
 	}
 
@@ -65,7 +65,7 @@ static int adf_enable_msi(struct adf_accel_dev *accel_dev)
 	if (!accel_dev->vf.irq_name)
 		return -ENOMEM;
 
-	return stat;
+	return 0;
 }
 
 static void adf_disable_msi(struct adf_accel_dev *accel_dev)
@@ -73,7 +73,7 @@ static void adf_disable_msi(struct adf_accel_dev *accel_dev)
 	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
 
 	kfree(accel_dev->vf.irq_name);
-	pci_disable_msi(pdev);
+	pci_free_irq_vectors(pdev);
 }
 
 static void adf_dev_stop_async(struct work_struct *work)
