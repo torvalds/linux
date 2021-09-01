@@ -718,7 +718,7 @@ static int snd_ca0106_pcm_prepare_playback(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_ca0106_pcm *epcm = runtime->private_data;
 	int channel = epcm->channel_id;
-	u32 *table_base = (u32 *)(emu->buffer.area+(8*16*channel));
+	u32 *table_base = (u32 *)(emu->buffer->area+(8*16*channel));
 	u32 period_size_bytes = frames_to_bytes(runtime, runtime->period_size);
 	u32 hcfg_mask = HCFG_PLAYBACK_S32_LE;
 	u32 hcfg_set = 0x00000000;
@@ -746,7 +746,7 @@ static int snd_ca0106_pcm_prepare_playback(struct snd_pcm_substream *substream)
 		   runtime->dma_addr, runtime->dma_area, table_base);
 	dev_dbg(emu->card->dev,
 		"dma_addr=%x, dma_area=%p, dma_bytes(size)=%x\n",
-		   emu->buffer.addr, emu->buffer.area, emu->buffer.bytes);
+		   emu->buffer->addr, emu->buffer->area, emu->buffer->bytes);
 #endif /* debug */
 	/* Rate can be set per channel. */
 	/* reg40 control host to fifo */
@@ -796,13 +796,13 @@ static int snd_ca0106_pcm_prepare_playback(struct snd_pcm_substream *substream)
 	reg71 = (reg71 & ~reg71_mask) | reg71_set;
 	snd_ca0106_ptr_write(emu, 0x71, 0, reg71);
 
-	/* FIXME: Check emu->buffer.size before actually writing to it. */
+	/* FIXME: Check emu->buffer->size before actually writing to it. */
         for(i=0; i < runtime->periods; i++) {
 		table_base[i*2] = runtime->dma_addr + (i * period_size_bytes);
 		table_base[i*2+1] = period_size_bytes << 16;
 	}
  
-	snd_ca0106_ptr_write(emu, PLAYBACK_LIST_ADDR, channel, emu->buffer.addr+(8*16*channel));
+	snd_ca0106_ptr_write(emu, PLAYBACK_LIST_ADDR, channel, emu->buffer->addr+(8*16*channel));
 	snd_ca0106_ptr_write(emu, PLAYBACK_LIST_SIZE, channel, (runtime->periods - 1) << 19);
 	snd_ca0106_ptr_write(emu, PLAYBACK_LIST_PTR, channel, 0);
 	snd_ca0106_ptr_write(emu, PLAYBACK_DMA_ADDR, channel, runtime->dma_addr);
@@ -853,7 +853,7 @@ static int snd_ca0106_pcm_prepare_capture(struct snd_pcm_substream *substream)
 		   runtime->dma_addr, runtime->dma_area, table_base);
 	dev_dbg(emu->card->dev,
 		"dma_addr=%x, dma_area=%p, dma_bytes(size)=%x\n",
-		   emu->buffer.addr, emu->buffer.area, emu->buffer.bytes);
+		   emu->buffer->addr, emu->buffer->area, emu->buffer->bytes);
 #endif /* debug */
 	/* reg71 controls ADC rate. */
 	switch (runtime->rate) {
@@ -1183,32 +1183,11 @@ static int snd_ca0106_ac97(struct snd_ca0106 *chip)
 
 static void ca0106_stop_chip(struct snd_ca0106 *chip);
 
-static int snd_ca0106_free(struct snd_ca0106 *chip)
+static void snd_ca0106_free(struct snd_card *card)
 {
-	if (chip->res_port != NULL) {
-		/* avoid access to already used hardware */
-		ca0106_stop_chip(chip);
-	}
-	if (chip->irq >= 0)
-		free_irq(chip->irq, chip);
-	// release the data
-#if 1
-	if (chip->buffer.area)
-		snd_dma_free_pages(&chip->buffer);
-#endif
+	struct snd_ca0106 *chip = card->private_data;
 
-	// release the i/o port
-	release_and_free_resource(chip->res_port);
-
-	pci_disable_device(chip->pci);
-	kfree(chip);
-	return 0;
-}
-
-static int snd_ca0106_dev_free(struct snd_device *device)
-{
-	struct snd_ca0106 *chip = device->device_data;
-	return snd_ca0106_free(chip);
+	ca0106_stop_chip(chip);
 }
 
 static irqreturn_t snd_ca0106_interrupt(int irq, void *dev_id)
@@ -1594,31 +1573,18 @@ static void ca0106_stop_chip(struct snd_ca0106 *chip)
 }
 
 static int snd_ca0106_create(int dev, struct snd_card *card,
-					 struct pci_dev *pci,
-					 struct snd_ca0106 **rchip)
+			     struct pci_dev *pci)
 {
-	struct snd_ca0106 *chip;
+	struct snd_ca0106 *chip = card->private_data;
 	const struct snd_ca0106_details *c;
 	int err;
-	static const struct snd_device_ops ops = {
-		.dev_free = snd_ca0106_dev_free,
-	};
 
-	*rchip = NULL;
-
-	err = pci_enable_device(pci);
+	err = pcim_enable_device(pci);
 	if (err < 0)
 		return err;
 	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(32))) {
 		dev_err(card->dev, "error to set 32bit mask DMA\n");
-		pci_disable_device(pci);
 		return -ENXIO;
-	}
-
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	if (chip == NULL) {
-		pci_disable_device(pci);
-		return -ENOMEM;
 	}
 
 	chip->card = card;
@@ -1627,17 +1593,13 @@ static int snd_ca0106_create(int dev, struct snd_card *card,
 
 	spin_lock_init(&chip->emu_lock);
 
+	err = pci_request_regions(pci, "snd_ca0106");
+	if (err < 0)
+		return err;
 	chip->port = pci_resource_start(pci, 0);
-	chip->res_port = request_region(chip->port, 0x20, "snd_ca0106");
-	if (!chip->res_port) {
-		snd_ca0106_free(chip);
-		dev_err(card->dev, "cannot allocate the port\n");
-		return -EBUSY;
-	}
 
-	if (request_irq(pci->irq, snd_ca0106_interrupt,
-			IRQF_SHARED, KBUILD_MODNAME, chip)) {
-		snd_ca0106_free(chip);
+	if (devm_request_irq(&pci->dev, pci->irq, snd_ca0106_interrupt,
+			     IRQF_SHARED, KBUILD_MODNAME, chip)) {
 		dev_err(card->dev, "cannot grab irq\n");
 		return -EBUSY;
 	}
@@ -1645,11 +1607,9 @@ static int snd_ca0106_create(int dev, struct snd_card *card,
 	card->sync_irq = chip->irq;
 
 	/* This stores the periods table. */
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
-				1024, &chip->buffer) < 0) {
-		snd_ca0106_free(chip);
+	chip->buffer = snd_devm_alloc_pages(&pci->dev, SNDRV_DMA_TYPE_DEV, 1024);
+	if (!chip->buffer)
 		return -ENOMEM;
-	}
 
 	pci_set_master(pci);
 	/* read serial */
@@ -1678,13 +1638,6 @@ static int snd_ca0106_create(int dev, struct snd_card *card,
 		c->name, chip->port, chip->irq);
 
 	ca0106_init_chip(chip, 0);
-
-	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
-	if (err < 0) {
-		snd_ca0106_free(chip);
-		return err;
-	}
-	*rchip = chip;
 	return 0;
 }
 
@@ -1787,36 +1740,37 @@ static int snd_ca0106_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
-			   0, &card);
+	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+				sizeof(*chip), &card);
 	if (err < 0)
 		return err;
+	chip = card->private_data;
 
-	err = snd_ca0106_create(dev, card, pci, &chip);
+	err = snd_ca0106_create(dev, card, pci);
 	if (err < 0)
-		goto error;
-	card->private_data = chip;
+		return err;
+	card->private_free = snd_ca0106_free;
 
 	for (i = 0; i < 4; i++) {
 		err = snd_ca0106_pcm(chip, i);
 		if (err < 0)
-			goto error;
+			return err;
 	}
 
 	if (chip->details->ac97 == 1) {
 		/* The SB0410 and SB0413 do not have an AC97 chip. */
 		err = snd_ca0106_ac97(chip);
 		if (err < 0)
-			goto error;
+			return err;
 	}
 	err = snd_ca0106_mixer(chip);
 	if (err < 0)
-		goto error;
+		return err;
 
 	dev_dbg(card->dev, "probe for MIDI channel A ...");
 	err = snd_ca0106_midi(chip, CA0106_MIDI_CHAN_A);
 	if (err < 0)
-		goto error;
+		return err;
 	dev_dbg(card->dev, " done.\n");
 
 #ifdef CONFIG_SND_PROC_FS
@@ -1825,20 +1779,11 @@ static int snd_ca0106_probe(struct pci_dev *pci,
 
 	err = snd_card_register(card);
 	if (err < 0)
-		goto error;
+		return err;
 
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
-
- error:
-	snd_card_free(card);
-	return err;
-}
-
-static void snd_ca0106_remove(struct pci_dev *pci)
-{
-	snd_card_free(pci_get_drvdata(pci));
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1894,7 +1839,6 @@ static struct pci_driver ca0106_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_ca0106_ids,
 	.probe = snd_ca0106_probe,
-	.remove = snd_ca0106_remove,
 	.driver = {
 		.pm = SND_CA0106_PM_OPS,
 	},

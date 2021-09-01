@@ -197,6 +197,15 @@ static const struct snd_soc_acpi_link_adr tgl_rvp[] = {
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr tgl_rvp_headset_only[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt711_0_adr),
+		.adr_d = rt711_0_adr,
+	},
+	{}
+};
+
 static const struct snd_soc_acpi_link_adr tgl_hp[] = {
 	{
 		.mask = BIT(0),
@@ -420,6 +429,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
 		.links = tgl_chromebook_base,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-tgl-sdw-max98373-rt5682.tplg",
+	},
+	{
+		.link_mask = 0x1, /* rt711 on link 0 */
+		.links = tgl_rvp_headset_only,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-tgl-rt711.tplg",
 	},
 	{},
 };

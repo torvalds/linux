@@ -87,24 +87,10 @@ static void snd_gus_init_control(struct snd_gus_card *gus)
 
 static int snd_gus_free(struct snd_gus_card *gus)
 {
-	if (gus->gf1.res_port2 == NULL)
-		goto __hw_end;
-	snd_gf1_stop(gus);
-	snd_gus_init_dma_irq(gus, 0);
-      __hw_end:
-	release_and_free_resource(gus->gf1.res_port1);
-	release_and_free_resource(gus->gf1.res_port2);
-	if (gus->gf1.irq >= 0)
-		free_irq(gus->gf1.irq, (void *) gus);
-	if (gus->gf1.dma1 >= 0) {
-		disable_dma(gus->gf1.dma1);
-		free_dma(gus->gf1.dma1);
+	if (gus->gf1.res_port2) {
+		snd_gf1_stop(gus);
+		snd_gus_init_dma_irq(gus, 0);
 	}
-	if (!gus->equal_dma && gus->gf1.dma2 >= 0) {
-		disable_dma(gus->gf1.dma2);
-		free_dma(gus->gf1.dma2);
-	}
-	kfree(gus);
 	return 0;
 }
 
@@ -130,7 +116,7 @@ int snd_gus_create(struct snd_card *card,
 	};
 
 	*rgus = NULL;
-	gus = kzalloc(sizeof(*gus), GFP_KERNEL);
+	gus = devm_kzalloc(card->dev, sizeof(*gus), GFP_KERNEL);
 	if (gus == NULL)
 		return -ENOMEM;
 	spin_lock_init(&gus->reg_lock);
@@ -156,35 +142,33 @@ int snd_gus_create(struct snd_card *card,
 	gus->gf1.reg_timerctrl = GUSP(gus, TIMERCNTRL);
 	gus->gf1.reg_timerdata = GUSP(gus, TIMERDATA);
 	/* allocate resources */
-	gus->gf1.res_port1 = request_region(port, 16, "GUS GF1 (Adlib/SB)");
+	gus->gf1.res_port1 = devm_request_region(card->dev, port, 16,
+						 "GUS GF1 (Adlib/SB)");
 	if (!gus->gf1.res_port1) {
 		snd_printk(KERN_ERR "gus: can't grab SB port 0x%lx\n", port);
-		snd_gus_free(gus);
 		return -EBUSY;
 	}
-	gus->gf1.res_port2 = request_region(port + 0x100, 12, "GUS GF1 (Synth)");
+	gus->gf1.res_port2 = devm_request_region(card->dev, port + 0x100, 12,
+						 "GUS GF1 (Synth)");
 	if (!gus->gf1.res_port2) {
 		snd_printk(KERN_ERR "gus: can't grab synth port 0x%lx\n", port + 0x100);
-		snd_gus_free(gus);
 		return -EBUSY;
 	}
-	if (irq >= 0 && request_irq(irq, snd_gus_interrupt, 0, "GUS GF1", (void *) gus)) {
+	if (irq >= 0 && devm_request_irq(card->dev, irq, snd_gus_interrupt, 0,
+					 "GUS GF1", (void *) gus)) {
 		snd_printk(KERN_ERR "gus: can't grab irq %d\n", irq);
-		snd_gus_free(gus);
 		return -EBUSY;
 	}
 	gus->gf1.irq = irq;
 	card->sync_irq = irq;
-	if (request_dma(dma1, "GUS - 1")) {
+	if (snd_devm_request_dma(card->dev, dma1, "GUS - 1")) {
 		snd_printk(KERN_ERR "gus: can't grab DMA1 %d\n", dma1);
-		snd_gus_free(gus);
 		return -EBUSY;
 	}
 	gus->gf1.dma1 = dma1;
 	if (dma2 >= 0 && dma1 != dma2) {
-		if (request_dma(dma2, "GUS - 2")) {
+		if (snd_devm_request_dma(card->dev, dma2, "GUS - 2")) {
 			snd_printk(KERN_ERR "gus: can't grab DMA2 %d\n", dma2);
-			snd_gus_free(gus);
 			return -EBUSY;
 		}
 		gus->gf1.dma2 = dma2;
@@ -209,10 +193,8 @@ int snd_gus_create(struct snd_card *card,
 	gus->gf1.volume_ramp = 25;
 	gus->gf1.smooth_pan = 1;
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, gus, &ops);
-	if (err < 0) {
-		snd_gus_free(gus);
+	if (err < 0)
 		return err;
-	}
 	*rgus = gus;
 	return 0;
 }

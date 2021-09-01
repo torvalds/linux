@@ -774,6 +774,11 @@ int snd_vx_resume(struct vx_core *chip)
 EXPORT_SYMBOL(snd_vx_resume);
 #endif
 
+static void snd_vx_release(struct device *dev, void *data)
+{
+	snd_vx_free_firmware(data);
+}
+
 /**
  * snd_vx_create - constructor for struct vx_core
  * @card: card instance
@@ -783,6 +788,8 @@ EXPORT_SYMBOL(snd_vx_resume);
  *
  * this function allocates the instance and prepare for the hardware
  * initialization.
+ *
+ * The object is managed via devres, and will be automatically released.
  *
  * return the instance pointer if successful, NULL in error.
  */
@@ -796,8 +803,9 @@ struct vx_core *snd_vx_create(struct snd_card *card,
 	if (snd_BUG_ON(!card || !hw || !ops))
 		return NULL;
 
-	chip = kzalloc(sizeof(*chip) + extra_size, GFP_KERNEL);
-	if (! chip)
+	chip = devres_alloc(snd_vx_release, sizeof(*chip) + extra_size,
+			    GFP_KERNEL);
+	if (!chip)
 		return NULL;
 	mutex_init(&chip->lock);
 	chip->irq = -1;
