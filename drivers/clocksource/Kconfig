@@ -632,6 +632,17 @@ config RISCV_TIMER
 	  is accessed via both the SBI and the rdcycle instruction.  This is
 	  required for all RISC-V systems.
 
+config STARFIVE_TIMER
+        bool "Timer for the STARFIVE SOCS"
+        depends on RISCV && OF
+        select TIMER_OF
+        select CLKSRC_MMIO
+        help
+          This enables the starfive timers for jh7xx socs. On RISC-V platform,
+          the system has started RISCV_TIMER. But you can also use these timers
+          to do a lot more on StarFive JH71xx soc. These timers can provide much
+          higher precision than RISCV_TIMER.
+
 config CLINT_TIMER
 	bool "CLINT Timer for the RISC-V platform" if COMPILE_TEST
 	depends on GENERIC_SCHED_CLOCK && RISCV
