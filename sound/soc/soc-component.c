@@ -423,43 +423,36 @@ EXPORT_SYMBOL_GPL(snd_soc_component_exit_regmap);
 
 #endif
 
-int snd_soc_component_compr_open(struct snd_compr_stream *cstream)
+int snd_soc_component_compr_open(struct snd_soc_component *component,
+				 struct snd_compr_stream *cstream)
 {
-	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_component *component;
-	int i, ret;
+	int ret = 0;
 
-	for_each_rtd_components(rtd, i, component) {
-		if (component->driver->compress_ops &&
-		    component->driver->compress_ops->open) {
-			ret = component->driver->compress_ops->open(component, cstream);
-			if (ret < 0)
-				return soc_component_ret(component, ret);
-		}
+	if (component->driver->compress_ops &&
+	    component->driver->compress_ops->open)
+		ret = component->driver->compress_ops->open(component, cstream);
+
+	/* mark substream if succeeded */
+	if (ret == 0)
 		soc_component_mark_push(component, cstream, compr_open);
-	}
 
-	return 0;
+	return soc_component_ret(component, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_compr_open);
 
-void snd_soc_component_compr_free(struct snd_compr_stream *cstream,
+void snd_soc_component_compr_free(struct snd_soc_component *component,
+				  struct snd_compr_stream *cstream,
 				  int rollback)
 {
-	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_component *component;
-	int i;
+	if (rollback && !soc_component_mark_match(component, cstream, compr_open))
+		return;
 
-	for_each_rtd_components(rtd, i, component) {
-		if (rollback && !soc_component_mark_match(component, cstream, compr_open))
-			continue;
+	if (component->driver->compress_ops &&
+	    component->driver->compress_ops->free)
+		component->driver->compress_ops->free(component, cstream);
 
-		if (component->driver->compress_ops &&
-		    component->driver->compress_ops->free)
-			component->driver->compress_ops->free(component, cstream);
-
-		soc_component_mark_pop(component, cstream, compr_open);
-	}
+	/* remove marked substream */
+	soc_component_mark_pop(component, cstream, compr_open);
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_compr_free);
 
