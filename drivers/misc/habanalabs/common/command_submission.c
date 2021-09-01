@@ -405,7 +405,7 @@ static void staged_cs_put(struct hl_device *hdev, struct hl_cs *cs)
 static void cs_handle_tdr(struct hl_device *hdev, struct hl_cs *cs)
 {
 	bool next_entry_found = false;
-	struct hl_cs *next;
+	struct hl_cs *next, *first_cs;
 
 	if (!cs_needs_timeout(cs))
 		return;
@@ -415,9 +415,16 @@ static void cs_handle_tdr(struct hl_device *hdev, struct hl_cs *cs)
 	/* We need to handle tdr only once for the complete staged submission.
 	 * Hence, we choose the CS that reaches this function first which is
 	 * the CS marked as 'staged_last'.
+	 * In case single staged cs was submitted which has both first and last
+	 * indications, then "cs_find_first" below will return NULL, since we
+	 * removed the cs node from the list before getting here,
+	 * in such cases just continue with the cs to cancel it's TDR work.
 	 */
-	if (cs->staged_cs && cs->staged_last)
-		cs = hl_staged_cs_find_first(hdev, cs->staged_sequence);
+	if (cs->staged_cs && cs->staged_last) {
+		first_cs = hl_staged_cs_find_first(hdev, cs->staged_sequence);
+		if (first_cs)
+			cs = first_cs;
+	}
 
 	spin_unlock(&hdev->cs_mirror_lock);
 
@@ -2026,9 +2033,10 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 			spin_unlock(&ctx->sig_mgr.lock);
 
 			if (!handle_found) {
-				dev_err(hdev->dev, "Cannot find encapsulated signals handle for seq 0x%llx\n",
+				/* treat as signal CS already finished */
+				dev_dbg(hdev->dev, "Cannot find encapsulated signals handle for seq 0x%llx\n",
 						signal_seq);
-				rc = -EINVAL;
+				rc = 0;
 				goto free_cs_chunk_array;
 			}
 
