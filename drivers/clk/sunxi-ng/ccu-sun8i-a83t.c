@@ -918,6 +918,7 @@ static struct platform_driver sun8i_a83t_ccu_driver = {
 	.probe	= sun8i_a83t_ccu_probe,
 	.driver	= {
 		.name	= "sun8i-a83t-ccu",
+		.suppress_bind_attrs = true,
 		.of_match_table	= sun8i_a83t_ccu_ids,
 	},
 };

@@ -1270,6 +1270,7 @@ static struct platform_driver sun50i_a100_ccu_driver = {
 	.probe	= sun50i_a100_ccu_probe,
 	.driver	= {
 		.name	= "sun50i-a100-ccu",
+		.suppress_bind_attrs = true,
 		.of_match_table	= sun50i_a100_ccu_ids,
 	},
 };

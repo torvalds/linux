@@ -1243,6 +1243,7 @@ static struct platform_driver sun9i_a80_ccu_driver = {
 	.probe	= sun9i_a80_ccu_probe,
 	.driver	= {
 		.name	= "sun9i-a80-ccu",
+		.suppress_bind_attrs = true,
 		.of_match_table	= sun9i_a80_ccu_ids,
 	},
 };
