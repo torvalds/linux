@@ -1628,7 +1628,6 @@ static int ceu_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct ceu_data *ceu_data;
 	struct ceu_device *ceudev;
-	struct resource *res;
 	unsigned int irq;
 	int num_subdevs;
 	int ret;
@@ -1644,8 +1643,7 @@ static int ceu_probe(struct platform_device *pdev)
 	spin_lock_init(&ceudev->lock);
 	mutex_init(&ceudev->mlock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ceudev->base = devm_ioremap_resource(dev, res);
+	ceudev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ceudev->base)) {
 		ret = PTR_ERR(ceudev->base);
 		goto error_free_ceudev;
