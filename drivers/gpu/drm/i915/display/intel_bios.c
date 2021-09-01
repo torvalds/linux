@@ -1815,6 +1815,17 @@ static int parse_bdb_216_dp_max_link_rate(const int vbt_max_link_rate)
 	}
 }
 
+static int _intel_bios_dp_max_link_rate(const struct intel_bios_encoder_data *devdata)
+{
+	if (!devdata || devdata->i915->vbt.version < 216)
+		return 0;
+
+	if (devdata->i915->vbt.version >= 230)
+		return parse_bdb_230_dp_max_link_rate(devdata->child.dp_max_link_rate);
+	else
+		return parse_bdb_216_dp_max_link_rate(devdata->child.dp_max_link_rate);
+}
+
 static void sanitize_device_type(struct intel_bios_encoder_data *devdata,
 				 enum port port)
 {
@@ -1913,7 +1924,7 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 	const struct child_device_config *child = &devdata->child;
 	struct ddi_vbt_port_info *info;
 	bool is_dvi, is_hdmi, is_dp, is_edp, is_crt, supports_typec_usb, supports_tbt;
-	int dp_boost_level, hdmi_boost_level, hdmi_level_shift, max_tmds_clock;
+	int dp_boost_level, dp_max_link_rate, hdmi_boost_level, hdmi_level_shift, max_tmds_clock;
 	enum port port;
 
 	port = dvo_port_to_port(i915, child->dvo_port);
@@ -2001,17 +2012,11 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 			    "Port %c VBT HDMI boost level: %d\n",
 			    port_name(port), hdmi_boost_level);
 
-	/* DP max link rate for GLK+ */
-	if (i915->vbt.version >= 216) {
-		if (i915->vbt.version >= 230)
-			info->dp_max_link_rate = parse_bdb_230_dp_max_link_rate(child->dp_max_link_rate);
-		else
-			info->dp_max_link_rate = parse_bdb_216_dp_max_link_rate(child->dp_max_link_rate);
-
+	dp_max_link_rate = _intel_bios_dp_max_link_rate(devdata);
+	if (dp_max_link_rate)
 		drm_dbg_kms(&i915->drm,
 			    "Port %c VBT DP max link rate: %d\n",
-			    port_name(port), info->dp_max_link_rate);
-	}
+			    port_name(port), dp_max_link_rate);
 
 	info->devdata = devdata;
 }
@@ -2982,8 +2987,9 @@ int intel_bios_encoder_hdmi_boost_level(const struct intel_bios_encoder_data *de
 int intel_bios_dp_max_link_rate(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	const struct intel_bios_encoder_data *devdata = i915->vbt.ddi_port_info[encoder->port].devdata;
 
-	return i915->vbt.ddi_port_info[encoder->port].dp_max_link_rate;
+	return _intel_bios_dp_max_link_rate(devdata);
 }
 
 int intel_bios_alternate_ddc_pin(struct intel_encoder *encoder)

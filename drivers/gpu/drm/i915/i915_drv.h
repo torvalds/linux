@@ -641,8 +641,6 @@ struct ddi_vbt_port_info {
 
 	u8 alternate_aux_channel;
 	u8 alternate_ddc_pin;
-
-	int dp_max_link_rate;		/* 0 for not limited by VBT */
 };
 
 enum psr_lines_to_wait {
