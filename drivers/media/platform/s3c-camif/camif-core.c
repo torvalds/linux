@@ -402,7 +402,6 @@ static int s3c_camif_probe(struct platform_device *pdev)
 	struct s3c_camif_plat_data *pdata = dev->platform_data;
 	struct s3c_camif_drvdata *drvdata;
 	struct camif_dev *camif;
-	struct resource *mres;
 	int ret = 0;
 
 	camif = devm_kzalloc(dev, sizeof(*camif), GFP_KERNEL);
@@ -423,9 +422,7 @@ static int s3c_camif_probe(struct platform_device *pdev)
 	drvdata = (void *)platform_get_device_id(pdev)->driver_data;
 	camif->variant = drvdata->variant;
 
-	mres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	camif->io_base = devm_ioremap_resource(dev, mres);
+	camif->io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(camif->io_base))
 		return PTR_ERR(camif->io_base);
 
