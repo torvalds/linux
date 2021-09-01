@@ -102,6 +102,8 @@ static const u8 valid_dsc_slicecount[] = {1, 2, 4};
  *
  * If a CPU or PCH DP output is attached to an eDP panel, this function
  * will return true, and false otherwise.
+ *
+ * This function is not safe to use prior to encoder type being set.
  */
 bool intel_dp_is_edp(struct intel_dp *intel_dp)
 {
@@ -4899,8 +4901,6 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 		     intel_encoder->base.name))
 		return false;
 
-	intel_dp_set_source_rates(intel_dp);
-
 	intel_dp->reset_link_params = true;
 	intel_dp->pps.pps_pipe = INVALID_PIPE;
 	intel_dp->pps.active_pipe = INVALID_PIPE;
@@ -4916,27 +4916,21 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 		 */
 		drm_WARN_ON(dev, intel_phy_is_tc(dev_priv, phy));
 		type = DRM_MODE_CONNECTOR_eDP;
+		intel_encoder->type = INTEL_OUTPUT_EDP;
+
+		/* eDP only on port B and/or C on vlv/chv */
+		if (drm_WARN_ON(dev, (IS_VALLEYVIEW(dev_priv) ||
+				      IS_CHERRYVIEW(dev_priv)) &&
+				port != PORT_B && port != PORT_C))
+			return false;
 	} else {
 		type = DRM_MODE_CONNECTOR_DisplayPort;
 	}
 
+	intel_dp_set_source_rates(intel_dp);
+
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		intel_dp->pps.active_pipe = vlv_active_pipe(intel_dp);
-
-	/*
-	 * For eDP we always set the encoder type to INTEL_OUTPUT_EDP, but
-	 * for DP the encoder type can be set by the caller to
-	 * INTEL_OUTPUT_UNKNOWN for DDI, so don't rewrite it.
-	 */
-	if (type == DRM_MODE_CONNECTOR_eDP)
-		intel_encoder->type = INTEL_OUTPUT_EDP;
-
-	/* eDP only on port B and/or C on vlv/chv */
-	if (drm_WARN_ON(dev, (IS_VALLEYVIEW(dev_priv) ||
-			      IS_CHERRYVIEW(dev_priv)) &&
-			intel_dp_is_edp(intel_dp) &&
-			port != PORT_B && port != PORT_C))
-		return false;
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "Adding %s connector on [ENCODER:%d:%s]\n",
