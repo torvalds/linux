@@ -76,7 +76,8 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_PORT_CRT,
 	POWER_DOMAIN_PORT_OTHER,
 	POWER_DOMAIN_VGA,
-	POWER_DOMAIN_AUDIO,
+	POWER_DOMAIN_AUDIO_MMIO,
+	POWER_DOMAIN_AUDIO_PLAYBACK,
 	POWER_DOMAIN_AUX_A,
 	POWER_DOMAIN_AUX_B,
 	POWER_DOMAIN_AUX_C,
@@ -142,8 +143,6 @@ enum i915_power_well_id {
 	SKL_DISP_PW_MISC_IO,
 	SKL_DISP_PW_1,
 	SKL_DISP_PW_2,
-	CNL_DISP_PW_DDI_F_IO,
-	CNL_DISP_PW_DDI_F_AUX,
 	ICL_DISP_PW_3,
 	SKL_DISP_DC_OFF,
 	TGL_DISP_PW_TC_COLD_OFF,
@@ -223,6 +222,12 @@ struct i915_power_well_desc {
 			u8 idx;
 			/* Mask of pipes whose IRQ logic is backed by the pw */
 			u8 irq_pipe_mask;
+			/*
+			 * Instead of waiting for the status bit to ack enables,
+			 * just wait a specific amount of time and then consider
+			 * the well enabled.
+			 */
+			u16 fixed_enable_delay;
 			/* The pw is backing the VGA functionality */
 			bool has_vga:1;
 			bool has_fuses:1;
@@ -386,6 +391,10 @@ intel_display_power_put_all_in_set(struct drm_i915_private *i915,
 	intel_display_power_put_mask_in_set(i915, power_domain_set, power_domain_set->mask);
 }
 
+/*
+ * FIXME: We should probably switch this to a 0-based scheme to be consistent
+ * with how we now name/number DBUF_CTL instances.
+ */
 enum dbuf_slice {
 	DBUF_S1,
 	DBUF_S2,

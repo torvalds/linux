@@ -30,6 +30,7 @@
 #include <drm/ttm/ttm_placement.h>
 
 #include "vmwgfx_drv.h"
+#include "vmwgfx_devcaps.h"
 
 bool vmw_supports_3d(struct vmw_private *dev_priv)
 {
@@ -45,10 +46,7 @@ bool vmw_supports_3d(struct vmw_private *dev_priv)
 		if (!dev_priv->has_mob)
 			return false;
 
-		spin_lock(&dev_priv->cap_lock);
-		vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_3D);
-		result = vmw_read(dev_priv, SVGA_REG_DEV_CAP);
-		spin_unlock(&dev_priv->cap_lock);
+		result = vmw_devcap_get(dev_priv, SVGA3D_DEVCAP_3D);
 
 		return (result != 0);
 	}
@@ -142,7 +140,8 @@ struct vmw_fifo_state *vmw_fifo_create(struct vmw_private *dev_priv)
 	min = vmw_fifo_mem_read(dev_priv, SVGA_FIFO_MIN);
 	fifo->capabilities = vmw_fifo_mem_read(dev_priv, SVGA_FIFO_CAPABILITIES);
 
-	DRM_INFO("Fifo max 0x%08x min 0x%08x cap 0x%08x\n",
+	drm_info(&dev_priv->drm,
+		 "Fifo max 0x%08x min 0x%08x cap 0x%08x\n",
 		 (unsigned int) max,
 		 (unsigned int) min,
 		 (unsigned int) fifo->capabilities);

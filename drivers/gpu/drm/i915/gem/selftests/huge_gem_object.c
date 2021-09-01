@@ -114,8 +114,8 @@ huge_gem_object(struct drm_i915_private *i915,
 		return ERR_PTR(-ENOMEM);
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, dma_size);
-	i915_gem_object_init(obj, &huge_ops, &lock_class,
-			     I915_BO_ALLOC_STRUCT_PAGE);
+	i915_gem_object_init(obj, &huge_ops, &lock_class, 0);
+	obj->mem_flags |= I915_BO_FLAG_STRUCT_PAGE;
 
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
 	obj->write_domain = I915_GEM_DOMAIN_CPU;

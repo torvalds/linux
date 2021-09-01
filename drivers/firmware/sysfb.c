@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Generic System Framebuffers
+ * Copyright (c) 2012-2013 David Herrmann <dh.herrmann@gmail.com>
+ */
+
+/*
+ * Simple-Framebuffer support
+ * Create a platform-device for any available boot framebuffer. The
+ * simple-framebuffer platform device is already available on DT systems, so
+ * this module parses the global "screen_info" object and creates a suitable
+ * platform device compatible with the "simple-framebuffer" DT object. If
+ * the framebuffer is incompatible, we instead create a legacy
+ * "vesa-framebuffer", "efi-framebuffer" or "platform-framebuffer" device and
+ * pass the screen_info as platform_data. This allows legacy drivers
+ * to pick these devices up without messing with simple-framebuffer drivers.
+ * The global "screen_info" is still valid at all times.
+ *
+ * If CONFIG_SYSFB_SIMPLEFB is not selected, never register "simple-framebuffer"
+ * platform devices, but only use legacy framebuffer devices for
+ * backwards compatibility.
+ *
+ * TODO: We set the dev_id field of all platform-devices to 0. This allows
+ * other OF/DT parsers to create such devices, too. However, they must
+ * start at offset 1 for this to work.
+ */
+
+#include <linux/err.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/mm.h>
+#include <linux/platform_data/simplefb.h>
+#include <linux/platform_device.h>
+#include <linux/screen_info.h>
+#include <linux/sysfb.h>
+
+static __init int sysfb_init(void)
+{
+	struct screen_info *si = &screen_info;
+	struct simplefb_platform_data mode;
+	struct platform_device *pd;
+	const char *name;
+	bool compatible;
+	int ret;
+
+	/* try to create a simple-framebuffer device */
+	compatible = sysfb_parse_mode(si, &mode);
+	if (compatible) {
+		ret = sysfb_create_simplefb(si, &mode);
+		if (!ret)
+			return 0;
+	}
+
+	/* if the FB is incompatible, create a legacy framebuffer device */
+	if (si->orig_video_isVGA == VIDEO_TYPE_EFI)
+		name = "efi-framebuffer";
+	else if (si->orig_video_isVGA == VIDEO_TYPE_VLFB)
+		name = "vesa-framebuffer";
+	else
+		name = "platform-framebuffer";
+
+	pd = platform_device_alloc(name, 0);
+	if (!pd)
+		return -ENOMEM;
+
+	sysfb_apply_efi_quirks(pd);
+
+	ret = platform_device_add_data(pd, si, sizeof(*si));
+	if (ret)
+		goto err;
+
+	ret = platform_device_add(pd);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	platform_device_put(pd);
+	return ret;
+}
+
+/* must execute after PCI subsystem for EFI quirks */
+device_initcall(sysfb_init);

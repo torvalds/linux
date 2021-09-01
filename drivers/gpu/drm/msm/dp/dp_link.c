@@ -1027,43 +1027,29 @@ int dp_link_process_request(struct dp_link *dp_link)
 
 	if (link->request.test_requested == DP_TEST_LINK_EDID_READ) {
 		dp_link->sink_request |= DP_TEST_LINK_EDID_READ;
-		return ret;
-	}
-
-	ret = dp_link_process_ds_port_status_change(link);
-	if (!ret) {
+	} else if (!dp_link_process_ds_port_status_change(link)) {
 		dp_link->sink_request |= DS_PORT_STATUS_CHANGED;
-		return ret;
-	}
-
-	ret = dp_link_process_link_training_request(link);
-	if (!ret) {
+	} else if (!dp_link_process_link_training_request(link)) {
 		dp_link->sink_request |= DP_TEST_LINK_TRAINING;
-		return ret;
-	}
-
-	ret = dp_link_process_phy_test_pattern_request(link);
-	if (!ret) {
+	} else if (!dp_link_process_phy_test_pattern_request(link)) {
 		dp_link->sink_request |= DP_TEST_LINK_PHY_TEST_PATTERN;
-		return ret;
+	} else {
+		ret = dp_link_process_link_status_update(link);
+		if (!ret) {
+			dp_link->sink_request |= DP_LINK_STATUS_UPDATED;
+		} else {
+			if (dp_link_is_video_pattern_requested(link)) {
+				ret = 0;
+				dp_link->sink_request |= DP_TEST_LINK_VIDEO_PATTERN;
+			}
+			if (dp_link_is_audio_pattern_requested(link)) {
+				dp_link->sink_request |= DP_TEST_LINK_AUDIO_PATTERN;
+				ret = -EINVAL;
+			}
+		}
 	}
 
-	ret = dp_link_process_link_status_update(link);
-	if (!ret) {
-		dp_link->sink_request |= DP_LINK_STATUS_UPDATED;
-		return ret;
-	}
-
-	if (dp_link_is_video_pattern_requested(link)) {
-		ret = 0;
-		dp_link->sink_request |= DP_TEST_LINK_VIDEO_PATTERN;
-	}
-
-	if (dp_link_is_audio_pattern_requested(link)) {
-		dp_link->sink_request |= DP_TEST_LINK_AUDIO_PATTERN;
-		return -EINVAL;
-	}
-
+	DRM_DEBUG_DP("sink request=%#x", dp_link->sink_request);
 	return ret;
 }
 

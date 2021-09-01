@@ -100,7 +100,7 @@ static int vmw_cursor_update_bo(struct vmw_private *dev_priv,
 	int ret;
 
 	kmap_offset = 0;
-	kmap_num = (width*height*4 + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	kmap_num = PFN_UP(width*height*4);
 
 	ret = ttm_bo_reserve(&bo->base, true, false, NULL);
 	if (unlikely(ret != 0)) {
@@ -1487,7 +1487,7 @@ static int vmw_kms_check_display_memory(struct drm_device *dev,
 	 * SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM is not present vram size is
 	 * limit on primary bounding box
 	 */
-	if (pixel_mem > dev_priv->prim_bb_mem) {
+	if (pixel_mem > dev_priv->max_primary_mem) {
 		VMW_DEBUG_KMS("Combined output size too large.\n");
 		return -EINVAL;
 	}
@@ -1497,7 +1497,7 @@ static int vmw_kms_check_display_memory(struct drm_device *dev,
 	    !(dev_priv->capabilities & SVGA_CAP_NO_BB_RESTRICTION)) {
 		bb_mem = (u64) bounding_box.x2 * bounding_box.y2 * 4;
 
-		if (bb_mem > dev_priv->prim_bb_mem) {
+		if (bb_mem > dev_priv->max_primary_mem) {
 			VMW_DEBUG_KMS("Topology is beyond supported limits.\n");
 			return -EINVAL;
 		}
@@ -1793,6 +1793,13 @@ int vmw_kms_init(struct vmw_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
 	int ret;
+	static const char *display_unit_names[] = {
+		"Invalid",
+		"Legacy",
+		"Screen Object",
+		"Screen Target",
+		"Invalid (max)"
+	};
 
 	drm_mode_config_init(dev);
 	dev->mode_config.funcs = &vmw_kms_funcs;
@@ -1810,6 +1817,9 @@ int vmw_kms_init(struct vmw_private *dev_priv)
 		if (ret) /* Fallback */
 			ret = vmw_kms_ldu_init_display(dev_priv);
 	}
+	BUILD_BUG_ON(ARRAY_SIZE(display_unit_names) != (vmw_du_max + 1));
+	drm_info(&dev_priv->drm, "%s display unit initialized\n",
+		 display_unit_names[dev_priv->active_display_unit]);
 
 	return ret;
 }
@@ -1897,7 +1907,7 @@ bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
 {
 	return ((u64) pitch * (u64) height) < (u64)
 		((dev_priv->active_display_unit == vmw_du_screen_target) ?
-		 dev_priv->prim_bb_mem : dev_priv->vram_size);
+		 dev_priv->max_primary_mem : dev_priv->vram_size);
 }
 
 

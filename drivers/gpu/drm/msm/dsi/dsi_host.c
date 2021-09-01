@@ -27,6 +27,7 @@
 #include "dsi_cfg.h"
 #include "msm_kms.h"
 #include "msm_gem.h"
+#include "phy/dsi_phy.h"
 
 #define DSI_RESET_TOGGLE_DELAY_MS 20
 
@@ -167,6 +168,9 @@ struct msm_dsi_host {
 	int dlane_swap;
 	int num_data_lanes;
 
+	/* from phy DT */
+	bool cphy_mode;
+
 	u32 dma_cmd_ctrl_restore;
 
 	bool registered;
@@ -203,35 +207,22 @@ static const struct msm_dsi_cfg_handler *dsi_get_config(
 {
 	const struct msm_dsi_cfg_handler *cfg_hnd = NULL;
 	struct device *dev = &msm_host->pdev->dev;
-	struct regulator *gdsc_reg;
 	struct clk *ahb_clk;
 	int ret;
 	u32 major = 0, minor = 0;
 
-	gdsc_reg = regulator_get(dev, "gdsc");
-	if (IS_ERR(gdsc_reg)) {
-		pr_err("%s: cannot get gdsc\n", __func__);
-		goto exit;
-	}
-
 	ahb_clk = msm_clk_get(msm_host->pdev, "iface");
 	if (IS_ERR(ahb_clk)) {
 		pr_err("%s: cannot get interface clock\n", __func__);
-		goto put_gdsc;
+		goto exit;
 	}
 
 	pm_runtime_get_sync(dev);
 
-	ret = regulator_enable(gdsc_reg);
-	if (ret) {
-		pr_err("%s: unable to enable gdsc\n", __func__);
-		goto put_gdsc;
-	}
-
 	ret = clk_prepare_enable(ahb_clk);
 	if (ret) {
 		pr_err("%s: unable to enable ahb_clk\n", __func__);
-		goto disable_gdsc;
+		goto runtime_put;
 	}
 
 	ret = dsi_get_version(msm_host->ctrl_base, &major, &minor);
@@ -246,11 +237,8 @@ static const struct msm_dsi_cfg_handler *dsi_get_config(
 
 disable_clks:
 	clk_disable_unprepare(ahb_clk);
-disable_gdsc:
-	regulator_disable(gdsc_reg);
+runtime_put:
 	pm_runtime_put_sync(dev);
-put_gdsc:
-	regulator_put(gdsc_reg);
 exit:
 	return cfg_hnd;
 }
@@ -510,6 +498,7 @@ int msm_dsi_runtime_resume(struct device *dev)
 
 int dsi_link_clk_set_rate_6g(struct msm_dsi_host *msm_host)
 {
+	u32 byte_intf_rate;
 	int ret;
 
 	DBG("Set clk rates: pclk=%d, byteclk=%d",
@@ -529,8 +518,13 @@ int dsi_link_clk_set_rate_6g(struct msm_dsi_host *msm_host)
 	}
 
 	if (msm_host->byte_intf_clk) {
-		ret = clk_set_rate(msm_host->byte_intf_clk,
-				   msm_host->byte_clk_rate / 2);
+		/* For CPHY, byte_intf_clk is same as byte_clk */
+		if (msm_host->cphy_mode)
+			byte_intf_rate = msm_host->byte_clk_rate;
+		else
+			byte_intf_rate = msm_host->byte_clk_rate / 2;
+
+		ret = clk_set_rate(msm_host->byte_intf_clk, byte_intf_rate);
 		if (ret) {
 			pr_err("%s: Failed to set rate byte intf clk, %d\n",
 			       __func__, ret);
@@ -679,7 +673,7 @@ void dsi_link_clk_disable_v2(struct msm_dsi_host *msm_host)
 	clk_disable_unprepare(msm_host->byte_clk);
 }
 
-static u32 dsi_get_pclk_rate(struct msm_dsi_host *msm_host, bool is_dual_dsi)
+static u32 dsi_get_pclk_rate(struct msm_dsi_host *msm_host, bool is_bonded_dsi)
 {
 	struct drm_display_mode *mode = msm_host->mode;
 	u32 pclk_rate;
@@ -687,22 +681,22 @@ static u32 dsi_get_pclk_rate(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 	pclk_rate = mode->clock * 1000;
 
 	/*
-	 * For dual DSI mode, the current DRM mode has the complete width of the
+	 * For bonded DSI mode, the current DRM mode has the complete width of the
 	 * panel. Since, the complete panel is driven by two DSI controllers,
 	 * the clock rates have to be split between the two dsi controllers.
 	 * Adjust the byte and pixel clock rates for each dsi host accordingly.
 	 */
-	if (is_dual_dsi)
+	if (is_bonded_dsi)
 		pclk_rate /= 2;
 
 	return pclk_rate;
 }
 
-static void dsi_calc_pclk(struct msm_dsi_host *msm_host, bool is_dual_dsi)
+static void dsi_calc_pclk(struct msm_dsi_host *msm_host, bool is_bonded_dsi)
 {
 	u8 lanes = msm_host->lanes;
 	u32 bpp = dsi_get_bpp(msm_host->format);
-	u32 pclk_rate = dsi_get_pclk_rate(msm_host, is_dual_dsi);
+	u32 pclk_rate = dsi_get_pclk_rate(msm_host, is_bonded_dsi);
 	u64 pclk_bpp = (u64)pclk_rate * bpp;
 
 	if (lanes == 0) {
@@ -710,7 +704,11 @@ static void dsi_calc_pclk(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 		lanes = 1;
 	}
 
-	do_div(pclk_bpp, (8 * lanes));
+	/* CPHY "byte_clk" is in units of 16 bits */
+	if (msm_host->cphy_mode)
+		do_div(pclk_bpp, (16 * lanes));
+	else
+		do_div(pclk_bpp, (8 * lanes));
 
 	msm_host->pixel_clk_rate = pclk_rate;
 	msm_host->byte_clk_rate = pclk_bpp;
@@ -720,28 +718,28 @@ static void dsi_calc_pclk(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 
 }
 
-int dsi_calc_clk_rate_6g(struct msm_dsi_host *msm_host, bool is_dual_dsi)
+int dsi_calc_clk_rate_6g(struct msm_dsi_host *msm_host, bool is_bonded_dsi)
 {
 	if (!msm_host->mode) {
 		pr_err("%s: mode not set\n", __func__);
 		return -EINVAL;
 	}
 
-	dsi_calc_pclk(msm_host, is_dual_dsi);
+	dsi_calc_pclk(msm_host, is_bonded_dsi);
 	msm_host->esc_clk_rate = clk_get_rate(msm_host->esc_clk);
 	return 0;
 }
 
-int dsi_calc_clk_rate_v2(struct msm_dsi_host *msm_host, bool is_dual_dsi)
+int dsi_calc_clk_rate_v2(struct msm_dsi_host *msm_host, bool is_bonded_dsi)
 {
 	u32 bpp = dsi_get_bpp(msm_host->format);
 	u64 pclk_bpp;
 	unsigned int esc_mhz, esc_div;
 	unsigned long byte_mhz;
 
-	dsi_calc_pclk(msm_host, is_dual_dsi);
+	dsi_calc_pclk(msm_host, is_bonded_dsi);
 
-	pclk_bpp = (u64)dsi_get_pclk_rate(msm_host, is_dual_dsi) * bpp;
+	pclk_bpp = (u64)dsi_get_pclk_rate(msm_host, is_bonded_dsi) * bpp;
 	do_div(pclk_bpp, 8);
 	msm_host->src_clk_rate = pclk_bpp;
 
@@ -834,7 +832,7 @@ static inline enum dsi_cmd_dst_format dsi_get_cmd_fmt(
 }
 
 static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
-			struct msm_dsi_phy_shared_timings *phy_shared_timings)
+			struct msm_dsi_phy_shared_timings *phy_shared_timings, struct msm_dsi_phy *phy)
 {
 	u32 flags = msm_host->mode_flags;
 	enum mipi_dsi_pixel_format mipi_fmt = msm_host->format;
@@ -849,11 +847,11 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 	if (flags & MIPI_DSI_MODE_VIDEO) {
 		if (flags & MIPI_DSI_MODE_VIDEO_HSE)
 			data |= DSI_VID_CFG0_PULSE_MODE_HSA_HE;
-		if (flags & MIPI_DSI_MODE_VIDEO_HFP)
+		if (flags & MIPI_DSI_MODE_VIDEO_NO_HFP)
 			data |= DSI_VID_CFG0_HFP_POWER_STOP;
-		if (flags & MIPI_DSI_MODE_VIDEO_HBP)
+		if (flags & MIPI_DSI_MODE_VIDEO_NO_HBP)
 			data |= DSI_VID_CFG0_HBP_POWER_STOP;
-		if (flags & MIPI_DSI_MODE_VIDEO_HSA)
+		if (flags & MIPI_DSI_MODE_VIDEO_NO_HSA)
 			data |= DSI_VID_CFG0_HSA_POWER_STOP;
 		/* Always set low power stop mode for BLLP
 		 * to let command engine send packets
@@ -908,7 +906,7 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 			  DSI_T_CLK_PRE_EXTEND_INC_BY_2_BYTECLK);
 
 	data = 0;
-	if (!(flags & MIPI_DSI_MODE_EOT_PACKET))
+	if (!(flags & MIPI_DSI_MODE_NO_EOT_PACKET))
 		data |= DSI_EOT_PACKET_CTRL_TX_EOT_APPEND;
 	dsi_write(msm_host, REG_DSI_EOT_PACKET_CTRL, data);
 
@@ -929,6 +927,10 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 
 	if (!(flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)) {
 		lane_ctrl = dsi_read(msm_host, REG_DSI_LANE_CTRL);
+
+		if (msm_dsi_phy_set_continuous_clock(phy, enable))
+			lane_ctrl &= ~DSI_LANE_CTRL_HS_REQ_SEL_PHY;
+
 		dsi_write(msm_host, REG_DSI_LANE_CTRL,
 			lane_ctrl | DSI_LANE_CTRL_CLKLN_HS_FORCE_REQUEST);
 	}
@@ -936,9 +938,12 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 	data |= DSI_CTRL_ENABLE;
 
 	dsi_write(msm_host, REG_DSI_CTRL, data);
+
+	if (msm_host->cphy_mode)
+		dsi_write(msm_host, REG_DSI_CPHY_MODE_CTRL, BIT(0));
 }
 
-static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_dual_dsi)
+static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_bonded_dsi)
 {
 	struct drm_display_mode *mode = msm_host->mode;
 	u32 hs_start = 0, vs_start = 0; /* take sync start as 0 */
@@ -956,13 +961,13 @@ static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 	DBG("");
 
 	/*
-	 * For dual DSI mode, the current DRM mode has
+	 * For bonded DSI mode, the current DRM mode has
 	 * the complete width of the panel. Since, the complete
 	 * panel is driven by two DSI controllers, the horizontal
 	 * timings have to be split between the two dsi controllers.
 	 * Adjust the DSI host timing values accordingly.
 	 */
-	if (is_dual_dsi) {
+	if (is_bonded_dsi) {
 		h_total /= 2;
 		hs_end /= 2;
 		ha_start /= 2;
@@ -2226,6 +2231,8 @@ int msm_dsi_host_set_src_pll(struct mipi_dsi_host *host,
 	struct clk *byte_clk_provider, *pixel_clk_provider;
 	int ret;
 
+	msm_host->cphy_mode = src_phy->cphy_mode;
+
 	ret = msm_dsi_phy_get_clk_provider(src_phy,
 				&byte_clk_provider, &pixel_clk_provider);
 	if (ret) {
@@ -2285,19 +2292,26 @@ void msm_dsi_host_reset_phy(struct mipi_dsi_host *host)
 
 void msm_dsi_host_get_phy_clk_req(struct mipi_dsi_host *host,
 			struct msm_dsi_phy_clk_request *clk_req,
-			bool is_dual_dsi)
+			bool is_bonded_dsi)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	int ret;
 
-	ret = cfg_hnd->ops->calc_clk_rate(msm_host, is_dual_dsi);
+	ret = cfg_hnd->ops->calc_clk_rate(msm_host, is_bonded_dsi);
 	if (ret) {
 		pr_err("%s: unable to calc clk rate, %d\n", __func__, ret);
 		return;
 	}
 
-	clk_req->bitclk_rate = msm_host->byte_clk_rate * 8;
+	/* CPHY transmits 16 bits over 7 clock cycles
+	 * "byte_clk" is in units of 16-bits (see dsi_calc_pclk),
+	 * so multiply by 7 to get the "bitclk rate"
+	 */
+	if (msm_host->cphy_mode)
+		clk_req->bitclk_rate = msm_host->byte_clk_rate * 7;
+	else
+		clk_req->bitclk_rate = msm_host->byte_clk_rate * 8;
 	clk_req->escclk_rate = msm_host->esc_clk_rate;
 }
 
@@ -2354,7 +2368,7 @@ static void msm_dsi_sfpb_config(struct msm_dsi_host *msm_host, bool enable)
 
 int msm_dsi_host_power_on(struct mipi_dsi_host *host,
 			struct msm_dsi_phy_shared_timings *phy_shared_timings,
-			bool is_dual_dsi)
+			bool is_bonded_dsi, struct msm_dsi_phy *phy)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
@@ -2392,9 +2406,9 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host,
 		goto fail_disable_clk;
 	}
 
-	dsi_timing_setup(msm_host, is_dual_dsi);
+	dsi_timing_setup(msm_host, is_bonded_dsi);
 	dsi_sw_reset(msm_host);
-	dsi_ctrl_config(msm_host, true, phy_shared_timings);
+	dsi_ctrl_config(msm_host, true, phy_shared_timings, phy);
 
 	if (msm_host->disp_en_gpio)
 		gpiod_set_value(msm_host->disp_en_gpio, 1);
@@ -2425,7 +2439,7 @@ int msm_dsi_host_power_off(struct mipi_dsi_host *host)
 		goto unlock_ret;
 	}
 
-	dsi_ctrl_config(msm_host, false, NULL);
+	dsi_ctrl_config(msm_host, false, NULL, NULL);
 
 	if (msm_host->disp_en_gpio)
 		gpiod_set_value(msm_host->disp_en_gpio, 0);
@@ -2494,4 +2508,65 @@ void msm_dsi_host_snapshot(struct msm_disp_state *disp_state, struct mipi_dsi_ho
 			msm_host->ctrl_base, "dsi%d_ctrl", msm_host->id);
 
 	pm_runtime_put_sync(&msm_host->pdev->dev);
+}
+
+static void msm_dsi_host_video_test_pattern_setup(struct msm_dsi_host *msm_host)
+{
+	u32 reg;
+
+	reg = dsi_read(msm_host, REG_DSI_TEST_PATTERN_GEN_CTRL);
+
+	dsi_write(msm_host, REG_DSI_TEST_PATTERN_GEN_VIDEO_INIT_VAL, 0xff);
+	/* draw checkered rectangle pattern */
+	dsi_write(msm_host, REG_DSI_TPG_MAIN_CONTROL,
+			DSI_TPG_MAIN_CONTROL_CHECKERED_RECTANGLE_PATTERN);
+	/* use 24-bit RGB test pttern */
+	dsi_write(msm_host, REG_DSI_TPG_VIDEO_CONFIG,
+			DSI_TPG_VIDEO_CONFIG_BPP(VIDEO_CONFIG_24BPP) |
+			DSI_TPG_VIDEO_CONFIG_RGB);
+
+	reg |= DSI_TEST_PATTERN_GEN_CTRL_VIDEO_PATTERN_SEL(VID_MDSS_GENERAL_PATTERN);
+	dsi_write(msm_host, REG_DSI_TEST_PATTERN_GEN_CTRL, reg);
+
+	DBG("Video test pattern setup done\n");
+}
+
+static void msm_dsi_host_cmd_test_pattern_setup(struct msm_dsi_host *msm_host)
+{
+	u32 reg;
+
+	reg = dsi_read(msm_host, REG_DSI_TEST_PATTERN_GEN_CTRL);
+
+	/* initial value for test pattern */
+	dsi_write(msm_host, REG_DSI_TEST_PATTERN_GEN_CMD_MDP_INIT_VAL0, 0xff);
+
+	reg |= DSI_TEST_PATTERN_GEN_CTRL_CMD_MDP_STREAM0_PATTERN_SEL(CMD_MDP_MDSS_GENERAL_PATTERN);
+
+	dsi_write(msm_host, REG_DSI_TEST_PATTERN_GEN_CTRL, reg);
+	/* draw checkered rectangle pattern */
+	dsi_write(msm_host, REG_DSI_TPG_MAIN_CONTROL2,
+			DSI_TPG_MAIN_CONTROL2_CMD_MDP0_CHECKERED_RECTANGLE_PATTERN);
+
+	DBG("Cmd test pattern setup done\n");
+}
+
+void msm_dsi_host_test_pattern_en(struct mipi_dsi_host *host)
+{
+	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+	bool is_video_mode = !!(msm_host->mode_flags & MIPI_DSI_MODE_VIDEO);
+	u32 reg;
+
+	if (is_video_mode)
+		msm_dsi_host_video_test_pattern_setup(msm_host);
+	else
+		msm_dsi_host_cmd_test_pattern_setup(msm_host);
+
+	reg = dsi_read(msm_host, REG_DSI_TEST_PATTERN_GEN_CTRL);
+	/* enable the test pattern generator */
+	dsi_write(msm_host, REG_DSI_TEST_PATTERN_GEN_CTRL, (reg | DSI_TEST_PATTERN_GEN_CTRL_EN));
+
+	/* for command mode need to trigger one frame from tpg */
+	if (!is_video_mode)
+		dsi_write(msm_host, REG_DSI_TEST_PATTERN_GEN_CMD_STREAM0_TRIGGER,
+				DSI_TEST_PATTERN_GEN_CMD_STREAM0_TRIGGER_SW_TRIGGER);
 }

@@ -282,6 +282,7 @@ enum smu_clk_type {
        __SMU_DUMMY_MAP(TDC),                           	\
        __SMU_DUMMY_MAP(THERMAL),                       	\
        __SMU_DUMMY_MAP(GFX_PER_CU_CG),                 	\
+       __SMU_DUMMY_MAP(DATA_CALCULATIONS),                 	\
        __SMU_DUMMY_MAP(RM),                            	\
        __SMU_DUMMY_MAP(DS_DCEFCLK),                    	\
        __SMU_DUMMY_MAP(ACDC),                          	\
@@ -297,7 +298,6 @@ enum smu_clk_type {
        __SMU_DUMMY_MAP(DS_FCLK),                       	\
        __SMU_DUMMY_MAP(DS_MP1CLK),                     	\
        __SMU_DUMMY_MAP(DS_MP0CLK),                     	\
-       __SMU_DUMMY_MAP(XGMI),                          	\
        __SMU_DUMMY_MAP(XGMI_PER_LINK_PWR_DWN),          \
        __SMU_DUMMY_MAP(DPM_GFX_PACE),                  	\
        __SMU_DUMMY_MAP(MEM_VDDCI_SCALING),             	\

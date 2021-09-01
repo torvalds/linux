@@ -14,6 +14,7 @@ config DRM_MSM
 	select REGULATOR
 	select DRM_KMS_HELPER
 	select DRM_PANEL
+	select DRM_SCHED
 	select SHMEM
 	select TMPFS
 	select QCOM_SCM if ARCH_QCOM
@@ -115,9 +116,9 @@ config DRM_MSM_DSI_10NM_PHY
 	  Choose this option if DSI PHY on SDM845 is used on the platform.
 
 config DRM_MSM_DSI_7NM_PHY
-	bool "Enable DSI 7nm PHY driver in MSM DRM (used by SM8150/SM8250)"
+	bool "Enable DSI 7nm PHY driver in MSM DRM"
 	depends on DRM_MSM_DSI
 	default y
 	help
-	  Choose this option if DSI PHY on SM8150/SM8250 is used on the
-	  platform.
+	  Choose this option if DSI PHY on SM8150/SM8250/SC7280 is used on
+	  the platform.

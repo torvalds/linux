@@ -35,6 +35,8 @@
 #include "include/irq_service_interface.h"
 #include "dcn20/dcn20_resource.h"
 
+#include "dml/dcn2x/dcn2x.h"
+
 #include "dcn10/dcn10_hubp.h"
 #include "dcn10/dcn10_ipp.h"
 #include "dcn20_hubbub.h"
@@ -1974,43 +1976,6 @@ void dcn20_split_stream_for_mpc(
 	ASSERT(primary_pipe->plane_state);
 }
 
-void dcn20_populate_dml_writeback_from_context(
-		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes)
-{
-	int pipe_cnt, i;
-
-	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
-		struct dc_writeback_info *wb_info = &res_ctx->pipe_ctx[i].stream->writeback_info[0];
-
-		if (!res_ctx->pipe_ctx[i].stream)
-			continue;
-
-		/* Set writeback information */
-		pipes[pipe_cnt].dout.wb_enable = (wb_info->wb_enabled == true) ? 1 : 0;
-		pipes[pipe_cnt].dout.num_active_wb++;
-		pipes[pipe_cnt].dout.wb.wb_src_height = wb_info->dwb_params.cnv_params.crop_height;
-		pipes[pipe_cnt].dout.wb.wb_src_width = wb_info->dwb_params.cnv_params.crop_width;
-		pipes[pipe_cnt].dout.wb.wb_dst_width = wb_info->dwb_params.dest_width;
-		pipes[pipe_cnt].dout.wb.wb_dst_height = wb_info->dwb_params.dest_height;
-		pipes[pipe_cnt].dout.wb.wb_htaps_luma = 1;
-		pipes[pipe_cnt].dout.wb.wb_vtaps_luma = 1;
-		pipes[pipe_cnt].dout.wb.wb_htaps_chroma = wb_info->dwb_params.scaler_taps.h_taps_c;
-		pipes[pipe_cnt].dout.wb.wb_vtaps_chroma = wb_info->dwb_params.scaler_taps.v_taps_c;
-		pipes[pipe_cnt].dout.wb.wb_hratio = 1.0;
-		pipes[pipe_cnt].dout.wb.wb_vratio = 1.0;
-		if (wb_info->dwb_params.out_format == dwb_scaler_mode_yuv420) {
-			if (wb_info->dwb_params.output_depth == DWB_OUTPUT_PIXEL_DEPTH_8BPC)
-				pipes[pipe_cnt].dout.wb.wb_pixel_format = dm_420_8;
-			else
-				pipes[pipe_cnt].dout.wb.wb_pixel_format = dm_420_10;
-		} else
-			pipes[pipe_cnt].dout.wb.wb_pixel_format = dm_444_32;
-
-		pipe_cnt++;
-	}
-
-}
-
 int dcn20_populate_dml_pipes_from_context(
 		struct dc *dc,
 		struct dc_state *context,
@@ -2392,7 +2357,9 @@ int dcn20_populate_dml_pipes_from_context(
 	}
 
 	/* populate writeback information */
+	DC_FP_START();
 	dc->res_pool->funcs->populate_dml_writeback_from_context(dc, res_ctx, pipes);
+	DC_FP_END();
 
 	return pipe_cnt;
 }
@@ -2462,7 +2429,7 @@ void dcn20_set_mcif_arb_params(
 				wb_arb_params->cli_watermark[k] = get_wm_writeback_urgent(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 				wb_arb_params->pstate_watermark[k] = get_wm_writeback_dram_clock_change(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 			}
-			wb_arb_params->time_per_pixel = 16.0 / context->res_ctx.pipe_ctx[i].stream->phy_pix_clk; /* 4 bit fraction, ms */
+			wb_arb_params->time_per_pixel = 16.0 * 1000 / (context->res_ctx.pipe_ctx[i].stream->phy_pix_clk / 1000); /* 4 bit fraction, ms */
 			wb_arb_params->slice_lines = 32;
 			wb_arb_params->arbitration_slice = 2;
 			wb_arb_params->max_scaled_time = dcn20_calc_max_scaled_time(wb_arb_params->time_per_pixel,
@@ -2531,16 +2498,16 @@ struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 		 * pick that pipe as secondary
 		 * Same logic applies for ODM pipes
 		 */
-		if (dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].bottom_pipe) {
-			preferred_pipe_idx = dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].bottom_pipe->pipe_idx;
+		if (dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].next_odm_pipe) {
+			preferred_pipe_idx = dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].next_odm_pipe->pipe_idx;
 			if (res_ctx->pipe_ctx[preferred_pipe_idx].stream == NULL) {
 				secondary_pipe = &res_ctx->pipe_ctx[preferred_pipe_idx];
 				secondary_pipe->pipe_idx = preferred_pipe_idx;
 			}
 		}
 		if (secondary_pipe == NULL &&
-				dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].next_odm_pipe) {
-			preferred_pipe_idx = dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].next_odm_pipe->pipe_idx;
+				dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].bottom_pipe) {
+			preferred_pipe_idx = dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].bottom_pipe->pipe_idx;
 			if (res_ctx->pipe_ctx[preferred_pipe_idx].stream == NULL) {
 				secondary_pipe = &res_ctx->pipe_ctx[preferred_pipe_idx];
 				secondary_pipe->pipe_idx = preferred_pipe_idx;

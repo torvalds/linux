@@ -947,7 +947,6 @@ static const struct drm_plane_funcs ltdc_plane_funcs = {
 };
 
 static const struct drm_plane_helper_funcs ltdc_plane_helper_funcs = {
-	.prepare_fb = drm_gem_plane_helper_prepare_fb,
 	.atomic_check = ltdc_plane_atomic_check,
 	.atomic_update = ltdc_plane_atomic_update,
 	.atomic_disable = ltdc_plane_atomic_disable,
@@ -1122,8 +1121,9 @@ static int ltdc_encoder_init(struct drm_device *ddev, struct drm_bridge *bridge)
 
 	ret = drm_bridge_attach(encoder, bridge, NULL, 0);
 	if (ret) {
-		drm_encoder_cleanup(encoder);
-		return -EINVAL;
+		if (ret != -EPROBE_DEFER)
+			drm_encoder_cleanup(encoder);
+		return ret;
 	}
 
 	DRM_DEBUG_DRIVER("Bridge encoder:%d created\n", encoder->base.id);
@@ -1266,7 +1266,8 @@ int ltdc_load(struct drm_device *ddev)
 		if (bridge) {
 			ret = ltdc_encoder_init(ddev, bridge);
 			if (ret) {
-				DRM_ERROR("init encoder endpoint %d\n", i);
+				if (ret != -EPROBE_DEFER)
+					DRM_ERROR("init encoder endpoint %d\n", i);
 				goto err;
 			}
 		}
@@ -1338,9 +1339,6 @@ int ltdc_load(struct drm_device *ddev)
 		DRM_ERROR("Failed calling drm_vblank_init()\n");
 		goto err;
 	}
-
-	/* Allow usage of vblank without having to call drm_irq_install */
-	ddev->irq_enabled = 1;
 
 	clk_disable_unprepare(ldev->pixel_clk);
 

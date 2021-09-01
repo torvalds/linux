@@ -74,6 +74,8 @@ struct vc4_perfmon {
 struct vc4_dev {
 	struct drm_device base;
 
+	unsigned int irq;
+
 	struct vc4_hvs *hvs;
 	struct vc4_v3d *v3d;
 	struct vc4_dpi *dpi;
@@ -895,9 +897,9 @@ extern struct platform_driver vc4_vec_driver;
 extern struct platform_driver vc4_txp_driver;
 
 /* vc4_irq.c */
-irqreturn_t vc4_irq(int irq, void *arg);
-void vc4_irq_preinstall(struct drm_device *dev);
-int vc4_irq_postinstall(struct drm_device *dev);
+void vc4_irq_enable(struct drm_device *dev);
+void vc4_irq_disable(struct drm_device *dev);
+int vc4_irq_install(struct drm_device *dev, int irq);
 void vc4_irq_uninstall(struct drm_device *dev);
 void vc4_irq_reset(struct drm_device *dev);
 
