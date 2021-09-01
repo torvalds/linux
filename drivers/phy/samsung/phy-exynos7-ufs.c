@@ -1,11 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * UFS PHY driver data for Samsung EXYNOS7 SoC
  *
  * Copyright (C) 2020 Samsung Electronics Co., Ltd.
  */
-#ifndef _PHY_EXYNOS7_UFS_H_
-#define _PHY_EXYNOS7_UFS_H_
 
 #include "phy-samsung-ufs.h"
 
@@ -68,7 +66,7 @@ static const struct samsung_ufs_phy_cfg *exynos7_ufs_phy_cfgs[CFG_TAG_MAX] = {
 	[CFG_POST_PWR_HS]	= exynos7_post_pwr_hs_cfg,
 };
 
-static struct samsung_ufs_phy_drvdata exynos7_ufs_phy = {
+const struct samsung_ufs_phy_drvdata exynos7_ufs_phy = {
 	.cfg = exynos7_ufs_phy_cfgs,
 	.isol = {
 		.offset = EXYNOS7_EMBEDDED_COMBO_PHY_CTRL,
@@ -77,5 +75,3 @@ static struct samsung_ufs_phy_drvdata exynos7_ufs_phy = {
 	},
 	.has_symbol_clk = 1,
 };
-
-#endif /* _PHY_EXYNOS7_UFS_H_ */

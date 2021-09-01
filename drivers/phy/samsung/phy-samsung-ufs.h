@@ -10,6 +10,9 @@
 #ifndef _PHY_SAMSUNG_UFS_
 #define _PHY_SAMSUNG_UFS_
 
+#include <linux/phy/phy.h>
+#include <linux/regmap.h>
+
 #define PHY_COMN_BLK	1
 #define PHY_TRSV_BLK	2
 #define END_UFS_PHY_CFG { 0 }
@@ -24,13 +27,16 @@
 	.id = PHY_COMN_BLK,	\
 }
 
-#define PHY_TRSV_REG_CFG(o, v, d) {	\
+#define PHY_TRSV_REG_CFG_OFFSET(o, v, d, c) {	\
 	.off_0 = PHY_APB_ADDR((o)),	\
-	.off_1 = PHY_APB_ADDR((o) + PHY_TRSV_CH_OFFSET),	\
+	.off_1 = PHY_APB_ADDR((o) + (c)),	\
 	.val = (v),		\
 	.desc = (d),		\
 	.id = PHY_TRSV_BLK,	\
 }
+
+#define PHY_TRSV_REG_CFG(o, v, d)	\
+	PHY_TRSV_REG_CFG_OFFSET(o, v, d, PHY_TRSV_CH_OFFSET)
 
 /* UFS PHY registers */
 #define PHY_PLL_LOCK_STATUS	0x1e
@@ -134,6 +140,7 @@ static inline void samsung_ufs_phy_ctrl_isol(
 			   phy->isol->mask, isol ? 0 : phy->isol->en);
 }
 
-#include "phy-exynos7-ufs.h"
+extern const struct samsung_ufs_phy_drvdata exynos7_ufs_phy;
+extern const struct samsung_ufs_phy_drvdata exynosautov9_ufs_phy;
 
 #endif /* _PHY_SAMSUNG_UFS_ */
