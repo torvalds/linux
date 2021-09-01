@@ -1056,5 +1056,5 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL v2");
 
-module_param(nmea, bool, S_IRUGO | S_IWUSR);
+module_param(nmea, bool, 0644);
 MODULE_PARM_DESC(nmea, "NMEA streaming");
