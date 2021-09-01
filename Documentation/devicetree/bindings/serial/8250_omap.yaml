@@ -79,6 +79,7 @@ properties:
   power-domains: true
   clock-frequency: true
   current-speed: true
+  overrun-throttle-ms: true
 
 required:
   - compatible
