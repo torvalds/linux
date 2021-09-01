@@ -635,11 +635,6 @@ i915_fence_timeout(const struct drm_i915_private *i915)
 /* Amount of PSF GV points, BSpec precisely defines this */
 #define I915_NUM_PSF_GV_POINTS 3
 
-struct ddi_vbt_port_info {
-	/* Non-NULL if port present. */
-	struct intel_bios_encoder_data *devdata;
-};
-
 enum psr_lines_to_wait {
 	PSR_0_LINES_TO_WAIT = 0,
 	PSR_1_LINE_TO_WAIT,
@@ -720,7 +715,7 @@ struct intel_vbt_data {
 
 	struct list_head display_devices;
 
-	struct ddi_vbt_port_info ddi_port_info[I915_MAX_PORTS];
+	struct intel_bios_encoder_data *ports[I915_MAX_PORTS]; /* Non-NULL if port present. */
 	struct sdvo_device_mapping sdvo_mappings[2];
 };
 
