@@ -1803,7 +1803,10 @@
 
 	vopl: vop@ff8f0000 {
 		compatible = "rockchip,rk3399-vop-lit";
-		reg = <0x0 0xff8f0000 0x0 0x3efc>;
+		reg = <0x0 0xff8f0000 0x0 0x600>,
+		      <0x0 0xff8f1c00 0x0 0x200>,
+		      <0x0 0xff8f2000 0x0 0x400>;
+		reg-names = "regs", "cabc_lut", "gamma_lut";
 		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru ACLK_VOP1>, <&cru DCLK_VOP1>, <&cru HCLK_VOP1>, <&cru DCLK_VOP1_DIV>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop", "dclk_source";
@@ -1869,7 +1872,10 @@
 
 	vopb: vop@ff900000 {
 		compatible = "rockchip,rk3399-vop-big";
-		reg = <0x0 0xff900000 0x0 0x3efc>;
+		reg = <0x0 0xff900000 0x0 0x600>,
+		      <0x0 0xff901c00 0x0 0x200>,
+		      <0x0 0xff902000 0x0 0x1000>;
+		reg-names = "regs", "cabc_lut", "gamma_lut";
 		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru ACLK_VOP0>, <&cru DCLK_VOP0>, <&cru HCLK_VOP0>, <&cru DCLK_VOP0_DIV>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop", "dclk_source";
