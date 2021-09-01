@@ -1009,15 +1009,15 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.use_max_lb = true,
 	.enable_mem_low_power = {
 		.bits = {
-			.vga = false,
-			.i2c = false,
+			.vga = true,
+			.i2c = true,
 			.dmcu = false, // This is previously known to cause hang on S3 cycles if enabled
-			.dscl = false,
-			.cm = false,
-			.mpc = false,
-			.optc = false,
-			.vpg = false,
-			.afmt = false,
+			.dscl = true,
+			.cm = true,
+			.mpc = true,
+			.optc = true,
+			.vpg = true,
+			.afmt = true,
 		}
 	},
 	.optimize_edp_link_rate = true,
