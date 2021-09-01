@@ -31,9 +31,12 @@ extern bool dbg;
 #define IS_VALID_PAE_ROOT(x)	(!!(x))
 
 struct kvm_mmu_page {
+	/*
+	 * Note, "link" through "spt" fit in a single 64 byte cache line on
+	 * 64-bit kernels, keep it that way unless there's a reason not to.
+	 */
 	struct list_head link;
 	struct hlist_node hash_link;
-	struct list_head lpage_disallowed_link;
 
 	bool tdp_mmu_page;
 	bool unsync;
@@ -59,6 +62,7 @@ struct kvm_mmu_page {
 	struct kvm_rmap_head parent_ptes; /* rmap pointers to parent sptes */
 	DECLARE_BITMAP(unsync_child_bitmap, 512);
 
+	struct list_head lpage_disallowed_link;
 #ifdef CONFIG_X86_32
 	/*
 	 * Used out of the mmu-lock to avoid reading spte values while an
