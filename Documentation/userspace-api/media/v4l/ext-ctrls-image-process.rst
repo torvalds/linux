@@ -20,24 +20,25 @@ Image Process Control IDs
 ``V4L2_CID_IMAGE_PROC_CLASS (class)``
     The IMAGE_PROC class descriptor.
 
+.. _v4l2-cid-link-freq:
+
 ``V4L2_CID_LINK_FREQ (integer menu)``
-    Data bus frequency. Together with the media bus pixel code, bus type
-    (clock cycles per sample), the data bus frequency defines the pixel
-    rate (``V4L2_CID_PIXEL_RATE``) in the pixel array (or possibly
-    elsewhere, if the device is not an image sensor). The frame rate can
-    be calculated from the pixel clock, image width and height and
-    horizontal and vertical blanking. While the pixel rate control may
-    be defined elsewhere than in the subdev containing the pixel array,
-    the frame rate cannot be obtained from that information. This is
-    because only on the pixel array it can be assumed that the vertical
-    and horizontal blanking information is exact: no other blanking is
-    allowed in the pixel array. The selection of frame rate is performed
-    by selecting the desired horizontal and vertical blanking. The unit
-    of this control is Hz.
+    The frequency of the data bus (e.g. parallel or CSI-2).
+
+.. _v4l2-cid-pixel-rate:
 
 ``V4L2_CID_PIXEL_RATE (64-bit integer)``
-    Pixel rate in the source pads of the subdev. This control is
+    Pixel sampling rate in the device's pixel array. This control is
     read-only and its unit is pixels / second.
+
+    Some devices use horizontal and vertical balanking to configure the frame
+    rate. The frame rate can be calculated from the pixel rate, analogue crop
+    rectangle as well as horizontal and vertical blanking. The pixel rate
+    control may be present in a different sub-device than the blanking controls
+    and the analogue crop rectangle configuration.
+
+    The configuration of the frame rate is performed by selecting the desired
+    horizontal and vertical blanking. The unit of this control is Hz.
 
 ``V4L2_CID_TEST_PATTERN (menu)``
     Some capture/display/sensor devices have the capability to generate
