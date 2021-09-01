@@ -1077,9 +1077,9 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
  */
 static int afs_d_revalidate_rcu(struct dentry *dentry)
 {
-	struct afs_vnode *dvnode, *vnode;
+	struct afs_vnode *dvnode;
 	struct dentry *parent;
-	struct inode *dir, *inode;
+	struct inode *dir;
 	long dir_version, de_version;
 
 	_enter("%p", dentry);
@@ -1107,18 +1107,6 @@ static int afs_d_revalidate_rcu(struct dentry *dentry)
 		dir_version = (long)READ_ONCE(dvnode->invalid_before);
 		if (de_version - dir_version < 0)
 			return -ECHILD;
-	}
-
-	/* Check to see if the vnode referred to by the dentry still
-	 * has a callback.
-	 */
-	if (d_really_is_positive(dentry)) {
-		inode = d_inode_rcu(dentry);
-		if (inode) {
-			vnode = AFS_FS_I(inode);
-			if (!afs_check_validity(vnode))
-				return -ECHILD;
-		}
 	}
 
 	return 1; /* Still valid */
@@ -1156,17 +1144,7 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	if (IS_ERR(key))
 		key = NULL;
 
-	if (d_really_is_positive(dentry)) {
-		inode = d_inode(dentry);
-		if (inode) {
-			vnode = AFS_FS_I(inode);
-			afs_validate(vnode, key);
-			if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
-				goto out_bad;
-		}
-	}
-
-	/* lock down the parent dentry so we can peer at it */
+	/* Hold the parent dentry so we can peer at it */
 	parent = dget_parent(dentry);
 	dir = AFS_FS_I(d_inode(parent));
 
@@ -1175,7 +1153,7 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 
 	if (test_bit(AFS_VNODE_DELETED, &dir->flags)) {
 		_debug("%pd: parent dir deleted", dentry);
-		goto out_bad_parent;
+		goto not_found;
 	}
 
 	/* We only need to invalidate a dentry if the server's copy changed
@@ -1201,12 +1179,12 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	case 0:
 		/* the filename maps to something */
 		if (d_really_is_negative(dentry))
-			goto out_bad_parent;
+			goto not_found;
 		inode = d_inode(dentry);
 		if (is_bad_inode(inode)) {
 			printk("kAFS: afs_d_revalidate: %pd2 has bad inode\n",
 			       dentry);
-			goto out_bad_parent;
+			goto not_found;
 		}
 
 		vnode = AFS_FS_I(inode);
@@ -1228,9 +1206,6 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 			       dentry, fid.unique,
 			       vnode->fid.unique,
 			       vnode->vfs_inode.i_generation);
-			write_seqlock(&vnode->cb_lock);
-			set_bit(AFS_VNODE_DELETED, &vnode->flags);
-			write_sequnlock(&vnode->cb_lock);
 			goto not_found;
 		}
 		goto out_valid;
@@ -1245,7 +1220,7 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	default:
 		_debug("failed to iterate dir %pd: %d",
 		       parent, ret);
-		goto out_bad_parent;
+		goto not_found;
 	}
 
 out_valid:
@@ -1256,16 +1231,9 @@ out_valid_noupdate:
 	_leave(" = 1 [valid]");
 	return 1;
 
-	/* the dirent, if it exists, now points to a different vnode */
 not_found:
-	spin_lock(&dentry->d_lock);
-	dentry->d_flags |= DCACHE_NFSFS_RENAMED;
-	spin_unlock(&dentry->d_lock);
-
-out_bad_parent:
 	_debug("dropping dentry %pd2", dentry);
 	dput(parent);
-out_bad:
 	key_put(key);
 
 	_leave(" = 0 [bad]");
