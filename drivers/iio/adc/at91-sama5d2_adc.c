@@ -261,6 +261,38 @@ static const struct at91_adc_reg_layout sama5d2_layout = {
 	.VERSION =		0xfc,
 };
 
+static const struct at91_adc_reg_layout sama7g5_layout = {
+	.CR =			0x00,
+	.MR =			0x04,
+	.SEQR1 =		0x08,
+	.SEQR2 =		0x0c,
+	.CHER =			0x10,
+	.CHDR =			0x14,
+	.CHSR =			0x18,
+	.LCDR =			0x20,
+	.IER =			0x24,
+	.IDR =			0x28,
+	.IMR =			0x2c,
+	.ISR =			0x30,
+	.EOC_IER =		0x34,
+	.EOC_IDR =		0x38,
+	.EOC_IMR =		0x3c,
+	.EOC_ISR =		0x40,
+	.OVER =			0x4c,
+	.EMR =			0x50,
+	.CWR =			0x54,
+	.COR =			0x5c,
+	.COR_diff_offset =	0,
+	.ACR =			0xe0,
+	.TRGR =			0x100,
+	.COSR =			0x104,
+	.CVR =			0x108,
+	.CECR =			0x10c,
+	.WPMR =			0x118,
+	.WPSR =			0x11c,
+	.VERSION =		0x130,
+};
+
 #define AT91_SAMA5D2_TOUCH_SAMPLE_PERIOD_US          2000    /* 2ms */
 #define AT91_SAMA5D2_TOUCH_PEN_DETECT_DEBOUNCE_US    200
 
@@ -531,6 +563,34 @@ static const struct iio_chan_spec at91_sama5d2_adc_channels[] = {
 	AT91_SAMA5D2_CHAN_PRESSURE(26, "pressure"),
 };
 
+static const struct iio_chan_spec at91_sama7g5_adc_channels[] = {
+	AT91_SAMA5D2_CHAN_SINGLE(0, 0, 0x60),
+	AT91_SAMA5D2_CHAN_SINGLE(1, 1, 0x64),
+	AT91_SAMA5D2_CHAN_SINGLE(2, 2, 0x68),
+	AT91_SAMA5D2_CHAN_SINGLE(3, 3, 0x6c),
+	AT91_SAMA5D2_CHAN_SINGLE(4, 4, 0x70),
+	AT91_SAMA5D2_CHAN_SINGLE(5, 5, 0x74),
+	AT91_SAMA5D2_CHAN_SINGLE(6, 6, 0x78),
+	AT91_SAMA5D2_CHAN_SINGLE(7, 7, 0x7c),
+	AT91_SAMA5D2_CHAN_SINGLE(8, 8, 0x80),
+	AT91_SAMA5D2_CHAN_SINGLE(9, 9, 0x84),
+	AT91_SAMA5D2_CHAN_SINGLE(10, 10, 0x88),
+	AT91_SAMA5D2_CHAN_SINGLE(11, 11, 0x8c),
+	AT91_SAMA5D2_CHAN_SINGLE(12, 12, 0x90),
+	AT91_SAMA5D2_CHAN_SINGLE(13, 13, 0x94),
+	AT91_SAMA5D2_CHAN_SINGLE(14, 14, 0x98),
+	AT91_SAMA5D2_CHAN_SINGLE(15, 15, 0x9c),
+	AT91_SAMA5D2_CHAN_DIFF(16, 0, 1, 0x60),
+	AT91_SAMA5D2_CHAN_DIFF(17, 2, 3, 0x68),
+	AT91_SAMA5D2_CHAN_DIFF(18, 4, 5, 0x70),
+	AT91_SAMA5D2_CHAN_DIFF(19, 6, 7, 0x78),
+	AT91_SAMA5D2_CHAN_DIFF(20, 8, 9, 0x80),
+	AT91_SAMA5D2_CHAN_DIFF(21, 10, 11, 0x88),
+	AT91_SAMA5D2_CHAN_DIFF(22, 12, 13, 0x90),
+	AT91_SAMA5D2_CHAN_DIFF(23, 14, 15, 0x98),
+	IIO_CHAN_SOFT_TIMESTAMP(24),
+};
+
 static const struct at91_adc_platform sama5d2_platform = {
 	.layout = &sama5d2_layout,
 	.adc_channels = &at91_sama5d2_adc_channels,
@@ -550,6 +610,21 @@ static const struct at91_adc_platform sama5d2_platform = {
 	.max_index = AT91_SAMA5D2_MAX_CHAN_IDX,
 #define AT91_SAMA5D2_HW_TRIG_CNT	3
 	.hw_trig_cnt = AT91_SAMA5D2_HW_TRIG_CNT,
+};
+
+static const struct at91_adc_platform sama7g5_platform = {
+	.layout = &sama7g5_layout,
+	.adc_channels = &at91_sama7g5_adc_channels,
+#define AT91_SAMA7G5_SINGLE_CHAN_CNT	16
+#define AT91_SAMA7G5_DIFF_CHAN_CNT	8
+	.nr_channels = AT91_SAMA7G5_SINGLE_CHAN_CNT +
+		       AT91_SAMA7G5_DIFF_CHAN_CNT,
+#define AT91_SAMA7G5_MAX_CHAN_IDX	(AT91_SAMA7G5_SINGLE_CHAN_CNT + \
+					AT91_SAMA7G5_DIFF_CHAN_CNT)
+	.max_channels = ARRAY_SIZE(at91_sama7g5_adc_channels),
+	.max_index = AT91_SAMA7G5_MAX_CHAN_IDX,
+#define AT91_SAMA7G5_HW_TRIG_CNT	3
+	.hw_trig_cnt = AT91_SAMA7G5_HW_TRIG_CNT,
 };
 
 static int at91_adc_chan_xlate(struct iio_dev *indio_dev, int chan)
@@ -2099,6 +2174,9 @@ static const struct of_device_id at91_adc_dt_match[] = {
 	{
 		.compatible = "atmel,sama5d2-adc",
 		.data = (const void *)&sama5d2_platform,
+	}, {
+		.compatible = "microchip,sama7g5-adc",
+		.data = (const void *)&sama7g5_platform,
 	}, {
 		/* sentinel */
 	}
