@@ -1582,8 +1582,10 @@ mpt3sas_base_pause_mq_polling(struct MPT3SAS_ADAPTER *ioc)
 	 * wait for current poll to complete.
 	 */
 	for (qid = 0; qid < iopoll_q_count; qid++) {
-		while (atomic_read(&ioc->io_uring_poll_queues[qid].busy))
+		while (atomic_read(&ioc->io_uring_poll_queues[qid].busy)) {
+			cpu_relax();
 			udelay(500);
+		}
 	}
 }
 
