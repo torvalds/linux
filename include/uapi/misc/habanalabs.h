@@ -272,6 +272,16 @@ enum hl_gaudi_pll_index {
 	HL_GAUDI_PLL_MAX
 };
 
+/**
+ * enum hl_device_status - Device status information.
+ * @HL_DEVICE_STATUS_OPERATIONAL: Device is operational.
+ * @HL_DEVICE_STATUS_IN_RESET: Device is currently during reset.
+ * @HL_DEVICE_STATUS_MALFUNCTION: Device is unusable.
+ * @HL_DEVICE_STATUS_NEEDS_RESET: Device needs reset because auto reset was disabled.
+ * @HL_DEVICE_STATUS_IN_DEVICE_CREATION: Device is operational but its creation is still in
+ *                                       progress.
+ * @HL_DEVICE_STATUS_LAST: Last status.
+ */
 enum hl_device_status {
 	HL_DEVICE_STATUS_OPERATIONAL,
 	HL_DEVICE_STATUS_IN_RESET,
@@ -556,33 +566,30 @@ enum gaudi_dcores {
 	HL_GAUDI_ES_DCORE
 };
 
+/**
+ * struct hl_info_args - Main structure to retrieve device related information.
+ * @return_pointer: User space address of the relevant structure related to HL_INFO_* operation
+ *                  mentioned in @op.
+ * @return_size: Size of the structure used in @return_pointer, just like "size" in "snprintf", it
+ *               limits how many bytes the kernel can write. For hw_events array, the size should be
+ *               hl_info_hw_ip_info.num_of_events * sizeof(__u32).
+ * @op: Defines which type of information to be retrieved. Refer HL_INFO_* for details.
+ * @dcore_id: DCORE id for which the information is relevant (for Gaudi refer to enum gaudi_dcores).
+ * @ctx_id: Context ID of the user. Currently not in use.
+ * @period_ms: Period value, in milliseconds, for utilization rate in range 100ms - 1000ms in 100 ms
+ *             resolution. Currently not in use.
+ * @pll_index: Index as defined in hl_<asic type>_pll_index enumeration.
+ * @pad: Padding to 64 bit.
+ */
 struct hl_info_args {
-	/* Location of relevant struct in userspace */
 	__u64 return_pointer;
-	/*
-	 * The size of the return value. Just like "size" in "snprintf",
-	 * it limits how many bytes the kernel can write
-	 *
-	 * For hw_events array, the size should be
-	 * hl_info_hw_ip_info.num_of_events * sizeof(__u32)
-	 */
 	__u32 return_size;
-
-	/* HL_INFO_* */
 	__u32 op;
 
 	union {
-		/* Dcore id for which the information is relevant.
-		 * For Gaudi refer to 'enum gaudi_dcores'
-		 */
 		__u32 dcore_id;
-		/* Context ID - Currently not in use */
 		__u32 ctx_id;
-		/* Period value for utilization rate (100ms - 1000ms, in 100ms
-		 * resolution.
-		 */
 		__u32 period_ms;
-		/* PLL frequency retrieval */
 		__u32 pll_index;
 	};
 
