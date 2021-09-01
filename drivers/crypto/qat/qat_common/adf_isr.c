@@ -126,6 +126,31 @@ static irqreturn_t adf_msix_isr_ae(int irq, void *dev_ptr)
 	return IRQ_NONE;
 }
 
+static void adf_free_irqs(struct adf_accel_dev *accel_dev)
+{
+	struct adf_accel_pci *pci_dev_info = &accel_dev->accel_pci_dev;
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct adf_irq *irqs = pci_dev_info->msix_entries.irqs;
+	struct adf_etr_data *etr_data = accel_dev->transport;
+	int clust_irq = hw_data->num_banks;
+	int irq, i = 0;
+
+	if (pci_dev_info->msix_entries.num_entries > 1) {
+		for (i = 0; i < hw_data->num_banks; i++) {
+			if (irqs[i].enabled) {
+				irq = pci_irq_vector(pci_dev_info->pci_dev, i);
+				irq_set_affinity_hint(irq, NULL);
+				free_irq(irq, &etr_data->banks[i]);
+			}
+		}
+	}
+
+	if (irqs[i].enabled) {
+		irq = pci_irq_vector(pci_dev_info->pci_dev, clust_irq);
+		free_irq(irq, accel_dev);
+	}
+}
+
 static int adf_request_irqs(struct adf_accel_dev *accel_dev)
 {
 	struct adf_accel_pci *pci_dev_info = &accel_dev->accel_pci_dev;
@@ -150,7 +175,8 @@ static int adf_request_irqs(struct adf_accel_dev *accel_dev)
 				dev_err(&GET_DEV(accel_dev),
 					"Failed to get IRQ number of device vector %d - %s\n",
 					i, name);
-				return irq;
+				ret = irq;
+				goto err;
 			}
 			ret = request_irq(irq, adf_msix_isr_bundle, 0,
 					  &name[0], bank);
@@ -158,7 +184,7 @@ static int adf_request_irqs(struct adf_accel_dev *accel_dev)
 				dev_err(&GET_DEV(accel_dev),
 					"Failed to allocate IRQ %d for %s\n",
 					irq, name);
-				return ret;
+				goto err;
 			}
 
 			cpu = ((accel_dev->accel_id * hw_data->num_banks) +
@@ -177,41 +203,20 @@ static int adf_request_irqs(struct adf_accel_dev *accel_dev)
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to get IRQ number of device vector %d - %s\n",
 			i, name);
-		return irq;
+		ret = irq;
+		goto err;
 	}
 	ret = request_irq(irq, adf_msix_isr_ae, 0, &name[0], accel_dev);
 	if (ret) {
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to allocate IRQ %d for %s\n", irq, name);
-		return ret;
+		goto err;
 	}
 	irqs[i].enabled = true;
 	return ret;
-}
-
-static void adf_free_irqs(struct adf_accel_dev *accel_dev)
-{
-	struct adf_accel_pci *pci_dev_info = &accel_dev->accel_pci_dev;
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct adf_irq *irqs = pci_dev_info->msix_entries.irqs;
-	struct adf_etr_data *etr_data = accel_dev->transport;
-	int clust_irq = hw_data->num_banks;
-	int irq, i = 0;
-
-	if (pci_dev_info->msix_entries.num_entries > 1) {
-		for (i = 0; i < hw_data->num_banks; i++) {
-			if (irqs[i].enabled) {
-				irq = pci_irq_vector(pci_dev_info->pci_dev, i);
-				irq_set_affinity_hint(irq, NULL);
-				free_irq(irq, &etr_data->banks[i]);
-			}
-		}
-	}
-
-	if (irqs[i].enabled) {
-		irq = pci_irq_vector(pci_dev_info->pci_dev, clust_irq);
-		free_irq(irq, accel_dev);
-	}
+err:
+	adf_free_irqs(accel_dev);
+	return ret;
 }
 
 static int adf_isr_alloc_msix_vectors_data(struct adf_accel_dev *accel_dev)
