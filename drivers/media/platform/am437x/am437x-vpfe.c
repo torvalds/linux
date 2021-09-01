@@ -2393,7 +2393,6 @@ static int vpfe_probe(struct platform_device *pdev)
 	struct vpfe_config *vpfe_cfg;
 	struct vpfe_device *vpfe;
 	struct vpfe_ccdc *ccdc;
-	struct resource	*res;
 	int ret;
 
 	vpfe = devm_kzalloc(&pdev->dev, sizeof(*vpfe), GFP_KERNEL);
@@ -2411,8 +2410,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	vpfe->cfg = vpfe_cfg;
 	ccdc = &vpfe->ccdc;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ccdc->ccdc_cfg.base_addr = devm_ioremap_resource(&pdev->dev, res);
+	ccdc->ccdc_cfg.base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ccdc->ccdc_cfg.base_addr)) {
 		ret = PTR_ERR(ccdc->ccdc_cfg.base_addr);
 		goto probe_out_cleanup;
