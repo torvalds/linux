@@ -24,6 +24,8 @@
 	#size-cells = <2>;
 
 	aliases {
+		dsi0 = &dsi;
+		dsi1 = &dsi1;
 		ethernet0 = &gmac;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
