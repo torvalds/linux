@@ -53,7 +53,6 @@ static int kasan_test_init(struct kunit *test)
 	}
 
 	multishot = kasan_save_enable_multi_shot();
-	kasan_set_tagging_report_once(false);
 	fail_data.report_found = false;
 	kunit_add_named_resource(test, NULL, NULL, &resource,
 					"kasan_data", &fail_data);
@@ -62,7 +61,6 @@ static int kasan_test_init(struct kunit *test)
 
 static void kasan_test_exit(struct kunit *test)
 {
-	kasan_set_tagging_report_once(true);
 	kasan_restore_multi_shot(multishot);
 	KUNIT_EXPECT_FALSE(test, fail_data.report_found);
 }

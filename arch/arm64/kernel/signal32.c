@@ -46,8 +46,6 @@ struct compat_aux_sigframe {
 	unsigned long			end_magic;
 } __attribute__((__aligned__(8)));
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 static inline int put_sigset_t(compat_sigset_t __user *uset, sigset_t *set)
 {
 	compat_sigset_t	cset;
@@ -190,10 +188,8 @@ static int compat_restore_sigframe(struct pt_regs *regs,
 	unsigned long psr;
 
 	err = get_sigset_t(&set, &sf->uc.uc_sigmask);
-	if (err == 0) {
-		sigdelsetmask(&set, ~_BLOCKABLE);
+	if (err == 0)
 		set_current_blocked(&set);
-	}
 
 	__get_user_error(regs->regs[0], &sf->uc.uc_mcontext.arm_r0, err);
 	__get_user_error(regs->regs[1], &sf->uc.uc_mcontext.arm_r1, err);
