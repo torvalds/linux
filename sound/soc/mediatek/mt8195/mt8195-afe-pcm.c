@@ -3057,7 +3057,6 @@ static int mt8195_afe_pcm_dev_probe(struct platform_device *pdev)
 {
 	struct mtk_base_afe *afe;
 	struct mt8195_afe_private *afe_priv;
-	struct resource *res;
 	struct device *dev = &pdev->dev;
 	int i, irq_id, ret;
 	struct snd_soc_component *component;
@@ -3078,8 +3077,7 @@ static int mt8195_afe_pcm_dev_probe(struct platform_device *pdev)
 	afe_priv = afe->platform_priv;
 	afe->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	afe->base_addr = devm_ioremap_resource(&pdev->dev, res);
+	afe->base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(afe->base_addr))
 		return PTR_ERR(afe->base_addr);
 
