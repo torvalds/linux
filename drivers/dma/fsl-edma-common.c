@@ -638,12 +638,14 @@ EXPORT_SYMBOL_GPL(fsl_edma_alloc_chan_resources);
 void fsl_edma_free_chan_resources(struct dma_chan *chan)
 {
 	struct fsl_edma_chan *fsl_chan = to_fsl_edma_chan(chan);
+	struct fsl_edma_engine *edma = fsl_chan->edma;
 	unsigned long flags;
 	LIST_HEAD(head);
 
 	spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
 	fsl_edma_disable_request(fsl_chan);
-	fsl_edma_chan_mux(fsl_chan, 0, false);
+	if (edma->drvdata->dmamuxs)
+		fsl_edma_chan_mux(fsl_chan, 0, false);
 	fsl_chan->edesc = NULL;
 	vchan_get_all_descriptors(&fsl_chan->vchan, &head);
 	fsl_edma_unprep_slave_dma(fsl_chan);
