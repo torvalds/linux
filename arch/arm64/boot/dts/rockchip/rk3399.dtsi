@@ -1053,11 +1053,22 @@
 					 <&cru PCLK_GMAC>;
 				pm_qos = <&qos_gmac>;
 			};
-			pd_sd@RK3399_PD_SD {
-				reg = <RK3399_PD_SD>;
-				clocks = <&cru HCLK_SDMMC>,
-					 <&cru SCLK_SDMMC>;
-				pm_qos = <&qos_sd>;
+			pd_perihp@RK3399_PD_PERIHP {
+				reg = <RK3399_PD_PERIHP>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&cru ACLK_PERIHP>;
+				pm_qos = <&qos_perihp>,
+					 <&qos_pcie>,
+					 <&qos_usb_host0>,
+					 <&qos_usb_host1>;
+
+				pd_sd@RK3399_PD_SD {
+					reg = <RK3399_PD_SD>;
+					clocks = <&cru HCLK_SDMMC>,
+						 <&cru SCLK_SDMMC>;
+					pm_qos = <&qos_sd>;
+				};
 			};
 			pd_sdioaudio@RK3399_PD_SDIOAUDIO {
 				reg = <RK3399_PD_SDIOAUDIO>;
