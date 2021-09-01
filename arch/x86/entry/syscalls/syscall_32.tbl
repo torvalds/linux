@@ -145,7 +145,7 @@
 131	i386	quotactl		sys_quotactl
 132	i386	getpgid			sys_getpgid
 133	i386	fchdir			sys_fchdir
-134	i386	bdflush			sys_bdflush
+134	i386	bdflush			sys_ni_syscall
 135	i386	sysfs			sys_sysfs
 136	i386	personality		sys_personality
 137	i386	afs_syscall
