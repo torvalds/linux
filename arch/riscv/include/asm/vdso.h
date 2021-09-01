@@ -22,6 +22,8 @@
  */
 #ifdef CONFIG_MMU
 
+#define __VVAR_PAGES    1
+
 #ifndef __ASSEMBLY__
 #include <generated/vdso-offsets.h>
 
