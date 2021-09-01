@@ -388,14 +388,10 @@ static int hid_submit_ctrl(struct hid_device *hid)
 		usbhid->urbctrl->pipe = usb_rcvctrlpipe(hid_to_usb_dev(hid), 0);
 		maxpacket = usb_maxpacket(hid_to_usb_dev(hid),
 					  usbhid->urbctrl->pipe, 0);
-		if (maxpacket > 0) {
-			len += (len == 0);    /* Don't allow 0-length reports */
-			len = DIV_ROUND_UP(len, maxpacket);
-			len *= maxpacket;
-			if (len > usbhid->bufsize)
-				len = usbhid->bufsize;
-		} else
-			len = 0;
+		len += (len == 0);	/* Don't allow 0-length reports */
+		len = round_up(len, maxpacket);
+		if (len > usbhid->bufsize)
+			len = usbhid->bufsize;
 	}
 	usbhid->urbctrl->transfer_buffer_length = len;
 	usbhid->urbctrl->dev = hid_to_usb_dev(hid);
