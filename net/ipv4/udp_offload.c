@@ -525,8 +525,10 @@ struct sk_buff *udp_gro_receive(struct list_head *head, struct sk_buff *skb,
 
 		if ((!sk && (skb->dev->features & NETIF_F_GRO_UDP_FWD)) ||
 		    (sk && udp_sk(sk)->gro_enabled) || NAPI_GRO_CB(skb)->is_flist)
-			pp = call_gro_receive(udp_gro_receive_segment, head, skb);
-		return pp;
+			return call_gro_receive(udp_gro_receive_segment, head, skb);
+
+		/* no GRO, be sure flush the current packet */
+		goto out;
 	}
 
 	if (NAPI_GRO_CB(skb)->encap_mark ||
@@ -622,6 +624,10 @@ static int udp_gro_complete_segment(struct sk_buff *skb)
 
 	skb_shinfo(skb)->gso_segs = NAPI_GRO_CB(skb)->count;
 	skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_L4;
+
+	if (skb->encapsulation)
+		skb->inner_transport_header = skb->transport_header;
+
 	return 0;
 }
 

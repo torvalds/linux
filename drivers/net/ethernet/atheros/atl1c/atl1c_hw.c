@@ -594,6 +594,11 @@ int atl1c_phy_init(struct atl1c_hw *hw)
 	int ret_val;
 	u16 mii_bmcr_data = BMCR_RESET;
 
+	if (hw->nic_type == athr_mt) {
+		hw->phy_configured = true;
+		return 0;
+	}
+
 	if ((atl1c_read_phy_reg(hw, MII_PHYSID1, &hw->phy_id1) != 0) ||
 		(atl1c_read_phy_reg(hw, MII_PHYSID2, &hw->phy_id2) != 0)) {
 		dev_err(&pdev->dev, "Error get phy ID\n");

@@ -1150,6 +1150,7 @@ static int abx500_chargalg_get_ext_psy_data(struct device *dev, void *data)
 				default:
 					break;
 				}
+				break;
 			default:
 				break;
 			}

@@ -73,7 +73,9 @@ IF_OPER_LOWERLAYERDOWN (3):
  state (f.e. VLAN).
 
 IF_OPER_TESTING (4):
- Unused in current kernel.
+ Interface is in testing mode, for example executing driver self-tests
+ or media (cable) test. It can't be used for normal traffic until tests
+ complete.
 
 IF_OPER_DORMANT (5):
  Interface is L1 up, but waiting for an external event, f.e. for a
@@ -111,7 +113,7 @@ it as lower layer.
 
 Note that for certain kind of soft-devices, which are not managing any
 real hardware, it is possible to set this bit from userspace.  One
-should use TVL IFLA_CARRIER to do so.
+should use TLV IFLA_CARRIER to do so.
 
 netif_carrier_ok() can be used to query that bit.
 

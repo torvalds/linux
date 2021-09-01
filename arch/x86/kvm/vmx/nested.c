@@ -330,6 +330,31 @@ void nested_vmx_free_vcpu(struct kvm_vcpu *vcpu)
 	vcpu_put(vcpu);
 }
 
+#define EPTP_PA_MASK   GENMASK_ULL(51, 12)
+
+static bool nested_ept_root_matches(hpa_t root_hpa, u64 root_eptp, u64 eptp)
+{
+	return VALID_PAGE(root_hpa) &&
+	       ((root_eptp & EPTP_PA_MASK) == (eptp & EPTP_PA_MASK));
+}
+
+static void nested_ept_invalidate_addr(struct kvm_vcpu *vcpu, gpa_t eptp,
+				       gpa_t addr)
+{
+	uint i;
+	struct kvm_mmu_root_info *cached_root;
+
+	WARN_ON_ONCE(!mmu_is_nested(vcpu));
+
+	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
+		cached_root = &vcpu->arch.mmu->prev_roots[i];
+
+		if (nested_ept_root_matches(cached_root->hpa, cached_root->pgd,
+					    eptp))
+			vcpu->arch.mmu->invlpg(vcpu, addr, cached_root->hpa);
+	}
+}
+
 static void nested_ept_inject_page_fault(struct kvm_vcpu *vcpu,
 		struct x86_exception *fault)
 {
@@ -342,10 +367,22 @@ static void nested_ept_inject_page_fault(struct kvm_vcpu *vcpu,
 		vm_exit_reason = EXIT_REASON_PML_FULL;
 		vmx->nested.pml_full = false;
 		exit_qualification &= INTR_INFO_UNBLOCK_NMI;
-	} else if (fault->error_code & PFERR_RSVD_MASK)
-		vm_exit_reason = EXIT_REASON_EPT_MISCONFIG;
-	else
-		vm_exit_reason = EXIT_REASON_EPT_VIOLATION;
+	} else {
+		if (fault->error_code & PFERR_RSVD_MASK)
+			vm_exit_reason = EXIT_REASON_EPT_MISCONFIG;
+		else
+			vm_exit_reason = EXIT_REASON_EPT_VIOLATION;
+
+		/*
+		 * Although the caller (kvm_inject_emulated_page_fault) would
+		 * have already synced the faulting address in the shadow EPT
+		 * tables for the current EPTP12, we also need to sync it for
+		 * any other cached EPTP02s based on the same EP4TA, since the
+		 * TLB associates mappings to the EP4TA rather than the full EPTP.
+		 */
+		nested_ept_invalidate_addr(vcpu, vmcs12->ept_pointer,
+					   fault->address);
+	}
 
 	nested_vmx_vmexit(vcpu, vm_exit_reason, 0, exit_qualification);
 	vmcs12->guest_physical_address = fault->address;
@@ -5325,14 +5362,6 @@ static int handle_vmptrst(struct kvm_vcpu *vcpu)
 	return nested_vmx_succeed(vcpu);
 }
 
-#define EPTP_PA_MASK   GENMASK_ULL(51, 12)
-
-static bool nested_ept_root_matches(hpa_t root_hpa, u64 root_eptp, u64 eptp)
-{
-	return VALID_PAGE(root_hpa) &&
-		((root_eptp & EPTP_PA_MASK) == (eptp & EPTP_PA_MASK));
-}
-
 /* Emulate the INVEPT instruction */
 static int handle_invept(struct kvm_vcpu *vcpu)
 {
@@ -5826,7 +5855,8 @@ static bool nested_vmx_l0_wants_exit(struct kvm_vcpu *vcpu,
 		if (is_nmi(intr_info))
 			return true;
 		else if (is_page_fault(intr_info))
-			return vcpu->arch.apf.host_apf_flags || !enable_ept;
+			return vcpu->arch.apf.host_apf_flags ||
+			       vmx_need_pf_intercept(vcpu);
 		else if (is_debug(intr_info) &&
 			 vcpu->guest_debug &
 			 (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))

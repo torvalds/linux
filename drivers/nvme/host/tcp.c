@@ -123,7 +123,6 @@ struct nvme_tcp_ctrl {
 	struct blk_mq_tag_set	admin_tag_set;
 	struct sockaddr_storage addr;
 	struct sockaddr_storage src_addr;
-	struct net_device	*ndev;
 	struct nvme_ctrl	ctrl;
 
 	struct work_struct	err_work;
@@ -2533,8 +2532,7 @@ static struct nvme_ctrl *nvme_tcp_create_ctrl(struct device *dev,
 	}
 
 	if (opts->mask & NVMF_OPT_HOST_IFACE) {
-		ctrl->ndev = dev_get_by_name(&init_net, opts->host_iface);
-		if (!ctrl->ndev) {
+		if (!__dev_get_by_name(&init_net, opts->host_iface)) {
 			pr_err("invalid interface passed: %s\n",
 			       opts->host_iface);
 			ret = -ENODEV;

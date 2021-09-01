@@ -1062,7 +1062,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	 * so use only 30 bpp on DCE_VERSION_11_0. Testing with DCE 11.2 and 8.3
 	 * did not show such problems, so this seems to be the exception.
 	 */
-	if (plane_state->ctx->dce_version != DCE_VERSION_11_0)
+	if (plane_state->ctx->dce_version > DCE_VERSION_11_0)
 		pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_36BPP;
 	else
 		pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;

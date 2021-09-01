@@ -69,7 +69,7 @@ static void
 mlx5_esw_bridge_fdb_offload_notify(struct net_device *dev, const unsigned char *addr, u16 vid,
 				   unsigned long val)
 {
-	struct switchdev_notifier_fdb_info send_info;
+	struct switchdev_notifier_fdb_info send_info = {};
 
 	send_info.addr = addr;
 	send_info.vid = vid;
@@ -579,7 +579,7 @@ static struct mlx5_esw_bridge *mlx5_esw_bridge_create(int ifindex,
 	xa_init(&bridge->vports);
 	bridge->ifindex = ifindex;
 	bridge->refcnt = 1;
-	bridge->ageing_time = BR_DEFAULT_AGEING_TIME;
+	bridge->ageing_time = clock_t_to_jiffies(BR_DEFAULT_AGEING_TIME);
 	list_add(&bridge->list, &br_offloads->bridges);
 
 	return bridge;
@@ -1006,7 +1006,7 @@ int mlx5_esw_bridge_ageing_time_set(unsigned long ageing_time, struct mlx5_eswit
 	if (!vport->bridge)
 		return -EINVAL;
 
-	vport->bridge->ageing_time = ageing_time;
+	vport->bridge->ageing_time = clock_t_to_jiffies(ageing_time);
 	return 0;
 }
 

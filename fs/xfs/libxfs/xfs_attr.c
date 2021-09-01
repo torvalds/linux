@@ -483,7 +483,7 @@ xfs_attr_set_iter(
 		if (error)
 			return error;
 
-		/* fallthrough */
+		fallthrough;
 	case XFS_DAS_RM_LBLK:
 		/* Set state in case xfs_attr_rmtval_remove returns -EAGAIN */
 		dac->dela_state = XFS_DAS_RM_LBLK;
@@ -496,7 +496,7 @@ xfs_attr_set_iter(
 			return -EAGAIN;
 		}
 
-		/* fallthrough */
+		fallthrough;
 	case XFS_DAS_RD_LEAF:
 		/*
 		 * This is the last step for leaf format. Read the block with
@@ -528,7 +528,7 @@ xfs_attr_set_iter(
 				return error;
 		}
 
-		/* fallthrough */
+		fallthrough;
 	case XFS_DAS_ALLOC_NODE:
 		/*
 		 * If there was an out-of-line value, allocate the blocks we
@@ -590,7 +590,7 @@ xfs_attr_set_iter(
 		if (error)
 			return error;
 
-		/* fallthrough */
+		fallthrough;
 	case XFS_DAS_RM_NBLK:
 		/* Set state in case xfs_attr_rmtval_remove returns -EAGAIN */
 		dac->dela_state = XFS_DAS_RM_NBLK;
@@ -603,7 +603,7 @@ xfs_attr_set_iter(
 			return -EAGAIN;
 		}
 
-		/* fallthrough */
+		fallthrough;
 	case XFS_DAS_CLR_FLAG:
 		/*
 		 * The last state for node format. Look up the old attr and
@@ -1406,7 +1406,7 @@ xfs_attr_remove_iter(
 			state = dac->da_state;
 		}
 
-		/* fallthrough */
+		fallthrough;
 	case XFS_DAS_RMTBLK:
 		dac->dela_state = XFS_DAS_RMTBLK;
 
@@ -1441,7 +1441,7 @@ xfs_attr_remove_iter(
 			return -EAGAIN;
 		}
 
-		/* fallthrough */
+		fallthrough;
 	case XFS_DAS_RM_NAME:
 		/*
 		 * If we came here fresh from a transaction roll, reattach all
@@ -1469,7 +1469,7 @@ xfs_attr_remove_iter(
 			return -EAGAIN;
 		}
 
-		/* fallthrough */
+		fallthrough;
 	case XFS_DAS_RM_SHRINK:
 		/*
 		 * If the result is small enough, push it all into the inode.

@@ -422,7 +422,6 @@ static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 			dev_err(dev, "pcie%d no card, disable it (RST & CLK)\n",
 				slot);
 			mt7621_control_assert(port);
-			clk_disable_unprepare(port->clk);
 			port->enabled = false;
 
 			if (slot == 0) {

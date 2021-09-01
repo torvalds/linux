@@ -1164,10 +1164,10 @@ static int m_can_set_bittiming(struct net_device *dev)
 				    FIELD_PREP(TDCR_TDCO_MASK, tdco));
 		}
 
-		reg_btp = FIELD_PREP(NBTP_NBRP_MASK, brp) |
-			  FIELD_PREP(NBTP_NSJW_MASK, sjw) |
-			  FIELD_PREP(NBTP_NTSEG1_MASK, tseg1) |
-			  FIELD_PREP(NBTP_NTSEG2_MASK, tseg2);
+		reg_btp |= FIELD_PREP(DBTP_DBRP_MASK, brp) |
+			FIELD_PREP(DBTP_DSJW_MASK, sjw) |
+			FIELD_PREP(DBTP_DTSEG1_MASK, tseg1) |
+			FIELD_PREP(DBTP_DTSEG2_MASK, tseg2);
 
 		m_can_write(cdev, M_CAN_DBTP, reg_btp);
 	}

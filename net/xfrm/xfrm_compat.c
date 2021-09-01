@@ -298,8 +298,16 @@ static int xfrm_xlate64(struct sk_buff *dst, const struct nlmsghdr *nlh_src)
 	len = nlmsg_attrlen(nlh_src, xfrm_msg_min[type]);
 
 	nla_for_each_attr(nla, attrs, len, remaining) {
-		int err = xfrm_xlate64_attr(dst, nla);
+		int err;
 
+		switch (type) {
+		case XFRM_MSG_NEWSPDINFO:
+			err = xfrm_nla_cpy(dst, nla, nla_len(nla));
+			break;
+		default:
+			err = xfrm_xlate64_attr(dst, nla);
+			break;
+		}
 		if (err)
 			return err;
 	}
@@ -341,7 +349,8 @@ static int xfrm_alloc_compat(struct sk_buff *skb, const struct nlmsghdr *nlh_src
 
 /* Calculates len of translated 64-bit message. */
 static size_t xfrm_user_rcv_calculate_len64(const struct nlmsghdr *src,
-					    struct nlattr *attrs[XFRMA_MAX+1])
+					    struct nlattr *attrs[XFRMA_MAX + 1],
+					    int maxtype)
 {
 	size_t len = nlmsg_len(src);
 
@@ -358,9 +367,19 @@ static size_t xfrm_user_rcv_calculate_len64(const struct nlmsghdr *src,
 	case XFRM_MSG_POLEXPIRE:
 		len += 8;
 		break;
+	case XFRM_MSG_NEWSPDINFO:
+		/* attirbutes are xfrm_spdattr_type_t, not xfrm_attr_type_t */
+		return len;
 	default:
 		break;
 	}
+
+	/* Unexpected for anything, but XFRM_MSG_NEWSPDINFO, please
+	 * correct both 64=>32-bit and 32=>64-bit translators to copy
+	 * new attributes.
+	 */
+	if (WARN_ON_ONCE(maxtype))
+		return len;
 
 	if (attrs[XFRMA_SA])
 		len += 4;
@@ -440,7 +459,8 @@ static int xfrm_xlate32_attr(void *dst, const struct nlattr *nla,
 
 static int xfrm_xlate32(struct nlmsghdr *dst, const struct nlmsghdr *src,
 			struct nlattr *attrs[XFRMA_MAX+1],
-			size_t size, u8 type, struct netlink_ext_ack *extack)
+			size_t size, u8 type, int maxtype,
+			struct netlink_ext_ack *extack)
 {
 	size_t pos;
 	int i;
@@ -520,6 +540,25 @@ static int xfrm_xlate32(struct nlmsghdr *dst, const struct nlmsghdr *src,
 	}
 	pos = dst->nlmsg_len;
 
+	if (maxtype) {
+		/* attirbutes are xfrm_spdattr_type_t, not xfrm_attr_type_t */
+		WARN_ON_ONCE(src->nlmsg_type != XFRM_MSG_NEWSPDINFO);
+
+		for (i = 1; i <= maxtype; i++) {
+			int err;
+
+			if (!attrs[i])
+				continue;
+
+			/* just copy - no need for translation */
+			err = xfrm_attr_cpy32(dst, &pos, attrs[i], size,
+					nla_len(attrs[i]), nla_len(attrs[i]));
+			if (err)
+				return err;
+		}
+		return 0;
+	}
+
 	for (i = 1; i < XFRMA_MAX + 1; i++) {
 		int err;
 
@@ -564,7 +603,7 @@ static struct nlmsghdr *xfrm_user_rcv_msg_compat(const struct nlmsghdr *h32,
 	if (err < 0)
 		return ERR_PTR(err);
 
-	len = xfrm_user_rcv_calculate_len64(h32, attrs);
+	len = xfrm_user_rcv_calculate_len64(h32, attrs, maxtype);
 	/* The message doesn't need translation */
 	if (len == nlmsg_len(h32))
 		return NULL;
@@ -574,7 +613,7 @@ static struct nlmsghdr *xfrm_user_rcv_msg_compat(const struct nlmsghdr *h32,
 	if (!h64)
 		return ERR_PTR(-ENOMEM);
 
-	err = xfrm_xlate32(h64, h32, attrs, len, type, extack);
+	err = xfrm_xlate32(h64, h32, attrs, len, type, maxtype, extack);
 	if (err < 0) {
 		kvfree(h64);
 		return ERR_PTR(err);

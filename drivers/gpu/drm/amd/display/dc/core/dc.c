@@ -1530,6 +1530,12 @@ void dc_z10_restore(struct dc *dc)
 	if (dc->hwss.z10_restore)
 		dc->hwss.z10_restore(dc);
 }
+
+void dc_z10_save_init(struct dc *dc)
+{
+	if (dc->hwss.z10_save_init)
+		dc->hwss.z10_save_init(dc);
+}
 #endif
 /*
  * Applies given context to HW and copy it into current context.
