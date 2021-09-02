@@ -81,6 +81,22 @@
 	};
 };
 
+&lpddr4_params {
+	/* freq info, freq_0 is final frequency, unit: MHz */
+	freq_0 = <528>;
+	freq_1 = <324>;
+	freq_2 = <324>;
+	freq_3 = <324>;
+};
+
+&lpddr4x_params {
+	/* freq info, freq_0 is final frequency, unit: MHz */
+	freq_0 = <528>;
+	freq_1 = <324>;
+	freq_2 = <324>;
+	freq_3 = <324>;
+};
+
 &rockchip_suspend {
 	status = "okay";
 

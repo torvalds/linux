@@ -2153,6 +2153,19 @@
 		status = "disabled";
 	};
 
+	dmc_fsp: dmc-fsp {
+		compatible = "rockchip,rk3568-dmc-fsp";
+
+		debug_print_level = <0>;
+		ddr3_params = <&ddr3_params>;
+		ddr4_params = <&ddr4_params>;
+		lpddr3_params = <&lpddr3_params>;
+		lpddr4_params = <&lpddr4_params>;
+		lpddr4x_params = <&lpddr4x_params>;
+
+		status = "okay";
+	};
+
 	dmc_opp_table: dmc-opp-table {
 		compatible = "operating-points-v2";
 

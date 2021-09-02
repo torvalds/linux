@@ -15,6 +15,16 @@
 	/delete-node/ opp-1992000000;
 };
 
+&lpddr4_params {
+	/* freq info, freq_0 is final frequency, unit: MHz */
+	freq_0 = <1056>;
+};
+
+&lpddr4x_params {
+	/* freq info, freq_0 is final frequency, unit: MHz */
+	freq_0 = <1056>;
+};
+
 &power {
 	pd_pipe@RK3568_PD_PIPE {
 		reg = <RK3568_PD_PIPE>;
