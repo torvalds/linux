@@ -671,21 +671,15 @@ static struct NTFS_DE *hdr_find_e(const struct ntfs_index *indx,
 				  const struct INDEX_HDR *hdr, const void *key,
 				  size_t key_len, const void *ctx, int *diff)
 {
-	struct NTFS_DE *e;
+	struct NTFS_DE *e, *found = NULL;
 	NTFS_CMP_FUNC cmp = indx->cmp;
+	int min_idx = 0, mid_idx, max_idx = 0;
+	int diff2;
+	int table_size = 8;
 	u32 e_size, e_key_len;
 	u32 end = le32_to_cpu(hdr->used);
 	u32 off = le32_to_cpu(hdr->de_off);
-
-#ifdef NTFS3_INDEX_BINARY_SEARCH
-	struct NTFS_DE *found = NULL;
-	int min_idx = 0, mid_idx, max_idx = 0;
-	int table_size = 8;
-	int diff2;
 	u16 offs[128];
-
-	if (end > 0x10000)
-		goto next;
 
 fill_table:
 	if (off + sizeof(struct NTFS_DE) > end)
@@ -720,7 +714,8 @@ binary_search:
 				return NULL;
 
 			max_idx = 0;
-			table_size = min(table_size * 2, 128);
+			table_size = min(table_size * 2,
+					 (int)ARRAY_SIZE(offs));
 			goto fill_table;
 		}
 	} else if (diff2 < 0) {
@@ -744,39 +739,6 @@ binary_search:
 	e = Add2Ptr(hdr, offs[mid_idx]);
 
 	goto binary_search;
-#endif
-
-next:
-	/*
-	 * Entries index are sorted.
-	 * Enumerate all entries until we find entry
-	 * that is <= to the search value.
-	 */
-	if (off + sizeof(struct NTFS_DE) > end)
-		return NULL;
-
-	e = Add2Ptr(hdr, off);
-	e_size = le16_to_cpu(e->size);
-
-	if (e_size < sizeof(struct NTFS_DE) || off + e_size > end)
-		return NULL;
-
-	off += e_size;
-
-	e_key_len = le16_to_cpu(e->key_size);
-
-	*diff = (*cmp)(key, key_len, e + 1, e_key_len, ctx);
-	if (!*diff)
-		return e;
-
-	if (*diff <= 0)
-		return e;
-
-	if (de_is_last(e)) {
-		*diff = 1;
-		return e;
-	}
-	goto next;
 }
 
 /*

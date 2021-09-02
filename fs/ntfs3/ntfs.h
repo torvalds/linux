@@ -21,9 +21,6 @@
 
 /* TODO: Check 4K MFT record and 512 bytes cluster. */
 
-/* Activate this define to use binary search in indexes. */
-#define NTFS3_INDEX_BINARY_SEARCH
-
 /* Check each run for marked clusters. */
 #define NTFS3_CHECK_FREE_CLST
 
