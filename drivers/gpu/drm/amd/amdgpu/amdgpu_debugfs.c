@@ -1734,9 +1734,7 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 		if (!ring)
 			continue;
 
-		if (amdgpu_debugfs_ring_init(adev, ring)) {
-			DRM_ERROR("Failed to register debugfs file for rings !\n");
-		}
+		amdgpu_debugfs_ring_init(adev, ring);
 	}
 
 	amdgpu_ras_debugfs_create_all(adev);

@@ -253,10 +253,6 @@ struct amdgpu_ring {
 	bool			has_compute_vm_bug;
 	bool			no_scheduler;
 	int			hw_prio;
-
-#if defined(CONFIG_DEBUG_FS)
-	struct dentry *ent;
-#endif
 };
 
 #define amdgpu_ring_parse_cs(r, p, ib) ((r)->funcs->parse_cs((p), (ib)))
@@ -356,8 +352,6 @@ static inline void amdgpu_ring_write_multiple(struct amdgpu_ring *ring,
 
 int amdgpu_ring_test_helper(struct amdgpu_ring *ring);
 
-int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
-			     struct amdgpu_ring *ring);
-void amdgpu_debugfs_ring_fini(struct amdgpu_ring *ring);
-
+void amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
+			      struct amdgpu_ring *ring);
 #endif
