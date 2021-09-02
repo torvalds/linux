@@ -1214,8 +1214,8 @@ static inline void get_page(struct page *page)
 }
 
 bool __must_check try_grab_page(struct page *page, unsigned int flags);
-__maybe_unused struct page *try_grab_compound_head(struct page *page, int refs,
-						   unsigned int flags);
+struct page *try_grab_compound_head(struct page *page, int refs,
+				    unsigned int flags);
 
 
 static inline __must_check bool try_get_page(struct page *page)
