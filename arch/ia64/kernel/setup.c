@@ -546,7 +546,7 @@ int __init reserve_elfcorehdr(u64 *start, u64 *end)
 	return 0;
 }
 
-#endif /* CONFIG_PROC_VMCORE */
+#endif /* CONFIG_CRASH_DUMP */
 
 void __init
 setup_arch (char **cmdline_p)
