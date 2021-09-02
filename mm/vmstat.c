@@ -204,7 +204,7 @@ int calculate_normal_threshold(struct zone *zone)
 	 *
 	 * Some sample thresholds:
 	 *
-	 * Threshold	Processors	(fls)	Zonesize	fls(mem+1)
+	 * Threshold	Processors	(fls)	Zonesize	fls(mem)+1
 	 * ------------------------------------------------------------------
 	 * 8		1		1	0.9-1 GB	4
 	 * 16		2		2	0.9-1 GB	4
@@ -1875,11 +1875,6 @@ static void vmstat_update(struct work_struct *w)
 	}
 }
 
-/*
- * Switch off vmstat processing and then fold all the remaining differentials
- * until the diffs stay at zero. The function is used by NOHZ and can only be
- * invoked when tick processing is not active.
- */
 /*
  * Check if the diffs for a certain cpu indicate that
  * an update is needed.
