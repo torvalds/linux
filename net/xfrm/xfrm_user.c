@@ -2005,6 +2005,11 @@ static int xfrm_get_default(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -EMSGSIZE;
 	}
 
+	if (up->dirmask >= XFRM_USERPOLICY_DIRMASK_MAX) {
+		kfree_skb(r_skb);
+		return -EINVAL;
+	}
+
 	r_up = nlmsg_data(r_nlh);
 
 	r_up->action = ((net->xfrm.policy_default & (1 << up->dirmask)) >> up->dirmask);
