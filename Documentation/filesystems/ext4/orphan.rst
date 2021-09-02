@@ -21,27 +21,17 @@ in heavy creation of orphan inodes. When orphan file feature
 (referenced from the superblock through s\_orphan_file_inum) with several
 blocks. Each of these blocks has a structure:
 
-.. list-table::
-   :widths: 8 8 24 40
-   :header-rows: 1
-
-   * - Offset
-     - Type
-     - Name
-     - Description
-   * - 0x0
-     - Array of \_\_le32 entries
-     - Orphan inode entries
-     - Each \_\_le32 entry is either empty (0) or it contains inode number of
-       an orphan inode.
-   * - blocksize - 8
-     - \_\_le32
-     - ob\_magic
-     - Magic value stored in orphan block tail (0x0b10ca04)
-   * - blocksize - 4
-     - \_\_le32
-     - ob\_checksum
-     - Checksum of the orphan block.
+============= ================ =============== ===============================
+Offset        Type             Name            Description
+============= ================ =============== ===============================
+0x0           Array of         Orphan inode    Each \_\_le32 entry is either
+              \_\_le32 entries entries         empty (0) or it contains
+	                                       inode number of an orphan
+					       inode.
+blocksize-8   \_\_le32         ob\_magic       Magic value stored in orphan
+                                               block tail (0x0b10ca04)
+blocksize-4   \_\_le32         ob\_checksum    Checksum of the orphan block.
+============= ================ =============== ===============================
 
 When a filesystem with orphan file feature is writeably mounted, we set
 RO\_COMPAT\_ORPHAN\_PRESENT feature in the superblock to indicate there may
