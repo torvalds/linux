@@ -22,6 +22,7 @@ enum {
 #define PERF_PMU_FORMAT_BITS 64
 #define EVENT_SOURCE_DEVICE_PATH "/bus/event_source/devices/"
 #define CPUS_TEMPLATE_CPU	"%s/bus/event_source/devices/%s/cpus"
+#define MAX_PMU_NAME_LEN 128
 
 struct perf_event_attr;
 
@@ -33,6 +34,7 @@ struct perf_pmu_caps {
 
 struct perf_pmu {
 	char *name;
+	char *alias_name;
 	char *id;
 	__u32 type;
 	bool selectable;
@@ -140,4 +142,7 @@ int perf_pmu__match(char *pattern, char *name, char *tok);
 int perf_pmu__cpus_match(struct perf_pmu *pmu, struct perf_cpu_map *cpus,
 			 struct perf_cpu_map **mcpus_ptr,
 			 struct perf_cpu_map **ucpus_ptr);
+
+char *pmu_find_real_name(const char *name);
+char *pmu_find_alias_name(const char *name);
 #endif /* __PMU_H */
