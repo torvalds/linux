@@ -8190,7 +8190,7 @@ T:	git git://linuxtv.org/anttip/media_tree.git
 F:	drivers/media/usb/hackrf/
 
 HANTRO VPU CODEC DRIVER
-M:	Ezequiel Garcia <ezequiel@collabora.com>
+M:	Ezequiel Garcia <ezequiel@vanguardiasur.com.ar>
 M:	Philipp Zabel <p.zabel@pengutronix.de>
 L:	linux-media@vger.kernel.org
 L:	linux-rockchip@lists.infradead.org
@@ -16120,7 +16120,7 @@ F:	include/uapi/linux/rkisp1-config.h
 
 ROCKCHIP RASTER 2D GRAPHIC ACCELERATION UNIT DRIVER
 M:	Jacob Chen <jacob-chen@iotwrt.com>
-M:	Ezequiel Garcia <ezequiel@collabora.com>
+M:	Ezequiel Garcia <ezequiel@vanguardiasur.com.ar>
 L:	linux-media@vger.kernel.org
 L:	linux-rockchip@lists.infradead.org
 S:	Maintained
@@ -16128,7 +16128,7 @@ F:	Documentation/devicetree/bindings/media/rockchip-rga.yaml
 F:	drivers/media/platform/rockchip/rga/
 
 ROCKCHIP VIDEO DECODER DRIVER
-M:	Ezequiel Garcia <ezequiel@collabora.com>
+M:	Ezequiel Garcia <ezequiel@vanguardiasur.com.ar>
 L:	linux-media@vger.kernel.org
 L:	linux-rockchip@lists.infradead.org
 S:	Maintained
