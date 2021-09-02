@@ -226,6 +226,12 @@ Description:    Gets the state dump occurring on a CS timeout or failure.
                 Writing an integer X discards X state dumps, so that the
                 next read would return X+1-st newest state dump.
 
+What:           /sys/kernel/debug/habanalabs/hl<n>/timeout_locked
+Date:           Sep 2021
+KernelVersion:  5.16
+Contact:        obitton@habana.ai
+Description:    Sets the command submission timeout value in seconds.
+
 What:           /sys/kernel/debug/habanalabs/hl<n>/stop_on_err
 Date:           Mar 2020
 KernelVersion:  5.6
