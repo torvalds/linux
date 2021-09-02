@@ -529,6 +529,16 @@ static inline int pci_channel_offline(struct pci_dev *pdev)
 	return (pdev->error_state != pci_channel_io_normal);
 }
 
+/*
+ * Currently in ACPI spec, for each PCI host bridge, PCI Segment
+ * Group number is limited to a 16-bit value, therefore (int)-1 is
+ * not a valid PCI domain number, and can be used as a sentinel
+ * value indicating ->domain_nr is not set by the driver (and
+ * CONFIG_PCI_DOMAINS_GENERIC=y archs will set it with
+ * pci_bus_find_domain_nr()).
+ */
+#define PCI_DOMAIN_NR_NOT_SET (-1)
+
 struct pci_host_bridge {
 	struct device	dev;
 	struct pci_bus	*bus;		/* Root bus */
@@ -536,6 +546,7 @@ struct pci_host_bridge {
 	struct pci_ops	*child_ops;
 	void		*sysdata;
 	int		busnr;
+	int		domain_nr;
 	struct list_head windows;	/* resource_entry */
 	struct list_head dma_ranges;	/* dma ranges resource list */
 	u8 (*swizzle_irq)(struct pci_dev *, u8 *); /* Platform IRQ swizzler */
