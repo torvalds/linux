@@ -1732,11 +1732,14 @@ retry:
 			/* follow __remove_mapping for reference */
 			if (!page_ref_freeze(page, 1))
 				goto keep_locked;
-			if (PageDirty(page)) {
-				page_ref_unfreeze(page, 1);
-				goto keep_locked;
-			}
-
+			/*
+			 * The page has only one reference left, which is
+			 * from the isolation. After the caller puts the
+			 * page back on lru and drops the reference, the
+			 * page will be freed anyway. It doesn't matter
+			 * which lru it goes. So we don't bother checking
+			 * PageDirty here.
+			 */
 			count_vm_event(PGLAZYFREED);
 			count_memcg_page_event(page, PGLAZYFREED);
 		} else if (!mapping || !__remove_mapping(mapping, page, true,
