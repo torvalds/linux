@@ -1444,6 +1444,7 @@
 		interrupt-names = "iep_mmu";
 		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>;
 		clock-names = "aclk", "iface";
+		power-domains = <&power RK3399_PD_IEP>;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
