@@ -440,8 +440,9 @@ static int irtoy_probe(struct usb_interface *intf,
 	if (err)
 		goto free_rcdev;
 
-	dev_info(irtoy->dev, "version: hardware %u, firmware %u, protocol %u",
-		 irtoy->hw_version, irtoy->sw_version, irtoy->proto_version);
+	dev_info(irtoy->dev, "version: hardware %u, firmware %u.%u, protocol %u",
+		 irtoy->hw_version, irtoy->sw_version / 10,
+		 irtoy->sw_version % 10, irtoy->proto_version);
 
 	if (irtoy->sw_version < MIN_FW_VERSION) {
 		dev_err(irtoy->dev, "need firmware V%02u or higher",
