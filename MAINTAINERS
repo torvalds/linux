@@ -15021,6 +15021,11 @@ S:	Maintained
 F:	include/linux/printk.h
 F:	kernel/printk/
 
+PRINTK INDEXING
+R:	Chris Down <chris@chrisdown.name>
+S:	Maintained
+F:	kernel/printk/index.c
+
 PROC FILESYSTEM
 L:	linux-kernel@vger.kernel.org
 L:	linux-fsdevel@vger.kernel.org

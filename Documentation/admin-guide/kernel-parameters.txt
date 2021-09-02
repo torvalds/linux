@@ -4198,6 +4198,15 @@
 			Format: <bool>  (1/Y/y=enable, 0/N/n=disable)
 			default: disabled
 
+	printk.console_no_auto_verbose=
+			Disable console loglevel raise on oops, panic
+			or lockdep-detected issues (only if lock debug is on).
+			With an exception to setups with low baudrate on
+			serial console, keeping this 0 is a good choice
+			in order to provide more debug information.
+			Format: <bool>
+			default: 0 (auto_verbose is enabled)
+
 	printk.devkmsg={on,off,ratelimit}
 			Control writing to /dev/kmsg.
 			on - unlimited logging to /dev/kmsg from userspace
