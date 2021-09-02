@@ -567,6 +567,8 @@ patternProperties:
     description: ITE Tech. Inc.
   "^itead,.*":
     description: ITEAD Intelligent Systems Co.Ltd
+  "^itian,.*":
+    description: ITian Corporation
   "^iwave,.*":
     description: iWave Systems Technologies Pvt. Ltd.
   "^jdi,.*":
@@ -1121,6 +1123,10 @@ patternProperties:
   "^st-ericsson,.*":
     description: ST-Ericsson
     deprecated: true
+  "^storlink,.*":
+    description: StorLink Semiconductors, Inc.
+  "^storm,.*":
+    description: Storm Semiconductor, Inc.
   "^summit,.*":
     description: Summit microelectronics
   "^sunchip,.*":
@@ -1153,6 +1159,8 @@ patternProperties:
     description: TechNexion
   "^technologic,.*":
     description: Technologic Systems
+  "^teltonika,.*":
+    description: Teltonika Networks
   "^tempo,.*":
     description: Tempo Semiconductor
   "^techstar,.*":
@@ -1175,6 +1183,8 @@ patternProperties:
     description: Tecon Microprocessor Technologies, LLC.
   "^topeet,.*":
     description: Topeet
+  "^topic,.*":
+    description: Topic Embedded Systems
   "^toppoly,.*":
     description: TPO (deprecated, use tpo)
     deprecated: true
@@ -1280,6 +1290,8 @@ patternProperties:
     description: Shenzhen whwave Electronics, Inc.
   "^wi2wi,.*":
     description: Wi2Wi, Inc.
+  "^wiligear,.*":
+    description: Wiligear, Ltd.
   "^winbond,.*":
     description: Winbond Electronics corp.
   "^winstar,.*":

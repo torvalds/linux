@@ -91,10 +91,11 @@ additionalProperties: false
 if:
   properties:
     compatible:
-      oneOf:
-        - const: ti,omap2-uart
-        - const: ti,omap3-uart
-        - const: ti,omap4-uart
+      contains:
+        enum:
+          - ti,omap2-uart
+          - ti,omap3-uart
+          - ti,omap4-uart
 
 then:
   properties:

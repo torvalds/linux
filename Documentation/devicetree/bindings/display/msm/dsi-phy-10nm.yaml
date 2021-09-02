@@ -14,9 +14,9 @@ allOf:
 
 properties:
   compatible:
-    oneOf:
-      - const: qcom,dsi-phy-10nm
-      - const: qcom,dsi-phy-10nm-8998
+    enum:
+      - qcom,dsi-phy-10nm
+      - qcom,dsi-phy-10nm-8998
 
   reg:
     items:

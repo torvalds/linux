@@ -89,7 +89,8 @@ properties:
 
     properties:
       port@0:
-        $ref: "/schemas/graph.yaml#/properties/port"
+        $ref: "/schemas/graph.yaml#/$defs/port-base"
+        unevaluatedProperties: false
         description: |
           Input endpoints of the controller.
         properties:
@@ -104,7 +105,8 @@ properties:
                   enum: [ 0, 1, 2, 3 ]
 
       port@1:
-        $ref: "/schemas/graph.yaml#/properties/port"
+        $ref: "/schemas/graph.yaml#/$defs/port-base"
+        unevaluatedProperties: false
         description: |
           Output endpoints of the controller.
         properties:
