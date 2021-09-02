@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include <string.h>
+#include <numa.h>
 
 #include "../kselftest.h"
 
@@ -13,6 +14,7 @@
 #define KSM_PAGE_COUNT_DEFAULT 10l
 #define KSM_PROT_STR_DEFAULT "rw"
 #define KSM_USE_ZERO_PAGES_DEFAULT false
+#define KSM_MERGE_ACROSS_NODES_DEFAULT true
 
 struct ksm_sysfs {
 	unsigned long max_page_sharing;
@@ -27,7 +29,8 @@ struct ksm_sysfs {
 enum ksm_test_name {
 	CHECK_KSM_MERGE,
 	CHECK_KSM_UNMERGE,
-	CHECK_KSM_ZERO_PAGE_MERGE
+	CHECK_KSM_ZERO_PAGE_MERGE,
+	CHECK_KSM_NUMA_MERGE
 };
 
 static int ksm_write_sysfs(const char *file_path, unsigned long val)
@@ -83,11 +86,12 @@ static int str_to_prot(char *prot_str)
 static void print_help(void)
 {
 	printf("usage: ksm_tests [-h] <test type> [-a prot] [-p page_count] [-l timeout]\n"
-	       "[-z use_zero_pages]\n");
+	       "[-z use_zero_pages] [-m merge_across_nodes]\n");
 
 	printf("Supported <test type>:\n"
 	       " -M (page merging)\n"
 	       " -Z (zero pages merging)\n"
+	       " -N (merging of pages in different NUMA nodes)\n"
 	       " -U (page unmerging)\n\n");
 
 	printf(" -a: specify the access protections of pages.\n"
@@ -99,6 +103,8 @@ static void print_help(void)
 	       "     Default: %d seconds\n", KSM_SCAN_LIMIT_SEC_DEFAULT);
 	printf(" -z: change use_zero_pages tunable\n"
 	       "     Default: %d\n", KSM_USE_ZERO_PAGES_DEFAULT);
+	printf(" -m: change merge_across_nodes tunable\n"
+	       "     Default: %d\n", KSM_MERGE_ACROSS_NODES_DEFAULT);
 
 	exit(0);
 }
@@ -339,6 +345,68 @@ err_out:
 	return KSFT_FAIL;
 }
 
+static int check_ksm_numa_merge(int mapping, int prot, int timeout, bool merge_across_nodes,
+				size_t page_size)
+{
+	void *numa1_map_ptr, *numa2_map_ptr;
+	struct timespec start_time;
+	int page_count = 2;
+
+	if (clock_gettime(CLOCK_MONOTONIC_RAW, &start_time)) {
+		perror("clock_gettime");
+		return KSFT_FAIL;
+	}
+
+	if (numa_available() < 0) {
+		perror("NUMA support not enabled");
+		return KSFT_SKIP;
+	}
+	if (numa_max_node() < 1) {
+		printf("At least 2 NUMA nodes must be available\n");
+		return KSFT_SKIP;
+	}
+	if (ksm_write_sysfs(KSM_FP("merge_across_nodes"), merge_across_nodes))
+		return KSFT_FAIL;
+
+	/* allocate 2 pages in 2 different NUMA nodes and fill them with the same data */
+	numa1_map_ptr = numa_alloc_onnode(page_size, 0);
+	numa2_map_ptr = numa_alloc_onnode(page_size, 1);
+	if (!numa1_map_ptr || !numa2_map_ptr) {
+		perror("numa_alloc_onnode");
+		return KSFT_FAIL;
+	}
+
+	memset(numa1_map_ptr, '*', page_size);
+	memset(numa2_map_ptr, '*', page_size);
+
+	/* try to merge the pages */
+	if (ksm_merge_pages(numa1_map_ptr, page_size, start_time, timeout) ||
+	    ksm_merge_pages(numa2_map_ptr, page_size, start_time, timeout))
+		goto err_out;
+
+       /*
+	* verify that the right number of pages are merged:
+	* 1) if merge_across_nodes was enabled, 2 duplicate pages will be merged;
+	* 2) if merge_across_nodes = 0, there must be 0 merged pages, since there is
+	*    only 1 unique page in each node and they can't be shared.
+	*/
+	if (merge_across_nodes && !assert_ksm_pages_count(page_count))
+		goto err_out;
+	else if (!merge_across_nodes && !assert_ksm_pages_count(0))
+		goto err_out;
+
+	numa_free(numa1_map_ptr, page_size);
+	numa_free(numa2_map_ptr, page_size);
+	printf("OK\n");
+	return KSFT_PASS;
+
+err_out:
+	numa_free(numa1_map_ptr, page_size);
+	numa_free(numa2_map_ptr, page_size);
+	printf("Not OK\n");
+	return KSFT_FAIL;
+}
+
 int main(int argc, char *argv[])
 {
 	int ret, opt;
@@ -349,8 +417,9 @@ int main(int argc, char *argv[])
 	struct ksm_sysfs ksm_sysfs_old;
 	int test_name = CHECK_KSM_MERGE;
 	bool use_zero_pages = KSM_USE_ZERO_PAGES_DEFAULT;
+	bool merge_across_nodes = KSM_MERGE_ACROSS_NODES_DEFAULT;
 
-	while ((opt = getopt(argc, argv, "ha:p:l:z:MUZ")) != -1) {
+	while ((opt = getopt(argc, argv, "ha:p:l:z:m:MUZN")) != -1) {
 		switch (opt) {
 		case 'a':
 			prot = str_to_prot(optarg);
@@ -378,6 +447,12 @@ int main(int argc, char *argv[])
 			else
 				use_zero_pages = 1;
 			break;
+		case 'm':
+			if (strcmp(optarg, "0") == 0)
+				merge_across_nodes = 0;
+			else
+				merge_across_nodes = 1;
+			break;
 		case 'M':
 			break;
 		case 'U':
@@ -385,6 +460,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'Z':
 			test_name = CHECK_KSM_ZERO_PAGE_MERGE;
+			break;
+		case 'N':
+			test_name = CHECK_KSM_NUMA_MERGE;
 			break;
 		default:
 			return KSFT_FAIL;
@@ -422,6 +500,10 @@ int main(int argc, char *argv[])
 	case CHECK_KSM_ZERO_PAGE_MERGE:
 		ret = check_ksm_zero_page_merge(MAP_PRIVATE | MAP_ANONYMOUS, prot, page_count,
 						ksm_scan_limit_sec, use_zero_pages, page_size);
+		break;
+	case CHECK_KSM_NUMA_MERGE:
+		ret = check_ksm_numa_merge(MAP_PRIVATE | MAP_ANONYMOUS, prot, ksm_scan_limit_sec,
+					   merge_across_nodes, page_size);
 		break;
 	}
 
