@@ -815,7 +815,7 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 	if (ib_qp->qp_type == IB_QPT_GSI && rdev->gsi_ctx.gsi_sqp) {
 		rc = bnxt_re_destroy_gsi_sqp(qp);
 		if (rc)
-			goto sh_fail;
+			return rc;
 	}
 
 	mutex_lock(&rdev->qp_lock);
@@ -826,10 +826,7 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 	ib_umem_release(qp->rumem);
 	ib_umem_release(qp->sumem);
 
-	kfree(qp);
 	return 0;
-sh_fail:
-	return rc;
 }
 
 static u8 __from_ib_qp_type(enum ib_qp_type type)
@@ -1402,27 +1399,22 @@ static bool bnxt_re_test_qp_limits(struct bnxt_re_dev *rdev,
 	return rc;
 }
 
-struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
-				struct ib_qp_init_attr *qp_init_attr,
-				struct ib_udata *udata)
+int bnxt_re_create_qp(struct ib_qp *ib_qp, struct ib_qp_init_attr *qp_init_attr,
+		      struct ib_udata *udata)
 {
+	struct ib_pd *ib_pd = ib_qp->pd;
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
 	struct bnxt_qplib_dev_attr *dev_attr = &rdev->dev_attr;
-	struct bnxt_re_qp *qp;
+	struct bnxt_re_qp *qp = container_of(ib_qp, struct bnxt_re_qp, ib_qp);
 	int rc;
 
 	rc = bnxt_re_test_qp_limits(rdev, qp_init_attr, dev_attr);
 	if (!rc) {
 		rc = -EINVAL;
-		goto exit;
+		goto fail;
 	}
 
-	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
-	if (!qp) {
-		rc = -ENOMEM;
-		goto exit;
-	}
 	qp->rdev = rdev;
 	rc = bnxt_re_init_qp_attr(qp, pd, qp_init_attr, udata);
 	if (rc)
@@ -1465,16 +1457,14 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 	mutex_unlock(&rdev->qp_lock);
 	atomic_inc(&rdev->qp_count);
 
-	return &qp->ib_qp;
+	return 0;
 qp_destroy:
 	bnxt_qplib_destroy_qp(&rdev->qplib_res, &qp->qplib_qp);
 free_umem:
 	ib_umem_release(qp->rumem);
 	ib_umem_release(qp->sumem);
 fail:
-	kfree(qp);
-exit:
-	return ERR_PTR(rc);
+	return rc;
 }
 
 static u8 __from_ib_qp_state(enum ib_qp_state state)

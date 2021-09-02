@@ -1226,7 +1226,8 @@ int mlx5_ib_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags)
 	orig_sg_length = sg.length;
 
 	cur_mtt = mtt;
-	rdma_for_each_block (mr->umem->sg_head.sgl, &biter, mr->umem->nmap,
+	rdma_for_each_block (mr->umem->sgt_append.sgt.sgl, &biter,
+			     mr->umem->sgt_append.sgt.nents,
 			     BIT(mr->page_shift)) {
 		if (cur_mtt == (void *)mtt + sg.length) {
 			dma_sync_single_for_device(ddev, sg.addr, sg.length,

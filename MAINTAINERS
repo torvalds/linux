@@ -8446,7 +8446,7 @@ F:	drivers/crypto/hisilicon/sgl.c
 F:	drivers/crypto/hisilicon/zip/
 
 HISILICON ROCE DRIVER
-M:	Lijun Ou <oulijun@huawei.com>
+M:	Wenpeng Liang <liangwenpeng@huawei.com>
 M:	Weihang Li <liweihang@huawei.com>
 L:	linux-rdma@vger.kernel.org
 S:	Maintained
