@@ -416,8 +416,7 @@ static void bcm2835_gpio_irq_handler(struct irq_desc *desc)
 		}
 	}
 	/* This should not happen, every IRQ has a bank */
-	if (i == BCM2835_NUM_IRQS)
-		BUG();
+	BUG_ON(i == BCM2835_NUM_IRQS);
 
 	chained_irq_enter(host_chip, desc);
 

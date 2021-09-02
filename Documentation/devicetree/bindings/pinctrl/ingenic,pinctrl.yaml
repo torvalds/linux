@@ -19,10 +19,10 @@ description: >
   pin within that GPIO port. For example PA0 is the first pin in GPIO port A,
   and PB31 is the last pin in GPIO port B. The JZ4730, the JZ4740, the JZ4725B,
   the X1000 and the X1830 contains 4 GPIO ports, PA to PD, for a total of 128
-  pins. The X2000 contains 5 GPIO ports, PA to PE, for a total of 160 pins.
-  The JZ4750, the JZ4755 the JZ4760, the JZ4770 and the JZ4780 contains 6 GPIO
-  ports, PA to PF, for a total of 192 pins. The JZ4775 contains 7 GPIO ports,
-  PA to PG, for a total of 224 pins.
+  pins. The X2000 and the X2100 contains 5 GPIO ports, PA to PE, for a total of
+  160 pins. The JZ4750, the JZ4755 the JZ4760, the JZ4770 and the JZ4780 contains
+  6 GPIO ports, PA to PF, for a total of 192 pins. The JZ4775 contains 7 GPIO
+  ports, PA to PG, for a total of 224 pins.
 
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>
@@ -47,6 +47,7 @@ properties:
           - ingenic,x1500-pinctrl
           - ingenic,x1830-pinctrl
           - ingenic,x2000-pinctrl
+          - ingenic,x2100-pinctrl
       - items:
           - const: ingenic,jz4760b-pinctrl
           - const: ingenic,jz4760-pinctrl
@@ -85,6 +86,7 @@ patternProperties:
           - ingenic,x1500-gpio
           - ingenic,x1830-gpio
           - ingenic,x2000-gpio
+          - ingenic,x2100-gpio
 
       reg:
         items:
