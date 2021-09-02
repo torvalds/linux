@@ -3719,4 +3719,179 @@
 				<0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+
+	spi0-hs {
+		/omit-if-no-ref/
+		spi0m0_pins_hs: spi0m0-pins {
+			rockchip,pins =
+				/* spi0_clk_m0 */
+				<0 RK_PC6 8 &pcfg_pull_up_drv_level_1>,
+				/* spi0_miso_m0 */
+				<0 RK_PC7 8 &pcfg_pull_up_drv_level_1>,
+				/* spi0_mosi_m0 */
+				<0 RK_PC0 8 &pcfg_pull_up_drv_level_1>;
+		};
+
+		/omit-if-no-ref/
+		spi0m1_pins_hs: spi0m1-pins {
+			rockchip,pins =
+				/* spi0_clk_m1 */
+				<4 RK_PA2 8 &pcfg_pull_up_drv_level_1>,
+				/* spi0_miso_m1 */
+				<4 RK_PA0 8 &pcfg_pull_up_drv_level_1>,
+				/* spi0_mosi_m1 */
+				<4 RK_PA1 8 &pcfg_pull_up_drv_level_1>;
+		};
+
+		/omit-if-no-ref/
+		spi0m2_pins_hs: spi0m2-pins {
+			rockchip,pins =
+				/* spi0_clk_m2 */
+				<1 RK_PB3 8 &pcfg_pull_up_drv_level_1>,
+				/* spi0_miso_m2 */
+				<1 RK_PB1 8 &pcfg_pull_up_drv_level_1>,
+				/* spi0_mosi_m2 */
+				<1 RK_PB2 8 &pcfg_pull_up_drv_level_1>;
+		};
+
+		/omit-if-no-ref/
+		spi0m3_pins_hs: spi0m3-pins {
+			rockchip,pins =
+				/* spi0_clk_m3 */
+				<3 RK_PD3 8 &pcfg_pull_up_drv_level_1>,
+				/* spi0_miso_m3 */
+				<3 RK_PD1 8 &pcfg_pull_up_drv_level_1>,
+				/* spi0_mosi_m3 */
+				<3 RK_PD2 8 &pcfg_pull_up_drv_level_1>;
+		};
+	};
+
+	spi1-hs {
+		/omit-if-no-ref/
+		spi1m1_pins_hs: spi1m1-pins {
+			rockchip,pins =
+				/* spi1_clk_m1 */
+				<3 RK_PC1 8 &pcfg_pull_up_drv_level_1>,
+				/* spi1_miso_m1 */
+				<3 RK_PC0 8 &pcfg_pull_up_drv_level_1>,
+				/* spi1_mosi_m1 */
+				<3 RK_PB7 8 &pcfg_pull_up_drv_level_1>;
+		};
+
+		/omit-if-no-ref/
+		spi1m2_pins_hs: spi1m2-pins {
+			rockchip,pins =
+				/* spi1_clk_m2 */
+				<1 RK_PD2 8 &pcfg_pull_up_drv_level_1>,
+				/* spi1_miso_m2 */
+				<1 RK_PD0 8 &pcfg_pull_up_drv_level_1>,
+				/* spi1_mosi_m2 */
+				<1 RK_PD1 8 &pcfg_pull_up_drv_level_1>;
+		};
+	};
+
+	spi2-hs {
+		/omit-if-no-ref/
+		spi2m0_pins_hs: spi2m0-pins {
+			rockchip,pins =
+				/* spi2_clk_m0 */
+				<1 RK_PA6 8 &pcfg_pull_up_drv_level_1>,
+				/* spi2_miso_m0 */
+				<1 RK_PA4 8 &pcfg_pull_up_drv_level_1>,
+				/* spi2_mosi_m0 */
+				<1 RK_PA5 8 &pcfg_pull_up_drv_level_1>;
+		};
+
+		/omit-if-no-ref/
+		spi2m1_pins_hs: spi2m1-pins {
+			rockchip,pins =
+				/* spi2_clk_m1 */
+				<4 RK_PA6 8 &pcfg_pull_up_drv_level_1>,
+				/* spi2_miso_m1 */
+				<4 RK_PA4 8 &pcfg_pull_up_drv_level_1>,
+				/* spi2_mosi_m1 */
+				<4 RK_PA5 8 &pcfg_pull_up_drv_level_1>;
+		};
+
+		/omit-if-no-ref/
+		spi2m2_pins_hs: spi2m2-pins {
+			rockchip,pins =
+				/* spi2_clk_m2 */
+				<0 RK_PA5 1 &pcfg_pull_up_drv_level_1>,
+				/* spi2_miso_m2 */
+				<0 RK_PB3 1 &pcfg_pull_up_drv_level_1>,
+				/* spi2_mosi_m2 */
+				<0 RK_PA6 1 &pcfg_pull_up_drv_level_1>;
+		};
+	};
+
+	spi3-hs {
+		/omit-if-no-ref/
+		spi3m1_pins_hs: spi3m1-pins {
+			rockchip,pins =
+				/* spi3_clk_m1 */
+				<4 RK_PB7 8 &pcfg_pull_up_drv_level_1>,
+				/* spi3_miso_m1 */
+				<4 RK_PB5 8 &pcfg_pull_up_drv_level_1>,
+				/* spi3_mosi_m1 */
+				<4 RK_PB6 8 &pcfg_pull_up_drv_level_1>;
+		};
+
+		/omit-if-no-ref/
+		spi3m2_pins_hs: spi3m2-pins {
+			rockchip,pins =
+				/* spi3_clk_m2 */
+				<0 RK_PD3 8 &pcfg_pull_up_drv_level_1>,
+				/* spi3_miso_m2 */
+				<0 RK_PD0 8 &pcfg_pull_up_drv_level_1>,
+				/* spi3_mosi_m2 */
+				<0 RK_PD2 8 &pcfg_pull_up_drv_level_1>;
+		};
+
+		/omit-if-no-ref/
+		spi3m3_pins_hs: spi3m3-pins {
+			rockchip,pins =
+				/* spi3_clk_m3 */
+				<3 RK_PD0 8 &pcfg_pull_up_drv_level_1>,
+				/* spi3_miso_m3 */
+				<3 RK_PC6 8 &pcfg_pull_up_drv_level_1>,
+				/* spi3_mosi_m3 */
+				<3 RK_PC7 8 &pcfg_pull_up_drv_level_1>;
+		};
+	};
+
+	spi4-hs {
+		/omit-if-no-ref/
+		spi4m0_pins_hs: spi4m0-pins {
+			rockchip,pins =
+				/* spi4_clk_m0 */
+				<1 RK_PC2 8 &pcfg_pull_up_drv_level_1>,
+				/* spi4_miso_m0 */
+				<1 RK_PC0 8 &pcfg_pull_up_drv_level_1>,
+				/* spi4_mosi_m0 */
+				<1 RK_PC1 8 &pcfg_pull_up_drv_level_1>;
+		};
+
+		/omit-if-no-ref/
+		spi4m1_pins_hs: spi4m1-pins {
+			rockchip,pins =
+				/* spi4_clk_m1 */
+				<3 RK_PA2 8 &pcfg_pull_up_drv_level_1>,
+				/* spi4_miso_m1 */
+				<3 RK_PA0 8 &pcfg_pull_up_drv_level_1>,
+				/* spi4_mosi_m1 */
+				<3 RK_PA1 8 &pcfg_pull_up_drv_level_1>;
+		};
+
+		/omit-if-no-ref/
+		spi4m2_pins_hs: spi4m2-pins {
+			rockchip,pins =
+				/* spi4_clk_m2 */
+				<1 RK_PA2 8 &pcfg_pull_up_drv_level_1>,
+				/* spi4_miso_m2 */
+				<1 RK_PA0 8 &pcfg_pull_up_drv_level_1>,
+				/* spi4_mosi_m2 */
+				<1 RK_PA1 8 &pcfg_pull_up_drv_level_1>;
+		};
+	};
 };
