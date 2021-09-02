@@ -2731,6 +2731,16 @@ int clear_page_dirty_for_io(struct page *page)
 }
 EXPORT_SYMBOL(clear_page_dirty_for_io);
 
+static void wb_inode_writeback_start(struct bdi_writeback *wb)
+{
+	atomic_inc(&wb->writeback_inodes);
+}
+
+static void wb_inode_writeback_end(struct bdi_writeback *wb)
+{
+	atomic_dec(&wb->writeback_inodes);
+}
+
 int test_clear_page_writeback(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
@@ -2752,6 +2762,9 @@ int test_clear_page_writeback(struct page *page)
 
 				dec_wb_stat(wb, WB_WRITEBACK);
 				__wb_writeout_inc(wb);
+				if (!mapping_tagged(mapping,
+						    PAGECACHE_TAG_WRITEBACK))
+					wb_inode_writeback_end(wb);
 			}
 		}
 
@@ -2794,8 +2807,13 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
 						   PAGECACHE_TAG_WRITEBACK);
 
 			xas_set_mark(&xas, PAGECACHE_TAG_WRITEBACK);
-			if (bdi->capabilities & BDI_CAP_WRITEBACK_ACCT)
-				inc_wb_stat(inode_to_wb(inode), WB_WRITEBACK);
+			if (bdi->capabilities & BDI_CAP_WRITEBACK_ACCT) {
+				struct bdi_writeback *wb = inode_to_wb(inode);
+
+				inc_wb_stat(wb, WB_WRITEBACK);
+				if (!on_wblist)
+					wb_inode_writeback_start(wb);
+			}
 
 			/*
 			 * We can come through here when swapping anonymous

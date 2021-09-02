@@ -406,6 +406,11 @@ static bool inode_do_switch_wbs(struct inode *inode,
 		inc_wb_stat(new_wb, WB_WRITEBACK);
 	}
 
+	if (mapping_tagged(mapping, PAGECACHE_TAG_WRITEBACK)) {
+		atomic_dec(&old_wb->writeback_inodes);
+		atomic_inc(&new_wb->writeback_inodes);
+	}
+
 	wb_get(new_wb);
 
 	/*
