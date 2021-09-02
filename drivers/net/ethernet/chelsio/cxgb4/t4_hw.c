@@ -2743,10 +2743,9 @@ int t4_seeprom_wp(struct adapter *adapter, bool enable)
  */
 int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 {
-	int i, ret = 0, addr;
-	int ec, sn, pn, na;
-	u8 *vpd, csum, base_val = 0;
-	unsigned int vpdr_len, kw_offset, id_len;
+	unsigned int id_len, pn_len, sn_len, na_len;
+	int id, sn, pn, na, addr, ret = 0;
+	u8 *vpd, base_val = 0;
 
 	vpd = vmalloc(VPD_LEN);
 	if (!vpd)
@@ -2765,74 +2764,52 @@ int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	if (ret < 0)
 		goto out;
 
-	if (vpd[0] != PCI_VPD_LRDT_ID_STRING) {
-		dev_err(adapter->pdev_dev, "missing VPD ID string\n");
+	ret = pci_vpd_find_id_string(vpd, VPD_LEN, &id_len);
+	if (ret < 0)
+		goto out;
+	id = ret;
+
+	ret = pci_vpd_check_csum(vpd, VPD_LEN);
+	if (ret) {
+		dev_err(adapter->pdev_dev, "VPD checksum incorrect or missing\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
-	id_len = pci_vpd_lrdt_size(vpd);
-	if (id_len > ID_LEN)
-		id_len = ID_LEN;
-
-	i = pci_vpd_find_tag(vpd, VPD_LEN, PCI_VPD_LRDT_RO_DATA);
-	if (i < 0) {
-		dev_err(adapter->pdev_dev, "missing VPD-R section\n");
-		ret = -EINVAL;
+	ret = pci_vpd_find_ro_info_keyword(vpd, VPD_LEN,
+					   PCI_VPD_RO_KEYWORD_SERIALNO, &sn_len);
+	if (ret < 0)
 		goto out;
-	}
+	sn = ret;
 
-	vpdr_len = pci_vpd_lrdt_size(&vpd[i]);
-	kw_offset = i + PCI_VPD_LRDT_TAG_SIZE;
-	if (vpdr_len + kw_offset > VPD_LEN) {
-		dev_err(adapter->pdev_dev, "bad VPD-R length %u\n", vpdr_len);
-		ret = -EINVAL;
+	ret = pci_vpd_find_ro_info_keyword(vpd, VPD_LEN,
+					   PCI_VPD_RO_KEYWORD_PARTNO, &pn_len);
+	if (ret < 0)
 		goto out;
-	}
+	pn = ret;
 
-#define FIND_VPD_KW(var, name) do { \
-	var = pci_vpd_find_info_keyword(vpd, kw_offset, vpdr_len, name); \
-	if (var < 0) { \
-		dev_err(adapter->pdev_dev, "missing VPD keyword " name "\n"); \
-		ret = -EINVAL; \
-		goto out; \
-	} \
-	var += PCI_VPD_INFO_FLD_HDR_SIZE; \
-} while (0)
-
-	FIND_VPD_KW(i, "RV");
-	for (csum = 0; i >= 0; i--)
-		csum += vpd[i];
-
-	if (csum) {
-		dev_err(adapter->pdev_dev,
-			"corrupted VPD EEPROM, actual csum %u\n", csum);
-		ret = -EINVAL;
+	ret = pci_vpd_find_ro_info_keyword(vpd, VPD_LEN, "NA", &na_len);
+	if (ret < 0)
 		goto out;
-	}
+	na = ret;
 
-	FIND_VPD_KW(ec, "EC");
-	FIND_VPD_KW(sn, "SN");
-	FIND_VPD_KW(pn, "PN");
-	FIND_VPD_KW(na, "NA");
-#undef FIND_VPD_KW
-
-	memcpy(p->id, vpd + PCI_VPD_LRDT_TAG_SIZE, id_len);
+	memcpy(p->id, vpd + id, min_t(int, id_len, ID_LEN));
 	strim(p->id);
-	memcpy(p->ec, vpd + ec, EC_LEN);
-	strim(p->ec);
-	i = pci_vpd_info_field_size(vpd + sn - PCI_VPD_INFO_FLD_HDR_SIZE);
-	memcpy(p->sn, vpd + sn, min(i, SERNUM_LEN));
+	memcpy(p->sn, vpd + sn, min_t(int, sn_len, SERNUM_LEN));
 	strim(p->sn);
-	i = pci_vpd_info_field_size(vpd + pn - PCI_VPD_INFO_FLD_HDR_SIZE);
-	memcpy(p->pn, vpd + pn, min(i, PN_LEN));
+	memcpy(p->pn, vpd + pn, min_t(int, pn_len, PN_LEN));
 	strim(p->pn);
-	memcpy(p->na, vpd + na, min(i, MACADDR_LEN));
+	memcpy(p->na, vpd + na, min_t(int, na_len, MACADDR_LEN));
 	strim((char *)p->na);
 
 out:
 	vfree(vpd);
-	return ret < 0 ? ret : 0;
+	if (ret < 0) {
+		dev_err(adapter->pdev_dev, "error reading VPD\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 /**
