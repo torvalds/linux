@@ -1072,6 +1072,8 @@ static void enqueue_huge_page(struct hstate *h, struct page *page)
 	int nid = page_to_nid(page);
 
 	lockdep_assert_held(&hugetlb_lock);
+	VM_BUG_ON_PAGE(page_count(page), page);
+
 	list_move(&page->lru, &h->hugepage_freelists[nid]);
 	h->free_huge_pages++;
 	h->free_huge_pages_node[nid]++;
@@ -1399,11 +1401,20 @@ static void add_hugetlb_page(struct hstate *h, struct page *page,
 	SetHPageVmemmapOptimized(page);
 
 	/*
-	 * This page is now managed by the hugetlb allocator and has
-	 * no users -- drop the last reference.
+	 * This page is about to be managed by the hugetlb allocator and
+	 * should have no users.  Drop our reference, and check for others
+	 * just in case.
 	 */
 	zeroed = put_page_testzero(page);
-	VM_BUG_ON_PAGE(!zeroed, page);
+	if (!zeroed)
+		/*
+		 * It is VERY unlikely soneone else has taken a ref on
+		 * the page.  In this case, we simply return as the
+		 * hugetlb destructor (free_huge_page) will be called
+		 * when this other ref is dropped.
+		 */
+		return;
+
 	arch_clear_hugepage_flags(page);
 	enqueue_huge_page(h, page);
 }
@@ -2017,9 +2028,10 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
  * Allocates a fresh surplus page from the page allocator.
  */
 static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
-		int nid, nodemask_t *nmask)
+		int nid, nodemask_t *nmask, bool zero_ref)
 {
 	struct page *page = NULL;
+	bool retry = false;
 
 	if (hstate_is_gigantic(h))
 		return NULL;
@@ -2029,6 +2041,7 @@ static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
 		goto out_unlock;
 	spin_unlock_irq(&hugetlb_lock);
 
+retry:
 	page = alloc_fresh_huge_page(h, gfp_mask, nid, nmask, NULL);
 	if (!page)
 		return NULL;
@@ -2046,10 +2059,34 @@ static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
 		spin_unlock_irq(&hugetlb_lock);
 		put_page(page);
 		return NULL;
-	} else {
-		h->surplus_huge_pages++;
-		h->surplus_huge_pages_node[page_to_nid(page)]++;
 	}
+
+	if (zero_ref) {
+		/*
+		 * Caller requires a page with zero ref count.
+		 * We will drop ref count here.  If someone else is holding
+		 * a ref, the page will be freed when they drop it.  Abuse
+		 * temporary page flag to accomplish this.
+		 */
+		SetHPageTemporary(page);
+		if (!put_page_testzero(page)) {
+			/*
+			 * Unexpected inflated ref count on freshly allocated
+			 * huge.  Retry once.
+			 */
+			pr_info("HugeTLB unexpected inflated ref count on freshly allocated page\n");
+			spin_unlock_irq(&hugetlb_lock);
+			if (retry)
+				return NULL;
+
+			retry = true;
+			goto retry;
+		}
+		ClearHPageTemporary(page);
+	}
+
+	h->surplus_huge_pages++;
+	h->surplus_huge_pages_node[page_to_nid(page)]++;
 
 out_unlock:
 	spin_unlock_irq(&hugetlb_lock);
@@ -2092,7 +2129,7 @@ struct page *alloc_buddy_huge_page_with_mpol(struct hstate *h,
 	nodemask_t *nodemask;
 
 	nid = huge_node(vma, addr, gfp_mask, &mpol, &nodemask);
-	page = alloc_surplus_huge_page(h, gfp_mask, nid, nodemask);
+	page = alloc_surplus_huge_page(h, gfp_mask, nid, nodemask, false);
 	mpol_cond_put(mpol);
 
 	return page;
@@ -2164,7 +2201,7 @@ retry:
 	spin_unlock_irq(&hugetlb_lock);
 	for (i = 0; i < needed; i++) {
 		page = alloc_surplus_huge_page(h, htlb_alloc_mask(h),
-				NUMA_NO_NODE, NULL);
+				NUMA_NO_NODE, NULL, true);
 		if (!page) {
 			alloc_ok = false;
 			break;
@@ -2205,24 +2242,20 @@ retry:
 
 	/* Free the needed pages to the hugetlb pool */
 	list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
-		int zeroed;
-
 		if ((--needed) < 0)
 			break;
-		/*
-		 * This page is now managed by the hugetlb allocator and has
-		 * no users -- drop the buddy allocator's reference.
-		 */
-		zeroed = put_page_testzero(page);
-		VM_BUG_ON_PAGE(!zeroed, page);
+		/* Add the page to the hugetlb allocator */
 		enqueue_huge_page(h, page);
 	}
 free:
 	spin_unlock_irq(&hugetlb_lock);
 
-	/* Free unnecessary surplus pages to the buddy allocator */
+	/*
+	 * Free unnecessary surplus pages to the buddy allocator.
+	 * Pages have no ref count, call free_huge_page directly.
+	 */
 	list_for_each_entry_safe(page, tmp, &surplus_list, lru)
-		put_page(page);
+		free_huge_page(page);
 	spin_lock_irq(&hugetlb_lock);
 
 	return ret;
@@ -2531,6 +2564,7 @@ static int alloc_and_dissolve_huge_page(struct hstate *h, struct page *old_page,
 {
 	gfp_t gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
 	int nid = page_to_nid(old_page);
+	bool alloc_retry = false;
 	struct page *new_page;
 	int ret = 0;
 
@@ -2541,9 +2575,30 @@ static int alloc_and_dissolve_huge_page(struct hstate *h, struct page *old_page,
 	 * the pool.  This simplifies and let us do most of the processing
 	 * under the lock.
 	 */
+alloc_retry:
 	new_page = alloc_buddy_huge_page(h, gfp_mask, nid, NULL, NULL);
 	if (!new_page)
 		return -ENOMEM;
+	/*
+	 * If all goes well, this page will be directly added to the free
+	 * list in the pool.  For this the ref count needs to be zero.
+	 * Attempt to drop now, and retry once if needed.  It is VERY
+	 * unlikely there is another ref on the page.
+	 *
+	 * If someone else has a reference to the page, it will be freed
+	 * when they drop their ref.  Abuse temporary page flag to accomplish
+	 * this.  Retry once if there is an inflated ref count.
+	 */
+	SetHPageTemporary(new_page);
+	if (!put_page_testzero(new_page)) {
+		if (alloc_retry)
+			return -EBUSY;
+
+		alloc_retry = true;
+		goto alloc_retry;
+	}
+	ClearHPageTemporary(new_page);
+
 	__prep_new_huge_page(h, new_page);
 
 retry:
@@ -2583,11 +2638,10 @@ retry:
 		remove_hugetlb_page(h, old_page, false);
 
 		/*
-		 * Reference count trick is needed because allocator gives us
-		 * referenced page but the pool requires pages with 0 refcount.
+		 * Ref count on new page is already zero as it was dropped
+		 * earlier.  It can be directly added to the pool free list.
 		 */
 		__prep_account_new_huge_page(h, nid);
-		page_ref_dec(new_page);
 		enqueue_huge_page(h, new_page);
 
 		/*
@@ -2601,6 +2655,8 @@ retry:
 
 free_new:
 	spin_unlock_irq(&hugetlb_lock);
+	/* Page has a zero ref count, but needs a ref to be freed */
+	set_page_refcounted(new_page);
 	update_and_free_page(h, new_page, false);
 
 	return ret;
