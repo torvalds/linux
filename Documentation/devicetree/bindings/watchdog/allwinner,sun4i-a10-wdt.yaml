@@ -30,6 +30,10 @@ properties:
       - items:
           - const: allwinner,suniv-f1c100s-wdt
           - const: allwinner,sun4i-a10-wdt
+      - const: allwinner,sun20i-d1-wdt
+      - items:
+          - const: allwinner,sun20i-d1-wdt-reset
+          - const: allwinner,sun20i-d1-wdt
 
   reg:
     maxItems: 1
@@ -62,6 +66,8 @@ if:
     compatible:
       contains:
         enum:
+          - allwinner,sun20i-d1-wdt
+          - allwinner,sun20i-d1-wdt-reset
           - allwinner,sun50i-r329-wdt
           - allwinner,sun50i-r329-wdt-reset
 
