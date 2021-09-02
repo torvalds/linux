@@ -3065,7 +3065,7 @@ void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s)
 {
 	int i;
 
-	for (i = 0; i < priv->max_nch; i++) {
+	for (i = 0; i < priv->stats_nch; i++) {
 		struct mlx5e_channel_stats *channel_stats = &priv->channel_stats[i];
 		struct mlx5e_rq_stats *xskrq_stats = &channel_stats->xskrq;
 		struct mlx5e_rq_stats *rq_stats = &channel_stats->rq;
@@ -4186,8 +4186,6 @@ void mlx5e_build_nic_params(struct mlx5e_priv *priv, struct mlx5e_xsk *xsk, u16 
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u8 rx_cq_period_mode;
 
-	priv->max_nch = mlx5e_calc_max_nch(priv, priv->profile);
-
 	params->sw_mtu = mtu;
 	params->hard_mtu = MLX5E_ETH_HARD_MTU;
 	params->num_channels = min_t(unsigned int, MLX5E_MAX_NUM_CHANNELS / 2,
@@ -4682,8 +4680,35 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 	.rx_ptp_support    = true,
 };
 
+static unsigned int
+mlx5e_calc_max_nch(struct mlx5_core_dev *mdev, struct net_device *netdev,
+		   const struct mlx5e_profile *profile)
+
+{
+	unsigned int max_nch, tmp;
+
+	/* core resources */
+	max_nch = mlx5e_get_max_num_channels(mdev);
+
+	/* netdev rx queues */
+	tmp = netdev->num_rx_queues / max_t(u8, profile->rq_groups, 1);
+	max_nch = min_t(unsigned int, max_nch, tmp);
+
+	/* netdev tx queues */
+	tmp = netdev->num_tx_queues;
+	if (mlx5_qos_is_supported(mdev))
+		tmp -= mlx5e_qos_max_leaf_nodes(mdev);
+	if (MLX5_CAP_GEN(mdev, ts_cqe_to_dest_cqn))
+		tmp -= profile->max_tc;
+	tmp = tmp / profile->max_tc;
+	max_nch = min_t(unsigned int, max_nch, tmp);
+
+	return max_nch;
+}
+
 /* mlx5e generic netdev management API (move to en_common.c) */
 int mlx5e_priv_init(struct mlx5e_priv *priv,
+		    const struct mlx5e_profile *profile,
 		    struct net_device *netdev,
 		    struct mlx5_core_dev *mdev)
 {
@@ -4691,6 +4716,8 @@ int mlx5e_priv_init(struct mlx5e_priv *priv,
 	priv->mdev        = mdev;
 	priv->netdev      = netdev;
 	priv->msglevel    = MLX5E_MSG_LEVEL;
+	priv->max_nch     = mlx5e_calc_max_nch(mdev, netdev, profile);
+	priv->stats_nch   = priv->max_nch;
 	priv->max_opened_tc = 1;
 
 	if (!alloc_cpumask_var(&priv->scratchpad.cpumask, GFP_KERNEL))
@@ -4734,7 +4761,8 @@ void mlx5e_priv_cleanup(struct mlx5e_priv *priv)
 }
 
 struct net_device *
-mlx5e_create_netdev(struct mlx5_core_dev *mdev, unsigned int txqs, unsigned int rxqs)
+mlx5e_create_netdev(struct mlx5_core_dev *mdev, const struct mlx5e_profile *profile,
+		    unsigned int txqs, unsigned int rxqs)
 {
 	struct net_device *netdev;
 	int err;
@@ -4745,7 +4773,7 @@ mlx5e_create_netdev(struct mlx5_core_dev *mdev, unsigned int txqs, unsigned int 
 		return NULL;
 	}
 
-	err = mlx5e_priv_init(netdev_priv(netdev), netdev, mdev);
+	err = mlx5e_priv_init(netdev_priv(netdev), profile, netdev, mdev);
 	if (err) {
 		mlx5_core_err(mdev, "mlx5e_priv_init failed, err=%d\n", err);
 		goto err_free_netdev;
@@ -4787,7 +4815,7 @@ int mlx5e_attach_netdev(struct mlx5e_priv *priv)
 	clear_bit(MLX5E_STATE_DESTROYING, &priv->state);
 
 	/* max number of channels may have changed */
-	max_nch = mlx5e_get_max_num_channels(priv->mdev);
+	max_nch = mlx5e_calc_max_nch(priv->mdev, priv->netdev, profile);
 	if (priv->channels.params.num_channels > max_nch) {
 		mlx5_core_warn(priv->mdev, "MLX5E: Reducing number of channels to %d\n", max_nch);
 		/* Reducing the number of channels - RXFH has to be reset, and
@@ -4796,6 +4824,13 @@ int mlx5e_attach_netdev(struct mlx5e_priv *priv)
 		priv->netdev->priv_flags &= ~IFF_RXFH_CONFIGURED;
 		priv->channels.params.num_channels = max_nch;
 	}
+	if (max_nch != priv->max_nch) {
+		mlx5_core_warn(priv->mdev,
+			       "MLX5E: Updating max number of channels from %u to %u\n",
+			       priv->max_nch, max_nch);
+		priv->max_nch = max_nch;
+	}
+
 	/* 1. Set the real number of queues in the kernel the first time.
 	 * 2. Set our default XPS cpumask.
 	 * 3. Build the RQT.
@@ -4860,7 +4895,7 @@ mlx5e_netdev_attach_profile(struct net_device *netdev, struct mlx5_core_dev *mde
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	int err;
 
-	err = mlx5e_priv_init(priv, netdev, mdev);
+	err = mlx5e_priv_init(priv, new_profile, netdev, mdev);
 	if (err) {
 		mlx5_core_err(mdev, "mlx5e_priv_init failed, err=%d\n", err);
 		return err;
@@ -4886,19 +4921,11 @@ priv_cleanup:
 int mlx5e_netdev_change_profile(struct mlx5e_priv *priv,
 				const struct mlx5e_profile *new_profile, void *new_ppriv)
 {
-	unsigned int new_max_nch = mlx5e_calc_max_nch(priv, new_profile);
 	const struct mlx5e_profile *orig_profile = priv->profile;
 	struct net_device *netdev = priv->netdev;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	void *orig_ppriv = priv->ppriv;
 	int err, rollback_err;
-
-	/* sanity */
-	if (new_max_nch != priv->max_nch) {
-		netdev_warn(netdev, "%s: Replacing profile with different max channels\n",
-			    __func__);
-		return -EINVAL;
-	}
 
 	/* cleanup old profile */
 	mlx5e_detach_netdev(priv);
@@ -4995,7 +5022,7 @@ static int mlx5e_probe(struct auxiliary_device *adev,
 	nch = mlx5e_get_max_num_channels(mdev);
 	txqs = nch * profile->max_tc + ptp_txqs + qos_sqs;
 	rxqs = nch * profile->rq_groups;
-	netdev = mlx5e_create_netdev(mdev, txqs, rxqs);
+	netdev = mlx5e_create_netdev(mdev, profile, txqs, rxqs);
 	if (!netdev) {
 		mlx5_core_err(mdev, "mlx5e_create_netdev failed\n");
 		return -ENOMEM;
