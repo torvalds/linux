@@ -838,7 +838,7 @@
 		status = "disabled";
 	};
 
-	rkvdec0_mmu: iommu@0xfdc38700 {
+	rkvdec0_mmu: iommu@fdc38700 {
 		compatible = "rockchip,iommu-v2";
 		reg = <0x0 0xfdc38700 0x0 0x40>, <0x0 0xfdc38740 0x0 0x40>;
 		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
@@ -852,7 +852,7 @@
 		status = "disabled";
 	};
 
-	rkvdec1_mmu: iommu@0xfdc48700 {
+	rkvdec1_mmu: iommu@fdc48700 {
 		compatible = "rockchip,iommu-v2";
 		reg = <0x0 0xfdc48700 0x0 0x40>, <0x0 0xfdc48740 0x0 0x40>;
 		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
