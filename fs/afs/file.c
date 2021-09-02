@@ -25,6 +25,9 @@ static int afs_releasepage(struct page *page, gfp_t gfp_flags);
 
 static void afs_readahead(struct readahead_control *ractl);
 static ssize_t afs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter);
+static void afs_vm_open(struct vm_area_struct *area);
+static void afs_vm_close(struct vm_area_struct *area);
+static vm_fault_t afs_vm_map_pages(struct vm_fault *vmf, pgoff_t start_pgoff, pgoff_t end_pgoff);
 
 const struct file_operations afs_file_operations = {
 	.open		= afs_open,
@@ -60,8 +63,10 @@ const struct address_space_operations afs_fs_aops = {
 };
 
 static const struct vm_operations_struct afs_vm_ops = {
+	.open		= afs_vm_open,
+	.close		= afs_vm_close,
 	.fault		= filemap_fault,
-	.map_pages	= filemap_map_pages,
+	.map_pages	= afs_vm_map_pages,
 	.page_mkwrite	= afs_page_mkwrite,
 };
 
@@ -492,17 +497,77 @@ static int afs_releasepage(struct page *page, gfp_t gfp_flags)
 	return 1;
 }
 
+static void afs_add_open_mmap(struct afs_vnode *vnode)
+{
+	if (atomic_inc_return(&vnode->cb_nr_mmap) == 1) {
+		down_write(&vnode->volume->cell->fs_open_mmaps_lock);
+
+		list_add_tail(&vnode->cb_mmap_link,
+			      &vnode->volume->cell->fs_open_mmaps);
+
+		up_write(&vnode->volume->cell->fs_open_mmaps_lock);
+	}
+}
+
+static void afs_drop_open_mmap(struct afs_vnode *vnode)
+{
+	if (!atomic_dec_and_test(&vnode->cb_nr_mmap))
+		return;
+
+	down_write(&vnode->volume->cell->fs_open_mmaps_lock);
+
+	if (atomic_read(&vnode->cb_nr_mmap) == 0)
+		list_del_init(&vnode->cb_mmap_link);
+
+	up_write(&vnode->volume->cell->fs_open_mmaps_lock);
+	flush_work(&vnode->cb_work);
+}
+
 /*
  * Handle setting up a memory mapping on an AFS file.
  */
 static int afs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	int ret;
+
+	afs_add_open_mmap(vnode);
 
 	ret = generic_file_mmap(file, vma);
 	if (ret == 0)
 		vma->vm_ops = &afs_vm_ops;
+	else
+		afs_drop_open_mmap(vnode);
 	return ret;
+}
+
+static void afs_vm_open(struct vm_area_struct *vma)
+{
+	afs_add_open_mmap(AFS_FS_I(file_inode(vma->vm_file)));
+}
+
+static void afs_vm_close(struct vm_area_struct *vma)
+{
+	afs_drop_open_mmap(AFS_FS_I(file_inode(vma->vm_file)));
+}
+
+static vm_fault_t afs_vm_map_pages(struct vm_fault *vmf, pgoff_t start_pgoff, pgoff_t end_pgoff)
+{
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(vmf->vma->vm_file));
+	struct afs_file *af = vmf->vma->vm_file->private_data;
+
+	switch (afs_validate(vnode, af->key)) {
+	case 0:
+		return filemap_map_pages(vmf, start_pgoff, end_pgoff);
+	case -ENOMEM:
+		return VM_FAULT_OOM;
+	case -EINTR:
+	case -ERESTARTSYS:
+		return VM_FAULT_RETRY;
+	case -ESTALE:
+	default:
+		return VM_FAULT_SIGBUS;
+	}
 }
 
 static ssize_t afs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
