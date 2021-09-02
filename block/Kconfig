@@ -29,35 +29,15 @@ if BLOCK
 config BLK_RQ_ALLOC_TIME
 	bool
 
-config BLK_SCSI_REQUEST
-	bool
-
 config BLK_CGROUP_RWSTAT
 	bool
 
-config BLK_DEV_BSG
-	bool "Block layer SG support v4"
-	default y
-	select BLK_SCSI_REQUEST
-	help
-	  Saying Y here will enable generic SG (SCSI generic) v4 support
-	  for any block device.
-
-	  Unlike SG v3 (aka block/scsi_ioctl.c drivers/scsi/sg.c), SG v4
-	  can handle complicated SCSI commands: tagged variable length cdbs
-	  with bidirectional data transfers and generic request/response
-	  protocols (e.g. Task Management Functions and SMP in Serial
-	  Attached SCSI).
-
-	  This option is required by recent UDEV versions to properly
-	  access device serial numbers, etc.
-
-	  If unsure, say Y.
+config BLK_DEV_BSG_COMMON
+	tristate
 
 config BLK_DEV_BSGLIB
 	bool "Block layer SG support v4 helper lib"
-	select BLK_DEV_BSG
-	select BLK_SCSI_REQUEST
+	select BLK_DEV_BSG_COMMON
 	help
 	  Subsystems will normally enable this if needed. Users will not
 	  normally need to manually enable this.

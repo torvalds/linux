@@ -17,7 +17,6 @@
 #include <linux/bio.h>
 #include <linux/stringify.h>
 #include <linux/gfp.h>
-#include <linux/bsg.h>
 #include <linux/smp.h>
 #include <linux/rcupdate.h>
 #include <linux/percpu-refcount.h>
@@ -27,14 +26,11 @@
 #include <linux/sbitmap.h>
 
 struct module;
-struct scsi_ioctl_command;
-
 struct request_queue;
 struct elevator_queue;
 struct blk_trace;
 struct request;
 struct sg_io_hdr;
-struct bsg_job;
 struct blkcg_gq;
 struct blk_flush_queue;
 struct pr_ops;
@@ -274,9 +270,6 @@ enum blk_queue_state {
 #define BLK_TAG_ALLOC_FIFO 0 /* allocate starting from 0 */
 #define BLK_TAG_ALLOC_RR 1 /* allocate starting from last allocated tag */
 
-#define BLK_SCSI_MAX_CMDS	(256)
-#define BLK_SCSI_CMD_PER_LONG	(BLK_SCSI_MAX_CMDS / (sizeof(long) * 8))
-
 /*
  * Zoned block device models (zoned limit).
  *
@@ -505,11 +498,6 @@ struct request_queue {
 	unsigned int		max_active_zones;
 #endif /* CONFIG_BLK_DEV_ZONED */
 
-	/*
-	 * sg stuff
-	 */
-	unsigned int		sg_timeout;
-	unsigned int		sg_reserved_size;
 	int			node;
 	struct mutex		debugfs_mutex;
 #ifdef CONFIG_BLK_DEV_IO_TRACE
@@ -535,10 +523,6 @@ struct request_queue {
 	spinlock_t		unused_hctx_lock;
 
 	int			mq_freeze_depth;
-
-#if defined(CONFIG_BLK_DEV_BSG)
-	struct bsg_class_device bsg_dev;
-#endif
 
 #ifdef CONFIG_BLK_DEV_THROTTLING
 	/* Throttle data */
@@ -885,16 +869,6 @@ extern blk_status_t blk_insert_cloned_request(struct request_queue *q,
 				     struct request *rq);
 int blk_rq_append_bio(struct request *rq, struct bio *bio);
 extern void blk_queue_split(struct bio **);
-extern int scsi_verify_blk_ioctl(struct block_device *, unsigned int);
-extern int scsi_cmd_blk_ioctl(struct block_device *, fmode_t,
-			      unsigned int, void __user *);
-extern int scsi_cmd_ioctl(struct request_queue *, struct gendisk *, fmode_t,
-			  unsigned int, void __user *);
-extern int sg_scsi_ioctl(struct request_queue *, struct gendisk *, fmode_t,
-			 struct scsi_ioctl_command __user *);
-extern int get_sg_io_hdr(struct sg_io_hdr *hdr, const void __user *argp);
-extern int put_sg_io_hdr(const struct sg_io_hdr *hdr, void __user *argp);
-
 extern int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags);
 extern void blk_queue_exit(struct request_queue *q);
 extern void blk_sync_queue(struct request_queue *q);
@@ -1347,8 +1321,6 @@ static inline int sb_issue_zeroout(struct super_block *sb, sector_t block,
 				    gfp_mask, 0);
 }
 
-extern int blk_verify_command(unsigned char *cmd, fmode_t mode);
-
 static inline bool bdev_is_partition(struct block_device *bdev)
 {
 	return bdev->bd_partno;
@@ -1375,6 +1347,11 @@ static inline unsigned long queue_virt_boundary(const struct request_queue *q)
 static inline unsigned int queue_max_sectors(const struct request_queue *q)
 {
 	return q->limits.max_sectors;
+}
+
+static inline unsigned int queue_max_bytes(struct request_queue *q)
+{
+	return min_t(unsigned int, queue_max_sectors(q), INT_MAX >> 9) << 9;
 }
 
 static inline unsigned int queue_max_hw_sectors(const struct request_queue *q)

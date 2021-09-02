@@ -237,8 +237,9 @@ static int sg_allow_access(struct file *filp, unsigned char *cmd)
 
 	if (sfp->parentdp->device->type == TYPE_SCANNER)
 		return 0;
-
-	return blk_verify_command(cmd, filp->f_mode);
+	if (!scsi_cmd_allowed(cmd, filp->f_mode))
+		return -EPERM;
+	return 0;
 }
 
 static int
@@ -1107,7 +1108,7 @@ sg_ioctl_common(struct file *filp, Sg_device *sdp, Sg_fd *sfp,
 	case SCSI_IOCTL_SEND_COMMAND:
 		if (atomic_read(&sdp->detaching))
 			return -ENODEV;
-		return sg_scsi_ioctl(sdp->device->request_queue, NULL, filp->f_mode, p);
+		return scsi_ioctl(sdp->device, NULL, filp->f_mode, cmd_in, p);
 	case SG_SET_DEBUG:
 		result = get_user(val, ip);
 		if (result)
@@ -1163,28 +1164,8 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 	ret = sg_ioctl_common(filp, sdp, sfp, cmd_in, p);
 	if (ret != -ENOIOCTLCMD)
 		return ret;
-
-	return scsi_ioctl(sdp->device, cmd_in, p);
+	return scsi_ioctl(sdp->device, NULL, filp->f_mode, cmd_in, p);
 }
-
-#ifdef CONFIG_COMPAT
-static long sg_compat_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
-{
-	void __user *p = compat_ptr(arg);
-	Sg_device *sdp;
-	Sg_fd *sfp;
-	int ret;
-
-	if ((!(sfp = (Sg_fd *) filp->private_data)) || (!(sdp = sfp->parentdp)))
-		return -ENXIO;
-
-	ret = sg_ioctl_common(filp, sdp, sfp, cmd_in, p);
-	if (ret != -ENOIOCTLCMD)
-		return ret;
-
-	return scsi_compat_ioctl(sdp->device, cmd_in, p);
-}
-#endif
 
 static __poll_t
 sg_poll(struct file *filp, poll_table * wait)
@@ -1439,9 +1420,7 @@ static const struct file_operations sg_fops = {
 	.write = sg_write,
 	.poll = sg_poll,
 	.unlocked_ioctl = sg_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = sg_compat_ioctl,
-#endif
+	.compat_ioctl = compat_ptr_ioctl,
 	.open = sg_open,
 	.mmap = sg_mmap,
 	.release = sg_release,
