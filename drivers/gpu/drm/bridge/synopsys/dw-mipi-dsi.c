@@ -832,13 +832,13 @@ static void dw_mipi_dsi_dphy_enable(struct dw_mipi_dsi *dsi)
 	ret = readl_poll_timeout(dsi->base + DSI_PHY_STATUS, val,
 				 val & PHY_LOCK, 1000, PHY_STATUS_TIMEOUT_US);
 	if (ret)
-		DRM_DEBUG_DRIVER("failed to wait phy lock state\n");
+		DRM_ERROR("failed to wait phy lock state\n");
 
 	ret = readl_poll_timeout(dsi->base + DSI_PHY_STATUS,
 				 val, val & PHY_STOP_STATE_CLK_LANE, 1000,
 				 PHY_STATUS_TIMEOUT_US);
 	if (ret)
-		DRM_DEBUG_DRIVER("failed to wait phy clk lane stop state\n");
+		DRM_ERROR("failed to wait phy clk lane stop state\n");
 }
 
 static void dw_mipi_dsi_clear_err(struct dw_mipi_dsi *dsi)
@@ -936,18 +936,15 @@ static void dw_mipi_dsi_mode_set(struct dw_mipi_dsi *dsi,
 	if (ret)
 		DRM_DEBUG_DRIVER("Phy init() failed\n");
 
+	if (phy_ops->power_on)
+		phy_ops->power_on(dsi->plat_data->priv_data);
+
 	dw_mipi_dsi_dphy_enable(dsi);
 
 	dw_mipi_dsi_wait_for_two_frames(adjusted_mode);
 
 	/* Switch to cmd mode for panel-bridge pre_enable & panel prepare */
 	dw_mipi_dsi_set_mode(dsi, 0);
-
-	if (phy_ops->power_on)
-		phy_ops->power_on(dsi->plat_data->priv_data);
-
-	DRM_DEV_INFO(dsi->dev, "final DSI-Link bandwidth: %u x %d Mbps\n",
-		     dsi->lane_mbps, dsi->slave ? dsi->lanes * 2 : dsi->lanes);
 }
 
 static void dw_mipi_dsi_bridge_mode_set(struct drm_bridge *bridge,
@@ -959,6 +956,9 @@ static void dw_mipi_dsi_bridge_mode_set(struct drm_bridge *bridge,
 	dw_mipi_dsi_mode_set(dsi, adjusted_mode);
 	if (dsi->slave)
 		dw_mipi_dsi_mode_set(dsi->slave, adjusted_mode);
+
+	DRM_DEV_INFO(dsi->dev, "final DSI-Link bandwidth: %u x %d Mbps\n",
+		     dsi->lane_mbps, dsi->slave ? dsi->lanes * 2 : dsi->lanes);
 }
 
 static void dw_mipi_dsi_bridge_enable(struct drm_bridge *bridge)
