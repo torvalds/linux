@@ -2693,7 +2693,7 @@ static DEFINE_RWLOCK(related_thread_group_lock);
 
 static inline
 void update_best_cluster(struct walt_related_thread_group *grp,
-				   u64 demand, bool boost)
+				   u64 combined_demand, bool boost)
 {
 	if (boost) {
 		/*
@@ -2705,15 +2705,18 @@ void update_best_cluster(struct walt_related_thread_group *grp,
 	}
 
 	if (is_suh_max())
-		demand = sched_group_upmigrate;
+		combined_demand = sched_group_upmigrate;
 
 	if (!grp->skip_min) {
-		if (demand >= sched_group_upmigrate)
+		if (combined_demand >= sched_group_upmigrate)
 			grp->skip_min = true;
 		return;
 	}
-	if (demand < sched_group_downmigrate) {
-		if (!sysctl_sched_coloc_downmigrate_ns) {
+	if (combined_demand < sched_group_downmigrate) {
+		if (!sysctl_sched_coloc_downmigrate_ns ||
+				(grp->last_update - grp->start_ktime_ts) <
+				sysctl_sched_hyst_min_coloc_ns) {
+			grp->downmigrate_ts = 0;
 			grp->skip_min = false;
 			return;
 		}
@@ -2780,13 +2783,15 @@ static void _set_preferred_cluster(struct walt_related_thread_group *grp)
 
 	grp->last_update = wallclock;
 	update_best_cluster(grp, combined_demand, group_boost);
-	trace_sched_set_preferred_cluster(grp, combined_demand);
 
 out:
+	trace_sched_set_preferred_cluster(grp, combined_demand, prev_skip_min);
 	if (grp->id == DEFAULT_CGROUP_COLOC_ID
 			&& grp->skip_min != prev_skip_min) {
 		if (grp->skip_min)
-			grp->start_ts = sched_clock();
+			grp->start_ktime_ts = wallclock;
+		else
+			grp->start_ktime_ts = 0;
 		sched_update_hyst_times();
 	}
 }
@@ -3297,12 +3302,12 @@ bool is_rtgb_active(void)
 u64 get_rtgb_active_time(void)
 {
 	struct walt_related_thread_group *grp;
-	u64 now = sched_clock();
+	u64 now = walt_ktime_get_ns();
 
 	grp = lookup_related_thread_group(DEFAULT_CGROUP_COLOC_ID);
 
-	if (grp && grp->skip_min && grp->start_ts)
-		return now - grp->start_ts;
+	if (grp && grp->skip_min && grp->start_ktime_ts)
+		return now - grp->start_ktime_ts;
 
 	return 0;
 }

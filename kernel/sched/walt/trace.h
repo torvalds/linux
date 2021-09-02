@@ -300,25 +300,39 @@ extern const char *migrate_type_names[];
 
 TRACE_EVENT(sched_set_preferred_cluster,
 
-	TP_PROTO(struct walt_related_thread_group *grp, u64 total_demand),
+	TP_PROTO(struct walt_related_thread_group *grp, u64 total_demand,
+		bool prev_skip_min),
 
-	TP_ARGS(grp, total_demand),
+	TP_ARGS(grp, total_demand, prev_skip_min),
 
 	TP_STRUCT__entry(
 		__field(int,		id)
 		__field(u64,		total_demand)
 		__field(bool,		skip_min)
+		__field(bool,		prev_skip_min)
+		__field(u64,		start_ktime_ts)
+		__field(u64,		last_update)
+		__field(unsigned int,	sysctl_sched_hyst_min_coloc_ns)
+		__field(u64,		downmigrate_ts)
 	),
 
 	TP_fast_assign(
 		__entry->id		= grp->id;
 		__entry->total_demand	= total_demand;
 		__entry->skip_min	= grp->skip_min;
+		__entry->prev_skip_min	= prev_skip_min;
+		__entry->start_ktime_ts	= grp->start_ktime_ts;
+		__entry->last_update	= grp->last_update;
+		__entry->sysctl_sched_hyst_min_coloc_ns = sysctl_sched_hyst_min_coloc_ns;
+		__entry->downmigrate_ts	= grp->downmigrate_ts;
 	),
 
-	TP_printk("group_id %d total_demand %llu skip_min %d",
+	TP_printk("group_id %d total_demand %llu skip_min %d prev_skip_min %d start_ktime_ts %llu last_update %llu min_coloc_ns %u downmigrate_ts %llu",
 			__entry->id, __entry->total_demand,
-			__entry->skip_min)
+			__entry->skip_min, __entry->prev_skip_min,
+			__entry->start_ktime_ts, __entry->last_update,
+			__entry->sysctl_sched_hyst_min_coloc_ns,
+			__entry->downmigrate_ts)
 );
 
 TRACE_EVENT(sched_migration_update_sum,

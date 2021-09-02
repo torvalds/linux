@@ -225,6 +225,8 @@ extern unsigned int sysctl_input_boost_freq[8];
 extern unsigned int sysctl_sched_boost_on_input;
 extern unsigned int sysctl_sched_user_hint;
 extern unsigned int sysctl_sched_conservative_pl;
+extern unsigned int sysctl_sched_hyst_min_coloc_ns;
+
 #define WALT_MANY_WAKEUP_DEFAULT 1000
 extern unsigned int sysctl_sched_many_wakeup_threshold;
 extern unsigned int sysctl_walt_rtg_cfs_boost_prio;
