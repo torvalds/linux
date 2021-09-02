@@ -30,6 +30,25 @@
 #define VIRTIO_BLK_INLINE_SG_CNT	2
 #endif
 
+static int virtblk_queue_count_set(const char *val,
+		const struct kernel_param *kp)
+{
+	return param_set_uint_minmax(val, kp, 1, nr_cpu_ids);
+}
+
+static const struct kernel_param_ops queue_count_ops = {
+	.set = virtblk_queue_count_set,
+	.get = param_get_uint,
+};
+
+static unsigned int num_request_queues;
+module_param_cb(num_request_queues, &queue_count_ops, &num_request_queues,
+		0644);
+MODULE_PARM_DESC(num_request_queues,
+		 "Limit the number of request queues to use for blk device. "
+		 "0 for no limit. "
+		 "Values > nr_cpu_ids truncated to nr_cpu_ids.");
+
 static int major;
 static DEFINE_IDA(vd_index_ida);
 
@@ -553,7 +572,9 @@ static int init_vq(struct virtio_blk *vblk)
 	if (err)
 		num_vqs = 1;
 
-	num_vqs = min_t(unsigned int, nr_cpu_ids, num_vqs);
+	num_vqs = min_t(unsigned int,
+			min_not_zero(num_request_queues, nr_cpu_ids),
+			num_vqs);
 
 	vblk->vqs = kmalloc_array(num_vqs, sizeof(*vblk->vqs), GFP_KERNEL);
 	if (!vblk->vqs)
