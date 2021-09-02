@@ -117,7 +117,7 @@ static inline int sparse_index_init(unsigned long section_nr, int nid)
  */
 static inline unsigned long sparse_encode_early_nid(int nid)
 {
-	return (nid << SECTION_NID_SHIFT);
+	return ((unsigned long)nid << SECTION_NID_SHIFT);
 }
 
 static inline int sparse_early_nid(struct mem_section *section)
