@@ -9,6 +9,7 @@
 
 #include "hpfs_fn.h"
 #include <linux/mpage.h>
+#include <linux/iomap.h>
 #include <linux/fiemap.h>
 
 #define BLOCKS(size) (((size) + 511) >> 9)
@@ -116,6 +117,47 @@ static int hpfs_get_block(struct inode *inode, sector_t iblock, struct buffer_he
 	return r;
 }
 
+static int hpfs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
+		unsigned flags, struct iomap *iomap, struct iomap *srcmap)
+{
+	struct super_block *sb = inode->i_sb;
+	unsigned int blkbits = inode->i_blkbits;
+	unsigned int n_secs;
+	secno s;
+
+	if (WARN_ON_ONCE(flags & (IOMAP_WRITE | IOMAP_ZERO)))
+		return -EINVAL;
+
+	iomap->bdev = inode->i_sb->s_bdev;
+	iomap->offset = offset;
+
+	hpfs_lock(sb);
+	s = hpfs_bmap(inode, offset >> blkbits, &n_secs);
+	if (s) {
+		n_secs = hpfs_search_hotfix_map_for_range(sb, s,
+				min_t(loff_t, n_secs, length));
+		if (unlikely(!n_secs)) {
+			s = hpfs_search_hotfix_map(sb, s);
+			n_secs = 1;
+		}
+		iomap->type = IOMAP_MAPPED;
+		iomap->flags = IOMAP_F_MERGED;
+		iomap->addr = (u64)s << blkbits;
+		iomap->length = (u64)n_secs << blkbits;
+	} else {
+		iomap->type = IOMAP_HOLE;
+		iomap->addr = IOMAP_NULL_ADDR;
+		iomap->length = 1 << blkbits;
+	}
+
+	hpfs_unlock(sb);
+	return 0;
+}
+
+static const struct iomap_ops hpfs_iomap_ops = {
+	.iomap_begin		= hpfs_iomap_begin,
+};
+
 static int hpfs_readpage(struct file *file, struct page *page)
 {
 	return mpage_readpage(page, hpfs_get_block);
@@ -192,7 +234,14 @@ static sector_t _hpfs_bmap(struct address_space *mapping, sector_t block)
 
 static int hpfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo, u64 start, u64 len)
 {
-	return generic_block_fiemap(inode, fieinfo, start, len, hpfs_get_block);
+	int ret;
+
+	inode_lock(inode);
+	len = min_t(u64, len, i_size_read(inode));
+	ret = iomap_fiemap(inode, fieinfo, start, len, &hpfs_iomap_ops);
+	inode_unlock(inode);
+
+	return ret;
 }
 
 const struct address_space_operations hpfs_aops = {
