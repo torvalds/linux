@@ -255,7 +255,7 @@
 	status = "okay";
 };
 
-&rkvdec_mmu {
+&vdec_mmu {
 	status = "okay";
 };
 

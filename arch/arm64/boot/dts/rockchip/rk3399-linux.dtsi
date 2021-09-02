@@ -215,7 +215,7 @@
 	//allocator = <0>;
 };
 
-&rkvdec_mmu {
+&vdec_mmu {
 	status = "okay";
 };
 
