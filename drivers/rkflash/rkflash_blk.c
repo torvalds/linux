@@ -784,6 +784,8 @@ void rkflash_dev_shutdown(void)
 		wake_up(&mytr.thread_wq);
 		wait_for_completion(&mytr.thread_exit);
 	}
+	mutex_lock(&g_flash_ops_mutex);
 	g_boot_ops->deinit();
+	mutex_unlock(&g_flash_ops_mutex);
 	pr_info("rkflash_shutdown:OK\n");
 }
