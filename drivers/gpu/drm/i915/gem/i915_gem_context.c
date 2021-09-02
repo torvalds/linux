@@ -1566,7 +1566,7 @@ static int get_ppgtt(struct drm_i915_file_private *file_priv,
 	int err;
 	u32 id;
 
-	if (!rcu_access_pointer(ctx->vm))
+	if (!i915_gem_context_has_full_ppgtt(ctx))
 		return -ENODEV;
 
 	rcu_read_lock();
