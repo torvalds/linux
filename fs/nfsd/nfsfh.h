@@ -43,43 +43,23 @@
  *   filesystems must not use the values '0' or '0xff'. 'See enum fid_type'
  *   in include/linux/exportfs.h for currently registered values.
  */
-struct nfs_fhbase_new {
+
+struct knfsd_fh {
+	unsigned int	fh_size;	/*
+					 * Points to the current size while
+					 * building a new file handle.
+					 */
 	union {
+		char			fh_raw[NFS4_FHSIZE];
 		struct {
-			u8		fb_version_aux;	/* == 1 */
-			u8		fb_auth_type_aux;
-			u8		fb_fsid_type_aux;
-			u8		fb_fileid_type_aux;
-			u32		fb_auth[1];
-		/*	u32		fb_fsid[0]; floating */
-		/*	u32		fb_fileid[0]; floating */
-		};
-		struct {
-			u8		fb_version;	/* == 1 */
-			u8		fb_auth_type;
-			u8		fb_fsid_type;
-			u8		fb_fileid_type;
-			u32		fb_auth_flex[]; /* flexible-array member */
+			u8		fh_version;	/* == 1 */
+			u8		fh_auth_type;	/* deprecated */
+			u8		fh_fsid_type;
+			u8		fh_fileid_type;
+			u32		fh_fsid[]; /* flexible-array member */
 		};
 	};
 };
-
-struct knfsd_fh {
-	unsigned int	fh_size;	/* significant for NFSv3.
-					 * Points to the current size while building
-					 * a new file handle
-					 */
-	union {
-		u32			fh_pad[NFS4_FHSIZE/4];
-		struct nfs_fhbase_new	fh_new;
-	} fh_base;
-};
-
-#define	fh_version		fh_base.fh_new.fb_version
-#define	fh_fsid_type		fh_base.fh_new.fb_fsid_type
-#define	fh_auth_type		fh_base.fh_new.fb_auth_type
-#define	fh_fileid_type		fh_base.fh_new.fb_fileid_type
-#define	fh_fsid			fh_base.fh_new.fb_auth_flex
 
 static inline __u32 ino_t_to_u32(ino_t ino)
 {
@@ -255,7 +235,7 @@ static inline void
 fh_copy_shallow(struct knfsd_fh *dst, struct knfsd_fh *src)
 {
 	dst->fh_size = src->fh_size;
-	memcpy(&dst->fh_base, &src->fh_base, src->fh_size);
+	memcpy(&dst->fh_raw, &src->fh_raw, src->fh_size);
 }
 
 static __inline__ struct svc_fh *
@@ -270,7 +250,7 @@ static inline bool fh_match(struct knfsd_fh *fh1, struct knfsd_fh *fh2)
 {
 	if (fh1->fh_size != fh2->fh_size)
 		return false;
-	if (memcmp(fh1->fh_base.fh_pad, fh2->fh_base.fh_pad, fh1->fh_size) != 0)
+	if (memcmp(fh1->fh_raw, fh2->fh_raw, fh1->fh_size) != 0)
 		return false;
 	return true;
 }
@@ -294,7 +274,7 @@ static inline bool fh_fsid_match(struct knfsd_fh *fh1, struct knfsd_fh *fh2)
  */
 static inline u32 knfsd_fh_hash(const struct knfsd_fh *fh)
 {
-	return ~crc32_le(0xFFFFFFFF, (unsigned char *)&fh->fh_base, fh->fh_size);
+	return ~crc32_le(0xFFFFFFFF, fh->fh_raw, fh->fh_size);
 }
 #else
 static inline u32 knfsd_fh_hash(const struct knfsd_fh *fh)
