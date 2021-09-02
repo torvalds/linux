@@ -1039,14 +1039,15 @@ static struct platform_driver csi2_driver = {
 	.remove = csi2_remove,
 };
 
-#ifdef MODULE
 int __init rkcif_csi2_plat_drv_init(void)
 {
 	return platform_driver_register(&csi2_driver);
 }
-#else
-module_platform_driver(csi2_driver);
-#endif
+
+void __exit rkcif_csi2_plat_drv_exit(void)
+{
+	platform_driver_unregister(&csi2_driver);
+}
 
 MODULE_DESCRIPTION("Rockchip MIPI CSI2 driver");
 MODULE_AUTHOR("Macrofly.xu <xuhf@rock-chips.com>");

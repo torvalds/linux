@@ -1009,7 +1009,6 @@ static struct platform_driver rkcif_hw_plat_drv = {
 	.remove = rkcif_plat_remove,
 };
 
-#ifdef MODULE
 static int __init rk_cif_plat_drv_init(void)
 {
 	int ret;
@@ -1020,10 +1019,14 @@ static int __init rk_cif_plat_drv_init(void)
 	return rkcif_csi2_plat_drv_init();
 }
 
+static void __exit rk_cif_plat_drv_exit(void)
+{
+	platform_driver_unregister(&rkcif_hw_plat_drv);
+	rkcif_csi2_plat_drv_exit();
+}
+
 module_init(rk_cif_plat_drv_init);
-#else
-module_platform_driver(rkcif_hw_plat_drv);
-#endif
+module_exit(rk_cif_plat_drv_exit);
 
 MODULE_AUTHOR("Rockchip Camera/ISP team");
 MODULE_DESCRIPTION("Rockchip CIF platform driver");
