@@ -41,6 +41,7 @@
 #include "set_mode_types.h"
 #include "virtual/virtual_stream_encoder.h"
 #include "dpcd_defs.h"
+#include "link_enc_cfg.h"
 #include "dc_link_dp.h"
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
@@ -2826,8 +2827,18 @@ bool pipe_need_reprogram(
 #endif
 
 	/* DIG link encoder resource assignment for stream changed. */
-	if (pipe_ctx_old->stream->link_enc != pipe_ctx->stream->link_enc)
-		return true;
+	if (pipe_ctx_old->stream->ctx->dc->res_pool->funcs->link_encs_assign) {
+		bool need_reprogram = false;
+		struct dc *dc = pipe_ctx_old->stream->ctx->dc;
+		enum link_enc_cfg_mode mode = dc->current_state->res_ctx.link_enc_cfg_ctx.mode;
+
+		dc->current_state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_STEADY;
+		if (link_enc_cfg_get_link_enc_used_by_stream(dc, pipe_ctx_old->stream) != pipe_ctx->stream->link_enc)
+			need_reprogram = true;
+		dc->current_state->res_ctx.link_enc_cfg_ctx.mode = mode;
+
+		return need_reprogram;
+	}
 
 	return false;
 }

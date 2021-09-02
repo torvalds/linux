@@ -1219,7 +1219,7 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 	if (link->ep_type == DISPLAY_ENDPOINT_PHY)
 		link_enc = link->link_enc;
 	else if (dc->res_pool->funcs->link_encs_assign)
-		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->dc->current_state, link);
+		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->ctx->dc, link);
 	ASSERT(link_enc);
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)

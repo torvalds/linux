@@ -54,6 +54,7 @@
 #include "hw_sequencer.h"
 #include "inc/link_dpcd.h"
 #include "dpcd_defs.h"
+#include "inc/link_enc_cfg.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -2385,9 +2386,10 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 
 	if (link->is_dig_mapping_flexible &&
 			link->dc->res_pool->funcs->link_encs_assign)
-		link_enc = pipe_ctx->stream->link_enc;
+		link_enc = link_enc_cfg_get_link_enc_used_by_stream(link->ctx->dc, pipe_ctx->stream);
 	else
 		link_enc = link->link_enc;
+	ASSERT(link_enc);
 
 	/* For MST, there are multiply stream go to only one link.
 	 * connect DIG back_end to front_end while enable_stream and

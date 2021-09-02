@@ -87,7 +87,7 @@ void dp_enable_link_phy(
 
 	/* Link should always be assigned encoder when en-/disabling. */
 	if (link->is_dig_mapping_flexible && dc->res_pool->funcs->link_encs_assign)
-		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->dc->current_state, link);
+		link_enc = link_enc_cfg_get_link_enc_used_by_link(dc, link);
 	else
 		link_enc = link->link_enc;
 	ASSERT(link_enc);
@@ -247,7 +247,7 @@ void dp_disable_link_phy(struct dc_link *link, enum signal_type signal)
 
 	/* Link should always be assigned encoder when en-/disabling. */
 	if (link->is_dig_mapping_flexible && dc->res_pool->funcs->link_encs_assign)
-		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->dc->current_state, link);
+		link_enc = link_enc_cfg_get_link_enc_used_by_link(dc, link);
 	else
 		link_enc = link->link_enc;
 	ASSERT(link_enc);
@@ -391,7 +391,7 @@ void dp_set_hw_test_pattern(
 	 */
 	if (link->is_dig_mapping_flexible &&
 			link->dc->res_pool->funcs->link_encs_assign)
-		encoder = link_enc_cfg_get_link_enc_used_by_link(link->dc->current_state, link);
+		encoder = link_enc_cfg_get_link_enc_used_by_link(link->ctx->dc, link);
 	else
 		encoder = link->link_enc;
 

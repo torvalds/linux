@@ -48,6 +48,7 @@
 #include "dc_link_dp.h"
 #include "inc/link_dpcd.h"
 #include "dcn10/dcn10_hw_sequencer.h"
+#include "inc/link_enc_cfg.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -599,4 +600,7 @@ void dcn31_reset_hw_ctx_wrap(
 				old_clk->funcs->cs_power_down(old_clk);
 		}
 	}
+
+	/* New dc_state in the process of being applied to hardware. */
+	dc->current_state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_TRANSIENT;
 }

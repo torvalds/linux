@@ -1610,10 +1610,9 @@ static void get_pixel_clock_parameters(
 	 */
 	if (link->is_dig_mapping_flexible &&
 			link->dc->res_pool->funcs->link_encs_assign) {
-		link_enc = link_enc_cfg_get_link_enc_used_by_stream(stream->link->dc->current_state, stream);
+		link_enc = link_enc_cfg_get_link_enc_used_by_stream(stream->ctx->dc, stream);
 		if (link_enc == NULL)
-			link_enc = link_enc_cfg_get_next_avail_link_enc(stream->link->dc,
-				stream->link->dc->current_state);
+			link_enc = link_enc_cfg_get_next_avail_link_enc(stream->ctx->dc);
 	} else
 		link_enc = stream->link->link_enc;
 	ASSERT(link_enc);

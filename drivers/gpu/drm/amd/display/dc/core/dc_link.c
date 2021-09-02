@@ -3490,11 +3490,8 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 			link_enc = pipe_ctx->stream->link->link_enc;
 			config.phy_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
 		} else if (pipe_ctx->stream->link->dc->res_pool->funcs->link_encs_assign) {
-			/* Use link encoder assignment from current DC state - which may differ from the DC state to be
-			 * committed - when updating PSP config.
-			 */
 			link_enc = link_enc_cfg_get_link_enc_used_by_stream(
-					pipe_ctx->stream->link->dc->current_state,
+					pipe_ctx->stream->ctx->dc,
 					pipe_ctx->stream);
 			config.phy_idx = 0; /* Clear phy_idx for non-physical display endpoints. */
 		}
@@ -3619,7 +3616,7 @@ void core_link_enable_stream(
 		return;
 
 	if (dc->res_pool->funcs->link_encs_assign && stream->link->ep_type != DISPLAY_ENDPOINT_PHY)
-		link_enc = stream->link_enc;
+		link_enc = link_enc_cfg_get_link_enc_used_by_stream(dc, stream);
 	else
 		link_enc = stream->link->link_enc;
 	ASSERT(link_enc);
@@ -4216,14 +4213,14 @@ bool dc_link_is_fec_supported(const struct dc_link *link)
 	 */
 	if (link->is_dig_mapping_flexible &&
 			link->dc->res_pool->funcs->link_encs_assign) {
-		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->dc->current_state, link);
+		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->ctx->dc, link);
 		if (link_enc == NULL)
-			link_enc = link_enc_cfg_get_next_avail_link_enc(link->dc, link->dc->current_state);
+			link_enc = link_enc_cfg_get_next_avail_link_enc(link->ctx->dc);
 	} else
 		link_enc = link->link_enc;
 	ASSERT(link_enc);
 
-	return (dc_is_dp_signal(link->connector_signal) &&
+	return (dc_is_dp_signal(link->connector_signal) && link_enc &&
 			link_enc->features.fec_supported &&
 			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE &&
 			!IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment));
