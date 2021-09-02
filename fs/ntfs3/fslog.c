@@ -6,12 +6,8 @@
  */
 
 #include <linux/blkdev.h>
-#include <linux/buffer_head.h>
 #include <linux/fs.h>
-#include <linux/hash.h>
-#include <linux/nls.h>
 #include <linux/random.h>
-#include <linux/ratelimit.h>
 #include <linux/slab.h>
 
 #include "debug.h"

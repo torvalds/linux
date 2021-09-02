@@ -12,7 +12,6 @@
 #include <linux/compat.h>
 #include <linux/falloc.h>
 #include <linux/fiemap.h>
-#include <linux/nls.h>
 
 #include "debug.h"
 #include "ntfs.h"
