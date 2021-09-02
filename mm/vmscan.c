@@ -3812,7 +3812,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int highest_zoneidx)
 
 	set_task_reclaim_state(current, &sc.reclaim_state);
 	psi_memstall_enter(&pflags);
-	__fs_reclaim_acquire();
+	__fs_reclaim_acquire(_THIS_IP_);
 
 	count_vm_event(PAGEOUTRUN);
 
@@ -3938,9 +3938,9 @@ restart:
 			wake_up_all(&pgdat->pfmemalloc_wait);
 
 		/* Check if kswapd should be suspending */
-		__fs_reclaim_release();
+		__fs_reclaim_release(_THIS_IP_);
 		ret = try_to_freeze();
-		__fs_reclaim_acquire();
+		__fs_reclaim_acquire(_THIS_IP_);
 		if (ret || kthread_should_stop())
 			break;
 
@@ -3992,7 +3992,7 @@ out:
 	}
 
 	snapshot_refaults(NULL, pgdat);
-	__fs_reclaim_release();
+	__fs_reclaim_release(_THIS_IP_);
 	psi_memstall_leave(&pflags);
 	set_task_reclaim_state(current, NULL);
 

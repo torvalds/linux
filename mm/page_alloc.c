@@ -4549,14 +4549,14 @@ static bool __need_reclaim(gfp_t gfp_mask)
 	return true;
 }
 
-void __fs_reclaim_acquire(void)
+void __fs_reclaim_acquire(unsigned long ip)
 {
-	lock_map_acquire(&__fs_reclaim_map);
+	lock_acquire_exclusive(&__fs_reclaim_map, 0, 0, NULL, ip);
 }
 
-void __fs_reclaim_release(void)
+void __fs_reclaim_release(unsigned long ip)
 {
-	lock_map_release(&__fs_reclaim_map);
+	lock_release(&__fs_reclaim_map, ip);
 }
 
 void fs_reclaim_acquire(gfp_t gfp_mask)
@@ -4565,7 +4565,7 @@ void fs_reclaim_acquire(gfp_t gfp_mask)
 
 	if (__need_reclaim(gfp_mask)) {
 		if (gfp_mask & __GFP_FS)
-			__fs_reclaim_acquire();
+			__fs_reclaim_acquire(_RET_IP_);
 
 #ifdef CONFIG_MMU_NOTIFIER
 		lock_map_acquire(&__mmu_notifier_invalidate_range_start_map);
@@ -4582,7 +4582,7 @@ void fs_reclaim_release(gfp_t gfp_mask)
 
 	if (__need_reclaim(gfp_mask)) {
 		if (gfp_mask & __GFP_FS)
-			__fs_reclaim_release();
+			__fs_reclaim_release(_RET_IP_);
 	}
 }
 EXPORT_SYMBOL_GPL(fs_reclaim_release);
