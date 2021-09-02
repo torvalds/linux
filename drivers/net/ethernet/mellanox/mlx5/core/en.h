@@ -145,7 +145,6 @@ struct page_pool;
 
 #define MLX5E_MIN_NUM_CHANNELS         0x1
 #define MLX5E_MAX_NUM_CHANNELS         (MLX5E_INDIR_RQT_SIZE / 2)
-#define MLX5E_MAX_NUM_SQS              (MLX5E_MAX_NUM_CHANNELS * MLX5E_MAX_NUM_TC)
 #define MLX5E_TX_CQ_POLL_BUDGET        128
 #define MLX5E_TX_XSK_POLL_BUDGET       64
 #define MLX5E_SQ_RECOVER_MIN_INTERVAL  500 /* msecs */
@@ -875,10 +874,8 @@ struct mlx5e_trap;
 
 struct mlx5e_priv {
 	/* priv data path fields - start */
-	/* +1 for port ptp ts */
-	struct mlx5e_txqsq *txq2sq[(MLX5E_MAX_NUM_CHANNELS + 1) * MLX5E_MAX_NUM_TC +
-				   MLX5E_QOS_MAX_LEAF_NODES];
-	int channel_tc2realtxq[MLX5E_MAX_NUM_CHANNELS][MLX5E_MAX_NUM_TC];
+	struct mlx5e_txqsq **txq2sq;
+	int **channel_tc2realtxq;
 	int port_ptp_tc2realtxq[MLX5E_MAX_NUM_TC];
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	struct mlx5e_dcbx_dp       dcbx_dp;
@@ -893,7 +890,7 @@ struct mlx5e_priv {
 	struct mlx5e_channels      channels;
 	u32                        tisn[MLX5_MAX_PORTS][MLX5E_MAX_NUM_TC];
 	struct mlx5e_rx_res       *rx_res;
-	u32                        tx_rates[MLX5E_MAX_NUM_SQS];
+	u32                       *tx_rates;
 
 	struct mlx5e_flow_steering fs;
 
@@ -909,7 +906,7 @@ struct mlx5e_priv {
 	struct net_device         *netdev;
 	struct mlx5e_trap         *en_trap;
 	struct mlx5e_stats         stats;
-	struct mlx5e_channel_stats channel_stats[MLX5E_MAX_NUM_CHANNELS];
+	struct mlx5e_channel_stats *channel_stats;
 	struct mlx5e_channel_stats trap_stats;
 	struct mlx5e_ptp_stats     ptp_stats;
 	u16                        stats_nch;

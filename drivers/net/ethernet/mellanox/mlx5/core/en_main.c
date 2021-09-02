@@ -5130,12 +5130,18 @@ int mlx5e_priv_init(struct mlx5e_priv *priv,
 		    struct net_device *netdev,
 		    struct mlx5_core_dev *mdev)
 {
+	int nch, num_txqs, node, i;
+
+	num_txqs = netdev->num_tx_queues;
+	nch = mlx5e_calc_max_nch(mdev, netdev, profile);
+	node = dev_to_node(mlx5_core_dma_dev(mdev));
+
 	/* priv init */
 	priv->mdev        = mdev;
 	priv->netdev      = netdev;
 	priv->msglevel    = MLX5E_MSG_LEVEL;
-	priv->max_nch     = mlx5e_calc_max_nch(mdev, netdev, profile);
-	priv->stats_nch   = priv->max_nch;
+	priv->max_nch     = nch;
+	priv->stats_nch   = nch;
 	priv->max_opened_tc = 1;
 
 	if (!alloc_cpumask_var(&priv->scratchpad.cpumask, GFP_KERNEL))
@@ -5152,11 +5158,46 @@ int mlx5e_priv_init(struct mlx5e_priv *priv,
 	if (!priv->wq)
 		goto err_free_cpumask;
 
+	priv->txq2sq = kcalloc_node(num_txqs, sizeof(*priv->txq2sq), GFP_KERNEL, node);
+	if (!priv->txq2sq)
+		goto err_destroy_workqueue;
+
+	priv->tx_rates = kcalloc_node(num_txqs, sizeof(*priv->tx_rates), GFP_KERNEL, node);
+	if (!priv->tx_rates)
+		goto err_free_txq2sq;
+
+	priv->channel_tc2realtxq =
+		kcalloc_node(nch, sizeof(*priv->channel_tc2realtxq), GFP_KERNEL, node);
+	if (!priv->channel_tc2realtxq)
+		goto err_free_tx_rates;
+
+	for (i = 0; i < nch; i++) {
+		priv->channel_tc2realtxq[i] =
+			kcalloc_node(profile->max_tc, sizeof(**priv->channel_tc2realtxq),
+				     GFP_KERNEL, node);
+		if (!priv->channel_tc2realtxq[i])
+			goto err_free_channel_tc2realtxq;
+	}
+
+	priv->channel_stats =
+		kcalloc_node(nch, sizeof(*priv->channel_stats), GFP_KERNEL, node);
+	if (!priv->channel_stats)
+		goto err_free_channel_tc2realtxq;
+
 	return 0;
 
+err_free_channel_tc2realtxq:
+	while (--i >= 0)
+		kfree(priv->channel_tc2realtxq[i]);
+	kfree(priv->channel_tc2realtxq);
+err_free_tx_rates:
+	kfree(priv->tx_rates);
+err_free_txq2sq:
+	kfree(priv->txq2sq);
+err_destroy_workqueue:
+	destroy_workqueue(priv->wq);
 err_free_cpumask:
 	free_cpumask_var(priv->scratchpad.cpumask);
-
 	return -ENOMEM;
 }
 
@@ -5168,6 +5209,12 @@ void mlx5e_priv_cleanup(struct mlx5e_priv *priv)
 	if (!priv->mdev)
 		return;
 
+	kfree(priv->channel_stats);
+	for (i = 0; i < priv->max_nch; i++)
+		kfree(priv->channel_tc2realtxq[i]);
+	kfree(priv->channel_tc2realtxq);
+	kfree(priv->tx_rates);
+	kfree(priv->txq2sq);
 	destroy_workqueue(priv->wq);
 	free_cpumask_var(priv->scratchpad.cpumask);
 
