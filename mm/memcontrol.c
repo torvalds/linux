@@ -646,17 +646,6 @@ void __mod_memcg_state(struct mem_cgroup *memcg, int idx, int val)
 }
 
 /* idx can be of type enum memcg_stat_item or node_stat_item. */
-static unsigned long memcg_page_state(struct mem_cgroup *memcg, int idx)
-{
-	long x = READ_ONCE(memcg->vmstats.state[idx]);
-#ifdef CONFIG_SMP
-	if (x < 0)
-		x = 0;
-#endif
-	return x;
-}
-
-/* idx can be of type enum memcg_stat_item or node_stat_item. */
 static unsigned long memcg_page_state_local(struct mem_cgroup *memcg, int idx)
 {
 	long x = 0;
@@ -4668,7 +4657,7 @@ void mem_cgroup_flush_foreign(struct bdi_writeback *wb)
 		    atomic_read(&frn->done.cnt) == 1) {
 			frn->at = 0;
 			trace_flush_foreign(wb, frn->bdi_id, frn->memcg_id);
-			cgroup_writeback_by_id(frn->bdi_id, frn->memcg_id, 0,
+			cgroup_writeback_by_id(frn->bdi_id, frn->memcg_id,
 					       WB_REASON_FOREIGN_FLUSH,
 					       &frn->done);
 		}

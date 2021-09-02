@@ -955,6 +955,16 @@ static inline void mod_memcg_state(struct mem_cgroup *memcg,
 	local_irq_restore(flags);
 }
 
+static inline unsigned long memcg_page_state(struct mem_cgroup *memcg, int idx)
+{
+	long x = READ_ONCE(memcg->vmstats.state[idx]);
+#ifdef CONFIG_SMP
+	if (x < 0)
+		x = 0;
+#endif
+	return x;
+}
+
 static inline unsigned long lruvec_page_state(struct lruvec *lruvec,
 					      enum node_stat_item idx)
 {
@@ -1389,6 +1399,11 @@ static inline void mod_memcg_state(struct mem_cgroup *memcg,
 				   int idx,
 				   int nr)
 {
+}
+
+static inline unsigned long memcg_page_state(struct mem_cgroup *memcg, int idx)
+{
+	return 0;
 }
 
 static inline unsigned long lruvec_page_state(struct lruvec *lruvec,

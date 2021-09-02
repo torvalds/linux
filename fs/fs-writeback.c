@@ -1039,20 +1039,20 @@ restart:
  * cgroup_writeback_by_id - initiate cgroup writeback from bdi and memcg IDs
  * @bdi_id: target bdi id
  * @memcg_id: target memcg css id
- * @nr: number of pages to write, 0 for best-effort dirty flushing
  * @reason: reason why some writeback work initiated
  * @done: target wb_completion
  *
  * Initiate flush of the bdi_writeback identified by @bdi_id and @memcg_id
  * with the specified parameters.
  */
-int cgroup_writeback_by_id(u64 bdi_id, int memcg_id, unsigned long nr,
+int cgroup_writeback_by_id(u64 bdi_id, int memcg_id,
 			   enum wb_reason reason, struct wb_completion *done)
 {
 	struct backing_dev_info *bdi;
 	struct cgroup_subsys_state *memcg_css;
 	struct bdi_writeback *wb;
 	struct wb_writeback_work *work;
+	unsigned long dirty;
 	int ret;
 
 	/* lookup bdi and memcg */
@@ -1081,24 +1081,22 @@ int cgroup_writeback_by_id(u64 bdi_id, int memcg_id, unsigned long nr,
 	}
 
 	/*
-	 * If @nr is zero, the caller is attempting to write out most of
+	 * The caller is attempting to write out most of
 	 * the currently dirty pages.  Let's take the current dirty page
 	 * count and inflate it by 25% which should be large enough to
 	 * flush out most dirty pages while avoiding getting livelocked by
 	 * concurrent dirtiers.
+	 *
+	 * BTW the memcg stats are flushed periodically and this is best-effort
+	 * estimation, so some potential error is ok.
 	 */
-	if (!nr) {
-		unsigned long filepages, headroom, dirty, writeback;
-
-		mem_cgroup_wb_stats(wb, &filepages, &headroom, &dirty,
-				      &writeback);
-		nr = dirty * 10 / 8;
-	}
+	dirty = memcg_page_state(mem_cgroup_from_css(memcg_css), NR_FILE_DIRTY);
+	dirty = dirty * 10 / 8;
 
 	/* issue the writeback work */
 	work = kzalloc(sizeof(*work), GFP_NOWAIT | __GFP_NOWARN);
 	if (work) {
-		work->nr_pages = nr;
+		work->nr_pages = dirty;
 		work->sync_mode = WB_SYNC_NONE;
 		work->range_cyclic = 1;
 		work->reason = reason;
