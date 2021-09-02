@@ -626,8 +626,9 @@ static void __init reserve_crashkernel(void)
 			return;
 		}
 		low = crash_base ?: low;
-		crash_base = memblock_find_in_range(low, high, crash_size,
-						    KEXEC_CRASH_MEM_ALIGN);
+		crash_base = memblock_phys_alloc_range(crash_size,
+						       KEXEC_CRASH_MEM_ALIGN,
+						       low, high);
 	}
 
 	if (!crash_base) {
@@ -636,8 +637,10 @@ static void __init reserve_crashkernel(void)
 		return;
 	}
 
-	if (register_memory_notifier(&kdump_mem_nb))
+	if (register_memory_notifier(&kdump_mem_nb)) {
+		memblock_free(crash_base, crash_size);
 		return;
+	}
 
 	if (!OLDMEM_BASE && MACHINE_IS_VM)
 		diag10_range(PFN_DOWN(crash_base), PFN_DOWN(crash_size));
