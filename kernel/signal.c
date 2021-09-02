@@ -2200,7 +2200,7 @@ static void ptrace_stop(int exit_code, int why, int clear_code, kernel_siginfo_t
 {
 	bool gstop_done = false;
 
-	if (arch_ptrace_stop_needed(exit_code, info)) {
+	if (arch_ptrace_stop_needed()) {
 		/*
 		 * The arch code has something special to do before a
 		 * ptrace stop.  This is allowed to block, e.g. for faults
@@ -2210,7 +2210,7 @@ static void ptrace_stop(int exit_code, int why, int clear_code, kernel_siginfo_t
 		 * any signal bookkeeping like checking group_stop_count.
 		 */
 		spin_unlock_irq(&current->sighand->siglock);
-		arch_ptrace_stop(exit_code, info);
+		arch_ptrace_stop();
 		spin_lock_irq(&current->sighand->siglock);
 	}
 
