@@ -38,6 +38,7 @@
 #include <linux/hugetlb.h>
 #include <linux/frontswap.h>
 #include <linux/fs_parser.h>
+#include <linux/swapfile.h>
 
 static struct vfsmount *shm_mnt;
 
@@ -1151,8 +1152,6 @@ static void shmem_evict_inode(struct inode *inode)
 	shmem_free_inode(inode->i_sb);
 	clear_inode(inode);
 }
-
-extern struct swap_info_struct *swap_info[];
 
 static int shmem_find_swap_entries(struct address_space *mapping,
 				   pgoff_t start, unsigned int nr_entries,
