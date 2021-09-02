@@ -1473,10 +1473,6 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 		goto widget;
 	}
 
-	control_hdr = (struct snd_soc_tplg_ctl_hdr *)tplg->pos;
-	dev_dbg(tplg->dev, "ASoC: template %s has %d controls of type %x\n",
-		w->name, w->num_kcontrols, control_hdr->type);
-
 	template.num_kcontrols = le32_to_cpu(w->num_kcontrols);
 	kc = devm_kcalloc(tplg->dev, le32_to_cpu(w->num_kcontrols), sizeof(*kc), GFP_KERNEL);
 	if (!kc)
@@ -1536,6 +1532,8 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 	}
 
 	template.kcontrol_news = kc;
+	dev_dbg(tplg->dev, "ASoC: template %s with %d/%d/%d (mixer/enum/bytes) control\n",
+		w->name, mixer_count, enum_count, bytes_count);
 
 widget:
 	ret = soc_tplg_widget_load(tplg, &template, w);
