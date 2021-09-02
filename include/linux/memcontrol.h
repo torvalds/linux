@@ -593,13 +593,6 @@ static inline struct obj_cgroup **page_objcgs_check(struct page *page)
 }
 #endif
 
-static __always_inline bool memcg_stat_item_in_bytes(int idx)
-{
-	if (idx == MEMCG_PERCPU_B)
-		return true;
-	return vmstat_item_in_bytes(idx);
-}
-
 static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
 {
 	return (memcg == root_mem_cgroup);
@@ -903,11 +896,6 @@ static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
 		return true;
 	return !!(memcg->css.flags & CSS_ONLINE);
 }
-
-/*
- * For memory reclaim.
- */
-int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
 
 void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
 		int zid, int nr_pages);
