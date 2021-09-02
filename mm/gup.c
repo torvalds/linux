@@ -1149,7 +1149,6 @@ static long __get_user_pages(struct mm_struct *mm,
 					 * We must stop here.
 					 */
 					BUG_ON(gup_flags & FOLL_NOWAIT);
-					BUG_ON(ret != 0);
 					goto out;
 				}
 				continue;
