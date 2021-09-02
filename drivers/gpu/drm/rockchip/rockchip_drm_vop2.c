@@ -2576,27 +2576,11 @@ static void vop2_layer_map_initial(struct vop2 *vop2, uint32_t current_vp_id)
 	uint32_t win_map, vp_id;
 	uint16_t port_mux_cfg = 0;
 	uint16_t port_mux;
-	uint32_t active_vp_mask = 0;
-	uint32_t standby;
 	uint32_t shift;
 	int i, j;
 
 	layer_map = vop2_readl(vop2, layer->regs->layer_sel.offset);
 	win_map = vop2_readl(vop2, vp->regs->port_mux.offset);
-
-	active_vp_mask |= BIT(current_vp_id);
-	/*
-	 * lookup if there are some vps activated
-	 * by bootloader(et: show boot logo)
-	 */
-	for (i = 0; i < vop2->data->nr_vps; i++) {
-		vp = &vop2->vps[i];
-		standby = vop2_readl(vop2, vp->regs->standby.offset);
-		shift = vp->regs->standby.shift;
-		standby = (standby >> shift) & 0x1;
-		if (!standby)
-			active_vp_mask |= BIT(i);
-	}
 
 	for (i = 0; i < vop2->data->nr_vps; i++) {
 		vp = &vop2->vps[i];
