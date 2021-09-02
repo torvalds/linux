@@ -677,98 +677,70 @@ static struct NTFS_DE *hdr_find_e(const struct ntfs_index *indx,
 	u32 off = le32_to_cpu(hdr->de_off);
 
 #ifdef NTFS3_INDEX_BINARY_SEARCH
-	int max_idx = 0, fnd, min_idx;
-	int nslots = 64;
-	u16 *offs;
+	struct NTFS_DE *found = NULL;
+	int min_idx = 0, mid_idx, max_idx = 0;
+	int diff2;
+	u16 offs[64];
 
 	if (end > 0x10000)
 		goto next;
 
-	offs = kmalloc(sizeof(u16) * nslots, GFP_NOFS);
-	if (!offs)
-		goto next;
+fill_table:
+	if (off + sizeof(struct NTFS_DE) > end)
+		return NULL;
 
-	/* Use binary search algorithm. */
-next1:
-	if (off + sizeof(struct NTFS_DE) > end) {
-		e = NULL;
-		goto out1;
-	}
 	e = Add2Ptr(hdr, off);
 	e_size = le16_to_cpu(e->size);
 
-	if (e_size < sizeof(struct NTFS_DE) || off + e_size > end) {
-		e = NULL;
-		goto out1;
-	}
-
-	if (max_idx >= nslots) {
-		u16 *ptr;
-		int new_slots = ALIGN(2 * nslots, 8);
-
-		ptr = kmalloc(sizeof(u16) * new_slots, GFP_NOFS);
-		if (ptr)
-			memcpy(ptr, offs, sizeof(u16) * max_idx);
-		kfree(offs);
-		offs = ptr;
-		nslots = new_slots;
-		if (!ptr)
-			goto next;
-	}
-
-	/* Store entry table. */
-	offs[max_idx] = off;
+	if (e_size < sizeof(struct NTFS_DE) || off + e_size > end)
+		return NULL;
 
 	if (!de_is_last(e)) {
+		offs[max_idx] = off;
 		off += e_size;
-		max_idx += 1;
-		goto next1;
+
+		max_idx++;
+		if (max_idx < ARRAY_SIZE(offs))
+			goto fill_table;
+
+		max_idx--;
 	}
 
-	/*
-	 * Table of pointers is created.
-	 * Use binary search to find entry that is <= to the search value.
-	 */
-	fnd = -1;
-	min_idx = 0;
+binary_search:
+	e_key_len = le16_to_cpu(e->key_size);
 
-	while (min_idx <= max_idx) {
-		int mid_idx = min_idx + ((max_idx - min_idx) >> 1);
-		int diff2;
-
-		e = Add2Ptr(hdr, offs[mid_idx]);
-
-		e_key_len = le16_to_cpu(e->key_size);
-
-		diff2 = (*cmp)(key, key_len, e + 1, e_key_len, ctx);
-
-		if (!diff2) {
-			*diff = 0;
-			goto out1;
-		}
-
-		if (diff2 < 0) {
-			max_idx = mid_idx - 1;
-			fnd = mid_idx;
-			if (!fnd)
-				break;
-		} else {
+	diff2 = (*cmp)(key, key_len, e + 1, e_key_len, ctx);
+	if (diff2 > 0) {
+		if (found) {
 			min_idx = mid_idx + 1;
+		} else {
+			if (de_is_last(e))
+				return NULL;
+
+			max_idx = 0;
+			goto fill_table;
 		}
+	} else if (diff2 < 0) {
+		if (found)
+			max_idx = mid_idx - 1;
+		else
+			max_idx--;
+
+		found = e;
+	} else {
+		*diff = 0;
+		return e;
 	}
 
-	if (fnd == -1) {
-		e = NULL;
-		goto out1;
+	if (min_idx > max_idx) {
+		*diff = -1;
+		return found;
 	}
 
-	*diff = -1;
-	e = Add2Ptr(hdr, offs[fnd]);
+	mid_idx = (min_idx + max_idx) >> 1;
+	e = Add2Ptr(hdr, offs[mid_idx]);
 
-out1:
-	kfree(offs);
-
-	return e;
+	goto binary_search;
 #endif
 
 next:
