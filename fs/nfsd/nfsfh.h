@@ -14,26 +14,7 @@
 #include <linux/exportfs.h>
 #include <linux/nfs4.h>
 
-
 /*
- * This is the old "dentry style" Linux NFSv2 file handle.
- *
- * The xino and xdev fields are currently used to transport the
- * ino/dev of the exported inode.
- */
-struct nfs_fhbase_old {
-	u32		fb_dcookie;	/* dentry cookie - always 0xfeebbaca */
-	u32		fb_ino;		/* our inode number */
-	u32		fb_dirino;	/* dir inode number, 0 for directories */
-	u32		fb_dev;		/* our device */
-	u32		fb_xdev;
-	u32		fb_xino;
-	u32		fb_generation;
-};
-
-/*
- * This is the new flexible, extensible style NFSv2/v3/v4 file handle.
- *
  * The file handle starts with a sequence of four-byte words.
  * The first word contains a version number (1) and three descriptor bytes
  * that tell how the remaining 3 variable length fields should be handled.
@@ -57,7 +38,7 @@ struct nfs_fhbase_old {
  *     6  - 16 byte uuid
  *     7  - 8 byte inode number and 16 byte uuid
  *
- * The fileid_type identified how the file within the filesystem is encoded.
+ * The fileid_type identifies how the file within the filesystem is encoded.
  *   The values for this field are filesystem specific, exccept that
  *   filesystems must not use the values '0' or '0xff'. 'See enum fid_type'
  *   in include/linux/exportfs.h for currently registered values.
@@ -65,7 +46,7 @@ struct nfs_fhbase_old {
 struct nfs_fhbase_new {
 	union {
 		struct {
-			u8		fb_version_aux;	/* == 1, even => nfs_fhbase_old */
+			u8		fb_version_aux;	/* == 1 */
 			u8		fb_auth_type_aux;
 			u8		fb_fsid_type_aux;
 			u8		fb_fileid_type_aux;
@@ -74,7 +55,7 @@ struct nfs_fhbase_new {
 		/*	u32		fb_fileid[0]; floating */
 		};
 		struct {
-			u8		fb_version;	/* == 1, even => nfs_fhbase_old */
+			u8		fb_version;	/* == 1 */
 			u8		fb_auth_type;
 			u8		fb_fsid_type;
 			u8		fb_fileid_type;
@@ -89,19 +70,10 @@ struct knfsd_fh {
 					 * a new file handle
 					 */
 	union {
-		struct nfs_fhbase_old	fh_old;
 		u32			fh_pad[NFS4_FHSIZE/4];
 		struct nfs_fhbase_new	fh_new;
 	} fh_base;
 };
-
-#define ofh_dcookie		fh_base.fh_old.fb_dcookie
-#define ofh_ino			fh_base.fh_old.fb_ino
-#define ofh_dirino		fh_base.fh_old.fb_dirino
-#define ofh_dev			fh_base.fh_old.fb_dev
-#define ofh_xdev		fh_base.fh_old.fb_xdev
-#define ofh_xino		fh_base.fh_old.fb_xino
-#define ofh_generation		fh_base.fh_old.fb_generation
 
 #define	fh_version		fh_base.fh_new.fb_version
 #define	fh_fsid_type		fh_base.fh_new.fb_fsid_type
