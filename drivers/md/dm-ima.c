@@ -136,7 +136,8 @@ static void dm_ima_measure_data(const char *event_name, const void *buf, size_t 
 	if (noio)
 		noio_flag = memalloc_noio_save();
 
-	ima_measure_critical_data(DM_NAME, event_name, buf, buf_len, false);
+	ima_measure_critical_data(DM_NAME, event_name, buf, buf_len,
+				  false, NULL, 0);
 
 	if (noio)
 		memalloc_noio_restore(noio_flag);
