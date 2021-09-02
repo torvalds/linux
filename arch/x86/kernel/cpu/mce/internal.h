@@ -167,7 +167,10 @@ struct mce_vendor_flags {
 	/* Centaur Winchip C6-style MCA */
 	winchip			: 1,
 
-	__reserved_0		: 58;
+	/* SandyBridge IFU quirk */
+	snb_ifu_quirk		: 1,
+
+	__reserved_0		: 57;
 };
 
 extern struct mce_vendor_flags mce_flags;
