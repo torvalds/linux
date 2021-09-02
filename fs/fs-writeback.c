@@ -2004,7 +2004,6 @@ static long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages,
 static long wb_writeback(struct bdi_writeback *wb,
 			 struct wb_writeback_work *work)
 {
-	unsigned long wb_start = jiffies;
 	long nr_pages = work->nr_pages;
 	unsigned long dirtied_before = jiffies;
 	struct inode *inode;
@@ -2057,8 +2056,6 @@ static long wb_writeback(struct bdi_writeback *wb,
 		else
 			progress = __writeback_inodes_wb(wb, work);
 		trace_writeback_written(wb, work);
-
-		wb_update_bandwidth(wb, wb_start);
 
 		/*
 		 * Did we write something? Try for more
