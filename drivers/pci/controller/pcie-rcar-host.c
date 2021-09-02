@@ -486,12 +486,10 @@ static irqreturn_t rcar_pcie_msi_irq(int irq, void *data)
 
 	while (reg) {
 		unsigned int index = find_first_bit(&reg, 32);
-		unsigned int msi_irq;
+		int ret;
 
-		msi_irq = irq_find_mapping(msi->domain->parent, index);
-		if (msi_irq) {
-			generic_handle_irq(msi_irq);
-		} else {
+		ret = generic_handle_domain_irq(msi->domain->parent, index);
+		if (ret) {
 			/* Unknown MSI, just clear it */
 			dev_dbg(dev, "unexpected MSI\n");
 			rcar_pci_write_reg(pcie, BIT(index), PCIEMSIFR);

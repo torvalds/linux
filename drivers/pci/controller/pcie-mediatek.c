@@ -602,7 +602,6 @@ static void mtk_pcie_intr_handler(struct irq_desc *desc)
 	struct mtk_pcie_port *port = irq_desc_get_handler_data(desc);
 	struct irq_chip *irqchip = irq_desc_get_chip(desc);
 	unsigned long status;
-	u32 virq;
 	u32 bit = INTX_SHIFT;
 
 	chained_irq_enter(irqchip, desc);
@@ -612,9 +611,8 @@ static void mtk_pcie_intr_handler(struct irq_desc *desc)
 		for_each_set_bit_from(bit, &status, PCI_NUM_INTX + INTX_SHIFT) {
 			/* Clear the INTx */
 			writel(1 << bit, port->base + PCIE_INT_STATUS);
-			virq = irq_find_mapping(port->irq_domain,
-						bit - INTX_SHIFT);
-			generic_handle_irq(virq);
+			generic_handle_domain_irq(port->irq_domain,
+						  bit - INTX_SHIFT);
 		}
 	}
 
@@ -623,10 +621,8 @@ static void mtk_pcie_intr_handler(struct irq_desc *desc)
 			unsigned long imsi_status;
 
 			while ((imsi_status = readl(port->base + PCIE_IMSI_STATUS))) {
-				for_each_set_bit(bit, &imsi_status, MTK_MSI_IRQS_NUM) {
-					virq = irq_find_mapping(port->inner_domain, bit);
-					generic_handle_irq(virq);
-				}
+				for_each_set_bit(bit, &imsi_status, MTK_MSI_IRQS_NUM)
+					generic_handle_domain_irq(port->inner_domain, bit);
 			}
 			/* Clear MSI interrupt status */
 			writel(MSI_STATUS, port->base + PCIE_INT_STATUS);
