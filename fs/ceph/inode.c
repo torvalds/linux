@@ -1848,8 +1848,8 @@ static void ceph_do_invalidate_pages(struct inode *inode)
 	mutex_lock(&ci->i_truncate_mutex);
 
 	if (READ_ONCE(fsc->mount_state) >= CEPH_MOUNT_SHUTDOWN) {
-		pr_warn_ratelimited("invalidate_pages %p %lld forced umount\n",
-				    inode, ceph_ino(inode));
+		pr_warn_ratelimited("%s: inode %llx.%llx is shut down\n",
+				    __func__, ceph_vinop(inode));
 		mapping_set_error(inode->i_mapping, -EIO);
 		truncate_pagecache(inode, 0);
 		mutex_unlock(&ci->i_truncate_mutex);
@@ -1871,7 +1871,8 @@ static void ceph_do_invalidate_pages(struct inode *inode)
 
 	ceph_fscache_invalidate(inode);
 	if (invalidate_inode_pages2(inode->i_mapping) < 0) {
-		pr_err("invalidate_pages %p fails\n", inode);
+		pr_err("invalidate_inode_pages2 %llx.%llx failed\n",
+		       ceph_vinop(inode));
 	}
 
 	spin_lock(&ci->i_ceph_lock);

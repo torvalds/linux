@@ -556,7 +556,7 @@ static void ceph_async_create_cb(struct ceph_mds_client *mdsc,
 		}
 		ceph_kick_flushing_inode_caps(req->r_session, ci);
 		spin_unlock(&ci->i_ceph_lock);
-	} else {
+	} else if (!result) {
 		pr_warn("%s: no req->r_target_inode for 0x%llx\n", __func__,
 			req->r_deleg_ino);
 	}

@@ -1968,8 +1968,8 @@ retry:
 		}
 	}
 
-	dout("check_caps %p file_want %s used %s dirty %s flushing %s"
-	     " issued %s revoking %s retain %s %s%s\n", inode,
+	dout("check_caps %llx.%llx file_want %s used %s dirty %s flushing %s"
+	     " issued %s revoking %s retain %s %s%s\n", ceph_vinop(inode),
 	     ceph_cap_string(file_wanted),
 	     ceph_cap_string(used), ceph_cap_string(ci->i_dirty_caps),
 	     ceph_cap_string(ci->i_flushing_caps),
@@ -1990,7 +1990,8 @@ retry:
 	    (revoking & (CEPH_CAP_FILE_CACHE|
 			 CEPH_CAP_FILE_LAZYIO)) && /*  or revoking cache */
 	    !tried_invalidate) {
-		dout("check_caps trying to invalidate on %p\n", inode);
+		dout("check_caps trying to invalidate on %llx.%llx\n",
+		     ceph_vinop(inode));
 		if (try_nonblocking_invalidate(inode) < 0) {
 			dout("check_caps queuing invalidate\n");
 			queue_invalidate = true;
@@ -4315,7 +4316,7 @@ static void flush_dirty_session_caps(struct ceph_mds_session *s)
 				      i_dirty_item);
 		inode = &ci->vfs_inode;
 		ihold(inode);
-		dout("flush_dirty_caps %p\n", inode);
+		dout("flush_dirty_caps %llx.%llx\n", ceph_vinop(inode));
 		spin_unlock(&mdsc->cap_dirty_lock);
 		ceph_check_caps(ci, CHECK_CAPS_FLUSH, NULL);
 		iput(inode);
