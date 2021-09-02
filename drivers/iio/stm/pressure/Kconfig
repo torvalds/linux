@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Pressure drivers
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Pressure sensors"
+
+config ST_LPS22HH_IIO
+	tristate "STMicroelectronics LPS22HH/LPS27HHW sensor"
+	depends on (I2C || SPI_MASTER) && SYSFS
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	select ST_LPS22HH_I2C_IIO if (I2C)
+	select ST_LPS22HH_SPI_IIO if (SPI)
+	help
+	  This driver supports LPS22HH sensors. This driver can be
+	  built as a module. The module will be called st-lps22hh.
+
+config ST_LPS22HH_I2C_IIO
+	tristate
+	depends on ST_LPS22HH_IIO
+
+config ST_LPS22HH_SPI_IIO
+	tristate
+	depends on ST_LPS22HH_IIO
+
+endmenu

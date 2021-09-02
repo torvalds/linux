@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# IIO imu drivers configuration
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Inertial measurement units"
+
+source "drivers/iio/stm/imu/st_lsm6dsox/Kconfig"
+source "drivers/iio/stm/imu/st_lsm6dsrx/Kconfig"
+source "drivers/iio/stm/imu/st_ism330dhcx/Kconfig"
+source "drivers/iio/stm/imu/st_asm330lhh/Kconfig"
+
+endmenu
