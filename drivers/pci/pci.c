@@ -925,8 +925,8 @@ static void pci_std_enable_acs(struct pci_dev *dev)
 	/* Upstream Forwarding */
 	ctrl |= (cap & PCI_ACS_UF);
 
-	/* Enable Translation Blocking for external devices */
-	if (dev->external_facing || dev->untrusted)
+	/* Enable Translation Blocking for external devices and noats */
+	if (pci_ats_disabled() || dev->external_facing || dev->untrusted)
 		ctrl |= (cap & PCI_ACS_TB);
 
 	pci_write_config_word(dev, pos + PCI_ACS_CTRL, ctrl);
