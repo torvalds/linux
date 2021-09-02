@@ -5735,16 +5735,6 @@ check_special_stateids(struct net *net, svc_fh *current_fh, stateid_t *stateid, 
 				NFS4_SHARE_DENY_READ);
 }
 
-/*
- * Allow READ/WRITE during grace period on recovered state only for files
- * that are not able to provide mandatory locking.
- */
-static inline int
-grace_disallows_io(struct net *net, struct inode *inode)
-{
-	return opens_in_grace(net) && mandatory_lock(inode);
-}
-
 static __be32 check_stateid_generation(stateid_t *in, stateid_t *ref, bool has_session)
 {
 	/*
@@ -6026,7 +6016,6 @@ nfs4_preprocess_stateid_op(struct svc_rqst *rqstp,
 		stateid_t *stateid, int flags, struct nfsd_file **nfp,
 		struct nfs4_stid **cstid)
 {
-	struct inode *ino = d_inode(fhp->fh_dentry);
 	struct net *net = SVC_NET(rqstp);
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	struct nfs4_stid *s = NULL;
@@ -6034,9 +6023,6 @@ nfs4_preprocess_stateid_op(struct svc_rqst *rqstp,
 
 	if (nfp)
 		*nfp = NULL;
-
-	if (grace_disallows_io(net, ino))
-		return nfserr_grace;
 
 	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid)) {
 		status = check_special_stateids(net, fhp, stateid, flags);

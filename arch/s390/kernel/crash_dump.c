@@ -140,7 +140,7 @@ int copy_oldmem_kernel(void *dst, void *src, size_t count)
 
 	while (count) {
 		from = __pa(src);
-		if (!OLDMEM_BASE && from < sclp.hsa_size) {
+		if (!oldmem_data.start && from < sclp.hsa_size) {
 			/* Copy from zfcp/nvme dump HSA area */
 			len = min(count, sclp.hsa_size - from);
 			rc = memcpy_hsa_kernel(dst, from, len);
@@ -148,12 +148,12 @@ int copy_oldmem_kernel(void *dst, void *src, size_t count)
 				return rc;
 		} else {
 			/* Check for swapped kdump oldmem areas */
-			if (OLDMEM_BASE && from - OLDMEM_BASE < OLDMEM_SIZE) {
-				from -= OLDMEM_BASE;
-				len = min(count, OLDMEM_SIZE - from);
-			} else if (OLDMEM_BASE && from < OLDMEM_SIZE) {
-				len = min(count, OLDMEM_SIZE - from);
-				from += OLDMEM_BASE;
+			if (oldmem_data.start && from - oldmem_data.start < oldmem_data.size) {
+				from -= oldmem_data.start;
+				len = min(count, oldmem_data.size - from);
+			} else if (oldmem_data.start && from < oldmem_data.size) {
+				len = min(count, oldmem_data.size - from);
+				from += oldmem_data.start;
 			} else {
 				len = count;
 			}
@@ -183,7 +183,7 @@ static int copy_oldmem_user(void __user *dst, void *src, size_t count)
 
 	while (count) {
 		from = __pa(src);
-		if (!OLDMEM_BASE && from < sclp.hsa_size) {
+		if (!oldmem_data.start && from < sclp.hsa_size) {
 			/* Copy from zfcp/nvme dump HSA area */
 			len = min(count, sclp.hsa_size - from);
 			rc = memcpy_hsa_user(dst, from, len);
@@ -191,12 +191,12 @@ static int copy_oldmem_user(void __user *dst, void *src, size_t count)
 				return rc;
 		} else {
 			/* Check for swapped kdump oldmem areas */
-			if (OLDMEM_BASE && from - OLDMEM_BASE < OLDMEM_SIZE) {
-				from -= OLDMEM_BASE;
-				len = min(count, OLDMEM_SIZE - from);
-			} else if (OLDMEM_BASE && from < OLDMEM_SIZE) {
-				len = min(count, OLDMEM_SIZE - from);
-				from += OLDMEM_BASE;
+			if (oldmem_data.start && from - oldmem_data.size < oldmem_data.size) {
+				from -= oldmem_data.size;
+				len = min(count, oldmem_data.size - from);
+			} else if (oldmem_data.start && from < oldmem_data.size) {
+				len = min(count, oldmem_data.size - from);
+				from += oldmem_data.start;
 			} else {
 				len = count;
 			}
@@ -243,10 +243,10 @@ static int remap_oldmem_pfn_range_kdump(struct vm_area_struct *vma,
 	unsigned long size_old;
 	int rc;
 
-	if (pfn < OLDMEM_SIZE >> PAGE_SHIFT) {
-		size_old = min(size, OLDMEM_SIZE - (pfn << PAGE_SHIFT));
+	if (pfn < oldmem_data.size >> PAGE_SHIFT) {
+		size_old = min(size, oldmem_data.size - (pfn << PAGE_SHIFT));
 		rc = remap_pfn_range(vma, from,
-				     pfn + (OLDMEM_BASE >> PAGE_SHIFT),
+				     pfn + (oldmem_data.start >> PAGE_SHIFT),
 				     size_old, prot);
 		if (rc || size == size_old)
 			return rc;
@@ -288,7 +288,7 @@ static int remap_oldmem_pfn_range_zfcpdump(struct vm_area_struct *vma,
 int remap_oldmem_pfn_range(struct vm_area_struct *vma, unsigned long from,
 			   unsigned long pfn, unsigned long size, pgprot_t prot)
 {
-	if (OLDMEM_BASE)
+	if (oldmem_data.start)
 		return remap_oldmem_pfn_range_kdump(vma, from, pfn, size, prot);
 	else
 		return remap_oldmem_pfn_range_zfcpdump(vma, from, pfn, size,
@@ -633,17 +633,17 @@ int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 	u64 hdr_off;
 
 	/* If we are not in kdump or zfcp/nvme dump mode return */
-	if (!OLDMEM_BASE && !is_ipl_type_dump())
+	if (!oldmem_data.start && !is_ipl_type_dump())
 		return 0;
 	/* If we cannot get HSA size for zfcp/nvme dump return error */
 	if (is_ipl_type_dump() && !sclp.hsa_size)
 		return -ENODEV;
 
 	/* For kdump, exclude previous crashkernel memory */
-	if (OLDMEM_BASE) {
-		oldmem_region.base = OLDMEM_BASE;
-		oldmem_region.size = OLDMEM_SIZE;
-		oldmem_type.total_size = OLDMEM_SIZE;
+	if (oldmem_data.start) {
+		oldmem_region.base = oldmem_data.start;
+		oldmem_region.size = oldmem_data.size;
+		oldmem_type.total_size = oldmem_data.size;
 	}
 
 	mem_chunk_cnt = get_mem_chunk_cnt();

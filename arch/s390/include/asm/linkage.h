@@ -22,7 +22,7 @@
 
 #define EX_TABLE(_fault, _target)					\
 	__EX_TABLE(__ex_table, _fault, _target)
-#define EX_TABLE_DMA(_fault, _target)					\
-	__EX_TABLE(.dma.ex_table, _fault, _target)
+#define EX_TABLE_AMODE31(_fault, _target)				\
+	__EX_TABLE(.amode31.ex_table, _fault, _target)
 
 #endif

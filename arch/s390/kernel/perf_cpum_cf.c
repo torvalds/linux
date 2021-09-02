@@ -1138,7 +1138,7 @@ static long cfset_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret;
 
-	get_online_cpus();
+	cpus_read_lock();
 	mutex_lock(&cfset_ctrset_mutex);
 	switch (cmd) {
 	case S390_HWCTR_START:
@@ -1155,7 +1155,7 @@ static long cfset_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	mutex_unlock(&cfset_ctrset_mutex);
-	put_online_cpus();
+	cpus_read_unlock();
 	return ret;
 }
 

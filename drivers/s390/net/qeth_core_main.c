@@ -3804,14 +3804,10 @@ static void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 				     unsigned long card_ptr)
 {
 	struct qeth_card *card        = (struct qeth_card *) card_ptr;
-	struct net_device *dev = card->dev;
 
-	QETH_CARD_TEXT(card, 6, "qdouhdl");
-	if (qdio_error & QDIO_ERROR_FATAL) {
-		QETH_CARD_TEXT(card, 2, "achkcond");
-		netif_tx_stop_all_queues(dev);
-		qeth_schedule_recovery(card);
-	}
+	QETH_CARD_TEXT(card, 2, "achkcond");
+	netif_tx_stop_all_queues(card->dev);
+	qeth_schedule_recovery(card);
 }
 
 /**

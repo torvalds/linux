@@ -572,14 +572,14 @@ static inline struct zcrypt_queue *zcrypt_pick_queue(struct zcrypt_card *zc,
 						     struct module **pmod,
 						     unsigned int weight)
 {
-	if (!zq || !try_module_get(zq->queue->ap_dev.drv->driver.owner))
+	if (!zq || !try_module_get(zq->queue->ap_dev.device.driver->owner))
 		return NULL;
 	zcrypt_queue_get(zq);
 	get_device(&zq->queue->ap_dev.device);
 	atomic_add(weight, &zc->load);
 	atomic_add(weight, &zq->load);
 	zq->request_count++;
-	*pmod = zq->queue->ap_dev.drv->driver.owner;
+	*pmod = zq->queue->ap_dev.device.driver->owner;
 	return zq;
 }
 

@@ -89,7 +89,7 @@ static int zcrypt_cex2a_card_probe(struct ap_device *ap_dev)
 	if (!zc)
 		return -ENOMEM;
 	zc->card = ac;
-	ac->private = zc;
+	dev_set_drvdata(&ap_dev->device, zc);
 
 	if (ac->ap_dev.device_type == AP_DEVICE_TYPE_CEX2A) {
 		zc->min_mod_size = CEX2A_MIN_MOD_SIZE;
@@ -118,7 +118,6 @@ static int zcrypt_cex2a_card_probe(struct ap_device *ap_dev)
 
 	rc = zcrypt_card_register(zc);
 	if (rc) {
-		ac->private = NULL;
 		zcrypt_card_free(zc);
 	}
 
@@ -131,10 +130,9 @@ static int zcrypt_cex2a_card_probe(struct ap_device *ap_dev)
  */
 static void zcrypt_cex2a_card_remove(struct ap_device *ap_dev)
 {
-	struct zcrypt_card *zc = to_ap_card(&ap_dev->device)->private;
+	struct zcrypt_card *zc = dev_get_drvdata(&ap_dev->device);
 
-	if (zc)
-		zcrypt_card_unregister(zc);
+	zcrypt_card_unregister(zc);
 }
 
 static struct ap_driver zcrypt_cex2a_card_driver = {
@@ -176,10 +174,9 @@ static int zcrypt_cex2a_queue_probe(struct ap_device *ap_dev)
 	ap_queue_init_state(aq);
 	ap_queue_init_reply(aq, &zq->reply);
 	aq->request_timeout = CEX2A_CLEANUP_TIME;
-	aq->private = zq;
+	dev_set_drvdata(&ap_dev->device, zq);
 	rc = zcrypt_queue_register(zq);
 	if (rc) {
-		aq->private = NULL;
 		zcrypt_queue_free(zq);
 	}
 
@@ -192,11 +189,9 @@ static int zcrypt_cex2a_queue_probe(struct ap_device *ap_dev)
  */
 static void zcrypt_cex2a_queue_remove(struct ap_device *ap_dev)
 {
-	struct ap_queue *aq = to_ap_queue(&ap_dev->device);
-	struct zcrypt_queue *zq = aq->private;
+	struct zcrypt_queue *zq = dev_get_drvdata(&ap_dev->device);
 
-	if (zq)
-		zcrypt_queue_unregister(zq);
+	zcrypt_queue_unregister(zq);
 }
 
 static struct ap_driver zcrypt_cex2a_queue_driver = {
