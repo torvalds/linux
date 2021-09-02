@@ -125,8 +125,14 @@ config QCOM_OCMEM
 	  audio components on some Snapdragon SoCs.
 
 config QCOM_PDR_HELPERS
-	tristate
+	tristate "Qualcomm Technologies, Inc. Protection Domain Restart(PDR) driver"
 	select QCOM_QMI_HELPERS
+	help
+	  Qualcomm Technologies, Inc. SoCs allow for multiple protection domains (PDs)
+	  to run on the same Q6 sub-system. This allows for services
+	  like AVS AUDIO to have their own separate address space and
+	  crash/recover without disrupting the other PDs running on
+	  the same Q6 ADSP.
 
 config QCOM_QMI_HELPERS
 	tristate
