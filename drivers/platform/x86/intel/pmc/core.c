@@ -31,7 +31,7 @@
 #include <asm/msr.h>
 #include <asm/tsc.h>
 
-#include "intel_pmc_core.h"
+#include "core.h"
 
 #define ACPI_S0IX_DSM_UUID		"57a6512e-3979-4e9d-9708-ff13b2508972"
 #define ACPI_GET_LOW_MODE_REGISTERS	1
@@ -644,6 +644,306 @@ static void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev)
 free_acpi_obj:
 	ACPI_FREE(out_obj);
 }
+
+/* Alder Lake: PGD PFET Enable Ack Status Register(s) bitmap */
+static const struct pmc_bit_map adl_pfear_map[] = {
+	{"SPI/eSPI",		BIT(2)},
+	{"XHCI",		BIT(3)},
+	{"SPA",			BIT(4)},
+	{"SPB",			BIT(5)},
+	{"SPC",			BIT(6)},
+	{"GBE",			BIT(7)},
+
+	{"SATA",		BIT(0)},
+	{"HDA_PGD0",		BIT(1)},
+	{"HDA_PGD1",		BIT(2)},
+	{"HDA_PGD2",		BIT(3)},
+	{"HDA_PGD3",		BIT(4)},
+	{"SPD",			BIT(5)},
+	{"LPSS",		BIT(6)},
+
+	{"SMB",			BIT(0)},
+	{"ISH",			BIT(1)},
+	{"ITH",			BIT(3)},
+
+	{"XDCI",		BIT(1)},
+	{"DCI",			BIT(2)},
+	{"CSE",			BIT(3)},
+	{"CSME_KVM",		BIT(4)},
+	{"CSME_PMT",		BIT(5)},
+	{"CSME_CLINK",		BIT(6)},
+	{"CSME_PTIO",		BIT(7)},
+
+	{"CSME_USBR",		BIT(0)},
+	{"CSME_SUSRAM",		BIT(1)},
+	{"CSME_SMT1",		BIT(2)},
+	{"CSME_SMS2",		BIT(4)},
+	{"CSME_SMS1",		BIT(5)},
+	{"CSME_RTC",		BIT(6)},
+	{"CSME_PSF",		BIT(7)},
+
+	{"CNVI",		BIT(3)},
+
+	{"HDA_PGD4",		BIT(2)},
+	{"HDA_PGD5",		BIT(3)},
+	{"HDA_PGD6",		BIT(4)},
+	{}
+};
+
+static const struct pmc_bit_map *ext_adl_pfear_map[] = {
+	/*
+	 * Check intel_pmc_core_ids[] users of cnp_reg_map for
+	 * a list of core SoCs using this.
+	 */
+	adl_pfear_map,
+	NULL
+};
+
+static const struct pmc_bit_map adl_ltr_show_map[] = {
+	{"SOUTHPORT_A",		CNP_PMC_LTR_SPA},
+	{"SOUTHPORT_B",		CNP_PMC_LTR_SPB},
+	{"SATA",		CNP_PMC_LTR_SATA},
+	{"GIGABIT_ETHERNET",	CNP_PMC_LTR_GBE},
+	{"XHCI",		CNP_PMC_LTR_XHCI},
+	{"SOUTHPORT_F",		ADL_PMC_LTR_SPF},
+	{"ME",			CNP_PMC_LTR_ME},
+	/* EVA is Enterprise Value Add, doesn't really exist on PCH */
+	{"SATA1",		CNP_PMC_LTR_EVA},
+	{"SOUTHPORT_C",		CNP_PMC_LTR_SPC},
+	{"HD_AUDIO",		CNP_PMC_LTR_AZ},
+	{"CNV",			CNP_PMC_LTR_CNV},
+	{"LPSS",		CNP_PMC_LTR_LPSS},
+	{"SOUTHPORT_D",		CNP_PMC_LTR_SPD},
+	{"SOUTHPORT_E",		CNP_PMC_LTR_SPE},
+	{"SATA2",		CNP_PMC_LTR_CAM},
+	{"ESPI",		CNP_PMC_LTR_ESPI},
+	{"SCC",			CNP_PMC_LTR_SCC},
+	{"ISH",			CNP_PMC_LTR_ISH},
+	{"UFSX2",		CNP_PMC_LTR_UFSX2},
+	{"EMMC",		CNP_PMC_LTR_EMMC},
+	/*
+	 * Check intel_pmc_core_ids[] users of cnp_reg_map for
+	 * a list of core SoCs using this.
+	 */
+	{"WIGIG",		ICL_PMC_LTR_WIGIG},
+	{"THC0",		TGL_PMC_LTR_THC0},
+	{"THC1",		TGL_PMC_LTR_THC1},
+	{"SOUTHPORT_G",		CNP_PMC_LTR_RESERVED},
+
+	/* Below two cannot be used for LTR_IGNORE */
+	{"CURRENT_PLATFORM",	CNP_PMC_LTR_CUR_PLT},
+	{"AGGREGATED_SYSTEM",	CNP_PMC_LTR_CUR_ASLT},
+	{}
+};
+
+static const struct pmc_bit_map adl_clocksource_status_map[] = {
+	{"CLKPART1_OFF_STS",			BIT(0)},
+	{"CLKPART2_OFF_STS",			BIT(1)},
+	{"CLKPART3_OFF_STS",			BIT(2)},
+	{"CLKPART4_OFF_STS",			BIT(3)},
+	{"CLKPART5_OFF_STS",			BIT(4)},
+	{"CLKPART6_OFF_STS",			BIT(5)},
+	{"CLKPART7_OFF_STS",			BIT(6)},
+	{"CLKPART8_OFF_STS",			BIT(7)},
+	{"PCIE0PLL_OFF_STS",			BIT(10)},
+	{"PCIE1PLL_OFF_STS",			BIT(11)},
+	{"PCIE2PLL_OFF_STS",			BIT(12)},
+	{"PCIE3PLL_OFF_STS",			BIT(13)},
+	{"PCIE4PLL_OFF_STS",			BIT(14)},
+	{"PCIE5PLL_OFF_STS",			BIT(15)},
+	{"PCIE6PLL_OFF_STS",			BIT(16)},
+	{"USB2PLL_OFF_STS",			BIT(18)},
+	{"OCPLL_OFF_STS",			BIT(22)},
+	{"AUDIOPLL_OFF_STS",			BIT(23)},
+	{"GBEPLL_OFF_STS",			BIT(24)},
+	{"Fast_XTAL_Osc_OFF_STS",		BIT(25)},
+	{"AC_Ring_Osc_OFF_STS",			BIT(26)},
+	{"MC_Ring_Osc_OFF_STS",			BIT(27)},
+	{"SATAPLL_OFF_STS",			BIT(29)},
+	{"USB3PLL_OFF_STS",			BIT(31)},
+	{}
+};
+
+static const struct pmc_bit_map adl_power_gating_status_0_map[] = {
+	{"PMC_PGD0_PG_STS",			BIT(0)},
+	{"DMI_PGD0_PG_STS",			BIT(1)},
+	{"ESPISPI_PGD0_PG_STS",			BIT(2)},
+	{"XHCI_PGD0_PG_STS",			BIT(3)},
+	{"SPA_PGD0_PG_STS",			BIT(4)},
+	{"SPB_PGD0_PG_STS",			BIT(5)},
+	{"SPC_PGD0_PG_STS",			BIT(6)},
+	{"GBE_PGD0_PG_STS",			BIT(7)},
+	{"SATA_PGD0_PG_STS",			BIT(8)},
+	{"DSP_PGD0_PG_STS",			BIT(9)},
+	{"DSP_PGD1_PG_STS",			BIT(10)},
+	{"DSP_PGD2_PG_STS",			BIT(11)},
+	{"DSP_PGD3_PG_STS",			BIT(12)},
+	{"SPD_PGD0_PG_STS",			BIT(13)},
+	{"LPSS_PGD0_PG_STS",			BIT(14)},
+	{"SMB_PGD0_PG_STS",			BIT(16)},
+	{"ISH_PGD0_PG_STS",			BIT(17)},
+	{"NPK_PGD0_PG_STS",			BIT(19)},
+	{"PECI_PGD0_PG_STS",			BIT(21)},
+	{"XDCI_PGD0_PG_STS",			BIT(25)},
+	{"EXI_PGD0_PG_STS",			BIT(26)},
+	{"CSE_PGD0_PG_STS",			BIT(27)},
+	{"KVMCC_PGD0_PG_STS",			BIT(28)},
+	{"PMT_PGD0_PG_STS",			BIT(29)},
+	{"CLINK_PGD0_PG_STS",			BIT(30)},
+	{"PTIO_PGD0_PG_STS",			BIT(31)},
+	{}
+};
+
+static const struct pmc_bit_map adl_power_gating_status_1_map[] = {
+	{"USBR0_PGD0_PG_STS",			BIT(0)},
+	{"SMT1_PGD0_PG_STS",			BIT(2)},
+	{"CSMERTC_PGD0_PG_STS",			BIT(6)},
+	{"CSMEPSF_PGD0_PG_STS",			BIT(7)},
+	{"CNVI_PGD0_PG_STS",			BIT(19)},
+	{"DSP_PGD4_PG_STS",			BIT(26)},
+	{"SPG_PGD0_PG_STS",			BIT(27)},
+	{"SPE_PGD0_PG_STS",			BIT(28)},
+	{}
+};
+
+static const struct pmc_bit_map adl_power_gating_status_2_map[] = {
+	{"THC0_PGD0_PG_STS",			BIT(7)},
+	{"THC1_PGD0_PG_STS",			BIT(8)},
+	{"SPF_PGD0_PG_STS",			BIT(14)},
+	{}
+};
+
+static const struct pmc_bit_map adl_d3_status_0_map[] = {
+	{"ISH_D3_STS",				BIT(2)},
+	{"LPSS_D3_STS",				BIT(3)},
+	{"XDCI_D3_STS",				BIT(4)},
+	{"XHCI_D3_STS",				BIT(5)},
+	{"SPA_D3_STS",				BIT(12)},
+	{"SPB_D3_STS",				BIT(13)},
+	{"SPC_D3_STS",				BIT(14)},
+	{"SPD_D3_STS",				BIT(15)},
+	{"SPE_D3_STS",				BIT(16)},
+	{"DSP_D3_STS",				BIT(19)},
+	{"SATA_D3_STS",				BIT(20)},
+	{"DMI_D3_STS",				BIT(22)},
+	{}
+};
+
+static const struct pmc_bit_map adl_d3_status_1_map[] = {
+	{"GBE_D3_STS",				BIT(19)},
+	{"CNVI_D3_STS",				BIT(27)},
+	{}
+};
+
+static const struct pmc_bit_map adl_d3_status_2_map[] = {
+	{"CSMERTC_D3_STS",			BIT(1)},
+	{"CSE_D3_STS",				BIT(4)},
+	{"KVMCC_D3_STS",			BIT(5)},
+	{"USBR0_D3_STS",			BIT(6)},
+	{"SMT1_D3_STS",				BIT(8)},
+	{"PTIO_D3_STS",				BIT(16)},
+	{"PMT_D3_STS",				BIT(17)},
+	{}
+};
+
+static const struct pmc_bit_map adl_d3_status_3_map[] = {
+	{"THC0_D3_STS",				BIT(14)},
+	{"THC1_D3_STS",				BIT(15)},
+	{}
+};
+
+static const struct pmc_bit_map adl_vnn_req_status_0_map[] = {
+	{"ISH_VNN_REQ_STS",			BIT(2)},
+	{"ESPISPI_VNN_REQ_STS",			BIT(18)},
+	{"DSP_VNN_REQ_STS",			BIT(19)},
+	{}
+};
+
+static const struct pmc_bit_map adl_vnn_req_status_1_map[] = {
+	{"NPK_VNN_REQ_STS",			BIT(4)},
+	{"EXI_VNN_REQ_STS",			BIT(9)},
+	{"GBE_VNN_REQ_STS",			BIT(19)},
+	{"SMB_VNN_REQ_STS",			BIT(25)},
+	{"CNVI_VNN_REQ_STS",			BIT(27)},
+	{}
+};
+
+static const struct pmc_bit_map adl_vnn_req_status_2_map[] = {
+	{"CSMERTC_VNN_REQ_STS",			BIT(1)},
+	{"CSE_VNN_REQ_STS",			BIT(4)},
+	{"SMT1_VNN_REQ_STS",			BIT(8)},
+	{"CLINK_VNN_REQ_STS",			BIT(14)},
+	{"GPIOCOM4_VNN_REQ_STS",		BIT(20)},
+	{"GPIOCOM3_VNN_REQ_STS",		BIT(21)},
+	{"GPIOCOM2_VNN_REQ_STS",		BIT(22)},
+	{"GPIOCOM1_VNN_REQ_STS",		BIT(23)},
+	{"GPIOCOM0_VNN_REQ_STS",		BIT(24)},
+	{}
+};
+
+static const struct pmc_bit_map adl_vnn_req_status_3_map[] = {
+	{"GPIOCOM5_VNN_REQ_STS",		BIT(11)},
+	{}
+};
+
+static const struct pmc_bit_map adl_vnn_misc_status_map[] = {
+	{"CPU_C10_REQ_STS",			BIT(0)},
+	{"PCIe_LPM_En_REQ_STS",			BIT(3)},
+	{"ITH_REQ_STS",				BIT(5)},
+	{"CNVI_REQ_STS",			BIT(6)},
+	{"ISH_REQ_STS",				BIT(7)},
+	{"USB2_SUS_PG_Sys_REQ_STS",		BIT(10)},
+	{"PCIe_Clk_REQ_STS",			BIT(12)},
+	{"MPHY_Core_DL_REQ_STS",		BIT(16)},
+	{"Break-even_En_REQ_STS",		BIT(17)},
+	{"MPHY_SUS_REQ_STS",			BIT(22)},
+	{"xDCI_attached_REQ_STS",		BIT(24)},
+	{}
+};
+
+static const struct pmc_bit_map *adl_lpm_maps[] = {
+	adl_clocksource_status_map,
+	adl_power_gating_status_0_map,
+	adl_power_gating_status_1_map,
+	adl_power_gating_status_2_map,
+	adl_d3_status_0_map,
+	adl_d3_status_1_map,
+	adl_d3_status_2_map,
+	adl_d3_status_3_map,
+	adl_vnn_req_status_0_map,
+	adl_vnn_req_status_1_map,
+	adl_vnn_req_status_2_map,
+	adl_vnn_req_status_3_map,
+	adl_vnn_misc_status_map,
+	tgl_signal_status_map,
+	NULL
+};
+
+static const struct pmc_reg_map adl_reg_map = {
+	.pfear_sts = ext_adl_pfear_map,
+	.slp_s0_offset = ADL_PMC_SLP_S0_RES_COUNTER_OFFSET,
+	.slp_s0_res_counter_step = TGL_PMC_SLP_S0_RES_COUNTER_STEP,
+	.ltr_show_sts = adl_ltr_show_map,
+	.msr_sts = msr_map,
+	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
+	.regmap_length = CNP_PMC_MMIO_REG_LEN,
+	.ppfear0_offset = CNP_PMC_HOST_PPFEAR0A,
+	.ppfear_buckets = CNP_PPFEAR_NUM_ENTRIES,
+	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
+	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
+	.ltr_ignore_max = ADL_NUM_IP_IGN_ALLOWED,
+	.lpm_num_modes = ADL_LPM_NUM_MODES,
+	.lpm_num_maps = ADL_LPM_NUM_MAPS,
+	.lpm_res_counter_step_x2 = TGL_PMC_LPM_RES_COUNTER_STEP_X2,
+	.etr3_offset = ETR3_OFFSET,
+	.lpm_sts_latch_en_offset = ADL_LPM_STATUS_LATCH_EN_OFFSET,
+	.lpm_priority_offset = ADL_LPM_PRI_OFFSET,
+	.lpm_en_offset = ADL_LPM_EN_OFFSET,
+	.lpm_residency_offset = ADL_LPM_RESIDENCY_OFFSET,
+	.lpm_sts = adl_lpm_maps,
+	.lpm_status_offset = ADL_LPM_STATUS_OFFSET,
+	.lpm_live_status_offset = ADL_LPM_LIVE_STATUS_OFFSET,
+};
 
 static inline u32 pmc_core_reg_read(struct pmc_dev *pmcdev, int reg_offset)
 {
@@ -1449,9 +1749,42 @@ static int pmc_core_pkgc_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_pkgc);
 
-static void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev)
+static bool pmc_core_pri_verify(u32 lpm_pri, u8 *mode_order)
 {
-	u8 lpm_priority[LPM_MAX_NUM_MODES];
+	int i, j;
+
+	if (!lpm_pri)
+		return false;
+	/*
+	 * Each byte contains the priority level for 2 modes (7:4 and 3:0).
+	 * In a 32 bit register this allows for describing 8 modes. Store the
+	 * levels and look for values out of range.
+	 */
+	for (i = 0; i < 8; i++) {
+		int level = lpm_pri & GENMASK(3, 0);
+
+		if (level >= LPM_MAX_NUM_MODES)
+			return false;
+
+		mode_order[i] = level;
+		lpm_pri >>= 4;
+	}
+
+	/* Check that we have unique values */
+	for (i = 0; i < LPM_MAX_NUM_MODES - 1; i++)
+		for (j = i + 1; j < LPM_MAX_NUM_MODES; j++)
+			if (mode_order[i] == mode_order[j])
+				return false;
+
+	return true;
+}
+
+static void pmc_core_get_low_power_modes(struct platform_device *pdev)
+{
+	struct pmc_dev *pmcdev = platform_get_drvdata(pdev);
+	u8 pri_order[LPM_MAX_NUM_MODES] = LPM_DEFAULT_PRI;
+	u8 mode_order[LPM_MAX_NUM_MODES];
+	u32 lpm_pri;
 	u32 lpm_en;
 	int mode, i, p;
 
@@ -1462,24 +1795,28 @@ static void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev)
 	lpm_en = pmc_core_reg_read(pmcdev, pmcdev->map->lpm_en_offset);
 	pmcdev->num_lpm_modes = hweight32(lpm_en);
 
-	/* Each byte contains information for 2 modes (7:4 and 3:0) */
-	for (mode = 0; mode < LPM_MAX_NUM_MODES; mode += 2) {
-		u8 priority = pmc_core_reg_read_byte(pmcdev,
-				pmcdev->map->lpm_priority_offset + (mode / 2));
-		int pri0 = GENMASK(3, 0) & priority;
-		int pri1 = (GENMASK(7, 4) & priority) >> 4;
+	/* Read 32 bit LPM_PRI register */
+	lpm_pri = pmc_core_reg_read(pmcdev, pmcdev->map->lpm_priority_offset);
 
-		lpm_priority[pri0] = mode;
-		lpm_priority[pri1] = mode + 1;
-	}
 
 	/*
-	 * Loop though all modes from lowest to highest priority,
+	 * If lpm_pri value passes verification, then override the default
+	 * modes here. Otherwise stick with the default.
+	 */
+	if (pmc_core_pri_verify(lpm_pri, mode_order))
+		/* Get list of modes in priority order */
+		for (mode = 0; mode < LPM_MAX_NUM_MODES; mode++)
+			pri_order[mode_order[mode]] = mode;
+	else
+		dev_warn(&pdev->dev, "Assuming a default substate order for this platform\n");
+
+	/*
+	 * Loop through all modes from lowest to highest priority,
 	 * and capture all enabled modes in order
 	 */
 	i = 0;
 	for (p = LPM_MAX_NUM_MODES - 1; p >= 0; p--) {
-		int mode = lpm_priority[p];
+		int mode = pri_order[p];
 
 		if (!(BIT(mode) & lpm_en))
 			continue;
@@ -1574,6 +1911,7 @@ static const struct x86_cpu_id intel_pmc_core_ids[] = {
 	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT_L,	&icl_reg_map),
 	X86_MATCH_INTEL_FAM6_MODEL(ROCKETLAKE,		&tgl_reg_map),
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L,		&tgl_reg_map),
+	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE,		&adl_reg_map),
 	{}
 };
 
@@ -1675,17 +2013,17 @@ static int pmc_core_probe(struct platform_device *pdev)
 	mutex_init(&pmcdev->lock);
 
 	pmcdev->pmc_xram_read_bit = pmc_core_check_read_lock_bit(pmcdev);
-	pmc_core_get_low_power_modes(pmcdev);
+	pmc_core_get_low_power_modes(pdev);
 	pmc_core_do_dmi_quirks(pmcdev);
 
 	if (pmcdev->map == &tgl_reg_map)
 		pmc_core_get_tgl_lpm_reqs(pdev);
 
 	/*
-	 * On TGL, due to a hardware limitation, the GBE LTR blocks PC10 when
-	 * a cable is attached. Tell the PMC to ignore it.
+	 * On TGL and ADL, due to a hardware limitation, the GBE LTR blocks PC10
+	 * when a cable is attached. Tell the PMC to ignore it.
 	 */
-	if (pmcdev->map == &tgl_reg_map) {
+	if (pmcdev->map == &tgl_reg_map || pmcdev->map == &adl_reg_map) {
 		dev_dbg(&pdev->dev, "ignoring GBE LTR\n");
 		pmc_core_send_ltr_ignore(pmcdev, 3);
 	}
