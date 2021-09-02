@@ -10749,8 +10749,7 @@ _mpt3sas_fw_work(struct MPT3SAS_ADAPTER *ioc, struct fw_event_work *fw_event)
 	case MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST:
 		_scsih_pcie_topology_change_event(ioc, fw_event);
 		ioc->current_event = NULL;
-			return;
-	break;
+		return;
 	}
 out:
 	fw_event_work_put(fw_event);
