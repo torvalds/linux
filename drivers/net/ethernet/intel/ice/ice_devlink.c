@@ -477,7 +477,7 @@ struct ice_pf *ice_allocate_pf(struct device *dev)
 {
 	struct devlink *devlink;
 
-	devlink = devlink_alloc(&ice_devlink_ops, sizeof(struct ice_pf));
+	devlink = devlink_alloc(&ice_devlink_ops, sizeof(struct ice_pf), dev);
 	if (!devlink)
 		return NULL;
 
@@ -504,7 +504,7 @@ int ice_devlink_register(struct ice_pf *pf)
 	struct device *dev = ice_pf_to_dev(pf);
 	int err;
 
-	err = devlink_register(devlink, dev);
+	err = devlink_register(devlink);
 	if (err) {
 		dev_err(dev, "devlink registration failed: %d\n", err);
 		return err;

@@ -71,7 +71,7 @@ static bool hclgevf_cmd_csq_done(struct hclgevf_hw *hw)
 
 static bool hclgevf_is_special_opcode(u16 opcode)
 {
-	static const u16 spec_opcode[] = {0x30, 0x31, 0x32};
+	const u16 spec_opcode[] = {0x30, 0x31, 0x32};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(spec_opcode); i++) {
@@ -342,25 +342,26 @@ static void hclgevf_set_default_capability(struct hclgevf_dev *hdev)
 	set_bit(HNAE3_DEV_SUPPORT_FEC_B, ae_dev->caps);
 }
 
+const struct hclgevf_caps_bit_map hclgevf_cmd_caps_bit_map0[] = {
+	{HCLGEVF_CAP_UDP_GSO_B, HNAE3_DEV_SUPPORT_UDP_GSO_B},
+	{HCLGEVF_CAP_INT_QL_B, HNAE3_DEV_SUPPORT_INT_QL_B},
+	{HCLGEVF_CAP_TQP_TXRX_INDEP_B, HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B},
+	{HCLGEVF_CAP_HW_TX_CSUM_B, HNAE3_DEV_SUPPORT_HW_TX_CSUM_B},
+	{HCLGEVF_CAP_UDP_TUNNEL_CSUM_B, HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B},
+	{HCLGEVF_CAP_RXD_ADV_LAYOUT_B, HNAE3_DEV_SUPPORT_RXD_ADV_LAYOUT_B},
+};
+
 static void hclgevf_parse_capability(struct hclgevf_dev *hdev,
 				     struct hclgevf_query_version_cmd *cmd)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
-	u32 caps;
+	u32 caps, i;
 
 	caps = __le32_to_cpu(cmd->caps[0]);
-	if (hnae3_get_bit(caps, HCLGEVF_CAP_UDP_GSO_B))
-		set_bit(HNAE3_DEV_SUPPORT_UDP_GSO_B, ae_dev->caps);
-	if (hnae3_get_bit(caps, HCLGEVF_CAP_INT_QL_B))
-		set_bit(HNAE3_DEV_SUPPORT_INT_QL_B, ae_dev->caps);
-	if (hnae3_get_bit(caps, HCLGEVF_CAP_TQP_TXRX_INDEP_B))
-		set_bit(HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B, ae_dev->caps);
-	if (hnae3_get_bit(caps, HCLGEVF_CAP_HW_TX_CSUM_B))
-		set_bit(HNAE3_DEV_SUPPORT_HW_TX_CSUM_B, ae_dev->caps);
-	if (hnae3_get_bit(caps, HCLGEVF_CAP_UDP_TUNNEL_CSUM_B))
-		set_bit(HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B, ae_dev->caps);
-	if (hnae3_get_bit(caps, HCLGEVF_CAP_RXD_ADV_LAYOUT_B))
-		set_bit(HNAE3_DEV_SUPPORT_RXD_ADV_LAYOUT_B, ae_dev->caps);
+	for (i = 0; i < ARRAY_SIZE(hclgevf_cmd_caps_bit_map0); i++)
+		if (hnae3_get_bit(caps, hclgevf_cmd_caps_bit_map0[i].imp_bit))
+			set_bit(hclgevf_cmd_caps_bit_map0[i].local_bit,
+				ae_dev->caps);
 }
 
 static __le32 hclgevf_build_api_caps(void)

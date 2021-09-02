@@ -359,8 +359,8 @@ struct wwan_port *wwan_create_port(struct device *parent,
 {
 	struct wwan_device *wwandev;
 	struct wwan_port *port;
-	int minor, err = -ENOMEM;
 	char namefmt[0x20];
+	int minor, err;
 
 	if (type > WWAN_PORT_MAX || !ops)
 		return ERR_PTR(-EINVAL);
@@ -374,11 +374,14 @@ struct wwan_port *wwan_create_port(struct device *parent,
 
 	/* A port is exposed as character device, get a minor */
 	minor = ida_alloc_range(&minors, 0, WWAN_MAX_MINORS - 1, GFP_KERNEL);
-	if (minor < 0)
+	if (minor < 0) {
+		err = minor;
 		goto error_wwandev_remove;
+	}
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port) {
+		err = -ENOMEM;
 		ida_free(&minors, minor);
 		goto error_wwandev_remove;
 	}

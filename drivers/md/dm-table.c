@@ -2076,7 +2076,7 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	}
 
 	dm_update_keyslot_manager(q, t);
-	blk_queue_update_readahead(q);
+	disk_update_readahead(t->md->disk);
 
 	return 0;
 }

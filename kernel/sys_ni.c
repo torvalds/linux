@@ -416,7 +416,6 @@ COND_SYSCALL(epoll_wait);
 COND_SYSCALL(recv);
 COND_SYSCALL_COMPAT(recv);
 COND_SYSCALL(send);
-COND_SYSCALL(bdflush);
 COND_SYSCALL(uselib);
 
 /* optional: time32 */

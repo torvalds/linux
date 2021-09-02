@@ -39,6 +39,7 @@ MODULE_PARM_DESC(enable_crc16,
 #define WILC_SPI_RSP_HDR_EXTRA_DATA	8
 
 struct wilc_spi {
+	bool isinit;		/* true if SPI protocol has been configured */
 	bool probing_crc;	/* true if we're probing chip's CRC config */
 	bool crc7_enabled;	/* true if crc7 is currently enabled */
 	bool crc16_enabled;	/* true if crc16 is currently enabled */
@@ -154,34 +155,37 @@ static int wilc_bus_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	ret = wilc_cfg80211_init(&wilc, &spi->dev, WILC_HIF_SPI, &wilc_hif_spi);
-	if (ret) {
-		kfree(spi_priv);
-		return ret;
-	}
+	if (ret)
+		goto free;
 
 	spi_set_drvdata(spi, wilc);
 	wilc->dev = &spi->dev;
 	wilc->bus_data = spi_priv;
 	wilc->dev_irq_num = spi->irq;
 
-	wilc->rtc_clk = devm_clk_get(&spi->dev, "rtc");
-	if (PTR_ERR_OR_ZERO(wilc->rtc_clk) == -EPROBE_DEFER) {
-		kfree(spi_priv);
-		return -EPROBE_DEFER;
-	} else if (!IS_ERR(wilc->rtc_clk))
-		clk_prepare_enable(wilc->rtc_clk);
+	wilc->rtc_clk = devm_clk_get_optional(&spi->dev, "rtc");
+	if (IS_ERR(wilc->rtc_clk)) {
+		ret = PTR_ERR(wilc->rtc_clk);
+		goto netdev_cleanup;
+	}
+	clk_prepare_enable(wilc->rtc_clk);
 
 	return 0;
+
+netdev_cleanup:
+	wilc_netdev_cleanup(wilc);
+free:
+	kfree(spi_priv);
+	return ret;
 }
 
 static int wilc_bus_remove(struct spi_device *spi)
 {
 	struct wilc *wilc = spi_get_drvdata(spi);
 
-	if (!IS_ERR(wilc->rtc_clk))
-		clk_disable_unprepare(wilc->rtc_clk);
-
+	clk_disable_unprepare(wilc->rtc_clk);
 	wilc_netdev_cleanup(wilc);
+
 	return 0;
 }
 
@@ -905,15 +909,15 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 	struct wilc_spi *spi_priv = wilc->bus_data;
 	u32 reg;
 	u32 chipid;
-	static int isinit;
 	int ret, i;
 
-	if (isinit) {
+	if (spi_priv->isinit) {
+		/* Confirm we can read chipid register without error: */
 		ret = wilc_spi_read_reg(wilc, WILC_CHIPID, &chipid);
-		if (ret)
-			dev_err(&spi->dev, "Fail cmd read chip id...\n");
+		if (ret == 0)
+			return 0;
 
-		return ret;
+		dev_err(&spi->dev, "Fail cmd read chip id...\n");
 	}
 
 	/*
@@ -971,7 +975,7 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 	spi_priv->probing_crc = false;
 
 	/*
-	 * make sure can read back chip id correctly
+	 * make sure can read chip id without protocol error
 	 */
 	ret = wilc_spi_read_reg(wilc, WILC_CHIPID, &chipid);
 	if (ret) {
@@ -979,7 +983,7 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 		return ret;
 	}
 
-	isinit = 1;
+	spi_priv->isinit = true;
 
 	return 0;
 }

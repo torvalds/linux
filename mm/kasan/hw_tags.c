@@ -142,8 +142,6 @@ void kasan_init_hw_tags_cpu(void)
 	if (kasan_arg == KASAN_ARG_OFF)
 		return;
 
-	hw_init_tags(KASAN_TAG_MAX);
-
 	/*
 	 * Enable async mode only when explicitly requested through
 	 * the command line.
@@ -249,12 +247,6 @@ void kasan_free_pages(struct page *page, unsigned int order)
 }
 
 #if IS_ENABLED(CONFIG_KASAN_KUNIT_TEST)
-
-void kasan_set_tagging_report_once(bool state)
-{
-	hw_set_tagging_report_once(state);
-}
-EXPORT_SYMBOL_GPL(kasan_set_tagging_report_once);
 
 void kasan_enable_tagging_sync(void)
 {

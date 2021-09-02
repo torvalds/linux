@@ -740,10 +740,13 @@ static ssize_t iio_read_channel_label(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
-	if (!indio_dev->info->read_label)
-		return -EINVAL;
+	if (indio_dev->info->read_label)
+		return indio_dev->info->read_label(indio_dev, this_attr->c, buf);
 
-	return indio_dev->info->read_label(indio_dev, this_attr->c, buf);
+	if (this_attr->c->extend_name)
+		return sprintf(buf, "%s\n", this_attr->c->extend_name);
+
+	return -EINVAL;
 }
 
 static ssize_t iio_read_channel_info(struct device *dev,
@@ -1183,7 +1186,7 @@ static int iio_device_add_channel_label(struct iio_dev *indio_dev,
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	int ret;
 
-	if (!indio_dev->info->read_label)
+	if (!indio_dev->info->read_label && !chan->extend_name)
 		return 0;
 
 	ret = __iio_add_chan_devattr("label",
@@ -1858,6 +1861,24 @@ static int iio_check_unique_scan_index(struct iio_dev *indio_dev)
 	return 0;
 }
 
+static int iio_check_extended_name(const struct iio_dev *indio_dev)
+{
+	unsigned int i;
+
+	if (!indio_dev->info->read_label)
+		return 0;
+
+	for (i = 0; i < indio_dev->num_channels; i++) {
+		if (indio_dev->channels[i].extend_name) {
+			dev_err(&indio_dev->dev,
+				"Cannot use labels and extend_name at the same time\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static const struct iio_buffer_setup_ops noop_ring_setup_ops;
 
 int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
@@ -1879,6 +1900,10 @@ int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 		indio_dev->label = label;
 
 	ret = iio_check_unique_scan_index(indio_dev);
+	if (ret < 0)
+		return ret;
+
+	ret = iio_check_extended_name(indio_dev);
 	if (ret < 0)
 		return ret;
 

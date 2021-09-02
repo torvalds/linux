@@ -601,7 +601,7 @@ put_sync_adapter:
 	return status;
 }
 
-static int i2c_device_remove(struct device *dev)
+static void i2c_device_remove(struct device *dev)
 {
 	struct i2c_client	*client = to_i2c_client(dev);
 	struct i2c_adapter      *adap;
@@ -631,9 +631,6 @@ static int i2c_device_remove(struct device *dev)
 	client->irq = 0;
 	if (client->flags & I2C_CLIENT_HOST_NOTIFY)
 		pm_runtime_put(&client->adapter->dev);
-
-	/* return always 0 because there is WIP to make remove-functions void */
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

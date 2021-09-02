@@ -171,10 +171,8 @@ int olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97)
 	for (i = 0; i < ARRAY_SIZE(olpc_cs5535audio_ctls); i++) {
 		err = snd_ctl_add(card, snd_ctl_new1(&olpc_cs5535audio_ctls[i],
 				ac97->private_data));
-		if (err < 0) {
-			gpio_free(OLPC_GPIO_MIC_AC);
+		if (err < 0)
 			return err;
-		}
 	}
 
 	/* turn off the mic by default */
@@ -184,5 +182,6 @@ int olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97)
 
 void olpc_quirks_cleanup(void)
 {
-	gpio_free(OLPC_GPIO_MIC_AC);
+	if (machine_is_olpc())
+		gpio_free(OLPC_GPIO_MIC_AC);
 }

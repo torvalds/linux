@@ -202,7 +202,7 @@ err:
 	return r;
 }
 
-static int mei_nfc_send(struct nfc_mei_phy *phy, u8 *buf, size_t length)
+static int mei_nfc_send(struct nfc_mei_phy *phy, const u8 *buf, size_t length)
 {
 	struct mei_nfc_hdr *hdr;
 	u8 *mei_buf;
@@ -362,7 +362,7 @@ static void nfc_mei_phy_disable(void *phy_id)
 	phy->powered = 0;
 }
 
-struct nfc_phy_ops mei_phy_ops = {
+const struct nfc_phy_ops mei_phy_ops = {
 	.write = nfc_mei_phy_write,
 	.enable = nfc_mei_phy_enable,
 	.disable = nfc_mei_phy_disable,

@@ -316,12 +316,13 @@ static inline bool rt6_duplicate_nexthop(struct fib6_info *a, struct fib6_info *
 	       !lwtunnel_cmp_encap(nha->fib_nh_lws, nhb->fib_nh_lws);
 }
 
-static inline unsigned int ip6_dst_mtu_forward(const struct dst_entry *dst)
+static inline unsigned int ip6_dst_mtu_maybe_forward(const struct dst_entry *dst,
+						     bool forwarding)
 {
 	struct inet6_dev *idev;
 	unsigned int mtu;
 
-	if (dst_metric_locked(dst, RTAX_MTU)) {
+	if (!forwarding || dst_metric_locked(dst, RTAX_MTU)) {
 		mtu = dst_metric_raw(dst, RTAX_MTU);
 		if (mtu)
 			goto out;

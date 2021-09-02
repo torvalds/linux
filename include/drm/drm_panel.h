@@ -64,8 +64,8 @@ enum drm_panel_orientation;
  * the panel. This is the job of the .unprepare() function.
  *
  * Backlight can be handled automatically if configured using
- * drm_panel_of_backlight(). Then the driver does not need to implement the
- * functionality to enable/disable backlight.
+ * drm_panel_of_backlight() or drm_panel_dp_aux_backlight(). Then the driver
+ * does not need to implement the functionality to enable/disable backlight.
  */
 struct drm_panel_funcs {
 	/**
@@ -144,8 +144,8 @@ struct drm_panel {
 	 * Backlight device, used to turn on backlight after the call
 	 * to enable(), and to turn off backlight before the call to
 	 * disable().
-	 * backlight is set by drm_panel_of_backlight() and drivers
-	 * shall not assign it.
+	 * backlight is set by drm_panel_of_backlight() or
+	 * drm_panel_dp_aux_backlight() and drivers shall not assign it.
 	 */
 	struct backlight_device *backlight;
 

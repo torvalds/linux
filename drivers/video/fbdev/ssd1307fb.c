@@ -82,6 +82,11 @@ struct ssd1307fb_par {
 	struct regulator *vbat_reg;
 	u32 vcomh;
 	u32 width;
+	/* Cached address ranges */
+	u8 col_start;
+	u8 col_end;
+	u8 page_start;
+	u8 page_end;
 };
 
 struct ssd1307fb_array {
@@ -152,17 +157,72 @@ static inline int ssd1307fb_write_cmd(struct i2c_client *client, u8 cmd)
 	return ret;
 }
 
-static void ssd1307fb_update_display(struct ssd1307fb_par *par)
+static int ssd1307fb_set_col_range(struct ssd1307fb_par *par, u8 col_start,
+				   u8 cols)
+{
+	u8 col_end = col_start + cols - 1;
+	int ret;
+
+	if (col_start == par->col_start && col_end == par->col_end)
+		return 0;
+
+	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_COL_RANGE);
+	if (ret < 0)
+		return ret;
+
+	ret = ssd1307fb_write_cmd(par->client, col_start);
+	if (ret < 0)
+		return ret;
+
+	ret = ssd1307fb_write_cmd(par->client, col_end);
+	if (ret < 0)
+		return ret;
+
+	par->col_start = col_start;
+	par->col_end = col_end;
+	return 0;
+}
+
+static int ssd1307fb_set_page_range(struct ssd1307fb_par *par, u8 page_start,
+				    u8 pages)
+{
+	u8 page_end = page_start + pages - 1;
+	int ret;
+
+	if (page_start == par->page_start && page_end == par->page_end)
+		return 0;
+
+	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_PAGE_RANGE);
+	if (ret < 0)
+		return ret;
+
+	ret = ssd1307fb_write_cmd(par->client, page_start);
+	if (ret < 0)
+		return ret;
+
+	ret = ssd1307fb_write_cmd(par->client, page_end);
+	if (ret < 0)
+		return ret;
+
+	par->page_start = page_start;
+	par->page_end = page_end;
+	return 0;
+}
+
+static int ssd1307fb_update_rect(struct ssd1307fb_par *par, unsigned int x,
+				 unsigned int y, unsigned int width,
+				 unsigned int height)
 {
 	struct ssd1307fb_array *array;
 	u8 *vmem = par->info->screen_buffer;
 	unsigned int line_length = par->info->fix.line_length;
-	unsigned int pages = DIV_ROUND_UP(par->height, 8);
-	int i, j, k;
+	unsigned int pages = DIV_ROUND_UP(y % 8 + height, 8);
+	u32 array_idx = 0;
+	int ret, i, j, k;
 
-	array = ssd1307fb_alloc_array(par->width * pages, SSD1307FB_DATA);
+	array = ssd1307fb_alloc_array(width * pages, SSD1307FB_DATA);
 	if (!array)
-		return;
+		return -ENOMEM;
 
 	/*
 	 * The screen is divided in pages, each having a height of 8
@@ -193,27 +253,44 @@ static void ssd1307fb_update_display(struct ssd1307fb_par *par)
 	 *  (5) A4 B4 C4 D4 E4 F4 G4 H4
 	 */
 
-	for (i = 0; i < pages; i++) {
-		for (j = 0; j < par->width; j++) {
-			int m = 8;
-			u32 array_idx = i * par->width + j;
-			array->data[array_idx] = 0;
-			/* Last page may be partial */
-			if (i + 1 == pages && par->height % 8)
-				m = par->height % 8;
+	ret = ssd1307fb_set_col_range(par, par->col_offset + x, width);
+	if (ret < 0)
+		goto out_free;
+
+	ret = ssd1307fb_set_page_range(par, par->page_offset + y / 8, pages);
+	if (ret < 0)
+		goto out_free;
+
+	for (i = y / 8; i < y / 8 + pages; i++) {
+		int m = 8;
+
+		/* Last page may be partial */
+		if (8 * (i + 1) > par->height)
+			m = par->height % 8;
+		for (j = x; j < x + width; j++) {
+			u8 data = 0;
+
 			for (k = 0; k < m; k++) {
 				u8 byte = vmem[(8 * i + k) * line_length +
 					       j / 8];
 				u8 bit = (byte >> (j % 8)) & 1;
-				array->data[array_idx] |= bit << k;
+				data |= bit << k;
 			}
+			array->data[array_idx++] = data;
 		}
 	}
 
-	ssd1307fb_write_array(par->client, array, par->width * pages);
+	ret = ssd1307fb_write_array(par->client, array, width * pages);
+
+out_free:
 	kfree(array);
+	return ret;
 }
 
+static int ssd1307fb_update_display(struct ssd1307fb_par *par)
+{
+	return ssd1307fb_update_rect(par, 0, 0, par->width, par->height);
+}
 
 static ssize_t ssd1307fb_write(struct fb_info *info, const char __user *buf,
 		size_t count, loff_t *ppos)
@@ -222,6 +299,7 @@ static ssize_t ssd1307fb_write(struct fb_info *info, const char __user *buf,
 	unsigned long total_size;
 	unsigned long p = *ppos;
 	void *dst;
+	int ret;
 
 	total_size = info->fix.smem_len;
 
@@ -239,7 +317,9 @@ static ssize_t ssd1307fb_write(struct fb_info *info, const char __user *buf,
 	if (copy_from_user(dst, buf, count))
 		return -EFAULT;
 
-	ssd1307fb_update_display(par);
+	ret = ssd1307fb_update_display(par);
+	if (ret < 0)
+		return ret;
 
 	*ppos += count;
 
@@ -260,21 +340,24 @@ static void ssd1307fb_fillrect(struct fb_info *info, const struct fb_fillrect *r
 {
 	struct ssd1307fb_par *par = info->par;
 	sys_fillrect(info, rect);
-	ssd1307fb_update_display(par);
+	ssd1307fb_update_rect(par, rect->dx, rect->dy, rect->width,
+			      rect->height);
 }
 
 static void ssd1307fb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
 	struct ssd1307fb_par *par = info->par;
 	sys_copyarea(info, area);
-	ssd1307fb_update_display(par);
+	ssd1307fb_update_rect(par, area->dx, area->dy, area->width,
+			      area->height);
 }
 
 static void ssd1307fb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct ssd1307fb_par *par = info->par;
 	sys_imageblit(info, image);
-	ssd1307fb_update_display(par);
+	ssd1307fb_update_rect(par, image->dx, image->dy, image->width,
+			      image->height);
 }
 
 static const struct fb_ops ssd1307fb_ops = {
@@ -454,36 +537,10 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 	if (ret < 0)
 		return ret;
 
-	/* Set column range */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_COL_RANGE);
-	if (ret < 0)
-		return ret;
-
-	ret = ssd1307fb_write_cmd(par->client, par->col_offset);
-	if (ret < 0)
-		return ret;
-
-	ret = ssd1307fb_write_cmd(par->client, par->col_offset + par->width - 1);
-	if (ret < 0)
-		return ret;
-
-	/* Set page range */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_PAGE_RANGE);
-	if (ret < 0)
-		return ret;
-
-	ret = ssd1307fb_write_cmd(par->client, par->page_offset);
-	if (ret < 0)
-		return ret;
-
-	ret = ssd1307fb_write_cmd(par->client,
-				  par->page_offset +
-				  DIV_ROUND_UP(par->height, 8) - 1);
-	if (ret < 0)
-		return ret;
-
 	/* Clear the screen */
-	ssd1307fb_update_display(par);
+	ret = ssd1307fb_update_display(par);
+	if (ret < 0)
+		return ret;
 
 	/* Turn on the display */
 	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_DISPLAY_ON);

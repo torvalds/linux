@@ -5,6 +5,7 @@
  * This file contains the setup_arch() code, which handles the architecture-dependent
  * parts of early kernel initialization.
  */
+#include <linux/acpi.h>
 #include <linux/console.h>
 #include <linux/crash_dump.h>
 #include <linux/dma-map-ops.h>
@@ -570,16 +571,6 @@ void __init reserve_standard_io_resources(void)
 	for (i = 0; i < ARRAY_SIZE(standard_io_resources); i++)
 		request_resource(&ioport_resource, &standard_io_resources[i]);
 
-}
-
-static __init void reserve_ibft_region(void)
-{
-	unsigned long addr, size = 0;
-
-	addr = find_ibft_region(&size);
-
-	if (size)
-		memblock_reserve(addr, size);
 }
 
 static bool __init snb_gfx_workaround_needed(void)

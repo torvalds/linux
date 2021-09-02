@@ -718,10 +718,8 @@ static int mtk_dpi_bind(struct device *dev, struct device *master, void *data)
 
 	ret = drm_bridge_attach(&dpi->encoder, &dpi->bridge, NULL,
 				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
-	if (ret) {
-		dev_err(dev, "Failed to attach bridge: %d\n", ret);
+	if (ret)
 		goto err_cleanup;
-	}
 
 	dpi->connector = drm_bridge_connector_init(drm_dev, &dpi->encoder);
 	if (IS_ERR(dpi->connector)) {

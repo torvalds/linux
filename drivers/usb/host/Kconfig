@@ -187,15 +187,6 @@ config USB_EHCI_PCI
 	depends on USB_PCI
 	default y
 
-config USB_EHCI_HCD_PMC_MSP
-	tristate "EHCI support for on-chip PMC MSP71xx USB controller"
-	depends on MSP_HAS_USB
-	select USB_EHCI_BIG_ENDIAN_DESC
-	select USB_EHCI_BIG_ENDIAN_MMIO
-	help
-		Enables support for the onchip USB controller on the PMC_MSP7100 Family SoC's.
-		If unsure, say N.
-
 config XPS_USB_HCD_XILINX
 	bool "Use Xilinx usb host EHCI controller core"
 	depends on (PPC32 || MICROBLAZE)

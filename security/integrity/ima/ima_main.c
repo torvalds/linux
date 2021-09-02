@@ -985,6 +985,7 @@ void ima_measure_critical_data(const char *event_label,
 				   CRITICAL_DATA, 0, event_label,
 				   hash);
 }
+EXPORT_SYMBOL_GPL(ima_measure_critical_data);
 
 static int __init init_ima(void)
 {

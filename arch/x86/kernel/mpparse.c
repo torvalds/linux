@@ -19,6 +19,7 @@
 #include <linux/smp.h>
 #include <linux/pci.h>
 
+#include <asm/i8259.h>
 #include <asm/io_apic.h>
 #include <asm/acpi.h>
 #include <asm/irqdomain.h>
@@ -251,7 +252,7 @@ static int __init ELCR_trigger(unsigned int irq)
 {
 	unsigned int port;
 
-	port = 0x4d0 + (irq >> 3);
+	port = PIC_ELCR1 + (irq >> 3);
 	return (inb(port) >> (irq & 7)) & 1;
 }
 

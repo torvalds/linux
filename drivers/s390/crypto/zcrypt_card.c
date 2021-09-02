@@ -39,7 +39,7 @@
 static ssize_t type_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
-	struct zcrypt_card *zc = to_ap_card(dev)->private;
+	struct zcrypt_card *zc = dev_get_drvdata(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n", zc->type_string);
 }
@@ -50,8 +50,8 @@ static ssize_t online_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
+	struct zcrypt_card *zc = dev_get_drvdata(dev);
 	struct ap_card *ac = to_ap_card(dev);
-	struct zcrypt_card *zc = ac->private;
 	int online = ac->config && zc->online ? 1 : 0;
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", online);
@@ -61,8 +61,8 @@ static ssize_t online_store(struct device *dev,
 			    struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
+	struct zcrypt_card *zc = dev_get_drvdata(dev);
 	struct ap_card *ac = to_ap_card(dev);
-	struct zcrypt_card *zc = ac->private;
 	struct zcrypt_queue *zq;
 	int online, id, i = 0, maxzqs = 0;
 	struct zcrypt_queue **zq_uelist = NULL;
@@ -116,7 +116,7 @@ static ssize_t load_show(struct device *dev,
 			 struct device_attribute *attr,
 			 char *buf)
 {
-	struct zcrypt_card *zc = to_ap_card(dev)->private;
+	struct zcrypt_card *zc = dev_get_drvdata(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&zc->load));
 }

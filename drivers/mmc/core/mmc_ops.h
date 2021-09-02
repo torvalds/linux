@@ -15,6 +15,7 @@ enum mmc_busy_cmd {
 	MMC_BUSY_ERASE,
 	MMC_BUSY_HPI,
 	MMC_BUSY_EXTR_SINGLE,
+	MMC_BUSY_IO,
 };
 
 struct mmc_host;

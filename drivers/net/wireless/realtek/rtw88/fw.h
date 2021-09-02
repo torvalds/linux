@@ -99,7 +99,7 @@ enum rtw_beacon_filter_offload_mode {
 	BCN_FILTER_OFFLOAD_MODE_2,
 	BCN_FILTER_OFFLOAD_MODE_3,
 
-	BCN_FILTER_OFFLOAD_MODE_DEFAULT = BCN_FILTER_OFFLOAD_MODE_1,
+	BCN_FILTER_OFFLOAD_MODE_DEFAULT = BCN_FILTER_OFFLOAD_MODE_0,
 };
 
 struct rtw_coex_info_req {
@@ -147,6 +147,7 @@ struct rtw_rsvd_page {
 	u8 page;
 	bool add_txdesc;
 	struct cfg80211_ssid *ssid;
+	u16 probe_req_size;
 };
 
 enum rtw_keep_alive_pkt_type {

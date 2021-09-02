@@ -8,6 +8,7 @@
 #include "hclgevf_main.h"
 #include "hclge_mbx.h"
 #include "hnae3.h"
+#include "hclgevf_devlink.h"
 
 #define HCLGEVF_NAME	"hclgevf"
 
@@ -39,16 +40,16 @@ static const u8 hclgevf_hash_key[] = {
 
 MODULE_DEVICE_TABLE(pci, ae_algovf_pci_tbl);
 
-static const u32 cmdq_reg_addr_list[] = {HCLGEVF_CMDQ_TX_ADDR_L_REG,
-					 HCLGEVF_CMDQ_TX_ADDR_H_REG,
-					 HCLGEVF_CMDQ_TX_DEPTH_REG,
-					 HCLGEVF_CMDQ_TX_TAIL_REG,
-					 HCLGEVF_CMDQ_TX_HEAD_REG,
-					 HCLGEVF_CMDQ_RX_ADDR_L_REG,
-					 HCLGEVF_CMDQ_RX_ADDR_H_REG,
-					 HCLGEVF_CMDQ_RX_DEPTH_REG,
-					 HCLGEVF_CMDQ_RX_TAIL_REG,
-					 HCLGEVF_CMDQ_RX_HEAD_REG,
+static const u32 cmdq_reg_addr_list[] = {HCLGEVF_NIC_CSQ_BASEADDR_L_REG,
+					 HCLGEVF_NIC_CSQ_BASEADDR_H_REG,
+					 HCLGEVF_NIC_CSQ_DEPTH_REG,
+					 HCLGEVF_NIC_CSQ_TAIL_REG,
+					 HCLGEVF_NIC_CSQ_HEAD_REG,
+					 HCLGEVF_NIC_CRQ_BASEADDR_L_REG,
+					 HCLGEVF_NIC_CRQ_BASEADDR_H_REG,
+					 HCLGEVF_NIC_CRQ_DEPTH_REG,
+					 HCLGEVF_NIC_CRQ_TAIL_REG,
+					 HCLGEVF_NIC_CRQ_HEAD_REG,
 					 HCLGEVF_VECTOR0_CMDQ_SRC_REG,
 					 HCLGEVF_VECTOR0_CMDQ_STATE_REG,
 					 HCLGEVF_CMDQ_INTR_EN_REG,
@@ -538,6 +539,7 @@ static int hclgevf_set_handle_info(struct hclgevf_dev *hdev)
 	nic->pdev = hdev->pdev;
 	nic->numa_node_mask = hdev->numa_node_mask;
 	nic->flags |= HNAE3_SUPPORT_VF;
+	nic->kinfo.io_base = hdev->hw.io_base;
 
 	ret = hclgevf_knic_setup(hdev);
 	if (ret)
@@ -1961,7 +1963,7 @@ static void hclgevf_dump_rst_info(struct hclgevf_dev *hdev)
 	dev_info(&hdev->pdev->dev, "vector0 interrupt status: 0x%x\n",
 		 hclgevf_read_dev(&hdev->hw, HCLGEVF_VECTOR0_CMDQ_STATE_REG));
 	dev_info(&hdev->pdev->dev, "handshake status: 0x%x\n",
-		 hclgevf_read_dev(&hdev->hw, HCLGEVF_CMDQ_TX_DEPTH_REG));
+		 hclgevf_read_dev(&hdev->hw, HCLGEVF_NIC_CSQ_DEPTH_REG));
 	dev_info(&hdev->pdev->dev, "function reset status: 0x%x\n",
 		 hclgevf_read_dev(&hdev->hw, HCLGEVF_RST_ING));
 	dev_info(&hdev->pdev->dev, "hdev state: 0x%lx\n", hdev->state);
@@ -3339,6 +3341,10 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	if (ret)
 		return ret;
 
+	ret = hclgevf_devlink_init(hdev);
+	if (ret)
+		goto err_devlink_init;
+
 	ret = hclgevf_cmd_queue_init(hdev);
 	if (ret)
 		goto err_cmd_queue_init;
@@ -3443,6 +3449,8 @@ err_misc_irq_init:
 err_cmd_init:
 	hclgevf_cmd_uninit(hdev);
 err_cmd_queue_init:
+	hclgevf_devlink_uninit(hdev);
+err_devlink_init:
 	hclgevf_pci_uninit(hdev);
 	clear_bit(HCLGEVF_STATE_IRQ_INITED, &hdev->state);
 	return ret;
@@ -3464,6 +3472,7 @@ static void hclgevf_uninit_hdev(struct hclgevf_dev *hdev)
 	}
 
 	hclgevf_cmd_uninit(hdev);
+	hclgevf_devlink_uninit(hdev);
 	hclgevf_pci_uninit(hdev);
 	hclgevf_uninit_mac_list(hdev);
 }

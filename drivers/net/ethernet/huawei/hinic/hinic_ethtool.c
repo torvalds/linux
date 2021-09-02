@@ -795,13 +795,17 @@ static int __hinic_set_coalesce(struct net_device *netdev,
 }
 
 static int hinic_get_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	return __hinic_get_coalesce(netdev, coal, COALESCE_ALL_QUEUE);
 }
 
 static int hinic_set_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	return __hinic_set_coalesce(netdev, coal, COALESCE_ALL_QUEUE);
 }

@@ -145,7 +145,7 @@
 131	o32	quotactl			sys_quotactl
 132	o32	getpgid				sys_getpgid
 133	o32	fchdir				sys_fchdir
-134	o32	bdflush				sys_bdflush
+134	o32	bdflush				sys_ni_syscall
 135	o32	sysfs				sys_sysfs
 136	o32	personality			sys_personality			sys_32_personality
 137	o32	afs_syscall			sys_ni_syscall

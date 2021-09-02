@@ -11,6 +11,11 @@ struct mlx5e_xsk_param {
 	u16 chunk_size;
 };
 
+struct mlx5e_lro_param {
+	bool enabled;
+	u32 timeout;
+};
+
 struct mlx5e_cq_param {
 	u32                        cqc[MLX5_ST_SZ_DW(cqc)];
 	struct mlx5_wq_param       wq;
@@ -120,6 +125,7 @@ u8 mlx5e_mpwqe_get_log_num_strides(struct mlx5_core_dev *mdev,
 u16 mlx5e_get_rq_headroom(struct mlx5_core_dev *mdev,
 			  struct mlx5e_params *params,
 			  struct mlx5e_xsk_param *xsk);
+struct mlx5e_lro_param mlx5e_get_lro_param(struct mlx5e_params *params);
 
 /* Build queue parameters */
 

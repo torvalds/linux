@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 #include <linux/seq_file.h>
 #include <linux/topology.h>
 #include <linux/uacce.h>
@@ -106,6 +107,14 @@
 #define HZIP_SHAPER_RATE_DECOMPRESS	229
 #define HZIP_DELAY_1_US		1
 #define HZIP_POLL_TIMEOUT_US	1000
+
+/* clock gating */
+#define HZIP_PEH_CFG_AUTO_GATE		0x3011A8
+#define HZIP_PEH_CFG_AUTO_GATE_EN	BIT(0)
+#define HZIP_CORE_GATED_EN		GENMASK(15, 8)
+#define HZIP_CORE_GATED_OOO_EN		BIT(29)
+#define HZIP_CLOCK_GATED_EN		(HZIP_CORE_GATED_EN | \
+					 HZIP_CORE_GATED_OOO_EN)
 
 static const char hisi_zip_name[] = "hisi_zip";
 static struct dentry *hzip_debugfs_root;
@@ -312,6 +321,22 @@ static void hisi_zip_close_sva_prefetch(struct hisi_qm *qm)
 		pci_err(qm->pdev, "failed to close sva prefetch\n");
 }
 
+static void hisi_zip_enable_clock_gate(struct hisi_qm *qm)
+{
+	u32 val;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	val = readl(qm->io_base + HZIP_CLOCK_GATE_CTRL);
+	val |= HZIP_CLOCK_GATED_EN;
+	writel(val, qm->io_base + HZIP_CLOCK_GATE_CTRL);
+
+	val = readl(qm->io_base + HZIP_PEH_CFG_AUTO_GATE);
+	val |= HZIP_PEH_CFG_AUTO_GATE_EN;
+	writel(val, qm->io_base + HZIP_PEH_CFG_AUTO_GATE);
+}
+
 static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 {
 	void __iomem *base = qm->io_base;
@@ -358,6 +383,8 @@ static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 	writel(SQC_CACHE_ENABLE | CQC_CACHE_ENABLE | SQC_CACHE_WB_ENABLE |
 	       CQC_CACHE_WB_ENABLE | FIELD_PREP(SQC_CACHE_WB_THRD, 1) |
 	       FIELD_PREP(CQC_CACHE_WB_THRD, 1), base + QM_CACHE_CTL);
+
+	hisi_zip_enable_clock_gate(qm);
 
 	return 0;
 }
@@ -423,17 +450,14 @@ static inline struct hisi_qm *file_to_qm(struct ctrl_debug_file *file)
 	return &hisi_zip->qm;
 }
 
-static u32 clear_enable_read(struct ctrl_debug_file *file)
+static u32 clear_enable_read(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = file_to_qm(file);
-
 	return readl(qm->io_base + HZIP_SOFT_CTRL_CNT_CLR_CE) &
 		     HZIP_SOFT_CTRL_CNT_CLR_CE_BIT;
 }
 
-static int clear_enable_write(struct ctrl_debug_file *file, u32 val)
+static int clear_enable_write(struct hisi_qm *qm, u32 val)
 {
-	struct hisi_qm *qm = file_to_qm(file);
 	u32 tmp;
 
 	if (val != 1 && val != 0)
@@ -450,22 +474,33 @@ static ssize_t hisi_zip_ctrl_debug_read(struct file *filp, char __user *buf,
 					size_t count, loff_t *pos)
 {
 	struct ctrl_debug_file *file = filp->private_data;
+	struct hisi_qm *qm = file_to_qm(file);
 	char tbuf[HZIP_BUF_SIZE];
 	u32 val;
 	int ret;
 
+	ret = hisi_qm_get_dfx_access(qm);
+	if (ret)
+		return ret;
+
 	spin_lock_irq(&file->lock);
 	switch (file->index) {
 	case HZIP_CLEAR_ENABLE:
-		val = clear_enable_read(file);
+		val = clear_enable_read(qm);
 		break;
 	default:
-		spin_unlock_irq(&file->lock);
-		return -EINVAL;
+		goto err_input;
 	}
 	spin_unlock_irq(&file->lock);
+
+	hisi_qm_put_dfx_access(qm);
 	ret = scnprintf(tbuf, sizeof(tbuf), "%u\n", val);
 	return simple_read_from_buffer(buf, count, pos, tbuf, ret);
+
+err_input:
+	spin_unlock_irq(&file->lock);
+	hisi_qm_put_dfx_access(qm);
+	return -EINVAL;
 }
 
 static ssize_t hisi_zip_ctrl_debug_write(struct file *filp,
@@ -473,6 +508,7 @@ static ssize_t hisi_zip_ctrl_debug_write(struct file *filp,
 					 size_t count, loff_t *pos)
 {
 	struct ctrl_debug_file *file = filp->private_data;
+	struct hisi_qm *qm = file_to_qm(file);
 	char tbuf[HZIP_BUF_SIZE];
 	unsigned long val;
 	int len, ret;
@@ -491,10 +527,14 @@ static ssize_t hisi_zip_ctrl_debug_write(struct file *filp,
 	if (kstrtoul(tbuf, 0, &val))
 		return -EFAULT;
 
+	ret = hisi_qm_get_dfx_access(qm);
+	if (ret)
+		return ret;
+
 	spin_lock_irq(&file->lock);
 	switch (file->index) {
 	case HZIP_CLEAR_ENABLE:
-		ret = clear_enable_write(file, val);
+		ret = clear_enable_write(qm, val);
 		if (ret)
 			goto err_input;
 		break;
@@ -502,12 +542,12 @@ static ssize_t hisi_zip_ctrl_debug_write(struct file *filp,
 		ret = -EINVAL;
 		goto err_input;
 	}
-	spin_unlock_irq(&file->lock);
 
-	return count;
+	ret = count;
 
 err_input:
 	spin_unlock_irq(&file->lock);
+	hisi_qm_put_dfx_access(qm);
 	return ret;
 }
 
@@ -538,6 +578,15 @@ static int zip_debugfs_atomic64_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(zip_atomic64_ops, zip_debugfs_atomic64_get,
 			 zip_debugfs_atomic64_set, "%llu\n");
 
+static int hisi_zip_regs_show(struct seq_file *s, void *unused)
+{
+	hisi_qm_regs_dump(s, s->private);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(hisi_zip_regs);
+
 static int hisi_zip_core_debug_init(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
@@ -560,9 +609,11 @@ static int hisi_zip_core_debug_init(struct hisi_qm *qm)
 		regset->regs = hzip_dfx_regs;
 		regset->nregs = ARRAY_SIZE(hzip_dfx_regs);
 		regset->base = qm->io_base + core_offsets[i];
+		regset->dev = dev;
 
 		tmp_d = debugfs_create_dir(buf, qm->debug.debug_root);
-		debugfs_create_regset32("regs", 0444, tmp_d, regset);
+		debugfs_create_file("regs", 0444, tmp_d, regset,
+				     &hisi_zip_regs_fops);
 	}
 
 	return 0;
@@ -898,6 +949,8 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			goto err_qm_alg_unregister;
 	}
 
+	hisi_qm_pm_init(qm);
+
 	return 0;
 
 err_qm_alg_unregister:
@@ -920,6 +973,7 @@ static void hisi_zip_remove(struct pci_dev *pdev)
 {
 	struct hisi_qm *qm = pci_get_drvdata(pdev);
 
+	hisi_qm_pm_uninit(qm);
 	hisi_qm_wait_task_finish(qm, &zip_devices);
 	hisi_qm_alg_unregister(qm, &zip_devices);
 
@@ -931,6 +985,10 @@ static void hisi_zip_remove(struct pci_dev *pdev)
 	hisi_qm_dev_err_uninit(qm);
 	hisi_zip_qm_uninit(qm);
 }
+
+static const struct dev_pm_ops hisi_zip_pm_ops = {
+	SET_RUNTIME_PM_OPS(hisi_qm_suspend, hisi_qm_resume, NULL)
+};
 
 static const struct pci_error_handlers hisi_zip_err_handler = {
 	.error_detected	= hisi_qm_dev_err_detected,
@@ -948,6 +1006,7 @@ static struct pci_driver hisi_zip_pci_driver = {
 					hisi_qm_sriov_configure : NULL,
 	.err_handler		= &hisi_zip_err_handler,
 	.shutdown		= hisi_qm_dev_shutdown,
+	.driver.pm		= &hisi_zip_pm_ops,
 };
 
 static void hisi_zip_register_debugfs(void)

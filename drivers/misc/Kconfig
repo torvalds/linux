@@ -208,6 +208,28 @@ config CS5535_CLOCK_EVENT_SRC
 	  MFGPTs have a better resolution and max interval than the
 	  generic PIT, and are suitable for use as high-res timers.
 
+config GEHC_ACHC
+	tristate "GEHC ACHC support"
+	depends on SPI && SYSFS
+	depends on SOC_IMX53 || COMPILE_TEST
+	select FW_LOADER
+	help
+	  Support for GE ACHC microcontroller, that is part of the GE
+	  PPD device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gehc-achc.
+
+config HI6421V600_IRQ
+	tristate "HiSilicon Hi6421v600 IRQ and powerkey"
+	depends on OF
+	depends on SPMI
+	select MFD_CORE
+	select REGMAP_SPMI
+	help
+	  This driver provides IRQ handling for Hi6421v600, used on
+	  some Kirin chipsets, like the one at Hikey 970.
+
 config HP_ILO
 	tristate "Channel interface driver for the HP iLO processor"
 	depends on PCI

@@ -465,6 +465,7 @@ config RAMKERNEL
 
 config ROMKERNEL
 	bool "ROM"
+	depends on ROM
 	help
 	  The kernel will be resident in FLASH/ROM when running. This is
 	  often referred to as Execute-in-Place (XIP), since the kernel

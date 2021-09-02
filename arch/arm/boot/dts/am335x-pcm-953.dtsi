@@ -123,24 +123,22 @@
 	};
 };
 
-&cpsw_emac1 {
+&cpsw_port2 {
 	phy-handle = <&phy1>;
 	phy-mode = "rgmii-id";
-	dual_emac_res_vlan = <2>;
+	ti,dual-emac-pvid = <2>;
 	status = "okay";
 };
 
-&davinci_mdio {
+&davinci_mdio_sw {
 	phy1: ethernet-phy@2 {
 		reg = <2>;
 	};
 };
 
-&mac {
-	slaves = <2>;
+&mac_sw {
 	pinctrl-names = "default";
 	pinctrl-0 = <&ethernet0_pins &ethernet1_pins>;
-	dual_emac;
 };
 
 /* Misc */

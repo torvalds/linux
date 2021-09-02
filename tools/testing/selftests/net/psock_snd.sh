@@ -86,9 +86,6 @@ echo "raw truncate hlen - 1 (expected to fail: EINVAL)"
 echo "raw gso min size"
 ./in_netns.sh ./psock_snd -v -c -g -l "${mss_exceeds}"
 
-echo "raw gso min size - 1 (expected to fail)"
-(! ./in_netns.sh ./psock_snd -v -c -g -l "${mss}")
-
 echo "raw gso max size"
 ./in_netns.sh ./psock_snd -v -c -g -l "${max_mss}"
 

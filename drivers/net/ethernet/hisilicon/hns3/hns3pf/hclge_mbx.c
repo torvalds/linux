@@ -10,7 +10,14 @@
 
 static u16 hclge_errno_to_resp(int errno)
 {
-	return abs(errno);
+	int resp = abs(errno);
+
+	/* The status for pf to vf msg cmd is u16, constrainted by HW.
+	 * We need to keep the same type with it.
+	 * The intput errno is the stander error code, it's safely to
+	 * use a u16 to store the abs(errno).
+	 */
+	return (u16)resp;
 }
 
 /* hclge_gen_resp_to_vf: used to generate a synchronous response to VF when PF
@@ -65,6 +72,8 @@ static int hclge_gen_resp_to_vf(struct hclge_vport *vport,
 	if (resp_msg->len > 0)
 		memcpy(resp_pf_to_vf->msg.resp_data, resp_msg->data,
 		       resp_msg->len);
+
+	trace_hclge_pf_mbx_send(hdev, resp_pf_to_vf);
 
 	status = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (status)

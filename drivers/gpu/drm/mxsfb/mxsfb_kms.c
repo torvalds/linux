@@ -47,15 +47,12 @@ static u32 set_hsync_pulse_width(struct mxsfb_drm_private *mxsfb, u32 val)
  * Setup the MXSFB registers for decoding the pixels out of the framebuffer and
  * outputting them on the bus.
  */
-static void mxsfb_set_formats(struct mxsfb_drm_private *mxsfb)
+static void mxsfb_set_formats(struct mxsfb_drm_private *mxsfb,
+			      const u32 bus_format)
 {
 	struct drm_device *drm = mxsfb->drm;
 	const u32 format = mxsfb->crtc.primary->state->fb->format->format;
-	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 	u32 ctrl, ctrl1;
-
-	if (mxsfb->connector->display_info.num_bus_formats)
-		bus_format = mxsfb->connector->display_info.bus_formats[0];
 
 	DRM_DEV_DEBUG_DRIVER(drm->dev, "Using bus_format: 0x%08X\n",
 			     bus_format);
@@ -107,6 +104,14 @@ static void mxsfb_enable_controller(struct mxsfb_drm_private *mxsfb)
 		clk_prepare_enable(mxsfb->clk_disp_axi);
 	clk_prepare_enable(mxsfb->clk);
 
+	/* Increase number of outstanding requests on all supported IPs */
+	if (mxsfb->devdata->has_ctrl2) {
+		reg = readl(mxsfb->base + LCDC_V4_CTRL2);
+		reg &= ~CTRL2_SET_OUTSTANDING_REQS_MASK;
+		reg |= CTRL2_SET_OUTSTANDING_REQS_16;
+		writel(reg, mxsfb->base + LCDC_V4_CTRL2);
+	}
+
 	/* If it was disabled, re-enable the mode again */
 	writel(CTRL_DOTCLK_MODE, mxsfb->base + LCDC_CTRL + REG_SET);
 
@@ -114,6 +119,35 @@ static void mxsfb_enable_controller(struct mxsfb_drm_private *mxsfb)
 	reg = readl(mxsfb->base + LCDC_VDCTRL4);
 	reg |= VDCTRL4_SYNC_SIGNALS_ON;
 	writel(reg, mxsfb->base + LCDC_VDCTRL4);
+
+	/*
+	 * Enable recovery on underflow.
+	 *
+	 * There is some sort of corner case behavior of the controller,
+	 * which could rarely be triggered at least on i.MX6SX connected
+	 * to 800x480 DPI panel and i.MX8MM connected to DPI->DSI->LVDS
+	 * bridged 1920x1080 panel (and likely on other setups too), where
+	 * the image on the panel shifts to the right and wraps around.
+	 * This happens either when the controller is enabled on boot or
+	 * even later during run time. The condition does not correct
+	 * itself automatically, i.e. the display image remains shifted.
+	 *
+	 * It seems this problem is known and is due to sporadic underflows
+	 * of the LCDIF FIFO. While the LCDIF IP does have underflow/overflow
+	 * IRQs, neither of the IRQs trigger and neither IRQ status bit is
+	 * asserted when this condition occurs.
+	 *
+	 * All known revisions of the LCDIF IP have CTRL1 RECOVER_ON_UNDERFLOW
+	 * bit, which is described in the reference manual since i.MX23 as
+	 * "
+	 *   Set this bit to enable the LCDIF block to recover in the next
+	 *   field/frame if there was an underflow in the current field/frame.
+	 * "
+	 * Enable this bit to mitigate the sporadic underflows.
+	 */
+	reg = readl(mxsfb->base + LCDC_CTRL1);
+	reg |= CTRL1_RECOVER_ON_UNDERFLOW;
+	writel(reg, mxsfb->base + LCDC_CTRL1);
 
 	writel(CTRL_RUN, mxsfb->base + LCDC_CTRL + REG_SET);
 }
@@ -185,7 +219,8 @@ static dma_addr_t mxsfb_get_fb_paddr(struct drm_plane *plane)
 	return gem->paddr;
 }
 
-static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb)
+static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb,
+				     const u32 bus_format)
 {
 	struct drm_device *drm = mxsfb->crtc.dev;
 	struct drm_display_mode *m = &mxsfb->crtc.state->adjusted_mode;
@@ -206,11 +241,14 @@ static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb)
 
 	/* Clear the FIFOs */
 	writel(CTRL1_FIFO_CLEAR, mxsfb->base + LCDC_CTRL1 + REG_SET);
+	readl(mxsfb->base + LCDC_CTRL1);
+	writel(CTRL1_FIFO_CLEAR, mxsfb->base + LCDC_CTRL1 + REG_CLR);
+	readl(mxsfb->base + LCDC_CTRL1);
 
 	if (mxsfb->devdata->has_overlay)
 		writel(0, mxsfb->base + LCDC_AS_CTRL);
 
-	mxsfb_set_formats(mxsfb);
+	mxsfb_set_formats(mxsfb, bus_format);
 
 	clk_set_rate(mxsfb->clk, m->crtc_clock * 1000);
 
@@ -308,7 +346,9 @@ static void mxsfb_crtc_atomic_enable(struct drm_crtc *crtc,
 				     struct drm_atomic_state *state)
 {
 	struct mxsfb_drm_private *mxsfb = to_mxsfb_drm_private(crtc->dev);
+	struct drm_bridge_state *bridge_state;
 	struct drm_device *drm = mxsfb->drm;
+	u32 bus_format = 0;
 	dma_addr_t paddr;
 
 	pm_runtime_get_sync(drm->dev);
@@ -316,7 +356,23 @@ static void mxsfb_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	drm_crtc_vblank_on(crtc);
 
-	mxsfb_crtc_mode_set_nofb(mxsfb);
+	/* If there is a bridge attached to the LCDIF, use its bus format */
+	if (mxsfb->bridge) {
+		bridge_state =
+			drm_atomic_get_new_bridge_state(state,
+							mxsfb->bridge);
+		bus_format = bridge_state->input_bus_cfg.format;
+	}
+
+	/* If there is no bridge, use bus format from connector */
+	if (!bus_format && mxsfb->connector->display_info.num_bus_formats)
+		bus_format = mxsfb->connector->display_info.bus_formats[0];
+
+	/* If all else fails, default to RGB888_1X24 */
+	if (!bus_format)
+		bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+
+	mxsfb_crtc_mode_set_nofb(mxsfb, bus_format);
 
 	/* Write cur_buf as well to avoid an initial corrupt frame */
 	paddr = mxsfb_get_fb_paddr(crtc->primary);
@@ -500,13 +556,11 @@ static bool mxsfb_format_mod_supported(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs mxsfb_plane_primary_helper_funcs = {
-	.prepare_fb = drm_gem_plane_helper_prepare_fb,
 	.atomic_check = mxsfb_plane_atomic_check,
 	.atomic_update = mxsfb_plane_primary_atomic_update,
 };
 
 static const struct drm_plane_helper_funcs mxsfb_plane_overlay_helper_funcs = {
-	.prepare_fb = drm_gem_plane_helper_prepare_fb,
 	.atomic_check = mxsfb_plane_atomic_check,
 	.atomic_update = mxsfb_plane_overlay_atomic_update,
 };

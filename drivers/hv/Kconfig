@@ -4,15 +4,16 @@ menu "Microsoft Hyper-V guest support"
 
 config HYPERV
 	tristate "Microsoft Hyper-V client drivers"
-	depends on X86 && ACPI && X86_LOCAL_APIC && HYPERVISOR_GUEST
+	depends on ACPI && ((X86 && X86_LOCAL_APIC && HYPERVISOR_GUEST) \
+		|| (ARM64 && !CPU_BIG_ENDIAN))
 	select PARAVIRT
-	select X86_HV_CALLBACK_VECTOR
+	select X86_HV_CALLBACK_VECTOR if X86
 	help
 	  Select this option to run Linux as a Hyper-V client operating
 	  system.
 
 config HYPERV_TIMER
-	def_bool HYPERV
+	def_bool HYPERV && X86
 
 config HYPERV_UTILS
 	tristate "Microsoft Hyper-V Utilities driver"

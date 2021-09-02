@@ -308,9 +308,9 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 	 * connector
 	 */
 	if (new_crtc) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(new_crtc);
+		struct intel_crtc *crtc = to_intel_crtc(new_crtc);
 		struct intel_crtc_state *crtc_state =
-			intel_atomic_get_new_crtc_state(state, intel_crtc);
+			intel_atomic_get_new_crtc_state(state, crtc);
 
 		if (!crtc_state ||
 		    !drm_atomic_crtc_needs_modeset(&crtc_state->uapi) ||
@@ -348,6 +348,16 @@ static void wait_for_act_sent(struct intel_encoder *encoder,
 	drm_dp_check_act_status(&intel_dp->mst_mgr);
 }
 
+static void intel_mst_pre_disable_dp(struct intel_atomic_state *state,
+				     struct intel_encoder *encoder,
+				     const struct intel_crtc_state *old_crtc_state,
+				     const struct drm_connector_state *old_conn_state)
+{
+	if (old_crtc_state->has_audio)
+		intel_audio_codec_disable(encoder, old_crtc_state,
+					  old_conn_state);
+}
+
 static void intel_mst_disable_dp(struct intel_atomic_state *state,
 				 struct intel_encoder *encoder,
 				 const struct intel_crtc_state *old_crtc_state,
@@ -372,9 +382,6 @@ static void intel_mst_disable_dp(struct intel_atomic_state *state,
 	if (ret) {
 		drm_dbg_kms(&i915->drm, "failed to update payload %d\n", ret);
 	}
-	if (old_crtc_state->has_audio)
-		intel_audio_codec_disable(encoder,
-					  old_crtc_state, old_conn_state);
 }
 
 static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
@@ -542,7 +549,7 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 	struct intel_digital_port *dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &dig_port->dp;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 val;
+	enum transcoder trans = pipe_config->cpu_transcoder;
 
 	drm_WARN_ON(&dev_priv->drm, pipe_config->has_pch_encoder);
 
@@ -550,12 +557,8 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 
 	intel_ddi_enable_transcoder_func(encoder, pipe_config);
 
-	val = intel_de_read(dev_priv,
-			    TRANS_DDI_FUNC_CTL(pipe_config->cpu_transcoder));
-	val |= TRANS_DDI_DP_VC_PAYLOAD_ALLOC;
-	intel_de_write(dev_priv,
-		       TRANS_DDI_FUNC_CTL(pipe_config->cpu_transcoder),
-		       val);
+	intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL(trans), 0,
+		     TRANS_DDI_DP_VC_PAYLOAD_ALLOC);
 
 	drm_dbg_kms(&dev_priv->drm, "active links %d\n",
 		    intel_dp->active_mst_links);
@@ -563,6 +566,10 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 	wait_for_act_sent(encoder, pipe_config);
 
 	drm_dp_update_payload_part2(&intel_dp->mst_mgr);
+
+	if (DISPLAY_VER(dev_priv) >= 12 && pipe_config->fec_enable)
+		intel_de_rmw(dev_priv, CHICKEN_TRANS(trans), 0,
+			     FECSTALL_DIS_DPTSTREAM_DPTTG);
 
 	intel_enable_pipe(pipe_config);
 
@@ -835,13 +842,10 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	intel_attach_force_audio_property(connector);
 	intel_attach_broadcast_rgb_property(connector);
 
-	if (DISPLAY_VER(dev_priv) <= 12) {
-		ret = intel_dp_hdcp_init(dig_port, intel_connector);
-		if (ret)
-			drm_dbg_kms(&dev_priv->drm, "[%s:%d] HDCP MST init failed, skipping.\n",
-				    connector->name, connector->base.id);
-	}
-
+	ret = intel_dp_hdcp_init(dig_port, intel_connector);
+	if (ret)
+		drm_dbg_kms(&dev_priv->drm, "[%s:%d] HDCP MST init failed, skipping.\n",
+			    connector->name, connector->base.id);
 	/*
 	 * Reuse the prop from the SST connector because we're
 	 * not allowed to create new props after device registration.
@@ -906,6 +910,7 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *dig_port, enum pipe 
 
 	intel_encoder->compute_config = intel_dp_mst_compute_config;
 	intel_encoder->compute_config_late = intel_dp_mst_compute_config_late;
+	intel_encoder->pre_disable = intel_mst_pre_disable_dp;
 	intel_encoder->disable = intel_mst_disable_dp;
 	intel_encoder->post_disable = intel_mst_post_disable_dp;
 	intel_encoder->update_pipe = intel_ddi_update_pipe;

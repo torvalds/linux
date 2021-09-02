@@ -336,14 +336,9 @@ static inline void cgroup_writeback_umount(void)
 /*
  * mm/page-writeback.c
  */
-#ifdef CONFIG_BLOCK
 void laptop_io_completion(struct backing_dev_info *info);
 void laptop_sync_completion(void);
-void laptop_mode_sync(struct work_struct *work);
 void laptop_mode_timer_fn(struct timer_list *t);
-#else
-static inline void laptop_sync_completion(void) { }
-#endif
 bool node_dirty_ok(struct pglist_data *pgdat);
 int wb_domain_init(struct wb_domain *dom, gfp_t gfp);
 #ifdef CONFIG_CGROUP_WRITEBACK
