@@ -29,7 +29,6 @@ struct rsvd_region {
 };
 
 extern struct rsvd_region rsvd_region[IA64_MAX_RSVD_REGIONS + 1];
-extern int num_rsvd_regions;
 
 extern void find_memory (void);
 extern void reserve_memory (void);
