@@ -1336,18 +1336,19 @@ static void __wb_update_bandwidth(struct dirty_throttle_control *gdtc,
 {
 	struct bdi_writeback *wb = gdtc->wb;
 	unsigned long now = jiffies;
-	unsigned long elapsed = now - wb->bw_time_stamp;
+	unsigned long elapsed;
 	unsigned long dirtied;
 	unsigned long written;
 
-	lockdep_assert_held(&wb->list_lock);
+	spin_lock(&wb->list_lock);
 
 	/*
-	 * rate-limit, only update once every 200ms.
+	 * Lockless checks for elapsed time are racy and delayed update after
+	 * IO completion doesn't do it at all (to make sure written pages are
+	 * accounted reasonably quickly). Make sure elapsed >= 1 to avoid
+	 * division errors.
 	 */
-	if (elapsed < BANDWIDTH_INTERVAL)
-		return;
-
+	elapsed = max(now - wb->bw_time_stamp, 1UL);
 	dirtied = percpu_counter_read(&wb->stat[WB_DIRTIED]);
 	written = percpu_counter_read(&wb->stat[WB_WRITTEN]);
 
@@ -1369,15 +1370,14 @@ static void __wb_update_bandwidth(struct dirty_throttle_control *gdtc,
 	wb->dirtied_stamp = dirtied;
 	wb->written_stamp = written;
 	wb->bw_time_stamp = now;
+	spin_unlock(&wb->list_lock);
 }
 
-static void wb_update_bandwidth(struct bdi_writeback *wb)
+void wb_update_bandwidth(struct bdi_writeback *wb)
 {
 	struct dirty_throttle_control gdtc = { GDTC_INIT(wb) };
 
-	spin_lock(&wb->list_lock);
 	__wb_update_bandwidth(&gdtc, NULL, false);
-	spin_unlock(&wb->list_lock);
 }
 
 /* Interval after which we consider wb idle and don't estimate bandwidth */
@@ -1722,11 +1722,8 @@ free_running:
 			wb->dirty_exceeded = 1;
 
 		if (time_is_before_jiffies(wb->bw_time_stamp +
-					   BANDWIDTH_INTERVAL)) {
-			spin_lock(&wb->list_lock);
+					   BANDWIDTH_INTERVAL))
 			__wb_update_bandwidth(gdtc, mdtc, true);
-			spin_unlock(&wb->list_lock);
-		}
 
 		/* throttle according to the chosen dtc */
 		dirty_ratelimit = wb->dirty_ratelimit;
@@ -2374,7 +2371,13 @@ int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
 		cond_resched();
 		congestion_wait(BLK_RW_ASYNC, HZ/50);
 	}
-	wb_update_bandwidth(wb);
+	/*
+	 * Usually few pages are written by now from those we've just submitted
+	 * but if there's constant writeback being submitted, this makes sure
+	 * writeback bandwidth is updated once in a while.
+	 */
+	if (time_is_before_jiffies(wb->bw_time_stamp + BANDWIDTH_INTERVAL))
+		wb_update_bandwidth(wb);
 	return ret;
 }
 
@@ -2754,6 +2757,14 @@ static void wb_inode_writeback_start(struct bdi_writeback *wb)
 static void wb_inode_writeback_end(struct bdi_writeback *wb)
 {
 	atomic_dec(&wb->writeback_inodes);
+	/*
+	 * Make sure estimate of writeback throughput gets updated after
+	 * writeback completed. We delay the update by BANDWIDTH_INTERVAL
+	 * (which is the interval other bandwidth updates use for batching) so
+	 * that if multiple inodes end writeback at a similar time, they get
+	 * batched into one bandwidth update.
+	 */
+	queue_delayed_work(bdi_wq, &wb->bw_dwork, BANDWIDTH_INTERVAL);
 }
 
 int test_clear_page_writeback(struct page *page)
