@@ -292,13 +292,15 @@ con3270_update(struct timer_list *t)
  * Read tasklet.
  */
 static void
-con3270_read_tasklet(struct raw3270_request *rrq)
+con3270_read_tasklet(unsigned long data)
 {
 	static char kreset_data = TW_KR;
+	struct raw3270_request *rrq;
 	struct con3270 *cp;
 	unsigned long flags;
 	int nr_up, deactivate;
 
+	rrq = (struct raw3270_request *)data;
 	cp = (struct con3270 *) rrq->view;
 	spin_lock_irqsave(&cp->view.lock, flags);
 	nr_up = cp->nr_up;
@@ -625,8 +627,7 @@ con3270_init(void)
 	INIT_LIST_HEAD(&condev->lines);
 	INIT_LIST_HEAD(&condev->update);
 	timer_setup(&condev->timer, con3270_update, 0);
-	tasklet_init(&condev->readlet, 
-		     (void (*)(unsigned long)) con3270_read_tasklet,
+	tasklet_init(&condev->readlet, con3270_read_tasklet,
 		     (unsigned long) condev->read);
 
 	raw3270_add_view(&condev->view, &con3270_fn, 1, RAW3270_VIEW_LOCK_IRQ);
