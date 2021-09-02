@@ -282,9 +282,9 @@ static int kill_proc(struct to_kill *tk, unsigned long pfn, int flags)
 
 /*
  * Unknown page type encountered. Try to check whether it can turn PageLRU by
- * lru_add_drain_all, or a free page by reclaiming slabs when possible.
+ * lru_add_drain_all.
  */
-void shake_page(struct page *p, int access)
+void shake_page(struct page *p)
 {
 	if (PageHuge(p))
 		return;
@@ -296,11 +296,9 @@ void shake_page(struct page *p, int access)
 	}
 
 	/*
-	 * Only call drop_slab_node here (which would also shrink
-	 * other caches) if access is not potentially fatal.
+	 * TODO: Could shrink slab caches here if a lightweight range-based
+	 * shrinker will be available.
 	 */
-	if (access)
-		drop_slab_node(page_to_nid(p));
 }
 EXPORT_SYMBOL_GPL(shake_page);
 
@@ -1205,7 +1203,7 @@ try_again:
 			 * page, retry.
 			 */
 			if (pass++ < 3) {
-				shake_page(p, 1);
+				shake_page(p);
 				goto try_again;
 			}
 			ret = -EIO;
@@ -1222,7 +1220,7 @@ try_again:
 		 */
 		if (pass++ < 3) {
 			put_page(p);
-			shake_page(p, 1);
+			shake_page(p);
 			count_increased = false;
 			goto try_again;
 		}
@@ -1369,7 +1367,7 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	 * shake_page() again to ensure that it's flushed.
 	 */
 	if (mlocked)
-		shake_page(hpage, 0);
+		shake_page(hpage);
 
 	/*
 	 * Now that the dirty bit has been propagated to the
@@ -1723,7 +1721,7 @@ try_again:
 	 * The check (unnecessarily) ignores LRU pages being isolated and
 	 * walked by the page reclaim code, however that's not a big loss.
 	 */
-	shake_page(p, 0);
+	shake_page(p);
 
 	lock_page(p);
 
