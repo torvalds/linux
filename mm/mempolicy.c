@@ -2425,8 +2425,8 @@ static void sp_free(struct sp_node *n)
  * node id.  Policy determination "mimics" alloc_page_vma().
  * Called from fault path where we know the vma and faulting address.
  *
- * Return: -1 if the page is in a node that is valid for this policy, or a
- * suitable node ID to allocate a replacement page from.
+ * Return: NUMA_NO_NODE if the page is in a node that is valid for this
+ * policy, or a suitable node ID to allocate a replacement page from.
  */
 int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long addr)
 {
@@ -2437,7 +2437,7 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 	int thiscpu = raw_smp_processor_id();
 	int thisnid = cpu_to_node(thiscpu);
 	int polnid = NUMA_NO_NODE;
-	int ret = -1;
+	int ret = NUMA_NO_NODE;
 
 	pol = get_vma_policy(vma, addr);
 	if (!(pol->flags & MPOL_F_MOF))
