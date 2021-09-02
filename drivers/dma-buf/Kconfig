@@ -42,6 +42,7 @@ config UDMABUF
 config DMABUF_MOVE_NOTIFY
 	bool "Move notify between drivers (EXPERIMENTAL)"
 	default n
+	depends on DMA_SHARED_BUFFER
 	help
 	  Don't pin buffers if the dynamic DMA-buf interface is available on
 	  both the exporter as well as the importer. This fixes a security
