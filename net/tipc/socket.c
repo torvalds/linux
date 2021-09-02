@@ -1426,7 +1426,7 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 	if (ua) {
 		if (!tipc_uaddr_valid(ua, m->msg_namelen))
 			return -EINVAL;
-		 atype = ua->addrtype;
+		atype = ua->addrtype;
 	}
 
 	/* If socket belongs to a communication group follow other paths */
