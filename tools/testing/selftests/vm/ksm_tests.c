@@ -12,6 +12,7 @@
 #define KSM_SCAN_LIMIT_SEC_DEFAULT 120
 #define KSM_PAGE_COUNT_DEFAULT 10l
 #define KSM_PROT_STR_DEFAULT "rw"
+#define KSM_USE_ZERO_PAGES_DEFAULT false
 
 struct ksm_sysfs {
 	unsigned long max_page_sharing;
@@ -25,7 +26,8 @@ struct ksm_sysfs {
 
 enum ksm_test_name {
 	CHECK_KSM_MERGE,
-	CHECK_KSM_UNMERGE
+	CHECK_KSM_UNMERGE,
+	CHECK_KSM_ZERO_PAGE_MERGE
 };
 
 static int ksm_write_sysfs(const char *file_path, unsigned long val)
@@ -80,10 +82,12 @@ static int str_to_prot(char *prot_str)
 
 static void print_help(void)
 {
-	printf("usage: ksm_tests [-h] <test type> [-a prot] [-p page_count] [-l timeout]\n");
+	printf("usage: ksm_tests [-h] <test type> [-a prot] [-p page_count] [-l timeout]\n"
+	       "[-z use_zero_pages]\n");
 
 	printf("Supported <test type>:\n"
 	       " -M (page merging)\n"
+	       " -Z (zero pages merging)\n"
 	       " -U (page unmerging)\n\n");
 
 	printf(" -a: specify the access protections of pages.\n"
@@ -93,6 +97,8 @@ static void print_help(void)
 	       "     Default: %ld\n", KSM_PAGE_COUNT_DEFAULT);
 	printf(" -l: limit the maximum running time (in seconds) for a test.\n"
 	       "     Default: %d seconds\n", KSM_SCAN_LIMIT_SEC_DEFAULT);
+	printf(" -z: change use_zero_pages tunable\n"
+	       "     Default: %d\n", KSM_USE_ZERO_PAGES_DEFAULT);
 
 	exit(0);
 }
@@ -289,6 +295,50 @@ err_out:
 	return KSFT_FAIL;
 }
 
+static int check_ksm_zero_page_merge(int mapping, int prot, long page_count, int timeout,
+				     bool use_zero_pages, size_t page_size)
+{
+	void *map_ptr;
+	struct timespec start_time;
+
+	if (clock_gettime(CLOCK_MONOTONIC_RAW, &start_time)) {
+		perror("clock_gettime");
+		return KSFT_FAIL;
+	}
+
+	if (ksm_write_sysfs(KSM_FP("use_zero_pages"), use_zero_pages))
+		return KSFT_FAIL;
+
+	/* fill pages with zero and try to merge them */
+	map_ptr = allocate_memory(NULL, prot, mapping, 0, page_size * page_count);
+	if (!map_ptr)
+		return KSFT_FAIL;
+
+	if (ksm_merge_pages(map_ptr, page_size * page_count, start_time, timeout))
+		goto err_out;
+
+       /*
+	* verify that the right number of pages are merged:
+	* 1) if use_zero_pages is set to 1, empty pages are merged
+	*    with the kernel zero page instead of with each other;
+	* 2) if use_zero_pages is set to 0, empty pages are not treated specially
+	*    and merged as usual.
+	*/
+	if (use_zero_pages && !assert_ksm_pages_count(0))
+		goto err_out;
+	else if (!use_zero_pages && !assert_ksm_pages_count(page_count))
+		goto err_out;
+
+	printf("OK\n");
+	munmap(map_ptr, page_size * page_count);
+	return KSFT_PASS;
+
+err_out:
+	printf("Not OK\n");
+	munmap(map_ptr, page_size * page_count);
+	return KSFT_FAIL;
+}
+
 int main(int argc, char *argv[])
 {
 	int ret, opt;
@@ -298,8 +348,9 @@ int main(int argc, char *argv[])
 	size_t page_size = sysconf(_SC_PAGESIZE);
 	struct ksm_sysfs ksm_sysfs_old;
 	int test_name = CHECK_KSM_MERGE;
+	bool use_zero_pages = KSM_USE_ZERO_PAGES_DEFAULT;
 
-	while ((opt = getopt(argc, argv, "ha:p:l:MU")) != -1) {
+	while ((opt = getopt(argc, argv, "ha:p:l:z:MUZ")) != -1) {
 		switch (opt) {
 		case 'a':
 			prot = str_to_prot(optarg);
@@ -321,10 +372,19 @@ int main(int argc, char *argv[])
 		case 'h':
 			print_help();
 			break;
+		case 'z':
+			if (strcmp(optarg, "0") == 0)
+				use_zero_pages = 0;
+			else
+				use_zero_pages = 1;
+			break;
 		case 'M':
 			break;
 		case 'U':
 			test_name = CHECK_KSM_UNMERGE;
+			break;
+		case 'Z':
+			test_name = CHECK_KSM_ZERO_PAGE_MERGE;
 			break;
 		default:
 			return KSFT_FAIL;
@@ -358,6 +418,10 @@ int main(int argc, char *argv[])
 	case CHECK_KSM_UNMERGE:
 		ret = check_ksm_unmerge(MAP_PRIVATE | MAP_ANONYMOUS, prot, ksm_scan_limit_sec,
 					page_size);
+		break;
+	case CHECK_KSM_ZERO_PAGE_MERGE:
+		ret = check_ksm_zero_page_merge(MAP_PRIVATE | MAP_ANONYMOUS, prot, page_count,
+						ksm_scan_limit_sec, use_zero_pages, page_size);
 		break;
 	}
 
