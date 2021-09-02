@@ -1428,6 +1428,12 @@ bool dc_process_dmub_set_config_async(struct dc *dc,
 				uint32_t link_index,
 				struct set_config_cmd_payload *payload,
 				struct dmub_notification *notify);
+
+enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
+				uint32_t link_index,
+				uint8_t mst_alloc_slots,
+				uint8_t *mst_slots_in_use);
+
 /*******************************************************************************
  * DSC Interfaces
  ******************************************************************************/

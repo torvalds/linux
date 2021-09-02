@@ -3499,6 +3499,20 @@ enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 
 	ASSERT(proposed_table.stream_count > 0);
 
+	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
+		static enum dc_status status;
+		uint8_t mst_alloc_slots = 0, prev_mst_slots_in_use = 0xFF;
+
+		for (i = 0; i < link->mst_stream_alloc_table.stream_count; i++)
+			mst_alloc_slots += link->mst_stream_alloc_table.stream_allocations[i].slot_count;
+
+		status = dc_process_dmub_set_mst_slots(link->dc, link->link_index,
+			mst_alloc_slots, &prev_mst_slots_in_use);
+		ASSERT(status == DC_OK);
+		DC_LOG_MST("dpia : status[%d]: alloc_slots[%d]: used_slots[%d]\n",
+				status, mst_alloc_slots, prev_mst_slots_in_use);
+	}
+
 	/* program DP source TX for payload */
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	switch (dp_get_link_encoding_format(&link->cur_link_settings)) {
@@ -3840,6 +3854,20 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 		i,
 		link->mst_stream_alloc_table.stream_allocations[i].slot_count);
 #endif
+	}
+
+	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
+		enum dc_status status;
+		uint8_t mst_alloc_slots = 0, prev_mst_slots_in_use = 0xFF;
+
+		for (i = 0; i < link->mst_stream_alloc_table.stream_count; i++)
+			mst_alloc_slots += link->mst_stream_alloc_table.stream_allocations[i].slot_count;
+
+		status = dc_process_dmub_set_mst_slots(link->dc, link->link_index,
+			mst_alloc_slots, &prev_mst_slots_in_use);
+		ASSERT(status != DC_NOT_SUPPORTED);
+		DC_LOG_MST("dpia : status[%d]: alloc_slots[%d]: used_slots[%d]\n",
+				status, mst_alloc_slots, prev_mst_slots_in_use);
 	}
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
