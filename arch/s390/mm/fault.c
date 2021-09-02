@@ -817,7 +817,7 @@ void do_secure_storage_access(struct pt_regs *regs)
 		break;
 	case KERNEL_FAULT:
 		page = phys_to_page(addr);
-		if (unlikely(!try_get_page(page)))
+		if (unlikely(!try_get_compound_head(page, 1)))
 			break;
 		rc = arch_make_page_accessible(page);
 		put_page(page);
