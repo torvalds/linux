@@ -292,38 +292,39 @@ mlx5_esw_bridge_ingress_table_init(struct mlx5_esw_bridge_offloads *br_offloads)
 {
 	struct mlx5_flow_group *mac_fg, *filter_fg, *vlan_fg;
 	struct mlx5_flow_table *ingress_ft, *skip_ft;
+	struct mlx5_eswitch *esw = br_offloads->esw;
 	int err;
 
-	if (!mlx5_eswitch_vport_match_metadata_enabled(br_offloads->esw))
+	if (!mlx5_eswitch_vport_match_metadata_enabled(esw))
 		return -EOPNOTSUPP;
 
 	ingress_ft = mlx5_esw_bridge_table_create(MLX5_ESW_BRIDGE_INGRESS_TABLE_SIZE,
 						  MLX5_ESW_BRIDGE_LEVEL_INGRESS_TABLE,
-						  br_offloads->esw);
+						  esw);
 	if (IS_ERR(ingress_ft))
 		return PTR_ERR(ingress_ft);
 
 	skip_ft = mlx5_esw_bridge_table_create(MLX5_ESW_BRIDGE_SKIP_TABLE_SIZE,
 					       MLX5_ESW_BRIDGE_LEVEL_SKIP_TABLE,
-					       br_offloads->esw);
+					       esw);
 	if (IS_ERR(skip_ft)) {
 		err = PTR_ERR(skip_ft);
 		goto err_skip_tbl;
 	}
 
-	vlan_fg = mlx5_esw_bridge_ingress_vlan_fg_create(br_offloads->esw, ingress_ft);
+	vlan_fg = mlx5_esw_bridge_ingress_vlan_fg_create(esw, ingress_ft);
 	if (IS_ERR(vlan_fg)) {
 		err = PTR_ERR(vlan_fg);
 		goto err_vlan_fg;
 	}
 
-	filter_fg = mlx5_esw_bridge_ingress_filter_fg_create(br_offloads->esw, ingress_ft);
+	filter_fg = mlx5_esw_bridge_ingress_filter_fg_create(esw, ingress_ft);
 	if (IS_ERR(filter_fg)) {
 		err = PTR_ERR(filter_fg);
 		goto err_filter_fg;
 	}
 
-	mac_fg = mlx5_esw_bridge_ingress_mac_fg_create(br_offloads->esw, ingress_ft);
+	mac_fg = mlx5_esw_bridge_ingress_mac_fg_create(esw, ingress_ft);
 	if (IS_ERR(mac_fg)) {
 		err = PTR_ERR(mac_fg);
 		goto err_mac_fg;
@@ -366,23 +367,24 @@ static int
 mlx5_esw_bridge_egress_table_init(struct mlx5_esw_bridge_offloads *br_offloads,
 				  struct mlx5_esw_bridge *bridge)
 {
+	struct mlx5_eswitch *esw = br_offloads->esw;
 	struct mlx5_flow_group *mac_fg, *vlan_fg;
 	struct mlx5_flow_table *egress_ft;
 	int err;
 
 	egress_ft = mlx5_esw_bridge_table_create(MLX5_ESW_BRIDGE_EGRESS_TABLE_SIZE,
 						 MLX5_ESW_BRIDGE_LEVEL_EGRESS_TABLE,
-						 br_offloads->esw);
+						 esw);
 	if (IS_ERR(egress_ft))
 		return PTR_ERR(egress_ft);
 
-	vlan_fg = mlx5_esw_bridge_egress_vlan_fg_create(br_offloads->esw, egress_ft);
+	vlan_fg = mlx5_esw_bridge_egress_vlan_fg_create(esw, egress_ft);
 	if (IS_ERR(vlan_fg)) {
 		err = PTR_ERR(vlan_fg);
 		goto err_vlan_fg;
 	}
 
-	mac_fg = mlx5_esw_bridge_egress_mac_fg_create(br_offloads->esw, egress_ft);
+	mac_fg = mlx5_esw_bridge_egress_mac_fg_create(esw, egress_ft);
 	if (IS_ERR(mac_fg)) {
 		err = PTR_ERR(mac_fg);
 		goto err_mac_fg;
@@ -886,6 +888,7 @@ static void mlx5_esw_bridge_vlan_erase(struct mlx5_esw_bridge_port *port,
 static void mlx5_esw_bridge_vlan_flush(struct mlx5_esw_bridge_vlan *vlan,
 				       struct mlx5_esw_bridge *bridge)
 {
+	struct mlx5_eswitch *esw = bridge->br_offloads->esw;
 	struct mlx5_esw_bridge_fdb_entry *entry, *tmp;
 
 	list_for_each_entry_safe(entry, tmp, &vlan->fdb_list, vlan_list) {
@@ -894,9 +897,9 @@ static void mlx5_esw_bridge_vlan_flush(struct mlx5_esw_bridge_vlan *vlan,
 	}
 
 	if (vlan->pkt_reformat_pop)
-		mlx5_esw_bridge_vlan_pop_cleanup(vlan, bridge->br_offloads->esw);
+		mlx5_esw_bridge_vlan_pop_cleanup(vlan, esw);
 	if (vlan->pkt_reformat_push)
-		mlx5_esw_bridge_vlan_push_cleanup(vlan, bridge->br_offloads->esw);
+		mlx5_esw_bridge_vlan_push_cleanup(vlan, esw);
 }
 
 static void mlx5_esw_bridge_vlan_cleanup(struct mlx5_esw_bridge_port *port,
