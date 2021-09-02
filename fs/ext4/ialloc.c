@@ -300,7 +300,8 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 	}
 
 	BUFFER_TRACE(bitmap_bh, "get_write_access");
-	fatal = ext4_journal_get_write_access(handle, bitmap_bh);
+	fatal = ext4_journal_get_write_access(handle, sb, bitmap_bh,
+					      EXT4_JTR_NONE);
 	if (fatal)
 		goto error_return;
 
@@ -308,7 +309,8 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 	gdp = ext4_get_group_desc(sb, block_group, &bh2);
 	if (gdp) {
 		BUFFER_TRACE(bh2, "get_write_access");
-		fatal = ext4_journal_get_write_access(handle, bh2);
+		fatal = ext4_journal_get_write_access(handle, sb, bh2,
+						      EXT4_JTR_NONE);
 	}
 	ext4_lock_group(sb, block_group);
 	cleared = ext4_test_and_clear_bit(bit, bitmap_bh->b_data);
@@ -1085,7 +1087,8 @@ repeat_in_this_group:
 			}
 		}
 		BUFFER_TRACE(inode_bitmap_bh, "get_write_access");
-		err = ext4_journal_get_write_access(handle, inode_bitmap_bh);
+		err = ext4_journal_get_write_access(handle, sb, inode_bitmap_bh,
+						    EXT4_JTR_NONE);
 		if (err) {
 			ext4_std_error(sb, err);
 			goto out;
@@ -1127,7 +1130,8 @@ got:
 	}
 
 	BUFFER_TRACE(group_desc_bh, "get_write_access");
-	err = ext4_journal_get_write_access(handle, group_desc_bh);
+	err = ext4_journal_get_write_access(handle, sb, group_desc_bh,
+					    EXT4_JTR_NONE);
 	if (err) {
 		ext4_std_error(sb, err);
 		goto out;
@@ -1144,7 +1148,8 @@ got:
 			goto out;
 		}
 		BUFFER_TRACE(block_bitmap_bh, "get block bitmap access");
-		err = ext4_journal_get_write_access(handle, block_bitmap_bh);
+		err = ext4_journal_get_write_access(handle, sb, block_bitmap_bh,
+						    EXT4_JTR_NONE);
 		if (err) {
 			brelse(block_bitmap_bh);
 			ext4_std_error(sb, err);
@@ -1583,8 +1588,8 @@ int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
 	num = sbi->s_itb_per_group - used_blks;
 
 	BUFFER_TRACE(group_desc_bh, "get_write_access");
-	ret = ext4_journal_get_write_access(handle,
-					    group_desc_bh);
+	ret = ext4_journal_get_write_access(handle, sb, group_desc_bh,
+					    EXT4_JTR_NONE);
 	if (ret)
 		goto err_out;
 
