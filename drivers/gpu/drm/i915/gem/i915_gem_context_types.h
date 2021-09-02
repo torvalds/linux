@@ -289,6 +289,18 @@ struct i915_gem_context {
 	struct kref ref;
 
 	/**
+	 * @release_work:
+	 *
+	 * Work item for deferred cleanup, since i915_gem_context_put() tends to
+	 * be called from hardirq context.
+	 *
+	 * FIXME: The only real reason for this is &i915_gem_engines.fence, all
+	 * other callers are from process context and need at most some mild
+	 * shuffling to pull the i915_gem_context_put() call out of a spinlock.
+	 */
+	struct work_struct release_work;
+
+	/**
 	 * @rcu: rcu_head for deferred freeing.
 	 */
 	struct rcu_head rcu;
