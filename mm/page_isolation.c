@@ -287,6 +287,7 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 	unsigned long pfn, flags;
 	struct page *page;
 	struct zone *zone;
+	int ret;
 
 	/*
 	 * Note: pageblock_nr_pages != MAX_ORDER. Then, chunks of free pages
@@ -299,15 +300,21 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 			break;
 	}
 	page = __first_valid_page(start_pfn, end_pfn - start_pfn);
-	if ((pfn < end_pfn) || !page)
-		return -EBUSY;
+	if ((pfn < end_pfn) || !page) {
+		ret = -EBUSY;
+		goto out;
+	}
+
 	/* Check all pages are free or marked as ISOLATED */
 	zone = page_zone(page);
 	spin_lock_irqsave(&zone->lock, flags);
 	pfn = __test_page_isolated_in_pageblock(start_pfn, end_pfn, isol_flags);
 	spin_unlock_irqrestore(&zone->lock, flags);
 
+	ret = pfn < end_pfn ? -EBUSY : 0;
+
+out:
 	trace_test_pages_isolated(start_pfn, end_pfn, pfn);
 
-	return pfn < end_pfn ? -EBUSY : 0;
+	return ret;
 }
