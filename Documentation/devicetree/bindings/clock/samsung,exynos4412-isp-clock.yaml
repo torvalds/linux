@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/samsung,exynos4412-isp-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos4412 SoC ISP clock controller
+
+maintainers:
+  - Chanwoo Choi <cw00.choi@samsung.com>
+  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Sylwester Nawrocki <s.nawrocki@samsung.com>
+  - Tomasz Figa <tomasz.figa@gmail.com>
+
+description: |
+  Clock controller for Samsung Exynos4412 SoC FIMC-ISP (Camera ISP)
+  All available clocks are defined as preprocessor macros in
+  dt-bindings/clock/ headers.
+
+properties:
+  compatible:
+    const: samsung,exynos4412-isp-clock
+
+  clocks:
+    items:
+      - description: CLK_ACLK200 from the main clock controller
+      - description: CLK_ACLK400_MCUISP from the main clock controller
+
+  clock-names:
+    items:
+      - const: aclk200
+      - const: aclk400_mcuisp
+
+  "#clock-cells":
+    const: 1
+
+  power-domains:
+    maxItems: 1
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - "#clock-cells"
+  - clocks
+  - clock-names
+  - power-domains
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/exynos4.h>
+    clock-controller@10048000 {
+        compatible = "samsung,exynos4412-isp-clock";
+        reg = <0x10048000 0x1000>;
+        #clock-cells = <1>;
+        power-domains = <&pd_isp>;
+        clocks = <&clock CLK_ACLK200>, <&clock CLK_ACLK400_MCUISP>;
+        clock-names = "aclk200", "aclk400_mcuisp";
+    };
+

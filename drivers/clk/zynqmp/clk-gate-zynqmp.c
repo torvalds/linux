@@ -12,7 +12,7 @@
 #include "clk-zynqmp.h"
 
 /**
- * struct clk_gate - gating clock
+ * struct zynqmp_clk_gate - gating clock
  * @hw:		handle between common and hardware-specific interfaces
  * @flags:	hardware-specific flags
  * @clk_id:	Id of clock
@@ -66,7 +66,7 @@ static void zynqmp_clk_gate_disable(struct clk_hw *hw)
 }
 
 /**
- * zynqmp_clk_gate_is_enable() - Check clock state
+ * zynqmp_clk_gate_is_enabled() - Check clock state
  * @hw:		handle between common and hardware-specific interfaces
  *
  * Return: 1 if enabled, 0 if disabled else error code
