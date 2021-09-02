@@ -750,7 +750,7 @@ static int mipidphy_update_sensor_mbus(struct v4l2_subdev *sd)
 	struct v4l2_mbus_config mbus;
 	int ret;
 
-	ret = v4l2_subdev_call(sensor_sd, video, g_mbus_config, &mbus);
+	ret = v4l2_subdev_call(sensor_sd, pad, get_mbus_config, 0, &mbus);
 	if (ret)
 		return ret;
 
@@ -868,7 +868,7 @@ static int mipidphy_g_frame_interval(struct v4l2_subdev *sd,
 	return -EINVAL;
 }
 
-static int mipidphy_g_mbus_config(struct v4l2_subdev *sd,
+static int mipidphy_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				  struct v4l2_mbus_config *config)
 {
 	struct mipidphy_priv *priv = to_dphy_priv(sd);
@@ -966,6 +966,7 @@ static const struct v4l2_subdev_pad_ops mipidphy_subdev_pad_ops = {
 	.set_fmt = mipidphy_get_set_fmt,
 	.get_fmt = mipidphy_get_set_fmt,
 	.get_selection = mipidphy_get_selection,
+	.get_mbus_config = mipidphy_g_mbus_config,
 };
 
 static const struct v4l2_subdev_core_ops mipidphy_core_ops = {
@@ -974,7 +975,6 @@ static const struct v4l2_subdev_core_ops mipidphy_core_ops = {
 
 static const struct v4l2_subdev_video_ops mipidphy_video_ops = {
 	.g_frame_interval = mipidphy_g_frame_interval,
-	.g_mbus_config = mipidphy_g_mbus_config,
 	.s_stream = mipidphy_s_stream,
 };
 
@@ -1340,7 +1340,7 @@ static int csi_mipidphy_stream_on(struct mipidphy_priv *priv,
 	write_csiphy_reg(priv, CSIPHY_CTRL_PWRCTL, 0xe0);
 	usleep_range(500, 1000);
 
-	if (sensor->mbus.type == V4L2_MBUS_CSI2) {
+	if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
 		/* Reset dphy digital part */
 		write_csiphy_reg(priv, CSIPHY_CTRL_DIG_RST, 0x1e);
 		write_csiphy_reg(priv, CSIPHY_CTRL_DIG_RST, 0x1f);
@@ -1613,8 +1613,8 @@ static int rockchip_mipidphy_fwnode_parse(struct device *dev,
 		return -EINVAL;
 	}
 
-	if (vep->bus_type == V4L2_MBUS_CSI2) {
-		config->type = V4L2_MBUS_CSI2;
+	if (vep->bus_type == V4L2_MBUS_CSI2_DPHY) {
+		config->type = V4L2_MBUS_CSI2_DPHY;
 		config->flags = vep->bus.mipi_csi2.flags;
 		s_asd->lanes = vep->bus.mipi_csi2.num_data_lanes;
 	} else if (vep->bus_type == V4L2_MBUS_CCP2) {
@@ -1660,15 +1660,14 @@ static int rockchip_mipidphy_media_init(struct mipidphy_priv *priv)
 	if (ret < 0)
 		return ret;
 
+	v4l2_async_notifier_init(&priv->notifier);
+
 	ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(
 		priv->dev, &priv->notifier,
 		sizeof(struct sensor_async_subdev), 0,
 		rockchip_mipidphy_fwnode_parse);
 	if (ret < 0)
 		return ret;
-
-	if (!priv->notifier.num_subdevs)
-		return -ENODEV;	/* no endpoint */
 
 	priv->sd.subdev_notifier = &priv->notifier;
 	priv->notifier.ops = &rockchip_mipidphy_async_ops;

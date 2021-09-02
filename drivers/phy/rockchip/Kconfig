@@ -81,6 +81,14 @@ config PHY_ROCKCHIP_INNO_DSIDPHY
 	  Enable this to support the Rockchip MIPI/LVDS/TTL PHY with
 	  Innosilicon IP block.
 
+config PHY_ROCKCHIP_MIPI_RX
+	tristate "Rockchip MIPI RX D-PHY Driver"
+	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on ARCH_ROCKCHIP && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip MIPI D-PHY with Synopsys or Innosilicon IP block.
+
 config PHY_ROCKCHIP_NANENG_COMBO_PHY
 	tristate "Rockchip NANENG COMBO PHY Driver"
 	depends on ARCH_ROCKCHIP && OF
