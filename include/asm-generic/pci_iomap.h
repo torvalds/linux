@@ -52,4 +52,4 @@ static inline void __iomem *pci_iomap_wc_range(struct pci_dev *dev, int bar,
 }
 #endif
 
-#endif /* __ASM_GENERIC_IO_H */
+#endif /* __ASM_GENERIC_PCI_IOMAP_H */
