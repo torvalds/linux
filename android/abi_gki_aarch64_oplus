@@ -1,4 +1,4 @@
-[abi_symbol_list]
+[abi_symbol_list] 
   activate_task
   add_cpu
   add_device_randomness
@@ -26,6 +26,7 @@
   __arch_copy_from_user
   __arch_copy_in_user
   __arch_copy_to_user
+  arch_mmap_rnd
   arch_timer_read_counter
   argv_free
   argv_split
@@ -70,9 +71,9 @@
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
+  bpf_trace_run1
   bpf_trace_run10
   bpf_trace_run12
-  bpf_trace_run1
   bpf_trace_run2
   bpf_trace_run3
   bpf_trace_run4
@@ -595,6 +596,7 @@
   get_pid_task
   get_random_bytes
   get_random_u32
+  get_random_u64
   get_sg_io_hdr
   get_slabinfo
   __get_task_comm
@@ -603,6 +605,7 @@
   get_unmapped_area
   get_unused_fd_flags
   get_user_pages
+  get_user_pages_remote
   gic_nonsecure_priorities
   gov_attr_set_init
   gov_attr_set_put
@@ -771,6 +774,7 @@
   iounmap
   __iowrite32_copy
   ipi_desc_get
+  ip_route_me_harder
   iput
   ipv6_find_hdr
   irq_chip_ack_parent
@@ -911,6 +915,7 @@
   ktime_get_mono_fast_ns
   ktime_get_real_seconds
   ktime_get_real_ts64
+  ktime_get_with_offset
   kvfree
   kvmalloc_node
   led_classdev_flash_register_ext
@@ -959,8 +964,8 @@
   mempool_free
   mempool_free_slab
   memremap
-  memset64
   memset
+  memset64
   __memset_io
   memstart_addr
   memunmap
@@ -995,12 +1000,13 @@
   netlink_kernel_release
   netlink_unicast
   net_namespace_list
+  nf_ct_delete
   nf_register_net_hooks
   nf_unregister_net_hooks
   nla_find
   nla_put
-  nla_reserve_64bit
   nla_reserve
+  nla_reserve_64bit
   __nla_validate
   __nlmsg_put
   no_llseek
@@ -1343,6 +1349,7 @@
   register_kretprobe
   register_memory_notifier
   register_module_notifier
+  register_net_sysctl
   register_pm_notifier
   register_reboot_notifier
   register_restart_handler
@@ -1690,6 +1697,7 @@
   __task_pid_nr_ns
   __task_rq_lock
   task_rq_lock
+  tcp_parse_options
   thermal_cooling_device_register
   thermal_cooling_device_unregister
   thermal_of_cooling_device_register
@@ -1781,12 +1789,16 @@
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_do_send_sig_info
+  __traceiter_android_vh_exclude_reserved_zone
+  __traceiter_android_vh_exit_mm
   __traceiter_android_vh_ftrace_dump_buffer
   __traceiter_android_vh_ftrace_format_check
   __traceiter_android_vh_ftrace_oops_enter
   __traceiter_android_vh_ftrace_oops_exit
   __traceiter_android_vh_ftrace_size_check
+  __traceiter_android_vh_get_from_fragment_pool
   __traceiter_android_vh_gpio_block_read
+  __traceiter_android_vh_include_reserved_zone
   __traceiter_android_vh_iommu_setup_dma_ops
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_jiffies_update
@@ -1799,12 +1811,15 @@
   __traceiter_android_vh_rwsem_wake
   __traceiter_android_vh_rwsem_wake_finish
   __traceiter_android_vh_scheduler_tick
+  __traceiter_android_vh_show_max_freq
   __traceiter_android_vh_show_resume_epoch_val
   __traceiter_android_vh_show_suspend_epoch_val
   __traceiter_android_vh_sync_txn_recvd
   __traceiter_android_vh_timer_calc_index
   __traceiter_android_vh_tune_inactive_ratio
   __traceiter_android_vh_tune_swappiness
+  __traceiter_android_vh_ufs_compl_command
+  __traceiter_android_vh_ufs_send_command
   __traceiter_android_vh_update_topology_flags_workfn
   __traceiter_binder_transaction_received
   __traceiter_cpu_frequency_limits
@@ -1886,12 +1901,16 @@
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_do_send_sig_info
+  __tracepoint_android_vh_exclude_reserved_zone
+  __tracepoint_android_vh_exit_mm
   __tracepoint_android_vh_ftrace_dump_buffer
   __tracepoint_android_vh_ftrace_format_check
   __tracepoint_android_vh_ftrace_oops_enter
   __tracepoint_android_vh_ftrace_oops_exit
   __tracepoint_android_vh_ftrace_size_check
+  __tracepoint_android_vh_get_from_fragment_pool
   __tracepoint_android_vh_gpio_block_read
+  __tracepoint_android_vh_include_reserved_zone
   __tracepoint_android_vh_iommu_setup_dma_ops
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_jiffies_update
@@ -1904,12 +1923,15 @@
   __tracepoint_android_vh_rwsem_wake
   __tracepoint_android_vh_rwsem_wake_finish
   __tracepoint_android_vh_scheduler_tick
+  __tracepoint_android_vh_show_max_freq
   __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_suspend_epoch_val
   __tracepoint_android_vh_sync_txn_recvd
   __tracepoint_android_vh_timer_calc_index
   __tracepoint_android_vh_tune_inactive_ratio
   __tracepoint_android_vh_tune_swappiness
+  __tracepoint_android_vh_ufs_compl_command
+  __tracepoint_android_vh_ufs_send_command
   __tracepoint_android_vh_update_topology_flags_workfn
   __tracepoint_binder_transaction_received
   __tracepoint_cpu_frequency_limits
@@ -1998,6 +2020,7 @@
   unregister_ftrace_export
   unregister_kretprobe
   unregister_module_notifier
+  unregister_net_sysctl_table
   unregister_pm_notifier
   unregister_reboot_notifier
   unregister_restart_handler
@@ -2080,6 +2103,7 @@
   vm_iomap_memory
   vm_map_pages
   vm_node_stat
+  vm_unmapped_area
   vm_zone_stat
   vscnprintf
   vsnprintf
