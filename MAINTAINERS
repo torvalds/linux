@@ -14424,6 +14424,13 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/pci/hisilicon-histb-pcie.txt
 F:	drivers/pci/controller/dwc/pcie-histb.c
 
+PCIE DRIVER FOR INTEL KEEM BAY
+M:	Srikanth Thokala <srikanth.thokala@intel.com>
+L:	linux-pci@vger.kernel.org
+S:	Supported
+F:	Documentation/devicetree/bindings/pci/intel,keembay-pcie*
+F:	drivers/pci/controller/dwc/pcie-keembay.c
+
 PCIE DRIVER FOR MEDIATEK
 M:	Ryder Lee <ryder.lee@mediatek.com>
 M:	Jianjun Wang <jianjun.wang@mediatek.com>
