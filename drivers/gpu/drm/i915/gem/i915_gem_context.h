@@ -156,9 +156,9 @@ i915_gem_context_vm(struct i915_gem_context *ctx)
 
 static inline bool i915_gem_context_has_full_ppgtt(struct i915_gem_context *ctx)
 {
-	GEM_BUG_ON(!!rcu_access_pointer(ctx->vm) != HAS_FULL_PPGTT(ctx->i915));
+	GEM_BUG_ON(!!ctx->vm != HAS_FULL_PPGTT(ctx->i915));
 
-	return !!rcu_access_pointer(ctx->vm);
+	return !!ctx->vm;
 }
 
 static inline struct i915_address_space *
@@ -166,12 +166,10 @@ i915_gem_context_get_eb_vm(struct i915_gem_context *ctx)
 {
 	struct i915_address_space *vm;
 
-	rcu_read_lock();
-	vm = rcu_dereference(ctx->vm);
+	vm = ctx->vm;
 	if (!vm)
 		vm = &ctx->i915->ggtt.vm;
 	vm = i915_vm_get(vm);
-	rcu_read_unlock();
 
 	return vm;
 }

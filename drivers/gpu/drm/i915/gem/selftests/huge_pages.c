@@ -1688,11 +1688,9 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *i915)
 		goto out_file;
 	}
 
-	mutex_lock(&ctx->mutex);
-	vm = i915_gem_context_vm(ctx);
+	vm = ctx->vm;
 	if (vm)
 		WRITE_ONCE(vm->scrub_64K, true);
-	mutex_unlock(&ctx->mutex);
 
 	err = i915_subtests(tests, ctx);
 
