@@ -60,6 +60,7 @@ void afs_init_callback_state(struct afs_server *server)
 	rcu_read_lock();
 	do {
 		server->cb_s_break++;
+		atomic_inc(&server->cell->fs_s_break);
 		if (!list_empty(&server->cell->fs_open_mmaps))
 			queue_work(system_unbound_wq, &server->initcb_work);
 
@@ -77,6 +78,7 @@ void __afs_break_callback(struct afs_vnode *vnode, enum afs_cb_break_reason reas
 	clear_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags);
 	if (test_and_clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
 		vnode->cb_break++;
+		vnode->cb_v_break = vnode->volume->cb_v_break;
 		afs_clear_permits(vnode);
 
 		if (vnode->lock_state == AFS_VNODE_LOCK_WAITING_FOR_CB)

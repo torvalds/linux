@@ -392,6 +392,7 @@ struct afs_cell {
 	seqlock_t		fs_lock;	/* For fs_servers  */
 	struct rw_semaphore	fs_open_mmaps_lock;
 	struct list_head	fs_open_mmaps;	/* List of vnodes that are mmapped */
+	atomic_t		fs_s_break;	/* Counter of CB.InitCallBackState messages */
 
 	/* VL server list. */
 	rwlock_t		vl_servers_lock; /* Lock on vl_servers */
@@ -664,6 +665,7 @@ struct afs_vnode {
 	struct list_head	cb_mmap_link;	/* Link in cell->fs_open_mmaps */
 	void			*cb_server;	/* Server with callback/filelock */
 	atomic_t		cb_nr_mmap;	/* Number of mmaps */
+	unsigned int		cb_fs_s_break;	/* Mass server break counter (cell->fs_s_break) */
 	unsigned int		cb_s_break;	/* Mass break counter on ->server */
 	unsigned int		cb_v_break;	/* Mass break counter on ->volume */
 	unsigned int		cb_break;	/* Break counter on vnode */
