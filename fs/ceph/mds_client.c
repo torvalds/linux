@@ -1619,6 +1619,7 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	struct ceph_fs_client *fsc = (struct ceph_fs_client *)arg;
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	bool is_auth;
 	bool dirty_dropped = false;
 	bool invalidate = false;
 	int capsnap_release = 0;
@@ -1626,8 +1627,9 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	dout("removing cap %p, ci is %p, inode is %p\n",
 	     cap, ci, &ci->vfs_inode);
 	spin_lock(&ci->i_ceph_lock);
+	is_auth = (cap == ci->i_auth_cap);
 	__ceph_remove_cap(cap, false);
-	if (!ci->i_auth_cap) {
+	if (is_auth) {
 		struct ceph_cap_flush *cf;
 
 		if (READ_ONCE(fsc->mount_state) >= CEPH_MOUNT_SHUTDOWN) {
