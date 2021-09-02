@@ -67,7 +67,7 @@ menuconfig DMABUF_HEAPS
 
 menuconfig DMABUF_SYSFS_STATS
 	bool "DMA-BUF sysfs statistics"
-	select DMA_SHARED_BUFFER
+	depends on DMA_SHARED_BUFFER
 	help
 	   Choose this option to enable DMA-BUF sysfs statistics
 	   in location /sys/kernel/dmabuf/buffers.
