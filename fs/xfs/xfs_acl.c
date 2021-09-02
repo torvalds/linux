@@ -232,7 +232,7 @@ xfs_acl_set_mode(
 	inode->i_ctime = current_time(inode);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
-	if (mp->m_flags & XFS_MOUNT_WSYNC)
+	if (xfs_has_wsync(mp))
 		xfs_trans_set_sync(tp);
 	return xfs_trans_commit(tp);
 }
