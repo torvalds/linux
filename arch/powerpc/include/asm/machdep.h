@@ -10,11 +10,6 @@
 
 #include <asm/setup.h>
 
-/* We export this macro for external modules like Alsa to know if
- * ppc_md.feature_call is implemented or not
- */
-#define CONFIG_PPC_HAS_FEATURE_CALLS
-
 struct pt_regs;
 struct pci_bus;	
 struct device_node;
