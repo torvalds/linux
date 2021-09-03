@@ -80,7 +80,7 @@ int metricgroup__parse_groups_test(struct evlist *evlist,
 				   struct rblist *metric_events);
 
 void metricgroup__print(bool metrics, bool groups, char *filter,
-			bool raw, bool details);
+			bool raw, bool details, const char *pmu_name);
 bool metricgroup__has_metric(const char *metric);
 int arch_get_runtimeparam(const struct pmu_event *pe __maybe_unused);
 void metricgroup__rblist_exit(struct rblist *metric_events);

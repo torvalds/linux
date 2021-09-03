@@ -3089,7 +3089,8 @@ out_enomem:
  * Print the help text for the event symbols:
  */
 void print_events(const char *event_glob, bool name_only, bool quiet_flag,
-			bool long_desc, bool details_flag, bool deprecated)
+			bool long_desc, bool details_flag, bool deprecated,
+			const char *pmu_name)
 {
 	print_symbol_events(event_glob, PERF_TYPE_HARDWARE,
 			    event_symbols_hw, PERF_COUNT_HW_MAX, name_only);
@@ -3101,7 +3102,7 @@ void print_events(const char *event_glob, bool name_only, bool quiet_flag,
 	print_hwcache_events(event_glob, name_only);
 
 	print_pmu_events(event_glob, name_only, quiet_flag, long_desc,
-			details_flag, deprecated);
+			details_flag, deprecated, pmu_name);
 
 	if (event_glob != NULL)
 		return;
@@ -3127,7 +3128,8 @@ void print_events(const char *event_glob, bool name_only, bool quiet_flag,
 
 	print_sdt_events(NULL, NULL, name_only);
 
-	metricgroup__print(true, true, NULL, name_only, details_flag);
+	metricgroup__print(true, true, NULL, name_only, details_flag,
+			   pmu_name);
 
 	print_libpfm_events(name_only, long_desc);
 }

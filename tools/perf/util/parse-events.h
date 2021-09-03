@@ -221,7 +221,8 @@ void parse_events_evlist_error(struct parse_events_state *parse_state,
 			       int idx, const char *str);
 
 void print_events(const char *event_glob, bool name_only, bool quiet,
-		  bool long_desc, bool details_flag, bool deprecated);
+		  bool long_desc, bool details_flag, bool deprecated,
+		  const char *pmu_name);
 
 struct event_symbol {
 	const char	*symbol;
