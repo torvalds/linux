@@ -220,11 +220,6 @@ void bch2_migrate_read_done(struct migrate_write *m, struct bch_read_bio *rbio)
 	m->op.crc	= rbio->pick.crc;
 	m->op.wbio.bio.bi_iter.bi_size = m->op.crc.compressed_size << 9;
 
-	if (bch2_csum_type_is_encryption(m->op.crc.csum_type)) {
-		m->op.nonce	= m->op.crc.nonce + m->op.crc.offset;
-		m->op.csum_type = m->op.crc.csum_type;
-	}
-
 	if (m->data_cmd == DATA_REWRITE)
 		bch2_dev_list_drop_dev(&m->op.devs_have, m->data_opts.rewrite_dev);
 }
@@ -239,6 +234,7 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
+	struct bch_extent_crc_unpacked crc;
 	struct extent_ptr_decoded p;
 	int ret;
 
@@ -258,6 +254,18 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 
 	m->op.target	= data_opts.target,
 	m->op.write_point = wp;
+
+	/*
+	 * op->csum_type is normally initialized from the fs/file's current
+	 * options - but if an extent is encrypted, we require that it stays
+	 * encrypted:
+	 */
+	bkey_for_each_crc(k.k, ptrs, crc, entry)
+		if (bch2_csum_type_is_encryption(crc.csum_type)) {
+			m->op.nonce	= crc.nonce + crc.offset;
+			m->op.csum_type = crc.csum_type;
+			break;
+		}
 
 	if (m->data_opts.btree_insert_flags & BTREE_INSERT_USE_RESERVE) {
 		m->op.alloc_reserve = RESERVE_MOVINGGC;
