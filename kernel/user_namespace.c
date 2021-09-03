@@ -1340,9 +1340,6 @@ static int userns_install(struct nsset *nsset, struct ns_common *ns)
 	put_user_ns(cred->user_ns);
 	set_cred_user_ns(cred, get_user_ns(user_ns));
 
-	if (set_cred_ucounts(cred) < 0)
-		return -EINVAL;
-
 	return 0;
 }
 
