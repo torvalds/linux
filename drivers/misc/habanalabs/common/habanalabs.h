@@ -456,6 +456,9 @@ struct hl_hints_range {
  *                  for hints validity check.
  * device_dma_offset_for_host_access: the offset to add to host DMA addresses
  *                                    to enable the device to access them.
+ * @max_freq_value: current max clk frequency.
+ * @clk_pll_index: clock PLL index that specify which PLL determines the clock
+ *                 we display to the user
  * @mmu_pgt_size: MMU page tables total size.
  * @mmu_pte_size: PTE size in MMU page tables.
  * @mmu_hop_table_size: MMU hop table size.
@@ -552,6 +555,8 @@ struct asic_fixed_properties {
 	u64				cb_va_end_addr;
 	u64				dram_hints_align_mask;
 	u64				device_dma_offset_for_host_access;
+	u64				max_freq_value;
+	u32				clk_pll_index;
 	u32				mmu_pgt_size;
 	u32				mmu_pte_size;
 	u32				mmu_hop_table_size;
@@ -3006,6 +3011,11 @@ int hl_set_power(struct hl_device *hdev,
 			int sensor_index, u32 attr, long value);
 int hl_get_power(struct hl_device *hdev,
 			int sensor_index, u32 attr, long *value);
+int hl_get_clk_rate(struct hl_device *hdev,
+			u32 *cur_clk, u32 *max_clk);
+void hl_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
+void hl_add_device_attr(struct hl_device *hdev,
+			struct attribute_group *dev_attr_grp);
 void hw_sob_get(struct hl_hw_sob *hw_sob);
 void hw_sob_put(struct hl_hw_sob *hw_sob);
 void hl_encaps_handle_do_release(struct kref *ref);

@@ -661,6 +661,9 @@ static int gaudi_set_fixed_properties(struct hl_device *hdev)
 
 	prop->server_type = HL_SERVER_TYPE_UNKNOWN;
 
+	prop->clk_pll_index = HL_GAUDI_MME_PLL;
+	prop->max_freq_value = GAUDI_MAX_CLK_FREQ;
+
 	return 0;
 }
 
@@ -1837,8 +1840,6 @@ static int gaudi_sw_init(struct hl_device *hdev)
 	}
 
 	gaudi->cpucp_info_get = gaudi_cpucp_info_get;
-
-	gaudi->max_freq_value = GAUDI_MAX_CLK_FREQ;
 
 	hdev->asic_specific = gaudi;
 
@@ -9444,9 +9445,9 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.debugfs_read64 = gaudi_debugfs_read64,
 	.debugfs_write64 = gaudi_debugfs_write64,
 	.debugfs_read_dma = gaudi_debugfs_read_dma,
-	.add_device_attr = gaudi_add_device_attr,
+	.add_device_attr = hl_add_device_attr,
 	.handle_eqe = gaudi_handle_eqe,
-	.set_pll_profile = gaudi_set_pll_profile,
+	.set_pll_profile = hl_set_pll_profile,
 	.get_events_stat = gaudi_get_events_stat,
 	.read_pte = gaudi_read_pte,
 	.write_pte = gaudi_write_pte,
@@ -9470,7 +9471,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.halt_coresight = gaudi_halt_coresight,
 	.ctx_init = gaudi_ctx_init,
 	.ctx_fini = gaudi_ctx_fini,
-	.get_clk_rate = gaudi_get_clk_rate,
+	.get_clk_rate = hl_get_clk_rate,
 	.get_queue_id_for_cq = gaudi_get_queue_id_for_cq,
 	.load_firmware_to_device = gaudi_load_firmware_to_device,
 	.load_boot_fit_to_device = gaudi_load_boot_fit_to_device,
