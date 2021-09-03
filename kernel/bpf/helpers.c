@@ -372,8 +372,8 @@ const struct bpf_func_proto bpf_get_current_ancestor_cgroup_id_proto = {
 };
 
 #ifdef CONFIG_CGROUP_BPF
-DECLARE_PER_CPU(struct bpf_cgroup_storage*,
-		bpf_cgroup_storage[MAX_BPF_CGROUP_STORAGE_TYPE]);
+DECLARE_PER_CPU(struct bpf_cgroup_storage_info,
+		bpf_cgroup_storage_info[BPF_CGROUP_STORAGE_NEST_MAX]);
 
 BPF_CALL_2(bpf_get_local_storage, struct bpf_map *, map, u64, flags)
 {
@@ -382,10 +382,17 @@ BPF_CALL_2(bpf_get_local_storage, struct bpf_map *, map, u64, flags)
 	 * verifier checks that its value is correct.
 	 */
 	enum bpf_cgroup_storage_type stype = cgroup_storage_type(map);
-	struct bpf_cgroup_storage *storage;
+	struct bpf_cgroup_storage *storage = NULL;
 	void *ptr;
+	int i;
 
-	storage = this_cpu_read(bpf_cgroup_storage[stype]);
+	for (i = BPF_CGROUP_STORAGE_NEST_MAX - 1; i >= 0; i--) {
+		if (likely(this_cpu_read(bpf_cgroup_storage_info[i].task) != current))
+			continue;
+
+		storage = this_cpu_read(bpf_cgroup_storage_info[i].storage[stype]);
+		break;
+	}
 
 	if (stype == BPF_CGROUP_STORAGE_SHARED)
 		ptr = &READ_ONCE(storage->buf)->data[0];

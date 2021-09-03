@@ -1862,7 +1862,6 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u64 start_pos;
 	u64 end_pos;
 	ssize_t num_written = 0;
@@ -2006,14 +2005,8 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 
 	inode_unlock(inode);
 
-	/*
-	 * We also have to set last_sub_trans to the current log transid,
-	 * otherwise subsequent syncs to a file that's been synced in this
-	 * transaction will appear to have already occurred.
-	 */
-	spin_lock(&BTRFS_I(inode)->lock);
-	BTRFS_I(inode)->last_sub_trans = root->log_transid;
-	spin_unlock(&BTRFS_I(inode)->lock);
+	btrfs_set_inode_last_sub_trans(BTRFS_I(inode));
+
 	if (num_written > 0)
 		num_written = generic_write_sync(iocb, num_written);
 
