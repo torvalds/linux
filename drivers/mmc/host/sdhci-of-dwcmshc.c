@@ -339,6 +339,16 @@ static int rockchip_pltf_init(struct sdhci_host *host, struct dwcmshc_priv *priv
 	/* Reset previous settings */
 	sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_TXCLK);
 	sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_STRBIN);
+
+	/*
+	 * Don't support highspeed bus mode with low clk speed as we
+	 * cannot use DLL for this condition.
+	 */
+	if (host->mmc->f_max <= 52000000) {
+		host->mmc->caps2 &= ~(MMC_CAP2_HS200 | MMC_CAP2_HS400);
+		host->mmc->caps &= ~(MMC_CAP_3_3V_DDR | MMC_CAP_1_8V_DDR);
+	}
+
 	return 0;
 }
 
@@ -413,16 +423,16 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	host->mmc_host_ops.hs400_enhanced_strobe =
 		dwcmshc_hs400_enhanced_strobe;
 
+	err = sdhci_add_host(host);
+	if (err)
+		goto err_clk;
+
 	priv->flags = drv_data->flags;
 	if (drv_data->flags & RK_PLATFROM) {
 		err = rockchip_pltf_init(host, priv);
 		if (err)
 			goto err_clk;
 	}
-
-	err = sdhci_add_host(host);
-	if (err)
-		goto err_clk;
 
 	pm_runtime_get_noresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
