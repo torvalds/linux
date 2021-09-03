@@ -288,12 +288,13 @@ int devm_clk_register_regmap(struct device *dev, struct clk_regmap *rclk)
 	else if (dev && dev->parent)
 		rclk->regmap = dev_get_regmap(dev->parent, NULL);
 
-	if (rclk->flags & QCOM_CLK_IS_CRITICAL) {
+	if (rclk->flags & QCOM_CLK_IS_CRITICAL || rclk->flags & QCOM_CLK_BOOT_CRITICAL) {
 		ops = rclk->hw.init->ops;
 		if (ops && ops->enable)
 			ops->enable(&rclk->hw);
 
-		return 0;
+		if (rclk->flags & QCOM_CLK_IS_CRITICAL)
+			return 0;
 	}
 
 	ret = devm_clk_hw_register(dev, &rclk->hw);
