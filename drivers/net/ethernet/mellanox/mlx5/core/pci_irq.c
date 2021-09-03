@@ -143,11 +143,11 @@ static void irq_release(struct mlx5_irq *irq)
 	struct mlx5_irq_pool *pool = irq->pool;
 
 	xa_erase(&pool->irqs, irq->index);
-	/* free_irq requires that affinity and rmap will be cleared
+	/* free_irq requires that affinity_hint and rmap will be cleared
 	 * before calling it. This is why there is asymmetry with set_rmap
 	 * which should be called after alloc_irq but before request_irq.
 	 */
-	irq_set_affinity_hint(irq->irqn, NULL);
+	irq_update_affinity_hint(irq->irqn, NULL);
 	free_cpumask_var(irq->mask);
 	free_irq(irq->irqn, &irq->nh);
 	kfree(irq);
@@ -316,7 +316,7 @@ static struct mlx5_irq *irq_pool_create_irq(struct mlx5_irq_pool *pool,
 	if (IS_ERR(irq))
 		return irq;
 	cpumask_copy(irq->mask, affinity);
-	irq_set_affinity_hint(irq->irqn, irq->mask);
+	irq_set_affinity_and_hint(irq->irqn, irq->mask);
 	return irq;
 }
 
@@ -399,7 +399,7 @@ irq_pool_request_vector(struct mlx5_irq_pool *pool, int vecidx,
 	if (!irq_pool_is_sf_pool(pool) && !pool->xa_num_irqs.max &&
 	    cpumask_empty(irq->mask))
 		cpumask_set_cpu(0, irq->mask);
-	irq_set_affinity_hint(irq->irqn, irq->mask);
+	irq_set_affinity_and_hint(irq->irqn, irq->mask);
 unlock:
 	mutex_unlock(&pool->lock);
 	return irq;
