@@ -39,7 +39,7 @@
 #define NOC_QOS_MODEn_ADDR(n)		(0xc + (n * 0x1000))
 #define NOC_QOS_MODEn_MASK		0x3
 
-static int qcom_icc_bimc_set_qos_health(struct regmap *rmap,
+static int qcom_icc_bimc_set_qos_health(struct qcom_icc_provider *qp,
 					struct qcom_icc_qos *qos,
 					int regnum)
 {
@@ -58,8 +58,8 @@ static int qcom_icc_bimc_set_qos_health(struct regmap *rmap,
 		mask |= M_BKE_HEALTH_CFG_LIMITCMDS_MASK;
 	}
 
-	return regmap_update_bits(rmap,
-				  M_BKE_HEALTH_CFG_ADDR(regnum, qos->qos_port),
+	return regmap_update_bits(qp->regmap,
+				  qp->qos_offset + M_BKE_HEALTH_CFG_ADDR(regnum, qos->qos_port),
 				  mask, val);
 }
 
@@ -84,7 +84,7 @@ static int qcom_icc_set_bimc_qos(struct icc_node *src, u64 max_bw)
 	 */
 	if (mode != NOC_QOS_MODE_BYPASS) {
 		for (i = 3; i >= 0; i--) {
-			rc = qcom_icc_bimc_set_qos_health(qp->regmap,
+			rc = qcom_icc_bimc_set_qos_health(qp,
 							  &qn->qos, i);
 			if (rc)
 				return rc;
@@ -94,11 +94,12 @@ static int qcom_icc_set_bimc_qos(struct icc_node *src, u64 max_bw)
 		val = 1;
 	}
 
-	return regmap_update_bits(qp->regmap, M_BKE_EN_ADDR(qn->qos.qos_port),
+	return regmap_update_bits(qp->regmap,
+				  qp->qos_offset + M_BKE_EN_ADDR(qn->qos.qos_port),
 				  M_BKE_EN_EN_BMASK, val);
 }
 
-static int qcom_icc_noc_set_qos_priority(struct regmap *rmap,
+static int qcom_icc_noc_set_qos_priority(struct qcom_icc_provider *qp,
 					 struct qcom_icc_qos *qos)
 {
 	u32 val;
@@ -106,12 +107,14 @@ static int qcom_icc_noc_set_qos_priority(struct regmap *rmap,
 
 	/* Must be updated one at a time, P1 first, P0 last */
 	val = qos->areq_prio << NOC_QOS_PRIORITY_P1_SHIFT;
-	rc = regmap_update_bits(rmap, NOC_QOS_PRIORITYn_ADDR(qos->qos_port),
+	rc = regmap_update_bits(qp->regmap,
+				qp->qos_offset + NOC_QOS_PRIORITYn_ADDR(qos->qos_port),
 				NOC_QOS_PRIORITY_P1_MASK, val);
 	if (rc)
 		return rc;
 
-	return regmap_update_bits(rmap, NOC_QOS_PRIORITYn_ADDR(qos->qos_port),
+	return regmap_update_bits(qp->regmap,
+				  qp->qos_offset + NOC_QOS_PRIORITYn_ADDR(qos->qos_port),
 				  NOC_QOS_PRIORITY_P0_MASK, qos->prio_level);
 }
 
@@ -140,7 +143,7 @@ static int qcom_icc_set_noc_qos(struct icc_node *src, u64 max_bw)
 	if (mode == NOC_QOS_MODE_FIXED) {
 		dev_dbg(src->provider->dev, "NoC QoS: %s: Set Fixed mode\n",
 			qn->name);
-		rc = qcom_icc_noc_set_qos_priority(qp->regmap, &qn->qos);
+		rc = qcom_icc_noc_set_qos_priority(qp, &qn->qos);
 		if (rc)
 			return rc;
 	} else if (mode == NOC_QOS_MODE_BYPASS) {
@@ -149,7 +152,7 @@ static int qcom_icc_set_noc_qos(struct icc_node *src, u64 max_bw)
 	}
 
 	return regmap_update_bits(qp->regmap,
-				  NOC_QOS_MODEn_ADDR(qn->qos.qos_port),
+				  qp->qos_offset + NOC_QOS_MODEn_ADDR(qn->qos.qos_port),
 				  NOC_QOS_MODEn_MASK, mode);
 }
 
@@ -305,6 +308,7 @@ int qnoc_probe(struct platform_device *pdev)
 	qp->num_clks = cd_num;
 
 	qp->is_bimc_node = desc->is_bimc_node;
+	qp->qos_offset = desc->qos_offset;
 
 	if (desc->regmap_cfg) {
 		struct resource *res;
