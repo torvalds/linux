@@ -237,15 +237,8 @@ static void ack_flush(void *_completed)
 {
 }
 
-static inline bool kvm_kick_many_cpus(cpumask_var_t tmp, bool wait)
+static inline bool kvm_kick_many_cpus(struct cpumask *cpus, bool wait)
 {
-	const struct cpumask *cpus;
-
-	if (likely(cpumask_available(tmp)))
-		cpus = tmp;
-	else
-		cpus = cpu_online_mask;
-
 	if (cpumask_empty(cpus))
 		return false;
 
@@ -254,7 +247,7 @@ static inline bool kvm_kick_many_cpus(cpumask_var_t tmp, bool wait)
 }
 
 static void kvm_make_vcpu_request(struct kvm *kvm, struct kvm_vcpu *vcpu,
-				  unsigned int req, cpumask_var_t tmp,
+				  unsigned int req, struct cpumask *tmp,
 				  int current_cpu)
 {
 	int cpu;
@@ -262,14 +255,6 @@ static void kvm_make_vcpu_request(struct kvm *kvm, struct kvm_vcpu *vcpu,
 	kvm_make_request(req, vcpu);
 
 	if (!(req & KVM_REQUEST_NO_WAKEUP) && kvm_vcpu_wake_up(vcpu))
-		return;
-
-	/*
-	 * tmp can be "unavailable" if cpumasks are allocated off stack as
-	 * allocation of the mask is deliberately not fatal and is handled by
-	 * falling back to kicking all online CPUs.
-	 */
-	if (!cpumask_available(tmp))
 		return;
 
 	/*
@@ -290,22 +275,26 @@ static void kvm_make_vcpu_request(struct kvm *kvm, struct kvm_vcpu *vcpu,
 }
 
 bool kvm_make_vcpus_request_mask(struct kvm *kvm, unsigned int req,
-				 unsigned long *vcpu_bitmap, cpumask_var_t tmp)
+				 unsigned long *vcpu_bitmap)
 {
 	struct kvm_vcpu *vcpu;
+	struct cpumask *cpus;
 	int i, me;
 	bool called;
 
 	me = get_cpu();
 
+	cpus = this_cpu_cpumask_var_ptr(cpu_kick_mask);
+	cpumask_clear(cpus);
+
 	for_each_set_bit(i, vcpu_bitmap, KVM_MAX_VCPUS) {
 		vcpu = kvm_get_vcpu(kvm, i);
 		if (!vcpu)
 			continue;
-		kvm_make_vcpu_request(kvm, vcpu, req, tmp, me);
+		kvm_make_vcpu_request(kvm, vcpu, req, cpus, me);
 	}
 
-	called = kvm_kick_many_cpus(tmp, !!(req & KVM_REQUEST_WAIT));
+	called = kvm_kick_many_cpus(cpus, !!(req & KVM_REQUEST_WAIT));
 	put_cpu();
 
 	return called;

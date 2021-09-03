@@ -581,7 +581,6 @@ struct kvm_vcpu_hv {
 	struct kvm_hyperv_exit exit;
 	struct kvm_vcpu_hv_stimer stimer[HV_SYNIC_STIMER_COUNT];
 	DECLARE_BITMAP(stimer_pending_bitmap, HV_SYNIC_STIMER_COUNT);
-	cpumask_t tlb_flush;
 	bool enforce_cpuid;
 	struct {
 		u32 features_eax; /* HYPERV_CPUID_FEATURES.EAX */

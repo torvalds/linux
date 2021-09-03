@@ -9242,14 +9242,7 @@ static void process_smi(struct kvm_vcpu *vcpu)
 void kvm_make_scan_ioapic_request_mask(struct kvm *kvm,
 				       unsigned long *vcpu_bitmap)
 {
-	cpumask_var_t cpus;
-
-	zalloc_cpumask_var(&cpus, GFP_ATOMIC);
-
-	kvm_make_vcpus_request_mask(kvm, KVM_REQ_SCAN_IOAPIC,
-				    vcpu_bitmap, cpus);
-
-	free_cpumask_var(cpus);
+	kvm_make_vcpus_request_mask(kvm, KVM_REQ_SCAN_IOAPIC, vcpu_bitmap);
 }
 
 void kvm_make_scan_ioapic_request(struct kvm *kvm)
