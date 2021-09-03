@@ -38,6 +38,7 @@ struct rk_gmac_ops {
 	void (*set_to_qsgmii)(struct rk_priv_data *bsp_priv);
 	void (*set_rgmii_speed)(struct rk_priv_data *bsp_priv, int speed);
 	void (*set_rmii_speed)(struct rk_priv_data *bsp_priv, int speed);
+	void (*set_clock_selection)(struct rk_priv_data *bsp_priv, bool input);
 	void (*integrated_phy_powerup)(struct rk_priv_data *bsp_priv);
 };
 
@@ -71,6 +72,7 @@ struct rk_priv_data {
 	int rx_delay;
 
 	struct regmap *grf;
+	struct regmap *php_grf;
 	struct regmap *xpcs;
 };
 
@@ -1400,6 +1402,139 @@ static const struct rk_gmac_ops rk3568_ops = {
 	.set_rmii_speed = rk3568_set_gmac_speed,
 };
 
+/* sys_grf */
+#define RK3588_GRF_GMAC_CON7			0X031c
+#define RK3588_GRF_GMAC_CON8			0X0320
+#define RK3588_GRF_GMAC_CON9			0X0324
+
+#define RK3588_GMAC_RXCLK_DLY_ENABLE(id)	GRF_BIT(3 + (id))
+#define RK3588_GMAC_RXCLK_DLY_DISABLE(id)	GRF_CLR_BIT(3 + (id))
+#define RK3588_GMAC_TXCLK_DLY_ENABLE(id)	GRF_BIT(2 + (id))
+#define RK3588_GMAC_TXCLK_DLY_DISABLE(id)	GRF_CLR_BIT(2 + (id))
+
+#define RK3588_GMAC_CLK_RX_DL_CFG(val)		HIWORD_UPDATE(val, 0x7F, 8)
+#define RK3588_GMAC_CLK_TX_DL_CFG(val)		HIWORD_UPDATE(val, 0x7F, 0)
+
+/* php_grf */
+#define RK3588_GRF_GMAC_CON0			0X0008
+#define RK3588_GRF_CLK_CON1			0X0070
+
+#define RK3588_GMAC_CLK_RMII_MODE(id)		GRF_BIT(5 * (id))
+#define RK3588_GMAC_CLK_RGMII_MODE(id)		GRF_CLR_BIT(5 * (id))
+
+#define RK3588_GMAC_CLK_SELET_CRU(id)		GRF_CLR_BIT(9 * (id))
+#define RK3588_GMAC_CLK_SELET_IO(id)		GRF_CLR_BIT(9 * (id))
+
+static u32 rk3588_gmac_phy_interface_select(struct rk_priv_data *bsp_priv)
+{
+	if  (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RGMII)
+		return GRF_CLR_BIT(3 + bsp_priv->bus_id * 6) |
+		       GRF_CLR_BIT(4 + bsp_priv->bus_id * 6) |
+		       GRF_BIT(5 + bsp_priv->bus_id * 6);
+	else
+		return GRF_CLR_BIT(3 + bsp_priv->bus_id * 6) |
+		       GRF_CLR_BIT(4 + bsp_priv->bus_id * 6) |
+		       GRF_BIT(5 + bsp_priv->bus_id * 6);
+}
+
+static void rk3588_set_to_rgmii(struct rk_priv_data *bsp_priv,
+				int tx_delay, int rx_delay)
+{
+	struct device *dev = &bsp_priv->pdev->dev;
+	u32 offset_con, intf_sel, id = bsp_priv->bus_id;
+
+	if (IS_ERR(bsp_priv->grf) || IS_ERR(bsp_priv->php_grf)) {
+		dev_err(dev, "Missing rockchip,grf or rockchip,php_grf property\n");
+		return;
+	}
+
+	offset_con = bsp_priv->bus_id == 1 ? RK3588_GRF_GMAC_CON9 :
+					      RK3588_GRF_GMAC_CON8;
+
+	intf_sel = rk3588_gmac_phy_interface_select(bsp_priv);
+	regmap_write(bsp_priv->php_grf, RK3588_GRF_GMAC_CON0,
+		     intf_sel);
+
+	regmap_write(bsp_priv->php_grf, RK3588_GRF_CLK_CON1,
+		     RK3588_GMAC_CLK_RGMII_MODE(id));
+
+	regmap_write(bsp_priv->grf, RK3588_GRF_GMAC_CON7,
+		     RK3588_GMAC_RXCLK_DLY_ENABLE(id) |
+		     RK3588_GMAC_TXCLK_DLY_ENABLE(id));
+
+	regmap_write(bsp_priv->grf, offset_con,
+		     RK3588_GMAC_CLK_RX_DL_CFG(rx_delay) |
+		     RK3588_GMAC_CLK_TX_DL_CFG(tx_delay));
+}
+
+static void rk3588_set_to_rmii(struct rk_priv_data *bsp_priv)
+{
+	struct device *dev = &bsp_priv->pdev->dev;
+	u32 intf_sel;
+
+	if (IS_ERR(bsp_priv->php_grf)) {
+		dev_err(dev, "%s: Missing rockchip,php_grf property\n", __func__);
+		return;
+	}
+
+	intf_sel = rk3588_gmac_phy_interface_select(bsp_priv);
+	regmap_write(bsp_priv->php_grf, RK3588_GRF_GMAC_CON0,
+		     intf_sel);
+
+	regmap_write(bsp_priv->php_grf, RK3588_GRF_CLK_CON1,
+		     RK3588_GMAC_CLK_RMII_MODE(bsp_priv->bus_id));
+}
+
+static void rk3588_set_gmac_speed(struct rk_priv_data *bsp_priv, int speed)
+{
+	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int val = 0, id = bsp_priv->bus_id;
+
+	switch (speed) {
+	case 10:
+		if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RGMII)
+			val = GRF_CLR_BIT(7 * id) | GRF_BIT(8 * id);
+		else
+			val = GRF_BIT(7 * id);
+		break;
+	case 100:
+		if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RGMII)
+			val = GRF_BIT(7 * id) | GRF_BIT(8 * id);
+		else
+			val = GRF_CLR_BIT(7 * id);
+		break;
+	case 1000:
+		if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RGMII)
+			val = GRF_CLR_BIT(7 * id) | GRF_CLR_BIT(8 * id);
+		else
+			goto err;
+		break;
+	default:
+		goto err;
+	}
+
+	regmap_write(bsp_priv->php_grf, RK3588_GRF_CLK_CON1, val);
+
+err:
+	dev_err(dev, "unknown speed value for GMAC speed=%d", speed);
+}
+
+static void rk3588_set_clock_selection(struct rk_priv_data *bsp_priv, bool input)
+{
+	unsigned int val = input ? RK3588_GMAC_CLK_SELET_IO(bsp_priv->bus_id) :
+				    RK3588_GMAC_CLK_SELET_CRU(bsp_priv->bus_id);
+
+	regmap_write(bsp_priv->php_grf, RK3588_GRF_CLK_CON1, val);
+}
+
+static const struct rk_gmac_ops rk3588_ops = {
+	.set_to_rgmii = rk3588_set_to_rgmii,
+	.set_to_rmii = rk3588_set_to_rmii,
+	.set_rgmii_speed = rk3588_set_gmac_speed,
+	.set_rmii_speed = rk3588_set_gmac_speed,
+	.set_clock_selection = rk3588_set_clock_selection,
+};
+
 #define RV1108_GRF_GMAC_CON0		0X0900
 
 /* RV1108_GRF_GMAC_CON0 */
@@ -1685,6 +1820,9 @@ static int rk_gmac_clk_init(struct plat_stmmacenet_data *plat)
 			clk_set_rate(bsp_priv->clk_mac, 50000000);
 	}
 
+	if (bsp_priv->ops && bsp_priv->ops->set_clock_selection)
+		bsp_priv->ops->set_clock_selection(bsp_priv, bsp_priv->clock_input);
+
 	if (plat->phy_node) {
 		bsp_priv->clk_phy = of_clk_get(plat->phy_node, 0);
 		/* If it is not integrated_phy, clk_phy is optional */
@@ -1866,6 +2004,8 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 
 	bsp_priv->grf = syscon_regmap_lookup_by_phandle(dev->of_node,
 							"rockchip,grf");
+	bsp_priv->php_grf = syscon_regmap_lookup_by_phandle(dev->of_node,
+							    "rockchip,php_grf");
 	bsp_priv->xpcs = syscon_regmap_lookup_by_phandle(dev->of_node,
 							 "rockchip,xpcs");
 	if (!IS_ERR(bsp_priv->xpcs)) {
@@ -2191,6 +2331,7 @@ static const struct of_device_id rk_gmac_dwmac_match[] = {
 	{ .compatible = "rockchip,rk3368-gmac", .data = &rk3368_ops },
 	{ .compatible = "rockchip,rk3399-gmac", .data = &rk3399_ops },
 	{ .compatible = "rockchip,rk3568-gmac", .data = &rk3568_ops },
+	{ .compatible = "rockchip,rk3588-gmac", .data = &rk3588_ops },
 	{ .compatible = "rockchip,rv1108-gmac", .data = &rv1108_ops },
 	{ .compatible = "rockchip,rv1126-gmac", .data = &rv1126_ops },
 	{ }
