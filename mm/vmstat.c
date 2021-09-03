@@ -129,9 +129,9 @@ static void sum_vm_events(unsigned long *ret)
 */
 void all_vm_events(unsigned long *ret)
 {
-	get_online_cpus();
+	cpus_read_lock();
 	sum_vm_events(ret);
-	put_online_cpus();
+	cpus_read_unlock();
 }
 EXPORT_SYMBOL_GPL(all_vm_events);
 
@@ -1946,7 +1946,7 @@ static void vmstat_shepherd(struct work_struct *w)
 {
 	int cpu;
 
-	get_online_cpus();
+	cpus_read_lock();
 	/* Check processors whose vmstat worker threads have been disabled */
 	for_each_online_cpu(cpu) {
 		struct delayed_work *dw = &per_cpu(vmstat_work, cpu);
@@ -1956,7 +1956,7 @@ static void vmstat_shepherd(struct work_struct *w)
 
 		cond_resched();
 	}
-	put_online_cpus();
+	cpus_read_unlock();
 
 	schedule_delayed_work(&shepherd,
 		round_jiffies_relative(sysctl_stat_interval));
@@ -2035,9 +2035,9 @@ void __init init_mm_internals(void)
 	if (ret < 0)
 		pr_err("vmstat: failed to register 'online' hotplug state\n");
 
-	get_online_cpus();
+	cpus_read_lock();
 	init_cpu_node_state();
-	put_online_cpus();
+	cpus_read_unlock();
 
 	start_shepherd_timer();
 #endif
