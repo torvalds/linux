@@ -714,13 +714,14 @@ ext4_ext_binsearch_idx(struct inode *inode,
 	r = EXT_LAST_INDEX(eh);
 	while (l <= r) {
 		m = l + (r - l) / 2;
+		ext_debug(inode, "%p(%u):%p(%u):%p(%u) ", l,
+			  le32_to_cpu(l->ei_block), m, le32_to_cpu(m->ei_block),
+			  r, le32_to_cpu(r->ei_block));
+
 		if (block < le32_to_cpu(m->ei_block))
 			r = m - 1;
 		else
 			l = m + 1;
-		ext_debug(inode, "%p(%u):%p(%u):%p(%u) ", l,
-			  le32_to_cpu(l->ei_block), m, le32_to_cpu(m->ei_block),
-			  r, le32_to_cpu(r->ei_block));
 	}
 
 	path->p_idx = l - 1;
@@ -782,13 +783,14 @@ ext4_ext_binsearch(struct inode *inode,
 
 	while (l <= r) {
 		m = l + (r - l) / 2;
+		ext_debug(inode, "%p(%u):%p(%u):%p(%u) ", l,
+			  le32_to_cpu(l->ee_block), m, le32_to_cpu(m->ee_block),
+			  r, le32_to_cpu(r->ee_block));
+
 		if (block < le32_to_cpu(m->ee_block))
 			r = m - 1;
 		else
 			l = m + 1;
-		ext_debug(inode, "%p(%u):%p(%u):%p(%u) ", l,
-			  le32_to_cpu(l->ee_block), m, le32_to_cpu(m->ee_block),
-			  r, le32_to_cpu(r->ee_block));
 	}
 
 	path->p_ext = l - 1;
