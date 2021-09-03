@@ -286,11 +286,11 @@ struct cred *prepare_creds(void)
 	new->security = NULL;
 #endif
 
-	new->ucounts = get_ucounts(new->ucounts);
-	if (!new->ucounts)
+	if (security_prepare_creds(new, old, GFP_KERNEL_ACCOUNT) < 0)
 		goto error;
 
-	if (security_prepare_creds(new, old, GFP_KERNEL_ACCOUNT) < 0)
+	new->ucounts = get_ucounts(new->ucounts);
+	if (!new->ucounts)
 		goto error;
 
 	validate_creds(new);
@@ -753,11 +753,11 @@ struct cred *prepare_kernel_cred(struct task_struct *daemon)
 #ifdef CONFIG_SECURITY
 	new->security = NULL;
 #endif
-	new->ucounts = get_ucounts(new->ucounts);
-	if (!new->ucounts)
+	if (security_prepare_creds(new, old, GFP_KERNEL_ACCOUNT) < 0)
 		goto error;
 
-	if (security_prepare_creds(new, old, GFP_KERNEL_ACCOUNT) < 0)
+	new->ucounts = get_ucounts(new->ucounts);
+	if (!new->ucounts)
 		goto error;
 
 	put_cred(old);
