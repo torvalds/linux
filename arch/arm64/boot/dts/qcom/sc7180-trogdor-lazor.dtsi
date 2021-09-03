@@ -54,6 +54,18 @@ ap_ts_pen_1v8: &i2c4 {
 	compatible = "boe,nv133fhm-n62";
 };
 
+&pm6150_adc {
+	status = "disabled";
+
+	/delete-node/ charger-thermistor@4f;
+};
+
+&pm6150_adc_tm {
+	status = "disabled";
+
+	/delete-node/ charger-thermistor@0;
+};
+
 &trackpad {
 	interrupts = <58 IRQ_TYPE_EDGE_FALLING>;
 };
