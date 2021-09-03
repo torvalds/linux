@@ -54,7 +54,7 @@ struct ttm_operation_ctx;
  * @dma_address: The DMA (bus) addresses of the pages
  * @swap_storage: Pointer to shmem struct file for swap storage.
  * @pages_list: used by some page allocation backend
- * @caching: The current caching state of the pages.
+ * @caching: The current caching state of the pages, see enum ttm_caching.
  *
  * This is a structure holding the pages, caching- and aperture binding
  * status for a buffer object that isn't backed by fixed (VRAM / AGP)
@@ -126,8 +126,9 @@ int ttm_sg_tt_init(struct ttm_tt *ttm_dma, struct ttm_buffer_object *bo,
 void ttm_tt_fini(struct ttm_tt *ttm);
 
 /**
- * ttm_ttm_destroy:
+ * ttm_tt_destroy:
  *
+ * @bdev: the ttm_device this object belongs to
  * @ttm: The struct ttm_tt.
  *
  * Unbind, unpopulate and destroy common struct ttm_tt.
@@ -148,15 +149,19 @@ int ttm_tt_swapout(struct ttm_device *bdev, struct ttm_tt *ttm,
 /**
  * ttm_tt_populate - allocate pages for a ttm
  *
+ * @bdev: the ttm_device this object belongs to
  * @ttm: Pointer to the ttm_tt structure
+ * @ctx: operation context for populating the tt object.
  *
  * Calls the driver method to allocate pages for a ttm
  */
-int ttm_tt_populate(struct ttm_device *bdev, struct ttm_tt *ttm, struct ttm_operation_ctx *ctx);
+int ttm_tt_populate(struct ttm_device *bdev, struct ttm_tt *ttm,
+		    struct ttm_operation_ctx *ctx);
 
 /**
  * ttm_tt_unpopulate - free pages from a ttm
  *
+ * @bdev: the ttm_device this object belongs to
  * @ttm: Pointer to the ttm_tt structure
  *
  * Calls the driver method to free all pages from a ttm
