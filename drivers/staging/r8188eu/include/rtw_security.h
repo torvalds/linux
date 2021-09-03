@@ -341,6 +341,5 @@ void rtw_wep_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe);
 u32 rtw_aes_decrypt(struct adapter *padapter, struct recv_frame *precvframe);
 u32 rtw_tkip_decrypt(struct adapter *padapter, struct recv_frame *precvframe);
 void rtw_wep_decrypt(struct adapter *padapter, struct recv_frame *precvframe);
-void rtw_use_tkipkey_handler(void *FunctionContext);
 
 #endif	/* __RTL871X_SECURITY_H_ */
