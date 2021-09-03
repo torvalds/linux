@@ -16650,13 +16650,6 @@ M:	Lubomir Rintel <lkundrak@v3.sk>
 S:	Supported
 F:	drivers/char/pcmcia/scr24x_cs.c
 
-SCSI CDROM DRIVER
-M:	Jens Axboe <axboe@kernel.dk>
-L:	linux-scsi@vger.kernel.org
-S:	Maintained
-W:	http://www.kernel.dk
-F:	drivers/scsi/sr*
-
 SCSI RDMA PROTOCOL (SRP) INITIATOR
 M:	Bart Van Assche <bvanassche@acm.org>
 L:	linux-rdma@vger.kernel.org
