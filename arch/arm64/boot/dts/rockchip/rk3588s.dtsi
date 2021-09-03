@@ -462,6 +462,7 @@
 
 	cru: clock-controller@fd7c0000 {
 		compatible = "rockchip,rk3588-cru";
+		rockchip,grf = <&php_grf>;
 		reg = <0x0 0xfd7c0000 0x0 0x5c000>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
