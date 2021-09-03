@@ -82,20 +82,6 @@ struct qcom_icc_desc {
 	unsigned int qos_offset;
 };
 
-#define DEFINE_QNODE(_name, _id, _buswidth, _mas_rpm_id, _slv_rpm_id,	\
-		     ...)						\
-		static const u16 _name ## _links[] = { __VA_ARGS__ };	\
-		\
-		static struct qcom_icc_node _name = {			\
-		.name = #_name,						\
-		.id = _id,						\
-		.buswidth = _buswidth,					\
-		.mas_rpm_id = _mas_rpm_id,				\
-		.slv_rpm_id = _slv_rpm_id,				\
-		.num_links = ARRAY_SIZE(_name ## _links),		\
-		.links = _name ## _links,				\
-	}
-
 /* Valid for both NoC and BIMC */
 #define NOC_QOS_MODE_INVALID		-1
 #define NOC_QOS_MODE_FIXED		0x0
