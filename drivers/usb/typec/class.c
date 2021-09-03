@@ -1983,6 +1983,7 @@ typec_port_register_altmode(struct typec_port *port,
 }
 EXPORT_SYMBOL_GPL(typec_port_register_altmode);
 
+#ifdef CONFIG_NO_GKI
 void typec_port_register_altmodes(struct typec_port *port,
 	const struct typec_altmode_ops *ops, void *drvdata,
 	struct typec_altmode **altmodes, size_t n)
@@ -2036,6 +2037,7 @@ void typec_port_register_altmodes(struct typec_port *port,
 	}
 }
 EXPORT_SYMBOL_GPL(typec_port_register_altmodes);
+#endif /* CONFIG_NO_GKI */
 
 /**
  * typec_register_port - Register a USB Type-C Port
