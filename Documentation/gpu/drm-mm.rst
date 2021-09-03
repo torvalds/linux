@@ -43,6 +43,15 @@ TTM device object reference
 .. kernel-doc:: drivers/gpu/drm/ttm/ttm_device.c
    :export:
 
+TTM resource object reference
+-----------------------------
+
+.. kernel-doc:: include/drm/ttm/ttm_resource.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/ttm/ttm_resource.c
+   :export:
+
 The Graphics Execution Manager (GEM)
 ====================================
 
