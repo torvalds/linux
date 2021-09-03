@@ -395,7 +395,7 @@ static struct hl_hw_obj_name_entry gaudi_so_id_to_str[] = {
 
 static struct hl_hw_obj_name_entry gaudi_monitor_id_to_str[] = {
 	{ .id = 200, .name = "MON_OBJ_DMA_DOWN_FEEDBACK_RESET" },
-	{ .id = 201, .name = "MON_OBJ_DMA_UP_FEADBACK_RESET" },
+	{ .id = 201, .name = "MON_OBJ_DMA_UP_FEEDBACK_RESET" },
 	{ .id = 203, .name = "MON_OBJ_DRAM_TO_SRAM_QUEUE_FENCE" },
 	{ .id = 204, .name = "MON_OBJ_TPC_0_CLK_GATE" },
 	{ .id = 205, .name = "MON_OBJ_TPC_1_CLK_GATE" },
