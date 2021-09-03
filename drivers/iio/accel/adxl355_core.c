@@ -9,11 +9,16 @@
 
 #include <linux/bits.h>
 #include <linux/bitfield.h>
+#include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
+#include <linux/iio/trigger.h>
+#include <linux/iio/triggered_buffer.h>
+#include <linux/iio/trigger_consumer.h>
 #include <linux/limits.h>
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/of_irq.h>
 #include <linux/regmap.h>
 #include <asm/unaligned.h>
 
@@ -46,6 +51,7 @@
 #define ADXL355_RANGE_REG		0x2C
 #define ADXL355_POWER_CTL_REG		0x2D
 #define  ADXL355_POWER_CTL_MODE_MSK	GENMASK(1, 0)
+#define  ADXL355_POWER_CTL_DRDY_MSK	BIT(2)
 #define ADXL355_SELF_TEST_REG		0x2E
 #define ADXL355_RESET_REG		0x2F
 
@@ -165,7 +171,14 @@ struct adxl355_data {
 	enum adxl355_hpf_3db hpf_3db;
 	int calibbias[3];
 	int adxl355_hpf_3db_table[7][2];
-	u8 transf_buf[3] ____cacheline_aligned;
+	struct iio_trigger *dready_trig;
+	union {
+		u8 transf_buf[3];
+		struct {
+			u8 buf[14];
+			s64 ts;
+		} buffer;
+	} ____cacheline_aligned;
 };
 
 static int adxl355_set_op_mode(struct adxl355_data *data,
@@ -182,6 +195,23 @@ static int adxl355_set_op_mode(struct adxl355_data *data,
 		return ret;
 
 	data->op_mode = op_mode;
+
+	return ret;
+}
+
+static int adxl355_data_rdy_trigger_set_state(struct iio_trigger *trig,
+					      bool state)
+{
+	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
+	struct adxl355_data *data = iio_priv(indio_dev);
+	int ret;
+
+	mutex_lock(&data->lock);
+	ret = regmap_update_bits(data->regmap, ADXL355_POWER_CTL_REG,
+				 ADXL355_POWER_CTL_DRDY_MSK,
+				 FIELD_PREP(ADXL355_POWER_CTL_DRDY_MSK,
+					    state ? 0 : 1));
+	mutex_unlock(&data->lock);
 
 	return ret;
 }
@@ -243,6 +273,12 @@ static int adxl355_setup(struct adxl355_data *data)
 	 * state after start-up.
 	 */
 	ret = regmap_write(data->regmap, ADXL355_RESET_REG, ADXL355_RESET_CODE);
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(data->regmap, ADXL355_POWER_CTL_REG,
+				 ADXL355_POWER_CTL_DRDY_MSK,
+				 FIELD_PREP(ADXL355_POWER_CTL_DRDY_MSK, 1));
 	if (ret)
 		return ret;
 
@@ -527,11 +563,73 @@ static int adxl355_read_avail(struct iio_dev *indio_dev,
 	}
 }
 
+static const unsigned long adxl355_avail_scan_masks[] = {
+	GENMASK(3, 0),
+	0
+};
+
 static const struct iio_info adxl355_info = {
 	.read_raw	= adxl355_read_raw,
 	.write_raw	= adxl355_write_raw,
 	.read_avail	= &adxl355_read_avail,
 };
+
+static const struct iio_trigger_ops adxl355_trigger_ops = {
+	.set_trigger_state = &adxl355_data_rdy_trigger_set_state,
+	.validate_device = &iio_trigger_validate_own_device,
+};
+
+static irqreturn_t adxl355_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct adxl355_data *data = iio_priv(indio_dev);
+	int ret;
+
+	mutex_lock(&data->lock);
+
+	/*
+	 * data->buffer is used both for triggered buffer support
+	 * and read/write_raw(), hence, it has to be zeroed here before usage.
+	 */
+	data->buffer.buf[0] = 0;
+
+	/*
+	 * The acceleration data is 24 bits and big endian. It has to be saved
+	 * in 32 bits, hence, it is saved in the 2nd byte of the 4 byte buffer.
+	 * The buf array is 14 bytes as it includes 3x4=12 bytes for
+	 * accelaration data of x, y, and z axis. It also includes 2 bytes for
+	 * temperature data.
+	 */
+	ret = regmap_bulk_read(data->regmap, ADXL355_XDATA3_REG,
+			       &data->buffer.buf[1], 3);
+	if (ret)
+		goto out_unlock_notify;
+
+	ret = regmap_bulk_read(data->regmap, ADXL355_YDATA3_REG,
+			       &data->buffer.buf[5], 3);
+	if (ret)
+		goto out_unlock_notify;
+
+	ret = regmap_bulk_read(data->regmap, ADXL355_ZDATA3_REG,
+			       &data->buffer.buf[9], 3);
+	if (ret)
+		goto out_unlock_notify;
+
+	ret = regmap_bulk_read(data->regmap, ADXL355_TEMP2_REG,
+			       &data->buffer.buf[12], 2);
+	if (ret)
+		goto out_unlock_notify;
+
+	iio_push_to_buffers_with_timestamp(indio_dev, &data->buffer,
+					   pf->timestamp);
+
+out_unlock_notify:
+	mutex_unlock(&data->lock);
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
+}
 
 #define ADXL355_ACCEL_CHANNEL(index, reg, axis) {			\
 	.type = IIO_ACCEL,						\
@@ -546,6 +644,7 @@ static const struct iio_info adxl355_info = {
 	.info_mask_shared_by_type_available =				\
 		BIT(IIO_CHAN_INFO_SAMP_FREQ) |				\
 		BIT(IIO_CHAN_INFO_HIGH_PASS_FILTER_3DB_FREQUENCY),	\
+	.scan_index = index,						\
 	.scan_type = {							\
 		.sign = 's',						\
 		.realbits = 20,						\
@@ -565,6 +664,7 @@ static const struct iio_chan_spec adxl355_channels[] = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 				      BIT(IIO_CHAN_INFO_SCALE) |
 				      BIT(IIO_CHAN_INFO_OFFSET),
+		.scan_index = 3,
 		.scan_type = {
 			.sign = 's',
 			.realbits = 12,
@@ -572,7 +672,40 @@ static const struct iio_chan_spec adxl355_channels[] = {
 			.endianness = IIO_BE,
 		},
 	},
+	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
+
+static int adxl355_probe_trigger(struct iio_dev *indio_dev, int irq)
+{
+	struct adxl355_data *data = iio_priv(indio_dev);
+	int ret;
+
+	data->dready_trig = devm_iio_trigger_alloc(data->dev, "%s-dev%d",
+						   indio_dev->name,
+						   iio_device_id(indio_dev));
+	if (!data->dready_trig)
+		return -ENOMEM;
+
+	data->dready_trig->ops = &adxl355_trigger_ops;
+	iio_trigger_set_drvdata(data->dready_trig, indio_dev);
+
+	ret = devm_request_irq(data->dev, irq,
+			       &iio_trigger_generic_data_rdy_poll,
+			       IRQF_ONESHOT, "adxl355_irq", data->dready_trig);
+	if (ret)
+		return dev_err_probe(data->dev, ret, "request irq %d failed\n",
+				     irq);
+
+	ret = devm_iio_trigger_register(data->dev, data->dready_trig);
+	if (ret) {
+		dev_err(data->dev, "iio trigger register failed\n");
+		return ret;
+	}
+
+	indio_dev->trig = iio_trigger_get(data->dready_trig);
+
+	return 0;
+}
 
 int adxl355_core_probe(struct device *dev, struct regmap *regmap,
 		       const char *name)
@@ -580,6 +713,7 @@ int adxl355_core_probe(struct device *dev, struct regmap *regmap,
 	struct adxl355_data *data;
 	struct iio_dev *indio_dev;
 	int ret;
+	int irq;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
@@ -596,11 +730,30 @@ int adxl355_core_probe(struct device *dev, struct regmap *regmap,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = adxl355_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adxl355_channels);
+	indio_dev->available_scan_masks = adxl355_avail_scan_masks;
 
 	ret = adxl355_setup(data);
 	if (ret) {
 		dev_err(dev, "ADXL355 setup failed\n");
 		return ret;
+	}
+
+	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
+					      &iio_pollfunc_store_time,
+					      &adxl355_trigger_handler, NULL);
+	if (ret) {
+		dev_err(dev, "iio triggered buffer setup failed\n");
+		return ret;
+	}
+
+	/*
+	 * TODO: Would be good to move it to the generic version.
+	 */
+	irq = of_irq_get_byname(dev->of_node, "DRDY");
+	if (irq > 0) {
+		ret = adxl355_probe_trigger(indio_dev, irq);
+		if (ret)
+			return ret;
 	}
 
 	return devm_iio_device_register(dev, indio_dev);
