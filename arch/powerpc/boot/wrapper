@@ -298,7 +298,7 @@ cuboot*)
     *-tqm8541|*-mpc8560*|*-tqm8560|*-tqm8555|*-ksi8560*)
         platformo=$object/cuboot-85xx-cpm2.o
         ;;
-    *-mpc85*|*-tqm85*|*-sbc85*)
+    *-mpc85*|*-tqm85*)
         platformo=$object/cuboot-85xx.o
         ;;
     *-amigaone)

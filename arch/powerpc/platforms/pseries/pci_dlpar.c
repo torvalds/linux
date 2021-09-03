@@ -33,6 +33,8 @@ struct pci_controller *init_phb_dynamic(struct device_node *dn)
 
 	pci_devs_phb_init_dynamic(phb);
 
+	pseries_msi_allocate_domains(phb);
+
 	/* Create EEH devices for the PHB */
 	eeh_phb_pe_create(phb);
 
@@ -73,6 +75,8 @@ int remove_phb_dynamic(struct pci_controller *phb)
 			return 1;
 		}
 	}
+
+	pseries_msi_free_domains(phb);
 
 	/* Remove the PCI bus and unregister the bridge device from sysfs */
 	phb->bus = NULL;

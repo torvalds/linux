@@ -712,6 +712,8 @@ _GLOBAL(copy_and_flush)
 	isync
 	blr
 
+_ASM_NOKPROBE_SYMBOL(copy_and_flush); /* Called in real mode */
+
 .align 8
 copy_to_here:
 
