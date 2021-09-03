@@ -150,10 +150,10 @@ static void enic_set_affinity_hint(struct enic *enic)
 		    !cpumask_available(enic->msix[i].affinity_mask) ||
 		    cpumask_empty(enic->msix[i].affinity_mask))
 			continue;
-		err = irq_set_affinity_hint(enic->msix_entry[i].vector,
-					    enic->msix[i].affinity_mask);
+		err = irq_update_affinity_hint(enic->msix_entry[i].vector,
+					       enic->msix[i].affinity_mask);
 		if (err)
-			netdev_warn(enic->netdev, "irq_set_affinity_hint failed, err %d\n",
+			netdev_warn(enic->netdev, "irq_update_affinity_hint failed, err %d\n",
 				    err);
 	}
 
@@ -173,7 +173,7 @@ static void enic_unset_affinity_hint(struct enic *enic)
 	int i;
 
 	for (i = 0; i < enic->intr_count; i++)
-		irq_set_affinity_hint(enic->msix_entry[i].vector, NULL);
+		irq_update_affinity_hint(enic->msix_entry[i].vector, NULL);
 }
 
 static int enic_udp_tunnel_set_port(struct net_device *netdev,
