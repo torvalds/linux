@@ -75,6 +75,9 @@ struct snd_sof_control {
 	struct list_head list;	/* list in sdev control list */
 
 	struct snd_sof_led_control led_ctl;
+
+	/* if true, the control's data needs to be updated from Firmware */
+	bool comp_data_dirty;
 };
 
 /* ASoC SOF DAPM widget */
@@ -148,6 +151,8 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 			  unsigned int size);
 int snd_sof_bytes_ext_volatile_get(struct snd_kcontrol *kcontrol, unsigned int __user *binary_data,
 				   unsigned int size);
+void snd_sof_control_notify(struct snd_sof_dev *sdev,
+			    struct sof_ipc_ctrl_data *cdata);
 
 /*
  * Topology.

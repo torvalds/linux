@@ -369,6 +369,32 @@ void snd_sof_ipc_reply(struct snd_sof_dev *sdev, u32 msg_id)
 }
 EXPORT_SYMBOL(snd_sof_ipc_reply);
 
+static void ipc_comp_notification(struct snd_sof_dev *sdev,
+				  struct sof_ipc_cmd_hdr *hdr)
+{
+	u32 msg_type = hdr->cmd & SOF_CMD_TYPE_MASK;
+	struct sof_ipc_ctrl_data *cdata;
+
+	switch (msg_type) {
+	case SOF_IPC_COMP_GET_VALUE:
+	case SOF_IPC_COMP_GET_DATA:
+		cdata = kmalloc(hdr->size, GFP_KERNEL);
+		if (!cdata)
+			return;
+
+		/* read back full message */
+		snd_sof_ipc_msg_data(sdev, NULL, cdata, hdr->size);
+		break;
+	default:
+		dev_err(sdev->dev, "error: unhandled component message %#x\n", msg_type);
+		return;
+	}
+
+	snd_sof_control_notify(sdev, cdata);
+
+	kfree(cdata);
+}
+
 /* DSP firmware has sent host a message  */
 void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev)
 {
@@ -404,7 +430,9 @@ void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev)
 	case SOF_IPC_GLB_COMPOUND:
 	case SOF_IPC_GLB_TPLG_MSG:
 	case SOF_IPC_GLB_PM_MSG:
+		break;
 	case SOF_IPC_GLB_COMP_MSG:
+		ipc_comp_notification(sdev, &hdr);
 		break;
 	case SOF_IPC_GLB_STREAM_MSG:
 		/* need to pass msg id into the function */
