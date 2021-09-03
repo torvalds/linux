@@ -13,6 +13,7 @@
 #include <dt-bindings/clock/rk3588-cru.h>
 #include "clk.h"
 
+#define RK3588_PHPGRF_CLK_CON1		0x70
 #define RK3588_GRF_SOC_STATUS0		0x600
 #define RK3588_FRAC_MAX_PRATE		600000000
 #define RK3588_UART_FRAC_MAX_PRATE	600000000
@@ -498,6 +499,7 @@ PNAME(mux_24m_ppll_p)			= { "xin24m", "ppll" };
 PNAME(clk_ref_pipe_phy0_p)		= { "clk_ref_pipe_phy0_osc_src", "clk_ref_pipe_phy0_pll_src" };
 PNAME(clk_ref_pipe_phy1_p)		= { "clk_ref_pipe_phy1_osc_src", "clk_ref_pipe_phy1_pll_src" };
 PNAME(clk_ref_pipe_phy2_p)		= { "clk_ref_pipe_phy2_osc_src", "clk_ref_pipe_phy2_pll_src" };
+PNAME(mux_clk_gmac_p)			= { "clk_gmac_125m", "clk_gmac_50m" };
 
 #define MFLAGS CLK_MUX_HIWORD_MASK
 #define DFLAGS CLK_DIVIDER_HIWORD_MASK
@@ -1457,6 +1459,10 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 	COMPOSITE(CLK_GMAC_50M, "clk_gmac_50m", gpll_cpll_p, 0,
 			RK3588_CLKSEL_CON(84), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3588_CLKGATE_CON(35), 6, GFLAGS),
+	MUXGRF(CLK_GMAC0, "clk_gmac0", mux_clk_gmac_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+			RK3588_PHPGRF_CLK_CON1, 0, 1, MFLAGS),
+	MUXGRF(CLK_GMAC1, "clk_gmac1", mux_clk_gmac_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+			RK3588_PHPGRF_CLK_CON1, 5, 1, MFLAGS),
 
 	GATE(ACLK_PHP_GIC_ITS, "aclk_php_gic_its", "aclk_pcie_root", 0,
 			RK3588_CLKGATE_CON(34), 6, GFLAGS),
