@@ -1849,7 +1849,7 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc, bool
 						    vp_bitmap, vcpu_bitmap);
 
 		kvm_make_vcpus_request_mask(kvm, KVM_REQ_TLB_FLUSH_GUEST,
-					    NULL, vcpu_mask, &hv_vcpu->tlb_flush);
+					    vcpu_mask, &hv_vcpu->tlb_flush);
 	}
 
 ret_success:

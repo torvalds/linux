@@ -288,7 +288,6 @@ static void kvm_make_vcpu_request(struct kvm *kvm, struct kvm_vcpu *vcpu,
 }
 
 bool kvm_make_vcpus_request_mask(struct kvm *kvm, unsigned int req,
-				 struct kvm_vcpu *except,
 				 unsigned long *vcpu_bitmap, cpumask_var_t tmp)
 {
 	struct kvm_vcpu *vcpu;
@@ -299,7 +298,7 @@ bool kvm_make_vcpus_request_mask(struct kvm *kvm, unsigned int req,
 
 	for_each_set_bit(i, vcpu_bitmap, KVM_MAX_VCPUS) {
 		vcpu = kvm_get_vcpu(kvm, i);
-		if (!vcpu || vcpu == except)
+		if (!vcpu)
 			continue;
 		kvm_make_vcpu_request(kvm, vcpu, req, tmp, me);
 	}
