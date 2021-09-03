@@ -105,11 +105,6 @@ enum {
 	MSM8916_SNOC_PNOC_SLV,
 };
 
-static const struct clk_bulk_data msm8916_bus_clocks[] = {
-	{ .id = "bus" },
-	{ .id = "bus_a" },
-};
-
 DEFINE_QNODE(bimc_snoc_mas, MSM8916_BIMC_SNOC_MAS, 8, -1, -1, MSM8916_BIMC_SNOC_SLV);
 DEFINE_QNODE(bimc_snoc_slv, MSM8916_BIMC_SNOC_SLV, 8, -1, -1, MSM8916_SNOC_INT_0, MSM8916_SNOC_INT_1);
 DEFINE_QNODE(mas_apss, MSM8916_MASTER_AMPSS_M0, 8, -1, -1, MSM8916_SLAVE_EBI_CH0, MSM8916_BIMC_SNOC_MAS, MSM8916_SLAVE_AMPSS_L2);
@@ -305,12 +300,6 @@ static struct qcom_icc_desc msm8916_pcnoc = {
 	.num_nodes = ARRAY_SIZE(msm8916_pcnoc_nodes),
 };
 
-static int msm8916_qnoc_probe(struct platform_device *pdev)
-{
-	return qnoc_probe(pdev, sizeof(msm8916_bus_clocks),
-			  ARRAY_SIZE(msm8916_bus_clocks), msm8916_bus_clocks);
-}
-
 static const struct of_device_id msm8916_noc_of_match[] = {
 	{ .compatible = "qcom,msm8916-bimc", .data = &msm8916_bimc },
 	{ .compatible = "qcom,msm8916-pcnoc", .data = &msm8916_pcnoc },
@@ -320,7 +309,7 @@ static const struct of_device_id msm8916_noc_of_match[] = {
 MODULE_DEVICE_TABLE(of, msm8916_noc_of_match);
 
 static struct platform_driver msm8916_noc_driver = {
-	.probe = msm8916_qnoc_probe,
+	.probe = qnoc_probe,
 	.remove = qnoc_remove,
 	.driver = {
 		.name = "qnoc-msm8916",

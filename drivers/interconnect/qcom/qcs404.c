@@ -92,11 +92,6 @@ enum {
 	QCS404_SLAVE_LPASS,
 };
 
-static const struct clk_bulk_data qcs404_bus_clocks[] = {
-	{ .id = "bus" },
-	{ .id = "bus_a" },
-};
-
 DEFINE_QNODE(mas_apps_proc, QCS404_MASTER_AMPSS_M0, 8, 0, -1, QCS404_SLAVE_EBI_CH0, QCS404_BIMC_SNOC_SLV);
 DEFINE_QNODE(mas_oxili, QCS404_MASTER_GRAPHICS_3D, 8, -1, -1, QCS404_SLAVE_EBI_CH0, QCS404_BIMC_SNOC_SLV);
 DEFINE_QNODE(mas_mdp, QCS404_MASTER_MDP_PORT0, 8, -1, -1, QCS404_SLAVE_EBI_CH0, QCS404_BIMC_SNOC_SLV);
@@ -269,12 +264,6 @@ static struct qcom_icc_desc qcs404_snoc = {
 };
 
 
-static int qcs404_qnoc_probe(struct platform_device *pdev)
-{
-	return qnoc_probe(pdev, sizeof(qcs404_bus_clocks),
-			  ARRAY_SIZE(qcs404_bus_clocks), qcs404_bus_clocks);
-}
-
 static const struct of_device_id qcs404_noc_of_match[] = {
 	{ .compatible = "qcom,qcs404-bimc", .data = &qcs404_bimc },
 	{ .compatible = "qcom,qcs404-pcnoc", .data = &qcs404_pcnoc },
@@ -284,7 +273,7 @@ static const struct of_device_id qcs404_noc_of_match[] = {
 MODULE_DEVICE_TABLE(of, qcs404_noc_of_match);
 
 static struct platform_driver qcs404_noc_driver = {
-	.probe = qcs404_qnoc_probe,
+	.probe = qnoc_probe,
 	.remove = qnoc_remove,
 	.driver = {
 		.name = "qnoc-qcs404",

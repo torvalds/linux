@@ -86,8 +86,11 @@ static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 	return 0;
 }
 
-int qnoc_probe(struct platform_device *pdev, size_t cd_size, int cd_num,
-	       const struct clk_bulk_data *cd)
+static const char * const bus_clocks[] = {
+	"bus", "bus_a",
+};
+
+int qnoc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct qcom_icc_desc *desc;
@@ -97,6 +100,8 @@ int qnoc_probe(struct platform_device *pdev, size_t cd_size, int cd_num,
 	struct qcom_icc_provider *qp;
 	struct icc_node *node;
 	size_t num_nodes, i;
+	const char * const *cds;
+	int cd_num;
 	int ret;
 
 	/* wait for the RPM proxy */
@@ -110,7 +115,10 @@ int qnoc_probe(struct platform_device *pdev, size_t cd_size, int cd_num,
 	qnodes = desc->nodes;
 	num_nodes = desc->num_nodes;
 
-	qp = devm_kzalloc(dev, sizeof(*qp), GFP_KERNEL);
+	cds = bus_clocks;
+	cd_num = ARRAY_SIZE(bus_clocks);
+
+	qp = devm_kzalloc(dev, struct_size(qp, bus_clks, cd_num), GFP_KERNEL);
 	if (!qp)
 		return -ENOMEM;
 
@@ -119,12 +127,10 @@ int qnoc_probe(struct platform_device *pdev, size_t cd_size, int cd_num,
 	if (!data)
 		return -ENOMEM;
 
-	qp->bus_clks = devm_kmemdup(dev, cd, cd_size,
-				    GFP_KERNEL);
-	if (!qp->bus_clks)
-		return -ENOMEM;
-
+	for (i = 0; i < cd_num; i++)
+		qp->bus_clks[i].id = cds[i];
 	qp->num_clks = cd_num;
+
 	ret = devm_clk_bulk_get(dev, qp->num_clks, qp->bus_clks);
 	if (ret)
 		return ret;

@@ -22,8 +22,8 @@
  */
 struct qcom_icc_provider {
 	struct icc_provider provider;
-	struct clk_bulk_data *bus_clks;
 	int num_clks;
+	struct clk_bulk_data bus_clks[];
 };
 
 /**
@@ -66,8 +66,7 @@ struct qcom_icc_desc {
 	}
 
 
-int qnoc_probe(struct platform_device *pdev, size_t cd_size, int cd_num,
-	       const struct clk_bulk_data *cd);
+int qnoc_probe(struct platform_device *pdev);
 int qnoc_remove(struct platform_device *pdev);
 
 #endif
