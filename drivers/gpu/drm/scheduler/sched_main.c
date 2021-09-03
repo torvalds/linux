@@ -750,7 +750,7 @@ void drm_sched_job_cleanup(struct drm_sched_job *job)
 		dma_fence_put(&job->s_fence->finished);
 	} else {
 		/* aborted job before committing to run it */
-		drm_sched_fence_free(&job->s_fence->finished.rcu);
+		drm_sched_fence_free(job->s_fence);
 	}
 
 	job->s_fence = NULL;

@@ -69,19 +69,28 @@ static const char *drm_sched_fence_get_timeline_name(struct dma_fence *f)
 	return (const char *)fence->sched->name;
 }
 
-/**
- * drm_sched_fence_free - free up the fence memory
- *
- * @rcu: RCU callback head
- *
- * Free up the fence memory after the RCU grace period.
- */
-void drm_sched_fence_free(struct rcu_head *rcu)
+static void drm_sched_fence_free_rcu(struct rcu_head *rcu)
 {
 	struct dma_fence *f = container_of(rcu, struct dma_fence, rcu);
 	struct drm_sched_fence *fence = to_drm_sched_fence(f);
 
-	kmem_cache_free(sched_fence_slab, fence);
+	if (!WARN_ON_ONCE(!fence))
+		kmem_cache_free(sched_fence_slab, fence);
+}
+
+/**
+ * drm_sched_fence_free - free up an uninitialized fence
+ *
+ * @fence: fence to free
+ *
+ * Free up the fence memory. Should only be used if drm_sched_fence_init()
+ * has not been called yet.
+ */
+void drm_sched_fence_free(struct drm_sched_fence *fence)
+{
+	/* This function should not be called if the fence has been initialized. */
+	if (!WARN_ON_ONCE(fence->sched))
+		kmem_cache_free(sched_fence_slab, fence);
 }
 
 /**
@@ -97,7 +106,7 @@ static void drm_sched_fence_release_scheduled(struct dma_fence *f)
 	struct drm_sched_fence *fence = to_drm_sched_fence(f);
 
 	dma_fence_put(fence->parent);
-	call_rcu(&fence->finished.rcu, drm_sched_fence_free);
+	call_rcu(&fence->finished.rcu, drm_sched_fence_free_rcu);
 }
 
 /**
