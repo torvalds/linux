@@ -6,6 +6,10 @@
 #include "rk3588s.dtsi"
 
 / {
+	aliases {
+		ethernet0 = &gmac0;
+	};
+
 	usbdrd3_1: usbdrd3_1 {
 		compatible = "rockchip,rk3588-dwc3", "rockchip,rk3399-dwc3";
 		clocks = <&cru REF_CLK_USB3OTG1>, <&cru SUSPEND_CLK_USB3OTG1>,
@@ -172,6 +176,54 @@
 		reset-names = "spdifrx-m";
 		#sound-dai-cells = <0>;
 		status = "disabled";
+	};
+
+	gmac0: ethernet@fe1b0000 {
+		compatible = "rockchip,rk3588-gmac", "snps,dwmac-4.20a";
+		reg = <0x0 0xfe1b0000 0x0 0x10000>;
+		interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq", "eth_wake_irq";
+		rockchip,grf = <&sys_grf>;
+		rockchip,php_grf = <&php_grf>;
+		clocks = <&cru CLK_GMAC0>, <&cru ACLK_GMAC0>,
+			 <&cru PCLK_GMAC0>, <&cru CLK_GMAC0_PTP_REF>;
+		clock-names = "stmmaceth", "aclk_mac",
+			      "pclk_mac", "ptp_ref";
+		resets = <&cru SRST_A_GMAC0>;
+		reset-names = "stmmaceth";
+
+		snps,mixed-burst;
+		snps,tso;
+
+		snps,axi-config = <&gmac0_stmmac_axi_setup>;
+		snps,mtl-rx-config = <&gmac0_mtl_rx_setup>;
+		snps,mtl-tx-config = <&gmac0_mtl_tx_setup>;
+		status = "disabled";
+
+		mdio0: mdio {
+			compatible = "snps,dwmac-mdio";
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+		};
+
+		gmac0_stmmac_axi_setup: stmmac-axi-config {
+			snps,wr_osr_lmt = <4>;
+			snps,rd_osr_lmt = <8>;
+			snps,blen = <0 0 0 0 16 8 4>;
+		};
+
+		gmac0_mtl_rx_setup: rx-queues-config {
+			snps,rx-queues-to-use = <2>;
+			queue0 {};
+			queue1 {};
+		};
+
+		gmac0_mtl_tx_setup: tx-queues-config {
+			snps,tx-queues-to-use = <2>;
+			queue0 {};
+			queue1 {};
+		};
 	};
 
 	sata1: sata@fe220000 {
