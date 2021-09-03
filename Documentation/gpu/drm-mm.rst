@@ -30,55 +30,6 @@ The Translation Table Manager (TTM)
 
 TTM design background and information belongs here.
 
-TTM initialization
-------------------
-
-    **Warning**
-    This section is outdated.
-
-Drivers wishing to support TTM must pass a filled :c:type:`ttm_bo_driver
-<ttm_bo_driver>` structure to ttm_bo_device_init, together with an
-initialized global reference to the memory manager.  The ttm_bo_driver
-structure contains several fields with function pointers for
-initializing the TTM, allocating and freeing memory, waiting for command
-completion and fence synchronization, and memory migration.
-
-The :c:type:`struct drm_global_reference <drm_global_reference>` is made
-up of several fields:
-
-.. code-block:: c
-
-              struct drm_global_reference {
-                      enum ttm_global_types global_type;
-                      size_t size;
-                      void *object;
-                      int (*init) (struct drm_global_reference *);
-                      void (*release) (struct drm_global_reference *);
-              };
-
-
-There should be one global reference structure for your memory manager
-as a whole, and there will be others for each object created by the
-memory manager at runtime. Your global TTM should have a type of
-TTM_GLOBAL_TTM_MEM. The size field for the global object should be
-sizeof(struct ttm_mem_global), and the init and release hooks should
-point at your driver-specific init and release routines, which probably
-eventually call ttm_mem_global_init and ttm_mem_global_release,
-respectively.
-
-Once your global TTM accounting structure is set up and initialized by
-calling ttm_global_item_ref() on it, you need to create a buffer
-object TTM to provide a pool for buffer object allocation by clients and
-the kernel itself. The type of this object should be
-TTM_GLOBAL_TTM_BO, and its size should be sizeof(struct
-ttm_bo_global). Again, driver-specific init and release functions may
-be provided, likely eventually calling ttm_bo_global_ref_init() and
-ttm_bo_global_ref_release(), respectively. Also, like the previous
-object, ttm_global_item_ref() is used to create an initial reference
-count for the TTM, which will call your initialization function.
-
-See the radeon_ttm.c file for an example of usage.
-
 The Graphics Execution Manager (GEM)
 ====================================
 
