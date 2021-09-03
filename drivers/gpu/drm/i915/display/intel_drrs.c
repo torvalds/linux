@@ -378,6 +378,15 @@ void intel_drrs_flush(struct drm_i915_private *dev_priv,
 	intel_drrs_frontbuffer_update(dev_priv, frontbuffer_bits, false);
 }
 
+void intel_drrs_page_flip(struct intel_atomic_state *state,
+			  struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	unsigned int frontbuffer_bits = INTEL_FRONTBUFFER_ALL_MASK(crtc->pipe);
+
+	intel_drrs_frontbuffer_update(dev_priv, frontbuffer_bits, false);
+}
+
 /**
  * intel_drrs_init - Init basic DRRS work and mutex.
  * @connector: eDP connector

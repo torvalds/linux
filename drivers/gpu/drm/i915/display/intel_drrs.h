@@ -9,6 +9,8 @@
 #include <linux/types.h>
 
 struct drm_i915_private;
+struct intel_atomic_state;
+struct intel_crtc;
 struct intel_crtc_state;
 struct intel_connector;
 struct intel_dp;
@@ -23,6 +25,8 @@ void intel_drrs_invalidate(struct drm_i915_private *dev_priv,
 			   unsigned int frontbuffer_bits);
 void intel_drrs_flush(struct drm_i915_private *dev_priv,
 		      unsigned int frontbuffer_bits);
+void intel_drrs_page_flip(struct intel_atomic_state *state,
+			  struct intel_crtc *crtc);
 void intel_drrs_compute_config(struct intel_dp *intel_dp,
 			       struct intel_crtc_state *pipe_config,
 			       int output_bpp, bool constant_n);

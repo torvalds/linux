@@ -52,6 +52,7 @@
 #include "display/intel_dp_mst.h"
 #include "display/intel_dpll.h"
 #include "display/intel_dpll_mgr.h"
+#include "display/intel_drrs.h"
 #include "display/intel_dsi.h"
 #include "display/intel_dvo.h"
 #include "display/intel_fb.h"
@@ -2379,6 +2380,7 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 		hsw_enable_ips(new_crtc_state);
 
 	intel_fbc_post_update(state, crtc);
+	intel_drrs_page_flip(state, crtc);
 
 	if (needs_nv12_wa(old_crtc_state) &&
 	    !needs_nv12_wa(new_crtc_state))
