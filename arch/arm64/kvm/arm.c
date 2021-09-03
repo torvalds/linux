@@ -297,14 +297,6 @@ struct kvm *kvm_arch_alloc_vm(void)
 	return vzalloc(sizeof(struct kvm));
 }
 
-void kvm_arch_free_vm(struct kvm *kvm)
-{
-	if (!has_vhe())
-		kfree(kvm);
-	else
-		vfree(kvm);
-}
-
 int kvm_arch_vcpu_precreate(struct kvm *kvm, unsigned int id)
 {
 	if (irqchip_in_kernel(kvm) && vgic_initialized(kvm))
