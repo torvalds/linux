@@ -283,17 +283,6 @@ enum hardware_type {
 	HARDWARE_TYPE_MAX,
 };
 
-/*  RTL8188E Series */
-#define IS_HARDWARE_TYPE_8188EE(_Adapter)			\
-(((struct adapter *)_Adapter)->HardwareType == HARDWARE_TYPE_RTL8188EE)
-#define IS_HARDWARE_TYPE_8188EU(_Adapter)			\
-(((struct adapter *)_Adapter)->HardwareType == HARDWARE_TYPE_RTL8188EU)
-#define IS_HARDWARE_TYPE_8188ES(_Adapter)			\
-(((struct adapter *)_Adapter)->HardwareType == HARDWARE_TYPE_RTL8188ES)
-#define	IS_HARDWARE_TYPE_8188E(_Adapter)	\
-(IS_HARDWARE_TYPE_8188EE(_Adapter) || IS_HARDWARE_TYPE_8188EU(_Adapter) || \
- IS_HARDWARE_TYPE_8188ES(_Adapter))
-
 #define GET_EEPROM_EFUSE_PRIV(adapter) (&adapter->eeprompriv)
 
 #define is_boot_from_eeprom(adapter) (adapter->eeprompriv.EepromOrEfuse)
