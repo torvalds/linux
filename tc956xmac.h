@@ -56,6 +56,8 @@
  *  24 Aug 2021 : 1. Disable TC956X_PCIE_GEN3_SETTING and TC956X_LOAD_FW_HEADER macros and provide support via Makefile
  *		: 2. Platform API supported
  *  VERSION     : 01-00-10
+ *  02 Sep 2021 : 1. Configuration of Link state L0 and L1 transaction delay for PCIe switch ports & Endpoint.
+ *  VERSION     : 01-00-11
  */
 
 #ifndef __TC956XMAC_H__
@@ -104,7 +106,7 @@
 #ifdef TC956X
 
 #define TC956X_RESOURCE_NAME	"tc956x_pci-eth"
-#define DRV_MODULE_VERSION	"V_01-00-10"
+#define DRV_MODULE_VERSION	"V_01-00-11"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800

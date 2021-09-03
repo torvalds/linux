@@ -54,6 +54,8 @@
  *  24 Aug 2021 : 1. Disable TC956X_PCIE_GEN3_SETTING and TC956X_LOAD_FW_HEADER macros and provide support via Makefile
  *		: 2. Platform API supported 
  *  VERSION     : 01-00-10
+ *  02 Sep 2021 : 1. Configuration of Link state L0 and L1 transaction delay for PCIe switch ports & Endpoint.
+ *  VERSION     : 01-00-11
  */
 
 #include <linux/clk-provider.h>
@@ -83,7 +85,7 @@ static unsigned int tc956x_speed = 3;
 static unsigned int tc956x_port0_interface = ENABLE_XFI_INTERFACE;
 static unsigned int tc956x_port1_interface = ENABLE_SGMII_INTERFACE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 1, 0};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 1, 1};
 
 /*
  * This struct is used to associate PCI Function of MAC controller on a board,
@@ -1748,6 +1750,9 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 	struct tc956xmac_pci_info *info = (struct tc956xmac_pci_info *)id->driver_data;
 	struct plat_tc956xmacenet_data *plat;
 	struct tc956xmac_resources res;
+#ifdef TC956X_PCIE_LINK_STATE_LATENCY_CTRL
+	u32 reg_val;
+#endif /* end of TC956X_PCIE_LINK_STATE_LATENCY_CTRL */
 #ifdef TC956X
 	/* use signal from MSPHY */
 	uint8_t SgmSigPol = 0;
@@ -1882,6 +1887,56 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 	if ((tc956x_speed >= 1) && (tc956x_speed <= 3))
 		tc956x_set_pci_speed(pdev, tc956x_speed);
 #endif
+
+#ifdef TC956X_PCIE_LINK_STATE_LATENCY_CTRL
+	/* 0x4002_C02C SSREG_GLUE_SW_REG_ACCESS_CTRL.sw_port_reg_access_enable for USP Access enable */
+	writel(SW_USP_ENABLE, res.addr + TC956X_GLUE_SW_REG_ACCESS_CTRL);
+	/* 0x4002_496C K_PEXCONF_209_205.aspm_l0s_entry_delay in terms of 256ns */
+	writel(USP_L0s_ENTRY_DELAY, res.addr + TC956X_PCIE_S_L0s_ENTRY_LATENCY);
+	/* 0x4002_4970 K_PEXCONF_210_219.aspm_L1_entry_delay in terms of 256ns */
+	writel(USP_L1_ENTRY_DELAY, res.addr + TC956X_PCIE_S_L1_ENTRY_LATENCY);
+
+	/* 0x4002_C02C SSREG_GLUE_SW_REG_ACCESS_CTRL.sw_port_reg_access_enable for DSP1 Access enable */
+	writel(SW_DSP1_ENABLE, res.addr + TC956X_GLUE_SW_REG_ACCESS_CTRL);
+	/* 0x4002_496C K_PEXCONF_209_205.aspm_l0s_entry_delay in terms of 256ns */
+	writel(DSP1_L0s_ENTRY_DELAY, res.addr + TC956X_PCIE_S_L0s_ENTRY_LATENCY);
+	/* 0x4002_4970 K_PEXCONF_210_219.aspm_L1_entry_delay in terms of 256ns */
+	writel(DSP1_L1_ENTRY_DELAY, res.addr + TC956X_PCIE_S_L1_ENTRY_LATENCY);
+
+	/* 0x4002_C02C SSREG_GLUE_SW_REG_ACCESS_CTRL.sw_port_reg_access_enable for DSP2 Access enable */
+	writel(SW_DSP2_ENABLE, res.addr + TC956X_GLUE_SW_REG_ACCESS_CTRL);
+	/* 0x4002_496C K_PEXCONF_209_205.aspm_l0s_entry_delay in terms of 256ns */
+	writel(DSP2_L0s_ENTRY_DELAY, res.addr + TC956X_PCIE_S_L0s_ENTRY_LATENCY);
+	/* 0x4002_4970 K_PEXCONF_210_219.aspm_L1_entry_delay in terms of 256ns */
+	writel(DSP2_L1_ENTRY_DELAY, res.addr + TC956X_PCIE_S_L1_ENTRY_LATENCY);
+
+	/* 0x4002_C02C SSREG_GLUE_SW_REG_ACCESS_CTRL.sw_port_reg_access_enable 
+			for VDSP Access enable */
+	writel(SW_VDSP_ENABLE, res.addr + TC956X_GLUE_SW_REG_ACCESS_CTRL);
+	/* 0x4002_496C K_PEXCONF_209_205.aspm_l0s_entry_delay in terms of 256ns */
+	writel(VDSP_L0s_ENTRY_DELAY, res.addr + TC956X_PCIE_S_L0s_ENTRY_LATENCY);
+	/* 0x4002_4970 K_PEXCONF_210_219.aspm_L1_entry_delay in terms of 256ns */
+	writel(VDSP_L1_ENTRY_DELAY, res.addr + TC956X_PCIE_S_L1_ENTRY_LATENCY);
+
+	/* 0x4002_00D8 Reading PCIE EP Capability setting Register */
+	reg_val = readl(res.addr + TC956X_PCIE_EP_CAPB_SET);
+
+	/* Clearing PCIE EP Capability setting of L0s & L1 entry delays */
+	reg_val &= ~(TC956X_PCIE_EP_L0s_ENTRY_MASK | TC956X_PCIE_EP_L1_ENTRY_MASK);
+
+	/* Updating PCIE EP Capability setting of L0s & L1 entry delays */
+	reg_val |= (((EP_L0s_ENTRY_DELAY << TC956X_PCIE_EP_L0s_ENTRY_SHIFT) &
+				TC956X_PCIE_EP_L0s_ENTRY_MASK) | 
+			((EP_L1_ENTRY_DELAY << TC956X_PCIE_EP_L1_ENTRY_SHIFT) &
+				TC956X_PCIE_EP_L1_ENTRY_MASK));
+
+	/* 0x4002_00D8 PCIE EP Capability setting L0S & L1 entry delay in terms of 256ns */
+	writel(reg_val, res.addr + TC956X_PCIE_EP_CAPB_SET);
+
+	/* 0x4002_C02C SSREG_GLUE_SW_REG_ACCESS_CTRL.sw_port_reg_access_enable 
+			for All Switch Ports Access enable */
+	writel(TC956X_PCIE_S_EN_ALL_PORTS_ACCESS, res.addr + TC956X_GLUE_SW_REG_ACCESS_CTRL);
+#endif /* end of TC956X_PCIE_LINK_STATE_LATENCY_CTRL */
 
 #ifdef TC956X_PCIE_DISABLE_DSP1
 	tc956x_pcie_disable_dsp1_port(&pdev->dev, res.tc956x_SFR_pci_base_addr);

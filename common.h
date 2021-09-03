@@ -42,6 +42,8 @@
  *  VERSION     : 01-00-04
  *  23 Jul 2021 : 1. Enable DMA IPA OFFLOAD and FRP by default
  *  VERSION     : 01-00-06
+ *  02 Sep 2021 : 1. Configuration of Link state L0 and L1 transaction delay for PCIe switch ports & Endpoint.
+ *  VERSION     : 01-00-11
  */
 
 #ifndef __COMMON_H__
@@ -67,6 +69,8 @@
 
 /* Enable DMA IPA offload */
 #define DMA_OFFLOAD_ENABLE
+
+#define TC956X_PCIE_LINK_STATE_LATENCY_CTRL
 
 /* Synopsys Core versions */
 #define DWMAC_CORE_3_40		0x34
@@ -802,6 +806,53 @@ enum packets_types {
 #define TC956X_GLUE_RSVD_RW0			(TC956X_GLUE_LOGIC_BASE_OFST \
 						+ 0x0000024CU)
 
+#ifdef TC956X_PCIE_LINK_STATE_LATENCY_CTRL
+#define TC956X_PCIE_S_REG_OFFSET		(0x00024000U)
+#define TC956X_PCIE_S_L0s_ENTRY_LATENCY		(TC956X_PCIE_S_REG_OFFSET \
+						+ 0x0000096CU)
+#define TC956X_PCIE_S_L1_ENTRY_LATENCY		(TC956X_PCIE_S_REG_OFFSET \
+						+ 0x00000970U)
+
+#define TC956X_PCIE_EP_REG_OFFSET		(0x00020000U)
+#define TC956X_PCIE_EP_CAPB_SET			(TC956X_PCIE_EP_REG_OFFSET \
+						+ 0x000000D8U)
+
+#define	TC956X_PCIE_EP_L0s_ENTRY_SHIFT		(13)
+#define	TC956X_PCIE_EP_L1_ENTRY_SHIFT		(18)
+
+#define TC956X_PCIE_EP_L0s_ENTRY_MASK		GENMASK(17, 13)
+#define TC956X_PCIE_EP_L1_ENTRY_MASK		GENMASK(27, 18)
+
+#define TC956X_PCIE_S_EN_ALL_PORTS_ACCESS	(0xF)
+
+/*
+L0s value range: 1-31
+L1 value range : 1-1023
+
+Ex: entry value is n then
+entry delay = n * 256 ns */
+
+/* Link state change delay configuration for Upstream Port */
+#define USP_L0s_ENTRY_DELAY	(0x1FU)
+#define USP_L1_ENTRY_DELAY	(0x3FFU)
+
+/* Link state change delay configuration for Downstream Port-1 */
+#define DSP1_L0s_ENTRY_DELAY	(0x1FU)
+#define DSP1_L1_ENTRY_DELAY	(0x3FFU)
+
+/* Link state change delay configuration for Downstream Port-2 */
+#define DSP2_L0s_ENTRY_DELAY	(0x1FU)
+#define DSP2_L1_ENTRY_DELAY	(0x3FFU)
+
+/* Link state change delay configuration for Virtual Downstream Port */
+#define VDSP_L0s_ENTRY_DELAY	(0x1FU)
+#define VDSP_L1_ENTRY_DELAY	(0x3FFU)
+
+/* Link state change delay configuration for Internal Endpoint */
+#define EP_L0s_ENTRY_DELAY	(0x1FU)
+#define EP_L1_ENTRY_DELAY	(0x3FFU)
+
+#endif /* end of TC956X_PCIE_LINK_STATE_LATENCY_CTRL */
 
 #define TC956X_PHY_COREX_PMACNT_GL_PM_PWRST2_CFG0	(TC956X_PHY_CORE0_REG_BASE \
 							+ 0x0000009CU)

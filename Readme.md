@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 24 Aug 2021
+Release Date: 02 Sep 2021
 
-Release Version: V_01-00-10 : Limited-tested version
+Release Version: V_01-00-11 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -101,6 +101,34 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 7. Enable TC956X_PHY_INTERRUPT_MODE_EMAC0 macro for supporting PORT0 Interrupt mode. Disable the macro if the phy driver supports only polling mode.
    Enable TC956X_PHY_INTERRUPT_MODE_EMAC1 macro for supporting PORT1 Interrupt mode. Disable the macro if the phy driver supports only polling mode.
 
+8. Change below macro values for configuration of Link state L0 and L1 transaction delay.
+	/* Link state change delay configuration for Upstream Port */
+	#define USP_L0s_ENTRY_DELAY	(0x1FU)
+	#define USP_L1_ENTRY_DELAY	(0x3FFU)
+
+	/* Link state change delay configuration for Downstream Port-1 */
+	#define DSP1_L0s_ENTRY_DELAY	(0x1FU)
+	#define DSP1_L1_ENTRY_DELAY	(0x3FFU)
+
+	/* Link state change delay configuration for Downstream Port-2 */
+	#define DSP2_L0s_ENTRY_DELAY	(0x1FU)
+	#define DSP2_L1_ENTRY_DELAY	(0x3FFU)
+
+	/* Link state change delay configuration for Virtual Downstream Port */
+	#define VDSP_L0s_ENTRY_DELAY	(0x1FU)
+	#define VDSP_L1_ENTRY_DELAY	(0x3FFU)
+
+	/* Link state change delay configuration for Internal Endpoint */
+	#define EP_L0s_ENTRY_DELAY	(0x1FU)
+	#define EP_L1_ENTRY_DELAY	(0x3FFU)
+
+Formula:
+	L0 entry delay = XXX_L0s_ENTRY_DELAY * 256 ns
+	L1 entry delay = XXX_L1_ENTRY_DELAY * 256 ns
+	
+	XXX_L0s_ENTRY_DELAY range: 1-31
+	XXX_L1_ENTRY_DELAY: 1-1023
+   
 # Release Versions:
 
 ## TC956X_Host_Driver_20210326_V_01-00:
@@ -158,3 +186,7 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 2. TC956X_LOAD_FW_HEADER macro setting supported through makefile. By default, TC956X_LOAD_FW_HEADER macro is disabled. If FIRMWARE_NAME is not specified in Makefile, the default value shall be TC956X_Firmware_PCIeBridge.bin
 3. Platform APIs supported.
 4. Modified PHY C22/C45 debug message.
+
+## TC956X_Host_Driver_20210902_V_01-00-11:
+
+1. Configuration of Link state L0 and L1 transaction delay for PCIe switch ports & Endpoint. By default maximum values are set for L0s and L1 latencies.
