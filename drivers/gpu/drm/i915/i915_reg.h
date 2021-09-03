@@ -2577,6 +2577,15 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 		(REG_FIELD_PREP(CMD_CCTL_WRITE_OVERRIDE_MASK, (write) << 1) | \
 		 REG_FIELD_PREP(CMD_CCTL_READ_OVERRIDE_MASK, (read) << 1))
 
+#define BLIT_CCTL(base) _MMIO((base) + 0x204)
+#define   BLIT_CCTL_DST_MOCS_MASK       REG_GENMASK(14, 8)
+#define   BLIT_CCTL_SRC_MOCS_MASK       REG_GENMASK(6, 0)
+#define   BLIT_CCTL_MASK (BLIT_CCTL_DST_MOCS_MASK | \
+			  BLIT_CCTL_SRC_MOCS_MASK)
+#define   BLIT_CCTL_MOCS(dst, src)				       \
+		(REG_FIELD_PREP(BLIT_CCTL_DST_MOCS_MASK, (dst) << 1) | \
+		 REG_FIELD_PREP(BLIT_CCTL_SRC_MOCS_MASK, (src) << 1))
+
 #define RING_RESET_CTL(base)	_MMIO((base) + 0xd0)
 #define   RESET_CTL_CAT_ERROR	   REG_BIT(2)
 #define   RESET_CTL_READY_TO_RESET REG_BIT(1)

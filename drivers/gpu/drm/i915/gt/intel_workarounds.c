@@ -675,6 +675,41 @@ static void fakewa_disable_nestedbb_mode(struct intel_engine_cs *engine,
 	wa_masked_dis(wal, RING_MI_MODE(engine->mmio_base), TGL_NESTED_BB_EN);
 }
 
+static void gen12_ctx_gt_mocs_init(struct intel_engine_cs *engine,
+				   struct i915_wa_list *wal)
+{
+	u8 mocs;
+
+	/*
+	 * Some blitter commands do not have a field for MOCS, those
+	 * commands will use MOCS index pointed by BLIT_CCTL.
+	 * BLIT_CCTL registers are needed to be programmed to un-cached.
+	 */
+	if (engine->class == COPY_ENGINE_CLASS) {
+		mocs = engine->gt->mocs.uc_index;
+		wa_write_clr_set(wal,
+				 BLIT_CCTL(engine->mmio_base),
+				 BLIT_CCTL_MASK,
+				 BLIT_CCTL_MOCS(mocs, mocs));
+	}
+}
+
+/*
+ * gen12_ctx_gt_fake_wa_init() aren't programmingan official workaround
+ * defined by the hardware team, but it programming general context registers.
+ * Adding those context register programming in context workaround
+ * allow us to use the wa framework for proper application and validation.
+ */
+static void
+gen12_ctx_gt_fake_wa_init(struct intel_engine_cs *engine,
+			  struct i915_wa_list *wal)
+{
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55))
+		fakewa_disable_nestedbb_mode(engine, wal);
+
+	gen12_ctx_gt_mocs_init(engine, wal);
+}
+
 static void
 __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 			   struct i915_wa_list *wal,
@@ -685,8 +720,12 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 	wa_init_start(wal, name, engine->name);
 
 	/* Applies to all engines */
-	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55))
-		fakewa_disable_nestedbb_mode(engine, wal);
+	/*
+	 * Fake workarounds are not the actual workaround but
+	 * programming of context registers using workaround framework.
+	 */
+	if (GRAPHICS_VER(i915) >= 12)
+		gen12_ctx_gt_fake_wa_init(engine, wal);
 
 	if (engine->class != RENDER_CLASS)
 		goto done;
