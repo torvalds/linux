@@ -22,6 +22,7 @@ struct drm_i915_mocs_table {
 	unsigned int size;
 	unsigned int n_entries;
 	const struct drm_i915_mocs_entry *table;
+	u8 uc_index;
 };
 
 /* Defines for the tables (XXX_MOCS_0 - XXX_MOCS_63) */
@@ -340,14 +341,18 @@ static unsigned int get_mocs_settings(const struct drm_i915_private *i915,
 {
 	unsigned int flags;
 
+	memset(table, 0, sizeof(struct drm_i915_mocs_table));
+
 	if (IS_DG1(i915)) {
 		table->size = ARRAY_SIZE(dg1_mocs_table);
 		table->table = dg1_mocs_table;
+		table->uc_index = 1;
 		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
 	} else if (GRAPHICS_VER(i915) >= 12) {
 		table->size  = ARRAY_SIZE(tgl_mocs_table);
 		table->table = tgl_mocs_table;
 		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
+		table->uc_index = 3;
 	} else if (GRAPHICS_VER(i915) == 11) {
 		table->size  = ARRAY_SIZE(icl_mocs_table);
 		table->table = icl_mocs_table;
@@ -502,6 +507,14 @@ void intel_mocs_init_engine(struct intel_engine_cs *engine)
 static u32 global_mocs_offset(void)
 {
 	return i915_mmio_reg_offset(GEN12_GLOBAL_MOCS(0));
+}
+
+void set_mocs_index(struct intel_gt *gt)
+{
+	struct drm_i915_mocs_table table;
+
+	get_mocs_settings(gt->i915, &table);
+	gt->mocs.uc_index = table.uc_index;
 }
 
 void intel_mocs_init(struct intel_gt *gt)

@@ -192,6 +192,10 @@ struct intel_gt {
 
 		unsigned long mslice_mask;
 	} info;
+
+	struct {
+		u8 uc_index;
+	} mocs;
 };
 
 enum intel_gt_scratch_field {
