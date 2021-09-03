@@ -7,7 +7,6 @@
 #include "drv_types.h"
 #include "mp_custom_oid.h"
 #include "rtw_ioctl.h"
-#include "rtw_ioctl_rtl.h"
 #include "rtw_efuse.h"
 #include "rtw_mp.h"
 
