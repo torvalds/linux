@@ -449,14 +449,17 @@ int clp_get_state(u32 fid, enum zpci_state *state)
 	struct clp_fh_list_entry entry;
 	int rc;
 
-	*state = ZPCI_FN_STATE_RESERVED;
 	rrb = clp_alloc_block(GFP_ATOMIC);
 	if (!rrb)
 		return -ENOMEM;
 
 	rc = clp_find_pci(rrb, fid, &entry);
-	if (!rc)
+	if (!rc) {
 		*state = entry.config_state;
+	} else if (rc == -ENODEV) {
+		*state = ZPCI_FN_STATE_RESERVED;
+		rc = 0;
+	}
 
 	clp_free_block(rrb);
 	return rc;
