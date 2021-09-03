@@ -372,8 +372,7 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
 		ret = create_user_ns(new);
 		if (ret < 0)
 			goto error_put;
-		ret = set_cred_ucounts(new);
-		if (ret < 0)
+		if (set_cred_ucounts(new) < 0)
 			goto error_put;
 	}
 
