@@ -2282,9 +2282,9 @@ int free_io_failure(struct extent_io_tree *failure_tree,
  * currently, there can be no more than two copies of every data bit. thus,
  * exactly one rewrite is required.
  */
-int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
-		      u64 length, u64 logical, struct page *page,
-		      unsigned int pg_offset, int mirror_num)
+static int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
+			     u64 length, u64 logical, struct page *page,
+			     unsigned int pg_offset, int mirror_num)
 {
 	struct bio *bio;
 	struct btrfs_device *dev;
