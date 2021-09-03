@@ -43,6 +43,12 @@ TTM device object reference
 .. kernel-doc:: drivers/gpu/drm/ttm/ttm_device.c
    :export:
 
+TTM resource placement reference
+--------------------------------
+
+.. kernel-doc:: include/drm/ttm/ttm_placement.h
+   :internal:
+
 TTM resource object reference
 -----------------------------
 
