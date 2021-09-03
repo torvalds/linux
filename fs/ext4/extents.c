@@ -5005,8 +5005,11 @@ ext4_ext_shift_path_extents(struct ext4_ext_path *path, ext4_lblk_t shift,
 			restart_credits = ext4_writepage_trans_blocks(inode);
 			err = ext4_datasem_ensure_credits(handle, inode, credits,
 					restart_credits, 0);
-			if (err)
+			if (err) {
+				if (err > 0)
+					err = -EAGAIN;
 				goto out;
+			}
 
 			err = ext4_ext_get_access(handle, inode, path + depth);
 			if (err)
@@ -5080,6 +5083,7 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 	int ret = 0, depth;
 	struct ext4_extent *extent;
 	ext4_lblk_t stop, *iterator, ex_start, ex_end;
+	ext4_lblk_t tmp = EXT_MAX_BLOCKS;
 
 	/* Let path point to the last extent */
 	path = ext4_find_extent(inode, EXT_MAX_BLOCKS - 1, NULL,
@@ -5133,10 +5137,14 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 	 * till we reach stop. In case of right shift, iterator points to stop
 	 * and it is decreased till we reach start.
 	 */
+again:
 	if (SHIFT == SHIFT_LEFT)
 		iterator = &start;
 	else
 		iterator = &stop;
+
+	if (tmp != EXT_MAX_BLOCKS)
+		*iterator = tmp;
 
 	/*
 	 * Its safe to start updating extents.  Start and stop are unsigned, so
@@ -5166,6 +5174,7 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 			}
 		}
 
+		tmp = *iterator;
 		if (SHIFT == SHIFT_LEFT) {
 			extent = EXT_LAST_EXTENT(path[depth].p_hdr);
 			*iterator = le32_to_cpu(extent->ee_block) +
@@ -5184,6 +5193,9 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 		}
 		ret = ext4_ext_shift_path_extents(path, shift, inode,
 				handle, SHIFT);
+		/* iterator can be NULL which means we should break */
+		if (ret == -EAGAIN)
+			goto again;
 		if (ret)
 			break;
 	}
