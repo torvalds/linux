@@ -299,18 +299,9 @@ unlock:
 	mutex_unlock(&dev_priv->drrs.mutex);
 }
 
-/**
- * intel_drrs_invalidate - Disable Idleness DRRS
- * @dev_priv: i915 device
- * @frontbuffer_bits: frontbuffer plane tracking bits
- *
- * This function gets called everytime rendering on the given planes start.
- * Hence DRRS needs to be Upclocked, i.e. (LOW_RR -> HIGH_RR).
- *
- * Dirty frontbuffers relevant to DRRS are tracked in busy_frontbuffer_bits.
- */
-void intel_drrs_invalidate(struct drm_i915_private *dev_priv,
-			   unsigned int frontbuffer_bits)
+static void intel_drrs_frontbuffer_update(struct drm_i915_private *dev_priv,
+					  unsigned int frontbuffer_bits,
+					  bool invalidate)
 {
 	struct intel_dp *intel_dp;
 	struct drm_crtc *crtc;
@@ -333,14 +324,40 @@ void intel_drrs_invalidate(struct drm_i915_private *dev_priv,
 	pipe = to_intel_crtc(crtc)->pipe;
 
 	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(pipe);
-	dev_priv->drrs.busy_frontbuffer_bits |= frontbuffer_bits;
+	if (invalidate)
+		dev_priv->drrs.busy_frontbuffer_bits |= frontbuffer_bits;
+	else
+		dev_priv->drrs.busy_frontbuffer_bits &= ~frontbuffer_bits;
 
-	/* invalidate means busy screen hence upclock */
+	/* flush/invalidate means busy screen hence upclock */
 	if (frontbuffer_bits)
 		intel_drrs_set_state(dev_priv, to_intel_crtc(crtc)->config,
 				     DRRS_HIGH_RR);
 
+	/*
+	 * flush also means no more activity hence schedule downclock, if all
+	 * other fbs are quiescent too
+	 */
+	if (!invalidate && !dev_priv->drrs.busy_frontbuffer_bits)
+		schedule_delayed_work(&dev_priv->drrs.work,
+				      msecs_to_jiffies(1000));
 	mutex_unlock(&dev_priv->drrs.mutex);
+}
+
+/**
+ * intel_drrs_invalidate - Disable Idleness DRRS
+ * @dev_priv: i915 device
+ * @frontbuffer_bits: frontbuffer plane tracking bits
+ *
+ * This function gets called everytime rendering on the given planes start.
+ * Hence DRRS needs to be Upclocked, i.e. (LOW_RR -> HIGH_RR).
+ *
+ * Dirty frontbuffers relevant to DRRS are tracked in busy_frontbuffer_bits.
+ */
+void intel_drrs_invalidate(struct drm_i915_private *dev_priv,
+			   unsigned int frontbuffer_bits)
+{
+	intel_drrs_frontbuffer_update(dev_priv, frontbuffer_bits, true);
 }
 
 /**
@@ -358,42 +375,7 @@ void intel_drrs_invalidate(struct drm_i915_private *dev_priv,
 void intel_drrs_flush(struct drm_i915_private *dev_priv,
 		      unsigned int frontbuffer_bits)
 {
-	struct intel_dp *intel_dp;
-	struct drm_crtc *crtc;
-	enum pipe pipe;
-
-	if (dev_priv->drrs.type == DRRS_NOT_SUPPORTED)
-		return;
-
-	cancel_delayed_work(&dev_priv->drrs.work);
-
-	mutex_lock(&dev_priv->drrs.mutex);
-
-	intel_dp = dev_priv->drrs.dp;
-	if (!intel_dp) {
-		mutex_unlock(&dev_priv->drrs.mutex);
-		return;
-	}
-
-	crtc = dp_to_dig_port(intel_dp)->base.base.crtc;
-	pipe = to_intel_crtc(crtc)->pipe;
-
-	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(pipe);
-	dev_priv->drrs.busy_frontbuffer_bits &= ~frontbuffer_bits;
-
-	/* flush means busy screen hence upclock */
-	if (frontbuffer_bits)
-		intel_drrs_set_state(dev_priv, to_intel_crtc(crtc)->config,
-				     DRRS_HIGH_RR);
-
-	/*
-	 * flush also means no more activity hence schedule downclock, if all
-	 * other fbs are quiescent too
-	 */
-	if (!dev_priv->drrs.busy_frontbuffer_bits)
-		schedule_delayed_work(&dev_priv->drrs.work,
-				      msecs_to_jiffies(1000));
-	mutex_unlock(&dev_priv->drrs.mutex);
+	intel_drrs_frontbuffer_update(dev_priv, frontbuffer_bits, false);
 }
 
 /**
