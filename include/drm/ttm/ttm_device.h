@@ -39,31 +39,23 @@ struct ttm_operation_ctx;
 
 /**
  * struct ttm_global - Buffer object driver global data.
- *
- * @dummy_read_page: Pointer to a dummy page used for mapping requests
- * of unpopulated pages.
- * @shrink: A shrink callback object used for buffer object swap.
- * @device_list_mutex: Mutex protecting the device list.
- * This mutex is held while traversing the device list for pm options.
- * @lru_lock: Spinlock protecting the bo subsystem lru lists.
- * @device_list: List of buffer object devices.
- * @swap_lru: Lru list of buffer objects used for swapping.
  */
 extern struct ttm_global {
 
 	/**
-	 * Constant after init.
+	 * @dummy_read_page: Pointer to a dummy page used for mapping requests
+	 * of unpopulated pages. Constant after init.
 	 */
-
 	struct page *dummy_read_page;
 
 	/**
-	 * Protected by ttm_global_mutex.
+	 * @device_list: List of buffer object devices. Protected by
+	 * ttm_global_mutex.
 	 */
 	struct list_head device_list;
 
 	/**
-	 * Internal protection.
+	 * @bo_count: Number of buffer objects allocated by devices.
 	 */
 	atomic_t bo_count;
 } ttm_glob;
@@ -230,50 +222,64 @@ struct ttm_device_funcs {
 
 /**
  * struct ttm_device - Buffer object driver device-specific data.
- *
- * @device_list: Our entry in the global device list.
- * @funcs: Function table for the device.
- * @sysman: Resource manager for the system domain.
- * @man_drv: An array of resource_managers.
- * @vma_manager: Address space manager.
- * @pool: page pool for the device.
- * @dev_mapping: A pointer to the struct address_space representing the
- * device address space.
- * @wq: Work queue structure for the delayed delete workqueue.
  */
 struct ttm_device {
-	/*
+	/**
+	 * @device_list: Our entry in the global device list.
 	 * Constant after bo device init
 	 */
 	struct list_head device_list;
+
+	/**
+	 * @funcs: Function table for the device.
+	 * Constant after bo device init
+	 */
 	struct ttm_device_funcs *funcs;
 
-	/*
+	/**
+	 * @sysman: Resource manager for the system domain.
 	 * Access via ttm_manager_type.
 	 */
 	struct ttm_resource_manager sysman;
+
+	/**
+	 * @man_drv: An array of resource_managers, one per resource type.
+	 */
 	struct ttm_resource_manager *man_drv[TTM_NUM_MEM_TYPES];
 
-	/*
-	 * Protected by internal locks.
+	/**
+	 * @vma_manager: Address space manager for finding BOs to mmap.
 	 */
 	struct drm_vma_offset_manager *vma_manager;
+
+	/**
+	 * @pool: page pool for the device.
+	 */
 	struct ttm_pool pool;
 
-	/*
-	 * Protection for the per manager LRU and ddestroy lists.
+	/**
+	 * @lru_lock: Protection for the per manager LRU and ddestroy lists.
 	 */
 	spinlock_t lru_lock;
+
+	/**
+	 * @ddestroy: Destroyed but not yet cleaned up buffer objects.
+	 */
 	struct list_head ddestroy;
+
+	/**
+	 * @pinned: Buffer objects which are pinned and so not on any LRU list.
+	 */
 	struct list_head pinned;
 
-	/*
-	 * Protected by load / firstopen / lastclose /unload sync.
+	/**
+	 * @dev_mapping: A pointer to the struct address_space for invalidating
+	 * CPU mappings on buffer move. Protected by load/unload sync.
 	 */
 	struct address_space *dev_mapping;
 
-	/*
-	 * Internal protection.
+	/**
+	 * @wq: Work queue structure for the delayed delete workqueue.
 	 */
 	struct delayed_work wq;
 };
