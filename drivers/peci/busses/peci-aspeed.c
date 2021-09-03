@@ -166,12 +166,42 @@ struct aspeed_peci {
 	struct completion	xfer_complete;
 	u32			status;
 	u32			cmd_timeout_ms;
+	u32			clk_div_val;
+	u32			msg_timing;
+	u32			addr_timing;
+	u32			rd_sampling_point;
 	/* 0: older 32 bytes, 1 : 64bytes mode */
 	int			xfer_mode;
 	/* 0: reference clock, 1 : HCLK */
 	int			bus_clk_sel;
 };
-static int aspeed_peci_init_ctrl(struct aspeed_peci *priv);
+static void aspeed_peci_init_regs(struct aspeed_peci *priv)
+{
+	/*
+	 * Timing negotiation period setting.
+	 * The unit of the programmed value is 4 times of PECI clock period.
+	 */
+	writel(FIELD_PREP(ASPEED_PECI_TIMING_MESSAGE_MASK, priv->msg_timing) |
+	       FIELD_PREP(ASPEED_PECI_TIMING_ADDRESS_MASK, priv->addr_timing),
+	       priv->base + ASPEED_PECI_TIMING_NEGOTIATION);
+
+	/* Clear interrupts */
+	writel(readl(priv->base + ASPEED_PECI_INT_STS) | ASPEED_PECI_INT_MASK,
+	       priv->base + ASPEED_PECI_INT_STS);
+
+	/* Set timing negotiation mode and enable interrupts */
+	writel(FIELD_PREP(ASPEED_PECI_TIMING_NEGO_SEL_MASK,
+			  ASPEED_PECI_1ST_BIT_OF_ADDR_NEGO) |
+	       ASPEED_PECI_INT_MASK, priv->base + ASPEED_PECI_INT_CTRL);
+
+	/* Read sampling point and clock speed setting */
+	writel(FIELD_PREP(ASPEED_PECI_CTRL_SAMPLING_MASK, priv->rd_sampling_point) |
+	       FIELD_PREP(ASPEED_PECI_CTRL_CLK_DIV_MASK, priv->clk_div_val) |
+	       FIELD_PREP(ASPEED_PECI_CTRL_64BYTE_MODE_EN, priv->xfer_mode) |
+	       FIELD_PREP(ASPEED_PECI_CTRL_CLK_SOURCE_MASK, priv->bus_clk_sel) |
+	       ASPEED_PECI_CTRL_PECI_EN | ASPEED_PECI_CTRL_PECI_CLK_EN,
+	       priv->base + ASPEED_PECI_CTRL);
+}
 
 static inline int aspeed_peci_check_idle(struct aspeed_peci *priv)
 {
@@ -261,7 +291,7 @@ static int aspeed_peci_xfer(struct peci_adapter *adapter,
 			readl(priv->base + ASPEED_PECI_INT_STS));
 		reset_control_assert(priv->rst);
 		reset_control_deassert(priv->rst);
-		aspeed_peci_init_ctrl(priv);
+		aspeed_peci_init_regs(priv);
 		if (err == 0) {
 			dev_err(priv->dev,
 				"Timeout: wait completion interrupt\n");
@@ -412,6 +442,9 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 		clk_freq,
 		bus_clk_rate /
 		(4 * (1 << clk_div_val) * (msg_timing * 4 + 1)));
+	priv->clk_div_val = clk_div_val;
+	priv->msg_timing = msg_timing;
+	priv->addr_timing = addr_timing;
 
 	ret = device_property_read_u32(priv->dev, "rd-sampling-point",
 				       &rd_sampling_point);
@@ -423,6 +456,7 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 				 ASPEED_PECI_RD_SAMPLING_POINT_DEFAULT);
 		rd_sampling_point = ASPEED_PECI_RD_SAMPLING_POINT_DEFAULT;
 	}
+	priv->rd_sampling_point = rd_sampling_point;
 
 	ret = device_property_read_u32(priv->dev, "cmd-timeout-ms",
 				       &priv->cmd_timeout_ms);
@@ -437,32 +471,8 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 	}
 
 	if (of_property_read_bool(priv->dev->of_node, "64byte-mode"))
-		priv->xfer_mode = 1;
-	/*
-	 * Timing negotiation period setting.
-	 * The unit of the programmed value is 4 times of PECI clock period.
-	 */
-	writel(FIELD_PREP(ASPEED_PECI_TIMING_MESSAGE_MASK, msg_timing) |
-	       FIELD_PREP(ASPEED_PECI_TIMING_ADDRESS_MASK, addr_timing),
-	       priv->base + ASPEED_PECI_TIMING_NEGOTIATION);
-
-	/* Clear interrupts */
-	writel(readl(priv->base + ASPEED_PECI_INT_STS) | ASPEED_PECI_INT_MASK,
-	       priv->base + ASPEED_PECI_INT_STS);
-
-	/* Set timing negotiation mode and enable interrupts */
-	writel(FIELD_PREP(ASPEED_PECI_TIMING_NEGO_SEL_MASK,
-			  ASPEED_PECI_1ST_BIT_OF_ADDR_NEGO) |
-	       ASPEED_PECI_INT_MASK, priv->base + ASPEED_PECI_INT_CTRL);
-
-	/* Read sampling point and clock speed setting */
-	writel(FIELD_PREP(ASPEED_PECI_CTRL_SAMPLING_MASK, rd_sampling_point) |
-	       FIELD_PREP(ASPEED_PECI_CTRL_CLK_DIV_MASK, clk_div_val) |
-	       FIELD_PREP(ASPEED_PECI_CTRL_CLK_SOURCE_MASK, priv->bus_clk_sel) |
-	       (priv->xfer_mode ? ASPEED_PECI_CTRL_64BYTE_MODE_EN : 0) |
-	       ASPEED_PECI_CTRL_PECI_EN | ASPEED_PECI_CTRL_PECI_CLK_EN,
-	       priv->base + ASPEED_PECI_CTRL);
-
+		priv->xfer_mode = ASPEED_PECI_64BYTE_MODE;
+	aspeed_peci_init_regs(priv);
 	return 0;
 }
 
