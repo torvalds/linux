@@ -514,35 +514,6 @@ config MACH_LOONGSON64
 	  and Loongson-2F which will be removed), developed by the Institute
 	  of Computing Technology (ICT), Chinese Academy of Sciences (CAS).
 
-config MACH_PISTACHIO
-	bool "IMG Pistachio SoC based boards"
-	select BOOT_ELF32
-	select BOOT_RAW
-	select CEVT_R4K
-	select CLKSRC_MIPS_GIC
-	select COMMON_CLK
-	select CSRC_R4K
-	select DMA_NONCOHERENT
-	select GPIOLIB
-	select IRQ_MIPS_CPU
-	select MFD_SYSCON
-	select MIPS_CPU_SCACHE
-	select MIPS_GIC
-	select PINCTRL
-	select REGULATOR
-	select SYS_HAS_CPU_MIPS32_R2
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_SUPPORTS_MIPS_CPS
-	select SYS_SUPPORTS_MULTITHREADING
-	select SYS_SUPPORTS_RELOCATABLE
-	select SYS_SUPPORTS_ZBOOT
-	select SYS_HAS_EARLY_PRINTK
-	select USE_GENERIC_EARLY_PRINTK_8250
-	select USE_OF
-	help
-	  This enables support for the IMG Pistachio SoC platform.
-
 config MIPS_MALTA
 	bool "MIPS Malta board"
 	select ARCH_MAY_HAVE_PC_FDC
@@ -1089,7 +1060,6 @@ source "arch/mips/ingenic/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/lantiq/Kconfig"
 source "arch/mips/pic32/Kconfig"
-source "arch/mips/pistachio/Kconfig"
 source "arch/mips/ralink/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"
