@@ -91,6 +91,22 @@ config PEAQ_WMI
 	help
 	 Say Y here if you want to support WMI-based hotkeys on PEAQ 2-in-1s.
 
+config WMAA_BACKLIGHT_WMI
+	tristate "ACPI WMAA Backlight Driver"
+	depends on ACPI_WMI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  This driver provides a sysfs backlight interface for notebook
+	  systems which expose the WMAA ACPI method and an associated WMI
+	  wrapper to drive LCD backlight levels through the Embedded Controller
+	  (EC).
+
+	  Say Y or M here if you want to control the backlight on a notebook
+	  system with an EC-driven backlight using the ACPI WMAA method.
+
+	  If you choose to compile this driver as a module the module will be
+	  called wmaa-backlight-wmi.
+
 config XIAOMI_WMI
 	tristate "Xiaomi WMI key driver"
 	depends on ACPI_WMI
