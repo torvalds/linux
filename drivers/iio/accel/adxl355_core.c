@@ -262,7 +262,7 @@ static int adxl355_read_axis(struct adxl355_data *data, u8 addr)
 
 	ret = regmap_bulk_read(data->regmap, addr, data->transf_buf,
 			       ARRAY_SIZE(data->transf_buf));
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	return get_unaligned_be24(data->transf_buf);
@@ -294,13 +294,13 @@ static int adxl355_set_odr(struct adxl355_data *data,
 	}
 
 	ret = adxl355_set_op_mode(data, ADXL355_STANDBY);
-	if (ret < 0)
+	if (ret)
 		goto err_unlock;
 
 	ret = regmap_update_bits(data->regmap, ADXL355_FILTER_REG,
 				 ADXL355_FILTER_ODR_MSK,
 				 FIELD_PREP(ADXL355_FILTER_ODR_MSK, odr));
-	if (ret < 0)
+	if (ret)
 		goto err_set_opmode;
 
 	data->odr = odr;
@@ -333,7 +333,7 @@ static int adxl355_set_hpf_3db(struct adxl355_data *data,
 	}
 
 	ret = adxl355_set_op_mode(data, ADXL355_STANDBY);
-	if (ret < 0)
+	if (ret)
 		goto err_unlock;
 
 	ret = regmap_update_bits(data->regmap, ADXL355_FILTER_REG,
@@ -366,7 +366,7 @@ static int adxl355_set_calibbias(struct adxl355_data *data,
 	mutex_lock(&data->lock);
 
 	ret = adxl355_set_op_mode(data, ADXL355_STANDBY);
-	if (ret < 0)
+	if (ret)
 		goto err_unlock;
 
 	put_unaligned_be16(calibbias, data->transf_buf);
@@ -598,7 +598,7 @@ int adxl355_core_probe(struct device *dev, struct regmap *regmap,
 	indio_dev->num_channels = ARRAY_SIZE(adxl355_channels);
 
 	ret = adxl355_setup(data);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(dev, "ADXL355 setup failed\n");
 		return ret;
 	}
