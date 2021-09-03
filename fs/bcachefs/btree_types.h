@@ -255,6 +255,7 @@ struct btree_path {
 	}			l[BTREE_MAX_DEPTH];
 #ifdef CONFIG_BCACHEFS_DEBUG
 	unsigned long		ip_allocated;
+	unsigned long		ip_locked;
 #endif
 };
 
@@ -368,6 +369,7 @@ struct btree_trans {
 	struct bpos		locking_pos;
 	u8			locking_btree_id;
 	u8			locking_level;
+	u8			traverse_all_idx;
 	pid_t			pid;
 #endif
 	unsigned long		ip;

@@ -57,6 +57,16 @@ static inline int btree_iter_err(const struct btree_iter *iter)
 
 /* Iterate over paths within a transaction: */
 
+void __bch2_btree_trans_sort_paths(struct btree_trans *);
+
+static inline void btree_trans_sort_paths(struct btree_trans *trans)
+{
+	if (!IS_ENABLED(CONFIG_BCACHEFS_DEBUG) &&
+	    trans->paths_sorted)
+		return;
+	__bch2_btree_trans_sort_paths(trans);
+}
+
 static inline struct btree_path *
 __trans_next_path(struct btree_trans *trans, unsigned idx)
 {
