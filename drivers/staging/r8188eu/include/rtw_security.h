@@ -6,6 +6,7 @@
 
 #include "osdep_service.h"
 #include "drv_types.h"
+#include <crypto/arc4.h>
 
 #define _NO_PRIVACY_			0x0
 #define _WEP40_				0x1
@@ -106,6 +107,10 @@ struct security_priv {
 	union Keytype	dot118021XGrprxmickey[4];
 	union pn48	dot11Grptxpn;		/* PN48 used for Grp Key xmit.*/
 	union pn48	dot11Grprxpn;		/* PN48 used for Grp Key recv.*/
+
+	struct arc4_ctx xmit_arc4_ctx;
+	struct arc4_ctx recv_arc4_ctx;
+
 #ifdef CONFIG_88EU_AP_MODE
 	/* extend security capabilities for AP_MODE */
 	unsigned int dot8021xalg;/* 0:disable, 1:psk, 2:802.1x */
