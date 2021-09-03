@@ -430,6 +430,8 @@ int __adis_initial_startup(struct adis *adis)
 	if (ret)
 		return ret;
 
+	adis_enable_irq(adis, false);
+
 	if (!adis->data->prod_id_reg)
 		return 0;
 
@@ -526,7 +528,7 @@ int adis_init(struct adis *adis, struct iio_dev *indio_dev,
 		adis->current_page = 0;
 	}
 
-	return adis_enable_irq(adis, false);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(adis_init);
 
