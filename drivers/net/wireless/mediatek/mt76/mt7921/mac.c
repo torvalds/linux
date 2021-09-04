@@ -981,7 +981,7 @@ mt7921_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
 
 static void
 mt7921_tx_complete_status(struct mt76_dev *mdev, struct sk_buff *skb,
-			  struct ieee80211_sta *sta, u8 stat,
+			  struct ieee80211_sta *sta, bool clear_status,
 			  struct list_head *free_list)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -1005,7 +1005,7 @@ mt7921_tx_complete_status(struct mt76_dev *mdev, struct sk_buff *skb,
 	if (info->flags & IEEE80211_TX_CTL_AMPDU)
 		info->flags |= IEEE80211_TX_STAT_AMPDU;
 
-	if (stat)
+	if (clear_status)
 		ieee80211_tx_info_clear_status(info);
 
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
@@ -1015,8 +1015,8 @@ mt7921_tx_complete_status(struct mt76_dev *mdev, struct sk_buff *skb,
 	ieee80211_tx_status_ext(hw, &status);
 }
 
-void mt7921_txp_skb_unmap(struct mt76_dev *dev,
-			  struct mt76_txwi_cache *t)
+static void
+mt7921_txp_skb_unmap(struct mt76_dev *dev, struct mt76_txwi_cache *t)
 {
 	struct mt7921_txp_common *txp;
 	int i;
@@ -1044,6 +1044,42 @@ void mt7921_txp_skb_unmap(struct mt76_dev *dev,
 		if (last)
 			break;
 	}
+}
+
+static void
+mt7921_txwi_free(struct mt7921_dev *dev, struct mt76_txwi_cache *t,
+		 struct ieee80211_sta *sta, bool clear_status,
+		 struct list_head *free_list)
+{
+	struct mt76_dev *mdev = &dev->mt76;
+	struct ieee80211_tx_info *info;
+	__le32 *txwi;
+
+	mt7921_txp_skb_unmap(mdev, t);
+	if (!t->skb)
+		goto out;
+
+	if (!sta)
+		goto out;
+
+	txwi = (__le32 *)mt76_get_txwi_ptr(mdev, t);
+	if (likely(t->skb->protocol != cpu_to_be16(ETH_P_PAE)))
+		mt7921_tx_check_aggr(sta, txwi);
+
+	info = IEEE80211_SKB_CB(t->skb);
+	if (!info->tx_time_est) {
+		struct mt76_wcid *wcid = (struct mt76_wcid *)sta->drv_priv;
+		int pending;
+
+		pending = atomic_dec_return(&wcid->non_aql_packets);
+		if (pending < 0)
+			atomic_cmpxchg(&wcid->non_aql_packets, pending, 0);
+	}
+
+	mt7921_tx_complete_status(mdev, t->skb, sta, clear_status, free_list);
+out:
+	t->skb = NULL;
+	mt76_put_txwi(mdev, t);
 }
 
 static void
@@ -1105,28 +1141,7 @@ mt7921_mac_tx_free(struct mt7921_dev *dev, struct sk_buff *skb)
 		if (!txwi)
 			continue;
 
-		mt7921_txp_skb_unmap(mdev, txwi);
-		if (txwi->skb) {
-			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(txwi->skb);
-			void *txwi_ptr = mt76_get_txwi_ptr(mdev, txwi);
-
-			if (likely(txwi->skb->protocol != cpu_to_be16(ETH_P_PAE)))
-				mt7921_tx_check_aggr(sta, txwi_ptr);
-
-			if (sta && !info->tx_time_est) {
-				struct mt76_wcid *wcid = (struct mt76_wcid *)sta->drv_priv;
-				int pending;
-
-				pending = atomic_dec_return(&wcid->non_aql_packets);
-				if (pending < 0)
-					atomic_cmpxchg(&wcid->non_aql_packets, pending, 0);
-			}
-
-			mt7921_tx_complete_status(mdev, txwi->skb, sta, stat, &free_list);
-			txwi->skb = NULL;
-		}
-
-		mt76_put_txwi(mdev, txwi);
+		mt7921_txwi_free(dev, txwi, sta, stat, &free_list);
 	}
 
 	if (wake)
@@ -1334,14 +1349,7 @@ void mt7921_tx_token_put(struct mt7921_dev *dev)
 
 	spin_lock_bh(&dev->mt76.token_lock);
 	idr_for_each_entry(&dev->mt76.token, txwi, id) {
-		mt7921_txp_skb_unmap(&dev->mt76, txwi);
-		if (txwi->skb) {
-			struct ieee80211_hw *hw;
-
-			hw = mt76_tx_status_get_hw(&dev->mt76, txwi->skb);
-			ieee80211_free_txskb(hw, txwi->skb);
-		}
-		mt76_put_txwi(&dev->mt76, txwi);
+		mt7921_txwi_free(dev, txwi, NULL, false, NULL);
 		dev->mt76.token_count--;
 	}
 	spin_unlock_bh(&dev->mt76.token_lock);
