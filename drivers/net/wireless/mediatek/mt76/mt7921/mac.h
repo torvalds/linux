@@ -317,8 +317,10 @@ struct mt7921_tx_free {
 /* will support this field in further revision */
 #define MT_TX_FREE_RATE			GENMASK(13, 0)
 
-#define MT_TXS0_ACK_ERROR_MASK		GENMASK(18, 16)
+#define MT_TXS0_BW			GENMASK(30, 29)
 #define MT_TXS0_TXS_FORMAT		GENMASK(24, 23)
+#define MT_TXS0_ACK_ERROR_MASK		GENMASK(18, 16)
+#define MT_TXS0_TX_RATE			GENMASK(13, 0)
 
 #define MT_TXS2_WCID			GENMASK(25, 16)
 
@@ -364,5 +366,16 @@ struct mt7921_txp_common {
 		struct mt7921_hw_txp hw;
 	};
 };
+
+#define MT_WTBL_TXRX_CAP_RATE_OFFSET	7
+#define MT_WTBL_TXRX_RATE_G2_HE		24
+#define MT_WTBL_TXRX_RATE_G2		12
+
+#define MT_WTBL_AC0_CTT_OFFSET		20
+
+static inline u32 mt7921_mac_wtbl_lmac_addr(int idx, u8 offset)
+{
+	return MT_WTBL_LMAC_OFFS(idx, 0) + offset * 4;
+}
 
 #endif

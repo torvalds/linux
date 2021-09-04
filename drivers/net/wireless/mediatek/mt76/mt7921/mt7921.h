@@ -93,8 +93,6 @@ struct mt7921_sta {
 	unsigned long ampdu_state;
 
 	struct mt7921_sta_key_conf bip;
-
-	unsigned long next_txs_ts;
 };
 
 DECLARE_EWMA(rssi, 10, 8);
