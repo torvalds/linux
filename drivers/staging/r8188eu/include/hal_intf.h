@@ -149,8 +149,6 @@ struct hal_ops {
 	void	(*dm_init)(struct adapter *padapter);
 	void	(*dm_deinit)(struct adapter *padapter);
 
-	void	(*init_default_value)(struct adapter *padapter);
-
 	void	(*enable_interrupt)(struct adapter *padapter);
 	void	(*disable_interrupt)(struct adapter *padapter);
 	s32	(*interrupt_handler)(struct adapter *padapter);
@@ -262,8 +260,7 @@ void rtl8188eu_set_hal_ops(struct adapter *padapter);
 
 void rtl8188eu_interface_configure(struct adapter *adapt);
 void ReadAdapterInfo8188EU(struct adapter *Adapter);
-
-void rtw_hal_def_value_init(struct adapter *padapter);
+void rtl8188eu_init_default_value(struct adapter *adapt);
 
 void	rtw_hal_free_data(struct adapter *padapter);
 

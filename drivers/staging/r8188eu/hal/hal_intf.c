@@ -6,12 +6,6 @@
 #include "../include/drv_types.h"
 #include "../include/hal_intf.h"
 
-void rtw_hal_def_value_init(struct adapter *adapt)
-{
-	if (adapt->HalFunc.init_default_value)
-		adapt->HalFunc.init_default_value(adapt);
-}
-
 void rtw_hal_free_data(struct adapter *adapt)
 {
 	if (adapt->HalFunc.free_hal_data)

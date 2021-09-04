@@ -2196,7 +2196,7 @@ static void SetBeaconRelatedRegisters8188EUsb(struct adapter *adapt)
 	rtw_write8(adapt, bcn_ctrl_reg, rtw_read8(adapt, bcn_ctrl_reg) | BIT(1));
 }
 
-static void rtl8188eu_init_default_value(struct adapter *adapt)
+void rtl8188eu_init_default_value(struct adapter *adapt)
 {
 	struct hal_data_8188e *haldata;
 	struct pwrctrl_priv *pwrctrlpriv;
@@ -2248,8 +2248,6 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 	halfunc->free_recv_priv = &rtl8188eu_free_recv_priv;
 	halfunc->InitSwLeds = &rtl8188eu_InitSwLeds;
 	halfunc->DeInitSwLeds = &rtl8188eu_DeInitSwLeds;
-
-	halfunc->init_default_value = &rtl8188eu_init_default_value;
 
 	halfunc->SetHwRegHandler = &SetHwReg8188EU;
 	halfunc->GetHwRegHandler = &GetHwReg8188EU;
