@@ -30,7 +30,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/9p.h>
 
-#define DEFAULT_MSIZE 8192
+#define DEFAULT_MSIZE (128 * 1024)
 
 /*
   * Client Option Parsing (code inspired by NFS code)
