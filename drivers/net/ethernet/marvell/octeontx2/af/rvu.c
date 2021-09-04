@@ -211,6 +211,11 @@ int rvu_alloc_bitmap(struct rsrc_bmap *rsrc)
 	return 0;
 }
 
+void rvu_free_bitmap(struct rsrc_bmap *rsrc)
+{
+	kfree(rsrc->bmap);
+}
+
 /* Get block LF's HW index from a PF_FUNC's block slot number */
 int rvu_get_lf(struct rvu *rvu, struct rvu_block *block, u16 pcifunc, u16 slot)
 {
