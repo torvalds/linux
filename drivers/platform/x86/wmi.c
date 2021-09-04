@@ -174,7 +174,7 @@ static int get_subobj_info(acpi_handle handle, const char *pathname,
 	return 0;
 }
 
-static acpi_status wmi_method_enable(struct wmi_block *wblock, int enable)
+static acpi_status wmi_method_enable(struct wmi_block *wblock, bool enable)
 {
 	struct guid_block *block;
 	char method[5];
@@ -534,7 +534,7 @@ wmi_notify_handler handler, void *data)
 			block->handler = handler;
 			block->handler_data = data;
 
-			wmi_status = wmi_method_enable(block, 1);
+			wmi_status = wmi_method_enable(block, true);
 			if ((wmi_status != AE_OK) ||
 			    ((wmi_status == AE_OK) && (status == AE_NOT_EXIST)))
 				status = wmi_status;
@@ -575,7 +575,7 @@ acpi_status wmi_remove_notify_handler(const char *guid)
 				block->handler = wmi_notify_debug;
 				status = AE_OK;
 			} else {
-				wmi_status = wmi_method_enable(block, 0);
+				wmi_status = wmi_method_enable(block, false);
 				block->handler = NULL;
 				block->handler_data = NULL;
 				if ((wmi_status != AE_OK) ||
@@ -919,7 +919,7 @@ static int wmi_dev_probe(struct device *dev)
 	int ret = 0;
 	char *buf;
 
-	if (ACPI_FAILURE(wmi_method_enable(wblock, 1)))
+	if (ACPI_FAILURE(wmi_method_enable(wblock, true)))
 		dev_warn(dev, "failed to enable device -- probing anyway\n");
 
 	if (wdriver->probe) {
@@ -970,7 +970,7 @@ probe_misc_failure:
 probe_string_failure:
 	kfree(wblock->handler_data);
 probe_failure:
-	if (ACPI_FAILURE(wmi_method_enable(wblock, 0)))
+	if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
 		dev_warn(dev, "failed to disable device\n");
 	return ret;
 }
@@ -990,7 +990,7 @@ static void wmi_dev_remove(struct device *dev)
 	if (wdriver->remove)
 		wdriver->remove(dev_to_wdev(dev));
 
-	if (ACPI_FAILURE(wmi_method_enable(wblock, 0)))
+	if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
 		dev_warn(dev, "failed to disable device\n");
 }
 
@@ -1190,7 +1190,7 @@ static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
 
 		if (debug_event) {
 			wblock->handler = wmi_notify_debug;
-			wmi_method_enable(wblock, 1);
+			wmi_method_enable(wblock, true);
 		}
 	}
 
@@ -1207,7 +1207,7 @@ static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
 			dev_err(wmi_bus_dev, "failed to register %pUL\n",
 				wblock->gblock.guid);
 			if (debug_event)
-				wmi_method_enable(wblock, 0);
+				wmi_method_enable(wblock, false);
 			list_del(&wblock->list);
 			put_device(&wblock->dev.dev);
 		}
