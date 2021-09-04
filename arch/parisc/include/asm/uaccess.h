@@ -201,13 +201,12 @@ struct exception_table_entry {
 
 extern long strncpy_from_user(char *, const char __user *, long);
 extern unsigned lclear_user(void __user *, unsigned long);
-extern long lstrnlen_user(const char __user *, long);
+extern __must_check long strnlen_user(const char __user *src, long n);
 /*
  * Complex access routines -- macros
  */
 #define user_addr_max() (~0UL)
 
-#define strnlen_user lstrnlen_user
 #define clear_user lclear_user
 #define __clear_user lclear_user
 

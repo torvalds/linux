@@ -67,40 +67,6 @@ $lclu_done:
 ENDPROC_CFI(lclear_user)
 
 
-	/*
-	 * long lstrnlen_user(char *s, long n)
-	 *
-	 * Returns 0 if exception before zero byte or reaching N,
-	 *         N+1 if N would be exceeded,
-	 *         else strlen + 1 (i.e. includes zero byte).
-	 */
-
-ENTRY_CFI(lstrnlen_user)
-	comib,=     0,%r25,$lslen_nzero
-	copy	    %r26,%r24
-	get_sr
-1:      ldbs,ma     1(%sr1,%r26),%r1
-$lslen_loop:
-	comib,=,n   0,%r1,$lslen_done
-	addib,<>    -1,%r25,$lslen_loop
-2:      ldbs,ma     1(%sr1,%r26),%r1
-$lslen_done:
-	bv          %r0(%r2)
-	sub	    %r26,%r24,%r28
-
-$lslen_nzero:
-	b           $lslen_done
-	ldo         1(%r26),%r26 /* special case for N == 0 */
-
-3:      b	    $lslen_done
-	copy        %r24,%r26    /* reset r26 so 0 is returned on fault */
-
-	ASM_EXCEPTIONTABLE_ENTRY(1b,3b)
-	ASM_EXCEPTIONTABLE_ENTRY(2b,3b)
-
-ENDPROC_CFI(lstrnlen_user)
-
-
 /*
  * unsigned long pa_memcpy(void *dstp, const void *srcp, unsigned long len)
  *
