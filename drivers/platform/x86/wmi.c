@@ -488,7 +488,7 @@ static void wmi_notify_debug(u32 value, void *context)
 		return;
 
 	pr_info("DEBUG Event ");
-	switch(obj->type) {
+	switch (obj->type) {
 	case ACPI_TYPE_BUFFER:
 		pr_cont("BUFFER_TYPE - length %d\n", obj->buffer.length);
 		break;
@@ -1277,8 +1277,7 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
 
 		if (wblock->acpi_device->handle == handle &&
 		    (block->flags & ACPI_WMI_EVENT) &&
-		    (block->notify_id == event))
-		{
+		    (block->notify_id == event)) {
 			found_it = true;
 			break;
 		}
