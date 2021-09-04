@@ -18,6 +18,7 @@
 
 #include <linux/acpi.h>
 #include <linux/bits.h>
+#include <linux/build_bug.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -50,7 +51,10 @@ struct guid_block {
 	};
 	u8 instance_count;
 	u8 flags;
-};
+} __packed;
+static_assert(sizeof(typeof_member(struct guid_block, guid)) == 16);
+static_assert(sizeof(struct guid_block) == 20);
+static_assert(__alignof__(struct guid_block) == 1);
 
 struct wmi_block {
 	struct wmi_device dev;
