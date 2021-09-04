@@ -141,10 +141,10 @@ static const void *find_guid_context(struct wmi_block *wblock,
 	const struct wmi_device_id *id;
 	guid_t guid_input;
 
-	if (wdriver->id_table == NULL)
+	id = wdriver->id_table;
+	if (!id)
 		return NULL;
 
-	id = wdriver->id_table;
 	while (*id->guid_string) {
 		if (guid_parse(id->guid_string, &guid_input))
 			continue;
