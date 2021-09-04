@@ -118,15 +118,12 @@ static bool find_guid(const char *guid_string, struct wmi_block **out)
 {
 	guid_t guid_input;
 	struct wmi_block *wblock;
-	struct guid_block *block;
 
 	if (guid_parse(guid_string, &guid_input))
 		return false;
 
 	list_for_each_entry(wblock, &wmi_block_list, list) {
-		block = &wblock->gblock;
-
-		if (guid_equal(&block->guid, &guid_input)) {
+		if (guid_equal(&wblock->gblock.guid, &guid_input)) {
 			if (out)
 				*out = wblock;
 			return true;
