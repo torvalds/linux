@@ -40,7 +40,7 @@ CXL Core
    :doc: cxl core
 
 .. kernel-doc:: drivers/cxl/core/pmem.c
-   :internal:
+   :doc: cxl pmem
 
 .. kernel-doc:: drivers/cxl/core/regs.c
    :internal:

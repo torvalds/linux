@@ -1,12 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2020 Intel Corporation. */
-
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <cxlmem.h>
 #include <cxl.h>
-
 #include "core.h"
+
+/**
+ * DOC: cxl pmem
+ *
+ * The core CXL PMEM infrastructure supports persistent memory
+ * provisioning and serves as a bridge to the LIBNVDIMM subsystem. A CXL
+ * 'bridge' device is added at the root of a CXL device topology if
+ * platform firmware advertises at least one persistent memory capable
+ * CXL window. That root-level bridge corresponds to a LIBNVDIMM 'bus'
+ * device. Then for each cxl_memdev in the CXL device topology a bridge
+ * device is added to host a LIBNVDIMM dimm object. When these bridges
+ * are registered native LIBNVDIMM uapis are translated to CXL
+ * operations, for example, namespace label access commands.
+ */
 
 static void cxl_nvdimm_bridge_release(struct device *dev)
 {
@@ -85,6 +97,13 @@ static void unregister_nvb(void *_cxl_nvb)
 	device_unregister(&cxl_nvb->dev);
 }
 
+/**
+ * devm_cxl_add_nvdimm_bridge() - add the root of a LIBNVDIMM topology
+ * @host: platform firmware root device
+ * @port: CXL port at the root of a CXL topology
+ *
+ * Return: bridge device that can host cxl_nvdimm objects
+ */
 struct cxl_nvdimm_bridge *devm_cxl_add_nvdimm_bridge(struct device *host,
 						     struct cxl_port *port)
 {
@@ -173,6 +192,13 @@ static struct cxl_nvdimm *cxl_nvdimm_alloc(struct cxl_memdev *cxlmd)
 	return cxl_nvd;
 }
 
+/**
+ * devm_cxl_add_nvdimm() - add a bridge between a cxl_memdev and an nvdimm
+ * @host: same host as @cxlmd
+ * @cxlmd: cxl_memdev instance that will perform LIBNVDIMM operations
+ *
+ * Return: 0 on success negative error code on failure.
+ */
 int devm_cxl_add_nvdimm(struct device *host, struct cxl_memdev *cxlmd)
 {
 	struct cxl_nvdimm *cxl_nvd;
