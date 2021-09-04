@@ -605,7 +605,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	rtl8188eu_interface_configure(padapter);
 
 	/* step read efuse/eeprom data and get mac_addr */
-	rtw_hal_read_chip_info(padapter);
+	ReadAdapterInfo8188EU(padapter);
 
 	/* step 5. */
 	if (rtw_init_drv_sw(padapter) == _FAIL)

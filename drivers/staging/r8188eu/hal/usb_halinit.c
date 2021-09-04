@@ -1215,7 +1215,7 @@ static int _ReadAdapterInfo8188EU(struct adapter *Adapter)
 	return _SUCCESS;
 }
 
-static void ReadAdapterInfo8188EU(struct adapter *Adapter)
+void ReadAdapterInfo8188EU(struct adapter *Adapter)
 {
 	/*  Read EEPROM size before call any EEPROM function */
 	Adapter->EepromAddressSize = GetEEPROMSize8188E(Adapter);
@@ -2250,7 +2250,6 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 	halfunc->DeInitSwLeds = &rtl8188eu_DeInitSwLeds;
 
 	halfunc->init_default_value = &rtl8188eu_init_default_value;
-	halfunc->read_adapter_info = &ReadAdapterInfo8188EU;
 
 	halfunc->SetHwRegHandler = &SetHwReg8188EU;
 	halfunc->GetHwRegHandler = &GetHwReg8188EU;
