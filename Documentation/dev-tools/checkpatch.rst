@@ -710,6 +710,12 @@ Indentation and Line Breaks
 
     See: https://www.kernel.org/doc/html/latest/process/coding-style.html#breaking-long-lines-and-strings
 
+  **SPLIT_STRING**
+    Quoted strings that appear as messages in userspace and can be
+    grepped, should not be split across multiple lines.
+
+    See: https://lore.kernel.org/lkml/20120203052727.GA15035@leaf/
+
   **TRAILING_STATEMENTS**
     Trailing statements (for example after any conditional) should be
     on the next line.
