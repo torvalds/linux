@@ -5669,9 +5669,6 @@ static int _issue_qos_nulldata(struct adapter *padapter, unsigned char *da, u16 
 	else if ((pmlmeinfo->state & 0x03) == WIFI_FW_STATION_STATE)
 		SetToDs(fctrl);
 
-	if (pattrib->mdata)
-		SetMData(fctrl);
-
 	qc = (unsigned short *)(pframe + pattrib->hdrlen - 2);
 
 	SetPriority(qc, tid);
