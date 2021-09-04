@@ -984,6 +984,17 @@ Permissions
     Permission bits should use 4 digit octal permissions (like 0700 or 0444).
     Avoid using any other base like decimal.
 
+  **SYMBOLIC_PERMS**
+    Permission bits in the octal form are more readable and easier to
+    understand than their symbolic counterparts because many command-line
+    tools use this notation. Experienced kernel developers have been using
+    these traditional Unix permission bits for decades and so they find it
+    easier to understand the octal notation than the symbolic macros.
+    For example, it is harder to read S_IWUSR|S_IRUGO than 0644, which
+    obscures the developer's intent rather than clarifying it.
+
+    See: https://lore.kernel.org/lkml/CA+55aFw5v23T-zvDZp-MmD_EYxF8WbafwwB59934FV7g21uMGQ@mail.gmail.com/
+
 
 Spacing and Brackets
 --------------------
