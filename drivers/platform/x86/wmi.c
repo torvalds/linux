@@ -1321,7 +1321,6 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
 		wblock->acpi_device->pnp.device_class,
 		dev_name(&wblock->dev.dev),
 		event, 0);
-
 }
 
 static int acpi_wmi_remove(struct platform_device *device)
