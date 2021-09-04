@@ -1176,7 +1176,7 @@ static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
 		if (guid_already_parsed(device, &gblock[i].guid))
 			continue;
 
-		wblock = kzalloc(sizeof(struct wmi_block), GFP_KERNEL);
+		wblock = kzalloc(sizeof(*wblock), GFP_KERNEL);
 		if (!wblock) {
 			retval = -ENOMEM;
 			break;
