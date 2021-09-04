@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/sysfs.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/uuid.h>
@@ -676,7 +677,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
 
-	return sprintf(buf, "wmi:%pUL\n", &wblock->gblock.guid);
+	return sysfs_emit(buf, "wmi:%pUL\n", &wblock->gblock.guid);
 }
 static DEVICE_ATTR_RO(modalias);
 
@@ -685,7 +686,7 @@ static ssize_t guid_show(struct device *dev, struct device_attribute *attr,
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
 
-	return sprintf(buf, "%pUL\n", &wblock->gblock.guid);
+	return sysfs_emit(buf, "%pUL\n", &wblock->gblock.guid);
 }
 static DEVICE_ATTR_RO(guid);
 
@@ -694,7 +695,7 @@ static ssize_t instance_count_show(struct device *dev,
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
 
-	return sprintf(buf, "%d\n", (int)wblock->gblock.instance_count);
+	return sysfs_emit(buf, "%d\n", (int)wblock->gblock.instance_count);
 }
 static DEVICE_ATTR_RO(instance_count);
 
@@ -703,8 +704,8 @@ static ssize_t expensive_show(struct device *dev,
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
 
-	return sprintf(buf, "%d\n",
-		       (wblock->gblock.flags & ACPI_WMI_EXPENSIVE) != 0);
+	return sysfs_emit(buf, "%d\n",
+			  (wblock->gblock.flags & ACPI_WMI_EXPENSIVE) != 0);
 }
 static DEVICE_ATTR_RO(expensive);
 
@@ -722,7 +723,7 @@ static ssize_t notify_id_show(struct device *dev, struct device_attribute *attr,
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
 
-	return sprintf(buf, "%02X\n", (unsigned int)wblock->gblock.notify_id);
+	return sysfs_emit(buf, "%02X\n", (unsigned int)wblock->gblock.notify_id);
 }
 static DEVICE_ATTR_RO(notify_id);
 
@@ -737,8 +738,8 @@ static ssize_t object_id_show(struct device *dev, struct device_attribute *attr,
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
 
-	return sprintf(buf, "%c%c\n", wblock->gblock.object_id[0],
-		       wblock->gblock.object_id[1]);
+	return sysfs_emit(buf, "%c%c\n", wblock->gblock.object_id[0],
+			  wblock->gblock.object_id[1]);
 }
 static DEVICE_ATTR_RO(object_id);
 
@@ -747,7 +748,7 @@ static ssize_t setable_show(struct device *dev, struct device_attribute *attr,
 {
 	struct wmi_device *wdev = dev_to_wdev(dev);
 
-	return sprintf(buf, "%d\n", (int)wdev->setable);
+	return sysfs_emit(buf, "%d\n", (int)wdev->setable);
 }
 static DEVICE_ATTR_RO(setable);
 
