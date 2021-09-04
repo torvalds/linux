@@ -387,7 +387,7 @@ union acpi_object *wmidev_block_query(struct wmi_device *wdev, u8 instance)
 	if (ACPI_FAILURE(__query_block(wblock, instance, &out)))
 		return NULL;
 
-	return (union acpi_object *)out.pointer;
+	return out.pointer;
 }
 EXPORT_SYMBOL_GPL(wmidev_block_query);
 
@@ -479,8 +479,7 @@ static void wmi_notify_debug(u32 value, void *context)
 		return;
 	}
 
-	obj = (union acpi_object *)response.pointer;
-
+	obj = response.pointer;
 	if (!obj)
 		return;
 
@@ -1148,7 +1147,7 @@ static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
 	if (ACPI_FAILURE(status))
 		return -ENXIO;
 
-	obj = (union acpi_object *) out.pointer;
+	obj = out.pointer;
 	if (!obj)
 		return -ENXIO;
 
@@ -1307,8 +1306,7 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
 		}
 
 		if (driver->notify)
-			driver->notify(&wblock->dev,
-				       (union acpi_object *)evdata.pointer);
+			driver->notify(&wblock->dev, evdata.pointer);
 
 		kfree(evdata.pointer);
 	} else if (wblock->handler) {
@@ -1335,7 +1333,7 @@ static int acpi_wmi_remove(struct platform_device *device)
 	acpi_remove_address_space_handler(acpi_device->handle,
 				ACPI_ADR_SPACE_EC, &acpi_wmi_ec_space_handler);
 	wmi_free_devices(acpi_device);
-	device_unregister((struct device *)dev_get_drvdata(&device->dev));
+	device_unregister(dev_get_drvdata(&device->dev));
 
 	return 0;
 }
