@@ -1689,7 +1689,7 @@ static int rtl8188e_Efuse_PgPacketWrite(struct adapter *pAdapter, u8 offset, u8 
 	return ret;
 }
 
-static struct HAL_VERSION ReadChipVersion8188E(struct adapter *padapter)
+void rtl8188e_read_chip_version(struct adapter *padapter)
 {
 	u32				value32;
 	struct HAL_VERSION		ChipVersion;
@@ -1726,13 +1726,6 @@ static struct HAL_VERSION ReadChipVersion8188E(struct adapter *padapter)
 	}
 
 	MSG_88E("RF_Type is %x!!\n", pHalData->rf_type);
-
-	return ChipVersion;
-}
-
-void rtl8188e_read_chip_version(struct adapter *padapter)
-{
-	ReadChipVersion8188E(padapter);
 }
 
 static void rtl8188e_GetHalODMVar(struct adapter *Adapter, enum hal_odm_variable eVariable, void *pValue1, bool bSet)
