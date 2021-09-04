@@ -317,6 +317,13 @@ struct mt7921_tx_free {
 /* will support this field in further revision */
 #define MT_TX_FREE_RATE			GENMASK(13, 0)
 
+#define MT_TXS0_ACK_ERROR_MASK		GENMASK(18, 16)
+#define MT_TXS0_TXS_FORMAT		GENMASK(24, 23)
+
+#define MT_TXS2_WCID			GENMASK(25, 16)
+
+#define MT_TXS3_PID			GENMASK(31, 24)
+
 static inline struct mt7921_txp_common *
 mt7921_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
 {
