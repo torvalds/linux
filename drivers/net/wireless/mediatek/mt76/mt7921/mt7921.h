@@ -84,7 +84,6 @@ struct mt7921_sta {
 
 	struct mt7921_vif *vif;
 
-	struct list_head stats_list;
 	struct list_head poll_list;
 	u32 airtime_ac[8];
 
@@ -136,7 +135,6 @@ struct mt7921_phy {
 	u32 ampdu_ref;
 
 	struct mib_stats mib;
-	struct list_head stats_list;
 
 	u8 sta_work_count;
 

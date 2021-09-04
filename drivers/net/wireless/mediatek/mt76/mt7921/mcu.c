@@ -323,101 +323,6 @@ exit:
 }
 
 static void
-mt7921_mcu_tx_rate_parse(struct mt76_phy *mphy,
-			 struct mt7921_mcu_peer_cap *peer,
-			 struct rate_info *rate, u16 r)
-{
-	struct ieee80211_supported_band *sband;
-	u16 flags = 0, rate_idx;
-	u8 txmode = FIELD_GET(MT_WTBL_RATE_TX_MODE, r);
-	u8 gi = 0;
-	u8 bw = 0;
-	bool cck = false;
-
-	memset(rate, 0, sizeof(*rate));
-	rate->mcs = FIELD_GET(MT_WTBL_RATE_MCS, r);
-	rate->nss = FIELD_GET(MT_WTBL_RATE_NSS, r) + 1;
-
-	switch (peer->bw) {
-	case IEEE80211_STA_RX_BW_160:
-		gi = peer->g16;
-		break;
-	case IEEE80211_STA_RX_BW_80:
-		gi = peer->g8;
-		break;
-	case IEEE80211_STA_RX_BW_40:
-		gi = peer->g4;
-		break;
-	default:
-		gi = peer->g2;
-		break;
-	}
-
-	gi = txmode >= MT_PHY_TYPE_HE_SU ?
-		FIELD_GET(MT_WTBL_RATE_HE_GI, gi) :
-		FIELD_GET(MT_WTBL_RATE_GI, gi);
-
-	switch (txmode) {
-	case MT_PHY_TYPE_CCK:
-		cck = true;
-		fallthrough;
-	case MT_PHY_TYPE_OFDM:
-		if (mphy->chandef.chan->band == NL80211_BAND_5GHZ)
-			sband = &mphy->sband_5g.sband;
-		else
-			sband = &mphy->sband_2g.sband;
-
-		rate_idx = FIELD_GET(MT_TX_RATE_IDX, r);
-		rate_idx = mt76_get_rate(mphy->dev, sband, rate_idx,
-					 cck);
-		rate->legacy = sband->bitrates[rate_idx].bitrate;
-		break;
-	case MT_PHY_TYPE_HT:
-	case MT_PHY_TYPE_HT_GF:
-		flags |= RATE_INFO_FLAGS_MCS;
-
-		if (gi)
-			flags |= RATE_INFO_FLAGS_SHORT_GI;
-		break;
-	case MT_PHY_TYPE_VHT:
-		flags |= RATE_INFO_FLAGS_VHT_MCS;
-
-		if (gi)
-			flags |= RATE_INFO_FLAGS_SHORT_GI;
-		break;
-	case MT_PHY_TYPE_HE_SU:
-	case MT_PHY_TYPE_HE_EXT_SU:
-	case MT_PHY_TYPE_HE_TB:
-	case MT_PHY_TYPE_HE_MU:
-		rate->he_gi = gi;
-		rate->he_dcm = FIELD_GET(MT_RA_RATE_DCM_EN, r);
-
-		flags |= RATE_INFO_FLAGS_HE_MCS;
-		break;
-	default:
-		break;
-	}
-	rate->flags = flags;
-
-	bw = mt7921_mcu_chan_bw(&mphy->chandef) - FIELD_GET(MT_RA_RATE_BW, r);
-
-	switch (bw) {
-	case IEEE80211_STA_RX_BW_160:
-		rate->bw = RATE_INFO_BW_160;
-		break;
-	case IEEE80211_STA_RX_BW_80:
-		rate->bw = RATE_INFO_BW_80;
-		break;
-	case IEEE80211_STA_RX_BW_40:
-		rate->bw = RATE_INFO_BW_40;
-		break;
-	default:
-		rate->bw = RATE_INFO_BW_20;
-		break;
-	}
-}
-
-static void
 mt7921_mcu_scan_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
@@ -517,48 +422,6 @@ mt7921_mcu_low_power_event(struct mt7921_dev *dev, struct sk_buff *skb)
 }
 
 static void
-mt7921_mcu_tx_done_event(struct mt7921_dev *dev, struct sk_buff *skb)
-{
-	struct mt7921_mcu_tx_done_event *event;
-	struct mt7921_sta *msta;
-	struct mt7921_phy *mphy = &dev->phy;
-	struct mt7921_mcu_peer_cap peer;
-	struct ieee80211_sta *sta;
-	LIST_HEAD(list);
-
-	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
-	event = (struct mt7921_mcu_tx_done_event *)skb->data;
-
-	spin_lock_bh(&dev->sta_poll_lock);
-	list_splice_init(&mphy->stats_list, &list);
-
-	while (!list_empty(&list)) {
-		msta = list_first_entry(&list, struct mt7921_sta, stats_list);
-		list_del_init(&msta->stats_list);
-
-		if (msta->wcid.idx != event->wlan_idx)
-			continue;
-
-		spin_unlock_bh(&dev->sta_poll_lock);
-
-		sta = wcid_to_sta(&msta->wcid);
-
-		/* peer config based on IEEE SPEC */
-		memset(&peer, 0x0, sizeof(peer));
-		peer.bw = event->bw;
-		peer.g2 = !!(sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20);
-		peer.g4 = !!(sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40);
-		peer.g8 = !!(sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80);
-		peer.g16 = !!(sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_160);
-		mt7921_mcu_tx_rate_parse(mphy->mt76, &peer,
-					 &msta->stats.tx_rate,
-					 le16_to_cpu(event->tx_rate));
-		return;
-	}
-	spin_unlock_bh(&dev->sta_poll_lock);
-}
-
-static void
 mt7921_mcu_rx_unsolicited_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
 	struct mt7921_mcu_rxd *rxd = (struct mt7921_mcu_rxd *)skb->data;
@@ -583,9 +446,6 @@ mt7921_mcu_rx_unsolicited_event(struct mt7921_dev *dev, struct sk_buff *skb)
 		return;
 	case MCU_EVENT_LP_INFO:
 		mt7921_mcu_low_power_event(dev, skb);
-		break;
-	case MCU_EVENT_TX_DONE:
-		mt7921_mcu_tx_done_event(dev, skb);
 		break;
 	default:
 		break;

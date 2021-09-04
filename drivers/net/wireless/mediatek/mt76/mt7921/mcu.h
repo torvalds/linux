@@ -259,25 +259,6 @@ struct mt7921_mcu_ant_id_config {
 	u8 ant_id[4];
 } __packed;
 
-struct mt7921_mcu_peer_cap {
-	struct mt7921_mcu_ant_id_config ant_id_config;
-
-	u8 power_offset;
-	u8 bw_selector;
-	u8 change_bw_rate_n;
-	u8 bw;
-	u8 spe_idx;
-
-	u8 g2;
-	u8 g4;
-	u8 g8;
-	u8 g16;
-
-	u8 mmss;
-	u8 ampdu_factor;
-	u8 rsv[1];
-} __packed;
-
 struct mt7921_txpwr_req {
 	u8 ver;
 	u8 action;
@@ -291,34 +272,6 @@ struct mt7921_txpwr_event {
 	u8 action;
 	__le16 len;
 	struct mt7921_txpwr txpwr;
-} __packed;
-
-struct mt7921_mcu_tx_done_event {
-	u8 pid;
-	u8 status;
-	__le16 seq;
-
-	u8 wlan_idx;
-	u8 tx_cnt;
-	__le16 tx_rate;
-
-	u8 flag;
-	u8 tid;
-	u8 rsp_rate;
-	u8 mcs;
-
-	u8 bw;
-	u8 tx_pwr;
-	u8 reason;
-	u8 rsv0[1];
-
-	__le32 delay;
-	__le32 timestamp;
-	__le32 applied_flag;
-
-	u8 txs[28];
-
-	u8 rsv1[32];
 } __packed;
 
 enum {
