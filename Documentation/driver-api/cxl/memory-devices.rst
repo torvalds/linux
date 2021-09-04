@@ -43,7 +43,7 @@ CXL Core
    :doc: cxl pmem
 
 .. kernel-doc:: drivers/cxl/core/regs.c
-   :internal:
+   :doc: cxl registers
 
 External Interfaces
 ===================

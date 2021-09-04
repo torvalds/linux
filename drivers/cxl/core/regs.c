@@ -1,11 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2020 Intel Corporation. */
-
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <cxlmem.h>
+
+/**
+ * DOC: cxl registers
+ *
+ * CXL device capabilities are enumerated by PCI DVSEC (Designated
+ * Vendor-specific) and / or descriptors provided by platform firmware.
+ * They can be defined as a set like the device and component registers
+ * mandated by CXL Section 8.1.12.2 Memory Device PCIe Capabilities and
+ * Extended Capabilities, or they can be individual capabilities
+ * appended to bridged and endpoint devices.
+ *
+ * Provide common infrastructure for enumerating and mapping these
+ * discrete capabilities.
+ */
 
 /**
  * cxl_probe_component_regs() - Detect CXL Component register blocks
