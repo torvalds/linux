@@ -114,22 +114,27 @@ static struct platform_driver acpi_wmi_driver = {
  * GUID parsing functions
  */
 
-static bool find_guid(const char *guid_string, struct wmi_block **out)
+static acpi_status find_guid(const char *guid_string, struct wmi_block **out)
 {
 	guid_t guid_input;
 	struct wmi_block *wblock;
 
+	if (!guid_string)
+		return AE_BAD_PARAMETER;
+
 	if (guid_parse(guid_string, &guid_input))
-		return false;
+		return AE_BAD_PARAMETER;
 
 	list_for_each_entry(wblock, &wmi_block_list, list) {
 		if (guid_equal(&wblock->gblock.guid, &guid_input)) {
 			if (out)
 				*out = wblock;
-			return true;
+
+			return AE_OK;
 		}
 	}
-	return false;
+
+	return AE_NOT_FOUND;
 }
 
 static const void *find_guid_context(struct wmi_block *wblock,
@@ -271,9 +276,12 @@ acpi_status wmi_evaluate_method(const char *guid_string, u8 instance, u32 method
 				const struct acpi_buffer *in, struct acpi_buffer *out)
 {
 	struct wmi_block *wblock = NULL;
+	acpi_status status;
 
-	if (!find_guid(guid_string, &wblock))
-		return AE_ERROR;
+	status = find_guid(guid_string, &wblock);
+	if (ACPI_FAILURE(status))
+		return status;
+
 	return wmidev_evaluate_method(&wblock->dev, instance, method_id,
 				      in, out);
 }
@@ -410,12 +418,11 @@ acpi_status wmi_query_block(const char *guid_string, u8 instance,
 			    struct acpi_buffer *out)
 {
 	struct wmi_block *wblock;
+	acpi_status status;
 
-	if (!guid_string)
-		return AE_BAD_PARAMETER;
-
-	if (!find_guid(guid_string, &wblock))
-		return AE_ERROR;
+	status = find_guid(guid_string, &wblock);
+	if (ACPI_FAILURE(status))
+		return status;
 
 	return __query_block(wblock, instance, out);
 }
@@ -450,12 +457,14 @@ acpi_status wmi_set_block(const char *guid_string, u8 instance,
 	struct acpi_object_list input;
 	union acpi_object params[2];
 	char method[WMI_ACPI_METHOD_NAME_SIZE];
+	acpi_status status;
 
-	if (!guid_string || !in)
+	if (!in)
 		return AE_BAD_DATA;
 
-	if (!find_guid(guid_string, &wblock))
-		return AE_ERROR;
+	status = find_guid(guid_string, &wblock);
+	if (ACPI_FAILURE(status))
+		return status;
 
 	block = &wblock->gblock;
 	handle = wblock->acpi_device->handle;
@@ -660,7 +669,7 @@ EXPORT_SYMBOL_GPL(wmi_get_event_data);
  */
 bool wmi_has_guid(const char *guid_string)
 {
-	return find_guid(guid_string, NULL);
+	return ACPI_SUCCESS(find_guid(guid_string, NULL));
 }
 EXPORT_SYMBOL_GPL(wmi_has_guid);
 
@@ -675,8 +684,10 @@ EXPORT_SYMBOL_GPL(wmi_has_guid);
 char *wmi_get_acpi_device_uid(const char *guid_string)
 {
 	struct wmi_block *wblock = NULL;
+	acpi_status status;
 
-	if (!find_guid(guid_string, &wblock))
+	status = find_guid(guid_string, &wblock);
+	if (ACPI_FAILURE(status))
 		return NULL;
 
 	return acpi_device_uid(wblock->acpi_device);
