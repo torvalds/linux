@@ -195,6 +195,22 @@ static acpi_status wmi_method_enable(struct wmi_block *wblock, bool enable)
 	return status;
 }
 
+#define WMI_ACPI_METHOD_NAME_SIZE 5
+
+static inline void get_acpi_method_name(const struct wmi_block *wblock,
+					const char method,
+					char buffer[static WMI_ACPI_METHOD_NAME_SIZE])
+{
+	static_assert(ARRAY_SIZE(wblock->gblock.object_id) == 2);
+	static_assert(WMI_ACPI_METHOD_NAME_SIZE >= 5);
+
+	buffer[0] = 'W';
+	buffer[1] = method;
+	buffer[2] = wblock->gblock.object_id[0];
+	buffer[3] = wblock->gblock.object_id[1];
+	buffer[4] = '\0';
+}
+
 /*
  * Exported WMI functions
  */
@@ -257,7 +273,7 @@ acpi_status wmidev_evaluate_method(struct wmi_device *wdev, u8 instance, u32 met
 	acpi_handle handle;
 	struct acpi_object_list input;
 	union acpi_object params[3];
-	char method[5] = "WM";
+	char method[WMI_ACPI_METHOD_NAME_SIZE];
 
 	wblock = container_of(wdev, struct wmi_block, dev);
 	block = &wblock->gblock;
@@ -288,7 +304,7 @@ acpi_status wmidev_evaluate_method(struct wmi_device *wdev, u8 instance, u32 met
 		params[2].buffer.pointer = in->pointer;
 	}
 
-	strncat(method, block->object_id, 2);
+	get_acpi_method_name(wblock, 'M', method);
 
 	return acpi_evaluate_object(handle, method, &input, out);
 }
@@ -302,8 +318,8 @@ static acpi_status __query_block(struct wmi_block *wblock, u8 instance,
 	acpi_status status, wc_status = AE_ERROR;
 	struct acpi_object_list input;
 	union acpi_object wq_params[1];
-	char method[5];
-	char wc_method[5] = "WC";
+	char wc_method[WMI_ACPI_METHOD_NAME_SIZE];
+	char method[WMI_ACPI_METHOD_NAME_SIZE];
 
 	if (!out)
 		return AE_BAD_PARAMETER;
@@ -331,7 +347,7 @@ static acpi_status __query_block(struct wmi_block *wblock, u8 instance,
 	 * enable collection.
 	 */
 	if (block->flags & ACPI_WMI_EXPENSIVE) {
-		strncat(wc_method, block->object_id, 2);
+		get_acpi_method_name(wblock, 'C', wc_method);
 
 		/*
 		 * Some GUIDs break the specification by declaring themselves
@@ -341,9 +357,7 @@ static acpi_status __query_block(struct wmi_block *wblock, u8 instance,
 		wc_status = acpi_execute_simple_method(handle, wc_method, 1);
 	}
 
-	strcpy(method, "WQ");
-	strncat(method, block->object_id, 2);
-
+	get_acpi_method_name(wblock, 'Q', method);
 	status = acpi_evaluate_object(handle, method, &input, out);
 
 	/*
@@ -415,7 +429,7 @@ acpi_status wmi_set_block(const char *guid_string, u8 instance,
 	acpi_handle handle;
 	struct acpi_object_list input;
 	union acpi_object params[2];
-	char method[5] = "WS";
+	char method[WMI_ACPI_METHOD_NAME_SIZE];
 
 	if (!guid_string || !in)
 		return AE_BAD_DATA;
@@ -446,7 +460,7 @@ acpi_status wmi_set_block(const char *guid_string, u8 instance,
 	params[1].buffer.length = in->length;
 	params[1].buffer.pointer = in->pointer;
 
-	strncat(method, block->object_id, 2);
+	get_acpi_method_name(wblock, 'S', method);
 
 	return acpi_evaluate_object(handle, method, &input, NULL);
 }
@@ -1040,7 +1054,7 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 			     struct acpi_device *device)
 {
 	struct acpi_device_info *info;
-	char method[5];
+	char method[WMI_ACPI_METHOD_NAME_SIZE];
 	int result;
 
 	if (wblock->gblock.flags & ACPI_WMI_EVENT) {
@@ -1059,8 +1073,7 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 	 * required per the WMI documentation. If it is not present,
 	 * we ignore this data block.
 	 */
-	strcpy(method, "WQ");
-	strncat(method, wblock->gblock.object_id, 2);
+	get_acpi_method_name(wblock, 'Q', method);
 	result = get_subobj_info(device->handle, method, &info);
 
 	if (result) {
@@ -1087,8 +1100,7 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 
 	kfree(info);
 
-	strcpy(method, "WS");
-	strncat(method, wblock->gblock.object_id, 2);
+	get_acpi_method_name(wblock, 'S', method);
 	result = get_subobj_info(device->handle, method, NULL);
 
 	if (result == 0)
