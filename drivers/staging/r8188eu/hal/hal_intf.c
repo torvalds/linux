@@ -124,15 +124,6 @@ void rtw_hal_set_odm_var(struct adapter *adapt,
 						      val1, set);
 }
 
-void rtw_hal_get_odm_var(struct adapter *adapt,
-			 enum hal_odm_variable var, void *val1,
-			 bool set)
-{
-	if (adapt->HalFunc.GetHalODMVarHandler)
-		adapt->HalFunc.GetHalODMVarHandler(adapt, var,
-						      val1, set);
-}
-
 void rtw_hal_enable_interrupt(struct adapter *adapt)
 {
 	if (adapt->HalFunc.enable_interrupt)
