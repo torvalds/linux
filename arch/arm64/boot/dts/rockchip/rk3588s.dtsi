@@ -339,6 +339,11 @@
 		};
 	};
 
+	sys_grf: syscon@fd58c000 {
+		compatible = "rockchip,rk3588-sys-grf", "syscon";
+		reg = <0x0 0xfd58c000 0x0 0x1000>;
+	};
+
 	vo0_grf: syscon@fd5a6000 {
 		compatible = "rockchip,rk3588-vo-grf", "syscon";
 		reg = <0x0 0xfd5a6000 0x0 0x2000>;
@@ -1284,6 +1289,20 @@
 		status = "disabled";
 	};
 
+	vad: vad@fe4d0000 {
+		compatible = "rockchip,rk3588-vad";
+		reg = <0x0 0xfe4d0000 0x0 0x1000>;
+		reg-names = "vad";
+		clocks = <&cru HCLK_VAD>;
+		clock-names = "hclk";
+		interrupts = <GIC_SPI 202 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,audio-src = <0>;
+		rockchip,det-channel = <0>;
+		rockchip,mode = <0>;
+		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
 	spdif_tx0: spdif-tx@fe4e0000 {
 		compatible = "rockchip,rk3588-spdif", "rockchip,rk3568-spdif";
 		reg = <0x0 0xfe4e0000 0x0 0x1000>;
@@ -1308,6 +1327,21 @@
 		clocks = <&cru MCLK_SPDIF1>, <&cru HCLK_SPDIF1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&spdif1m0_tx>;
+		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
+	acdcdig_dsm: codec-digital@fe500000 {
+		compatible = "rockchip,rk3588-codec-digital", "rockchip,codec-digital-v1";
+		reg = <0x0 0xfe500000 0x0 0x1000>;
+		clocks = <&cru CLK_DAC_ACDCDIG>, <&cru PCLK_ACDCDIG>;
+		clock-names = "dac", "pclk";
+		resets = <&cru SRST_DAC_ACDCDIG>;
+		reset-names = "reset" ;
+		rockchip,grf = <&sys_grf>;
+		rockchip,pwm-output-mode;
+		pinctrl-names = "default";
+		pinctrl-0 = <&auddsm_pins>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
