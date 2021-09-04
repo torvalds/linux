@@ -34,16 +34,18 @@
 
 #define PSP_FENCE_BUFFER_SIZE	0x1000
 #define PSP_CMD_BUFFER_SIZE	0x1000
-#define PSP_XGMI_SHARED_MEM_SIZE 0x4000
-#define PSP_RAS_SHARED_MEM_SIZE 0x4000
 #define PSP_1_MEG		0x100000
 #define PSP_TMR_SIZE(adev)	((adev)->asic_type == CHIP_ALDEBARAN ? 0x800000 : 0x400000)
-#define PSP_HDCP_SHARED_MEM_SIZE	0x4000
-#define PSP_DTM_SHARED_MEM_SIZE	0x4000
-#define PSP_RAP_SHARED_MEM_SIZE	0x4000
-#define PSP_SECUREDISPLAY_SHARED_MEM_SIZE	0x4000
-#define PSP_SHARED_MEM_SIZE		0x4000
 #define PSP_FW_NAME_LEN		0x24
+
+enum psp_shared_mem_size {
+	PSP_XGMI_SHARED_MEM_SIZE			= 0x4000,
+	PSP_RAS_SHARED_MEM_SIZE				= 0x4000,
+	PSP_HDCP_SHARED_MEM_SIZE			= 0x4000,
+	PSP_DTM_SHARED_MEM_SIZE				= 0x4000,
+	PSP_RAP_SHARED_MEM_SIZE				= 0x4000,
+	PSP_SECUREDISPLAY_SHARED_MEM_SIZE	= 0x4000,
+};
 
 struct psp_context;
 struct psp_xgmi_node_info;
@@ -140,6 +142,7 @@ struct ta_mem_context {
 	struct amdgpu_bo		*shared_bo;
 	uint64_t		shared_mc_addr;
 	void			*shared_buf;
+	enum psp_shared_mem_size	shared_mem_size;
 };
 
 struct ta_context {
