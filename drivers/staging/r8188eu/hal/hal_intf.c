@@ -6,12 +6,6 @@
 #include "../include/drv_types.h"
 #include "../include/hal_intf.h"
 
-void rtw_hal_read_chip_version(struct adapter *adapt)
-{
-	if (adapt->HalFunc.read_chip_version)
-		adapt->HalFunc.read_chip_version(adapt);
-}
-
 void rtw_hal_def_value_init(struct adapter *adapt)
 {
 	if (adapt->HalFunc.init_default_value)

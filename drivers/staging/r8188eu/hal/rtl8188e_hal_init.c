@@ -1730,7 +1730,7 @@ static struct HAL_VERSION ReadChipVersion8188E(struct adapter *padapter)
 	return ChipVersion;
 }
 
-static void rtl8188e_read_chip_version(struct adapter *padapter)
+void rtl8188e_read_chip_version(struct adapter *padapter)
 {
 	ReadChipVersion8188E(padapter);
 }
@@ -1797,8 +1797,6 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 
 	pHalFunc->dm_init = &rtl8188e_init_dm_priv;
 	pHalFunc->dm_deinit = &rtl8188e_deinit_dm_priv;
-
-	pHalFunc->read_chip_version = &rtl8188e_read_chip_version;
 
 	pHalFunc->set_bwmode_handler = &PHY_SetBWMode8188E;
 	pHalFunc->set_channel_handler = &PHY_SwChnl8188E;

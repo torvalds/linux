@@ -437,6 +437,8 @@ bool HalDetectPwrDownMode88E(struct adapter *Adapter);
 void Hal_InitChannelPlan(struct adapter *padapter);
 void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc);
 
+void rtl8188e_read_chip_version(struct adapter *padapter);
+
 void rtl8188e_clone_haldata(struct adapter *dst, struct adapter *src);
 void rtl8188e_start_thread(struct adapter *padapter);
 void rtl8188e_stop_thread(struct adapter *padapter);

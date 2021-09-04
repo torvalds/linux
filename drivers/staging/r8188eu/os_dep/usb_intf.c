@@ -14,6 +14,7 @@
 #include "../include/usb_ops.h"
 #include "../include/usb_osintf.h"
 #include "../include/rtw_ioctl.h"
+#include "../include/rtl8188e_hal.h"
 
 int ui_pid[3] = {0, 0, 0};
 
@@ -599,7 +600,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	rtw_init_io_priv(padapter, usb_set_intf_ops);
 
 	/* step read_chip_version */
-	rtw_hal_read_chip_version(padapter);
+	rtl8188e_read_chip_version(padapter);
 
 	/* step usb endpoint mapping */
 	rtl8188eu_interface_configure(padapter);
