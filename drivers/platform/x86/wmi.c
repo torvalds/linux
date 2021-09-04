@@ -219,6 +219,22 @@ static inline acpi_object_type get_param_acpi_type(const struct wmi_block *wbloc
 		return ACPI_TYPE_BUFFER;
 }
 
+static acpi_status get_event_data(const struct wmi_block *wblock, struct acpi_buffer *out)
+{
+	union acpi_object param = {
+		.integer = {
+			.type = ACPI_TYPE_INTEGER,
+			.value = wblock->gblock.notify_id,
+		}
+	};
+	struct acpi_object_list input = {
+		.count = 1,
+		.pointer = &param,
+	};
+
+	return acpi_evaluate_object(wblock->acpi_device->handle, "_WED", &input, out);
+}
+
 /*
  * Exported WMI functions
  */
@@ -623,22 +639,13 @@ EXPORT_SYMBOL_GPL(wmi_remove_notify_handler);
  */
 acpi_status wmi_get_event_data(u32 event, struct acpi_buffer *out)
 {
-	struct acpi_object_list input;
-	union acpi_object params[1];
 	struct wmi_block *wblock;
-
-	input.count = 1;
-	input.pointer = params;
-	params[0].type = ACPI_TYPE_INTEGER;
-	params[0].integer.value = event;
 
 	list_for_each_entry(wblock, &wmi_block_list, list) {
 		struct guid_block *gblock = &wblock->gblock;
 
-		if ((gblock->flags & ACPI_WMI_EVENT) &&
-			(gblock->notify_id == event))
-			return acpi_evaluate_object(wblock->acpi_device->handle,
-				"_WED", &input, out);
+		if ((gblock->flags & ACPI_WMI_EVENT) && gblock->notify_id == event)
+			return get_event_data(wblock, out);
 	}
 
 	return AE_NOT_FOUND;
@@ -1303,21 +1310,12 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
 	/* If a driver is bound, then notify the driver. */
 	if (wblock->dev.dev.driver) {
 		struct wmi_driver *driver = drv_to_wdrv(wblock->dev.dev.driver);
-		struct acpi_object_list input;
-		union acpi_object params[1];
 		struct acpi_buffer evdata = { ACPI_ALLOCATE_BUFFER, NULL };
 		acpi_status status;
 
-		input.count = 1;
-		input.pointer = params;
-		params[0].type = ACPI_TYPE_INTEGER;
-		params[0].integer.value = event;
-
-		status = acpi_evaluate_object(wblock->acpi_device->handle,
-					      "_WED", &input, &evdata);
+		status = get_event_data(wblock, &evdata);
 		if (ACPI_FAILURE(status)) {
-			dev_warn(&wblock->dev.dev,
-				 "failed to get event data\n");
+			dev_warn(&wblock->dev.dev, "failed to get event data\n");
 			return;
 		}
 
