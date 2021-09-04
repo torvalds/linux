@@ -17,6 +17,7 @@
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
 #include <linux/acpi.h>
+#include <linux/bits.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -70,10 +71,10 @@ struct wmi_block {
  * If the GUID data block is marked as expensive, we must enable and
  * explicitily disable data collection.
  */
-#define ACPI_WMI_EXPENSIVE   0x1
-#define ACPI_WMI_METHOD      0x2	/* GUID is a method */
-#define ACPI_WMI_STRING      0x4	/* GUID takes & returns a string */
-#define ACPI_WMI_EVENT       0x8	/* GUID is an event */
+#define ACPI_WMI_EXPENSIVE   BIT(0)
+#define ACPI_WMI_METHOD      BIT(1)	/* GUID is a method */
+#define ACPI_WMI_STRING      BIT(2)	/* GUID takes & returns a string */
+#define ACPI_WMI_EVENT       BIT(3)	/* GUID is an event */
 
 static bool debug_event;
 module_param(debug_event, bool, 0444);
