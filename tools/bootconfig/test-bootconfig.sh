@@ -26,7 +26,7 @@ trap cleanup EXIT TERM
 NO=1
 
 xpass() { # pass test command
-  echo "test case $NO ($3)... "
+  echo "test case $NO ($*)... "
   if ! ($@ && echo "\t\t[OK]"); then
      echo "\t\t[NG]"; NG=$((NG + 1))
   fi
@@ -34,7 +34,7 @@ xpass() { # pass test command
 }
 
 xfail() { # fail test command
-  echo "test case $NO ($3)... "
+  echo "test case $NO ($*)... "
   if ! (! $@ && echo "\t\t[OK]"); then
      echo "\t\t[NG]"; NG=$((NG + 1))
   fi
