@@ -485,10 +485,10 @@ static void wmi_notify_debug(u32 value, void *context)
 	if (!obj)
 		return;
 
-	pr_info("DEBUG Event ");
+	pr_info("DEBUG: event 0x%02X ", value);
 	switch (obj->type) {
 	case ACPI_TYPE_BUFFER:
-		pr_cont("BUFFER_TYPE - length %d\n", obj->buffer.length);
+		pr_cont("BUFFER_TYPE - length %u\n", obj->buffer.length);
 		break;
 	case ACPI_TYPE_STRING:
 		pr_cont("STRING_TYPE - %s\n", obj->string.pointer);
@@ -497,7 +497,7 @@ static void wmi_notify_debug(u32 value, void *context)
 		pr_cont("INTEGER_TYPE - %llu\n", obj->integer.value);
 		break;
 	case ACPI_TYPE_PACKAGE:
-		pr_cont("PACKAGE_TYPE - %d elements\n", obj->package.count);
+		pr_cont("PACKAGE_TYPE - %u elements\n", obj->package.count);
 		break;
 	default:
 		pr_cont("object type 0x%X\n", obj->type);
@@ -1316,7 +1316,7 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
 	}
 
 	if (debug_event)
-		pr_info("DEBUG Event GUID: %pUL\n", &wblock->gblock.guid);
+		pr_info("DEBUG: GUID %pUL event 0x%02X\n", &wblock->gblock.guid, event);
 
 	acpi_bus_generate_netlink_event(
 		wblock->acpi_device->pnp.device_class,
