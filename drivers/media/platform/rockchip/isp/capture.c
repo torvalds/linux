@@ -629,6 +629,9 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 			bytesperline = ALIGN(width * fmt->bpp[i] / 8, 256);
 		else
 			bytesperline = width * DIV_ROUND_UP(fmt->bpp[i], 8);
+		/* 128bit AXI, 16byte align for bytesperline */
+		if (dev->isp_ver >= ISP_V20 && stream->id == RKISP_STREAM_SP)
+			bytesperline = ALIGN(bytesperline, 16);
 		/* stride is only available for sp stream and y plane */
 		if (stream->id != RKISP_STREAM_SP || i != 0 ||
 		    plane_fmt->bytesperline < bytesperline)
