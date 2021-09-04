@@ -189,11 +189,10 @@ static acpi_status wmi_method_enable(struct wmi_block *wblock, bool enable)
 
 	snprintf(method, 5, "WE%02X", block->notify_id);
 	status = acpi_execute_simple_method(handle, method, enable);
-
-	if (status != AE_OK && status != AE_NOT_FOUND)
-		return status;
-	else
+	if (status == AE_NOT_FOUND)
 		return AE_OK;
+
+	return status;
 }
 
 /*
