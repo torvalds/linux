@@ -820,12 +820,12 @@ union fan_info {
 static int r600_parse_clk_voltage_dep_table(struct radeon_clock_voltage_dependency_table *radeon_table,
 					    ATOM_PPLIB_Clock_Voltage_Dependency_Table *atom_table)
 {
-	u32 size = atom_table->ucNumEntries *
-		sizeof(struct radeon_clock_voltage_dependency_entry);
 	int i;
 	ATOM_PPLIB_Clock_Voltage_Dependency_Record *entry;
 
-	radeon_table->entries = kzalloc(size, GFP_KERNEL);
+	radeon_table->entries = kcalloc(atom_table->ucNumEntries,
+					sizeof(struct radeon_clock_voltage_dependency_entry),
+					GFP_KERNEL);
 	if (!radeon_table->entries)
 		return -ENOMEM;
 
