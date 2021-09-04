@@ -551,7 +551,7 @@ wmi_notify_handler handler, void *data)
 EXPORT_SYMBOL_GPL(wmi_install_notify_handler);
 
 /**
- * wmi_uninstall_notify_handler - Unregister handler for WMI events
+ * wmi_remove_notify_handler - Unregister handler for WMI events
  * @guid: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
  *
  * Unregister handler for events sent to the ACPI-WMI mapper device.
