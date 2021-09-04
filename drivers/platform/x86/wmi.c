@@ -254,7 +254,6 @@ acpi_status wmidev_evaluate_method(struct wmi_device *wdev, u8 instance,
 	struct guid_block *block;
 	struct wmi_block *wblock;
 	acpi_handle handle;
-	acpi_status status;
 	struct acpi_object_list input;
 	union acpi_object params[3];
 	char method[5] = "WM";
@@ -290,9 +289,7 @@ acpi_status wmidev_evaluate_method(struct wmi_device *wdev, u8 instance,
 
 	strncat(method, block->object_id, 2);
 
-	status = acpi_evaluate_object(handle, method, &input, out);
-
-	return status;
+	return acpi_evaluate_object(handle, method, &input, out);
 }
 EXPORT_SYMBOL_GPL(wmidev_evaluate_method);
 
