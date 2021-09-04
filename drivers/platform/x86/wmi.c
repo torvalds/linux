@@ -133,7 +133,7 @@ static bool find_guid(const char *guid_string, struct wmi_block **out)
 }
 
 static const void *find_guid_context(struct wmi_block *wblock,
-				      struct wmi_driver *wdriver)
+				     struct wmi_driver *wdriver)
 {
 	const struct wmi_device_id *id;
 
@@ -228,8 +228,8 @@ EXPORT_SYMBOL_GPL(set_required_buffer_size);
  *
  * Call an ACPI-WMI method
  */
-acpi_status wmi_evaluate_method(const char *guid_string, u8 instance,
-u32 method_id, const struct acpi_buffer *in, struct acpi_buffer *out)
+acpi_status wmi_evaluate_method(const char *guid_string, u8 instance, u32 method_id,
+				const struct acpi_buffer *in, struct acpi_buffer *out)
 {
 	struct wmi_block *wblock = NULL;
 
@@ -250,8 +250,8 @@ EXPORT_SYMBOL_GPL(wmi_evaluate_method);
  *
  * Call an ACPI-WMI method
  */
-acpi_status wmidev_evaluate_method(struct wmi_device *wdev, u8 instance,
-	u32 method_id, const struct acpi_buffer *in, struct acpi_buffer *out)
+acpi_status wmidev_evaluate_method(struct wmi_device *wdev, u8 instance, u32 method_id,
+				   const struct acpi_buffer *in, struct acpi_buffer *out)
 {
 	struct guid_block *block;
 	struct wmi_block *wblock;
@@ -514,7 +514,8 @@ static void wmi_notify_debug(u32 value, void *context)
  * Register a handler for events sent to the ACPI-WMI mapper device.
  */
 acpi_status wmi_install_notify_handler(const char *guid,
-wmi_notify_handler handler, void *data)
+				       wmi_notify_handler handler,
+				       void *data)
 {
 	struct wmi_block *block;
 	acpi_status status = AE_NOT_EXIST;
@@ -827,7 +828,7 @@ static int wmi_char_open(struct inode *inode, struct file *filp)
 }
 
 static ssize_t wmi_char_read(struct file *filp, char __user *buffer,
-	size_t length, loff_t *offset)
+			     size_t length, loff_t *offset)
 {
 	struct wmi_block *wblock = filp->private_data;
 
@@ -1226,8 +1227,8 @@ out_free_pointer:
  */
 static acpi_status
 acpi_wmi_ec_space_handler(u32 function, acpi_physical_address address,
-		      u32 bits, u64 *value,
-		      void *handler_context, void *region_context)
+			  u32 bits, u64 *value,
+			  void *handler_context, void *region_context)
 {
 	int result = 0, i = 0;
 	u8 temp = 0;
