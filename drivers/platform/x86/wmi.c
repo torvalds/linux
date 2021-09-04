@@ -135,8 +135,6 @@ static const void *find_guid_context(struct wmi_block *wblock,
 	const struct wmi_device_id *id;
 	guid_t guid_input;
 
-	if (wblock == NULL || wdriver == NULL)
-		return NULL;
 	if (wdriver->id_table == NULL)
 		return NULL;
 
