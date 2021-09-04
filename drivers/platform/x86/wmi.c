@@ -211,6 +211,14 @@ static inline void get_acpi_method_name(const struct wmi_block *wblock,
 	buffer[4] = '\0';
 }
 
+static inline acpi_object_type get_param_acpi_type(const struct wmi_block *wblock)
+{
+	if (wblock->gblock.flags & ACPI_WMI_STRING)
+		return ACPI_TYPE_STRING;
+	else
+		return ACPI_TYPE_BUFFER;
+}
+
 /*
  * Exported WMI functions
  */
@@ -295,11 +303,7 @@ acpi_status wmidev_evaluate_method(struct wmi_device *wdev, u8 instance, u32 met
 	if (in) {
 		input.count = 3;
 
-		if (block->flags & ACPI_WMI_STRING) {
-			params[2].type = ACPI_TYPE_STRING;
-		} else {
-			params[2].type = ACPI_TYPE_BUFFER;
-		}
+		params[2].type = get_param_acpi_type(wblock);
 		params[2].buffer.length = in->length;
 		params[2].buffer.pointer = in->pointer;
 	}
@@ -451,12 +455,7 @@ acpi_status wmi_set_block(const char *guid_string, u8 instance,
 	input.pointer = params;
 	params[0].type = ACPI_TYPE_INTEGER;
 	params[0].integer.value = instance;
-
-	if (block->flags & ACPI_WMI_STRING) {
-		params[1].type = ACPI_TYPE_STRING;
-	} else {
-		params[1].type = ACPI_TYPE_BUFFER;
-	}
+	params[1].type = get_param_acpi_type(wblock);
 	params[1].buffer.length = in->length;
 	params[1].buffer.pointer = in->pointer;
 
