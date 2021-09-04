@@ -714,7 +714,7 @@ static struct attribute *wmi_attrs[] = {
 	&dev_attr_guid.attr,
 	&dev_attr_instance_count.attr,
 	&dev_attr_expensive.attr,
-	NULL,
+	NULL
 };
 ATTRIBUTE_GROUPS(wmi);
 
@@ -729,7 +729,7 @@ static DEVICE_ATTR_RO(notify_id);
 
 static struct attribute *wmi_event_attrs[] = {
 	&dev_attr_notify_id.attr,
-	NULL,
+	NULL
 };
 ATTRIBUTE_GROUPS(wmi_event);
 
@@ -755,13 +755,13 @@ static DEVICE_ATTR_RO(setable);
 static struct attribute *wmi_data_attrs[] = {
 	&dev_attr_object_id.attr,
 	&dev_attr_setable.attr,
-	NULL,
+	NULL
 };
 ATTRIBUTE_GROUPS(wmi_data);
 
 static struct attribute *wmi_method_attrs[] = {
 	&dev_attr_object_id.attr,
-	NULL,
+	NULL
 };
 ATTRIBUTE_GROUPS(wmi_method);
 
