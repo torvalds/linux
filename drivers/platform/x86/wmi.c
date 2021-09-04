@@ -91,7 +91,7 @@ static int acpi_wmi_probe(struct platform_device *device);
 static const struct acpi_device_id wmi_device_ids[] = {
 	{"PNP0C14", 0},
 	{"pnp0c14", 0},
-	{"", 0},
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, wmi_device_ids);
 
