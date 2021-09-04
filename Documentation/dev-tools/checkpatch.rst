@@ -851,6 +851,27 @@ Macros, Attributes and Symbols
     Use the `fallthrough;` pseudo keyword instead of
     `/* fallthrough */` like comments.
 
+  **TRAILING_SEMICOLON**
+    Macro definition should not end with a semicolon. The macro
+    invocation style should be consistent with function calls.
+    This can prevent any unexpected code paths::
+
+      #define MAC do_something;
+
+    If this macro is used within a if else statement, like::
+
+      if (some_condition)
+              MAC;
+
+      else
+              do_something;
+
+    Then there would be a compilation error, because when the macro is
+    expanded there are two trailing semicolons, so the else branch gets
+    orphaned.
+
+    See: https://lore.kernel.org/lkml/1399671106.2912.21.camel@joe-AO725/
+
   **WEAK_DECLARATION**
     Using weak declarations like __attribute__((weak)) or __weak
     can have unintended link defects.  Avoid using them.
