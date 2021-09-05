@@ -237,18 +237,22 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs,
 #endif
 	
 	usp = (regs->gr[30] & ~(0x01UL));
+	sigframe_size = PARISC_RT_SIGFRAME_SIZE;
 #ifdef CONFIG_64BIT
 	if (is_compat_task()) {
 		/* The gcc alloca implementation leaves garbage in the upper 32 bits of sp */
 		usp = (compat_uint_t)usp;
+		sigframe_size = PARISC_RT_SIGFRAME_SIZE32;
 	}
 #endif
-	/*FIXME: frame_size parameter is unused, remove it. */
-	frame = get_sigframe(&ksig->ka, usp, sizeof(*frame));
+	frame = get_sigframe(&ksig->ka, usp, sigframe_size);
 
 	DBG(1,"SETUP_RT_FRAME: START\n");
 	DBG(1,"setup_rt_frame: frame %p info %p\n", frame, ksig->info);
 
+	start = (unsigned long) frame;
+	if (start >= user_addr_max() - sigframe_size)
+		return -EFAULT;
 	
 #ifdef CONFIG_64BIT
 
@@ -343,11 +347,6 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs,
 
 	/* The syscall return path will create IAOQ values from r31.
 	 */
-	sigframe_size = PARISC_RT_SIGFRAME_SIZE;
-#ifdef CONFIG_64BIT
-	if (is_compat_task())
-		sigframe_size = PARISC_RT_SIGFRAME_SIZE32;
-#endif
 	if (in_syscall) {
 		regs->gr[31] = haddr;
 #ifdef CONFIG_64BIT
@@ -517,6 +516,10 @@ insert_restart_trampoline(struct pt_regs *regs)
 		unsigned long start = (unsigned long) &usp[2];
 		unsigned long end  = (unsigned long) &usp[5];
 		long err = 0;
+
+		/* check that we don't exceed the stack */
+		if (A(&usp[0]) >= user_addr_max() - 5 * sizeof(int))
+			return;
 
 		/* Setup a trampoline to restart the syscall
 		 * with __NR_restart_syscall
