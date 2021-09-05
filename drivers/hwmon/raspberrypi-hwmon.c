@@ -53,7 +53,7 @@ static void rpi_firmware_get_throttled(struct rpi_hwmon_data *data)
 	else
 		dev_info(data->hwmon_dev, "Voltage normalised\n");
 
-	sysfs_notify(&data->hwmon_dev->kobj, NULL, "in0_lcrit_alarm");
+	hwmon_notify_event(data->hwmon_dev, hwmon_in, hwmon_in_lcrit_alarm, 0);
 }
 
 static void get_values_poll(struct work_struct *work)
