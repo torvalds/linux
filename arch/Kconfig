@@ -197,6 +197,9 @@ config HAVE_FUNCTION_ERROR_INJECTION
 config HAVE_NMI
 	bool
 
+config TRACE_IRQFLAGS_SUPPORT
+	bool
+
 #
 # An arch should select this if it provides all these things:
 #
