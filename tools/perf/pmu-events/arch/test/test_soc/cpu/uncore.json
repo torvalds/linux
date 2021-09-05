@@ -17,5 +17,26 @@
 	    "CounterMask": "0",
 	    "Invert": "0",
 	    "EdgeDetect": "0"
-  }
+  },
+  {
+	    "EventCode": "0x7",
+	    "EventName": "uncore_hisi_l3c.rd_hit_cpipe",
+	    "BriefDescription": "Total read hits",
+	    "PublicDescription": "Total read hits",
+	    "Unit": "hisi_sccl,l3c"
+  },
+  {
+	    "EventCode": "0x12",
+	    "EventName": "uncore_imc_free_running.cache_miss",
+	    "BriefDescription": "Total cache misses",
+	    "PublicDescription": "Total cache misses",
+	    "Unit": "imc_free_running"
+  },
+  {
+	    "EventCode": "0x34",
+	    "EventName": "uncore_imc.cache_hits",
+	    "BriefDescription": "Total cache hits",
+	    "PublicDescription": "Total cache hits",
+	    "Unit": "imc"
+  },
 ]
