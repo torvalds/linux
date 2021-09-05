@@ -225,7 +225,6 @@ static bool btree_insert_key_leaf(struct btree_trans *trans,
 	    bch2_maybe_compact_whiteouts(c, b))
 		bch2_trans_node_reinit_iter(trans, b);
 
-	trace_btree_insert_key(c, b, insert->k);
 	return true;
 }
 

@@ -210,21 +210,8 @@ static inline bool btree_path_get_locks(struct btree_trans *trans,
 
 		if (!(upgrade
 		      ? bch2_btree_node_upgrade(trans, path, l)
-		      : bch2_btree_node_relock(trans, path, l))) {
-			(upgrade
-			 ? trace_node_upgrade_fail
-			 : trace_node_relock_fail)(trans->ip, trace_ip,
-					path->cached,
-					path->btree_id, &path->pos,
-					l, path->l[l].lock_seq,
-					is_btree_node(path, l)
-					? 0
-					: (unsigned long) path->l[l].b,
-					is_btree_node(path, l)
-					? path->l[l].b->c.lock.state.seq
-					: 0);
+		      : bch2_btree_node_relock(trans, path, l)))
 			fail_idx = l;
-		}
 
 		l++;
 	} while (l < path->locks_want);
@@ -414,16 +401,6 @@ bool bch2_btree_path_relock_intent(struct btree_trans *trans,
 	     l < path->locks_want && btree_path_node(path, l);
 	     l++) {
 		if (!bch2_btree_node_relock(trans, path, l)) {
-			trace_node_relock_fail(trans->ip, _RET_IP_,
-					path->cached,
-					path->btree_id, &path->pos,
-					l, path->l[l].lock_seq,
-					is_btree_node(path, l)
-					? 0
-					: (unsigned long) path->l[l].b,
-					is_btree_node(path, l)
-					? path->l[l].b->c.lock.state.seq
-					: 0);
 			__bch2_btree_path_unlock(path);
 			btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
 			btree_trans_restart(trans);
@@ -1473,9 +1450,6 @@ static int btree_path_traverse_one(struct btree_trans *trans,
 	path->uptodate = BTREE_ITER_UPTODATE;
 out:
 	BUG_ON((ret == -EINTR) != !!trans->restarted);
-	trace_iter_traverse(trans->ip, trace_ip,
-			    path->cached,
-			    path->btree_id, &path->pos, ret);
 	bch2_btree_path_verify(trans, path);
 	return ret;
 }
@@ -1539,9 +1513,6 @@ __bch2_btree_path_set_pos(struct btree_trans *trans,
 			  struct btree_path *path, struct bpos new_pos,
 			  bool intent, int cmp)
 {
-#ifdef CONFIG_BCACHEFS_DEBUG
-	struct bpos old_pos = path->pos;
-#endif
 	unsigned l = path->level;
 
 	EBUG_ON(trans->restarted);
@@ -1580,10 +1551,6 @@ __bch2_btree_path_set_pos(struct btree_trans *trans,
 	}
 out:
 	bch2_btree_path_verify(trans, path);
-#ifdef CONFIG_BCACHEFS_DEBUG
-	trace_path_set_pos(trans->ip, _RET_IP_, path->btree_id,
-			   &old_pos, &new_pos, l);
-#endif
 	return path;
 }
 
@@ -1725,7 +1692,6 @@ struct btree_path *bch2_path_get(struct btree_trans *trans, bool cached,
 				 bool intent)
 {
 	struct btree_path *path, *path_pos = NULL;
-	struct bpos pos_min = POS_MIN;
 	int i;
 
 	BUG_ON(trans->restarted);
@@ -1789,12 +1755,6 @@ struct btree_path *bch2_path_get(struct btree_trans *trans, bool cached,
 		path->locks_want = locks_want;
 		btree_path_get_locks(trans, path, true, _THIS_IP_);
 	}
-
-	trace_trans_get_path(_RET_IP_, trans->ip, btree_id,
-			     &pos, locks_want, path->uptodate,
-			     path_pos ? &path_pos->pos		: &pos_min,
-			     path_pos ? path_pos->locks_want	: U8_MAX,
-			     path_pos ? path_pos->uptodate	: U8_MAX);
 
 	return path;
 }
