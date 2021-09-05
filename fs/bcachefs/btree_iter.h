@@ -219,7 +219,6 @@ static inline void bch2_btree_path_downgrade(struct btree_path *path)
 void bch2_trans_downgrade(struct btree_trans *);
 
 void bch2_trans_node_add(struct btree_trans *trans, struct btree *);
-void bch2_trans_node_drop(struct btree_trans *, struct btree *);
 void bch2_trans_node_reinit_iter(struct btree_trans *, struct btree *);
 
 int __must_check bch2_btree_iter_traverse(struct btree_iter *);

@@ -1429,7 +1429,6 @@ static void btree_split(struct btree_update *as, struct btree_trans *trans,
 	/* Successful split, update the path to point to the new nodes: */
 
 	six_lock_increment(&b->c.lock, SIX_LOCK_intent);
-	bch2_trans_node_drop(trans, b);
 	if (n3)
 		bch2_trans_node_add(trans, n3);
 	if (n2)
@@ -1694,14 +1693,16 @@ retry:
 	bch2_keylist_add(&as->parent_keys, &delete);
 	bch2_keylist_add(&as->parent_keys, &n->key);
 
+	bch2_trans_verify_paths(trans);
+
 	bch2_btree_insert_node(as, trans, path, parent, &as->parent_keys, flags);
+
+	bch2_trans_verify_paths(trans);
 
 	bch2_btree_update_get_open_buckets(as, n);
 
 	six_lock_increment(&b->c.lock, SIX_LOCK_intent);
 	six_lock_increment(&m->c.lock, SIX_LOCK_intent);
-	bch2_trans_node_drop(trans, b);
-	bch2_trans_node_drop(trans, m);
 
 	bch2_trans_node_add(trans, n);
 
@@ -1798,7 +1799,6 @@ retry:
 	bch2_btree_update_get_open_buckets(as, n);
 
 	six_lock_increment(&b->c.lock, SIX_LOCK_intent);
-	bch2_trans_node_drop(trans, b);
 	bch2_trans_node_add(trans, n);
 	bch2_btree_node_free_inmem(trans, b);
 	six_unlock_intent(&n->c.lock);
