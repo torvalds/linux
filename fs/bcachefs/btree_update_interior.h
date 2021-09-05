@@ -129,11 +129,7 @@ static inline int bch2_foreground_maybe_merge_sibling(struct btree_trans *trans,
 {
 	struct btree *b;
 
-	if (path->uptodate >= BTREE_ITER_NEED_TRAVERSE)
-		return 0;
-
-	if (!bch2_btree_node_relock(trans, path, level))
-		return 0;
+	EBUG_ON(!btree_node_locked(path, level));
 
 	b = path->l[level].b;
 	if (b->sib_u64s[sib] > trans->c->btree_foreground_merge_threshold)

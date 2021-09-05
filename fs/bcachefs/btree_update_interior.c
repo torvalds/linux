@@ -1572,12 +1572,7 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	struct btree *b, *m, *n, *prev, *next, *parent;
 	struct bpos sib_pos;
 	size_t sib_u64s;
-	int ret = 0, ret2 = 0;
-
-retry:
-	ret = bch2_btree_path_traverse(trans, path, false);
-	if (ret)
-		return ret;
+	int ret = 0;
 
 	BUG_ON(!path->should_be_locked);
 	BUG_ON(!btree_node_locked(path, level));
@@ -1587,7 +1582,7 @@ retry:
 	if ((sib == btree_prev_sib && !bpos_cmp(b->data->min_key, POS_MIN)) ||
 	    (sib == btree_next_sib && !bpos_cmp(b->data->max_key, SPOS_MAX))) {
 		b->sib_u64s[sib] = U16_MAX;
-		goto out;
+		return 0;
 	}
 
 	sib_pos = sib == btree_prev_sib
@@ -1715,29 +1710,10 @@ retry:
 
 	bch2_btree_update_done(as);
 out:
-	bch2_trans_verify_locks(trans);
-	if (sib_path)
-		bch2_path_put(trans, sib_path, true);
-
-	/*
-	 * Don't downgrade locks here: we're called after successful insert,
-	 * and the caller will downgrade locks after a successful insert
-	 * anyways (in case e.g. a split was required first)
-	 *
-	 * And we're also called when inserting into interior nodes in the
-	 * split path, and downgrading to read locks in there is potentially
-	 * confusing:
-	 */
-	return ret ?: ret2;
 err:
-	if (sib_path)
-		bch2_path_put(trans, sib_path, true);
-	sib_path = NULL;
-
-	if (ret == -EINTR && bch2_trans_relock(trans))
-		goto retry;
-
-	goto out;
+	bch2_path_put(trans, sib_path, true);
+	bch2_trans_verify_locks(trans);
+	return ret;
 }
 
 /**
