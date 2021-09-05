@@ -490,6 +490,14 @@ struct mlx5_ifc_ste_flex_parser_tnl_gtpu_bits {
 	u8	   reserved_at_40[0x40];
 };
 
+struct mlx5_ifc_ste_tunnel_header_bits {
+	u8	   tunnel_header_0[0x20];
+
+	u8	   tunnel_header_1[0x20];
+
+	u8	   reserved_at_40[0x40];
+};
+
 struct mlx5_ifc_ste_general_purpose_bits {
 	u8         general_purpose_lookup_field[0x20];
 

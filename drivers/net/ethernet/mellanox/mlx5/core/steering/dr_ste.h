@@ -141,6 +141,7 @@ struct mlx5dr_ste_ctx {
 	void DR_STE_CTX_BUILDER(flex_parser_0);
 	void DR_STE_CTX_BUILDER(flex_parser_1);
 	void DR_STE_CTX_BUILDER(tnl_gtpu);
+	void DR_STE_CTX_BUILDER(tnl_header_0_1);
 	void DR_STE_CTX_BUILDER(tnl_gtpu_flex_parser_0);
 	void DR_STE_CTX_BUILDER(tnl_gtpu_flex_parser_1);
 

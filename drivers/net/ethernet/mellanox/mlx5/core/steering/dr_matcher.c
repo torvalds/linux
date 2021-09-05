@@ -368,6 +368,12 @@ static bool dr_mask_is_tnl_mpls_over_udp(struct mlx5dr_match_param *mask,
 	return DR_MASK_IS_OUTER_MPLS_OVER_UDP_SET(&mask->misc2) &&
 	       dr_matcher_supp_tnl_mpls_over_udp(&dmn->info.caps);
 }
+
+static bool dr_mask_is_tnl_header_0_1_set(struct mlx5dr_match_misc5 *misc5)
+{
+	return misc5->tunnel_header_0 || misc5->tunnel_header_1;
+}
+
 int mlx5dr_matcher_select_builders(struct mlx5dr_matcher *matcher,
 				   struct mlx5dr_matcher_rx_tx *nic_matcher,
 				   enum mlx5dr_ipv outer_ipv,
@@ -446,7 +452,8 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 	if (matcher->match_criteria & (DR_MATCHER_CRITERIA_OUTER |
 				       DR_MATCHER_CRITERIA_MISC |
 				       DR_MATCHER_CRITERIA_MISC2 |
-				       DR_MATCHER_CRITERIA_MISC3)) {
+				       DR_MATCHER_CRITERIA_MISC3 |
+				       DR_MATCHER_CRITERIA_MISC5)) {
 		inner = false;
 
 		if (dr_mask_is_wqe_metadata_set(&mask.misc2))
@@ -528,6 +535,9 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 			if (dr_mask_is_tnl_gtpu(&mask, dmn))
 				mlx5dr_ste_build_tnl_gtpu(ste_ctx, &sb[idx++],
 							  &mask, inner, rx);
+		} else if (dr_mask_is_tnl_header_0_1_set(&mask.misc5)) {
+			mlx5dr_ste_build_tnl_header_0_1(ste_ctx, &sb[idx++],
+							&mask, inner, rx);
 		}
 
 		if (DR_MASK_IS_ETH_L4_MISC_SET(mask.misc3, outer))
