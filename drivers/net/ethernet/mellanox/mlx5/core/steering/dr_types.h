@@ -105,7 +105,8 @@ enum mlx5dr_matcher_criteria {
 	DR_MATCHER_CRITERIA_MISC2 = 1 << 3,
 	DR_MATCHER_CRITERIA_MISC3 = 1 << 4,
 	DR_MATCHER_CRITERIA_MISC4 = 1 << 5,
-	DR_MATCHER_CRITERIA_MAX = 1 << 6,
+	DR_MATCHER_CRITERIA_MISC5 = 1 << 6,
+	DR_MATCHER_CRITERIA_MAX = 1 << 7,
 };
 
 enum mlx5dr_action_type {
@@ -762,6 +763,17 @@ struct mlx5dr_match_misc4 {
 	u32 reserved_auto1[8];
 };
 
+struct mlx5dr_match_misc5 {
+	u32 macsec_tag_0;
+	u32 macsec_tag_1;
+	u32 macsec_tag_2;
+	u32 macsec_tag_3;
+	u32 tunnel_header_0;
+	u32 tunnel_header_1;
+	u32 tunnel_header_2;
+	u32 tunnel_header_3;
+};
+
 struct mlx5dr_match_param {
 	struct mlx5dr_match_spec outer;
 	struct mlx5dr_match_misc misc;
@@ -769,6 +781,7 @@ struct mlx5dr_match_param {
 	struct mlx5dr_match_misc2 misc2;
 	struct mlx5dr_match_misc3 misc3;
 	struct mlx5dr_match_misc4 misc4;
+	struct mlx5dr_match_misc5 misc5;
 };
 
 #define DR_MASK_IS_ICMPV4_SET(_misc3) ((_misc3)->icmpv4_type || \

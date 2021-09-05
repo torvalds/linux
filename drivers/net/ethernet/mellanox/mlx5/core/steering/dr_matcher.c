@@ -424,6 +424,9 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 	if (matcher->match_criteria & DR_MATCHER_CRITERIA_MISC4)
 		mask.misc4 = matcher->mask.misc4;
 
+	if (matcher->match_criteria & DR_MATCHER_CRITERIA_MISC5)
+		mask.misc5 = matcher->mask.misc5;
+
 	ret = mlx5dr_ste_build_pre_check(dmn, matcher->match_criteria,
 					 &matcher->mask, NULL);
 	if (ret)
