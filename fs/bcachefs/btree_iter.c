@@ -601,13 +601,9 @@ static void bch2_btree_path_verify_level(struct btree_trans *trans,
 	bch2_btree_node_iter_verify(&l->iter, l->b);
 
 	/*
-	 * For interior nodes, the iterator will have skipped past
-	 * deleted keys:
-	 *
-	 * For extents, the iterator may have skipped past deleted keys (but not
-	 * whiteouts)
+	 * For interior nodes, the iterator will have skipped past deleted keys:
 	 */
-	p = level || btree_node_type_is_extents(path->btree_id)
+	p = level
 		? bch2_btree_node_iter_prev(&tmp, l->b)
 		: bch2_btree_node_iter_prev_all(&tmp, l->b);
 	k = bch2_btree_node_iter_peek_all(&l->iter, l->b);
@@ -829,8 +825,7 @@ fixup_done:
 	 */
 	if (!bch2_btree_node_iter_end(node_iter) &&
 	    iter_current_key_modified &&
-	    (b->c.level ||
-	     btree_node_type_is_extents(path->btree_id))) {
+	    b->c.level) {
 		struct bset_tree *t;
 		struct bkey_packed *k, *k2, *p;
 
