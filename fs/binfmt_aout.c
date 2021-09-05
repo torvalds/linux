@@ -308,7 +308,7 @@ static int load_aout_library(struct file *file)
 	/* Now use mmap to map the library into memory. */
 	error = vm_mmap(file, start_addr, ex.a_text + ex.a_data,
 			PROT_READ | PROT_WRITE | PROT_EXEC,
-			MAP_FIXED | MAP_PRIVATE;
+			MAP_FIXED | MAP_PRIVATE,
 			N_TXTOFF(ex));
 	retval = error;
 	if (error != start_addr)
