@@ -1199,9 +1199,9 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-module_param(stats, bool, S_IRUGO | S_IWUSR);
+module_param(stats, bool, 0644);
 MODULE_PARM_DESC(stats, "Enable statistics or not");
-module_param(interval, int, S_IRUGO | S_IWUSR);
+module_param(interval, int, 0644);
 MODULE_PARM_DESC(interval, "Overrides interrupt interval");
-module_param(unstable_bauds, bool, S_IRUGO | S_IWUSR);
+module_param(unstable_bauds, bool, 0644);
 MODULE_PARM_DESC(unstable_bauds, "Allow unstable baud rates");
