@@ -143,14 +143,14 @@ intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane)
 
 unsigned int intel_tile_height(const struct drm_framebuffer *fb, int color_plane)
 {
-	if (is_gen12_ccs_plane(fb, color_plane))
-		return 1;
-
 	return intel_tile_size(to_i915(fb->dev)) /
 		intel_tile_width_bytes(fb, color_plane);
 }
 
-/* Return the tile dimensions in pixel units */
+/*
+ * Return the tile dimensions in pixel units, based on the (2 or 4 kbyte) GTT
+ * page tile size.
+ */
 static void intel_tile_dims(const struct drm_framebuffer *fb, int color_plane,
 			    unsigned int *tile_width,
 			    unsigned int *tile_height)
@@ -160,6 +160,21 @@ static void intel_tile_dims(const struct drm_framebuffer *fb, int color_plane,
 
 	*tile_width = tile_width_bytes / cpp;
 	*tile_height = intel_tile_height(fb, color_plane);
+}
+
+/*
+ * Return the tile dimensions in pixel units, based on the tile block size.
+ * The block covers the full GTT page sized tile on all tiled surfaces and
+ * it's a 64 byte portion of the tile on TGL+ CCS surfaces.
+ */
+static void intel_tile_block_dims(const struct drm_framebuffer *fb, int color_plane,
+				  unsigned int *tile_width,
+				  unsigned int *tile_height)
+{
+	intel_tile_dims(fb, color_plane, tile_width, tile_height);
+
+	if (is_gen12_ccs_plane(fb, color_plane))
+		*tile_height = 1;
 }
 
 unsigned int intel_tile_row_size(const struct drm_framebuffer *fb, int color_plane)
@@ -567,7 +582,12 @@ static int intel_fb_check_ccs_xy(const struct drm_framebuffer *fb, int ccs_plane
 	if (!is_ccs_plane(fb, ccs_plane) || is_gen12_ccs_cc_plane(fb, ccs_plane))
 		return 0;
 
-	intel_tile_dims(fb, ccs_plane, &tile_width, &tile_height);
+	/*
+	 * While all the tile dimensions are based on a 2k or 4k GTT page size
+	 * here the main and CCS coordinates must match only within a (64 byte
+	 * on TGL+) block inside the tile.
+	 */
+	intel_tile_block_dims(fb, ccs_plane, &tile_width, &tile_height);
 	intel_fb_plane_get_subsampling(&hsub, &vsub, fb, ccs_plane);
 
 	tile_width *= hsub;
