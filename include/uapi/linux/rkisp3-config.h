@@ -134,6 +134,12 @@
 
 #define ISP3X_CAC_STRENGTH_NUM		22
 
+enum isp3x_unite_id {
+	ISP3_LEFT = 0,
+	ISP3_RIGHT,
+	ISP3_UNITE_MAX,
+};
+
 struct isp3x_gammaout_cfg {
 	u8 equ_segm;
 	u8 finalx4_dense_en;
@@ -142,6 +148,8 @@ struct isp3x_gammaout_cfg {
 } __attribute__ ((packed));
 
 struct isp3x_lsc_cfg {
+	u8 sector_16x16;
+
 	u16 r_data_tbl[ISP3X_LSC_DATA_TBL_SIZE];
 	u16 gr_data_tbl[ISP3X_LSC_DATA_TBL_SIZE];
 	u16 gb_data_tbl[ISP3X_LSC_DATA_TBL_SIZE];
@@ -218,13 +226,13 @@ struct isp3x_ynr_cfg {
 	u8 rnr_en;
 	u8 thumb_mix_cur_en;
 	u8 global_gain_alpha;
-	u8 global_gain;
 	u8 flt1x1_bypass_sel;
 	u8 sft5x5_bypass;
 	u8 flt1x1_bypass;
 	u8 lgft3x3_bypass;
 	u8 lbft5x5_bypass;
 	u8 bft3x3_bypass;
+	u16 global_gain;
 
 	u16 rnr_max_r;
 	u16 local_gainscale;

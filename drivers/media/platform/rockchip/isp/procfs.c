@@ -306,6 +306,251 @@ static void isp30_show(struct rkisp_device *dev, struct seq_file *p)
 	seq_printf(p, "%-10s %s(0x%x)\n", "RAWHIST3", (val & 1) ? "ON" : "OFF", val);
 }
 
+static void isp30_unite_show(struct rkisp_device *dev, struct seq_file *p)
+{
+	u32 full_range_flg = CIF_ISP_CTRL_ISP_CSM_Y_FULL_ENA | CIF_ISP_CTRL_ISP_CSM_C_FULL_ENA;
+	static const char * const effect[] = {
+		"BLACKWHITE",
+		"NEGATIVE",
+		"SEPIA",
+		"COLOR_SEL",
+		"EMBOSS",
+		"SKETCH",
+		"SHARPEN",
+		"RKSHARPEN"
+	};
+	u32 v0, v1;
+
+	v0 = rkisp_read(dev, ISP3X_CMSK_CTRL0, false);
+	v1 = rkisp_next_read(dev, ISP3X_CMSK_CTRL0, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "CMSK",
+		   (v0 & 1) ? "ON" : "OFF",
+		   v0, (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_DPCC0_MODE, false);
+	v1 = rkisp_next_read(dev, ISP3X_DPCC0_MODE, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "DPCC0",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_DPCC1_MODE, false);
+	v1 = rkisp_next_read(dev, ISP3X_DPCC1_MODE, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "DPCC1",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_DPCC2_MODE, false);
+	v1 = rkisp_next_read(dev, ISP3X_DPCC2_MODE, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "DPCC2",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_BLS_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_BLS_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "BLS",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_ISP_CTRL0, false);
+	v1 = rkisp_next_read(dev, ISP3X_ISP_CTRL0, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "SDG",
+		   (v0 & BIT(6)) ? "ON" : "OFF", v0,
+		   (v1 & BIT(6)) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_LSC_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_LSC_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "LSC",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_ISP_CTRL0, false);
+	v1 = rkisp_next_read(dev, ISP3X_ISP_CTRL0, false);
+	seq_printf(p, "%-10s Left %s(0x%x) gain:0x%08x 0x%08x, Right %s(0x%x) gain:0x%08x 0x%08x\n",
+		   "AWBGAIN",
+		   (v0 & BIT(7)) ? "ON" : "OFF", v0,
+		   rkisp_read(dev, ISP3X_ISP_AWB_GAIN0_G, false),
+		   rkisp_read(dev, ISP3X_ISP_AWB_GAIN0_RB, false),
+		   (v1 & BIT(7)) ? "ON" : "OFF", v1,
+		   rkisp_next_read(dev, ISP3X_ISP_AWB_GAIN0_G, false),
+		   rkisp_next_read(dev, ISP3X_ISP_AWB_GAIN0_RB, false));
+	v0 = rkisp_read(dev, ISP3X_DEBAYER_CONTROL, false);
+	v1 = rkisp_next_read(dev, ISP3X_DEBAYER_CONTROL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "DEBAYER",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_CCM_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_CCM_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "CCM",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_GAMMA_OUT_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_GAMMA_OUT_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "GAMMA_OUT",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_CPROC_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_CPROC_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "CPROC",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_IMG_EFF_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_IMG_EFF_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x) effect:%s, Right %s(0x%x) effect:%s\n",
+		   "IE",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   effect[(v0 & CIF_IMG_EFF_CTRL_MODE_MASK) >> 1],
+		   (v1 & 1) ? "ON" : "OFF", v1,
+		   effect[(v1 & CIF_IMG_EFF_CTRL_MODE_MASK) >> 1]);
+	v0 = rkisp_read(dev, ISP3X_DRC_CTRL0, false);
+	v1 = rkisp_next_read(dev, ISP3X_DRC_CTRL0, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "HDRDRC",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_HDRMGE_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_HDRMGE_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "HDRMGE",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_BAYNR_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_BAYNR_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "BAYNR",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_BAY3D_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_BAY3D_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "BAY3D",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_YNR_GLOBAL_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_YNR_GLOBAL_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "YNR",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_CNR_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_CNR_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "CNR",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_SHARP_EN, false);
+	v1 = rkisp_next_read(dev, ISP3X_SHARP_EN, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "SHARP",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_GIC_CONTROL, false);
+	v1 = rkisp_next_read(dev, ISP3X_GIC_CONTROL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "GIC",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_DHAZ_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_DHAZ_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "DHAZ",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_3DLUT_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_3DLUT_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "3DLUT",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_LDCH_STS, false);
+	v1 = rkisp_next_read(dev, ISP3X_LDCH_STS, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "LDCH",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_ISP_CTRL0, false);
+	v1 = rkisp_next_read(dev, ISP3X_ISP_CTRL0, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "CSM",
+		   (v0 & full_range_flg) ? "FULL" : "LIMIT", v0,
+		   (v1 & full_range_flg) ? "FULL" : "LIMIT", v1);
+	v0 = rkisp_read(dev, ISP3X_CAC_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_CAC_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "CAC",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_GAIN_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_GAIN_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "GAIN",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_RAWAF_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_RAWAF_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "RAWAF",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_RAWAWB_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_RAWAWB_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "RAWAWB",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_RAWAE_LITE_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_RAWAE_LITE_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "RAWAE0",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_RAWAE_BIG2_BASE, false);
+	v1 = rkisp_next_read(dev, ISP3X_RAWAE_BIG2_BASE, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "RAWAE1",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_RAWAE_BIG3_BASE, false);
+	v1 = rkisp_next_read(dev, ISP3X_RAWAE_BIG3_BASE, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "RAWAE2",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_RAWAE_BIG1_BASE, false);
+	v1 = rkisp_next_read(dev, ISP3X_RAWAE_BIG1_BASE, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "RAWAE3",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_RAWHIST_LITE_CTRL, false);
+	v1 = rkisp_next_read(dev, ISP3X_RAWHIST_LITE_CTRL, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "RAWHIST0",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_RAWHIST_BIG2_BASE, false);
+	v1 = rkisp_next_read(dev, ISP3X_RAWHIST_BIG2_BASE, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "RAWHIST1",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_RAWHIST_BIG3_BASE, false);
+	v1 = rkisp_next_read(dev, ISP3X_RAWHIST_BIG3_BASE, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "RAWHIST2",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_RAWHIST_BIG1_BASE, false);
+	v1 = rkisp_next_read(dev, ISP3X_RAWHIST_BIG1_BASE, false);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "RAWHIST3",
+		   (v0 & 1) ? "ON" : "OFF", v0,
+		   (v1 & 1) ? "ON" : "OFF", v1);
+}
+
 static int isp_show(struct seq_file *p, void *v)
 {
 	struct rkisp_device *dev = p->private;
@@ -399,7 +644,10 @@ static int isp_show(struct seq_file *p, void *v)
 		isp21_show(dev, p);
 		break;
 	case ISP_V30:
-		isp30_show(dev, p);
+		if (dev->hw_dev->is_unite)
+			isp30_unite_show(dev, p);
+		else
+			isp30_show(dev, p);
 		break;
 	default:
 		break;

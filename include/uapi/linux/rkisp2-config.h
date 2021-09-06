@@ -234,12 +234,14 @@ enum isp2x_mesh_buf_stat {
 
 struct rkisp_meshbuf_info {
 	u64 module_id;
+	u32 unite_isp_id;
 	s32 buf_fd[ISP2X_MESH_BUF_NUM];
 	u32 buf_size[ISP2X_MESH_BUF_NUM];
 } __attribute__ ((packed));
 
 struct rkisp_meshbuf_size {
 	u64 module_id;
+	u32 unite_isp_id;
 	u32 meas_width;
 	u32 meas_height;
 } __attribute__ ((packed));
