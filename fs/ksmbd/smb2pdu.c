@@ -5444,7 +5444,7 @@ static int set_file_basic_info(struct ksmbd_file *fp, char *buf,
 	struct file *filp;
 	struct inode *inode;
 	struct user_namespace *user_ns;
-	int rc;
+	int rc = 0;
 
 	if (!(fp->daccess & FILE_WRITE_ATTRIBUTES_LE))
 		return -EACCES;
