@@ -84,14 +84,6 @@
 #define NVP_RESO_960P_NSTC_VALUE	0xa0
 #define NVP_RESO_960P_PAL_VALUE	0xa1
 
-enum nvp6188_max_pad {
-	PAD0,
-	PAD1,
-	PAD2,
-	PAD3,
-	PAD_MAX,
-};
-
 enum nvp6188_support_reso {
 	NVP_RESO_UNKOWN = 0,
 	NVP_RESO_960H_PAL,

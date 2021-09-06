@@ -90,14 +90,6 @@ static const char * const gc2093_supply_names[] = {
 #define to_gc2093(sd) container_of(sd, struct gc2093, subdev)
 
 enum {
-	PAD0,
-	PAD1,
-	PAD2,
-	PAD3,
-	PAD_MAX,
-};
-
-enum {
 	LINK_FREQ_150M_INDEX,
 	LINK_FREQ_300M_INDEX,
 };

@@ -123,14 +123,6 @@ static const char * const os04a10_supply_names[] = {
 #define MIRROR_BIT_MASK			BIT(1)
 #define FLIP_BIT_MASK			BIT(2)
 
-enum os04a10_max_pad {
-	PAD0,
-	PAD1,
-	PAD2,
-	PAD3,
-	PAD_MAX,
-};
-
 struct regval {
 	u16 addr;
 	u8 val;

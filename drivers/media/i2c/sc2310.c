@@ -121,14 +121,6 @@ static const char * const sc2310_supply_names[] = {
 
 #define SC2310_NUM_SUPPLIES ARRAY_SIZE(sc2310_supply_names)
 
-enum sc2310_max_pad {
-	PAD0,
-	PAD1,
-	PAD2,
-	PAD3,
-	PAD_MAX,
-};
-
 struct regval {
 	u16 addr;
 	u8 val;

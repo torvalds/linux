@@ -89,14 +89,6 @@ static const char * const sc210iot_supply_names[] = {
 #define to_sc210iot(sd) container_of(sd, struct sc210iot, subdev)
 
 enum {
-	PAD0,
-	PAD1,
-	PAD2,
-	PAD3,
-	PAD_MAX,
-};
-
-enum {
 	LINK_FREQ_INDEX,
 };
 

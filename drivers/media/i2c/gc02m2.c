@@ -93,11 +93,6 @@ static const char * const gc02m2_supply_names[] = {
 
 #define to_gc02m2(sd) container_of(sd, struct gc02m2, subdev)
 
-enum gc02m2_max_pad {
-	PAD0,
-	PAD_MAX,
-};
-
 struct regval {
 	u8 addr;
 	u8 val;

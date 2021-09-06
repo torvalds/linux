@@ -116,14 +116,6 @@ static const char * const ov02k10_supply_names[] = {
 
 #define OV02K10_NUM_SUPPLIES ARRAY_SIZE(ov02k10_supply_names)
 
-enum ov02k10_max_pad {
-	PAD0,
-	PAD1,
-	PAD2,
-	PAD3,
-	PAD_MAX,
-};
-
 struct regval {
 	u16 addr;
 	u8 val;

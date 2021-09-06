@@ -123,14 +123,6 @@ static const char * const sc500ai_supply_names[] = {
 
 #define sc500ai_NUM_SUPPLIES ARRAY_SIZE(sc500ai_supply_names)
 
-enum sc500ai_max_pad {
-	PAD0, /* link to isp */
-	PAD1, /* link to csi wr0 | hdr x2:L x3:M */
-	PAD2, /* link to csi wr1 | hdr      x3:L */
-	PAD3, /* link to csi wr2 | hdr x2:M x3:S */
-	PAD_MAX,
-};
-
 struct regval {
 	u16 addr;
 	u8 val;

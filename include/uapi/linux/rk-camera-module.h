@@ -104,6 +104,9 @@
 #define RKMODULE_GET_SONY_BRL	\
 	_IOR('V', BASE_VIDIOC_PRIVATE + 19, __u32)
 
+#define RKMODULE_GET_CHANNEL_INFO	\
+	_IOR('V', BASE_VIDIOC_PRIVATE + 20, struct rkmodule_channel_info)
+
 /**
  * struct rkmodule_base_inf - module base information
  *
@@ -434,4 +437,34 @@ struct rkmodule_dcg_ratio {
 	__u32 div_coeff;
 };
 
+struct rkmodule_channel_info {
+	__u32 index;
+	__u32 vc;
+	__u32 width;
+	__u32 height;
+	__u32 bus_fmt;
+} __attribute__ ((packed));
+
+/*
+ * link to vicap
+ * linear mode: pad0~pad3 for id0~id3;
+ *
+ * HDR_X2: id0 fiexd to vc0 for long frame
+ *         id1 fixed to vc1 for short frame;
+ *         id2~id3 reserved, can config by PAD2~PAD3
+ *
+ * HDR_X3: id0 fiexd to vc0 for long frame
+ *         id1 fixed to vc1 for middle frame
+ *         id2 fixed to vc2 for short frame;
+ *         id3 reserved, can config by PAD3
+ *
+ * link to isp, the connection relationship is as follows
+ */
+enum rkmodule_max_pad {
+	PAD0, /* link to isp */
+	PAD1, /* link to csi wr0 | hdr x2:L x3:M */
+	PAD2, /* link to csi wr1 | hdr      x3:L */
+	PAD3, /* link to csi wr2 | hdr x2:M x3:S */
+	PAD_MAX,
+};
 #endif /* _UAPI_RKMODULE_CAMERA_H */

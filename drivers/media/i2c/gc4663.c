@@ -99,14 +99,6 @@ static const char * const gc4663_supply_names[] = {
 
 #define GC4663_NUM_SUPPLIES ARRAY_SIZE(gc4663_supply_names)
 
-enum gc4663_max_pad {
-	PAD0, /* link to isp */
-	PAD1, /* link to csi wr0 | hdr x2:L x3:M */
-	PAD2, /* link to csi wr1 | hdr      x3:L */
-	PAD3, /* link to csi wr2 | hdr x2:M x3:S */
-	PAD_MAX,
-};
-
 struct regval {
 	u16 addr;
 	u8 val;
