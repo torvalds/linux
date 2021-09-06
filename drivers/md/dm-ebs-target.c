@@ -74,7 +74,7 @@ static int __ebs_rw_bvec(struct ebs_c *ec, int rw, struct bio_vec *bv, struct bv
 	if (unlikely(!bv->bv_page || !bv_len))
 		return -EIO;
 
-	pa = page_address(bv->bv_page) + bv->bv_offset;
+	pa = bvec_virt(bv);
 
 	/* Handle overlapping page <-> blocks */
 	while (bv_len) {

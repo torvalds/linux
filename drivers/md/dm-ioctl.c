@@ -1436,9 +1436,6 @@ static int table_load(struct file *filp, struct dm_ioctl *param, size_t param_si
 	}
 
 	if (dm_get_md_type(md) == DM_TYPE_NONE) {
-		/* Initial table load: acquire type of table. */
-		dm_set_md_type(md, dm_table_get_type(t));
-
 		/* setup md->queue to reflect md's type (may block) */
 		r = dm_setup_md_queue(md, t);
 		if (r) {
@@ -2187,7 +2184,6 @@ int __init dm_early_create(struct dm_ioctl *dmi,
 	if (r)
 		goto err_destroy_table;
 
-	md->type = dm_table_get_type(t);
 	/* setup md->queue to reflect md's type (may block) */
 	r = dm_setup_md_queue(md, t);
 	if (r) {

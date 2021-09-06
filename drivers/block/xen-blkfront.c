@@ -1092,7 +1092,6 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 	err = xlbd_reserve_minors(minor, nr_minors);
 	if (err)
 		return err;
-	err = -ENODEV;
 
 	memset(&info->tag_set, 0, sizeof(info->tag_set));
 	info->tag_set.ops = &blkfront_mq_ops;

@@ -1819,7 +1819,7 @@ again:
 				unsigned this_len;
 
 				BUG_ON(PageHighMem(biv.bv_page));
-				tag = lowmem_page_address(biv.bv_page) + biv.bv_offset;
+				tag = bvec_virt(&biv);
 				this_len = min(biv.bv_len, data_to_process);
 				r = dm_integrity_rw_tag(ic, tag, &dio->metadata_block, &dio->metadata_offset,
 							this_len, dio->op == REQ_OP_READ ? TAG_READ : TAG_WRITE);
@@ -2006,7 +2006,7 @@ retry_kmap:
 					unsigned tag_now = min(biv.bv_len, tag_todo);
 					char *tag_addr;
 					BUG_ON(PageHighMem(biv.bv_page));
-					tag_addr = lowmem_page_address(biv.bv_page) + biv.bv_offset;
+					tag_addr = bvec_virt(&biv);
 					if (likely(dio->op == REQ_OP_WRITE))
 						memcpy(tag_ptr, tag_addr, tag_now);
 					else

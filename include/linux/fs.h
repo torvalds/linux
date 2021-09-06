@@ -3204,10 +3204,6 @@ ssize_t vfs_iocb_iter_read(struct file *file, struct kiocb *iocb,
 ssize_t vfs_iocb_iter_write(struct file *file, struct kiocb *iocb,
 			    struct iov_iter *iter);
 
-/* fs/block_dev.c */
-extern int blkdev_fsync(struct file *filp, loff_t start, loff_t end,
-			int datasync);
-
 /* fs/splice.c */
 extern ssize_t generic_file_splice_read(struct file *, loff_t *,
 		struct pipe_inode_info *, size_t, unsigned int);
