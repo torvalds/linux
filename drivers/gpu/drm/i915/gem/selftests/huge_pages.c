@@ -1519,6 +1519,7 @@ static int igt_shrink_thp(void *arg)
 	struct i915_vma *vma;
 	unsigned int flags = PIN_USER;
 	unsigned int n;
+	bool should_swap;
 	int err = 0;
 
 	/*
@@ -1567,23 +1568,38 @@ static int igt_shrink_thp(void *arg)
 			break;
 	}
 	i915_gem_context_unlock_engines(ctx);
+	/*
+	 * Nuke everything *before* we unpin the pages so we can be reasonably
+	 * sure that when later checking get_nr_swap_pages() that some random
+	 * leftover object doesn't steal the remaining swap space.
+	 */
+	i915_gem_shrink(NULL, i915, -1UL, NULL,
+			I915_SHRINK_BOUND |
+			I915_SHRINK_UNBOUND |
+			I915_SHRINK_ACTIVE);
 	i915_vma_unpin(vma);
 	if (err)
 		goto out_put;
 
 	/*
-	 * Now that the pages are *unpinned* shrink-all should invoke
-	 * shmem to truncate our pages.
+	 * Now that the pages are *unpinned* shrinking should invoke
+	 * shmem to truncate our pages, if we have available swap.
 	 */
-	i915_gem_shrink_all(i915);
-	if (i915_gem_object_has_pages(obj)) {
-		pr_err("shrink-all didn't truncate the pages\n");
+	should_swap = get_nr_swap_pages() > 0;
+	i915_gem_shrink(NULL, i915, -1UL, NULL,
+			I915_SHRINK_BOUND |
+			I915_SHRINK_UNBOUND |
+			I915_SHRINK_ACTIVE);
+	if (should_swap == i915_gem_object_has_pages(obj)) {
+		pr_err("unexpected pages mismatch, should_swap=%s\n",
+		       yesno(should_swap));
 		err = -EINVAL;
 		goto out_put;
 	}
 
-	if (obj->mm.page_sizes.sg || obj->mm.page_sizes.phys) {
-		pr_err("residual page-size bits left\n");
+	if (should_swap == (obj->mm.page_sizes.sg || obj->mm.page_sizes.phys)) {
+		pr_err("unexpected residual page-size bits, should_swap=%s\n",
+		       yesno(should_swap));
 		err = -EINVAL;
 		goto out_put;
 	}
