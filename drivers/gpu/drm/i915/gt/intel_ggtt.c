@@ -1373,12 +1373,27 @@ err_st_alloc:
 }
 
 static struct scatterlist *
-remap_pages(struct drm_i915_gem_object *obj, unsigned int offset,
+remap_pages(struct drm_i915_gem_object *obj,
+	    unsigned int offset, unsigned int alignment_pad,
 	    unsigned int width, unsigned int height,
 	    unsigned int src_stride, unsigned int dst_stride,
 	    struct sg_table *st, struct scatterlist *sg)
 {
 	unsigned int row;
+
+	if (alignment_pad) {
+		st->nents++;
+
+		/*
+		 * The DE ignores the PTEs for the padding tiles, the sg entry
+		 * here is just a convenience to indicate how many padding PTEs
+		 * to insert at this spot.
+		 */
+		sg_set_page(sg, NULL, alignment_pad * 4096, 0);
+		sg_dma_address(sg) = 0;
+		sg_dma_len(sg) = alignment_pad * 4096;
+		sg = sg_next(sg);
+	}
 
 	for (row = 0; row < height; row++) {
 		unsigned int left = width * I915_GTT_PAGE_SIZE;
@@ -1439,6 +1454,7 @@ intel_remap_pages(struct intel_remapped_info *rem_info,
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct sg_table *st;
 	struct scatterlist *sg;
+	unsigned int gtt_offset = 0;
 	int ret = -ENOMEM;
 	int i;
 
@@ -1455,10 +1471,19 @@ intel_remap_pages(struct intel_remapped_info *rem_info,
 	sg = st->sgl;
 
 	for (i = 0 ; i < ARRAY_SIZE(rem_info->plane); i++) {
-		sg = remap_pages(obj, rem_info->plane[i].offset,
+		unsigned int alignment_pad = 0;
+
+		if (rem_info->plane_alignment)
+			alignment_pad = ALIGN(gtt_offset, rem_info->plane_alignment) - gtt_offset;
+
+		sg = remap_pages(obj,
+				 rem_info->plane[i].offset, alignment_pad,
 				 rem_info->plane[i].width, rem_info->plane[i].height,
 				 rem_info->plane[i].src_stride, rem_info->plane[i].dst_stride,
 				 st, sg);
+
+		gtt_offset += alignment_pad +
+			      rem_info->plane[i].dst_stride * rem_info->plane[i].height;
 	}
 
 	i915_sg_trim(st);

@@ -103,8 +103,6 @@ struct intel_fb_view {
 	 * in the rotated and remapped GTT view all no-CCS formats (up to 2
 	 * color planes) are supported.
 	 *
-	 * TODO: add support for CCS formats in the remapped GTT view.
-	 *
 	 * The view information shared by all FB color planes in the FB,
 	 * like dst x/y and src/dst width, is stored separately in
 	 * intel_plane_state.
