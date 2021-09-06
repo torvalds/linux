@@ -446,7 +446,6 @@ void btrfs_mark_ordered_io_finished(struct btrfs_inode *inode,
  * 		 Will be also used to store the finished ordered extent.
  * @file_offset: File offset for the finished IO
  * @io_size:	 Length of the finish IO range
- * @uptodate:	 If the IO finishes without problem
  *
  * Return true if the ordered extent is finished in the range, and update
  * @cached.
@@ -457,7 +456,7 @@ void btrfs_mark_ordered_io_finished(struct btrfs_inode *inode,
  */
 bool btrfs_dec_test_ordered_pending(struct btrfs_inode *inode,
 				    struct btrfs_ordered_extent **cached,
-				    u64 file_offset, u64 io_size, int uptodate)
+				    u64 file_offset, u64 io_size)
 {
 	struct btrfs_ordered_inode_tree *tree = &inode->ordered_tree;
 	struct rb_node *node;
@@ -486,8 +485,6 @@ have_entry:
 		       entry->bytes_left, io_size);
 
 	entry->bytes_left -= io_size;
-	if (!uptodate)
-		set_bit(BTRFS_ORDERED_IOERR, &entry->flags);
 
 	if (entry->bytes_left == 0) {
 		/*

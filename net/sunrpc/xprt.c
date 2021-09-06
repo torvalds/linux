@@ -56,6 +56,7 @@
 
 #include "sunrpc.h"
 #include "sysfs.h"
+#include "fail.h"
 
 /*
  * Local variables
@@ -854,6 +855,19 @@ xprt_init_autodisconnect(struct timer_list *t)
 		return;
 	queue_work(xprtiod_workqueue, &xprt->task_cleanup);
 }
+
+#if IS_ENABLED(CONFIG_FAIL_SUNRPC)
+static void xprt_inject_disconnect(struct rpc_xprt *xprt)
+{
+	if (!fail_sunrpc.ignore_client_disconnect &&
+	    should_fail(&fail_sunrpc.attr, 1))
+		xprt->ops->inject_disconnect(xprt);
+}
+#else
+static inline void xprt_inject_disconnect(struct rpc_xprt *xprt)
+{
+}
+#endif
 
 bool xprt_lock_connect(struct rpc_xprt *xprt,
 		struct rpc_task *task,

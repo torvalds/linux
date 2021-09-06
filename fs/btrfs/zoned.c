@@ -245,7 +245,7 @@ static int calculate_emulated_zone_size(struct btrfs_fs_info *fs_info)
 		goto out;
 
 	if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
-		ret = btrfs_next_item(root, path);
+		ret = btrfs_next_leaf(root, path);
 		if (ret < 0)
 			goto out;
 		/* No dev extents at all? Not good */
@@ -296,7 +296,6 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device)
 	struct btrfs_fs_info *fs_info = device->fs_info;
 	struct btrfs_zoned_device_info *zone_info = NULL;
 	struct block_device *bdev = device->bdev;
-	struct request_queue *queue = bdev_get_queue(bdev);
 	sector_t nr_sectors;
 	sector_t sector = 0;
 	struct blk_zone *zones = NULL;
@@ -348,18 +347,9 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device)
 
 	nr_sectors = bdev_nr_sectors(bdev);
 	zone_info->zone_size_shift = ilog2(zone_info->zone_size);
-	zone_info->max_zone_append_size =
-		(u64)queue_max_zone_append_sectors(queue) << SECTOR_SHIFT;
 	zone_info->nr_zones = nr_sectors >> ilog2(zone_sectors);
 	if (!IS_ALIGNED(nr_sectors, zone_sectors))
 		zone_info->nr_zones++;
-
-	if (bdev_is_zoned(bdev) && zone_info->max_zone_append_size == 0) {
-		btrfs_err(fs_info, "zoned: device %pg does not support zone append",
-			  bdev);
-		ret = -EINVAL;
-		goto out;
-	}
 
 	zone_info->seq_zones = bitmap_zalloc(zone_info->nr_zones, GFP_KERNEL);
 	if (!zone_info->seq_zones) {
@@ -529,7 +519,6 @@ int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 	u64 zoned_devices = 0;
 	u64 nr_devices = 0;
 	u64 zone_size = 0;
-	u64 max_zone_append_size = 0;
 	const bool incompat_zoned = btrfs_fs_incompat(fs_info, ZONED);
 	int ret = 0;
 
@@ -565,11 +554,6 @@ int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 				ret = -EINVAL;
 				goto out;
 			}
-			if (!max_zone_append_size ||
-			    (zone_info->max_zone_append_size &&
-			     zone_info->max_zone_append_size < max_zone_append_size))
-				max_zone_append_size =
-					zone_info->max_zone_append_size;
 		}
 		nr_devices++;
 	}
@@ -619,7 +603,6 @@ int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 	}
 
 	fs_info->zone_size = zone_size;
-	fs_info->max_zone_append_size = max_zone_append_size;
 	fs_info->fs_devices->chunk_alloc_policy = BTRFS_CHUNK_ALLOC_ZONED;
 
 	/*
@@ -1316,9 +1299,6 @@ bool btrfs_use_zone_append(struct btrfs_inode *inode, u64 start)
 	bool ret = false;
 
 	if (!btrfs_is_zoned(fs_info))
-		return false;
-
-	if (!fs_info->max_zone_append_size)
 		return false;
 
 	if (!is_data_inode(&inode->vfs_inode))
