@@ -10,6 +10,11 @@
 
 #define LPASS_DP_RX	5
 
+#define LPASS_CDC_DMA_RX0 6
+#define LPASS_CDC_DMA_TX3 7
+#define LPASS_CDC_DMA_VA0 8
+#define LPASS_MAX_PORTS 9
+
 #define LPASS_MCLK0	0
 
 #endif /* __DT_QCOM_LPASS_H */
