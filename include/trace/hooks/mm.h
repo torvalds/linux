@@ -26,6 +26,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_set_readahead_gfp_mask,
 DECLARE_HOOK(android_vh_mmap_region,
 	TP_PROTO(struct vm_area_struct *vma, unsigned long addr),
 	TP_ARGS(vma, addr));
+DECLARE_HOOK(android_vh_try_to_unmap_one,
+	TP_PROTO(struct folio *folio, struct vm_area_struct *vma,
+		unsigned long addr, void *arg, bool ret),
+	TP_ARGS(folio, vma, addr, arg, ret));
 
 #endif /* _TRACE_HOOK_MM_H */
 
