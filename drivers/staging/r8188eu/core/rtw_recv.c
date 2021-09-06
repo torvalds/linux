@@ -966,8 +966,6 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 
 				pxmitframe->attrib.triggered = 1;
 
-				rtw_hal_xmitframe_enqueue(padapter, pxmitframe);
-
 				if (psta->sleepq_len == 0) {
 					pstapriv->tim_bitmap &= ~BIT(psta->aid);
 

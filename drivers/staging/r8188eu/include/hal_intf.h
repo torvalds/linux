@@ -285,8 +285,6 @@ u32	rtw_hal_inirp_deinit(struct adapter *padapter);
 
 u8	rtw_hal_intf_ps_func(struct adapter *padapter,
 			     enum hal_intf_ps_func efunc_id, u8 *val);
-s32 rtw_hal_xmitframe_enqueue(struct adapter *padapter,
-			      struct xmit_frame *pxmitframe);
 
 s32	rtw_hal_xmit(struct adapter *padapter, struct xmit_frame *pxmitframe);
 s32	rtw_hal_mgnt_xmit(struct adapter *padapter,
