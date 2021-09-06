@@ -120,6 +120,7 @@ obj-$(CONFIG_VIDEO_ADP1653)	+= adp1653.o
 obj-$(CONFIG_VIDEO_LM3560)	+= lm3560.o
 obj-$(CONFIG_VIDEO_LM3646)	+= lm3646.o
 obj-$(CONFIG_VIDEO_LT6911UXC)	+= lt6911uxc.o
+obj-$(CONFIG_VIDEO_LT8619C)	+= lt8619c.o
 obj-$(CONFIG_VIDEO_SMIAPP_PLL)	+= smiapp-pll.o
 obj-$(CONFIG_VIDEO_AK881X)		+= ak881x.o
 obj-$(CONFIG_VIDEO_IR_I2C)  += ir-kbd-i2c.o

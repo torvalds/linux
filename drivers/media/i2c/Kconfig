@@ -347,6 +347,17 @@ config VIDEO_LT6911UXC
 	  To compile this driver as a module, choose M here: the
 	  module will be called lt6911uxc.
 
+config VIDEO_LT8619C
+	tristate "Lontium LT8619C decoder"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	select HDMI
+	select V4L2_FWNODE
+	help
+	  Support for the Lontium LT8619C HDMI to BT656/BT1120 bridge.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lt8619c.
+
 config VIDEO_ML86V7667
 	tristate "OKI ML86V7667 video decoder"
 	depends on VIDEO_V4L2 && I2C
