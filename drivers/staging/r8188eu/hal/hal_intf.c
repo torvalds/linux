@@ -116,14 +116,6 @@ void rtw_hal_set_odm_var(struct adapter *adapt,
 						      val1, set);
 }
 
-void rtw_hal_enable_interrupt(struct adapter *adapt)
-{
-	if (adapt->HalFunc.enable_interrupt)
-		adapt->HalFunc.enable_interrupt(adapt);
-	else
-		DBG_88E("%s: HalFunc.enable_interrupt is NULL!\n", __func__);
-}
-
 void rtw_hal_disable_interrupt(struct adapter *adapt)
 {
 	if (adapt->HalFunc.disable_interrupt)
