@@ -2561,35 +2561,39 @@ err:
  */
 static void vop2_layer_map_initial(struct vop2 *vop2, uint32_t current_vp_id)
 {
-	const struct vop2_data *vop2_data = vop2->data;
 	struct vop2_layer *layer = &vop2->layers[0];
 	struct vop2_video_port *vp = &vop2->vps[0];
 	struct vop2_win *win;
-	const struct vop2_win_data *win_data = NULL;
+	unsigned long win_mask;
 	uint32_t used_layers = 0;
-	uint32_t layer_map, sel;
-	uint32_t win_map, vp_id;
 	uint16_t port_mux_cfg = 0;
 	uint16_t port_mux;
-	uint32_t shift;
+	uint16_t vp_id;
+	uint8_t nr_layers;
+	int phys_id;
 	int i, j;
 
-	layer_map = vop2_readl(vop2, layer->regs->layer_sel.offset);
-	win_map = vop2_readl(vop2, vp->regs->port_mux.offset);
-
 	for (i = 0; i < vop2->data->nr_vps; i++) {
-		vp = &vop2->vps[i];
-		vp->win_mask = 0;
-		for (j = 0; j < vop2_data->nr_layers; j++) {
-			win = vop2_find_win_by_phys_id(vop2, j);
-			shift = vop2->data->ctrl->win_vp_id[j].shift;
-			vp_id = (win_map >> shift) & 0x3;
-			if (vp_id == i) {
-				vp->win_mask |=  BIT(j);
-				win->vp_mask = BIT(vp_id);
-				win->old_vp_mask = win->vp_mask;
-			}
+		vp_id = i;
+		j = 0;
+		vp = &vop2->vps[vp_id];
+		vp->win_mask = vp->plane_mask;
+		nr_layers = hweight32(vp->win_mask);
+		win_mask = vp->win_mask;
+		for_each_set_bit(phys_id, &win_mask, ROCKCHIP_MAX_LAYER) {
+			layer = &vop2->layers[used_layers + j];
+			win = vop2_find_win_by_phys_id(vop2, phys_id);
+			VOP_CTRL_SET(vop2, win_vp_id[phys_id], vp_id);
+			VOP_MODULE_SET(vop2, layer, layer_sel, win->layer_sel_id);
+			win->vp_mask = BIT(i);
+			win->old_vp_mask = win->vp_mask;
+			layer->win_phys_id = win->phys_id;
+			win->layer_id = layer->id;
+			j++;
+			DRM_DEV_DEBUG(vop2->dev, "layer%d select %s for vp%d phys_id: %d\n",
+				      layer->id, win->name, vp_id, phys_id);
 		}
+		used_layers += nr_layers;
 	}
 
 	/*
@@ -2613,25 +2617,6 @@ static void vop2_layer_map_initial(struct vop2 *vop2, uint32_t current_vp_id)
 	vop2->port_mux_cfg = port_mux_cfg;
 	VOP_CTRL_SET(vop2, ovl_port_mux_cfg, port_mux_cfg);
 
-	for (i = 0; i < vop2->data->nr_layers; i++) {
-		sel = (layer_map >> (4 * i)) & 0xf;
-		layer = &vop2->layers[i];
-		for (j = 0; j < vop2_data->win_size; j++) {
-			win_data = &vop2_data->win[j];
-			if (sel == win_data->layer_sel_id)
-				break;
-			win_data = NULL;
-		}
-
-		if (!win_data) {
-			DRM_DEV_ERROR(vop2->dev, "invalid layer map :0x%x\n", layer_map);
-			return;
-		}
-		win = vop2_find_win_by_phys_id(vop2, win_data->phys_id);
-		layer->win_phys_id = win->phys_id;
-		win->layer_id = layer->id;
-		DRM_DEV_DEBUG(vop2->dev, "layer%d select %s\n", layer->id, win->name);
-	}
 }
 
 static void vop2_initial(struct drm_crtc *crtc)
