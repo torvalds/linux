@@ -293,16 +293,6 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs,
 			&frame->tramp[SIGRESTARTBLOCK_TRAMP+2]);
 	err |= __put_user(INSN_NOP, &frame->tramp[SIGRESTARTBLOCK_TRAMP+3]);
 
-#if DEBUG_SIG
-	/* Assert that we're flushing in the correct space... */
-	{
-		unsigned long sid;
-		asm ("mfsp %%sr3,%0" : "=r" (sid));
-		DBG(1,"setup_rt_frame: Flushing 64 bytes at space %#x offset %p\n",
-		       sid, frame->tramp);
-	}
-#endif
-
 	start = (unsigned long) &frame->tramp[0];
 	end = (unsigned long) &frame->tramp[TRAMP_SIZE];
 	flush_user_dcache_range_asm(start, end);
@@ -501,7 +491,6 @@ syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 		DBG(1,"ERESTARTNOHAND: returning -EINTR\n");
 		regs->gr[28] = -EINTR;
 		break;
-
 	case -ERESTARTSYS:
 		if (!(ka->sa.sa_flags & SA_RESTART)) {
 			DBG(1,"ERESTARTSYS: putting -EINTR\n");
@@ -569,10 +558,6 @@ insert_restart_trampoline(struct pt_regs *regs)
 }
 
 /*
- * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
- * mistake.
- *
  * We need to be able to restore the syscall arguments (r21-r26) to
  * restart syscalls.  Thus, the syscall path should save them in the
  * pt_regs structure (it's okay to do so since they are caller-save
