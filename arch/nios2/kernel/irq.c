@@ -19,11 +19,9 @@ static u32 ienable;
 asmlinkage void do_IRQ(int hwirq, struct pt_regs *regs)
 {
 	struct pt_regs *oldregs = set_irq_regs(regs);
-	int irq;
 
 	irq_enter();
-	irq = irq_find_mapping(NULL, hwirq);
-	generic_handle_irq(irq);
+	generic_handle_domain_irq(NULL, hwirq);
 	irq_exit();
 
 	set_irq_regs(oldregs);
