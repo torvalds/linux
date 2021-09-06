@@ -345,7 +345,7 @@ void __init bcm47xx_board_detect(void)
 
 	board_detected = bcm47xx_board_get_nvram();
 	bcm47xx_board.board = board_detected->board;
-	strlcpy(bcm47xx_board.name, board_detected->name,
+	strscpy(bcm47xx_board.name, board_detected->name,
 		BCM47XX_BOARD_MAX_NAME);
 }
 
