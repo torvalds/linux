@@ -149,7 +149,6 @@ struct hal_ops {
 	void	(*dm_init)(struct adapter *padapter);
 	void	(*dm_deinit)(struct adapter *padapter);
 
-	void	(*disable_interrupt)(struct adapter *padapter);
 	s32	(*interrupt_handler)(struct adapter *padapter);
 
 	void	(*set_bwmode_handler)(struct adapter *padapter,
