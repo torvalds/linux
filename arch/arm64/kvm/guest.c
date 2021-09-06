@@ -48,6 +48,7 @@ const struct _kvm_stats_desc kvm_vcpu_stats_desc[] = {
 	STATS_DESC_COUNTER(VCPU, wfi_exit_stat),
 	STATS_DESC_COUNTER(VCPU, mmio_exit_user),
 	STATS_DESC_COUNTER(VCPU, mmio_exit_kernel),
+	STATS_DESC_COUNTER(VCPU, signal_exits),
 	STATS_DESC_COUNTER(VCPU, exits)
 };
 
@@ -838,7 +839,7 @@ int __kvm_arm_vcpu_set_events(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-int __attribute_const__ kvm_target_cpu(void)
+u32 __attribute_const__ kvm_target_cpu(void)
 {
 	unsigned long implementor = read_cpuid_implementor();
 	unsigned long part_number = read_cpuid_part_number();
@@ -870,7 +871,7 @@ int __attribute_const__ kvm_target_cpu(void)
 
 int kvm_vcpu_preferred_target(struct kvm_vcpu_init *init)
 {
-	int target = kvm_target_cpu();
+	u32 target = kvm_target_cpu();
 
 	if (target < 0)
 		return -ENODEV;

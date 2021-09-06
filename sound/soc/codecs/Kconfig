@@ -1325,7 +1325,7 @@ config SND_SOC_SSM2305
 	  high-efficiency mono Class-D audio power amplifiers.
 
 config SND_SOC_SSM2518
-	tristate
+	tristate "Analog Devices SSM2518 Class-D Amplifier"
 	depends on I2C
 
 config SND_SOC_SSM2602
@@ -1557,6 +1557,7 @@ config SND_SOC_WCD934X
 	  Qualcomm SoCs like SDM845.
 
 config SND_SOC_WCD938X
+	depends on SND_SOC_WCD938X_SDW
 	tristate
 
 config SND_SOC_WCD938X_SDW
@@ -1812,11 +1813,6 @@ config SND_SOC_ZL38060
 	  Support for ZL38060 Connected Home Audio Processor from Microsemi,
 	  which consists of a Digital Signal Processor (DSP), several Digital
 	  Audio Interfaces (DAIs), analog outputs, and a block of 14 GPIOs.
-
-config SND_SOC_ZX_AUD96P22
-	tristate "ZTE ZX AUD96P22 CODEC"
-	depends on I2C
-	select REGMAP_I2C
 
 # Amp
 config SND_SOC_LM4857

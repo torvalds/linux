@@ -433,6 +433,7 @@ static int bnxt_hwrm_queue_dscp2pri_cfg(struct bnxt *bp, struct dcb_app *app,
 static int bnxt_ets_validate(struct bnxt *bp, struct ieee_ets *ets, u8 *tc)
 {
 	int total_ets_bw = 0;
+	bool zero = false;
 	u8 max_tc = 0;
 	int i;
 
@@ -453,13 +454,20 @@ static int bnxt_ets_validate(struct bnxt *bp, struct ieee_ets *ets, u8 *tc)
 			break;
 		case IEEE_8021QAZ_TSA_ETS:
 			total_ets_bw += ets->tc_tx_bw[i];
+			zero = zero || !ets->tc_tx_bw[i];
 			break;
 		default:
 			return -ENOTSUPP;
 		}
 	}
-	if (total_ets_bw > 100)
+	if (total_ets_bw > 100) {
+		netdev_warn(bp->dev, "rejecting ETS config exceeding available bandwidth\n");
 		return -EINVAL;
+	}
+	if (zero && total_ets_bw == 100) {
+		netdev_warn(bp->dev, "rejecting ETS config starving a TC\n");
+		return -EINVAL;
+	}
 
 	if (max_tc >= bp->max_tc)
 		*tc = bp->max_tc;

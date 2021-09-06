@@ -745,7 +745,7 @@ static int __init cpumf_pmu_init(void)
 	if (!cf_dbg) {
 		pr_err("Registration of s390dbf(cpum_cf) failed\n");
 		return -ENOMEM;
-	};
+	}
 	debug_register_view(cf_dbg, &debug_sprintf_view);
 
 	cpumf_pmu.attr_groups = cpumf_cf_event_group();

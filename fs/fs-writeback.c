@@ -521,6 +521,9 @@ static bool inode_prepare_wbs_switch(struct inode *inode,
 	 */
 	smp_mb();
 
+	if (IS_DAX(inode))
+		return false;
+
 	/* while holding I_WB_SWITCH, no one else can update the association */
 	spin_lock(&inode->i_lock);
 	if (!(inode->i_sb->s_flags & SB_ACTIVE) ||

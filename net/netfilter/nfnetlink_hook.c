@@ -174,7 +174,9 @@ static const struct nf_hook_entries *
 nfnl_hook_entries_head(u8 pf, unsigned int hook, struct net *net, const char *dev)
 {
 	const struct nf_hook_entries *hook_head = NULL;
+#ifdef CONFIG_NETFILTER_INGRESS
 	struct net_device *netdev;
+#endif
 
 	switch (pf) {
 	case NFPROTO_IPV4:

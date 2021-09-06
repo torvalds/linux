@@ -1808,6 +1808,7 @@ void dsa_slave_setup_tagger(struct net_device *slave)
 	struct dsa_slave_priv *p = netdev_priv(slave);
 	const struct dsa_port *cpu_dp = dp->cpu_dp;
 	struct net_device *master = cpu_dp->master;
+	const struct dsa_switch *ds = dp->ds;
 
 	slave->needed_headroom = cpu_dp->tag_ops->needed_headroom;
 	slave->needed_tailroom = cpu_dp->tag_ops->needed_tailroom;
@@ -1819,6 +1820,14 @@ void dsa_slave_setup_tagger(struct net_device *slave)
 	slave->needed_tailroom += master->needed_tailroom;
 
 	p->xmit = cpu_dp->tag_ops->xmit;
+
+	slave->features = master->vlan_features | NETIF_F_HW_TC;
+	if (ds->ops->port_vlan_add && ds->ops->port_vlan_del)
+		slave->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+	slave->hw_features |= NETIF_F_HW_TC;
+	slave->features |= NETIF_F_LLTX;
+	if (slave->needed_tailroom)
+		slave->features &= ~(NETIF_F_SG | NETIF_F_FRAGLIST);
 }
 
 static struct lock_class_key dsa_slave_netdev_xmit_lock_key;
@@ -1881,11 +1890,6 @@ int dsa_slave_create(struct dsa_port *port)
 	if (slave_dev == NULL)
 		return -ENOMEM;
 
-	slave_dev->features = master->vlan_features | NETIF_F_HW_TC;
-	if (ds->ops->port_vlan_add && ds->ops->port_vlan_del)
-		slave_dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
-	slave_dev->hw_features |= NETIF_F_HW_TC;
-	slave_dev->features |= NETIF_F_LLTX;
 	slave_dev->ethtool_ops = &dsa_slave_ethtool_ops;
 	if (!is_zero_ether_addr(port->mac))
 		ether_addr_copy(slave_dev->dev_addr, port->mac);

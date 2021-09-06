@@ -1375,6 +1375,7 @@ static void fas216_busservice_intr(FAS216_Info *info, unsigned int stat, unsigne
 		case IS_COMPLETE:
 			break;
 		}
+		break;
 
 	default:
 		break;

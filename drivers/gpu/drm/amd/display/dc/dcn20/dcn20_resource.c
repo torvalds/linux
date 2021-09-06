@@ -2093,8 +2093,10 @@ int dcn20_populate_dml_pipes_from_context(
 				- timing->v_border_bottom;
 		pipes[pipe_cnt].pipe.dest.htotal = timing->h_total;
 		pipes[pipe_cnt].pipe.dest.vtotal = v_total;
-		pipes[pipe_cnt].pipe.dest.hactive = timing->h_addressable;
-		pipes[pipe_cnt].pipe.dest.vactive = timing->v_addressable;
+		pipes[pipe_cnt].pipe.dest.hactive =
+			timing->h_addressable + timing->h_border_left + timing->h_border_right;
+		pipes[pipe_cnt].pipe.dest.vactive =
+			timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
 		pipes[pipe_cnt].pipe.dest.interlaced = timing->flags.INTERLACE;
 		pipes[pipe_cnt].pipe.dest.pixel_rate_mhz = timing->pix_clk_100hz/10000.0;
 		if (timing->timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
@@ -3079,6 +3081,37 @@ static bool is_dtbclk_required(struct dc *dc, struct dc_state *context)
 	return false;
 }
 
+static enum dcn_zstate_support_state  decide_zstate_support(struct dc *dc, struct dc_state *context)
+{
+	int plane_count;
+	int i;
+
+	plane_count = 0;
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (context->res_ctx.pipe_ctx[i].plane_state)
+			plane_count++;
+	}
+
+	/*
+	 * Zstate is allowed in following scenarios:
+	 * 	1. Single eDP with PSR enabled
+	 * 	2. 0 planes (No memory requests)
+	 * 	3. Single eDP without PSR but > 5ms stutter period
+	 */
+	if (plane_count == 0)
+		return DCN_ZSTATE_SUPPORT_ALLOW;
+	else if (context->stream_count == 1 &&  context->streams[0]->signal == SIGNAL_TYPE_EDP) {
+		struct dc_link *link = context->streams[0]->sink->link;
+
+		if ((link->link_index == 0 && link->psr_settings.psr_feature_enabled)
+				|| context->bw_ctx.dml.vba.StutterPeriod > 5000.0)
+			return DCN_ZSTATE_SUPPORT_ALLOW;
+		else
+			return DCN_ZSTATE_SUPPORT_DISALLOW;
+	} else
+		return DCN_ZSTATE_SUPPORT_DISALLOW;
+}
+
 void dcn20_calculate_dlg_params(
 		struct dc *dc, struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
@@ -3086,7 +3119,6 @@ void dcn20_calculate_dlg_params(
 		int vlevel)
 {
 	int i, pipe_idx;
-	int plane_count;
 
 	/* Writeback MCIF_WB arbitration parameters */
 	dc->res_pool->funcs->set_mcif_arb_params(dc, context, pipes, pipe_cnt);
@@ -3102,17 +3134,7 @@ void dcn20_calculate_dlg_params(
 							!= dm_dram_clock_change_unsupported;
 	context->bw_ctx.bw.dcn.clk.dppclk_khz = 0;
 
-	context->bw_ctx.bw.dcn.clk.z9_support = (context->bw_ctx.dml.vba.StutterPeriod > 5000.0) ?
-			DCN_Z9_SUPPORT_ALLOW : DCN_Z9_SUPPORT_DISALLOW;
-
-	plane_count = 0;
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		if (context->res_ctx.pipe_ctx[i].plane_state)
-			plane_count++;
-	}
-
-	if (plane_count == 0)
-		context->bw_ctx.bw.dcn.clk.z9_support = DCN_Z9_SUPPORT_ALLOW;
+	context->bw_ctx.bw.dcn.clk.zstate_support = decide_zstate_support(dc, context);
 
 	context->bw_ctx.bw.dcn.clk.dtbclk_en = is_dtbclk_required(dc, context);
 

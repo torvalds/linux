@@ -1326,11 +1326,18 @@ void dcn303_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 			dcn3_03_soc.clock_limits[i].dispclk_mhz = max_dispclk_mhz;
 			dcn3_03_soc.clock_limits[i].dppclk_mhz  = max_dppclk_mhz;
 			dcn3_03_soc.clock_limits[i].phyclk_mhz  = max_phyclk_mhz;
-			dcn3_03_soc.clock_limits[i].dtbclk_mhz = dcn3_03_soc.clock_limits[0].dtbclk_mhz;
+			/* Populate from bw_params for DTBCLK, SOCCLK */
+			if (!bw_params->clk_table.entries[i].dtbclk_mhz && i > 0)
+				dcn3_03_soc.clock_limits[i].dtbclk_mhz = dcn3_03_soc.clock_limits[i-1].dtbclk_mhz;
+			else
+				dcn3_03_soc.clock_limits[i].dtbclk_mhz = bw_params->clk_table.entries[i].dtbclk_mhz;
+			if (!bw_params->clk_table.entries[i].socclk_mhz && i > 0)
+				dcn3_03_soc.clock_limits[i].socclk_mhz = dcn3_03_soc.clock_limits[i-1].socclk_mhz;
+			else
+				dcn3_03_soc.clock_limits[i].socclk_mhz = bw_params->clk_table.entries[i].socclk_mhz;
 			/* These clocks cannot come from bw_params, always fill from dcn3_03_soc[1] */
-			/* FCLK, PHYCLK_D18, SOCCLK, DSCCLK */
+			/* FCLK, PHYCLK_D18, DSCCLK */
 			dcn3_03_soc.clock_limits[i].phyclk_d18_mhz = dcn3_03_soc.clock_limits[0].phyclk_d18_mhz;
-			dcn3_03_soc.clock_limits[i].socclk_mhz = dcn3_03_soc.clock_limits[0].socclk_mhz;
 			dcn3_03_soc.clock_limits[i].dscclk_mhz = dcn3_03_soc.clock_limits[0].dscclk_mhz;
 		}
 		/* re-init DML with updated bb */

@@ -742,9 +742,13 @@ struct pmu_events_map *__weak pmu_events_map__find(void)
 	return perf_pmu__find_map(NULL);
 }
 
-static bool perf_pmu__valid_suffix(char *pmu_name, char *tok)
+/*
+ * Suffix must be in form tok_{digits}, or tok{digits}, or same as pmu_name
+ * to be valid.
+ */
+static bool perf_pmu__valid_suffix(const char *pmu_name, char *tok)
 {
-	char *p;
+	const char *p;
 
 	if (strncmp(pmu_name, tok, strlen(tok)))
 		return false;
@@ -753,12 +757,16 @@ static bool perf_pmu__valid_suffix(char *pmu_name, char *tok)
 	if (*p == 0)
 		return true;
 
-	if (*p != '_')
-		return false;
+	if (*p == '_')
+		++p;
 
-	++p;
-	if (*p == 0 || !isdigit(*p))
-		return false;
+	/* Ensure we end in a number */
+	while (1) {
+		if (!isdigit(*p))
+			return false;
+		if (*(++p) == 0)
+			break;
+	}
 
 	return true;
 }
@@ -789,12 +797,19 @@ bool pmu_uncore_alias_match(const char *pmu_name, const char *name)
 	 *	    match "socket" in "socketX_pmunameY" and then "pmuname" in
 	 *	    "pmunameY".
 	 */
-	for (; tok; name += strlen(tok), tok = strtok_r(NULL, ",", &tmp)) {
+	while (1) {
+		char *next_tok = strtok_r(NULL, ",", &tmp);
+
 		name = strstr(name, tok);
-		if (!name || !perf_pmu__valid_suffix((char *)name, tok)) {
+		if (!name ||
+		    (!next_tok && !perf_pmu__valid_suffix(name, tok))) {
 			res = false;
 			goto out;
 		}
+		if (!next_tok)
+			break;
+		tok = next_tok;
+		name += strlen(tok);
 	}
 
 	res = true;

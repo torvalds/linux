@@ -47,6 +47,7 @@
 #include "dce/dmub_outbox.h"
 #include "dc_link_dp.h"
 #include "inc/link_dpcd.h"
+#include "dcn10/dcn10_hw_sequencer.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -593,4 +594,21 @@ bool dcn31_is_abm_supported(struct dc *dc,
 			return true;
 	}
 	return false;
+}
+
+static void apply_riommu_invalidation_wa(struct dc *dc)
+{
+	struct dce_hwseq *hws = dc->hwseq;
+
+	if (!hws->wa.early_riommu_invalidation)
+		return;
+
+	REG_UPDATE(DCHUBBUB_ARB_HOSTVM_CNTL, DISABLE_HOSTVM_FORCE_ALLOW_PSTATE, 0);
+}
+
+void dcn31_init_pipes(struct dc *dc, struct dc_state *context)
+{
+	dcn10_init_pipes(dc, context);
+	apply_riommu_invalidation_wa(dc);
+
 }

@@ -2434,6 +2434,22 @@ static int cs_etm__process_event(struct perf_session *session,
 	return 0;
 }
 
+static void dump_queued_data(struct cs_etm_auxtrace *etm,
+			     struct perf_record_auxtrace *event)
+{
+	struct auxtrace_buffer *buf;
+	unsigned int i;
+	/*
+	 * Find all buffers with same reference in the queues and dump them.
+	 * This is because the queues can contain multiple entries of the same
+	 * buffer that were split on aux records.
+	 */
+	for (i = 0; i < etm->queues.nr_queues; ++i)
+		list_for_each_entry(buf, &etm->queues.queue_array[i].head, list)
+			if (buf->reference == event->reference)
+				cs_etm__dump_event(etm, buf);
+}
+
 static int cs_etm__process_auxtrace_event(struct perf_session *session,
 					  union perf_event *event,
 					  struct perf_tool *tool __maybe_unused)
@@ -2466,7 +2482,8 @@ static int cs_etm__process_auxtrace_event(struct perf_session *session,
 				cs_etm__dump_event(etm, buffer);
 				auxtrace_buffer__put_data(buffer);
 			}
-	}
+	} else if (dump_trace)
+		dump_queued_data(etm, &event->auxtrace);
 
 	return 0;
 }
@@ -3042,7 +3059,6 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 
 	if (dump_trace) {
 		cs_etm__print_auxtrace_info(auxtrace_info->priv, num_cpu);
-		return 0;
 	}
 
 	err = cs_etm__synth_events(etm, session);

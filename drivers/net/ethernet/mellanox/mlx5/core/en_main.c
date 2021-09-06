@@ -3384,7 +3384,7 @@ static int mlx5e_modify_channels_scatter_fcs(struct mlx5e_channels *chs, bool en
 
 static int mlx5e_modify_channels_vsd(struct mlx5e_channels *chs, bool vsd)
 {
-	int err = 0;
+	int err;
 	int i;
 
 	for (i = 0; i < chs->num; i++) {
@@ -3392,6 +3392,8 @@ static int mlx5e_modify_channels_vsd(struct mlx5e_channels *chs, bool vsd)
 		if (err)
 			return err;
 	}
+	if (chs->ptp && test_bit(MLX5E_PTP_STATE_RX, chs->ptp->state))
+		return mlx5e_modify_rq_vsd(&chs->ptp->rq, vsd);
 
 	return 0;
 }
@@ -3829,6 +3831,24 @@ int mlx5e_set_features(struct net_device *netdev, netdev_features_t features)
 	return 0;
 }
 
+static netdev_features_t mlx5e_fix_uplink_rep_features(struct net_device *netdev,
+						       netdev_features_t features)
+{
+	features &= ~NETIF_F_HW_TLS_RX;
+	if (netdev->features & NETIF_F_HW_TLS_RX)
+		netdev_warn(netdev, "Disabling hw_tls_rx, not supported in switchdev mode\n");
+
+	features &= ~NETIF_F_HW_TLS_TX;
+	if (netdev->features & NETIF_F_HW_TLS_TX)
+		netdev_warn(netdev, "Disabling hw_tls_tx, not supported in switchdev mode\n");
+
+	features &= ~NETIF_F_NTUPLE;
+	if (netdev->features & NETIF_F_NTUPLE)
+		netdev_warn(netdev, "Disabling ntuple, not supported in switchdev mode\n");
+
+	return features;
+}
+
 static netdev_features_t mlx5e_fix_features(struct net_device *netdev,
 					    netdev_features_t features)
 {
@@ -3860,15 +3880,8 @@ static netdev_features_t mlx5e_fix_features(struct net_device *netdev,
 			netdev_warn(netdev, "Disabling rxhash, not supported when CQE compress is active\n");
 	}
 
-	if (mlx5e_is_uplink_rep(priv)) {
-		features &= ~NETIF_F_HW_TLS_RX;
-		if (netdev->features & NETIF_F_HW_TLS_RX)
-			netdev_warn(netdev, "Disabling hw_tls_rx, not supported in switchdev mode\n");
-
-		features &= ~NETIF_F_HW_TLS_TX;
-		if (netdev->features & NETIF_F_HW_TLS_TX)
-			netdev_warn(netdev, "Disabling hw_tls_tx, not supported in switchdev mode\n");
-	}
+	if (mlx5e_is_uplink_rep(priv))
+		features = mlx5e_fix_uplink_rep_features(netdev, features);
 
 	mutex_unlock(&priv->state_lock);
 
@@ -4859,6 +4872,9 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	if (MLX5_CAP_ETH(mdev, scatter_fcs))
 		netdev->hw_features |= NETIF_F_RXFCS;
 
+	if (mlx5_qos_is_supported(mdev))
+		netdev->hw_features |= NETIF_F_HW_TC;
+
 	netdev->features          = netdev->hw_features;
 
 	/* Defaults */
@@ -4879,8 +4895,6 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 		netdev->hw_features	 |= NETIF_F_NTUPLE;
 #endif
 	}
-	if (mlx5_qos_is_supported(mdev))
-		netdev->features |= NETIF_F_HW_TC;
 
 	netdev->features         |= NETIF_F_HIGHDMA;
 	netdev->features         |= NETIF_F_HW_VLAN_STAG_FILTER;
