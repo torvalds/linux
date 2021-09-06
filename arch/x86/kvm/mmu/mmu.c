@@ -3012,6 +3012,9 @@ static int __direct_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 			account_huge_nx_page(vcpu->kvm, sp);
 	}
 
+	if (WARN_ON_ONCE(it.level != fault->goal_level))
+		return -EFAULT;
+
 	ret = mmu_set_spte(vcpu, it.sptep, ACC_ALL,
 			   fault->write, fault->goal_level, base_gfn, fault->pfn,
 			   fault->prefault, fault->map_writable);
