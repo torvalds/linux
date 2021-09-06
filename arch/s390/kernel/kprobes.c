@@ -120,9 +120,55 @@ static void s390_free_insn_slot(struct kprobe *p)
 }
 NOKPROBE_SYMBOL(s390_free_insn_slot);
 
+/* Check if paddr is at an instruction boundary */
+static bool can_probe(unsigned long paddr)
+{
+	unsigned long addr, offset = 0;
+	kprobe_opcode_t insn;
+	struct kprobe *kp;
+
+	if (paddr & 0x01)
+		return false;
+
+	if (!kallsyms_lookup_size_offset(paddr, NULL, &offset))
+		return false;
+
+	/* Decode instructions */
+	addr = paddr - offset;
+	while (addr < paddr) {
+		if (copy_from_kernel_nofault(&insn, (void *)addr, sizeof(insn)))
+			return false;
+
+		if (insn >> 8 == 0) {
+			if (insn != BREAKPOINT_INSTRUCTION) {
+				/*
+				 * Note that QEMU inserts opcode 0x0000 to implement
+				 * software breakpoints for guests. Since the size of
+				 * the original instruction is unknown, stop following
+				 * instructions and prevent setting a kprobe.
+				 */
+				return false;
+			}
+			/*
+			 * Check if the instruction has been modified by another
+			 * kprobe, in which case the original instruction is
+			 * decoded.
+			 */
+			kp = get_kprobe((void *)addr);
+			if (!kp) {
+				/* not a kprobe */
+				return false;
+			}
+			insn = kp->opcode;
+		}
+		addr += insn_length(insn >> 8);
+	}
+	return addr == paddr;
+}
+
 int arch_prepare_kprobe(struct kprobe *p)
 {
-	if ((unsigned long) p->addr & 0x01)
+	if (!can_probe((unsigned long)p->addr))
 		return -EINVAL;
 	/* Make sure the probe isn't going on a difficult instruction */
 	if (probe_is_prohibited_opcode(p->addr))
