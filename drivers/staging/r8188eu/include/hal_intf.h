@@ -192,8 +192,6 @@ struct hal_ops {
 			    struct xmit_frame *pxmitframe);
 	s32 (*mgnt_xmit)(struct adapter *padapter,
 			 struct xmit_frame *pmgntframe);
-	s32 (*hal_xmitframe_enqueue)(struct adapter *padapter,
-				     struct xmit_frame *pxmitframe);
 
 	u32	(*read_bbreg)(struct adapter *padapter, u32 RegAddr,
 			      u32 BitMask);
