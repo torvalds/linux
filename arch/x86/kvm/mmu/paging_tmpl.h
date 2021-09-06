@@ -1002,7 +1002,7 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root_hpa)
 			FNAME(prefetch_gpte)(vcpu, sp, sptep, gpte, false);
 		}
 
-		if (!is_shadow_present_pte(*sptep) || !sp->unsync_children)
+		if (!sp->unsync_children)
 			break;
 	}
 	write_unlock(&vcpu->kvm->mmu_lock);
