@@ -409,6 +409,7 @@ static ssize_t pm8001_ctl_ib_queue_log_show(struct device *cdev,
 	char *str = buf;
 	int start = 0;
 	u32 ib_offset = pm8001_ha->ib_offset;
+	u32 queue_size = pm8001_ha->max_q_num * PM8001_MPI_QUEUE * 128;
 #define IB_MEMMAP(c)	\
 		(*(u32 *)((u8 *)pm8001_ha->	\
 		memoryMap.region[ib_offset].virt_ptr +	\
@@ -419,7 +420,7 @@ static ssize_t pm8001_ctl_ib_queue_log_show(struct device *cdev,
 		start = start + 4;
 	}
 	pm8001_ha->evtlog_ib_offset += SYSFS_OFFSET;
-	if (((pm8001_ha->evtlog_ib_offset) % (PM80XX_IB_OB_QUEUE_SIZE)) == 0)
+	if (((pm8001_ha->evtlog_ib_offset) % queue_size) == 0)
 		pm8001_ha->evtlog_ib_offset = 0;
 
 	return str - buf;
@@ -445,6 +446,7 @@ static ssize_t pm8001_ctl_ob_queue_log_show(struct device *cdev,
 	char *str = buf;
 	int start = 0;
 	u32 ob_offset = pm8001_ha->ob_offset;
+	u32 queue_size = pm8001_ha->max_q_num * PM8001_MPI_QUEUE * 128;
 #define OB_MEMMAP(c)	\
 		(*(u32 *)((u8 *)pm8001_ha->	\
 		memoryMap.region[ob_offset].virt_ptr +	\
@@ -455,7 +457,7 @@ static ssize_t pm8001_ctl_ob_queue_log_show(struct device *cdev,
 		start = start + 4;
 	}
 	pm8001_ha->evtlog_ob_offset += SYSFS_OFFSET;
-	if (((pm8001_ha->evtlog_ob_offset) % (PM80XX_IB_OB_QUEUE_SIZE)) == 0)
+	if (((pm8001_ha->evtlog_ob_offset) % queue_size) == 0)
 		pm8001_ha->evtlog_ob_offset = 0;
 
 	return str - buf;
