@@ -741,12 +741,12 @@ static int sh_pfc_suspend_init(struct sh_pfc *pfc) { return 0; }
 #define SH_PFC_MAX_REGS		300
 #define SH_PFC_MAX_ENUMS	3000
 
-static unsigned int sh_pfc_errors __initdata = 0;
-static unsigned int sh_pfc_warnings __initdata = 0;
-static u32 *sh_pfc_regs __initdata = NULL;
-static u32 sh_pfc_num_regs __initdata = 0;
-static u16 *sh_pfc_enums __initdata = NULL;
-static u32 sh_pfc_num_enums __initdata = 0;
+static unsigned int sh_pfc_errors __initdata;
+static unsigned int sh_pfc_warnings __initdata;
+static u32 *sh_pfc_regs __initdata;
+static u32 sh_pfc_num_regs __initdata;
+static u16 *sh_pfc_enums __initdata;
+static u32 sh_pfc_num_enums __initdata;
 
 #define sh_pfc_err(fmt, ...)					\
 	do {							\
