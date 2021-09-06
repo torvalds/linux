@@ -1615,17 +1615,14 @@ static void qcom_msa_handover(struct qcom_q6v5 *q6v5)
 static int q6v5_init_mem(struct q6v5 *qproc, struct platform_device *pdev)
 {
 	struct of_phandle_args args;
-	struct resource *res;
 	int halt_cell_cnt = 3;
 	int ret;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "qdsp6");
-	qproc->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	qproc->reg_base = devm_platform_ioremap_resource_byname(pdev, "qdsp6");
 	if (IS_ERR(qproc->reg_base))
 		return PTR_ERR(qproc->reg_base);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rmb");
-	qproc->rmb_base = devm_ioremap_resource(&pdev->dev, res);
+	qproc->rmb_base = devm_platform_ioremap_resource_byname(pdev, "rmb");
 	if (IS_ERR(qproc->rmb_base))
 		return PTR_ERR(qproc->rmb_base);
 
