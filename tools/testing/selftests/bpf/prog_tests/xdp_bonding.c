@@ -384,8 +384,7 @@ static void test_xdp_bonding_attach(struct skeletons *skeletons)
 {
 	struct bpf_link *link = NULL;
 	struct bpf_link *link2 = NULL;
-	int veth, bond;
-	int err;
+	int veth, bond, err;
 
 	if (!ASSERT_OK(system("ip link add veth type veth"), "add veth"))
 		goto out;
@@ -399,21 +398,17 @@ static void test_xdp_bonding_attach(struct skeletons *skeletons)
 	if (!ASSERT_GE(bond, 0, "if_nametoindex bond"))
 		goto out;
 
-	/* enslaving with a XDP program loaded fails */
+	/* enslaving with a XDP program loaded is allowed */
 	link = bpf_program__attach_xdp(skeletons->xdp_dummy->progs.xdp_dummy_prog, veth);
 	if (!ASSERT_OK_PTR(link, "attach program to veth"))
 		goto out;
 
 	err = system("ip link set veth master bond");
-	if (!ASSERT_NEQ(err, 0, "attaching slave with xdp program expected to fail"))
+	if (!ASSERT_OK(err, "set veth master"))
 		goto out;
 
 	bpf_link__destroy(link);
 	link = NULL;
-
-	err = system("ip link set veth master bond");
-	if (!ASSERT_OK(err, "set veth master"))
-		goto out;
 
 	/* attaching to slave when master has no program is allowed */
 	link = bpf_program__attach_xdp(skeletons->xdp_dummy->progs.xdp_dummy_prog, veth);
@@ -434,8 +429,26 @@ static void test_xdp_bonding_attach(struct skeletons *skeletons)
 		goto out;
 
 	/* attaching to slave not allowed when master has program loaded */
-	link2 = bpf_program__attach_xdp(skeletons->xdp_dummy->progs.xdp_dummy_prog, bond);
-	ASSERT_ERR_PTR(link2, "attach program to slave when master has program");
+	link2 = bpf_program__attach_xdp(skeletons->xdp_dummy->progs.xdp_dummy_prog, veth);
+	if (!ASSERT_ERR_PTR(link2, "attach program to slave when master has program"))
+		goto out;
+
+	bpf_link__destroy(link);
+	link = NULL;
+
+	/* test program unwinding with a non-XDP slave */
+	if (!ASSERT_OK(system("ip link add vxlan type vxlan id 1 remote 1.2.3.4 dstport 0 dev lo"),
+		       "add vxlan"))
+		goto out;
+
+	err = system("ip link set vxlan master bond");
+	if (!ASSERT_OK(err, "set vxlan master"))
+		goto out;
+
+	/* attaching not allowed when one slave does not support XDP */
+	link = bpf_program__attach_xdp(skeletons->xdp_dummy->progs.xdp_dummy_prog, bond);
+	if (!ASSERT_ERR_PTR(link, "attach program to master when slave does not support XDP"))
+		goto out;
 
 out:
 	bpf_link__destroy(link);
@@ -443,6 +456,44 @@ out:
 
 	system("ip link del veth");
 	system("ip link del bond");
+	system("ip link del vxlan");
+}
+
+/* Test with nested bonding devices to catch issue with negative jump label count */
+static void test_xdp_bonding_nested(struct skeletons *skeletons)
+{
+	struct bpf_link *link = NULL;
+	int bond, err;
+
+	if (!ASSERT_OK(system("ip link add bond type bond"), "add bond"))
+		goto out;
+
+	bond = if_nametoindex("bond");
+	if (!ASSERT_GE(bond, 0, "if_nametoindex bond"))
+		goto out;
+
+	if (!ASSERT_OK(system("ip link add bond_nest1 type bond"), "add bond_nest1"))
+		goto out;
+
+	err = system("ip link set bond_nest1 master bond");
+	if (!ASSERT_OK(err, "set bond_nest1 master"))
+		goto out;
+
+	if (!ASSERT_OK(system("ip link add bond_nest2 type bond"), "add bond_nest1"))
+		goto out;
+
+	err = system("ip link set bond_nest2 master bond_nest1");
+	if (!ASSERT_OK(err, "set bond_nest2 master"))
+		goto out;
+
+	link = bpf_program__attach_xdp(skeletons->xdp_dummy->progs.xdp_dummy_prog, bond);
+	ASSERT_OK_PTR(link, "attach program to master");
+
+out:
+	bpf_link__destroy(link);
+	system("ip link del bond");
+	system("ip link del bond_nest1");
+	system("ip link del bond_nest2");
 }
 
 static int libbpf_debug_print(enum libbpf_print_level level,
@@ -495,6 +546,9 @@ void test_xdp_bonding(void)
 
 	if (test__start_subtest("xdp_bonding_attach"))
 		test_xdp_bonding_attach(&skeletons);
+
+	if (test__start_subtest("xdp_bonding_nested"))
+		test_xdp_bonding_nested(&skeletons);
 
 	for (i = 0; i < ARRAY_SIZE(bond_test_cases); i++) {
 		struct bond_test_case *test_case = &bond_test_cases[i];

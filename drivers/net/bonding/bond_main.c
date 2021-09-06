@@ -2169,7 +2169,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev,
 			res = -EOPNOTSUPP;
 			goto err_sysfs_del;
 		}
-	} else {
+	} else if (bond->xdp_prog) {
 		struct netdev_bpf xdp = {
 			.command = XDP_SETUP_PROG,
 			.flags   = 0,
@@ -5224,13 +5224,12 @@ static int bond_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 			bpf_prog_inc(prog);
 	}
 
-	if (old_prog)
-		bpf_prog_put(old_prog);
-
-	if (prog)
+	if (prog) {
 		static_branch_inc(&bpf_master_redirect_enabled_key);
-	else
+	} else if (old_prog) {
+		bpf_prog_put(old_prog);
 		static_branch_dec(&bpf_master_redirect_enabled_key);
+	}
 
 	return 0;
 
