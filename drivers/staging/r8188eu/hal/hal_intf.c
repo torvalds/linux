@@ -353,8 +353,3 @@ void rtw_hal_notch_filter(struct adapter *adapter, bool enable)
 	if (adapter->HalFunc.hal_notch_filter)
 		adapter->HalFunc.hal_notch_filter(adapter, enable);
 }
-
-c2h_id_filter rtw_hal_c2h_id_filter_ccx(struct adapter *adapter)
-{
-	return adapter->HalFunc.c2h_id_filter_ccx;
-}
