@@ -665,13 +665,11 @@ static void vduse_vdpa_set_config(struct vdpa_device *vdpa, unsigned int offset,
 static int vduse_vdpa_reset(struct vdpa_device *vdpa)
 {
 	struct vduse_dev *dev = vdpa_to_vduse(vdpa);
-
-	if (vduse_dev_set_status(dev, 0))
-		return -EIO;
+	int ret = vduse_dev_set_status(dev, 0);
 
 	vduse_dev_reset(dev);
 
-	return 0;
+	return ret;
 }
 
 static u32 vduse_vdpa_get_generation(struct vdpa_device *vdpa)
