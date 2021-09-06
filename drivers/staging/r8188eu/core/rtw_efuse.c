@@ -59,33 +59,6 @@ Efuse_Write1ByteToFakeContent(
 }
 
 /*-----------------------------------------------------------------------------
- * Function:	Efuse_PowerSwitch
- *
- * Overview:	When we want to enable write operation, we should change to
- *				pwr on state. When we stop write, we should switch to 500k mode
- *				and disable LDO 2.5V.
- *
- * Input:       NONE
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- * When			Who		Remark
- * 11/17/2008	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
-void
-Efuse_PowerSwitch(
-		struct adapter *pAdapter,
-		u8 write,
-		u8 PwrState)
-{
-	rtl8188e_EfusePowerSwitch(pAdapter, write, PwrState);
-}
-
-/*-----------------------------------------------------------------------------
  * Function:	efuse_GetCurrentSize
  *
  * Overview:	Get current efuse size!!!
@@ -431,7 +404,7 @@ u8 rtw_efuse_access(struct adapter *padapter, u8 write, u16 start_addr, u16 cnts
 		rw8 = &efuse_read8;
 	}
 
-	Efuse_PowerSwitch(padapter, write, true);
+	rtl8188e_EfusePowerSwitch(padapter, write, true);
 
 	/*  e-fuse one byte read / write */
 	for (i = 0; i < cnts; i++) {
@@ -445,7 +418,7 @@ u8 rtw_efuse_access(struct adapter *padapter, u8 write, u16 start_addr, u16 cnts
 			break;
 	}
 
-	Efuse_PowerSwitch(padapter, write, false);
+	rtl8188e_EfusePowerSwitch(padapter, write, false);
 
 	return res;
 }
@@ -459,9 +432,9 @@ u16 efuse_GetMaxSize(struct adapter *padapter)
 /*  */
 u8 efuse_GetCurrentSize(struct adapter *padapter, u16 *size)
 {
-	Efuse_PowerSwitch(padapter, false, true);
+	rtl8188e_EfusePowerSwitch(padapter, false, true);
 	*size = Efuse_GetCurrentSize(padapter, EFUSE_WIFI, false);
-	Efuse_PowerSwitch(padapter, false, false);
+	rtl8188e_EfusePowerSwitch(padapter, false, false);
 
 	return _SUCCESS;
 }
@@ -475,11 +448,11 @@ u8 rtw_efuse_map_read(struct adapter *padapter, u16 addr, u16 cnts, u8 *data)
 	if ((addr + cnts) > mapLen)
 		return _FAIL;
 
-	Efuse_PowerSwitch(padapter, false, true);
+	rtl8188e_EfusePowerSwitch(padapter, false, true);
 
 	efuse_ReadEFuse(padapter, EFUSE_WIFI, addr, cnts, data, false);
 
-	Efuse_PowerSwitch(padapter, false, false);
+	rtl8188e_EfusePowerSwitch(padapter, false, false);
 
 	return _SUCCESS;
 }
@@ -493,11 +466,11 @@ u8 rtw_BT_efuse_map_read(struct adapter *padapter, u16 addr, u16 cnts, u8 *data)
 	if ((addr + cnts) > mapLen)
 		return _FAIL;
 
-	Efuse_PowerSwitch(padapter, false, true);
+	rtl8188e_EfusePowerSwitch(padapter, false, true);
 
 	efuse_ReadEFuse(padapter, EFUSE_BT, addr, cnts, data, false);
 
-	Efuse_PowerSwitch(padapter, false, false);
+	rtl8188e_EfusePowerSwitch(padapter, false, false);
 
 	return _SUCCESS;
 }
@@ -524,7 +497,7 @@ u8 rtw_efuse_map_write(struct adapter *padapter, u16 addr, u16 cnts, u8 *data)
 	if (ret == _FAIL)
 		goto exit;
 
-	Efuse_PowerSwitch(padapter, true, true);
+	rtl8188e_EfusePowerSwitch(padapter, true, true);
 
 	offset = (addr >> 3);
 	word_en = 0xF;
@@ -587,7 +560,7 @@ u8 rtw_efuse_map_write(struct adapter *padapter, u16 addr, u16 cnts, u8 *data)
 		memset(newdata, 0xFF, PGPKT_DATA_SIZE);
 	} while (1);
 
-	Efuse_PowerSwitch(padapter, true, false);
+	rtl8188e_EfusePowerSwitch(padapter, true, false);
 exit:
 	kfree(map);
 	return ret;
@@ -616,7 +589,7 @@ u8 rtw_BT_efuse_map_write(struct adapter *padapter, u16 addr, u16 cnts, u8 *data
 	if (ret == _FAIL)
 		goto exit;
 
-	Efuse_PowerSwitch(padapter, true, true);
+	rtl8188e_EfusePowerSwitch(padapter, true, true);
 
 	offset = (addr >> 3);
 	word_en = 0xF;
@@ -679,7 +652,7 @@ u8 rtw_BT_efuse_map_write(struct adapter *padapter, u16 addr, u16 cnts, u8 *data
 		memset(newdata, 0xFF, PGPKT_DATA_SIZE);
 	} while (1);
 
-	Efuse_PowerSwitch(padapter, true, false);
+	rtl8188e_EfusePowerSwitch(padapter, true, false);
 
 exit:
 
@@ -768,13 +741,13 @@ static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 efuseType, u8 *Efuse, 
 {
 	u16 mapLen = 0;
 
-	Efuse_PowerSwitch(pAdapter, false, true);
+	rtl8188e_EfusePowerSwitch(pAdapter, false, true);
 
 	EFUSE_GetEfuseDefinition(pAdapter, efuseType, TYPE_EFUSE_MAP_LEN, (void *)&mapLen, pseudo);
 
 	efuse_ReadEFuse(pAdapter, efuseType, 0, mapLen, Efuse, pseudo);
 
-	Efuse_PowerSwitch(pAdapter, false, false);
+	rtl8188e_EfusePowerSwitch(pAdapter, false, false);
 }
 
 /*-----------------------------------------------------------------------------
