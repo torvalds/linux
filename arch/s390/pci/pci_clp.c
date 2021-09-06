@@ -383,8 +383,8 @@ static int clp_find_pci(struct clp_req_rsp_list_pci *rrb, u32 fid,
 		rc = clp_list_pci_req(rrb, &resume_token, &nentries);
 		if (rc)
 			return rc;
+		fh_list = rrb->response.fh_list;
 		for (i = 0; i < nentries; i++) {
-			fh_list = rrb->response.fh_list;
 			if (fh_list[i].fid == fid) {
 				*entry = fh_list[i];
 				return 0;
