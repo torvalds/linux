@@ -1159,6 +1159,12 @@ intel_fb_stride_alignment(const struct drm_framebuffer *fb, int color_plane)
 	tile_width = intel_tile_width_bytes(fb, color_plane);
 	if (is_ccs_modifier(fb->modifier)) {
 		/*
+		 * On TGL the surface stride must be 4 tile aligned, mapped by
+		 * one 64 byte cacheline on the CCS AUX surface.
+		 */
+		if (DISPLAY_VER(dev_priv) >= 12)
+			tile_width *= 4;
+		/*
 		 * Display WA #0531: skl,bxt,kbl,glk
 		 *
 		 * Render decompression and plane width > 3840
@@ -1167,14 +1173,8 @@ intel_fb_stride_alignment(const struct drm_framebuffer *fb, int color_plane)
 		 * require the entire fb to accommodate that to avoid
 		 * potential runtime errors at plane configuration time.
 		 */
-		if ((DISPLAY_VER(dev_priv) == 9 || IS_GEMINILAKE(dev_priv)) &&
-		    color_plane == 0 && fb->width > 3840)
-			tile_width *= 4;
-		/*
-		 * The main surface pitch must be padded to a multiple of four
-		 * tile widths.
-		 */
-		else if (DISPLAY_VER(dev_priv) >= 12)
+		else if ((DISPLAY_VER(dev_priv) == 9 || IS_GEMINILAKE(dev_priv)) &&
+			 color_plane == 0 && fb->width > 3840)
 			tile_width *= 4;
 	}
 	return tile_width;
