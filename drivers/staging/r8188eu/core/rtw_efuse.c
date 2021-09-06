@@ -351,15 +351,6 @@ int Efuse_PgPacketWrite(struct adapter *pAdapter, u8 offset, u8 word_en, u8 *dat
 	return ret;
 }
 
-static int Efuse_PgPacketWrite_BT(struct adapter *pAdapter, u8 offset, u8 word_en, u8 *data, bool pseudo)
-{
-	int ret;
-
-	ret =  pAdapter->HalFunc.Efuse_PgPacketWrite_BT(pAdapter, offset, word_en, data, pseudo);
-
-	return ret;
-}
-
 /*-----------------------------------------------------------------------------
  * Function:	efuse_WordEnableDataRead
  *
@@ -676,9 +667,7 @@ u8 rtw_BT_efuse_map_write(struct adapter *padapter, u16 addr, u16 cnts, u8 *data
 				DBG_88E("0x%02X ", newdata[i]);
 			DBG_88E("\n");
 
-			ret = Efuse_PgPacketWrite_BT(padapter, offset, word_en, newdata, false);
-			if (ret == _FAIL)
-				break;
+			break;
 		}
 
 		if (idx == cnts)
