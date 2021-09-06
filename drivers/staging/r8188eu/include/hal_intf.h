@@ -283,8 +283,6 @@ void rtw_hal_set_odm_var(struct adapter *padapter,
 			 enum hal_odm_variable eVariable, void *pValue1,
 			 bool bSet);
 
-void rtw_hal_disable_interrupt(struct adapter *padapter);
-
 u32	rtw_hal_inirp_init(struct adapter *padapter);
 u32	rtw_hal_inirp_deinit(struct adapter *padapter);
 
