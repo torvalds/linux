@@ -162,10 +162,6 @@ struct hal_ops {
 				       enum hal_def_variable eVariable,
 				       void *pValue);
 
-	void	(*SetHalODMVarHandler)(struct adapter *padapter,
-				       enum hal_odm_variable eVariable,
-				       void *pValue1, bool bSet);
-
 	void	(*UpdateRAMaskHandler)(struct adapter *padapter,
 				       u32 mac_id, u8 rssi_level);
 	void	(*SetBeaconRelatedRegistersHandler)(struct adapter *padapter);
@@ -245,6 +241,8 @@ void rtl8188eu_set_hal_ops(struct adapter *padapter);
 void rtl8188eu_interface_configure(struct adapter *adapt);
 void ReadAdapterInfo8188EU(struct adapter *Adapter);
 void rtl8188eu_init_default_value(struct adapter *adapt);
+void rtl8188e_SetHalODMVar(struct adapter *Adapter,
+			   enum hal_odm_variable eVariable, void *pValue1, bool bSet);
 
 void	rtw_hal_free_data(struct adapter *padapter);
 
@@ -259,10 +257,6 @@ u8 rtw_hal_set_def_var(struct adapter *padapter,
 		       enum hal_def_variable eVariable, void *pValue);
 u8 rtw_hal_get_def_var(struct adapter *padapter,
 		       enum hal_def_variable eVariable, void *pValue);
-
-void rtw_hal_set_odm_var(struct adapter *padapter,
-			 enum hal_odm_variable eVariable, void *pValue1,
-			 bool bSet);
 
 u32	rtw_hal_inirp_init(struct adapter *padapter);
 u32	rtw_hal_inirp_deinit(struct adapter *padapter);

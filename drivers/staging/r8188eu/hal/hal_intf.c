@@ -82,15 +82,6 @@ u8 rtw_hal_get_def_var(struct adapter *adapt,
 	return _FAIL;
 }
 
-void rtw_hal_set_odm_var(struct adapter *adapt,
-			 enum hal_odm_variable var, void *val1,
-			 bool set)
-{
-	if (adapt->HalFunc.SetHalODMVarHandler)
-		adapt->HalFunc.SetHalODMVarHandler(adapt, var,
-						      val1, set);
-}
-
 u32 rtw_hal_inirp_init(struct adapter *adapt)
 {
 	u32 rst = _FAIL;
