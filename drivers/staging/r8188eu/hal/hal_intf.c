@@ -57,8 +57,6 @@ uint	 rtw_hal_init(struct adapter *adapt)
 
 		if (adapt->registrypriv.notch_filter == 1)
 			rtw_hal_notch_filter(adapt, 1);
-
-		rtw_hal_reset_security_engine(adapt);
 	} else {
 		adapt->hw_init_completed = false;
 		DBG_88E("rtw_hal_init: hal__init fail\n");
@@ -385,12 +383,6 @@ void rtw_hal_notch_filter(struct adapter *adapter, bool enable)
 {
 	if (adapter->HalFunc.hal_notch_filter)
 		adapter->HalFunc.hal_notch_filter(adapter, enable);
-}
-
-void rtw_hal_reset_security_engine(struct adapter *adapter)
-{
-	if (adapter->HalFunc.hal_reset_security_engine)
-		adapter->HalFunc.hal_reset_security_engine(adapter);
 }
 
 c2h_id_filter rtw_hal_c2h_id_filter_ccx(struct adapter *adapter)
