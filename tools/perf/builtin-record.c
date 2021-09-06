@@ -47,6 +47,8 @@
 #include "util/util.h"
 #include "util/pfm.h"
 #include "util/clockid.h"
+#include "util/pmu-hybrid.h"
+#include "util/evlist-hybrid.h"
 #include "asm/bug.h"
 #include "perf.h"
 
@@ -1603,6 +1605,32 @@ static void hit_auxtrace_snapshot_trigger(struct record *rec)
 	}
 }
 
+static void record__uniquify_name(struct record *rec)
+{
+	struct evsel *pos;
+	struct evlist *evlist = rec->evlist;
+	char *new_name;
+	int ret;
+
+	if (!perf_pmu__has_hybrid())
+		return;
+
+	evlist__for_each_entry(evlist, pos) {
+		if (!evsel__is_hybrid(pos))
+			continue;
+
+		if (strchr(pos->name, '/'))
+			continue;
+
+		ret = asprintf(&new_name, "%s/%s/",
+			       pos->pmu_name, pos->name);
+		if (ret) {
+			free(pos->name);
+			pos->name = new_name;
+		}
+	}
+}
+
 static int __cmd_record(struct record *rec, int argc, const char **argv)
 {
 	int err;
@@ -1706,6 +1734,8 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	 */
 	if (data->is_pipe && rec->evlist->core.nr_entries == 1)
 		rec->opts.sample_id = true;
+
+	record__uniquify_name(rec);
 
 	if (record__open(rec) != 0) {
 		err = -1;
@@ -1977,9 +2007,13 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		record__auxtrace_snapshot_exit(rec);
 
 	if (forks && workload_exec_errno) {
-		char msg[STRERR_BUFSIZE];
+		char msg[STRERR_BUFSIZE], strevsels[2048];
 		const char *emsg = str_error_r(workload_exec_errno, msg, sizeof(msg));
-		pr_err("Workload failed: %s\n", emsg);
+
+		evlist__scnprintf_evsels(rec->evlist, sizeof(strevsels), strevsels);
+
+		pr_err("Failed to collect '%s' for the '%s' workload: %s\n",
+			strevsels, argv[0], emsg);
 		err = -1;
 		goto out_child;
 	}
@@ -2680,6 +2714,12 @@ int cmd_record(int argc, const char **argv)
 		rec->no_buildid = true;
 	}
 
+	if (rec->opts.record_cgroup && !perf_can_record_cgroup()) {
+		pr_err("Kernel has no cgroup sampling support.\n");
+		err = -EINVAL;
+		goto out_opts;
+	}
+
 	if (rec->opts.kcore)
 		rec->data.is_dir = true;
 
@@ -2786,10 +2826,19 @@ int cmd_record(int argc, const char **argv)
 	if (record.opts.overwrite)
 		record.opts.tail_synthesize = true;
 
-	if (rec->evlist->core.nr_entries == 0 &&
-	    __evlist__add_default(rec->evlist, !record.opts.no_samples) < 0) {
-		pr_err("Not enough memory for event selector list\n");
-		goto out;
+	if (rec->evlist->core.nr_entries == 0) {
+		if (perf_pmu__has_hybrid()) {
+			err = evlist__add_default_hybrid(rec->evlist,
+							 !record.opts.no_samples);
+		} else {
+			err = __evlist__add_default(rec->evlist,
+						    !record.opts.no_samples);
+		}
+
+		if (err < 0) {
+			pr_err("Not enough memory for event selector list\n");
+			goto out;
+		}
 	}
 
 	if (rec->opts.target.tid && !rec->opts.no_inherit_set)

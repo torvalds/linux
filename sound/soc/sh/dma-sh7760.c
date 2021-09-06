@@ -177,7 +177,6 @@ static int camelot_hw_params(struct snd_soc_component *component,
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct camelot_pcm *cam = &cam_pcm_data[asoc_rtd_to_cpu(rtd, 0)->id];
 	int recv = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? 0:1;
-	int ret;
 
 	if (recv) {
 		cam->rx_period_size = params_period_bytes(hw_params);

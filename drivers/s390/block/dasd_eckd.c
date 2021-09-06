@@ -6630,6 +6630,7 @@ static struct ccw_driver dasd_eckd_driver = {
 	.driver = {
 		.name	= "dasd-eckd",
 		.owner	= THIS_MODULE,
+		.dev_groups = dasd_dev_groups,
 	},
 	.ids	     = dasd_eckd_ids,
 	.probe	     = dasd_eckd_probe,

@@ -3228,7 +3228,7 @@ errout:
 	return err;
 }
 
-/* Concatinate two arrays */
+/* Concatenate two arrays */
 static void *memcat(void *a, size_t sz_a, void *b, size_t sz_b)
 {
 	void *ret;
@@ -3258,7 +3258,7 @@ concat_probe_trace_events(struct probe_trace_event **tevs, int *ntevs,
 	if (*ntevs + ntevs2 > probe_conf.max_probes)
 		ret = -E2BIG;
 	else {
-		/* Concatinate the array of probe_trace_event */
+		/* Concatenate the array of probe_trace_event */
 		new_tevs = memcat(*tevs, (*ntevs) * sizeof(**tevs),
 				  *tevs2, ntevs2 * sizeof(**tevs2));
 		if (!new_tevs)

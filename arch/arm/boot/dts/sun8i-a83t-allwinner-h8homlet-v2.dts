@@ -122,7 +122,7 @@
 		compatible = "x-powers,axp818", "x-powers,axp813";
 		reg = <0x3a3>;
 		interrupt-parent = <&r_intc>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_LOW>;
 		eldoin-supply = <&reg_dcdc1>;
 		swin-supply = <&reg_dcdc1>;
 	};
@@ -142,7 +142,7 @@
 		ac100_rtc: rtc {
 			compatible = "x-powers,ac100-rtc";
 			interrupt-parent = <&r_intc>;
-			interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&ac100_codec>;
 			#clock-cells = <1>;
 			clock-output-names = "cko1_rtc",

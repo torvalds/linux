@@ -32,6 +32,21 @@ static int intel_conn_to_vcpi(struct intel_connector *connector)
 	return connector->port	? connector->port->vcpi.vcpi : 0;
 }
 
+static bool
+intel_streams_type1_capable(struct intel_connector *connector)
+{
+	const struct intel_hdcp_shim *shim = connector->hdcp.shim;
+	bool capable = false;
+
+	if (!shim)
+		return capable;
+
+	if (shim->streams_type1_capable)
+		shim->streams_type1_capable(connector, &capable);
+
+	return capable;
+}
+
 /*
  * intel_hdcp_required_content_stream selects the most highest common possible HDCP
  * content_type for all streams in DP MST topology because security f/w doesn't
@@ -70,7 +85,7 @@ intel_hdcp_required_content_stream(struct intel_digital_port *dig_port)
 		if (conn_dig_port != dig_port)
 			continue;
 
-		if (!enforce_type0 && !intel_hdcp2_capable(connector))
+		if (!enforce_type0 && !intel_streams_type1_capable(connector))
 			enforce_type0 = true;
 
 		data->streams[data->k].stream_id = intel_conn_to_vcpi(connector);
@@ -318,7 +333,7 @@ static
 u32 intel_hdcp_get_repeater_ctl(struct drm_i915_private *dev_priv,
 				enum transcoder cpu_transcoder, enum port port)
 {
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (DISPLAY_VER(dev_priv) >= 12) {
 		switch (cpu_transcoder) {
 		case TRANSCODER_A:
 			return HDCP_TRANSA_REP_PRESENT |
@@ -1089,7 +1104,7 @@ static void intel_hdcp_prop_work(struct work_struct *work)
 bool is_hdcp_supported(struct drm_i915_private *dev_priv, enum port port)
 {
 	return INTEL_INFO(dev_priv)->display.has_hdcp &&
-			(INTEL_GEN(dev_priv) >= 12 || port < PORT_E);
+			(DISPLAY_VER(dev_priv) >= 12 || port < PORT_E);
 }
 
 static int
@@ -1706,6 +1721,7 @@ static int hdcp2_enable_stream_encryption(struct intel_connector *connector)
 {
 	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct hdcp_port_data *data = &dig_port->hdcp_port_data;
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	enum transcoder cpu_transcoder = hdcp->cpu_transcoder;
 	enum port port = dig_port->base.port;
@@ -1715,7 +1731,8 @@ static int hdcp2_enable_stream_encryption(struct intel_connector *connector)
 			    LINK_ENCRYPTION_STATUS)) {
 		drm_err(&dev_priv->drm, "[%s:%d] HDCP 2.2 Link is not encrypted\n",
 			connector->base.name, connector->base.base.id);
-		return -EPERM;
+		ret = -EPERM;
+		goto link_recover;
 	}
 
 	if (hdcp->shim->stream_2_2_encryption) {
@@ -1728,6 +1745,15 @@ static int hdcp2_enable_stream_encryption(struct intel_connector *connector)
 		drm_dbg_kms(&dev_priv->drm, "HDCP 2.2 transcoder: %s stream encrypted\n",
 			    transcoder_name(hdcp->stream_transcoder));
 	}
+
+	return 0;
+
+link_recover:
+	if (hdcp2_deauthenticate_port(connector) < 0)
+		drm_dbg_kms(&dev_priv->drm, "Port deauth failed.\n");
+
+	dig_port->hdcp_auth_status = false;
+	data->k = 0;
 
 	return ret;
 }
@@ -1885,7 +1911,8 @@ static int hdcp2_authenticate_and_encrypt(struct intel_connector *connector)
 		}
 	}
 
-	ret = hdcp2_enable_stream_encryption(connector);
+	if (!ret)
+		ret = hdcp2_enable_stream_encryption(connector);
 
 	return ret;
 }
@@ -1927,7 +1954,8 @@ static int _intel_hdcp2_enable(struct intel_connector *connector)
 	return 0;
 }
 
-static int _intel_hdcp2_disable(struct intel_connector *connector)
+static int
+_intel_hdcp2_disable(struct intel_connector *connector, bool hdcp2_link_recovery)
 {
 	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
@@ -1948,7 +1976,7 @@ static int _intel_hdcp2_disable(struct intel_connector *connector)
 		drm_dbg_kms(&i915->drm, "HDCP 2.2 transcoder: %s stream encryption disabled\n",
 			    transcoder_name(hdcp->stream_transcoder));
 
-		if (dig_port->num_hdcp_streams > 0)
+		if (dig_port->num_hdcp_streams > 0 && !hdcp2_link_recovery)
 			return 0;
 	}
 
@@ -1991,6 +2019,7 @@ static int intel_hdcp2_check_link(struct intel_connector *connector)
 			"HDCP2.2 link stopped the encryption, %x\n",
 			intel_de_read(dev_priv, HDCP2_STATUS(dev_priv, cpu_transcoder, port)));
 		ret = -ENXIO;
+		_intel_hdcp2_disable(connector, true);
 		intel_hdcp_update_value(connector,
 					DRM_MODE_CONTENT_PROTECTION_DESIRED,
 					true);
@@ -2030,7 +2059,7 @@ static int intel_hdcp2_check_link(struct intel_connector *connector)
 			    connector->base.name, connector->base.base.id);
 	}
 
-	ret = _intel_hdcp2_disable(connector);
+	ret = _intel_hdcp2_disable(connector, true);
 	if (ret) {
 		drm_err(&dev_priv->drm,
 			"[%s:%d] Failed to disable hdcp2.2 (%d)\n",
@@ -2137,7 +2166,7 @@ static int initialize_hdcp_port_data(struct intel_connector *connector,
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	enum port port = dig_port->base.port;
 
-	if (INTEL_GEN(dev_priv) < 12)
+	if (DISPLAY_VER(dev_priv) < 12)
 		data->fw_ddi = intel_get_mei_fw_ddi_index(port);
 	else
 		/*
@@ -2176,8 +2205,7 @@ static bool is_hdcp2_supported(struct drm_i915_private *dev_priv)
 	if (!IS_ENABLED(CONFIG_INTEL_MEI_HDCP))
 		return false;
 
-	return (INTEL_GEN(dev_priv) >= 10 ||
-		IS_GEMINILAKE(dev_priv) ||
+	return (DISPLAY_VER(dev_priv) >= 10 ||
 		IS_KABYLAKE(dev_priv) ||
 		IS_COFFEELAKE(dev_priv) ||
 		IS_COMETLAKE(dev_priv));
@@ -2288,7 +2316,7 @@ int intel_hdcp_enable(struct intel_connector *connector,
 		hdcp->stream_transcoder = INVALID_TRANSCODER;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 12)
 		dig_port->hdcp_port_data.fw_tc = intel_get_mei_fw_tc(hdcp->cpu_transcoder);
 
 	/*
@@ -2340,7 +2368,7 @@ int intel_hdcp_disable(struct intel_connector *connector)
 	intel_hdcp_update_value(connector,
 				DRM_MODE_CONTENT_PROTECTION_UNDESIRED, false);
 	if (hdcp->hdcp2_encrypted)
-		ret = _intel_hdcp2_disable(connector);
+		ret = _intel_hdcp2_disable(connector, false);
 	else if (hdcp->hdcp_encrypted)
 		ret = _intel_hdcp_disable(connector);
 

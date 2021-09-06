@@ -54,23 +54,21 @@ static int vfio_platform_probe(struct platform_device *pdev)
 	vdev->reset_required = reset_required;
 
 	ret = vfio_platform_probe_common(vdev, &pdev->dev);
-	if (ret)
+	if (ret) {
 		kfree(vdev);
-
-	return ret;
+		return ret;
+	}
+	dev_set_drvdata(&pdev->dev, vdev);
+	return 0;
 }
 
 static int vfio_platform_remove(struct platform_device *pdev)
 {
-	struct vfio_platform_device *vdev;
+	struct vfio_platform_device *vdev = dev_get_drvdata(&pdev->dev);
 
-	vdev = vfio_platform_remove_common(&pdev->dev);
-	if (vdev) {
-		kfree(vdev);
-		return 0;
-	}
-
-	return -EINVAL;
+	vfio_platform_remove_common(vdev);
+	kfree(vdev);
+	return 0;
 }
 
 static struct platform_driver vfio_platform_driver = {

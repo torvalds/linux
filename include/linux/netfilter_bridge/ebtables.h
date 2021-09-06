@@ -100,6 +100,7 @@ struct ebt_table {
 	   unsigned int valid_hooks);
 	/* the data used by the kernel */
 	struct ebt_table_info *private;
+	struct nf_hook_ops *ops;
 	struct module *me;
 };
 
@@ -108,11 +109,9 @@ struct ebt_table {
 
 extern int ebt_register_table(struct net *net,
 			      const struct ebt_table *table,
-			      const struct nf_hook_ops *ops,
-			      struct ebt_table **res);
-extern void ebt_unregister_table(struct net *net, struct ebt_table *table);
-void ebt_unregister_table_pre_exit(struct net *net, const char *tablename,
-				   const struct nf_hook_ops *ops);
+			      const struct nf_hook_ops *ops);
+extern void ebt_unregister_table(struct net *net, const char *tablename);
+void ebt_unregister_table_pre_exit(struct net *net, const char *tablename);
 extern unsigned int ebt_do_table(struct sk_buff *skb,
 				 const struct nf_hook_state *state,
 				 struct ebt_table *table);

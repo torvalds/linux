@@ -150,6 +150,7 @@ static int rapl_msr_probe(struct platform_device *pdev)
 	case X86_VENDOR_INTEL:
 		rapl_msr_priv = &rapl_msr_priv_intel;
 		break;
+	case X86_VENDOR_HYGON:
 	case X86_VENDOR_AMD:
 		rapl_msr_priv = &rapl_msr_priv_amd;
 		break;

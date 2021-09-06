@@ -388,8 +388,6 @@ struct ubi_volume_desc {
 	int mode;
 };
 
-struct ubi_wl_entry;
-
 /**
  * struct ubi_debug_info - debugging information for an UBI device.
  *

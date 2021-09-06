@@ -527,7 +527,7 @@ static int __kprobes do_page_fault(unsigned long far, unsigned int esr,
 	const struct fault_info *inf;
 	struct mm_struct *mm = current->mm;
 	vm_fault_t fault;
-	unsigned long vm_flags = VM_ACCESS_FLAGS;
+	unsigned long vm_flags;
 	unsigned int mm_flags = FAULT_FLAG_DEFAULT;
 	unsigned long addr = untagged_addr(far);
 
@@ -544,12 +544,28 @@ static int __kprobes do_page_fault(unsigned long far, unsigned int esr,
 	if (user_mode(regs))
 		mm_flags |= FAULT_FLAG_USER;
 
+	/*
+	 * vm_flags tells us what bits we must have in vma->vm_flags
+	 * for the fault to be benign, __do_page_fault() would check
+	 * vma->vm_flags & vm_flags and returns an error if the
+	 * intersection is empty
+	 */
 	if (is_el0_instruction_abort(esr)) {
+		/* It was exec fault */
 		vm_flags = VM_EXEC;
 		mm_flags |= FAULT_FLAG_INSTRUCTION;
 	} else if (is_write_abort(esr)) {
+		/* It was write fault */
 		vm_flags = VM_WRITE;
 		mm_flags |= FAULT_FLAG_WRITE;
+	} else {
+		/* It was read fault */
+		vm_flags = VM_READ;
+		/* Write implies read */
+		vm_flags |= VM_WRITE;
+		/* If EPAN is absent then exec implies read */
+		if (!cpus_have_const_cap(ARM64_HAS_EPAN))
+			vm_flags |= VM_EXEC;
 	}
 
 	if (is_ttbr0_addr(addr) && is_el1_permission_fault(addr, esr, regs)) {

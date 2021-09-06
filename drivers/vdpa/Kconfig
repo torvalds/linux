@@ -14,6 +14,7 @@ config VDPA_SIM
 	depends on RUNTIME_TESTING_MENU && HAS_DMA
 	select DMA_OPS
 	select VHOST_RING
+	select IOMMU_IOVA
 	help
 	  Enable this module to support vDPA device simulators. These devices
 	  are used for testing, prototyping and development of vDPA.
@@ -24,6 +25,13 @@ config VDPA_SIM_NET
 	select GENERIC_NET_UTILS
 	help
 	  vDPA networking device simulator which loops TX traffic back to RX.
+
+config VDPA_SIM_BLOCK
+	tristate "vDPA simulator for block device"
+	depends on VDPA_SIM
+	help
+	  vDPA block device simulator which terminates IO request in a
+	  memory buffer.
 
 config IFCVF
 	tristate "Intel IFC VF vDPA driver"
@@ -51,5 +59,12 @@ config MLX5_VDPA_NET
 	  of virtio net datapath such that descriptors put on the ring will
 	  be executed by the hardware. It also supports a variety of stateless
 	  offloads depending on the actual device used and firmware version.
+
+config VP_VDPA
+	tristate "Virtio PCI bridge vDPA driver"
+	select VIRTIO_PCI_LIB
+	depends on PCI_MSI
+	help
+	  This kernel module bridges virtio PCI device to vDPA bus.
 
 endif # VDPA

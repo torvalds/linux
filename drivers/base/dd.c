@@ -55,7 +55,6 @@ static DEFINE_MUTEX(deferred_probe_mutex);
 static LIST_HEAD(deferred_probe_pending_list);
 static LIST_HEAD(deferred_probe_active_list);
 static atomic_t deferred_trigger_count = ATOMIC_INIT(0);
-static struct dentry *deferred_devices;
 static bool initcalls_done;
 
 /* Save the async probe drivers' name from kernel cmdline */
@@ -68,6 +67,12 @@ static char async_probe_drv_names[ASYNC_DRV_NAMES_MAX_LEN];
  * Once defer_all_probes is true all drivers probes will be forcibly deferred.
  */
 static bool defer_all_probes;
+
+static void __device_set_deferred_probe_reason(const struct device *dev, char *reason)
+{
+	kfree(dev->p->deferred_probe_reason);
+	dev->p->deferred_probe_reason = reason;
+}
 
 /*
  * deferred_probe_work_func() - Retry probing devices in the active list.
@@ -97,8 +102,7 @@ static void deferred_probe_work_func(struct work_struct *work)
 
 		get_device(dev);
 
-		kfree(dev->p->deferred_probe_reason);
-		dev->p->deferred_probe_reason = NULL;
+		__device_set_deferred_probe_reason(dev, NULL);
 
 		/*
 		 * Drop the mutex while probing each device; the probe path may
@@ -126,6 +130,9 @@ static DECLARE_WORK(deferred_probe_work, deferred_probe_work_func);
 
 void driver_deferred_probe_add(struct device *dev)
 {
+	if (!dev->can_match)
+		return;
+
 	mutex_lock(&deferred_probe_mutex);
 	if (list_empty(&dev->p->deferred_probe)) {
 		dev_dbg(dev, "Added to deferred list\n");
@@ -140,8 +147,7 @@ void driver_deferred_probe_del(struct device *dev)
 	if (!list_empty(&dev->p->deferred_probe)) {
 		dev_dbg(dev, "Removed from deferred list\n");
 		list_del_init(&dev->p->deferred_probe);
-		kfree(dev->p->deferred_probe_reason);
-		dev->p->deferred_probe_reason = NULL;
+		__device_set_deferred_probe_reason(dev, NULL);
 	}
 	mutex_unlock(&deferred_probe_mutex);
 }
@@ -185,7 +191,7 @@ static void driver_deferred_probe_trigger(void)
 	 * Kick the re-probe thread.  It may already be scheduled, but it is
 	 * safe to kick it again.
 	 */
-	schedule_work(&deferred_probe_work);
+	queue_work(system_unbound_wq, &deferred_probe_work);
 }
 
 /**
@@ -220,11 +226,12 @@ void device_unblock_probing(void)
 void device_set_deferred_probe_reason(const struct device *dev, struct va_format *vaf)
 {
 	const char *drv = dev_driver_string(dev);
+	char *reason;
 
 	mutex_lock(&deferred_probe_mutex);
 
-	kfree(dev->p->deferred_probe_reason);
-	dev->p->deferred_probe_reason = kasprintf(GFP_KERNEL, "%s: %pV", drv, vaf);
+	reason = kasprintf(GFP_KERNEL, "%s: %pV", drv, vaf);
+	__device_set_deferred_probe_reason(dev, reason);
 
 	mutex_unlock(&deferred_probe_mutex);
 }
@@ -294,6 +301,8 @@ static void deferred_probe_timeout_work_func(struct work_struct *work)
 {
 	struct device_private *p;
 
+	fw_devlink_drivers_done();
+
 	driver_deferred_probe_timeout = 0;
 	driver_deferred_probe_trigger();
 	flush_work(&deferred_probe_work);
@@ -315,14 +324,17 @@ static DECLARE_DELAYED_WORK(deferred_probe_timeout_work, deferred_probe_timeout_
  */
 static int deferred_probe_initcall(void)
 {
-	deferred_devices = debugfs_create_file("devices_deferred", 0444, NULL,
-					       NULL, &deferred_devs_fops);
+	debugfs_create_file("devices_deferred", 0444, NULL, NULL,
+			    &deferred_devs_fops);
 
 	driver_deferred_probe_enable = true;
 	driver_deferred_probe_trigger();
 	/* Sort as many dependencies as possible before exiting initcalls */
 	flush_work(&deferred_probe_work);
 	initcalls_done = true;
+
+	if (!IS_ENABLED(CONFIG_MODULES))
+		fw_devlink_drivers_done();
 
 	/*
 	 * Trigger deferred probe again, this time we won't defer anything
@@ -341,7 +353,7 @@ late_initcall(deferred_probe_initcall);
 
 static void __exit deferred_probe_exit(void)
 {
-	debugfs_remove_recursive(deferred_devices);
+	debugfs_remove_recursive(debugfs_lookup("devices_deferred", NULL));
 }
 __exitcall(deferred_probe_exit);
 
@@ -418,8 +430,11 @@ static int driver_sysfs_add(struct device *dev)
 	if (ret)
 		goto rm_dev;
 
-	if (!IS_ENABLED(CONFIG_DEV_COREDUMP) || !dev->driver->coredump ||
-	    !device_create_file(dev, &dev_attr_coredump))
+	if (!IS_ENABLED(CONFIG_DEV_COREDUMP) || !dev->driver->coredump)
+		return 0;
+
+	ret = device_create_file(dev, &dev_attr_coredump);
+	if (!ret)
 		return 0;
 
 	sysfs_remove_link(&dev->kobj, "driver");
@@ -462,8 +477,10 @@ int device_bind_driver(struct device *dev)
 	int ret;
 
 	ret = driver_sysfs_add(dev);
-	if (!ret)
+	if (!ret) {
+		device_links_force_bind(dev);
 		driver_bound(dev);
+	}
 	else if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_DRIVER_NOT_BOUND, dev);
@@ -731,6 +748,7 @@ static int driver_probe_device(struct device_driver *drv, struct device *dev)
 	if (!device_is_registered(dev))
 		return -ENODEV;
 
+	dev->can_match = true;
 	pr_debug("bus: '%s': %s: matched device %s with driver %s\n",
 		 drv->bus->name, __func__, dev_name(dev), drv->name);
 
@@ -834,6 +852,7 @@ static int __device_attach_driver(struct device_driver *drv, void *_data)
 		return 0;
 	} else if (ret == -EPROBE_DEFER) {
 		dev_dbg(dev, "Device match requests probe deferral\n");
+		dev->can_match = true;
 		driver_deferred_probe_add(dev);
 	} else if (ret < 0) {
 		dev_dbg(dev, "Bus failed to match device: %d\n", ret);
@@ -1069,6 +1088,7 @@ static int __driver_attach(struct device *dev, void *data)
 		return 0;
 	} else if (ret == -EPROBE_DEFER) {
 		dev_dbg(dev, "Device match requests probe deferral\n");
+		dev->can_match = true;
 		driver_deferred_probe_add(dev);
 	} else if (ret < 0) {
 		dev_dbg(dev, "Bus failed to match device: %d\n", ret);

@@ -9,7 +9,7 @@
  * The shmid64_ds structure for x86 architecture with x32 ABI.
  *
  * On x86-32 and x86-64 we can just use the generic definition, but
- * x32 uses the same binary layout as x86_64, which is differnet
+ * x32 uses the same binary layout as x86_64, which is different
  * from other 32-bit architectures.
  */
 

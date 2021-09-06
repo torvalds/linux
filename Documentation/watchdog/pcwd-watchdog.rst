@@ -47,7 +47,7 @@ Documentation and Driver by Ken Hollis <kenji@bitgate.com>
 	WDIOC_GETSTATUS
 		This returns the status of the card, with the bits of
 		WDIOF_* bitwise-anded into the value.  (The comments
-		are in linux/pcwd.h)
+		are in include/uapi/linux/watchdog.h)
 
 	WDIOC_GETBOOTSTATUS
 		This returns the status of the card that was reported

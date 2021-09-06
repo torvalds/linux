@@ -51,15 +51,12 @@ mt7663s_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	return ret;
 }
 
-static int mt7663s_mcu_drv_pmctrl(struct mt7615_dev *dev)
+static int __mt7663s_mcu_drv_pmctrl(struct mt7615_dev *dev)
 {
 	struct sdio_func *func = dev->mt76.sdio.func;
 	struct mt76_phy *mphy = &dev->mt76.phy;
 	u32 status;
 	int ret;
-
-	if (!test_and_clear_bit(MT76_STATE_PM, &mphy->state))
-		goto out;
 
 	sdio_claim_host(func);
 
@@ -76,9 +73,17 @@ static int mt7663s_mcu_drv_pmctrl(struct mt7615_dev *dev)
 	}
 
 	sdio_release_host(func);
-
-out:
 	dev->pm.last_activity = jiffies;
+
+	return 0;
+}
+
+static int mt7663s_mcu_drv_pmctrl(struct mt7615_dev *dev)
+{
+	struct mt76_phy *mphy = &dev->mt76.phy;
+
+	if (test_and_clear_bit(MT76_STATE_PM, &mphy->state))
+		return __mt7663s_mcu_drv_pmctrl(dev);
 
 	return 0;
 }
@@ -123,7 +128,7 @@ int mt7663s_mcu_init(struct mt7615_dev *dev)
 	struct mt7615_mcu_ops *mcu_ops;
 	int ret;
 
-	ret = mt7663s_mcu_drv_pmctrl(dev);
+	ret = __mt7663s_mcu_drv_pmctrl(dev);
 	if (ret)
 		return ret;
 

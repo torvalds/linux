@@ -176,10 +176,18 @@ struct mt7615_mcu_rxd {
 	u8 s2d_index;
 };
 
+struct mt7615_mcu_csa_notify {
+	struct mt7615_mcu_rxd rxd;
+
+	u8 omac_idx;
+	u8 csa_count;
+	u8 rsv[2];
+} __packed;
+
 struct mt7615_mcu_rdd_report {
 	struct mt7615_mcu_rxd rxd;
 
-	u8 idx;
+	u8 band_idx;
 	u8 long_detected;
 	u8 constant_prf_detected;
 	u8 staggered_prf_detected;
@@ -361,30 +369,6 @@ enum {
 	BSS_INFO_RA,
 	BSS_INFO_MAX_NUM
 };
-
-#define MT7615_WTBL_UPDATE_MAX_SIZE	(sizeof(struct wtbl_req_hdr) +	\
-					 sizeof(struct wtbl_generic) +	\
-					 sizeof(struct wtbl_rx) +	\
-					 sizeof(struct wtbl_ht) +	\
-					 sizeof(struct wtbl_vht) +	\
-					 sizeof(struct wtbl_tx_ps) +	\
-					 sizeof(struct wtbl_hdr_trans) +\
-					 sizeof(struct wtbl_ba) +	\
-					 sizeof(struct wtbl_bf) +	\
-					 sizeof(struct wtbl_smps) +	\
-					 sizeof(struct wtbl_pn) +	\
-					 sizeof(struct wtbl_spe))
-
-#define MT7615_STA_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +	\
-					 sizeof(struct sta_rec_basic) +	\
-					 sizeof(struct sta_rec_ht) +	\
-					 sizeof(struct sta_rec_vht) +	\
-					 sizeof(struct sta_rec_uapsd) + \
-					 sizeof(struct tlv) +	\
-					 MT7615_WTBL_UPDATE_MAX_SIZE)
-
-#define MT7615_WTBL_UPDATE_BA_SIZE	(sizeof(struct wtbl_req_hdr) +	\
-					 sizeof(struct wtbl_ba))
 
 enum {
 	CH_SWITCH_NORMAL = 0,

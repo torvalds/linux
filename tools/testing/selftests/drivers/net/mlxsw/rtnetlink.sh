@@ -33,6 +33,7 @@ ALL_TESTS="
 	nexthop_obj_invalid_test
 	nexthop_obj_offload_test
 	nexthop_obj_group_offload_test
+	nexthop_obj_bucket_offload_test
 	nexthop_obj_blackhole_offload_test
 	nexthop_obj_route_offload_test
 	devlink_reload_test
@@ -739,11 +740,28 @@ nexthop_obj_invalid_test()
 
 	ip nexthop add id 1 dev $swp1
 	ip nexthop add id 2 dev $swp1
+	ip nexthop add id 3 via 192.0.2.3 dev $swp1
 	ip nexthop add id 10 group 1/2
 	check_fail $? "managed to configure a nexthop group with device-only nexthops when should not"
 
+	ip nexthop add id 10 group 3 type resilient buckets 7
+	check_fail $? "managed to configure a too small resilient nexthop group when should not"
+
+	ip nexthop add id 10 group 3 type resilient buckets 129
+	check_fail $? "managed to configure a resilient nexthop group with invalid number of buckets when should not"
+
+	ip nexthop add id 10 group 1/2 type resilient buckets 32
+	check_fail $? "managed to configure a resilient nexthop group with device-only nexthops when should not"
+
+	ip nexthop add id 10 group 3 type resilient buckets 32
+	check_err $? "failed to configure a valid resilient nexthop group"
+	ip nexthop replace id 3 dev $swp1
+	check_fail $? "managed to populate a nexthop bucket with a device-only nexthop when should not"
+
 	log_test "nexthop objects - invalid configurations"
 
+	ip nexthop del id 10
+	ip nexthop del id 3
 	ip nexthop del id 2
 	ip nexthop del id 1
 
@@ -846,6 +864,70 @@ nexthop_obj_group_offload_test()
 	check_err $? "nexthop group not marked as offloaded after revalidating nexthop"
 
 	log_test "nexthop group objects offload indication"
+
+	ip neigh del 2001:db8:1::2 dev $swp1
+	ip neigh del 192.0.2.3 dev $swp1
+	ip neigh del 192.0.2.2 dev $swp1
+	ip nexthop del id 10
+	ip nexthop del id 2
+	ip nexthop del id 1
+
+	simple_if_fini $swp2
+	simple_if_fini $swp1 192.0.2.1/24 2001:db8:1::1/64
+}
+
+nexthop_obj_bucket_offload_test()
+{
+	# Test offload indication of nexthop buckets
+	RET=0
+
+	simple_if_init $swp1 192.0.2.1/24 2001:db8:1::1/64
+	simple_if_init $swp2
+	setup_wait
+
+	ip nexthop add id 1 via 192.0.2.2 dev $swp1
+	ip nexthop add id 2 via 2001:db8:1::2 dev $swp1
+	ip nexthop add id 10 group 1/2 type resilient buckets 32 idle_timer 0
+	ip neigh replace 192.0.2.2 lladdr 00:11:22:33:44:55 nud reachable \
+		dev $swp1
+	ip neigh replace 192.0.2.3 lladdr 00:11:22:33:44:55 nud reachable \
+		dev $swp1
+	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud reachable \
+		dev $swp1
+
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop bucket show nhid 1
+	check_err $? "IPv4 nexthop buckets not marked as offloaded when should"
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop bucket show nhid 2
+	check_err $? "IPv6 nexthop buckets not marked as offloaded when should"
+
+	# Invalidate nexthop id 1
+	ip neigh replace 192.0.2.2 nud failed dev $swp1
+	busywait "$TIMEOUT" wait_for_trap \
+		ip nexthop bucket show nhid 1
+	check_err $? "IPv4 nexthop buckets not marked with trap when should"
+
+	# Invalidate nexthop id 2
+	ip neigh replace 2001:db8:1::2 nud failed dev $swp1
+	busywait "$TIMEOUT" wait_for_trap \
+		ip nexthop bucket show nhid 2
+	check_err $? "IPv6 nexthop buckets not marked with trap when should"
+
+	# Revalidate nexthop id 1 by changing its configuration
+	ip nexthop replace id 1 via 192.0.2.3 dev $swp1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop bucket show nhid 1
+	check_err $? "nexthop bucket not marked as offloaded after revalidating nexthop"
+
+	# Revalidate nexthop id 2 by changing its neighbour
+	ip neigh replace 2001:db8:1::2 lladdr 00:11:22:33:44:55 nud reachable \
+		dev $swp1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop bucket show nhid 2
+	check_err $? "nexthop bucket not marked as offloaded after revalidating neighbour"
+
+	log_test "nexthop bucket offload indication"
 
 	ip neigh del 2001:db8:1::2 dev $swp1
 	ip neigh del 192.0.2.3 dev $swp1

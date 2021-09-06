@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * Transmit and frame generation functions.
  */
@@ -1388,8 +1388,20 @@ static void ieee80211_txq_enqueue(struct ieee80211_local *local,
 	ieee80211_set_skb_enqueue_time(skb);
 
 	spin_lock_bh(&fq->lock);
-	fq_tin_enqueue(fq, tin, flow_idx, skb,
-		       fq_skb_free_func);
+	/*
+	 * For management frames, don't really apply codel etc.,
+	 * we don't want to apply any shaping or anything we just
+	 * want to simplify the driver API by having them on the
+	 * txqi.
+	 */
+	if (unlikely(txqi->txq.tid == IEEE80211_NUM_TIDS)) {
+		IEEE80211_SKB_CB(skb)->control.flags |=
+			IEEE80211_TX_INTCFL_NEED_TXPROCESSING;
+		__skb_queue_tail(&txqi->frags, skb);
+	} else {
+		fq_tin_enqueue(fq, tin, flow_idx, skb,
+			       fq_skb_free_func);
+	}
 	spin_unlock_bh(&fq->lock);
 }
 
@@ -1684,7 +1696,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_vif *vif;
 	struct sk_buff *skb;
-	bool result = true;
+	bool result;
 	__le16 fc;
 
 	if (WARN_ON(skb_queue_empty(skbs)))
@@ -2002,27 +2014,10 @@ void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx(sdata, sta, skb, false);
 }
 
-bool ieee80211_parse_tx_radiotap(struct sk_buff *skb,
-				 struct net_device *dev)
+static bool ieee80211_validate_radiotap_len(struct sk_buff *skb)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_radiotap_iterator iterator;
 	struct ieee80211_radiotap_header *rthdr =
-		(struct ieee80211_radiotap_header *) skb->data;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_supported_band *sband =
-		local->hw.wiphy->bands[info->band];
-	int ret = ieee80211_radiotap_iterator_init(&iterator, rthdr, skb->len,
-						   NULL);
-	u16 txflags;
-	u16 rate = 0;
-	bool rate_found = false;
-	u8 rate_retries = 0;
-	u16 rate_flags = 0;
-	u8 mcs_known, mcs_flags, mcs_bw;
-	u16 vht_known;
-	u8 vht_mcs = 0, vht_nss = 0;
-	int i;
+		(struct ieee80211_radiotap_header *)skb->data;
 
 	/* check for not even having the fixed radiotap header part */
 	if (unlikely(skb->len < sizeof(struct ieee80211_radiotap_header)))
@@ -2035,6 +2030,32 @@ bool ieee80211_parse_tx_radiotap(struct sk_buff *skb,
 	/* does the skb contain enough to deliver on the alleged length? */
 	if (unlikely(skb->len < ieee80211_get_radiotap_len(skb->data)))
 		return false; /* skb too short for claimed rt header extent */
+
+	return true;
+}
+
+bool ieee80211_parse_tx_radiotap(struct sk_buff *skb,
+				 struct net_device *dev)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_radiotap_iterator iterator;
+	struct ieee80211_radiotap_header *rthdr =
+		(struct ieee80211_radiotap_header *) skb->data;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	int ret = ieee80211_radiotap_iterator_init(&iterator, rthdr, skb->len,
+						   NULL);
+	u16 txflags;
+	u16 rate = 0;
+	bool rate_found = false;
+	u8 rate_retries = 0;
+	u16 rate_flags = 0;
+	u8 mcs_known, mcs_flags, mcs_bw;
+	u16 vht_known;
+	u8 vht_mcs = 0, vht_nss = 0;
+	int i;
+
+	if (!ieee80211_validate_radiotap_len(skb))
+		return false;
 
 	info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT |
 		       IEEE80211_TX_CTL_DONTFRAG;
@@ -2174,6 +2195,9 @@ bool ieee80211_parse_tx_radiotap(struct sk_buff *skb,
 		return false;
 
 	if (rate_found) {
+		struct ieee80211_supported_band *sband =
+			local->hw.wiphy->bands[info->band];
+
 		info->control.flags |= IEEE80211_TX_CTRL_RATE_INJECT;
 
 		for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
@@ -2187,7 +2211,7 @@ bool ieee80211_parse_tx_radiotap(struct sk_buff *skb,
 		} else if (rate_flags & IEEE80211_TX_RC_VHT_MCS) {
 			ieee80211_rate_set_vht(info->control.rates, vht_mcs,
 					       vht_nss);
-		} else {
+		} else if (sband) {
 			for (i = 0; i < sband->n_bitrates; i++) {
 				if (rate * 5 != sband->bitrates[i].bitrate)
 					continue;
@@ -2224,8 +2248,8 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	info->flags = IEEE80211_TX_CTL_REQ_TX_STATUS |
 		      IEEE80211_TX_CTL_INJECTED;
 
-	/* Sanity-check and process the injection radiotap header */
-	if (!ieee80211_parse_tx_radiotap(skb, dev))
+	/* Sanity-check the length of the radiotap header */
+	if (!ieee80211_validate_radiotap_len(skb))
 		goto fail;
 
 	/* we now know there is a radiotap header with a length we can use */
@@ -2265,17 +2289,6 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 		if (ether_addr_equal(payload, rfc1042_header))
 			skb->protocol = cpu_to_be16((payload[6] << 8) |
 						    payload[7]);
-	}
-
-	/* Initialize skb->priority for QoS frames. If the DONT_REORDER flag
-	 * is set, stick to the default value for skb->priority to assure
-	 * frames injected with this flag are not reordered relative to each
-	 * other.
-	 */
-	if (ieee80211_is_data_qos(hdr->frame_control) &&
-	    !(info->control.flags & IEEE80211_TX_CTRL_DONT_REORDER)) {
-		u8 *p = ieee80211_get_qos_ctl(hdr);
-		skb->priority = *p & IEEE80211_QOS_CTL_TAG1D_MASK;
 	}
 
 	rcu_read_lock();
@@ -2340,6 +2353,23 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 		goto fail_rcu;
 
 	info->band = chandef->chan->band;
+
+	/* Initialize skb->priority according to frame type and TID class,
+	 * with respect to the sub interface that the frame will actually
+	 * be transmitted on. If the DONT_REORDER flag is set, the original
+	 * skb-priority is preserved to assure frames injected with this
+	 * flag are not reordered relative to each other.
+	 */
+	ieee80211_select_queue_80211(sdata, skb, hdr);
+	skb_set_queue_mapping(skb, ieee80211_ac_from_tid(skb->priority));
+
+	/*
+	 * Process the radiotap header. This will now take into account the
+	 * selected chandef above to accurately set injection rates and
+	 * retransmissions.
+	 */
+	if (!ieee80211_parse_tx_radiotap(skb, dev))
+		goto fail_rcu;
 
 	/* remove the injection radiotap header */
 	skb_pull(skb, len_rthdr);
@@ -3580,10 +3610,16 @@ begin:
 
 	/* Make sure fragments stay together. */
 	skb = __skb_dequeue(&txqi->frags);
-	if (skb)
-		goto out;
+	if (unlikely(skb)) {
+		if (!(IEEE80211_SKB_CB(skb)->control.flags &
+				IEEE80211_TX_INTCFL_NEED_TXPROCESSING))
+			goto out;
+		IEEE80211_SKB_CB(skb)->control.flags &=
+			~IEEE80211_TX_INTCFL_NEED_TXPROCESSING;
+	} else {
+		skb = fq_tin_dequeue(fq, tin, fq_tin_dequeue_func);
+	}
 
-	skb = fq_tin_dequeue(fq, tin, fq_tin_dequeue_func);
 	if (!skb)
 		goto out;
 
@@ -3833,6 +3869,9 @@ bool ieee80211_txq_airtime_check(struct ieee80211_hw *hw,
 		return true;
 
 	if (!txq->sta)
+		return true;
+
+	if (unlikely(txq->tid == IEEE80211_NUM_TIDS))
 		return true;
 
 	sta = container_of(txq->sta, struct sta_info, sta);
@@ -4149,6 +4188,9 @@ static bool ieee80211_tx_8023(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_sta *pubsta = NULL;
 	unsigned long flags;
 	int q = info->hw_queue;
+
+	if (sta)
+		sk_pacing_shift_update(skb->sk, local->hw.tx_sk_pacing_shift);
 
 	if (ieee80211_queue_skb(local, sdata, sta, skb))
 		return true;

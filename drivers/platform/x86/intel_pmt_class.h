@@ -44,6 +44,7 @@ struct intel_pmt_namespace {
 				 struct device *dev);
 };
 
+bool intel_pmt_is_early_client_hw(struct device *dev);
 int intel_pmt_dev_create(struct intel_pmt_entry *entry,
 			 struct intel_pmt_namespace *ns,
 			 struct platform_device *pdev, int idx);

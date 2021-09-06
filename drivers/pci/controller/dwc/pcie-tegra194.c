@@ -245,24 +245,6 @@ static const unsigned int pcie_gen_freq[] = {
 	GEN4_CORE_CLK_FREQ
 };
 
-static const u32 event_cntr_ctrl_offset[] = {
-	0x1d8,
-	0x1a8,
-	0x1a8,
-	0x1a8,
-	0x1c4,
-	0x1d8
-};
-
-static const u32 event_cntr_data_offset[] = {
-	0x1dc,
-	0x1ac,
-	0x1ac,
-	0x1ac,
-	0x1c8,
-	0x1dc
-};
-
 struct tegra_pcie_dw {
 	struct device *dev;
 	struct resource *appl_res;
@@ -594,6 +576,24 @@ static struct pci_ops tegra_pci_ops = {
 };
 
 #if defined(CONFIG_PCIEASPM)
+static const u32 event_cntr_ctrl_offset[] = {
+	0x1d8,
+	0x1a8,
+	0x1a8,
+	0x1a8,
+	0x1c4,
+	0x1d8
+};
+
+static const u32 event_cntr_data_offset[] = {
+	0x1dc,
+	0x1ac,
+	0x1ac,
+	0x1ac,
+	0x1c8,
+	0x1dc
+};
+
 static void disable_aspm_l11(struct tegra_pcie_dw *pcie)
 {
 	u32 val;
@@ -1019,7 +1019,7 @@ static const struct dw_pcie_ops tegra_dw_pcie_ops = {
 	.stop_link = tegra_pcie_dw_stop_link,
 };
 
-static struct dw_pcie_host_ops tegra_pcie_dw_host_ops = {
+static const struct dw_pcie_host_ops tegra_pcie_dw_host_ops = {
 	.host_init = tegra_pcie_dw_host_init,
 };
 
@@ -1645,7 +1645,7 @@ static void pex_ep_event_pex_rst_deassert(struct tegra_pcie_dw *pcie)
 	if (pcie->ep_state == EP_STATE_ENABLED)
 		return;
 
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
 		dev_err(dev, "Failed to get runtime sync for PCIe dev: %d\n",
 			ret);
@@ -1881,7 +1881,7 @@ tegra_pcie_ep_get_features(struct dw_pcie_ep *ep)
 	return &tegra_pcie_epc_features;
 }
 
-static struct dw_pcie_ep_ops pcie_ep_ops = {
+static const struct dw_pcie_ep_ops pcie_ep_ops = {
 	.raise_irq = tegra_pcie_ep_raise_irq,
 	.get_features = tegra_pcie_ep_get_features,
 };

@@ -602,11 +602,6 @@ extern void outsl (unsigned long port, const void *src, unsigned long count);
  */
 #define xlate_dev_mem_ptr(p)	__va(p)
 
-/*
- * Convert a virtual cached pointer to an uncached pointer
- */
-#define xlate_dev_kmem_ptr(p)	p
-
 #endif /* __KERNEL__ */
 
 #endif /* __ALPHA_IO_H */

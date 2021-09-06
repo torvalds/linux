@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  */
 #include "rs.h"
 #include "fw-api.h"
@@ -72,19 +72,15 @@ static u16 rs_fw_get_config_flags(struct iwl_mvm *mvm,
 	bool vht_ena = vht_cap->vht_supported;
 	u16 flags = 0;
 
+	/* get STBC flags */
 	if (mvm->cfg->ht_params->stbc &&
 	    (num_of_ant(iwl_mvm_get_valid_tx_ant(mvm)) > 1)) {
-		if (he_cap->has_he) {
-			if (he_cap->he_cap_elem.phy_cap_info[2] &
-			    IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ)
-				flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
-
-			if (he_cap->he_cap_elem.phy_cap_info[7] &
-			    IEEE80211_HE_PHY_CAP7_STBC_RX_ABOVE_80MHZ)
-				flags |= IWL_TLC_MNG_CFG_FLAGS_HE_STBC_160MHZ_MSK;
-		} else if ((ht_cap->cap & IEEE80211_HT_CAP_RX_STBC) ||
-			   (vht_ena &&
-			    (vht_cap->cap & IEEE80211_VHT_CAP_RXSTBC_MASK)))
+		if (he_cap->has_he && he_cap->he_cap_elem.phy_cap_info[2] &
+				      IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ)
+			flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
+		else if (vht_cap->cap & IEEE80211_VHT_CAP_RXSTBC_MASK)
+			flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
+		else if (ht_cap->cap & IEEE80211_HT_CAP_RX_STBC)
 			flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
 	}
 

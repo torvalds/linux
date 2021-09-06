@@ -1414,11 +1414,15 @@ static int tc_bridge_attach(struct drm_bridge *bridge,
 	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
 		return 0;
 
+	ret = drm_dp_aux_register(&tc->aux);
+	if (ret < 0)
+		return ret;
+
 	/* Create DP/eDP connector */
 	drm_connector_helper_add(&tc->connector, &tc_connector_helper_funcs);
 	ret = drm_connector_init(drm, &tc->connector, &tc_connector_funcs, tc->bridge.type);
 	if (ret)
-		return ret;
+		goto aux_unregister;
 
 	/* Don't poll if don't have HPD connected */
 	if (tc->hpd_pin >= 0) {
@@ -1438,10 +1442,19 @@ static int tc_bridge_attach(struct drm_bridge *bridge,
 	drm_connector_attach_encoder(&tc->connector, tc->bridge.encoder);
 
 	return 0;
+aux_unregister:
+	drm_dp_aux_unregister(&tc->aux);
+	return ret;
+}
+
+static void tc_bridge_detach(struct drm_bridge *bridge)
+{
+	drm_dp_aux_unregister(&bridge_to_tc(bridge)->aux);
 }
 
 static const struct drm_bridge_funcs tc_bridge_funcs = {
 	.attach = tc_bridge_attach,
+	.detach = tc_bridge_detach,
 	.mode_valid = tc_mode_valid,
 	.mode_set = tc_bridge_mode_set,
 	.enable = tc_bridge_enable,
@@ -1680,9 +1693,7 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	tc->aux.name = "TC358767 AUX i2c adapter";
 	tc->aux.dev = tc->dev;
 	tc->aux.transfer = tc_aux_transfer;
-	ret = drm_dp_aux_register(&tc->aux);
-	if (ret)
-		return ret;
+	drm_dp_aux_init(&tc->aux);
 
 	tc->bridge.funcs = &tc_bridge_funcs;
 	if (tc->hpd_pin >= 0)
@@ -1702,7 +1713,6 @@ static int tc_remove(struct i2c_client *client)
 	struct tc_data *tc = i2c_get_clientdata(client);
 
 	drm_bridge_remove(&tc->bridge);
-	drm_dp_aux_unregister(&tc->aux);
 
 	return 0;
 }

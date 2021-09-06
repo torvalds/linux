@@ -144,6 +144,7 @@ static void perf_env__purge_bpf(struct perf_env *env)
 		node = rb_entry(next, struct bpf_prog_info_node, rb_node);
 		next = rb_next(&node->rb_node);
 		rb_erase(&node->rb_node, root);
+		free(node->info_linear);
 		free(node);
 	}
 

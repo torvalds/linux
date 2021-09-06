@@ -10,6 +10,8 @@
 
 #include <drm/i915_drm.h>
 
+#include "gem/i915_gem_lmem.h"
+
 #include "intel_gt.h"
 #include "i915_drv.h"
 #include "i915_scatterlist.h"
@@ -92,7 +94,7 @@ int i915_ggtt_init_hw(struct drm_i915_private *i915)
 }
 
 /*
- * Certain Gen5 chipsets require require idling the GPU before
+ * Certain Gen5 chipsets require idling the GPU before
  * unmapping anything from the GTT when VT-d is enabled.
  */
 static bool needs_idle_maps(struct drm_i915_private *i915)
@@ -189,7 +191,12 @@ static u64 gen8_ggtt_pte_encode(dma_addr_t addr,
 				enum i915_cache_level level,
 				u32 flags)
 {
-	return addr | _PAGE_PRESENT;
+	gen8_pte_t pte = addr | _PAGE_PRESENT;
+
+	if (flags & PTE_LM)
+		pte |= GEN12_GGTT_PTE_LM;
+
+	return pte;
 }
 
 static void gen8_set_pte(void __iomem *addr, gen8_pte_t pte)
@@ -201,13 +208,13 @@ static void gen8_ggtt_insert_page(struct i915_address_space *vm,
 				  dma_addr_t addr,
 				  u64 offset,
 				  enum i915_cache_level level,
-				  u32 unused)
+				  u32 flags)
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	gen8_pte_t __iomem *pte =
 		(gen8_pte_t __iomem *)ggtt->gsm + offset / I915_GTT_PAGE_SIZE;
 
-	gen8_set_pte(pte, gen8_ggtt_pte_encode(addr, level, 0));
+	gen8_set_pte(pte, gen8_ggtt_pte_encode(addr, level, flags));
 
 	ggtt->invalidate(ggtt);
 }
@@ -217,7 +224,7 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 				     enum i915_cache_level level,
 				     u32 flags)
 {
-	const gen8_pte_t pte_encode = gen8_ggtt_pte_encode(0, level, 0);
+	const gen8_pte_t pte_encode = gen8_ggtt_pte_encode(0, level, flags);
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	gen8_pte_t __iomem *gte;
 	gen8_pte_t __iomem *end;
@@ -459,6 +466,8 @@ static void ggtt_bind_vma(struct i915_address_space *vm,
 	pte_flags = 0;
 	if (i915_gem_object_is_readonly(obj))
 		pte_flags |= PTE_READ_ONLY;
+	if (i915_gem_object_is_lmem(obj))
+		pte_flags |= PTE_LM;
 
 	vm->insert_entries(vm, vma, cache_level, pte_flags);
 	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
@@ -647,7 +656,9 @@ static int init_aliasing_ppgtt(struct i915_ggtt *ggtt)
 	if (err)
 		goto err_ppgtt;
 
+	i915_gem_object_lock(ppgtt->vm.scratch[0], NULL);
 	err = i915_vm_pin_pt_stash(&ppgtt->vm, &stash);
+	i915_gem_object_unlock(ppgtt->vm.scratch[0]);
 	if (err)
 		goto err_stash;
 
@@ -734,6 +745,7 @@ static void ggtt_cleanup_hw(struct i915_ggtt *ggtt)
 
 	mutex_unlock(&ggtt->vm.mutex);
 	i915_address_space_fini(&ggtt->vm);
+	dma_resv_fini(&ggtt->vm.resv);
 
 	arch_phys_wc_del(ggtt->mtrr);
 
@@ -792,8 +804,9 @@ static unsigned int chv_get_total_gtt_size(u16 gmch_ctrl)
 static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 {
 	struct drm_i915_private *i915 = ggtt->vm.i915;
-	struct pci_dev *pdev = i915->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	phys_addr_t phys_addr;
+	u32 pte_flags;
 	int ret;
 
 	/* For Modern GENs the PTEs and register space are split in the BAR */
@@ -823,9 +836,13 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 		return ret;
 	}
 
+	pte_flags = 0;
+	if (i915_gem_object_is_lmem(ggtt->vm.scratch[0]))
+		pte_flags |= PTE_LM;
+
 	ggtt->vm.scratch[0]->encode =
 		ggtt->vm.pte_encode(px_dma(ggtt->vm.scratch[0]),
-				    I915_CACHE_NONE, 0);
+				    I915_CACHE_NONE, pte_flags);
 
 	return 0;
 }
@@ -862,7 +879,7 @@ static struct resource pci_resource(struct pci_dev *pdev, int bar)
 static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 {
 	struct drm_i915_private *i915 = ggtt->vm.i915;
-	struct pci_dev *pdev = i915->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	unsigned int size;
 	u16 snb_gmch_ctl;
 
@@ -1006,7 +1023,7 @@ static u64 iris_pte_encode(dma_addr_t addr,
 static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 {
 	struct drm_i915_private *i915 = ggtt->vm.i915;
-	struct pci_dev *pdev = i915->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	unsigned int size;
 	u16 snb_gmch_ctl;
 
@@ -1069,7 +1086,7 @@ static int i915_gmch_probe(struct i915_ggtt *ggtt)
 	phys_addr_t gmadr_base;
 	int ret;
 
-	ret = intel_gmch_probe(i915->bridge_dev, i915->drm.pdev, NULL);
+	ret = intel_gmch_probe(i915->bridge_dev, to_pci_dev(i915->drm.dev), NULL);
 	if (!ret) {
 		drm_err(&i915->drm, "failed to set up gmch\n");
 		return -EIO;
@@ -1114,7 +1131,8 @@ static int ggtt_probe_hw(struct i915_ggtt *ggtt, struct intel_gt *gt)
 
 	ggtt->vm.gt = gt;
 	ggtt->vm.i915 = i915;
-	ggtt->vm.dma = &i915->drm.pdev->dev;
+	ggtt->vm.dma = i915->drm.dev;
+	dma_resv_init(&ggtt->vm.resv);
 
 	if (INTEL_GEN(i915) <= 5)
 		ret = i915_gmch_probe(ggtt);
@@ -1122,8 +1140,10 @@ static int ggtt_probe_hw(struct i915_ggtt *ggtt, struct intel_gt *gt)
 		ret = gen6_gmch_probe(ggtt);
 	else
 		ret = gen8_gmch_probe(ggtt);
-	if (ret)
+	if (ret) {
+		dma_resv_fini(&ggtt->vm.resv);
 		return ret;
+	}
 
 	if ((ggtt->vm.total - 1) >> 32) {
 		drm_err(&i915->drm,
@@ -1247,14 +1267,16 @@ void i915_ggtt_resume(struct i915_ggtt *ggtt)
 static struct scatterlist *
 rotate_pages(struct drm_i915_gem_object *obj, unsigned int offset,
 	     unsigned int width, unsigned int height,
-	     unsigned int stride,
+	     unsigned int src_stride, unsigned int dst_stride,
 	     struct sg_table *st, struct scatterlist *sg)
 {
 	unsigned int column, row;
 	unsigned int src_idx;
 
 	for (column = 0; column < width; column++) {
-		src_idx = stride * (height - 1) + column + offset;
+		unsigned int left;
+
+		src_idx = src_stride * (height - 1) + column + offset;
 		for (row = 0; row < height; row++) {
 			st->nents++;
 			/*
@@ -1267,8 +1289,25 @@ rotate_pages(struct drm_i915_gem_object *obj, unsigned int offset,
 				i915_gem_object_get_dma_address(obj, src_idx);
 			sg_dma_len(sg) = I915_GTT_PAGE_SIZE;
 			sg = sg_next(sg);
-			src_idx -= stride;
+			src_idx -= src_stride;
 		}
+
+		left = (dst_stride - height) * I915_GTT_PAGE_SIZE;
+
+		if (!left)
+			continue;
+
+		st->nents++;
+
+		/*
+		 * The DE ignores the PTEs for the padding tiles, the sg entry
+		 * here is just a conenience to indicate how many padding PTEs
+		 * to insert at this spot.
+		 */
+		sg_set_page(sg, NULL, left, 0);
+		sg_dma_address(sg) = 0;
+		sg_dma_len(sg) = left;
+		sg = sg_next(sg);
 	}
 
 	return sg;
@@ -1297,11 +1336,12 @@ intel_rotate_pages(struct intel_rotation_info *rot_info,
 	st->nents = 0;
 	sg = st->sgl;
 
-	for (i = 0 ; i < ARRAY_SIZE(rot_info->plane); i++) {
+	for (i = 0 ; i < ARRAY_SIZE(rot_info->plane); i++)
 		sg = rotate_pages(obj, rot_info->plane[i].offset,
 				  rot_info->plane[i].width, rot_info->plane[i].height,
-				  rot_info->plane[i].stride, st, sg);
-	}
+				  rot_info->plane[i].src_stride,
+				  rot_info->plane[i].dst_stride,
+				  st, sg);
 
 	return st;
 
@@ -1319,7 +1359,7 @@ err_st_alloc:
 static struct scatterlist *
 remap_pages(struct drm_i915_gem_object *obj, unsigned int offset,
 	    unsigned int width, unsigned int height,
-	    unsigned int stride,
+	    unsigned int src_stride, unsigned int dst_stride,
 	    struct sg_table *st, struct scatterlist *sg)
 {
 	unsigned int row;
@@ -1352,7 +1392,24 @@ remap_pages(struct drm_i915_gem_object *obj, unsigned int offset,
 			left -= length;
 		}
 
-		offset += stride - width;
+		offset += src_stride - width;
+
+		left = (dst_stride - width) * I915_GTT_PAGE_SIZE;
+
+		if (!left)
+			continue;
+
+		st->nents++;
+
+		/*
+		 * The DE ignores the PTEs for the padding tiles, the sg entry
+		 * here is just a conenience to indicate how many padding PTEs
+		 * to insert at this spot.
+		 */
+		sg_set_page(sg, NULL, left, 0);
+		sg_dma_address(sg) = 0;
+		sg_dma_len(sg) = left;
+		sg = sg_next(sg);
 	}
 
 	return sg;
@@ -1384,7 +1441,8 @@ intel_remap_pages(struct intel_remapped_info *rem_info,
 	for (i = 0 ; i < ARRAY_SIZE(rem_info->plane); i++) {
 		sg = remap_pages(obj, rem_info->plane[i].offset,
 				 rem_info->plane[i].width, rem_info->plane[i].height,
-				 rem_info->plane[i].stride, st, sg);
+				 rem_info->plane[i].src_stride, rem_info->plane[i].dst_stride,
+				 st, sg);
 	}
 
 	i915_sg_trim(st);
@@ -1420,7 +1478,7 @@ intel_partial_pages(const struct i915_ggtt_view *view,
 	if (ret)
 		goto err_sg_alloc;
 
-	iter = i915_gem_object_get_sg_dma(obj, view->partial.offset, &offset);
+	iter = i915_gem_object_get_sg_dma(obj, view->partial.offset, &offset, true);
 	GEM_BUG_ON(!iter);
 
 	sg = st->sgl;

@@ -14,6 +14,8 @@
  * @pwr_pin: ADV powerdown pin
  * @reset_name: ADV reset name
  * @reset_pin: ADV reset pin
+ * @i2c_id: ADV i2c adapter ID
+ * @i2c_addr: ADV i2c address
  */
 struct vip_config {
 	const char *pwr_name;

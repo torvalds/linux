@@ -7,12 +7,41 @@
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
 #include <linux/crc7.h>
+#include <linux/crc-itu-t.h>
 
 #include "netdev.h"
 #include "cfg80211.h"
 
+static bool enable_crc7;	/* protect SPI commands with CRC7 */
+module_param(enable_crc7, bool, 0644);
+MODULE_PARM_DESC(enable_crc7,
+		 "Enable CRC7 checksum to protect command transfers\n"
+		 "\t\t\tagainst corruption during the SPI transfer.\n"
+		 "\t\t\tCommand transfers are short and the CPU-cycle cost\n"
+		 "\t\t\tof enabling this is small.");
+
+static bool enable_crc16;	/* protect SPI data with CRC16 */
+module_param(enable_crc16, bool, 0644);
+MODULE_PARM_DESC(enable_crc16,
+		 "Enable CRC16 checksum to protect data transfers\n"
+		 "\t\t\tagainst corruption during the SPI transfer.\n"
+		 "\t\t\tData transfers can be large and the CPU-cycle cost\n"
+		 "\t\t\tof enabling this may be substantial.");
+
+/*
+ * For CMD_SINGLE_READ and CMD_INTERNAL_READ, WILC may insert one or
+ * more zero bytes between the command response and the DATA Start tag
+ * (0xf3).  This behavior appears to be undocumented in "ATWILC1000
+ * USER GUIDE" (https://tinyurl.com/4hhshdts) but we have observed 1-4
+ * zero bytes when the SPI bus operates at 48MHz and none when it
+ * operates at 1MHz.
+ */
+#define WILC_SPI_RSP_HDR_EXTRA_DATA	8
+
 struct wilc_spi {
-	int crc_off;
+	bool probing_crc;	/* true if we're probing chip's CRC config */
+	bool crc7_enabled;	/* true if crc7 is currently enabled */
+	bool crc16_enabled;	/* true if crc16 is currently enabled */
 };
 
 static const struct wilc_hif_func wilc_hif_spi;
@@ -36,12 +65,36 @@ static const struct wilc_hif_func wilc_hif_spi;
 #define CMD_RESET				0xcf
 
 #define SPI_ENABLE_VMM_RETRY_LIMIT		2
-#define DATA_PKT_SZ_256				256
-#define DATA_PKT_SZ_512				512
-#define DATA_PKT_SZ_1K				1024
-#define DATA_PKT_SZ_4K				(4 * 1024)
-#define DATA_PKT_SZ_8K				(8 * 1024)
-#define DATA_PKT_SZ				DATA_PKT_SZ_8K
+
+/* SPI response fields (section 11.1.2 in ATWILC1000 User Guide): */
+#define RSP_START_FIELD				GENMASK(7, 4)
+#define RSP_TYPE_FIELD				GENMASK(3, 0)
+
+/* SPI response values for the response fields: */
+#define RSP_START_TAG				0xc
+#define RSP_TYPE_FIRST_PACKET			0x1
+#define RSP_TYPE_INNER_PACKET			0x2
+#define RSP_TYPE_LAST_PACKET			0x3
+#define RSP_STATE_NO_ERROR			0x00
+
+#define PROTOCOL_REG_PKT_SZ_MASK		GENMASK(6, 4)
+#define PROTOCOL_REG_CRC16_MASK			GENMASK(3, 3)
+#define PROTOCOL_REG_CRC7_MASK			GENMASK(2, 2)
+
+/*
+ * The SPI data packet size may be any integer power of two in the
+ * range from 256 to 8192 bytes.
+ */
+#define DATA_PKT_LOG_SZ_MIN			8	/* 256 B */
+#define DATA_PKT_LOG_SZ_MAX			13	/* 8 KiB */
+
+/*
+ * Select the data packet size (log2 of number of bytes): Use the
+ * maximum data packet size.  We only retransmit complete packets, so
+ * there is no benefit from using smaller data packets.
+ */
+#define DATA_PKT_LOG_SZ				DATA_PKT_LOG_SZ_MAX
+#define DATA_PKT_SZ				(1 << DATA_PKT_LOG_SZ)
 
 #define USE_SPI_DMA				0
 
@@ -79,16 +132,15 @@ struct wilc_spi_cmd {
 } __packed;
 
 struct wilc_spi_read_rsp_data {
-	u8 rsp_cmd_type;
-	u8 status;
-	u8 resp_header;
-	u8 resp_data[4];
+	u8 header;
+	u8 data[4];
 	u8 crc[];
 } __packed;
 
 struct wilc_spi_rsp_data {
 	u8 rsp_cmd_type;
 	u8 status;
+	u8 data[];
 } __packed;
 
 static int wilc_bus_probe(struct spi_device *spi)
@@ -281,7 +333,8 @@ static int spi_data_write(struct wilc *wilc, u8 *b, u32 sz)
 	struct wilc_spi *spi_priv = wilc->bus_data;
 	int ix, nbytes;
 	int result = 0;
-	u8 cmd, order, crc[2] = {0};
+	u8 cmd, order, crc[2];
+	u16 crc_calc;
 
 	/*
 	 * Data
@@ -323,9 +376,12 @@ static int spi_data_write(struct wilc *wilc, u8 *b, u32 sz)
 		}
 
 		/*
-		 * Write Crc
+		 * Write CRC
 		 */
-		if (!spi_priv->crc_off) {
+		if (spi_priv->crc16_enabled) {
+			crc_calc = crc_itu_t(0xffff, &b[ix], nbytes);
+			crc[0] = crc_calc >> 8;
+			crc[1] = crc_calc;
 			if (wilc_spi_tx(wilc, crc, 2)) {
 				dev_err(&spi->dev, "Failed data block crc write, bus error...\n");
 				result = -EINVAL;
@@ -359,10 +415,11 @@ static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
 	struct spi_device *spi = to_spi_device(wilc->dev);
 	struct wilc_spi *spi_priv = wilc->bus_data;
 	u8 wb[32], rb[32];
-	int cmd_len, resp_len;
-	u8 crc[2];
+	int cmd_len, resp_len, i;
+	u16 crc_calc, crc_recv;
 	struct wilc_spi_cmd *c;
-	struct wilc_spi_read_rsp_data *r;
+	struct wilc_spi_rsp_data *r;
+	struct wilc_spi_read_rsp_data *r_data;
 
 	memset(wb, 0x0, sizeof(wb));
 	memset(rb, 0x0, sizeof(rb));
@@ -384,8 +441,9 @@ static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
 	}
 
 	cmd_len = offsetof(struct wilc_spi_cmd, u.simple_cmd.crc);
-	resp_len = sizeof(*r);
-	if (!spi_priv->crc_off) {
+	resp_len = sizeof(*r) + sizeof(*r_data) + WILC_SPI_RSP_HDR_EXTRA_DATA;
+
+	if (spi_priv->crc7_enabled) {
 		c->u.simple_cmd.crc[0] = wilc_get_crc7(wb, cmd_len);
 		cmd_len += 1;
 		resp_len += 2;
@@ -403,11 +461,12 @@ static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
 		return -EINVAL;
 	}
 
-	r = (struct wilc_spi_read_rsp_data *)&rb[cmd_len];
+	r = (struct wilc_spi_rsp_data *)&rb[cmd_len];
 	if (r->rsp_cmd_type != cmd) {
-		dev_err(&spi->dev,
-			"Failed cmd response, cmd (%02x), resp (%02x)\n",
-			cmd, r->rsp_cmd_type);
+		if (!spi_priv->probing_crc)
+			dev_err(&spi->dev,
+				"Failed cmd, cmd (%02x), resp (%02x)\n",
+				cmd, r->rsp_cmd_type);
 		return -EINVAL;
 	}
 
@@ -417,17 +476,30 @@ static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
 		return -EINVAL;
 	}
 
-	if (WILC_GET_RESP_HDR_START(r->resp_header) != 0xf) {
-		dev_err(&spi->dev, "Error, data read response (%02x)\n",
-			r->resp_header);
+	for (i = 0; i < WILC_SPI_RSP_HDR_EXTRA_DATA; ++i)
+		if (WILC_GET_RESP_HDR_START(r->data[i]) == 0xf)
+			break;
+
+	if (i >= WILC_SPI_RSP_HDR_EXTRA_DATA) {
+		dev_err(&spi->dev, "Error, data start missing\n");
 		return -EINVAL;
 	}
 
-	if (b)
-		memcpy(b, r->resp_data, 4);
+	r_data = (struct wilc_spi_read_rsp_data *)&r->data[i];
 
-	if (!spi_priv->crc_off)
-		memcpy(crc, r->crc, 2);
+	if (b)
+		memcpy(b, r_data->data, 4);
+
+	if (!clockless && spi_priv->crc16_enabled) {
+		crc_recv = (r_data->crc[0] << 8) | r_data->crc[1];
+		crc_calc = crc_itu_t(0xffff, r_data->data, 4);
+		if (crc_recv != crc_calc) {
+			dev_err(&spi->dev, "%s: bad CRC 0x%04x "
+				"(calculated 0x%04x)\n", __func__,
+				crc_recv, crc_calc);
+			return -EINVAL;
+		}
+	}
 
 	return 0;
 }
@@ -454,7 +526,7 @@ static int wilc_spi_write_cmd(struct wilc *wilc, u8 cmd, u32 adr, u32 data,
 		c->u.internal_w_cmd.addr[1] = adr;
 		c->u.internal_w_cmd.data = cpu_to_be32(data);
 		cmd_len = offsetof(struct wilc_spi_cmd, u.internal_w_cmd.crc);
-		if (!spi_priv->crc_off)
+		if (spi_priv->crc7_enabled)
 			c->u.internal_w_cmd.crc[0] = wilc_get_crc7(wb, cmd_len);
 	} else if (cmd == CMD_SINGLE_WRITE) {
 		c->u.w_cmd.addr[0] = adr >> 16;
@@ -462,14 +534,14 @@ static int wilc_spi_write_cmd(struct wilc *wilc, u8 cmd, u32 adr, u32 data,
 		c->u.w_cmd.addr[2] = adr;
 		c->u.w_cmd.data = cpu_to_be32(data);
 		cmd_len = offsetof(struct wilc_spi_cmd, u.w_cmd.crc);
-		if (!spi_priv->crc_off)
+		if (spi_priv->crc7_enabled)
 			c->u.w_cmd.crc[0] = wilc_get_crc7(wb, cmd_len);
 	} else {
 		dev_err(&spi->dev, "write cmd [%x] not supported\n", cmd);
 		return -EINVAL;
 	}
 
-	if (!spi_priv->crc_off)
+	if (spi_priv->crc7_enabled)
 		cmd_len += 1;
 
 	resp_len = sizeof(*r);
@@ -507,6 +579,7 @@ static int wilc_spi_dma_rw(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
 	struct wilc_spi *spi_priv = wilc->bus_data;
+	u16 crc_recv, crc_calc;
 	u8 wb[32], rb[32];
 	int cmd_len, resp_len;
 	int retry, ix = 0;
@@ -525,7 +598,7 @@ static int wilc_spi_dma_rw(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz)
 		c->u.dma_cmd.size[0] = sz >> 8;
 		c->u.dma_cmd.size[1] = sz;
 		cmd_len = offsetof(struct wilc_spi_cmd, u.dma_cmd.crc);
-		if (!spi_priv->crc_off)
+		if (spi_priv->crc7_enabled)
 			c->u.dma_cmd.crc[0] = wilc_get_crc7(wb, cmd_len);
 	} else if (cmd == CMD_DMA_EXT_WRITE || cmd == CMD_DMA_EXT_READ) {
 		c->u.dma_cmd_ext.addr[0] = adr >> 16;
@@ -535,14 +608,14 @@ static int wilc_spi_dma_rw(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz)
 		c->u.dma_cmd_ext.size[1] = sz >> 8;
 		c->u.dma_cmd_ext.size[2] = sz;
 		cmd_len = offsetof(struct wilc_spi_cmd, u.dma_cmd_ext.crc);
-		if (!spi_priv->crc_off)
+		if (spi_priv->crc7_enabled)
 			c->u.dma_cmd_ext.crc[0] = wilc_get_crc7(wb, cmd_len);
 	} else {
 		dev_err(&spi->dev, "dma read write cmd [%x] not supported\n",
 			cmd);
 		return -EINVAL;
 	}
-	if (!spi_priv->crc_off)
+	if (spi_priv->crc7_enabled)
 		cmd_len += 1;
 
 	resp_len = sizeof(*r);
@@ -608,12 +681,22 @@ static int wilc_spi_dma_rw(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz)
 		}
 
 		/*
-		 * Read Crc
+		 * Read CRC
 		 */
-		if (!spi_priv->crc_off && wilc_spi_rx(wilc, crc, 2)) {
-			dev_err(&spi->dev,
-				"Failed block crc read, bus err\n");
-			return -EINVAL;
+		if (spi_priv->crc16_enabled) {
+			if (wilc_spi_rx(wilc, crc, 2)) {
+				dev_err(&spi->dev,
+					"Failed block CRC read, bus err\n");
+				return -EINVAL;
+			}
+			crc_recv = (crc[0] << 8) | crc[1];
+			crc_calc = crc_itu_t(0xffff, &b[ix], nbytes);
+			if (crc_recv != crc_calc) {
+				dev_err(&spi->dev, "%s: bad CRC 0x%04x "
+					"(calculated 0x%04x)\n", __func__,
+					crc_recv, crc_calc);
+				return -EINVAL;
+			}
 		}
 
 		ix += nbytes;
@@ -680,11 +763,13 @@ static int spi_internal_write(struct wilc *wilc, u32 adr, u32 dat)
 static int spi_internal_read(struct wilc *wilc, u32 adr, u32 *data)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
+	struct wilc_spi *spi_priv = wilc->bus_data;
 	int result;
 
 	result = wilc_spi_single_read(wilc, CMD_INTERNAL_READ, adr, data, 0);
 	if (result) {
-		dev_err(&spi->dev, "Failed internal read cmd...\n");
+		if (!spi_priv->probing_crc)
+			dev_err(&spi->dev, "Failed internal read cmd...\n");
 		return result;
 	}
 
@@ -721,6 +806,52 @@ static int wilc_spi_write_reg(struct wilc *wilc, u32 addr, u32 data)
 	return 0;
 }
 
+static int spi_data_rsp(struct wilc *wilc, u8 cmd)
+{
+	struct spi_device *spi = to_spi_device(wilc->dev);
+	int result, i;
+	u8 rsp[4];
+
+	/*
+	 * The response to data packets is two bytes long.  For
+	 * efficiency's sake, wilc_spi_write() wisely ignores the
+	 * responses for all packets but the final one.  The downside
+	 * of that optimization is that when the final data packet is
+	 * short, we may receive (part of) the response to the
+	 * second-to-last packet before the one for the final packet.
+	 * To handle this, we always read 4 bytes and then search for
+	 * the last byte that contains the "Response Start" code (0xc
+	 * in the top 4 bits).  We then know that this byte is the
+	 * first response byte of the final data packet.
+	 */
+	result = wilc_spi_rx(wilc, rsp, sizeof(rsp));
+	if (result) {
+		dev_err(&spi->dev, "Failed bus error...\n");
+		return result;
+	}
+
+	for (i = sizeof(rsp) - 2; i >= 0; --i)
+		if (FIELD_GET(RSP_START_FIELD, rsp[i]) == RSP_START_TAG)
+			break;
+
+	if (i < 0) {
+		dev_err(&spi->dev,
+			"Data packet response missing (%02x %02x %02x %02x)\n",
+			rsp[0], rsp[1], rsp[2], rsp[3]);
+		return -1;
+	}
+
+	/* rsp[i] is the last response start byte */
+
+	if (FIELD_GET(RSP_TYPE_FIELD, rsp[i]) != RSP_TYPE_LAST_PACKET
+	    || rsp[i + 1] != RSP_STATE_NO_ERROR) {
+		dev_err(&spi->dev, "Data response error (%02x %02x)\n",
+			rsp[i], rsp[i + 1]);
+		return -1;
+	}
+	return 0;
+}
+
 static int wilc_spi_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
@@ -748,7 +879,10 @@ static int wilc_spi_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 		return result;
 	}
 
-	return 0;
+	/*
+	 * Data response
+	 */
+	return spi_data_rsp(wilc, CMD_DMA_EXT_WRITE);
 }
 
 /********************************************
@@ -772,7 +906,7 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 	u32 reg;
 	u32 chipid;
 	static int isinit;
-	int ret;
+	int ret, i;
 
 	if (isinit) {
 		ret = wilc_spi_read_reg(wilc, WILC_CHIPID, &chipid);
@@ -787,42 +921,54 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 	 */
 
 	/*
-	 * TODO: We can remove the CRC trials if there is a definite
-	 * way to reset
+	 * Infer the CRC settings that are currently in effect.  This
+	 * is necessary because we can't be sure that the chip has
+	 * been RESET (e.g, after module unload and reload).
 	 */
-	/* the SPI to it's initial value. */
-	ret = spi_internal_read(wilc, WILC_SPI_PROTOCOL_OFFSET, &reg);
-	if (ret) {
-		/*
-		 * Read failed. Try with CRC off. This might happen when module
-		 * is removed but chip isn't reset
-		 */
-		spi_priv->crc_off = 1;
-		dev_err(&spi->dev,
-			"Failed read with CRC on, retrying with CRC off\n");
+	spi_priv->probing_crc = true;
+	spi_priv->crc7_enabled = enable_crc7;
+	spi_priv->crc16_enabled = false; /* don't check CRC16 during probing */
+	for (i = 0; i < 2; ++i) {
 		ret = spi_internal_read(wilc, WILC_SPI_PROTOCOL_OFFSET, &reg);
-		if (ret) {
-			/*
-			 * Read failed with both CRC on and off,
-			 * something went bad
-			 */
-			dev_err(&spi->dev, "Failed internal read protocol\n");
-			return ret;
-		}
+		if (ret == 0)
+			break;
+		spi_priv->crc7_enabled = !enable_crc7;
 	}
-	if (spi_priv->crc_off == 0) {
-		reg &= ~0xc; /* disable crc checking */
-		reg &= ~0x70;
-		reg |= (0x5 << 4);
-		ret = spi_internal_write(wilc, WILC_SPI_PROTOCOL_OFFSET, reg);
-		if (ret) {
-			dev_err(&spi->dev,
-				"[wilc spi %d]: Failed internal write reg\n",
-				__LINE__);
-			return ret;
-		}
-		spi_priv->crc_off = 1;
+	if (ret) {
+		dev_err(&spi->dev, "Failed with CRC7 on and off.\n");
+		return ret;
 	}
+
+	/* set up the desired CRC configuration: */
+	reg &= ~(PROTOCOL_REG_CRC7_MASK | PROTOCOL_REG_CRC16_MASK);
+	if (enable_crc7)
+		reg |= PROTOCOL_REG_CRC7_MASK;
+	if (enable_crc16)
+		reg |= PROTOCOL_REG_CRC16_MASK;
+
+	/* set up the data packet size: */
+	BUILD_BUG_ON(DATA_PKT_LOG_SZ < DATA_PKT_LOG_SZ_MIN
+		     || DATA_PKT_LOG_SZ > DATA_PKT_LOG_SZ_MAX);
+	reg &= ~PROTOCOL_REG_PKT_SZ_MASK;
+	reg |= FIELD_PREP(PROTOCOL_REG_PKT_SZ_MASK,
+			  DATA_PKT_LOG_SZ - DATA_PKT_LOG_SZ_MIN);
+
+	/* establish the new setup: */
+	ret = spi_internal_write(wilc, WILC_SPI_PROTOCOL_OFFSET, reg);
+	if (ret) {
+		dev_err(&spi->dev,
+			"[wilc spi %d]: Failed internal write reg\n",
+			__LINE__);
+		return ret;
+	}
+	/* update our state to match new protocol settings: */
+	spi_priv->crc7_enabled = enable_crc7;
+	spi_priv->crc16_enabled = enable_crc16;
+
+	/* re-read to make sure new settings are in effect: */
+	spi_internal_read(wilc, WILC_SPI_PROTOCOL_OFFSET, &reg);
+
+	spi_priv->probing_crc = false;
 
 	/*
 	 * make sure can read back chip id correctly

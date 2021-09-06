@@ -285,7 +285,7 @@ static enum i40iw_status_code i40iw_hmc_finish_add_sd_reg(struct i40iw_sc_dev *d
 }
 
 /**
- * i40iw_create_iw_hmc_obj - allocate backing store for hmc objects
+ * i40iw_sc_create_hmc_obj - allocate backing store for hmc objects
  * @dev: pointer to the device structure
  * @info: pointer to i40iw_hmc_iw_create_obj_info struct
  *
@@ -434,7 +434,7 @@ static enum i40iw_status_code i40iw_finish_del_sd_reg(struct i40iw_sc_dev *dev,
 }
 
 /**
- * i40iw_del_iw_hmc_obj - remove pe hmc objects
+ * i40iw_sc_del_hmc_obj - remove pe hmc objects
  * @dev: pointer to the device structure
  * @info: pointer to i40iw_hmc_del_obj_info struct
  * @reset: true if called before reset

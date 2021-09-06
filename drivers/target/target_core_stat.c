@@ -31,9 +31,6 @@
 #define INITIAL_JIFFIES ((unsigned long)(unsigned int) (-300*HZ))
 #endif
 
-#define NONE		"None"
-#define ISPRINT(a)   ((a >= ' ') && (a <= '~'))
-
 #define SCSI_LU_INDEX			1
 #define LU_COUNT			1
 

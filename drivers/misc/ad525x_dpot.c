@@ -139,6 +139,9 @@ static s32 dpot_read_spi(struct dpot_data *dpot, u8 reg)
 			value = dpot_read_r8d8(dpot,
 				DPOT_AD5291_READ_RDAC << 2);
 
+			if (value < 0)
+				return value;
+
 			if (dpot->uid == DPOT_UID(AD5291_ID))
 				value = value >> 2;
 

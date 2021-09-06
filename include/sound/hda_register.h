@@ -140,8 +140,12 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define BDL_SIZE		4096
 #define AZX_MAX_BDL_ENTRIES	(BDL_SIZE / 16)
 #define AZX_MAX_FRAG		32
-/* max buffer size - no h/w limit, you can increase as you like */
-#define AZX_MAX_BUF_SIZE	(1024*1024*1024)
+/*
+ * max buffer size - artificial 4MB limit per stream to avoid big allocations
+ * In theory it can be really big, but as it is per stream on systems with many streams memory could
+ * be quickly saturated if userspace requests maximum buffer size for each of them.
+ */
+#define AZX_MAX_BUF_SIZE	(4*1024*1024)
 
 /* RIRB int mask: overrun[2], response[0] */
 #define RIRB_INT_RESPONSE	0x01

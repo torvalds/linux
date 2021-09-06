@@ -7,7 +7,7 @@
 
 #include "odm_precomp.h"
 
-void ODM_InitDebugSetting(PDM_ODM_T pDM_Odm)
+void ODM_InitDebugSetting(struct dm_odm_t *pDM_Odm)
 {
 	pDM_Odm->DebugLevel = ODM_DBG_LOUD;
 

@@ -50,7 +50,7 @@ static unsigned long chp_info_expires;
 static struct work_struct cfg_work;
 
 /* Wait queue for configure completion events. */
-static wait_queue_head_t cfg_wait_queue;
+static DECLARE_WAIT_QUEUE_HEAD(cfg_wait_queue);
 
 /* Set vary state for given chpid. */
 static void set_chp_logically_online(struct chp_id chpid, int onoff)
@@ -829,7 +829,6 @@ static int __init chp_init(void)
 	if (ret)
 		return ret;
 	INIT_WORK(&cfg_work, cfg_func);
-	init_waitqueue_head(&cfg_wait_queue);
 	if (info_update())
 		return 0;
 	/* Register available channel-paths. */

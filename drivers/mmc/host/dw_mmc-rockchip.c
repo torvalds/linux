@@ -61,7 +61,7 @@ static void dw_mci_rk3288_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 	}
 
 	/* Make sure we use phases which we can enumerate with */
-	if (!IS_ERR(priv->sample_clk))
+	if (!IS_ERR(priv->sample_clk) && ios->timing <= MMC_TIMING_SD_HS)
 		clk_set_phase(priv->sample_clk, priv->default_sample_phase);
 
 	/*

@@ -79,3 +79,14 @@ config INTEL_PCH_THERMAL
 	  Enable this to support thermal reporting on certain intel PCHs.
 	  Thermal reporting device will provide temperature reading,
 	  programmable trip points and other information.
+
+config INTEL_TCC_COOLING
+	tristate "Intel TCC offset cooling Driver"
+	depends on X86
+	help
+	  Enable this to support system cooling by adjusting the effective TCC
+	  activation temperature via the TCC Offset register, which is widely
+	  supported on modern Intel platforms.
+	  Note that, on different platforms, the behavior might be different
+	  on how fast the setting takes effect, and how much the CPU frequency
+	  is reduced.

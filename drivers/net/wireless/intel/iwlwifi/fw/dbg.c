@@ -2559,7 +2559,9 @@ int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
 
 	fwrt->dump.wks[idx].dump_data = *dump_data;
 
-	IWL_WARN(fwrt, "WRT: Collecting data: ini trigger %d fired.\n", tp_id);
+	IWL_WARN(fwrt,
+		 "WRT: Collecting data: ini trigger %d fired (delay=%dms).\n",
+		 tp_id, (u32)(delay / USEC_PER_MSEC));
 
 	schedule_delayed_work(&fwrt->dump.wks[idx].wk, usecs_to_jiffies(delay));
 

@@ -282,6 +282,7 @@ static const struct of_device_id tegra_tcu_match[] = {
 	{ .compatible = "nvidia,tegra194-tcu" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, tegra_tcu_match);
 
 static struct platform_driver tegra_tcu_driver = {
 	.driver = {

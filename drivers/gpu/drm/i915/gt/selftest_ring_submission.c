@@ -35,7 +35,7 @@ static struct i915_vma *create_wally(struct intel_engine_cs *engine)
 		return ERR_PTR(err);
 	}
 
-	cs = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	cs = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
 	if (IS_ERR(cs)) {
 		i915_gem_object_put(obj);
 		return ERR_CAST(cs);
@@ -212,7 +212,7 @@ static int __live_ctx_switch_wa(struct intel_engine_cs *engine)
 	if (IS_ERR(bb))
 		return PTR_ERR(bb);
 
-	result = i915_gem_object_pin_map(bb->obj, I915_MAP_WC);
+	result = i915_gem_object_pin_map_unlocked(bb->obj, I915_MAP_WC);
 	if (IS_ERR(result)) {
 		intel_context_put(bb->private);
 		i915_vma_unpin_and_release(&bb, 0);

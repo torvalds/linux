@@ -124,6 +124,8 @@ box for setups where kernels are built and run on the same machine. In
 cases where the kernel runs on a separate machine, special preparations
 must be made, depending on where the gcov tool is used:
 
+.. _gcov-test:
+
 a) gcov is run on the TEST machine
 
     The gcov tool version on the test machine must be compatible with the
@@ -142,6 +144,8 @@ a) gcov is run on the TEST machine
     exact same file system location on the test machine as on the build
     machine. If any of the path components is symbolic link, the actual
     directory needs to be used instead (due to make's CURDIR handling).
+
+.. _gcov-build:
 
 b) gcov is run on the BUILD machine
 
@@ -211,7 +215,7 @@ Appendix A: gather_on_build.sh
 ------------------------------
 
 Sample script to gather coverage meta files on the build machine
-(see 6a):
+(see :ref:`Separated build and test machines a. <gcov-test>`):
 
 .. code-block:: sh
 
@@ -244,7 +248,7 @@ Appendix B: gather_on_test.sh
 -----------------------------
 
 Sample script to gather coverage data files on the test machine
-(see 6b):
+(see :ref:`Separated build and test machines b. <gcov-build>`):
 
 .. code-block:: sh
 

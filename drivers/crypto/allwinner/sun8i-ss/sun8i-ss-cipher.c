@@ -232,10 +232,13 @@ sgd_next:
 
 theend_sgs:
 	if (areq->src == areq->dst) {
-		dma_unmap_sg(ss->dev, areq->src, nr_sgs, DMA_BIDIRECTIONAL);
+		dma_unmap_sg(ss->dev, areq->src, sg_nents(areq->src),
+			     DMA_BIDIRECTIONAL);
 	} else {
-		dma_unmap_sg(ss->dev, areq->src, nr_sgs, DMA_TO_DEVICE);
-		dma_unmap_sg(ss->dev, areq->dst, nr_sgd, DMA_FROM_DEVICE);
+		dma_unmap_sg(ss->dev, areq->src, sg_nents(areq->src),
+			     DMA_TO_DEVICE);
+		dma_unmap_sg(ss->dev, areq->dst, sg_nents(areq->dst),
+			     DMA_FROM_DEVICE);
 	}
 
 theend_iv:
@@ -351,7 +354,7 @@ int sun8i_ss_cipher_init(struct crypto_tfm *tfm)
 	op->enginectx.op.prepare_request = NULL;
 	op->enginectx.op.unprepare_request = NULL;
 
-	err = pm_runtime_get_sync(op->ss->dev);
+	err = pm_runtime_resume_and_get(op->ss->dev);
 	if (err < 0) {
 		dev_err(op->ss->dev, "pm error %d\n", err);
 		goto error_pm;

@@ -80,7 +80,7 @@ static int cfi_amdstd_read_fact_prot_reg(struct mtd_info *, loff_t, size_t,
 static int cfi_amdstd_read_user_prot_reg(struct mtd_info *, loff_t, size_t,
 					 size_t *, u_char *);
 static int cfi_amdstd_write_user_prot_reg(struct mtd_info *, loff_t, size_t,
-					  size_t *, u_char *);
+					  size_t *, const u_char *);
 static int cfi_amdstd_lock_user_prot_reg(struct mtd_info *, loff_t, size_t);
 
 static int cfi_amdstd_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
@@ -272,6 +272,10 @@ static void fixup_use_write_buffers(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
+
+	if (cfi->mfr == CFI_MFR_AMD && cfi->id == 0x2201)
+		return;
+
 	if (cfi->cfiq->BufWriteTimeoutTyp) {
 		pr_debug("Using buffer write method\n");
 		mtd->_write = cfi_amdstd_write_buffers;
@@ -902,6 +906,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 			/* Someone else might have been playing with it. */
 			goto retry;
 		}
+		return 0;
 
 	case FL_READY:
 	case FL_CFI_QUERY:
@@ -1630,9 +1635,9 @@ static int cfi_amdstd_read_user_prot_reg(struct mtd_info *mtd, loff_t from,
 
 static int cfi_amdstd_write_user_prot_reg(struct mtd_info *mtd, loff_t from,
 					  size_t len, size_t *retlen,
-					  u_char *buf)
+					  const u_char *buf)
 {
-	return cfi_amdstd_otp_walk(mtd, from, len, retlen, buf,
+	return cfi_amdstd_otp_walk(mtd, from, len, retlen, (u_char *)buf,
 				   do_otp_write, 1);
 }
 
@@ -1649,7 +1654,7 @@ static int __xipram do_write_oneword_once(struct map_info *map,
 					  unsigned long adr, map_word datum,
 					  int mode, struct cfi_private *cfi)
 {
-	unsigned long timeo = jiffies + HZ;
+	unsigned long timeo;
 	/*
 	 * We use a 1ms + 1 jiffies generic timeout for writes (most devices
 	 * have a max write time of a few hundreds usec). However, we should
@@ -2994,6 +2999,7 @@ static int cfi_amdstd_suspend(struct mtd_info *mtd)
 			 * as the whole point is that nobody can do anything
 			 * with the chip now anyway.
 			 */
+			break;
 		case FL_PM_SUSPENDED:
 			break;
 

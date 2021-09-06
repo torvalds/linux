@@ -54,7 +54,7 @@ stored in the JPEG-encoded fields. These define how the JPEG field is
 encoded. If you omit them, applications assume you've used standard
 encoding. You usually do want to add them.
 
-.. tabularcolumns:: |p{1.2cm}|p{3.0cm}|p{13.3cm}|
+.. tabularcolumns:: |p{1.2cm}|p{3.0cm}|p{13.1cm}|
 
 .. c:type:: v4l2_jpegcompression
 
@@ -91,7 +91,7 @@ encoding. You usually do want to add them.
 	control is exposed by a driver applications should use it instead
 	and ignore this field.
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. _jpeg-markers:
 

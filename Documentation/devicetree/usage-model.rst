@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-=========================
-Linux and the Device Tree
-=========================
+========================
+Linux and the Devicetree
+========================
 
 The Linux usage model for device tree data
 
@@ -14,7 +14,7 @@ at devicetree.org\ [1]_.
 
 .. [1] https://www.devicetree.org/specifications/
 
-The "Open Firmware Device Tree", or simply Device Tree (DT), is a data
+The "Open Firmware Device Tree", or simply Devicetree (DT), is a data
 structure and language for describing hardware.  More specifically, it
 is a description of hardware that is readable by an operating system
 so that the operating system doesn't need to hard code details of the

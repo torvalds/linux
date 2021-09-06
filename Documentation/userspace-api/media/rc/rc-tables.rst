@@ -25,7 +25,7 @@ the remote via /dev/input/event devices.
 
 .. _rc_standard_keymap:
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. flat-table:: IR default keymapping
     :header-rows:  0

@@ -220,6 +220,7 @@
 /* Bits in MMCRA for PowerISA v2.07 */
 #define MMCRA_SAMP_MODE_SHIFT		1
 #define MMCRA_SAMP_ELIG_SHIFT		4
+#define MMCRA_SAMP_ELIG_MASK		7
 #define MMCRA_THR_CTL_SHIFT		8
 #define MMCRA_THR_SEL_SHIFT		16
 #define MMCRA_THR_CMP_SHIFT		32
@@ -265,6 +266,10 @@
 #define ISA207_SIER_DATA_SRC_SHIFT	53
 #define ISA207_SIER_DATA_SRC_MASK	(0x7ull << ISA207_SIER_DATA_SRC_SHIFT)
 
+/* Bits in SIER2/SIER3 for Power10 */
+#define P10_SIER2_FINISH_CYC(sier2)	(((sier2) >> (63 - 37)) & 0x7fful)
+#define P10_SIER2_DISPATCH_CYC(sier2)	(((sier2) >> (63 - 13)) & 0x7fful)
+
 #define P(a, b)				PERF_MEM_S(a, b)
 #define PH(a, b)			(P(LVL, HIT) | P(a, b))
 #define PM(a, b)			(P(LVL, MISS) | P(a, b))
@@ -278,6 +283,8 @@ int isa207_get_alternatives(u64 event, u64 alt[], int size, unsigned int flags,
 					const unsigned int ev_alt[][MAX_ALT]);
 void isa207_get_mem_data_src(union perf_mem_data_src *dsrc, u32 flags,
 							struct pt_regs *regs);
-void isa207_get_mem_weight(u64 *weight);
+void isa207_get_mem_weight(u64 *weight, u64 type);
+
+int isa3XX_check_attr_config(struct perf_event *ev);
 
 #endif

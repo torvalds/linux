@@ -916,6 +916,10 @@ static int icmpv6_rcv(struct sk_buff *skb)
 		success = ping_rcv(skb);
 		break;
 
+	case ICMPV6_EXT_ECHO_REPLY:
+		success = ping_rcv(skb);
+		break;
+
 	case ICMPV6_PKT_TOOBIG:
 		/* BUGGG_FUTURE: if packet contains rthdr, we cannot update
 		   standard destination cache. Seems, only "advanced"
@@ -944,11 +948,11 @@ static int icmpv6_rcv(struct sk_buff *skb)
 
 	case ICMPV6_MGM_QUERY:
 		igmp6_event_query(skb);
-		break;
+		return 0;
 
 	case ICMPV6_MGM_REPORT:
 		igmp6_event_report(skb);
-		break;
+		return 0;
 
 	case ICMPV6_MGM_REDUCTION:
 	case ICMPV6_NI_QUERY:
@@ -1169,23 +1173,23 @@ static struct ctl_table ipv6_icmp_table_template[] = {
 	{
 		.procname	= "echo_ignore_all",
 		.data		= &init_net.ipv6.sysctl.icmpv6_echo_ignore_all,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler = proc_dointvec,
+		.proc_handler = proc_dou8vec_minmax,
 	},
 	{
 		.procname	= "echo_ignore_multicast",
 		.data		= &init_net.ipv6.sysctl.icmpv6_echo_ignore_multicast,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler = proc_dointvec,
+		.proc_handler = proc_dou8vec_minmax,
 	},
 	{
 		.procname	= "echo_ignore_anycast",
 		.data		= &init_net.ipv6.sysctl.icmpv6_echo_ignore_anycast,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler = proc_dointvec,
+		.proc_handler = proc_dou8vec_minmax,
 	},
 	{
 		.procname	= "ratemask",

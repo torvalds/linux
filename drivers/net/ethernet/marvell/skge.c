@@ -1617,7 +1617,7 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 		xm_write16(hw, port, XM_TX_THR, 512);
 
 	/*
-	 * Enable the reception of all error frames. This is is
+	 * Enable the reception of all error frames. This is
 	 * a necessary evil due to the design of the XMAC. The
 	 * XMAC's receive FIFO is only 8K in size, however jumbo
 	 * frames can be up to 9000 bytes in length. When bad
@@ -2959,8 +2959,9 @@ static void genesis_set_multicast(struct net_device *dev)
 
 static void yukon_add_filter(u8 filter[8], const u8 *addr)
 {
-	 u32 bit = ether_crc(ETH_ALEN, addr) & 0x3f;
-	 filter[bit/8] |= 1 << (bit%8);
+	u32 bit = ether_crc(ETH_ALEN, addr) & 0x3f;
+
+	filter[bit / 8] |= 1 << (bit % 8);
 }
 
 static void yukon_set_multicast(struct net_device *dev)
@@ -3849,7 +3850,7 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 
 	/* Only used for Genesis XMAC */
 	if (is_genesis(hw))
-	    timer_setup(&skge->link_timer, xm_link_timer, 0);
+		timer_setup(&skge->link_timer, xm_link_timer, 0);
 	else {
 		dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
 		                   NETIF_F_RXCSUM;

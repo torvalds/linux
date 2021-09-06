@@ -5,7 +5,7 @@
  *
  * This file is licensed under GPLv2.
  *
- * This file contains common code to support Message Signalled Interrupt for
+ * This file contains common code to support Message Signaled Interrupts for
  * PCI compatible and non PCI compatible devices.
  */
 #include <linux/types.h>

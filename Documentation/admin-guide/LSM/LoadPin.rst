@@ -11,8 +11,8 @@ restrictions without needing to sign the files individually.
 
 The LSM is selectable at build-time with ``CONFIG_SECURITY_LOADPIN``, and
 can be controlled at boot-time with the kernel command line option
-"``loadpin.enabled``". By default, it is enabled, but can be disabled at
-boot ("``loadpin.enabled=0``").
+"``loadpin.enforce``". By default, it is enabled, but can be disabled at
+boot ("``loadpin.enforce=0``").
 
 LoadPin starts pinning when it sees the first file loaded. If the
 block device backing the filesystem is not read-only, a sysctl is
@@ -28,4 +28,4 @@ different mechanisms such as ``CONFIG_MODULE_SIG`` and
 ``CONFIG_KEXEC_VERIFY_SIG`` to verify kernel module and kernel image while
 still use LoadPin to protect the integrity of other files kernel loads. The
 full list of valid file types can be found in ``kernel_read_file_str``
-defined in ``include/linux/fs.h``.
+defined in ``include/linux/kernel_read_file.h``.

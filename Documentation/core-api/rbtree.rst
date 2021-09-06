@@ -201,7 +201,7 @@ search trees, such as for traversals or users relying on a the particular
 order for their own logic. To this end, users can use 'struct rb_root_cached'
 to optimize O(logN) rb_first() calls to a simple pointer fetch avoiding
 potentially expensive tree iterations. This is done at negligible runtime
-overhead for maintanence; albeit larger memory footprint.
+overhead for maintenance; albeit larger memory footprint.
 
 Similar to the rb_root structure, cached rbtrees are initialized to be
 empty via::

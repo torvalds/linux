@@ -96,12 +96,6 @@ examples:
       dma-names = "rx", "tx";
       cs-gpios = <&gpioa 11 0>;
 
-      aardvark@0 {
-        compatible = "totalphase,aardvark";
-        reg = <0>;
-        spi-max-frequency = <4000000>;
-        st,spi-midi-ns = <4000>;
-      };
     };
 
 ...

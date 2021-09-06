@@ -5,6 +5,7 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_print.h>
@@ -403,76 +404,84 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 }
 
 static int mdp5_plane_atomic_check(struct drm_plane *plane,
-				   struct drm_plane_state *state)
+				   struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state,
+										 plane);
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 
-	crtc = state->crtc ? state->crtc : plane->state->crtc;
+	crtc = new_plane_state->crtc ? new_plane_state->crtc : old_plane_state->crtc;
 	if (!crtc)
 		return 0;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+	crtc_state = drm_atomic_get_existing_crtc_state(state,
+							crtc);
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	return mdp5_plane_atomic_check_with_state(crtc_state, state);
+	return mdp5_plane_atomic_check_with_state(crtc_state, new_plane_state);
 }
 
 static void mdp5_plane_atomic_update(struct drm_plane *plane,
-				     struct drm_plane_state *old_state)
+				     struct drm_atomic_state *state)
 {
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 
 	DBG("%s: update", plane->name);
 
-	if (plane_enabled(state)) {
+	if (plane_enabled(new_state)) {
 		int ret;
 
 		ret = mdp5_plane_mode_set(plane,
-				state->crtc, state->fb,
-				&state->src, &state->dst);
+				new_state->crtc, new_state->fb,
+				&new_state->src, &new_state->dst);
 		/* atomic_check should have ensured that this doesn't fail */
 		WARN_ON(ret < 0);
 	}
 }
 
 static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
-					 struct drm_plane_state *state)
+					 struct drm_atomic_state *state)
 {
-	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(state);
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
+	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(new_plane_state);
 	struct drm_crtc_state *crtc_state;
 	int min_scale, max_scale;
 	int ret;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state,
-							state->crtc);
+	crtc_state = drm_atomic_get_existing_crtc_state(state,
+							new_plane_state->crtc);
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
 	if (!crtc_state->active)
 		return -EINVAL;
 
-	mdp5_state = to_mdp5_plane_state(state);
+	mdp5_state = to_mdp5_plane_state(new_plane_state);
 
 	/* don't use fast path if we don't have a hwpipe allocated yet */
 	if (!mdp5_state->hwpipe)
 		return -EINVAL;
 
 	/* only allow changing of position(crtc x/y or src x/y) in fast path */
-	if (plane->state->crtc != state->crtc ||
-	    plane->state->src_w != state->src_w ||
-	    plane->state->src_h != state->src_h ||
-	    plane->state->crtc_w != state->crtc_w ||
-	    plane->state->crtc_h != state->crtc_h ||
+	if (plane->state->crtc != new_plane_state->crtc ||
+	    plane->state->src_w != new_plane_state->src_w ||
+	    plane->state->src_h != new_plane_state->src_h ||
+	    plane->state->crtc_w != new_plane_state->crtc_w ||
+	    plane->state->crtc_h != new_plane_state->crtc_h ||
 	    !plane->state->fb ||
-	    plane->state->fb != state->fb)
+	    plane->state->fb != new_plane_state->fb)
 		return -EINVAL;
 
 	min_scale = FRAC_16_16(1, 8);
 	max_scale = FRAC_16_16(8, 1);
 
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
 						  min_scale, max_scale,
 						  true, true);
 	if (ret)
@@ -485,15 +494,17 @@ static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
 	 * also assign/unassign the hwpipe(s) tied to the plane. We avoid
 	 * taking the fast path for both these reasons.
 	 */
-	if (state->visible != plane->state->visible)
+	if (new_plane_state->visible != plane->state->visible)
 		return -EINVAL;
 
 	return 0;
 }
 
 static void mdp5_plane_atomic_async_update(struct drm_plane *plane,
-					   struct drm_plane_state *new_state)
+					   struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 	struct drm_framebuffer *old_fb = plane->state->fb;
 
 	plane->state->src_x = new_state->src_x;

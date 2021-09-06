@@ -156,5 +156,16 @@ void dpu_encoder_prepare_commit(struct drm_encoder *drm_enc);
  */
 void dpu_encoder_set_idle_timeout(struct drm_encoder *drm_enc,
 							u32 idle_timeout);
+/**
+ * dpu_encoder_get_linecount - get interface line count for the encoder.
+ * @drm_enc:    Pointer to previously created drm encoder structure
+ */
+int dpu_encoder_get_linecount(struct drm_encoder *drm_enc);
+
+/**
+ * dpu_encoder_get_frame_count - get interface frame count for the encoder.
+ * @drm_enc:    Pointer to previously created drm encoder structure
+ */
+int dpu_encoder_get_frame_count(struct drm_encoder *drm_enc);
 
 #endif /* __DPU_ENCODER_H__ */

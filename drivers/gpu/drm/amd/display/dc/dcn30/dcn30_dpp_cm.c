@@ -240,7 +240,7 @@ bool dpp3_program_gamcor_lut(
 		next_mode = LUT_RAM_A;
 
 	dpp3_power_on_gamcor_lut(dpp_base, true);
-	dpp3_configure_gamcor_lut(dpp_base, next_mode == LUT_RAM_A ? true:false);
+	dpp3_configure_gamcor_lut(dpp_base, next_mode == LUT_RAM_A);
 
 	if (next_mode == LUT_RAM_B) {
 		gam_regs.start_cntl_b = REG(CM_GAMCOR_RAMB_START_CNTL_B);
@@ -295,7 +295,7 @@ bool dpp3_program_gamcor_lut(
 	cm_helper_program_gamcor_xfer_func(dpp_base->ctx, params, &gam_regs);
 
 	dpp3_program_gammcor_lut(dpp_base, params->rgb_resulted, params->hw_points_num,
-			next_mode == LUT_RAM_A ? true:false);
+				 next_mode == LUT_RAM_A);
 
 	//select Gamma LUT to use for next frame
 	REG_UPDATE(CM_GAMCOR_CONTROL, CM_GAMCOR_SELECT, next_mode == LUT_RAM_A ? 0:1);

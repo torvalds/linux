@@ -40,7 +40,6 @@ static void n_null_receivebuf(struct tty_struct *tty,
 
 static struct tty_ldisc_ops null_ldisc = {
 	.owner		=	THIS_MODULE,
-	.magic		=	TTY_LDISC_MAGIC,
 	.name		=	"n_null",
 	.open		=	n_null_open,
 	.close		=	n_null_close,

@@ -72,7 +72,7 @@ than the number requested.
 
 .. c:type:: v4l2_create_buffers
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. flat-table:: struct v4l2_create_buffers
     :header-rows:  0

@@ -17,6 +17,9 @@ void intel_dp_get_adjust_train(struct intel_dp *intel_dp,
 			       const struct intel_crtc_state *crtc_state,
 			       enum drm_dp_phy dp_phy,
 			       const u8 link_status[DP_LINK_STATUS_SIZE]);
+void intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
+					    const struct intel_crtc_state *crtc_state,
+					    u8 dp_train_pat);
 void intel_dp_set_signal_levels(struct intel_dp *intel_dp,
 				const struct intel_crtc_state *crtc_state,
 				enum drm_dp_phy dp_phy);

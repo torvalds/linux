@@ -1390,7 +1390,7 @@ static void __prep_cap(struct cap_msg_args *arg, struct ceph_cap *cap,
 	arg->flush_tid = flush_tid;
 	arg->oldest_flush_tid = oldest_flush_tid;
 
-	arg->size = inode->i_size;
+	arg->size = i_size_read(inode);
 	ci->i_reported_size = arg->size;
 	arg->max_size = ci->i_wanted_max_size;
 	if (cap == ci->i_auth_cap) {
@@ -1867,6 +1867,7 @@ static int try_nonblocking_invalidate(struct inode *inode)
 	u32 invalidating_gen = ci->i_rdcache_gen;
 
 	spin_unlock(&ci->i_ceph_lock);
+	ceph_fscache_invalidate(inode);
 	invalidate_mapping_pages(&inode->i_data, 0, -1);
 	spin_lock(&ci->i_ceph_lock);
 
@@ -1884,7 +1885,7 @@ static int try_nonblocking_invalidate(struct inode *inode)
 
 bool __ceph_should_report_size(struct ceph_inode_info *ci)
 {
-	loff_t size = ci->vfs_inode.i_size;
+	loff_t size = i_size_read(&ci->vfs_inode);
 	/* mds will adjust max size according to the reported size */
 	if (ci->i_flushing_caps & CEPH_CAP_FILE_WR)
 		return false;
@@ -2730,10 +2731,6 @@ again:
 				*got = need | want;
 			else
 				*got = need;
-			if (S_ISREG(inode->i_mode) &&
-			    (need & CEPH_CAP_FILE_RD) &&
-			    !(*got & CEPH_CAP_FILE_CACHE))
-				ceph_disable_fscache_readpage(ci);
 			ceph_take_cap_refs(ci, *got, true);
 			ret = 1;
 		}
@@ -2858,8 +2855,7 @@ int ceph_try_get_caps(struct inode *inode, int need, int want,
  * due to a small max_size, make sure we check_max_size (and possibly
  * ask the mds) so we don't get hung up indefinitely.
  */
-int ceph_get_caps(struct file *filp, int need, int want,
-		  loff_t endoff, int *got, struct page **pinned_page)
+int ceph_get_caps(struct file *filp, int need, int want, loff_t endoff, int *got)
 {
 	struct ceph_file_info *fi = filp->private_data;
 	struct inode *inode = file_inode(filp);
@@ -2957,11 +2953,11 @@ int ceph_get_caps(struct file *filp, int need, int want,
 			struct page *page =
 				find_get_page(inode->i_mapping, 0);
 			if (page) {
-				if (PageUptodate(page)) {
-					*pinned_page = page;
-					break;
-				}
+				bool uptodate = PageUptodate(page);
+
 				put_page(page);
+				if (uptodate)
+					break;
 			}
 			/*
 			 * drop cap refs first because getattr while
@@ -2983,11 +2979,6 @@ int ceph_get_caps(struct file *filp, int need, int want,
 		}
 		break;
 	}
-
-	if (S_ISREG(ci->vfs_inode.i_mode) &&
-	    (_got & CEPH_CAP_FILE_RD) && (_got & CEPH_CAP_FILE_CACHE))
-		ceph_fscache_revalidate_cookie(ci);
-
 	*got = _got;
 	return 0;
 }
@@ -3308,7 +3299,7 @@ static void handle_cap_grant(struct inode *inode,
 	dout("handle_cap_grant inode %p cap %p mds%d seq %d %s\n",
 	     inode, cap, session->s_mds, seq, ceph_cap_string(newcaps));
 	dout(" size %llu max_size %llu, i_size %llu\n", size, max_size,
-		inode->i_size);
+		i_size_read(inode));
 
 
 	/*
@@ -3358,7 +3349,13 @@ static void handle_cap_grant(struct inode *inode,
 
 	if ((newcaps & CEPH_CAP_AUTH_SHARED) &&
 	    (extra_info->issued & CEPH_CAP_AUTH_EXCL) == 0) {
-		inode->i_mode = le32_to_cpu(grant->mode);
+		umode_t mode = le32_to_cpu(grant->mode);
+
+		if (inode_wrong_type(inode, mode))
+			pr_warn_once("inode type changed! (ino %llx.%llx is 0%o, mds says 0%o)\n",
+				     ceph_vinop(inode), inode->i_mode, mode);
+		else
+			inode->i_mode = mode;
 		inode->i_uid = make_kuid(&init_user_ns, le32_to_cpu(grant->uid));
 		inode->i_gid = make_kgid(&init_user_ns, le32_to_cpu(grant->gid));
 		ci->i_btime = extra_info->btime;

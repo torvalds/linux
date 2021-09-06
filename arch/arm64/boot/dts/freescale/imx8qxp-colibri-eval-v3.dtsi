@@ -26,7 +26,7 @@
 	};
 };
 
-&adma_i2c1 {
+&i2c1 {
 	status = "okay";
 
 	/* M41T0M6 real time clock on carrier board */
@@ -37,17 +37,17 @@
 };
 
 /* Colibri UART_B */
-&adma_lpuart0 {
+&lpuart0 {
 	status= "okay";
 };
 
 /* Colibri UART_C */
-&adma_lpuart2 {
+&lpuart2 {
 	status= "okay";
 };
 
 /* Colibri UART_A */
-&adma_lpuart3 {
+&lpuart3 {
 	status= "okay";
 };
 

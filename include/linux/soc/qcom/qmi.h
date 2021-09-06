@@ -16,7 +16,7 @@
 struct socket;
 
 /**
- * qmi_header - wireformat header of QMI messages
+ * struct qmi_header - wireformat header of QMI messages
  * @type:	type of message
  * @txn_id:	transaction id
  * @msg_id:	message id
@@ -93,7 +93,7 @@ struct qmi_elem_info {
 #define QMI_ERR_NOT_SUPPORTED_V01		94
 
 /**
- * qmi_response_type_v01 - common response header (decoded)
+ * struct qmi_response_type_v01 - common response header (decoded)
  * @result:	result of the transaction
  * @error:	error value, when @result is QMI_RESULT_FAILURE_V01
  */

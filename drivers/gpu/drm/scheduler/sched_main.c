@@ -91,7 +91,7 @@ void drm_sched_rq_add_entity(struct drm_sched_rq *rq,
 	if (!list_empty(&entity->list))
 		return;
 	spin_lock(&rq->lock);
-	atomic_inc(&rq->sched->score);
+	atomic_inc(rq->sched->score);
 	list_add_tail(&entity->list, &rq->entities);
 	spin_unlock(&rq->lock);
 }
@@ -110,7 +110,7 @@ void drm_sched_rq_remove_entity(struct drm_sched_rq *rq,
 	if (list_empty(&entity->list))
 		return;
 	spin_lock(&rq->lock);
-	atomic_dec(&rq->sched->score);
+	atomic_dec(rq->sched->score);
 	list_del_init(&entity->list);
 	if (rq->current_entity == entity)
 		rq->current_entity = NULL;
@@ -173,7 +173,7 @@ static void drm_sched_job_done(struct drm_sched_job *s_job)
 	struct drm_gpu_scheduler *sched = s_fence->sched;
 
 	atomic_dec(&sched->hw_rq_count);
-	atomic_dec(&sched->score);
+	atomic_dec(sched->score);
 
 	trace_drm_sched_process_job(s_fence);
 
@@ -361,39 +361,15 @@ static void drm_sched_job_timedout(struct work_struct *work)
   */
 void drm_sched_increase_karma(struct drm_sched_job *bad)
 {
-	int i;
-	struct drm_sched_entity *tmp;
-	struct drm_sched_entity *entity;
-	struct drm_gpu_scheduler *sched = bad->sched;
-
-	/* don't increase @bad's karma if it's from KERNEL RQ,
-	 * because sometimes GPU hang would cause kernel jobs (like VM updating jobs)
-	 * corrupt but keep in mind that kernel jobs always considered good.
-	 */
-	if (bad->s_priority != DRM_SCHED_PRIORITY_KERNEL) {
-		atomic_inc(&bad->karma);
-		for (i = DRM_SCHED_PRIORITY_MIN; i < DRM_SCHED_PRIORITY_KERNEL;
-		     i++) {
-			struct drm_sched_rq *rq = &sched->sched_rq[i];
-
-			spin_lock(&rq->lock);
-			list_for_each_entry_safe(entity, tmp, &rq->entities, list) {
-				if (bad->s_fence->scheduled.context ==
-				    entity->fence_context) {
-					if (atomic_read(&bad->karma) >
-					    bad->sched->hang_limit)
-						if (entity->guilty)
-							atomic_set(entity->guilty, 1);
-					break;
-				}
-			}
-			spin_unlock(&rq->lock);
-			if (&entity->list != &rq->entities)
-				break;
-		}
-	}
+	drm_sched_increase_karma_ext(bad, 1);
 }
 EXPORT_SYMBOL(drm_sched_increase_karma);
+
+void drm_sched_reset_karma(struct drm_sched_job *bad)
+{
+	drm_sched_increase_karma_ext(bad, 0);
+}
+EXPORT_SYMBOL(drm_sched_reset_karma);
 
 /**
  * drm_sched_stop - stop the scheduler
@@ -527,20 +503,37 @@ void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery)
 EXPORT_SYMBOL(drm_sched_start);
 
 /**
- * drm_sched_resubmit_jobs - helper to relunch job from pending ring list
+ * drm_sched_resubmit_jobs - helper to relaunch jobs from the pending list
  *
  * @sched: scheduler instance
  *
  */
 void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched)
 {
+	drm_sched_resubmit_jobs_ext(sched, INT_MAX);
+}
+EXPORT_SYMBOL(drm_sched_resubmit_jobs);
+
+/**
+ * drm_sched_resubmit_jobs_ext - helper to relunch certain number of jobs from mirror ring list
+ *
+ * @sched: scheduler instance
+ * @max: job numbers to relaunch
+ *
+ */
+void drm_sched_resubmit_jobs_ext(struct drm_gpu_scheduler *sched, int max)
+{
 	struct drm_sched_job *s_job, *tmp;
 	uint64_t guilty_context;
 	bool found_guilty = false;
 	struct dma_fence *fence;
+	int i = 0;
 
 	list_for_each_entry_safe(s_job, tmp, &sched->pending_list, list) {
 		struct drm_sched_fence *s_fence = s_job->s_fence;
+
+		if (i >= max)
+			break;
 
 		if (!found_guilty && atomic_read(&s_job->karma) > sched->hang_limit) {
 			found_guilty = true;
@@ -552,6 +545,7 @@ void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched)
 
 		dma_fence_put(s_job->s_fence->parent);
 		fence = sched->ops->run_job(s_job);
+		i++;
 
 		if (IS_ERR_OR_NULL(fence)) {
 			if (IS_ERR(fence))
@@ -561,11 +555,9 @@ void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched)
 		} else {
 			s_job->s_fence->parent = fence;
 		}
-
-
 	}
 }
-EXPORT_SYMBOL(drm_sched_resubmit_jobs);
+EXPORT_SYMBOL(drm_sched_resubmit_jobs_ext);
 
 /**
  * drm_sched_job_init - init a scheduler job
@@ -734,7 +726,7 @@ drm_sched_pick_best(struct drm_gpu_scheduler **sched_list,
 			continue;
 		}
 
-		num_score = atomic_read(&sched->score);
+		num_score = atomic_read(sched->score);
 		if (num_score < min_score) {
 			min_score = num_score;
 			picked_sched = sched;
@@ -844,16 +836,15 @@ static int drm_sched_main(void *param)
  * @hw_submission: number of hw submissions that can be in flight
  * @hang_limit: number of times to allow a job to hang before dropping it
  * @timeout: timeout value in jiffies for the scheduler
+ * @score: optional score atomic shared with other schedulers
  * @name: name used for debugging
  *
  * Return 0 on success, otherwise error code.
  */
 int drm_sched_init(struct drm_gpu_scheduler *sched,
 		   const struct drm_sched_backend_ops *ops,
-		   unsigned hw_submission,
-		   unsigned hang_limit,
-		   long timeout,
-		   const char *name)
+		   unsigned hw_submission, unsigned hang_limit, long timeout,
+		   atomic_t *score, const char *name)
 {
 	int i, ret;
 	sched->ops = ops;
@@ -861,6 +852,7 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 	sched->name = name;
 	sched->timeout = timeout;
 	sched->hang_limit = hang_limit;
+	sched->score = score ? score : &sched->_score;
 	for (i = DRM_SCHED_PRIORITY_MIN; i < DRM_SCHED_PRIORITY_COUNT; i++)
 		drm_sched_rq_init(sched, &sched->sched_rq[i]);
 
@@ -870,7 +862,7 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 	spin_lock_init(&sched->job_list_lock);
 	atomic_set(&sched->hw_rq_count, 0);
 	INIT_DELAYED_WORK(&sched->work_tdr, drm_sched_job_timedout);
-	atomic_set(&sched->score, 0);
+	atomic_set(&sched->_score, 0);
 	atomic64_set(&sched->job_id_count, 0);
 
 	/* Each scheduler will run on a seperate kernel thread */
@@ -905,3 +897,48 @@ void drm_sched_fini(struct drm_gpu_scheduler *sched)
 	sched->ready = false;
 }
 EXPORT_SYMBOL(drm_sched_fini);
+
+/**
+ * drm_sched_increase_karma_ext - Update sched_entity guilty flag
+ *
+ * @bad: The job guilty of time out
+ * @type: type for increase/reset karma
+ *
+ */
+void drm_sched_increase_karma_ext(struct drm_sched_job *bad, int type)
+{
+	int i;
+	struct drm_sched_entity *tmp;
+	struct drm_sched_entity *entity;
+	struct drm_gpu_scheduler *sched = bad->sched;
+
+	/* don't change @bad's karma if it's from KERNEL RQ,
+	 * because sometimes GPU hang would cause kernel jobs (like VM updating jobs)
+	 * corrupt but keep in mind that kernel jobs always considered good.
+	 */
+	if (bad->s_priority != DRM_SCHED_PRIORITY_KERNEL) {
+		if (type == 0)
+			atomic_set(&bad->karma, 0);
+		else if (type == 1)
+			atomic_inc(&bad->karma);
+
+		for (i = DRM_SCHED_PRIORITY_MIN; i < DRM_SCHED_PRIORITY_KERNEL;
+		     i++) {
+			struct drm_sched_rq *rq = &sched->sched_rq[i];
+
+			spin_lock(&rq->lock);
+			list_for_each_entry_safe(entity, tmp, &rq->entities, list) {
+				if (bad->s_fence->scheduled.context ==
+				    entity->fence_context) {
+					if (entity->guilty)
+						atomic_set(entity->guilty, type);
+					break;
+				}
+			}
+			spin_unlock(&rq->lock);
+			if (&entity->list != &rq->entities)
+				break;
+		}
+	}
+}
+EXPORT_SYMBOL(drm_sched_increase_karma_ext);

@@ -232,6 +232,8 @@ static void intel_context_set_gem(struct intel_context *ce,
 	if (ctx->sched.priority >= I915_PRIORITY_NORMAL &&
 	    intel_engine_has_timeslices(ce->engine))
 		__set_bit(CONTEXT_USE_SEMAPHORES, &ce->flags);
+
+	intel_context_set_watchdog_us(ce, ctx->watchdog.timeout_us);
 }
 
 static void __free_engines(struct i915_gem_engines *e, unsigned int count)
@@ -386,38 +388,6 @@ static bool __cancel_engine(struct intel_engine_cs *engine)
 	return intel_engine_pulse(engine) == 0;
 }
 
-static bool
-__active_engine(struct i915_request *rq, struct intel_engine_cs **active)
-{
-	struct intel_engine_cs *engine, *locked;
-	bool ret = false;
-
-	/*
-	 * Serialise with __i915_request_submit() so that it sees
-	 * is-banned?, or we know the request is already inflight.
-	 *
-	 * Note that rq->engine is unstable, and so we double
-	 * check that we have acquired the lock on the final engine.
-	 */
-	locked = READ_ONCE(rq->engine);
-	spin_lock_irq(&locked->active.lock);
-	while (unlikely(locked != (engine = READ_ONCE(rq->engine)))) {
-		spin_unlock(&locked->active.lock);
-		locked = engine;
-		spin_lock(&locked->active.lock);
-	}
-
-	if (i915_request_is_active(rq)) {
-		if (!__i915_request_is_complete(rq))
-			*active = locked;
-		ret = true;
-	}
-
-	spin_unlock_irq(&locked->active.lock);
-
-	return ret;
-}
-
 static struct intel_engine_cs *active_engine(struct intel_context *ce)
 {
 	struct intel_engine_cs *engine = NULL;
@@ -445,7 +415,7 @@ static struct intel_engine_cs *active_engine(struct intel_context *ce)
 		/* Check with the backend if the request is inflight */
 		found = true;
 		if (likely(rcu_access_pointer(rq->timeline) == ce->timeline))
-			found = __active_engine(rq, &engine);
+			found = i915_request_active_engine(rq, &engine);
 
 		i915_request_put(rq);
 		if (found)
@@ -679,7 +649,7 @@ __create_context(struct drm_i915_private *i915)
 
 	kref_init(&ctx->ref);
 	ctx->i915 = i915;
-	ctx->sched.priority = I915_USER_PRIORITY(I915_PRIORITY_NORMAL);
+	ctx->sched.priority = I915_PRIORITY_NORMAL;
 	mutex_init(&ctx->mutex);
 	INIT_LIST_HEAD(&ctx->link);
 
@@ -822,6 +792,41 @@ static void __assign_timeline(struct i915_gem_context *ctx,
 	context_apply_all(ctx, __apply_timeline, timeline);
 }
 
+static int __apply_watchdog(struct intel_context *ce, void *timeout_us)
+{
+	return intel_context_set_watchdog_us(ce, (uintptr_t)timeout_us);
+}
+
+static int
+__set_watchdog(struct i915_gem_context *ctx, unsigned long timeout_us)
+{
+	int ret;
+
+	ret = context_apply_all(ctx, __apply_watchdog,
+				(void *)(uintptr_t)timeout_us);
+	if (!ret)
+		ctx->watchdog.timeout_us = timeout_us;
+
+	return ret;
+}
+
+static void __set_default_fence_expiry(struct i915_gem_context *ctx)
+{
+	struct drm_i915_private *i915 = ctx->i915;
+	int ret;
+
+	if (!IS_ACTIVE(CONFIG_DRM_I915_REQUEST_TIMEOUT) ||
+	    !i915->params.request_timeout_ms)
+		return;
+
+	/* Default expiry for user fences. */
+	ret = __set_watchdog(ctx, i915->params.request_timeout_ms * 1000);
+	if (ret)
+		drm_notice(&i915->drm,
+			   "Failed to configure default fence expiry! (%d)",
+			   ret);
+}
+
 static struct i915_gem_context *
 i915_gem_create_context(struct drm_i915_private *i915, unsigned int flags)
 {
@@ -865,6 +870,8 @@ i915_gem_create_context(struct drm_i915_private *i915, unsigned int flags)
 		__assign_timeline(ctx, timeline);
 		intel_timeline_put(timeline);
 	}
+
+	__set_default_fence_expiry(ctx);
 
 	trace_i915_context_create(ctx);
 
@@ -1959,7 +1966,7 @@ static int set_priority(struct i915_gem_context *ctx,
 	    !capable(CAP_SYS_NICE))
 		return -EPERM;
 
-	ctx->sched.priority = I915_USER_PRIORITY(priority);
+	ctx->sched.priority = priority;
 	context_apply_all(ctx, __apply_priority, ctx);
 
 	return 0;
@@ -2463,7 +2470,7 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 
 	case I915_CONTEXT_PARAM_PRIORITY:
 		args->size = 0;
-		args->value = ctx->sched.priority >> I915_USER_PRIORITY_SHIFT;
+		args->value = ctx->sched.priority;
 		break;
 
 	case I915_CONTEXT_PARAM_SSEU:

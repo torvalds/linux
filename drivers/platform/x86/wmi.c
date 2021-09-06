@@ -32,7 +32,6 @@
 #include <linux/fs.h>
 #include <uapi/linux/wmi.h>
 
-ACPI_MODULE_NAME("wmi");
 MODULE_AUTHOR("Carlos Corbacho");
 MODULE_DESCRIPTION("ACPI-WMI Mapping Driver");
 MODULE_LICENSE("GPL");
@@ -986,7 +985,6 @@ static int wmi_dev_remove(struct device *dev)
 	struct wmi_block *wblock = dev_to_wblock(dev);
 	struct wmi_driver *wdriver =
 		container_of(dev->driver, struct wmi_driver, driver);
-	int ret = 0;
 
 	if (wdriver->filter_callback) {
 		misc_deregister(&wblock->char_dev);
@@ -995,12 +993,12 @@ static int wmi_dev_remove(struct device *dev)
 	}
 
 	if (wdriver->remove)
-		ret = wdriver->remove(dev_to_wdev(dev));
+		wdriver->remove(dev_to_wdev(dev));
 
 	if (ACPI_FAILURE(wmi_method_enable(wblock, 0)))
 		dev_warn(dev, "failed to disable device\n");
 
-	return ret;
+	return 0;
 }
 
 static struct class wmi_bus_class = {

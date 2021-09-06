@@ -204,7 +204,7 @@ static int mmp_pcm_new(struct snd_soc_component *component,
 {
 	struct snd_pcm_substream *substream;
 	struct snd_pcm *pcm = rtd->pcm;
-	int ret = 0, stream;
+	int ret, stream;
 
 	for (stream = 0; stream < 2; stream++) {
 		substream = pcm->streams[stream].substream;

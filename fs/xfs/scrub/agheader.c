@@ -416,6 +416,10 @@ xchk_agf_xref_btreeblks(
 	xfs_agblock_t		btreeblks;
 	int			error;
 
+	/* agf_btreeblks didn't exist before lazysbcount */
+	if (!xfs_sb_version_haslazysbcount(&sc->mp->m_sb))
+		return;
+
 	/* Check agf_rmap_blocks; set up for agf_btreeblks check */
 	if (sc->sa.rmap_cur) {
 		error = xfs_btree_count_blocks(sc->sa.rmap_cur, &blocks);
@@ -477,16 +481,13 @@ xchk_agf_xref(
 {
 	struct xfs_mount	*mp = sc->mp;
 	xfs_agblock_t		agbno;
-	int			error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
 	agbno = XFS_AGF_BLOCK(mp);
 
-	error = xchk_ag_btcur_init(sc, &sc->sa);
-	if (error)
-		return;
+	xchk_ag_btcur_init(sc, &sc->sa);
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_agf_xref_freeblks(sc);
@@ -508,7 +509,7 @@ xchk_agf(
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_agf		*agf;
 	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		agno = sc->sm->sm_agno;
 	xfs_agblock_t		agbno;
 	xfs_agblock_t		eoag;
 	xfs_agblock_t		agfl_first;
@@ -518,9 +519,7 @@ xchk_agf(
 	int			level;
 	int			error = 0;
 
-	agno = sc->sa.agno = sc->sm->sm_agno;
-	error = xchk_ag_read_headers(sc, agno, &sc->sa.agi_bp,
-			&sc->sa.agf_bp, &sc->sa.agfl_bp);
+	error = xchk_ag_read_headers(sc, agno, &sc->sa);
 	if (!xchk_process_error(sc, agno, XFS_AGF_BLOCK(sc->mp), &error))
 		goto out;
 	xchk_buffer_recheck(sc, sc->sa.agf_bp);
@@ -586,7 +585,8 @@ xchk_agf(
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 	if (pag->pagf_flcount != be32_to_cpu(agf->agf_flcount))
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
-	if (pag->pagf_btreeblks != be32_to_cpu(agf->agf_btreeblks))
+	if (xfs_sb_version_haslazysbcount(&sc->mp->m_sb) &&
+	    pag->pagf_btreeblks != be32_to_cpu(agf->agf_btreeblks))
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 	xfs_perag_put(pag);
 
@@ -662,16 +662,13 @@ xchk_agfl_xref(
 {
 	struct xfs_mount	*mp = sc->mp;
 	xfs_agblock_t		agbno;
-	int			error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
 	agbno = XFS_AGFL_BLOCK(mp);
 
-	error = xchk_ag_btcur_init(sc, &sc->sa);
-	if (error)
-		return;
+	xchk_ag_btcur_init(sc, &sc->sa);
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_xref_is_not_inode_chunk(sc, agbno, 1);
@@ -691,14 +688,12 @@ xchk_agfl(
 {
 	struct xchk_agfl_info	sai;
 	struct xfs_agf		*agf;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		agno = sc->sm->sm_agno;
 	unsigned int		agflcount;
 	unsigned int		i;
 	int			error;
 
-	agno = sc->sa.agno = sc->sm->sm_agno;
-	error = xchk_ag_read_headers(sc, agno, &sc->sa.agi_bp,
-			&sc->sa.agf_bp, &sc->sa.agfl_bp);
+	error = xchk_ag_read_headers(sc, agno, &sc->sa);
 	if (!xchk_process_error(sc, agno, XFS_AGFL_BLOCK(sc->mp), &error))
 		goto out;
 	if (!sc->sa.agf_bp)
@@ -817,16 +812,13 @@ xchk_agi_xref(
 {
 	struct xfs_mount	*mp = sc->mp;
 	xfs_agblock_t		agbno;
-	int			error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
 	agbno = XFS_AGI_BLOCK(mp);
 
-	error = xchk_ag_btcur_init(sc, &sc->sa);
-	if (error)
-		return;
+	xchk_ag_btcur_init(sc, &sc->sa);
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_xref_is_not_inode_chunk(sc, agbno, 1);
@@ -846,7 +838,7 @@ xchk_agi(
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_agi		*agi;
 	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		agno = sc->sm->sm_agno;
 	xfs_agblock_t		agbno;
 	xfs_agblock_t		eoag;
 	xfs_agino_t		agino;
@@ -857,9 +849,7 @@ xchk_agi(
 	int			level;
 	int			error = 0;
 
-	agno = sc->sa.agno = sc->sm->sm_agno;
-	error = xchk_ag_read_headers(sc, agno, &sc->sa.agi_bp,
-			&sc->sa.agf_bp, &sc->sa.agfl_bp);
+	error = xchk_ag_read_headers(sc, agno, &sc->sa);
 	if (!xchk_process_error(sc, agno, XFS_AGI_BLOCK(sc->mp), &error))
 		goto out;
 	xchk_buffer_recheck(sc, sc->sa.agi_bp);

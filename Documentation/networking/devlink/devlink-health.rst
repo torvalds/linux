@@ -24,7 +24,7 @@ attributes of the health reporting and recovery procedures.
 
 The ``devlink`` health reporter:
 Device driver creates a "health reporter" per each error/health type.
-Error/Health type can be a known/generic (eg pci error, fw error, rx/tx error)
+Error/Health type can be a known/generic (e.g. PCI error, fw error, rx/tx error)
 or unknown (driver specific).
 For each registered health reporter a driver can issue error/health reports
 asynchronously. All health reports handling is done by ``devlink``.
@@ -48,6 +48,7 @@ Once an error is reported, devlink health will perform the following actions:
   * Object dump is being taken and saved at the reporter instance (as long as
     there is no other dump which is already stored)
   * Auto recovery attempt is being done. Depends on:
+
     - Auto-recovery configuration
     - Grace period vs. time passed since last recover
 
@@ -72,14 +73,18 @@ via ``devlink``, e.g per error type (per health reporter):
    * - ``DEVLINK_CMD_HEALTH_REPORTER_SET``
      - Allows reporter-related configuration setting.
    * - ``DEVLINK_CMD_HEALTH_REPORTER_RECOVER``
-     - Triggers a reporter's recovery procedure.
+     - Triggers reporter's recovery procedure.
+   * - ``DEVLINK_CMD_HEALTH_REPORTER_TEST``
+     - Triggers a fake health event on the reporter. The effects of the test
+       event in terms of recovery flow should follow closely that of a real
+       event.
    * - ``DEVLINK_CMD_HEALTH_REPORTER_DIAGNOSE``
-     - Retrieves diagnostics data from a reporter on a device.
+     - Retrieves current device state related to the reporter.
    * - ``DEVLINK_CMD_HEALTH_REPORTER_DUMP_GET``
      - Retrieves the last stored dump. Devlink health
-       saves a single dump. If an dump is not already stored by the devlink
+       saves a single dump. If an dump is not already stored by devlink
        for this reporter, devlink generates a new dump.
-       dump output is defined by the reporter.
+       Dump output is defined by the reporter.
    * - ``DEVLINK_CMD_HEALTH_REPORTER_DUMP_CLEAR``
      - Clears the last saved dump file for the specified reporter.
 
@@ -93,7 +98,7 @@ The following diagram provides a general overview of ``devlink-health``::
                                           +--------------------------+
                                                        |request for ops
                                                        |(diagnose,
-     mlx5_core                             devlink     |recover,
+      driver                               devlink     |recover,
                                                        |dump)
     +--------+                            +--------------------------+
     |        |                            |    reporter|             |

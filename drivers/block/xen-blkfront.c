@@ -1949,7 +1949,7 @@ module_param(feature_persistent, bool, 0644);
 MODULE_PARM_DESC(feature_persistent,
 		"Enables the persistent grants feature");
 
-/**
+/*
  * Entry point to this code when a new device is created.  Allocate the basic
  * structures and the ring buffer for communication with the backend, and
  * inform the backend of the appropriate details for those.  Switch to
@@ -2075,7 +2075,7 @@ static int blkif_recover(struct blkfront_info *info)
 	return 0;
 }
 
-/**
+/*
  * We are reconnecting to the backend, due to a suspend/resume, or a backend
  * driver restart.  We tear down our blkif structure and recreate it, but
  * leave the device-layer structures intact so that this is transparent to the
@@ -2397,7 +2397,7 @@ static void blkfront_connect(struct blkfront_info *info)
 	}
 
 	/*
-	 * physcial-sector-size is a newer field, so old backends may not
+	 * physical-sector-size is a newer field, so old backends may not
 	 * provide this. Assume physical sector size to be the same as
 	 * sector_size in that case.
 	 */
@@ -2440,7 +2440,7 @@ fail:
 	return;
 }
 
-/**
+/*
  * Callback received when the backend's state changes.
  */
 static void blkback_changed(struct xenbus_device *dev,

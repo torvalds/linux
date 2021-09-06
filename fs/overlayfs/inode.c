@@ -11,6 +11,8 @@
 #include <linux/posix_acl.h>
 #include <linux/ratelimit.h>
 #include <linux/fiemap.h>
+#include <linux/fileattr.h>
+#include <linux/security.h>
 #include "overlayfs.h"
 
 
@@ -95,7 +97,7 @@ out:
 	return err;
 }
 
-static int ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
+static void ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
 {
 	bool samefs = ovl_same_fs(dentry->d_sb);
 	unsigned int xinobits = ovl_xino_bits(dentry->d_sb);
@@ -108,21 +110,21 @@ static int ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
 		 * which is friendly to du -x.
 		 */
 		stat->dev = dentry->d_sb->s_dev;
-		return 0;
+		return;
 	} else if (xinobits) {
 		/*
 		 * All inode numbers of underlying fs should not be using the
 		 * high xinobits, so we use high xinobits to partition the
 		 * overlay st_ino address space. The high bits holds the fsid
 		 * (upper fsid is 0). The lowest xinobit is reserved for mapping
-		 * the non-peresistent inode numbers range in case of overflow.
+		 * the non-persistent inode numbers range in case of overflow.
 		 * This way all overlay inode numbers are unique and use the
 		 * overlay st_dev.
 		 */
 		if (likely(!(stat->ino >> xinoshift))) {
 			stat->ino |= ((u64)fsid) << (xinoshift + 1);
 			stat->dev = dentry->d_sb->s_dev;
-			return 0;
+			return;
 		} else if (ovl_xino_warn(dentry->d_sb)) {
 			pr_warn_ratelimited("inode number too big (%pd2, ino=%llu, xinobits=%d)\n",
 					    dentry, stat->ino, xinobits);
@@ -151,8 +153,6 @@ static int ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
 		 */
 		stat->dev = OVL_FS(dentry->d_sb)->fs[fsid].pseudo_dev;
 	}
-
-	return 0;
 }
 
 int ovl_getattr(struct user_namespace *mnt_userns, const struct path *path,
@@ -251,9 +251,7 @@ int ovl_getattr(struct user_namespace *mnt_userns, const struct path *path,
 		}
 	}
 
-	err = ovl_map_dev_ino(dentry, stat, fsid);
-	if (err)
-		goto out;
+	ovl_map_dev_ino(dentry, stat, fsid);
 
 	/*
 	 * It's probably not worth it to count subdirs to get the
@@ -408,7 +406,7 @@ static bool ovl_can_list(struct super_block *sb, const char *s)
 	if (ovl_is_private_xattr(sb, s))
 		return false;
 
-	/* List all non-trusted xatts */
+	/* List all non-trusted xattrs */
 	if (strncmp(s, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) != 0)
 		return true;
 
@@ -500,6 +498,79 @@ static int ovl_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	return err;
 }
 
+/*
+ * Work around the fact that security_file_ioctl() takes a file argument.
+ * Introducing security_inode_fileattr_get/set() hooks would solve this issue
+ * properly.
+ */
+static int ovl_security_fileattr(struct dentry *dentry, struct fileattr *fa,
+				 bool set)
+{
+	struct path realpath;
+	struct file *file;
+	unsigned int cmd;
+	int err;
+
+	ovl_path_real(dentry, &realpath);
+	file = dentry_open(&realpath, O_RDONLY, current_cred());
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	if (set)
+		cmd = fa->fsx_valid ? FS_IOC_FSSETXATTR : FS_IOC_SETFLAGS;
+	else
+		cmd = fa->fsx_valid ? FS_IOC_FSGETXATTR : FS_IOC_GETFLAGS;
+
+	err = security_file_ioctl(file, cmd, 0);
+	fput(file);
+
+	return err;
+}
+
+int ovl_fileattr_set(struct user_namespace *mnt_userns,
+		     struct dentry *dentry, struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+	struct dentry *upperdentry;
+	const struct cred *old_cred;
+	int err;
+
+	err = ovl_want_write(dentry);
+	if (err)
+		goto out;
+
+	err = ovl_copy_up(dentry);
+	if (!err) {
+		upperdentry = ovl_dentry_upper(dentry);
+
+		old_cred = ovl_override_creds(inode->i_sb);
+		err = ovl_security_fileattr(dentry, fa, true);
+		if (!err)
+			err = vfs_fileattr_set(&init_user_ns, upperdentry, fa);
+		revert_creds(old_cred);
+		ovl_copyflags(ovl_inode_real(inode), inode);
+	}
+	ovl_drop_write(dentry);
+out:
+	return err;
+}
+
+int ovl_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+	struct dentry *realdentry = ovl_dentry_real(dentry);
+	const struct cred *old_cred;
+	int err;
+
+	old_cred = ovl_override_creds(inode->i_sb);
+	err = ovl_security_fileattr(dentry, fa, false);
+	if (!err)
+		err = vfs_fileattr_get(realdentry, fa);
+	revert_creds(old_cred);
+
+	return err;
+}
+
 static const struct inode_operations ovl_file_inode_operations = {
 	.setattr	= ovl_setattr,
 	.permission	= ovl_permission,
@@ -508,6 +579,8 @@ static const struct inode_operations ovl_file_inode_operations = {
 	.get_acl	= ovl_get_acl,
 	.update_time	= ovl_update_time,
 	.fiemap		= ovl_fiemap,
+	.fileattr_get	= ovl_fileattr_get,
+	.fileattr_set	= ovl_fileattr_set,
 };
 
 static const struct inode_operations ovl_symlink_inode_operations = {
@@ -538,7 +611,7 @@ static const struct address_space_operations ovl_aops = {
  * stackable i_mutex locks according to stack level of the super
  * block instance. An overlayfs instance can never be in stack
  * depth 0 (there is always a real fs below it).  An overlayfs
- * inode lock will use the lockdep annotaion ovl_i_mutex_key[depth].
+ * inode lock will use the lockdep annotation ovl_i_mutex_key[depth].
  *
  * For example, here is a snip from /proc/lockdep_chains after
  * dir_iterate of nested overlayfs:

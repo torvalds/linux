@@ -16,18 +16,18 @@
 #define	RF_T_METER_8723B					0x42	/*  */
 
 
-void ConfigureTxpowerTrack_8723B(PTXPWRTRACK_CFG	pConfig);
+void ConfigureTxpowerTrack_8723B(struct txpwrtrack_cfg *pConfig);
 
 void DoIQK_8723B(
-	PDM_ODM_T pDM_Odm,
+	struct dm_odm_t *pDM_Odm,
 	u8 DeltaThermalIndex,
 	u8 ThermalValue,
 	u8 Threshold
 );
 
 void ODM_TxPwrTrackSetPwr_8723B(
-	PDM_ODM_T pDM_Odm,
-	PWRTRACK_METHOD Method,
+	struct dm_odm_t *pDM_Odm,
+	enum pwrtrack_method Method,
 	u8 RFPath,
 	u8 ChannelMappedIndex
 );
@@ -41,12 +41,12 @@ void PHY_IQCalibrate_8723B(
 	u8 RF_Path
 );
 
-void ODM_SetIQCbyRFpath(PDM_ODM_T pDM_Odm, u32 RFpath);
+void ODM_SetIQCbyRFpath(struct dm_odm_t *pDM_Odm, u32 RFpath);
 
 /*  */
 /*  LC calibrate */
 /*  */
-void PHY_LCCalibrate_8723B(PDM_ODM_T pDM_Odm);
+void PHY_LCCalibrate_8723B(struct dm_odm_t *pDM_Odm);
 
 /*  */
 /*  AP calibrate */

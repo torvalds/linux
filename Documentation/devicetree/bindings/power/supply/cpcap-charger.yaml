@@ -1,0 +1,106 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2021 Sebastian Reichel
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/power/supply/cpcap-charger.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Motorola CPCAP PMIC charger
+
+maintainers:
+  - Tony Lindgren <tony@atomide.com>
+  - Sebastian Reichel <sre@kernel.org>
+
+description: |
+  Motorola CPCAP is a PMIC found in some mobile phones, e.g.
+  the Droid 4. This binding describes its battery charger
+  sub-function.
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    const: motorola,mapphone-cpcap-charger
+
+  interrupts:
+    items:
+      - description: charger detection interrupt
+      - description: reverse charge interrupt
+      - description: SE1 charger detection interrupt
+      - description: SE0 charger detection interrupt
+      - description: reverse mode interrupt
+      - description: charge current 2 interrupt
+      - description: charge current 1 interrupt
+      - description: VBUS valid interrupt
+      - description: battery detect interrupt
+
+  interrupt-names:
+    items:
+      - const: chrg_det
+      - const: rvrs_chrg
+      - const: chrg_se1b
+      - const: se0conn
+      - const: rvrs_mode
+      - const: chrgcurr2
+      - const: chrgcurr1
+      - const: vbusvld
+      - const: battdetb
+
+  io-channels:
+    items:
+      - description: battery temperature
+      - description: battery voltage
+      - description: VBUS voltage
+      - description: battery charge current
+      - description: battery current
+
+  io-channel-names:
+    items:
+      - const: battdetb
+      - const: battp
+      - const: vbus
+      - const: chg_isense
+      - const: batti
+
+  mode-gpios:
+    description: |
+      Optionally CPCAP charger can have a companion wireless
+      charge controller that is controlled with two GPIOs
+      that are active low.
+    minItems: 2
+    maxItems: 2
+
+required:
+  - compatible
+  - interrupts
+  - interrupt-names
+  - io-channels
+  - io-channel-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    cpcap {
+      charger {
+        compatible = "motorola,mapphone-cpcap-charger";
+        interrupts-extended =
+                <&cpcap 13 0>, <&cpcap 12 0>, <&cpcap 29 0>, <&cpcap 28 0>,
+                <&cpcap 22 0>, <&cpcap 21 0>, <&cpcap 20 0>, <&cpcap 19 0>,
+                <&cpcap 54 0>;
+        interrupt-names =
+                "chrg_det", "rvrs_chrg", "chrg_se1b", "se0conn",
+                "rvrs_mode", "chrgcurr2", "chrgcurr1", "vbusvld",
+                "battdetb";
+        mode-gpios = <&gpio3 29 GPIO_ACTIVE_LOW>,
+                     <&gpio3 23 GPIO_ACTIVE_LOW>;
+        io-channels = <&cpcap_adc 0>, <&cpcap_adc 1>,
+                      <&cpcap_adc 2>, <&cpcap_adc 5>,
+                      <&cpcap_adc 6>;
+        io-channel-names = "battdetb", "battp",
+                           "vbus", "chg_isense",
+                           "batti";
+      };
+    };

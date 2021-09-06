@@ -16,36 +16,6 @@
 #define SZL			(BITS_PER_LONG/8)
 
 /*
- * Stuff for accurate CPU time accounting.
- * These macros handle transitions between user and system state
- * in exception entry and exit and accumulate time to the
- * user_time and system_time fields in the paca.
- */
-
-#ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
-#define ACCOUNT_CPU_USER_ENTRY(ptr, ra, rb)
-#define ACCOUNT_CPU_USER_EXIT(ptr, ra, rb)
-#else
-#define ACCOUNT_CPU_USER_ENTRY(ptr, ra, rb)				\
-	MFTB(ra);			/* get timebase */		\
-	PPC_LL	rb, ACCOUNT_STARTTIME_USER(ptr);			\
-	PPC_STL	ra, ACCOUNT_STARTTIME(ptr);				\
-	subf	rb,rb,ra;		/* subtract start value */	\
-	PPC_LL	ra, ACCOUNT_USER_TIME(ptr);				\
-	add	ra,ra,rb;		/* add on to user time */	\
-	PPC_STL	ra, ACCOUNT_USER_TIME(ptr);				\
-
-#define ACCOUNT_CPU_USER_EXIT(ptr, ra, rb)				\
-	MFTB(ra);			/* get timebase */		\
-	PPC_LL	rb, ACCOUNT_STARTTIME(ptr);				\
-	PPC_STL	ra, ACCOUNT_STARTTIME_USER(ptr);			\
-	subf	rb,rb,ra;		/* subtract start value */	\
-	PPC_LL	ra, ACCOUNT_SYSTEM_TIME(ptr);				\
-	add	ra,ra,rb;		/* add on to system time */	\
-	PPC_STL	ra, ACCOUNT_SYSTEM_TIME(ptr)
-#endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
-
-/*
  * Macros for storing registers into and loading registers from
  * exception frames.
  */

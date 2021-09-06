@@ -80,8 +80,9 @@ static bool cik_event_interrupt_isr(struct kfd_dev *dev,
 		ihre->source_id == CIK_INTSRC_SDMA_TRAP ||
 		ihre->source_id == CIK_INTSRC_SQ_INTERRUPT_MSG ||
 		ihre->source_id == CIK_INTSRC_CP_BAD_OPCODE ||
-		ihre->source_id == CIK_INTSRC_GFX_PAGE_INV_FAULT ||
-		ihre->source_id == CIK_INTSRC_GFX_MEM_PROT_FAULT;
+		((ihre->source_id == CIK_INTSRC_GFX_PAGE_INV_FAULT ||
+		ihre->source_id == CIK_INTSRC_GFX_MEM_PROT_FAULT) &&
+		!amdgpu_no_queue_eviction_on_vm_fault);
 }
 
 static void cik_event_interrupt_wq(struct kfd_dev *dev,

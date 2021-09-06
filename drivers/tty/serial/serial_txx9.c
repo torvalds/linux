@@ -330,9 +330,9 @@ receive_chars(struct uart_txx9_port *up, unsigned int *status)
 		up->port.ignore_status_mask = next_ignore_status_mask;
 		disr = sio_in(up, TXX9_SIDISR);
 	} while (!(disr & TXX9_SIDISR_UVALID) && (max_count-- > 0));
-	spin_unlock(&up->port.lock);
+
 	tty_flip_buffer_push(&up->port.state->port);
-	spin_lock(&up->port.lock);
+
 	*status = disr;
 }
 

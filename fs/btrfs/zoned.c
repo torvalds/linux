@@ -150,6 +150,18 @@ static inline u32 sb_zone_number(int shift, int mirror)
 	return (u32)zone;
 }
 
+static inline sector_t zone_start_sector(u32 zone_number,
+					 struct block_device *bdev)
+{
+	return (sector_t)zone_number << ilog2(bdev_zone_sectors(bdev));
+}
+
+static inline u64 zone_start_physical(u32 zone_number,
+				      struct btrfs_zoned_device_info *zone_info)
+{
+	return (u64)zone_number << zone_info->zone_size_shift;
+}
+
 /*
  * Emulate blkdev_report_zones() for a non-zoned device. It slices up the block
  * device into static sized chunks and fake a conventional zone on each of
@@ -342,6 +354,13 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device)
 	if (!IS_ALIGNED(nr_sectors, zone_sectors))
 		zone_info->nr_zones++;
 
+	if (bdev_is_zoned(bdev) && zone_info->max_zone_append_size == 0) {
+		btrfs_err(fs_info, "zoned: device %pg does not support zone append",
+			  bdev);
+		ret = -EINVAL;
+		goto out;
+	}
+
 	zone_info->seq_zones = bitmap_zalloc(zone_info->nr_zones, GFP_KERNEL);
 	if (!zone_info->seq_zones) {
 		ret = -ENOMEM;
@@ -398,8 +417,8 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device)
 		if (sb_zone + 1 >= zone_info->nr_zones)
 			continue;
 
-		sector = sb_zone << (zone_info->zone_size_shift - SECTOR_SHIFT);
-		ret = btrfs_get_dev_zones(device, sector << SECTOR_SHIFT,
+		ret = btrfs_get_dev_zones(device,
+					  zone_start_physical(sb_zone, zone_info),
 					  &zone_info->sb_zones[sb_pos],
 					  &nr_zones);
 		if (ret)
@@ -714,7 +733,7 @@ int btrfs_sb_log_location_bdev(struct block_device *bdev, int mirror, int rw,
 	if (sb_zone + 1 >= nr_zones)
 		return -ENOENT;
 
-	ret = blkdev_report_zones(bdev, sb_zone << zone_sectors_shift,
+	ret = blkdev_report_zones(bdev, zone_start_sector(sb_zone, bdev),
 				  BTRFS_NR_SB_LOG_ZONES, copy_zone_info_cb,
 				  zones);
 	if (ret < 0)
@@ -819,7 +838,7 @@ int btrfs_reset_sb_log_zones(struct block_device *bdev, int mirror)
 		return -ENOENT;
 
 	return blkdev_zone_mgmt(bdev, REQ_OP_ZONE_RESET,
-				sb_zone << zone_sectors_shift,
+				zone_start_sector(sb_zone, bdev),
 				zone_sectors * BTRFS_NR_SB_LOG_ZONES, GFP_NOFS);
 }
 
@@ -871,7 +890,8 @@ u64 btrfs_find_allocatable_zones(struct btrfs_device *device, u64 hole_start,
 			if (!(end <= sb_zone ||
 			      sb_zone + BTRFS_NR_SB_LOG_ZONES <= begin)) {
 				have_sb = true;
-				pos = ((u64)sb_zone + BTRFS_NR_SB_LOG_ZONES) << shift;
+				pos = zone_start_physical(
+					sb_zone + BTRFS_NR_SB_LOG_ZONES, zinfo);
 				break;
 			}
 
@@ -1119,6 +1139,11 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 			goto out;
 		}
 
+		if (zone.type == BLK_ZONE_TYPE_CONVENTIONAL) {
+			ret = -EIO;
+			goto out;
+		}
+
 		switch (zone.cond) {
 		case BLK_ZONE_COND_OFFLINE:
 		case BLK_ZONE_COND_READONLY:
@@ -1266,7 +1291,7 @@ void btrfs_free_redirty_list(struct btrfs_transaction *trans)
 	spin_unlock(&trans->releasing_ebs_lock);
 }
 
-bool btrfs_use_zone_append(struct btrfs_inode *inode, struct extent_map *em)
+bool btrfs_use_zone_append(struct btrfs_inode *inode, u64 start)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_block_group *cache;
@@ -1281,7 +1306,7 @@ bool btrfs_use_zone_append(struct btrfs_inode *inode, struct extent_map *em)
 	if (!is_data_inode(&inode->vfs_inode))
 		return false;
 
-	cache = btrfs_lookup_block_group(fs_info, em->block_start);
+	cache = btrfs_lookup_block_group(fs_info, start);
 	ASSERT(cache);
 	if (!cache)
 		return false;

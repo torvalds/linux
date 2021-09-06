@@ -19,12 +19,21 @@
 				(ETH_FCS_LEN + ETH_HLEN + VLAN_HLEN))
 
 struct enetc_tx_swbd {
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+		struct xdp_frame *xdp_frame;
+	};
 	dma_addr_t dma;
+	struct page *page;	/* valid only if is_xdp_tx */
+	u16 page_offset;	/* valid only if is_xdp_tx */
 	u16 len;
+	enum dma_data_direction dir;
 	u8 is_dma_page:1;
 	u8 check_wb:1;
-	u8 do_tstamp:1;
+	u8 do_twostep_tstamp:1;
+	u8 is_eof:1;
+	u8 is_xdp_tx:1;
+	u8 is_xdp_redirect:1;
 };
 
 #define ENETC_RX_MAXFRM_SIZE	ENETC_MAC_MAXFRM_SIZE
@@ -32,21 +41,45 @@ struct enetc_tx_swbd {
 #define ENETC_RXB_PAD		NET_SKB_PAD /* add extra space if needed */
 #define ENETC_RXB_DMA_SIZE	\
 	(SKB_WITH_OVERHEAD(ENETC_RXB_TRUESIZE) - ENETC_RXB_PAD)
+#define ENETC_RXB_DMA_SIZE_XDP	\
+	(SKB_WITH_OVERHEAD(ENETC_RXB_TRUESIZE) - XDP_PACKET_HEADROOM)
 
 struct enetc_rx_swbd {
 	dma_addr_t dma;
 	struct page *page;
 	u16 page_offset;
+	enum dma_data_direction dir;
+	u16 len;
 };
+
+/* ENETC overhead: optional extension BD + 1 BD gap */
+#define ENETC_TXBDS_NEEDED(val)	((val) + 2)
+/* max # of chained Tx BDs is 15, including head and extension BD */
+#define ENETC_MAX_SKB_FRAGS	13
+#define ENETC_TXBDS_MAX_NEEDED	ENETC_TXBDS_NEEDED(ENETC_MAX_SKB_FRAGS + 1)
 
 struct enetc_ring_stats {
 	unsigned int packets;
 	unsigned int bytes;
 	unsigned int rx_alloc_errs;
+	unsigned int xdp_drops;
+	unsigned int xdp_tx;
+	unsigned int xdp_tx_drops;
+	unsigned int xdp_redirect;
+	unsigned int xdp_redirect_failures;
+	unsigned int xdp_redirect_sg;
+	unsigned int recycles;
+	unsigned int recycle_failures;
 };
 
-#define ENETC_RX_RING_DEFAULT_SIZE	512
-#define ENETC_TX_RING_DEFAULT_SIZE	256
+struct enetc_xdp_data {
+	struct xdp_rxq_info rxq;
+	struct bpf_prog *prog;
+	int xdp_tx_in_flight;
+};
+
+#define ENETC_RX_RING_DEFAULT_SIZE	2048
+#define ENETC_TX_RING_DEFAULT_SIZE	2048
 #define ENETC_DEFAULT_TX_WORK		(ENETC_TX_RING_DEFAULT_SIZE / 2)
 
 struct enetc_bdr {
@@ -71,6 +104,9 @@ struct enetc_bdr {
 	};
 	void __iomem *idr; /* Interrupt Detect Register pointer */
 
+	int buffer_offset;
+	struct enetc_xdp_data xdp;
+
 	struct enetc_ring_stats stats;
 
 	dma_addr_t bd_dma_base;
@@ -92,18 +128,28 @@ static inline int enetc_bd_unused(struct enetc_bdr *bdr)
 	return bdr->bd_count + bdr->next_to_clean - bdr->next_to_use - 1;
 }
 
+static inline int enetc_swbd_unused(struct enetc_bdr *bdr)
+{
+	if (bdr->next_to_clean > bdr->next_to_alloc)
+		return bdr->next_to_clean - bdr->next_to_alloc - 1;
+
+	return bdr->bd_count + bdr->next_to_clean - bdr->next_to_alloc - 1;
+}
+
 /* Control BD ring */
 #define ENETC_CBDR_DEFAULT_SIZE	64
 struct enetc_cbdr {
 	void *bd_base; /* points to Rx or Tx BD ring */
 	void __iomem *pir;
 	void __iomem *cir;
+	void __iomem *mr; /* mode register */
 
 	int bd_count; /* # of BDs */
 	int next_to_use;
 	int next_to_clean;
 
 	dma_addr_t bd_dma_base;
+	struct device *dma_dev;
 };
 
 #define ENETC_TXBD(BDR, i) (&(((union enetc_tx_bd *)((BDR).bd_base))[i]))
@@ -119,19 +165,26 @@ static inline union enetc_rx_bd *enetc_rxbd(struct enetc_bdr *rx_ring, int i)
 	return &(((union enetc_rx_bd *)rx_ring->bd_base)[hw_idx]);
 }
 
-static inline union enetc_rx_bd *enetc_rxbd_next(struct enetc_bdr *rx_ring,
-						 union enetc_rx_bd *rxbd,
-						 int i)
+static inline void enetc_rxbd_next(struct enetc_bdr *rx_ring,
+				   union enetc_rx_bd **old_rxbd, int *old_index)
 {
-	rxbd++;
+	union enetc_rx_bd *new_rxbd = *old_rxbd;
+	int new_index = *old_index;
+
+	new_rxbd++;
+
 #ifdef CONFIG_FSL_ENETC_PTP_CLOCK
 	if (rx_ring->ext_en)
-		rxbd++;
+		new_rxbd++;
 #endif
-	if (unlikely(++i == rx_ring->bd_count))
-		rxbd = rx_ring->bd_base;
 
-	return rxbd;
+	if (unlikely(++new_index == rx_ring->bd_count)) {
+		new_rxbd = rx_ring->bd_base;
+		new_index = 0;
+	}
+
+	*old_rxbd = new_rxbd;
+	*old_index = new_index;
 }
 
 static inline union enetc_rx_bd *enetc_rxbd_ext(union enetc_rx_bd *rxbd)
@@ -184,6 +237,22 @@ static inline bool enetc_si_is_pf(struct enetc_si *si)
 	return !!(si->hw.port);
 }
 
+static inline int enetc_pf_to_port(struct pci_dev *pf_pdev)
+{
+	switch (pf_pdev->devfn) {
+	case 0:
+		return 0;
+	case 1:
+		return 1;
+	case 2:
+		return 2;
+	case 6:
+		return 3;
+	default:
+		return -1;
+	}
+}
+
 #define ENETC_MAX_NUM_TXQS	8
 #define ENETC_INT_NAME_MAX	(IFNAMSIZ + 8)
 
@@ -218,12 +287,20 @@ struct psfp_cap {
 	u32 max_psfp_meter;
 };
 
+#define ENETC_F_TX_TSTAMP_MASK	0xff
 /* TODO: more hardware offloads */
 enum enetc_active_offloads {
-	ENETC_F_RX_TSTAMP	= BIT(0),
-	ENETC_F_TX_TSTAMP	= BIT(1),
-	ENETC_F_QBV             = BIT(2),
-	ENETC_F_QCI		= BIT(3),
+	/* 8 bits reserved for TX timestamp types (hwtstamp_tx_types) */
+	ENETC_F_TX_TSTAMP		= BIT(0),
+	ENETC_F_TX_ONESTEP_SYNC_TSTAMP	= BIT(1),
+
+	ENETC_F_RX_TSTAMP		= BIT(8),
+	ENETC_F_QBV			= BIT(9),
+	ENETC_F_QCI			= BIT(10),
+};
+
+enum enetc_flags_bit {
+	ENETC_TX_ONESTEP_TSTAMP_IN_PROGRESS = 0,
 };
 
 /* interrupt coalescing modes */
@@ -252,10 +329,11 @@ struct enetc_ndev_priv {
 	u16 rx_bd_count, tx_bd_count;
 
 	u16 msg_enable;
-	int active_offloads;
+	enum enetc_active_offloads active_offloads;
 
 	u32 speed; /* store speed for compare update pspeed */
 
+	struct enetc_bdr **xdp_tx_ring;
 	struct enetc_bdr *tx_ring[16];
 	struct enetc_bdr *rx_ring[16];
 
@@ -266,6 +344,13 @@ struct enetc_ndev_priv {
 	struct phylink *phylink;
 	int ic_mode;
 	u32 tx_ictt;
+
+	struct bpf_prog *xdp_prog;
+
+	unsigned long flags;
+
+	struct work_struct	tx_onestep_tstamp;
+	struct sk_buff_head	tx_skbs;
 };
 
 /* Messaging */
@@ -305,15 +390,17 @@ int enetc_set_features(struct net_device *ndev,
 int enetc_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd);
 int enetc_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 		   void *type_data);
+int enetc_setup_bpf(struct net_device *dev, struct netdev_bpf *xdp);
+int enetc_xdp_xmit(struct net_device *ndev, int num_frames,
+		   struct xdp_frame **frames, u32 flags);
 
 /* ethtool */
 void enetc_set_ethtool_ops(struct net_device *ndev);
 
 /* control buffer descriptor ring (CBDR) */
-int enetc_alloc_cbdr(struct device *dev, struct enetc_cbdr *cbdr);
-void enetc_free_cbdr(struct device *dev, struct enetc_cbdr *cbdr);
-void enetc_setup_cbdr(struct enetc_hw *hw, struct enetc_cbdr *cbdr);
-void enetc_clear_cbdr(struct enetc_hw *hw);
+int enetc_setup_cbdr(struct device *dev, struct enetc_hw *hw, int bd_count,
+		     struct enetc_cbdr *cbdr);
+void enetc_teardown_cbdr(struct enetc_cbdr *cbdr);
 int enetc_set_mac_flt_entry(struct enetc_si *si, int index,
 			    char *mac_addr, int si_map);
 int enetc_clear_mac_flt_entry(struct enetc_si *si, int index);

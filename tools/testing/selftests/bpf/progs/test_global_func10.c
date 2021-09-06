@@ -14,7 +14,7 @@ struct Big {
 
 __noinline int foo(const struct Big *big)
 {
-	if (big == 0)
+	if (!big)
 		return 0;
 
 	return bpf_get_prandom_u32() < big->y;

@@ -127,11 +127,11 @@ il vostro processo si auto-sospenderà; verrà riattivato quando il mutex
 verrà rilasciato. Questo significa che il processore potrà occuparsi d'altro
 mentre il vostro processo è in attesa. Esistono molti casi in cui non potete
 permettervi di sospendere un processo (vedere
-:ref:`Quali funzioni possono essere chiamate in modo sicuro dalle interruzioni? <it_sleeping-things>`)
+`Quali funzioni possono essere chiamate in modo sicuro dalle interruzioni?`_)
 e quindi dovrete utilizzare gli spinlock.
 
 Nessuno di questi *lock* è ricorsivo: vedere
-:ref:`Stallo: semplice ed avanzato <it_deadlock>`
+`Stallo: semplice ed avanzato`_
 
 I *lock* e i kernel per sistemi monoprocessore
 ----------------------------------------------
@@ -190,7 +190,7 @@ perfetto questa funzione si chiamerebbe 'spin_lock_softirq()').
 
 Da notare che in questo caso potete utilizzare anche spin_lock_irq()
 o spin_lock_irqsave(), queste fermano anche le interruzioni hardware:
-vedere :ref:`Contesto di interruzione hardware <it_hardirq-context>`.
+vedere `Contesto di interruzione hardware`_.
 
 Questo funziona alla perfezione anche sui sistemi monoprocessore: gli spinlock
 svaniscono e questa macro diventa semplicemente local_bh_disable()
@@ -241,7 +241,7 @@ Lo stesso softirq
 
 Lo stesso softirq può essere eseguito su un diverso processore: allo scopo
 di migliorare le prestazioni potete utilizzare dati riservati ad ogni
-processore (vedere :ref:`Dati per processore <it_per-cpu>`). Se siete arrivati
+processore (vedere `Dati per processore`_). Se siete arrivati
 fino a questo punto nell'uso dei softirq, probabilmente tenete alla scalabilità
 delle prestazioni abbastanza da giustificarne la complessità aggiuntiva.
 
@@ -896,8 +896,6 @@ leggendo solamente il codice. E come dice Alan Cox: “Lock data, not code”.
 Problemi comuni
 ===============
 
-.. _`it_deadlock`:
-
 Stallo: semplice ed avanzato
 ----------------------------
 
@@ -1282,7 +1280,6 @@ Il beneficio qui sta nel fatto che il contatore di riferimenti no
 viene scritto: l'oggetto non viene alterato in alcun modo e quindi diventa
 molto più veloce su sistemi molti-processore grazie alla loro memoria cache.
 
-.. _`it_per-cpu`:
 
 Dati per processore
 -------------------
@@ -1333,7 +1330,6 @@ Naturalmente, questo è più lento della semplice chiamata
 spin_lock_irq(), quindi ha senso solo se questo genere di accesso
 è estremamente raro.
 
-.. _`it_sleeping-things`:
 
 Quali funzioni possono essere chiamate in modo sicuro dalle interruzioni?
 =========================================================================

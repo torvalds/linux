@@ -125,6 +125,14 @@ case "${ARCH}" in
 			fi
 		done
 		;;
+	riscv)
+		for i in Image.bz2 Image.gz Image; do
+			if [ -f "${objtree}/arch/riscv/boot/${i}" ] ; then
+				cp -v -- "${objtree}/arch/riscv/boot/${i}" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
+				break
+			fi
+		done
+		;;
 	*)
 		[ -f "${KBUILD_IMAGE}" ] && cp -v -- "${KBUILD_IMAGE}" "${tmpdir}/boot/vmlinux-kbuild-${KERNELRELEASE}"
 		echo "" >&2

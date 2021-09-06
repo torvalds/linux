@@ -104,8 +104,8 @@ void sja1105_ptp_txtstamp_skb(struct dsa_switch *ds, int slot,
 bool sja1105_port_rxtstamp(struct dsa_switch *ds, int port,
 			   struct sk_buff *skb, unsigned int type);
 
-bool sja1105_port_txtstamp(struct dsa_switch *ds, int port,
-			   struct sk_buff *skb, unsigned int type);
+void sja1105_port_txtstamp(struct dsa_switch *ds, int port,
+			   struct sk_buff *skb);
 
 int sja1105_hwtstamp_get(struct dsa_switch *ds, int port, struct ifreq *ifr);
 

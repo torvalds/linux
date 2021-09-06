@@ -31,6 +31,7 @@
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/dma-direct.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>

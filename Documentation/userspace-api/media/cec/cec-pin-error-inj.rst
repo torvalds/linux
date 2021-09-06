@@ -44,7 +44,7 @@ error injection status::
 	#   <op>[,<mode>] rx-low-drive <bit>   force a low-drive condition at this bit position
 	#   <op>[,<mode>] rx-add-byte          add a spurious byte to the received CEC message
 	#   <op>[,<mode>] rx-remove-byte       remove the last byte from the received CEC message
-	#   <op>[,<mode>] rx-arb-lost <poll>   generate a POLL message to trigger an arbitration lost
+	#    any[,<mode>] rx-arb-lost [<poll>] generate a POLL message to trigger an arbitration lost
 	#
 	# TX error injection settings:
 	#   tx-ignore-nack-until-eom           ignore early NACKs until EOM

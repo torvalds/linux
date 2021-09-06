@@ -86,7 +86,7 @@
  * @freq_msg:		tuning word spi message
  * @phase_xfer:		tuning word spi transfer
  * @phase_msg:		tuning word spi message
- * @lock		protect sensor state
+ * @lock:		protect sensor state
  * @data:		spi transmit buffer
  * @phase_data:		tuning word spi transmit buffer
  * @freq_data:		tuning word spi transmit buffer
@@ -248,7 +248,7 @@ error_ret:
 	return ret ? ret : len;
 }
 
-/**
+/*
  * see dds.h for further information
  */
 

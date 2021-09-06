@@ -9,7 +9,9 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/sys_soc.h>
+#include <linux/memblock.h>
 
+#include <asm/bootinfo.h>
 #include <asm/mipsregs.h>
 #include <asm/smp-ops.h>
 #include <asm/mips-cps.h>
@@ -48,6 +50,8 @@
 #define MT7621_GPIO_MODE_SDHCI_MASK	0x3
 #define MT7621_GPIO_MODE_SDHCI_SHIFT	18
 #define MT7621_GPIO_MODE_SDHCI_GPIO	1
+
+static void *detect_magic __initdata = detect_memory_region;
 
 static struct rt2880_pmx_func uart1_grp[] =  { FUNC("uart1", 0, 1, 2) };
 static struct rt2880_pmx_func i2c_grp[] =  { FUNC("i2c", 0, 3, 2) };
@@ -110,10 +114,30 @@ phys_addr_t mips_cpc_default_phys_base(void)
 	panic("Cannot detect cpc address");
 }
 
+static void __init mt7621_memory_detect(void)
+{
+	void *dm = &detect_magic;
+	phys_addr_t size;
+
+	for (size = 32 * SZ_1M; size < 256 * SZ_1M; size <<= 1) {
+		if (!__builtin_memcmp(dm, dm + size, sizeof(detect_magic)))
+			break;
+	}
+
+	if ((size == 256 * SZ_1M) &&
+	    (CPHYSADDR(dm + size) < MT7621_LOWMEM_MAX_SIZE) &&
+	    __builtin_memcmp(dm, dm + size, sizeof(detect_magic))) {
+		memblock_add(MT7621_LOWMEM_BASE, MT7621_LOWMEM_MAX_SIZE);
+		memblock_add(MT7621_HIGHMEM_BASE, MT7621_HIGHMEM_SIZE);
+	} else {
+		memblock_add(MT7621_LOWMEM_BASE, size);
+	}
+}
+
 void __init ralink_of_remap(void)
 {
-	rt_sysc_membase = plat_of_remap_node("mtk,mt7621-sysc");
-	rt_memc_membase = plat_of_remap_node("mtk,mt7621-memc");
+	rt_sysc_membase = plat_of_remap_node("mediatek,mt7621-sysc");
+	rt_memc_membase = plat_of_remap_node("mediatek,mt7621-memc");
 
 	if (!rt_sysc_membase || !rt_memc_membase)
 		panic("Failed to remap core resources");
@@ -146,7 +170,7 @@ static void soc_dev_init(struct ralink_soc_info *soc_info, u32 rev)
 	}
 }
 
-void prom_soc_init(struct ralink_soc_info *soc_info)
+void __init prom_soc_init(struct ralink_soc_info *soc_info)
 {
 	void __iomem *sysc = (void __iomem *) KSEG1ADDR(MT7621_SYSC_BASE);
 	unsigned char *name = NULL;
@@ -181,7 +205,7 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 
 	if (n0 == MT7621_CHIP_NAME0 && n1 == MT7621_CHIP_NAME1) {
 		name = "MT7621";
-		soc_info->compatible = "mtk,mt7621-soc";
+		soc_info->compatible = "mediatek,mt7621-soc";
 	} else {
 		panic("mt7621: unknown SoC, n0:%08x n1:%08x\n", n0, n1);
 	}
@@ -194,10 +218,7 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 		(rev >> CHIP_REV_VER_SHIFT) & CHIP_REV_VER_MASK,
 		(rev & CHIP_REV_ECO_MASK));
 
-	soc_info->mem_size_min = MT7621_DDR2_SIZE_MIN;
-	soc_info->mem_size_max = MT7621_DDR2_SIZE_MAX;
-	soc_info->mem_base = MT7621_DRAM_BASE;
-
+	soc_info->mem_detect = mt7621_memory_detect;
 	rt2880_pinmux_data = mt7621_pinmux_data;
 
 	soc_dev_init(soc_info, rev);

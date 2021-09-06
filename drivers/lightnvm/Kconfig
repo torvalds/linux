@@ -4,7 +4,7 @@
 #
 
 menuconfig NVM
-	bool "Open-Channel SSD target support"
+	bool "Open-Channel SSD target support (DEPRECATED)"
 	depends on BLOCK
 	help
 	  Say Y here to get to enable Open-channel SSDs.
@@ -14,6 +14,8 @@ menuconfig NVM
 
 	  If you say N, all options in this submenu will be skipped and disabled
 	  only do this if you know what you are doing.
+
+	  This code is deprecated and will be removed in Linux 5.15.
 
 if NVM
 

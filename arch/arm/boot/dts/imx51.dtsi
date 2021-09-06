@@ -467,7 +467,7 @@
 			};
 
 			iim: efuse@83f98000 {
-				compatible = "fsl,imx51-iim", "fsl,imx27-iim";
+				compatible = "fsl,imx51-iim", "fsl,imx27-iim", "syscon";
 				reg = <0x83f98000 0x4000>;
 				interrupts = <69>;
 				clocks = <&clks IMX5_CLK_IIM_GATE>;

@@ -11,6 +11,11 @@
 / {
 	compatible = "rockchip,rk3399-sapphire", "rockchip,rk3399";
 
+	aliases {
+		mmc0 = &sdmmc;
+		mmc1 = &sdhci;
+	};
+
 	chosen {
 		stdout-path = "serial2:1500000n8";
 	};

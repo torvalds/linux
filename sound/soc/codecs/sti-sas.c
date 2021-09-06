@@ -51,14 +51,11 @@ static const struct reg_default stih407_sas_reg_defaults[] = {
 struct sti_dac_audio {
 	struct regmap *regmap;
 	struct regmap *virt_regmap;
-	struct regmap_field  **field;
-	struct reset_control *rst;
 	int mclk;
 };
 
 struct sti_spdif_audio {
 	struct regmap *regmap;
-	struct regmap_field  **field;
 	int mclk;
 };
 
@@ -411,6 +408,7 @@ static const struct of_device_id sti_sas_dev_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, sti_sas_dev_match);
 
 static int sti_sas_driver_probe(struct platform_device *pdev)
 {

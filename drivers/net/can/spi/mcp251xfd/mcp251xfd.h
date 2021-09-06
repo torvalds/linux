@@ -15,9 +15,12 @@
 #include <linux/can/rx-offload.h>
 #include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
+#include <linux/netdevice.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+#include <linux/timecounter.h>
+#include <linux/workqueue.h>
 
 /* MPC251x registers */
 
@@ -394,6 +397,9 @@
 #define MCP251XFD_SYSCLOCK_HZ_MAX 40000000
 #define MCP251XFD_SYSCLOCK_HZ_MIN 1000000
 #define MCP251XFD_SPICLOCK_HZ_MAX 20000000
+#define MCP251XFD_TIMESTAMP_WORK_DELAY_SEC 45
+static_assert(MCP251XFD_TIMESTAMP_WORK_DELAY_SEC <
+	      CYCLECOUNTER_MASK(32) / MCP251XFD_SYSCLOCK_HZ_MAX / 2);
 #define MCP251XFD_OSC_PLL_MULTIPLIER 10
 #define MCP251XFD_OSC_STAB_SLEEP_US (3 * USEC_PER_MSEC)
 #define MCP251XFD_OSC_STAB_TIMEOUT_US (10 * MCP251XFD_OSC_STAB_SLEEP_US)
@@ -595,6 +601,10 @@ struct mcp251xfd_priv {
 	struct mcp251xfd_ecc ecc;
 	struct mcp251xfd_regs_status regs_status;
 
+	struct cyclecounter cc;
+	struct timecounter tc;
+	struct delayed_work timestamp;
+
 	struct gpio_desc *rx_int;
 	struct clk *clk;
 	struct regulator *reg_vdd;
@@ -727,6 +737,12 @@ mcp251xfd_spi_cmd_write(const struct mcp251xfd_priv *priv,
 	return data;
 }
 
+static inline int mcp251xfd_get_timestamp(const struct mcp251xfd_priv *priv,
+					  u32 *timestamp)
+{
+	return regmap_read(priv->map_reg, MCP251XFD_REG_TBC, timestamp);
+}
+
 static inline u16 mcp251xfd_get_tef_obj_addr(u8 n)
 {
 	return MCP251XFD_RAM_START +
@@ -837,5 +853,17 @@ int mcp251xfd_regmap_init(struct mcp251xfd_priv *priv);
 u16 mcp251xfd_crc16_compute2(const void *cmd, size_t cmd_size,
 			     const void *data, size_t data_size);
 u16 mcp251xfd_crc16_compute(const void *data, size_t data_size);
+void mcp251xfd_skb_set_timestamp(struct mcp251xfd_priv *priv,
+				 struct sk_buff *skb, u32 timestamp);
+void mcp251xfd_timestamp_init(struct mcp251xfd_priv *priv);
+void mcp251xfd_timestamp_stop(struct mcp251xfd_priv *priv);
+
+#if IS_ENABLED(CONFIG_DEV_COREDUMP)
+void mcp251xfd_dump(const struct mcp251xfd_priv *priv);
+#else
+static inline void mcp251xfd_dump(const struct mcp251xfd_priv *priv)
+{
+}
+#endif
 
 #endif

@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * SPDX-License-Identifier: GPL-2.0
- *
  * Copyright © 2019 Intel Corporation
  */
 
@@ -88,8 +87,8 @@ static int __live_context_size(struct intel_engine_cs *engine)
 	if (err)
 		goto err;
 
-	vaddr = i915_gem_object_pin_map(ce->state->obj,
-					i915_coherent_map_type(engine->i915));
+	vaddr = i915_gem_object_pin_map_unlocked(ce->state->obj,
+						 i915_coherent_map_type(engine->i915));
 	if (IS_ERR(vaddr)) {
 		err = PTR_ERR(vaddr);
 		intel_context_unpin(ce);

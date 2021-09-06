@@ -19,6 +19,32 @@
 #pragma GCC poison reallocarray
 
 #include "libbpf.h"
+#include "btf.h"
+
+#ifndef EM_BPF
+#define EM_BPF 247
+#endif
+
+#ifndef R_BPF_64_64
+#define R_BPF_64_64 1
+#endif
+#ifndef R_BPF_64_32
+#define R_BPF_64_32 10
+#endif
+
+#ifndef SHT_LLVM_ADDRSIG
+#define SHT_LLVM_ADDRSIG 0x6FFF4C03
+#endif
+
+/* if libelf is old and doesn't support mmap(), fall back to read() */
+#ifndef ELF_C_READ_MMAP
+#define ELF_C_READ_MMAP ELF_C_READ
+#endif
+
+/* Older libelf all end up in this expression, for both 32 and 64 bit */
+#ifndef GELF_ST_VISIBILITY
+#define GELF_ST_VISIBILITY(o) ((o) & 0x03)
+#endif
 
 #define BTF_INFO_ENC(kind, kind_flag, vlen) \
 	((!!(kind_flag) << 31) | ((kind) << 24) | ((vlen) & BTF_MAX_VLEN))
@@ -31,6 +57,8 @@
 #define BTF_MEMBER_ENC(name, type, bits_offset) (name), (type), (bits_offset)
 #define BTF_PARAM_ENC(name, type) (name), (type)
 #define BTF_VAR_SECINFO_ENC(type, offset, size) (type), (offset), (size)
+#define BTF_TYPE_FLOAT_ENC(name, sz) \
+	BTF_TYPE_ENC(name, BTF_INFO_ENC(BTF_KIND_FLOAT, 0, 0), sz)
 
 #ifndef likely
 #define likely(x) __builtin_expect(!!(x), 1)
@@ -105,9 +133,58 @@ static inline void *libbpf_reallocarray(void *ptr, size_t nmemb, size_t size)
 	return realloc(ptr, total);
 }
 
-void *btf_add_mem(void **data, size_t *cap_cnt, size_t elem_sz,
-		  size_t cur_cnt, size_t max_cnt, size_t add_cnt);
-int btf_ensure_mem(void **data, size_t *cap_cnt, size_t elem_sz, size_t need_cnt);
+struct btf;
+struct btf_type;
+
+struct btf_type *btf_type_by_id(struct btf *btf, __u32 type_id);
+const char *btf_kind_str(const struct btf_type *t);
+const struct btf_type *skip_mods_and_typedefs(const struct btf *btf, __u32 id, __u32 *res_id);
+
+static inline enum btf_func_linkage btf_func_linkage(const struct btf_type *t)
+{
+	return (enum btf_func_linkage)(int)btf_vlen(t);
+}
+
+static inline __u32 btf_type_info(int kind, int vlen, int kflag)
+{
+	return (kflag << 31) | (kind << 24) | vlen;
+}
+
+enum map_def_parts {
+	MAP_DEF_MAP_TYPE	= 0x001,
+	MAP_DEF_KEY_TYPE	= 0x002,
+	MAP_DEF_KEY_SIZE	= 0x004,
+	MAP_DEF_VALUE_TYPE	= 0x008,
+	MAP_DEF_VALUE_SIZE	= 0x010,
+	MAP_DEF_MAX_ENTRIES	= 0x020,
+	MAP_DEF_MAP_FLAGS	= 0x040,
+	MAP_DEF_NUMA_NODE	= 0x080,
+	MAP_DEF_PINNING		= 0x100,
+	MAP_DEF_INNER_MAP	= 0x200,
+
+	MAP_DEF_ALL		= 0x3ff, /* combination of all above */
+};
+
+struct btf_map_def {
+	enum map_def_parts parts;
+	__u32 map_type;
+	__u32 key_type_id;
+	__u32 key_size;
+	__u32 value_type_id;
+	__u32 value_size;
+	__u32 max_entries;
+	__u32 map_flags;
+	__u32 numa_node;
+	__u32 pinning;
+};
+
+int parse_btf_map_def(const char *map_name, struct btf *btf,
+		      const struct btf_type *def_t, bool strict,
+		      struct btf_map_def *map_def, struct btf_map_def *inner_def);
+
+void *libbpf_add_mem(void **data, size_t *cap_cnt, size_t elem_sz,
+		     size_t cur_cnt, size_t max_cnt, size_t add_cnt);
+int libbpf_ensure_mem(void **data, size_t *cap_cnt, size_t elem_sz, size_t need_cnt);
 
 static inline bool libbpf_validate_opts(const char *opts,
 					size_t opts_sz, size_t user_sz,
@@ -348,5 +425,12 @@ struct bpf_core_relo {
 	__u32   access_str_off;
 	enum bpf_core_relo_kind kind;
 };
+
+typedef int (*type_id_visit_fn)(__u32 *type_id, void *ctx);
+typedef int (*str_off_visit_fn)(__u32 *str_off, void *ctx);
+int btf_type_visit_type_ids(struct btf_type *t, type_id_visit_fn visit, void *ctx);
+int btf_type_visit_str_offs(struct btf_type *t, str_off_visit_fn visit, void *ctx);
+int btf_ext_visit_type_ids(struct btf_ext *btf_ext, type_id_visit_fn visit, void *ctx);
+int btf_ext_visit_str_offs(struct btf_ext *btf_ext, str_off_visit_fn visit, void *ctx);
 
 #endif /* __LIBBPF_LIBBPF_INTERNAL_H */

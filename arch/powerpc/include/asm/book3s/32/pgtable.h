@@ -194,10 +194,8 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
 #define VMALLOC_END	ioremap_bot
 #endif
 
-#ifdef CONFIG_STRICT_KERNEL_RWX
 #define MODULES_END	ALIGN_DOWN(PAGE_OFFSET, SZ_256M)
 #define MODULES_VADDR	(MODULES_END - SZ_256M)
-#endif
 
 #ifndef __ASSEMBLY__
 #include <linux/sched.h>

@@ -42,7 +42,7 @@
 #define __BITOPS_WORDS(bits) (((bits) + BITS_PER_LONG - 1) / BITS_PER_LONG)
 
 static inline unsigned long *
-__bitops_word(unsigned long nr, volatile unsigned long *ptr)
+__bitops_word(unsigned long nr, const volatile unsigned long *ptr)
 {
 	unsigned long addr;
 
@@ -50,37 +50,33 @@ __bitops_word(unsigned long nr, volatile unsigned long *ptr)
 	return (unsigned long *)addr;
 }
 
-static inline unsigned char *
-__bitops_byte(unsigned long nr, volatile unsigned long *ptr)
+static inline unsigned long __bitops_mask(unsigned long nr)
 {
-	return ((unsigned char *)ptr) + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
+	return 1UL << (nr & (BITS_PER_LONG - 1));
 }
 
 static __always_inline void arch_set_bit(unsigned long nr, volatile unsigned long *ptr)
 {
 	unsigned long *addr = __bitops_word(nr, ptr);
-	unsigned long mask;
+	unsigned long mask = __bitops_mask(nr);
 
-	mask = 1UL << (nr & (BITS_PER_LONG - 1));
 	__atomic64_or(mask, (long *)addr);
 }
 
 static __always_inline void arch_clear_bit(unsigned long nr, volatile unsigned long *ptr)
 {
 	unsigned long *addr = __bitops_word(nr, ptr);
-	unsigned long mask;
+	unsigned long mask = __bitops_mask(nr);
 
-	mask = ~(1UL << (nr & (BITS_PER_LONG - 1)));
-	__atomic64_and(mask, (long *)addr);
+	__atomic64_and(~mask, (long *)addr);
 }
 
 static __always_inline void arch_change_bit(unsigned long nr,
 					    volatile unsigned long *ptr)
 {
 	unsigned long *addr = __bitops_word(nr, ptr);
-	unsigned long mask;
+	unsigned long mask = __bitops_mask(nr);
 
-	mask = 1UL << (nr & (BITS_PER_LONG - 1));
 	__atomic64_xor(mask, (long *)addr);
 }
 
@@ -88,99 +84,104 @@ static inline bool arch_test_and_set_bit(unsigned long nr,
 					 volatile unsigned long *ptr)
 {
 	unsigned long *addr = __bitops_word(nr, ptr);
-	unsigned long old, mask;
+	unsigned long mask = __bitops_mask(nr);
+	unsigned long old;
 
-	mask = 1UL << (nr & (BITS_PER_LONG - 1));
 	old = __atomic64_or_barrier(mask, (long *)addr);
-	return (old & mask) != 0;
+	return old & mask;
 }
 
 static inline bool arch_test_and_clear_bit(unsigned long nr,
 					   volatile unsigned long *ptr)
 {
 	unsigned long *addr = __bitops_word(nr, ptr);
-	unsigned long old, mask;
+	unsigned long mask = __bitops_mask(nr);
+	unsigned long old;
 
-	mask = ~(1UL << (nr & (BITS_PER_LONG - 1)));
-	old = __atomic64_and_barrier(mask, (long *)addr);
-	return (old & ~mask) != 0;
+	old = __atomic64_and_barrier(~mask, (long *)addr);
+	return old & mask;
 }
 
 static inline bool arch_test_and_change_bit(unsigned long nr,
 					    volatile unsigned long *ptr)
 {
 	unsigned long *addr = __bitops_word(nr, ptr);
-	unsigned long old, mask;
+	unsigned long mask = __bitops_mask(nr);
+	unsigned long old;
 
-	mask = 1UL << (nr & (BITS_PER_LONG - 1));
 	old = __atomic64_xor_barrier(mask, (long *)addr);
-	return (old & mask) != 0;
+	return old & mask;
 }
 
 static inline void arch___set_bit(unsigned long nr, volatile unsigned long *ptr)
 {
-	unsigned char *addr = __bitops_byte(nr, ptr);
+	unsigned long *addr = __bitops_word(nr, ptr);
+	unsigned long mask = __bitops_mask(nr);
 
-	*addr |= 1 << (nr & 7);
+	*addr |= mask;
 }
 
 static inline void arch___clear_bit(unsigned long nr,
 				    volatile unsigned long *ptr)
 {
-	unsigned char *addr = __bitops_byte(nr, ptr);
+	unsigned long *addr = __bitops_word(nr, ptr);
+	unsigned long mask = __bitops_mask(nr);
 
-	*addr &= ~(1 << (nr & 7));
+	*addr &= ~mask;
 }
 
 static inline void arch___change_bit(unsigned long nr,
 				     volatile unsigned long *ptr)
 {
-	unsigned char *addr = __bitops_byte(nr, ptr);
+	unsigned long *addr = __bitops_word(nr, ptr);
+	unsigned long mask = __bitops_mask(nr);
 
-	*addr ^= 1 << (nr & 7);
+	*addr ^= mask;
 }
 
 static inline bool arch___test_and_set_bit(unsigned long nr,
 					   volatile unsigned long *ptr)
 {
-	unsigned char *addr = __bitops_byte(nr, ptr);
-	unsigned char ch;
+	unsigned long *addr = __bitops_word(nr, ptr);
+	unsigned long mask = __bitops_mask(nr);
+	unsigned long old;
 
-	ch = *addr;
-	*addr |= 1 << (nr & 7);
-	return (ch >> (nr & 7)) & 1;
+	old = *addr;
+	*addr |= mask;
+	return old & mask;
 }
 
 static inline bool arch___test_and_clear_bit(unsigned long nr,
 					     volatile unsigned long *ptr)
 {
-	unsigned char *addr = __bitops_byte(nr, ptr);
-	unsigned char ch;
+	unsigned long *addr = __bitops_word(nr, ptr);
+	unsigned long mask = __bitops_mask(nr);
+	unsigned long old;
 
-	ch = *addr;
-	*addr &= ~(1 << (nr & 7));
-	return (ch >> (nr & 7)) & 1;
+	old = *addr;
+	*addr &= ~mask;
+	return old & mask;
 }
 
 static inline bool arch___test_and_change_bit(unsigned long nr,
 					      volatile unsigned long *ptr)
 {
-	unsigned char *addr = __bitops_byte(nr, ptr);
-	unsigned char ch;
+	unsigned long *addr = __bitops_word(nr, ptr);
+	unsigned long mask = __bitops_mask(nr);
+	unsigned long old;
 
-	ch = *addr;
-	*addr ^= 1 << (nr & 7);
-	return (ch >> (nr & 7)) & 1;
+	old = *addr;
+	*addr ^= mask;
+	return old & mask;
 }
 
 static inline bool arch_test_bit(unsigned long nr,
 				 const volatile unsigned long *ptr)
 {
-	const volatile unsigned char *addr;
+	const volatile unsigned long *addr = __bitops_word(nr, ptr);
+	unsigned long mask = __bitops_mask(nr);
 
-	addr = ((const volatile unsigned char *)ptr);
-	addr += (nr ^ (BITS_PER_LONG - 8)) >> 3;
-	return (*addr >> (nr & 7)) & 1;
+	return *addr & mask;
 }
 
 static inline bool arch_test_and_set_bit_lock(unsigned long nr,

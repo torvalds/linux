@@ -81,7 +81,7 @@ static ssize_t kfd_smi_ev_read(struct file *filep, char __user *user,
 	struct kfd_smi_client *client = filep->private_data;
 	unsigned char *buf;
 
-	buf = kmalloc(MAX_KFIFO_SIZE * sizeof(*buf), GFP_KERNEL);
+	buf = kmalloc_array(MAX_KFIFO_SIZE, sizeof(*buf), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 

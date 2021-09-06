@@ -49,9 +49,9 @@ static bool unsafe_drop_pages(struct drm_i915_gem_object *obj,
 		flags = I915_GEM_OBJECT_UNBIND_TEST;
 
 	if (i915_gem_object_unbind(obj, flags) == 0)
-		__i915_gem_object_put_pages(obj);
+		return true;
 
-	return !i915_gem_object_has_pages(obj);
+	return false;
 }
 
 static void try_to_writeback(struct drm_i915_gem_object *obj,
@@ -70,6 +70,7 @@ static void try_to_writeback(struct drm_i915_gem_object *obj,
 
 /**
  * i915_gem_shrink - Shrink buffer object caches
+ * @ww: i915 gem ww acquire ctx, or NULL
  * @i915: i915 device
  * @target: amount of memory to make available, in pages
  * @nr_scanned: optional output for number of pages scanned (incremental)
@@ -94,7 +95,8 @@ static void try_to_writeback(struct drm_i915_gem_object *obj,
  * The number of pages of backing storage actually released.
  */
 unsigned long
-i915_gem_shrink(struct drm_i915_private *i915,
+i915_gem_shrink(struct i915_gem_ww_ctx *ww,
+		struct drm_i915_private *i915,
 		unsigned long target,
 		unsigned long *nr_scanned,
 		unsigned int shrink)
@@ -113,6 +115,7 @@ i915_gem_shrink(struct drm_i915_private *i915,
 	intel_wakeref_t wakeref = 0;
 	unsigned long count = 0;
 	unsigned long scanned = 0;
+	int err;
 
 	trace_i915_gem_shrink(i915, target, shrink);
 
@@ -200,25 +203,40 @@ i915_gem_shrink(struct drm_i915_private *i915,
 
 			spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 
+			err = 0;
 			if (unsafe_drop_pages(obj, shrink)) {
 				/* May arrive from get_pages on another bo */
-				mutex_lock(&obj->mm.lock);
-				if (!i915_gem_object_has_pages(obj)) {
+				if (!ww) {
+					if (!i915_gem_object_trylock(obj))
+						goto skip;
+				} else {
+					err = i915_gem_object_lock(obj, ww);
+					if (err)
+						goto skip;
+				}
+
+				if (!__i915_gem_object_put_pages(obj)) {
 					try_to_writeback(obj, shrink);
 					count += obj->base.size >> PAGE_SHIFT;
 				}
-				mutex_unlock(&obj->mm.lock);
+				if (!ww)
+					i915_gem_object_unlock(obj);
 			}
 
 			dma_resv_prune(obj->base.resv);
 
 			scanned += obj->base.size >> PAGE_SHIFT;
+skip:
 			i915_gem_object_put(obj);
 
 			spin_lock_irqsave(&i915->mm.obj_lock, flags);
+			if (err)
+				break;
 		}
 		list_splice_tail(&still_in_list, phase->list);
 		spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
+		if (err)
+			return err;
 	}
 
 	if (shrink & I915_SHRINK_BOUND)
@@ -249,7 +267,7 @@ unsigned long i915_gem_shrink_all(struct drm_i915_private *i915)
 	unsigned long freed = 0;
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-		freed = i915_gem_shrink(i915, -1UL, NULL,
+		freed = i915_gem_shrink(NULL, i915, -1UL, NULL,
 					I915_SHRINK_BOUND |
 					I915_SHRINK_UNBOUND);
 	}
@@ -295,7 +313,7 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 
 	sc->nr_scanned = 0;
 
-	freed = i915_gem_shrink(i915,
+	freed = i915_gem_shrink(NULL, i915,
 				sc->nr_to_scan,
 				&sc->nr_scanned,
 				I915_SHRINK_BOUND |
@@ -304,7 +322,7 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 		intel_wakeref_t wakeref;
 
 		with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-			freed += i915_gem_shrink(i915,
+			freed += i915_gem_shrink(NULL, i915,
 						 sc->nr_to_scan - sc->nr_scanned,
 						 &sc->nr_scanned,
 						 I915_SHRINK_ACTIVE |
@@ -329,7 +347,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 
 	freed_pages = 0;
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-		freed_pages += i915_gem_shrink(i915, -1UL, NULL,
+		freed_pages += i915_gem_shrink(NULL, i915, -1UL, NULL,
 					       I915_SHRINK_BOUND |
 					       I915_SHRINK_UNBOUND |
 					       I915_SHRINK_WRITEBACK);
@@ -367,7 +385,7 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 	intel_wakeref_t wakeref;
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-		freed_pages += i915_gem_shrink(i915, -1UL, NULL,
+		freed_pages += i915_gem_shrink(NULL, i915, -1UL, NULL,
 					       I915_SHRINK_BOUND |
 					       I915_SHRINK_UNBOUND |
 					       I915_SHRINK_VMAPS);

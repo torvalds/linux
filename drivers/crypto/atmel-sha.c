@@ -434,7 +434,7 @@ static int atmel_sha_init(struct ahash_request *req)
 
 	ctx->flags = 0;
 
-	dev_dbg(dd->dev, "init: digest size: %d\n",
+	dev_dbg(dd->dev, "init: digest size: %u\n",
 		crypto_ahash_digestsize(tfm));
 
 	switch (crypto_ahash_digestsize(tfm)) {
@@ -1102,7 +1102,7 @@ static int atmel_sha_start(struct atmel_sha_dev *dd)
 	struct atmel_sha_reqctx *ctx = ahash_request_ctx(req);
 	int err;
 
-	dev_dbg(dd->dev, "handling new req, op: %lu, nbytes: %d\n",
+	dev_dbg(dd->dev, "handling new req, op: %lu, nbytes: %u\n",
 						ctx->op, req->nbytes);
 
 	err = atmel_sha_hw_init(dd);

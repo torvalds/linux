@@ -138,6 +138,7 @@ struct parse_events_state {
 	struct list_head	  *terms;
 	int			   stoken;
 	struct perf_pmu		  *fake_pmu;
+	char			  *hybrid_pmu_name;
 };
 
 void parse_events__handle_error(struct parse_events_error *err, int idx,
@@ -188,7 +189,8 @@ int parse_events_add_tool(struct parse_events_state *parse_state,
 int parse_events_add_cache(struct list_head *list, int *idx,
 			   char *type, char *op_result1, char *op_result2,
 			   struct parse_events_error *error,
-			   struct list_head *head_config);
+			   struct list_head *head_config,
+			   struct parse_events_state *parse_state);
 int parse_events_add_breakpoint(struct list_head *list, int *idx,
 				u64 addr, char *type, u64 len);
 int parse_events_add_pmu(struct parse_events_state *parse_state,
@@ -262,5 +264,10 @@ static inline bool is_sdt_event(char *str __maybe_unused)
 #endif /* HAVE_LIBELF_SUPPORT */
 
 int perf_pmu__test_parse_init(void);
+
+struct evsel *parse_events__add_event_hybrid(struct list_head *list, int *idx,
+					     struct perf_event_attr *attr,
+					     char *name, struct perf_pmu *pmu,
+					     struct list_head *config_terms);
 
 #endif /* __PERF_PARSE_EVENTS_H */

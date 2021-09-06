@@ -42,6 +42,7 @@
 /**
  * struct vmw_view - view metadata
  *
+ * @rcu: RCU callback head
  * @res: The struct vmw_resource we derive from
  * @ctx: Non-refcounted pointer to the context this view belongs to.
  * @srf: Refcounted pointer to the surface pointed to by this view.

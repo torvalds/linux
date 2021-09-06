@@ -1552,8 +1552,8 @@ static int mount_ubifs(struct ubifs_info *c)
 	ubifs_msg(c, "LEB size: %d bytes (%d KiB), min./max. I/O unit sizes: %d bytes/%d bytes",
 		  c->leb_size, c->leb_size >> 10, c->min_io_size,
 		  c->max_write_size);
-	ubifs_msg(c, "FS size: %lld bytes (%lld MiB, %d LEBs), journal size %lld bytes (%lld MiB, %d LEBs)",
-		  x, x >> 20, c->main_lebs,
+	ubifs_msg(c, "FS size: %lld bytes (%lld MiB, %d LEBs), max %d LEBs, journal size %lld bytes (%lld MiB, %d LEBs)",
+		  x, x >> 20, c->main_lebs, c->max_leb_cnt,
 		  y, y >> 20, c->log_lebs + c->max_bud_cnt);
 	ubifs_msg(c, "reserved for root: %llu bytes (%llu KiB)",
 		  c->report_rp_size, c->report_rp_size >> 10);
@@ -2231,6 +2231,8 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 		err = -ENOMEM;
 		goto out_umount;
 	}
+
+	import_uuid(&sb->s_uuid, c->uuid);
 
 	mutex_unlock(&c->umount_mutex);
 	return 0;

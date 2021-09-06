@@ -548,12 +548,10 @@ ssize_t spk_msg_set(enum msg_index_t index, char *text, size_t length)
 	if ((index < MSG_FIRST_INDEX) || (index >= MSG_LAST_INDEX))
 		return -EINVAL;
 
-	newstr = kmalloc(length + 1, GFP_KERNEL);
+	newstr = kmemdup_nul(text, length, GFP_KERNEL);
 	if (!newstr)
 		return -ENOMEM;
 
-	memcpy(newstr, text, length);
-	newstr[length] = '\0';
 	if (index >= MSG_FORMATTED_START &&
 	    index <= MSG_FORMATTED_END &&
 	    !fmt_validate(speakup_default_msgs[index], newstr)) {

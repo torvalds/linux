@@ -49,7 +49,7 @@ ioctl. Drivers may switch to a different audio mode if the request
 cannot be satisfied. However, this is a write-only ioctl, it does not
 return the actual new audio mode.
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. c:type:: v4l2_audio
 
@@ -79,7 +79,7 @@ return the actual new audio mode.
 	the array to zero.
 
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. _audio-capability:
 
@@ -99,7 +99,7 @@ return the actual new audio mode.
       - Automatic Volume Level mode is supported.
 
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. _audio-mode:
 

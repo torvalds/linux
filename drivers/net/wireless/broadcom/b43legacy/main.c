@@ -2762,7 +2762,7 @@ static void b43legacy_update_basic_rates(struct b43legacy_wldev *dev, u32 brates
 {
 	struct ieee80211_supported_band *sband =
 		dev->wl->hw->wiphy->bands[NL80211_BAND_2GHZ];
-	struct ieee80211_rate *rate;
+	const struct ieee80211_rate *rate;
 	int i;
 	u16 basic, direct, offset, basic_offset, rateptr;
 

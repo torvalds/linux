@@ -55,10 +55,6 @@ port_test()
 	      | jq '.[][][] | select(.name=="physical_ports") |.["occ"]')
 
 	[[ $occ -eq $max_ports ]]
-	if [[ $should_fail -eq 0 ]]; then
-		check_err $? "Mismatch ports number: Expected $max_ports, got $occ."
-	else
-		check_err_fail $should_fail $? "Reached more ports than expected"
-	fi
+	check_err_fail $should_fail $? "Attempt to create $max_ports ports (actual result $occ)"
 
 }

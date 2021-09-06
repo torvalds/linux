@@ -9,6 +9,6 @@
  * This header exists to force full rebuild when the compiler is upgraded.
  *
  * When fixdep scans this, it will find this string "CONFIG_CC_VERSION_TEXT"
- * and add dependency on include/config/cc/version/text.h, which is touched
+ * and add dependency on include/config/CC_VERSION_TEXT, which is touched
  * by Kconfig when the version string from the compiler changes.
  */

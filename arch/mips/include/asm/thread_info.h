@@ -28,11 +28,6 @@ struct thread_info {
 	unsigned long		tp_value;	/* thread pointer */
 	__u32			cpu;		/* current CPU */
 	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
-	mm_segment_t		addr_limit;	/*
-						 * thread address space limit:
-						 * 0x7fffffff for user-thead
-						 * 0xffffffff for kernel-thread
-						 */
 	struct pt_regs		*regs;
 	long			syscall;	/* syscall number */
 };
@@ -46,7 +41,6 @@ struct thread_info {
 	.flags		= _TIF_FIXADE,		\
 	.cpu		= 0,			\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
-	.addr_limit	= KERNEL_DS,		\
 }
 
 /*

@@ -951,7 +951,7 @@ static void pm_runtime_work(struct work_struct *work)
 
 /**
  * pm_suspend_timer_fn - Timer function for pm_schedule_suspend().
- * @data: Device pointer passed by pm_schedule_suspend().
+ * @timer: hrtimer used by pm_schedule_suspend().
  *
  * Check if the time is right and queue a suspend request.
  */
@@ -1637,6 +1637,7 @@ void pm_runtime_init(struct device *dev)
 	dev->power.request_pending = false;
 	dev->power.request = RPM_REQ_NONE;
 	dev->power.deferred_resume = false;
+	dev->power.needs_force_resume = 0;
 	INIT_WORK(&dev->power.work, pm_runtime_work);
 
 	dev->power.timer_expires = 0;
@@ -1804,10 +1805,12 @@ int pm_runtime_force_suspend(struct device *dev)
 	 * its parent, but set its status to RPM_SUSPENDED anyway in case this
 	 * function will be called again for it in the meantime.
 	 */
-	if (pm_runtime_need_not_resume(dev))
+	if (pm_runtime_need_not_resume(dev)) {
 		pm_runtime_set_suspended(dev);
-	else
+	} else {
 		__update_runtime_status(dev, RPM_SUSPENDED);
+		dev->power.needs_force_resume = 1;
+	}
 
 	return 0;
 
@@ -1834,7 +1837,7 @@ int pm_runtime_force_resume(struct device *dev)
 	int (*callback)(struct device *);
 	int ret = 0;
 
-	if (!pm_runtime_status_suspended(dev) || pm_runtime_need_not_resume(dev))
+	if (!pm_runtime_status_suspended(dev) || !dev->power.needs_force_resume)
 		goto out;
 
 	/*
@@ -1853,6 +1856,7 @@ int pm_runtime_force_resume(struct device *dev)
 
 	pm_runtime_mark_last_busy(dev);
 out:
+	dev->power.needs_force_resume = 0;
 	pm_runtime_enable(dev);
 	return ret;
 }

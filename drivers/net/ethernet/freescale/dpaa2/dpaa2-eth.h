@@ -438,8 +438,6 @@ struct dpaa2_eth_fq {
 
 struct dpaa2_eth_ch_xdp {
 	struct bpf_prog *prog;
-	u64 drop_bufs[DPAA2_ETH_BUFS_PER_CMD];
-	int drop_cnt;
 	unsigned int res;
 };
 
@@ -457,6 +455,10 @@ struct dpaa2_eth_channel {
 	struct dpaa2_eth_ch_xdp xdp;
 	struct xdp_rxq_info xdp_rxq;
 	struct list_head *rx_list;
+
+	/* Buffers to be recycled back in the buffer pool */
+	u64 recycled_bufs[DPAA2_ETH_BUFS_PER_CMD];
+	int recycled_bufs_cnt;
 };
 
 struct dpaa2_eth_dist_fields {
@@ -486,6 +488,8 @@ struct dpaa2_eth_trap_data {
 	struct dpaa2_eth_trap_item *trap_items_arr;
 	struct dpaa2_eth_priv *priv;
 };
+
+#define DPAA2_ETH_DEFAULT_COPYBREAK	512
 
 /* Driver private data */
 struct dpaa2_eth_priv {
@@ -567,6 +571,8 @@ struct dpaa2_eth_priv {
 	struct devlink *devlink;
 	struct dpaa2_eth_trap_data *trap_data;
 	struct devlink_port devlink_port;
+
+	u32 rx_copybreak;
 };
 
 struct dpaa2_eth_devlink_priv {

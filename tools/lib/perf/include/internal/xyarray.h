@@ -18,9 +18,16 @@ struct xyarray *xyarray__new(int xlen, int ylen, size_t entry_size);
 void xyarray__delete(struct xyarray *xy);
 void xyarray__reset(struct xyarray *xy);
 
-static inline void *xyarray__entry(struct xyarray *xy, int x, int y)
+static inline void *__xyarray__entry(struct xyarray *xy, int x, int y)
 {
 	return &xy->contents[x * xy->row_size + y * xy->entry_size];
+}
+
+static inline void *xyarray__entry(struct xyarray *xy, size_t x, size_t y)
+{
+	if (x >= xy->max_x || y >= xy->max_y)
+		return NULL;
+	return __xyarray__entry(xy, x, y);
 }
 
 static inline int xyarray__max_y(struct xyarray *xy)

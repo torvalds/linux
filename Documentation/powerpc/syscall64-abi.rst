@@ -109,6 +109,16 @@ auxiliary vector.
 
 scv 0 syscalls will always behave as PPC_FEATURE2_HTM_NOSC.
 
+ptrace
+------
+When ptracing system calls (PTRACE_SYSCALL), the pt_regs.trap value contains
+the system call type that can be used to distinguish between sc and scv 0
+system calls, and the different register conventions can be accounted for.
+
+If the value of (pt_regs.trap & 0xfff0) is 0xc00 then the system call was
+performed with the sc instruction, if it is 0x3000 then the system call was
+performed with the scv 0 instruction.
+
 vsyscall
 ========
 

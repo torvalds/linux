@@ -115,7 +115,7 @@ static void da7219_aad_hptest_work(struct work_struct *work)
 
 	__le16 tonegen_freq_hptest;
 	u8 pll_srm_sts, pll_ctrl, gain_ramp_ctrl, accdet_cfg8;
-	int report = 0, ret = 0;
+	int report = 0, ret;
 
 	/* Lock DAPM, Kcontrols affected by this test and the PLL */
 	snd_soc_dapm_mutex_lock(dapm);

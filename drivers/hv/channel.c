@@ -209,31 +209,96 @@ int vmbus_send_tl_connect_request(const guid_t *shv_guest_servie_id,
 }
 EXPORT_SYMBOL_GPL(vmbus_send_tl_connect_request);
 
+static int send_modifychannel_without_ack(struct vmbus_channel *channel, u32 target_vp)
+{
+	struct vmbus_channel_modifychannel msg;
+	int ret;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.header.msgtype = CHANNELMSG_MODIFYCHANNEL;
+	msg.child_relid = channel->offermsg.child_relid;
+	msg.target_vp = target_vp;
+
+	ret = vmbus_post_msg(&msg, sizeof(msg), true);
+	trace_vmbus_send_modifychannel(&msg, ret);
+
+	return ret;
+}
+
+static int send_modifychannel_with_ack(struct vmbus_channel *channel, u32 target_vp)
+{
+	struct vmbus_channel_modifychannel *msg;
+	struct vmbus_channel_msginfo *info;
+	unsigned long flags;
+	int ret;
+
+	info = kzalloc(sizeof(struct vmbus_channel_msginfo) +
+				sizeof(struct vmbus_channel_modifychannel),
+		       GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	init_completion(&info->waitevent);
+	info->waiting_channel = channel;
+
+	msg = (struct vmbus_channel_modifychannel *)info->msg;
+	msg->header.msgtype = CHANNELMSG_MODIFYCHANNEL;
+	msg->child_relid = channel->offermsg.child_relid;
+	msg->target_vp = target_vp;
+
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
+	list_add_tail(&info->msglistentry, &vmbus_connection.chn_msg_list);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
+
+	ret = vmbus_post_msg(msg, sizeof(*msg), true);
+	trace_vmbus_send_modifychannel(msg, ret);
+	if (ret != 0) {
+		spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
+		list_del(&info->msglistentry);
+		spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
+		goto free_info;
+	}
+
+	/*
+	 * Release channel_mutex; otherwise, vmbus_onoffer_rescind() could block on
+	 * the mutex and be unable to signal the completion.
+	 *
+	 * See the caller target_cpu_store() for information about the usage of the
+	 * mutex.
+	 */
+	mutex_unlock(&vmbus_connection.channel_mutex);
+	wait_for_completion(&info->waitevent);
+	mutex_lock(&vmbus_connection.channel_mutex);
+
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
+	list_del(&info->msglistentry);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
+
+	if (info->response.modify_response.status)
+		ret = -EAGAIN;
+
+free_info:
+	kfree(info);
+	return ret;
+}
+
 /*
  * Set/change the vCPU (@target_vp) the channel (@child_relid) will interrupt.
  *
- * CHANNELMSG_MODIFYCHANNEL messages are aynchronous.  Also, Hyper-V does not
- * ACK such messages.  IOW we can't know when the host will stop interrupting
- * the "old" vCPU and start interrupting the "new" vCPU for the given channel.
+ * CHANNELMSG_MODIFYCHANNEL messages are aynchronous.  When VMbus version 5.3
+ * or later is negotiated, Hyper-V always sends an ACK in response to such a
+ * message.  For VMbus version 5.2 and earlier, it never sends an ACK.  With-
+ * out an ACK, we can not know when the host will stop interrupting the "old"
+ * vCPU and start interrupting the "new" vCPU for the given channel.
  *
  * The CHANNELMSG_MODIFYCHANNEL message type is supported since VMBus version
  * VERSION_WIN10_V4_1.
  */
-int vmbus_send_modifychannel(u32 child_relid, u32 target_vp)
+int vmbus_send_modifychannel(struct vmbus_channel *channel, u32 target_vp)
 {
-	struct vmbus_channel_modifychannel conn_msg;
-	int ret;
-
-	memset(&conn_msg, 0, sizeof(conn_msg));
-	conn_msg.header.msgtype = CHANNELMSG_MODIFYCHANNEL;
-	conn_msg.child_relid = child_relid;
-	conn_msg.target_vp = target_vp;
-
-	ret = vmbus_post_msg(&conn_msg, sizeof(conn_msg), true);
-
-	trace_vmbus_send_modifychannel(&conn_msg, ret);
-
-	return ret;
+	if (vmbus_proto_version >= VERSION_WIN10_V5_3)
+		return send_modifychannel_with_ack(channel, target_vp);
+	return send_modifychannel_without_ack(channel, target_vp);
 }
 EXPORT_SYMBOL_GPL(vmbus_send_modifychannel);
 
@@ -385,7 +450,7 @@ nomem:
  * @kbuffer: from kmalloc or vmalloc
  * @size: page-size multiple
  * @send_offset: the offset (in bytes) where the send ring buffer starts,
- * 		 should be 0 for BUFFER type gpadl
+ *              should be 0 for BUFFER type gpadl
  * @gpadl_handle: some funky thing
  */
 static int __vmbus_establish_gpadl(struct vmbus_channel *channel,
@@ -653,7 +718,7 @@ static int __vmbus_open(struct vmbus_channel *newchannel,
 
 	if (newchannel->rescind) {
 		err = -ENODEV;
-		goto error_free_info;
+		goto error_clean_msglist;
 	}
 
 	err = vmbus_post_msg(open_msg,

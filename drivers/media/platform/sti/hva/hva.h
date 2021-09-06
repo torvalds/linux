@@ -130,7 +130,7 @@ struct hva_frame {
 /**
  * struct hva_stream - hva stream buffer (capture)
  *
- * @v4l2:       video buffer information for V4L2
+ * @vbuf:       video buffer information for V4L2
  * @list:       V4L2 m2m list that the frame belongs to
  * @paddr:      physical address (for hardware)
  * @vaddr:      virtual address (kernel can read/write)

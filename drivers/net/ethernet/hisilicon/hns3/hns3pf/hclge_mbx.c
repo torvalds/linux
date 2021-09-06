@@ -490,16 +490,14 @@ static void hclge_get_vf_media_type(struct hclge_vport *vport,
 	resp_msg->len = HCLGE_VF_MEDIA_TYPE_LENGTH;
 }
 
-static int hclge_get_link_info(struct hclge_vport *vport,
-			       struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+int hclge_push_vf_link_status(struct hclge_vport *vport)
 {
 #define HCLGE_VF_LINK_STATE_UP		1U
 #define HCLGE_VF_LINK_STATE_DOWN	0U
 
 	struct hclge_dev *hdev = vport->back;
 	u16 link_status;
-	u8 msg_data[8];
-	u8 dest_vfid;
+	u8 msg_data[9];
 	u16 duplex;
 
 	/* mac.link can only be 0 or 1 */
@@ -520,11 +518,11 @@ static int hclge_get_link_info(struct hclge_vport *vport,
 	memcpy(&msg_data[0], &link_status, sizeof(u16));
 	memcpy(&msg_data[2], &hdev->hw.mac.speed, sizeof(u32));
 	memcpy(&msg_data[6], &duplex, sizeof(u16));
-	dest_vfid = mbx_req->mbx_src_vfid;
+	msg_data[8] = HCLGE_MBX_PUSH_LINK_STATUS_EN;
 
 	/* send this requested info to VF */
 	return hclge_send_mbx_msg(vport, msg_data, sizeof(msg_data),
-				  HCLGE_MBX_LINK_STAT_CHANGE, dest_vfid);
+				  HCLGE_MBX_LINK_STAT_CHANGE, vport->vport_id);
 }
 
 static void hclge_get_link_mode(struct hclge_vport *vport,
@@ -535,7 +533,7 @@ static void hclge_get_link_mode(struct hclge_vport *vport,
 	unsigned long advertising;
 	unsigned long supported;
 	unsigned long send_data;
-	u8 msg_data[10];
+	u8 msg_data[10] = {};
 	u8 dest_vfid;
 
 	advertising = hdev->hw.mac.advertising[0];
@@ -550,14 +548,32 @@ static void hclge_get_link_mode(struct hclge_vport *vport,
 			   HCLGE_MBX_LINK_STAT_MODE, dest_vfid);
 }
 
-static void hclge_mbx_reset_vf_queue(struct hclge_vport *vport,
-				     struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+static int hclge_mbx_reset_vf_queue(struct hclge_vport *vport,
+				    struct hclge_mbx_vf_to_pf_cmd *mbx_req,
+				    struct hclge_respond_to_vf_msg *resp_msg)
 {
+#define HCLGE_RESET_ALL_QUEUE_DONE	1U
+	struct hnae3_handle *handle = &vport->nic;
+	struct hclge_dev *hdev = vport->back;
 	u16 queue_id;
+	int ret;
 
 	memcpy(&queue_id, mbx_req->msg.data, sizeof(queue_id));
+	resp_msg->data[0] = HCLGE_RESET_ALL_QUEUE_DONE;
+	resp_msg->len = sizeof(u8);
 
-	hclge_reset_vf_queue(vport, queue_id);
+	/* pf will reset vf's all queues at a time. So it is unnecessary
+	 * to reset queues if queue_id > 0, just return success.
+	 */
+	if (queue_id > 0)
+		return 0;
+
+	ret = hclge_reset_tqp(handle);
+	if (ret)
+		dev_err(&hdev->pdev->dev, "failed to reset vf %u queue, ret = %d\n",
+			vport->vport_id - HCLGE_VF_VPORT_START_NUM, ret);
+
+	return ret;
 }
 
 static int hclge_reset_vf(struct hclge_vport *vport)
@@ -694,7 +710,6 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 	unsigned int flag;
 	int ret = 0;
 
-	memset(&resp_msg, 0, sizeof(resp_msg));
 	/* handle all the mailbox requests in the queue */
 	while (!hclge_cmd_crq_empty(&hdev->hw)) {
 		if (test_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state)) {
@@ -721,6 +736,9 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 		vport = &hdev->vport[req->mbx_src_vfid];
 
 		trace_hclge_pf_mbx_get(hdev, req);
+
+		/* clear the resp_msg before processing every mailbox message */
+		memset(&resp_msg, 0, sizeof(resp_msg));
 
 		switch (req->msg.code) {
 		case HCLGE_MBX_MAP_RING_TO_VECTOR:
@@ -776,14 +794,14 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 			hclge_get_vf_tcinfo(vport, &resp_msg);
 			break;
 		case HCLGE_MBX_GET_LINK_STATUS:
-			ret = hclge_get_link_info(vport, req);
+			ret = hclge_push_vf_link_status(vport);
 			if (ret)
 				dev_err(&hdev->pdev->dev,
 					"failed to inform link stat to VF, ret = %d\n",
 					ret);
 			break;
 		case HCLGE_MBX_QUEUE_RESET:
-			hclge_mbx_reset_vf_queue(vport, req);
+			ret = hclge_mbx_reset_vf_queue(vport, req, &resp_msg);
 			break;
 		case HCLGE_MBX_RESET:
 			ret = hclge_reset_vf(vport);

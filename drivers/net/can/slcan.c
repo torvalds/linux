@@ -697,7 +697,6 @@ static int slcan_ioctl(struct tty_struct *tty, struct file *file,
 
 static struct tty_ldisc_ops slc_ldisc = {
 	.owner		= THIS_MODULE,
-	.magic		= TTY_LDISC_MAGIC,
 	.name		= "slcan",
 	.open		= slcan_open,
 	.close		= slcan_close,

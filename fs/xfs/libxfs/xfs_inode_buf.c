@@ -124,37 +124,18 @@ const struct xfs_buf_ops xfs_inode_buf_ra_ops = {
 /*
  * This routine is called to map an inode to the buffer containing the on-disk
  * version of the inode.  It returns a pointer to the buffer containing the
- * on-disk inode in the bpp parameter, and in the dipp parameter it returns a
- * pointer to the on-disk inode within that buffer.
- *
- * If a non-zero error is returned, then the contents of bpp and dipp are
- * undefined.
+ * on-disk inode in the bpp parameter.
  */
 int
 xfs_imap_to_bp(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
 	struct xfs_imap		*imap,
-	struct xfs_dinode       **dipp,
-	struct xfs_buf		**bpp,
-	uint			buf_flags)
+	struct xfs_buf		**bpp)
 {
-	struct xfs_buf		*bp;
-	int			error;
-
-	buf_flags |= XBF_UNMAPPED;
-	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, imap->im_blkno,
-				   (int)imap->im_len, buf_flags, &bp,
+	return xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, imap->im_blkno,
+				   imap->im_len, XBF_UNMAPPED, bpp,
 				   &xfs_inode_buf_ops);
-	if (error) {
-		ASSERT(error != -EAGAIN || (buf_flags & XBF_TRYLOCK));
-		return error;
-	}
-
-	*bpp = bp;
-	if (dipp)
-		*dipp = xfs_buf_offset(bp, imap->im_boffset);
-	return 0;
 }
 
 static inline struct timespec64 xfs_inode_decode_bigtime(uint64_t ts)
@@ -192,7 +173,6 @@ xfs_inode_from_disk(
 	struct xfs_inode	*ip,
 	struct xfs_dinode	*from)
 {
-	struct xfs_icdinode	*to = &ip->i_d;
 	struct inode		*inode = VFS_I(ip);
 	int			error;
 	xfs_failaddr_t		fa;
@@ -212,7 +192,8 @@ xfs_inode_from_disk(
 	 * inode. If the inode is unused, mode is zero and we shouldn't mess
 	 * with the uninitialized part of it.
 	 */
-	to->di_flushiter = be16_to_cpu(from->di_flushiter);
+	if (!xfs_sb_version_has_v3inode(&ip->i_mount->m_sb))
+		ip->i_flushiter = be16_to_cpu(from->di_flushiter);
 	inode->i_generation = be32_to_cpu(from->di_gen);
 	inode->i_mode = be16_to_cpu(from->di_mode);
 	if (!inode->i_mode)
@@ -225,10 +206,10 @@ xfs_inode_from_disk(
 	 */
 	if (unlikely(from->di_version == 1)) {
 		set_nlink(inode, be16_to_cpu(from->di_onlink));
-		to->di_projid = 0;
+		ip->i_projid = 0;
 	} else {
 		set_nlink(inode, be32_to_cpu(from->di_nlink));
-		to->di_projid = (prid_t)be16_to_cpu(from->di_projid_hi) << 16 |
+		ip->i_projid = (prid_t)be16_to_cpu(from->di_projid_hi) << 16 |
 					be16_to_cpu(from->di_projid_lo);
 	}
 
@@ -245,20 +226,21 @@ xfs_inode_from_disk(
 	inode->i_mtime = xfs_inode_from_disk_ts(from, from->di_mtime);
 	inode->i_ctime = xfs_inode_from_disk_ts(from, from->di_ctime);
 
-	to->di_size = be64_to_cpu(from->di_size);
-	to->di_nblocks = be64_to_cpu(from->di_nblocks);
-	to->di_extsize = be32_to_cpu(from->di_extsize);
-	to->di_forkoff = from->di_forkoff;
-	to->di_dmevmask	= be32_to_cpu(from->di_dmevmask);
-	to->di_dmstate	= be16_to_cpu(from->di_dmstate);
-	to->di_flags	= be16_to_cpu(from->di_flags);
+	ip->i_disk_size = be64_to_cpu(from->di_size);
+	ip->i_nblocks = be64_to_cpu(from->di_nblocks);
+	ip->i_extsize = be32_to_cpu(from->di_extsize);
+	ip->i_forkoff = from->di_forkoff;
+	ip->i_diflags	= be16_to_cpu(from->di_flags);
+
+	if (from->di_dmevmask || from->di_dmstate)
+		xfs_iflags_set(ip, XFS_IPRESERVE_DM_FIELDS);
 
 	if (xfs_sb_version_has_v3inode(&ip->i_mount->m_sb)) {
 		inode_set_iversion_queried(inode,
 					   be64_to_cpu(from->di_changecount));
-		to->di_crtime = xfs_inode_from_disk_ts(from, from->di_crtime);
-		to->di_flags2 = be64_to_cpu(from->di_flags2);
-		to->di_cowextsize = be32_to_cpu(from->di_cowextsize);
+		ip->i_crtime = xfs_inode_from_disk_ts(from, from->di_crtime);
+		ip->i_diflags2 = be64_to_cpu(from->di_flags2);
+		ip->i_cowextsize = be32_to_cpu(from->di_cowextsize);
 	}
 
 	error = xfs_iformat_data_fork(ip, from);
@@ -303,7 +285,6 @@ xfs_inode_to_disk(
 	struct xfs_dinode	*to,
 	xfs_lsn_t		lsn)
 {
-	struct xfs_icdinode	*from = &ip->i_d;
 	struct inode		*inode = VFS_I(ip);
 
 	to->di_magic = cpu_to_be16(XFS_DINODE_MAGIC);
@@ -312,8 +293,8 @@ xfs_inode_to_disk(
 	to->di_format = xfs_ifork_format(&ip->i_df);
 	to->di_uid = cpu_to_be32(i_uid_read(inode));
 	to->di_gid = cpu_to_be32(i_gid_read(inode));
-	to->di_projid_lo = cpu_to_be16(from->di_projid & 0xffff);
-	to->di_projid_hi = cpu_to_be16(from->di_projid >> 16);
+	to->di_projid_lo = cpu_to_be16(ip->i_projid & 0xffff);
+	to->di_projid_hi = cpu_to_be16(ip->i_projid >> 16);
 
 	memset(to->di_pad, 0, sizeof(to->di_pad));
 	to->di_atime = xfs_inode_to_disk_ts(ip, inode->i_atime);
@@ -323,23 +304,21 @@ xfs_inode_to_disk(
 	to->di_gen = cpu_to_be32(inode->i_generation);
 	to->di_mode = cpu_to_be16(inode->i_mode);
 
-	to->di_size = cpu_to_be64(from->di_size);
-	to->di_nblocks = cpu_to_be64(from->di_nblocks);
-	to->di_extsize = cpu_to_be32(from->di_extsize);
+	to->di_size = cpu_to_be64(ip->i_disk_size);
+	to->di_nblocks = cpu_to_be64(ip->i_nblocks);
+	to->di_extsize = cpu_to_be32(ip->i_extsize);
 	to->di_nextents = cpu_to_be32(xfs_ifork_nextents(&ip->i_df));
 	to->di_anextents = cpu_to_be16(xfs_ifork_nextents(ip->i_afp));
-	to->di_forkoff = from->di_forkoff;
+	to->di_forkoff = ip->i_forkoff;
 	to->di_aformat = xfs_ifork_format(ip->i_afp);
-	to->di_dmevmask = cpu_to_be32(from->di_dmevmask);
-	to->di_dmstate = cpu_to_be16(from->di_dmstate);
-	to->di_flags = cpu_to_be16(from->di_flags);
+	to->di_flags = cpu_to_be16(ip->i_diflags);
 
 	if (xfs_sb_version_has_v3inode(&ip->i_mount->m_sb)) {
 		to->di_version = 3;
 		to->di_changecount = cpu_to_be64(inode_peek_iversion(inode));
-		to->di_crtime = xfs_inode_to_disk_ts(ip, from->di_crtime);
-		to->di_flags2 = cpu_to_be64(from->di_flags2);
-		to->di_cowextsize = cpu_to_be32(from->di_cowextsize);
+		to->di_crtime = xfs_inode_to_disk_ts(ip, ip->i_crtime);
+		to->di_flags2 = cpu_to_be64(ip->i_diflags2);
+		to->di_cowextsize = cpu_to_be32(ip->i_cowextsize);
 		to->di_ino = cpu_to_be64(ip->i_ino);
 		to->di_lsn = cpu_to_be64(lsn);
 		memset(to->di_pad2, 0, sizeof(to->di_pad2));
@@ -347,7 +326,7 @@ xfs_inode_to_disk(
 		to->di_flushiter = 0;
 	} else {
 		to->di_version = 2;
-		to->di_flushiter = cpu_to_be16(from->di_flushiter);
+		to->di_flushiter = cpu_to_be16(ip->i_flushiter);
 	}
 }
 
@@ -580,8 +559,17 @@ xfs_dinode_calc_crc(
 /*
  * Validate di_extsize hint.
  *
- * The rules are documented at xfs_ioctl_setattr_check_extsize().
- * These functions must be kept in sync with each other.
+ * 1. Extent size hint is only valid for directories and regular files.
+ * 2. FS_XFLAG_EXTSIZE is only valid for regular files.
+ * 3. FS_XFLAG_EXTSZINHERIT is only valid for directories.
+ * 4. Hint cannot be larger than MAXTEXTLEN.
+ * 5. Can be changed on directories at any time.
+ * 6. Hint value of 0 turns off hints, clears inode flags.
+ * 7. Extent size must be a multiple of the appropriate block size.
+ *    For realtime files, this is the rt extent size.
+ * 8. For non-realtime files, the extent size hint must be limited
+ *    to half the AG size to avoid alignment extending the extent beyond the
+ *    limits of the AG.
  */
 xfs_failaddr_t
 xfs_inode_validate_extsize(
@@ -600,6 +588,28 @@ xfs_inode_validate_extsize(
 	hint_flag = (flags & XFS_DIFLAG_EXTSIZE);
 	inherit_flag = (flags & XFS_DIFLAG_EXTSZINHERIT);
 	extsize_bytes = XFS_FSB_TO_B(mp, extsize);
+
+	/*
+	 * This comment describes a historic gap in this verifier function.
+	 *
+	 * On older kernels, the extent size hint verifier doesn't check that
+	 * the extent size hint is an integer multiple of the realtime extent
+	 * size on a directory with both RTINHERIT and EXTSZINHERIT flags set.
+	 * The verifier has always enforced the alignment rule for regular
+	 * files with the REALTIME flag set.
+	 *
+	 * If a directory with a misaligned extent size hint is allowed to
+	 * propagate that hint into a new regular realtime file, the result
+	 * is that the inode cluster buffer verifier will trigger a corruption
+	 * shutdown the next time it is run.
+	 *
+	 * Unfortunately, there could be filesystems with these misconfigured
+	 * directories in the wild, so we cannot add a check to this verifier
+	 * at this time because that will result a new source of directory
+	 * corruption errors when reading an existing filesystem.  Instead, we
+	 * permit the misconfiguration to pass through the verifiers so that
+	 * callers of this function can correct and mitigate externally.
+	 */
 
 	if (rt_flag)
 		blocksize_bytes = mp->m_sb.sb_rextsize << mp->m_sb.sb_blocklog;
@@ -637,8 +647,15 @@ xfs_inode_validate_extsize(
 /*
  * Validate di_cowextsize hint.
  *
- * The rules are documented at xfs_ioctl_setattr_check_cowextsize().
- * These functions must be kept in sync with each other.
+ * 1. CoW extent size hint can only be set if reflink is enabled on the fs.
+ *    The inode does not have to have any shared blocks, but it must be a v3.
+ * 2. FS_XFLAG_COWEXTSIZE is only valid for directories and regular files;
+ *    for a directory, the hint is propagated to new files.
+ * 3. Can be changed on files & directories at any time.
+ * 4. Hint value of 0 turns off hints, clears inode flags.
+ * 5. Extent size must be a multiple of the appropriate block size.
+ * 6. The extent size hint must be limited to half the AG size to avoid
+ *    alignment extending the extent beyond the limits of the AG.
  */
 xfs_failaddr_t
 xfs_inode_validate_cowextsize(

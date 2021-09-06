@@ -17,6 +17,9 @@ Optional properties:
 			chip's trigger line. If this property is not set, the
 			trigger function is ignored and the chip is kept alive
 			until an explicit kill signal is received
+- trigger-delay-ms	The number of milliseconds to wait after trigger line
+			assertion before executing shut down procedure.
+			The default is 2500ms.
 
 Example:
 
@@ -24,6 +27,7 @@ ltc2952 {
 	compatible = "lltc,ltc2952";
 
 	trigger-gpios = <&gpio0 1 GPIO_ACTIVE_LOW>;
+	trigger-delay-ms = <2000>;
 	watchdog-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
 	kill-gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
 };

@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * vim: noexpandtab ts=8 sts=0 sw=8:
- *
  * configfs_example_macros.c - This file is a demonstration module
  *      containing a number of configfs subsystems.  It uses the helper
  *      macros defined by configfs.h

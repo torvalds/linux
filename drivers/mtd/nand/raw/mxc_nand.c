@@ -1849,7 +1849,7 @@ static int mxcnd_remove(struct platform_device *pdev)
 static struct platform_driver mxcnd_driver = {
 	.driver = {
 		   .name = DRIVER_NAME,
-		   .of_match_table = of_match_ptr(mxcnd_dt_ids),
+		   .of_match_table = mxcnd_dt_ids,
 	},
 	.probe = mxcnd_probe,
 	.remove = mxcnd_remove,

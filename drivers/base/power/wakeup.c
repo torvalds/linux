@@ -400,9 +400,9 @@ void device_wakeup_detach_irq(struct device *dev)
 }
 
 /**
- * device_wakeup_arm_wake_irqs(void)
+ * device_wakeup_arm_wake_irqs -
  *
- * Itereates over the list of device wakeirqs to arm them.
+ * Iterates over the list of device wakeirqs to arm them.
  */
 void device_wakeup_arm_wake_irqs(void)
 {
@@ -416,9 +416,9 @@ void device_wakeup_arm_wake_irqs(void)
 }
 
 /**
- * device_wakeup_disarm_wake_irqs(void)
+ * device_wakeup_disarm_wake_irqs -
  *
- * Itereates over the list of device wakeirqs to disarm them.
+ * Iterates over the list of device wakeirqs to disarm them.
  */
 void device_wakeup_disarm_wake_irqs(void)
 {
@@ -532,6 +532,7 @@ EXPORT_SYMBOL_GPL(device_init_wakeup);
 /**
  * device_set_wakeup_enable - Enable or disable a device to wake up the system.
  * @dev: Device to handle.
+ * @enable: enable/disable flag
  */
 int device_set_wakeup_enable(struct device *dev, bool enable)
 {
@@ -581,7 +582,7 @@ static bool wakeup_source_not_registered(struct wakeup_source *ws)
  */
 
 /**
- * wakup_source_activate - Mark given wakeup source as active.
+ * wakeup_source_activate - Mark given wakeup source as active.
  * @ws: Wakeup source to handle.
  *
  * Update the @ws' statistics and, if @ws has just been activated, notify the PM
@@ -686,7 +687,7 @@ static inline void update_prevent_sleep_time(struct wakeup_source *ws,
 #endif
 
 /**
- * wakup_source_deactivate - Mark given wakeup source as inactive.
+ * wakeup_source_deactivate - Mark given wakeup source as inactive.
  * @ws: Wakeup source to handle.
  *
  * Update the @ws' statistics and notify the PM core that the wakeup source has
@@ -785,7 +786,7 @@ EXPORT_SYMBOL_GPL(pm_relax);
 
 /**
  * pm_wakeup_timer_fn - Delayed finalization of a wakeup event.
- * @data: Address of the wakeup source object associated with the event source.
+ * @t: timer list
  *
  * Call wakeup_source_deactivate() for the wakeup source whose address is stored
  * in @data if it is currently active and its timer has not been canceled and
@@ -1021,7 +1022,7 @@ bool pm_save_wakeup_count(unsigned int count)
 #ifdef CONFIG_PM_AUTOSLEEP
 /**
  * pm_wakep_autosleep_enabled - Modify autosleep_enabled for all wakeup sources.
- * @enabled: Whether to set or to clear the autosleep_enabled flags.
+ * @set: Whether to set or to clear the autosleep_enabled flags.
  */
 void pm_wakep_autosleep_enabled(bool set)
 {

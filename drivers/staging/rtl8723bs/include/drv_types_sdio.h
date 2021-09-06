@@ -11,11 +11,6 @@
 	#include <linux/mmc/sdio_func.h>
 	#include <linux/mmc/sdio_ids.h>
 
-#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
-	#include <linux/mmc/host.h>
-	#include <linux/mmc/card.h>
-#endif
-
 struct sdio_data {
 	u8  func_number;
 

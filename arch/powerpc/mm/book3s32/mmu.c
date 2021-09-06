@@ -162,7 +162,7 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 	unsigned long border = (unsigned long)__init_begin - PAGE_OFFSET;
 
 
-	if (debug_pagealloc_enabled() || __map_without_bats) {
+	if (debug_pagealloc_enabled_or_kfence() || __map_without_bats) {
 		pr_debug_once("Read-Write memory mapped without BATs\n");
 		if (base >= border)
 			return base;
@@ -184,17 +184,10 @@ static bool is_module_segment(unsigned long addr)
 {
 	if (!IS_ENABLED(CONFIG_MODULES))
 		return false;
-#ifdef MODULES_VADDR
 	if (addr < ALIGN_DOWN(MODULES_VADDR, SZ_256M))
 		return false;
 	if (addr > ALIGN(MODULES_END, SZ_256M) - 1)
 		return false;
-#else
-	if (addr < ALIGN_DOWN(VMALLOC_START, SZ_256M))
-		return false;
-	if (addr > ALIGN(VMALLOC_END, SZ_256M) - 1)
-		return false;
-#endif
 	return true;
 }
 

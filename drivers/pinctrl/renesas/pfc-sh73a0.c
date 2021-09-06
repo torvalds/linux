@@ -13,7 +13,6 @@
 #include <linux/regulator/machine.h>
 #include <linux/slab.h>
 
-#include "core.h"
 #include "sh_pfc.h"
 
 #define CPU_ALL_PORT(fn, pfx, sfx)					\
@@ -4310,50 +4309,14 @@ static const struct regulator_init_data sh73a0_vccq_mc0_init_data = {
  * Pin bias
  */
 
-#define PORTnCR_PULMD_OFF	(0 << 6)
-#define PORTnCR_PULMD_DOWN	(2 << 6)
-#define PORTnCR_PULMD_UP	(3 << 6)
-#define PORTnCR_PULMD_MASK	(3 << 6)
-
 static const unsigned int sh73a0_portcr_offsets[] = {
 	0x00000000, 0x00001000, 0x00001000, 0x00002000, 0x00002000,
 	0x00002000, 0x00002000, 0x00003000, 0x00003000, 0x00002000,
 };
 
-static unsigned int sh73a0_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin)
+static void __iomem *sh73a0_pin_to_portcr(struct sh_pfc *pfc, unsigned int pin)
 {
-	void __iomem *addr = pfc->windows->virt
-			   + sh73a0_portcr_offsets[pin >> 5] + pin;
-	u32 value = ioread8(addr) & PORTnCR_PULMD_MASK;
-
-	switch (value) {
-	case PORTnCR_PULMD_UP:
-		return PIN_CONFIG_BIAS_PULL_UP;
-	case PORTnCR_PULMD_DOWN:
-		return PIN_CONFIG_BIAS_PULL_DOWN;
-	case PORTnCR_PULMD_OFF:
-	default:
-		return PIN_CONFIG_BIAS_DISABLE;
-	}
-}
-
-static void sh73a0_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
-				   unsigned int bias)
-{
-	void __iomem *addr = pfc->windows->virt
-			   + sh73a0_portcr_offsets[pin >> 5] + pin;
-	u32 value = ioread8(addr) & ~PORTnCR_PULMD_MASK;
-
-	switch (bias) {
-	case PIN_CONFIG_BIAS_PULL_UP:
-		value |= PORTnCR_PULMD_UP;
-		break;
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-		value |= PORTnCR_PULMD_DOWN;
-		break;
-	}
-
-	iowrite8(value, addr);
+	return pfc->windows->virt + sh73a0_portcr_offsets[pin >> 5] + pin;
 }
 
 /* -----------------------------------------------------------------------------
@@ -4383,8 +4346,9 @@ static int sh73a0_pinmux_soc_init(struct sh_pfc *pfc)
 
 static const struct sh_pfc_soc_operations sh73a0_pfc_ops = {
 	.init = sh73a0_pinmux_soc_init,
-	.get_bias = sh73a0_pinmux_get_bias,
-	.set_bias = sh73a0_pinmux_set_bias,
+	.get_bias = rmobile_pinmux_get_bias,
+	.set_bias = rmobile_pinmux_set_bias,
+	.pin_to_portcr = sh73a0_pin_to_portcr,
 };
 
 const struct sh_pfc_soc_info sh73a0_pinmux_info = {

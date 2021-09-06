@@ -209,7 +209,7 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 		struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
 		struct rsnd_mod *pos;
 		u32 val;
-		int i, shift;
+		int i;
 
 		i = rsnd_mod_id(ssi_mod);
 
@@ -221,7 +221,8 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 			i;
 
 		for_each_rsnd_mod_array(i, pos, io, rsnd_ssi_array) {
-			shift	= (i * 4) + 20;
+			int shift = (i * 4) + 20;
+
 			val	= (val & ~(0xF << shift)) |
 				rsnd_mod_id(pos) << shift;
 		}
@@ -334,7 +335,6 @@ static void rsnd_parse_connect_ssiu_compatible(struct rsnd_priv *priv,
 					       struct rsnd_dai_stream *io)
 {
 	struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
-	struct rsnd_mod *mod;
 	struct rsnd_ssiu *ssiu;
 	int i;
 
@@ -343,7 +343,7 @@ static void rsnd_parse_connect_ssiu_compatible(struct rsnd_priv *priv,
 
 	/* select BUSIF0 */
 	for_each_rsnd_ssiu(ssiu, priv, i) {
-		mod = rsnd_mod_get(ssiu);
+		struct rsnd_mod *mod = rsnd_mod_get(ssiu);
 
 		if ((rsnd_mod_id(ssi_mod) == rsnd_mod_id(mod)) &&
 		    (rsnd_mod_id_sub(mod) == 0)) {
@@ -359,17 +359,17 @@ void rsnd_parse_connect_ssiu(struct rsnd_dai *rdai,
 {
 	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
 	struct device_node *node = rsnd_ssiu_of_node(priv);
-	struct device_node *np;
-	struct rsnd_mod *mod;
 	struct rsnd_dai_stream *io_p = &rdai->playback;
 	struct rsnd_dai_stream *io_c = &rdai->capture;
-	int i;
 
 	/* use rcar_sound,ssiu if exist */
 	if (node) {
-		i = 0;
+		struct device_node *np;
+		int i = 0;
+
 		for_each_child_of_node(node, np) {
-			mod = rsnd_ssiu_mod_get(priv, i);
+			struct rsnd_mod *mod = rsnd_ssiu_mod_get(priv, i);
+
 			if (np == playback)
 				rsnd_dai_connect(mod, io_p, mod->type);
 			if (np == capture)
@@ -394,7 +394,7 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 	struct rsnd_ssiu *ssiu;
 	struct rsnd_mod_ops *ops;
 	const int *list = NULL;
-	int i, nr, ret;
+	int i, nr;
 
 	/*
 	 * Keep DT compatibility.
@@ -441,6 +441,8 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 	}
 
 	for_each_rsnd_ssiu(ssiu, priv, i) {
+		int ret;
+
 		if (node) {
 			int j;
 

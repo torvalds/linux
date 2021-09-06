@@ -420,7 +420,7 @@ void ptdump_walk_pgd(struct seq_file *m, struct ptdump_info *info)
 	note_page(&st, 0, 0, 0, NULL);
 }
 
-static void ptdump_initialize(void)
+static void __init ptdump_initialize(void)
 {
 	unsigned i, j;
 
@@ -466,7 +466,7 @@ void ptdump_check_wx(void)
 		pr_info("Checked W+X mappings: passed, no W+X pages found\n");
 }
 
-static int ptdump_init(void)
+static int __init ptdump_init(void)
 {
 	ptdump_initialize();
 	ptdump_debugfs_register(&kernel_ptdump_info, "kernel_page_tables");

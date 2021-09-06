@@ -15,8 +15,7 @@ config SERIAL_8250
 	  here are those that are setting up dedicated Ethernet WWW/FTP
 	  servers, or users that have one of the various bus mice instead of a
 	  serial mouse and don't intend to use their machine's standard serial
-	  port for anything.  (Note that the Cyclades multi serial port driver
-	  does not need this driver built in for it to work.)
+	  port for anything.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called 8250.
@@ -226,7 +225,7 @@ config SERIAL_8250_MANY_PORTS
 	  serial port hardware which acts similar to standard serial port
 	  hardware. If you only use the standard COM 1/2/3/4 ports, you can
 	  say N here to save some memory. You can also say Y if you have an
-	  "intelligent" multiport card such as Cyclades, Digiboards, etc.
+	  "intelligent" multiport card such as Digiboards, etc.
 
 #
 # Multi-port serial cards
@@ -404,7 +403,8 @@ config SERIAL_8250_RT288X
 
 config SERIAL_8250_OMAP
 	tristate "Support for OMAP internal UART (8250 based driver)"
-	depends on SERIAL_8250 && (ARCH_OMAP2PLUS || ARCH_K3)
+	depends on SERIAL_8250
+	depends on ARCH_OMAP2PLUS || ARCH_K3 || COMPILE_TEST
 	help
 	  If you have a machine based on an Texas Instruments OMAP CPU you
 	  can enable its onboard serial ports by enabling this option.
@@ -440,7 +440,8 @@ config SERIAL_8250_LPC18XX
 
 config SERIAL_8250_MT6577
 	tristate "Mediatek serial port support"
-	depends on SERIAL_8250 && ARCH_MEDIATEK
+	depends on SERIAL_8250
+	depends on ARCH_MEDIATEK || COMPILE_TEST
 	help
 	  If you have a Mediatek based board and want to use the
 	  serial port, say Y to this option. If unsure, say N.
@@ -509,6 +510,16 @@ config SERIAL_8250_TEGRA
 	help
 	  Select this option if you have machine with an NVIDIA Tegra SoC and
 	  wish to enable 8250 serial driver for the Tegra serial interfaces.
+
+config SERIAL_8250_BCM7271
+	tristate "Broadcom 8250 based serial port"
+	depends on SERIAL_8250 && (ARCH_BRCMSTB || COMPILE_TEST)
+	default ARCH_BRCMSTB
+	help
+	  If you have a Broadcom STB based board and want to use the
+	  enhanced features of the Broadcom 8250 based serial port,
+	  including DMA support and high accuracy BAUD rates, say
+	  Y to this option. If unsure, say N.
 
 config SERIAL_OF_PLATFORM
 	tristate "Devicetree based probing for 8250 ports"

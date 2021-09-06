@@ -332,14 +332,29 @@ static void cfg80211_event_work(struct work_struct *work)
 void cfg80211_destroy_ifaces(struct cfg80211_registered_device *rdev)
 {
 	struct wireless_dev *wdev, *tmp;
+	bool found = false;
 
 	ASSERT_RTNL();
-	lockdep_assert_wiphy(&rdev->wiphy);
 
-	list_for_each_entry_safe(wdev, tmp, &rdev->wiphy.wdev_list, list) {
-		if (wdev->nl_owner_dead)
-			rdev_del_virtual_intf(rdev, wdev);
+	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
+		if (wdev->nl_owner_dead) {
+			if (wdev->netdev)
+				dev_close(wdev->netdev);
+			found = true;
+		}
 	}
+
+	if (!found)
+		return;
+
+	wiphy_lock(&rdev->wiphy);
+	list_for_each_entry_safe(wdev, tmp, &rdev->wiphy.wdev_list, list) {
+		if (wdev->nl_owner_dead) {
+			cfg80211_leave(rdev, wdev);
+			rdev_del_virtual_intf(rdev, wdev);
+		}
+	}
+	wiphy_unlock(&rdev->wiphy);
 }
 
 static void cfg80211_destroy_iface_wk(struct work_struct *work)
@@ -350,9 +365,7 @@ static void cfg80211_destroy_iface_wk(struct work_struct *work)
 			    destroy_work);
 
 	rtnl_lock();
-	wiphy_lock(&rdev->wiphy);
 	cfg80211_destroy_ifaces(rdev);
-	wiphy_unlock(&rdev->wiphy);
 	rtnl_unlock();
 }
 
@@ -1092,14 +1105,15 @@ void wiphy_free(struct wiphy *wiphy)
 }
 EXPORT_SYMBOL(wiphy_free);
 
-void wiphy_rfkill_set_hw_state(struct wiphy *wiphy, bool blocked)
+void wiphy_rfkill_set_hw_state_reason(struct wiphy *wiphy, bool blocked,
+				      enum rfkill_hard_block_reasons reason)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 
-	if (rfkill_set_hw_state(rdev->rfkill, blocked))
+	if (rfkill_set_hw_state_reason(rdev->rfkill, blocked, reason))
 		schedule_work(&rdev->rfkill_block);
 }
-EXPORT_SYMBOL(wiphy_rfkill_set_hw_state);
+EXPORT_SYMBOL(wiphy_rfkill_set_hw_state_reason);
 
 void cfg80211_cqm_config_free(struct wireless_dev *wdev)
 {
@@ -1326,6 +1340,11 @@ void cfg80211_register_wdev(struct cfg80211_registered_device *rdev,
 	rdev->devlist_generation++;
 	wdev->registered = true;
 
+	if (wdev->netdev &&
+	    sysfs_create_link(&wdev->netdev->dev.kobj, &rdev->wiphy.dev.kobj,
+			      "phy80211"))
+		pr_err("failed to add phy80211 symlink to netdev!\n");
+
 	nl80211_notify_iface(rdev, wdev, NL80211_CMD_NEW_INTERFACE);
 }
 
@@ -1350,14 +1369,6 @@ int cfg80211_register_netdevice(struct net_device *dev)
 	ret = register_netdevice(dev);
 	if (ret)
 		goto out;
-
-	if (sysfs_create_link(&dev->dev.kobj, &rdev->wiphy.dev.kobj,
-			      "phy80211")) {
-		pr_err("failed to add phy80211 symlink to netdev!\n");
-		unregister_netdevice(dev);
-		ret = -EINVAL;
-		goto out;
-	}
 
 	cfg80211_register_wdev(rdev, wdev);
 	ret = 0;

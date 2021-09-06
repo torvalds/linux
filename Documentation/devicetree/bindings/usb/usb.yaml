@@ -16,7 +16,6 @@ properties:
     pattern: "^usb(@.*)?"
 
   phys:
-    $ref: /schemas/types.yaml#/definitions/phandle-array
     description:
       List of all the USB PHYs on this HCD
 

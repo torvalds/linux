@@ -210,7 +210,7 @@ static ssize_t stm32_dac_read_powerdown(struct iio_dev *indio_dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", ret ? 0 : 1);
+	return sysfs_emit(buf, "%d\n", ret ? 0 : 1);
 }
 
 static ssize_t stm32_dac_write_powerdown(struct iio_dev *indio_dev,

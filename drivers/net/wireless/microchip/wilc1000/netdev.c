@@ -24,12 +24,10 @@
 
 static irqreturn_t isr_uh_routine(int irq, void *user_data)
 {
-	struct net_device *dev = user_data;
-	struct wilc_vif *vif = netdev_priv(dev);
-	struct wilc *wilc = vif->wilc;
+	struct wilc *wilc = user_data;
 
 	if (wilc->close) {
-		netdev_err(dev, "Can't handle UH interrupt\n");
+		pr_err("Can't handle UH interrupt");
 		return IRQ_HANDLED;
 	}
 	return IRQ_WAKE_THREAD;
@@ -37,12 +35,10 @@ static irqreturn_t isr_uh_routine(int irq, void *user_data)
 
 static irqreturn_t isr_bh_routine(int irq, void *userdata)
 {
-	struct net_device *dev = userdata;
-	struct wilc_vif *vif = netdev_priv(userdata);
-	struct wilc *wilc = vif->wilc;
+	struct wilc *wilc = userdata;
 
 	if (wilc->close) {
-		netdev_err(dev, "Can't handle BH interrupt\n");
+		pr_err("Can't handle BH interrupt\n");
 		return IRQ_HANDLED;
 	}
 
@@ -60,7 +56,7 @@ static int init_irq(struct net_device *dev)
 	ret = request_threaded_irq(wl->dev_irq_num, isr_uh_routine,
 				   isr_bh_routine,
 				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				   "WILC_IRQ", dev);
+				   "WILC_IRQ", wl);
 	if (ret) {
 		netdev_err(dev, "Failed to request IRQ [%d]\n", ret);
 		return ret;
@@ -575,7 +571,6 @@ static int wilc_mac_open(struct net_device *ndev)
 {
 	struct wilc_vif *vif = netdev_priv(ndev);
 	struct wilc *wl = vif->wilc;
-	unsigned char mac_add[ETH_ALEN] = {0};
 	int ret = 0;
 	struct mgmt_frame_regs mgmt_regs = {};
 
@@ -598,9 +593,12 @@ static int wilc_mac_open(struct net_device *ndev)
 
 	wilc_set_operation_mode(vif, wilc_get_vif_idx(vif), vif->iftype,
 				vif->idx);
-	wilc_get_mac_address(vif, mac_add);
-	netdev_dbg(ndev, "Mac address: %pM\n", mac_add);
-	ether_addr_copy(ndev->dev_addr, mac_add);
+
+	if (is_valid_ether_addr(ndev->dev_addr))
+		wilc_set_mac_address(vif, ndev->dev_addr);
+	else
+		wilc_get_mac_address(vif, ndev->dev_addr);
+	netdev_dbg(ndev, "Mac address: %pM\n", ndev->dev_addr);
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		netdev_err(ndev, "Wrong MAC address\n");
@@ -639,7 +637,14 @@ static int wilc_set_mac_addr(struct net_device *dev, void *p)
 	int srcu_idx;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
+
+	if (!vif->mac_opened) {
+		eth_commit_mac_addr_change(dev, p);
+		return 0;
+	}
+
+	/* Verify MAC Address is not already in use: */
 
 	srcu_idx = srcu_read_lock(&wilc->srcu);
 	list_for_each_entry_rcu(tmp_vif, &wilc->vif_list, list) {
@@ -647,7 +652,7 @@ static int wilc_set_mac_addr(struct net_device *dev, void *p)
 		if (ether_addr_equal(addr->sa_data, mac_addr)) {
 			if (vif != tmp_vif) {
 				srcu_read_unlock(&wilc->srcu, srcu_idx);
-				return -EINVAL;
+				return -EADDRNOTAVAIL;
 			}
 			srcu_read_unlock(&wilc->srcu, srcu_idx);
 			return 0;
@@ -659,9 +664,7 @@ static int wilc_set_mac_addr(struct net_device *dev, void *p)
 	if (result)
 		return result;
 
-	ether_addr_copy(vif->bssid, addr->sa_data);
-	ether_addr_copy(vif->ndev->dev_addr, addr->sa_data);
-
+	eth_commit_mac_addr_change(dev, p);
 	return result;
 }
 

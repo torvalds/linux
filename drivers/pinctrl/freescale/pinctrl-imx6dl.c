@@ -473,6 +473,7 @@ static struct platform_driver imx6dl_pinctrl_driver = {
 	.driver = {
 		.name = "imx6dl-pinctrl",
 		.of_match_table = imx6dl_pinctrl_of_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = imx6dl_pinctrl_probe,
 };

@@ -10,7 +10,7 @@
 	compatible = "toradex,colibri-imx8x", "fsl,imx8qxp";
 
 	chosen {
-		stdout-path = &adma_lpuart3;
+		stdout-path = &lpuart3;
 	};
 
 	reg_module_3v3: regulator-module-3v3 {
@@ -22,7 +22,7 @@
 };
 
 /* On-module I2C */
-&adma_i2c0 {
+&i2c0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 	clock-frequency = <100000>;
@@ -49,7 +49,7 @@
 };
 
 /* Colibri I2C */
-&adma_i2c1 {
+&i2c1 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 	clock-frequency = <100000>;
@@ -58,19 +58,19 @@
 };
 
 /* Colibri UART_B */
-&adma_lpuart0 {
+&lpuart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpuart0>;
 };
 
 /* Colibri UART_C */
-&adma_lpuart2 {
+&lpuart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpuart2>;
 };
 
 /* Colibri UART_A */
-&adma_lpuart3 {
+&lpuart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpuart3>, <&pinctrl_lpuart3_ctrl>;
 };

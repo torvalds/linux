@@ -77,12 +77,12 @@ void ocrdma_get_guid(struct ocrdma_dev *dev, u8 *guid)
 	guid[7] = mac_addr[5];
 }
 static enum rdma_link_layer ocrdma_link_layer(struct ib_device *device,
-					      u8 port_num)
+					      u32 port_num)
 {
 	return IB_LINK_LAYER_ETHERNET;
 }
 
-static int ocrdma_port_immutable(struct ib_device *ibdev, u8 port_num,
+static int ocrdma_port_immutable(struct ib_device *ibdev, u32 port_num,
 			         struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;

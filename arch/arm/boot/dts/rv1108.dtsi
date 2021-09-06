@@ -19,9 +19,6 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
-		mmc0 = &emmc;
-		mmc1 = &sdio;
-		mmc2 = &sdmmc;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -303,11 +300,10 @@
 	};
 
 	watchdog: watchdog@10360000 {
-		compatible = "snps,dw-wdt";
+		compatible = "rockchip,rv1108-wdt", "snps,dw-wdt";
 		reg = <0x10360000 0x100>;
 		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru PCLK_WDT>;
-		clock-names = "pclk_wdt";
 		status = "disabled";
 	};
 

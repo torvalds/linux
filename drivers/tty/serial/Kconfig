@@ -20,7 +20,7 @@ comment "Non-8250 serial port support"
 
 config SERIAL_AMBA_PL010
 	tristate "ARM AMBA PL010 serial port support"
-	depends on ARM_AMBA
+	depends on ARM_AMBA || COMPILE_TEST
 	select SERIAL_CORE
 	help
 	  This selects the ARM(R) AMBA(R) PrimeCell PL010 UART.  If you have
@@ -198,7 +198,7 @@ config SERIAL_KGDB_NMI
 
 config SERIAL_MESON
 	tristate "Meson serial port support"
-	depends on ARCH_MESON
+	depends on ARCH_MESON || COMPILE_TEST
 	select SERIAL_CORE
 	help
 	  This enables the driver for the on-chip UARTs of the Amlogic
@@ -236,7 +236,7 @@ config SERIAL_CLPS711X_CONSOLE
 
 config SERIAL_SAMSUNG
 	tristate "Samsung SoC serial support"
-	depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
+	depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS || ARCH_APPLE || COMPILE_TEST
 	select SERIAL_CORE
 	help
 	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
@@ -278,7 +278,7 @@ config SERIAL_SAMSUNG_CONSOLE
 
 config SERIAL_TEGRA
 	tristate "NVIDIA Tegra20/30 SoC serial controller"
-	depends on ARCH_TEGRA && TEGRA20_APB_DMA
+	depends on (ARCH_TEGRA && TEGRA20_APB_DMA) || COMPILE_TEST
 	select SERIAL_CORE
 	help
 	  Support for the on-chip UARTs on the NVIDIA Tegra series SOCs
@@ -289,7 +289,8 @@ config SERIAL_TEGRA
 
 config SERIAL_TEGRA_TCU
 	tristate "NVIDIA Tegra Combined UART"
-	depends on ARCH_TEGRA && TEGRA_HSP_MBOX
+	depends on MAILBOX
+	depends on (ARCH_TEGRA && TEGRA_HSP_MBOX) || COMPILE_TEST
 	select SERIAL_CORE
 	help
 	  Support for the mailbox-based TCU (Tegra Combined UART) serial port.
@@ -498,6 +499,7 @@ config SERIAL_IMX_EARLYCON
 	bool "Earlycon on IMX serial port"
 	depends on ARCH_MXC || COMPILE_TEST
 	depends on OF
+	select SERIAL_CORE
 	select SERIAL_EARLYCON
 	select SERIAL_CORE_CONSOLE
 	default y if SERIAL_IMX_CONSOLE
@@ -851,7 +853,8 @@ config SERIAL_MPC52xx_CONSOLE_BAUD
 
 config SERIAL_ICOM
 	tristate "IBM Multiport Serial Adapter"
-	depends on PCI && PPC_PSERIES
+	depends on PCI
+	depends on PPC_PSERIES || COMPILE_TEST
 	select SERIAL_CORE
 	select FW_LOADER
 	help
@@ -920,7 +923,7 @@ config SERIAL_JSM
 
 config SERIAL_MSM
 	tristate "MSM on-chip serial port support"
-	depends on ARCH_QCOM
+	depends on ARCH_QCOM || COMPILE_TEST
 	select SERIAL_CORE
 
 config SERIAL_MSM_CONSOLE
@@ -946,7 +949,7 @@ config SERIAL_QCOM_GENI_CONSOLE
 
 config SERIAL_VT8500
 	bool "VIA VT8500 on-chip serial port support"
-	depends on ARCH_VT8500
+	depends on ARCH_VT8500 || COMPILE_TEST
 	select SERIAL_CORE
 
 config SERIAL_VT8500_CONSOLE
@@ -956,7 +959,7 @@ config SERIAL_VT8500_CONSOLE
 
 config SERIAL_OMAP
 	tristate "OMAP serial port support"
-	depends on ARCH_OMAP2PLUS
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	select SERIAL_CORE
 	help
 	  If you have a machine based on an Texas Instruments OMAP CPU you

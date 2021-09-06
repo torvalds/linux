@@ -579,7 +579,6 @@ int rm3100_common_probe(struct device *dev, struct regmap *regmap, int irq)
 		if (!data->drdy_trig)
 			return -ENOMEM;
 
-		data->drdy_trig->dev.parent = dev;
 		ret = devm_iio_trigger_register(dev, data->drdy_trig);
 		if (ret < 0)
 			return ret;

@@ -93,7 +93,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_transition(struct mod_hdcp *hdcp,
 		}
 		break;
 	case H1_A45_AUTHENTICATED:
-		if (input->link_maintenance != PASS) {
+		if (input->link_maintenance == FAIL) {
 			/* 1A-07: consider invalid ri' a failure */
 			/* 1A-07a: consider read ri' not returned a failure */
 			fail_and_restart_in_ms(0, &status, output);
@@ -243,8 +243,8 @@ enum mod_hdcp_status mod_hdcp_hdcp1_dp_transition(struct mod_hdcp *hdcp,
 		}
 		break;
 	case D1_A4_AUTHENTICATED:
-		if (input->link_integrity_check != PASS ||
-				input->reauth_request_check != PASS) {
+		if (input->link_integrity_check == FAIL ||
+				input->reauth_request_check == FAIL) {
 			/* 1A-07: restart hdcp on a link integrity failure */
 			fail_and_restart_in_ms(0, &status, output);
 			break;

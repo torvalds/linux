@@ -188,9 +188,9 @@ struct pinmux_drive_reg {
 	.reg = r, \
 	.fields =
 
-struct pinmux_bias_reg {
+struct pinmux_bias_reg {	/* At least one of puen/pud must exist */
 	u32 puen;		/* Pull-enable or pull-up control register */
-	u32 pud;		/* Pull-up/down control register (optional) */
+	u32 pud;		/* Pull-up/down or pull-down control register */
 	const u16 pins[32];
 };
 
@@ -273,6 +273,7 @@ struct sh_pfc_soc_operations {
 	void (*set_bias)(struct sh_pfc *pfc, unsigned int pin,
 			 unsigned int bias);
 	int (*pin_to_pocctrl)(struct sh_pfc *pfc, unsigned int pin, u32 *pocctrl);
+	void __iomem * (*pin_to_portcr)(struct sh_pfc *pfc, unsigned int pin);
 };
 
 struct sh_pfc_soc_info {
@@ -478,9 +479,13 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 	PORT_GP_CFG_1(bank, 5,  fn, sfx, cfg)
 #define PORT_GP_6(bank, fn, sfx)	PORT_GP_CFG_6(bank, fn, sfx, 0)
 
-#define PORT_GP_CFG_8(bank, fn, sfx, cfg)				\
+#define PORT_GP_CFG_7(bank, fn, sfx, cfg)				\
 	PORT_GP_CFG_6(bank, fn, sfx, cfg),				\
-	PORT_GP_CFG_1(bank, 6,  fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 6,  fn, sfx, cfg)
+#define PORT_GP_7(bank, fn, sfx)	PORT_GP_CFG_7(bank, fn, sfx, 0)
+
+#define PORT_GP_CFG_8(bank, fn, sfx, cfg)				\
+	PORT_GP_CFG_7(bank, fn, sfx, cfg),				\
 	PORT_GP_CFG_1(bank, 7,  fn, sfx, cfg)
 #define PORT_GP_8(bank, fn, sfx)	PORT_GP_CFG_8(bank, fn, sfx, 0)
 
@@ -772,5 +777,16 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
  * GPIO number helper macro for R-Car
  */
 #define RCAR_GP_PIN(bank, pin)		(((bank) * 32) + (pin))
+
+/*
+ * Bias helpers
+ */
+unsigned int rcar_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin);
+void rcar_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
+			  unsigned int bias);
+
+unsigned int rmobile_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin);
+void rmobile_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
+			     unsigned int bias);
 
 #endif /* __SH_PFC_H */

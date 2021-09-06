@@ -59,7 +59,7 @@
 /*  */
 /* defined for TX DESC Operation */
 /*  */
-typedef struct txdesc_8723b {
+struct txdesc_8723b {
 	/*  Offset 0 */
 	u32 pktlen:16;
 	u32 offset:8;
@@ -175,7 +175,7 @@ typedef struct txdesc_8723b {
 	u32 txbf_path:1;
 	u32 seq:12;
 	u32 final_data_rate:8;
-} TXDESC_8723B, *PTXDESC_8723B;
+};
 
 #ifndef __INC_HAL8723BDESC_H
 #define __INC_HAL8723BDESC_H
@@ -443,7 +443,7 @@ s32 rtl8723bs_xmit_buf_handler(struct adapter *padapter);
 int rtl8723bs_xmit_thread(void *context);
 #define hal_xmit_handler rtl8723bs_xmit_buf_handler
 
-u8 BWMapping_8723B(struct adapter * Adapter, struct pkt_attrib *pattrib);
-u8 SCMapping_8723B(struct adapter * Adapter, struct pkt_attrib	*pattrib);
+u8 BWMapping_8723B(struct adapter *Adapter, struct pkt_attrib *pattrib);
+u8 SCMapping_8723B(struct adapter *Adapter, struct pkt_attrib *pattrib);
 
 #endif

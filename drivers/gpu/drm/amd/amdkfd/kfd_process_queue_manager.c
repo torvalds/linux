@@ -126,10 +126,10 @@ int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
 
 void kfd_process_dequeue_from_all_devices(struct kfd_process *p)
 {
-	struct kfd_process_device *pdd;
+	int i;
 
-	list_for_each_entry(pdd, &p->per_device_data, per_device_list)
-		kfd_process_dequeue_from_device(pdd);
+	for (i = 0; i < p->n_pdds; i++)
+		kfd_process_dequeue_from_device(p->pdds[i]);
 }
 
 int pqm_init(struct process_queue_manager *pqm, struct kfd_process *p)

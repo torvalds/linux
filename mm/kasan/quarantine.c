@@ -27,7 +27,7 @@
 /* Data structure and operations for quarantine queues. */
 
 /*
- * Each queue is a signle-linked list, which also stores the total size of
+ * Each queue is a single-linked list, which also stores the total size of
  * objects inside of it.
  */
 struct qlist_head {
@@ -138,7 +138,7 @@ static void qlink_free(struct qlist_node *qlink, struct kmem_cache *cache)
 		local_irq_save(flags);
 
 	/*
-	 * As the object now gets freed from the quaratine, assume that its
+	 * As the object now gets freed from the quarantine, assume that its
 	 * free track is no longer valid.
 	 */
 	*(u8 *)kasan_mem_to_shadow(object) = KASAN_KMALLOC_FREE;

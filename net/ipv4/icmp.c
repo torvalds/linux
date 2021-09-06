@@ -759,6 +759,13 @@ void __icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info,
 		icmp_param.data_len = room;
 	icmp_param.head_len = sizeof(struct icmphdr);
 
+	/* if we don't have a source address at this point, fall back to the
+	 * dummy address instead of sending out a packet with a source address
+	 * of 0.0.0.0
+	 */
+	if (!fl4.saddr)
+		fl4.saddr = htonl(INADDR_DUMMY);
+
 	icmp_push_reply(&icmp_param, &fl4, &ipc, &rt);
 ende:
 	ip_rt_put(rt);
@@ -971,7 +978,7 @@ static bool icmp_redirect(struct sk_buff *skb)
 }
 
 /*
- *	Handle ICMP_ECHO ("ping") requests.
+ *	Handle ICMP_ECHO ("ping") and ICMP_EXT_ECHO ("PROBE") requests.
  *
  *	RFC 1122: 3.2.2.6 MUST have an echo server that answers ICMP echo
  *		  requests.
@@ -979,27 +986,125 @@ static bool icmp_redirect(struct sk_buff *skb)
  *		  included in the reply.
  *	RFC 1812: 4.3.3.6 SHOULD have a config option for silently ignoring
  *		  echo requests, MUST have default=NOT.
+ *	RFC 8335: 8 MUST have a config option to enable/disable ICMP
+ *		  Extended Echo Functionality, MUST be disabled by default
  *	See also WRT handling of options once they are done and working.
  */
 
 static bool icmp_echo(struct sk_buff *skb)
 {
+	struct icmp_ext_hdr *ext_hdr, _ext_hdr;
+	struct icmp_ext_echo_iio *iio, _iio;
+	struct icmp_bxm icmp_param;
+	struct net_device *dev;
+	char buff[IFNAMSIZ];
 	struct net *net;
+	u16 ident_len;
+	u8 status;
 
 	net = dev_net(skb_dst(skb)->dev);
-	if (!net->ipv4.sysctl_icmp_echo_ignore_all) {
-		struct icmp_bxm icmp_param;
-
-		icmp_param.data.icmph	   = *icmp_hdr(skb);
-		icmp_param.data.icmph.type = ICMP_ECHOREPLY;
-		icmp_param.skb		   = skb;
-		icmp_param.offset	   = 0;
-		icmp_param.data_len	   = skb->len;
-		icmp_param.head_len	   = sizeof(struct icmphdr);
-		icmp_reply(&icmp_param, skb);
-	}
 	/* should there be an ICMP stat for ignored echos? */
-	return true;
+	if (net->ipv4.sysctl_icmp_echo_ignore_all)
+		return true;
+
+	icmp_param.data.icmph	   = *icmp_hdr(skb);
+	icmp_param.skb		   = skb;
+	icmp_param.offset	   = 0;
+	icmp_param.data_len	   = skb->len;
+	icmp_param.head_len	   = sizeof(struct icmphdr);
+
+	if (icmp_param.data.icmph.type == ICMP_ECHO) {
+		icmp_param.data.icmph.type = ICMP_ECHOREPLY;
+		goto send_reply;
+	}
+	if (!net->ipv4.sysctl_icmp_echo_enable_probe)
+		return true;
+	/* We currently only support probing interfaces on the proxy node
+	 * Check to ensure L-bit is set
+	 */
+	if (!(ntohs(icmp_param.data.icmph.un.echo.sequence) & 1))
+		return true;
+	/* Clear status bits in reply message */
+	icmp_param.data.icmph.un.echo.sequence &= htons(0xFF00);
+	icmp_param.data.icmph.type = ICMP_EXT_ECHOREPLY;
+	ext_hdr = skb_header_pointer(skb, 0, sizeof(_ext_hdr), &_ext_hdr);
+	/* Size of iio is class_type dependent.
+	 * Only check header here and assign length based on ctype in the switch statement
+	 */
+	iio = skb_header_pointer(skb, sizeof(_ext_hdr), sizeof(iio->extobj_hdr), &_iio);
+	if (!ext_hdr || !iio)
+		goto send_mal_query;
+	if (ntohs(iio->extobj_hdr.length) <= sizeof(iio->extobj_hdr))
+		goto send_mal_query;
+	ident_len = ntohs(iio->extobj_hdr.length) - sizeof(iio->extobj_hdr);
+	status = 0;
+	dev = NULL;
+	switch (iio->extobj_hdr.class_type) {
+	case ICMP_EXT_ECHO_CTYPE_NAME:
+		iio = skb_header_pointer(skb, sizeof(_ext_hdr), sizeof(_iio), &_iio);
+		if (ident_len >= IFNAMSIZ)
+			goto send_mal_query;
+		memset(buff, 0, sizeof(buff));
+		memcpy(buff, &iio->ident.name, ident_len);
+		dev = dev_get_by_name(net, buff);
+		break;
+	case ICMP_EXT_ECHO_CTYPE_INDEX:
+		iio = skb_header_pointer(skb, sizeof(_ext_hdr), sizeof(iio->extobj_hdr) +
+					 sizeof(iio->ident.ifindex), &_iio);
+		if (ident_len != sizeof(iio->ident.ifindex))
+			goto send_mal_query;
+		dev = dev_get_by_index(net, ntohl(iio->ident.ifindex));
+		break;
+	case ICMP_EXT_ECHO_CTYPE_ADDR:
+		if (ident_len != sizeof(iio->ident.addr.ctype3_hdr) +
+				 iio->ident.addr.ctype3_hdr.addrlen)
+			goto send_mal_query;
+		switch (ntohs(iio->ident.addr.ctype3_hdr.afi)) {
+		case ICMP_AFI_IP:
+			iio = skb_header_pointer(skb, sizeof(_ext_hdr), sizeof(iio->extobj_hdr) +
+						 sizeof(struct in_addr), &_iio);
+			if (ident_len != sizeof(iio->ident.addr.ctype3_hdr) +
+					 sizeof(struct in_addr))
+				goto send_mal_query;
+			dev = ip_dev_find(net, iio->ident.addr.ip_addr.ipv4_addr.s_addr);
+			break;
+#if IS_ENABLED(CONFIG_IPV6)
+		case ICMP_AFI_IP6:
+			iio = skb_header_pointer(skb, sizeof(_ext_hdr), sizeof(_iio), &_iio);
+			if (ident_len != sizeof(iio->ident.addr.ctype3_hdr) +
+					 sizeof(struct in6_addr))
+				goto send_mal_query;
+			dev = ipv6_stub->ipv6_dev_find(net, &iio->ident.addr.ip_addr.ipv6_addr, dev);
+			if (dev)
+				dev_hold(dev);
+			break;
+#endif
+		default:
+			goto send_mal_query;
+		}
+		break;
+	default:
+		goto send_mal_query;
+	}
+	if (!dev) {
+		icmp_param.data.icmph.code = ICMP_EXT_CODE_NO_IF;
+		goto send_reply;
+	}
+	/* Fill bits in reply message */
+	if (dev->flags & IFF_UP)
+		status |= ICMP_EXT_ECHOREPLY_ACTIVE;
+	if (__in_dev_get_rcu(dev) && __in_dev_get_rcu(dev)->ifa_list)
+		status |= ICMP_EXT_ECHOREPLY_IPV4;
+	if (!list_empty(&rcu_dereference(dev->ip6_ptr)->addr_list))
+		status |= ICMP_EXT_ECHOREPLY_IPV6;
+	dev_put(dev);
+	icmp_param.data.icmph.un.echo.sequence |= htons(status);
+send_reply:
+	icmp_reply(&icmp_param, skb);
+		return true;
+send_mal_query:
+	icmp_param.data.icmph.code = ICMP_EXT_CODE_MAL_QUERY;
+	goto send_reply;
 }
 
 /*
@@ -1088,6 +1193,21 @@ int icmp_rcv(struct sk_buff *skb)
 	icmph = icmp_hdr(skb);
 
 	ICMPMSGIN_INC_STATS(net, icmph->type);
+
+	/* Check for ICMP Extended Echo (PROBE) messages */
+	if (icmph->type == ICMP_EXT_ECHO) {
+		/* We can't use icmp_pointers[].handler() because it is an array of
+		 * size NR_ICMP_TYPES + 1 (19 elements) and PROBE has code 42.
+		 */
+		success = icmp_echo(skb);
+		goto success_check;
+	}
+
+	if (icmph->type == ICMP_EXT_ECHOREPLY) {
+		success = ping_rcv(skb);
+		goto success_check;
+	}
+
 	/*
 	 *	18 is the highest 'known' ICMP type. Anything else is a mystery
 	 *
@@ -1096,7 +1216,6 @@ int icmp_rcv(struct sk_buff *skb)
 	 */
 	if (icmph->type > NR_ICMP_TYPES)
 		goto error;
-
 
 	/*
 	 *	Parse the ICMP message
@@ -1123,7 +1242,7 @@ int icmp_rcv(struct sk_buff *skb)
 	}
 
 	success = icmp_pointers[icmph->type].handler(skb);
-
+success_check:
 	if (success)  {
 		consume_skb(skb);
 		return NET_RX_SUCCESS;
@@ -1340,6 +1459,7 @@ static int __net_init icmp_sk_init(struct net *net)
 
 	/* Control parameters for ECHO replies. */
 	net->ipv4.sysctl_icmp_echo_ignore_all = 0;
+	net->ipv4.sysctl_icmp_echo_enable_probe = 0;
 	net->ipv4.sysctl_icmp_echo_ignore_broadcasts = 1;
 
 	/* Control parameter - ignore bogus broadcast responses? */

@@ -44,6 +44,8 @@ enum ipa_flag {
  * @version:		IPA hardware version
  * @pdev:		Platform device
  * @completion:		Used to signal pipeline clear transfer complete
+ * @nb:			Notifier block used for remoteproc SSR
+ * @notifier:		Remoteproc SSR notifier
  * @smp2p:		SMP2P information
  * @clock:		IPA clocking information
  * @table_addr:		DMA address of filter/route table content
@@ -56,15 +58,15 @@ enum ipa_flag {
  * @mem_virt:		Virtual address of IPA-local memory space
  * @mem_offset:		Offset from @mem_virt used for access to IPA memory
  * @mem_size:		Total size (bytes) of memory at @mem_virt
+ * @mem_count:		Number of entries in the mem array
  * @mem:		Array of IPA-local memory region descriptors
  * @imem_iova:		I/O virtual address of IPA region in IMEM
- * @imem_size;		Size of IMEM region
+ * @imem_size:		Size of IMEM region
  * @smem_iova:		I/O virtual address of IPA region in SMEM
- * @smem_size;		Size of SMEM region
+ * @smem_size:		Size of SMEM region
  * @zero_addr:		DMA address of preallocated zero-filled memory
  * @zero_virt:		Virtual address of preallocated zero-filled memory
  * @zero_size:		Size (bytes) of preallocated zero-filled memory
- * @wakeup_source:	Wakeup source information
  * @available:		Bit mask indicating endpoints hardware supports
  * @filter_map:		Bit mask indicating endpoints that support filtering
  * @initialized:	Bit mask indicating endpoints initialized
@@ -102,6 +104,7 @@ struct ipa {
 	void *mem_virt;
 	u32 mem_offset;
 	u32 mem_size;
+	u32 mem_count;
 	const struct ipa_mem *mem;
 
 	unsigned long imem_iova;

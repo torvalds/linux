@@ -46,10 +46,26 @@ static ssize_t memtrace_read(struct file *filp, char __user *ubuf,
 	return simple_read_from_buffer(ubuf, count, ppos, ent->mem, ent->size);
 }
 
+static int memtrace_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	struct memtrace_entry *ent = filp->private_data;
+
+	if (ent->size < vma->vm_end - vma->vm_start)
+		return -EINVAL;
+
+	if (vma->vm_pgoff << PAGE_SHIFT >= ent->size)
+		return -EINVAL;
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	return remap_pfn_range(vma, vma->vm_start, PHYS_PFN(ent->start) + vma->vm_pgoff,
+			       vma->vm_end - vma->vm_start, vma->vm_page_prot);
+}
+
 static const struct file_operations memtrace_fops = {
 	.llseek = default_llseek,
 	.read	= memtrace_read,
 	.open	= simple_open,
+	.mmap   = memtrace_mmap,
 };
 
 #define FLUSH_CHUNK_SIZE SZ_1G
@@ -88,8 +104,8 @@ static void memtrace_clear_range(unsigned long start_pfn,
 	 * Before we go ahead and use this range as cache inhibited range
 	 * flush the cache.
 	 */
-	flush_dcache_range_chunked(PFN_PHYS(start_pfn),
-				   PFN_PHYS(start_pfn + nr_pages),
+	flush_dcache_range_chunked((unsigned long)pfn_to_kaddr(start_pfn),
+				   (unsigned long)pfn_to_kaddr(start_pfn + nr_pages),
 				   FLUSH_CHUNK_SIZE);
 }
 
@@ -187,7 +203,7 @@ static int memtrace_init_debugfs(void)
 		dir = debugfs_create_dir(ent->name, memtrace_debugfs_dir);
 
 		ent->dir = dir;
-		debugfs_create_file("trace", 0400, dir, ent, &memtrace_fops);
+		debugfs_create_file_unsafe("trace", 0600, dir, ent, &memtrace_fops);
 		debugfs_create_x64("start", 0400, dir, &ent->start);
 		debugfs_create_x64("size", 0400, dir, &ent->size);
 	}

@@ -105,7 +105,7 @@ static void *vb2_dma_sg_alloc(struct device *dev, unsigned long dma_attrs,
 	int ret;
 	int num_pages;
 
-	if (WARN_ON(!dev))
+	if (WARN_ON(!dev) || WARN_ON(!size))
 		return ERR_PTR(-EINVAL);
 
 	buf = kzalloc(sizeof *buf, GFP_KERNEL);

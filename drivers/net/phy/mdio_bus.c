@@ -510,7 +510,7 @@ static int mdiobus_create_device(struct mii_bus *bus,
  *   on a given bus, and attach them to the bus. Drivers should use
  *   mdiobus_register() rather than __mdiobus_register() unless they
  *   need to pass a specific owner module. MDIO devices which are not
- *   PHYs will not be brought up by this function. They are expected to
+ *   PHYs will not be brought up by this function. They are expected
  *   to be explicitly listed in DT and instantiated by of_mdiobus_register().
  *
  * Returns 0 on success or < 0 on error.
@@ -607,7 +607,8 @@ void mdiobus_unregister(struct mii_bus *bus)
 	struct mdio_device *mdiodev;
 	int i;
 
-	BUG_ON(bus->state != MDIOBUS_REGISTERED);
+	if (WARN_ON_ONCE(bus->state != MDIOBUS_REGISTERED))
+		return;
 	bus->state = MDIOBUS_UNREGISTERED;
 
 	for (i = 0; i < PHY_MAX_ADDR; i++) {

@@ -785,3 +785,4 @@ module_i2c_driver(max20730_driver);
 MODULE_AUTHOR("Guenter Roeck <linux@roeck-us.net>");
 MODULE_DESCRIPTION("PMBus driver for Maxim MAX20710 / MAX20730 / MAX20734 / MAX20743");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

@@ -78,6 +78,10 @@ struct mlxsw_sp_router {
 	struct mlxsw_sp_fib_entry_op_ctx *ll_op_ctx;
 	u16 lb_rif_index;
 	struct mlxsw_sp_router_xm *xm;
+	const struct mlxsw_sp_adj_grp_size_range *adj_grp_size_ranges;
+	size_t adj_grp_size_ranges_count;
+	struct delayed_work nh_grp_activity_dw;
+	struct list_head nh_res_grp_list;
 };
 
 struct mlxsw_sp_fib_entry_priv {
@@ -195,20 +199,20 @@ mlxsw_sp_ipip_demote_tunnel_by_saddr(struct mlxsw_sp *mlxsw_sp,
 				     const struct mlxsw_sp_ipip_entry *except);
 struct mlxsw_sp_nexthop *mlxsw_sp_nexthop_next(struct mlxsw_sp_router *router,
 					       struct mlxsw_sp_nexthop *nh);
-bool mlxsw_sp_nexthop_offload(struct mlxsw_sp_nexthop *nh);
+bool mlxsw_sp_nexthop_is_forward(const struct mlxsw_sp_nexthop *nh);
 unsigned char *mlxsw_sp_nexthop_ha(struct mlxsw_sp_nexthop *nh);
 int mlxsw_sp_nexthop_indexes(struct mlxsw_sp_nexthop *nh, u32 *p_adj_index,
 			     u32 *p_adj_size, u32 *p_adj_hash_index);
 struct mlxsw_sp_rif *mlxsw_sp_nexthop_rif(struct mlxsw_sp_nexthop *nh);
 bool mlxsw_sp_nexthop_group_has_ipip(struct mlxsw_sp_nexthop *nh);
-bool mlxsw_sp_nexthop_is_discard(const struct mlxsw_sp_nexthop *nh);
 #define mlxsw_sp_nexthop_for_each(nh, router)				\
 	for (nh = mlxsw_sp_nexthop_next(router, NULL); nh;		\
 	     nh = mlxsw_sp_nexthop_next(router, nh))
 int mlxsw_sp_nexthop_counter_get(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_nexthop *nh, u64 *p_counter);
-int mlxsw_sp_nexthop_update(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
-			    struct mlxsw_sp_nexthop *nh);
+int mlxsw_sp_nexthop_eth_update(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
+				struct mlxsw_sp_nexthop *nh, bool force,
+				char *ratr_pl);
 void mlxsw_sp_nexthop_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_nexthop *nh);
 void mlxsw_sp_nexthop_counter_free(struct mlxsw_sp *mlxsw_sp,

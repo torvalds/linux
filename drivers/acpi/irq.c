@@ -75,8 +75,12 @@ void acpi_unregister_gsi(u32 gsi)
 {
 	struct irq_domain *d = irq_find_matching_fwnode(acpi_gsi_domain_id,
 							DOMAIN_BUS_ANY);
-	int irq = irq_find_mapping(d, gsi);
+	int irq;
 
+	if (WARN_ON(acpi_irq_model == ACPI_IRQ_MODEL_GIC && gsi < 16))
+		return;
+
+	irq = irq_find_mapping(d, gsi);
 	irq_dispose_mapping(irq);
 }
 EXPORT_SYMBOL_GPL(acpi_unregister_gsi);

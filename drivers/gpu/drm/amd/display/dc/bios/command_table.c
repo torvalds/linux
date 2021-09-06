@@ -1531,6 +1531,27 @@ static enum bp_result adjust_display_pll_v2(
 	params.ucEncodeMode =
 			(uint8_t)bp->cmd_helper->encoder_mode_bp_to_atom(
 					bp_params->signal_type, false);
+
+	if (EXEC_BIOS_CMD_TABLE(AdjustDisplayPll, params)) {
+		/* Convert output pixel clock back 10KHz-->KHz: multiply
+		 * original pixel clock in KHz by ratio
+		 * [output pxlClk/input pxlClk] */
+		uint64_t pixel_clk_10_khz_out =
+				(uint64_t)le16_to_cpu(params.usPixelClock);
+		uint64_t pixel_clk = (uint64_t)bp_params->pixel_clock;
+
+		if (pixel_clock_10KHz_in != 0) {
+			bp_params->adjusted_pixel_clock =
+					div_u64(pixel_clk * pixel_clk_10_khz_out,
+							pixel_clock_10KHz_in);
+		} else {
+			bp_params->adjusted_pixel_clock = 0;
+			BREAK_TO_DEBUGGER();
+		}
+
+		result = BP_RESULT_OK;
+	}
+
 	return result;
 }
 

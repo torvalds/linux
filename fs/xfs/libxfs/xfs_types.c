@@ -13,7 +13,7 @@
 #include "xfs_mount.h"
 
 /* Find the size of the AG, in blocks. */
-xfs_agblock_t
+inline xfs_agblock_t
 xfs_ag_block_count(
 	struct xfs_mount	*mp,
 	xfs_agnumber_t		agno)
@@ -29,7 +29,7 @@ xfs_ag_block_count(
  * Verify that an AG block number pointer neither points outside the AG
  * nor points at static metadata.
  */
-bool
+inline bool
 xfs_verify_agbno(
 	struct xfs_mount	*mp,
 	xfs_agnumber_t		agno,
@@ -49,7 +49,7 @@ xfs_verify_agbno(
  * Verify that an FS block number pointer neither points outside the
  * filesystem nor points at static AG metadata.
  */
-bool
+inline bool
 xfs_verify_fsbno(
 	struct xfs_mount	*mp,
 	xfs_fsblock_t		fsbno)
@@ -85,7 +85,7 @@ xfs_verify_fsbext(
 }
 
 /* Calculate the first and last possible inode number in an AG. */
-void
+inline void
 xfs_agino_range(
 	struct xfs_mount	*mp,
 	xfs_agnumber_t		agno,
@@ -116,7 +116,7 @@ xfs_agino_range(
  * Verify that an AG inode number pointer neither points outside the AG
  * nor points at static metadata.
  */
-bool
+inline bool
 xfs_verify_agino(
 	struct xfs_mount	*mp,
 	xfs_agnumber_t		agno,
@@ -146,7 +146,7 @@ xfs_verify_agino_or_null(
  * Verify that an FS inode number pointer neither points outside the
  * filesystem nor points at static AG metadata.
  */
-bool
+inline bool
 xfs_verify_ino(
 	struct xfs_mount	*mp,
 	xfs_ino_t		ino)
@@ -162,7 +162,7 @@ xfs_verify_ino(
 }
 
 /* Is this an internal inode number? */
-bool
+inline bool
 xfs_internal_inum(
 	struct xfs_mount	*mp,
 	xfs_ino_t		ino)
@@ -190,7 +190,7 @@ xfs_verify_dir_ino(
  * Verify that an realtime block number pointer doesn't point off the
  * end of the realtime device.
  */
-bool
+inline bool
 xfs_verify_rtbno(
 	struct xfs_mount	*mp,
 	xfs_rtblock_t		rtbno)
@@ -215,7 +215,7 @@ xfs_verify_rtext(
 }
 
 /* Calculate the range of valid icount values. */
-void
+inline void
 xfs_icount_range(
 	struct xfs_mount	*mp,
 	unsigned long long	*min,

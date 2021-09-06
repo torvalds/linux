@@ -93,7 +93,7 @@ void __iomem *do_ioremap(phys_addr_t pa, phys_addr_t offset, unsigned long size,
 	if (!ret)
 		return (void __iomem *)area->addr + offset;
 
-	unmap_kernel_range(va, size);
+	vunmap_range(va, va + size);
 	free_vm_area(area);
 
 	return NULL;

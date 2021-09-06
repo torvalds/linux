@@ -692,7 +692,7 @@ static bool fm10k_mbx_tx_complete(struct fm10k_mbx_info *mbx)
 }
 
 /**
- *  fm10k_mbx_deqeueue_rx - Dequeues the message from the head in the Rx FIFO
+ *  fm10k_mbx_dequeue_rx - Dequeues the message from the head in the Rx FIFO
  *  @hw: pointer to hardware structure
  *  @mbx: pointer to mailbox
  *
@@ -1039,6 +1039,7 @@ static s32 fm10k_mbx_create_reply(struct fm10k_hw *hw,
 	case FM10K_STATE_CLOSED:
 		/* generate new header based on data */
 		fm10k_mbx_create_disconnect_hdr(mbx);
+		break;
 	default:
 		break;
 	}
@@ -2017,6 +2018,7 @@ static s32 fm10k_sm_mbx_process_reset(struct fm10k_hw *hw,
 	case FM10K_STATE_CONNECT:
 		/* Update remote value to match local value */
 		mbx->remote = mbx->local;
+		break;
 	default:
 		break;
 	}

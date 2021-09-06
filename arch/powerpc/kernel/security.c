@@ -7,6 +7,7 @@
 #include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/memblock.h>
 #include <linux/nospec.h>
 #include <linux/prctl.h>
 #include <linux/seq_buf.h>
@@ -18,6 +19,7 @@
 #include <asm/setup.h>
 #include <asm/inst.h>
 
+#include "setup.h"
 
 u64 powerpc_security_features __read_mostly = SEC_FTR_DEFAULT;
 
@@ -250,7 +252,7 @@ ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr, c
 
 static enum stf_barrier_type stf_enabled_flush_types;
 static bool no_stf_barrier;
-bool stf_barrier;
+static bool stf_barrier;
 
 static int __init handle_no_stf_barrier(char *p)
 {
@@ -541,6 +543,178 @@ void setup_count_cache_flush(void)
 	toggle_branch_cache_flush(enable);
 }
 
+static enum l1d_flush_type enabled_flush_types;
+static void *l1d_flush_fallback_area;
+static bool no_rfi_flush;
+static bool no_entry_flush;
+static bool no_uaccess_flush;
+bool rfi_flush;
+static bool entry_flush;
+static bool uaccess_flush;
+DEFINE_STATIC_KEY_FALSE(uaccess_flush_key);
+EXPORT_SYMBOL(uaccess_flush_key);
+
+static int __init handle_no_rfi_flush(char *p)
+{
+	pr_info("rfi-flush: disabled on command line.");
+	no_rfi_flush = true;
+	return 0;
+}
+early_param("no_rfi_flush", handle_no_rfi_flush);
+
+static int __init handle_no_entry_flush(char *p)
+{
+	pr_info("entry-flush: disabled on command line.");
+	no_entry_flush = true;
+	return 0;
+}
+early_param("no_entry_flush", handle_no_entry_flush);
+
+static int __init handle_no_uaccess_flush(char *p)
+{
+	pr_info("uaccess-flush: disabled on command line.");
+	no_uaccess_flush = true;
+	return 0;
+}
+early_param("no_uaccess_flush", handle_no_uaccess_flush);
+
+/*
+ * The RFI flush is not KPTI, but because users will see doco that says to use
+ * nopti we hijack that option here to also disable the RFI flush.
+ */
+static int __init handle_no_pti(char *p)
+{
+	pr_info("rfi-flush: disabling due to 'nopti' on command line.\n");
+	handle_no_rfi_flush(NULL);
+	return 0;
+}
+early_param("nopti", handle_no_pti);
+
+static void do_nothing(void *unused)
+{
+	/*
+	 * We don't need to do the flush explicitly, just enter+exit kernel is
+	 * sufficient, the RFI exit handlers will do the right thing.
+	 */
+}
+
+void rfi_flush_enable(bool enable)
+{
+	if (enable) {
+		do_rfi_flush_fixups(enabled_flush_types);
+		on_each_cpu(do_nothing, NULL, 1);
+	} else
+		do_rfi_flush_fixups(L1D_FLUSH_NONE);
+
+	rfi_flush = enable;
+}
+
+static void entry_flush_enable(bool enable)
+{
+	if (enable) {
+		do_entry_flush_fixups(enabled_flush_types);
+		on_each_cpu(do_nothing, NULL, 1);
+	} else {
+		do_entry_flush_fixups(L1D_FLUSH_NONE);
+	}
+
+	entry_flush = enable;
+}
+
+static void uaccess_flush_enable(bool enable)
+{
+	if (enable) {
+		do_uaccess_flush_fixups(enabled_flush_types);
+		static_branch_enable(&uaccess_flush_key);
+		on_each_cpu(do_nothing, NULL, 1);
+	} else {
+		static_branch_disable(&uaccess_flush_key);
+		do_uaccess_flush_fixups(L1D_FLUSH_NONE);
+	}
+
+	uaccess_flush = enable;
+}
+
+static void __ref init_fallback_flush(void)
+{
+	u64 l1d_size, limit;
+	int cpu;
+
+	/* Only allocate the fallback flush area once (at boot time). */
+	if (l1d_flush_fallback_area)
+		return;
+
+	l1d_size = ppc64_caches.l1d.size;
+
+	/*
+	 * If there is no d-cache-size property in the device tree, l1d_size
+	 * could be zero. That leads to the loop in the asm wrapping around to
+	 * 2^64-1, and then walking off the end of the fallback area and
+	 * eventually causing a page fault which is fatal. Just default to
+	 * something vaguely sane.
+	 */
+	if (!l1d_size)
+		l1d_size = (64 * 1024);
+
+	limit = min(ppc64_bolted_size(), ppc64_rma_size);
+
+	/*
+	 * Align to L1d size, and size it at 2x L1d size, to catch possible
+	 * hardware prefetch runoff. We don't have a recipe for load patterns to
+	 * reliably avoid the prefetcher.
+	 */
+	l1d_flush_fallback_area = memblock_alloc_try_nid(l1d_size * 2,
+						l1d_size, MEMBLOCK_LOW_LIMIT,
+						limit, NUMA_NO_NODE);
+	if (!l1d_flush_fallback_area)
+		panic("%s: Failed to allocate %llu bytes align=0x%llx max_addr=%pa\n",
+		      __func__, l1d_size * 2, l1d_size, &limit);
+
+
+	for_each_possible_cpu(cpu) {
+		struct paca_struct *paca = paca_ptrs[cpu];
+		paca->rfi_flush_fallback_area = l1d_flush_fallback_area;
+		paca->l1d_flush_size = l1d_size;
+	}
+}
+
+void setup_rfi_flush(enum l1d_flush_type types, bool enable)
+{
+	if (types & L1D_FLUSH_FALLBACK) {
+		pr_info("rfi-flush: fallback displacement flush available\n");
+		init_fallback_flush();
+	}
+
+	if (types & L1D_FLUSH_ORI)
+		pr_info("rfi-flush: ori type flush available\n");
+
+	if (types & L1D_FLUSH_MTTRIG)
+		pr_info("rfi-flush: mttrig type flush available\n");
+
+	enabled_flush_types = types;
+
+	if (!cpu_mitigations_off() && !no_rfi_flush)
+		rfi_flush_enable(enable);
+}
+
+void setup_entry_flush(bool enable)
+{
+	if (cpu_mitigations_off())
+		return;
+
+	if (!no_entry_flush)
+		entry_flush_enable(enable);
+}
+
+void setup_uaccess_flush(bool enable)
+{
+	if (cpu_mitigations_off())
+		return;
+
+	if (!no_uaccess_flush)
+		uaccess_flush_enable(enable);
+}
+
 #ifdef CONFIG_DEBUG_FS
 static int count_cache_flush_set(void *data, u64 val)
 {
@@ -579,5 +753,92 @@ static __init int count_cache_flush_debugfs_init(void)
 	return 0;
 }
 device_initcall(count_cache_flush_debugfs_init);
+
+static int rfi_flush_set(void *data, u64 val)
+{
+	bool enable;
+
+	if (val == 1)
+		enable = true;
+	else if (val == 0)
+		enable = false;
+	else
+		return -EINVAL;
+
+	/* Only do anything if we're changing state */
+	if (enable != rfi_flush)
+		rfi_flush_enable(enable);
+
+	return 0;
+}
+
+static int rfi_flush_get(void *data, u64 *val)
+{
+	*val = rfi_flush ? 1 : 0;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_rfi_flush, rfi_flush_get, rfi_flush_set, "%llu\n");
+
+static int entry_flush_set(void *data, u64 val)
+{
+	bool enable;
+
+	if (val == 1)
+		enable = true;
+	else if (val == 0)
+		enable = false;
+	else
+		return -EINVAL;
+
+	/* Only do anything if we're changing state */
+	if (enable != entry_flush)
+		entry_flush_enable(enable);
+
+	return 0;
+}
+
+static int entry_flush_get(void *data, u64 *val)
+{
+	*val = entry_flush ? 1 : 0;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_entry_flush, entry_flush_get, entry_flush_set, "%llu\n");
+
+static int uaccess_flush_set(void *data, u64 val)
+{
+	bool enable;
+
+	if (val == 1)
+		enable = true;
+	else if (val == 0)
+		enable = false;
+	else
+		return -EINVAL;
+
+	/* Only do anything if we're changing state */
+	if (enable != uaccess_flush)
+		uaccess_flush_enable(enable);
+
+	return 0;
+}
+
+static int uaccess_flush_get(void *data, u64 *val)
+{
+	*val = uaccess_flush ? 1 : 0;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_uaccess_flush, uaccess_flush_get, uaccess_flush_set, "%llu\n");
+
+static __init int rfi_flush_debugfs_init(void)
+{
+	debugfs_create_file("rfi_flush", 0600, powerpc_debugfs_root, NULL, &fops_rfi_flush);
+	debugfs_create_file("entry_flush", 0600, powerpc_debugfs_root, NULL, &fops_entry_flush);
+	debugfs_create_file("uaccess_flush", 0600, powerpc_debugfs_root, NULL, &fops_uaccess_flush);
+	return 0;
+}
+device_initcall(rfi_flush_debugfs_init);
 #endif /* CONFIG_DEBUG_FS */
 #endif /* CONFIG_PPC_BOOK3S_64 */

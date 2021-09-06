@@ -164,17 +164,11 @@ int do_set_thread_area(struct task_struct *p, int idx,
 		savesegment(fs, sel);
 		if (sel == modified_sel)
 			loadsegment(fs, sel);
+#endif
 
 		savesegment(gs, sel);
 		if (sel == modified_sel)
 			load_gs_index(sel);
-#endif
-
-#ifdef CONFIG_X86_32_LAZY_GS
-		savesegment(gs, sel);
-		if (sel == modified_sel)
-			loadsegment(gs, sel);
-#endif
 	} else {
 #ifdef CONFIG_X86_64
 		if (p->thread.fsindex == modified_sel)

@@ -2,7 +2,7 @@
 /*
  * SCMI Message Protocol driver header
  *
- * Copyright (C) 2018 ARM Ltd.
+ * Copyright (C) 2018-2021 ARM Ltd.
  */
 
 #ifndef _LINUX_SCMI_PROTOCOL_H
@@ -57,9 +57,11 @@ struct scmi_clock_info {
 };
 
 struct scmi_handle;
+struct scmi_device;
+struct scmi_protocol_handle;
 
 /**
- * struct scmi_clk_ops - represents the various operations provided
+ * struct scmi_clk_proto_ops - represents the various operations provided
  *	by SCMI Clock Protocol
  *
  * @count_get: get the count of clocks provided by SCMI
@@ -69,21 +71,21 @@ struct scmi_handle;
  * @enable: enables the specified clock
  * @disable: disables the specified clock
  */
-struct scmi_clk_ops {
-	int (*count_get)(const struct scmi_handle *handle);
+struct scmi_clk_proto_ops {
+	int (*count_get)(const struct scmi_protocol_handle *ph);
 
 	const struct scmi_clock_info *(*info_get)
-		(const struct scmi_handle *handle, u32 clk_id);
-	int (*rate_get)(const struct scmi_handle *handle, u32 clk_id,
+		(const struct scmi_protocol_handle *ph, u32 clk_id);
+	int (*rate_get)(const struct scmi_protocol_handle *ph, u32 clk_id,
 			u64 *rate);
-	int (*rate_set)(const struct scmi_handle *handle, u32 clk_id,
+	int (*rate_set)(const struct scmi_protocol_handle *ph, u32 clk_id,
 			u64 rate);
-	int (*enable)(const struct scmi_handle *handle, u32 clk_id);
-	int (*disable)(const struct scmi_handle *handle, u32 clk_id);
+	int (*enable)(const struct scmi_protocol_handle *ph, u32 clk_id);
+	int (*disable)(const struct scmi_protocol_handle *ph, u32 clk_id);
 };
 
 /**
- * struct scmi_perf_ops - represents the various operations provided
+ * struct scmi_perf_proto_ops - represents the various operations provided
  *	by SCMI Performance Protocol
  *
  * @limits_set: sets limits on the performance level of a domain
@@ -100,33 +102,33 @@ struct scmi_clk_ops {
  * @est_power_get: gets the estimated power cost for a given performance domain
  *	at a given frequency
  */
-struct scmi_perf_ops {
-	int (*limits_set)(const struct scmi_handle *handle, u32 domain,
+struct scmi_perf_proto_ops {
+	int (*limits_set)(const struct scmi_protocol_handle *ph, u32 domain,
 			  u32 max_perf, u32 min_perf);
-	int (*limits_get)(const struct scmi_handle *handle, u32 domain,
+	int (*limits_get)(const struct scmi_protocol_handle *ph, u32 domain,
 			  u32 *max_perf, u32 *min_perf);
-	int (*level_set)(const struct scmi_handle *handle, u32 domain,
+	int (*level_set)(const struct scmi_protocol_handle *ph, u32 domain,
 			 u32 level, bool poll);
-	int (*level_get)(const struct scmi_handle *handle, u32 domain,
+	int (*level_get)(const struct scmi_protocol_handle *ph, u32 domain,
 			 u32 *level, bool poll);
 	int (*device_domain_id)(struct device *dev);
-	int (*transition_latency_get)(const struct scmi_handle *handle,
+	int (*transition_latency_get)(const struct scmi_protocol_handle *ph,
 				      struct device *dev);
-	int (*device_opps_add)(const struct scmi_handle *handle,
+	int (*device_opps_add)(const struct scmi_protocol_handle *ph,
 			       struct device *dev);
-	int (*freq_set)(const struct scmi_handle *handle, u32 domain,
+	int (*freq_set)(const struct scmi_protocol_handle *ph, u32 domain,
 			unsigned long rate, bool poll);
-	int (*freq_get)(const struct scmi_handle *handle, u32 domain,
+	int (*freq_get)(const struct scmi_protocol_handle *ph, u32 domain,
 			unsigned long *rate, bool poll);
-	int (*est_power_get)(const struct scmi_handle *handle, u32 domain,
+	int (*est_power_get)(const struct scmi_protocol_handle *ph, u32 domain,
 			     unsigned long *rate, unsigned long *power);
-	bool (*fast_switch_possible)(const struct scmi_handle *handle,
+	bool (*fast_switch_possible)(const struct scmi_protocol_handle *ph,
 				     struct device *dev);
-	bool (*power_scale_mw_get)(const struct scmi_handle *handle);
+	bool (*power_scale_mw_get)(const struct scmi_protocol_handle *ph);
 };
 
 /**
- * struct scmi_power_ops - represents the various operations provided
+ * struct scmi_power_proto_ops - represents the various operations provided
  *	by SCMI Power Protocol
  *
  * @num_domains_get: get the count of power domains provided by SCMI
@@ -134,9 +136,9 @@ struct scmi_perf_ops {
  * @state_set: sets the power state of a power domain
  * @state_get: gets the power state of a power domain
  */
-struct scmi_power_ops {
-	int (*num_domains_get)(const struct scmi_handle *handle);
-	char *(*name_get)(const struct scmi_handle *handle, u32 domain);
+struct scmi_power_proto_ops {
+	int (*num_domains_get)(const struct scmi_protocol_handle *ph);
+	char *(*name_get)(const struct scmi_protocol_handle *ph, u32 domain);
 #define SCMI_POWER_STATE_TYPE_SHIFT	30
 #define SCMI_POWER_STATE_ID_MASK	(BIT(28) - 1)
 #define SCMI_POWER_STATE_PARAM(type, id) \
@@ -144,9 +146,9 @@ struct scmi_power_ops {
 		((id) & SCMI_POWER_STATE_ID_MASK))
 #define SCMI_POWER_STATE_GENERIC_ON	SCMI_POWER_STATE_PARAM(0, 0)
 #define SCMI_POWER_STATE_GENERIC_OFF	SCMI_POWER_STATE_PARAM(1, 0)
-	int (*state_set)(const struct scmi_handle *handle, u32 domain,
+	int (*state_set)(const struct scmi_protocol_handle *ph, u32 domain,
 			 u32 state);
-	int (*state_get)(const struct scmi_handle *handle, u32 domain,
+	int (*state_get)(const struct scmi_protocol_handle *ph, u32 domain,
 			 u32 *state);
 };
 
@@ -429,7 +431,7 @@ enum scmi_sensor_class {
 };
 
 /**
- * struct scmi_sensor_ops - represents the various operations provided
+ * struct scmi_sensor_proto_ops - represents the various operations provided
  *	by SCMI Sensor Protocol
  *
  * @count_get: get the count of sensors provided by SCMI
@@ -444,25 +446,25 @@ enum scmi_sensor_class {
  * @config_get: Get sensor current configuration
  * @config_set: Set sensor current configuration
  */
-struct scmi_sensor_ops {
-	int (*count_get)(const struct scmi_handle *handle);
+struct scmi_sensor_proto_ops {
+	int (*count_get)(const struct scmi_protocol_handle *ph);
 	const struct scmi_sensor_info *(*info_get)
-		(const struct scmi_handle *handle, u32 sensor_id);
-	int (*trip_point_config)(const struct scmi_handle *handle,
+		(const struct scmi_protocol_handle *ph, u32 sensor_id);
+	int (*trip_point_config)(const struct scmi_protocol_handle *ph,
 				 u32 sensor_id, u8 trip_id, u64 trip_value);
-	int (*reading_get)(const struct scmi_handle *handle, u32 sensor_id,
+	int (*reading_get)(const struct scmi_protocol_handle *ph, u32 sensor_id,
 			   u64 *value);
-	int (*reading_get_timestamped)(const struct scmi_handle *handle,
+	int (*reading_get_timestamped)(const struct scmi_protocol_handle *ph,
 				       u32 sensor_id, u8 count,
 				       struct scmi_sensor_reading *readings);
-	int (*config_get)(const struct scmi_handle *handle,
+	int (*config_get)(const struct scmi_protocol_handle *ph,
 			  u32 sensor_id, u32 *sensor_config);
-	int (*config_set)(const struct scmi_handle *handle,
+	int (*config_set)(const struct scmi_protocol_handle *ph,
 			  u32 sensor_id, u32 sensor_config);
 };
 
 /**
- * struct scmi_reset_ops - represents the various operations provided
+ * struct scmi_reset_proto_ops - represents the various operations provided
  *	by SCMI Reset Protocol
  *
  * @num_domains_get: get the count of reset domains provided by SCMI
@@ -472,13 +474,13 @@ struct scmi_sensor_ops {
  * @assert: explicitly assert reset signal of the specified reset domain
  * @deassert: explicitly deassert reset signal of the specified reset domain
  */
-struct scmi_reset_ops {
-	int (*num_domains_get)(const struct scmi_handle *handle);
-	char *(*name_get)(const struct scmi_handle *handle, u32 domain);
-	int (*latency_get)(const struct scmi_handle *handle, u32 domain);
-	int (*reset)(const struct scmi_handle *handle, u32 domain);
-	int (*assert)(const struct scmi_handle *handle, u32 domain);
-	int (*deassert)(const struct scmi_handle *handle, u32 domain);
+struct scmi_reset_proto_ops {
+	int (*num_domains_get)(const struct scmi_protocol_handle *ph);
+	char *(*name_get)(const struct scmi_protocol_handle *ph, u32 domain);
+	int (*latency_get)(const struct scmi_protocol_handle *ph, u32 domain);
+	int (*reset)(const struct scmi_protocol_handle *ph, u32 domain);
+	int (*assert)(const struct scmi_protocol_handle *ph, u32 domain);
+	int (*deassert)(const struct scmi_protocol_handle *ph, u32 domain);
 };
 
 /**
@@ -513,7 +515,7 @@ struct scmi_voltage_info {
 };
 
 /**
- * struct scmi_voltage_ops - represents the various operations provided
+ * struct scmi_voltage_proto_ops - represents the various operations provided
  * by SCMI Voltage Protocol
  *
  * @num_domains_get: get the count of voltage domains provided by SCMI
@@ -523,27 +525,31 @@ struct scmi_voltage_info {
  * @level_set: set the voltage level for the specified domain
  * @level_get: get the voltage level of the specified domain
  */
-struct scmi_voltage_ops {
-	int (*num_domains_get)(const struct scmi_handle *handle);
+struct scmi_voltage_proto_ops {
+	int (*num_domains_get)(const struct scmi_protocol_handle *ph);
 	const struct scmi_voltage_info __must_check *(*info_get)
-		(const struct scmi_handle *handle, u32 domain_id);
-	int (*config_set)(const struct scmi_handle *handle, u32 domain_id,
+		(const struct scmi_protocol_handle *ph, u32 domain_id);
+	int (*config_set)(const struct scmi_protocol_handle *ph, u32 domain_id,
 			  u32 config);
 #define	SCMI_VOLTAGE_ARCH_STATE_OFF		0x0
 #define	SCMI_VOLTAGE_ARCH_STATE_ON		0x7
-	int (*config_get)(const struct scmi_handle *handle, u32 domain_id,
+	int (*config_get)(const struct scmi_protocol_handle *ph, u32 domain_id,
 			  u32 *config);
-	int (*level_set)(const struct scmi_handle *handle, u32 domain_id,
+	int (*level_set)(const struct scmi_protocol_handle *ph, u32 domain_id,
 			 u32 flags, s32 volt_uV);
-	int (*level_get)(const struct scmi_handle *handle, u32 domain_id,
+	int (*level_get)(const struct scmi_protocol_handle *ph, u32 domain_id,
 			 s32 *volt_uV);
 };
 
 /**
  * struct scmi_notify_ops  - represents notifications' operations provided by
  * SCMI core
- * @register_event_notifier: Register a notifier_block for the requested event
- * @unregister_event_notifier: Unregister a notifier_block for the requested
+ * @devm_event_notifier_register: Managed registration of a notifier_block for
+ *				  the requested event
+ * @devm_event_notifier_unregister: Managed unregistration of a notifier_block
+ *				    for the requested event
+ * @event_notifier_register: Register a notifier_block for the requested event
+ * @event_notifier_unregister: Unregister a notifier_block for the requested
  *			       event
  *
  * A user can register/unregister its own notifier_block against the wanted
@@ -551,7 +557,9 @@ struct scmi_voltage_ops {
  * tuple: (proto_id, evt_id, src_id) using the provided register/unregister
  * interface where:
  *
- * @handle: The handle identifying the platform instance to use
+ * @sdev: The scmi_device to use when calling the devres managed ops devm_
+ * @handle: The handle identifying the platform instance to use, when not
+ *	    calling the managed ops devm_
  * @proto_id: The protocol ID as in SCMI Specification
  * @evt_id: The message ID of the desired event as in SCMI Specification
  * @src_id: A pointer to the desired source ID if different sources are
@@ -574,11 +582,21 @@ struct scmi_voltage_ops {
  * @report: A custom struct describing the specific event delivered
  */
 struct scmi_notify_ops {
-	int (*register_event_notifier)(const struct scmi_handle *handle,
-				       u8 proto_id, u8 evt_id, u32 *src_id,
+	int (*devm_event_notifier_register)(struct scmi_device *sdev,
+					    u8 proto_id, u8 evt_id,
+					    const u32 *src_id,
+					    struct notifier_block *nb);
+	int (*devm_event_notifier_unregister)(struct scmi_device *sdev,
+					      u8 proto_id, u8 evt_id,
+					      const u32 *src_id,
+					      struct notifier_block *nb);
+	int (*event_notifier_register)(const struct scmi_handle *handle,
+				       u8 proto_id, u8 evt_id,
+				       const u32 *src_id,
 				       struct notifier_block *nb);
-	int (*unregister_event_notifier)(const struct scmi_handle *handle,
-					 u8 proto_id, u8 evt_id, u32 *src_id,
+	int (*event_notifier_unregister)(const struct scmi_handle *handle,
+					 u8 proto_id, u8 evt_id,
+					 const u32 *src_id,
 					 struct notifier_block *nb);
 };
 
@@ -587,47 +605,21 @@ struct scmi_notify_ops {
  *
  * @dev: pointer to the SCMI device
  * @version: pointer to the structure containing SCMI version information
- * @power_ops: pointer to set of power protocol operations
- * @perf_ops: pointer to set of performance protocol operations
- * @clk_ops: pointer to set of clock protocol operations
- * @sensor_ops: pointer to set of sensor protocol operations
- * @reset_ops: pointer to set of reset protocol operations
- * @voltage_ops: pointer to set of voltage protocol operations
+ * @devm_protocol_get: devres managed method to acquire a protocol and get specific
+ *		       operations and a dedicated protocol handler
+ * @devm_protocol_put: devres managed method to release a protocol
  * @notify_ops: pointer to set of notifications related operations
- * @perf_priv: pointer to private data structure specific to performance
- *	protocol(for internal use only)
- * @clk_priv: pointer to private data structure specific to clock
- *	protocol(for internal use only)
- * @power_priv: pointer to private data structure specific to power
- *	protocol(for internal use only)
- * @sensor_priv: pointer to private data structure specific to sensors
- *	protocol(for internal use only)
- * @reset_priv: pointer to private data structure specific to reset
- *	protocol(for internal use only)
- * @voltage_priv: pointer to private data structure specific to voltage
- *	protocol(for internal use only)
- * @notify_priv: pointer to private data structure specific to notifications
- *	(for internal use only)
  */
 struct scmi_handle {
 	struct device *dev;
 	struct scmi_revision_info *version;
-	const struct scmi_perf_ops *perf_ops;
-	const struct scmi_clk_ops *clk_ops;
-	const struct scmi_power_ops *power_ops;
-	const struct scmi_sensor_ops *sensor_ops;
-	const struct scmi_reset_ops *reset_ops;
-	const struct scmi_voltage_ops *voltage_ops;
+
+	const void __must_check *
+		(*devm_protocol_get)(struct scmi_device *sdev, u8 proto,
+				     struct scmi_protocol_handle **ph);
+	void (*devm_protocol_put)(struct scmi_device *sdev, u8 proto);
+
 	const struct scmi_notify_ops *notify_ops;
-	/* for protocol internal use */
-	void *perf_priv;
-	void *clk_priv;
-	void *power_priv;
-	void *sensor_priv;
-	void *reset_priv;
-	void *voltage_priv;
-	void *notify_priv;
-	void *system_priv;
 };
 
 enum scmi_std_protocol {
@@ -712,9 +704,21 @@ static inline void scmi_driver_unregister(struct scmi_driver *driver) {}
 #define module_scmi_driver(__scmi_driver)	\
 	module_driver(__scmi_driver, scmi_register, scmi_unregister)
 
-typedef int (*scmi_prot_init_fn_t)(struct scmi_handle *);
-int scmi_protocol_register(int protocol_id, scmi_prot_init_fn_t fn);
-void scmi_protocol_unregister(int protocol_id);
+/**
+ * module_scmi_protocol() - Helper macro for registering a scmi protocol
+ * @__scmi_protocol: scmi_protocol structure
+ *
+ * Helper macro for scmi drivers to set up proper module init / exit
+ * functions.  Replaces module_init() and module_exit() and keeps people from
+ * printing pointless things to the kernel log when their driver is loaded.
+ */
+#define module_scmi_protocol(__scmi_protocol)	\
+	module_driver(__scmi_protocol,		\
+		      scmi_protocol_register, scmi_protocol_unregister)
+
+struct scmi_protocol;
+int scmi_protocol_register(const struct scmi_protocol *proto);
+void scmi_protocol_unregister(const struct scmi_protocol *proto);
 
 /* SCMI Notification API - Custom Event Reports */
 enum scmi_notification_events {

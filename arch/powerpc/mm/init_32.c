@@ -97,6 +97,9 @@ static void __init MMU_setup(void)
 	if (IS_ENABLED(CONFIG_PPC_8xx))
 		return;
 
+	if (IS_ENABLED(CONFIG_KFENCE))
+		__map_without_ltlbs = 1;
+
 	if (debug_pagealloc_enabled())
 		__map_without_ltlbs = 1;
 

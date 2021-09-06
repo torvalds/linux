@@ -1470,20 +1470,7 @@ void drm_crtc_vblank_on(struct drm_crtc *crtc)
 }
 EXPORT_SYMBOL(drm_crtc_vblank_on);
 
-/**
- * drm_vblank_restore - estimate missed vblanks and update vblank count.
- * @dev: DRM device
- * @pipe: CRTC index
- *
- * Power manamement features can cause frame counter resets between vblank
- * disable and enable. Drivers can use this function in their
- * &drm_crtc_funcs.enable_vblank implementation to estimate missed vblanks since
- * the last &drm_crtc_funcs.disable_vblank using timestamps and update the
- * vblank counter.
- *
- * This function is the legacy version of drm_crtc_vblank_restore().
- */
-void drm_vblank_restore(struct drm_device *dev, unsigned int pipe)
+static void drm_vblank_restore(struct drm_device *dev, unsigned int pipe)
 {
 	ktime_t t_vblank;
 	struct drm_vblank_crtc *vblank;
@@ -1491,6 +1478,7 @@ void drm_vblank_restore(struct drm_device *dev, unsigned int pipe)
 	u64 diff_ns;
 	u32 cur_vblank, diff = 1;
 	int count = DRM_TIMESTAMP_MAXRETRIES;
+	u32 max_vblank_count = drm_max_vblank_count(dev, pipe);
 
 	if (drm_WARN_ON(dev, pipe >= dev->num_crtcs))
 		return;
@@ -1517,9 +1505,8 @@ void drm_vblank_restore(struct drm_device *dev, unsigned int pipe)
 	drm_dbg_vbl(dev,
 		    "missed %d vblanks in %lld ns, frame duration=%d ns, hw_diff=%d\n",
 		    diff, diff_ns, framedur_ns, cur_vblank - vblank->last);
-	store_vblank(dev, pipe, diff, t_vblank, cur_vblank);
+	vblank->last = (cur_vblank - diff) & max_vblank_count;
 }
-EXPORT_SYMBOL(drm_vblank_restore);
 
 /**
  * drm_crtc_vblank_restore - estimate missed vblanks and update vblank count.
@@ -1530,9 +1517,18 @@ EXPORT_SYMBOL(drm_vblank_restore);
  * &drm_crtc_funcs.enable_vblank implementation to estimate missed vblanks since
  * the last &drm_crtc_funcs.disable_vblank using timestamps and update the
  * vblank counter.
+ *
+ * Note that drivers must have race-free high-precision timestamping support,
+ * i.e.  &drm_crtc_funcs.get_vblank_timestamp must be hooked up and
+ * &drm_driver.vblank_disable_immediate must be set to indicate the
+ * time-stamping functions are race-free against vblank hardware counter
+ * increments.
  */
 void drm_crtc_vblank_restore(struct drm_crtc *crtc)
 {
+	WARN_ON_ONCE(!crtc->funcs->get_vblank_timestamp);
+	WARN_ON_ONCE(!crtc->dev->vblank_disable_immediate);
+
 	drm_vblank_restore(crtc->dev, drm_crtc_index(crtc));
 }
 EXPORT_SYMBOL(drm_crtc_vblank_restore);

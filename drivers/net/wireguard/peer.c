@@ -15,6 +15,7 @@
 #include <linux/rcupdate.h>
 #include <linux/list.h>
 
+static struct kmem_cache *peer_cache;
 static atomic64_t peer_counter = ATOMIC64_INIT(0);
 
 struct wg_peer *wg_peer_create(struct wg_device *wg,
@@ -29,10 +30,10 @@ struct wg_peer *wg_peer_create(struct wg_device *wg,
 	if (wg->num_peers >= MAX_PEERS_PER_DEVICE)
 		return ERR_PTR(ret);
 
-	peer = kzalloc(sizeof(*peer), GFP_KERNEL);
+	peer = kmem_cache_zalloc(peer_cache, GFP_KERNEL);
 	if (unlikely(!peer))
 		return ERR_PTR(ret);
-	if (dst_cache_init(&peer->endpoint_cache, GFP_KERNEL))
+	if (unlikely(dst_cache_init(&peer->endpoint_cache, GFP_KERNEL)))
 		goto err;
 
 	peer->device = wg;
@@ -64,7 +65,7 @@ struct wg_peer *wg_peer_create(struct wg_device *wg,
 	return peer;
 
 err:
-	kfree(peer);
+	kmem_cache_free(peer_cache, peer);
 	return ERR_PTR(ret);
 }
 
@@ -88,7 +89,7 @@ static void peer_make_dead(struct wg_peer *peer)
 	/* Mark as dead, so that we don't allow jumping contexts after. */
 	WRITE_ONCE(peer->is_dead, true);
 
-	/* The caller must now synchronize_rcu() for this to take effect. */
+	/* The caller must now synchronize_net() for this to take effect. */
 }
 
 static void peer_remove_after_dead(struct wg_peer *peer)
@@ -160,7 +161,7 @@ void wg_peer_remove(struct wg_peer *peer)
 	lockdep_assert_held(&peer->device->device_update_lock);
 
 	peer_make_dead(peer);
-	synchronize_rcu();
+	synchronize_net();
 	peer_remove_after_dead(peer);
 }
 
@@ -178,7 +179,7 @@ void wg_peer_remove_all(struct wg_device *wg)
 		peer_make_dead(peer);
 		list_add_tail(&peer->peer_list, &dead_peers);
 	}
-	synchronize_rcu();
+	synchronize_net();
 	list_for_each_entry_safe(peer, temp, &dead_peers, peer_list)
 		peer_remove_after_dead(peer);
 }
@@ -193,7 +194,8 @@ static void rcu_release(struct rcu_head *rcu)
 	/* The final zeroing takes care of clearing any remaining handshake key
 	 * material and other potentially sensitive information.
 	 */
-	kfree_sensitive(peer);
+	memzero_explicit(peer, sizeof(*peer));
+	kmem_cache_free(peer_cache, peer);
 }
 
 static void kref_release(struct kref *refcount)
@@ -224,4 +226,15 @@ void wg_peer_put(struct wg_peer *peer)
 	if (unlikely(!peer))
 		return;
 	kref_put(&peer->refcount, kref_release);
+}
+
+int __init wg_peer_init(void)
+{
+	peer_cache = KMEM_CACHE(wg_peer, 0);
+	return peer_cache ? 0 : -ENOMEM;
+}
+
+void wg_peer_uninit(void)
+{
+	kmem_cache_destroy(peer_cache);
 }

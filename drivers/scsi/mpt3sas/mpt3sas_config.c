@@ -1781,7 +1781,7 @@ mpt3sas_config_get_driver_trigger_pg0(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
- * mpt3sas_config_set_driver_trigger_pg0 - write driver trigger page 0
+ * _config_set_driver_trigger_pg0 - write driver trigger page 0
  * @ioc: per adapter object
  * @mpi_reply: reply mf payload returned from firmware
  * @config_page: contents of the config page
@@ -1915,7 +1915,7 @@ mpt3sas_config_get_driver_trigger_pg1(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
- * mpt3sas_config_set_driver_trigger_pg1 - write driver trigger page 1
+ * _config_set_driver_trigger_pg1 - write driver trigger page 1
  * @ioc: per adapter object
  * @mpi_reply: reply mf payload returned from firmware
  * @config_page: contents of the config page
@@ -2066,7 +2066,7 @@ mpt3sas_config_get_driver_trigger_pg2(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
- * mpt3sas_config_set_driver_trigger_pg2 - write driver trigger page 2
+ * _config_set_driver_trigger_pg2 - write driver trigger page 2
  * @ioc: per adapter object
  * @mpi_reply: reply mf payload returned from firmware
  * @config_page: contents of the config page
@@ -2226,7 +2226,7 @@ mpt3sas_config_get_driver_trigger_pg3(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
- * mpt3sas_config_set_driver_trigger_pg3 - write driver trigger page 3
+ * _config_set_driver_trigger_pg3 - write driver trigger page 3
  * @ioc: per adapter object
  * @mpi_reply: reply mf payload returned from firmware
  * @config_page: contents of the config page
@@ -2383,7 +2383,7 @@ mpt3sas_config_get_driver_trigger_pg4(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
- * mpt3sas_config_set_driver_trigger_pg4 - write driver trigger page 4
+ * _config_set_driver_trigger_pg4 - write driver trigger page 4
  * @ioc: per adapter object
  * @mpi_reply: reply mf payload returned from firmware
  * @config_page: contents of the config page

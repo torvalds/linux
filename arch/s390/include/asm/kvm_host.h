@@ -454,6 +454,7 @@ struct kvm_vcpu_stat {
 	u64 diagnose_44;
 	u64 diagnose_9c;
 	u64 diagnose_9c_ignored;
+	u64 diagnose_9c_forward;
 	u64 diagnose_258;
 	u64 diagnose_308;
 	u64 diagnose_500;
@@ -699,6 +700,10 @@ struct kvm_hw_bp_info_arch {
 		(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
 #define guestdbg_exit_pending(vcpu) (guestdbg_enabled(vcpu) && \
 		(vcpu->guest_debug & KVM_GUESTDBG_EXIT_PENDING))
+
+#define KVM_GUESTDBG_VALID_MASK \
+		(KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP |\
+		KVM_GUESTDBG_USE_HW_BP | KVM_GUESTDBG_EXIT_PENDING)
 
 struct kvm_guestdbg_info_arch {
 	unsigned long cr0;

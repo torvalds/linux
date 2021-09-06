@@ -2,9 +2,10 @@
 /*
  * System Control and Management Interface (SCMI) Voltage Protocol
  *
- * Copyright (C) 2020 ARM Ltd.
+ * Copyright (C) 2020-2021 ARM Ltd.
  */
 
+#include <linux/module.h>
 #include <linux/scmi_protocol.h>
 
 #include "common.h"
@@ -59,23 +60,23 @@ struct voltage_info {
 	struct scmi_voltage_info *domains;
 };
 
-static int scmi_protocol_attributes_get(const struct scmi_handle *handle,
+static int scmi_protocol_attributes_get(const struct scmi_protocol_handle *ph,
 					struct voltage_info *vinfo)
 {
 	int ret;
 	struct scmi_xfer *t;
 
-	ret = scmi_xfer_get_init(handle, PROTOCOL_ATTRIBUTES,
-				 SCMI_PROTOCOL_VOLTAGE, 0, sizeof(__le32), &t);
+	ret = ph->xops->xfer_get_init(ph, PROTOCOL_ATTRIBUTES, 0,
+				      sizeof(__le32), &t);
 	if (ret)
 		return ret;
 
-	ret = scmi_do_xfer(handle, t);
+	ret = ph->xops->do_xfer(ph, t);
 	if (!ret)
 		vinfo->num_domains =
 			NUM_VOLTAGE_DOMAINS(get_unaligned_le32(t->rx.buf));
 
-	scmi_xfer_put(handle, t);
+	ph->xops->xfer_put(ph, t);
 	return ret;
 }
 
@@ -109,24 +110,23 @@ static int scmi_init_voltage_levels(struct device *dev,
 	return 0;
 }
 
-static int scmi_voltage_descriptors_get(const struct scmi_handle *handle,
+static int scmi_voltage_descriptors_get(const struct scmi_protocol_handle *ph,
 					struct voltage_info *vinfo)
 {
 	int ret, dom;
 	struct scmi_xfer *td, *tl;
-	struct device *dev = handle->dev;
+	struct device *dev = ph->dev;
 	struct scmi_msg_resp_domain_attributes *resp_dom;
 	struct scmi_msg_resp_describe_levels *resp_levels;
 
-	ret = scmi_xfer_get_init(handle, VOLTAGE_DOMAIN_ATTRIBUTES,
-				 SCMI_PROTOCOL_VOLTAGE, sizeof(__le32),
-				 sizeof(*resp_dom), &td);
+	ret = ph->xops->xfer_get_init(ph, VOLTAGE_DOMAIN_ATTRIBUTES,
+				      sizeof(__le32), sizeof(*resp_dom), &td);
 	if (ret)
 		return ret;
 	resp_dom = td->rx.buf;
 
-	ret = scmi_xfer_get_init(handle, VOLTAGE_DESCRIBE_LEVELS,
-				 SCMI_PROTOCOL_VOLTAGE, sizeof(__le64), 0, &tl);
+	ret = ph->xops->xfer_get_init(ph, VOLTAGE_DESCRIBE_LEVELS,
+				      sizeof(__le64), 0, &tl);
 	if (ret)
 		goto outd;
 	resp_levels = tl->rx.buf;
@@ -139,7 +139,7 @@ static int scmi_voltage_descriptors_get(const struct scmi_handle *handle,
 
 		/* Retrieve domain attributes at first ... */
 		put_unaligned_le32(dom, td->tx.buf);
-		ret = scmi_do_xfer(handle, td);
+		ret = ph->xops->do_xfer(ph, td);
 		/* Skip domain on comms error */
 		if (ret)
 			continue;
@@ -157,7 +157,7 @@ static int scmi_voltage_descriptors_get(const struct scmi_handle *handle,
 
 			cmd->domain_id = cpu_to_le32(v->id);
 			cmd->level_index = desc_index;
-			ret = scmi_do_xfer(handle, tl);
+			ret = ph->xops->do_xfer(ph, tl);
 			if (ret)
 				break;
 
@@ -176,7 +176,7 @@ static int scmi_voltage_descriptors_get(const struct scmi_handle *handle,
 			}
 
 			if (desc_index + num_returned > v->num_levels) {
-				dev_err(handle->dev,
+				dev_err(ph->dev,
 					"No. of voltage levels can't exceed %d\n",
 					v->num_levels);
 				ret = -EINVAL;
@@ -195,7 +195,7 @@ static int scmi_voltage_descriptors_get(const struct scmi_handle *handle,
 
 			desc_index += num_returned;
 
-			scmi_reset_rx_to_maxsz(handle, tl);
+			ph->xops->reset_rx_to_maxsz(ph, tl);
 			/* check both to avoid infinite loop due to buggy fw */
 		} while (num_returned && num_remaining);
 
@@ -204,55 +204,52 @@ static int scmi_voltage_descriptors_get(const struct scmi_handle *handle,
 			devm_kfree(dev, v->levels_uv);
 		}
 
-		scmi_reset_rx_to_maxsz(handle, td);
+		ph->xops->reset_rx_to_maxsz(ph, td);
 	}
 
-	scmi_xfer_put(handle, tl);
+	ph->xops->xfer_put(ph, tl);
 outd:
-	scmi_xfer_put(handle, td);
+	ph->xops->xfer_put(ph, td);
 
 	return ret;
 }
 
-static int __scmi_voltage_get_u32(const struct scmi_handle *handle,
+static int __scmi_voltage_get_u32(const struct scmi_protocol_handle *ph,
 				  u8 cmd_id, u32 domain_id, u32 *value)
 {
 	int ret;
 	struct scmi_xfer *t;
-	struct voltage_info *vinfo = handle->voltage_priv;
+	struct voltage_info *vinfo = ph->get_priv(ph);
 
 	if (domain_id >= vinfo->num_domains)
 		return -EINVAL;
 
-	ret = scmi_xfer_get_init(handle, cmd_id,
-				 SCMI_PROTOCOL_VOLTAGE,
-				 sizeof(__le32), 0, &t);
+	ret = ph->xops->xfer_get_init(ph, cmd_id, sizeof(__le32), 0, &t);
 	if (ret)
 		return ret;
 
 	put_unaligned_le32(domain_id, t->tx.buf);
-	ret = scmi_do_xfer(handle, t);
+	ret = ph->xops->do_xfer(ph, t);
 	if (!ret)
 		*value = get_unaligned_le32(t->rx.buf);
 
-	scmi_xfer_put(handle, t);
+	ph->xops->xfer_put(ph, t);
 	return ret;
 }
 
-static int scmi_voltage_config_set(const struct scmi_handle *handle,
+static int scmi_voltage_config_set(const struct scmi_protocol_handle *ph,
 				   u32 domain_id, u32 config)
 {
 	int ret;
 	struct scmi_xfer *t;
-	struct voltage_info *vinfo = handle->voltage_priv;
+	struct voltage_info *vinfo = ph->get_priv(ph);
 	struct scmi_msg_cmd_config_set *cmd;
 
 	if (domain_id >= vinfo->num_domains)
 		return -EINVAL;
 
-	ret = scmi_xfer_get_init(handle, VOLTAGE_CONFIG_SET,
-				 SCMI_PROTOCOL_VOLTAGE,
-				 sizeof(*cmd), 0, &t);
+	ret = ph->xops->xfer_get_init(ph, VOLTAGE_CONFIG_SET,
+				     sizeof(*cmd), 0, &t);
 	if (ret)
 		return ret;
 
@@ -260,33 +257,32 @@ static int scmi_voltage_config_set(const struct scmi_handle *handle,
 	cmd->domain_id = cpu_to_le32(domain_id);
 	cmd->config = cpu_to_le32(config & GENMASK(3, 0));
 
-	ret = scmi_do_xfer(handle, t);
+	ret = ph->xops->do_xfer(ph, t);
 
-	scmi_xfer_put(handle, t);
+	ph->xops->xfer_put(ph, t);
 	return ret;
 }
 
-static int scmi_voltage_config_get(const struct scmi_handle *handle,
+static int scmi_voltage_config_get(const struct scmi_protocol_handle *ph,
 				   u32 domain_id, u32 *config)
 {
-	return __scmi_voltage_get_u32(handle, VOLTAGE_CONFIG_GET,
+	return __scmi_voltage_get_u32(ph, VOLTAGE_CONFIG_GET,
 				      domain_id, config);
 }
 
-static int scmi_voltage_level_set(const struct scmi_handle *handle,
+static int scmi_voltage_level_set(const struct scmi_protocol_handle *ph,
 				  u32 domain_id, u32 flags, s32 volt_uV)
 {
 	int ret;
 	struct scmi_xfer *t;
-	struct voltage_info *vinfo = handle->voltage_priv;
+	struct voltage_info *vinfo = ph->get_priv(ph);
 	struct scmi_msg_cmd_level_set *cmd;
 
 	if (domain_id >= vinfo->num_domains)
 		return -EINVAL;
 
-	ret = scmi_xfer_get_init(handle, VOLTAGE_LEVEL_SET,
-				 SCMI_PROTOCOL_VOLTAGE,
-				 sizeof(*cmd), 0, &t);
+	ret = ph->xops->xfer_get_init(ph, VOLTAGE_LEVEL_SET,
+				      sizeof(*cmd), 0, &t);
 	if (ret)
 		return ret;
 
@@ -295,23 +291,23 @@ static int scmi_voltage_level_set(const struct scmi_handle *handle,
 	cmd->flags = cpu_to_le32(flags);
 	cmd->voltage_level = cpu_to_le32(volt_uV);
 
-	ret = scmi_do_xfer(handle, t);
+	ret = ph->xops->do_xfer(ph, t);
 
-	scmi_xfer_put(handle, t);
+	ph->xops->xfer_put(ph, t);
 	return ret;
 }
 
-static int scmi_voltage_level_get(const struct scmi_handle *handle,
+static int scmi_voltage_level_get(const struct scmi_protocol_handle *ph,
 				  u32 domain_id, s32 *volt_uV)
 {
-	return __scmi_voltage_get_u32(handle, VOLTAGE_LEVEL_GET,
+	return __scmi_voltage_get_u32(ph, VOLTAGE_LEVEL_GET,
 				      domain_id, (u32 *)volt_uV);
 }
 
 static const struct scmi_voltage_info * __must_check
-scmi_voltage_info_get(const struct scmi_handle *handle, u32 domain_id)
+scmi_voltage_info_get(const struct scmi_protocol_handle *ph, u32 domain_id)
 {
-	struct voltage_info *vinfo = handle->voltage_priv;
+	struct voltage_info *vinfo = ph->get_priv(ph);
 
 	if (domain_id >= vinfo->num_domains ||
 	    !vinfo->domains[domain_id].num_levels)
@@ -320,14 +316,14 @@ scmi_voltage_info_get(const struct scmi_handle *handle, u32 domain_id)
 	return vinfo->domains + domain_id;
 }
 
-static int scmi_voltage_domains_num_get(const struct scmi_handle *handle)
+static int scmi_voltage_domains_num_get(const struct scmi_protocol_handle *ph)
 {
-	struct voltage_info *vinfo = handle->voltage_priv;
+	struct voltage_info *vinfo = ph->get_priv(ph);
 
 	return vinfo->num_domains;
 }
 
-static struct scmi_voltage_ops voltage_ops = {
+static struct scmi_voltage_proto_ops voltage_proto_ops = {
 	.num_domains_get = scmi_voltage_domains_num_get,
 	.info_get = scmi_voltage_info_get,
 	.config_set = scmi_voltage_config_set,
@@ -336,45 +332,49 @@ static struct scmi_voltage_ops voltage_ops = {
 	.level_get = scmi_voltage_level_get,
 };
 
-static int scmi_voltage_protocol_init(struct scmi_handle *handle)
+static int scmi_voltage_protocol_init(const struct scmi_protocol_handle *ph)
 {
 	int ret;
 	u32 version;
 	struct voltage_info *vinfo;
 
-	ret = scmi_version_get(handle, SCMI_PROTOCOL_VOLTAGE, &version);
+	ret = ph->xops->version_get(ph, &version);
 	if (ret)
 		return ret;
 
-	dev_dbg(handle->dev, "Voltage Version %d.%d\n",
+	dev_dbg(ph->dev, "Voltage Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
 
-	vinfo = devm_kzalloc(handle->dev, sizeof(*vinfo), GFP_KERNEL);
+	vinfo = devm_kzalloc(ph->dev, sizeof(*vinfo), GFP_KERNEL);
 	if (!vinfo)
 		return -ENOMEM;
 	vinfo->version = version;
 
-	ret = scmi_protocol_attributes_get(handle, vinfo);
+	ret = scmi_protocol_attributes_get(ph, vinfo);
 	if (ret)
 		return ret;
 
 	if (vinfo->num_domains) {
-		vinfo->domains = devm_kcalloc(handle->dev, vinfo->num_domains,
+		vinfo->domains = devm_kcalloc(ph->dev, vinfo->num_domains,
 					      sizeof(*vinfo->domains),
 					      GFP_KERNEL);
 		if (!vinfo->domains)
 			return -ENOMEM;
-		ret = scmi_voltage_descriptors_get(handle, vinfo);
+		ret = scmi_voltage_descriptors_get(ph, vinfo);
 		if (ret)
 			return ret;
 	} else {
-		dev_warn(handle->dev, "No Voltage domains found.\n");
+		dev_warn(ph->dev, "No Voltage domains found.\n");
 	}
 
-	handle->voltage_ops = &voltage_ops;
-	handle->voltage_priv = vinfo;
-
-	return 0;
+	return ph->set_priv(ph, vinfo);
 }
 
-DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_VOLTAGE, voltage)
+static const struct scmi_protocol scmi_voltage = {
+	.id = SCMI_PROTOCOL_VOLTAGE,
+	.owner = THIS_MODULE,
+	.instance_init = &scmi_voltage_protocol_init,
+	.ops = &voltage_proto_ops,
+};
+
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(voltage, scmi_voltage)

@@ -47,6 +47,7 @@
 #include <linux/sched.h>
 #include <linux/audit.h>
 #include <linux/vmalloc.h>
+#include <linux/lsm_hooks.h>
 #include <net/netlabel.h>
 
 #include "flask.h"
@@ -2202,7 +2203,7 @@ static void selinux_notify_policy_change(struct selinux_state *state,
 	selinux_status_update_policyload(state, seqno);
 	selinux_netlbl_cache_invalidate();
 	selinux_xfrm_notify_policyload();
-	selinux_ima_measure_state(state);
+	selinux_ima_measure_state_locked(state);
 }
 
 void selinux_policy_commit(struct selinux_state *state,
@@ -2955,7 +2956,7 @@ int security_fs_use(struct selinux_state *state, struct super_block *sb)
 	struct sidtab *sidtab;
 	int rc;
 	struct ocontext *c;
-	struct superblock_security_struct *sbsec = sb->s_security;
+	struct superblock_security_struct *sbsec = selinux_superblock(sb);
 	const char *fstype = sb->s_type->name;
 
 	if (!selinux_initialized(state)) {

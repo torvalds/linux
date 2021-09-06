@@ -66,12 +66,12 @@ void queued_write_lock_slowpath(struct qrwlock *lock)
 	arch_spin_lock(&lock->wait_lock);
 
 	/* Try to acquire the lock directly if no reader is present */
-	if (!atomic_read(&lock->cnts) &&
-	    (atomic_cmpxchg_acquire(&lock->cnts, 0, _QW_LOCKED) == 0))
+	if (!(cnts = atomic_read(&lock->cnts)) &&
+	    atomic_try_cmpxchg_acquire(&lock->cnts, &cnts, _QW_LOCKED))
 		goto unlock;
 
 	/* Set the waiting flag to notify readers that a writer is pending */
-	atomic_add(_QW_WAITING, &lock->cnts);
+	atomic_or(_QW_WAITING, &lock->cnts);
 
 	/* When no more readers or writers, set the locked flag */
 	do {

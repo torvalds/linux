@@ -422,17 +422,17 @@ unmap:
 int cdnsp_ep_dequeue(struct cdnsp_ep *pep, struct cdnsp_request *preq)
 {
 	struct cdnsp_device *pdev = pep->pdev;
-	int ret;
+	int ret_stop = 0;
+	int ret_rem;
 
 	trace_cdnsp_request_dequeue(preq);
 
-	if (GET_EP_CTX_STATE(pep->out_ctx) == EP_STATE_RUNNING) {
-		ret = cdnsp_cmd_stop_ep(pdev, pep);
-		if (ret)
-			return ret;
-	}
+	if (GET_EP_CTX_STATE(pep->out_ctx) == EP_STATE_RUNNING)
+		ret_stop = cdnsp_cmd_stop_ep(pdev, pep);
 
-	return cdnsp_remove_request(pdev, preq, pep);
+	ret_rem = cdnsp_remove_request(pdev, preq, pep);
+
+	return ret_rem ? ret_rem : ret_stop;
 }
 
 static void cdnsp_zero_in_ctx(struct cdnsp_device *pdev)
@@ -727,7 +727,7 @@ int cdnsp_reset_device(struct cdnsp_device *pdev)
 	 * are in Disabled state.
 	 */
 	for (i = 1; i < CDNSP_ENDPOINTS_NUM; ++i)
-		pdev->eps[i].ep_state |= EP_STOPPED;
+		pdev->eps[i].ep_state |= EP_STOPPED | EP_UNCONFIGURED;
 
 	trace_cdnsp_handle_cmd_reset_dev(slot_ctx);
 
@@ -942,6 +942,7 @@ static int cdnsp_gadget_ep_enable(struct usb_ep *ep,
 
 	pep = to_cdnsp_ep(ep);
 	pdev = pep->pdev;
+	pep->ep_state &= ~EP_UNCONFIGURED;
 
 	if (dev_WARN_ONCE(pdev->dev, pep->ep_state & EP_ENABLED,
 			  "%s is already enabled\n", pep->name))
@@ -1023,9 +1024,13 @@ static int cdnsp_gadget_ep_disable(struct usb_ep *ep)
 		goto finish;
 	}
 
-	cdnsp_cmd_stop_ep(pdev, pep);
 	pep->ep_state |= EP_DIS_IN_RROGRESS;
-	cdnsp_cmd_flush_ep(pdev, pep);
+
+	/* Endpoint was unconfigured by Reset Device command. */
+	if (!(pep->ep_state & EP_UNCONFIGURED)) {
+		cdnsp_cmd_stop_ep(pdev, pep);
+		cdnsp_cmd_flush_ep(pdev, pep);
+	}
 
 	/* Remove all queued USB requests. */
 	while (!list_empty(&pep->pending_list)) {
@@ -1043,10 +1048,12 @@ static int cdnsp_gadget_ep_disable(struct usb_ep *ep)
 
 	cdnsp_endpoint_zero(pdev, pep);
 
-	ret = cdnsp_update_eps_configuration(pdev, pep);
+	if (!(pep->ep_state & EP_UNCONFIGURED))
+		ret = cdnsp_update_eps_configuration(pdev, pep);
+
 	cdnsp_free_endpoint_rings(pdev, pep);
 
-	pep->ep_state &= ~EP_ENABLED;
+	pep->ep_state &= ~(EP_ENABLED | EP_UNCONFIGURED);
 	pep->ep_state |= EP_STOPPED;
 
 finish:

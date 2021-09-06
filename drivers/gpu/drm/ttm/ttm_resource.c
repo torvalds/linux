@@ -83,7 +83,7 @@ EXPORT_SYMBOL(ttm_resource_manager_init);
  * Evict all the objects out of a memory manager until it is empty.
  * Part of memory manager cleanup sequence.
  */
-int ttm_resource_manager_evict_all(struct ttm_bo_device *bdev,
+int ttm_resource_manager_evict_all(struct ttm_device *bdev,
 				   struct ttm_resource_manager *man)
 {
 	struct ttm_operation_ctx ctx = {
@@ -91,7 +91,6 @@ int ttm_resource_manager_evict_all(struct ttm_bo_device *bdev,
 		.no_wait_gpu = false,
 		.force_alloc = true
 	};
-	struct ttm_bo_global *glob = &ttm_bo_glob;
 	struct dma_fence *fence;
 	int ret;
 	unsigned i;
@@ -100,18 +99,18 @@ int ttm_resource_manager_evict_all(struct ttm_bo_device *bdev,
 	 * Can't use standard list traversal since we're unlocking.
 	 */
 
-	spin_lock(&glob->lru_lock);
+	spin_lock(&bdev->lru_lock);
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
 		while (!list_empty(&man->lru[i])) {
-			spin_unlock(&glob->lru_lock);
+			spin_unlock(&bdev->lru_lock);
 			ret = ttm_mem_evict_first(bdev, man, NULL, &ctx,
 						  NULL);
 			if (ret)
 				return ret;
-			spin_lock(&glob->lru_lock);
+			spin_lock(&bdev->lru_lock);
 		}
 	}
-	spin_unlock(&glob->lru_lock);
+	spin_unlock(&bdev->lru_lock);
 
 	spin_lock(&man->move_lock);
 	fence = dma_fence_get(man->move);

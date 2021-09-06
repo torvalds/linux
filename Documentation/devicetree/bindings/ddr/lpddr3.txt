@@ -12,6 +12,9 @@ Required properties:
 
 Optional properties:
 
+- manufacturer-id : <u32>     Manufacturer ID value read from Mode Register 5
+- revision-id     : <u32 u32> Revision IDs read from Mode Registers 6 and 7
+
 The following optional properties represent the minimum value of some AC
 timing parameters of the DDR device in terms of number of clock cycles.
 These values shall be obtained from the device data-sheet.
@@ -49,6 +52,8 @@ samsung_K3QF2F20DB: lpddr3 {
 	compatible	= "samsung,K3QF2F20DB", "jedec,lpddr3";
 	density		= <16384>;
 	io-width	= <32>;
+	manufacturer-id = <1>;
+	revision-id     = <123 234>;
 	#address-cells	= <1>;
 	#size-cells	= <0>;
 

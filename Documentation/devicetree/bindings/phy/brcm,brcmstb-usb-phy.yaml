@@ -42,6 +42,9 @@ properties:
       - const: usb_mdio
       - const: bdc_ec
 
+  power-domains:
+    maxItems: 1
+
   clocks:
     minItems: 1
     maxItems: 2

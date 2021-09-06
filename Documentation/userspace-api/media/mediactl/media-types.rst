@@ -5,7 +5,7 @@
 Types and flags used to represent the media graph elements
 ==========================================================
 
-..  tabularcolumns:: |p{8.2cm}|p{10.3cm}|
+..  tabularcolumns:: |p{8.2cm}|p{9.3cm}|
 
 .. _media-entity-functions:
 .. _MEDIA-ENT-F-UNKNOWN:
@@ -251,7 +251,7 @@ Types and flags used to represent the media graph elements
        -  The entity represents a connector.
 
 
-..  tabularcolumns:: |p{6.5cm}|p{6.0cm}|p{5.0cm}|
+..  tabularcolumns:: |p{6.5cm}|p{6.0cm}|p{4.8cm}|
 
 .. _media-intf-type:
 .. _MEDIA-INTF-T-DVB-FE:

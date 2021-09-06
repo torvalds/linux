@@ -7,7 +7,7 @@ drm-y       :=	drm_auth.o drm_cache.o \
 		drm_file.o drm_gem.o drm_ioctl.o drm_irq.o \
 		drm_drv.o \
 		drm_sysfs.o drm_hashtab.o drm_mm.o \
-		drm_crtc.o drm_fourcc.o drm_modes.o drm_edid.o \
+		drm_crtc.o drm_fourcc.o drm_modes.o drm_edid.o drm_displayid.o \
 		drm_encoder_slave.o \
 		drm_trace_points.o drm_prime.o \
 		drm_rect.o drm_vma_manager.o drm_flip_work.o \
@@ -44,7 +44,8 @@ drm_kms_helper-y := drm_bridge_connector.o drm_crtc_helper.o drm_dp_helper.o \
 		drm_plane_helper.o drm_dp_mst_topology.o drm_atomic_helper.o \
 		drm_kms_helper_common.o drm_dp_dual_mode_helper.o \
 		drm_simple_kms_helper.o drm_modeset_helper.o \
-		drm_scdc_helper.o drm_gem_framebuffer_helper.o \
+		drm_scdc_helper.o drm_gem_atomic_helper.o \
+		drm_gem_framebuffer_helper.o \
 		drm_atomic_state_helper.o drm_damage_helper.o \
 		drm_format_helper.o drm_self_refresh_helper.o
 
@@ -110,7 +111,6 @@ obj-y			+= panel/
 obj-y			+= bridge/
 obj-$(CONFIG_DRM_FSL_DCU) += fsl-dcu/
 obj-$(CONFIG_DRM_ETNAVIV) += etnaviv/
-obj-$(CONFIG_DRM_ARCPGU)+= arc/
 obj-y			+= hisilicon/
 obj-$(CONFIG_DRM_ZTE)	+= zte/
 obj-$(CONFIG_DRM_MXSFB)	+= mxsfb/
@@ -125,3 +125,4 @@ obj-$(CONFIG_DRM_ASPEED_GFX) += aspeed/
 obj-$(CONFIG_DRM_MCDE) += mcde/
 obj-$(CONFIG_DRM_TIDSS) += tidss/
 obj-y			+= xlnx/
+obj-y			+= gud/

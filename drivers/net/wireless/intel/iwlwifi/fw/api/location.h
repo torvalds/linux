@@ -147,6 +147,10 @@ enum iwl_tof_mcsi_enable {
  * @IWL_TOF_RESPONDER_CMD_VALID_RETRY_ON_ALGO_FAIL: retry on algorithm failure
  *	is valid
  * @IWL_TOF_RESPONDER_CMD_VALID_STA_ID: station ID is valid
+ * @IWL_TOF_RESPONDER_CMD_VALID_NDP_SUPPORT: enable/disable NDP ranging support
+ *	is valid
+ * @IWL_TOF_RESPONDER_CMD_VALID_NDP_PARAMS: NDP parameters are valid
+ * @IWL_TOF_RESPONDER_CMD_VALID_LMR_FEEDBACK: LMR feedback support is valid
  */
 enum iwl_tof_responder_cmd_valid_field {
 	IWL_TOF_RESPONDER_CMD_VALID_CHAN_INFO = BIT(0),
@@ -162,6 +166,9 @@ enum iwl_tof_responder_cmd_valid_field {
 	IWL_TOF_RESPONDER_CMD_VALID_FAST_ALGO_SUPPORT = BIT(10),
 	IWL_TOF_RESPONDER_CMD_VALID_RETRY_ON_ALGO_FAIL = BIT(11),
 	IWL_TOF_RESPONDER_CMD_VALID_STA_ID = BIT(12),
+	IWL_TOF_RESPONDER_CMD_VALID_NDP_SUPPORT = BIT(22),
+	IWL_TOF_RESPONDER_CMD_VALID_NDP_PARAMS = BIT(23),
+	IWL_TOF_RESPONDER_CMD_VALID_LMR_FEEDBACK = BIT(24),
 };
 
 /**
@@ -176,6 +183,9 @@ enum iwl_tof_responder_cmd_valid_field {
  * @IWL_TOF_RESPONDER_FLAGS_FAST_ALGO_SUPPORT: fast algorithm support
  * @IWL_TOF_RESPONDER_FLAGS_RETRY_ON_ALGO_FAIL: retry on algorithm fail
  * @IWL_TOF_RESPONDER_FLAGS_FTM_TX_ANT: TX antenna mask
+ * @IWL_TOF_RESPONDER_FLAGS_NDP_SUPPORT: support NDP ranging
+ * @IWL_TOF_RESPONDER_FLAGS_LMR_FEEDBACK: request for LMR feedback if the
+ *	initiator supports it
  */
 enum iwl_tof_responder_cfg_flags {
 	IWL_TOF_RESPONDER_FLAGS_NON_ASAP_SUPPORT = BIT(0),
@@ -188,6 +198,8 @@ enum iwl_tof_responder_cfg_flags {
 	IWL_TOF_RESPONDER_FLAGS_FAST_ALGO_SUPPORT = BIT(9),
 	IWL_TOF_RESPONDER_FLAGS_RETRY_ON_ALGO_FAIL = BIT(10),
 	IWL_TOF_RESPONDER_FLAGS_FTM_TX_ANT = RATE_MCS_ANT_ABC_MSK,
+	IWL_TOF_RESPONDER_FLAGS_NDP_SUPPORT = BIT(24),
+	IWL_TOF_RESPONDER_FLAGS_LMR_FEEDBACK = BIT(25),
 };
 
 /**
@@ -226,7 +238,7 @@ struct iwl_tof_responder_config_cmd_v6 {
 } __packed; /* TOF_RESPONDER_CONFIG_CMD_API_S_VER_6 */
 
 /**
- * struct iwl_tof_responder_config_cmd - ToF AP mode (for debug)
+ * struct iwl_tof_responder_config_cmd_v7 - ToF AP mode (for debug)
  * @cmd_valid_fields: &iwl_tof_responder_cmd_valid_field
  * @responder_cfg_flags: &iwl_tof_responder_cfg_flags
  * @format_bw: bits 0 - 3: &enum iwl_location_frame_format.
@@ -245,7 +257,7 @@ struct iwl_tof_responder_config_cmd_v6 {
  * @bssid: Current AP BSSID
  * @reserved2: reserved
  */
-struct iwl_tof_responder_config_cmd {
+struct iwl_tof_responder_config_cmd_v7 {
 	__le32 cmd_valid_fields;
 	__le32 responder_cfg_flags;
 	u8 format_bw;
@@ -259,7 +271,56 @@ struct iwl_tof_responder_config_cmd {
 	__le16 specific_calib;
 	u8 bssid[ETH_ALEN];
 	__le16 reserved2;
-} __packed; /* TOF_RESPONDER_CONFIG_CMD_API_S_VER_6 */
+} __packed; /* TOF_RESPONDER_CONFIG_CMD_API_S_VER_7 */
+
+#define IWL_RESPONDER_STS_POS	3
+#define IWL_RESPONDER_TOTAL_LTF_POS	6
+
+/**
+ * struct iwl_tof_responder_config_cmd_v8 - ToF AP mode (for debug)
+ * @cmd_valid_fields: &iwl_tof_responder_cmd_valid_field
+ * @responder_cfg_flags: &iwl_tof_responder_cfg_flags
+ * @format_bw: bits 0 - 3: &enum iwl_location_frame_format.
+ *             bits 4 - 7: &enum iwl_location_bw.
+ * @rate: current AP rate
+ * @channel_num: current AP Channel
+ * @ctrl_ch_position: coding of the control channel position relative to
+ *	the center frequency, see iwl_mvm_get_ctrl_pos()
+ * @sta_id: index of the AP STA when in AP mode
+ * @reserved1: reserved
+ * @toa_offset: Artificial addition [pSec] for the ToA - to be used for debug
+ *	purposes, simulating station movement by adding various values
+ *	to this field
+ * @common_calib: XVT: common calibration value
+ * @specific_calib: XVT: specific calibration value
+ * @bssid: Current AP BSSID
+ * @r2i_ndp_params: parameters for R2I NDP.
+ *	bits 0 - 2: max number of LTF repetitions
+ *	bits 3 - 5: max number of spatial streams (supported values are < 2)
+ *	bits 6 - 7: max number of total LTFs
+ *		    (&enum ieee80211_range_params_max_total_ltf)
+ * @i2r_ndp_params: parameters for I2R NDP.
+ *	bits 0 - 2: max number of LTF repetitions
+ *	bits 3 - 5: max number of spatial streams
+ *	bits 6 - 7: max number of total LTFs
+ *		    (&enum ieee80211_range_params_max_total_ltf)
+ */
+struct iwl_tof_responder_config_cmd_v8 {
+	__le32 cmd_valid_fields;
+	__le32 responder_cfg_flags;
+	u8 format_bw;
+	u8 rate;
+	u8 channel_num;
+	u8 ctrl_ch_position;
+	u8 sta_id;
+	u8 reserved1;
+	__le16 toa_offset;
+	__le16 common_calib;
+	__le16 specific_calib;
+	u8 bssid[ETH_ALEN];
+	u8 r2i_ndp_params;
+	u8 i2r_ndp_params;
+} __packed; /* TOF_RESPONDER_CONFIG_CMD_API_S_VER_8 */
 
 #define IWL_LCI_CIVIC_IE_MAX_SIZE	400
 
@@ -422,10 +483,12 @@ struct iwl_tof_range_req_ap_entry_v2 {
  *	driver.
  * @IWL_INITIATOR_AP_FLAGS_NON_TB: Use non trigger based flow
  * @IWL_INITIATOR_AP_FLAGS_TB: Use trigger based flow
- * @IWL_INITIATOR_AP_FLAGS_SECURED: request secured measurement
+ * @IWL_INITIATOR_AP_FLAGS_SECURED: request secure LTF measurement
  * @IWL_INITIATOR_AP_FLAGS_LMR_FEEDBACK: Send LMR feedback
  * @IWL_INITIATOR_AP_FLAGS_USE_CALIB: Use calibration values from the request
  *      instead of fw internal values.
+ * @IWL_INITIATOR_AP_FLAGS_PMF: request to protect the negotiation and LMR
+ *      frames with protected management frames.
  */
 enum iwl_initiator_ap_flags {
 	IWL_INITIATOR_AP_FLAGS_ASAP = BIT(1),
@@ -440,6 +503,7 @@ enum iwl_initiator_ap_flags {
 	IWL_INITIATOR_AP_FLAGS_SECURED = BIT(11),
 	IWL_INITIATOR_AP_FLAGS_LMR_FEEDBACK = BIT(12),
 	IWL_INITIATOR_AP_FLAGS_USE_CALIB = BIT(13),
+	IWL_INITIATOR_AP_FLAGS_PMF = BIT(14),
 };
 
 /**
@@ -656,6 +720,79 @@ struct iwl_tof_range_req_ap_entry_v7 {
 	u8 rx_pn[IEEE80211_CCMP_PN_LEN];
 	u8 tx_pn[IEEE80211_CCMP_PN_LEN];
 } __packed; /* LOCATION_RANGE_REQ_AP_ENTRY_CMD_API_S_VER_7 */
+
+#define IWL_LOCATION_MAX_STS_POS	3
+
+/**
+ * struct iwl_tof_range_req_ap_entry_v8 - AP configuration parameters
+ * @initiator_ap_flags: see &enum iwl_initiator_ap_flags.
+ * @channel_num: AP Channel number
+ * @format_bw: bits 0 - 3: &enum iwl_location_frame_format.
+ *             bits 4 - 7: &enum iwl_location_bw.
+ * @ctrl_ch_position: Coding of the control channel position relative to the
+ *	center frequency, see iwl_mvm_get_ctrl_pos().
+ * @ftmr_max_retries: Max number of retries to send the FTMR in case of no
+ *	reply from the AP.
+ * @bssid: AP's BSSID
+ * @burst_period: Recommended value to be sent to the AP. Measurement
+ *	periodicity In units of 100ms. ignored if num_of_bursts_exp = 0
+ * @samples_per_burst: the number of FTMs pairs in single Burst (1-31);
+ * @num_of_bursts: Recommended value to be sent to the AP. 2s Exponent of
+ *	the number of measurement iterations (min 2^0 = 1, max 2^14)
+ * @sta_id: the station id of the AP. Only relevant when associated to the AP,
+ *	otherwise should be set to &IWL_MVM_INVALID_STA.
+ * @cipher: pairwise cipher suite for secured measurement.
+ *          &enum iwl_location_cipher.
+ * @hltk: HLTK to be used for secured 11az measurement
+ * @tk: TK to be used for secured 11az measurement
+ * @calib: An array of calibration values per FTM rx bandwidth.
+ *         If &IWL_INITIATOR_AP_FLAGS_USE_CALIB is set, the fw will use the
+ *         calibration value that corresponds to the rx bandwidth of the FTM
+ *         frame.
+ * @beacon_interval: beacon interval of the AP in TUs. Only required if
+ *	&IWL_INITIATOR_AP_FLAGS_TB is set.
+ * @rx_pn: the next expected PN for protected management frames Rx. LE byte
+ *	order. Only valid if &IWL_INITIATOR_AP_FLAGS_SECURED is set and sta_id
+ *	is set to &IWL_MVM_INVALID_STA.
+ * @tx_pn: the next PN to use for protected management frames Tx. LE byte
+ *	order. Only valid if &IWL_INITIATOR_AP_FLAGS_SECURED is set and sta_id
+ *	is set to &IWL_MVM_INVALID_STA.
+ * @r2i_ndp_params: parameters for R2I NDP ranging negotiation.
+ *      bits 0 - 2: max LTF repetitions
+ *      bits 3 - 5: max number of spatial streams
+ *      bits 6 - 7: reserved
+ * @i2r_ndp_params: parameters for I2R NDP ranging negotiation.
+ *      bits 0 - 2: max LTF repetitions
+ *      bits 3 - 5: max number of spatial streams (supported values are < 2)
+ *      bits 6 - 7: reserved
+ * @r2i_max_total_ltf: R2I Max Total LTFs for NDP ranging negotiation.
+ *      One of &enum ieee80211_range_params_max_total_ltf.
+ * @i2r_max_total_ltf: I2R Max Total LTFs for NDP ranging negotiation.
+ *      One of &enum ieee80211_range_params_max_total_ltf.
+ */
+struct iwl_tof_range_req_ap_entry_v8 {
+	__le32 initiator_ap_flags;
+	u8 channel_num;
+	u8 format_bw;
+	u8 ctrl_ch_position;
+	u8 ftmr_max_retries;
+	u8 bssid[ETH_ALEN];
+	__le16 burst_period;
+	u8 samples_per_burst;
+	u8 num_of_bursts;
+	u8 sta_id;
+	u8 cipher;
+	u8 hltk[HLTK_11AZ_LEN];
+	u8 tk[TK_11AZ_LEN];
+	__le16 calib[IWL_TOF_BW_NUM];
+	__le16 beacon_interval;
+	u8 rx_pn[IEEE80211_CCMP_PN_LEN];
+	u8 tx_pn[IEEE80211_CCMP_PN_LEN];
+	u8 r2i_ndp_params;
+	u8 i2r_ndp_params;
+	u8 r2i_max_total_ltf;
+	u8 i2r_max_total_ltf;
+} __packed; /* LOCATION_RANGE_REQ_AP_ENTRY_CMD_API_S_VER_8 */
 
 /**
  * enum iwl_tof_response_mode
@@ -877,6 +1014,34 @@ struct iwl_tof_range_req_cmd_v11 {
 	__le32 tsf_mac_id;
 	struct iwl_tof_range_req_ap_entry_v7 ap[IWL_MVM_TOF_MAX_APS];
 } __packed; /* LOCATION_RANGE_REQ_CMD_API_S_VER_11 */
+
+/**
+ * struct iwl_tof_range_req_cmd_v12 - start measurement cmd
+ * @initiator_flags: see flags @ iwl_tof_initiator_flags
+ * @request_id: A Token incremented per request. The same Token will be
+ *		sent back in the range response
+ * @num_of_ap: Number of APs to measure (error if > IWL_MVM_TOF_MAX_APS)
+ * @range_req_bssid: ranging request BSSID
+ * @macaddr_mask: Bits set to 0 shall be copied from the MAC address template.
+ *		  Bits set to 1 shall be randomized by the UMAC
+ * @macaddr_template: MAC address template to use for non-randomized bits
+ * @req_timeout_ms: Requested timeout of the response in units of milliseconds.
+ *	This is the session time for completing the measurement.
+ * @tsf_mac_id: report the measurement start time for each ap in terms of the
+ *	TSF of this mac id. 0xff to disable TSF reporting.
+ * @ap: per-AP request data, see &struct iwl_tof_range_req_ap_entry_v2.
+ */
+struct iwl_tof_range_req_cmd_v12 {
+	__le32 initiator_flags;
+	u8 request_id;
+	u8 num_of_ap;
+	u8 range_req_bssid[ETH_ALEN];
+	u8 macaddr_mask[ETH_ALEN];
+	u8 macaddr_template[ETH_ALEN];
+	__le32 req_timeout_ms;
+	__le32 tsf_mac_id;
+	struct iwl_tof_range_req_ap_entry_v8 ap[IWL_MVM_TOF_MAX_APS];
+} __packed; /* LOCATION_RANGE_REQ_CMD_API_S_VER_12 */
 
 /*
  * enum iwl_tof_range_request_status - status of the sent request

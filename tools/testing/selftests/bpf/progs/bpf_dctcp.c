@@ -194,22 +194,12 @@ __u32 BPF_PROG(dctcp_cwnd_undo, struct sock *sk)
 	return max(tcp_sk(sk)->snd_cwnd, ca->loss_cwnd);
 }
 
-SEC("struct_ops/tcp_reno_cong_avoid")
-void BPF_PROG(tcp_reno_cong_avoid, struct sock *sk, __u32 ack, __u32 acked)
+extern void tcp_reno_cong_avoid(struct sock *sk, __u32 ack, __u32 acked) __ksym;
+
+SEC("struct_ops/dctcp_reno_cong_avoid")
+void BPF_PROG(dctcp_cong_avoid, struct sock *sk, __u32 ack, __u32 acked)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	if (!tcp_is_cwnd_limited(sk))
-		return;
-
-	/* In "safe" area, increase. */
-	if (tcp_in_slow_start(tp)) {
-		acked = tcp_slow_start(tp, acked);
-		if (!acked)
-			return;
-	}
-	/* In dangerous area, increase slowly. */
-	tcp_cong_avoid_ai(tp, tp->snd_cwnd, acked);
+	tcp_reno_cong_avoid(sk, ack, acked);
 }
 
 SEC(".struct_ops")
@@ -226,7 +216,7 @@ struct tcp_congestion_ops dctcp = {
 	.in_ack_event   = (void *)dctcp_update_alpha,
 	.cwnd_event	= (void *)dctcp_cwnd_event,
 	.ssthresh	= (void *)dctcp_ssthresh,
-	.cong_avoid	= (void *)tcp_reno_cong_avoid,
+	.cong_avoid	= (void *)dctcp_cong_avoid,
 	.undo_cwnd	= (void *)dctcp_cwnd_undo,
 	.set_state	= (void *)dctcp_state,
 	.flags		= TCP_CONG_NEEDS_ECN,

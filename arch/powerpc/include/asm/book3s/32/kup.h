@@ -5,86 +5,7 @@
 #include <asm/bug.h>
 #include <asm/book3s/32/mmu-hash.h>
 
-#ifdef __ASSEMBLY__
-
-.macro kuep_update_sr	gpr1, gpr2		/* NEVER use r0 as gpr2 due to addis */
-101:	mtsrin	\gpr1, \gpr2
-	addi	\gpr1, \gpr1, 0x111		/* next VSID */
-	rlwinm	\gpr1, \gpr1, 0, 0xf0ffffff	/* clear VSID overflow */
-	addis	\gpr2, \gpr2, 0x1000		/* address of next segment */
-	bdnz	101b
-	isync
-.endm
-
-.macro kuep_lock	gpr1, gpr2
-#ifdef CONFIG_PPC_KUEP
-	li	\gpr1, NUM_USER_SEGMENTS
-	li	\gpr2, 0
-	mtctr	\gpr1
-	mfsrin	\gpr1, \gpr2
-	oris	\gpr1, \gpr1, SR_NX@h		/* set Nx */
-	kuep_update_sr \gpr1, \gpr2
-#endif
-.endm
-
-.macro kuep_unlock	gpr1, gpr2
-#ifdef CONFIG_PPC_KUEP
-	li	\gpr1, NUM_USER_SEGMENTS
-	li	\gpr2, 0
-	mtctr	\gpr1
-	mfsrin	\gpr1, \gpr2
-	rlwinm	\gpr1, \gpr1, 0, ~SR_NX		/* Clear Nx */
-	kuep_update_sr \gpr1, \gpr2
-#endif
-.endm
-
-#ifdef CONFIG_PPC_KUAP
-
-.macro kuap_update_sr	gpr1, gpr2, gpr3	/* NEVER use r0 as gpr2 due to addis */
-101:	mtsrin	\gpr1, \gpr2
-	addi	\gpr1, \gpr1, 0x111		/* next VSID */
-	rlwinm	\gpr1, \gpr1, 0, 0xf0ffffff	/* clear VSID overflow */
-	addis	\gpr2, \gpr2, 0x1000		/* address of next segment */
-	cmplw	\gpr2, \gpr3
-	blt-	101b
-	isync
-.endm
-
-.macro kuap_save_and_lock	sp, thread, gpr1, gpr2, gpr3
-	lwz	\gpr2, KUAP(\thread)
-	rlwinm.	\gpr3, \gpr2, 28, 0xf0000000
-	stw	\gpr2, STACK_REGS_KUAP(\sp)
-	beq+	102f
-	li	\gpr1, 0
-	stw	\gpr1, KUAP(\thread)
-	mfsrin	\gpr1, \gpr2
-	oris	\gpr1, \gpr1, SR_KS@h	/* set Ks */
-	kuap_update_sr	\gpr1, \gpr2, \gpr3
-102:
-.endm
-
-.macro kuap_restore	sp, current, gpr1, gpr2, gpr3
-	lwz	\gpr2, STACK_REGS_KUAP(\sp)
-	rlwinm.	\gpr3, \gpr2, 28, 0xf0000000
-	stw	\gpr2, THREAD + KUAP(\current)
-	beq+	102f
-	mfsrin	\gpr1, \gpr2
-	rlwinm	\gpr1, \gpr1, 0, ~SR_KS	/* Clear Ks */
-	kuap_update_sr	\gpr1, \gpr2, \gpr3
-102:
-.endm
-
-.macro kuap_check	current, gpr
-#ifdef CONFIG_PPC_KUAP_DEBUG
-	lwz	\gpr, THREAD + KUAP(\current)
-999:	twnei	\gpr, 0
-	EMIT_BUG_ENTRY 999b, __FILE__, __LINE__, (BUGFLAG_WARNING | BUGFLAG_ONCE)
-#endif
-.endm
-
-#endif /* CONFIG_PPC_KUAP */
-
-#else /* !__ASSEMBLY__ */
+#ifndef __ASSEMBLY__
 
 #ifdef CONFIG_PPC_KUAP
 
@@ -101,6 +22,51 @@ static inline void kuap_update_sr(u32 sr, u32 addr, u32 end)
 		addr += 0x10000000;	/* address of next segment */
 	}
 	isync();	/* Context sync required after mtsr() */
+}
+
+static inline void kuap_save_and_lock(struct pt_regs *regs)
+{
+	unsigned long kuap = current->thread.kuap;
+	u32 addr = kuap & 0xf0000000;
+	u32 end = kuap << 28;
+
+	regs->kuap = kuap;
+	if (unlikely(!kuap))
+		return;
+
+	current->thread.kuap = 0;
+	kuap_update_sr(mfsr(addr) | SR_KS, addr, end);	/* Set Ks */
+}
+
+static inline void kuap_user_restore(struct pt_regs *regs)
+{
+}
+
+static inline void kuap_kernel_restore(struct pt_regs *regs, unsigned long kuap)
+{
+	u32 addr = regs->kuap & 0xf0000000;
+	u32 end = regs->kuap << 28;
+
+	current->thread.kuap = regs->kuap;
+
+	if (unlikely(regs->kuap == kuap))
+		return;
+
+	kuap_update_sr(mfsr(addr) & ~SR_KS, addr, end);	/* Clear Ks */
+}
+
+static inline unsigned long kuap_get_and_assert_locked(void)
+{
+	unsigned long kuap = current->thread.kuap;
+
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_PPC_KUAP_DEBUG) && kuap != 0);
+
+	return kuap;
+}
+
+static inline void kuap_assert_locked(void)
+{
+	kuap_get_and_assert_locked();
 }
 
 static __always_inline void allow_user_access(void __user *to, const void __user *from,

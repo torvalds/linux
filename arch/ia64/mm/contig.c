@@ -153,11 +153,7 @@ find_memory (void)
 	efi_memmap_walk(find_max_min_low_pfn, NULL);
 	max_pfn = max_low_pfn;
 
-#ifdef CONFIG_VIRTUAL_MEM_MAP
-	efi_memmap_walk(filter_memory, register_active_ranges);
-#else
 	memblock_add_node(0, PFN_PHYS(max_low_pfn), 0);
-#endif
 
 	find_initrd();
 

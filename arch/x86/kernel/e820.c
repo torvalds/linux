@@ -31,8 +31,8 @@
  *       - inform the user about the firmware's notion of memory layout
  *         via /sys/firmware/memmap
  *
- *       - the hibernation code uses it to generate a kernel-independent MD5
- *         fingerprint of the physical memory layout of a system.
+ *       - the hibernation code uses it to generate a kernel-independent CRC32
+ *         checksum of the physical memory layout of a system.
  *
  * - 'e820_table_kexec': a slightly modified (by the kernel) firmware version
  *   passed to us by the bootloader - the major difference between
@@ -793,7 +793,7 @@ core_initcall(e820__register_nvs_regions);
 #endif
 
 /*
- * Allocate the requested number of bytes with the requsted alignment
+ * Allocate the requested number of bytes with the requested alignment
  * and return (the physical address) to the caller. Also register this
  * range in the 'kexec' E820 table as a reserved range.
  *

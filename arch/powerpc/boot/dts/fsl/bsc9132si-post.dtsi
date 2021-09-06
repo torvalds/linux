@@ -190,8 +190,6 @@ crypto@30000 {
 /include/ "pq3-etsec2-0.dtsi"
 enet0: ethernet@b0000 {
 	queue-group@b0000 {
-		fsl,rx-bit-map = <0xff>;
-		fsl,tx-bit-map = <0xff>;
 		interrupts = <26 2 0 0 27 2 0 0 28 2 0 0>;
 	};
 };
@@ -199,8 +197,6 @@ enet0: ethernet@b0000 {
 /include/ "pq3-etsec2-1.dtsi"
 enet1: ethernet@b1000 {
 	queue-group@b1000 {
-		fsl,rx-bit-map = <0xff>;
-		fsl,tx-bit-map = <0xff>;
 		interrupts = <33 2 0 0 34 2 0 0 35 2 0 0>;
 	};
 };

@@ -480,6 +480,8 @@ pca9532_of_populate_pdata(struct device *dev, struct device_node *np)
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
+	pdata->gpio_base = -1;
+
 	of_property_read_u8_array(np, "nxp,pwm", &pdata->pwm[0],
 				  ARRAY_SIZE(pdata->pwm));
 	of_property_read_u8_array(np, "nxp,psc", &pdata->psc[0],

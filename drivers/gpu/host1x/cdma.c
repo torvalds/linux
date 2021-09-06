@@ -273,15 +273,13 @@ static int host1x_cdma_wait_pushbuffer_space(struct host1x *host1x,
 static void cdma_start_timer_locked(struct host1x_cdma *cdma,
 				    struct host1x_job *job)
 {
-	struct host1x *host = cdma_to_host1x(cdma);
-
 	if (cdma->timeout.client) {
 		/* timer already started */
 		return;
 	}
 
 	cdma->timeout.client = job->client;
-	cdma->timeout.syncpt = host1x_syncpt_get(host, job->syncpt_id);
+	cdma->timeout.syncpt = job->syncpt;
 	cdma->timeout.syncpt_val = job->syncpt_end;
 	cdma->timeout.start_ktime = ktime_get();
 
@@ -312,7 +310,6 @@ static void stop_cdma_timer_locked(struct host1x_cdma *cdma)
 static void update_cdma_locked(struct host1x_cdma *cdma)
 {
 	bool signal = false;
-	struct host1x *host1x = cdma_to_host1x(cdma);
 	struct host1x_job *job, *n;
 
 	/* If CDMA is stopped, queue is cleared and we can return */
@@ -324,8 +321,7 @@ static void update_cdma_locked(struct host1x_cdma *cdma)
 	 * to consume as many sync queue entries as possible without blocking
 	 */
 	list_for_each_entry_safe(job, n, &cdma->sync_queue, list) {
-		struct host1x_syncpt *sp =
-			host1x_syncpt_get(host1x, job->syncpt_id);
+		struct host1x_syncpt *sp = job->syncpt;
 
 		/* Check whether this syncpt has completed, and bail if not */
 		if (!host1x_syncpt_is_expired(sp, job->syncpt_end)) {
@@ -499,8 +495,7 @@ int host1x_cdma_begin(struct host1x_cdma *cdma, struct host1x_job *job)
 		if (!cdma->timeout.initialized) {
 			int err;
 
-			err = host1x_hw_cdma_timeout_init(host1x, cdma,
-							  job->syncpt_id);
+			err = host1x_hw_cdma_timeout_init(host1x, cdma);
 			if (err) {
 				mutex_unlock(&cdma->lock);
 				return err;

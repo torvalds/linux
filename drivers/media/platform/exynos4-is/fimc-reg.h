@@ -324,6 +324,7 @@ void fimc_deactivate_capture(struct fimc_dev *fimc);
 
 /**
  * fimc_hw_set_dma_seq - configure output DMA buffer sequence
+ * @dev: fimc device
  * @mask: bitmask for the DMA output buffer registers, set to 0 to skip buffer
  * This function masks output DMA ring buffers, it allows to select which of
  * the 32 available output buffer address registers will be used by the DMA

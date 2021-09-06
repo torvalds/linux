@@ -159,7 +159,6 @@ static int variax_init(struct usb_line6 *line6,
 		       const struct usb_device_id *id)
 {
 	struct usb_line6_variax *variax = line6_to_variax(line6);
-	int err;
 
 	line6->process_message = line6_variax_process_message;
 	line6->disconnect = line6_variax_disconnect;
@@ -171,11 +170,6 @@ static int variax_init(struct usb_line6 *line6,
 
 	if (variax->buffer_activate == NULL)
 		return -ENOMEM;
-
-	/* initialize MIDI subsystem: */
-	err = line6_init_midi(&variax->line6);
-	if (err < 0)
-		return err;
 
 	/* initiate startup procedure: */
 	schedule_delayed_work(&line6->startup_work,

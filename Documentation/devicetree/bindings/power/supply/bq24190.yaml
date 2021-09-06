@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2021 Sebastian Reichel
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/power/supply/bq24190.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Binding for TI BQ2419x Li-Ion Battery Charger
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    enum:
+      - ti,bq24190
+      - ti,bq24192
+      - ti,bq24192i
+      - ti,bq24196
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  usb-otg-vbus:
+    type: object
+    description: |
+      Regulator that is used to control the VBUS voltage direction for
+      either USB host mode or for charging on the OTG port
+
+  ti,system-minimum-microvolt:
+    description: |
+      when power is connected and the battery is below minimum system voltage,
+      the system will be regulated above this setting.
+
+  omit-battery-class:
+    type: boolean
+    description: |
+      If this property is set, the operating system does not try to create a
+      battery device.
+
+  monitored-battery:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: |
+      phandle to a "simple-battery" compatible node.
+
+      This property must be a phandle to a node using the format described
+      in battery.yaml, with the following properties being required:
+      - precharge-current-microamp: maximum charge current during precharge phase
+                                    (typically 20% of battery capacity).
+      - charge-term-current-microamp: a charge cycle terminates when the battery voltage is
+                                      above recharge threshold, and the current is below this
+                                      setting (typically 10% of battery capacity).
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    bat: battery {
+      compatible = "simple-battery";
+      precharge-current-microamp = <256000>;
+      charge-term-current-microamp = <128000>;
+    };
+
+    i2c0 {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      charger@6a {
+        compatible = "ti,bq24190";
+        reg = <0x6a>;
+        interrupt-parent = <&gpiochip>;
+        interrupts = <10 IRQ_TYPE_EDGE_FALLING>;
+        monitored-battery = <&bat>;
+        ti,system-minimum-microvolt = <3200000>;
+
+        usb_otg_vbus: usb-otg-vbus { };
+      };
+    };

@@ -21,10 +21,9 @@
  */
 int
 xchk_setup_ag_rmapbt(
-	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_scrub	*sc)
 {
-	return xchk_setup_ag_btree(sc, ip, false);
+	return xchk_setup_ag_btree(sc, false);
 }
 
 /* Reverse-mapping scrubber. */

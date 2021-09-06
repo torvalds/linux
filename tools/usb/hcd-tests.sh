@@ -272,5 +272,3 @@ do
 	echo ''
     done
 done
-
-# vim: sw=4

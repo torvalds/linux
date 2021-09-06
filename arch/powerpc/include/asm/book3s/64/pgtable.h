@@ -7,6 +7,7 @@
 #ifndef __ASSEMBLY__
 #include <linux/mmdebug.h>
 #include <linux/bug.h>
+#include <linux/sizes.h>
 #endif
 
 /*
@@ -116,6 +117,7 @@
  */
 #define _PAGE_KERNEL_RW		(_PAGE_PRIVILEGED | _PAGE_RW | _PAGE_DIRTY)
 #define _PAGE_KERNEL_RO		 (_PAGE_PRIVILEGED | _PAGE_READ)
+#define _PAGE_KERNEL_ROX	 (_PAGE_PRIVILEGED | _PAGE_READ | _PAGE_EXEC)
 #define _PAGE_KERNEL_RWX	(_PAGE_PRIVILEGED | _PAGE_DIRTY |	\
 				 _PAGE_RW | _PAGE_EXEC)
 /*
@@ -323,7 +325,8 @@ extern unsigned long pci_io_base;
 #define  PHB_IO_END	(KERN_IO_START + FULL_IO_SIZE)
 #define IOREMAP_BASE	(PHB_IO_END)
 #define IOREMAP_START	(ioremap_bot)
-#define IOREMAP_END	(KERN_IO_END)
+#define IOREMAP_END	(KERN_IO_END - FIXADDR_SIZE)
+#define FIXADDR_SIZE	SZ_32M
 
 /* Advertise special mapping type for AGP */
 #define HAVE_PAGE_AGP

@@ -52,7 +52,7 @@
 #define DASD_ECKD_CCW_RCD		 0xFA
 #define DASD_ECKD_CCW_DSO		 0xF7
 
-/* Define Subssystem Function / Orders */
+/* Define Subsystem Function / Orders */
 #define DSO_ORDER_RAS			 0x81
 
 /*
@@ -110,7 +110,7 @@
 #define DASD_ECKD_PG_GROUPED		 0x10
 
 /*
- * Size that is reportet for large volumes in the old 16-bit no_cyl field
+ * Size that is reported for large volumes in the old 16-bit no_cyl field
  */
 #define LV_COMPAT_CYL 0xFFFE
 
@@ -555,7 +555,7 @@ struct dasd_dso_ras_ext_range {
 } __packed;
 
 /*
- * Define Subsytem Operation - Release Allocated Space
+ * Define Subsystem Operation - Release Allocated Space
  */
 struct dasd_dso_ras_data {
 	__u8 order;
@@ -676,7 +676,7 @@ struct dasd_eckd_private {
 	struct dasd_ext_pool_sum eps;
 	u32 real_cyl;
 
-	/* alias managemnet */
+	/* alias management */
 	struct dasd_uid uid;
 	struct alias_pav_group *pavgroup;
 	struct alias_lcu *lcu;

@@ -29,22 +29,36 @@ void test_mmap(void)
 	struct test_mmap *skel;
 	__u64 val = 0;
 
-	skel = test_mmap__open_and_load();
-	if (CHECK(!skel, "skel_open_and_load", "skeleton open/load failed\n"))
+	skel = test_mmap__open();
+	if (CHECK(!skel, "skel_open", "skeleton open failed\n"))
 		return;
+
+	err = bpf_map__set_max_entries(skel->maps.rdonly_map, page_size);
+	if (CHECK(err != 0, "bpf_map__set_max_entries", "bpf_map__set_max_entries failed\n"))
+		goto cleanup;
+
+	/* at least 4 pages of data */
+	err = bpf_map__set_max_entries(skel->maps.data_map,
+				       4 * (page_size / sizeof(u64)));
+	if (CHECK(err != 0, "bpf_map__set_max_entries", "bpf_map__set_max_entries failed\n"))
+		goto cleanup;
+
+	err = test_mmap__load(skel);
+	if (CHECK(err != 0, "skel_load", "skeleton load failed\n"))
+		goto cleanup;
 
 	bss_map = skel->maps.bss;
 	data_map = skel->maps.data_map;
 	data_map_fd = bpf_map__fd(data_map);
 
 	rdmap_fd = bpf_map__fd(skel->maps.rdonly_map);
-	tmp1 = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, rdmap_fd, 0);
+	tmp1 = mmap(NULL, page_size, PROT_READ | PROT_WRITE, MAP_SHARED, rdmap_fd, 0);
 	if (CHECK(tmp1 != MAP_FAILED, "rdonly_write_mmap", "unexpected success\n")) {
-		munmap(tmp1, 4096);
+		munmap(tmp1, page_size);
 		goto cleanup;
 	}
 	/* now double-check if it's mmap()'able at all */
-	tmp1 = mmap(NULL, 4096, PROT_READ, MAP_SHARED, rdmap_fd, 0);
+	tmp1 = mmap(NULL, page_size, PROT_READ, MAP_SHARED, rdmap_fd, 0);
 	if (CHECK(tmp1 == MAP_FAILED, "rdonly_read_mmap", "failed: %d\n", errno))
 		goto cleanup;
 

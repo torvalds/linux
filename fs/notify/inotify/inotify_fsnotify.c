@@ -46,9 +46,10 @@ static bool event_compare(struct fsnotify_event *old_fsn,
 	return false;
 }
 
-static int inotify_merge(struct list_head *list,
-			  struct fsnotify_event *event)
+static int inotify_merge(struct fsnotify_group *group,
+			 struct fsnotify_event *event)
 {
+	struct list_head *list = &group->notification_list;
 	struct fsnotify_event *last_event;
 
 	last_event = list_entry(list->prev, struct fsnotify_event, list);
@@ -107,7 +108,7 @@ int inotify_handle_inode_event(struct fsnotify_mark *inode_mark, u32 mask,
 		mask &= ~IN_ISDIR;
 
 	fsn_event = &event->fse;
-	fsnotify_init_event(fsn_event, 0);
+	fsnotify_init_event(fsn_event);
 	event->mask = mask;
 	event->wd = i_mark->wd;
 	event->sync_cookie = cookie;
@@ -115,7 +116,7 @@ int inotify_handle_inode_event(struct fsnotify_mark *inode_mark, u32 mask,
 	if (len)
 		strcpy(event->name, name->name);
 
-	ret = fsnotify_add_event(group, fsn_event, inotify_merge);
+	ret = fsnotify_add_event(group, fsn_event, inotify_merge, NULL);
 	if (ret) {
 		/* Our event wasn't used in the end. Free it. */
 		fsnotify_destroy_event(group, fsn_event);

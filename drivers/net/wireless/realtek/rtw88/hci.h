@@ -11,6 +11,7 @@ struct rtw_hci_ops {
 			struct rtw_tx_pkt_info *pkt_info,
 			struct sk_buff *skb);
 	void (*tx_kick_off)(struct rtw_dev *rtwdev);
+	void (*flush_queues)(struct rtw_dev *rtwdev, u32 queues, bool drop);
 	int (*setup)(struct rtw_dev *rtwdev);
 	int (*start)(struct rtw_dev *rtwdev);
 	void (*stop)(struct rtw_dev *rtwdev);
@@ -256,6 +257,21 @@ rtw_write8_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u8 data)
 static inline enum rtw_hci_type rtw_hci_type(struct rtw_dev *rtwdev)
 {
 	return rtwdev->hci.type;
+}
+
+static inline void rtw_hci_flush_queues(struct rtw_dev *rtwdev, u32 queues,
+					bool drop)
+{
+	if (rtwdev->hci.ops->flush_queues)
+		rtwdev->hci.ops->flush_queues(rtwdev, queues, drop);
+}
+
+static inline void rtw_hci_flush_all_queues(struct rtw_dev *rtwdev, bool drop)
+{
+	if (rtwdev->hci.ops->flush_queues)
+		rtwdev->hci.ops->flush_queues(rtwdev,
+					      BIT(rtwdev->hw->queues) - 1,
+					      drop);
 }
 
 #endif

@@ -119,8 +119,8 @@ int spu_sg_count(struct scatterlist *sg_list, unsigned int skip, int nbytes)
  * @from_skip:   number of bytes to skip in from_sg. Non-zero when previous
  *		 request included part of the buffer in entry in from_sg.
  *		 Assumes from_skip < from_sg->length.
- * @from_nents   number of entries in from_sg
- * @length       number of bytes to copy. may reach this limit before exhausting
+ * @from_nents:  number of entries in from_sg
+ * @length:      number of bytes to copy. may reach this limit before exhausting
  *		 from_sg.
  *
  * Copies the entries themselves, not the data in the entries. Assumes to_sg has

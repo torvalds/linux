@@ -81,11 +81,6 @@ static void pcie_update_bits(void __iomem *base, u32 ofs, u32 mask, u32 val)
 		writel(val, base + ofs);
 }
 
-static inline u32 pcie_app_rd(struct intel_pcie_port *lpp, u32 ofs)
-{
-	return readl(lpp->app_base + ofs);
-}
-
 static inline void pcie_app_wr(struct intel_pcie_port *lpp, u32 ofs, u32 val)
 {
 	writel(val, lpp->app_base + ofs);

@@ -2588,8 +2588,8 @@ static int rt5670_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	snd_soc_component_write(component, RT5670_PLL_CTRL1,
 		pll_code.n_code << RT5670_PLL_N_SFT | pll_code.k_code);
 	snd_soc_component_write(component, RT5670_PLL_CTRL2,
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5670_PLL_M_SFT |
-		pll_code.m_bp << RT5670_PLL_M_BP_SFT);
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT5670_PLL_M_SFT) |
+		(pll_code.m_bp << RT5670_PLL_M_BP_SFT));
 
 	rt5670->pll_in = freq_in;
 	rt5670->pll_out = freq_out;
@@ -2982,6 +2982,18 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 	},
 	{
 		.callback = rt5670_quirk_cb,
+		.ident = "Dell Venue 10 Pro 5055",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Venue 10 Pro 5055"),
+		},
+		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
+						 RT5670_DMIC2_INR |
+						 RT5670_GPIO1_IS_IRQ |
+						 RT5670_JD_MODE1),
+	},
+	{
+		.callback = rt5670_quirk_cb,
 		.ident = "Aegex 10 tablet (RU2)",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "AEGEX"),
@@ -2994,6 +3006,45 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 	},
 	{}
 };
+
+const char *rt5670_components(void)
+{
+	unsigned long quirk;
+	bool dmic1 = false;
+	bool dmic2 = false;
+	bool dmic3 = false;
+
+	if (quirk_override) {
+		quirk = quirk_override;
+	} else {
+		dmi_check_system(dmi_platform_intel_quirks);
+		quirk = rt5670_quirk;
+	}
+
+	if ((quirk & RT5670_DMIC1_IN2P) ||
+	    (quirk & RT5670_DMIC1_GPIO6) ||
+	    (quirk & RT5670_DMIC1_GPIO7))
+		dmic1 = true;
+
+	if ((quirk & RT5670_DMIC2_INR) ||
+	    (quirk & RT5670_DMIC2_GPIO8))
+		dmic2 = true;
+
+	if (quirk & RT5670_DMIC3_GPIO5)
+		dmic3 = true;
+
+	if (dmic1 && dmic2)
+		return "cfg-spk:2 cfg-mic:dmics12";
+	else if (dmic1)
+		return "cfg-spk:2 cfg-mic:dmic1";
+	else if (dmic2)
+		return "cfg-spk:2 cfg-mic:dmic2";
+	else if (dmic3)
+		return "cfg-spk:2 cfg-mic:dmic3";
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(rt5670_components);
 
 static int rt5670_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)

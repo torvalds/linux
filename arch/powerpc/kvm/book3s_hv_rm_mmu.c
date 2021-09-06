@@ -23,20 +23,9 @@
 #include <asm/pte-walk.h>
 
 /* Translate address of a vmalloc'd thing to a linear map address */
-static void *real_vmalloc_addr(void *x)
+static void *real_vmalloc_addr(void *addr)
 {
-	unsigned long addr = (unsigned long) x;
-	pte_t *p;
-	/*
-	 * assume we don't have huge pages in vmalloc space...
-	 * So don't worry about THP collapse/split. Called
-	 * Only in realmode with MSR_EE = 0, hence won't need irq_save/restore.
-	 */
-	p = find_init_mm_pte(addr, NULL);
-	if (!p || !pte_present(*p))
-		return NULL;
-	addr = (pte_pfn(*p) << PAGE_SHIFT) | (addr & ~PAGE_MASK);
-	return __va(addr);
+	return __va(ppc_find_vmap_phys((unsigned long)addr));
 }
 
 /* Return 1 if we need to do a global tlbie, 0 if we can use tlbiel */
@@ -673,8 +662,7 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 }
 
 long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
-		      unsigned long pte_index, unsigned long avpn,
-		      unsigned long va)
+		      unsigned long pte_index, unsigned long avpn)
 {
 	struct kvm *kvm = vcpu->kvm;
 	__be64 *hpte;

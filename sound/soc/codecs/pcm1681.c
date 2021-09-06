@@ -84,7 +84,7 @@ static const int pcm1681_deemph[] = { 44100, 48000, 32000 };
 static int pcm1681_set_deemph(struct snd_soc_component *component)
 {
 	struct pcm1681_private *priv = snd_soc_component_get_drvdata(component);
-	int i = 0, val = -1, enable = 0;
+	int i, val = -1, enable = 0;
 
 	if (priv->deemph) {
 		for (i = 0; i < ARRAY_SIZE(pcm1681_deemph); i++) {

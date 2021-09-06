@@ -98,16 +98,16 @@ static void calculate_bandwidth(
 	int32_t num_cursor_lines;
 
 	int32_t i, j, k;
-	struct bw_fixed yclk[3];
-	struct bw_fixed sclk[8];
+	struct bw_fixed *yclk;
+	struct bw_fixed *sclk;
 	bool d0_underlay_enable;
 	bool d1_underlay_enable;
 	bool fbc_enabled;
 	bool lpt_enabled;
 	enum bw_defines sclk_message;
 	enum bw_defines yclk_message;
-	enum bw_defines tiling_mode[maximum_number_of_surfaces];
-	enum bw_defines surface_type[maximum_number_of_surfaces];
+	enum bw_defines *tiling_mode;
+	enum bw_defines *surface_type;
 	enum bw_defines voltage;
 	enum bw_defines pipe_check;
 	enum bw_defines hsr_check;
@@ -121,6 +121,22 @@ static void calculate_bandwidth(
 	int32_t number_of_displays_enabled = 0;
 	int32_t number_of_displays_enabled_with_margin = 0;
 	int32_t number_of_aligned_displays_with_no_margin = 0;
+
+	yclk = kcalloc(3, sizeof(*yclk), GFP_KERNEL);
+	if (!yclk)
+		return;
+
+	sclk = kcalloc(8, sizeof(*sclk), GFP_KERNEL);
+	if (!sclk)
+		goto free_yclk;
+
+	tiling_mode = kcalloc(maximum_number_of_surfaces, sizeof(*tiling_mode), GFP_KERNEL);
+	if (!tiling_mode)
+		goto free_sclk;
+
+	surface_type = kcalloc(maximum_number_of_surfaces, sizeof(*surface_type), GFP_KERNEL);
+	if (!surface_type)
+		goto free_tiling_mode;
 
 	yclk[low] = vbios->low_yclk;
 	yclk[mid] = vbios->mid_yclk;
@@ -2013,6 +2029,14 @@ static void calculate_bandwidth(
 			}
 		}
 	}
+
+	kfree(surface_type);
+free_tiling_mode:
+	kfree(tiling_mode);
+free_yclk:
+	kfree(yclk);
+free_sclk:
+	kfree(sclk);
 }
 
 /*******************************************************************************
@@ -2022,707 +2046,719 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 	struct bw_calcs_vbios *bw_vbios,
 	struct hw_asic_id asic_id)
 {
-	struct bw_calcs_dceip dceip = { 0 };
-	struct bw_calcs_vbios vbios = { 0 };
+	struct bw_calcs_dceip *dceip;
+	struct bw_calcs_vbios *vbios;
 
 	enum bw_calcs_version version = bw_calcs_version_from_asic_id(asic_id);
 
-	dceip.version = version;
+	dceip = kzalloc(sizeof(*dceip), GFP_KERNEL);
+	if (!dceip)
+		return;
+
+	vbios = kzalloc(sizeof(*vbios), GFP_KERNEL);
+	if (!vbios) {
+		kfree(dceip);
+		return;
+	}
+
+	dceip->version = version;
 
 	switch (version) {
 	case BW_CALCS_VERSION_CARRIZO:
-		vbios.memory_type = bw_def_gddr5;
-		vbios.dram_channel_width_in_bits = 64;
-		vbios.number_of_dram_channels = asic_id.vram_width / vbios.dram_channel_width_in_bits;
-		vbios.number_of_dram_banks = 8;
-		vbios.high_yclk = bw_int_to_fixed(1600);
-		vbios.mid_yclk = bw_int_to_fixed(1600);
-		vbios.low_yclk = bw_frc_to_fixed(66666, 100);
-		vbios.low_sclk = bw_int_to_fixed(200);
-		vbios.mid1_sclk = bw_int_to_fixed(300);
-		vbios.mid2_sclk = bw_int_to_fixed(300);
-		vbios.mid3_sclk = bw_int_to_fixed(300);
-		vbios.mid4_sclk = bw_int_to_fixed(300);
-		vbios.mid5_sclk = bw_int_to_fixed(300);
-		vbios.mid6_sclk = bw_int_to_fixed(300);
-		vbios.high_sclk = bw_frc_to_fixed(62609, 100);
-		vbios.low_voltage_max_dispclk = bw_int_to_fixed(352);
-		vbios.mid_voltage_max_dispclk = bw_int_to_fixed(467);
-		vbios.high_voltage_max_dispclk = bw_int_to_fixed(643);
-		vbios.low_voltage_max_phyclk = bw_int_to_fixed(540);
-		vbios.mid_voltage_max_phyclk = bw_int_to_fixed(810);
-		vbios.high_voltage_max_phyclk = bw_int_to_fixed(810);
-		vbios.data_return_bus_width = bw_int_to_fixed(32);
-		vbios.trc = bw_int_to_fixed(50);
-		vbios.dmifmc_urgent_latency = bw_int_to_fixed(4);
-		vbios.stutter_self_refresh_exit_latency = bw_frc_to_fixed(153, 10);
-		vbios.stutter_self_refresh_entry_latency = bw_int_to_fixed(0);
-		vbios.nbp_state_change_latency = bw_frc_to_fixed(19649, 1000);
-		vbios.mcifwrmc_urgent_latency = bw_int_to_fixed(10);
-		vbios.scatter_gather_enable = true;
-		vbios.down_spread_percentage = bw_frc_to_fixed(5, 10);
-		vbios.cursor_width = 32;
-		vbios.average_compression_rate = 4;
-		vbios.number_of_request_slots_gmc_reserves_for_dmif_per_channel = 256;
-		vbios.blackout_duration = bw_int_to_fixed(0); /* us */
-		vbios.maximum_blackout_recovery_time = bw_int_to_fixed(0);
+		vbios->memory_type = bw_def_gddr5;
+		vbios->dram_channel_width_in_bits = 64;
+		vbios->number_of_dram_channels = asic_id.vram_width / vbios->dram_channel_width_in_bits;
+		vbios->number_of_dram_banks = 8;
+		vbios->high_yclk = bw_int_to_fixed(1600);
+		vbios->mid_yclk = bw_int_to_fixed(1600);
+		vbios->low_yclk = bw_frc_to_fixed(66666, 100);
+		vbios->low_sclk = bw_int_to_fixed(200);
+		vbios->mid1_sclk = bw_int_to_fixed(300);
+		vbios->mid2_sclk = bw_int_to_fixed(300);
+		vbios->mid3_sclk = bw_int_to_fixed(300);
+		vbios->mid4_sclk = bw_int_to_fixed(300);
+		vbios->mid5_sclk = bw_int_to_fixed(300);
+		vbios->mid6_sclk = bw_int_to_fixed(300);
+		vbios->high_sclk = bw_frc_to_fixed(62609, 100);
+		vbios->low_voltage_max_dispclk = bw_int_to_fixed(352);
+		vbios->mid_voltage_max_dispclk = bw_int_to_fixed(467);
+		vbios->high_voltage_max_dispclk = bw_int_to_fixed(643);
+		vbios->low_voltage_max_phyclk = bw_int_to_fixed(540);
+		vbios->mid_voltage_max_phyclk = bw_int_to_fixed(810);
+		vbios->high_voltage_max_phyclk = bw_int_to_fixed(810);
+		vbios->data_return_bus_width = bw_int_to_fixed(32);
+		vbios->trc = bw_int_to_fixed(50);
+		vbios->dmifmc_urgent_latency = bw_int_to_fixed(4);
+		vbios->stutter_self_refresh_exit_latency = bw_frc_to_fixed(153, 10);
+		vbios->stutter_self_refresh_entry_latency = bw_int_to_fixed(0);
+		vbios->nbp_state_change_latency = bw_frc_to_fixed(19649, 1000);
+		vbios->mcifwrmc_urgent_latency = bw_int_to_fixed(10);
+		vbios->scatter_gather_enable = true;
+		vbios->down_spread_percentage = bw_frc_to_fixed(5, 10);
+		vbios->cursor_width = 32;
+		vbios->average_compression_rate = 4;
+		vbios->number_of_request_slots_gmc_reserves_for_dmif_per_channel = 256;
+		vbios->blackout_duration = bw_int_to_fixed(0); /* us */
+		vbios->maximum_blackout_recovery_time = bw_int_to_fixed(0);
 
-		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
-		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
-		dceip.percent_of_ideal_port_bw_received_after_urgent_latency = 100;
-		dceip.large_cursor = false;
-		dceip.dmif_request_buffer_size = bw_int_to_fixed(768);
-		dceip.dmif_pipe_en_fbc_chunk_tracker = false;
-		dceip.cursor_max_outstanding_group_num = 1;
-		dceip.lines_interleaved_into_lb = 2;
-		dceip.chunk_width = 256;
-		dceip.number_of_graphics_pipes = 3;
-		dceip.number_of_underlay_pipes = 1;
-		dceip.low_power_tiling_mode = 0;
-		dceip.display_write_back_supported = false;
-		dceip.argb_compression_support = false;
-		dceip.underlay_vscaler_efficiency6_bit_per_component =
+		dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
+		dceip->max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
+		dceip->percent_of_ideal_port_bw_received_after_urgent_latency = 100;
+		dceip->large_cursor = false;
+		dceip->dmif_request_buffer_size = bw_int_to_fixed(768);
+		dceip->dmif_pipe_en_fbc_chunk_tracker = false;
+		dceip->cursor_max_outstanding_group_num = 1;
+		dceip->lines_interleaved_into_lb = 2;
+		dceip->chunk_width = 256;
+		dceip->number_of_graphics_pipes = 3;
+		dceip->number_of_underlay_pipes = 1;
+		dceip->low_power_tiling_mode = 0;
+		dceip->display_write_back_supported = false;
+		dceip->argb_compression_support = false;
+		dceip->underlay_vscaler_efficiency6_bit_per_component =
 			bw_frc_to_fixed(35556, 10000);
-		dceip.underlay_vscaler_efficiency8_bit_per_component =
+		dceip->underlay_vscaler_efficiency8_bit_per_component =
 			bw_frc_to_fixed(34286, 10000);
-		dceip.underlay_vscaler_efficiency10_bit_per_component =
+		dceip->underlay_vscaler_efficiency10_bit_per_component =
 			bw_frc_to_fixed(32, 10);
-		dceip.underlay_vscaler_efficiency12_bit_per_component =
+		dceip->underlay_vscaler_efficiency12_bit_per_component =
 			bw_int_to_fixed(3);
-		dceip.graphics_vscaler_efficiency6_bit_per_component =
+		dceip->graphics_vscaler_efficiency6_bit_per_component =
 			bw_frc_to_fixed(35, 10);
-		dceip.graphics_vscaler_efficiency8_bit_per_component =
+		dceip->graphics_vscaler_efficiency8_bit_per_component =
 			bw_frc_to_fixed(34286, 10000);
-		dceip.graphics_vscaler_efficiency10_bit_per_component =
+		dceip->graphics_vscaler_efficiency10_bit_per_component =
 			bw_frc_to_fixed(32, 10);
-		dceip.graphics_vscaler_efficiency12_bit_per_component =
+		dceip->graphics_vscaler_efficiency12_bit_per_component =
 			bw_int_to_fixed(3);
-		dceip.alpha_vscaler_efficiency = bw_int_to_fixed(3);
-		dceip.max_dmif_buffer_allocated = 2;
-		dceip.graphics_dmif_size = 12288;
-		dceip.underlay_luma_dmif_size = 19456;
-		dceip.underlay_chroma_dmif_size = 23552;
-		dceip.pre_downscaler_enabled = true;
-		dceip.underlay_downscale_prefetch_enabled = true;
-		dceip.lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
-		dceip.lb_size_per_component444 = bw_int_to_fixed(82176);
-		dceip.graphics_lb_nodownscaling_multi_line_prefetching = false;
-		dceip.stutter_and_dram_clock_state_change_gated_before_cursor =
+		dceip->alpha_vscaler_efficiency = bw_int_to_fixed(3);
+		dceip->max_dmif_buffer_allocated = 2;
+		dceip->graphics_dmif_size = 12288;
+		dceip->underlay_luma_dmif_size = 19456;
+		dceip->underlay_chroma_dmif_size = 23552;
+		dceip->pre_downscaler_enabled = true;
+		dceip->underlay_downscale_prefetch_enabled = true;
+		dceip->lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
+		dceip->lb_size_per_component444 = bw_int_to_fixed(82176);
+		dceip->graphics_lb_nodownscaling_multi_line_prefetching = false;
+		dceip->stutter_and_dram_clock_state_change_gated_before_cursor =
 			bw_int_to_fixed(0);
-		dceip.underlay420_luma_lb_size_per_component = bw_int_to_fixed(
+		dceip->underlay420_luma_lb_size_per_component = bw_int_to_fixed(
 			82176);
-		dceip.underlay420_chroma_lb_size_per_component =
+		dceip->underlay420_chroma_lb_size_per_component =
 			bw_int_to_fixed(164352);
-		dceip.underlay422_lb_size_per_component = bw_int_to_fixed(
+		dceip->underlay422_lb_size_per_component = bw_int_to_fixed(
 			82176);
-		dceip.cursor_chunk_width = bw_int_to_fixed(64);
-		dceip.cursor_dcp_buffer_lines = bw_int_to_fixed(4);
-		dceip.underlay_maximum_width_efficient_for_tiling =
+		dceip->cursor_chunk_width = bw_int_to_fixed(64);
+		dceip->cursor_dcp_buffer_lines = bw_int_to_fixed(4);
+		dceip->underlay_maximum_width_efficient_for_tiling =
 			bw_int_to_fixed(1920);
-		dceip.underlay_maximum_height_efficient_for_tiling =
+		dceip->underlay_maximum_height_efficient_for_tiling =
 			bw_int_to_fixed(1080);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
+		dceip->peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
 			bw_frc_to_fixed(3, 10);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
+		dceip->peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
 			bw_int_to_fixed(25);
-		dceip.minimum_outstanding_pte_request_limit = bw_int_to_fixed(
+		dceip->minimum_outstanding_pte_request_limit = bw_int_to_fixed(
 			2);
-		dceip.maximum_total_outstanding_pte_requests_allowed_by_saw =
+		dceip->maximum_total_outstanding_pte_requests_allowed_by_saw =
 			bw_int_to_fixed(128);
-		dceip.limit_excessive_outstanding_dmif_requests = true;
-		dceip.linear_mode_line_request_alternation_slice =
+		dceip->limit_excessive_outstanding_dmif_requests = true;
+		dceip->linear_mode_line_request_alternation_slice =
 			bw_int_to_fixed(64);
-		dceip.scatter_gather_lines_of_pte_prefetching_in_linear_mode =
+		dceip->scatter_gather_lines_of_pte_prefetching_in_linear_mode =
 			32;
-		dceip.display_write_back420_luma_mcifwr_buffer_size = 12288;
-		dceip.display_write_back420_chroma_mcifwr_buffer_size = 8192;
-		dceip.request_efficiency = bw_frc_to_fixed(8, 10);
-		dceip.dispclk_per_request = bw_int_to_fixed(2);
-		dceip.dispclk_ramping_factor = bw_frc_to_fixed(105, 100);
-		dceip.display_pipe_throughput_factor = bw_frc_to_fixed(105, 100);
-		dceip.scatter_gather_pte_request_rows_in_tiling_mode = 2;
-		dceip.mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0); /* todo: this is a bug*/
+		dceip->display_write_back420_luma_mcifwr_buffer_size = 12288;
+		dceip->display_write_back420_chroma_mcifwr_buffer_size = 8192;
+		dceip->request_efficiency = bw_frc_to_fixed(8, 10);
+		dceip->dispclk_per_request = bw_int_to_fixed(2);
+		dceip->dispclk_ramping_factor = bw_frc_to_fixed(105, 100);
+		dceip->display_pipe_throughput_factor = bw_frc_to_fixed(105, 100);
+		dceip->scatter_gather_pte_request_rows_in_tiling_mode = 2;
+		dceip->mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0); /* todo: this is a bug*/
 		break;
 	case BW_CALCS_VERSION_POLARIS10:
 		/* TODO: Treat VEGAM the same as P10 for now
 		 * Need to tune the para for VEGAM if needed */
 	case BW_CALCS_VERSION_VEGAM:
-		vbios.memory_type = bw_def_gddr5;
-		vbios.dram_channel_width_in_bits = 32;
-		vbios.number_of_dram_channels = asic_id.vram_width / vbios.dram_channel_width_in_bits;
-		vbios.number_of_dram_banks = 8;
-		vbios.high_yclk = bw_int_to_fixed(6000);
-		vbios.mid_yclk = bw_int_to_fixed(3200);
-		vbios.low_yclk = bw_int_to_fixed(1000);
-		vbios.low_sclk = bw_int_to_fixed(300);
-		vbios.mid1_sclk = bw_int_to_fixed(400);
-		vbios.mid2_sclk = bw_int_to_fixed(500);
-		vbios.mid3_sclk = bw_int_to_fixed(600);
-		vbios.mid4_sclk = bw_int_to_fixed(700);
-		vbios.mid5_sclk = bw_int_to_fixed(800);
-		vbios.mid6_sclk = bw_int_to_fixed(974);
-		vbios.high_sclk = bw_int_to_fixed(1154);
-		vbios.low_voltage_max_dispclk = bw_int_to_fixed(459);
-		vbios.mid_voltage_max_dispclk = bw_int_to_fixed(654);
-		vbios.high_voltage_max_dispclk = bw_int_to_fixed(1108);
-		vbios.low_voltage_max_phyclk = bw_int_to_fixed(540);
-		vbios.mid_voltage_max_phyclk = bw_int_to_fixed(810);
-		vbios.high_voltage_max_phyclk = bw_int_to_fixed(810);
-		vbios.data_return_bus_width = bw_int_to_fixed(32);
-		vbios.trc = bw_int_to_fixed(48);
-		vbios.dmifmc_urgent_latency = bw_int_to_fixed(3);
-		vbios.stutter_self_refresh_exit_latency = bw_int_to_fixed(5);
-		vbios.stutter_self_refresh_entry_latency = bw_int_to_fixed(0);
-		vbios.nbp_state_change_latency = bw_int_to_fixed(45);
-		vbios.mcifwrmc_urgent_latency = bw_int_to_fixed(10);
-		vbios.scatter_gather_enable = true;
-		vbios.down_spread_percentage = bw_frc_to_fixed(5, 10);
-		vbios.cursor_width = 32;
-		vbios.average_compression_rate = 4;
-		vbios.number_of_request_slots_gmc_reserves_for_dmif_per_channel = 256;
-		vbios.blackout_duration = bw_int_to_fixed(0); /* us */
-		vbios.maximum_blackout_recovery_time = bw_int_to_fixed(0);
+		vbios->memory_type = bw_def_gddr5;
+		vbios->dram_channel_width_in_bits = 32;
+		vbios->number_of_dram_channels = asic_id.vram_width / vbios->dram_channel_width_in_bits;
+		vbios->number_of_dram_banks = 8;
+		vbios->high_yclk = bw_int_to_fixed(6000);
+		vbios->mid_yclk = bw_int_to_fixed(3200);
+		vbios->low_yclk = bw_int_to_fixed(1000);
+		vbios->low_sclk = bw_int_to_fixed(300);
+		vbios->mid1_sclk = bw_int_to_fixed(400);
+		vbios->mid2_sclk = bw_int_to_fixed(500);
+		vbios->mid3_sclk = bw_int_to_fixed(600);
+		vbios->mid4_sclk = bw_int_to_fixed(700);
+		vbios->mid5_sclk = bw_int_to_fixed(800);
+		vbios->mid6_sclk = bw_int_to_fixed(974);
+		vbios->high_sclk = bw_int_to_fixed(1154);
+		vbios->low_voltage_max_dispclk = bw_int_to_fixed(459);
+		vbios->mid_voltage_max_dispclk = bw_int_to_fixed(654);
+		vbios->high_voltage_max_dispclk = bw_int_to_fixed(1108);
+		vbios->low_voltage_max_phyclk = bw_int_to_fixed(540);
+		vbios->mid_voltage_max_phyclk = bw_int_to_fixed(810);
+		vbios->high_voltage_max_phyclk = bw_int_to_fixed(810);
+		vbios->data_return_bus_width = bw_int_to_fixed(32);
+		vbios->trc = bw_int_to_fixed(48);
+		vbios->dmifmc_urgent_latency = bw_int_to_fixed(3);
+		vbios->stutter_self_refresh_exit_latency = bw_int_to_fixed(5);
+		vbios->stutter_self_refresh_entry_latency = bw_int_to_fixed(0);
+		vbios->nbp_state_change_latency = bw_int_to_fixed(45);
+		vbios->mcifwrmc_urgent_latency = bw_int_to_fixed(10);
+		vbios->scatter_gather_enable = true;
+		vbios->down_spread_percentage = bw_frc_to_fixed(5, 10);
+		vbios->cursor_width = 32;
+		vbios->average_compression_rate = 4;
+		vbios->number_of_request_slots_gmc_reserves_for_dmif_per_channel = 256;
+		vbios->blackout_duration = bw_int_to_fixed(0); /* us */
+		vbios->maximum_blackout_recovery_time = bw_int_to_fixed(0);
 
-		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
-		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
-		dceip.percent_of_ideal_port_bw_received_after_urgent_latency = 100;
-		dceip.large_cursor = false;
-		dceip.dmif_request_buffer_size = bw_int_to_fixed(768);
-		dceip.dmif_pipe_en_fbc_chunk_tracker = false;
-		dceip.cursor_max_outstanding_group_num = 1;
-		dceip.lines_interleaved_into_lb = 2;
-		dceip.chunk_width = 256;
-		dceip.number_of_graphics_pipes = 6;
-		dceip.number_of_underlay_pipes = 0;
-		dceip.low_power_tiling_mode = 0;
-		dceip.display_write_back_supported = false;
-		dceip.argb_compression_support = true;
-		dceip.underlay_vscaler_efficiency6_bit_per_component =
+		dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
+		dceip->max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
+		dceip->percent_of_ideal_port_bw_received_after_urgent_latency = 100;
+		dceip->large_cursor = false;
+		dceip->dmif_request_buffer_size = bw_int_to_fixed(768);
+		dceip->dmif_pipe_en_fbc_chunk_tracker = false;
+		dceip->cursor_max_outstanding_group_num = 1;
+		dceip->lines_interleaved_into_lb = 2;
+		dceip->chunk_width = 256;
+		dceip->number_of_graphics_pipes = 6;
+		dceip->number_of_underlay_pipes = 0;
+		dceip->low_power_tiling_mode = 0;
+		dceip->display_write_back_supported = false;
+		dceip->argb_compression_support = true;
+		dceip->underlay_vscaler_efficiency6_bit_per_component =
 			bw_frc_to_fixed(35556, 10000);
-		dceip.underlay_vscaler_efficiency8_bit_per_component =
+		dceip->underlay_vscaler_efficiency8_bit_per_component =
 			bw_frc_to_fixed(34286, 10000);
-		dceip.underlay_vscaler_efficiency10_bit_per_component =
+		dceip->underlay_vscaler_efficiency10_bit_per_component =
 			bw_frc_to_fixed(32, 10);
-		dceip.underlay_vscaler_efficiency12_bit_per_component =
+		dceip->underlay_vscaler_efficiency12_bit_per_component =
 			bw_int_to_fixed(3);
-		dceip.graphics_vscaler_efficiency6_bit_per_component =
+		dceip->graphics_vscaler_efficiency6_bit_per_component =
 			bw_frc_to_fixed(35, 10);
-		dceip.graphics_vscaler_efficiency8_bit_per_component =
+		dceip->graphics_vscaler_efficiency8_bit_per_component =
 			bw_frc_to_fixed(34286, 10000);
-		dceip.graphics_vscaler_efficiency10_bit_per_component =
+		dceip->graphics_vscaler_efficiency10_bit_per_component =
 			bw_frc_to_fixed(32, 10);
-		dceip.graphics_vscaler_efficiency12_bit_per_component =
+		dceip->graphics_vscaler_efficiency12_bit_per_component =
 			bw_int_to_fixed(3);
-		dceip.alpha_vscaler_efficiency = bw_int_to_fixed(3);
-		dceip.max_dmif_buffer_allocated = 4;
-		dceip.graphics_dmif_size = 12288;
-		dceip.underlay_luma_dmif_size = 19456;
-		dceip.underlay_chroma_dmif_size = 23552;
-		dceip.pre_downscaler_enabled = true;
-		dceip.underlay_downscale_prefetch_enabled = true;
-		dceip.lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
-		dceip.lb_size_per_component444 = bw_int_to_fixed(245952);
-		dceip.graphics_lb_nodownscaling_multi_line_prefetching = true;
-		dceip.stutter_and_dram_clock_state_change_gated_before_cursor =
+		dceip->alpha_vscaler_efficiency = bw_int_to_fixed(3);
+		dceip->max_dmif_buffer_allocated = 4;
+		dceip->graphics_dmif_size = 12288;
+		dceip->underlay_luma_dmif_size = 19456;
+		dceip->underlay_chroma_dmif_size = 23552;
+		dceip->pre_downscaler_enabled = true;
+		dceip->underlay_downscale_prefetch_enabled = true;
+		dceip->lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
+		dceip->lb_size_per_component444 = bw_int_to_fixed(245952);
+		dceip->graphics_lb_nodownscaling_multi_line_prefetching = true;
+		dceip->stutter_and_dram_clock_state_change_gated_before_cursor =
 			bw_int_to_fixed(1);
-		dceip.underlay420_luma_lb_size_per_component = bw_int_to_fixed(
+		dceip->underlay420_luma_lb_size_per_component = bw_int_to_fixed(
 			82176);
-		dceip.underlay420_chroma_lb_size_per_component =
+		dceip->underlay420_chroma_lb_size_per_component =
 			bw_int_to_fixed(164352);
-		dceip.underlay422_lb_size_per_component = bw_int_to_fixed(
+		dceip->underlay422_lb_size_per_component = bw_int_to_fixed(
 			82176);
-		dceip.cursor_chunk_width = bw_int_to_fixed(64);
-		dceip.cursor_dcp_buffer_lines = bw_int_to_fixed(4);
-		dceip.underlay_maximum_width_efficient_for_tiling =
+		dceip->cursor_chunk_width = bw_int_to_fixed(64);
+		dceip->cursor_dcp_buffer_lines = bw_int_to_fixed(4);
+		dceip->underlay_maximum_width_efficient_for_tiling =
 			bw_int_to_fixed(1920);
-		dceip.underlay_maximum_height_efficient_for_tiling =
+		dceip->underlay_maximum_height_efficient_for_tiling =
 			bw_int_to_fixed(1080);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
+		dceip->peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
 			bw_frc_to_fixed(3, 10);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
+		dceip->peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
 			bw_int_to_fixed(25);
-		dceip.minimum_outstanding_pte_request_limit = bw_int_to_fixed(
+		dceip->minimum_outstanding_pte_request_limit = bw_int_to_fixed(
 			2);
-		dceip.maximum_total_outstanding_pte_requests_allowed_by_saw =
+		dceip->maximum_total_outstanding_pte_requests_allowed_by_saw =
 			bw_int_to_fixed(128);
-		dceip.limit_excessive_outstanding_dmif_requests = true;
-		dceip.linear_mode_line_request_alternation_slice =
+		dceip->limit_excessive_outstanding_dmif_requests = true;
+		dceip->linear_mode_line_request_alternation_slice =
 			bw_int_to_fixed(64);
-		dceip.scatter_gather_lines_of_pte_prefetching_in_linear_mode =
+		dceip->scatter_gather_lines_of_pte_prefetching_in_linear_mode =
 			32;
-		dceip.display_write_back420_luma_mcifwr_buffer_size = 12288;
-		dceip.display_write_back420_chroma_mcifwr_buffer_size = 8192;
-		dceip.request_efficiency = bw_frc_to_fixed(8, 10);
-		dceip.dispclk_per_request = bw_int_to_fixed(2);
-		dceip.dispclk_ramping_factor = bw_frc_to_fixed(105, 100);
-		dceip.display_pipe_throughput_factor = bw_frc_to_fixed(105, 100);
-		dceip.scatter_gather_pte_request_rows_in_tiling_mode = 2;
-		dceip.mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0);
+		dceip->display_write_back420_luma_mcifwr_buffer_size = 12288;
+		dceip->display_write_back420_chroma_mcifwr_buffer_size = 8192;
+		dceip->request_efficiency = bw_frc_to_fixed(8, 10);
+		dceip->dispclk_per_request = bw_int_to_fixed(2);
+		dceip->dispclk_ramping_factor = bw_frc_to_fixed(105, 100);
+		dceip->display_pipe_throughput_factor = bw_frc_to_fixed(105, 100);
+		dceip->scatter_gather_pte_request_rows_in_tiling_mode = 2;
+		dceip->mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0);
 		break;
 	case BW_CALCS_VERSION_POLARIS11:
-		vbios.memory_type = bw_def_gddr5;
-		vbios.dram_channel_width_in_bits = 32;
-		vbios.number_of_dram_channels = asic_id.vram_width / vbios.dram_channel_width_in_bits;
-		vbios.number_of_dram_banks = 8;
-		vbios.high_yclk = bw_int_to_fixed(6000);
-		vbios.mid_yclk = bw_int_to_fixed(3200);
-		vbios.low_yclk = bw_int_to_fixed(1000);
-		vbios.low_sclk = bw_int_to_fixed(300);
-		vbios.mid1_sclk = bw_int_to_fixed(400);
-		vbios.mid2_sclk = bw_int_to_fixed(500);
-		vbios.mid3_sclk = bw_int_to_fixed(600);
-		vbios.mid4_sclk = bw_int_to_fixed(700);
-		vbios.mid5_sclk = bw_int_to_fixed(800);
-		vbios.mid6_sclk = bw_int_to_fixed(974);
-		vbios.high_sclk = bw_int_to_fixed(1154);
-		vbios.low_voltage_max_dispclk = bw_int_to_fixed(459);
-		vbios.mid_voltage_max_dispclk = bw_int_to_fixed(654);
-		vbios.high_voltage_max_dispclk = bw_int_to_fixed(1108);
-		vbios.low_voltage_max_phyclk = bw_int_to_fixed(540);
-		vbios.mid_voltage_max_phyclk = bw_int_to_fixed(810);
-		vbios.high_voltage_max_phyclk = bw_int_to_fixed(810);
-		vbios.data_return_bus_width = bw_int_to_fixed(32);
-		vbios.trc = bw_int_to_fixed(48);
-		if (vbios.number_of_dram_channels == 2) // 64-bit
-			vbios.dmifmc_urgent_latency = bw_int_to_fixed(4);
+		vbios->memory_type = bw_def_gddr5;
+		vbios->dram_channel_width_in_bits = 32;
+		vbios->number_of_dram_channels = asic_id.vram_width / vbios->dram_channel_width_in_bits;
+		vbios->number_of_dram_banks = 8;
+		vbios->high_yclk = bw_int_to_fixed(6000);
+		vbios->mid_yclk = bw_int_to_fixed(3200);
+		vbios->low_yclk = bw_int_to_fixed(1000);
+		vbios->low_sclk = bw_int_to_fixed(300);
+		vbios->mid1_sclk = bw_int_to_fixed(400);
+		vbios->mid2_sclk = bw_int_to_fixed(500);
+		vbios->mid3_sclk = bw_int_to_fixed(600);
+		vbios->mid4_sclk = bw_int_to_fixed(700);
+		vbios->mid5_sclk = bw_int_to_fixed(800);
+		vbios->mid6_sclk = bw_int_to_fixed(974);
+		vbios->high_sclk = bw_int_to_fixed(1154);
+		vbios->low_voltage_max_dispclk = bw_int_to_fixed(459);
+		vbios->mid_voltage_max_dispclk = bw_int_to_fixed(654);
+		vbios->high_voltage_max_dispclk = bw_int_to_fixed(1108);
+		vbios->low_voltage_max_phyclk = bw_int_to_fixed(540);
+		vbios->mid_voltage_max_phyclk = bw_int_to_fixed(810);
+		vbios->high_voltage_max_phyclk = bw_int_to_fixed(810);
+		vbios->data_return_bus_width = bw_int_to_fixed(32);
+		vbios->trc = bw_int_to_fixed(48);
+		if (vbios->number_of_dram_channels == 2) // 64-bit
+			vbios->dmifmc_urgent_latency = bw_int_to_fixed(4);
 		else
-			vbios.dmifmc_urgent_latency = bw_int_to_fixed(3);
-		vbios.stutter_self_refresh_exit_latency = bw_int_to_fixed(5);
-		vbios.stutter_self_refresh_entry_latency = bw_int_to_fixed(0);
-		vbios.nbp_state_change_latency = bw_int_to_fixed(45);
-		vbios.mcifwrmc_urgent_latency = bw_int_to_fixed(10);
-		vbios.scatter_gather_enable = true;
-		vbios.down_spread_percentage = bw_frc_to_fixed(5, 10);
-		vbios.cursor_width = 32;
-		vbios.average_compression_rate = 4;
-		vbios.number_of_request_slots_gmc_reserves_for_dmif_per_channel = 256;
-		vbios.blackout_duration = bw_int_to_fixed(0); /* us */
-		vbios.maximum_blackout_recovery_time = bw_int_to_fixed(0);
+			vbios->dmifmc_urgent_latency = bw_int_to_fixed(3);
+		vbios->stutter_self_refresh_exit_latency = bw_int_to_fixed(5);
+		vbios->stutter_self_refresh_entry_latency = bw_int_to_fixed(0);
+		vbios->nbp_state_change_latency = bw_int_to_fixed(45);
+		vbios->mcifwrmc_urgent_latency = bw_int_to_fixed(10);
+		vbios->scatter_gather_enable = true;
+		vbios->down_spread_percentage = bw_frc_to_fixed(5, 10);
+		vbios->cursor_width = 32;
+		vbios->average_compression_rate = 4;
+		vbios->number_of_request_slots_gmc_reserves_for_dmif_per_channel = 256;
+		vbios->blackout_duration = bw_int_to_fixed(0); /* us */
+		vbios->maximum_blackout_recovery_time = bw_int_to_fixed(0);
 
-		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
-		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
-		dceip.percent_of_ideal_port_bw_received_after_urgent_latency = 100;
-		dceip.large_cursor = false;
-		dceip.dmif_request_buffer_size = bw_int_to_fixed(768);
-		dceip.dmif_pipe_en_fbc_chunk_tracker = false;
-		dceip.cursor_max_outstanding_group_num = 1;
-		dceip.lines_interleaved_into_lb = 2;
-		dceip.chunk_width = 256;
-		dceip.number_of_graphics_pipes = 5;
-		dceip.number_of_underlay_pipes = 0;
-		dceip.low_power_tiling_mode = 0;
-		dceip.display_write_back_supported = false;
-		dceip.argb_compression_support = true;
-		dceip.underlay_vscaler_efficiency6_bit_per_component =
+		dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
+		dceip->max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
+		dceip->percent_of_ideal_port_bw_received_after_urgent_latency = 100;
+		dceip->large_cursor = false;
+		dceip->dmif_request_buffer_size = bw_int_to_fixed(768);
+		dceip->dmif_pipe_en_fbc_chunk_tracker = false;
+		dceip->cursor_max_outstanding_group_num = 1;
+		dceip->lines_interleaved_into_lb = 2;
+		dceip->chunk_width = 256;
+		dceip->number_of_graphics_pipes = 5;
+		dceip->number_of_underlay_pipes = 0;
+		dceip->low_power_tiling_mode = 0;
+		dceip->display_write_back_supported = false;
+		dceip->argb_compression_support = true;
+		dceip->underlay_vscaler_efficiency6_bit_per_component =
 			bw_frc_to_fixed(35556, 10000);
-		dceip.underlay_vscaler_efficiency8_bit_per_component =
+		dceip->underlay_vscaler_efficiency8_bit_per_component =
 			bw_frc_to_fixed(34286, 10000);
-		dceip.underlay_vscaler_efficiency10_bit_per_component =
+		dceip->underlay_vscaler_efficiency10_bit_per_component =
 			bw_frc_to_fixed(32, 10);
-		dceip.underlay_vscaler_efficiency12_bit_per_component =
+		dceip->underlay_vscaler_efficiency12_bit_per_component =
 			bw_int_to_fixed(3);
-		dceip.graphics_vscaler_efficiency6_bit_per_component =
+		dceip->graphics_vscaler_efficiency6_bit_per_component =
 			bw_frc_to_fixed(35, 10);
-		dceip.graphics_vscaler_efficiency8_bit_per_component =
+		dceip->graphics_vscaler_efficiency8_bit_per_component =
 			bw_frc_to_fixed(34286, 10000);
-		dceip.graphics_vscaler_efficiency10_bit_per_component =
+		dceip->graphics_vscaler_efficiency10_bit_per_component =
 			bw_frc_to_fixed(32, 10);
-		dceip.graphics_vscaler_efficiency12_bit_per_component =
+		dceip->graphics_vscaler_efficiency12_bit_per_component =
 			bw_int_to_fixed(3);
-		dceip.alpha_vscaler_efficiency = bw_int_to_fixed(3);
-		dceip.max_dmif_buffer_allocated = 4;
-		dceip.graphics_dmif_size = 12288;
-		dceip.underlay_luma_dmif_size = 19456;
-		dceip.underlay_chroma_dmif_size = 23552;
-		dceip.pre_downscaler_enabled = true;
-		dceip.underlay_downscale_prefetch_enabled = true;
-		dceip.lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
-		dceip.lb_size_per_component444 = bw_int_to_fixed(245952);
-		dceip.graphics_lb_nodownscaling_multi_line_prefetching = true;
-		dceip.stutter_and_dram_clock_state_change_gated_before_cursor =
+		dceip->alpha_vscaler_efficiency = bw_int_to_fixed(3);
+		dceip->max_dmif_buffer_allocated = 4;
+		dceip->graphics_dmif_size = 12288;
+		dceip->underlay_luma_dmif_size = 19456;
+		dceip->underlay_chroma_dmif_size = 23552;
+		dceip->pre_downscaler_enabled = true;
+		dceip->underlay_downscale_prefetch_enabled = true;
+		dceip->lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
+		dceip->lb_size_per_component444 = bw_int_to_fixed(245952);
+		dceip->graphics_lb_nodownscaling_multi_line_prefetching = true;
+		dceip->stutter_and_dram_clock_state_change_gated_before_cursor =
 			bw_int_to_fixed(1);
-		dceip.underlay420_luma_lb_size_per_component = bw_int_to_fixed(
+		dceip->underlay420_luma_lb_size_per_component = bw_int_to_fixed(
 			82176);
-		dceip.underlay420_chroma_lb_size_per_component =
+		dceip->underlay420_chroma_lb_size_per_component =
 			bw_int_to_fixed(164352);
-		dceip.underlay422_lb_size_per_component = bw_int_to_fixed(
+		dceip->underlay422_lb_size_per_component = bw_int_to_fixed(
 			82176);
-		dceip.cursor_chunk_width = bw_int_to_fixed(64);
-		dceip.cursor_dcp_buffer_lines = bw_int_to_fixed(4);
-		dceip.underlay_maximum_width_efficient_for_tiling =
+		dceip->cursor_chunk_width = bw_int_to_fixed(64);
+		dceip->cursor_dcp_buffer_lines = bw_int_to_fixed(4);
+		dceip->underlay_maximum_width_efficient_for_tiling =
 			bw_int_to_fixed(1920);
-		dceip.underlay_maximum_height_efficient_for_tiling =
+		dceip->underlay_maximum_height_efficient_for_tiling =
 			bw_int_to_fixed(1080);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
+		dceip->peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
 			bw_frc_to_fixed(3, 10);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
+		dceip->peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
 			bw_int_to_fixed(25);
-		dceip.minimum_outstanding_pte_request_limit = bw_int_to_fixed(
+		dceip->minimum_outstanding_pte_request_limit = bw_int_to_fixed(
 			2);
-		dceip.maximum_total_outstanding_pte_requests_allowed_by_saw =
+		dceip->maximum_total_outstanding_pte_requests_allowed_by_saw =
 			bw_int_to_fixed(128);
-		dceip.limit_excessive_outstanding_dmif_requests = true;
-		dceip.linear_mode_line_request_alternation_slice =
+		dceip->limit_excessive_outstanding_dmif_requests = true;
+		dceip->linear_mode_line_request_alternation_slice =
 			bw_int_to_fixed(64);
-		dceip.scatter_gather_lines_of_pte_prefetching_in_linear_mode =
+		dceip->scatter_gather_lines_of_pte_prefetching_in_linear_mode =
 			32;
-		dceip.display_write_back420_luma_mcifwr_buffer_size = 12288;
-		dceip.display_write_back420_chroma_mcifwr_buffer_size = 8192;
-		dceip.request_efficiency = bw_frc_to_fixed(8, 10);
-		dceip.dispclk_per_request = bw_int_to_fixed(2);
-		dceip.dispclk_ramping_factor = bw_frc_to_fixed(105, 100);
-		dceip.display_pipe_throughput_factor = bw_frc_to_fixed(105, 100);
-		dceip.scatter_gather_pte_request_rows_in_tiling_mode = 2;
-		dceip.mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0);
+		dceip->display_write_back420_luma_mcifwr_buffer_size = 12288;
+		dceip->display_write_back420_chroma_mcifwr_buffer_size = 8192;
+		dceip->request_efficiency = bw_frc_to_fixed(8, 10);
+		dceip->dispclk_per_request = bw_int_to_fixed(2);
+		dceip->dispclk_ramping_factor = bw_frc_to_fixed(105, 100);
+		dceip->display_pipe_throughput_factor = bw_frc_to_fixed(105, 100);
+		dceip->scatter_gather_pte_request_rows_in_tiling_mode = 2;
+		dceip->mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0);
 		break;
 	case BW_CALCS_VERSION_POLARIS12:
-		vbios.memory_type = bw_def_gddr5;
-		vbios.dram_channel_width_in_bits = 32;
-		vbios.number_of_dram_channels = asic_id.vram_width / vbios.dram_channel_width_in_bits;
-		vbios.number_of_dram_banks = 8;
-		vbios.high_yclk = bw_int_to_fixed(6000);
-		vbios.mid_yclk = bw_int_to_fixed(3200);
-		vbios.low_yclk = bw_int_to_fixed(1000);
-		vbios.low_sclk = bw_int_to_fixed(678);
-		vbios.mid1_sclk = bw_int_to_fixed(864);
-		vbios.mid2_sclk = bw_int_to_fixed(900);
-		vbios.mid3_sclk = bw_int_to_fixed(920);
-		vbios.mid4_sclk = bw_int_to_fixed(940);
-		vbios.mid5_sclk = bw_int_to_fixed(960);
-		vbios.mid6_sclk = bw_int_to_fixed(980);
-		vbios.high_sclk = bw_int_to_fixed(1049);
-		vbios.low_voltage_max_dispclk = bw_int_to_fixed(459);
-		vbios.mid_voltage_max_dispclk = bw_int_to_fixed(654);
-		vbios.high_voltage_max_dispclk = bw_int_to_fixed(1108);
-		vbios.low_voltage_max_phyclk = bw_int_to_fixed(540);
-		vbios.mid_voltage_max_phyclk = bw_int_to_fixed(810);
-		vbios.high_voltage_max_phyclk = bw_int_to_fixed(810);
-		vbios.data_return_bus_width = bw_int_to_fixed(32);
-		vbios.trc = bw_int_to_fixed(48);
-		if (vbios.number_of_dram_channels == 2) // 64-bit
-			vbios.dmifmc_urgent_latency = bw_int_to_fixed(4);
+		vbios->memory_type = bw_def_gddr5;
+		vbios->dram_channel_width_in_bits = 32;
+		vbios->number_of_dram_channels = asic_id.vram_width / vbios->dram_channel_width_in_bits;
+		vbios->number_of_dram_banks = 8;
+		vbios->high_yclk = bw_int_to_fixed(6000);
+		vbios->mid_yclk = bw_int_to_fixed(3200);
+		vbios->low_yclk = bw_int_to_fixed(1000);
+		vbios->low_sclk = bw_int_to_fixed(678);
+		vbios->mid1_sclk = bw_int_to_fixed(864);
+		vbios->mid2_sclk = bw_int_to_fixed(900);
+		vbios->mid3_sclk = bw_int_to_fixed(920);
+		vbios->mid4_sclk = bw_int_to_fixed(940);
+		vbios->mid5_sclk = bw_int_to_fixed(960);
+		vbios->mid6_sclk = bw_int_to_fixed(980);
+		vbios->high_sclk = bw_int_to_fixed(1049);
+		vbios->low_voltage_max_dispclk = bw_int_to_fixed(459);
+		vbios->mid_voltage_max_dispclk = bw_int_to_fixed(654);
+		vbios->high_voltage_max_dispclk = bw_int_to_fixed(1108);
+		vbios->low_voltage_max_phyclk = bw_int_to_fixed(540);
+		vbios->mid_voltage_max_phyclk = bw_int_to_fixed(810);
+		vbios->high_voltage_max_phyclk = bw_int_to_fixed(810);
+		vbios->data_return_bus_width = bw_int_to_fixed(32);
+		vbios->trc = bw_int_to_fixed(48);
+		if (vbios->number_of_dram_channels == 2) // 64-bit
+			vbios->dmifmc_urgent_latency = bw_int_to_fixed(4);
 		else
-			vbios.dmifmc_urgent_latency = bw_int_to_fixed(3);
-		vbios.stutter_self_refresh_exit_latency = bw_int_to_fixed(5);
-		vbios.stutter_self_refresh_entry_latency = bw_int_to_fixed(0);
-		vbios.nbp_state_change_latency = bw_int_to_fixed(250);
-		vbios.mcifwrmc_urgent_latency = bw_int_to_fixed(10);
-		vbios.scatter_gather_enable = false;
-		vbios.down_spread_percentage = bw_frc_to_fixed(5, 10);
-		vbios.cursor_width = 32;
-		vbios.average_compression_rate = 4;
-		vbios.number_of_request_slots_gmc_reserves_for_dmif_per_channel = 256;
-		vbios.blackout_duration = bw_int_to_fixed(0); /* us */
-		vbios.maximum_blackout_recovery_time = bw_int_to_fixed(0);
+			vbios->dmifmc_urgent_latency = bw_int_to_fixed(3);
+		vbios->stutter_self_refresh_exit_latency = bw_int_to_fixed(5);
+		vbios->stutter_self_refresh_entry_latency = bw_int_to_fixed(0);
+		vbios->nbp_state_change_latency = bw_int_to_fixed(250);
+		vbios->mcifwrmc_urgent_latency = bw_int_to_fixed(10);
+		vbios->scatter_gather_enable = false;
+		vbios->down_spread_percentage = bw_frc_to_fixed(5, 10);
+		vbios->cursor_width = 32;
+		vbios->average_compression_rate = 4;
+		vbios->number_of_request_slots_gmc_reserves_for_dmif_per_channel = 256;
+		vbios->blackout_duration = bw_int_to_fixed(0); /* us */
+		vbios->maximum_blackout_recovery_time = bw_int_to_fixed(0);
 
-		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
-		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
-		dceip.percent_of_ideal_port_bw_received_after_urgent_latency = 100;
-		dceip.large_cursor = false;
-		dceip.dmif_request_buffer_size = bw_int_to_fixed(768);
-		dceip.dmif_pipe_en_fbc_chunk_tracker = false;
-		dceip.cursor_max_outstanding_group_num = 1;
-		dceip.lines_interleaved_into_lb = 2;
-		dceip.chunk_width = 256;
-		dceip.number_of_graphics_pipes = 5;
-		dceip.number_of_underlay_pipes = 0;
-		dceip.low_power_tiling_mode = 0;
-		dceip.display_write_back_supported = true;
-		dceip.argb_compression_support = true;
-		dceip.underlay_vscaler_efficiency6_bit_per_component =
+		dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
+		dceip->max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
+		dceip->percent_of_ideal_port_bw_received_after_urgent_latency = 100;
+		dceip->large_cursor = false;
+		dceip->dmif_request_buffer_size = bw_int_to_fixed(768);
+		dceip->dmif_pipe_en_fbc_chunk_tracker = false;
+		dceip->cursor_max_outstanding_group_num = 1;
+		dceip->lines_interleaved_into_lb = 2;
+		dceip->chunk_width = 256;
+		dceip->number_of_graphics_pipes = 5;
+		dceip->number_of_underlay_pipes = 0;
+		dceip->low_power_tiling_mode = 0;
+		dceip->display_write_back_supported = true;
+		dceip->argb_compression_support = true;
+		dceip->underlay_vscaler_efficiency6_bit_per_component =
 			bw_frc_to_fixed(35556, 10000);
-		dceip.underlay_vscaler_efficiency8_bit_per_component =
+		dceip->underlay_vscaler_efficiency8_bit_per_component =
 			bw_frc_to_fixed(34286, 10000);
-		dceip.underlay_vscaler_efficiency10_bit_per_component =
+		dceip->underlay_vscaler_efficiency10_bit_per_component =
 			bw_frc_to_fixed(32, 10);
-		dceip.underlay_vscaler_efficiency12_bit_per_component =
+		dceip->underlay_vscaler_efficiency12_bit_per_component =
 			bw_int_to_fixed(3);
-		dceip.graphics_vscaler_efficiency6_bit_per_component =
+		dceip->graphics_vscaler_efficiency6_bit_per_component =
 			bw_frc_to_fixed(35, 10);
-		dceip.graphics_vscaler_efficiency8_bit_per_component =
+		dceip->graphics_vscaler_efficiency8_bit_per_component =
 			bw_frc_to_fixed(34286, 10000);
-		dceip.graphics_vscaler_efficiency10_bit_per_component =
+		dceip->graphics_vscaler_efficiency10_bit_per_component =
 			bw_frc_to_fixed(32, 10);
-		dceip.graphics_vscaler_efficiency12_bit_per_component =
+		dceip->graphics_vscaler_efficiency12_bit_per_component =
 			bw_int_to_fixed(3);
-		dceip.alpha_vscaler_efficiency = bw_int_to_fixed(3);
-		dceip.max_dmif_buffer_allocated = 4;
-		dceip.graphics_dmif_size = 12288;
-		dceip.underlay_luma_dmif_size = 19456;
-		dceip.underlay_chroma_dmif_size = 23552;
-		dceip.pre_downscaler_enabled = true;
-		dceip.underlay_downscale_prefetch_enabled = true;
-		dceip.lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
-		dceip.lb_size_per_component444 = bw_int_to_fixed(245952);
-		dceip.graphics_lb_nodownscaling_multi_line_prefetching = true;
-		dceip.stutter_and_dram_clock_state_change_gated_before_cursor =
+		dceip->alpha_vscaler_efficiency = bw_int_to_fixed(3);
+		dceip->max_dmif_buffer_allocated = 4;
+		dceip->graphics_dmif_size = 12288;
+		dceip->underlay_luma_dmif_size = 19456;
+		dceip->underlay_chroma_dmif_size = 23552;
+		dceip->pre_downscaler_enabled = true;
+		dceip->underlay_downscale_prefetch_enabled = true;
+		dceip->lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
+		dceip->lb_size_per_component444 = bw_int_to_fixed(245952);
+		dceip->graphics_lb_nodownscaling_multi_line_prefetching = true;
+		dceip->stutter_and_dram_clock_state_change_gated_before_cursor =
 			bw_int_to_fixed(1);
-		dceip.underlay420_luma_lb_size_per_component = bw_int_to_fixed(
+		dceip->underlay420_luma_lb_size_per_component = bw_int_to_fixed(
 			82176);
-		dceip.underlay420_chroma_lb_size_per_component =
+		dceip->underlay420_chroma_lb_size_per_component =
 			bw_int_to_fixed(164352);
-		dceip.underlay422_lb_size_per_component = bw_int_to_fixed(
+		dceip->underlay422_lb_size_per_component = bw_int_to_fixed(
 			82176);
-		dceip.cursor_chunk_width = bw_int_to_fixed(64);
-		dceip.cursor_dcp_buffer_lines = bw_int_to_fixed(4);
-		dceip.underlay_maximum_width_efficient_for_tiling =
+		dceip->cursor_chunk_width = bw_int_to_fixed(64);
+		dceip->cursor_dcp_buffer_lines = bw_int_to_fixed(4);
+		dceip->underlay_maximum_width_efficient_for_tiling =
 			bw_int_to_fixed(1920);
-		dceip.underlay_maximum_height_efficient_for_tiling =
+		dceip->underlay_maximum_height_efficient_for_tiling =
 			bw_int_to_fixed(1080);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
+		dceip->peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
 			bw_frc_to_fixed(3, 10);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
+		dceip->peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
 			bw_int_to_fixed(25);
-		dceip.minimum_outstanding_pte_request_limit = bw_int_to_fixed(
+		dceip->minimum_outstanding_pte_request_limit = bw_int_to_fixed(
 			2);
-		dceip.maximum_total_outstanding_pte_requests_allowed_by_saw =
+		dceip->maximum_total_outstanding_pte_requests_allowed_by_saw =
 			bw_int_to_fixed(128);
-		dceip.limit_excessive_outstanding_dmif_requests = true;
-		dceip.linear_mode_line_request_alternation_slice =
+		dceip->limit_excessive_outstanding_dmif_requests = true;
+		dceip->linear_mode_line_request_alternation_slice =
 			bw_int_to_fixed(64);
-		dceip.scatter_gather_lines_of_pte_prefetching_in_linear_mode =
+		dceip->scatter_gather_lines_of_pte_prefetching_in_linear_mode =
 			32;
-		dceip.display_write_back420_luma_mcifwr_buffer_size = 12288;
-		dceip.display_write_back420_chroma_mcifwr_buffer_size = 8192;
-		dceip.request_efficiency = bw_frc_to_fixed(8, 10);
-		dceip.dispclk_per_request = bw_int_to_fixed(2);
-		dceip.dispclk_ramping_factor = bw_frc_to_fixed(105, 100);
-		dceip.display_pipe_throughput_factor = bw_frc_to_fixed(105, 100);
-		dceip.scatter_gather_pte_request_rows_in_tiling_mode = 2;
-		dceip.mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0);
+		dceip->display_write_back420_luma_mcifwr_buffer_size = 12288;
+		dceip->display_write_back420_chroma_mcifwr_buffer_size = 8192;
+		dceip->request_efficiency = bw_frc_to_fixed(8, 10);
+		dceip->dispclk_per_request = bw_int_to_fixed(2);
+		dceip->dispclk_ramping_factor = bw_frc_to_fixed(105, 100);
+		dceip->display_pipe_throughput_factor = bw_frc_to_fixed(105, 100);
+		dceip->scatter_gather_pte_request_rows_in_tiling_mode = 2;
+		dceip->mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0);
 		break;
 	case BW_CALCS_VERSION_STONEY:
-		vbios.memory_type = bw_def_gddr5;
-		vbios.dram_channel_width_in_bits = 64;
-		vbios.number_of_dram_channels = asic_id.vram_width / vbios.dram_channel_width_in_bits;
-		vbios.number_of_dram_banks = 8;
-		vbios.high_yclk = bw_int_to_fixed(1866);
-		vbios.mid_yclk = bw_int_to_fixed(1866);
-		vbios.low_yclk = bw_int_to_fixed(1333);
-		vbios.low_sclk = bw_int_to_fixed(200);
-		vbios.mid1_sclk = bw_int_to_fixed(600);
-		vbios.mid2_sclk = bw_int_to_fixed(600);
-		vbios.mid3_sclk = bw_int_to_fixed(600);
-		vbios.mid4_sclk = bw_int_to_fixed(600);
-		vbios.mid5_sclk = bw_int_to_fixed(600);
-		vbios.mid6_sclk = bw_int_to_fixed(600);
-		vbios.high_sclk = bw_int_to_fixed(800);
-		vbios.low_voltage_max_dispclk = bw_int_to_fixed(352);
-		vbios.mid_voltage_max_dispclk = bw_int_to_fixed(467);
-		vbios.high_voltage_max_dispclk = bw_int_to_fixed(643);
-		vbios.low_voltage_max_phyclk = bw_int_to_fixed(540);
-		vbios.mid_voltage_max_phyclk = bw_int_to_fixed(810);
-		vbios.high_voltage_max_phyclk = bw_int_to_fixed(810);
-		vbios.data_return_bus_width = bw_int_to_fixed(32);
-		vbios.trc = bw_int_to_fixed(50);
-		vbios.dmifmc_urgent_latency = bw_int_to_fixed(4);
-		vbios.stutter_self_refresh_exit_latency = bw_frc_to_fixed(158, 10);
-		vbios.stutter_self_refresh_entry_latency = bw_int_to_fixed(0);
-		vbios.nbp_state_change_latency = bw_frc_to_fixed(2008, 100);
-		vbios.mcifwrmc_urgent_latency = bw_int_to_fixed(10);
-		vbios.scatter_gather_enable = true;
-		vbios.down_spread_percentage = bw_frc_to_fixed(5, 10);
-		vbios.cursor_width = 32;
-		vbios.average_compression_rate = 4;
-		vbios.number_of_request_slots_gmc_reserves_for_dmif_per_channel = 256;
-		vbios.blackout_duration = bw_int_to_fixed(0); /* us */
-		vbios.maximum_blackout_recovery_time = bw_int_to_fixed(0);
+		vbios->memory_type = bw_def_gddr5;
+		vbios->dram_channel_width_in_bits = 64;
+		vbios->number_of_dram_channels = asic_id.vram_width / vbios->dram_channel_width_in_bits;
+		vbios->number_of_dram_banks = 8;
+		vbios->high_yclk = bw_int_to_fixed(1866);
+		vbios->mid_yclk = bw_int_to_fixed(1866);
+		vbios->low_yclk = bw_int_to_fixed(1333);
+		vbios->low_sclk = bw_int_to_fixed(200);
+		vbios->mid1_sclk = bw_int_to_fixed(600);
+		vbios->mid2_sclk = bw_int_to_fixed(600);
+		vbios->mid3_sclk = bw_int_to_fixed(600);
+		vbios->mid4_sclk = bw_int_to_fixed(600);
+		vbios->mid5_sclk = bw_int_to_fixed(600);
+		vbios->mid6_sclk = bw_int_to_fixed(600);
+		vbios->high_sclk = bw_int_to_fixed(800);
+		vbios->low_voltage_max_dispclk = bw_int_to_fixed(352);
+		vbios->mid_voltage_max_dispclk = bw_int_to_fixed(467);
+		vbios->high_voltage_max_dispclk = bw_int_to_fixed(643);
+		vbios->low_voltage_max_phyclk = bw_int_to_fixed(540);
+		vbios->mid_voltage_max_phyclk = bw_int_to_fixed(810);
+		vbios->high_voltage_max_phyclk = bw_int_to_fixed(810);
+		vbios->data_return_bus_width = bw_int_to_fixed(32);
+		vbios->trc = bw_int_to_fixed(50);
+		vbios->dmifmc_urgent_latency = bw_int_to_fixed(4);
+		vbios->stutter_self_refresh_exit_latency = bw_frc_to_fixed(158, 10);
+		vbios->stutter_self_refresh_entry_latency = bw_int_to_fixed(0);
+		vbios->nbp_state_change_latency = bw_frc_to_fixed(2008, 100);
+		vbios->mcifwrmc_urgent_latency = bw_int_to_fixed(10);
+		vbios->scatter_gather_enable = true;
+		vbios->down_spread_percentage = bw_frc_to_fixed(5, 10);
+		vbios->cursor_width = 32;
+		vbios->average_compression_rate = 4;
+		vbios->number_of_request_slots_gmc_reserves_for_dmif_per_channel = 256;
+		vbios->blackout_duration = bw_int_to_fixed(0); /* us */
+		vbios->maximum_blackout_recovery_time = bw_int_to_fixed(0);
 
-		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
-		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
-		dceip.percent_of_ideal_port_bw_received_after_urgent_latency = 100;
-		dceip.large_cursor = false;
-		dceip.dmif_request_buffer_size = bw_int_to_fixed(768);
-		dceip.dmif_pipe_en_fbc_chunk_tracker = false;
-		dceip.cursor_max_outstanding_group_num = 1;
-		dceip.lines_interleaved_into_lb = 2;
-		dceip.chunk_width = 256;
-		dceip.number_of_graphics_pipes = 2;
-		dceip.number_of_underlay_pipes = 1;
-		dceip.low_power_tiling_mode = 0;
-		dceip.display_write_back_supported = false;
-		dceip.argb_compression_support = true;
-		dceip.underlay_vscaler_efficiency6_bit_per_component =
+		dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
+		dceip->max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
+		dceip->percent_of_ideal_port_bw_received_after_urgent_latency = 100;
+		dceip->large_cursor = false;
+		dceip->dmif_request_buffer_size = bw_int_to_fixed(768);
+		dceip->dmif_pipe_en_fbc_chunk_tracker = false;
+		dceip->cursor_max_outstanding_group_num = 1;
+		dceip->lines_interleaved_into_lb = 2;
+		dceip->chunk_width = 256;
+		dceip->number_of_graphics_pipes = 2;
+		dceip->number_of_underlay_pipes = 1;
+		dceip->low_power_tiling_mode = 0;
+		dceip->display_write_back_supported = false;
+		dceip->argb_compression_support = true;
+		dceip->underlay_vscaler_efficiency6_bit_per_component =
 			bw_frc_to_fixed(35556, 10000);
-		dceip.underlay_vscaler_efficiency8_bit_per_component =
+		dceip->underlay_vscaler_efficiency8_bit_per_component =
 			bw_frc_to_fixed(34286, 10000);
-		dceip.underlay_vscaler_efficiency10_bit_per_component =
+		dceip->underlay_vscaler_efficiency10_bit_per_component =
 			bw_frc_to_fixed(32, 10);
-		dceip.underlay_vscaler_efficiency12_bit_per_component =
+		dceip->underlay_vscaler_efficiency12_bit_per_component =
 			bw_int_to_fixed(3);
-		dceip.graphics_vscaler_efficiency6_bit_per_component =
+		dceip->graphics_vscaler_efficiency6_bit_per_component =
 			bw_frc_to_fixed(35, 10);
-		dceip.graphics_vscaler_efficiency8_bit_per_component =
+		dceip->graphics_vscaler_efficiency8_bit_per_component =
 			bw_frc_to_fixed(34286, 10000);
-		dceip.graphics_vscaler_efficiency10_bit_per_component =
+		dceip->graphics_vscaler_efficiency10_bit_per_component =
 			bw_frc_to_fixed(32, 10);
-		dceip.graphics_vscaler_efficiency12_bit_per_component =
+		dceip->graphics_vscaler_efficiency12_bit_per_component =
 			bw_int_to_fixed(3);
-		dceip.alpha_vscaler_efficiency = bw_int_to_fixed(3);
-		dceip.max_dmif_buffer_allocated = 2;
-		dceip.graphics_dmif_size = 12288;
-		dceip.underlay_luma_dmif_size = 19456;
-		dceip.underlay_chroma_dmif_size = 23552;
-		dceip.pre_downscaler_enabled = true;
-		dceip.underlay_downscale_prefetch_enabled = true;
-		dceip.lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
-		dceip.lb_size_per_component444 = bw_int_to_fixed(82176);
-		dceip.graphics_lb_nodownscaling_multi_line_prefetching = false;
-		dceip.stutter_and_dram_clock_state_change_gated_before_cursor =
+		dceip->alpha_vscaler_efficiency = bw_int_to_fixed(3);
+		dceip->max_dmif_buffer_allocated = 2;
+		dceip->graphics_dmif_size = 12288;
+		dceip->underlay_luma_dmif_size = 19456;
+		dceip->underlay_chroma_dmif_size = 23552;
+		dceip->pre_downscaler_enabled = true;
+		dceip->underlay_downscale_prefetch_enabled = true;
+		dceip->lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
+		dceip->lb_size_per_component444 = bw_int_to_fixed(82176);
+		dceip->graphics_lb_nodownscaling_multi_line_prefetching = false;
+		dceip->stutter_and_dram_clock_state_change_gated_before_cursor =
 			bw_int_to_fixed(0);
-		dceip.underlay420_luma_lb_size_per_component = bw_int_to_fixed(
+		dceip->underlay420_luma_lb_size_per_component = bw_int_to_fixed(
 			82176);
-		dceip.underlay420_chroma_lb_size_per_component =
+		dceip->underlay420_chroma_lb_size_per_component =
 			bw_int_to_fixed(164352);
-		dceip.underlay422_lb_size_per_component = bw_int_to_fixed(
+		dceip->underlay422_lb_size_per_component = bw_int_to_fixed(
 			82176);
-		dceip.cursor_chunk_width = bw_int_to_fixed(64);
-		dceip.cursor_dcp_buffer_lines = bw_int_to_fixed(4);
-		dceip.underlay_maximum_width_efficient_for_tiling =
+		dceip->cursor_chunk_width = bw_int_to_fixed(64);
+		dceip->cursor_dcp_buffer_lines = bw_int_to_fixed(4);
+		dceip->underlay_maximum_width_efficient_for_tiling =
 			bw_int_to_fixed(1920);
-		dceip.underlay_maximum_height_efficient_for_tiling =
+		dceip->underlay_maximum_height_efficient_for_tiling =
 			bw_int_to_fixed(1080);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
+		dceip->peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
 			bw_frc_to_fixed(3, 10);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
+		dceip->peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
 			bw_int_to_fixed(25);
-		dceip.minimum_outstanding_pte_request_limit = bw_int_to_fixed(
+		dceip->minimum_outstanding_pte_request_limit = bw_int_to_fixed(
 			2);
-		dceip.maximum_total_outstanding_pte_requests_allowed_by_saw =
+		dceip->maximum_total_outstanding_pte_requests_allowed_by_saw =
 			bw_int_to_fixed(128);
-		dceip.limit_excessive_outstanding_dmif_requests = true;
-		dceip.linear_mode_line_request_alternation_slice =
+		dceip->limit_excessive_outstanding_dmif_requests = true;
+		dceip->linear_mode_line_request_alternation_slice =
 			bw_int_to_fixed(64);
-		dceip.scatter_gather_lines_of_pte_prefetching_in_linear_mode =
+		dceip->scatter_gather_lines_of_pte_prefetching_in_linear_mode =
 			32;
-		dceip.display_write_back420_luma_mcifwr_buffer_size = 12288;
-		dceip.display_write_back420_chroma_mcifwr_buffer_size = 8192;
-		dceip.request_efficiency = bw_frc_to_fixed(8, 10);
-		dceip.dispclk_per_request = bw_int_to_fixed(2);
-		dceip.dispclk_ramping_factor = bw_frc_to_fixed(105, 100);
-		dceip.display_pipe_throughput_factor = bw_frc_to_fixed(105, 100);
-		dceip.scatter_gather_pte_request_rows_in_tiling_mode = 2;
-		dceip.mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0);
+		dceip->display_write_back420_luma_mcifwr_buffer_size = 12288;
+		dceip->display_write_back420_chroma_mcifwr_buffer_size = 8192;
+		dceip->request_efficiency = bw_frc_to_fixed(8, 10);
+		dceip->dispclk_per_request = bw_int_to_fixed(2);
+		dceip->dispclk_ramping_factor = bw_frc_to_fixed(105, 100);
+		dceip->display_pipe_throughput_factor = bw_frc_to_fixed(105, 100);
+		dceip->scatter_gather_pte_request_rows_in_tiling_mode = 2;
+		dceip->mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0);
 		break;
 	case BW_CALCS_VERSION_VEGA10:
-		vbios.memory_type = bw_def_hbm;
-		vbios.dram_channel_width_in_bits = 128;
-		vbios.number_of_dram_channels = asic_id.vram_width / vbios.dram_channel_width_in_bits;
-		vbios.number_of_dram_banks = 16;
-		vbios.high_yclk = bw_int_to_fixed(2400);
-		vbios.mid_yclk = bw_int_to_fixed(1700);
-		vbios.low_yclk = bw_int_to_fixed(1000);
-		vbios.low_sclk = bw_int_to_fixed(300);
-		vbios.mid1_sclk = bw_int_to_fixed(350);
-		vbios.mid2_sclk = bw_int_to_fixed(400);
-		vbios.mid3_sclk = bw_int_to_fixed(500);
-		vbios.mid4_sclk = bw_int_to_fixed(600);
-		vbios.mid5_sclk = bw_int_to_fixed(700);
-		vbios.mid6_sclk = bw_int_to_fixed(760);
-		vbios.high_sclk = bw_int_to_fixed(776);
-		vbios.low_voltage_max_dispclk = bw_int_to_fixed(460);
-		vbios.mid_voltage_max_dispclk = bw_int_to_fixed(670);
-		vbios.high_voltage_max_dispclk = bw_int_to_fixed(1133);
-		vbios.low_voltage_max_phyclk = bw_int_to_fixed(540);
-		vbios.mid_voltage_max_phyclk = bw_int_to_fixed(810);
-		vbios.high_voltage_max_phyclk = bw_int_to_fixed(810);
-		vbios.data_return_bus_width = bw_int_to_fixed(32);
-		vbios.trc = bw_int_to_fixed(48);
-		vbios.dmifmc_urgent_latency = bw_int_to_fixed(3);
-		vbios.stutter_self_refresh_exit_latency = bw_frc_to_fixed(75, 10);
-		vbios.stutter_self_refresh_entry_latency = bw_frc_to_fixed(19, 10);
-		vbios.nbp_state_change_latency = bw_int_to_fixed(39);
-		vbios.mcifwrmc_urgent_latency = bw_int_to_fixed(10);
-		vbios.scatter_gather_enable = false;
-		vbios.down_spread_percentage = bw_frc_to_fixed(5, 10);
-		vbios.cursor_width = 32;
-		vbios.average_compression_rate = 4;
-		vbios.number_of_request_slots_gmc_reserves_for_dmif_per_channel = 8;
-		vbios.blackout_duration = bw_int_to_fixed(0); /* us */
-		vbios.maximum_blackout_recovery_time = bw_int_to_fixed(0);
+		vbios->memory_type = bw_def_hbm;
+		vbios->dram_channel_width_in_bits = 128;
+		vbios->number_of_dram_channels = asic_id.vram_width / vbios->dram_channel_width_in_bits;
+		vbios->number_of_dram_banks = 16;
+		vbios->high_yclk = bw_int_to_fixed(2400);
+		vbios->mid_yclk = bw_int_to_fixed(1700);
+		vbios->low_yclk = bw_int_to_fixed(1000);
+		vbios->low_sclk = bw_int_to_fixed(300);
+		vbios->mid1_sclk = bw_int_to_fixed(350);
+		vbios->mid2_sclk = bw_int_to_fixed(400);
+		vbios->mid3_sclk = bw_int_to_fixed(500);
+		vbios->mid4_sclk = bw_int_to_fixed(600);
+		vbios->mid5_sclk = bw_int_to_fixed(700);
+		vbios->mid6_sclk = bw_int_to_fixed(760);
+		vbios->high_sclk = bw_int_to_fixed(776);
+		vbios->low_voltage_max_dispclk = bw_int_to_fixed(460);
+		vbios->mid_voltage_max_dispclk = bw_int_to_fixed(670);
+		vbios->high_voltage_max_dispclk = bw_int_to_fixed(1133);
+		vbios->low_voltage_max_phyclk = bw_int_to_fixed(540);
+		vbios->mid_voltage_max_phyclk = bw_int_to_fixed(810);
+		vbios->high_voltage_max_phyclk = bw_int_to_fixed(810);
+		vbios->data_return_bus_width = bw_int_to_fixed(32);
+		vbios->trc = bw_int_to_fixed(48);
+		vbios->dmifmc_urgent_latency = bw_int_to_fixed(3);
+		vbios->stutter_self_refresh_exit_latency = bw_frc_to_fixed(75, 10);
+		vbios->stutter_self_refresh_entry_latency = bw_frc_to_fixed(19, 10);
+		vbios->nbp_state_change_latency = bw_int_to_fixed(39);
+		vbios->mcifwrmc_urgent_latency = bw_int_to_fixed(10);
+		vbios->scatter_gather_enable = false;
+		vbios->down_spread_percentage = bw_frc_to_fixed(5, 10);
+		vbios->cursor_width = 32;
+		vbios->average_compression_rate = 4;
+		vbios->number_of_request_slots_gmc_reserves_for_dmif_per_channel = 8;
+		vbios->blackout_duration = bw_int_to_fixed(0); /* us */
+		vbios->maximum_blackout_recovery_time = bw_int_to_fixed(0);
 
-		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
-		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
-		dceip.percent_of_ideal_port_bw_received_after_urgent_latency = 100;
-		dceip.large_cursor = false;
-		dceip.dmif_request_buffer_size = bw_int_to_fixed(2304);
-		dceip.dmif_pipe_en_fbc_chunk_tracker = true;
-		dceip.cursor_max_outstanding_group_num = 1;
-		dceip.lines_interleaved_into_lb = 2;
-		dceip.chunk_width = 256;
-		dceip.number_of_graphics_pipes = 6;
-		dceip.number_of_underlay_pipes = 0;
-		dceip.low_power_tiling_mode = 0;
-		dceip.display_write_back_supported = true;
-		dceip.argb_compression_support = true;
-		dceip.underlay_vscaler_efficiency6_bit_per_component =
+		dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
+		dceip->max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
+		dceip->percent_of_ideal_port_bw_received_after_urgent_latency = 100;
+		dceip->large_cursor = false;
+		dceip->dmif_request_buffer_size = bw_int_to_fixed(2304);
+		dceip->dmif_pipe_en_fbc_chunk_tracker = true;
+		dceip->cursor_max_outstanding_group_num = 1;
+		dceip->lines_interleaved_into_lb = 2;
+		dceip->chunk_width = 256;
+		dceip->number_of_graphics_pipes = 6;
+		dceip->number_of_underlay_pipes = 0;
+		dceip->low_power_tiling_mode = 0;
+		dceip->display_write_back_supported = true;
+		dceip->argb_compression_support = true;
+		dceip->underlay_vscaler_efficiency6_bit_per_component =
 			bw_frc_to_fixed(35556, 10000);
-		dceip.underlay_vscaler_efficiency8_bit_per_component =
+		dceip->underlay_vscaler_efficiency8_bit_per_component =
 			bw_frc_to_fixed(34286, 10000);
-		dceip.underlay_vscaler_efficiency10_bit_per_component =
+		dceip->underlay_vscaler_efficiency10_bit_per_component =
 			bw_frc_to_fixed(32, 10);
-		dceip.underlay_vscaler_efficiency12_bit_per_component =
+		dceip->underlay_vscaler_efficiency12_bit_per_component =
 			bw_int_to_fixed(3);
-		dceip.graphics_vscaler_efficiency6_bit_per_component =
+		dceip->graphics_vscaler_efficiency6_bit_per_component =
 			bw_frc_to_fixed(35, 10);
-		dceip.graphics_vscaler_efficiency8_bit_per_component =
+		dceip->graphics_vscaler_efficiency8_bit_per_component =
 			bw_frc_to_fixed(34286, 10000);
-		dceip.graphics_vscaler_efficiency10_bit_per_component =
+		dceip->graphics_vscaler_efficiency10_bit_per_component =
 			bw_frc_to_fixed(32, 10);
-		dceip.graphics_vscaler_efficiency12_bit_per_component =
+		dceip->graphics_vscaler_efficiency12_bit_per_component =
 			bw_int_to_fixed(3);
-		dceip.alpha_vscaler_efficiency = bw_int_to_fixed(3);
-		dceip.max_dmif_buffer_allocated = 4;
-		dceip.graphics_dmif_size = 24576;
-		dceip.underlay_luma_dmif_size = 19456;
-		dceip.underlay_chroma_dmif_size = 23552;
-		dceip.pre_downscaler_enabled = true;
-		dceip.underlay_downscale_prefetch_enabled = false;
-		dceip.lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
-		dceip.lb_size_per_component444 = bw_int_to_fixed(245952);
-		dceip.graphics_lb_nodownscaling_multi_line_prefetching = true;
-		dceip.stutter_and_dram_clock_state_change_gated_before_cursor =
+		dceip->alpha_vscaler_efficiency = bw_int_to_fixed(3);
+		dceip->max_dmif_buffer_allocated = 4;
+		dceip->graphics_dmif_size = 24576;
+		dceip->underlay_luma_dmif_size = 19456;
+		dceip->underlay_chroma_dmif_size = 23552;
+		dceip->pre_downscaler_enabled = true;
+		dceip->underlay_downscale_prefetch_enabled = false;
+		dceip->lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
+		dceip->lb_size_per_component444 = bw_int_to_fixed(245952);
+		dceip->graphics_lb_nodownscaling_multi_line_prefetching = true;
+		dceip->stutter_and_dram_clock_state_change_gated_before_cursor =
 			bw_int_to_fixed(1);
-		dceip.underlay420_luma_lb_size_per_component = bw_int_to_fixed(
+		dceip->underlay420_luma_lb_size_per_component = bw_int_to_fixed(
 			82176);
-		dceip.underlay420_chroma_lb_size_per_component =
+		dceip->underlay420_chroma_lb_size_per_component =
 			bw_int_to_fixed(164352);
-		dceip.underlay422_lb_size_per_component = bw_int_to_fixed(
+		dceip->underlay422_lb_size_per_component = bw_int_to_fixed(
 			82176);
-		dceip.cursor_chunk_width = bw_int_to_fixed(64);
-		dceip.cursor_dcp_buffer_lines = bw_int_to_fixed(4);
-		dceip.underlay_maximum_width_efficient_for_tiling =
+		dceip->cursor_chunk_width = bw_int_to_fixed(64);
+		dceip->cursor_dcp_buffer_lines = bw_int_to_fixed(4);
+		dceip->underlay_maximum_width_efficient_for_tiling =
 			bw_int_to_fixed(1920);
-		dceip.underlay_maximum_height_efficient_for_tiling =
+		dceip->underlay_maximum_height_efficient_for_tiling =
 			bw_int_to_fixed(1080);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
+		dceip->peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
 			bw_frc_to_fixed(3, 10);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
+		dceip->peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
 			bw_int_to_fixed(25);
-		dceip.minimum_outstanding_pte_request_limit = bw_int_to_fixed(
+		dceip->minimum_outstanding_pte_request_limit = bw_int_to_fixed(
 			2);
-		dceip.maximum_total_outstanding_pte_requests_allowed_by_saw =
+		dceip->maximum_total_outstanding_pte_requests_allowed_by_saw =
 			bw_int_to_fixed(128);
-		dceip.limit_excessive_outstanding_dmif_requests = true;
-		dceip.linear_mode_line_request_alternation_slice =
+		dceip->limit_excessive_outstanding_dmif_requests = true;
+		dceip->linear_mode_line_request_alternation_slice =
 			bw_int_to_fixed(64);
-		dceip.scatter_gather_lines_of_pte_prefetching_in_linear_mode =
+		dceip->scatter_gather_lines_of_pte_prefetching_in_linear_mode =
 			32;
-		dceip.display_write_back420_luma_mcifwr_buffer_size = 12288;
-		dceip.display_write_back420_chroma_mcifwr_buffer_size = 8192;
-		dceip.request_efficiency = bw_frc_to_fixed(8, 10);
-		dceip.dispclk_per_request = bw_int_to_fixed(2);
-		dceip.dispclk_ramping_factor = bw_frc_to_fixed(105, 100);
-		dceip.display_pipe_throughput_factor = bw_frc_to_fixed(105, 100);
-		dceip.scatter_gather_pte_request_rows_in_tiling_mode = 2;
-		dceip.mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0);
+		dceip->display_write_back420_luma_mcifwr_buffer_size = 12288;
+		dceip->display_write_back420_chroma_mcifwr_buffer_size = 8192;
+		dceip->request_efficiency = bw_frc_to_fixed(8, 10);
+		dceip->dispclk_per_request = bw_int_to_fixed(2);
+		dceip->dispclk_ramping_factor = bw_frc_to_fixed(105, 100);
+		dceip->display_pipe_throughput_factor = bw_frc_to_fixed(105, 100);
+		dceip->scatter_gather_pte_request_rows_in_tiling_mode = 2;
+		dceip->mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0);
 		break;
 	default:
 		break;
 	}
-	*bw_dceip = dceip;
-	*bw_vbios = vbios;
+	*bw_dceip = *dceip;
+	*bw_vbios = *vbios;
 
+	kfree(dceip);
+	kfree(vbios);
 }
 
 /*

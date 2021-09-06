@@ -122,6 +122,12 @@ properties:
     description:
       Set this flag to force EHCI reset after resume.
 
+  spurious-oc:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Set this flag to indicate that the hardware sometimes turns on
+      the OC bit when an over-current isn't actually present.
+
   companion:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:

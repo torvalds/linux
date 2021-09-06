@@ -284,7 +284,7 @@ static uint8_t dc_dp_initialize_scrambling_data_symbols(
 
 static inline bool is_repeater(struct dc_link *link, uint32_t offset)
 {
-	return (link->lttpr_non_transparent_mode && offset != 0);
+	return (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) && (offset != 0);
 }
 
 static void dpcd_set_lt_pattern_and_lane_settings(
@@ -1072,7 +1072,7 @@ static enum link_training_result perform_clock_recovery_sequence(
 		/* 3. wait receiver to lock-on*/
 		wait_time_microsec = lt_settings->cr_pattern_time;
 
-		if (link->lttpr_non_transparent_mode)
+		if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
 			wait_time_microsec = TRAINING_AUX_RD_INTERVAL;
 
 		wait_for_training_aux_rd_interval(
@@ -1098,11 +1098,13 @@ static enum link_training_result perform_clock_recovery_sequence(
 		if (is_max_vs_reached(lt_settings))
 			break;
 
-		/* 7. same voltage*/
-		/* Note: VS same for all lanes,
-		* so comparing first lane is sufficient*/
-		if (lt_settings->lane_settings[0].VOLTAGE_SWING ==
+		/* 7. same lane settings*/
+		/* Note: settings are the same for all lanes,
+		 * so comparing first lane is sufficient*/
+		if ((lt_settings->lane_settings[0].VOLTAGE_SWING ==
 			req_settings.lane_settings[0].VOLTAGE_SWING)
+			&& (lt_settings->lane_settings[0].PRE_EMPHASIS ==
+				req_settings.lane_settings[0].PRE_EMPHASIS))
 			retries_cr++;
 		else
 			retries_cr = 0;
@@ -1130,11 +1132,6 @@ static inline enum link_training_result perform_link_training_int(
 	enum link_training_result status)
 {
 	union lane_count_set lane_count_set = { {0} };
-	union dpcd_training_pattern dpcd_pattern = { {0} };
-
-	/* 3. set training not in progress*/
-	dpcd_pattern.v1_4.TRAINING_PATTERN_SET = DPCD_TRAINING_PATTERN_VIDEOIDLE;
-	dpcd_set_training_pattern(link, dpcd_pattern);
 
 	/* 4. mainlink output idle pattern*/
 	dp_set_hw_test_pattern(link, DP_TEST_PATTERN_VIDEO_MODE, NULL, 0);
@@ -1324,7 +1321,17 @@ static uint8_t convert_to_count(uint8_t lttpr_repeater_count)
 	return 0; // invalid value
 }
 
-static void configure_lttpr_mode(struct dc_link *link)
+static void configure_lttpr_mode_transparent(struct dc_link *link)
+{
+	uint8_t repeater_mode = DP_PHY_REPEATER_MODE_TRANSPARENT;
+
+	core_link_write_dpcd(link,
+			DP_PHY_REPEATER_MODE,
+			(uint8_t *)&repeater_mode,
+			sizeof(repeater_mode));
+}
+
+static void configure_lttpr_mode_non_transparent(struct dc_link *link)
 {
 	/* aux timeout is already set to extended */
 	/* RESET/SET lttpr mode to enable non transparent mode */
@@ -1344,7 +1351,7 @@ static void configure_lttpr_mode(struct dc_link *link)
 		link->dpcd_caps.lttpr_caps.mode = repeater_mode;
 	}
 
-	if (link->lttpr_non_transparent_mode) {
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
 
 		DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Non Transparent Mode\n", __func__);
 
@@ -1548,6 +1555,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 {
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
 	struct link_training_settings lt_settings;
+	union dpcd_training_pattern dpcd_pattern = { { 0 } };
 
 	bool fec_enable;
 	uint8_t repeater_cnt;
@@ -1560,8 +1568,10 @@ enum link_training_result dc_link_dp_perform_link_training(
 			&lt_settings);
 
 	/* Configure lttpr mode */
-	if (link->lttpr_non_transparent_mode)
-		configure_lttpr_mode(link);
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
+		configure_lttpr_mode_non_transparent(link);
+	else if (link->lttpr_mode == LTTPR_MODE_TRANSPARENT)
+		configure_lttpr_mode_transparent(link);
 
 	if (link->ctx->dc->work_arounds.lt_early_cr_pattern)
 		start_clock_recovery_pattern_early(link, &lt_settings, DPRX);
@@ -1576,7 +1586,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 
 	dp_set_fec_ready(link, fec_enable);
 
-	if (link->lttpr_non_transparent_mode) {
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
 
 		/* 2. perform link training (set link training done
 		 *  to false is done as well)
@@ -1610,6 +1620,9 @@ enum link_training_result dc_link_dp_perform_link_training(
 		}
 	}
 
+	/* 3. set training not in progress*/
+	dpcd_pattern.v1_4.TRAINING_PATTERN_SET = DPCD_TRAINING_PATTERN_VIDEOIDLE;
+	dpcd_set_training_pattern(link, dpcd_pattern);
 	if ((status == LINK_TRAINING_SUCCESS) || !skip_video_pattern) {
 		status = perform_link_training_int(link,
 				&lt_settings,
@@ -1633,6 +1646,42 @@ enum link_training_result dc_link_dp_perform_link_training(
 	return status;
 }
 
+static enum dp_panel_mode try_enable_assr(struct dc_stream_state *stream)
+{
+	struct dc_link *link = stream->link;
+	enum dp_panel_mode panel_mode = dp_get_panel_mode(link);
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	struct cp_psp *cp_psp = &stream->ctx->cp_psp;
+#endif
+
+	/* ASSR must be supported on the panel */
+	if (panel_mode == DP_PANEL_MODE_DEFAULT)
+		return panel_mode;
+
+	/* eDP or internal DP only */
+	if (link->connector_signal != SIGNAL_TYPE_EDP &&
+		!(link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
+		 link->is_internal_display))
+		return DP_PANEL_MODE_DEFAULT;
+
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	if (cp_psp && cp_psp->funcs.enable_assr) {
+		if (!cp_psp->funcs.enable_assr(cp_psp->handle, link)) {
+			/* since eDP implies ASSR on, change panel
+			 * mode to disable ASSR
+			 */
+			panel_mode = DP_PANEL_MODE_DEFAULT;
+		}
+	} else
+		panel_mode = DP_PANEL_MODE_DEFAULT;
+
+#else
+	/* turn off ASSR if the implementation is not compiled in */
+	panel_mode = DP_PANEL_MODE_DEFAULT;
+#endif
+	return panel_mode;
+}
+
 bool perform_link_training_with_retries(
 	const struct dc_link_settings *link_setting,
 	bool skip_video_pattern,
@@ -1644,7 +1693,7 @@ bool perform_link_training_with_retries(
 	uint8_t delay_between_attempts = LINK_TRAINING_RETRY_DELAY;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
-	enum dp_panel_mode panel_mode = dp_get_panel_mode(link);
+	enum dp_panel_mode panel_mode;
 
 	/* We need to do this before the link training to ensure the idle pattern in SST
 	 * mode will be sent right after the link training
@@ -1669,16 +1718,25 @@ bool perform_link_training_with_retries(
 			msleep(delay_dp_power_up_in_ms);
 		}
 
+		panel_mode = try_enable_assr(stream);
 		dp_set_panel_mode(link, panel_mode);
+		DC_LOG_DETECTION_DP_CAPS("Link: %d ASSR enabled: %d\n",
+			 link->link_index,
+			 panel_mode != DP_PANEL_MODE_DEFAULT);
 
 		if (link->aux_access_disabled) {
 			dc_link_dp_perform_link_training_skip_aux(link, link_setting);
 			return true;
-		} else if (dc_link_dp_perform_link_training(
-				link,
-				link_setting,
-				skip_video_pattern) == LINK_TRAINING_SUCCESS)
-			return true;
+		} else {
+			enum link_training_result status = LINK_TRAINING_CR_FAIL_LANE0;
+
+				status = dc_link_dp_perform_link_training(
+										link,
+										link_setting,
+										skip_video_pattern);
+			if (status == LINK_TRAINING_SUCCESS)
+				return true;
+		}
 
 		/* latest link training still fail, skip delay and keep PHY on
 		 */
@@ -1857,7 +1915,7 @@ static struct dc_link_settings get_max_link_cap(struct dc_link *link)
 	 * account for lttpr repeaters cap
 	 * notes: repeaters do not snoop in the DPRX Capabilities addresses (3.6.3).
 	 */
-	if (link->lttpr_non_transparent_mode) {
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
 		if (link->dpcd_caps.lttpr_caps.max_lane_count < max_link_cap.lane_count)
 			max_link_cap.lane_count = link->dpcd_caps.lttpr_caps.max_lane_count;
 
@@ -2015,7 +2073,7 @@ bool dp_verify_link_cap(
 	max_link_cap = get_max_link_cap(link);
 
 	/* Grant extended timeout request */
-	if (link->lttpr_non_transparent_mode && link->dpcd_caps.lttpr_caps.max_ext_timeout > 0) {
+	if ((link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) && (link->dpcd_caps.lttpr_caps.max_ext_timeout > 0)) {
 		uint8_t grant = link->dpcd_caps.lttpr_caps.max_ext_timeout & 0x80;
 
 		core_link_write_dpcd(link, DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT, &grant, sizeof(grant));
@@ -2431,7 +2489,7 @@ static bool decide_dp_link_settings(struct dc_link *link, struct dc_link_setting
 	return false;
 }
 
-static bool decide_edp_link_settings(struct dc_link *link, struct dc_link_settings *link_setting, uint32_t req_bw)
+bool decide_edp_link_settings(struct dc_link *link, struct dc_link_settings *link_setting, uint32_t req_bw)
 {
 	struct dc_link_settings initial_link_setting;
 	struct dc_link_settings current_link_setting;
@@ -2766,9 +2824,26 @@ static void dp_test_send_link_test_pattern(struct dc_link *link)
 	enum dp_test_pattern test_pattern;
 	enum dp_test_pattern_color_space test_pattern_color_space =
 			DP_TEST_PATTERN_COLOR_SPACE_UNDEFINED;
+	enum dc_color_depth requestColorDepth = COLOR_DEPTH_UNDEFINED;
+	struct pipe_ctx *pipes = link->dc->current_state->res_ctx.pipe_ctx;
+	struct pipe_ctx *pipe_ctx = NULL;
+	int i;
 
 	memset(&dpcd_test_pattern, 0, sizeof(dpcd_test_pattern));
 	memset(&dpcd_test_params, 0, sizeof(dpcd_test_params));
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (pipes[i].stream == NULL)
+			continue;
+
+		if (pipes[i].stream->link == link && !pipes[i].top_pipe && !pipes[i].prev_odm_pipe) {
+			pipe_ctx = &pipes[i];
+			break;
+		}
+	}
+
+	if (pipe_ctx == NULL)
+		return;
 
 	/* get link test pattern and pattern parameters */
 	core_link_read_dpcd(
@@ -2806,6 +2881,33 @@ static void dp_test_send_link_test_pattern(struct dc_link *link)
 		test_pattern_color_space = dpcd_test_params.bits.YCBCR_COEFS ?
 				DP_TEST_PATTERN_COLOR_SPACE_YCBCR709 :
 				DP_TEST_PATTERN_COLOR_SPACE_YCBCR601;
+
+	switch (dpcd_test_params.bits.BPC) {
+	case 0: // 6 bits
+		requestColorDepth = COLOR_DEPTH_666;
+		break;
+	case 1: // 8 bits
+		requestColorDepth = COLOR_DEPTH_888;
+		break;
+	case 2: // 10 bits
+		requestColorDepth = COLOR_DEPTH_101010;
+		break;
+	case 3: // 12 bits
+		requestColorDepth = COLOR_DEPTH_121212;
+		break;
+	default:
+		break;
+	}
+
+	if (requestColorDepth != COLOR_DEPTH_UNDEFINED
+			&& pipe_ctx->stream->timing.display_color_depth != requestColorDepth) {
+		DC_LOG_DEBUG("%s: original bpc %d, changing to %d\n",
+				__func__,
+				pipe_ctx->stream->timing.display_color_depth,
+				requestColorDepth);
+		pipe_ctx->stream->timing.display_color_depth = requestColorDepth;
+		dp_update_dsc_config(pipe_ctx);
+	}
 
 	dc_link_dp_set_test_pattern(
 			link,
@@ -3353,6 +3455,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 	struct dp_sink_hw_fw_revision dp_hw_fw_revision;
 	bool is_lttpr_present = false;
 	const uint32_t post_oui_delay = 30; // 30ms
+	bool vbios_lttpr_enable = false;
+	bool vbios_lttpr_interop = false;
+	struct dc_bios *bios = link->dc->ctx->dc_bios;
 
 	memset(dpcd_data, '\0', sizeof(dpcd_data));
 	memset(lttpr_dpcd_data, '\0', sizeof(lttpr_dpcd_data));
@@ -3400,13 +3505,45 @@ static bool retrieve_link_cap(struct dc_link *link)
 		return false;
 	}
 
-	if (link->dc->caps.extended_aux_timeout_support &&
-			link->dc->config.allow_lttpr_non_transparent_mode) {
+	/* Query BIOS to determine if LTTPR functionality is forced on by system */
+	if (bios->funcs->get_lttpr_caps) {
+		enum bp_result bp_query_result;
+		uint8_t is_vbios_lttpr_enable = 0;
+
+		bp_query_result = bios->funcs->get_lttpr_caps(bios, &is_vbios_lttpr_enable);
+		vbios_lttpr_enable = (bp_query_result == BP_RESULT_OK) && !!is_vbios_lttpr_enable;
+	}
+
+	if (bios->funcs->get_lttpr_interop) {
+		enum bp_result bp_query_result;
+		uint8_t is_vbios_interop_enabled = 0;
+
+		bp_query_result = bios->funcs->get_lttpr_interop(bios, &is_vbios_interop_enabled);
+		vbios_lttpr_interop = (bp_query_result == BP_RESULT_OK) && !!is_vbios_interop_enabled;
+	}
+
+	/*
+	 * Logic to determine LTTPR mode
+	 */
+	link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
+	if (vbios_lttpr_enable && vbios_lttpr_interop)
+		link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
+	else if (!vbios_lttpr_enable && vbios_lttpr_interop) {
+		if (link->dc->config.allow_lttpr_non_transparent_mode)
+			link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
+		else
+			link->lttpr_mode = LTTPR_MODE_TRANSPARENT;
+	} else if (!vbios_lttpr_enable && !vbios_lttpr_interop) {
+		if (!link->dc->config.allow_lttpr_non_transparent_mode
+			|| !link->dc->caps.extended_aux_timeout_support)
+			link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
+		else
+			link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
+	}
+
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT || link->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
 		/* By reading LTTPR capability, RX assumes that we will enable
-		 * LTTPR non transparent if LTTPR is present.
-		 * Therefore, only query LTTPR capability when both LTTPR
-		 * extended aux timeout and
-		 * non transparent mode is supported by hardware
+		 * LTTPR extended aux timeout if LTTPR is present.
 		 */
 		status = core_link_read_dpcd(
 				link,
@@ -3444,10 +3581,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 				link->dpcd_caps.lttpr_caps.revision.raw >= 0x14);
 		if (is_lttpr_present)
 			CONN_DATA_DETECT(link, lttpr_dpcd_data, sizeof(lttpr_dpcd_data), "LTTPR Caps: ");
+		else
+			link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
 	}
-
-	/* decide lttpr non transparent mode */
-	link->lttpr_non_transparent_mode = is_lttpr_present;
 
 	if (!is_lttpr_present)
 		dc_link_aux_try_to_configure_timeout(link->ddc, LINK_AUX_DEFAULT_TIMEOUT_PERIOD);
@@ -3757,7 +3893,7 @@ void detect_edp_sink_caps(struct dc_link *link)
 	memset(supported_link_rates, 0, sizeof(supported_link_rates));
 
 	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14 &&
-			(link->dc->config.optimize_edp_link_rate ||
+			(link->dc->debug.optimize_edp_link_rate ||
 			link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)) {
 		// Read DPCD 00010h - 0001Fh 16 bytes at one shot
 		core_link_read_dpcd(link, DP_SUPPORTED_LINK_RATES,
@@ -4265,7 +4401,7 @@ void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode)
 
 		if (edp_config_set.bits.PANEL_MODE_EDP
 			!= panel_mode_edp) {
-			enum dc_status result = DC_ERROR_UNEXPECTED;
+			enum dc_status result;
 
 			edp_config_set.bits.PANEL_MODE_EDP =
 			panel_mode_edp;
@@ -4583,3 +4719,51 @@ bool dc_link_set_default_brightness_aux(struct dc_link *link)
 	}
 	return false;
 }
+
+bool is_edp_ilr_optimization_required(struct dc_link *link, struct dc_crtc_timing *crtc_timing)
+{
+	struct dc_link_settings link_setting;
+	uint8_t link_bw_set;
+	uint8_t link_rate_set;
+	uint32_t req_bw;
+	union lane_count_set lane_count_set = { {0} };
+
+	ASSERT(link || crtc_timing); // invalid input
+
+	if (link->dpcd_caps.edp_supported_link_rates_count == 0 ||
+			!link->dc->debug.optimize_edp_link_rate)
+		return false;
+
+
+	// Read DPCD 00100h to find if standard link rates are set
+	core_link_read_dpcd(link, DP_LINK_BW_SET,
+				&link_bw_set, sizeof(link_bw_set));
+
+	if (link_bw_set) {
+		DC_LOG_EVENT_LINK_TRAINING("eDP ILR: Optimization required, VBIOS used link_bw_set\n");
+		return true;
+	}
+
+	// Read DPCD 00115h to find the edp link rate set used
+	core_link_read_dpcd(link, DP_LINK_RATE_SET,
+			    &link_rate_set, sizeof(link_rate_set));
+
+	// Read DPCD 00101h to find out the number of lanes currently set
+	core_link_read_dpcd(link, DP_LANE_COUNT_SET,
+				&lane_count_set.raw, sizeof(lane_count_set));
+
+	req_bw = dc_bandwidth_in_kbps_from_timing(crtc_timing);
+
+	decide_edp_link_settings(link, &link_setting, req_bw);
+
+	if (link->dpcd_caps.edp_supported_link_rates[link_rate_set] != link_setting.link_rate ||
+			lane_count_set.bits.LANE_COUNT_SET != link_setting.lane_count) {
+		DC_LOG_EVENT_LINK_TRAINING("eDP ILR: Optimization required, VBIOS link_rate_set not optimal\n");
+		return true;
+	}
+
+	DC_LOG_EVENT_LINK_TRAINING("eDP ILR: No optimization required, VBIOS set optimal link_rate_set\n");
+	return false;
+}
+
+

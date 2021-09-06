@@ -460,7 +460,7 @@ static DEVICE_ATTR(dummy, 0, NULL, NULL);
 static umode_t max6697_is_visible(struct kobject *kobj, struct attribute *attr,
 				  int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct max6697_data *data = dev_get_drvdata(dev);
 	const struct max6697_chip_data *chip = data->chip;
 	int channel = index / 7;	/* channel number */

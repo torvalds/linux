@@ -612,7 +612,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 /**
- *	atp870u_queuecommand	-	Queue SCSI command
+ *	atp870u_queuecommand_lck -	Queue SCSI command
  *	@req_p: request block
  *	@done: completion function
  *
@@ -711,16 +711,15 @@ static int atp870u_queuecommand_lck(struct scsi_cmnd *req_p,
 
 static DEF_SCSI_QCMD(atp870u_queuecommand)
 
-/**
+/*
  *	send_s870	-	send a command to the controller
- *	@host: host
  *
  *	On entry there is work queued to be done. We move some of that work to the
  *	controller itself.
  *
  *	Caller holds the host lock.
  */
-static void send_s870(struct atp_unit *dev,unsigned char c)
+static void send_s870(struct atp_unit *dev, unsigned char c)
 {
 	struct scsi_cmnd *workreq = NULL;
 	unsigned int i;//,k;

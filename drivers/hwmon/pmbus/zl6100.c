@@ -404,3 +404,4 @@ module_i2c_driver(zl6100_driver);
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for ZL6100 and compatibles");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

@@ -583,7 +583,8 @@ static blk_status_t gdrom_readdisk_dma(struct request *req)
 	read_command->cmd[1] = 0x20;
 	block = blk_rq_pos(req)/GD_TO_BLK + GD_SESSION_OFFSET;
 	block_cnt = blk_rq_sectors(req)/GD_TO_BLK;
-	__raw_writel(virt_to_phys(bio_data(req->bio)), GDROM_DMA_STARTADDR_REG);
+	__raw_writel(page_to_phys(bio_page(req->bio)) + bio_offset(req->bio),
+			GDROM_DMA_STARTADDR_REG);
 	__raw_writel(block_cnt * GDROM_HARD_SECTOR, GDROM_DMA_LENGTH_REG);
 	__raw_writel(1, GDROM_DMA_DIRECTION_REG);
 	__raw_writel(1, GDROM_DMA_ENABLE_REG);
@@ -743,6 +744,13 @@ static const struct blk_mq_ops gdrom_mq_ops = {
 static int probe_gdrom(struct platform_device *devptr)
 {
 	int err;
+
+	/*
+	 * Ensure our "one" device is initialized properly in case of previous
+	 * usages of it
+	 */
+	memset(&gd, 0, sizeof(gd));
+
 	/* Start the device */
 	if (gdrom_execute_diagnostic() != 1) {
 		pr_warn("ATA Probe for GDROM failed\n");
@@ -789,8 +797,6 @@ static int probe_gdrom(struct platform_device *devptr)
 		goto probe_fail_requestq;
 	}
 
-	blk_queue_bounce_limit(gd.gdrom_rq, BLK_BOUNCE_HIGH);
-
 	err = probe_gdrom_setupqueue();
 	if (err)
 		goto probe_fail_toc;
@@ -831,6 +837,8 @@ static int remove_gdrom(struct platform_device *devptr)
 	if (gdrom_major)
 		unregister_blkdev(gdrom_major, GDROM_DEV_NAME);
 	unregister_cdrom(gd.cd_info);
+	kfree(gd.cd_info);
+	kfree(gd.toc);
 
 	return 0;
 }
@@ -846,7 +854,7 @@ static struct platform_driver gdrom_driver = {
 static int __init init_gdrom(void)
 {
 	int rc;
-	gd.toc = NULL;
+
 	rc = platform_driver_register(&gdrom_driver);
 	if (rc)
 		return rc;
@@ -862,8 +870,6 @@ static void __exit exit_gdrom(void)
 {
 	platform_device_unregister(pd);
 	platform_driver_unregister(&gdrom_driver);
-	kfree(gd.toc);
-	kfree(gd.cd_info);
 }
 
 module_init(init_gdrom);

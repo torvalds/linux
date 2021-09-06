@@ -25,9 +25,6 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
-		mmc0 = &sdmmc;
-		mmc1 = &sdio;
-		mmc2 = &emmc;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -603,7 +600,7 @@
 	};
 
 	wdt: watchdog@ff1e0000 {
-		compatible = "snps,dw-wdt";
+		compatible = "rockchip,px30-wdt", "snps,dw-wdt";
 		reg = <0x0 0xff1e0000 0x0 0x100>;
 		clocks = <&cru PCLK_WDT_NS>;
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
@@ -984,6 +981,27 @@
 		status = "disabled";
 	};
 
+	gpu_opp_table: opp-table2 {
+		compatible = "operating-points-v2";
+
+		opp-200000000 {
+			opp-hz = /bits/ 64 <200000000>;
+			opp-microvolt = <950000>;
+		};
+		opp-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <975000>;
+		};
+		opp-400000000 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <1050000>;
+		};
+		opp-480000000 {
+			opp-hz = /bits/ 64 <480000000>;
+			opp-microvolt = <1125000>;
+		};
+	};
+
 	gpu: gpu@ff400000 {
 		compatible = "rockchip,px30-mali", "arm,mali-bifrost";
 		reg = <0x0 0xff400000 0x0 0x4000>;
@@ -994,6 +1012,7 @@
 		clocks = <&cru SCLK_GPU>;
 		#cooling-cells = <2>;
 		power-domains = <&power PX30_PD_GPU>;
+		operating-points-v2 = <&gpu_opp_table>;
 		status = "disabled";
 	};
 

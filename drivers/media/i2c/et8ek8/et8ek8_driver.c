@@ -1443,7 +1443,7 @@ static int et8ek8_probe(struct i2c_client *client)
 		goto err_mutex;
 	}
 
-	ret = v4l2_async_register_subdev_sensor_common(&sensor->subdev);
+	ret = v4l2_async_register_subdev_sensor(&sensor->subdev);
 	if (ret < 0)
 		goto err_entity;
 

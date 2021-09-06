@@ -437,6 +437,8 @@ struct kvm_vmx_nested_state_hdr {
 		__u16 flags;
 	} smm;
 
+	__u16 pad;
+
 	__u32 flags;
 	__u64 preemption_timer_deadline;
 };

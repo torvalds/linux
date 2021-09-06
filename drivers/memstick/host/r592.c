@@ -359,13 +359,15 @@ static void r592_write_fifo_pio(struct r592_device *dev,
 /* Flushes the temporary FIFO used to make aligned DWORD writes */
 static void r592_flush_fifo_write(struct r592_device *dev)
 {
+	int ret;
 	u8 buffer[4] = { 0 };
-	int len;
 
 	if (kfifo_is_empty(&dev->pio_fifo))
 		return;
 
-	len = kfifo_out(&dev->pio_fifo, buffer, 4);
+	ret = kfifo_out(&dev->pio_fifo, buffer, 4);
+	/* intentionally ignore __must_check return code */
+	(void)ret;
 	r592_write_reg_raw_be(dev, R592_FIFO_PIO, *(u32 *)buffer);
 }
 

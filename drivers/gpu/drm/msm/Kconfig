@@ -20,6 +20,7 @@ config DRM_MSM
 	select SND_SOC_HDMI_CODEC if SND_SOC
 	select SYNC_FILE
 	select PM_OPP
+	select NVMEM
 	help
 	  DRM/KMS driver for MSM/snapdragon.
 
@@ -75,14 +76,6 @@ config DRM_MSM_DSI
 	help
 	  Choose this option if you have a need for MIPI DSI connector
 	  support.
-
-config DRM_MSM_DSI_PLL
-	bool "Enable DSI PLL driver in MSM DRM"
-	depends on DRM_MSM_DSI && COMMON_CLK
-	default y
-	help
-	  Choose this option to enable DSI PLL driver which provides DSI
-	  source clocks under common clock framework.
 
 config DRM_MSM_DSI_28NM_PHY
 	bool "Enable DSI 28nm PHY driver in MSM DRM"

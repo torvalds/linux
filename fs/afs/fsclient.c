@@ -10,6 +10,7 @@
 #include <linux/sched.h>
 #include <linux/circ_buf.h>
 #include <linux/iversion.h>
+#include <linux/netfs.h>
 #include "internal.h"
 #include "afs_fs.h"
 #include "xdr_fs.h"
@@ -302,17 +303,15 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 	struct afs_vnode_param *vp = &op->file[0];
 	struct afs_read *req = op->fetch.req;
 	const __be32 *bp;
-	unsigned int size;
 	int ret;
 
-	_enter("{%u,%zu/%llu}",
-	       call->unmarshall, iov_iter_count(call->iter), req->actual_len);
+	_enter("{%u,%zu,%zu/%llu}",
+	       call->unmarshall, call->iov_len, iov_iter_count(call->iter),
+	       req->actual_len);
 
 	switch (call->unmarshall) {
 	case 0:
 		req->actual_len = 0;
-		req->index = 0;
-		req->offset = req->pos & (PAGE_SIZE - 1);
 		call->unmarshall++;
 		if (call->operation_ID == FSFETCHDATA64) {
 			afs_extract_to_tmp64(call);
@@ -322,7 +321,10 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 		}
 		fallthrough;
 
-		/* extract the returned data length */
+		/* Extract the returned data length into
+		 * ->actual_len.  This may indicate more or less data than was
+		 * requested will be returned.
+		 */
 	case 1:
 		_debug("extract data length");
 		ret = afs_extract_data(call, true);
@@ -331,44 +333,25 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 
 		req->actual_len = be64_to_cpu(call->tmp64);
 		_debug("DATA length: %llu", req->actual_len);
-		req->remain = min(req->len, req->actual_len);
-		if (req->remain == 0)
+
+		if (req->actual_len == 0)
 			goto no_more_data;
 
+		call->iter = req->iter;
+		call->iov_len = min(req->actual_len, req->len);
 		call->unmarshall++;
-
-	begin_page:
-		ASSERTCMP(req->index, <, req->nr_pages);
-		if (req->remain > PAGE_SIZE - req->offset)
-			size = PAGE_SIZE - req->offset;
-		else
-			size = req->remain;
-		call->bvec[0].bv_len = size;
-		call->bvec[0].bv_offset = req->offset;
-		call->bvec[0].bv_page = req->pages[req->index];
-		iov_iter_bvec(&call->def_iter, READ, call->bvec, 1, size);
-		ASSERTCMP(size, <=, PAGE_SIZE);
 		fallthrough;
 
 		/* extract the returned data */
 	case 2:
 		_debug("extract data %zu/%llu",
-		       iov_iter_count(call->iter), req->remain);
+		       iov_iter_count(call->iter), req->actual_len);
 
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
 			return ret;
-		req->remain -= call->bvec[0].bv_len;
-		req->offset += call->bvec[0].bv_len;
-		ASSERTCMP(req->offset, <=, PAGE_SIZE);
-		if (req->offset == PAGE_SIZE) {
-			req->offset = 0;
-			req->index++;
-			if (req->remain > 0)
-				goto begin_page;
-		}
 
-		ASSERTCMP(req->remain, ==, 0);
+		call->iter = &call->def_iter;
 		if (req->actual_len <= req->len)
 			goto no_more_data;
 
@@ -405,21 +388,11 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 		req->file_size = vp->scb.status.size;
 
 		call->unmarshall++;
+		fallthrough;
 
 	case 5:
 		break;
 	}
-
-	for (; req->index < req->nr_pages; req->index++) {
-		if (req->offset < PAGE_SIZE)
-			zero_user_segment(req->pages[req->index],
-					  req->offset, PAGE_SIZE);
-		req->offset = 0;
-	}
-
-	if (req->page_done)
-		for (req->index = 0; req->index < req->nr_pages; req->index++)
-			req->page_done(req);
 
 	_leave(" = 0 [done]");
 	return 0;
@@ -493,6 +466,8 @@ void afs_fs_fetch_data(struct afs_operation *op)
 	call = afs_alloc_flat_call(op->net, &afs_RXFSFetchData, 24, (21 + 3 + 6) * 4);
 	if (!call)
 		return afs_op_nomem(op);
+
+	req->call_debug_id = call->debug_id;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1079,8 +1054,7 @@ static const struct afs_call_type afs_RXFSStoreData64 = {
 /*
  * store a set of pages to a very large file
  */
-static void afs_fs_store_data64(struct afs_operation *op,
-				loff_t pos, loff_t size, loff_t i_size)
+static void afs_fs_store_data64(struct afs_operation *op)
 {
 	struct afs_vnode_param *vp = &op->file[0];
 	struct afs_call *call;
@@ -1095,7 +1069,7 @@ static void afs_fs_store_data64(struct afs_operation *op,
 	if (!call)
 		return afs_op_nomem(op);
 
-	call->send_pages = true;
+	call->write_iter = op->store.write_iter;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1111,47 +1085,38 @@ static void afs_fs_store_data64(struct afs_operation *op,
 	*bp++ = 0; /* unix mode */
 	*bp++ = 0; /* segment size */
 
-	*bp++ = htonl(upper_32_bits(pos));
-	*bp++ = htonl(lower_32_bits(pos));
-	*bp++ = htonl(upper_32_bits(size));
-	*bp++ = htonl(lower_32_bits(size));
-	*bp++ = htonl(upper_32_bits(i_size));
-	*bp++ = htonl(lower_32_bits(i_size));
+	*bp++ = htonl(upper_32_bits(op->store.pos));
+	*bp++ = htonl(lower_32_bits(op->store.pos));
+	*bp++ = htonl(upper_32_bits(op->store.size));
+	*bp++ = htonl(lower_32_bits(op->store.size));
+	*bp++ = htonl(upper_32_bits(op->store.i_size));
+	*bp++ = htonl(lower_32_bits(op->store.i_size));
 
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
 
 /*
- * store a set of pages
+ * Write data to a file on the server.
  */
 void afs_fs_store_data(struct afs_operation *op)
 {
 	struct afs_vnode_param *vp = &op->file[0];
 	struct afs_call *call;
-	loff_t size, pos, i_size;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
 	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
 
-	size = (loff_t)op->store.last_to - (loff_t)op->store.first_offset;
-	if (op->store.first != op->store.last)
-		size += (loff_t)(op->store.last - op->store.first) << PAGE_SHIFT;
-	pos = (loff_t)op->store.first << PAGE_SHIFT;
-	pos += op->store.first_offset;
-
-	i_size = i_size_read(&vp->vnode->vfs_inode);
-	if (pos + size > i_size)
-		i_size = size + pos;
-
 	_debug("size %llx, at %llx, i_size %llx",
-	       (unsigned long long) size, (unsigned long long) pos,
-	       (unsigned long long) i_size);
+	       (unsigned long long)op->store.size,
+	       (unsigned long long)op->store.pos,
+	       (unsigned long long)op->store.i_size);
 
-	if (upper_32_bits(pos) || upper_32_bits(i_size) || upper_32_bits(size) ||
-	    upper_32_bits(pos + size))
-		return afs_fs_store_data64(op, pos, size, i_size);
+	if (upper_32_bits(op->store.pos) ||
+	    upper_32_bits(op->store.size) ||
+	    upper_32_bits(op->store.i_size))
+		return afs_fs_store_data64(op);
 
 	call = afs_alloc_flat_call(op->net, &afs_RXFSStoreData,
 				   (4 + 6 + 3) * 4,
@@ -1159,7 +1124,7 @@ void afs_fs_store_data(struct afs_operation *op)
 	if (!call)
 		return afs_op_nomem(op);
 
-	call->send_pages = true;
+	call->write_iter = op->store.write_iter;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1175,9 +1140,9 @@ void afs_fs_store_data(struct afs_operation *op)
 	*bp++ = 0; /* unix mode */
 	*bp++ = 0; /* segment size */
 
-	*bp++ = htonl(lower_32_bits(pos));
-	*bp++ = htonl(lower_32_bits(size));
-	*bp++ = htonl(lower_32_bits(i_size));
+	*bp++ = htonl(lower_32_bits(op->store.pos));
+	*bp++ = htonl(lower_32_bits(op->store.size));
+	*bp++ = htonl(lower_32_bits(op->store.i_size));
 
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_NOFS);
@@ -1444,6 +1409,7 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 		_debug("motd '%s'", p);
 
 		call->unmarshall++;
+		fallthrough;
 
 	case 8:
 		break;
@@ -1881,6 +1847,7 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 		xdr_decode_AFSVolSync(&bp, &op->volsync);
 
 		call->unmarshall++;
+		fallthrough;
 
 	case 6:
 		break;
@@ -2015,6 +1982,7 @@ static int afs_deliver_fs_fetch_acl(struct afs_call *call)
 		xdr_decode_AFSVolSync(&bp, &op->volsync);
 
 		call->unmarshall++;
+		fallthrough;
 
 	case 4:
 		break;

@@ -25,14 +25,26 @@ struct ftr_set_desc {
 	struct {
 		char			name[FTR_DESC_FIELD_LEN];
 		u8			shift;
+		bool			(*filter)(u64 val);
 	} 				fields[];
 };
+
+static bool __init mmfr1_vh_filter(u64 val)
+{
+	/*
+	 * If we ever reach this point while running VHE, we're
+	 * guaranteed to be on one of these funky, VHE-stuck CPUs. If
+	 * the user was trying to force nVHE on us, proceed with
+	 * attitude adjustment.
+	 */
+	return !(is_kernel_in_hyp_mode() && val == 0);
+}
 
 static const struct ftr_set_desc mmfr1 __initconst = {
 	.name		= "id_aa64mmfr1",
 	.override	= &id_aa64mmfr1_override,
 	.fields		= {
-	        { "vh", ID_AA64MMFR1_VHE_SHIFT },
+		{ "vh", ID_AA64MMFR1_VHE_SHIFT, mmfr1_vh_filter },
 		{}
 	},
 };
@@ -123,6 +135,18 @@ static void __init match_options(const char *cmdline)
 
 			if (find_field(cmdline, regs[i], f, &v))
 				continue;
+
+			/*
+			 * If an override gets filtered out, advertise
+			 * it by setting the value to 0xf, but
+			 * clearing the mask... Yes, this is fragile.
+			 */
+			if (regs[i]->fields[f].filter &&
+			    !regs[i]->fields[f].filter(v)) {
+				regs[i]->override->val  |= mask;
+				regs[i]->override->mask &= ~mask;
+				continue;
+			}
 
 			regs[i]->override->val  &= ~mask;
 			regs[i]->override->val  |= (v << shift) & mask;

@@ -109,7 +109,6 @@ static int mantis_ts_control(struct dvb_ca_en50221 *en50221, int slot)
 	struct mantis_pci *mantis = ca->ca_priv;
 
 	dprintk(MANTIS_DEBUG, 1, "Slot(%d): TS control", slot);
-/*	mantis_set_direction(mantis, 1); */ /* Enable TS through CAM */
 
 	return 0;
 }

@@ -426,7 +426,7 @@ void __bch_btree_node_write(struct btree *b, struct closure *parent)
 	do_btree_node_write(b);
 
 	atomic_long_add(set_blocks(i, block_bytes(b->c->cache)) * b->c->cache->sb.block_size,
-			&PTR_CACHE(b->c, &b->key, 0)->btree_sectors_written);
+			&b->c->cache->btree_sectors_written);
 
 	b->written += set_blocks(i, block_bytes(b->c->cache));
 }
@@ -1161,7 +1161,7 @@ static void make_btree_freeing_key(struct btree *b, struct bkey *k)
 
 	for (i = 0; i < KEY_PTRS(k); i++)
 		SET_PTR_GEN(k, i,
-			    bch_inc_gen(PTR_CACHE(b->c, &b->key, i),
+			    bch_inc_gen(b->c->cache,
 					PTR_BUCKET(b->c, &b->key, i)));
 
 	mutex_unlock(&b->c->bucket_lock);

@@ -172,6 +172,9 @@
 
 #define mmu_linear_psize	MMU_PAGE_8M
 
+#define MODULES_VADDR	(PAGE_OFFSET - SZ_256M)
+#define MODULES_END	PAGE_OFFSET
+
 #ifndef __ASSEMBLY__
 
 #include <linux/mmdebug.h>

@@ -224,7 +224,7 @@ fib_ipv4_plen_test()
 	ip -n $ns link set dev dummy1 up
 
 	# Add two routes with the same key and different prefix length and
-	# make sure both are in hardware. It can be verfied that both are
+	# make sure both are in hardware. It can be verified that both are
 	# sharing the same leaf by checking the /proc/net/fib_trie
 	ip -n $ns route add 192.0.2.0/24 dev dummy1
 	ip -n $ns route add 192.0.2.0/25 dev dummy1

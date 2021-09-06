@@ -26,7 +26,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if
 // any structure is changed in this file
-#define SMU13_DRIVER_IF_VERSION 2
+#define SMU13_DRIVER_IF_VERSION 3
 
 typedef struct {
   int32_t value;
@@ -191,6 +191,44 @@ typedef struct {
   uint16_t SocTemperature;       //[centi-Celsius]
   uint16_t EdgeTemperature;
   uint16_t ThrottlerStatus;
+} SmuMetrics_legacy_t;
+
+typedef struct {
+  uint16_t GfxclkFrequency;      //[MHz]
+  uint16_t SocclkFrequency;      //[MHz]
+  uint16_t VclkFrequency;        //[MHz]
+  uint16_t DclkFrequency;        //[MHz]
+  uint16_t MemclkFrequency;      //[MHz]
+  uint16_t spare;
+
+  uint16_t GfxActivity;          //[centi]
+  uint16_t UvdActivity;          //[centi]
+  uint16_t C0Residency[4];       //percentage
+
+  uint16_t Voltage[3];           //[mV] indices: VDDCR_VDD, VDDCR_SOC, VDDCR_GFX
+  uint16_t Current[3];           //[mA] indices: VDDCR_VDD, VDDCR_SOC, VDDCR_GFX
+  uint16_t Power[3];             //[mW] indices: VDDCR_VDD, VDDCR_SOC, VDDCR_GFX
+  uint16_t CurrentSocketPower;   //[mW]
+
+  //3rd party tools in Windows need info in the case of APUs
+  uint16_t CoreFrequency[4];     //[MHz]
+  uint16_t CorePower[4];         //[mW]
+  uint16_t CoreTemperature[4];   //[centi-Celsius]
+  uint16_t L3Frequency[1];       //[MHz]
+  uint16_t L3Temperature[1];     //[centi-Celsius]
+
+  uint16_t GfxTemperature;       //[centi-Celsius]
+  uint16_t SocTemperature;       //[centi-Celsius]
+  uint16_t EdgeTemperature;
+  uint16_t ThrottlerStatus;
+} SmuMetricsTable_t;
+
+typedef struct {
+  SmuMetricsTable_t Current;
+  SmuMetricsTable_t Average;
+  //uint32_t AccCnt;
+  uint32_t SampleStartTime;
+  uint32_t SampleStopTime;
 } SmuMetrics_t;
 
 

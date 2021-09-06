@@ -53,7 +53,6 @@
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
 #include <asm/processor.h>
-#include <asm/tm.h>
 #endif
 #include <asm/kexec.h>
 #include <asm/ppc-opcode.h>
@@ -222,7 +221,7 @@ static void oops_end(unsigned long flags, struct pt_regs *regs,
 	/*
 	 * system_reset_excption handles debugger, crash dump, panic, for 0x100
 	 */
-	if (TRAP(regs) == 0x100)
+	if (TRAP(regs) == INTERRUPT_SYSTEM_RESET)
 		return;
 
 	crash_fadump(regs, "die oops");
@@ -290,7 +289,7 @@ void die(const char *str, struct pt_regs *regs, long err)
 	/*
 	 * system_reset_excption handles debugger, crash dump, panic, for 0x100
 	 */
-	if (TRAP(regs) != 0x100) {
+	if (TRAP(regs) != INTERRUPT_SYSTEM_RESET) {
 		if (debugger(regs))
 			return;
 	}
@@ -405,7 +404,7 @@ void hv_nmi_check_nonrecoverable(struct pt_regs *regs)
 	 * Now test if the interrupt has hit a range that may be using
 	 * HSPRG1 without having RI=0 (i.e., an HSRR interrupt). The
 	 * problem ranges all run un-relocated. Test real and virt modes
-	 * at the same time by droping the high bit of the nip (virt mode
+	 * at the same time by dropping the high bit of the nip (virt mode
 	 * entry points still have the +0x4000 offset).
 	 */
 	nip &= ~0xc000000000000000ULL;
@@ -864,7 +863,7 @@ static void p9_hmi_special_emu(struct pt_regs *regs)
 	unsigned long ea, msr, msr_mask;
 	bool swap;
 
-	if (__get_user_inatomic(instr, (unsigned int __user *)regs->nip))
+	if (__get_user(instr, (unsigned int __user *)regs->nip))
 		return;
 
 	/*
@@ -1077,6 +1076,16 @@ DEFINE_INTERRUPT_HANDLER_ASYNC(unknown_async_exception)
 	       regs->nip, regs->msr, regs->trap);
 
 	_exception(SIGTRAP, regs, TRAP_UNK, 0);
+}
+
+DEFINE_INTERRUPT_HANDLER_NMI(unknown_nmi_exception)
+{
+	printk("Bad trap at PC: %lx, SR: %lx, vector=%lx\n",
+	       regs->nip, regs->msr, regs->trap);
+
+	_exception(SIGTRAP, regs, TRAP_UNK, 0);
+
+	return 0;
 }
 
 DEFINE_INTERRUPT_HANDLER(instruction_breakpoint_exception)
@@ -1309,7 +1318,6 @@ static int emulate_instruction(struct pt_regs *regs)
 
 	if (!user_mode(regs))
 		return -EINVAL;
-	CHECK_FULL_REGS(regs);
 
 	if (get_user(instword, (u32 __user *)(regs->nip)))
 		return -EFAULT;
@@ -1406,7 +1414,6 @@ int is_valid_bugaddr(unsigned long addr)
 static int emulate_math(struct pt_regs *regs)
 {
 	int ret;
-	extern int do_mathemu(struct pt_regs *regs);
 
 	ret = do_mathemu(regs);
 	if (ret >= 0)
@@ -1606,15 +1613,6 @@ bad:
 		bad_page_fault(regs, sig);
 }
 
-DEFINE_INTERRUPT_HANDLER(StackOverflow)
-{
-	pr_crit("Kernel stack overflow in process %s[%d], r1=%lx\n",
-		current->comm, task_pid_nr(current), regs->gpr[1]);
-	debugger(regs);
-	show_regs(regs);
-	panic("kernel stack overflow");
-}
-
 DEFINE_INTERRUPT_HANDLER(stack_overflow_exception)
 {
 	die("Kernel stack overflow", regs, SIGSEGV);
@@ -1693,7 +1691,7 @@ DEFINE_INTERRUPT_HANDLER(facility_unavailable_exception)
 	u8 status;
 	bool hv;
 
-	hv = (TRAP(regs) == 0xf80);
+	hv = (TRAP(regs) == INTERRUPT_H_FAC_UNAVAIL);
 	if (hv)
 		value = mfspr(SPRN_HFSCR);
 	else
@@ -2170,11 +2168,14 @@ DEFINE_INTERRUPT_HANDLER(SPEFloatingPointRoundException)
  * in the MSR is 0.  This indicates that SRR0/1 are live, and that
  * we therefore lost state by taking this exception.
  */
-void unrecoverable_exception(struct pt_regs *regs)
+void __noreturn unrecoverable_exception(struct pt_regs *regs)
 {
 	pr_emerg("Unrecoverable exception %lx at %lx (msr=%lx)\n",
 		 regs->trap, regs->nip, regs->msr);
 	die("Unrecoverable exception", regs, SIGABRT);
+	/* die() should not return */
+	for (;;)
+		;
 }
 
 #if defined(CONFIG_BOOKE_WDT) || defined(CONFIG_40x)
@@ -2189,10 +2190,11 @@ void __attribute__ ((weak)) WatchdogHandler(struct pt_regs *regs)
 	return;
 }
 
-DEFINE_INTERRUPT_HANDLER(WatchdogException) /* XXX NMI? async? */
+DEFINE_INTERRUPT_HANDLER_NMI(WatchdogException)
 {
 	printk (KERN_EMERG "PowerPC Book-E Watchdog Exception\n");
 	WatchdogHandler(regs);
+	return 0;
 }
 #endif
 

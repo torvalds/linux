@@ -354,7 +354,7 @@ static void setup_gpio(struct pci_dev *pcidev, u8 __iomem *p)
 
 static void *
 __xr17v35x_register_gpio(struct pci_dev *pcidev,
-			 const struct property_entry *properties)
+			 const struct software_node *node)
 {
 	struct platform_device *pdev;
 
@@ -365,7 +365,7 @@ __xr17v35x_register_gpio(struct pci_dev *pcidev,
 	pdev->dev.parent = &pcidev->dev;
 	ACPI_COMPANION_SET(&pdev->dev, ACPI_COMPANION(&pcidev->dev));
 
-	if (platform_device_add_properties(pdev, properties) < 0 ||
+	if (device_add_software_node(&pdev->dev, node) < 0 ||
 	    platform_device_add(pdev) < 0) {
 		platform_device_put(pdev);
 		return NULL;
@@ -380,12 +380,16 @@ static const struct property_entry exar_gpio_properties[] = {
 	{ }
 };
 
+static const struct software_node exar_gpio_node = {
+	.properties = exar_gpio_properties,
+};
+
 static int xr17v35x_register_gpio(struct pci_dev *pcidev,
 				  struct uart_8250_port *port)
 {
 	if (pcidev->vendor == PCI_VENDOR_ID_EXAR)
 		port->port.private_data =
-			__xr17v35x_register_gpio(pcidev, exar_gpio_properties);
+			__xr17v35x_register_gpio(pcidev, &exar_gpio_node);
 
 	return 0;
 }
@@ -457,6 +461,10 @@ static const struct property_entry iot2040_gpio_properties[] = {
 	{ }
 };
 
+static const struct software_node iot2040_gpio_node = {
+	.properties = iot2040_gpio_properties,
+};
+
 static int iot2040_register_gpio(struct pci_dev *pcidev,
 			      struct uart_8250_port *port)
 {
@@ -468,7 +476,7 @@ static int iot2040_register_gpio(struct pci_dev *pcidev,
 	writeb(IOT2040_UARTS_GPIO_HI_MODE, p + UART_EXAR_MPIOSEL_15_8);
 
 	port->port.private_data =
-		__xr17v35x_register_gpio(pcidev, iot2040_gpio_properties);
+		__xr17v35x_register_gpio(pcidev, &iot2040_gpio_node);
 
 	return 0;
 }
@@ -545,8 +553,13 @@ static void pci_xr17v35x_exit(struct pci_dev *pcidev)
 {
 	struct exar8250 *priv = pci_get_drvdata(pcidev);
 	struct uart_8250_port *port = serial8250_get_port(priv->line[0]);
-	struct platform_device *pdev = port->port.private_data;
+	struct platform_device *pdev;
 
+	pdev = port->port.private_data;
+	if (!pdev)
+		return;
+
+	device_remove_software_node(&pdev->dev);
 	platform_device_unregister(pdev);
 	port->port.private_data = NULL;
 }

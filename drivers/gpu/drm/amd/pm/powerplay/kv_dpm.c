@@ -3305,7 +3305,7 @@ static int kv_dpm_read_sensor(void *handle, int idx,
 		*size = 4;
 		return 0;
 	default:
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 }
 

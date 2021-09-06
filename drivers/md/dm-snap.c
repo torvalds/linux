@@ -663,7 +663,8 @@ static int dm_exception_table_init(struct dm_exception_table *et,
 
 	et->hash_shift = hash_shift;
 	et->hash_mask = size - 1;
-	et->table = dm_vcalloc(size, sizeof(struct hlist_bl_head));
+	et->table = kvmalloc_array(size, sizeof(struct hlist_bl_head),
+				   GFP_KERNEL);
 	if (!et->table)
 		return -ENOMEM;
 
@@ -689,7 +690,7 @@ static void dm_exception_table_exit(struct dm_exception_table *et,
 			kmem_cache_free(mem, ex);
 	}
 
-	vfree(et->table);
+	kvfree(et->table);
 }
 
 static uint32_t exception_hash(struct dm_exception_table *et, chunk_t chunk)
@@ -854,7 +855,7 @@ static int dm_add_exception(void *context, chunk_t old, chunk_t new)
 static uint32_t __minimum_chunk_size(struct origin *o)
 {
 	struct dm_snapshot *snap;
-	unsigned chunk_size = 0;
+	unsigned chunk_size = rounddown_pow_of_two(UINT_MAX);
 
 	if (o)
 		list_for_each_entry(snap, &o->snapshots, list)
@@ -1408,6 +1409,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	if (!s->store->chunk_size) {
 		ti->error = "Chunk size not set";
+		r = -EINVAL;
 		goto bad_read_metadata;
 	}
 

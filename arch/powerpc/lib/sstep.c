@@ -1401,10 +1401,6 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		break;
 	}
 
-	/* Following cases refer to regs->gpr[], so we need all regs */
-	if (!FULL_REGS(regs))
-		return -1;
-
 	rd = (word >> 21) & 0x1f;
 	ra = (word >> 16) & 0x1f;
 	rb = (word >> 11) & 0x1f;
@@ -3086,15 +3082,6 @@ NOKPROBE_SYMBOL(analyse_instr);
  */
 static nokprobe_inline int handle_stack_update(unsigned long ea, struct pt_regs *regs)
 {
-#ifdef CONFIG_PPC32
-	/*
-	 * Check if we will touch kernel stack overflow
-	 */
-	if (ea - STACK_INT_FRAME_SIZE <= current->thread.ksp_limit) {
-		printk(KERN_CRIT "Can't kprobe this since kernel stack would overflow.\n");
-		return -EINVAL;
-	}
-#endif /* CONFIG_PPC32 */
 	/*
 	 * Check if we already set since that means we'll
 	 * lose the previous value.

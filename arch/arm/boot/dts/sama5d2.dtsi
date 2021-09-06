@@ -40,7 +40,7 @@
 		interrupts = <2 IRQ_TYPE_LEVEL_HIGH 0>;
 	};
 
-	etb {
+	etb@740000 {
 		compatible = "arm,coresight-etb10", "arm,primecell";
 		reg = <0x740000 0x1000>;
 
@@ -56,9 +56,9 @@
 		};
 	};
 
-	etm {
+	etm@73c000 {
 		compatible = "arm,coresight-etm3x", "arm,primecell";
-		reg = <0x73C000 0x1000>;
+		reg = <0x73c000 0x1000>;
 
 		clocks = <&pmc PMC_TYPE_CORE PMC_MCK>;
 		clock-names = "apb_pclk";

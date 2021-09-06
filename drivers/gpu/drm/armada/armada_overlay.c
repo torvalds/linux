@@ -66,9 +66,12 @@ static inline u32 armada_csc(struct drm_plane_state *state)
 
 /* === Plane support === */
 static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
-	struct drm_plane_state *old_state)
+	struct drm_atomic_state *state)
 {
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 	struct armada_crtc *dcrtc;
 	struct armada_regs *regs;
 	unsigned int idx;
@@ -76,62 +79,64 @@ static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
 
 	DRM_DEBUG_KMS("[PLANE:%d:%s]\n", plane->base.id, plane->name);
 
-	if (!state->fb || WARN_ON(!state->crtc))
+	if (!new_state->fb || WARN_ON(!new_state->crtc))
 		return;
 
 	DRM_DEBUG_KMS("[PLANE:%d:%s] is on [CRTC:%d:%s] with [FB:%d] visible %u->%u\n",
 		plane->base.id, plane->name,
-		state->crtc->base.id, state->crtc->name,
-		state->fb->base.id,
-		old_state->visible, state->visible);
+		new_state->crtc->base.id, new_state->crtc->name,
+		new_state->fb->base.id,
+		old_state->visible, new_state->visible);
 
-	dcrtc = drm_to_armada_crtc(state->crtc);
+	dcrtc = drm_to_armada_crtc(new_state->crtc);
 	regs = dcrtc->regs + dcrtc->regs_idx;
 
 	idx = 0;
-	if (!old_state->visible && state->visible)
+	if (!old_state->visible && new_state->visible)
 		armada_reg_queue_mod(regs, idx,
 				     0, CFG_PDWN16x66 | CFG_PDWN32x66,
 				     LCD_SPU_SRAM_PARA1);
-	val = armada_src_hw(state);
+	val = armada_src_hw(new_state);
 	if (armada_src_hw(old_state) != val)
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_DMA_HPXL_VLN);
-	val = armada_dst_yx(state);
+	val = armada_dst_yx(new_state);
 	if (armada_dst_yx(old_state) != val)
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_DMA_OVSA_HPXL_VLN);
-	val = armada_dst_hw(state);
+	val = armada_dst_hw(new_state);
 	if (armada_dst_hw(old_state) != val)
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_DZM_HPXL_VLN);
 	/* FIXME: overlay on an interlaced display */
-	if (old_state->src.x1 != state->src.x1 ||
-	    old_state->src.y1 != state->src.y1 ||
-	    old_state->fb != state->fb ||
-	    state->crtc->state->mode_changed) {
+	if (old_state->src.x1 != new_state->src.x1 ||
+	    old_state->src.y1 != new_state->src.y1 ||
+	    old_state->fb != new_state->fb ||
+	    new_state->crtc->state->mode_changed) {
 		const struct drm_format_info *format;
 		u16 src_x;
 
-		armada_reg_queue_set(regs, idx, armada_addr(state, 0, 0),
+		armada_reg_queue_set(regs, idx, armada_addr(new_state, 0, 0),
 				     LCD_SPU_DMA_START_ADDR_Y0);
-		armada_reg_queue_set(regs, idx, armada_addr(state, 0, 1),
+		armada_reg_queue_set(regs, idx, armada_addr(new_state, 0, 1),
 				     LCD_SPU_DMA_START_ADDR_U0);
-		armada_reg_queue_set(regs, idx, armada_addr(state, 0, 2),
+		armada_reg_queue_set(regs, idx, armada_addr(new_state, 0, 2),
 				     LCD_SPU_DMA_START_ADDR_V0);
-		armada_reg_queue_set(regs, idx, armada_addr(state, 1, 0),
+		armada_reg_queue_set(regs, idx, armada_addr(new_state, 1, 0),
 				     LCD_SPU_DMA_START_ADDR_Y1);
-		armada_reg_queue_set(regs, idx, armada_addr(state, 1, 1),
+		armada_reg_queue_set(regs, idx, armada_addr(new_state, 1, 1),
 				     LCD_SPU_DMA_START_ADDR_U1);
-		armada_reg_queue_set(regs, idx, armada_addr(state, 1, 2),
+		armada_reg_queue_set(regs, idx, armada_addr(new_state, 1, 2),
 				     LCD_SPU_DMA_START_ADDR_V1);
 
-		val = armada_pitch(state, 0) << 16 | armada_pitch(state, 0);
+		val = armada_pitch(new_state, 0) << 16 | armada_pitch(new_state,
+								      0);
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_DMA_PITCH_YC);
-		val = armada_pitch(state, 1) << 16 | armada_pitch(state, 2);
+		val = armada_pitch(new_state, 1) << 16 | armada_pitch(new_state,
+								      2);
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_DMA_PITCH_UV);
 
-		cfg = CFG_DMA_FMT(drm_fb_to_armada_fb(state->fb)->fmt) |
-		      CFG_DMA_MOD(drm_fb_to_armada_fb(state->fb)->mod) |
+		cfg = CFG_DMA_FMT(drm_fb_to_armada_fb(new_state->fb)->fmt) |
+		      CFG_DMA_MOD(drm_fb_to_armada_fb(new_state->fb)->mod) |
 		      CFG_CBSH_ENA;
-		if (state->visible)
+		if (new_state->visible)
 			cfg |= CFG_DMA_ENA;
 
 		/*
@@ -139,28 +144,28 @@ static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
 		 * U/V planes to swap.  Compensate for it by also toggling
 		 * the UV swap.
 		 */
-		format = state->fb->format;
-		src_x = state->src.x1 >> 16;
+		format = new_state->fb->format;
+		src_x = new_state->src.x1 >> 16;
 		if (format->num_planes == 1 && src_x & (format->hsub - 1))
 			cfg ^= CFG_DMA_MOD(CFG_SWAPUV);
-		if (to_armada_plane_state(state)->interlace)
+		if (to_armada_plane_state(new_state)->interlace)
 			cfg |= CFG_DMA_FTOGGLE;
 		cfg_mask = CFG_CBSH_ENA | CFG_DMAFORMAT |
 			   CFG_DMA_MOD(CFG_SWAPRB | CFG_SWAPUV |
 				       CFG_SWAPYU | CFG_YUV2RGB) |
 			   CFG_DMA_FTOGGLE | CFG_DMA_TSTMODE |
 			   CFG_DMA_ENA;
-	} else if (old_state->visible != state->visible) {
-		cfg = state->visible ? CFG_DMA_ENA : 0;
+	} else if (old_state->visible != new_state->visible) {
+		cfg = new_state->visible ? CFG_DMA_ENA : 0;
 		cfg_mask = CFG_DMA_ENA;
 	} else {
 		cfg = cfg_mask = 0;
 	}
-	if (drm_rect_width(&old_state->src) != drm_rect_width(&state->src) ||
-	    drm_rect_width(&old_state->dst) != drm_rect_width(&state->dst)) {
+	if (drm_rect_width(&old_state->src) != drm_rect_width(&new_state->src) ||
+	    drm_rect_width(&old_state->dst) != drm_rect_width(&new_state->dst)) {
 		cfg_mask |= CFG_DMA_HSMOOTH;
-		if (drm_rect_width(&state->src) >> 16 !=
-		    drm_rect_width(&state->dst))
+		if (drm_rect_width(&new_state->src) >> 16 !=
+		    drm_rect_width(&new_state->dst))
 			cfg |= CFG_DMA_HSMOOTH;
 	}
 
@@ -168,41 +173,41 @@ static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
 		armada_reg_queue_mod(regs, idx, cfg, cfg_mask,
 				     LCD_SPU_DMA_CTRL0);
 
-	val = armada_spu_contrast(state);
-	if ((!old_state->visible && state->visible) ||
+	val = armada_spu_contrast(new_state);
+	if ((!old_state->visible && new_state->visible) ||
 	    armada_spu_contrast(old_state) != val)
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_CONTRAST);
-	val = armada_spu_saturation(state);
-	if ((!old_state->visible && state->visible) ||
+	val = armada_spu_saturation(new_state);
+	if ((!old_state->visible && new_state->visible) ||
 	    armada_spu_saturation(old_state) != val)
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_SATURATION);
-	if (!old_state->visible && state->visible)
+	if (!old_state->visible && new_state->visible)
 		armada_reg_queue_set(regs, idx, 0x00002000, LCD_SPU_CBSH_HUE);
-	val = armada_csc(state);
-	if ((!old_state->visible && state->visible) ||
+	val = armada_csc(new_state);
+	if ((!old_state->visible && new_state->visible) ||
 	    armada_csc(old_state) != val)
 		armada_reg_queue_mod(regs, idx, val, CFG_CSC_MASK,
 				     LCD_SPU_IOPAD_CONTROL);
-	val = drm_to_overlay_state(state)->colorkey_yr;
-	if ((!old_state->visible && state->visible) ||
+	val = drm_to_overlay_state(new_state)->colorkey_yr;
+	if ((!old_state->visible && new_state->visible) ||
 	    drm_to_overlay_state(old_state)->colorkey_yr != val)
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_COLORKEY_Y);
-	val = drm_to_overlay_state(state)->colorkey_ug;
-	if ((!old_state->visible && state->visible) ||
+	val = drm_to_overlay_state(new_state)->colorkey_ug;
+	if ((!old_state->visible && new_state->visible) ||
 	    drm_to_overlay_state(old_state)->colorkey_ug != val)
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_COLORKEY_U);
-	val = drm_to_overlay_state(state)->colorkey_vb;
-	if ((!old_state->visible && state->visible) ||
+	val = drm_to_overlay_state(new_state)->colorkey_vb;
+	if ((!old_state->visible && new_state->visible) ||
 	    drm_to_overlay_state(old_state)->colorkey_vb != val)
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_COLORKEY_V);
-	val = drm_to_overlay_state(state)->colorkey_mode;
-	if ((!old_state->visible && state->visible) ||
+	val = drm_to_overlay_state(new_state)->colorkey_mode;
+	if ((!old_state->visible && new_state->visible) ||
 	    drm_to_overlay_state(old_state)->colorkey_mode != val)
 		armada_reg_queue_mod(regs, idx, val, CFG_CKMODE_MASK |
 				     CFG_ALPHAM_MASK | CFG_ALPHA_MASK,
 				     LCD_SPU_DMA_CTRL1);
-	val = drm_to_overlay_state(state)->colorkey_enable;
-	if (((!old_state->visible && state->visible) ||
+	val = drm_to_overlay_state(new_state)->colorkey_enable;
+	if (((!old_state->visible && new_state->visible) ||
 	     drm_to_overlay_state(old_state)->colorkey_enable != val) &&
 	    dcrtc->variant->has_spu_adv_reg)
 		armada_reg_queue_mod(regs, idx, val, ADV_GRACOLORKEY |
@@ -212,8 +217,10 @@ static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
 }
 
 static void armada_drm_overlay_plane_atomic_disable(struct drm_plane *plane,
-	struct drm_plane_state *old_state)
+	struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct armada_crtc *dcrtc;
 	struct armada_regs *regs;
 	unsigned int idx = 0;

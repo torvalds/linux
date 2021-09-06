@@ -728,7 +728,7 @@ const struct attribute_group qib_attr_group = {
 	.attrs = qib_attributes,
 };
 
-int qib_create_port_files(struct ib_device *ibdev, u8 port_num,
+int qib_create_port_files(struct ib_device *ibdev, u32 port_num,
 			  struct kobject *kobj)
 {
 	struct qib_pportdata *ppd;

@@ -111,7 +111,8 @@ void amdgpu_fence_driver_fini(struct amdgpu_device *adev);
 void amdgpu_fence_driver_force_completion(struct amdgpu_ring *ring);
 
 int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
-				  unsigned num_hw_submission);
+				  unsigned num_hw_submission,
+				  atomic_t *sched_score);
 int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 				   struct amdgpu_irq_src *irq_src,
 				   unsigned irq_type);
@@ -282,7 +283,8 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_undo(struct amdgpu_ring *ring);
 int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     unsigned int ring_size, struct amdgpu_irq_src *irq_src,
-		     unsigned int irq_type, unsigned int prio);
+		     unsigned int irq_type, unsigned int prio,
+		     atomic_t *sched_score);
 void amdgpu_ring_fini(struct amdgpu_ring *ring);
 void amdgpu_ring_emit_reg_write_reg_wait_helper(struct amdgpu_ring *ring,
 						uint32_t reg0, uint32_t val0,

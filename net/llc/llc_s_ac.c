@@ -27,7 +27,7 @@
 
 
 /**
- *	llc_sap_action_unit_data_ind - forward UI PDU to network layer
+ *	llc_sap_action_unitdata_ind - forward UI PDU to network layer
  *	@sap: SAP
  *	@skb: the event to forward
  *

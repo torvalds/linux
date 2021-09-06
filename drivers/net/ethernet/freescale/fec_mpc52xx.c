@@ -813,7 +813,6 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	const u32 *prop;
 	int prop_size;
 	struct device_node *np = op->dev.of_node;
-	const char *mac_addr;
 
 	phys_addr_t rx_fifo;
 	phys_addr_t tx_fifo;
@@ -891,10 +890,8 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	 *
 	 * First try to read MAC address from DT
 	 */
-	mac_addr = of_get_mac_address(np);
-	if (!IS_ERR(mac_addr)) {
-		ether_addr_copy(ndev->dev_addr, mac_addr);
-	} else {
+	rv = of_get_mac_address(np, ndev->dev_addr);
+	if (rv) {
 		struct mpc52xx_fec __iomem *fec = priv->fec;
 
 		/*

@@ -24,6 +24,7 @@ properties:
           - qcom,msm8998-qfprom
           - qcom,qcs404-qfprom
           - qcom,sc7180-qfprom
+          - qcom,sc7280-qfprom
           - qcom,sdm845-qfprom
       - const: qcom,qfprom
 

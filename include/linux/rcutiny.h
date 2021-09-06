@@ -17,10 +17,9 @@
 /* Never flag non-existent other CPUs! */
 static inline bool rcu_eqs_special_set(int cpu) { return false; }
 
-static inline unsigned long get_state_synchronize_rcu(void)
-{
-	return 0;
-}
+unsigned long get_state_synchronize_rcu(void);
+unsigned long start_poll_synchronize_rcu(void);
+bool poll_state_synchronize_rcu(unsigned long oldstate);
 
 static inline void cond_synchronize_rcu(unsigned long oldstate)
 {

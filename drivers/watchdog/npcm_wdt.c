@@ -229,6 +229,7 @@ static int npcm_wdt_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id npcm_wdt_match[] = {
+	{.compatible = "nuvoton,wpcm450-wdt"},
 	{.compatible = "nuvoton,npcm750-wdt"},
 	{},
 };

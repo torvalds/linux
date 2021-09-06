@@ -79,8 +79,8 @@ struct drm_plane_state {
 	 * preserved.
 	 *
 	 * Drivers should store any implicit fence in this from their
-	 * &drm_plane_helper_funcs.prepare_fb callback. See drm_gem_fb_prepare_fb()
-	 * and drm_gem_fb_simple_display_pipe_prepare_fb() for suitable helpers.
+	 * &drm_plane_helper_funcs.prepare_fb callback. See drm_gem_plane_helper_prepare_fb()
+	 * and drm_gem_simple_display_pipe_prepare_fb() for suitable helpers.
 	 */
 	struct dma_fence *fence;
 
@@ -538,9 +538,13 @@ struct drm_plane_funcs {
  *
  * For compatibility with legacy userspace, only overlay planes are made
  * available to userspace by default. Userspace clients may set the
- * DRM_CLIENT_CAP_UNIVERSAL_PLANES client capability bit to indicate that they
+ * &DRM_CLIENT_CAP_UNIVERSAL_PLANES client capability bit to indicate that they
  * wish to receive a universal plane list containing all plane types. See also
  * drm_for_each_legacy_plane().
+ *
+ * In addition to setting each plane's type, drivers need to setup the
+ * &drm_crtc.primary and optionally &drm_crtc.cursor pointers for legacy
+ * IOCTLs. See drm_crtc_init_with_planes().
  *
  * WARNING: The values of this enum is UABI since they're exposed in the "type"
  * property.
@@ -557,19 +561,20 @@ enum drm_plane_type {
 	/**
 	 * @DRM_PLANE_TYPE_PRIMARY:
 	 *
-	 * Primary planes represent a "main" plane for a CRTC.  Primary planes
-	 * are the planes operated upon by CRTC modesetting and flipping
-	 * operations described in the &drm_crtc_funcs.page_flip and
-	 * &drm_crtc_funcs.set_config hooks.
+	 * A primary plane attached to a CRTC is the most likely to be able to
+	 * light up the CRTC when no scaling/cropping is used and the plane
+	 * covers the whole CRTC.
 	 */
 	DRM_PLANE_TYPE_PRIMARY,
 
 	/**
 	 * @DRM_PLANE_TYPE_CURSOR:
 	 *
-	 * Cursor planes represent a "cursor" plane for a CRTC.  Cursor planes
-	 * are the planes operated upon by the DRM_IOCTL_MODE_CURSOR and
-	 * DRM_IOCTL_MODE_CURSOR2 IOCTLs.
+	 * A cursor plane attached to a CRTC is more likely to be able to be
+	 * enabled when no scaling/cropping is used and the framebuffer has the
+	 * size indicated by &drm_mode_config.cursor_width and
+	 * &drm_mode_config.cursor_height. Additionally, if the driver doesn't
+	 * support modifiers, the framebuffer should have a linear layout.
 	 */
 	DRM_PLANE_TYPE_CURSOR,
 };

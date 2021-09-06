@@ -17,6 +17,7 @@ struct ralink_soc_info {
 	unsigned long mem_size;
 	unsigned long mem_size_min;
 	unsigned long mem_size_max;
+	void (*mem_detect)(void);
 };
 extern struct ralink_soc_info soc_info;
 
@@ -27,7 +28,7 @@ extern void ralink_clk_add(const char *dev, unsigned long rate);
 
 extern void ralink_rst_init(void);
 
-extern void prom_soc_init(struct ralink_soc_info *soc_info);
+extern void __init prom_soc_init(struct ralink_soc_info *soc_info);
 
 __iomem void *plat_of_remap_node(const char *node);
 

@@ -217,7 +217,7 @@ struct lm_lockname {
 
 struct gfs2_glock_operations {
 	int (*go_sync) (struct gfs2_glock *gl);
-	int (*go_xmote_bh) (struct gfs2_glock *gl, struct gfs2_holder *gh);
+	int (*go_xmote_bh)(struct gfs2_glock *gl);
 	void (*go_inval) (struct gfs2_glock *gl, int flags);
 	int (*go_demote_ok) (const struct gfs2_glock *gl);
 	int (*go_lock) (struct gfs2_holder *gh);
@@ -625,7 +625,6 @@ struct gfs2_inum_host {
 struct gfs2_sb_host {
 	u32 sb_magic;
 	u32 sb_type;
-	u32 sb_format;
 
 	u32 sb_fs_format;
 	u32 sb_multihost_format;

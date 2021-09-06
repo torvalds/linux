@@ -63,7 +63,9 @@ xfs_inode_alloc(
 	memset(&ip->i_df, 0, sizeof(ip->i_df));
 	ip->i_flags = 0;
 	ip->i_delayed_blks = 0;
-	memset(&ip->i_d, 0, sizeof(ip->i_d));
+	ip->i_diflags2 = mp->m_ino_geo.new_diflags2;
+	ip->i_nblocks = 0;
+	ip->i_forkoff = 0;
 	ip->i_sick = 0;
 	ip->i_checked = 0;
 	INIT_WORK(&ip->i_ioend_work, xfs_end_io);
@@ -307,7 +309,7 @@ xfs_iget_check_free_state(
 			return -EFSCORRUPTED;
 		}
 
-		if (ip->i_d.di_nblocks != 0) {
+		if (ip->i_nblocks != 0) {
 			xfs_warn(ip->i_mount,
 "Corruption detected! Free inode 0x%llx has blocks allocated!",
 				ip->i_ino);
@@ -497,7 +499,7 @@ xfs_iget_cache_miss(
 	 * simply build the new inode core with a random generation number.
 	 *
 	 * For version 4 (and older) superblocks, log recovery is dependent on
-	 * the di_flushiter field being initialised from the current on-disk
+	 * the i_flushiter field being initialised from the current on-disk
 	 * value and hence we must also read the inode off disk even when
 	 * initializing new inodes.
 	 */
@@ -505,14 +507,14 @@ xfs_iget_cache_miss(
 	    (flags & XFS_IGET_CREATE) && !(mp->m_flags & XFS_MOUNT_IKEEP)) {
 		VFS_I(ip)->i_generation = prandom_u32();
 	} else {
-		struct xfs_dinode	*dip;
 		struct xfs_buf		*bp;
 
-		error = xfs_imap_to_bp(mp, tp, &ip->i_imap, &dip, &bp, 0);
+		error = xfs_imap_to_bp(mp, tp, &ip->i_imap, &bp);
 		if (error)
 			goto out_destroy;
 
-		error = xfs_inode_from_disk(ip, dip);
+		error = xfs_inode_from_disk(ip,
+				xfs_buf_offset(bp, ip->i_imap.im_boffset));
 		if (!error)
 			xfs_buf_set_ref(bp, XFS_INO_REF);
 		xfs_trans_brelse(tp, bp);
@@ -1202,7 +1204,7 @@ xfs_inode_match_id(
 		return false;
 
 	if ((eofb->eof_flags & XFS_EOF_FLAGS_PRID) &&
-	    ip->i_d.di_projid != eofb->eof_prid)
+	    ip->i_projid != eofb->eof_prid)
 		return false;
 
 	return true;
@@ -1226,7 +1228,7 @@ xfs_inode_match_id_union(
 		return true;
 
 	if ((eofb->eof_flags & XFS_EOF_FLAGS_PRID) &&
-	    ip->i_d.di_projid == eofb->eof_prid)
+	    ip->i_projid == eofb->eof_prid)
 		return true;
 
 	return false;
@@ -1294,13 +1296,6 @@ xfs_inode_free_eofblocks(
 	if (!xfs_iflags_test(ip, XFS_IEOFBLOCKS))
 		return 0;
 
-	if (!xfs_can_free_eofblocks(ip, false)) {
-		/* inode could be preallocated or append-only */
-		trace_xfs_inode_free_eofblocks_invalid(ip);
-		xfs_inode_clear_eofblocks_tag(ip);
-		return 0;
-	}
-
 	/*
 	 * If the mapping is dirty the operation can block and wait for some
 	 * time. Unless we are waiting, skip it.
@@ -1322,7 +1317,13 @@ xfs_inode_free_eofblocks(
 	}
 	*lockflags |= XFS_IOLOCK_EXCL;
 
-	return xfs_free_eofblocks(ip);
+	if (xfs_can_free_eofblocks(ip, false))
+		return xfs_free_eofblocks(ip);
+
+	/* inode could be preallocated or append-only */
+	trace_xfs_inode_free_eofblocks_invalid(ip);
+	xfs_inode_clear_eofblocks_tag(ip);
+	return 0;
 }
 
 /*
@@ -1335,7 +1336,7 @@ xfs_blockgc_queue(
 {
 	rcu_read_lock();
 	if (radix_tree_tagged(&pag->pag_ici_root, XFS_ICI_BLOCKGC_TAG))
-		queue_delayed_work(pag->pag_mount->m_blockgc_workqueue,
+		queue_delayed_work(pag->pag_mount->m_gc_workqueue,
 				   &pag->pag_blockgc_work,
 				   msecs_to_jiffies(xfs_blockgc_secs * 1000));
 	rcu_read_unlock();

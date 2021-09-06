@@ -31,6 +31,7 @@ struct fsl_micfil {
 	struct platform_device *pdev;
 	struct regmap *regmap;
 	const struct fsl_micfil_soc_data *soc;
+	struct clk *busclk;
 	struct clk *mclk;
 	struct snd_dmaengine_dai_dma_data dma_params_rx;
 	unsigned int dataline;
@@ -423,8 +424,6 @@ static int fsl_micfil_dai_probe(struct snd_soc_dai *cpu_dai)
 		return ret;
 	}
 
-	snd_soc_dai_set_drvdata(cpu_dai, micfil);
-
 	return 0;
 }
 
@@ -662,16 +661,22 @@ static int fsl_micfil_probe(struct platform_device *pdev)
 		return PTR_ERR(micfil->mclk);
 	}
 
+	micfil->busclk = devm_clk_get(&pdev->dev, "ipg_clk");
+	if (IS_ERR(micfil->busclk)) {
+		dev_err(&pdev->dev, "failed to get ipg clock: %ld\n",
+			PTR_ERR(micfil->busclk));
+		return PTR_ERR(micfil->busclk);
+	}
+
 	/* init regmap */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
-	micfil->regmap = devm_regmap_init_mmio_clk(&pdev->dev,
-						   "ipg_clk",
-						   regs,
-						   &fsl_micfil_regmap_config);
+	micfil->regmap = devm_regmap_init_mmio(&pdev->dev,
+					       regs,
+					       &fsl_micfil_regmap_config);
 	if (IS_ERR(micfil->regmap)) {
 		dev_err(&pdev->dev, "failed to init MICFIL regmap: %ld\n",
 			PTR_ERR(micfil->regmap));
@@ -731,6 +736,7 @@ static int fsl_micfil_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, micfil);
 
 	pm_runtime_enable(&pdev->dev);
+	regcache_cache_only(micfil->regmap, true);
 
 	ret = devm_snd_soc_register_component(&pdev->dev, &fsl_micfil_component,
 					      &fsl_micfil_dai, 1);
@@ -754,6 +760,7 @@ static int __maybe_unused fsl_micfil_runtime_suspend(struct device *dev)
 	regcache_cache_only(micfil->regmap, true);
 
 	clk_disable_unprepare(micfil->mclk);
+	clk_disable_unprepare(micfil->busclk);
 
 	return 0;
 }
@@ -763,9 +770,15 @@ static int __maybe_unused fsl_micfil_runtime_resume(struct device *dev)
 	struct fsl_micfil *micfil = dev_get_drvdata(dev);
 	int ret;
 
-	ret = clk_prepare_enable(micfil->mclk);
+	ret = clk_prepare_enable(micfil->busclk);
 	if (ret < 0)
 		return ret;
+
+	ret = clk_prepare_enable(micfil->mclk);
+	if (ret < 0) {
+		clk_disable_unprepare(micfil->busclk);
+		return ret;
+	}
 
 	regcache_cache_only(micfil->regmap, false);
 	regcache_mark_dirty(micfil->regmap);

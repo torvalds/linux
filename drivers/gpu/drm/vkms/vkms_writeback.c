@@ -42,11 +42,8 @@ static int vkms_wb_encoder_atomic_check(struct drm_encoder *encoder,
 	}
 
 	if (fb->format->format != vkms_wb_formats[0]) {
-		struct drm_format_name_buf format_name;
-
-		DRM_DEBUG_KMS("Invalid pixel format %s\n",
-			      drm_get_format_name(fb->format->format,
-						  &format_name));
+		DRM_DEBUG_KMS("Invalid pixel format %p4cc\n",
+			      &fb->format->format);
 		return -EINVAL;
 	}
 

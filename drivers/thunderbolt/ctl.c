@@ -17,7 +17,7 @@
 
 
 #define TB_CTL_RX_PKG_COUNT	10
-#define TB_CTL_RETRIES		4
+#define TB_CTL_RETRIES		1
 
 /**
  * struct tb_ctl - Thunderbolt control channel
@@ -29,6 +29,7 @@
  * @request_queue_lock: Lock protecting @request_queue
  * @request_queue: List of outstanding requests
  * @running: Is the control channel running at the moment
+ * @timeout_msec: Default timeout for non-raw control messages
  * @callback: Callback called when hotplug message is received
  * @callback_data: Data passed to @callback
  */
@@ -43,6 +44,7 @@ struct tb_ctl {
 	struct list_head request_queue;
 	bool running;
 
+	int timeout_msec;
 	event_cb callback;
 	void *callback_data;
 };
@@ -613,6 +615,7 @@ struct tb_cfg_result tb_cfg_request_sync(struct tb_ctl *ctl,
 /**
  * tb_ctl_alloc() - allocate a control channel
  * @nhi: Pointer to NHI
+ * @timeout_msec: Default timeout used with non-raw control messages
  * @cb: Callback called for plug events
  * @cb_data: Data passed to @cb
  *
@@ -620,13 +623,15 @@ struct tb_cfg_result tb_cfg_request_sync(struct tb_ctl *ctl,
  *
  * Return: Returns a pointer on success or NULL on failure.
  */
-struct tb_ctl *tb_ctl_alloc(struct tb_nhi *nhi, event_cb cb, void *cb_data)
+struct tb_ctl *tb_ctl_alloc(struct tb_nhi *nhi, int timeout_msec, event_cb cb,
+			    void *cb_data)
 {
 	int i;
 	struct tb_ctl *ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
 	if (!ctl)
 		return NULL;
 	ctl->nhi = nhi;
+	ctl->timeout_msec = timeout_msec;
 	ctl->callback = cb;
 	ctl->callback_data = cb_data;
 
@@ -802,14 +807,12 @@ static bool tb_cfg_copy(struct tb_cfg_request *req, const struct ctl_pkg *pkg)
  * tb_cfg_reset() - send a reset packet and wait for a response
  * @ctl: Control channel pointer
  * @route: Router string for the router to send reset
- * @timeout_msec: Timeout in ms how long to wait for the response
  *
  * If the switch at route is incorrectly configured then we will not receive a
  * reply (even though the switch will reset). The caller should check for
  * -ETIMEDOUT and attempt to reconfigure the switch.
  */
-struct tb_cfg_result tb_cfg_reset(struct tb_ctl *ctl, u64 route,
-				  int timeout_msec)
+struct tb_cfg_result tb_cfg_reset(struct tb_ctl *ctl, u64 route)
 {
 	struct cfg_reset_pkg request = { .header = tb_cfg_make_header(route) };
 	struct tb_cfg_result res = { 0 };
@@ -831,7 +834,7 @@ struct tb_cfg_result tb_cfg_reset(struct tb_ctl *ctl, u64 route,
 	req->response_size = sizeof(reply);
 	req->response_type = TB_CFG_PKG_RESET;
 
-	res = tb_cfg_request_sync(ctl, req, timeout_msec);
+	res = tb_cfg_request_sync(ctl, req, ctl->timeout_msec);
 
 	tb_cfg_request_put(req);
 
@@ -1007,7 +1010,7 @@ int tb_cfg_read(struct tb_ctl *ctl, void *buffer, u64 route, u32 port,
 		enum tb_cfg_space space, u32 offset, u32 length)
 {
 	struct tb_cfg_result res = tb_cfg_read_raw(ctl, buffer, route, port,
-			space, offset, length, TB_CFG_DEFAULT_TIMEOUT);
+			space, offset, length, ctl->timeout_msec);
 	switch (res.err) {
 	case 0:
 		/* Success */
@@ -1033,7 +1036,7 @@ int tb_cfg_write(struct tb_ctl *ctl, const void *buffer, u64 route, u32 port,
 		 enum tb_cfg_space space, u32 offset, u32 length)
 {
 	struct tb_cfg_result res = tb_cfg_write_raw(ctl, buffer, route, port,
-			space, offset, length, TB_CFG_DEFAULT_TIMEOUT);
+			space, offset, length, ctl->timeout_msec);
 	switch (res.err) {
 	case 0:
 		/* Success */
@@ -1071,7 +1074,7 @@ int tb_cfg_get_upstream_port(struct tb_ctl *ctl, u64 route)
 	u32 dummy;
 	struct tb_cfg_result res = tb_cfg_read_raw(ctl, &dummy, route, 0,
 						   TB_CFG_SWITCH, 0, 1,
-						   TB_CFG_DEFAULT_TIMEOUT);
+						   ctl->timeout_msec);
 	if (res.err == 1)
 		return -EIO;
 	if (res.err)

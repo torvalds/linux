@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/**
+/*
  * io.h - DesignWare USB3 DRD IO Header
  *
  * Copyright (C) 2010-2011 Texas Instruments Incorporated - https://www.ti.com

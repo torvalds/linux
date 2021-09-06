@@ -326,7 +326,7 @@ static struct attribute *ds1621_attributes[] = {
 static umode_t ds1621_attribute_visible(struct kobject *kobj,
 					struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct ds1621_data *data = dev_get_drvdata(dev);
 
 	if (attr == &dev_attr_update_interval.attr)

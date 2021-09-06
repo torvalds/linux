@@ -872,7 +872,7 @@ static int p9_socket_open(struct p9_client *client, struct socket *csocket)
 }
 
 /**
- * p9_mux_destroy - cancels all pending requests of mux
+ * p9_conn_destroy - cancels all pending requests of mux
  * @m: mux to destroy
  *
  */

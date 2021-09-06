@@ -39,7 +39,7 @@ static unsigned int
 ip6table_security_hook(void *priv, struct sk_buff *skb,
 		       const struct nf_hook_state *state)
 {
-	return ip6t_do_table(skb, state, state->net->ipv6.ip6table_security);
+	return ip6t_do_table(skb, state, priv);
 }
 
 static struct nf_hook_ops *sectbl_ops __read_mostly;
@@ -49,31 +49,22 @@ static int __net_init ip6table_security_table_init(struct net *net)
 	struct ip6t_replace *repl;
 	int ret;
 
-	if (net->ipv6.ip6table_security)
-		return 0;
-
 	repl = ip6t_alloc_initial_table(&security_table);
 	if (repl == NULL)
 		return -ENOMEM;
-	ret = ip6t_register_table(net, &security_table, repl, sectbl_ops,
-				  &net->ipv6.ip6table_security);
+	ret = ip6t_register_table(net, &security_table, repl, sectbl_ops);
 	kfree(repl);
 	return ret;
 }
 
 static void __net_exit ip6table_security_net_pre_exit(struct net *net)
 {
-	if (net->ipv6.ip6table_security)
-		ip6t_unregister_table_pre_exit(net, net->ipv6.ip6table_security,
-					       sectbl_ops);
+	ip6t_unregister_table_pre_exit(net, "security");
 }
 
 static void __net_exit ip6table_security_net_exit(struct net *net)
 {
-	if (!net->ipv6.ip6table_security)
-		return;
-	ip6t_unregister_table_exit(net, net->ipv6.ip6table_security);
-	net->ipv6.ip6table_security = NULL;
+	ip6t_unregister_table_exit(net, "security");
 }
 
 static struct pernet_operations ip6table_security_net_ops = {

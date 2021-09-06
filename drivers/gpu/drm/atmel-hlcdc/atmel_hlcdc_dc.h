@@ -331,9 +331,7 @@ struct atmel_hlcdc_dc_desc {
  * @crtc: CRTC provided by the display controller
  * @planes: instantiated planes
  * @layers: active HLCDC layers
- * @wq: display controller workqueue
  * @suspend: used to store the HLCDC state when entering suspend
- * @commit: used for async commit handling
  */
 struct atmel_hlcdc_dc {
 	const struct atmel_hlcdc_dc_desc *desc;
@@ -341,15 +339,10 @@ struct atmel_hlcdc_dc {
 	struct atmel_hlcdc *hlcdc;
 	struct drm_crtc *crtc;
 	struct atmel_hlcdc_layer *layers[ATMEL_HLCDC_MAX_LAYERS];
-	struct workqueue_struct *wq;
 	struct {
 		u32 imr;
 		struct drm_atomic_state *state;
 	} suspend;
-	struct {
-		wait_queue_head_t wait;
-		bool pending;
-	} commit;
 };
 
 extern struct atmel_hlcdc_formats atmel_hlcdc_plane_rgb_formats;

@@ -173,7 +173,7 @@ static int bgmac_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct bgmac *bgmac;
 	struct resource *regs;
-	const u8 *mac_addr;
+	int ret;
 
 	bgmac = bgmac_alloc(&pdev->dev);
 	if (!bgmac)
@@ -192,11 +192,10 @@ static int bgmac_probe(struct platform_device *pdev)
 	bgmac->dev = &pdev->dev;
 	bgmac->dma_dev = &pdev->dev;
 
-	mac_addr = of_get_mac_address(np);
-	if (!IS_ERR(mac_addr))
-		ether_addr_copy(bgmac->net_dev->dev_addr, mac_addr);
-	else
-		dev_warn(&pdev->dev, "MAC address not present in device tree\n");
+	ret = of_get_mac_address(np, bgmac->net_dev->dev_addr);
+	if (ret)
+		dev_warn(&pdev->dev,
+			 "MAC address not present in device tree\n");
 
 	bgmac->irq = platform_get_irq(pdev, 0);
 	if (bgmac->irq < 0)

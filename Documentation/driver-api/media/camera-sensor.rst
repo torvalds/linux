@@ -144,8 +144,7 @@ of the device. This is because the power state of the device is only changed
 after the power state transition has taken place. The ``s_ctrl`` callback can be
 used to obtain device's power state after the power state transition:
 
-.. c:function::
-	int pm_runtime_get_if_in_use(struct device *dev);
+.. c:function:: int pm_runtime_get_if_in_use(struct device *dev);
 
 The function returns a non-zero value if it succeeded getting the power count or
 runtime PM was disabled, in either of which cases the driver may proceed to

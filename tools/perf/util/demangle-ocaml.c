@@ -64,17 +64,5 @@ ocaml_demangle_sym(const char *sym)
 	}
 	result[j] = '\0';
 
-	/* scan backwards to remove an "_" followed by decimal digits */
-	if (j != 0 && isdigit(result[j - 1])) {
-		while (--j) {
-			if (!isdigit(result[j])) {
-				break;
-			}
-		}
-		if (result[j] == '_') {
-			result[j] = '\0';
-		}
-	}
-
 	return result;
 }

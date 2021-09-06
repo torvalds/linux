@@ -65,7 +65,7 @@ static void mfd_acpi_add_device(const struct mfd_cell *cell,
 {
 	const struct mfd_cell_acpi_match *match = cell->acpi_match;
 	struct acpi_device *parent, *child;
-	struct acpi_device *adev;
+	struct acpi_device *adev = NULL;
 
 	parent = ACPI_COMPANION(pdev->dev.parent);
 	if (!parent)
@@ -77,10 +77,9 @@ static void mfd_acpi_add_device(const struct mfd_cell *cell,
 	 * _ADR or it will use the parent handle if is no ID is given.
 	 *
 	 * Note that use of _ADR is a grey area in the ACPI specification,
-	 * though Intel Galileo Gen2 is using it to distinguish the children
-	 * devices.
+	 * though at least Intel Galileo Gen 2 is using it to distinguish
+	 * the children devices.
 	 */
-	adev = parent;
 	if (match) {
 		if (match->pnpid) {
 			struct acpi_device_id ids[2] = {};
@@ -93,22 +92,11 @@ static void mfd_acpi_add_device(const struct mfd_cell *cell,
 				}
 			}
 		} else {
-			unsigned long long adr;
-			acpi_status status;
-
-			list_for_each_entry(child, &parent->children, node) {
-				status = acpi_evaluate_integer(child->handle,
-							       "_ADR", NULL,
-							       &adr);
-				if (ACPI_SUCCESS(status) && match->adr == adr) {
-					adev = child;
-					break;
-				}
-			}
+			adev = acpi_find_child_device(parent, match->adr, false);
 		}
 	}
 
-	ACPI_COMPANION_SET(&pdev->dev, adev);
+	ACPI_COMPANION_SET(&pdev->dev, adev ?: parent);
 }
 #else
 static inline void mfd_acpi_add_device(const struct mfd_cell *cell,
@@ -238,8 +226,8 @@ static int mfd_add_device(struct device *parent, int id,
 			goto fail_of_entry;
 	}
 
-	if (cell->properties) {
-		ret = platform_device_add_properties(pdev, cell->properties);
+	if (cell->swnode) {
+		ret = device_add_software_node(&pdev->dev, cell->swnode);
 		if (ret)
 			goto fail_of_entry;
 	}
@@ -304,6 +292,7 @@ fail_of_entry:
 			list_del(&of_entry->list);
 			kfree(of_entry);
 		}
+	device_remove_software_node(&pdev->dev);
 fail_alias:
 	regulator_bulk_unregister_supply_alias(&pdev->dev,
 					       cell->parent_supplies,
@@ -371,6 +360,8 @@ static int mfd_remove_devices_fn(struct device *dev, void *data)
 
 	regulator_bulk_unregister_supply_alias(dev, cell->parent_supplies,
 					       cell->num_parent_supplies);
+
+	device_remove_software_node(&pdev->dev);
 
 	platform_device_unregister(pdev);
 	return 0;

@@ -83,7 +83,7 @@ DEFINE_PER_CPU(cpumask_var_t, cpu_sibling_map);
 DEFINE_PER_CPU(cpumask_var_t, cpu_smallcore_map);
 DEFINE_PER_CPU(cpumask_var_t, cpu_l2_cache_map);
 DEFINE_PER_CPU(cpumask_var_t, cpu_core_map);
-DEFINE_PER_CPU(cpumask_var_t, cpu_coregroup_map);
+static DEFINE_PER_CPU(cpumask_var_t, cpu_coregroup_map);
 
 EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
 EXPORT_PER_CPU_SYMBOL(cpu_l2_cache_map);
@@ -122,14 +122,14 @@ static struct thread_groups_list tgl[NR_CPUS] __initdata;
  * On big-cores system, thread_group_l1_cache_map for each CPU corresponds to
  * the set its siblings that share the L1-cache.
  */
-DEFINE_PER_CPU(cpumask_var_t, thread_group_l1_cache_map);
+static DEFINE_PER_CPU(cpumask_var_t, thread_group_l1_cache_map);
 
 /*
  * On some big-cores system, thread_group_l2_cache_map for each CPU
  * corresponds to the set its siblings within the core that share the
  * L2-cache.
  */
-DEFINE_PER_CPU(cpumask_var_t, thread_group_l2_cache_map);
+static DEFINE_PER_CPU(cpumask_var_t, thread_group_l2_cache_map);
 
 /* SMP operations for this machine */
 struct smp_ops_t *smp_ops;
@@ -1057,17 +1057,12 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 				local_memory_node(numa_cpu_lookup_table[cpu]));
 		}
 #endif
-		/*
-		 * cpu_core_map is now more updated and exists only since
-		 * its been exported for long. It only will have a snapshot
-		 * of cpu_cpu_mask.
-		 */
-		cpumask_copy(per_cpu(cpu_core_map, cpu), cpu_cpu_mask(cpu));
 	}
 
 	/* Init the cpumasks so the boot CPU is related to itself */
 	cpumask_set_cpu(boot_cpuid, cpu_sibling_mask(boot_cpuid));
 	cpumask_set_cpu(boot_cpuid, cpu_l2_cache_mask(boot_cpuid));
+	cpumask_set_cpu(boot_cpuid, cpu_core_mask(boot_cpuid));
 
 	if (has_coregroup_support())
 		cpumask_set_cpu(boot_cpuid, cpu_coregroup_mask(boot_cpuid));
@@ -1076,6 +1071,20 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	if (has_big_cores) {
 		cpumask_set_cpu(boot_cpuid,
 				cpu_smallcore_mask(boot_cpuid));
+	}
+
+	if (cpu_to_chip_id(boot_cpuid) != -1) {
+		int idx = num_possible_cpus() / threads_per_core;
+
+		/*
+		 * All threads of a core will all belong to the same core,
+		 * chip_id_lookup_table will have one entry per core.
+		 * Assumption: if boot_cpuid doesn't have a chip-id, then no
+		 * other CPUs, will also not have chip-id.
+		 */
+		chip_id_lookup_table = kcalloc(idx, sizeof(int), GFP_KERNEL);
+		if (chip_id_lookup_table)
+			memset(chip_id_lookup_table, -1, sizeof(int) * idx);
 	}
 
 	if (smp_ops && smp_ops->probe)
@@ -1408,6 +1417,9 @@ static void remove_cpu_from_masks(int cpu)
 			set_cpus_unrelated(cpu, i, cpu_smallcore_mask);
 	}
 
+	for_each_cpu(i, cpu_core_mask(cpu))
+		set_cpus_unrelated(cpu, i, cpu_core_mask);
+
 	if (has_coregroup_support()) {
 		for_each_cpu(i, cpu_coregroup_mask(cpu))
 			set_cpus_unrelated(cpu, i, cpu_coregroup_mask);
@@ -1468,8 +1480,11 @@ static void update_coregroup_mask(int cpu, cpumask_var_t *mask)
 
 static void add_cpu_to_masks(int cpu)
 {
+	struct cpumask *(*submask_fn)(int) = cpu_sibling_mask;
 	int first_thread = cpu_first_thread_sibling(cpu);
 	cpumask_var_t mask;
+	int chip_id = -1;
+	bool ret;
 	int i;
 
 	/*
@@ -1485,12 +1500,39 @@ static void add_cpu_to_masks(int cpu)
 	add_cpu_to_smallcore_masks(cpu);
 
 	/* In CPU-hotplug path, hence use GFP_ATOMIC */
-	alloc_cpumask_var_node(&mask, GFP_ATOMIC, cpu_to_node(cpu));
+	ret = alloc_cpumask_var_node(&mask, GFP_ATOMIC, cpu_to_node(cpu));
 	update_mask_by_l2(cpu, &mask);
 
 	if (has_coregroup_support())
 		update_coregroup_mask(cpu, &mask);
 
+	if (chip_id_lookup_table && ret)
+		chip_id = cpu_to_chip_id(cpu);
+
+	if (chip_id == -1) {
+		cpumask_copy(per_cpu(cpu_core_map, cpu), cpu_cpu_mask(cpu));
+		goto out;
+	}
+
+	if (shared_caches)
+		submask_fn = cpu_l2_cache_mask;
+
+	/* Update core_mask with all the CPUs that are part of submask */
+	or_cpumasks_related(cpu, cpu, submask_fn, cpu_core_mask);
+
+	/* Skip all CPUs already part of current CPU core mask */
+	cpumask_andnot(mask, cpu_online_mask, cpu_core_mask(cpu));
+
+	for_each_cpu(i, mask) {
+		if (chip_id == cpu_to_chip_id(i)) {
+			or_cpumasks_related(cpu, i, submask_fn, cpu_core_mask);
+			cpumask_andnot(mask, mask, submask_fn(i));
+		} else {
+			cpumask_andnot(mask, mask, cpu_core_mask(i));
+		}
+	}
+
+out:
 	free_cpumask_var(mask);
 }
 
@@ -1521,6 +1563,9 @@ void start_secondary(void *unused)
 
 	vdso_getcpu_init();
 #endif
+	set_numa_node(numa_cpu_lookup_table[cpu]);
+	set_numa_mem(local_memory_node(numa_cpu_lookup_table[cpu]));
+
 	/* Update topology CPU masks */
 	add_cpu_to_masks(cpu);
 
@@ -1538,9 +1583,6 @@ void start_secondary(void *unused)
 		if (cpumask_weight(mask) > cpumask_weight(sibling_mask(cpu)))
 			shared_caches = true;
 	}
-
-	set_numa_node(numa_cpu_lookup_table[cpu]);
-	set_numa_mem(local_memory_node(numa_cpu_lookup_table[cpu]));
 
 	smp_wmb();
 	notify_cpu_starting(cpu);

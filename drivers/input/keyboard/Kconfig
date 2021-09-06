@@ -213,7 +213,7 @@ config KEYBOARD_LKKBD
 	select SERIO
 	help
 	  Say Y here if you want to use a LK201 or LK401 style serial
-	  keyboard. This keyboard is also useable on PCs if you attach
+	  keyboard. This keyboard is also usable on PCs if you attach
 	  it with the inputattach program. The connector pinout is
 	  described within lkkbd.c.
 

@@ -1498,8 +1498,8 @@ static int rt5651_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	snd_soc_component_write(component, RT5651_PLL_CTRL1,
 		pll_code.n_code << RT5651_PLL_N_SFT | pll_code.k_code);
 	snd_soc_component_write(component, RT5651_PLL_CTRL2,
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5651_PLL_M_SFT |
-		pll_code.m_bp << RT5651_PLL_M_BP_SFT);
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT5651_PLL_M_SFT) |
+		(pll_code.m_bp << RT5651_PLL_M_BP_SFT));
 
 	rt5651->pll_in = freq_in;
 	rt5651->pll_out = freq_out;
@@ -1783,7 +1783,7 @@ static void rt5651_jack_detect_work(struct work_struct *work)
 	struct rt5651_priv *rt5651 =
 		container_of(work, struct rt5651_priv, jack_detect_work);
 	struct snd_soc_component *component = rt5651->component;
-	int report = 0;
+	int report;
 
 	if (!rt5651_jack_inserted(component)) {
 		/* Jack removed, or spurious IRQ? */

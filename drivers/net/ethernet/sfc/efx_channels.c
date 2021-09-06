@@ -914,6 +914,8 @@ int efx_set_channels(struct efx_nic *efx)
 			}
 		}
 	}
+	if (xdp_queue_number)
+		efx->xdp_tx_queue_count = xdp_queue_number;
 
 	rc = netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
 	if (rc)

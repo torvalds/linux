@@ -447,6 +447,11 @@ struct iwl_trans
 		      const struct iwl_cfg_trans_params *cfg_trans);
 void iwl_trans_pcie_free(struct iwl_trans *trans);
 
+bool __iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans);
+#define _iwl_trans_pcie_grab_nic_access(trans)			\
+	__cond_lock(nic_access_nobh,				\
+		    likely(__iwl_trans_pcie_grab_nic_access(trans)))
+
 /*****************************************************
 * RX
 ******************************************************/

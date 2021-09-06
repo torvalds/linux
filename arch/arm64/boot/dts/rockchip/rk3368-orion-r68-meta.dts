@@ -11,6 +11,11 @@
 	model = "Rockchip Orion R68";
 	compatible = "tronsmart,orion-r68-meta", "rockchip,rk3368";
 
+	aliases {
+		mmc0 = &sdmmc;
+		mmc1 = &emmc;
+	};
+
 	chosen {
 		stdout-path = "serial2:115200n8";
 	};

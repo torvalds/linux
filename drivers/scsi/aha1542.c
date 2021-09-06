@@ -65,9 +65,12 @@ struct aha1542_hostdata {
 	dma_addr_t ccb_handle;
 };
 
+#define AHA1542_MAX_SECTORS       16
+
 struct aha1542_cmd {
-	struct chain *chain;
-	dma_addr_t chain_handle;
+	/* bounce buffer */
+	void *data_buffer;
+	dma_addr_t data_buffer_handle;
 };
 
 static inline void aha1542_intr_reset(u16 base)
@@ -257,15 +260,19 @@ static int aha1542_test_port(struct Scsi_Host *sh)
 static void aha1542_free_cmd(struct scsi_cmnd *cmd)
 {
 	struct aha1542_cmd *acmd = scsi_cmd_priv(cmd);
-	struct device *dev = cmd->device->host->dma_dev;
-	size_t len = scsi_sg_count(cmd) * sizeof(struct chain);
 
-	if (acmd->chain) {
-		dma_unmap_single(dev, acmd->chain_handle, len, DMA_TO_DEVICE);
-		kfree(acmd->chain);
+	if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
+		void *buf = acmd->data_buffer;
+		struct req_iterator iter;
+		struct bio_vec bv;
+
+		rq_for_each_segment(bv, cmd->request, iter) {
+			memcpy_to_page(bv.bv_page, bv.bv_offset, buf,
+				       bv.bv_len);
+			buf += bv.bv_len;
+		}
 	}
 
-	acmd->chain = NULL;
 	scsi_dma_unmap(cmd);
 }
 
@@ -416,7 +423,7 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	u8 lun = cmd->device->lun;
 	unsigned long flags;
 	int bufflen = scsi_bufflen(cmd);
-	int mbo, sg_count;
+	int mbo;
 	struct mailbox *mb = aha1542->mb;
 	struct ccb *ccb = aha1542->ccb;
 
@@ -438,17 +445,17 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		print_hex_dump_bytes("command: ", DUMP_PREFIX_NONE, cmd->cmnd, cmd->cmd_len);
 	}
 #endif
-	sg_count = scsi_dma_map(cmd);
-	if (sg_count) {
-		size_t len = sg_count * sizeof(struct chain);
 
-		acmd->chain = kmalloc(len, GFP_DMA);
-		if (!acmd->chain)
-			goto out_unmap;
-		acmd->chain_handle = dma_map_single(sh->dma_dev, acmd->chain,
-				len, DMA_TO_DEVICE);
-		if (dma_mapping_error(sh->dma_dev, acmd->chain_handle))
-			goto out_free_chain;
+	if (cmd->sc_data_direction == DMA_TO_DEVICE) {
+		void *buf = acmd->data_buffer;
+		struct req_iterator iter;
+		struct bio_vec bv;
+
+		rq_for_each_segment(bv, cmd->request, iter) {
+			memcpy_from_page(buf, bv.bv_page, bv.bv_offset,
+					 bv.bv_len);
+			buf += bv.bv_len;
+		}
 	}
 
 	/*
@@ -496,27 +503,12 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		direction = 16;
 
 	memcpy(ccb[mbo].cdb, cmd->cmnd, ccb[mbo].cdblen);
-
-	if (bufflen) {
-		struct scatterlist *sg;
-		int i;
-
-		ccb[mbo].op = 2;	/* SCSI Initiator Command  w/scatter-gather */
-		scsi_for_each_sg(cmd, sg, sg_count, i) {
-			any2scsi(acmd->chain[i].dataptr, sg_dma_address(sg));
-			any2scsi(acmd->chain[i].datalen, sg_dma_len(sg));
-		};
-		any2scsi(ccb[mbo].datalen, sg_count * sizeof(struct chain));
-		any2scsi(ccb[mbo].dataptr, acmd->chain_handle);
-#ifdef DEBUG
-		shost_printk(KERN_DEBUG, sh, "cptr %p: ", acmd->chain);
-		print_hex_dump_bytes("cptr: ", DUMP_PREFIX_NONE, acmd->chain, 18);
-#endif
-	} else {
-		ccb[mbo].op = 0;	/* SCSI Initiator Command */
-		any2scsi(ccb[mbo].datalen, 0);
+	ccb[mbo].op = 0;	/* SCSI Initiator Command */
+	any2scsi(ccb[mbo].datalen, bufflen);
+	if (bufflen)
+		any2scsi(ccb[mbo].dataptr, acmd->data_buffer_handle);
+	else
 		any2scsi(ccb[mbo].dataptr, 0);
-	};
 	ccb[mbo].idlun = (target & 7) << 5 | direction | (lun & 7);	/*SCSI Target Id */
 	ccb[mbo].rsalen = 16;
 	ccb[mbo].linkptr[0] = ccb[mbo].linkptr[1] = ccb[mbo].linkptr[2] = 0;
@@ -531,12 +523,6 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	spin_unlock_irqrestore(sh->host_lock, flags);
 
 	return 0;
-out_free_chain:
-	kfree(acmd->chain);
-	acmd->chain = NULL;
-out_unmap:
-	scsi_dma_unmap(cmd);
-	return SCSI_MLQUEUE_HOST_BUSY;
 }
 
 /* Initialize mailboxes */
@@ -1027,6 +1013,27 @@ static int aha1542_biosparam(struct scsi_device *sdev,
 }
 MODULE_LICENSE("GPL");
 
+static int aha1542_init_cmd_priv(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
+{
+	struct aha1542_cmd *acmd = scsi_cmd_priv(cmd);
+
+	acmd->data_buffer = dma_alloc_coherent(shost->dma_dev,
+			SECTOR_SIZE * AHA1542_MAX_SECTORS,
+			&acmd->data_buffer_handle, GFP_KERNEL);
+	if (!acmd->data_buffer)
+		return -ENOMEM;
+	return 0;
+}
+
+static int aha1542_exit_cmd_priv(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
+{
+	struct aha1542_cmd *acmd = scsi_cmd_priv(cmd);
+
+	dma_free_coherent(shost->dma_dev, SECTOR_SIZE * AHA1542_MAX_SECTORS,
+			acmd->data_buffer, acmd->data_buffer_handle);
+	return 0;
+}
+
 static struct scsi_host_template driver_template = {
 	.module			= THIS_MODULE,
 	.proc_name		= "aha1542",
@@ -1037,10 +1044,12 @@ static struct scsi_host_template driver_template = {
 	.eh_bus_reset_handler	= aha1542_bus_reset,
 	.eh_host_reset_handler	= aha1542_host_reset,
 	.bios_param		= aha1542_biosparam,
+	.init_cmd_priv		= aha1542_init_cmd_priv,
+	.exit_cmd_priv		= aha1542_exit_cmd_priv,
 	.can_queue		= AHA1542_MAILBOXES,
 	.this_id		= 7,
-	.sg_tablesize		= 16,
-	.unchecked_isa_dma	= 1,
+	.max_sectors		= AHA1542_MAX_SECTORS,
+	.sg_tablesize		= SG_ALL,
 };
 
 static int aha1542_isa_match(struct device *pdev, unsigned int ndev)

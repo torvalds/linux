@@ -1285,7 +1285,7 @@ bail:
 }
 
 /**
- * sdma_clean()  Clean up allocated memory
+ * sdma_clean - Clean up allocated memory
  * @dd:          struct hfi1_devdata
  * @num_engines: num sdma engines
  *

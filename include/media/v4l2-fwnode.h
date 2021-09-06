@@ -510,27 +510,6 @@ v4l2_async_notifier_parse_fwnode_endpoints(struct device *dev,
 					   size_t asd_struct_size,
 					   parse_endpoint_func parse_endpoint);
 
-/**
- * v4l2_async_notifier_parse_fwnode_sensor_common - parse common references on
- *					       sensors for async sub-devices
- * @dev: the device node the properties of which are parsed for references
- * @notifier: the async notifier where the async subdevs will be added
- *
- * Parse common sensor properties for remote devices related to the
- * sensor and set up async sub-devices for them.
- *
- * Any notifier populated using this function must be released with a call to
- * v4l2_async_notifier_release() after it has been unregistered and the async
- * sub-devices are no longer in use, even in the case the function returned an
- * error.
- *
- * Return: 0 on success
- *	   -ENOMEM if memory allocation failed
- *	   -EINVAL if property parsing failed
- */
-int v4l2_async_notifier_parse_fwnode_sensor_common(struct device *dev,
-						   struct v4l2_async_notifier *notifier);
-
 /* Helper macros to access the connector links. */
 
 /** v4l2_connector_last_link - Helper macro to get the first

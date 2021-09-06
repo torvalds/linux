@@ -3,6 +3,7 @@
 config CAN_MCP251XFD
 	tristate "Microchip MCP251xFD SPI CAN controllers"
 	select REGMAP
+	select WANT_DEV_COREDUMP
 	help
 	  Driver for the Microchip MCP251XFD SPI FD-CAN controller
 	  family.

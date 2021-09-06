@@ -1165,7 +1165,7 @@ intel_tv_get_config(struct intel_encoder *encoder,
 static bool intel_tv_source_too_wide(struct drm_i915_private *dev_priv,
 				     int hdisplay)
 {
-	return IS_GEN(dev_priv, 3) && hdisplay > 1024;
+	return IS_DISPLAY_VER(dev_priv, 3) && hdisplay > 1024;
 }
 
 static bool intel_tv_vert_scaling(const struct drm_display_mode *tv_mode,
@@ -1519,7 +1519,7 @@ static void intel_tv_pre_enable(struct intel_atomic_state *state,
 
 	set_color_conversion(dev_priv, color_conversion);
 
-	if (INTEL_GEN(dev_priv) >= 4)
+	if (DISPLAY_VER(dev_priv) >= 4)
 		intel_de_write(dev_priv, TV_CLR_KNOBS, 0x00404000);
 	else
 		intel_de_write(dev_priv, TV_CLR_KNOBS, 0x00606000);
@@ -1789,7 +1789,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 			continue;
 
 		/* no vertical scaling with wide sources on gen3 */
-		if (IS_GEN(dev_priv, 3) && input->w > 1024 &&
+		if (IS_DISPLAY_VER(dev_priv, 3) && input->w > 1024 &&
 		    input->h > intel_tv_mode_vdisplay(tv_mode))
 			continue;
 
@@ -1978,7 +1978,7 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	/* Create TV properties then attach current values */
 	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
 		/* 1080p50/1080p60 not supported on gen3 */
-		if (IS_GEN(dev_priv, 3) &&
+		if (IS_DISPLAY_VER(dev_priv, 3) &&
 		    tv_modes[i].oversample == 1)
 			break;
 

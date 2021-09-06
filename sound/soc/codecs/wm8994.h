@@ -50,7 +50,7 @@ typedef void (*wm1811_mic_id_cb)(void *data, u16 status);
 int wm8994_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *jack,
 		      int micbias);
 int wm8958_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *jack,
-		      wm1811_micdet_cb cb, void *det_cb_data,
+		      wm1811_micdet_cb det_cb, void *det_cb_data,
 		      wm1811_mic_id_cb id_cb, void *id_cb_data);
 
 int wm8994_vmid_mode(struct snd_soc_component *component, enum wm8994_vmid_mode mode);

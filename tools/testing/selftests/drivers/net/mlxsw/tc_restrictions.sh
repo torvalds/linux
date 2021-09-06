@@ -11,6 +11,7 @@ ALL_TESTS="
 	matchall_mirror_behind_flower_ingress_test
 	matchall_sample_behind_flower_ingress_test
 	matchall_mirror_behind_flower_egress_test
+	matchall_proto_match_test
 	police_limits_test
 	multi_police_test
 "
@@ -18,6 +19,7 @@ NUM_NETIFS=2
 
 source $lib_dir/tc_common.sh
 source $lib_dir/lib.sh
+source $lib_dir/devlink_lib.sh
 
 switch_create()
 {
@@ -166,7 +168,8 @@ matchall_sample_egress_test()
 	RET=0
 
 	# It is forbidden in mlxsw driver to have matchall with sample action
-	# bound on egress
+	# bound on egress. Spectrum-1 specific restriction
+	[[ "$DEVLINK_VIDDID" != "15b3:cb84" ]] && return
 
 	tc qdisc add dev $swp1 clsact
 
@@ -287,6 +290,22 @@ matchall_behind_flower_egress_test()
 matchall_mirror_behind_flower_egress_test()
 {
 	matchall_behind_flower_egress_test "mirror" "mirred egress mirror dev $swp2"
+}
+
+matchall_proto_match_test()
+{
+	RET=0
+
+	tc qdisc add dev $swp1 clsact
+
+	tc filter add dev $swp1 ingress pref 1 proto ip handle 101 \
+		matchall skip_sw \
+		action sample group 1 rate 100
+	check_fail $? "Incorrect success to add matchall rule with protocol match"
+
+	tc qdisc del dev $swp1 clsact
+
+	log_test "matchall protocol match"
 }
 
 police_limits_test()

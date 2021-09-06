@@ -794,18 +794,7 @@ static struct mtd_blktrans_ops rfd_ftl_tr = {
 	.owner		= THIS_MODULE,
 };
 
-static int __init init_rfd_ftl(void)
-{
-	return register_mtd_blktrans(&rfd_ftl_tr);
-}
-
-static void __exit cleanup_rfd_ftl(void)
-{
-	deregister_mtd_blktrans(&rfd_ftl_tr);
-}
-
-module_init(init_rfd_ftl);
-module_exit(cleanup_rfd_ftl);
+module_mtd_blktrans(rfd_ftl_tr);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sean Young <sean@mess.org>");

@@ -41,13 +41,13 @@ static void qe_gpio_save_regs(struct of_mm_gpio_chip *mm_gc)
 		container_of(mm_gc, struct qe_gpio_chip, mm_gc);
 	struct qe_pio_regs __iomem *regs = mm_gc->regs;
 
-	qe_gc->cpdata = qe_ioread32be(&regs->cpdata);
+	qe_gc->cpdata = ioread32be(&regs->cpdata);
 	qe_gc->saved_regs.cpdata = qe_gc->cpdata;
-	qe_gc->saved_regs.cpdir1 = qe_ioread32be(&regs->cpdir1);
-	qe_gc->saved_regs.cpdir2 = qe_ioread32be(&regs->cpdir2);
-	qe_gc->saved_regs.cppar1 = qe_ioread32be(&regs->cppar1);
-	qe_gc->saved_regs.cppar2 = qe_ioread32be(&regs->cppar2);
-	qe_gc->saved_regs.cpodr = qe_ioread32be(&regs->cpodr);
+	qe_gc->saved_regs.cpdir1 = ioread32be(&regs->cpdir1);
+	qe_gc->saved_regs.cpdir2 = ioread32be(&regs->cpdir2);
+	qe_gc->saved_regs.cppar1 = ioread32be(&regs->cppar1);
+	qe_gc->saved_regs.cppar2 = ioread32be(&regs->cppar2);
+	qe_gc->saved_regs.cpodr = ioread32be(&regs->cpodr);
 }
 
 static int qe_gpio_get(struct gpio_chip *gc, unsigned int gpio)
@@ -56,7 +56,7 @@ static int qe_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 	struct qe_pio_regs __iomem *regs = mm_gc->regs;
 	u32 pin_mask = 1 << (QE_PIO_PINS - 1 - gpio);
 
-	return !!(qe_ioread32be(&regs->cpdata) & pin_mask);
+	return !!(ioread32be(&regs->cpdata) & pin_mask);
 }
 
 static void qe_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
@@ -74,7 +74,7 @@ static void qe_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 	else
 		qe_gc->cpdata &= ~pin_mask;
 
-	qe_iowrite32be(qe_gc->cpdata, &regs->cpdata);
+	iowrite32be(qe_gc->cpdata, &regs->cpdata);
 
 	spin_unlock_irqrestore(&qe_gc->lock, flags);
 }
@@ -101,7 +101,7 @@ static void qe_gpio_set_multiple(struct gpio_chip *gc,
 		}
 	}
 
-	qe_iowrite32be(qe_gc->cpdata, &regs->cpdata);
+	iowrite32be(qe_gc->cpdata, &regs->cpdata);
 
 	spin_unlock_irqrestore(&qe_gc->lock, flags);
 }
@@ -269,7 +269,7 @@ void qe_pin_set_dedicated(struct qe_pin *qe_pin)
 	else
 		qe_gc->cpdata &= ~mask1;
 
-	qe_iowrite32be(qe_gc->cpdata, &regs->cpdata);
+	iowrite32be(qe_gc->cpdata, &regs->cpdata);
 	qe_clrsetbits_be32(&regs->cpodr, mask1, sregs->cpodr & mask1);
 
 	spin_unlock_irqrestore(&qe_gc->lock, flags);

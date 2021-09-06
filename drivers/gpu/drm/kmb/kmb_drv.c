@@ -137,6 +137,7 @@ static int kmb_hw_init(struct drm_device *drm, unsigned long flags)
 	/* Allocate LCD interrupt resources */
 	irq_lcd = platform_get_irq(pdev, 0);
 	if (irq_lcd < 0) {
+		ret = irq_lcd;
 		drm_err(&kmb->drm, "irq_lcd not found");
 		goto setup_fail;
 	}

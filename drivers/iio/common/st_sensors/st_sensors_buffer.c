@@ -57,7 +57,7 @@ irqreturn_t st_sensors_trigger_handler(int irq, void *p)
 	s64 timestamp;
 
 	/*
-	 * If we do timetamping here, do it before reading the values, because
+	 * If we do timestamping here, do it before reading the values, because
 	 * once we've read the values, new interrupts can occur (when using
 	 * the hardware trigger) and the hw_timestamp may get updated.
 	 * By storing it in a local variable first, we are safe.

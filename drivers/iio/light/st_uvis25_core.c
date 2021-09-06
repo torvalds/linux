@@ -210,7 +210,6 @@ static int st_uvis25_allocate_trigger(struct iio_dev *iio_dev)
 		return -ENOMEM;
 
 	iio_trigger_set_drvdata(hw->trig, iio_dev);
-	hw->trig->dev.parent = dev;
 
 	return devm_iio_trigger_register(dev, hw->trig);
 }

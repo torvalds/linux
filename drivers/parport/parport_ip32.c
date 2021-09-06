@@ -2224,15 +2224,3 @@ MODULE_PARM_DESC(features,
 		 ", bit 2: hardware SPP mode"
 		 ", bit 3: hardware EPP mode"
 		 ", bit 4: hardware ECP mode");
-
-/*--- Inform (X)Emacs about preferred coding style ---------------------*/
-/*
- * Local Variables:
- * mode: c
- * c-file-style: "linux"
- * indent-tabs-mode: t
- * tab-width: 8
- * fill-column: 78
- * ispell-local-dictionary: "american"
- * End:
- */

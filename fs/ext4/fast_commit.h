@@ -153,13 +153,6 @@ struct ext4_fc_replay_state {
 #define region_last(__region) (((__region)->lblk) + ((__region)->len) - 1)
 #endif
 
-#define fc_for_each_tl(__start, __end, __tl)				\
-	for (tl = (struct ext4_fc_tl *)(__start);			\
-	     (__u8 *)tl < (__u8 *)(__end);				\
-		tl = (struct ext4_fc_tl *)((__u8 *)tl +			\
-					sizeof(struct ext4_fc_tl) +	\
-					+ le16_to_cpu(tl->fc_len)))
-
 static inline const char *tag2str(__u16 tag)
 {
 	switch (tag) {
@@ -184,18 +177,6 @@ static inline const char *tag2str(__u16 tag)
 	default:
 		return "ERROR";
 	}
-}
-
-/* Get length of a particular tlv */
-static inline int ext4_fc_tag_len(struct ext4_fc_tl *tl)
-{
-	return le16_to_cpu(tl->fc_len);
-}
-
-/* Get a pointer to "value" of a tlv */
-static inline __u8 *ext4_fc_tag_val(struct ext4_fc_tl *tl)
-{
-	return (__u8 *)tl + sizeof(*tl);
 }
 
 #endif /* __FAST_COMMIT_H__ */

@@ -245,36 +245,31 @@ Base tree contains:
 
 Overlay contains:
 
-/dts-v1/ /plugin/;
-/ {
-	fragment@0 {
-		target = <&fpga_region0>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		__overlay__ {
-			#address-cells = <1>;
-			#size-cells = <1>;
+/dts-v1/;
+/plugin/;
 
-			firmware-name = "soc_system.rbf";
-			fpga-bridges = <&fpga_bridge1>;
-			ranges = <0x20000 0xff200000 0x100000>,
-				 <0x0 0xc0000000 0x20000000>;
+&fpga_region0 {
+	#address-cells = <1>;
+	#size-cells = <1>;
 
-			gpio@10040 {
-				compatible = "altr,pio-1.0";
-				reg = <0x10040 0x20>;
-				altr,ngpio = <4>;
-				#gpio-cells = <2>;
-				clocks = <2>;
-				gpio-controller;
-			};
+	firmware-name = "soc_system.rbf";
+	fpga-bridges = <&fpga_bridge1>;
+	ranges = <0x20000 0xff200000 0x100000>,
+		 <0x0 0xc0000000 0x20000000>;
 
-			onchip-memory {
-				device_type = "memory";
-				compatible = "altr,onchipmem-15.1";
-				reg = <0x0 0x10000>;
-			};
-		};
+	gpio@10040 {
+		compatible = "altr,pio-1.0";
+		reg = <0x10040 0x20>;
+		altr,ngpio = <4>;
+		#gpio-cells = <2>;
+		clocks = <2>;
+		gpio-controller;
+	};
+
+	onchip-memory {
+		device_type = "memory";
+		compatible = "altr,onchipmem-15.1";
+		reg = <0x0 0x10000>;
 	};
 };
 
@@ -371,25 +366,22 @@ Live Device Tree contains:
 	};
 
 DT Overlay contains:
-/dts-v1/ /plugin/;
-/ {
-fragment@0 {
-	target = <&fpga_region0>;
+
+/dts-v1/;
+/plugin/;
+
+&fpga_region0 {
 	#address-cells = <1>;
 	#size-cells = <1>;
-	__overlay__ {
-		#address-cells = <1>;
-		#size-cells = <1>;
 
-		firmware-name = "zynq-gpio.bin";
+	firmware-name = "zynq-gpio.bin";
 
-		gpio1: gpio@40000000 {
-			compatible = "xlnx,xps-gpio-1.00.a";
-			reg = <0x40000000 0x10000>;
-			gpio-controller;
-			#gpio-cells = <0x2>;
-			xlnx,gpio-width= <0x6>;
-		};
+	gpio1: gpio@40000000 {
+		compatible = "xlnx,xps-gpio-1.00.a";
+		reg = <0x40000000 0x10000>;
+		gpio-controller;
+		#gpio-cells = <0x2>;
+		xlnx,gpio-width= <0x6>;
 	};
 };
 
@@ -402,41 +394,37 @@ This example programs the FPGA to have two regions that can later be partially
 configured.  Each region has its own bridge in the FPGA fabric.
 
 DT Overlay contains:
-/dts-v1/ /plugin/;
-/ {
-	fragment@0 {
-		target = <&fpga_region0>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		__overlay__ {
-			#address-cells = <1>;
-			#size-cells = <1>;
 
-			firmware-name = "base.rbf";
+/dts-v1/;
+/plugin/;
 
-			fpga-bridge@4400 {
-				compatible = "altr,freeze-bridge-controller";
-				reg = <0x4400 0x10>;
+&fpga_region0 {
+	#address-cells = <1>;
+	#size-cells = <1>;
 
-				fpga_region1: fpga-region1 {
-					compatible = "fpga-region";
-					#address-cells = <0x1>;
-					#size-cells = <0x1>;
-					ranges;
-				};
-			};
+	firmware-name = "base.rbf";
 
-			fpga-bridge@4420 {
-				compatible = "altr,freeze-bridge-controller";
-				reg = <0x4420 0x10>;
+	fpga-bridge@4400 {
+		compatible = "altr,freeze-bridge-controller";
+		reg = <0x4400 0x10>;
 
-				fpga_region2: fpga-region2 {
-					compatible = "fpga-region";
-					#address-cells = <0x1>;
-					#size-cells = <0x1>;
-					ranges;
-				};
-			};
+		fpga_region1: fpga-region1 {
+			compatible = "fpga-region";
+			#address-cells = <0x1>;
+			#size-cells = <0x1>;
+			ranges;
+		};
+	};
+
+	fpga-bridge@4420 {
+		compatible = "altr,freeze-bridge-controller";
+		reg = <0x4420 0x10>;
+
+		fpga_region2: fpga-region2 {
+			compatible = "fpga-region";
+			#address-cells = <0x1>;
+			#size-cells = <0x1>;
+			ranges;
 		};
 	};
 };
@@ -451,28 +439,23 @@ differences are that the FPGA is partially reconfigured due to the
 "partial-fpga-config" boolean and the only bridge that is controlled during
 programming is the FPGA based bridge of fpga_region1.
 
-/dts-v1/ /plugin/;
-/ {
-	fragment@0 {
-		target = <&fpga_region1>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		__overlay__ {
-			#address-cells = <1>;
-			#size-cells = <1>;
+/dts-v1/;
+/plugin/;
 
-			firmware-name = "soc_image2.rbf";
-			partial-fpga-config;
+&fpga_region1 {
+	#address-cells = <1>;
+	#size-cells = <1>;
 
-			gpio@10040 {
-				compatible = "altr,pio-1.0";
-				reg = <0x10040 0x20>;
-				clocks = <0x2>;
-				altr,ngpio = <0x4>;
-				#gpio-cells = <0x2>;
-				gpio-controller;
-			};
-		};
+	firmware-name = "soc_image2.rbf";
+	partial-fpga-config;
+
+	gpio@10040 {
+		compatible = "altr,pio-1.0";
+		reg = <0x10040 0x20>;
+		clocks = <0x2>;
+		altr,ngpio = <0x4>;
+		#gpio-cells = <0x2>;
+		gpio-controller;
 	};
 };
 

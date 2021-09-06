@@ -66,6 +66,5 @@ void dma_common_free_remap(void *cpu_addr, size_t size)
 		return;
 	}
 
-	unmap_kernel_range((unsigned long)cpu_addr, PAGE_ALIGN(size));
 	vunmap(cpu_addr);
 }

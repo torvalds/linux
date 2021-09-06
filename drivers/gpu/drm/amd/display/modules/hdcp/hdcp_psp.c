@@ -791,6 +791,8 @@ enum mod_hdcp_status mod_hdcp_hdcp2_validate_rx_id_list(struct mod_hdcp *hdcp)
 			   TA_HDCP2_MSG_AUTHENTICATION_STATUS__RECEIVERID_REVOKED) {
 			hdcp->connection.is_hdcp2_revoked = 1;
 			status = MOD_HDCP_STATUS_HDCP2_RX_ID_LIST_REVOKED;
+		} else {
+			status = MOD_HDCP_STATUS_HDCP2_VALIDATE_RX_ID_LIST_FAILURE;
 		}
 	}
 	mutex_unlock(&psp->hdcp_context.mutex);
@@ -914,3 +916,13 @@ enum mod_hdcp_status mod_hdcp_hdcp2_validate_stream_ready(struct mod_hdcp *hdcp)
 	return status;
 }
 
+bool mod_hdcp_is_link_encryption_enabled(struct mod_hdcp *hdcp)
+{
+	/* unsupported */
+	return true;
+}
+
+void mod_hdcp_save_current_encryption_states(struct mod_hdcp *hdcp)
+{
+	/* unsupported */
+}

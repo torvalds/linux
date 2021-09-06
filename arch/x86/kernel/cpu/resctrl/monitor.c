@@ -84,7 +84,7 @@ unsigned int resctrl_cqm_threshold;
 static const struct mbm_correction_factor_table {
 	u32 rmidthreshold;
 	u64 cf;
-} mbm_cf_table[] __initdata = {
+} mbm_cf_table[] __initconst = {
 	{7,	CF(1.000000)},
 	{15,	CF(1.000000)},
 	{15,	CF(0.969650)},
@@ -387,7 +387,7 @@ void mon_event_count(void *info)
  * adjust the bandwidth percentage values via the IA32_MBA_THRTL_MSRs so
  * that:
  *
- *   current bandwdith(cur_bw) < user specified bandwidth(user_bw)
+ *   current bandwidth(cur_bw) < user specified bandwidth(user_bw)
  *
  * This uses the MBM counters to measure the bandwidth and MBA throttle
  * MSRs to control the bandwidth for a particular rdtgrp. It builds on the
@@ -397,7 +397,7 @@ void mon_event_count(void *info)
  * timer. Having 1s interval makes the calculation of bandwidth simpler.
  *
  * Although MBA's goal is to restrict the bandwidth to a maximum, there may
- * be a need to increase the bandwidth to avoid uncecessarily restricting
+ * be a need to increase the bandwidth to avoid unnecessarily restricting
  * the L2 <-> L3 traffic.
  *
  * Since MBA controls the L2 external bandwidth where as MBM measures the
@@ -480,7 +480,7 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 
 	/*
 	 * Delta values are updated dynamically package wise for each
-	 * rdtgrp everytime the throttle MSR changes value.
+	 * rdtgrp every time the throttle MSR changes value.
 	 *
 	 * This is because (1)the increase in bandwidth is not perfectly
 	 * linear and only "approximately" linear even when the hardware

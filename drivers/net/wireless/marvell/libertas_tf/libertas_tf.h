@@ -453,7 +453,6 @@ struct cmd_ds_802_11_beacon_set {
 	u8 beacon[MRVL_MAX_BCN_SIZE];
 };
 
-struct lbtf_private;
 struct cmd_ctrl_node;
 
 /** Function Prototype Declaration */

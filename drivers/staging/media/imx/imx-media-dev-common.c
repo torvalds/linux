@@ -287,6 +287,8 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 	    !(flags & MEDIA_LNK_FL_ENABLED)) {
 		list_for_each_entry(pad_vdev, pad_vdev_list, list) {
 			vfd = pad_vdev->vdev->vfd;
+			if (!vfd->ctrl_handler)
+				continue;
 			dev_dbg(imxmd->md.dev,
 				"reset controls for %s\n",
 				vfd->entity.name);
@@ -297,6 +299,8 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 		   (link->flags & MEDIA_LNK_FL_ENABLED)) {
 		list_for_each_entry(pad_vdev, pad_vdev_list, list) {
 			vfd = pad_vdev->vdev->vfd;
+			if (!vfd->ctrl_handler)
+				continue;
 			dev_dbg(imxmd->md.dev,
 				"refresh controls for %s\n",
 				vfd->entity.name);

@@ -150,6 +150,9 @@ extern int cachefiles_has_space(struct cachefiles_cache *cache,
  */
 extern const struct fscache_cache_ops cachefiles_cache_ops;
 
+void cachefiles_put_object(struct fscache_object *_object,
+			   enum fscache_obj_ref_trace why);
+
 /*
  * key.c
  */
@@ -216,6 +219,12 @@ extern int cachefiles_allocate_pages(struct fscache_retrieval *,
 				     struct list_head *, unsigned *, gfp_t);
 extern int cachefiles_write_page(struct fscache_storage *, struct page *);
 extern void cachefiles_uncache_page(struct fscache_object *, struct page *);
+
+/*
+ * rdwr2.c
+ */
+extern int cachefiles_begin_read_operation(struct netfs_read_request *,
+					   struct fscache_retrieval *);
 
 /*
  * security.c

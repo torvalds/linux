@@ -8,7 +8,7 @@ capabilities and information which can be used by a bootloader or userland.
 Types and Descriptors
 ---------------------
 
-The types to be used with the "PowerPC" namesapce are defined in [#f1]_.
+The types to be used with the "PowerPC" namespace are defined in [#f1]_.
 
 	1) PPC_ELFNOTE_CAPABILITIES
 

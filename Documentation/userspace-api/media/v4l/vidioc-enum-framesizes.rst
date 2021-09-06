@@ -89,8 +89,6 @@ application should zero out all members except for the *IN* fields.
 
 .. c:type:: v4l2_frmsize_discrete
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
-
 .. flat-table:: struct v4l2_frmsize_discrete
     :header-rows:  0
     :stub-columns: 0
@@ -105,8 +103,6 @@ application should zero out all members except for the *IN* fields.
 
 
 .. c:type:: v4l2_frmsize_stepwise
-
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct v4l2_frmsize_stepwise
     :header-rows:  0
@@ -135,7 +131,7 @@ application should zero out all members except for the *IN* fields.
 
 .. c:type:: v4l2_frmsizeenum
 
-.. tabularcolumns:: |p{1.4cm}|p{5.9cm}|p{2.3cm}|p{8.0cm}|
+.. tabularcolumns:: |p{6.4cm}|p{2.8cm}|p{8.1cm}|
 
 .. flat-table:: struct v4l2_frmsizeenum
     :header-rows:  0
@@ -173,7 +169,7 @@ Enums
 
 .. c:type:: v4l2_frmsizetypes
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. flat-table:: enum v4l2_frmsizetypes
     :header-rows:  0

@@ -405,7 +405,7 @@ int intel_gmch_panel_fitting(struct intel_crtc_state *crtc_state,
 		break;
 	case DRM_MODE_SCALE_ASPECT:
 		/* Scale but preserve the aspect ratio */
-		if (INTEL_GEN(dev_priv) >= 4)
+		if (DISPLAY_VER(dev_priv) >= 4)
 			i965_scale_aspect(crtc_state, &pfit_control);
 		else
 			i9xx_scale_aspect(crtc_state, &pfit_control,
@@ -419,7 +419,7 @@ int intel_gmch_panel_fitting(struct intel_crtc_state *crtc_state,
 		if (crtc_state->pipe_src_h != adjusted_mode->crtc_vdisplay ||
 		    crtc_state->pipe_src_w != adjusted_mode->crtc_hdisplay) {
 			pfit_control |= PFIT_ENABLE;
-			if (INTEL_GEN(dev_priv) >= 4)
+			if (DISPLAY_VER(dev_priv) >= 4)
 				pfit_control |= PFIT_SCALING_AUTO;
 			else
 				pfit_control |= (VERT_AUTO_SCALE |
@@ -435,7 +435,7 @@ int intel_gmch_panel_fitting(struct intel_crtc_state *crtc_state,
 
 	/* 965+ wants fuzzy fitting */
 	/* FIXME: handle multiple panels by failing gracefully */
-	if (INTEL_GEN(dev_priv) >= 4)
+	if (DISPLAY_VER(dev_priv) >= 4)
 		pfit_control |= PFIT_PIPE(crtc->pipe) | PFIT_FILTER_FUZZY;
 
 out:
@@ -445,7 +445,7 @@ out:
 	}
 
 	/* Make sure pre-965 set dither correctly for 18bpp panels. */
-	if (INTEL_GEN(dev_priv) < 4 && crtc_state->pipe_bpp == 18)
+	if (DISPLAY_VER(dev_priv) < 4 && crtc_state->pipe_bpp == 18)
 		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
 
 	crtc_state->gmch_pfit.control = pfit_control;
@@ -590,13 +590,13 @@ static u32 i9xx_get_backlight(struct intel_connector *connector, enum pipe unuse
 	u32 val;
 
 	val = intel_de_read(dev_priv, BLC_PWM_CTL) & BACKLIGHT_DUTY_CYCLE_MASK;
-	if (INTEL_GEN(dev_priv) < 4)
+	if (DISPLAY_VER(dev_priv) < 4)
 		val >>= 1;
 
 	if (panel->backlight.combination_mode) {
 		u8 lbpc;
 
-		pci_read_config_byte(dev_priv->drm.pdev, LBPC, &lbpc);
+		pci_read_config_byte(to_pci_dev(dev_priv->drm.dev), LBPC, &lbpc);
 		val *= lbpc;
 	}
 
@@ -664,10 +664,10 @@ static void i9xx_set_backlight(const struct drm_connector_state *conn_state, u32
 
 		lbpc = level * 0xfe / panel->backlight.pwm_level_max + 1;
 		level /= lbpc;
-		pci_write_config_byte(dev_priv->drm.pdev, LBPC, lbpc);
+		pci_write_config_byte(to_pci_dev(dev_priv->drm.dev), LBPC, lbpc);
 	}
 
-	if (IS_GEN(dev_priv, 4)) {
+	if (IS_DISPLAY_VER(dev_priv, 4)) {
 		mask = BACKLIGHT_DUTY_CYCLE_MASK;
 	} else {
 		level <<= 1;
@@ -1040,7 +1040,7 @@ static void i9xx_enable_backlight(const struct intel_crtc_state *crtc_state,
 	 * 855gm only, but checking for gen2 is safe, as 855gm is the only gen2
 	 * that has backlight.
 	 */
-	if (IS_GEN(dev_priv, 2))
+	if (IS_DISPLAY_VER(dev_priv, 2))
 		intel_de_write(dev_priv, BLC_HIST_CTL, BLM_HISTOGRAM_ENABLE);
 }
 
@@ -1728,7 +1728,7 @@ static int i9xx_setup_backlight(struct intel_connector *connector, enum pipe unu
 
 	ctl = intel_de_read(dev_priv, BLC_PWM_CTL);
 
-	if (IS_GEN(dev_priv, 2) || IS_I915GM(dev_priv) || IS_I945GM(dev_priv))
+	if (IS_DISPLAY_VER(dev_priv, 2) || IS_I915GM(dev_priv) || IS_I945GM(dev_priv))
 		panel->backlight.combination_mode = ctl & BLM_LEGACY_MODE;
 
 	if (IS_PINEVIEW(dev_priv))
@@ -2178,7 +2178,7 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 		} else {
 			panel->backlight.pwm_funcs = &vlv_pwm_funcs;
 		}
-	} else if (IS_GEN(dev_priv, 4)) {
+	} else if (IS_DISPLAY_VER(dev_priv, 4)) {
 		panel->backlight.pwm_funcs = &i965_pwm_funcs;
 	} else {
 		panel->backlight.pwm_funcs = &i9xx_pwm_funcs;

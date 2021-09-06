@@ -40,6 +40,7 @@
 #define ACPI_RESTAG_IORESTRICTION               "_IOR"
 #define ACPI_RESTAG_LENGTH                      "_LEN"
 #define ACPI_RESTAG_LINE                        "_LIN"
+#define ACPI_RESTAG_LOCALPORT                   "_PRT"
 #define ACPI_RESTAG_MEMATTRIBUTES               "_MTP"	/* Memory(0), Reserved(1), ACPI(2), NVS(3) */
 #define ACPI_RESTAG_MEMTYPE                     "_MEM"	/* non_cache(0), Cacheable(1) Cache+combine(2), Cache+prefetch(3) */
 #define ACPI_RESTAG_MAXADDR                     "_MAX"
@@ -49,6 +50,7 @@
 #define ACPI_RESTAG_MODE                        "_MOD"
 #define ACPI_RESTAG_PARITY                      "_PAR"
 #define ACPI_RESTAG_PHASE                       "_PHA"
+#define ACPI_RESTAG_PHYTYPE                     "_PHY"
 #define ACPI_RESTAG_PIN                         "_PIN"
 #define ACPI_RESTAG_PINCONFIG                   "_PPI"
 #define ACPI_RESTAG_PINCONFIG_TYPE              "_TYP"
@@ -316,11 +318,25 @@ struct aml_resource_gpio {
 #define AML_RESOURCE_I2C_SERIALBUSTYPE          1
 #define AML_RESOURCE_SPI_SERIALBUSTYPE          2
 #define AML_RESOURCE_UART_SERIALBUSTYPE         3
-#define AML_RESOURCE_MAX_SERIALBUSTYPE          3
+#define AML_RESOURCE_CSI2_SERIALBUSTYPE         4
+#define AML_RESOURCE_MAX_SERIALBUSTYPE          4
 #define AML_RESOURCE_VENDOR_SERIALBUSTYPE       192	/* Vendor defined is 0xC0-0xFF (NOT SUPPORTED) */
 
 struct aml_resource_common_serialbus {
 AML_RESOURCE_LARGE_HEADER_COMMON AML_RESOURCE_SERIAL_COMMON};
+
+struct aml_resource_csi2_serialbus {
+	AML_RESOURCE_LARGE_HEADER_COMMON AML_RESOURCE_SERIAL_COMMON
+	    /*
+	     * Optional fields follow immediately:
+	     * 1) Vendor Data bytes
+	     * 2) Resource Source String
+	     */
+};
+
+#define AML_RESOURCE_CSI2_REVISION              1	/* ACPI 6.4 */
+#define AML_RESOURCE_CSI2_TYPE_REVISION         1	/* ACPI 6.4 */
+#define AML_RESOURCE_CSI2_MIN_DATA_LEN          0	/* ACPI 6.4 */
 
 struct aml_resource_i2c_serialbus {
 	AML_RESOURCE_LARGE_HEADER_COMMON
@@ -510,6 +526,7 @@ union aml_resource {
 	struct aml_resource_i2c_serialbus i2c_serial_bus;
 	struct aml_resource_spi_serialbus spi_serial_bus;
 	struct aml_resource_uart_serialbus uart_serial_bus;
+	struct aml_resource_csi2_serialbus csi2_serial_bus;
 	struct aml_resource_common_serialbus common_serial_bus;
 	struct aml_resource_pin_function pin_function;
 	struct aml_resource_pin_config pin_config;

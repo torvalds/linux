@@ -117,7 +117,7 @@ static const struct fsl_soc_die_attr *fsl_soc_die_match(
 		if (matches->svr == (svr & matches->mask))
 			return matches;
 		matches++;
-	};
+	}
 	return NULL;
 }
 

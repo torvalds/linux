@@ -113,13 +113,6 @@ enum amic_idx {
 	AMIC_IDX_2
 };
 
-struct ab8500_codec_drvdata_dbg {
-	struct regulator *vaud;
-	struct regulator *vamic1;
-	struct regulator *vamic2;
-	struct regulator *vdmic;
-};
-
 /* Private data for AB8500 device-driver */
 struct ab8500_codec_drvdata {
 	struct regmap *regmap;

@@ -6,6 +6,7 @@
 #ifndef __INTEL_EXECLISTS_SUBMISSION_H__
 #define __INTEL_EXECLISTS_SUBMISSION_H__
 
+#include <linux/llist.h>
 #include <linux/types.h>
 
 struct drm_printer;
@@ -13,6 +14,7 @@ struct drm_printer;
 struct i915_request;
 struct intel_context;
 struct intel_engine_cs;
+struct intel_gt;
 
 enum {
 	INTEL_CONTEXT_SCHEDULE_IN = 0,

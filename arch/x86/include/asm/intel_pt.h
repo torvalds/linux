@@ -3,7 +3,7 @@
 #define _ASM_X86_INTEL_PT_H
 
 #define PT_CPUID_LEAVES		2
-#define PT_CPUID_REGS_NUM	4 /* number of regsters (eax, ebx, ecx, edx) */
+#define PT_CPUID_REGS_NUM	4 /* number of registers (eax, ebx, ecx, edx) */
 
 enum pt_capabilities {
 	PT_CAP_max_subleaf = 0,

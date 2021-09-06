@@ -741,7 +741,7 @@ static void applesmc_idev_poll(struct input_dev *idev)
 static ssize_t applesmc_name_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "applesmc\n");
+	return sysfs_emit(buf, "applesmc\n");
 }
 
 static ssize_t applesmc_position_show(struct device *dev,
@@ -763,8 +763,8 @@ static ssize_t applesmc_position_show(struct device *dev,
 out:
 	if (ret)
 		return ret;
-	else
-		return snprintf(buf, PAGE_SIZE, "(%d,%d,%d)\n", x, y, z);
+
+	return sysfs_emit(buf, "(%d,%d,%d)\n", x, y, z);
 }
 
 static ssize_t applesmc_light_show(struct device *dev,
@@ -804,8 +804,8 @@ static ssize_t applesmc_light_show(struct device *dev,
 out:
 	if (ret)
 		return ret;
-	else
-		return snprintf(sysfsbuf, PAGE_SIZE, "(%d,%d)\n", left, right);
+
+	return sysfs_emit(sysfsbuf, "(%d,%d)\n", left, right);
 }
 
 /* Displays sensor key as label */
@@ -814,7 +814,7 @@ static ssize_t applesmc_show_sensor_label(struct device *dev,
 {
 	const char *key = smcreg.index[to_index(devattr)];
 
-	return snprintf(sysfsbuf, PAGE_SIZE, "%s\n", key);
+	return sysfs_emit(sysfsbuf, "%s\n", key);
 }
 
 /* Displays degree Celsius * 1000 */
@@ -832,7 +832,7 @@ static ssize_t applesmc_show_temperature(struct device *dev,
 
 	temp = 250 * (value >> 6);
 
-	return snprintf(sysfsbuf, PAGE_SIZE, "%d\n", temp);
+	return sysfs_emit(sysfsbuf, "%d\n", temp);
 }
 
 static ssize_t applesmc_show_fan_speed(struct device *dev,
@@ -851,7 +851,7 @@ static ssize_t applesmc_show_fan_speed(struct device *dev,
 		return ret;
 
 	speed = ((buffer[0] << 8 | buffer[1]) >> 2);
-	return snprintf(sysfsbuf, PAGE_SIZE, "%u\n", speed);
+	return sysfs_emit(sysfsbuf, "%u\n", speed);
 }
 
 static ssize_t applesmc_store_fan_speed(struct device *dev,
@@ -891,7 +891,7 @@ static ssize_t applesmc_show_fan_manual(struct device *dev,
 		return ret;
 
 	manual = ((buffer[0] << 8 | buffer[1]) >> to_index(attr)) & 0x01;
-	return snprintf(sysfsbuf, PAGE_SIZE, "%d\n", manual);
+	return sysfs_emit(sysfsbuf, "%d\n", manual);
 }
 
 static ssize_t applesmc_store_fan_manual(struct device *dev,
@@ -943,14 +943,14 @@ static ssize_t applesmc_show_fan_position(struct device *dev,
 
 	if (ret)
 		return ret;
-	else
-		return snprintf(sysfsbuf, PAGE_SIZE, "%s\n", buffer+4);
+
+	return sysfs_emit(sysfsbuf, "%s\n", buffer + 4);
 }
 
 static ssize_t applesmc_calibrate_show(struct device *dev,
 				struct device_attribute *attr, char *sysfsbuf)
 {
-	return snprintf(sysfsbuf, PAGE_SIZE, "(%d,%d)\n", rest_x, rest_y);
+	return sysfs_emit(sysfsbuf, "(%d,%d)\n", rest_x, rest_y);
 }
 
 static ssize_t applesmc_calibrate_store(struct device *dev,
@@ -992,7 +992,7 @@ static ssize_t applesmc_key_count_show(struct device *dev,
 
 	count = ((u32)buffer[0]<<24) + ((u32)buffer[1]<<16) +
 						((u32)buffer[2]<<8) + buffer[3];
-	return snprintf(sysfsbuf, PAGE_SIZE, "%d\n", count);
+	return sysfs_emit(sysfsbuf, "%d\n", count);
 }
 
 static ssize_t applesmc_key_at_index_read_show(struct device *dev,
@@ -1020,7 +1020,7 @@ static ssize_t applesmc_key_at_index_data_length_show(struct device *dev,
 	if (IS_ERR(entry))
 		return PTR_ERR(entry);
 
-	return snprintf(sysfsbuf, PAGE_SIZE, "%d\n", entry->len);
+	return sysfs_emit(sysfsbuf, "%d\n", entry->len);
 }
 
 static ssize_t applesmc_key_at_index_type_show(struct device *dev,
@@ -1032,7 +1032,7 @@ static ssize_t applesmc_key_at_index_type_show(struct device *dev,
 	if (IS_ERR(entry))
 		return PTR_ERR(entry);
 
-	return snprintf(sysfsbuf, PAGE_SIZE, "%s\n", entry->type);
+	return sysfs_emit(sysfsbuf, "%s\n", entry->type);
 }
 
 static ssize_t applesmc_key_at_index_name_show(struct device *dev,
@@ -1044,13 +1044,13 @@ static ssize_t applesmc_key_at_index_name_show(struct device *dev,
 	if (IS_ERR(entry))
 		return PTR_ERR(entry);
 
-	return snprintf(sysfsbuf, PAGE_SIZE, "%s\n", entry->key);
+	return sysfs_emit(sysfsbuf, "%s\n", entry->key);
 }
 
 static ssize_t applesmc_key_at_index_show(struct device *dev,
 				struct device_attribute *attr, char *sysfsbuf)
 {
-	return snprintf(sysfsbuf, PAGE_SIZE, "%d\n", key_at_index);
+	return sysfs_emit(sysfsbuf, "%d\n", key_at_index);
 }
 
 static ssize_t applesmc_key_at_index_store(struct device *dev,

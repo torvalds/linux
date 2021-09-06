@@ -72,40 +72,37 @@ int rxe_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 
 /* rxe_mr.c */
 enum copy_direction {
-	to_mem_obj,
-	from_mem_obj,
+	to_mr_obj,
+	from_mr_obj,
 };
 
-void rxe_mem_init_dma(struct rxe_pd *pd,
-		      int access, struct rxe_mem *mem);
+void rxe_mr_init_dma(struct rxe_pd *pd, int access, struct rxe_mr *mr);
 
-int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
-		      u64 length, u64 iova, int access, struct ib_udata *udata,
-		      struct rxe_mem *mr);
+int rxe_mr_init_user(struct rxe_pd *pd, u64 start, u64 length, u64 iova,
+		     int access, struct ib_udata *udata, struct rxe_mr *mr);
 
-int rxe_mem_init_fast(struct rxe_pd *pd,
-		      int max_pages, struct rxe_mem *mem);
+int rxe_mr_init_fast(struct rxe_pd *pd, int max_pages, struct rxe_mr *mr);
 
-int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr,
-		 int length, enum copy_direction dir, u32 *crcp);
+int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
+		enum copy_direction dir, u32 *crcp);
 
 int copy_data(struct rxe_pd *pd, int access,
 	      struct rxe_dma_info *dma, void *addr, int length,
 	      enum copy_direction dir, u32 *crcp);
 
-void *iova_to_vaddr(struct rxe_mem *mem, u64 iova, int length);
+void *iova_to_vaddr(struct rxe_mr *mr, u64 iova, int length);
 
 enum lookup_type {
 	lookup_local,
 	lookup_remote,
 };
 
-struct rxe_mem *lookup_mem(struct rxe_pd *pd, int access, u32 key,
-			   enum lookup_type type);
+struct rxe_mr *lookup_mr(struct rxe_pd *pd, int access, u32 key,
+			 enum lookup_type type);
 
-int mem_check_range(struct rxe_mem *mem, u64 iova, size_t length);
+int mr_check_range(struct rxe_mr *mr, u64 iova, size_t length);
 
-void rxe_mem_cleanup(struct rxe_pool_entry *arg);
+void rxe_mr_cleanup(struct rxe_pool_entry *arg);
 
 int advance_dma_data(struct rxe_dma_info *dma, unsigned int length);
 
@@ -116,7 +113,6 @@ struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,
 				int paylen, struct rxe_pkt_info *pkt);
 int rxe_prepare(struct rxe_pkt_info *pkt, struct sk_buff *skb, u32 *crc);
 const char *rxe_parent_name(struct rxe_dev *rxe, unsigned int port_num);
-struct device *rxe_dma_device(struct rxe_dev *rxe);
 int rxe_mcast_add(struct rxe_dev *rxe, union ib_gid *mgid);
 int rxe_mcast_delete(struct rxe_dev *rxe, union ib_gid *mgid);
 

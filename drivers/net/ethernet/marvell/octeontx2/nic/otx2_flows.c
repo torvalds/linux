@@ -57,10 +57,13 @@ int otx2_alloc_mcam_entries(struct otx2_nic *pfvf)
 		flow_cfg->ntuple_max_flows = rsp->count;
 		flow_cfg->ntuple_offset = 0;
 		pfvf->flags |= OTX2_FLAG_NTUPLE_SUPPORT;
+		flow_cfg->tc_max_flows = flow_cfg->ntuple_max_flows;
+		pfvf->flags |= OTX2_FLAG_TC_FLOWER_SUPPORT;
 	} else {
 		flow_cfg->vf_vlan_offset = 0;
 		flow_cfg->ntuple_offset = flow_cfg->vf_vlan_offset +
 						vf_vlan_max_flows;
+		flow_cfg->tc_flower_offset = flow_cfg->ntuple_offset;
 		flow_cfg->unicast_offset = flow_cfg->ntuple_offset +
 						OTX2_MAX_NTUPLE_FLOWS;
 		flow_cfg->rx_vlan_offset = flow_cfg->unicast_offset +
@@ -69,6 +72,7 @@ int otx2_alloc_mcam_entries(struct otx2_nic *pfvf)
 		pfvf->flags |= OTX2_FLAG_UCAST_FLTR_SUPPORT;
 		pfvf->flags |= OTX2_FLAG_RX_VLAN_SUPPORT;
 		pfvf->flags |= OTX2_FLAG_VF_VLAN_SUPPORT;
+		pfvf->flags |= OTX2_FLAG_TC_FLOWER_SUPPORT;
 	}
 
 	for (i = 0; i < rsp->count; i++)
@@ -93,6 +97,7 @@ int otx2_mcam_flow_init(struct otx2_nic *pf)
 	INIT_LIST_HEAD(&pf->flow_cfg->flow_list);
 
 	pf->flow_cfg->ntuple_max_flows = OTX2_MAX_NTUPLE_FLOWS;
+	pf->flow_cfg->tc_max_flows = pf->flow_cfg->ntuple_max_flows;
 
 	err = otx2_alloc_mcam_entries(pf);
 	if (err)
@@ -303,6 +308,35 @@ static int otx2_prepare_ipv4_flow(struct ethtool_rx_flow_spec *fsp,
 			       sizeof(pmask->ip4dst));
 			req->features |= BIT_ULL(NPC_DIP_IPV4);
 		}
+		if (ipv4_usr_mask->tos) {
+			pkt->tos = ipv4_usr_hdr->tos;
+			pmask->tos = ipv4_usr_mask->tos;
+			req->features |= BIT_ULL(NPC_TOS);
+		}
+		if (ipv4_usr_mask->proto) {
+			switch (ipv4_usr_hdr->proto) {
+			case IPPROTO_ICMP:
+				req->features |= BIT_ULL(NPC_IPPROTO_ICMP);
+				break;
+			case IPPROTO_TCP:
+				req->features |= BIT_ULL(NPC_IPPROTO_TCP);
+				break;
+			case IPPROTO_UDP:
+				req->features |= BIT_ULL(NPC_IPPROTO_UDP);
+				break;
+			case IPPROTO_SCTP:
+				req->features |= BIT_ULL(NPC_IPPROTO_SCTP);
+				break;
+			case IPPROTO_AH:
+				req->features |= BIT_ULL(NPC_IPPROTO_AH);
+				break;
+			case IPPROTO_ESP:
+				req->features |= BIT_ULL(NPC_IPPROTO_ESP);
+				break;
+			default:
+				return -EOPNOTSUPP;
+			}
+		}
 		pkt->etype = cpu_to_be16(ETH_P_IP);
 		pmask->etype = cpu_to_be16(0xFFFF);
 		req->features |= BIT_ULL(NPC_ETYPE);
@@ -326,6 +360,11 @@ static int otx2_prepare_ipv4_flow(struct ethtool_rx_flow_spec *fsp,
 			memcpy(&pmask->ip4dst, &ipv4_l4_mask->ip4dst,
 			       sizeof(pmask->ip4dst));
 			req->features |= BIT_ULL(NPC_DIP_IPV4);
+		}
+		if (ipv4_l4_mask->tos) {
+			pkt->tos = ipv4_l4_hdr->tos;
+			pmask->tos = ipv4_l4_mask->tos;
+			req->features |= BIT_ULL(NPC_TOS);
 		}
 		if (ipv4_l4_mask->psrc) {
 			memcpy(&pkt->sport, &ipv4_l4_hdr->psrc,
@@ -377,10 +416,14 @@ static int otx2_prepare_ipv4_flow(struct ethtool_rx_flow_spec *fsp,
 			       sizeof(pmask->ip4dst));
 			req->features |= BIT_ULL(NPC_DIP_IPV4);
 		}
+		if (ah_esp_mask->tos) {
+			pkt->tos = ah_esp_hdr->tos;
+			pmask->tos = ah_esp_mask->tos;
+			req->features |= BIT_ULL(NPC_TOS);
+		}
 
 		/* NPC profile doesn't extract AH/ESP header fields */
-		if ((ah_esp_mask->spi & ah_esp_hdr->spi) ||
-		    (ah_esp_mask->tos & ah_esp_mask->tos))
+		if (ah_esp_mask->spi & ah_esp_hdr->spi)
 			return -EOPNOTSUPP;
 
 		if (flow_type == AH_V4_FLOW)

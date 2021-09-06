@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 
-#include <drm/drm_debugfs.h>
 #include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
@@ -241,6 +240,9 @@ radeon_dp_mst_detect(struct drm_connector *connector,
 	struct radeon_connector *radeon_connector =
 		to_radeon_connector(connector);
 	struct radeon_connector *master = radeon_connector->mst_port;
+
+	if (drm_connector_is_unregistered(connector))
+		return connector_status_disconnected;
 
 	return drm_dp_mst_detect_port(connector, ctx, &master->mst_mgr,
 				      radeon_connector->port);
@@ -723,10 +725,10 @@ go_again:
 
 #if defined(CONFIG_DEBUG_FS)
 
-static int radeon_debugfs_mst_info(struct seq_file *m, void *data)
+static int radeon_debugfs_mst_info_show(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct radeon_device *rdev = (struct radeon_device *)m->private;
+	struct drm_device *dev = rdev->ddev;
 	struct drm_connector *connector;
 	struct radeon_connector *radeon_connector;
 	struct radeon_connector_atom_dig *dig_connector;
@@ -754,15 +756,16 @@ static int radeon_debugfs_mst_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static struct drm_info_list radeon_debugfs_mst_list[] = {
-	{"radeon_mst_info", &radeon_debugfs_mst_info, 0, NULL},
-};
+DEFINE_SHOW_ATTRIBUTE(radeon_debugfs_mst_info);
 #endif
 
-int radeon_mst_debugfs_init(struct radeon_device *rdev)
+void radeon_mst_debugfs_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, radeon_debugfs_mst_list, 1);
+	struct dentry *root = rdev->ddev->primary->debugfs_root;
+
+	debugfs_create_file("radeon_mst_info", 0444, root, rdev,
+			    &radeon_debugfs_mst_info_fops);
+
 #endif
-	return 0;
 }

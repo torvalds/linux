@@ -1128,6 +1128,9 @@ static int set_sched_resources(struct device_queue_manager *dqm)
 
 static int initialize_cpsch(struct device_queue_manager *dqm)
 {
+	uint64_t num_sdma_queues;
+	uint64_t num_xgmi_sdma_queues;
+
 	pr_debug("num of pipes: %d\n", get_pipes_per_mec(dqm));
 
 	mutex_init(&dqm->lock_hidden);
@@ -1136,8 +1139,18 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 	dqm->active_cp_queue_count = 0;
 	dqm->gws_queue_count = 0;
 	dqm->active_runlist = false;
-	dqm->sdma_bitmap = ~0ULL >> (64 - get_num_sdma_queues(dqm));
-	dqm->xgmi_sdma_bitmap = ~0ULL >> (64 - get_num_xgmi_sdma_queues(dqm));
+
+	num_sdma_queues = get_num_sdma_queues(dqm);
+	if (num_sdma_queues >= BITS_PER_TYPE(dqm->sdma_bitmap))
+		dqm->sdma_bitmap = ULLONG_MAX;
+	else
+		dqm->sdma_bitmap = (BIT_ULL(num_sdma_queues) - 1);
+
+	num_xgmi_sdma_queues = get_num_xgmi_sdma_queues(dqm);
+	if (num_xgmi_sdma_queues >= BITS_PER_TYPE(dqm->xgmi_sdma_bitmap))
+		dqm->xgmi_sdma_bitmap = ULLONG_MAX;
+	else
+		dqm->xgmi_sdma_bitmap = (BIT_ULL(num_xgmi_sdma_queues) - 1);
 
 	INIT_WORK(&dqm->hw_exception_work, kfd_process_hw_exception);
 
@@ -1393,6 +1406,7 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 				uint32_t filter_param)
 {
 	int retval = 0;
+	struct mqd_manager *mqd_mgr;
 
 	if (!dqm->sched_running)
 		return 0;
@@ -1422,6 +1436,22 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 		if (!dqm->is_resetting)
 			schedule_work(&dqm->hw_exception_work);
 		return retval;
+	}
+
+	/* In the current MEC firmware implementation, if compute queue
+	 * doesn't response to the preemption request in time, HIQ will
+	 * abandon the unmap request without returning any timeout error
+	 * to driver. Instead, MEC firmware will log the doorbell of the
+	 * unresponding compute queue to HIQ.MQD.queue_doorbell_id fields.
+	 * To make sure the queue unmap was successful, driver need to
+	 * check those fields
+	 */
+	mqd_mgr = dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ];
+	if (mqd_mgr->read_doorbell_id(dqm->packets.priv_queue->queue->mqd)) {
+		pr_err("HIQ MQD's queue_doorbell_id0 is not 0, Queue preemption time out\n");
+		while (halt_if_hws_hang)
+			schedule();
+		return -ETIME;
 	}
 
 	pm_release_ib(&dqm->packets);
@@ -1594,26 +1624,6 @@ static bool set_cache_memory_policy(struct device_queue_manager *dqm,
 out:
 	dqm_unlock(dqm);
 	return retval;
-}
-
-static int set_trap_handler(struct device_queue_manager *dqm,
-				struct qcm_process_device *qpd,
-				uint64_t tba_addr,
-				uint64_t tma_addr)
-{
-	uint64_t *tma;
-
-	if (dqm->dev->cwsr_enabled) {
-		/* Jump from CWSR trap handler to user trap */
-		tma = (uint64_t *)(qpd->cwsr_kaddr + KFD_CWSR_TMA_OFFSET);
-		tma[0] = tba_addr;
-		tma[1] = tma_addr;
-	} else {
-		qpd->tba_addr = tba_addr;
-		qpd->tma_addr = tma_addr;
-	}
-
-	return 0;
 }
 
 static int process_termination_nocpsch(struct device_queue_manager *dqm,
@@ -1859,7 +1869,6 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		dqm->ops.create_kernel_queue = create_kernel_queue_cpsch;
 		dqm->ops.destroy_kernel_queue = destroy_kernel_queue_cpsch;
 		dqm->ops.set_cache_memory_policy = set_cache_memory_policy;
-		dqm->ops.set_trap_handler = set_trap_handler;
 		dqm->ops.process_termination = process_termination_cpsch;
 		dqm->ops.evict_process_queues = evict_process_queues_cpsch;
 		dqm->ops.restore_process_queues = restore_process_queues_cpsch;
@@ -1878,7 +1887,6 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		dqm->ops.initialize = initialize_nocpsch;
 		dqm->ops.uninitialize = uninitialize;
 		dqm->ops.set_cache_memory_policy = set_cache_memory_policy;
-		dqm->ops.set_trap_handler = set_trap_handler;
 		dqm->ops.process_termination = process_termination_nocpsch;
 		dqm->ops.evict_process_queues = evict_process_queues_nocpsch;
 		dqm->ops.restore_process_queues =
@@ -1918,6 +1926,7 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 	case CHIP_RAVEN:
 	case CHIP_RENOIR:
 	case CHIP_ARCTURUS:
+	case CHIP_ALDEBARAN:
 		device_queue_manager_init_v9(&dqm->asic_ops);
 		break;
 	case CHIP_NAVI10:

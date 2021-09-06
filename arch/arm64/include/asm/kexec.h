@@ -96,10 +96,6 @@ struct kimage_arch {
 	void *dtb;
 	phys_addr_t dtb_mem;
 	phys_addr_t kern_reloc;
-	/* Core ELF header buffer */
-	void *elf_headers;
-	unsigned long elf_headers_mem;
-	unsigned long elf_headers_sz;
 };
 
 #ifdef CONFIG_KEXEC_FILE

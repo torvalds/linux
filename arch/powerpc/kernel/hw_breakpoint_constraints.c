@@ -141,7 +141,7 @@ void wp_get_instr_detail(struct pt_regs *regs, struct ppc_inst *instr,
 {
 	struct instruction_op op;
 
-	if (__get_user_instr_inatomic(*instr, (void __user *)regs->nip))
+	if (__get_user_instr(*instr, (void __user *)regs->nip))
 		return;
 
 	analyse_instr(&op, regs, *instr);

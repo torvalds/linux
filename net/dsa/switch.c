@@ -323,15 +323,6 @@ static int dsa_switch_vlan_del(struct dsa_switch *ds,
 	return 0;
 }
 
-static bool dsa_switch_tag_proto_match(struct dsa_switch *ds, int port,
-				       struct dsa_notifier_tag_proto_info *info)
-{
-	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
-		return true;
-
-	return false;
-}
-
 static int dsa_switch_change_tag_proto(struct dsa_switch *ds,
 				       struct dsa_notifier_tag_proto_info *info)
 {
@@ -344,16 +335,14 @@ static int dsa_switch_change_tag_proto(struct dsa_switch *ds,
 	ASSERT_RTNL();
 
 	for (port = 0; port < ds->num_ports; port++) {
-		if (dsa_switch_tag_proto_match(ds, port, info)) {
-			err = ds->ops->change_tag_protocol(ds, port,
-							   tag_ops->proto);
-			if (err)
-				return err;
+		if (!dsa_is_cpu_port(ds, port))
+			continue;
 
-			if (dsa_is_cpu_port(ds, port))
-				dsa_port_set_tag_protocol(dsa_to_port(ds, port),
-							  tag_ops);
-		}
+		err = ds->ops->change_tag_protocol(ds, port, tag_ops->proto);
+		if (err)
+			return err;
+
+		dsa_port_set_tag_protocol(dsa_to_port(ds, port), tag_ops);
 	}
 
 	/* Now that changing the tag protocol can no longer fail, let's update

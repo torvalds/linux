@@ -280,7 +280,7 @@ config PCIE_TEGRA194_EP
 	select PCIE_TEGRA194
 	help
 	  Enables support for the PCIe controller in the NVIDIA Tegra194 SoC to
-	  work in host mode. There are two instances of PCIe controllers in
+	  work in endpoint mode. There are two instances of PCIe controllers in
 	  Tegra194. This controller can work either as EP or RC. In order to
 	  enable host-specific features PCIE_TEGRA194_HOST must be selected and
 	  in order to enable device-specific features PCIE_TEGRA194_EP must be
@@ -311,11 +311,21 @@ config PCIE_AL
 	depends on OF && (ARM64 || COMPILE_TEST)
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
+	select PCI_ECAM
 	help
 	  Say Y here to enable support of the Amazon's Annapurna Labs PCIe
 	  controller IP on Amazon SoCs. The PCIe controller uses the DesignWare
 	  core plus Annapurna Labs proprietary hardware wrappers. This is
 	  required only for DT-based platforms. ACPI platforms with the
 	  Annapurna Labs PCIe controller don't need to enable this.
+
+config PCIE_FU740
+	bool "SiFive FU740 PCIe host controller"
+	depends on PCI_MSI_IRQ_DOMAIN
+	depends on SOC_SIFIVE || COMPILE_TEST
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want PCIe controller support for the SiFive
+	  FU740.
 
 endmenu

@@ -530,8 +530,6 @@ static int mgslpc_probe(struct pcmcia_device *link)
 	info->port.ops = &mgslpc_port_ops;
 	INIT_WORK(&info->task, bh_handler);
 	info->max_frame_size = 4096;
-	info->port.close_delay = 5*HZ/10;
-	info->port.closing_wait = 30*HZ;
 	init_waitqueue_head(&info->status_event_wait_q);
 	init_waitqueue_head(&info->event_wait_q);
 	spin_lock_init(&info->lock);

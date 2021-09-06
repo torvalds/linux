@@ -86,7 +86,7 @@ static void noinstr __cpu_do_idle_irqprio(void)
 	unsigned long daif_bits;
 
 	daif_bits = read_sysreg(daif);
-	write_sysreg(daif_bits | PSR_I_BIT, daif);
+	write_sysreg(daif_bits | PSR_I_BIT | PSR_F_BIT, daif);
 
 	/*
 	 * Unmask PMR before going idle to make sure interrupts can
@@ -294,13 +294,10 @@ void __show_regs(struct pt_regs *regs)
 	i = top_reg;
 
 	while (i >= 0) {
-		printk("x%-2d: %016llx ", i, regs->regs[i]);
-		i--;
+		printk("x%-2d: %016llx", i, regs->regs[i]);
 
-		if (i % 2 == 0) {
-			pr_cont("x%-2d: %016llx ", i, regs->regs[i]);
-			i--;
-		}
+		while (i-- % 3)
+			pr_cont(" x%-2d: %016llx", i, regs->regs[i]);
 
 		pr_cont("\n");
 	}
@@ -341,7 +338,6 @@ void flush_thread(void)
 	tls_thread_flush();
 	flush_ptrace_hw_breakpoint(current);
 	flush_tagged_addr_state();
-	flush_mte_state();
 }
 
 void release_thread(struct task_struct *dead_task)
@@ -531,6 +527,31 @@ static void erratum_1418040_thread_switch(struct task_struct *prev,
 	write_sysreg(val, cntkctl_el1);
 }
 
+static void update_sctlr_el1(u64 sctlr)
+{
+	/*
+	 * EnIA must not be cleared while in the kernel as this is necessary for
+	 * in-kernel PAC. It will be cleared on kernel exit if needed.
+	 */
+	sysreg_clear_set(sctlr_el1, SCTLR_USER_MASK & ~SCTLR_ELx_ENIA, sctlr);
+
+	/* ISB required for the kernel uaccess routines when setting TCF0. */
+	isb();
+}
+
+void set_task_sctlr_el1(u64 sctlr)
+{
+	/*
+	 * __switch_to() checks current->thread.sctlr as an
+	 * optimisation. Disable preemption so that it does not see
+	 * the variable update before the SCTLR_EL1 one.
+	 */
+	preempt_disable();
+	current->thread.sctlr_user = sctlr;
+	update_sctlr_el1(sctlr);
+	preempt_enable();
+}
+
 /*
  * Thread switching.
  */
@@ -546,6 +567,7 @@ __notrace_funcgraph struct task_struct *__switch_to(struct task_struct *prev,
 	entry_task_switch(next);
 	ssbs_thread_switch(next);
 	erratum_1418040_thread_switch(prev, next);
+	ptrauth_thread_switch_user(next);
 
 	/*
 	 * Complete any pending TLB or cache maintenance on this CPU in case
@@ -561,6 +583,9 @@ __notrace_funcgraph struct task_struct *__switch_to(struct task_struct *prev,
 	 * registers.
 	 */
 	mte_thread_switch(next);
+	/* avoid expensive SCTLR_EL1 accesses if no change */
+	if (prev->thread.sctlr_user != next->thread.sctlr_user)
+		update_sctlr_el1(next->thread.sctlr_user);
 
 	/* the actual thread switch */
 	last = cpu_switch_to(prev, next);
@@ -610,7 +635,8 @@ void arch_setup_new_exec(void)
 {
 	current->mm->context.flags = is_compat_task() ? MMCF_AARCH32 : 0;
 
-	ptrauth_thread_init_user(current);
+	ptrauth_thread_init_user();
+	mte_thread_init_user();
 
 	if (task_spec_ssb_noexec(current)) {
 		arch_prctl_spec_ctrl_set(current, PR_SPEC_STORE_BYPASS,

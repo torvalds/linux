@@ -307,7 +307,7 @@ static struct ctl_table sctp_net_table[] = {
 		.data		= &init_net.sctp.encap_port,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= &udp_port_max,
 	},

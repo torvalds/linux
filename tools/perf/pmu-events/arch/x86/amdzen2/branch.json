@@ -24,25 +24,25 @@
     "EventName": "bp_l1_tlb_fetch_hit",
     "EventCode": "0x94",
     "BriefDescription": "The number of instruction fetches that hit in the L1 ITLB.",
-    "UMask": "0xFF"
+    "UMask": "0xff"
   },
   {
     "EventName": "bp_l1_tlb_fetch_hit.if1g",
     "EventCode": "0x94",
     "BriefDescription": "The number of instruction fetches that hit in the L1 ITLB. Instruction fetches to a 1GB page.",
-    "UMask": "0x4"
+    "UMask": "0x04"
   },
   {
     "EventName": "bp_l1_tlb_fetch_hit.if2m",
     "EventCode": "0x94",
     "BriefDescription": "The number of instruction fetches that hit in the L1 ITLB. Instruction fetches to a 2MB page.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "bp_l1_tlb_fetch_hit.if4k",
     "EventCode": "0x94",
     "BriefDescription": "The number of instruction fetches that hit in the L1 ITLB. Instruction fetches to a 4KB page.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "bp_tlb_rel",

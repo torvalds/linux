@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2016-2017 Hisilicon Limited. */
+/* Copyright (c) 2016-2017 HiSilicon Limited. */
 
 #ifndef _SEC_DRV_H_
 #define _SEC_DRV_H_

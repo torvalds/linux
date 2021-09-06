@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Test module for in-kernel sythetic event creation and generation.
+ * Test module for in-kernel synthetic event creation and generation.
  *
  * Copyright (C) 2019 Tom Zanussi <zanussi@kernel.org>
  */

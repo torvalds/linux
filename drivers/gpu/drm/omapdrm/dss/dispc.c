@@ -2090,9 +2090,8 @@ static s32 pixinc(int pixels, u8 ps)
 		return 1 + (pixels - 1) * ps;
 	else if (pixels < 0)
 		return 1 - (-pixels + 1) * ps;
-	else
-		BUG();
-		return 0;
+
+	BUG();
 }
 
 static void calc_offset(u16 screen_width, u16 width,

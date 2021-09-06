@@ -634,4 +634,15 @@
 	INTEL_VGA_DEVICE(0x4907, info), \
 	INTEL_VGA_DEVICE(0x4908, info)
 
+/* ADL-S */
+#define INTEL_ADLS_IDS(info) \
+	INTEL_VGA_DEVICE(0x4680, info), \
+	INTEL_VGA_DEVICE(0x4681, info), \
+	INTEL_VGA_DEVICE(0x4682, info), \
+	INTEL_VGA_DEVICE(0x4683, info), \
+	INTEL_VGA_DEVICE(0x4690, info), \
+	INTEL_VGA_DEVICE(0x4691, info), \
+	INTEL_VGA_DEVICE(0x4692, info), \
+	INTEL_VGA_DEVICE(0x4693, info)
+
 #endif /* _I915_PCIIDS_H */

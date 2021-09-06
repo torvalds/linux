@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/**
+/*
  * dwc3-st.c Support for dwc3 platform devices on ST Microelectronics platforms
  *
  * This is a small driver for the dwc3 to provide the glue logic

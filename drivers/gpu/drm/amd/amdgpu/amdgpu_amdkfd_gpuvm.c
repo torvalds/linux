@@ -31,6 +31,7 @@
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_dma_buf.h"
 #include <uapi/linux/kfd_ioctl.h>
+#include "amdgpu_xgmi.h"
 
 /* BO flag to indicate a KFD userptr BO */
 #define AMDGPU_AMDKFD_USERPTR_BO (1ULL << 63)
@@ -96,7 +97,7 @@ void amdgpu_amdkfd_gpuvm_init_mem_limits(void)
 	uint64_t mem;
 
 	si_meminfo(&si);
-	mem = si.totalram - si.totalhigh;
+	mem = si.freeram - si.freehigh;
 	mem *= si.mem_unit;
 
 	spin_lock_init(&kfd_mem_limit.mem_limit_lock);
@@ -119,6 +120,16 @@ void amdgpu_amdkfd_gpuvm_init_mem_limits(void)
  */
 #define ESTIMATE_PT_SIZE(mem_size) ((mem_size) >> 14)
 
+static size_t amdgpu_amdkfd_acc_size(uint64_t size)
+{
+	size >>= PAGE_SHIFT;
+	size *= sizeof(dma_addr_t) + sizeof(void *);
+
+	return __roundup_pow_of_two(sizeof(struct amdgpu_bo)) +
+		__roundup_pow_of_two(sizeof(struct ttm_tt)) +
+		PAGE_ALIGN(size);
+}
+
 static int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 		uint64_t size, u32 domain, bool sg)
 {
@@ -127,8 +138,7 @@ static int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 	size_t acc_size, system_mem_needed, ttm_mem_needed, vram_needed;
 	int ret = 0;
 
-	acc_size = ttm_bo_dma_acc_size(&adev->mman.bdev, size,
-				       sizeof(struct amdgpu_bo));
+	acc_size = amdgpu_amdkfd_acc_size(size);
 
 	vram_needed = 0;
 	if (domain == AMDGPU_GEM_DOMAIN_GTT) {
@@ -175,8 +185,7 @@ static void unreserve_mem_limit(struct amdgpu_device *adev,
 {
 	size_t acc_size;
 
-	acc_size = ttm_bo_dma_acc_size(&adev->mman.bdev, size,
-				       sizeof(struct amdgpu_bo));
+	acc_size = amdgpu_amdkfd_acc_size(size);
 
 	spin_lock(&kfd_mem_limit.mem_limit_lock);
 	if (domain == AMDGPU_GEM_DOMAIN_GTT) {
@@ -404,7 +413,10 @@ static uint64_t get_pte_flags(struct amdgpu_device *adev, struct kgd_mem *mem)
 {
 	struct amdgpu_device *bo_adev = amdgpu_ttm_adev(mem->bo->tbo.bdev);
 	bool coherent = mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_COHERENT;
+	bool uncached = mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_UNCACHED;
 	uint32_t mapping_flags;
+	uint64_t pte_flags;
+	bool snoop = false;
 
 	mapping_flags = AMDGPU_VM_PAGE_READABLE;
 	if (mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_WRITABLE)
@@ -425,12 +437,38 @@ static uint64_t get_pte_flags(struct amdgpu_device *adev, struct kgd_mem *mem)
 				AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
 		}
 		break;
+	case CHIP_ALDEBARAN:
+		if (coherent && uncached) {
+			if (adev->gmc.xgmi.connected_to_cpu ||
+				!(mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM))
+				snoop = true;
+			mapping_flags |= AMDGPU_VM_MTYPE_UC;
+		} else if (mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM) {
+			if (bo_adev == adev) {
+				mapping_flags |= coherent ?
+					AMDGPU_VM_MTYPE_CC : AMDGPU_VM_MTYPE_RW;
+				if (adev->gmc.xgmi.connected_to_cpu)
+					snoop = true;
+			} else {
+				mapping_flags |= AMDGPU_VM_MTYPE_UC;
+				if (amdgpu_xgmi_same_hive(adev, bo_adev))
+					snoop = true;
+			}
+		} else {
+			snoop = true;
+			mapping_flags |= coherent ?
+				AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
+		}
+		break;
 	default:
 		mapping_flags |= coherent ?
 			AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
 	}
 
-	return amdgpu_gem_va_map_flags(adev, mapping_flags);
+	pte_flags = amdgpu_gem_va_map_flags(adev, mapping_flags);
+	pte_flags |= snoop ? AMDGPU_PTE_SNOOPED : 0;
+
+	return pte_flags;
 }
 
 /* add_bo_to_vm - Add a BO to a VM
@@ -996,41 +1034,6 @@ create_evict_fence_fail:
 	return ret;
 }
 
-int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, u32 pasid,
-					  void **vm, void **process_info,
-					  struct dma_fence **ef)
-{
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-	struct amdgpu_vm *new_vm;
-	int ret;
-
-	new_vm = kzalloc(sizeof(*new_vm), GFP_KERNEL);
-	if (!new_vm)
-		return -ENOMEM;
-
-	/* Initialize AMDGPU part of the VM */
-	ret = amdgpu_vm_init(adev, new_vm, AMDGPU_VM_CONTEXT_COMPUTE, pasid);
-	if (ret) {
-		pr_err("Failed init vm ret %d\n", ret);
-		goto amdgpu_vm_init_fail;
-	}
-
-	/* Initialize KFD part of the VM and process info */
-	ret = init_kfd_vm(new_vm, process_info, ef);
-	if (ret)
-		goto init_kfd_vm_fail;
-
-	*vm = (void *) new_vm;
-
-	return 0;
-
-init_kfd_vm_fail:
-	amdgpu_vm_fini(adev, new_vm);
-amdgpu_vm_init_fail:
-	kfree(new_vm);
-	return ret;
-}
-
 int amdgpu_amdkfd_gpuvm_acquire_process_vm(struct kgd_dev *kgd,
 					   struct file *filp, u32 pasid,
 					   void **vm, void **process_info,
@@ -1095,21 +1098,6 @@ void amdgpu_amdkfd_gpuvm_destroy_cb(struct amdgpu_device *adev,
 		mutex_destroy(&process_info->lock);
 		kfree(process_info);
 	}
-}
-
-void amdgpu_amdkfd_gpuvm_destroy_process_vm(struct kgd_dev *kgd, void *vm)
-{
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-	struct amdgpu_vm *avm = (struct amdgpu_vm *)vm;
-
-	if (WARN_ON(!kgd || !vm))
-		return;
-
-	pr_debug("Destroying process vm %p\n", vm);
-
-	/* Release the VM context */
-	amdgpu_vm_fini(adev, avm);
-	kfree(vm);
 }
 
 void amdgpu_amdkfd_gpuvm_release_process_vm(struct kgd_dev *kgd, void *vm)

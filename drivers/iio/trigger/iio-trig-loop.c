@@ -84,7 +84,7 @@ static struct iio_sw_trigger *iio_trig_loop_probe(const char *name)
 	if (!trig_info)
 		return ERR_PTR(-ENOMEM);
 
-	trig_info->swt.trigger = iio_trigger_alloc("%s", name);
+	trig_info->swt.trigger = iio_trigger_alloc(NULL, "%s", name);
 	if (!trig_info->swt.trigger) {
 		ret = -ENOMEM;
 		goto err_free_trig_info;

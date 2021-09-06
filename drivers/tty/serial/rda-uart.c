@@ -398,9 +398,7 @@ static void rda_uart_receive_chars(struct uart_port *port)
 		status = rda_uart_read(port, RDA_UART_STATUS);
 	}
 
-	spin_unlock(&port->lock);
 	tty_flip_buffer_push(&port->state->port);
-	spin_lock(&port->lock);
 }
 
 static irqreturn_t rda_interrupt(int irq, void *dev_id)

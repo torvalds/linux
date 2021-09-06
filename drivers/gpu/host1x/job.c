@@ -79,6 +79,9 @@ static void job_free(struct kref *ref)
 {
 	struct host1x_job *job = container_of(ref, struct host1x_job, ref);
 
+	if (job->syncpt)
+		host1x_syncpt_put(job->syncpt);
+
 	kfree(job);
 }
 
@@ -674,7 +677,7 @@ EXPORT_SYMBOL(host1x_job_unpin);
  */
 void host1x_job_dump(struct device *dev, struct host1x_job *job)
 {
-	dev_dbg(dev, "    SYNCPT_ID   %d\n", job->syncpt_id);
+	dev_dbg(dev, "    SYNCPT_ID   %d\n", job->syncpt->id);
 	dev_dbg(dev, "    SYNCPT_VAL  %d\n", job->syncpt_end);
 	dev_dbg(dev, "    FIRST_GET   0x%x\n", job->first_get);
 	dev_dbg(dev, "    TIMEOUT     %d\n", job->timeout);

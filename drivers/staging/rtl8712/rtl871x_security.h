@@ -101,7 +101,7 @@ struct security_priv {
 	union pn48 Grprxpn;		/* PN48 used for Grp Key recv. */
 	u8 wps_hw_pbc_pressed;/*for hw pbc pressed*/
 	u8 wps_phase;/*for wps*/
-	u8 wps_ie[MAX_WPA_IE_LEN<<2];
+	u8 wps_ie[MAX_WPA_IE_LEN << 2];
 	int wps_ie_len;
 	u8	binstallGrpkey;
 	u8	busetkipkey;
@@ -185,7 +185,7 @@ do {\
 	txpn._byte_.TSC5 = iv[7];\
 } while (0)
 
-#define ROL32(A, n) (((A) << (n)) | (((A)>>(32-(n)))  & ((1UL << (n)) - 1)))
+#define ROL32(A, n) (((A) << (n)) | (((A) >> (32 - (n)))  & ((1UL << (n)) - 1)))
 #define ROR32(A, n) ROL32((A), 32 - (n))
 
 struct mic_data {

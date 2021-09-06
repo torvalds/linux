@@ -148,7 +148,8 @@
 #define SMB3_SIGN_KEY_SIZE (16)
 
 /*
- * Size of the smb3 encryption/decryption keys
+ * Size of the smb3 encryption/decryption key storage.
+ * This size is big enough to store any cipher key types.
  */
 #define SMB3_ENC_DEC_KEY_SIZE (32)
 
@@ -1903,7 +1904,7 @@ typedef struct smb_com_transaction2_fnext_req {
 	__le16 InformationLevel;
 	__u32 ResumeKey;
 	__le16 SearchFlags;
-	char ResumeFileName[1];
+	char ResumeFileName[];
 } __attribute__((packed)) TRANSACTION2_FNEXT_REQ;
 
 typedef struct smb_com_transaction2_fnext_rsp {

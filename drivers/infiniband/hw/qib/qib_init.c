@@ -1609,7 +1609,7 @@ bail:
 }
 
 /**
- * allocate eager buffers, both kernel and user contexts.
+ * qib_setup_eagerbufs - allocate eager buffers, both kernel and user contexts.
  * @rcd: the context we are setting up.
  *
  * Allocate the eager TID buffers and program them into hip.

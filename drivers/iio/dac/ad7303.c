@@ -65,7 +65,7 @@ static ssize_t ad7303_read_dac_powerdown(struct iio_dev *indio_dev,
 {
 	struct ad7303_state *st = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n", (bool)(st->config &
+	return sysfs_emit(buf, "%d\n", (bool)(st->config &
 		AD7303_CFG_POWER_DOWN(chan->channel)));
 }
 

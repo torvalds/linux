@@ -21,7 +21,6 @@
 #include <linux/module.h>
 #include <linux/atmdev.h>
 #include <linux/sonet.h>
-#include <linux/atm_suni.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>

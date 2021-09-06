@@ -115,5 +115,6 @@ struct sgx_epc_page *sgx_alloc_va_page(void);
 unsigned int sgx_alloc_va_slot(struct sgx_va_page *va_page);
 void sgx_free_va_slot(struct sgx_va_page *va_page, unsigned int offset);
 bool sgx_va_page_full(struct sgx_va_page *va_page);
+void sgx_encl_free_epc_page(struct sgx_epc_page *page);
 
 #endif /* _X86_ENCL_H */

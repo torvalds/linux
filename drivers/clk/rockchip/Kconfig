@@ -11,78 +11,85 @@ config COMMON_CLK_ROCKCHIP
 if COMMON_CLK_ROCKCHIP
 config CLK_PX30
 	bool "Rockchip PX30 clock controller support"
-	depends on (ARM64 || COMPILE_TEST)
+	depends on ARM64 || COMPILE_TEST
 	default y
 	help
 	  Build the driver for PX30 Clock Driver.
 
 config CLK_RV110X
 	bool "Rockchip RV110x clock controller support"
-	depends on (ARM || COMPILE_TEST)
+	depends on ARM || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RV110x Clock Driver.
 
 config CLK_RK3036
 	bool "Rockchip RK3036 clock controller support"
-	depends on (ARM || COMPILE_TEST)
+	depends on ARM || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK3036 Clock Driver.
 
 config CLK_RK312X
 	bool "Rockchip RK312x clock controller support"
-	depends on (ARM || COMPILE_TEST)
+	depends on ARM || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK312x Clock Driver.
 
 config CLK_RK3188
 	bool "Rockchip RK3188 clock controller support"
-	depends on (ARM || COMPILE_TEST)
+	depends on ARM || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK3188 Clock Driver.
 
 config CLK_RK322X
 	bool "Rockchip RK322x clock controller support"
-	depends on (ARM || COMPILE_TEST)
+	depends on ARM || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK322x Clock Driver.
 
 config CLK_RK3288
 	bool "Rockchip RK3288 clock controller support"
-	depends on (ARM || COMPILE_TEST)
+	depends on ARM || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK3288 Clock Driver.
 
 config CLK_RK3308
 	bool "Rockchip RK3308 clock controller support"
-	depends on (ARM64 || COMPILE_TEST)
+	depends on ARM64 || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK3308 Clock Driver.
 
 config CLK_RK3328
 	bool "Rockchip RK3328 clock controller support"
-	depends on (ARM64 || COMPILE_TEST)
+	depends on ARM64 || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK3328 Clock Driver.
 
 config CLK_RK3368
 	bool "Rockchip RK3368 clock controller support"
-	depends on (ARM64 || COMPILE_TEST)
+	depends on ARM64 || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK3368 Clock Driver.
 
 config CLK_RK3399
 	tristate "Rockchip RK3399 clock controller support"
-	depends on (ARM64 || COMPILE_TEST)
+	depends on ARM64 || COMPILE_TEST
 	default y
 	help
 	  Build the driver for RK3399 Clock Driver.
+
+config CLK_RK3568
+	tristate "Rockchip RK3568 clock controller support"
+	depends on ARM64 || COMPILE_TEST
+	default y
+	help
+	  Build the driver for RK3568 Clock Driver.
 endif

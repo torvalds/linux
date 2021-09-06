@@ -28,7 +28,7 @@ int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
 			       struct sg_table *pages)
 {
 	do {
-		if (dma_map_sg_attrs(&obj->base.dev->pdev->dev,
+		if (dma_map_sg_attrs(obj->base.dev->dev,
 				     pages->sgl, pages->nents,
 				     PCI_DMA_BIDIRECTIONAL,
 				     DMA_ATTR_SKIP_CPU_SYNC |
@@ -44,7 +44,7 @@ int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
 		 * the DMA remapper, i915_gem_shrink will return 0.
 		 */
 		GEM_BUG_ON(obj->mm.pages == pages);
-	} while (i915_gem_shrink(to_i915(obj->base.dev),
+	} while (i915_gem_shrink(NULL, to_i915(obj->base.dev),
 				 obj->base.size >> PAGE_SHIFT, NULL,
 				 I915_SHRINK_BOUND |
 				 I915_SHRINK_UNBOUND));
@@ -63,8 +63,7 @@ void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
 		/* Wait a bit, in the hope it avoids the hang */
 		usleep_range(100, 250);
 
-	dma_unmap_sg(&i915->drm.pdev->dev,
-		     pages->sgl, pages->nents,
+	dma_unmap_sg(i915->drm.dev, pages->sgl, pages->nents,
 		     PCI_DMA_BIDIRECTIONAL);
 }
 

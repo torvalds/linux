@@ -259,7 +259,7 @@ sub get_sphinx_version($)
 
 	open IN, "$cmd --version 2>&1 |";
 	while (<IN>) {
-		if (m/^\s*sphinx-build\s+([\d\.]+)(\+\/[\da-f]+)?$/) {
+		if (m/^\s*sphinx-build\s+([\d\.]+)((\+\/[\da-f]+)|(b\d+))?$/) {
 			$ver=$1;
 			last;
 		}

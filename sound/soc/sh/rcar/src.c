@@ -6,6 +6,15 @@
 // Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 
 /*
+ * You can use Synchronous Sampling Rate Convert (if no DVC)
+ *
+ *	amixer set "SRC Out Rate" on
+ *	aplay xxx.wav &
+ *	amixer set "SRC Out Rate" 96000 // convert rate to 96000Hz
+ *	amixer set "SRC Out Rate" 22050 // convert rate to 22050Hz
+ */
+
+/*
  * you can enable below define if you don't need
  * SSI interrupt status debug message when debugging
  * see rsnd_dbg_irq_status()

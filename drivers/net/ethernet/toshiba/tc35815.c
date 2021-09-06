@@ -1914,7 +1914,8 @@ tc35815_set_multicast_list(struct net_device *dev)
 
 	if (dev->flags & IFF_PROMISC) {
 		/* With some (all?) 100MHalf HUB, controller will hang
-		 * if we enabled promiscuous mode before linkup... */
+		 * if we enabled promiscuous mode before linkup...
+		 */
 		struct tc35815_local *lp = netdev_priv(dev);
 
 		if (!lp->link)

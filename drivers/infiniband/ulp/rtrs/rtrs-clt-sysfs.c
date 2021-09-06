@@ -101,6 +101,9 @@ static ssize_t mpath_policy_show(struct device *dev,
 	case MP_POLICY_MIN_INFLIGHT:
 		return sysfs_emit(page, "min-inflight (MI: %d)\n",
 				  clt->mp_policy);
+	case MP_POLICY_MIN_LATENCY:
+		return sysfs_emit(page, "min-latency (ML: %d)\n",
+				  clt->mp_policy);
 	default:
 		return sysfs_emit(page, "Unknown (%d)\n", clt->mp_policy);
 	}
@@ -114,22 +117,32 @@ static ssize_t mpath_policy_store(struct device *dev,
 	struct rtrs_clt *clt;
 	int value;
 	int ret;
+	size_t len = 0;
 
 	clt = container_of(dev, struct rtrs_clt, dev);
 
 	ret = kstrtoint(buf, 10, &value);
 	if (!ret && (value == MP_POLICY_RR ||
-		     value == MP_POLICY_MIN_INFLIGHT)) {
+		     value == MP_POLICY_MIN_INFLIGHT ||
+		     value == MP_POLICY_MIN_LATENCY)) {
 		clt->mp_policy = value;
 		return count;
 	}
 
+	/* distinguish "mi" and "min-latency" with length */
+	len = strnlen(buf, NAME_MAX);
+	if (buf[len - 1] == '\n')
+		len--;
+
 	if (!strncasecmp(buf, "round-robin", 11) ||
-	    !strncasecmp(buf, "rr", 2))
+	    (len == 2 && !strncasecmp(buf, "rr", 2)))
 		clt->mp_policy = MP_POLICY_RR;
 	else if (!strncasecmp(buf, "min-inflight", 12) ||
-		 !strncasecmp(buf, "mi", 2))
+		 (len == 2 && !strncasecmp(buf, "mi", 2)))
 		clt->mp_policy = MP_POLICY_MIN_INFLIGHT;
+	else if (!strncasecmp(buf, "min-latency", 11) ||
+		 (len == 2 && !strncasecmp(buf, "ml", 2)))
+		clt->mp_policy = MP_POLICY_MIN_LATENCY;
 	else
 		return -EINVAL;
 
@@ -342,6 +355,21 @@ static ssize_t rtrs_clt_hca_name_show(struct kobject *kobj,
 static struct kobj_attribute rtrs_clt_hca_name_attr =
 	__ATTR(hca_name, 0444, rtrs_clt_hca_name_show, NULL);
 
+static ssize_t rtrs_clt_cur_latency_show(struct kobject *kobj,
+				    struct kobj_attribute *attr,
+				    char *page)
+{
+	struct rtrs_clt_sess *sess;
+
+	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
+
+	return sysfs_emit(page, "%lld ns\n",
+			  ktime_to_ns(sess->s.hb_cur_latency));
+}
+
+static struct kobj_attribute rtrs_clt_cur_latency_attr =
+	__ATTR(cur_latency, 0444, rtrs_clt_cur_latency_show, NULL);
+
 static ssize_t rtrs_clt_src_addr_show(struct kobject *kobj,
 				       struct kobj_attribute *attr,
 				       char *page)
@@ -385,6 +413,7 @@ static struct attribute *rtrs_clt_sess_attrs[] = {
 	&rtrs_clt_reconnect_attr.attr,
 	&rtrs_clt_disconnect_attr.attr,
 	&rtrs_clt_remove_path_attr.attr,
+	&rtrs_clt_cur_latency_attr.attr,
 	NULL,
 };
 
@@ -396,14 +425,13 @@ int rtrs_clt_create_sess_files(struct rtrs_clt_sess *sess)
 {
 	struct rtrs_clt *clt = sess->clt;
 	char str[NAME_MAX];
-	int err, cnt;
+	int err;
+	struct rtrs_addr path = {
+		.src = &sess->s.src_addr,
+		.dst = &sess->s.dst_addr,
+	};
 
-	cnt = sockaddr_to_str((struct sockaddr *)&sess->s.src_addr,
-			      str, sizeof(str));
-	cnt += scnprintf(str + cnt, sizeof(str) - cnt, "@");
-	sockaddr_to_str((struct sockaddr *)&sess->s.dst_addr,
-			str + cnt, sizeof(str) - cnt);
-
+	rtrs_addr_to_str(&path, str, sizeof(str));
 	err = kobject_init_and_add(&sess->kobj, &ktype_sess, clt->kobj_paths,
 				   "%s", str);
 	if (err) {

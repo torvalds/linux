@@ -28,7 +28,7 @@ void ipa_smp2p_exit(struct ipa *ipa);
 
 /**
  * ipa_smp2p_disable() - Prevent "ipa-setup-ready" interrupt handling
- * @IPA:	IPA pointer
+ * @ipa:	IPA pointer
  *
  * Prevent handling of the "setup ready" interrupt from the modem.
  * This is used before initiating shutdown of the driver.

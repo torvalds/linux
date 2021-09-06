@@ -727,7 +727,7 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 			stats->nr_stopped++;
 			break;
 		default:
-			if (delayacct_is_task_waiting_on_io(tsk))
+			if (tsk->in_iowait)
 				stats->nr_io_wait++;
 			break;
 		}
@@ -819,6 +819,10 @@ static int cgroup1_rename(struct kernfs_node *kn, struct kernfs_node *new_parent
 {
 	struct cgroup *cgrp = kn->priv;
 	int ret;
+
+	/* do not accept '\n' to prevent making /proc/<pid>/cgroup unparsable */
+	if (strchr(new_name_str, '\n'))
+		return -EINVAL;
 
 	if (kernfs_type(kn) != KERNFS_DIR)
 		return -ENOTDIR;
@@ -1001,7 +1005,7 @@ static int check_cgroupfs_options(struct fs_context *fc)
 	ctx->subsys_mask &= enabled;
 
 	/*
-	 * In absense of 'none', 'name=' or subsystem name options,
+	 * In absence of 'none', 'name=' and subsystem name options,
 	 * let's default to 'all'.
 	 */
 	if (!ctx->subsys_mask && !ctx->none && !ctx->name)

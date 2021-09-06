@@ -359,3 +359,4 @@ module_i2c_driver(max16601_driver);
 MODULE_AUTHOR("Guenter Roeck <linux@roeck-us.net>");
 MODULE_DESCRIPTION("PMBus driver for Maxim MAX16601");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(PMBUS);

@@ -113,6 +113,9 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
 	q_vector->v_idx = v_idx;
 	q_vector->tx.itr_setting = ICE_DFLT_TX_ITR;
 	q_vector->rx.itr_setting = ICE_DFLT_RX_ITR;
+	q_vector->tx.itr_mode = ITR_DYNAMIC;
+	q_vector->rx.itr_mode = ITR_DYNAMIC;
+
 	if (vsi->type == ICE_VSI_VF)
 		goto out;
 	/* only set affinity_mask if the CPU is online */
@@ -212,6 +215,26 @@ static u16 ice_calc_q_handle(struct ice_vsi *vsi, struct ice_ring *ring, u8 tc)
 	 * and as a result we get the queue's index within TC.
 	 */
 	return ring->q_index - vsi->tc_cfg.tc_info[tc].qoffset;
+}
+
+/**
+ * ice_cfg_xps_tx_ring - Configure XPS for a Tx ring
+ * @ring: The Tx ring to configure
+ *
+ * This enables/disables XPS for a given Tx descriptor ring
+ * based on the TCs enabled for the VSI that ring belongs to.
+ */
+static void ice_cfg_xps_tx_ring(struct ice_ring *ring)
+{
+	if (!ring->q_vector || !ring->netdev)
+		return;
+
+	/* We only initialize XPS once, so as not to overwrite user settings */
+	if (test_and_set_bit(ICE_TX_XPS_INIT_DONE, ring->xps_state))
+		return;
+
+	netif_set_xps_queue(ring->netdev, &ring->q_vector->affinity_mask,
+			    ring->q_index);
 }
 
 /**
@@ -664,6 +687,9 @@ ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_ring *ring,
 	u16 pf_q;
 	u8 tc;
 
+	/* Configure XPS */
+	ice_cfg_xps_tx_ring(ring);
+
 	pf_q = ring->reg_idx;
 	ice_setup_tx_ctx(ring, &tlan_ctx, pf_q);
 	/* copy context contents into the qg_buf */
@@ -717,25 +743,13 @@ void ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector)
 {
 	ice_cfg_itr_gran(hw);
 
-	if (q_vector->num_ring_rx) {
-		struct ice_ring_container *rc = &q_vector->rx;
+	if (q_vector->num_ring_rx)
+		ice_write_itr(&q_vector->rx, q_vector->rx.itr_setting);
 
-		rc->target_itr = ITR_TO_REG(rc->itr_setting);
-		rc->next_update = jiffies + 1;
-		rc->current_itr = rc->target_itr;
-		wr32(hw, GLINT_ITR(rc->itr_idx, q_vector->reg_idx),
-		     ITR_REG_ALIGN(rc->current_itr) >> ICE_ITR_GRAN_S);
-	}
+	if (q_vector->num_ring_tx)
+		ice_write_itr(&q_vector->tx, q_vector->tx.itr_setting);
 
-	if (q_vector->num_ring_tx) {
-		struct ice_ring_container *rc = &q_vector->tx;
-
-		rc->target_itr = ITR_TO_REG(rc->itr_setting);
-		rc->next_update = jiffies + 1;
-		rc->current_itr = rc->target_itr;
-		wr32(hw, GLINT_ITR(rc->itr_idx, q_vector->reg_idx),
-		     ITR_REG_ALIGN(rc->current_itr) >> ICE_ITR_GRAN_S);
-	}
+	ice_write_intrl(q_vector, q_vector->intrl);
 }
 
 /**

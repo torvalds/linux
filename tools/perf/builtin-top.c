@@ -328,13 +328,13 @@ static void perf_top__print_sym_table(struct perf_top *top)
 	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
 
 	if (!top->record_opts.overwrite &&
-	    (hists->stats.nr_lost_warned !=
-	    hists->stats.nr_events[PERF_RECORD_LOST])) {
-		hists->stats.nr_lost_warned =
-			      hists->stats.nr_events[PERF_RECORD_LOST];
+	    (top->evlist->stats.nr_lost_warned !=
+	     top->evlist->stats.nr_events[PERF_RECORD_LOST])) {
+		top->evlist->stats.nr_lost_warned =
+			      top->evlist->stats.nr_events[PERF_RECORD_LOST];
 		color_fprintf(stdout, PERF_COLOR_RED,
 			      "WARNING: LOST %d chunks, Check IO/CPU overload",
-			      hists->stats.nr_lost_warned);
+			      top->evlist->stats.nr_lost_warned);
 		++printed;
 	}
 
@@ -852,11 +852,9 @@ static void
 perf_top__process_lost(struct perf_top *top, union perf_event *event,
 		       struct evsel *evsel)
 {
-	struct hists *hists = evsel__hists(evsel);
-
 	top->lost += event->lost.lost;
 	top->lost_total += event->lost.lost;
-	hists->stats.total_lost += event->lost.lost;
+	evsel->evlist->stats.total_lost += event->lost.lost;
 }
 
 static void
@@ -864,11 +862,9 @@ perf_top__process_lost_samples(struct perf_top *top,
 			       union perf_event *event,
 			       struct evsel *evsel)
 {
-	struct hists *hists = evsel__hists(evsel);
-
 	top->lost += event->lost_samples.lost;
 	top->lost_total += event->lost_samples.lost;
-	hists->stats.total_lost_samples += event->lost_samples.lost;
+	evsel->evlist->stats.total_lost_samples += event->lost_samples.lost;
 }
 
 static u64 last_timestamp;
@@ -1205,7 +1201,7 @@ static int deliver_event(struct ordered_events *qe,
 	} else if (event->header.type == PERF_RECORD_LOST_SAMPLES) {
 		perf_top__process_lost_samples(top, event, evsel);
 	} else if (event->header.type < PERF_RECORD_MAX) {
-		hists__inc_nr_events(evsel__hists(evsel), event->header.type);
+		events_stats__inc(&session->evlist->stats, event->header.type);
 		machine__process_event(machine, event, &sample);
 	} else
 		++session->evlist->stats.nr_unknown_events;
@@ -1607,7 +1603,7 @@ int cmd_top(int argc, const char **argv)
 	if (status) {
 		/*
 		 * Some arches do not provide a get_cpuid(), so just use pr_debug, otherwise
-		 * warn the user explicitely.
+		 * warn the user explicitly.
 		 */
 		eprintf(status == ENOSYS ? 1 : 0, verbose,
 			"Couldn't read the cpuid for this machine: %s\n",

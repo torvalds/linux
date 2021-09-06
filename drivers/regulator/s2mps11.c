@@ -1120,7 +1120,6 @@ static const struct regulator_desc s2mpu02_regulators[] = {
 static int s2mps11_pmic_probe(struct platform_device *pdev)
 {
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct sec_platform_data *pdata = NULL;
 	struct of_regulator_match *rdata = NULL;
 	struct regulator_config config = { };
 	struct s2mps11_info *s2mps11;
@@ -1171,17 +1170,6 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	if (!s2mps11->ext_control_gpiod)
 		return -ENOMEM;
 
-	if (!iodev->dev->of_node) {
-		if (iodev->pdata) {
-			pdata = iodev->pdata;
-			goto common_reg;
-		} else {
-			dev_err(pdev->dev.parent,
-				"Platform data or DT node not supplied\n");
-			return -ENODEV;
-		}
-	}
-
 	rdata = kcalloc(rdev_num, sizeof(*rdata), GFP_KERNEL);
 	if (!rdata)
 		return -ENOMEM;
@@ -1193,7 +1181,6 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	if (ret)
 		goto out;
 
-common_reg:
 	platform_set_drvdata(pdev, s2mps11);
 
 	config.dev = &pdev->dev;
@@ -1202,13 +1189,8 @@ common_reg:
 	for (i = 0; i < rdev_num; i++) {
 		struct regulator_dev *regulator;
 
-		if (pdata) {
-			config.init_data = pdata->regulators[i].initdata;
-			config.of_node = pdata->regulators[i].reg_node;
-		} else {
-			config.init_data = rdata[i].init_data;
-			config.of_node = rdata[i].of_node;
-		}
+		config.init_data = rdata[i].init_data;
+		config.of_node = rdata[i].of_node;
 		config.ena_gpiod = s2mps11->ext_control_gpiod[i];
 		/*
 		 * Hand the GPIO descriptor management over to the regulator

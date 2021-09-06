@@ -17,6 +17,7 @@
 #include <linux/sched.h>
 #include <linux/cred.h>
 #include <linux/uio.h>
+#include <linux/fileattr.h>
 
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"
@@ -353,6 +354,8 @@ static const struct inode_operations hfsplus_file_inode_operations = {
 	.setattr	= hfsplus_setattr,
 	.getattr	= hfsplus_getattr,
 	.listxattr	= hfsplus_listxattr,
+	.fileattr_get	= hfsplus_fileattr_get,
+	.fileattr_set	= hfsplus_fileattr_set,
 };
 
 static const struct file_operations hfsplus_file_operations = {
@@ -626,5 +629,56 @@ int hfsplus_cat_write_inode(struct inode *inode)
 	set_bit(HFSPLUS_I_CAT_DIRTY, &HFSPLUS_I(inode)->flags);
 out:
 	hfs_find_exit(&fd);
+	return 0;
+}
+
+int hfsplus_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
+	unsigned int flags = 0;
+
+	if (inode->i_flags & S_IMMUTABLE)
+		flags |= FS_IMMUTABLE_FL;
+	if (inode->i_flags & S_APPEND)
+		flags |= FS_APPEND_FL;
+	if (hip->userflags & HFSPLUS_FLG_NODUMP)
+		flags |= FS_NODUMP_FL;
+
+	fileattr_fill_flags(fa, flags);
+
+	return 0;
+}
+
+int hfsplus_fileattr_set(struct user_namespace *mnt_userns,
+			 struct dentry *dentry, struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
+	unsigned int new_fl = 0;
+
+	if (fileattr_has_fsx(fa))
+		return -EOPNOTSUPP;
+
+	/* don't silently ignore unsupported ext2 flags */
+	if (fa->flags & ~(FS_IMMUTABLE_FL|FS_APPEND_FL|FS_NODUMP_FL))
+		return -EOPNOTSUPP;
+
+	if (fa->flags & FS_IMMUTABLE_FL)
+		new_fl |= S_IMMUTABLE;
+
+	if (fa->flags & FS_APPEND_FL)
+		new_fl |= S_APPEND;
+
+	inode_set_flags(inode, new_fl, S_IMMUTABLE | S_APPEND);
+
+	if (fa->flags & FS_NODUMP_FL)
+		hip->userflags |= HFSPLUS_FLG_NODUMP;
+	else
+		hip->userflags &= ~HFSPLUS_FLG_NODUMP;
+
+	inode->i_ctime = current_time(inode);
+	mark_inode_dirty(inode);
+
 	return 0;
 }

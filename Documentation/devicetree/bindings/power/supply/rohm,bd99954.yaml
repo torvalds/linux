@@ -110,7 +110,7 @@ properties:
 #     multipleOf: 64000
 #     a charge cycle terminates when the battery voltage is above recharge
 #     threshold, and the current is below this setting (7 in above chart)
-#   See also Documentation/devicetree/bindings/power/supply/battery.txt
+#   See also Documentation/devicetree/bindings/power/supply/battery.yaml
 
   reg:
     maxItems: 1

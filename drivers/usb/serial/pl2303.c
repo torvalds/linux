@@ -113,6 +113,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_QN3USB_PRODUCT_ID) },
 	{ USB_DEVICE(SANWA_VENDOR_ID, SANWA_PRODUCT_ID) },
 	{ USB_DEVICE(ADLINK_VENDOR_ID, ADLINK_ND6530_PRODUCT_ID) },
+	{ USB_DEVICE(ADLINK_VENDOR_ID, ADLINK_ND6530GC_PRODUCT_ID) },
 	{ USB_DEVICE(SMART_VENDOR_ID, SMART_PRODUCT_ID) },
 	{ USB_DEVICE(AT_VENDOR_ID, AT_VTKIT3_PRODUCT_ID) },
 	{ }					/* Terminating entry */
@@ -173,17 +174,22 @@ MODULE_DEVICE_TABLE(usb, id_table);
 static void pl2303_set_break(struct usb_serial_port *port, bool enable);
 
 enum pl2303_type {
-	TYPE_01,	/* Type 0 and 1 (difference unknown) */
-	TYPE_HX,	/* HX version of the pl2303 chip */
-	TYPE_HXN,	/* HXN version of the pl2303 chip */
+	TYPE_H,
+	TYPE_HX,
+	TYPE_TA,
+	TYPE_TB,
+	TYPE_HXD,
+	TYPE_HXN,
 	TYPE_COUNT
 };
 
 struct pl2303_type_data {
+	const char *name;
 	speed_t max_baud_rate;
 	unsigned long quirks;
 	unsigned int no_autoxonxoff:1;
 	unsigned int no_divisors:1;
+	unsigned int alt_divisors:1;
 };
 
 struct pl2303_serial_private {
@@ -200,15 +206,32 @@ struct pl2303_private {
 };
 
 static const struct pl2303_type_data pl2303_type_data[TYPE_COUNT] = {
-	[TYPE_01] = {
+	[TYPE_H] = {
+		.name			= "H",
 		.max_baud_rate		= 1228800,
 		.quirks			= PL2303_QUIRK_LEGACY,
 		.no_autoxonxoff		= true,
 	},
 	[TYPE_HX] = {
+		.name			= "HX",
+		.max_baud_rate		= 6000000,
+	},
+	[TYPE_TA] = {
+		.name			= "TA",
+		.max_baud_rate		= 6000000,
+		.alt_divisors		= true,
+	},
+	[TYPE_TB] = {
+		.name			= "TB",
+		.max_baud_rate		= 12000000,
+		.alt_divisors		= true,
+	},
+	[TYPE_HXD] = {
+		.name			= "HXD",
 		.max_baud_rate		= 12000000,
 	},
 	[TYPE_HXN] = {
+		.name			= "G",
 		.max_baud_rate		= 12000000,
 		.no_divisors		= true,
 	},
@@ -362,41 +385,81 @@ static int pl2303_calc_num_ports(struct usb_serial *serial,
 	return 1;
 }
 
+static bool pl2303_supports_hx_status(struct usb_serial *serial)
+{
+	int ret;
+	u8 buf;
+
+	ret = usb_control_msg_recv(serial->dev, 0, VENDOR_READ_REQUEST,
+			VENDOR_READ_REQUEST_TYPE, PL2303_READ_TYPE_HX_STATUS,
+			0, &buf, 1, 100, GFP_KERNEL);
+
+	return ret == 0;
+}
+
+static int pl2303_detect_type(struct usb_serial *serial)
+{
+	struct usb_device_descriptor *desc = &serial->dev->descriptor;
+	u16 bcdDevice, bcdUSB;
+
+	/*
+	 * Legacy PL2303H, variants 0 and 1 (difference unknown).
+	 */
+	if (desc->bDeviceClass == 0x02)
+		return TYPE_H;		/* variant 0 */
+
+	if (desc->bMaxPacketSize0 != 0x40) {
+		if (desc->bDeviceClass == 0x00 || desc->bDeviceClass == 0xff)
+			return TYPE_H;	/* variant 1 */
+
+		return TYPE_H;		/* variant 0 */
+	}
+
+	bcdDevice = le16_to_cpu(desc->bcdDevice);
+	bcdUSB = le16_to_cpu(desc->bcdUSB);
+
+	switch (bcdDevice) {
+	case 0x100:
+		/*
+		 * Assume it's an HXN-type if the device doesn't support the old read
+		 * request value.
+		 */
+		if (bcdUSB == 0x200 && !pl2303_supports_hx_status(serial))
+			return TYPE_HXN;
+		break;
+	case 0x300:
+		if (bcdUSB == 0x200)
+			return TYPE_TA;
+
+		return TYPE_HX;
+	case 0x400:
+		return TYPE_HXD;
+	case 0x500:
+		return TYPE_TB;
+	}
+
+	dev_err(&serial->interface->dev,
+			"unknown device type, please report to linux-usb@vger.kernel.org\n");
+	return -ENODEV;
+}
+
 static int pl2303_startup(struct usb_serial *serial)
 {
 	struct pl2303_serial_private *spriv;
-	enum pl2303_type type = TYPE_01;
+	enum pl2303_type type;
 	unsigned char *buf;
-	int res;
+	int ret;
+
+	ret = pl2303_detect_type(serial);
+	if (ret < 0)
+		return ret;
+
+	type = ret;
+	dev_dbg(&serial->interface->dev, "device type: %s\n", pl2303_type_data[type].name);
 
 	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
 	if (!spriv)
 		return -ENOMEM;
-
-	buf = kmalloc(1, GFP_KERNEL);
-	if (!buf) {
-		kfree(spriv);
-		return -ENOMEM;
-	}
-
-	if (serial->dev->descriptor.bDeviceClass == 0x02)
-		type = TYPE_01;		/* type 0 */
-	else if (serial->dev->descriptor.bMaxPacketSize0 == 0x40)
-		type = TYPE_HX;
-	else if (serial->dev->descriptor.bDeviceClass == 0x00)
-		type = TYPE_01;		/* type 1 */
-	else if (serial->dev->descriptor.bDeviceClass == 0xFF)
-		type = TYPE_01;		/* type 1 */
-	dev_dbg(&serial->interface->dev, "device type: %d\n", type);
-
-	if (type == TYPE_HX) {
-		res = usb_control_msg(serial->dev,
-				usb_rcvctrlpipe(serial->dev, 0),
-				VENDOR_READ_REQUEST, VENDOR_READ_REQUEST_TYPE,
-				PL2303_READ_TYPE_HX_STATUS, 0, buf, 1, 100);
-		if (res != 1)
-			type = TYPE_HXN;
-	}
 
 	spriv->type = &pl2303_type_data[type];
 	spriv->quirks = (unsigned long)usb_get_serial_data(serial);
@@ -405,6 +468,12 @@ static int pl2303_startup(struct usb_serial *serial)
 	usb_set_serial_data(serial, spriv);
 
 	if (type != TYPE_HXN) {
+		buf = kmalloc(1, GFP_KERNEL);
+		if (!buf) {
+			kfree(spriv);
+			return -ENOMEM;
+		}
+
 		pl2303_vendor_read(serial, 0x8484, buf);
 		pl2303_vendor_write(serial, 0x0404, 0);
 		pl2303_vendor_read(serial, 0x8484, buf);
@@ -419,9 +488,9 @@ static int pl2303_startup(struct usb_serial *serial)
 			pl2303_vendor_write(serial, 2, 0x24);
 		else
 			pl2303_vendor_write(serial, 2, 0x44);
-	}
 
-	kfree(buf);
+		kfree(buf);
+	}
 
 	return 0;
 }
@@ -553,6 +622,45 @@ static speed_t pl2303_encode_baud_rate_divisor(unsigned char buf[4],
 	return baud;
 }
 
+static speed_t pl2303_encode_baud_rate_divisor_alt(unsigned char buf[4],
+								speed_t baud)
+{
+	unsigned int baseline, mantissa, exponent;
+
+	/*
+	 * Apparently, for the TA version the formula is:
+	 *   baudrate = 12M * 32 / (mantissa * 2^exponent)
+	 * where
+	 *   mantissa = buf[10:0]
+	 *   exponent = buf[15:13 16]
+	 */
+	baseline = 12000000 * 32;
+	mantissa = baseline / baud;
+	if (mantissa == 0)
+		mantissa = 1;   /* Avoid dividing by zero if baud > 32*12M. */
+	exponent = 0;
+	while (mantissa >= 2048) {
+		if (exponent < 15) {
+			mantissa >>= 1; /* divide by 2 */
+			exponent++;
+		} else {
+			/* Exponent is maxed. Trim mantissa and leave. */
+			mantissa = 2047;
+			break;
+		}
+	}
+
+	buf[3] = 0x80;
+	buf[2] = exponent & 0x01;
+	buf[1] = (exponent & ~0x01) << 4 | mantissa >> 8;
+	buf[0] = mantissa & 0xff;
+
+	/* Calculate and return the exact baud rate. */
+	baud = (baseline / mantissa) >> exponent;
+
+	return baud;
+}
+
 static void pl2303_encode_baud_rate(struct tty_struct *tty,
 					struct usb_serial_port *port,
 					u8 buf[4])
@@ -580,6 +688,8 @@ static void pl2303_encode_baud_rate(struct tty_struct *tty,
 
 	if (baud == baud_sup)
 		baud = pl2303_encode_baud_rate_direct(buf, baud);
+	else if (spriv->type->alt_divisors)
+		baud = pl2303_encode_baud_rate_divisor_alt(buf, baud);
 	else
 		baud = pl2303_encode_baud_rate_divisor(buf, baud);
 
@@ -939,18 +1049,6 @@ static int pl2303_carrier_raised(struct usb_serial_port *port)
 	return 0;
 }
 
-static int pl2303_get_serial(struct tty_struct *tty,
-			struct serial_struct *ss)
-{
-	struct usb_serial_port *port = tty->driver_data;
-
-	ss->type = PORT_16654;
-	ss->line = port->minor;
-	ss->port = port->port_number;
-	ss->baud_base = 460800;
-	return 0;
-}
-
 static void pl2303_set_break(struct usb_serial_port *port, bool enable)
 {
 	struct usb_serial *serial = port->serial;
@@ -1134,7 +1232,6 @@ static struct usb_serial_driver pl2303_device = {
 	.close =		pl2303_close,
 	.dtr_rts =		pl2303_dtr_rts,
 	.carrier_raised =	pl2303_carrier_raised,
-	.get_serial =		pl2303_get_serial,
 	.break_ctl =		pl2303_break_ctl,
 	.set_termios =		pl2303_set_termios,
 	.tiocmget =		pl2303_tiocmget,

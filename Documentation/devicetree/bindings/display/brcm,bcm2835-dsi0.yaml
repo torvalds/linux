@@ -77,12 +77,6 @@ examples:
 
         clock-output-names = "dsi1_byte", "dsi1_ddr2", "dsi1_ddr";
 
-        pitouchscreen: panel@0 {
-            compatible = "raspberrypi,touchscreen";
-            reg = <0>;
-
-            /* ... */
-        };
     };
 
 ...

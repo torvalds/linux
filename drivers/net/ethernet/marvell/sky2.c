@@ -55,7 +55,8 @@
 #define RX_DEF_PENDING		RX_MAX_PENDING
 
 /* This is the worst case number of transmit list elements for a single skb:
-   VLAN:GSO + CKSUM + Data + skb_frags * DMA */
+ * VLAN:GSO + CKSUM + Data + skb_frags * DMA
+ */
 #define MAX_SKB_TX_LE	(2 + (sizeof(dma_addr_t)/sizeof(u32))*(MAX_SKB_FRAGS+1))
 #define TX_MIN_PENDING		(MAX_SKB_TX_LE+1)
 #define TX_MAX_PENDING		1024
@@ -1529,7 +1530,8 @@ static void sky2_rx_start(struct sky2_port *sky2)
 		sky2_write32(hw, Q_ADDR(rxq, Q_WM), BMU_WM_PEX);
 
 	/* These chips have no ram buffer?
-	 * MAC Rx RAM Read is controlled by hardware */
+	 * MAC Rx RAM Read is controlled by hardware
+	 */
 	if (hw->chip_id == CHIP_ID_YUKON_EC_U &&
 	    hw->chip_rev > CHIP_REV_YU_EC_U_A0)
 		sky2_write32(hw, Q_ADDR(rxq, Q_TEST), F_M_RX_RAM_DIS);
@@ -4135,7 +4137,7 @@ static int sky2_set_coalesce(struct net_device *dev,
 /*
  * Hardware is limited to min of 128 and max of 2048 for ring size
  * and  rounded up to next power of two
- * to avoid division in modulus calclation
+ * to avoid division in modulus calculation
  */
 static unsigned long roundup_ring_size(unsigned long pending)
 {
@@ -4684,7 +4686,8 @@ static __exit void sky2_debug_cleanup(void)
 #endif
 
 /* Two copies of network device operations to handle special case of
-   not allowing netpoll on second port */
+ * not allowing netpoll on second port
+ */
 static const struct net_device_ops sky2_netdev_ops[2] = {
   {
 	.ndo_open		= sky2_open,
@@ -4725,7 +4728,7 @@ static struct net_device *sky2_init_netdev(struct sky2_hw *hw, unsigned port,
 {
 	struct sky2_port *sky2;
 	struct net_device *dev = alloc_etherdev(sizeof(*sky2));
-	const void *iap;
+	int ret;
 
 	if (!dev)
 		return NULL;
@@ -4795,10 +4798,8 @@ static struct net_device *sky2_init_netdev(struct sky2_hw *hw, unsigned port,
 	 * 1) from device tree data
 	 * 2) from internal registers set by bootloader
 	 */
-	iap = of_get_mac_address(hw->pdev->dev.of_node);
-	if (!IS_ERR(iap))
-		ether_addr_copy(dev->dev_addr, iap);
-	else
+	ret = of_get_mac_address(hw->pdev->dev.of_node, dev->dev_addr);
+	if (ret)
 		memcpy_fromio(dev->dev_addr, hw->regs + B2_MAC_1 + port * 8,
 			      ETH_ALEN);
 

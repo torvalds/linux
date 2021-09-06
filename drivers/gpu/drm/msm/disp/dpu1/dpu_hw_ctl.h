@@ -167,6 +167,9 @@ struct dpu_hw_ctl_ops {
 	 */
 	void (*setup_blendstage)(struct dpu_hw_ctl *ctx,
 		enum dpu_lm lm, struct dpu_hw_stage_cfg *cfg);
+
+	void (*set_active_pipes)(struct dpu_hw_ctl *ctx,
+		unsigned long *fetch_active);
 };
 
 /**

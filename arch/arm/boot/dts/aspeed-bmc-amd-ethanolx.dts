@@ -151,6 +151,31 @@
 	status = "okay";
 };
 
+//FPGA
+&i2c2 {
+	status = "okay";
+};
+
+//24LC128 EEPROM
+&i2c3 {
+	status = "okay";
+};
+
+//P0 Power regulators
+&i2c4 {
+	status = "okay";
+};
+
+//P1 Power regulators
+&i2c5 {
+	status = "okay";
+};
+
+//P0/P1 Thermal diode
+&i2c6 {
+	status = "okay";
+};
+
 // Thermal Sensors
 &i2c7 {
 	status = "okay";
@@ -194,6 +219,11 @@
 		compatible = "national,lm75a";
 		reg = <0x4f>;
 	};
+};
+
+//BMC I2C
+&i2c8 {
+	status = "okay";
 };
 
 &kcs1 {

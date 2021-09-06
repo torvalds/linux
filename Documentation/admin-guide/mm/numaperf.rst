@@ -151,7 +151,7 @@ Each cache level's directory provides its attributes. For example, the
 following shows a single cache level and the attributes available for
 software to query::
 
-	# tree sys/devices/system/node/node0/memory_side_cache/
+	# tree /sys/devices/system/node/node0/memory_side_cache/
 	/sys/devices/system/node/node0/memory_side_cache/
 	|-- index1
 	|   |-- indexing

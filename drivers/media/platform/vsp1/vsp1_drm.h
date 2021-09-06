@@ -18,7 +18,7 @@
 #include "vsp1_pipe.h"
 
 /**
- * vsp1_drm_pipeline - State for the API exposed to the DRM driver
+ * struct vsp1_drm_pipeline - State for the API exposed to the DRM driver
  * @pipe: the VSP1 pipeline used for display
  * @width: output display width
  * @height: output display height
@@ -47,7 +47,7 @@ struct vsp1_drm_pipeline {
 };
 
 /**
- * vsp1_drm - State for the API exposed to the DRM driver
+ * struct vsp1_drm - State for the API exposed to the DRM driver
  * @pipe: the VSP1 DRM pipeline used for display
  * @lock: protects the BRU and BRS allocation
  * @inputs: source crop rectangle, destination compose rectangle and z-order

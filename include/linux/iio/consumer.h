@@ -242,6 +242,21 @@ int iio_read_channel_average_raw(struct iio_channel *chan, int *val);
 int iio_read_channel_processed(struct iio_channel *chan, int *val);
 
 /**
+ * iio_read_channel_processed_scale() - read and scale a processed value
+ * @chan:		The channel being queried.
+ * @val:		Value read back.
+ * @scale:		Scale factor to apply during the conversion
+ *
+ * Returns an error code or 0.
+ *
+ * This function will read a processed value from a channel. This will work
+ * like @iio_read_channel_processed() but also scale with an additional
+ * scale factor while attempting to minimize any precision loss.
+ */
+int iio_read_channel_processed_scale(struct iio_channel *chan, int *val,
+				     unsigned int scale);
+
+/**
  * iio_write_channel_attribute() - Write values to the device attribute.
  * @chan:	The channel being queried.
  * @val:	Value being written.

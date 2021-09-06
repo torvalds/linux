@@ -147,7 +147,7 @@ static const struct cedrus_control cedrus_controls[] = {
 	},
 	{
 		.cfg = {
-			.id		= V4L2_CID_MPEG_VIDEO_VP8_FRAME_HEADER,
+			.id	= V4L2_CID_STATELESS_VP8_FRAME,
 		},
 		.codec		= CEDRUS_CODEC_VP8,
 	},

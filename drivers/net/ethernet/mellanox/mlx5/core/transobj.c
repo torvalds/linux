@@ -424,6 +424,15 @@ err_modify_sq:
 	return err;
 }
 
+static void mlx5_hairpin_unpair_peer_sq(struct mlx5_hairpin *hp)
+{
+	int i;
+
+	for (i = 0; i < hp->num_channels; i++)
+		mlx5_hairpin_modify_sq(hp->peer_mdev, hp->sqn[i], MLX5_SQC_STATE_RDY,
+				       MLX5_SQC_STATE_RST, 0, 0);
+}
+
 static void mlx5_hairpin_unpair_queues(struct mlx5_hairpin *hp)
 {
 	int i;
@@ -432,13 +441,9 @@ static void mlx5_hairpin_unpair_queues(struct mlx5_hairpin *hp)
 	for (i = 0; i < hp->num_channels; i++)
 		mlx5_hairpin_modify_rq(hp->func_mdev, hp->rqn[i], MLX5_RQC_STATE_RDY,
 				       MLX5_RQC_STATE_RST, 0, 0);
-
 	/* unset peer SQs */
-	if (hp->peer_gone)
-		return;
-	for (i = 0; i < hp->num_channels; i++)
-		mlx5_hairpin_modify_sq(hp->peer_mdev, hp->sqn[i], MLX5_SQC_STATE_RDY,
-				       MLX5_SQC_STATE_RST, 0, 0);
+	if (!hp->peer_gone)
+		mlx5_hairpin_unpair_peer_sq(hp);
 }
 
 struct mlx5_hairpin *
@@ -484,4 +489,17 @@ void mlx5_core_hairpin_destroy(struct mlx5_hairpin *hp)
 	mlx5_hairpin_unpair_queues(hp);
 	mlx5_hairpin_destroy_queues(hp);
 	kfree(hp);
+}
+
+void mlx5_core_hairpin_clear_dead_peer(struct mlx5_hairpin *hp)
+{
+	int i;
+
+	mlx5_hairpin_unpair_peer_sq(hp);
+
+	/* destroy peer SQ */
+	for (i = 0; i < hp->num_channels; i++)
+		mlx5_core_destroy_sq(hp->peer_mdev, hp->sqn[i]);
+
+	hp->peer_gone = true;
 }

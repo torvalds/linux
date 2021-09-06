@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+// Copyright 2021 Jonathan Neuschäfer
+
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	compatible = "nuvoton,wpcm450";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,arm926ej-s";
+			device_type = "cpu";
+			reg = <0>;
+		};
+	};
+
+	clk24m: clock-24mhz {
+		/* 24 MHz dummy clock */
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+		#clock-cells = <0>;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		interrupt-parent = <&aic>;
+		ranges;
+
+		serial0: serial@b8000000 {
+			compatible = "nuvoton,wpcm450-uart";
+			reg = <0xb8000000 0x20>;
+			reg-shift = <2>;
+			interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk24m>;
+			status = "disabled";
+		};
+
+		serial1: serial@b8000100 {
+			compatible = "nuvoton,wpcm450-uart";
+			reg = <0xb8000100 0x20>;
+			reg-shift = <2>;
+			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk24m>;
+			status = "disabled";
+		};
+
+		timer0: timer@b8001000 {
+			compatible = "nuvoton,wpcm450-timer";
+			interrupts = <12 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0xb8001000 0x1c>;
+			clocks = <&clk24m>;
+		};
+
+		watchdog0: watchdog@b800101c {
+			compatible = "nuvoton,wpcm450-wdt";
+			interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0xb800101c 0x4>;
+			clocks = <&clk24m>;
+			status = "disabled";
+		};
+
+		aic: interrupt-controller@b8002000 {
+			compatible = "nuvoton,wpcm450-aic";
+			reg = <0xb8002000 0x1000>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+};

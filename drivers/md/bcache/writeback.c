@@ -110,13 +110,13 @@ static void __update_writeback_rate(struct cached_dev *dc)
 		int64_t fps;
 
 		if (c->gc_stats.in_use <= BCH_WRITEBACK_FRAGMENT_THRESHOLD_MID) {
-			fp_term = dc->writeback_rate_fp_term_low *
+			fp_term = (int64_t)dc->writeback_rate_fp_term_low *
 			(c->gc_stats.in_use - BCH_WRITEBACK_FRAGMENT_THRESHOLD_LOW);
 		} else if (c->gc_stats.in_use <= BCH_WRITEBACK_FRAGMENT_THRESHOLD_HIGH) {
-			fp_term = dc->writeback_rate_fp_term_mid *
+			fp_term = (int64_t)dc->writeback_rate_fp_term_mid *
 			(c->gc_stats.in_use - BCH_WRITEBACK_FRAGMENT_THRESHOLD_MID);
 		} else {
-			fp_term = dc->writeback_rate_fp_term_high *
+			fp_term = (int64_t)dc->writeback_rate_fp_term_high *
 			(c->gc_stats.in_use - BCH_WRITEBACK_FRAGMENT_THRESHOLD_HIGH);
 		}
 		fps = div_s64(dirty, dirty_buckets) * fp_term;
@@ -416,7 +416,7 @@ static void read_dirty_endio(struct bio *bio)
 	struct dirty_io *io = w->private;
 
 	/* is_read = 1 */
-	bch_count_io_errors(PTR_CACHE(io->dc->disk.c, &w->key, 0),
+	bch_count_io_errors(io->dc->disk.c->cache,
 			    bio->bi_status, 1,
 			    "reading dirty data from cache");
 
@@ -510,8 +510,7 @@ static void read_dirty(struct cached_dev *dc)
 			dirty_init(w);
 			bio_set_op_attrs(&io->bio, REQ_OP_READ, 0);
 			io->bio.bi_iter.bi_sector = PTR_OFFSET(&w->key, 0);
-			bio_set_dev(&io->bio,
-				    PTR_CACHE(dc->disk.c, &w->key, 0)->bdev);
+			bio_set_dev(&io->bio, dc->disk.c->cache->bdev);
 			io->bio.bi_end_io	= read_dirty_endio;
 
 			if (bch_bio_alloc_pages(&io->bio, GFP_KERNEL))

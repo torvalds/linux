@@ -1466,12 +1466,10 @@ EXPORT_SYMBOL_GPL(serial8250_em485_stop_tx);
 
 static enum hrtimer_restart serial8250_em485_handle_stop_tx(struct hrtimer *t)
 {
-	struct uart_8250_em485 *em485;
-	struct uart_8250_port *p;
+	struct uart_8250_em485 *em485 = container_of(t, struct uart_8250_em485,
+			stop_tx_timer);
+	struct uart_8250_port *p = em485->port;
 	unsigned long flags;
-
-	em485 = container_of(t, struct uart_8250_em485, stop_tx_timer);
-	p = em485->port;
 
 	serial8250_rpm_get(p);
 	spin_lock_irqsave(&p->port.lock, flags);
@@ -1482,16 +1480,13 @@ static enum hrtimer_restart serial8250_em485_handle_stop_tx(struct hrtimer *t)
 	}
 	spin_unlock_irqrestore(&p->port.lock, flags);
 	serial8250_rpm_put(p);
+
 	return HRTIMER_NORESTART;
 }
 
 static void start_hrtimer_ms(struct hrtimer *hrt, unsigned long msec)
 {
-	long sec = msec / 1000;
-	long nsec = (msec % 1000) * 1000000;
-	ktime_t t = ktime_set(sec, nsec);
-
-	hrtimer_start(hrt, t, HRTIMER_MODE_REL);
+	hrtimer_start(hrt, ms_to_ktime(msec), HRTIMER_MODE_REL);
 }
 
 static void __stop_tx_rs485(struct uart_8250_port *p)
@@ -1633,12 +1628,10 @@ static inline void start_tx_rs485(struct uart_port *port)
 
 static enum hrtimer_restart serial8250_em485_handle_start_tx(struct hrtimer *t)
 {
-	struct uart_8250_em485 *em485;
-	struct uart_8250_port *p;
+	struct uart_8250_em485 *em485 = container_of(t, struct uart_8250_em485,
+			start_tx_timer);
+	struct uart_8250_port *p = em485->port;
 	unsigned long flags;
-
-	em485 = container_of(t, struct uart_8250_em485, start_tx_timer);
-	p = em485->port;
 
 	spin_lock_irqsave(&p->port.lock, flags);
 	if (em485->active_timer == &em485->start_tx_timer) {
@@ -1646,6 +1639,7 @@ static enum hrtimer_restart serial8250_em485_handle_start_tx(struct hrtimer *t)
 		em485->active_timer = NULL;
 	}
 	spin_unlock_irqrestore(&p->port.lock, flags);
+
 	return HRTIMER_NORESTART;
 }
 
@@ -1815,6 +1809,18 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 	count = up->tx_loadsz;
 	do {
 		serial_out(up, UART_TX, xmit->buf[xmit->tail]);
+		if (up->bugs & UART_BUG_TXRACE) {
+			/*
+			 * The Aspeed BMC virtual UARTs have a bug where data
+			 * may get stuck in the BMC's Tx FIFO from bursts of
+			 * writes on the APB interface.
+			 *
+			 * Delay back-to-back writes by a read cycle to avoid
+			 * stalling the VUART. Read a register that won't have
+			 * side-effects and discard the result.
+			 */
+			serial_in(up, UART_SCR);
+		}
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
 		if (uart_circ_empty(xmit))
@@ -1885,14 +1891,13 @@ static bool handle_rx_dma(struct uart_8250_port *up, unsigned int iir)
 int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 {
 	unsigned char status;
-	unsigned long flags;
 	struct uart_8250_port *up = up_to_u8250p(port);
 	bool skip_rx = false;
 
 	if (iir & UART_IIR_NO_INT)
 		return 0;
 
-	spin_lock_irqsave(&port->lock, flags);
+	spin_lock(&port->lock);
 
 	status = serial_port_in(port, UART_LSR);
 
@@ -1918,7 +1923,8 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 		(up->ier & UART_IER_THRI))
 		serial8250_tx_chars(up);
 
-	uart_unlock_and_check_sysrq(port, flags);
+	uart_unlock_and_check_sysrq(port);
+
 	return 1;
 }
 EXPORT_SYMBOL_GPL(serial8250_handle_irq);

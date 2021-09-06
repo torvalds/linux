@@ -31,6 +31,7 @@
 #define EEPROM_I2C_TARGET_ADDR_ARCTURUS		0xA8
 #define EEPROM_I2C_TARGET_ADDR_ARCTURUS_D342	0xA0
 #define EEPROM_I2C_TARGET_ADDR_SIENNA_CICHLID   0xA0
+#define EEPROM_I2C_TARGET_ADDR_ALDEBARAN        0xA0
 
 /*
  * The 2 macros bellow represent the actual size in bytes that
@@ -64,7 +65,8 @@ static bool __is_ras_eeprom_supported(struct amdgpu_device *adev)
 {
 	if ((adev->asic_type == CHIP_VEGA20) ||
 	    (adev->asic_type == CHIP_ARCTURUS) ||
-	    (adev->asic_type == CHIP_SIENNA_CICHLID))
+	    (adev->asic_type == CHIP_SIENNA_CICHLID) ||
+	    (adev->asic_type == CHIP_ALDEBARAN))
 		return true;
 
 	return false;
@@ -104,6 +106,10 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 
 	case CHIP_SIENNA_CICHLID:
 		*i2c_addr = EEPROM_I2C_TARGET_ADDR_SIENNA_CICHLID;
+		break;
+
+	case CHIP_ALDEBARAN:
+		*i2c_addr = EEPROM_I2C_TARGET_ADDR_ALDEBARAN;
 		break;
 
 	default:
@@ -434,47 +440,28 @@ static uint32_t __correct_eeprom_dest_address(uint32_t curr_address)
 	return curr_address;
 }
 
-int amdgpu_ras_eeprom_check_err_threshold(
-				struct amdgpu_ras_eeprom_control *control,
-				bool *exceed_err_limit)
+bool amdgpu_ras_eeprom_check_err_threshold(struct amdgpu_device *adev)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
-	unsigned char buff[EEPROM_ADDRESS_SIZE +
-			EEPROM_TABLE_HEADER_SIZE] = { 0 };
-	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
-	struct i2c_msg msg = {
-			.addr = control->i2c_address,
-			.flags = I2C_M_RD,
-			.len = EEPROM_ADDRESS_SIZE + EEPROM_TABLE_HEADER_SIZE,
-			.buf = buff,
-	};
-	int ret;
-
-	*exceed_err_limit = false;
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 
 	if (!__is_ras_eeprom_supported(adev))
-		return 0;
+		return false;
 
-	/* read EEPROM table header */
-	mutex_lock(&control->tbl_mutex);
-	ret = i2c_transfer(&adev->pm.smu_i2c, &msg, 1);
-	if (ret < 1) {
-		dev_err(adev->dev, "Failed to read EEPROM table header.\n");
-		goto err;
-	}
+	/* skip check eeprom table for VEGA20 Gaming */
+	if (!con)
+		return false;
+	else
+		if (!(con->features & BIT(AMDGPU_RAS_BLOCK__UMC)))
+			return false;
 
-	__decode_table_header_from_buff(hdr, &buff[2]);
-
-	if (hdr->header == EEPROM_TABLE_HDR_BAD) {
+	if (con->eeprom_control.tbl_hdr.header == EEPROM_TABLE_HDR_BAD) {
 		dev_warn(adev->dev, "This GPU is in BAD status.");
 		dev_warn(adev->dev, "Please retire it or setting one bigger "
 				"threshold value when reloading driver.\n");
-		*exceed_err_limit = true;
+		return true;
 	}
 
-err:
-	mutex_unlock(&control->tbl_mutex);
-	return 0;
+	return false;
 }
 
 int amdgpu_ras_eeprom_process_recods(struct amdgpu_ras_eeprom_control *control,

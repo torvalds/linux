@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * IIO driver for the MiraMEMS DA311 3-axis accelerometer
  *
  * Copyright (c) 2016 Hans de Goede <hdegoede@redhat.com>

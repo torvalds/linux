@@ -94,6 +94,18 @@ do { \
 		   ADF_RING_BUNDLE_SIZE * (bank) + \
 		   ADF_RING_CSR_RING_SRV_ARB_EN, (value))
 
-void adf_gen4_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops);
+/* WDT timers
+ *
+ * Timeout is in cycles. Clock speed may vary across products but this
+ * value should be a few milli-seconds.
+ */
+#define ADF_SSM_WDT_DEFAULT_VALUE	0x200000
+#define ADF_SSM_WDT_PKE_DEFAULT_VALUE	0x8000000
+#define ADF_SSMWDTL_OFFSET		0x54
+#define ADF_SSMWDTH_OFFSET		0x5C
+#define ADF_SSMWDTPKEL_OFFSET		0x58
+#define ADF_SSMWDTPKEH_OFFSET		0x60
 
+void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev);
+void adf_gen4_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops);
 #endif

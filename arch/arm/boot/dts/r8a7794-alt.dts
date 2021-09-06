@@ -19,6 +19,9 @@
 		i2c10 = &gpioi2c4;
 		i2c11 = &i2chdmi;
 		i2c12 = &i2cexio4;
+		mmc0 = &mmcif0;
+		mmc1 = &sdhi0;
+		mmc2 = &sdhi1;
 	};
 
 	chosen {
@@ -330,7 +333,7 @@
 };
 
 &ether {
-	pinctrl-0 = <&ether_pins &phy1_pins>;
+	pinctrl-0 = <&ether_pins>, <&phy1_pins>;
 	pinctrl-names = "default";
 
 	phy-handle = <&phy1>;

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/**
+/*
  * Freecale 85xx and 86xx Global Utilties register set
  *
  * Authors: Jeff Brown
@@ -14,7 +14,7 @@
 #include <linux/types.h>
 #include <linux/io.h>
 
-/**
+/*
  * Global Utility Registers.
  *
  * Not all registers defined in this structure are available on all chips, so

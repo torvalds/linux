@@ -117,13 +117,12 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 
 	/*
-	 * RECONCILE_IRQ_STATE without calling trace_hardirqs_off(), which
-	 * would clobber syscall parameters. Also we always enter with IRQs
-	 * enabled and nothing pending. system_call_exception() will call
-	 * trace_hardirqs_off().
-	 *
-	 * scv enters with MSR[EE]=1, so don't set PACA_IRQ_HARD_DIS. The
-	 * entry vector already sets PACAIRQSOFTMASK to IRQS_ALL_DISABLED.
+	 * scv enters with MSR[EE]=1 and is immediately considered soft-masked.
+	 * The entry vector already sets PACAIRQSOFTMASK to IRQS_ALL_DISABLED,
+	 * and interrupts may be masked and pending already.
+	 * system_call_exception() will call trace_hardirqs_off() which means
+	 * interrupts could already have been blocked before trace_hardirqs_off,
+	 * but this is the best we can do.
 	 */
 
 	/* Calling convention has r9 = orig r0, r10 = regs */
@@ -288,9 +287,8 @@ END_BTB_FLUSH_SECTION
 	std	r11,-16(r10)		/* "regshere" marker */
 
 	/*
-	 * RECONCILE_IRQ_STATE without calling trace_hardirqs_off(), which
-	 * would clobber syscall parameters. Also we always enter with IRQs
-	 * enabled and nothing pending. system_call_exception() will call
+	 * We always enter kernel from userspace with irq soft-mask enabled and
+	 * nothing pending. system_call_exception() will call
 	 * trace_hardirqs_off().
 	 */
 	li	r11,IRQS_ALL_DISABLED
@@ -416,19 +414,6 @@ _GLOBAL(ret_from_kernel_thread)
 	bctrl
 	li	r3,0
 	b	.Lsyscall_exit
-
-#ifdef CONFIG_PPC_BOOK3E
-/* Save non-volatile GPRs, if not already saved. */
-_GLOBAL(save_nvgprs)
-	ld	r11,_TRAP(r1)
-	andi.	r0,r11,1
-	beqlr-
-	SAVE_NVGPRS(r1)
-	clrrdi	r0,r11,1
-	std	r0,_TRAP(r1)
-	blr
-_ASM_NOKPROBE_SYMBOL(save_nvgprs);
-#endif
 
 #ifdef CONFIG_PPC_BOOK3S_64
 
@@ -645,7 +630,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	addi	r1,r1,SWITCH_FRAME_SIZE
 	blr
 
-#ifdef CONFIG_PPC_BOOK3S
 	/*
 	 * If MSR EE/RI was never enabled, IRQs not reconciled, NVGPRs not
 	 * touched, no exit work created, then this can be used.
@@ -657,6 +641,7 @@ _ASM_NOKPROBE_SYMBOL(fast_interrupt_return)
 	kuap_check_amr r3, r4
 	ld	r5,_MSR(r1)
 	andi.	r0,r5,MSR_PR
+#ifdef CONFIG_PPC_BOOK3S
 	bne	.Lfast_user_interrupt_return_amr
 	kuap_kernel_restore r3, r4
 	andi.	r0,r5,MSR_RI
@@ -665,6 +650,10 @@ _ASM_NOKPROBE_SYMBOL(fast_interrupt_return)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	unrecoverable_exception
 	b	. /* should not get here */
+#else
+	bne	.Lfast_user_interrupt_return
+	b	.Lfast_kernel_interrupt_return
+#endif
 
 	.balign IFETCH_ALIGN_BYTES
 	.globl interrupt_return
@@ -678,8 +667,10 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return)
 	cmpdi	r3,0
 	bne-	.Lrestore_nvgprs
 
+#ifdef CONFIG_PPC_BOOK3S
 .Lfast_user_interrupt_return_amr:
 	kuap_user_restore r3, r4
+#endif
 .Lfast_user_interrupt_return:
 	ld	r11,_NIP(r1)
 	ld	r12,_MSR(r1)
@@ -788,7 +779,6 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 
 	RFI_TO_KERNEL
 	b	.	/* prevent speculative execution */
-#endif /* CONFIG_PPC_BOOK3S */
 
 #ifdef CONFIG_PPC_RTAS
 /*

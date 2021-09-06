@@ -381,3 +381,7 @@
 440	n32	process_madvise			sys_process_madvise
 441	n32	epoll_pwait2			compat_sys_epoll_pwait2
 442	n32	mount_setattr			sys_mount_setattr
+# 443 reserved for quotactl_path
+444	n32	landlock_create_ruleset		sys_landlock_create_ruleset
+445	n32	landlock_add_rule		sys_landlock_add_rule
+446	n32	landlock_restrict_self		sys_landlock_restrict_self

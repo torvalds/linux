@@ -8,10 +8,12 @@
 
 #include <linux/ktime.h>
 #include <linux/list.h>
+#include <linux/llist.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 
 #include "uc/intel_uc.h"
 
@@ -39,10 +41,6 @@ struct intel_gt {
 	struct intel_gt_timelines {
 		spinlock_t lock; /* protects active_list */
 		struct list_head active_list;
-
-		/* Pack multiple timelines' seqnos into the same page */
-		spinlock_t hwsp_lock;
-		struct list_head hwsp_free_list;
 	} timelines;
 
 	struct intel_gt_requests {
@@ -55,6 +53,11 @@ struct intel_gt {
 		 */
 		struct delayed_work retire_work;
 	} requests;
+
+	struct {
+		struct llist_head list;
+		struct work_struct work;
+	} watchdog;
 
 	struct intel_wakeref wakeref;
 	atomic_t user_wakeref;

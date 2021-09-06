@@ -691,7 +691,7 @@ nofreecontext:
 	return NETDEV_TX_BUSY;
 
 failed:
-	can_free_echo_skb(netdev, context->echo_index);
+	can_free_echo_skb(netdev, context->echo_index, NULL);
 
 	usb_unanchor_urb(urb);
 	usb_free_coherent(priv->udev, size, buf, urb->transfer_dma);

@@ -22,7 +22,7 @@
  * assembler to insert a extra (16-bit) IT instruction, depending on the
  * presence or absence of neighbouring conditional instructions.
  *
- * To avoid this unpredictableness, an approprite IT is inserted explicitly:
+ * To avoid this unpredictability, an appropriate IT is inserted explicitly:
  * the assembler won't change IT instructions which are explicitly present
  * in the input.
  */

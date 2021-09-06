@@ -116,7 +116,7 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
  *
  * Technically the lock is also needed for UP (boils down to irq save/restore)
  * but we can cheat a bit since cmpxchg() atomic_ops_lock() would cause irqs to
- * be disabled thus can't possibly be interrpted/preempted/clobbered by xchg()
+ * be disabled thus can't possibly be interrupted/preempted/clobbered by xchg()
  * Other way around, xchg is one instruction anyways, so can't be interrupted
  * as such
  */
@@ -143,7 +143,7 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
 /*
  * "atomic" variant of xchg()
  * REQ: It needs to follow the same serialization rules as other atomic_xxx()
- * Since xchg() doesn't always do that, it would seem that following defintion
+ * Since xchg() doesn't always do that, it would seem that following definition
  * is incorrect. But here's the rationale:
  *   SMP : Even xchg() takes the atomic_ops_lock, so OK.
  *   LLSC: atomic_ops_lock are not relevant at all (even if SMP, since LLSC

@@ -476,8 +476,7 @@ static int fsl_audmix_probe(struct platform_device *pdev)
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
-	priv->regmap = devm_regmap_init_mmio_clk(dev, "ipg", regs,
-						 &fsl_audmix_regmap_config);
+	priv->regmap = devm_regmap_init_mmio(dev, regs, &fsl_audmix_regmap_config);
 	if (IS_ERR(priv->regmap)) {
 		dev_err(dev, "failed to init regmap\n");
 		return PTR_ERR(priv->regmap);

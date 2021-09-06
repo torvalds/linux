@@ -62,7 +62,7 @@ core_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct komeda_dev *mdev = dev_to_mdev(dev);
 
-	return snprintf(buf, PAGE_SIZE, "0x%08x\n", mdev->chip.core_id);
+	return sysfs_emit(buf, "0x%08x\n", mdev->chip.core_id);
 }
 static DEVICE_ATTR_RO(core_id);
 
@@ -85,7 +85,7 @@ config_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 		if (pipe->layers[i]->layer_type == KOMEDA_FMT_RICH_LAYER)
 			config_id.n_richs++;
 	}
-	return snprintf(buf, PAGE_SIZE, "0x%08x\n", config_id.value);
+	return sysfs_emit(buf, "0x%08x\n", config_id.value);
 }
 static DEVICE_ATTR_RO(config_id);
 
@@ -94,7 +94,7 @@ aclk_hz_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct komeda_dev *mdev = dev_to_mdev(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%lu\n", clk_get_rate(mdev->aclk));
+	return sysfs_emit(buf, "%lu\n", clk_get_rate(mdev->aclk));
 }
 static DEVICE_ATTR_RO(aclk_hz);
 

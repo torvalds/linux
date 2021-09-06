@@ -109,7 +109,7 @@ static int ipv6_mc_check_mld_msg(struct sk_buff *skb)
 	struct mld_msg *mld;
 
 	if (!ipv6_mc_may_pull(skb, len))
-		return -EINVAL;
+		return -ENODATA;
 
 	mld = (struct mld_msg *)skb_transport_header(skb);
 
@@ -122,7 +122,7 @@ static int ipv6_mc_check_mld_msg(struct sk_buff *skb)
 	case ICMPV6_MGM_QUERY:
 		return ipv6_mc_check_mld_query(skb);
 	default:
-		return -ENOMSG;
+		return -ENODATA;
 	}
 }
 
@@ -131,7 +131,7 @@ static inline __sum16 ipv6_mc_validate_checksum(struct sk_buff *skb)
 	return skb_checksum_validate(skb, IPPROTO_ICMPV6, ip6_compute_pseudo);
 }
 
-int ipv6_mc_check_icmpv6(struct sk_buff *skb)
+static int ipv6_mc_check_icmpv6(struct sk_buff *skb)
 {
 	unsigned int len = skb_transport_offset(skb) + sizeof(struct icmp6hdr);
 	unsigned int transport_len = ipv6_transport_len(skb);
@@ -150,7 +150,6 @@ int ipv6_mc_check_icmpv6(struct sk_buff *skb)
 
 	return 0;
 }
-EXPORT_SYMBOL(ipv6_mc_check_icmpv6);
 
 /**
  * ipv6_mc_check_mld - checks whether this is a sane MLD packet
@@ -161,7 +160,10 @@ EXPORT_SYMBOL(ipv6_mc_check_icmpv6);
  *
  * -EINVAL: A broken packet was detected, i.e. it violates some internet
  *  standard
- * -ENOMSG: IP header validation succeeded but it is not an MLD packet.
+ * -ENOMSG: IP header validation succeeded but it is not an ICMPv6 packet
+ *  with a hop-by-hop option.
+ * -ENODATA: IP+ICMPv6 header with hop-by-hop option validation succeeded
+ *  but it is not an MLD packet.
  * -ENOMEM: A memory allocation failure happened.
  *
  * Caller needs to set the skb network header and free any returned skb if it

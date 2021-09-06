@@ -884,7 +884,7 @@ out_clean:
  *	enough_swap - Make sure we have enough swap to save the image.
  *
  *	Returns TRUE or FALSE after checking the total amount of swap
- *	space avaiable from the resume partition.
+ *	space available from the resume partition.
  */
 
 static int enough_swap(unsigned int nr_pages)

@@ -1341,10 +1341,12 @@ static int hisi_sas_softreset_ata_disk(struct domain_device *device)
 			rc = hisi_sas_exec_internal_tmf_task(device, fis,
 							     s, NULL);
 			if (rc != TMF_RESP_FUNC_COMPLETE)
-				dev_err(dev, "ata disk de-reset failed\n");
+				dev_err(dev, "ata disk %016llx de-reset failed\n",
+					SAS_ADDR(device->sas_addr));
 		}
 	} else {
-		dev_err(dev, "ata disk reset failed\n");
+		dev_err(dev, "ata disk %016llx reset failed\n",
+			SAS_ADDR(device->sas_addr));
 	}
 
 	if (rc == TMF_RESP_FUNC_COMPLETE)
@@ -1568,20 +1570,25 @@ void hisi_sas_controller_reset_done(struct hisi_hba *hisi_hba)
 }
 EXPORT_SYMBOL_GPL(hisi_sas_controller_reset_done);
 
-static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
+static int hisi_sas_controller_prereset(struct hisi_hba *hisi_hba)
 {
-	struct device *dev = hisi_hba->dev;
-	struct Scsi_Host *shost = hisi_hba->shost;
-	int rc;
-
-	if (hisi_sas_debugfs_enable && hisi_hba->debugfs_itct[0].itct)
-		queue_work(hisi_hba->wq, &hisi_hba->debugfs_work);
-
 	if (!hisi_hba->hw->soft_reset)
 		return -1;
 
 	if (test_and_set_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags))
 		return -1;
+
+	if (hisi_sas_debugfs_enable && hisi_hba->debugfs_itct[0].itct)
+		hisi_hba->hw->debugfs_snapshot_regs(hisi_hba);
+
+	return 0;
+}
+
+static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
+{
+	struct device *dev = hisi_hba->dev;
+	struct Scsi_Host *shost = hisi_hba->shost;
+	int rc;
 
 	dev_info(dev, "controller resetting...\n");
 	hisi_sas_controller_reset_prepare(hisi_hba);
@@ -2471,6 +2478,9 @@ void hisi_sas_rst_work_handler(struct work_struct *work)
 	struct hisi_hba *hisi_hba =
 		container_of(work, struct hisi_hba, rst_work);
 
+	if (hisi_sas_controller_prereset(hisi_hba))
+		return;
+
 	hisi_sas_controller_reset(hisi_hba);
 }
 EXPORT_SYMBOL_GPL(hisi_sas_rst_work_handler);
@@ -2480,8 +2490,12 @@ void hisi_sas_sync_rst_work_handler(struct work_struct *work)
 	struct hisi_sas_rst *rst =
 		container_of(work, struct hisi_sas_rst, work);
 
+	if (hisi_sas_controller_prereset(rst->hisi_hba))
+		goto rst_complete;
+
 	if (!hisi_sas_controller_reset(rst->hisi_hba))
 		rst->done = true;
+rst_complete:
 	complete(rst->completion);
 }
 EXPORT_SYMBOL_GPL(hisi_sas_sync_rst_work_handler);
@@ -2689,12 +2703,14 @@ int hisi_sas_probe(struct platform_device *pdev,
 
 	rc = hisi_hba->hw->hw_init(hisi_hba);
 	if (rc)
-		goto err_out_register_ha;
+		goto err_out_hw_init;
 
 	scsi_scan_host(shost);
 
 	return 0;
 
+err_out_hw_init:
+	sas_unregister_ha(sha);
 err_out_register_ha:
 	scsi_remove_host(shost);
 err_out_ha:

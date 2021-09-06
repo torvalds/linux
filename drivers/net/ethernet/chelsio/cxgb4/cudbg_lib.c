@@ -3551,8 +3551,7 @@ out:
 	}
 
 out_free:
-	if (data)
-		kvfree(data);
+	kvfree(data);
 
 #undef QDESC_GET_FLQ
 #undef QDESC_GET_RXQ

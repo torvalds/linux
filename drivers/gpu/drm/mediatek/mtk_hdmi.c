@@ -153,7 +153,7 @@ struct mtk_hdmi_conf {
 struct mtk_hdmi {
 	struct drm_bridge bridge;
 	struct drm_bridge *next_bridge;
-	struct drm_connector conn;
+	struct drm_connector *curr_conn;/* current connector (only valid when 'enabled') */
 	struct device *dev;
 	const struct mtk_hdmi_conf *conf;
 	struct phy *phy;
@@ -184,11 +184,6 @@ struct mtk_hdmi {
 static inline struct mtk_hdmi *hdmi_ctx_from_bridge(struct drm_bridge *b)
 {
 	return container_of(b, struct mtk_hdmi, bridge);
-}
-
-static inline struct mtk_hdmi *hdmi_ctx_from_conn(struct drm_connector *c)
-{
-	return container_of(c, struct mtk_hdmi, conn);
 }
 
 static u32 mtk_hdmi_read(struct mtk_hdmi *hdmi, u32 offset)
@@ -974,7 +969,7 @@ static int mtk_hdmi_setup_avi_infoframe(struct mtk_hdmi *hdmi,
 	ssize_t err;
 
 	err = drm_hdmi_avi_infoframe_from_display_mode(&frame,
-						       &hdmi->conn, mode);
+						       hdmi->curr_conn, mode);
 	if (err < 0) {
 		dev_err(hdmi->dev,
 			"Failed to get AVI infoframe from mode: %zd\n", err);
@@ -1054,7 +1049,7 @@ static int mtk_hdmi_setup_vendor_specific_infoframe(struct mtk_hdmi *hdmi,
 	ssize_t err;
 
 	err = drm_hdmi_vendor_infoframe_from_display_mode(&frame,
-							  &hdmi->conn, mode);
+							  hdmi->curr_conn, mode);
 	if (err) {
 		dev_err(hdmi->dev,
 			"Failed to get vendor infoframe from mode: %zd\n", err);
@@ -1201,48 +1196,16 @@ mtk_hdmi_update_plugged_status(struct mtk_hdmi *hdmi)
 	       connector_status_connected : connector_status_disconnected;
 }
 
-static enum drm_connector_status hdmi_conn_detect(struct drm_connector *conn,
-						  bool force)
+static enum drm_connector_status mtk_hdmi_detect(struct mtk_hdmi *hdmi)
 {
-	struct mtk_hdmi *hdmi = hdmi_ctx_from_conn(conn);
 	return mtk_hdmi_update_plugged_status(hdmi);
 }
 
-static void hdmi_conn_destroy(struct drm_connector *conn)
+static int mtk_hdmi_bridge_mode_valid(struct drm_bridge *bridge,
+				      const struct drm_display_info *info,
+				      const struct drm_display_mode *mode)
 {
-	struct mtk_hdmi *hdmi = hdmi_ctx_from_conn(conn);
-
-	mtk_cec_set_hpd_event(hdmi->cec_dev, NULL, NULL);
-
-	drm_connector_cleanup(conn);
-}
-
-static int mtk_hdmi_conn_get_modes(struct drm_connector *conn)
-{
-	struct mtk_hdmi *hdmi = hdmi_ctx_from_conn(conn);
-	struct edid *edid;
-	int ret;
-
-	if (!hdmi->ddc_adpt)
-		return -ENODEV;
-
-	edid = drm_get_edid(conn, hdmi->ddc_adpt);
-	if (!edid)
-		return -ENODEV;
-
-	hdmi->dvi_mode = !drm_detect_monitor_audio(edid);
-
-	drm_connector_update_edid_property(conn, edid);
-
-	ret = drm_add_edid_modes(conn, edid);
-	kfree(edid);
-	return ret;
-}
-
-static int mtk_hdmi_conn_mode_valid(struct drm_connector *conn,
-				    struct drm_display_mode *mode)
-{
-	struct mtk_hdmi *hdmi = hdmi_ctx_from_conn(conn);
+	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 	struct drm_bridge *next_bridge;
 
 	dev_dbg(hdmi->dev, "xres=%d, yres=%d, refresh=%d, intl=%d clock=%d\n",
@@ -1267,40 +1230,44 @@ static int mtk_hdmi_conn_mode_valid(struct drm_connector *conn,
 	return drm_mode_validate_size(mode, 0x1fff, 0x1fff);
 }
 
-static struct drm_encoder *mtk_hdmi_conn_best_enc(struct drm_connector *conn)
-{
-	struct mtk_hdmi *hdmi = hdmi_ctx_from_conn(conn);
-
-	return hdmi->bridge.encoder;
-}
-
-static const struct drm_connector_funcs mtk_hdmi_connector_funcs = {
-	.detect = hdmi_conn_detect,
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = hdmi_conn_destroy,
-	.reset = drm_atomic_helper_connector_reset,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
-
-static const struct drm_connector_helper_funcs
-		mtk_hdmi_connector_helper_funcs = {
-	.get_modes = mtk_hdmi_conn_get_modes,
-	.mode_valid = mtk_hdmi_conn_mode_valid,
-	.best_encoder = mtk_hdmi_conn_best_enc,
-};
-
 static void mtk_hdmi_hpd_event(bool hpd, struct device *dev)
 {
 	struct mtk_hdmi *hdmi = dev_get_drvdata(dev);
 
-	if (hdmi && hdmi->bridge.encoder && hdmi->bridge.encoder->dev)
+	if (hdmi && hdmi->bridge.encoder && hdmi->bridge.encoder->dev) {
+		static enum drm_connector_status status;
+
+		status = mtk_hdmi_detect(hdmi);
 		drm_helper_hpd_irq_event(hdmi->bridge.encoder->dev);
+		drm_bridge_hpd_notify(&hdmi->bridge, status);
+	}
 }
 
 /*
  * Bridge callbacks
  */
+
+static enum drm_connector_status mtk_hdmi_bridge_detect(struct drm_bridge *bridge)
+{
+	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
+
+	return mtk_hdmi_detect(hdmi);
+}
+
+static struct edid *mtk_hdmi_bridge_get_edid(struct drm_bridge *bridge,
+					     struct drm_connector *connector)
+{
+	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
+	struct edid *edid;
+
+	if (!hdmi->ddc_adpt)
+		return NULL;
+	edid = drm_get_edid(connector, hdmi->ddc_adpt);
+	if (!edid)
+		return NULL;
+	hdmi->dvi_mode = !drm_detect_monitor_audio(edid);
+	return edid;
+}
 
 static int mtk_hdmi_bridge_attach(struct drm_bridge *bridge,
 				  enum drm_bridge_attach_flags flags)
@@ -1308,31 +1275,10 @@ static int mtk_hdmi_bridge_attach(struct drm_bridge *bridge,
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 	int ret;
 
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
-		DRM_ERROR("Fix bridge driver to make connector optional!");
+	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)) {
+		DRM_ERROR("%s: The flag DRM_BRIDGE_ATTACH_NO_CONNECTOR must be supplied\n",
+			  __func__);
 		return -EINVAL;
-	}
-
-	ret = drm_connector_init_with_ddc(bridge->encoder->dev, &hdmi->conn,
-					  &mtk_hdmi_connector_funcs,
-					  DRM_MODE_CONNECTOR_HDMIA,
-					  hdmi->ddc_adpt);
-	if (ret) {
-		dev_err(hdmi->dev, "Failed to initialize connector: %d\n", ret);
-		return ret;
-	}
-	drm_connector_helper_add(&hdmi->conn, &mtk_hdmi_connector_helper_funcs);
-
-	hdmi->conn.polled = DRM_CONNECTOR_POLL_HPD;
-	hdmi->conn.interlace_allowed = true;
-	hdmi->conn.doublescan_allowed = false;
-
-	ret = drm_connector_attach_encoder(&hdmi->conn,
-						bridge->encoder);
-	if (ret) {
-		dev_err(hdmi->dev,
-			"Failed to attach connector to encoder: %d\n", ret);
-		return ret;
 	}
 
 	if (hdmi->next_bridge) {
@@ -1357,7 +1303,8 @@ static bool mtk_hdmi_bridge_mode_fixup(struct drm_bridge *bridge,
 	return true;
 }
 
-static void mtk_hdmi_bridge_disable(struct drm_bridge *bridge)
+static void mtk_hdmi_bridge_atomic_disable(struct drm_bridge *bridge,
+					   struct drm_bridge_state *old_bridge_state)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 
@@ -1368,10 +1315,13 @@ static void mtk_hdmi_bridge_disable(struct drm_bridge *bridge)
 	clk_disable_unprepare(hdmi->clk[MTK_HDMI_CLK_HDMI_PIXEL]);
 	clk_disable_unprepare(hdmi->clk[MTK_HDMI_CLK_HDMI_PLL]);
 
+	hdmi->curr_conn = NULL;
+
 	hdmi->enabled = false;
 }
 
-static void mtk_hdmi_bridge_post_disable(struct drm_bridge *bridge)
+static void mtk_hdmi_bridge_atomic_post_disable(struct drm_bridge *bridge,
+						struct drm_bridge_state *old_state)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 
@@ -1406,7 +1356,8 @@ static void mtk_hdmi_bridge_mode_set(struct drm_bridge *bridge,
 	drm_mode_copy(&hdmi->mode, adjusted_mode);
 }
 
-static void mtk_hdmi_bridge_pre_enable(struct drm_bridge *bridge)
+static void mtk_hdmi_bridge_atomic_pre_enable(struct drm_bridge *bridge,
+					      struct drm_bridge_state *old_state)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 
@@ -1426,9 +1377,15 @@ static void mtk_hdmi_send_infoframe(struct mtk_hdmi *hdmi,
 		mtk_hdmi_setup_vendor_specific_infoframe(hdmi, mode);
 }
 
-static void mtk_hdmi_bridge_enable(struct drm_bridge *bridge)
+static void mtk_hdmi_bridge_atomic_enable(struct drm_bridge *bridge,
+					  struct drm_bridge_state *old_state)
 {
+	struct drm_atomic_state *state = old_state->base.state;
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
+
+	/* Retrieve the connector through the atomic state. */
+	hdmi->curr_conn = drm_atomic_get_new_connector_for_encoder(state,
+								   bridge->encoder);
 
 	mtk_hdmi_output_set_display_mode(hdmi, &hdmi->mode);
 	clk_prepare_enable(hdmi->clk[MTK_HDMI_CLK_HDMI_PLL]);
@@ -1440,13 +1397,19 @@ static void mtk_hdmi_bridge_enable(struct drm_bridge *bridge)
 }
 
 static const struct drm_bridge_funcs mtk_hdmi_bridge_funcs = {
+	.mode_valid = mtk_hdmi_bridge_mode_valid,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_reset = drm_atomic_helper_bridge_reset,
 	.attach = mtk_hdmi_bridge_attach,
 	.mode_fixup = mtk_hdmi_bridge_mode_fixup,
-	.disable = mtk_hdmi_bridge_disable,
-	.post_disable = mtk_hdmi_bridge_post_disable,
+	.atomic_disable = mtk_hdmi_bridge_atomic_disable,
+	.atomic_post_disable = mtk_hdmi_bridge_atomic_post_disable,
 	.mode_set = mtk_hdmi_bridge_mode_set,
-	.pre_enable = mtk_hdmi_bridge_pre_enable,
-	.enable = mtk_hdmi_bridge_enable,
+	.atomic_pre_enable = mtk_hdmi_bridge_atomic_pre_enable,
+	.atomic_enable = mtk_hdmi_bridge_atomic_enable,
+	.detect = mtk_hdmi_bridge_detect,
+	.get_edid = mtk_hdmi_bridge_get_edid,
 };
 
 static int mtk_hdmi_dt_parse_pdata(struct mtk_hdmi *hdmi,
@@ -1662,8 +1625,10 @@ static int mtk_hdmi_audio_get_eld(struct device *dev, void *data, uint8_t *buf, 
 {
 	struct mtk_hdmi *hdmi = dev_get_drvdata(dev);
 
-	memcpy(buf, hdmi->conn.eld, min(sizeof(hdmi->conn.eld), len));
-
+	if (hdmi->enabled)
+		memcpy(buf, hdmi->curr_conn->eld, min(sizeof(hdmi->curr_conn->eld), len));
+	else
+		memset(buf, 0, len);
 	return 0;
 }
 
@@ -1755,6 +1720,9 @@ static int mtk_drm_hdmi_probe(struct platform_device *pdev)
 
 	hdmi->bridge.funcs = &mtk_hdmi_bridge_funcs;
 	hdmi->bridge.of_node = pdev->dev.of_node;
+	hdmi->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID
+			 | DRM_BRIDGE_OP_HPD;
+	hdmi->bridge.type = DRM_MODE_CONNECTOR_HDMIA;
 	drm_bridge_add(&hdmi->bridge);
 
 	ret = mtk_hdmi_clk_enable_audio(hdmi);
@@ -1818,6 +1786,7 @@ static const struct of_device_id mtk_drm_hdmi_of_ids[] = {
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(of, mtk_drm_hdmi_of_ids);
 
 static struct platform_driver mtk_hdmi_driver = {
 	.probe = mtk_drm_hdmi_probe,

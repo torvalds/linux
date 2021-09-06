@@ -227,7 +227,7 @@ struct gpio_irq_chip {
 	/**
 	 * @valid_mask:
 	 *
-	 * If not %NULL holds bitmask of GPIOs which are valid to be included
+	 * If not %NULL, holds bitmask of GPIOs which are valid to be included
 	 * in IRQ domain of the chip.
 	 */
 	unsigned long *valid_mask;
@@ -346,7 +346,7 @@ struct gpio_irq_chip {
  *	output.
  *
  * A gpio_chip can help platforms abstract various sources of GPIOs so
- * they can all be accessed through a common programing interface.
+ * they can all be accessed through a common programming interface.
  * Example sources would be SOC controllers, FPGAs, multifunction
  * chips, dedicated GPIO expanders, and so on.
  *
@@ -435,15 +435,15 @@ struct gpio_chip {
 	/**
 	 * @valid_mask:
 	 *
-	 * If not %NULL holds bitmask of GPIOs which are valid to be used
+	 * If not %NULL, holds bitmask of GPIOs which are valid to be used
 	 * from the chip.
 	 */
 	unsigned long *valid_mask;
 
 #if defined(CONFIG_OF_GPIO)
 	/*
-	 * If CONFIG_OF is enabled, then all GPIO controllers described in the
-	 * device tree automatically may have an OF translation
+	 * If CONFIG_OF_GPIO is enabled, then all GPIO controllers described in
+	 * the device tree automatically may have an OF translation
 	 */
 
 	/**
@@ -508,7 +508,7 @@ extern int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
  * for GPIOs will fail rudely.
  *
  * gpiochip_add_data() must only be called after gpiolib initialization,
- * ie after core_initcall().
+ * i.e. after core_initcall().
  *
  * If gc->base is negative, this requests dynamic assignment of
  * a range of valid GPIOs.
@@ -624,8 +624,17 @@ void gpiochip_irq_domain_deactivate(struct irq_domain *domain,
 bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gc,
 				unsigned int offset);
 
+#ifdef CONFIG_GPIOLIB_IRQCHIP
 int gpiochip_irqchip_add_domain(struct gpio_chip *gc,
 				struct irq_domain *domain);
+#else
+static inline int gpiochip_irqchip_add_domain(struct gpio_chip *gc,
+					      struct irq_domain *domain)
+{
+	WARN_ON(1);
+	return -EINVAL;
+}
+#endif
 
 int gpiochip_generic_request(struct gpio_chip *gc, unsigned int offset);
 void gpiochip_generic_free(struct gpio_chip *gc, unsigned int offset);

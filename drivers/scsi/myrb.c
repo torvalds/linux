@@ -82,7 +82,7 @@ static const char *myrb_raidlevel_name(enum myrb_raidlevel level)
 	return NULL;
 }
 
-/**
+/*
  * myrb_create_mempools - allocates auxiliary data structures
  *
  * Return: true on success, false otherwise.
@@ -134,7 +134,7 @@ static bool myrb_create_mempools(struct pci_dev *pdev, struct myrb_hba *cb)
 	return true;
 }
 
-/**
+/*
  * myrb_destroy_mempools - tears down the memory pools for the controller
  */
 static void myrb_destroy_mempools(struct myrb_hba *cb)
@@ -146,7 +146,7 @@ static void myrb_destroy_mempools(struct myrb_hba *cb)
 	dma_pool_destroy(cb->dcdb_pool);
 }
 
-/**
+/*
  * myrb_reset_cmd - reset command block
  */
 static inline void myrb_reset_cmd(struct myrb_cmdblk *cmd_blk)
@@ -157,7 +157,7 @@ static inline void myrb_reset_cmd(struct myrb_cmdblk *cmd_blk)
 	cmd_blk->status = 0;
 }
 
-/**
+/*
  * myrb_qcmd - queues command block for execution
  */
 static void myrb_qcmd(struct myrb_hba *cb, struct myrb_cmdblk *cmd_blk)
@@ -177,7 +177,7 @@ static void myrb_qcmd(struct myrb_hba *cb, struct myrb_cmdblk *cmd_blk)
 	cb->next_cmd_mbox = next_mbox;
 }
 
-/**
+/*
  * myrb_exec_cmd - executes command block and waits for completion.
  *
  * Return: command status
@@ -198,7 +198,7 @@ static unsigned short myrb_exec_cmd(struct myrb_hba *cb,
 	return cmd_blk->status;
 }
 
-/**
+/*
  * myrb_exec_type3 - executes a type 3 command and waits for completion.
  *
  * Return: command status
@@ -220,7 +220,7 @@ static unsigned short myrb_exec_type3(struct myrb_hba *cb,
 	return status;
 }
 
-/**
+/*
  * myrb_exec_type3D - executes a type 3D command and waits for completion.
  *
  * Return: command status
@@ -332,7 +332,7 @@ static void myrb_get_event(struct myrb_hba *cb, unsigned int event)
 			  ev_buf, ev_addr);
 }
 
-/**
+/*
  * myrb_get_errtable - retrieves the error table from the controller
  *
  * Executes a type 3 command and logs the error table from the controller.
@@ -377,7 +377,7 @@ static void myrb_get_errtable(struct myrb_hba *cb)
 	}
 }
 
-/**
+/*
  * myrb_get_ldev_info - retrieves the logical device table from the controller
  *
  * Executes a type 3 command and updates the logical device table.
@@ -427,7 +427,7 @@ static unsigned short myrb_get_ldev_info(struct myrb_hba *cb)
 	return status;
 }
 
-/**
+/*
  * myrb_get_rbld_progress - get rebuild progress information
  *
  * Executes a type 3 command and returns the rebuild progress
@@ -462,11 +462,10 @@ static unsigned short myrb_get_rbld_progress(struct myrb_hba *cb,
 	return status;
 }
 
-/**
+/*
  * myrb_update_rbld_progress - updates the rebuild status
  *
  * Updates the rebuild status for the attached logical devices.
- *
  */
 static void myrb_update_rbld_progress(struct myrb_hba *cb)
 {
@@ -523,7 +522,7 @@ static void myrb_update_rbld_progress(struct myrb_hba *cb)
 	cb->last_rbld_status = status;
 }
 
-/**
+/*
  * myrb_get_cc_progress - retrieve the rebuild status
  *
  * Execute a type 3 Command and fetch the rebuild / consistency check
@@ -571,7 +570,7 @@ static void myrb_get_cc_progress(struct myrb_hba *cb)
 			  rbld_buf, rbld_addr);
 }
 
-/**
+/*
  * myrb_bgi_control - updates background initialisation status
  *
  * Executes a type 3B command and updates the background initialisation status
@@ -660,7 +659,7 @@ static void myrb_bgi_control(struct myrb_hba *cb)
 			  bgi, bgi_addr);
 }
 
-/**
+/*
  * myrb_hba_enquiry - updates the controller status
  *
  * Executes a DAC_V1_Enquiry command and updates the controller status.
@@ -772,7 +771,7 @@ static unsigned short myrb_hba_enquiry(struct myrb_hba *cb)
 	return MYRB_STATUS_SUCCESS;
 }
 
-/**
+/*
  * myrb_set_pdev_state - sets the device state for a physical device
  *
  * Return: command status
@@ -796,7 +795,7 @@ static unsigned short myrb_set_pdev_state(struct myrb_hba *cb,
 	return status;
 }
 
-/**
+/*
  * myrb_enable_mmio - enables the Memory Mailbox Interface
  *
  * PD and P controller types have no memory mailbox, but still need the
@@ -901,7 +900,7 @@ static bool myrb_enable_mmio(struct myrb_hba *cb, mbox_mmio_init_t mmio_init_fn)
 	return true;
 }
 
-/**
+/*
  * myrb_get_hba_config - reads the configuration information
  *
  * Reads the configuration information from the controller and
@@ -1193,7 +1192,7 @@ out_free:
 	return ret;
 }
 
-/**
+/*
  * myrb_unmap - unmaps controller structures
  */
 static void myrb_unmap(struct myrb_hba *cb)
@@ -1229,7 +1228,7 @@ static void myrb_unmap(struct myrb_hba *cb)
 	}
 }
 
-/**
+/*
  * myrb_cleanup - cleanup controller structures
  */
 static void myrb_cleanup(struct myrb_hba *cb)
@@ -2243,7 +2242,7 @@ static struct scsi_host_template myrb_template = {
 
 /**
  * myrb_is_raid - return boolean indicating device is raid volume
- * @dev the device struct object
+ * @dev: the device struct object
  */
 static int myrb_is_raid(struct device *dev)
 {
@@ -2254,7 +2253,7 @@ static int myrb_is_raid(struct device *dev)
 
 /**
  * myrb_get_resync - get raid volume resync percent complete
- * @dev the device struct object
+ * @dev: the device struct object
  */
 static void myrb_get_resync(struct device *dev)
 {
@@ -2281,7 +2280,7 @@ static void myrb_get_resync(struct device *dev)
 
 /**
  * myrb_get_state - get raid volume status
- * @dev the device struct object
+ * @dev: the device struct object
  */
 static void myrb_get_state(struct device *dev)
 {
@@ -2480,7 +2479,7 @@ static void myrb_monitor(struct work_struct *work)
 	queue_delayed_work(cb->work_q, &cb->monitor_work, interval);
 }
 
-/**
+/*
  * myrb_err_status - reports controller BIOS messages
  *
  * Controller BIOS messages are passed through the Error Status Register
@@ -2553,11 +2552,6 @@ static inline void DAC960_LA_ack_hw_mbox_status(void __iomem *base)
 	writeb(DAC960_LA_IDB_HWMBOX_ACK_STS, base + DAC960_LA_IDB_OFFSET);
 }
 
-static inline void DAC960_LA_gen_intr(void __iomem *base)
-{
-	writeb(DAC960_LA_IDB_GEN_IRQ, base + DAC960_LA_IDB_OFFSET);
-}
-
 static inline void DAC960_LA_reset_ctrl(void __iomem *base)
 {
 	writeb(DAC960_LA_IDB_CTRL_RESET, base + DAC960_LA_IDB_OFFSET);
@@ -2587,11 +2581,6 @@ static inline void DAC960_LA_ack_hw_mbox_intr(void __iomem *base)
 	writeb(DAC960_LA_ODB_HWMBOX_ACK_IRQ, base + DAC960_LA_ODB_OFFSET);
 }
 
-static inline void DAC960_LA_ack_mem_mbox_intr(void __iomem *base)
-{
-	writeb(DAC960_LA_ODB_MMBOX_ACK_IRQ, base + DAC960_LA_ODB_OFFSET);
-}
-
 static inline void DAC960_LA_ack_intr(void __iomem *base)
 {
 	writeb(DAC960_LA_ODB_HWMBOX_ACK_IRQ | DAC960_LA_ODB_MMBOX_ACK_IRQ,
@@ -2603,13 +2592,6 @@ static inline bool DAC960_LA_hw_mbox_status_available(void __iomem *base)
 	unsigned char odb = readb(base + DAC960_LA_ODB_OFFSET);
 
 	return odb & DAC960_LA_ODB_HWMBOX_STS_AVAIL;
-}
-
-static inline bool DAC960_LA_mem_mbox_status_available(void __iomem *base)
-{
-	unsigned char odb = readb(base + DAC960_LA_ODB_OFFSET);
-
-	return odb & DAC960_LA_ODB_MMBOX_STS_AVAIL;
 }
 
 static inline void DAC960_LA_enable_intr(void __iomem *base)
@@ -2626,13 +2608,6 @@ static inline void DAC960_LA_disable_intr(void __iomem *base)
 
 	odb |= DAC960_LA_IRQMASK_DISABLE_IRQ;
 	writeb(odb, base + DAC960_LA_IRQMASK_OFFSET);
-}
-
-static inline bool DAC960_LA_intr_enabled(void __iomem *base)
-{
-	unsigned char imask = readb(base + DAC960_LA_IRQMASK_OFFSET);
-
-	return !(imask & DAC960_LA_IRQMASK_DISABLE_IRQ);
 }
 
 static inline void DAC960_LA_write_cmd_mbox(union myrb_cmd_mbox *mem_mbox,
@@ -2655,11 +2630,6 @@ static inline void DAC960_LA_write_hw_mbox(void __iomem *base,
 	writel(mbox->words[1], base + DAC960_LA_MBOX4_OFFSET);
 	writel(mbox->words[2], base + DAC960_LA_MBOX8_OFFSET);
 	writeb(mbox->bytes[12], base + DAC960_LA_MBOX12_OFFSET);
-}
-
-static inline unsigned char DAC960_LA_read_status_cmd_ident(void __iomem *base)
-{
-	return readb(base + DAC960_LA_STSID_OFFSET);
 }
 
 static inline unsigned short DAC960_LA_read_status(void __iomem *base)
@@ -2810,7 +2780,7 @@ static irqreturn_t DAC960_LA_intr_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-struct myrb_privdata DAC960_LA_privdata = {
+static struct myrb_privdata DAC960_LA_privdata = {
 	.hw_init =	DAC960_LA_hw_init,
 	.irq_handler =	DAC960_LA_intr_handler,
 	.mmio_size =	DAC960_LA_mmio_size,
@@ -2827,11 +2797,6 @@ static inline void DAC960_PG_hw_mbox_new_cmd(void __iomem *base)
 static inline void DAC960_PG_ack_hw_mbox_status(void __iomem *base)
 {
 	writel(DAC960_PG_IDB_HWMBOX_ACK_STS, base + DAC960_PG_IDB_OFFSET);
-}
-
-static inline void DAC960_PG_gen_intr(void __iomem *base)
-{
-	writel(DAC960_PG_IDB_GEN_IRQ, base + DAC960_PG_IDB_OFFSET);
 }
 
 static inline void DAC960_PG_reset_ctrl(void __iomem *base)
@@ -2863,11 +2828,6 @@ static inline void DAC960_PG_ack_hw_mbox_intr(void __iomem *base)
 	writel(DAC960_PG_ODB_HWMBOX_ACK_IRQ, base + DAC960_PG_ODB_OFFSET);
 }
 
-static inline void DAC960_PG_ack_mem_mbox_intr(void __iomem *base)
-{
-	writel(DAC960_PG_ODB_MMBOX_ACK_IRQ, base + DAC960_PG_ODB_OFFSET);
-}
-
 static inline void DAC960_PG_ack_intr(void __iomem *base)
 {
 	writel(DAC960_PG_ODB_HWMBOX_ACK_IRQ | DAC960_PG_ODB_MMBOX_ACK_IRQ,
@@ -2879,13 +2839,6 @@ static inline bool DAC960_PG_hw_mbox_status_available(void __iomem *base)
 	unsigned char odb = readl(base + DAC960_PG_ODB_OFFSET);
 
 	return odb & DAC960_PG_ODB_HWMBOX_STS_AVAIL;
-}
-
-static inline bool DAC960_PG_mem_mbox_status_available(void __iomem *base)
-{
-	unsigned char odb = readl(base + DAC960_PG_ODB_OFFSET);
-
-	return odb & DAC960_PG_ODB_MMBOX_STS_AVAIL;
 }
 
 static inline void DAC960_PG_enable_intr(void __iomem *base)
@@ -2901,13 +2854,6 @@ static inline void DAC960_PG_disable_intr(void __iomem *base)
 	unsigned int imask = (unsigned int)-1;
 
 	writel(imask, base + DAC960_PG_IRQMASK_OFFSET);
-}
-
-static inline bool DAC960_PG_intr_enabled(void __iomem *base)
-{
-	unsigned int imask = readl(base + DAC960_PG_IRQMASK_OFFSET);
-
-	return !(imask & DAC960_PG_IRQMASK_DISABLE_IRQ);
 }
 
 static inline void DAC960_PG_write_cmd_mbox(union myrb_cmd_mbox *mem_mbox,
@@ -2930,12 +2876,6 @@ static inline void DAC960_PG_write_hw_mbox(void __iomem *base,
 	writel(mbox->words[1], base + DAC960_PG_MBOX4_OFFSET);
 	writel(mbox->words[2], base + DAC960_PG_MBOX8_OFFSET);
 	writeb(mbox->bytes[12], base + DAC960_PG_MBOX12_OFFSET);
-}
-
-static inline unsigned char
-DAC960_PG_read_status_cmd_ident(void __iomem *base)
-{
-	return readb(base + DAC960_PG_STSID_OFFSET);
 }
 
 static inline unsigned short
@@ -3086,7 +3026,7 @@ static irqreturn_t DAC960_PG_intr_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-struct myrb_privdata DAC960_PG_privdata = {
+static struct myrb_privdata DAC960_PG_privdata = {
 	.hw_init =	DAC960_PG_hw_init,
 	.irq_handler =	DAC960_PG_intr_handler,
 	.mmio_size =	DAC960_PG_mmio_size,
@@ -3105,11 +3045,6 @@ static inline void DAC960_PD_hw_mbox_new_cmd(void __iomem *base)
 static inline void DAC960_PD_ack_hw_mbox_status(void __iomem *base)
 {
 	writeb(DAC960_PD_IDB_HWMBOX_ACK_STS, base + DAC960_PD_IDB_OFFSET);
-}
-
-static inline void DAC960_PD_gen_intr(void __iomem *base)
-{
-	writeb(DAC960_PD_IDB_GEN_IRQ, base + DAC960_PD_IDB_OFFSET);
 }
 
 static inline void DAC960_PD_reset_ctrl(void __iomem *base)
@@ -3151,13 +3086,6 @@ static inline void DAC960_PD_enable_intr(void __iomem *base)
 static inline void DAC960_PD_disable_intr(void __iomem *base)
 {
 	writeb(0, base + DAC960_PD_IRQEN_OFFSET);
-}
-
-static inline bool DAC960_PD_intr_enabled(void __iomem *base)
-{
-	unsigned char imask = readb(base + DAC960_PD_IRQEN_OFFSET);
-
-	return imask & DAC960_PD_IRQMASK_ENABLE_IRQ;
 }
 
 static inline void DAC960_PD_write_cmd_mbox(void __iomem *base,
@@ -3289,7 +3217,7 @@ static irqreturn_t DAC960_PD_intr_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-struct myrb_privdata DAC960_PD_privdata = {
+static struct myrb_privdata DAC960_PD_privdata = {
 	.hw_init =	DAC960_PD_hw_init,
 	.irq_handler =	DAC960_PD_intr_handler,
 	.mmio_size =	DAC960_PD_mmio_size,
@@ -3487,7 +3415,7 @@ static irqreturn_t DAC960_P_intr_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-struct myrb_privdata DAC960_P_privdata = {
+static struct myrb_privdata DAC960_P_privdata = {
 	.hw_init =	DAC960_P_hw_init,
 	.irq_handler =	DAC960_P_intr_handler,
 	.mmio_size =	DAC960_PD_mmio_size,

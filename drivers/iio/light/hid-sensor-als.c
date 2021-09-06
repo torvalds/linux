@@ -39,6 +39,11 @@ struct als_state {
 	s64 timestamp;
 };
 
+static const u32 als_sensitivity_addresses[] = {
+	HID_USAGE_SENSOR_DATA_LIGHT,
+	HID_USAGE_SENSOR_LIGHT_ILLUM,
+};
+
 /* Channel definitions */
 static const struct iio_chan_spec als_channels[] = {
 	{
@@ -49,7 +54,8 @@ static const struct iio_chan_spec als_channels[] = {
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
 		BIT(IIO_CHAN_INFO_SCALE) |
 		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
-		BIT(IIO_CHAN_INFO_HYSTERESIS),
+		BIT(IIO_CHAN_INFO_HYSTERESIS) |
+		BIT(IIO_CHAN_INFO_HYSTERESIS_RELATIVE),
 		.scan_index = CHANNEL_SCAN_INDEX_INTENSITY,
 	},
 	{
@@ -58,7 +64,8 @@ static const struct iio_chan_spec als_channels[] = {
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
 		BIT(IIO_CHAN_INFO_SCALE) |
 		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
-		BIT(IIO_CHAN_INFO_HYSTERESIS),
+		BIT(IIO_CHAN_INFO_HYSTERESIS) |
+		BIT(IIO_CHAN_INFO_HYSTERESIS_RELATIVE),
 		.scan_index = CHANNEL_SCAN_INDEX_ILLUM,
 	},
 	IIO_CHAN_SOFT_TIMESTAMP(CHANNEL_SCAN_INDEX_TIMESTAMP)
@@ -136,6 +143,10 @@ static int als_read_raw(struct iio_dev *indio_dev,
 		ret_type = hid_sensor_read_raw_hyst_value(
 				&als_state->common_attributes, val, val2);
 		break;
+	case IIO_CHAN_INFO_HYSTERESIS_RELATIVE:
+		ret_type = hid_sensor_read_raw_hyst_rel_value(
+				&als_state->common_attributes, val, val2);
+		break;
 	default:
 		ret_type = -EINVAL;
 		break;
@@ -161,6 +172,10 @@ static int als_write_raw(struct iio_dev *indio_dev,
 		break;
 	case IIO_CHAN_INFO_HYSTERESIS:
 		ret = hid_sensor_write_raw_hyst_value(
+				&als_state->common_attributes, val, val2);
+		break;
+	case IIO_CHAN_INFO_HYSTERESIS_RELATIVE:
+		ret = hid_sensor_write_raw_hyst_rel_value(
 				&als_state->common_attributes, val, val2);
 		break;
 	default:
@@ -252,17 +267,6 @@ static int als_parse_report(struct platform_device *pdev,
 				&st->als_illum,
 				&st->scale_pre_decml, &st->scale_post_decml);
 
-	/* Set Sensitivity field ids, when there is no individual modifier */
-	if (st->common_attributes.sensitivity.index < 0) {
-		sensor_hub_input_get_attribute_info(hsdev,
-			HID_FEATURE_REPORT, usage_id,
-			HID_USAGE_SENSOR_DATA_MOD_CHANGE_SENSITIVITY_ABS |
-			HID_USAGE_SENSOR_DATA_LIGHT,
-			&st->common_attributes.sensitivity);
-		dev_dbg(&pdev->dev, "Sensitivity index:report %d:%d\n",
-			st->common_attributes.sensitivity.index,
-			st->common_attributes.sensitivity.report_id);
-	}
 	return ret;
 }
 
@@ -285,7 +289,9 @@ static int hid_als_probe(struct platform_device *pdev)
 	als_state->common_attributes.pdev = pdev;
 
 	ret = hid_sensor_parse_common_attributes(hsdev, HID_USAGE_SENSOR_ALS,
-					&als_state->common_attributes);
+					&als_state->common_attributes,
+					als_sensitivity_addresses,
+					ARRAY_SIZE(als_sensitivity_addresses));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup common attributes\n");
 		return ret;

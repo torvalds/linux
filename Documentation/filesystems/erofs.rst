@@ -50,8 +50,8 @@ Here is the main features of EROFS:
 
  - Support POSIX.1e ACLs by using xattrs;
 
- - Support transparent file compression as an option:
-   LZ4 algorithm with 4 KB fixed-sized output compression for high performance.
+ - Support transparent data compression as an option:
+   LZ4 algorithm with the fixed-sized output compression for high performance.
 
 The following git tree provides the file system user-space tools under
 development (ex, formatting tool mkfs.erofs):
@@ -113,31 +113,31 @@ may not. All metadatas can be now observed in two different spaces (views):
 
     ::
 
-				    |-> aligned with 8B
-					    |-> followed closely
-	+ meta_blkaddr blocks                                      |-> another slot
-	_____________________________________________________________________
-	|  ...   | inode |  xattrs  | extents  | data inline | ... | inode ...
-	|________|_______|(optional)|(optional)|__(optional)_|_____|__________
-		|-> aligned with the inode slot size
-		    .                   .
-		    .                         .
-		.                              .
-		.                                    .
-	    .                                         .
-	    .                                              .
-	.____________________________________________________|-> aligned with 4B
-	| xattr_ibody_header | shared xattrs | inline xattrs |
-	|____________________|_______________|_______________|
-	|->    12 bytes    <-|->x * 4 bytes<-|               .
-			    .                .                 .
-			.                      .                   .
-		.                           .                     .
-	    ._______________________________.______________________.
-	    | id | id | id | id |  ... | id | ent | ... | ent| ... |
-	    |____|____|____|____|______|____|_____|_____|____|_____|
-					    |-> aligned with 4B
-							|-> aligned with 4B
+                                 |-> aligned with 8B
+                                            |-> followed closely
+     + meta_blkaddr blocks                                      |-> another slot
+       _____________________________________________________________________
+     |  ...   | inode |  xattrs  | extents  | data inline | ... | inode ...
+     |________|_______|(optional)|(optional)|__(optional)_|_____|__________
+              |-> aligned with the inode slot size
+                   .                   .
+                 .                         .
+               .                              .
+             .                                    .
+           .                                         .
+         .                                              .
+       .____________________________________________________|-> aligned with 4B
+       | xattr_ibody_header | shared xattrs | inline xattrs |
+       |____________________|_______________|_______________|
+       |->    12 bytes    <-|->x * 4 bytes<-|               .
+                           .                .                 .
+                     .                      .                   .
+                .                           .                     .
+            ._______________________________.______________________.
+            | id | id | id | id |  ... | id | ent | ... | ent| ... |
+            |____|____|____|____|______|____|_____|_____|____|_____|
+                                            |-> aligned with 4B
+                                                        |-> aligned with 4B
 
     Inode could be 32 or 64 bytes, which can be distinguished from a common
     field which all inode versions have -- i_format::
@@ -175,13 +175,13 @@ may not. All metadatas can be now observed in two different spaces (views):
     Each share xattr can also be directly found by the following formula:
          xattr offset = xattr_blkaddr * block_size + 4 * xattr_id
 
-    ::
+::
 
-			    |-> aligned by  4 bytes
-	+ xattr_blkaddr blocks                     |-> aligned with 4 bytes
-	_________________________________________________________________________
-	|  ...   | xattr_entry |  xattr data | ... |  xattr_entry | xattr data  ...
-	|________|_____________|_____________|_____|______________|_______________
+                           |-> aligned by  4 bytes
+    + xattr_blkaddr blocks                     |-> aligned with 4 bytes
+     _________________________________________________________________________
+    |  ...   | xattr_entry |  xattr data | ... |  xattr_entry | xattr data  ...
+    |________|_____________|_____________|_____|______________|_______________
 
 Directories
 -----------
@@ -193,48 +193,77 @@ algorithm (could refer to the related source code).
 
 ::
 
-		    ___________________________
-		    /                           |
-		/              ______________|________________
-		/              /              | nameoff1       | nameoffN-1
-    ____________.______________._______________v________________v__________
-    | dirent | dirent | ... | dirent | filename | filename | ... | filename |
-    |___.0___|____1___|_____|___N-1__|____0_____|____1_____|_____|___N-1____|
-	\                           ^
-	\                          |                           * could have
-	\                         |                             trailing '\0'
-	    \________________________| nameoff0
-
-				Directory block
+                  ___________________________
+                 /                           |
+                /              ______________|________________
+               /              /              | nameoff1       | nameoffN-1
+  ____________.______________._______________v________________v__________
+ | dirent | dirent | ... | dirent | filename | filename | ... | filename |
+ |___.0___|____1___|_____|___N-1__|____0_____|____1_____|_____|___N-1____|
+      \                           ^
+       \                          |                           * could have
+        \                         |                             trailing '\0'
+         \________________________| nameoff0
+                             Directory block
 
 Note that apart from the offset of the first filename, nameoff0 also indicates
 the total number of directory entries in this block since it is no need to
 introduce another on-disk field at all.
 
-Compression
------------
-Currently, EROFS supports 4KB fixed-sized output transparent file compression,
-as illustrated below::
+Data compression
+----------------
+EROFS implements LZ4 fixed-sized output compression which generates fixed-sized
+compressed data blocks from variable-sized input in contrast to other existing
+fixed-sized input solutions. Relatively higher compression ratios can be gotten
+by using fixed-sized output compression since nowadays popular data compression
+algorithms are mostly LZ77-based and such fixed-sized output approach can be
+benefited from the historical dictionary (aka. sliding window).
 
-	    |---- Variant-Length Extent ----|-------- VLE --------|----- VLE -----
-	    clusterofs                      clusterofs            clusterofs
-	    |                               |                     |   logical data
-    _________v_______________________________v_____________________v_______________
-    ... |    .        |             |        .    |             |  .          | ...
-    ____|____.________|_____________|________.____|_____________|__.__________|____
-	|-> cluster <-|-> cluster <-|-> cluster <-|-> cluster <-|-> cluster <-|
-	    size          size          size          size          size
-	    .                             .                .                   .
-	    .                       .               .                  .
-		.                  .              .                .
-	_______._____________._____________._____________._____________________
-	    ... |             |             |             | ... physical data
-	_______|_____________|_____________|_____________|_____________________
-		|-> cluster <-|-> cluster <-|-> cluster <-|
-		    size          size          size
+In details, original (uncompressed) data is turned into several variable-sized
+extents and in the meanwhile, compressed into physical clusters (pclusters).
+In order to record each variable-sized extent, logical clusters (lclusters) are
+introduced as the basic unit of compress indexes to indicate whether a new
+extent is generated within the range (HEAD) or not (NONHEAD). Lclusters are now
+fixed in block size, as illustrated below::
 
-Currently each on-disk physical cluster can contain 4KB (un)compressed data
-at most. For each logical cluster, there is a corresponding on-disk index to
-describe its cluster type, physical cluster address, etc.
+          |<-    variable-sized extent    ->|<-       VLE         ->|
+        clusterofs                        clusterofs              clusterofs
+          |                                 |                       |
+ _________v_________________________________v_______________________v________
+ ... |    .         |              |        .     |              |  .   ...
+ ____|____._________|______________|________.___ _|______________|__.________
+     |-> lcluster <-|-> lcluster <-|-> lcluster <-|-> lcluster <-|
+          (HEAD)        (NONHEAD)       (HEAD)        (NONHEAD)    .
+           .             CBLKCNT            .                    .
+            .                               .                  .
+             .                              .                .
+       _______._____________________________.______________._________________
+          ... |              |              |              | ...
+       _______|______________|______________|______________|_________________
+              |->      big pcluster       <-|-> pcluster <-|
 
-See "struct z_erofs_vle_decompressed_index" in erofs_fs.h for more details.
+A physical cluster can be seen as a container of physical compressed blocks
+which contains compressed data. Previously, only lcluster-sized (4KB) pclusters
+were supported. After big pcluster feature is introduced (available since
+Linux v5.13), pcluster can be a multiple of lcluster size.
+
+For each HEAD lcluster, clusterofs is recorded to indicate where a new extent
+starts and blkaddr is used to seek the compressed data. For each NONHEAD
+lcluster, delta0 and delta1 are available instead of blkaddr to indicate the
+distance to its HEAD lcluster and the next HEAD lcluster. A PLAIN lcluster is
+also a HEAD lcluster except that its data is uncompressed. See the comments
+around "struct z_erofs_vle_decompressed_index" in erofs_fs.h for more details.
+
+If big pcluster is enabled, pcluster size in lclusters needs to be recorded as
+well. Let the delta0 of the first NONHEAD lcluster store the compressed block
+count with a special flag as a new called CBLKCNT NONHEAD lcluster. It's easy
+to understand its delta0 is constantly 1, as illustrated below::
+
+   __________________________________________________________
+  | HEAD |  NONHEAD  | NONHEAD | ... | NONHEAD | HEAD | HEAD |
+  |__:___|_(CBLKCNT)_|_________|_____|_________|__:___|____:_|
+     |<----- a big pcluster (with CBLKCNT) ------>|<--  -->|
+           a lcluster-sized pcluster (without CBLKCNT) ^
+
+If another HEAD follows a HEAD lcluster, there is no room to record CBLKCNT,
+but it's easy to know the size of such pcluster is 1 lcluster as well.

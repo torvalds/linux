@@ -117,8 +117,8 @@ static ssize_t ad5624r_read_dac_powerdown(struct iio_dev *indio_dev,
 {
 	struct ad5624r_state *st = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n",
-			!!(st->pwr_down_mask & (1 << chan->channel)));
+	return sysfs_emit(buf, "%d\n",
+			  !!(st->pwr_down_mask & (1 << chan->channel)));
 }
 
 static ssize_t ad5624r_write_dac_powerdown(struct iio_dev *indio_dev,

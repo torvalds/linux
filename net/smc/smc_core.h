@@ -410,7 +410,6 @@ static inline void smc_set_pci_values(struct pci_dev *pci_dev,
 
 struct smc_sock;
 struct smc_clc_msg_accept_confirm;
-struct smc_clc_msg_local;
 
 void smc_lgr_cleanup_early(struct smc_connection *conn);
 void smc_lgr_terminate_sched(struct smc_link_group *lgr);

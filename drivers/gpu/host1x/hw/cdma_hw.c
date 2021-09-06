@@ -295,7 +295,7 @@ static void cdma_timeout_handler(struct work_struct *work)
 /*
  * Init timeout resources
  */
-static int cdma_timeout_init(struct host1x_cdma *cdma, unsigned int syncpt)
+static int cdma_timeout_init(struct host1x_cdma *cdma)
 {
 	INIT_DELAYED_WORK(&cdma->timeout.wq, cdma_timeout_handler);
 	cdma->timeout.initialized = true;

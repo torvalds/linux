@@ -40,26 +40,26 @@ struct rdma_counter {
 	struct rdma_counter_mode	mode;
 	struct mutex			lock;
 	struct rdma_hw_stats		*stats;
-	u8				port;
+	u32				port;
 };
 
 void rdma_counter_init(struct ib_device *dev);
 void rdma_counter_release(struct ib_device *dev);
-int rdma_counter_set_auto_mode(struct ib_device *dev, u8 port,
+int rdma_counter_set_auto_mode(struct ib_device *dev, u32 port,
 			       enum rdma_nl_counter_mask mask,
 			       struct netlink_ext_ack *extack);
-int rdma_counter_bind_qp_auto(struct ib_qp *qp, u8 port);
+int rdma_counter_bind_qp_auto(struct ib_qp *qp, u32 port);
 int rdma_counter_unbind_qp(struct ib_qp *qp, bool force);
 
 int rdma_counter_query_stats(struct rdma_counter *counter);
-u64 rdma_counter_get_hwstat_value(struct ib_device *dev, u8 port, u32 index);
-int rdma_counter_bind_qpn(struct ib_device *dev, u8 port,
+u64 rdma_counter_get_hwstat_value(struct ib_device *dev, u32 port, u32 index);
+int rdma_counter_bind_qpn(struct ib_device *dev, u32 port,
 			  u32 qp_num, u32 counter_id);
-int rdma_counter_bind_qpn_alloc(struct ib_device *dev, u8 port,
+int rdma_counter_bind_qpn_alloc(struct ib_device *dev, u32 port,
 				u32 qp_num, u32 *counter_id);
-int rdma_counter_unbind_qpn(struct ib_device *dev, u8 port,
+int rdma_counter_unbind_qpn(struct ib_device *dev, u32 port,
 			    u32 qp_num, u32 counter_id);
-int rdma_counter_get_mode(struct ib_device *dev, u8 port,
+int rdma_counter_get_mode(struct ib_device *dev, u32 port,
 			  enum rdma_nl_counter_mode *mode,
 			  enum rdma_nl_counter_mask *mask);
 

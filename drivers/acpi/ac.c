@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  acpi_ac.c - ACPI AC Adapter Driver ($Revision: 27 $)
+ *  acpi_ac.c - ACPI AC Adapter Driver (Revision: 27)
  *
  *  Copyright (C) 2001, 2002 Andy Grover <andrew.grover@intel.com>
  *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
@@ -78,17 +78,14 @@ static struct acpi_driver acpi_ac_driver = {
 struct acpi_ac {
 	struct power_supply *charger;
 	struct power_supply_desc charger_desc;
-	struct acpi_device * device;
+	struct acpi_device *device;
 	unsigned long long state;
 	struct notifier_block battery_nb;
 };
 
 #define to_acpi_ac(x) power_supply_get_drvdata(x)
 
-/* --------------------------------------------------------------------------
-                               AC Adapter Management
-   -------------------------------------------------------------------------- */
-
+/* AC Adapter Management */
 static int acpi_ac_get_state(struct acpi_ac *ac)
 {
 	acpi_status status = AE_OK;
@@ -109,9 +106,7 @@ static int acpi_ac_get_state(struct acpi_ac *ac)
 	return 0;
 }
 
-/* --------------------------------------------------------------------------
-                            sysfs I/F
-   -------------------------------------------------------------------------- */
+/* sysfs I/F */
 static int get_ac_property(struct power_supply *psy,
 			   enum power_supply_property psp,
 			   union power_supply_propval *val)
@@ -138,10 +133,7 @@ static enum power_supply_property ac_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 };
 
-/* --------------------------------------------------------------------------
-                                   Driver Model
-   -------------------------------------------------------------------------- */
-
+/* Driver Model */
 static void acpi_ac_notify(struct acpi_device *device, u32 event)
 {
 	struct acpi_ac *ac = acpi_driver_data(device);
@@ -174,8 +166,6 @@ static void acpi_ac_notify(struct acpi_device *device, u32 event)
 		acpi_notifier_call_chain(device, event, (u32) ac->state);
 		kobject_uevent(&ac->charger->dev.kobj, KOBJ_CHANGE);
 	}
-
-	return;
 }
 
 static int acpi_ac_battery_notify(struct notifier_block *nb,
@@ -187,7 +177,7 @@ static int acpi_ac_battery_notify(struct notifier_block *nb,
 	/*
 	 * On HP Pavilion dv6-6179er AC status notifications aren't triggered
 	 * when adapter is plugged/unplugged. However, battery status
-	 * notifcations are triggered when battery starts charging or
+	 * notifications are triggered when battery starts charging or
 	 * discharging. Re-reading AC status triggers lost AC notifications,
 	 * if AC status has changed.
 	 */
@@ -282,9 +272,8 @@ static int acpi_ac_add(struct acpi_device *device)
 	ac->battery_nb.notifier_call = acpi_ac_battery_notify;
 	register_acpi_notifier(&ac->battery_nb);
 end:
-	if (result) {
+	if (result)
 		kfree(ac);
-	}
 
 	return result;
 }
@@ -293,7 +282,7 @@ end:
 static int acpi_ac_resume(struct device *dev)
 {
 	struct acpi_ac *ac;
-	unsigned old_state;
+	unsigned int old_state;
 
 	if (!dev)
 		return -EINVAL;
@@ -352,9 +341,8 @@ static int __init acpi_ac_init(void)
 	}
 
 	result = acpi_bus_register_driver(&acpi_ac_driver);
-	if (result < 0) {
+	if (result < 0)
 		return -ENODEV;
-	}
 
 	return 0;
 }

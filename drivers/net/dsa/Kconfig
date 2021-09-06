@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "Distributed Switch Architecture drivers"
-	depends on HAVE_NET_DSA
+	depends on NET_DSA
 
 source "drivers/net/dsa/b53/Kconfig"
 
 config NET_DSA_BCM_SF2
 	tristate "Broadcom Starfighter 2 Ethernet switch support"
-	depends on HAS_IOMEM && NET_DSA
+	depends on HAS_IOMEM
 	select NET_DSA_TAG_BRCM
 	select FIXED_PHY
 	select BCM7XXX_PHY
@@ -18,7 +18,6 @@ config NET_DSA_BCM_SF2
 
 config NET_DSA_LOOP
 	tristate "DSA mock-up Ethernet switch chip support"
-	depends on NET_DSA
 	select FIXED_PHY
 	help
 	  This enables support for a fake mock-up switch chip which
@@ -28,7 +27,7 @@ source "drivers/net/dsa/hirschmann/Kconfig"
 
 config NET_DSA_LANTIQ_GSWIP
 	tristate "Lantiq / Intel GSWIP"
-	depends on HAS_IOMEM && NET_DSA
+	depends on HAS_IOMEM
 	select NET_DSA_TAG_GSWIP
 	help
 	  This enables support for the Lantiq / Intel GSWIP 2.1 found in
@@ -36,7 +35,6 @@ config NET_DSA_LANTIQ_GSWIP
 
 config NET_DSA_MT7530
 	tristate "MediaTek MT753x and MT7621 Ethernet switch support"
-	depends on NET_DSA
 	select NET_DSA_TAG_MTK
 	help
 	  This enables support for the MediaTek MT7530, MT7531, and MT7621
@@ -44,7 +42,6 @@ config NET_DSA_MT7530
 
 config NET_DSA_MV88E6060
 	tristate "Marvell 88E6060 ethernet switch chip support"
-	depends on NET_DSA
 	select NET_DSA_TAG_TRAILER
 	help
 	  This enables support for the Marvell 88E6060 ethernet switch
@@ -64,7 +61,6 @@ source "drivers/net/dsa/xrs700x/Kconfig"
 
 config NET_DSA_QCA8K
 	tristate "Qualcomm Atheros QCA8K Ethernet switch family support"
-	depends on NET_DSA
 	select NET_DSA_TAG_QCA
 	select REGMAP
 	help
@@ -73,7 +69,6 @@ config NET_DSA_QCA8K
 
 config NET_DSA_REALTEK_SMI
 	tristate "Realtek SMI Ethernet switch family support"
-	depends on NET_DSA
 	select NET_DSA_TAG_RTL4_A
 	select FIXED_PHY
 	select IRQ_DOMAIN
@@ -93,7 +88,7 @@ config NET_DSA_SMSC_LAN9303
 
 config NET_DSA_SMSC_LAN9303_I2C
 	tristate "SMSC/Microchip LAN9303 3-ports 10/100 ethernet switch in I2C managed mode"
-	depends on NET_DSA && I2C
+	depends on I2C
 	select NET_DSA_SMSC_LAN9303
 	select REGMAP_I2C
 	help
@@ -102,7 +97,6 @@ config NET_DSA_SMSC_LAN9303_I2C
 
 config NET_DSA_SMSC_LAN9303_MDIO
 	tristate "SMSC/Microchip LAN9303 3-ports 10/100 ethernet switch in MDIO managed mode"
-	depends on NET_DSA
 	select NET_DSA_SMSC_LAN9303
 	help
 	  Enable access functions if the SMSC/Microchip LAN9303 is configured
@@ -110,7 +104,6 @@ config NET_DSA_SMSC_LAN9303_MDIO
 
 config NET_DSA_VITESSE_VSC73XX
 	tristate
-	depends on NET_DSA
 	select FIXED_PHY
 	select VITESSE_PHY
 	select GPIOLIB
@@ -120,7 +113,6 @@ config NET_DSA_VITESSE_VSC73XX
 
 config NET_DSA_VITESSE_VSC73XX_SPI
 	tristate "Vitesse VSC7385/7388/7395/7398 SPI mode support"
-	depends on NET_DSA
 	depends on SPI
 	select NET_DSA_VITESSE_VSC73XX
 	help
@@ -129,7 +121,6 @@ config NET_DSA_VITESSE_VSC73XX_SPI
 
 config NET_DSA_VITESSE_VSC73XX_PLATFORM
 	tristate "Vitesse VSC7385/7388/7395/7398 Platform mode support"
-	depends on NET_DSA
 	depends on HAS_IOMEM
 	select NET_DSA_VITESSE_VSC73XX
 	help

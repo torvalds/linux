@@ -58,10 +58,26 @@ config SPI_MEM
 comment "SPI Master Controller Drivers"
 
 config SPI_ALTERA
-	tristate "Altera SPI Controller"
+	tristate "Altera SPI Controller platform driver"
+	select SPI_ALTERA_CORE
 	select REGMAP_MMIO
 	help
 	  This is the driver for the Altera SPI Controller.
+
+config SPI_ALTERA_CORE
+	tristate "Altera SPI Controller core code" if COMPILE_TEST
+	select REGMAP
+	help
+	  "The core code for the Altera SPI Controller"
+
+config SPI_ALTERA_DFL
+	tristate "DFL bus driver for Altera SPI Controller"
+	depends on FPGA_DFL
+	select SPI_ALTERA_CORE
+	help
+	  This is a Device Feature List (DFL) bus driver for the
+	  Altera SPI master controller.  The SPI master is connected
+	  to a SPI slave to Avalon bridge in a Intel MAX BMC.
 
 config SPI_AR934X
 	tristate "Qualcomm Atheros AR934X/QCA95XX SPI controller driver"
@@ -331,6 +347,16 @@ config SPI_FSL_QUADSPI
 	  chipselects each.
 	  This controller does not support generic SPI messages. It only
 	  supports the high-level SPI memory interface.
+
+config SPI_HISI_KUNPENG
+	tristate "HiSilicon SPI Controller for Kunpeng SoCs"
+	depends on (ARM64 && ACPI) || COMPILE_TEST
+	help
+	  This enables support for HiSilicon SPI controller found on
+	  Kunpeng SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called hisi-kunpeng-spi.
 
 config SPI_HISI_SFC_V3XX
 	tristate "HiSilicon SPI NOR Flash Controller for Hi16XX chipsets"

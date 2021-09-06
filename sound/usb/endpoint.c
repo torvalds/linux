@@ -1375,7 +1375,8 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 	if (!ep_state_update(ep, EP_STATE_STOPPED, EP_STATE_RUNNING))
 		goto __error;
 
-	if (snd_usb_endpoint_implicit_feedback_sink(ep)) {
+	if (snd_usb_endpoint_implicit_feedback_sink(ep) &&
+	    !ep->chip->playback_first) {
 		for (i = 0; i < ep->nurbs; i++) {
 			struct snd_urb_ctx *ctx = ep->urb + i;
 			list_add_tail(&ctx->ready_list, &ep->ready_playback_urbs);
@@ -1442,11 +1443,11 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
 	if (snd_BUG_ON(!atomic_read(&ep->running)))
 		return;
 
-	if (ep->sync_source)
-		WRITE_ONCE(ep->sync_source->sync_sink, NULL);
-
-	if (!atomic_dec_return(&ep->running))
+	if (!atomic_dec_return(&ep->running)) {
+		if (ep->sync_source)
+			WRITE_ONCE(ep->sync_source->sync_sink, NULL);
 		stop_urbs(ep, false);
+	}
 }
 
 /**

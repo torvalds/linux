@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
- *
+/*
  * ocfs2_ioctl.h
  *
  * Defines OCFS2 ioctls.
@@ -11,14 +9,6 @@
 
 #ifndef OCFS2_IOCTL_H
 #define OCFS2_IOCTL_H
-
-/*
- * ioctl commands
- */
-#define OCFS2_IOC_GETFLAGS	FS_IOC_GETFLAGS
-#define OCFS2_IOC_SETFLAGS	FS_IOC_SETFLAGS
-#define OCFS2_IOC32_GETFLAGS	FS_IOC32_GETFLAGS
-#define OCFS2_IOC32_SETFLAGS	FS_IOC32_SETFLAGS
 
 /*
  * Space reservation / allocation / free ioctls and argument structure

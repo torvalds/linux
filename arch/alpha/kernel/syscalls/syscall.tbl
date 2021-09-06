@@ -482,3 +482,7 @@
 550	common	process_madvise			sys_process_madvise
 551	common	epoll_pwait2			sys_epoll_pwait2
 552	common	mount_setattr			sys_mount_setattr
+# 553 reserved for quotactl_path
+554	common	landlock_create_ruleset		sys_landlock_create_ruleset
+555	common	landlock_add_rule		sys_landlock_add_rule
+556	common	landlock_restrict_self		sys_landlock_restrict_self

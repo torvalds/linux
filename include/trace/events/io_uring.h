@@ -49,7 +49,7 @@ TRACE_EVENT(io_uring_create,
 );
 
 /**
- * io_uring_register - called after a buffer/file/eventfd was succesfully
+ * io_uring_register - called after a buffer/file/eventfd was successfully
  * 					   registered for a ring
  *
  * @ctx:			pointer to a ring context structure
@@ -290,29 +290,32 @@ TRACE_EVENT(io_uring_fail_link,
  * @ctx:		pointer to a ring context structure
  * @user_data:		user data associated with the request
  * @res:		result of the request
+ * @cflags:		completion flags
  *
  */
 TRACE_EVENT(io_uring_complete,
 
-	TP_PROTO(void *ctx, u64 user_data, long res),
+	TP_PROTO(void *ctx, u64 user_data, long res, unsigned cflags),
 
-	TP_ARGS(ctx, user_data, res),
+	TP_ARGS(ctx, user_data, res, cflags),
 
 	TP_STRUCT__entry (
 		__field(  void *,	ctx		)
 		__field(  u64,		user_data	)
 		__field(  long,		res		)
+		__field(  unsigned,	cflags		)
 	),
 
 	TP_fast_assign(
 		__entry->ctx		= ctx;
 		__entry->user_data	= user_data;
 		__entry->res		= res;
+		__entry->cflags		= cflags;
 	),
 
-	TP_printk("ring %p, user_data 0x%llx, result %ld",
+	TP_printk("ring %p, user_data 0x%llx, result %ld, cflags %x",
 			  __entry->ctx, (unsigned long long)__entry->user_data,
-			  __entry->res)
+			  __entry->res, __entry->cflags)
 );
 
 

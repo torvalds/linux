@@ -466,11 +466,7 @@ static irqreturn_t sunsu_serial_interrupt(int irq, void *dev_id)
 		if (status & UART_LSR_THRE)
 			transmit_chars(up);
 
-		spin_unlock_irqrestore(&up->port.lock, flags);
-
 		tty_flip_buffer_push(&up->port.state->port);
-
-		spin_lock_irqsave(&up->port.lock, flags);
 
 	} while (!(serial_in(up, UART_IIR) & UART_IIR_NO_INT));
 

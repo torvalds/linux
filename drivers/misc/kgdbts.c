@@ -92,22 +92,24 @@
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/sched/task.h>
+#include <linux/kallsyms.h>
 
 #include <asm/sections.h>
 
-#define v1printk(a...) do { \
-	if (verbose) \
-		printk(KERN_INFO a); \
-	} while (0)
-#define v2printk(a...) do { \
-	if (verbose > 1) \
-		printk(KERN_INFO a); \
-		touch_nmi_watchdog();	\
-	} while (0)
-#define eprintk(a...) do { \
-		printk(KERN_ERR a); \
-		WARN_ON(1); \
-	} while (0)
+#define v1printk(a...) do {		\
+	if (verbose)			\
+		printk(KERN_INFO a);	\
+} while (0)
+#define v2printk(a...) do {		\
+	if (verbose > 1) {		\
+		printk(KERN_INFO a);	\
+	}				\
+	touch_nmi_watchdog();		\
+} while (0)
+#define eprintk(a...) do {		\
+	printk(KERN_ERR a);		\
+	WARN_ON(1);			\
+} while (0)
 #define MAX_CONFIG_LEN		40
 
 static struct kgdb_io kgdbts_io_ops;
@@ -200,21 +202,30 @@ static noinline void kgdbts_break_test(void)
 	v2printk("kgdbts: breakpoint complete\n");
 }
 
-/* Lookup symbol info in the kernel */
+/*
+ * This is a cached wrapper for kallsyms_lookup_name().
+ *
+ * The cache is a big win for several tests. For example it more the doubles
+ * the cycles per second during the sys_open test. This is not theoretic,
+ * the performance improvement shows up at human scale, especially when
+ * testing using emulators.
+ *
+ * Obviously neither re-entrant nor thread-safe but that is OK since it
+ * can only be called from the debug trap (and therefore all other CPUs
+ * are halted).
+ */
 static unsigned long lookup_addr(char *arg)
 {
-	unsigned long addr = 0;
+	static char cached_arg[KSYM_NAME_LEN];
+	static unsigned long cached_addr;
 
-	if (!strcmp(arg, "kgdbts_break_test"))
-		addr = (unsigned long)kgdbts_break_test;
-	else if (!strcmp(arg, "sys_open"))
-		addr = (unsigned long)do_sys_open;
-	else if (!strcmp(arg, "kernel_clone"))
-		addr = (unsigned long)kernel_clone;
-	else if (!strcmp(arg, "hw_break_val"))
-		addr = (unsigned long)&hw_break_val;
-	addr = (unsigned long) dereference_function_descriptor((void *)addr);
-	return addr;
+	if (strcmp(arg, cached_arg)) {
+		strscpy(cached_arg, arg, KSYM_NAME_LEN);
+		cached_addr = kallsyms_lookup_name(arg);
+	}
+
+	return (unsigned long)dereference_function_descriptor(
+			(void *)cached_addr);
 }
 
 static void break_helper(char *bp_type, char *arg, unsigned long vaddr)
@@ -310,7 +321,7 @@ static int check_and_rewind_pc(char *put_str, char *arg)
 
 	if (arch_needs_sstep_emulation && sstep_addr &&
 	    ip + offset == sstep_addr &&
-	    ((!strcmp(arg, "sys_open") || !strcmp(arg, "kernel_clone")))) {
+	    ((!strcmp(arg, "do_sys_openat2") || !strcmp(arg, "kernel_clone")))) {
 		/* This is special case for emulated single step */
 		v2printk("Emul: rewind hit single step bp\n");
 		restart_from_top_after_write = 1;
@@ -619,14 +630,14 @@ static struct test_struct do_kernel_clone_test[] = {
  */
 static struct test_struct sys_open_test[] = {
 	{ "?", "S0*" }, /* Clear break points */
-	{ "sys_open", "OK", sw_break, }, /* set sw breakpoint */
+	{ "do_sys_openat2", "OK", sw_break, }, /* set sw breakpoint */
 	{ "c", "T0*", NULL, get_thread_id_continue }, /* Continue */
-	{ "sys_open", "OK", sw_rem_break }, /*remove breakpoint */
-	{ "g", "sys_open", NULL, check_and_rewind_pc }, /* check location */
+	{ "do_sys_openat2", "OK", sw_rem_break }, /*remove breakpoint */
+	{ "g", "do_sys_openat2", NULL, check_and_rewind_pc }, /* check location */
 	{ "write", "OK", write_regs, emul_reset }, /* Write registers */
 	{ "s", "T0*", emul_sstep_get, emul_sstep_put }, /* Single step */
-	{ "g", "sys_open", NULL, check_single_step },
-	{ "sys_open", "OK", sw_break, }, /* set sw breakpoint */
+	{ "g", "do_sys_openat2", NULL, check_single_step },
+	{ "do_sys_openat2", "OK", sw_break, }, /* set sw breakpoint */
 	{ "7", "T0*", skip_back_repeat_test }, /* Loop based on repeat_test */
 	{ "D", "OK", NULL, final_ack_set }, /* detach and unregister I/O */
 	{ "", "", get_cont_catch, put_cont_catch },

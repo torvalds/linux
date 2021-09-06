@@ -131,13 +131,3 @@ struct vcpu_hvm_context {
 typedef struct vcpu_hvm_context vcpu_hvm_context_t;
 
 #endif /* __XEN_PUBLIC_HVM_HVM_VCPU_H__ */
-
-/*
- * Local variables:
- * mode: C
- * c-file-style: "BSD"
- * c-basic-offset: 4
- * tab-width: 4
- * indent-tabs-mode: nil
- * End:
- */

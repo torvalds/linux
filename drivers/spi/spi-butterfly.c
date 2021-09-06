@@ -317,18 +317,7 @@ static struct parport_driver butterfly_driver = {
 	.detach =	butterfly_detach,
 	.devmodel = true,
 };
-
-static int __init butterfly_init(void)
-{
-	return parport_register_driver(&butterfly_driver);
-}
-device_initcall(butterfly_init);
-
-static void __exit butterfly_exit(void)
-{
-	parport_unregister_driver(&butterfly_driver);
-}
-module_exit(butterfly_exit);
+module_parport_driver(butterfly_driver);
 
 MODULE_DESCRIPTION("Parport Adapter driver for AVR Butterfly");
 MODULE_LICENSE("GPL");

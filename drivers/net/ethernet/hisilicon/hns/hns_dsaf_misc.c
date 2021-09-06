@@ -686,7 +686,7 @@ hns_mac_config_sds_loopback_acpi(struct hns_mac_cb *mac_cb, bool en)
 	obj_args[0].integer.type = ACPI_TYPE_INTEGER;
 	obj_args[0].integer.value = mac_cb->mac_id;
 	obj_args[1].integer.type = ACPI_TYPE_INTEGER;
-	obj_args[1].integer.value = !!en;
+	obj_args[1].integer.value = en;
 
 	argv4.type = ACPI_TYPE_PACKAGE;
 	argv4.package.count = 2;

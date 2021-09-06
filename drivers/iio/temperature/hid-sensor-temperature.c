@@ -25,6 +25,10 @@ struct temperature_state {
 	int value_offset;
 };
 
+static const u32 temperature_sensitivity_addresses[] = {
+	HID_USAGE_SENSOR_DATA_ENVIRONMENTAL_TEMPERATURE,
+};
+
 /* Channel definitions */
 static const struct iio_chan_spec temperature_channels[] = {
 	{
@@ -173,14 +177,6 @@ static int temperature_parse_report(struct platform_device *pdev,
 				&st->temperature_attr,
 				&st->scale_pre_decml, &st->scale_post_decml);
 
-	/* Set Sensitivity field ids, when there is no individual modifier */
-	if (st->common_attributes.sensitivity.index < 0)
-		sensor_hub_input_get_attribute_info(hsdev,
-			HID_FEATURE_REPORT, usage_id,
-			HID_USAGE_SENSOR_DATA_MOD_CHANGE_SENSITIVITY_ABS |
-			HID_USAGE_SENSOR_DATA_ENVIRONMENTAL_TEMPERATURE,
-			&st->common_attributes.sensitivity);
-
 	return ret;
 }
 
@@ -209,7 +205,9 @@ static int hid_temperature_probe(struct platform_device *pdev)
 
 	ret = hid_sensor_parse_common_attributes(hsdev,
 					HID_USAGE_SENSOR_TEMPERATURE,
-					&temp_st->common_attributes);
+					&temp_st->common_attributes,
+					temperature_sensitivity_addresses,
+					ARRAY_SIZE(temperature_sensitivity_addresses));
 	if (ret)
 		return ret;
 

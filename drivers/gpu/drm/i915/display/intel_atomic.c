@@ -40,7 +40,7 @@
 #include "intel_global_state.h"
 #include "intel_hdcp.h"
 #include "intel_psr.h"
-#include "intel_sprite.h"
+#include "skl_universal_plane.h"
 
 /**
  * intel_digital_connector_atomic_get_property - hook for connector->atomic_get_property.
@@ -332,8 +332,7 @@ static void intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_sta
 	    plane_state->hw.fb->format->is_yuv &&
 	    plane_state->hw.fb->format->num_planes > 1) {
 		struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
-		if (IS_GEN(dev_priv, 9) &&
-		    !IS_GEMINILAKE(dev_priv)) {
+		if (IS_DISPLAY_VER(dev_priv, 9)) {
 			mode = SKL_PS_SCALER_MODE_NV12;
 		} else if (icl_is_hdr_plane(dev_priv, plane->id)) {
 			/*
@@ -351,7 +350,7 @@ static void intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_sta
 			if (linked)
 				mode |= PS_PLANE_Y_SEL(linked->id);
 		}
-	} else if (INTEL_GEN(dev_priv) > 9 || IS_GEMINILAKE(dev_priv)) {
+	} else if (DISPLAY_VER(dev_priv) >= 10) {
 		mode = PS_SCALER_MODE_NORMAL;
 	} else if (num_scalers_need == 1 && intel_crtc->num_scalers > 1) {
 		/*
@@ -460,7 +459,7 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 				 * isn't necessary to change between HQ and dyn mode
 				 * on those platforms.
 				 */
-				if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+				if (DISPLAY_VER(dev_priv) >= 10)
 					continue;
 
 				plane = drm_plane_from_index(&dev_priv->drm, i);

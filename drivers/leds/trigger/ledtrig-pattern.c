@@ -333,7 +333,7 @@ static DEVICE_ATTR_RW(hw_pattern);
 static umode_t pattern_trig_attrs_mode(struct kobject *kobj,
 				       struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 
 	if (attr == &dev_attr_repeat.attr || attr == &dev_attr_pattern.attr)

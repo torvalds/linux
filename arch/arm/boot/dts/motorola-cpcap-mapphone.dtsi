@@ -27,16 +27,14 @@
 
 		cpcap_battery: battery {
 			compatible = "motorola,cpcap-battery";
-			interrupts-extended = <
-				&cpcap 6 0 &cpcap 5 0 &cpcap 3 0
-				&cpcap 20 0 &cpcap 54 0 &cpcap 57 0
-			>;
+			interrupts-extended =
+				<&cpcap 6 0>, <&cpcap 5 0>, <&cpcap 3 0>,
+				<&cpcap 20 0>, <&cpcap 54 0>, <&cpcap 57 0>;
 			interrupt-names =
 				"eol", "lowbph", "lowbpl",
-				"chrgcurr1", "battdetb",
-				"cccal";
-			io-channels = <&cpcap_adc 0 &cpcap_adc 1
-				       &cpcap_adc 5 &cpcap_adc 6>;
+				"chrgcurr1", "battdetb", "cccal";
+			io-channels = <&cpcap_adc 0>, <&cpcap_adc 1>,
+				      <&cpcap_adc 5>, <&cpcap_adc 6>;
 			io-channel-names = "battdetb", "battp",
 					   "chg_isense", "batti";
 			power-supplies = <&cpcap_charger>;
@@ -44,20 +42,19 @@
 
 		cpcap_charger: charger {
 			compatible = "motorola,mapphone-cpcap-charger";
-			interrupts-extended = <
-				&cpcap 13 0 &cpcap 12 0 &cpcap 29 0 &cpcap 28 0
-				&cpcap 22 0 &cpcap 21 0 &cpcap 20 0 &cpcap 19 0
-				&cpcap 54 0
-			>;
+			interrupts-extended =
+				<&cpcap 13 0>, <&cpcap 12 0>, <&cpcap 29 0>,
+				<&cpcap 28 0>, <&cpcap 22 0>, <&cpcap 21 0>,
+				<&cpcap 20 0>, <&cpcap 19 0>, <&cpcap 54 0>;
 			interrupt-names =
-				"chrg_det", "rvrs_chrg", "chrg_se1b", "se0conn",
-				"rvrs_mode", "chrgcurr2", "chrgcurr1", "vbusvld",
-				"battdetb";
-			mode-gpios = <&gpio3 29 GPIO_ACTIVE_LOW
-				      &gpio3 23 GPIO_ACTIVE_LOW>;
-			io-channels = <&cpcap_adc 0 &cpcap_adc 1
-				       &cpcap_adc 2 &cpcap_adc 5
-				       &cpcap_adc 6>;
+				"chrg_det", "rvrs_chrg", "chrg_se1b",
+				"se0conn", "rvrs_mode", "chrgcurr2",
+				"chrgcurr1", "vbusvld", "battdetb";
+			mode-gpios = <&gpio3 29 GPIO_ACTIVE_LOW>,
+				     <&gpio3 23 GPIO_ACTIVE_LOW>;
+			io-channels = <&cpcap_adc 0>, <&cpcap_adc 1>,
+				      <&cpcap_adc 2>, <&cpcap_adc 5>,
+				      <&cpcap_adc 6>;
 			io-channel-names = "battdetb", "battp",
 					   "vbus", "chg_isense",
 					   "batti";
@@ -98,22 +95,22 @@
 
 		cpcap_usb2_phy: phy {
 			compatible = "motorola,mapphone-cpcap-usb-phy";
-			pinctrl-0 = <&usb_gpio_mux_sel1 &usb_gpio_mux_sel2>;
+			pinctrl-0 = <&usb_gpio_mux_sel1>, <&usb_gpio_mux_sel2>;
 			pinctrl-1 = <&usb_ulpi_pins>;
 			pinctrl-2 = <&usb_utmi_pins>;
 			pinctrl-3 = <&uart3_pins>;
 			pinctrl-names = "default", "ulpi", "utmi", "uart";
 			#phy-cells = <0>;
-			interrupts-extended = <
-				&cpcap 15 0 &cpcap 14 0 &cpcap 28 0 &cpcap 19 0
-				&cpcap 18 0 &cpcap 17 0 &cpcap 16 0 &cpcap 49 0
-				&cpcap 48 0
-			>;
+			interrupts-extended =
+				<&cpcap 15 0>, <&cpcap 14 0>, <&cpcap 28 0>,
+				<&cpcap 19 0>, <&cpcap 18 0>, <&cpcap 17 0>,
+				<&cpcap 16 0>, <&cpcap 49 0>, <&cpcap 48 0>;
 			interrupt-names =
-				"id_ground", "id_float", "se0conn", "vbusvld",
-				"sessvld", "sessend", "se1", "dm", "dp";
-			mode-gpios = <&gpio2 28 GPIO_ACTIVE_HIGH
-				      &gpio1 0 GPIO_ACTIVE_HIGH>;
+				"id_ground", "id_float", "se0conn",
+				"vbusvld", "sessvld", "sessend",
+				"se1", "dm", "dp";
+			mode-gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>,
+				     <&gpio1 0 GPIO_ACTIVE_HIGH>;
 			io-channels = <&cpcap_adc 2>, <&cpcap_adc 7>;
 			io-channel-names = "vbus", "id";
 			vusb-supply = <&vusb>;

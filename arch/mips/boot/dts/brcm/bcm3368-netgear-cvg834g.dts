@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
-/include/ "bcm3368.dtsi"
+#include "bcm3368.dtsi"
 
 / {
 	compatible = "netgear,cvg834g", "brcm,bcm3368";

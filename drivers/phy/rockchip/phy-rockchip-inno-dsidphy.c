@@ -11,16 +11,16 @@
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset.h>
+#include <linux/time64.h>
+
 #include <linux/phy/phy.h>
 #include <linux/phy/phy-mipi-dphy.h>
-#include <linux/pm_runtime.h>
-#include <linux/mfd/syscon.h>
-
-#define PSEC_PER_SEC	1000000000000LL
 
 #define UPDATE(x, h, l)	(((x) << (l)) & GENMASK((h), (l)))
 

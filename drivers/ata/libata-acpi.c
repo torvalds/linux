@@ -476,7 +476,7 @@ static int ata_dev_get_GTF(struct ata_device *dev, struct ata_acpi_gtf **gtf)
 }
 
 /**
- * ata_acpi_gtm_xfermode - determine xfermode from GTM parameter
+ * ata_acpi_gtm_xfermask - determine xfermode from GTM parameter
  * @dev: target device
  * @gtm: GTM parameter to use
  *
@@ -624,6 +624,7 @@ static int ata_acpi_filter_tf(struct ata_device *dev,
  * ata_acpi_run_tf - send taskfile registers to host controller
  * @dev: target ATA device
  * @gtf: raw ATA taskfile register set (0x1f1 - 0x1f7)
+ * @prev_gtf: previous command
  *
  * Outputs ATA taskfile to standard ATA host controller.
  * Writes the control, feature, nsect, lbal, lbam, and lbah registers.

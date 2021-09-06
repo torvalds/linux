@@ -91,7 +91,7 @@ static enum ib_rate tavor_rate_to_ib(u8 mthca_rate, u8 port_rate)
 	}
 }
 
-enum ib_rate mthca_rate_to_ib(struct mthca_dev *dev, u8 mthca_rate, u8 port)
+enum ib_rate mthca_rate_to_ib(struct mthca_dev *dev, u8 mthca_rate, u32 port)
 {
 	if (mthca_is_memfree(dev)) {
 		/* Handle old Arbel FW */
@@ -131,7 +131,7 @@ static u8 ib_rate_to_tavor(u8 static_rate)
 	}
 }
 
-u8 mthca_get_rate(struct mthca_dev *dev, int static_rate, u8 port)
+u8 mthca_get_rate(struct mthca_dev *dev, int static_rate, u32 port)
 {
 	u8 rate;
 
@@ -293,7 +293,7 @@ int mthca_ah_query(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 {
 	struct mthca_ah *ah   = to_mah(ibah);
 	struct mthca_dev *dev = to_mdev(ibah->device);
-	u8 port_num = be32_to_cpu(ah->av->port_pd) >> 24;
+	u32 port_num = be32_to_cpu(ah->av->port_pd) >> 24;
 
 	/* Only implement for MAD and memfree ah for now. */
 	if (ah->type == MTHCA_AH_ON_HCA)

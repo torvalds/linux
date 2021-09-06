@@ -49,9 +49,7 @@ static inline int codec_hevc_use_mmu(u32 revision, u32 pixfmt, int is_10bit)
 	       codec_hevc_use_fbc(pixfmt, is_10bit);
 }
 
-/**
- * Configure decode head read mode
- */
+/* Configure decode head read mode */
 void codec_hevc_setup_decode_head(struct amvdec_session *sess, int is_10bit);
 
 void codec_hevc_free_fbc_buffers(struct amvdec_session *sess,

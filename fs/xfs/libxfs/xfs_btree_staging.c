@@ -387,7 +387,6 @@ xfs_btree_bload_prep_block(
 		new_size = bbl->iroot_size(cur, nr_this_block, priv);
 		ifp->if_broot = kmem_zalloc(new_size, 0);
 		ifp->if_broot_bytes = (int)new_size;
-		ifp->if_flags |= XFS_IFBROOT;
 
 		/* Initialize it and send it out. */
 		xfs_btree_init_block_int(cur->bc_mp, ifp->if_broot,

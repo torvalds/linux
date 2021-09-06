@@ -38,9 +38,11 @@ pointer to a struct :c:type:`v4l2_capability` which is
 filled by the driver. When the driver is not compatible with this
 specification the ioctl returns an ``EINVAL`` error code.
 
-.. tabularcolumns:: |p{1.5cm}|p{2.5cm}|p{13cm}|
-
 .. c:type:: v4l2_capability
+
+.. tabularcolumns:: |p{1.4cm}|p{2.8cm}|p{13.1cm}|
+
+.. cssclass:: longtable
 
 .. flat-table:: struct v4l2_capability
     :header-rows:  0
@@ -130,7 +132,7 @@ specification the ioctl returns an ``EINVAL`` error code.
 	zero.
 
 
-.. tabularcolumns:: |p{6.1cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{7.0cm}|p{2.6cm}|p{7.7cm}|
 
 .. _device-capabilities:
 

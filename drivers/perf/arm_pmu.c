@@ -581,33 +581,6 @@ static const struct attribute_group armpmu_common_attr_group = {
 	.attrs = armpmu_common_attrs,
 };
 
-/* Set at runtime when we know what CPU type we are. */
-static struct arm_pmu *__oprofile_cpu_pmu;
-
-/*
- * Despite the names, these two functions are CPU-specific and are used
- * by the OProfile/perf code.
- */
-const char *perf_pmu_name(void)
-{
-	if (!__oprofile_cpu_pmu)
-		return NULL;
-
-	return __oprofile_cpu_pmu->name;
-}
-EXPORT_SYMBOL_GPL(perf_pmu_name);
-
-int perf_num_counters(void)
-{
-	int max_events = 0;
-
-	if (__oprofile_cpu_pmu != NULL)
-		max_events = __oprofile_cpu_pmu->num_events;
-
-	return max_events;
-}
-EXPORT_SYMBOL_GPL(perf_num_counters);
-
 static int armpmu_count_irq_users(const int irq)
 {
 	int cpu, count = 0;
@@ -978,9 +951,6 @@ int armpmu_register(struct arm_pmu *pmu)
 	ret = perf_pmu_register(&pmu->pmu, pmu->name, -1);
 	if (ret)
 		goto out_destroy;
-
-	if (!__oprofile_cpu_pmu)
-		__oprofile_cpu_pmu = pmu;
 
 	pr_info("enabled with %s PMU driver, %d counters available%s\n",
 		pmu->name, pmu->num_events,

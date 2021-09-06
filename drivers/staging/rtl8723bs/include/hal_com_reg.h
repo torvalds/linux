@@ -707,14 +707,6 @@ Default: 00b.
 
 
 /*  ALL CCK Rate */
-#define	RATE_ALL_CCK				RATR_1M | RATR_2M | RATR_55M | RATR_11M
-#define	RATE_ALL_OFDM_AG			RATR_6M | RATR_9M | RATR_12M | RATR_18M | RATR_24M |\
-						RATR_36M | RATR_48M | RATR_54M
-#define	RATE_ALL_OFDM_1SS			RATR_MCS0 | RATR_MCS1 | RATR_MCS2 | RATR_MCS3 |\
-						RATR_MCS4 | RATR_MCS5 | RATR_MCS6 | RATR_MCS7
-#define	RATE_ALL_OFDM_2SS			RATR_MCS8 | RATR_MCS9 | RATR_MCS10 | RATR_MCS11 |\
-						RATR_MCS12 | RATR_MCS13 | RATR_MCS14 | RATR_MCS15
-
 #define RATE_BITMAP_ALL			0xFFFFF
 
 /*  Only use CCK 1M rate for ACK */
@@ -776,14 +768,14 @@ Default: 00b.
 #define IMR_BCNDMAINT3			BIT28		/*  Beacon DMA Interrupt 3 */
 #define IMR_BCNDMAINT2			BIT27		/*  Beacon DMA Interrupt 2 */
 #define IMR_BCNDMAINT1			BIT26		/*  Beacon DMA Interrupt 1 */
-#define IMR_BCNDOK8				BIT25		/*  Beacon Queue DMA OK Interrup 8 */
-#define IMR_BCNDOK7				BIT24		/*  Beacon Queue DMA OK Interrup 7 */
-#define IMR_BCNDOK6				BIT23		/*  Beacon Queue DMA OK Interrup 6 */
-#define IMR_BCNDOK5				BIT22		/*  Beacon Queue DMA OK Interrup 5 */
-#define IMR_BCNDOK4				BIT21		/*  Beacon Queue DMA OK Interrup 4 */
-#define IMR_BCNDOK3				BIT20		/*  Beacon Queue DMA OK Interrup 3 */
-#define IMR_BCNDOK2				BIT19		/*  Beacon Queue DMA OK Interrup 2 */
-#define IMR_BCNDOK1				BIT18		/*  Beacon Queue DMA OK Interrup 1 */
+#define IMR_BCNDOK8				BIT25		/*  Beacon Queue DMA OK Interrupt 8 */
+#define IMR_BCNDOK7				BIT24		/*  Beacon Queue DMA OK Interrupt 7 */
+#define IMR_BCNDOK6				BIT23		/*  Beacon Queue DMA OK Interrupt 6 */
+#define IMR_BCNDOK5				BIT22		/*  Beacon Queue DMA OK Interrupt 5 */
+#define IMR_BCNDOK4				BIT21		/*  Beacon Queue DMA OK Interrupt 4 */
+#define IMR_BCNDOK3				BIT20		/*  Beacon Queue DMA OK Interrupt 3 */
+#define IMR_BCNDOK2				BIT19		/*  Beacon Queue DMA OK Interrupt 2 */
+#define IMR_BCNDOK1				BIT18		/*  Beacon Queue DMA OK Interrupt 1 */
 #define IMR_TIMEOUT2			BIT17		/*  Timeout interrupt 2 */
 #define IMR_TIMEOUT1			BIT16		/*  Timeout interrupt 1 */
 #define IMR_TXFOVW				BIT15		/*  Transmit FIFO Overflow */
@@ -792,9 +784,9 @@ Default: 00b.
 #define IMR_RXFOVW				BIT12		/*  Receive FIFO Overflow */
 #define IMR_RDU					BIT11		/*  Receive Descriptor Unavailable */
 #define IMR_ATIMEND				BIT10		/*  For 92C, ATIM Window End Interrupt. For 8723 and later ICs, it also means P2P CTWin End interrupt. */
-#define IMR_BDOK				BIT9		/*  Beacon Queue DMA OK Interrup */
+#define IMR_BDOK				BIT9		/*  Beacon Queue DMA OK Interrupt */
 #define IMR_HIGHDOK				BIT8		/*  High Queue DMA OK Interrupt */
-#define IMR_TBDOK				BIT7		/*  Transmit Beacon OK interrup */
+#define IMR_TBDOK				BIT7		/*  Transmit Beacon OK interrupt */
 #define IMR_MGNTDOK			BIT6		/*  Management Queue DMA OK Interrupt */
 #define IMR_TBDER				BIT5		/*  For 92C, Transmit Beacon Error Interrupt */
 #define IMR_BKDOK				BIT4		/*  AC_BK DMA OK Interrupt */
@@ -964,13 +956,13 @@ Default: 00b.
 #define IMR_BCNDMAINT3_88E		BIT23		/*  Beacon DMA Interrupt 3 */
 #define IMR_BCNDMAINT2_88E		BIT22		/*  Beacon DMA Interrupt 2 */
 #define IMR_BCNDMAINT1_88E		BIT21		/*  Beacon DMA Interrupt 1 */
-#define IMR_BCNDOK7_88E			BIT20		/*  Beacon Queue DMA OK Interrup 7 */
-#define IMR_BCNDOK6_88E			BIT19		/*  Beacon Queue DMA OK Interrup 6 */
-#define IMR_BCNDOK5_88E			BIT18		/*  Beacon Queue DMA OK Interrup 5 */
-#define IMR_BCNDOK4_88E			BIT17		/*  Beacon Queue DMA OK Interrup 4 */
-#define IMR_BCNDOK3_88E			BIT16		/*  Beacon Queue DMA OK Interrup 3 */
-#define IMR_BCNDOK2_88E			BIT15		/*  Beacon Queue DMA OK Interrup 2 */
-#define IMR_BCNDOK1_88E			BIT14		/*  Beacon Queue DMA OK Interrup 1 */
+#define IMR_BCNDOK7_88E			BIT20		/*  Beacon Queue DMA OK Interrupt 7 */
+#define IMR_BCNDOK6_88E			BIT19		/*  Beacon Queue DMA OK Interrupt 6 */
+#define IMR_BCNDOK5_88E			BIT18		/*  Beacon Queue DMA OK Interrupt 5 */
+#define IMR_BCNDOK4_88E			BIT17		/*  Beacon Queue DMA OK Interrupt 4 */
+#define IMR_BCNDOK3_88E			BIT16		/*  Beacon Queue DMA OK Interrupt 3 */
+#define IMR_BCNDOK2_88E			BIT15		/*  Beacon Queue DMA OK Interrupt 2 */
+#define IMR_BCNDOK1_88E			BIT14		/*  Beacon Queue DMA OK Interrupt 1 */
 #define IMR_ATIMEND_E_88E			BIT13		/*  ATIM Window End Extension for Win7 */
 #define IMR_TXERR_88E				BIT11		/*  Tx Error Flag Interrupt Status, write 1 clear. */
 #define IMR_RXERR_88E				BIT10		/*  Rx Error Flag INT Status, Write 1 clear */
@@ -1002,9 +994,9 @@ Current IOREG MAP
 	/* 		 8192C (TXPAUSE) transmission pause	(Offset 0x522, 8 bits) */
 	/*  */
 /*  Note: */
-/* 	The the bits of stoping AC(VO/VI/BE/BK) queue in datasheet RTL8192S/RTL8192C are wrong, */
-/* 	the correct arragement is VO - Bit0, VI - Bit1, BE - Bit2, and BK - Bit3. */
-/* 	8723 and 88E may be not correct either in the eralier version. Confirmed with DD Tim. */
+/* 	The  bits of stopping AC(VO/VI/BE/BK) queue in datasheet RTL8192S/RTL8192C are wrong, */
+/* 	the correct arrangement is VO - Bit0, VI - Bit1, BE - Bit2, and BK - Bit3. */
+/* 	8723 and 88E may be not correct either in the earlier version. Confirmed with DD Tim. */
 /*  By Bruce, 2011-09-22. */
 #define StopBecon		BIT6
 #define StopHigh			BIT5

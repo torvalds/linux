@@ -20,7 +20,7 @@ mlx5_ib_set_vport_rep(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	rep->rep_data[REP_IB].priv = ibdev;
 	write_lock(&ibdev->port[vport_index].roce.netdev_lock);
 	ibdev->port[vport_index].roce.netdev =
-		mlx5_ib_get_rep_netdev(dev->priv.eswitch, rep->vport);
+		mlx5_ib_get_rep_netdev(rep->esw, rep->vport);
 	write_unlock(&ibdev->port[vport_index].roce.netdev_lock);
 
 	return 0;
@@ -29,7 +29,7 @@ mlx5_ib_set_vport_rep(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 static int
 mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 {
-	int num_ports = mlx5_eswitch_get_total_vports(dev);
+	u32 num_ports = mlx5_eswitch_get_total_vports(dev);
 	const struct mlx5_ib_profile *profile;
 	struct mlx5_ib_dev *ibdev;
 	int vport_index;
@@ -110,7 +110,7 @@ struct net_device *mlx5_ib_get_rep_netdev(struct mlx5_eswitch *esw,
 
 struct mlx5_flow_handle *create_flow_rule_vport_sq(struct mlx5_ib_dev *dev,
 						   struct mlx5_ib_sq *sq,
-						   u16 port)
+						   u32 port)
 {
 	struct mlx5_eswitch *esw = dev->mdev->priv.eswitch;
 	struct mlx5_eswitch_rep *rep;
@@ -123,8 +123,7 @@ struct mlx5_flow_handle *create_flow_rule_vport_sq(struct mlx5_ib_dev *dev,
 
 	rep = dev->port[port - 1].rep;
 
-	return mlx5_eswitch_add_send_to_vport_rule(esw, rep->vport,
-						   sq->base.mqp.qpn);
+	return mlx5_eswitch_add_send_to_vport_rule(esw, rep, sq->base.mqp.qpn);
 }
 
 static int mlx5r_rep_probe(struct auxiliary_device *adev,

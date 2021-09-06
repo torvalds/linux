@@ -124,12 +124,31 @@ static const struct software_node usb_connector_node = {
 	.properties = usb_connector_properties,
 };
 
+static const struct software_node altmodes_node = {
+	.name = "altmodes",
+	.parent = &usb_connector_node,
+};
+
+static const struct property_entry dp_altmode_properties[] = {
+	PROPERTY_ENTRY_U32("svid", 0xff01),
+	PROPERTY_ENTRY_U32("vdo", 0x0c0086),
+	{ }
+};
+
+static const struct software_node dp_altmode_node = {
+	.name = "displayport-altmode",
+	.parent = &altmodes_node,
+	.properties = dp_altmode_properties,
+};
+
 static const struct software_node *node_group[] = {
 	&fusb302_node,
 	&max17047_node,
 	&pi3usb30532_node,
 	&displayport_node,
 	&usb_connector_node,
+	&altmodes_node,
+	&dp_altmode_node,
 	NULL
 };
 

@@ -953,7 +953,8 @@ static void dispatch_bio_list(struct bio_list *tmp)
 		submit_bio_noacct(bio);
 }
 
-static int cmp_stripe(void *priv, struct list_head *a, struct list_head *b)
+static int cmp_stripe(void *priv, const struct list_head *a,
+		      const struct list_head *b)
 {
 	const struct r5pending_data *da = list_entry(a,
 				struct r5pending_data, sibling);
@@ -5309,8 +5310,6 @@ static int in_chunk_boundary(struct mddev *mddev, struct bio *bio)
 	sector_t sector = bio->bi_iter.bi_sector;
 	unsigned int chunk_sectors;
 	unsigned int bio_sectors = bio_sectors(bio);
-
-	WARN_ON_ONCE(bio->bi_bdev->bd_partno);
 
 	chunk_sectors = min(conf->chunk_sectors, conf->prev_chunk_sectors);
 	return  chunk_sectors >=

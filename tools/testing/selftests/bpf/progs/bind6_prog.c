@@ -63,6 +63,27 @@ static __inline int bind_to_device(struct bpf_sock_addr *ctx)
 	return 0;
 }
 
+static __inline int bind_reuseport(struct bpf_sock_addr *ctx)
+{
+	int val = 1;
+
+	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_REUSEPORT,
+			   &val, sizeof(val)))
+		return 1;
+	if (bpf_getsockopt(ctx, SOL_SOCKET, SO_REUSEPORT,
+			   &val, sizeof(val)) || !val)
+		return 1;
+	val = 0;
+	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_REUSEPORT,
+			   &val, sizeof(val)))
+		return 1;
+	if (bpf_getsockopt(ctx, SOL_SOCKET, SO_REUSEPORT,
+			   &val, sizeof(val)) || val)
+		return 1;
+
+	return 0;
+}
+
 static __inline int misc_opts(struct bpf_sock_addr *ctx, int opt)
 {
 	int old, tmp, new = 0xeb9f;
@@ -139,6 +160,10 @@ int bind_v6_prog(struct bpf_sock_addr *ctx)
 
 	/* Test for misc socket options. */
 	if (misc_opts(ctx, SO_MARK) || misc_opts(ctx, SO_PRIORITY))
+		return 0;
+
+	/* Set reuseport and unset */
+	if (bind_reuseport(ctx))
 		return 0;
 
 	ctx->user_ip6[0] = bpf_htonl(SERV6_REWRITE_IP_0);

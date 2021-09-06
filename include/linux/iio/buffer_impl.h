@@ -6,6 +6,8 @@
 
 #ifdef CONFIG_IIO_BUFFER
 
+#include <uapi/linux/iio/buffer.h>
+
 struct iio_dev;
 struct iio_buffer;
 
@@ -72,6 +74,9 @@ struct iio_buffer {
 	/** @length: Number of datums in buffer. */
 	unsigned int length;
 
+	/** @flags: File ops flags including busy flag. */
+	unsigned long flags;
+
 	/**  @bytes_per_datum: Size of individual datum including timestamp. */
 	size_t bytes_per_datum;
 
@@ -97,23 +102,23 @@ struct iio_buffer {
 	/* @scan_timestamp: Does the scan mode include a timestamp. */
 	bool scan_timestamp;
 
-	/* @scan_el_dev_attr_list: List of scan element related attributes. */
-	struct list_head scan_el_dev_attr_list;
-
-	/* @buffer_group: Attributes of the buffer group. */
-	struct attribute_group buffer_group;
+	/* @buffer_attr_list: List of buffer attributes. */
+	struct list_head buffer_attr_list;
 
 	/*
-	 * @scan_el_group: Attribute group for those attributes not
-	 * created from the iio_chan_info array.
+	 * @buffer_group: Attributes of the new buffer group.
+	 * Includes scan elements attributes.
 	 */
-	struct attribute_group scan_el_group;
+	struct attribute_group buffer_group;
 
 	/* @attrs: Standard attributes of the buffer. */
 	const struct attribute **attrs;
 
 	/* @demux_bounce: Buffer for doing gather from incoming scan. */
 	void *demux_bounce;
+
+	/* @attached_entry: Entry in the devices list of buffers attached by the driver. */
+	struct list_head attached_entry;
 
 	/* @buffer_list: Entry in the devices list of current buffers. */
 	struct list_head buffer_list;

@@ -256,6 +256,7 @@ suspend:
 
 	/* reset FW state */
 	sdev->fw_state = SOF_FW_BOOT_NOT_STARTED;
+	sdev->enabled_cores_mask = 0;
 
 	return ret;
 }

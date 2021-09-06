@@ -21,10 +21,10 @@ Description
 The TMP103 is a digital output temperature sensor in a four-ball
 wafer chip-scale package (WCSP). The TMP103 is capable of reading
 temperatures to a resolution of 1°C. The TMP103 is specified for
-operation over a temperature range of –40°C to +125°C.
+operation over a temperature range of -40°C to +125°C.
 
 Resolution: 8 Bits
-Accuracy: ±1°C Typ (–10°C to +100°C)
+Accuracy: ±1°C Typ (-10°C to +100°C)
 
 The driver provides the common sysfs-interface for temperatures (see
 Documentation/hwmon/sysfs-interface.rst under Temperatures).

@@ -136,14 +136,16 @@ struct mnt_fhstatus {
 /**
  * nfs_mount - Obtain an NFS file handle for the given host and path
  * @info: pointer to mount request arguments
+ * @timeo: deciseconds the mount waits for a response before it retries
+ * @retrans: number of times the mount retries a request
  *
- * Uses default timeout parameters specified by underlying transport. On
- * successful return, the auth_flavs list and auth_flav_len will be populated
- * with the list from the server or a faked-up list if the server didn't
- * provide one.
+ * Uses timeout parameters specified by caller. On successful return, the
+ * auth_flavs list and auth_flav_len will be populated with the list from the
+ * server or a faked-up list if the server didn't provide one.
  */
-int nfs_mount(struct nfs_mount_request *info)
+int nfs_mount(struct nfs_mount_request *info, int timeo, int retrans)
 {
+	struct rpc_timeout mnt_timeout;
 	struct mountres	result = {
 		.fh		= info->fh,
 		.auth_count	= info->auth_flav_len,
@@ -158,6 +160,7 @@ int nfs_mount(struct nfs_mount_request *info)
 		.protocol	= info->protocol,
 		.address	= info->sap,
 		.addrsize	= info->salen,
+		.timeout	= &mnt_timeout,
 		.servername	= info->hostname,
 		.program	= &mnt_program,
 		.version	= info->version,
@@ -177,6 +180,7 @@ int nfs_mount(struct nfs_mount_request *info)
 	if (info->noresvport)
 		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 
+	nfs_init_timeout_values(&mnt_timeout, info->protocol, timeo, retrans);
 	mnt_clnt = rpc_create(&args);
 	if (IS_ERR(mnt_clnt))
 		goto out_clnt_err;

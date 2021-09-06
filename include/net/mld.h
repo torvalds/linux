@@ -92,6 +92,9 @@ struct mld2_query {
 #define MLD_EXP_MIN_LIMIT	32768UL
 #define MLDV1_MRD_MAX_COMPAT	(MLD_EXP_MIN_LIMIT - 1)
 
+#define MLD_MAX_QUEUE		8
+#define MLD_MAX_SKBS		32
+
 static inline unsigned long mldv2_mrc(const struct mld2_query *mlh2)
 {
 	/* RFC3810, 5.1.3. Maximum Response Code */

@@ -1385,7 +1385,7 @@ static struct dm9000_plat_data *dm9000_parse_dt(struct device *dev)
 {
 	struct dm9000_plat_data *pdata;
 	struct device_node *np = dev->of_node;
-	const void *mac_addr;
+	int ret;
 
 	if (!IS_ENABLED(CONFIG_OF) || !np)
 		return ERR_PTR(-ENXIO);
@@ -1399,11 +1399,9 @@ static struct dm9000_plat_data *dm9000_parse_dt(struct device *dev)
 	if (of_find_property(np, "davicom,no-eeprom", NULL))
 		pdata->flags |= DM9000_PLATF_NO_EEPROM;
 
-	mac_addr = of_get_mac_address(np);
-	if (!IS_ERR(mac_addr))
-		ether_addr_copy(pdata->dev_addr, mac_addr);
-	else if (PTR_ERR(mac_addr) == -EPROBE_DEFER)
-		return ERR_CAST(mac_addr);
+	ret = of_get_mac_address(np, pdata->dev_addr);
+	if (ret == -EPROBE_DEFER)
+		return ERR_PTR(ret);
 
 	return pdata;
 }
@@ -1524,7 +1522,6 @@ dm9000_probe(struct platform_device *pdev)
 			if (ret) {
 				dev_err(db->dev, "irq %d cannot set wakeup (%d)\n",
 					db->irq_wake, ret);
-				ret = 0;
 			} else {
 				irq_set_irq_wake(db->irq_wake, 0);
 				db->wake_supported = 1;

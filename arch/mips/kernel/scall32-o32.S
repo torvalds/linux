@@ -48,10 +48,8 @@ NESTED(handle_sys, PT_SIZE, sp)
 	 * We intentionally keep the kernel stack a little below the top of
 	 * userspace so we don't have to do a slower byte accurate check here.
 	 */
-	lw	t5, TI_ADDR_LIMIT($28)
 	addu	t4, t0, 32
-	and	t5, t4
-	bltz	t5, bad_stack		# -> sp is bad
+	bltz	t4, bad_stack		# -> sp is bad
 
 	/*
 	 * Ok, copy the args from the luser stack to the kernel stack.
@@ -217,9 +215,9 @@ einval: li	v0, -ENOSYS
 #define sys_sched_getaffinity	mipsmt_sys_sched_getaffinity
 #endif /* CONFIG_MIPS_MT_FPAFF */
 
+#define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, native)
 #define __SYSCALL(nr, entry) 	PTR entry
 	.align	2
 	.type	sys_call_table, @object
 EXPORT(sys_call_table)
-#include <asm/syscall_table_32_o32.h>
-#undef __SYSCALL
+#include <asm/syscall_table_o32.h>

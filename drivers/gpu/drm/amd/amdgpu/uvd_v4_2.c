@@ -119,7 +119,7 @@ static int uvd_v4_2_sw_init(void *handle)
 	ring = &adev->uvd.inst->ring;
 	sprintf(ring->name, "uvd");
 	r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.inst->irq, 0,
-			     AMDGPU_RING_PRIO_DEFAULT);
+			     AMDGPU_RING_PRIO_DEFAULT, NULL);
 	if (r)
 		return r;
 
