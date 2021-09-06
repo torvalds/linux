@@ -993,6 +993,11 @@ static u32 skl_surf_address(const struct intel_plane_state *plane_state,
 	u32 offset = plane_state->view.color_plane[color_plane].offset;
 
 	if (intel_fb_uses_dpt(fb)) {
+		/*
+		 * The DPT object contains only one vma, so the VMA's offset
+		 * within the DPT is always 0.
+		 */
+		WARN_ON(plane_state->dpt_vma->node.start);
 		WARN_ON(offset & 0x1fffff);
 		return offset >> 9;
 	} else {
