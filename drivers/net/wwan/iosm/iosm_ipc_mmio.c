@@ -188,10 +188,10 @@ void ipc_mmio_config(struct iosm_mmio *ipc_mmio)
 	/* AP memory window (full window is open and active so that modem checks
 	 * each AP address) 0 means don't check on modem side.
 	 */
-	iowrite64_lo_hi(0, ipc_mmio->base + ipc_mmio->offset.ap_win_base);
-	iowrite64_lo_hi(0, ipc_mmio->base + ipc_mmio->offset.ap_win_end);
+	iowrite64(0, ipc_mmio->base + ipc_mmio->offset.ap_win_base);
+	iowrite64(0, ipc_mmio->base + ipc_mmio->offset.ap_win_end);
 
-	iowrite64_lo_hi(ipc_mmio->context_info_addr,
+	iowrite64(ipc_mmio->context_info_addr,
 			ipc_mmio->base + ipc_mmio->offset.context_info);
 }
 
@@ -201,7 +201,7 @@ void ipc_mmio_set_psi_addr_and_size(struct iosm_mmio *ipc_mmio, dma_addr_t addr,
 	if (!ipc_mmio)
 		return;
 
-	iowrite64_lo_hi(addr, ipc_mmio->base + ipc_mmio->offset.psi_address);
+	iowrite64(addr, ipc_mmio->base + ipc_mmio->offset.psi_address);
 	writel(size, ipc_mmio->base + ipc_mmio->offset.psi_size);
 }
 
