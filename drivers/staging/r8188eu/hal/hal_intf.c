@@ -206,13 +206,6 @@ void rtw_hal_bcn_related_reg_setting(struct adapter *adapt)
 		adapt->HalFunc.SetBeaconRelatedRegistersHandler(adapt);
 }
 
-u8 rtw_hal_antdiv_before_linked(struct adapter *adapt)
-{
-	if (adapt->HalFunc.AntDivBeforeLinkHandler)
-		return adapt->HalFunc.AntDivBeforeLinkHandler(adapt);
-	return false;
-}
-
 void rtw_hal_antdiv_rssi_compared(struct adapter *adapt,
 				  struct wlan_bssid_ex *dst,
 				  struct wlan_bssid_ex *src)
