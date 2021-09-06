@@ -152,13 +152,6 @@ void rtw_hal_update_ra_mask(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 }
 
 /*	Start specifical interface thread		*/
-void rtw_hal_start_thread(struct adapter *adapt)
-{
-	if (adapt->HalFunc.run_thread)
-		adapt->HalFunc.run_thread(adapt);
-}
-
-/*	Start specifical interface thread		*/
 void rtw_hal_stop_thread(struct adapter *adapt)
 {
 	if (adapt->HalFunc.cancel_thread)
