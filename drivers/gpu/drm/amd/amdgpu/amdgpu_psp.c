@@ -2112,6 +2112,12 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 	case AMDGPU_UCODE_ID_CP_MES_DATA:
 		*type = GFX_FW_TYPE_MES_STACK;
 		break;
+	case AMDGPU_UCODE_ID_CP_MES1:
+		*type = GFX_FW_TYPE_CP_MES_KIQ;
+		break;
+	case AMDGPU_UCODE_ID_CP_MES1_DATA:
+		*type = GFX_FW_TYPE_MES_KIQ_STACK;
+		break;
 	case AMDGPU_UCODE_ID_CP_CE:
 		*type = GFX_FW_TYPE_CP_CE;
 		break;
