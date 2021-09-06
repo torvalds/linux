@@ -13,6 +13,7 @@
  * 1. add 2lane support.
  * 2. add some debug info.
  * 3. adjust gc8034_g_mbus_config function.
+ * V0.0X01.0X06 support get channel info
  */
 
 #include <linux/clk.h>
@@ -40,7 +41,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/slab.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x07)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -159,6 +160,7 @@ struct gc8034_mode {
 	u32 vts_def;
 	u32 exp_def;
 	const struct regval *reg_list;
+	u32 vc[PAD_MAX];
 };
 
 struct gc8034 {
@@ -854,6 +856,7 @@ static const struct gc8034_mode supported_modes_2lane[] = {
 		.hts_def = 0x0858 * 2,
 		.vts_def = 0x09c4,
 		.reg_list = gc8034_3264x2448_regs_2lane,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 	{
 		.width = 1632,
@@ -866,6 +869,7 @@ static const struct gc8034_mode supported_modes_2lane[] = {
 		.hts_def = 0x0858 * 2,
 		.vts_def = 0x09c4,
 		.reg_list = gc8034_1632x1224_regs_2lane,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 };
 
@@ -881,6 +885,7 @@ static const struct gc8034_mode supported_modes_4lane[] = {
 		.hts_def = 0x10b0,
 		.vts_def = 0x09c0,
 		.reg_list = gc8034_3264x2448_regs_4lane,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 };
 
@@ -1631,11 +1636,23 @@ static void gc8034_set_module_inf(struct gc8034 *gc8034,
 	mutex_unlock(&gc8034->mutex);
 }
 
+static int gc8034_get_channel_info(struct gc8034 *gc8034, struct rkmodule_channel_info *ch_info)
+{
+	if (ch_info->index < PAD0 || ch_info->index >= PAD_MAX)
+		return -EINVAL;
+	ch_info->vc = gc8034->cur_mode->vc[ch_info->index];
+	ch_info->width = gc8034->cur_mode->width;
+	ch_info->height = gc8034->cur_mode->height;
+	ch_info->bus_fmt = GC8034_MEDIA_BUS_FMT;
+	return 0;
+}
+
 static long gc8034_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct gc8034 *gc8034 = to_gc8034(sd);
 	long ret = 0;
 	u32 stream = 0;
+	struct rkmodule_channel_info *ch_info;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1670,6 +1687,10 @@ static long gc8034_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 						GC8034_MODE_SW_STANDBY);
 		}
 		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = (struct rkmodule_channel_info *)arg;
+		ret = gc8034_get_channel_info(gc8034, ch_info);
+		break;
 	default:
 		ret = -ENOTTY;
 		break;
@@ -1687,6 +1708,7 @@ static long gc8034_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_awb_cfg *cfg;
 	long ret = 0;
 	u32 stream = 0;
+	struct rkmodule_channel_info *ch_info;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1697,8 +1719,11 @@ static long gc8034_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = gc8034_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(inf);
 		break;
 	case RKMODULE_AWB_CFG:
@@ -1711,12 +1736,31 @@ static long gc8034_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(cfg, up, sizeof(*cfg));
 		if (!ret)
 			ret = gc8034_ioctl(sd, cmd, cfg);
+		else
+			ret = -EFAULT;
 		kfree(cfg);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
 		ret = copy_from_user(&stream, up, sizeof(u32));
 		if (!ret)
 			ret = gc8034_ioctl(sd, cmd, &stream);
+		else
+			ret = -EFAULT;
+		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = kzalloc(sizeof(*ch_info), GFP_KERNEL);
+		if (!ch_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = gc8034_ioctl(sd, cmd, ch_info);
+		if (!ret) {
+			ret = copy_to_user(up, ch_info, sizeof(*ch_info));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(ch_info);
 		break;
 	default:
 		ret = -ENOTTY;
