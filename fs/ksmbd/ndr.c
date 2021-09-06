@@ -275,11 +275,11 @@ int ndr_decode_dos_attr(struct ndr *n, struct xattr_dos_attrib *da)
 		if (ret)
 			return ret;
 
-		ndr_read_int64(n, NULL);
+		ret = ndr_read_int64(n, NULL);
 		if (ret)
 			return ret;
 
-		ndr_read_int64(n, NULL);
+		ret = ndr_read_int64(n, NULL);
 		if (ret)
 			return ret;
 
