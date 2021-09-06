@@ -63,10 +63,36 @@ int skl_ccs_to_main_plane(const struct drm_framebuffer *fb, int ccs_plane)
 	return ccs_plane - fb->format->num_planes / 2;
 }
 
-static int gen12_ccs_aux_stride(struct drm_framebuffer *fb, int ccs_plane)
+static unsigned int gen12_aligned_scanout_stride(const struct intel_framebuffer *fb,
+						 int color_plane)
 {
-	return DIV_ROUND_UP(fb->pitches[skl_ccs_to_main_plane(fb, ccs_plane)],
-			    512) * 64;
+	struct drm_i915_private *i915 = to_i915(fb->base.dev);
+	unsigned int stride = fb->base.pitches[color_plane];
+
+	if (IS_ALDERLAKE_P(i915))
+		return roundup_pow_of_two(max(stride,
+					      8u * intel_tile_width_bytes(&fb->base, color_plane)));
+
+	return stride;
+}
+
+static unsigned int gen12_ccs_aux_stride(struct intel_framebuffer *fb, int ccs_plane)
+{
+	struct drm_i915_private *i915 = to_i915(fb->base.dev);
+	int main_plane = skl_ccs_to_main_plane(&fb->base, ccs_plane);
+	unsigned int main_stride = fb->base.pitches[main_plane];
+	unsigned int main_tile_width = intel_tile_width_bytes(&fb->base, main_plane);
+
+	/*
+	 * On ADL-P the AUX stride must align with a power-of-two aligned main
+	 * surface stride. The stride of the allocated main surface object can
+	 * be less than this POT stride, which is then autopadded to the POT
+	 * size.
+	 */
+	if (IS_ALDERLAKE_P(i915))
+		main_stride = gen12_aligned_scanout_stride(fb, main_plane);
+
+	return DIV_ROUND_UP(main_stride, 4 * main_tile_width) * 64;
 }
 
 int skl_main_to_aux_plane(const struct drm_framebuffer *fb, int main_plane)
@@ -1379,7 +1405,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		}
 
 		if (is_gen12_ccs_plane(fb, i) && !is_gen12_ccs_cc_plane(fb, i)) {
-			int ccs_aux_stride = gen12_ccs_aux_stride(fb, i);
+			int ccs_aux_stride = gen12_ccs_aux_stride(intel_fb, i);
 
 			if (fb->pitches[i] != ccs_aux_stride) {
 				drm_dbg_kms(&dev_priv->drm,
