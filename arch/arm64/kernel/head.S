@@ -177,7 +177,7 @@ SYM_CODE_END(preserve_boot_args)
  * to be composed of multiple pages. (This effectively scales the end index).
  *
  *	vstart:	virtual address of start of range
- *	vend:	virtual address of end of range
+ *	vend:	virtual address of end of range - we map [vstart, vend]
  *	shift:	shift used to transform virtual address into index
  *	ptrs:	number of entries in page table
  *	istart:	index in table corresponding to vstart
@@ -214,17 +214,18 @@ SYM_CODE_END(preserve_boot_args)
  *
  *	tbl:	location of page table
  *	rtbl:	address to be used for first level page table entry (typically tbl + PAGE_SIZE)
- *	vstart:	start address to map
- *	vend:	end address to map - we map [vstart, vend]
+ *	vstart:	virtual address of start of range
+ *	vend:	virtual address of end of range - we map [vstart, vend - 1]
  *	flags:	flags to use to map last level entries
  *	phys:	physical address corresponding to vstart - physical memory is contiguous
  *	pgds:	the number of pgd entries
  *
  * Temporaries:	istart, iend, tmp, count, sv - these need to be different registers
- * Preserves:	vstart, vend, flags
- * Corrupts:	tbl, rtbl, istart, iend, tmp, count, sv
+ * Preserves:	vstart, flags
+ * Corrupts:	tbl, rtbl, vend, istart, iend, tmp, count, sv
  */
 	.macro map_memory, tbl, rtbl, vstart, vend, flags, phys, pgds, istart, iend, tmp, count, sv
+	sub \vend, \vend, #1
 	add \rtbl, \tbl, #PAGE_SIZE
 	mov \sv, \rtbl
 	mov \count, #0
