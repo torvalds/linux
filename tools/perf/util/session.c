@@ -509,6 +509,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->bpf = perf_event__process_bpf;
 	if (tool->text_poke == NULL)
 		tool->text_poke = perf_event__process_text_poke;
+	if (tool->aux_output_hw_id == NULL)
+		tool->aux_output_hw_id = perf_event__process_aux_output_hw_id;
 	if (tool->read == NULL)
 		tool->read = process_event_sample_stub;
 	if (tool->throttle == NULL)
@@ -1000,6 +1002,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_NAMESPACES]	  = perf_event__namespaces_swap,
 	[PERF_RECORD_CGROUP]		  = perf_event__cgroup_swap,
 	[PERF_RECORD_TEXT_POKE]		  = perf_event__text_poke_swap,
+	[PERF_RECORD_AUX_OUTPUT_HW_ID]	  = perf_event__all64_swap,
 	[PERF_RECORD_HEADER_ATTR]	  = perf_event__hdr_attr_swap,
 	[PERF_RECORD_HEADER_EVENT_TYPE]	  = perf_event__event_type_swap,
 	[PERF_RECORD_HEADER_TRACING_DATA] = perf_event__tracing_data_swap,
@@ -1556,6 +1559,8 @@ static int machines__deliver_event(struct machines *machines,
 		return tool->bpf(tool, event, sample, machine);
 	case PERF_RECORD_TEXT_POKE:
 		return tool->text_poke(tool, event, sample, machine);
+	case PERF_RECORD_AUX_OUTPUT_HW_ID:
+		return tool->aux_output_hw_id(tool, event, sample, machine);
 	default:
 		++evlist->stats.nr_unknown_events;
 		return -1;
