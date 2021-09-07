@@ -278,14 +278,8 @@ static int xsk_configure_socket(struct xsk_socket_info *xsk, struct xsk_umem_inf
 	cfg.xdp_flags = xdp_flags;
 	cfg.bind_flags = xdp_bind_flags;
 
-	if (test_type != TEST_TYPE_BIDI) {
-		rxr = (ifobject->fv.vector == rx) ? &xsk->rx : NULL;
-		txr = (ifobject->fv.vector == tx) ? &xsk->tx : NULL;
-	} else {
-		rxr = &xsk->rx;
-		txr = &xsk->tx;
-	}
-
+	txr = ifobject->tx_on ? &xsk->tx : NULL;
+	rxr = ifobject->rx_on ? &xsk->rx : NULL;
 	return xsk_socket__create(&xsk->xsk, ifobject->ifname, qid, umem->umem, rxr, txr, &cfg);
 }
 
@@ -395,10 +389,13 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 		ifobj->xsk = &ifobj->xsk_arr[0];
 		ifobj->use_poll = false;
 
-		if (i == tx)
-			ifobj->fv.vector = tx;
-		else
-			ifobj->fv.vector = rx;
+		if (i == 0) {
+			ifobj->rx_on = false;
+			ifobj->tx_on = true;
+		} else {
+			ifobj->rx_on = true;
+			ifobj->tx_on = false;
+		}
 
 		for (j = 0; j < MAX_SOCKETS; j++) {
 			memset(&ifobj->umem_arr[j], 0, sizeof(ifobj->umem_arr[j]));
@@ -923,14 +920,10 @@ static void testapp_teardown(struct test_spec *test)
 static void swap_directions(struct ifobject **ifobj1, struct ifobject **ifobj2)
 {
 	thread_func_t tmp_func_ptr = (*ifobj1)->func_ptr;
-	enum fvector tmp_vector = (*ifobj1)->fv.vector;
 	struct ifobject *tmp_ifobj = (*ifobj1);
 
 	(*ifobj1)->func_ptr = (*ifobj2)->func_ptr;
-	(*ifobj1)->fv.vector = (*ifobj2)->fv.vector;
-
 	(*ifobj2)->func_ptr = tmp_func_ptr;
-	(*ifobj2)->fv.vector = tmp_vector;
 
 	*ifobj1 = *ifobj2;
 	*ifobj2 = tmp_ifobj;
@@ -939,6 +932,8 @@ static void swap_directions(struct ifobject **ifobj1, struct ifobject **ifobj2)
 static void testapp_bidi(struct test_spec *test)
 {
 	test_spec_set_name(test, "BIDIRECTIONAL");
+	test->ifobj_tx->rx_on = true;
+	test->ifobj_rx->tx_on = true;
 	for (int i = 0; i < MAX_BIDI_ITER; i++) {
 		print_verbose("Creating socket\n");
 		testapp_validate_traffic(test);
@@ -1012,7 +1007,7 @@ static void testapp_stats(struct test_spec *test)
 
 static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *src_mac,
 		       const char *dst_ip, const char *src_ip, const u16 dst_port,
-		       const u16 src_port, enum fvector vector, thread_func_t func_ptr)
+		       const u16 src_port, thread_func_t func_ptr)
 {
 	struct in_addr ip;
 
@@ -1028,7 +1023,6 @@ static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *
 	ifobj->dst_port = dst_port;
 	ifobj->src_port = src_port;
 
-	ifobj->fv.vector = vector;
 	ifobj->func_ptr = func_ptr;
 }
 
@@ -1144,9 +1138,9 @@ int main(int argc, char **argv)
 		ksft_exit_xfail();
 	}
 
-	init_iface(ifobj_tx, MAC1, MAC2, IP1, IP2, UDP_PORT1, UDP_PORT2, tx,
+	init_iface(ifobj_tx, MAC1, MAC2, IP1, IP2, UDP_PORT1, UDP_PORT2,
 		   worker_testapp_validate_tx);
-	init_iface(ifobj_rx, MAC2, MAC1, IP2, IP1, UDP_PORT2, UDP_PORT1, rx,
+	init_iface(ifobj_rx, MAC2, MAC1, IP2, IP1, UDP_PORT2, UDP_PORT1,
 		   worker_testapp_validate_rx);
 
 	ksft_set_plan(TEST_MODE_MAX * TEST_TYPE_MAX);

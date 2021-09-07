@@ -100,13 +100,6 @@ struct xsk_socket_info {
 	u32 rxqsize;
 };
 
-struct flow_vector {
-	enum fvector {
-		tx,
-		rx,
-	} vector;
-};
-
 struct pkt {
 	u64 addr;
 	u32 len;
@@ -127,7 +120,6 @@ struct ifobject {
 	struct xsk_socket_info *xsk_arr;
 	struct xsk_umem_info *umem;
 	struct xsk_umem_info *umem_arr;
-	struct flow_vector fv;
 	thread_func_t func_ptr;
 	struct pkt_stream *pkt_stream;
 	int ns_fd;
@@ -135,6 +127,8 @@ struct ifobject {
 	u32 src_ip;
 	u16 src_port;
 	u16 dst_port;
+	bool tx_on;
+	bool rx_on;
 	bool use_poll;
 	u8 dst_mac[ETH_ALEN];
 	u8 src_mac[ETH_ALEN];
