@@ -887,7 +887,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	const struct VOLUME_INFO *info;
 	u32 idx, done, bytes;
 	struct ATTR_DEF_ENTRY *t;
-	u16 *upcase = NULL;
+	u16 *upcase;
 	u16 *shared;
 	bool is_ro;
 	struct MFT_REF ref;
@@ -901,9 +901,6 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_export_op = &ntfs_export_ops;
 	sb->s_time_gran = NTFS_TIME_GRAN; // 100 nsec
 	sb->s_xattr = ntfs_xattr_handlers;
-
-	ratelimit_state_init(&sbi->msg_ratelimit, DEFAULT_RATELIMIT_INTERVAL,
-			     DEFAULT_RATELIMIT_BURST);
 
 	sbi->options->nls = ntfs_load_nls(sbi->options->nls_name);
 	if (IS_ERR(sbi->options->nls)) {
@@ -932,12 +929,6 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 #else
 	sb->s_maxbytes = 0xFFFFFFFFull << sbi->cluster_bits;
-#endif
-
-	mutex_init(&sbi->compress.mtx_lznt);
-#ifdef CONFIG_NTFS3_LZX_XPRESS
-	mutex_init(&sbi->compress.mtx_xpress);
-	mutex_init(&sbi->compress.mtx_lzx);
 #endif
 
 	/*
@@ -1224,11 +1215,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto out;
 	}
 
-	sbi->upcase = upcase = kvmalloc(0x10000 * sizeof(short), GFP_KERNEL);
-	if (!upcase) {
-		err = -ENOMEM;
-		goto out;
-	}
+	upcase = sbi->upcase;
 
 	for (idx = 0; idx < (0x10000 * sizeof(short) >> PAGE_SHIFT); idx++) {
 		const __le16 *src;
@@ -1440,10 +1427,21 @@ static int ntfs_init_fs_context(struct fs_context *fc)
 		goto ok;
 
 	sbi = kzalloc(sizeof(struct ntfs_sb_info), GFP_NOFS);
-	if (!sbi) {
-		kfree(opts);
-		return -ENOMEM;
-	}
+	if (!sbi)
+		goto free_opts;
+
+	sbi->upcase = kvmalloc(0x10000 * sizeof(short), GFP_KERNEL);
+	if (!sbi->upcase)
+		goto free_sbi;
+
+	ratelimit_state_init(&sbi->msg_ratelimit, DEFAULT_RATELIMIT_INTERVAL,
+			     DEFAULT_RATELIMIT_BURST);
+
+	mutex_init(&sbi->compress.mtx_lznt);
+#ifdef CONFIG_NTFS3_LZX_XPRESS
+	mutex_init(&sbi->compress.mtx_xpress);
+	mutex_init(&sbi->compress.mtx_lzx);
+#endif
 
 	sbi->options = opts;
 	fc->s_fs_info = sbi;
@@ -1452,6 +1450,11 @@ ok:
 	fc->ops = &ntfs_context_ops;
 
 	return 0;
+free_opts:
+	kfree(opts);
+free_sbi:
+	kfree(sbi);
+	return -ENOMEM;
 }
 
 // clang-format off
