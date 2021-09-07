@@ -3602,7 +3602,6 @@ out:
 
 static int pktgen_thread_worker(void *arg)
 {
-	DEFINE_WAIT(wait);
 	struct pktgen_thread *t = arg;
 	struct pktgen_dev *pkt_dev = NULL;
 	int cpu = t->cpu;
