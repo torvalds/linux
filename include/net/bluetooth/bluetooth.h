@@ -173,7 +173,8 @@ struct bt_codecs {
 	struct bt_codec	codecs[];
 } __packed;
 
-#define BT_CODEC_CVSD	0x02
+#define BT_CODEC_CVSD		0x02
+#define BT_CODEC_TRANSPARENT	0x03
 
 __printf(1, 2)
 void bt_info(const char *fmt, ...);

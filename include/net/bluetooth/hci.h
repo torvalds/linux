@@ -873,6 +873,40 @@ struct hci_cp_logical_link_cancel {
 	__u8     flow_spec_id;
 } __packed;
 
+#define HCI_OP_ENHANCED_SETUP_SYNC_CONN		0x043d
+struct hci_coding_format {
+	__u8	id;
+	__le16	cid;
+	__le16	vid;
+} __packed;
+
+struct hci_cp_enhanced_setup_sync_conn {
+	__le16   handle;
+	__le32   tx_bandwidth;
+	__le32   rx_bandwidth;
+	struct	 hci_coding_format tx_coding_format;
+	struct	 hci_coding_format rx_coding_format;
+	__le16	 tx_codec_frame_size;
+	__le16	 rx_codec_frame_size;
+	__le32	 in_bandwidth;
+	__le32	 out_bandwidth;
+	struct	 hci_coding_format in_coding_format;
+	struct	 hci_coding_format out_coding_format;
+	__le16   in_coded_data_size;
+	__le16	 out_coded_data_size;
+	__u8	 in_pcm_data_format;
+	__u8	 out_pcm_data_format;
+	__u8	 in_pcm_sample_payload_msb_pos;
+	__u8	 out_pcm_sample_payload_msb_pos;
+	__u8	 in_data_path;
+	__u8	 out_data_path;
+	__u8	 in_transport_unit_size;
+	__u8	 out_transport_unit_size;
+	__le16   max_latency;
+	__le16   pkt_type;
+	__u8     retrans_effort;
+} __packed;
+
 struct hci_rp_logical_link_cancel {
 	__u8     status;
 	__u8     phy_handle;

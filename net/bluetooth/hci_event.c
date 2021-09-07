@@ -2278,6 +2278,41 @@ static void hci_cs_setup_sync_conn(struct hci_dev *hdev, __u8 status)
 	hci_dev_unlock(hdev);
 }
 
+static void hci_cs_enhanced_setup_sync_conn(struct hci_dev *hdev, __u8 status)
+{
+	struct hci_cp_enhanced_setup_sync_conn *cp;
+	struct hci_conn *acl, *sco;
+	__u16 handle;
+
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
+
+	if (!status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_ENHANCED_SETUP_SYNC_CONN);
+	if (!cp)
+		return;
+
+	handle = __le16_to_cpu(cp->handle);
+
+	bt_dev_dbg(hdev, "handle 0x%4.4x", handle);
+
+	hci_dev_lock(hdev);
+
+	acl = hci_conn_hash_lookup_handle(hdev, handle);
+	if (acl) {
+		sco = acl->link;
+		if (sco) {
+			sco->state = BT_CLOSED;
+
+			hci_connect_cfm(sco, status);
+			hci_conn_del(sco);
+		}
+	}
+
+	hci_dev_unlock(hdev);
+}
+
 static void hci_cs_sniff_mode(struct hci_dev *hdev, __u8 status)
 {
 	struct hci_cp_sniff_mode *cp;
@@ -3762,6 +3797,10 @@ static void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb,
 
 	case HCI_OP_SETUP_SYNC_CONN:
 		hci_cs_setup_sync_conn(hdev, ev->status);
+		break;
+
+	case HCI_OP_ENHANCED_SETUP_SYNC_CONN:
+		hci_cs_enhanced_setup_sync_conn(hdev, ev->status);
 		break;
 
 	case HCI_OP_SNIFF_MODE:

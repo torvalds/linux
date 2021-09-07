@@ -253,7 +253,7 @@ static int sco_connect(struct hci_dev *hdev, struct sock *sk)
 		return -EOPNOTSUPP;
 
 	hcon = hci_connect_sco(hdev, type, &sco_pi(sk)->dst,
-			       sco_pi(sk)->setting);
+			       sco_pi(sk)->setting, &sco_pi(sk)->codec);
 	if (IS_ERR(hcon))
 		return PTR_ERR(hcon);
 
@@ -889,6 +889,16 @@ static int sco_sock_setsockopt(struct socket *sock, int level, int optname,
 		}
 
 		sco_pi(sk)->setting = voice.setting;
+		hdev = hci_get_route(&sco_pi(sk)->dst, &sco_pi(sk)->src,
+				     BDADDR_BREDR);
+		if (!hdev) {
+			err = -EBADFD;
+			break;
+		}
+		if (enhanced_sco_capable(hdev) &&
+		    voice.setting == BT_VOICE_TRANSPARENT)
+			sco_pi(sk)->codec.id = BT_CODEC_TRANSPARENT;
+		hci_dev_put(hdev);
 		break;
 
 	case BT_PKT_STATUS:
