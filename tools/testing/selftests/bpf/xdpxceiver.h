@@ -24,7 +24,6 @@
 #define MAX_SOCKETS 2
 #define MAX_TEST_NAME_SIZE 32
 #define MAX_TEARDOWN_ITER 10
-#define MAX_BPF_ITER 2
 #define PKT_HDR_SIZE (sizeof(struct ethhdr) + sizeof(struct iphdr) + \
 			sizeof(struct udphdr))
 #define MIN_PKT_SIZE 64
@@ -137,6 +136,7 @@ struct test_spec {
 	struct ifobject *ifobj_rx;
 	u16 total_steps;
 	u16 current_step;
+	u16 nb_sockets;
 	char name[MAX_TEST_NAME_SIZE];
 };
 

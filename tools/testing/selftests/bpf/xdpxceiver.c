@@ -231,7 +231,7 @@ static void gen_udp_csum(struct udphdr *udp_hdr, struct iphdr *ip_hdr)
 	    udp_csum(ip_hdr->saddr, ip_hdr->daddr, UDP_PKT_SIZE, IPPROTO_UDP, (u16 *)udp_hdr);
 }
 
-static int xsk_configure_umem(struct xsk_umem_info *umem, void *buffer, u64 size, int idx)
+static int xsk_configure_umem(struct xsk_umem_info *umem, void *buffer, u64 size)
 {
 	struct xsk_umem_config cfg = {
 		.fill_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
@@ -410,6 +410,7 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 	test->ifobj_rx = ifobj_rx;
 	test->current_step = 0;
 	test->total_steps = 1;
+	test->nb_sockets = 1;
 }
 
 static void test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
@@ -770,46 +771,37 @@ static void tx_stats_validate(struct ifobject *ifobject)
 
 static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 {
-	u64 umem_sz = ifobject->umem->num_frames * ifobject->umem->frame_size;
-	int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
-	size_t mmap_sz = umem_sz;
-	int ctr = 0, ret;
-	void *bufs;
+	u32 i;
 
 	ifobject->ns_fd = switch_namespace(ifobject->nsname);
 
-	if (test_type == TEST_TYPE_BPF_RES)
-		mmap_sz *= 2;
+	for (i = 0; i < test->nb_sockets; i++) {
+		u64 umem_sz = ifobject->umem->num_frames * ifobject->umem->frame_size;
+		int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
+		u32 ctr = 0;
+		void *bufs;
 
-	bufs = mmap(NULL, mmap_sz, PROT_READ | PROT_WRITE, mmap_flags, -1, 0);
-	if (bufs == MAP_FAILED)
-		exit_with_error(errno);
+		bufs = mmap(NULL, umem_sz, PROT_READ | PROT_WRITE, mmap_flags, -1, 0);
+		if (bufs == MAP_FAILED)
+			exit_with_error(errno);
 
-	while (ctr++ < SOCK_RECONF_CTR) {
-		ret = xsk_configure_umem(&ifobject->umem_arr[0], bufs, umem_sz, 0);
-		if (ret)
-			exit_with_error(-ret);
+		while (ctr++ < SOCK_RECONF_CTR) {
+			int ret;
 
-		ret = xsk_configure_socket(&ifobject->xsk_arr[0], &ifobject->umem_arr[0],
-					   ifobject, 0);
-		if (!ret)
-			break;
+			ret = xsk_configure_umem(&ifobject->umem_arr[i], bufs, umem_sz);
+			if (ret)
+				exit_with_error(-ret);
 
-		/* Retry Create Socket if it fails as xsk_socket__create() is asynchronous */
-		if (ctr >= SOCK_RECONF_CTR)
-			exit_with_error(-ret);
-		usleep(USLEEP_MAX);
-	}
+			ret = xsk_configure_socket(&ifobject->xsk_arr[i], &ifobject->umem_arr[i],
+						   ifobject, i);
+			if (!ret)
+				break;
 
-	if (test_type == TEST_TYPE_BPF_RES) {
-		ret = xsk_configure_umem(&ifobject->umem_arr[1], (u8 *)bufs + umem_sz, umem_sz, 1);
-		if (ret)
-			exit_with_error(-ret);
-
-		ret = xsk_configure_socket(&ifobject->xsk_arr[1], &ifobject->umem_arr[1],
-					   ifobject, 1);
-		if (ret)
-			exit_with_error(-ret);
+			/* Retry if it fails as xsk_socket__create() is asynchronous */
+			if (ctr >= SOCK_RECONF_CTR)
+				exit_with_error(-ret);
+			usleep(USLEEP_MAX);
+		}
 	}
 
 	ifobject->umem = &ifobject->umem_arr[0];
@@ -959,6 +951,7 @@ static void testapp_bpf_res(struct test_spec *test)
 {
 	test_spec_set_name(test, "BPF_RES");
 	test->total_steps = 2;
+	test->nb_sockets = 2;
 	testapp_validate_traffic(test);
 
 	swap_xsk_resources(test->ifobj_tx, test->ifobj_rx);
