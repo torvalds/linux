@@ -138,8 +138,6 @@ struct test_spec {
 	char name[MAX_TEST_NAME_SIZE];
 };
 
-/*threads*/
 pthread_barrier_t barr;
-pthread_t t0, t1;
 
 #endif				/* XDPXCEIVER_H */

@@ -887,6 +887,7 @@ static void testapp_validate_traffic(struct test_spec *test)
 	struct ifobject *ifobj_tx = test->ifobj_tx;
 	struct ifobject *ifobj_rx = test->ifobj_rx;
 	struct pkt_stream *pkt_stream;
+	pthread_t t0, t1;
 
 	if (pthread_barrier_init(&barr, NULL, 2))
 		exit_with_error(errno);
