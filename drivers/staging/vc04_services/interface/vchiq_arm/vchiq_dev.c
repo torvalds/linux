@@ -9,17 +9,12 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/compat.h>
+#include <linux/miscdevice.h>
 
 #include "vchiq_core.h"
 #include "vchiq_ioctl.h"
 #include "vchiq_arm.h"
 #include "vchiq_debugfs.h"
-
-#define DEVICE_NAME "vchiq"
-
-static struct cdev    vchiq_cdev;
-static dev_t          vchiq_devid;
-static struct class  *vchiq_class;
 
 static const char *const ioctl_names[] = {
 	"CONNECT",
@@ -1364,6 +1359,13 @@ vchiq_fops = {
 	.read = vchiq_read
 };
 
+static struct miscdevice vchiq_miscdev = {
+	.fops = &vchiq_fops,
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "vchiq",
+
+};
+
 /**
  *	vchiq_register_chrdev - Register the char driver for vchiq
  *				and create the necessary class and
@@ -1374,57 +1376,9 @@ vchiq_fops = {
  */
 int vchiq_register_chrdev(struct device *parent)
 {
-	struct device *vchiq_dev;
-	int ret;
+	vchiq_miscdev.parent = parent;
 
-	vchiq_class = class_create(THIS_MODULE, DEVICE_NAME);
-	if (IS_ERR(vchiq_class)) {
-		pr_err("Failed to create vchiq class\n");
-		ret = PTR_ERR(vchiq_class);
-		goto error_exit;
-	}
-
-	ret = alloc_chrdev_region(&vchiq_devid, 0, 1, DEVICE_NAME);
-	if (ret) {
-		pr_err("vchiq: Failed to allocate vchiq's chrdev region\n");
-		goto alloc_region_error;
-	}
-
-	cdev_init(&vchiq_cdev, &vchiq_fops);
-	vchiq_cdev.owner = THIS_MODULE;
-	ret = cdev_add(&vchiq_cdev, vchiq_devid, 1);
-	if (ret) {
-		vchiq_log_error(vchiq_arm_log_level,
-				"Unable to register vchiq char device");
-		goto cdev_add_error;
-	}
-
-	vchiq_dev = device_create(vchiq_class, parent, vchiq_devid, NULL,
-				  DEVICE_NAME);
-	if (IS_ERR(vchiq_dev)) {
-		vchiq_log_error(vchiq_arm_log_level,
-				"Failed to create vchiq char device node");
-		ret = PTR_ERR(vchiq_dev);
-		goto device_create_error;
-	}
-
-	vchiq_log_info(vchiq_arm_log_level,
-		       "vchiq char dev initialised successfully - device %d.%d",
-			MAJOR(vchiq_devid), MINOR(vchiq_devid));
-
-	return 0;
-
-device_create_error:
-	cdev_del(&vchiq_cdev);
-
-cdev_add_error:
-	unregister_chrdev_region(vchiq_devid, 1);
-
-alloc_region_error:
-	class_destroy(vchiq_class);
-
-error_exit:
-	return ret;
+	return misc_register(&vchiq_miscdev);
 }
 
 /**
@@ -1433,8 +1387,5 @@ error_exit:
  */
 void vchiq_deregister_chrdev(void)
 {
-	device_destroy(vchiq_class, vchiq_devid);
-	cdev_del(&vchiq_cdev);
-	unregister_chrdev_region(vchiq_devid, 1);
-	class_destroy(vchiq_class);
+	misc_deregister(&vchiq_miscdev);
 }
