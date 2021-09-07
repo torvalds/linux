@@ -443,15 +443,13 @@ static int serdev_drv_probe(struct device *dev)
 	return ret;
 }
 
-static int serdev_drv_remove(struct device *dev)
+static void serdev_drv_remove(struct device *dev)
 {
 	const struct serdev_device_driver *sdrv = to_serdev_device_driver(dev->driver);
 	if (sdrv->remove)
 		sdrv->remove(to_serdev_device(dev));
 
 	dev_pm_domain_detach(dev, true);
-
-	return 0;
 }
 
 static struct bus_type serdev_bus_type = {
