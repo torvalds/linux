@@ -1448,7 +1448,7 @@ int ni_insert_resident(struct ntfs_inode *ni, u32 data_size,
 		attr->res.flags = RESIDENT_FLAG_INDEXED;
 
 		/* is_attr_indexed(attr)) == true */
-		le16_add_cpu(&ni->mi.mrec->hard_links, +1);
+		le16_add_cpu(&ni->mi.mrec->hard_links, 1);
 		ni->mi.dirty = true;
 	}
 	attr->res.res = 0;
