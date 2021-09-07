@@ -184,7 +184,7 @@ retry:
 		order--;
 	}
 	if (!start)
-		goto error;
+		goto exit;
 	if (order != get_order(bytes)) {
 		pr_warn("Warning: only able to allocate %ld MB for software IO TLB\n",
 			(PAGE_SIZE << order) >> 20);
@@ -214,6 +214,7 @@ error:
 		pr_info("Lowering to %luMB\n", bytes >> 20);
 		goto retry;
 	}
+exit:
 	pr_err("%s (rc:%d)\n", xen_swiotlb_error(m_ret), rc);
 	return rc;
 }
