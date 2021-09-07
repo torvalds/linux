@@ -653,7 +653,7 @@ static int __init etnaviv_init(void)
 		if (!of_device_is_available(np))
 			continue;
 
-		pdev = platform_device_alloc("etnaviv", -1);
+		pdev = platform_device_alloc("etnaviv", PLATFORM_DEVID_NONE);
 		if (!pdev) {
 			ret = -ENOMEM;
 			of_node_put(np);
