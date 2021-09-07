@@ -70,7 +70,7 @@ struct ntfs_mount_options {
 		showmeta : 1, /* Show meta files. */
 		nohidden : 1, /* Do not show hidden files. */
 		force : 1, /* Rw mount dirty volume. */
-		no_acs_rules : 1, /*Exclude acs rules. */
+		noacsrules : 1, /*Exclude acs rules. */
 		prealloc : 1 /* Preallocate space when file is growing. */
 		;
 };
