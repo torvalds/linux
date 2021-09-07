@@ -319,8 +319,7 @@ DTC_FLAGS += $(call dtc-option,-Wno-unit_address_vs_reg) \
 	$(call dtc-option,-Wno-alias_paths) \
 	$(call dtc-option,-Wno-graph_child_address) \
 	$(call dtc-option,-Wno-simple_bus_reg) \
-	$(call dtc-option,-Wno-unique_unit_address) \
-	$(call dtc-option,-Wno-pci_device_reg)
+	$(call dtc-option,-Wno-unique_unit_address)
 endif
 
 ifneq ($(findstring 2,$(KBUILD_EXTRA_WARN)),)

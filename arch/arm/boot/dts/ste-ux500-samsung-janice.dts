@@ -420,6 +420,8 @@
 			non-removable;
 			cap-mmc-highspeed;
 			mmc-ddr-1_8v;
+			no-sdio;
+			no-sd;
 			vmmc-supply = <&ldo_3v3_reg>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&mc2_a_1_default>;
@@ -580,7 +582,7 @@
 					#size-cells = <0>;
 
 					/* Bosch BMA222 accelerometer */
-					accelerometer@08 {
+					accelerometer@8 {
 						compatible = "bosch,bma222";
 						reg = <0x08>;
 						mount-matrix = "0", "1", "0",

@@ -30,6 +30,7 @@
 #define R9A07G044_CLK_P2		19
 #define R9A07G044_CLK_AT		20
 #define R9A07G044_OSCCLK		21
+#define R9A07G044_CLK_P0_DIV2		22
 
 /* R9A07G044 Module Clocks */
 #define R9A07G044_CA55_SCLK		0

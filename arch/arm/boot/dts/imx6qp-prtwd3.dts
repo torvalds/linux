@@ -208,6 +208,8 @@
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
+	assigned-clocks = <&clks IMX6QDL_CLK_ENET_REF>;
+	assigned-clock-rates = <125000000>;
 	status = "okay";
 
 	phy-mode = "rgmii";

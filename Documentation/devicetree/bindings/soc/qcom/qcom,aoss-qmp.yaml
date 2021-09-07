@@ -1,0 +1,114 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/qcom/qcom,aoss-qmp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Always-On Subsystem side channel binding
+
+maintainers:
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+
+description:
+  This binding describes the hardware component responsible for side channel
+  requests to the always-on subsystem (AOSS), used for certain power management
+  requests that is not handled by the standard RPMh interface. Each client in the
+  SoC has it's own block of message RAM and IRQ for communication with the AOSS.
+  The protocol used to communicate in the message RAM is known as Qualcomm
+  Messaging Protocol (QMP)
+
+  The AOSS side channel exposes control over a set of resources, used to control
+  a set of debug related clocks and to affect the low power state of resources
+  related to the secondary subsystems. These resources are exposed as a set of
+  power-domains.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - qcom,sc7180-aoss-qmp
+          - qcom,sc7280-aoss-qmp
+          - qcom,sc8180x-aoss-qmp
+          - qcom,sdm845-aoss-qmp
+          - qcom,sm8150-aoss-qmp
+          - qcom,sm8250-aoss-qmp
+          - qcom,sm8350-aoss-qmp
+      - const: qcom,aoss-qmp
+
+  reg:
+    maxItems: 1
+    description:
+      The base address and size of the message RAM for this client's
+      communication with the AOSS
+
+  interrupts:
+    maxItems: 1
+    description:
+      Should specify the AOSS message IRQ for this client
+
+  mboxes:
+    maxItems: 1
+    description:
+      Reference to the mailbox representing the outgoing doorbell in APCS for
+      this client, as described in mailbox/mailbox.txt
+
+  "#clock-cells":
+    const: 0
+    description:
+      The single clock represents the QDSS clock.
+
+  "#power-domain-cells":
+    const: 1
+    description: |
+        The provided power-domains are:
+        CDSP state (0), LPASS state (1), modem state (2), SLPI
+        state (3), SPSS state (4) and Venus state (5).
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - mboxes
+  - "#clock-cells"
+
+additionalProperties: false
+
+patternProperties:
+  "^(cx|mx|ebi)$":
+    type: object
+    description:
+      The AOSS side channel also provides the controls for three cooling devices,
+      these are expressed as subnodes of the QMP node. The name of the node is
+      used to identify the resource and must therefor be "cx", "mx" or "ebi".
+
+    properties:
+      "#cooling-cells":
+        const: 2
+
+    required:
+      - "#cooling-cells"
+
+    additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    aoss_qmp: qmp@c300000 {
+      compatible = "qcom,sdm845-aoss-qmp", "qcom,aoss-qmp";
+      reg = <0x0c300000 0x100000>;
+      interrupts = <GIC_SPI 389 IRQ_TYPE_EDGE_RISING>;
+      mboxes = <&apss_shared 0>;
+
+      #clock-cells = <0>;
+      #power-domain-cells = <1>;
+
+      cx_cdev: cx {
+        #cooling-cells = <2>;
+      };
+
+      mx_cdev: mx {
+        #cooling-cells = <2>;
+      };
+    };
+...
