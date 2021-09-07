@@ -137,6 +137,7 @@ static int snd_vx222_create(struct snd_card *card, struct pci_dev *pci,
 	}
 	chip->irq = pci->irq;
 	card->sync_irq = chip->irq;
+	*rchip = vx;
 
 	return 0;
 }
