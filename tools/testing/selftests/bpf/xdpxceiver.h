@@ -132,6 +132,7 @@ struct ifobject {
 struct test_spec {
 	struct ifobject *ifobj_tx;
 	struct ifobject *ifobj_rx;
+	struct pkt_stream *pkt_stream_default;
 	u16 total_steps;
 	u16 current_step;
 	u16 nb_sockets;
