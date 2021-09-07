@@ -2271,7 +2271,6 @@ F:	drivers/iio/adc/ab8500-gpadc.c
 F:	drivers/mfd/ab8500*
 F:	drivers/mfd/abx500*
 F:	drivers/mfd/db8500*
-F:	drivers/mfd/dbx500*
 F:	drivers/pinctrl/nomadik/
 F:	drivers/rtc/rtc-ab8500.c
 F:	drivers/rtc/rtc-pl031.c

@@ -2199,5 +2199,33 @@ config MFD_INTEL_M10_BMC
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_RSMU_I2C
+	tristate "Renesas Synchronization Management Unit with I2C"
+	depends on I2C && OF
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Support for the Renesas Synchronization Management Unit, such as
+	  Clockmatrix and 82P33XXX series. This option supports I2C as
+	  the control interface.
+
+	  This driver provides common support for accessing the device.
+	  Additional drivers must be enabled in order to use the functionality
+	  of the device.
+
+config MFD_RSMU_SPI
+	tristate "Renesas Synchronization Management Unit with SPI"
+	depends on SPI && OF
+	select MFD_CORE
+	select REGMAP_SPI
+	help
+	  Support for the Renesas Synchronization Management Unit, such as
+	  Clockmatrix and 82P33XXX series. This option supports SPI as
+	  the control interface.
+
+	  This driver provides common support for accessing the device.
+	  Additional drivers must be enabled in order to use the functionality
+	  of the device.
+
 endmenu
 endif
