@@ -8,6 +8,7 @@
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
+#include <linux/kernel.h>
 
 #include "debug.h"
 #include "ntfs.h"
@@ -419,11 +420,8 @@ int ntfs_look_for_free_space(struct ntfs_sb_info *sbi, CLST lcn, CLST len,
 	/* How many clusters to cat from zone. */
 	zlcn = wnd_zone_bit(wnd);
 	zlen2 = zlen >> 1;
-	ztrim = len > zlen ? zlen : (len > zlen2 ? len : zlen2);
-	new_zlen = zlen - ztrim;
-
-	if (new_zlen < NTFS_MIN_MFT_ZONE)
-		new_zlen = NTFS_MIN_MFT_ZONE;
+	ztrim = clamp_val(len, zlen2, zlen);
+	new_zlen = max_t(size_t, zlen - ztrim, NTFS_MIN_MFT_ZONE);
 
 	wnd_zone_set(wnd, zlcn, new_zlen);
 
