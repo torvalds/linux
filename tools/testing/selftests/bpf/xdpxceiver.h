@@ -71,7 +71,6 @@ enum stat_test_type {
 
 static int configured_mode;
 static bool opt_pkt_dump;
-static u32 num_frames = DEFAULT_PKT_CNT / 4;
 static bool second_step;
 static int test_type;
 
@@ -81,12 +80,13 @@ static u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 static u32 xdp_bind_flags = XDP_USE_NEED_WAKEUP | XDP_COPY;
 static int stat_test_type;
 static u32 rxqsize;
-static u32 frame_headroom;
 
 struct xsk_umem_info {
 	struct xsk_ring_prod fq;
 	struct xsk_ring_cons cq;
 	struct xsk_umem *umem;
+	u32 num_frames;
+	u32 frame_headroom;
 	void *buffer;
 };
 
