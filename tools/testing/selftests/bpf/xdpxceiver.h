@@ -68,14 +68,10 @@ enum stat_test_type {
 	STAT_TEST_TYPE_MAX
 };
 
-static int configured_mode;
 static bool opt_pkt_dump;
 static int test_type;
 
 static bool opt_verbose;
-
-static u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
-static u32 xdp_bind_flags = XDP_USE_NEED_WAKEUP | XDP_COPY;
 static int stat_test_type;
 
 struct xsk_umem_info {
@@ -122,6 +118,8 @@ struct ifobject {
 	int ns_fd;
 	u32 dst_ip;
 	u32 src_ip;
+	u32 xdp_flags;
+	u32 bind_flags;
 	u16 src_port;
 	u16 dst_port;
 	bool tx_on;
