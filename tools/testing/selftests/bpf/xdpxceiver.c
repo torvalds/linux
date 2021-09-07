@@ -112,13 +112,9 @@ static void __exit_with_error(int error, const char *file, const char *func, int
 
 #define exit_with_error(error) __exit_with_error(error, __FILE__, __func__, __LINE__)
 
-#define print_ksft_result(void)\
-	(ksft_test_result_pass("PASS: %s %s %s%s%s%s\n", configured_mode ? "DRV" : "SKB",\
-			       test_type == TEST_TYPE_POLL ? "POLL" : "NOPOLL",\
-			       test_type == TEST_TYPE_TEARDOWN ? "Socket Teardown" : "",\
-			       test_type == TEST_TYPE_BIDI ? "Bi-directional Sockets" : "",\
-			       test_type == TEST_TYPE_STATS ? "Stats" : "",\
-			       test_type == TEST_TYPE_BPF_RES ? "BPF RES" : ""))
+#define print_ksft_result(test)\
+	(ksft_test_result_pass("PASS: %s %s\n", configured_mode ? "DRV" : "SKB", \
+			       (test)->name))
 
 static void memset32_htonl(void *dest, u32 val, u32 size)
 {
@@ -426,6 +422,11 @@ static void test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 static void test_spec_reset(struct test_spec *test)
 {
 	__test_spec_init(test, test->ifobj_tx, test->ifobj_rx);
+}
+
+static void test_spec_set_name(struct test_spec *test, const char *name)
+{
+	strncpy(test->name, name, MAX_TEST_NAME_SIZE);
 }
 
 static struct pkt *pkt_stream_get_pkt(struct pkt_stream *pkt_stream, u32 pkt_nb)
@@ -880,8 +881,6 @@ static void testapp_validate_traffic(struct test_spec *test)
 {
 	struct ifobject *ifobj_tx = test->ifobj_tx;
 	struct ifobject *ifobj_rx = test->ifobj_rx;
-	bool bidi = test_type == TEST_TYPE_BIDI;
-	bool bpf = test_type == TEST_TYPE_BPF_RES;
 	struct pkt_stream *pkt_stream;
 
 	if (pthread_barrier_init(&barr, NULL, 2))
@@ -907,21 +906,17 @@ static void testapp_validate_traffic(struct test_spec *test)
 
 	pthread_join(t1, NULL);
 	pthread_join(t0, NULL);
-
-	if (!(test_type == TEST_TYPE_TEARDOWN) && !bidi && !bpf && !(test_type == TEST_TYPE_STATS))
-		print_ksft_result();
 }
 
 static void testapp_teardown(struct test_spec *test)
 {
 	int i;
 
+	test_spec_set_name(test, "TEARDOWN");
 	for (i = 0; i < MAX_TEARDOWN_ITER; i++) {
 		testapp_validate_traffic(test);
 		test_spec_reset(test);
 	}
-
-	print_ksft_result();
 }
 
 static void swap_directions(struct ifobject **ifobj1, struct ifobject **ifobj2)
@@ -942,6 +937,7 @@ static void swap_directions(struct ifobject **ifobj1, struct ifobject **ifobj2)
 
 static void testapp_bidi(struct test_spec *test)
 {
+	test_spec_set_name(test, "BIDIRECTIONAL");
 	for (int i = 0; i < MAX_BIDI_ITER; i++) {
 		print_verbose("Creating socket\n");
 		testapp_validate_traffic(test);
@@ -953,8 +949,6 @@ static void testapp_bidi(struct test_spec *test)
 	}
 
 	swap_directions(&test->ifobj_rx, &test->ifobj_tx);
-
-	print_ksft_result();
 }
 
 static void swap_xsk_resources(struct ifobject *ifobj_tx, struct ifobject *ifobj_rx)
@@ -973,6 +967,7 @@ static void testapp_bpf_res(struct test_spec *test)
 {
 	int i;
 
+	test_spec_set_name(test, "BPF_RES");
 	for (i = 0; i < MAX_BPF_ITER; i++) {
 		print_verbose("Creating socket\n");
 		testapp_validate_traffic(test);
@@ -980,8 +975,6 @@ static void testapp_bpf_res(struct test_spec *test)
 			swap_xsk_resources(test->ifobj_tx, test->ifobj_rx);
 		second_step = true;
 	}
-
-	print_ksft_result();
 }
 
 static void testapp_stats(struct test_spec *test)
@@ -992,21 +985,28 @@ static void testapp_stats(struct test_spec *test)
 
 		switch (stat_test_type) {
 		case STAT_TEST_RX_DROPPED:
+			test_spec_set_name(test, "STAT_RX_DROPPED");
 			test->ifobj_rx->umem->frame_headroom = test->ifobj_rx->umem->frame_size -
 				XDP_PACKET_HEADROOM - 1;
 			break;
 		case STAT_TEST_RX_FULL:
+			test_spec_set_name(test, "STAT_RX_FULL");
 			test->ifobj_rx->xsk->rxqsize = RX_FULL_RXQSIZE;
 			break;
 		case STAT_TEST_TX_INVALID:
+			test_spec_set_name(test, "STAT_TX_INVALID");
 			continue;
+		case STAT_TEST_RX_FILL_EMPTY:
+			test_spec_set_name(test, "STAT_RX_FILL_EMPTY");
+			break;
 		default:
 			break;
 		}
 		testapp_validate_traffic(test);
 	}
 
-	print_ksft_result();
+	/* To only see the whole stat set being completed unless an individual test fails. */
+	test_spec_set_name(test, "STATS");
 }
 
 static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *src_mac,
@@ -1066,10 +1066,19 @@ static void run_pkt_test(struct test_spec *test, int mode, int type)
 	case TEST_TYPE_BPF_RES:
 		testapp_bpf_res(test);
 		break;
-	default:
+	case TEST_TYPE_NOPOLL:
+		test_spec_set_name(test, "RUN_TO_COMPLETION");
 		testapp_validate_traffic(test);
 		break;
+	case TEST_TYPE_POLL:
+		test_spec_set_name(test, "POLL");
+		testapp_validate_traffic(test);
+		break;
+	default:
+		break;
 	}
+
+	print_ksft_result(test);
 }
 
 static struct ifobject *ifobject_create(void)
