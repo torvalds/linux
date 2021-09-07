@@ -922,13 +922,16 @@ static void __init ne_add_devices(void)
 	}
 }
 
-#ifdef MODULE
 static int __init ne_init(void)
 {
 	int retval;
-	ne_add_devices();
+
+	if (IS_MODULE(CONFIG_NE2000))
+		ne_add_devices();
+
 	retval = platform_driver_probe(&ne_driver, ne_drv_probe);
-	if (retval) {
+
+	if (IS_MODULE(CONFIG_NE2000) && retval) {
 		if (io[0] == 0)
 			pr_notice("ne.c: You must supply \"io=0xNNN\""
 			       " value(s) for ISA cards.\n");
@@ -941,18 +944,8 @@ static int __init ne_init(void)
 	return retval;
 }
 module_init(ne_init);
-#else /* MODULE */
-static int __init ne_init(void)
-{
-	int retval = platform_driver_probe(&ne_driver, ne_drv_probe);
 
-	/* Unregister unused platform_devices. */
-	ne_loop_rm_unreg(0);
-	return retval;
-}
-module_init(ne_init);
-
-#ifdef CONFIG_NETDEV_LEGACY_INIT
+#if !defined(MODULE) && defined(CONFIG_NETDEV_LEGACY_INIT)
 struct net_device * __init ne_probe(int unit)
 {
 	int this_dev;
@@ -994,7 +987,6 @@ struct net_device * __init ne_probe(int unit)
 	return ERR_PTR(-ENODEV);
 }
 #endif
-#endif /* MODULE */
 
 static void __exit ne_exit(void)
 {
