@@ -211,8 +211,8 @@ error:
 	if (repeat--) {
 		/* Min is 2MB */
 		nslabs = max(1024UL, (nslabs >> 1));
-		pr_info("Lowering to %luMB\n",
-			(nslabs << IO_TLB_SHIFT) >> 20);
+		bytes = nslabs << IO_TLB_SHIFT;
+		pr_info("Lowering to %luMB\n", bytes >> 20);
 		goto retry;
 	}
 	pr_err("%s (rc:%d)\n", xen_swiotlb_error(m_ret), rc);
