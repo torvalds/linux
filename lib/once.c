@@ -3,12 +3,10 @@
 #include <linux/spinlock.h>
 #include <linux/once.h>
 #include <linux/random.h>
-#include <linux/module.h>
 
 struct once_work {
 	struct work_struct work;
 	struct static_key_true *key;
-	struct module *module;
 };
 
 static void once_deferred(struct work_struct *w)
@@ -18,11 +16,10 @@ static void once_deferred(struct work_struct *w)
 	work = container_of(w, struct once_work, work);
 	BUG_ON(!static_key_enabled(work->key));
 	static_branch_disable(work->key);
-	module_put(work->module);
 	kfree(work);
 }
 
-static void once_disable_jump(struct static_key_true *key, struct module *mod)
+static void once_disable_jump(struct static_key_true *key)
 {
 	struct once_work *w;
 
@@ -32,8 +29,6 @@ static void once_disable_jump(struct static_key_true *key, struct module *mod)
 
 	INIT_WORK(&w->work, once_deferred);
 	w->key = key;
-	w->module = mod;
-	__module_get(mod);
 	schedule_work(&w->work);
 }
 
@@ -58,11 +53,11 @@ bool __do_once_start(bool *done, unsigned long *flags)
 EXPORT_SYMBOL(__do_once_start);
 
 void __do_once_done(bool *done, struct static_key_true *once_key,
-		    unsigned long *flags, struct module *mod)
+		    unsigned long *flags)
 	__releases(once_lock)
 {
 	*done = true;
 	spin_unlock_irqrestore(&once_lock, *flags);
-	once_disable_jump(once_key, mod);
+	once_disable_jump(once_key);
 }
 EXPORT_SYMBOL(__do_once_done);
