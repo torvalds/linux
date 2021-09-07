@@ -46,6 +46,8 @@
  *       then remove xsk sockets from queue 0 on both veth interfaces and
  *       finally run a traffic on queues ids 1
  *    g. unaligned mode
+ *    h. tests for invalid and corner case Tx descriptors so that the correct ones
+ *       are discarded and let through, respectively.
  *
  * Total tests: 12
  *
@@ -394,7 +396,7 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 		for (j = 0; j < MAX_SOCKETS; j++) {
 			memset(&ifobj->umem_arr[j], 0, sizeof(ifobj->umem_arr[j]));
 			memset(&ifobj->xsk_arr[j], 0, sizeof(ifobj->xsk_arr[j]));
-			ifobj->umem_arr[j].num_frames = DEFAULT_PKT_CNT / 4;
+			ifobj->umem_arr[j].num_frames = DEFAULT_UMEM_BUFFERS;
 			ifobj->umem_arr[j].frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE;
 			ifobj->xsk_arr[j].rxqsize = XSK_RING_CONS__DEFAULT_NUM_DESCS;
 		}
@@ -450,6 +452,16 @@ static struct pkt *pkt_stream_get_pkt(struct pkt_stream *pkt_stream, u32 pkt_nb)
 	return &pkt_stream->pkts[pkt_nb];
 }
 
+static struct pkt *pkt_stream_get_next_rx_pkt(struct pkt_stream *pkt_stream)
+{
+	while (pkt_stream->rx_pkt_nb < pkt_stream->nb_pkts) {
+		if (pkt_stream->pkts[pkt_stream->rx_pkt_nb].valid)
+			return &pkt_stream->pkts[pkt_stream->rx_pkt_nb++];
+		pkt_stream->rx_pkt_nb++;
+	}
+	return NULL;
+}
+
 static void pkt_stream_delete(struct pkt_stream *pkt_stream)
 {
 	free(pkt_stream->pkts);
@@ -465,17 +477,31 @@ static void pkt_stream_restore_default(struct test_spec *test)
 	test->ifobj_rx->pkt_stream = test->pkt_stream_default;
 }
 
+static struct pkt_stream *__pkt_stream_alloc(u32 nb_pkts)
+{
+	struct pkt_stream *pkt_stream;
+
+	pkt_stream = calloc(1, sizeof(*pkt_stream));
+	if (!pkt_stream)
+		return NULL;
+
+	pkt_stream->pkts = calloc(nb_pkts, sizeof(*pkt_stream->pkts));
+	if (!pkt_stream->pkts) {
+		free(pkt_stream);
+		return NULL;
+	}
+
+	pkt_stream->nb_pkts = nb_pkts;
+	return pkt_stream;
+}
+
 static struct pkt_stream *pkt_stream_generate(struct xsk_umem_info *umem, u32 nb_pkts, u32 pkt_len)
 {
 	struct pkt_stream *pkt_stream;
 	u32 i;
 
-	pkt_stream = calloc(1, sizeof(*pkt_stream));
+	pkt_stream = __pkt_stream_alloc(nb_pkts);
 	if (!pkt_stream)
-		exit_with_error(ENOMEM);
-
-	pkt_stream->pkts = calloc(nb_pkts, sizeof(*pkt_stream->pkts));
-	if (!pkt_stream->pkts)
 		exit_with_error(ENOMEM);
 
 	pkt_stream->nb_pkts = nb_pkts;
@@ -535,6 +561,8 @@ static struct pkt *pkt_generate(struct ifobject *ifobject, u32 pkt_nb)
 
 	if (!pkt)
 		return NULL;
+	if (!pkt->valid || pkt->len < PKT_SIZE)
+		return pkt;
 
 	data = xsk_umem__get_data(ifobject->umem->buffer, pkt->addr);
 	udp_hdr = (struct udphdr *)(data + sizeof(struct ethhdr) + sizeof(struct iphdr));
@@ -547,6 +575,26 @@ static struct pkt *pkt_generate(struct ifobject *ifobject, u32 pkt_nb)
 	gen_eth_hdr(ifobject, eth_hdr);
 
 	return pkt;
+}
+
+static void pkt_stream_generate_custom(struct test_spec *test, struct pkt *pkts, u32 nb_pkts)
+{
+	struct pkt_stream *pkt_stream;
+	u32 i;
+
+	pkt_stream = __pkt_stream_alloc(nb_pkts);
+	if (!pkt_stream)
+		exit_with_error(ENOMEM);
+
+	test->ifobj_tx->pkt_stream = pkt_stream;
+	test->ifobj_rx->pkt_stream = pkt_stream;
+
+	for (i = 0; i < nb_pkts; i++) {
+		pkt_stream->pkts[i].addr = pkts[i].addr;
+		pkt_stream->pkts[i].len = pkts[i].len;
+		pkt_stream->pkts[i].payload = i;
+		pkt_stream->pkts[i].valid = pkts[i].valid;
+	}
 }
 
 static void pkt_dump(void *pkt, u32 len)
@@ -596,18 +644,23 @@ static bool is_pkt_valid(struct pkt *pkt, void *buffer, u64 addr, u32 len)
 		return false;
 	}
 
+	if (len < PKT_SIZE) {
+		/*Do not try to verify packets that are smaller than minimum size. */
+		return true;
+	}
+
+	if (pkt->len != len) {
+		ksft_test_result_fail
+			("ERROR: [%s] expected length [%d], got length [%d]\n",
+			 __func__, pkt->len, len);
+		return false;
+	}
+
 	if (iphdr->version == IP_PKT_VER && iphdr->tos == IP_PKT_TOS) {
 		u32 seqnum = ntohl(*((u32 *)(data + PKT_HDR_SIZE)));
 
 		if (opt_pkt_dump)
 			pkt_dump(data, PKT_SIZE);
-
-		if (pkt->len != len) {
-			ksft_test_result_fail
-				("ERROR: [%s] expected length [%d], got length [%d]\n",
-					__func__, pkt->len, len);
-			return false;
-		}
 
 		if (pkt->payload != seqnum) {
 			ksft_test_result_fail
@@ -645,6 +698,15 @@ static void complete_pkts(struct xsk_socket_info *xsk, int batch_size)
 
 	rcvd = xsk_ring_cons__peek(&xsk->umem->cq, batch_size, &idx);
 	if (rcvd) {
+		if (rcvd > xsk->outstanding_tx) {
+			u64 addr = *xsk_ring_cons__comp_addr(&xsk->umem->cq, idx + rcvd - 1);
+
+			ksft_test_result_fail("ERROR: [%s] Too many packets completed\n",
+					      __func__);
+			ksft_print_msg("Last completion address: %llx\n", addr);
+			return;
+		}
+
 		xsk_ring_cons__release(&xsk->umem->cq, rcvd);
 		xsk->outstanding_tx -= rcvd;
 	}
@@ -653,11 +715,10 @@ static void complete_pkts(struct xsk_socket_info *xsk, int batch_size)
 static void receive_pkts(struct pkt_stream *pkt_stream, struct xsk_socket_info *xsk,
 			 struct pollfd *fds)
 {
-	u32 idx_rx = 0, idx_fq = 0, rcvd, i, pkt_count = 0;
-	struct pkt *pkt;
+	struct pkt *pkt = pkt_stream_get_next_rx_pkt(pkt_stream);
+	u32 idx_rx = 0, idx_fq = 0, rcvd, i;
 	int ret;
 
-	pkt = pkt_stream_get_pkt(pkt_stream, pkt_count++);
 	while (pkt) {
 		rcvd = xsk_ring_cons__peek(&xsk->rx, BATCH_SIZE, &idx_rx);
 		if (!rcvd) {
@@ -685,13 +746,21 @@ static void receive_pkts(struct pkt_stream *pkt_stream, struct xsk_socket_info *
 			const struct xdp_desc *desc = xsk_ring_cons__rx_desc(&xsk->rx, idx_rx++);
 			u64 addr = desc->addr, orig;
 
+			if (!pkt) {
+				ksft_test_result_fail("ERROR: [%s] Received too many packets.\n",
+						      __func__);
+				ksft_print_msg("Last packet has addr: %llx len: %u\n",
+					       addr, desc->len);
+				return;
+			}
+
 			orig = xsk_umem__extract_addr(addr);
 			addr = xsk_umem__add_offset_to_addr(addr);
 			if (!is_pkt_valid(pkt, xsk->umem->buffer, addr, desc->len))
 				return;
 
 			*xsk_ring_prod__fill_addr(&xsk->umem->fq, idx_fq++) = orig;
-			pkt = pkt_stream_get_pkt(pkt_stream, pkt_count++);
+			pkt = pkt_stream_get_next_rx_pkt(pkt_stream);
 		}
 
 		xsk_ring_prod__submit(&xsk->umem->fq, rcvd);
@@ -875,6 +944,7 @@ static void testapp_cleanup_xsk_res(struct ifobject *ifobj)
 {
 	print_verbose("Destroying socket\n");
 	xsk_socket__delete(ifobj->xsk->xsk);
+	munmap(ifobj->umem->buffer, ifobj->umem->num_frames * ifobj->umem->frame_size);
 	xsk_umem__delete(ifobj->umem->umem);
 }
 
@@ -1118,6 +1188,35 @@ static bool testapp_unaligned(struct test_spec *test)
 	return true;
 }
 
+static void testapp_invalid_desc(struct test_spec *test)
+{
+	struct pkt pkts[] = {
+		/* Zero packet length at address zero allowed */
+		{0, 0, 0, true},
+		/* Zero packet length allowed */
+		{0x1000, 0, 0, true},
+		/* Straddling the start of umem */
+		{-2, PKT_SIZE, 0, false},
+		/* Packet too large */
+		{0x2000, XSK_UMEM__INVALID_FRAME_SIZE, 0, false},
+		/* After umem ends */
+		{UMEM_SIZE, PKT_SIZE, 0, false},
+		/* Straddle the end of umem */
+		{UMEM_SIZE - PKT_SIZE / 2, PKT_SIZE, 0, false},
+		/* Straddle a page boundrary */
+		{0x3000 - PKT_SIZE / 2, PKT_SIZE, 0, false},
+		/* Valid packet for synch so that something is received */
+		{0x4000, PKT_SIZE, 0, true}};
+
+	if (test->ifobj_tx->umem->unaligned_mode) {
+		/* Crossing a page boundrary allowed */
+		pkts[6].valid = true;
+	}
+	pkt_stream_generate_custom(test, pkts, ARRAY_SIZE(pkts));
+	testapp_validate_traffic(test);
+	pkt_stream_restore_default(test);
+}
+
 static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *src_mac,
 		       const char *dst_ip, const char *src_ip, const u16 dst_port,
 		       const u16 src_port, thread_func_t func_ptr)
@@ -1159,7 +1258,7 @@ static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_
 	case TEST_TYPE_BPF_RES:
 		testapp_bpf_res(test);
 		break;
-	case TEST_TYPE_NOPOLL:
+	case TEST_TYPE_RUN_TO_COMPLETION:
 		test_spec_set_name(test, "RUN_TO_COMPLETION");
 		testapp_validate_traffic(test);
 		break;
@@ -1168,6 +1267,16 @@ static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_
 		test->ifobj_rx->use_poll = true;
 		test_spec_set_name(test, "POLL");
 		testapp_validate_traffic(test);
+		break;
+	case TEST_TYPE_ALIGNED_INV_DESC:
+		test_spec_set_name(test, "ALIGNED_INV_DESC");
+		testapp_invalid_desc(test);
+		break;
+	case TEST_TYPE_UNALIGNED_INV_DESC:
+		test_spec_set_name(test, "UNALIGNED_INV_DESC");
+		test->ifobj_tx->umem->unaligned_mode = true;
+		test->ifobj_rx->umem->unaligned_mode = true;
+		testapp_invalid_desc(test);
 		break;
 	case TEST_TYPE_UNALIGNED:
 		if (!testapp_unaligned(test))

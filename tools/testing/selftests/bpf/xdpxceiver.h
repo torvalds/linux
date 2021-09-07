@@ -38,6 +38,8 @@
 #define BATCH_SIZE 8
 #define POLL_TMOUT 1000
 #define DEFAULT_PKT_CNT (4 * 1024)
+#define DEFAULT_UMEM_BUFFERS (DEFAULT_PKT_CNT / 4)
+#define UMEM_SIZE (DEFAULT_UMEM_BUFFERS * XSK_UMEM__DEFAULT_FRAME_SIZE)
 #define RX_FULL_RXQSIZE 32
 #define DEFAULT_OFFSET 256
 #define XSK_UMEM__INVALID_FRAME_SIZE (XSK_UMEM__DEFAULT_FRAME_SIZE + 1)
@@ -51,9 +53,11 @@ enum test_mode {
 };
 
 enum test_type {
-	TEST_TYPE_NOPOLL,
+	TEST_TYPE_RUN_TO_COMPLETION,
 	TEST_TYPE_POLL,
 	TEST_TYPE_UNALIGNED,
+	TEST_TYPE_ALIGNED_INV_DESC,
+	TEST_TYPE_UNALIGNED_INV_DESC,
 	TEST_TYPE_TEARDOWN,
 	TEST_TYPE_BIDI,
 	TEST_TYPE_STATS,
@@ -104,6 +108,7 @@ struct pkt {
 
 struct pkt_stream {
 	u32 nb_pkts;
+	u32 rx_pkt_nb;
 	struct pkt *pkts;
 	bool use_addr_for_fill;
 };
