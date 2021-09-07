@@ -216,7 +216,6 @@ error:
 		goto retry;
 	}
 	pr_err("%s (rc:%d)\n", xen_swiotlb_error(m_ret), rc);
-	free_pages((unsigned long)start, order);
 	return rc;
 }
 
