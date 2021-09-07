@@ -382,7 +382,7 @@ int ntfs_look_for_free_space(struct ntfs_sb_info *sbi, CLST lcn, CLST len,
 		}
 
 		lcn = wnd_zone_bit(wnd);
-		alen = zlen > len ? len : zlen;
+		alen = min_t(CLST, len, zlen);
 
 		wnd_zone_set(wnd, lcn + alen, zlen - alen);
 
@@ -1096,7 +1096,7 @@ int ntfs_sb_write_run(struct ntfs_sb_info *sbi, const struct runs_tree *run,
 	len = ((u64)clen << cluster_bits) - off;
 
 	for (;;) {
-		u32 op = len < bytes ? len : bytes;
+		u32 op = min_t(u64, len, bytes);
 		int err = ntfs_sb_write(sb, lbo, op, buf, 0);
 
 		if (err)
@@ -1297,7 +1297,7 @@ int ntfs_get_bh(struct ntfs_sb_info *sbi, const struct runs_tree *run, u64 vbo,
 	nb->off = off = lbo & (blocksize - 1);
 
 	for (;;) {
-		u32 len32 = len < bytes ? len : bytes;
+		u32 len32 = min_t(u64, len, bytes);
 		sector_t block = lbo >> sb->s_blocksize_bits;
 
 		do {
