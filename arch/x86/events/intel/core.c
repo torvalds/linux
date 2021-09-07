@@ -2402,6 +2402,12 @@ static void intel_pmu_disable_event(struct perf_event *event)
 		intel_pmu_pebs_disable(event);
 }
 
+static void intel_pmu_assign_event(struct perf_event *event, int idx)
+{
+	if (is_pebs_pt(event))
+		perf_report_aux_output_id(event, idx);
+}
+
 static void intel_pmu_del_event(struct perf_event *event)
 {
 	if (needs_branch_stack(event))
@@ -4494,8 +4500,16 @@ static int intel_pmu_check_period(struct perf_event *event, u64 value)
 	return intel_pmu_has_bts_period(event, value) ? -EINVAL : 0;
 }
 
+static void intel_aux_output_init(void)
+{
+	/* Refer also intel_pmu_aux_output_match() */
+	if (x86_pmu.intel_cap.pebs_output_pt_available)
+		x86_pmu.assign = intel_pmu_assign_event;
+}
+
 static int intel_pmu_aux_output_match(struct perf_event *event)
 {
+	/* intel_pmu_assign_event() is needed, refer intel_aux_output_init() */
 	if (!x86_pmu.intel_cap.pebs_output_pt_available)
 		return 0;
 
@@ -6300,6 +6314,8 @@ __init int intel_pmu_init(void)
 
 	if (is_hybrid())
 		intel_pmu_check_hybrid_pmus((u64)fixed_mask);
+
+	intel_aux_output_init();
 
 	return 0;
 }
