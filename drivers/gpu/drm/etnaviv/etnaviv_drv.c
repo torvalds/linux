@@ -589,6 +589,7 @@ static int compare_str(struct device *dev, void *data)
 static int etnaviv_pdev_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct device_node *first_node = NULL;
 	struct component_match *match = NULL;
 
 	if (!dev->platform_data) {
@@ -597,6 +598,9 @@ static int etnaviv_pdev_probe(struct platform_device *pdev)
 		for_each_compatible_node(core_node, NULL, "vivante,gc") {
 			if (!of_device_is_available(core_node))
 				continue;
+
+			if (!first_node)
+				first_node = core_node;
 
 			drm_of_component_match_add(&pdev->dev, &match,
 						   compare_of, core_node);
@@ -608,6 +612,14 @@ static int etnaviv_pdev_probe(struct platform_device *pdev)
 		for (i = 0; names[i]; i++)
 			component_match_add(dev, &match, compare_str, names[i]);
 	}
+
+	/*
+	 * Apply the same DMA configuration to the virtual etnaviv
+	 * device as the GPU we found. This assumes that all Vivante
+	 * GPUs in the system share the same DMA constraints.
+	 */
+	if (first_node)
+		of_dma_configure(&pdev->dev, first_node, true);
 
 	return component_master_add_with_match(dev, &etnaviv_master_ops, match);
 }
@@ -661,13 +673,6 @@ static int __init etnaviv_init(void)
 		}
 		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(40);
 		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
-
-		/*
-		 * Apply the same DMA configuration to the virtual etnaviv
-		 * device as the GPU we found. This assumes that all Vivante
-		 * GPUs in the system share the same DMA constraints.
-		 */
-		of_dma_configure(&pdev->dev, np, true);
 
 		ret = platform_device_add(pdev);
 		if (ret) {
