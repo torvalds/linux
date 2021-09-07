@@ -171,7 +171,7 @@ enum opt_type {
 	x(shard_inode_numbers,		u8,				\
 	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
 	  OPT_BOOL(),							\
-	  BCH_SB_SHARD_INUMS,		false,				\
+	  BCH_SB_SHARD_INUMS,		true,				\
 	  NULL,		"Shard new inode numbers by CPU id")		\
 	x(inodes_use_key_cache,	u8,					\
 	  OPT_FORMAT|OPT_MOUNT,						\
