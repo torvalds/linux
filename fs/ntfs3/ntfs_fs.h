@@ -60,19 +60,16 @@ struct ntfs_mount_options {
 	u16 fs_fmask_inv;
 	u16 fs_dmask_inv;
 
-	unsigned uid : 1, /* uid was set. */
-		gid : 1, /* gid was set. */
-		fmask : 1, /* fmask was set. */
-		dmask : 1, /* dmask was set. */
-		sys_immutable : 1, /* Immutable system files. */
-		discard : 1, /* Issue discard requests on deletions. */
-		sparse : 1, /* Create sparse files. */
-		showmeta : 1, /* Show meta files. */
-		nohidden : 1, /* Do not show hidden files. */
-		force : 1, /* Rw mount dirty volume. */
-		noacsrules : 1, /*Exclude acs rules. */
-		prealloc : 1 /* Preallocate space when file is growing. */
-		;
+	unsigned fmask : 1; /* fmask was set. */
+	unsigned dmask : 1; /*dmask was set. */
+	unsigned sys_immutable : 1; /* Immutable system files. */
+	unsigned discard : 1; /* Issue discard requests on deletions. */
+	unsigned sparse : 1; /* Create sparse files. */
+	unsigned showmeta : 1; /* Show meta files. */
+	unsigned nohidden : 1; /* Do not show hidden files. */
+	unsigned force : 1; /* RW mount dirty volume. */
+	unsigned noacsrules : 1; /* Exclude acs rules. */
+	unsigned prealloc : 1; /* Preallocate space when file is growing. */
 };
 
 /* Special value to unpack and deallocate. */

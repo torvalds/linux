@@ -294,13 +294,11 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 		opts->fs_uid = make_kuid(current_user_ns(), result.uint_32);
 		if (!uid_valid(opts->fs_uid))
 			return invalf(fc, "ntfs3: Invalid value for uid.");
-		opts->uid = 1;
 		break;
 	case Opt_gid:
 		opts->fs_gid = make_kgid(current_user_ns(), result.uint_32);
 		if (!gid_valid(opts->fs_gid))
 			return invalf(fc, "ntfs3: Invalid value for gid.");
-		opts->gid = 1;
 		break;
 	case Opt_umask:
 		if (result.uint_32 & ~07777)
@@ -521,12 +519,10 @@ static int ntfs_show_options(struct seq_file *m, struct dentry *root)
 	struct ntfs_mount_options *opts = sbi->options;
 	struct user_namespace *user_ns = seq_user_ns(m);
 
-	if (opts->uid)
-		seq_printf(m, ",uid=%u",
-			   from_kuid_munged(user_ns, opts->fs_uid));
-	if (opts->gid)
-		seq_printf(m, ",gid=%u",
-			   from_kgid_munged(user_ns, opts->fs_gid));
+	seq_printf(m, ",uid=%u",
+		  from_kuid_munged(user_ns, opts->fs_uid));
+	seq_printf(m, ",gid=%u",
+		  from_kgid_munged(user_ns, opts->fs_gid));
 	if (opts->fmask)
 		seq_printf(m, ",fmask=%04o", ~opts->fs_fmask_inv);
 	if (opts->dmask)
