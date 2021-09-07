@@ -52,6 +52,7 @@
 // clang-format on
 
 struct ntfs_mount_options {
+	char *nls_name;
 	struct nls_table *nls;
 
 	kuid_t fs_uid;
