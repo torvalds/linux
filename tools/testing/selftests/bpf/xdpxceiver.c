@@ -693,11 +693,11 @@ static void wait_for_tx_completion(struct xsk_socket_info *xsk)
 
 static void send_pkts(struct ifobject *ifobject)
 {
-	struct pollfd fds[MAX_SOCKS] = { };
+	struct pollfd fds = { };
 	u32 pkt_cnt = 0;
 
-	fds[0].fd = xsk_socket__fd(ifobject->xsk->xsk);
-	fds[0].events = POLLOUT;
+	fds.fd = xsk_socket__fd(ifobject->xsk->xsk);
+	fds.events = POLLOUT;
 
 	while (pkt_cnt < ifobject->pkt_stream->nb_pkts) {
 		u32 sent;
@@ -705,11 +705,11 @@ static void send_pkts(struct ifobject *ifobject)
 		if (ifobject->use_poll) {
 			int ret;
 
-			ret = poll(fds, 1, POLL_TMOUT);
+			ret = poll(&fds, 1, POLL_TMOUT);
 			if (ret <= 0)
 				continue;
 
-			if (!(fds[0].revents & POLLOUT))
+			if (!(fds.revents & POLLOUT))
 				continue;
 		}
 
@@ -855,7 +855,7 @@ static void *worker_testapp_validate_rx(void *arg)
 {
 	struct test_spec *test = (struct test_spec *)arg;
 	struct ifobject *ifobject = test->ifobj_rx;
-	struct pollfd fds[MAX_SOCKS] = { };
+	struct pollfd fds = { };
 
 	if (test->current_step == 1)
 		thread_common_ops(test, ifobject);
@@ -863,8 +863,8 @@ static void *worker_testapp_validate_rx(void *arg)
 	if (stat_test_type != STAT_TEST_RX_FILL_EMPTY)
 		xsk_populate_fill_ring(ifobject->umem);
 
-	fds[0].fd = xsk_socket__fd(ifobject->xsk->xsk);
-	fds[0].events = POLLIN;
+	fds.fd = xsk_socket__fd(ifobject->xsk->xsk);
+	fds.events = POLLIN;
 
 	pthread_barrier_wait(&barr);
 
@@ -872,7 +872,7 @@ static void *worker_testapp_validate_rx(void *arg)
 		while (!rx_stats_are_valid(ifobject))
 			continue;
 	else
-		receive_pkts(ifobject->pkt_stream, ifobject->xsk, fds);
+		receive_pkts(ifobject->pkt_stream, ifobject->xsk, &fds);
 
 	if (test_type == TEST_TYPE_TEARDOWN)
 		print_verbose("Destroying socket\n");
