@@ -41,6 +41,7 @@
 #include "vega10_ih.h"
 #include "vega20_ih.h"
 #include "sdma_v4_0.h"
+#include "sdma_v4_4_2.h"
 #include "uvd_v7_0.h"
 #include "vce_v4_0.h"
 #include "vcn_v1_0.h"
@@ -1842,6 +1843,9 @@ static int amdgpu_discovery_set_sdma_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(4, 2, 2):
 	case IP_VERSION(4, 4, 0):
 		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
+		break;
+	case IP_VERSION(4, 4, 2):
+		amdgpu_device_ip_block_add(adev, &sdma_v4_4_2_ip_block);
 		break;
 	case IP_VERSION(5, 0, 0):
 	case IP_VERSION(5, 0, 1):
