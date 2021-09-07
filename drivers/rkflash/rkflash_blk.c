@@ -69,8 +69,10 @@ static char *mtd_read_temp_buffer;
 #define DISABLE_READ _IO('V', 2)
 #define ENABLE_READ _IO('V', 3)
 
-static DECLARE_WAIT_QUEUE_HEAD(rkflash_thread_wait);
-static unsigned int rknand_req_do;
+/* Thread for gc operation */
+static DECLARE_WAIT_QUEUE_HEAD(nand_gc_thread_wait);
+static unsigned long nand_gc_do;
+static struct task_struct *nand_gc_thread __read_mostly;
 
 /* For rkflash dev private data, including mtd dev and block dev */
 static int rkflash_dev_initialised;
@@ -383,10 +385,15 @@ static blk_status_t rkflash_queue_rq(struct blk_mq_hw_ctx *hctx,
 		return BLK_STS_IOERR;
 	}
 
+	nand_gc_do = 0;
 	spin_lock_irq(&dev->blk_ops->queue_lock);
 	list_add_tail(&bd->rq->queuelist, &dev->blk_ops->rq_list);
 	rkflash_blktrans_work(dev);
 	spin_unlock_irq(&dev->blk_ops->queue_lock);
+
+	/* wake up gc thread */
+	nand_gc_do = 1;
+	wake_up(&nand_gc_thread_wait);
 
 	return BLK_STS_OK;
 }
@@ -394,6 +401,61 @@ static blk_status_t rkflash_queue_rq(struct blk_mq_hw_ctx *hctx,
 static const struct blk_mq_ops rkflash_mq_ops = {
 	.queue_rq	= rkflash_queue_rq,
 };
+
+static int nand_gc_has_work(void)
+{
+	return nand_gc_do;
+}
+
+static int nand_gc_do_work(void)
+{
+	int ret = nand_gc_has_work();
+
+	/* do garbage collect at idle state */
+	if (ret) {
+		mutex_lock(&g_flash_ops_mutex);
+		ret = g_boot_ops->gc();
+		rkflash_print_bio("%s gc result= %d\n", __func__, ret);
+		mutex_unlock(&g_flash_ops_mutex);
+	}
+
+	return ret;
+}
+
+static void nand_gc_wait_work(void)
+{
+	unsigned long nand_gc_jiffies = HZ / 20;
+
+	if (nand_gc_has_work())
+		wait_event_freezable_timeout(nand_gc_thread_wait,
+					     kthread_should_stop(),
+					     nand_gc_jiffies);
+	else
+		wait_event_freezable(nand_gc_thread_wait,
+				     kthread_should_stop() || nand_gc_has_work());
+}
+
+static int nand_gc_mythread(void *arg)
+{
+	int gc_done_times = 0;
+
+	set_freezable();
+
+	while (!kthread_should_stop()) {
+		if (nand_gc_do_work() == 0) {
+			gc_done_times++;
+			if (gc_done_times > 10)
+				nand_gc_do = 0;
+		} else {
+			gc_done_times = 0;
+		}
+
+		nand_gc_wait_work();
+	}
+	pr_info("nand gc quited\n");
+
+	return 0;
+}
 
 static int rkflash_blk_open(struct block_device *bdev, fmode_t mode)
 {
@@ -536,10 +598,6 @@ static int rkflash_blk_register(struct flash_blk_ops *blk_ops)
 	if (!dev)
 		return -ENOMEM;
 
-	rknand_req_do = 0;
-	blk_ops->quit = 0;
-	blk_ops->flash_th_quited = 0;
-
 	mtd_read_temp_buffer = kmalloc(MTD_RW_SECTORS * 512,
 				       GFP_KERNEL | GFP_DMA);
 
@@ -549,9 +607,6 @@ static int rkflash_blk_register(struct flash_blk_ops *blk_ops)
 
 		return -1;
 	}
-
-	init_completion(&blk_ops->thread_exit);
-	init_waitqueue_head(&blk_ops->thread_wq);
 
 	/* Create the request queue */
 	spin_lock_init(&blk_ops->queue_lock);
@@ -577,6 +632,9 @@ static int rkflash_blk_register(struct flash_blk_ops *blk_ops)
 	blk_queue_flag_set(QUEUE_FLAG_DISCARD, blk_ops->rq);
 	blk_queue_max_discard_sectors(blk_ops->rq, UINT_MAX >> 9);
 	blk_ops->rq->limits.discard_granularity = 64 << 9;
+
+	if (g_flash_type == FLASH_TYPE_SFC_NAND || g_flash_type == FLASH_TYPE_NANDC_NAND)
+		nand_gc_thread = kthread_run(nand_gc_mythread, (void *)blk_ops, "rkflash_gc");
 
 	INIT_LIST_HEAD(&blk_ops->devs);
 	g_max_part_num = rk_partition_init(disk_array);
@@ -619,9 +677,6 @@ static void rkflash_blk_unregister(struct flash_blk_ops *blk_ops)
 {
 	struct list_head *this, *next;
 
-	blk_ops->quit = 1;
-	wake_up(&blk_ops->thread_wq);
-	wait_for_completion(&blk_ops->thread_exit);
 	list_for_each_safe(this, next, &blk_ops->devs) {
 		struct flash_blk_dev *dev =
 			list_entry(this, struct flash_blk_dev, list);
@@ -736,7 +791,6 @@ int rkflash_dev_init(void __iomem *reg_addr,
 	case FLASH_TYPE_NANDC_NAND:
 	default:
 		g_flash_type = type;
-		mytr.quit = 1;
 		ret = rkflash_blk_register(&mytr);
 		pr_err("%s device register as blk dev, ret= %d\n", __func__, ret);
 		if (ret)
@@ -779,11 +833,9 @@ int rkflash_dev_resume(void __iomem *reg_addr)
 void rkflash_dev_shutdown(void)
 {
 	pr_info("rkflash_shutdown...\n");
-	if (g_flash_type != -1 && mytr.quit == 0) {
-		mytr.quit = 1;
-		wake_up(&mytr.thread_wq);
-		wait_for_completion(&mytr.thread_exit);
-	}
+	if (g_flash_type == FLASH_TYPE_SFC_NAND || g_flash_type == FLASH_TYPE_NANDC_NAND)
+		kthread_stop(nand_gc_thread);
+
 	mutex_lock(&g_flash_ops_mutex);
 	g_boot_ops->deinit();
 	mutex_unlock(&g_flash_ops_mutex);

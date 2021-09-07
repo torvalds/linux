@@ -24,10 +24,6 @@ struct flash_blk_ops {
 	int major;
 	int minorbits;
 	int last_dev_index;
-	struct completion thread_exit;
-	int quit;
-	int flash_th_quited;
-	wait_queue_head_t thread_wq; /* thread wait queue */
 	struct request_queue *rq;
 	spinlock_t queue_lock; /* queue lock */
 
