@@ -422,11 +422,8 @@ int ntfs_look_for_free_space(struct ntfs_sb_info *sbi, CLST lcn, CLST len,
 	ztrim = len > zlen ? zlen : (len > zlen2 ? len : zlen2);
 	new_zlen = zlen - ztrim;
 
-	if (new_zlen < NTFS_MIN_MFT_ZONE) {
+	if (new_zlen < NTFS_MIN_MFT_ZONE)
 		new_zlen = NTFS_MIN_MFT_ZONE;
-		if (new_zlen > zlen)
-			new_zlen = zlen;
-	}
 
 	wnd_zone_set(wnd, zlcn, new_zlen);
 
