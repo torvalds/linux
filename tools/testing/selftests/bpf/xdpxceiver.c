@@ -473,6 +473,11 @@ static struct pkt_stream *pkt_stream_generate(struct xsk_umem_info *umem, u32 nb
 		pkt_stream->pkts[i].addr = (i % umem->num_frames) * umem->frame_size;
 		pkt_stream->pkts[i].len = pkt_len;
 		pkt_stream->pkts[i].payload = i;
+
+		if (pkt_len > umem->frame_size)
+			pkt_stream->pkts[i].valid = false;
+		else
+			pkt_stream->pkts[i].valid = true;
 	}
 
 	return pkt_stream;
@@ -658,7 +663,7 @@ static void receive_pkts(struct pkt_stream *pkt_stream, struct xsk_socket_info *
 static u32 __send_pkts(struct ifobject *ifobject, u32 pkt_nb)
 {
 	struct xsk_socket_info *xsk = ifobject->xsk;
-	u32 i, idx;
+	u32 i, idx, valid_pkts = 0;
 
 	while (xsk_ring_prod__reserve(&xsk->tx, BATCH_SIZE, &idx) < BATCH_SIZE)
 		complete_pkts(xsk, BATCH_SIZE);
@@ -673,14 +678,13 @@ static u32 __send_pkts(struct ifobject *ifobject, u32 pkt_nb)
 		tx_desc->addr = pkt->addr;
 		tx_desc->len = pkt->len;
 		pkt_nb++;
+		if (pkt->valid)
+			valid_pkts++;
 	}
 
 	xsk_ring_prod__submit(&xsk->tx, i);
-	if (stat_test_type != STAT_TEST_TX_INVALID)
-		xsk->outstanding_tx += i;
-	else if (xsk_ring_prod__needs_wakeup(&xsk->tx))
-		kick_tx(xsk);
-	complete_pkts(xsk, i);
+	xsk->outstanding_tx += valid_pkts;
+	complete_pkts(xsk, BATCH_SIZE);
 
 	return i;
 }

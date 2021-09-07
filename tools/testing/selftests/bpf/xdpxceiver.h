@@ -96,6 +96,7 @@ struct pkt {
 	u64 addr;
 	u32 len;
 	u32 payload;
+	bool valid;
 };
 
 struct pkt_stream {
