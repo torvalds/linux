@@ -31,7 +31,7 @@
  *
  * Return: written size bytes or < 0 on error
  */
-ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length, u8 vtag,
+ssize_t __mei_cl_send(struct mei_cl *cl, const u8 *buf, size_t length, u8 vtag,
 		      unsigned int mode)
 {
 	struct mei_device *bus;
@@ -232,8 +232,8 @@ out:
  *  * < 0 on error
  */
 
-ssize_t mei_cldev_send_vtag(struct mei_cl_device *cldev, u8 *buf, size_t length,
-			    u8 vtag)
+ssize_t mei_cldev_send_vtag(struct mei_cl_device *cldev, const u8 *buf,
+			    size_t length, u8 vtag)
 {
 	struct mei_cl *cl = cldev->cl;
 
@@ -296,7 +296,7 @@ EXPORT_SYMBOL_GPL(mei_cldev_recv_nonblock_vtag);
  *  * written size in bytes
  *  * < 0 on error
  */
-ssize_t mei_cldev_send(struct mei_cl_device *cldev, u8 *buf, size_t length)
+ssize_t mei_cldev_send(struct mei_cl_device *cldev, const u8 *buf, size_t length)
 {
 	return mei_cldev_send_vtag(cldev, buf, length, 0);
 }
@@ -552,7 +552,7 @@ EXPORT_SYMBOL_GPL(mei_cldev_ver);
  *
  * Return: true if me client is initialized and connected
  */
-bool mei_cldev_enabled(struct mei_cl_device *cldev)
+bool mei_cldev_enabled(const struct mei_cl_device *cldev)
 {
 	return mei_cl_is_connected(cldev->cl);
 }
@@ -771,8 +771,8 @@ EXPORT_SYMBOL_GPL(mei_cldev_disable);
  * Return: id on success; NULL if no id is matching
  */
 static const
-struct mei_cl_device_id *mei_cl_device_find(struct mei_cl_device *cldev,
-					    struct mei_cl_driver *cldrv)
+struct mei_cl_device_id *mei_cl_device_find(const struct mei_cl_device *cldev,
+					    const struct mei_cl_driver *cldrv)
 {
 	const struct mei_cl_device_id *id;
 	const uuid_le *uuid;
@@ -815,8 +815,8 @@ struct mei_cl_device_id *mei_cl_device_find(struct mei_cl_device *cldev,
  */
 static int mei_cl_device_match(struct device *dev, struct device_driver *drv)
 {
-	struct mei_cl_device *cldev = to_mei_cl_device(dev);
-	struct mei_cl_driver *cldrv = to_mei_cl_driver(drv);
+	const struct mei_cl_device *cldev = to_mei_cl_device(dev);
+	const struct mei_cl_driver *cldrv = to_mei_cl_driver(drv);
 	const struct mei_cl_device_id *found_id;
 
 	if (!cldev)
