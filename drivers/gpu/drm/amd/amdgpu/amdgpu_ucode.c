@@ -515,6 +515,10 @@ const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
 		return "SDMA6";
 	case AMDGPU_UCODE_ID_SDMA7:
 		return "SDMA7";
+	case AMDGPU_UCODE_ID_SDMA_UCODE_TH0:
+		return "SDMA_CTX";
+	case AMDGPU_UCODE_ID_SDMA_UCODE_TH1:
+		return "SDMA_CTL";
 	case AMDGPU_UCODE_ID_CP_CE:
 		return "CP_CE";
 	case AMDGPU_UCODE_ID_CP_PFP:
@@ -533,6 +537,10 @@ const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
 		return "CP_MES";
 	case AMDGPU_UCODE_ID_CP_MES_DATA:
 		return "CP_MES_DATA";
+	case AMDGPU_UCODE_ID_CP_MES1:
+		return "CP_MES_KIQ";
+	case AMDGPU_UCODE_ID_CP_MES1_DATA:
+		return "CP_MES_KIQ_DATA";
 	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL:
 		return "RLC_RESTORE_LIST_CNTL";
 	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM:
@@ -545,6 +553,14 @@ const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
 		return "RLC_DRAM";
 	case AMDGPU_UCODE_ID_RLC_G:
 		return "RLC_G";
+	case AMDGPU_UCODE_ID_RLC_P:
+		return "RLC_P";
+	case AMDGPU_UCODE_ID_RLC_V:
+		return "RLC_V";
+	case AMDGPU_UCODE_ID_IMU_I:
+		return "IMU_I";
+	case AMDGPU_UCODE_ID_IMU_D:
+		return "IMU_D";
 	case AMDGPU_UCODE_ID_STORAGE:
 		return "STORAGE";
 	case AMDGPU_UCODE_ID_SMC:
