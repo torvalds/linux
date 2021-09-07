@@ -235,7 +235,7 @@ static void gen_udp_csum(struct udphdr *udp_hdr, struct iphdr *ip_hdr)
 	    udp_csum(ip_hdr->saddr, ip_hdr->daddr, UDP_PKT_SIZE, IPPROTO_UDP, (u16 *)udp_hdr);
 }
 
-static void xsk_configure_umem(struct ifobject *data, void *buffer, u64 size, int idx)
+static int xsk_configure_umem(struct xsk_umem_info *umem, void *buffer, u64 size, int idx)
 {
 	struct xsk_umem_config cfg = {
 		.fill_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
@@ -244,21 +244,15 @@ static void xsk_configure_umem(struct ifobject *data, void *buffer, u64 size, in
 		.frame_headroom = frame_headroom,
 		.flags = XSK_UMEM__DEFAULT_FLAGS
 	};
-	struct xsk_umem_info *umem;
 	int ret;
-
-	umem = calloc(1, sizeof(struct xsk_umem_info));
-	if (!umem)
-		exit_with_error(errno);
 
 	ret = xsk_umem__create(&umem->umem, buffer, size,
 			       &umem->fq, &umem->cq, &cfg);
 	if (ret)
-		exit_with_error(-ret);
+		return ret;
 
 	umem->buffer = buffer;
-
-	data->umem_arr[idx] = umem;
+	return 0;
 }
 
 static void xsk_populate_fill_ring(struct xsk_umem_info *umem)
@@ -274,19 +268,14 @@ static void xsk_populate_fill_ring(struct xsk_umem_info *umem)
 	xsk_ring_prod__submit(&umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS);
 }
 
-static int xsk_configure_socket(struct ifobject *ifobject, int idx)
+static int xsk_configure_socket(struct xsk_socket_info *xsk, struct xsk_umem_info *umem,
+				struct ifobject *ifobject, u32 qid)
 {
 	struct xsk_socket_config cfg;
-	struct xsk_socket_info *xsk;
 	struct xsk_ring_cons *rxr;
 	struct xsk_ring_prod *txr;
-	int ret;
 
-	xsk = calloc(1, sizeof(struct xsk_socket_info));
-	if (!xsk)
-		exit_with_error(errno);
-
-	xsk->umem = ifobject->umem;
+	xsk->umem = umem;
 	cfg.rx_size = rxqsize;
 	cfg.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
 	cfg.libbpf_flags = 0;
@@ -301,14 +290,7 @@ static int xsk_configure_socket(struct ifobject *ifobject, int idx)
 		txr = &xsk->tx;
 	}
 
-	ret = xsk_socket__create(&xsk->xsk, ifobject->ifname, idx,
-				 ifobject->umem->umem, rxr, txr, &cfg);
-	if (ret)
-		return 1;
-
-	ifobject->xsk_arr[idx] = xsk;
-
-	return 0;
+	return xsk_socket__create(&xsk->xsk, ifobject->ifname, qid, umem->umem, rxr, txr, &cfg);
 }
 
 static struct option long_options[] = {
@@ -756,8 +738,7 @@ static void thread_common_ops(struct ifobject *ifobject, void *bufs)
 	u64 umem_sz = num_frames * XSK_UMEM__DEFAULT_FRAME_SIZE;
 	int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
 	size_t mmap_sz = umem_sz;
-	int ctr = 0;
-	int ret;
+	int ctr = 0, ret;
 
 	ifobject->ns_fd = switch_namespace(ifobject->nsname);
 
@@ -769,31 +750,34 @@ static void thread_common_ops(struct ifobject *ifobject, void *bufs)
 		exit_with_error(errno);
 
 	while (ctr++ < SOCK_RECONF_CTR) {
-		xsk_configure_umem(ifobject, bufs, umem_sz, 0);
-		ifobject->umem = ifobject->umem_arr[0];
-		ret = xsk_configure_socket(ifobject, 0);
+		ret = xsk_configure_umem(&ifobject->umem_arr[0], bufs, umem_sz, 0);
+		if (ret)
+			exit_with_error(-ret);
+
+		ret = xsk_configure_socket(&ifobject->xsk_arr[0], &ifobject->umem_arr[0],
+					   ifobject, 0);
 		if (!ret)
 			break;
 
 		/* Retry Create Socket if it fails as xsk_socket__create() is asynchronous */
-		usleep(USLEEP_MAX);
 		if (ctr >= SOCK_RECONF_CTR)
+			exit_with_error(-ret);
+		usleep(USLEEP_MAX);
+	}
+
+	if (test_type == TEST_TYPE_BPF_RES) {
+		ret = xsk_configure_umem(&ifobject->umem_arr[1], (u8 *)bufs + umem_sz, umem_sz, 1);
+		if (ret)
+			exit_with_error(-ret);
+
+		ret = xsk_configure_socket(&ifobject->xsk_arr[1], &ifobject->umem_arr[1],
+					   ifobject, 1);
+		if (ret)
 			exit_with_error(-ret);
 	}
 
-	ifobject->umem = ifobject->umem_arr[0];
-	ifobject->xsk = ifobject->xsk_arr[0];
-
-	if (test_type == TEST_TYPE_BPF_RES) {
-		xsk_configure_umem(ifobject, (u8 *)bufs + umem_sz, umem_sz, 1);
-		ifobject->umem = ifobject->umem_arr[1];
-		ret = xsk_configure_socket(ifobject, 1);
-	}
-
-	ifobject->umem = ifobject->umem_arr[0];
-	ifobject->xsk = ifobject->xsk_arr[0];
-	print_verbose("Interface [%s] vector [%s]\n",
-		      ifobject->ifname, ifobject->fv.vector == tx ? "Tx" : "Rx");
+	ifobject->umem = &ifobject->umem_arr[0];
+	ifobject->xsk = &ifobject->xsk_arr[0];
 }
 
 static bool testapp_is_test_two_stepped(void)
@@ -941,10 +925,10 @@ static void swap_xsk_res(void)
 	xsk_umem__delete(ifdict_tx->umem->umem);
 	xsk_socket__delete(ifdict_rx->xsk->xsk);
 	xsk_umem__delete(ifdict_rx->umem->umem);
-	ifdict_tx->umem = ifdict_tx->umem_arr[1];
-	ifdict_tx->xsk = ifdict_tx->xsk_arr[1];
-	ifdict_rx->umem = ifdict_rx->umem_arr[1];
-	ifdict_rx->xsk = ifdict_rx->xsk_arr[1];
+	ifdict_tx->umem = &ifdict_tx->umem_arr[1];
+	ifdict_tx->xsk = &ifdict_tx->xsk_arr[1];
+	ifdict_rx->umem = &ifdict_rx->umem_arr[1];
+	ifdict_rx->xsk = &ifdict_rx->xsk_arr[1];
 }
 
 static void testapp_bpf_res(void)
@@ -1071,11 +1055,11 @@ static struct ifobject *ifobject_create(void)
 	if (!ifobj)
 		return NULL;
 
-	ifobj->xsk_arr = calloc(2, sizeof(struct xsk_socket_info *));
+	ifobj->xsk_arr = calloc(MAX_SOCKETS, sizeof(*ifobj->xsk_arr));
 	if (!ifobj->xsk_arr)
 		goto out_xsk_arr;
 
-	ifobj->umem_arr = calloc(2, sizeof(struct xsk_umem_info *));
+	ifobj->umem_arr = calloc(MAX_SOCKETS, sizeof(*ifobj->umem_arr));
 	if (!ifobj->umem_arr)
 		goto out_umem_arr;
 

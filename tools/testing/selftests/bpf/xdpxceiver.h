@@ -21,6 +21,7 @@
 #define MAX_INTERFACE_NAME_CHARS 7
 #define MAX_INTERFACES_NAMESPACE_CHARS 10
 #define MAX_SOCKS 1
+#define MAX_SOCKETS 2
 #define MAX_TEARDOWN_ITER 10
 #define MAX_BIDI_ITER 2
 #define MAX_BPF_ITER 2
@@ -119,9 +120,9 @@ struct ifobject {
 	char ifname[MAX_INTERFACE_NAME_CHARS];
 	char nsname[MAX_INTERFACES_NAMESPACE_CHARS];
 	struct xsk_socket_info *xsk;
-	struct xsk_socket_info **xsk_arr;
-	struct xsk_umem_info **umem_arr;
+	struct xsk_socket_info *xsk_arr;
 	struct xsk_umem_info *umem;
+	struct xsk_umem_info *umem_arr;
 	void *(*func_ptr)(void *arg);
 	struct flow_vector fv;
 	struct pkt_stream *pkt_stream;
