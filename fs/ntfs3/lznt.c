@@ -292,7 +292,7 @@ next:
 /*
  * get_lznt_ctx
  * @level: 0 - Standard compression.
- * 	   !0 - Best compression, requires a lot of cpu.
+ *	   !0 - Best compression, requires a lot of cpu.
  */
 struct lznt *get_lznt_ctx(int level)
 {
