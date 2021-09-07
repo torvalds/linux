@@ -1092,6 +1092,8 @@ static int spinand_init(struct spinand_device *spinand)
 	/* Propagate ECC information to mtd_info */
 	mtd->ecc_strength = nanddev_get_ecc_conf(nand)->strength;
 	mtd->ecc_step_size = nanddev_get_ecc_conf(nand)->step_size;
+	if (IS_ENABLED(CONFIG_SPI_ROCKCHIP_SFC))
+		mtd->name = "spi-nand0";
 
 	return 0;
 
