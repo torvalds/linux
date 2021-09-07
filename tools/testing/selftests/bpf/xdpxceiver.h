@@ -24,7 +24,6 @@
 #define MAX_SOCKETS 2
 #define MAX_TEST_NAME_SIZE 32
 #define MAX_TEARDOWN_ITER 10
-#define MAX_BIDI_ITER 2
 #define MAX_BPF_ITER 2
 #define PKT_HDR_SIZE (sizeof(struct ethhdr) + sizeof(struct iphdr) + \
 			sizeof(struct udphdr))
@@ -72,7 +71,6 @@ enum stat_test_type {
 
 static int configured_mode;
 static bool opt_pkt_dump;
-static bool second_step;
 static int test_type;
 
 static bool opt_verbose;
@@ -137,6 +135,8 @@ struct ifobject {
 struct test_spec {
 	struct ifobject *ifobj_tx;
 	struct ifobject *ifobj_rx;
+	u16 total_steps;
+	u16 current_step;
 	char name[MAX_TEST_NAME_SIZE];
 };
 

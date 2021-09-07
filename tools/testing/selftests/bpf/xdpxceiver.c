@@ -408,6 +408,8 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 
 	test->ifobj_tx = ifobj_tx;
 	test->ifobj_rx = ifobj_rx;
+	test->current_step = 0;
+	test->total_steps = 1;
 }
 
 static void test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
@@ -713,7 +715,7 @@ static bool rx_stats_are_valid(struct ifobject *ifobject)
 	optlen = sizeof(stats);
 	err = getsockopt(fd, SOL_XDP, XDP_STATISTICS, &stats, &optlen);
 	if (err) {
-		ksft_test_result_fail("ERROR: [%s] getsockopt(XDP_STATISTICS) error %u %s\n",
+		ksft_test_result_fail("ERROR Rx: [%s] getsockopt(XDP_STATISTICS) error %u %s\n",
 				      __func__, -err, strerror(-err));
 		return true;
 	}
@@ -754,7 +756,7 @@ static void tx_stats_validate(struct ifobject *ifobject)
 	optlen = sizeof(stats);
 	err = getsockopt(fd, SOL_XDP, XDP_STATISTICS, &stats, &optlen);
 	if (err) {
-		ksft_test_result_fail("ERROR: [%s] getsockopt(XDP_STATISTICS) error %u %s\n",
+		ksft_test_result_fail("ERROR Tx: [%s] getsockopt(XDP_STATISTICS) error %u %s\n",
 				      __func__, -err, strerror(-err));
 		return;
 	}
@@ -766,12 +768,13 @@ static void tx_stats_validate(struct ifobject *ifobject)
 			      __func__, stats.tx_invalid_descs, ifobject->pkt_stream->nb_pkts);
 }
 
-static void thread_common_ops(struct ifobject *ifobject, void *bufs)
+static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 {
 	u64 umem_sz = ifobject->umem->num_frames * ifobject->umem->frame_size;
 	int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
 	size_t mmap_sz = umem_sz;
 	int ctr = 0, ret;
+	void *bufs;
 
 	ifobject->ns_fd = switch_namespace(ifobject->nsname);
 
@@ -813,26 +816,19 @@ static void thread_common_ops(struct ifobject *ifobject, void *bufs)
 	ifobject->xsk = &ifobject->xsk_arr[0];
 }
 
-static bool testapp_is_test_two_stepped(void)
-{
-	return (test_type != TEST_TYPE_BIDI && test_type != TEST_TYPE_BPF_RES) || second_step;
-}
-
 static void testapp_cleanup_xsk_res(struct ifobject *ifobj)
 {
-	if (testapp_is_test_two_stepped()) {
-		xsk_socket__delete(ifobj->xsk->xsk);
-		(void)xsk_umem__delete(ifobj->umem->umem);
-	}
+	xsk_socket__delete(ifobj->xsk->xsk);
+	xsk_umem__delete(ifobj->umem->umem);
 }
 
 static void *worker_testapp_validate_tx(void *arg)
 {
-	struct ifobject *ifobject = (struct ifobject *)arg;
-	void *bufs = NULL;
+	struct test_spec *test = (struct test_spec *)arg;
+	struct ifobject *ifobject = test->ifobj_tx;
 
-	if (!second_step)
-		thread_common_ops(ifobject, bufs);
+	if (test->current_step == 1)
+		thread_common_ops(test, ifobject);
 
 	print_verbose("Sending %d packets on interface %s\n", ifobject->pkt_stream->nb_pkts,
 		      ifobject->ifname);
@@ -841,18 +837,19 @@ static void *worker_testapp_validate_tx(void *arg)
 	if (stat_test_type == STAT_TEST_TX_INVALID)
 		tx_stats_validate(ifobject);
 
-	testapp_cleanup_xsk_res(ifobject);
+	if (test->total_steps == test->current_step)
+		testapp_cleanup_xsk_res(ifobject);
 	pthread_exit(NULL);
 }
 
 static void *worker_testapp_validate_rx(void *arg)
 {
-	struct ifobject *ifobject = (struct ifobject *)arg;
+	struct test_spec *test = (struct test_spec *)arg;
+	struct ifobject *ifobject = test->ifobj_rx;
 	struct pollfd fds[MAX_SOCKS] = { };
-	void *bufs = NULL;
 
-	if (!second_step)
-		thread_common_ops(ifobject, bufs);
+	if (test->current_step == 1)
+		thread_common_ops(test, ifobject);
 
 	if (stat_test_type != STAT_TEST_RX_FILL_EMPTY)
 		xsk_populate_fill_ring(ifobject->umem);
@@ -871,7 +868,8 @@ static void *worker_testapp_validate_rx(void *arg)
 	if (test_type == TEST_TYPE_TEARDOWN)
 		print_verbose("Destroying socket\n");
 
-	testapp_cleanup_xsk_res(ifobject);
+	if (test->total_steps == test->current_step)
+		testapp_cleanup_xsk_res(ifobject);
 	pthread_exit(NULL);
 }
 
@@ -891,16 +889,17 @@ static void testapp_validate_traffic(struct test_spec *test)
 		pkt_stream = pkt_stream_generate(test->ifobj_tx->umem, DEFAULT_PKT_CNT, PKT_SIZE);
 	ifobj_tx->pkt_stream = pkt_stream;
 	ifobj_rx->pkt_stream = pkt_stream;
+	test->current_step++;
 
 	/*Spawn RX thread */
-	pthread_create(&t0, NULL, ifobj_rx->func_ptr, ifobj_rx);
+	pthread_create(&t0, NULL, ifobj_rx->func_ptr, test);
 
 	pthread_barrier_wait(&barr);
 	if (pthread_barrier_destroy(&barr))
 		exit_with_error(errno);
 
 	/*Spawn TX thread */
-	pthread_create(&t1, NULL, ifobj_tx->func_ptr, ifobj_tx);
+	pthread_create(&t1, NULL, ifobj_tx->func_ptr, test);
 
 	pthread_join(t1, NULL);
 	pthread_join(t0, NULL);
@@ -934,15 +933,12 @@ static void testapp_bidi(struct test_spec *test)
 	test_spec_set_name(test, "BIDIRECTIONAL");
 	test->ifobj_tx->rx_on = true;
 	test->ifobj_rx->tx_on = true;
-	for (int i = 0; i < MAX_BIDI_ITER; i++) {
-		print_verbose("Creating socket\n");
-		testapp_validate_traffic(test);
-		if (!second_step) {
-			print_verbose("Switching Tx/Rx vectors\n");
-			swap_directions(&test->ifobj_rx, &test->ifobj_tx);
-		}
-		second_step = true;
-	}
+	test->total_steps = 2;
+	testapp_validate_traffic(test);
+
+	print_verbose("Switching Tx/Rx vectors\n");
+	swap_directions(&test->ifobj_rx, &test->ifobj_tx);
+	testapp_validate_traffic(test);
 
 	swap_directions(&test->ifobj_rx, &test->ifobj_tx);
 }
@@ -961,16 +957,12 @@ static void swap_xsk_resources(struct ifobject *ifobj_tx, struct ifobject *ifobj
 
 static void testapp_bpf_res(struct test_spec *test)
 {
-	int i;
-
 	test_spec_set_name(test, "BPF_RES");
-	for (i = 0; i < MAX_BPF_ITER; i++) {
-		print_verbose("Creating socket\n");
-		testapp_validate_traffic(test);
-		if (!second_step)
-			swap_xsk_resources(test->ifobj_tx, test->ifobj_rx);
-		second_step = true;
-	}
+	test->total_steps = 2;
+	testapp_validate_traffic(test);
+
+	swap_xsk_resources(test->ifobj_tx, test->ifobj_rx);
+	testapp_validate_traffic(test);
 }
 
 static void testapp_stats(struct test_spec *test)
@@ -1032,7 +1024,6 @@ static void run_pkt_test(struct test_spec *test, int mode, int type)
 
 	/* reset defaults after potential previous test */
 	xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
-	second_step = 0;
 	stat_test_type = -1;
 
 	configured_mode = mode;
