@@ -214,7 +214,7 @@ config XEN_PVCALLS_FRONTEND
 	  implements them.
 
 config XEN_PVCALLS_BACKEND
-	bool "XEN PV Calls backend driver"
+	tristate "XEN PV Calls backend driver"
 	depends on INET && XEN && XEN_BACKEND
 	help
 	  Experimental backend for the Xen PV Calls protocol
