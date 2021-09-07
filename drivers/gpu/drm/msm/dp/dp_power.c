@@ -208,6 +208,9 @@ static int dp_power_clk_set_rate(struct dp_power_private *power,
 
 int dp_power_clk_status(struct dp_power *dp_power, enum dp_pm_type pm_type)
 {
+	DRM_DEBUG_DP("core_clk_on=%d link_clk_on=%d stream_clk_on=%d\n",
+		dp_power->core_clks_on, dp_power->link_clks_on, dp_power->stream_clks_on);
+
 	if (pm_type == DP_CORE_PM)
 		return dp_power->core_clks_on;
 

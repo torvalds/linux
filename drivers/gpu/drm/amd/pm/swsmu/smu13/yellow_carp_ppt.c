@@ -572,7 +572,7 @@ static int yellow_carp_get_power_profile_mode(struct smu_context *smu,
 		if (workload_type < 0)
 			continue;
 
-		size += sprintf(buf + size, "%2d %14s%s\n",
+		size += sysfs_emit_at(buf, size, "%2d %14s%s\n",
 			i, profile_name[i], (i == smu->power_profile_mode) ? "*" : " ");
 	}
 
@@ -1054,15 +1054,15 @@ static int yellow_carp_print_clk_levels(struct smu_context *smu,
 
 	switch (clk_type) {
 	case SMU_OD_SCLK:
-		size = sprintf(buf, "%s:\n", "OD_SCLK");
-		size += sprintf(buf + size, "0: %10uMhz\n",
+		size = sysfs_emit(buf, "%s:\n", "OD_SCLK");
+		size += sysfs_emit_at(buf, size, "0: %10uMhz\n",
 		(smu->gfx_actual_hard_min_freq > 0) ? smu->gfx_actual_hard_min_freq : smu->gfx_default_hard_min_freq);
-		size += sprintf(buf + size, "1: %10uMhz\n",
+		size += sysfs_emit_at(buf, size, "1: %10uMhz\n",
 		(smu->gfx_actual_soft_max_freq > 0) ? smu->gfx_actual_soft_max_freq : smu->gfx_default_soft_max_freq);
 		break;
 	case SMU_OD_RANGE:
-		size = sprintf(buf, "%s:\n", "OD_RANGE");
-		size += sprintf(buf + size, "SCLK: %7uMhz %10uMhz\n",
+		size = sysfs_emit(buf, "%s:\n", "OD_RANGE");
+		size += sysfs_emit_at(buf, size, "SCLK: %7uMhz %10uMhz\n",
 						smu->gfx_default_hard_min_freq, smu->gfx_default_soft_max_freq);
 		break;
 	case SMU_SOCCLK:
@@ -1083,7 +1083,7 @@ static int yellow_carp_print_clk_levels(struct smu_context *smu,
 			if (ret)
 				goto print_clk_out;
 
-			size += sprintf(buf + size, "%d: %uMhz %s\n", i, value,
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i, value,
 					cur_value == value ? "*" : "");
 		}
 		break;

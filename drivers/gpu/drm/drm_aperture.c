@@ -33,6 +33,10 @@
  *
  * .. code-block:: c
  *
+ *	static const struct drm_driver example_driver = {
+ *		...
+ *	};
+ *
  *	static int remove_conflicting_framebuffers(struct pci_dev *pdev)
  *	{
  *		bool primary = false;
@@ -46,7 +50,7 @@
  *	#endif
  *
  *		return drm_aperture_remove_conflicting_framebuffers(base, size, primary,
- *		                                                    "example driver");
+ *		                                                    &example_driver);
  *	}
  *
  *	static int probe(struct pci_dev *pdev)
@@ -74,7 +78,7 @@
  *
  * Drivers that are susceptible to being removed by other drivers, such as
  * generic EFI or VESA drivers, have to register themselves as owners of their
- * given framebuffer memory. Ownership of the framebuffer memory is achived
+ * given framebuffer memory. Ownership of the framebuffer memory is achieved
  * by calling devm_aperture_acquire_from_firmware(). On success, the driver
  * is the owner of the framebuffer range. The function fails if the
  * framebuffer is already by another driver. See below for an example.
@@ -274,7 +278,7 @@ static void drm_aperture_detach_drivers(resource_size_t base, resource_size_t si
  * @base: the aperture's base address in physical memory
  * @size: aperture size in bytes
  * @primary: also kick vga16fb if present
- * @name: requesting driver name
+ * @req_driver: requesting DRM driver
  *
  * This function removes graphics device drivers which use memory range described by
  * @base and @size.
@@ -283,7 +287,7 @@ static void drm_aperture_detach_drivers(resource_size_t base, resource_size_t si
  * 0 on success, or a negative errno code otherwise
  */
 int drm_aperture_remove_conflicting_framebuffers(resource_size_t base, resource_size_t size,
-						 bool primary, const char *name)
+						 bool primary, const struct drm_driver *req_driver)
 {
 #if IS_REACHABLE(CONFIG_FB)
 	struct apertures_struct *a;
@@ -296,7 +300,7 @@ int drm_aperture_remove_conflicting_framebuffers(resource_size_t base, resource_
 	a->ranges[0].base = base;
 	a->ranges[0].size = size;
 
-	ret = remove_conflicting_framebuffers(a, name, primary);
+	ret = remove_conflicting_framebuffers(a, req_driver->name, primary);
 	kfree(a);
 
 	if (ret)
@@ -312,7 +316,7 @@ EXPORT_SYMBOL(drm_aperture_remove_conflicting_framebuffers);
 /**
  * drm_aperture_remove_conflicting_pci_framebuffers - remove existing framebuffers for PCI devices
  * @pdev: PCI device
- * @name: requesting driver name
+ * @req_driver: requesting DRM driver
  *
  * This function removes graphics device drivers using memory range configured
  * for any of @pdev's memory bars. The function assumes that PCI device with
@@ -321,7 +325,8 @@ EXPORT_SYMBOL(drm_aperture_remove_conflicting_framebuffers);
  * Returns:
  * 0 on success, or a negative errno code otherwise
  */
-int drm_aperture_remove_conflicting_pci_framebuffers(struct pci_dev *pdev, const char *name)
+int drm_aperture_remove_conflicting_pci_framebuffers(struct pci_dev *pdev,
+						     const struct drm_driver *req_driver)
 {
 	resource_size_t base, size;
 	int bar, ret = 0;
@@ -339,7 +344,7 @@ int drm_aperture_remove_conflicting_pci_framebuffers(struct pci_dev *pdev, const
 	 * otherwise the vga fbdev driver falls over.
 	 */
 #if IS_REACHABLE(CONFIG_FB)
-	ret = remove_conflicting_pci_framebuffers(pdev, name);
+	ret = remove_conflicting_pci_framebuffers(pdev, req_driver->name);
 #endif
 	if (ret == 0)
 		ret = vga_remove_vgacon(pdev);

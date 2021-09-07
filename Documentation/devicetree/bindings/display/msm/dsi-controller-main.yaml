@@ -64,6 +64,18 @@ properties:
       Indicates if the DSI controller is driving a panel which needs
       2 DSI links.
 
+  assigned-clocks:
+    minItems: 2
+    maxItems: 2
+    description: |
+      Parents of "byte" and "pixel" for the given platform.
+
+  assigned-clock-parents:
+    minItems: 2
+    maxItems: 2
+    description: |
+      The Byte clock and Pixel clock PLL outputs provided by a DSI PHY block.
+
   power-domains:
     maxItems: 1
 
@@ -119,6 +131,8 @@ required:
   - clock-names
   - phys
   - phy-names
+  - assigned-clocks
+  - assigned-clock-parents
   - power-domains
   - operating-points-v2
   - ports
@@ -158,6 +172,9 @@ examples:
 
            phys = <&dsi0_phy>;
            phy-names = "dsi";
+
+           assigned-clocks = <&dispcc DISP_CC_MDSS_BYTE0_CLK_SRC>, <&dispcc DISP_CC_MDSS_PCLK0_CLK_SRC>;
+           assigned-clock-parents = <&dsi_phy 0>, <&dsi_phy 1>;
 
            power-domains = <&rpmhpd SC7180_CX>;
            operating-points-v2 = <&dsi_opp_table>;

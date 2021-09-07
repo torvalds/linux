@@ -508,6 +508,10 @@
 #define regCP_ME2_PIPE2_INT_STATUS_BASE_IDX                                                             0
 #define regCP_ME2_PIPE3_INT_STATUS                                                                      0x1094
 #define regCP_ME2_PIPE3_INT_STATUS_BASE_IDX                                                             0
+#define regCP_ME1_INT_STAT_DEBUG                                                                        0x1095
+#define regCP_ME1_INT_STAT_DEBUG_BASE_IDX                                                               0
+#define regCP_ME2_INT_STAT_DEBUG                                                                        0x1096
+#define regCP_ME2_INT_STAT_DEBUG_BASE_IDX                                                               0
 #define regCC_GC_EDC_CONFIG                                                                             0x1098
 #define regCC_GC_EDC_CONFIG_BASE_IDX                                                                    0
 #define regCP_ME1_PIPE_PRIORITY_CNTS                                                                    0x1099
