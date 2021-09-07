@@ -327,6 +327,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			 const struct kgd2kfd_shared_resources *gpu_resources);
 void kgd2kfd_device_exit(struct kfd_dev *kfd);
 void kgd2kfd_suspend(struct kfd_dev *kfd, bool run_pm);
+int kgd2kfd_resume_iommu(struct kfd_dev *kfd);
 int kgd2kfd_resume(struct kfd_dev *kfd, bool run_pm);
 int kgd2kfd_pre_reset(struct kfd_dev *kfd);
 int kgd2kfd_post_reset(struct kfd_dev *kfd);
@@ -363,6 +364,11 @@ static inline void kgd2kfd_device_exit(struct kfd_dev *kfd)
 
 static inline void kgd2kfd_suspend(struct kfd_dev *kfd, bool run_pm)
 {
+}
+
+static int __maybe_unused kgd2kfd_resume_iommu(struct kfd_dev *kfd)
+{
+	return 0;
 }
 
 static inline int kgd2kfd_resume(struct kfd_dev *kfd, bool run_pm)
