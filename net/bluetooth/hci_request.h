@@ -101,6 +101,8 @@ void __hci_req_update_class(struct hci_request *req);
 /* Returns true if HCI commands were queued */
 bool hci_req_stop_discovery(struct hci_request *req);
 
+int hci_req_configure_datapath(struct hci_dev *hdev, struct bt_codec *codec);
+
 static inline void hci_req_update_scan(struct hci_dev *hdev)
 {
 	queue_work(hdev->req_workqueue, &hdev->scan_update);

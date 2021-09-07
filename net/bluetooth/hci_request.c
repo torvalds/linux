@@ -3327,6 +3327,53 @@ bool hci_req_stop_discovery(struct hci_request *req)
 	return ret;
 }
 
+static void config_data_path_complete(struct hci_dev *hdev, u8 status,
+				      u16 opcode)
+{
+	bt_dev_dbg(hdev, "status %u", status);
+}
+
+int hci_req_configure_datapath(struct hci_dev *hdev, struct bt_codec *codec)
+{
+	struct hci_request req;
+	int err;
+	__u8 vnd_len, *vnd_data = NULL;
+	struct hci_op_configure_data_path *cmd = NULL;
+
+	hci_req_init(&req, hdev);
+
+	err = hdev->get_codec_config_data(hdev, ESCO_LINK, codec, &vnd_len,
+					  &vnd_data);
+	if (err < 0)
+		goto error;
+
+	cmd = kzalloc(sizeof(*cmd) + vnd_len, GFP_KERNEL);
+	if (!cmd) {
+		err = -ENOMEM;
+		goto error;
+	}
+
+	err = hdev->get_data_path_id(hdev, &cmd->data_path_id);
+	if (err < 0)
+		goto error;
+
+	cmd->vnd_len = vnd_len;
+	memcpy(cmd->vnd_data, vnd_data, vnd_len);
+
+	cmd->direction = 0x00;
+	hci_req_add(&req, HCI_CONFIGURE_DATA_PATH, sizeof(*cmd) + vnd_len, cmd);
+
+	cmd->direction = 0x01;
+	hci_req_add(&req, HCI_CONFIGURE_DATA_PATH, sizeof(*cmd) + vnd_len, cmd);
+
+	err = hci_req_run(&req, config_data_path_complete);
+error:
+
+	kfree(cmd);
+	kfree(vnd_data);
+	return err;
+}
+
 static int stop_discovery(struct hci_request *req, unsigned long opt)
 {
 	hci_dev_lock(req->hdev);

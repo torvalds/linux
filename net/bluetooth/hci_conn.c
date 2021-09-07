@@ -315,6 +315,10 @@ static bool hci_enhanced_setup_sync_conn(struct hci_conn *conn, __u16 handle)
 
 	bt_dev_dbg(hdev, "hcon %p", conn);
 
+	/* for offload use case, codec needs to configured before opening SCO */
+	if (conn->codec.data_path)
+		hci_req_configure_datapath(hdev, &conn->codec);
+
 	conn->state = BT_CONNECT;
 	conn->out = true;
 
