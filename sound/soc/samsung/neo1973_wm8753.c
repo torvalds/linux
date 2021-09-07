@@ -106,7 +106,7 @@ static int neo1973_hifi_hw_free(struct snd_pcm_substream *substream)
 /*
  * Neo1973 WM8753 HiFi DAI opserations.
  */
-static struct snd_soc_ops neo1973_hifi_ops = {
+static const struct snd_soc_ops neo1973_hifi_ops = {
 	.hw_params = neo1973_hifi_hw_params,
 	.hw_free = neo1973_hifi_hw_free,
 };
@@ -158,7 +158,7 @@ static int neo1973_voice_hw_free(struct snd_pcm_substream *substream)
 	return snd_soc_dai_set_pll(codec_dai, WM8753_PLL2, 0, 0, 0);
 }
 
-static struct snd_soc_ops neo1973_voice_ops = {
+static const struct snd_soc_ops neo1973_voice_ops = {
 	.hw_params = neo1973_voice_hw_params,
 	.hw_free = neo1973_voice_hw_free,
 };

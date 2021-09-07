@@ -126,6 +126,7 @@ extern const struct snd_motu_spec snd_motu_spec_828;
 extern const struct snd_motu_spec snd_motu_spec_896;
 
 extern const struct snd_motu_spec snd_motu_spec_828mk2;
+extern const struct snd_motu_spec snd_motu_spec_896hd;
 extern const struct snd_motu_spec snd_motu_spec_traveler;
 extern const struct snd_motu_spec snd_motu_spec_ultralite;
 extern const struct snd_motu_spec snd_motu_spec_8pre;
