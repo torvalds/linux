@@ -95,7 +95,6 @@ static int qcom_apcs_ipc_probe(struct platform_device *pdev)
 	struct qcom_apcs_ipc *apcs;
 	const struct qcom_apcs_ipc_data *apcs_data;
 	struct regmap *regmap;
-	struct resource *res;
 	void __iomem *base;
 	unsigned long i;
 	int ret;
@@ -104,8 +103,7 @@ static int qcom_apcs_ipc_probe(struct platform_device *pdev)
 	if (!apcs)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
