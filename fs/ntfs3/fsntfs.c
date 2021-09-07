@@ -357,7 +357,7 @@ int ntfs_look_for_free_space(struct ntfs_sb_info *sbi, CLST lcn, CLST len,
 			     enum ALLOCATE_OPT opt)
 {
 	int err;
-	CLST alen = 0;
+	CLST alen;
 	struct super_block *sb = sbi->sb;
 	size_t alcn, zlen, zeroes, zlcn, zlen2, ztrim, new_zlen;
 	struct wnd_bitmap *wnd = &sbi->used.bitmap;
@@ -369,13 +369,15 @@ int ntfs_look_for_free_space(struct ntfs_sb_info *sbi, CLST lcn, CLST len,
 		if (!zlen) {
 			err = ntfs_refresh_zone(sbi);
 			if (err)
-				goto out;
+				goto up_write;
+
 			zlen = wnd_zone_len(wnd);
 		}
 
 		if (!zlen) {
 			ntfs_err(sbi->sb, "no free space to extend mft");
-			goto out;
+			err = -ENOSPC;
+			goto up_write;
 		}
 
 		lcn = wnd_zone_bit(wnd);
@@ -384,12 +386,11 @@ int ntfs_look_for_free_space(struct ntfs_sb_info *sbi, CLST lcn, CLST len,
 		wnd_zone_set(wnd, lcn + alen, zlen - alen);
 
 		err = wnd_set_used(wnd, lcn, alen);
-		if (err) {
-			up_write(&wnd->rw_lock);
-			return err;
-		}
+		if (err)
+			goto up_write;
+
 		alcn = lcn;
-		goto out;
+		goto space_found;
 	}
 	/*
 	 * 'Cause cluster 0 is always used this value means that we should use
@@ -403,15 +404,17 @@ int ntfs_look_for_free_space(struct ntfs_sb_info *sbi, CLST lcn, CLST len,
 
 	alen = wnd_find(wnd, len, lcn, BITMAP_FIND_MARK_AS_USED, &alcn);
 	if (alen)
-		goto out;
+		goto space_found;
 
 	/* Try to use clusters from MftZone. */
 	zlen = wnd_zone_len(wnd);
 	zeroes = wnd_zeroes(wnd);
 
 	/* Check too big request */
-	if (len > zeroes + zlen || zlen <= NTFS_MIN_MFT_ZONE)
-		goto out;
+	if (len > zeroes + zlen || zlen <= NTFS_MIN_MFT_ZONE) {
+		err = -ENOSPC;
+		goto up_write;
+	}
 
 	/* How many clusters to cat from zone. */
 	zlcn = wnd_zone_bit(wnd);
@@ -430,22 +433,22 @@ int ntfs_look_for_free_space(struct ntfs_sb_info *sbi, CLST lcn, CLST len,
 	/* Allocate continues clusters. */
 	alen = wnd_find(wnd, len, 0,
 			BITMAP_FIND_MARK_AS_USED | BITMAP_FIND_FULL, &alcn);
-
-out:
-	if (alen) {
-		err = 0;
-		*new_len = alen;
-		*new_lcn = alcn;
-
-		ntfs_unmap_meta(sb, alcn, alen);
-
-		/* Set hint for next requests. */
-		if (!(opt & ALLOCATE_MFT))
-			sbi->used.next_free_lcn = alcn + alen;
-	} else {
+	if (!alen) {
 		err = -ENOSPC;
+		goto up_write;
 	}
 
+space_found:
+	err = 0;
+	*new_len = alen;
+	*new_lcn = alcn;
+
+	ntfs_unmap_meta(sb, alcn, alen);
+
+	/* Set hint for next requests. */
+	if (!(opt & ALLOCATE_MFT))
+		sbi->used.next_free_lcn = alcn + alen;
+up_write:
 	up_write(&wnd->rw_lock);
 	return err;
 }
