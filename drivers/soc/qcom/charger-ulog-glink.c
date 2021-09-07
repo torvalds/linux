@@ -28,7 +28,7 @@
 
 #define MAX_ULOG_SIZE			8192
 #define NUM_LOG_PAGES			10
-#define NUM_INIT_LOG_PAGES		4
+#define NUM_INIT_LOG_PAGES		8
 
 struct set_ulog_prop_req_msg {
 	struct pmic_glink_hdr		hdr;
