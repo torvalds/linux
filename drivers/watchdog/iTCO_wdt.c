@@ -94,7 +94,6 @@ struct iTCO_wdt_private {
 	 * NO_REBOOT flag is Memory-Mapped GCS register bit 5 (TCO version 2),
 	 * or memory-mapped PMC register bit 4 (TCO version 3).
 	 */
-	struct resource *gcs_pmc_res;
 	unsigned long __iomem *gcs_pmc;
 	/* the lock for io operations */
 	spinlock_t io_lock;
@@ -497,10 +496,7 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 	 */
 	if (p->iTCO_version >= 2 && p->iTCO_version < 6 &&
 	    !pdata->no_reboot_use_pmc) {
-		p->gcs_pmc_res = platform_get_resource(pdev,
-						       IORESOURCE_MEM,
-						       ICH_RES_MEM_GCS_PMC);
-		p->gcs_pmc = devm_ioremap_resource(dev, p->gcs_pmc_res);
+		p->gcs_pmc = devm_platform_ioremap_resource(pdev, ICH_RES_MEM_GCS_PMC);
 		if (IS_ERR(p->gcs_pmc))
 			return PTR_ERR(p->gcs_pmc);
 	}
