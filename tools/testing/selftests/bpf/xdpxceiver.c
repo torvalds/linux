@@ -393,6 +393,7 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 
 		ifobj->umem = &ifobj->umem_arr[0];
 		ifobj->xsk = &ifobj->xsk_arr[0];
+		ifobj->use_poll = false;
 
 		if (i == tx)
 			ifobj->fv.vector = tx;
@@ -684,7 +685,7 @@ static void send_pkts(struct ifobject *ifobject)
 	while (pkt_cnt < ifobject->pkt_stream->nb_pkts) {
 		u32 sent;
 
-		if (test_type == TEST_TYPE_POLL) {
+		if (ifobject->use_poll) {
 			int ret;
 
 			ret = poll(fds, 1, POLL_TMOUT);
@@ -1071,6 +1072,8 @@ static void run_pkt_test(struct test_spec *test, int mode, int type)
 		testapp_validate_traffic(test);
 		break;
 	case TEST_TYPE_POLL:
+		test->ifobj_tx->use_poll = true;
+		test->ifobj_rx->use_poll = true;
 		test_spec_set_name(test, "POLL");
 		testapp_validate_traffic(test);
 		break;
