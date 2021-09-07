@@ -738,7 +738,7 @@ static void get_surf_rq_param(
 		display_data_rq_sizing_params_st *rq_sizing_param,
 		display_data_rq_dlg_params_st *rq_dlg_param,
 		display_data_rq_misc_params_st *rq_misc_param,
-		const display_pipe_params_st pipe_param,
+		const display_pipe_params_st *pipe_param,
 		bool is_chroma,
 		bool is_alpha)
 {
@@ -752,33 +752,33 @@ static void get_surf_rq_param(
 
 	// FIXME check if ppe apply for both luma and chroma in 422 case
 	if (is_chroma | is_alpha) {
-		vp_width = pipe_param.src.viewport_width_c / ppe;
-		vp_height = pipe_param.src.viewport_height_c;
-		data_pitch = pipe_param.src.data_pitch_c;
-		meta_pitch = pipe_param.src.meta_pitch_c;
-		surface_height = pipe_param.src.surface_height_y / 2.0;
+		vp_width = pipe_param->src.viewport_width_c / ppe;
+		vp_height = pipe_param->src.viewport_height_c;
+		data_pitch = pipe_param->src.data_pitch_c;
+		meta_pitch = pipe_param->src.meta_pitch_c;
+		surface_height = pipe_param->src.surface_height_y / 2.0;
 	} else {
-		vp_width = pipe_param.src.viewport_width / ppe;
-		vp_height = pipe_param.src.viewport_height;
-		data_pitch = pipe_param.src.data_pitch;
-		meta_pitch = pipe_param.src.meta_pitch;
-		surface_height = pipe_param.src.surface_height_y;
+		vp_width = pipe_param->src.viewport_width / ppe;
+		vp_height = pipe_param->src.viewport_height;
+		data_pitch = pipe_param->src.data_pitch;
+		meta_pitch = pipe_param->src.meta_pitch;
+		surface_height = pipe_param->src.surface_height_y;
 	}
 
-	if (pipe_param.dest.odm_combine) {
+	if (pipe_param->dest.odm_combine) {
 		unsigned int access_dir;
 		unsigned int full_src_vp_width;
 		unsigned int hactive_odm;
 		unsigned int src_hactive_odm;
 
-		access_dir = (pipe_param.src.source_scan == dm_vert); // vp access direction: horizontal or vertical accessed
-		hactive_odm = pipe_param.dest.hactive / ((unsigned int) pipe_param.dest.odm_combine * 2);
+		access_dir = (pipe_param->src.source_scan == dm_vert); // vp access direction: horizontal or vertical accessed
+		hactive_odm = pipe_param->dest.hactive / ((unsigned int) pipe_param->dest.odm_combine * 2);
 		if (is_chroma) {
-			full_src_vp_width = pipe_param.scale_ratio_depth.hscl_ratio_c * pipe_param.dest.full_recout_width;
-			src_hactive_odm = pipe_param.scale_ratio_depth.hscl_ratio_c * hactive_odm;
+			full_src_vp_width = pipe_param->scale_ratio_depth.hscl_ratio_c * pipe_param->dest.full_recout_width;
+			src_hactive_odm = pipe_param->scale_ratio_depth.hscl_ratio_c * hactive_odm;
 		} else {
-			full_src_vp_width = pipe_param.scale_ratio_depth.hscl_ratio * pipe_param.dest.full_recout_width;
-			src_hactive_odm = pipe_param.scale_ratio_depth.hscl_ratio * hactive_odm;
+			full_src_vp_width = pipe_param->scale_ratio_depth.hscl_ratio * pipe_param->dest.full_recout_width;
+			src_hactive_odm = pipe_param->scale_ratio_depth.hscl_ratio * hactive_odm;
 		}
 
 		if (access_dir == 0) {
@@ -808,7 +808,7 @@ static void get_surf_rq_param(
 	rq_sizing_param->meta_chunk_bytes = 2048;
 	rq_sizing_param->min_meta_chunk_bytes = 256;
 
-	if (pipe_param.src.hostvm)
+	if (pipe_param->src.hostvm)
 		rq_sizing_param->mpte_group_bytes = 512;
 	else
 		rq_sizing_param->mpte_group_bytes = 2048;
@@ -822,38 +822,38 @@ static void get_surf_rq_param(
 			vp_height,
 			data_pitch,
 			meta_pitch,
-			pipe_param.src.source_format,
-			pipe_param.src.sw_mode,
-			pipe_param.src.macro_tile_size,
-			pipe_param.src.source_scan,
-			pipe_param.src.hostvm,
+			pipe_param->src.source_format,
+			pipe_param->src.sw_mode,
+			pipe_param->src.macro_tile_size,
+			pipe_param->src.source_scan,
+			pipe_param->src.hostvm,
 			is_chroma,
 			surface_height);
 }
 
-static void dml_rq_dlg_get_rq_params(struct display_mode_lib *mode_lib, display_rq_params_st *rq_param, const display_pipe_params_st pipe_param)
+static void dml_rq_dlg_get_rq_params(struct display_mode_lib *mode_lib, display_rq_params_st *rq_param, const display_pipe_params_st *pipe_param)
 {
 	// get param for luma surface
-	rq_param->yuv420 = pipe_param.src.source_format == dm_420_8 || pipe_param.src.source_format == dm_420_10 || pipe_param.src.source_format == dm_rgbe_alpha
-			|| pipe_param.src.source_format == dm_420_12;
+	rq_param->yuv420 = pipe_param->src.source_format == dm_420_8 || pipe_param->src.source_format == dm_420_10 || pipe_param->src.source_format == dm_rgbe_alpha
+			|| pipe_param->src.source_format == dm_420_12;
 
-	rq_param->yuv420_10bpc = pipe_param.src.source_format == dm_420_10;
+	rq_param->yuv420_10bpc = pipe_param->src.source_format == dm_420_10;
 
-	rq_param->rgbe_alpha = (pipe_param.src.source_format == dm_rgbe_alpha) ? 1 : 0;
+	rq_param->rgbe_alpha = (pipe_param->src.source_format == dm_rgbe_alpha) ? 1 : 0;
 
 	get_surf_rq_param(mode_lib, &(rq_param->sizing.rq_l), &(rq_param->dlg.rq_l), &(rq_param->misc.rq_l), pipe_param, 0, 0);
 
-	if (is_dual_plane((enum source_format_class) (pipe_param.src.source_format))) {
+	if (is_dual_plane((enum source_format_class) (pipe_param->src.source_format))) {
 		// get param for chroma surface
 		get_surf_rq_param(mode_lib, &(rq_param->sizing.rq_c), &(rq_param->dlg.rq_c), &(rq_param->misc.rq_c), pipe_param, 1, rq_param->rgbe_alpha);
 	}
 
 	// calculate how to split the det buffer space between luma and chroma
-	handle_det_buf_split(mode_lib, rq_param, pipe_param.src);
+	handle_det_buf_split(mode_lib, rq_param, pipe_param->src);
 	print__rq_params_st(mode_lib, *rq_param);
 }
 
-void dml31_rq_dlg_get_rq_reg(struct display_mode_lib *mode_lib, display_rq_regs_st *rq_regs, const display_pipe_params_st pipe_param)
+void dml31_rq_dlg_get_rq_reg(struct display_mode_lib *mode_lib, display_rq_regs_st *rq_regs, const display_pipe_params_st *pipe_param)
 {
 	display_rq_params_st rq_param = {0};
 
@@ -1677,7 +1677,7 @@ void dml31_rq_dlg_get_dlg_reg(
 		struct display_mode_lib *mode_lib,
 		display_dlg_regs_st *dlg_regs,
 		display_ttu_regs_st *ttu_regs,
-		display_e2e_pipe_params_st *e2e_pipe_param,
+		const display_e2e_pipe_params_st *e2e_pipe_param,
 		const unsigned int num_pipes,
 		const unsigned int pipe_idx,
 		const bool cstate_en,
@@ -1704,7 +1704,7 @@ void dml31_rq_dlg_get_dlg_reg(
 	// system parameter calculation done
 
 	dml_print("DML_DLG: Calculation for pipe[%d] start\n\n", pipe_idx);
-	dml_rq_dlg_get_rq_params(mode_lib, &rq_param, e2e_pipe_param[pipe_idx].pipe);
+	dml_rq_dlg_get_rq_params(mode_lib, &rq_param, &e2e_pipe_param[pipe_idx].pipe);
 	dml_rq_dlg_get_dlg_params(
 			mode_lib,
 			e2e_pipe_param,
