@@ -1806,6 +1806,12 @@ hole:
 /* Btree iterators: */
 
 int __must_check
+__bch2_btree_iter_traverse(struct btree_iter *iter)
+{
+	return bch2_btree_path_traverse(iter->trans, iter->path, iter->flags);
+}
+
+int __must_check
 bch2_btree_iter_traverse(struct btree_iter *iter)
 {
 	int ret;
@@ -2416,7 +2422,7 @@ static void __bch2_trans_iter_init(struct btree_trans *trans,
 	iter->path = bch2_path_get(trans,
 				   flags & BTREE_ITER_CACHED,
 				   btree_id,
-				   btree_iter_search_key(iter),
+				   iter->pos,
 				   locks_want,
 				   depth,
 				   flags & BTREE_ITER_INTENT);

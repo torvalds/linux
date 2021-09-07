@@ -281,6 +281,16 @@ int bch2_extent_update(struct btree_trans *trans,
 	s64 i_sectors_delta = 0, disk_sectors_delta = 0;
 	int ret;
 
+	/*
+	 * This traverses us the iterator without changing iter->path->pos to
+	 * search_key() (which is pos + 1 for extents): we want there to be a
+	 * path already traversed at iter->pos because
+	 * bch2_trans_extent_update() will use it to attempt extent merging
+	 */
+	ret = __bch2_btree_iter_traverse(iter);
+	if (ret)
+		return ret;
+
 	ret = bch2_extent_trim_atomic(trans, iter, k);
 	if (ret)
 		return ret;

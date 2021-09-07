@@ -985,7 +985,14 @@ next:
 		bch2_bkey_merge(c, bkey_i_to_s(insert), k);
 out:
 	if (!bkey_deleted(&insert->k)) {
-		bch2_btree_iter_set_pos(&iter, insert->k.p);
+		/*
+		 * Rewinding iterators is expensive: get a new one and the one
+		 * that points to the start of insert will be cloned from:
+		 */
+		bch2_trans_iter_exit(trans, &iter);
+		bch2_trans_iter_init(trans, &iter, btree_id, insert->k.p,
+				     BTREE_ITER_NOT_EXTENTS|
+				     BTREE_ITER_INTENT);
 		ret   = bch2_btree_iter_traverse(&iter) ?:
 			bch2_trans_update(trans, &iter, insert, flags);
 	}
