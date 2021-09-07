@@ -458,8 +458,10 @@ static void pkt_stream_delete(struct pkt_stream *pkt_stream)
 
 static void pkt_stream_restore_default(struct test_spec *test)
 {
-	pkt_stream_delete(test->ifobj_tx->pkt_stream);
-	test->ifobj_tx->pkt_stream = test->pkt_stream_default;
+	if (test->ifobj_tx->pkt_stream != test->pkt_stream_default) {
+		pkt_stream_delete(test->ifobj_tx->pkt_stream);
+		test->ifobj_tx->pkt_stream = test->pkt_stream_default;
+	}
 	test->ifobj_rx->pkt_stream = test->pkt_stream_default;
 }
 
@@ -931,8 +933,7 @@ static void *worker_testapp_validate_rx(void *arg)
 	if (test->current_step == 1)
 		thread_common_ops(test, ifobject);
 
-	if (stat_test_type != STAT_TEST_RX_FILL_EMPTY)
-		xsk_populate_fill_ring(ifobject->umem, ifobject->pkt_stream);
+	xsk_populate_fill_ring(ifobject->umem, ifobject->pkt_stream);
 
 	fds.fd = xsk_socket__fd(ifobject->xsk->xsk);
 	fds.events = POLLIN;
@@ -1065,7 +1066,14 @@ static void testapp_stats(struct test_spec *test)
 			break;
 		case STAT_TEST_RX_FILL_EMPTY:
 			test_spec_set_name(test, "STAT_RX_FILL_EMPTY");
+			test->ifobj_rx->pkt_stream = pkt_stream_generate(test->ifobj_rx->umem, 0,
+									 MIN_PKT_SIZE);
+			if (!test->ifobj_rx->pkt_stream)
+				exit_with_error(ENOMEM);
+			test->ifobj_rx->pkt_stream->use_addr_for_fill = true;
 			testapp_validate_traffic(test);
+
+			pkt_stream_restore_default(test);
 			break;
 		default:
 			break;
