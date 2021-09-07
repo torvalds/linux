@@ -87,6 +87,7 @@ struct xsk_umem_info {
 	u32 num_frames;
 	u32 frame_headroom;
 	void *buffer;
+	u32 frame_size;
 };
 
 struct xsk_socket_info {
