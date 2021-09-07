@@ -175,6 +175,7 @@ struct bt_codecs {
 
 #define BT_CODEC_CVSD		0x02
 #define BT_CODEC_TRANSPARENT	0x03
+#define BT_CODEC_MSBC		0x05
 
 __printf(1, 2)
 void bt_info(const char *fmt, ...);
