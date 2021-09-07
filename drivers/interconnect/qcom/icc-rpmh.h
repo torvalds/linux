@@ -99,6 +99,8 @@ struct qcom_icc_node {
  * @perf_mode_mask: mask to OR with enable_mask when QCOM_ICC_TAG_PERF_MODE is set
  * @dirty: flag used to indicate whether the bcm needs to be committed
  * @keepalive: flag used to indicate whether a keepalive is required
+ * @qos_proxy: flag used to indicate whether a proxy vote needed as part of
+ * qos configuration
  * @aux_data: auxiliary data used when calculating threshold values and
  * communicating with RPMh
  * @list: used to link to other bcms when compiling lists for commit
@@ -117,6 +119,7 @@ struct qcom_icc_bcm {
 	u32 perf_mode_mask;
 	bool dirty;
 	bool keepalive;
+	bool qos_proxy;
 	struct bcm_db aux_data;
 	struct list_head list;
 	struct list_head ws_list;

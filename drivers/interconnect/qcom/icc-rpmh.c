@@ -222,6 +222,9 @@ static bool bcm_needs_qos_proxy(struct qcom_icc_bcm *bcm)
 {
 	int i;
 
+	if (bcm->qos_proxy)
+		return true;
+
 	if (bcm->voter_idx == 0)
 		for (i = 0; i < bcm->num_nodes; i++)
 			if (bcm->nodes[i]->qosbox)
