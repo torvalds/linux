@@ -276,7 +276,7 @@ static int xsk_configure_socket(struct xsk_socket_info *xsk, struct xsk_umem_inf
 	struct xsk_ring_prod *txr;
 
 	xsk->umem = umem;
-	cfg.rx_size = rxqsize;
+	cfg.rx_size = xsk->rxqsize;
 	cfg.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
 	cfg.libbpf_flags = 0;
 	cfg.xdp_flags = xdp_flags;
@@ -407,6 +407,7 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 			memset(&ifobj->umem_arr[j], 0, sizeof(ifobj->umem_arr[j]));
 			memset(&ifobj->xsk_arr[j], 0, sizeof(ifobj->xsk_arr[j]));
 			ifobj->umem_arr[j].num_frames = DEFAULT_PKT_CNT / 4;
+			ifobj->xsk_arr[j].rxqsize = XSK_RING_CONS__DEFAULT_NUM_DESCS;
 		}
 	}
 
@@ -988,16 +989,13 @@ static void testapp_stats(struct test_spec *test)
 		test_spec_reset(test);
 		stat_test_type = i;
 
-		/* reset defaults */
-		rxqsize = XSK_RING_CONS__DEFAULT_NUM_DESCS;
-
 		switch (stat_test_type) {
 		case STAT_TEST_RX_DROPPED:
 			test->ifobj_rx->umem->frame_headroom = XSK_UMEM__DEFAULT_FRAME_SIZE -
 				XDP_PACKET_HEADROOM - 1;
 			break;
 		case STAT_TEST_RX_FULL:
-			rxqsize = RX_FULL_RXQSIZE;
+			test->ifobj_rx->xsk->rxqsize = RX_FULL_RXQSIZE;
 			break;
 		case STAT_TEST_TX_INVALID:
 			continue;
@@ -1040,7 +1038,6 @@ static void run_pkt_test(struct test_spec *test, int mode, int type)
 	xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 	second_step = 0;
 	stat_test_type = -1;
-	rxqsize = XSK_RING_CONS__DEFAULT_NUM_DESCS;
 
 	configured_mode = mode;
 

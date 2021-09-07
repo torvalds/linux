@@ -79,7 +79,6 @@ static bool opt_verbose;
 static u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 static u32 xdp_bind_flags = XDP_USE_NEED_WAKEUP | XDP_COPY;
 static int stat_test_type;
-static u32 rxqsize;
 
 struct xsk_umem_info {
 	struct xsk_ring_prod fq;
@@ -96,6 +95,7 @@ struct xsk_socket_info {
 	struct xsk_umem_info *umem;
 	struct xsk_socket *xsk;
 	u32 outstanding_tx;
+	u32 rxqsize;
 };
 
 struct flow_vector {
