@@ -1603,7 +1603,7 @@ struct ATTR_FILE_NAME *ni_fname_type(struct ntfs_inode *ni, u8 name_type,
 
 	*le = NULL;
 
-	if (FILE_NAME_POSIX == name_type)
+	if (name_type == FILE_NAME_POSIX)
 		return NULL;
 
 	/* Enumerate all names. */
