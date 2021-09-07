@@ -331,6 +331,7 @@ enum {
 	HCI_CMD_PENDING,
 	HCI_FORCE_NO_MITM,
 	HCI_QUALITY_REPORT,
+	HCI_OFFLOAD_CODECS_ENABLED,
 
 	__HCI_NUM_FLAGS,
 };
@@ -2621,6 +2622,9 @@ static inline struct hci_sco_hdr *hci_sco_hdr(const struct sk_buff *skb)
 #define hci_iso_data_len_pack(h, f)	((__u16) ((h) | ((f) << 14)))
 #define hci_iso_data_len(h)		((h) & 0x3fff)
 #define hci_iso_data_flags(h)		((h) >> 14)
+
+/* codec transport types */
+#define HCI_TRANSPORT_SCO_ESCO	0x01
 
 /* le24 support */
 static inline void hci_cpu_to_le24(__u32 val, __u8 dst[3])

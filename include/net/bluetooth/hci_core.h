@@ -619,6 +619,7 @@ struct hci_dev {
 	void (*cmd_timeout)(struct hci_dev *hdev);
 	bool (*prevent_wake)(struct hci_dev *hdev);
 	int (*set_quality_report)(struct hci_dev *hdev, bool enable);
+	int (*get_data_path_id)(struct hci_dev *hdev, __u8 *data_path);
 };
 
 #define HCI_PHY_HANDLE(handle)	(handle & 0xff)
