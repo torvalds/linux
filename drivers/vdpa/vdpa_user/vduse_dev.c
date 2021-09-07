@@ -1593,8 +1593,10 @@ static int vduse_init(void)
 
 	vduse_irq_wq = alloc_workqueue("vduse-irq",
 				WQ_HIGHPRI | WQ_SYSFS | WQ_UNBOUND, 0);
-	if (!vduse_irq_wq)
+	if (!vduse_irq_wq) {
+		ret = -ENOMEM;
 		goto err_wq;
+	}
 
 	ret = vduse_domain_init();
 	if (ret)
