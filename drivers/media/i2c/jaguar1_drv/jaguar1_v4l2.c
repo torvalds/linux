@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * jaguar1 driver
+ * V0.0X01.0X00 first version.
+ * V0.0X01.0X01 fix kernel5.10 compile error.
  *
  */
 
@@ -38,7 +40,7 @@
 #include "jaguar1_mipi.h"
 #include "jaguar1_drv.h"
 
-#define DRIVER_VERSION				KERNEL_VERSION(0, 0x01, 0x0)
+#define DRIVER_VERSION				KERNEL_VERSION(0, 0x01, 0x1)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN			V4L2_CID_GAIN
@@ -66,14 +68,6 @@
 #define JAGUAR1_NAME				"jaguar1"
 
 /* #define FORCE_720P */
-
-enum jaguar1_max_pad {
-	PAD0,
-	PAD1,
-	PAD2,
-	PAD3,
-	PAD_MAX,
-};
 
 struct jaguar1_gpio {
 	int pltfrm_gpio;
@@ -469,10 +463,11 @@ static int jaguar1_enum_frame_sizes(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int jaguar1_g_mbus_config(struct v4l2_subdev *sd,
+
+static int jaguar1_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 				 struct v4l2_mbus_config *cfg)
 {
-	cfg->type = V4L2_MBUS_CSI2;
+	cfg->type = V4L2_MBUS_CSI2_DPHY;
 	cfg->flags = V4L2_MBUS_CSI2_4_LANE |
 		     V4L2_MBUS_CSI2_CHANNELS;
 
@@ -634,8 +629,11 @@ static long jaguar1_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = jaguar1_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(inf);
 		break;
 	case RKMODULE_AWB_CFG:
@@ -648,6 +646,8 @@ static long jaguar1_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(cfg, up, sizeof(*cfg));
 		if (!ret)
 			ret = jaguar1_ioctl(sd, cmd, cfg);
+		else
+			ret = -EFAULT;
 		kfree(cfg);
 		break;
 	case RKMODULE_GET_START_STREAM_SEQ:
@@ -658,8 +658,11 @@ static long jaguar1_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = jaguar1_ioctl(sd, cmd, seq);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, seq, sizeof(*seq));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(seq);
 		break;
 	default:
@@ -698,7 +701,6 @@ static const struct dev_pm_ops jaguar1_pm_ops = {
 
 static const struct v4l2_subdev_video_ops jaguar1_video_ops = {
 	.s_stream = jaguar1_stream,
-	.g_mbus_config = jaguar1_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops jaguar1_subdev_pad_ops = {
@@ -706,6 +708,7 @@ static const struct v4l2_subdev_pad_ops jaguar1_subdev_pad_ops = {
 	.enum_frame_size = jaguar1_enum_frame_sizes,
 	.get_fmt = jaguar1_get_fmt,
 	.set_fmt = jaguar1_set_fmt,
+	.get_mbus_config = jaguar1_g_mbus_config,
 };
 
 static const struct v4l2_subdev_core_ops jaguar1_core_ops = {
