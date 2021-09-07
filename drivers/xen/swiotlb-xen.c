@@ -106,27 +106,26 @@ static int is_xen_swiotlb_buffer(struct device *dev, dma_addr_t dma_addr)
 
 static int xen_swiotlb_fixup(void *buf, unsigned long nslabs)
 {
-	int i, rc;
-	int dma_bits;
+	int rc;
+	unsigned int order = get_order(IO_TLB_SEGSIZE << IO_TLB_SHIFT);
+	unsigned int i, dma_bits = order + PAGE_SHIFT;
 	dma_addr_t dma_handle;
 	phys_addr_t p = virt_to_phys(buf);
 
-	dma_bits = get_order(IO_TLB_SEGSIZE << IO_TLB_SHIFT) + PAGE_SHIFT;
+	BUILD_BUG_ON(IO_TLB_SEGSIZE & (IO_TLB_SEGSIZE - 1));
+	BUG_ON(nslabs % IO_TLB_SEGSIZE);
 
 	i = 0;
 	do {
-		int slabs = min(nslabs - i, (unsigned long)IO_TLB_SEGSIZE);
-
 		do {
 			rc = xen_create_contiguous_region(
-				p + (i << IO_TLB_SHIFT),
-				get_order(slabs << IO_TLB_SHIFT),
+				p + (i << IO_TLB_SHIFT), order,
 				dma_bits, &dma_handle);
 		} while (rc && dma_bits++ < MAX_DMA_BITS);
 		if (rc)
 			return rc;
 
-		i += slabs;
+		i += IO_TLB_SEGSIZE;
 	} while (i < nslabs);
 	return 0;
 }
@@ -210,7 +209,7 @@ retry:
 error:
 	if (repeat--) {
 		/* Min is 2MB */
-		nslabs = max(1024UL, (nslabs >> 1));
+		nslabs = max(1024UL, ALIGN(nslabs >> 1, IO_TLB_SEGSIZE));
 		bytes = nslabs << IO_TLB_SHIFT;
 		pr_info("Lowering to %luMB\n", bytes >> 20);
 		goto retry;
@@ -245,7 +244,7 @@ retry:
 		memblock_free(__pa(start), PAGE_ALIGN(bytes));
 		if (repeat--) {
 			/* Min is 2MB */
-			nslabs = max(1024UL, (nslabs >> 1));
+			nslabs = max(1024UL, ALIGN(nslabs >> 1, IO_TLB_SEGSIZE));
 			bytes = nslabs << IO_TLB_SHIFT;
 			pr_info("Lowering to %luMB\n", bytes >> 20);
 			goto retry;
