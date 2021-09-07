@@ -204,4 +204,6 @@ typedef struct acp_dma_dscr_transfer {
 	u32 reserved;
 } acp_dma_dscr_transfer_t;
 
+extern bool acp_bt_uart_enable;
+
 #endif /*__ACP_HW_H */
