@@ -255,7 +255,7 @@ getname_kernel(const char * filename)
 
 void putname(struct filename *name)
 {
-	if (IS_ERR_OR_NULL(name))
+	if (IS_ERR(name))
 		return;
 
 	BUG_ON(name->refcnt <= 0);
