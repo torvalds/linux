@@ -609,7 +609,7 @@ struct gpio_desc *devm_fwnode_get_gpiod_from_child(struct device *dev,
 #if IS_ENABLED(CONFIG_GPIOLIB) && IS_ENABLED(CONFIG_OF_GPIO)
 struct device_node;
 
-struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
+struct gpio_desc *gpiod_get_from_of_node(const struct device_node *node,
 					 const char *propname, int index,
 					 enum gpiod_flags dflags,
 					 const char *label);
@@ -619,7 +619,7 @@ struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
 struct device_node;
 
 static inline
-struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
+struct gpio_desc *gpiod_get_from_of_node(const struct device_node *node,
 					 const char *propname, int index,
 					 enum gpiod_flags dflags,
 					 const char *label)
@@ -633,7 +633,7 @@ struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
 struct device_node;
 
 struct gpio_desc *devm_gpiod_get_from_of_node(struct device *dev,
-					      struct device_node *node,
+					      const struct device_node *node,
 					      const char *propname, int index,
 					      enum gpiod_flags dflags,
 					      const char *label);
@@ -644,7 +644,7 @@ struct device_node;
 
 static inline
 struct gpio_desc *devm_gpiod_get_from_of_node(struct device *dev,
-					      struct device_node *node,
+					      const struct device_node *node,
 					      const char *propname, int index,
 					      enum gpiod_flags dflags,
 					      const char *label)
@@ -680,9 +680,9 @@ struct acpi_gpio_mapping {
 	unsigned int quirks;
 };
 
-#if IS_ENABLED(CONFIG_GPIOLIB) && IS_ENABLED(CONFIG_ACPI)
-
 struct acpi_device;
+
+#if IS_ENABLED(CONFIG_GPIOLIB) && IS_ENABLED(CONFIG_ACPI)
 
 int acpi_dev_add_driver_gpios(struct acpi_device *adev,
 			      const struct acpi_gpio_mapping *gpios);
@@ -695,8 +695,6 @@ void devm_acpi_dev_remove_driver_gpios(struct device *dev);
 struct gpio_desc *acpi_get_and_request_gpiod(char *path, int pin, char *label);
 
 #else  /* CONFIG_GPIOLIB && CONFIG_ACPI */
-
-struct acpi_device;
 
 static inline int acpi_dev_add_driver_gpios(struct acpi_device *adev,
 			      const struct acpi_gpio_mapping *gpios)
