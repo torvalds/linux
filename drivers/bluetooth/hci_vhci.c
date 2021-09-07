@@ -73,6 +73,24 @@ static int vhci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	return 0;
 }
 
+static int vhci_get_data_path_id(struct hci_dev *hdev, u8 *data_path_id)
+{
+	*data_path_id = 0;
+	return 0;
+}
+
+static int vhci_get_codec_config_data(struct hci_dev *hdev, __u8 type,
+				      struct bt_codec *codec, __u8 *vnd_len,
+				      __u8 **vnd_data)
+{
+	if (type != ESCO_LINK)
+		return -EINVAL;
+
+	*vnd_len = 0;
+	*vnd_data = NULL;
+	return 0;
+}
+
 static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 {
 	struct hci_dev *hdev;
@@ -112,6 +130,8 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 	hdev->close = vhci_close_dev;
 	hdev->flush = vhci_flush;
 	hdev->send  = vhci_send_frame;
+	hdev->get_data_path_id = vhci_get_data_path_id;
+	hdev->get_codec_config_data = vhci_get_codec_config_data;
 
 	/* bit 6 is for external configuration */
 	if (opcode & 0x40)
