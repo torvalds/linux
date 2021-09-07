@@ -19,7 +19,7 @@
  * Virtual Ethernet interfaces.
  *
  * For each mode, the following tests are run:
- *    a. nopoll - soft-irq processing
+ *    a. nopoll - soft-irq processing in run-to-completion mode
  *    b. poll - using poll() syscall
  *    c. Socket Teardown
  *       Create a Tx and a Rx socket, Tx from one socket, Rx on another. Destroy
@@ -45,6 +45,7 @@
  *       Configure sockets at indexes 0 and 1, run a traffic on queue ids 0,
  *       then remove xsk sockets from queue 0 on both veth interfaces and
  *       finally run a traffic on queues ids 1
+ *    g. unaligned mode
  *
  * Total tests: 12
  *
@@ -243,6 +244,9 @@ static int xsk_configure_umem(struct xsk_umem_info *umem, void *buffer, u64 size
 	};
 	int ret;
 
+	if (umem->unaligned_mode)
+		cfg.flags |= XDP_UMEM_UNALIGNED_CHUNK_FLAG;
+
 	ret = xsk_umem__create(&umem->umem, buffer, size,
 			       &umem->fq, &umem->cq, &cfg);
 	if (ret)
@@ -250,19 +254,6 @@ static int xsk_configure_umem(struct xsk_umem_info *umem, void *buffer, u64 size
 
 	umem->buffer = buffer;
 	return 0;
-}
-
-static void xsk_populate_fill_ring(struct xsk_umem_info *umem)
-{
-	int ret, i;
-	u32 idx = 0;
-
-	ret = xsk_ring_prod__reserve(&umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS, &idx);
-	if (ret != XSK_RING_PROD__DEFAULT_NUM_DESCS)
-		exit_with_error(-ret);
-	for (i = 0; i < XSK_RING_PROD__DEFAULT_NUM_DESCS; i++)
-		*xsk_ring_prod__fill_addr(&umem->fq, idx++) = i * umem->frame_size;
-	xsk_ring_prod__submit(&umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS);
 }
 
 static int xsk_configure_socket(struct xsk_socket_info *xsk, struct xsk_umem_info *umem,
@@ -477,7 +468,7 @@ static struct pkt_stream *pkt_stream_generate(struct xsk_umem_info *umem, u32 nb
 	struct pkt_stream *pkt_stream;
 	u32 i;
 
-	pkt_stream = malloc(sizeof(*pkt_stream));
+	pkt_stream = calloc(1, sizeof(*pkt_stream));
 	if (!pkt_stream)
 		exit_with_error(ENOMEM);
 
@@ -487,7 +478,8 @@ static struct pkt_stream *pkt_stream_generate(struct xsk_umem_info *umem, u32 nb
 
 	pkt_stream->nb_pkts = nb_pkts;
 	for (i = 0; i < nb_pkts; i++) {
-		pkt_stream->pkts[i].addr = (i % umem->num_frames) * umem->frame_size;
+		pkt_stream->pkts[i].addr = (i % umem->num_frames) * umem->frame_size +
+			DEFAULT_OFFSET;
 		pkt_stream->pkts[i].len = pkt_len;
 		pkt_stream->pkts[i].payload = i;
 
@@ -500,11 +492,33 @@ static struct pkt_stream *pkt_stream_generate(struct xsk_umem_info *umem, u32 nb
 	return pkt_stream;
 }
 
+static struct pkt_stream *pkt_stream_clone(struct xsk_umem_info *umem,
+					   struct pkt_stream *pkt_stream)
+{
+	return pkt_stream_generate(umem, pkt_stream->nb_pkts, pkt_stream->pkts[0].len);
+}
+
 static void pkt_stream_replace(struct test_spec *test, u32 nb_pkts, u32 pkt_len)
 {
 	struct pkt_stream *pkt_stream;
 
 	pkt_stream = pkt_stream_generate(test->ifobj_tx->umem, nb_pkts, pkt_len);
+	test->ifobj_tx->pkt_stream = pkt_stream;
+	test->ifobj_rx->pkt_stream = pkt_stream;
+}
+
+static void pkt_stream_replace_half(struct test_spec *test, u32 pkt_len, u32 offset)
+{
+	struct xsk_umem_info *umem = test->ifobj_tx->umem;
+	struct pkt_stream *pkt_stream;
+	u32 i;
+
+	pkt_stream = pkt_stream_clone(umem, test->pkt_stream_default);
+	for (i = 0; i < test->pkt_stream_default->nb_pkts; i += 2) {
+		pkt_stream->pkts[i].addr = (i % umem->num_frames) * umem->frame_size + offset;
+		pkt_stream->pkts[i].len = pkt_len;
+	}
+
 	test->ifobj_tx->pkt_stream = pkt_stream;
 	test->ifobj_rx->pkt_stream = pkt_stream;
 }
@@ -570,9 +584,9 @@ static void pkt_dump(void *pkt, u32 len)
 	fprintf(stdout, "---------------------------------------\n");
 }
 
-static bool is_pkt_valid(struct pkt *pkt, void *buffer, const struct xdp_desc *desc)
+static bool is_pkt_valid(struct pkt *pkt, void *buffer, u64 addr, u32 len)
 {
-	void *data = xsk_umem__get_data(buffer, desc->addr);
+	void *data = xsk_umem__get_data(buffer, addr);
 	struct iphdr *iphdr = (struct iphdr *)(data + sizeof(struct ethhdr));
 
 	if (!pkt) {
@@ -586,10 +600,10 @@ static bool is_pkt_valid(struct pkt *pkt, void *buffer, const struct xdp_desc *d
 		if (opt_pkt_dump)
 			pkt_dump(data, PKT_SIZE);
 
-		if (pkt->len != desc->len) {
+		if (pkt->len != len) {
 			ksft_test_result_fail
 				("ERROR: [%s] expected length [%d], got length [%d]\n",
-					__func__, pkt->len, desc->len);
+					__func__, pkt->len, len);
 			return false;
 		}
 
@@ -671,7 +685,7 @@ static void receive_pkts(struct pkt_stream *pkt_stream, struct xsk_socket_info *
 
 			orig = xsk_umem__extract_addr(addr);
 			addr = xsk_umem__add_offset_to_addr(addr);
-			if (!is_pkt_valid(pkt, xsk->umem->buffer, desc))
+			if (!is_pkt_valid(pkt, xsk->umem->buffer, addr, desc->len))
 				return;
 
 			*xsk_ring_prod__fill_addr(&xsk->umem->fq, idx_fq++) = orig;
@@ -815,13 +829,16 @@ static void tx_stats_validate(struct ifobject *ifobject)
 
 static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 {
+	int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
 	u32 i;
 
 	ifobject->ns_fd = switch_namespace(ifobject->nsname);
 
+	if (ifobject->umem->unaligned_mode)
+		mmap_flags |= MAP_HUGETLB;
+
 	for (i = 0; i < test->nb_sockets; i++) {
 		u64 umem_sz = ifobject->umem->num_frames * ifobject->umem->frame_size;
-		int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
 		u32 ctr = 0;
 		void *bufs;
 
@@ -879,6 +896,32 @@ static void *worker_testapp_validate_tx(void *arg)
 	pthread_exit(NULL);
 }
 
+static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream *pkt_stream)
+{
+	u32 idx = 0, i;
+	int ret;
+
+	ret = xsk_ring_prod__reserve(&umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS, &idx);
+	if (ret != XSK_RING_PROD__DEFAULT_NUM_DESCS)
+		exit_with_error(ENOSPC);
+	for (i = 0; i < XSK_RING_PROD__DEFAULT_NUM_DESCS; i++) {
+		u64 addr;
+
+		if (pkt_stream->use_addr_for_fill) {
+			struct pkt *pkt = pkt_stream_get_pkt(pkt_stream, i);
+
+			if (!pkt)
+				break;
+			addr = pkt->addr;
+		} else {
+			addr = (i % umem->num_frames) * umem->frame_size + DEFAULT_OFFSET;
+		}
+
+		*xsk_ring_prod__fill_addr(&umem->fq, idx++) = addr;
+	}
+	xsk_ring_prod__submit(&umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS);
+}
+
 static void *worker_testapp_validate_rx(void *arg)
 {
 	struct test_spec *test = (struct test_spec *)arg;
@@ -889,7 +932,7 @@ static void *worker_testapp_validate_rx(void *arg)
 		thread_common_ops(test, ifobject);
 
 	if (stat_test_type != STAT_TEST_RX_FILL_EMPTY)
-		xsk_populate_fill_ring(ifobject->umem);
+		xsk_populate_fill_ring(ifobject->umem, ifobject->pkt_stream);
 
 	fds.fd = xsk_socket__fd(ifobject->xsk->xsk);
 	fds.events = POLLIN;
@@ -1033,6 +1076,40 @@ static void testapp_stats(struct test_spec *test)
 	test_spec_set_name(test, "STATS");
 }
 
+/* Simple test */
+static bool hugepages_present(struct ifobject *ifobject)
+{
+	const size_t mmap_sz = 2 * ifobject->umem->num_frames * ifobject->umem->frame_size;
+	void *bufs;
+
+	bufs = mmap(NULL, mmap_sz, PROT_READ | PROT_WRITE,
+		    MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_HUGETLB, -1, 0);
+	if (bufs == MAP_FAILED)
+		return false;
+
+	munmap(bufs, mmap_sz);
+	return true;
+}
+
+static bool testapp_unaligned(struct test_spec *test)
+{
+	if (!hugepages_present(test->ifobj_tx)) {
+		ksft_test_result_skip("No 2M huge pages present.\n");
+		return false;
+	}
+
+	test_spec_set_name(test, "UNALIGNED_MODE");
+	test->ifobj_tx->umem->unaligned_mode = true;
+	test->ifobj_rx->umem->unaligned_mode = true;
+	/* Let half of the packets straddle a buffer boundrary */
+	pkt_stream_replace_half(test, PKT_SIZE, test->ifobj_tx->umem->frame_size - 32);
+	test->ifobj_rx->pkt_stream->use_addr_for_fill = true;
+	testapp_validate_traffic(test);
+
+	pkt_stream_restore_default(test);
+	return true;
+}
+
 static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *src_mac,
 		       const char *dst_ip, const char *src_ip, const u16 dst_port,
 		       const u16 src_port, thread_func_t func_ptr)
@@ -1083,6 +1160,10 @@ static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_
 		test->ifobj_rx->use_poll = true;
 		test_spec_set_name(test, "POLL");
 		testapp_validate_traffic(test);
+		break;
+	case TEST_TYPE_UNALIGNED:
+		if (!testapp_unaligned(test))
+			return;
 		break;
 	default:
 		break;

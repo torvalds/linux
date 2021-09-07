@@ -39,6 +39,7 @@
 #define POLL_TMOUT 1000
 #define DEFAULT_PKT_CNT (4 * 1024)
 #define RX_FULL_RXQSIZE 32
+#define DEFAULT_OFFSET 256
 #define XSK_UMEM__INVALID_FRAME_SIZE (XSK_UMEM__DEFAULT_FRAME_SIZE + 1)
 
 #define print_verbose(x...) do { if (opt_verbose) ksft_print_msg(x); } while (0)
@@ -52,6 +53,7 @@ enum test_mode {
 enum test_type {
 	TEST_TYPE_NOPOLL,
 	TEST_TYPE_POLL,
+	TEST_TYPE_UNALIGNED,
 	TEST_TYPE_TEARDOWN,
 	TEST_TYPE_BIDI,
 	TEST_TYPE_STATS,
@@ -81,6 +83,7 @@ struct xsk_umem_info {
 	u32 frame_headroom;
 	void *buffer;
 	u32 frame_size;
+	bool unaligned_mode;
 };
 
 struct xsk_socket_info {
@@ -102,6 +105,7 @@ struct pkt {
 struct pkt_stream {
 	u32 nb_pkts;
 	struct pkt *pkts;
+	bool use_addr_for_fill;
 };
 
 typedef void *(*thread_func_t)(void *arg);
