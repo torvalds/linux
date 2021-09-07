@@ -31,6 +31,9 @@ The Translation Table Manager (TTM)
 .. kernel-doc:: drivers/gpu/drm/ttm/ttm_module.c
    :doc: TTM
 
+.. kernel-doc:: include/drm/ttm/ttm_caching.h
+   :internal:
+
 The Graphics Execution Manager (GEM)
 ====================================
 
