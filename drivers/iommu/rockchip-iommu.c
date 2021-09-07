@@ -124,11 +124,6 @@ struct rockchip_iommu_data {
 	u32 version;
 };
 
-/* list of clocks required by IOMMU */
-static const char * const rk_iommu_clocks[] = {
-	"aclk", "iface",
-};
-
 struct rk_iommu {
 	struct device *dev;
 	void __iomem **bases;
@@ -1732,45 +1727,18 @@ static int rk_iommu_probe(struct platform_device *pdev)
 					"rockchip,enable-cmd-retry");
 	}
 
-	iommu->num_clocks = ARRAY_SIZE(rk_iommu_clocks);
-	iommu->clocks = devm_kcalloc(iommu->dev, iommu->num_clocks,
-				     sizeof(*iommu->clocks), GFP_KERNEL);
-	if (!iommu->clocks)
-		return -ENOMEM;
-
-	/* RK1808 isp iommu has an extra sclk */
-	err = of_property_match_string(dev->of_node, "clock-names", "sclk");
-	if (err >= 0)
-		iommu->num_clocks++;
-
-	for (i = 0; i < iommu->num_clocks; ++i) {
-		if (i == 2) {
-			iommu->clocks[i].id = "sclk";
-		} else {
-			err = of_property_match_string(dev->of_node,
-						       "clock-names",
-						       rk_iommu_clocks[i]);
-			if (err < 0) {
-				if (!strcmp(rk_iommu_clocks[i], "iface")) {
-					iommu->clocks[i].id = "hclk";
-					dev_warn(dev, "iommu hclk need to update to iface\n");
-				}
-			} else {
-				iommu->clocks[i].id = rk_iommu_clocks[i];
-			}
-		}
-	}
-
 	/*
 	 * iommu clocks should be present for all new devices and devicetrees
 	 * but there are older devicetrees without clocks out in the wild.
 	 * So clocks as optional for the time being.
 	 */
-	err = devm_clk_bulk_get(iommu->dev, iommu->num_clocks, iommu->clocks);
+	err = devm_clk_bulk_get_all(dev, &iommu->clocks);
 	if (err == -ENOENT)
 		iommu->num_clocks = 0;
-	else if (err)
+	else if (err < 0)
 		return err;
+	else
+		iommu->num_clocks = err;
 
 	err = clk_bulk_prepare(iommu->num_clocks, iommu->clocks);
 	if (err)
