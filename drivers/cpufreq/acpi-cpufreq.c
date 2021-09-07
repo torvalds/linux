@@ -163,9 +163,9 @@ static ssize_t store_cpb(struct cpufreq_policy *policy, const char *buf,
 	if (ret || val > 1)
 		return -EINVAL;
 
-	get_online_cpus();
+	cpus_read_lock();
 	set_boost(policy, val);
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return count;
 }

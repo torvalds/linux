@@ -87,7 +87,12 @@ static void iwl_pcie_gen2_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 	 * Clear "initialization complete" bit to move adapter from
 	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
 	 */
-	iwl_clear_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+		iwl_clear_bit(trans, CSR_GP_CNTRL,
+			      CSR_GP_CNTRL_REG_FLAG_MAC_INIT);
+	else
+		iwl_clear_bit(trans, CSR_GP_CNTRL,
+			      CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 }
 
 static void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
@@ -95,7 +100,7 @@ static void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
 
-	trans_pcie->fw_reset_done = false;
+	trans_pcie->fw_reset_state = FW_RESET_REQUESTED;
 
 	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		iwl_write_umac_prph(trans, UREG_NIC_SET_NMI_DRIVER,
@@ -106,10 +111,15 @@ static void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 
 	/* wait 200ms */
 	ret = wait_event_timeout(trans_pcie->fw_reset_waitq,
-				 trans_pcie->fw_reset_done, FW_RESET_TIMEOUT);
-	if (!ret)
+				 trans_pcie->fw_reset_state != FW_RESET_REQUESTED,
+				 FW_RESET_TIMEOUT);
+	if (!ret || trans_pcie->fw_reset_state == FW_RESET_ERROR) {
 		IWL_INFO(trans,
 			 "firmware didn't ACK the reset - continue anyway\n");
+		iwl_trans_fw_error(trans, true);
+	}
+
+	trans_pcie->fw_reset_state = FW_RESET_IDLE;
 }
 
 void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
@@ -121,9 +131,21 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 	if (trans_pcie->is_down)
 		return;
 
-	if (trans_pcie->fw_reset_handshake &&
-	    trans->state >= IWL_TRANS_FW_STARTED)
-		iwl_trans_pcie_fw_reset_handshake(trans);
+	if (trans->state >= IWL_TRANS_FW_STARTED) {
+		if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
+			iwl_set_bit(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_REQ);
+			iwl_poll_bit(trans, CSR_GP_CNTRL,
+				     CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS,
+				     CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS,
+				     5000);
+			msleep(100);
+			iwl_set_bit(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_SW_RESET);
+		} else if (trans_pcie->fw_reset_handshake) {
+			iwl_trans_pcie_fw_reset_handshake(trans);
+		}
+	}
 
 	trans_pcie->is_down = true;
 
@@ -154,9 +176,17 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 		iwl_pcie_ctxt_info_free(trans);
 
 	/* Make sure (redundant) we've released our request to stay awake */
-	iwl_clear_bit(trans, CSR_GP_CNTRL,
-		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+		iwl_clear_bit(trans, CSR_GP_CNTRL,
+			      CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ);
+	else
+		iwl_clear_bit(trans, CSR_GP_CNTRL,
+			      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
+		iwl_set_bit(trans, CSR_GP_CNTRL,
+			    CSR_GP_CNTRL_REG_FLAG_SW_RESET);
+	}
 	/* Stop the device, and put it in low power state */
 	iwl_pcie_gen2_apm_stop(trans, false);
 
@@ -436,7 +466,10 @@ int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 
 	iwl_pcie_set_ltr(trans);
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+		iwl_set_bit(trans, CSR_GP_CNTRL,
+			    CSR_GP_CNTRL_REG_FLAG_ROM_START);
+	else if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		iwl_write_umac_prph(trans, UREG_CPU_INIT_RUN, 1);
 	else
 		iwl_write_prph(trans, UREG_CPU_INIT_RUN, 1);

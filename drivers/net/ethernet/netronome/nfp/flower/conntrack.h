@@ -83,6 +83,24 @@ enum ct_entry_type {
 	CT_TYPE_PRE_CT,
 	CT_TYPE_NFT,
 	CT_TYPE_POST_CT,
+	_CT_TYPE_MAX,
+};
+
+enum nfp_nfp_layer_name {
+	FLOW_PAY_META_TCI =    0,
+	FLOW_PAY_INPORT,
+	FLOW_PAY_EXT_META,
+	FLOW_PAY_MAC_MPLS,
+	FLOW_PAY_L4,
+	FLOW_PAY_IPV4,
+	FLOW_PAY_IPV6,
+	FLOW_PAY_CT,
+	FLOW_PAY_GRE,
+	FLOW_PAY_QINQ,
+	FLOW_PAY_UDP_TUN,
+	FLOW_PAY_GENEVE_OPT,
+
+	_FLOW_PAY_LAYERS_MAX
 };
 
 /**
@@ -228,4 +246,12 @@ int nfp_fl_ct_del_flow(struct nfp_fl_ct_map_entry *ct_map_ent);
  */
 int nfp_fl_ct_handle_nft_flow(enum tc_setup_type type, void *type_data,
 			      void *cb_priv);
+
+/**
+ * nfp_fl_ct_stats() - Handle flower stats callbacks for ct flows
+ * @flow:	TC flower classifier offload structure.
+ * @ct_map_ent:	ct map entry for the flow that needs deleting
+ */
+int nfp_fl_ct_stats(struct flow_cls_offload *flow,
+		    struct nfp_fl_ct_map_entry *ct_map_ent);
 #endif

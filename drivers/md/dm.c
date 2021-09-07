@@ -8,6 +8,7 @@
 #include "dm-core.h"
 #include "dm-rq.h"
 #include "dm-uevent.h"
+#include "dm-ima.h"
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -261,8 +262,12 @@ static void (*_exits[])(void) = {
 static int __init dm_init(void)
 {
 	const int count = ARRAY_SIZE(_inits);
-
 	int r, i;
+
+#if (IS_ENABLED(CONFIG_IMA) && !IS_ENABLED(CONFIG_IMA_DISABLE_HTABLE))
+	DMWARN("CONFIG_IMA_DISABLE_HTABLE is disabled."
+	       " Duplicate IMA measurements will not be recorded in the IMA log.");
+#endif
 
 	for (i = 0; i < count; i++) {
 		r = _inits[i]();
@@ -271,8 +276,7 @@ static int __init dm_init(void)
 	}
 
 	return 0;
-
-      bad:
+bad:
 	while (i--)
 		_exits[i]();
 
@@ -1996,6 +2000,8 @@ int dm_create(int minor, struct mapped_device **result)
 	md = alloc_dev(minor);
 	if (!md)
 		return -ENXIO;
+
+	dm_ima_reset_data(md);
 
 	*result = md;
 	return 0;

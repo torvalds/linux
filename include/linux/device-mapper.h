@@ -31,7 +31,7 @@ enum dm_queue_mode {
 	DM_TYPE_DAX_BIO_BASED	 = 3,
 };
 
-typedef enum { STATUSTYPE_INFO, STATUSTYPE_TABLE } status_type_t;
+typedef enum { STATUSTYPE_INFO, STATUSTYPE_TABLE, STATUSTYPE_IMA } status_type_t;
 
 union map_info {
 	void *ptr;
@@ -601,6 +601,10 @@ void dm_destroy_keyslot_manager(struct blk_keyslot_manager *ksm);
 
 #define DMEMIT(x...) sz += ((sz >= maxlen) ? \
 			  0 : scnprintf(result + sz, maxlen - sz, x))
+
+#define DMEMIT_TARGET_NAME_VERSION(y) \
+		DMEMIT("target_name=%s,target_version=%u.%u.%u", \
+		       (y)->name, (y)->version[0], (y)->version[1], (y)->version[2])
 
 /*
  * Definitions of return values from target end_io function.

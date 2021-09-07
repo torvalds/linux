@@ -287,6 +287,12 @@ static int array_map_get_next_key(struct bpf_map *map, void *key, void *next_key
 	return 0;
 }
 
+static void check_and_free_timer_in_array(struct bpf_array *arr, void *val)
+{
+	if (unlikely(map_value_has_timer(&arr->map)))
+		bpf_timer_cancel_and_free(val + arr->map.timer_off);
+}
+
 /* Called from syscall or from eBPF program */
 static int array_map_update_elem(struct bpf_map *map, void *key, void *value,
 				 u64 map_flags)
@@ -321,6 +327,7 @@ static int array_map_update_elem(struct bpf_map *map, void *key, void *value,
 			copy_map_value_locked(map, val, value, false);
 		else
 			copy_map_value(map, val, value);
+		check_and_free_timer_in_array(array, val);
 	}
 	return 0;
 }
@@ -372,6 +379,19 @@ static int array_map_delete_elem(struct bpf_map *map, void *key)
 static void *array_map_vmalloc_addr(struct bpf_array *array)
 {
 	return (void *)round_down((unsigned long)array, PAGE_SIZE);
+}
+
+static void array_map_free_timers(struct bpf_map *map)
+{
+	struct bpf_array *array = container_of(map, struct bpf_array, map);
+	int i;
+
+	if (likely(!map_value_has_timer(map)))
+		return;
+
+	for (i = 0; i < array->map.max_entries; i++)
+		bpf_timer_cancel_and_free(array->value + array->elem_size * i +
+					  map->timer_off);
 }
 
 /* Called when map->refcnt goes to zero, either from workqueue or from syscall */
@@ -668,6 +688,7 @@ const struct bpf_map_ops array_map_ops = {
 	.map_alloc = array_map_alloc,
 	.map_free = array_map_free,
 	.map_get_next_key = array_map_get_next_key,
+	.map_release_uref = array_map_free_timers,
 	.map_lookup_elem = array_map_lookup_elem,
 	.map_update_elem = array_map_update_elem,
 	.map_delete_elem = array_map_delete_elem,

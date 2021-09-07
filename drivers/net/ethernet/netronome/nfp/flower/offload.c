@@ -41,6 +41,8 @@
 	 BIT(FLOW_DISSECTOR_KEY_ENC_OPTS) | \
 	 BIT(FLOW_DISSECTOR_KEY_ENC_IP) | \
 	 BIT(FLOW_DISSECTOR_KEY_MPLS) | \
+	 BIT(FLOW_DISSECTOR_KEY_CT) | \
+	 BIT(FLOW_DISSECTOR_KEY_META) | \
 	 BIT(FLOW_DISSECTOR_KEY_IP))
 
 #define NFP_FLOWER_WHITELIST_TUN_DISSECTOR \
@@ -89,7 +91,7 @@ struct nfp_flower_merge_check {
 	};
 };
 
-static int
+int
 nfp_flower_xmit_flow(struct nfp_app *app, struct nfp_fl_payload *nfp_flow,
 		     u8 mtype)
 {
@@ -134,20 +136,16 @@ nfp_flower_xmit_flow(struct nfp_app *app, struct nfp_fl_payload *nfp_flow,
 	return 0;
 }
 
-static bool nfp_flower_check_higher_than_mac(struct flow_cls_offload *f)
+static bool nfp_flower_check_higher_than_mac(struct flow_rule *rule)
 {
-	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
-
 	return flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV4_ADDRS) ||
 	       flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV6_ADDRS) ||
 	       flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS) ||
 	       flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ICMP);
 }
 
-static bool nfp_flower_check_higher_than_l3(struct flow_cls_offload *f)
+static bool nfp_flower_check_higher_than_l3(struct flow_rule *rule)
 {
-	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
-
 	return flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS) ||
 	       flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ICMP);
 }
@@ -236,15 +234,14 @@ nfp_flower_calc_udp_tun_layer(struct flow_dissector_key_ports *enc_ports,
 	return 0;
 }
 
-static int
+int
 nfp_flower_calculate_key_layers(struct nfp_app *app,
 				struct net_device *netdev,
 				struct nfp_fl_key_ls *ret_key_ls,
-				struct flow_cls_offload *flow,
+				struct flow_rule *rule,
 				enum nfp_flower_tun_type *tun_type,
 				struct netlink_ext_ack *extack)
 {
-	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
 	struct flow_dissector *dissector = rule->match.dissector;
 	struct flow_match_basic basic = { NULL, NULL};
 	struct nfp_flower_priv *priv = app->priv;
@@ -452,7 +449,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: match on given EtherType is not supported");
 			return -EOPNOTSUPP;
 		}
-	} else if (nfp_flower_check_higher_than_mac(flow)) {
+	} else if (nfp_flower_check_higher_than_mac(rule)) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cannot match above L2 without specified EtherType");
 		return -EOPNOTSUPP;
 	}
@@ -471,7 +468,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 	}
 
 	if (!(key_layer & NFP_FLOWER_LAYER_TP) &&
-	    nfp_flower_check_higher_than_l3(flow)) {
+	    nfp_flower_check_higher_than_l3(rule)) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cannot match on L4 information without specified IP protocol type");
 		return -EOPNOTSUPP;
 	}
@@ -543,7 +540,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 	return 0;
 }
 
-static struct nfp_fl_payload *
+struct nfp_fl_payload *
 nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer)
 {
 	struct nfp_fl_payload *flow_pay;
@@ -1005,9 +1002,7 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 				     struct nfp_fl_payload *sub_flow1,
 				     struct nfp_fl_payload *sub_flow2)
 {
-	struct flow_cls_offload merge_tc_off;
 	struct nfp_flower_priv *priv = app->priv;
-	struct netlink_ext_ack *extack = NULL;
 	struct nfp_fl_payload *merge_flow;
 	struct nfp_fl_key_ls merge_key_ls;
 	struct nfp_merge_info *merge_info;
@@ -1016,7 +1011,6 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 
 	ASSERT_RTNL();
 
-	extack = merge_tc_off.common.extack;
 	if (sub_flow1 == sub_flow2 ||
 	    nfp_flower_is_merge_flow(sub_flow1) ||
 	    nfp_flower_is_merge_flow(sub_flow2))
@@ -1061,9 +1055,8 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 	if (err)
 		goto err_unlink_sub_flow1;
 
-	merge_tc_off.cookie = merge_flow->tc_flower_cookie;
-	err = nfp_compile_flow_metadata(app, &merge_tc_off, merge_flow,
-					merge_flow->ingress_dev, extack);
+	err = nfp_compile_flow_metadata(app, merge_flow->tc_flower_cookie, merge_flow,
+					merge_flow->ingress_dev, NULL);
 	if (err)
 		goto err_unlink_sub_flow2;
 
@@ -1305,6 +1298,7 @@ static int
 nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 		       struct flow_cls_offload *flow)
 {
+	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
 	enum nfp_flower_tun_type tun_type = NFP_FL_TUNNEL_NONE;
 	struct nfp_flower_priv *priv = app->priv;
 	struct netlink_ext_ack *extack = NULL;
@@ -1330,7 +1324,7 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 	if (!key_layer)
 		return -ENOMEM;
 
-	err = nfp_flower_calculate_key_layers(app, netdev, key_layer, flow,
+	err = nfp_flower_calculate_key_layers(app, netdev, key_layer, rule,
 					      &tun_type, extack);
 	if (err)
 		goto err_free_key_ls;
@@ -1341,12 +1335,12 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 		goto err_free_key_ls;
 	}
 
-	err = nfp_flower_compile_flow_match(app, flow, key_layer, netdev,
+	err = nfp_flower_compile_flow_match(app, rule, key_layer, netdev,
 					    flow_pay, tun_type, extack);
 	if (err)
 		goto err_destroy_flow;
 
-	err = nfp_flower_compile_action(app, flow, netdev, flow_pay, extack);
+	err = nfp_flower_compile_action(app, rule, netdev, flow_pay, extack);
 	if (err)
 		goto err_destroy_flow;
 
@@ -1356,7 +1350,7 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 			goto err_destroy_flow;
 	}
 
-	err = nfp_compile_flow_metadata(app, flow, flow_pay, netdev, extack);
+	err = nfp_compile_flow_metadata(app, flow->cookie, flow_pay, netdev, extack);
 	if (err)
 		goto err_destroy_flow;
 
@@ -1476,7 +1470,7 @@ err_free_links:
 	kfree_rcu(merge_flow, rcu);
 }
 
-static void
+void
 nfp_flower_del_linked_merge_flows(struct nfp_app *app,
 				  struct nfp_fl_payload *sub_flow)
 {
@@ -1601,7 +1595,7 @@ __nfp_flower_update_merge_stats(struct nfp_app *app,
 	}
 }
 
-static void
+void
 nfp_flower_update_merge_stats(struct nfp_app *app,
 			      struct nfp_fl_payload *sub_flow)
 {
@@ -1628,9 +1622,16 @@ nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 		     struct flow_cls_offload *flow)
 {
 	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_fl_ct_map_entry *ct_map_ent;
 	struct netlink_ext_ack *extack = NULL;
 	struct nfp_fl_payload *nfp_flow;
 	u32 ctx_id;
+
+	/* Check ct_map table first */
+	ct_map_ent = rhashtable_lookup_fast(&priv->ct_map_table, &flow->cookie,
+					    nfp_ct_map_params);
+	if (ct_map_ent)
+		return nfp_fl_ct_stats(flow, ct_map_ent);
 
 	extack = flow->common.extack;
 	nfp_flow = nfp_flower_search_fl_table(app, flow->cookie, netdev);

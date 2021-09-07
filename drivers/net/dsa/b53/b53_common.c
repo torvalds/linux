@@ -2016,15 +2016,6 @@ int b53_br_flags(struct dsa_switch *ds, int port,
 }
 EXPORT_SYMBOL(b53_br_flags);
 
-int b53_set_mrouter(struct dsa_switch *ds, int port, bool mrouter,
-		    struct netlink_ext_ack *extack)
-{
-	b53_port_set_mcast_flood(ds->priv, port, mrouter);
-
-	return 0;
-}
-EXPORT_SYMBOL(b53_set_mrouter);
-
 static bool b53_possible_cpu_port(struct dsa_switch *ds, int port)
 {
 	/* Broadcom switches will accept enabling Broadcom tags on the
@@ -2268,7 +2259,6 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.port_bridge_leave	= b53_br_leave,
 	.port_pre_bridge_flags	= b53_br_flags_pre,
 	.port_bridge_flags	= b53_br_flags,
-	.port_set_mrouter	= b53_set_mrouter,
 	.port_stp_state_set	= b53_br_set_stp_state,
 	.port_fast_age		= b53_br_fast_age,
 	.port_vlan_filtering	= b53_vlan_filtering,

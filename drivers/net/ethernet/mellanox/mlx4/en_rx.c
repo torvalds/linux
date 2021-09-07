@@ -991,7 +991,7 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 		 * expense of more costly truesize accounting
 		 */
 		priv->frag_info[0].frag_stride = PAGE_SIZE;
-		priv->dma_dir = PCI_DMA_BIDIRECTIONAL;
+		priv->dma_dir = DMA_BIDIRECTIONAL;
 		priv->rx_headroom = XDP_PACKET_HEADROOM;
 		i = 1;
 	} else {
@@ -1021,7 +1021,7 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 			buf_size += frag_size;
 			i++;
 		}
-		priv->dma_dir = PCI_DMA_FROMDEVICE;
+		priv->dma_dir = DMA_FROM_DEVICE;
 		priv->rx_headroom = 0;
 	}
 

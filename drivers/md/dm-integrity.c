@@ -3306,6 +3306,30 @@ static void dm_integrity_status(struct dm_target *ti, status_type_t type,
 		EMIT_ALG(journal_mac_alg, "journal_mac");
 		break;
 	}
+	case STATUSTYPE_IMA:
+		DMEMIT_TARGET_NAME_VERSION(ti->type);
+		DMEMIT(",dev_name=%s,start=%llu,tag_size=%u,mode=%c",
+			ic->dev->name, ic->start, ic->tag_size, ic->mode);
+
+		if (ic->meta_dev)
+			DMEMIT(",meta_device=%s", ic->meta_dev->name);
+		if (ic->sectors_per_block != 1)
+			DMEMIT(",block_size=%u", ic->sectors_per_block << SECTOR_SHIFT);
+
+		DMEMIT(",recalculate=%c", (ic->sb->flags & cpu_to_le32(SB_FLAG_RECALCULATING)) ?
+		       'y' : 'n');
+		DMEMIT(",allow_discards=%c", ic->discard ? 'y' : 'n');
+		DMEMIT(",fix_padding=%c",
+		       ((ic->sb->flags & cpu_to_le32(SB_FLAG_FIXED_PADDING)) != 0) ? 'y' : 'n');
+		DMEMIT(",fix_hmac=%c",
+		       ((ic->sb->flags & cpu_to_le32(SB_FLAG_FIXED_HMAC)) != 0) ? 'y' : 'n');
+		DMEMIT(",legacy_recalculate=%c", ic->legacy_recalculate ? 'y' : 'n');
+
+		DMEMIT(",journal_sectors=%u", ic->initial_sectors - SB_SECTORS);
+		DMEMIT(",interleave_sectors=%u", 1U << ic->sb->log2_interleave_sectors);
+		DMEMIT(",buffer_sectors=%u", 1U << ic->log2_buffer_sectors);
+		DMEMIT(";");
+		break;
 	}
 }
 
