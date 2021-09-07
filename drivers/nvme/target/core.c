@@ -553,7 +553,7 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 	mutex_lock(&subsys->lock);
 	ret = 0;
 
-	if (nvmet_passthru_ctrl(subsys)) {
+	if (nvmet_is_passthru_subsys(subsys)) {
 		pr_info("cannot enable both passthru and regular namespaces for a single subsystem");
 		goto out_unlock;
 	}
@@ -869,7 +869,7 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 	if (unlikely(ret))
 		return ret;
 
-	if (nvmet_req_passthru_ctrl(req))
+	if (nvmet_is_passthru_req(req))
 		return nvmet_parse_passthru_io_cmd(req);
 
 	ret = nvmet_req_find_ns(req);
@@ -1206,6 +1206,9 @@ static void nvmet_init_cap(struct nvmet_ctrl *ctrl)
 	ctrl->cap |= (15ULL << 24);
 	/* maximum queue entries supported: */
 	ctrl->cap |= NVMET_QUEUE_SIZE - 1;
+
+	if (nvmet_is_passthru_subsys(ctrl->subsys))
+		nvmet_passthrough_override_cap(ctrl);
 }
 
 struct nvmet_ctrl *nvmet_ctrl_find_get(const char *subsysnqn,
@@ -1363,8 +1366,6 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 		goto out_put_subsystem;
 	mutex_init(&ctrl->lock);
 
-	nvmet_init_cap(ctrl);
-
 	ctrl->port = req->port;
 
 	INIT_WORK(&ctrl->async_event_work, nvmet_async_event_work);
@@ -1378,6 +1379,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 
 	kref_init(&ctrl->ref);
 	ctrl->subsys = subsys;
+	nvmet_init_cap(ctrl);
 	WRITE_ONCE(ctrl->aen_enabled, NVMET_AEN_CFG_OPTIONAL);
 
 	ctrl->changed_ns_list = kmalloc_array(NVME_MAX_CHANGED_NAMESPACES,
