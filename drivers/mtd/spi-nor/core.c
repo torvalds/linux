@@ -3180,6 +3180,10 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 
 	if (!mtd->name)
 		mtd->name = dev_name(dev);
+
+	if (IS_ENABLED(CONFIG_SPI_ROCKCHIP_SFC))
+		mtd->name = "sfc_nor";
+
 	mtd->priv = nor;
 	mtd->type = MTD_NORFLASH;
 	mtd->writesize = 1;
