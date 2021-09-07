@@ -389,11 +389,11 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *data)
 		return -ENOMEM;
 
 	/* Store  original options. */
-	memcpy(&old_opts, &sbi->options, sizeof(old_opts));
-	clear_mount_options(&sbi->options);
-	memset(&sbi->options, 0, sizeof(sbi->options));
+	memcpy(&old_opts, sbi->options, sizeof(old_opts));
+	clear_mount_options(sbi->options);
+	memset(sbi->options, 0, sizeof(old_opts));
 
-	err = ntfs_parse_options(sb, data, 0, &sbi->options);
+	err = ntfs_parse_options(sb, data, 0, sbi->options);
 	if (err)
 		goto restore_opts;
 
@@ -409,7 +409,7 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *data)
 	sync_filesystem(sb);
 
 	if (ro_rw && (sbi->volume.flags & VOLUME_FLAG_DIRTY) &&
-	    !sbi->options.force) {
+	    !sbi->options->force) {
 		ntfs_warn(sb, "volume is dirty and \"force\" flag is not set!");
 		err = -EINVAL;
 		goto restore_opts;
@@ -422,8 +422,8 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *data)
 	goto out;
 
 restore_opts:
-	clear_mount_options(&sbi->options);
-	memcpy(&sbi->options, &old_opts, sizeof(old_opts));
+	clear_mount_options(sbi->options);
+	memcpy(sbi->options, &old_opts, sizeof(old_opts));
 
 out:
 	kfree(orig_data);
@@ -506,7 +506,8 @@ static noinline void put_ntfs(struct ntfs_sb_info *sbi)
 	xpress_free_decompressor(sbi->compress.xpress);
 	lzx_free_decompressor(sbi->compress.lzx);
 #endif
-	clear_mount_options(&sbi->options);
+	clear_mount_options(sbi->options);
+	kfree(sbi->options);
 
 	kfree(sbi);
 }
@@ -545,7 +546,7 @@ static int ntfs_show_options(struct seq_file *m, struct dentry *root)
 {
 	struct super_block *sb = root->d_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
-	struct ntfs_mount_options *opts = &sbi->options;
+	struct ntfs_mount_options *opts = sbi->options;
 	struct user_namespace *user_ns = seq_user_ns(m);
 
 	if (opts->uid)
@@ -930,6 +931,12 @@ static int ntfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sbi)
 		return -ENOMEM;
 
+	sbi->options = kzalloc(sizeof(struct ntfs_mount_options), GFP_NOFS);
+	if (!sbi->options) {
+		kfree(sbi);
+		return -ENOMEM;
+	}
+
 	sb->s_fs_info = sbi;
 	sbi->sb = sb;
 	sb->s_flags |= SB_NODIRATIME;
@@ -942,7 +949,7 @@ static int ntfs_fill_super(struct super_block *sb, void *data, int silent)
 	ratelimit_state_init(&sbi->msg_ratelimit, DEFAULT_RATELIMIT_INTERVAL,
 			     DEFAULT_RATELIMIT_BURST);
 
-	err = ntfs_parse_options(sb, data, silent, &sbi->options);
+	err = ntfs_parse_options(sb, data, silent, sbi->options);
 	if (err)
 		goto out;
 
@@ -1074,7 +1081,7 @@ static int ntfs_fill_super(struct super_block *sb, void *data, int silent)
 			goto out;
 		}
 	} else if (sbi->volume.flags & VOLUME_FLAG_DIRTY) {
-		if (!is_ro && !sbi->options.force) {
+		if (!is_ro && !sbi->options->force) {
 			ntfs_warn(
 				sb,
 				"volume is dirty and \"force\" flag is not set!");
@@ -1394,7 +1401,7 @@ int ntfs_discard(struct ntfs_sb_info *sbi, CLST lcn, CLST len)
 	if (sbi->flags & NTFS_FLAGS_NODISCARD)
 		return -EOPNOTSUPP;
 
-	if (!sbi->options.discard)
+	if (!sbi->options->discard)
 		return -EOPNOTSUPP;
 
 	lbo = (u64)lcn << sbi->cluster_bits;

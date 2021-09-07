@@ -529,7 +529,7 @@ add_alloc_in_same_attr_seg:
 		} else if (pre_alloc == -1) {
 			pre_alloc = 0;
 			if (type == ATTR_DATA && !name_len &&
-			    sbi->options.prealloc) {
+			    sbi->options->prealloc) {
 				CLST new_alen2 = bytes_to_cluster(
 					sbi, get_pre_allocated(new_size));
 				pre_alloc = new_alen2 - new_alen;
