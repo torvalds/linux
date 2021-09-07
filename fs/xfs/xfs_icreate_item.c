@@ -201,7 +201,7 @@ xlog_recover_icreate_commit_pass2(
 	if (length != igeo->ialloc_blks &&
 	    length != igeo->ialloc_min_blks) {
 		xfs_warn(log->l_mp,
-			 "%s: unsupported chunk length", __FUNCTION__);
+			 "%s: unsupported chunk length", __func__);
 		return -EINVAL;
 	}
 
@@ -209,7 +209,7 @@ xlog_recover_icreate_commit_pass2(
 	if ((count >> mp->m_sb.sb_inopblog) != length) {
 		xfs_warn(log->l_mp,
 			 "%s: inconsistent inode count and chunk length",
-			 __FUNCTION__);
+			 __func__);
 		return -EINVAL;
 	}
 

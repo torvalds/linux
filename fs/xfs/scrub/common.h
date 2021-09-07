@@ -107,7 +107,23 @@ int xchk_setup_fscounters(struct xfs_scrub *sc);
 void xchk_ag_free(struct xfs_scrub *sc, struct xchk_ag *sa);
 int xchk_ag_init(struct xfs_scrub *sc, xfs_agnumber_t agno,
 		struct xchk_ag *sa);
-void xchk_perag_get(struct xfs_mount *mp, struct xchk_ag *sa);
+
+/*
+ * Grab all AG resources, treating the inability to grab the perag structure as
+ * a fs corruption.  This is intended for callers checking an ondisk reference
+ * to a given AG, which means that the AG must still exist.
+ */
+static inline int
+xchk_ag_init_existing(
+	struct xfs_scrub	*sc,
+	xfs_agnumber_t		agno,
+	struct xchk_ag		*sa)
+{
+	int			error = xchk_ag_init(sc, agno, sa);
+
+	return error == -ENOENT ? -EFSCORRUPTED : error;
+}
+
 int xchk_ag_read_headers(struct xfs_scrub *sc, xfs_agnumber_t agno,
 		struct xchk_ag *sa);
 void xchk_ag_btcur_free(struct xchk_ag *sa);
