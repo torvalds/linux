@@ -205,7 +205,7 @@ static int ep93xx_adc_probe(struct platform_device *pdev)
 		 */
 	}
 
-	ret = clk_enable(priv->clk);
+	ret = clk_prepare_enable(priv->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot enable clock\n");
 		return ret;
@@ -213,7 +213,7 @@ static int ep93xx_adc_probe(struct platform_device *pdev)
 
 	ret = iio_device_register(iiodev);
 	if (ret)
-		clk_disable(priv->clk);
+		clk_disable_unprepare(priv->clk);
 
 	return ret;
 }
@@ -224,7 +224,7 @@ static int ep93xx_adc_remove(struct platform_device *pdev)
 	struct ep93xx_adc_priv *priv = iio_priv(iiodev);
 
 	iio_device_unregister(iiodev);
-	clk_disable(priv->clk);
+	clk_disable_unprepare(priv->clk);
 
 	return 0;
 }

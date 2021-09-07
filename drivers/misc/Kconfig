@@ -220,6 +220,16 @@ config GEHC_ACHC
 	  To compile this driver as a module, choose M here: the
 	  module will be called gehc-achc.
 
+config HI6421V600_IRQ
+	tristate "HiSilicon Hi6421v600 IRQ and powerkey"
+	depends on OF
+	depends on SPMI
+	select MFD_CORE
+	select REGMAP_SPMI
+	help
+	  This driver provides IRQ handling for Hi6421v600, used on
+	  some Kirin chipsets, like the one at Hikey 970.
+
 config HP_ILO
 	tristate "Channel interface driver for the HP iLO processor"
 	depends on PCI
