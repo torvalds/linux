@@ -116,6 +116,8 @@ struct pkt_stream {
 	struct pkt *pkts;
 };
 
+typedef void *(*thread_func_t)(void *arg);
+
 struct ifobject {
 	char ifname[MAX_INTERFACE_NAME_CHARS];
 	char nsname[MAX_INTERFACES_NAMESPACE_CHARS];
@@ -123,8 +125,8 @@ struct ifobject {
 	struct xsk_socket_info *xsk_arr;
 	struct xsk_umem_info *umem;
 	struct xsk_umem_info *umem_arr;
-	void *(*func_ptr)(void *arg);
 	struct flow_vector fv;
+	thread_func_t func_ptr;
 	struct pkt_stream *pkt_stream;
 	int ns_fd;
 	u32 dst_ip;

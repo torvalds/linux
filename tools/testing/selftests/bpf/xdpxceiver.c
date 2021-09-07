@@ -974,10 +974,9 @@ static void testapp_stats(void)
 	print_ksft_result();
 }
 
-static void init_iface(struct ifobject *ifobj, const char *dst_mac,
-		       const char *src_mac, const char *dst_ip,
-		       const char *src_ip, const u16 dst_port,
-		       const u16 src_port, enum fvector vector)
+static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *src_mac,
+		       const char *dst_ip, const char *src_ip, const u16 dst_port,
+		       const u16 src_port, enum fvector vector, thread_func_t func_ptr)
 {
 	struct in_addr ip;
 
@@ -993,15 +992,13 @@ static void init_iface(struct ifobject *ifobj, const char *dst_mac,
 	ifobj->dst_port = dst_port;
 	ifobj->src_port = src_port;
 
-	if (vector == tx) {
-		ifobj->fv.vector = tx;
-		ifobj->func_ptr = worker_testapp_validate_tx;
+	if (vector == tx)
 		ifdict_tx = ifobj;
-	} else {
-		ifobj->fv.vector = rx;
-		ifobj->func_ptr = worker_testapp_validate_rx;
+	else
 		ifdict_rx = ifobj;
-	}
+
+	ifobj->fv.vector = vector;
+	ifobj->func_ptr = func_ptr;
 }
 
 static void run_pkt_test(int mode, int type)
@@ -1097,8 +1094,10 @@ int main(int argc, char **argv)
 
 	parse_command_line(argc, argv);
 
-	init_iface(ifdict[tx], MAC1, MAC2, IP1, IP2, UDP_PORT1, UDP_PORT2, tx);
-	init_iface(ifdict[rx], MAC2, MAC1, IP2, IP1, UDP_PORT2, UDP_PORT1, rx);
+	init_iface(ifdict[tx], MAC1, MAC2, IP1, IP2, UDP_PORT1, UDP_PORT2, tx,
+		   worker_testapp_validate_tx);
+	init_iface(ifdict[rx], MAC2, MAC1, IP2, IP1, UDP_PORT2, UDP_PORT1, rx,
+		   worker_testapp_validate_rx);
 
 	ksft_set_plan(TEST_MODE_MAX * TEST_TYPE_MAX);
 
