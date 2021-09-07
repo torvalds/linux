@@ -1208,6 +1208,7 @@
   pci_request_selected_regions
   pci_vfs_assigned
   synchronize_irq
+  virtio_break_device
   virtio_device_freeze
   virtio_device_restore
 
