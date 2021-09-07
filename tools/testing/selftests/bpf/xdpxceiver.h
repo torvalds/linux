@@ -137,9 +137,10 @@ struct ifobject {
 	u8 src_mac[ETH_ALEN];
 };
 
-static struct ifobject *ifdict[MAX_INTERFACES];
-static struct ifobject *ifdict_rx;
-static struct ifobject *ifdict_tx;
+struct test_spec {
+	struct ifobject *ifobj_tx;
+	struct ifobject *ifobj_rx;
+};
 
 /*threads*/
 pthread_barrier_t barr;
