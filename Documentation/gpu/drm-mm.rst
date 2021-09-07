@@ -67,6 +67,15 @@ TTM TT object reference
 .. kernel-doc:: drivers/gpu/drm/ttm/ttm_tt.c
    :export:
 
+TTM page pool reference
+-----------------------
+
+.. kernel-doc:: include/drm/ttm/ttm_pool.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/ttm/ttm_pool.c
+   :export:
+
 The Graphics Execution Manager (GEM)
 ====================================
 
