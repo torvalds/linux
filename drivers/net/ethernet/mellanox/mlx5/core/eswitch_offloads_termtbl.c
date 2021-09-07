@@ -219,7 +219,7 @@ mlx5_eswitch_termtbl_required(struct mlx5_eswitch *esw,
 
 	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, termination_table) ||
 	    !MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, ignore_flow_level) ||
-	    attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH ||
+	    mlx5_esw_attr_flags_skip(attr->flags) ||
 	    !mlx5_eswitch_offload_is_uplink_port(esw, spec))
 		return false;
 
