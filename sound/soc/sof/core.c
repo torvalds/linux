@@ -19,7 +19,7 @@
 #endif
 
 /* see SOF_DBG_ flags */
-int sof_core_debug;
+int sof_core_debug =  IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_FIRMWARE_TRACE);
 module_param_named(sof_debug, sof_core_debug, int, 0444);
 MODULE_PARM_DESC(sof_debug, "SOF core debug options (0x0 all off)");
 
@@ -202,8 +202,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 		goto fw_run_err;
 	}
 
-	if (IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_FIRMWARE_TRACE) ||
-	    (sof_core_debug & SOF_DBG_ENABLE_TRACE)) {
+	if (sof_core_debug & SOF_DBG_ENABLE_TRACE) {
 		sdev->dtrace_is_supported = true;
 
 		/* init DMA trace */
