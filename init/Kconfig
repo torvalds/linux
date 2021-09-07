@@ -139,7 +139,7 @@ config COMPILE_TEST
 
 config WERROR
 	bool "Compile the kernel with warnings as errors"
-	default y
+	default COMPILE_TEST
 	help
 	  A kernel build should not cause any compiler warnings, and this
 	  enables the '-Werror' flag to enforce that rule by default.
