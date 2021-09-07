@@ -28,7 +28,8 @@ UMA devices.
 The Translation Table Manager (TTM)
 ===================================
 
-TTM design background and information belongs here.
+.. kernel-doc:: drivers/gpu/drm/ttm/ttm_module.c
+   :doc: TTM
 
 The Graphics Execution Manager (GEM)
 ====================================
