@@ -924,12 +924,3 @@ void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv)
 exit:
 	;
 }
-
-void Hal_ProSetCrystalCap(struct adapter *pAdapter, u32 CrystalCapVal)
-{
-	CrystalCapVal = CrystalCapVal & 0x3F;
-
-	// write 0x24[16:11] = 0x24[22:17] = CrystalCap
-	PHY_SetBBReg(pAdapter, REG_AFE_XTAL_CTRL, 0x7FF800,
-		     (CrystalCapVal | (CrystalCapVal << 6)));
-}
