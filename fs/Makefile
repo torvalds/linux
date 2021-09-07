@@ -17,7 +17,7 @@ obj-y :=	open.o read_write.o file_table.o super.o \
 		kernel_read_file.o remap_range.o
 
 ifeq ($(CONFIG_BLOCK),y)
-obj-y +=	buffer.o block_dev.o direct-io.o mpage.o
+obj-y +=	buffer.o direct-io.o mpage.o
 else
 obj-y +=	no-block.o
 endif

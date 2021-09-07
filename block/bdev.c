@@ -26,8 +26,8 @@
 #include <linux/cleancache.h>
 #include <linux/part_stat.h>
 #include <linux/uaccess.h>
-#include "internal.h"
-#include "../block/blk.h"
+#include "../fs/internal.h"
+#include "blk.h"
 
 struct bdev_inode {
 	struct block_device bdev;
