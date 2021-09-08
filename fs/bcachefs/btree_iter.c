@@ -1352,10 +1352,7 @@ static inline unsigned btree_path_up_until_good_node(struct btree_trans *trans,
 						     struct btree_path *path,
 						     int check_pos)
 {
-	unsigned l = path->level;
-
-	if (!path->nodes_locked)
-		btree_path_get_locks(trans, path, false, _THIS_IP_);
+	unsigned i, l = path->level;
 
 	while (btree_path_node(path, l) &&
 	       !btree_path_good_node(trans, path, l, check_pos)) {
@@ -1363,6 +1360,17 @@ static inline unsigned btree_path_up_until_good_node(struct btree_trans *trans,
 		path->l[l].b = BTREE_ITER_NO_NODE_UP;
 		l++;
 	}
+
+	/* If we need intent locks, take them too: */
+	for (i = l + 1;
+	     i < path->locks_want && btree_path_node(path, i);
+	     i++)
+		if (!bch2_btree_node_relock(trans, path, i))
+			while (l <= i) {
+				btree_node_unlock(path, l);
+				path->l[l].b = BTREE_ITER_NO_NODE_UP;
+				l++;
+			}
 
 	return l;
 }
@@ -1381,7 +1389,7 @@ static int btree_path_traverse_one(struct btree_trans *trans,
 				   unsigned flags,
 				   unsigned long trace_ip)
 {
-	unsigned l, depth_want = path->level;
+	unsigned depth_want = path->level;
 	int ret = 0;
 
 	/*
@@ -1402,17 +1410,6 @@ static int btree_path_traverse_one(struct btree_trans *trans,
 		goto out;
 
 	path->level = btree_path_up_until_good_node(trans, path, 0);
-
-	/* If we need intent locks, take them too: */
-	for (l = path->level + 1;
-	     l < path->locks_want && btree_path_node(path, l);
-	     l++)
-		if (!bch2_btree_node_relock(trans, path, l))
-			while (path->level <= l) {
-				btree_node_unlock(path, path->level);
-				path->l[path->level].b = BTREE_ITER_NO_NODE_UP;
-				path->level++;
-			}
 
 	/*
 	 * Note: path->nodes[path->level] may be temporarily NULL here - that
