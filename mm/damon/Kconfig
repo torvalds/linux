@@ -12,4 +12,12 @@ config DAMON
 	  See https://damonitor.github.io/doc/html/latest-damon/index.html for
 	  more information.
 
+config DAMON_VADDR
+	bool "Data access monitoring primitives for virtual address spaces"
+	depends on DAMON && MMU
+	select PAGE_IDLE_FLAG
+	help
+	  This builds the default data access monitoring primitives for DAMON
+	  that works for virtual address spaces.
+
 endmenu
