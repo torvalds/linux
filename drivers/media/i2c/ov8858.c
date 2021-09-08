@@ -2861,7 +2861,7 @@ static int ov8858_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov8858_g_mbus_config(struct v4l2_subdev *sd,
+static int ov8858_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	struct ov8858  *sensor = to_ov8858 (sd);
@@ -2870,12 +2870,12 @@ static int ov8858_g_mbus_config(struct v4l2_subdev *sd,
 	dev_info(dev, "%s(%d) enter!\n", __func__, __LINE__);
 
 	if (2 == sensor->lane_num) {
-		config->type = V4L2_MBUS_CSI2;
+		config->type = V4L2_MBUS_CSI2_DPHY;
 		config->flags = V4L2_MBUS_CSI2_2_LANE |
 				V4L2_MBUS_CSI2_CHANNEL_0 |
 				V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	} else if (4 == sensor->lane_num) {
-		config->type = V4L2_MBUS_CSI2;
+		config->type = V4L2_MBUS_CSI2_DPHY;
 		config->flags = V4L2_MBUS_CSI2_4_LANE |
 				V4L2_MBUS_CSI2_CHANNEL_0 |
 				V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
@@ -2908,7 +2908,6 @@ static const struct v4l2_subdev_core_ops ov8858_core_ops = {
 static const struct v4l2_subdev_video_ops ov8858_video_ops = {
 	.s_stream = ov8858_s_stream,
 	.g_frame_interval = ov8858_g_frame_interval,
-	.g_mbus_config = ov8858_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops ov8858_pad_ops = {
@@ -2917,6 +2916,7 @@ static const struct v4l2_subdev_pad_ops ov8858_pad_ops = {
 	.enum_frame_interval = ov8858_enum_frame_interval,
 	.get_fmt = ov8858_get_fmt,
 	.set_fmt = ov8858_set_fmt,
+	.get_mbus_config = ov8858_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops ov8858_subdev_ops = {
