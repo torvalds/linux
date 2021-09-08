@@ -116,25 +116,6 @@ struct compat_statfs {
 
 #define COMPAT_OFF_T_MAX	0x7fffffff
 
-#ifdef CONFIG_COMPAT
-static inline void __user *arch_compat_alloc_user_space(long len)
-{
-	struct pt_regs *regs = current_thread_info()->kregs;
-	unsigned long usp = regs->u_regs[UREG_I6];
-
-	if (test_thread_64bit_stack(usp))
-		usp += STACK_BIAS;
-
-	if (test_thread_flag(TIF_32BIT))
-		usp &= 0xffffffffUL;
-
-	usp -= len;
-	usp &= ~0x7UL;
-
-	return (void __user *) usp;
-}
-#endif
-
 struct compat_ipc64_perm {
 	compat_key_t key;
 	__compat_uid32_t uid;

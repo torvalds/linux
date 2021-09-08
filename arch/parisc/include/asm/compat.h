@@ -163,12 +163,6 @@ struct compat_shmid64_ds {
 #define COMPAT_ELF_NGREG 80
 typedef compat_ulong_t compat_elf_gregset_t[COMPAT_ELF_NGREG];
 
-static __inline__ void __user *arch_compat_alloc_user_space(long len)
-{
-	struct pt_regs *regs = &current->thread.regs;
-	return (void __user *)regs->gr[30];
-}
-
 static inline int __is_compat_task(struct task_struct *t)
 {
 	return test_tsk_thread_flag(t, TIF_32BIT);

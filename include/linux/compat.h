@@ -511,8 +511,6 @@ extern long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 
 struct epoll_event;	/* fortunately, this one is fixed-layout */
 
-extern void __user *compat_alloc_user_space(unsigned long len);
-
 int compat_restore_altstack(const compat_stack_t __user *uss);
 int __compat_save_altstack(compat_stack_t __user *, unsigned long);
 #define unsafe_compat_save_altstack(uss, sp, label) do { \

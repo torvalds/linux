@@ -58,13 +58,6 @@ raw_copy_to_user(void __user *dst, const void *src, unsigned long size)
 	return copy_user_generic((__force void *)dst, src, size);
 }
 
-static __always_inline __must_check
-unsigned long raw_copy_in_user(void __user *dst, const void __user *src, unsigned long size)
-{
-	return copy_user_generic((__force void *)dst,
-				 (__force void *)src, size);
-}
-
 extern long __copy_user_nocache(void *dst, const void __user *src,
 				unsigned size, int zerorest);
 
