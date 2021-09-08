@@ -1960,7 +1960,7 @@ static inline void io_put_file(struct file *file)
 		fput(file);
 }
 
-static void io_dismantle_req(struct io_kiocb *req)
+static inline void io_dismantle_req(struct io_kiocb *req)
 {
 	unsigned int flags = req->flags;
 
