@@ -1175,6 +1175,18 @@ config VIDEO_OV4688
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov4688.
 
+config VIDEO_OV4689
+	tristate "OmniVision OV4689 sensor support"
+	depends on VIDEO_V4L2 && I2C && MEDIA_CONTROLLER
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV4689 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov4689.
+
 config VIDEO_OV5640
 	tristate "OmniVision OV5640 sensor support"
 	depends on OF
