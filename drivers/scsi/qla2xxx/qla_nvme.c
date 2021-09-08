@@ -399,6 +399,7 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	uint16_t	avail_dsds;
 	struct dsd64	*cur_dsd;
 	struct req_que *req = NULL;
+	struct rsp_que *rsp = NULL;
 	struct scsi_qla_host *vha = sp->fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_qpair *qpair = sp->qpair;
@@ -410,6 +411,7 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 
 	/* Setup qpair pointers */
 	req = qpair->req;
+	rsp = qpair->rsp;
 	tot_dsds = fd->sg_cnt;
 
 	/* Acquire qpair specific lock */
@@ -570,6 +572,10 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 
 	/* Set chip new ring index. */
 	wrt_reg_dword(req->req_q_in, req->ring_index);
+
+	if (vha->flags.process_response_queue &&
+	    rsp->ring_ptr->signature != RESPONSE_PROCESSED)
+		qla24xx_process_response_queue(vha, rsp);
 
 queuing_error:
 	spin_unlock_irqrestore(&qpair->qp_lock, flags);
