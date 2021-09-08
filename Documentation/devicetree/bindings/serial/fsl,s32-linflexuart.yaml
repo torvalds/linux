@@ -20,9 +20,11 @@ allOf:
 
 properties:
   compatible:
-    description: The LINFlexD controller in UART mode.
-    items:
+    oneOf:
       - const: fsl,s32v234-linflexuart
+      - items:
+          - const: nxp,s32g2-linflexuart
+          - const: fsl,s32v234-linflexuart
 
   reg:
     maxItems: 1
