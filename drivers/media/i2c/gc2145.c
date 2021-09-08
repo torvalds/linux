@@ -2105,7 +2105,7 @@ static void gc2145_set_streaming(struct gc2145 *gc2145, int on)
 
 	dev_dbg(&client->dev, "%s: on: %d\n", __func__, on);
 
-	if (gc2145->bus_cfg.bus_type == V4L2_MBUS_CSI2) {
+	if (gc2145->bus_cfg.bus_type == V4L2_MBUS_CSI2_DPHY) {
 		val = on ? 0x94 : 0x84;
 		ret = gc2145_write(client, 0xfe, 0x03);
 		ret |= gc2145_write(client, 0x10, val);
@@ -2458,13 +2458,13 @@ static int gc2145_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 }
 #endif
 
-static int gc2145_g_mbus_config(struct v4l2_subdev *sd,
+static int gc2145_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	struct gc2145 *gc2145 = to_gc2145(sd);
 
-	if (gc2145->bus_cfg.bus_type == V4L2_MBUS_CSI2) {
-		config->type = V4L2_MBUS_CSI2;
+	if (gc2145->bus_cfg.bus_type == V4L2_MBUS_CSI2_DPHY) {
+		config->type = V4L2_MBUS_CSI2_DPHY;
 		config->flags = V4L2_MBUS_CSI2_1_LANE |
 						V4L2_MBUS_CSI2_CHANNEL_0 |
 						V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
@@ -2621,7 +2621,7 @@ static int gc2145_init(struct v4l2_subdev *sd, u32 val)
 
 	dev_info(&client->dev, "%s(%d)\n", __func__, __LINE__);
 
-	if (gc2145->bus_cfg.bus_type == V4L2_MBUS_CSI2)
+	if (gc2145->bus_cfg.bus_type == V4L2_MBUS_CSI2_DPHY)
 		ret = gc2145_write_array(client, gc2145_mipi_init_regs);
 	else
 		ret = gc2145_write_array(client, gc2145_dvp_init_regs);
@@ -2687,7 +2687,6 @@ static const struct v4l2_subdev_core_ops gc2145_subdev_core_ops = {
 
 static const struct v4l2_subdev_video_ops gc2145_subdev_video_ops = {
 	.s_stream = gc2145_s_stream,
-	.g_mbus_config = gc2145_g_mbus_config,
 	.g_frame_interval = gc2145_g_frame_interval,
 	.s_frame_interval = gc2145_s_frame_interval,
 };
@@ -2698,6 +2697,7 @@ static const struct v4l2_subdev_pad_ops gc2145_subdev_pad_ops = {
 	.enum_frame_interval = gc2145_enum_frame_interval,
 	.get_fmt = gc2145_get_fmt,
 	.set_fmt = gc2145_set_fmt,
+	.get_mbus_config = gc2145_g_mbus_config,
 };
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
@@ -2849,7 +2849,7 @@ static int gc2145_parse_of(struct gc2145 *gc2145)
 		of_node_put(endpoint);
 		return ret;
 	}
-	if (gc2145->bus_cfg.bus_type == V4L2_MBUS_CSI2) {
+	if (gc2145->bus_cfg.bus_type == V4L2_MBUS_CSI2_DPHY) {
 		gc2145->framesize_cfg = gc2145_mipi_framesizes;
 		gc2145->cfg_num = ARRAY_SIZE(gc2145_mipi_framesizes);
 	} else {
