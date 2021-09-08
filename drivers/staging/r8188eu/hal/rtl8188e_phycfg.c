@@ -830,14 +830,6 @@ PHY_UpdateTxPowerDbm8188E(
 	return true;
 }
 
-void
-PHY_ScanOperationBackup8188E(
-		struct adapter *Adapter,
-		u8 Operation
-	)
-{
-}
-
 /*-----------------------------------------------------------------------------
  * Function:    PHY_SetBWModeCallback8192C()
  *

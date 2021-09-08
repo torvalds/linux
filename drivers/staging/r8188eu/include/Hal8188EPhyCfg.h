@@ -192,8 +192,6 @@ void rtl8192c_PHY_GetHWRegOriginalValue(struct adapter *adapter);
 void PHY_SetTxPowerLevel8188E(struct adapter *adapter, u8 channel);
 bool PHY_UpdateTxPowerDbm8188E(struct adapter *adapter, int power);
 
-void PHY_ScanOperationBackup8188E(struct adapter *Adapter, u8 Operation);
-
 /*  Switch bandwidth for 8192S */
 void PHY_SetBWMode8188E(struct adapter *adapter,
 			enum ht_channel_width chnlwidth, unsigned char offset);
