@@ -1639,8 +1639,9 @@ static ssize_t allegro_h264_write_sps(struct allegro_channel *channel,
 	sps->vui.nal_hrd_parameters_present_flag = 0;
 	sps->vui.vcl_hrd_parameters_present_flag = 1;
 	sps->vui.vcl_hrd_parameters.cpb_cnt_minus1 = 0;
-	sps->vui.vcl_hrd_parameters.bit_rate_scale = 0;
 	/* See Rec. ITU-T H.264 (04/2017) p. 410 E-53 */
+	sps->vui.vcl_hrd_parameters.bit_rate_scale =
+		ffs(channel->bitrate_peak) - 6;
 	sps->vui.vcl_hrd_parameters.bit_rate_value_minus1[0] =
 		channel->bitrate_peak / (1 << (6 + sps->vui.vcl_hrd_parameters.bit_rate_scale)) - 1;
 	/* See Rec. ITU-T H.264 (04/2017) p. 410 E-54 */
