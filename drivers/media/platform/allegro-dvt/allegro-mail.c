@@ -426,8 +426,8 @@ allegro_dec_encode_frame(struct mcu_msg_encode_frame_response *msg, u32 *src)
 	msg->frame_tag_size = src[i++];
 	msg->stuffing = src[i++];
 	msg->filler = src[i++];
-	msg->num_column = FIELD_GET(GENMASK(31, 16), src[i]);
-	msg->num_row = FIELD_GET(GENMASK(15, 0), src[i++]);
+	msg->num_row = FIELD_GET(GENMASK(31, 16), src[i]);
+	msg->num_column = FIELD_GET(GENMASK(15, 0), src[i++]);
 	msg->num_ref_idx_l1 = FIELD_GET(GENMASK(31, 24), src[i]);
 	msg->num_ref_idx_l0 = FIELD_GET(GENMASK(23, 16), src[i]);
 	msg->qp = FIELD_GET(GENMASK(15, 0), src[i++]);
