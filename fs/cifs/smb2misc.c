@@ -832,8 +832,8 @@ smb2_handle_cancelled_mid(struct mid_q_entry *mid, struct TCP_Server_Info *serve
 	rc = __smb2_handle_cancelled_cmd(tcon,
 					 le16_to_cpu(hdr->Command),
 					 le64_to_cpu(hdr->MessageId),
-					 rsp->PersistentFileId,
-					 rsp->VolatileFileId);
+					 le64_to_cpu(rsp->PersistentFileId),
+					 le64_to_cpu(rsp->VolatileFileId));
 	if (rc)
 		cifs_put_tcon(tcon);
 

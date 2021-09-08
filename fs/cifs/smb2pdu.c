@@ -2670,11 +2670,13 @@ int smb311_posix_mkdir(const unsigned int xid, struct inode *inode,
 	}
 
 	rsp = (struct smb2_create_rsp *)rsp_iov.iov_base;
-	trace_smb3_posix_mkdir_done(xid, rsp->PersistentFileId, tcon->tid,
+	trace_smb3_posix_mkdir_done(xid, le64_to_cpu(rsp->PersistentFileId),
+				    tcon->tid,
 				    ses->Suid, CREATE_NOT_FILE,
 				    FILE_WRITE_ATTRIBUTES);
 
-	SMB2_close(xid, tcon, rsp->PersistentFileId, rsp->VolatileFileId);
+	SMB2_close(xid, tcon, le64_to_cpu(rsp->PersistentFileId),
+		   le64_to_cpu(rsp->VolatileFileId));
 
 	/* Eventually save off posix specific response info and timestaps */
 
@@ -2941,13 +2943,14 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 		}
 		goto creat_exit;
 	} else
-		trace_smb3_open_done(xid, rsp->PersistentFileId, tcon->tid,
+		trace_smb3_open_done(xid, le64_to_cpu(rsp->PersistentFileId),
+				     tcon->tid,
 				     ses->Suid, oparms->create_options,
 				     oparms->desired_access);
 
 	atomic_inc(&tcon->num_remote_opens);
-	oparms->fid->persistent_fid = rsp->PersistentFileId;
-	oparms->fid->volatile_fid = rsp->VolatileFileId;
+	oparms->fid->persistent_fid = le64_to_cpu(rsp->PersistentFileId);
+	oparms->fid->volatile_fid = le64_to_cpu(rsp->VolatileFileId);
 	oparms->fid->access = oparms->desired_access;
 #ifdef CONFIG_CIFS_DEBUG2
 	oparms->fid->mid = le64_to_cpu(rsp->hdr.MessageId);

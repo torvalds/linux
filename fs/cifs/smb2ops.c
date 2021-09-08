@@ -885,8 +885,8 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	atomic_inc(&tcon->num_remote_opens);
 
 	o_rsp = (struct smb2_create_rsp *)rsp_iov[0].iov_base;
-	oparms.fid->persistent_fid = o_rsp->PersistentFileId;
-	oparms.fid->volatile_fid = o_rsp->VolatileFileId;
+	oparms.fid->persistent_fid = le64_to_cpu(o_rsp->PersistentFileId);
+	oparms.fid->volatile_fid = le64_to_cpu(o_rsp->VolatileFileId);
 #ifdef CONFIG_CIFS_DEBUG2
 	oparms.fid->mid = le64_to_cpu(o_rsp->hdr.MessageId);
 #endif /* CIFS_DEBUG2 */
@@ -2395,8 +2395,8 @@ again:
 		cifs_dbg(FYI, "query_dir_first: open failed rc=%d\n", rc);
 		goto qdf_free;
 	}
-	fid->persistent_fid = op_rsp->PersistentFileId;
-	fid->volatile_fid = op_rsp->VolatileFileId;
+	fid->persistent_fid = le64_to_cpu(op_rsp->PersistentFileId);
+	fid->volatile_fid = le64_to_cpu(op_rsp->VolatileFileId);
 
 	/* Anything else than ENODATA means a genuine error */
 	if (rc && rc != -ENODATA) {
