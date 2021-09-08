@@ -1092,7 +1092,7 @@ static void __io_queue_sqe(struct io_kiocb *req);
 static void io_rsrc_put_work(struct work_struct *work);
 
 static void io_req_task_queue(struct io_kiocb *req);
-static void io_submit_flush_completions(struct io_ring_ctx *ctx);
+static void __io_submit_flush_completions(struct io_ring_ctx *ctx);
 static int io_req_prep_async(struct io_kiocb *req);
 
 static int io_install_fixed_file(struct io_kiocb *req, struct file *file,
@@ -1162,6 +1162,12 @@ static inline void req_ref_get(struct io_kiocb *req)
 	WARN_ON_ONCE(!(req->flags & REQ_F_REFCOUNT));
 	WARN_ON_ONCE(req_ref_zero_or_close_to_overflow(req));
 	atomic_inc(&req->refs);
+}
+
+static inline void io_submit_flush_completions(struct io_ring_ctx *ctx)
+{
+	if (ctx->submit_state.compl_nr)
+		__io_submit_flush_completions(ctx);
 }
 
 static inline void __io_req_set_refcount(struct io_kiocb *req, int nr)
@@ -1252,8 +1258,7 @@ static void io_fallback_req_func(struct work_struct *work)
 		req->io_task_work.func(req, &locked);
 
 	if (locked) {
-		if (ctx->submit_state.compl_nr)
-			io_submit_flush_completions(ctx);
+		io_submit_flush_completions(ctx);
 		mutex_unlock(&ctx->uring_lock);
 	}
 	percpu_ref_put(&ctx->refs);
@@ -2112,8 +2117,7 @@ static void ctx_flush_and_put(struct io_ring_ctx *ctx, bool *locked)
 	if (!ctx)
 		return;
 	if (*locked) {
-		if (ctx->submit_state.compl_nr)
-			io_submit_flush_completions(ctx);
+		io_submit_flush_completions(ctx);
 		mutex_unlock(&ctx->uring_lock);
 		*locked = false;
 	}
@@ -2130,7 +2134,7 @@ static void tctx_task_work(struct callback_head *cb)
 	while (1) {
 		struct io_wq_work_node *node;
 
-		if (!tctx->task_list.first && locked && ctx->submit_state.compl_nr)
+		if (!tctx->task_list.first && locked)
 			io_submit_flush_completions(ctx);
 
 		spin_lock_irq(&tctx->task_lock);
@@ -2315,7 +2319,7 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req,
 		list_add(&req->inflight_entry, &state->free_list);
 }
 
-static void io_submit_flush_completions(struct io_ring_ctx *ctx)
+static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 	__must_hold(&ctx->uring_lock)
 {
 	struct io_submit_state *state = &ctx->submit_state;
@@ -7195,8 +7199,7 @@ static void io_submit_state_end(struct io_submit_state *state,
 {
 	if (state->link.head)
 		io_queue_sqe(state->link.head);
-	if (state->compl_nr)
-		io_submit_flush_completions(ctx);
+	io_submit_flush_completions(ctx);
 	if (state->plug_started)
 		blk_finish_plug(&state->plug);
 }
