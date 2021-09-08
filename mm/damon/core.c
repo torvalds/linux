@@ -16,6 +16,11 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/damon.h>
 
+#ifdef CONFIG_DAMON_KUNIT_TEST
+#undef DAMON_MIN_REGION
+#define DAMON_MIN_REGION 1
+#endif
+
 /* Get a random number in [l, r) */
 #define damon_rand(l, r) (l + prandom_u32_max(r - l))
 
@@ -711,3 +716,5 @@ static int kdamond_fn(void *data)
 
 	do_exit(0);
 }
+
+#include "core-test.h"
