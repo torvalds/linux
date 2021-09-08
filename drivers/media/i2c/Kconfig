@@ -1071,6 +1071,15 @@ config VIDEO_OV02B10
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV02B10 camera.
 
+config VIDEO_OV02K10
+	tristate "OmniVision OV02K10 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV02K10 camera.
+
 config VIDEO_OV2640
 	tristate "OmniVision OV2640 sensor support"
 	depends on VIDEO_V4L2 && I2C
