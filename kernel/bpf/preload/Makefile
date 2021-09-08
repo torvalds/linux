@@ -10,12 +10,15 @@ LIBBPF_OUT = $(abspath $(obj))
 $(LIBBPF_A):
 	$(Q)$(MAKE) -C $(LIBBPF_SRCS) O=$(LIBBPF_OUT)/ OUTPUT=$(LIBBPF_OUT)/ $(LIBBPF_OUT)/libbpf.a
 
-userccflags += -I $(srctree)/tools/include/ -I $(srctree)/tools/include/uapi \
+userccflags += -I$(LIBBPF_OUT) -I $(srctree)/tools/include/ \
+	-I $(srctree)/tools/include/uapi \
 	-I $(srctree)/tools/lib/ -Wno-unused-result
 
 userprogs := bpf_preload_umd
 
-clean-files := $(userprogs) bpf_helper_defs.h FEATURE-DUMP.libbpf staticobjs/ feature/
+clean-files := $(userprogs) libbpf_version.h bpf_helper_defs.h FEATURE-DUMP.libbpf staticobjs/ feature/
+
+$(obj)/iterators/iterators.o: $(LIBBPF_A)
 
 bpf_preload_umd-objs := iterators/iterators.o
 bpf_preload_umd-userldlibs := $(LIBBPF_A) -lelf -lz
