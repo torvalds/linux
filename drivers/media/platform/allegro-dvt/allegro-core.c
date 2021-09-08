@@ -12,6 +12,8 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
+#include <linux/mfd/syscon.h>
+#include <linux/mfd/syscon/xlnx-vcu.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -136,6 +138,7 @@ struct allegro_dev {
 
 	struct regmap *regmap;
 	struct regmap *sram;
+	struct regmap *settings;
 
 	const struct fw_info *fw_info;
 	struct allegro_buffer firmware;
@@ -3720,6 +3723,10 @@ static int allegro_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to init sram\n");
 		return PTR_ERR(dev->sram);
 	}
+
+	dev->settings = syscon_regmap_lookup_by_compatible("xlnx,vcu-settings");
+	if (IS_ERR(dev->settings))
+		dev_warn(&pdev->dev, "failed to open settings\n");
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
