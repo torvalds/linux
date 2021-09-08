@@ -298,8 +298,6 @@ void _rtw_write_port_cancel(struct adapter *adapter);
 	_rtw_write_port_and_wait((adapter), (addr), (cnt), (mem), (timeout_ms))
 #define rtw_write_port_cancel(adapter) _rtw_write_port_cancel((adapter))
 
-void rtw_write_scsi(struct adapter *adapter, u32 cnt, u8 *pmem);
-
 /* ioreq */
 void ioreq_read8(struct adapter *adapter, u32 addr, u8 *pval);
 void ioreq_read16(struct adapter *adapter, u32 addr, u16 *pval);
