@@ -27,6 +27,10 @@
  * struct memory_group - a logical group of memory blocks
  * @nid: The node id for all memory blocks inside the memory group.
  * @blocks: List of all memory blocks belonging to this memory group.
+ * @present_kernel_pages: Present (online) memory outside ZONE_MOVABLE of this
+ *			  memory group.
+ * @present_movable_pages: Present (online) memory in ZONE_MOVABLE of this
+ *			   memory group.
  * @is_dynamic: The memory group type: static vs. dynamic
  * @s.max_pages: Valid with &memory_group.is_dynamic == false. The maximum
  *		 number of pages we'll have in this static memory group.
@@ -48,6 +52,8 @@
 struct memory_group {
 	int nid;
 	struct list_head memory_blocks;
+	unsigned long present_kernel_pages;
+	unsigned long present_movable_pages;
 	bool is_dynamic;
 	union {
 		struct {
