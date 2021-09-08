@@ -2098,7 +2098,7 @@ static int imx378_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int imx378_g_mbus_config(struct v4l2_subdev *sd,
+static int imx378_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	struct imx378 *imx378 = to_imx378(sd);
@@ -2116,7 +2116,7 @@ static int imx378_g_mbus_config(struct v4l2_subdev *sd,
 		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK |
 		V4L2_MBUS_CSI2_CHANNEL_1;
 
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -2570,7 +2570,6 @@ static const struct v4l2_subdev_core_ops imx378_core_ops = {
 static const struct v4l2_subdev_video_ops imx378_video_ops = {
 	.s_stream = imx378_s_stream,
 	.g_frame_interval = imx378_g_frame_interval,
-	.g_mbus_config = imx378_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops imx378_pad_ops = {
@@ -2579,6 +2578,7 @@ static const struct v4l2_subdev_pad_ops imx378_pad_ops = {
 	.enum_frame_interval = imx378_enum_frame_interval,
 	.get_fmt = imx378_get_fmt,
 	.set_fmt = imx378_set_fmt,
+	.get_mbus_config = imx378_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops imx378_subdev_ops = {
