@@ -131,6 +131,7 @@ obj-$(CONFIG_VIDEO_IMX307)	+= imx307.o
 obj-$(CONFIG_VIDEO_IMX317)	+= imx317.o
 obj-$(CONFIG_VIDEO_IMX319)	+= imx319.o
 obj-$(CONFIG_VIDEO_IMX323)	+= imx323.o
+obj-$(CONFIG_VIDEO_IMX327)	+= imx327.o
 obj-$(CONFIG_VIDEO_IMX355)	+= imx355.o
 obj-$(CONFIG_VIDEO_MAX9286)	+= max9286.o
 rdacm20-camera_module-objs	:= rdacm20.o max9271.o
