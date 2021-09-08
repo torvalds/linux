@@ -2768,7 +2768,7 @@ static int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 				u32 timeout_us, u64 user_address,
 				u64 target_value, u16 interrupt_offset,
-				enum hl_cs_wait_status *status,
+				u32 *status,
 				u64 *timestamp)
 {
 	struct hl_user_pending_interrupt *pend;
@@ -2815,13 +2815,14 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	}
 
 	if (completion_value >= target_value) {
-		*status = CS_WAIT_STATUS_COMPLETED;
+		*status = HL_WAIT_CS_STATUS_COMPLETED;
 		/* There was no interrupt, we assume the completion is now. */
 		pend->fence.timestamp = ktime_get();
-	} else
-		*status = CS_WAIT_STATUS_BUSY;
+	} else {
+		*status = HL_WAIT_CS_STATUS_BUSY;
+	}
 
-	if (!timeout_us || (*status == CS_WAIT_STATUS_COMPLETED))
+	if (!timeout_us || (*status == HL_WAIT_CS_STATUS_COMPLETED))
 		goto remove_pending_user_interrupt;
 
 wait_again:
@@ -2850,7 +2851,13 @@ wait_again:
 		}
 
 		if (completion_value >= target_value) {
-			*status = CS_WAIT_STATUS_COMPLETED;
+			*status = HL_WAIT_CS_STATUS_COMPLETED;
+		} else if (pend->fence.error) {
+			dev_err_ratelimited(hdev->dev,
+				"interrupt based wait ioctl aborted(error:%d) due to a reset cycle initiated\n",
+				pend->fence.error);
+			/* set the command completion status as ABORTED */
+			*status = HL_WAIT_CS_STATUS_ABORTED;
 		} else {
 			timeout = completion_rc;
 			goto wait_again;
@@ -2861,7 +2868,7 @@ wait_again:
 			interrupt->interrupt_id);
 		rc = -EINTR;
 	} else {
-		*status = CS_WAIT_STATUS_BUSY;
+		*status = HL_WAIT_CS_STATUS_BUSY;
 	}
 
 remove_pending_user_interrupt:
@@ -2883,7 +2890,7 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	struct hl_device *hdev = hpriv->hdev;
 	struct asic_fixed_properties *prop;
 	union hl_wait_cs_args *args = data;
-	enum hl_cs_wait_status status;
+	u32 status = HL_WAIT_CS_STATUS_BUSY;
 	u64 timestamp;
 	int rc;
 
@@ -2926,20 +2933,11 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	}
 
 	memset(args, 0, sizeof(*args));
+	args->out.status = status;
 
 	if (timestamp) {
 		args->out.timestamp_nsec = timestamp;
 		args->out.flags |= HL_WAIT_CS_STATUS_FLAG_TIMESTAMP_VLD;
-	}
-
-	switch (status) {
-	case CS_WAIT_STATUS_COMPLETED:
-		args->out.status = HL_WAIT_CS_STATUS_COMPLETED;
-		break;
-	case CS_WAIT_STATUS_BUSY:
-	default:
-		args->out.status = HL_WAIT_CS_STATUS_BUSY;
-		break;
 	}
 
 	return 0;
