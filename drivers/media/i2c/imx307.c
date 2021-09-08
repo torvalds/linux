@@ -1194,7 +1194,7 @@ static int imx307_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int imx307_g_mbus_config(struct v4l2_subdev *sd,
+static int imx307_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	struct imx307 *imx307 = to_imx307(sd);
@@ -1206,7 +1206,7 @@ static int imx307_g_mbus_config(struct v4l2_subdev *sd,
 	if (imx307->bus_cfg.bus_type == 3)
 		config->type = V4L2_MBUS_CCP2;
 	else
-		config->type = V4L2_MBUS_CSI2;
+		config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -1918,7 +1918,6 @@ static const struct v4l2_subdev_core_ops imx307_core_ops = {
 static const struct v4l2_subdev_video_ops imx307_video_ops = {
 	.s_stream = imx307_s_stream,
 	.g_frame_interval = imx307_g_frame_interval,
-	.g_mbus_config = imx307_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops imx307_pad_ops = {
@@ -1928,6 +1927,7 @@ static const struct v4l2_subdev_pad_ops imx307_pad_ops = {
 	.get_fmt = imx307_get_fmt,
 	.set_fmt = imx307_set_fmt,
 	.get_selection = imx307_get_selection,
+	.get_mbus_config = imx307_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops imx307_subdev_ops = {
