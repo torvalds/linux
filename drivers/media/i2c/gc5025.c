@@ -1511,7 +1511,7 @@ static int gc5025_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int gc5025_g_mbus_config(struct v4l2_subdev *sd,
+static int gc5025_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				 struct v4l2_mbus_config *config)
 {
 	u32 val = 0;
@@ -1520,7 +1520,7 @@ static int gc5025_g_mbus_config(struct v4l2_subdev *sd,
 	V4L2_MBUS_CSI2_CHANNEL_0 |
 	V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -1563,7 +1563,6 @@ static const struct v4l2_subdev_core_ops gc5025_core_ops = {
 static const struct v4l2_subdev_video_ops gc5025_video_ops = {
 	.s_stream = gc5025_s_stream,
 	.g_frame_interval = gc5025_g_frame_interval,
-	.g_mbus_config = gc5025_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops gc5025_pad_ops = {
@@ -1573,6 +1572,7 @@ static const struct v4l2_subdev_pad_ops gc5025_pad_ops = {
 	.get_fmt = gc5025_get_fmt,
 	.set_fmt = gc5025_set_fmt,
 	.get_selection = gc5025_get_selection,
+	.get_mbus_config = gc5025_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops gc5025_subdev_ops = {
