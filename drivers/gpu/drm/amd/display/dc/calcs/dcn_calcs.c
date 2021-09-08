@@ -459,9 +459,9 @@ static void dcn_bw_calc_rq_dlg_ttu(
 	struct _vcs_dpi_display_dlg_regs_st *dlg_regs = &pipe->dlg_regs;
 	struct _vcs_dpi_display_ttu_regs_st *ttu_regs = &pipe->ttu_regs;
 	struct _vcs_dpi_display_rq_regs_st *rq_regs = &pipe->rq_regs;
-	struct _vcs_dpi_display_rq_params_st rq_param = {0};
-	struct _vcs_dpi_display_dlg_sys_params_st dlg_sys_param = {0};
-	struct _vcs_dpi_display_e2e_pipe_params_st input = { { { 0 } } };
+	struct _vcs_dpi_display_rq_params_st *rq_param = &pipe->dml_rq_param;
+	struct _vcs_dpi_display_dlg_sys_params_st *dlg_sys_param = &pipe->dml_dlg_sys_param;
+	struct _vcs_dpi_display_e2e_pipe_params_st *input = &pipe->dml_input;
 	float total_active_bw = 0;
 	float total_prefetch_bw = 0;
 	int total_flip_bytes = 0;
@@ -470,45 +470,48 @@ static void dcn_bw_calc_rq_dlg_ttu(
 	memset(dlg_regs, 0, sizeof(*dlg_regs));
 	memset(ttu_regs, 0, sizeof(*ttu_regs));
 	memset(rq_regs, 0, sizeof(*rq_regs));
+	memset(rq_param, 0, sizeof(*rq_param));
+	memset(dlg_sys_param, 0, sizeof(*dlg_sys_param));
+	memset(input, 0, sizeof(*input));
 
 	for (i = 0; i < number_of_planes; i++) {
 		total_active_bw += v->read_bandwidth[i];
 		total_prefetch_bw += v->prefetch_bandwidth[i];
 		total_flip_bytes += v->total_immediate_flip_bytes[i];
 	}
-	dlg_sys_param.total_flip_bw = v->return_bw - dcn_bw_max2(total_active_bw, total_prefetch_bw);
-	if (dlg_sys_param.total_flip_bw < 0.0)
-		dlg_sys_param.total_flip_bw = 0;
+	dlg_sys_param->total_flip_bw = v->return_bw - dcn_bw_max2(total_active_bw, total_prefetch_bw);
+	if (dlg_sys_param->total_flip_bw < 0.0)
+		dlg_sys_param->total_flip_bw = 0;
 
-	dlg_sys_param.t_mclk_wm_us = v->dram_clock_change_watermark;
-	dlg_sys_param.t_sr_wm_us = v->stutter_enter_plus_exit_watermark;
-	dlg_sys_param.t_urg_wm_us = v->urgent_watermark;
-	dlg_sys_param.t_extra_us = v->urgent_extra_latency;
-	dlg_sys_param.deepsleep_dcfclk_mhz = v->dcf_clk_deep_sleep;
-	dlg_sys_param.total_flip_bytes = total_flip_bytes;
+	dlg_sys_param->t_mclk_wm_us = v->dram_clock_change_watermark;
+	dlg_sys_param->t_sr_wm_us = v->stutter_enter_plus_exit_watermark;
+	dlg_sys_param->t_urg_wm_us = v->urgent_watermark;
+	dlg_sys_param->t_extra_us = v->urgent_extra_latency;
+	dlg_sys_param->deepsleep_dcfclk_mhz = v->dcf_clk_deep_sleep;
+	dlg_sys_param->total_flip_bytes = total_flip_bytes;
 
-	pipe_ctx_to_e2e_pipe_params(pipe, &input.pipe);
-	input.clks_cfg.dcfclk_mhz = v->dcfclk;
-	input.clks_cfg.dispclk_mhz = v->dispclk;
-	input.clks_cfg.dppclk_mhz = v->dppclk;
-	input.clks_cfg.refclk_mhz = dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000.0;
-	input.clks_cfg.socclk_mhz = v->socclk;
-	input.clks_cfg.voltage = v->voltage_level;
+	pipe_ctx_to_e2e_pipe_params(pipe, &input->pipe);
+	input->clks_cfg.dcfclk_mhz = v->dcfclk;
+	input->clks_cfg.dispclk_mhz = v->dispclk;
+	input->clks_cfg.dppclk_mhz = v->dppclk;
+	input->clks_cfg.refclk_mhz = dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000.0;
+	input->clks_cfg.socclk_mhz = v->socclk;
+	input->clks_cfg.voltage = v->voltage_level;
 //	dc->dml.logger = pool->base.logger;
-	input.dout.output_format = (v->output_format[in_idx] == dcn_bw_420) ? dm_420 : dm_444;
-	input.dout.output_type  = (v->output[in_idx] == dcn_bw_hdmi) ? dm_hdmi : dm_dp;
+	input->dout.output_format = (v->output_format[in_idx] == dcn_bw_420) ? dm_420 : dm_444;
+	input->dout.output_type  = (v->output[in_idx] == dcn_bw_hdmi) ? dm_hdmi : dm_dp;
 	//input[in_idx].dout.output_standard;
 
 	/*todo: soc->sr_enter_plus_exit_time??*/
-	dlg_sys_param.t_srx_delay_us = dc->dcn_ip->dcfclk_cstate_latency / v->dcf_clk_deep_sleep;
+	dlg_sys_param->t_srx_delay_us = dc->dcn_ip->dcfclk_cstate_latency / v->dcf_clk_deep_sleep;
 
-	dml1_rq_dlg_get_rq_params(dml, &rq_param, input.pipe.src);
+	dml1_rq_dlg_get_rq_params(dml, rq_param, input.pipe.src);
 	dml1_extract_rq_regs(dml, rq_regs, rq_param);
 	dml1_rq_dlg_get_dlg_params(
 			dml,
 			dlg_regs,
 			ttu_regs,
-			rq_param.dlg,
+			rq_param->dlg,
 			dlg_sys_param,
 			input,
 			true,
