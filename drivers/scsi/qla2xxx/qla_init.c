@@ -5335,15 +5335,14 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 			    "LOOP READY.\n");
 			ha->flags.fw_init_done = 1;
 
+			/*
+			 * use link up to wake up app to get ready for
+			 * authentication.
+			 */
 			if (ha->flags.edif_enabled &&
-			    !(vha->e_dbell.db_flags & EDB_ACTIVE) &&
-			    N2N_TOPO(vha->hw)) {
-				/*
-				 * use port online to wake up app to get ready
-				 * for authentication
-				 */
-				qla2x00_post_aen_work(vha, FCH_EVT_PORT_ONLINE, 0);
-			}
+			    !(vha->e_dbell.db_flags & EDB_ACTIVE))
+				qla2x00_post_aen_work(vha, FCH_EVT_LINKUP,
+						      ha->link_data_rate);
 
 			/*
 			 * Process any ATIO queue entries that came in
