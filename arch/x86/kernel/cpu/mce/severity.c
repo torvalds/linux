@@ -278,6 +278,8 @@ static int error_context(struct mce *m, struct pt_regs *regs)
 		m->kflags |= MCE_IN_KERNEL_COPYIN;
 		fallthrough;
 	case EX_TYPE_FAULT:
+	case EX_TYPE_FAULT_MCE_SAFE:
+	case EX_TYPE_DEFAULT_MCE_SAFE:
 		m->kflags |= MCE_IN_KERNEL_RECOV;
 		return IN_KERNEL_RECOV;
 	default:

@@ -16,4 +16,7 @@
 #define	EX_TYPE_WRMSR_IN_MCE		10
 #define	EX_TYPE_RDMSR_IN_MCE		11
 
+#define	EX_TYPE_DEFAULT_MCE_SAFE	12
+#define	EX_TYPE_FAULT_MCE_SAFE		13
+
 #endif
