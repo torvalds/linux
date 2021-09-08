@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2020, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2020-2021, The Linux Foundation. All rights reserved. */
 
 #include <linux/err.h>
 #include <linux/ipc_logging.h>
@@ -73,7 +73,15 @@ enum pmic_pon_event {
 	PMIC_PON_EVENT_PMIC_SID3_FAULT		= 0x12,
 	PMIC_PON_EVENT_PMIC_SID4_FAULT		= 0x13,
 	PMIC_PON_EVENT_PMIC_SID5_FAULT		= 0x14,
-	PMIC_PON_EVENT_PMIC_VREG_READY_CHECK	= 0x15,
+	PMIC_PON_EVENT_PMIC_SID6_FAULT		= 0x15,
+	PMIC_PON_EVENT_PMIC_SID7_FAULT		= 0x16,
+	PMIC_PON_EVENT_PMIC_SID8_FAULT		= 0x17,
+	PMIC_PON_EVENT_PMIC_SID9_FAULT		= 0x18,
+	PMIC_PON_EVENT_PMIC_SID10_FAULT		= 0x19,
+	PMIC_PON_EVENT_PMIC_SID11_FAULT		= 0x1A,
+	PMIC_PON_EVENT_PMIC_SID12_FAULT		= 0x1B,
+	PMIC_PON_EVENT_PMIC_SID13_FAULT		= 0x1C,
+	PMIC_PON_EVENT_PMIC_VREG_READY_CHECK	= 0x20,
 };
 
 enum pmic_pon_reset_type {
@@ -188,6 +196,14 @@ static const enum pmic_pon_event pmic_pon_important_events[] = {
 	PMIC_PON_EVENT_PMIC_SID3_FAULT,
 	PMIC_PON_EVENT_PMIC_SID4_FAULT,
 	PMIC_PON_EVENT_PMIC_SID5_FAULT,
+	PMIC_PON_EVENT_PMIC_SID6_FAULT,
+	PMIC_PON_EVENT_PMIC_SID7_FAULT,
+	PMIC_PON_EVENT_PMIC_SID8_FAULT,
+	PMIC_PON_EVENT_PMIC_SID9_FAULT,
+	PMIC_PON_EVENT_PMIC_SID10_FAULT,
+	PMIC_PON_EVENT_PMIC_SID11_FAULT,
+	PMIC_PON_EVENT_PMIC_SID12_FAULT,
+	PMIC_PON_EVENT_PMIC_SID13_FAULT,
 	PMIC_PON_EVENT_PMIC_VREG_READY_CHECK,
 };
 
@@ -397,7 +413,7 @@ static int pmic_pon_log_parse_entry(const struct pmic_pon_log_entry *entry,
 	case PMIC_PON_EVENT_WAITING_ON_PSHOLD:
 		scnprintf(buf, BUF_SIZE, "Waiting on PS_HOLD");
 		break;
-	case PMIC_PON_EVENT_PMIC_SID1_FAULT ... PMIC_PON_EVENT_PMIC_SID5_FAULT:
+	case PMIC_PON_EVENT_PMIC_SID1_FAULT ... PMIC_PON_EVENT_PMIC_SID13_FAULT:
 		if (!entry->data0 && !entry->data1)
 			is_important = false;
 		pos += scnprintf(buf + pos, BUF_SIZE - pos, "PMIC SID%u ",
