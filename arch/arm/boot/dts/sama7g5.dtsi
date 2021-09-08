@@ -159,6 +159,11 @@
 			clocks = <&clk32k 0>;
 		};
 
+		chipid@e0020000 {
+			compatible = "microchip,sama7g5-chipid";
+			reg = <0xe0020000 0x8>;
+		};
+
 		sdmmc0: mmc@e1204000 {
 			compatible = "microchip,sama7g5-sdhci", "microchip,sam9x60-sdhci";
 			reg = <0xe1204000 0x4000>;
