@@ -953,6 +953,13 @@ static int ni_ins_attr_ext(struct ntfs_inode *ni, struct ATTR_LIST_ENTRY *le,
 			continue;
 		}
 
+		/*
+		 * Do not try to insert this attribute
+		 * if there is no room in record.
+		 */
+		if (le32_to_cpu(mi->mrec->used) + asize > sbi->record_size)
+			continue;
+
 		/* Try to insert attribute into this subrecord. */
 		attr = ni_ins_new_attr(ni, mi, le, type, name, name_len, asize,
 				       name_off, svcn, ins_le);
