@@ -2008,6 +2008,15 @@ config UML_WATCHDOG
 	tristate "UML watchdog"
 	depends on UML || COMPILE_TEST
 
+# RISCV Architecture
+
+config STARFIVE_WATCHDOG
+        tristate "StarFive Watchdog support"
+        depends on RISCV
+        select WATCHDOG_CORE
+        help
+          Say Y here to support the starfive jh7100/jh7110 soc watchdog.
+
 #
 # ISA-based Watchdog Cards
 #
