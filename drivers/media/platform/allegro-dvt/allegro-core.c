@@ -1407,8 +1407,6 @@ static int allegro_mcu_send_encode_frame(struct allegro_dev *dev,
 	msg.src_y = to_codec_addr(dev, src_y);
 	msg.src_uv = to_codec_addr(dev, src_uv);
 	msg.stride = channel->stride;
-	msg.ep2 = 0x0;
-	msg.ep2_v = to_mcu_addr(dev, msg.ep2);
 
 	allegro_mbox_send(dev->mbox_command, &msg);
 
