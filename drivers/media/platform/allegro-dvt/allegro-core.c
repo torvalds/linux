@@ -142,6 +142,7 @@ struct allegro_dev {
 	struct allegro_buffer suballocator;
 
 	struct completion init_complete;
+	bool initialized;
 
 	/* The mailbox interface */
 	struct allegro_mbox *mbox_command;
@@ -3632,6 +3633,8 @@ static void allegro_fw_callback(const struct firmware *fw, void *context)
 		 "allegro codec registered as /dev/video%d\n",
 		 dev->video_dev.num);
 
+	dev->initialized = true;
+
 	release_firmware(fw_codec);
 	release_firmware(fw);
 
@@ -3677,6 +3680,8 @@ static int allegro_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&dev->channels);
 
 	mutex_init(&dev->lock);
+
+	dev->initialized = false;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
 	if (!res) {
@@ -3748,11 +3753,13 @@ static int allegro_remove(struct platform_device *pdev)
 {
 	struct allegro_dev *dev = platform_get_drvdata(pdev);
 
-	video_unregister_device(&dev->video_dev);
-	if (dev->m2m_dev)
-		v4l2_m2m_release(dev->m2m_dev);
-	allegro_mcu_hw_deinit(dev);
-	allegro_free_fw_codec(dev);
+	if (dev->initialized) {
+		video_unregister_device(&dev->video_dev);
+		if (dev->m2m_dev)
+			v4l2_m2m_release(dev->m2m_dev);
+		allegro_mcu_hw_deinit(dev);
+		allegro_free_fw_codec(dev);
+	}
 
 	v4l2_device_unregister(&dev->v4l2_dev);
 
