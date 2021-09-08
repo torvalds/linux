@@ -502,15 +502,15 @@ static void dcn_bw_calc_rq_dlg_ttu(
 	/*todo: soc->sr_enter_plus_exit_time??*/
 	dlg_sys_param.t_srx_delay_us = dc->dcn_ip->dcfclk_cstate_latency / v->dcf_clk_deep_sleep;
 
-	dml1_rq_dlg_get_rq_params(dml, &rq_param, input.pipe.src);
-	dml1_extract_rq_regs(dml, rq_regs, rq_param);
+	dml1_rq_dlg_get_rq_params(dml, &rq_param, &input.pipe.src);
+	dml1_extract_rq_regs(dml, rq_regs, &rq_param);
 	dml1_rq_dlg_get_dlg_params(
 			dml,
 			dlg_regs,
 			ttu_regs,
-			rq_param.dlg,
-			dlg_sys_param,
-			input,
+			&rq_param.dlg,
+			&dlg_sys_param,
+			&input,
 			true,
 			true,
 			v->pte_enable == dcn_bw_yes,

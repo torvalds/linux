@@ -196,26 +196,26 @@ static void extract_rq_sizing_regs(struct display_mode_lib *mode_lib, display_da
 	rq_regs->mpte_group_size = dml_log2(rq_sizing->mpte_group_bytes) - 6;
 }
 
-static void extract_rq_regs(struct display_mode_lib *mode_lib, display_rq_regs_st *rq_regs, const display_rq_params_st rq_param)
+static void extract_rq_regs(struct display_mode_lib *mode_lib, display_rq_regs_st *rq_regs, const display_rq_params_st *rq_param)
 {
 	unsigned int detile_buf_size_in_bytes = mode_lib->ip.det_buffer_size_kbytes * 1024;
 	unsigned int detile_buf_plane1_addr = 0;
 
-	extract_rq_sizing_regs(mode_lib, &(rq_regs->rq_regs_l), &rq_param.sizing.rq_l);
+	extract_rq_sizing_regs(mode_lib, &(rq_regs->rq_regs_l), &rq_param->sizing.rq_l);
 
-	rq_regs->rq_regs_l.pte_row_height_linear = dml_floor(dml_log2(rq_param.dlg.rq_l.dpte_row_height), 1) - 3;
+	rq_regs->rq_regs_l.pte_row_height_linear = dml_floor(dml_log2(rq_param->dlg.rq_l.dpte_row_height), 1) - 3;
 
-	if (rq_param.yuv420) {
-		extract_rq_sizing_regs(mode_lib, &(rq_regs->rq_regs_c), &rq_param.sizing.rq_c);
-		rq_regs->rq_regs_c.pte_row_height_linear = dml_floor(dml_log2(rq_param.dlg.rq_c.dpte_row_height), 1) - 3;
+	if (rq_param->yuv420) {
+		extract_rq_sizing_regs(mode_lib, &(rq_regs->rq_regs_c), &rq_param->sizing.rq_c);
+		rq_regs->rq_regs_c.pte_row_height_linear = dml_floor(dml_log2(rq_param->dlg.rq_c.dpte_row_height), 1) - 3;
 	}
 
-	rq_regs->rq_regs_l.swath_height = dml_log2(rq_param.dlg.rq_l.swath_height);
-	rq_regs->rq_regs_c.swath_height = dml_log2(rq_param.dlg.rq_c.swath_height);
+	rq_regs->rq_regs_l.swath_height = dml_log2(rq_param->dlg.rq_l.swath_height);
+	rq_regs->rq_regs_c.swath_height = dml_log2(rq_param->dlg.rq_c.swath_height);
 
 	// FIXME: take the max between luma, chroma chunk size?
 	// okay for now, as we are setting chunk_bytes to 8kb anyways
-	if (rq_param.sizing.rq_l.chunk_bytes >= 32 * 1024 || (rq_param.yuv420 && rq_param.sizing.rq_c.chunk_bytes >= 32 * 1024)) { //32kb
+	if (rq_param->sizing.rq_l.chunk_bytes >= 32 * 1024 || (rq_param->yuv420 && rq_param->sizing.rq_c.chunk_bytes >= 32 * 1024)) { //32kb
 		rq_regs->drq_expansion_mode = 0;
 	} else {
 		rq_regs->drq_expansion_mode = 2;
@@ -225,8 +225,8 @@ static void extract_rq_regs(struct display_mode_lib *mode_lib, display_rq_regs_s
 	rq_regs->crq_expansion_mode = 1;
 
 	// Note: detile_buf_plane1_addr is in unit of 1KB
-	if (rq_param.yuv420) {
-		if ((double) rq_param.misc.rq_l.stored_swath_bytes / (double) rq_param.misc.rq_c.stored_swath_bytes <= 1.5) {
+	if (rq_param->yuv420) {
+		if ((double) rq_param->misc.rq_l.stored_swath_bytes / (double) rq_param->misc.rq_c.stored_swath_bytes <= 1.5) {
 			detile_buf_plane1_addr = (detile_buf_size_in_bytes / 2.0 / 1024.0); // half to chroma
 #ifdef __DML_RQ_DLG_CALC_DEBUG__
 					dml_print("DML_DLG: %s: detile_buf_plane1_addr = %0d (1/2 to chroma)\n", __func__, detile_buf_plane1_addr);
@@ -244,14 +244,14 @@ static void extract_rq_regs(struct display_mode_lib *mode_lib, display_rq_regs_s
 	dml_print("DML_DLG: %s: detile_buf_size_in_bytes = %0d\n", __func__, detile_buf_size_in_bytes);
 	dml_print("DML_DLG: %s: detile_buf_plane1_addr = %0d\n", __func__, detile_buf_plane1_addr);
 	dml_print("DML_DLG: %s: plane1_base_address = %0d\n", __func__, rq_regs->plane1_base_address);
-	dml_print("DML_DLG: %s: rq_l.stored_swath_bytes = %0d\n", __func__, rq_param.misc.rq_l.stored_swath_bytes);
-	dml_print("DML_DLG: %s: rq_c.stored_swath_bytes = %0d\n", __func__, rq_param.misc.rq_c.stored_swath_bytes);
-	dml_print("DML_DLG: %s: rq_l.swath_height = %0d\n", __func__, rq_param.dlg.rq_l.swath_height);
-	dml_print("DML_DLG: %s: rq_c.swath_height = %0d\n", __func__, rq_param.dlg.rq_c.swath_height);
+	dml_print("DML_DLG: %s: rq_l.stored_swath_bytes = %0d\n", __func__, rq_param->misc.rq_l.stored_swath_bytes);
+	dml_print("DML_DLG: %s: rq_c.stored_swath_bytes = %0d\n", __func__, rq_param->misc.rq_c.stored_swath_bytes);
+	dml_print("DML_DLG: %s: rq_l.swath_height = %0d\n", __func__, rq_param->dlg.rq_l.swath_height);
+	dml_print("DML_DLG: %s: rq_c.swath_height = %0d\n", __func__, rq_param->dlg.rq_c.swath_height);
 #endif
 }
 
-static void handle_det_buf_split(struct display_mode_lib *mode_lib, display_rq_params_st *rq_param, const display_pipe_source_params_st pipe_src_param)
+static void handle_det_buf_split(struct display_mode_lib *mode_lib, display_rq_params_st *rq_param, const display_pipe_source_params_st *pipe_src_param)
 {
 	unsigned int total_swath_bytes = 0;
 	unsigned int swath_bytes_l = 0;
@@ -260,8 +260,8 @@ static void handle_det_buf_split(struct display_mode_lib *mode_lib, display_rq_p
 	unsigned int full_swath_bytes_packed_c = 0;
 	bool req128_l = 0;
 	bool req128_c = 0;
-	bool surf_linear = (pipe_src_param.sw_mode == dm_sw_linear);
-	bool surf_vert = (pipe_src_param.source_scan == dm_vert);
+	bool surf_linear = (pipe_src_param->sw_mode == dm_sw_linear);
+	bool surf_vert = (pipe_src_param->source_scan == dm_vert);
 	unsigned int log2_swath_height_l = 0;
 	unsigned int log2_swath_height_c = 0;
 	unsigned int detile_buf_size_in_bytes = mode_lib->ip.det_buffer_size_kbytes * 1024;
@@ -849,7 +849,7 @@ static void dml_rq_dlg_get_rq_params(struct display_mode_lib *mode_lib, display_
 	}
 
 	// calculate how to split the det buffer space between luma and chroma
-	handle_det_buf_split(mode_lib, rq_param, pipe_param->src);
+	handle_det_buf_split(mode_lib, rq_param, &pipe_param->src);
 	print__rq_params_st(mode_lib, rq_param);
 }
 
@@ -859,7 +859,7 @@ void dml31_rq_dlg_get_rq_reg(struct display_mode_lib *mode_lib, display_rq_regs_
 
 	memset(rq_regs, 0, sizeof(*rq_regs));
 	dml_rq_dlg_get_rq_params(mode_lib, &rq_param, pipe_param);
-	extract_rq_regs(mode_lib, rq_regs, rq_param);
+	extract_rq_regs(mode_lib, rq_regs, &rq_param);
 
 	print__rq_regs_st(mode_lib, rq_regs);
 }
@@ -943,8 +943,8 @@ static void dml_rq_dlg_get_dlg_params(
 		const unsigned int pipe_idx,
 		display_dlg_regs_st *disp_dlg_regs,
 		display_ttu_regs_st *disp_ttu_regs,
-		const display_rq_dlg_params_st rq_dlg_param,
-		const display_dlg_sys_params_st dlg_sys_param,
+		const display_rq_dlg_params_st *rq_dlg_param,
+		const display_dlg_sys_params_st *dlg_sys_param,
 		const bool cstate_en,
 		const bool pstate_en,
 		const bool vm_en,
@@ -1112,13 +1112,13 @@ static void dml_rq_dlg_get_dlg_params(
 	vratio_c = scl->vscl_ratio_c;
 	scl_enable = scl->scl_enable;
 
-	swath_width_ub_l = rq_dlg_param.rq_l.swath_width_ub;
-	dpte_groups_per_row_ub_l = rq_dlg_param.rq_l.dpte_groups_per_row_ub;
-	swath_width_ub_c = rq_dlg_param.rq_c.swath_width_ub;
-	dpte_groups_per_row_ub_c = rq_dlg_param.rq_c.dpte_groups_per_row_ub;
+	swath_width_ub_l = rq_dlg_param->rq_l.swath_width_ub;
+	dpte_groups_per_row_ub_l = rq_dlg_param->rq_l.dpte_groups_per_row_ub;
+	swath_width_ub_c = rq_dlg_param->rq_c.swath_width_ub;
+	dpte_groups_per_row_ub_c = rq_dlg_param->rq_c.dpte_groups_per_row_ub;
 
-	meta_chunks_per_row_ub_l = rq_dlg_param.rq_l.meta_chunks_per_row_ub;
-	meta_chunks_per_row_ub_c = rq_dlg_param.rq_c.meta_chunks_per_row_ub;
+	meta_chunks_per_row_ub_l = rq_dlg_param->rq_l.meta_chunks_per_row_ub;
+	meta_chunks_per_row_ub_c = rq_dlg_param->rq_c.meta_chunks_per_row_ub;
 	vupdate_offset = dst->vupdate_offset;
 	vupdate_width = dst->vupdate_width;
 	vready_offset = dst->vready_offset;
@@ -1239,16 +1239,16 @@ static void dml_rq_dlg_get_dlg_params(
 	dml_print("DML_DLG: %s: vratio_pre_c = %3.2f\n", __func__, vratio_pre_c);
 
 	// Active
-	req_per_swath_ub_l = rq_dlg_param.rq_l.req_per_swath_ub;
-	req_per_swath_ub_c = rq_dlg_param.rq_c.req_per_swath_ub;
-	meta_row_height_l = rq_dlg_param.rq_l.meta_row_height;
-	meta_row_height_c = rq_dlg_param.rq_c.meta_row_height;
+	req_per_swath_ub_l = rq_dlg_param->rq_l.req_per_swath_ub;
+	req_per_swath_ub_c = rq_dlg_param->rq_c.req_per_swath_ub;
+	meta_row_height_l = rq_dlg_param->rq_l.meta_row_height;
+	meta_row_height_c = rq_dlg_param->rq_c.meta_row_height;
 	swath_width_pixels_ub_l = 0;
 	swath_width_pixels_ub_c = 0;
 	scaler_rec_in_width_l = 0;
 	scaler_rec_in_width_c = 0;
-	dpte_row_height_l = rq_dlg_param.rq_l.dpte_row_height;
-	dpte_row_height_c = rq_dlg_param.rq_c.dpte_row_height;
+	dpte_row_height_l = rq_dlg_param->rq_l.dpte_row_height;
+	dpte_row_height_c = rq_dlg_param->rq_c.dpte_row_height;
 
 	if (mode_422) {
 		swath_width_pixels_ub_l = swath_width_ub_l * 2;  // *2 for 2 pixel per element
@@ -1712,8 +1712,8 @@ void dml31_rq_dlg_get_dlg_reg(
 			pipe_idx,
 			dlg_regs,
 			ttu_regs,
-			rq_param.dlg,
-			dlg_sys_param,
+			&rq_param.dlg,
+			&dlg_sys_param,
 			cstate_en,
 			pstate_en,
 			vm_en,
