@@ -6,6 +6,7 @@
  */
 
 #include <linux/bits.h>
+#include <linux/clk.h>
 #include <linux/firmware.h>
 #include <linux/gcd.h>
 #include <linux/interrupt.h>
@@ -18,6 +19,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
@@ -139,6 +141,9 @@ struct allegro_dev {
 	struct regmap *regmap;
 	struct regmap *sram;
 	struct regmap *settings;
+
+	struct clk *clk_core;
+	struct clk *clk_mcu;
 
 	const struct fw_info *fw_info;
 	struct allegro_buffer firmware;
@@ -3604,11 +3609,16 @@ static void allegro_fw_callback(const struct firmware *fw, void *context)
 	v4l2_info(&dev->v4l2_dev,
 		  "using mcu firmware version '%s'\n", dev->fw_info->version);
 
+	pm_runtime_enable(&dev->plat_dev->dev);
+	err = pm_runtime_resume_and_get(&dev->plat_dev->dev);
+	if (err)
+		goto err_release_firmware_codec;
+
 	/* Ensure that the mcu is sleeping at the reset vector */
 	err = allegro_mcu_reset(dev);
 	if (err) {
 		v4l2_err(&dev->v4l2_dev, "failed to reset mcu\n");
-		goto err_release_firmware_codec;
+		goto err_suspend;
 	}
 
 	allegro_copy_firmware(dev, fw->data, fw->size);
@@ -3650,6 +3660,9 @@ err_mcu_hw_deinit:
 	allegro_mcu_hw_deinit(dev);
 err_free_fw_codec:
 	allegro_free_fw_codec(dev);
+err_suspend:
+	pm_runtime_put(&dev->plat_dev->dev);
+	pm_runtime_disable(&dev->plat_dev->dev);
 err_release_firmware_codec:
 	release_firmware(fw_codec);
 err_release_firmware:
@@ -3728,6 +3741,14 @@ static int allegro_probe(struct platform_device *pdev)
 	if (IS_ERR(dev->settings))
 		dev_warn(&pdev->dev, "failed to open settings\n");
 
+	dev->clk_core = devm_clk_get(&pdev->dev, "core_clk");
+	if (IS_ERR(dev->clk_core))
+		return PTR_ERR(dev->clk_core);
+
+	dev->clk_mcu = devm_clk_get(&pdev->dev, "mcu_clk");
+	if (IS_ERR(dev->clk_mcu))
+		return PTR_ERR(dev->clk_mcu);
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -3768,7 +3789,63 @@ static int allegro_remove(struct platform_device *pdev)
 		allegro_free_fw_codec(dev);
 	}
 
+	pm_runtime_put(&dev->plat_dev->dev);
+	pm_runtime_disable(&dev->plat_dev->dev);
+
 	v4l2_device_unregister(&dev->v4l2_dev);
+
+	return 0;
+}
+
+static int allegro_runtime_resume(struct device *device)
+{
+	struct allegro_dev *dev = dev_get_drvdata(device);
+	struct regmap *settings = dev->settings;
+	unsigned int clk_mcu;
+	unsigned int clk_core;
+	int err;
+
+	if (!settings)
+		return -EINVAL;
+
+#define MHZ_TO_HZ(freq) ((freq) * 1000 * 1000)
+
+	err = regmap_read(settings, VCU_CORE_CLK, &clk_core);
+	if (err < 0)
+		return err;
+	err = clk_set_rate(dev->clk_core, MHZ_TO_HZ(clk_core));
+	if (err < 0)
+		return err;
+	err = clk_prepare_enable(dev->clk_core);
+	if (err)
+		return err;
+
+	err = regmap_read(settings, VCU_MCU_CLK, &clk_mcu);
+	if (err < 0)
+		goto disable_clk_core;
+	err = clk_set_rate(dev->clk_mcu, MHZ_TO_HZ(clk_mcu));
+	if (err < 0)
+		goto disable_clk_core;
+	err = clk_prepare_enable(dev->clk_mcu);
+	if (err)
+		goto disable_clk_core;
+
+#undef MHZ_TO_HZ
+
+	return 0;
+
+disable_clk_core:
+	clk_disable_unprepare(dev->clk_core);
+
+	return err;
+}
+
+static int allegro_runtime_suspend(struct device *device)
+{
+	struct allegro_dev *dev = dev_get_drvdata(device);
+
+	clk_disable_unprepare(dev->clk_mcu);
+	clk_disable_unprepare(dev->clk_core);
 
 	return 0;
 }
@@ -3780,12 +3857,18 @@ static const struct of_device_id allegro_dt_ids[] = {
 
 MODULE_DEVICE_TABLE(of, allegro_dt_ids);
 
+static const struct dev_pm_ops allegro_pm_ops = {
+	.runtime_resume = allegro_runtime_resume,
+	.runtime_suspend = allegro_runtime_suspend,
+};
+
 static struct platform_driver allegro_driver = {
 	.probe = allegro_probe,
 	.remove = allegro_remove,
 	.driver = {
 		.name = "allegro",
 		.of_match_table = of_match_ptr(allegro_dt_ids),
+		.pm = &allegro_pm_ops,
 	},
 };
 
