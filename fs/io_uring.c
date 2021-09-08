@@ -2197,8 +2197,9 @@ static void io_req_task_work_add(struct io_kiocb *req)
 	 * will do the job.
 	 */
 	notify = (req->ctx->flags & IORING_SETUP_SQPOLL) ? TWA_NONE : TWA_SIGNAL;
-	if (!task_work_add(tsk, &tctx->task_work, notify)) {
-		wake_up_process(tsk);
+	if (likely(!task_work_add(tsk, &tctx->task_work, notify))) {
+		if (notify == TWA_NONE)
+			wake_up_process(tsk);
 		return;
 	}
 
