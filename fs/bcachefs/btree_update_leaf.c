@@ -48,13 +48,11 @@ static inline bool same_leaf_as_next(struct btree_trans *trans,
 		insert_l(&i[0])->b == insert_l(&i[1])->b;
 }
 
-inline void bch2_btree_node_lock_for_insert(struct btree_trans *trans,
-					    struct btree_path *path,
-					    struct btree *b)
+static inline void bch2_btree_node_prep_for_write(struct btree_trans *trans,
+						  struct btree_path *path,
+						  struct btree *b)
 {
 	struct bch_fs *c = trans->c;
-
-	bch2_btree_node_lock_write(trans, path, b);
 
 	if (path->cached)
 		return;
@@ -69,6 +67,14 @@ inline void bch2_btree_node_lock_for_insert(struct btree_trans *trans,
 	 */
 	if (want_new_bset(c, b))
 		bch2_btree_init_next(trans, b);
+}
+
+void bch2_btree_node_lock_for_insert(struct btree_trans *trans,
+				     struct btree_path *path,
+				     struct btree *b)
+{
+	bch2_btree_node_lock_write(trans, path, b);
+	bch2_btree_node_prep_for_write(trans, path, b);
 }
 
 /* Inserting into a given leaf node (last stage of insert): */
@@ -495,6 +501,50 @@ err:
 	return ret;
 }
 
+static inline void upgrade_readers(struct btree_trans *trans, struct btree_path *path)
+{
+	struct btree *b = path_l(path)->b;
+
+	do {
+		if (path->nodes_locked &&
+		    path->nodes_locked != path->nodes_intent_locked)
+			BUG_ON(!bch2_btree_path_upgrade(trans, path, path->level + 1));
+	} while ((path = prev_btree_path(trans, path)) &&
+		 path_l(path)->b == b);
+}
+
+/*
+ * Check for nodes that we have both read and intent locks on, and upgrade the
+ * readers to intent:
+ */
+static inline void normalize_read_intent_locks(struct btree_trans *trans)
+{
+	struct btree_path *path;
+	unsigned i, nr_read = 0, nr_intent = 0;
+
+	trans_for_each_path_inorder(trans, path, i) {
+		struct btree_path *next = i + 1 < trans->nr_sorted
+			? trans->paths + trans->sorted[i + 1]
+			: NULL;
+
+		if (path->nodes_locked) {
+			if (path->nodes_intent_locked)
+				nr_intent++;
+			else
+				nr_read++;
+		}
+
+		if (!next || path_l(path)->b != path_l(next)->b) {
+			if (nr_read && nr_intent)
+				upgrade_readers(trans, path);
+
+			nr_read = nr_intent = 0;
+		}
+	}
+
+	bch2_trans_verify_locks(trans);
+}
+
 /*
  * Get journal reservation, take write locks, and attempt to do btree update(s):
  */
@@ -537,9 +587,6 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 			u64s_delta = 0;
 		}
 	}
-
-	trans_for_each_update(trans, i)
-		BUG_ON(!btree_node_intent_locked(i->path, i->level));
 
 	ret = bch2_journal_preres_get(&c->journal,
 			&trans->journal_preres, trans->journal_preres_u64s,
@@ -586,12 +633,14 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 		}
 		btree_insert_entry_checks(trans, i);
 	}
-	bch2_trans_verify_locks(trans);
+
+	normalize_read_intent_locks(trans);
 
 	trans_for_each_update(trans, i)
-		if (!same_leaf_as_prev(trans, i))
-			bch2_btree_node_lock_for_insert(trans, i->path,
-					insert_l(i)->b);
+		if (!same_leaf_as_prev(trans, i)) {
+			btree_node_lock_type(c, insert_l(i)->b, SIX_LOCK_write);
+			bch2_btree_node_prep_for_write(trans, i->path, insert_l(i)->b);
+		}
 
 	ret = bch2_trans_commit_write_locked(trans, stopped_at, trace_ip);
 
