@@ -3146,7 +3146,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_P9_TM_HV_ASSIST)
 	/* The following code handles the fake_suspend = 1 case */
 	mflr	r0
 	std	r0, PPC_LR_STKOFF(r1)
-	stdu	r1, -PPC_MIN_STKFRM(r1)
+	stdu	r1, -TM_FRAME_SIZE(r1)
 
 	/* Turn on TM. */
 	mfmsr	r8
@@ -3161,9 +3161,41 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_XER_SO_BUG)
 	nop
 
+	/*
+	 * It's possible that treclaim. may modify registers, if we have lost
+	 * track of fake-suspend state in the guest due to it using rfscv.
+	 * Save and restore registers in case this occurs.
+	 */
+	mfspr	r3, SPRN_DSCR
+	mfspr	r4, SPRN_XER
+	mfspr	r5, SPRN_AMR
+	/* SPRN_TAR would need to be saved here if the kernel ever used it */
+	mfcr	r12
+	SAVE_NVGPRS(r1)
+	SAVE_GPR(2, r1)
+	SAVE_GPR(3, r1)
+	SAVE_GPR(4, r1)
+	SAVE_GPR(5, r1)
+	stw	r12, 8(r1)
+	std	r1, HSTATE_HOST_R1(r13)
+
 	/* We have to treclaim here because that's the only way to do S->N */
 	li	r3, TM_CAUSE_KVM_RESCHED
 	TRECLAIM(R3)
+
+	GET_PACA(r13)
+	ld	r1, HSTATE_HOST_R1(r13)
+	REST_GPR(2, r1)
+	REST_GPR(3, r1)
+	REST_GPR(4, r1)
+	REST_GPR(5, r1)
+	lwz	r12, 8(r1)
+	REST_NVGPRS(r1)
+	mtspr	SPRN_DSCR, r3
+	mtspr	SPRN_XER, r4
+	mtspr	SPRN_AMR, r5
+	mtcr	r12
+	HMT_MEDIUM
 
 	/*
 	 * We were in fake suspend, so we are not going to save the
@@ -3192,7 +3224,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_XER_SO_BUG)
 	std	r5, VCPU_TFHAR(r9)
 	std	r6, VCPU_TFIAR(r9)
 
-	addi	r1, r1, PPC_MIN_STKFRM
+	addi	r1, r1, TM_FRAME_SIZE
 	ld	r0, PPC_LR_STKOFF(r1)
 	mtlr	r0
 	blr
