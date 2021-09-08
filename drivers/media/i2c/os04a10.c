@@ -1174,7 +1174,7 @@ static int os04a10_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int os04a10_g_mbus_config(struct v4l2_subdev *sd,
+static int os04a10_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	struct os04a10 *os04a10 = to_os04a10(sd);
@@ -1191,7 +1191,7 @@ static int os04a10_g_mbus_config(struct v4l2_subdev *sd,
 		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK |
 		V4L2_MBUS_CSI2_CHANNEL_1;
 
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -1964,7 +1964,6 @@ static const struct v4l2_subdev_core_ops os04a10_core_ops = {
 static const struct v4l2_subdev_video_ops os04a10_video_ops = {
 	.s_stream = os04a10_s_stream,
 	.g_frame_interval = os04a10_g_frame_interval,
-	.g_mbus_config = os04a10_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops os04a10_pad_ops = {
@@ -1973,6 +1972,7 @@ static const struct v4l2_subdev_pad_ops os04a10_pad_ops = {
 	.enum_frame_interval = os04a10_enum_frame_interval,
 	.get_fmt = os04a10_get_fmt,
 	.set_fmt = os04a10_set_fmt,
+	.get_mbus_config = os04a10_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops os04a10_subdev_ops = {
