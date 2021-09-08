@@ -122,6 +122,7 @@ static void irtoy_response(struct irtoy *irtoy, u32 len)
 				len, irtoy->in);
 		}
 		break;
+	case STATE_COMMAND_NO_RESP:
 	case STATE_IRDATA: {
 		struct ir_raw_event rawir = { .pulse = irtoy->pulse };
 		__be16 *in = (__be16 *)irtoy->in;
@@ -167,10 +168,8 @@ static void irtoy_response(struct irtoy *irtoy, u32 len)
 			int err;
 
 			if (len != 1 || space > MAX_PACKET || space == 0) {
-				dev_err(irtoy->dev, "packet length expected: %*phN\n",
+				dev_dbg(irtoy->dev, "packet length expected: %*phN\n",
 					len, irtoy->in);
-				irtoy->state = STATE_IRDATA;
-				complete(&irtoy->command_done);
 				break;
 			}
 
@@ -194,9 +193,6 @@ static void irtoy_response(struct irtoy *irtoy, u32 len)
 			irtoy->tx_len -= buf_len;
 		}
 		break;
-	case STATE_COMMAND_NO_RESP:
-		dev_err(irtoy->dev, "unexpected response to reset: %*phN\n",
-			len, irtoy->in);
 	}
 }
 
