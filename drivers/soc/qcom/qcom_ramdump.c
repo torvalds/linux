@@ -16,6 +16,33 @@
 #include <linux/devcoredump.h>
 #include <linux/soc/qcom/mdt_loader.h>
 
+#define RAMDUMP_TIMEOUT 120000
+
+#define SIZEOF_ELF_STRUCT(__xhdr) \
+static inline size_t sizeof_elf_##__xhdr(unsigned char class) \
+{ \
+	if (class == ELFCLASS32) \
+		return sizeof(struct elf32_##__xhdr); \
+	else \
+		return sizeof(struct elf64_##__xhdr); \
+}
+
+SIZEOF_ELF_STRUCT(phdr)
+SIZEOF_ELF_STRUCT(hdr)
+
+#define set_xhdr_property(__xhdr, arg, class, member, value) \
+do { \
+	if (class == ELFCLASS32) \
+		((struct elf32_##__xhdr *)arg)->member = value; \
+	else \
+		((struct elf64_##__xhdr *)arg)->member = value; \
+} while (0)
+
+#define set_ehdr_property(arg, class, member, value) \
+	set_xhdr_property(hdr, arg, class, member, value)
+#define set_phdr_property(arg, class, member, value) \
+	set_xhdr_property(phdr, arg, class, member, value)
+
 struct qcom_ramdump_desc {
 	void *data;
 	struct completion dump_done;
@@ -101,11 +128,23 @@ int qcom_dump(struct list_head *segs, struct device *dev)
 }
 EXPORT_SYMBOL(qcom_dump);
 
-int qcom_elf_dump(struct list_head *segs, struct device *dev)
+/* Since the elf32 and elf64 identification is identical
+ * apart from the class we use elf32 by default.
+ */
+static void init_elf_identification(struct elf32_hdr *ehdr, unsigned char class)
+{
+	memcpy(ehdr->e_ident, ELFMAG, SELFMAG);
+	ehdr->e_ident[EI_CLASS] = class;
+	ehdr->e_ident[EI_DATA] = ELFDATA2LSB;
+	ehdr->e_ident[EI_VERSION] = EV_CURRENT;
+	ehdr->e_ident[EI_OSABI] = ELFOSABI_NONE;
+}
+
+int qcom_elf_dump(struct list_head *segs, struct device *dev, unsigned char class)
 {
 	struct qcom_dump_segment *segment;
-	struct elf32_phdr *phdr;
-	struct elf32_hdr *ehdr;
+	void *phdr;
+	void *ehdr;
 	size_t data_size;
 	size_t offset;
 	int phnum = 0;
@@ -116,10 +155,9 @@ int qcom_elf_dump(struct list_head *segs, struct device *dev)
 	if (!segs || list_empty(segs))
 		return -EINVAL;
 
-	data_size = sizeof(*ehdr);
+	data_size = sizeof_elf_hdr(class);
 	list_for_each_entry(segment, segs, node) {
-		data_size += sizeof(*phdr) + segment->size;
-
+		data_size += sizeof_elf_phdr(class) + segment->size;
 		phnum++;
 	}
 
@@ -130,33 +168,28 @@ int qcom_elf_dump(struct list_head *segs, struct device *dev)
 	pr_debug("Creating elf with size %d\n", data_size);
 	ehdr = data;
 
-	memset(ehdr, 0, sizeof(*ehdr));
-	memcpy(ehdr->e_ident, ELFMAG, SELFMAG);
-	ehdr->e_ident[EI_CLASS] = ELFCLASS32;
-	ehdr->e_ident[EI_DATA] = ELFDATA2LSB;
-	ehdr->e_ident[EI_VERSION] = EV_CURRENT;
-	ehdr->e_ident[EI_OSABI] = ELFOSABI_NONE;
-	ehdr->e_type = ET_CORE;
-	ehdr->e_machine = EM_NONE;
-	ehdr->e_version = EV_CURRENT;
-	ehdr->e_entry = 0;
-	ehdr->e_phoff = sizeof(*ehdr);
-	ehdr->e_ehsize = sizeof(*ehdr);
-	ehdr->e_phentsize = sizeof(*phdr);
-	ehdr->e_phnum = phnum;
+	memset(ehdr, 0, sizeof_elf_hdr(class));
+	init_elf_identification(ehdr, class);
+	set_ehdr_property(ehdr, class, e_type, ET_CORE);
+	set_ehdr_property(ehdr, class, e_machine, EM_NONE);
+	set_ehdr_property(ehdr, class, e_version, EV_CURRENT);
+	set_ehdr_property(ehdr, class, e_phoff, sizeof_elf_hdr(class));
+	set_ehdr_property(ehdr, class, e_ehsize, sizeof_elf_hdr(class));
+	set_ehdr_property(ehdr, class, e_phentsize, sizeof_elf_phdr(class));
+	set_ehdr_property(ehdr, class, e_phnum, phnum);
 
-	phdr = data + ehdr->e_phoff;
-	offset = ehdr->e_phoff + sizeof(*phdr) * ehdr->e_phnum;
+	phdr = data + sizeof_elf_hdr(class);
+	offset = sizeof_elf_hdr(class) + sizeof_elf_phdr(class) * phnum;
 	list_for_each_entry(segment, segs, node) {
-		memset(phdr, 0, sizeof(*phdr));
-		phdr->p_type = PT_LOAD;
-		phdr->p_offset = offset;
-		phdr->p_vaddr = segment->da;
-		phdr->p_paddr = segment->da;
-		phdr->p_filesz = segment->size;
-		phdr->p_memsz = segment->size;
-		phdr->p_flags = PF_R | PF_W | PF_X;
-		phdr->p_align = 0;
+		memset(phdr, 0, sizeof_elf_phdr(class));
+		set_phdr_property(phdr, class, p_type, PT_LOAD);
+		set_phdr_property(phdr, class, p_offset, offset);
+		set_phdr_property(phdr, class, p_vaddr, segment->da);
+		set_phdr_property(phdr, class, p_paddr, segment->da);
+		set_phdr_property(phdr, class, p_filesz, segment->size);
+		set_phdr_property(phdr, class, p_memsz, segment->size);
+		set_phdr_property(phdr, class, p_flags, PF_R | PF_W | PF_X);
+		set_phdr_property(phdr, class, p_align, 0);
 
 		if (segment->va)
 			memcpy(data + offset, segment->va, segment->size);
@@ -172,7 +205,7 @@ int qcom_elf_dump(struct list_head *segs, struct device *dev)
 					      segment->size);
 		}
 
-		offset += phdr->p_filesz;
+		offset += segment->size;
 		phdr++;
 	}
 
@@ -214,7 +247,7 @@ int qcom_fw_elf_dump(struct firmware *fw, struct device *dev)
 
 		list_add_tail(&segment->node, &head);
 	}
-	qcom_elf_dump(&head, dev);
+	qcom_elf_dump(&head, dev, ELFCLASS32);
 	return 0;
 }
 EXPORT_SYMBOL(qcom_fw_elf_dump);
