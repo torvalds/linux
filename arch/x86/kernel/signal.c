@@ -136,8 +136,8 @@ static bool restore_sigcontext(struct pt_regs *regs,
 		force_valid_ss(regs);
 #endif
 
-	return !fpu__restore_sig((void __user *)sc.fpstate,
-				 IS_ENABLED(CONFIG_X86_32));
+	return fpu__restore_sig((void __user *)sc.fpstate,
+			       IS_ENABLED(CONFIG_X86_32));
 }
 
 static __always_inline int

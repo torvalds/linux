@@ -433,17 +433,17 @@ static inline int xstate_sigframe_size(void)
 /*
  * Restore FPU state from a sigframe:
  */
-int fpu__restore_sig(void __user *buf, int ia32_frame)
+bool fpu__restore_sig(void __user *buf, int ia32_frame)
 {
 	unsigned int size = xstate_sigframe_size();
 	struct fpu *fpu = &current->thread.fpu;
 	void __user *buf_fx = buf;
 	bool ia32_fxstate = false;
-	int ret;
+	bool success = false;
 
 	if (unlikely(!buf)) {
 		fpu__clear_user_states(fpu);
-		return 0;
+		return true;
 	}
 
 	ia32_frame &= (IS_ENABLED(CONFIG_X86_32) ||
@@ -459,23 +459,21 @@ int fpu__restore_sig(void __user *buf, int ia32_frame)
 		ia32_fxstate = true;
 	}
 
-	if (!access_ok(buf, size)) {
-		ret = -EACCES;
+	if (!access_ok(buf, size))
 		goto out;
-	}
 
 	if (!IS_ENABLED(CONFIG_X86_64) && !cpu_feature_enabled(X86_FEATURE_FPU)) {
-		ret = fpregs_soft_set(current, NULL, 0,
-				      sizeof(struct user_i387_ia32_struct),
-				      NULL, buf);
+		success = !fpregs_soft_set(current, NULL, 0,
+					   sizeof(struct user_i387_ia32_struct),
+					   NULL, buf);
 	} else {
-		ret = __fpu_restore_sig(buf, buf_fx, ia32_fxstate);
+		success = !__fpu_restore_sig(buf, buf_fx, ia32_fxstate);
 	}
 
 out:
-	if (unlikely(ret))
+	if (unlikely(!success))
 		fpu__clear_user_states(fpu);
-	return ret;
+	return success;
 }
 
 unsigned long
