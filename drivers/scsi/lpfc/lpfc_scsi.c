@@ -5578,12 +5578,8 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	struct fc_rport *rport = starget_to_rport(scsi_target(cmnd->device));
 	int err, idx;
 	u8 *uuid = NULL;
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	uint64_t start = 0L;
+	uint64_t start;
 
-	if (phba->ktime_on)
-		start = ktime_get_ns();
-#endif
 	start = ktime_get_ns();
 	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
 
