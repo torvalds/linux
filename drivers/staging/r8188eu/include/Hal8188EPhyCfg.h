@@ -185,9 +185,6 @@ int PHY_MACConfig8188E(struct adapter *adapter);
 int PHY_BBConfig8188E(struct adapter *adapter);
 int PHY_RFConfig8188E(struct adapter *adapter);
 
-/* Read initi reg value for tx power setting. */
-void rtl8192c_PHY_GetHWRegOriginalValue(struct adapter *adapter);
-
 /*  BB TX Power R/W */
 void PHY_SetTxPowerLevel8188E(struct adapter *adapter, u8 channel);
 
