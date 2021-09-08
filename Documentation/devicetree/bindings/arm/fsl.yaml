@@ -992,6 +992,13 @@ properties:
           - const: solidrun,lx2160a-cex7
           - const: fsl,lx2160a
 
+      - description: S32G2 based Boards
+        items:
+          - enum:
+              - nxp,s32g274a-evb
+              - nxp,s32g274a-rdb2
+          - const: nxp,s32g2
+
       - description: S32V234 based Boards
         items:
           - enum:
