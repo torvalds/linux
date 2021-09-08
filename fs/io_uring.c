@@ -315,6 +315,7 @@ struct io_submit_state {
 	unsigned int		free_reqs;
 
 	bool			plug_started;
+	bool			need_plug;
 
 	/*
 	 * Batch completion logic
@@ -323,8 +324,6 @@ struct io_submit_state {
 	unsigned int		compl_nr;
 	/* inline/task_work completion list, under ->uring_lock */
 	struct list_head	free_list;
-
-	unsigned int		ios_left;
 };
 
 struct io_ring_ctx {
@@ -7090,10 +7089,10 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	 * Plug now if we have more than 1 IO left after this, and the target
 	 * is potentially a read/write to block based storage.
 	 */
-	if (!state->plug_started && state->ios_left > 1 &&
-	    io_op_defs[req->opcode].plug) {
+	if (state->need_plug && io_op_defs[req->opcode].plug) {
 		blk_start_plug(&state->plug);
 		state->plug_started = true;
+		state->need_plug = false;
 	}
 
 	if (io_op_defs[req->opcode].needs_file) {
@@ -7102,8 +7101,6 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		if (unlikely(!req->file))
 			ret = -EBADF;
 	}
-
-	state->ios_left--;
 	return ret;
 }
 
@@ -7212,7 +7209,7 @@ static void io_submit_state_start(struct io_submit_state *state,
 				  unsigned int max_ios)
 {
 	state->plug_started = false;
-	state->ios_left = max_ios;
+	state->need_plug = max_ios > 2;
 	/* set only head, no need to init link_last in advance */
 	state->link.head = NULL;
 }
