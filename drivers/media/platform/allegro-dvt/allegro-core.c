@@ -1620,13 +1620,17 @@ static ssize_t allegro_h264_write_sps(struct allegro_channel *channel,
 	sps->vui_parameters_present_flag = 1;
 	sps->vui.aspect_ratio_info_present_flag = 0;
 	sps->vui.overscan_info_present_flag = 0;
+
 	sps->vui.video_signal_type_present_flag = 1;
-	sps->vui.video_format = 1;
-	sps->vui.video_full_range_flag = 0;
+	sps->vui.video_format = 5; /* unspecified */
+	sps->vui.video_full_range_flag = nal_h264_full_range(channel->quantization);
 	sps->vui.colour_description_present_flag = 1;
-	sps->vui.colour_primaries = 5;
-	sps->vui.transfer_characteristics = 5;
-	sps->vui.matrix_coefficients = 5;
+	sps->vui.colour_primaries = nal_h264_color_primaries(channel->colorspace);
+	sps->vui.transfer_characteristics =
+		nal_h264_transfer_characteristics(channel->colorspace, channel->xfer_func);
+	sps->vui.matrix_coefficients =
+		nal_h264_matrix_coeffs(channel->colorspace, channel->ycbcr_enc);
+
 	sps->vui.chroma_loc_info_present_flag = 1;
 	sps->vui.chroma_sample_loc_type_top_field = 0;
 	sps->vui.chroma_sample_loc_type_bottom_field = 0;
