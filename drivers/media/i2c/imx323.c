@@ -706,7 +706,7 @@ static int imx323_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 }
 #endif
 
-static int imx323_g_mbus_config(struct v4l2_subdev *sd,
+static int imx323_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	config->type = V4L2_MBUS_BT656;
@@ -753,7 +753,6 @@ static const struct v4l2_subdev_core_ops imx323_core_ops = {
 
 static const struct v4l2_subdev_video_ops imx323_video_ops = {
 	.s_stream = imx323_s_stream,
-	.g_mbus_config = imx323_g_mbus_config,
 	.g_frame_interval = imx323_g_frame_interval,
 };
 
@@ -763,6 +762,7 @@ static const struct v4l2_subdev_pad_ops imx323_pad_ops = {
 	.enum_frame_interval = imx323_enum_frame_interval,
 	.get_fmt = imx323_get_fmt,
 	.set_fmt = imx323_set_fmt,
+	.get_mbus_config = imx323_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops imx323_subdev_ops = {
