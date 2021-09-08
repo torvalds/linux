@@ -803,15 +803,16 @@ static int psp_asd_load(struct psp_context *psp)
 	 * add workaround to bypass it for sriov now.
 	 * TODO: add version check to make it common
 	 */
-	if (amdgpu_sriov_vf(psp->adev) || !psp->asd.size_bytes)
+	if (amdgpu_sriov_vf(psp->adev) || !psp->asd_context.bin_desc.size_bytes)
 		return 0;
 
 	cmd = acquire_psp_cmd_buf(psp);
 
-	psp_copy_fw(psp, psp->asd.start_addr, psp->asd.size_bytes);
+	psp_copy_fw(psp, psp->asd_context.bin_desc.start_addr,
+		    psp->asd_context.bin_desc.size_bytes);
 
 	psp_prep_asd_load_cmd_buf(cmd, psp->fw_pri_mc_addr,
-				  psp->asd.size_bytes);
+				  psp->asd_context.bin_desc.size_bytes);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 				 psp->fence_buf_mc_addr);
@@ -900,17 +901,18 @@ int psp_reg_program(struct psp_context *psp, enum psp_reg_prog_id reg,
 
 static void psp_prep_ta_load_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 				     uint64_t ta_bin_mc,
-				     uint32_t ta_bin_size,
-				     struct ta_mem_context *mem_ctx)
+				     struct ta_context *context)
 {
 	cmd->cmd_id				= GFX_CMD_ID_LOAD_TA;
 	cmd->cmd.cmd_load_ta.app_phy_addr_lo 	= lower_32_bits(ta_bin_mc);
 	cmd->cmd.cmd_load_ta.app_phy_addr_hi	= upper_32_bits(ta_bin_mc);
-	cmd->cmd.cmd_load_ta.app_len		= ta_bin_size;
+	cmd->cmd.cmd_load_ta.app_len		= context->bin_desc.size_bytes;
 
-	cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_lo = lower_32_bits(mem_ctx->shared_mc_addr);
-	cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_hi = upper_32_bits(mem_ctx->shared_mc_addr);
-	cmd->cmd.cmd_load_ta.cmd_buf_len	 = mem_ctx->shared_mem_size;
+	cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_lo =
+		lower_32_bits(context->mem_context.shared_mc_addr);
+	cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_hi =
+		upper_32_bits(context->mem_context.shared_mc_addr);
+	cmd->cmd.cmd_load_ta.cmd_buf_len = context->mem_context.shared_mem_size;
 }
 
 static int psp_ta_init_shared_buf(struct psp_context *psp,
@@ -969,7 +971,6 @@ static int psp_ta_invoke(struct psp_context *psp,
 }
 
 static int psp_ta_load(struct psp_context *psp,
-			   struct psp_bin_desc *bin_desc,
 			   struct ta_context *context)
 {
 	int ret;
@@ -977,12 +978,12 @@ static int psp_ta_load(struct psp_context *psp,
 
 	cmd = acquire_psp_cmd_buf(psp);
 
-	psp_copy_fw(psp, bin_desc->start_addr, bin_desc->size_bytes);
+	psp_copy_fw(psp, context->bin_desc.start_addr,
+		    context->bin_desc.size_bytes);
 
 	psp_prep_ta_load_cmd_buf(cmd,
 				 psp->fw_pri_mc_addr,
-				 bin_desc->size_bytes,
-				 &context->mem_context);
+				 context);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 				 psp->fence_buf_mc_addr);
@@ -998,7 +999,7 @@ static int psp_ta_load(struct psp_context *psp,
 
 static int psp_xgmi_load(struct psp_context *psp)
 {
-	return psp_ta_load(psp, &psp->xgmi, &psp->xgmi_context.context);
+	return psp_ta_load(psp, &psp->xgmi_context.context);
 }
 
 static int psp_xgmi_unload(struct psp_context *psp)
@@ -1042,8 +1043,8 @@ int psp_xgmi_initialize(struct psp_context *psp, bool set_extended_data, bool lo
 	int ret;
 
 	if (!psp->ta_fw ||
-	    !psp->xgmi.size_bytes ||
-	    !psp->xgmi.start_addr)
+	    !psp->xgmi_context.context.bin_desc.size_bytes ||
+	    !psp->xgmi_context.context.bin_desc.start_addr)
 		return -ENOENT;
 
 	if (!load_ta)
@@ -1119,7 +1120,7 @@ int psp_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id)
 static bool psp_xgmi_peer_link_info_supported(struct psp_context *psp)
 {
 	return psp->adev->asic_type == CHIP_ALDEBARAN &&
-				psp->xgmi.feature_version >= 0x2000000b;
+				psp->xgmi_context.context.bin_desc.feature_version >= 0x2000000b;
 }
 
 /*
@@ -1288,7 +1289,7 @@ static int psp_ras_init_shared_buf(struct psp_context *psp)
 
 static int psp_ras_load(struct psp_context *psp)
 {
-	return psp_ta_load(psp, &psp->ras, &psp->ras_context.context);
+	return psp_ta_load(psp, &psp->ras_context.context);
 }
 
 static int psp_ras_unload(struct psp_context *psp)
@@ -1401,8 +1402,8 @@ static int psp_ras_initialize(struct psp_context *psp)
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	if (!adev->psp.ras.size_bytes ||
-	    !adev->psp.ras.start_addr) {
+	if (!adev->psp.ras_context.context.bin_desc.size_bytes ||
+	    !adev->psp.ras_context.context.bin_desc.start_addr) {
 		dev_info(adev->dev, "RAS: optional ras ta ucode is not available\n");
 		return 0;
 	}
@@ -1518,8 +1519,9 @@ static int psp_hdcp_init_shared_buf(struct psp_context *psp)
 
 static int psp_hdcp_load(struct psp_context *psp)
 {
-	return psp_ta_load(psp, &psp->hdcp, &psp->hdcp_context.context);
+	return psp_ta_load(psp, &psp->hdcp_context.context);
 }
+
 static int psp_hdcp_initialize(struct psp_context *psp)
 {
 	int ret;
@@ -1530,8 +1532,8 @@ static int psp_hdcp_initialize(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	if (!psp->hdcp.size_bytes ||
-	    !psp->hdcp.start_addr) {
+	if (!psp->hdcp_context.context.bin_desc.size_bytes ||
+	    !psp->hdcp_context.context.bin_desc.start_addr) {
 		dev_info(psp->adev->dev, "HDCP: optional hdcp ta ucode is not available\n");
 		return 0;
 	}
@@ -1608,7 +1610,7 @@ static int psp_dtm_init_shared_buf(struct psp_context *psp)
 
 static int psp_dtm_load(struct psp_context *psp)
 {
-	return psp_ta_load(psp, &psp->dtm, &psp->dtm_context.context);
+	return psp_ta_load(psp, &psp->dtm_context.context);
 }
 
 static int psp_dtm_initialize(struct psp_context *psp)
@@ -1621,8 +1623,8 @@ static int psp_dtm_initialize(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	if (!psp->dtm.size_bytes ||
-	    !psp->dtm.start_addr) {
+	if (!psp->dtm_context.context.bin_desc.size_bytes ||
+	    !psp->dtm_context.context.bin_desc.start_addr) {
 		dev_info(psp->adev->dev, "DTM: optional dtm ta ucode is not available\n");
 		return 0;
 	}
@@ -1699,7 +1701,7 @@ static int psp_rap_init_shared_buf(struct psp_context *psp)
 
 static int psp_rap_load(struct psp_context *psp)
 {
-	return psp_ta_load(psp, &psp->rap, &psp->rap_context.context);
+	return psp_ta_load(psp, &psp->rap_context.context);
 }
 
 static int psp_rap_unload(struct psp_context *psp)
@@ -1718,8 +1720,8 @@ static int psp_rap_initialize(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	if (!psp->rap.size_bytes ||
-	    !psp->rap.start_addr) {
+	if (!psp->rap_context.context.bin_desc.size_bytes ||
+	    !psp->rap_context.context.bin_desc.start_addr) {
 		dev_info(psp->adev->dev, "RAP: optional rap ta ucode is not available\n");
 		return 0;
 	}
@@ -1813,8 +1815,7 @@ static int psp_securedisplay_init_shared_buf(struct psp_context *psp)
 
 static int psp_securedisplay_load(struct psp_context *psp)
 {
-	return psp_ta_load(psp, &psp->securedisplay,
-			   &psp->securedisplay_context.context);
+	return psp_ta_load(psp, &psp->securedisplay_context.context);
 }
 
 static int psp_securedisplay_unload(struct psp_context *psp)
@@ -1833,8 +1834,8 @@ static int psp_securedisplay_initialize(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	if (!psp->securedisplay.size_bytes ||
-	    !psp->securedisplay.start_addr) {
+	if (!psp->securedisplay_context.context.bin_desc.size_bytes ||
+	    !psp->securedisplay_context.context.bin_desc.start_addr) {
 		dev_info(psp->adev->dev, "SECUREDISPLAY: securedisplay ta ucode is not available\n");
 		return 0;
 	}
@@ -2783,10 +2784,10 @@ int psp_init_asd_microcode(struct psp_context *psp,
 		goto out;
 
 	asd_hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.asd_fw->data;
-	adev->psp.asd.fw_version = le32_to_cpu(asd_hdr->header.ucode_version);
-	adev->psp.asd.feature_version = le32_to_cpu(asd_hdr->sos.fw_version);
-	adev->psp.asd.size_bytes = le32_to_cpu(asd_hdr->header.ucode_size_bytes);
-	adev->psp.asd.start_addr = (uint8_t *)asd_hdr +
+	adev->psp.asd_context.bin_desc.fw_version = le32_to_cpu(asd_hdr->header.ucode_version);
+	adev->psp.asd_context.bin_desc.feature_version = le32_to_cpu(asd_hdr->sos.fw_version);
+	adev->psp.asd_context.bin_desc.size_bytes = le32_to_cpu(asd_hdr->header.ucode_size_bytes);
+	adev->psp.asd_context.bin_desc.start_addr = (uint8_t *)asd_hdr +
 				le32_to_cpu(asd_hdr->header.ucode_array_offset_bytes);
 	return 0;
 out:
@@ -3073,40 +3074,43 @@ static int parse_ta_bin_descriptor(struct psp_context *psp,
 
 	switch (desc->fw_type) {
 	case TA_FW_TYPE_PSP_ASD:
-		psp->asd.fw_version        = le32_to_cpu(desc->fw_version);
-		psp->asd.feature_version   = le32_to_cpu(desc->fw_version);
-		psp->asd.size_bytes        = le32_to_cpu(desc->size_bytes);
-		psp->asd.start_addr 	   = ucode_start_addr;
+		psp->asd_context.bin_desc.fw_version        = le32_to_cpu(desc->fw_version);
+		psp->asd_context.bin_desc.feature_version   = le32_to_cpu(desc->fw_version);
+		psp->asd_context.bin_desc.size_bytes        = le32_to_cpu(desc->size_bytes);
+		psp->asd_context.bin_desc.start_addr        = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_XGMI:
-		psp->xgmi.feature_version  = le32_to_cpu(desc->fw_version);
-		psp->xgmi.size_bytes       = le32_to_cpu(desc->size_bytes);
-		psp->xgmi.start_addr       = ucode_start_addr;
+		psp->xgmi_context.context.bin_desc.feature_version  = le32_to_cpu(desc->fw_version);
+		psp->xgmi_context.context.bin_desc.size_bytes       = le32_to_cpu(desc->size_bytes);
+		psp->xgmi_context.context.bin_desc.start_addr       = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_RAS:
-		psp->ras.feature_version   = le32_to_cpu(desc->fw_version);
-		psp->ras.size_bytes        = le32_to_cpu(desc->size_bytes);
-		psp->ras.start_addr        = ucode_start_addr;
+		psp->ras_context.context.bin_desc.feature_version   = le32_to_cpu(desc->fw_version);
+		psp->ras_context.context.bin_desc.size_bytes        = le32_to_cpu(desc->size_bytes);
+		psp->ras_context.context.bin_desc.start_addr        = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_HDCP:
-		psp->hdcp.feature_version  = le32_to_cpu(desc->fw_version);
-		psp->hdcp.size_bytes       = le32_to_cpu(desc->size_bytes);
-		psp->hdcp.start_addr       = ucode_start_addr;
+		psp->hdcp_context.context.bin_desc.feature_version  = le32_to_cpu(desc->fw_version);
+		psp->hdcp_context.context.bin_desc.size_bytes       = le32_to_cpu(desc->size_bytes);
+		psp->hdcp_context.context.bin_desc.start_addr       = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_DTM:
-		psp->dtm.feature_version  = le32_to_cpu(desc->fw_version);
-		psp->dtm.size_bytes       = le32_to_cpu(desc->size_bytes);
-		psp->dtm.start_addr       = ucode_start_addr;
+		psp->dtm_context.context.bin_desc.feature_version  = le32_to_cpu(desc->fw_version);
+		psp->dtm_context.context.bin_desc.size_bytes       = le32_to_cpu(desc->size_bytes);
+		psp->dtm_context.context.bin_desc.start_addr       = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_RAP:
-		psp->rap.feature_version  = le32_to_cpu(desc->fw_version);
-		psp->rap.size_bytes       = le32_to_cpu(desc->size_bytes);
-		psp->rap.start_addr       = ucode_start_addr;
+		psp->rap_context.context.bin_desc.feature_version  = le32_to_cpu(desc->fw_version);
+		psp->rap_context.context.bin_desc.size_bytes       = le32_to_cpu(desc->size_bytes);
+		psp->rap_context.context.bin_desc.start_addr       = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_SECUREDISPLAY:
-		psp->securedisplay.feature_version  = le32_to_cpu(desc->fw_version);
-		psp->securedisplay.size_bytes       = le32_to_cpu(desc->size_bytes);
-		psp->securedisplay.start_addr       = ucode_start_addr;
+		psp->securedisplay_context.context.bin_desc.feature_version =
+			le32_to_cpu(desc->fw_version);
+		psp->securedisplay_context.context.bin_desc.size_bytes =
+			le32_to_cpu(desc->size_bytes);
+		psp->securedisplay_context.context.bin_desc.start_addr =
+			ucode_start_addr;
 		break;
 	default:
 		dev_warn(psp->adev->dev, "Unsupported TA type: %d\n", desc->fw_type);
