@@ -1518,14 +1518,17 @@ static inline void xen_alloc_ptpage(struct mm_struct *mm, unsigned long pfn,
 	if (pinned) {
 		struct page *page = pfn_to_page(pfn);
 
-		if (static_branch_likely(&xen_struct_pages_ready))
+		pinned = false;
+		if (static_branch_likely(&xen_struct_pages_ready)) {
+			pinned = PagePinned(page);
 			SetPagePinned(page);
+		}
 
 		xen_mc_batch();
 
 		__set_pfn_prot(pfn, PAGE_KERNEL_RO);
 
-		if (level == PT_PTE && USE_SPLIT_PTE_PTLOCKS)
+		if (level == PT_PTE && USE_SPLIT_PTE_PTLOCKS && !pinned)
 			__pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
 
 		xen_mc_issue(PARAVIRT_LAZY_MMU);
