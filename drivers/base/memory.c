@@ -82,6 +82,11 @@ static struct bus_type memory_subsys = {
  */
 static DEFINE_XARRAY(memory_blocks);
 
+/*
+ * Memory groups, indexed by memory group id (mgid).
+ */
+static DEFINE_XARRAY_FLAGS(memory_groups, XA_FLAGS_ALLOC);
+
 static BLOCKING_NOTIFIER_HEAD(memory_chain);
 
 int register_memory_notifier(struct notifier_block *nb)
@@ -634,7 +639,8 @@ int register_memory(struct memory_block *memory)
 }
 
 static int init_memory_block(unsigned long block_id, unsigned long state,
-			     unsigned long nr_vmemmap_pages)
+			     unsigned long nr_vmemmap_pages,
+			     struct memory_group *group)
 {
 	struct memory_block *mem;
 	int ret = 0;
@@ -652,6 +658,12 @@ static int init_memory_block(unsigned long block_id, unsigned long state,
 	mem->state = state;
 	mem->nid = NUMA_NO_NODE;
 	mem->nr_vmemmap_pages = nr_vmemmap_pages;
+	INIT_LIST_HEAD(&mem->group_next);
+
+	if (group) {
+		mem->group = group;
+		list_add(&mem->group_next, &group->memory_blocks);
+	}
 
 	ret = register_memory(mem);
 
@@ -671,7 +683,7 @@ static int add_memory_block(unsigned long base_section_nr)
 	if (section_count == 0)
 		return 0;
 	return init_memory_block(memory_block_id(base_section_nr),
-				 MEM_ONLINE, 0);
+				 MEM_ONLINE, 0,  NULL);
 }
 
 static void unregister_memory(struct memory_block *memory)
@@ -680,6 +692,11 @@ static void unregister_memory(struct memory_block *memory)
 		return;
 
 	WARN_ON(xa_erase(&memory_blocks, memory->dev.id) == NULL);
+
+	if (memory->group) {
+		list_del(&memory->group_next);
+		memory->group = NULL;
+	}
 
 	/* drop the ref. we got via find_memory_block() */
 	put_device(&memory->dev);
@@ -694,7 +711,8 @@ static void unregister_memory(struct memory_block *memory)
  * Called under device_hotplug_lock.
  */
 int create_memory_block_devices(unsigned long start, unsigned long size,
-				unsigned long vmemmap_pages)
+				unsigned long vmemmap_pages,
+				struct memory_group *group)
 {
 	const unsigned long start_block_id = pfn_to_block_id(PFN_DOWN(start));
 	unsigned long end_block_id = pfn_to_block_id(PFN_DOWN(start + size));
@@ -707,7 +725,8 @@ int create_memory_block_devices(unsigned long start, unsigned long size,
 		return -EINVAL;
 
 	for (block_id = start_block_id; block_id != end_block_id; block_id++) {
-		ret = init_memory_block(block_id, MEM_OFFLINE, vmemmap_pages);
+		ret = init_memory_block(block_id, MEM_OFFLINE, vmemmap_pages,
+					group);
 		if (ret)
 			break;
 	}
@@ -890,4 +909,136 @@ int for_each_memory_block(void *arg, walk_memory_blocks_func_t func)
 
 	return bus_for_each_dev(&memory_subsys, NULL, &cb_data,
 				for_each_memory_block_cb);
+}
+
+/*
+ * This is an internal helper to unify allocation and initialization of
+ * memory groups. Note that the passed memory group will be copied to a
+ * dynamically allocated memory group. After this call, the passed
+ * memory group should no longer be used.
+ */
+static int memory_group_register(struct memory_group group)
+{
+	struct memory_group *new_group;
+	uint32_t mgid;
+	int ret;
+
+	if (!node_possible(group.nid))
+		return -EINVAL;
+
+	new_group = kzalloc(sizeof(group), GFP_KERNEL);
+	if (!new_group)
+		return -ENOMEM;
+	*new_group = group;
+	INIT_LIST_HEAD(&new_group->memory_blocks);
+
+	ret = xa_alloc(&memory_groups, &mgid, new_group, xa_limit_31b,
+		       GFP_KERNEL);
+	if (ret) {
+		kfree(new_group);
+		return ret;
+	}
+	return mgid;
+}
+
+/**
+ * memory_group_register_static() - Register a static memory group.
+ * @nid: The node id.
+ * @max_pages: The maximum number of pages we'll have in this static memory
+ *	       group.
+ *
+ * Register a new static memory group and return the memory group id.
+ * All memory in the group belongs to a single unit, such as a DIMM. All
+ * memory belonging to a static memory group is added in one go to be removed
+ * in one go -- it's static.
+ *
+ * Returns an error if out of memory, if the node id is invalid, if no new
+ * memory groups can be registered, or if max_pages is invalid (0). Otherwise,
+ * returns the new memory group id.
+ */
+int memory_group_register_static(int nid, unsigned long max_pages)
+{
+	struct memory_group group = {
+		.nid = nid,
+		.s = {
+			.max_pages = max_pages,
+		},
+	};
+
+	if (!max_pages)
+		return -EINVAL;
+	return memory_group_register(group);
+}
+EXPORT_SYMBOL_GPL(memory_group_register_static);
+
+/**
+ * memory_group_register_dynamic() - Register a dynamic memory group.
+ * @nid: The node id.
+ * @unit_pages: Unit in pages in which is memory added/removed in this dynamic
+ *		memory group.
+ *
+ * Register a new dynamic memory group and return the memory group id.
+ * Memory within a dynamic memory group is added/removed dynamically
+ * in unit_pages.
+ *
+ * Returns an error if out of memory, if the node id is invalid, if no new
+ * memory groups can be registered, or if unit_pages is invalid (0, not a
+ * power of two, smaller than a single memory block). Otherwise, returns the
+ * new memory group id.
+ */
+int memory_group_register_dynamic(int nid, unsigned long unit_pages)
+{
+	struct memory_group group = {
+		.nid = nid,
+		.is_dynamic = true,
+		.d = {
+			.unit_pages = unit_pages,
+		},
+	};
+
+	if (!unit_pages || !is_power_of_2(unit_pages) ||
+	    unit_pages < PHYS_PFN(memory_block_size_bytes()))
+		return -EINVAL;
+	return memory_group_register(group);
+}
+EXPORT_SYMBOL_GPL(memory_group_register_dynamic);
+
+/**
+ * memory_group_unregister() - Unregister a memory group.
+ * @mgid: the memory group id
+ *
+ * Unregister a memory group. If any memory block still belongs to this
+ * memory group, unregistering will fail.
+ *
+ * Returns -EINVAL if the memory group id is invalid, returns -EBUSY if some
+ * memory blocks still belong to this memory group and returns 0 if
+ * unregistering succeeded.
+ */
+int memory_group_unregister(int mgid)
+{
+	struct memory_group *group;
+
+	if (mgid < 0)
+		return -EINVAL;
+
+	group = xa_load(&memory_groups, mgid);
+	if (!group)
+		return -EINVAL;
+	if (!list_empty(&group->memory_blocks))
+		return -EBUSY;
+	xa_erase(&memory_groups, mgid);
+	kfree(group);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(memory_group_unregister);
+
+/*
+ * This is an internal helper only to be used in core memory hotplug code to
+ * lookup a memory group. We don't care about locking, as we don't expect a
+ * memory group to get unregistered while adding memory to it -- because
+ * the group and the memory is managed by the same driver.
+ */
+struct memory_group *memory_group_find_by_id(int mgid)
+{
+	return xa_load(&memory_groups, mgid);
 }
