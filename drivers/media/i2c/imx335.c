@@ -823,7 +823,7 @@ static int imx335_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int imx335_g_mbus_config(struct v4l2_subdev *sd,
+static int imx335_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	u32 val = 0;
@@ -837,7 +837,7 @@ static int imx335_g_mbus_config(struct v4l2_subdev *sd,
 		val |= V4L2_MBUS_CSI2_CHANNEL_1;
 	if (mode->hdr_mode == HDR_X3)
 		val |= V4L2_MBUS_CSI2_CHANNEL_2;
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -1694,7 +1694,6 @@ static const struct v4l2_subdev_core_ops imx335_core_ops = {
 static const struct v4l2_subdev_video_ops imx335_video_ops = {
 	.s_stream = imx335_s_stream,
 	.g_frame_interval = imx335_g_frame_interval,
-	.g_mbus_config = imx335_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops imx335_pad_ops = {
@@ -1704,6 +1703,7 @@ static const struct v4l2_subdev_pad_ops imx335_pad_ops = {
 	.get_fmt = imx335_get_fmt,
 	.set_fmt = imx335_set_fmt,
 	.get_selection = imx335_get_selection,
+	.get_mbus_config = imx335_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops imx335_subdev_ops = {
