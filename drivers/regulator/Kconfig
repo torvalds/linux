@@ -1181,7 +1181,7 @@ config REGULATOR_STPMIC1
 
 config REGULATOR_TI_ABB
 	tristate "TI Adaptive Body Bias on-chip LDO"
-	depends on ARCH_OMAP
+	depends on ARCH_OMAP || COMPILE_TEST
 	help
 	  Select this option to support Texas Instruments' on-chip Adaptive Body
 	  Bias (ABB) LDO regulators. It is recommended that this option be
