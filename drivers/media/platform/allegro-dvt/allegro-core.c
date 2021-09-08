@@ -129,6 +129,13 @@ struct allegro_mbox {
 	struct mutex lock;
 };
 
+struct allegro_encoder_buffer {
+	unsigned int size;
+	unsigned int color_depth;
+	unsigned int num_cores;
+	unsigned int clk_rate;
+};
+
 struct allegro_dev {
 	struct v4l2_device v4l2_dev;
 	struct video_device video_dev;
@@ -148,6 +155,8 @@ struct allegro_dev {
 	const struct fw_info *fw_info;
 	struct allegro_buffer firmware;
 	struct allegro_buffer suballocator;
+	bool has_encoder_buffer;
+	struct allegro_encoder_buffer encoder_buffer;
 
 	struct completion init_complete;
 	bool initialized;
@@ -930,6 +939,52 @@ out:
 	kfree(msg);
 }
 
+static int allegro_encoder_buffer_init(struct allegro_dev *dev,
+				       struct allegro_encoder_buffer *buffer)
+{
+	int err;
+	struct regmap *settings = dev->settings;
+	unsigned int supports_10_bit;
+	unsigned int memory_depth;
+	unsigned int num_cores;
+	unsigned int color_depth;
+	unsigned long clk_rate;
+
+	/* We don't support the encoder buffer pre Firmware version 2019.2 */
+	if (dev->fw_info->mailbox_version < MCU_MSG_VERSION_2019_2)
+		return -ENODEV;
+
+	if (!settings)
+		return -EINVAL;
+
+	err = regmap_read(settings, VCU_ENC_COLOR_DEPTH, &supports_10_bit);
+	if (err < 0)
+		return err;
+	err = regmap_read(settings, VCU_MEMORY_DEPTH, &memory_depth);
+	if (err < 0)
+		return err;
+	err = regmap_read(settings, VCU_NUM_CORE, &num_cores);
+	if (err < 0)
+		return err;
+
+	clk_rate = clk_get_rate(dev->clk_core);
+	if (clk_rate == 0)
+		return -EINVAL;
+
+	color_depth = supports_10_bit ? 10 : 8;
+	/* The firmware expects the encoder buffer size in bits. */
+	buffer->size = color_depth * 32 * memory_depth;
+	buffer->color_depth = color_depth;
+	buffer->num_cores = num_cores;
+	buffer->clk_rate = clk_rate;
+
+	v4l2_dbg(1, debug, &dev->v4l2_dev,
+		 "using %d bits encoder buffer with %d-bit color depth\n",
+		 buffer->size, color_depth);
+
+	return 0;
+}
+
 static void allegro_mcu_send_init(struct allegro_dev *dev,
 				  dma_addr_t suballoc_dma, size_t suballoc_size)
 {
@@ -943,10 +998,17 @@ static void allegro_mcu_send_init(struct allegro_dev *dev,
 	msg.suballoc_dma = to_mcu_addr(dev, suballoc_dma);
 	msg.suballoc_size = to_mcu_size(dev, suballoc_size);
 
-	/* disable L2 cache */
-	msg.l2_cache[0] = -1;
-	msg.l2_cache[1] = -1;
-	msg.l2_cache[2] = -1;
+	if (dev->has_encoder_buffer) {
+		msg.encoder_buffer_size = dev->encoder_buffer.size;
+		msg.encoder_buffer_color_depth = dev->encoder_buffer.color_depth;
+		msg.num_cores = dev->encoder_buffer.num_cores;
+		msg.clk_rate = dev->encoder_buffer.clk_rate;
+	} else {
+		msg.encoder_buffer_size = -1;
+		msg.encoder_buffer_color_depth = -1;
+		msg.num_cores = -1;
+		msg.clk_rate = -1;
+	}
 
 	allegro_mbox_send(dev->mbox_command, &msg);
 }
@@ -1193,9 +1255,8 @@ static int fill_create_channel_param(struct allegro_channel *channel,
 	param->max_transfo_depth_intra = channel->max_transfo_depth_intra;
 	param->max_transfo_depth_inter = channel->max_transfo_depth_inter;
 
-	param->prefetch_auto = 0;
-	param->prefetch_mem_offset = 0;
-	param->prefetch_mem_size = 0;
+	param->encoder_buffer_enabled = channel->dev->has_encoder_buffer;
+	param->encoder_buffer_offset = 0;
 
 	param->rate_control_mode = channel->frame_rc_enable ?
 		v4l2_bitrate_mode_to_mcu_mode(bitrate_mode) : 0;
@@ -1320,6 +1381,7 @@ static int allegro_mcu_send_encode_frame(struct allegro_dev *dev,
 					 u64 src_handle)
 {
 	struct mcu_msg_encode_frame msg;
+	bool use_encoder_buffer = channel->dev->has_encoder_buffer;
 
 	memset(&msg, 0, sizeof(msg));
 
@@ -1328,6 +1390,8 @@ static int allegro_mcu_send_encode_frame(struct allegro_dev *dev,
 
 	msg.channel_id = channel->mcu_channel_id;
 	msg.encoding_options = AL_OPT_FORCE_LOAD;
+	if (use_encoder_buffer)
+		msg.encoding_options |= AL_OPT_USE_L2;
 	msg.pps_qp = 26; /* qp are relative to 26 */
 	msg.user_param = 0; /* copied to mcu_msg_encode_frame_response */
 	/* src_handle is copied to mcu_msg_encode_frame_response */
@@ -3521,6 +3585,11 @@ static int allegro_mcu_hw_init(struct allegro_dev *dev,
 			 "failed to initialize mailboxes\n");
 		return -EIO;
 	}
+
+	err = allegro_encoder_buffer_init(dev, &dev->encoder_buffer);
+	dev->has_encoder_buffer = (err == 0);
+	if (!dev->has_encoder_buffer)
+		v4l2_info(&dev->v4l2_dev, "encoder buffer not available\n");
 
 	allegro_mcu_enable_interrupts(dev);
 
