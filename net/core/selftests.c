@@ -318,6 +318,15 @@ static int net_test_phy_loopback_udp(struct net_device *ndev)
 	return __net_test_loopback(ndev, &attr);
 }
 
+static int net_test_phy_loopback_udp_mtu(struct net_device *ndev)
+{
+	struct net_packet_attrs attr = { };
+
+	attr.dst = ndev->dev_addr;
+	attr.max_size = ndev->mtu;
+	return __net_test_loopback(ndev, &attr);
+}
+
 static int net_test_phy_loopback_tcp(struct net_device *ndev)
 {
 	struct net_packet_attrs attr = { };
@@ -344,6 +353,9 @@ static const struct net_test {
 	}, {
 		.name = "PHY internal loopback, UDP    ",
 		.fn = net_test_phy_loopback_udp,
+	}, {
+		.name = "PHY internal loopback, MTU    ",
+		.fn = net_test_phy_loopback_udp_mtu,
 	}, {
 		.name = "PHY internal loopback, TCP    ",
 		.fn = net_test_phy_loopback_tcp,

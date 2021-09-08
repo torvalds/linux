@@ -44,6 +44,7 @@ struct io_uring_sqe {
 		__u32		splice_flags;
 		__u32		rename_flags;
 		__u32		unlink_flags;
+		__u32		hardlink_flags;
 	};
 	__u64	user_data;	/* data to be passed back at completion time */
 	/* pack this to avoid bogus arm OABI complaints */
@@ -55,7 +56,10 @@ struct io_uring_sqe {
 	} __attribute__((packed));
 	/* personality to use, if used */
 	__u16	personality;
-	__s32	splice_fd_in;
+	union {
+		__s32	splice_fd_in;
+		__u32	file_index;
+	};
 	__u64	__pad2[2];
 };
 
@@ -133,6 +137,9 @@ enum {
 	IORING_OP_SHUTDOWN,
 	IORING_OP_RENAMEAT,
 	IORING_OP_UNLINKAT,
+	IORING_OP_MKDIRAT,
+	IORING_OP_SYMLINKAT,
+	IORING_OP_LINKAT,
 
 	/* this goes last, obviously */
 	IORING_OP_LAST,
@@ -146,9 +153,13 @@ enum {
 /*
  * sqe->timeout_flags
  */
-#define IORING_TIMEOUT_ABS	(1U << 0)
-#define IORING_TIMEOUT_UPDATE	(1U << 1)
-
+#define IORING_TIMEOUT_ABS		(1U << 0)
+#define IORING_TIMEOUT_UPDATE		(1U << 1)
+#define IORING_TIMEOUT_BOOTTIME		(1U << 2)
+#define IORING_TIMEOUT_REALTIME		(1U << 3)
+#define IORING_LINK_TIMEOUT_UPDATE	(1U << 4)
+#define IORING_TIMEOUT_CLOCK_MASK	(IORING_TIMEOUT_BOOTTIME | IORING_TIMEOUT_REALTIME)
+#define IORING_TIMEOUT_UPDATE_MASK	(IORING_TIMEOUT_UPDATE | IORING_LINK_TIMEOUT_UPDATE)
 /*
  * sqe->splice_flags
  * extends splice(2) flags
@@ -305,6 +316,9 @@ enum {
 	/* set/clear io-wq thread affinities */
 	IORING_REGISTER_IOWQ_AFF		= 17,
 	IORING_UNREGISTER_IOWQ_AFF		= 18,
+
+	/* set/get max number of workers */
+	IORING_REGISTER_IOWQ_MAX_WORKERS	= 19,
 
 	/* this goes last */
 	IORING_REGISTER_LAST

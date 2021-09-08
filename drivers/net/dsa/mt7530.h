@@ -80,6 +80,7 @@ enum mt753x_bpdu_port_fw {
 #define  STATIC_ENT			3
 #define MT7530_ATA2			0x78
 #define  ATA2_IVL			BIT(15)
+#define  ATA2_FID(x)			(((x) & 0x7) << 12)
 
 /* Register for address table write data */
 #define MT7530_ATWD			0x7c
@@ -144,14 +145,23 @@ enum mt7530_vlan_cmd {
 #define  PORT_STAG			BIT(31)
 /* Independent VLAN Learning */
 #define  IVL_MAC			BIT(30)
+/* Egress Tag Consistent */
+#define  EG_CON				BIT(29)
 /* Per VLAN Egress Tag Control */
 #define  VTAG_EN			BIT(28)
 /* VLAN Member Control */
 #define  PORT_MEM(x)			(((x) & 0xff) << 16)
+/* Filter ID */
+#define  FID(x)				(((x) & 0x7) << 1)
 /* VLAN Entry Valid */
 #define  VLAN_VALID			BIT(0)
 #define  PORT_MEM_SHFT			16
 #define  PORT_MEM_MASK			0xff
+
+enum mt7530_fid {
+	FID_STANDALONE = 0,
+	FID_BRIDGED = 1,
+};
 
 #define MT7530_VAWD2			0x98
 /* Egress Tag Control */
@@ -179,8 +189,8 @@ enum mt7530_vlan_egress_attr {
 
 /* Register for port STP state control */
 #define MT7530_SSP_P(x)			(0x2000 + ((x) * 0x100))
-#define  FID_PST(x)			((x) & 0x3)
-#define  FID_PST_MASK			FID_PST(0x3)
+#define  FID_PST(fid, state)		(((state) & 0x3) << ((fid) * 2))
+#define  FID_PST_MASK(fid)		FID_PST(fid, 0x3)
 
 enum mt7530_stp_state {
 	MT7530_STP_DISABLED = 0,
@@ -230,6 +240,7 @@ enum mt7530_port_mode {
 #define  PVC_EG_TAG_MASK		PVC_EG_TAG(7)
 #define  VLAN_ATTR(x)			(((x) & 0x3) << 6)
 #define  VLAN_ATTR_MASK			VLAN_ATTR(3)
+#define  ACC_FRM_MASK			GENMASK(1, 0)
 
 enum mt7530_vlan_port_eg_tag {
 	MT7530_VLAN_EG_DISABLED = 0,
@@ -241,13 +252,19 @@ enum mt7530_vlan_port_attr {
 	MT7530_VLAN_TRANSPARENT = 3,
 };
 
+enum mt7530_vlan_port_acc_frm {
+	MT7530_VLAN_ACC_ALL = 0,
+	MT7530_VLAN_ACC_TAGGED = 1,
+	MT7530_VLAN_ACC_UNTAGGED = 2,
+};
+
 #define  STAG_VPID			(((x) & 0xffff) << 16)
 
 /* Register for port port-and-protocol based vlan 1 control */
 #define MT7530_PPBV1_P(x)		(0x2014 + ((x) * 0x100))
 #define  G0_PORT_VID(x)			(((x) & 0xfff) << 0)
 #define  G0_PORT_VID_MASK		G0_PORT_VID(0xfff)
-#define  G0_PORT_VID_DEF		G0_PORT_VID(1)
+#define  G0_PORT_VID_DEF		G0_PORT_VID(0)
 
 /* Register for port MAC control register */
 #define MT7530_PMCR_P(x)		(0x3000 + ((x) * 0x100))

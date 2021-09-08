@@ -1444,7 +1444,7 @@ again:
 			if (do_debug_ccw)
 			ctcmpc_dumpit((char *)&ch->ccw[0],
 					sizeof(struct ccw1) * 3);
-		dolock = !in_irq();
+		dolock = !in_hardirq();
 		if (dolock)
 			spin_lock_irqsave(
 				get_ccwdev_lock(ch->cdev), saveflags);

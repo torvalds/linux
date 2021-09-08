@@ -1414,6 +1414,21 @@ struct sighand_struct *__lock_task_sighand(struct task_struct *tsk,
 }
 EXPORT_SYMBOL_GPL(__lock_task_sighand);
 
+#ifdef CONFIG_LOCKDEP
+void lockdep_assert_task_sighand_held(struct task_struct *task)
+{
+	struct sighand_struct *sighand;
+
+	rcu_read_lock();
+	sighand = rcu_dereference(task->sighand);
+	if (sighand)
+		lockdep_assert_held(&sighand->siglock);
+	else
+		WARN_ON_ONCE(1);
+	rcu_read_unlock();
+}
+#endif
+
 /*
  * send signal info to all the members of a group
  */

@@ -271,7 +271,7 @@ unlock:
 	 */
 	if (cpu_q)
 		*cpup = cpu_q->cpu;
-	put_cpu_var(sess->cpu_rr);
+	put_cpu_ptr(sess->cpu_rr);
 
 	if (q)
 		rnbd_clt_dev_requeue(q);

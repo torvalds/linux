@@ -149,6 +149,7 @@ void ptp_vclock_unregister(struct ptp_vclock *vclock)
 	kfree(vclock);
 }
 
+#if IS_BUILTIN(CONFIG_PTP_1588_CLOCK)
 int ptp_get_vclocks_index(int pclock_index, int **vclock_index)
 {
 	char name[PTP_CLOCK_NAME_LEN] = "";
@@ -217,3 +218,4 @@ void ptp_convert_timestamp(struct skb_shared_hwtstamps *hwtstamps,
 	hwtstamps->hwtstamp = ns_to_ktime(ns);
 }
 EXPORT_SYMBOL(ptp_convert_timestamp);
+#endif

@@ -15,6 +15,7 @@
 #include <linux/pagemap.h>
 #include <linux/parser.h>
 #include <linux/seq_file.h>
+#include <linux/backing-dev-defs.h>
 
 #include <uapi/linux/incrementalfs.h>
 

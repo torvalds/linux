@@ -29,7 +29,6 @@
 struct zorro_dev {
     struct ExpansionRom rom;
     zorro_id id;
-    struct zorro_driver *driver;	/* which driver has allocated this device */
     struct device dev;			/* Generic device interface */
     u16 slotaddr;
     u16 slotsize;

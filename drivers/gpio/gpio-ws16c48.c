@@ -339,8 +339,8 @@ static irqreturn_t ws16c48_irq_handler(int irq, void *dev_id)
 		for_each_set_bit(port, &int_pending, 3) {
 			int_id = inb(ws16c48gpio->base + 8 + port);
 			for_each_set_bit(gpio, &int_id, 8)
-				generic_handle_irq(irq_find_mapping(
-					chip->irq.domain, gpio + 8*port));
+				generic_handle_domain_irq(chip->irq.domain,
+							  gpio + 8*port);
 		}
 
 		int_pending = inb(ws16c48gpio->base + 6) & 0x7;

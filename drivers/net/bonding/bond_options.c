@@ -58,6 +58,8 @@ static int bond_option_lp_interval_set(struct bonding *bond,
 				       const struct bond_opt_value *newval);
 static int bond_option_pps_set(struct bonding *bond,
 			       const struct bond_opt_value *newval);
+static int bond_option_lacp_active_set(struct bonding *bond,
+				       const struct bond_opt_value *newval);
 static int bond_option_lacp_rate_set(struct bonding *bond,
 				     const struct bond_opt_value *newval);
 static int bond_option_ad_select_set(struct bonding *bond,
@@ -133,6 +135,12 @@ static const struct bond_opt_value bond_intmax_tbl[] = {
 	{ "off",     0,       BOND_VALFLAG_DEFAULT},
 	{ "maxval",  INT_MAX, BOND_VALFLAG_MAX},
 	{ NULL,      -1,      0}
+};
+
+static const struct bond_opt_value bond_lacp_active[] = {
+	{ "off", 0,  0},
+	{ "on",  1,  BOND_VALFLAG_DEFAULT},
+	{ NULL,  -1, 0}
 };
 
 static const struct bond_opt_value bond_lacp_rate_tbl[] = {
@@ -282,6 +290,15 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.desc = "Delay before considering link up, in milliseconds",
 		.values = bond_intmax_tbl,
 		.set = bond_option_updelay_set
+	},
+	[BOND_OPT_LACP_ACTIVE] = {
+		.id = BOND_OPT_LACP_ACTIVE,
+		.name = "lacp_active",
+		.desc = "Send LACPDU frames with configured lacp rate or acts as speak when spoken to",
+		.flags = BOND_OPTFLAG_IFDOWN,
+		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_8023AD)),
+		.values = bond_lacp_active,
+		.set = bond_option_lacp_active_set
 	},
 	[BOND_OPT_LACP_RATE] = {
 		.id = BOND_OPT_LACP_RATE,
@@ -1329,6 +1346,16 @@ static int bond_option_pps_set(struct bonding *bond,
 		bond->params.reciprocal_packets_per_slave =
 			(struct reciprocal_value) { 0 };
 	}
+
+	return 0;
+}
+
+static int bond_option_lacp_active_set(struct bonding *bond,
+				       const struct bond_opt_value *newval)
+{
+	netdev_dbg(bond->dev, "Setting LACP active to %s (%llu)\n",
+		   newval->string, newval->value);
+	bond->params.lacp_active = newval->value;
 
 	return 0;
 }

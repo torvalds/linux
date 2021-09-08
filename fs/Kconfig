@@ -101,16 +101,6 @@ config FILE_LOCKING
           for filesystems like NFS and for the flock() system
           call. Disabling this option saves about 11k.
 
-config MANDATORY_FILE_LOCKING
-	bool "Enable Mandatory file locking"
-	depends on FILE_LOCKING
-	default y
-	help
-	  This option enables files appropriately marked files on appropriely
-	  mounted filesystems to support mandatory locking.
-
-	  To the best of my knowledge this is dead code that no one cares about.
-
 source "fs/crypto/Kconfig"
 
 source "fs/verity/Kconfig"
@@ -359,7 +349,15 @@ config NFS_V4_2_SSC_HELPER
 
 source "net/sunrpc/Kconfig"
 source "fs/ceph/Kconfig"
+
 source "fs/cifs/Kconfig"
+source "fs/ksmbd/Kconfig"
+
+config CIFS_COMMON
+	tristate
+	default y if CIFS=y
+	default m if CIFS=m
+
 source "fs/coda/Kconfig"
 source "fs/afs/Kconfig"
 source "fs/9p/Kconfig"

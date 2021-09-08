@@ -196,16 +196,13 @@ void hdlc_close(struct net_device *dev)
 }
 EXPORT_SYMBOL(hdlc_close);
 
-int hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+int hdlc_ioctl(struct net_device *dev, struct if_settings *ifs)
 {
 	struct hdlc_proto *proto = first_proto;
 	int result;
 
-	if (cmd != SIOCWANDEV)
-		return -EINVAL;
-
 	if (dev_to_hdlc(dev)->proto) {
-		result = dev_to_hdlc(dev)->proto->ioctl(dev, ifr);
+		result = dev_to_hdlc(dev)->proto->ioctl(dev, ifs);
 		if (result != -EINVAL)
 			return result;
 	}
@@ -213,7 +210,7 @@ int hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	/* Not handled by currently attached protocol (if any) */
 
 	while (proto) {
-		result = proto->ioctl(dev, ifr);
+		result = proto->ioctl(dev, ifs);
 		if (result != -EINVAL)
 			return result;
 		proto = proto->next;

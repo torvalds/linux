@@ -533,9 +533,3 @@ void arch_do_signal_or_restart(struct pt_regs *regs, bool has_signal)
 	 */
 	restore_saved_sigmask();
 }
-
-void do_notify_resume(struct pt_regs *regs)
-{
-	tracehook_notify_resume(regs);
-	rseq_handle_notify_resume(NULL, regs);
-}

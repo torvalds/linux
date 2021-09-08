@@ -1879,7 +1879,7 @@ static void bpf_prog_select_func(struct bpf_prog *fp)
  *	@err: pointer to error variable
  *
  * Try to JIT eBPF program, if JIT is not available, use interpreter.
- * The BPF program will be executed via BPF_PROG_RUN() macro.
+ * The BPF program will be executed via bpf_prog_run() function.
  *
  * Return: the &fp argument along with &err set to 0 for success or
  * a negative errno code on failure
@@ -2119,13 +2119,13 @@ int bpf_prog_array_update_at(struct bpf_prog_array *array, int index,
 int bpf_prog_array_copy(struct bpf_prog_array *old_array,
 			struct bpf_prog *exclude_prog,
 			struct bpf_prog *include_prog,
+			u64 bpf_cookie,
 			struct bpf_prog_array **new_array)
 {
 	int new_prog_cnt, carry_prog_cnt = 0;
-	struct bpf_prog_array_item *existing;
+	struct bpf_prog_array_item *existing, *new;
 	struct bpf_prog_array *array;
 	bool found_exclude = false;
-	int new_prog_idx = 0;
 
 	/* Figure out how many existing progs we need to carry over to
 	 * the new array.
@@ -2162,20 +2162,27 @@ int bpf_prog_array_copy(struct bpf_prog_array *old_array,
 	array = bpf_prog_array_alloc(new_prog_cnt + 1, GFP_KERNEL);
 	if (!array)
 		return -ENOMEM;
+	new = array->items;
 
 	/* Fill in the new prog array */
 	if (carry_prog_cnt) {
 		existing = old_array->items;
-		for (; existing->prog; existing++)
-			if (existing->prog != exclude_prog &&
-			    existing->prog != &dummy_bpf_prog.prog) {
-				array->items[new_prog_idx++].prog =
-					existing->prog;
-			}
+		for (; existing->prog; existing++) {
+			if (existing->prog == exclude_prog ||
+			    existing->prog == &dummy_bpf_prog.prog)
+				continue;
+
+			new->prog = existing->prog;
+			new->bpf_cookie = existing->bpf_cookie;
+			new++;
+		}
 	}
-	if (include_prog)
-		array->items[new_prog_idx++].prog = include_prog;
-	array->items[new_prog_idx].prog = NULL;
+	if (include_prog) {
+		new->prog = include_prog;
+		new->bpf_cookie = bpf_cookie;
+		new++;
+	}
+	new->prog = NULL;
 	*new_array = array;
 	return 0;
 }

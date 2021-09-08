@@ -5,6 +5,7 @@
  *
  ******************************************************************************/
 
+#include <linux/compat.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 
@@ -116,7 +117,8 @@ static int android_get_p2p_addr(struct net_device *net, char *command,
 	return ETH_ALEN;
 }
 
-int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
+int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr,
+			 void __user *data, int cmd)
 {
 	int ret = 0;
 	char *command;
@@ -124,9 +126,15 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	int bytes_written = 0;
 	struct android_wifi_priv_cmd priv_cmd;
 
-	if (!ifr->ifr_data)
+	if (cmd != SIOCDEVPRIVATE)
+		return -EOPNOTSUPP;
+
+	if (in_compat_syscall()) /* to be implemented */
+		return -EOPNOTSUPP;
+
+	if (!data)
 		return -EINVAL;
-	if (copy_from_user(&priv_cmd, ifr->ifr_data, sizeof(priv_cmd)))
+	if (copy_from_user(&priv_cmd, data, sizeof(priv_cmd)))
 		return -EFAULT;
 	if (priv_cmd.total_len < 1)
 		return -EINVAL;

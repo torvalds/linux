@@ -31,6 +31,20 @@ properties:
   compatible:
     const: simple-battery
 
+  device-chemistry:
+    description: This describes the chemical technology of the battery.
+    oneOf:
+      - const: nickel-cadmium
+      - const: nickel-metal-hydride
+      - const: lithium-ion
+        description: This is a blanket type for all lithium-ion batteries,
+          including those below. If possible, a precise compatible string
+          from below should be used, but sometimes it is unknown which specific
+          lithium ion battery is employed and this wide compatible can be used.
+      - const: lithium-ion-polymer
+      - const: lithium-ion-iron-phosphate
+      - const: lithium-ion-manganese-oxide
+
   over-voltage-threshold-microvolt:
     description: battery over-voltage limit
 

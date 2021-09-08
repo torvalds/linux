@@ -1079,8 +1079,7 @@ static void hso_init_termios(struct ktermios *termios)
 	tty_termios_encode_baud_rate(termios, 115200, 115200);
 }
 
-static void _hso_serial_set_termios(struct tty_struct *tty,
-				    struct ktermios *old)
+static void _hso_serial_set_termios(struct tty_struct *tty)
 {
 	struct hso_serial *serial = tty->driver_data;
 
@@ -1262,7 +1261,7 @@ static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 	if (serial->port.count == 1) {
 		serial->rx_state = RX_IDLE;
 		/* Force default termio settings */
-		_hso_serial_set_termios(tty, NULL);
+		_hso_serial_set_termios(tty);
 		tasklet_setup(&serial->unthrottle_tasklet,
 			      hso_unthrottle_tasklet);
 		result = hso_start_serial_device(serial->parent, GFP_KERNEL);
@@ -1394,7 +1393,7 @@ static void hso_serial_set_termios(struct tty_struct *tty, struct ktermios *old)
 	/* the actual setup */
 	spin_lock_irqsave(&serial->serial_lock, flags);
 	if (serial->port.count)
-		_hso_serial_set_termios(tty, old);
+		_hso_serial_set_termios(tty);
 	else
 		tty->termios = *old;
 	spin_unlock_irqrestore(&serial->serial_lock, flags);
@@ -2353,7 +2352,7 @@ static int remove_net_device(struct hso_device *hso_dev)
 }
 
 /* Frees our network device */
-static void hso_free_net_device(struct hso_device *hso_dev, bool bailout)
+static void hso_free_net_device(struct hso_device *hso_dev)
 {
 	int i;
 	struct hso_net *hso_net = dev2net(hso_dev);
@@ -2376,7 +2375,7 @@ static void hso_free_net_device(struct hso_device *hso_dev, bool bailout)
 	kfree(hso_net->mux_bulk_tx_buf);
 	hso_net->mux_bulk_tx_buf = NULL;
 
-	if (hso_net->net && !bailout)
+	if (hso_net->net)
 		free_netdev(hso_net->net);
 
 	kfree(hso_dev);
@@ -3133,7 +3132,7 @@ static void hso_free_interface(struct usb_interface *interface)
 				rfkill_unregister(rfk);
 				rfkill_destroy(rfk);
 			}
-			hso_free_net_device(network_table[i], false);
+			hso_free_net_device(network_table[i]);
 		}
 	}
 }
