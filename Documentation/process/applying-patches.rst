@@ -389,7 +389,7 @@ The -mm patches are experimental patches released by Andrew Morton.
 
 In the past, -mm tree were used to also test subsystem patches, but this
 function is now done via the
-`linux-next <https://www.kernel.org/doc/man-pages/linux-next.html>`
+`linux-next` (https://www.kernel.org/doc/man-pages/linux-next.html)
 tree. The Subsystem maintainers push their patches first to linux-next,
 and, during the merge window, sends them directly to Linus.
 

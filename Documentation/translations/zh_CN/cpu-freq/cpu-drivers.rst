@@ -2,11 +2,13 @@
 
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :doc:`../../../cpu-freq/cpu-drivers`
-:Translator: Yanteng Si <siyanteng@loongson.cn>
+:Original: Documentation/cpu-freq/cpu-drivers.rst
+
+:翻译:
+
+ 司延腾 Yanteng Si <siyanteng@loongson.cn>
 
 .. _cn_cpu-drivers.rst:
-
 
 =======================================
 如何实现一个新的CPUFreq处理器驱动程序？

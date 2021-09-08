@@ -80,7 +80,7 @@ cpu上对这个地址空间进行刷新。
 5) ``void update_mmu_cache(struct vm_area_struct *vma,
    unsigned long address, pte_t *ptep)``
 
-	在每个页面故障结束时，这个程序被调用，以告诉体系结构特定的代码，在
+	在每个缺页异常结束时，这个程序被调用，以告诉体系结构特定的代码，在
 	软件页表中，在地址空间“vma->vm_mm”的虚拟地址“地址”处，现在存在
 	一个翻译。
 
