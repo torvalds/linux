@@ -105,6 +105,12 @@
 #define BETA_OFFSET_DIV_2		-1
 #define TC_OFFSET_DIV_2			-1
 
+/*
+ * This control allows applications to explicitly disable the encoder buffer.
+ * This value is Allegro specific.
+ */
+#define V4L2_CID_USER_ALLEGRO_ENCODER_BUFFER (V4L2_CID_USER_ALLEGRO_BASE + 0)
+
 static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-2)");
@@ -274,6 +280,8 @@ struct allegro_channel {
 	};
 	struct v4l2_ctrl *mpeg_video_cpb_size;
 	struct v4l2_ctrl *mpeg_video_gop_size;
+
+	struct v4l2_ctrl *encoder_buffer;
 
 	/* user_id is used to identify the channel during CREATE_CHANNEL */
 	/* not sure, what to set here and if this is actually required */
@@ -1255,7 +1263,7 @@ static int fill_create_channel_param(struct allegro_channel *channel,
 	param->max_transfo_depth_intra = channel->max_transfo_depth_intra;
 	param->max_transfo_depth_inter = channel->max_transfo_depth_inter;
 
-	param->encoder_buffer_enabled = channel->dev->has_encoder_buffer;
+	param->encoder_buffer_enabled = v4l2_ctrl_g_ctrl(channel->encoder_buffer);
 	param->encoder_buffer_offset = 0;
 
 	param->rate_control_mode = channel->frame_rc_enable ?
@@ -1381,7 +1389,7 @@ static int allegro_mcu_send_encode_frame(struct allegro_dev *dev,
 					 u64 src_handle)
 {
 	struct mcu_msg_encode_frame msg;
-	bool use_encoder_buffer = channel->dev->has_encoder_buffer;
+	bool use_encoder_buffer = v4l2_ctrl_g_ctrl(channel->encoder_buffer);
 
 	memset(&msg, 0, sizeof(msg));
 
@@ -2466,6 +2474,8 @@ static void allegro_destroy_channel(struct allegro_channel *channel)
 	v4l2_ctrl_grab(channel->mpeg_video_cpb_size, false);
 	v4l2_ctrl_grab(channel->mpeg_video_gop_size, false);
 
+	v4l2_ctrl_grab(channel->encoder_buffer, false);
+
 	if (channel->user_id != -1) {
 		clear_bit(channel->user_id, &dev->channel_user_ids);
 		channel->user_id = -1;
@@ -2531,6 +2541,8 @@ static int allegro_create_channel(struct allegro_channel *channel)
 	v4l2_ctrl_grab(channel->mpeg_video_bitrate_peak, true);
 	v4l2_ctrl_grab(channel->mpeg_video_cpb_size, true);
 	v4l2_ctrl_grab(channel->mpeg_video_gop_size, true);
+
+	v4l2_ctrl_grab(channel->encoder_buffer, true);
 
 	reinit_completion(&channel->completion);
 	allegro_mcu_send_create_channel(dev, channel);
@@ -2915,6 +2927,10 @@ static int allegro_try_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
 		allegro_clamp_bitrate(channel, ctrl);
 		break;
+	case V4L2_CID_USER_ALLEGRO_ENCODER_BUFFER:
+		if (!channel->dev->has_encoder_buffer)
+			ctrl->val = 0;
+		break;
 	}
 
 	return 0;
@@ -2953,6 +2969,16 @@ static int allegro_s_ctrl(struct v4l2_ctrl *ctrl)
 static const struct v4l2_ctrl_ops allegro_ctrl_ops = {
 	.try_ctrl = allegro_try_ctrl,
 	.s_ctrl = allegro_s_ctrl,
+};
+
+static const struct v4l2_ctrl_config allegro_encoder_buffer_ctrl_config = {
+	.id = V4L2_CID_USER_ALLEGRO_ENCODER_BUFFER,
+	.name = "Encoder Buffer Enable",
+	.type = V4L2_CTRL_TYPE_BOOLEAN,
+	.min = 0,
+	.max = 1,
+	.step = 1,
+	.def = 1,
 };
 
 static int allegro_open(struct file *file)
@@ -3106,6 +3132,8 @@ static int allegro_open(struct file *file)
 			V4L2_CID_MPEG_VIDEO_GOP_SIZE,
 			0, ALLEGRO_GOP_SIZE_MAX,
 			1, ALLEGRO_GOP_SIZE_DEFAULT);
+	channel->encoder_buffer = v4l2_ctrl_new_custom(handler,
+			&allegro_encoder_buffer_ctrl_config, NULL);
 	v4l2_ctrl_new_std(handler,
 			  &allegro_ctrl_ops,
 			  V4L2_CID_MIN_BUFFERS_FOR_OUTPUT,
