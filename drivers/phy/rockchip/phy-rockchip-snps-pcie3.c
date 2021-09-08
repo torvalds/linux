@@ -193,6 +193,7 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 
 static const struct of_device_id rockchip_p3phy_of_match[] = {
 	{ .compatible = "rockchip,rk3568-pcie3-phy" },
+	{ .compatible = "rockchip,rk3588-pcie3-phy" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, rockchip_p3phy_of_match);
