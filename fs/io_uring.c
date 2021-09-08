@@ -1619,8 +1619,11 @@ static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 
 static void io_cqring_ev_posted_iopoll(struct io_ring_ctx *ctx)
 {
+	/* see waitqueue_active() comment */
+	smp_mb();
+
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
-		if (wq_has_sleeper(&ctx->cq_wait))
+		if (waitqueue_active(&ctx->cq_wait))
 			wake_up_all(&ctx->cq_wait);
 	}
 	if (io_should_trigger_evfd(ctx))
