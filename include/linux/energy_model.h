@@ -40,8 +40,7 @@ struct em_perf_state {
  * struct em_perf_domain - Performance domain
  * @table:		List of performance states, in ascending order
  * @nr_perf_states:	Number of performance states
- * @milliwatts:		Flag indicating the power values are in milli-Watts
- *			or some other scale.
+ * @flags:		See "em_perf_domain flags"
  * @cpus:		Cpumask covering the CPUs of the domain. It's here
  *			for performance reasons to avoid potential cache
  *			misses during energy calculations in the scheduler
@@ -56,9 +55,17 @@ struct em_perf_state {
 struct em_perf_domain {
 	struct em_perf_state *table;
 	int nr_perf_states;
-	int milliwatts;
+	unsigned long flags;
 	unsigned long cpus[];
 };
+
+/*
+ *  em_perf_domain flags:
+ *
+ *  EM_PERF_DOMAIN_MILLIWATTS: The power values are in milli-Watts or some
+ *  other scale.
+ */
+#define EM_PERF_DOMAIN_MILLIWATTS BIT(0)
 
 #define em_span_cpus(em) (to_cpumask((em)->cpus))
 

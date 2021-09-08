@@ -56,7 +56,8 @@ DEFINE_SHOW_ATTRIBUTE(em_debug_cpus);
 static int em_debug_units_show(struct seq_file *s, void *unused)
 {
 	struct em_perf_domain *pd = s->private;
-	char *units = pd->milliwatts ? "milliWatts" : "bogoWatts";
+	char *units = (pd->flags & EM_PERF_DOMAIN_MILLIWATTS) ?
+		"milliWatts" : "bogoWatts";
 
 	seq_printf(s, "%s\n", units);
 
@@ -330,7 +331,8 @@ int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
 	if (ret)
 		goto unlock;
 
-	dev->em_pd->milliwatts = milliwatts;
+	if (milliwatts)
+		dev->em_pd->flags |= EM_PERF_DOMAIN_MILLIWATTS;
 
 	em_debug_create_pd(dev);
 	dev_info(dev, "EM: created perf domain\n");
