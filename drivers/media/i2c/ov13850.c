@@ -1247,7 +1247,7 @@ static int ov13850_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov13850_g_mbus_config(struct v4l2_subdev *sd,
+static int ov13850_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	u32 val = 0;
@@ -1255,7 +1255,7 @@ static int ov13850_g_mbus_config(struct v4l2_subdev *sd,
 	val = 1 << (OV13850_LANES - 1) |
 	      V4L2_MBUS_CSI2_CHANNEL_0 |
 	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -1283,7 +1283,6 @@ static const struct v4l2_subdev_core_ops ov13850_core_ops = {
 static const struct v4l2_subdev_video_ops ov13850_video_ops = {
 	.s_stream = ov13850_s_stream,
 	.g_frame_interval = ov13850_g_frame_interval,
-	.g_mbus_config = ov13850_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops ov13850_pad_ops = {
@@ -1292,6 +1291,7 @@ static const struct v4l2_subdev_pad_ops ov13850_pad_ops = {
 	.enum_frame_interval = ov13850_enum_frame_interval,
 	.get_fmt = ov13850_get_fmt,
 	.set_fmt = ov13850_set_fmt,
+	.get_mbus_config = ov13850_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops ov13850_subdev_ops = {
