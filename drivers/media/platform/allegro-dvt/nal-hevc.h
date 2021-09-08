@@ -414,12 +414,89 @@ static inline int nal_hevc_level(enum v4l2_mpeg_video_hevc_level level)
 	}
 }
 
-int nal_range_from_v4l2(enum v4l2_quantization quantization);
-int nal_color_primaries_from_v4l2(enum v4l2_colorspace colorspace);
-int nal_transfer_characteristics_from_v4l2(enum v4l2_colorspace colorspace,
-					   enum v4l2_xfer_func xfer_func);
-int nal_matrix_coeffs_from_v4l2(enum v4l2_colorspace colorspace,
-				enum v4l2_ycbcr_encoding ycbcr_encoding);
+static inline int nal_hevc_full_range(enum v4l2_quantization quantization)
+{
+	switch (quantization) {
+	case V4L2_QUANTIZATION_FULL_RANGE:
+		return 1;
+	case V4L2_QUANTIZATION_LIM_RANGE:
+		return 0;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static inline int nal_hevc_color_primaries(enum v4l2_colorspace colorspace)
+{
+	switch (colorspace) {
+	case V4L2_COLORSPACE_SMPTE170M:
+		return 6;
+	case V4L2_COLORSPACE_SMPTE240M:
+		return 7;
+	case V4L2_COLORSPACE_REC709:
+		return 1;
+	case V4L2_COLORSPACE_470_SYSTEM_M:
+		return 4;
+	case V4L2_COLORSPACE_JPEG:
+	case V4L2_COLORSPACE_SRGB:
+	case V4L2_COLORSPACE_470_SYSTEM_BG:
+		return 5;
+	case V4L2_COLORSPACE_BT2020:
+		return 9;
+	case V4L2_COLORSPACE_DEFAULT:
+	case V4L2_COLORSPACE_OPRGB:
+	case V4L2_COLORSPACE_RAW:
+	case V4L2_COLORSPACE_DCI_P3:
+	default:
+		return 2;
+	}
+}
+
+static inline int nal_hevc_transfer_characteristics(enum v4l2_colorspace colorspace,
+						    enum v4l2_xfer_func xfer_func)
+{
+	if (xfer_func == V4L2_XFER_FUNC_DEFAULT)
+		xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(colorspace);
+
+	switch (xfer_func) {
+	case V4L2_XFER_FUNC_709:
+		return 6;
+	case V4L2_XFER_FUNC_SMPTE2084:
+		return 16;
+	case V4L2_XFER_FUNC_SRGB:
+	case V4L2_XFER_FUNC_OPRGB:
+	case V4L2_XFER_FUNC_NONE:
+	case V4L2_XFER_FUNC_DCI_P3:
+	case V4L2_XFER_FUNC_SMPTE240M:
+	default:
+		return 2;
+	}
+}
+
+static inline int nal_hevc_matrix_coeffs(enum v4l2_colorspace colorspace,
+					 enum v4l2_ycbcr_encoding ycbcr_encoding)
+{
+	if (ycbcr_encoding == V4L2_YCBCR_ENC_DEFAULT)
+		ycbcr_encoding = V4L2_MAP_YCBCR_ENC_DEFAULT(colorspace);
+
+	switch (ycbcr_encoding) {
+	case V4L2_YCBCR_ENC_601:
+	case V4L2_YCBCR_ENC_XV601:
+		return 5;
+	case V4L2_YCBCR_ENC_709:
+	case V4L2_YCBCR_ENC_XV709:
+		return 1;
+	case V4L2_YCBCR_ENC_BT2020:
+		return 9;
+	case V4L2_YCBCR_ENC_BT2020_CONST_LUM:
+		return 10;
+	case V4L2_YCBCR_ENC_SMPTE240M:
+	default:
+		return 2;
+	}
+}
 
 ssize_t nal_hevc_write_vps(const struct device *dev,
 			   void *dest, size_t n, struct nal_hevc_vps *vps);

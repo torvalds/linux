@@ -1762,7 +1762,10 @@ static ssize_t allegro_hevc_write_sps(struct allegro_channel *channel,
 	struct allegro_dev *dev = channel->dev;
 	struct nal_hevc_sps *sps;
 	struct nal_hevc_profile_tier_level *ptl;
+	struct nal_hevc_vui_parameters *vui;
+	struct nal_hevc_hrd_parameters *hrd;
 	ssize_t size;
+	unsigned int cpb_size;
 	unsigned int num_ref_frames = channel->num_ref_idx_l0;
 	s32 profile = v4l2_ctrl_g_ctrl(channel->mpeg_video_hevc_profile);
 	s32 level = v4l2_ctrl_g_ctrl(channel->mpeg_video_hevc_level);
@@ -1814,6 +1817,50 @@ static ssize_t allegro_hevc_write_sps(struct allegro_channel *channel,
 
 	sps->sps_temporal_mvp_enabled_flag = channel->temporal_mvp_enable;
 	sps->strong_intra_smoothing_enabled_flag = channel->max_cu_size > 4;
+
+	sps->vui_parameters_present_flag = 1;
+	vui = &sps->vui;
+
+	vui->video_signal_type_present_flag = 1;
+	vui->video_format = 5; /* unspecified */
+	vui->video_full_range_flag = nal_hevc_full_range(channel->quantization);
+	vui->colour_description_present_flag = 1;
+	vui->colour_primaries = nal_hevc_color_primaries(channel->colorspace);
+	vui->transfer_characteristics = nal_hevc_transfer_characteristics(channel->colorspace,
+									  channel->xfer_func);
+	vui->matrix_coeffs = nal_hevc_matrix_coeffs(channel->colorspace, channel->ycbcr_enc);
+
+	vui->chroma_loc_info_present_flag = 1;
+	vui->chroma_sample_loc_type_top_field = 0;
+	vui->chroma_sample_loc_type_bottom_field = 0;
+
+	vui->vui_timing_info_present_flag = 1;
+	vui->vui_num_units_in_tick = channel->framerate.denominator;
+	vui->vui_time_scale = channel->framerate.numerator;
+
+	vui->bitstream_restriction_flag = 1;
+	vui->motion_vectors_over_pic_boundaries_flag = 1;
+	vui->restricted_ref_pic_lists_flag = 1;
+	vui->log2_max_mv_length_horizontal = 15;
+	vui->log2_max_mv_length_vertical = 15;
+
+	vui->vui_hrd_parameters_present_flag = 1;
+	hrd = &vui->nal_hrd_parameters;
+	hrd->vcl_hrd_parameters_present_flag = 1;
+
+	hrd->initial_cpb_removal_delay_length_minus1 = 31;
+	hrd->au_cpb_removal_delay_length_minus1 = 30;
+	hrd->dpb_output_delay_length_minus1 = 30;
+
+	hrd->bit_rate_scale = ffs(channel->bitrate_peak) - 6;
+	hrd->vcl_hrd[0].bit_rate_value_minus1[0] =
+		(channel->bitrate_peak >> (6 + hrd->bit_rate_scale)) - 1;
+
+	cpb_size = v4l2_ctrl_g_ctrl(channel->mpeg_video_cpb_size) * 1000;
+	hrd->cpb_size_scale = ffs(cpb_size) - 4;
+	hrd->vcl_hrd[0].cpb_size_value_minus1[0] = (cpb_size >> (4 + hrd->cpb_size_scale)) - 1;
+
+	hrd->vcl_hrd[0].cbr_flag[0] = !v4l2_ctrl_g_ctrl(channel->mpeg_video_frame_rc_enable);
 
 	size = nal_hevc_write_sps(&dev->plat_dev->dev, dest, n, sps);
 
