@@ -832,6 +832,11 @@ append:
 	wq_list_add_after(&work->list, &tail->list, &acct->work_list);
 }
 
+static bool io_wq_work_match_item(struct io_wq_work *work, void *data)
+{
+	return work == data;
+}
+
 static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work)
 {
 	struct io_wqe_acct *acct = io_work_get_acct(wqe, work);
@@ -844,7 +849,6 @@ static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work)
 	 */
 	if (test_bit(IO_WQ_BIT_EXIT, &wqe->wq->state) ||
 	    (work->flags & IO_WQ_WORK_CANCEL)) {
-run_cancel:
 		io_run_cancel(work, wqe);
 		return;
 	}
@@ -864,15 +868,22 @@ run_cancel:
 		bool did_create;
 
 		did_create = io_wqe_create_worker(wqe, acct);
-		if (unlikely(!did_create)) {
-			raw_spin_lock(&wqe->lock);
-			/* fatal condition, failed to create the first worker */
-			if (!acct->nr_workers) {
-				raw_spin_unlock(&wqe->lock);
-				goto run_cancel;
-			}
-			raw_spin_unlock(&wqe->lock);
+		if (likely(did_create))
+			return;
+
+		raw_spin_lock(&wqe->lock);
+		/* fatal condition, failed to create the first worker */
+		if (!acct->nr_workers) {
+			struct io_cb_cancel_data match = {
+				.fn		= io_wq_work_match_item,
+				.data		= work,
+				.cancel_all	= false,
+			};
+
+			if (io_acct_cancel_pending_work(wqe, acct, &match))
+				raw_spin_lock(&wqe->lock);
 		}
+		raw_spin_unlock(&wqe->lock);
 	}
 }
 
