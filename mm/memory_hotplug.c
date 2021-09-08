@@ -1308,10 +1308,6 @@ struct zone *test_pages_in_a_zone(unsigned long start_pfn,
 		for (; pfn < sec_end_pfn && pfn < end_pfn;
 		     pfn += MAX_ORDER_NR_PAGES) {
 			i = 0;
-			/* This is just a CONFIG_HOLES_IN_ZONE check.*/
-			while ((i < MAX_ORDER_NR_PAGES) &&
-				!pfn_valid_within(pfn + i))
-				i++;
 			if (i == MAX_ORDER_NR_PAGES || pfn + i >= end_pfn)
 				continue;
 			/* Check if we got outside of the zone */

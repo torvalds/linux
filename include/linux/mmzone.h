@@ -1525,18 +1525,6 @@ void sparse_init(void);
 #define subsection_map_init(_pfn, _nr_pages) do {} while (0)
 #endif /* CONFIG_SPARSEMEM */
 
-/*
- * If it is possible to have holes within a MAX_ORDER_NR_PAGES, then we
- * need to check pfn validity within that MAX_ORDER_NR_PAGES block.
- * pfn_valid_within() should be used in this case; we optimise this away
- * when we have no holes within a MAX_ORDER_NR_PAGES block.
- */
-#ifdef CONFIG_HOLES_IN_ZONE
-#define pfn_valid_within(pfn) pfn_valid(pfn)
-#else
-#define pfn_valid_within(pfn) (1)
-#endif
-
 #endif /* !__GENERATING_BOUNDS.H */
 #endif /* !__ASSEMBLY__ */
 #endif /* _LINUX_MMZONE_H */
