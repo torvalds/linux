@@ -89,8 +89,6 @@ struct phy_status_rpt {
 #endif
 };
 
-void odm_Init_RSSIForDM(struct odm_dm_struct *pDM_Odm);
-
 void ODM_PhyStatusQuery(struct odm_dm_struct *pDM_Odm,
 			struct odm_phy_status_info *pPhyInfo,
 			u8 *pPhyStatus,
