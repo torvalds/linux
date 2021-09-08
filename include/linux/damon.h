@@ -249,4 +249,17 @@ int damon_stop(struct damon_ctx **ctxs, int nr_ctxs);
 
 #endif	/* CONFIG_DAMON */
 
+#ifdef CONFIG_DAMON_VADDR
+
+/* Monitoring primitives for virtual memory address spaces */
+void damon_va_init(struct damon_ctx *ctx);
+void damon_va_update(struct damon_ctx *ctx);
+void damon_va_prepare_access_checks(struct damon_ctx *ctx);
+unsigned int damon_va_check_accesses(struct damon_ctx *ctx);
+bool damon_va_target_valid(void *t);
+void damon_va_cleanup(struct damon_ctx *ctx);
+void damon_va_set_primitives(struct damon_ctx *ctx);
+
+#endif	/* CONFIG_DAMON_VADDR */
+
 #endif	/* _DAMON_H */
