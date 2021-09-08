@@ -213,10 +213,20 @@ static void irtoy_in_callback(struct urb *urb)
 	struct irtoy *irtoy = urb->context;
 	int ret;
 
-	if (urb->status == 0)
+	switch (urb->status) {
+	case 0:
 		irtoy_response(irtoy, urb->actual_length);
-	else
+		break;
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+	case -EPROTO:
+	case -EPIPE:
+		usb_unlink_urb(urb);
+		return;
+	default:
 		dev_dbg(irtoy->dev, "in urb status: %d\n", urb->status);
+	}
 
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	if (ret && ret != -ENODEV)
