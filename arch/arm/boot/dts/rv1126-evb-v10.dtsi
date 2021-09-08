@@ -1301,6 +1301,14 @@
 	/delete-property/ pinctrl-names;
 	/delete-property/ pinctrl-0;
 	status = "okay";
+
+	flash@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		spi-max-frequency = <80000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
 };
 
 &u2phy0 {
