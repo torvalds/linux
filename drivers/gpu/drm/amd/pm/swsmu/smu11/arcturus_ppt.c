@@ -771,8 +771,12 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 	struct smu_11_0_dpm_context *dpm_context = NULL;
 	uint32_t gen_speed, lane_width;
 
-	if (amdgpu_ras_intr_triggered())
-		return sysfs_emit(buf, "unavailable\n");
+	smu_cmn_get_sysfs_buf(&buf, &size);
+
+	if (amdgpu_ras_intr_triggered()) {
+		size += sysfs_emit_at(buf, size, "unavailable\n");
+		return size;
+	}
 
 	dpm_context = smu_dpm->dpm_context;
 

@@ -110,5 +110,18 @@ void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev);
 int smu_cmn_set_mp1_state(struct smu_context *smu,
 			  enum pp_mp1_state mp1_state);
 
+/*
+ * Helper function to make sysfs_emit_at() happy. Align buf to
+ * the current page boundary and record the offset.
+ */
+static inline void smu_cmn_get_sysfs_buf(char **buf, int *offset)
+{
+	if (!*buf || !offset)
+		return;
+
+	*offset = offset_in_page(*buf);
+	*buf -= *offset;
+}
+
 #endif
 #endif
