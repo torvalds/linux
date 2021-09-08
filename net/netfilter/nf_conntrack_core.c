@@ -189,11 +189,13 @@ seqcount_spinlock_t nf_conntrack_generation __read_mostly;
 static siphash_key_t nf_conntrack_hash_rnd __read_mostly;
 
 static u32 hash_conntrack_raw(const struct nf_conntrack_tuple *tuple,
+			      unsigned int zoneid,
 			      const struct net *net)
 {
 	struct {
 		struct nf_conntrack_man src;
 		union nf_inet_addr dst_addr;
+		unsigned int zone;
 		u32 net_mix;
 		u16 dport;
 		u16 proto;
@@ -206,6 +208,7 @@ static u32 hash_conntrack_raw(const struct nf_conntrack_tuple *tuple,
 	/* The direction must be ignored, so handle usable members manually. */
 	combined.src = tuple->src;
 	combined.dst_addr = tuple->dst.u3;
+	combined.zone = zoneid;
 	combined.net_mix = net_hash_mix(net);
 	combined.dport = (__force __u16)tuple->dst.u.all;
 	combined.proto = tuple->dst.protonum;
@@ -220,15 +223,17 @@ static u32 scale_hash(u32 hash)
 
 static u32 __hash_conntrack(const struct net *net,
 			    const struct nf_conntrack_tuple *tuple,
+			    unsigned int zoneid,
 			    unsigned int size)
 {
-	return reciprocal_scale(hash_conntrack_raw(tuple, net), size);
+	return reciprocal_scale(hash_conntrack_raw(tuple, zoneid, net), size);
 }
 
 static u32 hash_conntrack(const struct net *net,
-			  const struct nf_conntrack_tuple *tuple)
+			  const struct nf_conntrack_tuple *tuple,
+			  unsigned int zoneid)
 {
-	return scale_hash(hash_conntrack_raw(tuple, net));
+	return scale_hash(hash_conntrack_raw(tuple, zoneid, net));
 }
 
 static bool nf_ct_get_tuple_ports(const struct sk_buff *skb,
@@ -651,9 +656,11 @@ static void nf_ct_delete_from_lists(struct nf_conn *ct)
 	do {
 		sequence = read_seqcount_begin(&nf_conntrack_generation);
 		hash = hash_conntrack(net,
-				      &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
+				      &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
+				      nf_ct_zone_id(nf_ct_zone(ct), IP_CT_DIR_ORIGINAL));
 		reply_hash = hash_conntrack(net,
-					   &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+					   &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
+					   nf_ct_zone_id(nf_ct_zone(ct), IP_CT_DIR_REPLY));
 	} while (nf_conntrack_double_lock(net, hash, reply_hash, sequence));
 
 	clean_from_lists(ct);
@@ -820,8 +827,20 @@ struct nf_conntrack_tuple_hash *
 nf_conntrack_find_get(struct net *net, const struct nf_conntrack_zone *zone,
 		      const struct nf_conntrack_tuple *tuple)
 {
-	return __nf_conntrack_find_get(net, zone, tuple,
-				       hash_conntrack_raw(tuple, net));
+	unsigned int rid, zone_id = nf_ct_zone_id(zone, IP_CT_DIR_ORIGINAL);
+	struct nf_conntrack_tuple_hash *thash;
+
+	thash = __nf_conntrack_find_get(net, zone, tuple,
+					hash_conntrack_raw(tuple, zone_id, net));
+
+	if (thash)
+		return thash;
+
+	rid = nf_ct_zone_id(zone, IP_CT_DIR_REPLY);
+	if (rid != zone_id)
+		return __nf_conntrack_find_get(net, zone, tuple,
+					       hash_conntrack_raw(tuple, rid, net));
+	return thash;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_find_get);
 
@@ -854,9 +873,11 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 	do {
 		sequence = read_seqcount_begin(&nf_conntrack_generation);
 		hash = hash_conntrack(net,
-				      &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
+				      &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
+				      nf_ct_zone_id(nf_ct_zone(ct), IP_CT_DIR_ORIGINAL));
 		reply_hash = hash_conntrack(net,
-					   &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+					   &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
+					   nf_ct_zone_id(nf_ct_zone(ct), IP_CT_DIR_REPLY));
 	} while (nf_conntrack_double_lock(net, hash, reply_hash, sequence));
 
 	max_chainlen = MIN_CHAINLEN + prandom_u32_max(MAX_CHAINLEN);
@@ -1137,8 +1158,8 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 		hash = *(unsigned long *)&ct->tuplehash[IP_CT_DIR_REPLY].hnnode.pprev;
 		hash = scale_hash(hash);
 		reply_hash = hash_conntrack(net,
-					   &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
-
+					   &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
+					   nf_ct_zone_id(nf_ct_zone(ct), IP_CT_DIR_REPLY));
 	} while (nf_conntrack_double_lock(net, hash, reply_hash, sequence));
 
 	/* We're not in hash table, and we refuse to set up related
@@ -1251,7 +1272,7 @@ nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
 	rcu_read_lock();
  begin:
 	nf_conntrack_get_ht(&ct_hash, &hsize);
-	hash = __hash_conntrack(net, tuple, hsize);
+	hash = __hash_conntrack(net, tuple, nf_ct_zone_id(zone, IP_CT_DIR_REPLY), hsize);
 
 	hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[hash], hnnode) {
 		ct = nf_ct_tuplehash_to_ctrack(h);
@@ -1692,8 +1713,8 @@ resolve_normal_ct(struct nf_conn *tmpl,
 	struct nf_conntrack_tuple_hash *h;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conntrack_zone tmp;
+	u32 hash, zone_id, rid;
 	struct nf_conn *ct;
-	u32 hash;
 
 	if (!nf_ct_get_tuple(skb, skb_network_offset(skb),
 			     dataoff, state->pf, protonum, state->net,
@@ -1704,8 +1725,20 @@ resolve_normal_ct(struct nf_conn *tmpl,
 
 	/* look for tuple match */
 	zone = nf_ct_zone_tmpl(tmpl, skb, &tmp);
-	hash = hash_conntrack_raw(&tuple, state->net);
+
+	zone_id = nf_ct_zone_id(zone, IP_CT_DIR_ORIGINAL);
+	hash = hash_conntrack_raw(&tuple, zone_id, state->net);
 	h = __nf_conntrack_find_get(state->net, zone, &tuple, hash);
+
+	if (!h) {
+		rid = nf_ct_zone_id(zone, IP_CT_DIR_REPLY);
+		if (zone_id != rid) {
+			u32 tmp = hash_conntrack_raw(&tuple, rid, state->net);
+
+			h = __nf_conntrack_find_get(state->net, zone, &tuple, tmp);
+		}
+	}
+
 	if (!h) {
 		h = init_conntrack(state->net, tmpl, &tuple,
 				   skb, dataoff, hash);
@@ -2542,12 +2575,16 @@ int nf_conntrack_hash_resize(unsigned int hashsize)
 
 	for (i = 0; i < nf_conntrack_htable_size; i++) {
 		while (!hlist_nulls_empty(&nf_conntrack_hash[i])) {
+			unsigned int zone_id;
+
 			h = hlist_nulls_entry(nf_conntrack_hash[i].first,
 					      struct nf_conntrack_tuple_hash, hnnode);
 			ct = nf_ct_tuplehash_to_ctrack(h);
 			hlist_nulls_del_rcu(&h->hnnode);
+
+			zone_id = nf_ct_zone_id(nf_ct_zone(ct), NF_CT_DIRECTION(h));
 			bucket = __hash_conntrack(nf_ct_net(ct),
-						  &h->tuple, hashsize);
+						  &h->tuple, zone_id, hashsize);
 			hlist_nulls_add_head_rcu(&h->hnnode, &hash[bucket]);
 		}
 	}
