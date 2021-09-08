@@ -395,7 +395,8 @@ static int bcm_qspi_bspi_set_flex_mode(struct bcm_qspi *qspi,
 	if (addrlen == BSPI_ADDRLEN_4BYTES)
 		bpp = BSPI_BPP_ADDR_SELECT_MASK;
 
-	bpp |= (op->dummy.nbytes * 8) / op->dummy.buswidth;
+	if (op->dummy.nbytes)
+		bpp |= (op->dummy.nbytes * 8) / op->dummy.buswidth;
 
 	switch (width) {
 	case SPI_NBITS_SINGLE:
