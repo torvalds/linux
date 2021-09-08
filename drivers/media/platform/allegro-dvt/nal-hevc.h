@@ -8,9 +8,11 @@
 #ifndef __NAL_HEVC_H__
 #define __NAL_HEVC_H__
 
+#include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <media/v4l2-ctrls.h>
+#include <linux/v4l2-controls.h>
+#include <linux/videodev2.h>
 
 struct nal_hevc_profile_tier_level {
 	unsigned int general_profile_space;
@@ -318,9 +320,99 @@ struct nal_hevc_pps {
 	};
 };
 
-int nal_hevc_profile_from_v4l2(enum v4l2_mpeg_video_hevc_profile profile);
-int nal_hevc_tier_from_v4l2(enum v4l2_mpeg_video_hevc_tier tier);
-int nal_hevc_level_from_v4l2(enum v4l2_mpeg_video_hevc_level level);
+/**
+ * nal_hevc_profile() - Get profile_idc for v4l2 hevc profile
+ * @profile: the profile as &enum v4l2_mpeg_video_hevc_profile
+ *
+ * Convert the &enum v4l2_mpeg_video_hevc_profile to profile_idc as specified
+ * in Rec. ITU-T H.265 (02/2018) A.3.
+ *
+ * Return: the profile_idc for the passed level
+ */
+static inline int nal_hevc_profile(enum v4l2_mpeg_video_hevc_profile profile)
+{
+	switch (profile) {
+	case V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN:
+		return 1;
+	case V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_10:
+		return 2;
+	case V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_STILL_PICTURE:
+		return 3;
+	default:
+		return -EINVAL;
+	}
+}
+
+/**
+ * nal_hevc_tier() - Get tier_flag for v4l2 hevc tier
+ * @tier: the tier as &enum v4l2_mpeg_video_hevc_tier
+ *
+ * Convert the &enum v4l2_mpeg_video_hevc_tier to tier_flag as specified
+ * in Rec. ITU-T H.265 (02/2018) A.4.1.
+ *
+ * Return: the tier_flag for the passed tier
+ */
+static inline int nal_hevc_tier(enum v4l2_mpeg_video_hevc_tier tier)
+{
+	switch (tier) {
+	case V4L2_MPEG_VIDEO_HEVC_TIER_MAIN:
+		return 0;
+	case V4L2_MPEG_VIDEO_HEVC_TIER_HIGH:
+		return 1;
+	default:
+		return -EINVAL;
+	}
+}
+
+/**
+ * nal_hevc_level() - Get level_idc for v4l2 hevc level
+ * @level: the level as &enum v4l2_mpeg_video_hevc_level
+ *
+ * Convert the &enum v4l2_mpeg_video_hevc_level to level_idc as specified in
+ * Rec. ITU-T H.265 (02/2018) A.4.1.
+ *
+ * Return: the level_idc for the passed level
+ */
+static inline int nal_hevc_level(enum v4l2_mpeg_video_hevc_level level)
+{
+	/*
+	 * T-Rec-H.265 p. 280: general_level_idc and sub_layer_level_idc[ i ]
+	 * shall be set equal to a value of 30 times the level number
+	 * specified in Table A.6.
+	 */
+	int factor = 30 / 10;
+
+	switch (level) {
+	case V4L2_MPEG_VIDEO_HEVC_LEVEL_1:
+		return factor * 10;
+	case V4L2_MPEG_VIDEO_HEVC_LEVEL_2:
+		return factor * 20;
+	case V4L2_MPEG_VIDEO_HEVC_LEVEL_2_1:
+		return factor * 21;
+	case V4L2_MPEG_VIDEO_HEVC_LEVEL_3:
+		return factor * 30;
+	case V4L2_MPEG_VIDEO_HEVC_LEVEL_3_1:
+		return factor * 31;
+	case V4L2_MPEG_VIDEO_HEVC_LEVEL_4:
+		return factor * 40;
+	case V4L2_MPEG_VIDEO_HEVC_LEVEL_4_1:
+		return factor * 41;
+	case V4L2_MPEG_VIDEO_HEVC_LEVEL_5:
+		return factor * 50;
+	case V4L2_MPEG_VIDEO_HEVC_LEVEL_5_1:
+		return factor * 51;
+	case V4L2_MPEG_VIDEO_HEVC_LEVEL_5_2:
+		return factor * 52;
+	case V4L2_MPEG_VIDEO_HEVC_LEVEL_6:
+		return factor * 60;
+	case V4L2_MPEG_VIDEO_HEVC_LEVEL_6_1:
+		return factor * 61;
+	case V4L2_MPEG_VIDEO_HEVC_LEVEL_6_2:
+		return factor * 62;
+	default:
+		return -EINVAL;
+	}
+}
 
 int nal_range_from_v4l2(enum v4l2_quantization quantization);
 int nal_color_primaries_from_v4l2(enum v4l2_colorspace colorspace);

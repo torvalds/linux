@@ -1588,14 +1588,14 @@ static ssize_t allegro_h264_write_sps(struct allegro_channel *channel,
 	profile = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_profile);
 	level = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_level);
 
-	sps->profile_idc = nal_h264_profile_from_v4l2(profile);
+	sps->profile_idc = nal_h264_profile(profile);
 	sps->constraint_set0_flag = 0;
 	sps->constraint_set1_flag = 1;
 	sps->constraint_set2_flag = 0;
 	sps->constraint_set3_flag = 0;
 	sps->constraint_set4_flag = 0;
 	sps->constraint_set5_flag = 0;
-	sps->level_idc = nal_h264_level_from_v4l2(level);
+	sps->level_idc = nal_h264_level(level);
 	sps->seq_parameter_set_id = 0;
 	sps->log2_max_frame_num_minus4 = LOG2_MAX_FRAME_NUM - 4;
 	sps->pic_order_cnt_type = 0;
@@ -1734,12 +1734,12 @@ static ssize_t allegro_hevc_write_vps(struct allegro_channel *channel,
 	vps->temporal_id_nesting_flag = 1;
 
 	ptl = &vps->profile_tier_level;
-	ptl->general_profile_idc = nal_hevc_profile_from_v4l2(profile);
+	ptl->general_profile_idc = nal_hevc_profile(profile);
 	ptl->general_profile_compatibility_flag[ptl->general_profile_idc] = 1;
-	ptl->general_tier_flag = nal_hevc_tier_from_v4l2(tier);
+	ptl->general_tier_flag = nal_hevc_tier(tier);
 	ptl->general_progressive_source_flag = 1;
 	ptl->general_frame_only_constraint_flag = 1;
-	ptl->general_level_idc = nal_hevc_level_from_v4l2(level);
+	ptl->general_level_idc = nal_hevc_level(level);
 
 	vps->sub_layer_ordering_info_present_flag = 0;
 	vps->max_dec_pic_buffering_minus1[0] = num_ref_frames;
@@ -1771,12 +1771,12 @@ static ssize_t allegro_hevc_write_sps(struct allegro_channel *channel,
 	sps->temporal_id_nesting_flag = 1;
 
 	ptl = &sps->profile_tier_level;
-	ptl->general_profile_idc = nal_hevc_profile_from_v4l2(profile);
+	ptl->general_profile_idc = nal_hevc_profile(profile);
 	ptl->general_profile_compatibility_flag[ptl->general_profile_idc] = 1;
-	ptl->general_tier_flag = nal_hevc_tier_from_v4l2(tier);
+	ptl->general_tier_flag = nal_hevc_tier(tier);
 	ptl->general_progressive_source_flag = 1;
 	ptl->general_frame_only_constraint_flag = 1;
-	ptl->general_level_idc = nal_hevc_level_from_v4l2(level);
+	ptl->general_level_idc = nal_hevc_level(level);
 
 	sps->seq_parameter_set_id = 0;
 	sps->chroma_format_idc = 1; /* Only 4:2:0 sampling supported */

@@ -8,8 +8,11 @@
 #ifndef __NAL_H264_H__
 #define __NAL_H264_H__
 
+#include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/v4l2-controls.h>
+#include <linux/videodev2.h>
 
 /*
  * struct nal_h264_hrd_parameters - HRD parameters
@@ -187,8 +190,79 @@ struct nal_h264_pps {
 	};
 };
 
-int nal_h264_profile_from_v4l2(enum v4l2_mpeg_video_h264_profile profile);
-int nal_h264_level_from_v4l2(enum v4l2_mpeg_video_h264_level level);
+/**
+ * nal_h264_profile() - Get profile_idc for v4l2 h264 profile
+ * @profile: the profile as &enum v4l2_mpeg_video_h264_profile
+ *
+ * Convert the &enum v4l2_mpeg_video_h264_profile to profile_idc as specified
+ * in Rec. ITU-T H.264 (04/2017) A.2.
+ *
+ * Return: the profile_idc for the passed level
+ */
+static inline int nal_h264_profile(enum v4l2_mpeg_video_h264_profile profile)
+{
+	switch (profile) {
+	case V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE:
+		return 66;
+	case V4L2_MPEG_VIDEO_H264_PROFILE_MAIN:
+		return 77;
+	case V4L2_MPEG_VIDEO_H264_PROFILE_EXTENDED:
+		return 88;
+	case V4L2_MPEG_VIDEO_H264_PROFILE_HIGH:
+		return 100;
+	default:
+		return -EINVAL;
+	}
+}
+
+/**
+ * nal_h264_level() - Get level_idc for v4l2 h264 level
+ * @level: the level as &enum v4l2_mpeg_video_h264_level
+ *
+ * Convert the &enum v4l2_mpeg_video_h264_level to level_idc as specified in
+ * Rec. ITU-T H.264 (04/2017) A.3.2.
+ *
+ * Return: the level_idc for the passed level
+ */
+static inline int nal_h264_level(enum v4l2_mpeg_video_h264_level level)
+{
+	switch (level) {
+	case V4L2_MPEG_VIDEO_H264_LEVEL_1_0:
+		return 10;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_1B:
+		return 9;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_1_1:
+		return 11;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_1_2:
+		return 12;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_1_3:
+		return 13;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_2_0:
+		return 20;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_2_1:
+		return 21;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_2_2:
+		return 22;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_3_0:
+		return 30;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_3_1:
+		return 31;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_3_2:
+		return 32;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_4_0:
+		return 40;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_4_1:
+		return 41;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_4_2:
+		return 42;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_5_0:
+		return 50;
+	case V4L2_MPEG_VIDEO_H264_LEVEL_5_1:
+		return 51;
+	default:
+		return -EINVAL;
+	}
+}
 
 ssize_t nal_h264_write_sps(const struct device *dev,
 			   void *dest, size_t n, struct nal_h264_sps *sps);
