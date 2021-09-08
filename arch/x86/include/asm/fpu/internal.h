@@ -318,9 +318,12 @@ static inline void os_xrstor(struct xregs_state *xstate, u64 mask)
  * We don't use modified optimization because xrstor/xrstors might track
  * a different application.
  *
- * We don't use compacted format xsave area for
- * backward compatibility for old applications which don't understand
- * compacted format of xsave area.
+ * We don't use compacted format xsave area for backward compatibility for
+ * old applications which don't understand the compacted format of the
+ * xsave area.
+ *
+ * The caller has to zero buf::header before calling this because XSAVE*
+ * does not touch the reserved fields in the header.
  */
 static inline int xsave_to_user_sigframe(struct xregs_state __user *buf)
 {
@@ -333,14 +336,6 @@ static inline int xsave_to_user_sigframe(struct xregs_state __user *buf)
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
 	int err;
-
-	/*
-	 * Clear the xsave header first, so that reserved fields are
-	 * initialized to zero.
-	 */
-	err = __clear_user(&buf->header, sizeof(buf->header));
-	if (unlikely(err))
-		return -EFAULT;
 
 	stac();
 	XSTATE_OP(XSAVE, buf, lmask, hmask, err);
