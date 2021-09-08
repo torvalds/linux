@@ -205,7 +205,7 @@ which are function pointers of struct address_space_operations.
    In this function, the driver should put the isolated page back into its own data
    structure.
 
-4. non-LRU movable page flags
+Non-LRU movable page flags
 
    There are two page flags for supporting non-LRU movable page.
 
