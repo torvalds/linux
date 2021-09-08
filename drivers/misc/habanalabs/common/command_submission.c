@@ -2782,12 +2782,12 @@ static inline unsigned long hl_usecs64_to_jiffies(const u64 usecs)
 
 static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 				u64 timeout_us, u64 user_address,
-				u64 target_value, u16 interrupt_offset,
+				u64 target_value, struct hl_user_interrupt *interrupt,
+
 				u32 *status,
 				u64 *timestamp)
 {
 	struct hl_user_pending_interrupt *pend;
-	struct hl_user_interrupt *interrupt;
 	unsigned long timeout, flags;
 	u64 completion_value;
 	long completion_rc;
@@ -2804,11 +2804,6 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	}
 
 	hl_fence_init(&pend->fence, ULONG_MAX);
-
-	if (interrupt_offset == HL_COMMON_USER_INTERRUPT_ID)
-		interrupt = &hdev->common_user_interrupt;
-	else
-		interrupt = &hdev->user_interrupt[interrupt_offset];
 
 	/* Add pending user interrupt to relevant list for the interrupt
 	 * handler to monitor
@@ -2898,9 +2893,10 @@ remove_pending_user_interrupt:
 
 static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 {
-	u16 interrupt_id, interrupt_offset, first_interrupt, last_interrupt;
+	u16 interrupt_id, first_interrupt, last_interrupt;
 	struct hl_device *hdev = hpriv->hdev;
 	struct asic_fixed_properties *prop;
+	struct hl_user_interrupt *interrupt;
 	union hl_wait_cs_args *args = data;
 	u32 status = HL_WAIT_CS_STATUS_BUSY;
 	u64 timestamp;
@@ -2913,8 +2909,7 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 		return -EPERM;
 	}
 
-	interrupt_id =
-		FIELD_GET(HL_WAIT_CS_FLAGS_INTERRUPT_MASK, args->in.flags);
+	interrupt_id = FIELD_GET(HL_WAIT_CS_FLAGS_INTERRUPT_MASK, args->in.flags);
 
 	first_interrupt = prop->first_available_user_msix_interrupt;
 	last_interrupt = prop->first_available_user_msix_interrupt +
@@ -2927,15 +2922,14 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	}
 
 	if (interrupt_id == HL_COMMON_USER_INTERRUPT_ID)
-		interrupt_offset = HL_COMMON_USER_INTERRUPT_ID;
+		interrupt = &hdev->common_user_interrupt;
 	else
-		interrupt_offset = interrupt_id - first_interrupt;
+		interrupt = &hdev->user_interrupt[interrupt_id - first_interrupt];
 
 	rc = _hl_interrupt_wait_ioctl(hdev, hpriv->ctx,
 				args->in.interrupt_timeout_us, args->in.addr,
-				args->in.target, interrupt_offset, &status,
+				args->in.target, interrupt, &status,
 				&timestamp);
-
 	if (rc) {
 		if (rc != -EINTR)
 			dev_err_ratelimited(hdev->dev,
