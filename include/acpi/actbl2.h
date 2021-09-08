@@ -978,6 +978,7 @@ struct acpi_madt_multiproc_wakeup_mailbox {
 /* MADT Local APIC flags */
 
 #define ACPI_MADT_ENABLED           (1)	/* 00: Processor is usable if set */
+#define ACPI_MADT_ONLINE_CAPABLE    (2)	/* 01: System HW supports enabling processor at runtime */
 
 /* MADT MPS INTI flags (inti_flags) */
 
