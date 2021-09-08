@@ -3763,7 +3763,7 @@ static int do_allocation_zoned(struct btrfs_block_group *block_group,
 	u64 log_bytenr;
 	u64 data_reloc_bytenr;
 	int ret = 0;
-	bool skip;
+	bool skip = false;
 
 	ASSERT(btrfs_is_zoned(block_group->fs_info));
 
@@ -3773,8 +3773,9 @@ static int do_allocation_zoned(struct btrfs_block_group *block_group,
 	 */
 	spin_lock(&fs_info->treelog_bg_lock);
 	log_bytenr = fs_info->treelog_bg;
-	skip = log_bytenr && ((ffe_ctl->for_treelog && bytenr != log_bytenr) ||
-			      (!ffe_ctl->for_treelog && bytenr == log_bytenr));
+	if (log_bytenr && ((ffe_ctl->for_treelog && bytenr != log_bytenr) ||
+			   (!ffe_ctl->for_treelog && bytenr == log_bytenr)))
+		skip = true;
 	spin_unlock(&fs_info->treelog_bg_lock);
 	if (skip)
 		return 1;
