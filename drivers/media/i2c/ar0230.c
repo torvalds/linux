@@ -1292,7 +1292,7 @@ static int ar0230_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 }
 #endif
 
-static int ar0230_g_mbus_config(struct v4l2_subdev *sd,
+static int ar0230_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	config->type = V4L2_MBUS_PARALLEL;
@@ -1339,7 +1339,6 @@ static const struct v4l2_subdev_core_ops ar0230_core_ops = {
 
 static const struct v4l2_subdev_video_ops ar0230_video_ops = {
 	.s_stream = ar0230_s_stream,
-	.g_mbus_config = ar0230_g_mbus_config,
 	.g_frame_interval = ar0230_g_frame_interval,
 };
 
@@ -1349,6 +1348,7 @@ static const struct v4l2_subdev_pad_ops ar0230_pad_ops = {
 	.enum_frame_interval = ar0230_enum_frame_interval,
 	.get_fmt = ar0230_get_fmt,
 	.set_fmt = ar0230_set_fmt,
+	.get_mbus_config = ar0230_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops ar0230_subdev_ops = {
