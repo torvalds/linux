@@ -544,4 +544,245 @@ struct smb2_negotiate_rsp {
 } __packed;
 
 
+/*
+ * SMB2_SESSION_SETUP  See MS-SMB2 section 2.2.5
+ */
+/* Flags */
+#define SMB2_SESSION_REQ_FLAG_BINDING		0x01
+#define SMB2_SESSION_REQ_FLAG_ENCRYPT_DATA	0x04
+
+struct smb2_sess_setup_req {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 25 */
+	__u8   Flags;
+	__u8   SecurityMode;
+	__le32 Capabilities;
+	__le32 Channel;
+	__le16 SecurityBufferOffset;
+	__le16 SecurityBufferLength;
+	__le64 PreviousSessionId;
+	__u8   Buffer[1];	/* variable length GSS security buffer */
+} __packed;
+
+/* Currently defined SessionFlags */
+#define SMB2_SESSION_FLAG_IS_GUEST        0x0001
+#define SMB2_SESSION_FLAG_IS_GUEST_LE     cpu_to_le16(0x0001)
+#define SMB2_SESSION_FLAG_IS_NULL         0x0002
+#define SMB2_SESSION_FLAG_IS_NULL_LE      cpu_to_le16(0x0002)
+#define SMB2_SESSION_FLAG_ENCRYPT_DATA    0x0004
+#define SMB2_SESSION_FLAG_ENCRYPT_DATA_LE cpu_to_le16(0x0004)
+
+struct smb2_sess_setup_rsp {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 9 */
+	__le16 SessionFlags;
+	__le16 SecurityBufferOffset;
+	__le16 SecurityBufferLength;
+	__u8   Buffer[1];	/* variable length GSS security buffer */
+} __packed;
+
+
+/*
+ * SMB2_LOGOFF  See MS-SMB2 section 2.2.7
+ */
+struct smb2_logoff_req {
+	struct smb2_hdr hdr;
+	__le16 StructureSize;	/* Must be 4 */
+	__le16 Reserved;
+} __packed;
+
+struct smb2_logoff_rsp {
+	struct smb2_hdr hdr;
+	__le16 StructureSize;	/* Must be 4 */
+	__le16 Reserved;
+} __packed;
+
+
+/*
+ * SMB2_CLOSE  See MS-SMB2 section 2.2.15
+ */
+/* Currently defined values for close flags */
+#define SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB	cpu_to_le16(0x0001)
+struct smb2_close_req {
+	struct smb2_hdr hdr;
+	__le16 StructureSize;	/* Must be 24 */
+	__le16 Flags;
+	__le32 Reserved;
+	__le64  PersistentFileId; /* opaque endianness */
+	__le64  VolatileFileId; /* opaque endianness */
+} __packed;
+
+/*
+ * Maximum size of a SMB2_CLOSE response is 64 (smb2 header) + 60 (data)
+ */
+#define MAX_SMB2_CLOSE_RESPONSE_SIZE 124
+
+struct smb2_close_rsp {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* 60 */
+	__le16 Flags;
+	__le32 Reserved;
+	__le64 CreationTime;
+	__le64 LastAccessTime;
+	__le64 LastWriteTime;
+	__le64 ChangeTime;
+	__le64 AllocationSize;	/* Beginning of FILE_STANDARD_INFO equivalent */
+	__le64 EndOfFile;
+	__le32 Attributes;
+} __packed;
+
+
+/*
+ * SMB2_READ  See MS-SMB2 section 2.2.19
+ */
+/* For read request Flags field below, following flag is defined for SMB3.02 */
+#define SMB2_READFLAG_READ_UNBUFFERED	0x01
+#define SMB2_READFLAG_REQUEST_COMPRESSED 0x02 /* See MS-SMB2 2.2.19 */
+
+/* Channel field for read and write: exactly one of following flags can be set*/
+#define SMB2_CHANNEL_NONE               cpu_to_le32(0x00000000)
+#define SMB2_CHANNEL_RDMA_V1            cpu_to_le32(0x00000001)
+#define SMB2_CHANNEL_RDMA_V1_INVALIDATE cpu_to_le32(0x00000002)
+#define SMB2_CHANNEL_RDMA_TRANSFORM     cpu_to_le32(0x00000003)
+
+/* SMB2 read request without RFC1001 length at the beginning */
+struct smb2_read_req {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 49 */
+	__u8   Padding; /* offset from start of SMB2 header to place read */
+	__u8   Flags; /* MBZ unless SMB3.02 or later */
+	__le32 Length;
+	__le64 Offset;
+	__le64  PersistentFileId;
+	__le64  VolatileFileId;
+	__le32 MinimumCount;
+	__le32 Channel; /* MBZ except for SMB3 or later */
+	__le32 RemainingBytes;
+	__le16 ReadChannelInfoOffset;
+	__le16 ReadChannelInfoLength;
+	__u8   Buffer[1];
+} __packed;
+
+/* Read flags */
+#define SMB2_READFLAG_RESPONSE_NONE            cpu_to_le32(0x00000000)
+#define SMB2_READFLAG_RESPONSE_RDMA_TRANSFORM  cpu_to_le32(0x00000001)
+
+struct smb2_read_rsp {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 17 */
+	__u8   DataOffset;
+	__u8   Reserved;
+	__le32 DataLength;
+	__le32 DataRemaining;
+	__le32 Flags;
+	__u8   Buffer[1];
+} __packed;
+
+
+/*
+ * SMB2_WRITE  See MS-SMB2 section 2.2.21
+ */
+/* For write request Flags field below the following flags are defined: */
+#define SMB2_WRITEFLAG_WRITE_THROUGH	0x00000001	/* SMB2.1 or later */
+#define SMB2_WRITEFLAG_WRITE_UNBUFFERED	0x00000002	/* SMB3.02 or later */
+
+struct smb2_write_req {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 49 */
+	__le16 DataOffset; /* offset from start of SMB2 header to write data */
+	__le32 Length;
+	__le64 Offset;
+	__le64  PersistentFileId; /* opaque endianness */
+	__le64  VolatileFileId; /* opaque endianness */
+	__le32 Channel; /* MBZ unless SMB3.02 or later */
+	__le32 RemainingBytes;
+	__le16 WriteChannelInfoOffset;
+	__le16 WriteChannelInfoLength;
+	__le32 Flags;
+	__u8   Buffer[1];
+} __packed;
+
+struct smb2_write_rsp {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 17 */
+	__u8   DataOffset;
+	__u8   Reserved;
+	__le32 DataLength;
+	__le32 DataRemaining;
+	__u32  Reserved2;
+	__u8   Buffer[1];
+} __packed;
+
+
+/*
+ * SMB2_FLUSH  See MS-SMB2 section 2.2.17
+ */
+struct smb2_flush_req {
+	struct smb2_hdr hdr;
+	__le16 StructureSize;	/* Must be 24 */
+	__le16 Reserved1;
+	__le32 Reserved2;
+	__le64  PersistentFileId;
+	__le64  VolatileFileId;
+} __packed;
+
+struct smb2_flush_rsp {
+	struct smb2_hdr hdr;
+	__le16 StructureSize;
+	__le16 Reserved;
+} __packed;
+
+
+/*
+ * SMB2_NOTIFY  See MS-SMB2 section 2.2.35
+ */
+/* notify flags */
+#define SMB2_WATCH_TREE			0x0001
+
+/* notify completion filter flags. See MS-FSCC 2.6 and MS-SMB2 2.2.35 */
+#define FILE_NOTIFY_CHANGE_FILE_NAME		0x00000001
+#define FILE_NOTIFY_CHANGE_DIR_NAME		0x00000002
+#define FILE_NOTIFY_CHANGE_ATTRIBUTES		0x00000004
+#define FILE_NOTIFY_CHANGE_SIZE			0x00000008
+#define FILE_NOTIFY_CHANGE_LAST_WRITE		0x00000010
+#define FILE_NOTIFY_CHANGE_LAST_ACCESS		0x00000020
+#define FILE_NOTIFY_CHANGE_CREATION		0x00000040
+#define FILE_NOTIFY_CHANGE_EA			0x00000080
+#define FILE_NOTIFY_CHANGE_SECURITY		0x00000100
+#define FILE_NOTIFY_CHANGE_STREAM_NAME		0x00000200
+#define FILE_NOTIFY_CHANGE_STREAM_SIZE		0x00000400
+#define FILE_NOTIFY_CHANGE_STREAM_WRITE		0x00000800
+
+/* SMB2 Notify Action Flags */
+#define FILE_ACTION_ADDED                       0x00000001
+#define FILE_ACTION_REMOVED                     0x00000002
+#define FILE_ACTION_MODIFIED                    0x00000003
+#define FILE_ACTION_RENAMED_OLD_NAME            0x00000004
+#define FILE_ACTION_RENAMED_NEW_NAME            0x00000005
+#define FILE_ACTION_ADDED_STREAM                0x00000006
+#define FILE_ACTION_REMOVED_STREAM              0x00000007
+#define FILE_ACTION_MODIFIED_STREAM             0x00000008
+#define FILE_ACTION_REMOVED_BY_DELETE           0x00000009
+
+struct smb2_change_notify_req {
+	struct smb2_hdr hdr;
+	__le16	StructureSize;
+	__le16	Flags;
+	__le32	OutputBufferLength;
+	__le64	PersistentFileId; /* opaque endianness */
+	__le64	VolatileFileId; /* opaque endianness */
+	__le32	CompletionFilter;
+	__u32	Reserved;
+} __packed;
+
+struct smb2_change_notify_rsp {
+	struct smb2_hdr hdr;
+	__le16	StructureSize;  /* Must be 9 */
+	__le16	OutputBufferOffset;
+	__le32	OutputBufferLength;
+	__u8	Buffer[1]; /* array of file notify structs */
+} __packed;
+
+
+
 #endif				/* _COMMON_SMB2PDU_H */
