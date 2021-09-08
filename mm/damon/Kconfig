@@ -12,6 +12,18 @@ config DAMON
 	  See https://damonitor.github.io/doc/html/latest-damon/index.html for
 	  more information.
 
+config DAMON_KUNIT_TEST
+	bool "Test for damon" if !KUNIT_ALL_TESTS
+	depends on DAMON && KUNIT=y
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the DAMON Kunit test suite.
+
+	  For more information on KUnit and unit tests in general, please refer
+	  to the KUnit documentation.
+
+	  If unsure, say N.
+
 config DAMON_VADDR
 	bool "Data access monitoring primitives for virtual address spaces"
 	depends on DAMON && MMU
@@ -20,12 +32,36 @@ config DAMON_VADDR
 	  This builds the default data access monitoring primitives for DAMON
 	  that works for virtual address spaces.
 
+config DAMON_VADDR_KUNIT_TEST
+	bool "Test for DAMON primitives" if !KUNIT_ALL_TESTS
+	depends on DAMON_VADDR && KUNIT=y
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the DAMON virtual addresses primitives Kunit test suite.
+
+	  For more information on KUnit and unit tests in general, please refer
+	  to the KUnit documentation.
+
+	  If unsure, say N.
+
 config DAMON_DBGFS
 	bool "DAMON debugfs interface"
 	depends on DAMON_VADDR && DEBUG_FS
 	help
 	  This builds the debugfs interface for DAMON.  The user space admins
 	  can use the interface for arbitrary data access monitoring.
+
+	  If unsure, say N.
+
+config DAMON_DBGFS_KUNIT_TEST
+	bool "Test for damon debugfs interface" if !KUNIT_ALL_TESTS
+	depends on DAMON_DBGFS && KUNIT=y
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the DAMON debugfs interface Kunit test suite.
+
+	  For more information on KUnit and unit tests in general, please refer
+	  to the KUnit documentation.
 
 	  If unsure, say N.
 

@@ -18,6 +18,11 @@
 #include <linux/sched/mm.h>
 #include <linux/slab.h>
 
+#ifdef CONFIG_DAMON_VADDR_KUNIT_TEST
+#undef DAMON_MIN_REGION
+#define DAMON_MIN_REGION 1
+#endif
+
 /* Get a random number in [l, r) */
 #define damon_rand(l, r) (l + prandom_u32_max(r - l))
 
@@ -663,3 +668,5 @@ void damon_va_set_primitives(struct damon_ctx *ctx)
 	ctx->primitive.target_valid = damon_va_target_valid;
 	ctx->primitive.cleanup = NULL;
 }
+
+#include "vaddr-test.h"
