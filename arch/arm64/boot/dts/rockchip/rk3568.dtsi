@@ -2407,7 +2407,7 @@
 		status = "disabled";
 	};
 
-	sfc: sfc@fe300000 {
+	sfc: spi@fe300000 {
 		compatible = "rockchip,sfc";
 		reg = <0x0 0xfe300000 0x0 0x4000>;
 		interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
@@ -2415,6 +2415,8 @@
 		clock-names = "clk_sfc", "hclk_sfc";
 		assigned-clocks = <&cru SCLK_SFC>;
 		assigned-clock-rates = <100000000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
 	};
 
