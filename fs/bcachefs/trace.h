@@ -756,6 +756,21 @@ TRACE_EVENT(trans_restart_would_deadlock,
 		  __entry->want_pos_snapshot)
 );
 
+TRACE_EVENT(trans_restart_would_deadlock_write,
+	TP_PROTO(unsigned long trans_ip),
+	TP_ARGS(trans_ip),
+
+	TP_STRUCT__entry(
+		__field(unsigned long,		trans_ip	)
+	),
+
+	TP_fast_assign(
+		__entry->trans_ip	= trans_ip;
+	),
+
+	TP_printk("%ps", (void *) __entry->trans_ip)
+);
+
 TRACE_EVENT(trans_restart_mem_realloced,
 	TP_PROTO(unsigned long trans_ip, unsigned long caller_ip,
 		 unsigned long bytes),

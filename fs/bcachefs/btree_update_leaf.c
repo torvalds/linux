@@ -545,6 +545,54 @@ static inline void normalize_read_intent_locks(struct btree_trans *trans)
 	bch2_trans_verify_locks(trans);
 }
 
+static inline bool have_conflicting_read_lock(struct btree_trans *trans, struct btree_path *pos)
+{
+	struct btree_path *path;
+	unsigned i;
+
+	trans_for_each_path_inorder(trans, path, i) {
+		//if (path == pos)
+		//	break;
+
+		if (path->nodes_locked != path->nodes_intent_locked)
+			return true;
+	}
+
+	return false;
+}
+
+static inline int trans_lock_write(struct btree_trans *trans)
+{
+	struct btree_insert_entry *i;
+
+	trans_for_each_update(trans, i) {
+		if (same_leaf_as_prev(trans, i))
+			continue;
+
+		if (!six_trylock_write(&insert_l(i)->b->c.lock)) {
+			if (have_conflicting_read_lock(trans, i->path))
+				goto fail;
+
+			__btree_node_lock_type(trans->c, insert_l(i)->b,
+					       SIX_LOCK_write);
+		}
+
+		bch2_btree_node_prep_for_write(trans, i->path, insert_l(i)->b);
+	}
+
+	return 0;
+fail:
+	while (--i >= trans->updates) {
+		if (same_leaf_as_prev(trans, i))
+			continue;
+
+		bch2_btree_node_unlock_write_inlined(trans, i->path, insert_l(i)->b);
+	}
+
+	trace_trans_restart_would_deadlock_write(trans->ip);
+	return btree_trans_restart(trans);
+}
+
 /*
  * Get journal reservation, take write locks, and attempt to do btree update(s):
  */
@@ -554,9 +602,24 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
-	struct btree_path *path;
 	struct bkey_s_c old;
 	int ret, u64s_delta = 0;
+
+	trans_for_each_update(trans, i) {
+		const char *invalid = bch2_bkey_invalid(c,
+				bkey_i_to_s_c(i->k), i->bkey_type);
+		if (invalid) {
+			char buf[200];
+
+			bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(i->k));
+			bch_err(c, "invalid bkey %s on insert from %ps -> %ps: %s\n",
+				buf, (void *) trans->ip,
+				(void *) i->ip_allocated, invalid);
+			bch2_fatal_error(c);
+			return -EINVAL;
+		}
+		btree_insert_entry_checks(trans, i);
+	}
 
 	trans_for_each_update(trans, i) {
 		struct bkey u;
@@ -599,48 +662,11 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 	if (unlikely(ret))
 		return ret;
 
-	/*
-	 * Can't be holding any read locks when we go to take write locks:
-	 * another thread could be holding an intent lock on the same node we
-	 * have a read lock on, and it'll block trying to take a write lock
-	 * (because we hold a read lock) and it could be blocking us by holding
-	 * its own read lock (while we're trying to to take write locks).
-	 *
-	 * note - this must be done after bch2_trans_journal_preres_get_cold()
-	 * or anything else that might call bch2_trans_relock(), since that
-	 * would just retake the read locks:
-	 */
-	trans_for_each_path(trans, path)
-		if (path->nodes_locked != path->nodes_intent_locked &&
-		    !bch2_btree_path_upgrade(trans, path, path->level + 1)) {
-			trace_trans_restart_upgrade(trans->ip, trace_ip,
-						    path->btree_id, &path->pos);
-			return btree_trans_restart(trans);
-		}
-
-	trans_for_each_update(trans, i) {
-		const char *invalid = bch2_bkey_invalid(c,
-				bkey_i_to_s_c(i->k), i->bkey_type);
-		if (invalid) {
-			char buf[200];
-
-			bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(i->k));
-			bch_err(c, "invalid bkey %s on insert from %ps -> %ps: %s\n",
-				buf, (void *) trans->ip,
-				(void *) i->ip_allocated, invalid);
-			bch2_fatal_error(c);
-			return -EINVAL;
-		}
-		btree_insert_entry_checks(trans, i);
-	}
-
 	normalize_read_intent_locks(trans);
 
-	trans_for_each_update(trans, i)
-		if (!same_leaf_as_prev(trans, i)) {
-			btree_node_lock_type(c, insert_l(i)->b, SIX_LOCK_write);
-			bch2_btree_node_prep_for_write(trans, i->path, insert_l(i)->b);
-		}
+	ret = trans_lock_write(trans);
+	if (unlikely(ret))
+		return ret;
 
 	ret = bch2_trans_commit_write_locked(trans, stopped_at, trace_ip);
 
