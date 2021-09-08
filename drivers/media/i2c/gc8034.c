@@ -2183,7 +2183,7 @@ static int gc8034_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int gc8034_g_mbus_config(struct v4l2_subdev *sd,
+static int gc8034_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	struct gc8034 *sensor = to_gc8034(sd);
@@ -2192,12 +2192,12 @@ static int gc8034_g_mbus_config(struct v4l2_subdev *sd,
 	dev_info(dev, "%s(%d) enter!\n", __func__, __LINE__);
 
 	if (2 == sensor->lane_num) {
-		config->type = V4L2_MBUS_CSI2;
+		config->type = V4L2_MBUS_CSI2_DPHY;
 		config->flags = V4L2_MBUS_CSI2_2_LANE |
 				V4L2_MBUS_CSI2_CHANNEL_0 |
 				V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	} else if (4 == sensor->lane_num) {
-		config->type = V4L2_MBUS_CSI2;
+		config->type = V4L2_MBUS_CSI2_DPHY;
 		config->flags = V4L2_MBUS_CSI2_4_LANE |
 				V4L2_MBUS_CSI2_CHANNEL_0 |
 				V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
@@ -2230,7 +2230,6 @@ static const struct v4l2_subdev_core_ops gc8034_core_ops = {
 static const struct v4l2_subdev_video_ops gc8034_video_ops = {
 	.s_stream = gc8034_s_stream,
 	.g_frame_interval = gc8034_g_frame_interval,
-	.g_mbus_config = gc8034_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops gc8034_pad_ops = {
@@ -2239,6 +2238,7 @@ static const struct v4l2_subdev_pad_ops gc8034_pad_ops = {
 	.enum_frame_interval = gc8034_enum_frame_interval,
 	.get_fmt = gc8034_get_fmt,
 	.set_fmt = gc8034_set_fmt,
+	.get_mbus_config = gc8034_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops gc8034_subdev_ops = {
