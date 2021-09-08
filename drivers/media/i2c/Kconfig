@@ -989,6 +989,17 @@ config VIDEO_IMX335
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx335.
 
+config VIDEO_IMX347
+	tristate "Sony IMX347 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX347 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx347.
+
 config VIDEO_IMX355
 	tristate "Sony IMX355 sensor support"
 	depends on I2C && VIDEO_V4L2
