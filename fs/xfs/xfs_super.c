@@ -314,6 +314,15 @@ xfs_set_inode_alloc(
 	return (mp->m_flags & XFS_MOUNT_32BITINODES) ? maxagi : agcount;
 }
 
+static bool
+xfs_buftarg_is_dax(
+	struct super_block	*sb,
+	struct xfs_buftarg	*bt)
+{
+	return dax_supported(bt->bt_daxdev, bt->bt_bdev, sb->s_blocksize, 0,
+			bdev_nr_sectors(bt->bt_bdev));
+}
+
 STATIC int
 xfs_blkdev_get(
 	xfs_mount_t		*mp,
@@ -1549,11 +1558,10 @@ xfs_fs_fill_super(
 		xfs_warn(mp,
 		"DAX enabled. Warning: EXPERIMENTAL, use at your own risk");
 
-		datadev_is_dax = bdev_dax_supported(mp->m_ddev_targp->bt_bdev,
-			sb->s_blocksize);
+		datadev_is_dax = xfs_buftarg_is_dax(sb, mp->m_ddev_targp);
 		if (mp->m_rtdev_targp)
-			rtdev_is_dax = bdev_dax_supported(
-				mp->m_rtdev_targp->bt_bdev, sb->s_blocksize);
+			rtdev_is_dax = xfs_buftarg_is_dax(sb,
+						mp->m_rtdev_targp);
 		if (!rtdev_is_dax && !datadev_is_dax) {
 			xfs_alert(mp,
 			"DAX unsupported by block device. Turning off DAX.");
