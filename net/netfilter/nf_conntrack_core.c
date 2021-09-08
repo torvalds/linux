@@ -77,7 +77,8 @@ static __read_mostly bool nf_conntrack_locks_all;
 #define GC_SCAN_INTERVAL	(120u * HZ)
 #define GC_SCAN_MAX_DURATION	msecs_to_jiffies(10)
 
-#define MAX_CHAINLEN	64u
+#define MIN_CHAINLEN	8u
+#define MAX_CHAINLEN	(32u - MIN_CHAINLEN)
 
 static struct conntrack_gc_work conntrack_gc_work;
 
@@ -842,6 +843,7 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 	unsigned int hash, reply_hash;
 	struct nf_conntrack_tuple_hash *h;
 	struct hlist_nulls_node *n;
+	unsigned int max_chainlen;
 	unsigned int chainlen = 0;
 	unsigned int sequence;
 	int err = -EEXIST;
@@ -857,13 +859,15 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 					   &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 	} while (nf_conntrack_double_lock(net, hash, reply_hash, sequence));
 
+	max_chainlen = MIN_CHAINLEN + prandom_u32_max(MAX_CHAINLEN);
+
 	/* See if there's one in the list already, including reverse */
 	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[hash], hnnode) {
 		if (nf_ct_key_equal(h, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
 				    zone, net))
 			goto out;
 
-		if (chainlen++ > MAX_CHAINLEN)
+		if (chainlen++ > max_chainlen)
 			goto chaintoolong;
 	}
 
@@ -873,7 +877,7 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 		if (nf_ct_key_equal(h, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
 				    zone, net))
 			goto out;
-		if (chainlen++ > MAX_CHAINLEN)
+		if (chainlen++ > max_chainlen)
 			goto chaintoolong;
 	}
 
@@ -1103,8 +1107,8 @@ drop:
 int
 __nf_conntrack_confirm(struct sk_buff *skb)
 {
+	unsigned int chainlen = 0, sequence, max_chainlen;
 	const struct nf_conntrack_zone *zone;
-	unsigned int chainlen = 0, sequence;
 	unsigned int hash, reply_hash;
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conn *ct;
@@ -1168,6 +1172,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 		goto dying;
 	}
 
+	max_chainlen = MIN_CHAINLEN + prandom_u32_max(MAX_CHAINLEN);
 	/* See if there's one in the list already, including reverse:
 	   NAT could have grabbed it without realizing, since we're
 	   not in the hash.  If there is, we lost race. */
@@ -1175,7 +1180,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 		if (nf_ct_key_equal(h, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
 				    zone, net))
 			goto out;
-		if (chainlen++ > MAX_CHAINLEN)
+		if (chainlen++ > max_chainlen)
 			goto chaintoolong;
 	}
 
@@ -1184,7 +1189,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 		if (nf_ct_key_equal(h, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
 				    zone, net))
 			goto out;
-		if (chainlen++ > MAX_CHAINLEN) {
+		if (chainlen++ > max_chainlen) {
 chaintoolong:
 			nf_ct_add_to_dying_list(ct);
 			NF_CT_STAT_INC(net, chaintoolong);
