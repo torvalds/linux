@@ -110,7 +110,7 @@ int bch2_link_trans(struct btree_trans *trans, u64 dir_inum,
 	inode_u->bi_ctime = now;
 	bch2_inode_nlink_inc(inode_u);
 
-	ret = bch2_inode_peek(trans, &dir_iter, dir_u, dir_inum, 0);
+	ret = bch2_inode_peek(trans, &dir_iter, dir_u, dir_inum, BTREE_ITER_INTENT);
 	if (ret)
 		goto err;
 
