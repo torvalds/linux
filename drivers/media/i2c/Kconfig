@@ -922,6 +922,17 @@ config VIDEO_IMX307
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx307.
 
+config VIDEO_IMX317
+        tristate "Sony IMX317 sensor support"
+        depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+        depends on MEDIA_CAMERA_SUPPORT
+        help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX317 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx317.
+
 config VIDEO_IMX319
 	tristate "Sony IMX319 sensor support"
 	depends on I2C && VIDEO_V4L2
