@@ -4390,8 +4390,7 @@ int btrfs_reloc_cow_block(struct btrfs_trans_handle *trans,
 	if (!rc)
 		return 0;
 
-	BUG_ON(rc->stage == UPDATE_DATA_PTRS &&
-	       root->root_key.objectid == BTRFS_DATA_RELOC_TREE_OBJECTID);
+	BUG_ON(rc->stage == UPDATE_DATA_PTRS && btrfs_is_data_reloc_root(root));
 
 	level = btrfs_header_level(buf);
 	if (btrfs_header_generation(buf) <=
