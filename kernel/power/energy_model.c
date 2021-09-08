@@ -10,6 +10,7 @@
 #define pr_fmt(fmt) "energy_model: " fmt
 
 #include <linux/cpu.h>
+#include <linux/cpufreq.h>
 #include <linux/cpumask.h>
 #include <linux/debugfs.h>
 #include <linux/energy_model.h>
@@ -231,6 +232,43 @@ static int em_create_pd(struct device *dev, int nr_states,
 	return 0;
 }
 
+static void em_cpufreq_update_efficiencies(struct device *dev)
+{
+	struct em_perf_domain *pd = dev->em_pd;
+	struct em_perf_state *table;
+	struct cpufreq_policy *policy;
+	int found = 0;
+	int i;
+
+	if (!_is_cpu_device(dev) || !pd)
+		return;
+
+	policy = cpufreq_cpu_get(cpumask_first(em_span_cpus(pd)));
+	if (!policy) {
+		dev_warn(dev, "EM: Access to CPUFreq policy failed");
+		return;
+	}
+
+	table = pd->table;
+
+	for (i = 0; i < pd->nr_perf_states; i++) {
+		if (!(table[i].flags & EM_PERF_STATE_INEFFICIENT))
+			continue;
+
+		if (!cpufreq_table_set_inefficient(policy, table[i].frequency))
+			found++;
+	}
+
+	if (!found)
+		return;
+
+	/*
+	 * Efficiencies have been installed in CPUFreq, inefficient frequencies
+	 * will be skipped. The EM can do the same.
+	 */
+	pd->flags |= EM_PERF_DOMAIN_SKIP_INEFFICIENCIES;
+}
+
 /**
  * em_pd_get() - Return the performance domain for a device
  * @dev : Device to find the performance domain for
@@ -346,6 +384,8 @@ int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
 
 	if (milliwatts)
 		dev->em_pd->flags |= EM_PERF_DOMAIN_MILLIWATTS;
+
+	em_cpufreq_update_efficiencies(dev);
 
 	em_debug_create_pd(dev);
 	dev_info(dev, "EM: created perf domain\n");
