@@ -1095,14 +1095,14 @@ static int gc2093_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int gc2093_g_mbus_config(struct v4l2_subdev *sd,
+static int gc2093_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	struct gc2093 *gc2093 = to_gc2093(sd);
 	u32 val = 1 << (GC2093_LANES - 1) | V4L2_MBUS_CSI2_CHANNEL_0 |
 		  V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = (gc2093->cur_mode->hdr_mode == NO_HDR) ?
 			val : (val | V4L2_MBUS_CSI2_CHANNEL_1);
 
@@ -1296,7 +1296,6 @@ static const struct v4l2_subdev_core_ops gc2093_core_ops = {
 static const struct v4l2_subdev_video_ops gc2093_video_ops = {
 	.s_stream = gc2093_s_stream,
 	.g_frame_interval = gc2093_g_frame_interval,
-	.g_mbus_config = gc2093_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops gc2093_pad_ops = {
@@ -1305,6 +1304,7 @@ static const struct v4l2_subdev_pad_ops gc2093_pad_ops = {
 	.enum_frame_interval = gc2093_enum_frame_interval,
 	.get_fmt = gc2093_get_fmt,
 	.set_fmt = gc2093_set_fmt,
+	.get_mbus_config = gc2093_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops gc2093_subdev_ops = {
