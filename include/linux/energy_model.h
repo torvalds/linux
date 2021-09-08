@@ -64,8 +64,12 @@ struct em_perf_domain {
  *
  *  EM_PERF_DOMAIN_MILLIWATTS: The power values are in milli-Watts or some
  *  other scale.
+ *
+ *  EM_PERF_DOMAIN_SKIP_INEFFICIENCIES: Skip inefficient states when estimating
+ *  energy consumption.
  */
 #define EM_PERF_DOMAIN_MILLIWATTS BIT(0)
+#define EM_PERF_DOMAIN_SKIP_INEFFICIENCIES BIT(1)
 
 #define em_span_cpus(em) (to_cpumask((em)->cpus))
 
@@ -121,6 +125,37 @@ int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
 void em_dev_unregister_perf_domain(struct device *dev);
 
 /**
+ * em_pd_get_efficient_state() - Get an efficient performance state from the EM
+ * @pd   : Performance domain for which we want an efficient frequency
+ * @freq : Frequency to map with the EM
+ *
+ * It is called from the scheduler code quite frequently and as a consequence
+ * doesn't implement any check.
+ *
+ * Return: An efficient performance state, high enough to meet @freq
+ * requirement.
+ */
+static inline
+struct em_perf_state *em_pd_get_efficient_state(struct em_perf_domain *pd,
+						unsigned long freq)
+{
+	struct em_perf_state *ps;
+	int i;
+
+	for (i = 0; i < pd->nr_perf_states; i++) {
+		ps = &pd->table[i];
+		if (ps->frequency >= freq) {
+			if (pd->flags & EM_PERF_DOMAIN_SKIP_INEFFICIENCIES &&
+			    ps->flags & EM_PERF_STATE_INEFFICIENT)
+				continue;
+			break;
+		}
+	}
+
+	return ps;
+}
+
+/**
  * em_cpu_energy() - Estimates the energy consumed by the CPUs of a
  *		performance domain
  * @pd		: performance domain for which energy has to be estimated
@@ -142,7 +177,7 @@ static inline unsigned long em_cpu_energy(struct em_perf_domain *pd,
 {
 	unsigned long freq, scale_cpu;
 	struct em_perf_state *ps;
-	int i, cpu;
+	int cpu;
 
 	if (!sum_util)
 		return 0;
@@ -167,11 +202,7 @@ static inline unsigned long em_cpu_energy(struct em_perf_domain *pd,
 	 * Find the lowest performance state of the Energy Model above the
 	 * requested frequency.
 	 */
-	for (i = 0; i < pd->nr_perf_states; i++) {
-		ps = &pd->table[i];
-		if (ps->frequency >= freq)
-			break;
-	}
+	ps = em_pd_get_efficient_state(pd, freq);
 
 	/*
 	 * The capacity of a CPU in the domain at the performance state (ps)
