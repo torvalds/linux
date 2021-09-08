@@ -627,49 +627,6 @@ rtl8192c_PHY_GetHWRegOriginalValue(
 	pHalData->framesyncC34 = PHY_QueryBBReg(Adapter, rOFDM0_RxDetector2, bMaskDWord);
 }
 
-/*  */
-/*	Description: */
-/*		Map dBm into Tx power index according to */
-/*		current HW model, for example, RF and PA, and */
-/*		current wireless mode. */
-/*	By Bruce, 2008-01-29. */
-/*  */
-static	u8 phy_DbmToTxPwrIdx(struct adapter *Adapter, enum wireless_mode WirelessMode, int PowerInDbm)
-{
-	u8 TxPwrIdx = 0;
-	int				Offset = 0;
-
-	/*  */
-	/*  Tested by MP, we found that CCK Index 0 equals to 8dbm, OFDM legacy equals to */
-	/*  3dbm, and OFDM HT equals to 0dbm respectively. */
-	/*  Note: */
-	/*	The mapping may be different by different NICs. Do not use this formula for what needs accurate result. */
-	/*  By Bruce, 2008-01-29. */
-	/*  */
-	switch (WirelessMode) {
-	case WIRELESS_MODE_B:
-		Offset = -7;
-		break;
-
-	case WIRELESS_MODE_G:
-	case WIRELESS_MODE_N_24G:
-	default:
-		Offset = -8;
-		break;
-	}
-
-	if ((PowerInDbm - Offset) > 0)
-		TxPwrIdx = (u8)((PowerInDbm - Offset) * 2);
-	else
-		TxPwrIdx = 0;
-
-	/*  Tx Power Index is too large. */
-	if (TxPwrIdx > MAX_TXPWR_IDX_NMODE_92S)
-		TxPwrIdx = MAX_TXPWR_IDX_NMODE_92S;
-
-	return TxPwrIdx;
-}
-
 static void getTxPowerIndex88E(struct adapter *Adapter, u8 channel, u8 *cckPowerLevel,
 			       u8 *ofdmPowerLevel, u8 *BW20PowerLevel,
 			       u8 *BW40PowerLevel)
@@ -791,43 +748,6 @@ PHY_SetTxPowerLevel8188E(
 
 	rtl8188e_PHY_RF6052SetCckTxPower(Adapter, &cckPowerLevel[0]);
 	rtl8188e_PHY_RF6052SetOFDMTxPower(Adapter, &ofdmPowerLevel[0], &BW20PowerLevel[0], &BW40PowerLevel[0], channel);
-}
-
-/*  */
-/*	Description: */
-/*		Update transmit power level of all channel supported. */
-/*  */
-/*	TODO: */
-/*		A mode. */
-/*	By Bruce, 2008-02-04. */
-/*  */
-bool
-PHY_UpdateTxPowerDbm8188E(
-		struct adapter *Adapter,
-		int		powerInDbm
-	)
-{
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
-	u8 idx;
-	u8 rf_path;
-
-	/*  TODO: A mode Tx power. */
-	u8 CckTxPwrIdx = phy_DbmToTxPwrIdx(Adapter, WIRELESS_MODE_B, powerInDbm);
-	u8 OfdmTxPwrIdx = phy_DbmToTxPwrIdx(Adapter, WIRELESS_MODE_N_24G, powerInDbm);
-
-	if (OfdmTxPwrIdx - pHalData->LegacyHTTxPowerDiff > 0)
-		OfdmTxPwrIdx -= pHalData->LegacyHTTxPowerDiff;
-	else
-		OfdmTxPwrIdx = 0;
-
-	for (idx = 0; idx < 14; idx++) {
-		for (rf_path = 0; rf_path < 2; rf_path++) {
-			pHalData->TxPwrLevelCck[rf_path][idx] = CckTxPwrIdx;
-			pHalData->TxPwrLevelHT40_1S[rf_path][idx] =
-			pHalData->TxPwrLevelHT40_2S[rf_path][idx] = OfdmTxPwrIdx;
-		}
-	}
-	return true;
 }
 
 /*-----------------------------------------------------------------------------
