@@ -90,7 +90,6 @@ static int stm32_dac_probe(struct platform_device *pdev)
 	const struct stm32_dac_cfg *cfg;
 	struct stm32_dac_priv *priv;
 	struct regmap *regmap;
-	struct resource *res;
 	void __iomem *mmio;
 	struct reset_control *rst;
 	int ret;
@@ -106,8 +105,7 @@ static int stm32_dac_probe(struct platform_device *pdev)
 	cfg = (const struct stm32_dac_cfg *)
 		of_match_device(dev->driver->of_match_table, dev)->data;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mmio = devm_ioremap_resource(dev, res);
+	mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mmio))
 		return PTR_ERR(mmio);
 
