@@ -4,5 +4,6 @@ menuconfig MTD_SPI_NAND
 	select MTD_NAND_CORE
 	depends on SPI_MASTER
 	select SPI_MEM
+	select MTD_NAND_BBT_USING_FLASH
 	help
 	  This is the framework for the SPI NAND device drivers.
