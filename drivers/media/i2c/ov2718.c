@@ -7998,7 +7998,7 @@ static void ov2718_get_hcg_reg(u32 gain, u32 *again_reg, u32 *dgain_reg)
 	}
 }
 
-static int ov2718_g_mbus_config(struct v4l2_subdev *sd,
+static int ov2718_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	struct ov2718 *ov2718 = to_ov2718(sd);
@@ -8015,7 +8015,7 @@ static int ov2718_g_mbus_config(struct v4l2_subdev *sd,
 		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK |
 		V4L2_MBUS_CSI2_CHANNEL_1;
 
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -8572,7 +8572,6 @@ static const struct v4l2_subdev_internal_ops ov2718_internal_ops = {
 static const struct v4l2_subdev_video_ops ov2718_video_ops = {
 	.s_stream = ov2718_s_stream,
 	.g_frame_interval = ov2718_g_frame_interval,
-	.g_mbus_config = ov2718_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops ov2718_pad_ops = {
@@ -8581,6 +8580,7 @@ static const struct v4l2_subdev_pad_ops ov2718_pad_ops = {
 	.enum_frame_interval = ov2718_enum_frame_interval,
 	.get_fmt = ov2718_get_fmt,
 	.set_fmt = ov2718_set_fmt,
+	.get_mbus_config = ov2718_g_mbus_config,
 };
 
 static const struct v4l2_subdev_core_ops ov2718_core_ops = {
