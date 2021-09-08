@@ -206,26 +206,26 @@ static unsigned int get_blk_size_bytes(const enum source_macro_tile_size tile_si
 static void extract_rq_sizing_regs(
 		struct display_mode_lib *mode_lib,
 		struct _vcs_dpi_display_data_rq_regs_st *rq_regs,
-		const struct _vcs_dpi_display_data_rq_sizing_params_st rq_sizing)
+		const struct _vcs_dpi_display_data_rq_sizing_params_st *rq_sizing)
 {
 	DTRACE("DLG: %s: rq_sizing param", __func__);
 	print__data_rq_sizing_params_st(mode_lib, rq_sizing);
 
-	rq_regs->chunk_size = dml_log2(rq_sizing.chunk_bytes) - 10;
+	rq_regs->chunk_size = dml_log2(rq_sizing->chunk_bytes) - 10;
 
-	if (rq_sizing.min_chunk_bytes == 0)
+	if (rq_sizing->min_chunk_bytes == 0)
 		rq_regs->min_chunk_size = 0;
 	else
-		rq_regs->min_chunk_size = dml_log2(rq_sizing.min_chunk_bytes) - 8 + 1;
+		rq_regs->min_chunk_size = dml_log2(rq_sizing->min_chunk_bytes) - 8 + 1;
 
-	rq_regs->meta_chunk_size = dml_log2(rq_sizing.meta_chunk_bytes) - 10;
-	if (rq_sizing.min_meta_chunk_bytes == 0)
+	rq_regs->meta_chunk_size = dml_log2(rq_sizing->meta_chunk_bytes) - 10;
+	if (rq_sizing->min_meta_chunk_bytes == 0)
 		rq_regs->min_meta_chunk_size = 0;
 	else
-		rq_regs->min_meta_chunk_size = dml_log2(rq_sizing.min_meta_chunk_bytes) - 6 + 1;
+		rq_regs->min_meta_chunk_size = dml_log2(rq_sizing->min_meta_chunk_bytes) - 6 + 1;
 
-	rq_regs->dpte_group_size = dml_log2(rq_sizing.dpte_group_bytes) - 6;
-	rq_regs->mpte_group_size = dml_log2(rq_sizing.mpte_group_bytes) - 6;
+	rq_regs->dpte_group_size = dml_log2(rq_sizing->dpte_group_bytes) - 6;
+	rq_regs->mpte_group_size = dml_log2(rq_sizing->mpte_group_bytes) - 6;
 }
 
 void dml1_extract_rq_regs(
@@ -236,9 +236,9 @@ void dml1_extract_rq_regs(
 	unsigned int detile_buf_size_in_bytes = mode_lib->ip.det_buffer_size_kbytes * 1024;
 	unsigned int detile_buf_plane1_addr = 0;
 
-	extract_rq_sizing_regs(mode_lib, &(rq_regs->rq_regs_l), rq_param.sizing.rq_l);
+	extract_rq_sizing_regs(mode_lib, &(rq_regs->rq_regs_l), &rq_param.sizing.rq_l);
 	if (rq_param.yuv420)
-		extract_rq_sizing_regs(mode_lib, &(rq_regs->rq_regs_c), rq_param.sizing.rq_c);
+		extract_rq_sizing_regs(mode_lib, &(rq_regs->rq_regs_c), &rq_param.sizing.rq_c);
 
 	rq_regs->rq_regs_l.swath_height = dml_log2(rq_param.dlg.rq_l.swath_height);
 	rq_regs->rq_regs_c.swath_height = dml_log2(rq_param.dlg.rq_c.swath_height);
@@ -988,7 +988,7 @@ void dml1_rq_dlg_get_rq_params(
 
 	/* calculate how to split the det buffer space between luma and chroma */
 	handle_det_buf_split(mode_lib, rq_param, pipe_src_param);
-	print__rq_params_st(mode_lib, *rq_param);
+	print__rq_params_st(mode_lib, rq_param);
 }
 
 /* Note: currently taken in as is.
@@ -1927,6 +1927,6 @@ void dml1_rq_dlg_get_dlg_params(
 	disp_ttu_regs->min_ttu_vblank = min_ttu_vblank * refclk_freq_in_mhz;
 	ASSERT(disp_ttu_regs->min_ttu_vblank < dml_pow(2, 24));
 
-	print__ttu_regs_st(mode_lib, *disp_ttu_regs);
-	print__dlg_regs_st(mode_lib, *disp_dlg_regs);
+	print__ttu_regs_st(mode_lib, disp_ttu_regs);
+	print__dlg_regs_st(mode_lib, disp_dlg_regs);
 }
