@@ -221,8 +221,7 @@ static void irq_process_work_list(struct idxd_irq_entry *irq_entry)
 
 	list_for_each_entry_safe(desc, n, &irq_entry->work_list, list) {
 		if (desc->completion->status) {
-			list_del(&desc->list);
-			list_add_tail(&desc->list, &flist);
+			list_move_tail(&desc->list, &flist);
 		}
 	}
 
