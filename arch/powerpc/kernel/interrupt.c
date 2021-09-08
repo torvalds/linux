@@ -138,6 +138,19 @@ notrace long system_call_exception(long r3, long r4, long r5,
 	irq_soft_mask_regs_set_state(regs, IRQS_ENABLED);
 
 	/*
+	 * If system call is called with TM active, set _TIF_RESTOREALL to
+	 * prevent RFSCV being used to return to userspace, because POWER9
+	 * TM implementation has problems with this instruction returning to
+	 * transactional state. Final register values are not relevant because
+	 * the transaction will be aborted upon return anyway. Or in the case
+	 * of unsupported_scv SIGILL fault, the return state does not much
+	 * matter because it's an edge case.
+	 */
+	if (IS_ENABLED(CONFIG_PPC_TRANSACTIONAL_MEM) &&
+			unlikely(MSR_TM_TRANSACTIONAL(regs->msr)))
+		current_thread_info()->flags |= _TIF_RESTOREALL;
+
+	/*
 	 * If the system call was made with a transaction active, doom it and
 	 * return without performing the system call. Unless it was an
 	 * unsupported scv vector, in which case it's treated like an illegal
