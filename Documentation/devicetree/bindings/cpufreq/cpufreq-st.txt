@@ -6,8 +6,6 @@ from the SoC, then supplies the OPP framework with 'prop' and 'supported
 hardware' information respectively.  The framework is then able to read
 the DT and operate in the usual way.
 
-For more information about the expected DT format [See: ../opp/opp.txt].
-
 Frequency Scaling only
 ----------------------
 
@@ -15,7 +13,7 @@ No vendor specific driver required for this.
 
 Located in CPU's node:
 
-- operating-points		: [See: ../power/opp.txt]
+- operating-points		: [See: ../power/opp-v1.yaml]
 
 Example [safe]
 --------------
@@ -37,7 +35,7 @@ This requires the ST CPUFreq driver to supply 'process' and 'version' info.
 
 Located in CPU's node:
 
-- operating-points-v2		: [See ../power/opp.txt]
+- operating-points-v2		: [See ../power/opp-v2.yaml]
 
 Example [unsafe]
 ----------------
