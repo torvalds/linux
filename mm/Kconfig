@@ -886,4 +886,6 @@ config IO_MAPPING
 config SECRETMEM
 	def_bool ARCH_HAS_SET_DIRECT_MAP && !EMBEDDED
 
+source "mm/damon/Kconfig"
+
 endmenu
