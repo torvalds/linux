@@ -9,48 +9,45 @@
 	 ((dmn)->info.caps.dmn_type##_sw_owner_v2 &&	\
 	  (dmn)->info.caps.sw_format_ver <= MLX5_STEERING_FORMAT_CONNECTX_6DX))
 
-static int dr_domain_init_cache(struct mlx5dr_domain *dmn)
+static void dr_domain_init_csum_recalc_fts(struct mlx5dr_domain *dmn)
 {
 	/* Per vport cached FW FT for checksum recalculation, this
-	 * recalculation is needed due to a HW bug.
+	 * recalculation is needed due to a HW bug in STEv0.
 	 */
-	dmn->cache.recalc_cs_ft = kcalloc(dmn->info.caps.num_vports,
-					  sizeof(dmn->cache.recalc_cs_ft[0]),
-					  GFP_KERNEL);
-	if (!dmn->cache.recalc_cs_ft)
-		return -ENOMEM;
-
-	return 0;
+	xa_init(&dmn->csum_fts_xa);
 }
 
-static void dr_domain_uninit_cache(struct mlx5dr_domain *dmn)
-{
-	int i;
-
-	for (i = 0; i < dmn->info.caps.num_vports; i++) {
-		if (!dmn->cache.recalc_cs_ft[i])
-			continue;
-
-		mlx5dr_fw_destroy_recalc_cs_ft(dmn, dmn->cache.recalc_cs_ft[i]);
-	}
-
-	kfree(dmn->cache.recalc_cs_ft);
-}
-
-int mlx5dr_domain_cache_get_recalc_cs_ft_addr(struct mlx5dr_domain *dmn,
-					      u16 vport_num,
-					      u64 *rx_icm_addr)
+static void dr_domain_uninit_csum_recalc_fts(struct mlx5dr_domain *dmn)
 {
 	struct mlx5dr_fw_recalc_cs_ft *recalc_cs_ft;
+	unsigned long i;
 
-	recalc_cs_ft = dmn->cache.recalc_cs_ft[vport_num];
+	xa_for_each(&dmn->csum_fts_xa, i, recalc_cs_ft) {
+		if (recalc_cs_ft)
+			mlx5dr_fw_destroy_recalc_cs_ft(dmn, recalc_cs_ft);
+	}
+
+	xa_destroy(&dmn->csum_fts_xa);
+}
+
+int mlx5dr_domain_get_recalc_cs_ft_addr(struct mlx5dr_domain *dmn,
+					u16 vport_num,
+					u64 *rx_icm_addr)
+{
+	struct mlx5dr_fw_recalc_cs_ft *recalc_cs_ft;
+	int ret;
+
+	recalc_cs_ft = xa_load(&dmn->csum_fts_xa, vport_num);
 	if (!recalc_cs_ft) {
-		/* Table not in cache, need to allocate a new one */
+		/* Table hasn't been created yet */
 		recalc_cs_ft = mlx5dr_fw_create_recalc_cs_ft(dmn, vport_num);
 		if (!recalc_cs_ft)
 			return -EINVAL;
 
-		dmn->cache.recalc_cs_ft[vport_num] = recalc_cs_ft;
+		ret = xa_err(xa_store(&dmn->csum_fts_xa, vport_num,
+				      recalc_cs_ft, GFP_KERNEL));
+		if (ret)
+			return ret;
 	}
 
 	*rx_icm_addr = recalc_cs_ft->rx_icm_addr;
@@ -346,16 +343,10 @@ mlx5dr_domain_create(struct mlx5_core_dev *mdev, enum mlx5dr_domain_type type)
 		goto uninit_caps;
 	}
 
-	ret = dr_domain_init_cache(dmn);
-	if (ret) {
-		mlx5dr_err(dmn, "Failed initialize domain cache\n");
-		goto uninit_resourses;
-	}
+	dr_domain_init_csum_recalc_fts(dmn);
 
 	return dmn;
 
-uninit_resourses:
-	dr_domain_uninit_resources(dmn);
 uninit_caps:
 	dr_domain_caps_uninit(dmn);
 free_domain:
@@ -394,7 +385,7 @@ int mlx5dr_domain_destroy(struct mlx5dr_domain *dmn)
 
 	/* make sure resources are not used by the hardware */
 	mlx5dr_cmd_sync_steering(dmn->mdev);
-	dr_domain_uninit_cache(dmn);
+	dr_domain_uninit_csum_recalc_fts(dmn);
 	dr_domain_uninit_resources(dmn);
 	dr_domain_caps_uninit(dmn);
 	mutex_destroy(&dmn->info.tx.mutex);

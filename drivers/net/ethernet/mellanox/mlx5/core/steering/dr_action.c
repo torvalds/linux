@@ -513,9 +513,9 @@ static int dr_action_handle_cs_recalc(struct mlx5dr_domain *dmn,
 		/* If destination is vport we will get the FW flow table
 		 * that recalculates the CS and forwards to the vport.
 		 */
-		ret = mlx5dr_domain_cache_get_recalc_cs_ft_addr(dest_action->vport->dmn,
-								dest_action->vport->caps->num,
-								final_icm_addr);
+		ret = mlx5dr_domain_get_recalc_cs_ft_addr(dest_action->vport->dmn,
+							  dest_action->vport->caps->num,
+							  final_icm_addr);
 		if (ret) {
 			mlx5dr_err(dmn, "Failed to get FW cs recalc flow table\n");
 			return ret;
