@@ -1810,6 +1810,8 @@ static void cma_release_port(struct rdma_id_private *id_priv)
 static void destroy_mc(struct rdma_id_private *id_priv,
 		       struct cma_multicast *mc)
 {
+	bool send_only = mc->join_state == BIT(SENDONLY_FULLMEMBER_JOIN);
+
 	if (rdma_cap_ib_mcast(id_priv->id.device, id_priv->id.port_num))
 		ib_sa_free_multicast(mc->sa_mc);
 
@@ -1826,7 +1828,10 @@ static void destroy_mc(struct rdma_id_private *id_priv,
 
 			cma_set_mgid(id_priv, (struct sockaddr *)&mc->addr,
 				     &mgid);
-			cma_igmp_send(ndev, &mgid, false);
+
+			if (!send_only)
+				cma_igmp_send(ndev, &mgid, false);
+
 			dev_put(ndev);
 		}
 
