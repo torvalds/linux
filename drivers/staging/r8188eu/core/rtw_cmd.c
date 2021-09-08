@@ -25,7 +25,7 @@ static int _rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 	/* sema_init(&(pcmdpriv->cmd_done_sema), 0); */
 	sema_init(&pcmdpriv->terminate_cmdthread_sema, 0);
 
-	_rtw_init_queue(&pcmdpriv->cmd_queue);
+	rtw_init_queue(&pcmdpriv->cmd_queue);
 
 	/* allocate DMA-able/Non-Page memory for cmd_buf and rsp_buf */
 

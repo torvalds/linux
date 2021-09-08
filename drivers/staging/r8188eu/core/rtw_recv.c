@@ -31,7 +31,7 @@ void _rtw_init_sta_recv_priv(struct sta_recv_priv *psta_recvpriv)
 
 	spin_lock_init(&psta_recvpriv->lock);
 
-	_rtw_init_queue(&psta_recvpriv->defrag_q);
+	rtw_init_queue(&psta_recvpriv->defrag_q);
 
 }
 
@@ -45,9 +45,9 @@ int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 
 	spin_lock_init(&precvpriv->lock);
 
-	_rtw_init_queue(&precvpriv->free_recv_queue);
-	_rtw_init_queue(&precvpriv->recv_pending_queue);
-	_rtw_init_queue(&precvpriv->uc_swdec_pending_queue);
+	rtw_init_queue(&precvpriv->free_recv_queue);
+	rtw_init_queue(&precvpriv->recv_pending_queue);
+	rtw_init_queue(&precvpriv->uc_swdec_pending_queue);
 
 	precvpriv->adapter = padapter;
 

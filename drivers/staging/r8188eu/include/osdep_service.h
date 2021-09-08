@@ -143,7 +143,11 @@ void *rtw_malloc2d(int h, int w, int size);
 
 u32  _rtw_down_sema(struct semaphore *sema);
 
-void _rtw_init_queue(struct __queue *pqueue);
+#define rtw_init_queue(q)					\
+	do {							\
+		INIT_LIST_HEAD(&((q)->queue));			\
+		spin_lock_init(&((q)->lock));			\
+	} while (0)
 
 u32  rtw_systime_to_ms(u32 systime);
 u32  rtw_ms_to_systime(u32 ms);

@@ -18,7 +18,7 @@ static void _rtw_init_stainfo(struct sta_info *psta)
 	spin_lock_init(&psta->lock);
 	INIT_LIST_HEAD(&psta->list);
 	INIT_LIST_HEAD(&psta->hash_list);
-	_rtw_init_queue(&psta->sleep_q);
+	rtw_init_queue(&psta->sleep_q);
 	psta->sleepq_len = 0;
 
 	_rtw_init_sta_xmit_priv(&psta->sta_xmitpriv);
@@ -61,13 +61,13 @@ u32	_rtw_init_sta_priv(struct	sta_priv *pstapriv)
 	pstapriv->pstainfo_buf = pstapriv->pallocated_stainfo_buf + 4 -
 		((size_t)(pstapriv->pallocated_stainfo_buf) & 3);
 
-	_rtw_init_queue(&pstapriv->free_sta_queue);
+	rtw_init_queue(&pstapriv->free_sta_queue);
 
 	spin_lock_init(&pstapriv->sta_hash_lock);
 
 	pstapriv->asoc_sta_count = 0;
-	_rtw_init_queue(&pstapriv->sleep_q);
-	_rtw_init_queue(&pstapriv->wakeup_q);
+	rtw_init_queue(&pstapriv->sleep_q);
+	rtw_init_queue(&pstapriv->wakeup_q);
 
 	psta = (struct sta_info *)(pstapriv->pstainfo_buf);
 
@@ -211,7 +211,7 @@ struct	sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 			preorder_ctrl->wend_b = 0xffff;
 			preorder_ctrl->wsize_b = 64;/* 64; */
 
-			_rtw_init_queue(&preorder_ctrl->pending_recvframe_queue);
+			rtw_init_queue(&preorder_ctrl->pending_recvframe_queue);
 
 			rtw_init_recv_timer(preorder_ctrl);
 		}

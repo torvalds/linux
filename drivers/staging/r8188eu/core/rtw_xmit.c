@@ -18,7 +18,7 @@ static void _init_txservq(struct tx_servq *ptxservq)
 {
 
 	INIT_LIST_HEAD(&ptxservq->tx_pending);
-	_rtw_init_queue(&ptxservq->sta_pending);
+	rtw_init_queue(&ptxservq->sta_pending);
 	ptxservq->qcnt = 0;
 
 }
@@ -53,18 +53,18 @@ s32	_rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter)
 	sema_init(&pxmitpriv->terminate_xmitthread_sema, 0);
 
 	/*
-	Please insert all the queue initializaiton using _rtw_init_queue below
+	Please insert all the queue initializaiton using rtw_init_queue below
 	*/
 
 	pxmitpriv->adapter = padapter;
 
-	_rtw_init_queue(&pxmitpriv->be_pending);
-	_rtw_init_queue(&pxmitpriv->bk_pending);
-	_rtw_init_queue(&pxmitpriv->vi_pending);
-	_rtw_init_queue(&pxmitpriv->vo_pending);
-	_rtw_init_queue(&pxmitpriv->bm_pending);
+	rtw_init_queue(&pxmitpriv->be_pending);
+	rtw_init_queue(&pxmitpriv->bk_pending);
+	rtw_init_queue(&pxmitpriv->vi_pending);
+	rtw_init_queue(&pxmitpriv->vo_pending);
+	rtw_init_queue(&pxmitpriv->bm_pending);
 
-	_rtw_init_queue(&pxmitpriv->free_xmit_queue);
+	rtw_init_queue(&pxmitpriv->free_xmit_queue);
 
 	/*
 	Please allocate memory with the sz = (struct xmit_frame) * NR_XMITFRAME,
@@ -106,8 +106,8 @@ s32	_rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter)
 	pxmitpriv->frag_len = MAX_FRAG_THRESHOLD;
 
 	/* init xmit_buf */
-	_rtw_init_queue(&pxmitpriv->free_xmitbuf_queue);
-	_rtw_init_queue(&pxmitpriv->pending_xmitbuf_queue);
+	rtw_init_queue(&pxmitpriv->free_xmitbuf_queue);
+	rtw_init_queue(&pxmitpriv->pending_xmitbuf_queue);
 
 	pxmitpriv->pallocated_xmitbuf = vzalloc(NR_XMITBUFF * sizeof(struct xmit_buf) + 4);
 
@@ -148,7 +148,7 @@ s32	_rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter)
 	pxmitpriv->free_xmitbuf_cnt = NR_XMITBUFF;
 
 	/*  Init xmit extension buff */
-	_rtw_init_queue(&pxmitpriv->free_xmit_extbuf_queue);
+	rtw_init_queue(&pxmitpriv->free_xmit_extbuf_queue);
 
 	pxmitpriv->pallocated_xmit_extbuf = vzalloc(num_xmit_extbuf * sizeof(struct xmit_buf) + 4);
 
