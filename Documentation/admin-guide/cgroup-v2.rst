@@ -2170,19 +2170,19 @@ existing device files.
 
 Cgroup v2 device controller has no interface files and is implemented
 on top of cgroup BPF. To control access to device files, a user may
-create bpf programs of the BPF_CGROUP_DEVICE type and attach them
-to cgroups. On an attempt to access a device file, corresponding
-BPF programs will be executed, and depending on the return value
-the attempt will succeed or fail with -EPERM.
+create bpf programs of type BPF_PROG_TYPE_CGROUP_DEVICE and attach
+them to cgroups with BPF_CGROUP_DEVICE flag. On an attempt to access a
+device file, corresponding BPF programs will be executed, and depending
+on the return value the attempt will succeed or fail with -EPERM.
 
-A BPF_CGROUP_DEVICE program takes a pointer to the bpf_cgroup_dev_ctx
-structure, which describes the device access attempt: access type
-(mknod/read/write) and device (type, major and minor numbers).
-If the program returns 0, the attempt fails with -EPERM, otherwise
-it succeeds.
+A BPF_PROG_TYPE_CGROUP_DEVICE program takes a pointer to the
+bpf_cgroup_dev_ctx structure, which describes the device access attempt:
+access type (mknod/read/write) and device (type, major and minor numbers).
+If the program returns 0, the attempt fails with -EPERM, otherwise it
+succeeds.
 
-An example of BPF_CGROUP_DEVICE program may be found in the kernel
-source tree in the tools/testing/selftests/bpf/progs/dev_cgroup.c file.
+An example of BPF_PROG_TYPE_CGROUP_DEVICE program may be found in
+tools/testing/selftests/bpf/progs/dev_cgroup.c in the kernel source tree.
 
 
 RDMA
