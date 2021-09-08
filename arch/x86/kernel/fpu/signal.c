@@ -65,7 +65,7 @@ setfx:
 /*
  * Signal frame handlers.
  */
-static inline int save_fsave_header(struct task_struct *tsk, void __user *buf)
+static inline bool save_fsave_header(struct task_struct *tsk, void __user *buf)
 {
 	if (use_fxsr()) {
 		struct xregs_state *xsave = &tsk->thread.fpu.state.xsave;
@@ -82,18 +82,19 @@ static inline int save_fsave_header(struct task_struct *tsk, void __user *buf)
 		if (__copy_to_user(buf, &env, sizeof(env)) ||
 		    __put_user(xsave->i387.swd, &fp->status) ||
 		    __put_user(X86_FXSR_MAGIC, &fp->magic))
-			return -1;
+			return false;
 	} else {
 		struct fregs_state __user *fp = buf;
 		u32 swd;
+
 		if (__get_user(swd, &fp->swd) || __put_user(swd, &fp->status))
-			return -1;
+			return false;
 	}
 
-	return 0;
+	return true;
 }
 
-static inline int save_xstate_epilog(void __user *buf, int ia32_frame)
+static inline bool save_xstate_epilog(void __user *buf, int ia32_frame)
 {
 	struct xregs_state __user *x = buf;
 	struct _fpx_sw_bytes *sw_bytes;
@@ -131,7 +132,7 @@ static inline int save_xstate_epilog(void __user *buf, int ia32_frame)
 
 	err |= __put_user(xfeatures, (__u32 __user *)&x->header.xfeatures);
 
-	return err;
+	return !err;
 }
 
 static inline int copy_fpregs_to_sigframe(struct xregs_state __user *buf)
@@ -218,10 +219,10 @@ retry:
 	}
 
 	/* Save the fsave header for the 32-bit frames. */
-	if ((ia32_fxstate || !use_fxsr()) && save_fsave_header(tsk, buf))
+	if ((ia32_fxstate || !use_fxsr()) && !save_fsave_header(tsk, buf))
 		return false;
 
-	if (use_fxsr() && save_xstate_epilog(buf_fx, ia32_fxstate))
+	if (use_fxsr() && !save_xstate_epilog(buf_fx, ia32_fxstate))
 		return false;
 
 	return true;
