@@ -68,7 +68,7 @@ struct gsl_touch_info
 	int x[10];
 	int y[10];
 	int id[10];
-	int finger_num;	
+	int finger_num;
 };
 
 typedef struct
@@ -140,7 +140,7 @@ typedef struct
 
 typedef union
 {
-	struct  
+	struct
 	{
 		short y;
 		short x;
@@ -179,8 +179,8 @@ typedef union
 		unsigned init_repeat:1;
 		unsigned near_reset_able:1;
 
-		unsigned emb_dead:1; 
-		unsigned emb_point_mask:1; 
+		unsigned emb_dead:1;
+		unsigned emb_point_mask:1;
 		unsigned interpolation:1;
 		unsigned sum2_able:1;
 		unsigned reduce_pin:1;
@@ -285,7 +285,7 @@ static	unsigned int config_static[CONFIG_LENGTH];
 #define GesturePtNum	15
 typedef union
 {
-	
+
 	struct
 	{
 		unsigned y:16;
@@ -295,13 +295,13 @@ typedef union
 	unsigned int data_int;
 }POINT_TYPE_DEFINE;
 
-typedef struct 
+typedef struct
 {
 	int top;
 	POINT_TYPE_DEFINE  point_buff[MAXSTACK];
 }TouchFinger;
 
-static struct  
+static struct
 {
 	int num[10];
 	int flag;
@@ -312,7 +312,7 @@ static int qushi_x[10];
 static int qushi_y[10];
 static int vector_change_x[MAXSTACK];
 static int vector_change_y[MAXSTACK];
-static int rate_weight[MAXSTACK];	
+static int rate_weight[MAXSTACK];
 static POINT_TYPE_DEFINE top,bottom,left,right;
 static int Letter_width;
 static int Letter_height;
@@ -338,7 +338,7 @@ typedef union
 	}other;
 	unsigned int all;
 }GESTURE_POINT_TYPE;
-typedef struct  
+typedef struct
 {
 	int coe;
 	int out;
@@ -383,7 +383,7 @@ static const GESTURE_MODEL_TYPE model_default[]
 	0xe2ee3d30,0xc5d4564a,0xa7b76c61,0x8c9a8579,0x717e9f93,0x5863bbad,0x434cdbc9,0x3c3dffec,}},
 	{0x10,'8',{
 	0xdaff030c,0x8eb40000,0x41670c06,0x001c3116,0x431e5448,0x8f69635d,0xd1b58a6f,0xcedfd0af,
-	0x88acf5e6,0x3c62fffd,0x0718cdf1,0x341493aa,0x7a556d7d,0xc19e4f60,0xf9e51c3c,0xb5dc0005,}},	
+	0x88acf5e6,0x3c62fffd,0x0718cdf1,0x341493aa,0x7a556d7d,0xc19e4f60,0xf9e51c3c,0xb5dc0005,}},
 	{0x10,'8',{
 	0x627d231e,0x2f49382c,0x03175a48,0x21098172,0x563c958c,0x856eb0a2,0x8f99dac4,0x5b76eee5,
 	0x243ffdf5,0x090ddbf4,0x2918acc2,0x4d3a8497,0x78636172,0xa38e4050,0xd0ba1f2e,0xffe7000f,}},
@@ -416,7 +416,7 @@ static const GESTURE_MODEL_TYPE model_default[]
 	0x233b3a25,0x08137053,0x0301aa8d,0x220edcc6,0x573af7ee,0x9174fffc,0xcaaef6ff,0xffe5dbeb,}},
 	{0x10,'G',{
 	0xaaca0000,0x698a0000,0x2a491106,0x000f4226,0x23067061,0x64437674,0xa3836874,0xdac04759,
-	0xfaec0b2a,0xfefb401f,0xffff8160,0xf5fdc0a1,0xc9e9eedf,0x89a9fff9,0x4869faff,0x0928e3f3,}},	
+	0xfaec0b2a,0xfefb401f,0xffff8160,0xf5fdc0a1,0xc9e9eedf,0x89a9fff9,0x4869faff,0x0928e3f3,}},
 	{0x10,'G',{
 	0xeaff1421,0xb9d20308,0x88a00000,0x57700f05,0x2b3f2618,0x09174d37,0x00037f66,0x0d05af97,
 	0x2a1adac7,0x5940ede5,0x8b72f2f3,0xbca4e9ee,0xe4d2cbde,0xfbf09cb3,0xf5f8ceb5,0xe9f1ffe6,}},
@@ -452,7 +452,7 @@ static const GESTURE_MODEL_TYPE model_default[]
 	0xab93cfe0,0xd5c1a7bd,0xf4e67690,0xfbff3d5a,0xcfec1b26,0x96b31818,0x5e7a251d,0x28433b2f,}},
 	{0x10,'O',{
 	0x381e5e68,0x6e535156,0xa388504f,0xd8be5e56,0xf9ed876d,0xf9fcbaa1,0xd8ece5d2,0xa5c0f9f2,
-	0x708bfffd,0x3b55fbfe,0x1423d7ed,0x0006a4bf,0x09027089,0x26154157,0x50391e2e,0x7e670010,}},	
+	0x708bfffd,0x3b55fbfe,0x1423d7ed,0x0006a4bf,0x09027089,0x26154157,0x50391e2e,0x7e670010,}},
 	{0x10,'O',{
 	0x8670020b,0xb8a01307,0xe3ce3423,0xf8f0664c,0xfffc9b81,0xf1faceb5,0xcee4f4e5,0x9ab4fffb,
 	0x657fffff,0x364ceaf8,0x1623c0d7,0x00098ea7,0x06015973,0x24122e41,0x4d380c1c,0x82670104,}},
@@ -522,7 +522,7 @@ static const GESTURE_MODEL_TYPE model_default[]
 	0xd6b47f94,0xf9f23960,0xd5f80012,0x91af270a,0x7e83734c,0x7e7dc19a,0xb490fae5,0xffdbe9fe,}},
 	{0x10,0x100d,{
 	0x768e0c00,0x465e2619,0x192f4635,0x0107745a,0x32178a85,0x674d858a,0x9b81747d,0xccb45c69,
-	0xf7e33b4d,0xebfd0d21,0xb6d00004,0x939e270d,0x888d5d42,0x83859378,0x7c80c9ae,0x6c75ffe4,}},	
+	0xf7e33b4d,0xebfd0d21,0xb6d00004,0x939e270d,0x888d5d42,0x83859378,0x7c80c9ae,0x6c75ffe4,}},
 	{0x10,0x100e,{
 	0xb3bd1000,0x9ea82d1e,0x87924a3b,0x6f7b6658,0x56628375,0x3e4a9e91,0x2934bcad,0x1720ddcd,
 	0x010bfced,0x2513ffff,0x4937fdff,0x6d5bf9fa,0x9280f4f7,0xb6a4f0f1,0xdac8eeef,0xffececed,}},
@@ -619,11 +619,11 @@ static void PointRepeat(void)
 			y = point_now[j].other.y;
 			if(x>x_min && x<x_max && y>y_min && y<y_max)
 			{
-				point_now[i].other.x = 
-					(point_now[i].other.x + 
+				point_now[i].other.x =
+					(point_now[i].other.x +
 					 point_now[j].other.x + 1) / 2;
-				point_now[i].other.y = 
-					(point_now[i].other.y + 
+				point_now[i].other.y =
+					(point_now[i].other.y +
 					 point_now[j].other.y + 1) / 2;
 				point_now[j].all = 0;
 				i--;
@@ -719,7 +719,7 @@ static void CoordinateCorrect(void)
 	typedef struct
 	{
 		unsigned int range;
-		unsigned int group; 
+		unsigned int group;
 	}MULTI_TYPE;
 #ifdef LINE_MULTI_SIZE
 	#define	LINE_SIZE	LINE_MULTI_SIZE
@@ -774,7 +774,7 @@ static void CoordinateCorrect(void)
 			break;
 		if (point_now[i].other.key != 0)
 			continue;
-		if (point_now[i].other.x >= edge_size && 
+		if (point_now[i].other.x >= edge_size &&
 			point_now[i].other.x <= drv_num_nokey * 64 - edge_size)
 		{
 			if(kx == 3)
@@ -788,9 +788,9 @@ static void CoordinateCorrect(void)
 			{
 				for(j=0;j<LINE_SIZE+1;j++)
 				{
-					if (!(j >= LINE_SIZE || 
-						px[j + 1] == NULL || 
-						multi_x[j].range == 0 || 
+					if (!(j >= LINE_SIZE ||
+						px[j + 1] == NULL ||
+						multi_x[j].range == 0 ||
 						point_now[i].other.x < multi_x[j].range))
 						continue;
 					point_now[i].other.x = CCO(point_now[i].other.x, px[j], kx);
@@ -798,7 +798,7 @@ static void CoordinateCorrect(void)
 				}
 			}
 		}
-		if (point_now[i].other.y >= edge_size && 
+		if (point_now[i].other.y >= edge_size &&
 			point_now[i].other.y <= sen_num_nokey * 64 - edge_size)
 		{
 			if(ky == 3)
@@ -812,9 +812,9 @@ static void CoordinateCorrect(void)
 			{
 				for(j=0;j<LINE_SIZE+1;j++)
 				{
-					if (!(j >= LINE_SIZE || 
-						py[j + 1] == NULL || 
-						multi_y[j].range == 0 || 
+					if (!(j >= LINE_SIZE ||
+						py[j + 1] == NULL ||
+						multi_y[j].range == 0 ||
 						point_now[i].other.y < multi_y[j].range))
 						continue;
 					point_now[i].other.y = CCO(point_now[i].other.y, py[j], ky);
@@ -1010,8 +1010,8 @@ static void PointId(void)
 		{
 			if(DistanceMin(&distance))
 			{
-				if (pp[1][0].all != 0 && 
-					pp[1][0].other.key != 
+				if (pp[1][0].all != 0 &&
+					pp[1][0].other.key !=
 					point_now[distance.j].other.key)
 				{
 					DistanceIgnore(&distance);
@@ -1030,11 +1030,11 @@ static void PointId(void)
 	}
 	else
 	{
-		for(j=0;j<point_num && j<POINT_MAX;j++)
+		for (j=0;j<point_num && j<POINT_MAX;j++)
 		{
-			if(DistanceMin(&distance) == 0)
+			if (DistanceMin(&distance) == 0)
 				break;
-			if(distance.min >= (id_static_coe + 
+			if (distance.min >= (id_static_coe +
 				id_speed[distance.i] * id_speed_coe) /**average/(soft_average+1)*/)
 			{
 				//point_now[distance.j].id = 0xf;//new id
@@ -1147,15 +1147,15 @@ static void PointDelay(void)
 				point_delay[i].other.able = 1;
 			continue;
 		}
-		if (pp[0][i].all != 0 && 
-			point_delay[i].other.init == 0 && 
+		if (pp[0][i].all != 0 &&
+			point_delay[i].other.init == 0 &&
 			point_delay[i].other.able == 0)
 		{
 			if(point_num == 0)
 				continue;
-			point_delay[i].other.delay = (report_delay >> 3 * 
+			point_delay[i].other.delay = (report_delay >> 3 *
 				((point_num>10 ? 10 : point_num) - 1)) & 0x7;
-			point_delay[i].other.report = (report_ahead >> 3 * 
+			point_delay[i].other.report = (report_ahead >> 3 *
 				((point_num>10 ? 10 : point_num) - 1)) & 0x7;
 			if (point_delay[i].other.report > point_delay[i].other.delay)
 				point_delay[i].other.report = point_delay[i].other.delay;
@@ -1168,9 +1168,9 @@ static void PointDelay(void)
 		if (point_delay[i].other.able == 0 && point_delay[i].other.init != 0)
 		{
 			for (j = 0; j <= (int)point_delay[i].other.delay; j++)
-			if (pp[j][i].all == 0 || 
-				pp[j][i].other.fill != 0 || 
-				pp[j][i].other.able != 0)
+				if (pp[j][i].all == 0 ||
+					pp[j][i].other.fill != 0 ||
+					pp[j][i].other.able != 0)
 					break;
 			if (j <= (int)point_delay[i].other.delay)
 				continue;
@@ -1185,7 +1185,7 @@ static void PointDelay(void)
 			continue;
 		if (point_delay[i].other.report)
 		{
-			if (PointDistance(&pp[point_delay[i].other.report][i], 
+			if (PointDistance(&pp[point_delay[i].other.report][i],
 				&pp[point_delay[i].other.report - 1][i]) < 3 * 3)
 				point_delay[i].other.report--;
 		}
@@ -1203,9 +1203,9 @@ static void FilterOne(int i,int *ps_c,int *pr_c,int denominator)
 		return;
 	for(j=0;j<8;j++)
 	{
-		x += (int)pr[j][i].other.x * (int)pr_c[j] + 
+		x += (int)pr[j][i].other.x * (int)pr_c[j] +
 			(int)ps[j][i].other.x * (int)ps_c[j];
-		y += (int)pr[j][i].other.y * (int)pr_c[j] + 
+		y += (int)pr[j][i].other.y * (int)pr_c[j] +
 			(int)ps[j][i].other.y * (int)ps_c[j];
 	}
 	x = (x + denominator/2) / denominator;
@@ -1224,8 +1224,8 @@ static void FilterOne(int i,int *ps_c,int *pr_c,int denominator)
 
 static unsigned int FilterSpeed(int i)
 {
-	return (Sqrt(PointDistance(&ps[0][i],&ps[1][i])) + 
-		Sqrt(PointDistance(&ps[1][i],&ps[2][i])))/2;
+	return (Sqrt(PointDistance(&ps[0][i], &ps[1][i])) +
+		Sqrt(PointDistance(&ps[1][i], &ps[2][i])))/2;
 }
 
 static int MedianSpeedOver(int id,int deep)
@@ -1335,13 +1335,13 @@ static void PointFilter(void)
 				continue;
 			}
 			speed_now = FilterSpeed(i);
-			if(filter_deep[i] > 0 && 
+			if (filter_deep[i] > 0 &&
 				speed_now > filter_speed[filter_deep[i]+1 - 2])
 				filter_deep[i] --;
-			else if(filter_deep[i] < 3 && 
+			else if(filter_deep[i] < 3 &&
 				speed_now < filter_speed[filter_deep[i]+1 + 2])
 				filter_deep[i] ++;
-				
+
 			FilterOne(i,ps_coe[filter_deep[i]],
 				pr_coe[filter_deep[i]],0-filter_able);
 		}
@@ -1358,7 +1358,7 @@ static unsigned int KeyMap(int *drv,int *sen)
 	int i;
 	for(i=0;i<8;i++)
 	{
-		if((unsigned int)*drv >= (key_range[i].up_down >> 16) 
+		if ((unsigned int)*drv >= (key_range[i].up_down >> 16)
 		&& (unsigned int)*drv <= (key_range[i].up_down & 0xffff)
 		&& (unsigned int)*sen >= (key_range[i].left_right >> 16)
 		&& (unsigned int)*sen <= (key_range[i].left_right & 0xffff))
@@ -1442,7 +1442,7 @@ static void PointReport(struct gsl_touch_info *cinfo)
 	if (point_num > point_num_max && global_flag.other.over_report_mask != 0)
 	{
 		point_num = 0;
-		cinfo->finger_num = 0;	
+		cinfo->finger_num = 0;
 		return;
 	}
 	for(i=0;i<POINT_MAX;i++)
@@ -1511,9 +1511,9 @@ static void PointReport(struct gsl_touch_info *cinfo)
 		point_now[num].all = data[i];
 		cinfo->x[num] = (data[i] >> 16) & 0xfff;
 		cinfo->y[num] = data[i] & 0xfff;
-		cinfo->id[num] = data[i] >> 28; 
+		cinfo->id[num] = data[i] >> 28;
 		pressure_now[num] = pressure_report[i];
-		num ++; 
+		num++;
 	}
 	point_num = num;
 	cinfo->finger_num = num;
@@ -1560,22 +1560,22 @@ static void PointEdge(void)
 			for(i=0;i<4;i++)
 			{
 				if(stretch->up[i].range)
-					stretch->up[i].range = 
-						stretch->up[i].range * 
+					stretch->up[i].range =
+						stretch->up[i].range *
 						drv_num_nokey * 64 / screen_x_max;
 				if(stretch->down[i].range)
-					stretch->down[i].range = 
-						(screen_x_max - 
-						stretch->down[i].range) * 
+					stretch->down[i].range =
+						(screen_x_max -
+						stretch->down[i].range) *
 						drv_num_nokey * 64 / screen_x_max;
 				if(stretch->left[i].range)
-					stretch->left[i].range = 
-						stretch->left[i].range * 
+					stretch->left[i].range =
+						stretch->left[i].range *
 						sen_num_nokey * 64 / screen_y_max;
 				if(stretch->right[i].range)
-					stretch->right[i].range = 
-						(screen_y_max - 
-						stretch->right[i].range) * 
+					stretch->right[i].range =
+						(screen_y_max -
+						stretch->right[i].range) *
 						sen_num_nokey * 64 / screen_y_max;
 			}
 			break;
@@ -1596,7 +1596,7 @@ static void PointEdge(void)
 				break;
 			if(data[1] < stretch->left[i].range)
 			{
-				data[0] += (stretch->left[i].range - data[1]) * 
+				data[0] += (stretch->left[i].range - data[1]) *
 					stretch->left[i].coe/128;
 				data[1] = stretch->left[i].range;
 			}
@@ -1615,7 +1615,7 @@ static void PointEdge(void)
 				break;
 			if(data[1] < stretch->right[i].range)
 			{
-				data[0] += (stretch->right[i].range - data[1]) * 
+				data[0] += (stretch->right[i].range - data[1]) *
 					stretch->right[i].coe/128;
 				data[1] = stretch->right[i].range;
 			}
@@ -1634,7 +1634,7 @@ static void PointEdge(void)
 				break;
 			if(data[1] < stretch->up[i].range)
 			{
-				data[0] += (stretch->up[i].range - data[1]) * 
+				data[0] += (stretch->up[i].range - data[1]) *
 					stretch->up[i].coe/128;
 				data[1] = stretch->up[i].range;
 			}
@@ -1653,7 +1653,7 @@ static void PointEdge(void)
 				break;
 			if(data[1] < stretch->down[i].range)
 			{
-				data[0] += (stretch->down[i].range - data[1]) * 
+				data[0] += (stretch->down[i].range - data[1]) *
 					stretch->down[i].coe/128;
 				data[1] = stretch->down[i].range;
 			}
@@ -1672,7 +1672,7 @@ static void PointEdge(void)
 static void PointStretch(void)
 {
 	static int save_dr[POINT_MAX],save_dn[POINT_MAX];
-	typedef struct  
+	typedef struct
 	{
 		int dis;
 		int coe;
@@ -1726,16 +1726,16 @@ static void PointStretch(void)
 				}
 				else if(temp > point_edge.dis)
 				{
-					temp = (point_edge.dis * edge_first_coe / 0x80 - temp) * 
+					temp = (point_edge.dis * edge_first_coe / 0x80 - temp) *
 						0x1000 / point_edge.dis;
 					if(temp < point_edge.rate)
 						point_edge.rate = temp;
 				}
-				ps[0][i].other.x = point_edge.coor.other.x + 
-					(ps[0][i].other.x - point_edge.coor.other.x) * 
+				ps[0][i].other.x = point_edge.coor.other.x +
+					(ps[0][i].other.x - point_edge.coor.other.x) *
 					(0x1000 - point_edge.rate) / 0x1000;
-				ps[0][i].other.y = point_edge.coor.other.y + 
-					(ps[0][i].other.y - point_edge.coor.other.y) * 
+				ps[0][i].other.y = point_edge.coor.other.y +
+					(ps[0][i].other.y - point_edge.coor.other.y) *
 					(0x1000 - point_edge.rate) / 0x1000;
 			}
 		}
@@ -1787,11 +1787,11 @@ static void PointStretch(void)
 			}
 			else
 			{
-				ps[0][i].other.x = (int)ps[1][i].other.x + 
-					((int)pp[0][i].other.x - 
+				ps[0][i].other.x = (int)ps[1][i].other.x +
+					((int)pp[0][i].other.x -
 					(int)ps[1][i].other.x) * dr / dn;
-				ps[0][i].other.y = (int)ps[1][i].other.y + 
-					((int)pp[0][i].other.y - 
+				ps[0][i].other.y = (int)ps[1][i].other.y +
+					((int)pp[0][i].other.y -
 					(int)ps[1][i].other.y) * dr / dn;
 			}
 			if(dc[0] > 0)
@@ -1799,11 +1799,11 @@ static void PointStretch(void)
 				if(ps[0][i].all == ps[1][i].all && temp != ps[0][i].all)
 				{
 					ps[0][i].all = temp;
-					point_decimal[i].other.x += 
-						(short)ps[0][i].other.x - 
+					point_decimal[i].other.x +=
+						(short)ps[0][i].other.x -
 						(short)ps[1][i].other.x;
-					point_decimal[i].other.y += 
-						(short)ps[0][i].other.y - 
+					point_decimal[i].other.y +=
+						(short)ps[0][i].other.y -
 						(short)ps[1][i].other.y;
 					ps[0][i].other.x = ps[1][i].other.x;
 					ps[0][i].other.y = ps[1][i].other.y;
@@ -1835,7 +1835,7 @@ static void PointStretch(void)
 				}
 			}
 		}
-		
+
 	}
 	else if(len >= 2)
 	{
@@ -1851,7 +1851,7 @@ static void PointStretch(void)
 		}
 		else
 		{
-			ds[0] = ds[1] + (128 - shake_all[0].coe) * 
+			ds[0] = ds[1] + (128 - shake_all[0].coe) *
 				(ds[1]-ds[2])/(shake_all[0].coe - shake_all[1].coe);
 			dc[0] = 128;
 		}
@@ -1877,11 +1877,11 @@ static void PointStretch(void)
 			{
 				dr = save_dr[i];
 				save_dn[i] = dn;
-				ps[0][i].other.x = (int)ps[1][i].other.x + 
-					(((int)pp[0][i].other.x - 
+				ps[0][i].other.x = (int)ps[1][i].other.x +
+					(((int)pp[0][i].other.x -
 					(int)ps[1][i].other.x) * dr) / 128;
-				ps[0][i].other.y = (int)ps[1][i].other.y + 
-					(((int)pp[0][i].other.y - 
+				ps[0][i].other.y = (int)ps[1][i].other.y +
+					(((int)pp[0][i].other.y -
 					(int)ps[1][i].other.y) * dr) / 128;
 				continue;
 			}
@@ -1900,11 +1900,11 @@ static void PointStretch(void)
 					save_dn[i] = dn;
 //					ps[0][i].x = (int)ps[1][i].x + ((int)pp[0][i].x - (int)ps[1][i].x) * dr / dn / 128;
 //					ps[0][i].y = (int)ps[1][i].y + ((int)pp[0][i].y - (int)ps[1][i].y) * dr / dn / 128;
-					ps[0][i].other.x = (int)ps[1][i].other.x + 
-						(((int)pp[0][i].other.x - 
+					ps[0][i].other.x = (int)ps[1][i].other.x +
+						(((int)pp[0][i].other.x -
 						(int)ps[1][i].other.x) * dr + 64) / 128;
-					ps[0][i].other.y = (int)ps[1][i].other.y + 
-						(((int)pp[0][i].other.y - 
+					ps[0][i].other.y = (int)ps[1][i].other.y +
+						(((int)pp[0][i].other.y -
 						(int)ps[1][i].other.y) * dr + 64) / 128;
 					break;
 				}
@@ -1919,31 +1919,31 @@ static void PointStretch(void)
 
 static void ResetMask(void)
 {
-	if(reset_mask_send)
+	if (reset_mask_send)
 	{
 		reset_mask_send = 0;
 	}
 	if (global_state.other.mask)
 		return;
-	if(reset_mask_dis ==0 || reset_mask_type == 0)
+	if (reset_mask_dis ==0 || reset_mask_type == 0)
 		return;
-	if(reset_mask_max == 0xfffffff1)
+	if (reset_mask_max == 0xfffffff1)
 	{
-		if(point_num == 0) 
+		if (point_num == 0)
 			reset_mask_max = 0xf0000000 + 1;
 		return;
 	}
-	if(reset_mask_max >  0xf0000000)
+	if (reset_mask_max >  0xf0000000)
 	{
 		reset_mask_max --;
-		if(reset_mask_max == 0xf0000000)
+		if (reset_mask_max == 0xf0000000)
 		{
 			reset_mask_send = reset_mask_type;
 			global_state.other.mask = 1;
 		}
 		return;
 	}
-	if(point_num > 1 || pp[0][0].all == 0)
+	if (point_num > 1 || pp[0][0].all == 0)
 	{
 		reset_mask_count = 0;
 		reset_mask_max = 0;
@@ -1951,11 +1951,11 @@ static void ResetMask(void)
 		return;
 	}
 	reset_mask_count ++;
-	if(reset_mask_max == 0)
+	if (reset_mask_max == 0)
 		reset_mask_max = pp[0][0].all;
-	else 
-		if(PointDistance((gsl_POINT_TYPE*)(&reset_mask_max),pp[0]) > 
-			(((unsigned int)reset_mask_dis) & 0xffffff) && 
+	else
+		if (PointDistance((gsl_POINT_TYPE*)(&reset_mask_max),pp[0]) >
+			(((unsigned int)reset_mask_dis) & 0xffffff) &&
 			reset_mask_count > (((unsigned int)reset_mask_dis) >> 24))
 			reset_mask_max = 0xfffffff1;
 }
@@ -2045,16 +2045,16 @@ static int ConfigKeyMap(int data[])
 static int DiagonalDistance(gsl_POINT_TYPE *p,int type)
 {
 	int divisor,square;
-	divisor = ((int)sen_num_nokey * (int)sen_num_nokey + 
+	divisor = ((int)sen_num_nokey * (int)sen_num_nokey +
 		(int)drv_num_nokey * (int)drv_num_nokey)/16;
 	if(divisor == 0)
 		divisor = 1;
 	if(type == 0)
-		square = ((int)sen_num_nokey*(int)(p->other.x) - 
+		square = ((int)sen_num_nokey*(int)(p->other.x) -
 			(int)drv_num_nokey*(int)(p->other.y)) / 4;
 	else
-		square = ((int)sen_num_nokey*(int)(p->other.x) + 
-			(int)drv_num_nokey*(int)(p->other.y) - 
+		square = ((int)sen_num_nokey*(int)(p->other.x) +
+			(int)drv_num_nokey*(int)(p->other.y) -
 			(int)sen_num_nokey*(int)drv_num_nokey * 64) / 4;
 	return square * square / divisor;
 }
@@ -2117,14 +2117,14 @@ static void PointDiagonal(void)
 		}
 		else if((point_corner & (0x3<<i*2)) == 0)
 		{
-			if ((ps[0][i].other.x <= diagonal_start && 
+			if ((ps[0][i].other.x <= diagonal_start &&
 				ps[0][i].other.y <= diagonal_start) ||
-				(ps[0][i].other.x >= drv_num_nokey * 64 - diagonal_start && 
+				(ps[0][i].other.x >= drv_num_nokey * 64 - diagonal_start &&
 				 ps[0][i].other.y >= sen_num_nokey * 64 - diagonal_start))
 				point_corner |= 0x2<<i*2;
-			else if ((ps[0][i].other.x <= diagonal_start && 
-				ps[0][i].other.y >= sen_num_nokey * 64 - diagonal_start) || 
-				(ps[0][i].other.x >= drv_num_nokey * 64 - diagonal_start && 
+			else if ((ps[0][i].other.x <= diagonal_start &&
+				ps[0][i].other.y >= sen_num_nokey * 64 - diagonal_start) ||
+				(ps[0][i].other.x >= drv_num_nokey * 64 - diagonal_start &&
 				ps[0][i].other.y <= diagonal_start))
 				point_corner |= 0x3<<i*2;
 			else
@@ -2172,7 +2172,7 @@ static void PointPressure(void)
 				pa[j][i] = pa[0][i];
 			continue;
 		}
-		j = (pressure_report[i]+1)/2 + pa[0][i] + 
+		j = (pressure_report[i]+1)/2 + pa[0][i] +
 			pa[1][i] + (pa[2][i]+1)/2 - pressure_report[i];
 		if(j >= 2)
 			j -= 2;
@@ -2268,14 +2268,14 @@ static void DoubleClick(void)
 		double_click = '*';
 //		printk("sileadinc DoubleClick succeed double_click=%c\n",double_click);
 	}
-} 
+}
 
 static void gsl_id_reg_init(int flag)
 {
 	int i,j;
 	for(j=0;j<POINT_DEEP;j++)
 		for(i=0;i<POINT_MAX;i++)
-			point_array[j][i].all = 0;	
+			point_array[j][i].all = 0;
 	for(j=0;j<PRESSURE_DEEP;j++)
 		for(i=0;i<POINT_MAX;i++)
 			pressure_array[j][i] = 0;
@@ -2295,7 +2295,7 @@ static void gsl_id_reg_init(int flag)
 	reset_mask_max = 0;
 	reset_mask_count = 0;
 	point_near = 0;
-	point_corner = 0;	
+	point_corner = 0;
 	global_state.all = 0;
 	double_click = 0;
 	inte_count = 0;
@@ -2490,7 +2490,7 @@ void gsl_DataInit(unsigned int * conf_in)
 		near_set[1] = conf[0x19]&0xffff;
 		diagonal = conf[0x1a];
 		//-------------------------
-		
+
 		id_first_coe = conf[0x20];
 		id_speed_coe = conf[0x21];
 		id_static_coe = conf[0x22];
@@ -2527,22 +2527,22 @@ void gsl_DataInit(unsigned int * conf_in)
 		edge_first				= conf[0x48];
 		edge_first_coe			= conf[0x49];
 		//goto_test
-		
+
 		key_map_able = conf[0x60];
 		for(i=0;i<8*3;i++)
 			key_range_array[i] = conf[0x61+i];
-		
+
 		coordinate_correct_able = conf[0x100];
 		for(i=0;i<4;i++)
 		{
-			multi_x_array[i] = conf[0x101+i];	
+			multi_x_array[i] = conf[0x101+i];
 			multi_y_array[i] = conf[0x105+i];
 		}
 		for(i=0;i<64;i++)
 		{
 			coordinate_correct_coe_x[i] = (conf[0x109+i/4]>>(i%4*8)) & 0xff;
 			coordinate_correct_coe_y[i] = (conf[0x109+64/4+i/4]>>(i%4*8)) & 0xff;
-		}	
+		}
 		for(i=0;i<4;i++)
 		{
 		  for(j=0;j<64;j++)
@@ -2609,8 +2609,8 @@ static void GetFlag(void)
 {
 	int i = 0;
 	int num_save;
-	if(((point_num & 0x100)!=0) || 
-		((point_num & 0x200) != 0 && 
+	if(((point_num & 0x100)!=0) ||
+		((point_num & 0x200) != 0 &&
 		global_state.other.reset == 1))
 	{
 		gsl_id_reg_init(0);
@@ -2631,7 +2631,7 @@ static void GetFlag(void)
 		global_state.other.ex = 1;
 	else
 		global_state.other.ex = 0;
-	inte_count ++;	
+	inte_count ++;
 	csensor_count = ((unsigned int)point_num)>>16;
 	num_save = point_num & 0xff;
 	if(num_save > POINT_MAX)
@@ -2650,15 +2650,15 @@ void gsl_alg_id_main(struct gsl_touch_info *cinfo)
 	point_num = cinfo->finger_num;
 	for(i=0;i<POINT_MAX;i++)
 	{
-		point_now[i].all = (cinfo->id[i]<<28) | 
+		point_now[i].all = (cinfo->id[i]<<28) |
 			(cinfo->x[i]<<16) | cinfo->y[i];
 	}
-	
+
 	GetFlag();
 	if(DataCheck() == 0)
 	{
 		point_num = 0;
-		cinfo->finger_num = 0;	
+		cinfo->finger_num = 0;
 		return;
 	}
 	PressureSave();
@@ -2682,7 +2682,7 @@ void gsl_alg_id_main(struct gsl_touch_info *cinfo)
  	PointFilter();
 	GetPointNum(pr[0]);
 #ifdef GESTURE_LICH
-	GestureMain(&(pr[0][0].all),point_num);	
+	GestureMain(&(pr[0][0].all),point_num);
 #endif
 	PointDelay();
 	PointPressure();
@@ -2749,14 +2749,14 @@ static int GestureSqrt(int d)
 static int GestureDistance(GESTURE_POINT_TYPE* d1,GESTURE_POINT_TYPE* d2,int sqrt_able)
 {
 	if(sqrt_able)
-		return GestureSqrt((d1->other.x - d2->other.x) * 
-			(d1->other.x - d2->other.x) + 
-			(d1->other.y - d2->other.y) * 
+		return GestureSqrt((d1->other.x - d2->other.x) *
+			(d1->other.x - d2->other.x) +
+			(d1->other.y - d2->other.y) *
 			(d1->other.y - d2->other.y));
 	else
-		return (d1->other.x - d2->other.x) * 
-			(d1->other.x - d2->other.x) + 
-			(d1->other.y - d2->other.y) * 
+		return (d1->other.x - d2->other.x) *
+			(d1->other.x - d2->other.x) +
+			(d1->other.y - d2->other.y) *
 			(d1->other.y - d2->other.y);
 }
 
@@ -2807,9 +2807,9 @@ static int GestureStretch(void)
 		return FALSE;
 	for(i=0;i<gesture_num;i++)
 	{
-		gesture_buf[i].other.x = (gesture_buf[i].other.x - x_min) * 
+		gesture_buf[i].other.x = (gesture_buf[i].other.x - x_min) *
 			GESTURE_SIZE_REFE / (x_max - x_min);
-		gesture_buf[i].other.y = (gesture_buf[i].other.y - y_min) * 
+		gesture_buf[i].other.y = (gesture_buf[i].other.y - y_min) *
 			GESTURE_SIZE_REFE / (y_max - y_min);
 	}
 	return TRUE;
@@ -2833,7 +2833,7 @@ static void GestureStandard(void)
 	int len_his = 0;
 	int len_total = GestureLength();
 	gesture_standard[0].all = gesture_buf[0].all&0x0fffffff;
-	gesture_standard[GESTURE_SIZE_NUM - 1].all = 
+	gesture_standard[GESTURE_SIZE_NUM - 1].all =
 		gesture_buf[gesture_num -1].all&0x0fffffff;
 	for(i=1,n=0;i<GESTURE_SIZE_NUM-1;i++)
 	{
@@ -2920,7 +2920,7 @@ static void ChangeXY(void)
 {
 	int i;
 	for(i=0;i<gesture_num && i<GESTURE_BUF_SIZE;i++)
-		gesture_buf[i].all = ((gesture_buf[i].all & 0xfff) << 16) + 
+		gesture_buf[i].all = ((gesture_buf[i].all & 0xfff) << 16) +
 		((gesture_buf[i].all>>16) & 0xffff);
 }
 
