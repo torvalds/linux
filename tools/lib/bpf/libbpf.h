@@ -854,7 +854,7 @@ struct bpf_object_skeleton {
 	size_t sz; /* size of this struct, for forward/backward compatibility */
 
 	const char *name;
-	void *data;
+	const void *data;
 	size_t data_sz;
 
 	struct bpf_object **obj;
