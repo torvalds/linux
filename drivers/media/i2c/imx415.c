@@ -1205,7 +1205,7 @@ static int imx415_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int imx415_g_mbus_config(struct v4l2_subdev *sd,
+static int imx415_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	struct imx415 *imx415 = to_imx415(sd);
@@ -1219,7 +1219,7 @@ static int imx415_g_mbus_config(struct v4l2_subdev *sd,
 		val |= V4L2_MBUS_CSI2_CHANNEL_1;
 	if (mode->hdr_mode == HDR_X3)
 		val |= V4L2_MBUS_CSI2_CHANNEL_2;
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -2175,7 +2175,6 @@ static const struct v4l2_subdev_core_ops imx415_core_ops = {
 static const struct v4l2_subdev_video_ops imx415_video_ops = {
 	.s_stream = imx415_s_stream,
 	.g_frame_interval = imx415_g_frame_interval,
-	.g_mbus_config = imx415_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops imx415_pad_ops = {
@@ -2185,6 +2184,7 @@ static const struct v4l2_subdev_pad_ops imx415_pad_ops = {
 	.get_fmt = imx415_get_fmt,
 	.set_fmt = imx415_set_fmt,
 	.get_selection = imx415_get_selection,
+	.get_mbus_config = imx415_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops imx415_subdev_ops = {
