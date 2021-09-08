@@ -5,7 +5,7 @@
 
 menuconfig PROXIMITY_DEVICE
 	tristate "proximity sensor device support"
-	default n	
+	default n
 
 if PROXIMITY_DEVICE
 
@@ -20,6 +20,9 @@ config PS_STK3171
 config PS_AP321XX
 	tristate "psensor ap321xx"
 	default n
+
+config PS_STK3332
+	tristate "proximity sensor stk3332"
 
 config PS_STK3410
 	tristate "proximity sensor stk3410"
