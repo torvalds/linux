@@ -2260,8 +2260,16 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 	    !(cpufreq_driver->flags & CPUFREQ_NEED_UPDATE_LIMITS))
 		return 0;
 
-	if (cpufreq_driver->target)
+	if (cpufreq_driver->target) {
+		/*
+		 * If the driver hasn't setup a single inefficient frequency,
+		 * it's unlikely it knows how to decode CPUFREQ_RELATION_E.
+		 */
+		if (!policy->efficiencies_available)
+			relation &= ~CPUFREQ_RELATION_E;
+
 		return cpufreq_driver->target(policy, target_freq, relation);
+	}
 
 	if (!cpufreq_driver->target_index)
 		return -EINVAL;
