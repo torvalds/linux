@@ -83,6 +83,7 @@ static ssize_t proc_bus_pci_read(struct file *file, char __user *buf,
 		buf += 4;
 		pos += 4;
 		cnt -= 4;
+		cond_resched();
 	}
 
 	if (cnt >= 2) {
