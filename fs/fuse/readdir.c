@@ -76,11 +76,11 @@ static void fuse_add_dirent_to_cache(struct file *file,
 	    WARN_ON(fi->rdc.pos != pos))
 		goto unlock;
 
-	addr = kmap_atomic(page);
+	addr = kmap_local_page(page);
 	if (!offset)
 		clear_page(addr);
 	memcpy(addr + offset, dirent, reclen);
-	kunmap_atomic(addr);
+	kunmap_local(addr);
 	fi->rdc.size = (index << PAGE_SHIFT) + offset + reclen;
 	fi->rdc.pos = dirent->off;
 unlock:
