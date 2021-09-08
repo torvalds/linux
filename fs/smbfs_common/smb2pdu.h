@@ -315,4 +315,233 @@ struct smb2_tree_disconnect_rsp {
 } __packed;
 
 
+/*
+ * SMB2_NEGOTIATE_PROTOCOL  See MS-SMB2 section 2.2.3
+ */
+/* SecurityMode flags */
+#define	SMB2_NEGOTIATE_SIGNING_ENABLED     0x0001
+#define	SMB2_NEGOTIATE_SIGNING_ENABLED_LE  cpu_to_le16(0x0001)
+#define SMB2_NEGOTIATE_SIGNING_REQUIRED	   0x0002
+#define SMB2_NEGOTIATE_SIGNING_REQUIRED_LE cpu_to_le16(0x0002)
+#define SMB2_SEC_MODE_FLAGS_ALL            0x0003
+
+/* Capabilities flags */
+#define SMB2_GLOBAL_CAP_DFS		0x00000001
+#define SMB2_GLOBAL_CAP_LEASING		0x00000002 /* Resp only New to SMB2.1 */
+#define SMB2_GLOBAL_CAP_LARGE_MTU	0X00000004 /* Resp only New to SMB2.1 */
+#define SMB2_GLOBAL_CAP_MULTI_CHANNEL	0x00000008 /* New to SMB3 */
+#define SMB2_GLOBAL_CAP_PERSISTENT_HANDLES 0x00000010 /* New to SMB3 */
+#define SMB2_GLOBAL_CAP_DIRECTORY_LEASING  0x00000020 /* New to SMB3 */
+#define SMB2_GLOBAL_CAP_ENCRYPTION	0x00000040 /* New to SMB3 */
+/* Internal types */
+#define SMB2_NT_FIND			0x00100000
+#define SMB2_LARGE_FILES		0x00200000
+
+#define SMB2_CLIENT_GUID_SIZE		16
+#define SMB2_CREATE_GUID_SIZE		16
+
+/* Dialects */
+#define SMB10_PROT_ID  0x0000 /* local only, not sent on wire w/CIFS negprot */
+#define SMB20_PROT_ID  0x0202
+#define SMB21_PROT_ID  0x0210
+#define SMB2X_PROT_ID  0x02FF
+#define SMB30_PROT_ID  0x0300
+#define SMB302_PROT_ID 0x0302
+#define SMB311_PROT_ID 0x0311
+#define BAD_PROT_ID    0xFFFF
+
+#define SMB311_SALT_SIZE			32
+/* Hash Algorithm Types */
+#define SMB2_PREAUTH_INTEGRITY_SHA512	cpu_to_le16(0x0001)
+#define SMB2_PREAUTH_HASH_SIZE 64
+
+/* Negotiate Contexts - ContextTypes. See MS-SMB2 section 2.2.3.1 for details */
+#define SMB2_PREAUTH_INTEGRITY_CAPABILITIES	cpu_to_le16(1)
+#define SMB2_ENCRYPTION_CAPABILITIES		cpu_to_le16(2)
+#define SMB2_COMPRESSION_CAPABILITIES		cpu_to_le16(3)
+#define SMB2_NETNAME_NEGOTIATE_CONTEXT_ID	cpu_to_le16(5)
+#define SMB2_TRANSPORT_CAPABILITIES		cpu_to_le16(6)
+#define SMB2_RDMA_TRANSFORM_CAPABILITIES	cpu_to_le16(7)
+#define SMB2_SIGNING_CAPABILITIES		cpu_to_le16(8)
+#define SMB2_POSIX_EXTENSIONS_AVAILABLE		cpu_to_le16(0x100)
+
+struct smb2_neg_context {
+	__le16	ContextType;
+	__le16	DataLength;
+	__le32	Reserved;
+	/* Followed by array of data. NOTE: some servers require padding to 8 byte boundary */
+} __packed;
+
+/*
+ * SaltLength that the server send can be zero, so the only three required
+ * fields (all __le16) end up six bytes total, so the minimum context data len
+ * in the response is six bytes which accounts for
+ *
+ *      HashAlgorithmCount, SaltLength, and 1 HashAlgorithm.
+ */
+#define MIN_PREAUTH_CTXT_DATA_LEN 6
+
+struct smb2_preauth_neg_context {
+	__le16	ContextType; /* 1 */
+	__le16	DataLength;
+	__le32	Reserved;
+	__le16	HashAlgorithmCount; /* 1 */
+	__le16	SaltLength;
+	__le16	HashAlgorithms; /* HashAlgorithms[0] since only one defined */
+	__u8	Salt[SMB311_SALT_SIZE];
+} __packed;
+
+/* Encryption Algorithms Ciphers */
+#define SMB2_ENCRYPTION_AES128_CCM	cpu_to_le16(0x0001)
+#define SMB2_ENCRYPTION_AES128_GCM	cpu_to_le16(0x0002)
+#define SMB2_ENCRYPTION_AES256_CCM      cpu_to_le16(0x0003)
+#define SMB2_ENCRYPTION_AES256_GCM      cpu_to_le16(0x0004)
+
+/* Min encrypt context data is one cipher so 2 bytes + 2 byte count field */
+#define MIN_ENCRYPT_CTXT_DATA_LEN	4
+struct smb2_encryption_neg_context {
+	__le16	ContextType; /* 2 */
+	__le16	DataLength;
+	__le32	Reserved;
+	/* CipherCount usally 2, but can be 3 when AES256-GCM enabled */
+	__le16	CipherCount; /* AES128-GCM and AES128-CCM by default */
+	__le16	Ciphers[];
+} __packed;
+
+/* See MS-SMB2 2.2.3.1.3 */
+#define SMB3_COMPRESS_NONE	cpu_to_le16(0x0000)
+#define SMB3_COMPRESS_LZNT1	cpu_to_le16(0x0001)
+#define SMB3_COMPRESS_LZ77	cpu_to_le16(0x0002)
+#define SMB3_COMPRESS_LZ77_HUFF	cpu_to_le16(0x0003)
+/* Pattern scanning algorithm See MS-SMB2 3.1.4.4.1 */
+#define SMB3_COMPRESS_PATTERN	cpu_to_le16(0x0004) /* Pattern_V1 */
+
+/* Compression Flags */
+#define SMB2_COMPRESSION_CAPABILITIES_FLAG_NONE		cpu_to_le32(0x00000000)
+#define SMB2_COMPRESSION_CAPABILITIES_FLAG_CHAINED	cpu_to_le32(0x00000001)
+
+struct smb2_compression_capabilities_context {
+	__le16	ContextType; /* 3 */
+	__le16  DataLength;
+	__le32	Reserved;
+	__le16	CompressionAlgorithmCount;
+	__le16	Padding;
+	__le32	Flags;
+	__le16	CompressionAlgorithms[3];
+	__u16	Pad;  /* Some servers require pad to DataLen multiple of 8 */
+	/* Check if pad needed */
+} __packed;
+
+/*
+ * For smb2_netname_negotiate_context_id See MS-SMB2 2.2.3.1.4.
+ * Its struct simply contains NetName, an array of Unicode characters
+ */
+struct smb2_netname_neg_context {
+	__le16	ContextType; /* 5 */
+	__le16	DataLength;
+	__le32	Reserved;
+	__le16	NetName[]; /* hostname of target converted to UCS-2 */
+} __packed;
+
+/*
+ * For smb2_transport_capabilities context see MS-SMB2 2.2.3.1.5
+ * and 2.2.4.1.5
+ */
+
+/* Flags */
+#define SMB2_ACCEPT_TRANSFORM_LEVEL_SECURITY	0x00000001
+
+struct smb2_transport_capabilities_context {
+	__le16	ContextType; /* 6 */
+	__le16  DataLength;
+	__u32	Reserved;
+	__le32	Flags;
+	__u32	Pad;
+} __packed;
+
+/*
+ * For rdma transform capabilities context see MS-SMB2 2.2.3.1.6
+ * and 2.2.4.1.6
+ */
+
+/* RDMA Transform IDs */
+#define SMB2_RDMA_TRANSFORM_NONE	0x0000
+#define SMB2_RDMA_TRANSFORM_ENCRYPTION	0x0001
+#define SMB2_RDMA_TRANSFORM_SIGNING	0x0002
+
+struct smb2_rdma_transform_capabilities_context {
+	__le16	ContextType; /* 7 */
+	__le16  DataLength;
+	__u32	Reserved;
+	__le16	TransformCount;
+	__u16	Reserved1;
+	__u32	Reserved2;
+	__le16	RDMATransformIds[];
+} __packed;
+
+/*
+ * For signing capabilities context see MS-SMB2 2.2.3.1.7
+ * and 2.2.4.1.7
+ */
+
+/* Signing algorithms */
+#define SIGNING_ALG_HMAC_SHA256    0
+#define SIGNING_ALG_HMAC_SHA256_LE cpu_to_le16(0)
+#define SIGNING_ALG_AES_CMAC       1
+#define SIGNING_ALG_AES_CMAC_LE    cpu_to_le16(1)
+#define SIGNING_ALG_AES_GMAC       2
+#define SIGNING_ALG_AES_GMAC_LE    cpu_to_le16(2)
+
+struct smb2_signing_capabilities {
+	__le16	ContextType; /* 8 */
+	__le16	DataLength;
+	__le32	Reserved;
+	__le16	SigningAlgorithmCount;
+	__le16	SigningAlgorithms[];
+	/*  Followed by padding to 8 byte boundary (required by some servers) */
+} __packed;
+
+#define POSIX_CTXT_DATA_LEN	16
+struct smb2_posix_neg_context {
+	__le16	ContextType; /* 0x100 */
+	__le16	DataLength;
+	__le32	Reserved;
+	__u8	Name[16]; /* POSIX ctxt GUID 93AD25509CB411E7B42383DE968BCD7C */
+} __packed;
+
+struct smb2_negotiate_req {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 36 */
+	__le16 DialectCount;
+	__le16 SecurityMode;
+	__le16 Reserved;	/* MBZ */
+	__le32 Capabilities;
+	__u8   ClientGUID[SMB2_CLIENT_GUID_SIZE];
+	/* In SMB3.02 and earlier next three were MBZ le64 ClientStartTime */
+	__le32 NegotiateContextOffset; /* SMB3.1.1 only. MBZ earlier */
+	__le16 NegotiateContextCount;  /* SMB3.1.1 only. MBZ earlier */
+	__le16 Reserved2;
+	__le16 Dialects[];
+} __packed;
+
+struct smb2_negotiate_rsp {
+	struct smb2_hdr hdr;
+	__le16 StructureSize;	/* Must be 65 */
+	__le16 SecurityMode;
+	__le16 DialectRevision;
+	__le16 NegotiateContextCount;	/* Prior to SMB3.1.1 was Reserved & MBZ */
+	__u8   ServerGUID[16];
+	__le32 Capabilities;
+	__le32 MaxTransactSize;
+	__le32 MaxReadSize;
+	__le32 MaxWriteSize;
+	__le64 SystemTime;	/* MBZ */
+	__le64 ServerStartTime;
+	__le16 SecurityBufferOffset;
+	__le16 SecurityBufferLength;
+	__le32 NegotiateContextOffset;	/* Pre:SMB3.1.1 was reserved/ignored */
+	__u8   Buffer[1];	/* variable length GSS security buffer */
+} __packed;
+
+
 #endif				/* _COMMON_SMB2PDU_H */
