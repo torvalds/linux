@@ -130,6 +130,20 @@ u8 drm_dp_get_adjust_request_pre_emphasis(const u8 link_status[DP_LINK_STATUS_SI
 }
 EXPORT_SYMBOL(drm_dp_get_adjust_request_pre_emphasis);
 
+/* DP 2.0 128b/132b */
+u8 drm_dp_get_adjust_tx_ffe_preset(const u8 link_status[DP_LINK_STATUS_SIZE],
+				   int lane)
+{
+	int i = DP_ADJUST_REQUEST_LANE0_1 + (lane >> 1);
+	int s = ((lane & 1) ?
+		 DP_ADJUST_TX_FFE_PRESET_LANE1_SHIFT :
+		 DP_ADJUST_TX_FFE_PRESET_LANE0_SHIFT);
+	u8 l = dp_link_status(link_status, i);
+
+	return (l >> s) & 0xf;
+}
+EXPORT_SYMBOL(drm_dp_get_adjust_tx_ffe_preset);
+
 u8 drm_dp_get_adjust_request_post_cursor(const u8 link_status[DP_LINK_STATUS_SIZE],
 					 unsigned int lane)
 {
