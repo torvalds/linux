@@ -761,7 +761,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 {
 	unsigned int num_buffers, allocated_buffers, num_planes = 0;
 	unsigned plane_sizes[VB2_MAX_PLANES] = { };
-	bool non_coherent_mem = false;
+	bool non_coherent_mem = flags & V4L2_MEMORY_FLAG_NON_COHERENT;
 	unsigned int i;
 	int ret;
 
@@ -905,7 +905,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 {
 	unsigned int num_planes = 0, num_buffers, allocated_buffers;
 	unsigned plane_sizes[VB2_MAX_PLANES] = { };
-	bool non_coherent_mem = false;
+	bool non_coherent_mem = flags & V4L2_MEMORY_FLAG_NON_COHERENT;
 	int ret;
 
 	if (q->num_buffers == VB2_MAX_FRAME) {
