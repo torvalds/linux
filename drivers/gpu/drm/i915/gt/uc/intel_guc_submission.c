@@ -1385,8 +1385,6 @@ static void guc_context_policy_init(struct intel_engine_cs *engine,
 	desc->preemption_timeout = engine->props.preempt_timeout_ms * 1000;
 }
 
-static inline u8 map_i915_prio_to_guc_prio(int prio);
-
 static int guc_lrc_desc_pin(struct intel_context *ce, bool loop)
 {
 	struct intel_engine_cs *engine = ce->engine;
@@ -1394,8 +1392,6 @@ static int guc_lrc_desc_pin(struct intel_context *ce, bool loop)
 	struct intel_guc *guc = &engine->gt->uc.guc;
 	u32 desc_idx = ce->guc_id;
 	struct guc_lrc_desc *desc;
-	const struct i915_gem_context *ctx;
-	int prio = I915_CONTEXT_DEFAULT_PRIORITY;
 	bool context_registered;
 	intel_wakeref_t wakeref;
 	int ret = 0;
@@ -1412,12 +1408,6 @@ static int guc_lrc_desc_pin(struct intel_context *ce, bool loop)
 
 	context_registered = lrc_desc_registered(guc, desc_idx);
 
-	rcu_read_lock();
-	ctx = rcu_dereference(ce->gem_context);
-	if (ctx)
-		prio = ctx->sched.priority;
-	rcu_read_unlock();
-
 	reset_lrc_desc(guc, desc_idx);
 	set_lrc_desc_registered(guc, desc_idx, ce);
 
@@ -1426,8 +1416,7 @@ static int guc_lrc_desc_pin(struct intel_context *ce, bool loop)
 	desc->engine_submit_mask = adjust_engine_mask(engine->class,
 						      engine->mask);
 	desc->hw_context_desc = ce->lrc.lrca;
-	ce->guc_prio = map_i915_prio_to_guc_prio(prio);
-	desc->priority = ce->guc_prio;
+	desc->priority = ce->guc_active.prio;
 	desc->context_flags = CONTEXT_REGISTRATION_FLAG_KMD;
 	guc_context_policy_init(engine, desc);
 
@@ -1822,10 +1811,10 @@ static inline void guc_lrc_desc_unpin(struct intel_context *ce)
 
 static void __guc_context_destroy(struct intel_context *ce)
 {
-	GEM_BUG_ON(ce->guc_prio_count[GUC_CLIENT_PRIORITY_KMD_HIGH] ||
-		   ce->guc_prio_count[GUC_CLIENT_PRIORITY_HIGH] ||
-		   ce->guc_prio_count[GUC_CLIENT_PRIORITY_KMD_NORMAL] ||
-		   ce->guc_prio_count[GUC_CLIENT_PRIORITY_NORMAL]);
+	GEM_BUG_ON(ce->guc_active.prio_count[GUC_CLIENT_PRIORITY_KMD_HIGH] ||
+		   ce->guc_active.prio_count[GUC_CLIENT_PRIORITY_HIGH] ||
+		   ce->guc_active.prio_count[GUC_CLIENT_PRIORITY_KMD_NORMAL] ||
+		   ce->guc_active.prio_count[GUC_CLIENT_PRIORITY_NORMAL]);
 	GEM_BUG_ON(ce->guc_state.number_committed_requests);
 
 	lrc_fini(ce);
@@ -1935,14 +1924,17 @@ static void guc_context_set_prio(struct intel_guc *guc,
 
 	GEM_BUG_ON(prio < GUC_CLIENT_PRIORITY_KMD_HIGH ||
 		   prio > GUC_CLIENT_PRIORITY_NORMAL);
+	lockdep_assert_held(&ce->guc_active.lock);
 
-	if (ce->guc_prio == prio || submission_disabled(guc) ||
-	    !context_registered(ce))
+	if (ce->guc_active.prio == prio || submission_disabled(guc) ||
+	    !context_registered(ce)) {
+		ce->guc_active.prio = prio;
 		return;
+	}
 
 	guc_submission_send_busy_loop(guc, action, ARRAY_SIZE(action), 0, true);
 
-	ce->guc_prio = prio;
+	ce->guc_active.prio = prio;
 	trace_intel_context_set_prio(ce);
 }
 
@@ -1962,24 +1954,24 @@ static inline void add_context_inflight_prio(struct intel_context *ce,
 					     u8 guc_prio)
 {
 	lockdep_assert_held(&ce->guc_active.lock);
-	GEM_BUG_ON(guc_prio >= ARRAY_SIZE(ce->guc_prio_count));
+	GEM_BUG_ON(guc_prio >= ARRAY_SIZE(ce->guc_active.prio_count));
 
-	++ce->guc_prio_count[guc_prio];
+	++ce->guc_active.prio_count[guc_prio];
 
 	/* Overflow protection */
-	GEM_WARN_ON(!ce->guc_prio_count[guc_prio]);
+	GEM_WARN_ON(!ce->guc_active.prio_count[guc_prio]);
 }
 
 static inline void sub_context_inflight_prio(struct intel_context *ce,
 					     u8 guc_prio)
 {
 	lockdep_assert_held(&ce->guc_active.lock);
-	GEM_BUG_ON(guc_prio >= ARRAY_SIZE(ce->guc_prio_count));
+	GEM_BUG_ON(guc_prio >= ARRAY_SIZE(ce->guc_active.prio_count));
 
 	/* Underflow protection */
-	GEM_WARN_ON(!ce->guc_prio_count[guc_prio]);
+	GEM_WARN_ON(!ce->guc_active.prio_count[guc_prio]);
 
-	--ce->guc_prio_count[guc_prio];
+	--ce->guc_active.prio_count[guc_prio];
 }
 
 static inline void update_context_prio(struct intel_context *ce)
@@ -1992,8 +1984,8 @@ static inline void update_context_prio(struct intel_context *ce)
 
 	lockdep_assert_held(&ce->guc_active.lock);
 
-	for (i = 0; i < ARRAY_SIZE(ce->guc_prio_count); ++i) {
-		if (ce->guc_prio_count[i]) {
+	for (i = 0; i < ARRAY_SIZE(ce->guc_active.prio_count); ++i) {
+		if (ce->guc_active.prio_count[i]) {
 			guc_context_set_prio(guc, ce, i);
 			break;
 		}
@@ -2135,6 +2127,21 @@ static bool context_needs_register(struct intel_context *ce, bool new_guc_id)
 		!submission_disabled(ce_to_guc(ce));
 }
 
+static void guc_context_init(struct intel_context *ce)
+{
+	const struct i915_gem_context *ctx;
+	int prio = I915_CONTEXT_DEFAULT_PRIORITY;
+
+	rcu_read_lock();
+	ctx = rcu_dereference(ce->gem_context);
+	if (ctx)
+		prio = ctx->sched.priority;
+	rcu_read_unlock();
+
+	ce->guc_active.prio = map_i915_prio_to_guc_prio(prio);
+	set_bit(CONTEXT_GUC_INIT, &ce->flags);
+}
+
 static int guc_request_alloc(struct i915_request *rq)
 {
 	struct intel_context *ce = rq->context;
@@ -2165,6 +2172,9 @@ static int guc_request_alloc(struct i915_request *rq)
 		return ret;
 
 	rq->reserved_space -= GUC_REQUEST_SIZE;
+
+	if (unlikely(!test_bit(CONTEXT_GUC_INIT, &ce->flags)))
+		guc_context_init(ce);
 
 	/*
 	 * Call pin_guc_id here rather than in the pinning step as with
@@ -3042,13 +3052,12 @@ static inline void guc_log_context_priority(struct drm_printer *p,
 {
 	int i;
 
-	drm_printf(p, "\t\tPriority: %d\n",
-		   ce->guc_prio);
+	drm_printf(p, "\t\tPriority: %d\n", ce->guc_active.prio);
 	drm_printf(p, "\t\tNumber Requests (lower index == higher priority)\n");
 	for (i = GUC_CLIENT_PRIORITY_KMD_HIGH;
 	     i < GUC_CLIENT_PRIORITY_NUM; ++i) {
 		drm_printf(p, "\t\tNumber requests in priority band[%d]: %d\n",
-			   i, ce->guc_prio_count[i]);
+			   i, ce->guc_active.prio_count[i]);
 	}
 	drm_printf(p, "\n");
 }

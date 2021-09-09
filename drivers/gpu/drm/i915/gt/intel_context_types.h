@@ -112,6 +112,7 @@ struct intel_context {
 #define CONTEXT_FORCE_SINGLE_SUBMISSION	7
 #define CONTEXT_NOPREEMPT		8
 #define CONTEXT_LRCA_DIRTY		9
+#define CONTEXT_GUC_INIT		10
 
 	struct {
 		u64 timeout_us;
@@ -178,6 +179,11 @@ struct intel_context {
 		spinlock_t lock;
 		/** requests: active requests on this context */
 		struct list_head requests;
+		/*
+		 * GuC priority management
+		 */
+		u8 prio;
+		u32 prio_count[GUC_CLIENT_PRIORITY_NUM];
 	} guc_active;
 
 	/* GuC LRC descriptor ID */
@@ -190,12 +196,6 @@ struct intel_context {
 	 * GuC ID link - in list when unpinned but guc_id still valid in GuC
 	 */
 	struct list_head guc_id_link;
-
-	/*
-	 * GuC priority management
-	 */
-	u8 guc_prio;
-	u32 guc_prio_count[GUC_CLIENT_PRIORITY_NUM];
 
 #ifdef CONFIG_DRM_I915_SELFTEST
 	/**
