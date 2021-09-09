@@ -28,21 +28,6 @@
 #include <linux/linkage.h>
 
 	/*
-	 * get_sr gets the appropriate space value into
-	 * sr1 for kernel/user space access, depending
-	 * on the flag stored in the task structure.
-	 */
-
-	.macro  get_sr
-	mfctl       %cr30,%r1
-	ldw         TI_SEGMENT(%r1),%r22
-	mfsp        %sr3,%r1
-	or,<>       %r22,%r0,%r0
-	copy        %r0,%r1
-	mtsp        %r1,%sr1
-	.endm
-
-	/*
 	 * unsigned long lclear_user(void *to, unsigned long n)
 	 *
 	 * Returns 0 for success.
@@ -51,10 +36,9 @@
 
 ENTRY_CFI(lclear_user)
 	comib,=,n   0,%r25,$lclu_done
-	get_sr
 $lclu_loop:
 	addib,<>    -1,%r25,$lclu_loop
-1:      stbs,ma     %r0,1(%sr1,%r26)
+1:	stbs,ma     %r0,1(%sr3,%r26)
 
 $lclu_done:
 	bv          %r0(%r2)
