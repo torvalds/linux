@@ -349,6 +349,8 @@ static void fill_engine_enable_masks(struct intel_gt *gt,
 	info->engine_enabled_masks[GUC_VIDEOENHANCE_CLASS] = VEBOX_MASK(gt);
 }
 
+#define LR_HW_CONTEXT_SIZE (80 * sizeof(u32))
+#define LRC_SKIP_SIZE (LRC_PPHWSP_SZ * PAGE_SIZE + LR_HW_CONTEXT_SIZE)
 static int guc_prep_golden_context(struct intel_guc *guc,
 				   struct __guc_ads_blob *blob)
 {
@@ -396,7 +398,18 @@ static int guc_prep_golden_context(struct intel_guc *guc,
 		if (!blob)
 			continue;
 
-		blob->ads.eng_state_size[guc_class] = real_size;
+		/*
+		 * This interface is slightly confusing. We need to pass the
+		 * base address of the full golden context and the size of just
+		 * the engine state, which is the section of the context image
+		 * that starts after the execlists context. This is required to
+		 * allow the GuC to restore just the engine state when a
+		 * watchdog reset occurs.
+		 * We calculate the engine state size by removing the size of
+		 * what comes before it in the context image (which is identical
+		 * on all engines).
+		 */
+		blob->ads.eng_state_size[guc_class] = real_size - LRC_SKIP_SIZE;
 		blob->ads.golden_context_lrca[guc_class] = addr_ggtt;
 		addr_ggtt += alloc_size;
 	}
@@ -436,11 +449,6 @@ static void guc_init_golden_context(struct intel_guc *guc)
 	u8 engine_class, guc_class;
 	u8 *ptr;
 
-	/* Skip execlist and PPGTT registers + HWSP */
-	const u32 lr_hw_context_size = 80 * sizeof(u32);
-	const u32 skip_size = LRC_PPHWSP_SZ * PAGE_SIZE +
-		lr_hw_context_size;
-
 	if (!intel_uc_uses_guc_submission(&gt->uc))
 		return;
 
@@ -476,12 +484,12 @@ static void guc_init_golden_context(struct intel_guc *guc)
 			continue;
 		}
 
-		GEM_BUG_ON(blob->ads.eng_state_size[guc_class] != real_size);
+		GEM_BUG_ON(blob->ads.eng_state_size[guc_class] !=
+			   real_size - LRC_SKIP_SIZE);
 		GEM_BUG_ON(blob->ads.golden_context_lrca[guc_class] != addr_ggtt);
 		addr_ggtt += alloc_size;
 
-		shmem_read(engine->default_state, skip_size, ptr + skip_size,
-			   real_size - skip_size);
+		shmem_read(engine->default_state, 0, ptr, real_size);
 		ptr += alloc_size;
 	}
 
