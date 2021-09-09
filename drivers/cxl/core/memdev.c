@@ -149,7 +149,6 @@ static void cxl_memdev_unregister(void *_cxlmd)
 static struct cxl_memdev *cxl_memdev_alloc(struct cxl_mem *cxlm,
 					   const struct file_operations *fops)
 {
-	struct pci_dev *pdev = cxlm->pdev;
 	struct cxl_memdev *cxlmd;
 	struct device *dev;
 	struct cdev *cdev;
@@ -166,7 +165,7 @@ static struct cxl_memdev *cxl_memdev_alloc(struct cxl_mem *cxlm,
 
 	dev = &cxlmd->dev;
 	device_initialize(dev);
-	dev->parent = &pdev->dev;
+	dev->parent = cxlm->dev;
 	dev->bus = &cxl_bus_type;
 	dev->devt = MKDEV(cxl_mem_major, cxlmd->id);
 	dev->type = &cxl_memdev_type;
@@ -182,7 +181,7 @@ err:
 }
 
 struct cxl_memdev *
-devm_cxl_add_memdev(struct device *host, struct cxl_mem *cxlm,
+devm_cxl_add_memdev(struct cxl_mem *cxlm,
 		    const struct cdevm_file_operations *cdevm_fops)
 {
 	struct cxl_memdev *cxlmd;
@@ -210,7 +209,7 @@ devm_cxl_add_memdev(struct device *host, struct cxl_mem *cxlm,
 	if (rc)
 		goto err;
 
-	rc = devm_add_action_or_reset(host, cxl_memdev_unregister, cxlmd);
+	rc = devm_add_action_or_reset(cxlm->dev, cxl_memdev_unregister, cxlmd);
 	if (rc)
 		return ERR_PTR(rc);
 	return cxlmd;

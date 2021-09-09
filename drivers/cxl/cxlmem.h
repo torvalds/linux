@@ -63,12 +63,12 @@ static inline struct cxl_memdev *to_cxl_memdev(struct device *dev)
 }
 
 struct cxl_memdev *
-devm_cxl_add_memdev(struct device *host, struct cxl_mem *cxlm,
+devm_cxl_add_memdev(struct cxl_mem *cxlm,
 		    const struct cdevm_file_operations *cdevm_fops);
 
 /**
  * struct cxl_mem - A CXL memory device
- * @pdev: The PCI device associated with this CXL device.
+ * @dev: The device associated with this CXL device.
  * @cxlmd: Logical memory device chardev / interface
  * @regs: Parsed register blocks
  * @payload_size: Size of space for payload
@@ -82,7 +82,7 @@ devm_cxl_add_memdev(struct device *host, struct cxl_mem *cxlm,
  * @ram_range: Volatile memory capacity information.
  */
 struct cxl_mem {
-	struct pci_dev *pdev;
+	struct device *dev;
 	struct cxl_memdev *cxlmd;
 
 	struct cxl_regs regs;
