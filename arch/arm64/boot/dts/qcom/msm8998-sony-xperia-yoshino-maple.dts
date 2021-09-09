@@ -25,6 +25,17 @@
 	};
 };
 
+&ibb {
+	regulator-min-microvolt = <5600000>;
+	regulator-max-microvolt = <5600000>;
+};
+
+&lab {
+	regulator-min-microvolt = <5800000>;
+	regulator-max-microvolt = <5800000>;
+	qcom,soft-start-us = <200>;
+};
+
 &pmi8998_gpio {
 	disp_dvdd_en: disp-dvdd-en-active {
 		pins = "gpio10";

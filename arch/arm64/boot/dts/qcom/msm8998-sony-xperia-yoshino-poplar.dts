@@ -13,6 +13,17 @@
 	compatible = "sony,xperia-poplar", "qcom,msm8998";
 };
 
+&ibb {
+	regulator-min-microvolt = <5600000>;
+	regulator-max-microvolt = <5600000>;
+};
+
+&lab {
+	regulator-min-microvolt = <5600000>;
+	regulator-max-microvolt = <5600000>;
+	qcom,soft-start-us = <800>;
+};
+
 &vreg_l18a_2p85 {
 	regulator-min-microvolt = <2850000>;
 	regulator-max-microvolt = <2850000>;

@@ -13,6 +13,17 @@
 	compatible = "sony,xperia-lilac", "qcom,msm8998";
 };
 
+&ibb {
+	regulator-min-microvolt = <5500000>;
+	regulator-max-microvolt = <5500000>;
+};
+
+&lab {
+	regulator-min-microvolt = <5500000>;
+	regulator-max-microvolt = <5500000>;
+	qcom,soft-start-us = <800>;
+};
+
 &vreg_l22a_2p85 {
 	regulator-min-microvolt = <2800000>;
 	regulator-max-microvolt = <2800000>;
