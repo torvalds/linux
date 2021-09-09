@@ -66,6 +66,8 @@
 	status = "okay";
 
 	phy1: ethernet-phy@1 {
+		compatible = "ethernet-phy-id0022.1560",
+			     "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
 		micrel,led-mode = <1>;
 	};
