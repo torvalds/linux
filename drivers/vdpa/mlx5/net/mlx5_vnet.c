@@ -2145,6 +2145,8 @@ static void clear_vqs_ready(struct mlx5_vdpa_net *ndev)
 
 	for (i = 0; i < ndev->mvdev.max_vqs; i++)
 		ndev->vqs[i].ready = false;
+
+	ndev->mvdev.cvq.ready = false;
 }
 
 static void mlx5_vdpa_set_status(struct vdpa_device *vdev, u8 status)
