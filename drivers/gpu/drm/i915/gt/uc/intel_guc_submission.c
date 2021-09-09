@@ -2639,6 +2639,13 @@ int intel_guc_deregister_done_process_msg(struct intel_guc *guc,
 
 	trace_intel_context_deregister_done(ce);
 
+#ifdef CONFIG_DRM_I915_SELFTEST
+	if (unlikely(ce->drop_deregister)) {
+		ce->drop_deregister = false;
+		return 0;
+	}
+#endif
+
 	if (context_wait_for_deregister_to_register(ce)) {
 		struct intel_runtime_pm *runtime_pm =
 			&ce->engine->gt->i915->runtime_pm;
@@ -2693,9 +2700,23 @@ int intel_guc_sched_done_process_msg(struct intel_guc *guc,
 	trace_intel_context_sched_done(ce);
 
 	if (context_pending_enable(ce)) {
+#ifdef CONFIG_DRM_I915_SELFTEST
+		if (unlikely(ce->drop_schedule_enable)) {
+			ce->drop_schedule_enable = false;
+			return 0;
+		}
+#endif
+
 		clr_context_pending_enable(ce);
 	} else if (context_pending_disable(ce)) {
 		bool banned;
+
+#ifdef CONFIG_DRM_I915_SELFTEST
+		if (unlikely(ce->drop_schedule_disable)) {
+			ce->drop_schedule_disable = false;
+			return 0;
+		}
+#endif
 
 		/*
 		 * Unpin must be done before __guc_signal_context_fence,
@@ -3073,3 +3094,7 @@ bool intel_guc_virtual_engine_has_heartbeat(const struct intel_engine_cs *ve)
 
 	return false;
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftest_guc.c"
+#endif
