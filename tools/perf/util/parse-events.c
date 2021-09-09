@@ -1608,14 +1608,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	}
 
 	if (!parse_state->fake_pmu && perf_pmu__config(pmu, &attr, head_config, parse_state->error)) {
-		struct evsel_config_term *pos, *tmp;
-
-		list_for_each_entry_safe(pos, tmp, &config_terms, list) {
-			list_del_init(&pos->list);
-			if (pos->free_str)
-				zfree(&pos->val.str);
-			free(pos);
-		}
+		free_config_terms(&config_terms);
 		return -EINVAL;
 	}
 
