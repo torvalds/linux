@@ -1049,6 +1049,7 @@ static inline void queue_request(struct i915_sched_engine *sched_engine,
 	list_add_tail(&rq->sched.link,
 		      i915_sched_lookup_priolist(sched_engine, prio));
 	set_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
+	tasklet_hi_schedule(&sched_engine->tasklet);
 }
 
 static int guc_bypass_tasklet_submit(struct intel_guc *guc,
