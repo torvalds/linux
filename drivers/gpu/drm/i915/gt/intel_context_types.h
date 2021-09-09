@@ -167,6 +167,8 @@ struct intel_context {
 		 * fence related to GuC submission
 		 */
 		struct list_head fences;
+		/* GuC context blocked fence */
+		struct i915_sw_fence blocked;
 	} guc_state;
 
 	struct {
@@ -189,9 +191,6 @@ struct intel_context {
 	 * GuC ID link - in list when unpinned but guc_id still valid in GuC
 	 */
 	struct list_head guc_id_link;
-
-	/* GuC context blocked fence */
-	struct i915_sw_fence guc_blocked;
 
 	/*
 	 * GuC priority management
