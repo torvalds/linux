@@ -30,6 +30,13 @@ struct pmic_pon_log_entry {
 
 #define IPC_LOG_PAGES	3
 
+struct pmic_pon_log_dev {
+	struct pmic_pon_log_entry	log[FIFO_MAX_ENTRY_COUNT];
+	int				log_len;
+	void				*ipc_log;
+	struct nvmem_device		*nvmem;
+};
+
 enum pmic_pon_state {
 	PMIC_PON_STATE_FAULT0		= 0x0,
 	PMIC_PON_STATE_PON		= 0x1,
@@ -462,13 +469,13 @@ static int pmic_pon_log_parse_entry(const struct pmic_pon_log_entry *entry,
 	return 0;
 }
 
-static int pmic_pon_log_parse(struct nvmem_device *nvmem, void *ipc_log)
+static int pmic_pon_log_parse(struct pmic_pon_log_dev *pon_dev)
 {
 	int ret, i, addr, addr_start, addr_end;
 	struct pmic_pon_log_entry entry;
 	u8 buf;
 
-	ret = nvmem_device_read(nvmem, REG_PUSH_PTR, 1, &buf);
+	ret = nvmem_device_read(pon_dev->nvmem, REG_PUSH_PTR, 1, &buf);
 	if (ret < 0)
 		return ret;
 	addr_end = buf;
@@ -486,7 +493,7 @@ static int pmic_pon_log_parse(struct nvmem_device *nvmem, void *ipc_log)
 		if (addr > REG_FIFO_DATA_END)
 			addr -= FIFO_SIZE;
 
-		ret = pmic_pon_log_read_entry(nvmem, addr, &entry);
+		ret = pmic_pon_log_read_entry(pon_dev->nvmem, addr, &entry);
 		if (ret < 0)
 			return ret;
 
@@ -500,45 +507,141 @@ static int pmic_pon_log_parse(struct nvmem_device *nvmem, void *ipc_log)
 			continue;
 		}
 
-		ret = pmic_pon_log_parse_entry(&entry, ipc_log);
+		ret = pmic_pon_log_parse_entry(&entry, pon_dev->ipc_log);
 		if (ret < 0)
 			return ret;
+
+		pon_dev->log[pon_dev->log_len++] = entry;
 	}
 
 	return 0;
 }
 
+#define FAULT_REASON2_RESTART_PON_MASK			BIT(6)
+
+/* Trigger a kernel panic if the last power off was caused by a PMIC fault. */
+static void pmic_pon_log_fault_panic(struct pmic_pon_log_dev *pon_dev)
+{
+	int last_pon_success = pon_dev->log_len - 1;
+	int prev_pon_success = 0;
+	int warm_reset_skip_count = 0;
+	bool pon_success_found = false;
+	u8 mask = (u8)~FAULT_REASON2_RESTART_PON_MASK;
+	char buf[BUF_SIZE];
+	int i;
+
+	/*
+	 * Iterate over log events from newest to oldest.  Find the most recent
+	 * and second most recent PON success events.  Ignore PON success events
+	 * associated with a Warm Reset.
+	 */
+	for (i = pon_dev->log_len - 1; i >= 0; i--) {
+		if (pon_dev->log[i].event == PMIC_PON_EVENT_PON_SUCCESS) {
+			if (!pon_success_found) {
+				last_pon_success = i;
+				pon_success_found = true;
+			} else if (warm_reset_skip_count > 0) {
+				warm_reset_skip_count--;
+			} else {
+				prev_pon_success = i;
+				break;
+			}
+		} else if (pon_dev->log[i].event ==
+			   PMIC_PON_EVENT_WARM_RESET_COUNT) {
+			warm_reset_skip_count = (pon_dev->log[i].data1 << 8) |
+						pon_dev->log[i].data0;
+		}
+	}
+
+	/*
+	 * Check if a fault event occurred between the previous and last PON
+	 * success events.  Trigger a kernel panic if so.
+	 */
+	for (i = prev_pon_success; i <= last_pon_success; i++) {
+		switch (pon_dev->log[i].event) {
+		case PMIC_PON_EVENT_FAULT_REASON_1_2:
+			if (pon_dev->log[i].data0) {
+				pmic_pon_log_print_reason(buf, BUF_SIZE,
+							pon_dev->log[i].data0,
+							pmic_pon_fault_reason1);
+				panic("PMIC SID0 FAULT; FAULT_REASON1=%s", buf);
+			} else if (pon_dev->log[i].data1 & mask) {
+				pmic_pon_log_print_reason(buf, BUF_SIZE,
+							pon_dev->log[i].data1,
+							pmic_pon_fault_reason2);
+				panic("PMIC SID0 FAULT; FAULT_REASON2=%s", buf);
+			}
+			break;
+		case PMIC_PON_EVENT_FAULT_REASON_3:
+			if (pon_dev->log[i].data0) {
+				pmic_pon_log_print_reason(buf, BUF_SIZE,
+							pon_dev->log[i].data0,
+							pmic_pon_fault_reason3);
+				panic("PMIC SID0 FAULT; FAULT_REASON3=%s", buf);
+			}
+			break;
+		case PMIC_PON_EVENT_PMIC_SID1_FAULT ... PMIC_PON_EVENT_PMIC_SID13_FAULT:
+			if (pon_dev->log[i].data0) {
+				pmic_pon_log_print_reason(buf, BUF_SIZE,
+							pon_dev->log[i].data0,
+							pmic_pon_fault_reason1);
+				panic("PMIC SID%u FAULT; FAULT_REASON1=%s",
+					pon_dev->log[i].event -
+					    PMIC_PON_EVENT_PMIC_SID1_FAULT + 1,
+					buf);
+			} else if (pon_dev->log[i].data1 & mask) {
+				pmic_pon_log_print_reason(buf, BUF_SIZE,
+							pon_dev->log[i].data1,
+							pmic_pon_fault_reason2);
+				panic("PMIC SID%u FAULT; FAULT_REASON2=%s",
+					pon_dev->log[i].event -
+					    PMIC_PON_EVENT_PMIC_SID1_FAULT + 1,
+					buf);
+			}
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 static int pmic_pon_log_probe(struct platform_device *pdev)
 {
-	struct nvmem_device *nvmem;
-	void *ipc_log;
+	struct pmic_pon_log_dev *pon_dev;
 	int ret = 0;
 
-	nvmem = devm_nvmem_device_get(&pdev->dev, "pon_log");
-	if (IS_ERR(nvmem)) {
-		ret = PTR_ERR(nvmem);
+	pon_dev = devm_kzalloc(&pdev->dev, sizeof(*pon_dev), GFP_KERNEL);
+	if (!pon_dev)
+		return -ENOMEM;
+
+	pon_dev->nvmem = devm_nvmem_device_get(&pdev->dev, "pon_log");
+	if (IS_ERR(pon_dev->nvmem)) {
+		ret = PTR_ERR(pon_dev->nvmem);
 		if (ret != -EPROBE_DEFER)
 			dev_err(&pdev->dev, "failed to get nvmem device, ret=%d\n",
 				ret);
 		return ret;
 	}
 
-	ipc_log = ipc_log_context_create(IPC_LOG_PAGES, "pmic_pon", 0);
-	platform_set_drvdata(pdev, ipc_log);
+	pon_dev->ipc_log = ipc_log_context_create(IPC_LOG_PAGES, "pmic_pon", 0);
+	platform_set_drvdata(pdev, pon_dev);
 
-	ret = pmic_pon_log_parse(nvmem, ipc_log);
+	ret = pmic_pon_log_parse(pon_dev);
 	if (ret < 0)
 		dev_err(&pdev->dev, "PMIC PON log parsing failed, ret=%d\n",
 			ret);
+
+	if (of_property_read_bool(pdev->dev.of_node, "qcom,pmic-fault-panic"))
+		pmic_pon_log_fault_panic(pon_dev);
 
 	return ret;
 }
 
 static int pmic_pon_log_remove(struct platform_device *pdev)
 {
-	void *ipc_log = platform_get_drvdata(pdev);
+	struct pmic_pon_log_dev *pon_dev = platform_get_drvdata(pdev);
 
-	ipc_log_context_destroy(ipc_log);
+	ipc_log_context_destroy(pon_dev->ipc_log);
 
 	return 0;
 }
