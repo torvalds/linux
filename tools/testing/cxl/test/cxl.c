@@ -17,6 +17,7 @@ static struct platform_device *cxl_acpi;
 static struct platform_device *cxl_host_bridge[NR_CXL_HOST_BRIDGES];
 static struct platform_device
 	*cxl_root_port[NR_CXL_HOST_BRIDGES * NR_CXL_ROOT_PORTS];
+struct platform_device *cxl_mem[NR_CXL_HOST_BRIDGES * NR_CXL_ROOT_PORTS];
 
 static struct acpi_device acpi0017_mock;
 static struct acpi_device host_bridge[NR_CXL_HOST_BRIDGES] = {
@@ -36,6 +37,11 @@ static struct acpi_device host_bridge[NR_CXL_HOST_BRIDGES] = {
 
 static bool is_mock_dev(struct device *dev)
 {
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(cxl_mem); i++)
+		if (dev == &cxl_mem[i]->dev)
+			return true;
 	if (dev == &cxl_acpi->dev)
 		return true;
 	return false;
@@ -405,6 +411,44 @@ static void mock_companion(struct acpi_device *adev, struct device *dev)
 #define SZ_512G (SZ_64G * 8)
 #endif
 
+static struct platform_device *alloc_memdev(int id)
+{
+	struct resource res[] = {
+		[0] = {
+			.flags = IORESOURCE_MEM,
+		},
+		[1] = {
+			.flags = IORESOURCE_MEM,
+			.desc = IORES_DESC_PERSISTENT_MEMORY,
+		},
+	};
+	struct platform_device *pdev;
+	int i, rc;
+
+	for (i = 0; i < ARRAY_SIZE(res); i++) {
+		struct cxl_mock_res *r = alloc_mock_res(SZ_256M);
+
+		if (!r)
+			return NULL;
+		res[i].start = r->range.start;
+		res[i].end = r->range.end;
+	}
+
+	pdev = platform_device_alloc("cxl_mem", id);
+	if (!pdev)
+		return NULL;
+
+	rc = platform_device_add_resources(pdev, res, ARRAY_SIZE(res));
+	if (rc)
+		goto err;
+
+	return pdev;
+
+err:
+	platform_device_put(pdev);
+	return NULL;
+}
+
 static __init int cxl_test_init(void)
 {
 	int rc, i;
@@ -460,9 +504,27 @@ static __init int cxl_test_init(void)
 		cxl_root_port[i] = pdev;
 	}
 
+	BUILD_BUG_ON(ARRAY_SIZE(cxl_mem) != ARRAY_SIZE(cxl_root_port));
+	for (i = 0; i < ARRAY_SIZE(cxl_mem); i++) {
+		struct platform_device *port = cxl_root_port[i];
+		struct platform_device *pdev;
+
+		pdev = alloc_memdev(i);
+		if (!pdev)
+			goto err_mem;
+		pdev->dev.parent = &port->dev;
+
+		rc = platform_device_add(pdev);
+		if (rc) {
+			platform_device_put(pdev);
+			goto err_mem;
+		}
+		cxl_mem[i] = pdev;
+	}
+
 	cxl_acpi = platform_device_alloc("cxl_acpi", 0);
 	if (!cxl_acpi)
-		goto err_port;
+		goto err_mem;
 
 	mock_companion(&acpi0017_mock, &cxl_acpi->dev);
 	acpi0017_mock.dev.bus = &platform_bus_type;
@@ -475,6 +537,9 @@ static __init int cxl_test_init(void)
 
 err_add:
 	platform_device_put(cxl_acpi);
+err_mem:
+	for (i = ARRAY_SIZE(cxl_mem) - 1; i >= 0; i--)
+		platform_device_unregister(cxl_mem[i]);
 err_port:
 	for (i = ARRAY_SIZE(cxl_root_port) - 1; i >= 0; i--)
 		platform_device_unregister(cxl_root_port[i]);
@@ -495,6 +560,8 @@ static __exit void cxl_test_exit(void)
 	int i;
 
 	platform_device_unregister(cxl_acpi);
+	for (i = ARRAY_SIZE(cxl_mem) - 1; i >= 0; i--)
+		platform_device_unregister(cxl_mem[i]);
 	for (i = ARRAY_SIZE(cxl_root_port) - 1; i >= 0; i--)
 		platform_device_unregister(cxl_root_port[i]);
 	for (i = ARRAY_SIZE(cxl_host_bridge) - 1; i >= 0; i--)

@@ -51,16 +51,16 @@ struct cxl_nvdimm_bridge *to_cxl_nvdimm_bridge(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(to_cxl_nvdimm_bridge);
 
-static int match_nvdimm_bridge(struct device *dev, const void *data)
+__mock int match_nvdimm_bridge(struct device *dev, const void *data)
 {
 	return dev->type == &cxl_nvdimm_bridge_type;
 }
 
-struct cxl_nvdimm_bridge *cxl_find_nvdimm_bridge(void)
+struct cxl_nvdimm_bridge *cxl_find_nvdimm_bridge(struct cxl_nvdimm *cxl_nvd)
 {
 	struct device *dev;
 
-	dev = bus_find_device(&cxl_bus_type, NULL, NULL, match_nvdimm_bridge);
+	dev = bus_find_device(&cxl_bus_type, NULL, cxl_nvd, match_nvdimm_bridge);
 	if (!dev)
 		return NULL;
 	return to_cxl_nvdimm_bridge(dev);

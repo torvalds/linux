@@ -39,7 +39,7 @@ static int cxl_nvdimm_probe(struct device *dev)
 	struct nvdimm *nvdimm;
 	int rc;
 
-	cxl_nvb = cxl_find_nvdimm_bridge();
+	cxl_nvb = cxl_find_nvdimm_bridge(cxl_nvd);
 	if (!cxl_nvb)
 		return -ENXIO;
 
