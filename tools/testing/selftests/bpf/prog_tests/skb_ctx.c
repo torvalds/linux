@@ -18,6 +18,7 @@ void test_skb_ctx(void)
 		.gso_segs = 8,
 		.mark = 9,
 		.gso_size = 10,
+		.hwtstamp = 11,
 	};
 	struct bpf_prog_test_run_attr tattr = {
 		.data_in = &pkt_v4,

@@ -507,6 +507,12 @@ static int convert___skb_to_skb(struct sk_buff *skb, struct __sk_buff *__skb)
 	/* gso_size is allowed */
 
 	if (!range_is_zero(__skb, offsetofend(struct __sk_buff, gso_size),
+			   offsetof(struct __sk_buff, hwtstamp)))
+		return -EINVAL;
+
+	/* hwtstamp is allowed */
+
+	if (!range_is_zero(__skb, offsetofend(struct __sk_buff, hwtstamp),
 			   sizeof(struct __sk_buff)))
 		return -EINVAL;
 
@@ -529,6 +535,7 @@ static int convert___skb_to_skb(struct sk_buff *skb, struct __sk_buff *__skb)
 		return -EINVAL;
 	skb_shinfo(skb)->gso_segs = __skb->gso_segs;
 	skb_shinfo(skb)->gso_size = __skb->gso_size;
+	skb_shinfo(skb)->hwtstamps.hwtstamp = __skb->hwtstamp;
 
 	return 0;
 }
@@ -548,6 +555,7 @@ static void convert_skb_to___skb(struct sk_buff *skb, struct __sk_buff *__skb)
 	memcpy(__skb->cb, &cb->data, QDISC_CB_PRIV_LEN);
 	__skb->wire_len = cb->pkt_len;
 	__skb->gso_segs = skb_shinfo(skb)->gso_segs;
+	__skb->hwtstamp = skb_shinfo(skb)->hwtstamps.hwtstamp;
 }
 
 int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,

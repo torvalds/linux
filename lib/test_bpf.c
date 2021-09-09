@@ -8800,6 +8800,7 @@ static __init struct sk_buff *build_test_skb(void)
 	skb_shinfo(skb[0])->gso_type |= SKB_GSO_DODGY;
 	skb_shinfo(skb[0])->gso_segs = 0;
 	skb_shinfo(skb[0])->frag_list = skb[1];
+	skb_shinfo(skb[0])->hwtstamps.hwtstamp = 1000;
 
 	/* adjust skb[0]'s len */
 	skb[0]->len += skb[1]->len;
