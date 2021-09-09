@@ -2274,7 +2274,27 @@ static int navi10_baco_enter(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	if (adev->in_runpm)
+	/*
+	 * This aims the case below:
+	 *   amdgpu driver loaded -> runpm suspend kicked -> sound driver loaded
+	 *
+	 * For NAVI10 and later ASICs, we rely on PMFW to handle the runpm. To
+	 * make that possible, PMFW needs to acknowledge the dstate transition
+	 * process for both gfx(function 0) and audio(function 1) function of
+	 * the ASIC.
+	 *
+	 * The PCI device's initial runpm status is RUNPM_SUSPENDED. So as the
+	 * device representing the audio function of the ASIC. And that means
+	 * even if the sound driver(snd_hda_intel) was not loaded yet, it's still
+	 * possible runpm suspend kicked on the ASIC. However without the dstate
+	 * transition notification from audio function, pmfw cannot handle the
+	 * BACO in/exit correctly. And that will cause driver hang on runpm
+	 * resuming.
+	 *
+	 * To address this, we revert to legacy message way(driver masters the
+	 * timing for BACO in/exit) on sound driver missing.
+	 */
+	if (adev->in_runpm && smu_cmn_is_audio_func_enabled(adev))
 		return smu_v11_0_baco_set_armd3_sequence(smu, BACO_SEQ_BACO);
 	else
 		return smu_v11_0_baco_enter(smu);
@@ -2284,7 +2304,7 @@ static int navi10_baco_exit(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	if (adev->in_runpm) {
+	if (adev->in_runpm && smu_cmn_is_audio_func_enabled(adev)) {
 		/* Wait for PMFW handling for the Dstate change */
 		msleep(10);
 		return smu_v11_0_baco_set_armd3_sequence(smu, BACO_SEQ_ULPS);

@@ -123,5 +123,7 @@ static inline void smu_cmn_get_sysfs_buf(char **buf, int *offset)
 	*buf -= *offset;
 }
 
+bool smu_cmn_is_audio_func_enabled(struct amdgpu_device *adev);
+
 #endif
 #endif
