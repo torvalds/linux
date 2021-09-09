@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 02 Sep 2021
+Release Date: 09 Sep 2021
 
-Release Version: V_01-00-11 : Limited-tested version
+Release Version: V_01-00-12 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -190,3 +190,7 @@ Formula:
 ## TC956X_Host_Driver_20210902_V_01-00-11:
 
 1. Configuration of Link state L0 and L1 transaction delay for PCIe switch ports & Endpoint. By default maximum values are set for L0s and L1 latencies.
+
+## TC956X_Host_Driver_20210909_V_01-00-12:
+
+1. Reverted changes related to usage of Port-0 pci_dev for all DMA allocation/mapping for IPA path

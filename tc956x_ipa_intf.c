@@ -43,6 +43,8 @@
  *  VERSION     : 01-00-07
  *  05 Aug 2021 : Store and use Port0 pci_dev for all DMA allocation/mapping for IPA path
  *  VERSION     : 01-00-08
+ *  09 Sep 2021 : Reverted changes related to usage of Port-0 pci_dev for all DMA allocation/mapping for IPA path
+ *  VERSION     : 01-00-12
  */
 
 #include <linux/dma-mapping.h>
@@ -186,20 +188,17 @@ static void free_ipa_tx_resources(struct net_device *ndev, struct channel_info *
 	u32 i;
 
 	if (channel->ch_flags == TC956X_CONTIG_BUFS) {
-		/* Always use Port0 pdev for allocating/freeing DMA memory */
-		dma_free_coherent(&(port0_pdev->dev),
+		dma_free_coherent(priv->device,
 				  channel->desc_size * channel->desc_cnt,
 				  channel->desc_addr.desc_virt_addrs_base,
 				  tx_q->dma_tx_phy);
-		/* Always use Port0 pdev for allocating/freeing DMA memory */
-		dma_free_coherent(&(port0_pdev->dev),
+		dma_free_coherent(priv->device,
 				  channel->buf_size * channel->desc_cnt,
 				  channel->buff_pool_addr.buff_pool_va_addrs_base[0],
 				  tx_q->buff_tx_phy);
 	} else {
 		for (i = 0; i < channel->desc_cnt; i++) {
-			/* Always use Port0 pdev for allocating/freeing DMA memory */
-			dma_unmap_single(&(port0_pdev->dev),
+			dma_unmap_single(priv->device,
 					 tx_q->tx_offload_skbuff_dma[i],
 					 channel->buf_size, DMA_TO_DEVICE);
 
@@ -209,8 +208,7 @@ static void free_ipa_tx_resources(struct net_device *ndev, struct channel_info *
 			channel->buff_pool_addr.buff_pool_dma_addrs_base[i] = 0;
 			channel->buff_pool_addr.buff_pool_va_addrs_base[i] = NULL;
 		}
-		/* Always use Port0 pdev for allocating/freeing DMA memory */
-		dma_free_coherent(&(port0_pdev->dev), channel->desc_size * channel->desc_cnt,
+		dma_free_coherent(priv->device, channel->desc_size * channel->desc_cnt,
 				  channel->desc_addr.desc_virt_addrs_base,
 				  tx_q->dma_tx_phy);
 		kfree(tx_q->tx_offload_skbuff);
@@ -225,20 +223,17 @@ static void free_ipa_rx_resources(struct net_device *ndev, struct channel_info *
 	u32 i;
 
 	if (channel->ch_flags == TC956X_CONTIG_BUFS) {
-		/* Always use Port0 pdev for allocating/freeing DMA memory */
-		dma_free_coherent(&(port0_pdev->dev),
+		dma_free_coherent(priv->device,
 				  channel->desc_size * channel->desc_cnt,
 				  channel->desc_addr.desc_virt_addrs_base,
 				  rx_q->dma_rx_phy);
-		/* Always use Port0 pdev for allocating/freeing DMA memory */
-		dma_free_coherent(&(port0_pdev->dev),
+		dma_free_coherent(priv->device,
 				  channel->buf_size * channel->desc_cnt,
 				  channel->buff_pool_addr.buff_pool_va_addrs_base[0],
 				  rx_q->buff_rx_phy);
 	} else {
 		for (i = 0; i < channel->desc_cnt; i++) {
-			/* Always use Port0 pdev for allocating/freeing DMA memory */
-			dma_unmap_single(&(port0_pdev->dev),
+			dma_unmap_single(priv->device,
 					 rx_q->rx_offload_skbuff_dma[i],
 					 channel->buf_size, DMA_FROM_DEVICE);
 
@@ -248,8 +243,7 @@ static void free_ipa_rx_resources(struct net_device *ndev, struct channel_info *
 			channel->buff_pool_addr.buff_pool_dma_addrs_base[i] = 0;
 			channel->buff_pool_addr.buff_pool_va_addrs_base[i] = NULL;
 		}
-		/* Always use Port0 pdev for allocating/freeing DMA memory */
-		dma_free_coherent(&(port0_pdev->dev), channel->desc_size * channel->desc_cnt,
+		dma_free_coherent(priv->device, channel->desc_size * channel->desc_cnt,
 				  channel->desc_addr.desc_virt_addrs_base,
 				  rx_q->dma_rx_phy);
 		kfree(rx_q->rx_offload_skbuff);
@@ -326,8 +320,7 @@ static int alloc_ipa_tx_resources(struct net_device *ndev, struct channel_info *
 
 	tx_q = &priv->tx_queue[channel->channel_num];
 
-	/* Always use Port0 pdev for allocating/freeing DMA memory */
-	channel->desc_addr.desc_virt_addrs_base = dma_alloc_coherent(&(port0_pdev->dev),
+	channel->desc_addr.desc_virt_addrs_base = dma_alloc_coherent(priv->device,
 								channel->desc_size * channel->desc_cnt,
 								&tx_q->dma_tx_phy, flags);
 
@@ -340,8 +333,7 @@ static int alloc_ipa_tx_resources(struct net_device *ndev, struct channel_info *
 	channel->desc_addr.desc_dma_addrs_base = tx_q->dma_tx_phy;
 
 	if (channel->ch_flags == TC956X_CONTIG_BUFS) {
-		/* Always use Port0 pdev for allocating/freeing DMA memory */
-		channel->buff_pool_addr.buff_pool_va_addrs_base[0] = dma_alloc_coherent(&(port0_pdev->dev), channel->buf_size * channel->desc_cnt,
+		channel->buff_pool_addr.buff_pool_va_addrs_base[0] = dma_alloc_coherent(priv->device, channel->buf_size * channel->desc_cnt,
 								&tx_q->buff_tx_phy, flags);
 		if (!channel->buff_pool_addr.buff_pool_va_addrs_base[0]) {
 			netdev_err(priv->dev, "%s: ERROR: allocating memory\n", __func__);
@@ -376,12 +368,10 @@ static int alloc_ipa_tx_resources(struct net_device *ndev, struct channel_info *
 		}
 
 		tx_q->tx_offload_skbuff[i] = skb;
-		/* Always use Port0 pdev for allocating/freeing DMA memory */
-		tx_q->tx_offload_skbuff_dma[i] = dma_map_single(&(port0_pdev->dev), skb->data,
+		tx_q->tx_offload_skbuff_dma[i] = dma_map_single(priv->device, skb->data,
 							channel->buf_size, DMA_TO_DEVICE);
 
-		/* Always use Port0 pdev for allocating/freeing DMA memory */
-		if (dma_mapping_error(&(port0_pdev->dev), tx_q->tx_offload_skbuff_dma[i])) {
+		if (dma_mapping_error(priv->device, tx_q->tx_offload_skbuff_dma[i])) {
 			netdev_err(priv->dev, "%s: DMA mapping error\n", __func__);
 			dev_kfree_skb_any(skb);
 			goto err_mem;
@@ -414,8 +404,7 @@ static int alloc_ipa_rx_resources(struct net_device *ndev, struct channel_info *
 
 	rx_q = &priv->rx_queue[channel->channel_num];
 
-	/* Always use Port0 pdev for allocating/freeing DMA memory */
-	channel->desc_addr.desc_virt_addrs_base = dma_alloc_coherent(&(port0_pdev->dev), channel->desc_size * channel->desc_cnt,
+	channel->desc_addr.desc_virt_addrs_base = dma_alloc_coherent(priv->device, channel->desc_size * channel->desc_cnt,
 								&rx_q->dma_rx_phy, flags);
 
 	if (!channel->desc_addr.desc_virt_addrs_base) {
@@ -427,8 +416,7 @@ static int alloc_ipa_rx_resources(struct net_device *ndev, struct channel_info *
 	channel->desc_addr.desc_dma_addrs_base = rx_q->dma_rx_phy;
 
 	if (channel->ch_flags == TC956X_CONTIG_BUFS) {
-		/* Always use Port0 pdev for allocating/freeing DMA memory */
-		channel->buff_pool_addr.buff_pool_va_addrs_base[0] = dma_alloc_coherent(&(port0_pdev->dev), channel->buf_size * channel->desc_cnt,
+		channel->buff_pool_addr.buff_pool_va_addrs_base[0] = dma_alloc_coherent(priv->device, channel->buf_size * channel->desc_cnt,
 								&rx_q->buff_rx_phy, flags);
 		if (!channel->buff_pool_addr.buff_pool_va_addrs_base[0]) {
 			netdev_err(priv->dev, "%s: ERROR: allocating memory\n", __func__);
@@ -464,12 +452,10 @@ static int alloc_ipa_rx_resources(struct net_device *ndev, struct channel_info *
 		}
 
 		rx_q->rx_offload_skbuff[i] = skb;
-		/* Always use Port0 pdev for allocating/freeing DMA memory */
-		rx_q->rx_offload_skbuff_dma[i] = dma_map_single(&(port0_pdev->dev), skb->data,
+		rx_q->rx_offload_skbuff_dma[i] = dma_map_single(priv->device, skb->data,
 							channel->buf_size, DMA_FROM_DEVICE);
 
-		/* Always use Port0 pdev for allocating/freeing DMA memory */
-		if (dma_mapping_error(&(port0_pdev->dev), rx_q->rx_offload_skbuff_dma[i])) {
+		if (dma_mapping_error(priv->device, rx_q->rx_offload_skbuff_dma[i])) {
 			netdev_err(priv->dev, "%s: DMA mapping error\n", __func__);
 			dev_kfree_skb_any(skb);
 			goto err_mem;
@@ -667,8 +653,7 @@ struct channel_info* request_channel(struct request_channel_input *channel_input
 		goto err_buff_dma_mem_alloc;
 	}
 
-	/* Always point dma_pdev to Port0 and use this is to allocate/map DMA memory */
-	channel->dma_pdev = port0_pdev;
+	channel->dma_pdev = (struct pci_dev*)priv->device;
 
 	if (channel->mem_ops) {
 		/*if mem_ops is a valid, memory resrouces will be allocated by IPA */
