@@ -884,7 +884,6 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	const struct VOLUME_INFO *info;
 	u32 idx, done, bytes;
 	struct ATTR_DEF_ENTRY *t;
-	u16 *upcase;
 	u16 *shared;
 	struct MFT_REF ref;
 
@@ -1184,11 +1183,9 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto out;
 	}
 
-	upcase = sbi->upcase;
-
 	for (idx = 0; idx < (0x10000 * sizeof(short) >> PAGE_SHIFT); idx++) {
 		const __le16 *src;
-		u16 *dst = Add2Ptr(upcase, idx << PAGE_SHIFT);
+		u16 *dst = Add2Ptr(sbi->upcase, idx << PAGE_SHIFT);
 		struct page *page = ntfs_map_page(inode->i_mapping, idx);
 
 		if (IS_ERR(page)) {
@@ -1207,10 +1204,10 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		ntfs_unmap_page(page);
 	}
 
-	shared = ntfs_set_shared(upcase, 0x10000 * sizeof(short));
-	if (shared && upcase != shared) {
+	shared = ntfs_set_shared(sbi->upcase, 0x10000 * sizeof(short));
+	if (shared && sbi->upcase != shared) {
+		kvfree(sbi->upcase);
 		sbi->upcase = shared;
-		kvfree(upcase);
 	}
 
 	iput(inode);
