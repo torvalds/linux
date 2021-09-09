@@ -161,7 +161,7 @@ struct intel_context {
 		 * sched_state: scheduling state of this context using GuC
 		 * submission
 		 */
-		u16 sched_state;
+		u32 sched_state;
 		/*
 		 * fences: maintains of list of requests that have a submit
 		 * fence related to GuC submission
@@ -177,9 +177,6 @@ struct intel_context {
 		/** requests: active requests on this context */
 		struct list_head requests;
 	} guc_active;
-
-	/* GuC scheduling state flags that do not require a lock. */
-	atomic_t guc_sched_state_no_lock;
 
 	/* GuC LRC descriptor ID */
 	u16 guc_id;
