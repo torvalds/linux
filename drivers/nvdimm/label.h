@@ -99,7 +99,7 @@ struct cxl_region_label {
 };
 
 /**
- * struct nd_namespace_label - namespace superblock
+ * struct nvdimm_efi_label - namespace superblock
  * @uuid: UUID per RFC 4122
  * @name: optional name (NULL-terminated)
  * @flags: see NSLABEL_FLAG_*
@@ -117,7 +117,7 @@ struct cxl_region_label {
  * @reserved2: reserved
  * @checksum: fletcher64 sum of this object
  */
-struct nd_namespace_label {
+struct nvdimm_efi_label {
 	u8 uuid[NSLABEL_UUID_LEN];
 	u8 name[NSLABEL_NAME_LEN];
 	__le32 flags;
@@ -130,7 +130,7 @@ struct nd_namespace_label {
 	__le32 slot;
 	/*
 	 * Accessing fields past this point should be gated by a
-	 * namespace_label_has() check.
+	 * efi_namespace_label_has() check.
 	 */
 	u8 align;
 	u8 reserved[3];
@@ -140,10 +140,56 @@ struct nd_namespace_label {
 	__le64 checksum;
 };
 
+/**
+ * struct nvdimm_cxl_label - CXL 2.0 Table 212
+ * @type: uuid identifying this label format (namespace)
+ * @uuid: uuid for the namespace this label describes
+ * @name: friendly name for the namespace
+ * @flags: NSLABEL_FLAG_UPDATING (all other flags reserved)
+ * @nrange: discontiguous namespace support
+ * @position: this label's position in the set
+ * @dpa: start address in device-local capacity for this label
+ * @rawsize: size of this label's contribution to namespace
+ * @slot: slot id of this label in label area
+ * @align: alignment in SZ_256M blocks
+ * @region_uuid: host interleave set identifier
+ * @abstraction_uuid: personality driver for this namespace
+ * @lbasize: address geometry for disk-like personalities
+ * @reserved: reserved
+ * @checksum: fletcher64 sum of this label
+ */
+struct nvdimm_cxl_label {
+	u8 type[NSLABEL_UUID_LEN];
+	u8 uuid[NSLABEL_UUID_LEN];
+	u8 name[NSLABEL_NAME_LEN];
+	__le32 flags;
+	__le16 nrange;
+	__le16 position;
+	__le64 dpa;
+	__le64 rawsize;
+	__le32 slot;
+	__le32 align;
+	u8 region_uuid[16];
+	u8 abstraction_uuid[16];
+	__le16 lbasize;
+	u8 reserved[0x56];
+	__le64 checksum;
+};
+
+struct nd_namespace_label {
+	union {
+		struct nvdimm_cxl_label cxl;
+		struct nvdimm_efi_label efi;
+	};
+};
+
 #define NVDIMM_BTT_GUID "8aed63a2-29a2-4c66-8b12-f05d15d3922a"
 #define NVDIMM_BTT2_GUID "18633bfc-1735-4217-8ac9-17239282d3f8"
 #define NVDIMM_PFN_GUID "266400ba-fb9f-4677-bcb0-968f11d0d225"
 #define NVDIMM_DAX_GUID "97a86d9c-3cdd-4eda-986f-5068b4f80088"
+
+#define CXL_REGION_UUID "529d7c61-da07-47c4-a93f-ecdf2c06f444"
+#define CXL_NAMESPACE_UUID "68bb2c0a-5a77-4937-9f85-3caf41a0f93c"
 
 /**
  * struct nd_label_id - identifier string for dpa allocation
