@@ -609,10 +609,11 @@ cif_input_fmt *get_input_fmt(struct v4l2_subdev *sd, struct v4l2_rect *rect,
 			     u32 pad, int *vc)
 {
 	struct v4l2_subdev_format fmt;
+	struct rkmodule_channel_info ch_info;
 	int ret;
 	u32 i;
 
-	fmt.pad = pad;
+	fmt.pad = 0;
 	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	fmt.reserved[0] = 0;
 	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt);
@@ -621,25 +622,34 @@ cif_input_fmt *get_input_fmt(struct v4l2_subdev *sd, struct v4l2_rect *rect,
 			  "sensor fmt invalid, set to default size\n");
 		goto set_default;
 	}
+	ch_info.index = pad;
+	ret = v4l2_subdev_call(sd,
+			       core, ioctl,
+			       RKMODULE_GET_CHANNEL_INFO,
+			       &ch_info);
+	if (!ret) {
+		fmt.format.width = ch_info.width;
+		fmt.format.height = ch_info.height;
+		fmt.format.code = ch_info.bus_fmt;
+		switch (ch_info.vc) {
+		case V4L2_MBUS_CSI2_CHANNEL_3:
+			*vc = 3;
+			break;
+		case V4L2_MBUS_CSI2_CHANNEL_2:
+			*vc = 2;
+			break;
+		case V4L2_MBUS_CSI2_CHANNEL_1:
+			*vc = 1;
+			break;
+		case V4L2_MBUS_CSI2_CHANNEL_0:
+			*vc = 0;
+			break;
+		default:
+			*vc = -1;
+		}
 
-	/* v4l2_subdev_format reserved[0]
-	 * using as mipi virtual channel
-	 */
-	switch (fmt.reserved[0]) {
-	case V4L2_MBUS_CSI2_CHANNEL_3:
-		*vc = 3;
-		break;
-	case V4L2_MBUS_CSI2_CHANNEL_2:
-		*vc = 2;
-		break;
-	case V4L2_MBUS_CSI2_CHANNEL_1:
-		*vc = 1;
-		break;
-	case V4L2_MBUS_CSI2_CHANNEL_0:
-		*vc = 0;
-		break;
-	default:
-		*vc = -1;
+	} else {
+		vc = -1;
 	}
 
 	v4l2_dbg(1, rkcif_debug, sd->v4l2_dev,
