@@ -890,11 +890,9 @@ static int tegra_cursor_atomic_check(struct drm_plane *plane,
 	return 0;
 }
 
-static void tegra_cursor_atomic_update(struct drm_plane *plane,
-				       struct drm_atomic_state *state)
+static void __tegra_cursor_atomic_update(struct drm_plane *plane,
+					 struct drm_plane_state *new_state)
 {
-	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
-									   plane);
 	struct tegra_plane_state *tegra_plane_state = to_tegra_plane_state(new_state);
 	struct tegra_dc *dc = to_tegra_dc(new_state->crtc);
 	struct tegra_drm *tegra = plane->dev->dev_private;
@@ -990,6 +988,14 @@ static void tegra_cursor_atomic_update(struct drm_plane *plane,
 	tegra_dc_writel(dc, value, DC_DISP_CURSOR_POSITION);
 }
 
+static void tegra_cursor_atomic_update(struct drm_plane *plane,
+				       struct drm_atomic_state *state)
+{
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);
+
+	__tegra_cursor_atomic_update(plane, new_state);
+}
+
 static void tegra_cursor_atomic_disable(struct drm_plane *plane,
 					struct drm_atomic_state *state)
 {
@@ -1009,12 +1015,78 @@ static void tegra_cursor_atomic_disable(struct drm_plane *plane,
 	tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
 }
 
+static int tegra_cursor_atomic_async_check(struct drm_plane *plane, struct drm_atomic_state *state)
+{
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);
+	struct drm_crtc_state *crtc_state;
+	int min_scale, max_scale;
+	int err;
+
+	crtc_state = drm_atomic_get_existing_crtc_state(state, new_state->crtc);
+	if (WARN_ON(!crtc_state))
+		return -EINVAL;
+
+	if (!crtc_state->active)
+		return -EINVAL;
+
+	if (plane->state->crtc != new_state->crtc ||
+	    plane->state->src_w != new_state->src_w ||
+	    plane->state->src_h != new_state->src_h ||
+	    plane->state->crtc_w != new_state->crtc_w ||
+	    plane->state->crtc_h != new_state->crtc_h ||
+	    plane->state->fb != new_state->fb ||
+	    plane->state->fb == NULL)
+		return -EINVAL;
+
+	min_scale = (1 << 16) / 8;
+	max_scale = (8 << 16) / 1;
+
+	err = drm_atomic_helper_check_plane_state(new_state, crtc_state, min_scale, max_scale,
+						  true, true);
+	if (err < 0)
+		return err;
+
+	if (new_state->visible != plane->state->visible)
+		return -EINVAL;
+
+	return 0;
+}
+
+static void tegra_cursor_atomic_async_update(struct drm_plane *plane,
+					     struct drm_atomic_state *state)
+{
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);
+	struct tegra_dc *dc = to_tegra_dc(new_state->crtc);
+
+	plane->state->src_x = new_state->src_x;
+	plane->state->src_y = new_state->src_y;
+	plane->state->crtc_x = new_state->crtc_x;
+	plane->state->crtc_y = new_state->crtc_y;
+
+	if (new_state->visible) {
+		struct tegra_plane *p = to_tegra_plane(plane);
+		u32 value;
+
+		__tegra_cursor_atomic_update(plane, new_state);
+
+		value = (WIN_A_ACT_REQ << p->index) << 8 | GENERAL_UPDATE;
+		tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
+		(void)tegra_dc_readl(dc, DC_CMD_STATE_CONTROL);
+
+		value = (WIN_A_ACT_REQ << p->index) | GENERAL_ACT_REQ;
+		tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
+		(void)tegra_dc_readl(dc, DC_CMD_STATE_CONTROL);
+	}
+}
+
 static const struct drm_plane_helper_funcs tegra_cursor_plane_helper_funcs = {
 	.prepare_fb = tegra_plane_prepare_fb,
 	.cleanup_fb = tegra_plane_cleanup_fb,
 	.atomic_check = tegra_cursor_atomic_check,
 	.atomic_update = tegra_cursor_atomic_update,
 	.atomic_disable = tegra_cursor_atomic_disable,
+	.atomic_async_check = tegra_cursor_atomic_async_check,
+	.atomic_async_update = tegra_cursor_atomic_async_update,
 };
 
 static const uint64_t linear_modifiers[] = {
