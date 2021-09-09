@@ -220,7 +220,7 @@ static int __sched rwbase_write_lock(struct rwbase_rt *rwb,
 	for (; atomic_read(&rwb->readers);) {
 		/* Optimized out for rwlocks */
 		if (rwbase_signal_pending_state(state, current)) {
-			__set_current_state(TASK_RUNNING);
+			rwbase_restore_current_state();
 			__rwbase_write_unlock(rwb, 0, flags);
 			return -EINTR;
 		}
