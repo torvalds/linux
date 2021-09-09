@@ -370,8 +370,10 @@ union dmub_fw_boot_options {
 		uint32_t z10_disable: 1; /**< 1 to disable z10 */
 		uint32_t enable_dpia: 1; /**< 1 if DPIA should be enabled */
 		uint32_t invalid_vbios_data: 1; /**< 1 if VBIOS data table is invalid */
-		uint32_t reserved_unreleased2: 1; /**< reserved for an unreleased feature */
-		uint32_t root_clock_gating: 1; /**< 1 if all root clock gating is enabled */
+		uint32_t dpia_supported: 1; /**< 1 if DPIA is supported on this platform */
+		uint32_t sel_mux_phy_c_d_phy_f_g: 1; /**< 1 if PHYF/PHYG should be enabled */
+		/**< 1 if all root clock gating is enabled and low power memory is enabled*/
+		uint32_t power_optimization: 1;
 		uint32_t diag_env: 1; /* 1 if diagnostic environment */
 
 		uint32_t reserved : 19; /**< reserved */

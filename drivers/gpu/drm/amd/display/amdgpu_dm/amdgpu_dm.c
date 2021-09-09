@@ -1825,7 +1825,7 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(3, 1, 2):
 	case IP_VERSION(3, 1, 3):
-		dmub_asic = DMUB_ASIC_DCN31;
+		dmub_asic = (adev->external_rev_id == YELLOW_CARP_B0) ? DMUB_ASIC_DCN31B : DMUB_ASIC_DCN31;
 		fw_name_dmub = FIRMWARE_YELLOW_CARP_DMUB;
 		break;
 

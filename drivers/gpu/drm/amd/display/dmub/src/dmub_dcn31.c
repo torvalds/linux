@@ -340,6 +340,8 @@ void dmub_dcn31_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmu
 	boot_options.bits.z10_disable = params->disable_z10;
 	boot_options.bits.enable_dpia = params->disable_dpia ? 0 : 1;
 
+	boot_options.bits.sel_mux_phy_c_d_phy_f_g = (dmub->asic == DMUB_ASIC_DCN31B) ? 1 : 0;
+
 	REG_WRITE(DMCUB_SCRATCH14, boot_options.all);
 }
 
