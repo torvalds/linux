@@ -219,13 +219,12 @@ static int __init
 trace_boot_hist_add_array(struct xbc_node *hnode, char **bufp,
 			  char *end, const char *key)
 {
-	struct xbc_node *knode, *anode;
+	struct xbc_node *anode;
 	const char *p;
 	char sep;
 
-	knode = xbc_node_find_child(hnode, key);
-	if (knode) {
-		anode = xbc_node_get_child(knode);
+	p = xbc_node_find_value(hnode, key, &anode);
+	if (p) {
 		if (!anode) {
 			pr_err("hist.%s requires value(s).\n", key);
 			return -EINVAL;
