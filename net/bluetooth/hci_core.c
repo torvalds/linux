@@ -3990,6 +3990,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	queue_work(hdev->req_workqueue, &hdev->power_on);
 
 	idr_init(&hdev->adv_monitors_idr);
+	msft_register(hdev);
 
 	return id;
 
@@ -4021,6 +4022,8 @@ void hci_unregister_dev(struct hci_dev *hdev)
 		unregister_pm_notifier(&hdev->suspend_notifier);
 		cancel_work_sync(&hdev->suspend_prepare);
 	}
+
+	msft_unregister(hdev);
 
 	hci_dev_do_close(hdev);
 

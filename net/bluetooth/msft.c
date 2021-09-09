@@ -184,28 +184,36 @@ static void reregister_monitor_on_restart(struct hci_dev *hdev, int handle)
 
 void msft_do_open(struct hci_dev *hdev)
 {
-	struct msft_data *msft;
+	struct msft_data *msft = hdev->msft_data;
 
 	if (hdev->msft_opcode == HCI_OP_NOP)
 		return;
 
+	if (!msft) {
+		bt_dev_err(hdev, "MSFT extension not registered");
+		return;
+	}
+
 	bt_dev_dbg(hdev, "Initialize MSFT extension");
 
-	msft = kzalloc(sizeof(*msft), GFP_KERNEL);
-	if (!msft)
-		return;
+	/* Reset existing MSFT data before re-reading */
+	kfree(msft->evt_prefix);
+	msft->evt_prefix = NULL;
+	msft->evt_prefix_len = 0;
+	msft->features = 0;
 
 	if (!read_supported_features(hdev, msft)) {
+		hdev->msft_data = NULL;
 		kfree(msft);
 		return;
 	}
 
-	INIT_LIST_HEAD(&msft->handle_map);
-	hdev->msft_data = msft;
-
 	if (msft_monitor_supported(hdev)) {
 		msft->reregistering = true;
 		msft_set_filter_enable(hdev, true);
+		/* Monitors get removed on power off, so we need to explicitly
+		 * tell the controller to re-monitor.
+		 */
 		reregister_monitor_on_restart(hdev, 0);
 	}
 }
@@ -221,8 +229,9 @@ void msft_do_close(struct hci_dev *hdev)
 
 	bt_dev_dbg(hdev, "Cleanup of MSFT extension");
 
-	hdev->msft_data = NULL;
-
+	/* The controller will silently remove all monitors on power off.
+	 * Therefore, remove handle_data mapping and reset monitor state.
+	 */
 	list_for_each_entry_safe(handle_data, tmp, &msft->handle_map, list) {
 		monitor = idr_find(&hdev->adv_monitors_idr,
 				   handle_data->mgmt_handle);
@@ -233,6 +242,34 @@ void msft_do_close(struct hci_dev *hdev)
 		list_del(&handle_data->list);
 		kfree(handle_data);
 	}
+}
+
+void msft_register(struct hci_dev *hdev)
+{
+	struct msft_data *msft = NULL;
+
+	bt_dev_dbg(hdev, "Register MSFT extension");
+
+	msft = kzalloc(sizeof(*msft), GFP_KERNEL);
+	if (!msft) {
+		bt_dev_err(hdev, "Failed to register MSFT extension");
+		return;
+	}
+
+	INIT_LIST_HEAD(&msft->handle_map);
+	hdev->msft_data = msft;
+}
+
+void msft_unregister(struct hci_dev *hdev)
+{
+	struct msft_data *msft = hdev->msft_data;
+
+	if (!msft)
+		return;
+
+	bt_dev_dbg(hdev, "Unregister MSFT extension");
+
+	hdev->msft_data = NULL;
 
 	kfree(msft->evt_prefix);
 	kfree(msft);
