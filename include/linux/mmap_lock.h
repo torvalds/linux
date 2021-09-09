@@ -144,15 +144,6 @@ static inline void mmap_read_unlock(struct mm_struct *mm)
 	__mmap_lock_trace_released(mm, false);
 }
 
-static inline bool mmap_read_trylock_non_owner(struct mm_struct *mm)
-{
-	if (mmap_read_trylock(mm)) {
-		rwsem_release(&mm->mmap_lock.dep_map, _RET_IP_);
-		return true;
-	}
-	return false;
-}
-
 static inline void mmap_read_unlock_non_owner(struct mm_struct *mm)
 {
 	up_read_non_owner(&mm->mmap_lock);
