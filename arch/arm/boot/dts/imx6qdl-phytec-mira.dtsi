@@ -256,6 +256,7 @@
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	cd-gpios = <&gpio6 31 GPIO_ACTIVE_LOW>;
 	no-1-8-v;
+	disable-wp;
 	status = "disabled";
 };
 
