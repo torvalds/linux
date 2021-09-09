@@ -10551,7 +10551,14 @@ static int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
 		sqd = ctx->sq_data;
 		if (sqd) {
+			/*
+			 * Observe the correct sqd->lock -> ctx->uring_lock
+			 * ordering. Fine to drop uring_lock here, we hold
+			 * a ref to the ctx.
+			 */
+			mutex_unlock(&ctx->uring_lock);
 			mutex_lock(&sqd->lock);
+			mutex_lock(&ctx->uring_lock);
 			tctx = sqd->thread->io_uring;
 		}
 	} else {
