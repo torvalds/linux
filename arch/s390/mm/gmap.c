@@ -27,7 +27,6 @@
 
 /**
  * gmap_alloc - allocate and initialize a guest address space
- * @mm: pointer to the parent mm_struct
  * @limit: maximum address of the gmap address space
  *
  * Returns a guest address space structure.
@@ -504,7 +503,7 @@ EXPORT_SYMBOL_GPL(gmap_translate);
 
 /**
  * gmap_unlink - disconnect a page table from the gmap shadow tables
- * @gmap: pointer to guest mapping meta data structure
+ * @mm: pointer to the parent mm_struct
  * @table: pointer to the host page table
  * @vmaddr: vm address associated with the host page table
  */
@@ -527,7 +526,7 @@ static void gmap_pmdp_xchg(struct gmap *gmap, pmd_t *old, pmd_t new,
 			   unsigned long gaddr);
 
 /**
- * gmap_link - set up shadow page tables to connect a host to a guest address
+ * __gmap_link - set up shadow page tables to connect a host to a guest address
  * @gmap: pointer to guest mapping meta data structure
  * @gaddr: guest address
  * @vmaddr: vm address
@@ -1971,7 +1970,7 @@ out_free:
 EXPORT_SYMBOL_GPL(gmap_shadow_sgt);
 
 /**
- * gmap_shadow_lookup_pgtable - find a shadow page table
+ * gmap_shadow_pgt_lookup - find a shadow page table
  * @sg: pointer to the shadow guest address space structure
  * @saddr: the address in the shadow aguest address space
  * @pgt: parent gmap address of the page table to get shadowed
@@ -2165,7 +2164,7 @@ int gmap_shadow_page(struct gmap *sg, unsigned long saddr, pte_t pte)
 }
 EXPORT_SYMBOL_GPL(gmap_shadow_page);
 
-/**
+/*
  * gmap_shadow_notify - handle notifications for shadow gmap
  *
  * Called with sg->parent->shadow_lock.
@@ -2225,7 +2224,7 @@ static void gmap_shadow_notify(struct gmap *sg, unsigned long vmaddr,
 /**
  * ptep_notify - call all invalidation callbacks for a specific pte.
  * @mm: pointer to the process mm_struct
- * @addr: virtual address in the process address space
+ * @vmaddr: virtual address in the process address space
  * @pte: pointer to the page table entry
  * @bits: bits from the pgste that caused the notify call
  *

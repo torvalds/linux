@@ -140,10 +140,10 @@ _LPP_OFFSET	= __LC_LPP
 	TSTMSK	__LC_MCCK_CODE,(MCCK_CODE_STG_ERROR|MCCK_CODE_STG_KEY_ERROR)
 	jnz	\errlabel
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_STG_DEGRAD
-	jz	oklabel\@
+	jz	.Loklabel\@
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_STG_FAIL_ADDR
 	jnz	\errlabel
-oklabel\@:
+.Loklabel\@:
 	.endm
 
 #if IS_ENABLED(CONFIG_KVM)

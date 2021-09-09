@@ -234,8 +234,7 @@ config ARCH_SUPPORTS_HUGETLBFS
 
 config HUGETLBFS
 	bool "HugeTLB file system support"
-	depends on X86 || IA64 || SPARC64 || (S390 && 64BIT) || \
-		   ARCH_SUPPORTS_HUGETLBFS || BROKEN
+	depends on X86 || IA64 || SPARC64 || ARCH_SUPPORTS_HUGETLBFS || BROKEN
 	help
 	  hugetlbfs is a filesystem backing for HugeTLB pages, based on
 	  ramfs. For architectures that support it, say Y here and read

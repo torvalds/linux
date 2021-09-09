@@ -95,6 +95,7 @@ __vector128 __initdata boot_cpu_vector_save_area[__NUM_VXRS];
 #endif
 
 static unsigned int smp_max_threads __initdata = -1U;
+cpumask_t cpu_setup_mask;
 
 static int __init early_nosmt(char *s)
 {
@@ -902,13 +903,14 @@ static void smp_start_secondary(void *cpuvoid)
 	vtime_init();
 	vdso_getcpu_init();
 	pfault_init();
+	cpumask_set_cpu(cpu, &cpu_setup_mask);
+	update_cpu_masks();
 	notify_cpu_starting(cpu);
 	if (topology_cpu_dedicated(cpu))
 		set_cpu_flag(CIF_DEDICATED_CPU);
 	else
 		clear_cpu_flag(CIF_DEDICATED_CPU);
 	set_cpu_online(cpu, true);
-	update_cpu_masks();
 	inc_irq_stat(CPU_RST);
 	local_irq_enable();
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
@@ -950,10 +952,13 @@ early_param("possible_cpus", _setup_possible_cpus);
 int __cpu_disable(void)
 {
 	unsigned long cregs[16];
+	int cpu;
 
 	/* Handle possible pending IPIs */
 	smp_handle_ext_call();
-	set_cpu_online(smp_processor_id(), false);
+	cpu = smp_processor_id();
+	set_cpu_online(cpu, false);
+	cpumask_clear_cpu(cpu, &cpu_setup_mask);
 	update_cpu_masks();
 	/* Disable pseudo page faults on this cpu. */
 	pfault_fini();
