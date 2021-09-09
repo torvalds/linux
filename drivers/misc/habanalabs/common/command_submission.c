@@ -2630,7 +2630,8 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 		 * completed after the poll function.
 		 */
 		if (!mcs_data.completion_bitmap) {
-			dev_err(hdev->dev, "Multi-CS got completion on wait but no CS completed\n");
+			dev_warn_ratelimited(hdev->dev,
+				"Multi-CS got completion on wait but no CS completed\n");
 			rc = -EFAULT;
 		}
 	}
