@@ -1010,7 +1010,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	iput(inode);
 
-	is_ro = sb_rdonly(sbi->sb);
+	is_ro = sb_rdonly(sb);
 
 	if (sbi->flags & NTFS_FLAGS_NEED_REPLAY) {
 		if (!is_ro) {
@@ -1101,7 +1101,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	/* Not necessary. */
 	sbi->used.bitmap.set_tail = true;
-	err = wnd_init(&sbi->used.bitmap, sbi->sb, tt);
+	err = wnd_init(&sbi->used.bitmap, sb, tt);
 	if (err)
 		goto out;
 
@@ -1115,7 +1115,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	/* Load $AttrDef. */
 	ref.low = cpu_to_le32(MFT_REC_ATTR);
 	ref.seq = cpu_to_le16(MFT_REC_ATTR);
-	inode = ntfs_iget5(sbi->sb, &ref, &NAME_ATTRDEF);
+	inode = ntfs_iget5(sb, &ref, &NAME_ATTRDEF);
 	if (IS_ERR(inode)) {
 		ntfs_err(sb, "Failed to load $AttrDef -> %d", err);
 		return PTR_ERR(inode);
