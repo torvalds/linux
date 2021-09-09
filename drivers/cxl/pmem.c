@@ -99,10 +99,7 @@ static int cxl_pmem_get_config_data(struct cxl_mem *cxlm,
 				    struct nd_cmd_get_config_data_hdr *cmd,
 				    unsigned int buf_len)
 {
-	struct cxl_mbox_get_lsa {
-		u32 offset;
-		u32 length;
-	} get_lsa;
+	struct cxl_mbox_get_lsa get_lsa;
 	int rc;
 
 	if (sizeof(*cmd) > buf_len)
@@ -127,11 +124,7 @@ static int cxl_pmem_set_config_data(struct cxl_mem *cxlm,
 				    struct nd_cmd_set_config_hdr *cmd,
 				    unsigned int buf_len)
 {
-	struct cxl_mbox_set_lsa {
-		u32 offset;
-		u32 reserved;
-		u8 data[];
-	} *set_lsa;
+	struct cxl_mbox_set_lsa *set_lsa;
 	int rc;
 
 	if (sizeof(*cmd) > buf_len)

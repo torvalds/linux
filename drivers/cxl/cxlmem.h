@@ -171,6 +171,63 @@ enum cxl_opcode {
 	CXL_MBOX_OP_MAX			= 0x10000
 };
 
+#define DEFINE_CXL_CEL_UUID                                                    \
+	UUID_INIT(0xda9c0b5, 0xbf41, 0x4b78, 0x8f, 0x79, 0x96, 0xb1, 0x62,     \
+		  0x3b, 0x3f, 0x17)
+
+#define DEFINE_CXL_VENDOR_DEBUG_UUID                                           \
+	UUID_INIT(0xe1819d9, 0x11a9, 0x400c, 0x81, 0x1f, 0xd6, 0x07, 0x19,     \
+		  0x40, 0x3d, 0x86)
+
+struct cxl_mbox_get_supported_logs {
+	__le16 entries;
+	u8 rsvd[6];
+	struct cxl_gsl_entry {
+		uuid_t uuid;
+		__le32 size;
+	} __packed entry[];
+}  __packed;
+
+struct cxl_cel_entry {
+	__le16 opcode;
+	__le16 effect;
+} __packed;
+
+struct cxl_mbox_get_log {
+	uuid_t uuid;
+	__le32 offset;
+	__le32 length;
+} __packed;
+
+/* See CXL 2.0 Table 175 Identify Memory Device Output Payload */
+struct cxl_mbox_identify {
+	char fw_revision[0x10];
+	__le64 total_capacity;
+	__le64 volatile_capacity;
+	__le64 persistent_capacity;
+	__le64 partition_align;
+	__le16 info_event_log_size;
+	__le16 warning_event_log_size;
+	__le16 failure_event_log_size;
+	__le16 fatal_event_log_size;
+	__le32 lsa_size;
+	u8 poison_list_max_mer[3];
+	__le16 inject_poison_limit;
+	u8 poison_caps;
+	u8 qos_telemetry_caps;
+} __packed;
+
+struct cxl_mbox_get_lsa {
+	u32 offset;
+	u32 length;
+} __packed;
+
+struct cxl_mbox_set_lsa {
+	u32 offset;
+	u32 reserved;
+	u8 data[];
+} __packed;
+
 /**
  * struct cxl_mem_command - Driver representation of a memory device command
  * @info: Command information as it exists for the UAPI
