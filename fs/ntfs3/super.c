@@ -877,7 +877,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	struct block_device *bdev = sb->s_bdev;
 	struct inode *bd_inode = bdev->bd_inode;
 	struct request_queue *rq = bdev_get_queue(bdev);
-	struct inode *inode = NULL;
+	struct inode *inode;
 	struct ntfs_inode *ni;
 	size_t i, tt;
 	CLST vcn, lcn, len;
@@ -977,9 +977,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sbi->volume.major_ver = info->major_ver;
 	sbi->volume.minor_ver = info->minor_ver;
 	sbi->volume.flags = info->flags;
-
 	sbi->volume.ni = ni;
-	inode = NULL;
 
 	/* Load $MFTMirr to estimate recs_mirr. */
 	ref.low = cpu_to_le32(MFT_REC_MIRR);
@@ -1011,7 +1009,6 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto out;
 
 	iput(inode);
-	inode = NULL;
 
 	is_ro = sb_rdonly(sbi->sb);
 
@@ -1087,8 +1084,6 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		ntfs_err(sb, "Failed to load $Bitmap.");
 		return PTR_ERR(inode);
 	}
-
-	ni = ntfs_i(inode);
 
 #ifndef CONFIG_NTFS3_64BIT_CLUSTER
 	if (inode->i_size >> 32) {
@@ -1188,8 +1183,6 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		return PTR_ERR(inode);
 	}
 
-	ni = ntfs_i(inode);
-
 	if (inode->i_size != 0x10000 * sizeof(short)) {
 		err = -EINVAL;
 		goto out;
@@ -1225,7 +1218,6 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	}
 
 	iput(inode);
-	inode = NULL;
 
 	if (is_ntfs3(sbi)) {
 		/* Load $Secure. */
@@ -1258,8 +1250,6 @@ load_root:
 		ntfs_err(sb, "Failed to load root.");
 		return PTR_ERR(inode);
 	}
-
-	ni = ntfs_i(inode);
 
 	sb->s_root = d_make_root(inode);
 	if (!sb->s_root)
