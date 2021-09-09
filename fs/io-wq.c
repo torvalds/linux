@@ -1133,7 +1133,7 @@ static bool io_task_work_match(struct callback_head *cb, void *data)
 {
 	struct io_worker *worker;
 
-	if (cb->func != create_worker_cb || cb->func != create_worker_cont)
+	if (cb->func != create_worker_cb && cb->func != create_worker_cont)
 		return false;
 	worker = container_of(cb, struct io_worker, create_work);
 	return worker->wqe->wq == data;
@@ -1154,9 +1154,14 @@ static void io_wq_exit_workers(struct io_wq *wq)
 
 	while ((cb = task_work_cancel_match(wq->task, io_task_work_match, wq)) != NULL) {
 		struct io_worker *worker;
+		struct io_wqe_acct *acct;
 
 		worker = container_of(cb, struct io_worker, create_work);
-		atomic_dec(&worker->wqe->acct[worker->create_index].nr_running);
+		acct = io_wqe_get_acct(worker);
+		atomic_dec(&acct->nr_running);
+		raw_spin_lock(&worker->wqe->lock);
+		acct->nr_workers--;
+		raw_spin_unlock(&worker->wqe->lock);
 		io_worker_ref_put(wq);
 		clear_bit_unlock(0, &worker->create_state);
 		io_worker_release(worker);
