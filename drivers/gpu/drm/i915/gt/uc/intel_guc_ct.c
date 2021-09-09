@@ -1042,9 +1042,9 @@ static void ct_incoming_request_worker_func(struct work_struct *w)
 		container_of(w, struct intel_guc_ct, requests.worker);
 	bool done;
 
-	done = ct_process_incoming_requests(ct);
-	if (!done)
-		queue_work(system_unbound_wq, &ct->requests.worker);
+	do {
+		done = ct_process_incoming_requests(ct);
+	} while (!done);
 }
 
 static int ct_handle_event(struct intel_guc_ct *ct, struct ct_incoming_msg *request)
