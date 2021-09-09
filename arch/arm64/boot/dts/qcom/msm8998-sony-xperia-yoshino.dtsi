@@ -30,6 +30,38 @@
 		regulator-boot-on;
 	};
 
+	cam0_vdig_vreg: cam0-vdig {
+		compatible = "regulator-fixed";
+		regulator-name = "cam0_vdig";
+		startup-delay-us = <0>;
+		enable-active-high;
+		gpio = <&tlmm 21 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam0_vdig_default>;
+	};
+
+	cam1_vdig_vreg: cam1-vdig {
+		compatible = "regulator-fixed";
+		regulator-name = "cam1_vdig";
+		startup-delay-us = <0>;
+		enable-active-high;
+		gpio = <&tlmm 25 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam1_vdig_default>;
+		vin-supply = <&vreg_s3a_1p35>;
+	};
+
+	cam_vio_vreg: cam-vio-vreg {
+		compatible = "regulator-fixed";
+		regulator-name = "cam_vio_vreg";
+		startup-delay-us = <0>;
+		enable-active-high;
+		gpio = <&pmi8998_gpio 1 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_vio_default>;
+		vin-supply = <&vreg_lvs1a_1p8>;
+	};
+
 	touch_vddio_vreg: touch-vddio-vreg {
 		compatible = "regulator-fixed";
 		regulator-name = "touch_vddio_vreg";
@@ -278,6 +310,16 @@
 };
 
 &pmi8998_gpio {
+	cam_vio_default: cam-vio-active {
+		pins = "gpio1";
+		function = PMIC_GPIO_FUNC_NORMAL;
+		bias-disable;
+		drive-push-pull;
+		output-low;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_HIGH>;
+		power-source = <1>;
+	};
+
 	vib_default: vib-en {
 		pins = "gpio5";
 		function = PMIC_GPIO_FUNC_NORMAL;
@@ -536,6 +578,20 @@
 	cci1_default: cci1-default {
 		pins = "gpio19", "gpio20";
 		function = "cci_i2c";
+		bias-disable;
+		drive-strength = <2>;
+	};
+
+	cam0_vdig_default: cam0-vdig-default {
+		pins = "gpio21";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+	};
+
+	cam1_vdig_default: cam1-vdig-default {
+		pins = "gpio25";
+		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 	};
