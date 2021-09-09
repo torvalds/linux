@@ -39,6 +39,7 @@
 #define PSP_FW_NAME_LEN		0x24
 
 enum psp_shared_mem_size {
+	PSP_ASD_SHARED_MEM_SIZE				= 0x0,
 	PSP_XGMI_SHARED_MEM_SIZE			= 0x4000,
 	PSP_RAS_SHARED_MEM_SIZE				= 0x4000,
 	PSP_HDCP_SHARED_MEM_SIZE			= 0x4000,
@@ -140,12 +141,6 @@ struct psp_bin_desc {
 	uint8_t *start_addr;
 };
 
-struct psp_asd_context {
-	bool			asd_initialized;
-	uint32_t		session_id;
-	struct psp_bin_desc		bin_desc;
-};
-
 struct ta_mem_context {
 	struct amdgpu_bo		*shared_bo;
 	uint64_t		shared_mc_addr;
@@ -158,6 +153,7 @@ struct ta_context {
 	uint32_t		session_id;
 	struct ta_mem_context	mem_context;
 	struct psp_bin_desc		bin_desc;
+	enum psp_gfx_cmd_id		ta_load_type;
 };
 
 struct ta_cp_context {
@@ -331,7 +327,7 @@ struct psp_context
 	const struct firmware		*ta_fw;
 	uint32_t			ta_fw_version;
 
-	struct psp_asd_context		asd_context;
+	struct ta_context		asd_context;
 	struct psp_xgmi_context		xgmi_context;
 	struct psp_ras_context		ras_context;
 	struct ta_cp_context		hdcp_context;
