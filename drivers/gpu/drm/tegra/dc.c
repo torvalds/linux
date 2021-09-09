@@ -1267,9 +1267,9 @@ static struct drm_plane *tegra_dc_add_planes(struct drm_device *drm,
 			err = PTR_ERR(planes[i]);
 
 			while (i--)
-				tegra_plane_funcs.destroy(planes[i]);
+				planes[i]->funcs->destroy(planes[i]);
 
-			tegra_plane_funcs.destroy(primary);
+			primary->funcs->destroy(primary);
 			return ERR_PTR(err);
 		}
 	}
