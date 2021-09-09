@@ -170,6 +170,8 @@
 	status = "okay";
 
 	phy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-id0007.c0f1",
+			     "ethernet-phy-ieee802.3-c22";
 		reg = <0>;
 	};
 };
