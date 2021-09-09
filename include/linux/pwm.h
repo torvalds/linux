@@ -441,6 +441,7 @@ static inline void pwm_free(struct pwm_device *pwm)
 static inline int pwm_apply_state(struct pwm_device *pwm,
 				  const struct pwm_state *state)
 {
+	might_sleep();
 	return -ENOTSUPP;
 }
 
@@ -452,6 +453,7 @@ static inline int pwm_adjust_config(struct pwm_device *pwm)
 static inline int pwm_config(struct pwm_device *pwm, int duty_ns,
 			     int period_ns)
 {
+	might_sleep();
 	return -EINVAL;
 }
 
@@ -464,11 +466,13 @@ static inline int pwm_capture(struct pwm_device *pwm,
 
 static inline int pwm_enable(struct pwm_device *pwm)
 {
+	might_sleep();
 	return -EINVAL;
 }
 
 static inline void pwm_disable(struct pwm_device *pwm)
 {
+	might_sleep();
 }
 
 static inline int pwm_set_chip_data(struct pwm_device *pwm, void *data)
