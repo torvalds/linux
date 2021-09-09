@@ -26,9 +26,11 @@
 
 #define NTFS_NAME_LEN 255
 
-/* ntfs.sys used 500 maximum links on-disk struct allows up to 0xffff. */
-#define NTFS_LINK_MAX 0x400
-//#define NTFS_LINK_MAX 0xffff
+/*
+ * ntfs.sys used 500 maximum links on-disk struct allows up to 0xffff.
+ * xfstest generic/041 creates 3003 hardlinks.
+ */
+#define NTFS_LINK_MAX 4000
 
 /*
  * Activate to use 64 bit clusters instead of 32 bits in ntfs.sys.
