@@ -107,7 +107,8 @@ struct ksmbd_kstat {
 	__le32			file_attributes;
 };
 
-int ksmbd_vfs_lock_parent(struct dentry *parent, struct dentry *child);
+int ksmbd_vfs_lock_parent(struct user_namespace *user_ns, struct dentry *parent,
+			  struct dentry *child);
 int ksmbd_vfs_may_delete(struct user_namespace *user_ns, struct dentry *dentry);
 int ksmbd_vfs_query_maximal_access(struct user_namespace *user_ns,
 				   struct dentry *dentry, __le32 *daccess);
