@@ -15,6 +15,7 @@
 	compatible = "fsl,ls1012a-rdb", "fsl,ls1012a";
 
 	aliases {
+		serial0 = &duart0;
 		mmc0 = &esdhc0;
 		mmc1 = &esdhc1;
 	};
