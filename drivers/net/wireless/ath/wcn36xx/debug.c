@@ -120,7 +120,7 @@ static ssize_t write_file_dump(struct file *file,
 		if (begin == NULL)
 			break;
 
-		if (kstrtou32(begin, 0, &arg[i]) != 0)
+		if (kstrtos32(begin, 0, &arg[i]) != 0)
 			break;
 	}
 
