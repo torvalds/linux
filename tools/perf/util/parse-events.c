@@ -2701,7 +2701,7 @@ next:
 	return 0;
 }
 
-static bool is_event_supported(u8 type, unsigned config)
+static bool is_event_supported(u8 type, u64 config)
 {
 	bool ret = true;
 	int open_return;
@@ -2821,10 +2821,18 @@ void print_sdt_events(const char *subsys_glob, const char *event_glob,
 
 int print_hwcache_events(const char *event_glob, bool name_only)
 {
-	unsigned int type, op, i, evt_i = 0, evt_num = 0;
-	char name[64];
-	char **evt_list = NULL;
+	unsigned int type, op, i, evt_i = 0, evt_num = 0, npmus = 0;
+	char name[64], new_name[128];
+	char **evt_list = NULL, **evt_pmus = NULL;
 	bool evt_num_known = false;
+	struct perf_pmu *pmu = NULL;
+
+	if (perf_pmu__has_hybrid()) {
+		npmus = perf_pmu__hybrid_pmu_num();
+		evt_pmus = zalloc(sizeof(char *) * npmus);
+		if (!evt_pmus)
+			goto out_enomem;
+	}
 
 restart:
 	if (evt_num_known) {
@@ -2840,20 +2848,61 @@ restart:
 				continue;
 
 			for (i = 0; i < PERF_COUNT_HW_CACHE_RESULT_MAX; i++) {
+				unsigned int hybrid_supported = 0, j;
+				bool supported;
+
 				__evsel__hw_cache_type_op_res_name(type, op, i, name, sizeof(name));
 				if (event_glob != NULL && !strglobmatch(name, event_glob))
 					continue;
 
-				if (!is_event_supported(PERF_TYPE_HW_CACHE,
-							type | (op << 8) | (i << 16)))
-					continue;
+				if (!perf_pmu__has_hybrid()) {
+					if (!is_event_supported(PERF_TYPE_HW_CACHE,
+								type | (op << 8) | (i << 16))) {
+						continue;
+					}
+				} else {
+					perf_pmu__for_each_hybrid_pmu(pmu) {
+						if (!evt_num_known) {
+							evt_num++;
+							continue;
+						}
+
+						supported = is_event_supported(
+									PERF_TYPE_HW_CACHE,
+									type | (op << 8) | (i << 16) |
+									((__u64)pmu->type << PERF_PMU_TYPE_SHIFT));
+						if (supported) {
+							snprintf(new_name, sizeof(new_name), "%s/%s/",
+								 pmu->name, name);
+							evt_pmus[hybrid_supported] = strdup(new_name);
+							hybrid_supported++;
+						}
+					}
+
+					if (hybrid_supported == 0)
+						continue;
+				}
 
 				if (!evt_num_known) {
 					evt_num++;
 					continue;
 				}
 
-				evt_list[evt_i] = strdup(name);
+				if ((hybrid_supported == 0) ||
+				    (hybrid_supported == npmus)) {
+					evt_list[evt_i] = strdup(name);
+					if (npmus > 0) {
+						for (j = 0; j < npmus; j++)
+							zfree(&evt_pmus[j]);
+					}
+				} else {
+					for (j = 0; j < hybrid_supported; j++) {
+						evt_list[evt_i++] = evt_pmus[j];
+						evt_pmus[j] = NULL;
+					}
+					continue;
+				}
+
 				if (evt_list[evt_i] == NULL)
 					goto out_enomem;
 				evt_i++;
@@ -2865,6 +2914,13 @@ restart:
 		evt_num_known = true;
 		goto restart;
 	}
+
+	for (evt_i = 0; evt_i < evt_num; evt_i++) {
+		if (!evt_list[evt_i])
+			break;
+	}
+
+	evt_num = evt_i;
 	qsort(evt_list, evt_num, sizeof(char *), cmp_string);
 	evt_i = 0;
 	while (evt_i < evt_num) {
@@ -2883,6 +2939,10 @@ out_free:
 	for (evt_i = 0; evt_i < evt_num; evt_i++)
 		zfree(&evt_list[evt_i]);
 	zfree(&evt_list);
+
+	for (evt_i = 0; evt_i < npmus; evt_i++)
+		zfree(&evt_pmus[evt_i]);
+	zfree(&evt_pmus);
 	return evt_num;
 
 out_enomem:
