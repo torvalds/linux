@@ -172,11 +172,6 @@ struct intel_context {
 		struct i915_sw_fence blocked;
 		/* GuC committed requests */
 		int number_committed_requests;
-	} guc_state;
-
-	struct {
-		/** lock: protects everything in guc_active */
-		spinlock_t lock;
 		/** requests: active requests on this context */
 		struct list_head requests;
 		/*
@@ -184,7 +179,7 @@ struct intel_context {
 		 */
 		u8 prio;
 		u32 prio_count[GUC_CLIENT_PRIORITY_NUM];
-	} guc_active;
+	} guc_state;
 
 	struct {
 		/* GuC LRC descriptor ID */
