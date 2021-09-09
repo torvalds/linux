@@ -1334,31 +1334,6 @@ int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 	return ret;
 }
 
-static int psp_ras_status_to_errno(struct amdgpu_device *adev,
-					 enum ta_ras_status ras_status)
-{
-	int ret = -EINVAL;
-
-	switch (ras_status) {
-	case TA_RAS_STATUS__SUCCESS:
-		ret = 0;
-		break;
-	case TA_RAS_STATUS__RESET_NEEDED:
-		ret = -EAGAIN;
-		break;
-	case TA_RAS_STATUS__ERROR_RAS_NOT_AVAILABLE:
-		dev_warn(adev->dev, "RAS WARN: ras function unavailable\n");
-		break;
-	case TA_RAS_STATUS__ERROR_ASD_READ_WRITE:
-		dev_warn(adev->dev, "RAS WARN: asd read or write failed\n");
-		break;
-	default:
-		dev_err(adev->dev, "RAS ERROR: ras function failed ret 0x%X\n", ret);
-	}
-
-	return ret;
-}
-
 int psp_ras_enable_features(struct psp_context *psp,
 		union ta_ras_cmd_input *info, bool enable)
 {
@@ -1382,7 +1357,10 @@ int psp_ras_enable_features(struct psp_context *psp,
 	if (ret)
 		return -EINVAL;
 
-	return psp_ras_status_to_errno(psp->adev, ras_cmd->ras_status);
+	if (ras_cmd->ras_status)
+		dev_warn(psp->adev->dev, "RAS WARNING: ras status = 0x%X\n", ras_cmd->ras_status);
+
+	return 0;
 }
 
 static int psp_ras_terminate(struct psp_context *psp)
@@ -1523,7 +1501,12 @@ int psp_ras_trigger_error(struct psp_context *psp,
 	if (amdgpu_ras_intr_triggered())
 		return 0;
 
-	return psp_ras_status_to_errno(psp->adev, ras_cmd->ras_status);
+	if (ras_cmd->ras_status) {
+		dev_warn(psp->adev->dev, "RAS WARNING: ras status = 0x%X\n", ras_cmd->ras_status);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 // ras end
 
