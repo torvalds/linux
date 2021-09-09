@@ -1201,7 +1201,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	inode = ntfs_iget5(sb, &ref, &NAME_UPCASE);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
-		ntfs_err(sb, "Failed to load \x24LogFile.");
+		ntfs_err(sb, "Failed to load $UpCase.");
 		inode = NULL;
 		goto out;
 	}
