@@ -52,6 +52,12 @@ static int cxl_acpi_cfmws_verify(struct device *dev,
 		return -EINVAL;
 	}
 
+	if (CFMWS_INTERLEAVE_WAYS(cfmws) > CXL_DECODER_MAX_INTERLEAVE) {
+		dev_err(dev, "CFMWS Interleave Ways (%d) too large\n",
+			CFMWS_INTERLEAVE_WAYS(cfmws));
+		return -EINVAL;
+	}
+
 	expected_len = struct_size((cfmws), interleave_targets,
 				   CFMWS_INTERLEAVE_WAYS(cfmws));
 
@@ -71,6 +77,7 @@ static int cxl_acpi_cfmws_verify(struct device *dev,
 static void cxl_add_cfmws_decoders(struct device *dev,
 				   struct cxl_port *root_port)
 {
+	int target_map[CXL_DECODER_MAX_INTERLEAVE];
 	struct acpi_cedt_cfmws *cfmws;
 	struct cxl_decoder *cxld;
 	acpi_size len, cur = 0;
@@ -83,6 +90,7 @@ static void cxl_add_cfmws_decoders(struct device *dev,
 
 	while (cur < len) {
 		struct acpi_cedt_header *c = cedt_subtable + cur;
+		int i;
 
 		if (c->type != ACPI_CEDT_TYPE_CFMWS) {
 			cur += c->length;
@@ -108,6 +116,9 @@ static void cxl_add_cfmws_decoders(struct device *dev,
 			continue;
 		}
 
+		for (i = 0; i < CFMWS_INTERLEAVE_WAYS(cfmws); i++)
+			target_map[i] = cfmws->interleave_targets[i];
+
 		flags = cfmws_to_decoder_flags(cfmws->restrictions);
 		cxld = devm_cxl_add_decoder(dev, root_port,
 					    CFMWS_INTERLEAVE_WAYS(cfmws),
@@ -115,7 +126,7 @@ static void cxl_add_cfmws_decoders(struct device *dev,
 					    CFMWS_INTERLEAVE_WAYS(cfmws),
 					    CFMWS_INTERLEAVE_GRANULARITY(cfmws),
 					    CXL_DECODER_EXPANDER,
-					    flags);
+					    flags, target_map);
 
 		if (IS_ERR(cxld)) {
 			dev_err(dev, "Failed to add decoder for %#llx-%#llx\n",

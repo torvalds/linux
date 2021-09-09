@@ -180,6 +180,12 @@ enum cxl_decoder_type {
        CXL_DECODER_EXPANDER = 3,
 };
 
+/*
+ * Current specification goes up to 8, double that seems a reasonable
+ * software max for the foreseeable future
+ */
+#define CXL_DECODER_MAX_INTERLEAVE 16
+
 /**
  * struct cxl_decoder - CXL address range decode configuration
  * @dev: this decoder's device
@@ -284,22 +290,11 @@ struct cxl_decoder *
 devm_cxl_add_decoder(struct device *host, struct cxl_port *port, int nr_targets,
 		     resource_size_t base, resource_size_t len,
 		     int interleave_ways, int interleave_granularity,
-		     enum cxl_decoder_type type, unsigned long flags);
+		     enum cxl_decoder_type type, unsigned long flags,
+		     int *target_map);
 
-/*
- * Per the CXL specification (8.2.5.12 CXL HDM Decoder Capability Structure)
- * single ported host-bridges need not publish a decoder capability when a
- * passthrough decode can be assumed, i.e. all transactions that the uport sees
- * are claimed and passed to the single dport. Default the range a 0-base
- * 0-length until the first CXL region is activated.
- */
-static inline struct cxl_decoder *
-devm_cxl_add_passthrough_decoder(struct device *host, struct cxl_port *port)
-{
-	return devm_cxl_add_decoder(host, port, 1, 0, 0, 1, PAGE_SIZE,
-				    CXL_DECODER_EXPANDER, 0);
-}
-
+struct cxl_decoder *devm_cxl_add_passthrough_decoder(struct device *host,
+						     struct cxl_port *port);
 extern struct bus_type cxl_bus_type;
 
 struct cxl_driver {

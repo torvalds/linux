@@ -453,11 +453,38 @@ err:
 }
 EXPORT_SYMBOL_GPL(cxl_add_dport);
 
+static int decoder_populate_targets(struct device *host,
+				    struct cxl_decoder *cxld,
+				    struct cxl_port *port, int *target_map,
+				    int nr_targets)
+{
+	int rc = 0, i;
+
+	if (!target_map)
+		return 0;
+
+	device_lock(&port->dev);
+	for (i = 0; i < nr_targets; i++) {
+		struct cxl_dport *dport = find_dport(port, target_map[i]);
+
+		if (!dport) {
+			rc = -ENXIO;
+			break;
+		}
+		dev_dbg(host, "%s: target: %d\n", dev_name(dport->dport), i);
+		cxld->target[i] = dport;
+	}
+	device_unlock(&port->dev);
+
+	return rc;
+}
+
 static struct cxl_decoder *
-cxl_decoder_alloc(struct cxl_port *port, int nr_targets, resource_size_t base,
-		  resource_size_t len, int interleave_ways,
-		  int interleave_granularity, enum cxl_decoder_type type,
-		  unsigned long flags)
+cxl_decoder_alloc(struct device *host, struct cxl_port *port, int nr_targets,
+		  resource_size_t base, resource_size_t len,
+		  int interleave_ways, int interleave_granularity,
+		  enum cxl_decoder_type type, unsigned long flags,
+		  int *target_map)
 {
 	struct cxl_decoder *cxld;
 	struct device *dev;
@@ -493,10 +520,10 @@ cxl_decoder_alloc(struct cxl_port *port, int nr_targets, resource_size_t base,
 		.target_type = type,
 	};
 
-	/* handle implied target_list */
-	if (interleave_ways == 1)
-		cxld->target[0] =
-			list_first_entry(&port->dports, struct cxl_dport, list);
+	rc = decoder_populate_targets(host, cxld, port, target_map, nr_targets);
+	if (rc)
+		goto err;
+
 	dev = &cxld->dev;
 	device_initialize(dev);
 	device_set_pm_not_required(dev);
@@ -519,14 +546,19 @@ struct cxl_decoder *
 devm_cxl_add_decoder(struct device *host, struct cxl_port *port, int nr_targets,
 		     resource_size_t base, resource_size_t len,
 		     int interleave_ways, int interleave_granularity,
-		     enum cxl_decoder_type type, unsigned long flags)
+		     enum cxl_decoder_type type, unsigned long flags,
+		     int *target_map)
 {
 	struct cxl_decoder *cxld;
 	struct device *dev;
 	int rc;
 
-	cxld = cxl_decoder_alloc(port, nr_targets, base, len, interleave_ways,
-				 interleave_granularity, type, flags);
+	if (nr_targets > CXL_DECODER_MAX_INTERLEAVE)
+		return ERR_PTR(-EINVAL);
+
+	cxld = cxl_decoder_alloc(host, port, nr_targets, base, len,
+				 interleave_ways, interleave_granularity, type,
+				 flags, target_map);
 	if (IS_ERR(cxld))
 		return cxld;
 
@@ -549,6 +581,32 @@ err:
 	return ERR_PTR(rc);
 }
 EXPORT_SYMBOL_GPL(devm_cxl_add_decoder);
+
+/*
+ * Per the CXL specification (8.2.5.12 CXL HDM Decoder Capability Structure)
+ * single ported host-bridges need not publish a decoder capability when a
+ * passthrough decode can be assumed, i.e. all transactions that the uport sees
+ * are claimed and passed to the single dport. Default the range a 0-base
+ * 0-length until the first CXL region is activated.
+ */
+struct cxl_decoder *devm_cxl_add_passthrough_decoder(struct device *host,
+						     struct cxl_port *port)
+{
+	struct cxl_dport *dport;
+	int target_map[1];
+
+	device_lock(&port->dev);
+	dport = list_first_entry_or_null(&port->dports, typeof(*dport), list);
+	device_unlock(&port->dev);
+
+	if (!dport)
+		return ERR_PTR(-ENXIO);
+
+	target_map[0] = dport->port_id;
+	return devm_cxl_add_decoder(host, port, 1, 0, 0, 1, PAGE_SIZE,
+				    CXL_DECODER_EXPANDER, 0, target_map);
+}
+EXPORT_SYMBOL_GPL(devm_cxl_add_passthrough_decoder);
 
 /**
  * __cxl_driver_register - register a driver for the cxl bus
