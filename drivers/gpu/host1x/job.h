@@ -35,11 +35,7 @@ struct host1x_job_cmd {
 };
 
 struct host1x_job_unpin_data {
-	struct host1x_bo *bo;
-	struct sg_table *sgt;
-	struct device *dev;
-	size_t size;
-	enum dma_data_direction dir;
+	struct host1x_bo_mapping *map;
 };
 
 /*

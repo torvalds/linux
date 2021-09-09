@@ -7,6 +7,7 @@
 #define __LINUX_HOST1X_H
 
 #include <linux/device.h>
+#include <linux/dma-direction.h>
 #include <linux/types.h>
 
 enum host1x_class {
@@ -82,12 +83,23 @@ struct host1x_client {
 struct host1x_bo;
 struct sg_table;
 
+struct host1x_bo_mapping {
+	struct dma_buf_attachment *attach;
+	enum dma_data_direction direction;
+	struct host1x_bo *bo;
+	struct sg_table *sgt;
+	unsigned int chunks;
+	struct device *dev;
+	dma_addr_t phys;
+	size_t size;
+};
+
 struct host1x_bo_ops {
 	struct host1x_bo *(*get)(struct host1x_bo *bo);
 	void (*put)(struct host1x_bo *bo);
-	struct sg_table *(*pin)(struct device *dev, struct host1x_bo *bo,
-				dma_addr_t *phys);
-	void (*unpin)(struct device *dev, struct sg_table *sgt);
+	struct host1x_bo_mapping *(*pin)(struct device *dev, struct host1x_bo *bo,
+					 enum dma_data_direction dir);
+	void (*unpin)(struct host1x_bo_mapping *map);
 	void *(*mmap)(struct host1x_bo *bo);
 	void (*munmap)(struct host1x_bo *bo, void *addr);
 };
@@ -112,17 +124,15 @@ static inline void host1x_bo_put(struct host1x_bo *bo)
 	bo->ops->put(bo);
 }
 
-static inline struct sg_table *host1x_bo_pin(struct device *dev,
-					     struct host1x_bo *bo,
-					     dma_addr_t *phys)
+static inline struct host1x_bo_mapping *host1x_bo_pin(struct device *dev, struct host1x_bo *bo,
+						      enum dma_data_direction dir)
 {
-	return bo->ops->pin(dev, bo, phys);
+	return bo->ops->pin(dev, bo, dir);
 }
 
-static inline void host1x_bo_unpin(struct device *dev, struct host1x_bo *bo,
-				   struct sg_table *sgt)
+static inline void host1x_bo_unpin(struct host1x_bo_mapping *map)
 {
-	bo->ops->unpin(dev, sgt);
+	map->bo->ops->unpin(map);
 }
 
 static inline void *host1x_bo_mmap(struct host1x_bo *bo)
