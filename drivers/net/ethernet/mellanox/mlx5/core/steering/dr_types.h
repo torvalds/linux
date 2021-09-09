@@ -762,6 +762,11 @@ struct mlx5dr_roce_cap {
 	u8 fl_rc_qp_when_roce_enabled:1;
 };
 
+struct mlx5dr_vports {
+	struct mlx5dr_cmd_vport_cap esw_manager_caps;
+	struct xarray vports_caps_xa;
+};
+
 struct mlx5dr_cmd_caps {
 	u16 gvmi;
 	u64 nic_rx_drop_address;
@@ -785,7 +790,6 @@ struct mlx5dr_cmd_caps {
 	u8 flex_parser_id_gtpu_first_ext_dw_0;
 	u8 max_ft_level;
 	u16 roce_min_src_udp;
-	u8 num_esw_ports;
 	u8 sw_format_ver;
 	bool eswitch_manager;
 	bool rx_sw_owner;
@@ -794,10 +798,8 @@ struct mlx5dr_cmd_caps {
 	u8 rx_sw_owner_v2:1;
 	u8 tx_sw_owner_v2:1;
 	u8 fdb_sw_owner_v2:1;
-	u32 num_vports;
 	struct mlx5dr_esw_caps esw_caps;
-	struct mlx5dr_cmd_vport_cap *vports_caps;
-	struct mlx5dr_cmd_vport_cap esw_manager_vport_caps;
+	struct mlx5dr_vports vports;
 	bool prio_tag_required;
 	struct mlx5dr_roce_cap roce_caps;
 	u8 is_ecpf:1;
@@ -1099,21 +1101,8 @@ mlx5dr_ste_htbl_may_grow(struct mlx5dr_ste_htbl *htbl)
 	return true;
 }
 
-static inline struct mlx5dr_cmd_vport_cap *
-mlx5dr_get_vport_cap(struct mlx5dr_cmd_caps *caps, u16 vport)
-{
-	if (caps->is_ecpf && vport == MLX5_VPORT_ECPF)
-		return &caps->esw_manager_vport_caps;
-
-	if (!caps->vports_caps ||
-	    (vport >= caps->num_vports && vport != MLX5_VPORT_UPLINK))
-		return NULL;
-
-	if (vport == MLX5_VPORT_UPLINK)
-		vport = caps->num_vports;
-
-	return &caps->vports_caps[vport];
-}
+struct mlx5dr_cmd_vport_cap *
+mlx5dr_domain_get_vport_cap(struct mlx5dr_domain *dmn, u16 vport);
 
 struct mlx5dr_cmd_query_flow_table_details {
 	u8 status;

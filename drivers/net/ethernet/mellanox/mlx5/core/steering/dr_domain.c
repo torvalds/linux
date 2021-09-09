@@ -121,6 +121,18 @@ static void dr_domain_uninit_resources(struct mlx5dr_domain *dmn)
 	mlx5_core_dealloc_pd(dmn->mdev, dmn->pdn);
 }
 
+static void dr_domain_fill_uplink_caps(struct mlx5dr_domain *dmn,
+				       struct mlx5dr_cmd_vport_cap *uplink_vport)
+{
+	struct mlx5dr_esw_caps *esw_caps = &dmn->info.caps.esw_caps;
+
+	uplink_vport->num = MLX5_VPORT_UPLINK;
+	uplink_vport->icm_address_rx = esw_caps->uplink_icm_address_rx;
+	uplink_vport->icm_address_tx = esw_caps->uplink_icm_address_tx;
+	uplink_vport->vport_gvmi = 0;
+	uplink_vport->vhca_gvmi = dmn->info.caps.gvmi;
+}
+
 static int dr_domain_query_vport(struct mlx5dr_domain *dmn,
 				 u16 vport_number,
 				 struct mlx5dr_cmd_vport_cap *vport_caps)
@@ -128,6 +140,11 @@ static int dr_domain_query_vport(struct mlx5dr_domain *dmn,
 	u16 cmd_vport = vport_number;
 	bool other_vport = true;
 	int ret;
+
+	if (vport_number == MLX5_VPORT_UPLINK) {
+		dr_domain_fill_uplink_caps(dmn, vport_caps);
+		return 0;
+	}
 
 	if (dmn->info.caps.is_ecpf && vport_number == MLX5_VPORT_ECPF) {
 		other_vport = false;
@@ -159,36 +176,78 @@ static int dr_domain_query_esw_mngr(struct mlx5dr_domain *dmn)
 {
 	return dr_domain_query_vport(dmn,
 				     dmn->info.caps.is_ecpf ? MLX5_VPORT_ECPF : 0,
-				     &dmn->info.caps.esw_manager_vport_caps);
+				     &dmn->info.caps.vports.esw_manager_caps);
 }
 
-static int dr_domain_query_vports(struct mlx5dr_domain *dmn)
+static struct mlx5dr_cmd_vport_cap *
+dr_domain_add_vport_cap(struct mlx5dr_domain *dmn, u16 vport)
 {
-	struct mlx5dr_esw_caps *esw_caps = &dmn->info.caps.esw_caps;
-	struct mlx5dr_cmd_vport_cap *wire_vport;
-	int vport;
+	struct mlx5dr_cmd_caps *caps = &dmn->info.caps;
+	struct mlx5dr_cmd_vport_cap *vport_caps;
 	int ret;
 
-	ret = dr_domain_query_esw_mngr(dmn);
-	if (ret)
-		return ret;
+	vport_caps = kvzalloc(sizeof(*vport_caps), GFP_KERNEL);
+	if (!vport_caps)
+		return NULL;
 
-	/* Query vports (except wire vport) */
-	for (vport = 0; vport < dmn->info.caps.num_esw_ports - 1; vport++) {
-		ret = dr_domain_query_vport(dmn,
-					    vport,
-					    &dmn->info.caps.vports_caps[vport]);
-		if (ret)
-			return ret;
+	ret = dr_domain_query_vport(dmn, vport, vport_caps);
+	if (ret) {
+		kvfree(vport_caps);
+		return NULL;
 	}
 
-	/* Last vport is the wire port */
-	wire_vport = &dmn->info.caps.vports_caps[vport];
-	wire_vport->num = MLX5_VPORT_UPLINK;
-	wire_vport->icm_address_rx = esw_caps->uplink_icm_address_rx;
-	wire_vport->icm_address_tx = esw_caps->uplink_icm_address_tx;
-	wire_vport->vport_gvmi = 0;
-	wire_vport->vhca_gvmi = dmn->info.caps.gvmi;
+	ret = xa_insert(&caps->vports.vports_caps_xa, vport,
+			vport_caps, GFP_KERNEL);
+	if (ret) {
+		mlx5dr_dbg(dmn, "Couldn't insert new vport into xarray (%d)\n", ret);
+		kvfree(vport_caps);
+		return ERR_PTR(ret);
+	}
+
+	return vport_caps;
+}
+
+struct mlx5dr_cmd_vport_cap *
+mlx5dr_domain_get_vport_cap(struct mlx5dr_domain *dmn, u16 vport)
+{
+	struct mlx5dr_cmd_caps *caps = &dmn->info.caps;
+	struct mlx5dr_cmd_vport_cap *vport_caps;
+
+	if ((caps->is_ecpf && vport == MLX5_VPORT_ECPF) ||
+	    (!caps->is_ecpf && vport == 0))
+		return &caps->vports.esw_manager_caps;
+
+vport_load:
+	vport_caps = xa_load(&caps->vports.vports_caps_xa, vport);
+	if (vport_caps)
+		return vport_caps;
+
+	vport_caps = dr_domain_add_vport_cap(dmn, vport);
+	if (PTR_ERR(vport_caps) == -EBUSY)
+		/* caps were already stored by another thread */
+		goto vport_load;
+
+	return vport_caps;
+}
+
+static void dr_domain_clear_vports(struct mlx5dr_domain *dmn)
+{
+	struct mlx5dr_cmd_vport_cap *vport_caps;
+	unsigned long i;
+
+	xa_for_each(&dmn->info.caps.vports.vports_caps_xa, i, vport_caps) {
+		vport_caps = xa_erase(&dmn->info.caps.vports.vports_caps_xa, i);
+		kvfree(vport_caps);
+	}
+}
+
+static int dr_domain_query_uplink(struct mlx5dr_domain *dmn)
+{
+	struct mlx5dr_cmd_vport_cap *vport_caps;
+
+	vport_caps = mlx5dr_domain_get_vport_cap(dmn, MLX5_VPORT_UPLINK);
+	if (!vport_caps)
+		return -EINVAL;
 
 	return 0;
 }
@@ -210,25 +269,29 @@ static int dr_domain_query_fdb_caps(struct mlx5_core_dev *mdev,
 	dmn->info.caps.esw_rx_drop_address = dmn->info.caps.esw_caps.drop_icm_address_rx;
 	dmn->info.caps.esw_tx_drop_address = dmn->info.caps.esw_caps.drop_icm_address_tx;
 
-	dmn->info.caps.vports_caps = kcalloc(dmn->info.caps.num_esw_ports,
-					     sizeof(dmn->info.caps.vports_caps[0]),
-					     GFP_KERNEL);
-	if (!dmn->info.caps.vports_caps)
-		return -ENOMEM;
+	xa_init(&dmn->info.caps.vports.vports_caps_xa);
 
-	ret = dr_domain_query_vports(dmn);
+	/* Query eswitch manager and uplink vports only. Rest of the
+	 * vports (vport 0, VFs and SFs) will be queried dynamically.
+	 */
+
+	ret = dr_domain_query_esw_mngr(dmn);
 	if (ret) {
-		mlx5dr_err(dmn, "Failed to query vports caps (err: %d)", ret);
-		goto free_vports_caps;
+		mlx5dr_err(dmn, "Failed to query eswitch manager vport caps (err: %d)", ret);
+		goto free_vports_caps_xa;
 	}
 
-	dmn->info.caps.num_vports = dmn->info.caps.num_esw_ports - 1;
+	ret = dr_domain_query_uplink(dmn);
+	if (ret) {
+		mlx5dr_err(dmn, "Failed to query uplink vport caps (err: %d)", ret);
+		goto free_vports_caps_xa;
+	}
 
 	return 0;
 
-free_vports_caps:
-	kfree(dmn->info.caps.vports_caps);
-	dmn->info.caps.vports_caps = NULL;
+free_vports_caps_xa:
+	xa_destroy(&dmn->info.caps.vports.vports_caps_xa);
+
 	return ret;
 }
 
@@ -242,8 +305,6 @@ static int dr_domain_caps_init(struct mlx5_core_dev *mdev,
 		mlx5dr_err(dmn, "Failed to allocate domain, bad link type\n");
 		return -EOPNOTSUPP;
 	}
-
-	dmn->info.caps.num_esw_ports = mlx5_eswitch_get_total_vports(mdev);
 
 	ret = mlx5dr_cmd_query_device(mdev, &dmn->info.caps);
 	if (ret)
@@ -281,7 +342,7 @@ static int dr_domain_caps_init(struct mlx5_core_dev *mdev,
 
 		dmn->info.rx.type = DR_DOMAIN_NIC_TYPE_RX;
 		dmn->info.tx.type = DR_DOMAIN_NIC_TYPE_TX;
-		vport_cap = &dmn->info.caps.esw_manager_vport_caps;
+		vport_cap = &dmn->info.caps.vports.esw_manager_caps;
 
 		dmn->info.supp_sw_steering = true;
 		dmn->info.tx.default_icm_addr = vport_cap->icm_address_tx;
@@ -300,7 +361,8 @@ static int dr_domain_caps_init(struct mlx5_core_dev *mdev,
 
 static void dr_domain_caps_uninit(struct mlx5dr_domain *dmn)
 {
-	kfree(dmn->info.caps.vports_caps);
+	dr_domain_clear_vports(dmn);
+	xa_destroy(&dmn->info.caps.vports.vports_caps_xa);
 }
 
 struct mlx5dr_domain *
