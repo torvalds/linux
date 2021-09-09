@@ -1714,6 +1714,9 @@ static void mlx5_vdpa_set_vq_ready(struct vdpa_device *vdev, u16 idx, bool ready
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
 	struct mlx5_vdpa_virtqueue *mvq;
 
+	if (!mvdev->actual_features)
+		return;
+
 	if (!is_index_valid(mvdev, idx))
 		return;
 
