@@ -78,6 +78,28 @@
 		};
 	};
 
+	keyboard-leds {
+		compatible = "gpio-leds";
+
+		backlight {
+			color = <LED_COLOR_ID_WHITE>;
+			default-state = "off";
+			function = LED_FUNCTION_KBD_BACKLIGHT;
+			gpios = <&tlmm 16 GPIO_ACTIVE_HIGH>;
+			label = "white:kbd_backlight";
+			retain-state-suspended;
+		};
+
+		caps-lock {
+			color = <LED_COLOR_ID_YELLOW>;
+			default-state = "off";
+			function = LED_FUNCTION_CAPSLOCK;
+			gpios = <&tlmm 26 GPIO_ACTIVE_HIGH>;
+			label = "yellow:capslock";
+			linux,default-trigger = "kbd-capslock";
+		};
+	};
+
 	reserved-memory {
 		cont_splash_mem: memory@9d400000 {
 			reg = <0x0 0x9d400000 0x0 0x2000000>;
