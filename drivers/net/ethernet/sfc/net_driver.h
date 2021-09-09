@@ -785,7 +785,7 @@ struct efx_async_filter_insertion {
 enum efx_xdp_tx_queues_mode {
 	EFX_XDP_TX_QUEUES_DEDICATED,	/* one queue per core, locking not needed */
 	EFX_XDP_TX_QUEUES_SHARED,	/* each queue used by more than 1 core */
-	EFX_XDP_TX_QUEUES_DISABLED	/* xdp tx not available */
+	EFX_XDP_TX_QUEUES_BORROWED	/* queues borrowed from net stack */
 };
 
 /**
