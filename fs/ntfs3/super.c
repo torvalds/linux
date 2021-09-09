@@ -875,7 +875,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	int err;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	struct block_device *bdev = sb->s_bdev;
-	struct request_queue *rq = bdev_get_queue(bdev);
+	struct request_queue *rq;
 	struct inode *inode;
 	struct ntfs_inode *ni;
 	size_t i, tt;
@@ -904,9 +904,8 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		return -EINVAL;
 	}
 
-	if (!rq || !blk_queue_discard(rq) || !rq->limits.discard_granularity) {
-		;
-	} else {
+	rq = bdev_get_queue(bdev);
+	if (blk_queue_discard(rq) && rq->limits.discard_granularity) {
 		sbi->discard_granularity = rq->limits.discard_granularity;
 		sbi->discard_granularity_mask_inv =
 			~(u64)(sbi->discard_granularity - 1);
