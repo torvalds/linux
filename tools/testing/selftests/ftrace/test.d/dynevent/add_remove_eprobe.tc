@@ -22,7 +22,7 @@ ls
 echo 0 > events/eprobes/$EPROBE/enable
 
 content=`grep '^ *ls-' trace | grep 'file='`
-nocontent=`grep '^ *ls-' trace | grep 'file=' | grep -v -e '"/' -e '"."'` || true
+nocontent=`grep '^ *ls-' trace | grep 'file=' | grep -v -e '"/' -e '"."' -e '(fault)' ` || true
 
 if [ -z "$content" ]; then
 	exit_fail
