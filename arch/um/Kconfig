@@ -24,6 +24,7 @@ config UML
 	select SET_FS
 	select TRACE_IRQFLAGS_SUPPORT
 	select TTY # Needed for line.c
+	select HAVE_ARCH_VMAP_STACK
 
 config MMU
 	bool
