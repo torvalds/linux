@@ -432,6 +432,13 @@ static int wcn36xx_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_PS)
 		wcn36xx_change_ps(wcn, hw->conf.flags & IEEE80211_CONF_PS);
 
+	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
+		if (hw->conf.flags & IEEE80211_CONF_IDLE)
+			wcn36xx_smd_enter_imps(wcn);
+		else
+			wcn36xx_smd_exit_imps(wcn);
+	}
+
 	mutex_unlock(&wcn->conf_mutex);
 
 	return 0;
