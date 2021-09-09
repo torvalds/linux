@@ -1,23 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * This contains encryption functions for per-file encryption.
+ * Utility functions for file contents encryption/decryption on
+ * block device-based filesystems.
  *
  * Copyright (C) 2015, Google, Inc.
  * Copyright (C) 2015, Motorola Mobility
- *
- * Written by Michael Halcrow, 2014.
- *
- * Filename encryption additions
- *	Uday Savagaonkar, 2014
- * Encryption policy handling additions
- *	Ildar Muslukhov, 2014
- * Add fscrypt_pullback_bio_page()
- *	Jaegeuk Kim, 2015.
- *
- * This has not yet undergone a rigorous security audit.
- *
- * The usage of AES-XTS should conform to recommendations in NIST
- * Special Publication 800-38E and IEEE P1619/D16.
  */
 
 #include <linux/pagemap.h>
@@ -26,6 +13,21 @@
 #include <linux/namei.h>
 #include "fscrypt_private.h"
 
+/**
+ * fscrypt_decrypt_bio() - decrypt the contents of a bio
+ * @bio: the bio to decrypt
+ *
+ * Decrypt the contents of a "read" bio following successful completion of the
+ * underlying disk read.  The bio must be reading a whole number of blocks of an
+ * encrypted file directly into the page cache.  If the bio is reading the
+ * ciphertext into bounce pages instead of the page cache (for example, because
+ * the file is also compressed, so decompression is required after decryption),
+ * then this function isn't applicable.  This function may sleep, so it must be
+ * called from a workqueue rather than from the bio's bi_end_io callback.
+ *
+ * This function sets PG_error on any pages that contain any blocks that failed
+ * to be decrypted.  The filesystem must not mark such pages uptodate.
+ */
 void fscrypt_decrypt_bio(struct bio *bio)
 {
 	struct bio_vec *bv;
