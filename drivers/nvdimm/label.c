@@ -321,7 +321,8 @@ static bool preamble_index(struct nvdimm_drvdata *ndd, int idx,
 	return true;
 }
 
-char *nd_label_gen_id(struct nd_label_id *label_id, u8 *uuid, u32 flags)
+char *nd_label_gen_id(struct nd_label_id *label_id, const uuid_t *uuid,
+		      u32 flags)
 {
 	if (!label_id || !uuid)
 		return NULL;
@@ -400,9 +401,9 @@ int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd)
 		struct nvdimm *nvdimm = to_nvdimm(ndd->dev);
 		struct nd_namespace_label *nd_label;
 		struct nd_region *nd_region = NULL;
-		u8 label_uuid[NSLABEL_UUID_LEN];
 		struct nd_label_id label_id;
 		struct resource *res;
+		uuid_t label_uuid;
 		u32 flags;
 
 		nd_label = to_label(ndd, slot);
@@ -410,11 +411,11 @@ int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd)
 		if (!slot_valid(ndd, nd_label, slot))
 			continue;
 
-		memcpy(label_uuid, nd_label->uuid, NSLABEL_UUID_LEN);
+		nsl_get_uuid(ndd, nd_label, &label_uuid);
 		flags = nsl_get_flags(ndd, nd_label);
 		if (test_bit(NDD_NOBLK, &nvdimm->flags))
 			flags &= ~NSLABEL_FLAG_LOCAL;
-		nd_label_gen_id(&label_id, label_uuid, flags);
+		nd_label_gen_id(&label_id, &label_uuid, flags);
 		res = nvdimm_allocate_dpa(ndd, &label_id,
 					  nsl_get_dpa(ndd, nd_label),
 					  nsl_get_rawsize(ndd, nd_label));
@@ -851,7 +852,7 @@ static int __pmem_label_update(struct nd_region *nd_region,
 
 	nd_label = to_label(ndd, slot);
 	memset(nd_label, 0, sizeof_namespace_label(ndd));
-	memcpy(nd_label->uuid, nspm->uuid, NSLABEL_UUID_LEN);
+	nsl_set_uuid(ndd, nd_label, nspm->uuid);
 	nsl_set_name(ndd, nd_label, nspm->alt_name);
 	nsl_set_flags(ndd, nd_label, flags);
 	nsl_set_nlabel(ndd, nd_label, nd_region->ndr_mappings);
@@ -878,9 +879,8 @@ static int __pmem_label_update(struct nd_region *nd_region,
 	list_for_each_entry(label_ent, &nd_mapping->labels, list) {
 		if (!label_ent->label)
 			continue;
-		if (test_and_clear_bit(ND_LABEL_REAP, &label_ent->flags)
-				|| memcmp(nspm->uuid, label_ent->label->uuid,
-					NSLABEL_UUID_LEN) == 0)
+		if (test_and_clear_bit(ND_LABEL_REAP, &label_ent->flags) ||
+		    nsl_uuid_equal(ndd, label_ent->label, nspm->uuid))
 			reap_victim(nd_mapping, label_ent);
 	}
 
@@ -1005,7 +1005,6 @@ static int __blk_label_update(struct nd_region *nd_region,
 	unsigned long *free, *victim_map = NULL;
 	struct resource *res, **old_res_list;
 	struct nd_label_id label_id;
-	u8 uuid[NSLABEL_UUID_LEN];
 	int min_dpa_idx = 0;
 	LIST_HEAD(list);
 	u32 nslot, slot;
@@ -1043,8 +1042,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 		/* mark unused labels for garbage collection */
 		for_each_clear_bit_le(slot, free, nslot) {
 			nd_label = to_label(ndd, slot);
-			memcpy(uuid, nd_label->uuid, NSLABEL_UUID_LEN);
-			if (memcmp(uuid, nsblk->uuid, NSLABEL_UUID_LEN) != 0)
+			if (!nsl_uuid_equal(ndd, nd_label, nsblk->uuid))
 				continue;
 			res = to_resource(ndd, nd_label);
 			if (res && is_old_resource(res, old_res_list,
@@ -1113,7 +1111,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 
 		nd_label = to_label(ndd, slot);
 		memset(nd_label, 0, sizeof_namespace_label(ndd));
-		memcpy(nd_label->uuid, nsblk->uuid, NSLABEL_UUID_LEN);
+		nsl_set_uuid(ndd, nd_label, nsblk->uuid);
 		nsl_set_name(ndd, nd_label, nsblk->alt_name);
 		nsl_set_flags(ndd, nd_label, NSLABEL_FLAG_LOCAL);
 
@@ -1161,8 +1159,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 		if (!nd_label)
 			continue;
 		nlabel++;
-		memcpy(uuid, nd_label->uuid, NSLABEL_UUID_LEN);
-		if (memcmp(uuid, nsblk->uuid, NSLABEL_UUID_LEN) != 0)
+		if (!nsl_uuid_equal(ndd, nd_label, nsblk->uuid))
 			continue;
 		nlabel--;
 		list_move(&label_ent->list, &list);
@@ -1192,8 +1189,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 	}
 	for_each_clear_bit_le(slot, free, nslot) {
 		nd_label = to_label(ndd, slot);
-		memcpy(uuid, nd_label->uuid, NSLABEL_UUID_LEN);
-		if (memcmp(uuid, nsblk->uuid, NSLABEL_UUID_LEN) != 0)
+		if (!nsl_uuid_equal(ndd, nd_label, nsblk->uuid))
 			continue;
 		res = to_resource(ndd, nd_label);
 		res->flags &= ~DPA_RESOURCE_ADJUSTED;
@@ -1273,12 +1269,11 @@ static int init_labels(struct nd_mapping *nd_mapping, int num_labels)
 	return max(num_labels, old_num_labels);
 }
 
-static int del_labels(struct nd_mapping *nd_mapping, u8 *uuid)
+static int del_labels(struct nd_mapping *nd_mapping, uuid_t *uuid)
 {
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 	struct nd_label_ent *label_ent, *e;
 	struct nd_namespace_index *nsindex;
-	u8 label_uuid[NSLABEL_UUID_LEN];
 	unsigned long *free;
 	LIST_HEAD(list);
 	u32 nslot, slot;
@@ -1298,8 +1293,7 @@ static int del_labels(struct nd_mapping *nd_mapping, u8 *uuid)
 		if (!nd_label)
 			continue;
 		active++;
-		memcpy(label_uuid, nd_label->uuid, NSLABEL_UUID_LEN);
-		if (memcmp(label_uuid, uuid, NSLABEL_UUID_LEN) != 0)
+		if (!nsl_uuid_equal(ndd, nd_label, uuid))
 			continue;
 		active--;
 		slot = to_slot(ndd, nd_label);
