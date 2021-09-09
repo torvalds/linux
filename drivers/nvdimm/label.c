@@ -856,6 +856,7 @@ static int __pmem_label_update(struct nd_region *nd_region,
 	nsl_set_name(ndd, nd_label, nspm->alt_name);
 	nsl_set_flags(ndd, nd_label, flags);
 	nsl_set_nlabel(ndd, nd_label, nd_region->ndr_mappings);
+	nsl_set_nrange(ndd, nd_label, 1);
 	nsl_set_position(ndd, nd_label, pos);
 	nsl_set_isetcookie(ndd, nd_label, cookie);
 	nsl_set_rawsize(ndd, nd_label, resource_size(res));

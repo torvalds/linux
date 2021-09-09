@@ -164,6 +164,19 @@ static inline void nsl_set_nlabel(struct nvdimm_drvdata *ndd,
 	nd_label->nlabel = __cpu_to_le16(nlabel);
 }
 
+static inline u16 nsl_get_nrange(struct nvdimm_drvdata *ndd,
+				 struct nd_namespace_label *nd_label)
+{
+	/* EFI labels do not have an nrange field */
+	return 1;
+}
+
+static inline void nsl_set_nrange(struct nvdimm_drvdata *ndd,
+				  struct nd_namespace_label *nd_label,
+				  u16 nrange)
+{
+}
+
 static inline u64 nsl_get_lbasize(struct nvdimm_drvdata *ndd,
 				  struct nd_namespace_label *nd_label)
 {
