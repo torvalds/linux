@@ -498,6 +498,8 @@ GuC
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.c
    :doc: GuC
 
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.h
+
 GuC Firmware Layout
 ~~~~~~~~~~~~~~~~~~~
 

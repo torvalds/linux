@@ -22,74 +22,121 @@
 
 struct __guc_ads_blob;
 
-/*
- * Top level structure of GuC. It handles firmware loading and manages client
- * pool. intel_guc owns a intel_guc_client to replace the legacy ExecList
- * submission.
+/**
+ * struct intel_guc - Top level structure of GuC.
+ *
+ * It handles firmware loading and manages client pool. intel_guc owns an
+ * i915_sched_engine for submission.
  */
 struct intel_guc {
+	/** @fw: the GuC firmware */
 	struct intel_uc_fw fw;
+	/** @log: sub-structure containing GuC log related data and objects */
 	struct intel_guc_log log;
+	/** @ct: the command transport communication channel */
 	struct intel_guc_ct ct;
+	/** @slpc: sub-structure containing SLPC related data and objects */
 	struct intel_guc_slpc slpc;
 
-	/* Global engine used to submit requests to GuC */
+	/** @sched_engine: Global engine used to submit requests to GuC */
 	struct i915_sched_engine *sched_engine;
+	/**
+	 * @stalled_request: if GuC can't process a request for any reason, we
+	 * save it until GuC restarts processing. No other request can be
+	 * submitted until the stalled request is processed.
+	 */
 	struct i915_request *stalled_request;
 
 	/* intel_guc_recv interrupt related state */
+	/** @irq_lock: protects GuC irq state */
 	spinlock_t irq_lock;
+	/**
+	 * @msg_enabled_mask: mask of events that are processed when receiving
+	 * an INTEL_GUC_ACTION_DEFAULT G2H message.
+	 */
 	unsigned int msg_enabled_mask;
 
+	/**
+	 * @outstanding_submission_g2h: number of outstanding GuC to Host
+	 * responses related to GuC submission, used to determine if the GT is
+	 * idle
+	 */
 	atomic_t outstanding_submission_g2h;
 
+	/** @interrupts: pointers to GuC interrupt-managing functions. */
 	struct {
 		void (*reset)(struct intel_guc *guc);
 		void (*enable)(struct intel_guc *guc);
 		void (*disable)(struct intel_guc *guc);
 	} interrupts;
 
-	/*
-	 * contexts_lock protects the pool of free guc ids and a linked list of
-	 * guc ids available to be stolen
+	/**
+	 * @contexts_lock: protects guc_ids, guc_id_list, ce->guc_id.id, and
+	 * ce->guc_id.ref when transitioning in and out of zero
 	 */
 	spinlock_t contexts_lock;
+	/** @guc_ids: used to allocate unique ce->guc_id.id values */
 	struct ida guc_ids;
+	/**
+	 * @guc_id_list: list of intel_context with valid guc_ids but no refs
+	 */
 	struct list_head guc_id_list;
 
+	/**
+	 * @submission_supported: tracks whether we support GuC submission on
+	 * the current platform
+	 */
 	bool submission_supported;
+	/** @submission_selected: tracks whether the user enabled GuC submission */
 	bool submission_selected;
+	/**
+	 * @rc_supported: tracks whether we support GuC rc on the current platform
+	 */
 	bool rc_supported;
+	/** @rc_selected: tracks whether the user enabled GuC rc */
 	bool rc_selected;
 
+	/** @ads_vma: object allocated to hold the GuC ADS */
 	struct i915_vma *ads_vma;
+	/** @ads_blob: contents of the GuC ADS */
 	struct __guc_ads_blob *ads_blob;
+	/** @ads_regset_size: size of the save/restore regsets in the ADS */
 	u32 ads_regset_size;
+	/** @ads_golden_ctxt_size: size of the golden contexts in the ADS */
 	u32 ads_golden_ctxt_size;
 
+	/** @lrc_desc_pool: object allocated to hold the GuC LRC descriptor pool */
 	struct i915_vma *lrc_desc_pool;
+	/** @lrc_desc_pool_vaddr: contents of the GuC LRC descriptor pool */
 	void *lrc_desc_pool_vaddr;
 
-	/* guc_id to intel_context lookup */
+	/**
+	 * @context_lookup: used to resolve intel_context from guc_id, if a
+	 * context is present in this structure it is registered with the GuC
+	 */
 	struct xarray context_lookup;
 
-	/* Control params for fw initialization */
+	/** @params: Control params for fw initialization */
 	u32 params[GUC_CTL_MAX_DWORDS];
 
-	/* GuC's FW specific registers used in MMIO send */
+	/** @send_regs: GuC's FW specific registers used for sending MMIO H2G */
 	struct {
 		u32 base;
 		unsigned int count;
 		enum forcewake_domains fw_domains;
 	} send_regs;
 
-	/* register used to send interrupts to the GuC FW */
+	/** @notify_reg: register used to send interrupts to the GuC FW */
 	i915_reg_t notify_reg;
 
-	/* Store msg (e.g. log flush) that we see while CTBs are disabled */
+	/**
+	 * @mmio_msg: notification bitmask that the GuC writes in one of its
+	 * registers when the CT channel is disabled, to be processed when the
+	 * channel is back up.
+	 */
 	u32 mmio_msg;
 
-	/* To serialize the intel_guc_send actions */
+	/** @send_mutex: used to serialize the intel_guc_send actions */
 	struct mutex send_mutex;
 };
 

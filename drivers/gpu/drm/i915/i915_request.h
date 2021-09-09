@@ -290,18 +290,23 @@ struct i915_request {
 		struct hrtimer timer;
 	} watchdog;
 
-	/*
-	 * Requests may need to be stalled when using GuC submission waiting for
-	 * certain GuC operations to complete. If that is the case, stalled
-	 * requests are added to a per context list of stalled requests. The
-	 * below list_head is the link in that list.
+	/**
+	 * @guc_fence_link: Requests may need to be stalled when using GuC
+	 * submission waiting for certain GuC operations to complete. If that is
+	 * the case, stalled requests are added to a per context list of stalled
+	 * requests. The below list_head is the link in that list. Protected by
+	 * ce->guc_state.lock.
 	 */
 	struct list_head guc_fence_link;
 
 	/**
-	 * Priority level while the request is inflight. Differs from i915
-	 * scheduler priority. See comment above
-	 * I915_SCHEDULER_CAP_STATIC_PRIORITY_MAP for details.
+	 * @guc_prio: Priority level while the request is in flight. Differs
+	 * from i915 scheduler priority. See comment above
+	 * I915_SCHEDULER_CAP_STATIC_PRIORITY_MAP for details. Protected by
+	 * ce->guc_active.lock. Two special values (GUC_PRIO_INIT and
+	 * GUC_PRIO_FINI) outside the GuC priority range are used to indicate
+	 * if the priority has not been initialized yet or if no more updates
+	 * are possible because the request has completed.
 	 */
 #define	GUC_PRIO_INIT	0xff
 #define	GUC_PRIO_FINI	0xfe
