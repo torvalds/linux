@@ -43,6 +43,62 @@
 		};
 	};
 
+	gpio-kb-extra-keys {
+		compatible = "gpio-keys";
+		input-name = "extra-kb-keys";
+		label = "Keyboard extra keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_kb_pins_extra>;
+
+		home {
+			label = "Home";
+			gpios = <&tlmm 21 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_HOMEPAGE>;
+			debounce-interval = <15>;
+			linux,can-disable;
+		};
+
+		super-l {
+			label = "Super Left";
+			gpios = <&tlmm 32 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_FN>;
+			debounce-interval = <15>;
+			linux,can-disable;
+		};
+
+		super-r {
+			label = "Super Right";
+			gpios = <&tlmm 33 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_FN>;
+			debounce-interval = <15>;
+			linux,can-disable;
+		};
+
+		shift {
+			label = "Shift";
+			gpios = <&tlmm 114 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_RIGHTSHIFT>;
+			debounce-interval = <15>;
+			linux,can-disable;
+		};
+
+		ctrl {
+			label = "Ctrl";
+			gpios = <&tlmm 128 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_LEFTCTRL>;
+			debounce-interval = <15>;
+			linux,can-disable;
+		};
+
+		alt {
+			label = "Alt";
+			gpios = <&tlmm 129 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_LEFTALT>;
+			debounce-interval = <15>;
+			linux,can-disable;
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		input-name = "side-buttons";
@@ -203,6 +259,14 @@
 		function = "mdp_vsync_a";
 		bias-pull-down;
 		drive-strength = <2>;
+	};
+
+	gpio_kb_pins_extra: gpio-kb-pins-extra {
+		pins = "gpio21", "gpio32", "gpio33", "gpio114",
+		       "gpio128", "gpio129";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
 	};
 
 	ts_vio_default: ts-vio-def {
