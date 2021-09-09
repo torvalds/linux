@@ -3208,7 +3208,7 @@ int ni_write_inode(struct inode *inode, int sync, const char *hint)
 					goto out;
 			}
 
-			err = al_update(ni);
+			err = al_update(ni, sync);
 			if (err)
 				goto out;
 		}

@@ -465,7 +465,7 @@ bool al_remove_le(struct ntfs_inode *ni, struct ATTR_LIST_ENTRY *le);
 bool al_delete_le(struct ntfs_inode *ni, enum ATTR_TYPE type, CLST vcn,
 		  const __le16 *name, size_t name_len,
 		  const struct MFT_REF *ref);
-int al_update(struct ntfs_inode *ni);
+int al_update(struct ntfs_inode *ni, int sync);
 static inline size_t al_aligned(size_t size)
 {
 	return (size + 1023) & ~(size_t)1023;
@@ -606,7 +606,7 @@ int ntfs_sb_read(struct super_block *sb, u64 lbo, size_t bytes, void *buffer);
 int ntfs_sb_write(struct super_block *sb, u64 lbo, size_t bytes,
 		  const void *buffer, int wait);
 int ntfs_sb_write_run(struct ntfs_sb_info *sbi, const struct runs_tree *run,
-		      u64 vbo, const void *buf, size_t bytes);
+		      u64 vbo, const void *buf, size_t bytes, int sync);
 struct buffer_head *ntfs_bread_run(struct ntfs_sb_info *sbi,
 				   const struct runs_tree *run, u64 vbo);
 int ntfs_read_run_nb(struct ntfs_sb_info *sbi, const struct runs_tree *run,

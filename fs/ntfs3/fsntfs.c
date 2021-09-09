@@ -1077,7 +1077,7 @@ int ntfs_sb_write(struct super_block *sb, u64 lbo, size_t bytes,
 }
 
 int ntfs_sb_write_run(struct ntfs_sb_info *sbi, const struct runs_tree *run,
-		      u64 vbo, const void *buf, size_t bytes)
+		      u64 vbo, const void *buf, size_t bytes, int sync)
 {
 	struct super_block *sb = sbi->sb;
 	u8 cluster_bits = sbi->cluster_bits;
@@ -1097,7 +1097,7 @@ int ntfs_sb_write_run(struct ntfs_sb_info *sbi, const struct runs_tree *run,
 
 	for (;;) {
 		u32 op = min_t(u64, len, bytes);
-		int err = ntfs_sb_write(sb, lbo, op, buf, 0);
+		int err = ntfs_sb_write(sb, lbo, op, buf, sync);
 
 		if (err)
 			return err;
@@ -2172,7 +2172,7 @@ int ntfs_insert_security(struct ntfs_sb_info *sbi,
 
 	/* Write main SDS bucket. */
 	err = ntfs_sb_write_run(sbi, &ni->file.run, sbi->security.next_off,
-				d_security, aligned_sec_size);
+				d_security, aligned_sec_size, 0);
 
 	if (err)
 		goto out;
@@ -2190,7 +2190,7 @@ int ntfs_insert_security(struct ntfs_sb_info *sbi,
 
 	/* Write copy SDS bucket. */
 	err = ntfs_sb_write_run(sbi, &ni->file.run, mirr_off, d_security,
-				aligned_sec_size);
+				aligned_sec_size, 0);
 	if (err)
 		goto out;
 

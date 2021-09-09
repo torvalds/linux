@@ -287,7 +287,7 @@ int attr_make_nonresident(struct ntfs_inode *ni, struct ATTRIB *attr,
 		if (!rsize) {
 			/* Empty resident -> Non empty nonresident. */
 		} else if (!is_data) {
-			err = ntfs_sb_write_run(sbi, run, 0, data, rsize);
+			err = ntfs_sb_write_run(sbi, run, 0, data, rsize, 0);
 			if (err)
 				goto out2;
 		} else if (!page) {

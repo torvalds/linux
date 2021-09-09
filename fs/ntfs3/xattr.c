@@ -441,7 +441,7 @@ update_ea:
 		/* Delete xattr, ATTR_EA */
 		ni_remove_attr_le(ni, attr, mi, le);
 	} else if (attr->non_res) {
-		err = ntfs_sb_write_run(sbi, &ea_run, 0, ea_all, size);
+		err = ntfs_sb_write_run(sbi, &ea_run, 0, ea_all, size, 0);
 		if (err)
 			goto out;
 	} else {
