@@ -1168,6 +1168,26 @@ static int parse_stat_cgroups(const struct option *opt,
 	return parse_cgroups(opt, str, unset);
 }
 
+static int parse_hybrid_type(const struct option *opt,
+			     const char *str,
+			     int unset __maybe_unused)
+{
+	struct evlist *evlist = *(struct evlist **)opt->value;
+
+	if (!list_empty(&evlist->core.entries)) {
+		fprintf(stderr, "Must define cputype before events/metrics\n");
+		return -1;
+	}
+
+	evlist->hybrid_pmu_name = perf_pmu__hybrid_type_to_pmu(str);
+	if (!evlist->hybrid_pmu_name) {
+		fprintf(stderr, "--cputype %s is not supported!\n", str);
+		return -1;
+	}
+
+	return 0;
+}
+
 static struct option stat_options[] = {
 	OPT_BOOLEAN('T', "transaction", &transaction_run,
 		    "hardware transaction statistics"),
@@ -1282,6 +1302,10 @@ static struct option stat_options[] = {
 		       "don't print 'summary' for CSV summary output"),
 	OPT_BOOLEAN(0, "quiet", &stat_config.quiet,
 			"don't print output (useful with record)"),
+	OPT_CALLBACK(0, "cputype", &evsel_list, "hybrid cpu type",
+		     "Only enable events on applying cpu with this type "
+		     "for hybrid platform (e.g. core or atom)",
+		     parse_hybrid_type),
 #ifdef HAVE_LIBPFM
 	OPT_CALLBACK(0, "pfm-events", &evsel_list, "event",
 		"libpfm4 event selector. use 'perf list' to list available events",
