@@ -887,7 +887,6 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	struct ATTR_DEF_ENTRY *t;
 	u16 *upcase;
 	u16 *shared;
-	bool is_ro;
 	struct MFT_REF ref;
 
 	ref.high = 0;
@@ -1010,16 +1009,14 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	iput(inode);
 
-	is_ro = sb_rdonly(sb);
-
 	if (sbi->flags & NTFS_FLAGS_NEED_REPLAY) {
-		if (!is_ro) {
+		if (!sb_rdonly(sb)) {
 			ntfs_warn(sb,
 				  "failed to replay log file. Can't mount rw!");
 			return -EINVAL;
 		}
 	} else if (sbi->volume.flags & VOLUME_FLAG_DIRTY) {
-		if (!is_ro && !sbi->options->force) {
+		if (!sb_rdonly(sb) && !sbi->options->force) {
 			ntfs_warn(
 				sb,
 				"volume is dirty and \"force\" flag is not set!");
