@@ -196,6 +196,19 @@ static inline void rwbase_write_downgrade(struct rwbase_rt *rwb)
 	__rwbase_write_unlock(rwb, WRITER_BIAS - 1, flags);
 }
 
+static inline bool __rwbase_write_trylock(struct rwbase_rt *rwb)
+{
+	/* Can do without CAS because we're serialized by wait_lock. */
+	lockdep_assert_held(&rwb->rtmutex.wait_lock);
+
+	if (!atomic_read(&rwb->readers)) {
+		atomic_set(&rwb->readers, WRITER_BIAS);
+		return 1;
+	}
+
+	return 0;
+}
+
 static int __sched rwbase_write_lock(struct rwbase_rt *rwb,
 				     unsigned int state)
 {
@@ -210,34 +223,30 @@ static int __sched rwbase_write_lock(struct rwbase_rt *rwb,
 	atomic_sub(READER_BIAS, &rwb->readers);
 
 	raw_spin_lock_irqsave(&rtm->wait_lock, flags);
-	/*
-	 * set_current_state() for rw_semaphore
-	 * current_save_and_set_rtlock_wait_state() for rwlock
-	 */
-	rwbase_set_and_save_current_state(state);
+	if (__rwbase_write_trylock(rwb))
+		goto out_unlock;
 
-	/* Block until all readers have left the critical section. */
-	for (; atomic_read(&rwb->readers);) {
+	rwbase_set_and_save_current_state(state);
+	for (;;) {
 		/* Optimized out for rwlocks */
 		if (rwbase_signal_pending_state(state, current)) {
 			rwbase_restore_current_state();
 			__rwbase_write_unlock(rwb, 0, flags);
 			return -EINTR;
 		}
+
+		if (__rwbase_write_trylock(rwb))
+			break;
+
 		raw_spin_unlock_irqrestore(&rtm->wait_lock, flags);
-
-		/*
-		 * Schedule and wait for the readers to leave the critical
-		 * section. The last reader leaving it wakes the waiter.
-		 */
-		if (atomic_read(&rwb->readers) != 0)
-			rwbase_schedule();
-		set_current_state(state);
+		rwbase_schedule();
 		raw_spin_lock_irqsave(&rtm->wait_lock, flags);
-	}
 
-	atomic_set(&rwb->readers, WRITER_BIAS);
+		set_current_state(state);
+	}
 	rwbase_restore_current_state();
+
+out_unlock:
 	raw_spin_unlock_irqrestore(&rtm->wait_lock, flags);
 	return 0;
 }
@@ -253,8 +262,7 @@ static inline int rwbase_write_trylock(struct rwbase_rt *rwb)
 	atomic_sub(READER_BIAS, &rwb->readers);
 
 	raw_spin_lock_irqsave(&rtm->wait_lock, flags);
-	if (!atomic_read(&rwb->readers)) {
-		atomic_set(&rwb->readers, WRITER_BIAS);
+	if (__rwbase_write_trylock(rwb)) {
 		raw_spin_unlock_irqrestore(&rtm->wait_lock, flags);
 		return 1;
 	}
