@@ -352,7 +352,7 @@ source "fs/ceph/Kconfig"
 source "fs/cifs/Kconfig"
 source "fs/ksmbd/Kconfig"
 
-config CIFS_COMMON
+config SMBFS_COMMON
 	tristate
 	default y if CIFS=y
 	default m if CIFS=m

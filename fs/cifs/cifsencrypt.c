@@ -22,7 +22,7 @@
 #include <linux/random.h>
 #include <linux/highmem.h>
 #include <linux/fips.h>
-#include "../cifs_common/arc4.h"
+#include "../smbfs_common/arc4.h"
 #include <crypto/aead.h>
 
 int __cifs_calc_signature(struct smb_rqst *rqst,
