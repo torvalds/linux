@@ -46,6 +46,8 @@
  *					Copyright (C) 2011, <lokec@ccs.neu.edu>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/ethtool.h>
 #include <linux/types.h>
 #include <linux/mm.h>
