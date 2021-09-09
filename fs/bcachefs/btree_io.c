@@ -1251,7 +1251,7 @@ static void btree_node_read_all_replicas_done(struct closure *cl)
 	bool dump_bset_maps = false;
 	bool have_retry = false;
 	int ret = 0, best = -1, write = READ;
-	unsigned i, written, written2;
+	unsigned i, written = 0, written2 = 0;
 	__le64 seq = b->key.k.type == KEY_TYPE_btree_ptr_v2
 		? bkey_i_to_btree_ptr_v2(&b->key)->v.seq : 0;
 
