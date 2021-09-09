@@ -806,9 +806,9 @@ __unwind_incomplete_requests(struct intel_context *ce)
 
 	spin_lock_irqsave(&sched_engine->lock, flags);
 	spin_lock(&ce->guc_active.lock);
-	list_for_each_entry_safe(rq, rn,
-				 &ce->guc_active.requests,
-				 sched.link) {
+	list_for_each_entry_safe_reverse(rq, rn,
+					 &ce->guc_active.requests,
+					 sched.link) {
 		if (i915_request_completed(rq))
 			continue;
 
@@ -825,7 +825,7 @@ __unwind_incomplete_requests(struct intel_context *ce)
 		}
 		GEM_BUG_ON(i915_sched_engine_is_empty(sched_engine));
 
-		list_add_tail(&rq->sched.link, pl);
+		list_add(&rq->sched.link, pl);
 		set_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
 
 		spin_lock(&ce->guc_active.lock);
