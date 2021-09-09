@@ -34,6 +34,7 @@ enum {
  * struct nd_namespace_index - label set superblock
  * @sig: NAMESPACE_INDEX\0
  * @flags: placeholder
+ * @labelsize: log2 size (v1 labels 128 bytes v2 labels 256 bytes)
  * @seq: sequence number for this index
  * @myoff: offset of this index in label area
  * @mysize: size of this index struct
@@ -43,7 +44,7 @@ enum {
  * @major: label area major version
  * @minor: label area minor version
  * @checksum: fletcher64 of all fields
- * @free[0]: bitmap, nlabel bits
+ * @free: bitmap, nlabel bits
  *
  * The size of free[] is rounded up so the total struct size is a
  * multiple of NSINDEX_ALIGN bytes.  Any bits this allocates beyond
@@ -77,7 +78,12 @@ struct nd_namespace_index {
  * @dpa: DPA of NVM range on this DIMM
  * @rawsize: size of namespace
  * @slot: slot of this label in label area
- * @unused: must be zero
+ * @align: physical address alignment of the namespace
+ * @reserved: reserved
+ * @type_guid: copy of struct acpi_nfit_system_address.range_guid
+ * @abstraction_guid: personality id (btt, btt2, fsdax, devdax....)
+ * @reserved2: reserved
+ * @checksum: fletcher64 sum of this object
  */
 struct nd_namespace_label {
 	u8 uuid[NSLABEL_UUID_LEN];
