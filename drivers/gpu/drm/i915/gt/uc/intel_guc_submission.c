@@ -1624,8 +1624,10 @@ static void guc_context_cancel_request(struct intel_context *ce,
 				       struct i915_request *rq)
 {
 	if (i915_sw_fence_signaled(&rq->submit)) {
-		struct i915_sw_fence *fence = guc_context_block(ce);
+		struct i915_sw_fence *fence;
 
+		intel_context_get(ce);
+		fence = guc_context_block(ce);
 		i915_sw_fence_wait(fence);
 		if (!i915_request_completed(rq)) {
 			__i915_request_skip(rq);
@@ -1640,6 +1642,7 @@ static void guc_context_cancel_request(struct intel_context *ce,
 		flush_work(&ce_to_guc(ce)->ct.requests.worker);
 
 		guc_context_unblock(ce);
+		intel_context_put(ce);
 	}
 }
 
