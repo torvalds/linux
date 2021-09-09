@@ -6,14 +6,22 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
-#include "cxl.h"
-#include "mem.h"
+#include <cxlmem.h>
+#include <cxl.h>
+#include "core.h"
 
 /**
  * DOC: cxl core
  *
- * The CXL core provides a sysfs hierarchy for control devices and a rendezvous
- * point for cross-device interleave coordination through cxl ports.
+ * The CXL core provides a set of interfaces that can be consumed by CXL aware
+ * drivers. The interfaces allow for creation, modification, and destruction of
+ * regions, memory devices, ports, and decoders. CXL aware drivers must register
+ * with the CXL core via these interfaces in order to be able to participate in
+ * cross-device interleave coordination. The CXL core also establishes and
+ * maintains the bridge to the nvdimm subsystem.
+ *
+ * CXL core introduces sysfs hierarchy to control the devices that are
+ * instantiated by the core.
  */
 
 static DEFINE_IDA(cxl_port_ida);
@@ -30,7 +38,7 @@ static struct attribute *cxl_base_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group cxl_base_attribute_group = {
+struct attribute_group cxl_base_attribute_group = {
 	.attrs = cxl_base_attributes,
 };
 
@@ -507,11 +515,6 @@ err:
 	return ERR_PTR(rc);
 }
 
-static void unregister_dev(void *dev)
-{
-	device_unregister(dev);
-}
-
 struct cxl_decoder *
 devm_cxl_add_decoder(struct device *host, struct cxl_port *port, int nr_targets,
 		     resource_size_t base, resource_size_t len,
@@ -536,7 +539,7 @@ devm_cxl_add_decoder(struct device *host, struct cxl_port *port, int nr_targets,
 	if (rc)
 		goto err;
 
-	rc = devm_add_action_or_reset(host, unregister_dev, dev);
+	rc = devm_add_action_or_reset(host, unregister_cxl_dev, dev);
 	if (rc)
 		return ERR_PTR(rc);
 	return cxld;
@@ -546,429 +549,6 @@ err:
 	return ERR_PTR(rc);
 }
 EXPORT_SYMBOL_GPL(devm_cxl_add_decoder);
-
-/**
- * cxl_probe_component_regs() - Detect CXL Component register blocks
- * @dev: Host device of the @base mapping
- * @base: Mapping containing the HDM Decoder Capability Header
- * @map: Map object describing the register block information found
- *
- * See CXL 2.0 8.2.4 Component Register Layout and Definition
- * See CXL 2.0 8.2.5.5 CXL Device Register Interface
- *
- * Probe for component register information and return it in map object.
- */
-void cxl_probe_component_regs(struct device *dev, void __iomem *base,
-			      struct cxl_component_reg_map *map)
-{
-	int cap, cap_count;
-	u64 cap_array;
-
-	*map = (struct cxl_component_reg_map) { 0 };
-
-	/*
-	 * CXL.cache and CXL.mem registers are at offset 0x1000 as defined in
-	 * CXL 2.0 8.2.4 Table 141.
-	 */
-	base += CXL_CM_OFFSET;
-
-	cap_array = readq(base + CXL_CM_CAP_HDR_OFFSET);
-
-	if (FIELD_GET(CXL_CM_CAP_HDR_ID_MASK, cap_array) != CM_CAP_HDR_CAP_ID) {
-		dev_err(dev,
-			"Couldn't locate the CXL.cache and CXL.mem capability array header./n");
-		return;
-	}
-
-	/* It's assumed that future versions will be backward compatible */
-	cap_count = FIELD_GET(CXL_CM_CAP_HDR_ARRAY_SIZE_MASK, cap_array);
-
-	for (cap = 1; cap <= cap_count; cap++) {
-		void __iomem *register_block;
-		u32 hdr;
-		int decoder_cnt;
-		u16 cap_id, offset;
-		u32 length;
-
-		hdr = readl(base + cap * 0x4);
-
-		cap_id = FIELD_GET(CXL_CM_CAP_HDR_ID_MASK, hdr);
-		offset = FIELD_GET(CXL_CM_CAP_PTR_MASK, hdr);
-		register_block = base + offset;
-
-		switch (cap_id) {
-		case CXL_CM_CAP_CAP_ID_HDM:
-			dev_dbg(dev, "found HDM decoder capability (0x%x)\n",
-				offset);
-
-			hdr = readl(register_block);
-
-			decoder_cnt = cxl_hdm_decoder_count(hdr);
-			length = 0x20 * decoder_cnt + 0x10;
-
-			map->hdm_decoder.valid = true;
-			map->hdm_decoder.offset = CXL_CM_OFFSET + offset;
-			map->hdm_decoder.size = length;
-			break;
-		default:
-			dev_dbg(dev, "Unknown CM cap ID: %d (0x%x)\n", cap_id,
-				offset);
-			break;
-		}
-	}
-}
-EXPORT_SYMBOL_GPL(cxl_probe_component_regs);
-
-static void cxl_nvdimm_bridge_release(struct device *dev)
-{
-	struct cxl_nvdimm_bridge *cxl_nvb = to_cxl_nvdimm_bridge(dev);
-
-	kfree(cxl_nvb);
-}
-
-static const struct attribute_group *cxl_nvdimm_bridge_attribute_groups[] = {
-	&cxl_base_attribute_group,
-	NULL,
-};
-
-static const struct device_type cxl_nvdimm_bridge_type = {
-	.name = "cxl_nvdimm_bridge",
-	.release = cxl_nvdimm_bridge_release,
-	.groups = cxl_nvdimm_bridge_attribute_groups,
-};
-
-struct cxl_nvdimm_bridge *to_cxl_nvdimm_bridge(struct device *dev)
-{
-	if (dev_WARN_ONCE(dev, dev->type != &cxl_nvdimm_bridge_type,
-			  "not a cxl_nvdimm_bridge device\n"))
-		return NULL;
-	return container_of(dev, struct cxl_nvdimm_bridge, dev);
-}
-EXPORT_SYMBOL_GPL(to_cxl_nvdimm_bridge);
-
-static struct cxl_nvdimm_bridge *
-cxl_nvdimm_bridge_alloc(struct cxl_port *port)
-{
-	struct cxl_nvdimm_bridge *cxl_nvb;
-	struct device *dev;
-
-	cxl_nvb = kzalloc(sizeof(*cxl_nvb), GFP_KERNEL);
-	if (!cxl_nvb)
-		return ERR_PTR(-ENOMEM);
-
-	dev = &cxl_nvb->dev;
-	cxl_nvb->port = port;
-	cxl_nvb->state = CXL_NVB_NEW;
-	device_initialize(dev);
-	device_set_pm_not_required(dev);
-	dev->parent = &port->dev;
-	dev->bus = &cxl_bus_type;
-	dev->type = &cxl_nvdimm_bridge_type;
-
-	return cxl_nvb;
-}
-
-static void unregister_nvb(void *_cxl_nvb)
-{
-	struct cxl_nvdimm_bridge *cxl_nvb = _cxl_nvb;
-	bool flush;
-
-	/*
-	 * If the bridge was ever activated then there might be in-flight state
-	 * work to flush. Once the state has been changed to 'dead' then no new
-	 * work can be queued by user-triggered bind.
-	 */
-	device_lock(&cxl_nvb->dev);
-	flush = cxl_nvb->state != CXL_NVB_NEW;
-	cxl_nvb->state = CXL_NVB_DEAD;
-	device_unlock(&cxl_nvb->dev);
-
-	/*
-	 * Even though the device core will trigger device_release_driver()
-	 * before the unregister, it does not know about the fact that
-	 * cxl_nvdimm_bridge_driver defers ->remove() work. So, do the driver
-	 * release not and flush it before tearing down the nvdimm device
-	 * hierarchy.
-	 */
-	device_release_driver(&cxl_nvb->dev);
-	if (flush)
-		flush_work(&cxl_nvb->state_work);
-	device_unregister(&cxl_nvb->dev);
-}
-
-struct cxl_nvdimm_bridge *devm_cxl_add_nvdimm_bridge(struct device *host,
-						     struct cxl_port *port)
-{
-	struct cxl_nvdimm_bridge *cxl_nvb;
-	struct device *dev;
-	int rc;
-
-	if (!IS_ENABLED(CONFIG_CXL_PMEM))
-		return ERR_PTR(-ENXIO);
-
-	cxl_nvb = cxl_nvdimm_bridge_alloc(port);
-	if (IS_ERR(cxl_nvb))
-		return cxl_nvb;
-
-	dev = &cxl_nvb->dev;
-	rc = dev_set_name(dev, "nvdimm-bridge");
-	if (rc)
-		goto err;
-
-	rc = device_add(dev);
-	if (rc)
-		goto err;
-
-	rc = devm_add_action_or_reset(host, unregister_nvb, cxl_nvb);
-	if (rc)
-		return ERR_PTR(rc);
-
-	return cxl_nvb;
-
-err:
-	put_device(dev);
-	return ERR_PTR(rc);
-}
-EXPORT_SYMBOL_GPL(devm_cxl_add_nvdimm_bridge);
-
-static void cxl_nvdimm_release(struct device *dev)
-{
-	struct cxl_nvdimm *cxl_nvd = to_cxl_nvdimm(dev);
-
-	kfree(cxl_nvd);
-}
-
-static const struct attribute_group *cxl_nvdimm_attribute_groups[] = {
-	&cxl_base_attribute_group,
-	NULL,
-};
-
-static const struct device_type cxl_nvdimm_type = {
-	.name = "cxl_nvdimm",
-	.release = cxl_nvdimm_release,
-	.groups = cxl_nvdimm_attribute_groups,
-};
-
-bool is_cxl_nvdimm(struct device *dev)
-{
-	return dev->type == &cxl_nvdimm_type;
-}
-EXPORT_SYMBOL_GPL(is_cxl_nvdimm);
-
-struct cxl_nvdimm *to_cxl_nvdimm(struct device *dev)
-{
-	if (dev_WARN_ONCE(dev, !is_cxl_nvdimm(dev),
-			  "not a cxl_nvdimm device\n"))
-		return NULL;
-	return container_of(dev, struct cxl_nvdimm, dev);
-}
-EXPORT_SYMBOL_GPL(to_cxl_nvdimm);
-
-static struct cxl_nvdimm *cxl_nvdimm_alloc(struct cxl_memdev *cxlmd)
-{
-	struct cxl_nvdimm *cxl_nvd;
-	struct device *dev;
-
-	cxl_nvd = kzalloc(sizeof(*cxl_nvd), GFP_KERNEL);
-	if (!cxl_nvd)
-		return ERR_PTR(-ENOMEM);
-
-	dev = &cxl_nvd->dev;
-	cxl_nvd->cxlmd = cxlmd;
-	device_initialize(dev);
-	device_set_pm_not_required(dev);
-	dev->parent = &cxlmd->dev;
-	dev->bus = &cxl_bus_type;
-	dev->type = &cxl_nvdimm_type;
-
-	return cxl_nvd;
-}
-
-int devm_cxl_add_nvdimm(struct device *host, struct cxl_memdev *cxlmd)
-{
-	struct cxl_nvdimm *cxl_nvd;
-	struct device *dev;
-	int rc;
-
-	cxl_nvd = cxl_nvdimm_alloc(cxlmd);
-	if (IS_ERR(cxl_nvd))
-		return PTR_ERR(cxl_nvd);
-
-	dev = &cxl_nvd->dev;
-	rc = dev_set_name(dev, "pmem%d", cxlmd->id);
-	if (rc)
-		goto err;
-
-	rc = device_add(dev);
-	if (rc)
-		goto err;
-
-	dev_dbg(host, "%s: register %s\n", dev_name(dev->parent),
-		dev_name(dev));
-
-	return devm_add_action_or_reset(host, unregister_dev, dev);
-
-err:
-	put_device(dev);
-	return rc;
-}
-EXPORT_SYMBOL_GPL(devm_cxl_add_nvdimm);
-
-/**
- * cxl_probe_device_regs() - Detect CXL Device register blocks
- * @dev: Host device of the @base mapping
- * @base: Mapping of CXL 2.0 8.2.8 CXL Device Register Interface
- * @map: Map object describing the register block information found
- *
- * Probe for device register information and return it in map object.
- */
-void cxl_probe_device_regs(struct device *dev, void __iomem *base,
-			   struct cxl_device_reg_map *map)
-{
-	int cap, cap_count;
-	u64 cap_array;
-
-	*map = (struct cxl_device_reg_map){ 0 };
-
-	cap_array = readq(base + CXLDEV_CAP_ARRAY_OFFSET);
-	if (FIELD_GET(CXLDEV_CAP_ARRAY_ID_MASK, cap_array) !=
-	    CXLDEV_CAP_ARRAY_CAP_ID)
-		return;
-
-	cap_count = FIELD_GET(CXLDEV_CAP_ARRAY_COUNT_MASK, cap_array);
-
-	for (cap = 1; cap <= cap_count; cap++) {
-		u32 offset, length;
-		u16 cap_id;
-
-		cap_id = FIELD_GET(CXLDEV_CAP_HDR_CAP_ID_MASK,
-				   readl(base + cap * 0x10));
-		offset = readl(base + cap * 0x10 + 0x4);
-		length = readl(base + cap * 0x10 + 0x8);
-
-		switch (cap_id) {
-		case CXLDEV_CAP_CAP_ID_DEVICE_STATUS:
-			dev_dbg(dev, "found Status capability (0x%x)\n", offset);
-
-			map->status.valid = true;
-			map->status.offset = offset;
-			map->status.size = length;
-			break;
-		case CXLDEV_CAP_CAP_ID_PRIMARY_MAILBOX:
-			dev_dbg(dev, "found Mailbox capability (0x%x)\n", offset);
-			map->mbox.valid = true;
-			map->mbox.offset = offset;
-			map->mbox.size = length;
-			break;
-		case CXLDEV_CAP_CAP_ID_SECONDARY_MAILBOX:
-			dev_dbg(dev, "found Secondary Mailbox capability (0x%x)\n", offset);
-			break;
-		case CXLDEV_CAP_CAP_ID_MEMDEV:
-			dev_dbg(dev, "found Memory Device capability (0x%x)\n", offset);
-			map->memdev.valid = true;
-			map->memdev.offset = offset;
-			map->memdev.size = length;
-			break;
-		default:
-			if (cap_id >= 0x8000)
-				dev_dbg(dev, "Vendor cap ID: %#x offset: %#x\n", cap_id, offset);
-			else
-				dev_dbg(dev, "Unknown cap ID: %#x offset: %#x\n", cap_id, offset);
-			break;
-		}
-	}
-}
-EXPORT_SYMBOL_GPL(cxl_probe_device_regs);
-
-static void __iomem *devm_cxl_iomap_block(struct device *dev,
-					  resource_size_t addr,
-					  resource_size_t length)
-{
-	void __iomem *ret_val;
-	struct resource *res;
-
-	res = devm_request_mem_region(dev, addr, length, dev_name(dev));
-	if (!res) {
-		resource_size_t end = addr + length - 1;
-
-		dev_err(dev, "Failed to request region %pa-%pa\n", &addr, &end);
-		return NULL;
-	}
-
-	ret_val = devm_ioremap(dev, addr, length);
-	if (!ret_val)
-		dev_err(dev, "Failed to map region %pr\n", res);
-
-	return ret_val;
-}
-
-int cxl_map_component_regs(struct pci_dev *pdev,
-			   struct cxl_component_regs *regs,
-			   struct cxl_register_map *map)
-{
-	struct device *dev = &pdev->dev;
-	resource_size_t phys_addr;
-	resource_size_t length;
-
-	phys_addr = pci_resource_start(pdev, map->barno);
-	phys_addr += map->block_offset;
-
-	phys_addr += map->component_map.hdm_decoder.offset;
-	length = map->component_map.hdm_decoder.size;
-	regs->hdm_decoder = devm_cxl_iomap_block(dev, phys_addr, length);
-	if (!regs->hdm_decoder)
-		return -ENOMEM;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(cxl_map_component_regs);
-
-int cxl_map_device_regs(struct pci_dev *pdev,
-			struct cxl_device_regs *regs,
-			struct cxl_register_map *map)
-{
-	struct device *dev = &pdev->dev;
-	resource_size_t phys_addr;
-
-	phys_addr = pci_resource_start(pdev, map->barno);
-	phys_addr += map->block_offset;
-
-	if (map->device_map.status.valid) {
-		resource_size_t addr;
-		resource_size_t length;
-
-		addr = phys_addr + map->device_map.status.offset;
-		length = map->device_map.status.size;
-		regs->status = devm_cxl_iomap_block(dev, addr, length);
-		if (!regs->status)
-			return -ENOMEM;
-	}
-
-	if (map->device_map.mbox.valid) {
-		resource_size_t addr;
-		resource_size_t length;
-
-		addr = phys_addr + map->device_map.mbox.offset;
-		length = map->device_map.mbox.size;
-		regs->mbox = devm_cxl_iomap_block(dev, addr, length);
-		if (!regs->mbox)
-			return -ENOMEM;
-	}
-
-	if (map->device_map.memdev.valid) {
-		resource_size_t addr;
-		resource_size_t length;
-
-		addr = phys_addr + map->device_map.memdev.offset;
-		length = map->device_map.memdev.size;
-		regs->memdev = devm_cxl_iomap_block(dev, addr, length);
-		if (!regs->memdev)
-			return -ENOMEM;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(cxl_map_device_regs);
 
 /**
  * __cxl_driver_register - register a driver for the cxl bus
@@ -1053,12 +633,26 @@ EXPORT_SYMBOL_GPL(cxl_bus_type);
 
 static __init int cxl_core_init(void)
 {
-	return bus_register(&cxl_bus_type);
+	int rc;
+
+	rc = cxl_memdev_init();
+	if (rc)
+		return rc;
+
+	rc = bus_register(&cxl_bus_type);
+	if (rc)
+		goto err;
+	return 0;
+
+err:
+	cxl_memdev_exit();
+	return rc;
 }
 
 static void cxl_core_exit(void)
 {
 	bus_unregister(&cxl_bus_type);
+	cxl_memdev_exit();
 }
 
 module_init(cxl_core_init);

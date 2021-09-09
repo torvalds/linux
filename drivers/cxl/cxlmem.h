@@ -28,11 +28,20 @@
 	(FIELD_GET(CXLMDEV_RESET_NEEDED_MASK, status) !=                       \
 	 CXLMDEV_RESET_NEEDED_NOT)
 
-/*
- * An entire PCI topology full of devices should be enough for any
- * config
+/**
+ * struct cdevm_file_operations - devm coordinated cdev file operations
+ * @fops: file operations that are synchronized against @shutdown
+ * @shutdown: disconnect driver data
+ *
+ * @shutdown is invoked in the devres release path to disconnect any
+ * driver instance data from @dev. It assumes synchronization with any
+ * fops operation that requires driver data. After @shutdown an
+ * operation may only reference @device data.
  */
-#define CXL_MEM_MAX_DEVS 65536
+struct cdevm_file_operations {
+	struct file_operations fops;
+	void (*shutdown)(struct device *dev);
+};
 
 /**
  * struct cxl_memdev - CXL bus object representing a Type-3 Memory Device
@@ -47,6 +56,15 @@ struct cxl_memdev {
 	struct cxl_mem *cxlm;
 	int id;
 };
+
+static inline struct cxl_memdev *to_cxl_memdev(struct device *dev)
+{
+	return container_of(dev, struct cxl_memdev, dev);
+}
+
+struct cxl_memdev *
+devm_cxl_add_memdev(struct device *host, struct cxl_mem *cxlm,
+		    const struct cdevm_file_operations *cdevm_fops);
 
 /**
  * struct cxl_mem - A CXL memory device
@@ -77,5 +95,14 @@ struct cxl_mem {
 
 	struct range pmem_range;
 	struct range ram_range;
+	u64 total_bytes;
+	u64 volatile_only_bytes;
+	u64 persistent_only_bytes;
+	u64 partition_align_bytes;
+
+	u64 active_volatile_bytes;
+	u64 active_persistent_bytes;
+	u64 next_volatile_bytes;
+	u64 next_persistent_bytes;
 };
 #endif /* __CXL_MEM_H__ */
