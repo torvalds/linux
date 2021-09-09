@@ -385,11 +385,11 @@ trace_boot_compose_hist_cmd(struct xbc_node *hnode, char *buf, size_t size)
 	}
 
 	/* Histogram control attributes (mutual exclusive) */
-	if (xbc_node_find_child(hnode, "pause"))
+	if (xbc_node_find_value(hnode, "pause", NULL))
 		append_printf(&buf, end, ":pause");
-	else if (xbc_node_find_child(hnode, "continue"))
+	else if (xbc_node_find_value(hnode, "continue", NULL))
 		append_printf(&buf, end, ":continue");
-	else if (xbc_node_find_child(hnode, "clear"))
+	else if (xbc_node_find_value(hnode, "clear", NULL))
 		append_printf(&buf, end, ":clear");
 
 	/* Histogram handler and actions */
