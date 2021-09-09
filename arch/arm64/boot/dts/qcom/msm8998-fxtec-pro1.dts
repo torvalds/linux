@@ -122,6 +122,33 @@
 			record-size = <0x10000>;
 		};
 	};
+
+	ts_vio_vreg: ts-vio-vreg {
+		compatible = "regulator-fixed";
+		regulator-name = "ts_vio_reg";
+		startup-delay-us = <2>;
+		enable-active-high;
+		gpio = <&tlmm 81 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_vio_default>;
+		regulator-always-on;
+	};
+};
+
+&blsp2_i2c1 {
+	status = "ok";
+
+	touchscreen@14 {
+		compatible = "goodix,gt9286";
+		reg = <0x14>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <125 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tlmm 89 GPIO_ACTIVE_HIGH>;
+		AVDD28-supply = <&vreg_l28_3p0>;
+		VDDIO-supply = <&ts_vio_vreg>;
+		pinctrl-names = "active";
+		pinctrl-0 = <&ts_rst_n>, <&ts_int_n>;
+	};
 };
 
 &mmcc {
@@ -178,12 +205,33 @@
 		drive-strength = <2>;
 	};
 
+	ts_vio_default: ts-vio-def {
+		pins = "gpio81";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+	};
+
+	ts_rst_n: ts-rst-n {
+		pins = "gpio89";
+		function = "gpio";
+		bias-pull-up;
+		drive-strength = <8>;
+	};
+
 	hall_sensor1_default: hall-sensor1-def {
 		pins = "gpio124";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 		input-enable;
+	};
+
+	ts_int_n: ts-int-n {
+		pins = "gpio125";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <8>;
 	};
 };
 
