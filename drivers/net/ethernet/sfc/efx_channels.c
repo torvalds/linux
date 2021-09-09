@@ -166,32 +166,46 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 	 * We need a channel per event queue, plus a VI per tx queue.
 	 * This may be more pessimistic than it needs to be.
 	 */
-	if (n_channels + n_xdp_ev > max_channels) {
+	if (n_channels >= max_channels) {
+		efx->xdp_txq_queues_mode = EFX_XDP_TX_QUEUES_DISABLED;
 		netif_err(efx, drv, efx->net_dev,
 			  "Insufficient resources for %d XDP event queues (%d other channels, max %d)\n",
 			  n_xdp_ev, n_channels, max_channels);
 		netif_err(efx, drv, efx->net_dev,
-			  "XDP_TX and XDP_REDIRECT will not work on this interface");
-		efx->n_xdp_channels = 0;
-		efx->xdp_tx_per_channel = 0;
-		efx->xdp_tx_queue_count = 0;
+			  "XDP_TX and XDP_REDIRECT will not work on this interface\n");
 	} else if (n_channels + n_xdp_tx > efx->max_vis) {
+		efx->xdp_txq_queues_mode = EFX_XDP_TX_QUEUES_DISABLED;
 		netif_err(efx, drv, efx->net_dev,
 			  "Insufficient resources for %d XDP TX queues (%d other channels, max VIs %d)\n",
 			  n_xdp_tx, n_channels, efx->max_vis);
 		netif_err(efx, drv, efx->net_dev,
-			  "XDP_TX and XDP_REDIRECT will not work on this interface");
-		efx->n_xdp_channels = 0;
-		efx->xdp_tx_per_channel = 0;
-		efx->xdp_tx_queue_count = 0;
+			  "XDP_TX and XDP_REDIRECT will not work on this interface\n");
+	} else if (n_channels + n_xdp_ev > max_channels) {
+		efx->xdp_txq_queues_mode = EFX_XDP_TX_QUEUES_SHARED;
+		netif_warn(efx, drv, efx->net_dev,
+			   "Insufficient resources for %d XDP event queues (%d other channels, max %d)\n",
+			   n_xdp_ev, n_channels, max_channels);
+
+		n_xdp_ev = max_channels - n_channels;
+		netif_warn(efx, drv, efx->net_dev,
+			   "XDP_TX and XDP_REDIRECT will work with reduced performance (%d cpus/tx_queue)\n",
+			   DIV_ROUND_UP(n_xdp_tx, tx_per_ev * n_xdp_ev));
 	} else {
+		efx->xdp_txq_queues_mode = EFX_XDP_TX_QUEUES_DEDICATED;
+	}
+
+	if (efx->xdp_txq_queues_mode != EFX_XDP_TX_QUEUES_DISABLED) {
 		efx->n_xdp_channels = n_xdp_ev;
 		efx->xdp_tx_per_channel = tx_per_ev;
 		efx->xdp_tx_queue_count = n_xdp_tx;
 		n_channels += n_xdp_ev;
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Allocating %d TX and %d event queues for XDP\n",
-			  n_xdp_tx, n_xdp_ev);
+			  n_xdp_ev * tx_per_ev, n_xdp_ev);
+	} else {
+		efx->n_xdp_channels = 0;
+		efx->xdp_tx_per_channel = 0;
+		efx->xdp_tx_queue_count = 0;
 	}
 
 	if (vec_count < n_channels) {
@@ -921,7 +935,25 @@ int efx_set_channels(struct efx_nic *efx)
 			}
 		}
 	}
-	WARN_ON(xdp_queue_number != efx->xdp_tx_queue_count);
+	WARN_ON(efx->xdp_txq_queues_mode == EFX_XDP_TX_QUEUES_DEDICATED &&
+		xdp_queue_number != efx->xdp_tx_queue_count);
+	WARN_ON(efx->xdp_txq_queues_mode != EFX_XDP_TX_QUEUES_DEDICATED &&
+		xdp_queue_number > efx->xdp_tx_queue_count);
+
+	/* If we have less XDP TX queues than CPUs, assign the already existing
+	 * queues to the exceeding CPUs (this means that we will have to use
+	 * locking when transmitting with XDP)
+	 */
+	next_queue = 0;
+	while (xdp_queue_number < efx->xdp_tx_queue_count) {
+		tx_queue = efx->xdp_tx_queues[next_queue++];
+		channel = tx_queue->channel;
+		netif_dbg(efx, drv, efx->net_dev, "Channel %u TXQ %u is XDP %u, HW %u\n",
+			  channel->channel, tx_queue->label,
+			  xdp_queue_number, tx_queue->queue);
+
+		efx->xdp_tx_queues[xdp_queue_number++] = tx_queue;
+	}
 
 	rc = netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
 	if (rc)
