@@ -34,15 +34,13 @@ static int vdpa_dev_probe(struct device *d)
 	return ret;
 }
 
-static int vdpa_dev_remove(struct device *d)
+static void vdpa_dev_remove(struct device *d)
 {
 	struct vdpa_device *vdev = dev_to_vdpa(d);
 	struct vdpa_driver *drv = drv_to_vdpa(vdev->dev.driver);
 
 	if (drv && drv->remove)
 		drv->remove(vdev);
-
-	return 0;
 }
 
 static struct bus_type vdpa_bus = {

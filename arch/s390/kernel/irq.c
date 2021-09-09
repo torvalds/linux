@@ -228,7 +228,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	int index = *(loff_t *) v;
 	int cpu, irq;
 
-	get_online_cpus();
+	cpus_read_lock();
 	if (index == 0) {
 		seq_puts(p, "           ");
 		for_each_online_cpu(cpu)
@@ -258,7 +258,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 	}
 out:
-	put_online_cpus();
+	cpus_read_unlock();
 	return 0;
 }
 

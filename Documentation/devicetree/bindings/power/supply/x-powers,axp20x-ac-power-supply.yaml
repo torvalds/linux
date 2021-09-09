@@ -21,10 +21,13 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - x-powers,axp202-ac-power-supply
-      - x-powers,axp221-ac-power-supply
-      - x-powers,axp813-ac-power-supply
+    oneOf:
+      - const: x-powers,axp202-ac-power-supply
+      - const: x-powers,axp221-ac-power-supply
+      - items:
+          - const: x-powers,axp803-ac-power-supply
+          - const: x-powers,axp813-ac-power-supply
+      - const: x-powers,axp813-ac-power-supply
 
 required:
   - compatible

@@ -640,8 +640,23 @@ static int sparx5_start(struct sparx5 *sparx5)
 	sparx5_board_init(sparx5);
 	err = sparx5_register_notifier_blocks(sparx5);
 
-	/* Start register based INJ/XTR */
+	/* Start Frame DMA with fallback to register based INJ/XTR */
 	err = -ENXIO;
+	if (sparx5->fdma_irq >= 0) {
+		if (GCB_CHIP_ID_REV_ID_GET(sparx5->chip_id) > 0)
+			err = devm_request_threaded_irq(sparx5->dev,
+							sparx5->fdma_irq,
+							NULL,
+							sparx5_fdma_handler,
+							IRQF_ONESHOT,
+							"sparx5-fdma", sparx5);
+		if (!err)
+			err = sparx5_fdma_start(sparx5);
+		if (err)
+			sparx5->fdma_irq = -ENXIO;
+	} else {
+		sparx5->fdma_irq = -ENXIO;
+	}
 	if (err && sparx5->xtr_irq >= 0) {
 		err = devm_request_irq(sparx5->dev, sparx5->xtr_irq,
 				       sparx5_xtr_handler, IRQF_SHARED,
@@ -766,6 +781,7 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 		sparx5->base_mac[5] = 0;
 	}
 
+	sparx5->fdma_irq = platform_get_irq_byname(sparx5->pdev, "fdma");
 	sparx5->xtr_irq = platform_get_irq_byname(sparx5->pdev, "xtr");
 
 	/* Read chip ID to check CPU interface */
@@ -824,6 +840,11 @@ static int mchp_sparx5_remove(struct platform_device *pdev)
 		disable_irq(sparx5->xtr_irq);
 		sparx5->xtr_irq = -ENXIO;
 	}
+	if (sparx5->fdma_irq) {
+		disable_irq(sparx5->fdma_irq);
+		sparx5->fdma_irq = -ENXIO;
+	}
+	sparx5_fdma_stop(sparx5);
 	sparx5_cleanup_ports(sparx5);
 	/* Unregister netdevs */
 	sparx5_unregister_notifier_blocks(sparx5);

@@ -41,11 +41,12 @@ static unsigned int csum_net_id;
 static struct tc_action_ops act_csum_ops;
 
 static int tcf_csum_init(struct net *net, struct nlattr *nla,
-			 struct nlattr *est, struct tc_action **a, int ovr,
-			 int bind, bool rtnl_held, struct tcf_proto *tp,
+			 struct nlattr *est, struct tc_action **a,
+			 struct tcf_proto *tp,
 			 u32 flags, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, csum_net_id);
+	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct tcf_csum_params *params_new;
 	struct nlattr *tb[TCA_CSUM_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
@@ -78,7 +79,7 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 	} else if (err > 0) {
 		if (bind)/* dont override defaults */
 			return 0;
-		if (!ovr) {
+		if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 			tcf_idr_release(*a, bind);
 			return -EEXIST;
 		}

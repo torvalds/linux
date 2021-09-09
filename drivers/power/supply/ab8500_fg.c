@@ -34,6 +34,7 @@
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/iio/consumer.h>
 #include <linux/kernel.h>
+#include <linux/fixp-arith.h>
 
 #include "ab8500-bm.h"
 
@@ -55,9 +56,6 @@
 
 /* FG constants */
 #define BATT_OVV			0x01
-
-#define interpolate(x, x1, y1, x2, y2) \
-	((y1) + ((((y2) - (y1)) * ((x) - (x1))) / ((x2) - (x1))));
 
 /**
  * struct ab8500_fg_interrupts - ab8500 fg interrupts
@@ -227,7 +225,7 @@ struct ab8500_fg {
 	struct ab8500_fg_avg_cap avg_cap;
 	struct ab8500 *parent;
 	struct iio_channel *main_bat_v;
-	struct abx500_bm_data *bm;
+	struct ab8500_bm_data *bm;
 	struct power_supply *fg_psy;
 	struct workqueue_struct *fg_wq;
 	struct delayed_work fg_periodic_work;
@@ -856,7 +854,7 @@ static int ab8500_fg_bat_voltage(struct ab8500_fg *di)
 static int ab8500_fg_volt_to_capacity(struct ab8500_fg *di, int voltage)
 {
 	int i, tbl_size;
-	const struct abx500_v_to_cap *tbl;
+	const struct ab8500_v_to_cap *tbl;
 	int cap = 0;
 
 	tbl = di->bm->bat_type[di->bm->batt_id].v_to_cap_tbl;
@@ -868,11 +866,12 @@ static int ab8500_fg_volt_to_capacity(struct ab8500_fg *di, int voltage)
 	}
 
 	if ((i > 0) && (i < tbl_size)) {
-		cap = interpolate(voltage,
+		cap = fixp_linear_interpolate(
 			tbl[i].voltage,
 			tbl[i].capacity * 10,
 			tbl[i-1].voltage,
-			tbl[i-1].capacity * 10);
+			tbl[i-1].capacity * 10,
+			voltage);
 	} else if (i == 0) {
 		cap = 1000;
 	} else {
@@ -920,11 +919,12 @@ static int ab8500_fg_battery_resistance(struct ab8500_fg *di)
 	}
 
 	if ((i > 0) && (i < tbl_size)) {
-		resist = interpolate(di->bat_temp / 10,
+		resist = fixp_linear_interpolate(
 			tbl[i].temp,
 			tbl[i].resist,
 			tbl[i-1].temp,
-			tbl[i-1].resist);
+			tbl[i-1].resist,
+			di->bat_temp / 10);
 	} else if (i == 0) {
 		resist = tbl[0].resist;
 	} else {
@@ -2235,7 +2235,7 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 			case POWER_SUPPLY_TYPE_BATTERY:
 				if (!di->flags.batt_id_received &&
 				    di->bm->batt_id != BATTERY_UNKNOWN) {
-					const struct abx500_battery_type *b;
+					const struct ab8500_battery_type *b;
 
 					b = &(di->bm->bat_type[di->bm->batt_id]);
 

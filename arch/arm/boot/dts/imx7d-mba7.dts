@@ -23,7 +23,6 @@
 	phy-mode = "rgmii-id";
 	phy-reset-gpios = <&gpio2 28 GPIO_ACTIVE_LOW>;
 	phy-reset-duration = <1>;
-	phy-reset-delay = <1>;
 	phy-supply = <&reg_fec2_pwdn>;
 	phy-handle = <&ethphy2_0>;
 	fsl,magic-packet;

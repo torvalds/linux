@@ -5,10 +5,18 @@
 #define _IONIC_RX_FILTER_H_
 
 #define IONIC_RXQ_INDEX_ANY		(0xFFFF)
+
+enum ionic_filter_state {
+	IONIC_FILTER_STATE_SYNCED,
+	IONIC_FILTER_STATE_NEW,
+	IONIC_FILTER_STATE_OLD,
+};
+
 struct ionic_rx_filter {
 	u32 flow_id;
 	u32 filter_id;
 	u16 rxq_index;
+	enum ionic_filter_state state;
 	struct ionic_rx_filter_add_cmd cmd;
 	struct hlist_node by_hash;
 	struct hlist_node by_id;
@@ -28,9 +36,13 @@ void ionic_rx_filter_replay(struct ionic_lif *lif);
 int ionic_rx_filters_init(struct ionic_lif *lif);
 void ionic_rx_filters_deinit(struct ionic_lif *lif);
 int ionic_rx_filter_save(struct ionic_lif *lif, u32 flow_id, u16 rxq_index,
-			 u32 hash, struct ionic_admin_ctx *ctx);
+			 u32 hash, struct ionic_admin_ctx *ctx,
+			 enum ionic_filter_state state);
 struct ionic_rx_filter *ionic_rx_filter_by_vlan(struct ionic_lif *lif, u16 vid);
 struct ionic_rx_filter *ionic_rx_filter_by_addr(struct ionic_lif *lif, const u8 *addr);
 struct ionic_rx_filter *ionic_rx_filter_rxsteer(struct ionic_lif *lif);
+void ionic_rx_filter_sync(struct ionic_lif *lif);
+int ionic_lif_list_addr(struct ionic_lif *lif, const u8 *addr, bool mode);
+int ionic_rx_filters_need_sync(struct ionic_lif *lif);
 
 #endif /* _IONIC_RX_FILTER_H_ */

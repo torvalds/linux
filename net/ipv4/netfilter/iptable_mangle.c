@@ -25,15 +25,12 @@ MODULE_DESCRIPTION("iptables mangle table");
 			    (1 << NF_INET_LOCAL_OUT) | \
 			    (1 << NF_INET_POST_ROUTING))
 
-static int __net_init iptable_mangle_table_init(struct net *net);
-
 static const struct xt_table packet_mangler = {
 	.name		= "mangle",
 	.valid_hooks	= MANGLE_VALID_HOOKS,
 	.me		= THIS_MODULE,
 	.af		= NFPROTO_IPV4,
 	.priority	= NF_IP_PRI_MANGLE,
-	.table_init	= iptable_mangle_table_init,
 };
 
 static unsigned int
@@ -83,7 +80,7 @@ iptable_mangle_hook(void *priv,
 }
 
 static struct nf_hook_ops *mangle_ops __read_mostly;
-static int __net_init iptable_mangle_table_init(struct net *net)
+static int iptable_mangle_table_init(struct net *net)
 {
 	struct ipt_replace *repl;
 	int ret;
@@ -113,24 +110,23 @@ static struct pernet_operations iptable_mangle_net_ops = {
 
 static int __init iptable_mangle_init(void)
 {
-	int ret;
+	int ret = xt_register_template(&packet_mangler,
+				       iptable_mangle_table_init);
+	if (ret < 0)
+		return ret;
 
 	mangle_ops = xt_hook_ops_alloc(&packet_mangler, iptable_mangle_hook);
 	if (IS_ERR(mangle_ops)) {
+		xt_unregister_template(&packet_mangler);
 		ret = PTR_ERR(mangle_ops);
 		return ret;
 	}
 
 	ret = register_pernet_subsys(&iptable_mangle_net_ops);
 	if (ret < 0) {
+		xt_unregister_template(&packet_mangler);
 		kfree(mangle_ops);
 		return ret;
-	}
-
-	ret = iptable_mangle_table_init(&init_net);
-	if (ret) {
-		unregister_pernet_subsys(&iptable_mangle_net_ops);
-		kfree(mangle_ops);
 	}
 
 	return ret;
@@ -139,6 +135,7 @@ static int __init iptable_mangle_init(void)
 static void __exit iptable_mangle_fini(void)
 {
 	unregister_pernet_subsys(&iptable_mangle_net_ops);
+	xt_unregister_template(&packet_mangler);
 	kfree(mangle_ops);
 }
 

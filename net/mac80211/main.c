@@ -1020,7 +1020,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 			iftd = &sband->iftype_data[i];
 
-			supp_he = supp_he || (iftd && iftd->he_cap.has_he);
+			supp_he = supp_he || iftd->he_cap.has_he;
 		}
 
 		/* HT, VHT, HE require QoS, thus >= 4 queues */

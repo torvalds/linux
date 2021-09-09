@@ -12,6 +12,8 @@
 #include <linux/mod_devicetable.h>
 #include <linux/nvmem-provider.h>
 #include <linux/platform_device.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 
@@ -139,6 +141,12 @@ static void qfprom_disable_fuse_blowing(const struct qfprom_priv *priv,
 {
 	int ret;
 
+	writel(old->timer_val, priv->qfpconf + QFPROM_BLOW_TIMER_OFFSET);
+	writel(old->accel_val, priv->qfpconf + QFPROM_ACCEL_OFFSET);
+
+	dev_pm_genpd_set_performance_state(priv->dev, 0);
+	pm_runtime_put(priv->dev);
+
 	/*
 	 * This may be a shared rail and may be able to run at a lower rate
 	 * when we're not blowing fuses.  At the moment, the regulator framework
@@ -159,9 +167,6 @@ static void qfprom_disable_fuse_blowing(const struct qfprom_priv *priv,
 			 "Failed to set clock rate for disable (ignoring)\n");
 
 	clk_disable_unprepare(priv->secclk);
-
-	writel(old->timer_val, priv->qfpconf + QFPROM_BLOW_TIMER_OFFSET);
-	writel(old->accel_val, priv->qfpconf + QFPROM_ACCEL_OFFSET);
 }
 
 /**
@@ -212,6 +217,14 @@ static int qfprom_enable_fuse_blowing(const struct qfprom_priv *priv,
 		goto err_clk_rate_set;
 	}
 
+	ret = pm_runtime_get_sync(priv->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(priv->dev);
+		dev_err(priv->dev, "Failed to enable power-domain\n");
+		goto err_reg_enable;
+	}
+	dev_pm_genpd_set_performance_state(priv->dev, INT_MAX);
+
 	old->timer_val = readl(priv->qfpconf + QFPROM_BLOW_TIMER_OFFSET);
 	old->accel_val = readl(priv->qfpconf + QFPROM_ACCEL_OFFSET);
 	writel(priv->soc_data->qfprom_blow_timer_value,
@@ -221,6 +234,8 @@ static int qfprom_enable_fuse_blowing(const struct qfprom_priv *priv,
 
 	return 0;
 
+err_reg_enable:
+	regulator_disable(priv->vcc);
 err_clk_rate_set:
 	clk_set_rate(priv->secclk, old->clk_rate);
 err_clk_prepared:
@@ -318,6 +333,11 @@ static int qfprom_reg_read(void *context,
 		*val++ = readb(base + reg + i++);
 
 	return 0;
+}
+
+static void qfprom_runtime_disable(void *data)
+{
+	pm_runtime_disable(data);
 }
 
 static const struct qfprom_soc_data qfprom_7_8_data = {
@@ -419,6 +439,11 @@ static int qfprom_probe(struct platform_device *pdev)
 		if (priv->soc_data)
 			econfig.reg_write = qfprom_reg_write;
 	}
+
+	pm_runtime_enable(dev);
+	ret = devm_add_action_or_reset(dev, qfprom_runtime_disable, dev);
+	if (ret)
+		return ret;
 
 	nvmem = devm_nvmem_register(dev, &econfig);
 

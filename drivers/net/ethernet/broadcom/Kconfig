@@ -122,8 +122,8 @@ config SB1250_MAC
 config TIGON3
 	tristate "Broadcom Tigon3 support"
 	depends on PCI
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select PHYLIB
-	imply PTP_1588_CLOCK
 	help
 	  This driver supports Broadcom Tigon3 based gigabit Ethernet cards.
 
@@ -140,7 +140,7 @@ config TIGON3_HWMON
 config BNX2X
 	tristate "Broadcom NetXtremeII 10Gb support"
 	depends on PCI
-	imply PTP_1588_CLOCK
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select FW_LOADER
 	select ZLIB_INFLATE
 	select LIBCRC32C
@@ -206,7 +206,7 @@ config SYSTEMPORT
 config BNXT
 	tristate "Broadcom NetXtreme-C/E support"
 	depends on PCI
-	imply PTP_1588_CLOCK
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select FW_LOADER
 	select LIBCRC32C
 	select NET_DEVLINK

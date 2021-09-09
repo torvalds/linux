@@ -162,6 +162,8 @@ struct twl4030_usb {
 	atomic_t		connected;
 	bool			vbus_supplied;
 	bool			musb_mailbox_pending;
+	unsigned long		runtime_suspended:1;
+	unsigned long		needs_resume:1;
 
 	struct delayed_work	id_workaround_work;
 };
@@ -384,6 +386,9 @@ static void __twl4030_phy_power(struct twl4030_usb *twl, int on)
 	WARN_ON(twl4030_usb_write_verify(twl, PHY_PWR_CTRL, pwr) < 0);
 }
 
+static int twl4030_usb_runtime_suspend(struct device *dev);
+static int twl4030_usb_runtime_resume(struct device *dev);
+
 static int __maybe_unused twl4030_usb_suspend(struct device *dev)
 {
 	struct twl4030_usb *twl = dev_get_drvdata(dev);
@@ -395,6 +400,10 @@ static int __maybe_unused twl4030_usb_suspend(struct device *dev)
 	 */
 	dev_dbg(twl->dev, "%s\n", __func__);
 	disable_irq(twl->irq);
+	if (!twl->runtime_suspended && !atomic_read(&twl->connected)) {
+		twl4030_usb_runtime_suspend(dev);
+		twl->needs_resume = 1;
+	}
 
 	return 0;
 }
@@ -405,8 +414,12 @@ static int __maybe_unused twl4030_usb_resume(struct device *dev)
 
 	dev_dbg(twl->dev, "%s\n", __func__);
 	enable_irq(twl->irq);
+	if (twl->needs_resume)
+		twl4030_usb_runtime_resume(dev);
 	/* check whether cable status changed */
 	twl4030_usb_irq(0, twl);
+
+	twl->runtime_suspended = 0;
 
 	return 0;
 }
@@ -421,6 +434,8 @@ static int __maybe_unused twl4030_usb_runtime_suspend(struct device *dev)
 	regulator_disable(twl->usb1v5);
 	regulator_disable(twl->usb1v8);
 	regulator_disable(twl->usb3v1);
+
+	twl->runtime_suspended = 1;
 
 	return 0;
 }

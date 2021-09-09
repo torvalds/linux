@@ -4485,6 +4485,21 @@ exit:
 	return err;
 }
 
+int rtw_siocdevprivate(struct net_device *dev, struct ifreq *rq,
+		       void __user *data, int cmd)
+{
+	struct iwreq *wrq = (struct iwreq *)rq;
+
+	/* little hope of fixing this, better remove the whole function */
+	if (in_compat_syscall())
+		return -EOPNOTSUPP;
+
+	if (cmd != SIOCDEVPRIVATE)
+		return -EOPNOTSUPP;
+
+	return rtw_ioctl_wext_private(dev, &wrq->u);
+}
+
 int rtw_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct iwreq *wrq = (struct iwreq *)rq;
@@ -4496,9 +4511,6 @@ int rtw_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		break;
 	case RTL_IOCTL_HOSTAPD:
 		ret = rtw_hostapd_ioctl(dev, &wrq->u.data);
-		break;
-	case SIOCDEVPRIVATE:
-		ret = rtw_ioctl_wext_private(dev, &wrq->u);
 		break;
 	default:
 		ret = -EOPNOTSUPP;

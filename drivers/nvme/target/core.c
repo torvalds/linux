@@ -802,6 +802,7 @@ void nvmet_sq_destroy(struct nvmet_sq *sq)
 		 * controller teardown as a result of a keep-alive expiration.
 		 */
 		ctrl->reset_tbkas = true;
+		sq->ctrl->sqs[sq->qid] = NULL;
 		nvmet_ctrl_put(ctrl);
 		sq->ctrl = NULL; /* allows reusing the queue later */
 	}

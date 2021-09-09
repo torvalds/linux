@@ -91,29 +91,57 @@
 /* Keep this the last entry.  */
 #define R_390_NUM	61
 
-/* Bits present in AT_HWCAP. */
-#define HWCAP_S390_ESAN3	1
-#define HWCAP_S390_ZARCH	2
-#define HWCAP_S390_STFLE	4
-#define HWCAP_S390_MSA		8
-#define HWCAP_S390_LDISP	16
-#define HWCAP_S390_EIMM		32
-#define HWCAP_S390_DFP		64
-#define HWCAP_S390_HPAGE	128
-#define HWCAP_S390_ETF3EH	256
-#define HWCAP_S390_HIGH_GPRS	512
-#define HWCAP_S390_TE		1024
-#define HWCAP_S390_VXRS		2048
-#define HWCAP_S390_VXRS_BCD	4096
-#define HWCAP_S390_VXRS_EXT	8192
-#define HWCAP_S390_GS		16384
-#define HWCAP_S390_VXRS_EXT2	32768
-#define HWCAP_S390_VXRS_PDE	65536
-#define HWCAP_S390_SORT		131072
-#define HWCAP_S390_DFLT		262144
+enum {
+	HWCAP_NR_ESAN3		= 0,
+	HWCAP_NR_ZARCH		= 1,
+	HWCAP_NR_STFLE		= 2,
+	HWCAP_NR_MSA		= 3,
+	HWCAP_NR_LDISP		= 4,
+	HWCAP_NR_EIMM		= 5,
+	HWCAP_NR_DFP		= 6,
+	HWCAP_NR_HPAGE		= 7,
+	HWCAP_NR_ETF3EH		= 8,
+	HWCAP_NR_HIGH_GPRS	= 9,
+	HWCAP_NR_TE		= 10,
+	HWCAP_NR_VXRS		= 11,
+	HWCAP_NR_VXRS_BCD	= 12,
+	HWCAP_NR_VXRS_EXT	= 13,
+	HWCAP_NR_GS		= 14,
+	HWCAP_NR_VXRS_EXT2	= 15,
+	HWCAP_NR_VXRS_PDE	= 16,
+	HWCAP_NR_SORT		= 17,
+	HWCAP_NR_DFLT		= 18,
+	HWCAP_NR_VXRS_PDE2	= 19,
+	HWCAP_NR_NNPA		= 20,
+	HWCAP_NR_PCI_MIO	= 21,
+	HWCAP_NR_SIE		= 22,
+	HWCAP_NR_MAX
+};
 
-/* Internal bits, not exposed via elf */
-#define HWCAP_INT_SIE		1UL
+/* Bits present in AT_HWCAP. */
+#define HWCAP_ESAN3		BIT(HWCAP_NR_ESAN3)
+#define HWCAP_ZARCH		BIT(HWCAP_NR_ZARCH)
+#define HWCAP_STFLE		BIT(HWCAP_NR_STFLE)
+#define HWCAP_MSA		BIT(HWCAP_NR_MSA)
+#define HWCAP_LDISP		BIT(HWCAP_NR_LDISP)
+#define HWCAP_EIMM		BIT(HWCAP_NR_EIMM)
+#define HWCAP_DFP		BIT(HWCAP_NR_DFP)
+#define HWCAP_HPAGE		BIT(HWCAP_NR_HPAGE)
+#define HWCAP_ETF3EH		BIT(HWCAP_NR_ETF3EH)
+#define HWCAP_HIGH_GPRS		BIT(HWCAP_NR_HIGH_GPRS)
+#define HWCAP_TE		BIT(HWCAP_NR_TE)
+#define HWCAP_VXRS		BIT(HWCAP_NR_VXRS)
+#define HWCAP_VXRS_BCD		BIT(HWCAP_NR_VXRS_BCD)
+#define HWCAP_VXRS_EXT		BIT(HWCAP_NR_VXRS_EXT)
+#define HWCAP_GS		BIT(HWCAP_NR_GS)
+#define HWCAP_VXRS_EXT2		BIT(HWCAP_NR_VXRS_EXT2)
+#define HWCAP_VXRS_PDE		BIT(HWCAP_NR_VXRS_PDE)
+#define HWCAP_SORT		BIT(HWCAP_NR_SORT)
+#define HWCAP_DFLT		BIT(HWCAP_NR_DFLT)
+#define HWCAP_VXRS_PDE2		BIT(HWCAP_NR_VXRS_PDE2)
+#define HWCAP_NNPA		BIT(HWCAP_NR_NNPA)
+#define HWCAP_PCI_MIO		BIT(HWCAP_NR_PCI_MIO)
+#define HWCAP_SIE		BIT(HWCAP_NR_SIE)
 
 /*
  * These are used to set parameters in the core dumps.
@@ -208,10 +236,6 @@ struct arch_elf_state {
 
 extern unsigned long elf_hwcap;
 #define ELF_HWCAP (elf_hwcap)
-
-/* Internal hardware capabilities, not exposed via elf */
-
-extern unsigned long int_hwcap;
 
 /* This yields a string that ld.so will use to load implementation
    specific libraries for optimization.  This is more specific in

@@ -4012,6 +4012,10 @@ static void pool_status(struct dm_target *ti, status_type_t type,
 		       (unsigned long long)pt->low_water_blocks);
 		emit_flags(&pt->requested_pf, result, sz, maxlen);
 		break;
+
+	case STATUSTYPE_IMA:
+		*result = '\0';
+		break;
 	}
 	return;
 
@@ -4422,6 +4426,10 @@ static void thin_status(struct dm_target *ti, status_type_t type,
 			       (unsigned long) tc->dev_id);
 			if (tc->origin_dev)
 				DMEMIT(" %s", format_dev_t(buf, tc->origin_dev->bdev->bd_dev));
+			break;
+
+		case STATUSTYPE_IMA:
+			*result = '\0';
 			break;
 		}
 	}

@@ -79,7 +79,7 @@ static int auxiliary_bus_probe(struct device *dev)
 	return ret;
 }
 
-static int auxiliary_bus_remove(struct device *dev)
+static void auxiliary_bus_remove(struct device *dev)
 {
 	struct auxiliary_driver *auxdrv = to_auxiliary_drv(dev->driver);
 	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
@@ -87,8 +87,6 @@ static int auxiliary_bus_remove(struct device *dev)
 	if (auxdrv->remove)
 		auxdrv->remove(auxdev);
 	dev_pm_domain_detach(dev, true);
-
-	return 0;
 }
 
 static void auxiliary_bus_shutdown(struct device *dev)
