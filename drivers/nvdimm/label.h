@@ -67,6 +67,38 @@ struct nd_namespace_index {
 };
 
 /**
+ * struct cxl_region_label - CXL 2.0 Table 211
+ * @type: uuid identifying this label format (region)
+ * @uuid: uuid for the region this label describes
+ * @flags: NSLABEL_FLAG_UPDATING (all other flags reserved)
+ * @nlabel: 1 per interleave-way in the region
+ * @position: this label's position in the set
+ * @dpa: start address in device-local capacity for this label
+ * @rawsize: size of this label's contribution to region
+ * @hpa: mandatory system physical address to map this region
+ * @slot: slot id of this label in label area
+ * @ig: interleave granularity (1 << @ig) * 256 bytes
+ * @align: alignment in SZ_256M blocks
+ * @reserved: reserved
+ * @checksum: fletcher64 sum of this label
+ */
+struct cxl_region_label {
+	u8 type[NSLABEL_UUID_LEN];
+	u8 uuid[NSLABEL_UUID_LEN];
+	__le32 flags;
+	__le16 nlabel;
+	__le16 position;
+	__le64 dpa;
+	__le64 rawsize;
+	__le64 hpa;
+	__le32 slot;
+	__le32 ig;
+	__le32 align;
+	u8 reserved[0xac];
+	__le64 checksum;
+};
+
+/**
  * struct nd_namespace_label - namespace superblock
  * @uuid: UUID per RFC 4122
  * @name: optional name (NULL-terminated)
