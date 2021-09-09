@@ -1014,12 +1014,16 @@ static void rkvdec2_link_trigger_irq(struct mpp_dev *mpp)
 	rkvdec2_link_trigger_work(mpp);
 }
 
-static void rkvdec2_link_power_on(struct mpp_dev *mpp)
+static int rkvdec2_link_power_on(struct mpp_dev *mpp)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 	struct rkvdec_link_dev *link_dec = dec->link_dec;
 
 	if (!atomic_xchg(&link_dec->power_enabled, 1)) {
+		if (mpp_iommu_attach(mpp->iommu_info)) {
+			dev_err(mpp->dev, "mpp_iommu_attach failed\n");
+			return -ENODATA;
+		}
 		pm_runtime_get_sync(mpp->dev);
 		pm_stay_awake(mpp->dev);
 
@@ -1031,6 +1035,7 @@ static void rkvdec2_link_power_on(struct mpp_dev *mpp)
 			link_dec->irq_enabled = 1;
 		}
 	}
+	return 0;
 }
 
 static void rkvdec2_link_power_off(struct mpp_dev *mpp)
@@ -1158,19 +1163,8 @@ static int mpp_task_queue(struct mpp_dev *mpp, struct mpp_task *task)
 	struct rkvdec_link_dev *link_dec = dec->link_dec;
 	u32 task_to_run = 0;
 	int slot_idx = 0;
-	int ret;
 
 	mpp_debug_enter();
-
-	/*
-	 * for iommu share hardware, should attach to ensure
-	 * working in current device
-	 */
-	ret = mpp_iommu_attach(mpp->iommu_info);
-	if (ret) {
-		dev_err(mpp->dev, "mpp_iommu_attach failed\n");
-		return -ENODATA;
-	}
 
 	rkvdec2_link_power_on(mpp);
 	mpp_time_record(task);
