@@ -200,11 +200,14 @@ int tegra_plane_prepare_fb(struct drm_plane *plane,
 			   struct drm_plane_state *state)
 {
 	struct tegra_dc *dc = to_tegra_dc(state->crtc);
+	int err;
 
 	if (!state->fb)
 		return 0;
 
-	drm_gem_plane_helper_prepare_fb(plane, state);
+	err = drm_gem_plane_helper_prepare_fb(plane, state);
+	if (err < 0)
+		return err;
 
 	return tegra_dc_pin(dc, to_tegra_plane_state(state));
 }
