@@ -649,8 +649,15 @@ struct spi_controller {
 	int			*cs_gpios;
 	struct gpio_desc	**cs_gpiods;
 	bool			use_gpio_descriptors;
+// KABI fix up for 35f3f8504c3b ("spi: Switch to signed types for *_native_cs
+// SPI controller fields") that showed up in 5.10.63
+#ifdef __GENKSYMS__
+	u8			unused_native_cs;
+	u8			max_native_cs;
+#else
 	s8			unused_native_cs;
 	s8			max_native_cs;
+#endif
 
 	/* statistics */
 	struct spi_statistics	statistics;
