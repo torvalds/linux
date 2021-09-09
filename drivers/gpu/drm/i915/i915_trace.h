@@ -805,7 +805,7 @@ DECLARE_EVENT_CLASS(i915_request,
 			   __entry->dev = rq->engine->i915->drm.primary->index;
 			   __entry->class = rq->engine->uabi_class;
 			   __entry->instance = rq->engine->uabi_instance;
-			   __entry->guc_id = rq->context->guc_id;
+			   __entry->guc_id = rq->context->guc_id.id;
 			   __entry->ctx = rq->fence.context;
 			   __entry->seqno = rq->fence.seqno;
 			   __entry->tail = rq->tail;
@@ -907,7 +907,7 @@ DECLARE_EVENT_CLASS(intel_context,
 			     ),
 
 		    TP_fast_assign(
-			   __entry->guc_id = ce->guc_id;
+			   __entry->guc_id = ce->guc_id.id;
 			   __entry->pin_count = atomic_read(&ce->pin_count);
 			   __entry->sched_state = ce->guc_state.sched_state;
 			   __entry->guc_prio = ce->guc_active.prio;

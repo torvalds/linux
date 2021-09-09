@@ -186,16 +186,18 @@ struct intel_context {
 		u32 prio_count[GUC_CLIENT_PRIORITY_NUM];
 	} guc_active;
 
-	/* GuC LRC descriptor ID */
-	u16 guc_id;
+	struct {
+		/* GuC LRC descriptor ID */
+		u16 id;
 
-	/* GuC LRC descriptor reference count */
-	atomic_t guc_id_ref;
+		/* GuC LRC descriptor reference count */
+		atomic_t ref;
 
-	/*
-	 * GuC ID link - in list when unpinned but guc_id still valid in GuC
-	 */
-	struct list_head guc_id_link;
+		/*
+		 * GuC ID link - in list when unpinned but guc_id still valid in GuC
+		 */
+		struct list_head link;
+	} guc_id;
 
 #ifdef CONFIG_DRM_I915_SELFTEST
 	/**

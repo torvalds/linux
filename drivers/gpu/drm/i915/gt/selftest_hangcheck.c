@@ -789,7 +789,7 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 				if (err)
 					pr_err("[%s] Wait for request %lld:%lld [0x%04X] failed: %d!\n",
 					       engine->name, rq->fence.context,
-					       rq->fence.seqno, rq->context->guc_id, err);
+					       rq->fence.seqno, rq->context->guc_id.id, err);
 			}
 
 skip:
@@ -1098,7 +1098,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 				if (err)
 					pr_err("[%s] Wait for request %lld:%lld [0x%04X] failed: %d!\n",
 					       engine->name, rq->fence.context,
-					       rq->fence.seqno, rq->context->guc_id, err);
+					       rq->fence.seqno, rq->context->guc_id.id, err);
 			}
 
 			count++;
@@ -1108,7 +1108,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 					pr_err("i915_reset_engine(%s:%s): failed to reset request %lld:%lld [0x%04X]\n",
 					       engine->name, test_name,
 					       rq->fence.context,
-					       rq->fence.seqno, rq->context->guc_id);
+					       rq->fence.seqno, rq->context->guc_id.id);
 					i915_request_put(rq);
 
 					GEM_TRACE_DUMP();

@@ -398,8 +398,8 @@ intel_context_init(struct intel_context *ce, struct intel_engine_cs *engine)
 	spin_lock_init(&ce->guc_active.lock);
 	INIT_LIST_HEAD(&ce->guc_active.requests);
 
-	ce->guc_id = GUC_INVALID_LRC_ID;
-	INIT_LIST_HEAD(&ce->guc_id_link);
+	ce->guc_id.id = GUC_INVALID_LRC_ID;
+	INIT_LIST_HEAD(&ce->guc_id.link);
 
 	/*
 	 * Initialize fence to be complete as this is expected to be complete

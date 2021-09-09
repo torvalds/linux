@@ -270,12 +270,12 @@ static inline void decr_context_committed_requests(struct intel_context *ce)
 
 static inline bool context_guc_id_invalid(struct intel_context *ce)
 {
-	return ce->guc_id == GUC_INVALID_LRC_ID;
+	return ce->guc_id.id == GUC_INVALID_LRC_ID;
 }
 
 static inline void set_context_guc_id_invalid(struct intel_context *ce)
 {
-	ce->guc_id = GUC_INVALID_LRC_ID;
+	ce->guc_id.id = GUC_INVALID_LRC_ID;
 }
 
 static inline struct intel_guc *ce_to_guc(struct intel_context *ce)
@@ -468,14 +468,14 @@ static int guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 		return 0;
 	}
 
-	GEM_BUG_ON(!atomic_read(&ce->guc_id_ref));
+	GEM_BUG_ON(!atomic_read(&ce->guc_id.ref));
 	GEM_BUG_ON(context_guc_id_invalid(ce));
 
 	/*
 	 * Corner case where the GuC firmware was blown away and reloaded while
 	 * this context was pinned.
 	 */
-	if (unlikely(!lrc_desc_registered(guc, ce->guc_id))) {
+	if (unlikely(!lrc_desc_registered(guc, ce->guc_id.id))) {
 		err = guc_lrc_desc_pin(ce, false);
 		if (unlikely(err))
 			return err;
@@ -494,14 +494,14 @@ static int guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 
 	if (!enabled) {
 		action[len++] = INTEL_GUC_ACTION_SCHED_CONTEXT_MODE_SET;
-		action[len++] = ce->guc_id;
+		action[len++] = ce->guc_id.id;
 		action[len++] = GUC_CONTEXT_ENABLE;
 		set_context_pending_enable(ce);
 		intel_context_get(ce);
 		g2h_len_dw = G2H_LEN_DW_SCHED_CONTEXT_MODE_SET;
 	} else {
 		action[len++] = INTEL_GUC_ACTION_SCHED_CONTEXT;
-		action[len++] = ce->guc_id;
+		action[len++] = ce->guc_id.id;
 	}
 
 	err = intel_guc_send_nb(guc, action, len, g2h_len_dw);
@@ -1167,12 +1167,12 @@ static int new_guc_id(struct intel_guc *guc)
 static void __release_guc_id(struct intel_guc *guc, struct intel_context *ce)
 {
 	if (!context_guc_id_invalid(ce)) {
-		ida_simple_remove(&guc->guc_ids, ce->guc_id);
-		reset_lrc_desc(guc, ce->guc_id);
+		ida_simple_remove(&guc->guc_ids, ce->guc_id.id);
+		reset_lrc_desc(guc, ce->guc_id.id);
 		set_context_guc_id_invalid(ce);
 	}
-	if (!list_empty(&ce->guc_id_link))
-		list_del_init(&ce->guc_id_link);
+	if (!list_empty(&ce->guc_id.link))
+		list_del_init(&ce->guc_id.link);
 }
 
 static void release_guc_id(struct intel_guc *guc, struct intel_context *ce)
@@ -1194,13 +1194,13 @@ static int steal_guc_id(struct intel_guc *guc)
 	if (!list_empty(&guc->guc_id_list)) {
 		ce = list_first_entry(&guc->guc_id_list,
 				      struct intel_context,
-				      guc_id_link);
+				      guc_id.link);
 
-		GEM_BUG_ON(atomic_read(&ce->guc_id_ref));
+		GEM_BUG_ON(atomic_read(&ce->guc_id.ref));
 		GEM_BUG_ON(context_guc_id_invalid(ce));
 
-		list_del_init(&ce->guc_id_link);
-		guc_id = ce->guc_id;
+		list_del_init(&ce->guc_id.link);
+		guc_id = ce->guc_id.id;
 
 		spin_lock(&ce->guc_state.lock);
 		clr_context_registered(ce);
@@ -1236,7 +1236,7 @@ static int pin_guc_id(struct intel_guc *guc, struct intel_context *ce)
 	int ret = 0;
 	unsigned long flags, tries = PIN_GUC_ID_TRIES;
 
-	GEM_BUG_ON(atomic_read(&ce->guc_id_ref));
+	GEM_BUG_ON(atomic_read(&ce->guc_id.ref));
 
 try_again:
 	spin_lock_irqsave(&guc->contexts_lock, flags);
@@ -1244,20 +1244,20 @@ try_again:
 	might_lock(&ce->guc_state.lock);
 
 	if (context_guc_id_invalid(ce)) {
-		ret = assign_guc_id(guc, &ce->guc_id);
+		ret = assign_guc_id(guc, &ce->guc_id.id);
 		if (ret)
 			goto out_unlock;
 		ret = 1;	/* Indidcates newly assigned guc_id */
 	}
-	if (!list_empty(&ce->guc_id_link))
-		list_del_init(&ce->guc_id_link);
-	atomic_inc(&ce->guc_id_ref);
+	if (!list_empty(&ce->guc_id.link))
+		list_del_init(&ce->guc_id.link);
+	atomic_inc(&ce->guc_id.ref);
 
 out_unlock:
 	spin_unlock_irqrestore(&guc->contexts_lock, flags);
 
 	/*
-	 * -EAGAIN indicates no guc_ids are available, let's retire any
+	 * -EAGAIN indicates no guc_id are available, let's retire any
 	 * outstanding requests to see if that frees up a guc_id. If the first
 	 * retire didn't help, insert a sleep with the timeslice duration before
 	 * attempting to retire more requests. Double the sleep period each
@@ -1285,15 +1285,15 @@ static void unpin_guc_id(struct intel_guc *guc, struct intel_context *ce)
 {
 	unsigned long flags;
 
-	GEM_BUG_ON(atomic_read(&ce->guc_id_ref) < 0);
+	GEM_BUG_ON(atomic_read(&ce->guc_id.ref) < 0);
 
 	if (unlikely(context_guc_id_invalid(ce)))
 		return;
 
 	spin_lock_irqsave(&guc->contexts_lock, flags);
-	if (!context_guc_id_invalid(ce) && list_empty(&ce->guc_id_link) &&
-	    !atomic_read(&ce->guc_id_ref))
-		list_add_tail(&ce->guc_id_link, &guc->guc_id_list);
+	if (!context_guc_id_invalid(ce) && list_empty(&ce->guc_id.link) &&
+	    !atomic_read(&ce->guc_id.ref))
+		list_add_tail(&ce->guc_id.link, &guc->guc_id_list);
 	spin_unlock_irqrestore(&guc->contexts_lock, flags);
 }
 
@@ -1316,12 +1316,12 @@ static int register_context(struct intel_context *ce, bool loop)
 {
 	struct intel_guc *guc = ce_to_guc(ce);
 	u32 offset = intel_guc_ggtt_offset(guc, guc->lrc_desc_pool) +
-		ce->guc_id * sizeof(struct guc_lrc_desc);
+		ce->guc_id.id * sizeof(struct guc_lrc_desc);
 	int ret;
 
 	trace_intel_context_register(ce);
 
-	ret = __guc_action_register_context(guc, ce->guc_id, offset, loop);
+	ret = __guc_action_register_context(guc, ce->guc_id.id, offset, loop);
 	if (likely(!ret)) {
 		unsigned long flags;
 
@@ -1390,7 +1390,7 @@ static int guc_lrc_desc_pin(struct intel_context *ce, bool loop)
 	struct intel_engine_cs *engine = ce->engine;
 	struct intel_runtime_pm *runtime_pm = engine->uncore->rpm;
 	struct intel_guc *guc = &engine->gt->uc.guc;
-	u32 desc_idx = ce->guc_id;
+	u32 desc_idx = ce->guc_id.id;
 	struct guc_lrc_desc *desc;
 	bool context_registered;
 	intel_wakeref_t wakeref;
@@ -1453,7 +1453,7 @@ static int guc_lrc_desc_pin(struct intel_context *ce, bool loop)
 		 * context whose guc_id was stolen.
 		 */
 		with_intel_runtime_pm(runtime_pm, wakeref)
-			ret = deregister_context(ce, ce->guc_id);
+			ret = deregister_context(ce, ce->guc_id.id);
 		if (unlikely(ret == -ENODEV))
 			ret = 0;	/* Will get registered later */
 	} else {
@@ -1524,7 +1524,7 @@ static void __guc_context_sched_enable(struct intel_guc *guc,
 {
 	u32 action[] = {
 		INTEL_GUC_ACTION_SCHED_CONTEXT_MODE_SET,
-		ce->guc_id,
+		ce->guc_id.id,
 		GUC_CONTEXT_ENABLE
 	};
 
@@ -1540,7 +1540,7 @@ static void __guc_context_sched_disable(struct intel_guc *guc,
 {
 	u32 action[] = {
 		INTEL_GUC_ACTION_SCHED_CONTEXT_MODE_SET,
-		guc_id,	/* ce->guc_id not stable */
+		guc_id,	/* ce->guc_id.id not stable */
 		GUC_CONTEXT_DISABLE
 	};
 
@@ -1585,7 +1585,7 @@ static u16 prep_context_pending_disable(struct intel_context *ce)
 	guc_blocked_fence_reinit(ce);
 	intel_context_get(ce);
 
-	return ce->guc_id;
+	return ce->guc_id.id;
 }
 
 static struct i915_sw_fence *guc_context_block(struct intel_context *ce)
@@ -1638,7 +1638,7 @@ static bool context_cant_unblock(struct intel_context *ce)
 
 	return (ce->guc_state.sched_state & SCHED_STATE_NO_UNBLOCK) ||
 		context_guc_id_invalid(ce) ||
-		!lrc_desc_registered(ce_to_guc(ce), ce->guc_id) ||
+		!lrc_desc_registered(ce_to_guc(ce), ce->guc_id.id) ||
 		!intel_context_is_pinned(ce);
 }
 
@@ -1757,7 +1757,7 @@ static void guc_context_ban(struct intel_context *ce, struct i915_request *rq)
 		if (!context_guc_id_invalid(ce))
 			with_intel_runtime_pm(runtime_pm, wakeref)
 				__guc_context_set_preemption_timeout(guc,
-								     ce->guc_id,
+								     ce->guc_id.id,
 								     1);
 		spin_unlock_irqrestore(&ce->guc_state.lock, flags);
 	}
@@ -1802,11 +1802,11 @@ static inline void guc_lrc_desc_unpin(struct intel_context *ce)
 {
 	struct intel_guc *guc = ce_to_guc(ce);
 
-	GEM_BUG_ON(!lrc_desc_registered(guc, ce->guc_id));
-	GEM_BUG_ON(ce != __get_context(guc, ce->guc_id));
+	GEM_BUG_ON(!lrc_desc_registered(guc, ce->guc_id.id));
+	GEM_BUG_ON(ce != __get_context(guc, ce->guc_id.id));
 	GEM_BUG_ON(context_enabled(ce));
 
-	deregister_context(ce, ce->guc_id);
+	deregister_context(ce, ce->guc_id.id);
 }
 
 static void __guc_context_destroy(struct intel_context *ce)
@@ -1851,7 +1851,7 @@ static void guc_context_destroy(struct kref *kref)
 		__guc_context_destroy(ce);
 		return;
 	} else if (submission_disabled(guc) ||
-		   !lrc_desc_registered(guc, ce->guc_id)) {
+		   !lrc_desc_registered(guc, ce->guc_id.id)) {
 		release_guc_id(guc, ce);
 		__guc_context_destroy(ce);
 		return;
@@ -1860,10 +1860,10 @@ static void guc_context_destroy(struct kref *kref)
 	/*
 	 * We have to acquire the context spinlock and check guc_id again, if it
 	 * is valid it hasn't been stolen and needs to be deregistered. We
-	 * delete this context from the list of unpinned guc_ids available to
+	 * delete this context from the list of unpinned guc_id available to
 	 * steal to seal a race with guc_lrc_desc_pin(). When the G2H CTB
 	 * returns indicating this context has been deregistered the guc_id is
-	 * returned to the pool of available guc_ids.
+	 * returned to the pool of available guc_id.
 	 */
 	spin_lock_irqsave(&guc->contexts_lock, flags);
 	if (context_guc_id_invalid(ce)) {
@@ -1872,8 +1872,8 @@ static void guc_context_destroy(struct kref *kref)
 		return;
 	}
 
-	if (!list_empty(&ce->guc_id_link))
-		list_del_init(&ce->guc_id_link);
+	if (!list_empty(&ce->guc_id.link))
+		list_del_init(&ce->guc_id.link);
 	spin_unlock_irqrestore(&guc->contexts_lock, flags);
 
 	/* Seal race with Reset */
@@ -1918,7 +1918,7 @@ static void guc_context_set_prio(struct intel_guc *guc,
 {
 	u32 action[] = {
 		INTEL_GUC_ACTION_SET_CONTEXT_PRIORITY,
-		ce->guc_id,
+		ce->guc_id.id,
 		prio,
 	};
 
@@ -2053,7 +2053,7 @@ static void remove_from_context(struct i915_request *rq)
 	decr_context_committed_requests(ce);
 	spin_unlock_irq(&ce->guc_state.lock);
 
-	atomic_dec(&ce->guc_id_ref);
+	atomic_dec(&ce->guc_id.ref);
 	i915_request_notify_execute_cb_imm(rq);
 }
 
@@ -2123,7 +2123,7 @@ static void guc_signal_context_fence(struct intel_context *ce)
 static bool context_needs_register(struct intel_context *ce, bool new_guc_id)
 {
 	return (new_guc_id || test_bit(CONTEXT_LRCA_DIRTY, &ce->flags) ||
-		!lrc_desc_registered(ce_to_guc(ce), ce->guc_id)) &&
+		!lrc_desc_registered(ce_to_guc(ce), ce->guc_id.id)) &&
 		!submission_disabled(ce_to_guc(ce));
 }
 
@@ -2179,11 +2179,11 @@ static int guc_request_alloc(struct i915_request *rq)
 	/*
 	 * Call pin_guc_id here rather than in the pinning step as with
 	 * dma_resv, contexts can be repeatedly pinned / unpinned trashing the
-	 * guc_ids and creating horrible race conditions. This is especially bad
-	 * when guc_ids are being stolen due to over subscription. By the time
+	 * guc_id and creating horrible race conditions. This is especially bad
+	 * when guc_id are being stolen due to over subscription. By the time
 	 * this function is reached, it is guaranteed that the guc_id will be
 	 * persistent until the generated request is retired. Thus, sealing these
-	 * race conditions. It is still safe to fail here if guc_ids are
+	 * race conditions. It is still safe to fail here if guc_id are
 	 * exhausted and return -EAGAIN to the user indicating that they can try
 	 * again in the future.
 	 *
@@ -2193,7 +2193,7 @@ static int guc_request_alloc(struct i915_request *rq)
 	 * decremented on each retire. When it is zero, a lock around the
 	 * increment (in pin_guc_id) is needed to seal a race with unpin_guc_id.
 	 */
-	if (atomic_add_unless(&ce->guc_id_ref, 1, 0))
+	if (atomic_add_unless(&ce->guc_id.ref, 1, 0))
 		goto out;
 
 	ret = pin_guc_id(guc, ce);	/* returns 1 if new guc_id assigned */
@@ -2206,7 +2206,7 @@ static int guc_request_alloc(struct i915_request *rq)
 				disable_submission(guc);
 				goto out;	/* GPU will be reset */
 			}
-			atomic_dec(&ce->guc_id_ref);
+			atomic_dec(&ce->guc_id.ref);
 			unpin_guc_id(guc, ce);
 			return ret;
 		}
@@ -3040,7 +3040,7 @@ void intel_guc_submission_print_info(struct intel_guc *guc,
 
 		priolist_for_each_request(rq, pl)
 			drm_printf(p, "guc_id=%u, seqno=%llu\n",
-				   rq->context->guc_id,
+				   rq->context->guc_id.id,
 				   rq->fence.seqno);
 	}
 	spin_unlock_irqrestore(&sched_engine->lock, flags);
@@ -3071,7 +3071,7 @@ void intel_guc_submission_print_context_info(struct intel_guc *guc,
 
 	xa_lock_irqsave(&guc->context_lookup, flags);
 	xa_for_each(&guc->context_lookup, index, ce) {
-		drm_printf(p, "GuC lrc descriptor %u:\n", ce->guc_id);
+		drm_printf(p, "GuC lrc descriptor %u:\n", ce->guc_id.id);
 		drm_printf(p, "\tHW Context Desc: 0x%08x\n", ce->lrc.lrca);
 		drm_printf(p, "\t\tLRC Head: Internal %u, Memory %u\n",
 			   ce->ring->head,
@@ -3082,7 +3082,7 @@ void intel_guc_submission_print_context_info(struct intel_guc *guc,
 		drm_printf(p, "\t\tContext Pin Count: %u\n",
 			   atomic_read(&ce->pin_count));
 		drm_printf(p, "\t\tGuC ID Ref Count: %u\n",
-			   atomic_read(&ce->guc_id_ref));
+			   atomic_read(&ce->guc_id.ref));
 		drm_printf(p, "\t\tSchedule State: 0x%x\n\n",
 			   ce->guc_state.sched_state);
 
