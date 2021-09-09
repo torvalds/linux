@@ -18,6 +18,9 @@
 #define VOP_MAJOR(version)		((version) >> 8)
 #define VOP_MINOR(version)		((version) & 0xff)
 
+#define VOP_VERSION_RK3568	VOP_VERSION(0x40, 0x15)
+#define VOP_VERSION_RK3588	VOP_VERSION(0x40, 0x17)
+
 #define ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE	BIT(0)
 #define ROCKCHIP_OUTPUT_DUAL_CHANNEL_ODD_EVEN_MODE	BIT(1)
 #define ROCKCHIP_OUTPUT_DATA_SWAP			BIT(2)
@@ -31,8 +34,11 @@
 #define VOP_FEATURE_ALPHA_SCALE		BIT(2)
 #define VOP_FEATURE_ALPHA_HDR10		BIT(3)
 #define VOP_FEATURE_ALPHA_DOLBY_HDR	BIT(4)
+/* a feature to splice two windows and two vps to support resolution > 4096 */
+#define VOP_FEATURE_SPLICE	       BIT(5)
 
 #define VOP_FEATURE_OUTPUT_10BIT	VOP_FEATURE_OUTPUT_RGB10
+
 
 #define WIN_FEATURE_HDR2SDR		BIT(0)
 #define WIN_FEATURE_SDR2HDR		BIT(1)
@@ -40,6 +46,8 @@
 #define WIN_FEATURE_AFBDC		BIT(3)
 #define WIN_FEATURE_CLUSTER_MAIN	BIT(4)
 #define WIN_FEATURE_CLUSTER_SUB		BIT(5)
+/* Left win in splice mode */
+#define WIN_FEATURE_SPLICE_LEFT		BIT(6)
 /* a mirror win can only get fb address
  * from source win:
  * Cluster1---->Cluster0
@@ -640,6 +648,18 @@ struct vop2_video_port_regs {
 	struct vop_reg cubic_lut_en;
 	struct vop_reg cubic_lut_update_en;
 	struct vop_reg cubic_lut_mst;
+
+	/* cru */
+	struct vop_reg dclk_core_div;
+	struct vop_reg dclk_out_div;
+	struct vop_reg dclk_src_sel;
+
+	struct vop_reg splice_en;
+};
+
+struct vop2_dsc_regs {
+	struct vop_reg rst_deassert;
+	struct vop_reg port_mux;
 };
 
 struct vop2_wb_regs {
@@ -658,9 +678,26 @@ struct vop2_wb_regs {
 	struct vop_reg axi_uv_id;
 };
 
+/*
+ * connector interface(RGB/HDMI/eDP/DP/MIPI) data
+ */
+struct vop2_connector_if_data {
+	u32 id;
+	const char *clk_src_name;
+	const char *clk_parent_name;
+	const char *pixclk_name;
+	const char *dclk_name;
+	u32 post_proc_div_shift;
+	u32 if_div_shift;
+	u32 if_div_yuv420_shift;
+	u32 bus_div_shift;
+	u32 pixel_clk_div_shift;
+};
+
 struct vop2_win_data {
 	const char *name;
 	uint8_t phys_id;
+	uint8_t splice_win_id;
 
 	uint32_t base;
 	enum drm_plane_type type;
@@ -692,6 +729,11 @@ struct vop2_win_data {
 	const uint8_t dly[VOP2_DLY_MODE_MAX];
 };
 
+struct vop2_dsc_data {
+	char id;
+	const struct vop2_dsc_regs *regs;
+};
+
 struct vop2_wb_data {
 	uint32_t nformats;
 	const uint32_t *formats;
@@ -701,10 +743,12 @@ struct vop2_wb_data {
 
 struct vop2_video_port_data {
 	char id;
+	uint8_t splice_vp_id;
 	uint32_t feature;
 	uint64_t soc_id[VOP2_SOC_VARIANT];
 	uint16_t gamma_lut_len;
 	uint16_t cubic_lut_len;
+	unsigned long dclk_max;
 	struct vop_rect max_output;
 	const u8 pre_scan_max_dly[4];
 	const struct vop_intr *intr;
@@ -812,8 +856,9 @@ struct vop2_ctrl {
 	struct vop_reg dp_dclk_pol;
 	struct vop_reg dp_pin_pol;
 
-	struct vop_reg win_vp_id[8];
-	struct vop_reg win_dly[8];
+	/* This will be reference by win_phy_id */
+	struct vop_reg win_vp_id[16];
+	struct vop_reg win_dly[16];
 
 	/* connector mux */
 	struct vop_reg rgb_mux;
@@ -831,6 +876,19 @@ struct vop2_ctrl {
 	struct vop_reg lvds_dual_en;
 	struct vop_reg lvds_dual_mode;
 	struct vop_reg lvds_dual_channel_swap;
+
+	struct vop_reg hdmi0_dclk_div;
+	struct vop_reg hdmi0_pixclk_div;
+	struct vop_reg edp0_dclk_div;
+	struct vop_reg edp0_pixclk_div;
+
+	struct vop_reg hdmi1_dclk_div;
+	struct vop_reg hdmi1_pixclk_div;
+	struct vop_reg edp1_dclk_div;
+	struct vop_reg edp1_pixclk_div;
+
+	struct vop_reg mipi0_pixclk_div;
+	struct vop_reg mipi1_pixclk_div;
 
 	struct vop_reg cluster0_src_color_ctrl;
 	struct vop_reg cluster0_dst_color_ctrl;
@@ -859,15 +917,19 @@ struct vop2_ctrl {
 struct vop2_data {
 	uint32_t version;
 	uint32_t feature;
+	uint8_t nr_dscs;
 	uint8_t nr_vps;
 	uint8_t nr_mixers;
 	uint8_t nr_layers;
 	uint8_t nr_axi_intr;
 	uint8_t nr_gammas;
+	uint8_t nr_conns;
 	const struct vop_intr *axi_intr;
 	const struct vop2_ctrl *ctrl;
+	const struct vop2_dsc_data *dsc;
 	const struct vop2_win_data *win;
 	const struct vop2_video_port_data *vp;
+	const struct vop2_connector_if_data *conn;
 	const struct vop2_wb_data *wb;
 	const struct vop2_layer_data *layer;
 	const struct vop_csc_table *csc_table;

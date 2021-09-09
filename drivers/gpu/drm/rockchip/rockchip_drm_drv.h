@@ -105,6 +105,10 @@ struct rockchip_crtc_state {
 	int output_bpc;
 	int output_flags;
 	bool enable_afbc;
+	/**
+	 * @splice_mode: enabled when display a hdisplay > 4096 on rk3588
+	 */
+	bool splice_mode;
 
 	struct drm_tv_connector_state *tv_state;
 	int left_margin;
@@ -135,6 +139,8 @@ struct rockchip_crtc_state {
 	u32 background;
 	u32 line_flag;
 	u8 mode_update;
+	u8 dsc_enable;
+	unsigned long dsc_clk;
 	struct rockchip_hdr_state hdr;
 };
 
