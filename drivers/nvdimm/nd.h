@@ -342,6 +342,13 @@ struct nd_region {
 	struct nd_mapping mapping[];
 };
 
+static inline bool nsl_validate_nlabel(struct nd_region *nd_region,
+				       struct nvdimm_drvdata *ndd,
+				       struct nd_namespace_label *nd_label)
+{
+	return nsl_get_nlabel(ndd, nd_label) == nd_region->ndr_mappings;
+}
+
 struct nd_blk_region {
 	int (*enable)(struct nvdimm_bus *nvdimm_bus, struct device *dev);
 	int (*do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,

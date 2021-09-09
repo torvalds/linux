@@ -1848,12 +1848,11 @@ static bool has_uuid_at_pos(struct nd_region *nd_region, const uuid_t *uuid,
 
 		list_for_each_entry(label_ent, &nd_mapping->labels, list) {
 			struct nd_namespace_label *nd_label = label_ent->label;
-			u16 position, nlabel;
+			u16 position;
 
 			if (!nd_label)
 				continue;
 			position = nsl_get_position(ndd, nd_label);
-			nlabel = nsl_get_nlabel(ndd, nd_label);
 
 			if (!nsl_validate_isetcookie(ndd, nd_label, cookie))
 				continue;
@@ -1870,7 +1869,7 @@ static bool has_uuid_at_pos(struct nd_region *nd_region, const uuid_t *uuid,
 				return false;
 			}
 			found_uuid = true;
-			if (nlabel != nd_region->ndr_mappings)
+			if (!nsl_validate_nlabel(nd_region, ndd, nd_label))
 				continue;
 			if (position != pos)
 				continue;
