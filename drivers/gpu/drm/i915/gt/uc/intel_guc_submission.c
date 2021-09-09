@@ -1405,10 +1405,12 @@ static int guc_lrc_desc_pin(struct intel_context *ce, bool loop)
 	} else {
 		with_intel_runtime_pm(runtime_pm, wakeref)
 			ret = register_context(ce, loop);
-		if (unlikely(ret == -EBUSY))
+		if (unlikely(ret == -EBUSY)) {
 			reset_lrc_desc(guc, desc_idx);
-		else if (unlikely(ret == -ENODEV))
+		} else if (unlikely(ret == -ENODEV)) {
+			reset_lrc_desc(guc, desc_idx);
 			ret = 0;	/* Will get registered later */
+		}
 	}
 
 	return ret;
