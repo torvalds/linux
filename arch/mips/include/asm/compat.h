@@ -96,14 +96,6 @@ struct compat_statfs {
 
 #define COMPAT_OFF_T_MAX	0x7fffffff
 
-static inline void __user *arch_compat_alloc_user_space(long len)
-{
-	struct pt_regs *regs = (struct pt_regs *)
-		((unsigned long) current_thread_info() + THREAD_SIZE - 32) - 1;
-
-	return (void __user *) (regs->regs[29] - len);
-}
-
 struct compat_ipc64_perm {
 	compat_key_t key;
 	__compat_uid32_t uid;

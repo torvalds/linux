@@ -83,22 +83,6 @@ struct compat_statfs {
 
 #define COMPAT_OFF_T_MAX	0x7fffffff
 
-static inline void __user *arch_compat_alloc_user_space(long len)
-{
-	struct pt_regs *regs = current->thread.regs;
-	unsigned long usp = regs->gpr[1];
-
-	/*
-	 * We can't access below the stack pointer in the 32bit ABI and
-	 * can access 288 bytes in the 64bit big-endian ABI,
-	 * or 512 bytes with the new ELFv2 little-endian ABI.
-	 */
-	if (!is_32bit_task())
-		usp -= USER_REDZONE_SIZE;
-
-	return (void __user *) (usp - len);
-}
-
 /*
  * ipc64_perm is actually 32/64bit clean but since the compat layer refers to
  * it we may as well define it.
