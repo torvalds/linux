@@ -7,8 +7,6 @@
 #include "osdep_service.h"
 #include "drv_types.h"
 
-#ifdef CONFIG_88EU_AP_MODE
-
 /* external function */
 void rtw_indicate_sta_assoc_event(struct adapter *padapter,
 				  struct sta_info *psta);
@@ -28,7 +26,6 @@ void rtw_set_macaddr_acl(struct adapter *padapter, int mode);
 int rtw_acl_add_sta(struct adapter *padapter, u8 *addr);
 int rtw_acl_remove_sta(struct adapter *padapter, u8 *addr);
 
-#ifdef CONFIG_88EU_AP_MODE
 void associated_clients_update(struct adapter *padapter, u8 updated);
 void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta);
 u8 bss_cap_update_on_sta_leave(struct adapter *padapter, struct sta_info *psta);
@@ -40,8 +37,6 @@ int rtw_sta_flush(struct adapter *padapter);
 int rtw_ap_inform_ch_switch(struct adapter *padapter, u8 new_ch, u8 ch_offset);
 void start_ap_mode(struct adapter *padapter);
 void stop_ap_mode(struct adapter *padapter);
-#endif
-#endif /* end of CONFIG_88EU_AP_MODE */
 void update_bmc_sta(struct adapter *padapter);
 
 #endif

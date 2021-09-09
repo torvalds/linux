@@ -111,7 +111,6 @@ struct security_priv {
 	struct arc4_ctx xmit_arc4_ctx;
 	struct arc4_ctx recv_arc4_ctx;
 
-#ifdef CONFIG_88EU_AP_MODE
 	/* extend security capabilities for AP_MODE */
 	unsigned int dot8021xalg;/* 0:disable, 1:psk, 2:802.1x */
 	unsigned int wpa_psk;/* 0:disable, bit(0): WPA, bit(1):WPA2 */
@@ -119,7 +118,6 @@ struct security_priv {
 	unsigned int wpa2_group_cipher;
 	unsigned int wpa_pairwise_cipher;
 	unsigned int wpa2_pairwise_cipher;
-#endif
 	u8 wps_ie[MAX_WPS_IE_LEN];/* added in assoc req */
 	int wps_ie_len;
 	u8	binstallGrpkey;

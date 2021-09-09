@@ -523,7 +523,6 @@ static int recv_decache(struct recv_frame *precv_frame, u8 bretry, struct stainf
 void process_pwrbit_data(struct adapter *padapter, struct recv_frame *precv_frame);
 void process_pwrbit_data(struct adapter *padapter, struct recv_frame *precv_frame)
 {
-#ifdef CONFIG_88EU_AP_MODE
 	unsigned char pwrbit;
 	u8 *ptr = precv_frame->rx_data;
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
@@ -543,13 +542,10 @@ void process_pwrbit_data(struct adapter *padapter, struct recv_frame *precv_fram
 				wakeup_sta_to_xmit(padapter, psta);
 		}
 	}
-
-#endif
 }
 
 static void process_wmmps_data(struct adapter *padapter, struct recv_frame *precv_frame)
 {
-#ifdef CONFIG_88EU_AP_MODE
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct sta_info *psta = NULL;
@@ -598,8 +594,6 @@ static void process_wmmps_data(struct adapter *padapter, struct recv_frame *prec
 			}
 		}
 	}
-
-#endif
 }
 
 static void count_rx_stats(struct adapter *padapter, struct recv_frame *prframe, struct sta_info *sta)
@@ -883,7 +877,6 @@ exit:
 static int validate_recv_ctrl_frame(struct adapter *padapter,
 				    struct recv_frame *precv_frame)
 {
-#ifdef CONFIG_88EU_AP_MODE
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	u8 *pframe = precv_frame->rx_data;
@@ -995,8 +988,6 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 			spin_unlock_bh(&pxmitpriv->lock);
 		}
 	}
-
-#endif
 
 	return _FAIL;
 }

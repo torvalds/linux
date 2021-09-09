@@ -364,15 +364,12 @@ void rtw_proc_init_one(struct net_device *dev)
 		}
 	}
 
-#ifdef CONFIG_88EU_AP_MODE
-
 	entry = create_proc_read_entry("all_sta_info", S_IFREG | S_IRUGO,
 				   dir_dev, proc_get_all_sta_info, dev);
 	if (!entry) {
 		pr_info("Unable to create_proc_read_entry!\n");
 		return;
 	}
-#endif
 
 	entry = create_proc_read_entry("best_channel", S_IFREG | S_IRUGO,
 				   dir_dev, proc_get_best_channel, dev);
@@ -469,9 +466,7 @@ void rtw_proc_remove_one(struct net_device *dev)
 			remove_proc_entry("rf_reg_dump3", dir_dev);
 			remove_proc_entry("rf_reg_dump4", dir_dev);
 		}
-#ifdef CONFIG_88EU_AP_MODE
 		remove_proc_entry("all_sta_info", dir_dev);
-#endif
 
 		remove_proc_entry("best_channel", dir_dev);
 		remove_proc_entry("rx_signal", dir_dev);
@@ -788,9 +783,7 @@ static u8 rtw_init_default_value(struct adapter *padapter)
 	padapter->bWritePortCancel = false;
 	padapter->bRxRSSIDisplay = 0;
 	padapter->bNotifyChannelChange = 0;
-#ifdef CONFIG_88EU_P2P
 	padapter->bShowGetP2PState = 1;
-#endif
 	return _SUCCESS;
 }
 
@@ -845,11 +838,9 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 		goto exit;
 	}
 
-#ifdef CONFIG_88EU_P2P
 	rtw_init_wifidirect_timers(padapter);
 	init_wifidirect_info(padapter, P2P_ROLE_DISABLE);
 	reset_global_wifidirect_info(padapter);
-#endif /* CONFIG_88EU_P2P */
 
 	if (init_mlme_ext_priv(padapter) == _FAIL) {
 		ret8 = _FAIL;
@@ -919,7 +910,6 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 	/* we can call rtw_p2p_enable here, but: */
 	/*  1. rtw_p2p_enable may have IO operation */
 	/*  2. rtw_p2p_enable is bundled with wext interface */
-	#ifdef CONFIG_88EU_P2P
 	{
 		struct wifidirect_info *pwdinfo = &padapter->wdinfo;
 		if (!rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)) {
@@ -929,7 +919,6 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 			rtw_p2p_set_state(pwdinfo, P2P_STATE_NONE);
 		}
 	}
-	#endif
 
 	free_mlme_ext_priv(&padapter->mlmeextpriv);
 
@@ -1184,9 +1173,7 @@ int netdev_close(struct net_device *pnetdev)
 
 	nat25_db_cleanup(padapter);
 
-#ifdef CONFIG_88EU_P2P
 	rtw_p2p_enable(padapter, P2P_ROLE_DISABLE);
-#endif /* CONFIG_88EU_P2P */
 
 	kfree(dvobj->firmware.szFwBuffer);
 	dvobj->firmware.szFwBuffer = NULL;

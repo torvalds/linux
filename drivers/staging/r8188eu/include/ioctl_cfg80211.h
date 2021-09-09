@@ -61,13 +61,11 @@ void rtw_cfg80211_indicate_disconnect(struct adapter *padapter);
 void rtw_cfg80211_indicate_scan_done(struct rtw_wdev_priv *pwdev_priv,
 				     bool aborted);
 
-#ifdef CONFIG_88EU_AP_MODE
 void rtw_cfg80211_indicate_sta_assoc(struct adapter *padapter,
 				     u8 *pmgmt_frame, uint frame_len);
 void rtw_cfg80211_indicate_sta_disassoc(struct adapter *padapter,
 					unsigned char *da,
 					unsigned short reason);
-#endif /* CONFIG_88EU_AP_MODE */
 
 void rtw_cfg80211_issue_p2p_provision_request(struct adapter *padapter,
 					      const u8 *buf, size_t len);

@@ -91,9 +91,7 @@ u32 rtw_init_evt_priv(struct evt_priv *pevtpriv);
 void rtw_free_evt_priv(struct evt_priv *pevtpriv);
 void rtw_cmd_clr_isr(struct cmd_priv *pcmdpriv);
 void rtw_evt_notify_isr(struct evt_priv *pevtpriv);
-#ifdef CONFIG_88EU_P2P
 u8 p2p_protocol_wk_cmd(struct adapter *padapter, int intCmdType);
-#endif /* CONFIG_88EU_P2P */
 
 enum rtw_drvextra_cmd_id {
 	NONE_WK_CID,
@@ -785,9 +783,7 @@ u8 rtw_rpt_timer_cfg_cmd(struct adapter*padapter, u16 minRptTime);
  u8 rtw_antenna_select_cmd(struct adapter*padapter, u8 antenna,u8 enqueue);
 u8 rtw_ps_cmd(struct adapter*padapter);
 
-#ifdef CONFIG_88EU_AP_MODE
 u8 rtw_chk_hi_queue_cmd(struct adapter*padapter);
-#endif
 
 u8 rtw_set_ch_cmd(struct adapter*padapter, u8 ch, u8 bw, u8 ch_offset, u8 enqueue);
 u8 rtw_set_chplan_cmd(struct adapter*padapter, u8 chplan, u8 enqueue);

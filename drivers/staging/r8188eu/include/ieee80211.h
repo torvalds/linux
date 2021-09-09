@@ -15,8 +15,6 @@
 #define ETH_TYPE_LEN		2
 #define PAYLOAD_TYPE_LEN	1
 
-#ifdef CONFIG_88EU_AP_MODE
-
 #define RTL_IOCTL_HOSTAPD (SIOCIWFIRSTPRIV + 28)
 
 /* STA flags */
@@ -35,8 +33,6 @@
 #define WLAN_STA_WPS BIT(12)
 #define WLAN_STA_MAYBE_WPS BIT(13)
 #define WLAN_STA_NONERP BIT(31)
-
-#endif
 
 #define IEEE_CMD_SET_WPA_PARAM			1
 #define IEEE_CMD_SET_WPA_IE				2
@@ -172,7 +168,6 @@ struct ieee_param {
 			u16 key_len;
 			u8 key[0];
 		} crypt;
-#ifdef CONFIG_88EU_AP_MODE
 		struct {
 			u16 aid;
 			u16 capability;
@@ -184,12 +179,9 @@ struct ieee_param {
 			u8	reserved[2];/* for set max_num_sta */
 			u8	buf[0];
 		} bcn_ie;
-#endif
-
 	} u;
 };
 
-#ifdef CONFIG_88EU_AP_MODE
 struct ieee_param_ex {
 	u32 cmd;
 	u8 sta_addr[ETH_ALEN];
@@ -211,7 +203,6 @@ struct sta_data {
 	u64	tx_bytes;
 	u64	tx_drops;
 };
-#endif
 
 #define IEEE80211_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
@@ -1158,7 +1149,6 @@ u8 *rtw_get_wps_attr_content(u8 *wps_ie, uint wps_ielen, u16 target_attr_id,
 void dump_ies(u8 *buf, u32 buf_len);
 void dump_wps_ie(u8 *ie, u32 ie_len);
 
-#ifdef CONFIG_88EU_P2P
 void dump_p2p_ie(u8 *ie, u32 ie_len);
 u8 *rtw_get_p2p_ie(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen);
 u8 *rtw_get_p2p_attr(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id,
@@ -1169,8 +1159,6 @@ u32 rtw_set_p2p_attr_content(u8 *pbuf, u8 attr_id, u16 attr_len,
 			     u8 *pdata_attr);
 void rtw_wlan_bssid_ex_remove_p2p_attr(struct wlan_bssid_ex *bss_ex,
 				       u8 attr_id);
-#endif
-
 uint	rtw_get_rateset_len(u8	*rateset);
 
 struct registry_priv;

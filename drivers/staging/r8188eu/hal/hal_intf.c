@@ -130,14 +130,12 @@ void rtw_hal_update_ra_mask(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 	struct mlme_priv *pmlmepriv = &adapt->mlmepriv;
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
-#ifdef CONFIG_88EU_AP_MODE
 		struct sta_info *psta = NULL;
 		struct sta_priv *pstapriv = &adapt->stapriv;
 		if ((mac_id - 1) > 0)
 			psta = pstapriv->sta_aid[(mac_id - 1) - 1];
 		if (psta)
 			add_RATid(adapt, psta, 0);/* todo: based on rssi_level*/
-#endif
 	} else {
 		UpdateHalRAMask8188EUsb(adapt, mac_id, rssi_level);
 	}

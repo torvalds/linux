@@ -138,7 +138,6 @@ static char *translate_scan(struct adapter *padapter,
 	u8 bw_40MHz = 0, short_GI = 0;
 	u16 mcs_rate = 0;
 	u8 ss, sq;
-#ifdef CONFIG_88EU_P2P
 	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
 
 	if (!rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)) {
@@ -166,7 +165,6 @@ static char *translate_scan(struct adapter *padapter,
 		if (!blnGotP2PIE)
 			return start;
 	}
-#endif /* CONFIG_88EU_P2P */
 
 	/*  AP MAC address  */
 	iwe.cmd = SIOCGIWAP;
@@ -425,9 +423,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
-#ifdef CONFIG_88EU_P2P
 	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-#endif /* CONFIG_88EU_P2P */
 
 	param->u.crypt.err = 0;
 	param->u.crypt.alg[IEEE_CRYPT_ALG_NAME_LEN - 1] = '\0';
@@ -540,10 +536,8 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 					padapter->securitypriv.dot118021XGrpKeyid = param->u.crypt.idx;
 
 					rtw_set_key(padapter, &padapter->securitypriv, param->u.crypt.idx, 1);
-#ifdef CONFIG_88EU_P2P
 					if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_PROVISIONING_ING))
 						rtw_p2p_set_state(pwdinfo, P2P_STATE_PROVISIONING_DONE);
-#endif /* CONFIG_88EU_P2P */
 				}
 			}
 			pbcmc_sta = rtw_get_bcmc_stainfo(padapter);
@@ -573,9 +567,7 @@ static int rtw_set_wpa_ie(struct adapter *padapter, char *pie, unsigned short ie
 	u8 *buf = NULL;
 	int group_cipher = 0, pairwise_cipher = 0;
 	int ret = 0;
-#ifdef CONFIG_88EU_P2P
 	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-#endif /* CONFIG_88EU_P2P */
 
 	if (ielen > MAX_WPA_IE_LEN || !pie) {
 		_clr_fwstate_(&padapter->mlmepriv, WIFI_UNDER_WPS);
@@ -678,10 +670,8 @@ static int rtw_set_wpa_ie(struct adapter *padapter, char *pie, unsigned short ie
 					memcpy(padapter->securitypriv.wps_ie, &buf[cnt], padapter->securitypriv.wps_ie_len);
 
 					set_fwstate(&padapter->mlmepriv, WIFI_UNDER_WPS);
-#ifdef CONFIG_88EU_P2P
 					if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_GONEGO_OK))
 						rtw_p2p_set_state(pwdinfo, P2P_STATE_PROVISIONING_ING);
-#endif /* CONFIG_88EU_P2P */
 					cnt += buf[cnt + 1] + 2;
 					break;
 				} else {
@@ -1150,9 +1140,7 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct ndis_802_11_ssid ssid[RTW_SSID_SCAN_AMOUNT];
-#ifdef CONFIG_88EU_P2P
 	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-#endif /* CONFIG_88EU_P2P */
 
 	if (padapter->registrypriv.mp_mode == 1) {
 		if (check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
@@ -1198,14 +1186,12 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 /*	the pmlmepriv->scan_interval is always equal to 3. */
 /*	So, the wpa_supplicant won't find out the WPS SoftAP. */
 
-#ifdef CONFIG_88EU_P2P
 	if (pwdinfo->p2p_state != P2P_STATE_NONE) {
 		rtw_p2p_set_pre_state(pwdinfo, rtw_p2p_state(pwdinfo));
 		rtw_p2p_set_state(pwdinfo, P2P_STATE_FIND_PHASE_SEARCH);
 		rtw_p2p_findphase_ex_set(pwdinfo, P2P_FINDPHASE_EX_FULL);
 		rtw_free_network_queue(padapter, true);
 	}
-#endif /* CONFIG_88EU_P2P */
 
 	memset(ssid, 0, sizeof(struct ndis_802_11_ssid) * RTW_SSID_SCAN_AMOUNT);
 
@@ -1301,16 +1287,13 @@ static int rtw_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
 	u32 cnt = 0;
 	u32 wait_for_surveydone;
 	int wait_status;
-#ifdef CONFIG_88EU_P2P
 	struct	wifidirect_info *pwdinfo = &padapter->wdinfo;
-#endif /* CONFIG_88EU_P2P */
 
 	if (padapter->pwrctrlpriv.brfoffbyhw && padapter->bDriverStopped) {
 		ret = -EINVAL;
 		goto exit;
 	}
 
-#ifdef CONFIG_88EU_P2P
 	if (!rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)) {
 		/*	P2P is enabled */
 		wait_for_surveydone = 200;
@@ -1318,11 +1301,6 @@ static int rtw_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
 		/*	P2P is disabled */
 		wait_for_surveydone = 100;
 	}
-#else
-	{
-		wait_for_surveydone = 100;
-	}
-#endif /* CONFIG_88EU_P2P */
 
 	wait_status = _FW_UNDER_SURVEY | _FW_UNDER_LINKING;
 
@@ -2558,7 +2536,6 @@ exit:
 	return ret;
 }
 
-#ifdef CONFIG_88EU_P2P
 static int rtw_wext_p2p_enable(struct net_device *dev,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
@@ -3663,15 +3640,12 @@ static int rtw_p2p_got_wpsinfo(struct net_device *dev,
 	return ret;
 }
 
-#endif /* CONFIG_88EU_P2P */
-
 static int rtw_p2p_set(struct net_device *dev,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
 {
 	int ret = 0;
 
-#ifdef CONFIG_88EU_P2P
 	DBG_88E("[%s] extra = %s\n", __func__, extra);
 	if (!memcmp(extra, "enable =", 7)) {
 		rtw_wext_p2p_enable(dev, info, wrqu, &extra[7]);
@@ -3718,7 +3692,6 @@ static int rtw_p2p_set(struct net_device *dev,
 		wrqu->data.length -= 11;
 		rtw_p2p_set_persistent(dev, info, wrqu, &extra[11]);
 	}
-#endif /* CONFIG_88EU_P2P */
 
 	return ret;
 }
@@ -3729,7 +3702,6 @@ static int rtw_p2p_get(struct net_device *dev,
 {
 	int ret = 0;
 
-#ifdef CONFIG_88EU_P2P
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 
 	if (padapter->bShowGetP2PState)
@@ -3753,7 +3725,6 @@ static int rtw_p2p_get(struct net_device *dev,
 	} else if (!memcmp(wrqu->data.pointer, "op_ch", 5)) {
 		rtw_p2p_get_op_ch(dev, info, wrqu, extra);
 	}
-#endif /* CONFIG_88EU_P2P */
 	return ret;
 }
 
@@ -3763,7 +3734,6 @@ static int rtw_p2p_get2(struct net_device *dev,
 {
 	int ret = 0;
 
-#ifdef CONFIG_88EU_P2P
 	DBG_88E("[%s] extra = %s\n", __func__, (char *)wrqu->data.pointer);
 	if (!memcmp(extra, "wpsCM =", 6)) {
 		wrqu->data.length -= 6;
@@ -3781,8 +3751,6 @@ static int rtw_p2p_get2(struct net_device *dev,
 		wrqu->data.length -= 8;
 		rtw_p2p_get_invitation_procedure(dev, info, wrqu, &extra[8]);
 	}
-
-#endif /* CONFIG_88EU_P2P */
 
 	return ret;
 }
@@ -4248,9 +4216,7 @@ static int rtw_dbg_port(struct net_device *dev,
 				struct list_head *plist, *phead;
 				struct recv_reorder_ctrl *preorder_ctrl;
 
-#ifdef CONFIG_88EU_AP_MODE
 				DBG_88E("sta_dz_bitmap = 0x%x, tim_bitmap = 0x%x\n", pstapriv->sta_dz_bitmap, pstapriv->tim_bitmap);
-#endif
 				spin_lock_bh(&pstapriv->sta_hash_lock);
 
 				for (i = 0; i < NUM_STA; i++) {
@@ -4271,14 +4237,12 @@ static int rtw_dbg_port(struct net_device *dev,
 							DBG_88E("ampdu_enable = %d\n", psta->htpriv.ampdu_enable);
 							DBG_88E("agg_enable_bitmap =%x, candidate_tid_bitmap =%x\n", psta->htpriv.agg_enable_bitmap, psta->htpriv.candidate_tid_bitmap);
 
-#ifdef CONFIG_88EU_AP_MODE
 							DBG_88E("capability = 0x%x\n", psta->capability);
 							DBG_88E("flags = 0x%x\n", psta->flags);
 							DBG_88E("wpa_psk = 0x%x\n", psta->wpa_psk);
 							DBG_88E("wpa2_group_cipher = 0x%x\n", psta->wpa2_group_cipher);
 							DBG_88E("wpa2_pairwise_cipher = 0x%x\n", psta->wpa2_pairwise_cipher);
 							DBG_88E("qos_info = 0x%x\n", psta->qos_info);
-#endif
 							DBG_88E("dot118021XPrivacy = 0x%x\n", psta->dot118021XPrivacy);
 
 							for (j = 0; j < 16; j++) {
@@ -4359,10 +4323,8 @@ static int rtw_dbg_port(struct net_device *dev,
 			padapter->bNotifyChannelChange = extra_arg;
 			break;
 		case 0x24:
-#ifdef CONFIG_88EU_P2P
 			DBG_88E("turn %s the bShowGetP2PState Variable\n", (extra_arg == 1) ? "on" : "off");
 			padapter->bShowGetP2PState = extra_arg;
-#endif /*  CONFIG_88EU_P2P */
 			break;
 		case 0xaa:
 			if (extra_arg > 0x13)

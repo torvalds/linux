@@ -312,9 +312,7 @@ u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 			/* change to other mode from Ndis802_11APMode */
 			cur_network->join_res = -1;
 
-#ifdef CONFIG_88EU_AP_MODE
 			stop_ap_mode(padapter);
-#endif
 		}
 
 		if ((check_fwstate(pmlmepriv, _FW_LINKED)) ||
@@ -343,9 +341,6 @@ u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 			break;
 		case Ndis802_11APMode:
 			set_fwstate(pmlmepriv, WIFI_AP_STATE);
-#ifdef CONFIG_88EU_AP_MODE
-			start_ap_mode(padapter);
-#endif
 			break;
 		case Ndis802_11AutoUnknown:
 		case Ndis802_11InfrastructureMax:

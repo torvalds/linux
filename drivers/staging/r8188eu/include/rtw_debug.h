@@ -156,13 +156,9 @@ int proc_get_rf_reg_dump4(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data);
 
-#ifdef CONFIG_88EU_AP_MODE
-
 int proc_get_all_sta_info(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data);
-
-#endif
 
 int proc_get_best_channel(char *page, char **start,
 			  off_t offset, int count,

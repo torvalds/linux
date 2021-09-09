@@ -24,8 +24,6 @@ static void _rtw_init_stainfo(struct sta_info *psta)
 	_rtw_init_sta_xmit_priv(&psta->sta_xmitpriv);
 	_rtw_init_sta_recv_priv(&psta->sta_recvpriv);
 
-#ifdef CONFIG_88EU_AP_MODE
-
 	INIT_LIST_HEAD(&psta->asoc_list);
 
 	INIT_LIST_HEAD(&psta->auth_list);
@@ -38,21 +36,16 @@ static void _rtw_init_stainfo(struct sta_info *psta)
 
 	psta->bpairwise_key_installed = false;
 
-#ifdef CONFIG_88EU_AP_MODE
 	psta->nonerp_set = 0;
 	psta->no_short_slot_time_set = 0;
 	psta->no_short_preamble_set = 0;
 	psta->no_ht_gf_set = 0;
 	psta->no_ht_set = 0;
 	psta->ht_20mhz_set = 0;
-#endif
 
 	psta->under_exist_checking = 0;
 
 	psta->keep_alive_trycnt = 0;
-
-#endif	/*  CONFIG_88EU_AP_MODE */
-
 }
 
 u32	_rtw_init_sta_priv(struct	sta_priv *pstapriv)
@@ -88,8 +81,6 @@ u32	_rtw_init_sta_priv(struct	sta_priv *pstapriv)
 		psta++;
 	}
 
-#ifdef CONFIG_88EU_AP_MODE
-
 	pstapriv->sta_dz_bitmap = 0;
 	pstapriv->tim_bitmap = 0;
 
@@ -104,7 +95,6 @@ u32	_rtw_init_sta_priv(struct	sta_priv *pstapriv)
 	pstapriv->assoc_to = 3;
 	pstapriv->expire_to = 3; /*  3*2 = 6 sec */
 	pstapriv->max_num_sta = NUM_STA;
-#endif
 
 	return _SUCCESS;
 }
@@ -322,8 +312,6 @@ u32	rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 	if (!(psta->state & WIFI_AP_STATE))
 		rtl8188e_SetHalODMVar(padapter, HAL_ODM_STA_INFO, psta, false);
 
-#ifdef CONFIG_88EU_AP_MODE
-
 	spin_lock_bh(&pstapriv->auth_list_lock);
 	if (!list_empty(&psta->auth_list)) {
 		list_del_init(&psta->auth_list);
@@ -352,8 +340,6 @@ u32	rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 	}
 
 	psta->under_exist_checking = 0;
-
-#endif	/*  CONFIG_88EU_AP_MODE */
 
 	spin_lock_bh(&pfree_sta_queue->lock);
 	list_add_tail(&psta->list, get_list_head(pfree_sta_queue));
@@ -470,7 +456,6 @@ struct sta_info *rtw_get_bcmc_stainfo(struct adapter *padapter)
 u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)
 {
 	u8 res = true;
-#ifdef CONFIG_88EU_AP_MODE
 	struct list_head *plist, *phead;
 	struct rtw_wlan_acl_node *paclnode;
 	u8 match = false;
@@ -500,8 +485,6 @@ u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)
 		res = (match) ? true : false;
 	else
 		res = true;
-
-#endif
 
 	return res;
 }

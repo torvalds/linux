@@ -1773,22 +1773,18 @@ s32 rtw_xmit(struct adapter *padapter, struct sk_buff **ppkt)
 
 	do_queue_select(padapter, &pxmitframe->attrib);
 
-#ifdef CONFIG_88EU_AP_MODE
 	spin_lock_bh(&pxmitpriv->lock);
 	if (xmitframe_enqueue_for_sleeping_sta(padapter, pxmitframe)) {
 		spin_unlock_bh(&pxmitpriv->lock);
 		return 1;
 	}
 	spin_unlock_bh(&pxmitpriv->lock);
-#endif
 
 	if (!rtw_hal_xmit(padapter, pxmitframe))
 		return 1;
 
 	return 0;
 }
-
-#if defined(CONFIG_88EU_AP_MODE)
 
 int xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {
@@ -2155,8 +2151,6 @@ void xmit_delivery_enabled_frames(struct adapter *padapter, struct sta_info *pst
 
 	spin_unlock_bh(&psta->sleep_q.lock);
 }
-
-#endif
 
 void rtw_sctx_init(struct submit_ctx *sctx, int timeout_ms)
 {

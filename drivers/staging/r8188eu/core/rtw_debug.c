@@ -795,8 +795,6 @@ int proc_set_rssi_disp(struct file *file, const char __user *buffer,
 	return count;
 }
 
-#ifdef CONFIG_88EU_AP_MODE
-
 int proc_get_all_sta_info(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data)
@@ -851,7 +849,6 @@ int proc_get_all_sta_info(char *page, char **start,
 	*eof = 1;
 	return len;
 }
-#endif
 
 int proc_get_best_channel(char *page, char **start,
 			  off_t offset, int count,
