@@ -38,7 +38,6 @@ struct amd_spi {
 	void __iomem *io_remap_addr;
 	unsigned long io_base_addr;
 	u32 rom_addr;
-	u8 chip_select;
 };
 
 static inline u8 amd_spi_readreg8(struct amd_spi *amd_spi, int idx)
@@ -77,10 +76,9 @@ static inline void amd_spi_setclear_reg32(struct amd_spi *amd_spi, int idx, u32 
 	amd_spi_writereg32(amd_spi, idx, tmp);
 }
 
-static void amd_spi_select_chip(struct amd_spi *amd_spi)
+static void amd_spi_select_chip(struct amd_spi *amd_spi, u8 cs)
 {
-	amd_spi_setclear_reg8(amd_spi, AMD_SPI_ALT_CS_REG, amd_spi->chip_select,
-			      AMD_SPI_ALT_CS_MASK);
+	amd_spi_setclear_reg8(amd_spi, AMD_SPI_ALT_CS_REG, cs, AMD_SPI_ALT_CS_MASK);
 }
 
 static void amd_spi_clear_fifo_ptr(struct amd_spi *amd_spi)
@@ -201,8 +199,7 @@ static int amd_spi_master_transfer(struct spi_master *master,
 	struct amd_spi *amd_spi = spi_master_get_devdata(master);
 	struct spi_device *spi = msg->spi;
 
-	amd_spi->chip_select = spi->chip_select;
-	amd_spi_select_chip(amd_spi);
+	amd_spi_select_chip(amd_spi, spi->chip_select);
 
 	/*
 	 * Extract spi_transfers from the spi message and
