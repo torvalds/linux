@@ -2329,6 +2329,13 @@ lpfc_cmpl_els_prli(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 						NLP_EVT_CMPL_PRLI);
 
+		/*
+		 * For P2P topology, retain the node so that PLOGI can be
+		 * attempted on it again.
+		 */
+		if (vport->fc_flag & FC_PT2PT)
+			goto out;
+
 		/* As long as this node is not registered with the SCSI
 		 * or NVMe transport and no other PRLIs are outstanding,
 		 * it is no longer an active node.  Otherwise devloss
