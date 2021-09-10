@@ -46,7 +46,7 @@ static int psp_sysfs_init(struct amdgpu_device *adev);
 static void psp_sysfs_fini(struct amdgpu_device *adev);
 
 static int psp_load_smu_fw(struct psp_context *psp);
-static int psp_ta_unload(struct psp_context *psp, uint32_t session_id);
+static int psp_ta_unload(struct psp_context *psp, struct ta_context *context);
 static int psp_ta_load(struct psp_context *psp, struct ta_context *context);
 static int psp_rap_terminate(struct psp_context *psp);
 static int psp_securedisplay_terminate(struct psp_context *psp);
@@ -816,12 +816,12 @@ static void psp_prep_ta_unload_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 	cmd->cmd.cmd_unload_ta.session_id = session_id;
 }
 
-static int psp_ta_unload(struct psp_context *psp, uint32_t session_id)
+static int psp_ta_unload(struct psp_context *psp, struct ta_context *context)
 {
 	int ret;
 	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
 
-	psp_prep_ta_unload_cmd_buf(cmd, session_id);
+	psp_prep_ta_unload_cmd_buf(cmd, context->session_id);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
@@ -832,7 +832,7 @@ static int psp_ta_unload(struct psp_context *psp, uint32_t session_id)
 
 static int psp_asd_unload(struct psp_context *psp)
 {
-	return psp_ta_unload(psp, psp->asd_context.session_id);
+	return psp_ta_unload(psp, &psp->asd_context);
 }
 
 static int psp_asd_terminate(struct psp_context *psp)
@@ -984,7 +984,7 @@ static int psp_xgmi_load(struct psp_context *psp)
 
 static int psp_xgmi_unload(struct psp_context *psp)
 {
-	return psp_ta_unload(psp, psp->xgmi_context.context.session_id);
+	return psp_ta_unload(psp, &psp->xgmi_context.context);
 }
 
 int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
@@ -1275,7 +1275,7 @@ static int psp_ras_load(struct psp_context *psp)
 
 static int psp_ras_unload(struct psp_context *psp)
 {
-	return psp_ta_unload(psp, psp->ras_context.context.session_id);
+	return psp_ta_unload(psp, &psp->ras_context.context);
 }
 
 int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
@@ -1540,7 +1540,7 @@ static int psp_hdcp_initialize(struct psp_context *psp)
 
 static int psp_hdcp_unload(struct psp_context *psp)
 {
-	return psp_ta_unload(psp, psp->hdcp_context.context.session_id);
+	return psp_ta_unload(psp, &psp->hdcp_context.context);
 }
 
 int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
@@ -1632,7 +1632,7 @@ static int psp_dtm_initialize(struct psp_context *psp)
 
 static int psp_dtm_unload(struct psp_context *psp)
 {
-	return psp_ta_unload(psp, psp->dtm_context.context.session_id);
+	return psp_ta_unload(psp, &psp->dtm_context.context);
 }
 
 int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
@@ -1690,7 +1690,7 @@ static int psp_rap_load(struct psp_context *psp)
 
 static int psp_rap_unload(struct psp_context *psp)
 {
-	return psp_ta_unload(psp, psp->rap_context.context.session_id);
+	return psp_ta_unload(psp, &psp->rap_context.context);
 }
 
 static int psp_rap_initialize(struct psp_context *psp)
@@ -1805,7 +1805,7 @@ static int psp_securedisplay_load(struct psp_context *psp)
 
 static int psp_securedisplay_unload(struct psp_context *psp)
 {
-	return psp_ta_unload(psp, psp->securedisplay_context.context.session_id);
+	return psp_ta_unload(psp, &psp->securedisplay_context.context);
 }
 
 static int psp_securedisplay_initialize(struct psp_context *psp)
