@@ -208,8 +208,8 @@ void usb_serial_put(struct usb_serial *serial)
  *
  * This is the first place a new tty gets used.  Hence this is where we
  * acquire references to the usb_serial structure and the driver module,
- * where we store a pointer to the port, and where we do an autoresume.
- * All these actions are reversed in serial_cleanup().
+ * where we store a pointer to the port.  All these actions are reversed
+ * in serial_cleanup().
  */
 static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 {
@@ -227,15 +227,11 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 	if (!try_module_get(serial->type->driver.owner))
 		goto err_put_serial;
 
-	retval = usb_autopm_get_interface(serial->interface);
-	if (retval)
-		goto err_put_module;
-
 	init_termios = (driver->termios[idx] == NULL);
 
 	retval = tty_standard_install(driver, tty);
 	if (retval)
-		goto err_put_autopm;
+		goto err_put_module;
 
 	mutex_unlock(&serial->disc_mutex);
 
@@ -247,8 +243,6 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 
 	return retval;
 
-err_put_autopm:
-	usb_autopm_put_interface(serial->interface);
 err_put_module:
 	module_put(serial->type->driver.owner);
 err_put_serial:
@@ -265,10 +259,19 @@ static int serial_port_activate(struct tty_port *tport, struct tty_struct *tty)
 	int retval;
 
 	mutex_lock(&serial->disc_mutex);
-	if (serial->disconnected)
+	if (serial->disconnected) {
 		retval = -ENODEV;
-	else
-		retval = port->serial->type->open(tty, port);
+		goto out_unlock;
+	}
+
+	retval = usb_autopm_get_interface(serial->interface);
+	if (retval)
+		goto out_unlock;
+
+	retval = port->serial->type->open(tty, port);
+	if (retval)
+		usb_autopm_put_interface(serial->interface);
+out_unlock:
 	mutex_unlock(&serial->disc_mutex);
 
 	if (retval < 0)
@@ -304,6 +307,8 @@ static void serial_port_shutdown(struct tty_port *tport)
 
 	if (drv->close)
 		drv->close(port);
+
+	usb_autopm_put_interface(port->serial->interface);
 }
 
 static void serial_hangup(struct tty_struct *tty)
@@ -351,8 +356,6 @@ static void serial_cleanup(struct tty_struct *tty)
 
 	serial = port->serial;
 	owner = serial->type->driver.owner;
-
-	usb_autopm_put_interface(serial->interface);
 
 	usb_serial_put(serial);
 	module_put(owner);
