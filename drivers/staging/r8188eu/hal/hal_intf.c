@@ -96,14 +96,6 @@ s32 rtw_hal_xmit(struct adapter *adapt, struct xmit_frame *pxmitframe)
 	return false;
 }
 
-s32 rtw_hal_mgnt_xmit(struct adapter *adapt, struct xmit_frame *pmgntframe)
-{
-	s32 ret = _FAIL;
-	if (adapt->HalFunc.mgnt_xmit)
-		ret = adapt->HalFunc.mgnt_xmit(adapt, pmgntframe);
-	return ret;
-}
-
 s32 rtw_hal_init_xmit_priv(struct adapter *adapt)
 {
 	if (adapt->HalFunc.init_xmit_priv)

@@ -498,7 +498,7 @@ void PhySetTxPowerLevel(struct adapter *pAdapter)
 /*  */
 static void dump_mpframe(struct adapter *padapter, struct xmit_frame *pmpframe)
 {
-	rtw_hal_mgnt_xmit(padapter, pmpframe);
+	rtl8188eu_mgnt_xmit(padapter, pmpframe);
 }
 
 static struct xmit_frame *alloc_mp_xmitframe(struct xmit_priv *pxmitpriv)
