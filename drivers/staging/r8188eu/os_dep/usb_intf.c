@@ -451,18 +451,6 @@ static int rtw_resume(struct usb_interface *pusb_intf)
 {
 	struct dvobj_priv *dvobj = usb_get_intfdata(pusb_intf);
 	struct adapter *padapter = dvobj->if1;
-	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
-	int ret = 0;
-
-	if (pwrpriv->bInternalAutoSuspend)
-		ret = rtw_resume_process(padapter);
-	else
-		ret = rtw_resume_process(padapter);
-	return ret;
-}
-
-int rtw_resume_process(struct adapter *padapter)
-{
 	struct net_device *pnetdev;
 	struct pwrctrl_priv *pwrpriv = NULL;
 	int ret = -1;
@@ -470,12 +458,8 @@ int rtw_resume_process(struct adapter *padapter)
 
 	DBG_88E("==> %s (%s:%d)\n", __func__, current->comm, current->pid);
 
-	if (padapter) {
-		pnetdev = padapter->pnetdev;
-		pwrpriv = &padapter->pwrctrlpriv;
-	} else {
-		goto exit;
-	}
+	pnetdev = padapter->pnetdev;
+	pwrpriv = &padapter->pwrctrlpriv;
 
 	_enter_pwrlock(&pwrpriv->lock);
 	rtw_reset_drv_sw(padapter);
