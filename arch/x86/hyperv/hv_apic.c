@@ -99,7 +99,8 @@ static void hv_apic_eoi_write(u32 reg, u32 val)
 /*
  * IPI implementation on Hyper-V.
  */
-static bool __send_ipi_mask_ex(const struct cpumask *mask, int vector)
+static bool __send_ipi_mask_ex(const struct cpumask *mask, int vector,
+		bool exclude_self)
 {
 	struct hv_send_ipi_ex **arg;
 	struct hv_send_ipi_ex *ipi_arg;
@@ -123,7 +124,10 @@ static bool __send_ipi_mask_ex(const struct cpumask *mask, int vector)
 
 	if (!cpumask_equal(mask, cpu_present_mask)) {
 		ipi_arg->vp_set.format = HV_GENERIC_SET_SPARSE_4K;
-		nr_bank = cpumask_to_vpset(&(ipi_arg->vp_set), mask);
+		if (exclude_self)
+			nr_bank = cpumask_to_vpset_noself(&(ipi_arg->vp_set), mask);
+		else
+			nr_bank = cpumask_to_vpset(&(ipi_arg->vp_set), mask);
 	}
 	if (nr_bank < 0)
 		goto ipi_mask_ex_done;
@@ -138,15 +142,25 @@ ipi_mask_ex_done:
 	return hv_result_success(status);
 }
 
-static bool __send_ipi_mask(const struct cpumask *mask, int vector)
+static bool __send_ipi_mask(const struct cpumask *mask, int vector,
+		bool exclude_self)
 {
-	int cur_cpu, vcpu;
+	int cur_cpu, vcpu, this_cpu = smp_processor_id();
 	struct hv_send_ipi ipi_arg;
 	u64 status;
+	unsigned int weight;
 
 	trace_hyperv_send_ipi_mask(mask, vector);
 
-	if (cpumask_empty(mask))
+	weight = cpumask_weight(mask);
+
+	/*
+	 * Do nothing if
+	 *   1. the mask is empty
+	 *   2. the mask only contains self when exclude_self is true
+	 */
+	if (weight == 0 ||
+	    (exclude_self && weight == 1 && cpumask_test_cpu(this_cpu, mask)))
 		return true;
 
 	if (!hv_hypercall_pg)
@@ -172,6 +186,8 @@ static bool __send_ipi_mask(const struct cpumask *mask, int vector)
 	ipi_arg.cpu_mask = 0;
 
 	for_each_cpu(cur_cpu, mask) {
+		if (exclude_self && cur_cpu == this_cpu)
+			continue;
 		vcpu = hv_cpu_number_to_vp_number(cur_cpu);
 		if (vcpu == VP_INVAL)
 			return false;
@@ -191,7 +207,7 @@ static bool __send_ipi_mask(const struct cpumask *mask, int vector)
 	return hv_result_success(status);
 
 do_ex_hypercall:
-	return __send_ipi_mask_ex(mask, vector);
+	return __send_ipi_mask_ex(mask, vector, exclude_self);
 }
 
 static bool __send_ipi_one(int cpu, int vector)
@@ -208,7 +224,7 @@ static bool __send_ipi_one(int cpu, int vector)
 		return false;
 
 	if (vp >= 64)
-		return __send_ipi_mask_ex(cpumask_of(cpu), vector);
+		return __send_ipi_mask_ex(cpumask_of(cpu), vector, false);
 
 	status = hv_do_fast_hypercall16(HVCALL_SEND_IPI, vector, BIT_ULL(vp));
 	return hv_result_success(status);
@@ -222,20 +238,13 @@ static void hv_send_ipi(int cpu, int vector)
 
 static void hv_send_ipi_mask(const struct cpumask *mask, int vector)
 {
-	if (!__send_ipi_mask(mask, vector))
+	if (!__send_ipi_mask(mask, vector, false))
 		orig_apic.send_IPI_mask(mask, vector);
 }
 
 static void hv_send_ipi_mask_allbutself(const struct cpumask *mask, int vector)
 {
-	unsigned int this_cpu = smp_processor_id();
-	struct cpumask new_mask;
-	const struct cpumask *local_mask;
-
-	cpumask_copy(&new_mask, mask);
-	cpumask_clear_cpu(this_cpu, &new_mask);
-	local_mask = &new_mask;
-	if (!__send_ipi_mask(local_mask, vector))
+	if (!__send_ipi_mask(mask, vector, true))
 		orig_apic.send_IPI_mask_allbutself(mask, vector);
 }
 
@@ -246,7 +255,7 @@ static void hv_send_ipi_allbutself(int vector)
 
 static void hv_send_ipi_all(int vector)
 {
-	if (!__send_ipi_mask(cpu_online_mask, vector))
+	if (!__send_ipi_mask(cpu_online_mask, vector, false))
 		orig_apic.send_IPI_all(vector);
 }
 
