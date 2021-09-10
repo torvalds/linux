@@ -4449,8 +4449,9 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		fc_remote_port_rolechg(rport, rport_ids.roles);
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-			 "3183 %s rport x%px DID x%x, role x%x\n",
-			 __func__, rport, rport->port_id, rport->roles);
+			 "3183 %s rport x%px DID x%x, role x%x refcnt %d\n",
+			 __func__, rport, rport->port_id, rport->roles,
+			 kref_read(&ndlp->kref));
 
 	if ((rport->scsi_target_id != -1) &&
 	    (rport->scsi_target_id < LPFC_MAX_TARGET)) {
@@ -4475,8 +4476,9 @@ lpfc_unregister_remote_port(struct lpfc_nodelist *ndlp)
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
 			 "3184 rport unregister x%06x, rport x%px "
-			 "xptflg x%x\n",
-			 ndlp->nlp_DID, rport, ndlp->fc4_xpt_flags);
+			 "xptflg x%x refcnt %d\n",
+			 ndlp->nlp_DID, rport, ndlp->fc4_xpt_flags,
+			 kref_read(&ndlp->kref));
 
 	fc_remote_port_delete(rport);
 	lpfc_nlp_put(ndlp);
