@@ -851,7 +851,10 @@ void assert_forcewakes_active(struct intel_uncore *uncore,
 }
 
 /* We give fast paths for the really cool registers */
-#define NEEDS_FORCE_WAKE(reg) ((reg) < 0x40000)
+#define NEEDS_FORCE_WAKE(reg) ({ \
+	u32 __reg = (reg); \
+	__reg < 0x40000 || __reg >= GEN11_BSD_RING_BASE; \
+})
 
 static int fw_range_cmp(u32 offset, const struct intel_forcewake_range *entry)
 {
@@ -1070,25 +1073,8 @@ static const struct intel_forcewake_range __chv_fw_ranges[] = {
 #define __fwtable_reg_write_fw_domains(uncore, offset) \
 ({ \
 	enum forcewake_domains __fwd = 0; \
-	if (NEEDS_FORCE_WAKE((offset)) && !is_shadowed(uncore, offset)) \
-		__fwd = find_fw_domain(uncore, offset); \
-	__fwd; \
-})
-
-#define __gen11_fwtable_reg_write_fw_domains(uncore, offset) \
-({ \
-	enum forcewake_domains __fwd = 0; \
 	const u32 __offset = (offset); \
-	if (!is_shadowed(uncore, __offset)) \
-		__fwd = find_fw_domain(uncore, __offset); \
-	__fwd; \
-})
-
-#define __gen12_fwtable_reg_write_fw_domains(uncore, offset) \
-({ \
-	enum forcewake_domains __fwd = 0; \
-	const u32 __offset = (offset); \
-	if (!is_shadowed(uncore, __offset)) \
+	if (NEEDS_FORCE_WAKE((__offset)) && !is_shadowed(uncore, __offset)) \
 		__fwd = find_fw_domain(uncore, __offset); \
 	__fwd; \
 })
@@ -1672,33 +1658,29 @@ __gen6_write(8)
 __gen6_write(16)
 __gen6_write(32)
 
-#define __gen_write(func, x) \
+#define __gen_fwtable_write(x) \
 static void \
-func##_write##x(struct intel_uncore *uncore, i915_reg_t reg, u##x val, bool trace) { \
+fwtable_write##x(struct intel_uncore *uncore, i915_reg_t reg, u##x val, bool trace) { \
 	enum forcewake_domains fw_engine; \
 	GEN6_WRITE_HEADER; \
-	fw_engine = __##func##_reg_write_fw_domains(uncore, offset); \
+	fw_engine = __fwtable_reg_write_fw_domains(uncore, offset); \
 	if (fw_engine) \
 		__force_wake_auto(uncore, fw_engine); \
 	__raw_uncore_write##x(uncore, reg, val); \
 	GEN6_WRITE_FOOTER; \
 }
 
-#define __gen_reg_write_funcs(func) \
-static enum forcewake_domains \
-func##_reg_write_fw_domains(struct intel_uncore *uncore, i915_reg_t reg) { \
-	return __##func##_reg_write_fw_domains(uncore, i915_mmio_reg_offset(reg)); \
-} \
-\
-__gen_write(func, 8) \
-__gen_write(func, 16) \
-__gen_write(func, 32)
+static enum forcewake_domains
+fwtable_reg_write_fw_domains(struct intel_uncore *uncore, i915_reg_t reg)
+{
+	return __fwtable_reg_write_fw_domains(uncore, i915_mmio_reg_offset(reg));
+}
 
-__gen_reg_write_funcs(gen12_fwtable);
-__gen_reg_write_funcs(gen11_fwtable);
-__gen_reg_write_funcs(fwtable);
+__gen_fwtable_write(8)
+__gen_fwtable_write(16)
+__gen_fwtable_write(32)
 
-#undef __gen_reg_write_funcs
+#undef __gen_fwtable_write
 #undef GEN6_WRITE_FOOTER
 #undef GEN6_WRITE_HEADER
 
@@ -2076,22 +2058,22 @@ static int uncore_forcewake_init(struct intel_uncore *uncore)
 	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55)) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __dg2_fw_ranges);
 		ASSIGN_SHADOW_TABLE(uncore, gen12_shadowed_regs);
-		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen12_fwtable);
+		ASSIGN_WRITE_MMIO_VFUNCS(uncore, fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
 	} else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __xehp_fw_ranges);
 		ASSIGN_SHADOW_TABLE(uncore, gen12_shadowed_regs);
-		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen12_fwtable);
+		ASSIGN_WRITE_MMIO_VFUNCS(uncore, fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
 	} else if (GRAPHICS_VER(i915) >= 12) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen12_fw_ranges);
 		ASSIGN_SHADOW_TABLE(uncore, gen12_shadowed_regs);
-		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen12_fwtable);
+		ASSIGN_WRITE_MMIO_VFUNCS(uncore, fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
 	} else if (GRAPHICS_VER(i915) == 11) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen11_fw_ranges);
 		ASSIGN_SHADOW_TABLE(uncore, gen11_shadowed_regs);
-		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen11_fwtable);
+		ASSIGN_WRITE_MMIO_VFUNCS(uncore, fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
 	} else if (IS_GRAPHICS_VER(i915, 9, 10)) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen9_fw_ranges);
