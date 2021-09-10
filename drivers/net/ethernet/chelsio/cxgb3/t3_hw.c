@@ -642,7 +642,14 @@ int t3_seeprom_write(struct adapter *adapter, u32 addr, __le32 data)
  */
 int t3_seeprom_wp(struct adapter *adapter, int enable)
 {
-	return t3_seeprom_write(adapter, EEPROM_STAT_ADDR, enable ? 0xc : 0);
+	u32 data = enable ? 0xc : 0;
+	int ret;
+
+	/* EEPROM_STAT_ADDR is outside VPD area, use pci_write_vpd_any() */
+	ret = pci_write_vpd_any(adapter->pdev, EEPROM_STAT_ADDR, sizeof(u32),
+				&data);
+
+	return ret < 0 ? ret : 0;
 }
 
 static int vpdstrtouint(char *s, u8 len, unsigned int base, unsigned int *val)
