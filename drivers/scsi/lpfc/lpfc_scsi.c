@@ -493,8 +493,8 @@ void
 lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
 			 struct sli4_wcqe_xri_aborted *axri, int idx)
 {
-	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
-	uint16_t rxid = bf_get(lpfc_wcqe_xa_remote_xid, axri);
+	u16 xri = 0;
+	u16 rxid = 0;
 	struct lpfc_io_buf *psb, *next_psb;
 	struct lpfc_sli4_hdw_queue *qp;
 	unsigned long iflag = 0;
@@ -504,15 +504,22 @@ lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
 	int rrq_empty = 0;
 	struct lpfc_sli_ring *pring = phba->sli4_hba.els_wq->pring;
 	struct scsi_cmnd *cmd;
+	int offline = 0;
 
 	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP))
 		return;
-
+	offline = pci_channel_offline(phba->pcidev);
+	if (!offline) {
+		xri = bf_get(lpfc_wcqe_xa_xri, axri);
+		rxid = bf_get(lpfc_wcqe_xa_remote_xid, axri);
+	}
 	qp = &phba->sli4_hba.hdwq[idx];
 	spin_lock_irqsave(&phba->hbalock, iflag);
 	spin_lock(&qp->abts_io_buf_list_lock);
 	list_for_each_entry_safe(psb, next_psb,
 		&qp->lpfc_abts_io_buf_list, list) {
+		if (offline)
+			xri = psb->cur_iocbq.sli4_xritag;
 		if (psb->cur_iocbq.sli4_xritag == xri) {
 			list_del_init(&psb->list);
 			psb->flags &= ~LPFC_SBUF_XBUSY;
@@ -521,8 +528,15 @@ lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
 				qp->abts_nvme_io_bufs--;
 				spin_unlock(&qp->abts_io_buf_list_lock);
 				spin_unlock_irqrestore(&phba->hbalock, iflag);
-				lpfc_sli4_nvme_xri_aborted(phba, axri, psb);
-				return;
+				if (!offline) {
+					lpfc_sli4_nvme_xri_aborted(phba, axri,
+								   psb);
+					return;
+				}
+				lpfc_sli4_nvme_pci_offline_aborted(phba, psb);
+				spin_lock_irqsave(&phba->hbalock, iflag);
+				spin_lock(&qp->abts_io_buf_list_lock);
+				continue;
 			}
 			qp->abts_scsi_io_bufs--;
 			spin_unlock(&qp->abts_io_buf_list_lock);
@@ -534,13 +548,13 @@ lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
 
 			rrq_empty = list_empty(&phba->active_rrq_list);
 			spin_unlock_irqrestore(&phba->hbalock, iflag);
-			if (ndlp) {
+			if (ndlp && !offline) {
 				lpfc_set_rrq_active(phba, ndlp,
 					psb->cur_iocbq.sli4_lxritag, rxid, 1);
 				lpfc_sli4_abts_err_handler(phba, ndlp, axri);
 			}
 
-			if (phba->cfg_fcp_wait_abts_rsp) {
+			if (phba->cfg_fcp_wait_abts_rsp || offline) {
 				spin_lock_irqsave(&psb->buf_lock, iflag);
 				cmd = psb->pCmd;
 				psb->pCmd = NULL;
@@ -567,25 +581,30 @@ lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
 			lpfc_release_scsi_buf_s4(phba, psb);
 			if (rrq_empty)
 				lpfc_worker_wake_up(phba);
-			return;
+			if (!offline)
+				return;
+			spin_lock_irqsave(&phba->hbalock, iflag);
+			spin_lock(&qp->abts_io_buf_list_lock);
+			continue;
 		}
 	}
 	spin_unlock(&qp->abts_io_buf_list_lock);
-	for (i = 1; i <= phba->sli.last_iotag; i++) {
-		iocbq = phba->sli.iocbq_lookup[i];
+	if (!offline) {
+		for (i = 1; i <= phba->sli.last_iotag; i++) {
+			iocbq = phba->sli.iocbq_lookup[i];
 
-		if (!(iocbq->iocb_flag & LPFC_IO_FCP) ||
-		    (iocbq->iocb_flag & LPFC_IO_LIBDFC))
-			continue;
-		if (iocbq->sli4_xritag != xri)
-			continue;
-		psb = container_of(iocbq, struct lpfc_io_buf, cur_iocbq);
-		psb->flags &= ~LPFC_SBUF_XBUSY;
-		spin_unlock_irqrestore(&phba->hbalock, iflag);
-		if (!list_empty(&pring->txq))
-			lpfc_worker_wake_up(phba);
-		return;
-
+			if (!(iocbq->iocb_flag & LPFC_IO_FCP) ||
+			    (iocbq->iocb_flag & LPFC_IO_LIBDFC))
+				continue;
+			if (iocbq->sli4_xritag != xri)
+				continue;
+			psb = container_of(iocbq, struct lpfc_io_buf, cur_iocbq);
+			psb->flags &= ~LPFC_SBUF_XBUSY;
+			spin_unlock_irqrestore(&phba->hbalock, iflag);
+			if (!list_empty(&pring->txq))
+				lpfc_worker_wake_up(phba);
+			return;
+		}
 	}
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
 }

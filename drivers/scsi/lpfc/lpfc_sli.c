@@ -1404,7 +1404,8 @@ __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 		}
 
 		if ((iocbq->iocb_flag & LPFC_EXCHANGE_BUSY) &&
-			(sglq->state != SGL_XRI_ABORTED)) {
+		    (!(unlikely(pci_channel_offline(phba->pcidev)))) &&
+		    sglq->state != SGL_XRI_ABORTED) {
 			spin_lock_irqsave(&phba->sli4_hba.sgl_list_lock,
 					  iflag);
 
@@ -4583,10 +4584,12 @@ lpfc_sli_flush_io_rings(struct lpfc_hba *phba)
 			lpfc_sli_cancel_iocbs(phba, &txq,
 					      IOSTAT_LOCAL_REJECT,
 					      IOERR_SLI_DOWN);
-			/* Flush the txcmpq */
+			/* Flush the txcmplq */
 			lpfc_sli_cancel_iocbs(phba, &txcmplq,
 					      IOSTAT_LOCAL_REJECT,
 					      IOERR_SLI_DOWN);
+			if (unlikely(pci_channel_offline(phba->pcidev)))
+				lpfc_sli4_io_xri_aborted(phba, NULL, 0);
 		}
 	} else {
 		pring = &psli->sli3_ring[LPFC_FCP_RING];
@@ -22019,8 +22022,26 @@ lpfc_get_io_buf_from_multixri_pools(struct lpfc_hba *phba,
 
 	qp = &phba->sli4_hba.hdwq[hwqid];
 	lpfc_ncmd = NULL;
+	if (!qp) {
+		lpfc_printf_log(phba, KERN_INFO,
+				LOG_SLI | LOG_NVME_ABTS | LOG_FCP,
+				"5556 NULL qp for hwqid  x%x\n", hwqid);
+		return lpfc_ncmd;
+	}
 	multixri_pool = qp->p_multixri_pool;
+	if (!multixri_pool) {
+		lpfc_printf_log(phba, KERN_INFO,
+				LOG_SLI | LOG_NVME_ABTS | LOG_FCP,
+				"5557 NULL multixri for hwqid  x%x\n", hwqid);
+		return lpfc_ncmd;
+	}
 	pvt_pool = &multixri_pool->pvt_pool;
+	if (!pvt_pool) {
+		lpfc_printf_log(phba, KERN_INFO,
+				LOG_SLI | LOG_NVME_ABTS | LOG_FCP,
+				"5558 NULL pvt_pool for hwqid  x%x\n", hwqid);
+		return lpfc_ncmd;
+	}
 	multixri_pool->io_req_count++;
 
 	/* If pvt_pool is empty, move some XRIs from public to private pool */
@@ -22096,6 +22117,12 @@ struct lpfc_io_buf *lpfc_get_io_buf(struct lpfc_hba *phba,
 
 	qp = &phba->sli4_hba.hdwq[hwqid];
 	lpfc_cmd = NULL;
+	if (!qp) {
+		lpfc_printf_log(phba, KERN_WARNING,
+				LOG_SLI | LOG_NVME_ABTS | LOG_FCP,
+				"5555 NULL qp for hwqid  x%x\n", hwqid);
+		return lpfc_cmd;
+	}
 
 	if (phba->cfg_xri_rebalancing)
 		lpfc_cmd = lpfc_get_io_buf_from_multixri_pools(
