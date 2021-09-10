@@ -1542,6 +1542,17 @@
 		arm,pl330-periph-burst;
 	};
 
+	hw_decompress: decompress@fea80000 {
+		compatible = "rockchip,hw-decompress";
+		reg = <0x0 0xfea80000 0x0 0x1000>;
+		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_DECOM>, <&cru DCLK_DECOM>, <&cru PCLK_DECOM>;
+		clock-names = "aclk", "dclk", "pclk";
+		resets = <&cru SRST_D_DECOM>;
+		reset-names = "dresetn";
+		status = "disabled";
+	};
+
 	i2c1: i2c@fea90000 {
 		compatible = "rockchip,rk3588-i2c", "rockchip,rk3399-i2c";
 		reg = <0x0 0xfea90000 0x0 0x1000>;
