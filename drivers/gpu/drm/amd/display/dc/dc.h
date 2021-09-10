@@ -1313,6 +1313,8 @@ void dc_interrupt_ack(struct dc *dc, enum dc_irq_source src);
 enum dc_irq_source dc_get_hpd_irq_source_at_index(
 		struct dc *dc, uint32_t link_index);
 
+void dc_notify_vsync_int_state(struct dc *dc, struct dc_stream_state *stream, bool enable);
+
 /*******************************************************************************
  * Power Interfaces
  ******************************************************************************/

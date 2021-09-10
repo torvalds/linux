@@ -1731,6 +1731,11 @@ enum dmub_cmd_abm_type {
 	 * Enable/disable fractional duty cycle for backlight PWM.
 	 */
 	DMUB_CMD__ABM_SET_PWM_FRAC	= 5,
+
+	/**
+	 * unregister vertical interrupt after steady state is reached
+	 */
+	DMUB_CMD__ABM_PAUSE	= 6,
 };
 
 /**
@@ -2087,6 +2092,50 @@ struct dmub_rb_cmd_abm_init_config {
 };
 
 /**
+ * Data passed from driver to FW in a DMUB_CMD__ABM_PAUSE command.
+ */
+
+struct dmub_cmd_abm_pause_data {
+
+	/**
+	 * Panel Control HW instance mask.
+	 * Bit 0 is Panel Control HW instance 0.
+	 * Bit 1 is Panel Control HW instance 1.
+	 */
+	uint8_t panel_mask;
+
+	/**
+	 * OTG hw instance
+	 */
+	uint8_t otg_inst;
+
+	/**
+	 * Enable or disable ABM pause
+	 */
+	uint8_t enable;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[1];
+};
+
+/**
+ * Definition of a DMUB_CMD__ABM_PAUSE command.
+ */
+struct dmub_rb_cmd_abm_pause {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__ABM_PAUSE command.
+	 */
+	struct dmub_cmd_abm_pause_data abm_pause_data;
+};
+
+/**
  * Data passed from driver to FW in a DMUB_CMD__QUERY_FEATURE_CAPS command.
  */
 struct dmub_cmd_query_feature_caps_data {
@@ -2363,6 +2412,11 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__ABM_INIT_CONFIG command.
 	 */
 	struct dmub_rb_cmd_abm_init_config abm_init_config;
+
+	/**
+	 * Definition of a DMUB_CMD__ABM_PAUSE command.
+	 */
+	struct dmub_rb_cmd_abm_pause abm_pause;
 
 	/**
 	 * Definition of a DMUB_CMD__DP_AUX_ACCESS command.
