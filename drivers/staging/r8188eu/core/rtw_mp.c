@@ -75,7 +75,7 @@ static void _init_mp_priv_(struct mp_priv *pmp_priv)
 	memcpy(pnetwork->Ssid.Ssid, "mp_871x", pnetwork->Ssid.SsidLength);
 }
 
-static void mp_init_xmit_attrib(struct mp_tx *pmptx, struct adapter *padapter)
+static void mp_init_xmit_attrib(struct mp_tx *pmptx)
 {
 	struct pkt_attrib *pattrib;
 	struct tx_desc *desc;
@@ -107,7 +107,7 @@ s32 init_mp_priv(struct adapter *padapter)
 	pmppriv->papdater = padapter;
 
 	pmppriv->tx.stop = 1;
-	mp_init_xmit_attrib(&pmppriv->tx, padapter);
+	mp_init_xmit_attrib(&pmppriv->tx);
 
 	switch (padapter->registrypriv.rf_config) {
 	case RF_1T1R:
