@@ -2054,7 +2054,6 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
 	u32 aligned_offset, aligned_len;
-	__le32 *p;
 	u8 *buf;
 	int err;
 
@@ -2080,17 +2079,13 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	if (err)
 		goto out;
 
-	for (p = (__le32 *) buf; !err && aligned_len; aligned_len -= 4, p++) {
-		err = t3_seeprom_write(adapter, aligned_offset, *p);
-		aligned_offset += 4;
-	}
-
-	if (!err)
+	err = pci_write_vpd(adapter->pdev, aligned_offset, aligned_len, buf);
+	if (err >= 0)
 		err = t3_seeprom_wp(adapter, 1);
 out:
 	if (buf != data)
 		kfree(buf);
-	return err;
+	return err < 0 ? err : 0;
 }
 
 static void get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)

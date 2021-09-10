@@ -595,43 +595,8 @@ struct t3_vpd {
 	u32 pad;		/* for multiple-of-4 sizing and alignment */
 };
 
-#define EEPROM_MAX_POLL   40
 #define EEPROM_STAT_ADDR  0x4000
 #define VPD_BASE          0xc00
-
-/**
- *	t3_seeprom_write - write a VPD EEPROM location
- *	@adapter: adapter to write
- *	@addr: EEPROM address
- *	@data: value to write
- *
- *	Write a 32-bit word to a location in VPD EEPROM using the card's PCI
- *	VPD ROM capability.
- */
-int t3_seeprom_write(struct adapter *adapter, u32 addr, __le32 data)
-{
-	u16 val;
-	int attempts = EEPROM_MAX_POLL;
-	unsigned int base = adapter->params.pci.vpd_cap_addr;
-
-	if ((addr >= EEPROMSIZE && addr != EEPROM_STAT_ADDR) || (addr & 3))
-		return -EINVAL;
-
-	pci_write_config_dword(adapter->pdev, base + PCI_VPD_DATA,
-			       le32_to_cpu(data));
-	pci_write_config_word(adapter->pdev,base + PCI_VPD_ADDR,
-			      addr | PCI_VPD_ADDR_F);
-	do {
-		msleep(1);
-		pci_read_config_word(adapter->pdev, base + PCI_VPD_ADDR, &val);
-	} while ((val & PCI_VPD_ADDR_F) && --attempts);
-
-	if (val & PCI_VPD_ADDR_F) {
-		CH_ERR(adapter, "write to EEPROM address 0x%x failed\n", addr);
-		return -EIO;
-	}
-	return 0;
-}
 
 /**
  *	t3_seeprom_wp - enable/disable EEPROM write protection
