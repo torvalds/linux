@@ -5295,6 +5295,7 @@ out:
 	 */
 	if (phba->sli_rev == LPFC_SLI_REV4 &&
 	    (vport && vport->port_type == LPFC_NPIV_PORT) &&
+	    !(ndlp->fc4_xpt_flags & SCSI_XPT_REGD) &&
 	    ndlp->nlp_flag & NLP_RELEASE_RPI) {
 		lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
 		spin_lock_irq(&ndlp->lock);
@@ -5598,11 +5599,12 @@ lpfc_els_rsp_reject(struct lpfc_vport *vport, uint32_t rejectError,
 	}
 
 	/* The NPIV instance is rejecting this unsolicited ELS. Make sure the
-	 * node's assigned RPI needs to be released as this node will get
-	 * freed.
+	 * node's assigned RPI gets released provided this node is not already
+	 * registered with the transport.
 	 */
 	if (phba->sli_rev == LPFC_SLI_REV4 &&
-	    vport->port_type == LPFC_NPIV_PORT) {
+	    vport->port_type == LPFC_NPIV_PORT &&
+	    !(ndlp->fc4_xpt_flags & SCSI_XPT_REGD)) {
 		spin_lock_irq(&ndlp->lock);
 		ndlp->nlp_flag |= NLP_RELEASE_RPI;
 		spin_unlock_irq(&ndlp->lock);
