@@ -50,6 +50,15 @@
  * Chaining multiple bridges to the output of a bridge, or the same bridge to
  * the output of different bridges, is not supported.
  *
+ * &drm_bridge, like &drm_panel, aren't &drm_mode_object entities like planes,
+ * CRTCs, encoders or connectors and hence are not visible to userspace. They
+ * just provide additional hooks to get the desired output at the end of the
+ * encoder chain.
+ */
+
+/**
+ * DOC:	display driver integration
+ *
  * Display drivers are responsible for linking encoders with the first bridge
  * in the chains. This is done by acquiring the appropriate bridge with
  * devm_drm_of_get_bridge(). Once acquired, the bridge shall be attached to the
@@ -84,11 +93,6 @@
  * helper to create the &drm_connector, or implement it manually on top of the
  * connector-related operations exposed by the bridge (see the overview
  * documentation of bridge operations for more details).
- *
- * &drm_bridge, like &drm_panel, aren't &drm_mode_object entities like planes,
- * CRTCs, encoders or connectors and hence are not visible to userspace. They
- * just provide additional hooks to get the desired output at the end of the
- * encoder chain.
  */
 
 static DEFINE_MUTEX(bridge_lock);
