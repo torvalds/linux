@@ -9,7 +9,7 @@
 
 u32 read_bbreg(struct adapter *padapter, u32 addr, u32 bitmask)
 {
-	return rtw_hal_read_bbreg(padapter, addr, bitmask);
+	return rtl8188e_PHY_QueryBBReg(padapter, addr, bitmask);
 }
 
 void write_bbreg(struct adapter *padapter, u32 addr, u32 bitmask, u32 val)
