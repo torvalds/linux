@@ -22,8 +22,8 @@ struct waltgov_tunables {
 	unsigned int		hispeed_load;
 	unsigned int		hispeed_freq;
 	unsigned int		rtg_boost_freq;
-	unsigned int		adaptive_min_freq;
-	unsigned int		adaptive_max_freq;
+	unsigned int		adaptive_low_freq;
+	unsigned int		adaptive_high_freq;
 	bool			pl;
 	int			boost;
 };
@@ -222,11 +222,11 @@ static unsigned int get_next_freq(struct waltgov_policy *wg_policy,
 	raw_freq = walt_map_util_freq(util, policy->cpuinfo.max_freq, max, wg_cpu->cpu);
 	freq = raw_freq;
 
-	if (wg_policy->tunables->adaptive_max_freq) {
-		if (raw_freq < wg_policy->tunables->adaptive_min_freq)
-			freq = wg_policy->tunables->adaptive_min_freq;
-		else if (raw_freq <= wg_policy->tunables->adaptive_max_freq)
-			freq = wg_policy->tunables->adaptive_max_freq;
+	if (wg_policy->tunables->adaptive_high_freq) {
+		if (raw_freq < wg_policy->tunables->adaptive_low_freq)
+			freq = wg_policy->tunables->adaptive_low_freq;
+		else if (raw_freq <= wg_policy->tunables->adaptive_high_freq)
+			freq = wg_policy->tunables->adaptive_high_freq;
 	}
 
 	trace_waltgov_next_freq(policy->cpu, util, max, raw_freq, freq, policy->min, policy->max,
@@ -642,18 +642,18 @@ static ssize_t store_##name(struct gov_attr_set *attr_set,		\
 	return count;							\
 }									\
 
-show_attr(adaptive_min_freq);
-store_attr(adaptive_min_freq);
-show_attr(adaptive_max_freq);
-store_attr(adaptive_max_freq);
+show_attr(adaptive_low_freq);
+store_attr(adaptive_low_freq);
+show_attr(adaptive_high_freq);
+store_attr(adaptive_high_freq);
 
 static struct governor_attr hispeed_load = __ATTR_RW(hispeed_load);
 static struct governor_attr hispeed_freq = __ATTR_RW(hispeed_freq);
 static struct governor_attr rtg_boost_freq = __ATTR_RW(rtg_boost_freq);
 static struct governor_attr pl = __ATTR_RW(pl);
 static struct governor_attr boost = __ATTR_RW(boost);
-WALTGOV_ATTR_RW(adaptive_min_freq);
-WALTGOV_ATTR_RW(adaptive_max_freq);
+WALTGOV_ATTR_RW(adaptive_low_freq);
+WALTGOV_ATTR_RW(adaptive_high_freq);
 
 static struct attribute *waltgov_attributes[] = {
 	&up_rate_limit_us.attr,
@@ -663,8 +663,8 @@ static struct attribute *waltgov_attributes[] = {
 	&rtg_boost_freq.attr,
 	&pl.attr,
 	&boost.attr,
-	&adaptive_min_freq.attr,
-	&adaptive_max_freq.attr,
+	&adaptive_low_freq.attr,
+	&adaptive_high_freq.attr,
 	NULL
 };
 
@@ -766,8 +766,8 @@ static void waltgov_tunables_save(struct cpufreq_policy *policy,
 	cached->up_rate_limit_us = tunables->up_rate_limit_us;
 	cached->down_rate_limit_us = tunables->down_rate_limit_us;
 	cached->boost = tunables->boost;
-	cached->adaptive_min_freq = tunables->adaptive_min_freq;
-	cached->adaptive_max_freq = tunables->adaptive_max_freq;
+	cached->adaptive_low_freq = tunables->adaptive_low_freq;
+	cached->adaptive_high_freq = tunables->adaptive_high_freq;
 }
 
 static void waltgov_tunables_restore(struct cpufreq_policy *policy)
@@ -786,8 +786,8 @@ static void waltgov_tunables_restore(struct cpufreq_policy *policy)
 	tunables->up_rate_limit_us = cached->up_rate_limit_us;
 	tunables->down_rate_limit_us = cached->down_rate_limit_us;
 	tunables->boost	= cached->boost;
-	tunables->adaptive_min_freq = cached->adaptive_min_freq;
-	tunables->adaptive_max_freq = cached->adaptive_max_freq;
+	tunables->adaptive_low_freq = cached->adaptive_low_freq;
+	tunables->adaptive_high_freq = cached->adaptive_high_freq;
 }
 
 static int waltgov_init(struct cpufreq_policy *policy)
