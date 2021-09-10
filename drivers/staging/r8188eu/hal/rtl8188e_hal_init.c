@@ -362,7 +362,7 @@ void rtw_IOL_cmd_tx_pkt_buf_dump(struct adapter *Adapter, int data_len)
 				rtw_usleep_os(2);
 			} while (!rstatus && (loop++ < 10));
 		}
-		rtw_IOL_cmd_buf_dump(Adapter, data_len, pbuf);
+		rtw_IOL_cmd_buf_dump(data_len, pbuf);
 		vfree(pbuf);
 	}
 	DBG_88E("###### %s ######\n", __func__);

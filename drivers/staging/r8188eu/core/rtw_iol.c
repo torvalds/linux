@@ -164,7 +164,7 @@ u8 rtw_IOL_cmd_boundary_handle(struct xmit_frame *pxmit_frame)
 	return is_cmd_bndy;
 }
 
-void rtw_IOL_cmd_buf_dump(struct adapter  *Adapter, int buf_len, u8 *pbuf)
+void rtw_IOL_cmd_buf_dump(int buf_len, u8 *pbuf)
 {
 	int i;
 	int j = 1;
