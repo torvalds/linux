@@ -4277,6 +4277,12 @@ static int __ext4_get_inode_loc(struct super_block *sb, unsigned long ino,
 		goto has_buffer;
 
 	lock_buffer(bh);
+	if (ext4_buffer_uptodate(bh)) {
+		/* Someone brought it uptodate while we waited */
+		unlock_buffer(bh);
+		goto has_buffer;
+	}
+
 	/*
 	 * If we have all information of the inode in memory and this
 	 * is the only valid inode in the block, we need not read the
