@@ -1361,7 +1361,7 @@ static int ads7846_probe(struct spi_device *spi)
 	err = devm_request_threaded_irq(dev, spi->irq,
 					ads7846_hard_irq, ads7846_irq,
 					irq_flags, dev->driver->name, ts);
-	if (err && !pdata->irq_flags) {
+	if (err && err != -EPROBE_DEFER && !pdata->irq_flags) {
 		dev_info(dev,
 			"trying pin change workaround on irq %d\n", spi->irq);
 		irq_flags |= IRQF_TRIGGER_RISING;
