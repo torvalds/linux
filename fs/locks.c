@@ -461,8 +461,6 @@ static void locks_move_blocks(struct file_lock *new, struct file_lock *fl)
 }
 
 static inline int flock_translate_cmd(int cmd) {
-	if (cmd & LOCK_MAND)
-		return cmd & (LOCK_MAND | LOCK_RW);
 	switch (cmd) {
 	case LOCK_SH:
 		return F_RDLCK;
@@ -941,8 +939,6 @@ static bool flock_locks_conflict(struct file_lock *caller_fl,
 	 * each other.
 	 */
 	if (caller_fl->fl_file == sys_fl->fl_file)
-		return false;
-	if ((caller_fl->fl_type & LOCK_MAND) || (sys_fl->fl_type & LOCK_MAND))
 		return false;
 
 	return locks_conflict(caller_fl, sys_fl);
@@ -2116,11 +2112,9 @@ EXPORT_SYMBOL(locks_lock_inode_wait);
  *	- %LOCK_SH -- a shared lock.
  *	- %LOCK_EX -- an exclusive lock.
  *	- %LOCK_UN -- remove an existing lock.
- *	- %LOCK_MAND -- a 'mandatory' flock.
- *	  This exists to emulate Windows Share Modes.
+ *	- %LOCK_MAND -- a 'mandatory' flock. (DEPRECATED)
  *
- *	%LOCK_MAND can be combined with %LOCK_READ or %LOCK_WRITE to allow other
- *	processes read and write access respectively.
+ *	%LOCK_MAND support has been removed from the kernel.
  */
 SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 {
@@ -2137,9 +2131,22 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 	cmd &= ~LOCK_NB;
 	unlock = (cmd == LOCK_UN);
 
-	if (!unlock && !(cmd & LOCK_MAND) &&
-	    !(f.file->f_mode & (FMODE_READ|FMODE_WRITE)))
+	if (!unlock && !(f.file->f_mode & (FMODE_READ|FMODE_WRITE)))
 		goto out_putf;
+
+	/*
+	 * LOCK_MAND locks were broken for a long time in that they never
+	 * conflicted with one another and didn't prevent any sort of open,
+	 * read or write activity.
+	 *
+	 * Just ignore these requests now, to preserve legacy behavior, but
+	 * throw a warning to let people know that they don't actually work.
+	 */
+	if (cmd & LOCK_MAND) {
+		pr_warn_once("Attempt to set a LOCK_MAND lock via flock(2). This support has been removed and the request ignored.\n");
+		error = 0;
+		goto out_putf;
+	}
 
 	lock = flock_make_lock(f.file, cmd, NULL);
 	if (IS_ERR(lock)) {
@@ -2718,6 +2725,7 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 	struct inode *inode = NULL;
 	unsigned int fl_pid;
 	struct pid_namespace *proc_pidns = proc_pid_ns(file_inode(f->file)->i_sb);
+	int type;
 
 	fl_pid = locks_translate_pid(fl, proc_pidns);
 	/*
@@ -2745,11 +2753,7 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 		seq_printf(f, " %s ",
 			     (inode == NULL) ? "*NOINODE*" : "ADVISORY ");
 	} else if (IS_FLOCK(fl)) {
-		if (fl->fl_type & LOCK_MAND) {
-			seq_puts(f, "FLOCK  MSNFS     ");
-		} else {
-			seq_puts(f, "FLOCK  ADVISORY  ");
-		}
+		seq_puts(f, "FLOCK  ADVISORY  ");
 	} else if (IS_LEASE(fl)) {
 		if (fl->fl_flags & FL_DELEG)
 			seq_puts(f, "DELEG  ");
@@ -2765,17 +2769,10 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 	} else {
 		seq_puts(f, "UNKNOWN UNKNOWN  ");
 	}
-	if (fl->fl_type & LOCK_MAND) {
-		seq_printf(f, "%s ",
-			       (fl->fl_type & LOCK_READ)
-			       ? (fl->fl_type & LOCK_WRITE) ? "RW   " : "READ "
-			       : (fl->fl_type & LOCK_WRITE) ? "WRITE" : "NONE ");
-	} else {
-		int type = IS_LEASE(fl) ? target_leasetype(fl) : fl->fl_type;
+	type = IS_LEASE(fl) ? target_leasetype(fl) : fl->fl_type;
 
-		seq_printf(f, "%s ", (type == F_WRLCK) ? "WRITE" :
-				     (type == F_RDLCK) ? "READ" : "UNLCK");
-	}
+	seq_printf(f, "%s ", (type == F_WRLCK) ? "WRITE" :
+			     (type == F_RDLCK) ? "READ" : "UNLCK");
 	if (inode) {
 		/* userspace relies on this representation of dev_t */
 		seq_printf(f, "%d %02x:%02x:%lu ", fl_pid,
