@@ -7764,8 +7764,6 @@ lpfc_mbx_cmpl_cgn_set_ftrs(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	/* Zero out Congestion Signal ACQE counter */
 	phba->cgn_acqe_cnt = 0;
-	atomic64_set(&phba->cgn_acqe_stat.warn, 0);
-	atomic64_set(&phba->cgn_acqe_stat.alarm, 0);
 
 	acqe = bf_get(lpfc_mbx_set_feature_CGN_acqe_freq,
 		      &pmb->u.mqe.un.set_feature);
@@ -8017,6 +8015,10 @@ lpfc_cmf_setup(struct lpfc_hba *phba)
 			/* initialize congestion buffer info */
 			lpfc_init_congestion_buf(phba);
 			lpfc_init_congestion_stat(phba);
+
+			/* Zero out Congestion Signal counters */
+			atomic64_set(&phba->cgn_acqe_stat.alarm, 0);
+			atomic64_set(&phba->cgn_acqe_stat.warn, 0);
 		}
 
 		rc = lpfc_sli4_cgn_params_read(phba);

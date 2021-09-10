@@ -13394,8 +13394,6 @@ lpfc_init_congestion_buf(struct lpfc_hba *phba)
 	atomic_set(&phba->cgn_sync_alarm_cnt, 0);
 	atomic_set(&phba->cgn_sync_warn_cnt, 0);
 
-	atomic64_set(&phba->cgn_acqe_stat.alarm, 0);
-	atomic64_set(&phba->cgn_acqe_stat.warn, 0);
 	atomic_set(&phba->cgn_driver_evt_cnt, 0);
 	atomic_set(&phba->cgn_latency_evt_cnt, 0);
 	atomic64_set(&phba->cgn_latency_evt, 0);
