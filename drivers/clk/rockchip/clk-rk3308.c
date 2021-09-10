@@ -958,6 +958,7 @@ static void __init rk3308_clk_init(struct device_node *np)
 				   RK3308_GRF_SOC_STATUS0);
 	rockchip_clk_register_branches(ctx, rk3308_clk_branches,
 				       ARRAY_SIZE(rk3308_clk_branches));
+	rockchip_soc_id_init();
 	if (soc_is_rk3308b())
 		rockchip_clk_register_branches(ctx, rk3308b_dclk_vop_frac,
 					       ARRAY_SIZE(rk3308b_dclk_vop_frac));
