@@ -1168,12 +1168,15 @@ static enum vop2_data_format vop2_convert_format(uint32_t format)
 	case DRM_FORMAT_BGR565:
 		return VOP2_FMT_RGB565;
 	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_YUV420_8BIT:
 		return VOP2_FMT_YUV420SP;
 	case DRM_FORMAT_NV15:
+	case DRM_FORMAT_YUV420_10BIT:
 		return VOP2_FMT_YUV420SP_10;
 	case DRM_FORMAT_NV16:
 		return VOP2_FMT_YUV422SP;
 	case DRM_FORMAT_NV20:
+	case DRM_FORMAT_Y210:
 		return VOP2_FMT_YUV422SP_10;
 	case DRM_FORMAT_NV24:
 		return VOP2_FMT_YUV444SP;
@@ -1205,13 +1208,16 @@ static enum vop2_afbc_format vop2_convert_afbc_format(uint32_t format)
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_BGR565:
 		return VOP2_AFBC_FMT_RGB565;
-	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_YUV420_8BIT:
 		return VOP2_AFBC_FMT_YUV420;
-	case DRM_FORMAT_NV15:
+	case DRM_FORMAT_YUV420_10BIT:
 		return VOP2_AFBC_FMT_YUV420_10BIT;
-	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_YVYU:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_VYUY:
+	case DRM_FORMAT_UYVY:
 		return VOP2_AFBC_FMT_YUV422;
-	case DRM_FORMAT_NV20:
+	case DRM_FORMAT_Y210:
 		return VOP2_AFBC_FMT_YUV422_10BIT;
 
 		/* either of the below should not be reachable */
@@ -1277,8 +1283,8 @@ static bool vop2_afbc_uv_swap(uint32_t format)
 	switch (format) {
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV16:
-	case DRM_FORMAT_NV15:
-	case DRM_FORMAT_NV20:
+	case DRM_FORMAT_YUV420_8BIT:
+	case DRM_FORMAT_YUV420_10BIT:
 		return true;
 	default:
 		return false;
@@ -1361,6 +1367,9 @@ static bool is_yuv_support(uint32_t format)
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_VYUY:
+	case DRM_FORMAT_YUV420_8BIT:
+	case DRM_FORMAT_YUV420_10BIT:
+	case DRM_FORMAT_Y210:
 		return true;
 	default:
 		return false;
@@ -1448,7 +1457,7 @@ static uint32_t vop2_afbc_transform_offset(struct vop2_plane_state *vpstate)
 {
 	struct drm_rect *src = &vpstate->src;
 	struct drm_framebuffer *fb = vpstate->base.fb;
-	uint32_t bpp = fb->format->cpp[0] << 3;
+	uint32_t bpp = rockchip_drm_get_bpp(fb->format);
 	uint32_t vir_width = (fb->pitches[0] << 3) / bpp;
 	uint32_t width = drm_rect_width(src) >> 16;
 	uint32_t height = drm_rect_height(src) >> 16;
@@ -2933,7 +2942,7 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 	rk_obj = to_rockchip_obj(obj);
 
 	vpstate->yrgb_mst = rk_obj->dma_addr + offset + fb->offsets[0];
-	if (fb->format->is_yuv) {
+	if (fb->format->is_yuv && fb->format->num_planes > 1) {
 		int hsub = fb->format->hsub;
 		int vsub = fb->format->vsub;
 
@@ -3041,7 +3050,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	struct vop2 *vop2 = win->vop2;
 	struct drm_framebuffer *fb = pstate->fb;
-	uint32_t bpp = fb->format->cpp[0] << 3;
+	uint32_t bpp = rockchip_drm_get_bpp(fb->format);
 	uint32_t actual_w, actual_h, dsp_w, dsp_h;
 	uint32_t dsp_stx, dsp_sty;
 	uint32_t act_info, dsp_info, dsp_st;
@@ -4004,7 +4013,7 @@ static size_t vop2_plane_line_bandwidth(struct drm_plane_state *pstate)
 	struct drm_framebuffer *fb = pstate->fb;
 	struct drm_rect *dst = &vpstate->dest;
 	struct drm_rect *src = &vpstate->src;
-	int bpp = fb->format->cpp[0] << 3;
+	int bpp = rockchip_drm_get_bpp(fb->format);
 	int src_width = drm_rect_width(src) >> 16;
 	int src_height = drm_rect_height(src) >> 16;
 	int dst_width = drm_rect_width(dst);

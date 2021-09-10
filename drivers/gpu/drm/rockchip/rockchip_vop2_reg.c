@@ -47,8 +47,10 @@ static const uint32_t formats_win_full_10bit[] = {
 #endif
 	DRM_FORMAT_YUV420_8BIT, /* yuv420_8bit non-Linear mode only */
 	DRM_FORMAT_YUV420_10BIT, /* yuv420_10bit non-Linear mode only */
-	DRM_FORMAT_YVYU, /* yuv422_8bit  linear mode or non-Linear mode */
-	DRM_FORMAT_VYUY, /* yuv422_8bit linear mode or non-Linear mode */
+	DRM_FORMAT_YVYU, /* yuv422_8bit[YVYU] linear mode or non-Linear mode */
+	DRM_FORMAT_VYUY, /* yuv422_8bit[VYUY] linear mode or non-Linear mode */
+	DRM_FORMAT_YUYV, /* yuv422_8bit[YUYV] linear mode or non-Linear mode */
+	DRM_FORMAT_UYVY, /* yuv422_8bit[UYVY] linear mode or non-Linear mode */
 	DRM_FORMAT_Y210, /* yuv422_10bit non-Linear mode only */
 };
 
@@ -69,8 +71,10 @@ static const uint32_t formats_win_full_10bit_yuyv[] = {
 	DRM_FORMAT_NV20, /* yuv422_10bit linear mode, 2 plane, no padding */
 	DRM_FORMAT_NV30, /* yuv444_10bit linear mode, 2 plane, no padding */
 #endif
-	DRM_FORMAT_YVYU, /* yuv422_8bit  linear mode or non-Linear mode */
-	DRM_FORMAT_VYUY, /* yuv422_8bit linear mode or non-Linear mode */
+	DRM_FORMAT_YVYU, /* yuv422_8bit[YVYU] linear mode or non-Linear mode */
+	DRM_FORMAT_VYUY, /* yuv422_8bit[VYUY] linear mode or non-Linear mode */
+	DRM_FORMAT_YUYV, /* yuv422_8bit[YUYV] linear mode or non-Linear mode */
+	DRM_FORMAT_UYVY, /* yuv422_8bit[UYVY] linear mode or non-Linear mode */
 };
 
 static const uint32_t formats_win_lite[] = {
