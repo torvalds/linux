@@ -3961,7 +3961,7 @@ static int rtw_dbg_port(struct net_device *dev,
 		DBG_88E("read_bbreg(0x%x) = 0x%x\n", arg, rtl8188e_PHY_QueryBBReg(padapter, arg, 0xffffffff));
 		break;
 	case 0x73:/* write_bb */
-		rtw_hal_write_bbreg(padapter, arg, 0xffffffff, extra_arg);
+		rtl8188e_PHY_SetBBReg(padapter, arg, 0xffffffff, extra_arg);
 		DBG_88E("write_bbreg(0x%x) = 0x%x\n", arg, rtl8188e_PHY_QueryBBReg(padapter, arg, 0xffffffff));
 		break;
 	case 0x74:/* read_rf */

@@ -14,7 +14,7 @@ u32 read_bbreg(struct adapter *padapter, u32 addr, u32 bitmask)
 
 void write_bbreg(struct adapter *padapter, u32 addr, u32 bitmask, u32 val)
 {
-	rtw_hal_write_bbreg(padapter, addr, bitmask, val);
+	rtl8188e_PHY_SetBBReg(padapter, addr, bitmask, val);
 }
 
 u32 _read_rfreg(struct adapter *padapter, u8 rfpath, u32 addr, u32 bitmask)
