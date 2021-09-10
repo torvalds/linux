@@ -54,6 +54,9 @@ static inline void rockchip_set_cpu(unsigned long code)
 	rockchip_soc_id &= ~ROCKCHIP_CPU_MASK;
 	rockchip_soc_id |= (code << ROCKCHIP_CPU_SHIFT) & ROCKCHIP_CPU_MASK;
 }
+
+int rockchip_soc_id_init(void);
+
 #else
 
 #define rockchip_soc_id 0
@@ -70,6 +73,12 @@ static inline void rockchip_set_cpu_version(unsigned long ver)
 static inline void rockchip_set_cpu(unsigned long code)
 {
 }
+
+static inline int rockchip_soc_id_init(void)
+{
+	return 0;
+}
+
 #endif
 
 #if defined(CONFIG_CPU_RV1126) || defined(CONFIG_CPU_RV1109)
