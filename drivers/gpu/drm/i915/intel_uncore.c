@@ -1026,17 +1026,16 @@ static int mmio_range_cmp(u32 key, const struct i915_range *range)
 		return 0;
 }
 
-#define __is_X_shadowed(x) \
-static bool is_##x##_shadowed(u32 offset) \
-{ \
-	const struct i915_range *regs = x##_shadowed_regs; \
-	return BSEARCH(offset, regs, ARRAY_SIZE(x##_shadowed_regs), \
-		       mmio_range_cmp); \
-}
+static bool is_shadowed(struct intel_uncore *uncore, u32 offset)
+{
+	if (drm_WARN_ON(&uncore->i915->drm, !uncore->shadowed_reg_table))
+		return false;
 
-__is_X_shadowed(gen8)
-__is_X_shadowed(gen11)
-__is_X_shadowed(gen12)
+	return BSEARCH(offset,
+		       uncore->shadowed_reg_table,
+		       uncore->shadowed_reg_table_entries,
+		       mmio_range_cmp);
+}
 
 static enum forcewake_domains
 gen6_reg_write_fw_domains(struct intel_uncore *uncore, i915_reg_t reg)
@@ -1047,7 +1046,7 @@ gen6_reg_write_fw_domains(struct intel_uncore *uncore, i915_reg_t reg)
 #define __gen8_reg_write_fw_domains(uncore, offset) \
 ({ \
 	enum forcewake_domains __fwd; \
-	if (NEEDS_FORCE_WAKE(offset) && !is_gen8_shadowed(offset)) \
+	if (NEEDS_FORCE_WAKE(offset) && !is_shadowed(uncore, offset)) \
 		__fwd = FORCEWAKE_RENDER; \
 	else \
 		__fwd = 0; \
@@ -1081,7 +1080,7 @@ static const struct intel_forcewake_range __chv_fw_ranges[] = {
 #define __fwtable_reg_write_fw_domains(uncore, offset) \
 ({ \
 	enum forcewake_domains __fwd = 0; \
-	if (NEEDS_FORCE_WAKE((offset)) && !is_gen8_shadowed(offset)) \
+	if (NEEDS_FORCE_WAKE((offset)) && !is_shadowed(uncore, offset)) \
 		__fwd = find_fw_domain(uncore, offset); \
 	__fwd; \
 })
@@ -1090,7 +1089,7 @@ static const struct intel_forcewake_range __chv_fw_ranges[] = {
 ({ \
 	enum forcewake_domains __fwd = 0; \
 	const u32 __offset = (offset); \
-	if (!is_gen11_shadowed(__offset)) \
+	if (!is_shadowed(uncore, __offset)) \
 		__fwd = find_fw_domain(uncore, __offset); \
 	__fwd; \
 })
@@ -1099,7 +1098,7 @@ static const struct intel_forcewake_range __chv_fw_ranges[] = {
 ({ \
 	enum forcewake_domains __fwd = 0; \
 	const u32 __offset = (offset); \
-	if (!is_gen12_shadowed(__offset)) \
+	if (!is_shadowed(uncore, __offset)) \
 		__fwd = find_fw_domain(uncore, __offset); \
 	__fwd; \
 })
@@ -1969,6 +1968,12 @@ out:
 	(uncore)->fw_domains_table_entries = ARRAY_SIZE((d)); \
 }
 
+#define ASSIGN_SHADOW_TABLE(uncore, d) \
+{ \
+	(uncore)->shadowed_reg_table = d; \
+	(uncore)->shadowed_reg_table_entries = ARRAY_SIZE((d)); \
+}
+
 static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 					 unsigned long action, void *data)
 {
@@ -2081,30 +2086,37 @@ static int uncore_forcewake_init(struct intel_uncore *uncore)
 
 	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55)) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __dg2_fw_ranges);
+		ASSIGN_SHADOW_TABLE(uncore, gen12_shadowed_regs);
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen12_fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
 	} else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __xehp_fw_ranges);
+		ASSIGN_SHADOW_TABLE(uncore, gen12_shadowed_regs);
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen12_fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
 	} else if (GRAPHICS_VER(i915) >= 12) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen12_fw_ranges);
+		ASSIGN_SHADOW_TABLE(uncore, gen12_shadowed_regs);
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen12_fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
 	} else if (GRAPHICS_VER(i915) == 11) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen11_fw_ranges);
+		ASSIGN_SHADOW_TABLE(uncore, gen11_shadowed_regs);
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen11_fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
 	} else if (IS_GRAPHICS_VER(i915, 9, 10)) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen9_fw_ranges);
+		ASSIGN_SHADOW_TABLE(uncore, gen8_shadowed_regs);
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, fwtable);
 	} else if (IS_CHERRYVIEW(i915)) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __chv_fw_ranges);
+		ASSIGN_SHADOW_TABLE(uncore, gen8_shadowed_regs);
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, fwtable);
 	} else if (GRAPHICS_VER(i915) == 8) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen6_fw_ranges);
+		ASSIGN_SHADOW_TABLE(uncore, gen8_shadowed_regs);
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen8);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, fwtable);
 	} else if (IS_VALLEYVIEW(i915)) {
