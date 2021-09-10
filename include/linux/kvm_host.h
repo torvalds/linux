@@ -721,11 +721,6 @@ static inline struct kvm_vcpu *kvm_get_vcpu_by_id(struct kvm *kvm, int id)
 	return NULL;
 }
 
-static inline int kvm_vcpu_get_idx(struct kvm_vcpu *vcpu)
-{
-	return vcpu->vcpu_idx;
-}
-
 #define kvm_for_each_memslot(memslot, slots)				\
 	for (memslot = &slots->memslots[0];				\
 	     memslot < slots->memslots + slots->used_slots; memslot++)	\
