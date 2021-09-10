@@ -1393,10 +1393,10 @@ ok:
 	fc->ops = &ntfs_context_ops;
 
 	return 0;
-free_opts:
-	kfree(opts);
 free_sbi:
 	kfree(sbi);
+free_opts:
+	kfree(opts);
 	return -ENOMEM;
 }
 
