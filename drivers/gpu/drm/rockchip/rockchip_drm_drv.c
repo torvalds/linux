@@ -45,6 +45,28 @@
 static bool is_support_iommu = true;
 static struct drm_driver rockchip_drm_driver;
 
+uint32_t rockchip_drm_get_bpp(const struct drm_format_info *info)
+{
+	/* use whatever a driver has set */
+	if (info->cpp[0])
+		return info->cpp[0] * 8;
+
+	switch (info->format) {
+	case DRM_FORMAT_YUV420_8BIT:
+		return 12;
+	case DRM_FORMAT_YUV420_10BIT:
+		return 15;
+	case DRM_FORMAT_VUY101010:
+		return 30;
+	default:
+		break;
+	}
+
+	/* all attempts failed */
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_drm_get_bpp);
+
 /**
  * rockchip_drm_of_find_possible_crtcs - find the possible CRTCs for an active
  * encoder port
