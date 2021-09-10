@@ -142,11 +142,16 @@ struct ads7846 {
 
 	int			(*filter)(void *data, int data_idx, int *val);
 	void			*filter_data;
-	void			(*filter_cleanup)(void *data);
 	int			(*get_pendown_state)(void);
 	int			gpio_pendown;
 
 	void			(*wait_for_sync)(void);
+};
+
+enum ads7846_filter {
+	ADS7846_FILTER_OK,
+	ADS7846_FILTER_REPEAT,
+	ADS7846_FILTER_IGNORE,
 };
 
 /* leave chip selected when we're done, for quicker re-select? */
@@ -1277,15 +1282,7 @@ static int ads7846_probe(struct spi_device *spi)
 	ts->x_plate_ohms = pdata->x_plate_ohms ? : 400;
 	ts->vref_mv = pdata->vref_mv;
 
-	if (pdata->filter != NULL) {
-		if (pdata->filter_init != NULL) {
-			err = pdata->filter_init(pdata, &ts->filter_data);
-			if (err < 0)
-				goto err_free_mem;
-		}
-		ts->filter = pdata->filter;
-		ts->filter_cleanup = pdata->filter_cleanup;
-	} else if (pdata->debounce_max) {
+	if (pdata->debounce_max) {
 		ts->debounce_max = pdata->debounce_max;
 		if (ts->debounce_max < 2)
 			ts->debounce_max = 2;
@@ -1299,7 +1296,7 @@ static int ads7846_probe(struct spi_device *spi)
 
 	err = ads7846_setup_pendown(spi, ts, pdata);
 	if (err)
-		goto err_cleanup_filter;
+		goto err_free_mem;
 
 	if (pdata->penirq_recheck_delay_usecs)
 		ts->penirq_recheck_delay_usecs =
@@ -1425,9 +1422,6 @@ static int ads7846_probe(struct spi_device *spi)
  err_free_gpio:
 	if (!ts->get_pendown_state)
 		gpio_free(ts->gpio_pendown);
- err_cleanup_filter:
-	if (ts->filter_cleanup)
-		ts->filter_cleanup(ts->filter_data);
  err_free_mem:
 	input_free_device(input_dev);
 	kfree(packet);
@@ -1457,9 +1451,6 @@ static int ads7846_remove(struct spi_device *spi)
 		 */
 		gpio_free(ts->gpio_pendown);
 	}
-
-	if (ts->filter_cleanup)
-		ts->filter_cleanup(ts->filter_data);
 
 	kfree(ts->packet);
 	kfree(ts);
