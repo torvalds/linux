@@ -5,6 +5,14 @@
 #define AF_INET			2
 #define AF_INET6		10
 
+#define __SO_ACCEPTCON		(1 << 16)
+#define UNIX_HASH_SIZE		256
+#define UNIX_ABSTRACT(unix_sk)	(unix_sk->addr->hash < UNIX_HASH_SIZE)
+
+#define SOL_TCP			6
+#define TCP_CONGESTION		13
+#define TCP_CA_NAME_MAX		16
+
 #define ICSK_TIME_RETRANS	1
 #define ICSK_TIME_PROBE0	3
 #define ICSK_TIME_LOSS_PROBE	5
@@ -32,6 +40,8 @@
 #define ir_v6_rmt_addr		req.__req_common.skc_v6_daddr
 #define ir_v6_loc_addr		req.__req_common.skc_v6_rcv_saddr
 
+#define sk_num			__sk_common.skc_num
+#define sk_dport		__sk_common.skc_dport
 #define sk_family		__sk_common.skc_family
 #define sk_rmem_alloc		sk_backlog.rmem_alloc
 #define sk_refcnt		__sk_common.skc_refcnt

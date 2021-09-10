@@ -10,6 +10,9 @@
 #include <asm/tm.h>
 
 #include "utils.h"
+#include "reg.h"
+
+#define TM_RETRIES 100
 
 static inline bool have_htm(void)
 {
@@ -29,6 +32,39 @@ static inline bool have_htm_nosc(void)
 	printf("PPC_FEATURE2_HTM_NOSC not defined, can't check AT_HWCAP2\n");
 	return false;
 #endif
+}
+
+/*
+ * Transactional Memory was removed in ISA 3.1. A synthetic TM implementation
+ * is provided on P10 for threads running in P8/P9 compatibility  mode. The
+ * synthetic implementation immediately fails after tbegin. This failure sets
+ * Bit 7 (Failure Persistent) and Bit 15 (Implementation-specific).
+ */
+static inline bool htm_is_synthetic(void)
+{
+	int i;
+
+	/*
+	 * Per the ISA, the Failure Persistent bit may be incorrect. Try a few
+	 * times in case we got an Implementation-specific failure on a non ISA
+	 * v3.1 system. On these systems the Implementation-specific failure
+	 * should not be persistent.
+	 */
+	for (i = 0; i < TM_RETRIES; i++) {
+		asm volatile(
+		"tbegin.;"
+		"beq 1f;"
+		"tend.;"
+		"1:"
+		:
+		:
+		: "memory");
+
+		if ((__builtin_get_texasr() & (TEXASR_FP | TEXASR_IC)) !=
+		    (TEXASR_FP | TEXASR_IC))
+			break;
+	}
+	return i == TM_RETRIES;
 }
 
 static inline long failure_code(void)

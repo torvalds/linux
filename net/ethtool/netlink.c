@@ -2,6 +2,7 @@
 
 #include <net/sock.h>
 #include <linux/ethtool_netlink.h>
+#include <linux/pm_runtime.h>
 #include "netlink.h"
 
 static struct genl_family ethtool_genl_family;
@@ -28,6 +29,44 @@ const struct nla_policy ethnl_header_policy_stats[] = {
 	[ETHTOOL_A_HEADER_FLAGS]	= NLA_POLICY_MASK(NLA_U32,
 							  ETHTOOL_FLAGS_STATS),
 };
+
+int ethnl_ops_begin(struct net_device *dev)
+{
+	int ret;
+
+	if (!dev)
+		return -ENODEV;
+
+	if (dev->dev.parent)
+		pm_runtime_get_sync(dev->dev.parent);
+
+	if (!netif_device_present(dev)) {
+		ret = -ENODEV;
+		goto err;
+	}
+
+	if (dev->ethtool_ops->begin) {
+		ret = dev->ethtool_ops->begin(dev);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+err:
+	if (dev->dev.parent)
+		pm_runtime_put(dev->dev.parent);
+
+	return ret;
+}
+
+void ethnl_ops_complete(struct net_device *dev)
+{
+	if (dev->ethtool_ops->complete)
+		dev->ethtool_ops->complete(dev);
+
+	if (dev->dev.parent)
+		pm_runtime_put(dev->dev.parent);
+}
 
 /**
  * ethnl_parse_header_dev_get() - parse request header
@@ -99,12 +138,6 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 		NL_SET_ERR_MSG_ATTR(extack, header,
 				    "neither ifindex nor name specified");
 		return -EINVAL;
-	}
-
-	if (dev && !netif_device_present(dev)) {
-		dev_put(dev);
-		NL_SET_ERR_MSG(extack, "device not present");
-		return -ENODEV;
 	}
 
 	req_info->dev = dev;
@@ -365,8 +398,7 @@ static int ethnl_default_doit(struct sk_buff *skb, struct genl_info *info)
 		ops->cleanup_data(reply_data);
 
 	genlmsg_end(rskb, reply_payload);
-	if (req_info->dev)
-		dev_put(req_info->dev);
+	dev_put(req_info->dev);
 	kfree(reply_data);
 	kfree(req_info);
 	return genlmsg_reply(rskb, info);
@@ -378,8 +410,7 @@ err_cleanup:
 	if (ops->cleanup_data)
 		ops->cleanup_data(reply_data);
 err_dev:
-	if (req_info->dev)
-		dev_put(req_info->dev);
+	dev_put(req_info->dev);
 	kfree(reply_data);
 	kfree(req_info);
 	return ret;

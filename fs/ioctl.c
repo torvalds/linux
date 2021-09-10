@@ -614,6 +614,14 @@ static int fileattr_set_prepare(struct inode *inode,
 		if ((old_ma->fsx_xflags ^ fa->fsx_xflags) &
 				FS_XFLAG_PROJINHERIT)
 			return -EINVAL;
+	} else {
+		/*
+		 * Caller is allowed to change the project ID. If it is being
+		 * changed, make sure that the new value is valid.
+		 */
+		if (old_ma->fsx_projid != fa->fsx_projid &&
+		    !projid_valid(make_kprojid(&init_user_ns, fa->fsx_projid)))
+			return -EINVAL;
 	}
 
 	/* Check extent size hints. */

@@ -1356,15 +1356,13 @@ static int sa1111_bus_probe(struct device *dev)
 	return ret;
 }
 
-static int sa1111_bus_remove(struct device *dev)
+static void sa1111_bus_remove(struct device *dev)
 {
 	struct sa1111_dev *sadev = to_sa1111_device(dev);
 	struct sa1111_driver *drv = SA1111_DRV(dev->driver);
 
 	if (drv->remove)
 		drv->remove(sadev);
-
-	return 0;
 }
 
 struct bus_type sa1111_bus_type = {

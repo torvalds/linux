@@ -85,13 +85,18 @@ int hns_roce_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 
 int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 {
+	struct hns_roce_ida *uar_ida = &hr_dev->uar_ida;
 	struct resource *res;
-	int ret;
+	int id;
 
 	/* Using bitmap to manager UAR index */
-	ret = hns_roce_bitmap_alloc(&hr_dev->uar_table.bitmap, &uar->logic_idx);
-	if (ret)
+	id = ida_alloc_range(&uar_ida->ida, uar_ida->min, uar_ida->max,
+			     GFP_KERNEL);
+	if (id < 0) {
+		ibdev_err(&hr_dev->ib_dev, "failed to alloc uar id(%d).\n", id);
 		return -ENOMEM;
+	}
+	uar->logic_idx = (unsigned long)id;
 
 	if (uar->logic_idx > 0 && hr_dev->caps.phy_num_uars > 1)
 		uar->index = (uar->logic_idx - 1) %
@@ -102,6 +107,7 @@ int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 	if (!dev_is_pci(hr_dev->dev)) {
 		res = platform_get_resource(hr_dev->pdev, IORESOURCE_MEM, 0);
 		if (!res) {
+			ida_free(&uar_ida->ida, id);
 			dev_err(&hr_dev->pdev->dev, "memory resource not found!\n");
 			return -EINVAL;
 		}
@@ -114,22 +120,13 @@ int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 	return 0;
 }
 
-void hns_roce_uar_free(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
+void hns_roce_init_uar_table(struct hns_roce_dev *hr_dev)
 {
-	hns_roce_bitmap_free(&hr_dev->uar_table.bitmap, uar->logic_idx);
-}
+	struct hns_roce_ida *uar_ida = &hr_dev->uar_ida;
 
-int hns_roce_init_uar_table(struct hns_roce_dev *hr_dev)
-{
-	return hns_roce_bitmap_init(&hr_dev->uar_table.bitmap,
-				    hr_dev->caps.num_uars,
-				    hr_dev->caps.num_uars - 1,
-				    hr_dev->caps.reserved_uars, 0);
-}
-
-void hns_roce_cleanup_uar_table(struct hns_roce_dev *hr_dev)
-{
-	hns_roce_bitmap_cleanup(&hr_dev->uar_table.bitmap);
+	ida_init(&uar_ida->ida);
+	uar_ida->max = hr_dev->caps.num_uars - 1;
+	uar_ida->min = hr_dev->caps.reserved_uars;
 }
 
 static int hns_roce_xrcd_alloc(struct hns_roce_dev *hr_dev, u32 *xrcdn)

@@ -436,7 +436,7 @@ struct tegra_pmc {
 
 static struct tegra_pmc *pmc = &(struct tegra_pmc) {
 	.base = NULL,
-	.suspend_mode = TEGRA_SUSPEND_NONE,
+	.suspend_mode = TEGRA_SUSPEND_NOT_READY,
 };
 
 static inline struct tegra_powergate *
@@ -1812,6 +1812,7 @@ static int tegra_pmc_parse_dt(struct tegra_pmc *pmc, struct device_node *np)
 	u32 value, values[2];
 
 	if (of_property_read_u32(np, "nvidia,suspend-mode", &value)) {
+		pmc->suspend_mode = TEGRA_SUSPEND_NONE;
 	} else {
 		switch (value) {
 		case 0:
@@ -2785,6 +2786,11 @@ static int tegra_pmc_regmap_init(struct tegra_pmc *pmc)
 	return 0;
 }
 
+static void tegra_pmc_reset_suspend_mode(void *data)
+{
+	pmc->suspend_mode = TEGRA_SUSPEND_NOT_READY;
+}
+
 static int tegra_pmc_probe(struct platform_device *pdev)
 {
 	void __iomem *base;
@@ -2801,6 +2807,11 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 
 	err = tegra_pmc_parse_dt(pmc, pdev->dev.of_node);
 	if (err < 0)
+		return err;
+
+	err = devm_add_action_or_reset(&pdev->dev, tegra_pmc_reset_suspend_mode,
+				       NULL);
+	if (err)
 		return err;
 
 	/* take over the memory region from the early initialization */
@@ -2909,6 +2920,7 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 
 	tegra_pmc_clock_register(pmc, pdev->dev.of_node);
 	platform_set_drvdata(pdev, pmc);
+	tegra_pm_init_suspend();
 
 	return 0;
 

@@ -1745,10 +1745,10 @@ static int ipoib_ioctl(struct net_device *dev, struct ifreq *ifr,
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
-	if (!priv->rn_ops->ndo_do_ioctl)
+	if (!priv->rn_ops->ndo_eth_ioctl)
 		return -EOPNOTSUPP;
 
-	return priv->rn_ops->ndo_do_ioctl(dev, ifr, cmd);
+	return priv->rn_ops->ndo_eth_ioctl(dev, ifr, cmd);
 }
 
 static int ipoib_dev_init(struct net_device *dev)
@@ -2078,7 +2078,7 @@ static const struct net_device_ops ipoib_netdev_ops_pf = {
 	.ndo_set_vf_guid	 = ipoib_set_vf_guid,
 	.ndo_set_mac_address	 = ipoib_set_mac,
 	.ndo_get_stats64	 = ipoib_get_stats,
-	.ndo_do_ioctl		 = ipoib_ioctl,
+	.ndo_eth_ioctl		 = ipoib_ioctl,
 };
 
 static const struct net_device_ops ipoib_netdev_ops_vf = {
@@ -2093,7 +2093,7 @@ static const struct net_device_ops ipoib_netdev_ops_vf = {
 	.ndo_set_rx_mode	 = ipoib_set_mcast_list,
 	.ndo_get_iflink		 = ipoib_get_iflink,
 	.ndo_get_stats64	 = ipoib_get_stats,
-	.ndo_do_ioctl		 = ipoib_ioctl,
+	.ndo_eth_ioctl		 = ipoib_ioctl,
 };
 
 static const struct net_device_ops ipoib_netdev_default_pf = {

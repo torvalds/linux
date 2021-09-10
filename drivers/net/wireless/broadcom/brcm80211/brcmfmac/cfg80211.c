@@ -1829,6 +1829,14 @@ brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 				profile->use_fwsup = BRCMF_PROFILE_FWSUP_SAE;
 			}
 			break;
+		case WLAN_AKM_SUITE_FT_OVER_SAE:
+			val = WPA3_AUTH_SAE_PSK | WPA2_AUTH_FT;
+			profile->is_ft = true;
+			if (sme->crypto.sae_pwd) {
+				brcmf_dbg(INFO, "using SAE offload\n");
+				profile->use_fwsup = BRCMF_PROFILE_FWSUP_SAE;
+			}
+			break;
 		default:
 			bphy_err(drvr, "invalid cipher group (%d)\n",
 				 sme->crypto.cipher_group);

@@ -50,11 +50,12 @@ static void guest_code(uint32_t vcpu_id)
 }
 
 struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
-				   uint64_t vcpu_memory_bytes,
+				   uint64_t vcpu_memory_bytes, int slots,
 				   enum vm_mem_backing_src_type backing_src)
 {
 	struct kvm_vm *vm;
 	uint64_t guest_num_pages;
+	int i;
 
 	pr_info("Testing guest mode: %s\n", vm_guest_mode_string(mode));
 
@@ -68,6 +69,9 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 		    "Guest memory size is not host page size aligned.");
 	TEST_ASSERT(vcpu_memory_bytes % perf_test_args.guest_page_size == 0,
 		    "Guest memory size is not guest page size aligned.");
+	TEST_ASSERT(guest_num_pages % slots == 0,
+		    "Guest memory cannot be evenly divided into %d slots.",
+		    slots);
 
 	vm = vm_create_with_vcpus(mode, vcpus, DEFAULT_GUEST_PHY_PAGES,
 				  (vcpus * vcpu_memory_bytes) / perf_test_args.guest_page_size,
@@ -95,10 +99,16 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 #endif
 	pr_info("guest physical test memory offset: 0x%lx\n", guest_test_phys_mem);
 
-	/* Add an extra memory slot for testing */
-	vm_userspace_mem_region_add(vm, backing_src, guest_test_phys_mem,
-				    PERF_TEST_MEM_SLOT_INDEX,
-				    guest_num_pages, 0);
+	/* Add extra memory slots for testing */
+	for (i = 0; i < slots; i++) {
+		uint64_t region_pages = guest_num_pages / slots;
+		vm_paddr_t region_start = guest_test_phys_mem +
+			region_pages * perf_test_args.guest_page_size * i;
+
+		vm_userspace_mem_region_add(vm, backing_src, region_start,
+					    PERF_TEST_MEM_SLOT_INDEX + i,
+					    region_pages, 0);
+	}
 
 	/* Do mapping for the demand paging memory slot */
 	virt_map(vm, guest_test_virt_mem, guest_test_phys_mem, guest_num_pages);
@@ -139,6 +149,8 @@ void perf_test_setup_vcpus(struct kvm_vm *vm, int vcpus,
 					   perf_test_args.guest_page_size;
 			vcpu_gpa = guest_test_phys_mem;
 		}
+
+		vcpu_args_set(vm, vcpu_id, 1, vcpu_id);
 
 		pr_debug("Added VCPU %d with test mem gpa [%lx, %lx)\n",
 			 vcpu_id, vcpu_gpa, vcpu_gpa +

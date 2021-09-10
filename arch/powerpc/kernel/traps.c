@@ -37,10 +37,10 @@
 #include <linux/smp.h>
 #include <linux/console.h>
 #include <linux/kmsg_dump.h>
+#include <linux/debugfs.h>
 
 #include <asm/emulated_ops.h>
 #include <linux/uaccess.h>
-#include <asm/debugfs.h>
 #include <asm/interrupt.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
@@ -171,7 +171,6 @@ extern void panic_flush_kmsg_start(void)
 
 extern void panic_flush_kmsg_end(void)
 {
-	printk_safe_flush_on_panic();
 	kmsg_dump(KMSG_DUMP_PANIC);
 	bust_spinlocks(0);
 	debug_locks_off();
@@ -428,7 +427,7 @@ void hv_nmi_check_nonrecoverable(struct pt_regs *regs)
 	return;
 
 nonrecoverable:
-	regs_set_return_msr(regs, regs->msr & ~MSR_RI);
+	regs_set_unrecoverable(regs);
 #endif
 }
 DEFINE_INTERRUPT_HANDLER_NMI(system_reset_exception)
@@ -498,7 +497,7 @@ out:
 		die("Unrecoverable nested System Reset", regs, SIGABRT);
 #endif
 	/* Must die if the interrupt is not recoverable */
-	if (!(regs->msr & MSR_RI)) {
+	if (regs_is_unrecoverable(regs)) {
 		/* For the reason explained in die_mce, nmi_exit before die */
 		nmi_exit();
 		die("Unrecoverable System Reset", regs, SIGABRT);
@@ -550,7 +549,7 @@ static inline int check_io_access(struct pt_regs *regs)
 			printk(KERN_DEBUG "%s bad port %lx at %p\n",
 			       (*nip & 0x100)? "OUT to": "IN from",
 			       regs->gpr[rb] - _IO_BASE, nip);
-			regs_set_return_msr(regs, regs->msr | MSR_RI);
+			regs_set_recoverable(regs);
 			regs_set_return_ip(regs, extable_fixup(entry));
 			return 1;
 		}
@@ -562,7 +561,7 @@ static inline int check_io_access(struct pt_regs *regs)
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 /* On 4xx, the reason for the machine check or program exception
    is in the ESR. */
-#define get_reason(regs)	((regs)->dsisr)
+#define get_reason(regs)	((regs)->esr)
 #define REASON_FP		ESR_FP
 #define REASON_ILLEGAL		(ESR_PIL | ESR_PUO)
 #define REASON_PRIVILEGED	ESR_PPR
@@ -840,7 +839,7 @@ DEFINE_INTERRUPT_HANDLER_NMI(machine_check_exception)
 
 bail:
 	/* Must die if the interrupt is not recoverable */
-	if (!(regs->msr & MSR_RI))
+	if (regs_is_unrecoverable(regs))
 		die_mce("Unrecoverable Machine check", regs, SIGBUS);
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -1482,8 +1481,13 @@ static void do_program_check(struct pt_regs *regs)
 
 		if (!(regs->msr & MSR_PR) &&  /* not user-mode */
 		    report_bug(bugaddr, regs) == BUG_TRAP_TYPE_WARN) {
-			regs_add_return_ip(regs, 4);
-			return;
+			const struct exception_table_entry *entry;
+
+			entry = search_exception_tables(bugaddr);
+			if (entry) {
+				regs_set_return_ip(regs, extable_fixup(entry) + regs->nip - bugaddr);
+				return;
+			}
 		}
 		_exception(SIGTRAP, regs, TRAP_BRKPT, regs->nip);
 		return;
@@ -2215,11 +2219,6 @@ DEFINE_INTERRUPT_HANDLER(kernel_bad_stack)
 	die("Bad kernel stack pointer", regs, SIGABRT);
 }
 
-void __init trap_init(void)
-{
-}
-
-
 #ifdef CONFIG_PPC_EMULATED_STATS
 
 #define WARN_EMULATED_SETUP(type)	.type = { .name = #type }
@@ -2272,7 +2271,7 @@ static int __init ppc_warn_emulated_init(void)
 	struct ppc_emulated_entry *entries = (void *)&ppc_emulated;
 
 	dir = debugfs_create_dir("emulated_instructions",
-				 powerpc_debugfs_root);
+				 arch_debugfs_dir);
 
 	debugfs_create_u32("do_warn", 0644, dir, &ppc_warn_emulated);
 

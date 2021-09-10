@@ -46,6 +46,7 @@ int dlm_lowcomms_resend_msg(struct dlm_msg *msg);
 int dlm_lowcomms_connect_node(int nodeid);
 int dlm_lowcomms_nodes_set_mark(int nodeid, unsigned int mark);
 int dlm_lowcomms_addr(int nodeid, struct sockaddr_storage *addr, int len);
+void dlm_midcomms_receive_done(int nodeid);
 
 #endif				/* __LOWCOMMS_DOT_H__ */
 

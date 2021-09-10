@@ -29,35 +29,15 @@ if BLOCK
 config BLK_RQ_ALLOC_TIME
 	bool
 
-config BLK_SCSI_REQUEST
-	bool
-
 config BLK_CGROUP_RWSTAT
 	bool
 
-config BLK_DEV_BSG
-	bool "Block layer SG support v4"
-	default y
-	select BLK_SCSI_REQUEST
-	help
-	  Saying Y here will enable generic SG (SCSI generic) v4 support
-	  for any block device.
-
-	  Unlike SG v3 (aka block/scsi_ioctl.c drivers/scsi/sg.c), SG v4
-	  can handle complicated SCSI commands: tagged variable length cdbs
-	  with bidirectional data transfers and generic request/response
-	  protocols (e.g. Task Management Functions and SMP in Serial
-	  Attached SCSI).
-
-	  This option is required by recent UDEV versions to properly
-	  access device serial numbers, etc.
-
-	  If unsure, say Y.
+config BLK_DEV_BSG_COMMON
+	tristate
 
 config BLK_DEV_BSGLIB
 	bool "Block layer SG support v4 helper lib"
-	select BLK_DEV_BSG
-	select BLK_SCSI_REQUEST
+	select BLK_DEV_BSG_COMMON
 	help
 	  Subsystems will normally enable this if needed. Users will not
 	  normally need to manually enable this.
@@ -113,16 +93,6 @@ config BLK_DEV_THROTTLING_LOW
 	utilize disk resource.
 
 	Note, this is an experimental interface and could be changed someday.
-
-config BLK_CMDLINE_PARSER
-	bool "Block device command line partition parser"
-	help
-	Enabling this option allows you to specify the partition layout from
-	the kernel boot args.  This is typically of use for embedded devices
-	which don't otherwise have any standardized method for listing the
-	partitions on a block device.
-
-	See Documentation/block/cmdline-partition.rst for more information.
 
 config BLK_WBT
 	bool "Enable support for block device writeback throttling"
@@ -250,5 +220,9 @@ config BLK_MQ_RDMA
 
 config BLK_PM
 	def_bool BLOCK && PM
+
+# do not use in new code
+config BLOCK_HOLDER_DEPRECATED
+	bool
 
 source "block/Kconfig.iosched"

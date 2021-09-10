@@ -25,6 +25,7 @@
 
 #define KTD253_T_LOW_NS (200 + 10) /* Additional 10ns as safety factor */
 #define KTD253_T_HIGH_NS (200 + 10) /* Additional 10ns as safety factor */
+#define KTD253_T_OFF_CRIT_NS 100000 /* 100 us, now it doesn't look good */
 #define KTD253_T_OFF_MS 3
 
 struct ktd253_backlight {
@@ -34,13 +35,50 @@ struct ktd253_backlight {
 	u16 ratio;
 };
 
+static void ktd253_backlight_set_max_ratio(struct ktd253_backlight *ktd253)
+{
+	gpiod_set_value_cansleep(ktd253->gpiod, 1);
+	ndelay(KTD253_T_HIGH_NS);
+	/* We always fall back to this when we power on */
+}
+
+static int ktd253_backlight_stepdown(struct ktd253_backlight *ktd253)
+{
+	/*
+	 * These GPIO operations absolutely can NOT sleep so no _cansleep
+	 * suffixes, and no using GPIO expanders on slow buses for this!
+	 *
+	 * The maximum number of cycles of the loop is 32  so the time taken
+	 * should nominally be:
+	 * (T_LOW_NS + T_HIGH_NS + loop_time) * 32
+	 *
+	 * Architectures do not always support ndelay() and we will get a few us
+	 * instead. If we get to a critical time limit an interrupt has likely
+	 * occured in the low part of the loop and we need to restart from the
+	 * top so we have the backlight in a known state.
+	 */
+	u64 ns;
+
+	ns = ktime_get_ns();
+	gpiod_set_value(ktd253->gpiod, 0);
+	ndelay(KTD253_T_LOW_NS);
+	gpiod_set_value(ktd253->gpiod, 1);
+	ns = ktime_get_ns() - ns;
+	if (ns >= KTD253_T_OFF_CRIT_NS) {
+		dev_err(ktd253->dev, "PCM on backlight took too long (%llu ns)\n", ns);
+		return -EAGAIN;
+	}
+	ndelay(KTD253_T_HIGH_NS);
+	return 0;
+}
+
 static int ktd253_backlight_update_status(struct backlight_device *bl)
 {
 	struct ktd253_backlight *ktd253 = bl_get_data(bl);
 	int brightness = backlight_get_brightness(bl);
 	u16 target_ratio;
 	u16 current_ratio = ktd253->ratio;
-	unsigned long flags;
+	int ret;
 
 	dev_dbg(ktd253->dev, "new brightness/ratio: %d/32\n", brightness);
 
@@ -62,37 +100,34 @@ static int ktd253_backlight_update_status(struct backlight_device *bl)
 	}
 
 	if (current_ratio == 0) {
-		gpiod_set_value_cansleep(ktd253->gpiod, 1);
-		ndelay(KTD253_T_HIGH_NS);
-		/* We always fall back to this when we power on */
+		ktd253_backlight_set_max_ratio(ktd253);
 		current_ratio = KTD253_MAX_RATIO;
 	}
 
-	/*
-	 * WARNING:
-	 * The loop to set the correct current level is performed
-	 * with interrupts disabled as it is timing critical.
-	 * The maximum number of cycles of the loop is 32
-	 * so the time taken will be (T_LOW_NS + T_HIGH_NS + loop_time) * 32,
-	 */
-	local_irq_save(flags);
 	while (current_ratio != target_ratio) {
 		/*
 		 * These GPIO operations absolutely can NOT sleep so no
 		 * _cansleep suffixes, and no using GPIO expanders on
 		 * slow buses for this!
 		 */
-		gpiod_set_value(ktd253->gpiod, 0);
-		ndelay(KTD253_T_LOW_NS);
-		gpiod_set_value(ktd253->gpiod, 1);
-		ndelay(KTD253_T_HIGH_NS);
-		/* After 1/32 we loop back to 32/32 */
-		if (current_ratio == KTD253_MIN_RATIO)
+		ret = ktd253_backlight_stepdown(ktd253);
+		if (ret == -EAGAIN) {
+			/*
+			 * Something disturbed the backlight setting code when
+			 * running so we need to bring the PWM back to a known
+			 * state. This shouldn't happen too much.
+			 */
+			gpiod_set_value_cansleep(ktd253->gpiod, 0);
+			msleep(KTD253_T_OFF_MS);
+			ktd253_backlight_set_max_ratio(ktd253);
 			current_ratio = KTD253_MAX_RATIO;
-		else
+		} else if (current_ratio == KTD253_MIN_RATIO) {
+			/* After 1/32 we loop back to 32/32 */
+			current_ratio = KTD253_MAX_RATIO;
+		} else {
 			current_ratio--;
+		}
 	}
-	local_irq_restore(flags);
 	ktd253->ratio = current_ratio;
 
 	dev_dbg(ktd253->dev, "new ratio set to %d/32\n", target_ratio);

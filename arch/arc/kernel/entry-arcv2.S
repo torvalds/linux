@@ -10,6 +10,7 @@
 #include <asm/errno.h>
 #include <asm/arcregs.h>
 #include <asm/irqflags.h>
+#include <asm/mmu.h>
 
 ; A maximum number of supported interrupts in the core interrupt controller.
 ; This number is not equal to the maximum interrupt number (256) because

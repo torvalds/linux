@@ -16,24 +16,4 @@ source "drivers/net/wireless/intersil/hostap/Kconfig"
 source "drivers/net/wireless/intersil/orinoco/Kconfig"
 source "drivers/net/wireless/intersil/p54/Kconfig"
 
-config PRISM54
-	tristate 'Intersil Prism GT/Duette/Indigo PCI/Cardbus (DEPRECATED)'
-	depends on PCI
-	select WIRELESS_EXT
-	select WEXT_SPY
-	select WEXT_PRIV
-	select FW_LOADER
-	help
-	  This enables support for FullMAC PCI/Cardbus prism54 devices. This
-	  driver is now deprecated in favor for the SoftMAC driver, p54pci.
-	  p54pci supports FullMAC PCI/Cardbus devices as well.
-
-	  For more information refer to the p54 wiki:
-
-	  http://wireless.wiki.kernel.org/en/users/Drivers/p54
-
-	  Note: You need a motherboard with DMA support to use any of these cards
-
-	  When built as module you get the module prism54
-
 endif # WLAN_VENDOR_INTERSIL

@@ -629,7 +629,6 @@ int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev)
 		adev->gfx.ras_if->block = AMDGPU_RAS_BLOCK__GFX;
 		adev->gfx.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
 		adev->gfx.ras_if->sub_block_index = 0;
-		strcpy(adev->gfx.ras_if->name, "gfx");
 	}
 	fs_info.head = ih_info.head = *adev->gfx.ras_if;
 	r = amdgpu_ras_late_init(adev, adev->gfx.ras_if,

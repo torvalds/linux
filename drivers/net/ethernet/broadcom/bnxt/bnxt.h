@@ -28,6 +28,7 @@
 #include <net/dst_metadata.h>
 #include <net/xdp.h>
 #include <linux/dim.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #ifdef CONFIG_TEE_BNXT_FW
 #include <linux/firmware/broadcom/tee_bnxt_fw.h>
 #endif
@@ -496,6 +497,16 @@ struct rx_tpa_end_cmp_ext {
 	!!((data1) &							\
 	   ASYNC_EVENT_CMPL_ERROR_RECOVERY_EVENT_DATA1_FLAGS_RECOVERY_ENABLED)
 
+#define BNXT_EVENT_ERROR_REPORT_TYPE(data1)				\
+	(((data1) &							\
+	  ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_MASK) >>\
+	 ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_SFT)
+
+#define BNXT_EVENT_INVALID_SIGNAL_DATA(data2)				\
+	(((data2) &							\
+	  ASYNC_EVENT_CMPL_ERROR_REPORT_INVALID_SIGNAL_EVENT_DATA2_PIN_ID_MASK) >>\
+	 ASYNC_EVENT_CMPL_ERROR_REPORT_INVALID_SIGNAL_EVENT_DATA2_PIN_ID_SFT)
+
 struct nqe_cn {
 	__le16	type;
 	#define NQ_CN_TYPE_MASK           0x3fUL
@@ -586,15 +597,17 @@ struct nqe_cn {
 #define MAX_TPA_SEGS_P5	0x3f
 
 #if (BNXT_PAGE_SHIFT == 16)
-#define MAX_RX_PAGES	1
+#define MAX_RX_PAGES_AGG_ENA	1
+#define MAX_RX_PAGES	4
 #define MAX_RX_AGG_PAGES	4
 #define MAX_TX_PAGES	1
-#define MAX_CP_PAGES	8
+#define MAX_CP_PAGES	16
 #else
-#define MAX_RX_PAGES	8
+#define MAX_RX_PAGES_AGG_ENA	8
+#define MAX_RX_PAGES	32
 #define MAX_RX_AGG_PAGES	32
 #define MAX_TX_PAGES	8
-#define MAX_CP_PAGES	64
+#define MAX_CP_PAGES	128
 #endif
 
 #define RX_DESC_CNT (BNXT_PAGE_SIZE / sizeof(struct rx_bd))
@@ -612,6 +625,7 @@ struct nqe_cn {
 #define HW_CMPD_RING_SIZE (sizeof(struct tx_cmp) * CP_DESC_CNT)
 
 #define BNXT_MAX_RX_DESC_CNT		(RX_DESC_CNT * MAX_RX_PAGES - 1)
+#define BNXT_MAX_RX_DESC_CNT_JUM_ENA	(RX_DESC_CNT * MAX_RX_PAGES_AGG_ENA - 1)
 #define BNXT_MAX_RX_JUM_DESC_CNT	(RX_DESC_CNT * MAX_RX_AGG_PAGES - 1)
 #define BNXT_MAX_TX_DESC_CNT		(TX_DESC_CNT * MAX_TX_PAGES - 1)
 
@@ -656,37 +670,7 @@ struct nqe_cn {
 #define RING_CMP(idx)		((idx) & bp->cp_ring_mask)
 #define NEXT_CMP(idx)		RING_CMP(ADV_RAW_CMP(idx, 1))
 
-#define BNXT_HWRM_MAX_REQ_LEN		(bp->hwrm_max_req_len)
-#define BNXT_HWRM_SHORT_REQ_LEN		sizeof(struct hwrm_short_input)
 #define DFLT_HWRM_CMD_TIMEOUT		500
-#define HWRM_CMD_MAX_TIMEOUT		40000
-#define SHORT_HWRM_CMD_TIMEOUT		20
-#define HWRM_CMD_TIMEOUT		(bp->hwrm_cmd_timeout)
-#define HWRM_RESET_TIMEOUT		((HWRM_CMD_TIMEOUT) * 4)
-#define HWRM_COREDUMP_TIMEOUT		((HWRM_CMD_TIMEOUT) * 12)
-#define BNXT_HWRM_REQ_MAX_SIZE		128
-#define BNXT_HWRM_REQS_PER_PAGE		(BNXT_PAGE_SIZE /	\
-					 BNXT_HWRM_REQ_MAX_SIZE)
-#define HWRM_SHORT_MIN_TIMEOUT		3
-#define HWRM_SHORT_MAX_TIMEOUT		10
-#define HWRM_SHORT_TIMEOUT_COUNTER	5
-
-#define HWRM_MIN_TIMEOUT		25
-#define HWRM_MAX_TIMEOUT		40
-
-#define HWRM_WAIT_MUST_ABORT(bp, req)					\
-	(le16_to_cpu((req)->req_type) != HWRM_VER_GET &&		\
-	 !bnxt_is_fw_healthy(bp))
-
-#define HWRM_TOTAL_TIMEOUT(n)	(((n) <= HWRM_SHORT_TIMEOUT_COUNTER) ?	\
-	((n) * HWRM_SHORT_MIN_TIMEOUT) :				\
-	(HWRM_SHORT_TIMEOUT_COUNTER * HWRM_SHORT_MIN_TIMEOUT +		\
-	 ((n) - HWRM_SHORT_TIMEOUT_COUNTER) * HWRM_MIN_TIMEOUT))
-
-#define HWRM_VALID_BIT_DELAY_USEC	150
-
-#define BNXT_HWRM_CHNL_CHIMP	0
-#define BNXT_HWRM_CHNL_KONG	1
 
 #define BNXT_RX_EVENT		1
 #define BNXT_AGG_EVENT		2
@@ -926,6 +910,8 @@ struct bnxt_rx_sw_stats {
 	u64			rx_l4_csum_errors;
 	u64			rx_resets;
 	u64			rx_buf_errors;
+	u64			rx_oom_discards;
+	u64			rx_netpoll_discards;
 };
 
 struct bnxt_cmn_sw_stats {
@@ -963,11 +949,11 @@ struct bnxt_cp_ring_info {
 	struct dim		dim;
 
 	union {
-		struct tx_cmp	*cp_desc_ring[MAX_CP_PAGES];
-		struct nqe_cn	*nq_desc_ring[MAX_CP_PAGES];
+		struct tx_cmp	**cp_desc_ring;
+		struct nqe_cn	**nq_desc_ring;
 	};
 
-	dma_addr_t		cp_desc_mapping[MAX_CP_PAGES];
+	dma_addr_t		*cp_desc_mapping;
 
 	struct bnxt_stats_mem	stats;
 	u32			hw_stats_ctx_id;
@@ -1888,19 +1874,15 @@ struct bnxt {
 	#define BNXT_FW_CAP_VLAN_RX_STRIP		0x01000000
 	#define BNXT_FW_CAP_VLAN_TX_INSERT		0x02000000
 	#define BNXT_FW_CAP_EXT_HW_STATS_SUPPORTED	0x04000000
+	#define BNXT_FW_CAP_PTP_PPS			0x10000000
 	#define BNXT_FW_CAP_RING_MONITOR		0x40000000
 
 #define BNXT_NEW_RM(bp)		((bp)->fw_cap & BNXT_FW_CAP_NEW_RM)
 	u32			hwrm_spec_code;
 	u16			hwrm_cmd_seq;
 	u16                     hwrm_cmd_kong_seq;
-	u16			hwrm_intr_seq_id;
-	void			*hwrm_short_cmd_req_addr;
-	dma_addr_t		hwrm_short_cmd_req_dma_addr;
-	void			*hwrm_cmd_resp_addr;
-	dma_addr_t		hwrm_cmd_resp_dma_addr;
-	void			*hwrm_cmd_kong_resp_addr;
-	dma_addr_t		hwrm_cmd_kong_resp_dma_addr;
+	struct dma_pool		*hwrm_dma_pool;
+	struct hlist_head	hwrm_pending_list;
 
 	struct rtnl_link_stats64	net_stats_prev;
 	struct bnxt_stats_mem	port_stats;
@@ -2129,24 +2111,36 @@ static inline u32 bnxt_tx_avail(struct bnxt *bp, struct bnxt_tx_ring_info *txr)
 		((txr->tx_prod - txr->tx_cons) & bp->tx_ring_mask);
 }
 
+static inline void bnxt_writeq(struct bnxt *bp, u64 val,
+			       volatile void __iomem *addr)
+{
 #if BITS_PER_LONG == 32
-#define writeq(val64, db)			\
-do {						\
-	spin_lock(&bp->db_lock);		\
-	writel((val64) & 0xffffffff, db);	\
-	writel((val64) >> 32, (db) + 4);	\
-	spin_unlock(&bp->db_lock);		\
-} while (0)
-
-#define writeq_relaxed writeq
+	spin_lock(&bp->db_lock);
+	lo_hi_writeq(val, addr);
+	spin_unlock(&bp->db_lock);
+#else
+	writeq(val, addr);
 #endif
+}
+
+static inline void bnxt_writeq_relaxed(struct bnxt *bp, u64 val,
+				       volatile void __iomem *addr)
+{
+#if BITS_PER_LONG == 32
+	spin_lock(&bp->db_lock);
+	lo_hi_writeq_relaxed(val, addr);
+	spin_unlock(&bp->db_lock);
+#else
+	writeq_relaxed(val, addr);
+#endif
+}
 
 /* For TX and RX ring doorbells with no ordering guarantee*/
 static inline void bnxt_db_write_relaxed(struct bnxt *bp,
 					 struct bnxt_db_info *db, u32 idx)
 {
 	if (bp->flags & BNXT_FLAG_CHIP_P5) {
-		writeq_relaxed(db->db_key64 | idx, db->doorbell);
+		bnxt_writeq_relaxed(bp, db->db_key64 | idx, db->doorbell);
 	} else {
 		u32 db_val = db->db_key32 | idx;
 
@@ -2161,7 +2155,7 @@ static inline void bnxt_db_write(struct bnxt *bp, struct bnxt_db_info *db,
 				 u32 idx)
 {
 	if (bp->flags & BNXT_FLAG_CHIP_P5) {
-		writeq(db->db_key64 | idx, db->doorbell);
+		bnxt_writeq(bp, db->db_key64 | idx, db->doorbell);
 	} else {
 		u32 db_val = db->db_key32 | idx;
 
@@ -2169,63 +2163,6 @@ static inline void bnxt_db_write(struct bnxt *bp, struct bnxt_db_info *db,
 		if (bp->flags & BNXT_FLAG_DOUBLE_DB)
 			writel(db_val, db->doorbell);
 	}
-}
-
-static inline bool bnxt_cfa_hwrm_message(u16 req_type)
-{
-	switch (req_type) {
-	case HWRM_CFA_ENCAP_RECORD_ALLOC:
-	case HWRM_CFA_ENCAP_RECORD_FREE:
-	case HWRM_CFA_DECAP_FILTER_ALLOC:
-	case HWRM_CFA_DECAP_FILTER_FREE:
-	case HWRM_CFA_EM_FLOW_ALLOC:
-	case HWRM_CFA_EM_FLOW_FREE:
-	case HWRM_CFA_EM_FLOW_CFG:
-	case HWRM_CFA_FLOW_ALLOC:
-	case HWRM_CFA_FLOW_FREE:
-	case HWRM_CFA_FLOW_INFO:
-	case HWRM_CFA_FLOW_FLUSH:
-	case HWRM_CFA_FLOW_STATS:
-	case HWRM_CFA_METER_PROFILE_ALLOC:
-	case HWRM_CFA_METER_PROFILE_FREE:
-	case HWRM_CFA_METER_PROFILE_CFG:
-	case HWRM_CFA_METER_INSTANCE_ALLOC:
-	case HWRM_CFA_METER_INSTANCE_FREE:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static inline bool bnxt_kong_hwrm_message(struct bnxt *bp, struct input *req)
-{
-	return (bp->fw_cap & BNXT_FW_CAP_KONG_MB_CHNL &&
-		bnxt_cfa_hwrm_message(le16_to_cpu(req->req_type)));
-}
-
-static inline bool bnxt_hwrm_kong_chnl(struct bnxt *bp, struct input *req)
-{
-	return (bp->fw_cap & BNXT_FW_CAP_KONG_MB_CHNL &&
-		req->resp_addr == cpu_to_le64(bp->hwrm_cmd_kong_resp_dma_addr));
-}
-
-static inline void *bnxt_get_hwrm_resp_addr(struct bnxt *bp, void *req)
-{
-	if (bnxt_hwrm_kong_chnl(bp, (struct input *)req))
-		return bp->hwrm_cmd_kong_resp_addr;
-	else
-		return bp->hwrm_cmd_resp_addr;
-}
-
-static inline u16 bnxt_get_hwrm_seq_id(struct bnxt *bp, u16 dst)
-{
-	u16 seq_id;
-
-	if (dst == BNXT_HWRM_CHNL_CHIMP)
-		seq_id = bp->hwrm_cmd_seq++;
-	else
-		seq_id = bp->hwrm_cmd_kong_seq++;
-	return seq_id;
 }
 
 extern const u16 bnxt_lhint_arr[];
@@ -2237,11 +2174,6 @@ u32 bnxt_fw_health_readl(struct bnxt *bp, int reg_idx);
 void bnxt_set_tpa_flags(struct bnxt *bp);
 void bnxt_set_ring_params(struct bnxt *);
 int bnxt_set_rx_skb_mode(struct bnxt *bp, bool page_mode);
-void bnxt_hwrm_cmd_hdr_init(struct bnxt *, void *, u16, u16, u16);
-int _hwrm_send_message(struct bnxt *, void *, u32, int);
-int _hwrm_send_message_silent(struct bnxt *bp, void *msg, u32 len, int timeout);
-int hwrm_send_message(struct bnxt *, void *, u32, int);
-int hwrm_send_message_silent(struct bnxt *, void *, u32, int);
 int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp, unsigned long *bmap,
 			    int bmap_size, bool async_only);
 int bnxt_get_nr_rss_ctxs(struct bnxt *bp, int rx_rings);

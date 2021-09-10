@@ -189,10 +189,13 @@ static int strncpy_chunk_from_user(unsigned long from, int len, void *arg)
 	return 0;
 }
 
-long __strncpy_from_user(char *dst, const char __user *src, long count)
+long strncpy_from_user(char *dst, const char __user *src, long count)
 {
 	long n;
 	char *ptr = dst;
+
+	if (!access_ok(src, 1))
+		return -EFAULT;
 
 	if (uaccess_kernel()) {
 		strncpy(dst, (__force void *) src, count);
@@ -205,7 +208,7 @@ long __strncpy_from_user(char *dst, const char __user *src, long count)
 		return -EFAULT;
 	return strnlen(dst, count);
 }
-EXPORT_SYMBOL(__strncpy_from_user);
+EXPORT_SYMBOL(strncpy_from_user);
 
 static int clear_chunk(unsigned long addr, int len, void *unused)
 {
@@ -236,9 +239,12 @@ static int strnlen_chunk(unsigned long str, int len, void *arg)
 	return 0;
 }
 
-long __strnlen_user(const void __user *str, long len)
+long strnlen_user(const char __user *str, long len)
 {
 	int count = 0, n;
+
+	if (!access_ok(str, 1))
+		return -EFAULT;
 
 	if (uaccess_kernel())
 		return strnlen((__force char*)str, len) + 1;
@@ -248,7 +254,7 @@ long __strnlen_user(const void __user *str, long len)
 		return count + 1;
 	return 0;
 }
-EXPORT_SYMBOL(__strnlen_user);
+EXPORT_SYMBOL(strnlen_user);
 
 /**
  * arch_futex_atomic_op_inuser() - Atomic arithmetic operation with constant

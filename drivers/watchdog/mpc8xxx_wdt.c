@@ -118,7 +118,7 @@ static struct watchdog_info mpc8xxx_wdt_info = {
 	.identity = "MPC8xxx",
 };
 
-static struct watchdog_ops mpc8xxx_wdt_ops = {
+static const struct watchdog_ops mpc8xxx_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = mpc8xxx_wdt_start,
 	.ping = mpc8xxx_wdt_ping,

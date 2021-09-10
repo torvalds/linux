@@ -96,11 +96,11 @@ static const struct nla_policy skbedit_policy[TCA_SKBEDIT_MAX + 1] = {
 
 static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 			    struct nlattr *est, struct tc_action **a,
-			    int ovr, int bind, bool rtnl_held,
 			    struct tcf_proto *tp, u32 act_flags,
 			    struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, skbedit_net_id);
+	bool bind = act_flags & TCA_ACT_FLAGS_BIND;
 	struct tcf_skbedit_params *params_new;
 	struct nlattr *tb[TCA_SKBEDIT_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
@@ -186,7 +186,7 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 		ret = ACT_P_CREATED;
 	} else {
 		d = to_skbedit(*a);
-		if (!ovr) {
+		if (!(act_flags & TCA_ACT_FLAGS_REPLACE)) {
 			tcf_idr_release(*a, bind);
 			return -EEXIST;
 		}

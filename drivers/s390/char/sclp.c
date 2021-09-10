@@ -28,7 +28,7 @@
 #define SCLP_HEADER		"sclp: "
 
 struct sclp_trace_entry {
-	char id[4];
+	char id[4] __nonstring;
 	u32 a;
 	u64 b;
 };

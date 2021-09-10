@@ -140,7 +140,7 @@ ignore define CEC_OP_REC_SEQ_TUESDAY
 ignore define CEC_OP_REC_SEQ_WEDNESDAY
 ignore define CEC_OP_REC_SEQ_THURSDAY
 ignore define CEC_OP_REC_SEQ_FRIDAY
-ignore define CEC_OP_REC_SEQ_SATERDAY
+ignore define CEC_OP_REC_SEQ_SATURDAY
 ignore define CEC_OP_REC_SEQ_ONCE_ONLY
 
 ignore define CEC_MSG_CLEAR_DIGITAL_TIMER

@@ -103,18 +103,18 @@
 	dr_mode = "host";
 };
 
-&cpsw_emac0 {
+&cpsw_port1 {
 	phy-mode = "rmii";
-	dual_emac_res_vlan = <1>;
+	ti,dual-emac-pvid = <1>;
 	fixed-link {
 		speed = <100>;
 		full-duplex;
 	};
 };
 
-&cpsw_emac1 {
+&cpsw_port2 {
 	phy-mode = "rgmii-id";
-	dual_emac_res_vlan = <2>;
+	ti,dual-emac-pvid = <2>;
 	phy-handle = <&phy1>;
 };
 

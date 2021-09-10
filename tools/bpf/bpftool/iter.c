@@ -97,7 +97,9 @@ static int do_help(int argc, char **argv)
 	fprintf(stderr,
 		"Usage: %1$s %2$s pin OBJ PATH [map MAP]\n"
 		"       %1$s %2$s help\n"
+		"\n"
 		"       " HELP_SPEC_MAP "\n"
+		"       " HELP_SPEC_OPTIONS " }\n"
 		"",
 		bin_name, "iter");
 

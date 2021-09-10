@@ -68,6 +68,7 @@
 #include <net/tcp_states.h>
 #include <linux/net_tstamp.h>
 #include <net/l3mdev.h>
+#include <uapi/linux/socket.h>
 
 /*
  * This structure really needs to be cleaned up.
@@ -1438,8 +1439,6 @@ static inline int __sk_prot_rehash(struct sock *sk)
 #define RCV_SHUTDOWN	1
 #define SEND_SHUTDOWN	2
 
-#define SOCK_SNDBUF_LOCK	1
-#define SOCK_RCVBUF_LOCK	2
 #define SOCK_BINDADDR_LOCK	4
 #define SOCK_BINDPORT_LOCK	8
 
@@ -2249,6 +2248,15 @@ static inline __must_check bool skb_set_owner_sk_safe(struct sk_buff *skb, struc
 	return false;
 }
 
+static inline void skb_prepare_for_gro(struct sk_buff *skb)
+{
+	if (skb->destructor != sock_wfree) {
+		skb_orphan(skb);
+		return;
+	}
+	skb->slow_gro = 1;
+}
+
 void sk_reset_timer(struct sock *sk, struct timer_list *timer,
 		    unsigned long expires);
 
@@ -2390,6 +2398,11 @@ static inline bool sock_writeable(const struct sock *sk)
 static inline gfp_t gfp_any(void)
 {
 	return in_softirq() ? GFP_ATOMIC : GFP_KERNEL;
+}
+
+static inline gfp_t gfp_memcg_charge(void)
+{
+	return in_softirq() ? GFP_NOWAIT : GFP_KERNEL;
 }
 
 static inline long sock_rcvtimeo(const struct sock *sk, bool noblock)
@@ -2704,6 +2717,7 @@ extern int sysctl_optmem_max;
 extern __u32 sysctl_wmem_default;
 extern __u32 sysctl_rmem_default;
 
+#define SKB_FRAG_PAGE_ORDER	get_order(32768)
 DECLARE_STATIC_KEY_FALSE(net_high_order_alloc_disable_key);
 
 static inline int sk_get_wmem0(const struct sock *sk, const struct proto *proto)

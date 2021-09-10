@@ -85,7 +85,7 @@ static const struct soc15_reg_golden golden_settings_gc_9_4_2_alde[] = {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCI_CNTL_3, 0xff, 0x20),
 };
 
-/**
+/*
  * This shader is used to clear VGPRS and LDS, and also write the input
  * pattern into the write back buffer, which will be used by driver to
  * check whether all SIMDs have been covered.
@@ -206,7 +206,7 @@ const struct soc15_reg_entry vgpr_init_regs_aldebaran[] = {
 	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE7), 0xffffffff },
 };
 
-/**
+/*
  * The below shaders are used to clear SGPRS, and also write the input
  * pattern into the write back buffer. The first two dispatch should be
  * scheduled simultaneously which make sure that all SGPRS could be
@@ -302,7 +302,7 @@ const struct soc15_reg_entry sgpr96_init_regs_aldebaran[] = {
 	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE7), 0xffffffff },
 };
 
-/**
+/*
  * This shader is used to clear the uninitiated sgprs after the above
  * two dispatches, because of hardware feature, dispath 0 couldn't clear
  * top hole sgprs. Therefore need 4 waves per SIMD to cover these sgprs

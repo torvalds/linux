@@ -96,12 +96,12 @@ static const struct nla_policy connmark_policy[TCA_CONNMARK_MAX + 1] = {
 
 static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 			     struct nlattr *est, struct tc_action **a,
-			     int ovr, int bind, bool rtnl_held,
 			     struct tcf_proto *tp, u32 flags,
 			     struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, connmark_net_id);
 	struct nlattr *tb[TCA_CONNMARK_MAX + 1];
+	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct tcf_chain *goto_ch = NULL;
 	struct tcf_connmark_info *ci;
 	struct tc_connmark *parm;
@@ -144,7 +144,7 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 		ci = to_connmark(*a);
 		if (bind)
 			return 0;
-		if (!ovr) {
+		if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 			tcf_idr_release(*a, bind);
 			return -EEXIST;
 		}

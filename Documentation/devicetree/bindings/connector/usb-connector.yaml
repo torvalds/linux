@@ -111,6 +111,10 @@ properties:
       - 1.5A
       - 3.0A
 
+  pd-disable:
+    description: Set this property if the Type-C connector has no power delivery support.
+    type: boolean
+
   # The following are optional properties for "usb-c-connector" with power
   # delivery support.
   source-pdos:

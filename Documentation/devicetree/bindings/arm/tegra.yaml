@@ -111,6 +111,7 @@ properties:
       - items:
           - enum:
               - nvidia,p2771-0000
+              - nvidia,p3509-0000+p3636-0001
           - const: nvidia,tegra186
       - items:
           - enum:

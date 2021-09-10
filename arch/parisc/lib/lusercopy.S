@@ -28,21 +28,6 @@
 #include <linux/linkage.h>
 
 	/*
-	 * get_sr gets the appropriate space value into
-	 * sr1 for kernel/user space access, depending
-	 * on the flag stored in the task structure.
-	 */
-
-	.macro  get_sr
-	mfctl       %cr30,%r1
-	ldw         TI_SEGMENT(%r1),%r22
-	mfsp        %sr3,%r1
-	or,<>       %r22,%r0,%r0
-	copy        %r0,%r1
-	mtsp        %r1,%sr1
-	.endm
-
-	/*
 	 * unsigned long lclear_user(void *to, unsigned long n)
 	 *
 	 * Returns 0 for success.
@@ -51,10 +36,9 @@
 
 ENTRY_CFI(lclear_user)
 	comib,=,n   0,%r25,$lclu_done
-	get_sr
 $lclu_loop:
 	addib,<>    -1,%r25,$lclu_loop
-1:      stbs,ma     %r0,1(%sr1,%r26)
+1:	stbs,ma     %r0,1(%sr3,%r26)
 
 $lclu_done:
 	bv          %r0(%r2)
@@ -65,40 +49,6 @@ $lclu_done:
 
 	ASM_EXCEPTIONTABLE_ENTRY(1b,2b)
 ENDPROC_CFI(lclear_user)
-
-
-	/*
-	 * long lstrnlen_user(char *s, long n)
-	 *
-	 * Returns 0 if exception before zero byte or reaching N,
-	 *         N+1 if N would be exceeded,
-	 *         else strlen + 1 (i.e. includes zero byte).
-	 */
-
-ENTRY_CFI(lstrnlen_user)
-	comib,=     0,%r25,$lslen_nzero
-	copy	    %r26,%r24
-	get_sr
-1:      ldbs,ma     1(%sr1,%r26),%r1
-$lslen_loop:
-	comib,=,n   0,%r1,$lslen_done
-	addib,<>    -1,%r25,$lslen_loop
-2:      ldbs,ma     1(%sr1,%r26),%r1
-$lslen_done:
-	bv          %r0(%r2)
-	sub	    %r26,%r24,%r28
-
-$lslen_nzero:
-	b           $lslen_done
-	ldo         1(%r26),%r26 /* special case for N == 0 */
-
-3:      b	    $lslen_done
-	copy        %r24,%r26    /* reset r26 so 0 is returned on fault */
-
-	ASM_EXCEPTIONTABLE_ENTRY(1b,3b)
-	ASM_EXCEPTIONTABLE_ENTRY(2b,3b)
-
-ENDPROC_CFI(lstrnlen_user)
 
 
 /*

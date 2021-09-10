@@ -769,16 +769,9 @@ static int dsi_bridge_init(struct drm_device *dev, struct dw_dsi *dsi)
 {
 	struct drm_encoder *encoder = &dsi->encoder;
 	struct drm_bridge *bridge = dsi->bridge;
-	int ret;
 
 	/* associate the bridge to dsi encoder */
-	ret = drm_bridge_attach(encoder, bridge, NULL, 0);
-	if (ret) {
-		DRM_ERROR("failed to attach external bridge\n");
-		return ret;
-	}
-
-	return 0;
+	return drm_bridge_attach(encoder, bridge, NULL, 0);
 }
 
 static int dsi_bind(struct device *dev, struct device *master, void *data)

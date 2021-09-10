@@ -764,8 +764,8 @@ static void test_sockmap(unsigned int tasks, void *data)
 	udp = socket(AF_INET, SOCK_DGRAM, 0);
 	i = 0;
 	err = bpf_map_update_elem(fd, &i, &udp, BPF_ANY);
-	if (!err) {
-		printf("Failed socket SOCK_DGRAM allowed '%i:%i'\n",
+	if (err) {
+		printf("Failed socket update SOCK_DGRAM '%i:%i'\n",
 		       i, udp);
 		goto out_sockmap;
 	}
@@ -985,7 +985,7 @@ static void test_sockmap(unsigned int tasks, void *data)
 
 		FD_ZERO(&w);
 		FD_SET(sfd[3], &w);
-		to.tv_sec = 1;
+		to.tv_sec = 30;
 		to.tv_usec = 0;
 		s = select(sfd[3] + 1, &w, NULL, NULL, &to);
 		if (s == -1) {
@@ -1153,12 +1153,17 @@ out_sockmap:
 }
 
 #define MAPINMAP_PROG "./test_map_in_map.o"
+#define MAPINMAP_INVALID_PROG "./test_map_in_map_invalid.o"
 static void test_map_in_map(void)
 {
 	struct bpf_object *obj;
 	struct bpf_map *map;
 	int mim_fd, fd, err;
 	int pos = 0;
+	struct bpf_map_info info = {};
+	__u32 len = sizeof(info);
+	__u32 id = 0;
+	libbpf_print_fn_t old_print_fn;
 
 	obj = bpf_object__open(MAPINMAP_PROG);
 
@@ -1228,11 +1233,72 @@ static void test_map_in_map(void)
 	}
 
 	close(fd);
+	fd = -1;
 	bpf_object__close(obj);
+
+	/* Test that failing bpf_object__create_map() destroys the inner map */
+	obj = bpf_object__open(MAPINMAP_INVALID_PROG);
+	err = libbpf_get_error(obj);
+	if (err) {
+		printf("Failed to load %s program: %d %d",
+		       MAPINMAP_INVALID_PROG, err, errno);
+		goto out_map_in_map;
+	}
+
+	map = bpf_object__find_map_by_name(obj, "mim");
+	if (!map) {
+		printf("Failed to load array of maps from test prog\n");
+		goto out_map_in_map;
+	}
+
+	old_print_fn = libbpf_set_print(NULL);
+
+	err = bpf_object__load(obj);
+	if (!err) {
+		printf("Loading obj supposed to fail\n");
+		goto out_map_in_map;
+	}
+
+	libbpf_set_print(old_print_fn);
+
+	/* Iterate over all maps to check whether the internal map
+	 * ("mim.internal") has been destroyed.
+	 */
+	while (true) {
+		err = bpf_map_get_next_id(id, &id);
+		if (err) {
+			if (errno == ENOENT)
+				break;
+			printf("Failed to get next map: %d", errno);
+			goto out_map_in_map;
+		}
+
+		fd = bpf_map_get_fd_by_id(id);
+		if (fd < 0) {
+			if (errno == ENOENT)
+				continue;
+			printf("Failed to get map by id %u: %d", id, errno);
+			goto out_map_in_map;
+		}
+
+		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		if (err) {
+			printf("Failed to get map info by fd %d: %d", fd,
+			       errno);
+			goto out_map_in_map;
+		}
+
+		if (!strcmp(info.name, "mim.inner")) {
+			printf("Inner map mim.inner was not destroyed\n");
+			goto out_map_in_map;
+		}
+	}
+
 	return;
 
 out_map_in_map:
-	close(fd);
+	if (fd >= 0)
+		close(fd);
 	exit(1);
 }
 
@@ -1330,15 +1396,22 @@ static void test_map_stress(void)
 #define DO_DELETE 0
 
 #define MAP_RETRIES 20
+#define MAX_DELAY_US 50000
+#define MIN_DELAY_RANGE_US 5000
 
 static int map_update_retriable(int map_fd, const void *key, const void *value,
 				int flags, int attempts)
 {
+	int delay = rand() % MIN_DELAY_RANGE_US;
+
 	while (bpf_map_update_elem(map_fd, key, value, flags)) {
 		if (!attempts || (errno != EAGAIN && errno != EBUSY))
 			return -errno;
 
-		usleep(1);
+		if (delay <= MAX_DELAY_US / 2)
+			delay *= 2;
+
+		usleep(delay);
 		attempts--;
 	}
 
@@ -1347,11 +1420,16 @@ static int map_update_retriable(int map_fd, const void *key, const void *value,
 
 static int map_delete_retriable(int map_fd, const void *key, int attempts)
 {
+	int delay = rand() % MIN_DELAY_RANGE_US;
+
 	while (bpf_map_delete_elem(map_fd, key)) {
 		if (!attempts || (errno != EAGAIN && errno != EBUSY))
 			return -errno;
 
-		usleep(1);
+		if (delay <= MAX_DELAY_US / 2)
+			delay *= 2;
+
+		usleep(delay);
 		attempts--;
 	}
 

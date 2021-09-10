@@ -32,11 +32,11 @@ config SH_ETH
 config RAVB
 	tristate "Renesas Ethernet AVB support"
 	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select CRC32
 	select MII
 	select MDIO_BITBANG
 	select PHYLIB
-	imply PTP_1588_CLOCK
 	help
 	  Renesas Ethernet AVB device driver.
 	  This driver supports the following SoCs:

@@ -62,6 +62,7 @@ static const struct hubbub_funcs hubbub301_funcs = {
 	.is_allow_self_refresh_enabled = hubbub1_is_allow_self_refresh_enabled,
 	.force_wm_propagate_to_pipes = hubbub3_force_wm_propagate_to_pipes,
 	.force_pstate_change_control = hubbub3_force_pstate_change_control,
+	.hubbub_read_state = hubbub2_read_state,
 };
 
 void hubbub301_construct(struct dcn20_hubbub *hubbub3,
