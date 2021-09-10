@@ -3961,7 +3961,8 @@ lpfc_update_cmf_cmd(struct lpfc_hba *phba, uint32_t size)
 	int cpu;
 
 	/* At this point we are either LPFC_CFG_MANAGED or LPFC_CFG_MONITOR */
-	if (phba->cmf_active_mode == LPFC_CFG_MANAGED) {
+	if (phba->cmf_active_mode == LPFC_CFG_MANAGED &&
+	    phba->cmf_max_bytes_per_interval) {
 		total = 0;
 		for_each_present_cpu(cpu) {
 			cgs = per_cpu_ptr(phba->cmf_stat, cpu);
