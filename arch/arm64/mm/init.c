@@ -30,6 +30,7 @@
 #include <linux/crash_dump.h>
 #include <linux/hugetlb.h>
 #include <linux/acpi_iort.h>
+#include <linux/kmemleak.h>
 
 #include <asm/boot.h>
 #include <asm/fixmap.h>
@@ -115,6 +116,11 @@ static void __init reserve_crashkernel(void)
 	pr_info("crashkernel reserved: 0x%016llx - 0x%016llx (%lld MB)\n",
 		crash_base, crash_base + crash_size, crash_size >> 20);
 
+	/*
+	 * The crashkernel memory will be removed from the kernel linear
+	 * map. Inform kmemleak so that it won't try to access it.
+	 */
+	kmemleak_ignore_phys(crash_base);
 	crashk_res.start = crash_base;
 	crashk_res.end = crash_base + crash_size - 1;
 }
