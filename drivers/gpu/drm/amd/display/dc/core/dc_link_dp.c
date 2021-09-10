@@ -106,7 +106,8 @@ static bool decide_fallback_link_setting(
 static struct dc_link_settings get_common_supported_link_settings(
 		struct dc_link_settings link_setting_a,
 		struct dc_link_settings link_setting_b);
-
+static void maximize_lane_settings(const struct link_training_settings *lt_settings,
+		struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]);
 static uint32_t get_cr_training_aux_rd_interval(struct dc_link *link,
 		const struct dc_link_settings *link_settings)
 {
@@ -711,34 +712,37 @@ void dp_hw_to_dpcd_lane_settings(
 	}
 }
 
-void dp_update_drive_settings(
-		struct link_training_settings *dest,
-		struct link_training_settings src)
+void dp_decide_lane_settings(
+		const struct link_training_settings *lt_settings,
+		const union lane_adjust ln_adjust[LANE_COUNT_DP_MAX],
+		struct dc_lane_settings hw_lane_settings[LANE_COUNT_DP_MAX],
+		union dpcd_training_lane dpcd_lane_settings[LANE_COUNT_DP_MAX])
 {
 	uint32_t lane;
-	for (lane = 0; lane < src.link_settings.lane_count; lane++) {
-		if (dest->voltage_swing == NULL)
-			dest->lane_settings[lane].VOLTAGE_SWING = src.lane_settings[lane].VOLTAGE_SWING;
-		else
-			dest->lane_settings[lane].VOLTAGE_SWING = *dest->voltage_swing;
 
-		if (dest->pre_emphasis == NULL)
-			dest->lane_settings[lane].PRE_EMPHASIS = src.lane_settings[lane].PRE_EMPHASIS;
-		else
-			dest->lane_settings[lane].PRE_EMPHASIS = *dest->pre_emphasis;
-
-		if (dest->post_cursor2 == NULL)
-			dest->lane_settings[lane].POST_CURSOR2 = src.lane_settings[lane].POST_CURSOR2;
-		else
-			dest->lane_settings[lane].POST_CURSOR2 = *dest->post_cursor2;
-
+	for (lane = 0; lane < LANE_COUNT_DP_MAX; lane++) {
+		if (dp_get_link_encoding_format(&lt_settings->link_settings) ==
+				DP_8b_10b_ENCODING) {
+			hw_lane_settings[lane].VOLTAGE_SWING =
+					(enum dc_voltage_swing)(ln_adjust[lane].bits.
+							VOLTAGE_SWING_LANE);
+			hw_lane_settings[lane].PRE_EMPHASIS =
+					(enum dc_pre_emphasis)(ln_adjust[lane].bits.
+							PRE_EMPHASIS_LANE);
+		}
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-		if (dest->ffe_preset == NULL)
-			dest->lane_settings[lane].FFE_PRESET = src.lane_settings[lane].FFE_PRESET;
-		else
-			dest->lane_settings[lane].FFE_PRESET = *dest->ffe_preset;
+		else if (dp_get_link_encoding_format(&lt_settings->link_settings) ==
+				DP_128b_132b_ENCODING) {
+			hw_lane_settings[lane].FFE_PRESET.raw =
+					ln_adjust[lane].tx_ffe.PRESET_VALUE;
+		}
 #endif
 	}
+
+	/* we find the maximum of the requested settings across all lanes*/
+	/* and set this maximum for all lanes*/
+	maximize_lane_settings(lt_settings, hw_lane_settings);
+	dp_hw_to_dpcd_lane_settings(lt_settings, hw_lane_settings, dpcd_lane_settings);
 }
 
 static uint8_t get_nibble_at_index(const uint8_t *buf,
@@ -768,55 +772,29 @@ static enum dc_pre_emphasis get_max_pre_emphasis_for_voltage_swing(
 
 }
 
-static void find_max_drive_settings(
-	const struct link_training_settings *link_training_setting,
-	struct link_training_settings *max_lt_setting)
+static void maximize_lane_settings(const struct link_training_settings *lt_settings,
+		struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX])
 {
 	uint32_t lane;
 	struct dc_lane_settings max_requested;
 
-	max_requested.VOLTAGE_SWING =
-		link_training_setting->
-		lane_settings[0].VOLTAGE_SWING;
-	max_requested.PRE_EMPHASIS =
-		link_training_setting->
-		lane_settings[0].PRE_EMPHASIS;
-	/*max_requested.postCursor2 =
-	 * link_training_setting->laneSettings[0].postCursor2;*/
+	max_requested.VOLTAGE_SWING = lane_settings[0].VOLTAGE_SWING;
+	max_requested.PRE_EMPHASIS = lane_settings[0].PRE_EMPHASIS;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-	max_requested.FFE_PRESET =
-		link_training_setting->lane_settings[0].FFE_PRESET;
+	max_requested.FFE_PRESET = lane_settings[0].FFE_PRESET;
 #endif
 
 	/* Determine what the maximum of the requested settings are*/
-	for (lane = 1; lane < link_training_setting->link_settings.lane_count;
-			lane++) {
-		if (link_training_setting->lane_settings[lane].VOLTAGE_SWING >
-			max_requested.VOLTAGE_SWING)
+	for (lane = 1; lane < lt_settings->link_settings.lane_count; lane++) {
+		if (lane_settings[lane].VOLTAGE_SWING > max_requested.VOLTAGE_SWING)
+			max_requested.VOLTAGE_SWING = lane_settings[lane].VOLTAGE_SWING;
 
-			max_requested.VOLTAGE_SWING =
-			link_training_setting->
-			lane_settings[lane].VOLTAGE_SWING;
-
-		if (link_training_setting->lane_settings[lane].PRE_EMPHASIS >
-				max_requested.PRE_EMPHASIS)
-			max_requested.PRE_EMPHASIS =
-			link_training_setting->
-			lane_settings[lane].PRE_EMPHASIS;
-
-		/*
-		if (link_training_setting->laneSettings[lane].postCursor2 >
-		 max_requested.postCursor2)
-		{
-		max_requested.postCursor2 =
-		link_training_setting->laneSettings[lane].postCursor2;
-		}
-		*/
+		if (lane_settings[lane].PRE_EMPHASIS > max_requested.PRE_EMPHASIS)
+			max_requested.PRE_EMPHASIS = lane_settings[lane].PRE_EMPHASIS;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-		if (link_training_setting->lane_settings[lane].FFE_PRESET.settings.level >
+		if (lane_settings[lane].FFE_PRESET.settings.level >
 				max_requested.FFE_PRESET.settings.level)
 			max_requested.FFE_PRESET.settings.level =
-					link_training_setting->
 					lane_settings[lane].FFE_PRESET.settings.level;
 #endif
 	}
@@ -828,10 +806,6 @@ static void find_max_drive_settings(
 
 	if (max_requested.PRE_EMPHASIS > PRE_EMPHASIS_MAX_LEVEL)
 		max_requested.PRE_EMPHASIS = PRE_EMPHASIS_MAX_LEVEL;
-	/*
-	if (max_requested.postCursor2 > PostCursor2_MaxLevel)
-	max_requested.postCursor2 = PostCursor2_MaxLevel;
-	*/
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (max_requested.FFE_PRESET.settings.level > DP_FFE_PRESET_MAX_LEVEL)
 		max_requested.FFE_PRESET.settings.level = DP_FFE_PRESET_MAX_LEVEL;
@@ -845,60 +819,29 @@ static void find_max_drive_settings(
 		get_max_pre_emphasis_for_voltage_swing(
 			max_requested.VOLTAGE_SWING);
 
-	/*
-	 * Post Cursor2 levels are completely independent from
-	 * pre-emphasis (Post Cursor1) levels. But Post Cursor2 levels
-	 * can only be applied to each allowable combination of voltage
-	 * swing and pre-emphasis levels */
-	 /* if ( max_requested.postCursor2 >
-	  *  getMaxPostCursor2ForVoltageSwing(max_requested.voltageSwing))
-	  *  max_requested.postCursor2 =
-	  *  getMaxPostCursor2ForVoltageSwing(max_requested.voltageSwing);
-	  */
-
-	max_lt_setting->link_settings.link_rate =
-		link_training_setting->link_settings.link_rate;
-	max_lt_setting->link_settings.lane_count =
-	link_training_setting->link_settings.lane_count;
-	max_lt_setting->link_settings.link_spread =
-		link_training_setting->link_settings.link_spread;
-
-	for (lane = 0; lane <
-		link_training_setting->link_settings.lane_count;
-		lane++) {
-		max_lt_setting->lane_settings[lane].VOLTAGE_SWING =
-			max_requested.VOLTAGE_SWING;
-		max_lt_setting->lane_settings[lane].PRE_EMPHASIS =
-			max_requested.PRE_EMPHASIS;
-		/*max_lt_setting->laneSettings[lane].postCursor2 =
-		 * max_requested.postCursor2;
-		 */
+	for (lane = 0; lane < LANE_COUNT_DP_MAX; lane++) {
+		lane_settings[lane].VOLTAGE_SWING = max_requested.VOLTAGE_SWING;
+		lane_settings[lane].PRE_EMPHASIS = max_requested.PRE_EMPHASIS;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-		max_lt_setting->lane_settings[lane].FFE_PRESET =
-			max_requested.FFE_PRESET;
+		lane_settings[lane].FFE_PRESET = max_requested.FFE_PRESET;
 #endif
 	}
-
 }
 
-enum dc_status dp_get_lane_status_and_drive_settings(
+enum dc_status dp_get_lane_status_and_lane_adjust(
 	struct dc_link *link,
 	const struct link_training_settings *link_training_setting,
-	union lane_status *ln_status,
-	union lane_align_status_updated *ln_status_updated,
-	struct link_training_settings *req_settings,
+	union lane_status ln_status[LANE_COUNT_DP_MAX],
+	union lane_align_status_updated *ln_align,
+	union lane_adjust ln_adjust[LANE_COUNT_DP_MAX],
 	uint32_t offset)
 {
 	unsigned int lane01_status_address = DP_LANE0_1_STATUS;
 	uint8_t lane_adjust_offset = 4;
 	unsigned int lane01_adjust_address;
 	uint8_t dpcd_buf[6] = {0};
-	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = { { {0} } };
-	struct link_training_settings request_settings = { {0} };
 	uint32_t lane;
 	enum dc_status status;
-
-	memset(req_settings, '\0', sizeof(struct link_training_settings));
 
 	if (is_repeater(link, offset)) {
 		lane01_status_address =
@@ -919,11 +862,11 @@ enum dc_status dp_get_lane_status_and_drive_settings(
 
 		ln_status[lane].raw =
 			get_nibble_at_index(&dpcd_buf[0], lane);
-		dpcd_lane_adjust[lane].raw =
+		ln_adjust[lane].raw =
 			get_nibble_at_index(&dpcd_buf[lane_adjust_offset], lane);
 	}
 
-	ln_status_updated->raw = dpcd_buf[2];
+	ln_align->raw = dpcd_buf[2];
 
 	if (is_repeater(link, offset)) {
 		DC_LOG_HW_LINK_TRAINING("%s:\n LTTPR Repeater ID: %d\n"
@@ -961,55 +904,6 @@ enum dc_status dp_get_lane_status_and_drive_settings(
 			lane01_adjust_address + 1,
 			dpcd_buf[lane_adjust_offset + 1]);
 	}
-
-	/*copy to req_settings*/
-	request_settings.link_settings.lane_count =
-		link_training_setting->link_settings.lane_count;
-	request_settings.link_settings.link_rate =
-		link_training_setting->link_settings.link_rate;
-	request_settings.link_settings.link_spread =
-		link_training_setting->link_settings.link_spread;
-
-	for (lane = 0; lane <
-		(uint32_t)(link_training_setting->link_settings.lane_count);
-		lane++) {
-
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-		if (dp_get_link_encoding_format(&link_training_setting->link_settings) ==
-				DP_128b_132b_ENCODING) {
-			request_settings.lane_settings[lane].FFE_PRESET.raw =
-					dpcd_lane_adjust[lane].tx_ffe.PRESET_VALUE;
-		} else if (dp_get_link_encoding_format(&link_training_setting->link_settings) ==
-				DP_8b_10b_ENCODING) {
-			request_settings.lane_settings[lane].VOLTAGE_SWING =
-					(enum dc_voltage_swing)(dpcd_lane_adjust[lane].bits.
-							VOLTAGE_SWING_LANE);
-			request_settings.lane_settings[lane].PRE_EMPHASIS =
-					(enum dc_pre_emphasis)(dpcd_lane_adjust[lane].bits.
-							PRE_EMPHASIS_LANE);
-		}
-#else
-		request_settings.lane_settings[lane].VOLTAGE_SWING =
-			(enum dc_voltage_swing)(dpcd_lane_adjust[lane].bits.
-				VOLTAGE_SWING_LANE);
-		request_settings.lane_settings[lane].PRE_EMPHASIS =
-			(enum dc_pre_emphasis)(dpcd_lane_adjust[lane].bits.
-				PRE_EMPHASIS_LANE);
-#endif
-	}
-
-	/*Note: for postcursor2, read adjusted
-	 * postcursor2 settings from*/
-	/*DpcdAddress_AdjustRequestPostCursor2 =
-	 *0x020C (not implemented yet)*/
-
-	/* we find the maximum of the requested settings across all lanes*/
-	/* and set this maximum for all lanes*/
-	find_max_drive_settings(&request_settings, req_settings);
-
-	/* if post cursor 2 is needed in the future,
-	 * read DpcdAddress_AdjustRequestPostCursor2 = 0x020C
-	 */
 
 	return status;
 }
@@ -1140,17 +1034,18 @@ static bool perform_post_lt_adj_req_sequence(
 			adj_req_timer < POST_LT_ADJ_REQ_TIMEOUT;
 			adj_req_timer++) {
 
-			struct link_training_settings req_settings;
 			union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX];
 			union lane_align_status_updated
 				dpcd_lane_status_updated;
+			union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = { { {0} } };
+			union dpcd_training_lane dpcd_lane_settings[LANE_COUNT_DP_MAX] = { { {0} } };
 
-			dp_get_lane_status_and_drive_settings(
+			dp_get_lane_status_and_lane_adjust(
 				link,
 				lt_settings,
 				dpcd_lane_status,
 				&dpcd_lane_status_updated,
-				&req_settings,
+				dpcd_lane_adjust,
 				DPRX);
 
 			if (dpcd_lane_status_updated.bits.
@@ -1169,10 +1064,9 @@ static bool perform_post_lt_adj_req_sequence(
 
 				if (lt_settings->
 				lane_settings[lane].VOLTAGE_SWING !=
-				req_settings.lane_settings[lane].
-				VOLTAGE_SWING ||
+				dpcd_lane_adjust[lane].bits.VOLTAGE_SWING_LANE ||
 				lt_settings->lane_settings[lane].PRE_EMPHASIS !=
-				req_settings.lane_settings[lane].PRE_EMPHASIS) {
+				dpcd_lane_adjust[lane].bits.PRE_EMPHASIS_LANE) {
 
 					req_drv_setting_changed = true;
 					break;
@@ -1180,8 +1074,8 @@ static bool perform_post_lt_adj_req_sequence(
 			}
 
 			if (req_drv_setting_changed) {
-				dp_update_drive_settings(
-					lt_settings, req_settings);
+				dp_decide_lane_settings(lt_settings, dpcd_lane_adjust,
+						lt_settings->lane_settings, dpcd_lane_settings);
 
 				dc_link_dp_set_drive_settings(link,
 						lt_settings);
@@ -1261,13 +1155,14 @@ static enum link_training_result perform_channel_equalization_sequence(
 	struct link_training_settings *lt_settings,
 	uint32_t offset)
 {
-	struct link_training_settings req_settings;
 	enum dc_dp_training_pattern tr_pattern;
 	uint32_t retries_ch_eq;
 	uint32_t wait_time_microsec;
 	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
 	union lane_align_status_updated dpcd_lane_status_updated = {0};
 	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
+	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {0};
+	union dpcd_training_lane dpcd_lane_settings[LANE_COUNT_DP_MAX] = { { {0} } };
 
 	/* Note: also check that TPS4 is a supported feature*/
 
@@ -1316,12 +1211,12 @@ static enum link_training_result perform_channel_equalization_sequence(
 		/* 4. Read lane status and requested
 		 * drive settings as set by the sink*/
 
-		dp_get_lane_status_and_drive_settings(
+		dp_get_lane_status_and_lane_adjust(
 			link,
 			lt_settings,
 			dpcd_lane_status,
 			&dpcd_lane_status_updated,
-			&req_settings,
+			dpcd_lane_adjust,
 			offset);
 
 		/* 5. check CR done*/
@@ -1335,7 +1230,8 @@ static enum link_training_result perform_channel_equalization_sequence(
 			return LINK_TRAINING_SUCCESS;
 
 		/* 7. update VS/PE/PC2 in lt_settings*/
-		dp_update_drive_settings(lt_settings, req_settings);
+		dp_decide_lane_settings(lt_settings, dpcd_lane_adjust,
+				lt_settings->lane_settings, dpcd_lane_settings);
 	}
 
 	return LINK_TRAINING_EQ_FAIL_EQ;
@@ -1361,10 +1257,10 @@ static enum link_training_result perform_clock_recovery_sequence(
 	uint32_t retries_cr;
 	uint32_t retry_count;
 	uint32_t wait_time_microsec;
-	struct link_training_settings req_settings;
 	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
 	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX];
 	union lane_align_status_updated dpcd_lane_status_updated;
+	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = { { {0} } };
 
 	retries_cr = 0;
 	retry_count = 0;
@@ -1418,12 +1314,12 @@ static enum link_training_result perform_clock_recovery_sequence(
 		/* 4. Read lane status and requested drive
 		* settings as set by the sink
 		*/
-		dp_get_lane_status_and_drive_settings(
+		dp_get_lane_status_and_lane_adjust(
 				link,
 				lt_settings,
 				dpcd_lane_status,
 				&dpcd_lane_status_updated,
-				&req_settings,
+				dpcd_lane_adjust,
 				offset);
 
 		/* 5. check CR done*/
@@ -1441,33 +1337,25 @@ static enum link_training_result perform_clock_recovery_sequence(
 			break;
 #endif
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-		if ((dp_get_link_encoding_format(&lt_settings->link_settings) == DP_128b_132b_ENCODING) &&
-				lt_settings->lane_settings[0].FFE_PRESET.settings.level ==
-						req_settings.lane_settings[0].FFE_PRESET.settings.level)
-			retries_cr++;
-		else if ((dp_get_link_encoding_format(&lt_settings->link_settings) == DP_8b_10b_ENCODING) &&
-				lt_settings->lane_settings[0].VOLTAGE_SWING ==
-						req_settings.lane_settings[0].VOLTAGE_SWING)
-			retries_cr++;
-		else
-			retries_cr = 0;
-#else
 		/* 7. same lane settings*/
 		/* Note: settings are the same for all lanes,
 		 * so comparing first lane is sufficient*/
-		if ((lt_settings->lane_settings[0].VOLTAGE_SWING ==
-			req_settings.lane_settings[0].VOLTAGE_SWING)
-			&& (lt_settings->lane_settings[0].PRE_EMPHASIS ==
-				req_settings.lane_settings[0].PRE_EMPHASIS))
+		if ((dp_get_link_encoding_format(&lt_settings->link_settings) == DP_8b_10b_ENCODING) &&
+				lt_settings->dpcd_lane_settings[0].bits.VOLTAGE_SWING_SET ==
+						dpcd_lane_adjust[0].bits.VOLTAGE_SWING_LANE)
 			retries_cr++;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		else if ((dp_get_link_encoding_format(&lt_settings->link_settings) == DP_128b_132b_ENCODING) &&
+				lt_settings->dpcd_lane_settings[0].tx_ffe.PRESET_VALUE ==
+						dpcd_lane_adjust[0].tx_ffe.PRESET_VALUE)
+			retries_cr++;
+#endif
 		else
 			retries_cr = 0;
-#endif
 
 		/* 8. update VS/PE/PC2 in lt_settings*/
-		dp_update_drive_settings(lt_settings, req_settings);
-
+		dp_decide_lane_settings(lt_settings, dpcd_lane_adjust,
+				lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
 		retry_count++;
 	}
 
@@ -2083,10 +1971,11 @@ static enum link_training_result dp_perform_128b_132b_channel_eq_done_sequence(
 	uint8_t loop_count;
 	uint32_t aux_rd_interval = 0;
 	uint32_t wait_time = 0;
-	struct link_training_settings req_settings;
 	union lane_align_status_updated dpcd_lane_status_updated = {0};
 	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
+	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {0};
+	union dpcd_training_lane dpcd_lane_settings[LANE_COUNT_DP_MAX] = { { {0} } };
 
 	/* Transmit 128b/132b_TPS1 over Main-Link */
 	dp_set_hw_training_pattern(link, lt_settings->pattern_for_cr, DPRX);
@@ -2095,11 +1984,11 @@ static enum link_training_result dp_perform_128b_132b_channel_eq_done_sequence(
 
 	/* Adjust TX_FFE_PRESET_VALUE and Transmit 128b/132b_TPS2 over Main-Link */
 	dpcd_128b_132b_get_aux_rd_interval(link, &aux_rd_interval);
-	dp_get_lane_status_and_drive_settings(link, lt_settings, dpcd_lane_status,
-			&dpcd_lane_status_updated, &req_settings, DPRX);
-	dp_update_drive_settings(lt_settings, req_settings);
+	dp_get_lane_status_and_lane_adjust(link, lt_settings, dpcd_lane_status,
+			&dpcd_lane_status_updated, dpcd_lane_adjust, DPRX);
+	dp_decide_lane_settings(lt_settings, dpcd_lane_adjust,
+			lt_settings->lane_settings, dpcd_lane_settings);
 	dp_set_hw_lane_settings(link, lt_settings, DPRX);
-
 	dp_set_hw_training_pattern(link, lt_settings->pattern_for_eq, DPRX);
 
 	/* Set loop counter to start from 1 */
@@ -2113,9 +2002,10 @@ static enum link_training_result dp_perform_128b_132b_channel_eq_done_sequence(
 	while (status == LINK_TRAINING_SUCCESS) {
 		dp_wait_for_training_aux_rd_interval(link, aux_rd_interval);
 		wait_time += aux_rd_interval;
-		dp_get_lane_status_and_drive_settings(link, lt_settings, dpcd_lane_status,
-				&dpcd_lane_status_updated, &req_settings, DPRX);
-		dp_update_drive_settings(lt_settings, req_settings);
+		dp_get_lane_status_and_lane_adjust(link, lt_settings, dpcd_lane_status,
+				&dpcd_lane_status_updated, dpcd_lane_adjust, DPRX);
+		dp_decide_lane_settings(lt_settings, dpcd_lane_adjust,
+				lt_settings->lane_settings, dpcd_lane_settings);
 		dpcd_128b_132b_get_aux_rd_interval(link, &aux_rd_interval);
 		if (dp_is_ch_eq_done(lt_settings->link_settings.lane_count,
 				dpcd_lane_status)) {
@@ -2145,8 +2035,8 @@ static enum link_training_result dp_perform_128b_132b_channel_eq_done_sequence(
 			dp_wait_for_training_aux_rd_interval(link,
 					lt_settings->eq_pattern_time);
 			wait_time += lt_settings->eq_pattern_time;
-			dp_get_lane_status_and_drive_settings(link, lt_settings, dpcd_lane_status,
-					&dpcd_lane_status_updated, &req_settings, DPRX);
+			dp_get_lane_status_and_lane_adjust(link, lt_settings, dpcd_lane_status,
+					&dpcd_lane_status_updated, dpcd_lane_adjust, DPRX);
 		}
 	}
 
@@ -2159,9 +2049,9 @@ static enum link_training_result dp_perform_128b_132b_cds_done_sequence(
 {
 	/* Assumption: assume hardware has transmitted eq pattern */
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
-	struct link_training_settings req_settings;
 	union lane_align_status_updated dpcd_lane_status_updated = {0};
 	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
+	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = { { {0} } };
 	uint32_t wait_time = 0;
 
 	/* initiate CDS done sequence */
@@ -2172,8 +2062,8 @@ static enum link_training_result dp_perform_128b_132b_cds_done_sequence(
 		dp_wait_for_training_aux_rd_interval(link,
 				lt_settings->cds_pattern_time);
 		wait_time += lt_settings->cds_pattern_time;
-		dp_get_lane_status_and_drive_settings(link, lt_settings, dpcd_lane_status,
-						&dpcd_lane_status_updated, &req_settings, DPRX);
+		dp_get_lane_status_and_lane_adjust(link, lt_settings, dpcd_lane_status,
+						&dpcd_lane_status_updated, dpcd_lane_adjust, DPRX);
 		if (dp_is_symbol_locked(lt_settings->link_settings.lane_count, dpcd_lane_status) &&
 				dpcd_lane_status_updated.bits.CDS_INTERLANE_ALIGN_DONE_128b_132b) {
 			/* pass */
