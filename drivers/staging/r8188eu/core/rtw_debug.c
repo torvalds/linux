@@ -428,7 +428,7 @@ int proc_get_rf_reg_dump1(char *page, char **start,
 	path = 1;
 	len += snprintf(page + len, count - len, "\nRF_Path(%x)\n", path);
 	for (i = 0; i < 0xC0; i++) {
-		value = rtw_hal_read_rfreg(padapter, path, i, 0xffffffff);
+		value = rtl8188e_PHY_QueryRFReg(padapter, path, i, 0xffffffff);
 		if (j % 4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x ", i);
 		len += snprintf(page + len, count - len, " 0x%08x ", value);
@@ -453,7 +453,7 @@ int proc_get_rf_reg_dump2(char *page, char **start,
 	path = 1;
 	len += snprintf(page + len, count - len, "\nRF_Path(%x)\n", path);
 	for (i = 0xC0; i < 0x100; i++) {
-		value = rtw_hal_read_rfreg(padapter, path, i, 0xffffffff);
+		value = rtl8188e_PHY_QueryRFReg(padapter, path, i, 0xffffffff);
 		if (j % 4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x ", i);
 		len += snprintf(page + len, count - len, " 0x%08x ", value);
@@ -478,7 +478,7 @@ int proc_get_rf_reg_dump3(char *page, char **start,
 	path = 2;
 	len += snprintf(page + len, count - len, "\nRF_Path(%x)\n", path);
 	for (i = 0; i < 0xC0; i++) {
-		value = rtw_hal_read_rfreg(padapter, path, i, 0xffffffff);
+		value = rtl8188e_PHY_QueryRFReg(padapter, path, i, 0xffffffff);
 		if (j % 4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x ", i);
 		len += snprintf(page + len, count - len, " 0x%08x ", value);
@@ -504,7 +504,7 @@ int proc_get_rf_reg_dump4(char *page, char **start,
 	path = 2;
 	len += snprintf(page + len, count - len, "\nRF_Path(%x)\n", path);
 	for (i = 0xC0; i < 0x100; i++) {
-		value = rtw_hal_read_rfreg(padapter, path, i, 0xffffffff);
+		value = rtl8188e_PHY_QueryRFReg(padapter, path, i, 0xffffffff);
 		if (j % 4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x ", i);
 		len += snprintf(page + len, count - len, " 0x%08x ", value);

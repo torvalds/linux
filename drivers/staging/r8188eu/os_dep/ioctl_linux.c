@@ -2122,7 +2122,7 @@ static int rtw_wx_read_rf(struct net_device *dev,
 
 	path = *(u32 *)extra;
 	addr = *((u32 *)extra + 1);
-	data32 = rtw_hal_read_rfreg(padapter, path, addr, 0xFFFFF);
+	data32 = rtl8188e_PHY_QueryRFReg(padapter, path, addr, 0xFFFFF);
 	/*
 	 * IMPORTANT!!
 	 * Only when wireless private ioctl is at odd order,
@@ -2262,7 +2262,7 @@ static void rtw_dbg_mode_hdl(struct adapter *padapter, u32 id, u8 *pdata, u32 le
 		path = (u8)prfreg->path;
 		offset = (u8)prfreg->offset;
 
-		value = rtw_hal_read_rfreg(padapter, path, offset, 0xffffffff);
+		value = rtl8188e_PHY_QueryRFReg(padapter, path, offset, 0xffffffff);
 
 		prfreg->value = value;
 
@@ -3890,7 +3890,7 @@ static void rf_reg_dump(struct adapter *padapter)
 	for (path = 0; path < path_nums; path++) {
 		pr_info("\nRF_Path(%x)\n", path);
 		for (i = 0; i < 0x100; i++) {
-			value = rtw_hal_read_rfreg(padapter, path, i, 0xffffffff);
+			value = rtl8188e_PHY_QueryRFReg(padapter, path, i, 0xffffffff);
 			if (j % 4 == 1)
 				pr_info("0x%02x ", i);
 			pr_info(" 0x%08x ", value);
@@ -3965,11 +3965,11 @@ static int rtw_dbg_port(struct net_device *dev,
 		DBG_88E("write_bbreg(0x%x) = 0x%x\n", arg, rtl8188e_PHY_QueryBBReg(padapter, arg, 0xffffffff));
 		break;
 	case 0x74:/* read_rf */
-		DBG_88E("read RF_reg path(0x%02x), offset(0x%x), value(0x%08x)\n", minor_cmd, arg, rtw_hal_read_rfreg(padapter, minor_cmd, arg, 0xffffffff));
+		DBG_88E("read RF_reg path(0x%02x), offset(0x%x), value(0x%08x)\n", minor_cmd, arg, rtl8188e_PHY_QueryRFReg(padapter, minor_cmd, arg, 0xffffffff));
 		break;
 	case 0x75:/* write_rf */
 		rtw_hal_write_rfreg(padapter, minor_cmd, arg, 0xffffffff, extra_arg);
-		DBG_88E("write RF_reg path(0x%02x), offset(0x%x), value(0x%08x)\n", minor_cmd, arg, rtw_hal_read_rfreg(padapter, minor_cmd, arg, 0xffffffff));
+		DBG_88E("write RF_reg path(0x%02x), offset(0x%x), value(0x%08x)\n", minor_cmd, arg, rtl8188e_PHY_QueryRFReg(padapter, minor_cmd, arg, 0xffffffff));
 		break;
 
 	case 0x76:
@@ -6069,7 +6069,7 @@ static int rtw_mp_dump(struct net_device *dev,
 
 		for (path = 0; path < path_nums; path++) {
 			for (i = 0; i < 0x34; i++) {
-				value = rtw_hal_read_rfreg(padapter, path, i, 0xffffffff);
+				value = rtl8188e_PHY_QueryRFReg(padapter, path, i, 0xffffffff);
 				if (j % 4 == 1)
 					DBG_88E("0x%02x ", i);
 				DBG_88E(" 0x%08x ", value);

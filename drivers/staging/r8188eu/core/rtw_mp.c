@@ -19,7 +19,7 @@ void write_bbreg(struct adapter *padapter, u32 addr, u32 bitmask, u32 val)
 
 u32 _read_rfreg(struct adapter *padapter, u8 rfpath, u32 addr, u32 bitmask)
 {
-	return rtw_hal_read_rfreg(padapter, (enum rf_radio_path)rfpath, addr, bitmask);
+	return rtl8188e_PHY_QueryRFReg(padapter, (enum rf_radio_path)rfpath, addr, bitmask);
 }
 
 void _write_rfreg(struct adapter *padapter, u8 rfpath, u32 addr, u32 bitmask, u32 val)

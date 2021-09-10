@@ -147,9 +147,6 @@ struct hal_ops {
 				       enum hal_def_variable eVariable,
 				       void *pValue);
 
-	u32	(*read_rfreg)(struct adapter *padapter,
-			      enum rf_radio_path eRFPath, u32 RegAddr,
-			      u32 BitMask);
 	void	(*write_rfreg)(struct adapter *padapter,
 			       enum rf_radio_path eRFPath, u32 RegAddr,
 			       u32 BitMask, u32 Data);
@@ -217,8 +214,6 @@ void rtw_hal_update_ra_mask(struct adapter *padapter, u32 mac_id, u8 level);
 void	rtw_hal_clone_data(struct adapter *dst_adapt,
 			   struct adapter *src_adapt);
 
-u32	rtw_hal_read_rfreg(struct adapter *padapter, enum rf_radio_path eRFPath,
-			   u32 RegAddr, u32 BitMask);
 void	rtw_hal_write_rfreg(struct adapter *padapter,
 			    enum rf_radio_path eRFPath, u32 RegAddr,
 			    u32 BitMask, u32 Data);
