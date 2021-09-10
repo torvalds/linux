@@ -3989,7 +3989,6 @@ static int rtw_dbg_port(struct net_device *dev,
 		switch (minor_cmd) {
 		case 0x04: /* LLT table initialization test */
 		{
-			u8 page_boundary = 0xf9;
 			struct xmit_frame	*xmit_frame;
 
 			xmit_frame = rtw_IOL_accquire_xmit_frame(padapter);
@@ -3997,8 +3996,6 @@ static int rtw_dbg_port(struct net_device *dev,
 				ret = -ENOMEM;
 				break;
 			}
-
-			rtw_IOL_append_LLT_cmd(xmit_frame, page_boundary);
 
 			if (rtl8188e_IOL_exec_cmds_sync(padapter, xmit_frame, 500, 0) != _SUCCESS)
 				ret = -EPERM;
