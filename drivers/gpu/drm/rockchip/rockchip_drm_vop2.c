@@ -138,8 +138,6 @@
 #define VOP2_WB_JOB_MAX      2
 #define VOP2_SYS_AXI_BUS_NUM 2
 
-#define VOP2_CLUSTER_YUV444_10 0x12
-
 #define VOP2_COLOR_KEY_NONE		(0 << 31)
 #define VOP2_COLOR_KEY_MASK		(1 << 31)
 
@@ -3192,18 +3190,6 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 
 		rb_swap = vop2_afbc_rb_swap(fb->format->format);
 		uv_swap = vop2_afbc_uv_swap(fb->format->format);
-		/*
-		 * This is a workaround for crazy IC design, Cluster
-		 * and Esmart/Smart use different format configuration map:
-		 * YUV420_10BIT: 0x10 for Cluster, 0x14 for Esmart/Smart.
-		 *
-		 * This is one thing we can make the convert simple:
-		 * AFBCD decode all the YUV data to YUV444. So we just
-		 * set all the yuv 10 bit to YUV444_10.
-		 */
-		if (fb->format->is_yuv && (bpp == 10))
-			format = VOP2_CLUSTER_YUV444_10;
-
 		afbc_half_block_en = vop2_afbc_half_block_enable(vpstate);
 		vpstate->afbc_half_block_en = afbc_half_block_en;
 		transform_offset = vop2_afbc_transform_offset(vpstate);
