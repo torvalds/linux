@@ -147,9 +147,6 @@ struct hal_ops {
 				       enum hal_def_variable eVariable,
 				       void *pValue);
 
-	s32	(*hal_xmit)(struct adapter *padapter,
-			    struct xmit_frame *pxmitframe);
-
 	u32	(*read_bbreg)(struct adapter *padapter, u32 RegAddr,
 			      u32 BitMask);
 	void	(*write_bbreg)(struct adapter *padapter, u32 RegAddr,
@@ -214,8 +211,6 @@ u8 rtw_hal_get_def_var(struct adapter *padapter,
 
 u32	rtw_hal_inirp_init(struct adapter *padapter);
 u32	rtw_hal_inirp_deinit(struct adapter *padapter);
-
-s32	rtw_hal_xmit(struct adapter *padapter, struct xmit_frame *pxmitframe);
 
 s32	rtw_hal_init_xmit_priv(struct adapter *padapter);
 

@@ -2228,7 +2228,5 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 	halfunc->GetHalDefVarHandler = &GetHalDefVar8188EUsb;
 	halfunc->SetHalDefVarHandler = &SetHalDefVar8188EUsb;
 
-	halfunc->hal_xmit = &rtl8188eu_hal_xmit;
-
 	rtl8188e_set_hal_ops(halfunc);
 }
