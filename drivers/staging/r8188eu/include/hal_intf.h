@@ -162,10 +162,6 @@ struct hal_ops {
 	void	(*write_rfreg)(struct adapter *padapter,
 			       enum rf_radio_path eRFPath, u32 RegAddr,
 			       u32 BitMask, u32 Data);
-
-	int (*IOL_exec_cmds_sync)(struct adapter *padapter,
-				  struct xmit_frame *frame, u32 max_wait,
-				  u32 bndy_cnt);
 };
 
 #define RF_CHANGE_BY_INIT	0
@@ -204,6 +200,9 @@ void hal_notch_filter_8188e(struct adapter *adapter, bool enable);
 void SetBeaconRelatedRegisters8188EUsb(struct adapter *adapt);
 void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_level);
 
+int rtl8188e_IOL_exec_cmds_sync(struct adapter *adapter,
+				struct xmit_frame *xmit_frame, u32 max_wating_ms, u32 bndy_cnt);
+
 uint rtw_hal_init(struct adapter *padapter);
 uint rtw_hal_deinit(struct adapter *padapter);
 void rtw_hal_stop(struct adapter *padapter);
@@ -239,9 +238,6 @@ u32	rtw_hal_read_rfreg(struct adapter *padapter, enum rf_radio_path eRFPath,
 void	rtw_hal_write_rfreg(struct adapter *padapter,
 			    enum rf_radio_path eRFPath, u32 RegAddr,
 			    u32 BitMask, u32 Data);
-
-int rtw_hal_iol_cmd(struct adapter  *adapter, struct xmit_frame *xmit_frame,
-		    u32 max_wating_ms, u32 bndy_cnt);
 
 void indicate_wx_scan_complete_event(struct adapter *padapter);
 u8 rtw_do_join(struct adapter *padapter);
