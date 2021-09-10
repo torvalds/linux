@@ -228,20 +228,6 @@ static void __intel_pmu_lbr_enable(bool pmi)
 		wrmsrl(MSR_ARCH_LBR_CTL, lbr_select | ARCH_LBR_CTL_LBREN);
 }
 
-static void __intel_pmu_lbr_disable(void)
-{
-	u64 debugctl;
-
-	if (static_cpu_has(X86_FEATURE_ARCH_LBR)) {
-		wrmsrl(MSR_ARCH_LBR_CTL, 0);
-		return;
-	}
-
-	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
-	debugctl &= ~(DEBUGCTLMSR_LBR | DEBUGCTLMSR_FREEZE_LBRS_ON_PMI);
-	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
-}
-
 void intel_pmu_lbr_reset_32(void)
 {
 	int i;
@@ -779,8 +765,12 @@ void intel_pmu_lbr_disable_all(void)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
-	if (cpuc->lbr_users && !vlbr_exclude_host())
+	if (cpuc->lbr_users && !vlbr_exclude_host()) {
+		if (static_cpu_has(X86_FEATURE_ARCH_LBR))
+			return __intel_pmu_arch_lbr_disable();
+
 		__intel_pmu_lbr_disable();
+	}
 }
 
 void intel_pmu_lbr_read_32(struct cpu_hw_events *cpuc)
