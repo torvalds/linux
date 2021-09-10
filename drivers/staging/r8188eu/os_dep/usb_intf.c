@@ -83,11 +83,6 @@ static inline int RT_usb_endpoint_dir_out(const struct usb_endpoint_descriptor *
 	return (epd->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT;
 }
 
-static inline int RT_usb_endpoint_xfer_int(const struct usb_endpoint_descriptor *epd)
-{
-	return (epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT;
-}
-
 static inline int RT_usb_endpoint_xfer_bulk(const struct usb_endpoint_descriptor *epd)
 {
 	return (epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_BULK;
@@ -101,11 +96,6 @@ static inline int RT_usb_endpoint_is_bulk_in(const struct usb_endpoint_descripto
 static inline int RT_usb_endpoint_is_bulk_out(const struct usb_endpoint_descriptor *epd)
 {
 	return RT_usb_endpoint_xfer_bulk(epd) && RT_usb_endpoint_dir_out(epd);
-}
-
-static inline int usb_endpoint_is_int(const struct usb_endpoint_descriptor *epd)
-{
-	return RT_usb_endpoint_xfer_int(epd) && RT_usb_endpoint_dir_in(epd);
 }
 
 static inline int RT_usb_endpoint_num(const struct usb_endpoint_descriptor *epd)
