@@ -2143,7 +2143,7 @@ static int rtw_wx_write_rf(struct net_device *dev,
 	path = *(u32 *)extra;
 	addr = *((u32 *)extra + 1);
 	data32 = *((u32 *)extra + 2);
-	rtw_hal_write_rfreg(padapter, path, addr, 0xFFFFF, data32);
+	rtl8188e_PHY_SetRFReg(padapter, path, addr, 0xFFFFF, data32);
 
 	return 0;
 }
@@ -2275,7 +2275,7 @@ static void rtw_dbg_mode_hdl(struct adapter *padapter, u32 id, u8 *pdata, u32 le
 		offset = (u8)prfreg->offset;
 		value = prfreg->value;
 
-		rtw_hal_write_rfreg(padapter, path, offset, 0xffffffff, value);
+		rtl8188e_PHY_SetRFReg(padapter, path, offset, 0xffffffff, value);
 
 		break;
 	case GEN_MP_IOCTL_SUBCODE(TRIGGER_GPIO):
@@ -3968,7 +3968,7 @@ static int rtw_dbg_port(struct net_device *dev,
 		DBG_88E("read RF_reg path(0x%02x), offset(0x%x), value(0x%08x)\n", minor_cmd, arg, rtl8188e_PHY_QueryRFReg(padapter, minor_cmd, arg, 0xffffffff));
 		break;
 	case 0x75:/* write_rf */
-		rtw_hal_write_rfreg(padapter, minor_cmd, arg, 0xffffffff, extra_arg);
+		rtl8188e_PHY_SetRFReg(padapter, minor_cmd, arg, 0xffffffff, extra_arg);
 		DBG_88E("write RF_reg path(0x%02x), offset(0x%x), value(0x%08x)\n", minor_cmd, arg, rtl8188e_PHY_QueryRFReg(padapter, minor_cmd, arg, 0xffffffff));
 		break;
 

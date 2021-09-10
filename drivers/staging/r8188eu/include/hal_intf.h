@@ -146,10 +146,6 @@ struct hal_ops {
 	u8	(*SetHalDefVarHandler)(struct adapter *padapter,
 				       enum hal_def_variable eVariable,
 				       void *pValue);
-
-	void	(*write_rfreg)(struct adapter *padapter,
-			       enum rf_radio_path eRFPath, u32 RegAddr,
-			       u32 BitMask, u32 Data);
 };
 
 #define RF_CHANGE_BY_INIT	0
@@ -213,10 +209,6 @@ void	rtw_hal_free_recv_priv(struct adapter *padapter);
 void rtw_hal_update_ra_mask(struct adapter *padapter, u32 mac_id, u8 level);
 void	rtw_hal_clone_data(struct adapter *dst_adapt,
 			   struct adapter *src_adapt);
-
-void	rtw_hal_write_rfreg(struct adapter *padapter,
-			    enum rf_radio_path eRFPath, u32 RegAddr,
-			    u32 BitMask, u32 Data);
 
 void indicate_wx_scan_complete_event(struct adapter *padapter);
 u8 rtw_do_join(struct adapter *padapter);

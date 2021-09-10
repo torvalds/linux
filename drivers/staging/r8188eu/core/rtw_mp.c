@@ -24,7 +24,7 @@ u32 _read_rfreg(struct adapter *padapter, u8 rfpath, u32 addr, u32 bitmask)
 
 void _write_rfreg(struct adapter *padapter, u8 rfpath, u32 addr, u32 bitmask, u32 val)
 {
-	rtw_hal_write_rfreg(padapter, (enum rf_radio_path)rfpath, addr, bitmask, val);
+	rtl8188e_PHY_SetRFReg(padapter, (enum rf_radio_path)rfpath, addr, bitmask, val);
 }
 
 u32 read_rfreg(struct adapter *padapter, u8 rfpath, u32 addr)

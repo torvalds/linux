@@ -124,11 +124,3 @@ void rtw_hal_update_ra_mask(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 		UpdateHalRAMask8188EUsb(adapt, mac_id, rssi_level);
 	}
 }
-
-void rtw_hal_write_rfreg(struct adapter *adapt, enum rf_radio_path rfpath,
-			 u32 regaddr, u32 bitmask, u32 data)
-{
-	if (adapt->HalFunc.write_rfreg)
-		adapt->HalFunc.write_rfreg(adapt, rfpath, regaddr,
-					      bitmask, data);
-}
