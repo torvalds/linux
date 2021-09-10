@@ -157,6 +157,12 @@ Display Driver Integration
 .. kernel-doc:: drivers/gpu/drm/drm_bridge.c
    :doc: display driver integration
 
+Special Care with MIPI-DSI bridges
+----------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_bridge.c
+   :doc: special care dsi
+
 Bridge Operations
 -----------------
 
