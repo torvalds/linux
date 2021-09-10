@@ -2036,20 +2036,16 @@ static int get_eeprom(struct net_device *dev, struct ethtool_eeprom *e,
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
-	int i, err = 0;
-
-	u8 *buf = kmalloc(EEPROMSIZE, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	int cnt;
 
 	e->magic = EEPROM_MAGIC;
-	for (i = e->offset & ~3; !err && i < e->offset + e->len; i += 4)
-		err = t3_seeprom_read(adapter, i, (__le32 *) & buf[i]);
+	cnt = pci_read_vpd(adapter->pdev, e->offset, e->len, data);
+	if (cnt < 0)
+		return cnt;
 
-	if (!err)
-		memcpy(data, buf + e->offset, e->len);
-	kfree(buf);
-	return err;
+	e->len = cnt;
+
+	return 0;
 }
 
 static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
@@ -2072,12 +2068,9 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		buf = kmalloc(aligned_len, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
-		err = t3_seeprom_read(adapter, aligned_offset, (__le32 *) buf);
-		if (!err && aligned_len > 4)
-			err = t3_seeprom_read(adapter,
-					      aligned_offset + aligned_len - 4,
-					      (__le32 *) & buf[aligned_len - 4]);
-		if (err)
+		err = pci_read_vpd(adapter->pdev, aligned_offset, aligned_len,
+				   buf);
+		if (err < 0)
 			goto out;
 		memcpy(buf + (eeprom->offset & 3), data, eeprom->len);
 	} else
