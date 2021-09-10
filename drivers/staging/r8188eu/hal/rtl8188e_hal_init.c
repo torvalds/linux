@@ -1748,9 +1748,6 @@ void hal_notch_filter_8188e(struct adapter *adapter, bool enable)
 		rtw_write8(adapter, rOFDM0_RxDSP + 1, rtw_read8(adapter, rOFDM0_RxDSP + 1) & ~BIT(1));
 	}
 }
-void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
-{
-}
 
 u8 GetEEPROMSize8188E(struct adapter *padapter)
 {
