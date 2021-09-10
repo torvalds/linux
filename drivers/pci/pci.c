@@ -5288,7 +5288,7 @@ const struct attribute_group pci_dev_reset_method_attr_group = {
  */
 int __pci_reset_function_locked(struct pci_dev *dev)
 {
-	int i, m, rc = -ENOTTY;
+	int i, m, rc;
 
 	might_sleep();
 
