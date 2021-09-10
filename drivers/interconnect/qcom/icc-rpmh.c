@@ -330,6 +330,7 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	qp->stub = of_property_read_bool(pdev->dev.of_node, "qcom,stub");
+	qp->skip_qos = of_property_read_bool(pdev->dev.of_node, "qcom,skip-qos");
 
 	provider = &qp->provider;
 	provider->dev = dev;
@@ -376,9 +377,11 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 	for (i = 0; i < qp->num_bcms; i++)
 		qcom_icc_bcm_init(qp->bcms[i], dev);
 
-	ret = enable_qos_deps(qp);
-	if (ret)
-		return ret;
+	if (!qp->skip_qos) {
+		ret = enable_qos_deps(qp);
+		if (ret)
+			return ret;
+	}
 
 	for (i = 0; i < num_nodes; i++) {
 		qn = qnodes[i];
@@ -393,7 +396,7 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 			goto err;
 		}
 
-		if (qn->qosbox)
+		if (qn->qosbox && !qp->skip_qos)
 			qn->noc_ops->set_qos(qn);
 
 		node->name = qn->name;
@@ -406,7 +409,8 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 		data->nodes[i] = node;
 	}
 
-	disable_qos_deps(qp);
+	if (!qp->skip_qos)
+		disable_qos_deps(qp);
 
 	data->num_nodes = num_nodes;
 	platform_set_drvdata(pdev, qp);

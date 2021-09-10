@@ -33,6 +33,7 @@ struct qcom_icc_provider {
 	struct bcm_voter **voters;
 	size_t num_voters;
 	bool stub;
+	bool skip_qos;
 };
 
 /**
