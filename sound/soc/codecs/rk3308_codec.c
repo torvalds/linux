@@ -4719,6 +4719,16 @@ static int rk3308_codec_sysfs_init(struct platform_device *pdev,
 	return 0;
 }
 
+static void rk3308_codec_sysfs_exit(struct rk3308_codec_priv *rk3308)
+{
+	struct device *dev = &rk3308->dev;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(acodec_attrs); i++)
+		device_remove_file(dev, &acodec_attrs[i]);
+	device_unregister(dev);
+}
+
 #if defined(CONFIG_DEBUG_FS)
 static int rk3308_codec_debugfs_reg_show(struct seq_file *s, void *v)
 {
@@ -4859,7 +4869,7 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	if (IS_ERR(rk3308->reset)) {
 		ret = PTR_ERR(rk3308->reset);
 		if (ret != -ENOENT)
-			return ret;
+			goto out_sysfs;
 
 		dev_dbg(&pdev->dev, "No reset control found\n");
 		rk3308->reset = NULL;
@@ -4872,7 +4882,7 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	} else if (IS_ERR(rk3308->hp_ctl_gpio)) {
 		ret = PTR_ERR(rk3308->hp_ctl_gpio);
 		dev_err(&pdev->dev, "Unable to claim gpio hp-ctl\n");
-		return ret;
+		goto out_sysfs;
 	}
 
 	rk3308->spk_ctl_gpio = devm_gpiod_get_optional(&pdev->dev, "spk-ctl",
@@ -4883,7 +4893,7 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	} else if (IS_ERR(rk3308->spk_ctl_gpio)) {
 		ret = PTR_ERR(rk3308->spk_ctl_gpio);
 		dev_err(&pdev->dev, "Unable to claim gpio spk-ctl\n");
-		return ret;
+		goto out_sysfs;
 	}
 
 	rk3308->pa_drv_gpio = devm_gpiod_get_optional(&pdev->dev, "pa-drv",
@@ -4894,7 +4904,7 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	} else if (IS_ERR(rk3308->pa_drv_gpio)) {
 		ret = PTR_ERR(rk3308->pa_drv_gpio);
 		dev_err(&pdev->dev, "Unable to claim gpio pa-drv\n");
-		return ret;
+		goto out_sysfs;
 	}
 
 	if (rk3308->pa_drv_gpio) {
@@ -4916,37 +4926,40 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	rk3308->pclk = devm_clk_get(&pdev->dev, "acodec");
 	if (IS_ERR(rk3308->pclk)) {
 		dev_err(&pdev->dev, "Can't get acodec pclk\n");
-		return PTR_ERR(rk3308->pclk);
+		ret = PTR_ERR(rk3308->pclk);
+		goto out_sysfs;
 	}
 
 	rk3308->mclk_rx = devm_clk_get(&pdev->dev, "mclk_rx");
 	if (IS_ERR(rk3308->mclk_rx)) {
 		dev_err(&pdev->dev, "Can't get acodec mclk_rx\n");
-		return PTR_ERR(rk3308->mclk_rx);
+		ret = PTR_ERR(rk3308->mclk_rx);
+		goto out_sysfs;
 	}
 
 	rk3308->mclk_tx = devm_clk_get(&pdev->dev, "mclk_tx");
 	if (IS_ERR(rk3308->mclk_tx)) {
 		dev_err(&pdev->dev, "Can't get acodec mclk_tx\n");
-		return PTR_ERR(rk3308->mclk_tx);
+		ret = PTR_ERR(rk3308->mclk_tx);
+		goto out_sysfs;
 	}
 
 	ret = clk_prepare_enable(rk3308->pclk);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to enable acodec pclk: %d\n", ret);
-		return ret;
+		goto out_sysfs;
 	}
 
 	ret = clk_prepare_enable(rk3308->mclk_rx);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to enable i2s mclk_rx: %d\n", ret);
-		return ret;
+		goto out_pclk;
 	}
 
 	ret = clk_prepare_enable(rk3308->mclk_tx);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to enable i2s mclk_tx: %d\n", ret);
-		return ret;
+		goto out_mclk_rx;
 	}
 
 	rk3308_codec_check_micbias(rk3308, np);
@@ -4981,21 +4994,21 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	if (ret < 0 && ret != -EINVAL) {
 		dev_err(&pdev->dev, "Failed to read loopback property: %d\n",
 			ret);
-		return ret;
+		goto failed;
 	}
 
 	ret = rk3308_codec_adc_grps_route(rk3308, np);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to route ADC groups: %d\n",
 			ret);
-		return ret;
+		goto failed;
 	}
 
 	ret = rk3308_codec_setup_en_always_adcs(rk3308, np);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to setup enabled always ADCs: %d\n",
 			ret);
-		return ret;
+		goto failed;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -5044,7 +5057,8 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 			if (IS_ERR(rk3308->detect_grf)) {
 				dev_err(&pdev->dev,
 					"Missing 'rockchip,detect-grf' property\n");
-				return PTR_ERR(rk3308->detect_grf);
+				ret = PTR_ERR(rk3308->detect_grf);
+				goto failed;
 			}
 
 			/* Configure filter count and enable hpdet irq. */
@@ -5079,10 +5093,13 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	return ret;
 
 failed:
-	clk_disable_unprepare(rk3308->mclk_rx);
 	clk_disable_unprepare(rk3308->mclk_tx);
+out_mclk_rx:
+	clk_disable_unprepare(rk3308->mclk_rx);
+out_pclk:
 	clk_disable_unprepare(rk3308->pclk);
-	device_unregister(&rk3308->dev);
+out_sysfs:
+	rk3308_codec_sysfs_exit(rk3308);
 
 	return ret;
 }
