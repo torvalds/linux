@@ -44,7 +44,7 @@ static int sditf_g_frame_interval(struct v4l2_subdev *sd,
 	return -EINVAL;
 }
 
-static int sditf_g_mbus_config(struct v4l2_subdev *sd,
+static int sditf_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 			       struct v4l2_mbus_config *config)
 {
 	struct sditf_priv *priv = to_sditf_priv(sd);
@@ -56,7 +56,7 @@ static int sditf_g_mbus_config(struct v4l2_subdev *sd,
 
 	if (cif_dev->active_sensor) {
 		sensor_sd = cif_dev->active_sensor->sd;
-		return v4l2_subdev_call(sensor_sd, video, g_mbus_config, config);
+		return v4l2_subdev_call(sensor_sd, pad, get_mbus_config, 0, config);
 	}
 
 	return -EINVAL;
@@ -143,11 +143,11 @@ static const struct v4l2_subdev_pad_ops sditf_subdev_pad_ops = {
 	.set_fmt = sditf_get_set_fmt,
 	.get_fmt = sditf_get_set_fmt,
 	.get_selection = sditf_get_selection,
+	.get_mbus_config = sditf_g_mbus_config,
 };
 
 static const struct v4l2_subdev_video_ops sditf_video_ops = {
 	.g_frame_interval = sditf_g_frame_interval,
-	.g_mbus_config = sditf_g_mbus_config,
 };
 
 static const struct v4l2_subdev_core_ops sditf_core_ops = {

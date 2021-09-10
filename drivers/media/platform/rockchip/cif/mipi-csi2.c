@@ -215,7 +215,7 @@ static void csi2_update_sensor_info(struct csi2_dev *csi2)
 	struct v4l2_mbus_config mbus;
 	int ret = 0;
 
-	ret = v4l2_subdev_call(sensor->sd, video, g_mbus_config, &mbus);
+	ret = v4l2_subdev_call(sensor->sd, pad, get_mbus_config, 0, &mbus);
 	if (ret) {
 		v4l2_err(&csi2->sd, "update sensor info failed!\n");
 		return;
@@ -568,16 +568,16 @@ static int csi2_set_selection(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static int csi2_g_mbus_config(struct v4l2_subdev *sd,
+static int csi2_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 			      struct v4l2_mbus_config *mbus)
 {
 	struct csi2_dev *csi2 = sd_to_dev(sd);
 	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
 	int ret;
 
-	ret = v4l2_subdev_call(sensor_sd, video, g_mbus_config, mbus);
+	ret = v4l2_subdev_call(sensor_sd, pad, get_mbus_config, 0, mbus);
 	if (ret) {
-		mbus->type = V4L2_MBUS_CSI2;
+		mbus->type = V4L2_MBUS_CSI2_DPHY;
 		mbus->flags = csi2->bus.flags;
 		mbus->flags |= BIT(csi2->bus.num_data_lanes - 1);
 	}
@@ -633,7 +633,6 @@ static const struct v4l2_subdev_core_ops csi2_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops csi2_video_ops = {
-	.g_mbus_config = csi2_g_mbus_config,
 	.s_stream = csi2_s_stream,
 };
 
@@ -642,6 +641,7 @@ static const struct v4l2_subdev_pad_ops csi2_pad_ops = {
 	.set_fmt = csi2_get_set_fmt,
 	.get_selection = csi2_get_selection,
 	.set_selection = csi2_set_selection,
+	.get_mbus_config = csi2_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops csi2_subdev_ops = {
@@ -843,15 +843,14 @@ static int csi2_notifier(struct csi2_dev *csi2)
 	struct v4l2_async_notifier *ntf = &csi2->notifier;
 	int ret;
 
+	v4l2_async_notifier_init(ntf);
+
 	ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(csi2->dev,
 								 &csi2->notifier,
 								 sizeof(struct v4l2_async_subdev), 0,
 								 csi2_parse_endpoint);
 	if (ret < 0)
 		return ret;
-
-	if (!ntf->num_subdevs)
-		return -ENODEV;	/* no endpoint */
 
 	csi2->sd.subdev_notifier = &csi2->notifier;
 	csi2->notifier.ops = &csi2_async_ops;

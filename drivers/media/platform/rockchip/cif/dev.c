@@ -688,8 +688,9 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 			if (sd->ops) {
 				if (sd == sensor->sd) {
 					ret = v4l2_subdev_call(sd,
-							       video,
-							       g_mbus_config,
+							       pad,
+							       get_mbus_config,
+							       0,
 							       &sensor->mbus);
 					if (ret)
 						v4l2_err(v4l2_dev,
@@ -699,7 +700,7 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 		}
 
 		if (sensor->mbus.type == V4L2_MBUS_CCP2 ||
-		    sensor->mbus.type == V4L2_MBUS_CSI2) {
+		    sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
 
 			switch (sensor->mbus.flags & V4L2_MBUS_CSI2_LANES) {
 			case V4L2_MBUS_CSI2_1_LANE:
@@ -806,13 +807,13 @@ static int rkcif_fwnode_parse(struct device *dev,
 
 	if (vep->bus_type != V4L2_MBUS_BT656 &&
 	    vep->bus_type != V4L2_MBUS_PARALLEL &&
-	    vep->bus_type != V4L2_MBUS_CSI2 &&
+	    vep->bus_type != V4L2_MBUS_CSI2_DPHY &&
 	    vep->bus_type != V4L2_MBUS_CCP2)
 		return 0;
 
 	rk_asd->mbus.type = vep->bus_type;
 
-	if (vep->bus_type == V4L2_MBUS_CSI2) {
+	if (vep->bus_type == V4L2_MBUS_CSI2_DPHY) {
 		rk_asd->mbus.flags = vep->bus.mipi_csi2.flags;
 		rk_asd->lanes = vep->bus.mipi_csi2.num_data_lanes;
 	} else if (vep->bus_type == V4L2_MBUS_CCP2) {
@@ -835,6 +836,8 @@ static int cif_subdev_notifier(struct rkcif_device *cif_dev)
 	struct device *dev = cif_dev->dev;
 	int ret;
 
+	v4l2_async_notifier_init(ntf);
+
 	ret = v4l2_async_notifier_parse_fwnode_endpoints(
 		dev, ntf, sizeof(struct rkcif_async_subdev), rkcif_fwnode_parse);
 
@@ -842,12 +845,6 @@ static int cif_subdev_notifier(struct rkcif_device *cif_dev)
 		v4l2_err(&cif_dev->v4l2_dev,
 			 "%s: parse fwnode failed\n", __func__);
 		return ret;
-	}
-
-	if (!ntf->num_subdevs) {
-		v4l2_warn(&cif_dev->v4l2_dev,
-			 "%s: no subdev be found!\n", __func__);
-		return -ENODEV;	/* no endpoint */
 	}
 
 	ntf->ops = &subdev_notifier_ops;

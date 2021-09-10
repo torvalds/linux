@@ -272,7 +272,7 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 				   mbus_flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH ? "high active" : "low active");
 		} else {
 			seq_printf(f, "\tinterface:%s\n",
-				   sensor->mbus.type == V4L2_MBUS_CSI2 ? "mipi csi2" :
+				   sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ? "mipi csi2" :
 				   sensor->mbus.type == V4L2_MBUS_CCP2 ? "lvds" : "unknown");
 			seq_printf(f, "\tlanes:%d\n", sensor->lanes);
 			seq_puts(f, "\tvc channel:");
@@ -373,12 +373,11 @@ static int rkcif_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, rkcif_proc_show, data);
 }
 
-static const struct file_operations rkcif_proc_fops = {
-	.owner = THIS_MODULE,
-	.open = rkcif_proc_open,
-	.release = single_release,
-	.read = seq_read,
-	.llseek = seq_lseek,
+static const struct proc_ops rkcif_proc_fops = {
+	.proc_open = rkcif_proc_open,
+	.proc_release = single_release,
+	.proc_read = seq_read,
+	.proc_lseek = seq_lseek,
 };
 
 int rkcif_proc_init(struct rkcif_device *dev)
