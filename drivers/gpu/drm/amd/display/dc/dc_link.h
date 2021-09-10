@@ -121,7 +121,7 @@ struct dc_link {
 	struct dc_link_settings reported_link_cap;
 	struct dc_link_settings verified_link_cap;
 	struct dc_link_settings cur_link_settings;
-	struct dc_lane_settings cur_lane_setting;
+	struct dc_lane_settings cur_lane_setting[LANE_COUNT_DP_MAX];
 	struct dc_link_settings preferred_link_setting;
 	struct dc_link_training_overrides preferred_training_settings;
 	struct dp_audio_test_data audio_test_data;

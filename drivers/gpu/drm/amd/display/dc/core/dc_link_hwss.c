@@ -372,6 +372,9 @@ void dp_set_hw_lane_settings(
 #else
 	encoder->funcs->dp_set_lane_settings(encoder, link_settings);
 #endif
+	memmove(link->cur_lane_setting,
+			link_settings->lane_settings,
+			sizeof(link->cur_lane_setting));
 }
 
 void dp_set_hw_test_pattern(

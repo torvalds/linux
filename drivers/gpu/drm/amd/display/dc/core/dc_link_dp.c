@@ -676,8 +676,6 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 				dpcd_base_lt_offset,
 				dpcd_lt_buffer,
 				size_in_bytes + sizeof(dpcd_pattern.raw));
-
-	link->cur_lane_setting = lt_settings->lane_settings[0];
 }
 
 bool dp_is_cr_done(enum dc_lane_count ln_count,
@@ -1145,7 +1143,6 @@ enum dc_status dpcd_set_lane_settings(
 			dpcd_lane[0].bits.MAX_SWING_REACHED,
 			dpcd_lane[0].bits.MAX_PRE_EMPHASIS_REACHED);
 	}
-	link->cur_lane_setting = link_training_setting->lane_settings[0];
 
 	return status;
 }
