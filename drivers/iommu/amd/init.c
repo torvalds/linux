@@ -297,6 +297,22 @@ int amd_iommu_get_num_iommus(void)
 	return amd_iommus_present;
 }
 
+#ifdef CONFIG_IRQ_REMAP
+static bool check_feature_on_all_iommus(u64 mask)
+{
+	bool ret = false;
+	struct amd_iommu *iommu;
+
+	for_each_iommu(iommu) {
+		ret = iommu_feature(iommu, mask);
+		if (!ret)
+			return false;
+	}
+
+	return true;
+}
+#endif
+
 /*
  * For IVHD type 0x11/0x40, EFR is also available via IVHD.
  * Default to IVHD EFR since it is available sooner
@@ -813,9 +829,9 @@ static int iommu_ga_log_enable(struct amd_iommu *iommu)
 	return 0;
 }
 
-#ifdef CONFIG_IRQ_REMAP
 static int iommu_init_ga_log(struct amd_iommu *iommu)
 {
+#ifdef CONFIG_IRQ_REMAP
 	u64 entry;
 
 	if (!AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir))
@@ -845,25 +861,9 @@ static int iommu_init_ga_log(struct amd_iommu *iommu)
 err_out:
 	free_ga_log(iommu);
 	return -EINVAL;
-}
+#else
+	return 0;
 #endif /* CONFIG_IRQ_REMAP */
-
-static int iommu_init_ga(struct amd_iommu *iommu)
-{
-	int ret = 0;
-
-#ifdef CONFIG_IRQ_REMAP
-	/* Note: We have already checked GASup from IVRS table.
-	 *       Now, we need to make sure that GAMSup is set.
-	 */
-	if (AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir) &&
-	    !iommu_feature(iommu, FEATURE_GAM_VAPIC))
-		amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_LEGACY_GA;
-
-	ret = iommu_init_ga_log(iommu);
-#endif /* CONFIG_IRQ_REMAP */
-
-	return ret;
 }
 
 static int __init alloc_cwwb_sem(struct amd_iommu *iommu)
@@ -1845,7 +1845,7 @@ static int __init iommu_init_pci(struct amd_iommu *iommu)
 	if (iommu_feature(iommu, FEATURE_PPR) && alloc_ppr_log(iommu))
 		return -ENOMEM;
 
-	ret = iommu_init_ga(iommu);
+	ret = iommu_init_ga_log(iommu);
 	if (ret)
 		return ret;
 
@@ -2479,6 +2479,14 @@ static void early_enable_iommus(void)
 	}
 
 #ifdef CONFIG_IRQ_REMAP
+	/*
+	 * Note: We have already checked GASup from IVRS table.
+	 *       Now, we need to make sure that GAMSup is set.
+	 */
+	if (AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir) &&
+	    !check_feature_on_all_iommus(FEATURE_GAM_VAPIC))
+		amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_LEGACY_GA;
+
 	if (AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir))
 		amd_iommu_irq_ops.capability |= (1 << IRQ_POSTING_CAP);
 #endif
