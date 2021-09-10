@@ -333,7 +333,7 @@ S:	Maintained
 F:	drivers/platform/x86/acer-wmi.c
 
 ACPI
-M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
+M:	"Rafael J. Wysocki" <rafael@kernel.org>
 M:	Len Brown <lenb@kernel.org>
 L:	linux-acpi@vger.kernel.org
 S:	Supported
@@ -354,7 +354,7 @@ F:	include/linux/fwnode.h
 F:	tools/power/acpi/
 
 ACPI APEI
-M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
+M:	"Rafael J. Wysocki" <rafael@kernel.org>
 M:	Len Brown <lenb@kernel.org>
 R:	James Morse <james.morse@arm.com>
 R:	Tony Luck <tony.luck@intel.com>
@@ -403,7 +403,7 @@ S:	Maintained
 F:	drivers/platform/x86/i2c-multi-instantiate.c
 
 ACPI PMIC DRIVERS
-M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
+M:	"Rafael J. Wysocki" <rafael@kernel.org>
 M:	Len Brown <lenb@kernel.org>
 R:	Andy Shevchenko <andy@kernel.org>
 R:	Mika Westerberg <mika.westerberg@linux.intel.com>
@@ -4827,7 +4827,7 @@ W:	http://www.arm.com/products/processors/technologies/biglittleprocessing.php
 F:	drivers/cpufreq/vexpress-spc-cpufreq.c
 
 CPU FREQUENCY SCALING FRAMEWORK
-M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
+M:	"Rafael J. Wysocki" <rafael@kernel.org>
 M:	Viresh Kumar <viresh.kumar@linaro.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
@@ -4845,7 +4845,7 @@ F:	kernel/sched/cpufreq*.c
 F:	tools/testing/selftests/cpufreq/
 
 CPU IDLE TIME MANAGEMENT FRAMEWORK
-M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
+M:	"Rafael J. Wysocki" <rafael@kernel.org>
 M:	Daniel Lezcano <daniel.lezcano@linaro.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
@@ -7591,7 +7591,7 @@ W:	ftp://ftp.openlinux.org/pub/people/hch/vxfs
 F:	fs/freevxfs/
 
 FREEZER
-M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
+M:	"Rafael J. Wysocki" <rafael@kernel.org>
 M:	Pavel Machek <pavel@ucw.cz>
 L:	linux-pm@vger.kernel.org
 S:	Supported
@@ -7844,7 +7844,7 @@ S:	Supported
 F:	drivers/i2c/muxes/i2c-demux-pinctrl.c
 
 GENERIC PM DOMAINS
-M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
+M:	"Rafael J. Wysocki" <rafael@kernel.org>
 M:	Kevin Hilman <khilman@kernel.org>
 M:	Ulf Hansson <ulf.hansson@linaro.org>
 L:	linux-pm@vger.kernel.org
@@ -8310,7 +8310,7 @@ W:	http://drama.obuda.kando.hu/~fero/cgi-bin/hgafb.shtml
 F:	drivers/video/fbdev/hgafb.c
 
 HIBERNATION (aka Software Suspend, aka swsusp)
-M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
+M:	"Rafael J. Wysocki" <rafael@kernel.org>
 M:	Pavel Machek <pavel@ucw.cz>
 L:	linux-pm@vger.kernel.org
 S:	Supported
@@ -14969,7 +14969,7 @@ F:	kernel/time/*timer*
 F:	kernel/time/namespace.c
 
 POWER MANAGEMENT CORE
-M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
+M:	"Rafael J. Wysocki" <rafael@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Supported
 B:	https://bugzilla.kernel.org
@@ -17947,7 +17947,7 @@ F:	arch/sh/
 F:	drivers/sh/
 
 SUSPEND TO RAM
-M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
+M:	"Rafael J. Wysocki" <rafael@kernel.org>
 M:	Len Brown <len.brown@intel.com>
 M:	Pavel Machek <pavel@ucw.cz>
 L:	linux-pm@vger.kernel.org
