@@ -966,8 +966,20 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 	struct lpfc_nodelist *ndlp, *next_ndlp;
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
+		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
+			/* It's possible the FLOGI to the fabric node never
+			 * successfully completed and never registered with the
+			 * transport.  In this case there is no way to clean up
+			 * the node.
+			 */
+			if (ndlp->nlp_DID == Fabric_DID) {
+				if (ndlp->nlp_prev_state ==
+				    NLP_STE_UNUSED_NODE &&
+				    !ndlp->fc4_xpt_flags)
+					lpfc_nlp_put(ndlp);
+			}
 			continue;
+		}
 
 		if ((phba->sli3_options & LPFC_SLI3_VPORT_TEARDOWN) ||
 		    ((vport->port_type == LPFC_NPIV_PORT) &&

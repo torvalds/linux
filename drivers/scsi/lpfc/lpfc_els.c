@@ -11386,6 +11386,7 @@ lpfc_sli4_vport_delete_els_xri_aborted(struct lpfc_vport *vport)
 {
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_sglq *sglq_entry = NULL, *sglq_next = NULL;
+	struct lpfc_nodelist *ndlp = NULL;
 	unsigned long iflag = 0;
 
 	spin_lock_irqsave(&phba->sli4_hba.sgl_list_lock, iflag);
@@ -11393,7 +11394,20 @@ lpfc_sli4_vport_delete_els_xri_aborted(struct lpfc_vport *vport)
 			&phba->sli4_hba.lpfc_abts_els_sgl_list, list) {
 		if (sglq_entry->ndlp && sglq_entry->ndlp->vport == vport) {
 			lpfc_nlp_put(sglq_entry->ndlp);
+			ndlp = sglq_entry->ndlp;
 			sglq_entry->ndlp = NULL;
+
+			/* If the xri on the abts_els_sgl list is for the Fport
+			 * node and the vport is unloading, the xri aborted wcqe
+			 * likely isn't coming back.  Just release the sgl.
+			 */
+			if ((vport->load_flag & FC_UNLOADING) &&
+			    ndlp->nlp_DID == Fabric_DID) {
+				list_del(&sglq_entry->list);
+				sglq_entry->state = SGL_FREED;
+				list_add_tail(&sglq_entry->list,
+					&phba->sli4_hba.lpfc_els_sgl_list);
+			}
 		}
 	}
 	spin_unlock_irqrestore(&phba->sli4_hba.sgl_list_lock, iflag);
