@@ -96,8 +96,6 @@ s32 ODM_CompareMemory(struct odm_dm_struct *pDM_Odm, void *pBuf1, void *pBuf2,
 		      u32 length);
 
 /*  ODM MISC-workitem relative API. */
-void ODM_StartWorkItem(void *pRtWorkItem);
-
 void ODM_StopWorkItem(void *pRtWorkItem);
 
 void ODM_FreeWorkItem(void *pRtWorkItem);
