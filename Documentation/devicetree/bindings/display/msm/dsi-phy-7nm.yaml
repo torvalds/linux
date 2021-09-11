@@ -14,10 +14,10 @@ allOf:
 
 properties:
   compatible:
-    oneOf:
-      - const: qcom,dsi-phy-7nm
-      - const: qcom,dsi-phy-7nm-8150
-      - const: qcom,sc7280-dsi-phy-7nm
+    enum:
+      - qcom,dsi-phy-7nm
+      - qcom,dsi-phy-7nm-8150
+      - qcom,sc7280-dsi-phy-7nm
 
   reg:
     items:
