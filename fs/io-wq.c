@@ -246,8 +246,6 @@ static bool io_wqe_activate_free_worker(struct io_wqe *wqe,
  */
 static bool io_wqe_create_worker(struct io_wqe *wqe, struct io_wqe_acct *acct)
 {
-	bool do_create = false;
-
 	/*
 	 * Most likely an attempt to queue unbounded work on an io_wq that
 	 * wasn't setup with any unbounded workers.
@@ -256,18 +254,15 @@ static bool io_wqe_create_worker(struct io_wqe *wqe, struct io_wqe_acct *acct)
 		pr_warn_once("io-wq is not configured for unbound workers");
 
 	raw_spin_lock(&wqe->lock);
-	if (acct->nr_workers < acct->max_workers) {
-		acct->nr_workers++;
-		do_create = true;
+	if (acct->nr_workers == acct->max_workers) {
+		raw_spin_unlock(&wqe->lock);
+		return true;
 	}
+	acct->nr_workers++;
 	raw_spin_unlock(&wqe->lock);
-	if (do_create) {
-		atomic_inc(&acct->nr_running);
-		atomic_inc(&wqe->wq->worker_refs);
-		return create_io_worker(wqe->wq, wqe, acct->index);
-	}
-
-	return true;
+	atomic_inc(&acct->nr_running);
+	atomic_inc(&wqe->wq->worker_refs);
+	return create_io_worker(wqe->wq, wqe, acct->index);
 }
 
 static void io_wqe_inc_running(struct io_worker *worker)
