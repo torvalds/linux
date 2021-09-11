@@ -679,7 +679,6 @@ struct odm_rf_cal {
 	u32	Reg864;
 
 	bool	bIQKInitialized;
-	bool	bLCKInProgress;
 	bool	bAntennaDetected;
 	u32	ADDA_backup[IQK_ADDA_REG_NUM];
 	u32	IQK_MAC_backup[IQK_MAC_REG_NUM];

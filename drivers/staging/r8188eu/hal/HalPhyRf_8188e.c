@@ -1212,16 +1212,12 @@ void PHY_LCCalibrate_8188E(struct adapter *adapt)
 		timecount += 50;
 	}
 
-	dm_odm->RFCalibrateInfo.bLCKInProgress = true;
-
 	if (dm_odm->RFType == ODM_2T2R) {
 		phy_LCCalibrate_8188E(adapt, true);
 	} else {
 		/*  For 88C 1T1R */
 		phy_LCCalibrate_8188E(adapt, false);
 	}
-
-	dm_odm->RFCalibrateInfo.bLCKInProgress = false;
 }
 
 static void phy_setrfpathswitch_8188e(struct adapter *adapt, bool main, bool is2t)
