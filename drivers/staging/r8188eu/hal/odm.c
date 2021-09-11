@@ -1414,13 +1414,6 @@ void ODM_CancelAllTimers(struct odm_dm_struct *pDM_Odm)
 	ODM_CancelTimer(pDM_Odm, &pDM_Odm->DM_SWAT_Table.SwAntennaSwitchTimer);
 }
 
-void ODM_ReleaseAllTimers(struct odm_dm_struct *pDM_Odm)
-{
-	ODM_ReleaseTimer(pDM_Odm, &pDM_Odm->DM_SWAT_Table.SwAntennaSwitchTimer);
-
-	ODM_ReleaseTimer(pDM_Odm, &pDM_Odm->FastAntTrainingTimer);
-}
-
 /* 3============================================================ */
 /* 3 Tx Power Tracking */
 /* 3============================================================ */

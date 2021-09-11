@@ -1138,8 +1138,6 @@ void ODM_InitAllTimers(struct odm_dm_struct *pDM_Odm);
 
 void ODM_CancelAllTimers(struct odm_dm_struct *pDM_Odm);
 
-void ODM_ReleaseAllTimers(struct odm_dm_struct *pDM_Odm);
-
 void ODM_AntselStatistics_88C(struct odm_dm_struct *pDM_Odm, u8 MacId,
 			      u32 PWDBAll, bool isCCKrate);
 
