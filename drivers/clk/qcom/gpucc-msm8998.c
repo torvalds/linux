@@ -126,7 +126,7 @@ static struct clk_rcg2 rbcpr_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "rbcpr_clk_src",
 		.parent_data = gpu_xo_gpll0,
-		.num_parents = 2,
+		.num_parents = ARRAY_SIZE(gpu_xo_gpll0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -144,7 +144,7 @@ static struct clk_rcg2 gfx3d_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gfx3d_clk_src",
 		.parent_data = gpu_xo_gpupll0,
-		.num_parents = 2,
+		.num_parents = ARRAY_SIZE(gpu_xo_gpupll0),
 		.ops = &clk_rcg2_ops,
 		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 	},
@@ -163,7 +163,7 @@ static struct clk_rcg2 rbbmtimer_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "rbbmtimer_clk_src",
 		.parent_data = gpu_xo_gpll0,
-		.num_parents = 2,
+		.num_parents = ARRAY_SIZE(gpu_xo_gpll0),
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -184,7 +184,7 @@ static struct clk_rcg2 gfx3d_isense_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gfx3d_isense_clk_src",
 		.parent_data = gpu_xo_gpll0,
-		.num_parents = 2,
+		.num_parents = ARRAY_SIZE(gpu_xo_gpll0),
 		.ops = &clk_rcg2_ops,
 	},
 };
