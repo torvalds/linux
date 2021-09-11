@@ -195,23 +195,13 @@ static int pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(pc->mmio_base))
 		return PTR_ERR(pc->mmio_base);
 
-	ret = pwmchip_add(&pc->chip);
+	ret = devm_pwmchip_add(&pdev->dev, &pc->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, pc);
 	return 0;
-}
-
-static int pwm_remove(struct platform_device *pdev)
-{
-	struct pxa_pwm_chip *pc;
-
-	pc = platform_get_drvdata(pdev);
-
-	return pwmchip_remove(&pc->chip);
 }
 
 static struct platform_driver pwm_driver = {
@@ -220,7 +210,6 @@ static struct platform_driver pwm_driver = {
 		.of_match_table = pwm_of_match,
 	},
 	.probe		= pwm_probe,
-	.remove		= pwm_remove,
 	.id_table	= pwm_id_table,
 };
 
