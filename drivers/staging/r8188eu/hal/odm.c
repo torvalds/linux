@@ -1409,11 +1409,6 @@ void ODM_InitAllTimers(struct odm_dm_struct *pDM_Odm)
 	timer_setup(&pDM_Odm->DM_SWAT_Table.SwAntennaSwitchTimer, odm_SwAntDivChkAntSwitchCallback, 0);
 }
 
-void ODM_CancelAllTimers(struct odm_dm_struct *pDM_Odm)
-{
-	ODM_CancelTimer(pDM_Odm, &pDM_Odm->DM_SWAT_Table.SwAntennaSwitchTimer);
-}
-
 /* 3============================================================ */
 /* 3 Tx Power Tracking */
 /* 3============================================================ */
