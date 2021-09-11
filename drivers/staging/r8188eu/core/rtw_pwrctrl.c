@@ -200,11 +200,6 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 
 	pslv = PS_STATE(pslv);
 
-	if (pwrpriv->btcoex_rfon) {
-		if (pslv < PS_STATE_S4)
-			pslv = PS_STATE_S3;
-	}
-
 	if (pwrpriv->rpwm == pslv)
 		return;
 
@@ -440,8 +435,6 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 	pwrctrlpriv->bcn_ant_mode = 0;
 
 	pwrctrlpriv->tog = 0x80;
-
-	pwrctrlpriv->btcoex_rfon = false;
 
 	timer_setup(&pwrctrlpriv->pwr_state_check_timer, pwr_state_check_handler, 0);
 }

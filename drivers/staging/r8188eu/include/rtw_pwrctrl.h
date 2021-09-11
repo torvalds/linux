@@ -188,7 +188,6 @@ struct pwrctrl_priv {
 	u8	power_mgnt;
 	u8	bFwCurrentInPSMode;
 	u32	DelayLPSLastTimeStamp;
-	u8	btcoex_rfon;
 	s32		pnp_current_pwr_state;
 	u8		pnp_bstop_trx;
 
