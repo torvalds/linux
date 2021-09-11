@@ -53,8 +53,7 @@ static struct clk_fixed_factor gpll0_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "mmss_gpll0_div",
 		.parent_data = &(const struct clk_parent_data){
-			.fw_name = "gpll0",
-			.name = "gpll0"
+			.fw_name = "gpll0"
 		},
 		.num_parents = 1,
 		.ops = &clk_fixed_factor_ops,
@@ -78,8 +77,7 @@ static struct clk_alpha_pll mmpll0 = {
 		.hw.init = &(struct clk_init_data){
 			.name = "mmpll0",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "xo",
-				.name = "xo"
+				.fw_name = "xo"
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_fixed_fabia_ops,
@@ -111,8 +109,7 @@ static struct clk_alpha_pll mmpll1 = {
 		.hw.init = &(struct clk_init_data){
 			.name = "mmpll1",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "xo",
-				.name = "xo"
+				.fw_name = "xo"
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_fixed_fabia_ops,
@@ -141,8 +138,7 @@ static struct clk_alpha_pll mmpll3 = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "mmpll3",
 		.parent_data = &(const struct clk_parent_data){
-			.fw_name = "xo",
-			.name = "xo"
+			.fw_name = "xo"
 		},
 		.num_parents = 1,
 		.ops = &clk_alpha_pll_fixed_fabia_ops,
@@ -170,8 +166,7 @@ static struct clk_alpha_pll mmpll4 = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "mmpll4",
 		.parent_data = &(const struct clk_parent_data){
-			.fw_name = "xo",
-			.name = "xo"
+			.fw_name = "xo"
 		},
 		.num_parents = 1,
 		.ops = &clk_alpha_pll_fixed_fabia_ops,
@@ -199,8 +194,7 @@ static struct clk_alpha_pll mmpll5 = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "mmpll5",
 		.parent_data = &(const struct clk_parent_data){
-			.fw_name = "xo",
-			.name = "xo"
+			.fw_name = "xo"
 		},
 		.num_parents = 1,
 		.ops = &clk_alpha_pll_fixed_fabia_ops,
@@ -228,8 +222,7 @@ static struct clk_alpha_pll mmpll6 = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "mmpll6",
 		.parent_data = &(const struct clk_parent_data){
-			.fw_name = "xo",
-			.name = "xo"
+			.fw_name = "xo"
 		},
 		.num_parents = 1,
 		.ops = &clk_alpha_pll_fixed_fabia_ops,
@@ -257,8 +250,7 @@ static struct clk_alpha_pll mmpll7 = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "mmpll7",
 		.parent_data = &(const struct clk_parent_data){
-			.fw_name = "xo",
-			.name = "xo"
+			.fw_name = "xo"
 		},
 		.num_parents = 1,
 		.ops = &clk_alpha_pll_fixed_fabia_ops,
@@ -286,8 +278,7 @@ static struct clk_alpha_pll mmpll10 = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "mmpll10",
 		.parent_data = &(const struct clk_parent_data){
-			.fw_name = "xo",
-			.name = "xo"
+			.fw_name = "xo"
 		},
 		.num_parents = 1,
 		.ops = &clk_alpha_pll_fixed_fabia_ops,
@@ -316,9 +307,9 @@ static const struct parent_map mmss_xo_hdmi_map[] = {
 };
 
 static const struct clk_parent_data mmss_xo_hdmi[] = {
-	{ .fw_name = "xo", .name = "xo" },
-	{ .fw_name = "hdmipll", .name = "hdmipll" },
-	{ .fw_name = "core_bi_pll_test_se", .name = "core_bi_pll_test_se" },
+	{ .fw_name = "xo" },
+	{ .fw_name = "hdmipll" },
+	{ .fw_name = "core_bi_pll_test_se" },
 };
 
 static const struct parent_map mmss_xo_dsi0pll_dsi1pll_map[] = {
@@ -329,10 +320,10 @@ static const struct parent_map mmss_xo_dsi0pll_dsi1pll_map[] = {
 };
 
 static const struct clk_parent_data mmss_xo_dsi0pll_dsi1pll[] = {
-	{ .fw_name = "xo", .name = "xo" },
-	{ .fw_name = "dsi0dsi", .name = "dsi0dsi" },
-	{ .fw_name = "dsi1dsi", .name = "dsi1dsi" },
-	{ .fw_name = "core_bi_pll_test_se", .name = "core_bi_pll_test_se" },
+	{ .fw_name = "xo" },
+	{ .fw_name = "dsi0dsi" },
+	{ .fw_name = "dsi1dsi" },
+	{ .fw_name = "core_bi_pll_test_se" },
 };
 
 static const struct parent_map mmss_xo_dsibyte_map[] = {
@@ -343,10 +334,10 @@ static const struct parent_map mmss_xo_dsibyte_map[] = {
 };
 
 static const struct clk_parent_data mmss_xo_dsibyte[] = {
-	{ .fw_name = "xo", .name = "xo" },
-	{ .fw_name = "dsi0byte", .name = "dsi0byte" },
-	{ .fw_name = "dsi1byte", .name = "dsi1byte" },
-	{ .fw_name = "core_bi_pll_test_se", .name = "core_bi_pll_test_se" },
+	{ .fw_name = "xo" },
+	{ .fw_name = "dsi0byte" },
+	{ .fw_name = "dsi1byte" },
+	{ .fw_name = "core_bi_pll_test_se" },
 };
 
 static const struct parent_map mmss_xo_dp_map[] = {
@@ -357,10 +348,10 @@ static const struct parent_map mmss_xo_dp_map[] = {
 };
 
 static const struct clk_parent_data mmss_xo_dp[] = {
-	{ .fw_name = "xo", .name = "xo" },
-	{ .fw_name = "dplink", .name = "dplink" },
-	{ .fw_name = "dpvco", .name = "dpvco" },
-	{ .fw_name = "core_bi_pll_test_se", .name = "core_bi_pll_test_se" },
+	{ .fw_name = "xo" },
+	{ .fw_name = "dplink" },
+	{ .fw_name = "dpvco" },
+	{ .fw_name = "core_bi_pll_test_se" },
 };
 
 static const struct parent_map mmss_xo_gpll0_gpll0_div_map[] = {
@@ -371,10 +362,10 @@ static const struct parent_map mmss_xo_gpll0_gpll0_div_map[] = {
 };
 
 static const struct clk_parent_data mmss_xo_gpll0_gpll0_div[] = {
-	{ .fw_name = "xo", .name = "xo" },
-	{ .fw_name = "gpll0", .name = "gpll0" },
+	{ .fw_name = "xo" },
+	{ .fw_name = "gpll0" },
 	{ .hw = &gpll0_div.hw },
-	{ .fw_name = "core_bi_pll_test_se", .name = "core_bi_pll_test_se" },
+	{ .fw_name = "core_bi_pll_test_se" },
 };
 
 static const struct parent_map mmss_xo_mmpll0_gpll0_gpll0_div_map[] = {
@@ -386,11 +377,11 @@ static const struct parent_map mmss_xo_mmpll0_gpll0_gpll0_div_map[] = {
 };
 
 static const struct clk_parent_data mmss_xo_mmpll0_gpll0_gpll0_div[] = {
-	{ .fw_name = "xo", .name = "xo" },
+	{ .fw_name = "xo" },
 	{ .hw = &mmpll0_out_even.clkr.hw },
-	{ .fw_name = "gpll0", .name = "gpll0" },
+	{ .fw_name = "gpll0" },
 	{ .hw = &gpll0_div.hw },
-	{ .fw_name = "core_bi_pll_test_se", .name = "core_bi_pll_test_se" },
+	{ .fw_name = "core_bi_pll_test_se" },
 };
 
 static const struct parent_map mmss_xo_mmpll0_mmpll1_gpll0_gpll0_div_map[] = {
@@ -403,12 +394,12 @@ static const struct parent_map mmss_xo_mmpll0_mmpll1_gpll0_gpll0_div_map[] = {
 };
 
 static const struct clk_parent_data mmss_xo_mmpll0_mmpll1_gpll0_gpll0_div[] = {
-	{ .fw_name = "xo", .name = "xo" },
+	{ .fw_name = "xo" },
 	{ .hw = &mmpll0_out_even.clkr.hw },
 	{ .hw = &mmpll1_out_even.clkr.hw },
-	{ .fw_name = "gpll0", .name = "gpll0" },
+	{ .fw_name = "gpll0" },
 	{ .hw = &gpll0_div.hw },
-	{ .fw_name = "core_bi_pll_test_se", .name = "core_bi_pll_test_se" },
+	{ .fw_name = "core_bi_pll_test_se" },
 };
 
 static const struct parent_map mmss_xo_mmpll0_mmpll5_gpll0_gpll0_div_map[] = {
@@ -421,12 +412,12 @@ static const struct parent_map mmss_xo_mmpll0_mmpll5_gpll0_gpll0_div_map[] = {
 };
 
 static const struct clk_parent_data mmss_xo_mmpll0_mmpll5_gpll0_gpll0_div[] = {
-	{ .fw_name = "xo", .name = "xo" },
+	{ .fw_name = "xo" },
 	{ .hw = &mmpll0_out_even.clkr.hw },
 	{ .hw = &mmpll5_out_even.clkr.hw },
-	{ .fw_name = "gpll0", .name = "gpll0" },
+	{ .fw_name = "gpll0" },
 	{ .hw = &gpll0_div.hw },
-	{ .fw_name = "core_bi_pll_test_se", .name = "core_bi_pll_test_se" },
+	{ .fw_name = "core_bi_pll_test_se" },
 };
 
 static const struct parent_map mmss_xo_mmpll0_mmpll3_mmpll6_gpll0_gpll0_div_map[] = {
@@ -440,13 +431,13 @@ static const struct parent_map mmss_xo_mmpll0_mmpll3_mmpll6_gpll0_gpll0_div_map[
 };
 
 static const struct clk_parent_data mmss_xo_mmpll0_mmpll3_mmpll6_gpll0_gpll0_div[] = {
-	{ .fw_name = "xo", .name = "xo" },
+	{ .fw_name = "xo" },
 	{ .hw = &mmpll0_out_even.clkr.hw },
 	{ .hw = &mmpll3_out_even.clkr.hw },
 	{ .hw = &mmpll6_out_even.clkr.hw },
-	{ .fw_name = "gpll0", .name = "gpll0" },
+	{ .fw_name = "gpll0" },
 	{ .hw = &gpll0_div.hw },
-	{ .fw_name = "core_bi_pll_test_se", .name = "core_bi_pll_test_se" },
+	{ .fw_name = "core_bi_pll_test_se" },
 };
 
 static const struct parent_map mmss_xo_mmpll4_mmpll7_mmpll10_gpll0_gpll0_div_map[] = {
@@ -460,13 +451,13 @@ static const struct parent_map mmss_xo_mmpll4_mmpll7_mmpll10_gpll0_gpll0_div_map
 };
 
 static const struct clk_parent_data mmss_xo_mmpll4_mmpll7_mmpll10_gpll0_gpll0_div[] = {
-	{ .fw_name = "xo", .name = "xo" },
+	{ .fw_name = "xo" },
 	{ .hw = &mmpll4_out_even.clkr.hw },
 	{ .hw = &mmpll7_out_even.clkr.hw },
 	{ .hw = &mmpll10_out_even.clkr.hw },
-	{ .fw_name = "gpll0", .name = "gpll0" },
+	{ .fw_name = "gpll0" },
 	{ .hw = &gpll0_div.hw },
-	{ .fw_name = "core_bi_pll_test_se", .name = "core_bi_pll_test_se" },
+	{ .fw_name = "core_bi_pll_test_se" },
 };
 
 static const struct parent_map mmss_xo_mmpll0_mmpll7_mmpll10_gpll0_gpll0_div_map[] = {
@@ -480,13 +471,13 @@ static const struct parent_map mmss_xo_mmpll0_mmpll7_mmpll10_gpll0_gpll0_div_map
 };
 
 static const struct clk_parent_data mmss_xo_mmpll0_mmpll7_mmpll10_gpll0_gpll0_div[] = {
-	{ .fw_name = "xo", .name = "xo" },
+	{ .fw_name = "xo" },
 	{ .hw = &mmpll0_out_even.clkr.hw },
 	{ .hw = &mmpll7_out_even.clkr.hw },
 	{ .hw = &mmpll10_out_even.clkr.hw },
-	{ .fw_name = "gpll0", .name = "gpll0" },
+	{ .fw_name = "gpll0" },
 	{ .hw = &gpll0_div.hw },
-	{ .fw_name = "core_bi_pll_test_se", .name = "core_bi_pll_test_se" },
+	{ .fw_name = "core_bi_pll_test_se" },
 };
 
 static const struct parent_map mmss_xo_mmpll0_mmpll4_mmpll7_mmpll10_gpll0_gpll0_div_map[] = {
@@ -501,14 +492,14 @@ static const struct parent_map mmss_xo_mmpll0_mmpll4_mmpll7_mmpll10_gpll0_gpll0_
 };
 
 static const struct clk_parent_data mmss_xo_mmpll0_mmpll4_mmpll7_mmpll10_gpll0_gpll0_div[] = {
-	{ .fw_name = "xo", .name = "xo" },
+	{ .fw_name = "xo" },
 	{ .hw = &mmpll0_out_even.clkr.hw },
 	{ .hw = &mmpll4_out_even.clkr.hw },
 	{ .hw = &mmpll7_out_even.clkr.hw },
 	{ .hw = &mmpll10_out_even.clkr.hw },
-	{ .fw_name = "gpll0", .name = "gpll0" },
+	{ .fw_name = "gpll0" },
 	{ .hw = &gpll0_div.hw },
-	{ .fw_name = "core_bi_pll_test_se", .name = "core_bi_pll_test_se" },
+	{ .fw_name = "core_bi_pll_test_se" },
 };
 
 static struct clk_rcg2 byte0_clk_src = {
