@@ -94,10 +94,6 @@ s32 ODM_CompareMemory(struct odm_dm_struct *pDM_Odm, void *pBuf1, void *pBuf2, u
 }
 
 /*  Work item relative API. FOr MP driver only~! */
-void ODM_FreeWorkItem(void *pRtWorkItem)
-{
-}
-
 void ODM_ScheduleWorkItem(void *pRtWorkItem)
 {
 }
