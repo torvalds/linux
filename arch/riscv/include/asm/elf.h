@@ -42,6 +42,9 @@
  */
 #define ELF_ET_DYN_BASE		((TASK_SIZE / 3) * 2)
 
+#ifdef CONFIG_64BIT
+#define STACK_RND_MASK		(0x3ffff >> (PAGE_SHIFT - 12))
+#endif
 /*
  * This yields a mask that user programs can use to figure out what
  * instruction set this CPU supports.  This could be done in user space,
