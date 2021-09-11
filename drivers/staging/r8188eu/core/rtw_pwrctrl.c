@@ -204,8 +204,6 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 
 	if ((padapter->bSurpriseRemoved) ||
 	    (!padapter->hw_init_completed)) {
-		pwrpriv->cpwm = PS_STATE_S4;
-
 		return;
 	}
 
@@ -217,8 +215,6 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 	pwrpriv->rpwm = pslv;
 
 	pwrpriv->tog += 0x80;
-	pwrpriv->cpwm = pslv;
-
 }
 
 static u8 PS_RDY_CHECK(struct adapter *padapter)
@@ -423,7 +419,6 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 	pwrctrlpriv->bFwCurrentInPSMode = false;
 
 	pwrctrlpriv->rpwm = 0;
-	pwrctrlpriv->cpwm = PS_STATE_S4;
 
 	pwrctrlpriv->pwr_mode = PS_MODE_ACTIVE;
 	pwrctrlpriv->smart_ps = padapter->registrypriv.smart_ps;
