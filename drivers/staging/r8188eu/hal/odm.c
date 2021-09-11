@@ -1404,11 +1404,6 @@ void odm_RSSIMonitorCheckAP(struct odm_dm_struct *pDM_Odm)
 {
 }
 
-void ODM_InitAllTimers(struct odm_dm_struct *pDM_Odm)
-{
-	timer_setup(&pDM_Odm->DM_SWAT_Table.SwAntennaSwitchTimer, odm_SwAntDivChkAntSwitchCallback, 0);
-}
-
 /* 3============================================================ */
 /* 3 Tx Power Tracking */
 /* 3============================================================ */
