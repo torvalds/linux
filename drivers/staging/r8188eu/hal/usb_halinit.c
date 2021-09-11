@@ -1008,15 +1008,6 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 	haldata->bMacPwrCtrlOn = false;
 	Adapter->bFWReady = false;
 }
-static void rtl8192cu_hw_power_down(struct adapter *adapt)
-{
-	/*  2010/-8/09 MH For power down module, we need to enable register block contrl reg at 0x1c. */
-	/*  Then enable power down control bit of register 0x04 BIT(4) and BIT(15) as 1. */
-
-	/*  Enable register area 0x0-0xc. */
-	rtw_write8(adapt, REG_RSV_CTRL, 0x0);
-	rtw_write16(adapt, REG_APS_FSMCO, 0x8812);
-}
 
 static u32 rtl8188eu_hal_deinit(struct adapter *Adapter)
 {
@@ -1029,14 +1020,9 @@ static u32 rtl8188eu_hal_deinit(struct adapter *Adapter)
 	DBG_88E("bkeepfwalive(%x)\n", Adapter->pwrctrlpriv.bkeepfwalive);
 	if (Adapter->pwrctrlpriv.bkeepfwalive) {
 		_ps_close_RF(Adapter);
-		if ((Adapter->pwrctrlpriv.bHWPwrPindetect) && (Adapter->pwrctrlpriv.bHWPowerdown))
-			rtl8192cu_hw_power_down(Adapter);
 	} else {
 		if (Adapter->hw_init_completed) {
 			CardDisableRTL8188EU(Adapter);
-
-			if ((Adapter->pwrctrlpriv.bHWPwrPindetect) && (Adapter->pwrctrlpriv.bHWPowerdown))
-				rtl8192cu_hw_power_down(Adapter);
 		}
 	}
 	return _SUCCESS;
