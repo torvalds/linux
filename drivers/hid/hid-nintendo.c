@@ -348,6 +348,12 @@ enum joycon_msg_type {
 	JOYCON_MSG_TYPE_SUBCMD,
 };
 
+struct joycon_rumble_output {
+	u8 output_id;
+	u8 packet_num;
+	u8 rumble_data[8];
+} __packed;
+
 struct joycon_subcmd_request {
 	u8 output_id; /* must be 0x01 for subcommand, 0x10 for rumble only */
 	u8 packet_num; /* incremented every send */
@@ -1328,6 +1334,36 @@ static void joycon_parse_report(struct joycon_ctlr *ctlr,
 		joycon_parse_imu_report(ctlr, rep);
 }
 
+static int joycon_send_rumble_data(struct joycon_ctlr *ctlr)
+{
+	int ret;
+	unsigned long flags;
+	struct joycon_rumble_output rumble_output = { 0 };
+
+	spin_lock_irqsave(&ctlr->lock, flags);
+	/*
+	 * If the controller has been removed, just return ENODEV so the LED
+	 * subsystem doesn't print invalid errors on removal.
+	 */
+	if (ctlr->ctlr_state == JOYCON_CTLR_STATE_REMOVED) {
+		spin_unlock_irqrestore(&ctlr->lock, flags);
+		return -ENODEV;
+	}
+	memcpy(rumble_output.rumble_data,
+	       ctlr->rumble_data[ctlr->rumble_queue_tail],
+	       JC_RUMBLE_DATA_SIZE);
+	spin_unlock_irqrestore(&ctlr->lock, flags);
+
+	rumble_output.output_id = JC_OUTPUT_RUMBLE_ONLY;
+	rumble_output.packet_num = ctlr->subcmd_num;
+	if (++ctlr->subcmd_num > 0xF)
+		ctlr->subcmd_num = 0;
+
+	ret = __joycon_hid_send(ctlr->hdev, (u8 *)&rumble_output,
+				sizeof(rumble_output));
+	return ret;
+}
+
 static void joycon_rumble_worker(struct work_struct *work)
 {
 	struct joycon_ctlr *ctlr = container_of(work, struct joycon_ctlr,
@@ -1338,7 +1374,7 @@ static void joycon_rumble_worker(struct work_struct *work)
 
 	while (again) {
 		mutex_lock(&ctlr->output_mutex);
-		ret = joycon_enable_rumble(ctlr);
+		ret = joycon_send_rumble_data(ctlr);
 		mutex_unlock(&ctlr->output_mutex);
 
 		/* -ENODEV means the controller was just unplugged */
