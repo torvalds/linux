@@ -3901,26 +3901,27 @@ static int rk3308_codec_default_gains(struct rk3308_codec_priv *rk3308)
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON12,
 			   RK3308_DAC_L_HPMIX_GAIN_MSK |
 			   RK3308_DAC_R_HPMIX_GAIN_MSK,
-			   RK3308_DAC_L_HPMIX_GAIN_NDB_6 |
-			   RK3308_DAC_R_HPMIX_GAIN_NDB_6);
+			   RK3308_DAC_L_HPMIX_GAIN_0DB |
+			   RK3308_DAC_R_HPMIX_GAIN_0DB);
 
 	/* Step 18, set HPOUT default gains */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON05,
 			   RK3308_DAC_L_HPOUT_GAIN_MSK,
-			   RK3308_DAC_L_HPOUT_GAIN_NDB_39);
+			   RK3308_DAC_L_HPOUT_GAIN_0DB);
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON06,
 			   RK3308_DAC_R_HPOUT_GAIN_MSK,
-			   RK3308_DAC_R_HPOUT_GAIN_NDB_39);
+			   RK3308_DAC_R_HPOUT_GAIN_0DB);
 
 	/* Using the same gain to HPOUT LR channels */
-	rk3308->hpout_l_dgain = RK3308_DAC_L_HPOUT_GAIN_NDB_39;
+	rk3308->hpout_l_dgain = RK3308_DAC_L_HPOUT_GAIN_0DB;
+	rk3308->hpout_r_dgain = RK3308_DAC_R_HPOUT_GAIN_0DB;
 
 	/* Step 19, set LINEOUT default gains */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
 			   RK3308_DAC_L_LINEOUT_GAIN_MSK |
 			   RK3308_DAC_R_LINEOUT_GAIN_MSK,
-			   RK3308_DAC_L_LINEOUT_GAIN_NDB_6 |
-			   RK3308_DAC_R_LINEOUT_GAIN_NDB_6);
+			   RK3308_DAC_L_LINEOUT_GAIN_0DB |
+			   RK3308_DAC_R_LINEOUT_GAIN_0DB);
 
 	if (rk3308->codec_ver == ACODEC_VERSION_C) {
 		/* recover DAC digtial gain to 0dB */
