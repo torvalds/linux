@@ -927,8 +927,7 @@ static int jmb38x_ms_probe(struct pci_dev *pdev,
 		goto err_out_int;
 	}
 
-	jm = kzalloc(sizeof(struct jmb38x_ms)
-		     + cnt * sizeof(struct memstick_host *), GFP_KERNEL);
+	jm = kzalloc(struct_size(jm, hosts, cnt), GFP_KERNEL);
 	if (!jm) {
 		rc = -ENOMEM;
 		goto err_out_int;
