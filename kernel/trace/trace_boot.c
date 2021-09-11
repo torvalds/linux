@@ -219,13 +219,12 @@ static int __init
 trace_boot_hist_add_array(struct xbc_node *hnode, char **bufp,
 			  char *end, const char *key)
 {
-	struct xbc_node *knode, *anode;
+	struct xbc_node *anode;
 	const char *p;
 	char sep;
 
-	knode = xbc_node_find_child(hnode, key);
-	if (knode) {
-		anode = xbc_node_get_child(knode);
+	p = xbc_node_find_value(hnode, key, &anode);
+	if (p) {
 		if (!anode) {
 			pr_err("hist.%s requires value(s).\n", key);
 			return -EINVAL;
@@ -263,9 +262,9 @@ trace_boot_hist_add_one_handler(struct xbc_node *hnode, char **bufp,
 	append_printf(bufp, end, ":%s(%s)", handler, p);
 
 	/* Compose 'action' parameter */
-	knode = xbc_node_find_child(hnode, "trace");
+	knode = xbc_node_find_subkey(hnode, "trace");
 	if (!knode)
-		knode = xbc_node_find_child(hnode, "save");
+		knode = xbc_node_find_subkey(hnode, "save");
 
 	if (knode) {
 		anode = xbc_node_get_child(knode);
@@ -284,7 +283,7 @@ trace_boot_hist_add_one_handler(struct xbc_node *hnode, char **bufp,
 				sep = ',';
 		}
 		append_printf(bufp, end, ")");
-	} else if (xbc_node_find_child(hnode, "snapshot")) {
+	} else if (xbc_node_find_subkey(hnode, "snapshot")) {
 		append_printf(bufp, end, ".snapshot()");
 	} else {
 		pr_err("hist.%s requires an action.\n",
@@ -315,7 +314,7 @@ trace_boot_hist_add_handlers(struct xbc_node *hnode, char **bufp,
 			break;
 	}
 
-	if (xbc_node_find_child(hnode, param))
+	if (xbc_node_find_subkey(hnode, param))
 		ret = trace_boot_hist_add_one_handler(hnode, bufp, end, handler, param);
 
 	return ret;
@@ -375,7 +374,7 @@ trace_boot_compose_hist_cmd(struct xbc_node *hnode, char *buf, size_t size)
 	if (p)
 		append_printf(&buf, end, ":name=%s", p);
 
-	node = xbc_node_find_child(hnode, "var");
+	node = xbc_node_find_subkey(hnode, "var");
 	if (node) {
 		xbc_node_for_each_key_value(node, knode, p) {
 			/* Expression must not include spaces. */
@@ -386,21 +385,21 @@ trace_boot_compose_hist_cmd(struct xbc_node *hnode, char *buf, size_t size)
 	}
 
 	/* Histogram control attributes (mutual exclusive) */
-	if (xbc_node_find_child(hnode, "pause"))
+	if (xbc_node_find_value(hnode, "pause", NULL))
 		append_printf(&buf, end, ":pause");
-	else if (xbc_node_find_child(hnode, "continue"))
+	else if (xbc_node_find_value(hnode, "continue", NULL))
 		append_printf(&buf, end, ":continue");
-	else if (xbc_node_find_child(hnode, "clear"))
+	else if (xbc_node_find_value(hnode, "clear", NULL))
 		append_printf(&buf, end, ":clear");
 
 	/* Histogram handler and actions */
-	node = xbc_node_find_child(hnode, "onmax");
+	node = xbc_node_find_subkey(hnode, "onmax");
 	if (node && trace_boot_hist_add_handlers(node, &buf, end, "var") < 0)
 		return -EINVAL;
-	node = xbc_node_find_child(hnode, "onchange");
+	node = xbc_node_find_subkey(hnode, "onchange");
 	if (node && trace_boot_hist_add_handlers(node, &buf, end, "var") < 0)
 		return -EINVAL;
-	node = xbc_node_find_child(hnode, "onmatch");
+	node = xbc_node_find_subkey(hnode, "onmatch");
 	if (node && trace_boot_hist_add_handlers(node, &buf, end, "event") < 0)
 		return -EINVAL;
 
@@ -437,7 +436,7 @@ trace_boot_init_histograms(struct trace_event_file *file,
 		}
 	}
 
-	if (xbc_node_find_child(hnode, "keys")) {
+	if (xbc_node_find_subkey(hnode, "keys")) {
 		if (trace_boot_compose_hist_cmd(hnode, buf, size) == 0) {
 			tmp = kstrdup(buf, GFP_KERNEL);
 			if (trigger_process_regex(file, buf) < 0)
@@ -496,7 +495,7 @@ trace_boot_init_one_event(struct trace_array *tr, struct xbc_node *gnode,
 			else if (trigger_process_regex(file, buf) < 0)
 				pr_err("Failed to apply an action: %s\n", p);
 		}
-		anode = xbc_node_find_child(enode, "hist");
+		anode = xbc_node_find_subkey(enode, "hist");
 		if (anode)
 			trace_boot_init_histograms(file, anode, buf, ARRAY_SIZE(buf));
 	} else if (xbc_node_find_value(enode, "actions", NULL))
@@ -518,7 +517,7 @@ trace_boot_init_events(struct trace_array *tr, struct xbc_node *node)
 	bool enable, enable_all = false;
 	const char *data;
 
-	node = xbc_node_find_child(node, "event");
+	node = xbc_node_find_subkey(node, "event");
 	if (!node)
 		return;
 	/* per-event key starts with "event.GROUP.EVENT" */
@@ -621,7 +620,7 @@ trace_boot_init_instances(struct xbc_node *node)
 	struct trace_array *tr;
 	const char *p;
 
-	node = xbc_node_find_child(node, "instance");
+	node = xbc_node_find_subkey(node, "instance");
 	if (!node)
 		return;
 
