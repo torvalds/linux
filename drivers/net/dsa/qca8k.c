@@ -643,10 +643,8 @@ qca8k_mdio_busy_wait(struct mii_bus *bus, u32 reg, u32 mask)
 }
 
 static int
-qca8k_mdio_write(struct mii_bus *salve_bus, int phy, int regnum, u16 data)
+qca8k_mdio_write(struct mii_bus *bus, int phy, int regnum, u16 data)
 {
-	struct qca8k_priv *priv = salve_bus->priv;
-	struct mii_bus *bus = priv->bus;
 	u16 r1, r2, page;
 	u32 val;
 	int ret;
@@ -682,10 +680,8 @@ exit:
 }
 
 static int
-qca8k_mdio_read(struct mii_bus *salve_bus, int phy, int regnum)
+qca8k_mdio_read(struct mii_bus *bus, int phy, int regnum)
 {
-	struct qca8k_priv *priv = salve_bus->priv;
-	struct mii_bus *bus = priv->bus;
 	u16 r1, r2, page;
 	u32 val;
 	int ret;
@@ -724,6 +720,24 @@ exit:
 		ret = val & QCA8K_MDIO_MASTER_DATA_MASK;
 
 	return ret;
+}
+
+static int
+qca8k_internal_mdio_write(struct mii_bus *slave_bus, int phy, int regnum, u16 data)
+{
+	struct qca8k_priv *priv = slave_bus->priv;
+	struct mii_bus *bus = priv->bus;
+
+	return qca8k_mdio_write(bus, phy, regnum, data);
+}
+
+static int
+qca8k_internal_mdio_read(struct mii_bus *slave_bus, int phy, int regnum)
+{
+	struct qca8k_priv *priv = slave_bus->priv;
+	struct mii_bus *bus = priv->bus;
+
+	return qca8k_mdio_read(bus, phy, regnum);
 }
 
 static int
@@ -775,8 +789,8 @@ qca8k_mdio_register(struct qca8k_priv *priv, struct device_node *mdio)
 
 	bus->priv = (void *)priv;
 	bus->name = "qca8k slave mii";
-	bus->read = qca8k_mdio_read;
-	bus->write = qca8k_mdio_write;
+	bus->read = qca8k_internal_mdio_read;
+	bus->write = qca8k_internal_mdio_write;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "qca8k-%d",
 		 ds->index);
 
