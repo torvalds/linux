@@ -141,11 +141,6 @@ void ODM_sleep_ms(u32 ms)
 	msleep(ms);
 }
 
-void ODM_sleep_us(u32 us)
-{
-	rtw_usleep_os(us);
-}
-
 void ODM_SetTimer(struct odm_dm_struct *pDM_Odm, struct timer_list *pTimer, u32 msDelay)
 {
 	_set_timer(pTimer, msDelay); /* ms */
