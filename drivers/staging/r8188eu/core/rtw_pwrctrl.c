@@ -213,8 +213,6 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 	}
 
 	pwrpriv->rpwm = pslv;
-
-	pwrpriv->tog += 0x80;
 }
 
 static u8 PS_RDY_CHECK(struct adapter *padapter)
@@ -423,8 +421,6 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 	pwrctrlpriv->pwr_mode = PS_MODE_ACTIVE;
 	pwrctrlpriv->smart_ps = padapter->registrypriv.smart_ps;
 	pwrctrlpriv->bcn_ant_mode = 0;
-
-	pwrctrlpriv->tog = 0x80;
 
 	timer_setup(&pwrctrlpriv->pwr_state_check_timer, pwr_state_check_handler, 0);
 }
