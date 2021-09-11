@@ -176,7 +176,6 @@ static void io_worker_ref_put(struct io_wq *wq)
 static void io_worker_exit(struct io_worker *worker)
 {
 	struct io_wqe *wqe = worker->wqe;
-	struct io_wqe_acct *acct = io_wqe_get_acct(worker);
 
 	if (refcount_dec_and_test(&worker->ref))
 		complete(&worker->ref_done);
@@ -186,7 +185,6 @@ static void io_worker_exit(struct io_worker *worker)
 	if (worker->flags & IO_WORKER_F_FREE)
 		hlist_nulls_del_rcu(&worker->nulls_node);
 	list_del_rcu(&worker->all_list);
-	acct->nr_workers--;
 	preempt_disable();
 	io_wqe_dec_running(worker);
 	worker->flags = 0;
@@ -569,6 +567,7 @@ loop:
 		}
 		/* timed out, exit unless we're the last worker */
 		if (last_timeout && acct->nr_workers > 1) {
+			acct->nr_workers--;
 			raw_spin_unlock(&wqe->lock);
 			__set_current_state(TASK_RUNNING);
 			break;
