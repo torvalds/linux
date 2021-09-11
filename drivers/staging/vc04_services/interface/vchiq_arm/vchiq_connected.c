@@ -10,7 +10,7 @@
 
 static   int                        g_connected;
 static   int                        g_num_deferred_callbacks;
-static   VCHIQ_CONNECTED_CALLBACK_T g_deferred_callback[MAX_CALLBACKS];
+static   void (*g_deferred_callback[MAX_CALLBACKS])(void);
 static   int                        g_once_init;
 static   DEFINE_MUTEX(g_connected_mutex);
 
@@ -28,7 +28,7 @@ static void connected_init(void)
  * be made immediately, otherwise it will be deferred until
  * vchiq_call_connected_callbacks is called.
  */
-void vchiq_add_connected_callback(VCHIQ_CONNECTED_CALLBACK_T callback)
+void vchiq_add_connected_callback(void (*callback)(void))
 {
 	connected_init();
 

@@ -152,8 +152,6 @@ enum vchiq_bulk_dir {
 	VCHIQ_BULK_RECEIVE
 };
 
-typedef void (*vchiq_userdata_term)(void *userdata);
-
 struct vchiq_bulk {
 	short mode;
 	short dir;
@@ -198,7 +196,7 @@ struct vchiq_service {
 	struct kref ref_count;
 	struct rcu_head rcu;
 	int srvstate;
-	vchiq_userdata_term userdata_term;
+	void (*userdata_term)(void *userdata);
 	unsigned int localport;
 	unsigned int remoteport;
 	int public_fourcc;
@@ -476,7 +474,7 @@ struct vchiq_service *
 vchiq_add_service_internal(struct vchiq_state *state,
 			   const struct vchiq_service_params_kernel *params,
 			   int srvstate, struct vchiq_instance *instance,
-			   vchiq_userdata_term userdata_term);
+			   void (*userdata_term)(void *userdata));
 
 extern enum vchiq_status
 vchiq_open_service_internal(struct vchiq_service *service, int client_id);

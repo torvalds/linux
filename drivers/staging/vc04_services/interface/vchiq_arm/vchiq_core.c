@@ -2474,7 +2474,7 @@ struct vchiq_service *
 vchiq_add_service_internal(struct vchiq_state *state,
 			   const struct vchiq_service_params_kernel *params,
 			   int srvstate, struct vchiq_instance *instance,
-			   vchiq_userdata_term userdata_term)
+			   void (*userdata_term)(void *userdata))
 {
 	struct vchiq_service *service;
 	struct vchiq_service __rcu **pservice = NULL;
