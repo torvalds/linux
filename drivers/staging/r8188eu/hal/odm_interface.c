@@ -93,11 +93,6 @@ s32 ODM_CompareMemory(struct odm_dm_struct *pDM_Odm, void *pBuf1, void *pBuf2, u
 	return !memcmp(pBuf1, pBuf2, length);
 }
 
-/*  Work item relative API. FOr MP driver only~! */
-void ODM_IsWorkItemScheduled(void *pRtWorkItem)
-{
-}
-
 /*  ODM Timer relative API. */
 void ODM_StallExecution(u32 usDelay)
 {
