@@ -130,9 +130,4 @@ void ODM_InitializeTimer(struct odm_dm_struct *pDM_Odm,
 
 void ODM_CancelTimer(struct odm_dm_struct *pDM_Odm, struct timer_list *pTimer);
 
-/*  ODM FW relative API. */
-u32 ODM_FillH2CCmd(u8 *pH2CBuffer, u32 H2CBufferLen, u32 CmdNum,
-		   u32 *pElementID, u32 *pCmdLen, u8 **pCmbBuffer,
-		   u8 *CmdStartSeq);
-
 #endif	/*  __ODM_INTERFACE_H__ */
