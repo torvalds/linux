@@ -25,17 +25,6 @@
 #include "reset.h"
 #include "gdsc.h"
 
-static struct clk_fixed_factor xo = {
-	.mult = 1,
-	.div = 1,
-	.hw.init = &(struct clk_init_data){
-		.name = "xo",
-		.parent_names = (const char *[]){ "xo_board" },
-		.num_parents = 1,
-		.ops = &clk_fixed_factor_ops,
-	},
-};
-
 static struct pll_vco fabia_vco[] = {
 	{ 250000000, 2000000000, 0 },
 	{ 125000000, 1000000000, 1 },
@@ -51,7 +40,9 @@ static struct clk_alpha_pll gpll0 = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll0",
-			.parent_names = (const char *[]){ "xo" },
+			.parent_data = (const struct clk_parent_data []) {
+				{ .fw_name = "xo" },
+			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_fixed_fabia_ops,
 		}
@@ -120,7 +111,9 @@ static struct clk_alpha_pll gpll1 = {
 		.enable_mask = BIT(1),
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll1",
-			.parent_names = (const char *[]){ "xo" },
+			.parent_data = (const struct clk_parent_data []) {
+				{ .fw_name = "xo" },
+			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_fixed_fabia_ops,
 		}
@@ -189,7 +182,9 @@ static struct clk_alpha_pll gpll2 = {
 		.enable_mask = BIT(2),
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll2",
-			.parent_names = (const char *[]){ "xo" },
+			.parent_data = (const struct clk_parent_data []) {
+				{ .fw_name = "xo" },
+			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_fixed_fabia_ops,
 		}
@@ -258,7 +253,9 @@ static struct clk_alpha_pll gpll3 = {
 		.enable_mask = BIT(3),
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll3",
-			.parent_names = (const char *[]){ "xo" },
+			.parent_data = (const struct clk_parent_data []) {
+				{ .fw_name = "xo" },
+			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_fixed_fabia_ops,
 		}
@@ -327,7 +324,9 @@ static struct clk_alpha_pll gpll4 = {
 		.enable_mask = BIT(4),
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll4",
-			.parent_names = (const char *[]){ "xo" },
+			.parent_data = (const struct clk_parent_data []) {
+				{ .fw_name = "xo" },
+			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_fixed_fabia_ops,
 		}
@@ -2761,7 +2760,9 @@ static struct clk_branch gcc_hdmi_clkref_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_hdmi_clkref_clk",
-			.parent_names = (const char *[]){ "xo" },
+			.parent_data = (const struct clk_parent_data []) {
+				{ .fw_name = "xo" },
+			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
 		},
@@ -2775,7 +2776,9 @@ static struct clk_branch gcc_ufs_clkref_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_ufs_clkref_clk",
-			.parent_names = (const char *[]){ "xo" },
+			.parent_data = (const struct clk_parent_data []) {
+				{ .fw_name = "xo" },
+			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
 		},
@@ -2789,7 +2792,9 @@ static struct clk_branch gcc_usb3_clkref_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_usb3_clkref_clk",
-			.parent_names = (const char *[]){ "xo" },
+			.parent_data = (const struct clk_parent_data []) {
+				{ .fw_name = "xo" },
+			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
 		},
@@ -2803,7 +2808,9 @@ static struct clk_branch gcc_pcie_clkref_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_pcie_clkref_clk",
-			.parent_names = (const char *[]){ "xo" },
+			.parent_data = (const struct clk_parent_data []) {
+				{ .fw_name = "xo" },
+			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
 		},
@@ -2817,7 +2824,9 @@ static struct clk_branch gcc_rx1_usb2_clkref_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_rx1_usb2_clkref_clk",
-			.parent_names = (const char *[]){ "xo" },
+			.parent_data = (const struct clk_parent_data []) {
+				{ .fw_name = "xo" },
+			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
 		},
@@ -3155,10 +3164,6 @@ static const struct regmap_config gcc_msm8998_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct clk_hw *gcc_msm8998_hws[] = {
-	&xo.hw,
-};
-
 static const struct qcom_cc_desc gcc_msm8998_desc = {
 	.config = &gcc_msm8998_regmap_config,
 	.clks = gcc_msm8998_clocks,
@@ -3167,8 +3172,6 @@ static const struct qcom_cc_desc gcc_msm8998_desc = {
 	.num_resets = ARRAY_SIZE(gcc_msm8998_resets),
 	.gdscs = gcc_msm8998_gdscs,
 	.num_gdscs = ARRAY_SIZE(gcc_msm8998_gdscs),
-	.clk_hws = gcc_msm8998_hws,
-	.num_clk_hws = ARRAY_SIZE(gcc_msm8998_hws),
 };
 
 static int gcc_msm8998_probe(struct platform_device *pdev)
