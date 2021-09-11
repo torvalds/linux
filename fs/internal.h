@@ -18,7 +18,7 @@ struct user_namespace;
 struct pipe_inode_info;
 
 /*
- * block_dev.c
+ * block/bdev.c
  */
 #ifdef CONFIG_BLOCK
 extern void __init bdev_cache_init(void);
