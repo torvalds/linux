@@ -447,9 +447,8 @@ static int vchiq_ioc_await_completion(struct vchiq_instance *instance,
 	DEBUG_INITIALISE(g_state.local)
 
 	DEBUG_TRACE(AWAIT_COMPLETION_LINE);
-	if (!instance->connected) {
+	if (!instance->connected)
 		return -ENOTCONN;
-	}
 
 	mutex_lock(&instance->completion_mutex);
 
