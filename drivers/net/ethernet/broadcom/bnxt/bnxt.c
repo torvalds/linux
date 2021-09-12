@@ -2123,12 +2123,11 @@ static int bnxt_async_event_process(struct bnxt *bp,
 			DIV_ROUND_UP(fw_health->polling_dsecs * HZ,
 				     bp->current_interval * 10);
 		fw_health->tmr_counter = fw_health->tmr_multiplier;
-		if (!fw_health->enabled) {
+		if (!fw_health->enabled)
 			fw_health->last_fw_heartbeat =
 				bnxt_fw_health_readl(bp, BNXT_FW_HEARTBEAT_REG);
-			fw_health->last_fw_reset_cnt =
-				bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
-		}
+		fw_health->last_fw_reset_cnt =
+			bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
 		netif_info(bp, drv, bp->dev,
 			   "Error recovery info: error recovery[1], master[%d], reset count[%u], health status: 0x%x\n",
 			   fw_health->master, fw_health->last_fw_reset_cnt,
@@ -11653,6 +11652,11 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 			dev_close(bp->dev);
 		}
 
+		if ((bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY) &&
+		    bp->fw_health->enabled) {
+			bp->fw_health->last_fw_reset_cnt =
+				bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
+		}
 		bp->fw_reset_state = 0;
 		/* Make sure fw_reset_state is 0 before clearing the flag */
 		smp_mb__before_atomic();
