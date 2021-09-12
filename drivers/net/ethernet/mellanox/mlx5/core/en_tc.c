@@ -3257,11 +3257,11 @@ actions_match_supported_fdb(struct mlx5e_priv *priv,
 static bool
 actions_match_supported(struct mlx5e_priv *priv,
 			struct flow_action *flow_action,
+			u32 actions,
 			struct mlx5e_tc_flow_parse_attr *parse_attr,
 			struct mlx5e_tc_flow *flow,
 			struct netlink_ext_ack *extack)
 {
-	u32 actions = flow->attr->action;
 	bool ct_flow, ct_clear;
 
 	ct_clear = flow->attr->ct_attr.ct_action & TCA_CT_ACT_CLEAR;
@@ -3344,6 +3344,8 @@ parse_tc_actions(struct mlx5e_tc_act_parse_state *parse_state,
 		err = tc_act->parse_action(parse_state, act, priv, attr);
 		if (err)
 			return err;
+
+		parse_state->actions |= attr->action;
 	}
 
 	flow_action_for_each(i, act, flow_action) {
@@ -3445,7 +3447,8 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 	if (err)
 		return err;
 
-	if (!actions_match_supported(priv, flow_action, parse_attr, flow, extack))
+	if (!actions_match_supported(priv, flow_action, parse_state->actions,
+				     parse_attr, flow, extack))
 		return -EOPNOTSUPP;
 
 	return 0;
@@ -3574,7 +3577,8 @@ parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	if (err)
 		return err;
 
-	if (!actions_match_supported(priv, flow_action, parse_attr, flow, extack))
+	if (!actions_match_supported(priv, flow_action, parse_state->actions,
+				     parse_attr, flow, extack))
 		return -EOPNOTSUPP;
 
 	return 0;
