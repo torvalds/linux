@@ -577,8 +577,6 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 	else
 		pattrib->bswenc = false;
 
-	rtw_set_tx_chksum_offload(pkt, pattrib);
-
 	update_attrib_phy_info(pattrib, psta);
 
 exit:
