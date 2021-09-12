@@ -114,6 +114,8 @@ struct qcom_glink {
 
 	int irq;
 	char irqname[GLINK_NAME_SIZE];
+	spinlock_t irq_lock;
+	bool irq_running;
 
 	struct work_struct rx_work;
 	spinlock_t rx_lock;
@@ -1115,6 +1117,7 @@ static int qcom_glink_rx_open_ack(struct qcom_glink *glink, unsigned int lcid)
 static int qcom_glink_native_rx(struct qcom_glink *glink, int iterations)
 {
 	struct glink_msg msg;
+	unsigned long flags;
 	unsigned int param1;
 	unsigned int param2;
 	unsigned int avail;
@@ -1128,6 +1131,15 @@ static int qcom_glink_native_rx(struct qcom_glink *glink, int iterations)
 		should_wake = false;
 		pm_system_wakeup();
 	}
+
+	spin_lock_irqsave(&glink->irq_lock, flags);
+	if (glink->irq_running) {
+		spin_unlock_irqrestore(&glink->irq_lock, flags);
+		return 0;
+	}
+	glink->irq_running = true;
+	spin_unlock_irqrestore(&glink->irq_lock, flags);
+
 	/* To wakeup any blocking writers */
 	wake_up_all(&glink->tx_avail_notify);
 
@@ -1191,6 +1203,10 @@ static int qcom_glink_native_rx(struct qcom_glink *glink, int iterations)
 		if (ret)
 			break;
 	}
+
+	spin_lock_irqsave(&glink->irq_lock, flags);
+	glink->irq_running = false;
+	spin_unlock_irqrestore(&glink->irq_lock, flags);
 
 	return qcom_glink_rx_avail(glink);
 }
@@ -1983,6 +1999,9 @@ int qcom_glink_native_start(struct qcom_glink *glink)
 	struct device *dev = glink->dev;
 	int irq;
 	int ret;
+
+	spin_lock_init(&glink->irq_lock);
+	glink->irq_running = false;
 
 	irq = of_irq_get(dev->of_node, 0);
 	ret = devm_request_threaded_irq(dev, irq,
