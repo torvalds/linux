@@ -15,7 +15,7 @@
 #include <linux/uaccess.h>
 #include <linux/overflow.h>
 
-#include "intel_pmt_class.h"
+#include "class.h"
 
 #define DRV_NAME		"pmt_crashlog"
 

@@ -188,6 +188,8 @@ enum ppfear_regs {
 #define ICL_PMC_SLP_S0_RES_COUNTER_STEP		0x64
 
 #define LPM_MAX_NUM_MODES			8
+#define LPM_DEFAULT_PRI				{ 7, 6, 2, 5, 4, 1, 3, 0 }
+
 #define GET_X2_COUNTER(v)			((v) >> 1)
 #define LPM_STS_LATCH_MODE			BIT(31)
 
@@ -196,6 +198,10 @@ enum ppfear_regs {
 #define TGL_PMC_LTR_THC1			0x1C08
 #define TGL_NUM_IP_IGN_ALLOWED			23
 #define TGL_PMC_LPM_RES_COUNTER_STEP_X2		61	/* 30.5us * 2 */
+
+#define ADL_PMC_LTR_SPF				0x1C00
+#define ADL_NUM_IP_IGN_ALLOWED			23
+#define ADL_PMC_SLP_S0_RES_COUNTER_OFFSET	0x1098
 
 /*
  * Tigerlake Power Management Controller register offsets
@@ -217,6 +223,18 @@ enum ppfear_regs {
 
 /* Extended Test Mode Register LPM bits (TGL and later */
 #define ETR3_CLEAR_LPM_EVENTS			BIT(28)
+
+/* Alder Lake Power Management Controller register offsets */
+#define ADL_LPM_EN_OFFSET			0x179C
+#define ADL_LPM_RESIDENCY_OFFSET		0x17A4
+#define ADL_LPM_NUM_MODES			2
+#define ADL_LPM_NUM_MAPS			14
+
+/* Alder Lake Low Power Mode debug registers */
+#define ADL_LPM_STATUS_OFFSET			0x170C
+#define ADL_LPM_PRI_OFFSET			0x17A0
+#define ADL_LPM_STATUS_LATCH_EN_OFFSET		0x1704
+#define ADL_LPM_LIVE_STATUS_OFFSET		0x1764
 
 const char *pmc_lpm_modes[] = {
 	"S0i2.0",
@@ -277,6 +295,7 @@ struct pmc_reg_map {
 	const u32 pm_vric1_offset;
 	/* Low Power Mode registers */
 	const int lpm_num_maps;
+	const int lpm_num_modes;
 	const int lpm_res_counter_step_x2;
 	const u32 lpm_sts_latch_en_offset;
 	const u32 lpm_en_offset;

@@ -13,7 +13,7 @@
 #include <linux/mm.h>
 #include <linux/pci.h>
 
-#include "intel_pmt_class.h"
+#include "class.h"
 
 #define PMT_XA_START		0
 #define PMT_XA_MAX		INT_MAX

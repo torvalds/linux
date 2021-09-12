@@ -17,30 +17,6 @@
 #include <linux/acpi.h>
 #include <linux/i2c.h>
 
-static int dual_accel_i2c_resource_count(struct acpi_resource *ares, void *data)
-{
-	struct acpi_resource_i2c_serialbus *sb;
-	int *count = data;
-
-	if (i2c_acpi_get_i2c_resource(ares, &sb))
-		*count = *count + 1;
-
-	return 1;
-}
-
-static int dual_accel_i2c_client_count(struct acpi_device *adev)
-{
-	int ret, count = 0;
-	LIST_HEAD(r);
-
-	ret = acpi_dev_get_resources(adev, &r, dual_accel_i2c_resource_count, &count);
-	if (ret < 0)
-		return ret;
-
-	acpi_dev_free_resource_list(&r);
-	return count;
-}
-
 static bool dual_accel_detect_bosc0200(void)
 {
 	struct acpi_device *adev;
@@ -50,7 +26,7 @@ static bool dual_accel_detect_bosc0200(void)
 	if (!adev)
 		return false;
 
-	count = dual_accel_i2c_client_count(adev);
+	count = i2c_acpi_client_count(adev);
 
 	acpi_dev_put(adev);
 
