@@ -737,8 +737,17 @@ void dp_decide_lane_settings(
 
 	/* we find the maximum of the requested settings across all lanes*/
 	/* and set this maximum for all lanes*/
-	maximize_lane_settings(lt_settings, hw_lane_settings);
 	dp_hw_to_dpcd_lane_settings(lt_settings, hw_lane_settings, dpcd_lane_settings);
+
+	if (lt_settings->disallow_per_lane_settings) {
+		/* we find the maximum of the requested settings across all lanes*/
+		/* and set this maximum for all lanes*/
+		maximize_lane_settings(lt_settings, hw_lane_settings);
+
+		if (lt_settings->always_match_dpcd_with_hw_lane_settings)
+			dp_hw_to_dpcd_lane_settings(lt_settings, hw_lane_settings, dpcd_lane_settings);
+	}
+
 }
 
 static uint8_t get_nibble_at_index(const uint8_t *buf,
@@ -1453,6 +1462,8 @@ static inline void decide_8b_10b_training_settings(
 	lt_settings->pattern_for_eq = decide_eq_training_pattern(link, link_setting);
 	lt_settings->enhanced_framing = 1;
 	lt_settings->should_set_fec_ready = true;
+	lt_settings->disallow_per_lane_settings = true;
+	lt_settings->always_match_dpcd_with_hw_lane_settings = true;
 	dp_hw_to_dpcd_lane_settings(lt_settings, lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
 }
 
@@ -1479,6 +1490,7 @@ static inline void decide_128b_132b_training_settings(struct dc_link *link,
 			link->dpcd_caps.lttpr_caps.phy_repeater_cnt) + 1) * 20000;
 	lt_settings->lttpr_mode = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt) ?
 			LTTPR_MODE_NON_TRANSPARENT : LTTPR_MODE_TRANSPARENT;
+	lt_settings->disallow_per_lane_settings = true;
 	dp_hw_to_dpcd_lane_settings(lt_settings,
 			lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
 }

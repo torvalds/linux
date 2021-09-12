@@ -118,7 +118,6 @@ struct link_training_settings {
 #endif
 
 	bool enhanced_framing;
-	bool allow_invalid_msa_timing_param;
 	enum lttpr_mode lttpr_mode;
 
 	/* disallow different lanes to have different lane settings */
