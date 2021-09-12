@@ -33,7 +33,7 @@
  */
 
 static unsigned int cfag12864b_rate = CONFIG_CFAG12864B_RATE;
-module_param(cfag12864b_rate, uint, S_IRUGO);
+module_param(cfag12864b_rate, uint, 0444);
 MODULE_PARM_DESC(cfag12864b_rate,
 	"Refresh rate (hertz)");
 
