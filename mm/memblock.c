@@ -665,6 +665,11 @@ repeat:
 int __init_memblock memblock_add_node(phys_addr_t base, phys_addr_t size,
 				       int nid)
 {
+	phys_addr_t end = base + size - 1;
+
+	memblock_dbg("%s: [%pa-%pa] nid=%d %pS\n", __func__,
+		     &base, &end, nid, (void *)_RET_IP_);
+
 	return memblock_add_range(&memblock.memory, base, size, nid, 0);
 }
 
@@ -1680,6 +1685,11 @@ void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
 
 	if (!size)
 		return;
+
+	if (memblock.memory.cnt <= 1) {
+		pr_warn("%s: No memory registered yet\n", __func__);
+		return;
+	}
 
 	ret = memblock_isolate_range(&memblock.memory, base, size,
 						&start_rgn, &end_rgn);
