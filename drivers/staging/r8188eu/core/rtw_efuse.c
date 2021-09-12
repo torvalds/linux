@@ -598,7 +598,7 @@ efuse_ShadowRead1Byte(
 		u16 Offset,
 		u8 *Value)
 {
-	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(pAdapter);
+	struct eeprom_priv *pEEPROM = &pAdapter->eeprompriv;
 
 	*Value = pEEPROM->efuse_eeprom_data[Offset];
 
@@ -611,7 +611,7 @@ efuse_ShadowRead2Byte(
 		u16 Offset,
 		u16 *Value)
 {
-	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(pAdapter);
+	struct eeprom_priv *pEEPROM = &pAdapter->eeprompriv;
 
 	*Value = pEEPROM->efuse_eeprom_data[Offset];
 	*Value |= pEEPROM->efuse_eeprom_data[Offset + 1] << 8;
@@ -625,7 +625,7 @@ efuse_ShadowRead4Byte(
 		u16 Offset,
 		u32 *Value)
 {
-	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(pAdapter);
+	struct eeprom_priv *pEEPROM = &pAdapter->eeprompriv;
 
 	*Value = pEEPROM->efuse_eeprom_data[Offset];
 	*Value |= pEEPROM->efuse_eeprom_data[Offset + 1] << 8;
@@ -684,7 +684,7 @@ void EFUSE_ShadowMapUpdate(
 	u8 efuseType,
 	bool pseudo)
 {
-	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(pAdapter);
+	struct eeprom_priv *pEEPROM = &pAdapter->eeprompriv;
 	u16 mapLen = 0;
 
 	rtl8188e_EFUSE_GetEfuseDefinition(pAdapter, efuseType, TYPE_EFUSE_MAP_LEN, (void *)&mapLen, pseudo);

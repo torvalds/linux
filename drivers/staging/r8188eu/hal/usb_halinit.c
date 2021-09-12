@@ -1110,7 +1110,7 @@ static void Hal_EfuseParseMACAddr_8188EU(struct adapter *adapt, u8 *hwinfo, bool
 {
 	u16 i;
 	u8 sMacAddr[6] = {0x00, 0xE0, 0x4C, 0x81, 0x88, 0x02};
-	struct eeprom_priv *eeprom = GET_EEPROM_EFUSE_PRIV(adapt);
+	struct eeprom_priv *eeprom = &adapt->eeprompriv;
 
 	if (AutoLoadFail) {
 		for (i = 0; i < 6; i++)
@@ -1126,7 +1126,7 @@ readAdapterInfo_8188EU(
 		struct adapter *adapt
 	)
 {
-	struct eeprom_priv *eeprom = GET_EEPROM_EFUSE_PRIV(adapt);
+	struct eeprom_priv *eeprom = &adapt->eeprompriv;
 
 	/* parse the eeprom/efuse content */
 	Hal_EfuseParseIDCode88E(adapt, eeprom->efuse_eeprom_data);
@@ -1150,7 +1150,7 @@ static void _ReadPROMContent(
 	struct adapter *Adapter
 	)
 {
-	struct eeprom_priv *eeprom = GET_EEPROM_EFUSE_PRIV(Adapter);
+	struct eeprom_priv *eeprom = &Adapter->eeprompriv;
 	u8 eeValue;
 
 	/* check system boot selection */

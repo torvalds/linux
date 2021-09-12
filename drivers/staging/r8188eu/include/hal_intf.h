@@ -155,8 +155,6 @@ struct hal_ops {
 
 #define HARDWARE_TYPE_RTL8188EU 17
 
-#define GET_EEPROM_EFUSE_PRIV(adapter) (&adapter->eeprompriv)
-
 #define is_boot_from_eeprom(adapter) (adapter->eeprompriv.EepromOrEfuse)
 
 void rtl8188eu_set_hal_ops(struct adapter *padapter);

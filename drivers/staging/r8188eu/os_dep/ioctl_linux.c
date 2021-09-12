@@ -4501,7 +4501,7 @@ static int rtw_mp_efuse_get(struct net_device *dev,
 			union iwreq_data *wdata, char *extra)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
-	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
+	struct eeprom_priv *pEEPROM = &padapter->eeprompriv;
 	struct hal_data_8188e *haldata = GET_HAL_DATA(padapter);
 	struct efuse_hal *pEfuseHal;
 	struct iw_point *wrqu;
@@ -6138,7 +6138,7 @@ static int rtw_mp_QueryDrv(struct net_device *dev,
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	char	*input = kmalloc(wrqu->data.length, GFP_KERNEL);
 	u8 qAutoLoad = 1;
-	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
+	struct eeprom_priv *pEEPROM = &padapter->eeprompriv;
 
 	if (!input)
 		return -ENOMEM;
