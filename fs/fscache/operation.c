@@ -616,7 +616,6 @@ void fscache_op_work_func(struct work_struct *work)
 {
 	struct fscache_operation *op =
 		container_of(work, struct fscache_operation, work);
-	unsigned long start;
 
 	_enter("{OBJ%x OP%x,%d}",
 	       op->object->debug_id, op->debug_id, atomic_read(&op->usage));
@@ -624,9 +623,7 @@ void fscache_op_work_func(struct work_struct *work)
 	trace_fscache_op(op->object->cookie, op, fscache_op_work);
 
 	ASSERT(op->processor != NULL);
-	start = jiffies;
 	op->processor(op);
-	fscache_hist(fscache_ops_histogram, start);
 	fscache_put_operation(op);
 
 	_leave("");
