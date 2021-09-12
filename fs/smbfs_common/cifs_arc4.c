@@ -74,14 +74,14 @@ void cifs_arc4_crypt(struct arc4_ctx *ctx, u8 *out, const u8 *in, unsigned int l
 EXPORT_SYMBOL_GPL(cifs_arc4_crypt);
 
 static int __init
-init_cifs_common(void)
+init_smbfs_common(void)
 {
 	return 0;
 }
 static void __init
-exit_cifs_common(void)
+exit_smbfs_common(void)
 {
 }
 
-module_init(init_cifs_common)
-module_exit(exit_cifs_common)
+module_init(init_smbfs_common)
+module_exit(exit_smbfs_common)
