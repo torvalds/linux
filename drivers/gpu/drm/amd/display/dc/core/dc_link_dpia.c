@@ -177,13 +177,13 @@ static uint8_t dpia_build_set_config_data(enum dpia_set_config_type type,
 		break;
 	case DPIA_SET_CFG_SET_VSPE:
 		/* Assume all lanes have same drive settings. */
-		data.set_vspe.swing = lt_settings->lane_settings[0].VOLTAGE_SWING;
-		data.set_vspe.pre_emph = lt_settings->lane_settings[0].PRE_EMPHASIS;
+		data.set_vspe.swing = lt_settings->hw_lane_settings[0].VOLTAGE_SWING;
+		data.set_vspe.pre_emph = lt_settings->hw_lane_settings[0].PRE_EMPHASIS;
 		data.set_vspe.max_swing_reached =
-			lt_settings->lane_settings[0].VOLTAGE_SWING ==
+			lt_settings->hw_lane_settings[0].VOLTAGE_SWING ==
 			VOLTAGE_SWING_MAX_LEVEL ? 1 : 0;
 		data.set_vspe.max_pre_emph_reached =
-			lt_settings->lane_settings[0].PRE_EMPHASIS ==
+			lt_settings->hw_lane_settings[0].PRE_EMPHASIS ==
 			PRE_EMPHASIS_MAX_LEVEL ? 1 : 0;
 		break;
 	default:
@@ -405,7 +405,7 @@ static enum link_training_result dpia_training_cr_non_transparent(
 
 		/* Update VS/PE. */
 		dp_decide_lane_settings(lt_settings, dpcd_lane_adjust,
-				lt_settings->lane_settings,
+				lt_settings->hw_lane_settings,
 				lt_settings->dpcd_lane_settings);
 		retry_count++;
 	}
