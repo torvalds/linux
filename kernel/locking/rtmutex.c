@@ -753,7 +753,7 @@ static int __sched rt_mutex_adjust_prio_chain(struct task_struct *task,
 		 * other configuration and we fail to report; also, see
 		 * lockdep.
 		 */
-		if (IS_ENABLED(CONFIG_PREEMPT_RT) && orig_waiter->ww_ctx)
+		if (IS_ENABLED(CONFIG_PREEMPT_RT) && orig_waiter && orig_waiter->ww_ctx)
 			ret = 0;
 
 		raw_spin_unlock(&lock->wait_lock);
