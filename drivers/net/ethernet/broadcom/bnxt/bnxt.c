@@ -2912,6 +2912,9 @@ static void bnxt_free_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 	struct pci_dev *pdev = bp->pdev;
 	int i;
 
+	if (!rmem->pg_arr)
+		goto skip_pages;
+
 	for (i = 0; i < rmem->nr_pages; i++) {
 		if (!rmem->pg_arr[i])
 			continue;
@@ -2921,6 +2924,7 @@ static void bnxt_free_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 
 		rmem->pg_arr[i] = NULL;
 	}
+skip_pages:
 	if (rmem->pg_tbl) {
 		size_t pg_tbl_size = rmem->nr_pages * 8;
 
@@ -3240,10 +3244,14 @@ static int bnxt_alloc_tx_rings(struct bnxt *bp)
 
 static void bnxt_free_cp_arrays(struct bnxt_cp_ring_info *cpr)
 {
+	struct bnxt_ring_struct *ring = &cpr->cp_ring_struct;
+
 	kfree(cpr->cp_desc_ring);
 	cpr->cp_desc_ring = NULL;
+	ring->ring_mem.pg_arr = NULL;
 	kfree(cpr->cp_desc_mapping);
 	cpr->cp_desc_mapping = NULL;
+	ring->ring_mem.dma_arr = NULL;
 }
 
 static int bnxt_alloc_cp_arrays(struct bnxt_cp_ring_info *cpr, int n)
