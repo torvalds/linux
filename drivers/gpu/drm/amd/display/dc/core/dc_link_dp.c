@@ -516,8 +516,6 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 	enum dc_dp_training_pattern pattern,
 	uint32_t offset)
 {
-	union dpcd_training_lane dpcd_lane[LANE_COUNT_DP_MAX] = { { {0} } };
-
 	uint32_t dpcd_base_lt_offset;
 
 	uint8_t dpcd_lt_buffer[5] = {0};
@@ -555,16 +553,14 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 			dpcd_pattern.v1_4.TRAINING_PATTERN_SET);
 	}
 
-	dp_hw_to_dpcd_lane_settings(lt_settings, lt_settings->lane_settings, dpcd_lane);
-
 	/* concatenate everything into one buffer*/
-
-	size_in_bytes = lt_settings->link_settings.lane_count * sizeof(dpcd_lane[0]);
+	size_in_bytes = lt_settings->link_settings.lane_count *
+			sizeof(lt_settings->dpcd_lane_settings[0]);
 
 	 // 0x00103 - 0x00102
 	memmove(
 		&dpcd_lt_buffer[DP_TRAINING_LANE0_SET - DP_TRAINING_PATTERN_SET],
-		dpcd_lane,
+		lt_settings->dpcd_lane_settings,
 		size_in_bytes);
 
 	if (is_repeater(link, offset)) {
@@ -576,7 +572,7 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 					__func__,
 					offset,
 					dpcd_base_lt_offset,
-					dpcd_lane[0].tx_ffe.PRESET_VALUE);
+					lt_settings->dpcd_lane_settings[0].tx_ffe.PRESET_VALUE);
 		else if (dp_get_link_encoding_format(&lt_settings->link_settings) ==
 				DP_8b_10b_ENCODING)
 #endif
@@ -585,10 +581,10 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 			__func__,
 			offset,
 			dpcd_base_lt_offset,
-			dpcd_lane[0].bits.VOLTAGE_SWING_SET,
-			dpcd_lane[0].bits.PRE_EMPHASIS_SET,
-			dpcd_lane[0].bits.MAX_SWING_REACHED,
-			dpcd_lane[0].bits.MAX_PRE_EMPHASIS_REACHED);
+			lt_settings->dpcd_lane_settings[0].bits.VOLTAGE_SWING_SET,
+			lt_settings->dpcd_lane_settings[0].bits.PRE_EMPHASIS_SET,
+			lt_settings->dpcd_lane_settings[0].bits.MAX_SWING_REACHED,
+			lt_settings->dpcd_lane_settings[0].bits.MAX_PRE_EMPHASIS_REACHED);
 	} else {
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 		if (dp_get_link_encoding_format(&lt_settings->link_settings) ==
@@ -596,17 +592,17 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 			DC_LOG_HW_LINK_TRAINING("%s:\n 0x%X TX_FFE_PRESET_VALUE = %x\n",
 					__func__,
 					dpcd_base_lt_offset,
-					dpcd_lane[0].tx_ffe.PRESET_VALUE);
+					lt_settings->dpcd_lane_settings[0].tx_ffe.PRESET_VALUE);
 		else if (dp_get_link_encoding_format(&lt_settings->link_settings) ==
 				DP_8b_10b_ENCODING)
 #endif
 		DC_LOG_HW_LINK_TRAINING("%s:\n 0x%X VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
 			__func__,
 			dpcd_base_lt_offset,
-			dpcd_lane[0].bits.VOLTAGE_SWING_SET,
-			dpcd_lane[0].bits.PRE_EMPHASIS_SET,
-			dpcd_lane[0].bits.MAX_SWING_REACHED,
-			dpcd_lane[0].bits.MAX_PRE_EMPHASIS_REACHED);
+			lt_settings->dpcd_lane_settings[0].bits.VOLTAGE_SWING_SET,
+			lt_settings->dpcd_lane_settings[0].bits.PRE_EMPHASIS_SET,
+			lt_settings->dpcd_lane_settings[0].bits.MAX_SWING_REACHED,
+			lt_settings->dpcd_lane_settings[0].bits.MAX_PRE_EMPHASIS_REACHED);
 	}
 	if (edp_workaround) {
 		/* for eDP write in 2 parts because the 5-byte burst is
@@ -621,7 +617,7 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 		core_link_write_dpcd(
 			link,
 			DP_TRAINING_LANE0_SET,
-			(uint8_t *)(dpcd_lane),
+			(uint8_t *)(lt_settings->dpcd_lane_settings),
 			size_in_bytes);
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
@@ -913,7 +909,6 @@ enum dc_status dpcd_set_lane_settings(
 	const struct link_training_settings *link_training_setting,
 	uint32_t offset)
 {
-	union dpcd_training_lane dpcd_lane[LANE_COUNT_DP_MAX] = {{{0}}};
 	unsigned int lane0_set_address;
 	enum dc_status status;
 
@@ -923,33 +918,10 @@ enum dc_status dpcd_set_lane_settings(
 		lane0_set_address = DP_TRAINING_LANE0_SET_PHY_REPEATER1 +
 		((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (offset - 1));
 
-	dp_hw_to_dpcd_lane_settings(link_training_setting,
-			link_training_setting->lane_settings,
-			dpcd_lane);
-
 	status = core_link_write_dpcd(link,
 		lane0_set_address,
-		(uint8_t *)(dpcd_lane),
+		(uint8_t *)(link_training_setting->dpcd_lane_settings),
 		link_training_setting->link_settings.lane_count);
-
-	/*
-	if (LTSettings.link.rate == LinkRate_High2)
-	{
-		DpcdTrainingLaneSet2 dpcd_lane2[lane_count_DPMax] = {0};
-		for ( uint32_t lane = 0;
-		lane < lane_count_DPMax; lane++)
-		{
-			dpcd_lane2[lane].bits.post_cursor2_set =
-			static_cast<unsigned char>(
-			LTSettings.laneSettings[lane].postCursor2);
-			dpcd_lane2[lane].bits.max_post_cursor2_reached = 0;
-		}
-		m_pDpcdAccessSrv->WriteDpcdData(
-		DpcdAddress_Lane0Set2,
-		reinterpret_cast<unsigned char*>(dpcd_lane2),
-		LTSettings.link.lanes);
-	}
-	*/
 
 	if (is_repeater(link, offset)) {
 #if defined(CONFIG_DRM_AMD_DC_DCN)
@@ -960,7 +932,7 @@ enum dc_status dpcd_set_lane_settings(
 					__func__,
 					offset,
 					lane0_set_address,
-					dpcd_lane[0].tx_ffe.PRESET_VALUE);
+					link_training_setting->dpcd_lane_settings[0].tx_ffe.PRESET_VALUE);
 		else if (dp_get_link_encoding_format(&link_training_setting->link_settings) ==
 				DP_8b_10b_ENCODING)
 #endif
@@ -969,10 +941,10 @@ enum dc_status dpcd_set_lane_settings(
 			__func__,
 			offset,
 			lane0_set_address,
-			dpcd_lane[0].bits.VOLTAGE_SWING_SET,
-			dpcd_lane[0].bits.PRE_EMPHASIS_SET,
-			dpcd_lane[0].bits.MAX_SWING_REACHED,
-			dpcd_lane[0].bits.MAX_PRE_EMPHASIS_REACHED);
+			link_training_setting->dpcd_lane_settings[0].bits.VOLTAGE_SWING_SET,
+			link_training_setting->dpcd_lane_settings[0].bits.PRE_EMPHASIS_SET,
+			link_training_setting->dpcd_lane_settings[0].bits.MAX_SWING_REACHED,
+			link_training_setting->dpcd_lane_settings[0].bits.MAX_PRE_EMPHASIS_REACHED);
 
 	} else {
 #if defined(CONFIG_DRM_AMD_DC_DCN)
@@ -981,17 +953,17 @@ enum dc_status dpcd_set_lane_settings(
 			DC_LOG_HW_LINK_TRAINING("%s:\n 0x%X TX_FFE_PRESET_VALUE = %x\n",
 					__func__,
 					lane0_set_address,
-					dpcd_lane[0].tx_ffe.PRESET_VALUE);
+					link_training_setting->dpcd_lane_settings[0].tx_ffe.PRESET_VALUE);
 		else if (dp_get_link_encoding_format(&link_training_setting->link_settings) ==
 				DP_8b_10b_ENCODING)
 #endif
 		DC_LOG_HW_LINK_TRAINING("%s\n 0x%X VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
 			__func__,
 			lane0_set_address,
-			dpcd_lane[0].bits.VOLTAGE_SWING_SET,
-			dpcd_lane[0].bits.PRE_EMPHASIS_SET,
-			dpcd_lane[0].bits.MAX_SWING_REACHED,
-			dpcd_lane[0].bits.MAX_PRE_EMPHASIS_REACHED);
+			link_training_setting->dpcd_lane_settings[0].bits.VOLTAGE_SWING_SET,
+			link_training_setting->dpcd_lane_settings[0].bits.PRE_EMPHASIS_SET,
+			link_training_setting->dpcd_lane_settings[0].bits.MAX_SWING_REACHED,
+			link_training_setting->dpcd_lane_settings[0].bits.MAX_PRE_EMPHASIS_REACHED);
 	}
 
 	return status;
@@ -1004,7 +976,7 @@ bool dp_is_max_vs_reached(
 	for (lane = 0; lane <
 		(uint32_t)(lt_settings->link_settings.lane_count);
 		lane++) {
-		if (lt_settings->lane_settings[lane].VOLTAGE_SWING
+		if (lt_settings->dpcd_lane_settings[lane].bits.VOLTAGE_SWING_SET
 			== VOLTAGE_SWING_MAX_LEVEL)
 			return true;
 	}
@@ -1038,7 +1010,6 @@ static bool perform_post_lt_adj_req_sequence(
 			union lane_align_status_updated
 				dpcd_lane_status_updated;
 			union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = { { {0} } };
-			union dpcd_training_lane dpcd_lane_settings[LANE_COUNT_DP_MAX] = { { {0} } };
 
 			dp_get_lane_status_and_lane_adjust(
 				link,
@@ -1063,9 +1034,9 @@ static bool perform_post_lt_adj_req_sequence(
 			for (lane = 0; lane < (uint32_t)(lane_count); lane++) {
 
 				if (lt_settings->
-				lane_settings[lane].VOLTAGE_SWING !=
+				dpcd_lane_settings[lane].bits.VOLTAGE_SWING_SET !=
 				dpcd_lane_adjust[lane].bits.VOLTAGE_SWING_LANE ||
-				lt_settings->lane_settings[lane].PRE_EMPHASIS !=
+				lt_settings->dpcd_lane_settings[lane].bits.PRE_EMPHASIS_SET !=
 				dpcd_lane_adjust[lane].bits.PRE_EMPHASIS_LANE) {
 
 					req_drv_setting_changed = true;
@@ -1075,7 +1046,7 @@ static bool perform_post_lt_adj_req_sequence(
 
 			if (req_drv_setting_changed) {
 				dp_decide_lane_settings(lt_settings, dpcd_lane_adjust,
-						lt_settings->lane_settings, dpcd_lane_settings);
+						lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
 
 				dc_link_dp_set_drive_settings(link,
 						lt_settings);
@@ -1162,10 +1133,8 @@ static enum link_training_result perform_channel_equalization_sequence(
 	union lane_align_status_updated dpcd_lane_status_updated = {0};
 	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
 	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {0};
-	union dpcd_training_lane dpcd_lane_settings[LANE_COUNT_DP_MAX] = { { {0} } };
 
 	/* Note: also check that TPS4 is a supported feature*/
-
 	tr_pattern = lt_settings->pattern_for_eq;
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
@@ -1231,7 +1200,7 @@ static enum link_training_result perform_channel_equalization_sequence(
 
 		/* 7. update VS/PE/PC2 in lt_settings*/
 		dp_decide_lane_settings(lt_settings, dpcd_lane_adjust,
-				lt_settings->lane_settings, dpcd_lane_settings);
+				lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
 	}
 
 	return LINK_TRAINING_EQ_FAIL_EQ;
@@ -1484,6 +1453,7 @@ static inline void decide_8b_10b_training_settings(
 	lt_settings->pattern_for_eq = decide_eq_training_pattern(link, link_setting);
 	lt_settings->enhanced_framing = 1;
 	lt_settings->should_set_fec_ready = true;
+	dp_hw_to_dpcd_lane_settings(lt_settings, lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
 }
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
@@ -1509,6 +1479,8 @@ static inline void decide_128b_132b_training_settings(struct dc_link *link,
 			link->dpcd_caps.lttpr_caps.phy_repeater_cnt) + 1) * 20000;
 	lt_settings->lttpr_mode = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt) ?
 			LTTPR_MODE_NON_TRANSPARENT : LTTPR_MODE_TRANSPARENT;
+	dp_hw_to_dpcd_lane_settings(lt_settings,
+			lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
 }
 #endif
 
@@ -1570,6 +1542,9 @@ static void override_training_settings(
 			*lt_settings->post_cursor2
 			: POST_CURSOR2_DISABLED;
 	}
+
+	dp_hw_to_dpcd_lane_settings(lt_settings,
+			lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
 
 	/* Initialize training timings */
 	if (overrides->cr_pattern_time != NULL)
@@ -1841,6 +1816,9 @@ void dc_link_dp_set_drive_settings(
 	/* program ASIC PHY settings*/
 	dp_set_hw_lane_settings(link, lt_settings, DPRX);
 
+	dp_hw_to_dpcd_lane_settings(lt_settings,
+			lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
+
 	/* Notify DP sink the PHY settings from source */
 	dpcd_set_lane_settings(link, lt_settings, DPRX);
 }
@@ -1975,7 +1953,6 @@ static enum link_training_result dp_perform_128b_132b_channel_eq_done_sequence(
 	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
 	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {0};
-	union dpcd_training_lane dpcd_lane_settings[LANE_COUNT_DP_MAX] = { { {0} } };
 
 	/* Transmit 128b/132b_TPS1 over Main-Link */
 	dp_set_hw_training_pattern(link, lt_settings->pattern_for_cr, DPRX);
@@ -1987,7 +1964,7 @@ static enum link_training_result dp_perform_128b_132b_channel_eq_done_sequence(
 	dp_get_lane_status_and_lane_adjust(link, lt_settings, dpcd_lane_status,
 			&dpcd_lane_status_updated, dpcd_lane_adjust, DPRX);
 	dp_decide_lane_settings(lt_settings, dpcd_lane_adjust,
-			lt_settings->lane_settings, dpcd_lane_settings);
+			lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
 	dp_set_hw_lane_settings(link, lt_settings, DPRX);
 	dp_set_hw_training_pattern(link, lt_settings->pattern_for_eq, DPRX);
 
@@ -2005,7 +1982,7 @@ static enum link_training_result dp_perform_128b_132b_channel_eq_done_sequence(
 		dp_get_lane_status_and_lane_adjust(link, lt_settings, dpcd_lane_status,
 				&dpcd_lane_status_updated, dpcd_lane_adjust, DPRX);
 		dp_decide_lane_settings(lt_settings, dpcd_lane_adjust,
-				lt_settings->lane_settings, dpcd_lane_settings);
+			lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
 		dpcd_128b_132b_get_aux_rd_interval(link, &aux_rd_interval);
 		if (dp_is_ch_eq_done(lt_settings->link_settings.lane_count,
 				dpcd_lane_status)) {
@@ -2120,7 +2097,7 @@ static enum link_training_result dp_perform_8b_10b_link_training(
 		}
 
 		for (lane = 0; lane < (uint8_t)lt_settings->link_settings.lane_count; lane++)
-			lt_settings->lane_settings[lane].VOLTAGE_SWING = VOLTAGE_SWING_LEVEL0;
+			lt_settings->dpcd_lane_settings[lane].bits.VOLTAGE_SWING_SET = VOLTAGE_SWING_LEVEL0;
 	}
 
 	if (status == LINK_TRAINING_SUCCESS) {
@@ -3496,15 +3473,13 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 #endif
 	unsigned int test_pattern_size = 0;
 	enum dp_test_pattern test_pattern;
-	struct dc_link_training_settings link_settings;
 	union lane_adjust dpcd_lane_adjust;
 	unsigned int lane;
 	struct link_training_settings link_training_settings;
-	int i = 0;
 
 	dpcd_test_pattern.raw = 0;
 	memset(dpcd_lane_adjustment, 0, sizeof(dpcd_lane_adjustment));
-	memset(&link_settings, 0, sizeof(link_settings));
+	memset(&link_training_settings, 0, sizeof(link_training_settings));
 
 	/* get phy test pattern and pattern parameters from DP receiver */
 	core_link_read_dpcd(
@@ -3625,48 +3600,37 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 #endif
 
 	/* prepare link training settings */
-	link_settings.link = link->cur_link_settings;
+	link_training_settings.link_settings = link->cur_link_settings;
 
 	for (lane = 0; lane <
 		(unsigned int)(link->cur_link_settings.lane_count);
 		lane++) {
 		dpcd_lane_adjust.raw =
 			get_nibble_at_index(&dpcd_lane_adjustment[0].raw, lane);
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 		if (dp_get_link_encoding_format(&link->cur_link_settings) ==
-				DP_128b_132b_ENCODING) {
-			link_settings.lane_settings[lane].FFE_PRESET.raw =
-					dpcd_lane_adjust.tx_ffe.PRESET_VALUE;
-		} else if (dp_get_link_encoding_format(&link->cur_link_settings) ==
 				DP_8b_10b_ENCODING) {
-			link_settings.lane_settings[lane].VOLTAGE_SWING =
+			link_training_settings.hw_lane_settings[lane].VOLTAGE_SWING =
 				(enum dc_voltage_swing)
 				(dpcd_lane_adjust.bits.VOLTAGE_SWING_LANE);
-			link_settings.lane_settings[lane].PRE_EMPHASIS =
+			link_training_settings.hw_lane_settings[lane].PRE_EMPHASIS =
 				(enum dc_pre_emphasis)
 				(dpcd_lane_adjust.bits.PRE_EMPHASIS_LANE);
-			link_settings.lane_settings[lane].POST_CURSOR2 =
+			link_training_settings.hw_lane_settings[lane].POST_CURSOR2 =
 				(enum dc_post_cursor2)
 				((dpcd_post_cursor_2_adjustment >> (lane * 2)) & 0x03);
 		}
-#else
-		link_settings.lane_settings[lane].VOLTAGE_SWING =
-			(enum dc_voltage_swing)
-			(dpcd_lane_adjust.bits.VOLTAGE_SWING_LANE);
-		link_settings.lane_settings[lane].PRE_EMPHASIS =
-			(enum dc_pre_emphasis)
-			(dpcd_lane_adjust.bits.PRE_EMPHASIS_LANE);
-		link_settings.lane_settings[lane].POST_CURSOR2 =
-			(enum dc_post_cursor2)
-			((dpcd_post_cursor_2_adjustment >> (lane * 2)) & 0x03);
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		else if (dp_get_link_encoding_format(&link->cur_link_settings) ==
+				DP_128b_132b_ENCODING) {
+			link_training_settings.hw_lane_settings[lane].FFE_PRESET.raw =
+					dpcd_lane_adjust.tx_ffe.PRESET_VALUE;
+		}
 #endif
 	}
 
-	for (i = 0; i < 4; i++)
-		link_training_settings.lane_settings[i] =
-				link_settings.lane_settings[i];
-	link_training_settings.link_settings = link_settings.link;
-	link_training_settings.allow_invalid_msa_timing_param = false;
+	dp_hw_to_dpcd_lane_settings(&link_training_settings,
+			link_training_settings.hw_lane_settings,
+			link_training_settings.dpcd_lane_settings);
 	/*Usage: Measure DP physical lane signal
 	 * by DP SI test equipment automatically.
 	 * PHY test pattern request is generated by equipment via HPD interrupt.

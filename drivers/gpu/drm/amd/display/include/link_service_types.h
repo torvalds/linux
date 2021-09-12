@@ -90,8 +90,11 @@ enum lttpr_mode {
 
 struct link_training_settings {
 	struct dc_link_settings link_settings;
-	struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX];
 
+	/* TODO: turn lane settings below into mandatory fields
+	 * as initial lane configuration
+	 */
+	struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX];
 	enum dc_voltage_swing *voltage_swing;
 	enum dc_pre_emphasis *pre_emphasis;
 	enum dc_post_cursor2 *post_cursor2;
