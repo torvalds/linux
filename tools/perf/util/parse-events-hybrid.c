@@ -76,12 +76,16 @@ static int add_hw_hybrid(struct parse_events_state *parse_state,
 	int ret;
 
 	perf_pmu__for_each_hybrid_pmu(pmu) {
+		LIST_HEAD(terms);
+
 		if (pmu_cmp(parse_state, pmu))
 			continue;
 
+		copy_config_terms(&terms, config_terms);
 		ret = create_event_hybrid(PERF_TYPE_HARDWARE,
 					  &parse_state->idx, list, attr, name,
-					  config_terms, pmu);
+					  &terms, pmu);
+		free_config_terms(&terms);
 		if (ret)
 			return ret;
 	}
@@ -115,11 +119,15 @@ static int add_raw_hybrid(struct parse_events_state *parse_state,
 	int ret;
 
 	perf_pmu__for_each_hybrid_pmu(pmu) {
+		LIST_HEAD(terms);
+
 		if (pmu_cmp(parse_state, pmu))
 			continue;
 
+		copy_config_terms(&terms, config_terms);
 		ret = create_raw_event_hybrid(&parse_state->idx, list, attr,
-					      name, config_terms, pmu);
+					      name, &terms, pmu);
+		free_config_terms(&terms);
 		if (ret)
 			return ret;
 	}
@@ -165,11 +173,15 @@ int parse_events__add_cache_hybrid(struct list_head *list, int *idx,
 
 	*hybrid = true;
 	perf_pmu__for_each_hybrid_pmu(pmu) {
+		LIST_HEAD(terms);
+
 		if (pmu_cmp(parse_state, pmu))
 			continue;
 
+		copy_config_terms(&terms, config_terms);
 		ret = create_event_hybrid(PERF_TYPE_HW_CACHE, idx, list,
-					  attr, name, config_terms, pmu);
+					  attr, name, &terms, pmu);
+		free_config_terms(&terms);
 		if (ret)
 			return ret;
 	}

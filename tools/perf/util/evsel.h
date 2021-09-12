@@ -213,6 +213,9 @@ static inline struct evsel *evsel__new(struct perf_event_attr *attr)
 struct evsel *evsel__clone(struct evsel *orig);
 struct evsel *evsel__newtp_idx(const char *sys, const char *name, int idx);
 
+int copy_config_terms(struct list_head *dst, struct list_head *src);
+void free_config_terms(struct list_head *config_terms);
+
 /*
  * Returns pointer with encoded error via <linux/err.h> interface.
  */
