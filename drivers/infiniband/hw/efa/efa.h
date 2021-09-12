@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_H_
@@ -27,8 +27,7 @@
 struct efa_irq {
 	irq_handler_t handler;
 	void *data;
-	int cpu;
-	u32 vector;
+	u32 irqn;
 	cpumask_t affinity_hint_mask;
 	char name[EFA_IRQNAME_SIZE];
 };
@@ -132,9 +131,8 @@ int efa_query_pkey(struct ib_device *ibdev, u32 port, u16 index,
 int efa_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
 int efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
 int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
-struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
-			    struct ib_qp_init_attr *init_attr,
-			    struct ib_udata *udata);
+int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
+		  struct ib_udata *udata);
 int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		  struct ib_udata *udata);

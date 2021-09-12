@@ -711,6 +711,7 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_ah, bnxt_re_ah, ib_ah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, bnxt_re_cq, ib_cq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, bnxt_re_pd, ib_pd),
+	INIT_RDMA_OBJ_SIZE(ib_qp, bnxt_re_qp, ib_qp),
 	INIT_RDMA_OBJ_SIZE(ib_srq, bnxt_re_srq, ib_srq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, bnxt_re_ucontext, ib_uctx),
 };
