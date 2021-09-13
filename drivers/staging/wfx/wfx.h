@@ -99,11 +99,8 @@ static inline struct wfx_vif *wdev_to_wvif(struct wfx_dev *wdev, int vif_id)
 		return NULL;
 	}
 	vif_id = array_index_nospec(vif_id, ARRAY_SIZE(wdev->vif));
-	if (!wdev->vif[vif_id]) {
-		dev_dbg(wdev->dev, "requesting non-allocated vif: %d\n",
-			vif_id);
+	if (!wdev->vif[vif_id])
 		return NULL;
-	}
 	return (struct wfx_vif *) wdev->vif[vif_id]->drv_priv;
 }
 
