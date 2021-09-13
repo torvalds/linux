@@ -674,7 +674,7 @@ int wfx_ampdu_action(struct ieee80211_hw *hw,
 		return 0;
 	default:
 		// Leave the firmware doing its business for tx aggregation
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 }
 
