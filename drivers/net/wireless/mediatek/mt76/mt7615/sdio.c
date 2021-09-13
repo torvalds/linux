@@ -432,7 +432,7 @@ static int mt7663s_suspend(struct device *dev)
 	cancel_work_sync(&mdev->mt76.sdio.stat_work);
 	clear_bit(MT76_READING_STATS, &mdev->mphy.state);
 
-	mt76_tx_status_check(&mdev->mt76, NULL, true);
+	mt76_tx_status_check(&mdev->mt76, true);
 
 	return 0;
 }

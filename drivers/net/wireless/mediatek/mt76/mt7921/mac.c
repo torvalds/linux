@@ -1694,7 +1694,7 @@ void mt7921_mac_work(struct work_struct *work)
 
 	mt7921_mutex_release(phy->dev);
 
-	mt76_tx_status_check(mphy->dev, NULL, false);
+	mt76_tx_status_check(mphy->dev, false);
 	ieee80211_queue_delayed_work(phy->mt76->hw, &mphy->mac_work,
 				     MT7921_WATCHDOG_TIME);
 }

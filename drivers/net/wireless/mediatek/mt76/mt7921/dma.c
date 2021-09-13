@@ -272,7 +272,7 @@ static int mt7921_dma_reset(struct mt7921_dev *dev, bool force)
 	mt76_for_each_q_rx(&dev->mt76, i)
 		mt76_queue_reset(dev, &dev->mt76.q_rx[i]);
 
-	mt76_tx_status_check(&dev->mt76, NULL, true);
+	mt76_tx_status_check(&dev->mt76, true);
 
 	return mt7921_dma_enable(dev);
 }

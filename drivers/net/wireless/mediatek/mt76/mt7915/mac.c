@@ -1792,7 +1792,7 @@ mt7915_dma_reset(struct mt7915_dev *dev)
 	mt76_for_each_q_rx(&dev->mt76, i)
 		mt76_queue_rx_reset(dev, i);
 
-	mt76_tx_status_check(&dev->mt76, NULL, true);
+	mt76_tx_status_check(&dev->mt76, true);
 
 	/* re-init prefetch settings after reset */
 	mt7915_dma_prefetch(dev);
@@ -2105,7 +2105,7 @@ void mt7915_mac_work(struct work_struct *work)
 
 	mutex_unlock(&mphy->dev->mutex);
 
-	mt76_tx_status_check(mphy->dev, NULL, false);
+	mt76_tx_status_check(mphy->dev, false);
 
 	ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
 				     MT7915_WATCHDOG_TIME);

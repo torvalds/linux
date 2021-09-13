@@ -328,7 +328,7 @@ void mt76s_deinit(struct mt76_dev *dev)
 	cancel_work_sync(&sdio->stat_work);
 	clear_bit(MT76_READING_STATS, &dev->phy.state);
 
-	mt76_tx_status_check(dev, NULL, true);
+	mt76_tx_status_check(dev, true);
 
 	sdio_claim_host(sdio->func);
 	sdio_release_irq(sdio->func);

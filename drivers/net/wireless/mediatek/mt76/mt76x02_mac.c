@@ -1186,7 +1186,7 @@ void mt76x02_mac_work(struct work_struct *work)
 
 	mutex_unlock(&dev->mt76.mutex);
 
-	mt76_tx_status_check(&dev->mt76, NULL, false);
+	mt76_tx_status_check(&dev->mt76, false);
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mphy.mac_work,
 				     MT_MAC_WORK_INTERVAL);
