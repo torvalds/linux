@@ -1422,6 +1422,19 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 	const char *region_name;
 	int ret;
 
+	list_for_each_entry(ctl, &dsp->ctl_list, list) {
+		if (ctl->fw_name == wm_adsp_fw_text[dsp->fw] &&
+		    ctl->alg_region.alg == alg_region->alg &&
+		    ctl->alg_region.type == alg_region->type) {
+			if ((!subname && !ctl->subname) ||
+			    (subname && !strncmp(ctl->subname, subname, ctl->subname_len))) {
+				if (!ctl->enabled)
+					ctl->enabled = 1;
+				return 0;
+			}
+		}
+	}
+
 	region_name = wm_adsp_mem_region_name(alg_region->type);
 	if (!region_name) {
 		adsp_err(dsp, "Unknown region type: %d\n", alg_region->type);
@@ -1460,14 +1473,6 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 
 		snprintf(name + ret, SNDRV_CTL_ELEM_ID_NAME_MAXLEN - ret,
 			 " %.*s", subname_len - skip, subname + skip);
-	}
-
-	list_for_each_entry(ctl, &dsp->ctl_list, list) {
-		if (!strcmp(ctl->name, name)) {
-			if (!ctl->enabled)
-				ctl->enabled = 1;
-			return 0;
-		}
 	}
 
 	ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
