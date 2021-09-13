@@ -113,9 +113,8 @@ SHARED_OBJDIR	:= $(OUTPUT)sharedobjs/
 STATIC_OBJDIR	:= $(OUTPUT)staticobjs/
 BPF_IN_SHARED	:= $(SHARED_OBJDIR)libbpf-in.o
 BPF_IN_STATIC	:= $(STATIC_OBJDIR)libbpf-in.o
-VERSION_HDR	:= $(OUTPUT)libbpf_version.h
 BPF_HELPER_DEFS	:= $(OUTPUT)bpf_helper_defs.h
-BPF_GENERATED	:= $(BPF_HELPER_DEFS) $(VERSION_HDR)
+BPF_GENERATED	:= $(BPF_HELPER_DEFS)
 
 LIB_TARGET	:= $(addprefix $(OUTPUT),$(LIB_TARGET))
 LIB_FILE	:= $(addprefix $(OUTPUT),$(LIB_FILE))
@@ -165,12 +164,6 @@ $(BPF_HELPER_DEFS): $(srctree)/tools/include/uapi/linux/bpf.h
 	$(QUIET_GEN)$(srctree)/scripts/bpf_doc.py --header \
 		--file $(srctree)/tools/include/uapi/linux/bpf.h > $(BPF_HELPER_DEFS)
 
-$(VERSION_HDR): force
-	$(QUIET_GEN)echo "/* This file was auto-generated. */" > $@
-	@echo "" >> $@
-	@echo "#define LIBBPF_MAJOR_VERSION $(LIBBPF_MAJOR_VERSION)" >> $@
-	@echo "#define LIBBPF_MINOR_VERSION $(LIBBPF_MINOR_VERSION)" >> $@
-
 $(OUTPUT)libbpf.so: $(OUTPUT)libbpf.so.$(LIBBPF_VERSION)
 
 $(OUTPUT)libbpf.so.$(LIBBPF_VERSION): $(BPF_IN_SHARED) $(VERSION_SCRIPT)
@@ -189,7 +182,7 @@ $(OUTPUT)libbpf.pc:
 		-e "s|@VERSION@|$(LIBBPF_VERSION)|" \
 		< libbpf.pc.template > $@
 
-check: check_abi
+check: check_abi check_version
 
 check_abi: $(OUTPUT)libbpf.so $(VERSION_SCRIPT)
 	@if [ "$(GLOBAL_SYM_COUNT)" != "$(VERSIONED_SYM_COUNT)" ]; then	 \
@@ -215,6 +208,21 @@ check_abi: $(OUTPUT)libbpf.so $(VERSION_SCRIPT)
 		exit 1;							 \
 	fi
 
+HDR_MAJ_VERSION := $(shell grep -oE '^\#define LIBBPF_MAJOR_VERSION ([0-9]+)$$' libbpf_version.h | cut -d' ' -f3)
+HDR_MIN_VERSION := $(shell grep -oE '^\#define LIBBPF_MINOR_VERSION ([0-9]+)$$' libbpf_version.h | cut -d' ' -f3)
+
+check_version: $(VERSION_SCRIPT) libbpf_version.h
+	@if [ "$(HDR_MAJ_VERSION)" != "$(LIBBPF_MAJOR_VERSION)" ]; then        \
+		echo "Error: libbpf major version mismatch detected: "	       \
+		     "'$(HDR_MAJ_VERSION)' != '$(LIBBPF_MAJOR_VERSION)'" >&2;  \
+		exit 1;							       \
+	fi
+	@if [ "$(HDR_MIN_VERSION)" != "$(LIBBPF_MINOR_VERSION)" ]; then	       \
+		echo "Error: libbpf minor version mismatch detected: "	       \
+		     "'$(HDR_MIN_VERSION)' != '$(LIBBPF_MINOR_VERSION)'" >&2;  \
+		exit 1;							       \
+	fi
+
 define do_install_mkdir
 	if [ ! -d '$(DESTDIR_SQ)$1' ]; then		\
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$1';	\
@@ -234,8 +242,9 @@ install_lib: all_cmd
 		cp -fpR $(LIB_FILE) $(DESTDIR)$(libdir_SQ)
 
 INSTALL_HEADERS = bpf.h libbpf.h btf.h libbpf_common.h libbpf_legacy.h xsk.h \
-		  bpf_helpers.h $(BPF_GENERATED) bpf_tracing.h	     \
-		  bpf_endian.h bpf_core_read.h skel_internal.h
+		  bpf_helpers.h $(BPF_GENERATED) bpf_tracing.h		     \
+		  bpf_endian.h bpf_core_read.h skel_internal.h		     \
+		  libbpf_version.h
 
 install_headers: $(BPF_GENERATED)
 	$(call QUIET_INSTALL, headers)					     \
@@ -255,7 +264,7 @@ clean:
 		$(addprefix $(OUTPUT),					     \
 			    *.o *.a *.so *.so.$(LIBBPF_MAJOR_VERSION) *.pc)
 
-PHONY += force cscope tags
+PHONY += force cscope tags check check_abi check_version
 force:
 
 cscope:

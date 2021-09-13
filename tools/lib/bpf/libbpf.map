@@ -386,3 +386,6 @@ LIBBPF_0.5.0 {
 		btf_dump__dump_type_data;
 		libbpf_set_strict_mode;
 } LIBBPF_0.4.0;
+
+LIBBPF_0.6.0 {
+} LIBBPF_0.5.0;
