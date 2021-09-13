@@ -1537,6 +1537,10 @@ static int ethtool_get_any_eeprom(struct net_device *dev, void __user *useraddr,
 		ret = getter(dev, &eeprom, data);
 		if (ret)
 			break;
+		if (!eeprom.len) {
+			ret = -EIO;
+			break;
+		}
 		if (copy_to_user(userbuf, data, eeprom.len)) {
 			ret = -EFAULT;
 			break;
