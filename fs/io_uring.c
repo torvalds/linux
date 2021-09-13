@@ -1498,6 +1498,8 @@ static void io_kill_timeout(struct io_kiocb *req, int status)
 
 	ret = hrtimer_try_to_cancel(&io->timer);
 	if (ret != -1) {
+		if (status)
+			req_set_fail_links(req);
 		atomic_set(&req->ctx->cq_timeouts,
 			atomic_read(&req->ctx->cq_timeouts) + 1);
 		list_del_init(&req->timeout.list);
