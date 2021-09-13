@@ -56,7 +56,7 @@ static int send_scan_req(struct wfx_vif *wvif,
 	wfx_tx_lock_flush(wvif->wdev);
 	wvif->scan_abort = false;
 	reinit_completion(&wvif->scan_complete);
-	ret = hif_scan(wvif, req, start_idx, i - start_idx, NULL);
+	ret = hif_scan(wvif, req, start_idx, i - start_idx);
 	if (ret) {
 		wfx_tx_unlock(wvif->wdev);
 		return -EIO;

@@ -227,14 +227,13 @@ int hif_write_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id,
 }
 
 int hif_scan(struct wfx_vif *wvif, struct cfg80211_scan_request *req,
-	     int chan_start_idx, int chan_num, int *timeout)
+	     int chan_start_idx, int chan_num)
 {
 	int ret, i;
 	struct hif_msg *hif;
 	size_t buf_len =
 		sizeof(struct hif_req_start_scan_alt) + chan_num * sizeof(u8);
 	struct hif_req_start_scan_alt *body = wfx_alloc_hif(buf_len, &hif);
-	int tmo_chan_fg, tmo_chan_bg, tmo;
 
 	WARN(chan_num > HIF_API_MAX_NB_CHANNELS, "invalid params");
 	WARN(req->n_ssids > HIF_API_MAX_NB_SSIDS, "invalid params");
@@ -269,12 +268,6 @@ int hif_scan(struct wfx_vif *wvif, struct cfg80211_scan_request *req,
 		body->num_of_probe_requests = 2;
 		body->probe_delay = 100;
 	}
-	tmo_chan_bg = le32_to_cpu(body->max_channel_time) * USEC_PER_TU;
-	tmo_chan_fg = 512 * USEC_PER_TU + body->probe_delay;
-	tmo_chan_fg *= body->num_of_probe_requests;
-	tmo = chan_num * max(tmo_chan_bg, tmo_chan_fg) + 512 * USEC_PER_TU;
-	if (timeout)
-		*timeout = usecs_to_jiffies(tmo);
 
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_START_SCAN, buf_len);
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
