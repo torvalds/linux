@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -108,6 +109,42 @@ int kallsyms_find(const char *sym, unsigned long long *addr)
 		if (strcmp(name, sym) == 0) {
 			*addr = value;
 			goto out;
+		}
+	}
+	err = -ENOENT;
+
+out:
+	fclose(f);
+	return err;
+}
+
+/* find the address of the next symbol of the same type, this can be used
+ * to determine the end of a function.
+ */
+int kallsyms_find_next(const char *sym, unsigned long long *addr)
+{
+	char type, found_type, name[500];
+	unsigned long long value;
+	bool found = false;
+	int err = 0;
+	FILE *f;
+
+	f = fopen("/proc/kallsyms", "r");
+	if (!f)
+		return -EINVAL;
+
+	while (fscanf(f, "%llx %c %499s%*[^\n]\n", &value, &type, name) > 0) {
+		/* Different types of symbols in kernel modules are mixed
+		 * in /proc/kallsyms. Only return the next matching type.
+		 * Use tolower() for type so that 'T' matches 't'.
+		 */
+		if (found && found_type == tolower(type)) {
+			*addr = value;
+			goto out;
+		}
+		if (strcmp(name, sym) == 0) {
+			found = true;
+			found_type = tolower(type);
 		}
 	}
 	err = -ENOENT;

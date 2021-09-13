@@ -4877,6 +4877,27 @@ union bpf_attr {
  *		Get the struct pt_regs associated with **task**.
  *	Return
  *		A pointer to struct pt_regs.
+ *
+ * long bpf_get_branch_snapshot(void *entries, u32 size, u64 flags)
+ *	Description
+ *		Get branch trace from hardware engines like Intel LBR. The
+ *		hardware engine is stopped shortly after the helper is
+ *		called. Therefore, the user need to filter branch entries
+ *		based on the actual use case. To capture branch trace
+ *		before the trigger point of the BPF program, the helper
+ *		should be called at the beginning of the BPF program.
+ *
+ *		The data is stored as struct perf_branch_entry into output
+ *		buffer *entries*. *size* is the size of *entries* in bytes.
+ *		*flags* is reserved for now and must be zero.
+ *
+ *	Return
+ *		On success, number of bytes written to *buf*. On error, a
+ *		negative value.
+ *
+ *		**-EINVAL** if *flags* is not zero.
+ *
+ *		**-ENOENT** if architecture does not support branch records.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -5055,6 +5076,7 @@ union bpf_attr {
 	FN(get_func_ip),		\
 	FN(get_attach_cookie),		\
 	FN(task_pt_regs),		\
+	FN(get_branch_snapshot),	\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
