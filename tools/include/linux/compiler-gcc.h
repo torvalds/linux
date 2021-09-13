@@ -16,9 +16,7 @@
 # define __fallthrough __attribute__ ((fallthrough))
 #endif
 
-#if GCC_VERSION >= 40300
-# define __compiletime_error(message) __attribute__((error(message)))
-#endif /* GCC_VERSION >= 40300 */
+#define __compiletime_error(message) __attribute__((error(message)))
 
 /* &a[0] degrades to a pointer: a different type from an array */
 #define __must_be_array(a)	BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
@@ -38,7 +36,3 @@
 #endif
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
 #define __scanf(a, b)	__attribute__((format(scanf, a, b)))
-
-#if GCC_VERSION >= 50100
-#define COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW 1
-#endif
