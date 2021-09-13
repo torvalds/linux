@@ -37,7 +37,7 @@ struct cs47l92 {
 	struct madera_fll fll[2];
 };
 
-static const struct wm_adsp_region cs47l92_dsp1_regions[] = {
+static const struct cs_dsp_region cs47l92_dsp1_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x080000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x0e0000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x0a0000 },
@@ -2012,7 +2012,7 @@ static int cs47l92_probe(struct platform_device *pdev)
 	cs47l92->core.adsp[0].mem = cs47l92_dsp1_regions;
 	cs47l92->core.adsp[0].num_mems = ARRAY_SIZE(cs47l92_dsp1_regions);
 
-	cs47l92->core.adsp[0].lock_regions = WM_ADSP2_REGION_1_9;
+	cs47l92->core.adsp[0].lock_regions = CS_ADSP2_REGION_1_9;
 
 	ret = wm_adsp2_init(&cs47l92->core.adsp[0]);
 	if (ret != 0)

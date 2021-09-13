@@ -145,13 +145,13 @@ static const struct regmap_range_cfg wm2200_ranges[] = {
 	  .window_start = WM2200_DSP2_ZM_0, .window_len = 1024, },
 };
 
-static const struct wm_adsp_region wm2200_dsp1_regions[] = {
+static const struct cs_dsp_region wm2200_dsp1_regions[] = {
 	{ .type = WMFW_ADSP1_PM, .base = WM2200_DSP1_PM_BASE },
 	{ .type = WMFW_ADSP1_DM, .base = WM2200_DSP1_DM_BASE },
 	{ .type = WMFW_ADSP1_ZM, .base = WM2200_DSP1_ZM_BASE },
 };
 
-static const struct wm_adsp_region wm2200_dsp2_regions[] = {
+static const struct cs_dsp_region wm2200_dsp2_regions[] = {
 	{ .type = WMFW_ADSP1_PM, .base = WM2200_DSP2_PM_BASE },
 	{ .type = WMFW_ADSP1_DM, .base = WM2200_DSP2_DM_BASE },
 	{ .type = WMFW_ADSP1_ZM, .base = WM2200_DSP2_ZM_BASE },

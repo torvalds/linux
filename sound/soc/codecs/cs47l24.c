@@ -37,21 +37,21 @@ struct cs47l24_priv {
 	struct arizona_fll fll[2];
 };
 
-static const struct wm_adsp_region cs47l24_dsp2_regions[] = {
+static const struct cs_dsp_region cs47l24_dsp2_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x200000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x280000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x290000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x2a8000 },
 };
 
-static const struct wm_adsp_region cs47l24_dsp3_regions[] = {
+static const struct cs_dsp_region cs47l24_dsp3_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x300000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x380000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x390000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x3a8000 },
 };
 
-static const struct wm_adsp_region *cs47l24_dsp_regions[] = {
+static const struct cs_dsp_region *cs47l24_dsp_regions[] = {
 	cs47l24_dsp2_regions,
 	cs47l24_dsp3_regions,
 };

@@ -20,29 +20,29 @@
 #define WM_ADSP_COMPR_OK                 0
 #define WM_ADSP_COMPR_VOICE_TRIGGER      1
 
-#define WM_ADSP2_REGION_0 BIT(0)
-#define WM_ADSP2_REGION_1 BIT(1)
-#define WM_ADSP2_REGION_2 BIT(2)
-#define WM_ADSP2_REGION_3 BIT(3)
-#define WM_ADSP2_REGION_4 BIT(4)
-#define WM_ADSP2_REGION_5 BIT(5)
-#define WM_ADSP2_REGION_6 BIT(6)
-#define WM_ADSP2_REGION_7 BIT(7)
-#define WM_ADSP2_REGION_8 BIT(8)
-#define WM_ADSP2_REGION_9 BIT(9)
-#define WM_ADSP2_REGION_1_9 (WM_ADSP2_REGION_1 | \
-		WM_ADSP2_REGION_2 | WM_ADSP2_REGION_3 | \
-		WM_ADSP2_REGION_4 | WM_ADSP2_REGION_5 | \
-		WM_ADSP2_REGION_6 | WM_ADSP2_REGION_7 | \
-		WM_ADSP2_REGION_8 | WM_ADSP2_REGION_9)
-#define WM_ADSP2_REGION_ALL (WM_ADSP2_REGION_0 | WM_ADSP2_REGION_1_9)
+#define CS_ADSP2_REGION_0 BIT(0)
+#define CS_ADSP2_REGION_1 BIT(1)
+#define CS_ADSP2_REGION_2 BIT(2)
+#define CS_ADSP2_REGION_3 BIT(3)
+#define CS_ADSP2_REGION_4 BIT(4)
+#define CS_ADSP2_REGION_5 BIT(5)
+#define CS_ADSP2_REGION_6 BIT(6)
+#define CS_ADSP2_REGION_7 BIT(7)
+#define CS_ADSP2_REGION_8 BIT(8)
+#define CS_ADSP2_REGION_9 BIT(9)
+#define CS_ADSP2_REGION_1_9 (CS_ADSP2_REGION_1 | \
+		CS_ADSP2_REGION_2 | CS_ADSP2_REGION_3 | \
+		CS_ADSP2_REGION_4 | CS_ADSP2_REGION_5 | \
+		CS_ADSP2_REGION_6 | CS_ADSP2_REGION_7 | \
+		CS_ADSP2_REGION_8 | CS_ADSP2_REGION_9)
+#define CS_ADSP2_REGION_ALL (CS_ADSP2_REGION_0 | CS_ADSP2_REGION_1_9)
 
-struct wm_adsp_region {
+struct cs_dsp_region {
 	int type;
 	unsigned int base;
 };
 
-struct wm_adsp_alg_region {
+struct cs_dsp_alg_region {
 	struct list_head list;
 	unsigned int alg;
 	int type;
@@ -51,7 +51,7 @@ struct wm_adsp_alg_region {
 
 struct wm_adsp_compr;
 struct wm_adsp_compr_buf;
-struct wm_adsp_ops;
+struct cs_dsp_ops;
 
 struct wm_adsp {
 	const char *part;
@@ -64,7 +64,7 @@ struct wm_adsp {
 	struct regmap *regmap;
 	struct snd_soc_component *component;
 
-	const struct wm_adsp_ops *ops;
+	const struct cs_dsp_ops *ops;
 
 	unsigned int base;
 	unsigned int base_sysinfo;
@@ -78,7 +78,7 @@ struct wm_adsp {
 	unsigned int fw_id_version;
 	unsigned int fw_vendor_id;
 
-	const struct wm_adsp_region *mem;
+	const struct cs_dsp_region *mem;
 	int num_mems;
 
 	int fw;
@@ -108,7 +108,7 @@ struct wm_adsp {
 
 };
 
-struct wm_adsp_ops {
+struct cs_dsp_ops {
 	unsigned int sys_config_size;
 
 	bool (*validate_version)(struct wm_adsp *dsp, unsigned int version);
@@ -117,7 +117,7 @@ struct wm_adsp_ops {
 				    unsigned int pos,
 				    const struct firmware *firmware);
 	int (*setup_algs)(struct wm_adsp *dsp);
-	unsigned int (*region_to_reg)(struct wm_adsp_region const *mem,
+	unsigned int (*region_to_reg)(struct cs_dsp_region const *mem,
 				      unsigned int offset);
 
 	void (*show_fw_status)(struct wm_adsp *dsp);

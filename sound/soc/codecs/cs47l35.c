@@ -37,28 +37,28 @@ struct cs47l35 {
 	struct madera_fll fll;
 };
 
-static const struct wm_adsp_region cs47l35_dsp1_regions[] = {
+static const struct cs_dsp_region cs47l35_dsp1_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x080000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x0e0000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x0a0000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x0c0000 },
 };
 
-static const struct wm_adsp_region cs47l35_dsp2_regions[] = {
+static const struct cs_dsp_region cs47l35_dsp2_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x100000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x160000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x120000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x140000 },
 };
 
-static const struct wm_adsp_region cs47l35_dsp3_regions[] = {
+static const struct cs_dsp_region cs47l35_dsp3_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x180000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x1e0000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x1a0000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x1c0000 },
 };
 
-static const struct wm_adsp_region *cs47l35_dsp_regions[] = {
+static const struct cs_dsp_region *cs47l35_dsp_regions[] = {
 	cs47l35_dsp1_regions,
 	cs47l35_dsp2_regions,
 	cs47l35_dsp3_regions,

@@ -44,7 +44,7 @@ static DECLARE_TLV_DB_SCALE(digital_tlv, -6400, 50, 0);
 static DECLARE_TLV_DB_SCALE(noise_tlv, -13200, 600, 0);
 static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 
-static const struct wm_adsp_region wm5102_dsp1_regions[] = {
+static const struct cs_dsp_region wm5102_dsp1_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x100000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x180000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x190000 },

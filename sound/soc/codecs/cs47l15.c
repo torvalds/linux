@@ -45,7 +45,7 @@ struct cs47l15 {
 	bool in1_lp_mode;
 };
 
-static const struct wm_adsp_region cs47l15_dsp1_regions[] = {
+static const struct cs_dsp_region cs47l15_dsp1_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x080000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x0e0000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x0a0000 },
@@ -1413,7 +1413,7 @@ static int cs47l15_probe(struct platform_device *pdev)
 	cs47l15->core.adsp[0].num_mems = ARRAY_SIZE(cs47l15_dsp1_regions);
 
 	cs47l15->core.adsp[0].lock_regions =
-		WM_ADSP2_REGION_1 | WM_ADSP2_REGION_2 | WM_ADSP2_REGION_3;
+		CS_ADSP2_REGION_1 | CS_ADSP2_REGION_2 | CS_ADSP2_REGION_3;
 
 	ret = wm_adsp2_init(&cs47l15->core.adsp[0]);
 	if (ret != 0)
