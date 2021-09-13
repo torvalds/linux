@@ -440,6 +440,9 @@ int wfx_probe(struct wfx_dev *wdev)
 	wdev->hw->wiphy->n_addresses = ARRAY_SIZE(wdev->addresses);
 	wdev->hw->wiphy->addresses = wdev->addresses;
 
+	if (!wfx_api_older_than(wdev, 3, 8))
+		wdev->hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
+
 	err = ieee80211_register_hw(wdev->hw);
 	if (err)
 		goto err1;
