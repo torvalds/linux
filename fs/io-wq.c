@@ -14,6 +14,7 @@
 #include <linux/rculist_nulls.h>
 #include <linux/cpu.h>
 #include <linux/tracehook.h>
+#include <uapi/linux/io_uring.h>
 
 #include "io-wq.h"
 
@@ -1280,6 +1281,10 @@ int io_wq_cpu_affinity(struct io_wq *wq, cpumask_var_t mask)
 int io_wq_max_workers(struct io_wq *wq, int *new_count)
 {
 	int i, node, prev = 0;
+
+	BUILD_BUG_ON((int) IO_WQ_ACCT_BOUND   != (int) IO_WQ_BOUND);
+	BUILD_BUG_ON((int) IO_WQ_ACCT_UNBOUND != (int) IO_WQ_UNBOUND);
+	BUILD_BUG_ON((int) IO_WQ_ACCT_NR      != 2);
 
 	for (i = 0; i < 2; i++) {
 		if (new_count[i] > task_rlimit(current, RLIMIT_NPROC))
