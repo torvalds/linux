@@ -16,7 +16,9 @@
 # define __fallthrough __attribute__ ((fallthrough))
 #endif
 
-#define __compiletime_error(message) __attribute__((error(message)))
+#if __has_attribute(__error__)
+# define __compiletime_error(message) __attribute__((error(message)))
+#endif
 
 /* &a[0] degrades to a pointer: a different type from an array */
 #define __must_be_array(a)	BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
