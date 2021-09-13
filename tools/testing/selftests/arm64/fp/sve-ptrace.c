@@ -19,7 +19,7 @@
 
 #include "../../kselftest.h"
 
-#define EXPECTED_TESTS 20
+#define EXPECTED_TESTS 19
 
 /* <linux/elf.h> and <sys/auxv.h> don't like each other, so: */
 #ifndef NT_ARM_SVE
@@ -169,8 +169,6 @@ static int do_parent(pid_t child)
 		if (WIFEXITED(status) || WIFSIGNALED(status))
 			ksft_exit_fail_msg("Child died unexpectedly\n");
 
-		ksft_test_result(WIFSTOPPED(status), "WIFSTOPPED(%d)\n",
-				 status);
 		if (!WIFSTOPPED(status))
 			goto error;
 
