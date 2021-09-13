@@ -45,6 +45,9 @@ static int sysfs_kf_seq_show(struct seq_file *sf, void *v)
 	ssize_t count;
 	char *buf;
 
+	if (WARN_ON_ONCE(!ops->show))
+		return -EINVAL;
+
 	/* acquire buffer and ensure that it's >= PAGE_SIZE and clear */
 	count = seq_get_buf(sf, &buf);
 	if (count < PAGE_SIZE) {
@@ -53,15 +56,9 @@ static int sysfs_kf_seq_show(struct seq_file *sf, void *v)
 	}
 	memset(buf, 0, PAGE_SIZE);
 
-	/*
-	 * Invoke show().  Control may reach here via seq file lseek even
-	 * if @ops->show() isn't implemented.
-	 */
-	if (ops->show) {
-		count = ops->show(kobj, of->kn->priv, buf);
-		if (count < 0)
-			return count;
-	}
+	count = ops->show(kobj, of->kn->priv, buf);
+	if (count < 0)
+		return count;
 
 	/*
 	 * The code works fine with PAGE_SIZE return but it's likely to
