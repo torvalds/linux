@@ -631,8 +631,9 @@ void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_notify_cmd notify_cmd)
 {
 	if (notify_cmd != STA_NOTIFY_AWAKE)
 		return;
-	WARN(!wfx_tx_queues_has_cab(wvif), "incorrect sequence");
-	WARN(wvif->after_dtim_tx_allowed, "incorrect sequence");
+	if (!wfx_tx_queues_has_cab(wvif) || wvif->after_dtim_tx_allowed)
+		dev_warn(wvif->wdev->dev, "incorrect sequence (%d CAB in queue)",
+			 wfx_tx_queues_has_cab(wvif));
 	wvif->after_dtim_tx_allowed = true;
 	wfx_bh_request_tx(wvif->wdev);
 }
