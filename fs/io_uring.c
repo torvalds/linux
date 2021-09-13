@@ -10563,10 +10563,12 @@ static int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 			 * ordering. Fine to drop uring_lock here, we hold
 			 * a ref to the ctx.
 			 */
+			refcount_inc(&sqd->refs);
 			mutex_unlock(&ctx->uring_lock);
 			mutex_lock(&sqd->lock);
 			mutex_lock(&ctx->uring_lock);
-			tctx = sqd->thread->io_uring;
+			if (sqd->thread)
+				tctx = sqd->thread->io_uring;
 		}
 	} else {
 		tctx = current->io_uring;
@@ -10580,16 +10582,20 @@ static int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 	if (ret)
 		goto err;
 
-	if (sqd)
+	if (sqd) {
 		mutex_unlock(&sqd->lock);
+		io_put_sq_data(sqd);
+	}
 
 	if (copy_to_user(arg, new_count, sizeof(new_count)))
 		return -EFAULT;
 
 	return 0;
 err:
-	if (sqd)
+	if (sqd) {
 		mutex_unlock(&sqd->lock);
+		io_put_sq_data(sqd);
+	}
 	return ret;
 }
 
