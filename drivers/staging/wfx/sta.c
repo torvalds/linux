@@ -80,13 +80,18 @@ static void wfx_filter_beacon(struct wfx_vif *wvif, bool filter_beacon)
 			.has_changed  = 1,
 			.no_longer    = 1,
 			.has_appeared = 1,
+		}, {
+			.ie_id        = WLAN_EID_CHANNEL_SWITCH,
+			.has_changed  = 1,
+			.no_longer    = 1,
+			.has_appeared = 1,
 		}
 	};
 
 	if (!filter_beacon) {
 		hif_beacon_filter_control(wvif, 0, 1);
 	} else {
-		hif_set_beacon_filter_table(wvif, 3, filter_ies);
+		hif_set_beacon_filter_table(wvif, ARRAY_SIZE(filter_ies), filter_ies);
 		hif_beacon_filter_control(wvif, HIF_BEACON_FILTER_ENABLE, 0);
 	}
 }
