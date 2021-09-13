@@ -108,6 +108,15 @@ config SND_SOC_TEGRA210_ADMAIF
 	  channel. Buffer size is configurable for each ADMAIIF channel.
 	  Say Y or M if you want to add support for Tegra210 ADMAIF module.
 
+config SND_SOC_TEGRA210_MVC
+	tristate "Tegra210 MVC module"
+	help
+	  Config to enable the digital Master Volume Controller (MVC) which
+	  provides gain or attenuation to a digital signal path. It can be
+	  used in input or output signal path. It can be used either for
+	  per-stream volume control or for master volume control.
+	  Say Y or M if you want to add support for Tegra210 MVC module.
+
 config SND_SOC_TEGRA_AUDIO_GRAPH_CARD
 	tristate "Audio Graph Card based Tegra driver"
 	depends on SND_AUDIO_GRAPH_CARD
