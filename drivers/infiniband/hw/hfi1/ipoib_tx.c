@@ -133,7 +133,7 @@ static void hfi1_ipoib_check_queue_stopped(struct hfi1_ipoib_txq *txq)
 
 static void hfi1_ipoib_free_tx(struct ipoib_txreq *tx, int budget)
 {
-	struct hfi1_ipoib_dev_priv *priv = tx->priv;
+	struct hfi1_ipoib_dev_priv *priv = tx->txq->priv;
 
 	if (likely(!tx->sdma_status)) {
 		dev_sw_netstats_tx_add(priv->netdev, 1, tx->skb->len);
@@ -273,7 +273,7 @@ static int hfi1_ipoib_build_tx_desc(struct ipoib_txreq *tx,
 static void hfi1_ipoib_build_ib_tx_headers(struct ipoib_txreq *tx,
 					   struct ipoib_txparms *txp)
 {
-	struct hfi1_ipoib_dev_priv *priv = tx->priv;
+	struct hfi1_ipoib_dev_priv *priv = tx->txq->priv;
 	struct hfi1_sdma_header *sdma_hdr = &tx->sdma_hdr;
 	struct sk_buff *skb = tx->skb;
 	struct hfi1_pportdata *ppd = ppd_from_ibp(txp->ibp);
@@ -383,7 +383,6 @@ static struct ipoib_txreq *hfi1_ipoib_send_dma_common(struct net_device *dev,
 
 	/* so that we can test if the sdma descriptors are there */
 	tx->txreq.num_desc = 0;
-	tx->priv = priv;
 	tx->txq = txq;
 	tx->skb = skb;
 	INIT_LIST_HEAD(&tx->txreq.list);
@@ -491,7 +490,7 @@ static int hfi1_ipoib_send_dma_single(struct net_device *dev,
 	ret = hfi1_ipoib_submit_tx(txq, tx);
 	if (likely(!ret)) {
 tx_ok:
-		trace_sdma_output_ibhdr(tx->priv->dd,
+		trace_sdma_output_ibhdr(txq->priv->dd,
 					&tx->sdma_hdr.hdr,
 					ib_is_sc5(txp->flow.sc5));
 		hfi1_ipoib_check_queue_depth(txq);
@@ -554,7 +553,7 @@ static int hfi1_ipoib_send_dma_list(struct net_device *dev,
 
 	hfi1_ipoib_check_queue_depth(txq);
 
-	trace_sdma_output_ibhdr(tx->priv->dd,
+	trace_sdma_output_ibhdr(txq->priv->dd,
 				&tx->sdma_hdr.hdr,
 				ib_is_sc5(txp->flow.sc5));
 
