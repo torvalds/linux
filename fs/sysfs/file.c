@@ -261,7 +261,7 @@ int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 	struct kobject *kobj = parent->priv;
 	const struct sysfs_ops *sysfs_ops = kobj->ktype->sysfs_ops;
 	struct lock_class_key *key = NULL;
-	const struct kernfs_ops *ops;
+	const struct kernfs_ops *ops = NULL;
 	struct kernfs_node *kn;
 
 	/* every kobject with an attribute needs a ktype assigned */
@@ -270,22 +270,23 @@ int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 			kobject_name(kobj)))
 		return -EINVAL;
 
-	if (sysfs_ops->show && sysfs_ops->store) {
-		if (mode & SYSFS_PREALLOC)
+	if (mode & SYSFS_PREALLOC) {
+		if (sysfs_ops->show && sysfs_ops->store)
 			ops = &sysfs_prealloc_kfops_rw;
-		else
-			ops = &sysfs_file_kfops_rw;
-	} else if (sysfs_ops->show) {
-		if (mode & SYSFS_PREALLOC)
+		else if (sysfs_ops->show)
 			ops = &sysfs_prealloc_kfops_ro;
-		else
-			ops = &sysfs_file_kfops_ro;
-	} else if (sysfs_ops->store) {
-		if (mode & SYSFS_PREALLOC)
+		else if (sysfs_ops->store)
 			ops = &sysfs_prealloc_kfops_wo;
-		else
+	} else {
+		if (sysfs_ops->show && sysfs_ops->store)
+			ops = &sysfs_file_kfops_rw;
+		else if (sysfs_ops->show)
+			ops = &sysfs_file_kfops_ro;
+		else if (sysfs_ops->store)
 			ops = &sysfs_file_kfops_wo;
-	} else
+	}
+
+	if (!ops)
 		ops = &sysfs_file_kfops_empty;
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
