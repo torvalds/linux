@@ -120,7 +120,7 @@ static void intel_cpu_transcoder_set_m_n(const struct intel_crtc_state *crtc_sta
 					 const struct intel_link_m_n *m2_n2);
 static void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state);
 static void ilk_set_pipeconf(const struct intel_crtc_state *crtc_state);
-static void hsw_set_pipeconf(const struct intel_crtc_state *crtc_state);
+static void hsw_set_transconf(const struct intel_crtc_state *crtc_state);
 static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state);
 static void ilk_pfit_enable(const struct intel_crtc_state *crtc_state);
 static void intel_modeset_setup_hw_state(struct drm_device *dev,
@@ -448,8 +448,8 @@ void assert_panel_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)
 	     pipe_name(pipe));
 }
 
-void assert_pipe(struct drm_i915_private *dev_priv,
-		 enum transcoder cpu_transcoder, bool state)
+void assert_transcoder(struct drm_i915_private *dev_priv,
+		       enum transcoder cpu_transcoder, bool state)
 {
 	bool cur_state;
 	enum intel_display_power_domain power_domain;
@@ -766,7 +766,7 @@ enum pipe intel_crtc_pch_transcoder(struct intel_crtc *crtc)
 		return crtc->pipe;
 }
 
-void intel_enable_pipe(const struct intel_crtc_state *new_crtc_state)
+void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -827,7 +827,7 @@ void intel_enable_pipe(const struct intel_crtc_state *new_crtc_state)
 		intel_wait_for_pipe_scanline_moving(crtc);
 }
 
-void intel_disable_pipe(const struct intel_crtc_state *old_crtc_state)
+void intel_disable_transcoder(const struct intel_crtc_state *old_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -2905,7 +2905,7 @@ static void ilk_crtc_enable(struct intel_atomic_state *state,
 
 	if (dev_priv->display.initial_watermarks)
 		dev_priv->display.initial_watermarks(state, crtc);
-	intel_enable_pipe(new_crtc_state);
+	intel_enable_transcoder(new_crtc_state);
 
 	if (new_crtc_state->has_pch_encoder)
 		ilk_pch_enable(state, new_crtc_state);
@@ -3084,7 +3084,7 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	}
 
 	if (!transcoder_is_dsi(cpu_transcoder))
-		hsw_set_pipeconf(new_crtc_state);
+		hsw_set_transconf(new_crtc_state);
 
 	crtc->active = true;
 
@@ -3179,7 +3179,7 @@ static void ilk_crtc_disable(struct intel_atomic_state *state,
 
 	intel_crtc_vblank_off(old_crtc_state);
 
-	intel_disable_pipe(old_crtc_state);
+	intel_disable_transcoder(old_crtc_state);
 
 	ilk_pfit_disable(old_crtc_state);
 
@@ -3241,7 +3241,7 @@ static void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)
 	 */
 	drm_WARN_ON(&dev_priv->drm,
 		    intel_de_read(dev_priv, PFIT_CONTROL) & PFIT_ENABLE);
-	assert_pipe_disabled(dev_priv, crtc_state->cpu_transcoder);
+	assert_transcoder_disabled(dev_priv, crtc_state->cpu_transcoder);
 
 	intel_de_write(dev_priv, PFIT_PGM_RATIOS,
 		       crtc_state->gmch_pfit.pgm_ratios);
@@ -3533,7 +3533,7 @@ static void valleyview_crtc_enable(struct intel_atomic_state *state,
 	intel_disable_primary_plane(new_crtc_state);
 
 	dev_priv->display.initial_watermarks(state, crtc);
-	intel_enable_pipe(new_crtc_state);
+	intel_enable_transcoder(new_crtc_state);
 
 	intel_crtc_vblank_on(new_crtc_state);
 
@@ -3579,7 +3579,7 @@ static void i9xx_crtc_enable(struct intel_atomic_state *state,
 		dev_priv->display.initial_watermarks(state, crtc);
 	else
 		intel_update_watermarks(crtc);
-	intel_enable_pipe(new_crtc_state);
+	intel_enable_transcoder(new_crtc_state);
 
 	intel_crtc_vblank_on(new_crtc_state);
 
@@ -3598,7 +3598,7 @@ static void i9xx_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 	if (!old_crtc_state->gmch_pfit.control)
 		return;
 
-	assert_pipe_disabled(dev_priv, old_crtc_state->cpu_transcoder);
+	assert_transcoder_disabled(dev_priv, old_crtc_state->cpu_transcoder);
 
 	drm_dbg_kms(&dev_priv->drm, "disabling pfit, current: 0x%08x\n",
 		    intel_de_read(dev_priv, PFIT_CONTROL));
@@ -3624,7 +3624,7 @@ static void i9xx_crtc_disable(struct intel_atomic_state *state,
 
 	intel_crtc_vblank_off(old_crtc_state);
 
-	intel_disable_pipe(old_crtc_state);
+	intel_disable_transcoder(old_crtc_state);
 
 	i9xx_pfit_disable(old_crtc_state);
 
@@ -5194,7 +5194,7 @@ static void ilk_set_pipeconf(const struct intel_crtc_state *crtc_state)
 	intel_de_posting_read(dev_priv, PIPECONF(pipe));
 }
 
-static void hsw_set_pipeconf(const struct intel_crtc_state *crtc_state)
+static void hsw_set_transconf(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);

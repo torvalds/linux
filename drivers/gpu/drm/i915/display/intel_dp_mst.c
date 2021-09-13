@@ -405,7 +405,7 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 
 	intel_crtc_vblank_off(old_crtc_state);
 
-	intel_disable_pipe(old_crtc_state);
+	intel_disable_transcoder(old_crtc_state);
 
 	drm_dp_update_payload_part2(&intel_dp->mst_mgr);
 
@@ -566,7 +566,7 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 		intel_de_rmw(dev_priv, CHICKEN_TRANS(trans), 0,
 			     FECSTALL_DIS_DPTSTREAM_DPTTG);
 
-	intel_enable_pipe(pipe_config);
+	intel_enable_transcoder(pipe_config);
 
 	intel_crtc_vblank_on(pipe_config);
 

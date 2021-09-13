@@ -1402,7 +1402,7 @@ void i9xx_enable_pll(const struct intel_crtc_state *crtc_state)
 	enum pipe pipe = crtc->pipe;
 	int i;
 
-	assert_pipe_disabled(dev_priv, crtc_state->cpu_transcoder);
+	assert_transcoder_disabled(dev_priv, crtc_state->cpu_transcoder);
 
 	/* PLL is protected by panel, make sure we can write it */
 	if (i9xx_has_pps(dev_priv))
@@ -1582,7 +1582,7 @@ void vlv_enable_pll(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	assert_pipe_disabled(dev_priv, crtc_state->cpu_transcoder);
+	assert_transcoder_disabled(dev_priv, crtc_state->cpu_transcoder);
 
 	/* PLL is protected by panel, make sure we can write it */
 	assert_panel_unlocked(dev_priv, pipe);
@@ -1734,7 +1734,7 @@ void chv_enable_pll(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	assert_pipe_disabled(dev_priv, crtc_state->cpu_transcoder);
+	assert_transcoder_disabled(dev_priv, crtc_state->cpu_transcoder);
 
 	/* PLL is protected by panel, make sure we can write it */
 	assert_panel_unlocked(dev_priv, pipe);
@@ -1818,7 +1818,7 @@ void vlv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	u32 val;
 
 	/* Make sure the pipe isn't still relying on us */
-	assert_pipe_disabled(dev_priv, (enum transcoder)pipe);
+	assert_transcoder_disabled(dev_priv, (enum transcoder)pipe);
 
 	val = DPLL_INTEGRATED_REF_CLK_VLV |
 		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
@@ -1835,7 +1835,7 @@ void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	u32 val;
 
 	/* Make sure the pipe isn't still relying on us */
-	assert_pipe_disabled(dev_priv, (enum transcoder)pipe);
+	assert_transcoder_disabled(dev_priv, (enum transcoder)pipe);
 
 	val = DPLL_SSC_REF_CLK_CHV |
 		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
@@ -1866,7 +1866,7 @@ void i9xx_disable_pll(const struct intel_crtc_state *crtc_state)
 		return;
 
 	/* Make sure the pipe isn't still relying on us */
-	assert_pipe_disabled(dev_priv, crtc_state->cpu_transcoder);
+	assert_transcoder_disabled(dev_priv, crtc_state->cpu_transcoder);
 
 	intel_de_write(dev_priv, DPLL(pipe), DPLL_VGA_MODE_DIS);
 	intel_de_posting_read(dev_priv, DPLL(pipe));

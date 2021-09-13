@@ -281,7 +281,7 @@ static void ilk_fdi_link_train(struct intel_crtc *crtc,
 		       intel_de_read(dev_priv, PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
 
 	/* FDI needs bits from pipe first */
-	assert_pipe_enabled(dev_priv, crtc_state->cpu_transcoder);
+	assert_transcoder_enabled(dev_priv, crtc_state->cpu_transcoder);
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */

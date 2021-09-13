@@ -531,8 +531,8 @@ enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port);
 bool is_trans_port_sync_mode(const struct intel_crtc_state *state);
 
 void intel_plane_destroy(struct drm_plane *plane);
-void intel_enable_pipe(const struct intel_crtc_state *new_crtc_state);
-void intel_disable_pipe(const struct intel_crtc_state *old_crtc_state);
+void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state);
+void intel_disable_transcoder(const struct intel_crtc_state *old_crtc_state);
 void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
 void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
 enum pipe intel_crtc_pch_transcoder(struct intel_crtc *crtc);
@@ -657,10 +657,10 @@ void assert_fdi_rx_pll(struct drm_i915_private *dev_priv,
 		       enum pipe pipe, bool state);
 #define assert_fdi_rx_pll_enabled(d, p) assert_fdi_rx_pll(d, p, true)
 #define assert_fdi_rx_pll_disabled(d, p) assert_fdi_rx_pll(d, p, false)
-void assert_pipe(struct drm_i915_private *dev_priv,
-		 enum transcoder cpu_transcoder, bool state);
-#define assert_pipe_enabled(d, t) assert_pipe(d, t, true)
-#define assert_pipe_disabled(d, t) assert_pipe(d, t, false)
+void assert_transcoder(struct drm_i915_private *dev_priv,
+		       enum transcoder cpu_transcoder, bool state);
+#define assert_transcoder_enabled(d, t) assert_transcoder(d, t, true)
+#define assert_transcoder_disabled(d, t) assert_transcoder(d, t, false)
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
