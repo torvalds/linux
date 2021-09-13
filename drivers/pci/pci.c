@@ -2091,14 +2091,14 @@ void pcim_pin_device(struct pci_dev *pdev)
 EXPORT_SYMBOL(pcim_pin_device);
 
 /*
- * pcibios_add_device - provide arch specific hooks when adding device dev
+ * pcibios_device_add - provide arch specific hooks when adding device dev
  * @dev: the PCI device being added
  *
  * Permits the platform to provide architecture specific functionality when
  * devices are added. This is the default implementation. Architecture
  * implementations can override this.
  */
-int __weak pcibios_add_device(struct pci_dev *dev)
+int __weak pcibios_device_add(struct pci_dev *dev)
 {
 	return 0;
 }

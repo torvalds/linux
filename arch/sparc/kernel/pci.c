@@ -1010,7 +1010,7 @@ void pcibios_set_master(struct pci_dev *dev)
 }
 
 #ifdef CONFIG_PCI_IOV
-int pcibios_add_device(struct pci_dev *dev)
+int pcibios_device_add(struct pci_dev *dev)
 {
 	struct pci_dev *pdev;
 
