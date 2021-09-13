@@ -52,17 +52,6 @@
 #include <asm/io-unit.h>
 #include <asm/leon.h>
 
-/* This function must make sure that caches and memory are coherent after DMA
- * On LEON systems without cache snooping it flushes the entire D-CACHE.
- */
-static inline void dma_make_coherent(unsigned long pa, unsigned long len)
-{
-	if (sparc_cpu_model == sparc_leon) {
-		if (!sparc_leon3_snooping_enabled())
-			leon_flush_dcache_all();
-	}
-}
-
 static void __iomem *_sparc_ioremap(struct resource *res, u32 bus, u32 pa, int sz);
 static void __iomem *_sparc_alloc_io(unsigned int busno, unsigned long phys,
     unsigned long size, char *name);
@@ -365,13 +354,19 @@ void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
 	free_pages((unsigned long)phys_to_virt(dma_addr), get_order(size));
 }
 
-/* IIep is write-through, not flushing on cpu to device transfer. */
-
+/*
+ * IIep is write-through, not flushing on cpu to device transfer.
+ *
+ * On LEON systems without cache snooping, the entire D-CACHE must be flushed to
+ * make DMA to cacheable memory coherent.
+ */
 void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
 		enum dma_data_direction dir)
 {
-	if (dir != PCI_DMA_TODEVICE)
-		dma_make_coherent(paddr, PAGE_ALIGN(size));
+	if (dir != PCI_DMA_TODEVICE &&
+	    sparc_cpu_model == sparc_leon &&
+	    !sparc_leon3_snooping_enabled())
+		leon_flush_dcache_all();
 }
 
 #ifdef CONFIG_PROC_FS
