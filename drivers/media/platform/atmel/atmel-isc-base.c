@@ -123,11 +123,9 @@ static int isc_clk_prepare(struct clk_hw *hw)
 	struct isc_clk *isc_clk = to_isc_clk(hw);
 	int ret;
 
-	if (isc_clk->id == ISC_ISPCK) {
-		ret = pm_runtime_resume_and_get(isc_clk->dev);
-		if (ret < 0)
-			return ret;
-	}
+	ret = pm_runtime_resume_and_get(isc_clk->dev);
+	if (ret < 0)
+		return ret;
 
 	return isc_wait_clk_stable(hw);
 }
@@ -138,8 +136,7 @@ static void isc_clk_unprepare(struct clk_hw *hw)
 
 	isc_wait_clk_stable(hw);
 
-	if (isc_clk->id == ISC_ISPCK)
-		pm_runtime_put_sync(isc_clk->dev);
+	pm_runtime_put_sync(isc_clk->dev);
 }
 
 static int isc_clk_enable(struct clk_hw *hw)
@@ -186,16 +183,13 @@ static int isc_clk_is_enabled(struct clk_hw *hw)
 	u32 status;
 	int ret;
 
-	if (isc_clk->id == ISC_ISPCK) {
-		ret = pm_runtime_resume_and_get(isc_clk->dev);
-		if (ret < 0)
-			return 0;
-	}
+	ret = pm_runtime_resume_and_get(isc_clk->dev);
+	if (ret < 0)
+		return 0;
 
 	regmap_read(isc_clk->regmap, ISC_CLKSR, &status);
 
-	if (isc_clk->id == ISC_ISPCK)
-		pm_runtime_put_sync(isc_clk->dev);
+	pm_runtime_put_sync(isc_clk->dev);
 
 	return status & ISC_CLK(isc_clk->id) ? 1 : 0;
 }
@@ -324,6 +318,9 @@ static int isc_clk_register(struct isc_device *isc, unsigned int id)
 	const char *clk_name = np->name;
 	const char *parent_names[3];
 	int num_parents;
+
+	if (id == ISC_ISPCK && !isc->ispck_required)
+		return 0;
 
 	num_parents = of_clk_get_parent_count(np);
 	if (num_parents < 1 || num_parents > 3)

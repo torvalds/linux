@@ -454,6 +454,9 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	/* sama5d2-isc - 8 bits per beat */
 	isc->dcfg = ISC_DCFG_YMBSIZE_BEATS8 | ISC_DCFG_CMBSIZE_BEATS8;
 
+	/* sama5d2-isc : ISPCK is required and mandatory */
+	isc->ispck_required = true;
+
 	ret = isc_pipeline_init(isc);
 	if (ret)
 		return ret;
@@ -476,22 +479,6 @@ static int atmel_isc_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to init isc clock: %d\n", ret);
 		goto unprepare_hclk;
 	}
-
-	isc->ispck = isc->isc_clks[ISC_ISPCK].clk;
-
-	ret = clk_prepare_enable(isc->ispck);
-	if (ret) {
-		dev_err(dev, "failed to enable ispck: %d\n", ret);
-		goto unprepare_hclk;
-	}
-
-	/* ispck should be greater or equal to hclock */
-	ret = clk_set_rate(isc->ispck, clk_get_rate(isc->hclock));
-	if (ret) {
-		dev_err(dev, "failed to set ispck rate: %d\n", ret);
-		goto unprepare_clk;
-	}
-
 	ret = v4l2_device_register(dev, &isc->v4l2_dev);
 	if (ret) {
 		dev_err(dev, "unable to register v4l2 device.\n");
@@ -545,10 +532,28 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_request_idle(dev);
 
+	isc->ispck = isc->isc_clks[ISC_ISPCK].clk;
+
+	ret = clk_prepare_enable(isc->ispck);
+	if (ret) {
+		dev_err(dev, "failed to enable ispck: %d\n", ret);
+		goto cleanup_subdev;
+	}
+
+	/* ispck should be greater or equal to hclock */
+	ret = clk_set_rate(isc->ispck, clk_get_rate(isc->hclock));
+	if (ret) {
+		dev_err(dev, "failed to set ispck rate: %d\n", ret);
+		goto unprepare_clk;
+	}
+
 	regmap_read(isc->regmap, ISC_VERSION + isc->offsets.version, &ver);
 	dev_info(dev, "Microchip ISC version %x\n", ver);
 
 	return 0;
+
+unprepare_clk:
+	clk_disable_unprepare(isc->ispck);
 
 cleanup_subdev:
 	isc_subdev_cleanup(isc);
@@ -556,8 +561,6 @@ cleanup_subdev:
 unregister_v4l2_device:
 	v4l2_device_unregister(&isc->v4l2_dev);
 
-unprepare_clk:
-	clk_disable_unprepare(isc->ispck);
 unprepare_hclk:
 	clk_disable_unprepare(isc->hclock);
 

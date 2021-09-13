@@ -447,6 +447,9 @@ static int microchip_xisc_probe(struct platform_device *pdev)
 	/* sama7g5-isc RAM access port is full AXI4 - 32 bits per beat */
 	isc->dcfg = ISC_DCFG_YMBSIZE_BEATS32 | ISC_DCFG_CMBSIZE_BEATS32;
 
+	/* sama7g5-isc : ISPCK does not exist, ISC is clocked by MCK */
+	isc->ispck_required = false;
+
 	ret = isc_pipeline_init(isc);
 	if (ret)
 		return ret;
@@ -470,25 +473,10 @@ static int microchip_xisc_probe(struct platform_device *pdev)
 		goto unprepare_hclk;
 	}
 
-	isc->ispck = isc->isc_clks[ISC_ISPCK].clk;
-
-	ret = clk_prepare_enable(isc->ispck);
-	if (ret) {
-		dev_err(dev, "failed to enable ispck: %d\n", ret);
-		goto unprepare_hclk;
-	}
-
-	/* ispck should be greater or equal to hclock */
-	ret = clk_set_rate(isc->ispck, clk_get_rate(isc->hclock));
-	if (ret) {
-		dev_err(dev, "failed to set ispck rate: %d\n", ret);
-		goto unprepare_clk;
-	}
-
 	ret = v4l2_device_register(dev, &isc->v4l2_dev);
 	if (ret) {
 		dev_err(dev, "unable to register v4l2 device.\n");
-		goto unprepare_clk;
+		goto unprepare_hclk;
 	}
 
 	ret = xisc_parse_dt(dev, isc);
@@ -549,8 +537,6 @@ cleanup_subdev:
 unregister_v4l2_device:
 	v4l2_device_unregister(&isc->v4l2_dev);
 
-unprepare_clk:
-	clk_disable_unprepare(isc->ispck);
 unprepare_hclk:
 	clk_disable_unprepare(isc->hclock);
 
