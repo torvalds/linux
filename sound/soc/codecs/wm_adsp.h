@@ -81,6 +81,8 @@ struct wm_adsp {
 	const struct cs_dsp_region *mem;
 	int num_mems;
 
+	unsigned int sys_config_size;
+
 	int fw;
 	int fw_ver;
 
@@ -109,8 +111,6 @@ struct wm_adsp {
 };
 
 struct cs_dsp_ops {
-	unsigned int sys_config_size;
-
 	bool (*validate_version)(struct wm_adsp *dsp, unsigned int version);
 	unsigned int (*parse_sizes)(struct wm_adsp *dsp,
 				    const char * const file,

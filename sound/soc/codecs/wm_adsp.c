@@ -3467,6 +3467,8 @@ int wm_adsp2_init(struct wm_adsp *dsp)
 {
 	INIT_WORK(&dsp->boot_work, wm_adsp_boot_work);
 
+	dsp->sys_config_size = sizeof(struct wm_adsp_system_config_xm_hdr);
+
 	wm_adsp_common_init(dsp);
 
 	return cs_dsp_adsp2_init(dsp);
@@ -3483,6 +3485,8 @@ static int cs_dsp_halo_init(struct wm_adsp *dsp)
 int wm_halo_init(struct wm_adsp *dsp)
 {
 	INIT_WORK(&dsp->boot_work, wm_adsp_boot_work);
+
+	dsp->sys_config_size = sizeof(struct wm_halo_system_config_xm_hdr);
 
 	wm_adsp_common_init(dsp);
 
@@ -3895,7 +3899,7 @@ static int wm_adsp_buffer_parse_legacy(struct wm_adsp *dsp)
 	if (!buf)
 		return -ENOMEM;
 
-	xmalg = dsp->ops->sys_config_size / sizeof(__be32);
+	xmalg = dsp->sys_config_size / sizeof(__be32);
 
 	addr = alg_region->base + xmalg + ALG_XM_FIELD(magic);
 	ret = cs_dsp_read_data_word(dsp, WMFW_ADSP2_XM, addr, &magic);
@@ -4588,7 +4592,6 @@ static const struct cs_dsp_ops cs_dsp_adsp1_ops = {
 
 static const struct cs_dsp_ops cs_dsp_adsp2_ops[] = {
 	{
-		.sys_config_size = sizeof(struct wm_adsp_system_config_xm_hdr),
 		.parse_sizes = cs_dsp_adsp2_parse_sizes,
 		.validate_version = cs_dsp_validate_version,
 		.setup_algs = cs_dsp_adsp2_setup_algs,
@@ -4607,7 +4610,6 @@ static const struct cs_dsp_ops cs_dsp_adsp2_ops[] = {
 
 	},
 	{
-		.sys_config_size = sizeof(struct wm_adsp_system_config_xm_hdr),
 		.parse_sizes = cs_dsp_adsp2_parse_sizes,
 		.validate_version = cs_dsp_validate_version,
 		.setup_algs = cs_dsp_adsp2_setup_algs,
@@ -4626,7 +4628,6 @@ static const struct cs_dsp_ops cs_dsp_adsp2_ops[] = {
 		.stop_core = cs_dsp_adsp2_stop_core,
 	},
 	{
-		.sys_config_size = sizeof(struct wm_adsp_system_config_xm_hdr),
 		.parse_sizes = cs_dsp_adsp2_parse_sizes,
 		.validate_version = cs_dsp_validate_version,
 		.setup_algs = cs_dsp_adsp2_setup_algs,
@@ -4648,7 +4649,6 @@ static const struct cs_dsp_ops cs_dsp_adsp2_ops[] = {
 };
 
 static const struct cs_dsp_ops cs_dsp_halo_ops = {
-	.sys_config_size = sizeof(struct wm_halo_system_config_xm_hdr),
 	.parse_sizes = cs_dsp_adsp2_parse_sizes,
 	.validate_version = cs_dsp_halo_validate_version,
 	.setup_algs = cs_dsp_halo_setup_algs,
