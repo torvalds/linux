@@ -24,7 +24,7 @@ u32 wfx_rate_mask_to_hw(struct wfx_dev *wdev, u32 rates)
 {
 	int i;
 	u32 ret = 0;
-	// WFx only support 2GHz
+	// The device only supports 2GHz
 	struct ieee80211_supported_band *sband = wdev->hw->wiphy->bands[NL80211_BAND_2GHZ];
 
 	for (i = 0; i < sband->n_bitrates; i++) {
@@ -241,8 +241,6 @@ int wfx_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 		hif_rts_threshold(wvif, value);
 	return 0;
 }
-
-/* WSM callbacks */
 
 void wfx_event_report_rssi(struct wfx_vif *wvif, u8 raw_rcpi_rssi)
 {

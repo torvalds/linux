@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * WFx hardware interface definitions
+ * WF200 hardware interface definitions
  *
  * Copyright (c) 2018-2020, Silicon Laboratories Inc.
  */

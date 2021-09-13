@@ -39,9 +39,9 @@ struct wfx_spi_priv {
 };
 
 /*
- * WFx chip read data 16bits at time and place them directly into (little
- * endian) CPU register. So, chip expect byte order like "B1 B0 B3 B2" (while
- * LE is "B0 B1 B2 B3" and BE is "B3 B2 B1 B0")
+ * The chip reads 16bits of data at time and place them directly into (little
+ * endian) CPU register. So, the chip expects bytes order to be "B1 B0 B3 B2"
+ * (while LE is "B0 B1 B2 B3" and BE is "B3 B2 B1 B0")
  *
  * A little endian host with bits_per_word == 16 should do the right job
  * natively. The code below to support big endian host and commonly used SPI

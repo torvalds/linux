@@ -207,8 +207,8 @@ static int upload_firmware(struct wfx_dev *wdev, const u8 *data, size_t len)
 		if (ret < 0)
 			return ret;
 
-		// WFx seems to not support writing 0 in this register during
-		// first loop
+		// The device seems to not support writing 0 in this register
+		// during first loop
 		offs += DNLD_BLOCK_SIZE;
 		ret = sram_reg_write(wdev, WFX_DCA_PUT, offs);
 		if (ret < 0)

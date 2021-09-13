@@ -59,7 +59,7 @@ void wfx_unassign_vif_chanctx(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_chanctx_conf *conf);
 
-// WSM Callbacks
+// Hardware API Callbacks
 void wfx_cooling_timeout_work(struct work_struct *work);
 void wfx_suspend_hot_dev(struct wfx_dev *wdev, enum sta_notify_cmd cmd);
 void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_notify_cmd cmd);

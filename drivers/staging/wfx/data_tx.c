@@ -31,8 +31,8 @@ static int wfx_get_hw_rate(struct wfx_dev *wdev,
 		}
 		return rate->idx + 14;
 	}
-	// WFx only support 2GHz, else band information should be retrieved
-	// from ieee80211_tx_info
+	// The device only support 2GHz, else band information should be
+	// retrieved from ieee80211_tx_info
 	band = wdev->hw->wiphy->bands[NL80211_BAND_2GHZ];
 	if (rate->idx >= band->n_bitrates) {
 		WARN(1, "wrong rate->idx value: %d", rate->idx);

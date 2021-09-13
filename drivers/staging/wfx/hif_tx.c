@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Implementation of host-to-chip commands (aka request/confirmation) of WFxxx
- * Split Mac (WSM) API.
+ * Implementation of the host-to-chip commands (aka request/confirmation) of the
+ * hardware API.
  *
  * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
@@ -28,7 +28,7 @@ static void wfx_fill_header(struct hif_msg *hif, int if_id,
 	if (if_id == -1)
 		if_id = 2;
 
-	WARN(cmd > 0x3f, "invalid WSM command %#.2x", cmd);
+	WARN(cmd > 0x3f, "invalid hardware command %#.2x", cmd);
 	WARN(size > 0xFFF, "requested buffer is too large: %zu bytes", size);
 	WARN(if_id > 0x3, "invalid interface ID %d", if_id);
 
@@ -108,12 +108,10 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request,
 		mib_sep = "/";
 	}
 	if (ret < 0)
-		dev_err(wdev->dev,
-			"WSM request %s%s%s (%#.2x) on vif %d returned error %d\n",
+		dev_err(wdev->dev, "hardware request %s%s%s (%#.2x) on vif %d returned error %d\n",
 			get_hif_name(cmd), mib_sep, mib_name, cmd, vif, ret);
 	if (ret > 0)
-		dev_warn(wdev->dev,
-			 "WSM request %s%s%s (%#.2x) on vif %d returned status %d\n",
+		dev_warn(wdev->dev, "hardware request %s%s%s (%#.2x) on vif %d returned status %d\n",
 			 get_hif_name(cmd), mib_sep, mib_name, cmd, vif, ret);
 
 	return ret;

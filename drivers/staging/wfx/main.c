@@ -35,7 +35,7 @@
 
 #define WFX_PDS_MAX_SIZE 1500
 
-MODULE_DESCRIPTION("Silicon Labs 802.11 Wireless LAN driver for WFx");
+MODULE_DESCRIPTION("Silicon Labs 802.11 Wireless LAN driver for WF200");
 MODULE_AUTHOR("Jérôme Pouiller <jerome.pouiller@silabs.com>");
 MODULE_LICENSE("GPL");
 
