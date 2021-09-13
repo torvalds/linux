@@ -1292,8 +1292,6 @@ int gfs2_rgrp_go_lock(struct gfs2_holder *gh)
 {
 	struct gfs2_rgrpd *rgd = gh->gh_gl->gl_object;
 
-	if (gh->gh_flags & GL_SKIP)
-		return 0;
 	return gfs2_rgrp_bh_get(rgd);
 }
 

@@ -495,7 +495,7 @@ static int inode_go_lock(struct gfs2_holder *gh)
 	struct gfs2_inode *ip = gl->gl_object;
 	int error = 0;
 
-	if (!ip || (gh->gh_flags & GL_SKIP))
+	if (!ip)
 		return 0;
 
 	if (test_bit(GIF_INVALID, &ip->i_flags)) {
