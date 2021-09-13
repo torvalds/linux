@@ -568,30 +568,6 @@ kernfs_create_dir(struct kernfs_node *parent, const char *name, umode_t mode,
 				    priv, NULL);
 }
 
-static inline struct kernfs_node *
-kernfs_create_file_ns(struct kernfs_node *parent, const char *name,
-		      umode_t mode, kuid_t uid, kgid_t gid,
-		      loff_t size, const struct kernfs_ops *ops,
-		      void *priv, const void *ns)
-{
-	struct lock_class_key *key = NULL;
-
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-	key = (struct lock_class_key *)&ops->lockdep_key;
-#endif
-	return __kernfs_create_file(parent, name, mode, uid, gid,
-				    size, ops, priv, ns, key);
-}
-
-static inline struct kernfs_node *
-kernfs_create_file(struct kernfs_node *parent, const char *name, umode_t mode,
-		   loff_t size, const struct kernfs_ops *ops, void *priv)
-{
-	return kernfs_create_file_ns(parent, name, mode,
-				     GLOBAL_ROOT_UID, GLOBAL_ROOT_GID,
-				     size, ops, priv, NULL);
-}
-
 static inline int kernfs_remove_by_name(struct kernfs_node *parent,
 					const char *name)
 {
