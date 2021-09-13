@@ -1234,15 +1234,15 @@ static int cs47l24_probe(struct platform_device *pdev)
 
 	for (i = 1; i <= 2; i++) {
 		cs47l24->core.adsp[i].part = "cs47l24";
-		cs47l24->core.adsp[i].num = i + 1;
-		cs47l24->core.adsp[i].type = WMFW_ADSP2;
-		cs47l24->core.adsp[i].dev = arizona->dev;
-		cs47l24->core.adsp[i].regmap = arizona->regmap;
+		cs47l24->core.adsp[i].cs_dsp.num = i + 1;
+		cs47l24->core.adsp[i].cs_dsp.type = WMFW_ADSP2;
+		cs47l24->core.adsp[i].cs_dsp.dev = arizona->dev;
+		cs47l24->core.adsp[i].cs_dsp.regmap = arizona->regmap;
 
-		cs47l24->core.adsp[i].base = ARIZONA_DSP1_CONTROL_1 +
+		cs47l24->core.adsp[i].cs_dsp.base = ARIZONA_DSP1_CONTROL_1 +
 					     (0x100 * i);
-		cs47l24->core.adsp[i].mem = cs47l24_dsp_regions[i - 1];
-		cs47l24->core.adsp[i].num_mems =
+		cs47l24->core.adsp[i].cs_dsp.mem = cs47l24_dsp_regions[i - 1];
+		cs47l24->core.adsp[i].cs_dsp.num_mems =
 				ARRAY_SIZE(cs47l24_dsp2_regions);
 
 		ret = wm_adsp2_init(&cs47l24->core.adsp[i]);

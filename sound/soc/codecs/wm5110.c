@@ -2409,15 +2409,15 @@ static int wm5110_probe(struct platform_device *pdev)
 
 	for (i = 0; i < WM5110_NUM_ADSP; i++) {
 		wm5110->core.adsp[i].part = "wm5110";
-		wm5110->core.adsp[i].num = i + 1;
-		wm5110->core.adsp[i].type = WMFW_ADSP2;
-		wm5110->core.adsp[i].dev = arizona->dev;
-		wm5110->core.adsp[i].regmap = arizona->regmap;
+		wm5110->core.adsp[i].cs_dsp.num = i + 1;
+		wm5110->core.adsp[i].cs_dsp.type = WMFW_ADSP2;
+		wm5110->core.adsp[i].cs_dsp.dev = arizona->dev;
+		wm5110->core.adsp[i].cs_dsp.regmap = arizona->regmap;
 
-		wm5110->core.adsp[i].base = ARIZONA_DSP1_CONTROL_1
+		wm5110->core.adsp[i].cs_dsp.base = ARIZONA_DSP1_CONTROL_1
 			+ (0x100 * i);
-		wm5110->core.adsp[i].mem = wm5110_dsp_regions[i];
-		wm5110->core.adsp[i].num_mems
+		wm5110->core.adsp[i].cs_dsp.mem = wm5110_dsp_regions[i];
+		wm5110->core.adsp[i].cs_dsp.num_mems
 			= ARRAY_SIZE(wm5110_dsp1_regions);
 
 		ret = wm_adsp2_init(&wm5110->core.adsp[i]);

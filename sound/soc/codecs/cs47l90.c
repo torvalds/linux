@@ -2543,18 +2543,18 @@ static int cs47l90_probe(struct platform_device *pdev)
 
 	for (i = 0; i < CS47L90_NUM_ADSP; i++) {
 		cs47l90->core.adsp[i].part = "cs47l90";
-		cs47l90->core.adsp[i].num = i + 1;
-		cs47l90->core.adsp[i].type = WMFW_ADSP2;
-		cs47l90->core.adsp[i].rev = 2;
-		cs47l90->core.adsp[i].dev = madera->dev;
-		cs47l90->core.adsp[i].regmap = madera->regmap_32bit;
+		cs47l90->core.adsp[i].cs_dsp.num = i + 1;
+		cs47l90->core.adsp[i].cs_dsp.type = WMFW_ADSP2;
+		cs47l90->core.adsp[i].cs_dsp.rev = 2;
+		cs47l90->core.adsp[i].cs_dsp.dev = madera->dev;
+		cs47l90->core.adsp[i].cs_dsp.regmap = madera->regmap_32bit;
 
-		cs47l90->core.adsp[i].base = cs47l90_dsp_control_bases[i];
-		cs47l90->core.adsp[i].mem = cs47l90_dsp_regions[i];
-		cs47l90->core.adsp[i].num_mems =
+		cs47l90->core.adsp[i].cs_dsp.base = cs47l90_dsp_control_bases[i];
+		cs47l90->core.adsp[i].cs_dsp.mem = cs47l90_dsp_regions[i];
+		cs47l90->core.adsp[i].cs_dsp.num_mems =
 			ARRAY_SIZE(cs47l90_dsp1_regions);
 
-		cs47l90->core.adsp[i].lock_regions = CS_ADSP2_REGION_1_9;
+		cs47l90->core.adsp[i].cs_dsp.lock_regions = CS_ADSP2_REGION_1_9;
 
 		ret = wm_adsp2_init(&cs47l90->core.adsp[i]);
 

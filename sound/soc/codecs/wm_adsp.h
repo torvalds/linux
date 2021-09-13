@@ -49,7 +49,6 @@ struct cs_dsp_alg_region {
 	unsigned int base;
 };
 
-struct wm_adsp;
 struct wm_adsp_compr;
 struct wm_adsp_compr_buf;
 struct cs_dsp_ops;
@@ -60,7 +59,7 @@ struct cs_dsp_coeff_ctl {
 	const char *subname;
 	unsigned int subname_len;
 	struct cs_dsp_alg_region alg_region;
-	struct wm_adsp *dsp;
+	struct cs_dsp *dsp;
 	unsigned int enabled:1;
 	struct list_head list;
 	void *cache;
@@ -73,16 +72,13 @@ struct cs_dsp_coeff_ctl {
 	void *priv;
 };
 
-struct wm_adsp {
-	const char *part;
+struct cs_dsp {
 	const char *name;
-	const char *fwf_name;
 	int rev;
 	int num;
 	int type;
 	struct device *dev;
 	struct regmap *regmap;
-	struct snd_soc_component *component;
 
 	const struct cs_dsp_ops *ops;
 
@@ -102,22 +98,12 @@ struct wm_adsp {
 	const struct cs_dsp_region *mem;
 	int num_mems;
 
-	unsigned int sys_config_size;
-
-	int fw;
 	int fw_ver;
 
-	bool preloaded;
 	bool booted;
 	bool running;
-	bool fatal_error;
 
 	struct list_head ctl_list;
-
-	struct work_struct boot_work;
-
-	struct list_head compr_list;
-	struct list_head buffer_list;
 
 	struct mutex pwr_lock;
 
@@ -128,31 +114,49 @@ struct wm_adsp {
 	char *wmfw_file_name;
 	char *bin_file_name;
 #endif
+};
 
+struct wm_adsp {
+	struct cs_dsp cs_dsp;
+	const char *part;
+	const char *fwf_name;
+	struct snd_soc_component *component;
+
+	unsigned int sys_config_size;
+
+	int fw;
+
+	struct work_struct boot_work;
+
+	bool preloaded;
+	bool fatal_error;
+
+	struct list_head compr_list;
+	struct list_head buffer_list;
 };
 
 struct cs_dsp_ops {
-	bool (*validate_version)(struct wm_adsp *dsp, unsigned int version);
-	unsigned int (*parse_sizes)(struct wm_adsp *dsp,
+	bool (*validate_version)(struct cs_dsp *dsp, unsigned int version);
+	unsigned int (*parse_sizes)(struct cs_dsp *dsp,
 				    const char * const file,
 				    unsigned int pos,
 				    const struct firmware *firmware);
-	int (*setup_algs)(struct wm_adsp *dsp);
+	int (*setup_algs)(struct cs_dsp *dsp);
 	unsigned int (*region_to_reg)(struct cs_dsp_region const *mem,
 				      unsigned int offset);
 
-	void (*show_fw_status)(struct wm_adsp *dsp);
-	void (*stop_watchdog)(struct wm_adsp *dsp);
+	void (*show_fw_status)(struct cs_dsp *dsp);
+	void (*stop_watchdog)(struct cs_dsp *dsp);
 
-	int (*enable_memory)(struct wm_adsp *dsp);
-	void (*disable_memory)(struct wm_adsp *dsp);
-	int (*lock_memory)(struct wm_adsp *dsp, unsigned int lock_regions);
+	int (*enable_memory)(struct cs_dsp *dsp);
+	void (*disable_memory)(struct cs_dsp *dsp);
+	int (*lock_memory)(struct cs_dsp *dsp, unsigned int lock_regions);
 
-	int (*enable_core)(struct wm_adsp *dsp);
-	void (*disable_core)(struct wm_adsp *dsp);
+	int (*enable_core)(struct cs_dsp *dsp);
+	void (*disable_core)(struct cs_dsp *dsp);
 
-	int (*start_core)(struct wm_adsp *dsp);
-	void (*stop_core)(struct wm_adsp *dsp);
+	int (*start_core)(struct cs_dsp *dsp);
+	void (*stop_core)(struct cs_dsp *dsp);
 };
 
 #define WM_ADSP1(wname, num) \

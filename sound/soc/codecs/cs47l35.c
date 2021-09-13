@@ -1686,15 +1686,15 @@ static int cs47l35_probe(struct platform_device *pdev)
 
 	for (i = 0; i < CS47L35_NUM_ADSP; i++) {
 		cs47l35->core.adsp[i].part = "cs47l35";
-		cs47l35->core.adsp[i].num = i + 1;
-		cs47l35->core.adsp[i].type = WMFW_ADSP2;
-		cs47l35->core.adsp[i].rev = 1;
-		cs47l35->core.adsp[i].dev = madera->dev;
-		cs47l35->core.adsp[i].regmap = madera->regmap_32bit;
+		cs47l35->core.adsp[i].cs_dsp.num = i + 1;
+		cs47l35->core.adsp[i].cs_dsp.type = WMFW_ADSP2;
+		cs47l35->core.adsp[i].cs_dsp.rev = 1;
+		cs47l35->core.adsp[i].cs_dsp.dev = madera->dev;
+		cs47l35->core.adsp[i].cs_dsp.regmap = madera->regmap_32bit;
 
-		cs47l35->core.adsp[i].base = wm_adsp2_control_bases[i];
-		cs47l35->core.adsp[i].mem = cs47l35_dsp_regions[i];
-		cs47l35->core.adsp[i].num_mems =
+		cs47l35->core.adsp[i].cs_dsp.base = wm_adsp2_control_bases[i];
+		cs47l35->core.adsp[i].cs_dsp.mem = cs47l35_dsp_regions[i];
+		cs47l35->core.adsp[i].cs_dsp.num_mems =
 			ARRAY_SIZE(cs47l35_dsp1_regions);
 
 		ret = wm_adsp2_init(&cs47l35->core.adsp[i]);

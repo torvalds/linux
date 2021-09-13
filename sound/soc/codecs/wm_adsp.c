@@ -34,15 +34,15 @@
 #include "wm_adsp.h"
 
 #define adsp_crit(_dsp, fmt, ...) \
-	dev_crit(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__)
+	dev_crit(_dsp->cs_dsp.dev, "%s: " fmt, _dsp->cs_dsp.name, ##__VA_ARGS__)
 #define adsp_err(_dsp, fmt, ...) \
-	dev_err(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__)
+	dev_err(_dsp->cs_dsp.dev, "%s: " fmt, _dsp->cs_dsp.name, ##__VA_ARGS__)
 #define adsp_warn(_dsp, fmt, ...) \
-	dev_warn(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__)
+	dev_warn(_dsp->cs_dsp.dev, "%s: " fmt, _dsp->cs_dsp.name, ##__VA_ARGS__)
 #define adsp_info(_dsp, fmt, ...) \
-	dev_info(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__)
+	dev_info(_dsp->cs_dsp.dev, "%s: " fmt, _dsp->cs_dsp.name, ##__VA_ARGS__)
 #define adsp_dbg(_dsp, fmt, ...) \
-	dev_dbg(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__)
+	dev_dbg(_dsp->cs_dsp.dev, "%s: " fmt, _dsp->cs_dsp.name, ##__VA_ARGS__)
 
 #define cs_dsp_err(_dsp, fmt, ...) \
 	dev_err(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__)
@@ -638,7 +638,7 @@ static const char *cs_dsp_mem_region_name(unsigned int type)
 }
 
 #ifdef CONFIG_DEBUG_FS
-static void cs_dsp_debugfs_save_wmfwname(struct wm_adsp *dsp, const char *s)
+static void cs_dsp_debugfs_save_wmfwname(struct cs_dsp *dsp, const char *s)
 {
 	char *tmp = kasprintf(GFP_KERNEL, "%s\n", s);
 
@@ -646,7 +646,7 @@ static void cs_dsp_debugfs_save_wmfwname(struct wm_adsp *dsp, const char *s)
 	dsp->wmfw_file_name = tmp;
 }
 
-static void cs_dsp_debugfs_save_binname(struct wm_adsp *dsp, const char *s)
+static void cs_dsp_debugfs_save_binname(struct cs_dsp *dsp, const char *s)
 {
 	char *tmp = kasprintf(GFP_KERNEL, "%s\n", s);
 
@@ -654,7 +654,7 @@ static void cs_dsp_debugfs_save_binname(struct wm_adsp *dsp, const char *s)
 	dsp->bin_file_name = tmp;
 }
 
-static void cs_dsp_debugfs_clear(struct wm_adsp *dsp)
+static void cs_dsp_debugfs_clear(struct cs_dsp *dsp)
 {
 	kfree(dsp->wmfw_file_name);
 	kfree(dsp->bin_file_name);
@@ -666,7 +666,7 @@ static ssize_t cs_dsp_debugfs_wmfw_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
-	struct wm_adsp *dsp = file->private_data;
+	struct cs_dsp *dsp = file->private_data;
 	ssize_t ret;
 
 	mutex_lock(&dsp->pwr_lock);
@@ -686,7 +686,7 @@ static ssize_t cs_dsp_debugfs_bin_read(struct file *file,
 				       char __user *user_buf,
 				       size_t count, loff_t *ppos)
 {
-	struct wm_adsp *dsp = file->private_data;
+	struct cs_dsp *dsp = file->private_data;
 	ssize_t ret;
 
 	mutex_lock(&dsp->pwr_lock);
@@ -722,13 +722,13 @@ static const struct {
 	},
 };
 
-static void cs_dsp_init_debugfs(struct wm_adsp *dsp,
-				struct snd_soc_component *component)
+static void cs_dsp_init_debugfs(struct cs_dsp *dsp,
+				struct dentry *debugfs_root)
 {
 	struct dentry *root = NULL;
 	int i;
 
-	root = debugfs_create_dir(dsp->name, component->debugfs_root);
+	root = debugfs_create_dir(dsp->name, debugfs_root);
 
 	debugfs_create_bool("booted", 0444, root, &dsp->booted);
 	debugfs_create_bool("running", 0444, root, &dsp->running);
@@ -742,33 +742,33 @@ static void cs_dsp_init_debugfs(struct wm_adsp *dsp,
 	dsp->debugfs_root = root;
 }
 
-static void cs_dsp_cleanup_debugfs(struct wm_adsp *dsp)
+static void cs_dsp_cleanup_debugfs(struct cs_dsp *dsp)
 {
 	cs_dsp_debugfs_clear(dsp);
 	debugfs_remove_recursive(dsp->debugfs_root);
 	dsp->debugfs_root = NULL;
 }
 #else
-static inline void cs_dsp_init_debugfs(struct wm_adsp *dsp,
-				       struct snd_soc_component *component)
+static inline void cs_dsp_init_debugfs(struct cs_dsp *dsp,
+				       struct dentry *debugfs_root)
 {
 }
 
-static inline void cs_dsp_cleanup_debugfs(struct wm_adsp *dsp)
+static inline void cs_dsp_cleanup_debugfs(struct cs_dsp *dsp)
 {
 }
 
-static inline void cs_dsp_debugfs_save_wmfwname(struct wm_adsp *dsp,
-						 const char *s)
-{
-}
-
-static inline void cs_dsp_debugfs_save_binname(struct wm_adsp *dsp,
+static inline void cs_dsp_debugfs_save_wmfwname(struct cs_dsp *dsp,
 						const char *s)
 {
 }
 
-static inline void cs_dsp_debugfs_clear(struct wm_adsp *dsp)
+static inline void cs_dsp_debugfs_save_binname(struct cs_dsp *dsp,
+					       const char *s)
+{
+}
+
+static inline void cs_dsp_debugfs_clear(struct cs_dsp *dsp)
 {
 }
 #endif
@@ -800,14 +800,14 @@ int wm_adsp_fw_put(struct snd_kcontrol *kcontrol,
 	if (ucontrol->value.enumerated.item[0] >= WM_ADSP_NUM_FW)
 		return -EINVAL;
 
-	mutex_lock(&dsp[e->shift_l].pwr_lock);
+	mutex_lock(&dsp[e->shift_l].cs_dsp.pwr_lock);
 
-	if (dsp[e->shift_l].booted || !list_empty(&dsp[e->shift_l].compr_list))
+	if (dsp[e->shift_l].cs_dsp.booted || !list_empty(&dsp[e->shift_l].compr_list))
 		ret = -EBUSY;
 	else
 		dsp[e->shift_l].fw = ucontrol->value.enumerated.item[0];
 
-	mutex_unlock(&dsp[e->shift_l].pwr_lock);
+	mutex_unlock(&dsp[e->shift_l].cs_dsp.pwr_lock);
 
 	return ret;
 }
@@ -824,7 +824,7 @@ const struct soc_enum wm_adsp_fw_enum[] = {
 };
 EXPORT_SYMBOL_GPL(wm_adsp_fw_enum);
 
-static const struct cs_dsp_region *cs_dsp_find_region(struct wm_adsp *dsp,
+static const struct cs_dsp_region *cs_dsp_find_region(struct cs_dsp *dsp,
 						      int type)
 {
 	int i;
@@ -871,7 +871,7 @@ static unsigned int cs_dsp_halo_region_to_reg(struct cs_dsp_region const *mem,
 	}
 }
 
-static void cs_dsp_read_fw_status(struct wm_adsp *dsp,
+static void cs_dsp_read_fw_status(struct cs_dsp *dsp,
 				  int noffs, unsigned int *offs)
 {
 	unsigned int i;
@@ -886,7 +886,7 @@ static void cs_dsp_read_fw_status(struct wm_adsp *dsp,
 	}
 }
 
-static void cs_dsp_adsp2_show_fw_status(struct wm_adsp *dsp)
+static void cs_dsp_adsp2_show_fw_status(struct cs_dsp *dsp)
 {
 	unsigned int offs[] = {
 		ADSP2_SCRATCH0, ADSP2_SCRATCH1, ADSP2_SCRATCH2, ADSP2_SCRATCH3,
@@ -898,7 +898,7 @@ static void cs_dsp_adsp2_show_fw_status(struct wm_adsp *dsp)
 		   offs[0], offs[1], offs[2], offs[3]);
 }
 
-static void cs_dsp_adsp2v2_show_fw_status(struct wm_adsp *dsp)
+static void cs_dsp_adsp2v2_show_fw_status(struct cs_dsp *dsp)
 {
 	unsigned int offs[] = { ADSP2V2_SCRATCH0_1, ADSP2V2_SCRATCH2_3 };
 
@@ -909,7 +909,7 @@ static void cs_dsp_adsp2v2_show_fw_status(struct wm_adsp *dsp)
 		   offs[1] & 0xFFFF, offs[1] >> 16);
 }
 
-static void cs_dsp_halo_show_fw_status(struct wm_adsp *dsp)
+static void cs_dsp_halo_show_fw_status(struct cs_dsp *dsp)
 {
 	unsigned int offs[] = {
 		HALO_SCRATCH1, HALO_SCRATCH2, HALO_SCRATCH3, HALO_SCRATCH4,
@@ -929,7 +929,7 @@ static inline struct wm_coeff_ctl *bytes_ext_to_ctl(struct soc_bytes_ext *ext)
 static int cs_dsp_coeff_base_reg(struct cs_dsp_coeff_ctl *ctl, unsigned int *reg)
 {
 	const struct cs_dsp_alg_region *alg_region = &ctl->alg_region;
-	struct wm_adsp *dsp = ctl->dsp;
+	struct cs_dsp *dsp = ctl->dsp;
 	const struct cs_dsp_region *mem;
 
 	mem = cs_dsp_find_region(dsp, alg_region->type);
@@ -972,7 +972,7 @@ static int wm_coeff_info(struct snd_kcontrol *kctl,
 static int cs_dsp_coeff_write_acked_control(struct cs_dsp_coeff_ctl *ctl,
 					    unsigned int event_id)
 {
-	struct wm_adsp *dsp = ctl->dsp;
+	struct cs_dsp *dsp = ctl->dsp;
 	__be32 val = cpu_to_be32(event_id);
 	unsigned int reg;
 	int i, ret;
@@ -1035,7 +1035,7 @@ static int cs_dsp_coeff_write_acked_control(struct cs_dsp_coeff_ctl *ctl,
 static int cs_dsp_coeff_write_ctrl_raw(struct cs_dsp_coeff_ctl *ctl,
 				       const void *buf, size_t len)
 {
-	struct wm_adsp *dsp = ctl->dsp;
+	struct cs_dsp *dsp = ctl->dsp;
 	void *scratch;
 	int ret;
 	unsigned int reg;
@@ -1146,7 +1146,7 @@ static int wm_coeff_put_acked(struct snd_kcontrol *kctl,
 static int cs_dsp_coeff_read_ctrl_raw(struct cs_dsp_coeff_ctl *ctl,
 				      void *buf, size_t len)
 {
-	struct wm_adsp *dsp = ctl->dsp;
+	struct cs_dsp *dsp = ctl->dsp;
 	void *scratch;
 	int ret;
 	unsigned int reg;
@@ -1325,7 +1325,7 @@ err_kcontrol:
 	return ret;
 }
 
-static int cs_dsp_coeff_init_control_caches(struct wm_adsp *dsp)
+static int cs_dsp_coeff_init_control_caches(struct cs_dsp *dsp)
 {
 	struct cs_dsp_coeff_ctl *ctl;
 	int ret;
@@ -1351,7 +1351,7 @@ static int cs_dsp_coeff_init_control_caches(struct wm_adsp *dsp)
 	return 0;
 }
 
-static int cs_dsp_coeff_sync_controls(struct wm_adsp *dsp)
+static int cs_dsp_coeff_sync_controls(struct cs_dsp *dsp)
 {
 	struct cs_dsp_coeff_ctl *ctl;
 	int ret;
@@ -1370,8 +1370,8 @@ static int cs_dsp_coeff_sync_controls(struct wm_adsp *dsp)
 	return 0;
 }
 
-static void cs_dsp_signal_event_controls(struct wm_adsp *dsp,
-					  unsigned int event)
+static void cs_dsp_signal_event_controls(struct cs_dsp *dsp,
+					 unsigned int event)
 {
 	struct cs_dsp_coeff_ctl *ctl;
 	int ret;
@@ -1396,7 +1396,11 @@ static void wm_adsp_ctl_work(struct work_struct *work)
 	struct wm_coeff_ctl *ctl = container_of(work,
 						struct wm_coeff_ctl,
 						work);
-	wmfw_add_ctl(ctl->cs_ctl->dsp, ctl);
+	struct wm_adsp *dsp = container_of(ctl->cs_ctl->dsp,
+					   struct wm_adsp,
+					   cs_dsp);
+
+	wmfw_add_ctl(dsp, ctl);
 }
 
 static void cs_dsp_free_ctl_blk(struct cs_dsp_coeff_ctl *ctl)
@@ -1408,7 +1412,8 @@ static void cs_dsp_free_ctl_blk(struct cs_dsp_coeff_ctl *ctl)
 
 static int wm_adsp_control_add(struct cs_dsp_coeff_ctl *cs_ctl)
 {
-	struct wm_adsp *dsp = cs_ctl->dsp;
+	struct wm_adsp *dsp = container_of(cs_ctl->dsp, struct wm_adsp, cs_dsp);
+	struct cs_dsp *cs_dsp = &dsp->cs_dsp;
 	struct wm_coeff_ctl *ctl;
 	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	const char *region_name;
@@ -1423,20 +1428,20 @@ static int wm_adsp_control_add(struct cs_dsp_coeff_ctl *cs_ctl)
 		return -EINVAL;
 	}
 
-	switch (dsp->fw_ver) {
+	switch (cs_dsp->fw_ver) {
 	case 0:
 	case 1:
 		snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "%s %s %x",
-			 dsp->name, region_name, cs_ctl->alg_region.alg);
+			 cs_dsp->name, region_name, cs_ctl->alg_region.alg);
 		break;
 	case 2:
 		ret = scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
-				"%s%c %.12s %x", dsp->name, *region_name,
+				"%s%c %.12s %x", cs_dsp->name, *region_name,
 				wm_adsp_fw_text[dsp->fw], cs_ctl->alg_region.alg);
 		break;
 	default:
 		ret = scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
-				"%s %.12s %x", dsp->name,
+				"%s %.12s %x", cs_dsp->name,
 				wm_adsp_fw_text[dsp->fw], cs_ctl->alg_region.alg);
 		break;
 	}
@@ -1490,7 +1495,7 @@ static void wm_adsp_control_remove(struct cs_dsp_coeff_ctl *cs_ctl)
 	kfree(ctl);
 }
 
-static int cs_dsp_create_control(struct wm_adsp *dsp,
+static int cs_dsp_create_control(struct cs_dsp *dsp,
 				 const struct cs_dsp_alg_region *alg_region,
 				 unsigned int offset, unsigned int len,
 				 const char *subname, unsigned int subname_len,
@@ -1620,7 +1625,7 @@ static int cs_dsp_coeff_parse_int(int bytes, const u8 **pos)
 	return val;
 }
 
-static inline void cs_dsp_coeff_parse_alg(struct wm_adsp *dsp, const u8 **data,
+static inline void cs_dsp_coeff_parse_alg(struct cs_dsp *dsp, const u8 **data,
 					  struct cs_dsp_coeff_parsed_alg *blk)
 {
 	const struct wmfw_adsp_alg_data *raw;
@@ -1650,7 +1655,7 @@ static inline void cs_dsp_coeff_parse_alg(struct wm_adsp *dsp, const u8 **data,
 	cs_dsp_dbg(dsp, "# of coefficient descriptors: %#x\n", blk->ncoeff);
 }
 
-static inline void cs_dsp_coeff_parse_coeff(struct wm_adsp *dsp, const u8 **data,
+static inline void cs_dsp_coeff_parse_coeff(struct cs_dsp *dsp, const u8 **data,
 					    struct cs_dsp_coeff_parsed_coeff *blk)
 {
 	const struct wmfw_adsp_coeff_data *raw;
@@ -1696,7 +1701,7 @@ static inline void cs_dsp_coeff_parse_coeff(struct wm_adsp *dsp, const u8 **data
 	cs_dsp_dbg(dsp, "\tALSA control len: %#x\n", blk->len);
 }
 
-static int cs_dsp_check_coeff_flags(struct wm_adsp *dsp,
+static int cs_dsp_check_coeff_flags(struct cs_dsp *dsp,
 				    const struct cs_dsp_coeff_parsed_coeff *coeff_blk,
 				    unsigned int f_required,
 				    unsigned int f_illegal)
@@ -1711,7 +1716,7 @@ static int cs_dsp_check_coeff_flags(struct wm_adsp *dsp,
 	return 0;
 }
 
-static int cs_dsp_parse_coeff(struct wm_adsp *dsp,
+static int cs_dsp_parse_coeff(struct cs_dsp *dsp,
 			      const struct wmfw_region *region)
 {
 	struct cs_dsp_alg_region alg_region = {};
@@ -1782,7 +1787,7 @@ static int cs_dsp_parse_coeff(struct wm_adsp *dsp,
 	return 0;
 }
 
-static unsigned int cs_dsp_adsp1_parse_sizes(struct wm_adsp *dsp,
+static unsigned int cs_dsp_adsp1_parse_sizes(struct cs_dsp *dsp,
 					     const char * const file,
 					     unsigned int pos,
 					     const struct firmware *firmware)
@@ -1818,6 +1823,7 @@ static int wm_adsp_request_firmware_file(struct wm_adsp *dsp,
 					 char **filename,
 					 char *suffix)
 {
+	struct cs_dsp *cs_dsp = &dsp->cs_dsp;
 	int ret = 0;
 
 	*filename = kasprintf(GFP_KERNEL, "%s-%s-%s.%s", dsp->part, dsp->fwf_name,
@@ -1825,7 +1831,7 @@ static int wm_adsp_request_firmware_file(struct wm_adsp *dsp,
 	if (*filename == NULL)
 		return -ENOMEM;
 
-	ret = request_firmware(firmware, *filename, dsp->dev);
+	ret = request_firmware(firmware, *filename, cs_dsp->dev);
 	if (ret != 0) {
 		adsp_err(dsp, "Failed to request '%s'\n", *filename);
 		kfree(*filename);
@@ -1852,7 +1858,7 @@ static int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 	return 0;
 }
 
-static unsigned int cs_dsp_adsp2_parse_sizes(struct wm_adsp *dsp,
+static unsigned int cs_dsp_adsp2_parse_sizes(struct cs_dsp *dsp,
 					     const char * const file,
 					     unsigned int pos,
 					     const struct firmware *firmware)
@@ -1868,7 +1874,7 @@ static unsigned int cs_dsp_adsp2_parse_sizes(struct wm_adsp *dsp,
 	return pos + sizeof(*adsp2_sizes);
 }
 
-static bool cs_dsp_validate_version(struct wm_adsp *dsp, unsigned int version)
+static bool cs_dsp_validate_version(struct cs_dsp *dsp, unsigned int version)
 {
 	switch (version) {
 	case 0:
@@ -1882,7 +1888,7 @@ static bool cs_dsp_validate_version(struct wm_adsp *dsp, unsigned int version)
 	}
 }
 
-static bool cs_dsp_halo_validate_version(struct wm_adsp *dsp, unsigned int version)
+static bool cs_dsp_halo_validate_version(struct cs_dsp *dsp, unsigned int version)
 {
 	switch (version) {
 	case 3:
@@ -1892,7 +1898,7 @@ static bool cs_dsp_halo_validate_version(struct wm_adsp *dsp, unsigned int versi
 	}
 }
 
-static int cs_dsp_load(struct wm_adsp *dsp, const struct firmware *firmware,
+static int cs_dsp_load(struct cs_dsp *dsp, const struct firmware *firmware,
 		       const char *file)
 {
 	LIST_HEAD(buf_list);
@@ -2082,7 +2088,7 @@ out_fw:
  * Find cs_dsp_coeff_ctl with input name as its subname
  * If not found, return NULL
  */
-static struct cs_dsp_coeff_ctl *cs_dsp_get_ctl(struct wm_adsp *dsp,
+static struct cs_dsp_coeff_ctl *cs_dsp_get_ctl(struct cs_dsp *dsp,
 					       const char *name, int type,
 					       unsigned int alg)
 {
@@ -2112,7 +2118,7 @@ int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name, int type,
 	char ctl_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	int ret;
 
-	cs_ctl = cs_dsp_get_ctl(dsp, name, type, alg);
+	cs_ctl = cs_dsp_get_ctl(&dsp->cs_dsp, name, type, alg);
 	if (!cs_ctl)
 		return -EINVAL;
 
@@ -2153,7 +2159,7 @@ int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name, int type,
 {
 	struct cs_dsp_coeff_ctl *cs_ctl;
 
-	cs_ctl = cs_dsp_get_ctl(dsp, name, type, alg);
+	cs_ctl = cs_dsp_get_ctl(&dsp->cs_dsp, name, type, alg);
 	if (!cs_ctl)
 		return -EINVAL;
 
@@ -2164,7 +2170,7 @@ int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name, int type,
 }
 EXPORT_SYMBOL_GPL(wm_adsp_read_ctl);
 
-static void cs_dsp_ctl_fixup_base(struct wm_adsp *dsp,
+static void cs_dsp_ctl_fixup_base(struct cs_dsp *dsp,
 				  const struct cs_dsp_alg_region *alg_region)
 {
 	struct cs_dsp_coeff_ctl *ctl;
@@ -2178,7 +2184,7 @@ static void cs_dsp_ctl_fixup_base(struct wm_adsp *dsp,
 	}
 }
 
-static void *cs_dsp_read_algs(struct wm_adsp *dsp, size_t n_algs,
+static void *cs_dsp_read_algs(struct cs_dsp *dsp, size_t n_algs,
 			      const struct cs_dsp_region *mem,
 			      unsigned int pos, unsigned int len)
 {
@@ -2231,7 +2237,7 @@ static void *cs_dsp_read_algs(struct wm_adsp *dsp, size_t n_algs,
 }
 
 static struct cs_dsp_alg_region *
-	cs_dsp_find_alg_region(struct wm_adsp *dsp, int type, unsigned int id)
+	cs_dsp_find_alg_region(struct cs_dsp *dsp, int type, unsigned int id)
 {
 	struct cs_dsp_alg_region *alg_region;
 
@@ -2243,7 +2249,7 @@ static struct cs_dsp_alg_region *
 	return NULL;
 }
 
-static struct cs_dsp_alg_region *cs_dsp_create_region(struct wm_adsp *dsp,
+static struct cs_dsp_alg_region *cs_dsp_create_region(struct cs_dsp *dsp,
 						      int type, __be32 id,
 						      __be32 base)
 {
@@ -2265,7 +2271,7 @@ static struct cs_dsp_alg_region *cs_dsp_create_region(struct wm_adsp *dsp,
 	return alg_region;
 }
 
-static void cs_dsp_free_alg_regions(struct wm_adsp *dsp)
+static void cs_dsp_free_alg_regions(struct cs_dsp *dsp)
 {
 	struct cs_dsp_alg_region *alg_region;
 
@@ -2278,7 +2284,7 @@ static void cs_dsp_free_alg_regions(struct wm_adsp *dsp)
 	}
 }
 
-static void cs_dsp_parse_wmfw_id_header(struct wm_adsp *dsp,
+static void cs_dsp_parse_wmfw_id_header(struct cs_dsp *dsp,
 					struct wmfw_id_hdr *fw, int nalgs)
 {
 	dsp->fw_id = be32_to_cpu(fw->id);
@@ -2290,7 +2296,7 @@ static void cs_dsp_parse_wmfw_id_header(struct wm_adsp *dsp,
 		    nalgs);
 }
 
-static void cs_dsp_parse_wmfw_v3_id_header(struct wm_adsp *dsp,
+static void cs_dsp_parse_wmfw_v3_id_header(struct cs_dsp *dsp,
 					   struct wmfw_v3_id_hdr *fw, int nalgs)
 {
 	dsp->fw_id = be32_to_cpu(fw->id);
@@ -2304,7 +2310,7 @@ static void cs_dsp_parse_wmfw_v3_id_header(struct wm_adsp *dsp,
 		    nalgs);
 }
 
-static int cs_dsp_create_regions(struct wm_adsp *dsp, __be32 id, int nregions,
+static int cs_dsp_create_regions(struct cs_dsp *dsp, __be32 id, int nregions,
 				 const int *type, __be32 *base)
 {
 	struct cs_dsp_alg_region *alg_region;
@@ -2319,7 +2325,7 @@ static int cs_dsp_create_regions(struct wm_adsp *dsp, __be32 id, int nregions,
 	return 0;
 }
 
-static int cs_dsp_adsp1_setup_algs(struct wm_adsp *dsp)
+static int cs_dsp_adsp1_setup_algs(struct cs_dsp *dsp)
 {
 	struct wmfw_adsp1_id_hdr adsp1_id;
 	struct wmfw_adsp1_alg_hdr *adsp1_alg;
@@ -2420,7 +2426,7 @@ out:
 	return ret;
 }
 
-static int cs_dsp_adsp2_setup_algs(struct wm_adsp *dsp)
+static int cs_dsp_adsp2_setup_algs(struct cs_dsp *dsp)
 {
 	struct wmfw_adsp2_id_hdr adsp2_id;
 	struct wmfw_adsp2_alg_hdr *adsp2_alg;
@@ -2549,7 +2555,7 @@ out:
 	return ret;
 }
 
-static int cs_dsp_halo_create_regions(struct wm_adsp *dsp, __be32 id,
+static int cs_dsp_halo_create_regions(struct cs_dsp *dsp, __be32 id,
 				      __be32 xm_base, __be32 ym_base)
 {
 	static const int types[] = {
@@ -2561,7 +2567,7 @@ static int cs_dsp_halo_create_regions(struct wm_adsp *dsp, __be32 id,
 	return cs_dsp_create_regions(dsp, id, ARRAY_SIZE(types), types, bases);
 }
 
-static int cs_dsp_halo_setup_algs(struct wm_adsp *dsp)
+static int cs_dsp_halo_setup_algs(struct cs_dsp *dsp)
 {
 	struct wmfw_halo_id_hdr halo_id;
 	struct wmfw_halo_alg_hdr *halo_alg;
@@ -2621,7 +2627,7 @@ out:
 	return ret;
 }
 
-static int cs_dsp_load_coeff(struct wm_adsp *dsp, const struct firmware *firmware,
+static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware,
 			     const char *file)
 {
 	LIST_HEAD(buf_list);
@@ -2800,10 +2806,8 @@ out_fw:
 	return ret;
 }
 
-static int cs_dsp_create_name(struct wm_adsp *dsp)
+static int cs_dsp_create_name(struct cs_dsp *dsp)
 {
-	char *p;
-
 	if (!dsp->name) {
 		dsp->name = devm_kasprintf(dsp->dev, GFP_KERNEL, "DSP%d",
 					   dsp->num);
@@ -2811,20 +2815,10 @@ static int cs_dsp_create_name(struct wm_adsp *dsp)
 			return -ENOMEM;
 	}
 
-	if (!dsp->fwf_name) {
-		p = devm_kstrdup(dsp->dev, dsp->name, GFP_KERNEL);
-		if (!p)
-			return -ENOMEM;
-
-		dsp->fwf_name = p;
-		for (; *p != 0; ++p)
-			*p = tolower(*p);
-	}
-
 	return 0;
 }
 
-static int cs_dsp_common_init(struct wm_adsp *dsp)
+static int cs_dsp_common_init(struct cs_dsp *dsp)
 {
 	int ret;
 
@@ -2840,13 +2834,27 @@ static int cs_dsp_common_init(struct wm_adsp *dsp)
 	return 0;
 }
 
-static void wm_adsp_common_init(struct wm_adsp *dsp)
+static int wm_adsp_common_init(struct wm_adsp *dsp)
 {
+	char *p;
+
 	INIT_LIST_HEAD(&dsp->compr_list);
 	INIT_LIST_HEAD(&dsp->buffer_list);
+
+	if (!dsp->fwf_name) {
+		p = devm_kstrdup(dsp->cs_dsp.dev, dsp->cs_dsp.name, GFP_KERNEL);
+		if (!p)
+			return -ENOMEM;
+
+		dsp->fwf_name = p;
+		for (; *p != 0; ++p)
+			*p = tolower(*p);
+	}
+
+	return 0;
 }
 
-static int cs_dsp_adsp1_init(struct wm_adsp *dsp)
+static int cs_dsp_adsp1_init(struct cs_dsp *dsp)
 {
 	dsp->ops = &cs_dsp_adsp1_ops;
 
@@ -2855,13 +2863,17 @@ static int cs_dsp_adsp1_init(struct wm_adsp *dsp)
 
 int wm_adsp1_init(struct wm_adsp *dsp)
 {
-	wm_adsp_common_init(dsp);
+	int ret;
 
-	return cs_dsp_adsp1_init(dsp);
+	ret = cs_dsp_adsp1_init(&dsp->cs_dsp);
+	if (ret)
+		return ret;
+
+	return wm_adsp_common_init(dsp);
 }
 EXPORT_SYMBOL_GPL(wm_adsp1_init);
 
-static int cs_dsp_adsp1_power_up(struct wm_adsp *dsp,
+static int cs_dsp_adsp1_power_up(struct cs_dsp *dsp,
 				 const struct firmware *wmfw_firmware, char *wmfw_filename,
 				 const struct firmware *coeff_firmware, char *coeff_filename,
 				 const char *fw_name)
@@ -2941,7 +2953,7 @@ err_mutex:
 	return ret;
 }
 
-static void cs_dsp_adsp1_power_down(struct wm_adsp *dsp)
+static void cs_dsp_adsp1_power_down(struct cs_dsp *dsp)
 {
 	struct cs_dsp_coeff_ctl *ctl;
 
@@ -2991,7 +3003,7 @@ int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		if (ret)
 			break;
 
-		ret = cs_dsp_adsp1_power_up(dsp,
+		ret = cs_dsp_adsp1_power_up(&dsp->cs_dsp,
 					    wmfw_firmware, wmfw_filename,
 					    coeff_firmware, coeff_filename,
 					    wm_adsp_fw_text[dsp->fw]);
@@ -3001,7 +3013,7 @@ int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 					       coeff_firmware, coeff_filename);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		cs_dsp_adsp1_power_down(dsp);
+		cs_dsp_adsp1_power_down(&dsp->cs_dsp);
 		break;
 	default:
 		break;
@@ -3011,7 +3023,7 @@ int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 }
 EXPORT_SYMBOL_GPL(wm_adsp1_event);
 
-static int cs_dsp_adsp2v2_enable_core(struct wm_adsp *dsp)
+static int cs_dsp_adsp2v2_enable_core(struct cs_dsp *dsp)
 {
 	unsigned int val;
 	int ret, count;
@@ -3038,7 +3050,7 @@ static int cs_dsp_adsp2v2_enable_core(struct wm_adsp *dsp)
 	return 0;
 }
 
-static int cs_dsp_adsp2_enable_core(struct wm_adsp *dsp)
+static int cs_dsp_adsp2_enable_core(struct cs_dsp *dsp)
 {
 	int ret;
 
@@ -3050,7 +3062,7 @@ static int cs_dsp_adsp2_enable_core(struct wm_adsp *dsp)
 	return cs_dsp_adsp2v2_enable_core(dsp);
 }
 
-static int cs_dsp_adsp2_lock(struct wm_adsp *dsp, unsigned int lock_regions)
+static int cs_dsp_adsp2_lock(struct cs_dsp *dsp, unsigned int lock_regions)
 {
 	struct regmap *regmap = dsp->regmap;
 	unsigned int code0, code1, lock_reg;
@@ -3080,19 +3092,19 @@ static int cs_dsp_adsp2_lock(struct wm_adsp *dsp, unsigned int lock_regions)
 	return 0;
 }
 
-static int cs_dsp_adsp2_enable_memory(struct wm_adsp *dsp)
+static int cs_dsp_adsp2_enable_memory(struct cs_dsp *dsp)
 {
 	return regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
 				  ADSP2_MEM_ENA, ADSP2_MEM_ENA);
 }
 
-static void cs_dsp_adsp2_disable_memory(struct wm_adsp *dsp)
+static void cs_dsp_adsp2_disable_memory(struct cs_dsp *dsp)
 {
 	regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
 			   ADSP2_MEM_ENA, 0);
 }
 
-static void cs_dsp_adsp2_disable_core(struct wm_adsp *dsp)
+static void cs_dsp_adsp2_disable_core(struct cs_dsp *dsp)
 {
 	regmap_write(dsp->regmap, dsp->base + ADSP2_RDMA_CONFIG_1, 0);
 	regmap_write(dsp->regmap, dsp->base + ADSP2_WDMA_CONFIG_1, 0);
@@ -3102,14 +3114,14 @@ static void cs_dsp_adsp2_disable_core(struct wm_adsp *dsp)
 			   ADSP2_SYS_ENA, 0);
 }
 
-static void cs_dsp_adsp2v2_disable_core(struct wm_adsp *dsp)
+static void cs_dsp_adsp2v2_disable_core(struct cs_dsp *dsp)
 {
 	regmap_write(dsp->regmap, dsp->base + ADSP2_RDMA_CONFIG_1, 0);
 	regmap_write(dsp->regmap, dsp->base + ADSP2_WDMA_CONFIG_1, 0);
 	regmap_write(dsp->regmap, dsp->base + ADSP2V2_WDMA_CONFIG_2, 0);
 }
 
-static int cs_dsp_halo_configure_mpu(struct wm_adsp *dsp, unsigned int lock_regions)
+static int cs_dsp_halo_configure_mpu(struct cs_dsp *dsp, unsigned int lock_regions)
 {
 	struct reg_sequence config[] = {
 		{ dsp->base + HALO_MPU_LOCK_CONFIG,     0x5555 },
@@ -3140,7 +3152,7 @@ static int cs_dsp_halo_configure_mpu(struct wm_adsp *dsp, unsigned int lock_regi
 	return regmap_multi_reg_write(dsp->regmap, config, ARRAY_SIZE(config));
 }
 
-static int cs_dsp_set_dspclk(struct wm_adsp *dsp, unsigned int freq)
+static int cs_dsp_set_dspclk(struct cs_dsp *dsp, unsigned int freq)
 {
 	int ret;
 
@@ -3159,7 +3171,7 @@ int wm_adsp2_set_dspclk(struct snd_soc_dapm_widget *w, unsigned int freq)
 	struct wm_adsp *dsps = snd_soc_component_get_drvdata(component);
 	struct wm_adsp *dsp = &dsps[w->shift];
 
-	return cs_dsp_set_dspclk(dsp, freq);
+	return cs_dsp_set_dspclk(&dsp->cs_dsp, freq);
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_set_dspclk);
 
@@ -3189,7 +3201,7 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 	struct wm_adsp *dsp = &dsps[mc->shift - 1];
 	char preload[32];
 
-	snprintf(preload, ARRAY_SIZE(preload), "%s Preload", dsp->name);
+	snprintf(preload, ARRAY_SIZE(preload), "%s Preload", dsp->cs_dsp.name);
 
 	dsp->preloaded = ucontrol->value.integer.value[0];
 
@@ -3206,19 +3218,19 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_preloader_put);
 
-static void cs_dsp_stop_watchdog(struct wm_adsp *dsp)
+static void cs_dsp_stop_watchdog(struct cs_dsp *dsp)
 {
 	regmap_update_bits(dsp->regmap, dsp->base + ADSP2_WATCHDOG,
 			   ADSP2_WDT_ENA_MASK, 0);
 }
 
-static void cs_dsp_halo_stop_watchdog(struct wm_adsp *dsp)
+static void cs_dsp_halo_stop_watchdog(struct cs_dsp *dsp)
 {
 	regmap_update_bits(dsp->regmap, dsp->base + HALO_WDT_CONTROL,
 			   HALO_WDT_EN_MASK, 0);
 }
 
-static int cs_dsp_power_up(struct wm_adsp *dsp,
+static int cs_dsp_power_up(struct cs_dsp *dsp,
 			   const struct firmware *wmfw_firmware, char *wmfw_filename,
 			   const struct firmware *coeff_firmware, char *coeff_filename,
 			   const char *fw_name)
@@ -3278,7 +3290,7 @@ err_mutex:
 	return ret;
 }
 
-static void cs_dsp_power_down(struct wm_adsp *dsp)
+static void cs_dsp_power_down(struct cs_dsp *dsp)
 {
 	struct cs_dsp_coeff_ctl *ctl;
 
@@ -3321,7 +3333,7 @@ static void wm_adsp_boot_work(struct work_struct *work)
 	if (ret)
 		return;
 
-	cs_dsp_power_up(dsp,
+	cs_dsp_power_up(&dsp->cs_dsp,
 			wmfw_firmware, wmfw_filename,
 			coeff_firmware, coeff_filename,
 			wm_adsp_fw_text[dsp->fw]);
@@ -3343,7 +3355,7 @@ int wm_adsp_early_event(struct snd_soc_dapm_widget *w,
 		queue_work(system_unbound_wq, &dsp->boot_work);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		cs_dsp_power_down(dsp);
+		cs_dsp_power_down(&dsp->cs_dsp);
 		break;
 	default:
 		break;
@@ -3353,36 +3365,40 @@ int wm_adsp_early_event(struct snd_soc_dapm_widget *w,
 }
 EXPORT_SYMBOL_GPL(wm_adsp_early_event);
 
-static int cs_dsp_adsp2_start_core(struct wm_adsp *dsp)
+static int cs_dsp_adsp2_start_core(struct cs_dsp *dsp)
 {
 	return regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
 				 ADSP2_CORE_ENA | ADSP2_START,
 				 ADSP2_CORE_ENA | ADSP2_START);
 }
 
-static void cs_dsp_adsp2_stop_core(struct wm_adsp *dsp)
+static void cs_dsp_adsp2_stop_core(struct cs_dsp *dsp)
 {
 	regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
 			   ADSP2_CORE_ENA | ADSP2_START, 0);
 }
 
-static int wm_adsp_event_post_run(struct wm_adsp *dsp)
+static int wm_adsp_event_post_run(struct cs_dsp *cs_dsp)
 {
+	struct wm_adsp *dsp = container_of(cs_dsp, struct wm_adsp, cs_dsp);
+
 	if (wm_adsp_fw[dsp->fw].num_caps != 0)
 		return wm_adsp_buffer_init(dsp);
 
 	return 0;
 }
 
-static void wm_adsp_event_post_stop(struct wm_adsp *dsp)
+static void wm_adsp_event_post_stop(struct cs_dsp *cs_dsp)
 {
+	struct wm_adsp *dsp = container_of(cs_dsp, struct wm_adsp, cs_dsp);
+
 	if (wm_adsp_fw[dsp->fw].num_caps != 0)
 		wm_adsp_buffer_free(dsp);
 
 	dsp->fatal_error = false;
 }
 
-static int cs_dsp_run(struct wm_adsp *dsp)
+static int cs_dsp_run(struct cs_dsp *dsp)
 {
 	int ret;
 
@@ -3438,7 +3454,7 @@ err:
 	return ret;
 }
 
-static void cs_dsp_stop(struct wm_adsp *dsp)
+static void cs_dsp_stop(struct cs_dsp *dsp)
 {
 	/* Tell the firmware to cleanup */
 	cs_dsp_signal_event_controls(dsp, CS_DSP_FW_EVENT_SHUTDOWN);
@@ -3477,10 +3493,10 @@ int wm_adsp_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		flush_work(&dsp->boot_work);
-		ret = cs_dsp_run(dsp);
+		ret = cs_dsp_run(&dsp->cs_dsp);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		cs_dsp_stop(dsp);
+		cs_dsp_stop(&dsp->cs_dsp);
 		break;
 	default:
 		break;
@@ -3490,7 +3506,7 @@ int wm_adsp_event(struct snd_soc_dapm_widget *w,
 }
 EXPORT_SYMBOL_GPL(wm_adsp_event);
 
-static int cs_dsp_halo_start_core(struct wm_adsp *dsp)
+static int cs_dsp_halo_start_core(struct cs_dsp *dsp)
 {
 	return regmap_update_bits(dsp->regmap,
 				  dsp->base + HALO_CCM_CORE_CONTROL,
@@ -3498,7 +3514,7 @@ static int cs_dsp_halo_start_core(struct wm_adsp *dsp)
 				  HALO_CORE_RESET | HALO_CORE_EN);
 }
 
-static void cs_dsp_halo_stop_core(struct wm_adsp *dsp)
+static void cs_dsp_halo_stop_core(struct cs_dsp *dsp)
 {
 	regmap_update_bits(dsp->regmap, dsp->base + HALO_CCM_CORE_CONTROL,
 			   HALO_CORE_EN, 0);
@@ -3512,10 +3528,10 @@ int wm_adsp2_component_probe(struct wm_adsp *dsp, struct snd_soc_component *comp
 {
 	char preload[32];
 
-	snprintf(preload, ARRAY_SIZE(preload), "%s Preload", dsp->name);
+	snprintf(preload, ARRAY_SIZE(preload), "%s Preload", dsp->cs_dsp.name);
 	snd_soc_component_disable_pin(component, preload);
 
-	cs_dsp_init_debugfs(dsp, component);
+	cs_dsp_init_debugfs(&dsp->cs_dsp, component->debugfs_root);
 
 	dsp->component = component;
 
@@ -3525,13 +3541,13 @@ EXPORT_SYMBOL_GPL(wm_adsp2_component_probe);
 
 int wm_adsp2_component_remove(struct wm_adsp *dsp, struct snd_soc_component *component)
 {
-	cs_dsp_cleanup_debugfs(dsp);
+	cs_dsp_cleanup_debugfs(&dsp->cs_dsp);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_component_remove);
 
-static int cs_dsp_adsp2_init(struct wm_adsp *dsp)
+static int cs_dsp_adsp2_init(struct cs_dsp *dsp)
 {
 	int ret;
 
@@ -3564,17 +3580,21 @@ static int cs_dsp_adsp2_init(struct wm_adsp *dsp)
 
 int wm_adsp2_init(struct wm_adsp *dsp)
 {
+	int ret;
+
 	INIT_WORK(&dsp->boot_work, wm_adsp_boot_work);
 
 	dsp->sys_config_size = sizeof(struct wm_adsp_system_config_xm_hdr);
 
-	wm_adsp_common_init(dsp);
+	ret = cs_dsp_adsp2_init(&dsp->cs_dsp);
+	if (ret)
+		return ret;
 
-	return cs_dsp_adsp2_init(dsp);
+	return wm_adsp_common_init(dsp);
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_init);
 
-static int cs_dsp_halo_init(struct wm_adsp *dsp)
+static int cs_dsp_halo_init(struct cs_dsp *dsp)
 {
 	dsp->ops = &cs_dsp_halo_ops;
 
@@ -3583,17 +3603,21 @@ static int cs_dsp_halo_init(struct wm_adsp *dsp)
 
 int wm_halo_init(struct wm_adsp *dsp)
 {
+	int ret;
+
 	INIT_WORK(&dsp->boot_work, wm_adsp_boot_work);
 
 	dsp->sys_config_size = sizeof(struct wm_halo_system_config_xm_hdr);
 
-	wm_adsp_common_init(dsp);
+	ret = cs_dsp_halo_init(&dsp->cs_dsp);
+	if (ret)
+		return ret;
 
-	return cs_dsp_halo_init(dsp);
+	return wm_adsp_common_init(dsp);
 }
 EXPORT_SYMBOL_GPL(wm_halo_init);
 
-static void cs_dsp_remove(struct wm_adsp *dsp)
+static void cs_dsp_remove(struct cs_dsp *dsp)
 {
 	struct cs_dsp_coeff_ctl *ctl;
 
@@ -3609,7 +3633,7 @@ static void cs_dsp_remove(struct wm_adsp *dsp)
 
 void wm_adsp2_remove(struct wm_adsp *dsp)
 {
-	cs_dsp_remove(dsp);
+	cs_dsp_remove(&dsp->cs_dsp);
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_remove);
 
@@ -3662,7 +3686,7 @@ int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream)
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	int ret = 0;
 
-	mutex_lock(&dsp->pwr_lock);
+	mutex_lock(&dsp->cs_dsp.pwr_lock);
 
 	if (wm_adsp_fw[dsp->fw].num_caps == 0) {
 		adsp_err(dsp, "%s: Firmware does not support compressed API\n",
@@ -3702,7 +3726,7 @@ int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream)
 	stream->runtime->private_data = compr;
 
 out:
-	mutex_unlock(&dsp->pwr_lock);
+	mutex_unlock(&dsp->cs_dsp.pwr_lock);
 
 	return ret;
 }
@@ -3714,7 +3738,7 @@ int wm_adsp_compr_free(struct snd_soc_component *component,
 	struct wm_adsp_compr *compr = stream->runtime->private_data;
 	struct wm_adsp *dsp = compr->dsp;
 
-	mutex_lock(&dsp->pwr_lock);
+	mutex_lock(&dsp->cs_dsp.pwr_lock);
 
 	wm_adsp_compr_detach(compr);
 	list_del(&compr->list);
@@ -3722,7 +3746,7 @@ int wm_adsp_compr_free(struct snd_soc_component *component,
 	kfree(compr->raw_buf);
 	kfree(compr);
 
-	mutex_unlock(&dsp->pwr_lock);
+	mutex_unlock(&dsp->cs_dsp.pwr_lock);
 
 	return 0;
 }
@@ -3836,7 +3860,7 @@ int wm_adsp_compr_get_caps(struct snd_soc_component *component,
 }
 EXPORT_SYMBOL_GPL(wm_adsp_compr_get_caps);
 
-static int cs_dsp_read_raw_data_block(struct wm_adsp *dsp, int mem_type,
+static int cs_dsp_read_raw_data_block(struct cs_dsp *dsp, int mem_type,
 				      unsigned int mem_addr,
 				      unsigned int num_words, __be32 *data)
 {
@@ -3857,8 +3881,8 @@ static int cs_dsp_read_raw_data_block(struct wm_adsp *dsp, int mem_type,
 	return 0;
 }
 
-static inline int cs_dsp_read_data_word(struct wm_adsp *dsp, int mem_type,
-					unsigned int mem_addr, u32 *data)
+static int cs_dsp_read_data_word(struct cs_dsp *dsp, int mem_type,
+				 unsigned int mem_addr, u32 *data)
 {
 	__be32 raw;
 	int ret;
@@ -3872,7 +3896,7 @@ static inline int cs_dsp_read_data_word(struct wm_adsp *dsp, int mem_type,
 	return 0;
 }
 
-static int cs_dsp_write_data_word(struct wm_adsp *dsp, int mem_type,
+static int cs_dsp_write_data_word(struct cs_dsp *dsp, int mem_type,
 				  unsigned int mem_addr, u32 data)
 {
 	struct cs_dsp_region const *mem = cs_dsp_find_region(dsp, mem_type);
@@ -3890,15 +3914,16 @@ static int cs_dsp_write_data_word(struct wm_adsp *dsp, int mem_type,
 static inline int wm_adsp_buffer_read(struct wm_adsp_compr_buf *buf,
 				      unsigned int field_offset, u32 *data)
 {
-	return cs_dsp_read_data_word(buf->dsp, buf->host_buf_mem_type,
+	return cs_dsp_read_data_word(&buf->dsp->cs_dsp, buf->host_buf_mem_type,
 				     buf->host_buf_ptr + field_offset, data);
 }
 
 static inline int wm_adsp_buffer_write(struct wm_adsp_compr_buf *buf,
 				       unsigned int field_offset, u32 data)
 {
-	return cs_dsp_write_data_word(buf->dsp, buf->host_buf_mem_type,
-				      buf->host_buf_ptr + field_offset, data);
+	return cs_dsp_write_data_word(&buf->dsp->cs_dsp, buf->host_buf_mem_type,
+				      buf->host_buf_ptr + field_offset,
+				      data);
 }
 
 static void cs_dsp_remove_padding(u32 *buf, int nwords)
@@ -3990,7 +4015,7 @@ static int wm_adsp_buffer_parse_legacy(struct wm_adsp *dsp)
 	u32 xmalg, addr, magic;
 	int i, ret;
 
-	alg_region = cs_dsp_find_alg_region(dsp, WMFW_ADSP2_XM, dsp->fw_id);
+	alg_region = cs_dsp_find_alg_region(&dsp->cs_dsp, WMFW_ADSP2_XM, dsp->cs_dsp.fw_id);
 	if (!alg_region) {
 		adsp_err(dsp, "No algorithm region found\n");
 		return -EINVAL;
@@ -4003,7 +4028,7 @@ static int wm_adsp_buffer_parse_legacy(struct wm_adsp *dsp)
 	xmalg = dsp->sys_config_size / sizeof(__be32);
 
 	addr = alg_region->base + xmalg + ALG_XM_FIELD(magic);
-	ret = cs_dsp_read_data_word(dsp, WMFW_ADSP2_XM, addr, &magic);
+	ret = cs_dsp_read_data_word(&dsp->cs_dsp, WMFW_ADSP2_XM, addr, &magic);
 	if (ret < 0)
 		return ret;
 
@@ -4012,7 +4037,7 @@ static int wm_adsp_buffer_parse_legacy(struct wm_adsp *dsp)
 
 	addr = alg_region->base + xmalg + ALG_XM_FIELD(host_buf_ptr);
 	for (i = 0; i < 5; ++i) {
-		ret = cs_dsp_read_data_word(dsp, WMFW_ADSP2_XM, addr,
+		ret = cs_dsp_read_data_word(&dsp->cs_dsp, WMFW_ADSP2_XM, addr,
 					    &buf->host_buf_ptr);
 		if (ret < 0)
 			return ret;
@@ -4041,7 +4066,7 @@ static int wm_adsp_buffer_parse_coeff(struct cs_dsp_coeff_ctl *cs_ctl)
 {
 	struct wm_adsp_host_buf_coeff_v1 coeff_v1;
 	struct wm_adsp_compr_buf *buf;
-	struct wm_adsp *dsp = cs_ctl->dsp;
+	struct wm_adsp *dsp = container_of(cs_ctl->dsp, struct wm_adsp, cs_dsp);
 	unsigned int version;
 	int ret, i;
 
@@ -4107,7 +4132,7 @@ static int wm_adsp_buffer_init(struct wm_adsp *dsp)
 	struct cs_dsp_coeff_ctl *cs_ctl;
 	int ret;
 
-	list_for_each_entry(cs_ctl, &dsp->ctl_list, list) {
+	list_for_each_entry(cs_ctl, &dsp->cs_dsp.ctl_list, list) {
 		if (cs_ctl->type != WMFW_CTL_TYPE_HOST_BUFFER)
 			continue;
 
@@ -4182,7 +4207,7 @@ int wm_adsp_compr_trigger(struct snd_soc_component *component,
 
 	compr_dbg(compr, "Trigger: %d\n", cmd);
 
-	mutex_lock(&dsp->pwr_lock);
+	mutex_lock(&dsp->cs_dsp.pwr_lock);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -4218,7 +4243,7 @@ int wm_adsp_compr_trigger(struct snd_soc_component *component,
 		break;
 	}
 
-	mutex_unlock(&dsp->pwr_lock);
+	mutex_unlock(&dsp->cs_dsp.pwr_lock);
 
 	return ret;
 }
@@ -4280,7 +4305,7 @@ int wm_adsp_compr_handle_irq(struct wm_adsp *dsp)
 	struct wm_adsp_compr *compr;
 	int ret = 0;
 
-	mutex_lock(&dsp->pwr_lock);
+	mutex_lock(&dsp->cs_dsp.pwr_lock);
 
 	if (list_empty(&dsp->buffer_list)) {
 		ret = -ENODEV;
@@ -4318,7 +4343,7 @@ out_notify:
 	}
 
 out:
-	mutex_unlock(&dsp->pwr_lock);
+	mutex_unlock(&dsp->cs_dsp.pwr_lock);
 
 	return ret;
 }
@@ -4348,7 +4373,7 @@ int wm_adsp_compr_pointer(struct snd_soc_component *component,
 
 	compr_dbg(compr, "Pointer request\n");
 
-	mutex_lock(&dsp->pwr_lock);
+	mutex_lock(&dsp->cs_dsp.pwr_lock);
 
 	buf = compr->buf;
 
@@ -4392,7 +4417,7 @@ int wm_adsp_compr_pointer(struct snd_soc_component *component,
 	tstamp->sampling_rate = compr->sample_rate;
 
 out:
-	mutex_unlock(&dsp->pwr_lock);
+	mutex_unlock(&dsp->cs_dsp.pwr_lock);
 
 	return ret;
 }
@@ -4430,7 +4455,7 @@ static int wm_adsp_buffer_capture_block(struct wm_adsp_compr *compr, int target)
 		return 0;
 
 	/* Read data from DSP */
-	ret = cs_dsp_read_raw_data_block(buf->dsp, mem_type, adsp_addr,
+	ret = cs_dsp_read_raw_data_block(&buf->dsp->cs_dsp, mem_type, adsp_addr,
 					 nwords, (__be32 *)compr->raw_buf);
 	if (ret < 0)
 		return ret;
@@ -4504,21 +4529,22 @@ int wm_adsp_compr_copy(struct snd_soc_component *component,
 	struct wm_adsp *dsp = compr->dsp;
 	int ret;
 
-	mutex_lock(&dsp->pwr_lock);
+	mutex_lock(&dsp->cs_dsp.pwr_lock);
 
 	if (stream->direction == SND_COMPRESS_CAPTURE)
 		ret = wm_adsp_compr_read(compr, buf, count);
 	else
 		ret = -ENOTSUPP;
 
-	mutex_unlock(&dsp->pwr_lock);
+	mutex_unlock(&dsp->cs_dsp.pwr_lock);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm_adsp_compr_copy);
 
-static void wm_adsp_fatal_error(struct wm_adsp *dsp)
+static void wm_adsp_fatal_error(struct cs_dsp *cs_dsp)
 {
+	struct wm_adsp *dsp = container_of(cs_dsp, struct wm_adsp, cs_dsp);
 	struct wm_adsp_compr *compr;
 
 	dsp->fatal_error = true;
@@ -4529,7 +4555,7 @@ static void wm_adsp_fatal_error(struct wm_adsp *dsp)
 	}
 }
 
-static void cs_dsp_adsp2_bus_error(struct wm_adsp *dsp)
+static void cs_dsp_adsp2_bus_error(struct cs_dsp *dsp)
 {
 	unsigned int val;
 	struct regmap *regmap = dsp->regmap;
@@ -4595,13 +4621,13 @@ irqreturn_t wm_adsp2_bus_error(int irq, void *data)
 {
 	struct wm_adsp *dsp = (struct wm_adsp *)data;
 
-	cs_dsp_adsp2_bus_error(dsp);
+	cs_dsp_adsp2_bus_error(&dsp->cs_dsp);
 
 	return IRQ_HANDLED;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_bus_error);
 
-static void cs_dsp_halo_bus_error(struct wm_adsp *dsp)
+static void cs_dsp_halo_bus_error(struct cs_dsp *dsp)
 {
 	struct regmap *regmap = dsp->regmap;
 	unsigned int fault[6];
@@ -4658,13 +4684,13 @@ irqreturn_t wm_halo_bus_error(int irq, void *data)
 {
 	struct wm_adsp *dsp = (struct wm_adsp *)data;
 
-	cs_dsp_halo_bus_error(dsp);
+	cs_dsp_halo_bus_error(&dsp->cs_dsp);
 
 	return IRQ_HANDLED;
 }
 EXPORT_SYMBOL_GPL(wm_halo_bus_error);
 
-static void cs_dsp_halo_wdt_expire(struct wm_adsp *dsp)
+static void cs_dsp_halo_wdt_expire(struct cs_dsp *dsp)
 {
 	mutex_lock(&dsp->pwr_lock);
 
@@ -4680,7 +4706,7 @@ irqreturn_t wm_halo_wdt_expire(int irq, void *data)
 {
 	struct wm_adsp *dsp = data;
 
-	cs_dsp_halo_wdt_expire(dsp);
+	cs_dsp_halo_wdt_expire(&dsp->cs_dsp);
 
 	return IRQ_HANDLED;
 }
