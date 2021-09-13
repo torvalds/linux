@@ -357,51 +357,55 @@ struct clk_hw *imx_clk_hw_cpu(const char *name, const char *parent_name,
 #define IMX_COMPOSITE_BUS		BIT(1)
 #define IMX_COMPOSITE_FW_MANAGED	BIT(2)
 
-struct clk_hw *imx8m_clk_hw_composite_flags(const char *name,
+#define IMX_COMPOSITE_CLK_FLAGS_DEFAULT \
+	(CLK_SET_RATE_NO_REPARENT | CLK_OPS_PARENT_ENABLE)
+#define IMX_COMPOSITE_CLK_FLAGS_CRITICAL \
+	(IMX_COMPOSITE_CLK_FLAGS_DEFAULT | CLK_IS_CRITICAL)
+#define IMX_COMPOSITE_CLK_FLAGS_GET_RATE_NO_CACHE \
+	(IMX_COMPOSITE_CLK_FLAGS_DEFAULT | CLK_GET_RATE_NOCACHE)
+#define IMX_COMPOSITE_CLK_FLAGS_CRITICAL_GET_RATE_NO_CACHE \
+	(IMX_COMPOSITE_CLK_FLAGS_GET_RATE_NO_CACHE | CLK_IS_CRITICAL)
+
+struct clk_hw *__imx8m_clk_hw_composite(const char *name,
 					    const char * const *parent_names,
 					    int num_parents,
 					    void __iomem *reg,
 					    u32 composite_flags,
 					    unsigned long flags);
 
-#define imx8m_clk_hw_composite_bus(name, parent_names, reg)	\
-	imx8m_clk_hw_composite_flags(name, parent_names, \
-			ARRAY_SIZE(parent_names), reg, \
-			IMX_COMPOSITE_BUS, \
-			CLK_SET_RATE_NO_REPARENT | CLK_OPS_PARENT_ENABLE)
-
-#define imx8m_clk_hw_composite_bus_critical(name, parent_names, reg)	\
-	imx8m_clk_hw_composite_flags(name, parent_names, ARRAY_SIZE(parent_names), reg, \
-			IMX_COMPOSITE_BUS, \
-			CLK_SET_RATE_NO_REPARENT | CLK_OPS_PARENT_ENABLE | CLK_IS_CRITICAL)
-
-#define imx8m_clk_hw_composite_core(name, parent_names, reg)	\
-	imx8m_clk_hw_composite_flags(name, parent_names, \
-			ARRAY_SIZE(parent_names), reg, \
-			IMX_COMPOSITE_CORE, \
-			CLK_SET_RATE_NO_REPARENT | CLK_OPS_PARENT_ENABLE)
-
-#define __imx8m_clk_hw_composite(name, parent_names, reg, flags) \
-	imx8m_clk_hw_composite_flags(name, parent_names, \
-		ARRAY_SIZE(parent_names), reg, 0, \
-		flags | CLK_SET_RATE_NO_REPARENT | CLK_OPS_PARENT_ENABLE)
-
-#define __imx8m_clk_hw_fw_managed_composite(name, parent_names, reg, flags) \
-	imx8m_clk_hw_composite_flags(name, parent_names, \
-		ARRAY_SIZE(parent_names), reg, IMX_COMPOSITE_FW_MANAGED, \
-		flags | CLK_GET_RATE_NOCACHE | CLK_SET_RATE_NO_REPARENT | CLK_OPS_PARENT_ENABLE)
-
-#define imx8m_clk_hw_fw_managed_composite(name, parent_names, reg) \
-	__imx8m_clk_hw_fw_managed_composite(name, parent_names, reg, 0)
-
-#define imx8m_clk_hw_fw_managed_composite_critical(name, parent_names, reg) \
-	__imx8m_clk_hw_fw_managed_composite(name, parent_names, reg, CLK_IS_CRITICAL)
+#define _imx8m_clk_hw_composite(name, parent_names, reg, composite_flags, flags) \
+	__imx8m_clk_hw_composite(name, parent_names, \
+		ARRAY_SIZE(parent_names), reg, composite_flags, flags)
 
 #define imx8m_clk_hw_composite(name, parent_names, reg) \
-	__imx8m_clk_hw_composite(name, parent_names, reg, 0)
+	_imx8m_clk_hw_composite(name, parent_names, reg, \
+			IMX_COMPOSITE_CORE, IMX_COMPOSITE_CLK_FLAGS_DEFAULT)
 
 #define imx8m_clk_hw_composite_critical(name, parent_names, reg) \
-	__imx8m_clk_hw_composite(name, parent_names, reg, CLK_IS_CRITICAL)
+	_imx8m_clk_hw_composite(name, parent_names, reg, \
+			IMX_COMPOSITE_CORE, IMX_COMPOSITE_CLK_FLAGS_CRITICAL)
+
+#define imx8m_clk_hw_composite_bus(name, parent_names, reg)	\
+	_imx8m_clk_hw_composite(name, parent_names, reg, \
+			IMX_COMPOSITE_BUS, IMX_COMPOSITE_CLK_FLAGS_DEFAULT)
+
+#define imx8m_clk_hw_composite_bus_critical(name, parent_names, reg)	\
+	_imx8m_clk_hw_composite(name, parent_names, reg, \
+			IMX_COMPOSITE_BUS, IMX_COMPOSITE_CLK_FLAGS_CRITICAL)
+
+#define imx8m_clk_hw_composite_core(name, parent_names, reg)	\
+	_imx8m_clk_hw_composite(name, parent_names, reg, \
+			IMX_COMPOSITE_CORE, IMX_COMPOSITE_CLK_FLAGS_DEFAULT)
+
+#define imx8m_clk_hw_fw_managed_composite(name, parent_names, reg) \
+	_imx8m_clk_hw_composite(name, parent_names, reg, \
+			IMX_COMPOSITE_FW_MANAGED, \
+			IMX_COMPOSITE_CLK_FLAGS_GET_RATE_NO_CACHE)
+
+#define imx8m_clk_hw_fw_managed_composite_critical(name, parent_names, reg) \
+	_imx8m_clk_hw_composite(name, parent_names, reg, \
+			IMX_COMPOSITE_FW_MANAGED, \
+			IMX_COMPOSITE_CLK_FLAGS_CRITICAL_GET_RATE_NO_CACHE)
 
 struct clk_hw *imx_clk_hw_divider_gate(const char *name, const char *parent_name,
 		unsigned long flags, void __iomem *reg, u8 shift, u8 width,
