@@ -7,18 +7,6 @@
 #include "osdep_service.h"
 #include "drv_types.h"
 
-#define FW_PWR0		0
-#define FW_PWR1		1
-#define FW_PWR2		2
-#define FW_PWR3		3
-#define HW_PWR0		7
-#define HW_PWR1		6
-#define HW_PWR2		2
-#define HW_PWR3		0
-#define HW_PWR4		8
-
-#define FW_PWRMSK	0x7
-
 #define XMIT_ALIVE	BIT(0)
 #define RECV_ALIVE	BIT(1)
 #define CMD_ALIVE	BIT(2)
@@ -39,12 +27,6 @@ enum power_mgnt {
 	PS_MODE_NUM
 };
 
-struct reportpwrstate_parm {
-	unsigned char mode;
-	unsigned char state; /* the CPWM value */
-	unsigned short rsvd;
-};
-
 static inline void _init_pwrlock(struct semaphore  *plock)
 {
 	sema_init(plock, 1);
@@ -62,10 +44,6 @@ static inline void _exit_pwrlock(struct semaphore  *plock)
 
 #define LPS_DELAY_TIME	1*HZ /*  1 sec */
 
-#define EXE_PWR_NONE	0x01
-#define EXE_PWR_IPS		0x02
-#define EXE_PWR_LPS		0x04
-
 /*  RF state. */
 enum rt_rf_power_state {
 	rf_on,		/*  RF is on after RFSleep or RFOff */
@@ -74,26 +52,6 @@ enum rt_rf_power_state {
 	/* Add the new RF state above this line===== */
 	rf_max
 };
-
-/*  RF Off Level for IPS or HW/SW radio off */
-#define	RT_RF_OFF_LEVL_ASPM		BIT(0)	/* PCI ASPM */
-#define	RT_RF_OFF_LEVL_CLK_REQ		BIT(1)	/* PCI clock request */
-#define	RT_RF_OFF_LEVL_PCI_D3		BIT(2)	/* PCI D3 mode */
-#define	RT_RF_OFF_LEVL_HALT_NIC		BIT(3)	/* NIC halt, re-init hw param*/
-#define	RT_RF_OFF_LEVL_FREE_FW		BIT(4)	/* FW free, re-download the FW*/
-#define	RT_RF_OFF_LEVL_FW_32K		BIT(5)	/* FW in 32k */
-#define	RT_RF_PS_LEVEL_ALWAYS_ASPM	BIT(6)	/* Always enable ASPM and Clock
-						 * Req in initialization. */
-#define	RT_RF_LPS_DISALBE_2R		BIT(30)	/* When LPS is on, disable 2R
-						 * if no packet is RX or TX. */
-#define	RT_RF_LPS_LEVEL_ASPM		BIT(31)	/* LPS with ASPM */
-
-#define	RT_IN_PS_LEVEL(ppsc, _PS_FLAG)				\
-	((ppsc->cur_ps_level & _PS_FLAG) ? true : false)
-#define	RT_CLEAR_PS_LEVEL(ppsc, _PS_FLAG)			\
-	(ppsc->cur_ps_level &= (~(_PS_FLAG)))
-#define	RT_SET_PS_LEVEL(ppsc, _PS_FLAG)				\
-	(ppsc->cur_ps_level |= _PS_FLAG)
 
 enum _PS_BBRegBackup_ {
 	PSBBREG_RF0 = 0,
@@ -209,8 +167,6 @@ int _rtw_pwr_wakeup(struct adapter *adapter, u32 ips_defer_ms,
 		    const char *caller);
 #define rtw_pwr_wakeup(adapter)						\
 	 _rtw_pwr_wakeup(adapter, RTW_PWR_STATE_CHK_INTERVAL, __func__)
-#define rtw_pwr_wakeup_ex(adapter, ips_deffer_ms)			\
-	 _rtw_pwr_wakeup(adapter, ips_deffer_ms, __func__)
 int rtw_pm_set_ips(struct adapter *adapter, u8 mode);
 int rtw_pm_set_lps(struct adapter *adapter, u8 mode);
 
