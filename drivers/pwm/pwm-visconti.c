@@ -144,24 +144,13 @@ static int visconti_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	platform_set_drvdata(pdev, priv);
-
 	priv->chip.dev = dev;
 	priv->chip.ops = &visconti_pwm_ops;
 	priv->chip.npwm = 4;
 
-	ret = pwmchip_add(&priv->chip);
+	ret = devm_pwmchip_add(&pdev->dev, &priv->chip);
 	if (ret < 0)
 		return dev_err_probe(&pdev->dev, ret, "Cannot register visconti PWM\n");
-
-	return 0;
-}
-
-static int visconti_pwm_remove(struct platform_device *pdev)
-{
-	struct visconti_pwm_chip *priv = platform_get_drvdata(pdev);
-
-	pwmchip_remove(&priv->chip);
 
 	return 0;
 }
@@ -178,7 +167,6 @@ static struct platform_driver visconti_pwm_driver = {
 		.of_match_table = visconti_pwm_of_match,
 	},
 	.probe = visconti_pwm_probe,
-	.remove = visconti_pwm_remove,
 };
 module_platform_driver(visconti_pwm_driver);
 
