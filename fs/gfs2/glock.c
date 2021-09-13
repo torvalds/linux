@@ -2238,6 +2238,8 @@ static const char *hflags2str(char *buf, u16 flags, unsigned long iflags)
 		*p++ = 'W';
 	if (test_bit(HIF_MAY_DEMOTE, &iflags))
 		*p++ = 'D';
+	if (flags & GL_SKIP)
+		*p++ = 's';
 	*p = 0;
 	return buf;
 }
