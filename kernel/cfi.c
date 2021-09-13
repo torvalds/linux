@@ -320,6 +320,9 @@ void cfi_slowpath_handler(uint64_t id, void *ptr, void *diag)
 {
 	cfi_check_fn fn = find_check_fn((unsigned long)ptr);
 
+	if (!IS_ENABLED(CONFIG_CFI_PERMISSIVE))
+		diag = NULL;
+
 	if (likely(fn))
 		fn(id, ptr, diag);
 	else /* Don't allow unchecked modules */

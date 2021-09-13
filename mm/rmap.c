@@ -77,6 +77,8 @@
 
 #include <trace/events/tlb.h>
 
+#include <trace/hooks/mm.h>
+
 #include "internal.h"
 
 static struct kmem_cache *anon_vma_cachep;
@@ -1713,6 +1715,7 @@ discard:
 	}
 
 	mmu_notifier_invalidate_range_end(&range);
+	trace_android_vh_try_to_unmap_one(vma, page, address, ret);
 
 	return ret;
 }
