@@ -181,6 +181,7 @@ static int do_parent(pid_t child)
 		}
 	}
 
+	/* New process should start with FPSIMD registers only */
 	sve = get_sve(pid, &svebuf, &svebufsz);
 	if (!sve) {
 		int e = errno;
@@ -191,14 +192,15 @@ static int do_parent(pid_t child)
 
 		goto error;
 	} else {
-		ksft_test_result_pass("get_sve\n");
+		ksft_test_result_pass("get_sve(FPSIMD)\n");
 	}
 
 	ksft_test_result((sve->flags & SVE_PT_REGS_MASK) == SVE_PT_REGS_FPSIMD,
-			 "FPSIMD registers\n");
+			 "Set FPSIMD registers\n");
 	if ((sve->flags & SVE_PT_REGS_MASK) != SVE_PT_REGS_FPSIMD)
 		goto error;
 
+	/* Try to set a known FPSIMD state via PT_REGS_SVE */
 	fpsimd = (struct user_fpsimd_state *)((char *)sve +
 					      SVE_PT_FPSIMD_OFFSET);
 	for (i = 0; i < 32; ++i) {
@@ -219,6 +221,7 @@ static int do_parent(pid_t child)
 		goto error;
 	}
 
+	/* Zero the first SVE Z register */
 	vq = sve_vq_from_vl(sve->vl);
 
 	newsvebufsz = SVE_PT_SVE_ZREG_OFFSET(vq, 1);
@@ -245,6 +248,7 @@ static int do_parent(pid_t child)
 		goto error;
 	}
 
+	/* Try to read back the value we just set */
 	new_sve = get_sve(pid, &newsvebuf, &newsvebufsz);
 	if (!new_sve) {
 		int e = errno;
@@ -257,12 +261,13 @@ static int do_parent(pid_t child)
 	}
 
 	ksft_test_result((new_sve->flags & SVE_PT_REGS_MASK) == SVE_PT_REGS_SVE,
-			 "SVE registers\n");
+			 "Get SVE registers\n");
 	if ((new_sve->flags & SVE_PT_REGS_MASK) != SVE_PT_REGS_SVE)
 		goto error;
 
 	dump_sve_regs(new_sve, 3, sizeof fpsimd->vregs[0]);
 
+	/* Verify that the register we set has the value we expected */
 	p = (unsigned char *)new_sve + SVE_PT_SVE_ZREG_OFFSET(vq, 1);
 	for (i = 0; i < sizeof fpsimd->vregs[0]; ++i) {
 		unsigned char expected = i;
