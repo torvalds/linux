@@ -3277,13 +3277,13 @@ int wm_adsp_event(struct snd_soc_dapm_widget *w,
 				goto err;
 		}
 
+		dsp->running = true;
+
 		if (wm_adsp_fw[dsp->fw].num_caps != 0) {
 			ret = wm_adsp_buffer_init(dsp);
 			if (ret < 0)
 				goto err;
 		}
-
-		dsp->running = true;
 
 		mutex_unlock(&dsp->pwr_lock);
 		break;
@@ -3869,26 +3869,21 @@ static int wm_adsp_buffer_parse_coeff(struct wm_coeff_ctl *ctl)
 {
 	struct wm_adsp_host_buf_coeff_v1 coeff_v1;
 	struct wm_adsp_compr_buf *buf;
-	unsigned int reg, version;
-	__be32 bufp;
+	unsigned int version;
 	int ret, i;
 
-	ret = wm_coeff_base_reg(ctl, &reg);
-	if (ret)
-		return ret;
-
 	for (i = 0; i < 5; ++i) {
-		ret = regmap_raw_read(ctl->dsp->regmap, reg, &bufp, sizeof(bufp));
+		ret = wm_coeff_read_ctrl(ctl, &coeff_v1, sizeof(coeff_v1));
 		if (ret < 0)
 			return ret;
 
-		if (bufp)
+		if (coeff_v1.host_buf_ptr)
 			break;
 
 		usleep_range(1000, 2000);
 	}
 
-	if (!bufp) {
+	if (!coeff_v1.host_buf_ptr) {
 		adsp_err(ctl->dsp, "Failed to acquire host buffer\n");
 		return -EIO;
 	}
@@ -3898,7 +3893,7 @@ static int wm_adsp_buffer_parse_coeff(struct wm_coeff_ctl *ctl)
 		return -ENOMEM;
 
 	buf->host_buf_mem_type = ctl->alg_region.type;
-	buf->host_buf_ptr = be32_to_cpu(bufp);
+	buf->host_buf_ptr = be32_to_cpu(coeff_v1.host_buf_ptr);
 
 	ret = wm_adsp_buffer_populate(buf);
 	if (ret < 0)
@@ -3912,11 +3907,6 @@ static int wm_adsp_buffer_parse_coeff(struct wm_coeff_ctl *ctl)
 		compr_dbg(buf, "host_buf_ptr=%x\n", buf->host_buf_ptr);
 		return 0;
 	}
-
-	ret = regmap_raw_read(ctl->dsp->regmap, reg, &coeff_v1,
-			      sizeof(coeff_v1));
-	if (ret < 0)
-		return ret;
 
 	version = be32_to_cpu(coeff_v1.versions) & HOST_BUF_COEFF_COMPAT_VER_MASK;
 	version >>= HOST_BUF_COEFF_COMPAT_VER_SHIFT;
