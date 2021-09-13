@@ -345,8 +345,13 @@ static int virtio_device_of_init(struct virtio_device *dev)
 	ret = snprintf(compat, sizeof(compat), "virtio,device%x", dev->id.device);
 	BUG_ON(ret >= sizeof(compat));
 
+	/*
+	 * On powerpc/pseries virtio devices are PCI devices so PCI
+	 * vendor/device ids play the role of the "compatible" property.
+	 * Simply don't init of_node in this case.
+	 */
 	if (!of_device_is_compatible(np, compat)) {
-		ret = -EINVAL;
+		ret = 0;
 		goto out;
 	}
 
