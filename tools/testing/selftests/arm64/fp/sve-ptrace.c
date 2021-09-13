@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2015-2020 ARM Limited.
+ * Copyright (C) 2015-2021 ARM Limited.
  * Original author: Dave Martin <Dave.Martin@arm.com>
  */
 #include <errno.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/auxv.h>
+#include <sys/prctl.h>
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/uio.h>
@@ -19,20 +21,22 @@
 
 #include "../../kselftest.h"
 
-#define EXPECTED_TESTS 19
+#define VL_TESTS (((SVE_VQ_MAX - SVE_VQ_MIN) + 1) * 3)
+#define FPSIMD_TESTS 3
+
+#define EXPECTED_TESTS (VL_TESTS + FPSIMD_TESTS)
 
 /* <linux/elf.h> and <sys/auxv.h> don't like each other, so: */
 #ifndef NT_ARM_SVE
 #define NT_ARM_SVE 0x405
 #endif
 
-static void dump(const void *buf, size_t size)
+static void fill_buf(char *buf, size_t size)
 {
-	size_t i;
-	const unsigned char *p = buf;
+	int i;
 
-	for (i = 0; i < size; ++i)
-		printf(" %.2x", *p++);
+	for (i = 0; i < size; i++)
+		buf[i] = random();
 }
 
 static int do_child(void)
@@ -101,25 +105,228 @@ static int set_sve(pid_t pid, const struct user_sve_header *sve)
 	return ptrace(PTRACE_SETREGSET, pid, NT_ARM_SVE, &iov);
 }
 
-static void dump_sve_regs(const struct user_sve_header *sve, unsigned int num,
-			  unsigned int vlmax)
+/* Validate attempting to set the specfied VL via ptrace */
+static void ptrace_set_get_vl(pid_t child, unsigned int vl, bool *supported)
 {
-	unsigned int vq;
-	unsigned int i;
+	struct user_sve_header sve;
+	struct user_sve_header *new_sve = NULL;
+	size_t new_sve_size = 0;
+	int ret, prctl_vl;
 
-	if ((sve->flags & SVE_PT_REGS_MASK) != SVE_PT_REGS_SVE)
-		ksft_exit_fail_msg("Dumping non-SVE register\n");
+	*supported = false;
 
-	if (vlmax > sve->vl)
-		vlmax = sve->vl;
+	/* Check if the VL is supported in this process */
+	prctl_vl = prctl(PR_SVE_SET_VL, vl);
+	if (prctl_vl == -1)
+		ksft_exit_fail_msg("prctl(PR_SVE_SET_VL) failed: %s (%d)\n",
+				   strerror(errno), errno);
 
-	vq = sve_vq_from_vl(sve->vl);
-	for (i = 0; i < num; ++i) {
-		printf("# z%u:", i);
-		dump((const char *)sve + SVE_PT_SVE_ZREG_OFFSET(vq, i),
-		     vlmax);
-		printf("%s\n", vlmax == sve->vl ? "" : " ...");
+	/* If the VL is not supported then a supported VL will be returned */
+	*supported = (prctl_vl == vl);
+
+	/* Set the VL by doing a set with no register payload */
+	memset(&sve, 0, sizeof(sve));
+	sve.size = sizeof(sve);
+	sve.vl = vl;
+	ret = set_sve(child, &sve);
+	if (ret != 0) {
+		ksft_test_result_fail("Failed to set VL %u\n", vl);
+		return;
 	}
+
+	/*
+	 * Read back the new register state and verify that we have the
+	 * same VL that we got from prctl() on ourselves.
+	 */
+	if (!get_sve(child, (void **)&new_sve, &new_sve_size)) {
+		ksft_test_result_fail("Failed to read VL %u\n", vl);
+		return;
+	}
+
+	ksft_test_result(new_sve->vl = prctl_vl, "Set VL %u\n", vl);
+
+	free(new_sve);
+}
+
+static void check_u32(unsigned int vl, const char *reg,
+		      uint32_t *in, uint32_t *out, int *errors)
+{
+	if (*in != *out) {
+		printf("# VL %d %s wrote %x read %x\n",
+		       vl, reg, *in, *out);
+		(*errors)++;
+	}
+}
+
+/* Validate attempting to set SVE data and read SVE data */
+static void ptrace_set_sve_get_sve_data(pid_t child, unsigned int vl)
+{
+	void *write_buf;
+	void *read_buf = NULL;
+	struct user_sve_header *write_sve;
+	struct user_sve_header *read_sve;
+	size_t read_sve_size = 0;
+	unsigned int vq = sve_vq_from_vl(vl);
+	int ret, i;
+	size_t data_size;
+	int errors = 0;
+
+	data_size = SVE_PT_SVE_OFFSET + SVE_PT_SVE_SIZE(vq, SVE_PT_REGS_SVE);
+	write_buf = malloc(data_size);
+	if (!write_buf) {
+		ksft_test_result_fail("Error allocating %d byte buffer for VL %u\n",
+				      data_size, vl);
+		return;
+	}
+	write_sve = write_buf;
+
+	/* Set up some data and write it out */
+	memset(write_sve, 0, data_size);
+	write_sve->size = data_size;
+	write_sve->vl = vl;
+	write_sve->flags = SVE_PT_REGS_SVE;
+
+	for (i = 0; i < __SVE_NUM_ZREGS; i++)
+		fill_buf(write_buf + SVE_PT_SVE_ZREG_OFFSET(vq, i),
+			 SVE_PT_SVE_ZREG_SIZE(vq));
+
+	for (i = 0; i < __SVE_NUM_PREGS; i++)
+		fill_buf(write_buf + SVE_PT_SVE_PREG_OFFSET(vq, i),
+			 SVE_PT_SVE_PREG_SIZE(vq));
+
+	fill_buf(write_buf + SVE_PT_SVE_FPSR_OFFSET(vq), SVE_PT_SVE_FPSR_SIZE);
+	fill_buf(write_buf + SVE_PT_SVE_FPCR_OFFSET(vq), SVE_PT_SVE_FPCR_SIZE);
+
+	/* TODO: Generate a valid FFR pattern */
+
+	ret = set_sve(child, write_sve);
+	if (ret != 0) {
+		ksft_test_result_fail("Failed to set VL %u data\n", vl);
+		goto out;
+	}
+
+	/* Read the data back */
+	if (!get_sve(child, (void **)&read_buf, &read_sve_size)) {
+		ksft_test_result_fail("Failed to read VL %u data\n", vl);
+		goto out;
+	}
+	read_sve = read_buf;
+
+	/* We might read more data if there's extensions we don't know */
+	if (read_sve->size < write_sve->size) {
+		ksft_test_result_fail("Wrote %d bytes, only read %d\n",
+				      write_sve->size, read_sve->size);
+		goto out_read;
+	}
+
+	for (i = 0; i < __SVE_NUM_ZREGS; i++) {
+		if (memcmp(write_buf + SVE_PT_SVE_ZREG_OFFSET(vq, i),
+			   read_buf + SVE_PT_SVE_ZREG_OFFSET(vq, i),
+			   SVE_PT_SVE_ZREG_SIZE(vq)) != 0) {
+			printf("# Mismatch in %u Z%d\n", vl, i);
+			errors++;
+		}
+	}
+
+	for (i = 0; i < __SVE_NUM_PREGS; i++) {
+		if (memcmp(write_buf + SVE_PT_SVE_PREG_OFFSET(vq, i),
+			   read_buf + SVE_PT_SVE_PREG_OFFSET(vq, i),
+			   SVE_PT_SVE_PREG_SIZE(vq)) != 0) {
+			printf("# Mismatch in %u P%d\n", vl, i);
+			errors++;
+		}
+	}
+
+	check_u32(vl, "FPSR", write_buf + SVE_PT_SVE_FPSR_OFFSET(vq),
+		  read_buf + SVE_PT_SVE_FPSR_OFFSET(vq), &errors);
+	check_u32(vl, "FPCR", write_buf + SVE_PT_SVE_FPCR_OFFSET(vq),
+		  read_buf + SVE_PT_SVE_FPCR_OFFSET(vq), &errors);
+
+	ksft_test_result(errors == 0, "Set and get SVE data for VL %u\n", vl);
+
+out_read:
+	free(read_buf);
+out:
+	free(write_buf);
+}
+
+/* Validate attempting to set SVE data and read SVE data */
+static void ptrace_set_sve_get_fpsimd_data(pid_t child, unsigned int vl)
+{
+	void *write_buf;
+	struct user_sve_header *write_sve;
+	unsigned int vq = sve_vq_from_vl(vl);
+	struct user_fpsimd_state fpsimd_state;
+	int ret, i;
+	size_t data_size;
+	int errors = 0;
+
+	if (__BYTE_ORDER == __BIG_ENDIAN) {
+		ksft_test_result_skip("Big endian not supported\n");
+		return;
+	}
+
+	data_size = SVE_PT_SVE_OFFSET + SVE_PT_SVE_SIZE(vq, SVE_PT_REGS_SVE);
+	write_buf = malloc(data_size);
+	if (!write_buf) {
+		ksft_test_result_fail("Error allocating %d byte buffer for VL %u\n",
+				      data_size, vl);
+		return;
+	}
+	write_sve = write_buf;
+
+	/* Set up some data and write it out */
+	memset(write_sve, 0, data_size);
+	write_sve->size = data_size;
+	write_sve->vl = vl;
+	write_sve->flags = SVE_PT_REGS_SVE;
+
+	for (i = 0; i < __SVE_NUM_ZREGS; i++)
+		fill_buf(write_buf + SVE_PT_SVE_ZREG_OFFSET(vq, i),
+			 SVE_PT_SVE_ZREG_SIZE(vq));
+
+	fill_buf(write_buf + SVE_PT_SVE_FPSR_OFFSET(vq), SVE_PT_SVE_FPSR_SIZE);
+	fill_buf(write_buf + SVE_PT_SVE_FPCR_OFFSET(vq), SVE_PT_SVE_FPCR_SIZE);
+
+	ret = set_sve(child, write_sve);
+	if (ret != 0) {
+		ksft_test_result_fail("Failed to set VL %u data\n", vl);
+		goto out;
+	}
+
+	/* Read the data back */
+	if (get_fpsimd(child, &fpsimd_state)) {
+		ksft_test_result_fail("Failed to read VL %u FPSIMD data\n",
+				      vl);
+		goto out;
+	}
+
+	for (i = 0; i < __SVE_NUM_ZREGS; i++) {
+		__uint128_t tmp = 0;
+
+		/*
+		 * Z regs are stored endianness invariant, this won't
+		 * work for big endian
+		 */
+		memcpy(&tmp, write_buf + SVE_PT_SVE_ZREG_OFFSET(vq, i),
+		       sizeof(tmp));
+
+		if (tmp != fpsimd_state.vregs[i]) {
+			printf("# Mismatch in FPSIMD for VL %u Z%d\n", vl, i);
+			errors++;
+		}
+	}
+
+	check_u32(vl, "FPSR", write_buf + SVE_PT_SVE_FPSR_OFFSET(vq),
+		  &fpsimd_state.fpsr, &errors);
+	check_u32(vl, "FPCR", write_buf + SVE_PT_SVE_FPCR_OFFSET(vq),
+		  &fpsimd_state.fpcr, &errors);
+
+	ksft_test_result(errors == 0, "Set and get FPSIMD data for VL %u\n",
+			 vl);
+
+out:
+	free(write_buf);
 }
 
 static int do_parent(pid_t child)
@@ -128,13 +335,14 @@ static int do_parent(pid_t child)
 	pid_t pid;
 	int status;
 	siginfo_t si;
-	void *svebuf = NULL, *newsvebuf;
-	size_t svebufsz = 0, newsvebufsz;
-	struct user_sve_header *sve, *new_sve;
+	void *svebuf = NULL;
+	size_t svebufsz = 0;
+	struct user_sve_header *sve;
 	struct user_fpsimd_state *fpsimd, new_fpsimd;
 	unsigned int i, j;
 	unsigned char *p;
-	unsigned int vq;
+	unsigned int vq, vl;
+	bool vl_supported;
 
 	/* Attach to the child */
 	while (1) {
@@ -246,62 +454,21 @@ static int do_parent(pid_t child)
 	else
 		ksft_test_result_fail("get_fpsimd() gave different state\n");
 
-	vq = sve_vq_from_vl(sve->vl);
+	/* Step through every possible VQ */
+	for (vq = SVE_VQ_MIN; vq <= SVE_VQ_MAX; vq++) {
+		vl = sve_vl_from_vq(vq);
 
-	newsvebufsz = SVE_PT_SVE_ZREG_OFFSET(vq, 1);
-	new_sve = newsvebuf = malloc(newsvebufsz);
-	if (!new_sve) {
-		errno = ENOMEM;
-		perror(NULL);
-		goto error;
-	}
+		/* First, try to set this vector length */
+		ptrace_set_get_vl(child, vl, &vl_supported);
 
-	*new_sve = *sve;
-	new_sve->flags &= ~SVE_PT_REGS_MASK;
-	new_sve->flags |= SVE_PT_REGS_SVE;
-	memset((char *)new_sve + SVE_PT_SVE_ZREG_OFFSET(vq, 0),
-	       0, SVE_PT_SVE_ZREG_SIZE(vq));
-	new_sve->size = SVE_PT_SVE_ZREG_OFFSET(vq, 1);
-	if (set_sve(pid, new_sve)) {
-		int e = errno;
-
-		ksft_test_result_fail("set_sve(ZREG): %s\n", strerror(errno));
-		if (e == ESRCH)
-			goto disappeared;
-
-		goto error;
-	}
-
-	/* Try to read back the value we just set */
-	new_sve = get_sve(pid, &newsvebuf, &newsvebufsz);
-	if (!new_sve) {
-		int e = errno;
-
-		ksft_test_result_fail("get_sve(ZREG): %s\n", strerror(errno));
-		if (e == ESRCH)
-			goto disappeared;
-
-		goto error;
-	}
-
-	ksft_test_result((new_sve->flags & SVE_PT_REGS_MASK) == SVE_PT_REGS_SVE,
-			 "Get SVE registers\n");
-	if ((new_sve->flags & SVE_PT_REGS_MASK) != SVE_PT_REGS_SVE)
-		goto error;
-
-	dump_sve_regs(new_sve, 3, sizeof fpsimd->vregs[0]);
-
-	/* Verify that the register we set has the value we expected */
-	p = (unsigned char *)new_sve + SVE_PT_SVE_ZREG_OFFSET(vq, 1);
-	for (i = 0; i < sizeof fpsimd->vregs[0]; ++i) {
-		unsigned char expected = i;
-
-		if (__BYTE_ORDER == __BIG_ENDIAN)
-			expected = sizeof fpsimd->vregs[0] - 1 - expected;
-
-		ksft_test_result(p[i] == expected, "buf[%d] == expected\n", i);
-		if (p[i] != expected)
-			goto error;
+		/* If the VL is supported validate data set/get */
+		if (vl_supported) {
+			ptrace_set_sve_get_sve_data(child, vl);
+			ptrace_set_sve_get_fpsimd_data(child, vl);
+		} else {
+			ksft_test_result_skip("set SVE get SVE for VL %d\n", vl);
+			ksft_test_result_skip("set SVE get FPSIMD for VL %d\n", vl);
+		}
 	}
 
 	ret = EXIT_SUCCESS;
@@ -317,6 +484,8 @@ int main(void)
 {
 	int ret = EXIT_SUCCESS;
 	pid_t child;
+
+	srandom(getpid());
 
 	ksft_print_header();
 	ksft_set_plan(EXPECTED_TESTS);
