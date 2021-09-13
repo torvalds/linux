@@ -760,7 +760,7 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 			do {
 				dc_stat_get_dmub_notification(adev->dm.dc, &notify);
 				if (notify.type > ARRAY_SIZE(dm->dmub_thread_offload)) {
-					DRM_ERROR("DM: notify type %d larger than the array size %ld !", notify.type,
+					DRM_ERROR("DM: notify type %d larger than the array size %zu!", notify.type,
 					ARRAY_SIZE(dm->dmub_thread_offload));
 					continue;
 				}
