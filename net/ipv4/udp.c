@@ -1122,10 +1122,9 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		if (err > 0)
 			err = ip_cmsg_send(sk, msg, &ipc,
 					   sk->sk_family == AF_INET6);
-		if (unlikely(err < 0)) {
-			kfree(ipc.opt);
+		if (unlikely(err < 0))
 			return err;
-		}
+
 		if (ipc.opt)
 			free = 1;
 		connected = 0;
