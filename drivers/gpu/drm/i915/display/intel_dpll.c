@@ -937,16 +937,18 @@ static int hsw_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 	struct intel_encoder *encoder =
 		intel_get_crtc_new_encoder(state, crtc_state);
 
-	if (IS_DG2(dev_priv)) {
+	if (IS_DG2(dev_priv))
 		return intel_mpllb_calc_state(crtc_state, encoder);
-	} else if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI) ||
-		   DISPLAY_VER(dev_priv) >= 11) {
-		if (!intel_reserve_shared_dplls(state, crtc, encoder)) {
-			drm_dbg_kms(&dev_priv->drm,
-				    "failed to find PLL for pipe %c\n",
-				    pipe_name(crtc->pipe));
-			return -EINVAL;
-		}
+
+	if (DISPLAY_VER(dev_priv) < 11 &&
+	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
+		return 0;
+
+	if (!intel_reserve_shared_dplls(state, crtc, encoder)) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "failed to find PLL for pipe %c\n",
+			    pipe_name(crtc->pipe));
+		return -EINVAL;
 	}
 
 	return 0;
