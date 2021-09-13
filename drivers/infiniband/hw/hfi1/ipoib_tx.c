@@ -172,8 +172,8 @@ static void hfi1_ipoib_drain_tx_ring(struct hfi1_ipoib_txq *txq)
 
 static int hfi1_ipoib_poll_tx_ring(struct napi_struct *napi, int budget)
 {
-	struct hfi1_ipoib_dev_priv *priv = hfi1_ipoib_priv(napi->dev);
-	struct hfi1_ipoib_txq *txq = &priv->txqs[napi - priv->tx_napis];
+	struct hfi1_ipoib_txq *txq =
+		container_of(napi, struct hfi1_ipoib_txq, napi);
 	struct hfi1_ipoib_circ_buf *tx_ring = &txq->tx_ring;
 	u32 head = tx_ring->head;
 	u32 max_tx = tx_ring->max_items;
@@ -211,7 +211,7 @@ static void hfi1_ipoib_sdma_complete(struct sdma_txreq *txreq, int status)
 	tx->sdma_status = status;
 	/* see hfi1_ipoib_poll_tx_ring */
 	smp_store_release(&tx->complete, 1);
-	napi_schedule_irqoff(tx->txq->napi);
+	napi_schedule_irqoff(&tx->txq->napi);
 }
 
 static int hfi1_ipoib_build_ulp_payload(struct ipoib_txreq *tx,
@@ -505,7 +505,7 @@ tx_ok:
 
 	/* mark complete and kick napi tx */
 	smp_store_release(&tx->complete, 1);
-	napi_schedule(tx->txq->napi);
+	napi_schedule(&tx->txq->napi);
 
 	++dev->stats.tx_carrier_errors;
 
@@ -693,13 +693,6 @@ int hfi1_ipoib_txreq_init(struct hfi1_ipoib_dev_priv *priv)
 	u32 tx_ring_size, tx_item_size;
 	int i;
 
-	priv->tx_napis = kcalloc_node(dev->num_tx_queues,
-				      sizeof(struct napi_struct),
-				      GFP_KERNEL,
-				      priv->dd->node);
-	if (!priv->tx_napis)
-		return -ENOMEM;
-
 	/*
 	 * Ring holds 1 less than tx_ring_size
 	 * Round up to next power of 2 in order to hold at least tx_queue_len
@@ -712,7 +705,7 @@ int hfi1_ipoib_txreq_init(struct hfi1_ipoib_dev_priv *priv)
 				  GFP_KERNEL,
 				  priv->dd->node);
 	if (!priv->txqs)
-		goto free_tx_napis;
+		return -ENOMEM;
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct hfi1_ipoib_txq *txq = &priv->txqs[i];
@@ -749,8 +742,7 @@ int hfi1_ipoib_txreq_init(struct hfi1_ipoib_dev_priv *priv)
 		txq->tx_ring.max_items = tx_ring_size;
 		txq->tx_ring.shift = ilog2(tx_ring_size);
 
-		txq->napi = &priv->tx_napis[i];
-		netif_tx_napi_add(dev, txq->napi,
+		netif_tx_napi_add(dev, &txq->napi,
 				  hfi1_ipoib_poll_tx_ring,
 				  NAPI_POLL_WEIGHT);
 	}
@@ -761,16 +753,12 @@ free_txqs:
 	for (i--; i >= 0; i--) {
 		struct hfi1_ipoib_txq *txq = &priv->txqs[i];
 
-		netif_napi_del(txq->napi);
+		netif_napi_del(&txq->napi);
 		kfree(txq->tx_ring.items);
 	}
 
 	kfree(priv->txqs);
 	priv->txqs = NULL;
-
-free_tx_napis:
-	kfree(priv->tx_napis);
-	priv->tx_napis = NULL;
 	return -ENOMEM;
 }
 
@@ -809,16 +797,13 @@ void hfi1_ipoib_txreq_deinit(struct hfi1_ipoib_dev_priv *priv)
 		iowait_cancel_work(&txq->wait);
 		iowait_sdma_drain(&txq->wait);
 		hfi1_ipoib_drain_tx_list(txq);
-		netif_napi_del(txq->napi);
+		netif_napi_del(&txq->napi);
 		hfi1_ipoib_drain_tx_ring(txq);
 		kfree(txq->tx_ring.items);
 	}
 
 	kfree(priv->txqs);
 	priv->txqs = NULL;
-
-	kfree(priv->tx_napis);
-	priv->tx_napis = NULL;
 }
 
 void hfi1_ipoib_napi_tx_enable(struct net_device *dev)
@@ -829,7 +814,7 @@ void hfi1_ipoib_napi_tx_enable(struct net_device *dev)
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct hfi1_ipoib_txq *txq = &priv->txqs[i];
 
-		napi_enable(txq->napi);
+		napi_enable(&txq->napi);
 	}
 }
 
@@ -841,7 +826,7 @@ void hfi1_ipoib_napi_tx_disable(struct net_device *dev)
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct hfi1_ipoib_txq *txq = &priv->txqs[i];
 
-		napi_disable(txq->napi);
+		napi_disable(&txq->napi);
 		hfi1_ipoib_drain_tx_ring(txq);
 	}
 }

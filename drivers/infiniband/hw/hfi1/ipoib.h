@@ -78,6 +78,7 @@ struct hfi1_ipoib_circ_buf {
  * @tx_ring: ring of ipoib txreqs to be reaped by napi callback
  */
 struct hfi1_ipoib_txq {
+	struct napi_struct napi;
 	struct hfi1_ipoib_dev_priv *priv;
 	struct sdma_engine *sde;
 	struct list_head tx_list;
@@ -91,7 +92,6 @@ struct hfi1_ipoib_txq {
 	struct iowait wait;
 
 	atomic64_t ____cacheline_aligned_in_smp complete_txreqs;
-	struct napi_struct *napi;
 	struct hfi1_ipoib_circ_buf tx_ring;
 };
 
@@ -100,7 +100,6 @@ struct hfi1_ipoib_dev_priv {
 	struct net_device   *netdev;
 	struct ib_device    *device;
 	struct hfi1_ipoib_txq *txqs;
-	struct napi_struct *tx_napis;
 	u16 pkey;
 	u16 pkey_index;
 	u32 qkey;
