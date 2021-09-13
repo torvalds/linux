@@ -230,7 +230,7 @@
 259	common	osf_swapctl			sys_ni_syscall
 260	common	osf_memcntl			sys_ni_syscall
 261	common	osf_fdatasync			sys_ni_syscall
-300	common	bdflush				sys_bdflush
+300	common	bdflush				sys_ni_syscall
 301	common	sethae				sys_sethae
 302	common	mount				sys_mount
 303	common	old_adjtimex			sys_old_adjtimex
@@ -486,3 +486,5 @@
 554	common	landlock_create_ruleset		sys_landlock_create_ruleset
 555	common	landlock_add_rule		sys_landlock_add_rule
 556	common	landlock_restrict_self		sys_landlock_restrict_self
+# 557 reserved for memfd_secret
+558	common	process_mrelease		sys_process_mrelease

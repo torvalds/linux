@@ -1,7 +1,7 @@
 Qualcomm OPP bindings to describe OPP nodes
 
 The bindings are based on top of the operating-points-v2 bindings
-described in Documentation/devicetree/bindings/opp/opp.txt
+described in Documentation/devicetree/bindings/opp/opp-v2-base.yaml
 Additional properties are described below.
 
 * OPP Table Node

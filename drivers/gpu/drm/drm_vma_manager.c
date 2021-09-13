@@ -361,7 +361,7 @@ EXPORT_SYMBOL(drm_vma_node_revoke);
  * This is locked against concurrent access internally.
  *
  * RETURNS:
- * true iff @filp is on the list
+ * true if @filp is on the list
  */
 bool drm_vma_node_is_allowed(struct drm_vma_offset_node *node,
 			     struct drm_file *tag)

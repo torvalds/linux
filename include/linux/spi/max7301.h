@@ -2,7 +2,7 @@
 #ifndef LINUX_SPI_MAX7301_H
 #define LINUX_SPI_MAX7301_H
 
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 /*
  * Some registers must be read back to modify.

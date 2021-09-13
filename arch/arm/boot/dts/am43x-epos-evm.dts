@@ -1018,3 +1018,7 @@
 &cpu {
 	cpu0-supply = <&dcdc2>;
 };
+
+&pruss1_mdio {
+	status = "disabled";
+};

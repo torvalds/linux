@@ -666,11 +666,6 @@ int nested_svm_vmrun(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-
-	/* Clear internal status */
-	kvm_clear_exception_queue(vcpu);
-	kvm_clear_interrupt_queue(vcpu);
-
 	/*
 	 * Since vmcb01 is not in use, we can use it to store some of the L1
 	 * state.

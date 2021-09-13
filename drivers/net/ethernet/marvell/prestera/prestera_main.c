@@ -746,7 +746,8 @@ static int prestera_netdev_port_event(struct net_device *lower,
 	case NETDEV_CHANGEUPPER:
 		if (netif_is_bridge_master(upper)) {
 			if (info->linking)
-				return prestera_bridge_port_join(upper, port);
+				return prestera_bridge_port_join(upper, port,
+								 extack);
 			else
 				prestera_bridge_port_leave(upper, port);
 		} else if (netif_is_lag_master(upper)) {
@@ -904,7 +905,7 @@ int prestera_device_register(struct prestera_device *dev)
 	struct prestera_switch *sw;
 	int err;
 
-	sw = prestera_devlink_alloc();
+	sw = prestera_devlink_alloc(dev);
 	if (!sw)
 		return -ENOMEM;
 

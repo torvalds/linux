@@ -90,26 +90,36 @@ static int dsa_switch_bridge_join(struct dsa_switch *ds,
 				  struct dsa_notifier_bridge_info *info)
 {
 	struct dsa_switch_tree *dst = ds->dst;
+	int err;
 
-	if (dst->index == info->tree_index && ds->index == info->sw_index &&
-	    ds->ops->port_bridge_join)
-		return ds->ops->port_bridge_join(ds, info->port, info->br);
+	if (dst->index == info->tree_index && ds->index == info->sw_index) {
+		if (!ds->ops->port_bridge_join)
+			return -EOPNOTSUPP;
+
+		err = ds->ops->port_bridge_join(ds, info->port, info->br);
+		if (err)
+			return err;
+	}
 
 	if ((dst->index != info->tree_index || ds->index != info->sw_index) &&
-	    ds->ops->crosschip_bridge_join)
-		return ds->ops->crosschip_bridge_join(ds, info->tree_index,
-						      info->sw_index,
-						      info->port, info->br);
+	    ds->ops->crosschip_bridge_join) {
+		err = ds->ops->crosschip_bridge_join(ds, info->tree_index,
+						     info->sw_index,
+						     info->port, info->br);
+		if (err)
+			return err;
+	}
 
-	return 0;
+	return dsa_tag_8021q_bridge_join(ds, info);
 }
 
 static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 				   struct dsa_notifier_bridge_info *info)
 {
-	bool unset_vlan_filtering = br_vlan_enabled(info->br);
 	struct dsa_switch_tree *dst = ds->dst;
 	struct netlink_ext_ack extack = {0};
+	bool change_vlan_filtering = false;
+	bool vlan_filtering;
 	int err, port;
 
 	if (dst->index == info->tree_index && ds->index == info->sw_index &&
@@ -122,6 +132,15 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 						info->sw_index, info->port,
 						info->br);
 
+	if (ds->needs_standalone_vlan_filtering && !br_vlan_enabled(info->br)) {
+		change_vlan_filtering = true;
+		vlan_filtering = true;
+	} else if (!ds->needs_standalone_vlan_filtering &&
+		   br_vlan_enabled(info->br)) {
+		change_vlan_filtering = true;
+		vlan_filtering = false;
+	}
+
 	/* If the bridge was vlan_filtering, the bridge core doesn't trigger an
 	 * event for changing vlan_filtering setting upon slave ports leaving
 	 * it. That is a good thing, because that lets us handle it and also
@@ -130,28 +149,30 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 	 * vlan_filtering callback is only when the last port leaves the last
 	 * VLAN-aware bridge.
 	 */
-	if (unset_vlan_filtering && ds->vlan_filtering_is_global) {
+	if (change_vlan_filtering && ds->vlan_filtering_is_global) {
 		for (port = 0; port < ds->num_ports; port++) {
 			struct net_device *bridge_dev;
 
 			bridge_dev = dsa_to_port(ds, port)->bridge_dev;
 
 			if (bridge_dev && br_vlan_enabled(bridge_dev)) {
-				unset_vlan_filtering = false;
+				change_vlan_filtering = false;
 				break;
 			}
 		}
 	}
-	if (unset_vlan_filtering) {
+
+	if (change_vlan_filtering) {
 		err = dsa_port_vlan_filtering(dsa_to_port(ds, info->port),
-					      false, &extack);
+					      vlan_filtering, &extack);
 		if (extack._msg)
 			dev_err(ds->dev, "port %d: %s\n", info->port,
 				extack._msg);
 		if (err && err != EOPNOTSUPP)
 			return err;
 	}
-	return 0;
+
+	return dsa_tag_8021q_bridge_leave(ds, info);
 }
 
 /* Matches for all upstream-facing ports (the CPU port and all upstream-facing
@@ -725,6 +746,12 @@ static int dsa_switch_event(struct notifier_block *nb,
 		break;
 	case DSA_NOTIFIER_MRP_DEL_RING_ROLE:
 		err = dsa_switch_mrp_del_ring_role(ds, info);
+		break;
+	case DSA_NOTIFIER_TAG_8021Q_VLAN_ADD:
+		err = dsa_switch_tag_8021q_vlan_add(ds, info);
+		break;
+	case DSA_NOTIFIER_TAG_8021Q_VLAN_DEL:
+		err = dsa_switch_tag_8021q_vlan_del(ds, info);
 		break;
 	default:
 		err = -EOPNOTSUPP;

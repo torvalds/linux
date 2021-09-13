@@ -123,6 +123,8 @@ hlist_for_each_entry_safe(c,...) S
 |
 list_remove_head(x,c,...)
 |
+list_entry_is_head(c,...)
+|
 sizeof(<+...c...+>)
 |
  &c->member

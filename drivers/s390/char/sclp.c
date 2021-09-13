@@ -21,10 +21,29 @@
 #include <linux/platform_device.h>
 #include <asm/types.h>
 #include <asm/irq.h>
+#include <asm/debug.h>
 
 #include "sclp.h"
 
 #define SCLP_HEADER		"sclp: "
+
+struct sclp_trace_entry {
+	char id[4] __nonstring;
+	u32 a;
+	u64 b;
+};
+
+#define SCLP_TRACE_ENTRY_SIZE		sizeof(struct sclp_trace_entry)
+#define SCLP_TRACE_MAX_SIZE		128
+#define SCLP_TRACE_EVENT_MAX_SIZE	64
+
+/* Debug trace area intended for all entries in abbreviated form. */
+DEFINE_STATIC_DEBUG_INFO(sclp_debug, "sclp", 8, 1, SCLP_TRACE_ENTRY_SIZE,
+			 &debug_hex_ascii_view);
+
+/* Error trace area intended for full entries relating to failed requests. */
+DEFINE_STATIC_DEBUG_INFO(sclp_debug_err, "sclp_err", 4, 1,
+			 SCLP_TRACE_ENTRY_SIZE, &debug_hex_ascii_view);
 
 /* Lock to protect internal data consistency. */
 static DEFINE_SPINLOCK(sclp_lock);
@@ -53,6 +72,114 @@ int sclp_console_pages = SCLP_CONSOLE_PAGES;
 int sclp_console_drop = 1;
 /* Number of times the console dropped buffer pages */
 unsigned long sclp_console_full;
+
+/* The currently active SCLP command word. */
+static sclp_cmdw_t active_cmd;
+
+static inline void sclp_trace(int prio, char *id, u32 a, u64 b, bool err)
+{
+	struct sclp_trace_entry e;
+
+	memset(&e, 0, sizeof(e));
+	strncpy(e.id, id, sizeof(e.id));
+	e.a = a;
+	e.b = b;
+	debug_event(&sclp_debug, prio, &e, sizeof(e));
+	if (err)
+		debug_event(&sclp_debug_err, 0, &e, sizeof(e));
+}
+
+static inline int no_zeroes_len(void *data, int len)
+{
+	char *d = data;
+
+	/* Minimize trace area usage by not tracing trailing zeroes. */
+	while (len > SCLP_TRACE_ENTRY_SIZE && d[len - 1] == 0)
+		len--;
+
+	return len;
+}
+
+static inline void sclp_trace_bin(int prio, void *d, int len, int errlen)
+{
+	debug_event(&sclp_debug, prio, d, no_zeroes_len(d, len));
+	if (errlen)
+		debug_event(&sclp_debug_err, 0, d, no_zeroes_len(d, errlen));
+}
+
+static inline int abbrev_len(sclp_cmdw_t cmd, struct sccb_header *sccb)
+{
+	struct evbuf_header *evbuf = (struct evbuf_header *)(sccb + 1);
+	int len = sccb->length, limit = SCLP_TRACE_MAX_SIZE;
+
+	/* Full SCCB tracing if debug level is set to max. */
+	if (sclp_debug.level == DEBUG_MAX_LEVEL)
+		return len;
+
+	/* Minimal tracing for console writes. */
+	if (cmd == SCLP_CMDW_WRITE_EVENT_DATA &&
+	    (evbuf->type == EVTYP_MSG  || evbuf->type == EVTYP_VT220MSG))
+		limit = SCLP_TRACE_ENTRY_SIZE;
+
+	return min(len, limit);
+}
+
+static inline void sclp_trace_sccb(int prio, char *id, u32 a, u64 b,
+				   sclp_cmdw_t cmd, struct sccb_header *sccb,
+				   bool err)
+{
+	sclp_trace(prio, id, a, b, err);
+	if (sccb) {
+		sclp_trace_bin(prio + 1, sccb, abbrev_len(cmd, sccb),
+			       err ? sccb->length : 0);
+	}
+}
+
+static inline void sclp_trace_evbuf(int prio, char *id, u32 a, u64 b,
+				    struct evbuf_header *evbuf, bool err)
+{
+	sclp_trace(prio, id, a, b, err);
+	sclp_trace_bin(prio + 1, evbuf,
+		       min((int)evbuf->length, (int)SCLP_TRACE_EVENT_MAX_SIZE),
+		       err ? evbuf->length : 0);
+}
+
+static inline void sclp_trace_req(int prio, char *id, struct sclp_req *req,
+				  bool err)
+{
+	struct sccb_header *sccb = req->sccb;
+	union {
+		struct {
+			u16 status;
+			u16 response;
+			u16 timeout;
+			u16 start_count;
+		};
+		u64 b;
+	} summary;
+
+	summary.status = req->status;
+	summary.response = sccb ? sccb->response_code : 0;
+	summary.timeout = (u16)req->queue_timeout;
+	summary.start_count = (u16)req->start_count;
+
+	sclp_trace(prio, id, (u32)(addr_t)sccb, summary.b, err);
+}
+
+static inline void sclp_trace_register(int prio, char *id, u32 a, u64 b,
+				       struct sclp_register *reg)
+{
+	struct {
+		u64 receive;
+		u64 send;
+	} d;
+
+	d.receive = reg->receive_mask;
+	d.send = reg->send_mask;
+
+	sclp_trace(prio, id, a, b, false);
+	sclp_trace_bin(prio, &d, sizeof(d), 0);
+}
 
 static int __init sclp_setup_console_pages(char *str)
 {
@@ -162,6 +289,9 @@ static void sclp_request_timeout(bool force_restart)
 {
 	unsigned long flags;
 
+	/* TMO: A timeout occurred (a=force_restart) */
+	sclp_trace(2, "TMO", force_restart, 0, true);
+
 	spin_lock_irqsave(&sclp_lock, flags);
 	if (force_restart) {
 		if (sclp_running_state == sclp_running_state_running) {
@@ -237,6 +367,12 @@ static void sclp_req_queue_timeout(struct timer_list *unused)
 
 	do {
 		req = __sclp_req_queue_remove_expired_req();
+
+		if (req) {
+			/* RQTM: Request timed out (a=sccb, b=summary) */
+			sclp_trace_req(2, "RQTM", req, true);
+		}
+
 		if (req && req->callback)
 			req->callback(req, req->callback_data);
 	} while (req);
@@ -246,6 +382,25 @@ static void sclp_req_queue_timeout(struct timer_list *unused)
 	if (expires_next)
 		mod_timer(&sclp_queue_timer, expires_next);
 	spin_unlock_irqrestore(&sclp_lock, flags);
+}
+
+static int sclp_service_call_trace(sclp_cmdw_t command, void *sccb)
+{
+	static u64 srvc_count;
+	int rc;
+
+	/* SRV1: Service call about to be issued (a=command, b=sccb address) */
+	sclp_trace_sccb(0, "SRV1", command, (u64)sccb, command, sccb, false);
+
+	rc = sclp_service_call(command, sccb);
+
+	/* SRV2: Service call was issued (a=rc, b=SRVC sequence number) */
+	sclp_trace(0, "SRV2", -rc, ++srvc_count, rc != 0);
+
+	if (rc == 0)
+		active_cmd = command;
+
+	return rc;
 }
 
 /* Try to start a request. Return zero if the request was successfully
@@ -259,7 +414,7 @@ __sclp_start_request(struct sclp_req *req)
 	if (sclp_running_state != sclp_running_state_idle)
 		return 0;
 	del_timer(&sclp_request_timer);
-	rc = sclp_service_call(req->command, req->sccb);
+	rc = sclp_service_call_trace(req->command, req->sccb);
 	req->start_count++;
 
 	if (rc == 0) {
@@ -309,6 +464,10 @@ sclp_process_queue(void)
 		}
 		/* Post-processing for aborted request */
 		list_del(&req->list);
+
+		/* RQAB: Request aborted (a=sccb, b=summary) */
+		sclp_trace_req(2, "RQAB", req, true);
+
 		if (req->callback) {
 			spin_unlock_irqrestore(&sclp_lock, flags);
 			req->callback(req, req->callback_data);
@@ -341,6 +500,10 @@ sclp_add_request(struct sclp_req *req)
 		spin_unlock_irqrestore(&sclp_lock, flags);
 		return -EIO;
 	}
+
+	/* RQAD: Request was added (a=sccb, b=caller) */
+	sclp_trace(2, "RQAD", (u32)(addr_t)req->sccb, _RET_IP_, false);
+
 	req->status = SCLP_REQ_QUEUED;
 	req->start_count = 0;
 	list_add_tail(&req->list, &sclp_req_queue);
@@ -394,6 +557,11 @@ sclp_dispatch_evbufs(struct sccb_header *sccb)
 			else
 				reg = NULL;
 		}
+
+		/* EVNT: Event callback (b=receiver) */
+		sclp_trace_evbuf(2, "EVNT", 0, reg ? (u64)reg->receiver_fn : 0,
+				 evbuf, !reg);
+
 		if (reg && reg->receiver_fn) {
 			spin_unlock_irqrestore(&sclp_lock, flags);
 			reg->receiver_fn(evbuf);
@@ -455,6 +623,30 @@ __sclp_find_req(u32 sccb)
 	return NULL;
 }
 
+static bool ok_response(u32 sccb_int, sclp_cmdw_t cmd)
+{
+	struct sccb_header *sccb = (struct sccb_header *)(addr_t)sccb_int;
+	struct evbuf_header *evbuf;
+	u16 response;
+
+	if (!sccb)
+		return true;
+
+	/* Check SCCB response. */
+	response = sccb->response_code & 0xff;
+	if (response != 0x10 && response != 0x20)
+		return false;
+
+	/* Check event-processed flag on outgoing events. */
+	if (cmd == SCLP_CMDW_WRITE_EVENT_DATA) {
+		evbuf = (struct evbuf_header *)(sccb + 1);
+		if (!(evbuf->flags & 0x80))
+			return false;
+	}
+
+	return true;
+}
+
 /* Handler for external interruption. Perform request post-processing.
  * Prepare read event data request if necessary. Start processing of next
  * request on queue. */
@@ -469,6 +661,12 @@ static void sclp_interrupt_handler(struct ext_code ext_code,
 	spin_lock(&sclp_lock);
 	finished_sccb = param32 & 0xfffffff8;
 	evbuf_pending = param32 & 0x3;
+
+	/* INT: Interrupt received (a=intparm, b=cmd) */
+	sclp_trace_sccb(0, "INT", param32, active_cmd, active_cmd,
+			(struct sccb_header *)(addr_t)finished_sccb,
+			!ok_response(finished_sccb, active_cmd));
+
 	if (finished_sccb) {
 		del_timer(&sclp_request_timer);
 		sclp_running_state = sclp_running_state_reset_pending;
@@ -477,13 +675,21 @@ static void sclp_interrupt_handler(struct ext_code ext_code,
 			/* Request post-processing */
 			list_del(&req->list);
 			req->status = SCLP_REQ_DONE;
+
+			/* RQOK: Request success (a=sccb, b=summary) */
+			sclp_trace_req(2, "RQOK", req, false);
+
 			if (req->callback) {
 				spin_unlock(&sclp_lock);
 				req->callback(req, req->callback_data);
 				spin_lock(&sclp_lock);
 			}
+		} else {
+			/* UNEX: Unexpected SCCB completion (a=sccb address) */
+			sclp_trace(0, "UNEX", finished_sccb, 0, true);
 		}
 		sclp_running_state = sclp_running_state_idle;
+		active_cmd = 0;
 	}
 	if (evbuf_pending &&
 	    sclp_activation_state == sclp_activation_state_active)
@@ -507,8 +713,12 @@ sclp_sync_wait(void)
 	unsigned long long old_tick;
 	unsigned long flags;
 	unsigned long cr0, cr0_sync;
+	static u64 sync_count;
 	u64 timeout;
 	int irq_context;
+
+	/* SYN1: Synchronous wait start (a=runstate, b=sync count) */
+	sclp_trace(4, "SYN1", sclp_running_state, ++sync_count, false);
 
 	/* We'll be disabling timer interrupts, so we need a custom timeout
 	 * mechanism */
@@ -547,6 +757,9 @@ sclp_sync_wait(void)
 		_local_bh_enable();
 	local_tick_enable(old_tick);
 	local_irq_restore(flags);
+
+	/* SYN2: Synchronous wait end (a=runstate, b=sync_count) */
+	sclp_trace(4, "SYN2", sclp_running_state, sync_count, false);
 }
 EXPORT_SYMBOL(sclp_sync_wait);
 
@@ -576,8 +789,13 @@ sclp_dispatch_state_change(void)
 				reg = NULL;
 		}
 		spin_unlock_irqrestore(&sclp_lock, flags);
-		if (reg && reg->state_change_fn)
+		if (reg && reg->state_change_fn) {
+			/* STCG: State-change callback (b=callback) */
+			sclp_trace(2, "STCG", 0, (u64)reg->state_change_fn,
+				   false);
+
 			reg->state_change_fn(reg);
+		}
 	} while (reg);
 }
 
@@ -651,6 +869,9 @@ sclp_register(struct sclp_register *reg)
 	sccb_mask_t send_mask;
 	int rc;
 
+	/* REG: Event listener registered (b=caller) */
+	sclp_trace_register(2, "REG", 0, _RET_IP_, reg);
+
 	rc = sclp_init();
 	if (rc)
 		return rc;
@@ -682,6 +903,9 @@ void
 sclp_unregister(struct sclp_register *reg)
 {
 	unsigned long flags;
+
+	/* UREG: Event listener unregistered (b=caller) */
+	sclp_trace_register(2, "UREG", 0, _RET_IP_, reg);
 
 	spin_lock_irqsave(&sclp_lock, flags);
 	list_del(&reg->list);
@@ -932,7 +1156,7 @@ sclp_check_interface(void)
 	for (retry = 0; retry <= SCLP_INIT_RETRY; retry++) {
 		__sclp_make_init_req(0, 0);
 		sccb = (struct init_sccb *) sclp_init_req.sccb;
-		rc = sclp_service_call(sclp_init_req.command, sccb);
+		rc = sclp_service_call_trace(sclp_init_req.command, sccb);
 		if (rc == -EIO)
 			break;
 		sclp_init_req.status = SCLP_REQ_RUNNING;

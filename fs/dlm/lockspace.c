@@ -498,7 +498,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	ls->ls_exflags = (flags & ~(DLM_LSFL_TIMEWARN | DLM_LSFL_FS |
 				    DLM_LSFL_NEWEXCL));
 
-	size = dlm_config.ci_rsbtbl_size;
+	size = READ_ONCE(dlm_config.ci_rsbtbl_size);
 	ls->ls_rsbtbl_size = size;
 
 	ls->ls_rsbtbl = vmalloc(array_size(size, sizeof(struct dlm_rsbtable)));
@@ -793,6 +793,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 
 	if (ls_count == 1) {
 		dlm_scand_stop();
+		dlm_clear_members(ls);
 		dlm_midcomms_shutdown();
 	}
 

@@ -64,8 +64,10 @@ static int dump_prog_id_as_func_ptr(const struct btf_dumper *d,
 	}
 	info = &prog_info->info;
 
-	if (!info->btf_id || !info->nr_func_info ||
-	    btf__get_from_id(info->btf_id, &prog_btf))
+	if (!info->btf_id || !info->nr_func_info)
+		goto print;
+	prog_btf = btf__load_from_kernel_by_id(info->btf_id);
+	if (libbpf_get_error(prog_btf))
 		goto print;
 	finfo = u64_to_ptr(info->func_info);
 	func_type = btf__type_by_id(prog_btf, finfo->type_id);

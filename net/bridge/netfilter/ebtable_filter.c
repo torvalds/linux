@@ -86,7 +86,7 @@ static const struct nf_hook_ops ebt_ops_filter[] = {
 	},
 };
 
-static int __net_init frame_filter_net_init(struct net *net)
+static int frame_filter_table_init(struct net *net)
 {
 	return ebt_register_table(net, &frame_filter, ebt_ops_filter);
 }
@@ -102,19 +102,30 @@ static void __net_exit frame_filter_net_exit(struct net *net)
 }
 
 static struct pernet_operations frame_filter_net_ops = {
-	.init = frame_filter_net_init,
 	.exit = frame_filter_net_exit,
 	.pre_exit = frame_filter_net_pre_exit,
 };
 
 static int __init ebtable_filter_init(void)
 {
-	return register_pernet_subsys(&frame_filter_net_ops);
+	int ret = ebt_register_template(&frame_filter, frame_filter_table_init);
+
+	if (ret)
+		return ret;
+
+	ret = register_pernet_subsys(&frame_filter_net_ops);
+	if (ret) {
+		ebt_unregister_template(&frame_filter);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void __exit ebtable_filter_fini(void)
 {
 	unregister_pernet_subsys(&frame_filter_net_ops);
+	ebt_unregister_template(&frame_filter);
 }
 
 module_init(ebtable_filter_init);

@@ -38,7 +38,7 @@
 /**
  * DOC: overview
  *
- * A plane represents an image source that can be blended with or overlayed on
+ * A plane represents an image source that can be blended with or overlaid on
  * top of a CRTC during the scanout process. Planes take their input data from a
  * &drm_framebuffer object. The plane itself specifies the cropping and scaling
  * of that image, and where it is placed on the visible area of a display
@@ -1396,6 +1396,110 @@ out:
 
 	return ret;
 }
+
+/**
+ * DOC: damage tracking
+ *
+ * FB_DAMAGE_CLIPS is an optional plane property which provides a means to
+ * specify a list of damage rectangles on a plane in framebuffer coordinates of
+ * the framebuffer attached to the plane. In current context damage is the area
+ * of plane framebuffer that has changed since last plane update (also called
+ * page-flip), irrespective of whether currently attached framebuffer is same as
+ * framebuffer attached during last plane update or not.
+ *
+ * FB_DAMAGE_CLIPS is a hint to kernel which could be helpful for some drivers
+ * to optimize internally especially for virtual devices where each framebuffer
+ * change needs to be transmitted over network, usb, etc.
+ *
+ * Since FB_DAMAGE_CLIPS is a hint so it is an optional property. User-space can
+ * ignore damage clips property and in that case driver will do a full plane
+ * update. In case damage clips are provided then it is guaranteed that the area
+ * inside damage clips will be updated to plane. For efficiency driver can do
+ * full update or can update more than specified in damage clips. Since driver
+ * is free to read more, user-space must always render the entire visible
+ * framebuffer. Otherwise there can be corruptions. Also, if a user-space
+ * provides damage clips which doesn't encompass the actual damage to
+ * framebuffer (since last plane update) can result in incorrect rendering.
+ *
+ * FB_DAMAGE_CLIPS is a blob property with the layout of blob data is simply an
+ * array of &drm_mode_rect. Unlike plane &drm_plane_state.src coordinates,
+ * damage clips are not in 16.16 fixed point. Similar to plane src in
+ * framebuffer, damage clips cannot be negative. In damage clip, x1/y1 are
+ * inclusive and x2/y2 are exclusive. While kernel does not error for overlapped
+ * damage clips, it is strongly discouraged.
+ *
+ * Drivers that are interested in damage interface for plane should enable
+ * FB_DAMAGE_CLIPS property by calling drm_plane_enable_fb_damage_clips().
+ * Drivers implementing damage can use drm_atomic_helper_damage_iter_init() and
+ * drm_atomic_helper_damage_iter_next() helper iterator function to get damage
+ * rectangles clipped to &drm_plane_state.src.
+ */
+
+/**
+ * drm_plane_enable_fb_damage_clips - Enables plane fb damage clips property.
+ * @plane: Plane on which to enable damage clips property.
+ *
+ * This function lets driver to enable the damage clips property on a plane.
+ */
+void drm_plane_enable_fb_damage_clips(struct drm_plane *plane)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	drm_object_attach_property(&plane->base, config->prop_fb_damage_clips,
+				   0);
+}
+EXPORT_SYMBOL(drm_plane_enable_fb_damage_clips);
+
+/**
+ * drm_plane_get_damage_clips_count - Returns damage clips count.
+ * @state: Plane state.
+ *
+ * Simple helper to get the number of &drm_mode_rect clips set by user-space
+ * during plane update.
+ *
+ * Return: Number of clips in plane fb_damage_clips blob property.
+ */
+unsigned int
+drm_plane_get_damage_clips_count(const struct drm_plane_state *state)
+{
+	return (state && state->fb_damage_clips) ?
+		state->fb_damage_clips->length/sizeof(struct drm_mode_rect) : 0;
+}
+EXPORT_SYMBOL(drm_plane_get_damage_clips_count);
+
+struct drm_mode_rect *
+__drm_plane_get_damage_clips(const struct drm_plane_state *state)
+{
+	return (struct drm_mode_rect *)((state && state->fb_damage_clips) ?
+					state->fb_damage_clips->data : NULL);
+}
+
+/**
+ * drm_plane_get_damage_clips - Returns damage clips.
+ * @state: Plane state.
+ *
+ * Note that this function returns uapi type &drm_mode_rect. Drivers might want
+ * to use the helper functions drm_atomic_helper_damage_iter_init() and
+ * drm_atomic_helper_damage_iter_next() or drm_atomic_helper_damage_merged() if
+ * the driver can only handle a single damage region at most.
+ *
+ * Return: Damage clips in plane fb_damage_clips blob property.
+ */
+struct drm_mode_rect *
+drm_plane_get_damage_clips(const struct drm_plane_state *state)
+{
+	struct drm_device *dev = state->plane->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	/* check that drm_plane_enable_fb_damage_clips() was called */
+	if (!drm_mode_obj_find_prop_id(&state->plane->base,
+				       config->prop_fb_damage_clips->base.id))
+		drm_warn_once(dev, "drm_plane_enable_fb_damage_clips() not called\n");
+
+	return __drm_plane_get_damage_clips(state);
+}
+EXPORT_SYMBOL(drm_plane_get_damage_clips);
 
 struct drm_property *
 drm_create_scaling_filter_prop(struct drm_device *dev,

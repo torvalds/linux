@@ -97,24 +97,26 @@
 	};
 };
 
-&cpsw_emac0 {
+&cpsw_port1 {
 	phy-handle = <&phy0>;
 	phy-mode = "rmii";
-	dual_emac_res_vlan = <1>;
+	ti,dual-emac-pvid = <1>;
 };
 
-&davinci_mdio {
+&cpsw_port2 {
+	status = "disabled";
+};
+
+&davinci_mdio_sw {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mdio_pins>;
-	status = "okay";
 
 	phy0: ethernet-phy@0 {
 		reg = <0>;
 	};
 };
 
-&mac {
-	slaves = <1>;
+&mac_sw {
 	pinctrl-names = "default";
 	pinctrl-0 = <&ethernet0_pins>;
 	status = "okay";

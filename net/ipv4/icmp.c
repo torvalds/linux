@@ -1095,8 +1095,7 @@ bool icmp_build_probe(struct sk_buff *skb, struct icmphdr *icmphdr)
 					 sizeof(struct in6_addr))
 				goto send_mal_query;
 			dev = ipv6_stub->ipv6_dev_find(net, &iio->ident.addr.ip_addr.ipv6_addr, dev);
-			if (dev)
-				dev_hold(dev);
+			dev_hold(dev);
 			break;
 #endif
 		default:

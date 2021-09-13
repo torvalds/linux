@@ -981,8 +981,7 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 		goto no_reserve;
 
 	/* Map and copy shader bytecode. */
-	ret = ttm_bo_kmap(&buf->base, 0, PAGE_ALIGN(size) >> PAGE_SHIFT,
-			  &map);
+	ret = ttm_bo_kmap(&buf->base, 0, PFN_UP(size), &map);
 	if (unlikely(ret != 0)) {
 		ttm_bo_unreserve(&buf->base);
 		goto no_reserve;

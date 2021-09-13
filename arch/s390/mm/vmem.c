@@ -581,7 +581,7 @@ void __init vmem_map_init(void)
 	__set_memory((unsigned long)_sinittext,
 		     (unsigned long)(_einittext - _sinittext) >> PAGE_SHIFT,
 		     SET_MEMORY_RO | SET_MEMORY_X);
-	__set_memory(__stext_dma, (__etext_dma - __stext_dma) >> PAGE_SHIFT,
+	__set_memory(__stext_amode31, (__etext_amode31 - __stext_amode31) >> PAGE_SHIFT,
 		     SET_MEMORY_RO | SET_MEMORY_X);
 
 	/* we need lowcore executable for our LPSWE instructions */

@@ -350,10 +350,15 @@ int led_classdev_register_ext(struct device *parent,
 		if (ret < 0)
 			return ret;
 
-		if (init_data->fwnode)
+		if (init_data->fwnode) {
 			fwnode_property_read_string(init_data->fwnode,
 				"linux,default-trigger",
 				&led_cdev->default_trigger);
+
+			if (fwnode_property_present(init_data->fwnode,
+						    "retain-state-shutdown"))
+				led_cdev->flags |= LED_RETAIN_AT_SHUTDOWN;
+		}
 	} else {
 		proposed_name = led_cdev->name;
 	}
@@ -444,7 +449,8 @@ void led_classdev_unregister(struct led_classdev *led_cdev)
 	/* Stop blinking */
 	led_stop_software_blink(led_cdev);
 
-	led_set_brightness(led_cdev, LED_OFF);
+	if (!(led_cdev->flags & LED_RETAIN_AT_SHUTDOWN))
+		led_set_brightness(led_cdev, LED_OFF);
 
 	flush_work(&led_cdev->set_brightness_work);
 

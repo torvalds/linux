@@ -2297,6 +2297,7 @@ cifs_revalidate_mapping(struct inode *inode)
 {
 	int rc;
 	unsigned long *flags = &CIFS_I(inode)->flags;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 
 	/* swapfiles are not supposed to be shared */
 	if (IS_SWAPFILE(inode))
@@ -2308,11 +2309,16 @@ cifs_revalidate_mapping(struct inode *inode)
 		return rc;
 
 	if (test_and_clear_bit(CIFS_INO_INVALID_MAPPING, flags)) {
+		/* for cache=singleclient, do not invalidate */
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RW_CACHE)
+			goto skip_invalidate;
+
 		rc = cifs_invalidate_mapping(inode);
 		if (rc)
 			set_bit(CIFS_INO_INVALID_MAPPING, flags);
 	}
 
+skip_invalidate:
 	clear_bit_unlock(CIFS_INO_LOCK, flags);
 	smp_mb__after_atomic();
 	wake_up_bit(flags, CIFS_INO_LOCK);

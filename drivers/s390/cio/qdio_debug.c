@@ -197,8 +197,6 @@ DEFINE_SHOW_ATTRIBUTE(ssqd);
 static char *qperf_names[] = {
 	"Assumed adapter interrupts",
 	"QDIO interrupts",
-	"Requested PCIs",
-	"Outbound tasklet runs",
 	"SIGA read",
 	"SIGA write",
 	"SIGA sync",
@@ -206,7 +204,6 @@ static char *qperf_names[] = {
 	"Inbound stop_polling",
 	"Inbound queue full",
 	"Outbound calls",
-	"Outbound handler",
 	"Outbound queue full",
 	"Outbound fast_requeue",
 	"Outbound target_full",

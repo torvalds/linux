@@ -66,9 +66,9 @@ static ssize_t cca_serialnr_show(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf)
 {
+	struct zcrypt_card *zc = dev_get_drvdata(dev);
 	struct cca_info ci;
 	struct ap_card *ac = to_ap_card(dev);
-	struct zcrypt_card *zc = ac->private;
 
 	memset(&ci, 0, sizeof(ci));
 
@@ -97,9 +97,9 @@ static ssize_t cca_mkvps_show(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
 {
+	struct zcrypt_queue *zq = dev_get_drvdata(dev);
 	int n = 0;
 	struct cca_info ci;
-	struct zcrypt_queue *zq = to_ap_queue(dev)->private;
 	static const char * const cao_state[] = { "invalid", "valid" };
 	static const char * const new_state[] = { "empty", "partial", "full" };
 
@@ -171,7 +171,7 @@ static const struct attribute_group cca_queue_attr_grp = {
 	.attrs = cca_queue_attrs,
 };
 
-/**
+/*
  * Large random number detection function. Its sends a message to a CEX2C/CEX3C
  * card to find out if large random numbers are supported.
  * @ap_dev: pointer to the AP device.
@@ -237,7 +237,7 @@ out_free:
 	return rc;
 }
 
-/**
+/*
  * Probe function for CEX2C/CEX3C card devices. It always accepts the
  * AP device since the bus_match already checked the hardware type.
  * @ap_dev: pointer to the AP card device.
@@ -261,7 +261,7 @@ static int zcrypt_cex2c_card_probe(struct ap_device *ap_dev)
 	if (!zc)
 		return -ENOMEM;
 	zc->card = ac;
-	ac->private = zc;
+	dev_set_drvdata(&ap_dev->device, zc);
 	switch (ac->ap_dev.device_type) {
 	case AP_DEVICE_TYPE_CEX2C:
 		zc->user_space_type = ZCRYPT_CEX2C;
@@ -287,7 +287,6 @@ static int zcrypt_cex2c_card_probe(struct ap_device *ap_dev)
 
 	rc = zcrypt_card_register(zc);
 	if (rc) {
-		ac->private = NULL;
 		zcrypt_card_free(zc);
 		return rc;
 	}
@@ -297,7 +296,6 @@ static int zcrypt_cex2c_card_probe(struct ap_device *ap_dev)
 					&cca_card_attr_grp);
 		if (rc) {
 			zcrypt_card_unregister(zc);
-			ac->private = NULL;
 			zcrypt_card_free(zc);
 		}
 	}
@@ -305,19 +303,19 @@ static int zcrypt_cex2c_card_probe(struct ap_device *ap_dev)
 	return rc;
 }
 
-/**
+/*
  * This is called to remove the CEX2C/CEX3C card driver information
  * if an AP card device is removed.
  */
 static void zcrypt_cex2c_card_remove(struct ap_device *ap_dev)
 {
+	struct zcrypt_card *zc = dev_get_drvdata(&ap_dev->device);
 	struct ap_card *ac = to_ap_card(&ap_dev->device);
-	struct zcrypt_card *zc = to_ap_card(&ap_dev->device)->private;
 
 	if (ap_test_bit(&ac->functions, AP_FUNC_COPRO))
 		sysfs_remove_group(&ap_dev->device.kobj, &cca_card_attr_grp);
-	if (zc)
-		zcrypt_card_unregister(zc);
+
+	zcrypt_card_unregister(zc);
 }
 
 static struct ap_driver zcrypt_cex2c_card_driver = {
@@ -327,7 +325,7 @@ static struct ap_driver zcrypt_cex2c_card_driver = {
 	.flags = AP_DRIVER_FLAG_DEFAULT,
 };
 
-/**
+/*
  * Probe function for CEX2C/CEX3C queue devices. It always accepts the
  * AP device since the bus_match already checked the hardware type.
  * @ap_dev: pointer to the AP card device.
@@ -359,10 +357,9 @@ static int zcrypt_cex2c_queue_probe(struct ap_device *ap_dev)
 	ap_queue_init_state(aq);
 	ap_queue_init_reply(aq, &zq->reply);
 	aq->request_timeout = CEX2C_CLEANUP_TIME;
-	aq->private = zq;
+	dev_set_drvdata(&ap_dev->device, zq);
 	rc = zcrypt_queue_register(zq);
 	if (rc) {
-		aq->private = NULL;
 		zcrypt_queue_free(zq);
 		return rc;
 	}
@@ -372,7 +369,6 @@ static int zcrypt_cex2c_queue_probe(struct ap_device *ap_dev)
 					&cca_queue_attr_grp);
 		if (rc) {
 			zcrypt_queue_unregister(zq);
-			aq->private = NULL;
 			zcrypt_queue_free(zq);
 		}
 	}
@@ -380,19 +376,19 @@ static int zcrypt_cex2c_queue_probe(struct ap_device *ap_dev)
 	return rc;
 }
 
-/**
+/*
  * This is called to remove the CEX2C/CEX3C queue driver information
  * if an AP queue device is removed.
  */
 static void zcrypt_cex2c_queue_remove(struct ap_device *ap_dev)
 {
+	struct zcrypt_queue *zq = dev_get_drvdata(&ap_dev->device);
 	struct ap_queue *aq = to_ap_queue(&ap_dev->device);
-	struct zcrypt_queue *zq = aq->private;
 
 	if (ap_test_bit(&aq->card->functions, AP_FUNC_COPRO))
 		sysfs_remove_group(&ap_dev->device.kobj, &cca_queue_attr_grp);
-	if (zq)
-		zcrypt_queue_unregister(zq);
+
+	zcrypt_queue_unregister(zq);
 }
 
 static struct ap_driver zcrypt_cex2c_queue_driver = {

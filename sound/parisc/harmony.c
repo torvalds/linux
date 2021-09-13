@@ -954,11 +954,10 @@ free_and_ret:
 	return err;
 }
 
-static int __exit
+static void __exit
 snd_harmony_remove(struct parisc_device *padev)
 {
 	snd_card_free(parisc_get_drvdata(padev));
-	return 0;
 }
 
 static struct parisc_driver snd_harmony_driver __refdata = {

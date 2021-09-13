@@ -22,11 +22,62 @@
 				 PORT_TS_QUERY_REQ_ENABLES_TS_REQ_TIMEOUT | \
 				 PORT_TS_QUERY_REQ_ENABLES_PTP_HDR_OFFSET)
 
+struct pps_pin {
+	u8 event;
+	u8 usage;
+	u8 state;
+};
+
+#define TSIO_PIN_VALID(pin) ((pin) < (BNXT_MAX_TSIO_PINS))
+
+#define EVENT_DATA2_PPS_EVENT_TYPE(data2)				\
+	((data2) & ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA2_EVENT_TYPE)
+
+#define EVENT_DATA2_PPS_PIN_NUM(data2)					\
+	(((data2) &							\
+	  ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA2_PIN_NUMBER_MASK) >>\
+	 ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA2_PIN_NUMBER_SFT)
+
+#define BNXT_DATA2_UPPER_MSK						\
+	ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA2_PPS_TIMESTAMP_UPPER_MASK
+
+#define BNXT_DATA2_UPPER_SFT						\
+	(32 -								\
+	 ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA2_PPS_TIMESTAMP_UPPER_SFT)
+
+#define BNXT_DATA1_LOWER_MSK						\
+	ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA1_PPS_TIMESTAMP_LOWER_MASK
+
+#define BNXT_DATA1_LOWER_SFT						\
+	  ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA1_PPS_TIMESTAMP_LOWER_SFT
+
+#define EVENT_PPS_TS(data2, data1)					\
+	(((u64)((data2) & BNXT_DATA2_UPPER_MSK) << BNXT_DATA2_UPPER_SFT) |\
+	 (((data1) & BNXT_DATA1_LOWER_MSK) >> BNXT_DATA1_LOWER_SFT))
+
+#define BNXT_PPS_PIN_DISABLE	0
+#define BNXT_PPS_PIN_ENABLE	1
+#define BNXT_PPS_PIN_NONE	0
+#define BNXT_PPS_PIN_PPS_IN	1
+#define BNXT_PPS_PIN_PPS_OUT	2
+#define BNXT_PPS_PIN_SYNC_IN	3
+#define BNXT_PPS_PIN_SYNC_OUT	4
+
+#define BNXT_PPS_EVENT_INTERNAL	1
+#define BNXT_PPS_EVENT_EXTERNAL	2
+
+struct bnxt_pps {
+	u8 num_pins;
+#define BNXT_MAX_TSIO_PINS	4
+	struct pps_pin pins[BNXT_MAX_TSIO_PINS];
+};
+
 struct bnxt_ptp_cfg {
 	struct ptp_clock_info	ptp_info;
 	struct ptp_clock	*ptp_clock;
 	struct cyclecounter	cc;
 	struct timecounter	tc;
+	struct bnxt_pps		pps_info;
 	/* serialize timecounter access */
 	spinlock_t		ptp_lock;
 	struct sk_buff		*tx_skb;
@@ -77,6 +128,8 @@ do {						\
 #endif
 
 int bnxt_ptp_parse(struct sk_buff *skb, u16 *seq_id, u16 *hdr_off);
+void bnxt_ptp_pps_event(struct bnxt *bp, u32 data1, u32 data2);
+void bnxt_ptp_reapply_pps(struct bnxt *bp);
 int bnxt_hwtstamp_set(struct net_device *dev, struct ifreq *ifr);
 int bnxt_hwtstamp_get(struct net_device *dev, struct ifreq *ifr);
 int bnxt_get_tx_ts_p5(struct bnxt *bp, struct sk_buff *skb);

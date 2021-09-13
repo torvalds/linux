@@ -194,7 +194,7 @@ static const struct pinctrl_pin_desc imx8qxp_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(IMX8QXP_COMP_CTL_GPIO_1V8_3V3_QSPI0B),
 };
 
-static struct imx_pinctrl_soc_info imx8qxp_pinctrl_info = {
+static const struct imx_pinctrl_soc_info imx8qxp_pinctrl_info = {
 	.pins = imx8qxp_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx8qxp_pinctrl_pads),
 	.flags = IMX_USE_SCU,

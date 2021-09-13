@@ -8,6 +8,7 @@
 #include "hnae3.h"
 
 #define HCLGEVF_CMDQ_TX_TIMEOUT		30000
+#define HCLGEVF_CMDQ_CLEAR_WAIT_TIME	200
 #define HCLGEVF_CMDQ_RX_INVLD_B		0
 #define HCLGEVF_CMDQ_RX_OUTVLD_B	1
 
@@ -265,16 +266,6 @@ struct hclgevf_cfg_tx_queue_pointer_cmd {
 
 #define HCLGEVF_TYPE_CRQ		0
 #define HCLGEVF_TYPE_CSQ		1
-#define HCLGEVF_NIC_CSQ_BASEADDR_L_REG	0x27000
-#define HCLGEVF_NIC_CSQ_BASEADDR_H_REG	0x27004
-#define HCLGEVF_NIC_CSQ_DEPTH_REG	0x27008
-#define HCLGEVF_NIC_CSQ_TAIL_REG	0x27010
-#define HCLGEVF_NIC_CSQ_HEAD_REG	0x27014
-#define HCLGEVF_NIC_CRQ_BASEADDR_L_REG	0x27018
-#define HCLGEVF_NIC_CRQ_BASEADDR_H_REG	0x2701c
-#define HCLGEVF_NIC_CRQ_DEPTH_REG	0x27020
-#define HCLGEVF_NIC_CRQ_TAIL_REG	0x27024
-#define HCLGEVF_NIC_CRQ_HEAD_REG	0x27028
 
 /* this bit indicates that the driver is ready for hardware reset */
 #define HCLGEVF_NIC_SW_RST_RDY_B	16
@@ -303,6 +294,12 @@ struct hclgevf_dev_specs_1_cmd {
 	__le16 rsv0;
 	__le16 max_int_gl;
 	u8 rsv1[18];
+};
+
+/* capabilities bits map between imp firmware and local driver */
+struct hclgevf_caps_bit_map {
+	u16 imp_bit;
+	u16 local_bit;
 };
 
 static inline void hclgevf_write_reg(void __iomem *base, u32 reg, u32 value)

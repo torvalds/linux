@@ -15,6 +15,7 @@ Required properties:
   * "mediatek,mt7622-uart" for MT7622 compatible UARTS
   * "mediatek,mt7623-uart" for MT7623 compatible UARTS
   * "mediatek,mt7629-uart" for MT7629 compatible UARTS
+  * "mediatek,mt7986-uart", "mediatek,mt6577-uart" for MT7986 compatible UARTS
   * "mediatek,mt8127-uart" for MT8127 compatible UARTS
   * "mediatek,mt8135-uart" for MT8135 compatible UARTS
   * "mediatek,mt8173-uart" for MT8173 compatible UARTS

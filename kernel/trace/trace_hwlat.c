@@ -325,10 +325,10 @@ static void move_to_next_cpu(void)
 	if (!cpumask_equal(current_mask, current->cpus_ptr))
 		goto change_mode;
 
-	get_online_cpus();
+	cpus_read_lock();
 	cpumask_and(current_mask, cpu_online_mask, tr->tracing_cpumask);
 	next_cpu = cpumask_next(raw_smp_processor_id(), current_mask);
-	put_online_cpus();
+	cpus_read_unlock();
 
 	if (next_cpu >= nr_cpu_ids)
 		next_cpu = cpumask_first(current_mask);
@@ -398,7 +398,7 @@ static void stop_single_kthread(void)
 	struct hwlat_kthread_data *kdata = get_cpu_data();
 	struct task_struct *kthread;
 
-	get_online_cpus();
+	cpus_read_lock();
 	kthread = kdata->kthread;
 
 	if (!kthread)
@@ -408,7 +408,7 @@ static void stop_single_kthread(void)
 	kdata->kthread = NULL;
 
 out_put_cpus:
-	put_online_cpus();
+	cpus_read_unlock();
 }
 
 
@@ -425,14 +425,14 @@ static int start_single_kthread(struct trace_array *tr)
 	struct task_struct *kthread;
 	int next_cpu;
 
-	get_online_cpus();
+	cpus_read_lock();
 	if (kdata->kthread)
 		goto out_put_cpus;
 
 	kthread = kthread_create(kthread_fn, NULL, "hwlatd");
 	if (IS_ERR(kthread)) {
 		pr_err(BANNER "could not start sampling thread\n");
-		put_online_cpus();
+		cpus_read_unlock();
 		return -ENOMEM;
 	}
 
@@ -452,7 +452,7 @@ static int start_single_kthread(struct trace_array *tr)
 	wake_up_process(kthread);
 
 out_put_cpus:
-	put_online_cpus();
+	cpus_read_unlock();
 	return 0;
 }
 
@@ -479,10 +479,10 @@ static void stop_per_cpu_kthreads(void)
 {
 	unsigned int cpu;
 
-	get_online_cpus();
+	cpus_read_lock();
 	for_each_online_cpu(cpu)
 		stop_cpu_kthread(cpu);
-	put_online_cpus();
+	cpus_read_unlock();
 }
 
 /*
@@ -515,7 +515,7 @@ static void hwlat_hotplug_workfn(struct work_struct *dummy)
 
 	mutex_lock(&trace_types_lock);
 	mutex_lock(&hwlat_data.lock);
-	get_online_cpus();
+	cpus_read_lock();
 
 	if (!hwlat_busy || hwlat_data.thread_mode != MODE_PER_CPU)
 		goto out_unlock;
@@ -526,7 +526,7 @@ static void hwlat_hotplug_workfn(struct work_struct *dummy)
 	start_cpu_kthread(cpu);
 
 out_unlock:
-	put_online_cpus();
+	cpus_read_unlock();
 	mutex_unlock(&hwlat_data.lock);
 	mutex_unlock(&trace_types_lock);
 }
@@ -582,7 +582,7 @@ static int start_per_cpu_kthreads(struct trace_array *tr)
 	unsigned int cpu;
 	int retval;
 
-	get_online_cpus();
+	cpus_read_lock();
 	/*
 	 * Run only on CPUs in which hwlat is allowed to run.
 	 */
@@ -596,12 +596,12 @@ static int start_per_cpu_kthreads(struct trace_array *tr)
 		if (retval)
 			goto out_error;
 	}
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return 0;
 
 out_error:
-	put_online_cpus();
+	cpus_read_unlock();
 	stop_per_cpu_kthreads();
 	return retval;
 }

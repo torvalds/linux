@@ -637,6 +637,30 @@ TRACE_EVENT(amdgpu_refresh_rate_track,
 		  __entry->refresh_rate_ns)
 );
 
+TRACE_EVENT(dcn_fpu,
+	    TP_PROTO(bool begin, const char *function, const int line, const int recursion_depth),
+	    TP_ARGS(begin, function, line, recursion_depth),
+
+	    TP_STRUCT__entry(
+			     __field(bool, begin)
+			     __field(const char *, function)
+			     __field(int, line)
+			     __field(int, recursion_depth)
+	    ),
+	    TP_fast_assign(
+			   __entry->begin = begin;
+			   __entry->function = function;
+			   __entry->line = line;
+			   __entry->recursion_depth = recursion_depth;
+	    ),
+	    TP_printk("%s: recursion_depth: %d: %s()+%d:",
+		      __entry->begin ? "begin" : "end",
+		      __entry->recursion_depth,
+		      __entry->function,
+		      __entry->line
+	    )
+);
+
 #endif /* _AMDGPU_DM_TRACE_H_ */
 
 #undef TRACE_INCLUDE_PATH

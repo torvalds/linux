@@ -68,7 +68,7 @@ static void x3proto_gpio_irq_handler(struct irq_desc *desc)
 
 	mask = __raw_readw(KEYDETR);
 	for_each_set_bit(pin, &mask, NR_BASEBOARD_GPIOS)
-		generic_handle_irq(irq_linear_revmap(x3proto_irq_domain, pin));
+		generic_handle_domain_irq(x3proto_irq_domain, pin);
 
 	chip->irq_unmask(data);
 }

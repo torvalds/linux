@@ -9,10 +9,14 @@
 #define _LINUX_CPUFREQ_H
 
 #include <linux/clk.h>
+#include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/completion.h>
 #include <linux/kobject.h>
 #include <linux/notifier.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/pm_opp.h>
 #include <linux/pm_qos.h>
 #include <linux/spinlock.h>
 #include <linux/sysfs.h>
@@ -365,14 +369,17 @@ struct cpufreq_driver {
 	int		(*suspend)(struct cpufreq_policy *policy);
 	int		(*resume)(struct cpufreq_policy *policy);
 
-	/* Will be called after the driver is fully initialized */
-	void		(*ready)(struct cpufreq_policy *policy);
-
 	struct freq_attr **attr;
 
 	/* platform specific boost support code */
 	bool		boost_enabled;
 	int		(*set_boost)(struct cpufreq_policy *policy, int state);
+
+	/*
+	 * Set by drivers that want to register with the energy model after the
+	 * policy is properly initialized, but before the governor is started.
+	 */
+	void		(*register_em)(struct cpufreq_policy *policy);
 };
 
 /* flags */
@@ -995,6 +1002,55 @@ static inline int cpufreq_table_count_valid_entries(const struct cpufreq_policy 
 
 	return count;
 }
+
+static inline int parse_perf_domain(int cpu, const char *list_name,
+				    const char *cell_name)
+{
+	struct device_node *cpu_np;
+	struct of_phandle_args args;
+	int ret;
+
+	cpu_np = of_cpu_device_node_get(cpu);
+	if (!cpu_np)
+		return -ENODEV;
+
+	ret = of_parse_phandle_with_args(cpu_np, list_name, cell_name, 0,
+					 &args);
+	if (ret < 0)
+		return ret;
+
+	of_node_put(cpu_np);
+
+	return args.args[0];
+}
+
+static inline int of_perf_domain_get_sharing_cpumask(int pcpu, const char *list_name,
+						     const char *cell_name, struct cpumask *cpumask)
+{
+	int target_idx;
+	int cpu, ret;
+
+	ret = parse_perf_domain(pcpu, list_name, cell_name);
+	if (ret < 0)
+		return ret;
+
+	target_idx = ret;
+	cpumask_set_cpu(pcpu, cpumask);
+
+	for_each_possible_cpu(cpu) {
+		if (cpu == pcpu)
+			continue;
+
+		ret = parse_perf_domain(pcpu, list_name, cell_name);
+		if (ret < 0)
+			continue;
+
+		if (target_idx == ret)
+			cpumask_set_cpu(cpu, cpumask);
+	}
+
+	return target_idx;
+}
 #else
 static inline int cpufreq_boost_trigger_state(int state)
 {
@@ -1013,6 +1069,12 @@ static inline int cpufreq_enable_boost_support(void)
 static inline bool policy_has_boost_freq(struct cpufreq_policy *policy)
 {
 	return false;
+}
+
+static inline int of_perf_domain_get_sharing_cpumask(int pcpu, const char *list_name,
+						     const char *cell_name, struct cpumask *cpumask)
+{
+	return -EOPNOTSUPP;
 }
 #endif
 
@@ -1035,7 +1097,6 @@ void arch_set_freq_scale(const struct cpumask *cpus,
 {
 }
 #endif
-
 /* the following are really really optional */
 extern struct freq_attr cpufreq_freq_attr_scaling_available_freqs;
 extern struct freq_attr cpufreq_freq_attr_scaling_boost_freqs;
@@ -1046,4 +1107,10 @@ unsigned int cpufreq_generic_get(unsigned int cpu);
 void cpufreq_generic_init(struct cpufreq_policy *policy,
 		struct cpufreq_frequency_table *table,
 		unsigned int transition_latency);
+
+static inline void cpufreq_register_em_with_opp(struct cpufreq_policy *policy)
+{
+	dev_pm_opp_of_register_em(get_cpu_device(policy->cpu),
+				  policy->related_cpus);
+}
 #endif /* _LINUX_CPUFREQ_H */

@@ -75,9 +75,8 @@ int gfxhub_v1_1_get_xgmi_info(struct amdgpu_device *adev)
 		max_physical_node_id     = 7;
 		break;
 	case CHIP_ALDEBARAN:
-		/* just using duplicates for Aldebaran support, revisit later */
-		max_num_physical_nodes   = 8;
-		max_physical_node_id     = 7;
+		max_num_physical_nodes   = 16;
+		max_physical_node_id     = 15;
 		break;
 	default:
 		return -EINVAL;

@@ -98,6 +98,8 @@ struct dma_buf *virtgpu_gem_prime_export(struct drm_gem_object *obj,
 		} else {
 			bo->uuid_state = STATE_ERR;
 		}
+	} else if (!(bo->blob_flags & VIRTGPU_BLOB_FLAG_USE_CROSS_DEVICE)) {
+		bo->uuid_state = STATE_ERR;
 	}
 
 	exp_info.ops = &virtgpu_dmabuf_ops.ops;

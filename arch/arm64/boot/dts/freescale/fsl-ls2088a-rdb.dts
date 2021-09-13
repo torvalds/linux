@@ -92,21 +92,25 @@
 
 	mdio2_phy1: ethernet-phy@0 {
 		compatible = "ethernet-phy-id03a1.b4b0", "ethernet-phy-ieee802.3-c45";
+		interrupts-extended = <&extirq 1 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x0>;
 	};
 
 	mdio2_phy2: ethernet-phy@1 {
 		compatible = "ethernet-phy-id03a1.b4b0", "ethernet-phy-ieee802.3-c45";
+		interrupts-extended = <&extirq 2 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x1>;
 	};
 
 	mdio2_phy3: ethernet-phy@2 {
 		compatible = "ethernet-phy-id03a1.b4b0", "ethernet-phy-ieee802.3-c45";
+		interrupts-extended = <&extirq 4 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x2>;
 	};
 
 	mdio2_phy4: ethernet-phy@3 {
 		compatible = "ethernet-phy-id03a1.b4b0", "ethernet-phy-ieee802.3-c45";
+		interrupts-extended = <&extirq 5 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x3>;
 	};
 };

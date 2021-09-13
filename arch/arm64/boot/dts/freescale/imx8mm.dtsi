@@ -192,10 +192,9 @@
 	};
 
 	pmu {
-		compatible = "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a53-pmu";
 		interrupts = <GIC_PPI 7
 			     (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
-		interrupt-affinity = <&A53_0>, <&A53_1>, <&A53_2>, <&A53_3>;
 	};
 
 	timer {
@@ -241,6 +240,7 @@
 	};
 
 	usbphynop1: usbphynop1 {
+		#phy-cells = <0>;
 		compatible = "usb-nop-xceiv";
 		clocks = <&clk IMX8MM_CLK_USB_PHY_REF>;
 		assigned-clocks = <&clk IMX8MM_CLK_USB_PHY_REF>;
@@ -249,6 +249,7 @@
 	};
 
 	usbphynop2: usbphynop2 {
+		#phy-cells = <0>;
 		compatible = "usb-nop-xceiv";
 		clocks = <&clk IMX8MM_CLK_USB_PHY_REF>;
 		assigned-clocks = <&clk IMX8MM_CLK_USB_PHY_REF>;
@@ -920,7 +921,7 @@
 			};
 
 			fec1: ethernet@30be0000 {
-				compatible = "fsl,imx8mm-fec", "fsl,imx6sx-fec";
+				compatible = "fsl,imx8mm-fec", "fsl,imx8mq-fec", "fsl,imx6sx-fec";
 				reg = <0x30be0000 0x10000>;
 				interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>,
@@ -968,7 +969,7 @@
 				clock-names = "usb1_ctrl_root_clk";
 				assigned-clocks = <&clk IMX8MM_CLK_USB_BUS>;
 				assigned-clock-parents = <&clk IMX8MM_SYS_PLL2_500M>;
-				fsl,usbphy = <&usbphynop1>;
+				phys = <&usbphynop1>;
 				fsl,usbmisc = <&usbmisc1 0>;
 				status = "disabled";
 			};
@@ -987,7 +988,7 @@
 				clock-names = "usb1_ctrl_root_clk";
 				assigned-clocks = <&clk IMX8MM_CLK_USB_BUS>;
 				assigned-clock-parents = <&clk IMX8MM_SYS_PLL2_500M>;
-				fsl,usbphy = <&usbphynop2>;
+				phys = <&usbphynop2>;
 				fsl,usbmisc = <&usbmisc2 0>;
 				status = "disabled";
 			};

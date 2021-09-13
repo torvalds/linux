@@ -112,7 +112,6 @@ static struct proto udp_bpf_prots[UDP_BPF_NUM_PROTS];
 static void udp_bpf_rebuild_protos(struct proto *prot, const struct proto *base)
 {
 	*prot        = *base;
-	prot->unhash = sock_map_unhash;
 	prot->close  = sock_map_close;
 	prot->recvmsg = udp_bpf_recvmsg;
 }

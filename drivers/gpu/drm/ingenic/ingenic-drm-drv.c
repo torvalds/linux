@@ -33,7 +33,6 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_irq.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
@@ -702,29 +701,6 @@ static int ingenic_drm_encoder_atomic_check(struct drm_encoder *encoder,
 	}
 }
 
-static void ingenic_drm_atomic_helper_commit_tail(struct drm_atomic_state *old_state)
-{
-	/*
-	 * Just your regular drm_atomic_helper_commit_tail(), but only calls
-	 * drm_atomic_helper_wait_for_vblanks() if priv->no_vblank.
-	 */
-	struct drm_device *dev = old_state->dev;
-	struct ingenic_drm *priv = drm_device_get_priv(dev);
-
-	drm_atomic_helper_commit_modeset_disables(dev, old_state);
-
-	drm_atomic_helper_commit_planes(dev, old_state, 0);
-
-	drm_atomic_helper_commit_modeset_enables(dev, old_state);
-
-	drm_atomic_helper_commit_hw_done(old_state);
-
-	if (!priv->no_vblank)
-		drm_atomic_helper_wait_for_vblanks(dev, old_state);
-
-	drm_atomic_helper_cleanup_planes(dev, old_state);
-}
-
 static irqreturn_t ingenic_drm_irq_handler(int irq, void *arg)
 {
 	struct ingenic_drm *priv = drm_device_get_priv(arg);
@@ -744,6 +720,9 @@ static irqreturn_t ingenic_drm_irq_handler(int irq, void *arg)
 static int ingenic_drm_enable_vblank(struct drm_crtc *crtc)
 {
 	struct ingenic_drm *priv = drm_crtc_get_priv(crtc);
+
+	if (priv->no_vblank)
+		return -EINVAL;
 
 	regmap_update_bits(priv->map, JZ_REG_LCD_CTRL,
 			   JZ_LCD_CTRL_EOF_IRQ, JZ_LCD_CTRL_EOF_IRQ);
@@ -799,8 +778,6 @@ static const struct drm_driver ingenic_drm_driver_data = {
 	.fops			= &ingenic_drm_fops,
 	.gem_create_object	= ingenic_drm_gem_create_object,
 	DRM_GEM_CMA_DRIVER_OPS,
-
-	.irq_handler		= ingenic_drm_irq_handler,
 };
 
 static const struct drm_plane_funcs ingenic_drm_primary_plane_funcs = {
@@ -830,7 +807,6 @@ static const struct drm_plane_helper_funcs ingenic_drm_plane_helper_funcs = {
 	.atomic_update		= ingenic_drm_plane_atomic_update,
 	.atomic_check		= ingenic_drm_plane_atomic_check,
 	.atomic_disable		= ingenic_drm_plane_atomic_disable,
-	.prepare_fb		= drm_gem_plane_helper_prepare_fb,
 };
 
 static const struct drm_crtc_helper_funcs ingenic_drm_crtc_helper_funcs = {
@@ -855,7 +831,7 @@ static const struct drm_mode_config_funcs ingenic_drm_mode_config_funcs = {
 };
 
 static struct drm_mode_config_helper_funcs ingenic_drm_mode_config_helpers = {
-	.atomic_commit_tail = ingenic_drm_atomic_helper_commit_tail,
+	.atomic_commit_tail = drm_atomic_helper_commit_tail,
 };
 
 static void ingenic_drm_unbind_all(void *d)
@@ -988,9 +964,6 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 	priv->dma_hwdescs->hwdesc_pal.cmd = JZ_LCD_CMD_ENABLE_PAL
 		| (sizeof(priv->dma_hwdescs->palette) / 4);
 
-	if (soc_info->has_osd)
-		priv->ipu_plane = drm_plane_from_index(drm, 0);
-
 	primary = priv->soc_info->has_osd ? &priv->f1 : &priv->f0;
 
 	drm_plane_helper_add(primary, &ingenic_drm_plane_helper_funcs);
@@ -1085,10 +1058,8 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 		drm_encoder_helper_add(encoder, &ingenic_drm_encoder_helper_funcs);
 
 		ret = drm_bridge_attach(encoder, bridge, NULL, 0);
-		if (ret) {
-			dev_err(dev, "Unable to attach bridge\n");
+		if (ret)
 			return ret;
-		}
 	}
 
 	drm_for_each_encoder(encoder, drm) {
@@ -1099,7 +1070,7 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 		encoder->possible_clones = clone_mask;
 	}
 
-	ret = drm_irq_install(drm, irq);
+	ret = devm_request_irq(dev, irq, ingenic_drm_irq_handler, 0, drm->driver->name, drm);
 	if (ret) {
 		dev_err(dev, "Unable to install IRQ handler\n");
 		return ret;

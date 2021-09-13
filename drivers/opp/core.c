@@ -893,6 +893,10 @@ static int _set_required_opps(struct device *dev,
 	if (!required_opp_tables)
 		return 0;
 
+	/* required-opps not fully initialized yet */
+	if (lazy_linking_pending(opp_table))
+		return -EBUSY;
+
 	/*
 	 * We only support genpd's OPPs in the "required-opps" for now, as we
 	 * don't know much about other use cases. Error out if the required OPP
@@ -902,10 +906,6 @@ static int _set_required_opps(struct device *dev,
 		dev_err(dev, "required-opps don't belong to a genpd\n");
 		return -ENOENT;
 	}
-
-	/* required-opps not fully initialized yet */
-	if (lazy_linking_pending(opp_table))
-		return -EBUSY;
 
 	/* Single genpd case */
 	if (!genpd_virt_devs)

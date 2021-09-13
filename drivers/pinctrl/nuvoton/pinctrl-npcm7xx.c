@@ -231,7 +231,7 @@ static void npcmgpio_irq_handler(struct irq_desc *desc)
 
 	sts &= en;
 	for_each_set_bit(bit, (const void *)&sts, NPCM7XX_GPIO_PER_BANK)
-		generic_handle_irq(irq_linear_revmap(gc->irq.domain, bit));
+		generic_handle_domain_irq(gc->irq.domain, bit);
 	chained_irq_exit(chip, desc);
 }
 

@@ -367,7 +367,7 @@ static void *slow_memcpy( void *dst, const void *src, size_t len )
 }
 
 
-struct net_device * __init atarilance_probe(int unit)
+struct net_device * __init atarilance_probe(void)
 {
 	int i;
 	static int found;
@@ -382,10 +382,6 @@ struct net_device * __init atarilance_probe(int unit)
 	dev = alloc_etherdev(sizeof(struct lance_private));
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
-	if (unit >= 0) {
-		sprintf(dev->name, "eth%d", unit);
-		netdev_boot_setup_check(dev);
-	}
 
 	for( i = 0; i < N_LANCE_ADDR; ++i ) {
 		if (lance_probe1( dev, &lance_addr_list[i] )) {
@@ -1137,13 +1133,11 @@ static int lance_set_mac_address( struct net_device *dev, void *addr )
 	return 0;
 }
 
-
-#ifdef MODULE
 static struct net_device *atarilance_dev;
 
 static int __init atarilance_module_init(void)
 {
-	atarilance_dev = atarilance_probe(-1);
+	atarilance_dev = atarilance_probe();
 	return PTR_ERR_OR_ZERO(atarilance_dev);
 }
 
@@ -1155,4 +1149,3 @@ static void __exit atarilance_module_exit(void)
 }
 module_init(atarilance_module_init);
 module_exit(atarilance_module_exit);
-#endif /* MODULE */

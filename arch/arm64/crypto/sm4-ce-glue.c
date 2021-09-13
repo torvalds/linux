@@ -17,12 +17,20 @@ MODULE_LICENSE("GPL v2");
 
 asmlinkage void sm4_ce_do_crypt(const u32 *rk, void *out, const void *in);
 
+static int sm4_ce_setkey(struct crypto_tfm *tfm, const u8 *key,
+		       unsigned int key_len)
+{
+	struct sm4_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	return sm4_expandkey(ctx, key, key_len);
+}
+
 static void sm4_ce_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	const struct crypto_sm4_ctx *ctx = crypto_tfm_ctx(tfm);
+	const struct sm4_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	if (!crypto_simd_usable()) {
-		crypto_sm4_encrypt(tfm, out, in);
+		sm4_crypt_block(ctx->rkey_enc, out, in);
 	} else {
 		kernel_neon_begin();
 		sm4_ce_do_crypt(ctx->rkey_enc, out, in);
@@ -32,10 +40,10 @@ static void sm4_ce_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 
 static void sm4_ce_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	const struct crypto_sm4_ctx *ctx = crypto_tfm_ctx(tfm);
+	const struct sm4_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	if (!crypto_simd_usable()) {
-		crypto_sm4_decrypt(tfm, out, in);
+		sm4_crypt_block(ctx->rkey_dec, out, in);
 	} else {
 		kernel_neon_begin();
 		sm4_ce_do_crypt(ctx->rkey_dec, out, in);
@@ -49,12 +57,12 @@ static struct crypto_alg sm4_ce_alg = {
 	.cra_priority			= 200,
 	.cra_flags			= CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize			= SM4_BLOCK_SIZE,
-	.cra_ctxsize			= sizeof(struct crypto_sm4_ctx),
+	.cra_ctxsize			= sizeof(struct sm4_ctx),
 	.cra_module			= THIS_MODULE,
 	.cra_u.cipher = {
 		.cia_min_keysize	= SM4_KEY_SIZE,
 		.cia_max_keysize	= SM4_KEY_SIZE,
-		.cia_setkey		= crypto_sm4_set_key,
+		.cia_setkey		= sm4_ce_setkey,
 		.cia_encrypt		= sm4_ce_encrypt,
 		.cia_decrypt		= sm4_ce_decrypt
 	}

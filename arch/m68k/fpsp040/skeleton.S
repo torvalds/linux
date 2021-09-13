@@ -502,7 +502,8 @@ in_ea:
 	.section .fixup,#alloc,#execinstr
 	.even
 1:
-	jbra	fpsp040_die
+	jbsr	fpsp040_die
+	jbra	.Lnotkern
 
 	.section __ex_table,#alloc
 	.align	4

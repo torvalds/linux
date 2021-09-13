@@ -466,14 +466,16 @@ static int wd719x_abort(struct scsi_cmnd *cmd)
 	unsigned long flags;
 	struct wd719x_scb *scb = scsi_cmd_priv(cmd);
 	struct wd719x *wd = shost_priv(cmd->device->host);
+	struct device *dev = &wd->pdev->dev;
 
-	dev_info(&wd->pdev->dev, "abort command, tag: %x\n", cmd->tag);
+	dev_info(dev, "abort command, tag: %x\n", scsi_cmd_to_rq(cmd)->tag);
 
-	action = /*cmd->tag ? WD719X_CMD_ABORT_TAG : */WD719X_CMD_ABORT;
+	action = WD719X_CMD_ABORT;
 
 	spin_lock_irqsave(wd->sh->host_lock, flags);
 	result = wd719x_direct_cmd(wd, action, cmd->device->id,
-				   cmd->device->lun, cmd->tag, scb->phys, 0);
+				   cmd->device->lun, scsi_cmd_to_rq(cmd)->tag,
+				   scb->phys, 0);
 	wd719x_finish_cmd(scb, DID_ABORT);
 	spin_unlock_irqrestore(wd->sh->host_lock, flags);
 	if (result)

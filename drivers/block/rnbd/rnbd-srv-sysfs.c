@@ -90,8 +90,8 @@ static ssize_t read_only_show(struct kobject *kobj, struct kobj_attribute *attr,
 
 	sess_dev = container_of(kobj, struct rnbd_srv_sess_dev, kobj);
 
-	return scnprintf(page, PAGE_SIZE, "%d\n",
-			 !(sess_dev->open_flags & FMODE_WRITE));
+	return sysfs_emit(page, "%d\n",
+			  !(sess_dev->open_flags & FMODE_WRITE));
 }
 
 static struct kobj_attribute rnbd_srv_dev_session_ro_attr =
@@ -105,8 +105,8 @@ static ssize_t access_mode_show(struct kobject *kobj,
 
 	sess_dev = container_of(kobj, struct rnbd_srv_sess_dev, kobj);
 
-	return scnprintf(page, PAGE_SIZE, "%s\n",
-			 rnbd_access_mode_str(sess_dev->access_mode));
+	return sysfs_emit(page, "%s\n",
+			  rnbd_access_mode_str(sess_dev->access_mode));
 }
 
 static struct kobj_attribute rnbd_srv_dev_session_access_mode_attr =
@@ -119,7 +119,7 @@ static ssize_t mapping_path_show(struct kobject *kobj,
 
 	sess_dev = container_of(kobj, struct rnbd_srv_sess_dev, kobj);
 
-	return scnprintf(page, PAGE_SIZE, "%s\n", sess_dev->pathname);
+	return sysfs_emit(page, "%s\n", sess_dev->pathname);
 }
 
 static struct kobj_attribute rnbd_srv_dev_session_mapping_path_attr =
@@ -128,8 +128,8 @@ static struct kobj_attribute rnbd_srv_dev_session_mapping_path_attr =
 static ssize_t rnbd_srv_dev_session_force_close_show(struct kobject *kobj,
 					struct kobj_attribute *attr, char *page)
 {
-	return scnprintf(page, PAGE_SIZE, "Usage: echo 1 > %s\n",
-			 attr->attr.name);
+	return sysfs_emit(page, "Usage: echo 1 > %s\n",
+			  attr->attr.name);
 }
 
 static ssize_t rnbd_srv_dev_session_force_close_store(struct kobject *kobj,

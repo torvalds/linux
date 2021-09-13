@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Marvell OcteonTx2 RVU Admin Function driver
+/* Marvell RVU Admin Function driver
  *
- * Copyright (C) 2018 Marvell International Ltd.
+ * Copyright (C) 2018 Marvell.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -70,18 +67,21 @@ static void rvu_setup_hw_capabilities(struct rvu *rvu)
 	hw->cap.nix_shaping = true;
 	hw->cap.nix_tx_link_bp = true;
 	hw->cap.nix_rx_multicast = true;
+	hw->cap.nix_shaper_toggle_wait = false;
 	hw->rvu = rvu;
 
-	if (is_rvu_96xx_B0(rvu)) {
+	if (is_rvu_pre_96xx_C0(rvu)) {
 		hw->cap.nix_fixed_txschq_mapping = true;
 		hw->cap.nix_txsch_per_cgx_lmac = 4;
 		hw->cap.nix_txsch_per_lbk_lmac = 132;
 		hw->cap.nix_txsch_per_sdp_lmac = 76;
 		hw->cap.nix_shaping = false;
 		hw->cap.nix_tx_link_bp = false;
-		if (is_rvu_96xx_A0(rvu))
+		if (is_rvu_96xx_A0(rvu) || is_rvu_95xx_A0(rvu))
 			hw->cap.nix_rx_multicast = false;
 	}
+	if (!is_rvu_pre_96xx_C0(rvu))
+		hw->cap.nix_shaper_toggle_wait = true;
 
 	if (!is_rvu_otx2(rvu))
 		hw->cap.per_pf_mbox_regs = true;
@@ -92,7 +92,8 @@ static void rvu_setup_hw_capabilities(struct rvu *rvu)
  */
 int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero)
 {
-	unsigned long timeout = jiffies + usecs_to_jiffies(10000);
+	unsigned long timeout = jiffies + usecs_to_jiffies(20000);
+	bool twice = false;
 	void __iomem *reg;
 	u64 reg_val;
 
@@ -105,6 +106,15 @@ again:
 		return 0;
 	if (time_before(jiffies, timeout)) {
 		usleep_range(1, 5);
+		goto again;
+	}
+	/* In scenarios where CPU is scheduled out before checking
+	 * 'time_before' (above) and gets scheduled in such that
+	 * jiffies are beyond timeout value, then check again if HW is
+	 * done with the operation in the meantime.
+	 */
+	if (!twice) {
+		twice = true;
 		goto again;
 	}
 	return -EBUSY;
@@ -199,6 +209,11 @@ int rvu_alloc_bitmap(struct rsrc_bmap *rsrc)
 	if (!rsrc->bmap)
 		return -ENOMEM;
 	return 0;
+}
+
+void rvu_free_bitmap(struct rsrc_bmap *rsrc)
+{
+	kfree(rsrc->bmap);
 }
 
 /* Get block LF's HW index from a PF_FUNC's block slot number */
@@ -498,12 +513,15 @@ int rvu_lf_reset(struct rvu *rvu, struct rvu_block *block, int lf)
 static void rvu_block_reset(struct rvu *rvu, int blkaddr, u64 rst_reg)
 {
 	struct rvu_block *block = &rvu->hw->block[blkaddr];
+	int err;
 
 	if (!block->implemented)
 		return;
 
 	rvu_write64(rvu, blkaddr, rst_reg, BIT_ULL(0));
-	rvu_poll_reg(rvu, blkaddr, rst_reg, BIT_ULL(63), true);
+	err = rvu_poll_reg(rvu, blkaddr, rst_reg, BIT_ULL(63), true);
+	if (err)
+		dev_err(rvu->dev, "HW block:%d reset failed\n", blkaddr);
 }
 
 static void rvu_reset_all_blocks(struct rvu *rvu)
@@ -924,16 +942,26 @@ static int rvu_setup_hw_resources(struct rvu *rvu)
 	block->lfreset_reg = NPA_AF_LF_RST;
 	sprintf(block->name, "NPA");
 	err = rvu_alloc_bitmap(&block->lf);
-	if (err)
+	if (err) {
+		dev_err(rvu->dev,
+			"%s: Failed to allocate NPA LF bitmap\n", __func__);
 		return err;
+	}
 
 nix:
 	err = rvu_setup_nix_hw_resource(rvu, BLKADDR_NIX0);
-	if (err)
+	if (err) {
+		dev_err(rvu->dev,
+			"%s: Failed to allocate NIX0 LFs bitmap\n", __func__);
 		return err;
+	}
+
 	err = rvu_setup_nix_hw_resource(rvu, BLKADDR_NIX1);
-	if (err)
+	if (err) {
+		dev_err(rvu->dev,
+			"%s: Failed to allocate NIX1 LFs bitmap\n", __func__);
 		return err;
+	}
 
 	/* Init SSO group's bitmap */
 	block = &hw->block[BLKADDR_SSO];
@@ -953,8 +981,11 @@ nix:
 	block->lfreset_reg = SSO_AF_LF_HWGRP_RST;
 	sprintf(block->name, "SSO GROUP");
 	err = rvu_alloc_bitmap(&block->lf);
-	if (err)
+	if (err) {
+		dev_err(rvu->dev,
+			"%s: Failed to allocate SSO LF bitmap\n", __func__);
 		return err;
+	}
 
 ssow:
 	/* Init SSO workslot's bitmap */
@@ -974,8 +1005,11 @@ ssow:
 	block->lfreset_reg = SSOW_AF_LF_HWS_RST;
 	sprintf(block->name, "SSOWS");
 	err = rvu_alloc_bitmap(&block->lf);
-	if (err)
+	if (err) {
+		dev_err(rvu->dev,
+			"%s: Failed to allocate SSOW LF bitmap\n", __func__);
 		return err;
+	}
 
 tim:
 	/* Init TIM LF's bitmap */
@@ -996,35 +1030,53 @@ tim:
 	block->lfreset_reg = TIM_AF_LF_RST;
 	sprintf(block->name, "TIM");
 	err = rvu_alloc_bitmap(&block->lf);
-	if (err)
+	if (err) {
+		dev_err(rvu->dev,
+			"%s: Failed to allocate TIM LF bitmap\n", __func__);
 		return err;
+	}
 
 cpt:
 	err = rvu_setup_cpt_hw_resource(rvu, BLKADDR_CPT0);
-	if (err)
+	if (err) {
+		dev_err(rvu->dev,
+			"%s: Failed to allocate CPT0 LF bitmap\n", __func__);
 		return err;
+	}
 	err = rvu_setup_cpt_hw_resource(rvu, BLKADDR_CPT1);
-	if (err)
+	if (err) {
+		dev_err(rvu->dev,
+			"%s: Failed to allocate CPT1 LF bitmap\n", __func__);
 		return err;
+	}
 
 	/* Allocate memory for PFVF data */
 	rvu->pf = devm_kcalloc(rvu->dev, hw->total_pfs,
 			       sizeof(struct rvu_pfvf), GFP_KERNEL);
-	if (!rvu->pf)
+	if (!rvu->pf) {
+		dev_err(rvu->dev,
+			"%s: Failed to allocate memory for PF's rvu_pfvf struct\n", __func__);
 		return -ENOMEM;
+	}
 
 	rvu->hwvf = devm_kcalloc(rvu->dev, hw->total_vfs,
 				 sizeof(struct rvu_pfvf), GFP_KERNEL);
-	if (!rvu->hwvf)
+	if (!rvu->hwvf) {
+		dev_err(rvu->dev,
+			"%s: Failed to allocate memory for VF's rvu_pfvf struct\n", __func__);
 		return -ENOMEM;
+	}
 
 	mutex_init(&rvu->rsrc_lock);
 
 	rvu_fwdata_init(rvu);
 
 	err = rvu_setup_msix_resources(rvu);
-	if (err)
+	if (err) {
+		dev_err(rvu->dev,
+			"%s: Failed to setup MSIX resources\n", __func__);
 		return err;
+	}
 
 	for (blkid = 0; blkid < BLK_COUNT; blkid++) {
 		block = &hw->block[blkid];
@@ -1050,25 +1102,39 @@ cpt:
 		goto msix_err;
 
 	err = rvu_npc_init(rvu);
-	if (err)
+	if (err) {
+		dev_err(rvu->dev, "%s: Failed to initialize npc\n", __func__);
 		goto npc_err;
+	}
 
 	err = rvu_cgx_init(rvu);
-	if (err)
+	if (err) {
+		dev_err(rvu->dev, "%s: Failed to initialize cgx\n", __func__);
 		goto cgx_err;
+	}
 
 	/* Assign MACs for CGX mapped functions */
 	rvu_setup_pfvf_macaddress(rvu);
 
 	err = rvu_npa_init(rvu);
-	if (err)
+	if (err) {
+		dev_err(rvu->dev, "%s: Failed to initialize npa\n", __func__);
 		goto npa_err;
+	}
 
 	rvu_get_lbk_bufsize(rvu);
 
 	err = rvu_nix_init(rvu);
-	if (err)
+	if (err) {
+		dev_err(rvu->dev, "%s: Failed to initialize nix\n", __func__);
 		goto nix_err;
+	}
+
+	err = rvu_sdp_init(rvu);
+	if (err) {
+		dev_err(rvu->dev, "%s: Failed to initialize sdp\n", __func__);
+		goto nix_err;
+	}
 
 	rvu_program_channels(rvu);
 
@@ -1322,9 +1388,10 @@ int rvu_get_nix_blkaddr(struct rvu *rvu, u16 pcifunc)
 	int blkaddr = BLKADDR_NIX0, vf;
 	struct rvu_pfvf *pf;
 
+	pf = rvu_get_pfvf(rvu, pcifunc & ~RVU_PFVF_FUNC_MASK);
+
 	/* All CGX mapped PFs are set with assigned NIX block during init */
 	if (is_pf_cgxmapped(rvu, rvu_get_pf(pcifunc))) {
-		pf = rvu_get_pfvf(rvu, pcifunc & ~RVU_PFVF_FUNC_MASK);
 		blkaddr = pf->nix_blkaddr;
 	} else if (is_afvf(pcifunc)) {
 		vf = pcifunc - 1;
@@ -1336,6 +1403,10 @@ int rvu_get_nix_blkaddr(struct rvu *rvu, u16 pcifunc)
 		if (!is_block_implemented(rvu->hw, BLKADDR_NIX1))
 			blkaddr = BLKADDR_NIX0;
 	}
+
+	/* if SDP1 then the blkaddr is NIX1 */
+	if (is_sdp_pfvf(pcifunc) && pf->sdp_info->node_id == 1)
+		blkaddr = BLKADDR_NIX1;
 
 	switch (blkaddr) {
 	case BLKADDR_NIX1:
@@ -1733,6 +1804,99 @@ int rvu_mbox_handler_msix_offset(struct rvu *rvu, struct msg_req *req,
 		rsp->cpt1_lf_msixoff[slot] =
 			rvu_get_msix_offset(rvu, pfvf, BLKADDR_CPT1, lf);
 	}
+
+	return 0;
+}
+
+int rvu_mbox_handler_free_rsrc_cnt(struct rvu *rvu, struct msg_req *req,
+				   struct free_rsrcs_rsp *rsp)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	struct rvu_block *block;
+	struct nix_txsch *txsch;
+	struct nix_hw *nix_hw;
+
+	mutex_lock(&rvu->rsrc_lock);
+
+	block = &hw->block[BLKADDR_NPA];
+	rsp->npa = rvu_rsrc_free_count(&block->lf);
+
+	block = &hw->block[BLKADDR_NIX0];
+	rsp->nix = rvu_rsrc_free_count(&block->lf);
+
+	block = &hw->block[BLKADDR_NIX1];
+	rsp->nix1 = rvu_rsrc_free_count(&block->lf);
+
+	block = &hw->block[BLKADDR_SSO];
+	rsp->sso = rvu_rsrc_free_count(&block->lf);
+
+	block = &hw->block[BLKADDR_SSOW];
+	rsp->ssow = rvu_rsrc_free_count(&block->lf);
+
+	block = &hw->block[BLKADDR_TIM];
+	rsp->tim = rvu_rsrc_free_count(&block->lf);
+
+	block = &hw->block[BLKADDR_CPT0];
+	rsp->cpt = rvu_rsrc_free_count(&block->lf);
+
+	block = &hw->block[BLKADDR_CPT1];
+	rsp->cpt1 = rvu_rsrc_free_count(&block->lf);
+
+	if (rvu->hw->cap.nix_fixed_txschq_mapping) {
+		rsp->schq[NIX_TXSCH_LVL_SMQ] = 1;
+		rsp->schq[NIX_TXSCH_LVL_TL4] = 1;
+		rsp->schq[NIX_TXSCH_LVL_TL3] = 1;
+		rsp->schq[NIX_TXSCH_LVL_TL2] = 1;
+		/* NIX1 */
+		if (!is_block_implemented(rvu->hw, BLKADDR_NIX1))
+			goto out;
+		rsp->schq_nix1[NIX_TXSCH_LVL_SMQ] = 1;
+		rsp->schq_nix1[NIX_TXSCH_LVL_TL4] = 1;
+		rsp->schq_nix1[NIX_TXSCH_LVL_TL3] = 1;
+		rsp->schq_nix1[NIX_TXSCH_LVL_TL2] = 1;
+	} else {
+		nix_hw = get_nix_hw(hw, BLKADDR_NIX0);
+		txsch = &nix_hw->txsch[NIX_TXSCH_LVL_SMQ];
+		rsp->schq[NIX_TXSCH_LVL_SMQ] =
+				rvu_rsrc_free_count(&txsch->schq);
+
+		txsch = &nix_hw->txsch[NIX_TXSCH_LVL_TL4];
+		rsp->schq[NIX_TXSCH_LVL_TL4] =
+				rvu_rsrc_free_count(&txsch->schq);
+
+		txsch = &nix_hw->txsch[NIX_TXSCH_LVL_TL3];
+		rsp->schq[NIX_TXSCH_LVL_TL3] =
+				rvu_rsrc_free_count(&txsch->schq);
+
+		txsch = &nix_hw->txsch[NIX_TXSCH_LVL_TL2];
+		rsp->schq[NIX_TXSCH_LVL_TL2] =
+				rvu_rsrc_free_count(&txsch->schq);
+
+		if (!is_block_implemented(rvu->hw, BLKADDR_NIX1))
+			goto out;
+
+		nix_hw = get_nix_hw(hw, BLKADDR_NIX1);
+		txsch = &nix_hw->txsch[NIX_TXSCH_LVL_SMQ];
+		rsp->schq_nix1[NIX_TXSCH_LVL_SMQ] =
+				rvu_rsrc_free_count(&txsch->schq);
+
+		txsch = &nix_hw->txsch[NIX_TXSCH_LVL_TL4];
+		rsp->schq_nix1[NIX_TXSCH_LVL_TL4] =
+				rvu_rsrc_free_count(&txsch->schq);
+
+		txsch = &nix_hw->txsch[NIX_TXSCH_LVL_TL3];
+		rsp->schq_nix1[NIX_TXSCH_LVL_TL3] =
+				rvu_rsrc_free_count(&txsch->schq);
+
+		txsch = &nix_hw->txsch[NIX_TXSCH_LVL_TL2];
+		rsp->schq_nix1[NIX_TXSCH_LVL_TL2] =
+				rvu_rsrc_free_count(&txsch->schq);
+	}
+
+	rsp->schq_nix1[NIX_TXSCH_LVL_TL1] = 1;
+out:
+	rsp->schq[NIX_TXSCH_LVL_TL1] = 1;
+	mutex_unlock(&rvu->rsrc_lock);
 
 	return 0;
 }
@@ -2402,11 +2566,12 @@ static void rvu_afvf_queue_flr_work(struct rvu *rvu, int start_vf, int numvfs)
 	for (vf = 0; vf < numvfs; vf++) {
 		if (!(intr & BIT_ULL(vf)))
 			continue;
-		dev = vf + start_vf + rvu->hw->total_pfs;
-		queue_work(rvu->flr_wq, &rvu->flr_wrk[dev].work);
 		/* Clear and disable the interrupt */
 		rvupf_write64(rvu, RVU_PF_VFFLR_INTX(reg), BIT_ULL(vf));
 		rvupf_write64(rvu, RVU_PF_VFFLR_INT_ENA_W1CX(reg), BIT_ULL(vf));
+
+		dev = vf + start_vf + rvu->hw->total_pfs;
+		queue_work(rvu->flr_wq, &rvu->flr_wrk[dev].work);
 	}
 }
 
@@ -2422,14 +2587,14 @@ static irqreturn_t rvu_flr_intr_handler(int irq, void *rvu_irq)
 
 	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
 		if (intr & (1ULL << pf)) {
-			/* PF is already dead do only AF related operations */
-			queue_work(rvu->flr_wq, &rvu->flr_wrk[pf].work);
 			/* clear interrupt */
 			rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFFLR_INT,
 				    BIT_ULL(pf));
 			/* Disable the interrupt */
 			rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFFLR_INT_ENA_W1C,
 				    BIT_ULL(pf));
+			/* PF is already dead do only AF related operations */
+			queue_work(rvu->flr_wq, &rvu->flr_wrk[pf].work);
 		}
 	}
 
@@ -2984,27 +3149,37 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	err = rvu_mbox_init(rvu, &rvu->afpf_wq_info, TYPE_AFPF,
 			    rvu->hw->total_pfs, rvu_afpf_mbox_handler,
 			    rvu_afpf_mbox_up_handler);
-	if (err)
+	if (err) {
+		dev_err(dev, "%s: Failed to initialize mbox\n", __func__);
 		goto err_hwsetup;
+	}
 
 	err = rvu_flr_init(rvu);
-	if (err)
+	if (err) {
+		dev_err(dev, "%s: Failed to initialize flr\n", __func__);
 		goto err_mbox;
+	}
 
 	err = rvu_register_interrupts(rvu);
-	if (err)
+	if (err) {
+		dev_err(dev, "%s: Failed to register interrupts\n", __func__);
 		goto err_flr;
+	}
 
 	err = rvu_register_dl(rvu);
-	if (err)
+	if (err) {
+		dev_err(dev, "%s: Failed to register devlink\n", __func__);
 		goto err_irq;
+	}
 
 	rvu_setup_rvum_blk_revid(rvu);
 
 	/* Enable AF's VFs (if any) */
 	err = rvu_enable_sriov(rvu);
-	if (err)
+	if (err) {
+		dev_err(dev, "%s: Failed to enable sriov\n", __func__);
 		goto err_dl;
+	}
 
 	/* Initialize debugfs */
 	rvu_dbg_init(rvu);

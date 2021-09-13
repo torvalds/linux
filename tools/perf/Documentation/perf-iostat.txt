@@ -9,7 +9,7 @@ SYNOPSIS
 --------
 [verse]
 'perf iostat' list
-'perf iostat' <ports> -- <command> [<options>]
+'perf iostat' <ports> \-- <command> [<options>]
 
 DESCRIPTION
 -----------

@@ -1444,5 +1444,5 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-module_param(initial_mode, int, S_IRUGO);
+module_param(initial_mode, int, 0444);
 MODULE_PARM_DESC(initial_mode, "Initial mode");

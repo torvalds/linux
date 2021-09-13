@@ -31,7 +31,6 @@
 
 /**
  * struct drm_property_enum - symbolic values for enumerations
- * @value: numeric property value for this enum entry
  * @head: list of enum values, linked to &drm_property.enum_list
  * @name: symbolic name for the enum
  *
@@ -39,6 +38,14 @@
  * decoding for each value. This is used for example for the rotation property.
  */
 struct drm_property_enum {
+	/**
+	 * @value: numeric property value for this enum entry
+	 *
+	 * If the property has the type &DRM_MODE_PROP_BITMASK, @value stores a
+	 * bitshift, not a bitmask. In other words, the enum entry is enabled
+	 * if the bit number @value is set in the property's value. This enum
+	 * entry has the bitmask ``1 << value``.
+	 */
 	uint64_t value;
 	struct list_head head;
 	char name[DRM_PROP_NAME_LEN];

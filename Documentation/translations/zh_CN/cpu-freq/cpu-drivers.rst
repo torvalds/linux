@@ -2,11 +2,13 @@
 
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :doc:`../../../cpu-freq/cpu-drivers`
-:Translator: Yanteng Si <siyanteng@loongson.cn>
+:Original: Documentation/cpu-freq/cpu-drivers.rst
+
+:翻译:
+
+ 司延腾 Yanteng Si <siyanteng@loongson.cn>
 
 .. _cn_cpu-drivers.rst:
-
 
 =======================================
 如何实现一个新的CPUFreq处理器驱动程序？
@@ -79,8 +81,6 @@ CPUfreq核心层注册一个cpufreq_driver结构体。
 
  .resume - 一个指向per-policy恢复函数的指针，该函数在关中断且在调节器再一次开始前被
  调用。
-
- .ready - 一个指向per-policy准备函数的指针，该函数在策略完全初始化之后被调用。
 
  .attr - 一个指向NULL结尾的"struct freq_attr"列表的指针，该函数允许导出值到
  sysfs。

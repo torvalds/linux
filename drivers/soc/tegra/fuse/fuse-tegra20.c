@@ -16,6 +16,7 @@
 #include <linux/kobject.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/random.h>
 
 #include <soc/tegra/fuse.h>
@@ -46,6 +47,10 @@ static u32 tegra20_fuse_read(struct tegra_fuse *fuse, unsigned int offset)
 	u32 value = 0;
 	int err;
 
+	err = pm_runtime_resume_and_get(fuse->dev);
+	if (err)
+		return err;
+
 	mutex_lock(&fuse->apbdma.lock);
 
 	fuse->apbdma.config.src_addr = fuse->phys + FUSE_BEGIN + offset;
@@ -66,8 +71,6 @@ static u32 tegra20_fuse_read(struct tegra_fuse *fuse, unsigned int offset)
 
 	reinit_completion(&fuse->apbdma.wait);
 
-	clk_prepare_enable(fuse->clk);
-
 	dmaengine_submit(dma_desc);
 	dma_async_issue_pending(fuse->apbdma.chan);
 	time_left = wait_for_completion_timeout(&fuse->apbdma.wait,
@@ -78,10 +81,9 @@ static u32 tegra20_fuse_read(struct tegra_fuse *fuse, unsigned int offset)
 	else
 		value = *fuse->apbdma.virt;
 
-	clk_disable_unprepare(fuse->clk);
-
 out:
 	mutex_unlock(&fuse->apbdma.lock);
+	pm_runtime_put(fuse->dev);
 	return value;
 }
 
@@ -165,4 +167,5 @@ const struct tegra_fuse_soc tegra20_fuse_soc = {
 	.probe = tegra20_fuse_probe,
 	.info = &tegra20_fuse_info,
 	.soc_attr_group = &tegra_soc_attr_group,
+	.clk_suspend_on = false,
 };

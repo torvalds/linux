@@ -372,7 +372,7 @@ static int mlx5e_tx_reporter_diagnose(struct devlink_health_reporter *reporter,
 	for (i = 0; i < priv->channels.num; i++) {
 		struct mlx5e_channel *c = priv->channels.c[i];
 
-		for (tc = 0; tc < priv->channels.params.num_tc; tc++) {
+		for (tc = 0; tc < mlx5e_get_dcb_num_tc(&priv->channels.params); tc++) {
 			struct mlx5e_txqsq *sq = &c->sq[tc];
 
 			err = mlx5e_tx_reporter_build_diagnose_output(fmsg, sq, tc);
@@ -384,7 +384,7 @@ static int mlx5e_tx_reporter_diagnose(struct devlink_health_reporter *reporter,
 	if (!ptp_ch || !test_bit(MLX5E_PTP_STATE_TX, ptp_ch->state))
 		goto close_sqs_nest;
 
-	for (tc = 0; tc < priv->channels.params.num_tc; tc++) {
+	for (tc = 0; tc < mlx5e_get_dcb_num_tc(&priv->channels.params); tc++) {
 		err = mlx5e_tx_reporter_build_diagnose_output_ptpsq(fmsg,
 								    &ptp_ch->ptpsq[tc],
 								    tc);
@@ -494,7 +494,7 @@ static int mlx5e_tx_reporter_dump_all_sqs(struct mlx5e_priv *priv,
 	for (i = 0; i < priv->channels.num; i++) {
 		struct mlx5e_channel *c = priv->channels.c[i];
 
-		for (tc = 0; tc < priv->channels.params.num_tc; tc++) {
+		for (tc = 0; tc < mlx5e_get_dcb_num_tc(&priv->channels.params); tc++) {
 			struct mlx5e_txqsq *sq = &c->sq[tc];
 
 			err = mlx5e_health_queue_dump(priv, fmsg, sq->sqn, "SQ");
@@ -504,7 +504,7 @@ static int mlx5e_tx_reporter_dump_all_sqs(struct mlx5e_priv *priv,
 	}
 
 	if (ptp_ch && test_bit(MLX5E_PTP_STATE_TX, ptp_ch->state)) {
-		for (tc = 0; tc < priv->channels.params.num_tc; tc++) {
+		for (tc = 0; tc < mlx5e_get_dcb_num_tc(&priv->channels.params); tc++) {
 			struct mlx5e_txqsq *sq = &ptp_ch->ptpsq[tc].txqsq;
 
 			err = mlx5e_health_queue_dump(priv, fmsg, sq->sqn, "PTP SQ");
