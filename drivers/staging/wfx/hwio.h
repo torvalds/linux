@@ -72,4 +72,4 @@ int control_reg_write_bits(struct wfx_dev *wdev, u32 mask, u32 val);
 int igpr_reg_read(struct wfx_dev *wdev, int index, u32 *val);
 int igpr_reg_write(struct wfx_dev *wdev, int index, u32 val);
 
-#endif /* WFX_HWIO_H */
+#endif

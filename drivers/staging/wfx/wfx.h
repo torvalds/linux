@@ -161,4 +161,4 @@ static inline int memzcmp(void *src, unsigned int size)
 	return memcmp(buf, buf + 1, size - 1);
 }
 
-#endif /* WFX_H */
+#endif

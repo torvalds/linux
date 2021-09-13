@@ -42,4 +42,4 @@ unsigned int wfx_pending_get_pkt_us_delay(struct wfx_dev *wdev,
 					  struct sk_buff *skb);
 void wfx_pending_dump_old_frames(struct wfx_dev *wdev, unsigned int limit_ms);
 
-#endif /* WFX_QUEUE_H */
+#endif

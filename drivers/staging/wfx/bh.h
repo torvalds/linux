@@ -30,4 +30,4 @@ void wfx_bh_request_rx(struct wfx_dev *wdev);
 void wfx_bh_request_tx(struct wfx_dev *wdev);
 void wfx_bh_poll_irq(struct wfx_dev *wdev);
 
-#endif /* WFX_BH_H */
+#endif

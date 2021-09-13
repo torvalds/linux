@@ -65,4 +65,4 @@ static inline struct hif_req_tx *wfx_skb_txreq(struct sk_buff *skb)
 	return req;
 }
 
-#endif /* WFX_DATA_TX_H */
+#endif

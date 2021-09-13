@@ -17,4 +17,4 @@ int wfx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 		struct ieee80211_key_conf *key);
 
-#endif /* WFX_STA_H */
+#endif
