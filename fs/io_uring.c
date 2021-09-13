@@ -7579,6 +7579,8 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		return -EINVAL;
 	if (nr_args > IORING_MAX_FIXED_FILES)
 		return -EMFILE;
+	if (nr_args > rlimit(RLIMIT_NOFILE))
+		return -EMFILE;
 
 	file_data = kzalloc(sizeof(*ctx->file_data), GFP_KERNEL);
 	if (!file_data)
