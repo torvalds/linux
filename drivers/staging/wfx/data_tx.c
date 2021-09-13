@@ -285,15 +285,14 @@ static void wfx_tx_fixup_rates(struct ieee80211_tx_rate *rates)
 		rates[i].flags &= ~IEEE80211_TX_RC_SHORT_GI;
 }
 
-static u8 wfx_tx_get_rate_id(struct wfx_vif *wvif,
-			     struct ieee80211_tx_info *tx_info)
+static u8 wfx_tx_get_retry_policy_id(struct wfx_vif *wvif,
+				     struct ieee80211_tx_info *tx_info)
 {
 	bool tx_policy_renew = false;
-	u8 rate_id;
+	u8 ret;
 
-	rate_id = wfx_tx_policy_get(wvif,
-				    tx_info->driver_rates, &tx_policy_renew);
-	if (rate_id == HIF_TX_RETRY_POLICY_INVALID)
+	ret = wfx_tx_policy_get(wvif, tx_info->driver_rates, &tx_policy_renew);
+	if (ret == HIF_TX_RETRY_POLICY_INVALID)
 		dev_warn(wvif->wdev->dev, "unable to get a valid Tx policy");
 
 	if (tx_policy_renew) {
@@ -301,7 +300,7 @@ static u8 wfx_tx_get_rate_id(struct wfx_vif *wvif,
 		if (!schedule_work(&wvif->tx_policy_upload_work))
 			wfx_tx_unlock(wvif->wdev);
 	}
-	return rate_id;
+	return ret;
 }
 
 static int wfx_tx_get_frame_format(struct ieee80211_tx_info *tx_info)
@@ -382,7 +381,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	req->peer_sta_id = wfx_tx_get_link_id(wvif, sta, hdr);
 	// Queue index are inverted between firmware and Linux
 	req->queue_id = 3 - queue_id;
-	req->retry_policy_index = wfx_tx_get_rate_id(wvif, tx_info);
+	req->retry_policy_index = wfx_tx_get_retry_policy_id(wvif, tx_info);
 	req->frame_format = wfx_tx_get_frame_format(tx_info);
 	if (tx_info->driver_rates[0].flags & IEEE80211_TX_RC_SHORT_GI)
 		req->short_gi = 1;
