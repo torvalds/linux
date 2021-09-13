@@ -75,7 +75,7 @@ int hif_get_counters_table(struct wfx_dev *wdev, int vif_id,
 	} else {
 		return hif_read_mib(wdev, vif_id,
 				    HIF_MIB_ID_EXTENDED_COUNTERS_TABLE, arg,
-				sizeof(struct hif_mib_extended_count_table));
+				    sizeof(struct hif_mib_extended_count_table));
 	}
 }
 
