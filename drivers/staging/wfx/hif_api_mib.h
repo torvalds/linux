@@ -209,7 +209,7 @@ struct hif_mib_slot_time {
 } __packed;
 
 struct hif_mib_current_tx_power_level {
-	__le32 power_level; // signed value
+	__le32 power_level; /* signed value */
 } __packed;
 
 struct hif_mib_non_erp_protection {

@@ -92,7 +92,7 @@ static const struct ieee80211_supported_band wfx_band_2ghz = {
 	.bitrates = wfx_rates,
 	.n_bitrates = ARRAY_SIZE(wfx_rates),
 	.ht_cap = {
-		// Receive caps
+		/* Receive caps */
 		.cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20 |
 		       IEEE80211_HT_CAP_MAX_AMSDU |
 		       (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT),
@@ -100,7 +100,7 @@ static const struct ieee80211_supported_band wfx_band_2ghz = {
 		.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K,
 		.ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE,
 		.mcs = {
-			.rx_mask = { 0xFF }, // MCS0 to MCS7
+			.rx_mask = { 0xFF }, /* MCS0 to MCS7 */
 			.rx_highest = cpu_to_le16(72),
 			.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
 		},
@@ -294,7 +294,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	hw->wiphy->n_iface_combinations = ARRAY_SIZE(wfx_iface_combinations);
 	hw->wiphy->iface_combinations = wfx_iface_combinations;
 	hw->wiphy->bands[NL80211_BAND_2GHZ] = devm_kmalloc(dev, sizeof(wfx_band_2ghz), GFP_KERNEL);
-	// FIXME: also copy wfx_rates and wfx_2ghz_chantable
+	/* FIXME: also copy wfx_rates and wfx_2ghz_chantable */
 	memcpy(hw->wiphy->bands[NL80211_BAND_2GHZ], &wfx_band_2ghz,
 	       sizeof(wfx_band_2ghz));
 
@@ -336,8 +336,9 @@ int wfx_probe(struct wfx_dev *wdev)
 	int err;
 	struct gpio_desc *gpio_saved;
 
-	// During first part of boot, gpio_wakeup cannot yet been used. So
-	// prevent bh() to touch it.
+	/* During first part of boot, gpio_wakeup cannot yet been used. So
+	 * prevent bh() to touch it.
+	 */
 	gpio_saved = wdev->pdata.gpio_wakeup;
 	wdev->pdata.gpio_wakeup = NULL;
 	wdev->poll_irq = true;
@@ -360,7 +361,7 @@ int wfx_probe(struct wfx_dev *wdev)
 		goto err0;
 	}
 
-	// FIXME: fill wiphy::hw_version
+	/* FIXME: fill wiphy::hw_version */
 	dev_info(wdev->dev, "started firmware %d.%d.%d \"%s\" (API: %d.%d, keyset: %02X, caps: 0x%.8X)\n",
 		 wdev->hw_caps.firmware_major, wdev->hw_caps.firmware_minor,
 		 wdev->hw_caps.firmware_build, wdev->hw_caps.firmware_label,

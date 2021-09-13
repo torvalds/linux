@@ -84,10 +84,10 @@ static u8 fill_tkip_group(struct hif_tkip_group_key *msg,
 	memcpy(msg->tkip_key_data, keybuf, sizeof(msg->tkip_key_data));
 	keybuf += sizeof(msg->tkip_key_data);
 	if (iftype == NL80211_IFTYPE_AP)
-		// Use Tx MIC Key
+		/* Use Tx MIC Key */
 		memcpy(msg->rx_mic_key, keybuf + 0, sizeof(msg->rx_mic_key));
 	else
-		// Use Rx MIC Key
+		/* Use Rx MIC Key */
 		memcpy(msg->rx_mic_key, keybuf + 8, sizeof(msg->rx_mic_key));
 	return HIF_KEY_TYPE_TKIP_GROUP;
 }

@@ -32,18 +32,20 @@ static void device_wakeup(struct wfx_dev *wdev)
 	}
 	for (;;) {
 		gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 1);
-		// completion.h does not provide any function to wait
-		// completion without consume it (a kind of
-		// wait_for_completion_done_timeout()). So we have to emulate
-		// it.
+		/* completion.h does not provide any function to wait
+		 * completion without consume it (a kind of
+		 * wait_for_completion_done_timeout()). So we have to emulate
+		 * it.
+		 */
 		if (wait_for_completion_timeout(&wdev->hif.ctrl_ready,
 						msecs_to_jiffies(2))) {
 			complete(&wdev->hif.ctrl_ready);
 			return;
 		} else if (max_retry-- > 0) {
-			// Older firmwares have a race in sleep/wake-up process.
-			// Redo the process is sufficient to unfreeze the
-			// chip.
+			/* Older firmwares have a race in sleep/wake-up process.
+			 * Redo the process is sufficient to unfreeze the
+			 * chip.
+			 */
 			dev_err(wdev->dev, "timeout while wake up chip\n");
 			gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 0);
 			usleep_range(2000, 2500);
@@ -74,7 +76,7 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	WARN(read_len > round_down(0xFFF, 2) * sizeof(u16),
 	     "%s: request exceed the chip capability", __func__);
 
-	// Add 2 to take into account piggyback size
+	/* Add 2 to take into account piggyback size */
 	alloc_len = wdev->hwbus_ops->align_size(wdev->hwbus_priv, read_len + 2);
 	skb = dev_alloc_skb(alloc_len);
 	if (!skb)
@@ -119,7 +121,7 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	}
 
 	skb_put(skb, le16_to_cpu(hif->len));
-	// wfx_handle_rx takes care on SKB livetime
+	/* wfx_handle_rx takes care on SKB livetime */
 	wfx_handle_rx(wdev, skb);
 	if (!wdev->hif.tx_buffers_used)
 		wake_up(&wdev->hif.tx_buffers_empty);
@@ -148,7 +150,7 @@ static int bh_work_rx(struct wfx_dev *wdev, int max_msg, int *num_cnf)
 			ctrl_reg = 0;
 		if (!(ctrl_reg & CTRL_NEXT_LEN_MASK))
 			return i;
-		// ctrl_reg units are 16bits words
+		/* ctrl_reg units are 16bits words */
 		len = (ctrl_reg & CTRL_NEXT_LEN_MASK) * 2;
 		piggyback = rx_helper(wdev, len, num_cnf);
 		if (piggyback < 0)

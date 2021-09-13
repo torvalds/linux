@@ -134,7 +134,7 @@ struct hif_req_start_scan_alt {
 	u8     num_of_channels;
 	__le32 min_channel_time;
 	__le32 max_channel_time;
-	__le32 tx_power_level; // signed value
+	__le32 tx_power_level; /* signed value */
 	struct hif_ssid_def ssid_def[HIF_API_MAX_NB_SSIDS];
 	u8     channel_list[];
 } __packed;
@@ -174,8 +174,9 @@ enum hif_frame_format {
 };
 
 struct hif_req_tx {
-	// packet_id is not interpreted by the device, so it is not necessary to
-	// declare it little endian
+	/* packet_id is not interpreted by the device, so it is not necessary to
+	 * declare it little endian
+	 */
 	u32    packet_id;
 	u8     max_tx_rate;
 	u8     queue_id:2;
@@ -211,8 +212,9 @@ enum hif_qos_ackplcy {
 
 struct hif_cnf_tx {
 	__le32 status;
-	// packet_id is copied from struct hif_req_tx without been interpreted
-	// by the device, so it is not necessary to declare it little endian
+	/* packet_id is copied from struct hif_req_tx without been interpreted
+	 * by the device, so it is not necessary to declare it little endian
+	 */
 	u32    packet_id;
 	u8     txed_rate;
 	u8     ack_failures;

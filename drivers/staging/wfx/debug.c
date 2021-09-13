@@ -256,9 +256,10 @@ static ssize_t wfx_send_hif_msg_write(struct file *file,
 	if (count < sizeof(struct hif_msg))
 		return -EINVAL;
 
-	// wfx_cmd_send() checks that reply buffer is wide enough, but does not
-	// return precise length read. User have to know how many bytes should
-	// be read. Filling reply buffer with a memory pattern may help user.
+	/* wfx_cmd_send() checks that reply buffer is wide enough, but does not
+	 * return precise length read. User have to know how many bytes should
+	 * be read. Filling reply buffer with a memory pattern may help user.
+	 */
 	memset(context->reply, 0xFF, sizeof(context->reply));
 	request = memdup_user(user_buf, count);
 	if (IS_ERR(request))
@@ -288,8 +289,9 @@ static ssize_t wfx_send_hif_msg_read(struct file *file, char __user *user_buf,
 		return ret;
 	if (context->ret < 0)
 		return context->ret;
-	// Be careful, write() is waiting for a full message while read()
-	// only returns a payload
+	/* Be careful, write() is waiting for a full message while read()
+	 * only returns a payload
+	 */
 	if (copy_to_user(user_buf, context->reply, count))
 		return -EFAULT;
 

@@ -27,7 +27,7 @@ struct tx_policy {
 
 struct tx_policy_cache {
 	struct tx_policy cache[HIF_TX_RETRY_POLICY_MAX];
-	// FIXME: use a trees and drop hash from tx_policy
+	/* FIXME: use a trees and drop hash from tx_policy */
 	struct list_head used;
 	struct list_head free;
 	spinlock_t lock;

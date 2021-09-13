@@ -24,7 +24,7 @@ u32 wfx_rate_mask_to_hw(struct wfx_dev *wdev, u32 rates)
 {
 	int i;
 	u32 ret = 0;
-	// The device only supports 2GHz
+	/* The device only supports 2GHz */
 	struct ieee80211_supported_band *sband = wdev->hw->wiphy->bands[NL80211_BAND_2GHZ];
 
 	for (i = 0; i < sband->n_bitrates; i++) {
@@ -51,11 +51,11 @@ void wfx_cooling_timeout_work(struct work_struct *work)
 void wfx_suspend_hot_dev(struct wfx_dev *wdev, enum sta_notify_cmd cmd)
 {
 	if (cmd == STA_NOTIFY_AWAKE) {
-		// Device recover normal temperature
+		/* Device recover normal temperature */
 		if (cancel_delayed_work(&wdev->cooling_timeout_work))
 			wfx_tx_unlock(wdev);
 	} else {
-		// Device is too hot
+		/* Device is too hot */
 		schedule_delayed_work(&wdev->cooling_timeout_work, 10 * HZ);
 		wfx_tx_lock(wdev);
 	}
@@ -103,13 +103,14 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	struct wfx_dev *wdev = hw->priv;
 	bool filter_bssid, filter_prbreq, filter_beacon;
 
-	// Notes:
-	//   - Probe responses (FIF_BCN_PRBRESP_PROMISC) are never filtered
-	//   - PS-Poll (FIF_PSPOLL) are never filtered
-	//   - RTS, CTS and Ack (FIF_CONTROL) are always filtered
-	//   - Broken frames (FIF_FCSFAIL and FIF_PLCPFAIL) are always filtered
-	//   - Firmware does (yet) allow to forward unicast traffic sent to
-	//     other stations (aka. promiscuous mode)
+	/* Notes:
+	 *   - Probe responses (FIF_BCN_PRBRESP_PROMISC) are never filtered
+	 *   - PS-Poll (FIF_PSPOLL) are never filtered
+	 *   - RTS, CTS and Ack (FIF_CONTROL) are always filtered
+	 *   - Broken frames (FIF_FCSFAIL and FIF_PLCPFAIL) are always filtered
+	 *   - Firmware does (yet) allow to forward unicast traffic sent to
+	 *     other stations (aka. promiscuous mode)
+	 */
 	*total_flags &= FIF_BCN_PRBRESP_PROMISC | FIF_ALLMULTI | FIF_OTHER_BSS |
 			FIF_PROBE_REQ | FIF_PSPOLL;
 
@@ -117,8 +118,9 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
 		mutex_lock(&wvif->scan_lock);
 
-		// Note: FIF_BCN_PRBRESP_PROMISC covers probe response and
-		// beacons from other BSS
+		/* Note: FIF_BCN_PRBRESP_PROMISC covers probe response and
+		 * beacons from other BSS
+		 */
 		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
 			filter_beacon = false;
 		else
@@ -130,7 +132,7 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 		else
 			filter_bssid = true;
 
-		// In AP mode, chip can reply to probe request itself
+		/* In AP mode, chip can reply to probe request itself */
 		if (*total_flags & FIF_PROBE_REQ &&
 		    wvif->vif->type == NL80211_IFTYPE_AP) {
 			dev_dbg(wdev->dev, "do not forward probe request in AP mode\n");
@@ -161,15 +163,16 @@ static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 		chan1 = wdev_to_wvif(wvif->wdev, 1)->vif->bss_conf.chandef.chan;
 	if (chan0 && chan1 && wvif->vif->type != NL80211_IFTYPE_AP) {
 		if (chan0->hw_value == chan1->hw_value) {
-			// It is useless to enable PS if channels are the same.
+			/* It is useless to enable PS if channels are the same. */
 			if (enable_ps)
 				*enable_ps = false;
 			if (wvif->vif->bss_conf.assoc && wvif->vif->bss_conf.ps)
 				dev_info(wvif->wdev->dev, "ignoring requested PS mode");
 			return -1;
 		} else {
-			// It is necessary to enable PS if channels
-			// are different.
+			/* It is necessary to enable PS if channels
+			 * are different.
+			 */
 			if (enable_ps)
 				*enable_ps = true;
 			if (wvif->wdev->force_ps_timeout > -1)
@@ -305,7 +308,7 @@ int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (vif->type == NL80211_IFTYPE_STATION)
 		hif_set_mfp(wvif, sta->mfp, sta->mfp);
 
-	// In station mode, the firmware interprets new link-id as a TDLS peer.
+	/* In station mode, the firmware interprets new link-id as a TDLS peer */
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
 		return 0;
 	sta_priv->link_id = ffz(wvif->link_id_map);
@@ -323,10 +326,10 @@ int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
 
-	// See note in wfx_sta_add()
+	/* See note in wfx_sta_add() */
 	if (!sta_priv->link_id)
 		return 0;
-	// FIXME add a mutex?
+	/* FIXME add a mutex? */
 	hif_map_link(wvif, true, sta->addr, sta_priv->link_id, false);
 	wvif->link_id_map &= ~BIT(sta_priv->link_id);
 	return 0;
@@ -421,7 +424,7 @@ static void wfx_join(struct wfx_vif *wvif)
 		return;
 	}
 
-	rcu_read_lock(); // protect ssidie
+	rcu_read_lock(); /* protect ssidie */
 	if (bss)
 		ssidie = ieee80211_bss_get_ie(bss, WLAN_EID_SSID);
 	if (ssidie) {
@@ -457,7 +460,7 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	int ampdu_density = 0;
 	bool greenfield = false;
 
-	rcu_read_lock(); // protect sta
+	rcu_read_lock(); /* protect sta */
 	if (info->bssid && !info->ibss_joined)
 		sta = ieee80211_find_sta(wvif->vif, info->bssid);
 	if (sta && sta->ht_cap.ht_supported)
@@ -471,8 +474,9 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	hif_set_association_mode(wvif, ampdu_density, greenfield,
 				 info->use_short_preamble);
 	hif_keep_alive_period(wvif, 0);
-	// beacon_loss_count is defined to 7 in net/mac80211/mlme.c. Let's use
-	// the same value.
+	/* beacon_loss_count is defined to 7 in net/mac80211/mlme.c. Let's use
+	 * the same value.
+	 */
 	hif_set_bss_params(wvif, info->aid, 7);
 	hif_set_beacon_wakeup_period(wvif, 1, 1);
 	wfx_update_pm(wvif);
@@ -496,10 +500,11 @@ void wfx_leave_ibss(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 static void wfx_enable_beacon(struct wfx_vif *wvif, bool enable)
 {
-	// Driver has Content After DTIM Beacon in queue. Driver is waiting for
-	// a signal from the firmware. Since we are going to stop to send
-	// beacons, this signal will never happens. See also
-	// wfx_suspend_resume_mc()
+	/* Driver has Content After DTIM Beacon in queue. Driver is waiting for
+	 * a signal from the firmware. Since we are going to stop to send
+	 * beacons, this signal will never happens. See also
+	 * wfx_suspend_resume_mc()
+	 */
 	if (!enable && wfx_tx_queues_has_cab(wvif)) {
 		wvif->after_dtim_tx_allowed = true;
 		wfx_bh_request_tx(wvif->wdev);
@@ -539,8 +544,9 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 				 __func__);
 		hif_set_beacon_wakeup_period(wvif, info->dtim_period,
 					     info->dtim_period);
-		// We temporary forwarded beacon for join process. It is now no
-		// more necessary.
+		/* We temporary forwarded beacon for join process. It is now no
+		 * more necessary.
+		 */
 		wfx_filter_beacon(wvif, true);
 	}
 
@@ -662,14 +668,14 @@ int wfx_ampdu_action(struct ieee80211_hw *hw,
 		     struct ieee80211_vif *vif,
 		     struct ieee80211_ampdu_params *params)
 {
-	// Aggregation is implemented fully in firmware
+	/* Aggregation is implemented fully in firmware */
 	switch (params->action) {
 	case IEEE80211_AMPDU_RX_START:
 	case IEEE80211_AMPDU_RX_STOP:
-		// Just acknowledge it to enable frame re-ordering
+		/* Just acknowledge it to enable frame re-ordering */
 		return 0;
 	default:
-		// Leave the firmware doing its business for tx aggregation
+		/* Leave the firmware doing its business for tx aggregation */
 		return -EOPNOTSUPP;
 	}
 }
@@ -741,11 +747,11 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		return -EOPNOTSUPP;
 	}
 
-	// FIXME: prefer use of container_of() to get vif
+	/* FIXME: prefer use of container_of() to get vif */
 	wvif->vif = vif;
 	wvif->wdev = wdev;
 
-	wvif->link_id_map = 1; // link-id 0 is reserved for multicast
+	wvif->link_id_map = 1; /* link-id 0 is reserved for multicast */
 	INIT_WORK(&wvif->update_tim_work, wfx_update_tim_work);
 	INIT_DELAYED_WORK(&wvif->beacon_loss_work, wfx_beacon_loss_work);
 
@@ -775,7 +781,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	wvif = NULL;
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
-		// Combo mode does not support Block Acks. We can re-enable them
+		/* Combo mode does not support Block Acks. We can re-enable them */
 		if (wvif_count(wdev) == 1)
 			hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 		else
@@ -807,7 +813,7 @@ void wfx_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	wvif = NULL;
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
-		// Combo mode does not support Block Acks. We can re-enable them
+		/* Combo mode does not support Block Acks. We can re-enable them */
 		if (wvif_count(wdev) == 1)
 			hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 		else

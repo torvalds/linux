@@ -86,7 +86,7 @@ static int wfx_spi_copy_to_io(void *priv, unsigned int addr,
 {
 	struct wfx_spi_priv *bus = priv;
 	u16 regaddr = (addr << 12) | (count / 2);
-	// FIXME: use a bounce buffer
+	/* FIXME: use a bounce buffer */
 	u16 *src16 = (void *)src;
 	int ret, i;
 	struct spi_message      m;
@@ -104,8 +104,9 @@ static int wfx_spi_copy_to_io(void *priv, unsigned int addr,
 
 	cpu_to_le16s(&regaddr);
 
-	// Register address and CONFIG content always use 16bit big endian
-	// ("BADC" order)
+	/* Register address and CONFIG content always use 16bit big endian
+	 * ("BADC" order)
+	 */
 	if (bus->need_swab)
 		swab16s(&regaddr);
 	if (bus->need_swab && addr == WFX_REG_CONFIG)
@@ -163,7 +164,8 @@ static int wfx_spi_irq_unsubscribe(void *priv)
 
 static size_t wfx_spi_align_size(void *priv, size_t size)
 {
-	// Most of SPI controllers avoid DMA if buffer size is not 32bit aligned
+	/* Most of SPI controllers avoid DMA if buffer size is not 32bit aligned
+	 */
 	return ALIGN(size, 4);
 }
 
@@ -187,7 +189,7 @@ static int wfx_spi_probe(struct spi_device *func)
 	ret = spi_setup(func);
 	if (ret)
 		return ret;
-	// Trace below is also displayed by spi_setup() if compiled with DEBUG
+	/* Trace below is also displayed by spi_setup() if compiled with DEBUG */
 	dev_dbg(&func->dev, "SPI params: CS=%d, mode=%d bits/word=%d speed=%d\n",
 		func->chip_select, func->mode, func->bits_per_word,
 		func->max_speed_hz);
