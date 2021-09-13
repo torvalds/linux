@@ -70,7 +70,6 @@ struct pwrctrl_priv {
 	struct work_struct cpwm_event;
 	u8	bpower_saving;
 
-	u8	b_hw_radio_off;
 	u8	reg_rfoff;
 	u8	reg_pdnmode; /* powerdown mode */
 	u32	rfoff_reason;
