@@ -44,6 +44,26 @@ union hfi1_ipoib_flow {
 };
 
 /**
+ * struct ipoib_txreq - IPOIB transmit descriptor
+ * @txreq: sdma transmit request
+ * @sdma_hdr: 9b ib headers
+ * @sdma_status: status returned by sdma engine
+ * @complete: non-zero implies complete
+ * @priv: ipoib netdev private data
+ * @txq: txq on which skb was output
+ * @skb: skb to send
+ */
+struct ipoib_txreq {
+	struct sdma_txreq           txreq;
+	struct hfi1_sdma_header     sdma_hdr;
+	int                         sdma_status;
+	int                         complete;
+	struct hfi1_ipoib_dev_priv *priv;
+	struct hfi1_ipoib_txq      *txq;
+	struct sk_buff             *skb;
+};
+
+/**
  * struct hfi1_ipoib_circ_buf - List of items to be processed
  * @items: ring of items each a power of two size
  * @max_items: max items + 1 that the ring can contain
@@ -56,7 +76,6 @@ union hfi1_ipoib_flow {
  * @complete_txreqs: count of txreqs completed by sdma
  * @head: ring head
  */
-struct ipoib_txreq;
 struct hfi1_ipoib_circ_buf {
 	void *items;
 	u32 max_items;

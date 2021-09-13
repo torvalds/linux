@@ -22,26 +22,6 @@
 #define CIRC_NEXT(val, size) CIRC_ADD(val, 1, size)
 #define CIRC_PREV(val, size) CIRC_ADD(val, -1, size)
 
-/**
- * struct ipoib_txreq - IPOIB transmit descriptor
- * @txreq: sdma transmit request
- * @sdma_hdr: 9b ib headers
- * @sdma_status: status returned by sdma engine
- * @complete: non-zero implies complete
- * @priv: ipoib netdev private data
- * @txq: txq on which skb was output
- * @skb: skb to send
- */
-struct ipoib_txreq {
-	struct sdma_txreq           txreq;
-	struct hfi1_sdma_header     sdma_hdr;
-	int                         sdma_status;
-	int                         complete;
-	struct hfi1_ipoib_dev_priv *priv;
-	struct hfi1_ipoib_txq      *txq;
-	struct sk_buff             *skb;
-};
-
 struct ipoib_txparms {
 	struct hfi1_devdata        *dd;
 	struct rdma_ah_attr        *ah_attr;
@@ -187,6 +167,7 @@ static int hfi1_ipoib_poll_tx_ring(struct napi_struct *napi, int budget)
 		if (!smp_load_acquire(&tx->complete))
 			break;
 		tx->complete = 0;
+		trace_hfi1_tx_produce(tx, head);
 		hfi1_ipoib_free_tx(tx, budget);
 		head = CIRC_NEXT(head, max_tx);
 		tx =  hfi1_txreq_from_idx(tx_ring, head);
@@ -495,6 +476,7 @@ static int hfi1_ipoib_send_dma_single(struct net_device *dev,
 	}
 
 	tx_ring = &txq->tx_ring;
+	trace_hfi1_tx_consume(tx, tx_ring->tail);
 	/* consume tx */
 	smp_store_release(&tx_ring->tail, CIRC_NEXT(tx_ring->tail, tx_ring->max_items));
 	ret = hfi1_ipoib_submit_tx(txq, tx);
@@ -557,6 +539,7 @@ static int hfi1_ipoib_send_dma_list(struct net_device *dev,
 	}
 
 	tx_ring = &txq->tx_ring;
+	trace_hfi1_tx_consume(tx, tx_ring->tail);
 	/* consume tx */
 	smp_store_release(&tx_ring->tail, CIRC_NEXT(tx_ring->tail, tx_ring->max_items));
 	list_add_tail(&tx->txreq.list, &txq->tx_list);
