@@ -2808,104 +2808,68 @@ int wm_adsp1_init(struct wm_adsp *dsp)
 }
 EXPORT_SYMBOL_GPL(wm_adsp1_init);
 
-int wm_adsp1_event(struct snd_soc_dapm_widget *w,
-		   struct snd_kcontrol *kcontrol,
-		   int event)
+static int cs_dsp_adsp1_power_up(struct wm_adsp *dsp)
 {
-	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	struct wm_adsp *dsps = snd_soc_component_get_drvdata(component);
-	struct wm_adsp *dsp = &dsps[w->shift];
-	struct wm_coeff_ctl *ctl;
-	int ret;
 	unsigned int val;
-
-	dsp->component = component;
+	int ret;
 
 	mutex_lock(&dsp->pwr_lock);
 
-	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		regmap_update_bits(dsp->regmap, dsp->base + ADSP1_CONTROL_30,
-				   ADSP1_SYS_ENA, ADSP1_SYS_ENA);
+	regmap_update_bits(dsp->regmap, dsp->base + ADSP1_CONTROL_30,
+			   ADSP1_SYS_ENA, ADSP1_SYS_ENA);
 
-		/*
-		 * For simplicity set the DSP clock rate to be the
-		 * SYSCLK rate rather than making it configurable.
-		 */
-		if (dsp->sysclk_reg) {
-			ret = regmap_read(dsp->regmap, dsp->sysclk_reg, &val);
-			if (ret != 0) {
-				cs_dsp_err(dsp, "Failed to read SYSCLK state: %d\n", ret);
-				goto err_mutex;
-			}
-
-			val = (val & dsp->sysclk_mask) >> dsp->sysclk_shift;
-
-			ret = regmap_update_bits(dsp->regmap,
-						 dsp->base + ADSP1_CONTROL_31,
-						 ADSP1_CLK_SEL_MASK, val);
-			if (ret != 0) {
-				cs_dsp_err(dsp, "Failed to set clock rate: %d\n", ret);
-				goto err_mutex;
-			}
+	/*
+	 * For simplicity set the DSP clock rate to be the
+	 * SYSCLK rate rather than making it configurable.
+	 */
+	if (dsp->sysclk_reg) {
+		ret = regmap_read(dsp->regmap, dsp->sysclk_reg, &val);
+		if (ret != 0) {
+			cs_dsp_err(dsp, "Failed to read SYSCLK state: %d\n", ret);
+			goto err_mutex;
 		}
 
-		ret = cs_dsp_load(dsp);
-		if (ret != 0)
-			goto err_ena;
+		val = (val & dsp->sysclk_mask) >> dsp->sysclk_shift;
 
-		ret = cs_dsp_adsp1_setup_algs(dsp);
-		if (ret != 0)
-			goto err_ena;
-
-		ret = cs_dsp_load_coeff(dsp);
-		if (ret != 0)
-			goto err_ena;
-
-		/* Initialize caches for enabled and unset controls */
-		ret = cs_dsp_coeff_init_control_caches(dsp);
-		if (ret != 0)
-			goto err_ena;
-
-		/* Sync set controls */
-		ret = cs_dsp_coeff_sync_controls(dsp);
-		if (ret != 0)
-			goto err_ena;
-
-		dsp->booted = true;
-
-		/* Start the core running */
-		regmap_update_bits(dsp->regmap, dsp->base + ADSP1_CONTROL_30,
-				   ADSP1_CORE_ENA | ADSP1_START,
-				   ADSP1_CORE_ENA | ADSP1_START);
-
-		dsp->running = true;
-		break;
-
-	case SND_SOC_DAPM_PRE_PMD:
-		dsp->running = false;
-		dsp->booted = false;
-
-		/* Halt the core */
-		regmap_update_bits(dsp->regmap, dsp->base + ADSP1_CONTROL_30,
-				   ADSP1_CORE_ENA | ADSP1_START, 0);
-
-		regmap_update_bits(dsp->regmap, dsp->base + ADSP1_CONTROL_19,
-				   ADSP1_WDMA_BUFFER_LENGTH_MASK, 0);
-
-		regmap_update_bits(dsp->regmap, dsp->base + ADSP1_CONTROL_30,
-				   ADSP1_SYS_ENA, 0);
-
-		list_for_each_entry(ctl, &dsp->ctl_list, list)
-			ctl->enabled = 0;
-
-
-		cs_dsp_free_alg_regions(dsp);
-		break;
-
-	default:
-		break;
+		ret = regmap_update_bits(dsp->regmap,
+					 dsp->base + ADSP1_CONTROL_31,
+					 ADSP1_CLK_SEL_MASK, val);
+		if (ret != 0) {
+			cs_dsp_err(dsp, "Failed to set clock rate: %d\n", ret);
+			goto err_mutex;
+		}
 	}
+
+	ret = cs_dsp_load(dsp);
+	if (ret != 0)
+		goto err_ena;
+
+	ret = cs_dsp_adsp1_setup_algs(dsp);
+	if (ret != 0)
+		goto err_ena;
+
+	ret = cs_dsp_load_coeff(dsp);
+	if (ret != 0)
+		goto err_ena;
+
+	/* Initialize caches for enabled and unset controls */
+	ret = cs_dsp_coeff_init_control_caches(dsp);
+	if (ret != 0)
+		goto err_ena;
+
+	/* Sync set controls */
+	ret = cs_dsp_coeff_sync_controls(dsp);
+	if (ret != 0)
+		goto err_ena;
+
+	dsp->booted = true;
+
+	/* Start the core running */
+	regmap_update_bits(dsp->regmap, dsp->base + ADSP1_CONTROL_30,
+			   ADSP1_CORE_ENA | ADSP1_START,
+			   ADSP1_CORE_ENA | ADSP1_START);
+
+	dsp->running = true;
 
 	mutex_unlock(&dsp->pwr_lock);
 
@@ -2916,6 +2880,57 @@ err_ena:
 			   ADSP1_SYS_ENA, 0);
 err_mutex:
 	mutex_unlock(&dsp->pwr_lock);
+	return ret;
+}
+
+static void cs_dsp_adsp1_power_down(struct wm_adsp *dsp)
+{
+	struct wm_coeff_ctl *ctl;
+
+	mutex_lock(&dsp->pwr_lock);
+
+	dsp->running = false;
+	dsp->booted = false;
+
+	/* Halt the core */
+	regmap_update_bits(dsp->regmap, dsp->base + ADSP1_CONTROL_30,
+			   ADSP1_CORE_ENA | ADSP1_START, 0);
+
+	regmap_update_bits(dsp->regmap, dsp->base + ADSP1_CONTROL_19,
+			   ADSP1_WDMA_BUFFER_LENGTH_MASK, 0);
+
+	regmap_update_bits(dsp->regmap, dsp->base + ADSP1_CONTROL_30,
+			   ADSP1_SYS_ENA, 0);
+
+	list_for_each_entry(ctl, &dsp->ctl_list, list)
+		ctl->enabled = 0;
+
+	cs_dsp_free_alg_regions(dsp);
+
+	mutex_unlock(&dsp->pwr_lock);
+}
+
+int wm_adsp1_event(struct snd_soc_dapm_widget *w,
+		   struct snd_kcontrol *kcontrol,
+		   int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct wm_adsp *dsps = snd_soc_component_get_drvdata(component);
+	struct wm_adsp *dsp = &dsps[w->shift];
+	int ret = 0;
+
+	dsp->component = component;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		ret = cs_dsp_adsp1_power_up(dsp);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		cs_dsp_adsp1_power_down(dsp);
+		break;
+	default:
+		break;
+	}
 
 	return ret;
 }
@@ -3017,63 +3032,6 @@ static void cs_dsp_adsp2v2_disable_core(struct wm_adsp *dsp)
 	regmap_write(dsp->regmap, dsp->base + ADSP2_RDMA_CONFIG_1, 0);
 	regmap_write(dsp->regmap, dsp->base + ADSP2_WDMA_CONFIG_1, 0);
 	regmap_write(dsp->regmap, dsp->base + ADSP2V2_WDMA_CONFIG_2, 0);
-}
-
-static void wm_adsp_boot_work(struct work_struct *work)
-{
-	struct wm_adsp *dsp = container_of(work,
-					   struct wm_adsp,
-					   boot_work);
-	int ret;
-
-	mutex_lock(&dsp->pwr_lock);
-
-	if (dsp->ops->enable_memory) {
-		ret = dsp->ops->enable_memory(dsp);
-		if (ret != 0)
-			goto err_mutex;
-	}
-
-	if (dsp->ops->enable_core) {
-		ret = dsp->ops->enable_core(dsp);
-		if (ret != 0)
-			goto err_mem;
-	}
-
-	ret = cs_dsp_load(dsp);
-	if (ret != 0)
-		goto err_ena;
-
-	ret = dsp->ops->setup_algs(dsp);
-	if (ret != 0)
-		goto err_ena;
-
-	ret = cs_dsp_load_coeff(dsp);
-	if (ret != 0)
-		goto err_ena;
-
-	/* Initialize caches for enabled and unset controls */
-	ret = cs_dsp_coeff_init_control_caches(dsp);
-	if (ret != 0)
-		goto err_ena;
-
-	if (dsp->ops->disable_core)
-		dsp->ops->disable_core(dsp);
-
-	dsp->booted = true;
-
-	mutex_unlock(&dsp->pwr_lock);
-
-	return;
-
-err_ena:
-	if (dsp->ops->disable_core)
-		dsp->ops->disable_core(dsp);
-err_mem:
-	if (dsp->ops->disable_memory)
-		dsp->ops->disable_memory(dsp);
-err_mutex:
-	mutex_unlock(&dsp->pwr_lock);
 }
 
 static int cs_dsp_halo_configure_mpu(struct wm_adsp *dsp, unsigned int lock_regions)
@@ -3185,39 +3143,108 @@ static void cs_dsp_halo_stop_watchdog(struct wm_adsp *dsp)
 			   HALO_WDT_EN_MASK, 0);
 }
 
+static void cs_dsp_power_up(struct wm_adsp *dsp)
+{
+	int ret;
+
+	mutex_lock(&dsp->pwr_lock);
+
+	if (dsp->ops->enable_memory) {
+		ret = dsp->ops->enable_memory(dsp);
+		if (ret != 0)
+			goto err_mutex;
+	}
+
+	if (dsp->ops->enable_core) {
+		ret = dsp->ops->enable_core(dsp);
+		if (ret != 0)
+			goto err_mem;
+	}
+
+	ret = cs_dsp_load(dsp);
+	if (ret != 0)
+		goto err_ena;
+
+	ret = dsp->ops->setup_algs(dsp);
+	if (ret != 0)
+		goto err_ena;
+
+	ret = cs_dsp_load_coeff(dsp);
+	if (ret != 0)
+		goto err_ena;
+
+	/* Initialize caches for enabled and unset controls */
+	ret = cs_dsp_coeff_init_control_caches(dsp);
+	if (ret != 0)
+		goto err_ena;
+
+	if (dsp->ops->disable_core)
+		dsp->ops->disable_core(dsp);
+
+	dsp->booted = true;
+
+	mutex_unlock(&dsp->pwr_lock);
+
+	return;
+
+err_ena:
+	if (dsp->ops->disable_core)
+		dsp->ops->disable_core(dsp);
+err_mem:
+	if (dsp->ops->disable_memory)
+		dsp->ops->disable_memory(dsp);
+err_mutex:
+	mutex_unlock(&dsp->pwr_lock);
+}
+
+static void cs_dsp_power_down(struct wm_adsp *dsp)
+{
+	struct wm_coeff_ctl *ctl;
+
+	mutex_lock(&dsp->pwr_lock);
+
+	cs_dsp_debugfs_clear(dsp);
+
+	dsp->fw_id = 0;
+	dsp->fw_id_version = 0;
+
+	dsp->booted = false;
+
+	if (dsp->ops->disable_memory)
+		dsp->ops->disable_memory(dsp);
+
+	list_for_each_entry(ctl, &dsp->ctl_list, list)
+		ctl->enabled = 0;
+
+	cs_dsp_free_alg_regions(dsp);
+
+	mutex_unlock(&dsp->pwr_lock);
+
+	cs_dsp_dbg(dsp, "Shutdown complete\n");
+}
+
+static void wm_adsp_boot_work(struct work_struct *work)
+{
+	struct wm_adsp *dsp = container_of(work,
+					   struct wm_adsp,
+					   boot_work);
+
+	cs_dsp_power_up(dsp);
+}
+
 int wm_adsp_early_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct wm_adsp *dsps = snd_soc_component_get_drvdata(component);
 	struct wm_adsp *dsp = &dsps[w->shift];
-	struct wm_coeff_ctl *ctl;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		queue_work(system_unbound_wq, &dsp->boot_work);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		mutex_lock(&dsp->pwr_lock);
-
-		cs_dsp_debugfs_clear(dsp);
-
-		dsp->fw_id = 0;
-		dsp->fw_id_version = 0;
-
-		dsp->booted = false;
-
-		if (dsp->ops->disable_memory)
-			dsp->ops->disable_memory(dsp);
-
-		list_for_each_entry(ctl, &dsp->ctl_list, list)
-			ctl->enabled = 0;
-
-		cs_dsp_free_alg_regions(dsp);
-
-		mutex_unlock(&dsp->pwr_lock);
-
-		cs_dsp_dbg(dsp, "Shutdown complete\n");
+		cs_dsp_power_down(dsp);
 		break;
 	default:
 		break;
@@ -3240,102 +3267,126 @@ static void cs_dsp_adsp2_stop_core(struct wm_adsp *dsp)
 			   ADSP2_CORE_ENA | ADSP2_START, 0);
 }
 
-int wm_adsp_event(struct snd_soc_dapm_widget *w,
-		  struct snd_kcontrol *kcontrol, int event)
+static int wm_adsp_event_post_run(struct wm_adsp *dsp)
 {
-	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	struct wm_adsp *dsps = snd_soc_component_get_drvdata(component);
-	struct wm_adsp *dsp = &dsps[w->shift];
-	int ret;
-
-	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		flush_work(&dsp->boot_work);
-
-		mutex_lock(&dsp->pwr_lock);
-
-		if (!dsp->booted) {
-			ret = -EIO;
-			goto err;
-		}
-
-		if (dsp->ops->enable_core) {
-			ret = dsp->ops->enable_core(dsp);
-			if (ret != 0)
-				goto err;
-		}
-
-		/* Sync set controls */
-		ret = cs_dsp_coeff_sync_controls(dsp);
-		if (ret != 0)
-			goto err;
-
-		if (dsp->ops->lock_memory) {
-			ret = dsp->ops->lock_memory(dsp, dsp->lock_regions);
-			if (ret != 0) {
-				cs_dsp_err(dsp, "Error configuring MPU: %d\n", ret);
-				goto err;
-			}
-		}
-
-		if (dsp->ops->start_core) {
-			ret = dsp->ops->start_core(dsp);
-			if (ret != 0)
-				goto err;
-		}
-
-		dsp->running = true;
-
-		if (wm_adsp_fw[dsp->fw].num_caps != 0) {
-			ret = wm_adsp_buffer_init(dsp);
-			if (ret < 0)
-				goto err;
-		}
-
-		mutex_unlock(&dsp->pwr_lock);
-		break;
-
-	case SND_SOC_DAPM_PRE_PMD:
-		/* Tell the firmware to cleanup */
-		cs_dsp_signal_event_controls(dsp, CS_DSP_FW_EVENT_SHUTDOWN);
-
-		if (dsp->ops->stop_watchdog)
-			dsp->ops->stop_watchdog(dsp);
-
-		/* Log firmware state, it can be useful for analysis */
-		if (dsp->ops->show_fw_status)
-			dsp->ops->show_fw_status(dsp);
-
-		mutex_lock(&dsp->pwr_lock);
-
-		dsp->running = false;
-
-		if (dsp->ops->stop_core)
-			dsp->ops->stop_core(dsp);
-		if (dsp->ops->disable_core)
-			dsp->ops->disable_core(dsp);
-
-		if (wm_adsp_fw[dsp->fw].num_caps != 0)
-			wm_adsp_buffer_free(dsp);
-
-		dsp->fatal_error = false;
-
-		mutex_unlock(&dsp->pwr_lock);
-
-		cs_dsp_dbg(dsp, "Execution stopped\n");
-		break;
-
-	default:
-		break;
-	}
+	if (wm_adsp_fw[dsp->fw].num_caps != 0)
+		return wm_adsp_buffer_init(dsp);
 
 	return 0;
+}
+
+static void wm_adsp_event_post_stop(struct wm_adsp *dsp)
+{
+	if (wm_adsp_fw[dsp->fw].num_caps != 0)
+		wm_adsp_buffer_free(dsp);
+
+	dsp->fatal_error = false;
+}
+
+static int cs_dsp_run(struct wm_adsp *dsp)
+{
+	int ret;
+
+	mutex_lock(&dsp->pwr_lock);
+
+	if (!dsp->booted) {
+		ret = -EIO;
+		goto err;
+	}
+
+	if (dsp->ops->enable_core) {
+		ret = dsp->ops->enable_core(dsp);
+		if (ret != 0)
+			goto err;
+	}
+
+	/* Sync set controls */
+	ret = cs_dsp_coeff_sync_controls(dsp);
+	if (ret != 0)
+		goto err;
+
+	if (dsp->ops->lock_memory) {
+		ret = dsp->ops->lock_memory(dsp, dsp->lock_regions);
+		if (ret != 0) {
+			cs_dsp_err(dsp, "Error configuring MPU: %d\n", ret);
+			goto err;
+		}
+	}
+
+	if (dsp->ops->start_core) {
+		ret = dsp->ops->start_core(dsp);
+		if (ret != 0)
+			goto err;
+	}
+
+	dsp->running = true;
+
+	ret = wm_adsp_event_post_run(dsp);
+	if (ret < 0)
+		goto err;
+
+	mutex_unlock(&dsp->pwr_lock);
+
+	return 0;
+
 err:
 	if (dsp->ops->stop_core)
 		dsp->ops->stop_core(dsp);
 	if (dsp->ops->disable_core)
 		dsp->ops->disable_core(dsp);
 	mutex_unlock(&dsp->pwr_lock);
+
+	return ret;
+}
+
+static void cs_dsp_stop(struct wm_adsp *dsp)
+{
+	/* Tell the firmware to cleanup */
+	cs_dsp_signal_event_controls(dsp, CS_DSP_FW_EVENT_SHUTDOWN);
+
+	if (dsp->ops->stop_watchdog)
+		dsp->ops->stop_watchdog(dsp);
+
+	/* Log firmware state, it can be useful for analysis */
+	if (dsp->ops->show_fw_status)
+		dsp->ops->show_fw_status(dsp);
+
+	mutex_lock(&dsp->pwr_lock);
+
+	dsp->running = false;
+
+	if (dsp->ops->stop_core)
+		dsp->ops->stop_core(dsp);
+	if (dsp->ops->disable_core)
+		dsp->ops->disable_core(dsp);
+
+	wm_adsp_event_post_stop(dsp);
+
+	mutex_unlock(&dsp->pwr_lock);
+
+	cs_dsp_dbg(dsp, "Execution stopped\n");
+}
+
+int wm_adsp_event(struct snd_soc_dapm_widget *w,
+		  struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct wm_adsp *dsps = snd_soc_component_get_drvdata(component);
+	struct wm_adsp *dsp = &dsps[w->shift];
+	int ret = 0;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		flush_work(&dsp->boot_work);
+		ret = cs_dsp_run(dsp);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		cs_dsp_stop(dsp);
+		break;
+	default:
+		break;
+	}
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm_adsp_event);
