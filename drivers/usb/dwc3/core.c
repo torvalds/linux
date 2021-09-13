@@ -114,13 +114,12 @@ void dwc3_set_prtcap(struct dwc3 *dwc, u32 mode)
 	dwc->current_dr_role = mode;
 }
 
-static int dwc3_core_soft_reset(struct dwc3 *dwc);
-
 static void __dwc3_set_mode(struct work_struct *work)
 {
 	struct dwc3 *dwc = work_to_dwc(work);
 	unsigned long flags;
 	int ret;
+	int retries = 1000;
 	u32 reg;
 
 	mutex_lock(&dwc->mutex);
@@ -201,7 +200,26 @@ static void __dwc3_set_mode(struct work_struct *work)
 		}
 		break;
 	case DWC3_GCTL_PRTCAP_DEVICE:
-		dwc3_core_soft_reset(dwc);
+		reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+		reg |= DWC3_DCTL_CSFTRST;
+		dwc3_writel(dwc->regs, DWC3_DCTL, reg);
+
+		if (DWC3_VER_IS_WITHIN(DWC31, 190A, ANY) || DWC3_IP_IS(DWC32))
+			retries = 10;
+
+		do {
+			reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+			if (!(reg & DWC3_DCTL_CSFTRST))
+				goto done;
+
+			if (DWC3_VER_IS_WITHIN(DWC31, 190A, ANY) || DWC3_IP_IS(DWC32))
+				msleep(20);
+			else
+				udelay(1);
+		} while (--retries);
+done:
+		if (DWC3_VER_IS_WITHIN(DWC31, ANY, 180A))
+			msleep(50);
 
 		dwc3_event_buffers_setup(dwc);
 
