@@ -207,6 +207,10 @@
 	};
 };
 
+&qfprom {
+	vcc-supply = <&vreg_l1c_1p8>;
+};
+
 &qupv3_id_0 {
 	status = "okay";
 };
