@@ -151,7 +151,6 @@ enum { /*  for ips_mode */
 
 struct pwrctrl_priv {
 	struct semaphore lock;
-	volatile u8 rpwm; /*  requested power state for fw */
 	volatile u8 cpwm_tog; /*  toggling */
 
 	u8	pwr_mode;
@@ -233,7 +232,6 @@ void rtw_free_pwrctrl_priv(struct adapter *adapter);
 
 void rtw_set_ps_mode(struct adapter *adapter, u8 ps_mode, u8 smart_ps,
 		     u8 bcn_ant_mode);
-void rtw_set_rpwm(struct adapter *adapter, u8 val8);
 void LeaveAllPowerSaveMode(struct adapter *adapter);
 void ips_enter(struct adapter *padapter);
 int ips_leave(struct adapter *padapter);

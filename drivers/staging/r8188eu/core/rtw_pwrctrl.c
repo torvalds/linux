@@ -166,35 +166,6 @@ static void pwr_state_check_handler(struct timer_list *t)
 	rtw_ps_cmd(padapter);
 }
 
-/*
- *
- * Parameters
- *	padapter
- *	pslv			power state level, only could be PS_STATE_S0 ~ PS_STATE_S4
- *
- */
-void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
-{
-	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
-
-	pslv = PS_STATE(pslv);
-
-	if (pwrpriv->rpwm == pslv)
-		return;
-
-	if ((padapter->bSurpriseRemoved) ||
-	    (!padapter->hw_init_completed)) {
-		return;
-	}
-
-	if (padapter->bDriverStopped) {
-		if (pslv < PS_STATE_S2)
-			return;
-	}
-
-	pwrpriv->rpwm = pslv;
-}
-
 static u8 PS_RDY_CHECK(struct adapter *padapter)
 {
 	u32 curr_time, delta_time;
@@ -244,7 +215,6 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 		if (pwdinfo->opp_ps == 0) {
 			DBG_88E("rtw_set_ps_mode: Leave 802.11 power save\n");
 			pwrpriv->pwr_mode = ps_mode;
-			rtw_set_rpwm(padapter, PS_STATE_S4);
 			rtw_hal_set_hwreg(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)(&ps_mode));
 			pwrpriv->bFwCurrentInPSMode = false;
 		}
@@ -260,8 +230,6 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 			/*  Set CTWindow after LPS */
 			if (pwdinfo->opp_ps == 1)
 				p2p_ps_wk_cmd(padapter, P2P_PS_ENABLE, 0);
-
-			rtw_set_rpwm(padapter, PS_STATE_S2);
 		}
 	}
 
@@ -395,8 +363,6 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 	pwrctrlpriv->bLeisurePs = (PS_MODE_ACTIVE != pwrctrlpriv->power_mgnt) ? true : false;
 
 	pwrctrlpriv->bFwCurrentInPSMode = false;
-
-	pwrctrlpriv->rpwm = 0;
 
 	pwrctrlpriv->pwr_mode = PS_MODE_ACTIVE;
 	pwrctrlpriv->smart_ps = padapter->registrypriv.smart_ps;
