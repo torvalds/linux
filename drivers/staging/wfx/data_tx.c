@@ -376,15 +376,15 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	req->packet_id |= queue_id << 28;
 
 	req->fc_offset = offset;
-	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
-		req->after_dtim = 1;
-	req->peer_sta_id = wfx_tx_get_link_id(wvif, sta, hdr);
 	// Queue index are inverted between firmware and Linux
 	req->queue_id = 3 - queue_id;
+	req->peer_sta_id = wfx_tx_get_link_id(wvif, sta, hdr);
 	req->retry_policy_index = wfx_tx_get_retry_policy_id(wvif, tx_info);
 	req->frame_format = wfx_tx_get_frame_format(tx_info);
 	if (tx_info->driver_rates[0].flags & IEEE80211_TX_RC_SHORT_GI)
 		req->short_gi = 1;
+	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
+		req->after_dtim = 1;
 
 	// Auxiliary operations
 	wfx_tx_queues_put(wvif, skb);
