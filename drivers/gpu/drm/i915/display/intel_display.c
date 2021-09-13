@@ -5599,20 +5599,26 @@ out:
 	return ret;
 }
 
+static u8 hsw_panel_transcoders(struct drm_i915_private *i915)
+{
+	u8 panel_transcoder_mask = BIT(TRANSCODER_EDP);
+
+	if (DISPLAY_VER(i915) >= 11)
+		panel_transcoder_mask |= BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1);
+
+	return panel_transcoder_mask;
+}
+
 static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 				     struct intel_crtc_state *pipe_config,
 				     struct intel_display_power_domain_set *power_domain_set)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	unsigned long panel_transcoder_mask = BIT(TRANSCODER_EDP);
+	u8 panel_transcoder_mask = hsw_panel_transcoders(dev_priv);
 	unsigned long enabled_panel_transcoders = 0;
 	enum transcoder panel_transcoder;
 	u32 tmp;
-
-	if (DISPLAY_VER(dev_priv) >= 11)
-		panel_transcoder_mask |=
-			BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1);
 
 	/*
 	 * The pipe->transcoder mapping is fixed with the exception of the eDP
