@@ -313,7 +313,7 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	int (*old_handler)(struct pt_regs *regs);
 
 	/* Avoid hardlocking with irresponsive CPU holding logbuf_lock */
-	printk_nmi_enter();
+	printk_deferred_enter();
 
 	/*
 	 * This function is only called after the system

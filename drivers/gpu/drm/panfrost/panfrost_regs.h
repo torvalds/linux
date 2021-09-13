@@ -262,9 +262,6 @@
 #define JS_COMMAND_SOFT_STOP_1		0x06	/* Execute SOFT_STOP if JOB_CHAIN_FLAG is 1 */
 #define JS_COMMAND_HARD_STOP_1		0x07	/* Execute HARD_STOP if JOB_CHAIN_FLAG is 1 */
 
-#define JS_STATUS_EVENT_ACTIVE		0x08
-
-
 /* MMU regs */
 #define MMU_INT_RAWSTAT			0x2000
 #define MMU_INT_CLEAR			0x2004

@@ -21,16 +21,14 @@ int __init fscache_proc_init(void)
 	if (!proc_mkdir("fs/fscache", NULL))
 		goto error_dir;
 
+	if (!proc_create_seq("fs/fscache/cookies", S_IFREG | 0444, NULL,
+			     &fscache_cookies_seq_ops))
+		goto error_cookies;
+
 #ifdef CONFIG_FSCACHE_STATS
 	if (!proc_create_single("fs/fscache/stats", S_IFREG | 0444, NULL,
 			fscache_stats_show))
 		goto error_stats;
-#endif
-
-#ifdef CONFIG_FSCACHE_HISTOGRAM
-	if (!proc_create_seq("fs/fscache/histogram", S_IFREG | 0444, NULL,
-			 &fscache_histogram_ops))
-		goto error_histogram;
 #endif
 
 #ifdef CONFIG_FSCACHE_OBJECT_LIST
@@ -45,14 +43,12 @@ int __init fscache_proc_init(void)
 #ifdef CONFIG_FSCACHE_OBJECT_LIST
 error_objects:
 #endif
-#ifdef CONFIG_FSCACHE_HISTOGRAM
-	remove_proc_entry("fs/fscache/histogram", NULL);
-error_histogram:
-#endif
 #ifdef CONFIG_FSCACHE_STATS
 	remove_proc_entry("fs/fscache/stats", NULL);
 error_stats:
 #endif
+	remove_proc_entry("fs/fscache/cookies", NULL);
+error_cookies:
 	remove_proc_entry("fs/fscache", NULL);
 error_dir:
 	_leave(" = -ENOMEM");
@@ -67,11 +63,9 @@ void fscache_proc_cleanup(void)
 #ifdef CONFIG_FSCACHE_OBJECT_LIST
 	remove_proc_entry("fs/fscache/objects", NULL);
 #endif
-#ifdef CONFIG_FSCACHE_HISTOGRAM
-	remove_proc_entry("fs/fscache/histogram", NULL);
-#endif
 #ifdef CONFIG_FSCACHE_STATS
 	remove_proc_entry("fs/fscache/stats", NULL);
 #endif
+	remove_proc_entry("fs/fscache/cookies", NULL);
 	remove_proc_entry("fs/fscache", NULL);
 }

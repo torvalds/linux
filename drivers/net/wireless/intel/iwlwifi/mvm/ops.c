@@ -686,6 +686,7 @@ static int iwl_mvm_start_get_nvm(struct iwl_mvm *mvm)
 {
 	int ret;
 
+	rtnl_lock();
 	mutex_lock(&mvm->mutex);
 
 	ret = iwl_run_init_mvm_ucode(mvm);

@@ -618,15 +618,9 @@ call_fpe:
 	W(b)	do_fpe				@ CP#1 (FPE)
 	W(b)	do_fpe				@ CP#2 (FPE)
 	ret.w	lr				@ CP#3
-#ifdef CONFIG_CRUNCH
-	b	crunch_task_enable		@ CP#4 (MaverickCrunch)
-	b	crunch_task_enable		@ CP#5 (MaverickCrunch)
-	b	crunch_task_enable		@ CP#6 (MaverickCrunch)
-#else
 	ret.w	lr				@ CP#4
 	ret.w	lr				@ CP#5
 	ret.w	lr				@ CP#6
-#endif
 	ret.w	lr				@ CP#7
 	ret.w	lr				@ CP#8
 	ret.w	lr				@ CP#9

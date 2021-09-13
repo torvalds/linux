@@ -235,14 +235,15 @@ struct prctl_mm_map {
 #define PR_GET_TAGGED_ADDR_CTRL		56
 # define PR_TAGGED_ADDR_ENABLE		(1UL << 0)
 /* MTE tag check fault modes */
-# define PR_MTE_TCF_SHIFT		1
-# define PR_MTE_TCF_NONE		(0UL << PR_MTE_TCF_SHIFT)
-# define PR_MTE_TCF_SYNC		(1UL << PR_MTE_TCF_SHIFT)
-# define PR_MTE_TCF_ASYNC		(2UL << PR_MTE_TCF_SHIFT)
-# define PR_MTE_TCF_MASK		(3UL << PR_MTE_TCF_SHIFT)
+# define PR_MTE_TCF_NONE		0
+# define PR_MTE_TCF_SYNC		(1UL << 1)
+# define PR_MTE_TCF_ASYNC		(1UL << 2)
+# define PR_MTE_TCF_MASK		(PR_MTE_TCF_SYNC | PR_MTE_TCF_ASYNC)
 /* MTE tag inclusion mask */
 # define PR_MTE_TAG_SHIFT		3
 # define PR_MTE_TAG_MASK		(0xffffUL << PR_MTE_TAG_SHIFT)
+/* Unused; kept only for source compatibility */
+# define PR_MTE_TCF_SHIFT		1
 
 /* Control reclaim behavior when allocating memory */
 #define PR_SET_IO_FLUSHER		57

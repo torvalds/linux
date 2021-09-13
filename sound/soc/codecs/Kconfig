@@ -848,7 +848,7 @@ config SND_SOC_HDAC_HDA
 	select SND_HDA
 
 config SND_SOC_ICS43432
-	tristate
+	tristate "ICS43423 and compatible i2s microphones"
 
 config SND_SOC_INNO_RK3036
 	tristate "Inno codec driver for RK3036 SoC"
@@ -1582,6 +1582,7 @@ config SND_SOC_WCD938X
 config SND_SOC_WCD938X_SDW
 	tristate "WCD9380/WCD9385 Codec - SDW"
 	select SND_SOC_WCD938X
+	select SND_SOC_WCD_MBHC
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
 	help

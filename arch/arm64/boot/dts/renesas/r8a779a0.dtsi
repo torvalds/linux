@@ -327,6 +327,19 @@
 			#power-domain-cells = <1>;
 		};
 
+		tsc: thermal@e6190000 {
+			compatible = "renesas,r8a779a0-thermal";
+			reg = <0 0xe6190000 0 0x200>,
+			      <0 0xe6198000 0 0x200>,
+			      <0 0xe61a0000 0 0x200>,
+			      <0 0xe61a8000 0 0x200>,
+			      <0 0xe61b0000 0 0x200>;
+			clocks = <&cpg CPG_MOD 919>;
+			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
+			resets = <&cpg 919>;
+			#thermal-sensor-cells = <1>;
+		};
+
 		tmu0: timer@e61e0000 {
 			compatible = "renesas,tmu-r8a779a0", "renesas,tmu";
 			reg = <0 0xe61e0000 0 0x30>;
@@ -390,19 +403,6 @@
 			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
 			resets = <&cpg 717>;
 			status = "disabled";
-		};
-
-		tsc: thermal@e6190000 {
-			compatible = "renesas,r8a779a0-thermal";
-			reg = <0 0xe6190000 0 0x200>,
-			      <0 0xe6198000 0 0x200>,
-			      <0 0xe61a0000 0 0x200>,
-			      <0 0xe61a8000 0 0x200>,
-			      <0 0xe61b0000 0 0x200>;
-			clocks = <&cpg CPG_MOD 919>;
-			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
-			resets = <&cpg 919>;
-			#thermal-sensor-cells = <1>;
 		};
 
 		i2c0: i2c@e6500000 {

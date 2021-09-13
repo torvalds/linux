@@ -4,6 +4,7 @@
  * Authors: Joonyoung Shim <jy0922.shim@samsung.com>
  */
 
+#include <linux/refcount.h>
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/delay.h>
@@ -208,7 +209,7 @@ struct g2d_cmdlist_userptr {
 	struct page		**pages;
 	unsigned int		npages;
 	struct sg_table		*sgt;
-	atomic_t		refcount;
+	refcount_t		refcount;
 	bool			in_pool;
 	bool			out_of_list;
 };
@@ -386,9 +387,9 @@ static void g2d_userptr_put_dma_addr(struct g2d_data *g2d,
 	if (force)
 		goto out;
 
-	atomic_dec(&g2d_userptr->refcount);
+	refcount_dec(&g2d_userptr->refcount);
 
-	if (atomic_read(&g2d_userptr->refcount) > 0)
+	if (refcount_read(&g2d_userptr->refcount) > 0)
 		return;
 
 	if (g2d_userptr->in_pool)
@@ -436,7 +437,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct g2d_data *g2d,
 			 * and different size.
 			 */
 			if (g2d_userptr->size == size) {
-				atomic_inc(&g2d_userptr->refcount);
+				refcount_inc(&g2d_userptr->refcount);
 				*obj = g2d_userptr;
 
 				return &g2d_userptr->dma_addr;
@@ -461,7 +462,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct g2d_data *g2d,
 	if (!g2d_userptr)
 		return ERR_PTR(-ENOMEM);
 
-	atomic_set(&g2d_userptr->refcount, 1);
+	refcount_set(&g2d_userptr->refcount, 1);
 	g2d_userptr->size = size;
 
 	start = userptr & PAGE_MASK;
@@ -897,13 +898,14 @@ static void g2d_runqueue_worker(struct work_struct *work)
 			ret = pm_runtime_resume_and_get(g2d->dev);
 			if (ret < 0) {
 				dev_err(g2d->dev, "failed to enable G2D device.\n");
-				return;
+				goto out;
 			}
 
 			g2d_dma_start(g2d, g2d->runqueue_node);
 		}
 	}
 
+out:
 	mutex_unlock(&g2d->runqueue_mutex);
 }
 

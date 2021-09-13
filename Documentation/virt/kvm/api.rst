@@ -5077,7 +5077,7 @@ of bytes successfully copied is returned. If the call completes successfully
 then ``length`` is returned.
 
 4.131 KVM_GET_SREGS2
-------------------
+--------------------
 
 :Capability: KVM_CAP_SREGS2
 :Architectures: x86
@@ -5090,17 +5090,17 @@ This ioctl (when supported) replaces the KVM_GET_SREGS.
 
 ::
 
-struct kvm_sregs2 {
-	/* out (KVM_GET_SREGS2) / in (KVM_SET_SREGS2) */
-	struct kvm_segment cs, ds, es, fs, gs, ss;
-	struct kvm_segment tr, ldt;
-	struct kvm_dtable gdt, idt;
-	__u64 cr0, cr2, cr3, cr4, cr8;
-	__u64 efer;
-	__u64 apic_base;
-	__u64 flags;
-	__u64 pdptrs[4];
-};
+        struct kvm_sregs2 {
+                /* out (KVM_GET_SREGS2) / in (KVM_SET_SREGS2) */
+                struct kvm_segment cs, ds, es, fs, gs, ss;
+                struct kvm_segment tr, ldt;
+                struct kvm_dtable gdt, idt;
+                __u64 cr0, cr2, cr3, cr4, cr8;
+                __u64 efer;
+                __u64 apic_base;
+                __u64 flags;
+                __u64 pdptrs[4];
+        };
 
 flags values for ``kvm_sregs2``:
 
@@ -5110,7 +5110,7 @@ flags values for ``kvm_sregs2``:
 
 
 4.132 KVM_SET_SREGS2
-------------------
+--------------------
 
 :Capability: KVM_CAP_SREGS2
 :Architectures: x86
@@ -5201,6 +5201,7 @@ trailing ``'\0'``, is indicated by the ``name_size`` field in the header.
 The descriptors block is only needed to be read once for the lifetime of the
 file descriptor contains a sequence of ``struct kvm_stats_desc``, each followed
 by a string of size ``name_size``.
+::
 
 	#define KVM_STATS_TYPE_SHIFT		0
 	#define KVM_STATS_TYPE_MASK		(0xF << KVM_STATS_TYPE_SHIFT)
@@ -5234,6 +5235,7 @@ by this descriptor. Its endianness is CPU native.
 The following flags are supported:
 
 Bits 0-3 of ``flags`` encode the type:
+
   * ``KVM_STATS_TYPE_CUMULATIVE``
     The statistics data is cumulative. The value of data can only be increased.
     Most of the counters used in KVM are of this type.
@@ -5252,6 +5254,7 @@ Bits 0-3 of ``flags`` encode the type:
     The corresponding ``size`` field for this type is always 1.
 
 Bits 4-7 of ``flags`` encode the unit:
+
   * ``KVM_STATS_UNIT_NONE``
     There is no unit for the value of statistics data. This usually means that
     the value is a simple counter of an event.
@@ -5266,6 +5269,7 @@ Bits 4-7 of ``flags`` encode the unit:
 
 Bits 8-11 of ``flags``, together with ``exponent``, encode the scale of the
 unit:
+
   * ``KVM_STATS_BASE_POW10``
     The scale is based on power of 10. It is used for measurement of time and
     CPU clock cycles.  For example, an exponent of -9 can be used with
@@ -7213,7 +7217,7 @@ supported in the host. A VMM can check whether the service is
 available to the guest on migration.
 
 8.33 KVM_CAP_HYPERV_ENFORCE_CPUID
------------------------------
+---------------------------------
 
 Architectures: x86
 

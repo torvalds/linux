@@ -19,7 +19,12 @@
 
 / {
 	aliases {
+		serial0 = &uart9;
 		hsuart0 = &uart6;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
 	};
 
 	gpio-keys {
@@ -403,6 +408,7 @@
 	status = "okay";
 
 	memory-region = <&ipa_fw_mem>;
+	firmware-name = "qcom/sdm845/oneplus6/ipa_fws.mbn";
 };
 
 &mdss {
@@ -524,6 +530,11 @@
 		vddch0-supply = <&vreg_l25a_3p3>;
 		max-speed = <3200000>;
 	};
+};
+
+&uart9 {
+	label = "LS-UART1";
+	status = "okay";
 };
 
 &ufs_mem_hc {

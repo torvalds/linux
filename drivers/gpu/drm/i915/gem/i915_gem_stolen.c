@@ -447,7 +447,6 @@ static int i915_gem_init_stolen(struct intel_memory_region *mem)
 		break;
 	case 8:
 	case 9:
-	case 10:
 		if (IS_LP(i915))
 			chv_get_stolen_reserved(i915, uncore,
 						&reserved_base, &reserved_size);
@@ -670,6 +669,7 @@ static int __i915_gem_object_create_stolen(struct intel_memory_region *mem,
 static int _i915_gem_object_stolen_init(struct intel_memory_region *mem,
 					struct drm_i915_gem_object *obj,
 					resource_size_t size,
+					resource_size_t page_size,
 					unsigned int flags)
 {
 	struct drm_i915_private *i915 = mem->i915;
@@ -708,7 +708,7 @@ struct drm_i915_gem_object *
 i915_gem_object_create_stolen(struct drm_i915_private *i915,
 			      resource_size_t size)
 {
-	return i915_gem_object_create_region(i915->mm.stolen_region, size, 0);
+	return i915_gem_object_create_region(i915->mm.stolen_region, size, 0, 0);
 }
 
 static int init_stolen_smem(struct intel_memory_region *mem)

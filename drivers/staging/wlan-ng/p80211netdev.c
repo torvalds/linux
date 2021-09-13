@@ -235,10 +235,10 @@ void p80211netdev_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 static int p80211_convert_to_ether(struct wlandevice *wlandev,
 				   struct sk_buff *skb)
 {
-	struct p80211_hdr_a3 *hdr;
+	struct p80211_hdr *hdr;
 
-	hdr = (struct p80211_hdr_a3 *)skb->data;
-	if (p80211_rx_typedrop(wlandev, le16_to_cpu(hdr->fc)))
+	hdr = (struct p80211_hdr *)skb->data;
+	if (p80211_rx_typedrop(wlandev, le16_to_cpu(hdr->frame_control)))
 		return CONV_TO_ETHER_SKIPPED;
 
 	/* perform mcast filtering: allow my local address through but reject
@@ -246,8 +246,8 @@ static int p80211_convert_to_ether(struct wlandevice *wlandev,
 	 */
 	if (wlandev->netdev->flags & IFF_ALLMULTI) {
 		if (!ether_addr_equal_unaligned(wlandev->netdev->dev_addr,
-						hdr->a1)) {
-			if (!is_multicast_ether_addr(hdr->a1))
+						hdr->address1)) {
+			if (!is_multicast_ether_addr(hdr->address1))
 				return CONV_TO_ETHER_SKIPPED;
 		}
 	}
@@ -327,7 +327,7 @@ static netdev_tx_t p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 	int result = 0;
 	int txresult;
 	struct wlandevice *wlandev = netdev->ml_priv;
-	union p80211_hdr p80211_hdr;
+	struct p80211_hdr p80211_hdr;
 	struct p80211_metawep p80211_wep;
 
 	p80211_wep.data = NULL;

@@ -849,21 +849,14 @@ static int gc2235_get_fmt(struct v4l2_subdev *sd,
 static int gc2235_detect(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	u16 high, low;
-	int ret;
+	u16 high = 0, low = 0;
 	u16 id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	ret = gc2235_read_reg(client, GC2235_8BIT,
-			      GC2235_SENSOR_ID_H, &high);
-	if (ret) {
-		dev_err(&client->dev, "sensor_id_high = 0x%x\n", high);
-		return -ENODEV;
-	}
-	ret = gc2235_read_reg(client, GC2235_8BIT,
-			      GC2235_SENSOR_ID_L, &low);
+	gc2235_read_reg(client, GC2235_8BIT, GC2235_SENSOR_ID_H, &high);
+	gc2235_read_reg(client, GC2235_8BIT, GC2235_SENSOR_ID_L, &low);
 	id = ((high << 8) | low);
 
 	if (id != GC2235_ID) {

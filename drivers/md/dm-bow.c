@@ -1238,6 +1238,7 @@ static void dm_bow_status(struct dm_target *ti, status_type_t type,
 {
 	switch (type) {
 	case STATUSTYPE_INFO:
+	case STATUSTYPE_IMA:
 		if (maxlen)
 			result[0] = 0;
 		break;

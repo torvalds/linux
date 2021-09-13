@@ -566,13 +566,15 @@ static irqreturn_t snd_mtpav_irqh(int irq, void *dev_id)
  */
 static int snd_mtpav_get_ISA(struct mtpav *mcard)
 {
-	mcard->res_port = request_region(port, 3, "MotuMTPAV MIDI");
+	mcard->res_port = devm_request_region(mcard->card->dev, port, 3,
+					      "MotuMTPAV MIDI");
 	if (!mcard->res_port) {
 		snd_printk(KERN_ERR "MTVAP port 0x%lx is busy\n", port);
 		return -EBUSY;
 	}
 	mcard->port = port;
-	if (request_irq(irq, snd_mtpav_irqh, 0, "MOTU MTPAV", mcard)) {
+	if (devm_request_irq(mcard->card->dev, irq, snd_mtpav_irqh, 0,
+			     "MOTU MTPAV", mcard)) {
 		snd_printk(KERN_ERR "MTVAP IRQ %d busy\n", irq);
 		return -EBUSY;
 	}
@@ -667,9 +669,6 @@ static void snd_mtpav_free(struct snd_card *card)
 	if (crd->istimer > 0)
 		snd_mtpav_remove_output_timer(crd);
 	spin_unlock_irqrestore(&crd->spinlock, flags);
-	if (crd->irq >= 0)
-		free_irq(crd->irq, (void *)crd);
-	release_and_free_resource(crd->res_port);
 }
 
 /*
@@ -680,8 +679,8 @@ static int snd_mtpav_probe(struct platform_device *dev)
 	int err;
 	struct mtpav *mtp_card;
 
-	err = snd_card_new(&dev->dev, index, id, THIS_MODULE,
-			   sizeof(*mtp_card), &card);
+	err = snd_devm_card_new(&dev->dev, index, id, THIS_MODULE,
+				sizeof(*mtp_card), &card);
 	if (err < 0)
 		return err;
 
@@ -698,13 +697,13 @@ static int snd_mtpav_probe(struct platform_device *dev)
 
 	err = snd_mtpav_get_RAWMIDI(mtp_card);
 	if (err < 0)
-		goto __error;
+		return err;
 
 	mtp_card->inmidiport = mtp_card->num_ports + MTPAV_PIDX_BROADCAST;
 
 	err = snd_mtpav_get_ISA(mtp_card);
 	if (err < 0)
-		goto __error;
+		return err;
 
 	strcpy(card->driver, "MTPAV");
 	strcpy(card->shortname, "MTPAV on parallel port");
@@ -715,20 +714,10 @@ static int snd_mtpav_probe(struct platform_device *dev)
 
 	err = snd_card_register(mtp_card->card);
 	if (err < 0)
-		goto __error;
+		return err;
 
 	platform_set_drvdata(dev, card);
 	printk(KERN_INFO "Motu MidiTimePiece on parallel port irq: %d ioport: 0x%lx\n", irq, port);
-	return 0;
-
- __error:
-	snd_card_free(card);
-	return err;
-}
-
-static int snd_mtpav_remove(struct platform_device *devptr)
-{
-	snd_card_free(platform_get_drvdata(devptr));
 	return 0;
 }
 
@@ -736,7 +725,6 @@ static int snd_mtpav_remove(struct platform_device *devptr)
 
 static struct platform_driver snd_mtpav_driver = {
 	.probe		= snd_mtpav_probe,
-	.remove		= snd_mtpav_remove,
 	.driver		= {
 		.name	= SND_MTPAV_DRIVER,
 	},

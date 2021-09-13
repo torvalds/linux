@@ -287,6 +287,17 @@
 			do not want to use tracing_snapshot_alloc() as it needs
 			to be done where GFP_KERNEL allocations are allowed.
 
+	allow_mismatched_32bit_el0 [ARM64]
+			Allow execve() of 32-bit applications and setting of the
+			PER_LINUX32 personality on systems where only a strict
+			subset of the CPUs support 32-bit EL0. When this
+			parameter is present, the set of CPUs supporting 32-bit
+			EL0 is indicated by /sys/devices/system/cpu/aarch32_el0
+			and hot-unplug operations may be restricted.
+
+			See Documentation/arm64/asymmetric-32bit.rst for more
+			information.
+
 	amd_iommu=	[HW,X86-64]
 			Pass parameters to the AMD IOMMU driver in the system.
 			Possible values are:
@@ -378,6 +389,9 @@
 			Identification support
 
 	arm64.nopauth	[ARM64] Unconditionally disable Pointer Authentication
+			support
+
+	arm64.nomte	[ARM64] Unconditionally disable Memory Tagging Extension
 			support
 
 	ataflop=	[HW,M68k]
@@ -4187,6 +4201,15 @@
 			panics
 			Format: <bool>  (1/Y/y=enable, 0/N/n=disable)
 			default: disabled
+
+	printk.console_no_auto_verbose=
+			Disable console loglevel raise on oops, panic
+			or lockdep-detected issues (only if lock debug is on).
+			With an exception to setups with low baudrate on
+			serial console, keeping this 0 is a good choice
+			in order to provide more debug information.
+			Format: <bool>
+			default: 0 (auto_verbose is enabled)
 
 	printk.devkmsg={on,off,ratelimit}
 			Control writing to /dev/kmsg.

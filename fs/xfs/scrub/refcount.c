@@ -91,7 +91,7 @@ struct xchk_refcnt_check {
 STATIC int
 xchk_refcountbt_rmap_check(
 	struct xfs_btree_cur		*cur,
-	struct xfs_rmap_irec		*rec,
+	const struct xfs_rmap_irec	*rec,
 	void				*priv)
 {
 	struct xchk_refcnt_check	*refchk = priv;
@@ -330,7 +330,7 @@ xchk_refcountbt_xref(
 STATIC int
 xchk_refcountbt_rec(
 	struct xchk_btree	*bs,
-	union xfs_btree_rec	*rec)
+	const union xfs_btree_rec *rec)
 {
 	struct xfs_mount	*mp = bs->cur->bc_mp;
 	xfs_agblock_t		*cow_blocks = bs->private;
