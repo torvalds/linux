@@ -635,6 +635,10 @@
 #define STATE_MODE_SHIFT                  (0)
 #define STATE_MODE_MASK                   (0x7)
 
+/* Bit definitions for the DPLL_MANU_REF_CFG register */
+#define MANUAL_REFERENCE_SHIFT            (0)
+#define MANUAL_REFERENCE_MASK             (0x1f)
+
 /* Bit definitions for the GPIO_CFG_GBL register */
 #define SUPPLY_MODE_SHIFT                 (0)
 #define SUPPLY_MODE_MASK                  (0x3)

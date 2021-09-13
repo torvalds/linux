@@ -57,15 +57,27 @@
 
 #define IDTCM_MAX_WRITE_COUNT		(512)
 
+#define PHASE_PULL_IN_MAX_PPB		(144000)
+#define PHASE_PULL_IN_MIN_THRESHOLD_NS	(2)
+
 /*
  * Return register address based on passed in firmware version
  */
 #define IDTCM_FW_REG(FW, VER, REG)	(((FW) < (VER)) ? (REG) : (REG##_##VER))
 
+/* PTP PLL Mode */
+enum ptp_pll_mode {
+	PTP_PLL_MODE_MIN = 0,
+	PTP_PLL_MODE_WRITE_FREQUENCY = PTP_PLL_MODE_MIN,
+	PTP_PLL_MODE_WRITE_PHASE,
+	PTP_PLL_MODE_UNSUPPORTED,
+	PTP_PLL_MODE_MAX = PTP_PLL_MODE_UNSUPPORTED,
+};
+
 /* Values of DPLL_N.DPLL_MODE.PLL_MODE */
 enum pll_mode {
 	PLL_MODE_MIN = 0,
-	PLL_MODE_NORMAL = PLL_MODE_MIN,
+	PLL_MODE_PLL = PLL_MODE_MIN,
 	PLL_MODE_WRITE_PHASE = 1,
 	PLL_MODE_WRITE_FREQUENCY = 2,
 	PLL_MODE_GPIO_INC_DEC = 3,
@@ -73,6 +85,31 @@ enum pll_mode {
 	PLL_MODE_PHASE_MEASUREMENT = 5,
 	PLL_MODE_DISABLED = 6,
 	PLL_MODE_MAX = PLL_MODE_DISABLED,
+};
+
+/* Values of DPLL_CTRL_n.DPLL_MANU_REF_CFG.MANUAL_REFERENCE */
+enum manual_reference {
+	MANU_REF_MIN = 0,
+	MANU_REF_CLK0 = MANU_REF_MIN,
+	MANU_REF_CLK1,
+	MANU_REF_CLK2,
+	MANU_REF_CLK3,
+	MANU_REF_CLK4,
+	MANU_REF_CLK5,
+	MANU_REF_CLK6,
+	MANU_REF_CLK7,
+	MANU_REF_CLK8,
+	MANU_REF_CLK9,
+	MANU_REF_CLK10,
+	MANU_REF_CLK11,
+	MANU_REF_CLK12,
+	MANU_REF_CLK13,
+	MANU_REF_CLK14,
+	MANU_REF_CLK15,
+	MANU_REF_WRITE_PHASE,
+	MANU_REF_WRITE_FREQUENCY,
+	MANU_REF_XO_DPLL,
+	MANU_REF_MAX = MANU_REF_XO_DPLL,
 };
 
 enum hw_tod_write_trig_sel {
@@ -141,7 +178,13 @@ struct idtcm_channel {
 	u16			tod_n;
 	u16			hw_dpll_n;
 	u8			sync_src;
-	enum pll_mode		pll_mode;
+	enum ptp_pll_mode	mode;
+	int			(*configure_write_frequency)(struct idtcm_channel *channel);
+	int			(*configure_write_phase)(struct idtcm_channel *channel);
+	int			(*do_phase_pull_in)(struct idtcm_channel *channel,
+						    s32 offset_ns, u32 max_ffo_ppb);
+	s32			current_freq_scaled_ppm;
+	bool			phase_pull_in;
 	u8			pll;
 	u16			output_mask;
 };
