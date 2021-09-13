@@ -599,9 +599,7 @@ static int wfx_update_tim(struct wfx_vif *wvif)
 	tim_ptr = skb->data + tim_offset;
 
 	if (tim_offset && tim_length >= 6) {
-		/* Ignore DTIM count from mac80211:
-		 * firmware handles DTIM internally.
-		 */
+		/* Firmware handles DTIM counter internally */
 		tim_ptr[2] = 0;
 
 		/* Set/reset aid0 bit */
