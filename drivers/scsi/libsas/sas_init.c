@@ -147,6 +147,7 @@ Undo_phys:
 
 	return error;
 }
+EXPORT_SYMBOL_GPL(sas_register_ha);
 
 static void sas_disable_events(struct sas_ha_struct *sas_ha)
 {
@@ -176,6 +177,7 @@ int sas_unregister_ha(struct sas_ha_struct *sas_ha)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(sas_unregister_ha);
 
 static int sas_get_linkerrors(struct sas_phy *phy)
 {
@@ -313,6 +315,7 @@ int sas_phy_reset(struct sas_phy *phy, int hard_reset)
 	}
 	return ret;
 }
+EXPORT_SYMBOL_GPL(sas_phy_reset);
 
 int sas_set_phy_speed(struct sas_phy *phy,
 		      struct sas_phy_linkrates *rates)
@@ -659,5 +662,3 @@ MODULE_LICENSE("GPL v2");
 module_init(sas_class_init);
 module_exit(sas_class_exit);
 
-EXPORT_SYMBOL_GPL(sas_register_ha);
-EXPORT_SYMBOL_GPL(sas_unregister_ha);
