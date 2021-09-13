@@ -917,11 +917,11 @@ DECLARE_EVENT_CLASS(/* AIP  */
 		__entry->tail = txq->tx_ring.tail;
 		__entry->idx = txq->q_idx;
 		__entry->used =
-			txq->sent_txreqs -
-			atomic64_read(&txq->complete_txreqs);
+			txq->tx_ring.sent_txreqs -
+			atomic64_read(&txq->tx_ring.complete_txreqs);
 		__entry->flow = txq->flow.as_int;
-		__entry->stops = atomic_read(&txq->stops);
-		__entry->no_desc = atomic_read(&txq->no_desc);
+		__entry->stops = atomic_read(&txq->tx_ring.stops);
+		__entry->no_desc = atomic_read(&txq->tx_ring.no_desc);
 		__entry->stopped =
 		 __netif_subqueue_stopped(txq->priv->netdev, txq->q_idx);
 	),

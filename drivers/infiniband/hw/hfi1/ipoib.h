@@ -46,18 +46,31 @@ union hfi1_ipoib_flow {
 /**
  * struct hfi1_ipoib_circ_buf - List of items to be processed
  * @items: ring of items each a power of two size
- * @head: ring head
- * @tail: ring tail
  * @max_items: max items + 1 that the ring can contain
  * @shift: log2 of size for getting txreq
+ * @sent_txreqs: count of txreqs posted to sdma
+ * @tail: ring tail
+ * @stops: count of stops of queue
+ * @ring_full: ring has been filled
+ * @no_desc: descriptor shortage seen
+ * @complete_txreqs: count of txreqs completed by sdma
+ * @head: ring head
  */
 struct ipoib_txreq;
 struct hfi1_ipoib_circ_buf {
 	void *items;
-	u32 head;
-	u32 tail;
 	u32 max_items;
 	u32 shift;
+	/* consumer cache line */
+	u64 ____cacheline_aligned_in_smp sent_txreqs;
+	u32 avail;
+	u32 tail;
+	atomic_t stops;
+	atomic_t ring_full;
+	atomic_t no_desc;
+	/* producer cache line */
+	atomic64_t ____cacheline_aligned_in_smp complete_txreqs;
+	u32 head;
 };
 
 /**
@@ -66,14 +79,10 @@ struct hfi1_ipoib_circ_buf {
  * @sde: sdma engine
  * @tx_list: tx request list
  * @sent_txreqs: count of txreqs posted to sdma
- * @stops: count of stops of queue
- * @ring_full: ring has been filled
- * @no_desc: descriptor shortage seen
  * @flow: tracks when list needs to be flushed for a flow change
  * @q_idx: ipoib Tx queue index
  * @pkts_sent: indicator packets have been sent from this queue
  * @wait: iowait structure
- * @complete_txreqs: count of txreqs completed by sdma
  * @napi: pointer to tx napi interface
  * @tx_ring: ring of ipoib txreqs to be reaped by napi callback
  */
@@ -82,17 +91,12 @@ struct hfi1_ipoib_txq {
 	struct hfi1_ipoib_dev_priv *priv;
 	struct sdma_engine *sde;
 	struct list_head tx_list;
-	u64 sent_txreqs;
-	atomic_t stops;
-	atomic_t ring_full;
-	atomic_t no_desc;
 	union hfi1_ipoib_flow flow;
 	u8 q_idx;
 	bool pkts_sent;
 	struct iowait wait;
 
-	atomic64_t ____cacheline_aligned_in_smp complete_txreqs;
-	struct hfi1_ipoib_circ_buf tx_ring;
+	struct hfi1_ipoib_circ_buf ____cacheline_aligned_in_smp tx_ring;
 };
 
 struct hfi1_ipoib_dev_priv {
@@ -100,13 +104,12 @@ struct hfi1_ipoib_dev_priv {
 	struct net_device   *netdev;
 	struct ib_device    *device;
 	struct hfi1_ipoib_txq *txqs;
-	u16 pkey;
-	u16 pkey_index;
-	u32 qkey;
-	u8 port_num;
-
 	const struct net_device_ops *netdev_ops;
 	struct rvt_qp *qp;
+	u32 qkey;
+	u16 pkey;
+	u16 pkey_index;
+	u8 port_num;
 };
 
 /* hfi1 ipoib rdma netdev's private data structure */
