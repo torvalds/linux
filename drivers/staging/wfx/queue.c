@@ -86,7 +86,8 @@ void wfx_tx_queues_check_empty(struct wfx_vif *wvif)
 
 bool wfx_tx_queue_empty(struct wfx_vif *wvif, struct wfx_queue *queue)
 {
-	return skb_queue_empty(&queue->normal) && skb_queue_empty(&queue->cab);
+	return skb_queue_empty_lockless(&queue->normal) &&
+	       skb_queue_empty_lockless(&queue->cab);
 }
 
 static void __wfx_tx_queue_drop(struct wfx_vif *wvif,
