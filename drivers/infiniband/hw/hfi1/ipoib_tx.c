@@ -67,7 +67,7 @@ static u32 hfi1_ipoib_txreqs(const u64 sent, const u64 completed)
 static u64 hfi1_ipoib_used(struct hfi1_ipoib_txq *txq)
 {
 	return hfi1_ipoib_txreqs(txq->tx_ring.sent_txreqs,
-				 atomic64_read(&txq->tx_ring.complete_txreqs));
+				 txq->tx_ring.complete_txreqs);
 }
 
 static void hfi1_ipoib_stop_txq(struct hfi1_ipoib_txq *txq)
@@ -166,8 +166,8 @@ static void hfi1_ipoib_drain_tx_ring(struct hfi1_ipoib_txq *txq)
 	}
 	tx_ring->head = 0;
 	tx_ring->tail = 0;
-	atomic64_set(&txq->complete_txreqs, 0);
-	txq->sent_txreqs = 0;
+	tx_ring->complete_txreqs = 0;
+	tx_ring->sent_txreqs = 0;
 	tx_ring->avail = hfi1_ipoib_ring_hwat(txq);
 }
 
@@ -191,7 +191,7 @@ static int hfi1_ipoib_poll_tx_ring(struct napi_struct *napi, int budget)
 		head = CIRC_NEXT(head, max_tx);
 		tx =  hfi1_txreq_from_idx(tx_ring, head);
 	}
-	atomic64_add(work_done, &txq->tx_ring.complete_txreqs);
+	tx_ring->complete_txreqs += work_done;
 
 	/* Finished freeing tx items so store the head value. */
 	smp_store_release(&tx_ring->head, head);
@@ -730,7 +730,6 @@ int hfi1_ipoib_txreq_init(struct hfi1_ipoib_dev_priv *priv)
 		txq->priv = priv;
 		txq->sde = NULL;
 		INIT_LIST_HEAD(&txq->tx_list);
-		atomic64_set(&txq->tx_ring.complete_txreqs, 0);
 		atomic_set(&txq->tx_ring.stops, 0);
 		atomic_set(&txq->tx_ring.ring_full, 0);
 		atomic_set(&txq->tx_ring.no_desc, 0);
@@ -776,7 +775,6 @@ static void hfi1_ipoib_drain_tx_list(struct hfi1_ipoib_txq *txq)
 {
 	struct sdma_txreq *txreq;
 	struct sdma_txreq *txreq_tmp;
-	atomic64_t *complete_txreqs = &txq->tx_ring.complete_txreqs;
 
 	list_for_each_entry_safe(txreq, txreq_tmp, &txq->tx_list, list) {
 		struct ipoib_txreq *tx =
@@ -786,7 +784,7 @@ static void hfi1_ipoib_drain_tx_list(struct hfi1_ipoib_txq *txq)
 		sdma_txclean(txq->priv->dd, &tx->txreq);
 		dev_kfree_skb_any(tx->skb);
 		tx->skb = NULL;
-		atomic64_inc(complete_txreqs);
+		txq->tx_ring.complete_txreqs++;
 	}
 
 	if (hfi1_ipoib_used(txq))
@@ -794,7 +792,7 @@ static void hfi1_ipoib_drain_tx_list(struct hfi1_ipoib_txq *txq)
 			    "txq %d not empty found %u requests\n",
 			    txq->q_idx,
 			    hfi1_ipoib_txreqs(txq->tx_ring.sent_txreqs,
-					      atomic64_read(complete_txreqs)));
+					      txq->tx_ring.complete_txreqs));
 }
 
 void hfi1_ipoib_txreq_deinit(struct hfi1_ipoib_dev_priv *priv)
@@ -845,7 +843,6 @@ void hfi1_ipoib_tx_timeout(struct net_device *dev, unsigned int q)
 {
 	struct hfi1_ipoib_dev_priv *priv = hfi1_ipoib_priv(dev);
 	struct hfi1_ipoib_txq *txq = &priv->txqs[q];
-	u64 completed = atomic64_read(&txq->tx_ring.complete_txreqs);
 
 	dd_dev_info(priv->dd, "timeout txq %llx q %u stopped %u stops %d no_desc %d ring_full %d\n",
 		    (unsigned long long)txq, q,
@@ -858,7 +855,8 @@ void hfi1_ipoib_tx_timeout(struct net_device *dev, unsigned int q)
 		    txq->sde ? txq->sde->this_idx : 0);
 	dd_dev_info(priv->dd, "flow %x\n", txq->flow.as_int);
 	dd_dev_info(priv->dd, "sent %llu completed %llu used %llu\n",
-		    txq->tx_ring.sent_txreqs, completed, hfi1_ipoib_used(txq));
+		    txq->tx_ring.sent_txreqs, txq->tx_ring.complete_txreqs,
+		    hfi1_ipoib_used(txq));
 	dd_dev_info(priv->dd, "tx_queue_len %u max_items %u\n",
 		    dev->tx_queue_len, txq->tx_ring.max_items);
 	dd_dev_info(priv->dd, "head %u tail %u\n",

@@ -918,7 +918,7 @@ DECLARE_EVENT_CLASS(/* AIP  */
 		__entry->idx = txq->q_idx;
 		__entry->used =
 			txq->tx_ring.sent_txreqs -
-			atomic64_read(&txq->tx_ring.complete_txreqs);
+			txq->tx_ring.complete_txreqs;
 		__entry->flow = txq->flow.as_int;
 		__entry->stops = atomic_read(&txq->tx_ring.stops);
 		__entry->no_desc = atomic_read(&txq->tx_ring.no_desc);

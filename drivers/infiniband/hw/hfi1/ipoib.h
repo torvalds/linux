@@ -69,7 +69,7 @@ struct hfi1_ipoib_circ_buf {
 	atomic_t ring_full;
 	atomic_t no_desc;
 	/* producer cache line */
-	atomic64_t ____cacheline_aligned_in_smp complete_txreqs;
+	u64 ____cacheline_aligned_in_smp complete_txreqs;
 	u32 head;
 };
 
