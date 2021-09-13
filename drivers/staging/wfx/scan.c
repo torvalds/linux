@@ -58,23 +58,31 @@ static int send_scan_req(struct wfx_vif *wvif,
 	reinit_completion(&wvif->scan_complete);
 	ret = hif_scan(wvif, req, start_idx, i - start_idx, &timeout);
 	if (ret) {
-		wfx_tx_unlock(wvif->wdev);
-		return -EIO;
+		ret = -EIO;
+		goto err_scan_start;
 	}
 	ret = wait_for_completion_timeout(&wvif->scan_complete, timeout);
-	if (req->channels[start_idx]->max_power != wvif->vif->bss_conf.txpower)
-		hif_set_output_power(wvif, wvif->vif->bss_conf.txpower);
-	wfx_tx_unlock(wvif->wdev);
 	if (!ret) {
 		dev_notice(wvif->wdev->dev, "scan timeout\n");
 		hif_stop_scan(wvif);
-		return -ETIMEDOUT;
+		ret = wait_for_completion_timeout(&wvif->scan_complete, 1 * HZ);
+		if (!ret)
+			dev_err(wvif->wdev->dev, "scan didn't stop\n");
+		ret = -ETIMEDOUT;
+		goto err_timeout;
 	}
 	if (wvif->scan_abort) {
 		dev_notice(wvif->wdev->dev, "scan abort\n");
-		return -ECONNABORTED;
+		ret = -ECONNABORTED;
+		goto err_timeout;
 	}
-	return i - start_idx;
+	ret = i - start_idx;
+err_timeout:
+	if (req->channels[start_idx]->max_power != wvif->vif->bss_conf.txpower)
+		hif_set_output_power(wvif, wvif->vif->bss_conf.txpower);
+err_scan_start:
+	wfx_tx_unlock(wvif->wdev);
+	return ret;
 }
 
 /*
