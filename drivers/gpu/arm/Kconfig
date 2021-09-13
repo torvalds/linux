@@ -23,15 +23,4 @@ source "drivers/gpu/arm/mali400/mali/Kconfig"
 
 source "drivers/gpu/arm/midgard/Kconfig"
 
-choice
-	prompt "Mali bifrost driver"
-
-config MALI_BIFROST_FOR_ANDROID
-	bool "Mali Bifrost for Android"
-
-config MALI_BIFROST_FOR_LINUX
-	bool "Mali Bifrost for Linux only"
-
-endchoice
-
 source "drivers/gpu/arm/bifrost/Kconfig"
