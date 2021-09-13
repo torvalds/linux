@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/cifs_ioctl.h
  *
  *   Structure definitions for io control for cifs/smb3
  *
