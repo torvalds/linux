@@ -101,7 +101,7 @@ static inline struct wfx_vif *wdev_to_wvif(struct wfx_dev *wdev, int vif_id)
 	vif_id = array_index_nospec(vif_id, ARRAY_SIZE(wdev->vif));
 	if (!wdev->vif[vif_id])
 		return NULL;
-	return (struct wfx_vif *) wdev->vif[vif_id]->drv_priv;
+	return (struct wfx_vif *)wdev->vif[vif_id]->drv_priv;
 }
 
 static inline struct wfx_vif *wvif_iterate(struct wfx_dev *wdev,
