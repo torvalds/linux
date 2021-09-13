@@ -175,6 +175,16 @@ extern struct imx_pll14xx_clk imx_1443x_dram_pll;
 #define imx_clk_hw_mux2_flags(name, reg, shift, width, parents, num_parents, flags) \
 	__imx_clk_hw_mux(name, reg, shift, width, parents, num_parents, flags | CLK_OPS_PARENT_ENABLE, 0)
 
+#define imx_clk_hw_divider(name, parent, reg, shift, width) \
+	__imx_clk_hw_divider(name, parent, reg, shift, width, CLK_SET_RATE_PARENT)
+
+#define imx_clk_hw_divider2(name, parent, reg, shift, width) \
+	__imx_clk_hw_divider(name, parent, reg, shift, width, \
+				CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE)
+
+#define imx_clk_hw_divider_flags(name, parent, reg, shift, width, flags) \
+	__imx_clk_hw_divider(name, parent, reg, shift, width, flags)
+
 struct clk_hw *imx_dev_clk_hw_pll14xx(struct device *dev, const char *name,
 				const char *parent_name, void __iomem *base,
 				const struct imx_pll14xx_clk *pll_clk);
@@ -303,30 +313,13 @@ static inline struct clk_hw *imx_clk_hw_fixed_factor(const char *name,
 			CLK_SET_RATE_PARENT, mult, div);
 }
 
-static inline struct clk_hw *imx_clk_hw_divider(const char *name,
-						const char *parent,
-						void __iomem *reg, u8 shift,
-						u8 width)
-{
-	return clk_hw_register_divider(NULL, name, parent, CLK_SET_RATE_PARENT,
-				       reg, shift, width, 0, &imx_ccm_lock);
-}
-
-static inline struct clk_hw *imx_clk_hw_divider_flags(const char *name,
+static inline struct clk_hw *__imx_clk_hw_divider(const char *name,
 						   const char *parent,
 						   void __iomem *reg, u8 shift,
 						   u8 width, unsigned long flags)
 {
 	return clk_hw_register_divider(NULL, name, parent, flags,
 				       reg, shift, width, 0, &imx_ccm_lock);
-}
-
-static inline struct clk_hw *imx_clk_hw_divider2(const char *name, const char *parent,
-		void __iomem *reg, u8 shift, u8 width)
-{
-	return clk_hw_register_divider(NULL, name, parent,
-			CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
-			reg, shift, width, 0, &imx_ccm_lock);
 }
 
 static inline struct clk_hw *__imx_clk_hw_gate(const char *name, const char *parent,
