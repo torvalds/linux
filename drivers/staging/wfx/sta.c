@@ -154,18 +154,26 @@ static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 		chan0 = wdev_to_wvif(wvif->wdev, 0)->vif->bss_conf.chandef.chan;
 	if (wdev_to_wvif(wvif->wdev, 1))
 		chan1 = wdev_to_wvif(wvif->wdev, 1)->vif->bss_conf.chandef.chan;
-	if (chan0 && chan1 && chan0->hw_value != chan1->hw_value &&
-	    wvif->vif->type != NL80211_IFTYPE_AP) {
-		// It is necessary to enable powersave if channels
-		// are different.
-		if (enable_ps)
-			*enable_ps = true;
-		if (wvif->wdev->force_ps_timeout > -1)
-			return wvif->wdev->force_ps_timeout;
-		else if (wfx_api_older_than(wvif->wdev, 3, 2))
-			return 0;
-		else
-			return 30;
+	if (chan0 && chan1 && wvif->vif->type != NL80211_IFTYPE_AP) {
+		if (chan0->hw_value == chan1->hw_value) {
+			// It is useless to enable PS if channels are the same.
+			if (enable_ps)
+				*enable_ps = false;
+			if (wvif->vif->bss_conf.assoc && wvif->vif->bss_conf.ps)
+				dev_info(wvif->wdev->dev, "ignoring requested PS mode");
+			return -1;
+		} else {
+			// It is necessary to enable PS if channels
+			// are different.
+			if (enable_ps)
+				*enable_ps = true;
+			if (wvif->wdev->force_ps_timeout > -1)
+				return wvif->wdev->force_ps_timeout;
+			else if (wfx_api_older_than(wvif->wdev, 3, 2))
+				return 0;
+			else
+				return 30;
+		}
 	}
 	if (enable_ps)
 		*enable_ps = wvif->vif->bss_conf.ps;
