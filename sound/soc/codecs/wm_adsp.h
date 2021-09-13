@@ -49,9 +49,29 @@ struct cs_dsp_alg_region {
 	unsigned int base;
 };
 
+struct wm_adsp;
 struct wm_adsp_compr;
 struct wm_adsp_compr_buf;
 struct cs_dsp_ops;
+
+struct cs_dsp_coeff_ctl {
+	const char *fw_name;
+	/* Subname is needed to match with firmware */
+	const char *subname;
+	unsigned int subname_len;
+	struct cs_dsp_alg_region alg_region;
+	struct wm_adsp *dsp;
+	unsigned int enabled:1;
+	struct list_head list;
+	void *cache;
+	unsigned int offset;
+	size_t len;
+	unsigned int set:1;
+	unsigned int flags;
+	unsigned int type;
+
+	void *priv;
+};
 
 struct wm_adsp {
 	const char *part;
