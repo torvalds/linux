@@ -61,7 +61,6 @@ enum { /*  for ips_mode */
 
 struct pwrctrl_priv {
 	struct semaphore lock;
-	volatile u8 cpwm_tog; /*  toggling */
 
 	u8	pwr_mode;
 	u8	smart_ps;
