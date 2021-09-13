@@ -46,6 +46,15 @@ static int do_child(void)
 	return EXIT_SUCCESS;
 }
 
+static int get_fpsimd(pid_t pid, struct user_fpsimd_state *fpsimd)
+{
+	struct iovec iov;
+
+	iov.iov_base = fpsimd;
+	iov.iov_len = sizeof(*fpsimd);
+	return ptrace(PTRACE_GETREGSET, pid, NT_PRFPREG, &iov);
+}
+
 static struct user_sve_header *get_sve(pid_t pid, void **buf, size_t *size)
 {
 	struct user_sve_header *sve;
@@ -122,7 +131,7 @@ static int do_parent(pid_t child)
 	void *svebuf = NULL, *newsvebuf;
 	size_t svebufsz = 0, newsvebufsz;
 	struct user_sve_header *sve, *new_sve;
-	struct user_fpsimd_state *fpsimd;
+	struct user_fpsimd_state *fpsimd, new_fpsimd;
 	unsigned int i, j;
 	unsigned char *p;
 	unsigned int vq;
@@ -221,7 +230,22 @@ static int do_parent(pid_t child)
 		goto error;
 	}
 
-	/* Zero the first SVE Z register */
+	/* Verify via the FPSIMD regset */
+	if (get_fpsimd(pid, &new_fpsimd)) {
+		int e = errno;
+
+		ksft_test_result_fail("get_fpsimd(): %s\n",
+				      strerror(errno));
+		if (e == ESRCH)
+			goto disappeared;
+
+		goto error;
+	}
+	if (memcmp(fpsimd, &new_fpsimd, sizeof(*fpsimd)) == 0)
+		ksft_test_result_pass("get_fpsimd() gave same state\n");
+	else
+		ksft_test_result_fail("get_fpsimd() gave different state\n");
+
 	vq = sve_vq_from_vl(sve->vl);
 
 	newsvebufsz = SVE_PT_SVE_ZREG_OFFSET(vq, 1);
