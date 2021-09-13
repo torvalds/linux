@@ -805,6 +805,17 @@ intel_dp_mode_valid_downstream(struct intel_connector *connector,
 	return MODE_OK;
 }
 
+static bool intel_dp_need_bigjoiner(struct intel_dp *intel_dp,
+				    int hdisplay, int clock)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	if (!intel_dp_can_bigjoiner(intel_dp))
+		return false;
+
+	return clock > i915->max_dotclk_freq || hdisplay > 5120;
+}
+
 static enum drm_mode_status
 intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
@@ -840,8 +851,7 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	if (mode->clock < 10000)
 		return MODE_CLOCK_LOW;
 
-	if ((target_clock > max_dotclk || mode->hdisplay > 5120) &&
-	    intel_dp_can_bigjoiner(intel_dp)) {
+	if (intel_dp_need_bigjoiner(intel_dp, mode->hdisplay, target_clock)) {
 		bigjoiner = true;
 		max_dotclk *= 2;
 	}
@@ -1457,9 +1467,8 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 		    limits.max_lane_count, limits.max_rate,
 		    limits.max_bpp, adjusted_mode->crtc_clock);
 
-	if ((adjusted_mode->crtc_clock > i915->max_dotclk_freq ||
-	     adjusted_mode->crtc_hdisplay > 5120) &&
-	    intel_dp_can_bigjoiner(intel_dp))
+	if (intel_dp_need_bigjoiner(intel_dp, adjusted_mode->crtc_hdisplay,
+				    adjusted_mode->crtc_clock))
 		pipe_config->bigjoiner = true;
 
 	/*
