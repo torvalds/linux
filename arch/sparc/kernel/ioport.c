@@ -300,60 +300,6 @@ arch_initcall(sparc_register_ioport);
 
 #endif /* CONFIG_SBUS */
 
-
-/* Allocate and map kernel buffer using consistent mode DMA for a device.
- * hwdev should be valid struct pci_dev pointer for PCI devices.
- */
-void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		gfp_t gfp, unsigned long attrs)
-{
-	unsigned long addr;
-	void *va;
-
-	if (!size || size > 256 * 1024)	/* __get_free_pages() limit */
-		return NULL;
-
-	size = PAGE_ALIGN(size);
-	va = (void *) __get_free_pages(gfp | __GFP_ZERO, get_order(size));
-	if (!va) {
-		printk("%s: no %zd pages\n", __func__, size >> PAGE_SHIFT);
-		return NULL;
-	}
-
-	addr = sparc_dma_alloc_resource(dev, size);
-	if (!addr)
-		goto err_nomem;
-
-	srmmu_mapiorange(0, virt_to_phys(va), addr, size);
-
-	*dma_handle = virt_to_phys(va);
-	return (void *)addr;
-
-err_nomem:
-	free_pages((unsigned long)va, get_order(size));
-	return NULL;
-}
-
-/* Free and unmap a consistent DMA buffer.
- * cpu_addr is what was returned arch_dma_alloc, size must be the same as what
- * was passed into arch_dma_alloc, and likewise dma_addr must be the same as
- * what *dma_ndler was set to.
- *
- * References to the memory and mappings associated with cpu_addr/dma_addr
- * past this call are illegal.
- */
-void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
-		dma_addr_t dma_addr, unsigned long attrs)
-{
-	size = PAGE_ALIGN(size);
-
-	if (!sparc_dma_free_resource(cpu_addr, size))
-		return;
-
-	srmmu_unmapiorange((unsigned long)cpu_addr, size);
-	free_pages((unsigned long)phys_to_virt(dma_addr), get_order(size));
-}
-
 /*
  * IIep is write-through, not flushing on cpu to device transfer.
  *
