@@ -976,6 +976,9 @@ static int cs_dsp_coeff_write_acked_control(struct cs_dsp_coeff_ctl *ctl,
 	unsigned int reg;
 	int i, ret;
 
+	if (!dsp->running)
+		return -EPERM;
+
 	ret = cs_dsp_coeff_base_reg(ctl, &reg);
 	if (ret)
 		return ret;
@@ -1129,7 +1132,7 @@ static int wm_coeff_put_acked(struct snd_kcontrol *kctl,
 
 	mutex_lock(&cs_ctl->dsp->pwr_lock);
 
-	if (cs_ctl->enabled && cs_ctl->dsp->running)
+	if (cs_ctl->enabled)
 		ret = cs_dsp_coeff_write_acked_control(cs_ctl, val);
 	else
 		ret = -EPERM;
