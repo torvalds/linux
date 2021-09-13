@@ -5724,6 +5724,21 @@ out:
 	return ret;
 }
 
+static bool transcoder_ddi_func_is_enabled(struct drm_i915_private *dev_priv,
+					   enum transcoder cpu_transcoder)
+{
+	enum intel_display_power_domain power_domain;
+	intel_wakeref_t wakeref;
+	u32 tmp = 0;
+
+	power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
+
+	with_intel_display_power_if_enabled(dev_priv, power_domain, wakeref)
+		tmp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
+
+	return tmp & TRANS_DDI_FUNC_ENABLE;
+}
+
 static u8 hsw_panel_transcoders(struct drm_i915_private *i915)
 {
 	u8 panel_transcoder_mask = BIT(TRANSCODER_EDP);
@@ -5734,55 +5749,39 @@ static u8 hsw_panel_transcoders(struct drm_i915_private *i915)
 	return panel_transcoder_mask;
 }
 
-static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
-				     struct intel_crtc_state *pipe_config,
-				     struct intel_display_power_domain_set *power_domain_set)
+static u8 hsw_enabled_transcoders(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u8 panel_transcoder_mask = hsw_panel_transcoders(dev_priv);
-	unsigned long enabled_panel_transcoders = 0;
-	enum transcoder panel_transcoder;
-	u32 tmp;
-
-	/*
-	 * The pipe->transcoder mapping is fixed with the exception of the eDP
-	 * and DSI transcoders handled below.
-	 */
-	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
+	enum transcoder cpu_transcoder;
+	u8 enabled_transcoders = 0;
 
 	/*
 	 * XXX: Do intel_display_power_get_if_enabled before reading this (for
 	 * consistency and less surprising code; it's in always on power).
 	 */
-	for_each_cpu_transcoder_masked(dev_priv, panel_transcoder,
+	for_each_cpu_transcoder_masked(dev_priv, cpu_transcoder,
 				       panel_transcoder_mask) {
-		bool force_thru = false;
+		enum intel_display_power_domain power_domain;
+		intel_wakeref_t wakeref;
 		enum pipe trans_pipe;
+		u32 tmp = 0;
 
-		tmp = intel_de_read(dev_priv,
-				    TRANS_DDI_FUNC_CTL(panel_transcoder));
+		power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
+		with_intel_display_power_if_enabled(dev_priv, power_domain, wakeref)
+			tmp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
+
 		if (!(tmp & TRANS_DDI_FUNC_ENABLE))
-			continue;
-
-		/*
-		 * Log all enabled ones, only use the first one.
-		 *
-		 * FIXME: This won't work for two separate DSI displays.
-		 */
-		enabled_panel_transcoders |= BIT(panel_transcoder);
-		if (enabled_panel_transcoders != BIT(panel_transcoder))
 			continue;
 
 		switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
 		default:
 			drm_WARN(dev, 1,
 				 "unknown pipe linked to transcoder %s\n",
-				 transcoder_name(panel_transcoder));
+				 transcoder_name(cpu_transcoder));
 			fallthrough;
 		case TRANS_DDI_EDP_INPUT_A_ONOFF:
-			force_thru = true;
-			fallthrough;
 		case TRANS_DDI_EDP_INPUT_A_ON:
 			trans_pipe = PIPE_A;
 			break;
@@ -5797,21 +5796,82 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 			break;
 		}
 
-		if (trans_pipe == crtc->pipe) {
-			pipe_config->cpu_transcoder = panel_transcoder;
-			pipe_config->pch_pfit.force_thru = force_thru;
-		}
+		if (trans_pipe == crtc->pipe)
+			enabled_transcoders |= BIT(cpu_transcoder);
 	}
 
+	cpu_transcoder = (enum transcoder) crtc->pipe;
+	if (transcoder_ddi_func_is_enabled(dev_priv, cpu_transcoder))
+		enabled_transcoders |= BIT(cpu_transcoder);
+
+	return enabled_transcoders;
+}
+
+static bool has_edp_transcoders(u8 enabled_transcoders)
+{
+	return enabled_transcoders & BIT(TRANSCODER_EDP);
+}
+
+static bool has_dsi_transcoders(u8 enabled_transcoders)
+{
+	return enabled_transcoders & (BIT(TRANSCODER_DSI_0) |
+				      BIT(TRANSCODER_DSI_1));
+}
+
+static bool has_pipe_transcoders(u8 enabled_transcoders)
+{
+	return enabled_transcoders & ~(BIT(TRANSCODER_EDP) |
+				       BIT(TRANSCODER_DSI_0) |
+				       BIT(TRANSCODER_DSI_1));
+}
+
+static void assert_enabled_transcoders(struct drm_i915_private *i915,
+				       u8 enabled_transcoders)
+{
+	/* Only one type of transcoder please */
+	drm_WARN_ON(&i915->drm,
+		    has_edp_transcoders(enabled_transcoders) +
+		    has_dsi_transcoders(enabled_transcoders) +
+		    has_pipe_transcoders(enabled_transcoders) > 1);
+
+	/* Only DSI transcoders can be ganged */
+	drm_WARN_ON(&i915->drm,
+		    !has_dsi_transcoders(enabled_transcoders) &&
+		    !is_power_of_2(enabled_transcoders));
+}
+
+static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
+				     struct intel_crtc_state *pipe_config,
+				     struct intel_display_power_domain_set *power_domain_set)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	unsigned long enabled_transcoders;
+	u32 tmp;
+
+	enabled_transcoders = hsw_enabled_transcoders(crtc);
+	if (!enabled_transcoders)
+		return false;
+
+	assert_enabled_transcoders(dev_priv, enabled_transcoders);
+
 	/*
-	 * Valid combos: none, eDP, DSI0, DSI1, DSI0+DSI1
+	 * With the exception of DSI we should only ever have
+	 * a single enabled transcoder. With DSI let's just
+	 * pick the first one.
 	 */
-	drm_WARN_ON(dev, (enabled_panel_transcoders & BIT(TRANSCODER_EDP)) &&
-		    enabled_panel_transcoders != BIT(TRANSCODER_EDP));
+	pipe_config->cpu_transcoder = ffs(enabled_transcoders) - 1;
 
 	if (!intel_display_power_get_in_set_if_enabled(dev_priv, power_domain_set,
 						       POWER_DOMAIN_TRANSCODER(pipe_config->cpu_transcoder)))
 		return false;
+
+	if (hsw_panel_transcoders(dev_priv) & BIT(pipe_config->cpu_transcoder)) {
+		tmp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(pipe_config->cpu_transcoder));
+
+		if ((tmp & TRANS_DDI_EDP_INPUT_MASK) == TRANS_DDI_EDP_INPUT_A_ONOFF)
+			pipe_config->pch_pfit.force_thru = true;
+	}
 
 	tmp = intel_de_read(dev_priv, PIPECONF(pipe_config->cpu_transcoder));
 
