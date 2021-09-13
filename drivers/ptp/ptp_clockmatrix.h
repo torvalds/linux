@@ -57,10 +57,10 @@
 
 #define IDTCM_MAX_WRITE_COUNT		(512)
 
-#define FULL_FW_CFG_BYTES		(SCRATCH - GPIO_USER_CONTROL)
-#define FULL_FW_CFG_SKIPPED_BYTES	(((SCRATCH >> 7) \
-					  - (GPIO_USER_CONTROL >> 7)) \
-					 * 4) /* 4 bytes skipped every 0x80 */
+/*
+ * Return register address based on passed in firmware version
+ */
+#define IDTCM_FW_REG(FW, VER, REG)	(((FW) < (VER)) ? (REG) : (REG##_##VER))
 
 /* Values of DPLL_N.DPLL_MODE.PLL_MODE */
 enum pll_mode {
@@ -119,6 +119,12 @@ enum dpll_state {
 	DPLL_STATE_MAX = DPLL_STATE_OPEN_LOOP,
 };
 
+enum fw_version {
+	V_DEFAULT = 0,
+	V487 = 1,
+	V520 = 2,
+};
+
 struct idtcm;
 
 struct idtcm_channel {
@@ -134,6 +140,7 @@ struct idtcm_channel {
 	u16			tod_write;
 	u16			tod_n;
 	u16			hw_dpll_n;
+	u8			sync_src;
 	enum pll_mode		pll_mode;
 	u8			pll;
 	u16			output_mask;
@@ -145,7 +152,7 @@ struct idtcm {
 	u8			page_offset;
 	u8			tod_mask;
 	char			version[16];
-	u8			deprecated;
+	enum fw_version		fw_ver;
 
 	/* Overhead calculation for adjtime */
 	u8			calculate_overhead_flag;

@@ -5,7 +5,7 @@
  * https://github.com/richardcochran/regen
  *
  * Hand modified to include some HW registers.
- * Based on 4.8.0, SCSR rev C commit a03c7ae5
+ * Based on 5.2.0, Family Programming Guide (Sept 30, 2020)
  */
 #ifndef HAVE_IDT8A340_REG
 #define HAVE_IDT8A340_REG
@@ -100,6 +100,7 @@
 
 #define RESET_CTRL                        0xc000
 #define SM_RESET                          0x0012
+#define SM_RESET_V520                     0x0013
 #define SM_RESET_CMD                      0x5A
 
 #define GENERAL_STATUS                    0xc014
@@ -130,6 +131,8 @@
 #define GPIO_USER_CONTROL                 0xc160
 #define GPIO0_TO_7_OUT                    0x0000
 #define GPIO8_TO_15_OUT                   0x0001
+#define GPIO0_TO_7_OUT_V520               0x0002
+#define GPIO8_TO_15_OUT_V520              0x0003
 
 #define STICKY_STATUS_CLEAR               0xc164
 
@@ -216,22 +219,27 @@
 #define DPLL_REF_MODE                     0x0035
 #define DPLL_PHASE_MEASUREMENT_CFG        0x0036
 #define DPLL_MODE                         0x0037
+#define DPLL_MODE_V520                    0x003B
 
 #define DPLL_1                            0xc400
 
 #define DPLL_2                            0xc438
+#define DPLL_2_V520                       0xc43c
 
 #define DPLL_3                            0xc480
 
 #define DPLL_4                            0xc4b8
+#define DPLL_4_V520                       0xc4bc
 
 #define DPLL_5                            0xc500
 
 #define DPLL_6                            0xc538
+#define DPLL_6_V520                       0xc53c
 
 #define DPLL_7                            0xc580
 
 #define SYS_DPLL                          0xc5b8
+#define SYS_DPLL_V520                     0xc5bc
 
 #define DPLL_CTRL_0                       0xc600
 #define DPLL_CTRL_DPLL_MANU_REF_CFG       0x0001
@@ -331,6 +339,7 @@
 #define GPIO_ALERT_OUT_CFG                0x000e
 #define GPIO_TOD_NOTIFICATION_CFG         0x000f
 #define GPIO_CTRL                         0x0010
+#define GPIO_CTRL_V520                    0x0011
 
 #define GPIO_1                            0xc8d4
 
@@ -365,6 +374,7 @@
 #define OUT_DIV_MUX                       0xca12
 
 #define OUTPUT_0                          0xca14
+#define OUTPUT_0_V520                     0xca20
 /* FOD frequency output divider value */
 #define OUT_DIV                           0x0000
 #define OUT_DUTY_CYCLE_HIGH               0x0004
@@ -374,28 +384,40 @@
 #define OUT_PHASE_ADJ                     0x000c
 
 #define OUTPUT_1                          0xca24
+#define OUTPUT_1_V520                     0xca30
 
 #define OUTPUT_2                          0xca34
+#define OUTPUT_2_V520                     0xca40
 
 #define OUTPUT_3                          0xca44
+#define OUTPUT_3_V520                     0xca50
 
 #define OUTPUT_4                          0xca54
+#define OUTPUT_4_V520                     0xca60
 
 #define OUTPUT_5                          0xca64
+#define OUTPUT_5_V520                     0xca80
 
 #define OUTPUT_6                          0xca80
+#define OUTPUT_6_V520                     0xca90
 
 #define OUTPUT_7                          0xca90
+#define OUTPUT_7_V520                     0xcaa0
 
 #define OUTPUT_8                          0xcaa0
+#define OUTPUT_8_V520                     0xcab0
 
 #define OUTPUT_9                          0xcab0
+#define OUTPUT_9_V520                     0xcac0
 
 #define OUTPUT_10                         0xcac0
+#define OUTPUT_10_V520                     0xcad0
 
 #define OUTPUT_11                         0xcad0
+#define OUTPUT_11_V520                    0xcae0
 
 #define SERIAL                            0xcae0
+#define SERIAL_V520                       0xcaf0
 
 #define PWM_ENCODER_0                     0xcb00
 
@@ -416,50 +438,72 @@
 #define PWM_DECODER_0                     0xcb40
 
 #define PWM_DECODER_1                     0xcb48
+#define PWM_DECODER_1_V520                0xcb4a
 
 #define PWM_DECODER_2                     0xcb50
+#define PWM_DECODER_2_V520                0xcb54
 
 #define PWM_DECODER_3                     0xcb58
+#define PWM_DECODER_3_V520                0xcb5e
 
 #define PWM_DECODER_4                     0xcb60
+#define PWM_DECODER_4_V520                0xcb68
 
 #define PWM_DECODER_5                     0xcb68
+#define PWM_DECODER_5_V520                0xcb80
 
 #define PWM_DECODER_6                     0xcb70
+#define PWM_DECODER_6_V520                0xcb8a
 
 #define PWM_DECODER_7                     0xcb80
+#define PWM_DECODER_7_V520                0xcb94
 
 #define PWM_DECODER_8                     0xcb88
+#define PWM_DECODER_8_V520                0xcb9e
 
 #define PWM_DECODER_9                     0xcb90
+#define PWM_DECODER_9_V520                0xcba8
 
 #define PWM_DECODER_10                    0xcb98
+#define PWM_DECODER_10_V520               0xcbb2
 
 #define PWM_DECODER_11                    0xcba0
+#define PWM_DECODER_11_V520               0xcbbc
 
 #define PWM_DECODER_12                    0xcba8
+#define PWM_DECODER_12_V520               0xcbc6
 
 #define PWM_DECODER_13                    0xcbb0
+#define PWM_DECODER_13_V520               0xcbd0
 
 #define PWM_DECODER_14                    0xcbb8
+#define PWM_DECODER_14_V520               0xcbda
 
 #define PWM_DECODER_15                    0xcbc0
+#define PWM_DECODER_15_V520               0xcbe4
 
 #define PWM_USER_DATA                     0xcbc8
+#define PWM_USER_DATA_V520                0xcbf0
 
 #define TOD_0                             0xcbcc
+#define TOD_0_V520                        0xcc00
 
 /* Enable TOD counter, output channel sync and even-PPS mode */
 #define TOD_CFG                           0x0000
+#define TOD_CFG_V520                      0x0001
 
 #define TOD_1                             0xcbce
+#define TOD_1_V520                        0xcc02
 
 #define TOD_2                             0xcbd0
+#define TOD_2_V520                        0xcc04
 
 #define TOD_3                             0xcbd2
+#define TOD_3_V520                        0xcc06
 
 
 #define TOD_WRITE_0                       0xcc00
+#define TOD_WRITE_0_V520                  0xcc10
 /* 8-bit subns, 32-bit ns, 48-bit seconds */
 #define TOD_WRITE                         0x0000
 /* Counter increments after TOD write is completed */
@@ -470,12 +514,16 @@
 #define TOD_WRITE_CMD                     0x000f
 
 #define TOD_WRITE_1                       0xcc10
+#define TOD_WRITE_1_V520                  0xcc20
 
 #define TOD_WRITE_2                       0xcc20
+#define TOD_WRITE_2_V520                  0xcc30
 
 #define TOD_WRITE_3                       0xcc30
+#define TOD_WRITE_3_V520                  0xcc40
 
 #define TOD_READ_PRIMARY_0                0xcc40
+#define TOD_READ_PRIMARY_0_V520           0xcc50
 /* 8-bit subns, 32-bit ns, 48-bit seconds */
 #define TOD_READ_PRIMARY                  0x0000
 /* Counter increments after TOD write is completed */
@@ -484,22 +532,31 @@
 #define TOD_READ_PRIMARY_SEL_CFG_0        0x000c
 /* Read trigger selection */
 #define TOD_READ_PRIMARY_CMD              0x000e
+#define TOD_READ_PRIMARY_CMD_V520         0x000f
 
 #define TOD_READ_PRIMARY_1                0xcc50
+#define TOD_READ_PRIMARY_1_V520           0xcc60
 
 #define TOD_READ_PRIMARY_2                0xcc60
+#define TOD_READ_PRIMARY_2_V520           0xcc80
 
 #define TOD_READ_PRIMARY_3                0xcc80
+#define TOD_READ_PRIMARY_3_V520           0xcc90
 
 #define TOD_READ_SECONDARY_0              0xcc90
+#define TOD_READ_SECONDARY_0_V520         0xcca0
 
 #define TOD_READ_SECONDARY_1              0xcca0
+#define TOD_READ_SECONDARY_1_V520         0xccb0
 
 #define TOD_READ_SECONDARY_2              0xccb0
+#define TOD_READ_SECONDARY_2_V520         0xccc0
 
 #define TOD_READ_SECONDARY_3              0xccc0
+#define TOD_READ_SECONDARY_3_V520         0xccd0
 
 #define OUTPUT_TDC_CFG                    0xccd0
+#define OUTPUT_TDC_CFG_V520               0xcce0
 
 #define OUTPUT_TDC_0                      0xcd00
 
@@ -512,8 +569,10 @@
 #define INPUT_TDC                         0xcd20
 
 #define SCRATCH                           0xcf50
+#define SCRATCH_V520                      0xcf4c
 
 #define EEPROM                            0xcf68
+#define EEPROM_V520                       0xcf64
 
 #define OTP                               0xcf70
 
