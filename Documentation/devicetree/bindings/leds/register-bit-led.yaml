@@ -20,8 +20,18 @@ allOf:
   - $ref: /schemas/leds/common.yaml#
 
 properties:
+  $nodename:
+    description:
+      The unit-address is in the form of @<reg addr>,<bit offset>
+    pattern: '^led@[0-9a-f]+,[0-9a-f]{1,2}$'
+
   compatible:
     const: register-bit-led
+
+  reg:
+    description:
+      The register address and size
+    maxItems: 1
 
   mask:
     description:
@@ -37,11 +47,12 @@ properties:
     description:
       register offset to the register controlling this LED
     $ref: /schemas/types.yaml#/definitions/uint32
+    deprecated: true
 
 required:
   - compatible
   - mask
-  - offset
+  - reg
 
 unevaluatedProperties: false
 
@@ -51,24 +62,30 @@ examples:
     syscon@10000000 {
         compatible = "arm,realview-pb1176-syscon", "syscon";
         reg = <0x10000000 0x1000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0x0 0x10000000 0x1000>;
 
-        led@8.0 {
+        led@8,0 {
             compatible = "register-bit-led";
+            reg = <0x08 0x04>;
             offset = <0x08>;
             mask = <0x01>;
             label = "versatile:0";
             linux,default-trigger = "heartbeat";
             default-state = "on";
         };
-        led@8.1 {
+        led@8,1 {
             compatible = "register-bit-led";
+            reg = <0x08 0x04>;
             offset = <0x08>;
             mask = <0x02>;
             label = "versatile:1";
             default-state = "off";
         };
-        led@8.2 {
+        led@8,2 {
             compatible = "register-bit-led";
+            reg = <0x08 0x04>;
             offset = <0x08>;
             mask = <0x04>;
             label = "versatile:2";
