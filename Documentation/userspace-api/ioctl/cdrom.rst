@@ -54,6 +54,9 @@ are as follows:
 	CDROM_SELECT_SPEED	Set the CD-ROM speed
 	CDROM_SELECT_DISC	Select disc (for juke-boxes)
 	CDROM_MEDIA_CHANGED	Check is media changed
+	CDROM_TIMED_MEDIA_CHANGE	Check if media changed
+					since given time
+					(struct cdrom_timed_media_change_info)
 	CDROM_DRIVE_STATUS	Get tray position, etc.
 	CDROM_DISC_STATUS	Get disc type, etc.
 	CDROM_CHANGER_NSLOTS	Get number of slots
