@@ -78,8 +78,19 @@ devm_cxl_add_memdev(struct cxl_mem *cxlm,
  * @mbox_mutex: Mutex to synchronize mailbox access.
  * @firmware_version: Firmware version for the memory device.
  * @enabled_cmds: Hardware commands found enabled in CEL.
- * @pmem_range: Persistent memory capacity information.
- * @ram_range: Volatile memory capacity information.
+ * @pmem_range: Active Persistent memory capacity configuration
+ * @ram_range: Active Volatile memory capacity configuration
+ * @total_bytes: sum of all possible capacities
+ * @volatile_only_bytes: hard volatile capacity
+ * @persistent_only_bytes: hard persistent capacity
+ * @partition_align_bytes: alignment size for partition-able capacity
+ * @active_volatile_bytes: sum of hard + soft volatile
+ * @active_persistent_bytes: sum of hard + soft persistent
+ * @next_volatile_bytes: volatile capacity change pending device reset
+ * @next_persistent_bytes: persistent capacity change pending device reset
+ *
+ * See section 8.2.9.5.2 Capacity Configuration and Label Storage for
+ * details on capacity parameters.
  */
 struct cxl_mem {
 	struct device *dev;

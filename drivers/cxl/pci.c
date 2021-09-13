@@ -1262,11 +1262,7 @@ static struct cxl_mbox_get_supported_logs *cxl_get_gsl(struct cxl_mem *cxlm)
 
 /**
  * cxl_mem_get_partition_info - Get partition info
- * @cxlm: The device to act on
- * @active_volatile_bytes: returned active volatile capacity
- * @active_persistent_bytes: returned active persistent capacity
- * @next_volatile_bytes: return next volatile capacity
- * @next_persistent_bytes: return next persistent capacity
+ * @cxlm: cxl_mem instance to update partition info
  *
  * Retrieve the current partition info for the device specified.  If not 0, the
  * 'next' values are pending and take affect on next cold reset.
@@ -1275,11 +1271,7 @@ static struct cxl_mbox_get_supported_logs *cxl_get_gsl(struct cxl_mem *cxlm)
  *
  * See CXL @8.2.9.5.2.1 Get Partition Info
  */
-static int cxl_mem_get_partition_info(struct cxl_mem *cxlm,
-				      u64 *active_volatile_bytes,
-				      u64 *active_persistent_bytes,
-				      u64 *next_volatile_bytes,
-				      u64 *next_persistent_bytes)
+static int cxl_mem_get_partition_info(struct cxl_mem *cxlm)
 {
 	struct cxl_mbox_get_partition_info {
 		__le64 active_volatile_cap;
@@ -1294,15 +1286,14 @@ static int cxl_mem_get_partition_info(struct cxl_mem *cxlm,
 	if (rc)
 		return rc;
 
-	*active_volatile_bytes = le64_to_cpu(pi.active_volatile_cap);
-	*active_persistent_bytes = le64_to_cpu(pi.active_persistent_cap);
-	*next_volatile_bytes = le64_to_cpu(pi.next_volatile_cap);
-	*next_persistent_bytes = le64_to_cpu(pi.next_volatile_cap);
-
-	*active_volatile_bytes *= CXL_CAPACITY_MULTIPLIER;
-	*active_persistent_bytes *= CXL_CAPACITY_MULTIPLIER;
-	*next_volatile_bytes *= CXL_CAPACITY_MULTIPLIER;
-	*next_persistent_bytes *= CXL_CAPACITY_MULTIPLIER;
+	cxlm->active_volatile_bytes =
+		le64_to_cpu(pi.active_volatile_cap) * CXL_CAPACITY_MULTIPLIER;
+	cxlm->active_persistent_bytes =
+		le64_to_cpu(pi.active_persistent_cap) * CXL_CAPACITY_MULTIPLIER;
+	cxlm->next_volatile_bytes =
+		le64_to_cpu(pi.next_volatile_cap) * CXL_CAPACITY_MULTIPLIER;
+	cxlm->next_persistent_bytes =
+		le64_to_cpu(pi.next_volatile_cap) * CXL_CAPACITY_MULTIPLIER;
 
 	return 0;
 }
@@ -1443,11 +1434,7 @@ static int cxl_mem_create_range_info(struct cxl_mem *cxlm)
 		return 0;
 	}
 
-	rc = cxl_mem_get_partition_info(cxlm,
-					&cxlm->active_volatile_bytes,
-					&cxlm->active_persistent_bytes,
-					&cxlm->next_volatile_bytes,
-					&cxlm->next_persistent_bytes);
+	rc = cxl_mem_get_partition_info(cxlm);
 	if (rc < 0) {
 		dev_err(cxlm->dev, "Failed to query partition information\n");
 		return rc;
