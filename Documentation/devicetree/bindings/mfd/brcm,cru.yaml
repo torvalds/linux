@@ -39,6 +39,9 @@ patternProperties:
   '^clock-controller@[a-f0-9]+$':
     $ref: ../clock/brcm,iproc-clocks.yaml
 
+  '^syscon@[a-f0-9]+$':
+    $ref: syscon.yaml
+
   '^thermal@[a-f0-9]+$':
     $ref: ../thermal/brcm,ns-thermal.yaml
 
@@ -71,6 +74,11 @@ examples:
             clocks = <&osc>;
             clock-output-names = "genpll", "phy", "ethernetclk", "usbclk",
                                  "iprocfast", "sata1", "sata2";
+        };
+
+        syscon@180 {
+            compatible = "brcm,cru-clkset", "syscon";
+            reg = <0x180 0x4>;
         };
 
         pinctrl {
