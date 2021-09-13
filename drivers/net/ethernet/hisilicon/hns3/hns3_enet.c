@@ -61,6 +61,9 @@ static unsigned int tx_sgl = 1;
 module_param(tx_sgl, uint, 0600);
 MODULE_PARM_DESC(tx_sgl, "Minimum number of frags when using dma_map_sg() to optimize the IOMMU mapping");
 
+static bool page_pool_enabled = true;
+module_param(page_pool_enabled, bool, 0400);
+
 #define HNS3_SGL_SIZE(nfrag)	(sizeof(struct scatterlist) * (nfrag) +	\
 				 sizeof(struct sg_table))
 #define HNS3_MAX_SGL_SIZE	ALIGN(HNS3_SGL_SIZE(HNS3_MAX_TSO_BD_NUM), \
@@ -4753,7 +4756,8 @@ static int hns3_alloc_ring_memory(struct hns3_enet_ring *ring)
 		goto out_with_desc_cb;
 
 	if (!HNAE3_IS_TX_RING(ring)) {
-		hns3_alloc_page_pool(ring);
+		if (page_pool_enabled)
+			hns3_alloc_page_pool(ring);
 
 		ret = hns3_alloc_ring_buffers(ring);
 		if (ret)
