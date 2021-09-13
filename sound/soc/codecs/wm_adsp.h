@@ -52,6 +52,7 @@ struct cs_dsp_alg_region {
 struct wm_adsp_compr;
 struct wm_adsp_compr_buf;
 struct cs_dsp_ops;
+struct cs_dsp_client_ops;
 
 struct cs_dsp_coeff_ctl {
 	const char *fw_name;
@@ -81,6 +82,7 @@ struct cs_dsp {
 	struct regmap *regmap;
 
 	const struct cs_dsp_ops *ops;
+	const struct cs_dsp_client_ops *client_ops;
 
 	unsigned int base;
 	unsigned int base_sysinfo;
@@ -236,5 +238,13 @@ int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name,  int type,
 		      unsigned int alg, void *buf, size_t len);
 int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name,  int type,
 		      unsigned int alg, void *buf, size_t len);
+
+struct cs_dsp_client_ops {
+	int (*control_add)(struct cs_dsp_coeff_ctl *ctl);
+	void (*control_remove)(struct cs_dsp_coeff_ctl *ctl);
+	int (*post_run)(struct cs_dsp *dsp);
+	void (*post_stop)(struct cs_dsp *dsp);
+	void (*watchdog_expired)(struct cs_dsp *dsp);
+};
 
 #endif

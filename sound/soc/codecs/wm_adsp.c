@@ -318,6 +318,9 @@ static const struct cs_dsp_ops cs_dsp_adsp1_ops;
 static const struct cs_dsp_ops cs_dsp_adsp2_ops[];
 static const struct cs_dsp_ops cs_dsp_halo_ops;
 
+static const struct cs_dsp_client_ops wm_adsp1_client_ops;
+static const struct cs_dsp_client_ops wm_adsp2_client_ops;
+
 struct cs_dsp_buf {
 	struct list_head list;
 	void *buf;
@@ -1548,9 +1551,11 @@ static int cs_dsp_create_control(struct cs_dsp *dsp,
 
 	list_add(&ctl->list, &dsp->ctl_list);
 
-	ret = wm_adsp_control_add(ctl);
-	if (ret)
-		goto err_list_del;
+	if (dsp->client_ops->control_add) {
+		ret = dsp->client_ops->control_add(ctl);
+		if (ret)
+			goto err_list_del;
+	}
 
 	return 0;
 
@@ -2865,6 +2870,8 @@ int wm_adsp1_init(struct wm_adsp *dsp)
 {
 	int ret;
 
+	dsp->cs_dsp.client_ops = &wm_adsp1_client_ops;
+
 	ret = cs_dsp_adsp1_init(&dsp->cs_dsp);
 	if (ret)
 		return ret;
@@ -3436,9 +3443,11 @@ static int cs_dsp_run(struct cs_dsp *dsp)
 
 	dsp->running = true;
 
-	ret = wm_adsp_event_post_run(dsp);
-	if (ret < 0)
-		goto err;
+	if (dsp->client_ops->post_run) {
+		ret = dsp->client_ops->post_run(dsp);
+		if (ret)
+			goto err;
+	}
 
 	mutex_unlock(&dsp->pwr_lock);
 
@@ -3475,7 +3484,8 @@ static void cs_dsp_stop(struct cs_dsp *dsp)
 	if (dsp->ops->disable_core)
 		dsp->ops->disable_core(dsp);
 
-	wm_adsp_event_post_stop(dsp);
+	if (dsp->client_ops->post_stop)
+		dsp->client_ops->post_stop(dsp);
 
 	mutex_unlock(&dsp->pwr_lock);
 
@@ -3585,6 +3595,7 @@ int wm_adsp2_init(struct wm_adsp *dsp)
 	INIT_WORK(&dsp->boot_work, wm_adsp_boot_work);
 
 	dsp->sys_config_size = sizeof(struct wm_adsp_system_config_xm_hdr);
+	dsp->cs_dsp.client_ops = &wm_adsp2_client_ops;
 
 	ret = cs_dsp_adsp2_init(&dsp->cs_dsp);
 	if (ret)
@@ -3608,6 +3619,7 @@ int wm_halo_init(struct wm_adsp *dsp)
 	INIT_WORK(&dsp->boot_work, wm_adsp_boot_work);
 
 	dsp->sys_config_size = sizeof(struct wm_halo_system_config_xm_hdr);
+	dsp->cs_dsp.client_ops = &wm_adsp2_client_ops;
 
 	ret = cs_dsp_halo_init(&dsp->cs_dsp);
 	if (ret)
@@ -3624,7 +3636,8 @@ static void cs_dsp_remove(struct cs_dsp *dsp)
 	while (!list_empty(&dsp->ctl_list)) {
 		ctl = list_first_entry(&dsp->ctl_list, struct cs_dsp_coeff_ctl, list);
 
-		wm_adsp_control_remove(ctl);
+		if (dsp->client_ops->control_remove)
+			dsp->client_ops->control_remove(ctl);
 
 		list_del(&ctl->list);
 		cs_dsp_free_ctl_blk(ctl);
@@ -4573,7 +4586,8 @@ static void cs_dsp_adsp2_bus_error(struct cs_dsp *dsp)
 	if (val & ADSP2_WDT_TIMEOUT_STS_MASK) {
 		cs_dsp_err(dsp, "watchdog timeout error\n");
 		dsp->ops->stop_watchdog(dsp);
-		wm_adsp_fatal_error(dsp);
+		if (dsp->client_ops->watchdog_expired)
+			dsp->client_ops->watchdog_expired(dsp);
 	}
 
 	if (val & (ADSP2_ADDR_ERR_MASK | ADSP2_REGION_LOCK_ERR_MASK)) {
@@ -4697,7 +4711,8 @@ static void cs_dsp_halo_wdt_expire(struct cs_dsp *dsp)
 	cs_dsp_warn(dsp, "WDT Expiry Fault\n");
 
 	dsp->ops->stop_watchdog(dsp);
-	wm_adsp_fatal_error(dsp);
+	if (dsp->client_ops->watchdog_expired)
+		dsp->client_ops->watchdog_expired(dsp);
 
 	mutex_unlock(&dsp->pwr_lock);
 }
@@ -4716,6 +4731,11 @@ static const struct cs_dsp_ops cs_dsp_adsp1_ops = {
 	.validate_version = cs_dsp_validate_version,
 	.parse_sizes = cs_dsp_adsp1_parse_sizes,
 	.region_to_reg = cs_dsp_region_to_reg,
+};
+
+static const struct cs_dsp_client_ops wm_adsp1_client_ops = {
+	.control_add = wm_adsp_control_add,
+	.control_remove = wm_adsp_control_remove,
 };
 
 static const struct cs_dsp_ops cs_dsp_adsp2_ops[] = {
@@ -4789,6 +4809,14 @@ static const struct cs_dsp_ops cs_dsp_halo_ops = {
 
 	.start_core = cs_dsp_halo_start_core,
 	.stop_core = cs_dsp_halo_stop_core,
+};
+
+static const struct cs_dsp_client_ops wm_adsp2_client_ops = {
+	.control_add = wm_adsp_control_add,
+	.control_remove = wm_adsp_control_remove,
+	.post_run = wm_adsp_event_post_run,
+	.post_stop = wm_adsp_event_post_stop,
+	.watchdog_expired = wm_adsp_fatal_error,
 };
 
 MODULE_LICENSE("GPL v2");
