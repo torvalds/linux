@@ -3215,10 +3215,9 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 						     &new_crtc_state->fdi_m_n, NULL);
 
 		hsw_set_frame_start_delay(new_crtc_state);
-	}
 
-	if (!transcoder_is_dsi(cpu_transcoder))
 		hsw_set_transconf(new_crtc_state);
+	}
 
 	crtc->active = true;
 
