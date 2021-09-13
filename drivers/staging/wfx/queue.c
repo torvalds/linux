@@ -73,21 +73,20 @@ void wfx_tx_queues_init(struct wfx_vif *wvif)
 	}
 }
 
+bool wfx_tx_queue_empty(struct wfx_vif *wvif, struct wfx_queue *queue)
+{
+	return skb_queue_empty_lockless(&queue->normal) &&
+	       skb_queue_empty_lockless(&queue->cab);
+}
+
 void wfx_tx_queues_check_empty(struct wfx_vif *wvif)
 {
 	int i;
 
 	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
 		WARN_ON(atomic_read(&wvif->tx_queue[i].pending_frames));
-		WARN_ON(!skb_queue_empty_lockless(&wvif->tx_queue[i].normal));
-		WARN_ON(!skb_queue_empty_lockless(&wvif->tx_queue[i].cab));
+		WARN_ON(!wfx_tx_queue_empty(wvif, &wvif->tx_queue[i]));
 	}
-}
-
-bool wfx_tx_queue_empty(struct wfx_vif *wvif, struct wfx_queue *queue)
-{
-	return skb_queue_empty_lockless(&queue->normal) &&
-	       skb_queue_empty_lockless(&queue->cab);
 }
 
 static void __wfx_tx_queue_drop(struct wfx_vif *wvif,
