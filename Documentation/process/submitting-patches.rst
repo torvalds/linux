@@ -330,6 +330,7 @@ politely and address the problems they have pointed out.
 See Documentation/process/email-clients.rst for recommendations on email
 clients and mailing list etiquette.
 
+.. _resend_reminders:
 
 Don't get discouraged - or impatient
 ------------------------------------
@@ -714,6 +715,8 @@ patch::
 
 See more details on the proper patch format in the following
 references.
+
+.. _backtraces:
 
 Backtraces in commit mesages
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
