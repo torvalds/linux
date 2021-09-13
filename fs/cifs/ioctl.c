@@ -358,7 +358,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			if (pSMBFile == NULL)
 				break;
 			tcon = tlink_tcon(pSMBFile->tlink);
-			caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
+			/* caps = le64_to_cpu(tcon->fsUnixInfo.Capability); */
 
 			if (get_user(ExtAttrBits, (int __user *)arg)) {
 				rc = -EFAULT;
