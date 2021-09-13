@@ -50,10 +50,6 @@ static inline void _init_pwrlock(struct semaphore  *plock)
 	sema_init(plock, 1);
 }
 
-static inline void _free_pwrlock(struct semaphore  *plock)
-{
-}
-
 static inline void _enter_pwrlock(struct semaphore  *plock)
 {
 	_rtw_down_sema(plock);

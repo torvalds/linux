@@ -371,14 +371,6 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 	timer_setup(&pwrctrlpriv->pwr_state_check_timer, pwr_state_check_handler, 0);
 }
 
-void rtw_free_pwrctrl_priv(struct adapter *adapter)
-{
-	struct pwrctrl_priv *pwrctrlpriv = &adapter->pwrctrlpriv;
-
-	_free_pwrlock(&pwrctrlpriv->lock);
-
-}
-
 inline void rtw_set_ips_deny(struct adapter *padapter, u32 ms)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;

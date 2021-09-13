@@ -933,8 +933,6 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 
 	_rtw_free_recv_priv(&padapter->recvpriv);
 
-	rtw_free_pwrctrl_priv(padapter);
-
 	rtl8188e_free_hal_data(padapter);
 
 	/* free the old_pnetdev */
