@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * clk-si5351.h: Silicon Laboratories Si5351A/B/C I2C Clock Generator
+ * clk-si5351.h: Skyworks / Silicon Labs Si5351A/B/C I2C Clock Generator
  *
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
  * Rabeeh Khoury <rabeeh@solid-run.com>
