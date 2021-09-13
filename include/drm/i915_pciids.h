@@ -632,7 +632,8 @@
 	INTEL_VGA_DEVICE(0x4905, info), \
 	INTEL_VGA_DEVICE(0x4906, info), \
 	INTEL_VGA_DEVICE(0x4907, info), \
-	INTEL_VGA_DEVICE(0x4908, info)
+	INTEL_VGA_DEVICE(0x4908, info), \
+	INTEL_VGA_DEVICE(0x4909, info)
 
 /* ADL-S */
 #define INTEL_ADLS_IDS(info) \
