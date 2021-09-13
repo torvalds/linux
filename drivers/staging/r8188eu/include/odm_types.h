@@ -17,8 +17,6 @@ enum HAL_STATUS {
 	HAL_STATUS_FAILURE,
 };
 
-#include "basic_types.h"
-
 #define SET_TX_DESC_ANTSEL_A_88E(__ptxdesc, __value)			\
 	le32p_replace_bits((__le32 *)(__ptxdesc + 8), __value, BIT(24))
 #define SET_TX_DESC_ANTSEL_B_88E(__ptxdesc, __value)			\
