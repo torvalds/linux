@@ -113,12 +113,6 @@ enum hif_api_rate_index {
 	API_RATE_NUM_ENTRIES       = 22
 };
 
-enum hif_fw_type {
-	HIF_FW_TYPE_ETF  = 0x0,
-	HIF_FW_TYPE_WFM  = 0x1,
-	HIF_FW_TYPE_WSM  = 0x2
-};
-
 struct hif_ind_startup {
 	// As the others, this struct is interpreted as little endian by the
 	// device. However, this struct is also used by the driver. We prefer to
