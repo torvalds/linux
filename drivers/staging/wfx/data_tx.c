@@ -108,6 +108,7 @@ static int wfx_tx_policy_get(struct wfx_vif *wvif,
 	int idx;
 	struct tx_policy_cache *cache = &wvif->tx_policy_cache;
 	struct tx_policy wanted;
+	struct tx_policy *entry;
 
 	wfx_tx_policy_build(wvif, &wanted, rates);
 
@@ -121,11 +122,10 @@ static int wfx_tx_policy_get(struct wfx_vif *wvif,
 	if (idx >= 0) {
 		*renew = false;
 	} else {
-		struct tx_policy *entry;
-		*renew = true;
-		/* If policy is not found create a new one
-		 * using the oldest entry in "free" list
+		/* If policy is not found create a new one using the oldest
+		 * entry in "free" list
 		 */
+		*renew = true;
 		entry = list_entry(cache->free.prev, struct tx_policy, link);
 		memcpy(entry->rates, wanted.rates, sizeof(entry->rates));
 		entry->uploaded = false;
