@@ -121,6 +121,9 @@ extern struct imx_pll14xx_clk imx_1443x_dram_pll;
 #define imx_clk_pllv2(name, parent, base) \
 	to_clk(imx_clk_hw_pllv2(name, parent, base))
 
+#define imx_clk_mux_flags(name, reg, shift, width, parents, num_parents, flags) \
+	to_clk(imx_clk_hw_mux_flags(name, reg, shift, width, parents, num_parents, flags))
+
 #define imx_clk_hw_gate(name, parent, reg, shift) \
 	imx_clk_hw_gate_flags(name, parent, reg, shift, 0)
 
@@ -156,6 +159,21 @@ extern struct imx_pll14xx_clk imx_1443x_dram_pll;
 
 #define imx_clk_hw_gate4_flags(name, parent, reg, shift, flags) \
 	imx_clk_hw_gate2_flags(name, parent, reg, shift, flags | CLK_OPS_PARENT_ENABLE)
+
+#define imx_clk_hw_mux2(name, reg, shift, width, parents, num_parents) \
+	imx_clk_hw_mux2_flags(name, reg, shift, width, parents, num_parents, 0)
+
+#define imx_clk_hw_mux(name, reg, shift, width, parents, num_parents) \
+	__imx_clk_hw_mux(name, reg, shift, width, parents, num_parents, 0, 0)
+
+#define imx_clk_hw_mux_flags(name, reg, shift, width, parents, num_parents, flags) \
+	__imx_clk_hw_mux(name, reg, shift, width, parents, num_parents, flags, 0)
+
+#define imx_clk_hw_mux_ldb(name, reg, shift, width, parents, num_parents) \
+	__imx_clk_hw_mux(name, reg, shift, width, parents, num_parents, CLK_SET_RATE_PARENT, CLK_MUX_READ_ONLY)
+
+#define imx_clk_hw_mux2_flags(name, reg, shift, width, parents, num_parents, flags) \
+	__imx_clk_hw_mux(name, reg, shift, width, parents, num_parents, flags | CLK_OPS_PARENT_ENABLE, 0)
 
 struct clk_hw *imx_dev_clk_hw_pll14xx(struct device *dev, const char *name,
 				const char *parent_name, void __iomem *base,
@@ -278,15 +296,6 @@ static inline struct clk_hw *imx_clk_hw_fixed(const char *name, int rate)
 	return clk_hw_register_fixed_rate(NULL, name, NULL, 0, rate);
 }
 
-static inline struct clk_hw *imx_clk_hw_mux_ldb(const char *name, void __iomem *reg,
-			u8 shift, u8 width, const char * const *parents,
-			int num_parents)
-{
-	return clk_hw_register_mux(NULL, name, parents, num_parents,
-			CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT, reg,
-			shift, width, CLK_MUX_READ_ONLY, &imx_ccm_lock);
-}
-
 static inline struct clk_hw *imx_clk_hw_fixed_factor(const char *name,
 		const char *parent, unsigned int mult, unsigned int div)
 {
@@ -338,46 +347,13 @@ static inline struct clk_hw *__imx_clk_hw_gate2(const char *name, const char *pa
 					shift, cgr_val, 0x3, 0, &imx_ccm_lock, share_count);
 }
 
-static inline struct clk_hw *imx_clk_hw_mux(const char *name, void __iomem *reg,
+static inline struct clk_hw *__imx_clk_hw_mux(const char *name, void __iomem *reg,
 			u8 shift, u8 width, const char * const *parents,
-			int num_parents)
+			int num_parents, unsigned long flags, unsigned long clk_mux_flags)
 {
 	return clk_hw_register_mux(NULL, name, parents, num_parents,
-			CLK_SET_RATE_NO_REPARENT, reg, shift,
-			width, 0, &imx_ccm_lock);
-}
-
-static inline struct clk_hw *imx_clk_hw_mux2(const char *name, void __iomem *reg,
-					     u8 shift, u8 width,
-					     const char * const *parents,
-					     int num_parents)
-{
-	return clk_hw_register_mux(NULL, name, parents, num_parents,
-				   CLK_SET_RATE_NO_REPARENT |
-				   CLK_OPS_PARENT_ENABLE,
-				   reg, shift, width, 0, &imx_ccm_lock);
-}
-
-static inline struct clk_hw *imx_clk_hw_mux2_flags(const char *name,
-		void __iomem *reg, u8 shift, u8 width,
-		const char * const *parents,
-		int num_parents, unsigned long flags)
-{
-	return clk_hw_register_mux(NULL, name, parents, num_parents,
-			flags | CLK_SET_RATE_NO_REPARENT | CLK_OPS_PARENT_ENABLE,
-			reg, shift, width, 0, &imx_ccm_lock);
-}
-
-static inline struct clk_hw *imx_clk_hw_mux_flags(const char *name,
-						  void __iomem *reg, u8 shift,
-						  u8 width,
-						  const char * const *parents,
-						  int num_parents,
-						  unsigned long flags)
-{
-	return clk_hw_register_mux(NULL, name, parents, num_parents,
-				   flags | CLK_SET_RATE_NO_REPARENT,
-				   reg, shift, width, 0, &imx_ccm_lock);
+			flags | CLK_SET_RATE_NO_REPARENT, reg, shift,
+			width, clk_mux_flags, &imx_ccm_lock);
 }
 
 struct clk_hw *imx_clk_hw_cpu(const char *name, const char *parent_name,
