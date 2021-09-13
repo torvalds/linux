@@ -158,6 +158,63 @@ static void check_u32(unsigned int vl, const char *reg,
 	}
 }
 
+/* Access the FPSIMD registers via the SVE regset */
+static void ptrace_sve_fpsimd(pid_t child)
+{
+	void *svebuf = NULL;
+	size_t svebufsz = 0;
+	struct user_sve_header *sve;
+	struct user_fpsimd_state *fpsimd, new_fpsimd;
+	unsigned int i, j;
+	unsigned char *p;
+
+	/* New process should start with FPSIMD registers only */
+	sve = get_sve(child, &svebuf, &svebufsz);
+	if (!sve) {
+		ksft_test_result_fail("get_sve: %s\n", strerror(errno));
+
+		return;
+	} else {
+		ksft_test_result_pass("get_sve(FPSIMD)\n");
+	}
+
+	ksft_test_result((sve->flags & SVE_PT_REGS_MASK) == SVE_PT_REGS_FPSIMD,
+			 "Set FPSIMD registers\n");
+	if ((sve->flags & SVE_PT_REGS_MASK) != SVE_PT_REGS_FPSIMD)
+		goto out;
+
+	/* Try to set a known FPSIMD state via PT_REGS_SVE */
+	fpsimd = (struct user_fpsimd_state *)((char *)sve +
+					      SVE_PT_FPSIMD_OFFSET);
+	for (i = 0; i < 32; ++i) {
+		p = (unsigned char *)&fpsimd->vregs[i];
+
+		for (j = 0; j < sizeof(fpsimd->vregs[i]); ++j)
+			p[j] = j;
+	}
+
+	if (set_sve(child, sve)) {
+		ksft_test_result_fail("set_sve(FPSIMD): %s\n",
+				      strerror(errno));
+
+		goto out;
+	}
+
+	/* Verify via the FPSIMD regset */
+	if (get_fpsimd(child, &new_fpsimd)) {
+		ksft_test_result_fail("get_fpsimd(): %s\n",
+				      strerror(errno));
+		goto out;
+	}
+	if (memcmp(fpsimd, &new_fpsimd, sizeof(*fpsimd)) == 0)
+		ksft_test_result_pass("get_fpsimd() gave same state\n");
+	else
+		ksft_test_result_fail("get_fpsimd() gave different state\n");
+
+out:
+	free(svebuf);
+}
+
 /* Validate attempting to set SVE data and read SVE data */
 static void ptrace_set_sve_get_sve_data(pid_t child, unsigned int vl)
 {
@@ -335,12 +392,6 @@ static int do_parent(pid_t child)
 	pid_t pid;
 	int status;
 	siginfo_t si;
-	void *svebuf = NULL;
-	size_t svebufsz = 0;
-	struct user_sve_header *sve;
-	struct user_fpsimd_state *fpsimd, new_fpsimd;
-	unsigned int i, j;
-	unsigned char *p;
 	unsigned int vq, vl;
 	bool vl_supported;
 
@@ -398,61 +449,8 @@ static int do_parent(pid_t child)
 		}
 	}
 
-	/* New process should start with FPSIMD registers only */
-	sve = get_sve(pid, &svebuf, &svebufsz);
-	if (!sve) {
-		int e = errno;
-
-		ksft_test_result_fail("get_sve: %s\n", strerror(errno));
-		if (e == ESRCH)
-			goto disappeared;
-
-		goto error;
-	} else {
-		ksft_test_result_pass("get_sve(FPSIMD)\n");
-	}
-
-	ksft_test_result((sve->flags & SVE_PT_REGS_MASK) == SVE_PT_REGS_FPSIMD,
-			 "Set FPSIMD registers\n");
-	if ((sve->flags & SVE_PT_REGS_MASK) != SVE_PT_REGS_FPSIMD)
-		goto error;
-
-	/* Try to set a known FPSIMD state via PT_REGS_SVE */
-	fpsimd = (struct user_fpsimd_state *)((char *)sve +
-					      SVE_PT_FPSIMD_OFFSET);
-	for (i = 0; i < 32; ++i) {
-		p = (unsigned char *)&fpsimd->vregs[i];
-
-		for (j = 0; j < sizeof fpsimd->vregs[i]; ++j)
-			p[j] = j;
-	}
-
-	if (set_sve(pid, sve)) {
-		int e = errno;
-
-		ksft_test_result_fail("set_sve(FPSIMD): %s\n",
-				      strerror(errno));
-		if (e == ESRCH)
-			goto disappeared;
-
-		goto error;
-	}
-
-	/* Verify via the FPSIMD regset */
-	if (get_fpsimd(pid, &new_fpsimd)) {
-		int e = errno;
-
-		ksft_test_result_fail("get_fpsimd(): %s\n",
-				      strerror(errno));
-		if (e == ESRCH)
-			goto disappeared;
-
-		goto error;
-	}
-	if (memcmp(fpsimd, &new_fpsimd, sizeof(*fpsimd)) == 0)
-		ksft_test_result_pass("get_fpsimd() gave same state\n");
-	else
-		ksft_test_result_fail("get_fpsimd() gave different state\n");
+	/* FPSIMD via SVE regset */
+	ptrace_sve_fpsimd(child);
 
 	/* Step through every possible VQ */
 	for (vq = SVE_VQ_MIN; vq <= SVE_VQ_MAX; vq++) {
