@@ -19,6 +19,8 @@
 
 #include "../../kselftest.h"
 
+#define EXPECTED_TESTS 20
+
 /* <linux/elf.h> and <sys/auxv.h> don't like each other, so: */
 #ifndef NT_ARM_SVE
 #define NT_ARM_SVE 0x405
@@ -313,7 +315,7 @@ int main(void)
 	pid_t child;
 
 	ksft_print_header();
-	ksft_set_plan(20);
+	ksft_set_plan(EXPECTED_TESTS);
 
 	if (!(getauxval(AT_HWCAP) & HWCAP_SVE))
 		ksft_exit_skip("SVE not available\n");
