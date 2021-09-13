@@ -795,6 +795,9 @@ bch2_trans_commit_get_rw_cold(struct btree_trans *trans)
 	if (ret)
 		return ret;
 
+	if (!bch2_trans_relock(trans))
+		return -EINTR;
+
 	percpu_ref_get(&c->writes);
 	return 0;
 }
