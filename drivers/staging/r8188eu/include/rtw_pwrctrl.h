@@ -39,42 +39,6 @@ enum power_mgnt {
 	PS_MODE_NUM
 };
 
-/*
-	BIT[2:0] = HW state
-	BIT[3] = Protocol PS state,   0: register active state,
-				      1: register sleep state
-	BIT[4] = sub-state
-*/
-
-#define PS_DPS			BIT(0)
-#define PS_LCLK			(PS_DPS)
-#define PS_RF_OFF		BIT(1)
-#define PS_ALL_ON		BIT(2)
-#define PS_ST_ACTIVE		BIT(3)
-
-#define PS_ISR_ENABLE		BIT(4)
-#define PS_IMR_ENABLE		BIT(5)
-#define PS_ACK			BIT(6)
-#define PS_TOGGLE		BIT(7)
-
-#define PS_STATE_MASK		(0x0F)
-#define PS_STATE_HW_MASK	(0x07)
-#define PS_SEQ_MASK		(0xc0)
-
-#define PS_STATE(x)		(PS_STATE_MASK & (x))
-#define PS_STATE_HW(x)		(PS_STATE_HW_MASK & (x))
-#define PS_SEQ(x)		(PS_SEQ_MASK & (x))
-
-#define PS_STATE_S0		(PS_DPS)
-#define PS_STATE_S1		(PS_LCLK)
-#define PS_STATE_S2		(PS_RF_OFF)
-#define PS_STATE_S3		(PS_ALL_ON)
-#define PS_STATE_S4		((PS_ST_ACTIVE) | (PS_ALL_ON))
-
-#define PS_IS_RF_ON(x)	((x) & (PS_ALL_ON))
-#define PS_IS_ACTIVE(x)	((x) & (PS_ST_ACTIVE))
-#define CLR_PS_STATE(x)	((x) = ((x) & (0xF0)))
-
 struct reportpwrstate_parm {
 	unsigned char mode;
 	unsigned char state; /* the CPWM value */
