@@ -69,8 +69,7 @@ static const char * const fwio_errors[] = {
 	[ERR_MAC_KEY] = "MAC key not initialized",
 };
 
-/*
- * request_firmware() allocate data using vmalloc(). It is not compatible with
+/* request_firmware() allocate data using vmalloc(). It is not compatible with
  * underlying hardware that use DMA. Function below detect this case and
  * allocate a bounce buffer if necessary.
  *

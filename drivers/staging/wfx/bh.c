@@ -265,9 +265,7 @@ static void bh_work(struct work_struct *work)
 			wdev->hif.tx_buffers_used, release_chip);
 }
 
-/*
- * An IRQ from chip did occur
- */
+/* An IRQ from chip did occur */
 void wfx_bh_request_rx(struct wfx_dev *wdev)
 {
 	u32 cur, prev;
@@ -285,16 +283,13 @@ void wfx_bh_request_rx(struct wfx_dev *wdev)
 			prev, cur);
 }
 
-/*
- * Driver want to send data
- */
+/* Driver want to send data */
 void wfx_bh_request_tx(struct wfx_dev *wdev)
 {
 	queue_work(system_highpri_wq, &wdev->hif.bh);
 }
 
-/*
- * If IRQ is not available, this function allow to manually poll the control
+/* If IRQ is not available, this function allow to manually poll the control
  * register and simulate an IRQ ahen an event happened.
  *
  * Note that the device has a bug: If an IRQ raise while host read control

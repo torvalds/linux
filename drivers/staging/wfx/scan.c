@@ -85,8 +85,7 @@ static int send_scan_req(struct wfx_vif *wvif,
 	return ret;
 }
 
-/*
- * It is not really necessary to run scan request asynchronously. However,
+/* It is not really necessary to run scan request asynchronously. However,
  * there is a bug in "iw scan" when ieee80211_scan_completed() is called before
  * wfx_hw_scan() return
  */

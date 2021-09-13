@@ -38,8 +38,7 @@ struct wfx_spi_priv {
 	bool need_swab;
 };
 
-/*
- * The chip reads 16bits of data at time and place them directly into (little
+/* The chip reads 16bits of data at time and place them directly into (little
  * endian) CPU register. So, the chip expects bytes order to be "B1 B0 B3 B2"
  * (while LE is "B0 B1 B2 B3" and BE is "B3 B2 B1 B0")
  *
@@ -241,8 +240,7 @@ static int wfx_spi_remove(struct spi_device *func)
 	return 0;
 }
 
-/*
- * For dynamic driver binding, kernel does not use OF to match driver. It only
+/* For dynamic driver binding, kernel does not use OF to match driver. It only
  * use modalias and modalias is a copy of 'compatible' DT node with vendor
  * stripped.
  */
