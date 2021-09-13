@@ -21,6 +21,10 @@ If you're unfamiliar with ``git``, you would be well-advised to learn how to
 use it, it will make your life as a kernel developer and in general much
 easier.
 
+Some subsystems and maintainer trees have additional information about
+their workflow and expectations, see :ref:`Documentation/process/maintainer
+handbooks <maintainer_handbooks_main>`.
+
 Obtain a current source tree
 ----------------------------
 
