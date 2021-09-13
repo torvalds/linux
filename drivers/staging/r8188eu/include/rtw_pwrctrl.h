@@ -53,14 +53,6 @@ enum rt_rf_power_state {
 	rf_max
 };
 
-enum _PS_BBRegBackup_ {
-	PSBBREG_RF0 = 0,
-	PSBBREG_RF1,
-	PSBBREG_RF2,
-	PSBBREG_AFE0,
-	PSBBREG_TOTALCNT
-};
-
 enum { /*  for ips_mode */
 	IPS_NONE = 0,
 	IPS_NORMAL,
@@ -125,7 +117,6 @@ struct pwrctrl_priv {
 	u8		bHWPowerdown;/* if support hw power down */
 	u8		bkeepfwalive;
 	u8		brfoffbyhw;
-	unsigned long PS_BBRegBackup[PSBBREG_TOTALCNT];
 };
 
 #define rtw_get_ips_mode_req(pwrctrlpriv) \
