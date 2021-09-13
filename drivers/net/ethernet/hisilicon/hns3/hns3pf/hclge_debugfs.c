@@ -1724,6 +1724,10 @@ hclge_dbg_get_imp_stats_info(struct hclge_dev *hdev, char *buf, int len)
 	}
 
 	bd_num = le32_to_cpu(req->bd_num);
+	if (!bd_num) {
+		dev_err(&hdev->pdev->dev, "imp statistics bd number is 0!\n");
+		return -EINVAL;
+	}
 
 	desc_src = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
 	if (!desc_src)
