@@ -629,8 +629,19 @@ int wfx_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 
 void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_notify_cmd notify_cmd)
 {
+	struct wfx_vif *wvif_it;
+
 	if (notify_cmd != STA_NOTIFY_AWAKE)
 		return;
+
+	/* Device won't be able to honor CAB if a scan is in progress on any
+	 * interface. Prefer to skip this DTIM and wait for the next one.
+	 */
+	wvif_it = NULL;
+	while ((wvif_it = wvif_iterate(wvif->wdev, wvif_it)) != NULL)
+		if (mutex_is_locked(&wvif_it->scan_lock))
+			return;
+
 	if (!wfx_tx_queues_has_cab(wvif) || wvif->after_dtim_tx_allowed)
 		dev_warn(wvif->wdev->dev, "incorrect sequence (%d CAB in queue)",
 			 wfx_tx_queues_has_cab(wvif));
