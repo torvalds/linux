@@ -135,6 +135,17 @@ config SND_SOC_TEGRA210_AMX
 	  output frame by any combination of bytes from the input frames.
 	  Say Y or M if you want to add support for Tegra210 AMX module.
 
+config SND_SOC_TEGRA210_ADX
+	tristate "Tegra210 ADX module"
+	help
+	  Config to enable the Audio Demultiplexer (ADX) which takes an
+	  input stream (up to 16 channels) and demultiplexes it into four
+	  output streams (each of up to 16 channels). A byte RAM helps to
+	  form output frames by any combination of bytes from the input
+	  frame. Its design is identical to that of byte RAM in the AMX
+	  except that the data flow direction is reversed.
+	  Say Y or M if you want to add support for Tegra210 ADX module.
+
 config SND_SOC_TEGRA_AUDIO_GRAPH_CARD
 	tristate "Audio Graph Card based Tegra driver"
 	depends on SND_AUDIO_GRAPH_CARD
