@@ -2213,12 +2213,11 @@ static int bnxt_async_event_process(struct bnxt *bp,
 			DIV_ROUND_UP(fw_health->polling_dsecs * HZ,
 				     bp->current_interval * 10);
 		fw_health->tmr_counter = fw_health->tmr_multiplier;
-		if (!fw_health->enabled) {
+		if (!fw_health->enabled)
 			fw_health->last_fw_heartbeat =
 				bnxt_fw_health_readl(bp, BNXT_FW_HEARTBEAT_REG);
-			fw_health->last_fw_reset_cnt =
-				bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
-		}
+		fw_health->last_fw_reset_cnt =
+			bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
 		netif_info(bp, drv, bp->dev,
 			   "Error recovery info: error recovery[1], master[%d], reset count[%u], health status: 0x%x\n",
 			   fw_health->master, fw_health->last_fw_reset_cnt,
@@ -2730,6 +2729,9 @@ static void bnxt_free_tx_skbs(struct bnxt *bp)
 		struct bnxt_tx_ring_info *txr = &bp->tx_ring[i];
 		int j;
 
+		if (!txr->tx_buf_ring)
+			continue;
+
 		for (j = 0; j < max_idx;) {
 			struct bnxt_sw_tx_bd *tx_buf = &txr->tx_buf_ring[j];
 			struct sk_buff *skb;
@@ -2814,6 +2816,9 @@ static void bnxt_free_one_rx_ring_skbs(struct bnxt *bp, int ring_nr)
 	}
 
 skip_rx_tpa_free:
+	if (!rxr->rx_buf_ring)
+		goto skip_rx_buf_free;
+
 	for (i = 0; i < max_idx; i++) {
 		struct bnxt_sw_rx_bd *rx_buf = &rxr->rx_buf_ring[i];
 		dma_addr_t mapping = rx_buf->mapping;
@@ -2836,6 +2841,11 @@ skip_rx_tpa_free:
 			kfree(data);
 		}
 	}
+
+skip_rx_buf_free:
+	if (!rxr->rx_agg_ring)
+		goto skip_rx_agg_free;
+
 	for (i = 0; i < max_agg_idx; i++) {
 		struct bnxt_sw_rx_agg_bd *rx_agg_buf = &rxr->rx_agg_ring[i];
 		struct page *page = rx_agg_buf->page;
@@ -2852,6 +2862,8 @@ skip_rx_tpa_free:
 
 		__free_page(page);
 	}
+
+skip_rx_agg_free:
 	if (rxr->rx_page) {
 		__free_page(rxr->rx_page);
 		rxr->rx_page = NULL;
@@ -2900,6 +2912,9 @@ static void bnxt_free_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 	struct pci_dev *pdev = bp->pdev;
 	int i;
 
+	if (!rmem->pg_arr)
+		goto skip_pages;
+
 	for (i = 0; i < rmem->nr_pages; i++) {
 		if (!rmem->pg_arr[i])
 			continue;
@@ -2909,6 +2924,7 @@ static void bnxt_free_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 
 		rmem->pg_arr[i] = NULL;
 	}
+skip_pages:
 	if (rmem->pg_tbl) {
 		size_t pg_tbl_size = rmem->nr_pages * 8;
 
@@ -3228,10 +3244,14 @@ static int bnxt_alloc_tx_rings(struct bnxt *bp)
 
 static void bnxt_free_cp_arrays(struct bnxt_cp_ring_info *cpr)
 {
+	struct bnxt_ring_struct *ring = &cpr->cp_ring_struct;
+
 	kfree(cpr->cp_desc_ring);
 	cpr->cp_desc_ring = NULL;
+	ring->ring_mem.pg_arr = NULL;
 	kfree(cpr->cp_desc_mapping);
 	cpr->cp_desc_mapping = NULL;
+	ring->ring_mem.dma_arr = NULL;
 }
 
 static int bnxt_alloc_cp_arrays(struct bnxt_cp_ring_info *cpr, int n)
@@ -12207,6 +12227,11 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 			return;
 		}
 
+		if ((bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY) &&
+		    bp->fw_health->enabled) {
+			bp->fw_health->last_fw_reset_cnt =
+				bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
+		}
 		bp->fw_reset_state = 0;
 		/* Make sure fw_reset_state is 0 before clearing the flag */
 		smp_mb__before_atomic();
