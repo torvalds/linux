@@ -777,7 +777,12 @@ struct btree *bch2_btree_node_get(struct btree_trans *trans, struct btree_path *
 
 	if (c->opts.btree_node_mem_ptr_optimization) {
 		b = btree_node_mem_ptr(k);
-		if (b)
+		/*
+		 * Check b->hash_val _before_ calling btree_node_lock() - this
+		 * might not be the node we want anymore, and trying to lock the
+		 * wrong node could cause an unneccessary transaction restart:
+		 */
+		if (b && b->hash_val == btree_ptr_hash_val(k))
 			goto lock_node;
 	}
 retry:
