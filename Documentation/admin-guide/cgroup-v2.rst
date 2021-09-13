@@ -1226,7 +1226,7 @@ PAGE_SIZE multiple when read back.
 
 	Note that all fields in this file are hierarchical and the
 	file modified event can be generated due to an event down the
-	hierarchy. For for the local events at the cgroup level see
+	hierarchy. For the local events at the cgroup level see
 	memory.events.local.
 
 	  low
