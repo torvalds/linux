@@ -2179,6 +2179,19 @@ done:
 	run_walt_irq_work(old_window_start, rq);
 }
 
+static void __sched_fork_init(struct task_struct *p)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+
+	wts->last_sleep_ts	= 0;
+	wts->wake_up_idle	= false;
+	wts->boost		= 0;
+	wts->boost_expires	= 0;
+	wts->boost_period	= false;
+	wts->low_latency	= false;
+	wts->iowaited		= false;
+}
+
 static void init_new_task_load(struct task_struct *p)
 {
 	int i;
@@ -2230,6 +2243,7 @@ static void init_new_task_load(struct task_struct *p)
 	wts->sum_exec_snapshot = 0;
 	wts->total_exec = 0;
 	wts->mvp_prio = WALT_NOT_MVP;
+	__sched_fork_init(p);
 }
 
 static void init_existing_task_load(struct task_struct *p)
@@ -3696,6 +3710,7 @@ static void android_rvh_wake_up_new_task(void *unused, struct task_struct *new)
 {
 	if (unlikely(walt_disabled))
 		return;
+	init_new_task_load(new);
 	add_new_task_to_grp(new);
 }
 
@@ -3766,13 +3781,6 @@ static void android_rvh_set_task_cpu(void *unused, struct task_struct *p, unsign
 	if (unlikely(walt_disabled))
 		return;
 	fixup_busy_time(p, (int) new_cpu);
-}
-
-static void android_rvh_sched_fork(void *unused, struct task_struct *p)
-{
-	if (unlikely(walt_disabled))
-		return;
-	init_new_task_load(p);
 }
 
 static void android_rvh_new_task_stats(void *unused, struct task_struct *p)
@@ -4083,17 +4091,10 @@ static void android_rvh_sched_setaffinity(void *unused, struct task_struct *p,
 
 static void android_rvh_sched_fork_init(void *unused, struct task_struct *p)
 {
-	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-
 	if (unlikely(walt_disabled))
 		return;
-	wts->last_sleep_ts		= 0;
-	wts->wake_up_idle		= false;
-	wts->boost			= 0;
-	wts->boost_expires		= 0;
-	wts->boost_period		= false;
-	wts->low_latency		= false;
-	wts->iowaited			= false;
+
+	__sched_fork_init(p);
 }
 
 static void android_rvh_ttwu_cond(void *unused, bool *cond)
@@ -4156,7 +4157,6 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_sched_cpu_dying(android_rvh_sched_cpu_dying, NULL);
 	register_trace_android_rvh_set_task_cpu(android_rvh_set_task_cpu, NULL);
 	register_trace_android_rvh_new_task_stats(android_rvh_new_task_stats, NULL);
-	register_trace_android_rvh_sched_fork(android_rvh_sched_fork, NULL);
 	register_trace_android_rvh_account_irq(android_rvh_account_irq, NULL);
 	register_trace_android_rvh_flush_task(android_rvh_flush_task, NULL);
 	register_trace_android_rvh_update_misfit_status(android_rvh_update_misfit_status, NULL);
