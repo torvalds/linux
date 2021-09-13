@@ -1528,9 +1528,10 @@ static void hclge_init_kdump_kernel_config(struct hclge_dev *hdev)
 static int hclge_configure(struct hclge_dev *hdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	const struct cpumask *cpumask = cpu_online_mask;
 	struct hclge_cfg cfg;
 	unsigned int i;
-	int ret;
+	int node, ret;
 
 	ret = hclge_get_cfg(hdev, &cfg);
 	if (ret)
@@ -1595,11 +1596,12 @@ static int hclge_configure(struct hclge_dev *hdev)
 
 	hclge_init_kdump_kernel_config(hdev);
 
-	/* Set the init affinity based on pci func number */
-	i = cpumask_weight(cpumask_of_node(dev_to_node(&hdev->pdev->dev)));
-	i = i ? PCI_FUNC(hdev->pdev->devfn) % i : 0;
-	cpumask_set_cpu(cpumask_local_spread(i, dev_to_node(&hdev->pdev->dev)),
-			&hdev->affinity_mask);
+	/* Set the affinity based on numa node */
+	node = dev_to_node(&hdev->pdev->dev);
+	if (node != NUMA_NO_NODE)
+		cpumask = cpumask_of_node(node);
+
+	cpumask_copy(&hdev->affinity_mask, cpumask);
 
 	return ret;
 }
@@ -8125,11 +8127,12 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 	hclge_clear_arfs_rules(hdev);
 	spin_unlock_bh(&hdev->fd_rule_lock);
 
-	/* If it is not PF reset, the firmware will disable the MAC,
+	/* If it is not PF reset or FLR, the firmware will disable the MAC,
 	 * so it only need to stop phy here.
 	 */
 	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state) &&
-	    hdev->reset_type != HNAE3_FUNC_RESET) {
+	    hdev->reset_type != HNAE3_FUNC_RESET &&
+	    hdev->reset_type != HNAE3_FLR_RESET) {
 		hclge_mac_stop_phy(hdev);
 		hclge_update_link_status(hdev);
 		return;
