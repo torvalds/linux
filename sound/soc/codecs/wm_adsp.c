@@ -1499,7 +1499,7 @@ static int cs_dsp_create_control(struct wm_adsp *dsp,
 	int ret;
 
 	list_for_each_entry(ctl, &dsp->ctl_list, list) {
-		if (ctl->fw_name == wm_adsp_fw_text[dsp->fw] &&
+		if (ctl->fw_name == dsp->fw_name &&
 		    ctl->alg_region.alg == alg_region->alg &&
 		    ctl->alg_region.type == alg_region->type) {
 			if ((!subname && !ctl->subname) ||
@@ -1514,7 +1514,8 @@ static int cs_dsp_create_control(struct wm_adsp *dsp,
 	ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
 	if (!ctl)
 		return -ENOMEM;
-	ctl->fw_name = wm_adsp_fw_text[dsp->fw];
+
+	ctl->fw_name = dsp->fw_name;
 	ctl->alg_region = *alg_region;
 	if (subname && dsp->fw_ver >= 2) {
 		ctl->subname_len = subname_len;
@@ -1836,7 +1837,7 @@ static bool cs_dsp_halo_validate_version(struct wm_adsp *dsp, unsigned int versi
 	}
 }
 
-static int cs_dsp_load(struct wm_adsp *dsp)
+static int cs_dsp_load(struct wm_adsp *dsp, const char *fw_file_name)
 {
 	LIST_HEAD(buf_list);
 	const struct firmware *firmware;
@@ -1859,7 +1860,7 @@ static int cs_dsp_load(struct wm_adsp *dsp)
 		return -ENOMEM;
 
 	snprintf(file, PAGE_SIZE, "%s-%s-%s.wmfw", dsp->part, dsp->fwf_name,
-		 wm_adsp_fw[dsp->fw].file);
+		 fw_file_name);
 	file[PAGE_SIZE - 1] = '\0';
 
 	ret = request_firmware(&firmware, file, dsp->dev);
@@ -2047,13 +2048,12 @@ static struct cs_dsp_coeff_ctl *cs_dsp_get_ctl(struct wm_adsp *dsp,
 					       unsigned int alg)
 {
 	struct cs_dsp_coeff_ctl *pos, *rslt = NULL;
-	const char *fw_txt = wm_adsp_fw_text[dsp->fw];
 
 	list_for_each_entry(pos, &dsp->ctl_list, list) {
 		if (!pos->subname)
 			continue;
 		if (strncmp(pos->subname, name, pos->subname_len) == 0 &&
-		    pos->fw_name == fw_txt &&
+		    pos->fw_name == dsp->fw_name &&
 		    pos->alg_region.alg == alg &&
 		    pos->alg_region.type == type) {
 			rslt = pos;
@@ -2131,7 +2131,7 @@ static void cs_dsp_ctl_fixup_base(struct wm_adsp *dsp,
 	struct cs_dsp_coeff_ctl *ctl;
 
 	list_for_each_entry(ctl, &dsp->ctl_list, list) {
-		if (ctl->fw_name == wm_adsp_fw_text[dsp->fw] &&
+		if (ctl->fw_name == dsp->fw_name &&
 		    alg_region->alg == ctl->alg_region.alg &&
 		    alg_region->type == ctl->alg_region.type) {
 			ctl->alg_region.base = alg_region->base;
@@ -2582,7 +2582,7 @@ out:
 	return ret;
 }
 
-static int cs_dsp_load_coeff(struct wm_adsp *dsp)
+static int cs_dsp_load_coeff(struct wm_adsp *dsp, const char *fw_file_name)
 {
 	LIST_HEAD(buf_list);
 	struct regmap *regmap = dsp->regmap;
@@ -2601,7 +2601,7 @@ static int cs_dsp_load_coeff(struct wm_adsp *dsp)
 		return -ENOMEM;
 
 	snprintf(file, PAGE_SIZE, "%s-%s-%s.bin", dsp->part, dsp->fwf_name,
-		 wm_adsp_fw[dsp->fw].file);
+		 fw_file_name);
 	file[PAGE_SIZE - 1] = '\0';
 
 	ret = request_firmware(&firmware, file, dsp->dev);
@@ -2837,12 +2837,14 @@ int wm_adsp1_init(struct wm_adsp *dsp)
 }
 EXPORT_SYMBOL_GPL(wm_adsp1_init);
 
-static int cs_dsp_adsp1_power_up(struct wm_adsp *dsp)
+static int cs_dsp_adsp1_power_up(struct wm_adsp *dsp, const char *fw_file_name, const char *fw_name)
 {
 	unsigned int val;
 	int ret;
 
 	mutex_lock(&dsp->pwr_lock);
+
+	dsp->fw_name = fw_name;
 
 	regmap_update_bits(dsp->regmap, dsp->base + ADSP1_CONTROL_30,
 			   ADSP1_SYS_ENA, ADSP1_SYS_ENA);
@@ -2869,7 +2871,7 @@ static int cs_dsp_adsp1_power_up(struct wm_adsp *dsp)
 		}
 	}
 
-	ret = cs_dsp_load(dsp);
+	ret = cs_dsp_load(dsp, fw_file_name);
 	if (ret != 0)
 		goto err_ena;
 
@@ -2877,7 +2879,7 @@ static int cs_dsp_adsp1_power_up(struct wm_adsp *dsp)
 	if (ret != 0)
 		goto err_ena;
 
-	ret = cs_dsp_load_coeff(dsp);
+	ret = cs_dsp_load_coeff(dsp, fw_file_name);
 	if (ret != 0)
 		goto err_ena;
 
@@ -2952,7 +2954,9 @@ int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		ret = cs_dsp_adsp1_power_up(dsp);
+		ret = cs_dsp_adsp1_power_up(dsp,
+					    wm_adsp_fw[dsp->fw].file,
+					    wm_adsp_fw_text[dsp->fw]);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		cs_dsp_adsp1_power_down(dsp);
@@ -3172,11 +3176,14 @@ static void cs_dsp_halo_stop_watchdog(struct wm_adsp *dsp)
 			   HALO_WDT_EN_MASK, 0);
 }
 
-static void cs_dsp_power_up(struct wm_adsp *dsp)
+static void cs_dsp_power_up(struct wm_adsp *dsp, const char *fw_file_name,
+			    const char *fw_name)
 {
 	int ret;
 
 	mutex_lock(&dsp->pwr_lock);
+
+	dsp->fw_name = fw_name;
 
 	if (dsp->ops->enable_memory) {
 		ret = dsp->ops->enable_memory(dsp);
@@ -3190,7 +3197,7 @@ static void cs_dsp_power_up(struct wm_adsp *dsp)
 			goto err_mem;
 	}
 
-	ret = cs_dsp_load(dsp);
+	ret = cs_dsp_load(dsp, fw_file_name);
 	if (ret != 0)
 		goto err_ena;
 
@@ -3198,7 +3205,7 @@ static void cs_dsp_power_up(struct wm_adsp *dsp)
 	if (ret != 0)
 		goto err_ena;
 
-	ret = cs_dsp_load_coeff(dsp);
+	ret = cs_dsp_load_coeff(dsp, fw_file_name);
 	if (ret != 0)
 		goto err_ena;
 
@@ -3258,7 +3265,9 @@ static void wm_adsp_boot_work(struct work_struct *work)
 					   struct wm_adsp,
 					   boot_work);
 
-	cs_dsp_power_up(dsp);
+	cs_dsp_power_up(dsp,
+			wm_adsp_fw[dsp->fw].file,
+			wm_adsp_fw_text[dsp->fw]);
 }
 
 int wm_adsp_early_event(struct snd_soc_dapm_widget *w,

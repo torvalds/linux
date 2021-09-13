@@ -94,6 +94,7 @@ struct wm_adsp {
 
 	struct list_head alg_regions;
 
+	const char *fw_name;
 	unsigned int fw_id;
 	unsigned int fw_id_version;
 	unsigned int fw_vendor_id;
