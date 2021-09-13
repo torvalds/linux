@@ -16,14 +16,16 @@
  *
  * This implements the PCI exclusive functionality for a CXL device as it is
  * defined by the Compute Express Link specification. CXL devices may surface
- * certain functionality even if it isn't CXL enabled.
+ * certain functionality even if it isn't CXL enabled. While this driver is
+ * focused around the PCI specific aspects of a CXL device, it binds to the
+ * specific CXL memory device class code, and therefore the implementation of
+ * cxl_pci is focused around CXL memory devices.
  *
  * The driver has several responsibilities, mainly:
  *  - Create the memX device and register on the CXL bus.
  *  - Enumerate device's register interface and map them.
- *  - Probe the device attributes to establish sysfs interface.
- *  - Provide an IOCTL interface to userspace to communicate with the device for
- *    things like firmware update.
+ *  - Registers nvdimm bridge device with cxl_core.
+ *  - Registers a CXL mailbox with cxl_core.
  */
 
 #define cxl_doorbell_busy(cxlm)                                                \
@@ -33,7 +35,7 @@
 /* CXL 2.0 - 8.2.8.4 */
 #define CXL_MAILBOX_TIMEOUT_MS (2 * HZ)
 
-static int cxl_mem_wait_for_doorbell(struct cxl_mem *cxlm)
+static int cxl_pci_mbox_wait_for_doorbell(struct cxl_mem *cxlm)
 {
 	const unsigned long start = jiffies;
 	unsigned long end = start;
@@ -55,7 +57,7 @@ static int cxl_mem_wait_for_doorbell(struct cxl_mem *cxlm)
 	return 0;
 }
 
-static void cxl_mem_mbox_timeout(struct cxl_mem *cxlm,
+static void cxl_pci_mbox_timeout(struct cxl_mem *cxlm,
 				 struct cxl_mbox_cmd *mbox_cmd)
 {
 	struct device *dev = cxlm->dev;
@@ -65,7 +67,7 @@ static void cxl_mem_mbox_timeout(struct cxl_mem *cxlm,
 }
 
 /**
- * __cxl_mem_mbox_send_cmd() - Execute a mailbox command
+ * __cxl_pci_mbox_send_cmd() - Execute a mailbox command
  * @cxlm: The CXL memory device to communicate with.
  * @mbox_cmd: Command to send to the memory device.
  *
@@ -86,7 +88,7 @@ static void cxl_mem_mbox_timeout(struct cxl_mem *cxlm,
  * not need to coordinate with each other. The driver only uses the primary
  * mailbox.
  */
-static int __cxl_mem_mbox_send_cmd(struct cxl_mem *cxlm,
+static int __cxl_pci_mbox_send_cmd(struct cxl_mem *cxlm,
 				   struct cxl_mbox_cmd *mbox_cmd)
 {
 	void __iomem *payload = cxlm->regs.mbox + CXLDEV_MBOX_PAYLOAD_OFFSET;
@@ -140,9 +142,9 @@ static int __cxl_mem_mbox_send_cmd(struct cxl_mem *cxlm,
 	       cxlm->regs.mbox + CXLDEV_MBOX_CTRL_OFFSET);
 
 	/* #5 */
-	rc = cxl_mem_wait_for_doorbell(cxlm);
+	rc = cxl_pci_mbox_wait_for_doorbell(cxlm);
 	if (rc == -ETIMEDOUT) {
-		cxl_mem_mbox_timeout(cxlm, mbox_cmd);
+		cxl_pci_mbox_timeout(cxlm, mbox_cmd);
 		return rc;
 	}
 
@@ -181,13 +183,13 @@ static int __cxl_mem_mbox_send_cmd(struct cxl_mem *cxlm,
 }
 
 /**
- * cxl_mem_mbox_get() - Acquire exclusive access to the mailbox.
+ * cxl_pci_mbox_get() - Acquire exclusive access to the mailbox.
  * @cxlm: The memory device to gain access to.
  *
  * Context: Any context. Takes the mbox_mutex.
  * Return: 0 if exclusive access was acquired.
  */
-static int cxl_mem_mbox_get(struct cxl_mem *cxlm)
+static int cxl_pci_mbox_get(struct cxl_mem *cxlm)
 {
 	struct device *dev = cxlm->dev;
 	u64 md_status;
@@ -212,7 +214,7 @@ static int cxl_mem_mbox_get(struct cxl_mem *cxlm)
 	 *    Mailbox Interface Ready bit. Therefore, waiting for the doorbell
 	 *    to be ready is sufficient.
 	 */
-	rc = cxl_mem_wait_for_doorbell(cxlm);
+	rc = cxl_pci_mbox_wait_for_doorbell(cxlm);
 	if (rc) {
 		dev_warn(dev, "Mailbox interface not ready\n");
 		goto out;
@@ -252,12 +254,12 @@ out:
 }
 
 /**
- * cxl_mem_mbox_put() - Release exclusive access to the mailbox.
+ * cxl_pci_mbox_put() - Release exclusive access to the mailbox.
  * @cxlm: The CXL memory device to communicate with.
  *
  * Context: Any context. Expects mbox_mutex to be held.
  */
-static void cxl_mem_mbox_put(struct cxl_mem *cxlm)
+static void cxl_pci_mbox_put(struct cxl_mem *cxlm)
 {
 	mutex_unlock(&cxlm->mbox_mutex);
 }
@@ -266,17 +268,17 @@ static int cxl_pci_mbox_send(struct cxl_mem *cxlm, struct cxl_mbox_cmd *cmd)
 {
 	int rc;
 
-	rc = cxl_mem_mbox_get(cxlm);
+	rc = cxl_pci_mbox_get(cxlm);
 	if (rc)
 		return rc;
 
-	rc = __cxl_mem_mbox_send_cmd(cxlm, cmd);
-	cxl_mem_mbox_put(cxlm);
+	rc = __cxl_pci_mbox_send_cmd(cxlm, cmd);
+	cxl_pci_mbox_put(cxlm);
 
 	return rc;
 }
 
-static int cxl_mem_setup_mailbox(struct cxl_mem *cxlm)
+static int cxl_pci_setup_mailbox(struct cxl_mem *cxlm)
 {
 	const int cap = readl(cxlm->regs.mbox + CXLDEV_MBOX_CAPS_OFFSET);
 
@@ -304,7 +306,7 @@ static int cxl_mem_setup_mailbox(struct cxl_mem *cxlm)
 	return 0;
 }
 
-static void __iomem *cxl_mem_map_regblock(struct cxl_mem *cxlm,
+static void __iomem *cxl_pci_map_regblock(struct cxl_mem *cxlm,
 					  u8 bar, u64 offset)
 {
 	void __iomem *addr;
@@ -330,12 +332,12 @@ static void __iomem *cxl_mem_map_regblock(struct cxl_mem *cxlm,
 	return addr;
 }
 
-static void cxl_mem_unmap_regblock(struct cxl_mem *cxlm, void __iomem *base)
+static void cxl_pci_unmap_regblock(struct cxl_mem *cxlm, void __iomem *base)
 {
 	pci_iounmap(to_pci_dev(cxlm->dev), base);
 }
 
-static int cxl_mem_dvsec(struct pci_dev *pdev, int dvsec)
+static int cxl_pci_dvsec(struct pci_dev *pdev, int dvsec)
 {
 	int pos;
 
@@ -427,7 +429,7 @@ static void cxl_decode_register_block(u32 reg_lo, u32 reg_hi,
 }
 
 /**
- * cxl_mem_setup_regs() - Setup necessary MMIO.
+ * cxl_pci_setup_regs() - Setup necessary MMIO.
  * @cxlm: The CXL memory device to communicate with.
  *
  * Return: 0 if all necessary registers mapped.
@@ -436,7 +438,7 @@ static void cxl_decode_register_block(u32 reg_lo, u32 reg_hi,
  * regions. The purpose of this function is to enumerate and map those
  * registers.
  */
-static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
+static int cxl_pci_setup_regs(struct cxl_mem *cxlm)
 {
 	void __iomem *base;
 	u32 regloc_size, regblocks;
@@ -445,7 +447,7 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct cxl_register_map *map, maps[CXL_REGLOC_RBI_TYPES];
 
-	regloc = cxl_mem_dvsec(pdev, PCI_DVSEC_ID_CXL_REGLOC_DVSEC_ID);
+	regloc = cxl_pci_dvsec(pdev, PCI_DVSEC_ID_CXL_REGLOC_DVSEC_ID);
 	if (!regloc) {
 		dev_err(dev, "register location dvsec not found\n");
 		return -ENXIO;
@@ -480,7 +482,7 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 		if (reg_type > CXL_REGLOC_RBI_MEMDEV)
 			continue;
 
-		base = cxl_mem_map_regblock(cxlm, bar, offset);
+		base = cxl_pci_map_regblock(cxlm, bar, offset);
 		if (!base)
 			return -ENOMEM;
 
@@ -492,7 +494,7 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 		ret = cxl_probe_regs(cxlm, base + offset, map);
 
 		/* Always unmap the regblock regardless of probe success */
-		cxl_mem_unmap_regblock(cxlm, base);
+		cxl_pci_unmap_regblock(cxlm, base);
 
 		if (ret)
 			return ret;
@@ -511,7 +513,7 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 	return ret;
 }
 
-static int cxl_mem_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct cxl_memdev *cxlmd;
 	struct cxl_mem *cxlm;
@@ -532,11 +534,11 @@ static int cxl_mem_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (IS_ERR(cxlm))
 		return PTR_ERR(cxlm);
 
-	rc = cxl_mem_setup_regs(cxlm);
+	rc = cxl_pci_setup_regs(cxlm);
 	if (rc)
 		return rc;
 
-	rc = cxl_mem_setup_mailbox(cxlm);
+	rc = cxl_pci_setup_mailbox(cxlm);
 	if (rc)
 		return rc;
 
@@ -569,15 +571,15 @@ static const struct pci_device_id cxl_mem_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, cxl_mem_pci_tbl);
 
-static struct pci_driver cxl_mem_driver = {
+static struct pci_driver cxl_pci_driver = {
 	.name			= KBUILD_MODNAME,
 	.id_table		= cxl_mem_pci_tbl,
-	.probe			= cxl_mem_probe,
+	.probe			= cxl_pci_probe,
 	.driver	= {
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 
 MODULE_LICENSE("GPL v2");
-module_pci_driver(cxl_mem_driver);
+module_pci_driver(cxl_pci_driver);
 MODULE_IMPORT_NS(CXL);
