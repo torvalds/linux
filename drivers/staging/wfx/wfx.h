@@ -85,6 +85,7 @@ struct wfx_vif {
 	struct mutex		scan_lock;
 	struct work_struct	scan_work;
 	struct completion	scan_complete;
+	int			scan_nb_chan_done;
 	bool			scan_abort;
 	struct ieee80211_scan_request *scan_req;
 

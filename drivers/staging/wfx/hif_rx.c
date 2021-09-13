@@ -175,13 +175,14 @@ static int hif_scan_complete_indication(struct wfx_dev *wdev,
 					const void *buf)
 {
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
+	const struct hif_ind_scan_cmpl *body = buf;
 
 	if (!wvif) {
 		dev_warn(wdev->dev, "%s: received event for non-existent vif\n", __func__);
 		return -EIO;
 	}
 
-	wfx_scan_complete(wvif);
+	wfx_scan_complete(wvif, body->num_channels_completed);
 
 	return 0;
 }
