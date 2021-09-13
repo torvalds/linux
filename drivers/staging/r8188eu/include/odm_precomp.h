@@ -26,7 +26,6 @@
 #include "rtl8188e_hal.h"
 
 #include "odm_interface.h"
-#include "odm_reg.h"
 
 #include "HalHWImg8188E_MAC.h"
 #include "HalHWImg8188E_RF.h"

@@ -71,6 +71,12 @@
 #define ANTTESTA		0x01	/* Ant A will be Testing */
 #define ANTTESTB		0x02	/* Ant B will be testing */
 
+/* RF REG */
+#define ODM_CHANNEL	0x18
+
+/* Ant Detect Reg */
+#define ODM_DPDT	0x300
+
 /*  structure and define */
 
 /*  Add for AP/ADSLpseudo DM structuer requirement. */
