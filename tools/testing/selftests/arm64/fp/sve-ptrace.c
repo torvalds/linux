@@ -275,7 +275,7 @@ static int do_parent(pid_t child)
 		if (__BYTE_ORDER == __BIG_ENDIAN)
 			expected = sizeof fpsimd->vregs[0] - 1 - expected;
 
-		ksft_test_result(p[i] == expected, "p[%d] == expected\n", i);
+		ksft_test_result(p[i] == expected, "buf[%d] == expected\n", i);
 		if (p[i] != expected)
 			goto error;
 	}
