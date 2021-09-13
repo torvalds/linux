@@ -9,6 +9,9 @@ title: NXP/Goodix TFA989X (TFA1) Audio Amplifiers
 maintainers:
   - Stephan Gerhold <stephan@gerhold.net>
 
+allOf:
+  - $ref: name-prefix.yaml#
+
 properties:
   compatible:
     enum:
@@ -20,12 +23,6 @@ properties:
 
   '#sound-dai-cells':
     const: 0
-
-  sound-name-prefix:
-    $ref: /schemas/types.yaml#/definitions/string
-    description:
-      Used as prefix for sink/source names of the component. Must be a
-      unique string among multiple instances of the same component.
 
   vddd-supply:
     description: regulator phandle for the VDDD power supply.
