@@ -301,8 +301,6 @@ int hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	WARN_ON(!conf->basic_rates);
 	WARN_ON(sizeof(body->ssid) < ssidlen);
 	WARN(!conf->ibss_joined && !ssidlen, "joining an unknown BSS");
-	if (WARN_ON(!channel))
-		return -EINVAL;
 	if (!hif)
 		return -ENOMEM;
 	body->infrastructure_bss_mode = !conf->ibss_joined;
