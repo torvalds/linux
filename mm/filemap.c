@@ -2996,6 +2996,8 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 
 	addr = vma->vm_start + ((start_pgoff - vma->vm_pgoff) << PAGE_SHIFT);
 	if (!pte_map_lock_addr(vmf, addr)) {
+		unlock_page(head);
+		put_page(head);
 		ret = VM_FAULT_RETRY;
 		goto out;
 	}
