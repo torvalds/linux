@@ -1402,11 +1402,6 @@ static void enc1_se_disable_dp_audio(
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 	uint32_t value = 0;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	if (enc->afmt && enc->afmt->funcs->afmt_powerdown)
-		enc->afmt->funcs->afmt_powerdown(enc->afmt);
-#endif
-
 	/* Disable Audio packets */
 	REG_UPDATE_5(DP_SEC_CNTL,
 			DP_SEC_ASP_ENABLE, 0,
