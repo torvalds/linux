@@ -2945,8 +2945,16 @@ static int mlx5e_mqprio_channel_validate(struct mlx5e_priv *priv,
 					 struct tc_mqprio_qopt_offload *mqprio)
 {
 	struct net_device *netdev = priv->netdev;
+	struct mlx5e_ptp *ptp_channel;
 	int agg_count = 0;
 	int i;
+
+	ptp_channel = priv->channels.ptp;
+	if (ptp_channel && test_bit(MLX5E_PTP_STATE_TX, ptp_channel->state)) {
+		netdev_err(netdev,
+			   "Cannot activate MQPRIO mode channel since it conflicts with TX port TS\n");
+		return -EINVAL;
+	}
 
 	if (mqprio->qopt.offset[0] != 0 || mqprio->qopt.num_tc < 1 ||
 	    mqprio->qopt.num_tc > MLX5E_MAX_NUM_MQPRIO_CH_TC)
