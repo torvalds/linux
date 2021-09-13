@@ -117,6 +117,15 @@ config SND_SOC_TEGRA210_MVC
 	  per-stream volume control or for master volume control.
 	  Say Y or M if you want to add support for Tegra210 MVC module.
 
+config SND_SOC_TEGRA210_SFC
+	tristate "Tegra210 SFC module"
+	help
+	  Config to enable the Sampling Frequency Converter (SFC) which
+	  converts the sampling frequency of input signal to another
+	  frequency. It supports sampling frequency conversion of streams
+	  upto 2 channels (stereo).
+	  Say Y or M if you want to add support for Tegra210 SFC module.
+
 config SND_SOC_TEGRA_AUDIO_GRAPH_CARD
 	tristate "Audio Graph Card based Tegra driver"
 	depends on SND_AUDIO_GRAPH_CARD
