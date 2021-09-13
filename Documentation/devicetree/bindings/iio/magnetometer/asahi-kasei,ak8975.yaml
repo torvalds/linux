@@ -45,6 +45,11 @@ properties:
       an optional regulator that needs to be on to provide VDD power to
       the sensor.
 
+  vid-supply:
+    description: |
+      an optional regulator that needs to be on to provide VID power to
+      the sensor.
+
   mount-matrix:
     description: an optional 3x3 mounting rotation matrix.
 
