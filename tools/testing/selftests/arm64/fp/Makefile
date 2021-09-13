@@ -12,7 +12,7 @@ all: $(TEST_GEN_PROGS) $(TEST_PROGS_EXTENDED)
 fpsimd-test: fpsimd-test.o
 	$(CC) -nostdlib $^ -o $@
 rdvl-sve: rdvl-sve.o rdvl.o
-sve-ptrace: sve-ptrace.o sve-ptrace-asm.o
+sve-ptrace: sve-ptrace.o
 sve-probe-vls: sve-probe-vls.o rdvl.o
 sve-test: sve-test.o
 	$(CC) -nostdlib $^ -o $@

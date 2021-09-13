@@ -26,11 +26,6 @@
 #define NT_ARM_SVE 0x405
 #endif
 
-/* Number of registers filled in by sve_store_patterns */
-#define NR_VREGS 5
-
-void sve_store_patterns(__uint128_t v[NR_VREGS]);
-
 static void dump(const void *buf, size_t size)
 {
 	size_t i;
@@ -38,23 +33,6 @@ static void dump(const void *buf, size_t size)
 
 	for (i = 0; i < size; ++i)
 		printf(" %.2x", *p++);
-}
-
-static int check_vregs(const __uint128_t vregs[NR_VREGS])
-{
-	int i;
-	int ok = 1;
-
-	for (i = 0; i < NR_VREGS; ++i) {
-		printf("# v[%d]:", i);
-		dump(&vregs[i], sizeof vregs[i]);
-		putchar('\n');
-
-		if (vregs[i] != vregs[0])
-			ok = 0;
-	}
-
-	return ok;
 }
 
 static int do_child(void)
@@ -309,7 +287,6 @@ disappeared:
 int main(void)
 {
 	int ret = EXIT_SUCCESS;
-	__uint128_t v[NR_VREGS];
 	pid_t child;
 
 	ksft_print_header();
@@ -317,11 +294,6 @@ int main(void)
 
 	if (!(getauxval(AT_HWCAP) & HWCAP_SVE))
 		ksft_exit_skip("SVE not available\n");
-
-	sve_store_patterns(v);
-
-	if (!check_vregs(v))
-		ksft_exit_fail_msg("Initial check_vregs() failed\n");
 
 	child = fork();
 	if (!child)
