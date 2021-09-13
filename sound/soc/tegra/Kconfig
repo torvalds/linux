@@ -126,6 +126,15 @@ config SND_SOC_TEGRA210_SFC
 	  upto 2 channels (stereo).
 	  Say Y or M if you want to add support for Tegra210 SFC module.
 
+config SND_SOC_TEGRA210_AMX
+	tristate "Tegra210 AMX module"
+	help
+	  Config to enable the Audio Multiplexer (AMX) which can multiplex
+	  four input streams (each of up to 16 channels) and generate
+	  output stream (of up to 16 channels). A byte RAM helps to form an
+	  output frame by any combination of bytes from the input frames.
+	  Say Y or M if you want to add support for Tegra210 AMX module.
+
 config SND_SOC_TEGRA_AUDIO_GRAPH_CARD
 	tristate "Audio Graph Card based Tegra driver"
 	depends on SND_AUDIO_GRAPH_CARD
