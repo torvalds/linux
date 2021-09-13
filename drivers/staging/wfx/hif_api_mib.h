@@ -158,7 +158,10 @@ struct hif_mib_extended_count_table {
 	__le32 count_rx_bipmic_errors;
 	__le32 count_rx_beacon;
 	__le32 count_miss_beacon;
-	__le32 reserved[15];
+	__le32 count_rx_dtim;
+	__le32 count_rx_dtim_aid0_clr;
+	__le32 count_rx_dtim_aid0_set;
+	__le32 reserved[12];
 } __packed;
 
 struct hif_mib_count_table {

@@ -109,6 +109,9 @@ static int wfx_counters_show(struct seq_file *seq, void *v)
 
 	PUT_COUNTER(rx_beacon);
 	PUT_COUNTER(miss_beacon);
+	PUT_COUNTER(rx_dtim);
+	PUT_COUNTER(rx_dtim_aid0_clr);
+	PUT_COUNTER(rx_dtim_aid0_set);
 
 #undef PUT_COUNTER
 
