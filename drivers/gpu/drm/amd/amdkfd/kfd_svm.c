@@ -1178,7 +1178,11 @@ svm_range_map_to_gpu(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	for (i = offset; i < offset + npages; i++) {
 		last_domain = dma_addr[i] & SVM_RANGE_VRAM_DOMAIN;
 		dma_addr[i] &= ~SVM_RANGE_VRAM_DOMAIN;
-		if ((prange->start + i) < prange->last &&
+
+		/* Collect all pages in the same address range and memory domain
+		 * that can be mapped with a single call to update mapping.
+		 */
+		if (i < offset + npages - 1 &&
 		    last_domain == (dma_addr[i + 1] & SVM_RANGE_VRAM_DOMAIN))
 			continue;
 
