@@ -3601,6 +3601,180 @@ int ice_clear_dflt_vsi(struct ice_sw *sw)
 }
 
 /**
+ * ice_get_link_speed_mbps - get link speed in Mbps
+ * @vsi: the VSI whose link speed is being queried
+ *
+ * Return current VSI link speed and 0 if the speed is unknown.
+ */
+int ice_get_link_speed_mbps(struct ice_vsi *vsi)
+{
+	switch (vsi->port_info->phy.link_info.link_speed) {
+	case ICE_AQ_LINK_SPEED_100GB:
+		return SPEED_100000;
+	case ICE_AQ_LINK_SPEED_50GB:
+		return SPEED_50000;
+	case ICE_AQ_LINK_SPEED_40GB:
+		return SPEED_40000;
+	case ICE_AQ_LINK_SPEED_25GB:
+		return SPEED_25000;
+	case ICE_AQ_LINK_SPEED_20GB:
+		return SPEED_20000;
+	case ICE_AQ_LINK_SPEED_10GB:
+		return SPEED_10000;
+	case ICE_AQ_LINK_SPEED_5GB:
+		return SPEED_5000;
+	case ICE_AQ_LINK_SPEED_2500MB:
+		return SPEED_2500;
+	case ICE_AQ_LINK_SPEED_1000MB:
+		return SPEED_1000;
+	case ICE_AQ_LINK_SPEED_100MB:
+		return SPEED_100;
+	case ICE_AQ_LINK_SPEED_10MB:
+		return SPEED_10;
+	case ICE_AQ_LINK_SPEED_UNKNOWN:
+	default:
+		return 0;
+	}
+}
+
+/**
+ * ice_get_link_speed_kbps - get link speed in Kbps
+ * @vsi: the VSI whose link speed is being queried
+ *
+ * Return current VSI link speed and 0 if the speed is unknown.
+ */
+static int ice_get_link_speed_kbps(struct ice_vsi *vsi)
+{
+	int speed_mbps;
+
+	speed_mbps = ice_get_link_speed_mbps(vsi);
+
+	return speed_mbps * 1000;
+}
+
+/**
+ * ice_set_min_bw_limit - setup minimum BW limit for Tx based on min_tx_rate
+ * @vsi: VSI to be configured
+ * @min_tx_rate: min Tx rate in Kbps to be configured as BW limit
+ *
+ * If the min_tx_rate is specified as 0 that means to clear the minimum BW limit
+ * profile, otherwise a non-zero value will force a minimum BW limit for the VSI
+ * on TC 0.
+ */
+int ice_set_min_bw_limit(struct ice_vsi *vsi, u64 min_tx_rate)
+{
+	struct ice_pf *pf = vsi->back;
+	enum ice_status status;
+	struct device *dev;
+	int speed;
+
+	dev = ice_pf_to_dev(pf);
+	if (!vsi->port_info) {
+		dev_dbg(dev, "VSI %d, type %u specified doesn't have valid port_info\n",
+			vsi->idx, vsi->type);
+		return -EINVAL;
+	}
+
+	speed = ice_get_link_speed_kbps(vsi);
+	if (min_tx_rate > (u64)speed) {
+		dev_err(dev, "invalid min Tx rate %llu Kbps specified for %s %d is greater than current link speed %u Kbps\n",
+			min_tx_rate, ice_vsi_type_str(vsi->type), vsi->idx,
+			speed);
+		return -EINVAL;
+	}
+
+	/* Configure min BW for VSI limit */
+	if (min_tx_rate) {
+		status = ice_cfg_vsi_bw_lmt_per_tc(vsi->port_info, vsi->idx, 0,
+						   ICE_MIN_BW, min_tx_rate);
+		if (status) {
+			dev_err(dev, "failed to set min Tx rate(%llu Kbps) for %s %d\n",
+				min_tx_rate, ice_vsi_type_str(vsi->type),
+				vsi->idx);
+			return -EIO;
+		}
+
+		dev_dbg(dev, "set min Tx rate(%llu Kbps) for %s\n",
+			min_tx_rate, ice_vsi_type_str(vsi->type));
+	} else {
+		status = ice_cfg_vsi_bw_dflt_lmt_per_tc(vsi->port_info,
+							vsi->idx, 0,
+							ICE_MIN_BW);
+		if (status) {
+			dev_err(dev, "failed to clear min Tx rate configuration for %s %d\n",
+				ice_vsi_type_str(vsi->type), vsi->idx);
+			return -EIO;
+		}
+
+		dev_dbg(dev, "cleared min Tx rate configuration for %s %d\n",
+			ice_vsi_type_str(vsi->type), vsi->idx);
+	}
+
+	return 0;
+}
+
+/**
+ * ice_set_max_bw_limit - setup maximum BW limit for Tx based on max_tx_rate
+ * @vsi: VSI to be configured
+ * @max_tx_rate: max Tx rate in Kbps to be configured as BW limit
+ *
+ * If the max_tx_rate is specified as 0 that means to clear the maximum BW limit
+ * profile, otherwise a non-zero value will force a maximum BW limit for the VSI
+ * on TC 0.
+ */
+int ice_set_max_bw_limit(struct ice_vsi *vsi, u64 max_tx_rate)
+{
+	struct ice_pf *pf = vsi->back;
+	enum ice_status status;
+	struct device *dev;
+	int speed;
+
+	dev = ice_pf_to_dev(pf);
+	if (!vsi->port_info) {
+		dev_dbg(dev, "VSI %d, type %u specified doesn't have valid port_info\n",
+			vsi->idx, vsi->type);
+		return -EINVAL;
+	}
+
+	speed = ice_get_link_speed_kbps(vsi);
+	if (max_tx_rate > (u64)speed) {
+		dev_err(dev, "invalid max Tx rate %llu Kbps specified for %s %d is greater than current link speed %u Kbps\n",
+			max_tx_rate, ice_vsi_type_str(vsi->type), vsi->idx,
+			speed);
+		return -EINVAL;
+	}
+
+	/* Configure max BW for VSI limit */
+	if (max_tx_rate) {
+		status = ice_cfg_vsi_bw_lmt_per_tc(vsi->port_info, vsi->idx, 0,
+						   ICE_MAX_BW, max_tx_rate);
+		if (status) {
+			dev_err(dev, "failed setting max Tx rate(%llu Kbps) for %s %d\n",
+				max_tx_rate, ice_vsi_type_str(vsi->type),
+				vsi->idx);
+			return -EIO;
+		}
+
+		dev_dbg(dev, "set max Tx rate(%llu Kbps) for %s %d\n",
+			max_tx_rate, ice_vsi_type_str(vsi->type), vsi->idx);
+	} else {
+		status = ice_cfg_vsi_bw_dflt_lmt_per_tc(vsi->port_info,
+							vsi->idx, 0,
+							ICE_MAX_BW);
+		if (status) {
+			dev_err(dev, "failed clearing max Tx rate configuration for %s %d\n",
+				ice_vsi_type_str(vsi->type), vsi->idx);
+			return -EIO;
+		}
+
+		dev_dbg(dev, "cleared max Tx rate configuration for %s %d\n",
+			ice_vsi_type_str(vsi->type), vsi->idx);
+	}
+
+	return 0;
+}
+
+/**
  * ice_set_link - turn on/off physical link
  * @vsi: VSI to modify physical link on
  * @ena: turn on/off physical link
