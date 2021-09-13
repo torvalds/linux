@@ -146,6 +146,16 @@ config SND_SOC_TEGRA210_ADX
 	  except that the data flow direction is reversed.
 	  Say Y or M if you want to add support for Tegra210 ADX module.
 
+config SND_SOC_TEGRA210_MIXER
+	tristate "Tegra210 Mixer module"
+	help
+	  Config to enable the Mixer module which can help to mix multiple
+	  audio streams. It supports mixing of upto 10 input streams,
+	  where each stream can contain maximum of 8 channels. It supports
+	  5 output each of which can be a mix of any combination of 10
+	  input streams.
+	  Say Y or M if you want to add support for Tegra210 Mixer module.
+
 config SND_SOC_TEGRA_AUDIO_GRAPH_CARD
 	tristate "Audio Graph Card based Tegra driver"
 	depends on SND_AUDIO_GRAPH_CARD
