@@ -2771,7 +2771,7 @@ static int cs_dsp_create_name(struct wm_adsp *dsp)
 	return 0;
 }
 
-static int wm_adsp_common_init(struct wm_adsp *dsp)
+static int cs_dsp_common_init(struct wm_adsp *dsp)
 {
 	int ret;
 
@@ -2781,19 +2781,30 @@ static int wm_adsp_common_init(struct wm_adsp *dsp)
 
 	INIT_LIST_HEAD(&dsp->alg_regions);
 	INIT_LIST_HEAD(&dsp->ctl_list);
-	INIT_LIST_HEAD(&dsp->compr_list);
-	INIT_LIST_HEAD(&dsp->buffer_list);
 
 	mutex_init(&dsp->pwr_lock);
 
 	return 0;
 }
 
-int wm_adsp1_init(struct wm_adsp *dsp)
+static void wm_adsp_common_init(struct wm_adsp *dsp)
+{
+	INIT_LIST_HEAD(&dsp->compr_list);
+	INIT_LIST_HEAD(&dsp->buffer_list);
+}
+
+static int cs_dsp_adsp1_init(struct wm_adsp *dsp)
 {
 	dsp->ops = &cs_dsp_adsp1_ops;
 
-	return wm_adsp_common_init(dsp);
+	return cs_dsp_common_init(dsp);
+}
+
+int wm_adsp1_init(struct wm_adsp *dsp)
+{
+	wm_adsp_common_init(dsp);
+
+	return cs_dsp_adsp1_init(dsp);
 }
 EXPORT_SYMBOL_GPL(wm_adsp1_init);
 
@@ -3096,11 +3107,8 @@ static int cs_dsp_halo_configure_mpu(struct wm_adsp *dsp, unsigned int lock_regi
 	return regmap_multi_reg_write(dsp->regmap, config, ARRAY_SIZE(config));
 }
 
-int wm_adsp2_set_dspclk(struct snd_soc_dapm_widget *w, unsigned int freq)
+static int cs_dsp_set_dspclk(struct wm_adsp *dsp, unsigned int freq)
 {
-	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	struct wm_adsp *dsps = snd_soc_component_get_drvdata(component);
-	struct wm_adsp *dsp = &dsps[w->shift];
 	int ret;
 
 	ret = regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CLOCKING,
@@ -3110,6 +3118,15 @@ int wm_adsp2_set_dspclk(struct snd_soc_dapm_widget *w, unsigned int freq)
 		cs_dsp_err(dsp, "Failed to set clock rate: %d\n", ret);
 
 	return ret;
+}
+
+int wm_adsp2_set_dspclk(struct snd_soc_dapm_widget *w, unsigned int freq)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct wm_adsp *dsps = snd_soc_component_get_drvdata(component);
+	struct wm_adsp *dsp = &dsps[w->shift];
+
+	return cs_dsp_set_dspclk(dsp, freq);
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_set_dspclk);
 
@@ -3364,13 +3381,9 @@ int wm_adsp2_component_remove(struct wm_adsp *dsp, struct snd_soc_component *com
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_component_remove);
 
-int wm_adsp2_init(struct wm_adsp *dsp)
+static int cs_dsp_adsp2_init(struct wm_adsp *dsp)
 {
 	int ret;
-
-	ret = wm_adsp_common_init(dsp);
-	if (ret)
-		return ret;
 
 	switch (dsp->rev) {
 	case 0:
@@ -3396,29 +3409,37 @@ int wm_adsp2_init(struct wm_adsp *dsp)
 		break;
 	}
 
+	return cs_dsp_common_init(dsp);
+}
+
+int wm_adsp2_init(struct wm_adsp *dsp)
+{
 	INIT_WORK(&dsp->boot_work, wm_adsp_boot_work);
 
-	return 0;
+	wm_adsp_common_init(dsp);
+
+	return cs_dsp_adsp2_init(dsp);
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_init);
 
-int wm_halo_init(struct wm_adsp *dsp)
+static int cs_dsp_halo_init(struct wm_adsp *dsp)
 {
-	int ret;
-
-	ret = wm_adsp_common_init(dsp);
-	if (ret)
-		return ret;
-
 	dsp->ops = &cs_dsp_halo_ops;
 
+	return cs_dsp_common_init(dsp);
+}
+
+int wm_halo_init(struct wm_adsp *dsp)
+{
 	INIT_WORK(&dsp->boot_work, wm_adsp_boot_work);
 
-	return 0;
+	wm_adsp_common_init(dsp);
+
+	return cs_dsp_halo_init(dsp);
 }
 EXPORT_SYMBOL_GPL(wm_halo_init);
 
-void wm_adsp2_remove(struct wm_adsp *dsp)
+static void cs_dsp_remove(struct wm_adsp *dsp)
 {
 	struct wm_coeff_ctl *ctl;
 
@@ -3428,6 +3449,11 @@ void wm_adsp2_remove(struct wm_adsp *dsp)
 		list_del(&ctl->list);
 		cs_dsp_free_ctl_blk(ctl);
 	}
+}
+
+void wm_adsp2_remove(struct wm_adsp *dsp)
+{
+	cs_dsp_remove(dsp);
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_remove);
 
@@ -4346,9 +4372,8 @@ static void wm_adsp_fatal_error(struct wm_adsp *dsp)
 	}
 }
 
-irqreturn_t wm_adsp2_bus_error(int irq, void *data)
+static void cs_dsp_adsp2_bus_error(struct wm_adsp *dsp)
 {
-	struct wm_adsp *dsp = (struct wm_adsp *)data;
 	unsigned int val;
 	struct regmap *regmap = dsp->regmap;
 	int ret = 0;
@@ -4407,14 +4432,20 @@ irqreturn_t wm_adsp2_bus_error(int irq, void *data)
 
 error:
 	mutex_unlock(&dsp->pwr_lock);
+}
+
+irqreturn_t wm_adsp2_bus_error(int irq, void *data)
+{
+	struct wm_adsp *dsp = (struct wm_adsp *)data;
+
+	cs_dsp_adsp2_bus_error(dsp);
 
 	return IRQ_HANDLED;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_bus_error);
 
-irqreturn_t wm_halo_bus_error(int irq, void *data)
+static void cs_dsp_halo_bus_error(struct wm_adsp *dsp)
 {
-	struct wm_adsp *dsp = (struct wm_adsp *)data;
 	struct regmap *regmap = dsp->regmap;
 	unsigned int fault[6];
 	struct reg_sequence clear[] = {
@@ -4464,15 +4495,20 @@ irqreturn_t wm_halo_bus_error(int irq, void *data)
 
 exit_unlock:
 	mutex_unlock(&dsp->pwr_lock);
+}
+
+irqreturn_t wm_halo_bus_error(int irq, void *data)
+{
+	struct wm_adsp *dsp = (struct wm_adsp *)data;
+
+	cs_dsp_halo_bus_error(dsp);
 
 	return IRQ_HANDLED;
 }
 EXPORT_SYMBOL_GPL(wm_halo_bus_error);
 
-irqreturn_t wm_halo_wdt_expire(int irq, void *data)
+static void cs_dsp_halo_wdt_expire(struct wm_adsp *dsp)
 {
-	struct wm_adsp *dsp = data;
-
 	mutex_lock(&dsp->pwr_lock);
 
 	cs_dsp_warn(dsp, "WDT Expiry Fault\n");
@@ -4481,6 +4517,13 @@ irqreturn_t wm_halo_wdt_expire(int irq, void *data)
 	wm_adsp_fatal_error(dsp);
 
 	mutex_unlock(&dsp->pwr_lock);
+}
+
+irqreturn_t wm_halo_wdt_expire(int irq, void *data)
+{
+	struct wm_adsp *dsp = data;
+
+	cs_dsp_halo_wdt_expire(dsp);
 
 	return IRQ_HANDLED;
 }
