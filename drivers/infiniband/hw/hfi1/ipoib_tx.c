@@ -27,6 +27,7 @@
  * @txreq: sdma transmit request
  * @sdma_hdr: 9b ib headers
  * @sdma_status: status returned by sdma engine
+ * @complete: non-zero implies complete
  * @priv: ipoib netdev private data
  * @txq: txq on which skb was output
  * @skb: skb to send
@@ -35,6 +36,7 @@ struct ipoib_txreq {
 	struct sdma_txreq           txreq;
 	struct hfi1_sdma_header     sdma_hdr;
 	int                         sdma_status;
+	int                         complete;
 	struct hfi1_ipoib_dev_priv *priv;
 	struct hfi1_ipoib_txq      *txq;
 	struct sk_buff             *skb;
@@ -51,7 +53,13 @@ struct ipoib_txparms {
 	u8                          entropy;
 };
 
-static u64 hfi1_ipoib_txreqs(const u64 sent, const u64 completed)
+static struct ipoib_txreq *
+hfi1_txreq_from_idx(struct hfi1_ipoib_circ_buf *r, u32 idx)
+{
+	return (struct ipoib_txreq *)(r->items + (idx << r->shift));
+}
+
+static u32 hfi1_ipoib_txreqs(const u64 sent, const u64 completed)
 {
 	return sent - completed;
 }
@@ -139,51 +147,55 @@ static void hfi1_ipoib_free_tx(struct ipoib_txreq *tx, int budget)
 	}
 
 	napi_consume_skb(tx->skb, budget);
+	tx->skb = NULL;
 	sdma_txclean(priv->dd, &tx->txreq);
-	kmem_cache_free(priv->txreq_cache, tx);
 }
 
-static int hfi1_ipoib_drain_tx_ring(struct hfi1_ipoib_txq *txq, int budget)
+static void hfi1_ipoib_drain_tx_ring(struct hfi1_ipoib_txq *txq)
 {
 	struct hfi1_ipoib_circ_buf *tx_ring = &txq->tx_ring;
-	unsigned long head;
-	unsigned long tail;
-	unsigned int max_tx;
-	int work_done;
-	int tx_count;
+	int i;
+	struct ipoib_txreq *tx;
 
-	spin_lock_bh(&tx_ring->consumer_lock);
-
-	/* Read index before reading contents at that index. */
-	head = smp_load_acquire(&tx_ring->head);
-	tail = tx_ring->tail;
-	max_tx = tx_ring->max_items;
-
-	work_done = min_t(int, CIRC_CNT(head, tail, max_tx), budget);
-
-	for (tx_count = work_done; tx_count; tx_count--) {
-		hfi1_ipoib_free_tx(tx_ring->items[tail], budget);
-		tail = CIRC_NEXT(tail, max_tx);
+	for (i = 0; i < tx_ring->max_items; i++) {
+		tx = hfi1_txreq_from_idx(tx_ring, i);
+		tx->complete = 0;
+		dev_kfree_skb_any(tx->skb);
+		tx->skb = NULL;
+		sdma_txclean(txq->priv->dd, &tx->txreq);
 	}
-
-	atomic64_add(work_done, &txq->complete_txreqs);
-
-	/* Finished freeing tx items so store the tail value. */
-	smp_store_release(&tx_ring->tail, tail);
-
-	spin_unlock_bh(&tx_ring->consumer_lock);
-
-	hfi1_ipoib_check_queue_stopped(txq);
-
-	return work_done;
+	tx_ring->head = 0;
+	tx_ring->tail = 0;
+	atomic64_set(&txq->complete_txreqs, 0);
+	txq->sent_txreqs = 0;
 }
 
-static int hfi1_ipoib_process_tx_ring(struct napi_struct *napi, int budget)
+static int hfi1_ipoib_poll_tx_ring(struct napi_struct *napi, int budget)
 {
 	struct hfi1_ipoib_dev_priv *priv = hfi1_ipoib_priv(napi->dev);
 	struct hfi1_ipoib_txq *txq = &priv->txqs[napi - priv->tx_napis];
+	struct hfi1_ipoib_circ_buf *tx_ring = &txq->tx_ring;
+	u32 head = tx_ring->head;
+	u32 max_tx = tx_ring->max_items;
+	int work_done;
+	struct ipoib_txreq *tx =  hfi1_txreq_from_idx(tx_ring, head);
 
-	int work_done = hfi1_ipoib_drain_tx_ring(txq, budget);
+	trace_hfi1_txq_poll(txq);
+	for (work_done = 0; work_done < budget; work_done++) {
+		/* See hfi1_ipoib_sdma_complete() */
+		if (!smp_load_acquire(&tx->complete))
+			break;
+		tx->complete = 0;
+		hfi1_ipoib_free_tx(tx, budget);
+		head = CIRC_NEXT(head, max_tx);
+		tx =  hfi1_txreq_from_idx(tx_ring, head);
+	}
+	atomic64_add(work_done, &txq->complete_txreqs);
+
+	/* Finished freeing tx items so store the head value. */
+	smp_store_release(&tx_ring->head, head);
+
+	hfi1_ipoib_check_queue_stopped(txq);
 
 	if (work_done < budget)
 		napi_complete_done(napi, work_done);
@@ -191,45 +203,15 @@ static int hfi1_ipoib_process_tx_ring(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-static void hfi1_ipoib_add_tx(struct ipoib_txreq *tx)
-{
-	struct hfi1_ipoib_circ_buf *tx_ring = &tx->txq->tx_ring;
-	unsigned long head;
-	unsigned long tail;
-	size_t max_tx;
-
-	spin_lock(&tx_ring->producer_lock);
-
-	head = tx_ring->head;
-	tail = READ_ONCE(tx_ring->tail);
-	max_tx = tx_ring->max_items;
-
-	if (likely(CIRC_SPACE(head, tail, max_tx))) {
-		tx_ring->items[head] = tx;
-
-		/* Finish storing txreq before incrementing head. */
-		smp_store_release(&tx_ring->head, CIRC_ADD(head, 1, max_tx));
-		napi_schedule_irqoff(tx->txq->napi);
-	} else {
-		struct hfi1_ipoib_txq *txq = tx->txq;
-		struct hfi1_ipoib_dev_priv *priv = tx->priv;
-
-		/* Ring was full */
-		hfi1_ipoib_free_tx(tx, 0);
-		atomic64_inc(&txq->complete_txreqs);
-		dd_dev_dbg(priv->dd, "txq %d full.\n", txq->q_idx);
-	}
-
-	spin_unlock(&tx_ring->producer_lock);
-}
-
 static void hfi1_ipoib_sdma_complete(struct sdma_txreq *txreq, int status)
 {
 	struct ipoib_txreq *tx = container_of(txreq, struct ipoib_txreq, txreq);
 
+	trace_hfi1_txq_complete(tx->txq);
 	tx->sdma_status = status;
-
-	hfi1_ipoib_add_tx(tx);
+	/* see hfi1_ipoib_poll_tx_ring */
+	smp_store_release(&tx->complete, 1);
+	napi_schedule_irqoff(tx->txq->napi);
 }
 
 static int hfi1_ipoib_build_ulp_payload(struct ipoib_txreq *tx,
@@ -385,19 +367,24 @@ static struct ipoib_txreq *hfi1_ipoib_send_dma_common(struct net_device *dev,
 						      struct ipoib_txparms *txp)
 {
 	struct hfi1_ipoib_dev_priv *priv = hfi1_ipoib_priv(dev);
+	struct hfi1_ipoib_txq *txq = txp->txq;
 	struct ipoib_txreq *tx;
+	struct hfi1_ipoib_circ_buf *tx_ring;
+	u32 tail;
 	int ret;
 
-	tx = kmem_cache_alloc_node(priv->txreq_cache,
-				   GFP_ATOMIC,
-				   priv->dd->node);
-	if (unlikely(!tx))
+	if (unlikely(hfi1_ipoib_used(txq) >= hfi1_ipoib_ring_hwat(txq)))
+		/* This shouldn't happen with a stopped queue */
 		return ERR_PTR(-ENOMEM);
+	tx_ring = &txq->tx_ring;
+	tail = tx_ring->tail;
+	tx = hfi1_txreq_from_idx(tx_ring, tx_ring->tail);
+	trace_hfi1_txq_alloc_tx(txq);
 
 	/* so that we can test if the sdma descriptors are there */
 	tx->txreq.num_desc = 0;
 	tx->priv = priv;
-	tx->txq = txp->txq;
+	tx->txq = txq;
 	tx->skb = skb;
 	INIT_LIST_HEAD(&tx->txreq.list);
 
@@ -405,21 +392,20 @@ static struct ipoib_txreq *hfi1_ipoib_send_dma_common(struct net_device *dev,
 
 	ret = hfi1_ipoib_build_tx_desc(tx, txp);
 	if (likely(!ret)) {
-		if (txp->txq->flow.as_int != txp->flow.as_int) {
-			txp->txq->flow.tx_queue = txp->flow.tx_queue;
-			txp->txq->flow.sc5 = txp->flow.sc5;
-			txp->txq->sde =
+		if (txq->flow.as_int != txp->flow.as_int) {
+			txq->flow.tx_queue = txp->flow.tx_queue;
+			txq->flow.sc5 = txp->flow.sc5;
+			txq->sde =
 				sdma_select_engine_sc(priv->dd,
 						      txp->flow.tx_queue,
 						      txp->flow.sc5);
-			trace_hfi1_flow_switch(txp->txq);
+			trace_hfi1_flow_switch(txq);
 		}
 
 		return tx;
 	}
 
 	sdma_txclean(priv->dd, &tx->txreq);
-	kmem_cache_free(priv->txreq_cache, tx);
 
 	return ERR_PTR(ret);
 }
@@ -480,8 +466,8 @@ static int hfi1_ipoib_send_dma_single(struct net_device *dev,
 				      struct sk_buff *skb,
 				      struct ipoib_txparms *txp)
 {
-	struct hfi1_ipoib_dev_priv *priv = hfi1_ipoib_priv(dev);
 	struct hfi1_ipoib_txq *txq = txp->txq;
+	struct hfi1_ipoib_circ_buf *tx_ring;
 	struct ipoib_txreq *tx;
 	int ret;
 
@@ -499,6 +485,9 @@ static int hfi1_ipoib_send_dma_single(struct net_device *dev,
 		return NETDEV_TX_OK;
 	}
 
+	tx_ring = &txq->tx_ring;
+	/* consume tx */
+	smp_store_release(&tx_ring->tail, CIRC_NEXT(tx_ring->tail, tx_ring->max_items));
 	ret = hfi1_ipoib_submit_tx(txq, tx);
 	if (likely(!ret)) {
 tx_ok:
@@ -514,9 +503,10 @@ tx_ok:
 	if (ret == -EBUSY || ret == -ECOMM)
 		goto tx_ok;
 
-	sdma_txclean(priv->dd, &tx->txreq);
-	dev_kfree_skb_any(skb);
-	kmem_cache_free(priv->txreq_cache, tx);
+	/* mark complete and kick napi tx */
+	smp_store_release(&tx->complete, 1);
+	napi_schedule(tx->txq->napi);
+
 	++dev->stats.tx_carrier_errors;
 
 	return NETDEV_TX_OK;
@@ -527,6 +517,7 @@ static int hfi1_ipoib_send_dma_list(struct net_device *dev,
 				    struct ipoib_txparms *txp)
 {
 	struct hfi1_ipoib_txq *txq = txp->txq;
+	struct hfi1_ipoib_circ_buf *tx_ring;
 	struct ipoib_txreq *tx;
 
 	/* Has the flow change ? */
@@ -556,6 +547,9 @@ static int hfi1_ipoib_send_dma_list(struct net_device *dev,
 		return NETDEV_TX_OK;
 	}
 
+	tx_ring = &txq->tx_ring;
+	/* consume tx */
+	smp_store_release(&tx_ring->tail, CIRC_NEXT(tx_ring->tail, tx_ring->max_items));
 	list_add_tail(&tx->txreq.list, &txq->tx_list);
 
 	hfi1_ipoib_check_queue_depth(txq);
@@ -696,31 +690,22 @@ static void hfi1_ipoib_flush_txq(struct work_struct *work)
 int hfi1_ipoib_txreq_init(struct hfi1_ipoib_dev_priv *priv)
 {
 	struct net_device *dev = priv->netdev;
-	char buf[HFI1_IPOIB_TXREQ_NAME_LEN];
-	unsigned long tx_ring_size;
+	u32 tx_ring_size, tx_item_size;
 	int i;
-
-	/*
-	 * Ring holds 1 less than tx_ring_size
-	 * Round up to next power of 2 in order to hold at least tx_queue_len
-	 */
-	tx_ring_size = roundup_pow_of_two((unsigned long)dev->tx_queue_len + 1);
-
-	snprintf(buf, sizeof(buf), "hfi1_%u_ipoib_txreq_cache", priv->dd->unit);
-	priv->txreq_cache = kmem_cache_create(buf,
-					      sizeof(struct ipoib_txreq),
-					      0,
-					      0,
-					      NULL);
-	if (!priv->txreq_cache)
-		return -ENOMEM;
 
 	priv->tx_napis = kcalloc_node(dev->num_tx_queues,
 				      sizeof(struct napi_struct),
 				      GFP_KERNEL,
 				      priv->dd->node);
 	if (!priv->tx_napis)
-		goto free_txreq_cache;
+		return -ENOMEM;
+
+	/*
+	 * Ring holds 1 less than tx_ring_size
+	 * Round up to next power of 2 in order to hold at least tx_queue_len
+	 */
+	tx_ring_size = roundup_pow_of_two(dev->tx_queue_len + 1);
+	tx_item_size = roundup_pow_of_two(sizeof(struct ipoib_txreq));
 
 	priv->txqs = kcalloc_node(dev->num_tx_queues,
 				  sizeof(struct hfi1_ipoib_txq),
@@ -756,19 +741,17 @@ int hfi1_ipoib_txreq_init(struct hfi1_ipoib_dev_priv *priv)
 					     priv->dd->node);
 
 		txq->tx_ring.items =
-			kcalloc_node(tx_ring_size,
-				     sizeof(struct ipoib_txreq *),
+			kcalloc_node(tx_ring_size, tx_item_size,
 				     GFP_KERNEL, priv->dd->node);
 		if (!txq->tx_ring.items)
 			goto free_txqs;
 
-		spin_lock_init(&txq->tx_ring.producer_lock);
-		spin_lock_init(&txq->tx_ring.consumer_lock);
 		txq->tx_ring.max_items = tx_ring_size;
+		txq->tx_ring.shift = ilog2(tx_ring_size);
 
 		txq->napi = &priv->tx_napis[i];
 		netif_tx_napi_add(dev, txq->napi,
-				  hfi1_ipoib_process_tx_ring,
+				  hfi1_ipoib_poll_tx_ring,
 				  NAPI_POLL_WEIGHT);
 	}
 
@@ -788,10 +771,6 @@ free_txqs:
 free_tx_napis:
 	kfree(priv->tx_napis);
 	priv->tx_napis = NULL;
-
-free_txreq_cache:
-	kmem_cache_destroy(priv->txreq_cache);
-	priv->txreq_cache = NULL;
 	return -ENOMEM;
 }
 
@@ -808,13 +787,13 @@ static void hfi1_ipoib_drain_tx_list(struct hfi1_ipoib_txq *txq)
 		list_del(&txreq->list);
 		sdma_txclean(txq->priv->dd, &tx->txreq);
 		dev_kfree_skb_any(tx->skb);
-		kmem_cache_free(txq->priv->txreq_cache, tx);
+		tx->skb = NULL;
 		atomic64_inc(complete_txreqs);
 	}
 
 	if (hfi1_ipoib_used(txq))
 		dd_dev_warn(txq->priv->dd,
-			    "txq %d not empty found %llu requests\n",
+			    "txq %d not empty found %u requests\n",
 			    txq->q_idx,
 			    hfi1_ipoib_txreqs(txq->sent_txreqs,
 					      atomic64_read(complete_txreqs)));
@@ -831,7 +810,7 @@ void hfi1_ipoib_txreq_deinit(struct hfi1_ipoib_dev_priv *priv)
 		iowait_sdma_drain(&txq->wait);
 		hfi1_ipoib_drain_tx_list(txq);
 		netif_napi_del(txq->napi);
-		(void)hfi1_ipoib_drain_tx_ring(txq, txq->tx_ring.max_items);
+		hfi1_ipoib_drain_tx_ring(txq);
 		kfree(txq->tx_ring.items);
 	}
 
@@ -840,9 +819,6 @@ void hfi1_ipoib_txreq_deinit(struct hfi1_ipoib_dev_priv *priv)
 
 	kfree(priv->tx_napis);
 	priv->tx_napis = NULL;
-
-	kmem_cache_destroy(priv->txreq_cache);
-	priv->txreq_cache = NULL;
 }
 
 void hfi1_ipoib_napi_tx_enable(struct net_device *dev)
@@ -866,7 +842,7 @@ void hfi1_ipoib_napi_tx_disable(struct net_device *dev)
 		struct hfi1_ipoib_txq *txq = &priv->txqs[i];
 
 		napi_disable(txq->napi);
-		(void)hfi1_ipoib_drain_tx_ring(txq, txq->tx_ring.max_items);
+		hfi1_ipoib_drain_tx_ring(txq);
 	}
 }
 
@@ -888,9 +864,9 @@ void hfi1_ipoib_tx_timeout(struct net_device *dev, unsigned int q)
 	dd_dev_info(priv->dd, "flow %x\n", txq->flow.as_int);
 	dd_dev_info(priv->dd, "sent %llu completed %llu used %llu\n",
 		    txq->sent_txreqs, completed, hfi1_ipoib_used(txq));
-	dd_dev_info(priv->dd, "tx_queue_len %u max_items %lu\n",
+	dd_dev_info(priv->dd, "tx_queue_len %u max_items %u\n",
 		    dev->tx_queue_len, txq->tx_ring.max_items);
-	dd_dev_info(priv->dd, "head %lu tail %lu\n",
+	dd_dev_info(priv->dd, "head %u tail %u\n",
 		    txq->tx_ring.head, txq->tx_ring.tail);
 	dd_dev_info(priv->dd, "wait queued %u\n",
 		    !list_empty(&txq->wait.list));

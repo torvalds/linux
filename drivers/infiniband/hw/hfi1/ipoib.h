@@ -45,21 +45,19 @@ union hfi1_ipoib_flow {
 
 /**
  * struct hfi1_ipoib_circ_buf - List of items to be processed
- * @items: ring of items
+ * @items: ring of items each a power of two size
  * @head: ring head
  * @tail: ring tail
  * @max_items: max items + 1 that the ring can contain
- * @producer_lock: producer sync lock
- * @consumer_lock: consumer sync lock
+ * @shift: log2 of size for getting txreq
  */
 struct ipoib_txreq;
 struct hfi1_ipoib_circ_buf {
-	struct ipoib_txreq **items;
-	unsigned long head;
-	unsigned long tail;
-	unsigned long max_items;
-	spinlock_t producer_lock; /* head sync lock */
-	spinlock_t consumer_lock; /* tail sync lock */
+	void *items;
+	u32 head;
+	u32 tail;
+	u32 max_items;
+	u32 shift;
 };
 
 /**
@@ -102,7 +100,6 @@ struct hfi1_ipoib_dev_priv {
 	struct net_device   *netdev;
 	struct ib_device    *device;
 	struct hfi1_ipoib_txq *txqs;
-	struct kmem_cache *txreq_cache;
 	struct napi_struct *tx_napis;
 	u16 pkey;
 	u16 pkey_index;
