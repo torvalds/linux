@@ -81,12 +81,12 @@ int hif_get_counters_table(struct wfx_dev *wdev, int vif_id,
 
 int hif_set_macaddr(struct wfx_vif *wvif, u8 *mac)
 {
-	struct hif_mib_mac_address msg = { };
+	struct hif_mib_mac_address arg = { };
 
 	if (mac)
-		ether_addr_copy(msg.mac_addr, mac);
+		ether_addr_copy(arg.mac_addr, mac);
 	return hif_write_mib(wvif->wdev, wvif->id, HIF_MIB_ID_DOT11_MAC_ADDRESS,
-			     &msg, sizeof(msg));
+			     &arg, sizeof(arg));
 }
 
 int hif_set_rx_filter(struct wfx_vif *wvif,
