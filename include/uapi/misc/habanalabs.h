@@ -917,7 +917,6 @@ struct hl_wait_cs_in {
 #define HL_WAIT_CS_STATUS_BUSY		1
 #define HL_WAIT_CS_STATUS_TIMEDOUT	2
 #define HL_WAIT_CS_STATUS_ABORTED	3
-#define HL_WAIT_CS_STATUS_INTERRUPTED	4
 
 #define HL_WAIT_CS_STATUS_FLAG_GONE		0x1
 #define HL_WAIT_CS_STATUS_FLAG_TIMESTAMP_VLD	0x2
@@ -1286,7 +1285,8 @@ struct hl_debug_args {
  * EIO       - The CS was aborted (usually because the device was reset)
  * ENODEV    - The device wants to do hard-reset (so user need to close FD)
  *
- * The driver also returns a custom define inside the IOCTL which can be:
+ * The driver also returns a custom define in case the IOCTL call returned 0.
+ * The define can be one of the following:
  *
  * HL_WAIT_CS_STATUS_COMPLETED   - The CS has been completed successfully (0)
  * HL_WAIT_CS_STATUS_BUSY        - The CS is still executing (0)
@@ -1294,8 +1294,6 @@ struct hl_debug_args {
  *                                 (ETIMEDOUT)
  * HL_WAIT_CS_STATUS_ABORTED     - The CS was aborted, usually because the
  *                                 device was reset (EIO)
- * HL_WAIT_CS_STATUS_INTERRUPTED - Waiting for the CS was interrupted (EINTR)
- *
  */
 
 #define HL_IOCTL_WAIT_CS			\

@@ -2649,10 +2649,17 @@ put_ctx:
 free_seq_arr:
 	kfree(cs_seq_arr);
 
-	/* update output args */
-	memset(args, 0, sizeof(*args));
 	if (rc)
 		return rc;
+
+	if (mcs_data.wait_status == -ERESTARTSYS) {
+		dev_err_ratelimited(hdev->dev,
+				"user process got signal while waiting for Multi-CS\n");
+		return -EINTR;
+	}
+
+	/* update output args */
+	memset(args, 0, sizeof(*args));
 
 	if (mcs_data.completion_bitmap) {
 		args->out.status = HL_WAIT_CS_STATUS_COMPLETED;
@@ -2667,8 +2674,6 @@ free_seq_arr:
 		/* update if some CS was gone */
 		if (mcs_data.timestamp)
 			args->out.flags |= HL_WAIT_CS_STATUS_FLAG_GONE;
-	} else if (mcs_data.wait_status == -ERESTARTSYS) {
-		args->out.status = HL_WAIT_CS_STATUS_INTERRUPTED;
 	} else {
 		args->out.status = HL_WAIT_CS_STATUS_BUSY;
 	}
@@ -2688,16 +2693,17 @@ static int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	rc = _hl_cs_wait_ioctl(hdev, hpriv->ctx, args->in.timeout_us, seq,
 				&status, &timestamp);
 
+	if (rc == -ERESTARTSYS) {
+		dev_err_ratelimited(hdev->dev,
+			"user process got signal while waiting for CS handle %llu\n",
+			seq);
+		return -EINTR;
+	}
+
 	memset(args, 0, sizeof(*args));
 
 	if (rc) {
-		if (rc == -ERESTARTSYS) {
-			dev_err_ratelimited(hdev->dev,
-				"user process got signal while waiting for CS handle %llu\n",
-				seq);
-			args->out.status = HL_WAIT_CS_STATUS_INTERRUPTED;
-			rc = -EINTR;
-		} else if (rc == -ETIMEDOUT) {
+		if (rc == -ETIMEDOUT) {
 			dev_err_ratelimited(hdev->dev,
 				"CS %llu has timed-out while user process is waiting for it\n",
 				seq);
@@ -2823,7 +2829,6 @@ wait_again:
 		dev_err_ratelimited(hdev->dev,
 			"user process got signal while waiting for interrupt ID %d\n",
 			interrupt->interrupt_id);
-		*status = HL_WAIT_CS_STATUS_INTERRUPTED;
 		rc = -EINTR;
 	} else {
 		*status = CS_WAIT_STATUS_BUSY;
@@ -2878,8 +2883,6 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 				args->in.interrupt_timeout_us, args->in.addr,
 				args->in.target, interrupt_offset, &status);
 
-	memset(args, 0, sizeof(*args));
-
 	if (rc) {
 		if (rc != -EINTR)
 			dev_err_ratelimited(hdev->dev,
@@ -2887,6 +2890,8 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 
 		return rc;
 	}
+
+	memset(args, 0, sizeof(*args));
 
 	switch (status) {
 	case CS_WAIT_STATUS_COMPLETED:
