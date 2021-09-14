@@ -554,8 +554,6 @@ static unsigned long arm_trbe_update_buffer(struct coresight_device *csdev,
 	if (cpudata->mode != CS_MODE_PERF)
 		return 0;
 
-	perf_aux_output_flag(handle, PERF_AUX_FLAG_CORESIGHT_FORMAT_RAW);
-
 	/*
 	 * We are about to disable the TRBE. And this could in turn
 	 * fill up the buffer triggering, an IRQ. This could be consumed
@@ -648,6 +646,7 @@ static int arm_trbe_enable(struct coresight_device *csdev, u32 mode, void *data)
 	if (mode != CS_MODE_PERF)
 		return -EINVAL;
 
+	perf_aux_output_flag(handle, PERF_AUX_FLAG_CORESIGHT_FORMAT_RAW);
 	*this_cpu_ptr(drvdata->handle) = handle;
 	cpudata->buf = buf;
 	cpudata->mode = mode;
@@ -710,8 +709,7 @@ static void trbe_handle_overflow(struct perf_output_handle *handle)
 	 * Mark the buffer as truncated, as we have stopped the trace
 	 * collection upon the WRAP event, without stopping the source.
 	 */
-	perf_aux_output_flag(handle, PERF_AUX_FLAG_CORESIGHT_FORMAT_RAW |
-				     PERF_AUX_FLAG_TRUNCATED);
+	perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
 	perf_aux_output_end(handle, size);
 	event_data = perf_aux_output_begin(handle, event);
 	if (!event_data) {
@@ -725,6 +723,7 @@ static void trbe_handle_overflow(struct perf_output_handle *handle)
 		*this_cpu_ptr(buf->cpudata->drvdata->handle) = NULL;
 		return;
 	}
+	perf_aux_output_flag(handle, PERF_AUX_FLAG_CORESIGHT_FORMAT_RAW);
 	buf->trbe_limit = compute_trbe_buffer_limit(handle);
 	buf->trbe_write = buf->trbe_base + PERF_IDX2OFF(handle->head, buf);
 	if (buf->trbe_limit == buf->trbe_base) {
