@@ -24,7 +24,7 @@ u8 rxe_get_next_key(u32 last_key)
 
 int mr_check_range(struct rxe_mr *mr, u64 iova, size_t length)
 {
-
+	struct rxe_map_set *set = mr->cur_map_set;
 
 	switch (mr->type) {
 	case IB_MR_TYPE_DMA:
@@ -32,8 +32,8 @@ int mr_check_range(struct rxe_mr *mr, u64 iova, size_t length)
 
 	case IB_MR_TYPE_USER:
 	case IB_MR_TYPE_MEM_REG:
-		if (iova < mr->iova || length > mr->length ||
-		    iova > mr->iova + mr->length - length)
+		if (iova < set->iova || length > set->length ||
+		    iova > set->iova + set->length - length)
 			return -EFAULT;
 		return 0;
 
@@ -65,41 +65,89 @@ static void rxe_mr_init(int access, struct rxe_mr *mr)
 	mr->map_shift = ilog2(RXE_BUF_PER_MAP);
 }
 
-static int rxe_mr_alloc(struct rxe_mr *mr, int num_buf)
+static void rxe_mr_free_map_set(int num_map, struct rxe_map_set *set)
 {
 	int i;
-	int num_map;
-	struct rxe_map **map = mr->map;
 
-	num_map = (num_buf + RXE_BUF_PER_MAP - 1) / RXE_BUF_PER_MAP;
+	for (i = 0; i < num_map; i++)
+		kfree(set->map[i]);
 
-	mr->map = kmalloc_array(num_map, sizeof(*map), GFP_KERNEL);
-	if (!mr->map)
-		goto err1;
+	kfree(set->map);
+	kfree(set);
+}
+
+static int rxe_mr_alloc_map_set(int num_map, struct rxe_map_set **setp)
+{
+	int i;
+	struct rxe_map_set *set;
+
+	set = kmalloc(sizeof(*set), GFP_KERNEL);
+	if (!set)
+		goto err_out;
+
+	set->map = kmalloc_array(num_map, sizeof(struct rxe_map *), GFP_KERNEL);
+	if (!set->map)
+		goto err_free_set;
 
 	for (i = 0; i < num_map; i++) {
-		mr->map[i] = kmalloc(sizeof(**map), GFP_KERNEL);
-		if (!mr->map[i])
-			goto err2;
+		set->map[i] = kmalloc(sizeof(struct rxe_map), GFP_KERNEL);
+		if (!set->map[i])
+			goto err_free_map;
 	}
 
-	BUILD_BUG_ON(!is_power_of_2(RXE_BUF_PER_MAP));
-
-	mr->map_shift = ilog2(RXE_BUF_PER_MAP);
-	mr->map_mask = RXE_BUF_PER_MAP - 1;
-
-	mr->num_buf = num_buf;
-	mr->num_map = num_map;
-	mr->max_buf = num_map * RXE_BUF_PER_MAP;
+	*setp = set;
 
 	return 0;
 
-err2:
+err_free_map:
 	for (i--; i >= 0; i--)
-		kfree(mr->map[i]);
+		kfree(set->map[i]);
 
-	kfree(mr->map);
-err1:
+	kfree(set->map);
+err_free_set:
+	kfree(set);
+err_out:
+	return -ENOMEM;
+}
+
+/**
+ * rxe_mr_alloc() - Allocate memory map array(s) for MR
+ * @mr: Memory region
+ * @num_buf: Number of buffer descriptors to support
+ * @both: If non zero allocate both mr->map and mr->next_map
+ *	  else just allocate mr->map. Used for fast MRs
+ *
+ * Return: 0 on success else an error
+ */
+static int rxe_mr_alloc(struct rxe_mr *mr, int num_buf, int both)
+{
+	int ret;
+	int num_map;
+
+	BUILD_BUG_ON(!is_power_of_2(RXE_BUF_PER_MAP));
+	num_map = (num_buf + RXE_BUF_PER_MAP - 1) / RXE_BUF_PER_MAP;
+
+	mr->map_shift = ilog2(RXE_BUF_PER_MAP);
+	mr->map_mask = RXE_BUF_PER_MAP - 1;
+	mr->num_buf = num_buf;
+	mr->max_buf = num_map * RXE_BUF_PER_MAP;
+	mr->num_map = num_map;
+
+	ret = rxe_mr_alloc_map_set(num_map, &mr->cur_map_set);
+	if (ret)
+		goto err_out;
+
+	if (both) {
+		ret = rxe_mr_alloc_map_set(num_map, &mr->next_map_set);
+		if (ret) {
+			rxe_mr_free_map_set(mr->num_map, mr->cur_map_set);
+			goto err_out;
+		}
+	}
+
+	return 0;
+
+err_out:
 	return -ENOMEM;
 }
 
@@ -116,6 +164,7 @@ void rxe_mr_init_dma(struct rxe_pd *pd, int access, struct rxe_mr *mr)
 int rxe_mr_init_user(struct rxe_pd *pd, u64 start, u64 length, u64 iova,
 		     int access, struct rxe_mr *mr)
 {
+	struct rxe_map_set	*set;
 	struct rxe_map		**map;
 	struct rxe_phys_buf	*buf = NULL;
 	struct ib_umem		*umem;
@@ -123,7 +172,6 @@ int rxe_mr_init_user(struct rxe_pd *pd, u64 start, u64 length, u64 iova,
 	int			num_buf;
 	void			*vaddr;
 	int err;
-	int i;
 
 	umem = ib_umem_get(pd->ibpd.device, start, length, access);
 	if (IS_ERR(umem)) {
@@ -137,18 +185,20 @@ int rxe_mr_init_user(struct rxe_pd *pd, u64 start, u64 length, u64 iova,
 
 	rxe_mr_init(access, mr);
 
-	err = rxe_mr_alloc(mr, num_buf);
+	err = rxe_mr_alloc(mr, num_buf, 0);
 	if (err) {
 		pr_warn("%s: Unable to allocate memory for map\n",
 				__func__);
 		goto err_release_umem;
 	}
 
-	mr->page_shift = PAGE_SHIFT;
-	mr->page_mask = PAGE_SIZE - 1;
+	set = mr->cur_map_set;
+	set->page_shift = PAGE_SHIFT;
+	set->page_mask = PAGE_SIZE - 1;
 
-	num_buf			= 0;
-	map = mr->map;
+	num_buf = 0;
+	map = set->map;
+
 	if (length > 0) {
 		buf = map[0]->buf;
 
@@ -171,26 +221,24 @@ int rxe_mr_init_user(struct rxe_pd *pd, u64 start, u64 length, u64 iova,
 			buf->size = PAGE_SIZE;
 			num_buf++;
 			buf++;
-
 		}
 	}
 
 	mr->ibmr.pd = &pd->ibpd;
 	mr->umem = umem;
 	mr->access = access;
-	mr->length = length;
-	mr->iova = iova;
-	mr->va = start;
-	mr->offset = ib_umem_offset(umem);
 	mr->state = RXE_MR_STATE_VALID;
 	mr->type = IB_MR_TYPE_USER;
+
+	set->length = length;
+	set->iova = iova;
+	set->va = start;
+	set->offset = ib_umem_offset(umem);
 
 	return 0;
 
 err_cleanup_map:
-	for (i = 0; i < mr->num_map; i++)
-		kfree(mr->map[i]);
-	kfree(mr->map);
+	rxe_mr_free_map_set(mr->num_map, mr->cur_map_set);
 err_release_umem:
 	ib_umem_release(umem);
 err_out:
@@ -204,7 +252,7 @@ int rxe_mr_init_fast(struct rxe_pd *pd, int max_pages, struct rxe_mr *mr)
 	/* always allow remote access for FMRs */
 	rxe_mr_init(IB_ACCESS_REMOTE, mr);
 
-	err = rxe_mr_alloc(mr, max_pages);
+	err = rxe_mr_alloc(mr, max_pages, 1);
 	if (err)
 		goto err1;
 
@@ -222,21 +270,24 @@ err1:
 static void lookup_iova(struct rxe_mr *mr, u64 iova, int *m_out, int *n_out,
 			size_t *offset_out)
 {
-	size_t offset = iova - mr->iova + mr->offset;
+	struct rxe_map_set *set = mr->cur_map_set;
+	size_t offset = iova - set->iova + set->offset;
 	int			map_index;
 	int			buf_index;
 	u64			length;
+	struct rxe_map *map;
 
-	if (likely(mr->page_shift)) {
-		*offset_out = offset & mr->page_mask;
-		offset >>= mr->page_shift;
+	if (likely(set->page_shift)) {
+		*offset_out = offset & set->page_mask;
+		offset >>= set->page_shift;
 		*n_out = offset & mr->map_mask;
 		*m_out = offset >> mr->map_shift;
 	} else {
 		map_index = 0;
 		buf_index = 0;
 
-		length = mr->map[map_index]->buf[buf_index].size;
+		map = set->map[map_index];
+		length = map->buf[buf_index].size;
 
 		while (offset >= length) {
 			offset -= length;
@@ -246,7 +297,8 @@ static void lookup_iova(struct rxe_mr *mr, u64 iova, int *m_out, int *n_out,
 				map_index++;
 				buf_index = 0;
 			}
-			length = mr->map[map_index]->buf[buf_index].size;
+			map = set->map[map_index];
+			length = map->buf[buf_index].size;
 		}
 
 		*m_out = map_index;
@@ -267,7 +319,7 @@ void *iova_to_vaddr(struct rxe_mr *mr, u64 iova, int length)
 		goto out;
 	}
 
-	if (!mr->map) {
+	if (!mr->cur_map_set) {
 		addr = (void *)(uintptr_t)iova;
 		goto out;
 	}
@@ -280,13 +332,13 @@ void *iova_to_vaddr(struct rxe_mr *mr, u64 iova, int length)
 
 	lookup_iova(mr, iova, &m, &n, &offset);
 
-	if (offset + length > mr->map[m]->buf[n].size) {
+	if (offset + length > mr->cur_map_set->map[m]->buf[n].size) {
 		pr_warn("crosses page boundary\n");
 		addr = NULL;
 		goto out;
 	}
 
-	addr = (void *)(uintptr_t)mr->map[m]->buf[n].addr + offset;
+	addr = (void *)(uintptr_t)mr->cur_map_set->map[m]->buf[n].addr + offset;
 
 out:
 	return addr;
@@ -322,7 +374,7 @@ int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
 		return 0;
 	}
 
-	WARN_ON_ONCE(!mr->map);
+	WARN_ON_ONCE(!mr->cur_map_set);
 
 	err = mr_check_range(mr, iova, length);
 	if (err) {
@@ -332,7 +384,7 @@ int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
 
 	lookup_iova(mr, iova, &m, &i, &offset);
 
-	map = mr->map + m;
+	map = mr->cur_map_set->map + m;
 	buf	= map[0]->buf + i;
 
 	while (length > 0) {
@@ -572,8 +624,9 @@ err:
 int rxe_reg_fast_mr(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 {
 	struct rxe_mr *mr = to_rmr(wqe->wr.wr.reg.mr);
-	u32 key = wqe->wr.wr.reg.key;
+	u32 key = wqe->wr.wr.reg.key & 0xff;
 	u32 access = wqe->wr.wr.reg.access;
+	struct rxe_map_set *set;
 
 	/* user can only register MR in free state */
 	if (unlikely(mr->state != RXE_MR_STATE_FREE)) {
@@ -589,18 +642,35 @@ int rxe_reg_fast_mr(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 		return -EINVAL;
 	}
 
-	/* user is only allowed to change key portion of l/rkey */
-	if (unlikely((mr->lkey & ~0xff) != (key & ~0xff))) {
-		pr_warn("%s: key = 0x%x has wrong index mr->lkey = 0x%x\n",
-			__func__, key, mr->lkey);
-		return -EINVAL;
-	}
-
 	mr->access = access;
-	mr->lkey = key;
-	mr->rkey = (access & IB_ACCESS_REMOTE) ? key : 0;
-	mr->iova = wqe->wr.wr.reg.mr->iova;
+	mr->lkey = (mr->lkey & ~0xff) | key;
+	mr->rkey = (access & IB_ACCESS_REMOTE) ? mr->lkey : 0;
 	mr->state = RXE_MR_STATE_VALID;
+
+	set = mr->cur_map_set;
+	mr->cur_map_set = mr->next_map_set;
+	mr->cur_map_set->iova = wqe->wr.wr.reg.mr->iova;
+	mr->next_map_set = set;
+
+	return 0;
+}
+
+int rxe_mr_set_page(struct ib_mr *ibmr, u64 addr)
+{
+	struct rxe_mr *mr = to_rmr(ibmr);
+	struct rxe_map_set *set = mr->next_map_set;
+	struct rxe_map *map;
+	struct rxe_phys_buf *buf;
+
+	if (unlikely(set->nbuf == mr->num_buf))
+		return -ENOMEM;
+
+	map = set->map[set->nbuf / RXE_BUF_PER_MAP];
+	buf = &map->buf[set->nbuf % RXE_BUF_PER_MAP];
+
+	buf->addr = addr;
+	buf->size = ibmr->page_size;
+	set->nbuf++;
 
 	return 0;
 }
@@ -626,14 +696,12 @@ int rxe_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 void rxe_mr_cleanup(struct rxe_pool_entry *arg)
 {
 	struct rxe_mr *mr = container_of(arg, typeof(*mr), pelem);
-	int i;
 
 	ib_umem_release(mr->umem);
 
-	if (mr->map) {
-		for (i = 0; i < mr->num_map; i++)
-			kfree(mr->map[i]);
+	if (mr->cur_map_set)
+		rxe_mr_free_map_set(mr->num_map, mr->cur_map_set);
 
-		kfree(mr->map);
-	}
+	if (mr->next_map_set)
+		rxe_mr_free_map_set(mr->num_map, mr->next_map_set);
 }
