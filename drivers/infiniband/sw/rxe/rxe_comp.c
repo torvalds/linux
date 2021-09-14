@@ -142,10 +142,7 @@ static inline enum comp_state get_wqe(struct rxe_qp *qp,
 	/* we come here whether or not we found a response packet to see if
 	 * there are any posted WQEs
 	 */
-	if (qp->is_user)
-		wqe = queue_head(qp->sq.queue, QUEUE_TYPE_FROM_USER);
-	else
-		wqe = queue_head(qp->sq.queue, QUEUE_TYPE_KERNEL);
+	wqe = queue_head(qp->sq.queue, QUEUE_TYPE_FROM_CLIENT);
 	*wqe_p = wqe;
 
 	/* no WQE or requester has not started it yet */
@@ -432,10 +429,7 @@ static void do_complete(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 	if (post)
 		make_send_cqe(qp, wqe, &cqe);
 
-	if (qp->is_user)
-		advance_consumer(qp->sq.queue, QUEUE_TYPE_FROM_USER);
-	else
-		advance_consumer(qp->sq.queue, QUEUE_TYPE_KERNEL);
+	queue_advance_consumer(qp->sq.queue, QUEUE_TYPE_FROM_CLIENT);
 
 	if (post)
 		rxe_cq_post(qp->scq, &cqe, 0);
@@ -539,7 +533,7 @@ static void rxe_drain_resp_pkts(struct rxe_qp *qp, bool notify)
 			wqe->status = IB_WC_WR_FLUSH_ERR;
 			do_complete(qp, wqe);
 		} else {
-			advance_consumer(q, q->type);
+			queue_advance_consumer(q, q->type);
 		}
 	}
 }
