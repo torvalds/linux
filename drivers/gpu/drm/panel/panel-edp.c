@@ -362,9 +362,6 @@ static int panel_edp_suspend(struct device *dev)
 	regulator_disable(p->supply);
 	p->unprepared_time = ktime_get();
 
-	kfree(p->edid);
-	p->edid = NULL;
-
 	return 0;
 }
 
@@ -757,6 +754,9 @@ static int panel_edp_remove(struct device *dev)
 	pm_runtime_disable(dev);
 	if (panel->ddc && (!panel->aux || panel->ddc != &panel->aux->ddc))
 		put_device(&panel->ddc->dev);
+
+	kfree(panel->edid);
+	panel->edid = NULL;
 
 	return 0;
 }
