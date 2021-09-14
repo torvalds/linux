@@ -39,8 +39,8 @@ static bool always_log;
 #define BTF_END_RAW 0xdeadbeef
 #define NAME_TBD 0xdeadb33f
 
-#define NAME_NTH(N) (0xffff0000 | N)
-#define IS_NAME_NTH(X) ((X & 0xffff0000) == 0xffff0000)
+#define NAME_NTH(N) (0xfffe0000 | N)
+#define IS_NAME_NTH(X) ((X & 0xffff0000) == 0xfffe0000)
 #define GET_NAME_NTH_IDX(X) (X & 0x0000ffff)
 
 #define MAX_NR_RAW_U32 1024
