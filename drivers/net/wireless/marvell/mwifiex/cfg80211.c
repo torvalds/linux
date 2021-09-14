@@ -1059,6 +1059,10 @@ mwifiex_change_vif_to_p2p(struct net_device *dev,
 	if (mwifiex_init_new_priv_params(priv, dev, type))
 		return -1;
 
+	update_vif_type_counter(adapter, curr_iftype, -1);
+	update_vif_type_counter(adapter, type, +1);
+	dev->ieee80211_ptr->iftype = type;
+
 	switch (type) {
 	case NL80211_IFTYPE_P2P_CLIENT:
 		if (mwifiex_cfg80211_init_p2p_client(priv))
@@ -1081,10 +1085,6 @@ mwifiex_change_vif_to_p2p(struct net_device *dev,
 
 	if (mwifiex_sta_init_cmd(priv, false, false))
 		return -1;
-
-	update_vif_type_counter(adapter, curr_iftype, -1);
-	update_vif_type_counter(adapter, type, +1);
-	dev->ieee80211_ptr->iftype = type;
 
 	return 0;
 }
@@ -1116,15 +1116,16 @@ mwifiex_change_vif_to_sta_adhoc(struct net_device *dev,
 		return -1;
 	if (mwifiex_init_new_priv_params(priv, dev, type))
 		return -1;
+
+	update_vif_type_counter(adapter, curr_iftype, -1);
+	update_vif_type_counter(adapter, type, +1);
+	dev->ieee80211_ptr->iftype = type;
+
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_SET_BSS_MODE,
 			     HostCmd_ACT_GEN_SET, 0, NULL, true))
 		return -1;
 	if (mwifiex_sta_init_cmd(priv, false, false))
 		return -1;
-
-	update_vif_type_counter(adapter, curr_iftype, -1);
-	update_vif_type_counter(adapter, type, +1);
-	dev->ieee80211_ptr->iftype = type;
 
 	return 0;
 }
@@ -1152,15 +1153,17 @@ mwifiex_change_vif_to_ap(struct net_device *dev,
 		return -1;
 	if (mwifiex_init_new_priv_params(priv, dev, type))
 		return -1;
+
+	update_vif_type_counter(adapter, curr_iftype, -1);
+	update_vif_type_counter(adapter, type, +1);
+	dev->ieee80211_ptr->iftype = type;
+
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_SET_BSS_MODE,
 			     HostCmd_ACT_GEN_SET, 0, NULL, true))
 		return -1;
 	if (mwifiex_sta_init_cmd(priv, false, false))
 		return -1;
 
-	update_vif_type_counter(adapter, curr_iftype, -1);
-	update_vif_type_counter(adapter, type, +1);
-	dev->ieee80211_ptr->iftype = type;
 	return 0;
 }
 /*
