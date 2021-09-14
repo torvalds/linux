@@ -5970,69 +5970,6 @@ static inline void mlxsw_reg_pllp_unpack(char *payload, u8 *label_port,
 	*slot_index = mlxsw_reg_pllp_slot_index_get(payload);
 }
 
-/* PMTM - Port Module Type Mapping Register
- * ----------------------------------------
- * The PMTM allows query or configuration of module types.
- */
-#define MLXSW_REG_PMTM_ID 0x5067
-#define MLXSW_REG_PMTM_LEN 0x10
-
-MLXSW_REG_DEFINE(pmtm, MLXSW_REG_PMTM_ID, MLXSW_REG_PMTM_LEN);
-
-/* reg_pmtm_module
- * Module number.
- * Access: Index
- */
-MLXSW_ITEM32(reg, pmtm, module, 0x00, 16, 8);
-
-enum mlxsw_reg_pmtm_module_type {
-	/* Backplane with 4 lanes */
-	MLXSW_REG_PMTM_MODULE_TYPE_BP_4X,
-	/* QSFP */
-	MLXSW_REG_PMTM_MODULE_TYPE_QSFP,
-	/* SFP */
-	MLXSW_REG_PMTM_MODULE_TYPE_SFP,
-	/* Backplane with single lane */
-	MLXSW_REG_PMTM_MODULE_TYPE_BP_1X = 4,
-	/* Backplane with two lane */
-	MLXSW_REG_PMTM_MODULE_TYPE_BP_2X = 8,
-	/* Chip2Chip4x */
-	MLXSW_REG_PMTM_MODULE_TYPE_C2C4X = 10,
-	/* Chip2Chip2x */
-	MLXSW_REG_PMTM_MODULE_TYPE_C2C2X,
-	/* Chip2Chip1x */
-	MLXSW_REG_PMTM_MODULE_TYPE_C2C1X,
-	/* QSFP-DD */
-	MLXSW_REG_PMTM_MODULE_TYPE_QSFP_DD = 14,
-	/* OSFP */
-	MLXSW_REG_PMTM_MODULE_TYPE_OSFP,
-	/* SFP-DD */
-	MLXSW_REG_PMTM_MODULE_TYPE_SFP_DD,
-	/* DSFP */
-	MLXSW_REG_PMTM_MODULE_TYPE_DSFP,
-	/* Chip2Chip8x */
-	MLXSW_REG_PMTM_MODULE_TYPE_C2C8X,
-};
-
-/* reg_pmtm_module_type
- * Module type.
- * Access: RW
- */
-MLXSW_ITEM32(reg, pmtm, module_type, 0x04, 0, 4);
-
-static inline void mlxsw_reg_pmtm_pack(char *payload, u8 module)
-{
-	MLXSW_REG_ZERO(pmtm, payload);
-	mlxsw_reg_pmtm_module_set(payload, module);
-}
-
-static inline void
-mlxsw_reg_pmtm_unpack(char *payload,
-		      enum mlxsw_reg_pmtm_module_type *module_type)
-{
-	*module_type = mlxsw_reg_pmtm_module_type_get(payload);
-}
-
 /* HTGT - Host Trap Group Table
  * ----------------------------
  * Configures the properties for forwarding to CPU.
@@ -12314,7 +12251,6 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pmpe),
 	MLXSW_REG(pddr),
 	MLXSW_REG(pllp),
-	MLXSW_REG(pmtm),
 	MLXSW_REG(htgt),
 	MLXSW_REG(hpkt),
 	MLXSW_REG(rgcr),
