@@ -924,7 +924,7 @@ static void __init print_unknown_bootoptions(void)
 		end += sprintf(end, " %s", *p);
 
 	pr_notice("Unknown command line parameters:%s\n", unknown_options);
-	memblock_free(__pa(unknown_options), len);
+	memblock_free_ptr(unknown_options, len);
 }
 
 asmlinkage __visible void __init __no_sanitize_address start_kernel(void)
