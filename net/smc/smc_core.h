@@ -310,6 +310,7 @@ struct smc_init_info {
 	u8			first_contact_local;
 	unsigned short		vlan_id;
 	u32			rc;
+	u8			negotiated_eid[SMC_MAX_EID_LEN];
 	/* SMC-R */
 	struct smc_clc_msg_local *ib_lcl;
 	struct smc_ib_device	*ib_dev;

@@ -19,11 +19,19 @@
 #include "smc_core.h"
 #include "smc_ism.h"
 #include "smc_ib.h"
+#include "smc_clc.h"
 #include "smc_stats.h"
 #include "smc_netlink.h"
 
-#define SMC_CMD_MAX_ATTR 1
+const struct nla_policy
+smc_gen_ueid_policy[SMC_NLA_EID_TABLE_MAX + 1] = {
+	[SMC_NLA_EID_TABLE_UNSPEC]	= { .type = NLA_UNSPEC },
+	[SMC_NLA_EID_TABLE_ENTRY]	= { .type = NLA_STRING,
+					    .len = SMC_MAX_EID_LEN,
+					  },
+};
 
+#define SMC_CMD_MAX_ATTR 1
 /* SMC_GENL generic netlink operation definition */
 static const struct genl_ops smc_gen_nl_ops[] = {
 	{
@@ -65,6 +73,28 @@ static const struct genl_ops smc_gen_nl_ops[] = {
 		.cmd = SMC_NETLINK_GET_FBACK_STATS,
 		/* can be retrieved by unprivileged users */
 		.dumpit = smc_nl_get_fback_stats,
+	},
+	{
+		.cmd = SMC_NETLINK_DUMP_UEID,
+		/* can be retrieved by unprivileged users */
+		.dumpit = smc_nl_dump_ueid,
+	},
+	{
+		.cmd = SMC_NETLINK_ADD_UEID,
+		.flags = GENL_ADMIN_PERM,
+		.doit = smc_nl_add_ueid,
+		.policy = smc_gen_ueid_policy,
+	},
+	{
+		.cmd = SMC_NETLINK_REMOVE_UEID,
+		.flags = GENL_ADMIN_PERM,
+		.doit = smc_nl_remove_ueid,
+		.policy = smc_gen_ueid_policy,
+	},
+	{
+		.cmd = SMC_NETLINK_FLUSH_UEID,
+		.flags = GENL_ADMIN_PERM,
+		.doit = smc_nl_flush_ueid,
 	},
 };
 
