@@ -3,7 +3,6 @@
 #define _LINUX_KPROBES_H
 /*
  *  Kernel Probes (KProbes)
- *  include/linux/kprobes.h
  *
  * Copyright (C) IBM Corporation, 2002, 2004
  *
@@ -39,7 +38,7 @@
 #define KPROBE_REENTER		0x00000004
 #define KPROBE_HIT_SSDONE	0x00000008
 
-#else /* CONFIG_KPROBES */
+#else /* !CONFIG_KPROBES */
 #include <asm-generic/kprobes.h>
 typedef int kprobe_opcode_t;
 struct arch_specific_insn {
@@ -228,7 +227,7 @@ static nokprobe_inline struct kretprobe *get_kretprobe(struct kretprobe_instance
 	return READ_ONCE(ri->rph->rp);
 }
 
-#else /* CONFIG_KRETPROBES */
+#else /* !CONFIG_KRETPROBES */
 static inline void arch_prepare_kretprobe(struct kretprobe *rp,
 					struct pt_regs *regs)
 {
@@ -239,11 +238,15 @@ static inline int arch_trampoline_kprobe(struct kprobe *p)
 }
 #endif /* CONFIG_KRETPROBES */
 
+/* Markers of '_kprobe_blacklist' section */
+extern unsigned long __start_kprobe_blacklist[];
+extern unsigned long __stop_kprobe_blacklist[];
+
 extern struct kretprobe_blackpoint kretprobe_blacklist[];
 
 #ifdef CONFIG_KPROBES_SANITY_TEST
 extern int init_test_probes(void);
-#else
+#else /* !CONFIG_KPROBES_SANITY_TEST */
 static inline int init_test_probes(void)
 {
 	return 0;
@@ -303,7 +306,7 @@ static inline bool is_kprobe_##__name##_slot(unsigned long addr)	\
 #define KPROBE_OPTINSN_PAGE_SYM		"kprobe_optinsn_page"
 int kprobe_cache_get_kallsym(struct kprobe_insn_cache *c, unsigned int *symnum,
 			     unsigned long *value, char *type, char *sym);
-#else /* __ARCH_WANT_KPROBES_INSN_SLOT */
+#else /* !__ARCH_WANT_KPROBES_INSN_SLOT */
 #define DEFINE_INSN_CACHE_OPS(__name)					\
 static inline bool is_kprobe_##__name##_slot(unsigned long addr)	\
 {									\
@@ -345,11 +348,12 @@ extern int sysctl_kprobes_optimization;
 extern int proc_kprobes_optimization_handler(struct ctl_table *table,
 					     int write, void *buffer,
 					     size_t *length, loff_t *ppos);
-#endif
+#endif /* CONFIG_SYSCTL */
 extern void wait_for_kprobe_optimizer(void);
-#else
+#else /* !CONFIG_OPTPROBES */
 static inline void wait_for_kprobe_optimizer(void) { }
 #endif /* CONFIG_OPTPROBES */
+
 #ifdef CONFIG_KPROBES_ON_FTRACE
 extern void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 				  struct ftrace_ops *ops, struct ftrace_regs *fregs);
@@ -359,7 +363,7 @@ static inline int arch_prepare_kprobe_ftrace(struct kprobe *p)
 {
 	return -EINVAL;
 }
-#endif
+#endif /* CONFIG_KPROBES_ON_FTRACE */
 
 /* Get the kprobe at this addr (if any) - called with preemption disabled */
 struct kprobe *get_kprobe(void *addr);
@@ -367,7 +371,7 @@ struct kprobe *get_kprobe(void *addr);
 /* kprobe_running() will just return the current_kprobe on this CPU */
 static inline struct kprobe *kprobe_running(void)
 {
-	return (__this_cpu_read(current_kprobe));
+	return __this_cpu_read(current_kprobe);
 }
 
 static inline void reset_current_kprobe(void)
@@ -431,11 +435,11 @@ static inline struct kprobe *kprobe_running(void)
 }
 static inline int register_kprobe(struct kprobe *p)
 {
-	return -ENOSYS;
+	return -EOPNOTSUPP;
 }
 static inline int register_kprobes(struct kprobe **kps, int num)
 {
-	return -ENOSYS;
+	return -EOPNOTSUPP;
 }
 static inline void unregister_kprobe(struct kprobe *p)
 {
@@ -445,11 +449,11 @@ static inline void unregister_kprobes(struct kprobe **kps, int num)
 }
 static inline int register_kretprobe(struct kretprobe *rp)
 {
-	return -ENOSYS;
+	return -EOPNOTSUPP;
 }
 static inline int register_kretprobes(struct kretprobe **rps, int num)
 {
-	return -ENOSYS;
+	return -EOPNOTSUPP;
 }
 static inline void unregister_kretprobe(struct kretprobe *rp)
 {
@@ -465,11 +469,11 @@ static inline void kprobe_free_init_mem(void)
 }
 static inline int disable_kprobe(struct kprobe *kp)
 {
-	return -ENOSYS;
+	return -EOPNOTSUPP;
 }
 static inline int enable_kprobe(struct kprobe *kp)
 {
-	return -ENOSYS;
+	return -EOPNOTSUPP;
 }
 
 static inline bool within_kprobe_blacklist(unsigned long addr)
@@ -482,6 +486,7 @@ static inline int kprobe_get_kallsym(unsigned int symnum, unsigned long *value,
 	return -ERANGE;
 }
 #endif /* CONFIG_KPROBES */
+
 static inline int disable_kretprobe(struct kretprobe *rp)
 {
 	return disable_kprobe(&rp->kp);
@@ -496,13 +501,14 @@ static inline bool is_kprobe_insn_slot(unsigned long addr)
 {
 	return false;
 }
-#endif
+#endif /* !CONFIG_KPROBES */
+
 #ifndef CONFIG_OPTPROBES
 static inline bool is_kprobe_optinsn_slot(unsigned long addr)
 {
 	return false;
 }
-#endif
+#endif /* !CONFIG_OPTPROBES */
 
 /* Returns true if kprobes handled the fault */
 static nokprobe_inline bool kprobe_page_fault(struct pt_regs *regs,
