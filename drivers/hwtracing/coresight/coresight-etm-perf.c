@@ -485,8 +485,15 @@ out:
 fail_disable_path:
 	coresight_disable_path(path);
 fail_end_stop:
-	perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
-	perf_aux_output_end(handle, 0);
+	/*
+	 * Check if the handle is still associated with the event,
+	 * to handle cases where if the sink failed to start the
+	 * trace and TRUNCATED the handle already.
+	 */
+	if (READ_ONCE(handle->event)) {
+		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
+		perf_aux_output_end(handle, 0);
+	}
 fail:
 	event->hw.state = PERF_HES_STOPPED;
 	return;
@@ -567,7 +574,21 @@ static void etm_event_stop(struct perf_event *event, int mode)
 
 		size = sink_ops(sink)->update_buffer(sink, handle,
 					      event_data->snk_config);
-		perf_aux_output_end(handle, size);
+		/*
+		 * Make sure the handle is still valid as the
+		 * sink could have closed it from an IRQ.
+		 * The sink driver must handle the race with
+		 * update_buffer() and IRQ. Thus either we
+		 * should get a valid handle and valid size
+		 * (which may be 0).
+		 *
+		 * But we should never get a non-zero size with
+		 * an invalid handle.
+		 */
+		if (READ_ONCE(handle->event))
+			perf_aux_output_end(handle, size);
+		else
+			WARN_ON(size);
 	}
 
 	/* Disabling the path make its elements available to other sessions */
