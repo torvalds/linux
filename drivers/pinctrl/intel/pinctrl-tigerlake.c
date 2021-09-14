@@ -14,6 +14,8 @@
 
 #include <linux/pinctrl/pinctrl.h>
 
+#include <linux/dmi.h>
+
 #include "pinctrl-intel.h"
 
 #define TGL_LP_PAD_OWN		0x020
@@ -690,6 +692,73 @@ static const struct pinctrl_pin_desc tglh_pins[] = {
 	PINCTRL_PIN(290, "CPU_TRSTB"),
 };
 
+static const struct intel_padgroup tglh_old_community0_gpps[] = {
+	TGL_GPP(0, 0, 24, 0),				/* GPP_A */
+	TGL_GPP(1, 25, 44, 128),			/* GPP_R */
+	TGL_GPP(2, 45, 70, 32),				/* GPP_B */
+	TGL_GPP(3, 71, 78, INTEL_GPIO_BASE_NOMAP),	/* vGPIO_0 */
+};
+
+static const struct intel_padgroup tglh_old_community1_gpps[] = {
+	TGL_GPP(0, 79, 104, 96),			/* GPP_D */
+	TGL_GPP(1, 105, 128, 64),			/* GPP_C */
+	TGL_GPP(2, 129, 136, 160),			/* GPP_S */
+	TGL_GPP(3, 137, 153, 192),			/* GPP_G */
+	TGL_GPP(4, 154, 180, 224),			/* vGPIO */
+};
+
+static const struct intel_padgroup tglh_old_community3_gpps[] = {
+	TGL_GPP(0, 181, 193, 256),			/* GPP_E */
+	TGL_GPP(1, 194, 217, 288),			/* GPP_F */
+};
+
+static const struct intel_padgroup tglh_old_community4_gpps[] = {
+	TGL_GPP(0, 218, 241, 320),			/* GPP_H */
+	TGL_GPP(1, 242, 251, 384),			/* GPP_J */
+	TGL_GPP(2, 252, 266, 352),			/* GPP_K */
+};
+
+static const struct intel_padgroup tglh_old_community5_gpps[] = {
+	TGL_GPP(0, 267, 281, 416),			/* GPP_I */
+	TGL_GPP(1, 282, 290, INTEL_GPIO_BASE_NOMAP),	/* JTAG */
+};
+
+static const struct intel_community tglh_old_communities[] = {
+	TGL_H_COMMUNITY(0, 0, 78, tglh_old_community0_gpps),
+	TGL_H_COMMUNITY(1, 79, 180, tglh_old_community1_gpps),
+	TGL_H_COMMUNITY(2, 181, 217, tglh_old_community3_gpps),
+	TGL_H_COMMUNITY(3, 218, 266, tglh_old_community4_gpps),
+	TGL_H_COMMUNITY(4, 267, 290, tglh_old_community5_gpps),
+};
+
+static const struct intel_pinctrl_soc_data tglh_old_soc_data = {
+	.pins = tglh_pins,
+	.npins = ARRAY_SIZE(tglh_pins),
+	.communities = tglh_old_communities,
+	.ncommunities = ARRAY_SIZE(tglh_old_communities),
+};
+
+static int tgl_pinctrl_probe(struct platform_device *pdev)
+{
+	const struct intel_pinctrl_soc_data *data;
+
+	data = device_get_match_data(&pdev->dev);
+	if (!data)
+		return -ENODATA;
+
+	/*
+	 * The first System76 gaze16 firmware had an older version of
+	 * the TGL-H GPIO table, before it was normalized with Windows.
+	 */
+	if (dmi_match(DMI_SYS_VENDOR, "System76") &&
+	    (dmi_match(DMI_PRODUCT_VERSION, "gaze16-3050") ||
+	     dmi_match(DMI_PRODUCT_VERSION, "gaze16-3060")) &&
+	    dmi_match(DMI_BIOS_VERSION, "2021-07-20_93c2809"))
+		data = &tglh_old_soc_data;
+
+	return intel_pinctrl_probe(pdev, data);
+}
+
 static const struct intel_padgroup tglh_community0_gpps[] = {
 	TGL_GPP(0, 0, 24, 0),				/* GPP_A */
 	TGL_GPP(1, 25, 44, 32),				/* GPP_R */
@@ -745,7 +814,7 @@ static const struct acpi_device_id tgl_pinctrl_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, tgl_pinctrl_acpi_match);
 
 static struct platform_driver tgl_pinctrl_driver = {
-	.probe = intel_pinctrl_probe_by_hid,
+	.probe = tgl_pinctrl_probe,
 	.driver = {
 		.name = "tigerlake-pinctrl",
 		.acpi_match_table = tgl_pinctrl_acpi_match,
