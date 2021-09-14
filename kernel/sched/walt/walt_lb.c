@@ -690,6 +690,13 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 		busy_cpu = walt_lb_find_busiest_cpu(this_cpu,
 				&cpu_array[order_index][cluster]);
 
+		if (sysctl_sched_skip_sp_newly_idle_lb) {
+			if (busy_cpu == -1 &&
+				((order_index == 0 && cluster > 0) ||
+				(order_index == 2 && cluster > 0 && !help_min_cap)))
+				break;
+		}
+
 		/* we got the busy/src cpu here. */
 		if (busy_cpu != -1 || this_rq->nr_running > 0)
 			break;

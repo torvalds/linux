@@ -288,6 +288,7 @@ extern unsigned int sysctl_walt_low_latency_task_threshold; /* disabled by defau
 extern unsigned int sysctl_sched_sync_hint_enable;
 extern unsigned int sysctl_sched_bug_on_rt_throttle;
 extern unsigned int sysctl_sched_suppress_region2;
+extern unsigned int sysctl_sched_skip_sp_newly_idle_lb;
 extern struct ctl_table walt_table[];
 extern struct ctl_table walt_base_table[];
 extern void walt_tunables(void);
