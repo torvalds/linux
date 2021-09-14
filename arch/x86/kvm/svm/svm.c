@@ -190,6 +190,9 @@ module_param(vgif, int, 0444);
 static int lbrv = true;
 module_param(lbrv, int, 0444);
 
+static int tsc_scaling = true;
+module_param(tsc_scaling, int, 0444);
+
 /*
  * enable / disable AVIC.  Because the defaults differ for APICv
  * support between VMX and SVM we cannot use module_param_named.
@@ -470,7 +473,7 @@ static int has_svm(void)
 static void svm_hardware_disable(void)
 {
 	/* Make sure we clean up behind us */
-	if (static_cpu_has(X86_FEATURE_TSCRATEMSR))
+	if (tsc_scaling)
 		wrmsrl(MSR_AMD64_TSC_RATIO, TSC_RATIO_DEFAULT);
 
 	cpu_svm_disable();
@@ -513,6 +516,10 @@ static int svm_hardware_enable(void)
 	wrmsrl(MSR_VM_HSAVE_PA, __sme_page_pa(sd->save_area));
 
 	if (static_cpu_has(X86_FEATURE_TSCRATEMSR)) {
+		/*
+		 * Set the default value, even if we don't use TSC scaling
+		 * to avoid having stale value in the msr
+		 */
 		wrmsrl(MSR_AMD64_TSC_RATIO, TSC_RATIO_DEFAULT);
 		__this_cpu_write(current_tsc_ratio, TSC_RATIO_DEFAULT);
 	}
@@ -980,10 +987,15 @@ static __init int svm_hardware_setup(void)
 	if (boot_cpu_has(X86_FEATURE_FXSR_OPT))
 		kvm_enable_efer_bits(EFER_FFXSR);
 
-	if (boot_cpu_has(X86_FEATURE_TSCRATEMSR)) {
-		kvm_has_tsc_control = true;
-		kvm_max_tsc_scaling_ratio = TSC_RATIO_MAX;
-		kvm_tsc_scaling_ratio_frac_bits = 32;
+	if (tsc_scaling) {
+		if (!boot_cpu_has(X86_FEATURE_TSCRATEMSR)) {
+			tsc_scaling = false;
+		} else {
+			pr_info("TSC scaling supported\n");
+			kvm_has_tsc_control = true;
+			kvm_max_tsc_scaling_ratio = TSC_RATIO_MAX;
+			kvm_tsc_scaling_ratio_frac_bits = 32;
+		}
 	}
 
 	tsc_aux_uret_slot = kvm_add_user_return_msr(MSR_TSC_AUX);
@@ -1496,7 +1508,7 @@ static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
 		vmsave(__sme_page_pa(sd->save_area));
 	}
 
-	if (static_cpu_has(X86_FEATURE_TSCRATEMSR)) {
+	if (tsc_scaling) {
 		u64 tsc_ratio = vcpu->arch.tsc_scaling_ratio;
 		if (tsc_ratio != __this_cpu_read(current_tsc_ratio)) {
 			__this_cpu_write(current_tsc_ratio, tsc_ratio);
