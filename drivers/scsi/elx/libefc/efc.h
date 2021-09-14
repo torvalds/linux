@@ -47,6 +47,6 @@ enum efc_scsi_del_target_reason {
 
 #define nport_sm_trace(nport) \
 	efc_log_debug(nport->efc, \
-		"[%s] %-20s\n", nport->display_name, efc_sm_event_name(evt)) \
+		"[%s]  %-20s %-20s\n", nport->display_name, __func__, efc_sm_event_name(evt)) \
 
 #endif /* __EFC_H__ */
