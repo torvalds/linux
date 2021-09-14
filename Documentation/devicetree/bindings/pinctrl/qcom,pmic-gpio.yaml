@@ -170,6 +170,8 @@ $defs:
       input-enable: true
       output-high: true
       output-low: true
+      output-enable: true
+      output-disable: true
       power-source: true
 
       qcom,drive-strength:
