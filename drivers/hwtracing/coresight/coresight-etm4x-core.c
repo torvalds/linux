@@ -39,6 +39,7 @@
 
 #include "coresight-etm4x.h"
 #include "coresight-etm-perf.h"
+#include "coresight-self-hosted-trace.h"
 
 static int boot_enable;
 module_param(boot_enable, int, 0444);
@@ -990,7 +991,7 @@ static void cpu_enable_tracing(struct etmv4_drvdata *drvdata)
 	if (is_kernel_in_hyp_mode())
 		trfcr |= TRFCR_EL2_CX;
 
-	write_sysreg_s(trfcr, SYS_TRFCR_EL1);
+	write_trfcr(trfcr);
 }
 
 static void etm4_init_arch_data(void *info)
@@ -1528,7 +1529,7 @@ static void etm4_init_trace_id(struct etmv4_drvdata *drvdata)
 	drvdata->trcid = coresight_get_trace_id(drvdata->cpu);
 }
 
-static int etm4_cpu_save(struct etmv4_drvdata *drvdata)
+static int __etm4_cpu_save(struct etmv4_drvdata *drvdata)
 {
 	int i, ret = 0;
 	struct etmv4_save_state *state;
@@ -1667,7 +1668,23 @@ out:
 	return ret;
 }
 
-static void etm4_cpu_restore(struct etmv4_drvdata *drvdata)
+static int etm4_cpu_save(struct etmv4_drvdata *drvdata)
+{
+	int ret = 0;
+
+	/* Save the TRFCR irrespective of whether the ETM is ON */
+	if (drvdata->trfc)
+		drvdata->save_trfcr = read_trfcr();
+	/*
+	 * Save and restore the ETM Trace registers only if
+	 * the ETM is active.
+	 */
+	if (local_read(&drvdata->mode) && drvdata->save_state)
+		ret = __etm4_cpu_save(drvdata);
+	return ret;
+}
+
+static void __etm4_cpu_restore(struct etmv4_drvdata *drvdata)
 {
 	int i;
 	struct etmv4_save_state *state = drvdata->save_state;
@@ -1763,6 +1780,14 @@ static void etm4_cpu_restore(struct etmv4_drvdata *drvdata)
 	etm4_cs_lock(drvdata, csa);
 }
 
+static void etm4_cpu_restore(struct etmv4_drvdata *drvdata)
+{
+	if (drvdata->trfc)
+		write_trfcr(drvdata->save_trfcr);
+	if (drvdata->state_needs_restore)
+		__etm4_cpu_restore(drvdata);
+}
+
 static int etm4_cpu_pm_notify(struct notifier_block *nb, unsigned long cmd,
 			      void *v)
 {
@@ -1774,23 +1799,17 @@ static int etm4_cpu_pm_notify(struct notifier_block *nb, unsigned long cmd,
 
 	drvdata = etmdrvdata[cpu];
 
-	if (!drvdata->save_state)
-		return NOTIFY_OK;
-
 	if (WARN_ON_ONCE(drvdata->cpu != cpu))
 		return NOTIFY_BAD;
 
 	switch (cmd) {
 	case CPU_PM_ENTER:
-		/* save the state if self-hosted coresight is in use */
-		if (local_read(&drvdata->mode))
-			if (etm4_cpu_save(drvdata))
-				return NOTIFY_BAD;
+		if (etm4_cpu_save(drvdata))
+			return NOTIFY_BAD;
 		break;
 	case CPU_PM_EXIT:
 	case CPU_PM_ENTER_FAILED:
-		if (drvdata->state_needs_restore)
-			etm4_cpu_restore(drvdata);
+		etm4_cpu_restore(drvdata);
 		break;
 	default:
 		return NOTIFY_DONE;
