@@ -1441,6 +1441,23 @@ mlxsw_sp_port_vlan_classification_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvc), spvc_pl);
 }
 
+static int mlxsw_sp_port_label_info_get(struct mlxsw_sp *mlxsw_sp,
+					u8 local_port, u8 *port_number,
+					u8 *split_port_subnumber,
+					u8 *slot_index)
+{
+	char pllp_pl[MLXSW_REG_PLLP_LEN];
+	int err;
+
+	mlxsw_reg_pllp_pack(pllp_pl, local_port);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(pllp), pllp_pl);
+	if (err)
+		return err;
+	mlxsw_reg_pllp_unpack(pllp_pl, port_number,
+			      split_port_subnumber, slot_index);
+	return 0;
+}
+
 static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				u8 split_base_local_port,
 				struct mlxsw_sp_port_mapping *port_mapping)
@@ -1449,7 +1466,10 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	bool split = !!split_base_local_port;
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	u32 lanes = port_mapping->width;
+	u8 split_port_subnumber;
 	struct net_device *dev;
+	u8 port_number;
+	u8 slot_index;
 	bool splittable;
 	int err;
 
@@ -1467,12 +1487,18 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_port_swid_set;
 	}
 
+	err = mlxsw_sp_port_label_info_get(mlxsw_sp, local_port, &port_number,
+					   &split_port_subnumber, &slot_index);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to get port label information\n",
+			local_port);
+		goto err_port_label_info_get;
+	}
+
 	splittable = lanes > 1 && !split;
 	err = mlxsw_core_port_init(mlxsw_sp->core, local_port,
-				   port_mapping->module + 1, split,
-				   port_mapping->lane / lanes,
-				   splittable, lanes,
-				   mlxsw_sp->base_mac,
+				   port_number, split, split_port_subnumber,
+				   splittable, lanes, mlxsw_sp->base_mac,
 				   sizeof(mlxsw_sp->base_mac));
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to init core port\n",
@@ -1717,6 +1743,7 @@ err_alloc_stats:
 err_alloc_etherdev:
 	mlxsw_core_port_fini(mlxsw_sp->core, local_port);
 err_core_port_init:
+err_port_label_info_get:
 	mlxsw_sp_port_swid_set(mlxsw_sp, local_port,
 			       MLXSW_PORT_SWID_DISABLED_PORT);
 err_port_swid_set:
