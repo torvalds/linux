@@ -461,7 +461,7 @@ static int finish_packet(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 	if (err)
 		return err;
 
-	if (pkt->mask & RXE_WRITE_OR_SEND) {
+	if (pkt->mask & RXE_WRITE_OR_SEND_MASK) {
 		if (wqe->wr.send_flags & IB_SEND_INLINE) {
 			u8 *tmp = &wqe->dma.inline_data[wqe->dma.sge_offset];
 
@@ -678,13 +678,13 @@ next_wqe:
 	}
 
 	mask = rxe_opcode[opcode].mask;
-	if (unlikely(mask & RXE_READ_OR_ATOMIC)) {
+	if (unlikely(mask & RXE_READ_OR_ATOMIC_MASK)) {
 		if (check_init_depth(qp, wqe))
 			goto exit;
 	}
 
 	mtu = get_mtu(qp);
-	payload = (mask & RXE_WRITE_OR_SEND) ? wqe->dma.resid : 0;
+	payload = (mask & RXE_WRITE_OR_SEND_MASK) ? wqe->dma.resid : 0;
 	if (payload > mtu) {
 		if (qp_type(qp) == IB_QPT_UD) {
 			/* C10-93.1.1: If the total sum of all the buffer lengths specified for a
