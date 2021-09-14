@@ -4982,6 +4982,18 @@
 			an IOTLB flush. Default is lazy flushing before reuse,
 			which is faster.
 
+	s390_iommu_aperture=	[KNL,S390]
+			Specifies the size of the per device DMA address space
+			accessible through the DMA and IOMMU APIs as a decimal
+			factor of the size of main memory.
+			The default is 1 meaning that one can concurrently use
+			as many DMA addresses as physical memory is installed,
+			if supported by hardware, and thus map all of memory
+			once. With a value of 2 one can map all of memory twice
+			and so on. As a special case a factor of 0 imposes no
+			restrictions other than those given by hardware at the
+			cost of significant additional memory use for tables.
+
 	sa1100ir	[NET]
 			See drivers/net/irda/sa1100_ir.c.
 
