@@ -25,4 +25,26 @@ config ST_LPS22HH_SPI_IIO
 	tristate
 	depends on ST_LPS22HH_IIO
 
+config ST_LPS22DF_IIO
+        tristate "STMicroelectronics LPS22DF sensor"
+        depends on (I2C || SPI_MASTER) && SYSFS
+        select IIO_BUFFER
+        select IIO_KFIFO_BUF
+        select ST_LPS22DF_I2C_IIO if (I2C)
+        select ST_LPS22DF_SPI_IIO if (SPI)
+        help
+          Say yes here to build support for the ST MEMS LPS22DF pressure and
+          temperature  sensor.
+
+          This driver can be built as a module. The module will be called
+          st-lps22df.
+
+config ST_LPS22DF_I2C_IIO
+        tristate
+        depends on ST_LPS22DF_IIO
+
+config ST_LPS22DF_SPI_IIO
+        tristate
+        depends on ST_LPS22DF_IIO
+
 endmenu
