@@ -5860,6 +5860,53 @@ static inline void mlxsw_reg_pddr_pack(char *payload, u8 local_port,
 	mlxsw_reg_pddr_page_select_set(payload, page_select);
 }
 
+/* PLLP - Port Local port to Label Port mapping Register
+ * -----------------------------------------------------
+ * The PLLP register returns the mapping from Local Port into Label Port.
+ */
+#define MLXSW_REG_PLLP_ID 0x504A
+#define MLXSW_REG_PLLP_LEN 0x10
+
+MLXSW_REG_DEFINE(pllp, MLXSW_REG_PLLP_ID, MLXSW_REG_PLLP_LEN);
+
+/* reg_pllp_local_port
+ * Local port number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pllp, local_port, 0x00, 16, 8);
+
+/* reg_pllp_label_port
+ * Front panel label of the port.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, pllp, label_port, 0x00, 0, 8);
+
+/* reg_pllp_split_num
+ * Label split mapping for local_port.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, pllp, split_num, 0x04, 0, 4);
+
+/* reg_pllp_slot_index
+ * Slot index (0: Main board).
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, pllp, slot_index, 0x08, 0, 4);
+
+static inline void mlxsw_reg_pllp_pack(char *payload, u8 local_port)
+{
+	MLXSW_REG_ZERO(pllp, payload);
+	mlxsw_reg_pllp_local_port_set(payload, local_port);
+}
+
+static inline void mlxsw_reg_pllp_unpack(char *payload, u8 *label_port,
+					 u8 *split_num, u8 *slot_index)
+{
+	*label_port = mlxsw_reg_pllp_label_port_get(payload);
+	*split_num = mlxsw_reg_pllp_split_num_get(payload);
+	*slot_index = mlxsw_reg_pllp_slot_index_get(payload);
+}
+
 /* PMTM - Port Module Type Mapping Register
  * ----------------------------------------
  * The PMTM allows query or configuration of module types.
@@ -12202,6 +12249,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pplr),
 	MLXSW_REG(pmpe),
 	MLXSW_REG(pddr),
+	MLXSW_REG(pllp),
 	MLXSW_REG(pmtm),
 	MLXSW_REG(htgt),
 	MLXSW_REG(hpkt),
