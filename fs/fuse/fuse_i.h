@@ -497,6 +497,7 @@ struct fuse_dev {
 
 struct fuse_fs_context {
 	int fd;
+	struct file *file;
 	unsigned int rootmode;
 	kuid_t user_id;
 	kgid_t group_id;
@@ -521,6 +522,13 @@ struct fuse_fs_context {
 
 	/* fuse_dev pointer to fill in, should contain NULL on entry */
 	void **fudptr;
+};
+
+struct fuse_sync_bucket {
+	/* count is a possible scalability bottleneck */
+	atomic_t count;
+	wait_queue_head_t waitq;
+	struct rcu_head rcu;
 };
 
 /**
@@ -819,6 +827,9 @@ struct fuse_conn {
 	/** List of filesystems using this connection */
 	struct list_head mounts;
 
+	/* New writepages go into this bucket */
+	struct fuse_sync_bucket __rcu *curr_bucket;
+
 	/** IDR for passthrough requests */
 	struct idr passthrough_req;
 
@@ -925,6 +936,15 @@ static inline void fuse_page_descs_length_init(struct fuse_page_desc *descs,
 
 	for (i = index; i < index + nr_pages; i++)
 		descs[i].length = PAGE_SIZE - descs[i].offset;
+}
+
+static inline void fuse_sync_bucket_dec(struct fuse_sync_bucket *bucket)
+{
+	/* Need RCU protection to prevent use after free after the decrement */
+	rcu_read_lock();
+	if (atomic_dec_and_test(&bucket->count))
+		wake_up(&bucket->waitq);
+	rcu_read_unlock();
 }
 
 /** Device operations */
