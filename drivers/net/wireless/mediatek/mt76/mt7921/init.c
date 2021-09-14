@@ -146,9 +146,40 @@ int mt7921_mac_init(struct mt7921_dev *dev)
 	return mt76_connac_mcu_set_rts_thresh(&dev->mt76, 0x92b, 0);
 }
 
+static int __mt7921_init_hardware(struct mt7921_dev *dev)
+{
+	struct mt76_dev *mdev = &dev->mt76;
+	int ret;
+
+	/* force firmware operation mode into normal state,
+	 * which should be set before firmware download stage.
+	 */
+	mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_NORMAL_MODE);
+	ret = mt7921_mcu_init(dev);
+	if (ret)
+		goto out;
+
+	ret = mt7921_eeprom_init(dev);
+	if (ret)
+		goto out;
+
+	ret = mt7921_mcu_set_eeprom(dev);
+	if (ret)
+		goto out;
+
+	ret = mt7921_mac_init(dev);
+out:
+	if (ret && mdev->eeprom.data) {
+		devm_kfree(mdev->dev, mdev->eeprom.data);
+		mdev->eeprom.data = NULL;
+	}
+
+	return ret;
+}
+
 static int mt7921_init_hardware(struct mt7921_dev *dev)
 {
-	int ret, idx;
+	int ret, idx, i;
 
 	ret = mt7921_dma_init(dev);
 	if (ret)
@@ -156,22 +187,18 @@ static int mt7921_init_hardware(struct mt7921_dev *dev)
 
 	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 
-	/* force firmware operation mode into normal state,
-	 * which should be set before firmware download stage.
-	 */
-	mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_NORMAL_MODE);
+	for (i = 0; i < MT7921_MCU_INIT_RETRY_COUNT; i++) {
+		ret = __mt7921_init_hardware(dev);
+		if (!ret)
+			break;
 
-	ret = mt7921_mcu_init(dev);
-	if (ret)
-		return ret;
+		mt7921_wpdma_reset(dev, true);
+	}
 
-	ret = mt7921_eeprom_init(dev);
-	if (ret < 0)
+	if (i == MT7921_MCU_INIT_RETRY_COUNT) {
+		dev_err(dev->mt76.dev, "hardware init failed\n");
 		return ret;
-
-	ret = mt7921_mcu_set_eeprom(dev);
-	if (ret)
-		return ret;
+	}
 
 	/* Beacon and mgmt frames should occupy wcid 0 */
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7921_WTBL_STA - 1);
@@ -183,7 +210,7 @@ static int mt7921_init_hardware(struct mt7921_dev *dev)
 	dev->mt76.global_wcid.tx_info |= MT_WCID_TX_INFO_SET;
 	rcu_assign_pointer(dev->mt76.wcid[idx], &dev->mt76.global_wcid);
 
-	return mt7921_mac_init(dev);
+	return 0;
 }
 
 int mt7921_register_device(struct mt7921_dev *dev)

@@ -29,6 +29,7 @@
 #define MT7921_RX_MCU_RING_SIZE		512
 
 #define MT7921_DRV_OWN_RETRY_COUNT	10
+#define MT7921_MCU_INIT_RETRY_COUNT	10
 
 #define MT7921_FIRMWARE_WM		"mediatek/WIFI_RAM_CODE_MT7961_1.bin"
 #define MT7921_ROM_PATCH		"mediatek/WIFI_MT7961_patch_mcu_1_2_hdr.bin"
