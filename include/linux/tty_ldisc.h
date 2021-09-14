@@ -146,7 +146,7 @@ struct ld_semaphore {
 #endif
 };
 
-extern void __init_ldsem(struct ld_semaphore *sem, const char *name,
+void __init_ldsem(struct ld_semaphore *sem, const char *name,
 			 struct lock_class_key *key);
 
 #define init_ldsem(sem)						\
@@ -157,18 +157,18 @@ do {								\
 } while (0)
 
 
-extern int ldsem_down_read(struct ld_semaphore *sem, long timeout);
-extern int ldsem_down_read_trylock(struct ld_semaphore *sem);
-extern int ldsem_down_write(struct ld_semaphore *sem, long timeout);
-extern int ldsem_down_write_trylock(struct ld_semaphore *sem);
-extern void ldsem_up_read(struct ld_semaphore *sem);
-extern void ldsem_up_write(struct ld_semaphore *sem);
+int ldsem_down_read(struct ld_semaphore *sem, long timeout);
+int ldsem_down_read_trylock(struct ld_semaphore *sem);
+int ldsem_down_write(struct ld_semaphore *sem, long timeout);
+int ldsem_down_write_trylock(struct ld_semaphore *sem);
+void ldsem_up_read(struct ld_semaphore *sem);
+void ldsem_up_write(struct ld_semaphore *sem);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-extern int ldsem_down_read_nested(struct ld_semaphore *sem, int subclass,
-				  long timeout);
-extern int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
-				   long timeout);
+int ldsem_down_read_nested(struct ld_semaphore *sem, int subclass,
+		long timeout);
+int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
+		long timeout);
 #else
 # define ldsem_down_read_nested(sem, subclass, timeout)		\
 		ldsem_down_read(sem, timeout)
