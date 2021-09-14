@@ -13,6 +13,7 @@
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mtd/bbt_store.h>
 #include <linux/mtd/spinand.h>
 #include <linux/of.h>
 #include <linux/slab.h>
@@ -638,6 +639,9 @@ static int spinand_mtd_block_markbad(struct mtd_info *mtd, loff_t offs)
 	ret = nanddev_markbad(nand, &pos);
 	mutex_unlock(&spinand->lock);
 
+	if (IS_ENABLED(CONFIG_MTD_NAND_BBT_USING_FLASH))
+		nanddev_bbt_in_flash_update(nand);
+
 	return ret;
 }
 
@@ -1094,6 +1098,9 @@ static int spinand_init(struct spinand_device *spinand)
 	mtd->ecc_step_size = nanddev_get_ecc_conf(nand)->step_size;
 	if (IS_ENABLED(CONFIG_SPI_ROCKCHIP_SFC))
 		mtd->name = "spi-nand0";
+
+	if (IS_ENABLED(CONFIG_MTD_NAND_BBT_USING_FLASH))
+		nanddev_scan_bbt_in_flash(nand);
 
 	return 0;
 

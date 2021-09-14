@@ -198,12 +198,24 @@ struct nand_ecc_props {
 /* NAND ECC misc flags */
 #define NAND_ECC_MAXIMIZE_STRENGTH BIT(0)
 
+/* nand_bbt option */
+#define NANDDEV_BBT_SCANNED		BIT(0)
+
+/* The maximum number of blocks to scan for a bbt */
+#define NANDDEV_BBT_SCAN_MAXBLOCKS	4
+
 /**
  * struct nand_bbt - bad block table object
  * @cache: in memory BBT cache
+ * @option: the option of BBT
+ * @version: current memory BBT cache version
  */
 struct nand_bbt {
 	unsigned long *cache;
+#ifdef CONFIG_MTD_NAND_BBT_USING_FLASH
+	unsigned int option;
+	unsigned int version;
+#endif
 };
 
 /**
