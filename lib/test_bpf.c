@@ -463,47 +463,79 @@ static int bpf_fill_stxdw(struct bpf_test *self)
 	return __bpf_fill_stxdw(self, BPF_DW);
 }
 
-static int bpf_fill_long_jmp(struct bpf_test *self)
-{
-	unsigned int len = BPF_MAXINSNS;
-	struct bpf_insn *insn;
-	int i;
-
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
-	if (!insn)
-		return -ENOMEM;
-
-	insn[0] = BPF_ALU64_IMM(BPF_MOV, R0, 1);
-	insn[1] = BPF_JMP_IMM(BPF_JEQ, R0, 1, len - 2 - 1);
-
-	/*
-	 * Fill with a complex 64-bit operation that expands to a lot of
-	 * instructions on 32-bit JITs. The large jump offset can then
-	 * overflow the conditional branch field size, triggering a branch
-	 * conversion mechanism in some JITs.
-	 *
-	 * Note: BPF_MAXINSNS of ALU64 MUL is enough to trigger such branch
-	 * conversion on the 32-bit MIPS JIT. For other JITs, the instruction
-	 * count and/or operation may need to be modified to trigger the
-	 * branch conversion.
-	 */
-	for (i = 2; i < len - 1; i++)
-		insn[i] = BPF_ALU64_IMM(BPF_MUL, R0, (i << 16) + i);
-
-	insn[len - 1] = BPF_EXIT_INSN();
-
-	self->u.ptr.insns = insn;
-	self->u.ptr.len = len;
-
-	return 0;
-}
-
 static int __bpf_ld_imm64(struct bpf_insn insns[2], u8 reg, s64 imm64)
 {
 	struct bpf_insn tmp[] = {BPF_LD_IMM64(reg, imm64)};
 
 	memcpy(insns, tmp, sizeof(tmp));
 	return 2;
+}
+
+/*
+ * Branch conversion tests. Complex operations can expand to a lot
+ * of instructions when JITed. This in turn may cause jump offsets
+ * to overflow the field size of the native instruction, triggering
+ * a branch conversion mechanism in some JITs.
+ */
+static int __bpf_fill_max_jmp(struct bpf_test *self, int jmp, int imm)
+{
+	struct bpf_insn *insns;
+	int len = S16_MAX + 5;
+	int i;
+
+	insns = kmalloc_array(len, sizeof(*insns), GFP_KERNEL);
+	if (!insns)
+		return -ENOMEM;
+
+	i = __bpf_ld_imm64(insns, R1, 0x0123456789abcdefULL);
+	insns[i++] = BPF_ALU64_IMM(BPF_MOV, R0, 1);
+	insns[i++] = BPF_JMP_IMM(jmp, R0, imm, S16_MAX);
+	insns[i++] = BPF_ALU64_IMM(BPF_MOV, R0, 2);
+	insns[i++] = BPF_EXIT_INSN();
+
+	while (i < len - 1) {
+		static const int ops[] = {
+			BPF_LSH, BPF_RSH, BPF_ARSH, BPF_ADD,
+			BPF_SUB, BPF_MUL, BPF_DIV, BPF_MOD,
+		};
+		int op = ops[(i >> 1) % ARRAY_SIZE(ops)];
+
+		if (i & 1)
+			insns[i++] = BPF_ALU32_REG(op, R0, R1);
+		else
+			insns[i++] = BPF_ALU64_REG(op, R0, R1);
+	}
+
+	insns[i++] = BPF_EXIT_INSN();
+	self->u.ptr.insns = insns;
+	self->u.ptr.len = len;
+	BUG_ON(i != len);
+
+	return 0;
+}
+
+/* Branch taken by runtime decision */
+static int bpf_fill_max_jmp_taken(struct bpf_test *self)
+{
+	return __bpf_fill_max_jmp(self, BPF_JEQ, 1);
+}
+
+/* Branch not taken by runtime decision */
+static int bpf_fill_max_jmp_not_taken(struct bpf_test *self)
+{
+	return __bpf_fill_max_jmp(self, BPF_JEQ, 0);
+}
+
+/* Branch always taken, known at JIT time */
+static int bpf_fill_max_jmp_always_taken(struct bpf_test *self)
+{
+	return __bpf_fill_max_jmp(self, BPF_JGE, 0);
+}
+
+/* Branch never taken, known at JIT time */
+static int bpf_fill_max_jmp_never_taken(struct bpf_test *self)
+{
+	return __bpf_fill_max_jmp(self, BPF_JLT, 0);
 }
 
 /* Test an ALU shift operation for all valid shift values */
@@ -8653,14 +8685,6 @@ static struct bpf_test tests[] = {
 		{ },
 		{ { 0, 1 } },
 	},
-	{	/* Mainly checking JIT here. */
-		"BPF_MAXINSNS: Very long conditional jump",
-		{ },
-		INTERNAL | FLAG_NO_DATA,
-		{ },
-		{ { 0, 1 } },
-		.fill_helper = bpf_fill_long_jmp,
-	},
 	{
 		"JMP_JA: Jump, gap, jump, ...",
 		{ },
@@ -11008,6 +11032,39 @@ static struct bpf_test tests[] = {
 		INTERNAL | FLAG_NO_DATA | FLAG_VERIFIER_ZEXT,
 		{ },
 		{ { 0, 0 } },
+	},
+	/* Conditional branch conversions */
+	{
+		"Long conditional jump: taken at runtime",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 1 } },
+		.fill_helper = bpf_fill_max_jmp_taken,
+	},
+	{
+		"Long conditional jump: not taken at runtime",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 2 } },
+		.fill_helper = bpf_fill_max_jmp_not_taken,
+	},
+	{
+		"Long conditional jump: always taken, known at JIT time",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 1 } },
+		.fill_helper = bpf_fill_max_jmp_always_taken,
+	},
+	{
+		"Long conditional jump: never taken, known at JIT time",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 2 } },
+		.fill_helper = bpf_fill_max_jmp_never_taken,
 	},
 	/* Staggered jump sequences, immediate */
 	{
