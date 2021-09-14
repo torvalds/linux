@@ -817,6 +817,9 @@ EXPORT_SYMBOL(drm_kms_helper_poll_fini);
  *
  * Note that a connector can be both polled and probed from the hotplug handler,
  * in case the hotplug interrupt is known to be unreliable.
+ *
+ * Returns:
+ * A boolean indicating whether the connector status changed or not
  */
 bool drm_helper_hpd_irq_event(struct drm_device *dev)
 {
