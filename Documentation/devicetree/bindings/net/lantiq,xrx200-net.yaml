@@ -29,6 +29,18 @@ properties:
       - const: tx
       - const: rx
 
+  lantiq,tx-burst-length:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      TX programmable burst length.
+    enum: [2, 4, 8]
+
+  lantiq,rx-burst-length:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      RX programmable burst length.
+    enum: [2, 4, 8]
+
   '#address-cells':
     const: 1
 
@@ -41,6 +53,8 @@ required:
   - interrupt-parent
   - interrupts
   - interrupt-names
+  - lantiq,tx-burst-length
+  - lantiq,rx-burst-length
   - "#address-cells"
   - "#size-cells"
 
@@ -56,4 +70,6 @@ examples:
         interrupt-parent = <&icu0>;
         interrupts = <73>, <72>;
         interrupt-names = "tx", "rx";
+        lantiq,tx-burst-length = <8>;
+        lantiq,rx-burst-length = <8>;
     };
