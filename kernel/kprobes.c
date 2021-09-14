@@ -18,6 +18,9 @@
  *		<jkenisto@us.ibm.com> and Prasanna S Panchamukhi
  *		<prasanna@in.ibm.com> added function-return probes.
  */
+
+#define pr_fmt(fmt) "kprobes: " fmt
+
 #include <linux/kprobes.h>
 #include <linux/hash.h>
 #include <linux/init.h>
@@ -892,7 +895,7 @@ static void optimize_all_kprobes(void)
 				optimize_kprobe(p);
 	}
 	cpus_read_unlock();
-	printk(KERN_INFO "Kprobes globally optimized\n");
+	pr_info("kprobe jump-optimization is enabled. All kprobes are optimized if possible.\n");
 out:
 	mutex_unlock(&kprobe_mutex);
 }
@@ -925,7 +928,7 @@ static void unoptimize_all_kprobes(void)
 
 	/* Wait for unoptimizing completion */
 	wait_for_kprobe_optimizer();
-	printk(KERN_INFO "Kprobes globally unoptimized\n");
+	pr_info("kprobe jump-optimization is disabled. All kprobes are based on software breakpoint.\n");
 }
 
 static DEFINE_MUTEX(kprobe_sysctl_mutex);
@@ -1003,7 +1006,7 @@ static int reuse_unused_kprobe(struct kprobe *ap)
 	 * unregistered.
 	 * Thus there should be no chance to reuse unused kprobe.
 	 */
-	printk(KERN_ERR "Error: There should be no unused kprobe here.\n");
+	WARN_ON_ONCE(1);
 	return -EINVAL;
 }
 
@@ -1040,18 +1043,13 @@ static int __arm_kprobe_ftrace(struct kprobe *p, struct ftrace_ops *ops,
 	int ret = 0;
 
 	ret = ftrace_set_filter_ip(ops, (unsigned long)p->addr, 0, 0);
-	if (ret) {
-		pr_debug("Failed to arm kprobe-ftrace at %pS (%d)\n",
-			 p->addr, ret);
+	if (WARN_ONCE(ret < 0, "Failed to arm kprobe-ftrace at %pS (error %d)\n", p->addr, ret))
 		return ret;
-	}
 
 	if (*cnt == 0) {
 		ret = register_ftrace_function(ops);
-		if (ret) {
-			pr_debug("Failed to init kprobe-ftrace (%d)\n", ret);
+		if (WARN(ret < 0, "Failed to register kprobe-ftrace (error %d)\n", ret))
 			goto err_ftrace;
-		}
 	}
 
 	(*cnt)++;
@@ -1083,14 +1081,14 @@ static int __disarm_kprobe_ftrace(struct kprobe *p, struct ftrace_ops *ops,
 
 	if (*cnt == 1) {
 		ret = unregister_ftrace_function(ops);
-		if (WARN(ret < 0, "Failed to unregister kprobe-ftrace (%d)\n", ret))
+		if (WARN(ret < 0, "Failed to unregister kprobe-ftrace (error %d)\n", ret))
 			return ret;
 	}
 
 	(*cnt)--;
 
 	ret = ftrace_set_filter_ip(ops, (unsigned long)p->addr, 1, 0);
-	WARN_ONCE(ret < 0, "Failed to disarm kprobe-ftrace at %pS (%d)\n",
+	WARN_ONCE(ret < 0, "Failed to disarm kprobe-ftrace at %pS (error %d)\n",
 		  p->addr, ret);
 	return ret;
 }
@@ -1880,7 +1878,7 @@ unsigned long __kretprobe_trampoline_handler(struct pt_regs *regs,
 
 		node = node->next;
 	}
-	pr_err("Oops! Kretprobe fails to find correct return address.\n");
+	pr_err("kretprobe: Return address not found, not execute handler. Maybe there is a bug in the kernel.\n");
 	BUG_ON(1);
 
 found:
@@ -2209,8 +2207,7 @@ EXPORT_SYMBOL_GPL(enable_kprobe);
 /* Caller must NOT call this in usual path. This is only for critical case */
 void dump_kprobe(struct kprobe *kp)
 {
-	pr_err("Dumping kprobe:\n");
-	pr_err("Name: %s\nOffset: %x\nAddress: %pS\n",
+	pr_err("Dump kprobe:\n.symbol_name = %s, .offset = %x, .addr = %pS\n",
 	       kp->symbol_name, kp->offset, kp->addr);
 }
 NOKPROBE_SYMBOL(dump_kprobe);
@@ -2473,8 +2470,7 @@ static int __init init_kprobes(void)
 	err = populate_kprobe_blacklist(__start_kprobe_blacklist,
 					__stop_kprobe_blacklist);
 	if (err) {
-		pr_err("kprobes: failed to populate blacklist: %d\n", err);
-		pr_err("Please take care of using kprobes.\n");
+		pr_err("Failed to populate blacklist (error %d), kprobes not restricted, be careful using them!\n", err);
 	}
 
 	if (kretprobe_blacklist_size) {
@@ -2483,7 +2479,7 @@ static int __init init_kprobes(void)
 			kretprobe_blacklist[i].addr =
 				kprobe_lookup_name(kretprobe_blacklist[i].name, 0);
 			if (!kretprobe_blacklist[i].addr)
-				printk("kretprobe: lookup failed: %s\n",
+				pr_err("Failed to lookup symbol '%s' for kretprobe blacklist. Maybe the target function is removed or renamed.\n",
 				       kretprobe_blacklist[i].name);
 		}
 	}
@@ -2687,7 +2683,7 @@ static int arm_all_kprobes(void)
 	}
 
 	if (errors)
-		pr_warn("Kprobes globally enabled, but failed to arm %d out of %d probes\n",
+		pr_warn("Kprobes globally enabled, but failed to enable %d out of %d probes. Please check which kprobes are kept disabled via debugfs.\n",
 			errors, total);
 	else
 		pr_info("Kprobes globally enabled\n");
@@ -2730,7 +2726,7 @@ static int disarm_all_kprobes(void)
 	}
 
 	if (errors)
-		pr_warn("Kprobes globally disabled, but failed to disarm %d out of %d probes\n",
+		pr_warn("Kprobes globally disabled, but failed to disable %d out of %d probes. Please check which kprobes are kept enabled via debugfs.\n",
 			errors, total);
 	else
 		pr_info("Kprobes globally disabled\n");

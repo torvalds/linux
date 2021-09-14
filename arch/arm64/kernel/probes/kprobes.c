@@ -7,6 +7,9 @@
  * Copyright (C) 2013 Linaro Limited.
  * Author: Sandeepa Prabhu <sandeepa.prabhu@linaro.org>
  */
+
+#define pr_fmt(fmt) "kprobes: " fmt
+
 #include <linux/extable.h>
 #include <linux/kasan.h>
 #include <linux/kernel.h>
@@ -218,7 +221,7 @@ static int __kprobes reenter_kprobe(struct kprobe *p,
 		break;
 	case KPROBE_HIT_SS:
 	case KPROBE_REENTER:
-		pr_warn("Unrecoverable kprobe detected.\n");
+		pr_warn("Failed to recover from reentered kprobes.\n");
 		dump_kprobe(p);
 		BUG();
 		break;

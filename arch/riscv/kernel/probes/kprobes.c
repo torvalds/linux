@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 
+#define pr_fmt(fmt) "kprobes: " fmt
+
 #include <linux/kprobes.h>
 #include <linux/extable.h>
 #include <linux/slab.h>
@@ -50,11 +52,8 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
 	unsigned long probe_addr = (unsigned long)p->addr;
 
-	if (probe_addr & 0x1) {
-		pr_warn("Address not aligned.\n");
-
-		return -EINVAL;
-	}
+	if (probe_addr & 0x1)
+		return -EILSEQ;
 
 	/* copy instruction */
 	p->opcode = *p->addr;
@@ -191,7 +190,7 @@ static int __kprobes reenter_kprobe(struct kprobe *p,
 		break;
 	case KPROBE_HIT_SS:
 	case KPROBE_REENTER:
-		pr_warn("Unrecoverable kprobe detected.\n");
+		pr_warn("Failed to recover from reentered kprobes.\n");
 		dump_kprobe(p);
 		BUG();
 		break;

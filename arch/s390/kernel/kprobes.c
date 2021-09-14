@@ -7,6 +7,8 @@
  * s390 port, used ppc64 as template. Mike Grundy <grundym@us.ibm.com>
  */
 
+#define pr_fmt(fmt) "kprobes: " fmt
+
 #include <linux/moduleloader.h>
 #include <linux/kprobes.h>
 #include <linux/ptrace.h>
@@ -259,7 +261,7 @@ static void kprobe_reenter_check(struct kprobe_ctlblk *kcb, struct kprobe *p)
 		 * is a BUG. The code path resides in the .kprobes.text
 		 * section and is executed with interrupts disabled.
 		 */
-		pr_err("Invalid kprobe detected.\n");
+		pr_err("Failed to recover from reentered kprobes.\n");
 		dump_kprobe(p);
 		BUG();
 	}
