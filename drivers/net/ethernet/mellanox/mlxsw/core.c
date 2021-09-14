@@ -2944,44 +2944,6 @@ bool mlxsw_core_is_initialized(const struct mlxsw_core *mlxsw_core)
 	return mlxsw_core->is_initialized;
 }
 
-int mlxsw_core_module_max_width(struct mlxsw_core *mlxsw_core, u8 module)
-{
-	enum mlxsw_reg_pmtm_module_type module_type;
-	char pmtm_pl[MLXSW_REG_PMTM_LEN];
-	int err;
-
-	mlxsw_reg_pmtm_pack(pmtm_pl, module);
-	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(pmtm), pmtm_pl);
-	if (err)
-		return err;
-	mlxsw_reg_pmtm_unpack(pmtm_pl, &module_type);
-
-	/* Here we need to get the module width according to the module type. */
-
-	switch (module_type) {
-	case MLXSW_REG_PMTM_MODULE_TYPE_C2C8X:
-	case MLXSW_REG_PMTM_MODULE_TYPE_QSFP_DD:
-	case MLXSW_REG_PMTM_MODULE_TYPE_OSFP:
-		return 8;
-	case MLXSW_REG_PMTM_MODULE_TYPE_C2C4X:
-	case MLXSW_REG_PMTM_MODULE_TYPE_BP_4X:
-	case MLXSW_REG_PMTM_MODULE_TYPE_QSFP:
-		return 4;
-	case MLXSW_REG_PMTM_MODULE_TYPE_C2C2X:
-	case MLXSW_REG_PMTM_MODULE_TYPE_BP_2X:
-	case MLXSW_REG_PMTM_MODULE_TYPE_SFP_DD:
-	case MLXSW_REG_PMTM_MODULE_TYPE_DSFP:
-		return 2;
-	case MLXSW_REG_PMTM_MODULE_TYPE_C2C1X:
-	case MLXSW_REG_PMTM_MODULE_TYPE_BP_1X:
-	case MLXSW_REG_PMTM_MODULE_TYPE_SFP:
-		return 1;
-	default:
-		return -EINVAL;
-	}
-}
-EXPORT_SYMBOL(mlxsw_core_module_max_width);
-
 static void mlxsw_core_buf_dump_dbg(struct mlxsw_core *mlxsw_core,
 				    const char *buf, size_t size)
 {
