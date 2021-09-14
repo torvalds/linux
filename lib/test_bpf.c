@@ -12180,9 +12180,14 @@ static __init int test_bpf(void)
 struct tail_call_test {
 	const char *descr;
 	struct bpf_insn insns[MAX_INSNS];
+	int flags;
 	int result;
 	int stack_depth;
 };
+
+/* Flags that can be passed to tail call test cases */
+#define FLAG_NEED_STATE		BIT(0)
+#define FLAG_RESULT_IN_STATE	BIT(1)
 
 /*
  * Magic marker used in test snippets for tail calls below.
@@ -12253,32 +12258,38 @@ static struct tail_call_test tail_call_tests[] = {
 	{
 		"Tail call error path, max count reached",
 		.insns = {
-			BPF_ALU64_IMM(BPF_ADD, R1, 1),
-			BPF_ALU64_REG(BPF_MOV, R0, R1),
+			BPF_LDX_MEM(BPF_W, R2, R1, 0),
+			BPF_ALU64_IMM(BPF_ADD, R2, 1),
+			BPF_STX_MEM(BPF_W, R1, R2, 0),
 			TAIL_CALL(0),
 			BPF_EXIT_INSN(),
 		},
-		.result = MAX_TAIL_CALL_CNT + 1,
+		.flags = FLAG_NEED_STATE | FLAG_RESULT_IN_STATE,
+		.result = (MAX_TAIL_CALL_CNT + 1 + 1) * MAX_TESTRUNS,
 	},
 	{
 		"Tail call error path, NULL target",
 		.insns = {
-			BPF_ALU64_IMM(BPF_MOV, R0, -1),
+			BPF_LDX_MEM(BPF_W, R2, R1, 0),
+			BPF_ALU64_IMM(BPF_ADD, R2, 1),
+			BPF_STX_MEM(BPF_W, R1, R2, 0),
 			TAIL_CALL(TAIL_CALL_NULL),
-			BPF_ALU64_IMM(BPF_MOV, R0, 1),
 			BPF_EXIT_INSN(),
 		},
-		.result = 1,
+		.flags = FLAG_NEED_STATE | FLAG_RESULT_IN_STATE,
+		.result = MAX_TESTRUNS,
 	},
 	{
 		"Tail call error path, index out of range",
 		.insns = {
-			BPF_ALU64_IMM(BPF_MOV, R0, -1),
+			BPF_LDX_MEM(BPF_W, R2, R1, 0),
+			BPF_ALU64_IMM(BPF_ADD, R2, 1),
+			BPF_STX_MEM(BPF_W, R1, R2, 0),
 			TAIL_CALL(TAIL_CALL_INVALID),
-			BPF_ALU64_IMM(BPF_MOV, R0, 1),
 			BPF_EXIT_INSN(),
 		},
-		.result = 1,
+		.flags = FLAG_NEED_STATE | FLAG_RESULT_IN_STATE,
+		.result = MAX_TESTRUNS,
 	},
 };
 
@@ -12384,6 +12395,8 @@ static __init int test_tail_calls(struct bpf_array *progs)
 	for (i = 0; i < ARRAY_SIZE(tail_call_tests); i++) {
 		struct tail_call_test *test = &tail_call_tests[i];
 		struct bpf_prog *fp = progs->ptrs[i];
+		int *data = NULL;
+		int state = 0;
 		u64 duration;
 		int ret;
 
@@ -12400,7 +12413,11 @@ static __init int test_tail_calls(struct bpf_array *progs)
 		if (fp->jited)
 			jit_cnt++;
 
-		ret = __run_one(fp, NULL, MAX_TESTRUNS, &duration);
+		if (test->flags & FLAG_NEED_STATE)
+			data = &state;
+		ret = __run_one(fp, data, MAX_TESTRUNS, &duration);
+		if (test->flags & FLAG_RESULT_IN_STATE)
+			ret = state;
 		if (ret == test->result) {
 			pr_cont("%lld PASS", duration);
 			pass_cnt++;
