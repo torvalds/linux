@@ -96,6 +96,21 @@ static const struct genl_ops smc_gen_nl_ops[] = {
 		.flags = GENL_ADMIN_PERM,
 		.doit = smc_nl_flush_ueid,
 	},
+	{
+		.cmd = SMC_NETLINK_DUMP_SEID,
+		/* can be retrieved by unprivileged users */
+		.dumpit = smc_nl_dump_seid,
+	},
+	{
+		.cmd = SMC_NETLINK_ENABLE_SEID,
+		.flags = GENL_ADMIN_PERM,
+		.doit = smc_nl_enable_seid,
+	},
+	{
+		.cmd = SMC_NETLINK_DISABLE_SEID,
+		.flags = GENL_ADMIN_PERM,
+		.doit = smc_nl_disable_seid,
+	},
 };
 
 static const struct nla_policy smc_gen_nl_policy[2] = {

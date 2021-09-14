@@ -347,5 +347,8 @@ int smc_nl_dump_ueid(struct sk_buff *skb, struct netlink_callback *cb);
 int smc_nl_add_ueid(struct sk_buff *skb, struct genl_info *info);
 int smc_nl_remove_ueid(struct sk_buff *skb, struct genl_info *info);
 int smc_nl_flush_ueid(struct sk_buff *skb, struct genl_info *info);
+int smc_nl_dump_seid(struct sk_buff *skb, struct netlink_callback *cb);
+int smc_nl_enable_seid(struct sk_buff *skb, struct genl_info *info);
+int smc_nl_disable_seid(struct sk_buff *skb, struct genl_info *info);
 
 #endif

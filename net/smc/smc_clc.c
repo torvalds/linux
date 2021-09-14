@@ -143,6 +143,10 @@ static int smc_clc_ueid_remove(char *ueid)
 			rc = 0;
 		}
 	}
+	if (!rc && !smc_clc_eid_table.ueid_cnt) {
+		smc_clc_eid_table.seid_enabled = 1;
+		rc = -EAGAIN;	/* indicate success and enabling of seid */
+	}
 	write_unlock(&smc_clc_eid_table.lock);
 	return rc;
 }
@@ -214,6 +218,64 @@ int smc_nl_dump_ueid(struct sk_buff *skb, struct netlink_callback *cb)
 
 	cb_ctx->pos[0] = idx;
 	return skb->len;
+}
+
+int smc_nl_dump_seid(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct smc_nl_dmp_ctx *cb_ctx = smc_nl_dmp_ctx(cb);
+	char seid_str[SMC_MAX_EID_LEN + 1];
+	u8 seid_enabled;
+	void *hdr;
+	u8 *seid;
+
+	if (cb_ctx->pos[0])
+		return skb->len;
+
+	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+			  &smc_gen_nl_family, NLM_F_MULTI,
+			  SMC_NETLINK_DUMP_SEID);
+	if (!hdr)
+		return -ENOMEM;
+	if (!smc_ism_is_v2_capable())
+		goto end;
+
+	smc_ism_get_system_eid(&seid);
+	snprintf(seid_str, sizeof(seid_str), "%s", seid);
+	if (nla_put_string(skb, SMC_NLA_SEID_ENTRY, seid_str))
+		goto err;
+	read_lock(&smc_clc_eid_table.lock);
+	seid_enabled = smc_clc_eid_table.seid_enabled;
+	read_unlock(&smc_clc_eid_table.lock);
+	if (nla_put_u8(skb, SMC_NLA_SEID_ENABLED, seid_enabled))
+		goto err;
+end:
+	genlmsg_end(skb, hdr);
+	cb_ctx->pos[0]++;
+	return skb->len;
+err:
+	genlmsg_cancel(skb, hdr);
+	return -EMSGSIZE;
+}
+
+int smc_nl_enable_seid(struct sk_buff *skb, struct genl_info *info)
+{
+	write_lock(&smc_clc_eid_table.lock);
+	smc_clc_eid_table.seid_enabled = 1;
+	write_unlock(&smc_clc_eid_table.lock);
+	return 0;
+}
+
+int smc_nl_disable_seid(struct sk_buff *skb, struct genl_info *info)
+{
+	int rc = 0;
+
+	write_lock(&smc_clc_eid_table.lock);
+	if (!smc_clc_eid_table.ueid_cnt)
+		rc = -ENOENT;
+	else
+		smc_clc_eid_table.seid_enabled = 0;
+	write_unlock(&smc_clc_eid_table.lock);
+	return rc;
 }
 
 static bool _smc_clc_match_ueid(u8 *peer_ueid)
