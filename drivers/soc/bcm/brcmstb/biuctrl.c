@@ -136,6 +136,7 @@ static int __init mcp_write_pairing_set(void)
 
 static const u32 a72_b53_mach_compat[] = {
 	0x7211,
+	0x72113,
 	0x7216,
 	0x72164,
 	0x72165,
