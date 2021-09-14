@@ -793,6 +793,39 @@ TRACE_EVENT(xprtrdma_post_send,
 	)
 );
 
+TRACE_EVENT(xprtrdma_post_send_err,
+	TP_PROTO(
+		const struct rpcrdma_xprt *r_xprt,
+		const struct rpcrdma_req *req,
+		int rc
+	),
+
+	TP_ARGS(r_xprt, req, rc),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(int, rc)
+	),
+
+	TP_fast_assign(
+		const struct rpc_rqst *rqst = &req->rl_slot;
+		const struct rpcrdma_ep *ep = r_xprt->rx_ep;
+
+		__entry->cq_id = ep ? ep->re_attr.recv_cq->res.id : 0;
+		__entry->task_id = rqst->rq_task->tk_pid;
+		__entry->client_id = rqst->rq_task->tk_client ?
+				     rqst->rq_task->tk_client->cl_clid : -1;
+		__entry->rc = rc;
+	),
+
+	TP_printk("task:%u@%u cq.id=%u rc=%d",
+		__entry->task_id, __entry->client_id,
+		__entry->cq_id, __entry->rc
+	)
+);
+
 TRACE_EVENT(xprtrdma_post_recv,
 	TP_PROTO(
 		const struct rpcrdma_rep *rep
@@ -818,16 +851,14 @@ TRACE_EVENT(xprtrdma_post_recv,
 TRACE_EVENT(xprtrdma_post_recvs,
 	TP_PROTO(
 		const struct rpcrdma_xprt *r_xprt,
-		unsigned int count,
-		int status
+		unsigned int count
 	),
 
-	TP_ARGS(r_xprt, count, status),
+	TP_ARGS(r_xprt, count),
 
 	TP_STRUCT__entry(
 		__field(u32, cq_id)
 		__field(unsigned int, count)
-		__field(int, status)
 		__field(int, posted)
 		__string(addr, rpcrdma_addrstr(r_xprt))
 		__string(port, rpcrdma_portstr(r_xprt))
@@ -838,15 +869,44 @@ TRACE_EVENT(xprtrdma_post_recvs,
 
 		__entry->cq_id = ep->re_attr.recv_cq->res.id;
 		__entry->count = count;
-		__entry->status = status;
 		__entry->posted = ep->re_receive_count;
 		__assign_str(addr, rpcrdma_addrstr(r_xprt));
 		__assign_str(port, rpcrdma_portstr(r_xprt));
 	),
 
-	TP_printk("peer=[%s]:%s cq.id=%d %u new recvs, %d active (rc %d)",
+	TP_printk("peer=[%s]:%s cq.id=%d %u new recvs, %d active",
 		__get_str(addr), __get_str(port), __entry->cq_id,
-		__entry->count, __entry->posted, __entry->status
+		__entry->count, __entry->posted
+	)
+);
+
+TRACE_EVENT(xprtrdma_post_recvs_err,
+	TP_PROTO(
+		const struct rpcrdma_xprt *r_xprt,
+		int status
+	),
+
+	TP_ARGS(r_xprt, status),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, status)
+		__string(addr, rpcrdma_addrstr(r_xprt))
+		__string(port, rpcrdma_portstr(r_xprt))
+	),
+
+	TP_fast_assign(
+		const struct rpcrdma_ep *ep = r_xprt->rx_ep;
+
+		__entry->cq_id = ep->re_attr.recv_cq->res.id;
+		__entry->status = status;
+		__assign_str(addr, rpcrdma_addrstr(r_xprt));
+		__assign_str(port, rpcrdma_portstr(r_xprt));
+	),
+
+	TP_printk("peer=[%s]:%s cq.id=%d rc=%d",
+		__get_str(addr), __get_str(port), __entry->cq_id,
+		__entry->status
 	)
 );
 

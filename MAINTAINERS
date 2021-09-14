@@ -1496,7 +1496,7 @@ F:	drivers/amba/
 F:	include/linux/amba/bus.h
 
 ARM PRIMECELL PL35X NAND CONTROLLER DRIVER
-M:	Miquel Raynal <miquel.raynal@bootlin.com@bootlin.com>
+M:	Miquel Raynal <miquel.raynal@bootlin.com>
 M:	Naga Sureshkumar Relli <nagasure@xilinx.com>
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
@@ -1504,7 +1504,7 @@ F:	Documentation/devicetree/bindings/mtd/arm,pl353-nand-r2p1.yaml
 F:	drivers/mtd/nand/raw/pl35x-nand-controller.c
 
 ARM PRIMECELL PL35X SMC DRIVER
-M:	Miquel Raynal <miquel.raynal@bootlin.com@bootlin.com>
+M:	Miquel Raynal <miquel.raynal@bootlin.com>
 M:	Naga Sureshkumar Relli <nagasure@xilinx.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -13352,6 +13352,15 @@ W:	http://www.tuxera.com/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/aia21/ntfs.git
 F:	Documentation/filesystems/ntfs.rst
 F:	fs/ntfs/
+
+NTFS3 FILESYSTEM
+M:	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>
+L:	ntfs3@lists.linux.dev
+S:	Supported
+W:	http://www.paragon-software.com/
+T:	git https://github.com/Paragon-Software-Group/linux-ntfs3.git
+F:	Documentation/filesystems/ntfs3.rst
+F:	fs/ntfs3/
 
 NUBUS SUBSYSTEM
 M:	Finn Thain <fthain@linux-m68k.org>
