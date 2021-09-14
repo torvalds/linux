@@ -44,7 +44,7 @@ static const struct i2c_device_id cs35l41_id_i2c[] = {
 MODULE_DEVICE_TABLE(i2c, cs35l41_id_i2c);
 
 static int cs35l41_i2c_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+			     const struct i2c_device_id *id)
 {
 	struct cs35l41_private *cs35l41;
 	struct device *dev = &client->dev;
@@ -64,8 +64,7 @@ static int cs35l41_i2c_probe(struct i2c_client *client,
 	cs35l41->regmap = devm_regmap_init_i2c(client, regmap_config);
 	if (IS_ERR(cs35l41->regmap)) {
 		ret = PTR_ERR(cs35l41->regmap);
-		dev_err(cs35l41->dev, "Failed to allocate register map: %d\n",
-			ret);
+		dev_err(cs35l41->dev, "Failed to allocate register map: %d\n", ret);
 		return ret;
 	}
 

@@ -43,7 +43,7 @@ static const struct spi_device_id cs35l41_id_spi[] = {
 MODULE_DEVICE_TABLE(spi, cs35l41_id_spi);
 
 static void cs35l41_spi_otp_setup(struct cs35l41_private *cs35l41,
-					bool is_pre_setup, unsigned int *freq)
+				  bool is_pre_setup, unsigned int *freq)
 {
 	struct spi_device *spi;
 	u32 orig_spi_freq;
@@ -73,24 +73,19 @@ static void cs35l41_spi_otp_setup(struct cs35l41_private *cs35l41,
 static int cs35l41_spi_probe(struct spi_device *spi)
 {
 	const struct regmap_config *regmap_config = &cs35l41_regmap_spi;
-	struct cs35l41_platform_data *pdata =
-					dev_get_platdata(&spi->dev);
+	struct cs35l41_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct cs35l41_private *cs35l41;
 	int ret;
 
-	cs35l41 = devm_kzalloc(&spi->dev,
-			       sizeof(struct cs35l41_private),
-			       GFP_KERNEL);
+	cs35l41 = devm_kzalloc(&spi->dev, sizeof(struct cs35l41_private), GFP_KERNEL);
 	if (!cs35l41)
 		return -ENOMEM;
-
 
 	spi_set_drvdata(spi, cs35l41);
 	cs35l41->regmap = devm_regmap_init_spi(spi, regmap_config);
 	if (IS_ERR(cs35l41->regmap)) {
 		ret = PTR_ERR(cs35l41->regmap);
-		dev_err(&spi->dev, "Failed to allocate register map: %d\n",
-			ret);
+		dev_err(&spi->dev, "Failed to allocate register map: %d\n", ret);
 		return ret;
 	}
 
