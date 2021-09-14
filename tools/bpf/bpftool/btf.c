@@ -37,6 +37,7 @@ static const char * const btf_kind_str[NR_BTF_KINDS] = {
 	[BTF_KIND_VAR]		= "VAR",
 	[BTF_KIND_DATASEC]	= "DATASEC",
 	[BTF_KIND_FLOAT]	= "FLOAT",
+	[BTF_KIND_TAG]		= "TAG",
 };
 
 struct btf_attach_table {
@@ -345,6 +346,17 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 			jsonw_uint_field(w, "size", t->size);
 		else
 			printf(" size=%u", t->size);
+		break;
+	}
+	case BTF_KIND_TAG: {
+		const struct btf_tag *tag = (const void *)(t + 1);
+
+		if (json_output) {
+			jsonw_uint_field(w, "type_id", t->type);
+			jsonw_int_field(w, "component_idx", tag->component_idx);
+		} else {
+			printf(" type_id=%u component_idx=%d", t->type, tag->component_idx);
+		}
 		break;
 	}
 	default:
