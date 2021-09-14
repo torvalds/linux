@@ -550,9 +550,6 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	svm->vmcb->control.event_inj           = svm->nested.ctl.event_inj;
 	svm->vmcb->control.event_inj_err       = svm->nested.ctl.event_inj_err;
 
-	svm->vmcb->control.pause_filter_count  = svm->nested.ctl.pause_filter_count;
-	svm->vmcb->control.pause_filter_thresh = svm->nested.ctl.pause_filter_thresh;
-
 	nested_svm_transition_tlb_flush(vcpu);
 
 	/* Enter Guest-Mode */
@@ -809,11 +806,6 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	vmcb12->control.tlb_ctl           = svm->nested.ctl.tlb_ctl;
 	vmcb12->control.event_inj         = svm->nested.ctl.event_inj;
 	vmcb12->control.event_inj_err     = svm->nested.ctl.event_inj_err;
-
-	vmcb12->control.pause_filter_count =
-		svm->vmcb->control.pause_filter_count;
-	vmcb12->control.pause_filter_thresh =
-		svm->vmcb->control.pause_filter_thresh;
 
 	nested_svm_copy_common_state(svm->nested.vmcb02.ptr, svm->vmcb01.ptr);
 
