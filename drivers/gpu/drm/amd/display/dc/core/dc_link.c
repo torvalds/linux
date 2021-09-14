@@ -1765,6 +1765,9 @@ static bool dc_link_construct_dpia(struct dc_link *link,
 
 	link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
 
+	/* Some docks seem to NAK I2C writes to segment pointer with mot=0. */
+	link->wa_flags.dp_mot_reset_segment = true;
+
 	return true;
 
 ddc_create_fail:
