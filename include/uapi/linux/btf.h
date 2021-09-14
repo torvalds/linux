@@ -56,25 +56,28 @@ struct btf_type {
 #define BTF_INFO_VLEN(info)	((info) & 0xffff)
 #define BTF_INFO_KFLAG(info)	((info) >> 31)
 
-#define BTF_KIND_UNKN		0	/* Unknown	*/
-#define BTF_KIND_INT		1	/* Integer	*/
-#define BTF_KIND_PTR		2	/* Pointer	*/
-#define BTF_KIND_ARRAY		3	/* Array	*/
-#define BTF_KIND_STRUCT		4	/* Struct	*/
-#define BTF_KIND_UNION		5	/* Union	*/
-#define BTF_KIND_ENUM		6	/* Enumeration	*/
-#define BTF_KIND_FWD		7	/* Forward	*/
-#define BTF_KIND_TYPEDEF	8	/* Typedef	*/
-#define BTF_KIND_VOLATILE	9	/* Volatile	*/
-#define BTF_KIND_CONST		10	/* Const	*/
-#define BTF_KIND_RESTRICT	11	/* Restrict	*/
-#define BTF_KIND_FUNC		12	/* Function	*/
-#define BTF_KIND_FUNC_PROTO	13	/* Function Proto	*/
-#define BTF_KIND_VAR		14	/* Variable	*/
-#define BTF_KIND_DATASEC	15	/* Section	*/
-#define BTF_KIND_FLOAT		16	/* Floating point	*/
-#define BTF_KIND_MAX		BTF_KIND_FLOAT
-#define NR_BTF_KINDS		(BTF_KIND_MAX + 1)
+enum {
+	BTF_KIND_UNKN		= 0,	/* Unknown	*/
+	BTF_KIND_INT		= 1,	/* Integer	*/
+	BTF_KIND_PTR		= 2,	/* Pointer	*/
+	BTF_KIND_ARRAY		= 3,	/* Array	*/
+	BTF_KIND_STRUCT		= 4,	/* Struct	*/
+	BTF_KIND_UNION		= 5,	/* Union	*/
+	BTF_KIND_ENUM		= 6,	/* Enumeration	*/
+	BTF_KIND_FWD		= 7,	/* Forward	*/
+	BTF_KIND_TYPEDEF	= 8,	/* Typedef	*/
+	BTF_KIND_VOLATILE	= 9,	/* Volatile	*/
+	BTF_KIND_CONST		= 10,	/* Const	*/
+	BTF_KIND_RESTRICT	= 11,	/* Restrict	*/
+	BTF_KIND_FUNC		= 12,	/* Function	*/
+	BTF_KIND_FUNC_PROTO	= 13,	/* Function Proto	*/
+	BTF_KIND_VAR		= 14,	/* Variable	*/
+	BTF_KIND_DATASEC	= 15,	/* Section	*/
+	BTF_KIND_FLOAT		= 16,	/* Floating point	*/
+
+	NR_BTF_KINDS,
+	BTF_KIND_MAX		= NR_BTF_KINDS - 1,
+};
 
 /* For some specific BTF_KIND, "struct btf_type" is immediately
  * followed by extra data.
