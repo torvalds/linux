@@ -1,0 +1,254 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/arm/mediatek/mediatek,mt8195-clock.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: MediaTek Functional Clock Controller for MT8195
+
+maintainers:
+  - Chun-Jie Chen <chun-jie.chen@mediatek.com>
+
+description:
+  The clock architecture in Mediatek like below
+  PLLs -->
+          dividers -->
+                      muxes
+                           -->
+                              clock gate
+
+  The devices except apusys_pll provide clock gate control in different IP blocks.
+  The apusys_pll provides Plls which generated from SoC 26m for AI Processing Unit.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - mediatek,mt8195-scp_adsp
+          - mediatek,mt8195-imp_iic_wrap_s
+          - mediatek,mt8195-imp_iic_wrap_w
+          - mediatek,mt8195-mfgcfg
+          - mediatek,mt8195-vppsys0
+          - mediatek,mt8195-wpesys
+          - mediatek,mt8195-wpesys_vpp0
+          - mediatek,mt8195-wpesys_vpp1
+          - mediatek,mt8195-vppsys1
+          - mediatek,mt8195-imgsys
+          - mediatek,mt8195-imgsys1_dip_top
+          - mediatek,mt8195-imgsys1_dip_nr
+          - mediatek,mt8195-imgsys1_wpe
+          - mediatek,mt8195-ipesys
+          - mediatek,mt8195-camsys
+          - mediatek,mt8195-camsys_rawa
+          - mediatek,mt8195-camsys_yuva
+          - mediatek,mt8195-camsys_rawb
+          - mediatek,mt8195-camsys_yuvb
+          - mediatek,mt8195-camsys_mraw
+          - mediatek,mt8195-ccusys
+          - mediatek,mt8195-vdecsys_soc
+          - mediatek,mt8195-vdecsys
+          - mediatek,mt8195-vdecsys_core1
+          - mediatek,mt8195-vencsys
+          - mediatek,mt8195-vencsys_core1
+          - mediatek,mt8195-apusys_pll
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    scp_adsp: clock-controller@10720000 {
+        compatible = "mediatek,mt8195-scp_adsp";
+        reg = <0x10720000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    imp_iic_wrap_s: clock-controller@11d03000 {
+        compatible = "mediatek,mt8195-imp_iic_wrap_s";
+        reg = <0x11d03000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    imp_iic_wrap_w: clock-controller@11e05000 {
+        compatible = "mediatek,mt8195-imp_iic_wrap_w";
+        reg = <0x11e05000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    mfgcfg: clock-controller@13fbf000 {
+        compatible = "mediatek,mt8195-mfgcfg";
+        reg = <0x13fbf000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    vppsys0: clock-controller@14000000 {
+        compatible = "mediatek,mt8195-vppsys0";
+        reg = <0x14000000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    wpesys: clock-controller@14e00000 {
+        compatible = "mediatek,mt8195-wpesys";
+        reg = <0x14e00000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    wpesys_vpp0: clock-controller@14e02000 {
+        compatible = "mediatek,mt8195-wpesys_vpp0";
+        reg = <0x14e02000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    wpesys_vpp1: clock-controller@14e03000 {
+        compatible = "mediatek,mt8195-wpesys_vpp1";
+        reg = <0x14e03000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    vppsys1: clock-controller@14f00000 {
+        compatible = "mediatek,mt8195-vppsys1";
+        reg = <0x14f00000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    imgsys: clock-controller@15000000 {
+        compatible = "mediatek,mt8195-imgsys";
+        reg = <0x15000000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    imgsys1_dip_top: clock-controller@15110000 {
+        compatible = "mediatek,mt8195-imgsys1_dip_top";
+        reg = <0x15110000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    imgsys1_dip_nr: clock-controller@15130000 {
+        compatible = "mediatek,mt8195-imgsys1_dip_nr";
+        reg = <0x15130000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    imgsys1_wpe: clock-controller@15220000 {
+        compatible = "mediatek,mt8195-imgsys1_wpe";
+        reg = <0x15220000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    ipesys: clock-controller@15330000 {
+        compatible = "mediatek,mt8195-ipesys";
+        reg = <0x15330000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    camsys: clock-controller@16000000 {
+        compatible = "mediatek,mt8195-camsys";
+        reg = <0x16000000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    camsys_rawa: clock-controller@1604f000 {
+        compatible = "mediatek,mt8195-camsys_rawa";
+        reg = <0x1604f000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    camsys_yuva: clock-controller@1606f000 {
+        compatible = "mediatek,mt8195-camsys_yuva";
+        reg = <0x1606f000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    camsys_rawb: clock-controller@1608f000 {
+        compatible = "mediatek,mt8195-camsys_rawb";
+        reg = <0x1608f000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    camsys_yuvb: clock-controller@160af000 {
+        compatible = "mediatek,mt8195-camsys_yuvb";
+        reg = <0x160af000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    camsys_mraw: clock-controller@16140000 {
+        compatible = "mediatek,mt8195-camsys_mraw";
+        reg = <0x16140000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    ccusys: clock-controller@17200000 {
+        compatible = "mediatek,mt8195-ccusys";
+        reg = <0x17200000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    vdecsys_soc: clock-controller@1800f000 {
+        compatible = "mediatek,mt8195-vdecsys_soc";
+        reg = <0x1800f000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    vdecsys: clock-controller@1802f000 {
+        compatible = "mediatek,mt8195-vdecsys";
+        reg = <0x1802f000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    vdecsys_core1: clock-controller@1803f000 {
+        compatible = "mediatek,mt8195-vdecsys_core1";
+        reg = <0x1803f000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    vencsys: clock-controller@1a000000 {
+        compatible = "mediatek,mt8195-vencsys";
+        reg = <0x1a000000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    vencsys_core1: clock-controller@1b000000 {
+        compatible = "mediatek,mt8195-vencsys_core1";
+        reg = <0x1b000000 0x1000>;
+        #clock-cells = <1>;
+    };
+
+  - |
+    apusys_pll: clock-controller@190f3000 {
+        compatible = "mediatek,mt8195-apusys_pll";
+        reg = <0x190f3000 0x1000>;
+        #clock-cells = <1>;
+    };
