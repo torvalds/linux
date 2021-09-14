@@ -1188,7 +1188,10 @@ struct hclge_dev_specs_1_cmd {
 	__le16 max_frm_size;
 	__le16 max_qset_num;
 	__le16 max_int_gl;
-	u8 rsv1[18];
+	u8 rsv0[2];
+	__le16 umv_size;
+	__le16 mc_mac_size;
+	u8 rsv1[12];
 };
 
 /* mac speed type defined in firmware command */
