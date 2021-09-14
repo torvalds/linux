@@ -45,20 +45,28 @@
  */
 struct panel_delay {
 	/**
-	 * @prepare: Time for the panel to become ready.
+	 * @hpd_reliable: Time for HPD to be reliable
 	 *
-	 * The time (in milliseconds) that it takes for the panel to
-	 * become ready and start receiving video data
+	 * The time (in milliseconds) that it takes after powering the panel
+	 * before the HPD signal is reliable. Ideally this is 0 but some panels,
+	 * board designs, or bad pulldown configs can cause a glitch here.
+	 *
+	 * NOTE: on some old panel data this number appers to be much too big.
+	 * Presumably some old panels simply didn't have HPD hooked up and put
+	 * the hpd_absent here because this field predates the
+	 * hpd_absent. While that works, it's non-ideal.
 	 */
-	unsigned int prepare;
+	unsigned int hpd_reliable;
 
 	/**
-	 * @hpd_absent_delay: Time to wait if HPD isn't hooked up.
+	 * @hpd_absent: Time to wait if HPD isn't hooked up.
 	 *
-	 * Add this to the prepare delay if we know Hot Plug Detect
-	 * isn't used.
+	 * Add this to the prepare delay if we know Hot Plug Detect isn't used.
+	 *
+	 * This is T3-max on eDP timing diagrams or the delay from power on
+	 * until HPD is guaranteed to be asserted.
 	 */
-	unsigned int hpd_absent_delay;
+	unsigned int hpd_absent;
 
 	/**
 	 * @prepare_to_enable: Time between prepare and enable.
@@ -87,6 +95,10 @@ struct panel_delay {
 	 *   enable()
 	 *     // do fixed enable delay
 	 *     // enforce prepare_to_enable min time
+	 *
+	 * This is not specified in a standard way on eDP timing diagrams.
+	 * It is effectively the time from HPD going high till you can
+	 * turn on the backlight.
 	 */
 	unsigned int prepare_to_enable;
 
@@ -96,6 +108,10 @@ struct panel_delay {
 	 * The time (in milliseconds) that it takes for the panel to
 	 * display the first valid frame after starting to receive
 	 * video data.
+	 *
+	 * This is (T6-min + max(T7-max, T8-min)) on eDP timing diagrams or
+	 * the delay after link training finishes until we can turn the
+	 * backlight on and see valid data.
 	 */
 	unsigned int enable;
 
@@ -104,6 +120,9 @@ struct panel_delay {
 	 *
 	 * The time (in milliseconds) that it takes for the panel to
 	 * turn the display off (no content is visible).
+	 *
+	 * This is T9-min (delay from backlight off to end of valid video
+	 * data) on eDP timing diagrams. It is not common to set.
 	 */
 	unsigned int disable;
 
@@ -117,6 +136,8 @@ struct panel_delay {
 	 * starting until at least this many milliseconds has passed.
 	 * If at prepare time less time has passed since unprepare
 	 * finished, the driver waits for the remaining time.
+	 *
+	 * This is T12-min on eDP timing diagrams.
 	 */
 	unsigned int unprepare;
 };
@@ -400,15 +421,15 @@ static int panel_edp_prepare_once(struct panel_edp *p)
 
 	gpiod_set_value_cansleep(p->enable_gpio, 1);
 
-	delay = p->desc->delay.prepare;
+	delay = p->desc->delay.hpd_reliable;
 	if (p->no_hpd)
-		delay += p->desc->delay.hpd_absent_delay;
+		delay += p->desc->delay.hpd_absent;
 	if (delay)
 		msleep(delay);
 
 	if (p->hpd_gpio) {
-		if (p->desc->delay.hpd_absent_delay)
-			hpd_wait_us = p->desc->delay.hpd_absent_delay * 1000UL;
+		if (p->desc->delay.hpd_absent)
+			hpd_wait_us = p->desc->delay.hpd_absent * 1000UL;
 		else
 			hpd_wait_us = 2000000;
 
@@ -772,7 +793,7 @@ static const struct panel_desc auo_b116xak01 = {
 		.height = 144,
 	},
 	.delay = {
-		.hpd_absent_delay = 200,
+		.hpd_absent = 200,
 	},
 };
 
@@ -823,7 +844,7 @@ static const struct panel_desc auo_b133han05 = {
 		.height = 165,
 	},
 	.delay = {
-		.prepare = 100,
+		.hpd_reliable = 100,
 		.enable = 20,
 		.unprepare = 50,
 	},
@@ -850,7 +871,7 @@ static const struct panel_desc auo_b133htn01 = {
 		.height = 165,
 	},
 	.delay = {
-		.prepare = 105,
+		.hpd_reliable = 105,
 		.enable = 20,
 		.unprepare = 50,
 	},
@@ -899,7 +920,7 @@ static const struct panel_desc auo_b140han06 = {
 		.height = 174,
 	},
 	.delay = {
-		.prepare = 100,
+		.hpd_reliable = 100,
 		.enable = 20,
 		.unprepare = 50,
 	},
@@ -939,7 +960,8 @@ static const struct panel_desc boe_nv101wxmn51 = {
 		.height = 136,
 	},
 	.delay = {
-		.prepare = 210,
+		/* TODO: should be hpd-absent and no-hpd should be set? */
+		.hpd_reliable = 210,
 		.enable = 50,
 		.unprepare = 160,
 	},
@@ -981,7 +1003,7 @@ static const struct panel_desc boe_nv110wtm_n61 = {
 		.height = 155,
 	},
 	.delay = {
-		.hpd_absent_delay = 200,
+		.hpd_absent = 200,
 		.prepare_to_enable = 80,
 		.enable = 50,
 		.unprepare = 500,
@@ -1018,14 +1040,14 @@ static const struct panel_desc boe_nv133fhm_n61 = {
 		 * was until the TCON data download was complete.  On
 		 * one system this was measured at 8 ms.  We'll put 15 ms
 		 * in the prepare delay just to be safe and take it away
-		 * from the hpd_absent_delay (which would otherwise be 200 ms)
+		 * from the hpd_absent (which would otherwise be 200 ms)
 		 * to handle this.  That means:
 		 * - If HPD isn't hooked up you still have 200 ms delay.
 		 * - If HPD is hooked up we won't try to look at it for the
 		 *   first 15 ms.
 		 */
-		.prepare = 15,
-		.hpd_absent_delay = 185,
+		.hpd_reliable = 15,
+		.hpd_absent = 185,
 
 		.unprepare = 500,
 	},
@@ -1054,7 +1076,8 @@ static const struct panel_desc boe_nv140fhmn49 = {
 		.height = 174,
 	},
 	.delay = {
-		.prepare = 210,
+		/* TODO: should be hpd-absent and no-hpd should be set? */
+		.hpd_reliable = 210,
 		.enable = 50,
 		.unprepare = 160,
 	},
@@ -1082,7 +1105,7 @@ static const struct panel_desc innolux_n116bca_ea1 = {
 		.height = 144,
 	},
 	.delay = {
-		.hpd_absent_delay = 200,
+		.hpd_absent = 200,
 		.prepare_to_enable = 80,
 		.unprepare = 500,
 	},
@@ -1165,7 +1188,7 @@ static const struct panel_desc innolux_p120zdg_bf1 = {
 		.height = 169,
 	},
 	.delay = {
-		.hpd_absent_delay = 200,
+		.hpd_absent = 200,
 		.unprepare = 500,
 	},
 };
@@ -1192,7 +1215,7 @@ static const struct panel_desc ivo_m133nwf4_r0 = {
 		.height = 165,
 	},
 	.delay = {
-		.hpd_absent_delay = 200,
+		.hpd_absent = 200,
 		.unprepare = 500,
 	},
 };
@@ -1219,7 +1242,7 @@ static const struct panel_desc kingdisplay_kd116n21_30nv_a010 = {
 		.height = 144,
 	},
 	.delay = {
-		.hpd_absent_delay = 200,
+		.hpd_absent = 200,
 	},
 };
 
@@ -1345,7 +1368,7 @@ static const struct panel_desc neweast_wjfh116008a = {
 		.height = 150,
 	},
 	.delay = {
-		.prepare = 110,
+		.hpd_reliable = 110,
 		.enable = 20,
 		.unprepare = 500,
 	},
@@ -1439,7 +1462,7 @@ static const struct panel_desc sharp_lq123p1jx31 = {
 		.height = 173,
 	},
 	.delay = {
-		.prepare = 110,
+		.hpd_reliable = 110,
 		.enable = 50,
 		.unprepare = 550,
 	},
@@ -1466,7 +1489,8 @@ static const struct panel_desc starry_kr122ea0sra = {
 		.height = 164,
 	},
 	.delay = {
-		.prepare = 10 + 200,
+		/* TODO: should be hpd-absent and no-hpd should be set? */
+		.hpd_reliable = 10 + 200,
 		.enable = 50,
 		.unprepare = 10 + 500,
 	},
