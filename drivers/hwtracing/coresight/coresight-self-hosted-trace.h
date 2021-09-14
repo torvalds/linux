@@ -21,4 +21,11 @@ static inline void write_trfcr(u64 val)
 	isb();
 }
 
+static inline void cpu_prohibit_trace(void)
+{
+	u64 trfcr = read_trfcr();
+
+	/* Prohibit tracing at EL0 & the kernel EL */
+	write_trfcr(trfcr & ~(TRFCR_ELx_ExTRE | TRFCR_ELx_E0TRE));
+}
 #endif /*  __CORESIGHT_SELF_HOSTED_TRACE_H */
