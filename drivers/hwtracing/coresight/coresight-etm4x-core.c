@@ -237,6 +237,45 @@ struct etm4_enable_arg {
 	int rc;
 };
 
+/*
+ * etm4x_prohibit_trace - Prohibit the CPU from tracing at all ELs.
+ * When the CPU supports FEAT_TRF, we could move the ETM to a trace
+ * prohibited state by filtering the Exception levels via TRFCR_EL1.
+ */
+static void etm4x_prohibit_trace(struct etmv4_drvdata *drvdata)
+{
+	/* If the CPU doesn't support FEAT_TRF, nothing to do */
+	if (!drvdata->trfcr)
+		return;
+	cpu_prohibit_trace();
+}
+
+/*
+ * etm4x_allow_trace - Allow CPU tracing in the respective ELs,
+ * as configured by the drvdata->config.mode for the current
+ * session. Even though we have TRCVICTLR bits to filter the
+ * trace in the ELs, it doesn't prevent the ETM from generating
+ * a packet (e.g, TraceInfo) that might contain the addresses from
+ * the excluded levels. Thus we use the additional controls provided
+ * via the Trace Filtering controls (FEAT_TRF) to make sure no trace
+ * is generated for the excluded ELs.
+ */
+static void etm4x_allow_trace(struct etmv4_drvdata *drvdata)
+{
+	u64 trfcr = drvdata->trfcr;
+
+	/* If the CPU doesn't support FEAT_TRF, nothing to do */
+	if (!trfcr)
+		return;
+
+	if (drvdata->config.mode & ETM_MODE_EXCL_KERN)
+		trfcr &= ~TRFCR_ELx_ExTRE;
+	if (drvdata->config.mode & ETM_MODE_EXCL_USER)
+		trfcr &= ~TRFCR_ELx_E0TRE;
+
+	write_trfcr(trfcr);
+}
+
 #ifdef CONFIG_ETM4X_IMPDEF_FEATURE
 
 #define HISI_HIP08_AMBA_ID		0x000b6d01
@@ -441,6 +480,7 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 	if (etm4x_is_ete(drvdata))
 		etm4x_relaxed_write32(csa, TRCRSR_TA, TRCRSR);
 
+	etm4x_allow_trace(drvdata);
 	/* Enable the trace unit */
 	etm4x_relaxed_write32(csa, 1, TRCPRGCTLR);
 
@@ -724,7 +764,6 @@ static int etm4_enable(struct coresight_device *csdev,
 static void etm4_disable_hw(void *info)
 {
 	u32 control;
-	u64 trfcr;
 	struct etmv4_drvdata *drvdata = info;
 	struct etmv4_config *config = &drvdata->config;
 	struct coresight_device *csdev = drvdata->csdev;
@@ -751,12 +790,7 @@ static void etm4_disable_hw(void *info)
 	 * If the CPU supports v8.4 Trace filter Control,
 	 * set the ETM to trace prohibited region.
 	 */
-	if (drvdata->trfc) {
-		trfcr = read_sysreg_s(SYS_TRFCR_EL1);
-		write_sysreg_s(trfcr & ~(TRFCR_ELx_ExTRE | TRFCR_ELx_E0TRE),
-			       SYS_TRFCR_EL1);
-		isb();
-	}
+	etm4x_prohibit_trace(drvdata);
 	/*
 	 * Make sure everything completes before disabling, as recommended
 	 * by section 7.3.77 ("TRCVICTLR, ViewInst Main Control Register,
@@ -772,9 +806,6 @@ static void etm4_disable_hw(void *info)
 	if (coresight_timeout(csa, TRCSTATR, TRCSTATR_PMSTABLE_BIT, 1))
 		dev_err(etm_dev,
 			"timeout while waiting for PM stable Trace Status\n");
-	if (drvdata->trfc)
-		write_sysreg_s(trfcr, SYS_TRFCR_EL1);
-
 	/* read the status of the single shot comparators */
 	for (i = 0; i < drvdata->nr_ss_cmp; i++) {
 		config->ss_status[i] =
@@ -969,15 +1000,15 @@ static bool etm4_init_csdev_access(struct etmv4_drvdata *drvdata,
 	return false;
 }
 
-static void cpu_enable_tracing(struct etmv4_drvdata *drvdata)
+static void cpu_detect_trace_filtering(struct etmv4_drvdata *drvdata)
 {
 	u64 dfr0 = read_sysreg(id_aa64dfr0_el1);
 	u64 trfcr;
 
+	drvdata->trfcr = 0;
 	if (!cpuid_feature_extract_unsigned_field(dfr0, ID_AA64DFR0_TRACE_FILT_SHIFT))
 		return;
 
-	drvdata->trfc = true;
 	/*
 	 * If the CPU supports v8.4 SelfHosted Tracing, enable
 	 * tracing at the kernel EL and EL0, forcing to use the
@@ -991,7 +1022,7 @@ static void cpu_enable_tracing(struct etmv4_drvdata *drvdata)
 	if (is_kernel_in_hyp_mode())
 		trfcr |= TRFCR_EL2_CX;
 
-	write_trfcr(trfcr);
+	drvdata->trfcr = trfcr;
 }
 
 static void etm4_init_arch_data(void *info)
@@ -1177,7 +1208,7 @@ static void etm4_init_arch_data(void *info)
 	/* NUMCNTR, bits[30:28] number of counters available for tracing */
 	drvdata->nr_cntr = BMVAL(etmidr5, 28, 30);
 	etm4_cs_lock(drvdata, csa);
-	cpu_enable_tracing(drvdata);
+	cpu_detect_trace_filtering(drvdata);
 }
 
 static inline u32 etm4_get_victlr_access_type(struct etmv4_config *config)
@@ -1673,7 +1704,7 @@ static int etm4_cpu_save(struct etmv4_drvdata *drvdata)
 	int ret = 0;
 
 	/* Save the TRFCR irrespective of whether the ETM is ON */
-	if (drvdata->trfc)
+	if (drvdata->trfcr)
 		drvdata->save_trfcr = read_trfcr();
 	/*
 	 * Save and restore the ETM Trace registers only if
@@ -1782,7 +1813,7 @@ static void __etm4_cpu_restore(struct etmv4_drvdata *drvdata)
 
 static void etm4_cpu_restore(struct etmv4_drvdata *drvdata)
 {
-	if (drvdata->trfc)
+	if (drvdata->trfcr)
 		write_trfcr(drvdata->save_trfcr);
 	if (drvdata->state_needs_restore)
 		__etm4_cpu_restore(drvdata);
