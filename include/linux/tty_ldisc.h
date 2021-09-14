@@ -199,7 +199,7 @@ struct tty_ldisc_ops {
 	void	(*set_termios)(struct tty_struct *tty, struct ktermios *old);
 	__poll_t (*poll)(struct tty_struct *, struct file *,
 			     struct poll_table_struct *);
-	int	(*hangup)(struct tty_struct *tty);
+	void	(*hangup)(struct tty_struct *tty);
 
 	/*
 	 * The following routines are called from below.
