@@ -5766,6 +5766,69 @@ static inline void mlxsw_reg_pplr_pack(char *payload, u8 local_port,
 				 MLXSW_REG_PPLR_LB_TYPE_BIT_PHY_LOCAL : 0);
 }
 
+/* PMTDB - Port Module To local DataBase Register
+ * ----------------------------------------------
+ * The PMTDB register allows to query the possible module<->local port
+ * mapping than can be used in PMLP. It does not represent the actual/current
+ * mapping of the local to module. Actual mapping is only defined by PMLP.
+ */
+#define MLXSW_REG_PMTDB_ID 0x501A
+#define MLXSW_REG_PMTDB_LEN 0x40
+
+MLXSW_REG_DEFINE(pmtdb, MLXSW_REG_PMTDB_ID, MLXSW_REG_PMTDB_LEN);
+
+/* reg_pmtdb_slot_index
+ * Slot index (0: Main board).
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmtdb, slot_index, 0x00, 24, 4);
+
+/* reg_pmtdb_module
+ * Module number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmtdb, module, 0x00, 16, 8);
+
+/* reg_pmtdb_ports_width
+ * Port's width
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmtdb, ports_width, 0x00, 12, 4);
+
+/* reg_pmtdb_num_ports
+ * Number of ports in a single module (split/breakout)
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmtdb, num_ports, 0x00, 8, 4);
+
+enum mlxsw_reg_pmtdb_status {
+	MLXSW_REG_PMTDB_STATUS_SUCCESS,
+};
+
+/* reg_pmtdb_status
+ * Status
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, pmtdb, status, 0x00, 0, 4);
+
+/* reg_pmtdb_port_num
+ * The local_port value which can be assigned to the module.
+ * In case of more than one port, port<x> represent the /<x> port of
+ * the module.
+ * Access: RO
+ */
+MLXSW_ITEM16_INDEXED(reg, pmtdb, port_num, 0x04, 0, 8, 0x02, 0x00, false);
+
+static inline void mlxsw_reg_pmtdb_pack(char *payload, u8 slot_index, u8 module,
+					u8 ports_width, u8 num_ports)
+{
+	MLXSW_REG_ZERO(pmtdb, payload);
+	mlxsw_reg_pmtdb_slot_index_set(payload, slot_index);
+	mlxsw_reg_pmtdb_module_set(payload, module);
+	mlxsw_reg_pmtdb_ports_width_set(payload, ports_width);
+	mlxsw_reg_pmtdb_num_ports_set(payload, num_ports);
+}
+
 /* PMPE - Port Module Plug/Unplug Event Register
  * ---------------------------------------------
  * This register reports any operational status change of a module.
@@ -12247,6 +12310,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pspa),
 	MLXSW_REG(pmaos),
 	MLXSW_REG(pplr),
+	MLXSW_REG(pmtdb),
 	MLXSW_REG(pmpe),
 	MLXSW_REG(pddr),
 	MLXSW_REG(pllp),
