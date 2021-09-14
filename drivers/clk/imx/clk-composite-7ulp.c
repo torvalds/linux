@@ -131,7 +131,7 @@ static struct clk_hw *imx_ulp_clk_hw_composite(const char *name,
 				       mux_hw, &clk_mux_ops, fd_hw,
 				       &clk_fractional_divider_ops, gate_hw,
 				       has_swrst ? &pcc_gate_ops : &clk_gate_ops, CLK_SET_RATE_GATE |
-				       CLK_SET_PARENT_GATE);
+				       CLK_SET_PARENT_GATE | CLK_SET_RATE_NO_REPARENT);
 	if (IS_ERR(hw)) {
 		kfree(mux);
 		kfree(fd);
