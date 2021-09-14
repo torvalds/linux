@@ -279,7 +279,7 @@ int ip_cmsg_send(struct sock *sk, struct msghdr *msg, struct ipcm_cookie *ipc,
 		case IP_RETOPTS:
 			err = cmsg->cmsg_len - sizeof(struct cmsghdr);
 
-			/* Our caller is responsible for freeing ipc->opt when err = 0 */
+			/* Our caller is responsible for freeing ipc->opt */
 			err = ip_options_get(net, &ipc->opt,
 					     KERNEL_SOCKPTR(CMSG_DATA(cmsg)),
 					     err < 40 ? err : 40);
