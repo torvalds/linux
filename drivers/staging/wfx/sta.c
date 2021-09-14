@@ -169,19 +169,18 @@ static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 			if (wvif->vif->bss_conf.assoc && wvif->vif->bss_conf.ps)
 				dev_info(wvif->wdev->dev, "ignoring requested PS mode");
 			return -1;
-		} else {
-			/* It is necessary to enable PS if channels
-			 * are different.
-			 */
-			if (enable_ps)
-				*enable_ps = true;
-			if (wvif->wdev->force_ps_timeout > -1)
-				return wvif->wdev->force_ps_timeout;
-			else if (wfx_api_older_than(wvif->wdev, 3, 2))
-				return 0;
-			else
-				return 30;
 		}
+		/* It is necessary to enable PS if channels
+		 * are different.
+		 */
+		if (enable_ps)
+			*enable_ps = true;
+		if (wvif->wdev->force_ps_timeout > -1)
+			return wvif->wdev->force_ps_timeout;
+		else if (wfx_api_older_than(wvif->wdev, 3, 2))
+			return 0;
+		else
+			return 30;
 	}
 	if (enable_ps)
 		*enable_ps = wvif->vif->bss_conf.ps;
