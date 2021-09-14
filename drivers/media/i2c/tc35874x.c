@@ -41,6 +41,7 @@
 #include <linux/v4l2-dv-timings.h>
 #include <linux/hdmi.h>
 #include <linux/version.h>
+#include <linux/compat.h>
 #include <linux/rk-camera-module.h>
 #include <media/v4l2-dv-timings.h>
 #include <media/v4l2-device.h>
@@ -1517,7 +1518,7 @@ static int tc35874x_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 static irqreturn_t tc35874x_irq_handler(int irq, void *dev_id)
 {
 	struct tc35874x_state *state = dev_id;
-	bool handled;
+	bool handled = false;
 
 	tc35874x_isr(&state->sd, 0, &handled);
 
@@ -1660,11 +1661,11 @@ static int tc35874x_dv_timings_cap(struct v4l2_subdev *sd,
 }
 
 static int tc35874x_g_mbus_config(struct v4l2_subdev *sd,
-			     struct v4l2_mbus_config *cfg)
+				 unsigned int pad, struct v4l2_mbus_config *cfg)
 {
 	struct tc35874x_state *state = to_state(sd);
 
-	cfg->type = V4L2_MBUS_CSI2;
+	cfg->type = V4L2_MBUS_CSI2_DPHY;
 
 	/* Support for non-continuous CSI-2 clock is missing in the driver */
 	cfg->flags = V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
@@ -1997,8 +1998,11 @@ static long tc35874x_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = tc35874x_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(inf);
 		break;
 	case RKMODULE_AWB_CFG:
@@ -2011,6 +2015,8 @@ static long tc35874x_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(cfg, up, sizeof(*cfg));
 		if (!ret)
 			ret = tc35874x_ioctl(sd, cmd, cfg);
+		else
+			ret = -EFAULT;
 		kfree(cfg);
 		break;
 	default:
@@ -2048,7 +2054,6 @@ static const struct v4l2_subdev_video_ops tc35874x_video_ops = {
 	.s_dv_timings = tc35874x_s_dv_timings,
 	.g_dv_timings = tc35874x_g_dv_timings,
 	.query_dv_timings = tc35874x_query_dv_timings,
-	.g_mbus_config = tc35874x_g_mbus_config,
 	.s_stream = tc35874x_s_stream,
 	.g_frame_interval = tc35874x_g_frame_interval,
 };
@@ -2063,6 +2068,7 @@ static const struct v4l2_subdev_pad_ops tc35874x_pad_ops = {
 	.set_edid = tc35874x_s_edid,
 	.enum_dv_timings = tc35874x_enum_dv_timings,
 	.dv_timings_cap = tc35874x_dv_timings_cap,
+	.get_mbus_config = tc35874x_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops tc35874x_ops = {
@@ -2129,7 +2135,7 @@ static void tc35874x_gpio_reset(struct tc35874x_state *state)
 static int tc35874x_probe_of(struct tc35874x_state *state)
 {
 	struct device *dev = &state->i2c_client->dev;
-	struct v4l2_fwnode_endpoint *endpoint;
+	struct v4l2_fwnode_endpoint endpoint = { .bus_type = 0 };
 	struct device_node *ep;
 	struct clk *refclk;
 	u32 bps_pr_lane;
@@ -2149,21 +2155,21 @@ static int tc35874x_probe_of(struct tc35874x_state *state)
 		return -EINVAL;
 	}
 
-	endpoint = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(ep));
-	if (IS_ERR(endpoint)) {
+	ret = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(ep), &endpoint);
+	if (ret) {
 		dev_err(dev, "failed to parse endpoint\n");
-		return PTR_ERR(endpoint);
+		goto put_node;
 	}
 
-	if (endpoint->bus_type != V4L2_MBUS_CSI2 ||
-	    endpoint->bus.mipi_csi2.num_data_lanes == 0 ||
-	    endpoint->nr_of_link_frequencies == 0) {
+	if (endpoint.bus_type != V4L2_MBUS_CSI2_DPHY ||
+	    endpoint.bus.mipi_csi2.num_data_lanes == 0 ||
+	    endpoint.nr_of_link_frequencies == 0) {
 		dev_err(dev, "missing CSI-2 properties in endpoint\n");
 		goto free_endpoint;
 	}
 
-	state->csi_lanes_in_use = endpoint->bus.mipi_csi2.num_data_lanes;
-	state->bus = endpoint->bus.mipi_csi2;
+	state->csi_lanes_in_use = endpoint.bus.mipi_csi2.num_data_lanes;
+	state->bus = endpoint.bus.mipi_csi2;
 
 	ret = clk_prepare_enable(refclk);
 	if (ret) {
@@ -2196,7 +2202,7 @@ static int tc35874x_probe_of(struct tc35874x_state *state)
 	 * The CSI bps per lane must be between 62.5 Mbps and 1 Gbps.
 	 * The default is 594 Mbps for 4-lane 1080p60 or 2-lane 720p60.
 	 */
-	bps_pr_lane = 2 * endpoint->link_frequencies[0];
+	bps_pr_lane = 2 * endpoint.link_frequencies[0];
 	if (bps_pr_lane < 62500000U || bps_pr_lane > 1000000000U) {
 		dev_err(dev, "unsupported bps per lane: %u bps\n", bps_pr_lane);
 		goto disable_clk;
@@ -2242,7 +2248,9 @@ static int tc35874x_probe_of(struct tc35874x_state *state)
 disable_clk:
 	clk_disable_unprepare(refclk);
 free_endpoint:
-	v4l2_fwnode_endpoint_free(endpoint);
+	v4l2_fwnode_endpoint_free(&endpoint);
+put_node:
+	of_node_put(ep);
 	return ret;
 }
 #else
@@ -2501,5 +2509,5 @@ static void __exit tc35874x_driver_exit(void)
 	i2c_del_driver(&tc35874x_driver);
 }
 
-device_initcall_sync(tc35874x_driver_init);
+late_initcall_sync(tc35874x_driver_init);
 module_exit(tc35874x_driver_exit);
