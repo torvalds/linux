@@ -95,10 +95,11 @@ void analogix_dp_init_analog_param(struct analogix_dp_device *dp)
 			reg ^= REF_CLK_MASK;
 
 		analogix_dp_write(dp, ANALOGIX_DP_PLL_REG_1, reg);
-		analogix_dp_write(dp, ANALOGIX_DP_PLL_REG_2, 0x95);
+		analogix_dp_write(dp, ANALOGIX_DP_PLL_REG_2, 0x99);
 		analogix_dp_write(dp, ANALOGIX_DP_PLL_REG_3, 0x40);
 		analogix_dp_write(dp, ANALOGIX_DP_PLL_REG_4, 0x58);
 		analogix_dp_write(dp, ANALOGIX_DP_PLL_REG_5, 0x22);
+		analogix_dp_write(dp, ANALOGIX_DP_BIAS, 0x44);
 	}
 
 	reg = DRIVE_DVDD_BIT_1_0625V | VCO_BIT_600_MICRO;
