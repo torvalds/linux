@@ -49,6 +49,13 @@
  *  VERSION     : 01-00-09
  *  24 Aug 2021 : 1. Platform API supported
  *  VERSION     : 01-00-10
+ *  14 Sep 2021 : 1. Synchronization between ethtool vlan features
+ *  		  "rx-vlan-offload", "rx-vlan-filter", "tx-vlan-offload" output and register settings.
+ * 		  2. Added ethtool support to update "rx-vlan-offload", "rx-vlan-filter",
+ *  		  and "tx-vlan-offload".
+ * 		  3. Removed IOCTL TC956XMAC_VLAN_STRIP_CONFIG.
+ * 		  4. Removed "Disable VLAN Filter" option in IOCTL TC956XMAC_VLAN_FILTERING.
+ *  VERSION     : 01-00-13
  */
 
 #include <linux/clk.h>
@@ -3725,7 +3732,11 @@ static int tc956xmac_hw_setup(struct net_device *dev, bool init_ptp)
 	}
 
 	/* VLAN Tag Insertion */
+#ifndef TC956X
 	if (priv->dma_cap.vlins)
+#else
+	if ((priv->dma_cap.vlins) && (dev->features & NETIF_F_HW_VLAN_CTAG_TX))
+#endif
 		tc956xmac_enable_vlan(priv, priv->hw, TC956XMAC_VLAN_INSERT);
 
 	/* TBS */
@@ -4777,6 +4788,14 @@ dma_map_err:
 	return NETDEV_TX_OK;
 }
 
+#ifndef TC956X
+/**
+ *  tc956xmac_rx_vlan - Rx VLAN Stripping Function
+ *  @dev : device pointer
+ *  @skb : the socket buffer
+ *  Description : this function strips vlan id from the skb
+ *  before forwarding to application.
+ */
 static void tc956xmac_rx_vlan(struct net_device *dev, struct sk_buff *skb)
 {
 	struct vlan_ethhdr *veth;
@@ -4797,6 +4816,41 @@ static void tc956xmac_rx_vlan(struct net_device *dev, struct sk_buff *skb)
 		__vlan_hwaccel_put_tag(skb, vlan_proto, vlanid);
 	}
 }
+#else
+/**
+ *  tc956xmac_rx_vlan - Rx VLAN Stripping Function
+ *  @dev : device pointer
+ *  @rdesc : rx descriptor
+ *  @skb : the socket buffer
+ *  Description : this function extracts vlan id from the descriptor
+ *  stripped by MAC VLAN filter.
+ */
+static void tc956xmac_rx_vlan(struct net_device *dev, 
+				struct dma_desc *rdesc,
+				struct sk_buff *skb)
+{
+	u16 vlanid;
+	u32 err, etlt;
+
+	/* Check for error in descriptor */
+	err = XGMAC_GET_BITS_LE(rdesc->des3, XGMAC_RDES3, ES);
+	/* Check for L2 Packet Type Encoding */
+	etlt = XGMAC_GET_BITS_LE(rdesc->des3, XGMAC_RDES3, ETLT);
+	if (!err) {
+		/* No error if err is 0 or etlt is 0 */
+		/* Check packet type is Single CVLAN tag and 
+		netdev supports VLAN CTAG*/
+		if ((etlt == PKT_TYPE_SINGLE_CVLAN) &&
+		    (dev->features & NETIF_F_HW_VLAN_CTAG_RX)) {
+			vlanid = XGMAC_GET_BITS_LE(rdesc->des0,
+							XGMAC_RDES0,
+							OVT);
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+						vlanid);
+		}
+	}
+}
+#endif
 
 #ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
 static inline int tc956xmac_rx_threshold_count(struct tc956xmac_rx_queue *rx_q)
@@ -5092,7 +5146,11 @@ drain_data:
 		/* Got entire packet into SKB. Finish it. */
 
 		tc956xmac_get_rx_hwtstamp(priv, p, np, skb);
+#ifndef TC956X
 		tc956xmac_rx_vlan(priv->dev, skb);
+#else
+		tc956xmac_rx_vlan(priv->dev, p, skb);
+#endif
 		skb->protocol = eth_type_trans(skb, priv->dev);
 
 		if (unlikely(!coe))
@@ -5292,7 +5350,13 @@ static int tc956xmac_set_features(struct net_device *netdev,
 	struct tc956xmac_priv *priv = netdev_priv(netdev);
 	bool sph_en;
 	u32 chan;
+#ifdef TC956X
+	netdev_features_t txvlan, rxvlan, rxvlan_filter;
 
+	rxvlan = (netdev->features & NETIF_F_HW_VLAN_CTAG_RX);
+	txvlan = (netdev->features & NETIF_F_HW_VLAN_CTAG_TX);
+	rxvlan_filter = (netdev->features & NETIF_F_HW_VLAN_CTAG_FILTER);
+#endif
 	/* Keep the COE Type in case of csum is supporting */
 	if (features & NETIF_F_RXCSUM)
 		priv->hw->rx_csum = priv->plat->rx_coe;
@@ -5326,6 +5390,22 @@ static int tc956xmac_set_features(struct net_device *netdev,
 	for (chan = 0; chan < priv->plat->rx_queues_to_use; chan++)
 		tc956xmac_enable_sph(priv, priv->ioaddr, sph_en, chan);
 
+#ifdef TC956X
+	if ((features & NETIF_F_HW_VLAN_CTAG_RX) && !rxvlan)
+		tc956xmac_enable_rx_vlan_stripping(priv, priv->hw);
+	else if (!(features & NETIF_F_HW_VLAN_CTAG_RX) && rxvlan)
+		tc956xmac_disable_rx_vlan_stripping(priv, priv->hw);
+
+	if ((features & NETIF_F_HW_VLAN_CTAG_TX) && !txvlan)
+		tc956xmac_enable_vlan(priv, priv->hw, TC956XMAC_VLAN_INSERT);
+	else if (!(features & NETIF_F_HW_VLAN_CTAG_TX) && txvlan)
+		tc956xmac_disable_tx_vlan(priv, priv->hw);
+
+	if ((features & NETIF_F_HW_VLAN_CTAG_FILTER) && !rxvlan_filter)
+		tc956xmac_enable_rx_vlan_filtering(priv, priv->hw);
+	else if (!(features & NETIF_F_HW_VLAN_CTAG_FILTER) && rxvlan_filter)
+		tc956xmac_disable_rx_vlan_filtering(priv, priv->hw);
+#endif
 	return 0;
 }
 
@@ -6160,14 +6240,22 @@ static int tc956xmac_config_vlan_filter(struct tc956xmac_priv *priv, void __user
 	struct tc956xmac_ioctl_vlan_filter ioctl_data;
 	u32 reg_val;
 
+	if (!(priv->dev->features & NETIF_F_HW_VLAN_CTAG_FILTER))
+		return -EPERM;
+
 	if (copy_from_user(&ioctl_data, data, sizeof(ioctl_data)))
 		return -EFAULT;
 
+	/* Disabling VLAN is not supported */
+	if (ioctl_data.filter_enb_dis == 0)
+		return -EINVAL;
+
+#ifndef TC956X
 	/* configure the vlan filter */
 	reg_val = readl(priv->ioaddr + XGMAC_PACKET_FILTER);
 	reg_val =  (ioctl_data.filter_enb_dis << XGMAC_VLAN_VLC_SHIFT);
 	writel(reg_val, priv->ioaddr + XGMAC_PACKET_FILTER);
-
+#endif
 	reg_val = readl(priv->ioaddr + XGMAC_VLAN_TAG);
 	reg_val = (reg_val & (~XGMAC_VLANTR_VTIM)) |
 		  (ioctl_data.perfect_inverse_match << XGMAC_VLANTR_VTIM_LPOS);
@@ -6870,6 +6958,15 @@ static int tc956xmac_pcie_config_reg_wr(struct tc956xmac_priv *priv, void __user
 	return 0;
 }
 
+#ifndef TC956X
+/*!
+ * \brief IOCTL to enable/disable VLAN Rx Stripping
+ * \param[in] priv driver private structure
+ * \param[in] data user data
+ * \return -EFAULT in case of error, otherwise 0
+ * \description enable/disable stripping.
+ * Enable this function only if NETIF_F_HW_VLAN_CTAG_RX is user-configureable.
+ */
 static int tc956xmac_vlan_strip_config(struct tc956xmac_priv *priv, void __user *data)
 {
 	struct tc956xmac_ioctl_vlan_strip_cfg ioctl_data;
@@ -6899,6 +6996,7 @@ static int tc956xmac_vlan_strip_config(struct tc956xmac_priv *priv, void __user 
 	}
 	return 0;
 }
+#endif
 
 #ifdef TC956X
 #ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
@@ -8759,8 +8857,10 @@ static int tc956xmac_extension_ioctl(struct tc956xmac_priv *priv,
 	case TC956X_PCIE_GET_LTSSM_LOG:
 		return tc956x_pcie_ioctl_GetLTSSMLogD(priv, data);
 #endif /* #ifdef TC956X_PCIE_LOGSTAT */
+#ifndef TC956X
 	case TC956XMAC_VLAN_STRIP_CONFIG:
 		return tc956xmac_vlan_strip_config(priv, data);
+#endif
 #ifdef TC956X
 	case TC956XMAC_PCIE_LANE_CHANGE:
 		return tc956xmac_pcie_lane_change(priv, data);
@@ -9931,15 +10031,27 @@ int tc956xmac_dvr_probe(struct device *device,
 	ndev->watchdog_timeo = msecs_to_jiffies(watchdog);
 #ifdef TC956XMAC_VLAN_TAG_USED
 	/* Both mac100 and gmac support receive VLAN tag detection */
-	ndev->features |= NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_STAG_RX;
+	/* Driver only supports CTAG */
+	ndev->features &= ~NETIF_F_HW_VLAN_CTAG_RX; /* Disable rx-vlan-filter by default */
+	ndev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX; /* Support as User-changeable features */
+#ifndef TC956X
+	ndev->features |= NETIF_F_HW_VLAN_STAG_RX;
+#endif
 	if (priv->dma_cap.vlhash) {
-		ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+		/* Driver only supports CTAG */
+		ndev->features &= ~NETIF_F_HW_VLAN_CTAG_FILTER; /* Disable rx-vlan-offload by default */
+		ndev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER; /* Support as User-changeable features */
+#ifndef TC956X
 		ndev->features |= NETIF_F_HW_VLAN_STAG_FILTER;
+#endif
 	}
 	if (priv->dma_cap.vlins) {
-		ndev->features |= NETIF_F_HW_VLAN_CTAG_TX;
+		ndev->features |= NETIF_F_HW_VLAN_CTAG_TX; /* Enable tx-vlan-offload by default */
+		ndev->hw_features |= NETIF_F_HW_VLAN_CTAG_TX; /* Support as User-changeable features */
+#ifndef TC956X
 		if (priv->dma_cap.dvlan)
 			ndev->features |= NETIF_F_HW_VLAN_STAG_TX;
+#endif
 	}
 #endif
 	priv->mac_table =

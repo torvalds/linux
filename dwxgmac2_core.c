@@ -38,6 +38,13 @@
  *  VERSION     : 01-00-02
  *  22 Jul 2021 : 1. USXGMII/XFI/SGMII/RGMII interface supported with module parameters
  *  VERSION     : 01-00-04
+ *  14 Sep 2021 : 1. Synchronization between ethtool vlan features
+ *  		  "rx-vlan-offload", "rx-vlan-filter", "tx-vlan-offload" output and register settings.
+ * 		  2. Added ethtool support to update "rx-vlan-offload", "rx-vlan-filter",
+ *  		  and "tx-vlan-offload".
+ * 		  3. Removed IOCTL TC956XMAC_VLAN_STRIP_CONFIG.
+ * 		  4. Removed "Disable VLAN Filter" option in IOCTL TC956XMAC_VLAN_FILTERING.
+ *  VERSION     : 01-00-13
  */
 
 #include <linux/bitrev.h>
@@ -49,7 +56,18 @@
 
 static void tc956x_set_mac_addr(struct tc956xmac_priv *priv, struct mac_device_info *hw,
 				const u8 *mac, int index, int vf);
-
+#ifdef TC956X
+static void dwxgmac2_disable_tx_vlan(struct tc956xmac_priv *priv,
+				struct mac_device_info *hw);
+static void dwxgmac2_enable_rx_vlan_stripping(struct tc956xmac_priv *priv,
+				struct mac_device_info *hw);
+static void dwxgmac2_disable_rx_vlan_stripping(struct tc956xmac_priv *priv,
+				struct mac_device_info *hw);
+static void dwxgmac2_enable_rx_vlan_filtering(struct tc956xmac_priv *priv,
+				struct mac_device_info *hw);
+static void dwxgmac2_disable_rx_vlan_filtering(struct tc956xmac_priv *priv,
+				struct mac_device_info *hw);
+#endif
 
 static void dwxgmac2_core_init(struct tc956xmac_priv *priv,
 				struct mac_device_info *hw, struct net_device *dev)
@@ -941,6 +959,17 @@ static void dwxgmac2_set_filter(struct tc956xmac_priv *priv, struct mac_device_i
 
 		__dev_mc_sync(dev, tc956x_add_mac_addr, tc956x_delete_mac_addr);
 	}
+#ifdef TC956X
+	if (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
+		dwxgmac2_enable_rx_vlan_filtering(priv, hw);
+	else
+		dwxgmac2_disable_rx_vlan_filtering(priv, hw);
+
+	if (dev->features & NETIF_F_HW_VLAN_CTAG_RX)
+		dwxgmac2_enable_rx_vlan_stripping(priv, hw);
+	else
+		dwxgmac2_disable_rx_vlan_stripping(priv, hw);
+#endif
 }
 
 static void dwxgmac2_set_mac_loopback(struct tc956xmac_priv *priv,
@@ -2048,11 +2077,89 @@ static void dwxgmac2_enable_vlan(struct tc956xmac_priv *priv,
 
 	value = readl(ioaddr + XGMAC_VLAN_INCL);
 	value |= XGMAC_VLAN_VLTI;
-	value |= XGMAC_VLAN_CSVL; /* Only use SVLAN */
+	value &= ~XGMAC_VLAN_CSVL; /* Only use CVLAN */
+	if (priv->dev->features & NETIF_F_HW_VLAN_STAG_TX)
+		value |= XGMAC_VLAN_CSVL; /* Only use SVLAN */
 	value &= ~XGMAC_VLAN_VLC;
 	value |= (type << XGMAC_VLAN_VLC_SHIFT) & XGMAC_VLAN_VLC;
 	writel(value, ioaddr + XGMAC_VLAN_INCL);
 }
+#ifdef TC956X
+static void dwxgmac2_disable_tx_vlan(struct tc956xmac_priv *priv,
+				struct mac_device_info *hw)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	value = readl(ioaddr + XGMAC_VLAN_INCL);
+	value &= ~XGMAC_VLAN_VLTI;
+	value &= ~XGMAC_VLAN_VLC;
+	writel(value, ioaddr + XGMAC_VLAN_INCL);	
+}
+
+static void dwxgmac2_enable_rx_vlan_stripping(struct tc956xmac_priv *priv,
+				struct mac_device_info *hw)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	value = readl(ioaddr + XGMAC_VLAN_TAG_CTRL);
+	/* Put the VLAN tag in the Rx descriptor */
+	value |= XGMAC_VLAN_EVLRXS;
+
+	/* Don't check the VLAN type */
+	value |= XGMAC_VLAN_DOVLTC;
+
+	/* Check only C-TAG (0x8100) packets */
+	value &= ~XGMAC_VLAN_ERSVLM;
+
+	/* Don't consider an S-TAG (0x88A8) packet as a VLAN packet */
+	value &= ~XGMAC_VLAN_ESVL;
+
+	/* Enable VLAN tag stripping */
+	value |= XGMAC_VLAN_EVLS;
+	writel(value, ioaddr + XGMAC_VLAN_TAG_CTRL);
+}
+
+static void dwxgmac2_disable_rx_vlan_stripping(struct tc956xmac_priv *priv,
+				struct mac_device_info *hw)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	value = readl(ioaddr + XGMAC_VLAN_TAG_CTRL);
+	/* Disable VLAN tag stripping */
+	value &= ~XGMAC_VLAN_EVLS;
+	writel(value, ioaddr + XGMAC_VLAN_TAG_CTRL);
+}
+
+static void dwxgmac2_enable_rx_vlan_filtering(struct tc956xmac_priv *priv,
+				struct mac_device_info *hw)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	value = readl(ioaddr + XGMAC_PACKET_FILTER);
+	/* Enable VLAN filtering */
+	value |= XGMAC_FILTER_VTFE;
+	writel(value, ioaddr + XGMAC_PACKET_FILTER);
+
+	writel(value, ioaddr + XGMAC_VLAN_TAG_CTRL);
+}
+
+static void dwxgmac2_disable_rx_vlan_filtering(struct tc956xmac_priv *priv,
+				struct mac_device_info *hw)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	value = readl(ioaddr + XGMAC_PACKET_FILTER);
+	/* Enable VLAN filtering */
+	value &= ~XGMAC_FILTER_VTFE;
+	writel(value, ioaddr + XGMAC_PACKET_FILTER);
+}
+#endif
+
 #ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
 static int dwxgmac2_filter_wait(struct tc956xmac_priv *priv, struct mac_device_info *hw)
 {
@@ -2639,6 +2746,13 @@ const struct tc956xmac_ops dwxgmac210_ops = {
 	.sarc_configure = dwxgmac2_sarc_configure,
 #endif /* TC956X_UNSUPPORTED_UNTESTED_FEATURE */
 	.enable_vlan = dwxgmac2_enable_vlan,
+#ifdef TC956X
+	.disable_tx_vlan = dwxgmac2_disable_tx_vlan,
+	.enable_rx_vlan_stripping = dwxgmac2_enable_rx_vlan_stripping,
+	.disable_rx_vlan_stripping = dwxgmac2_disable_rx_vlan_stripping,
+	.enable_rx_vlan_filtering = dwxgmac2_enable_rx_vlan_filtering,
+	.disable_rx_vlan_filtering = dwxgmac2_disable_rx_vlan_filtering,
+#endif
 #ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
 	.config_l3_filter = dwxgmac2_config_l3_filter,
 	.config_l4_filter = dwxgmac2_config_l4_filter,

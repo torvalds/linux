@@ -30,6 +30,13 @@
  *
  *  15 Mar 2021 : Base lined
  *  VERSION     : 01-00
+ *  14 Sep 2021 : 1. Synchronization between ethtool vlan features
+ *  		  "rx-vlan-offload", "rx-vlan-filter", "tx-vlan-offload" output and register settings.
+ * 		  2. Added ethtool support to update "rx-vlan-offload", "rx-vlan-filter",
+ *  		  and "tx-vlan-offload".
+ * 		  3. Removed IOCTL TC956XMAC_VLAN_STRIP_CONFIG.
+ * 		  4. Removed "Disable VLAN Filter" option in IOCTL TC956XMAC_VLAN_FILTERING.
+ *  VERSION     : 01-00-13
  */
 
 #ifndef _IOCTL_H__
@@ -75,7 +82,9 @@ enum ioctl_commands {
 	TC956X_PCIE_GET_LOGSTAT_CONF = 0x1e, /* LOGSTAT : Read, Print and return LTSSM and AER Configuration */
 	TC956X_PCIE_GET_LTSSM_LOG    = 0x1f, /* LOGSTAT : Read, Print and return LTSSM Looging Data */
 #endif /* #ifdef TC956X_PCIE_LOGSTAT */
+#ifndef TC956X
 	TC956XMAC_VLAN_STRIP_CONFIG   = 0x22,
+#endif
 	TC956XMAC_PCIE_LANE_CHANGE	= 0x23,
 	TC956XMAC_PCIE_SET_TX_MARGIN	= 0x24,
 	TC956XMAC_PCIE_SET_TX_DEEMPHASIS	= 0x25, /*Enable or disable Tx de-emphasis*/
@@ -152,6 +161,7 @@ struct tc956xmac_ioctl_l2_da_filter {
 struct tc956xmac_ioctl_vlan_filter {
 	__u32 cmd;
 	/* 0 - disable and 1 - enable */
+	/* Please note 0 - disable is not supported */
 	int filter_enb_dis;
 	/* 0 - perfect and 1 - hash filtering */
 	int perfect_hash;
@@ -299,11 +309,12 @@ struct tc956x_ioctl_fwstatus {
 	__u32 fw_status;
 };
 
+#ifndef TC956X
 struct tc956xmac_ioctl_vlan_strip_cfg {
 	__u32 cmd;
 	__u32 enabled; /* 1 to enable stripping, 0 to disable stripping */
 };
-
+#endif
 enum lane_width {
 	LANE_1	= 1,
 	LANE_2	= 2,

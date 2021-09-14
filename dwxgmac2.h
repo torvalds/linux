@@ -32,6 +32,13 @@
  *  VERSION     : 01-00
  *  29 Jul 2021 : 1. Add support to set MAC Address register
  *  VERSION     : 01-00-07
+ *  14 Sep 2021 : 1. Synchronization between ethtool vlan features
+ *  		  "rx-vlan-offload", "rx-vlan-filter", "tx-vlan-offload" output and register settings.
+ * 		  2. Added ethtool support to update "rx-vlan-offload", "rx-vlan-filter",
+ *  		  and "tx-vlan-offload".
+ * 		  3. Removed IOCTL TC956XMAC_VLAN_STRIP_CONFIG.
+ * 		  4. Removed "Disable VLAN Filter" option in IOCTL TC956XMAC_VLAN_FILTERING.
+ *  VERSION     : 01-00-13
  */
 
 
@@ -113,6 +120,7 @@
 #define XGMAC_HASH_TAB_0_31		(MAC_OFFSET + 0x00000010)
 #define XGMAC_HASH_TAB_32_63		(MAC_OFFSET + 0x00000014)
 #define XGMAC_VLAN_TAG			(MAC_OFFSET + 0x00000050)
+#define XGMAC_VLAN_EVLRXS		BIT(24)
 #define XGMAC_VLAN_EDVLP		BIT(26)
 #define XGMAC_VLAN_ETV_LPOS		16
 #define XGMAC_VLAN_EVLS			GENMASK(22, 21)
@@ -122,6 +130,7 @@
 #define XGMAC_VLANTR_VTIM		BIT(17)
 #define XGMAC_VLANTR_VTIM_LPOS		(17)
 #define XGMAC_VLAN_DOVLTC		BIT(20)
+#define XGMAC_VLAN_ERSVLM		BIT(19)
 #define XGMAC_VLAN_ESVL		BIT(18)
 #define XGMAC_VLAN_ETV			BIT(16)
 #define XGMAC_VLAN_VID			GENMASK(15, 0)
@@ -692,5 +701,25 @@
 #define XGMAC_RDES3_PL			GENMASK(13, 0)
 #define XGMAC_RDES3_TSD		BIT(6)
 #define XGMAC_RDES3_TSA		BIT(4)
+
+#ifdef TC956X
+#define XGMAC_RDES0_OVT_INDEX		0
+#define XGMAC_RDES0_OVT_WIDTH		16
+#define XGMAC_RDES2_VF_INDEX		15
+#define XGMAC_RDES2_VF_WIDTH		1
+#define XGMAC_RDES3_ES_INDEX		15
+#define XGMAC_RDES3_ES_WIDTH		1
+#define XGMAC_RDES3_ETLT_INDEX		16
+#define XGMAC_RDES3_ETLT_WIDTH		4
+#define PKT_TYPE_SINGLE_CVLAN		0x09
+
+#define GET_BITS_LE(_var, _index, _width)				\
+	((le32_to_cpu((_var)) >> (_index)) & ((0x1 << (_width)) - 1))
+
+#define XGMAC_GET_BITS_LE(_var, _prefix, _field)			\
+	GET_BITS_LE((_var),						\
+		 _prefix##_##_field##_INDEX,				\
+		 _prefix##_##_field##_WIDTH)
+#endif
 
 #endif /* __TC956XMAC_DWXGMAC2_H__ */

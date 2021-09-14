@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 09 Sep 2021
+Release Date: 14 Sep 2021
 
-Release Version: V_01-00-12 : Limited-tested version
+Release Version: V_01-00-13 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -128,7 +128,29 @@ Formula:
 	
 	XXX_L0s_ENTRY_DELAY range: 1-31
 	XXX_L1_ENTRY_DELAY: 1-1023
-   
+
+9. To check vlan feature status execute:
+	ethtool -k <interface> | grep vlan
+
+To enable/disable following vlan features execute:
+	(a) rx-vlan-filter:
+		ethtool -K <interface> rx-vlan-filter <on|off>
+	(b) rx-vlan-offload:
+		ethtool -K <interface> rxvlan <on|off>
+	(c) tx-vlan-offload:
+		ethtool -K <interface> txvlan <on|off>
+
+Use following to configure VLAN:
+	(a) modprobe 8021q
+	(b) vconfig add <interface> <vlanid>
+	(c) vconfig set_flag <interface>.<vlanid> 1 0
+	(d) ifconfig <interface>.<vlanid> <ip> netmask 255.255.255.0 broadcast <ip mask> up
+
+Default Configuraton:
+	(a) Rx vlan filter is disabled.
+	(b) Rx valn offload (vlan stripping) is disabled.
+	(c) Tx vlan offload is enabled.
+
 # Release Versions:
 
 ## TC956X_Host_Driver_20210326_V_01-00:
@@ -194,3 +216,10 @@ Formula:
 ## TC956X_Host_Driver_20210909_V_01-00-12:
 
 1. Reverted changes related to usage of Port-0 pci_dev for all DMA allocation/mapping for IPA path
+
+## TC956X_Host_Driver_20210914_V_01-00-13:
+
+1. Synchronization between ethtool vlan features "rx-vlan-offload", "rx-vlan-filter", "tx-vlan-offload" output and register settings.
+2. Added ethtool support to update "rx-vlan-offload", "rx-vlan-filter", and "tx-vlan-offload".
+3. Removed IOCTL TC956XMAC_VLAN_STRIP_CONFIG.
+4. Removed "Disable VLAN Filter" option in IOCTL TC956XMAC_VLAN_FILTERING.
