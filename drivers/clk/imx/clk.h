@@ -47,6 +47,11 @@ enum imx_pllv4_type {
 	IMX_PLLV4_IMX8ULP,
 };
 
+enum imx_pfdv2_type {
+	IMX_PFDV2_IMX7ULP,
+	IMX_PFDV2_IMX8ULP,
+};
+
 /* NOTE: Rate table should be kept sorted in descending order. */
 struct imx_pll14xx_rate_table {
 	unsigned int rate;
@@ -270,8 +275,8 @@ struct clk_hw *imx_clk_hw_gate_exclusive(const char *name, const char *parent,
 struct clk_hw *imx_clk_hw_pfd(const char *name, const char *parent_name,
 		void __iomem *reg, u8 idx);
 
-struct clk_hw *imx_clk_hw_pfdv2(const char *name, const char *parent_name,
-			     void __iomem *reg, u8 idx);
+struct clk_hw *imx_clk_hw_pfdv2(enum imx_pfdv2_type type, const char *name,
+	 const char *parent_name, void __iomem *reg, u8 idx);
 
 struct clk_hw *imx_clk_hw_busy_divider(const char *name, const char *parent_name,
 				 void __iomem *reg, u8 shift, u8 width,

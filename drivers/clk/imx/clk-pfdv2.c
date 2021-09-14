@@ -200,8 +200,8 @@ static const struct clk_ops clk_pfdv2_ops = {
 	.is_enabled     = clk_pfdv2_is_enabled,
 };
 
-struct clk_hw *imx_clk_hw_pfdv2(const char *name, const char *parent_name,
-			     void __iomem *reg, u8 idx)
+struct clk_hw *imx_clk_hw_pfdv2(enum imx_pfdv2_type type, const char *name,
+			     const char *parent_name, void __iomem *reg, u8 idx)
 {
 	struct clk_init_data init;
 	struct clk_pfdv2 *pfd;
@@ -223,7 +223,10 @@ struct clk_hw *imx_clk_hw_pfdv2(const char *name, const char *parent_name,
 	init.ops = &clk_pfdv2_ops;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
-	init.flags = CLK_SET_RATE_GATE | CLK_SET_RATE_PARENT;
+	if (type == IMX_PFDV2_IMX7ULP)
+		init.flags = CLK_SET_RATE_GATE | CLK_SET_RATE_PARENT;
+	else
+		init.flags = CLK_SET_RATE_GATE;
 
 	pfd->hw.init = &init;
 
