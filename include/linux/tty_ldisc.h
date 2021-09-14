@@ -180,7 +180,6 @@ extern int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
 struct tty_ldisc_ops {
 	char	*name;
 	int	num;
-	int	flags;
 
 	/*
 	 * The following routines are called from above.
@@ -219,8 +218,6 @@ struct tty_ldisc {
 	struct tty_ldisc_ops *ops;
 	struct tty_struct *tty;
 };
-
-#define LDISC_FLAG_DEFINED	0x00000001
 
 #define MODULE_ALIAS_LDISC(ldisc) \
 	MODULE_ALIAS("tty-ldisc-" __stringify(ldisc))
