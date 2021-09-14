@@ -167,7 +167,7 @@
 #define CAL_RC_CLK_AUTO_VAL			1
 #define CAL_RC_CLK_MANUAL_VAL			2
 
-/* These registers are only applicable for PM5100 */
+/* These registers are only applicable for HAP520_MV */
 #define HAP_CFG_HW_CONFIG_REG			0x0D
 #define HV_HAP_DRIVER_BIT			BIT(1)
 
@@ -332,9 +332,13 @@ enum custom_effect_param {
 	CUSTOM_DATA_LEN,
 };
 
-enum pmic_type {
-	PM8350B,
-	PM5100,
+/*
+ * HW type of the haptics module, the type value follows the
+ * revision value of the HAPTICS_CFG/HAPTICS_PATTERN modules
+ */
+enum haptics_hw_type {
+	HAP520 = 0x2,  /* PM8350B */
+	HAP520_MV = 0x3,  /* PM5100 */
 };
 
 enum wa_flags {
@@ -494,7 +498,7 @@ struct haptics_chip {
 	u8				hpwr_intf_ctl;
 	u16				hbst_revision;
 	u16				max_vmax_mv;
-	enum pmic_type			pmic_type;
+	enum haptics_hw_type		hw_type;
 	bool				fifo_empty_irq_en;
 	bool				swr_slave_enabled;
 	bool				clamp_at_5v;
@@ -511,15 +515,15 @@ static inline int get_max_fifo_samples(struct haptics_chip *chip)
 {
 	int val = 0;
 
-	switch (chip->ptn_revision) {
-	case HAP_PTN_V2:
+	switch (chip->hw_type) {
+	case HAP520:
 		val = 640;
 		break;
-	case HAP_PTN_V3:
+	case HAP520_MV:
 		val = 1024;
 		break;
 	default:
-		pr_err("Invalid pattern revision\n");
+		pr_err("Invalid HW type\n");
 		break;
 	}
 
@@ -530,15 +534,15 @@ static int get_fifo_empty_threshold(struct haptics_chip *chip)
 {
 	int val = 0;
 
-	switch (chip->ptn_revision) {
-	case HAP_PTN_V2:
+	switch (chip->hw_type) {
+	case HAP520:
 		val = 280;
 		break;
-	case HAP_PTN_V3:
+	case HAP520_MV:
 		val = 288;
 		break;
 	default:
-		pr_err("Invalid pattern revision\n");
+		pr_err("Invalid HW type\n");
 		break;
 	}
 
@@ -549,15 +553,15 @@ static int get_fifo_threshold_per_bit(struct haptics_chip *chip)
 {
 	int val = -EINVAL;
 
-	switch (chip->ptn_revision) {
-	case HAP_PTN_V2:
+	switch (chip->hw_type) {
+	case HAP520:
 		val = 40;
 		break;
-	case HAP_PTN_V3:
+	case HAP520_MV:
 		val = 32;
 		break;
 	default:
-		pr_err("Invalid pattern revision\n");
+		pr_err("Invalid HW type\n");
 		break;
 	}
 
@@ -571,7 +575,7 @@ static bool is_haptics_external_powered(struct haptics_chip *chip)
 		return true;
 
 	/* Implicit voting by HW */
-	if (chip->pmic_type == PM5100)
+	if (chip->hw_type == HAP520_MV)
 		return true;
 
 	/* Powered by HBOOST */
@@ -900,7 +904,7 @@ static int haptics_get_closeloop_lra_period(
 
 	rc_clk_cal = ((val[0] & CAL_RC_CLK_MASK) >> CAL_RC_CLK_SHIFT);
 	/* read auto resonance calibration result */
-	if (in_boot && (chip->pmic_type == PM8350B)) {
+	if (in_boot && (chip->hw_type == HAP520)) {
 		if (chip->hap_cfg_nvmem == NULL) {
 			dev_dbg(chip->dev, "nvmem device for hap_cfg is not defined\n");
 			return -EINVAL;
@@ -1513,7 +1517,7 @@ static int haptics_get_fifo_fill_status(struct haptics_chip *chip, u32 *fill)
 	if (rc < 0)
 		return rc;
 
-	fill_status_mask = (chip->cfg_revision == HAP_CFG_V2) ?
+	fill_status_mask = (chip->hw_type == HAP520) ?
 			FIFO_REAL_TIME_FILL_STATUS_MSB_MASK_V2 :
 			FIFO_REAL_TIME_FILL_STATUS_MSB_MASK_V3;
 	*fill = ((val[0] & fill_status_mask) << 8) | val[1];
@@ -2358,15 +2362,15 @@ static int haptics_config_openloop_lra_period(struct haptics_chip *chip,
 
 static int haptics_config_wa(struct haptics_chip *chip)
 {
-	switch (chip->pmic_type) {
-	case PM8350B:
+	switch (chip->hw_type) {
+	case HAP520:
 		chip->wa_flags |= TOGGLE_CAL_RC_CLK;
 		break;
-	case PM5100:
+	case HAP520_MV:
 		break;
 	default:
-		dev_err(chip->dev, "PMIC type %d does not match\n",
-			chip->pmic_type);
+		dev_err(chip->dev, "HW type %d does not match\n",
+			chip->hw_type);
 		return -EINVAL;
 	}
 
@@ -2402,7 +2406,7 @@ static int haptics_hw_init(struct haptics_chip *chip)
 	chip->is_hv_haptics = true;
 	chip->max_vmax_mv = MAX_VMAX_MV;
 
-	if (chip->pmic_type == PM5100) {
+	if (chip->hw_type == HAP520_MV) {
 		rc = haptics_read(chip, chip->cfg_addr_base,
 			HAP_CFG_HW_CONFIG_REG, val, 1);
 		if (rc < 0)
@@ -2436,7 +2440,7 @@ static int haptics_hw_init(struct haptics_chip *chip)
 	if (rc < 0)
 		return rc;
 
-	if ((chip->pmic_type == PM5100) && !chip->hpwr_vreg) {
+	if ((chip->hw_type == HAP520_MV) && !chip->hpwr_vreg) {
 		/* Indicates if HPWR is BOB or Bharger */
 		rc = haptics_read(chip, chip->cfg_addr_base,
 			HAP_CFG_HPWR_INTF_CTL_REG, val, 1);
@@ -3644,9 +3648,13 @@ static int haptics_get_revision(struct haptics_chip *chip)
 
 	}
 
-	if (chip->cfg_revision == HAP_CFG_V1 ||
-			chip->ptn_revision == HAP_PTN_V1 ||
-			chip->hbst_revision == HAP_BOOST_V0P0) {
+	if ((chip->cfg_revision == HAP_CFG_V2) &&
+			(chip->ptn_revision == HAP_PTN_V2)) {
+		chip->hw_type = HAP520;
+	} else if ((chip->cfg_revision == HAP_CFG_V3) &&
+			(chip->ptn_revision == HAP_PTN_V3)) {
+		chip->hw_type = HAP520_MV;
+	} else {
 		dev_err(chip->dev, "haptics revision is not supported\n");
 		return -EOPNOTSUPP;
 	}
@@ -4325,8 +4333,8 @@ ATTRIBUTE_GROUPS(hap_class);
 
 static bool is_swr_supported(struct haptics_chip *chip)
 {
-	/* Haptics config version 3 does not support soundwire */
-	if (chip->cfg_revision == HAP_CFG_V3)
+	/* HAP520_MV does not support soundwire */
+	if (chip->hw_type == HAP520_MV)
 		return false;
 
 	return true;
@@ -4353,9 +4361,6 @@ static int haptics_probe(struct platform_device *pdev)
 		dev_err(chip->dev, "Get regmap failed\n");
 		return -ENXIO;
 	}
-
-	chip->pmic_type =
-	(enum pmic_type)(uintptr_t)of_device_get_match_data(chip->dev);
 
 	rc = haptics_parse_dt(chip);
 	if (rc < 0) {
@@ -4524,15 +4529,12 @@ static const struct dev_pm_ops haptics_pm_ops = {
 static const struct of_device_id haptics_match_table[] = {
 	{
 		.compatible = "qcom,hv-haptics",
-		.data = (void *)PM8350B,
 	},
 	{
 		.compatible = "qcom,pm8350b-haptics",
-		.data = (void *)PM8350B,
 	},
 	{
 		.compatible = "qcom,pm5100-haptics",
-		.data = (void *)PM5100,
 	},
 	{},
 };
