@@ -938,6 +938,8 @@ struct hclge_dev {
 	u16 priv_umv_size;
 	/* unicast mac vlan space shared by PF and its VFs */
 	u16 share_umv_size;
+	/* multicast mac address number used by PF and its VFs */
+	u16 used_mc_mac_num;
 
 	DECLARE_KFIFO(mac_tnl_log, struct hclge_mac_tnl_stats,
 		      HCLGE_MAC_TNL_LOG_SIZE);
