@@ -412,7 +412,7 @@ SYM_FUNC_END(__create_page_tables)
 	scs_load \tsk
 
 	adr_l	\tmp1, __per_cpu_offset
-	ldr	w\tmp2, [\tsk, #TSK_CPU]
+	ldr	w\tmp2, [\tsk, #TSK_TI_CPU]
 	ldr	\tmp1, [\tmp1, \tmp2, lsl #3]
 	set_this_cpu_offset \tmp1
 	.endm
