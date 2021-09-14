@@ -263,9 +263,8 @@ def add_exec_opts(parser) -> None:
 			    default=300,
 			    metavar='timeout')
 	parser.add_argument('filter_glob',
-			    help='maximum number of seconds to allow for all tests '
-			    'to run. This does not include time taken to build the '
-			    'tests.',
+			    help='Filter which KUnit test suites/tests run at '
+			    'boot-time, e.g. list* or list*.*del_test',
 			    type=str,
 			    nargs='?',
 			    default='',

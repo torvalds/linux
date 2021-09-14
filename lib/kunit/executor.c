@@ -17,21 +17,80 @@ extern struct kunit_suite * const * const __kunit_suites_end[];
 static char *filter_glob_param;
 module_param_named(filter_glob, filter_glob_param, charp, 0);
 MODULE_PARM_DESC(filter_glob,
-		"Filter which KUnit test suites run at boot-time, e.g. list*");
+		"Filter which KUnit test suites/tests run at boot-time, e.g. list* or list*.*del_test");
+
+/* glob_match() needs NULL terminated strings, so we need a copy of filter_glob_param. */
+struct kunit_test_filter {
+	char *suite_glob;
+	char *test_glob;
+};
+
+/* Split "suite_glob.test_glob" into two. Assumes filter_glob is not empty. */
+static void kunit_parse_filter_glob(struct kunit_test_filter *parsed,
+				    const char *filter_glob)
+{
+	const int len = strlen(filter_glob);
+	const char *period = strchr(filter_glob, '.');
+
+	if (!period) {
+		parsed->suite_glob = kmalloc(len, GFP_KERNEL);
+		parsed->test_glob = NULL;
+		strcpy(parsed->suite_glob, filter_glob);
+		return;
+	}
+
+	parsed->suite_glob = kzalloc(period - filter_glob + 1, GFP_KERNEL);
+	parsed->test_glob = kzalloc(len - (period - filter_glob) + 1, GFP_KERNEL);
+
+	strncpy(parsed->suite_glob, filter_glob, period - filter_glob);
+	strncpy(parsed->test_glob, period + 1, len - (period - filter_glob));
+}
+
+/* Create a copy of suite with only tests that match test_glob. */
+static struct kunit_suite *
+kunit_filter_tests(struct kunit_suite *const suite, const char *test_glob)
+{
+	int n = 0;
+	struct kunit_case *filtered, *test_case;
+	struct kunit_suite *copy;
+
+	kunit_suite_for_each_test_case(suite, test_case) {
+		if (!test_glob || glob_match(test_glob, test_case->name))
+			++n;
+	}
+
+	if (n == 0)
+		return NULL;
+
+	/* Use memcpy to workaround copy->name being const. */
+	copy = kmalloc(sizeof(*copy), GFP_KERNEL);
+	memcpy(copy, suite, sizeof(*copy));
+
+	filtered = kcalloc(n + 1, sizeof(*filtered), GFP_KERNEL);
+
+	n = 0;
+	kunit_suite_for_each_test_case(suite, test_case) {
+		if (!test_glob || glob_match(test_glob, test_case->name))
+			filtered[n++] = *test_case;
+	}
+
+	copy->test_cases = filtered;
+	return copy;
+}
 
 static char *kunit_shutdown;
 core_param(kunit_shutdown, kunit_shutdown, charp, 0644);
 
 static struct kunit_suite * const *
 kunit_filter_subsuite(struct kunit_suite * const * const subsuite,
-			const char *filter_glob)
+		      struct kunit_test_filter *filter)
 {
 	int i, n = 0;
-	struct kunit_suite **filtered;
+	struct kunit_suite **filtered, *filtered_suite;
 
 	n = 0;
-	for (i = 0; subsuite[i] != NULL; ++i) {
-		if (glob_match(filter_glob, subsuite[i]->name))
+	for (i = 0; subsuite[i]; ++i) {
+		if (glob_match(filter->suite_glob, subsuite[i]->name))
 			++n;
 	}
 
@@ -44,8 +103,11 @@ kunit_filter_subsuite(struct kunit_suite * const * const subsuite,
 
 	n = 0;
 	for (i = 0; subsuite[i] != NULL; ++i) {
-		if (glob_match(filter_glob, subsuite[i]->name))
-			filtered[n++] = subsuite[i];
+		if (!glob_match(filter->suite_glob, subsuite[i]->name))
+			continue;
+		filtered_suite = kunit_filter_tests(subsuite[i], filter->test_glob);
+		if (filtered_suite)
+			filtered[n++] = filtered_suite;
 	}
 	filtered[n] = NULL;
 
@@ -57,12 +119,32 @@ struct suite_set {
 	struct kunit_suite * const * const *end;
 };
 
+static void kunit_free_subsuite(struct kunit_suite * const *subsuite)
+{
+	unsigned int i;
+
+	for (i = 0; subsuite[i]; i++)
+		kfree(subsuite[i]);
+
+	kfree(subsuite);
+}
+
+static void kunit_free_suite_set(struct suite_set suite_set)
+{
+	struct kunit_suite * const * const *suites;
+
+	for (suites = suite_set.start; suites < suite_set.end; suites++)
+		kunit_free_subsuite(*suites);
+	kfree(suite_set.start);
+}
+
 static struct suite_set kunit_filter_suites(const struct suite_set *suite_set,
 					    const char *filter_glob)
 {
 	int i;
 	struct kunit_suite * const **copy, * const *filtered_subsuite;
 	struct suite_set filtered;
+	struct kunit_test_filter filter;
 
 	const size_t max = suite_set->end - suite_set->start;
 
@@ -73,12 +155,17 @@ static struct suite_set kunit_filter_suites(const struct suite_set *suite_set,
 		return filtered;
 	}
 
+	kunit_parse_filter_glob(&filter, filter_glob);
+
 	for (i = 0; i < max; ++i) {
-		filtered_subsuite = kunit_filter_subsuite(suite_set->start[i], filter_glob);
+		filtered_subsuite = kunit_filter_subsuite(suite_set->start[i], &filter);
 		if (filtered_subsuite)
 			*copy++ = filtered_subsuite;
 	}
 	filtered.end = copy;
+
+	kfree(filter.suite_glob);
+	kfree(filter.test_glob);
 	return filtered;
 }
 
@@ -126,9 +213,7 @@ int kunit_run_all_tests(void)
 		__kunit_test_suites_init(*suites);
 
 	if (filter_glob_param) { /* a copy was made of each array */
-		for (suites = suite_set.start; suites < suite_set.end; suites++)
-			kfree(*suites);
-		kfree(suite_set.start);
+		kunit_free_suite_set(suite_set);
 	}
 
 	kunit_handle_shutdown();
