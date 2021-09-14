@@ -295,7 +295,7 @@ exit:
 	return r;
 }
 
-static struct nfc_vendor_cmd st21nfca_vendor_cmds[] = {
+static const struct nfc_vendor_cmd st21nfca_vendor_cmds[] = {
 	{
 		.vendor_id = ST21NFCA_VENDOR_OUI,
 		.subcmd = FACTORY_MODE,

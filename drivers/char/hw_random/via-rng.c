@@ -192,7 +192,7 @@ static struct hwrng via_rng = {
 };
 
 
-static int __init mod_init(void)
+static int __init via_rng_mod_init(void)
 {
 	int err;
 
@@ -209,13 +209,13 @@ static int __init mod_init(void)
 out:
 	return err;
 }
-module_init(mod_init);
+module_init(via_rng_mod_init);
 
-static void __exit mod_exit(void)
+static void __exit via_rng_mod_exit(void)
 {
 	hwrng_unregister(&via_rng);
 }
-module_exit(mod_exit);
+module_exit(via_rng_mod_exit);
 
 static struct x86_cpu_id __maybe_unused via_rng_cpu_id[] = {
 	X86_MATCH_FEATURE(X86_FEATURE_XSTORE, NULL),

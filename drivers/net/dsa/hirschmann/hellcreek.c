@@ -912,6 +912,7 @@ static int hellcreek_fdb_dump(struct dsa_switch *ds, int port,
 {
 	struct hellcreek *hellcreek = ds->priv;
 	u16 entries;
+	int ret = 0;
 	size_t i;
 
 	mutex_lock(&hellcreek->reg_lock);
@@ -943,12 +944,14 @@ static int hellcreek_fdb_dump(struct dsa_switch *ds, int port,
 		if (!(entry.portmask & BIT(port)))
 			continue;
 
-		cb(entry.mac, 0, entry.is_static, data);
+		ret = cb(entry.mac, 0, entry.is_static, data);
+		if (ret)
+			break;
 	}
 
 	mutex_unlock(&hellcreek->reg_lock);
 
-	return 0;
+	return ret;
 }
 
 static int hellcreek_vlan_filtering(struct dsa_switch *ds, int port,
@@ -1342,6 +1345,7 @@ static int hellcreek_setup(struct dsa_switch *ds)
 	 * filtering setups are not supported.
 	 */
 	ds->vlan_filtering_is_global = true;
+	ds->needs_standalone_vlan_filtering = true;
 
 	/* Intercept _all_ PTP multicast traffic */
 	ret = hellcreek_setup_fdb(hellcreek);
@@ -1469,9 +1473,6 @@ static void hellcreek_setup_gcl(struct hellcreek *hellcreek, int port,
 		u16 data;
 		u8 gates;
 
-		cur++;
-		next++;
-
 		if (i == schedule->num_entries)
 			gates = initial->gate_mask ^
 				cur->gate_mask;
@@ -1500,6 +1501,9 @@ static void hellcreek_setup_gcl(struct hellcreek *hellcreek, int port,
 			(initial->gate_mask <<
 			 TR_GCLCMD_INIT_GATE_STATES_SHIFT);
 		hellcreek_write(hellcreek, data, TR_GCLCMD);
+
+		cur++;
+		next++;
 	}
 }
 
@@ -1547,7 +1551,7 @@ static bool hellcreek_schedule_startable(struct hellcreek *hellcreek, int port)
 	/* Calculate difference to admin base time */
 	base_time_ns = ktime_to_ns(hellcreek_port->current_schedule->base_time);
 
-	return base_time_ns - current_ns < (s64)8 * NSEC_PER_SEC;
+	return base_time_ns - current_ns < (s64)4 * NSEC_PER_SEC;
 }
 
 static void hellcreek_start_schedule(struct hellcreek *hellcreek, int port)

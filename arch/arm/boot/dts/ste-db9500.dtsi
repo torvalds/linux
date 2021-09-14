@@ -5,11 +5,10 @@
 / {
 	cpus {
 		cpu@300 {
-			/* cpufreq controls */
-			operating-points = <1152000 0
-					    800000 0
-					    400000 0
-					    200000 0>;
+			operating-points = <998400 0
+					    798720 0
+					    399360 0
+					    199680 0>;
 		};
 	};
 

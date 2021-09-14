@@ -108,6 +108,7 @@
 #include "amdgpu_df.h"
 #include "amdgpu_smuio.h"
 #include "amdgpu_fdinfo.h"
+#include "amdgpu_mca.h"
 
 #define MAX_GPU_INSTANCE		16
 
@@ -916,6 +917,7 @@ struct amdgpu_device {
 
 	/* display */
 	bool				enable_virtual_display;
+	struct amdgpu_vkms_output       *amdgpu_vkms_output;
 	struct amdgpu_mode_info		mode_info;
 	/* For pre-DCE11. DCE11 and later are in "struct amdgpu_device->dm" */
 	struct work_struct		hotplug_work;
@@ -1007,6 +1009,9 @@ struct amdgpu_device {
 
 	/* df */
 	struct amdgpu_df                df;
+
+	/* MCA */
+	struct amdgpu_mca               mca;
 
 	struct amdgpu_ip_block          ip_blocks[AMDGPU_MAX_IP_NUM];
 	uint32_t		        harvest_ip_mask;
@@ -1269,6 +1274,8 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 #define amdgpu_asic_query_video_codecs(adev, e, c) (adev)->asic_funcs->query_video_codecs((adev), (e), (c))
 
 #define amdgpu_inc_vram_lost(adev) atomic_inc(&((adev)->vram_lost_counter));
+
+#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
 
 /* Common functions */
 bool amdgpu_device_has_job_running(struct amdgpu_device *adev);

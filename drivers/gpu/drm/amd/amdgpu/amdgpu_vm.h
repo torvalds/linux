@@ -408,7 +408,7 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 				struct dma_fence **fence, bool *free_table);
 int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 			struct amdgpu_bo_va *bo_va,
-			bool clear);
+			bool clear, bool *table_freed);
 bool amdgpu_vm_evictable(struct amdgpu_bo *bo);
 void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 			     struct amdgpu_bo *bo, bool evicted);
@@ -448,7 +448,7 @@ void amdgpu_vm_check_compute_bug(struct amdgpu_device *adev);
 void amdgpu_vm_get_task_info(struct amdgpu_device *adev, u32 pasid,
 			     struct amdgpu_task_info *task_info);
 bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
-			    uint64_t addr);
+			    uint64_t addr, bool write_fault);
 
 void amdgpu_vm_set_task_info(struct amdgpu_vm *vm);
 

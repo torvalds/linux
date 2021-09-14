@@ -30,14 +30,10 @@
 #include "i915_gem_context.h"
 #include "i915_gem_mman.h"
 #include "i915_gem_object.h"
-#include "i915_globals.h"
 #include "i915_memcpy.h"
 #include "i915_trace.h"
 
-static struct i915_global_object {
-	struct i915_global base;
-	struct kmem_cache *slab_objects;
-} global;
+static struct kmem_cache *slab_objects;
 
 static const struct drm_gem_object_funcs i915_gem_object_funcs;
 
@@ -45,7 +41,7 @@ struct drm_i915_gem_object *i915_gem_object_alloc(void)
 {
 	struct drm_i915_gem_object *obj;
 
-	obj = kmem_cache_zalloc(global.slab_objects, GFP_KERNEL);
+	obj = kmem_cache_zalloc(slab_objects, GFP_KERNEL);
 	if (!obj)
 		return NULL;
 	obj->base.funcs = &i915_gem_object_funcs;
@@ -55,7 +51,7 @@ struct drm_i915_gem_object *i915_gem_object_alloc(void)
 
 void i915_gem_object_free(struct drm_i915_gem_object *obj)
 {
-	return kmem_cache_free(global.slab_objects, obj);
+	return kmem_cache_free(slab_objects, obj);
 }
 
 void i915_gem_object_init(struct drm_i915_gem_object *obj,
@@ -475,34 +471,200 @@ bool i915_gem_object_migratable(struct drm_i915_gem_object *obj)
 	return obj->mm.n_placements > 1;
 }
 
+/**
+ * i915_gem_object_has_struct_page - Whether the object is page-backed
+ * @obj: The object to query.
+ *
+ * This function should only be called while the object is locked or pinned,
+ * otherwise the page backing may change under the caller.
+ *
+ * Return: True if page-backed, false otherwise.
+ */
+bool i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
+{
+#ifdef CONFIG_LOCKDEP
+	if (IS_DGFX(to_i915(obj->base.dev)) &&
+	    i915_gem_object_evictable((void __force *)obj))
+		assert_object_held_shared(obj);
+#endif
+	return obj->mem_flags & I915_BO_FLAG_STRUCT_PAGE;
+}
+
+/**
+ * i915_gem_object_has_iomem - Whether the object is iomem-backed
+ * @obj: The object to query.
+ *
+ * This function should only be called while the object is locked or pinned,
+ * otherwise the iomem backing may change under the caller.
+ *
+ * Return: True if iomem-backed, false otherwise.
+ */
+bool i915_gem_object_has_iomem(const struct drm_i915_gem_object *obj)
+{
+#ifdef CONFIG_LOCKDEP
+	if (IS_DGFX(to_i915(obj->base.dev)) &&
+	    i915_gem_object_evictable((void __force *)obj))
+		assert_object_held_shared(obj);
+#endif
+	return obj->mem_flags & I915_BO_FLAG_IOMEM;
+}
+
+/**
+ * i915_gem_object_can_migrate - Whether an object likely can be migrated
+ *
+ * @obj: The object to migrate
+ * @id: The region intended to migrate to
+ *
+ * Check whether the object backend supports migration to the
+ * given region. Note that pinning may affect the ability to migrate as
+ * returned by this function.
+ *
+ * This function is primarily intended as a helper for checking the
+ * possibility to migrate objects and might be slightly less permissive
+ * than i915_gem_object_migrate() when it comes to objects with the
+ * I915_BO_ALLOC_USER flag set.
+ *
+ * Return: true if migration is possible, false otherwise.
+ */
+bool i915_gem_object_can_migrate(struct drm_i915_gem_object *obj,
+				 enum intel_region_id id)
+{
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	unsigned int num_allowed = obj->mm.n_placements;
+	struct intel_memory_region *mr;
+	unsigned int i;
+
+	GEM_BUG_ON(id >= INTEL_REGION_UNKNOWN);
+	GEM_BUG_ON(obj->mm.madv != I915_MADV_WILLNEED);
+
+	mr = i915->mm.regions[id];
+	if (!mr)
+		return false;
+
+	if (obj->mm.region == mr)
+		return true;
+
+	if (!i915_gem_object_evictable(obj))
+		return false;
+
+	if (!obj->ops->migrate)
+		return false;
+
+	if (!(obj->flags & I915_BO_ALLOC_USER))
+		return true;
+
+	if (num_allowed == 0)
+		return false;
+
+	for (i = 0; i < num_allowed; ++i) {
+		if (mr == obj->mm.placements[i])
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * i915_gem_object_migrate - Migrate an object to the desired region id
+ * @obj: The object to migrate.
+ * @ww: An optional struct i915_gem_ww_ctx. If NULL, the backend may
+ * not be successful in evicting other objects to make room for this object.
+ * @id: The region id to migrate to.
+ *
+ * Attempt to migrate the object to the desired memory region. The
+ * object backend must support migration and the object may not be
+ * pinned, (explicitly pinned pages or pinned vmas). The object must
+ * be locked.
+ * On successful completion, the object will have pages pointing to
+ * memory in the new region, but an async migration task may not have
+ * completed yet, and to accomplish that, i915_gem_object_wait_migration()
+ * must be called.
+ *
+ * Note: the @ww parameter is not used yet, but included to make sure
+ * callers put some effort into obtaining a valid ww ctx if one is
+ * available.
+ *
+ * Return: 0 on success. Negative error code on failure. In particular may
+ * return -ENXIO on lack of region space, -EDEADLK for deadlock avoidance
+ * if @ww is set, -EINTR or -ERESTARTSYS if signal pending, and
+ * -EBUSY if the object is pinned.
+ */
+int i915_gem_object_migrate(struct drm_i915_gem_object *obj,
+			    struct i915_gem_ww_ctx *ww,
+			    enum intel_region_id id)
+{
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	struct intel_memory_region *mr;
+
+	GEM_BUG_ON(id >= INTEL_REGION_UNKNOWN);
+	GEM_BUG_ON(obj->mm.madv != I915_MADV_WILLNEED);
+	assert_object_held(obj);
+
+	mr = i915->mm.regions[id];
+	GEM_BUG_ON(!mr);
+
+	if (!i915_gem_object_can_migrate(obj, id))
+		return -EINVAL;
+
+	if (!obj->ops->migrate) {
+		if (GEM_WARN_ON(obj->mm.region != mr))
+			return -EINVAL;
+		return 0;
+	}
+
+	return obj->ops->migrate(obj, mr);
+}
+
+/**
+ * i915_gem_object_placement_possible - Check whether the object can be
+ * placed at certain memory type
+ * @obj: Pointer to the object
+ * @type: The memory type to check
+ *
+ * Return: True if the object can be placed in @type. False otherwise.
+ */
+bool i915_gem_object_placement_possible(struct drm_i915_gem_object *obj,
+					enum intel_memory_type type)
+{
+	unsigned int i;
+
+	if (!obj->mm.n_placements) {
+		switch (type) {
+		case INTEL_MEMORY_LOCAL:
+			return i915_gem_object_has_iomem(obj);
+		case INTEL_MEMORY_SYSTEM:
+			return i915_gem_object_has_pages(obj);
+		default:
+			/* Ignore stolen for now */
+			GEM_BUG_ON(1);
+			return false;
+		}
+	}
+
+	for (i = 0; i < obj->mm.n_placements; i++) {
+		if (obj->mm.placements[i]->type == type)
+			return true;
+	}
+
+	return false;
+}
+
 void i915_gem_init__objects(struct drm_i915_private *i915)
 {
 	INIT_WORK(&i915->mm.free_work, __i915_gem_free_work);
 }
 
-static void i915_global_objects_shrink(void)
+void i915_objects_module_exit(void)
 {
-	kmem_cache_shrink(global.slab_objects);
+	kmem_cache_destroy(slab_objects);
 }
 
-static void i915_global_objects_exit(void)
+int __init i915_objects_module_init(void)
 {
-	kmem_cache_destroy(global.slab_objects);
-}
-
-static struct i915_global_object global = { {
-	.shrink = i915_global_objects_shrink,
-	.exit = i915_global_objects_exit,
-} };
-
-int __init i915_global_objects_init(void)
-{
-	global.slab_objects =
-		KMEM_CACHE(drm_i915_gem_object, SLAB_HWCACHE_ALIGN);
-	if (!global.slab_objects)
+	slab_objects = KMEM_CACHE(drm_i915_gem_object, SLAB_HWCACHE_ALIGN);
+	if (!slab_objects)
 		return -ENOMEM;
 
-	i915_global_register(&global.base);
 	return 0;
 }
 
@@ -515,6 +677,7 @@ static const struct drm_gem_object_funcs i915_gem_object_funcs = {
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/huge_gem_object.c"
 #include "selftests/huge_pages.c"
+#include "selftests/i915_gem_migrate.c"
 #include "selftests/i915_gem_object.c"
 #include "selftests/i915_gem_coherency.c"
 #endif

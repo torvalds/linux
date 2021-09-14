@@ -54,11 +54,12 @@ static inline void amdgpu_res_first(struct ttm_resource *res,
 {
 	struct drm_mm_node *node;
 
-	if (!res) {
+	if (!res || res->mem_type == TTM_PL_SYSTEM) {
 		cur->start = start;
 		cur->size = size;
 		cur->remaining = size;
 		cur->node = NULL;
+		WARN_ON(res && start + size > res->num_pages << PAGE_SHIFT);
 		return;
 	}
 

@@ -375,8 +375,8 @@ try_again:
 		 * heartbeat check but is still alive and will process this
 		 * request, so don't clean the dev_cmd in this case.
 		 */
-		dev_warn(ionic->dev, "DEVCMD %s (%d) failed - FW halted\n",
-			 ionic_opcode_to_str(opcode), opcode);
+		dev_dbg(ionic->dev, "DEVCMD %s (%d) failed - FW halted\n",
+			ionic_opcode_to_str(opcode), opcode);
 		return -ENXIO;
 	}
 
@@ -449,6 +449,8 @@ int ionic_identify(struct ionic *ionic)
 		memcpy_fromio(&ident->dev, &idev->dev_cmd_regs->data, sz);
 	}
 	mutex_unlock(&ionic->dev_cmd_lock);
+
+	dev_info(ionic->dev, "FW: %s\n", idev->dev_info.fw_version);
 
 	if (err) {
 		dev_err(ionic->dev, "Cannot identify ionic: %dn", err);

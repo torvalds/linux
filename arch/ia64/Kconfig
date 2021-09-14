@@ -9,6 +9,8 @@ menu "Processor type and features"
 config IA64
 	bool
 	select ARCH_HAS_DMA_MARK_CLEAN
+	select ARCH_HAS_STRNCPY_FROM_USER
+	select ARCH_HAS_STRNLEN_USER
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select ACPI
@@ -25,7 +27,6 @@ config IA64
 	select HAVE_ASM_MODVERSIONS
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_EXIT_THREAD
-	select HAVE_IDE
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_FTRACE_MCOUNT_RECORD

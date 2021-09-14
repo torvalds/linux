@@ -1561,7 +1561,7 @@ bool dc_link_dp_perform_link_training_skip_aux(
 	struct dc_link *link,
 	const struct dc_link_settings *link_setting)
 {
-	struct link_training_settings lt_settings;
+	struct link_training_settings lt_settings = {0};
 
 	dp_decide_training_settings(
 			link,
@@ -1707,7 +1707,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 	bool skip_video_pattern)
 {
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
-	struct link_training_settings lt_settings;
+	struct link_training_settings lt_settings = {0};
 	enum dp_link_encoding encoding =
 			dp_get_link_encoding_format(link_settings);
 
@@ -1923,7 +1923,7 @@ enum link_training_result dc_link_dp_sync_lt_attempt(
     struct dc_link_settings *link_settings,
     struct dc_link_training_overrides *lt_overrides)
 {
-	struct link_training_settings lt_settings;
+	struct link_training_settings lt_settings = {0};
 	enum link_training_result lt_status = LINK_TRAINING_SUCCESS;
 	enum dp_panel_mode panel_mode = DP_PANEL_MODE_DEFAULT;
 	enum clock_source_id dp_cs_id = CLOCK_SOURCE_ID_EXTERNAL;
@@ -3595,29 +3595,12 @@ static bool dpcd_read_sink_ext_caps(struct dc_link *link)
 bool dp_retrieve_lttpr_cap(struct dc_link *link)
 {
 	uint8_t lttpr_dpcd_data[6];
-	bool vbios_lttpr_enable = false;
-	bool vbios_lttpr_interop = false;
-	struct dc_bios *bios = link->dc->ctx->dc_bios;
+	bool vbios_lttpr_enable = link->dc->caps.vbios_lttpr_enable;
+	bool vbios_lttpr_interop = link->dc->caps.vbios_lttpr_aware;
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	bool is_lttpr_present = false;
 
 	memset(lttpr_dpcd_data, '\0', sizeof(lttpr_dpcd_data));
-	/* Query BIOS to determine if LTTPR functionality is forced on by system */
-	if (bios->funcs->get_lttpr_caps) {
-		enum bp_result bp_query_result;
-		uint8_t is_vbios_lttpr_enable = 0;
-
-		bp_query_result = bios->funcs->get_lttpr_caps(bios, &is_vbios_lttpr_enable);
-		vbios_lttpr_enable = (bp_query_result == BP_RESULT_OK) && !!is_vbios_lttpr_enable;
-	}
-
-	if (bios->funcs->get_lttpr_interop) {
-		enum bp_result bp_query_result;
-		uint8_t is_vbios_interop_enabled = 0;
-
-		bp_query_result = bios->funcs->get_lttpr_interop(bios, &is_vbios_interop_enabled);
-		vbios_lttpr_interop = (bp_query_result == BP_RESULT_OK) && !!is_vbios_interop_enabled;
-	}
 
 	/*
 	 * Logic to determine LTTPR mode

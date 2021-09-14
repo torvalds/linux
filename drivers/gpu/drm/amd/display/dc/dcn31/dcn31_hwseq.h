@@ -44,6 +44,7 @@ void dcn31_enable_power_gating_plane(
 void dcn31_update_info_frame(struct pipe_ctx *pipe_ctx);
 
 void dcn31_z10_restore(struct dc *dc);
+void dcn31_z10_save_init(struct dc *dc);
 
 void dcn31_hubp_pg_control(struct dce_hwseq *hws, unsigned int hubp_inst, bool power_on);
 int dcn31_init_sys_ctx(struct dce_hwseq *hws, struct dc *dc, struct dc_phy_addr_space_config *pa_config);

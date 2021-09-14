@@ -130,8 +130,6 @@ config ARM64
 	select GENERIC_PTDUMP
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_SMP_IDLE_THREAD
-	select GENERIC_STRNCPY_FROM_USER
-	select GENERIC_STRNLEN_USER
 	select GENERIC_TIME_VSYSCALL
 	select GENERIC_GETTIMEOFDAY
 	select GENERIC_VDSO_TIME_NS
@@ -156,6 +154,7 @@ config ARM64
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_MMAP_RND_BITS
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if COMPAT
+	select HAVE_ARCH_PFN_VALID
 	select HAVE_ARCH_PREL32_RELOCATIONS
 	select HAVE_ARCH_RANDOMIZE_KSTACK_OFFSET
 	select HAVE_ARCH_SECCOMP_FILTER
@@ -221,6 +220,7 @@ config ARM64
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
 	select HAVE_ARCH_USERFAULTFD_MINOR if USERFAULTFD
+	select TRACE_IRQFLAGS_SUPPORT
 	help
 	  ARM 64-bit (AArch64) Linux support.
 
@@ -286,9 +286,6 @@ config ILLEGAL_POINTER_VALUE
 	default 0xdead000000000000
 
 config LOCKDEP_SUPPORT
-	def_bool y
-
-config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 
 config GENERIC_BUG
@@ -1800,11 +1797,11 @@ config RANDOMIZE_BASE
 	  If unsure, say N.
 
 config RANDOMIZE_MODULE_REGION_FULL
-	bool "Randomize the module region over a 4 GB range"
+	bool "Randomize the module region over a 2 GB range"
 	depends on RANDOMIZE_BASE
 	default y
 	help
-	  Randomizes the location of the module region inside a 4 GB window
+	  Randomizes the location of the module region inside a 2 GB window
 	  covering the core kernel. This way, it is less likely for modules
 	  to leak information about the location of core kernel data structures
 	  but it does imply that function calls between modules and the core
@@ -1812,7 +1809,10 @@ config RANDOMIZE_MODULE_REGION_FULL
 
 	  When this option is not set, the module region will be randomized over
 	  a limited range that contains the [_stext, _etext] interval of the
-	  core kernel, so branch relocations are always in range.
+	  core kernel, so branch relocations are almost always in range unless
+	  ARM64_MODULE_PLTS is enabled and the region is exhausted. In this
+	  particular case of region exhaustion, modules might be able to fall
+	  back to a larger 2GB area.
 
 config CC_HAVE_STACKPROTECTOR_SYSREG
 	def_bool $(cc-option,-mstack-protector-guard=sysreg -mstack-protector-guard-reg=sp_el0 -mstack-protector-guard-offset=0)

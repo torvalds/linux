@@ -14,12 +14,10 @@ extern void flush_dcache_page(struct page *);
 #define flush_cache_page(vma, page, pfn)	cache_wbinv_all()
 #define flush_cache_dup_mm(mm)			cache_wbinv_all()
 
-#define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
-extern void flush_kernel_dcache_page(struct page *);
-
 #define flush_dcache_mmap_lock(mapping)		xa_lock_irq(&mapping->i_pages)
 #define flush_dcache_mmap_unlock(mapping)	xa_unlock_irq(&mapping->i_pages)
 
+#define ARCH_IMPLEMENTS_FLUSH_KERNEL_VMAP_RANGE 1
 static inline void flush_kernel_vmap_range(void *addr, int size)
 {
 	dcache_wbinv_all();

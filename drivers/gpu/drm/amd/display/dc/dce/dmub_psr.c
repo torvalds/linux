@@ -29,7 +29,7 @@
 #include "dmub/dmub_srv.h"
 #include "core_types.h"
 
-#define DC_TRACE_LEVEL_MESSAGE(...) /* do nothing */
+#define DC_TRACE_LEVEL_MESSAGE(...)	do {} while (0) /* do nothing */
 
 #define MAX_PIPES 6
 

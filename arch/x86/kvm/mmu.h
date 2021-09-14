@@ -240,4 +240,29 @@ static inline bool kvm_memslots_have_rmaps(struct kvm *kvm)
 	return smp_load_acquire(&kvm->arch.memslots_have_rmaps);
 }
 
+static inline gfn_t gfn_to_index(gfn_t gfn, gfn_t base_gfn, int level)
+{
+	/* KVM_HPAGE_GFN_SHIFT(PG_LEVEL_4K) must be 0. */
+	return (gfn >> KVM_HPAGE_GFN_SHIFT(level)) -
+		(base_gfn >> KVM_HPAGE_GFN_SHIFT(level));
+}
+
+static inline unsigned long
+__kvm_mmu_slot_lpages(struct kvm_memory_slot *slot, unsigned long npages,
+		      int level)
+{
+	return gfn_to_index(slot->base_gfn + npages - 1,
+			    slot->base_gfn, level) + 1;
+}
+
+static inline unsigned long
+kvm_mmu_slot_lpages(struct kvm_memory_slot *slot, int level)
+{
+	return __kvm_mmu_slot_lpages(slot, slot->npages, level);
+}
+
+static inline void kvm_update_page_stats(struct kvm *kvm, int level, int count)
+{
+	atomic64_add(count, &kvm->stat.pages[level - 1]);
+}
 #endif

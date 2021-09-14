@@ -167,27 +167,30 @@ static int pci200_close(struct net_device *dev)
 	return 0;
 }
 
-static int pci200_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int pci200_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+				 void __user *data, int cmd)
 {
-	const size_t size = sizeof(sync_serial_settings);
-	sync_serial_settings new_line;
-	sync_serial_settings __user *line = ifr->ifr_settings.ifs_ifsu.sync;
-	port_t *port = dev_to_port(dev);
-
 #ifdef DEBUG_RINGS
 	if (cmd == SIOCDEVPRIVATE) {
 		sca_dump_rings(dev);
 		return 0;
 	}
 #endif
-	if (cmd != SIOCWANDEV)
-		return hdlc_ioctl(dev, ifr, cmd);
+	return -EOPNOTSUPP;
+}
 
-	switch (ifr->ifr_settings.type) {
+static int pci200_ioctl(struct net_device *dev, struct if_settings *ifs)
+{
+	const size_t size = sizeof(sync_serial_settings);
+	sync_serial_settings new_line;
+	sync_serial_settings __user *line = ifs->ifs_ifsu.sync;
+	port_t *port = dev_to_port(dev);
+
+	switch (ifs->type) {
 	case IF_GET_IFACE:
-		ifr->ifr_settings.type = IF_IFACE_V35;
-		if (ifr->ifr_settings.size < size) {
-			ifr->ifr_settings.size = size; /* data size wanted */
+		ifs->type = IF_IFACE_V35;
+		if (ifs->size < size) {
+			ifs->size = size; /* data size wanted */
 			return -ENOBUFS;
 		}
 		if (copy_to_user(line, &port->settings, size))
@@ -217,7 +220,7 @@ static int pci200_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return 0;
 
 	default:
-		return hdlc_ioctl(dev, ifr, cmd);
+		return hdlc_ioctl(dev, ifs);
 	}
 }
 
@@ -253,7 +256,8 @@ static const struct net_device_ops pci200_ops = {
 	.ndo_open       = pci200_open,
 	.ndo_stop       = pci200_close,
 	.ndo_start_xmit = hdlc_start_xmit,
-	.ndo_do_ioctl   = pci200_ioctl,
+	.ndo_siocwandev = pci200_ioctl,
+	.ndo_siocdevprivate = pci200_siocdevprivate,
 };
 
 static int pci200_pci_init_one(struct pci_dev *pdev,

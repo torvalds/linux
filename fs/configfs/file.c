@@ -177,28 +177,22 @@ out:
 	return retval;
 }
 
-/* Fill [buffer, buffer + pos) with data coming from @from. */
-static int fill_write_buffer(struct configfs_buffer *buffer, loff_t pos,
+/* Fill @buffer with data coming from @from. */
+static int fill_write_buffer(struct configfs_buffer *buffer,
 			     struct iov_iter *from)
 {
-	loff_t to_copy;
 	int copied;
-	u8 *to;
 
 	if (!buffer->page)
 		buffer->page = (char *)__get_free_pages(GFP_KERNEL, 0);
 	if (!buffer->page)
 		return -ENOMEM;
 
-	to_copy = SIMPLE_ATTR_SIZE - 1 - pos;
-	if (to_copy <= 0)
-		return 0;
-	to = buffer->page + pos;
-	copied = copy_from_iter(to, to_copy, from);
+	copied = copy_from_iter(buffer->page, SIMPLE_ATTR_SIZE - 1, from);
 	buffer->needs_read_fill = 1;
 	/* if buf is assumed to contain a string, terminate it by \0,
 	 * so e.g. sscanf() can scan the string easily */
-	to[copied] = 0;
+	buffer->page[copied] = 0;
 	return copied ? : -EFAULT;
 }
 
@@ -227,10 +221,10 @@ static ssize_t configfs_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct configfs_buffer *buffer = file->private_data;
-	ssize_t len;
+	int len;
 
 	mutex_lock(&buffer->mutex);
-	len = fill_write_buffer(buffer, iocb->ki_pos, from);
+	len = fill_write_buffer(buffer, from);
 	if (len > 0)
 		len = flush_write_buffer(file, buffer, len);
 	if (len > 0)

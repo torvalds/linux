@@ -27,6 +27,7 @@
 #include "wmm.h"
 #include "11n.h"
 #include "pcie.h"
+#include "pcie_quirks.h"
 
 #define PCIE_VERSION	"1.0"
 #define DRV_NAME        "Marvell mwifiex PCIe"
@@ -410,6 +411,9 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 			return ret;
 	}
 
+	/* check quirks */
+	mwifiex_initialize_quirks(card);
+
 	if (mwifiex_add_card(card, &card->fw_done, &pcie_ops,
 			     MWIFIEX_PCIE, &pdev->dev)) {
 		pr_err("%s failed\n", __func__);
@@ -524,6 +528,13 @@ static void mwifiex_pcie_reset_prepare(struct pci_dev *pdev)
 	mwifiex_shutdown_sw(adapter);
 	clear_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &card->work_flags);
 	clear_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &card->work_flags);
+
+	/* On MS Surface gen4+ devices FLR isn't effective to recover from
+	 * hangups, so we power-cycle the card instead.
+	 */
+	if (card->quirks & QUIRK_FW_RST_D3COLD)
+		mwifiex_pcie_reset_d3cold_quirk(pdev);
+
 	mwifiex_dbg(adapter, INFO, "%s, successful\n", __func__);
 
 	card->pci_reset_ongoing = true;

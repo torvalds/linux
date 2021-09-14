@@ -21,16 +21,8 @@ LDFLAGS_vmlinux		+= -shared -Bsymbolic -z notext \
 endif
 
 ifeq ($(CONFIG_ARM64_ERRATUM_843419),y)
-  ifneq ($(CONFIG_ARM64_LD_HAS_FIX_ERRATUM_843419),y)
-$(warning ld does not support --fix-cortex-a53-843419; kernel may be susceptible to erratum)
-  else
+  ifeq ($(CONFIG_ARM64_LD_HAS_FIX_ERRATUM_843419),y)
 LDFLAGS_vmlinux	+= --fix-cortex-a53-843419
-  endif
-endif
-
-ifeq ($(CONFIG_ARM64_USE_LSE_ATOMICS), y)
-  ifneq ($(CONFIG_ARM64_LSE_ATOMICS), y)
-$(warning LSE atomics not supported by binutils)
   endif
 endif
 
@@ -165,8 +157,11 @@ Image: vmlinux
 Image.%: Image
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
-zinstall install:
-	$(Q)$(MAKE) $(build)=$(boot) $@
+install: install-image := Image
+zinstall: install-image := Image.gz
+install zinstall:
+	$(CONFIG_SHELL) $(srctree)/$(boot)/install.sh $(KERNELRELEASE) \
+	$(boot)/$(install-image) System.map "$(INSTALL_PATH)"
 
 PHONY += vdso_install
 vdso_install:
@@ -176,10 +171,23 @@ vdso_install:
 
 archprepare:
 	$(Q)$(MAKE) $(build)=arch/arm64/tools kapi
+ifeq ($(CONFIG_ARM64_ERRATUM_843419),y)
+  ifneq ($(CONFIG_ARM64_LD_HAS_FIX_ERRATUM_843419),y)
+	@echo "warning: ld does not support --fix-cortex-a53-843419; kernel may be susceptible to erratum" >&2
+  endif
+endif
+ifeq ($(CONFIG_ARM64_USE_LSE_ATOMICS),y)
+  ifneq ($(CONFIG_ARM64_LSE_ATOMICS),y)
+	@echo "warning: LSE atomics not supported by binutils" >&2
+  endif
+endif
+
 
 # We use MRPROPER_FILES and CLEAN_FILES now
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
+	$(Q)$(MAKE) $(clean)=arch/arm64/kernel/vdso
+	$(Q)$(MAKE) $(clean)=arch/arm64/kernel/vdso32
 
 ifeq ($(KBUILD_EXTMOD),)
 # We need to generate vdso-offsets.h before compiling certain files in kernel/.

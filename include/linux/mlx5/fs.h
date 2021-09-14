@@ -38,6 +38,8 @@
 
 #define MLX5_FS_DEFAULT_FLOW_TAG 0x0
 
+#define MLX5_SET_CFG(p, f, v) MLX5_SET(create_flow_group_in, p, f, v)
+
 enum {
 	MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO	= 1 << 16,
 	MLX5_FLOW_CONTEXT_ACTION_ENCRYPT	= 1 << 17,

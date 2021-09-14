@@ -426,8 +426,7 @@ nvkm_ioctl_path(struct nvkm_client *client, u64 handle, u32 type,
 }
 
 int
-nvkm_ioctl(struct nvkm_client *client, bool supervisor,
-	   void *data, u32 size, void **hack)
+nvkm_ioctl(struct nvkm_client *client, void *data, u32 size, void **hack)
 {
 	struct nvkm_object *object = &client->object;
 	union {
@@ -435,7 +434,6 @@ nvkm_ioctl(struct nvkm_client *client, bool supervisor,
 	} *args = data;
 	int ret = -ENOSYS;
 
-	client->super = supervisor;
 	nvif_ioctl(object, "size %d\n", size);
 
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {

@@ -51,6 +51,7 @@
 #include "intel_hdmi.h"
 #include "intel_lspcon.h"
 #include "intel_panel.h"
+#include "intel_snps_phy.h"
 
 static struct drm_device *intel_hdmi_to_dev(struct intel_hdmi *intel_hdmi)
 {
@@ -1849,6 +1850,16 @@ hdmi_port_clock_valid(struct intel_hdmi *hdmi,
 	/* CHV DPLL can't generate 216-240 MHz */
 	if (IS_CHERRYVIEW(dev_priv) && clock > 216000 && clock < 240000)
 		return MODE_CLOCK_RANGE;
+
+	/*
+	 * SNPS PHYs' MPLLB table-based programming can only handle a fixed
+	 * set of link rates.
+	 *
+	 * FIXME: We will hopefully get an algorithmic way of programming
+	 * the MPLLB for HDMI in the future.
+	 */
+	if (IS_DG2(dev_priv))
+		return intel_snps_phy_check_hdmi_link_rate(clock);
 
 	return MODE_OK;
 }

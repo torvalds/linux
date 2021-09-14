@@ -403,7 +403,7 @@ struct icc_path *devm_of_icc_get(struct device *dev, const char *name)
 {
 	struct icc_path **ptr, *path;
 
-	ptr = devres_alloc(devm_icc_release, sizeof(**ptr), GFP_KERNEL);
+	ptr = devres_alloc(devm_icc_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
@@ -959,6 +959,9 @@ EXPORT_SYMBOL_GPL(icc_link_destroy);
  */
 void icc_node_add(struct icc_node *node, struct icc_provider *provider)
 {
+	if (WARN_ON(node->provider))
+		return;
+
 	mutex_lock(&icc_lock);
 
 	node->provider = provider;
@@ -973,9 +976,14 @@ void icc_node_add(struct icc_node *node, struct icc_provider *provider)
 	}
 	node->avg_bw = node->init_avg;
 	node->peak_bw = node->init_peak;
+
+	if (provider->pre_aggregate)
+		provider->pre_aggregate(node);
+
 	if (provider->aggregate)
 		provider->aggregate(node, 0, node->init_avg, node->init_peak,
 				    &node->avg_bw, &node->peak_bw);
+
 	provider->set(node, node);
 	node->avg_bw = 0;
 	node->peak_bw = 0;
@@ -1106,6 +1114,8 @@ void icc_sync_state(struct device *dev)
 		dev_dbg(p->dev, "interconnect provider is in synced state\n");
 		list_for_each_entry(n, &p->nodes, node_list) {
 			if (n->init_avg || n->init_peak) {
+				n->init_avg = 0;
+				n->init_peak = 0;
 				aggregate_requests(n);
 				p->set(n, n);
 			}

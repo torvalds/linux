@@ -282,5 +282,5 @@ struct cec_adapter *vivid_cec_alloc_adap(struct vivid_dev *dev,
 	snprintf(name, sizeof(name), "vivid-%03d-vid-%s%d",
 		 dev->inst, is_source ? "out" : "cap", idx);
 	return cec_allocate_adapter(&vivid_cec_adap_ops, dev,
-		name, caps, 1);
+				    name, caps, CEC_MAX_LOG_ADDRS);
 }

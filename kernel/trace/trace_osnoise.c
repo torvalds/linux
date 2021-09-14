@@ -253,9 +253,39 @@ static struct osnoise_data {
  */
 static bool osnoise_busy;
 
+#ifdef CONFIG_PREEMPT_RT
 /*
  * Print the osnoise header info.
  */
+static void print_osnoise_headers(struct seq_file *s)
+{
+	if (osnoise_data.tainted)
+		seq_puts(s, "# osnoise is tainted!\n");
+
+	seq_puts(s, "#                                _-------=> irqs-off\n");
+	seq_puts(s, "#                               / _------=> need-resched\n");
+	seq_puts(s, "#                              | / _-----=> need-resched-lazy\n");
+	seq_puts(s, "#                              || / _----=> hardirq/softirq\n");
+	seq_puts(s, "#                              ||| / _---=> preempt-depth\n");
+	seq_puts(s, "#                              |||| / _--=> preempt-lazy-depth\n");
+	seq_puts(s, "#                              ||||| / _-=> migrate-disable\n");
+
+	seq_puts(s, "#                              |||||| /          ");
+	seq_puts(s, "                                     MAX\n");
+
+	seq_puts(s, "#                              ||||| /                         ");
+	seq_puts(s, "                    SINGLE      Interference counters:\n");
+
+	seq_puts(s, "#                              |||||||               RUNTIME   ");
+	seq_puts(s, "   NOISE  %% OF CPU  NOISE    +-----------------------------+\n");
+
+	seq_puts(s, "#           TASK-PID      CPU# |||||||   TIMESTAMP    IN US    ");
+	seq_puts(s, "   IN US  AVAILABLE  IN US     HW    NMI    IRQ   SIRQ THREAD\n");
+
+	seq_puts(s, "#              | |         |   |||||||      |           |      ");
+	seq_puts(s, "       |    |            |      |      |      |      |      |\n");
+}
+#else /* CONFIG_PREEMPT_RT */
 static void print_osnoise_headers(struct seq_file *s)
 {
 	if (osnoise_data.tainted)
@@ -279,6 +309,7 @@ static void print_osnoise_headers(struct seq_file *s)
 	seq_puts(s, "#              | |         |   ||||      |           |      ");
 	seq_puts(s, "       |    |            |      |      |      |      |      |\n");
 }
+#endif /* CONFIG_PREEMPT_RT */
 
 /*
  * osnoise_taint - report an osnoise error.
@@ -323,6 +354,24 @@ static void trace_osnoise_sample(struct osnoise_sample *sample)
 /*
  * Print the timerlat header info.
  */
+#ifdef CONFIG_PREEMPT_RT
+static void print_timerlat_headers(struct seq_file *s)
+{
+	seq_puts(s, "#                                _-------=> irqs-off\n");
+	seq_puts(s, "#                               / _------=> need-resched\n");
+	seq_puts(s, "#                              | / _-----=> need-resched-lazy\n");
+	seq_puts(s, "#                              || / _----=> hardirq/softirq\n");
+	seq_puts(s, "#                              ||| / _---=> preempt-depth\n");
+	seq_puts(s, "#                              |||| / _--=> preempt-lazy-depth\n");
+	seq_puts(s, "#                              ||||| / _-=> migrate-disable\n");
+	seq_puts(s, "#                              |||||| /\n");
+	seq_puts(s, "#                              |||||||             ACTIVATION\n");
+	seq_puts(s, "#           TASK-PID      CPU# |||||||   TIMESTAMP    ID     ");
+	seq_puts(s, "       CONTEXT                LATENCY\n");
+	seq_puts(s, "#              | |         |   |||||||      |         |      ");
+	seq_puts(s, "            |                       |\n");
+}
+#else /* CONFIG_PREEMPT_RT */
 static void print_timerlat_headers(struct seq_file *s)
 {
 	seq_puts(s, "#                                _-----=> irqs-off\n");
@@ -336,6 +385,7 @@ static void print_timerlat_headers(struct seq_file *s)
 	seq_puts(s, "#              | |         |   ||||      |         |      ");
 	seq_puts(s, "            |                       |\n");
 }
+#endif /* CONFIG_PREEMPT_RT */
 
 /*
  * Record an timerlat_sample into the tracer buffer.
@@ -1025,9 +1075,13 @@ diff_osn_sample_stats(struct osnoise_variables *osn_var, struct osnoise_sample *
 /*
  * osnoise_stop_tracing - Stop tracing and the tracer.
  */
-static void osnoise_stop_tracing(void)
+static __always_inline void osnoise_stop_tracing(void)
 {
 	struct trace_array *tr = osnoise_trace;
+
+	trace_array_printk_buf(tr->array_buffer.buffer, _THIS_IP_,
+			"stop tracing hit on cpu %d\n", smp_processor_id());
+
 	tracer_tracing_off(tr);
 }
 
@@ -1444,12 +1498,12 @@ static void stop_per_cpu_kthreads(void)
 {
 	int cpu;
 
-	get_online_cpus();
+	cpus_read_lock();
 
 	for_each_online_cpu(cpu)
 		stop_kthread(cpu);
 
-	put_online_cpus();
+	cpus_read_unlock();
 }
 
 /*
@@ -1494,10 +1548,10 @@ static int start_kthread(unsigned int cpu)
 static int start_per_cpu_kthreads(struct trace_array *tr)
 {
 	struct cpumask *current_mask = &save_cpumask;
-	int retval;
+	int retval = 0;
 	int cpu;
 
-	get_online_cpus();
+	cpus_read_lock();
 	/*
 	 * Run only on CPUs in which trace and osnoise are allowed to run.
 	 */
@@ -1514,13 +1568,13 @@ static int start_per_cpu_kthreads(struct trace_array *tr)
 		retval = start_kthread(cpu);
 		if (retval) {
 			stop_per_cpu_kthreads();
-			return retval;
+			break;
 		}
 	}
 
-	put_online_cpus();
+	cpus_read_unlock();
 
-	return 0;
+	return retval;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -1536,7 +1590,7 @@ static void osnoise_hotplug_workfn(struct work_struct *dummy)
 		goto out_unlock_trace;
 
 	mutex_lock(&interface_lock);
-	get_online_cpus();
+	cpus_read_lock();
 
 	if (!cpumask_test_cpu(cpu, &osnoise_cpumask))
 		goto out_unlock;
@@ -1547,7 +1601,7 @@ static void osnoise_hotplug_workfn(struct work_struct *dummy)
 	start_kthread(cpu);
 
 out_unlock:
-	put_online_cpus();
+	cpus_read_unlock();
 	mutex_unlock(&interface_lock);
 out_unlock_trace:
 	mutex_unlock(&trace_types_lock);
@@ -1689,11 +1743,11 @@ osnoise_cpus_write(struct file *filp, const char __user *ubuf, size_t count,
 	/*
 	 * osnoise_cpumask is read by CPU hotplug operations.
 	 */
-	get_online_cpus();
+	cpus_read_lock();
 
 	cpumask_copy(&osnoise_cpumask, osnoise_cpumask_new);
 
-	put_online_cpus();
+	cpus_read_unlock();
 	mutex_unlock(&interface_lock);
 
 	if (running)

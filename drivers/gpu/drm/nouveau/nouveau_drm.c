@@ -244,6 +244,7 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 	ret = nvif_device_ctor(&cli->base.object, "drmDevice", 0, NV_DEVICE,
 			       &(struct nv_device_v0) {
 					.device = ~0,
+					.priv = true,
 			       }, sizeof(struct nv_device_v0),
 			       &cli->device);
 	if (ret) {
@@ -1082,8 +1083,6 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 	ret = nouveau_cli_init(drm, name, cli);
 	if (ret)
 		goto done;
-
-	cli->base.super = false;
 
 	fpriv->driver_priv = cli;
 

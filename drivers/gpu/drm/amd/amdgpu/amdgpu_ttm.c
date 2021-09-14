@@ -1121,7 +1121,7 @@ static int amdgpu_ttm_tt_populate(struct ttm_device *bdev,
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 
 	/* user pages are bound by amdgpu_ttm_tt_pin_userptr() */
-	if (gtt && gtt->userptr) {
+	if (gtt->userptr) {
 		ttm->sg = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
 		if (!ttm->sg)
 			return -ENOMEM;
@@ -1148,7 +1148,7 @@ static void amdgpu_ttm_tt_unpopulate(struct ttm_device *bdev,
 
 	amdgpu_ttm_backend_unbind(bdev, ttm);
 
-	if (gtt && gtt->userptr) {
+	if (gtt->userptr) {
 		amdgpu_ttm_tt_set_user_pages(ttm, NULL);
 		kfree(ttm->sg);
 		ttm->sg = NULL;

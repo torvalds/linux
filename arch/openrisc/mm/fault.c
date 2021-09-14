@@ -28,7 +28,7 @@ unsigned long pte_misses;	/* updated by do_page_fault() */
 unsigned long pte_errors;	/* updated by do_page_fault() */
 
 /* __PHX__ :: - check the vmalloc_fault in do_page_fault()
- *            - also look into include/asm-or32/mmu_context.h
+ *            - also look into include/asm/mmu_context.h
  */
 volatile pgd_t *current_pgd[NR_CPUS];
 

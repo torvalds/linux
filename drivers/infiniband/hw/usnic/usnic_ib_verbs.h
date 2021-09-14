@@ -50,9 +50,8 @@ int usnic_ib_query_gid(struct ib_device *ibdev, u32 port, int index,
 				union ib_gid *gid);
 int usnic_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
 int usnic_ib_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata);
-struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
-					struct ib_qp_init_attr *init_attr,
-					struct ib_udata *udata);
+int usnic_ib_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *init_attr,
+		       struct ib_udata *udata);
 int usnic_ib_destroy_qp(struct ib_qp *qp, struct ib_udata *udata);
 int usnic_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				int attr_mask, struct ib_udata *udata);

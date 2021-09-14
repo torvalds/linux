@@ -27,6 +27,7 @@
 #include <linux/netdevice.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/mm.h>
+#include <linux/swiotlb.h>
 #include <linux/sysfs.h>
 #include <linux/dma-map-ops.h> /* for dma_default_coherent */
 
@@ -886,6 +887,8 @@ static void device_link_put_kref(struct device_link *link)
 {
 	if (link->flags & DL_FLAG_STATELESS)
 		kref_put(&link->kref, __device_link_del);
+	else if (!device_is_registered(link->consumer))
+		__device_link_del(&link->kref);
 	else
 		WARN(1, "Unable to drop a managed device link reference\n");
 }
@@ -2002,24 +2005,24 @@ static inline int device_is_not_partition(struct device *dev)
 }
 #endif
 
-static int
-device_platform_notify(struct device *dev, enum kobject_action action)
+static void device_platform_notify(struct device *dev)
 {
-	int ret;
+	acpi_device_notify(dev);
 
-	ret = acpi_platform_notify(dev, action);
-	if (ret)
-		return ret;
+	software_node_notify(dev);
 
-	ret = software_node_notify(dev, action);
-	if (ret)
-		return ret;
-
-	if (platform_notify && action == KOBJ_ADD)
+	if (platform_notify)
 		platform_notify(dev);
-	else if (platform_notify_remove && action == KOBJ_REMOVE)
+}
+
+static void device_platform_notify_remove(struct device *dev)
+{
+	acpi_device_notify_remove(dev);
+
+	software_node_notify_remove(dev);
+
+	if (platform_notify_remove)
 		platform_notify_remove(dev);
-	return 0;
 }
 
 /**
@@ -2837,6 +2840,7 @@ void device_initialize(struct device *dev)
 	device_pm_init(dev);
 	set_dev_node(dev, -1);
 #ifdef CONFIG_GENERIC_MSI_IRQ
+	raw_spin_lock_init(&dev->msi_lock);
 	INIT_LIST_HEAD(&dev->msi_list);
 #endif
 	INIT_LIST_HEAD(&dev->links.consumers);
@@ -2847,6 +2851,9 @@ void device_initialize(struct device *dev)
     defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) || \
     defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL)
 	dev->dma_coherent = dma_default_coherent;
+#endif
+#ifdef CONFIG_SWIOTLB
+	dev->dma_io_tlb_mem = &io_tlb_default_mem;
 #endif
 }
 EXPORT_SYMBOL_GPL(device_initialize);
@@ -3291,9 +3298,7 @@ int device_add(struct device *dev)
 	}
 
 	/* notify platform of device entry */
-	error = device_platform_notify(dev, KOBJ_ADD);
-	if (error)
-		goto platform_error;
+	device_platform_notify(dev);
 
 	error = device_create_file(dev, &dev_attr_uevent);
 	if (error)
@@ -3396,8 +3401,7 @@ done:
  SymlinkError:
 	device_remove_file(dev, &dev_attr_uevent);
  attrError:
-	device_platform_notify(dev, KOBJ_REMOVE);
-platform_error:
+	device_platform_notify_remove(dev);
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
 	glue_dir = get_glue_dir(dev);
 	kobject_del(&dev->kobj);
@@ -3542,7 +3546,7 @@ void device_del(struct device *dev)
 	bus_remove_device(dev);
 	device_pm_remove(dev);
 	driver_deferred_probe_del(dev);
-	device_platform_notify(dev, KOBJ_REMOVE);
+	device_platform_notify_remove(dev);
 	device_remove_properties(dev);
 	device_links_purge(dev);
 
@@ -4581,8 +4585,8 @@ static void __dev_printk(const char *level, const struct device *dev,
 		printk("%s(NULL device *): %pV", level, vaf);
 }
 
-void dev_printk(const char *level, const struct device *dev,
-		const char *fmt, ...)
+void _dev_printk(const char *level, const struct device *dev,
+		 const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -4596,7 +4600,7 @@ void dev_printk(const char *level, const struct device *dev,
 
 	va_end(args);
 }
-EXPORT_SYMBOL(dev_printk);
+EXPORT_SYMBOL(_dev_printk);
 
 #define define_dev_printk_level(func, kern_level)		\
 void func(const struct device *dev, const char *fmt, ...)	\

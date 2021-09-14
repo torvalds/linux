@@ -25,8 +25,6 @@ config OPENRISC
 	select HAVE_UID16
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS_BROADCAST
-	select GENERIC_STRNCPY_FROM_USER
-	select GENERIC_STRNLEN_USER
 	select GENERIC_SMP_IDLE_THREAD
 	select MODULES_USE_ELF_RELA
 	select HAVE_DEBUG_STACKOVERFLOW
@@ -39,6 +37,7 @@ config OPENRISC
 	select GENERIC_IRQ_MULTI_HANDLER
 	select MMU_GATHER_NO_RANGE if MMU
 	select SET_FS
+	select TRACE_IRQFLAGS_SUPPORT
 
 config CPU_BIG_ENDIAN
 	def_bool y
@@ -50,9 +49,6 @@ config GENERIC_HWEIGHT
 	def_bool y
 
 config NO_IOPORT_MAP
-	def_bool y
-
-config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 
 # For now, use generic checksum functions

@@ -731,7 +731,7 @@ xfs_free_eofblocks(
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
 	if (error) {
-		ASSERT(XFS_FORCED_SHUTDOWN(mp));
+		ASSERT(xfs_is_shutdown(mp));
 		return error;
 	}
 
@@ -789,7 +789,7 @@ xfs_alloc_file_space(
 
 	trace_xfs_alloc_file_space(ip);
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	error = xfs_qm_dqattach(ip);
@@ -1282,7 +1282,7 @@ xfs_swap_extents_check_format(
 	 * If we have to use the (expensive) rmap swap method, we can
 	 * handle any number of extents and any format.
 	 */
-	if (xfs_sb_version_hasrmapbt(&ip->i_mount->m_sb))
+	if (xfs_has_rmapbt(ip->i_mount))
 		return 0;
 
 	/*
@@ -1516,7 +1516,7 @@ xfs_swap_extent_forks(
 	 * event of a crash. Set the owner change log flags now and leave the
 	 * bmbt scan as the last step.
 	 */
-	if (xfs_sb_version_has_v3inode(&ip->i_mount->m_sb)) {
+	if (xfs_has_v3inodes(ip->i_mount)) {
 		if (ip->i_df.if_format == XFS_DINODE_FMT_BTREE)
 			(*target_log_flags) |= XFS_ILOG_DOWNER;
 		if (tip->i_df.if_format == XFS_DINODE_FMT_BTREE)
@@ -1553,7 +1553,7 @@ xfs_swap_extent_forks(
 		(*src_log_flags) |= XFS_ILOG_DEXT;
 		break;
 	case XFS_DINODE_FMT_BTREE:
-		ASSERT(!xfs_sb_version_has_v3inode(&ip->i_mount->m_sb) ||
+		ASSERT(!xfs_has_v3inodes(ip->i_mount) ||
 		       (*src_log_flags & XFS_ILOG_DOWNER));
 		(*src_log_flags) |= XFS_ILOG_DBROOT;
 		break;
@@ -1565,7 +1565,7 @@ xfs_swap_extent_forks(
 		break;
 	case XFS_DINODE_FMT_BTREE:
 		(*target_log_flags) |= XFS_ILOG_DBROOT;
-		ASSERT(!xfs_sb_version_has_v3inode(&ip->i_mount->m_sb) ||
+		ASSERT(!xfs_has_v3inodes(ip->i_mount) ||
 		       (*target_log_flags & XFS_ILOG_DOWNER));
 		break;
 	}
@@ -1626,7 +1626,6 @@ xfs_swap_extents(
 	struct xfs_bstat	*sbp = &sxp->sx_stat;
 	int			src_log_flags, target_log_flags;
 	int			error = 0;
-	int			lock_flags;
 	uint64_t		f;
 	int			resblks = 0;
 	unsigned int		flags = 0;
@@ -1638,8 +1637,8 @@ xfs_swap_extents(
 	 * do the rest of the checks.
 	 */
 	lock_two_nondirectories(VFS_I(ip), VFS_I(tip));
-	lock_flags = XFS_MMAPLOCK_EXCL;
-	xfs_lock_two_inodes(ip, XFS_MMAPLOCK_EXCL, tip, XFS_MMAPLOCK_EXCL);
+	filemap_invalidate_lock_two(VFS_I(ip)->i_mapping,
+				    VFS_I(tip)->i_mapping);
 
 	/* Verify that both files have the same format */
 	if ((VFS_I(ip)->i_mode & S_IFMT) != (VFS_I(tip)->i_mode & S_IFMT)) {
@@ -1679,7 +1678,7 @@ xfs_swap_extents(
 	 * a block reservation because it's really just a remap operation
 	 * performed with log redo items!
 	 */
-	if (xfs_sb_version_hasrmapbt(&mp->m_sb)) {
+	if (xfs_has_rmapbt(mp)) {
 		int		w = XFS_DATA_FORK;
 		uint32_t	ipnext = ip->i_df.if_nextents;
 		uint32_t	tipnext	= tip->i_df.if_nextents;
@@ -1711,7 +1710,6 @@ xfs_swap_extents(
 	 * or cancel will unlock the inodes from this point onwards.
 	 */
 	xfs_lock_two_inodes(ip, XFS_ILOCK_EXCL, tip, XFS_ILOCK_EXCL);
-	lock_flags |= XFS_ILOCK_EXCL;
 	xfs_trans_ijoin(tp, ip, 0);
 	xfs_trans_ijoin(tp, tip, 0);
 
@@ -1761,7 +1759,7 @@ xfs_swap_extents(
 	src_log_flags = XFS_ILOG_CORE;
 	target_log_flags = XFS_ILOG_CORE;
 
-	if (xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (xfs_has_rmapbt(mp))
 		error = xfs_swap_extent_rmap(&tp, ip, tip);
 	else
 		error = xfs_swap_extent_forks(tp, ip, tip, &src_log_flags,
@@ -1780,7 +1778,7 @@ xfs_swap_extents(
 	}
 
 	/* Swap the cow forks. */
-	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
+	if (xfs_has_reflink(mp)) {
 		ASSERT(!ip->i_cowfp ||
 		       ip->i_cowfp->if_format == XFS_DINODE_FMT_EXTENTS);
 		ASSERT(!tip->i_cowfp ||
@@ -1822,7 +1820,7 @@ xfs_swap_extents(
 	 * If this is a synchronous mount, make sure that the
 	 * transaction goes to disk before returning to the user.
 	 */
-	if (mp->m_flags & XFS_MOUNT_WSYNC)
+	if (xfs_has_wsync(mp))
 		xfs_trans_set_sync(tp);
 
 	error = xfs_trans_commit(tp);
@@ -1830,13 +1828,16 @@ xfs_swap_extents(
 	trace_xfs_swap_extent_after(ip, 0);
 	trace_xfs_swap_extent_after(tip, 1);
 
+out_unlock_ilock:
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	xfs_iunlock(tip, XFS_ILOCK_EXCL);
 out_unlock:
-	xfs_iunlock(ip, lock_flags);
-	xfs_iunlock(tip, lock_flags);
+	filemap_invalidate_unlock_two(VFS_I(ip)->i_mapping,
+				      VFS_I(tip)->i_mapping);
 	unlock_two_nondirectories(VFS_I(ip), VFS_I(tip));
 	return error;
 
 out_trans_cancel:
 	xfs_trans_cancel(tp);
-	goto out_unlock;
+	goto out_unlock_ilock;
 }

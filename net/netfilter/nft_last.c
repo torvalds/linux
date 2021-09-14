@@ -48,24 +48,30 @@ static void nft_last_eval(const struct nft_expr *expr,
 {
 	struct nft_last_priv *priv = nft_expr_priv(expr);
 
-	priv->last_jiffies = jiffies;
-	priv->last_set = 1;
+	if (READ_ONCE(priv->last_jiffies) != jiffies)
+		WRITE_ONCE(priv->last_jiffies, jiffies);
+	if (READ_ONCE(priv->last_set) == 0)
+		WRITE_ONCE(priv->last_set, 1);
 }
 
 static int nft_last_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	struct nft_last_priv *priv = nft_expr_priv(expr);
+	unsigned long last_jiffies = READ_ONCE(priv->last_jiffies);
+	u32 last_set = READ_ONCE(priv->last_set);
 	__be64 msecs;
 
-	if (time_before(jiffies, priv->last_jiffies))
-		priv->last_set = 0;
+	if (time_before(jiffies, last_jiffies)) {
+		WRITE_ONCE(priv->last_set, 0);
+		last_set = 0;
+	}
 
-	if (priv->last_set)
-		msecs = nf_jiffies64_to_msecs(jiffies - priv->last_jiffies);
+	if (last_set)
+		msecs = nf_jiffies64_to_msecs(jiffies - last_jiffies);
 	else
 		msecs = 0;
 
-	if (nla_put_be32(skb, NFTA_LAST_SET, htonl(priv->last_set)) ||
+	if (nla_put_be32(skb, NFTA_LAST_SET, htonl(last_set)) ||
 	    nla_put_be64(skb, NFTA_LAST_MSECS, msecs, NFTA_LAST_PAD))
 		goto nla_put_failure;
 

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 /aarch64/debug-exceptions
 /aarch64/get-reg-list
+/aarch64/psci_cpu_on_test
 /aarch64/vgic_init
 /s390x/memop
 /s390x/resets
@@ -38,6 +39,7 @@
 /x86_64/xen_vmcall_test
 /x86_64/xss_msr_test
 /x86_64/vmx_pmu_msrs_test
+/access_tracking_perf_test
 /demand_paging_test
 /dirty_log_test
 /dirty_log_perf_test

@@ -48,6 +48,9 @@
 #define AMDGPU_FENCE_FLAG_INT           (1 << 1)
 #define AMDGPU_FENCE_FLAG_TC_WB_ONLY    (1 << 2)
 
+/* fence flag bit to indicate the face is embedded in job*/
+#define AMDGPU_FENCE_FLAG_EMBED_IN_JOB_BIT		(DMA_FENCE_FLAG_USER_BITS + 1)
+
 #define to_amdgpu_ring(s) container_of((s), struct amdgpu_ring, sched)
 
 #define AMDGPU_IB_POOL_SIZE	(1024 * 1024)
@@ -106,7 +109,6 @@ struct amdgpu_fence_driver {
 	struct dma_fence		**fences;
 };
 
-int amdgpu_fence_driver_init(struct amdgpu_device *adev);
 void amdgpu_fence_driver_force_completion(struct amdgpu_ring *ring);
 
 int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
@@ -115,10 +117,11 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 				   struct amdgpu_irq_src *irq_src,
 				   unsigned irq_type);
-void amdgpu_fence_driver_hw_fini(struct amdgpu_device *adev);
-void amdgpu_fence_driver_sw_fini(struct amdgpu_device *adev);
 void amdgpu_fence_driver_hw_init(struct amdgpu_device *adev);
-int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **fence,
+void amdgpu_fence_driver_hw_fini(struct amdgpu_device *adev);
+int amdgpu_fence_driver_sw_init(struct amdgpu_device *adev);
+void amdgpu_fence_driver_sw_fini(struct amdgpu_device *adev);
+int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **fence, struct amdgpu_job *job,
 		      unsigned flags);
 int amdgpu_fence_emit_polling(struct amdgpu_ring *ring, uint32_t *s,
 			      uint32_t timeout);

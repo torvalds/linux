@@ -295,25 +295,11 @@ TRACE_EVENT(rpc_request,
 		)
 );
 
-TRACE_DEFINE_ENUM(RPC_TASK_ASYNC);
-TRACE_DEFINE_ENUM(RPC_TASK_SWAPPER);
-TRACE_DEFINE_ENUM(RPC_TASK_NULLCREDS);
-TRACE_DEFINE_ENUM(RPC_CALL_MAJORSEEN);
-TRACE_DEFINE_ENUM(RPC_TASK_ROOTCREDS);
-TRACE_DEFINE_ENUM(RPC_TASK_DYNAMIC);
-TRACE_DEFINE_ENUM(RPC_TASK_NO_ROUND_ROBIN);
-TRACE_DEFINE_ENUM(RPC_TASK_SOFT);
-TRACE_DEFINE_ENUM(RPC_TASK_SOFTCONN);
-TRACE_DEFINE_ENUM(RPC_TASK_SENT);
-TRACE_DEFINE_ENUM(RPC_TASK_TIMEOUT);
-TRACE_DEFINE_ENUM(RPC_TASK_NOCONNECT);
-TRACE_DEFINE_ENUM(RPC_TASK_NO_RETRANS_TIMEOUT);
-TRACE_DEFINE_ENUM(RPC_TASK_CRED_NOREF);
-
 #define rpc_show_task_flags(flags)					\
 	__print_flags(flags, "|",					\
 		{ RPC_TASK_ASYNC, "ASYNC" },				\
 		{ RPC_TASK_SWAPPER, "SWAPPER" },			\
+		{ RPC_TASK_MOVEABLE, "MOVEABLE" },			\
 		{ RPC_TASK_NULLCREDS, "NULLCREDS" },			\
 		{ RPC_CALL_MAJORSEEN, "MAJORSEEN" },			\
 		{ RPC_TASK_ROOTCREDS, "ROOTCREDS" },			\
@@ -326,14 +312,6 @@ TRACE_DEFINE_ENUM(RPC_TASK_CRED_NOREF);
 		{ RPC_TASK_NOCONNECT, "NOCONNECT" },			\
 		{ RPC_TASK_NO_RETRANS_TIMEOUT, "NORTO" },		\
 		{ RPC_TASK_CRED_NOREF, "CRED_NOREF" })
-
-TRACE_DEFINE_ENUM(RPC_TASK_RUNNING);
-TRACE_DEFINE_ENUM(RPC_TASK_QUEUED);
-TRACE_DEFINE_ENUM(RPC_TASK_ACTIVE);
-TRACE_DEFINE_ENUM(RPC_TASK_NEED_XMIT);
-TRACE_DEFINE_ENUM(RPC_TASK_NEED_RECV);
-TRACE_DEFINE_ENUM(RPC_TASK_MSG_PIN_WAIT);
-TRACE_DEFINE_ENUM(RPC_TASK_SIGNALLED);
 
 #define rpc_show_runstate(flags)					\
 	__print_flags(flags, "|",					\
@@ -945,17 +923,6 @@ TRACE_EVENT(rpc_socket_nospace,
 	)
 );
 
-TRACE_DEFINE_ENUM(XPRT_LOCKED);
-TRACE_DEFINE_ENUM(XPRT_CONNECTED);
-TRACE_DEFINE_ENUM(XPRT_CONNECTING);
-TRACE_DEFINE_ENUM(XPRT_CLOSE_WAIT);
-TRACE_DEFINE_ENUM(XPRT_BOUND);
-TRACE_DEFINE_ENUM(XPRT_BINDING);
-TRACE_DEFINE_ENUM(XPRT_CLOSING);
-TRACE_DEFINE_ENUM(XPRT_CONGESTED);
-TRACE_DEFINE_ENUM(XPRT_CWND_WAIT);
-TRACE_DEFINE_ENUM(XPRT_WRITE_SPACE);
-
 #define rpc_show_xprt_state(x)						\
 	__print_flags(x, "|",						\
 		{ (1UL << XPRT_LOCKED),		"LOCKED"},		\
@@ -965,6 +932,8 @@ TRACE_DEFINE_ENUM(XPRT_WRITE_SPACE);
 		{ (1UL << XPRT_BOUND),		"BOUND"},		\
 		{ (1UL << XPRT_BINDING),	"BINDING"},		\
 		{ (1UL << XPRT_CLOSING),	"CLOSING"},		\
+		{ (1UL << XPRT_OFFLINE),	"OFFLINE"},		\
+		{ (1UL << XPRT_REMOVE),		"REMOVE"},		\
 		{ (1UL << XPRT_CONGESTED),	"CONGESTED"},		\
 		{ (1UL << XPRT_CWND_WAIT),	"CWND_WAIT"},		\
 		{ (1UL << XPRT_WRITE_SPACE),	"WRITE_SPACE"})
@@ -1092,10 +1061,10 @@ TRACE_EVENT(xprt_retransmit,
 		__field(u32, xid)
 		__field(int, ntrans)
 		__field(int, version)
+		__field(unsigned long, timeout)
 		__string(progname,
 			 rqst->rq_task->tk_client->cl_program->name)
-		__string(procedure,
-			 rqst->rq_task->tk_msg.rpc_proc->p_name)
+		__string(procname, rpc_proc_name(rqst->rq_task))
 	),
 
 	TP_fast_assign(
@@ -1106,17 +1075,19 @@ TRACE_EVENT(xprt_retransmit,
 			task->tk_client->cl_clid : -1;
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
 		__entry->ntrans = rqst->rq_ntrans;
+		__entry->timeout = task->tk_timeout;
 		__assign_str(progname,
 			     task->tk_client->cl_program->name);
 		__entry->version = task->tk_client->cl_vers;
-		__assign_str(procedure, task->tk_msg.rpc_proc->p_name);
+		__assign_str(procname, rpc_proc_name(task));
 	),
 
 	TP_printk(
-		"task:%u@%u xid=0x%08x %sv%d %s ntrans=%d",
+		"task:%u@%u xid=0x%08x %sv%d %s ntrans=%d timeout=%lu",
 		__entry->task_id, __entry->client_id, __entry->xid,
-		__get_str(progname), __entry->version, __get_str(procedure),
-		__entry->ntrans)
+		__get_str(progname), __entry->version, __get_str(procname),
+		__entry->ntrans, __entry->timeout
+	)
 );
 
 TRACE_EVENT(xprt_ping,
@@ -1568,8 +1539,7 @@ DEFINE_SVCXDRBUF_EVENT(sendto);
 	svc_rqst_flag(SPLICE_OK)					\
 	svc_rqst_flag(VICTIM)						\
 	svc_rqst_flag(BUSY)						\
-	svc_rqst_flag(DATA)						\
-	svc_rqst_flag_end(AUTHERR)
+	svc_rqst_flag_end(DATA)
 
 #undef svc_rqst_flag
 #undef svc_rqst_flag_end
@@ -1611,9 +1581,9 @@ TRACE_DEFINE_ENUM(SVC_COMPLETE);
 		{ SVC_COMPLETE,	"SVC_COMPLETE" })
 
 TRACE_EVENT(svc_authenticate,
-	TP_PROTO(const struct svc_rqst *rqst, int auth_res, __be32 auth_stat),
+	TP_PROTO(const struct svc_rqst *rqst, int auth_res),
 
-	TP_ARGS(rqst, auth_res, auth_stat),
+	TP_ARGS(rqst, auth_res),
 
 	TP_STRUCT__entry(
 		__field(u32, xid)
@@ -1624,7 +1594,7 @@ TRACE_EVENT(svc_authenticate,
 	TP_fast_assign(
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
 		__entry->svc_status = auth_res;
-		__entry->auth_stat = be32_to_cpu(auth_stat);
+		__entry->auth_stat = be32_to_cpu(rqst->rq_auth_stat);
 	),
 
 	TP_printk("xid=0x%08x auth_res=%s auth_stat=%s",
@@ -1642,7 +1612,7 @@ TRACE_EVENT(svc_process,
 		__field(u32, vers)
 		__field(u32, proc)
 		__string(service, name)
-		__string(procedure, rqst->rq_procinfo->pc_name)
+		__string(procedure, svc_proc_name(rqst))
 		__string(addr, rqst->rq_xprt ?
 			 rqst->rq_xprt->xpt_remotebuf : "(null)")
 	),
@@ -1652,7 +1622,7 @@ TRACE_EVENT(svc_process,
 		__entry->vers = rqst->rq_vers;
 		__entry->proc = rqst->rq_proc;
 		__assign_str(service, name);
-		__assign_str(procedure, rqst->rq_procinfo->pc_name);
+		__assign_str(procedure, svc_proc_name(rqst));
 		__assign_str(addr, rqst->rq_xprt ?
 			     rqst->rq_xprt->xpt_remotebuf : "(null)");
 	),
@@ -1918,7 +1888,7 @@ TRACE_EVENT(svc_stats_latency,
 	TP_STRUCT__entry(
 		__field(u32, xid)
 		__field(unsigned long, execute)
-		__string(procedure, rqst->rq_procinfo->pc_name)
+		__string(procedure, svc_proc_name(rqst))
 		__string(addr, rqst->rq_xprt->xpt_remotebuf)
 	),
 
@@ -1926,7 +1896,7 @@ TRACE_EVENT(svc_stats_latency,
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
 		__entry->execute = ktime_to_us(ktime_sub(ktime_get(),
 							 rqst->rq_stime));
-		__assign_str(procedure, rqst->rq_procinfo->pc_name);
+		__assign_str(procedure, svc_proc_name(rqst));
 		__assign_str(addr, rqst->rq_xprt->xpt_remotebuf);
 	),
 

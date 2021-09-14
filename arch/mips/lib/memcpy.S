@@ -666,8 +666,6 @@ FEXPORT(__raw_copy_from_user)
 EXPORT_SYMBOL(__raw_copy_from_user)
 FEXPORT(__raw_copy_to_user)
 EXPORT_SYMBOL(__raw_copy_to_user)
-FEXPORT(__raw_copy_in_user)
-EXPORT_SYMBOL(__raw_copy_in_user)
 #endif
 	/* Legacy Mode, user <-> user */
 	__BUILD_COPY_USER LEGACY_MODE USEROP USEROP
@@ -702,14 +700,5 @@ LEAF(__raw_copy_to_user)
 EXPORT_SYMBOL(__raw_copy_to_user)
 __BUILD_COPY_USER EVA_MODE KERNELOP USEROP
 END(__raw_copy_to_user)
-
-/*
- * __copy_in_user (EVA)
- */
-
-LEAF(__raw_copy_in_user)
-EXPORT_SYMBOL(__raw_copy_in_user)
-__BUILD_COPY_USER EVA_MODE USEROP USEROP
-END(__raw_copy_in_user)
 
 #endif

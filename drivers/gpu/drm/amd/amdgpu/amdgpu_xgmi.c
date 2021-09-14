@@ -32,6 +32,10 @@
 #include "wafl/wafl2_4_0_0_smn.h"
 #include "wafl/wafl2_4_0_0_sh_mask.h"
 
+#define smnPCS_XGMI23_PCS_ERROR_STATUS   0x11a01210
+#define smnPCS_XGMI3X16_PCS_ERROR_STATUS 0x11a0020c
+#define smnPCS_GOPX1_PCS_ERROR_STATUS    0x12200210
+
 static DEFINE_MUTEX(xgmi_mutex);
 
 #define AMDGPU_MAX_XGMI_DEVICE_PER_HIVE		4
@@ -61,6 +65,33 @@ static const int xgmi_pcs_err_status_reg_arct[] = {
 static const int wafl_pcs_err_status_reg_arct[] = {
 	smnPCS_GOPX1_0_PCS_GOPX1_PCS_ERROR_STATUS,
 	smnPCS_GOPX1_0_PCS_GOPX1_PCS_ERROR_STATUS + 0x100000,
+};
+
+static const int xgmi23_pcs_err_status_reg_aldebaran[] = {
+	smnPCS_XGMI23_PCS_ERROR_STATUS,
+	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x100000,
+	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x200000,
+	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x300000,
+	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x400000,
+	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x500000,
+	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x600000,
+	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x700000
+};
+
+static const int xgmi3x16_pcs_err_status_reg_aldebaran[] = {
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS,
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS + 0x100000,
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS + 0x200000,
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS + 0x300000,
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS + 0x400000,
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS + 0x500000,
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS + 0x600000,
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS + 0x700000
+};
+
+static const int walf_pcs_err_status_reg_aldebaran[] = {
+	smnPCS_GOPX1_PCS_ERROR_STATUS,
+	smnPCS_GOPX1_PCS_ERROR_STATUS + 0x100000
 };
 
 static const struct amdgpu_pcs_ras_field xgmi_pcs_ras_fields[] = {
@@ -498,6 +529,32 @@ int amdgpu_xgmi_get_num_links(struct amdgpu_device *adev,
 	return	-EINVAL;
 }
 
+/*
+ * Devices that support extended data require the entire hive to initialize with
+ * the shared memory buffer flag set.
+ *
+ * Hive locks and conditions apply - see amdgpu_xgmi_add_device
+ */
+static int amdgpu_xgmi_initialize_hive_get_data_partition(struct amdgpu_hive_info *hive,
+							bool set_extended_data)
+{
+	struct amdgpu_device *tmp_adev;
+	int ret;
+
+	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
+		ret = psp_xgmi_initialize(&tmp_adev->psp, set_extended_data, false);
+		if (ret) {
+			dev_err(tmp_adev->dev,
+				"XGMI: Failed to initialize xgmi session for data partition %i\n",
+				set_extended_data);
+			return ret;
+		}
+
+	}
+
+	return 0;
+}
+
 int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 {
 	struct psp_xgmi_topology_info *top_info;
@@ -512,7 +569,7 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 
 	if (!adev->gmc.xgmi.pending_reset &&
 	    amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_PSP)) {
-		ret = psp_xgmi_initialize(&adev->psp);
+		ret = psp_xgmi_initialize(&adev->psp, false, true);
 		if (ret) {
 			dev_err(adev->dev,
 				"XGMI: Failed to initialize xgmi session\n");
@@ -575,7 +632,7 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 		/* get latest topology info for each device from psp */
 		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
 			ret = psp_xgmi_get_topology_info(&tmp_adev->psp, count,
-					&tmp_adev->psp.xgmi_context.top_info);
+					&tmp_adev->psp.xgmi_context.top_info, false);
 			if (ret) {
 				dev_err(tmp_adev->dev,
 					"XGMI: Get topology failure on device %llx, hive %llx, ret %d",
@@ -584,6 +641,34 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 				/* To do : continue with some node failed or disable the whole hive */
 				goto exit_unlock;
 			}
+		}
+
+		/* get topology again for hives that support extended data */
+		if (adev->psp.xgmi_context.supports_extended_data) {
+
+			/* initialize the hive to get extended data.  */
+			ret = amdgpu_xgmi_initialize_hive_get_data_partition(hive, true);
+			if (ret)
+				goto exit_unlock;
+
+			/* get the extended data. */
+			list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
+				ret = psp_xgmi_get_topology_info(&tmp_adev->psp, count,
+						&tmp_adev->psp.xgmi_context.top_info, true);
+				if (ret) {
+					dev_err(tmp_adev->dev,
+						"XGMI: Get topology for extended data failure on device %llx, hive %llx, ret %d",
+						tmp_adev->gmc.xgmi.node_id,
+						tmp_adev->gmc.xgmi.hive_id, ret);
+					goto exit_unlock;
+				}
+			}
+
+			/* initialize the hive to get non-extended data for the next round. */
+			ret = amdgpu_xgmi_initialize_hive_get_data_partition(hive, false);
+			if (ret)
+				goto exit_unlock;
+
 		}
 	}
 
@@ -663,7 +748,6 @@ static int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev)
 		adev->gmc.xgmi.ras_if->block = AMDGPU_RAS_BLOCK__XGMI_WAFL;
 		adev->gmc.xgmi.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
 		adev->gmc.xgmi.ras_if->sub_block_index = 0;
-		strcpy(adev->gmc.xgmi.ras_if->name, "xgmi_wafl");
 	}
 	ih_info.head = fs_info.head = *adev->gmc.xgmi.ras_if;
 	r = amdgpu_ras_late_init(adev, adev->gmc.xgmi.ras_if,
@@ -717,6 +801,17 @@ static void amdgpu_xgmi_reset_ras_error_count(struct amdgpu_device *adev)
 		for (i = 0; i < ARRAY_SIZE(xgmi_pcs_err_status_reg_vg20); i++)
 			pcs_clear_status(adev,
 					 xgmi_pcs_err_status_reg_vg20[i]);
+		break;
+	case CHIP_ALDEBARAN:
+		for (i = 0; i < ARRAY_SIZE(xgmi23_pcs_err_status_reg_aldebaran); i++)
+			pcs_clear_status(adev,
+					 xgmi23_pcs_err_status_reg_aldebaran[i]);
+		for (i = 0; i < ARRAY_SIZE(xgmi23_pcs_err_status_reg_aldebaran); i++)
+			pcs_clear_status(adev,
+					 xgmi23_pcs_err_status_reg_aldebaran[i]);
+		for (i = 0; i < ARRAY_SIZE(walf_pcs_err_status_reg_aldebaran); i++)
+			pcs_clear_status(adev,
+					 walf_pcs_err_status_reg_aldebaran[i]);
 		break;
 	default:
 		break;
@@ -795,7 +890,6 @@ static int amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 		}
 		break;
 	case CHIP_VEGA20:
-	default:
 		/* check xgmi pcs error */
 		for (i = 0; i < ARRAY_SIZE(xgmi_pcs_err_status_reg_vg20); i++) {
 			data = RREG32_PCIE(xgmi_pcs_err_status_reg_vg20[i]);
@@ -810,6 +904,32 @@ static int amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 				amdgpu_xgmi_query_pcs_error_status(adev,
 						data, &ue_cnt, &ce_cnt, false);
 		}
+		break;
+	case CHIP_ALDEBARAN:
+		/* check xgmi23 pcs error */
+		for (i = 0; i < ARRAY_SIZE(xgmi23_pcs_err_status_reg_aldebaran); i++) {
+			data = RREG32_PCIE(xgmi23_pcs_err_status_reg_aldebaran[i]);
+			if (data)
+				amdgpu_xgmi_query_pcs_error_status(adev,
+						data, &ue_cnt, &ce_cnt, true);
+		}
+		/* check xgmi3x16 pcs error */
+		for (i = 0; i < ARRAY_SIZE(xgmi3x16_pcs_err_status_reg_aldebaran); i++) {
+			data = RREG32_PCIE(xgmi3x16_pcs_err_status_reg_aldebaran[i]);
+			if (data)
+				amdgpu_xgmi_query_pcs_error_status(adev,
+						data, &ue_cnt, &ce_cnt, true);
+		}
+		/* check wafl pcs error */
+		for (i = 0; i < ARRAY_SIZE(walf_pcs_err_status_reg_aldebaran); i++) {
+			data = RREG32_PCIE(walf_pcs_err_status_reg_aldebaran[i]);
+			if (data)
+				amdgpu_xgmi_query_pcs_error_status(adev,
+						data, &ue_cnt, &ce_cnt, false);
+		}
+		break;
+	default:
+		dev_warn(adev->dev, "XGMI RAS error query not supported");
 		break;
 	}
 

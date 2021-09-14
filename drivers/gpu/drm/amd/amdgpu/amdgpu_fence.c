@@ -129,30 +129,50 @@ static u32 amdgpu_fence_read(struct amdgpu_ring *ring)
  *
  * @ring: ring the fence is associated with
  * @f: resulting fence object
+ * @job: job the fence is embedded in
  * @flags: flags to pass into the subordinate .emit_fence() call
  *
  * Emits a fence command on the requested ring (all asics).
  * Returns 0 on success, -ENOMEM on failure.
  */
-int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **f,
+int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **f, struct amdgpu_job *job,
 		      unsigned flags)
 {
 	struct amdgpu_device *adev = ring->adev;
-	struct amdgpu_fence *fence;
+	struct dma_fence *fence;
+	struct amdgpu_fence *am_fence;
 	struct dma_fence __rcu **ptr;
 	uint32_t seq;
 	int r;
 
-	fence = kmem_cache_alloc(amdgpu_fence_slab, GFP_KERNEL);
-	if (fence == NULL)
-		return -ENOMEM;
+	if (job == NULL) {
+		/* create a sperate hw fence */
+		am_fence = kmem_cache_alloc(amdgpu_fence_slab, GFP_ATOMIC);
+		if (am_fence == NULL)
+			return -ENOMEM;
+		fence = &am_fence->base;
+		am_fence->ring = ring;
+	} else {
+		/* take use of job-embedded fence */
+		fence = &job->hw_fence;
+	}
 
 	seq = ++ring->fence_drv.sync_seq;
-	fence->ring = ring;
-	dma_fence_init(&fence->base, &amdgpu_fence_ops,
-		       &ring->fence_drv.lock,
-		       adev->fence_context + ring->idx,
-		       seq);
+	if (job != NULL && job->job_run_counter) {
+		/* reinit seq for resubmitted jobs */
+		fence->seqno = seq;
+	} else {
+		dma_fence_init(fence, &amdgpu_fence_ops,
+				&ring->fence_drv.lock,
+				adev->fence_context + ring->idx,
+				seq);
+	}
+
+	if (job != NULL) {
+		/* mark this fence has a parent job */
+		set_bit(AMDGPU_FENCE_FLAG_EMBED_IN_JOB_BIT, &fence->flags);
+	}
+
 	amdgpu_ring_emit_fence(ring, ring->fence_drv.gpu_addr,
 			       seq, flags | AMDGPU_FENCE_FLAG_INT);
 	pm_runtime_get_noresume(adev_to_drm(adev)->dev);
@@ -175,9 +195,9 @@ int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **f,
 	/* This function can't be called concurrently anyway, otherwise
 	 * emitting the fence would mess up the hardware ring buffer.
 	 */
-	rcu_assign_pointer(*ptr, dma_fence_get(&fence->base));
+	rcu_assign_pointer(*ptr, dma_fence_get(fence));
 
-	*f = &fence->base;
+	*f = fence;
 
 	return 0;
 }
@@ -492,7 +512,7 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 }
 
 /**
- * amdgpu_fence_driver_init - init the fence driver
+ * amdgpu_fence_driver_sw_init - init the fence driver
  * for all possible rings.
  *
  * @adev: amdgpu device pointer
@@ -503,13 +523,13 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
  * amdgpu_fence_driver_start_ring().
  * Returns 0 for success.
  */
-int amdgpu_fence_driver_init(struct amdgpu_device *adev)
+int amdgpu_fence_driver_sw_init(struct amdgpu_device *adev)
 {
 	return 0;
 }
 
 /**
- * amdgpu_fence_driver_fini - tear down the fence driver
+ * amdgpu_fence_driver_hw_fini - tear down the fence driver
  * for all possible rings.
  *
  * @adev: amdgpu device pointer
@@ -525,8 +545,10 @@ void amdgpu_fence_driver_hw_fini(struct amdgpu_device *adev)
 
 		if (!ring || !ring->fence_drv.initialized)
 			continue;
+
 		if (!ring->no_scheduler)
-			drm_sched_fini(&ring->sched);
+			drm_sched_stop(&ring->sched, NULL);
+
 		/* You can't wait for HW to signal if it's gone */
 		if (!drm_dev_is_unplugged(&adev->ddev))
 			r = amdgpu_fence_wait_empty(ring);
@@ -553,6 +575,9 @@ void amdgpu_fence_driver_sw_fini(struct amdgpu_device *adev)
 
 		if (!ring || !ring->fence_drv.initialized)
 			continue;
+
+		if (!ring->no_scheduler)
+			drm_sched_fini(&ring->sched);
 
 		for (j = 0; j <= ring->fence_drv.num_fences_mask; ++j)
 			dma_fence_put(ring->fence_drv.fences[j]);
@@ -582,6 +607,11 @@ void amdgpu_fence_driver_hw_init(struct amdgpu_device *adev)
 		struct amdgpu_ring *ring = adev->rings[i];
 		if (!ring || !ring->fence_drv.initialized)
 			continue;
+
+		if (!ring->no_scheduler) {
+			drm_sched_resubmit_jobs(&ring->sched);
+			drm_sched_start(&ring->sched, true);
+		}
 
 		/* enable the interrupt */
 		if (ring->fence_drv.irq_src)
@@ -613,8 +643,16 @@ static const char *amdgpu_fence_get_driver_name(struct dma_fence *fence)
 
 static const char *amdgpu_fence_get_timeline_name(struct dma_fence *f)
 {
-	struct amdgpu_fence *fence = to_amdgpu_fence(f);
-	return (const char *)fence->ring->name;
+	struct amdgpu_ring *ring;
+
+	if (test_bit(AMDGPU_FENCE_FLAG_EMBED_IN_JOB_BIT, &f->flags)) {
+		struct amdgpu_job *job = container_of(f, struct amdgpu_job, hw_fence);
+
+		ring = to_amdgpu_ring(job->base.sched);
+	} else {
+		ring = to_amdgpu_fence(f)->ring;
+	}
+	return (const char *)ring->name;
 }
 
 /**
@@ -627,8 +665,15 @@ static const char *amdgpu_fence_get_timeline_name(struct dma_fence *f)
  */
 static bool amdgpu_fence_enable_signaling(struct dma_fence *f)
 {
-	struct amdgpu_fence *fence = to_amdgpu_fence(f);
-	struct amdgpu_ring *ring = fence->ring;
+	struct amdgpu_ring *ring;
+
+	if (test_bit(AMDGPU_FENCE_FLAG_EMBED_IN_JOB_BIT, &f->flags)) {
+		struct amdgpu_job *job = container_of(f, struct amdgpu_job, hw_fence);
+
+		ring = to_amdgpu_ring(job->base.sched);
+	} else {
+		ring = to_amdgpu_fence(f)->ring;
+	}
 
 	if (!timer_pending(&ring->fence_drv.fallback_timer))
 		amdgpu_fence_schedule_fallback(ring);
@@ -646,8 +691,20 @@ static bool amdgpu_fence_enable_signaling(struct dma_fence *f)
 static void amdgpu_fence_free(struct rcu_head *rcu)
 {
 	struct dma_fence *f = container_of(rcu, struct dma_fence, rcu);
-	struct amdgpu_fence *fence = to_amdgpu_fence(f);
-	kmem_cache_free(amdgpu_fence_slab, fence);
+
+	if (test_bit(AMDGPU_FENCE_FLAG_EMBED_IN_JOB_BIT, &f->flags)) {
+	/* free job if fence has a parent job */
+		struct amdgpu_job *job;
+
+		job = container_of(f, struct amdgpu_job, hw_fence);
+		kfree(job);
+	} else {
+	/* free fence_slab if it's separated fence*/
+		struct amdgpu_fence *fence;
+
+		fence = to_amdgpu_fence(f);
+		kmem_cache_free(amdgpu_fence_slab, fence);
+	}
 }
 
 /**
@@ -669,6 +726,7 @@ static const struct dma_fence_ops amdgpu_fence_ops = {
 	.enable_signaling = amdgpu_fence_enable_signaling,
 	.release = amdgpu_fence_release,
 };
+
 
 /*
  * Fence debugfs

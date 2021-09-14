@@ -299,6 +299,9 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 				  ip->major, ip->minor,
 				  ip->revision);
 
+			if (le16_to_cpu(ip->hw_id) == VCN_HWID)
+				adev->vcn.num_vcn_inst++;
+
 			for (k = 0; k < num_base_address; k++) {
 				/*
 				 * convert the endianness of base addresses in place,
@@ -385,7 +388,7 @@ void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 {
 	struct binary_header *bhdr;
 	struct harvest_table *harvest_info;
-	int i;
+	int i, vcn_harvest_count = 0;
 
 	bhdr = (struct binary_header *)adev->mman.discovery_bin;
 	harvest_info = (struct harvest_table *)(adev->mman.discovery_bin +
@@ -397,8 +400,7 @@ void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 
 		switch (le32_to_cpu(harvest_info->list[i].hw_id)) {
 		case VCN_HWID:
-			adev->harvest_ip_mask |= AMD_HARVEST_IP_VCN_MASK;
-			adev->harvest_ip_mask |= AMD_HARVEST_IP_JPEG_MASK;
+			vcn_harvest_count++;
 			break;
 		case DMU_HWID:
 			adev->harvest_ip_mask |= AMD_HARVEST_IP_DMU_MASK;
@@ -406,6 +408,10 @@ void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 		default:
 			break;
 		}
+	}
+	if (vcn_harvest_count == adev->vcn.num_vcn_inst) {
+		adev->harvest_ip_mask |= AMD_HARVEST_IP_VCN_MASK;
+		adev->harvest_ip_mask |= AMD_HARVEST_IP_JPEG_MASK;
 	}
 }
 

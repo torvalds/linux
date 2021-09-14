@@ -153,7 +153,7 @@ search_again:
 	else
 		key.type = BTRFS_EXTENT_ITEM_KEY;
 
-	ret = btrfs_search_slot(trans, fs_info->extent_root, &key, path, 0, 0);
+	ret = btrfs_search_slot(NULL, fs_info->extent_root, &key, path, 0, 0);
 	if (ret < 0)
 		goto out_free;
 
@@ -5950,9 +5950,9 @@ static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
  */
 int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range)
 {
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	struct btrfs_block_group *cache = NULL;
 	struct btrfs_device *device;
-	struct list_head *devices;
 	u64 group_trimmed;
 	u64 range_end = U64_MAX;
 	u64 start;
@@ -6016,9 +6016,9 @@ int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range)
 		btrfs_warn(fs_info,
 			"failed to trim %llu block group(s), last error %d",
 			bg_failed, bg_ret);
-	mutex_lock(&fs_info->fs_devices->device_list_mutex);
-	devices = &fs_info->fs_devices->devices;
-	list_for_each_entry(device, devices, dev_list) {
+
+	mutex_lock(&fs_devices->device_list_mutex);
+	list_for_each_entry(device, &fs_devices->devices, dev_list) {
 		if (test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state))
 			continue;
 
@@ -6031,7 +6031,7 @@ int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range)
 
 		trimmed += group_trimmed;
 	}
-	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+	mutex_unlock(&fs_devices->device_list_mutex);
 
 	if (dev_failed)
 		btrfs_warn(fs_info,

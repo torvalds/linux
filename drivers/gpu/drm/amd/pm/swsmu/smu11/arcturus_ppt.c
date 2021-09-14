@@ -81,6 +81,24 @@
 
 #define smnPCIE_ESM_CTRL			0x111003D0
 
+#define mmCG_FDO_CTRL0_ARCT			0x8B
+#define mmCG_FDO_CTRL0_ARCT_BASE_IDX		0
+
+#define mmCG_FDO_CTRL1_ARCT			0x8C
+#define mmCG_FDO_CTRL1_ARCT_BASE_IDX		0
+
+#define mmCG_FDO_CTRL2_ARCT			0x8D
+#define mmCG_FDO_CTRL2_ARCT_BASE_IDX		0
+
+#define mmCG_TACH_CTRL_ARCT			0x8E
+#define mmCG_TACH_CTRL_ARCT_BASE_IDX		0
+
+#define mmCG_TACH_STATUS_ARCT			0x8F
+#define mmCG_TACH_STATUS_ARCT_BASE_IDX		0
+
+#define mmCG_THERMAL_STATUS_ARCT		0x90
+#define mmCG_THERMAL_STATUS_ARCT_BASE_IDX	0
+
 static const struct cmn2asic_msg_mapping arcturus_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			     PPSMC_MSG_TestMessage,			0),
 	MSG_MAP(GetSmuVersion,			     PPSMC_MSG_GetSmuVersion,			1),
@@ -163,14 +181,14 @@ static const struct cmn2asic_mapping arcturus_feature_mask_map[SMU_FEATURE_COUNT
 	FEA_MAP(DPM_SOCCLK),
 	FEA_MAP(DPM_FCLK),
 	FEA_MAP(DPM_MP0CLK),
-	ARCTURUS_FEA_MAP(SMU_FEATURE_XGMI_BIT, FEATURE_DPM_XGMI_BIT),
+	FEA_MAP(DPM_XGMI),
 	FEA_MAP(DS_GFXCLK),
 	FEA_MAP(DS_SOCCLK),
 	FEA_MAP(DS_LCLK),
 	FEA_MAP(DS_FCLK),
 	FEA_MAP(DS_UCLK),
 	FEA_MAP(GFX_ULV),
-	ARCTURUS_FEA_MAP(SMU_FEATURE_VCN_PG_BIT, FEATURE_DPM_VCN_BIT),
+	ARCTURUS_FEA_MAP(SMU_FEATURE_VCN_DPM_BIT, FEATURE_DPM_VCN_BIT),
 	FEA_MAP(RSMU_SMN_CG),
 	FEA_MAP(WAFL_CG),
 	FEA_MAP(PPT),
@@ -465,10 +483,8 @@ static int arcturus_append_powerplay_table(struct smu_context *smu)
 
 	if ((smc_dpm_table->table_header.format_revision == 4) &&
 	    (smc_dpm_table->table_header.content_revision == 6))
-		memcpy(&smc_pptable->MaxVoltageStepGfx,
-		       &smc_dpm_table->maxvoltagestepgfx,
-		       sizeof(*smc_dpm_table) - offsetof(struct atom_smc_dpm_info_v4_6, maxvoltagestepgfx));
-
+		smu_memcpy_trailing(smc_pptable, MaxVoltageStepGfx, BoardReserved,
+				    smc_dpm_table, maxvoltagestepgfx);
 	return 0;
 }
 
@@ -721,13 +737,13 @@ static int arcturus_get_current_clk_freq_by_table(struct smu_context *smu,
 			member_type = METRICS_AVERAGE_SOCCLK;
 		break;
 	case PPCLK_VCLK:
-		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT))
+		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_DPM_BIT))
 			member_type = METRICS_CURR_VCLK;
 		else
 			member_type = METRICS_AVERAGE_VCLK;
 		break;
 	case PPCLK_DCLK:
-		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT))
+		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_DPM_BIT))
 			member_type = METRICS_CURR_DCLK;
 		else
 			member_type = METRICS_AVERAGE_DCLK;
@@ -756,7 +772,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 	uint32_t gen_speed, lane_width;
 
 	if (amdgpu_ras_intr_triggered())
-		return snprintf(buf, PAGE_SIZE, "unavailable\n");
+		return sysfs_emit(buf, "unavailable\n");
 
 	dpm_context = smu_dpm->dpm_context;
 
@@ -780,7 +796,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		 * And it's safe to assume that is always the current clock.
 		 */
 		for (i = 0; i < clocks.num_levels; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n", i,
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i,
 					clocks.data[i].clocks_in_khz / 1000,
 					(clocks.num_levels == 1) ? "*" :
 					(arcturus_freqs_in_same_level(
@@ -803,7 +819,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < clocks.num_levels; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
 				(clocks.num_levels == 1) ? "*" :
 				(arcturus_freqs_in_same_level(
@@ -826,7 +842,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < clocks.num_levels; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
 				(clocks.num_levels == 1) ? "*" :
 				(arcturus_freqs_in_same_level(
@@ -849,7 +865,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < single_dpm_table->count; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
 				i, single_dpm_table->dpm_levels[i].value,
 				(clocks.num_levels == 1) ? "*" :
 				(arcturus_freqs_in_same_level(
@@ -872,7 +888,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < single_dpm_table->count; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
 				i, single_dpm_table->dpm_levels[i].value,
 				(clocks.num_levels == 1) ? "*" :
 				(arcturus_freqs_in_same_level(
@@ -895,7 +911,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < single_dpm_table->count; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
 				i, single_dpm_table->dpm_levels[i].value,
 				(clocks.num_levels == 1) ? "*" :
 				(arcturus_freqs_in_same_level(
@@ -906,7 +922,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 	case SMU_PCIE:
 		gen_speed = smu_v11_0_get_current_pcie_link_speed_level(smu);
 		lane_width = smu_v11_0_get_current_pcie_link_width_level(smu);
-		size += sprintf(buf + size, "0: %s %s %dMhz *\n",
+		size += sysfs_emit_at(buf, size, "0: %s %s %dMhz *\n",
 				(gen_speed == 0) ? "2.5GT/s," :
 				(gen_speed == 1) ? "5.0GT/s," :
 				(gen_speed == 2) ? "8.0GT/s," :
@@ -1162,11 +1178,29 @@ static int arcturus_read_sensor(struct smu_context *smu,
 	return ret;
 }
 
-static int arcturus_get_fan_speed_percent(struct smu_context *smu,
-					  uint32_t *speed)
+static int arcturus_set_fan_static_mode(struct smu_context *smu,
+					uint32_t mode)
 {
-	int ret;
-	u32 rpm;
+	struct amdgpu_device *adev = smu->adev;
+
+	WREG32_SOC15(THM, 0, mmCG_FDO_CTRL2_ARCT,
+		     REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL2_ARCT),
+				   CG_FDO_CTRL2, TMIN, 0));
+	WREG32_SOC15(THM, 0, mmCG_FDO_CTRL2_ARCT,
+		     REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL2_ARCT),
+				   CG_FDO_CTRL2, FDO_PWM_MODE, mode));
+
+	return 0;
+}
+
+static int arcturus_get_fan_speed_rpm(struct smu_context *smu,
+				      uint32_t *speed)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t crystal_clock_freq = 2500;
+	uint32_t tach_status;
+	uint64_t tmp64;
+	int ret = 0;
 
 	if (!speed)
 		return -EINVAL;
@@ -1175,14 +1209,112 @@ static int arcturus_get_fan_speed_percent(struct smu_context *smu,
 	case AMD_FAN_CTRL_AUTO:
 		ret = arcturus_get_smu_metrics_data(smu,
 						    METRICS_CURR_FANSPEED,
-						    &rpm);
-		if (!ret && smu->fan_max_rpm)
-			*speed = rpm * 100 / smu->fan_max_rpm;
-		return ret;
+						    speed);
+		break;
 	default:
-		*speed = smu->user_dpm_profile.fan_speed_percent;
+		/*
+		 * For pre Sienna Cichlid ASICs, the 0 RPM may be not correctly
+		 * detected via register retrieving. To workaround this, we will
+		 * report the fan speed as 0 RPM if user just requested such.
+		 */
+		if ((smu->user_dpm_profile.flags & SMU_CUSTOM_FAN_SPEED_RPM)
+		     && !smu->user_dpm_profile.fan_speed_rpm) {
+			*speed = 0;
+			return 0;
+		}
+
+		tmp64 = (uint64_t)crystal_clock_freq * 60 * 10000;
+		tach_status = RREG32_SOC15(THM, 0, mmCG_TACH_STATUS_ARCT);
+		if (tach_status) {
+			do_div(tmp64, tach_status);
+			*speed = (uint32_t)tmp64;
+		} else {
+			*speed = 0;
+		}
+
+		break;
+	}
+
+	return ret;
+}
+
+static int arcturus_set_fan_speed_pwm(struct smu_context *smu,
+				      uint32_t speed)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t duty100, duty;
+	uint64_t tmp64;
+
+	speed = MIN(speed, 255);
+
+	duty100 = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL1_ARCT),
+				CG_FDO_CTRL1, FMAX_DUTY100);
+	if (!duty100)
+		return -EINVAL;
+
+	tmp64 = (uint64_t)speed * duty100;
+	do_div(tmp64, 255);
+	duty = (uint32_t)tmp64;
+
+	WREG32_SOC15(THM, 0, mmCG_FDO_CTRL0_ARCT,
+		     REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL0_ARCT),
+				   CG_FDO_CTRL0, FDO_STATIC_DUTY, duty));
+
+	return arcturus_set_fan_static_mode(smu, FDO_PWM_MODE_STATIC);
+}
+
+static int arcturus_set_fan_speed_rpm(struct smu_context *smu,
+				      uint32_t speed)
+{
+	struct amdgpu_device *adev = smu->adev;
+	/*
+	 * crystal_clock_freq used for fan speed rpm calculation is
+	 * always 25Mhz. So, hardcode it as 2500(in 10K unit).
+	 */
+	uint32_t crystal_clock_freq = 2500;
+	uint32_t tach_period;
+
+	tach_period = 60 * crystal_clock_freq * 10000 / (8 * speed);
+	WREG32_SOC15(THM, 0, mmCG_TACH_CTRL_ARCT,
+		     REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_TACH_CTRL_ARCT),
+				   CG_TACH_CTRL, TARGET_PERIOD,
+				   tach_period));
+
+	return arcturus_set_fan_static_mode(smu, FDO_PWM_MODE_STATIC_RPM);
+}
+
+static int arcturus_get_fan_speed_pwm(struct smu_context *smu,
+				      uint32_t *speed)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t duty100, duty;
+	uint64_t tmp64;
+
+	/*
+	 * For pre Sienna Cichlid ASICs, the 0 RPM may be not correctly
+	 * detected via register retrieving. To workaround this, we will
+	 * report the fan speed as 0 PWM if user just requested such.
+	 */
+	if ((smu->user_dpm_profile.flags & SMU_CUSTOM_FAN_SPEED_PWM)
+	     && !smu->user_dpm_profile.fan_speed_pwm) {
+		*speed = 0;
 		return 0;
 	}
+
+	duty100 = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL1_ARCT),
+				CG_FDO_CTRL1, FMAX_DUTY100);
+	duty = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_THERMAL_STATUS_ARCT),
+				CG_THERMAL_STATUS, FDO_PWM_DUTY);
+
+	if (duty100) {
+		tmp64 = (uint64_t)duty * 255;
+		do_div(tmp64, duty100);
+		*speed = MIN((uint32_t)tmp64, 255);
+	} else {
+		*speed = 0;
+	}
+
+	return 0;
 }
 
 static int arcturus_get_fan_parameters(struct smu_context *smu)
@@ -1272,11 +1404,11 @@ static int arcturus_get_power_profile_mode(struct smu_context *smu,
 		return result;
 
 	if (smu_version >= 0x360d00)
-		size += sprintf(buf + size, "%16s %s %s %s %s %s %s %s %s %s %s\n",
+		size += sysfs_emit_at(buf, size, "%16s %s %s %s %s %s %s %s %s %s %s\n",
 			title[0], title[1], title[2], title[3], title[4], title[5],
 			title[6], title[7], title[8], title[9], title[10]);
 	else
-		size += sprintf(buf + size, "%16s\n",
+		size += sysfs_emit_at(buf, size, "%16s\n",
 			title[0]);
 
 	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
@@ -1302,11 +1434,11 @@ static int arcturus_get_power_profile_mode(struct smu_context *smu,
 			}
 		}
 
-		size += sprintf(buf + size, "%2d %14s%s\n",
+		size += sysfs_emit_at(buf, size, "%2d %14s%s\n",
 			i, profile_name[i], (i == smu->power_profile_mode) ? "*" : " ");
 
 		if (smu_version >= 0x360d00) {
-			size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			size += sysfs_emit_at(buf, size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
 				" ",
 				0,
 				"GFXCLK",
@@ -1320,7 +1452,7 @@ static int arcturus_get_power_profile_mode(struct smu_context *smu,
 				activity_monitor.Gfx_PD_Data_error_coeff,
 				activity_monitor.Gfx_PD_Data_error_rate_coeff);
 
-			size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			size += sysfs_emit_at(buf, size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
 				" ",
 				1,
 				"UCLK",
@@ -1916,16 +2048,16 @@ static int arcturus_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 	int ret = 0;
 
 	if (enable) {
-		if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
-			ret = smu_cmn_feature_set_enabled(smu, SMU_FEATURE_VCN_PG_BIT, 1);
+		if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_DPM_BIT)) {
+			ret = smu_cmn_feature_set_enabled(smu, SMU_FEATURE_VCN_DPM_BIT, 1);
 			if (ret) {
 				dev_err(smu->adev->dev, "[EnableVCNDPM] failed!\n");
 				return ret;
 			}
 		}
 	} else {
-		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
-			ret = smu_cmn_feature_set_enabled(smu, SMU_FEATURE_VCN_PG_BIT, 0);
+		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_DPM_BIT)) {
+			ret = smu_cmn_feature_set_enabled(smu, SMU_FEATURE_VCN_DPM_BIT, 0);
 			if (ret) {
 				dev_err(smu->adev->dev, "[DisableVCNDPM] failed!\n");
 				return ret;
@@ -2270,7 +2402,8 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.print_clk_levels = arcturus_print_clk_levels,
 	.force_clk_levels = arcturus_force_clk_levels,
 	.read_sensor = arcturus_read_sensor,
-	.get_fan_speed_percent = arcturus_get_fan_speed_percent,
+	.get_fan_speed_pwm = arcturus_get_fan_speed_pwm,
+	.get_fan_speed_rpm = arcturus_get_fan_speed_rpm,
 	.get_power_profile_mode = arcturus_get_power_profile_mode,
 	.set_power_profile_mode = arcturus_set_power_profile_mode,
 	.set_performance_level = arcturus_set_performance_level,
@@ -2315,7 +2448,8 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.display_clock_voltage_request = smu_v11_0_display_clock_voltage_request,
 	.get_fan_control_mode = smu_v11_0_get_fan_control_mode,
 	.set_fan_control_mode = smu_v11_0_set_fan_control_mode,
-	.set_fan_speed_percent = smu_v11_0_set_fan_speed_percent,
+	.set_fan_speed_pwm = arcturus_set_fan_speed_pwm,
+	.set_fan_speed_rpm = arcturus_set_fan_speed_rpm,
 	.set_xgmi_pstate = smu_v11_0_set_xgmi_pstate,
 	.gfx_off_control = smu_v11_0_gfx_off_control,
 	.register_irq_handler = smu_v11_0_register_irq_handler,

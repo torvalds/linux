@@ -17,10 +17,10 @@ allOf:
 
 properties:
   compatible:
-    oneOf:
-      - const: loongson,ls2k-pci
-      - const: loongson,ls7a-pci
-      - const: loongson,rs780e-pci
+    enum:
+      - loongson,ls2k-pci
+      - loongson,ls7a-pci
+      - loongson,rs780e-pci
 
   reg:
     minItems: 1

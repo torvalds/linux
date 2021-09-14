@@ -736,9 +736,13 @@ out:
 		 * is already in MAPPED or UNMAPPED state.  Catch this
 		 * condition and don't set the nlp_state again because
 		 * it causes an unnecessary transport unregister/register.
+		 *
+		 * Nodes marked for ADISC will move MAPPED or UNMAPPED state
+		 * after issuing ADISC
 		 */
 		if (ndlp->nlp_type & (NLP_FCP_TARGET | NLP_NVME_TARGET)) {
-			if (ndlp->nlp_state != NLP_STE_MAPPED_NODE)
+			if ((ndlp->nlp_state != NLP_STE_MAPPED_NODE) &&
+			    !(ndlp->nlp_flag & NLP_NPR_ADISC))
 				lpfc_nlp_set_state(vport, ndlp,
 						   NLP_STE_MAPPED_NODE);
 		}
@@ -863,6 +867,9 @@ lpfc_rcv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		ndlp->nlp_last_elscmd = ELS_CMD_PLOGI;
 	}
 out:
+	/* Unregister from backend, could have been skipped due to ADISC */
+	lpfc_nlp_unreg_node(vport, ndlp);
+
 	ndlp->nlp_prev_state = ndlp->nlp_state;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 
@@ -1676,9 +1683,6 @@ lpfc_cmpl_adisc_adisc_issue(struct lpfc_vport *vport,
 		ndlp->nlp_flag |= NLP_DELAY_TMO;
 		spin_unlock_irq(&ndlp->lock);
 		ndlp->nlp_last_elscmd = ELS_CMD_PLOGI;
-
-		memset(&ndlp->nlp_nodename, 0, sizeof(struct lpfc_name));
-		memset(&ndlp->nlp_portname, 0, sizeof(struct lpfc_name));
 
 		ndlp->nlp_prev_state = NLP_STE_ADISC_ISSUE;
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
@@ -2597,13 +2601,14 @@ lpfc_device_recov_mapped_node(struct lpfc_vport *vport,
 			      void *arg,
 			      uint32_t evt)
 {
+	lpfc_disc_set_adisc(vport, ndlp);
+
 	ndlp->nlp_prev_state = NLP_STE_MAPPED_NODE;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 	spin_lock_irq(&ndlp->lock);
 	ndlp->nlp_flag &= ~(NLP_NODEV_REMOVE | NLP_NPR_2B_DISC);
 	ndlp->nlp_fc4_type &= ~(NLP_FC4_FCP | NLP_FC4_NVME);
 	spin_unlock_irq(&ndlp->lock);
-	lpfc_disc_set_adisc(vport, ndlp);
 	return ndlp->nlp_state;
 }
 
@@ -2645,14 +2650,13 @@ lpfc_rcv_prli_npr_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp, NULL);
 
 	if (!(ndlp->nlp_flag & NLP_DELAY_TMO)) {
-		if (ndlp->nlp_flag & NLP_NPR_ADISC) {
-			spin_lock_irq(&ndlp->lock);
-			ndlp->nlp_flag &= ~NLP_NPR_ADISC;
-			ndlp->nlp_prev_state = NLP_STE_NPR_NODE;
-			spin_unlock_irq(&ndlp->lock);
-			lpfc_nlp_set_state(vport, ndlp, NLP_STE_ADISC_ISSUE);
-			lpfc_issue_els_adisc(vport, ndlp, 0);
-		} else {
+		/*
+		 * ADISC nodes will be handled in regular discovery path after
+		 * receiving response from NS.
+		 *
+		 * For other nodes, Send PLOGI to trigger an implicit LOGO.
+		 */
+		if (!(ndlp->nlp_flag & NLP_NPR_ADISC)) {
 			ndlp->nlp_prev_state = NLP_STE_NPR_NODE;
 			lpfc_nlp_set_state(vport, ndlp, NLP_STE_PLOGI_ISSUE);
 			lpfc_issue_els_plogi(vport, ndlp->nlp_DID, 0);
@@ -2685,12 +2689,13 @@ lpfc_rcv_padisc_npr_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	 */
 	if (!(ndlp->nlp_flag & NLP_DELAY_TMO) &&
 	    !(ndlp->nlp_flag & NLP_NPR_2B_DISC)) {
-		if (ndlp->nlp_flag & NLP_NPR_ADISC) {
-			ndlp->nlp_flag &= ~NLP_NPR_ADISC;
-			ndlp->nlp_prev_state = NLP_STE_NPR_NODE;
-			lpfc_nlp_set_state(vport, ndlp, NLP_STE_ADISC_ISSUE);
-			lpfc_issue_els_adisc(vport, ndlp, 0);
-		} else {
+		/*
+		 * ADISC nodes will be handled in regular discovery path after
+		 * receiving response from NS.
+		 *
+		 * For other nodes, Send PLOGI to trigger an implicit LOGO.
+		 */
+		if (!(ndlp->nlp_flag & NLP_NPR_ADISC)) {
 			ndlp->nlp_prev_state = NLP_STE_NPR_NODE;
 			lpfc_nlp_set_state(vport, ndlp, NLP_STE_PLOGI_ISSUE);
 			lpfc_issue_els_plogi(vport, ndlp->nlp_DID, 0);

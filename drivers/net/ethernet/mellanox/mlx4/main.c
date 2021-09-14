@@ -3535,6 +3535,7 @@ slave_start:
 
 		if (!SRIOV_VALID_STATE(dev->flags)) {
 			mlx4_err(dev, "Invalid SRIOV state\n");
+			err = -EINVAL;
 			goto err_close;
 		}
 	}
@@ -3805,21 +3806,12 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data,
 
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
 		dev_warn(&pdev->dev, "Warning: couldn't set 64-bit PCI DMA mask\n");
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
 			dev_err(&pdev->dev, "Can't set PCI DMA mask, aborting\n");
-			goto err_release_regions;
-		}
-	}
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (err) {
-		dev_warn(&pdev->dev, "Warning: couldn't set 64-bit consistent PCI DMA mask\n");
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(&pdev->dev, "Can't set consistent PCI DMA mask, aborting\n");
 			goto err_release_regions;
 		}
 	}
@@ -4004,7 +3996,7 @@ static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	printk_once(KERN_INFO "%s", mlx4_version);
 
-	devlink = devlink_alloc(&mlx4_devlink_ops, sizeof(*priv));
+	devlink = devlink_alloc(&mlx4_devlink_ops, sizeof(*priv), &pdev->dev);
 	if (!devlink)
 		return -ENOMEM;
 	priv = devlink_priv(devlink);
@@ -4023,7 +4015,7 @@ static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	mutex_init(&dev->persist->interface_state_mutex);
 	mutex_init(&dev->persist->pci_status_mutex);
 
-	ret = devlink_register(devlink, &pdev->dev);
+	ret = devlink_register(devlink);
 	if (ret)
 		goto err_persist_free;
 	ret = devlink_params_register(devlink, mlx4_devlink_params,

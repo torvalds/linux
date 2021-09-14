@@ -58,7 +58,7 @@ amdgpu-y += amdgpu_device.o amdgpu_kms.o \
 	amdgpu_vm_sdma.o amdgpu_discovery.o amdgpu_ras_eeprom.o amdgpu_nbio.o \
 	amdgpu_umc.o smu_v11_0_i2c.o amdgpu_fru_eeprom.o amdgpu_rap.o \
 	amdgpu_fw_attestation.o amdgpu_securedisplay.o amdgpu_hdp.o \
-	amdgpu_eeprom.o
+	amdgpu_eeprom.o amdgpu_mca.o
 
 amdgpu-$(CONFIG_PROC_FS) += amdgpu_fdinfo.o
 
@@ -120,7 +120,7 @@ amdgpu-y += \
 amdgpu-y += \
 	dce_v10_0.o \
 	dce_v11_0.o \
-	dce_virtual.o
+	amdgpu_vkms.o
 
 # add GFX block
 amdgpu-y += \
@@ -188,6 +188,10 @@ amdgpu-y += \
 # add reset block
 amdgpu-y += \
 	amdgpu_reset.o
+
+# add MCA block
+amdgpu-y += \
+	mca_v3_0.o
 
 # add amdkfd interfaces
 amdgpu-y += amdgpu_amdkfd.o

@@ -41,7 +41,6 @@ int amdgpu_umc_ras_late_init(struct amdgpu_device *adev)
 		adev->umc.ras_if->block = AMDGPU_RAS_BLOCK__UMC;
 		adev->umc.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
 		adev->umc.ras_if->sub_block_index = 0;
-		strcpy(adev->umc.ras_if->name, "umc");
 	}
 	ih_info.head = fs_info.head = *adev->umc.ras_if;
 

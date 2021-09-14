@@ -67,19 +67,19 @@ void ceph_get_snap_realm(struct ceph_mds_client *mdsc,
 {
 	lockdep_assert_held(&mdsc->snap_rwsem);
 
-	dout("get_realm %p %d -> %d\n", realm,
-	     atomic_read(&realm->nref), atomic_read(&realm->nref)+1);
 	/*
-	 * since we _only_ increment realm refs or empty the empty
-	 * list with snap_rwsem held, adjusting the empty list here is
-	 * safe.  we do need to protect against concurrent empty list
-	 * additions, however.
+	 * The 0->1 and 1->0 transitions must take the snap_empty_lock
+	 * atomically with the refcount change. Go ahead and bump the
+	 * nref here, unless it's 0, in which case we take the spinlock
+	 * and then do the increment and remove it from the list.
 	 */
-	if (atomic_inc_return(&realm->nref) == 1) {
-		spin_lock(&mdsc->snap_empty_lock);
+	if (atomic_inc_not_zero(&realm->nref))
+		return;
+
+	spin_lock(&mdsc->snap_empty_lock);
+	if (atomic_inc_return(&realm->nref) == 1)
 		list_del_init(&realm->empty_item);
-		spin_unlock(&mdsc->snap_empty_lock);
-	}
+	spin_unlock(&mdsc->snap_empty_lock);
 }
 
 static void __insert_snap_realm(struct rb_root *root,
@@ -208,28 +208,28 @@ static void __put_snap_realm(struct ceph_mds_client *mdsc,
 {
 	lockdep_assert_held_write(&mdsc->snap_rwsem);
 
-	dout("__put_snap_realm %llx %p %d -> %d\n", realm->ino, realm,
-	     atomic_read(&realm->nref), atomic_read(&realm->nref)-1);
+	/*
+	 * We do not require the snap_empty_lock here, as any caller that
+	 * increments the value must hold the snap_rwsem.
+	 */
 	if (atomic_dec_and_test(&realm->nref))
 		__destroy_snap_realm(mdsc, realm);
 }
 
 /*
- * caller needn't hold any locks
+ * See comments in ceph_get_snap_realm. Caller needn't hold any locks.
  */
 void ceph_put_snap_realm(struct ceph_mds_client *mdsc,
 			 struct ceph_snap_realm *realm)
 {
-	dout("put_snap_realm %llx %p %d -> %d\n", realm->ino, realm,
-	     atomic_read(&realm->nref), atomic_read(&realm->nref)-1);
-	if (!atomic_dec_and_test(&realm->nref))
+	if (!atomic_dec_and_lock(&realm->nref, &mdsc->snap_empty_lock))
 		return;
 
 	if (down_write_trylock(&mdsc->snap_rwsem)) {
+		spin_unlock(&mdsc->snap_empty_lock);
 		__destroy_snap_realm(mdsc, realm);
 		up_write(&mdsc->snap_rwsem);
 	} else {
-		spin_lock(&mdsc->snap_empty_lock);
 		list_add(&realm->empty_item, &mdsc->snap_empty);
 		spin_unlock(&mdsc->snap_empty_lock);
 	}
@@ -487,6 +487,9 @@ static void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		pr_err("ENOMEM allocating ceph_cap_snap on %p\n", inode);
 		return;
 	}
+	capsnap->cap_flush.is_capsnap = true;
+	INIT_LIST_HEAD(&capsnap->cap_flush.i_list);
+	INIT_LIST_HEAD(&capsnap->cap_flush.g_list);
 
 	spin_lock(&ci->i_ceph_lock);
 	used = __ceph_caps_used(ci);
@@ -846,6 +849,43 @@ static void flush_snaps(struct ceph_mds_client *mdsc)
 	dout("flush_snaps done\n");
 }
 
+/**
+ * ceph_change_snap_realm - change the snap_realm for an inode
+ * @inode: inode to move to new snap realm
+ * @realm: new realm to move inode into (may be NULL)
+ *
+ * Detach an inode from its old snaprealm (if any) and attach it to
+ * the new snaprealm (if any). The old snap realm reference held by
+ * the inode is put. If realm is non-NULL, then the caller's reference
+ * to it is taken over by the inode.
+ */
+void ceph_change_snap_realm(struct inode *inode, struct ceph_snap_realm *realm)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
+	struct ceph_snap_realm *oldrealm = ci->i_snap_realm;
+
+	lockdep_assert_held(&ci->i_ceph_lock);
+
+	if (oldrealm) {
+		spin_lock(&oldrealm->inodes_with_caps_lock);
+		list_del_init(&ci->i_snap_realm_item);
+		if (oldrealm->ino == ci->i_vino.ino)
+			oldrealm->inode = NULL;
+		spin_unlock(&oldrealm->inodes_with_caps_lock);
+		ceph_put_snap_realm(mdsc, oldrealm);
+	}
+
+	ci->i_snap_realm = realm;
+
+	if (realm) {
+		spin_lock(&realm->inodes_with_caps_lock);
+		list_add(&ci->i_snap_realm_item, &realm->inodes_with_caps);
+		if (realm->ino == ci->i_vino.ino)
+			realm->inode = inode;
+		spin_unlock(&realm->inodes_with_caps_lock);
+	}
+}
 
 /*
  * Handle a snap notification from the MDS.
@@ -932,7 +972,6 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 			};
 			struct inode *inode = ceph_find_inode(sb, vino);
 			struct ceph_inode_info *ci;
-			struct ceph_snap_realm *oldrealm;
 
 			if (!inode)
 				continue;
@@ -957,27 +996,10 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 			}
 			dout(" will move %p to split realm %llx %p\n",
 			     inode, realm->ino, realm);
-			/*
-			 * Move the inode to the new realm
-			 */
-			oldrealm = ci->i_snap_realm;
-			spin_lock(&oldrealm->inodes_with_caps_lock);
-			list_del_init(&ci->i_snap_realm_item);
-			spin_unlock(&oldrealm->inodes_with_caps_lock);
-
-			spin_lock(&realm->inodes_with_caps_lock);
-			list_add(&ci->i_snap_realm_item,
-				 &realm->inodes_with_caps);
-			ci->i_snap_realm = realm;
-			if (realm->ino == ci->i_vino.ino)
-                                realm->inode = inode;
-			spin_unlock(&realm->inodes_with_caps_lock);
-
-			spin_unlock(&ci->i_ceph_lock);
 
 			ceph_get_snap_realm(mdsc, realm);
-			ceph_put_snap_realm(mdsc, oldrealm);
-
+			ceph_change_snap_realm(inode, realm);
+			spin_unlock(&ci->i_ceph_lock);
 			iput(inode);
 			continue;
 

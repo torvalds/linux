@@ -99,7 +99,7 @@ static int flow_offload_fill_route(struct flow_offload *flow,
 		flow_tuple->mtu = ip_dst_mtu_maybe_forward(dst, true);
 		break;
 	case NFPROTO_IPV6:
-		flow_tuple->mtu = ip6_dst_mtu_forward(dst);
+		flow_tuple->mtu = ip6_dst_mtu_maybe_forward(dst, true);
 		break;
 	}
 
@@ -180,26 +180,26 @@ static void flow_offload_fixup_tcp(struct ip_ct_tcp *tcp)
 
 static void flow_offload_fixup_ct_timeout(struct nf_conn *ct)
 {
-	const struct nf_conntrack_l4proto *l4proto;
 	struct net *net = nf_ct_net(ct);
 	int l4num = nf_ct_protonum(ct);
-	unsigned int timeout;
-
-	l4proto = nf_ct_l4proto_find(l4num);
-	if (!l4proto)
-		return;
+	s32 timeout;
 
 	if (l4num == IPPROTO_TCP) {
 		struct nf_tcp_net *tn = nf_tcp_pernet(net);
 
-		timeout = tn->offload_pickup;
+		timeout = tn->timeouts[TCP_CONNTRACK_ESTABLISHED];
+		timeout -= tn->offload_timeout;
 	} else if (l4num == IPPROTO_UDP) {
 		struct nf_udp_net *tn = nf_udp_pernet(net);
 
-		timeout = tn->offload_pickup;
+		timeout = tn->timeouts[UDP_CT_REPLIED];
+		timeout -= tn->offload_timeout;
 	} else {
 		return;
 	}
+
+	if (timeout < 0)
+		timeout = 0;
 
 	if (nf_flow_timeout_delta(ct->timeout) > (__s32)timeout)
 		ct->timeout = nfct_time_stamp + timeout;
@@ -273,14 +273,9 @@ static const struct rhashtable_params nf_flow_offload_rhash_params = {
 
 unsigned long flow_offload_get_timeout(struct flow_offload *flow)
 {
-	const struct nf_conntrack_l4proto *l4proto;
 	unsigned long timeout = NF_FLOW_TIMEOUT;
 	struct net *net = nf_ct_net(flow->ct);
 	int l4num = nf_ct_protonum(flow->ct);
-
-	l4proto = nf_ct_l4proto_find(l4num);
-	if (!l4proto)
-		return timeout;
 
 	if (l4num == IPPROTO_TCP) {
 		struct nf_tcp_net *tn = nf_tcp_pernet(net);
@@ -331,7 +326,11 @@ EXPORT_SYMBOL_GPL(flow_offload_add);
 void flow_offload_refresh(struct nf_flowtable *flow_table,
 			  struct flow_offload *flow)
 {
-	flow->timeout = nf_flowtable_time_stamp + flow_offload_get_timeout(flow);
+	u32 timeout;
+
+	timeout = nf_flowtable_time_stamp + flow_offload_get_timeout(flow);
+	if (READ_ONCE(flow->timeout) != timeout)
+		WRITE_ONCE(flow->timeout, timeout);
 
 	if (likely(!nf_flowtable_hw_offload(flow_table)))
 		return;

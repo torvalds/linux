@@ -135,11 +135,21 @@
 		clock-output-names = "clk_ext4";
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		dsp_reserved: dsp@92400000 {
+			reg = <0 0x92400000 0 0x2000000>;
+			no-map;
+		};
+	};
+
 	pmu {
 		compatible = "arm,cortex-a53-pmu";
 		interrupts = <GIC_PPI 7
 			     (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
-		interrupt-affinity = <&A53_0>, <&A53_1>, <&A53_2>, <&A53_3>;
 	};
 
 	psci {
@@ -579,7 +589,7 @@
 			};
 
 			flexcan1: can@308c0000 {
-				compatible = "fsl,imx8mp-flexcan", "fsl,imx6q-flexcan";
+				compatible = "fsl,imx8mp-flexcan";
 				reg = <0x308c0000 0x10000>;
 				interrupts = <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MP_CLK_IPG_ROOT>,
@@ -594,7 +604,7 @@
 			};
 
 			flexcan2: can@308d0000 {
-				compatible = "fsl,imx8mp-flexcan", "fsl,imx6q-flexcan";
+				compatible = "fsl,imx8mp-flexcan";
 				reg = <0x308d0000 0x10000>;
 				interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MP_CLK_IPG_ROOT>,
@@ -696,6 +706,14 @@
 				interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MP_CLK_MU_ROOT>;
 				#mbox-cells = <2>;
+			};
+
+			mu2: mailbox@30e60000 {
+				compatible = "fsl,imx8mp-mu", "fsl,imx6sx-mu";
+				reg = <0x30e60000 0x10000>;
+				interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
+				#mbox-cells = <2>;
+				status = "disabled";
 			};
 
 			i2c5: i2c@30ad0000 {
@@ -937,6 +955,17 @@
 				phy-names = "usb2-phy", "usb3-phy";
 				snps,dis-u2-freeclk-exists-quirk;
 			};
+		};
+
+		dsp: dsp@3b6e8000 {
+			compatible = "fsl,imx8mp-dsp";
+			reg = <0x3b6e8000 0x88000>;
+			mbox-names = "txdb0", "txdb1",
+				"rxdb0", "rxdb1";
+			mboxes = <&mu2 2 0>, <&mu2 2 1>,
+				<&mu2 3 0>, <&mu2 3 1>;
+			memory-region = <&dsp_reserved>;
+			status = "disabled";
 		};
 	};
 };

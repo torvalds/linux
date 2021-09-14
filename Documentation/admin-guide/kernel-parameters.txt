@@ -287,13 +287,21 @@
 			do not want to use tracing_snapshot_alloc() as it needs
 			to be done where GFP_KERNEL allocations are allowed.
 
+	allow_mismatched_32bit_el0 [ARM64]
+			Allow execve() of 32-bit applications and setting of the
+			PER_LINUX32 personality on systems where only a strict
+			subset of the CPUs support 32-bit EL0. When this
+			parameter is present, the set of CPUs supporting 32-bit
+			EL0 is indicated by /sys/devices/system/cpu/aarch32_el0
+			and hot-unplug operations may be restricted.
+
+			See Documentation/arm64/asymmetric-32bit.rst for more
+			information.
+
 	amd_iommu=	[HW,X86-64]
 			Pass parameters to the AMD IOMMU driver in the system.
 			Possible values are:
-			fullflush - enable flushing of IO/TLB entries when
-				    they are unmapped. Otherwise they are
-				    flushed before they will be reused, which
-				    is a lot of faster
+			fullflush - Deprecated, equivalent to iommu.strict=1
 			off	  - do not initialize any AMD IOMMU found in
 				    the system
 			force_isolation - Force device isolation for all
@@ -378,6 +386,9 @@
 			Identification support
 
 	arm64.nopauth	[ARM64] Unconditionally disable Pointer Authentication
+			support
+
+	arm64.nomte	[ARM64] Unconditionally disable Memory Tagging Extension
 			support
 
 	ataflop=	[HW,M68k]
@@ -1747,6 +1758,11 @@
 			support for the idxd driver. By default it is set to
 			true (1).
 
+	idxd.tc_override= [HW]
+			Format: <bool>
+			Allow override of default traffic class configuration
+			for the device. By default it is set to false (0).
+
 	ieee754=	[MIPS] Select IEEE Std 754 conformance mode
 			Format: { strict | legacy | 2008 | relaxed }
 			Default: strict
@@ -1944,18 +1960,17 @@
 			this case, gfx device will use physical address for
 			DMA.
 		strict [Default Off]
-			With this option on every unmap_single operation will
-			result in a hardware IOTLB flush operation as opposed
-			to batching them for performance.
+			Deprecated, equivalent to iommu.strict=1.
 		sp_off [Default Off]
 			By default, super page will be supported if Intel IOMMU
 			has the capability. With this option, super page will
 			not be supported.
-		sm_on [Default Off]
-			By default, scalable mode will be disabled even if the
-			hardware advertises that it has support for the scalable
-			mode translation. With this option set, scalable mode
-			will be used on hardware which claims to support it.
+		sm_on
+			Enable the Intel IOMMU scalable mode if the hardware
+			advertises that it has support for the scalable mode
+			translation.
+		sm_off
+			Disallow use of the Intel IOMMU scalable mode.
 		tboot_noforce [Default Off]
 			Do not force the Intel IOMMU enabled under tboot.
 			By default, tboot will force Intel IOMMU on, which
@@ -2047,13 +2062,12 @@
 			  throughput at the cost of reduced device isolation.
 			  Will fall back to strict mode if not supported by
 			  the relevant IOMMU driver.
-			1 - Strict mode (default).
+			1 - Strict mode.
 			  DMA unmap operations invalidate IOMMU hardware TLBs
 			  synchronously.
-			Note: on x86, the default behaviour depends on the
-			equivalent driver-specific parameters, but a strict
-			mode explicitly specified by either method takes
-			precedence.
+			unset - Use value of CONFIG_IOMMU_DEFAULT_DMA_{LAZY,STRICT}.
+			Note: on x86, strict mode specified via one of the
+			legacy driver-specific options takes precedence.
 
 	iommu.passthrough=
 			[ARM64, X86] Configure DMA to bypass the IOMMU by default.
@@ -2420,6 +2434,23 @@
 	kvm-intel.vpid=	[KVM,Intel] Disable Virtual Processor Identification
 			feature (tagged TLBs) on capable Intel chips.
 			Default is 1 (enabled)
+
+	l1d_flush=	[X86,INTEL]
+			Control mitigation for L1D based snooping vulnerability.
+
+			Certain CPUs are vulnerable to an exploit against CPU
+			internal buffers which can forward information to a
+			disclosure gadget under certain conditions.
+
+			In vulnerable processors, the speculatively
+			forwarded data can be used in a cache side channel
+			attack, to access data to which the attacker does
+			not have direct access.
+
+			This parameter controls the mitigation. The
+			options are:
+
+			on         - enable the interface for the mitigation
 
 	l1tf=           [X86] Control mitigation of the L1TF vulnerability on
 			      affected CPUs
@@ -4167,6 +4198,15 @@
 			Format: <bool>  (1/Y/y=enable, 0/N/n=disable)
 			default: disabled
 
+	printk.console_no_auto_verbose=
+			Disable console loglevel raise on oops, panic
+			or lockdep-detected issues (only if lock debug is on).
+			With an exception to setups with low baudrate on
+			serial console, keeping this 0 is a good choice
+			in order to provide more debug information.
+			Format: <bool>
+			default: 0 (auto_verbose is enabled)
+
 	printk.devkmsg={on,off,ratelimit}
 			Control writing to /dev/kmsg.
 			on - unlimited logging to /dev/kmsg from userspace
@@ -4777,7 +4817,7 @@
 
 	reboot=		[KNL]
 			Format (x86 or x86_64):
-				[w[arm] | c[old] | h[ard] | s[oft] | g[pio]] \
+				[w[arm] | c[old] | h[ard] | s[oft] | g[pio]] | d[efault] \
 				[[,]s[mp]#### \
 				[[,]b[ios] | a[cpi] | k[bd] | t[riple] | e[fi] | p[ci]] \
 				[[,]f[orce]
@@ -4944,8 +4984,6 @@
 
 	sa1100ir	[NET]
 			See drivers/net/irda/sa1100_ir.c.
-
-	sbni=		[NET] Granch SBNI12 leased line adapter
 
 	sched_verbose	[KNL] Enables verbose scheduler debug messages.
 

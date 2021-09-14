@@ -226,6 +226,7 @@ static struct lock_class_key af_family_kern_slock_keys[AF_MAX];
   x "AF_IEEE802154",	x "AF_CAIF"	,	x "AF_ALG"      , \
   x "AF_NFC"   ,	x "AF_VSOCK"    ,	x "AF_KCM"      , \
   x "AF_QIPCRTR",	x "AF_SMC"	,	x "AF_XDP"	, \
+  x "AF_MCTP"  , \
   x "AF_MAX"
 
 static const char *const af_family_key_strings[AF_MAX+1] = {
@@ -1357,6 +1358,15 @@ set_sndbuf:
 		ret = sock_bindtoindex_locked(sk, val);
 		break;
 
+	case SO_BUF_LOCK:
+		if (val & ~SOCK_BUF_LOCK_MASK) {
+			ret = -EINVAL;
+			break;
+		}
+		sk->sk_userlocks = val | (sk->sk_userlocks &
+					  ~SOCK_BUF_LOCK_MASK);
+		break;
+
 	default:
 		ret = -ENOPROTOOPT;
 		break;
@@ -1717,6 +1727,10 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		if (len != lv)
 			return -EINVAL;
 		v.val64 = sock_net(sk)->net_cookie;
+		break;
+
+	case SO_BUF_LOCK:
+		v.val = sk->sk_userlocks & SOCK_BUF_LOCK_MASK;
 		break;
 
 	default:
@@ -2560,7 +2574,6 @@ static void sk_leave_memory_pressure(struct sock *sk)
 	}
 }
 
-#define SKB_FRAG_PAGE_ORDER	get_order(32768)
 DEFINE_STATIC_KEY_FALSE(net_high_order_alloc_disable_key);
 
 /**
@@ -2714,10 +2727,12 @@ int __sk_mem_raise_allocated(struct sock *sk, int size, int amt, int kind)
 {
 	struct proto *prot = sk->sk_prot;
 	long allocated = sk_memory_allocated_add(sk, amt);
+	bool memcg_charge = mem_cgroup_sockets_enabled && sk->sk_memcg;
 	bool charged = true;
 
-	if (mem_cgroup_sockets_enabled && sk->sk_memcg &&
-	    !(charged = mem_cgroup_charge_skmem(sk->sk_memcg, amt)))
+	if (memcg_charge &&
+	    !(charged = mem_cgroup_charge_skmem(sk->sk_memcg, amt,
+						gfp_memcg_charge())))
 		goto suppress_allocation;
 
 	/* Under limit. */
@@ -2771,8 +2786,14 @@ suppress_allocation:
 		/* Fail only if socket is _under_ its sndbuf.
 		 * In this case we cannot block, so that we have to fail.
 		 */
-		if (sk->sk_wmem_queued + size >= sk->sk_sndbuf)
+		if (sk->sk_wmem_queued + size >= sk->sk_sndbuf) {
+			/* Force charge with __GFP_NOFAIL */
+			if (memcg_charge && !charged) {
+				mem_cgroup_charge_skmem(sk->sk_memcg, amt,
+					gfp_memcg_charge() | __GFP_NOFAIL);
+			}
 			return 1;
+		}
 	}
 
 	if (kind == SK_MEM_SEND || (kind == SK_MEM_RECV && charged))
@@ -2780,7 +2801,7 @@ suppress_allocation:
 
 	sk_memory_allocated_sub(sk, amt);
 
-	if (mem_cgroup_sockets_enabled && sk->sk_memcg)
+	if (memcg_charge && charged)
 		mem_cgroup_uncharge_skmem(sk->sk_memcg, amt);
 
 	return 0;

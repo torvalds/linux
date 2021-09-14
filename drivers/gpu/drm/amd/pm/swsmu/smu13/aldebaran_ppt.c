@@ -90,8 +90,8 @@ static const struct cmn2asic_msg_mapping aldebaran_message_map[SMU_MSG_MAX_COUNT
 	MSG_MAP(GetDriverIfVersion,		     PPSMC_MSG_GetDriverIfVersion,		1),
 	MSG_MAP(EnableAllSmuFeatures,		     PPSMC_MSG_EnableAllSmuFeatures,		0),
 	MSG_MAP(DisableAllSmuFeatures,		     PPSMC_MSG_DisableAllSmuFeatures,		0),
-	MSG_MAP(GetEnabledSmuFeaturesLow,	     PPSMC_MSG_GetEnabledSmuFeaturesLow,	0),
-	MSG_MAP(GetEnabledSmuFeaturesHigh,	     PPSMC_MSG_GetEnabledSmuFeaturesHigh,	0),
+	MSG_MAP(GetEnabledSmuFeaturesLow,	     PPSMC_MSG_GetEnabledSmuFeaturesLow,	1),
+	MSG_MAP(GetEnabledSmuFeaturesHigh,	     PPSMC_MSG_GetEnabledSmuFeaturesHigh,	1),
 	MSG_MAP(SetDriverDramAddrHigh,		     PPSMC_MSG_SetDriverDramAddrHigh,		1),
 	MSG_MAP(SetDriverDramAddrLow,		     PPSMC_MSG_SetDriverDramAddrLow,		1),
 	MSG_MAP(SetToolsDramAddrHigh,		     PPSMC_MSG_SetToolsDramAddrHigh,		0),
@@ -150,20 +150,20 @@ static const struct cmn2asic_mapping aldebaran_clk_map[SMU_CLK_COUNT] = {
 };
 
 static const struct cmn2asic_mapping aldebaran_feature_mask_map[SMU_FEATURE_COUNT] = {
-	ALDEBARAN_FEA_MAP(SMU_FEATURE_DPM_PREFETCHER_BIT, 		FEATURE_DATA_CALCULATIONS),
+	ALDEBARAN_FEA_MAP(SMU_FEATURE_DATA_CALCULATIONS_BIT, 		FEATURE_DATA_CALCULATIONS),
 	ALDEBARAN_FEA_MAP(SMU_FEATURE_DPM_GFXCLK_BIT, 			FEATURE_DPM_GFXCLK_BIT),
 	ALDEBARAN_FEA_MAP(SMU_FEATURE_DPM_UCLK_BIT, 			FEATURE_DPM_UCLK_BIT),
 	ALDEBARAN_FEA_MAP(SMU_FEATURE_DPM_SOCCLK_BIT, 			FEATURE_DPM_SOCCLK_BIT),
 	ALDEBARAN_FEA_MAP(SMU_FEATURE_DPM_FCLK_BIT, 			FEATURE_DPM_FCLK_BIT),
 	ALDEBARAN_FEA_MAP(SMU_FEATURE_DPM_LCLK_BIT, 			FEATURE_DPM_LCLK_BIT),
-	ALDEBARAN_FEA_MAP(SMU_FEATURE_XGMI_BIT, 				FEATURE_DPM_XGMI_BIT),
+	ALDEBARAN_FEA_MAP(SMU_FEATURE_DPM_XGMI_BIT, 				FEATURE_DPM_XGMI_BIT),
 	ALDEBARAN_FEA_MAP(SMU_FEATURE_DS_GFXCLK_BIT, 			FEATURE_DS_GFXCLK_BIT),
 	ALDEBARAN_FEA_MAP(SMU_FEATURE_DS_SOCCLK_BIT, 			FEATURE_DS_SOCCLK_BIT),
 	ALDEBARAN_FEA_MAP(SMU_FEATURE_DS_LCLK_BIT, 				FEATURE_DS_LCLK_BIT),
 	ALDEBARAN_FEA_MAP(SMU_FEATURE_DS_FCLK_BIT, 				FEATURE_DS_FCLK_BIT),
 	ALDEBARAN_FEA_MAP(SMU_FEATURE_DS_UCLK_BIT,				FEATURE_DS_UCLK_BIT),
 	ALDEBARAN_FEA_MAP(SMU_FEATURE_GFX_SS_BIT, 				FEATURE_GFX_SS_BIT),
-	ALDEBARAN_FEA_MAP(SMU_FEATURE_VCN_PG_BIT, 				FEATURE_DPM_VCN_BIT),
+	ALDEBARAN_FEA_MAP(SMU_FEATURE_VCN_DPM_BIT, 				FEATURE_DPM_VCN_BIT),
 	ALDEBARAN_FEA_MAP(SMU_FEATURE_RSMU_SMN_CG_BIT, 			FEATURE_RSMU_SMN_CG_BIT),
 	ALDEBARAN_FEA_MAP(SMU_FEATURE_WAFL_CG_BIT, 				FEATURE_WAFL_CG_BIT),
 	ALDEBARAN_FEA_MAP(SMU_FEATURE_PPT_BIT, 					FEATURE_PPT_BIT),
@@ -409,9 +409,8 @@ static int aldebaran_append_powerplay_table(struct smu_context *smu)
 
 	if ((smc_dpm_table->table_header.format_revision == 4) &&
 	    (smc_dpm_table->table_header.content_revision == 10))
-		memcpy(&smc_pptable->GfxMaxCurrent,
-		       &smc_dpm_table->GfxMaxCurrent,
-		       sizeof(*smc_dpm_table) - offsetof(struct atom_smc_dpm_info_v4_10, GfxMaxCurrent));
+		smu_memcpy_trailing(smc_pptable, GfxMaxCurrent, reserved,
+				    smc_dpm_table, GfxMaxCurrent);
 	return 0;
 }
 
@@ -735,14 +734,14 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 	uint32_t min_clk, max_clk;
 
 	if (amdgpu_ras_intr_triggered())
-		return snprintf(buf, PAGE_SIZE, "unavailable\n");
+		return sysfs_emit(buf, "unavailable\n");
 
 	dpm_context = smu_dpm->dpm_context;
 
 	switch (type) {
 
 	case SMU_OD_SCLK:
-		size = sprintf(buf, "%s:\n", "GFXCLK");
+		size = sysfs_emit(buf, "%s:\n", "GFXCLK");
 		fallthrough;
 	case SMU_SCLK:
 		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_GFXCLK, &now);
@@ -779,8 +778,7 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 		 */
 		if (display_levels == clocks.num_levels) {
 			for (i = 0; i < clocks.num_levels; i++)
-				size += sprintf(
-					buf + size, "%d: %uMhz %s\n", i,
+				size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i,
 					freq_values[i],
 					(clocks.num_levels == 1) ?
 						"*" :
@@ -790,14 +788,14 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 							 ""));
 		} else {
 			for (i = 0; i < display_levels; i++)
-				size += sprintf(buf + size, "%d: %uMhz %s\n", i,
+				size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i,
 						freq_values[i], i == 1 ? "*" : "");
 		}
 
 		break;
 
 	case SMU_OD_MCLK:
-		size = sprintf(buf, "%s:\n", "MCLK");
+		size = sysfs_emit(buf, "%s:\n", "MCLK");
 		fallthrough;
 	case SMU_MCLK:
 		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_UCLK, &now);
@@ -814,7 +812,7 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < clocks.num_levels; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
 					i, clocks.data[i].clocks_in_khz / 1000,
 					(clocks.num_levels == 1) ? "*" :
 					(aldebaran_freqs_in_same_level(
@@ -837,7 +835,7 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < clocks.num_levels; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
 					i, clocks.data[i].clocks_in_khz / 1000,
 					(clocks.num_levels == 1) ? "*" :
 					(aldebaran_freqs_in_same_level(
@@ -860,7 +858,7 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < single_dpm_table->count; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
 					i, single_dpm_table->dpm_levels[i].value,
 					(clocks.num_levels == 1) ? "*" :
 					(aldebaran_freqs_in_same_level(
@@ -883,7 +881,7 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < single_dpm_table->count; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
 					i, single_dpm_table->dpm_levels[i].value,
 					(clocks.num_levels == 1) ? "*" :
 					(aldebaran_freqs_in_same_level(
@@ -906,7 +904,7 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < single_dpm_table->count; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
 					i, single_dpm_table->dpm_levels[i].value,
 					(clocks.num_levels == 1) ? "*" :
 					(aldebaran_freqs_in_same_level(
@@ -1194,8 +1192,19 @@ static int aldebaran_get_power_limit(struct smu_context *smu,
 	uint32_t power_limit = 0;
 	int ret;
 
-	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT))
-		return -EINVAL;
+	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
+		if (current_power_limit)
+			*current_power_limit = 0;
+		if (default_power_limit)
+			*default_power_limit = 0;
+		if (max_power_limit)
+			*max_power_limit = 0;
+
+		dev_warn(smu->adev->dev,
+			"PPT feature is not enabled, power values can't be fetched.");
+
+		return 0;
+	}
 
 	/* Valid power data is available only from primary die.
 	 * For secondary die show the value as 0.

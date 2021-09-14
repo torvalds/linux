@@ -41,12 +41,15 @@
 #define E1000_FWSM_WLOCK_MAC_MASK	0x0380
 #define E1000_FWSM_WLOCK_MAC_SHIFT	7
 #define E1000_FWSM_ULP_CFG_DONE		0x00000400	/* Low power cfg done */
+#define E1000_EXFWSM_DPG_EXIT_DONE	0x00000001
 
 /* Shared Receive Address Registers */
 #define E1000_SHRAL_PCH_LPT(_i)		(0x05408 + ((_i) * 8))
 #define E1000_SHRAH_PCH_LPT(_i)		(0x0540C + ((_i) * 8))
 
 #define E1000_H2ME		0x05B50	/* Host to ME */
+#define E1000_H2ME_START_DPG	0x00000001	/* indicate the ME of DPG */
+#define E1000_H2ME_EXIT_DPG	0x00000002	/* indicate the ME exit DPG */
 #define E1000_H2ME_ULP		0x00000800	/* ULP Indication Bit */
 #define E1000_H2ME_ENFORCE_SETTINGS	0x00001000	/* Enforce Settings */
 
@@ -274,8 +277,11 @@
 
 /* Latency Tolerance Reporting */
 #define E1000_LTRV			0x000F8
+#define E1000_LTRV_VALUE_MASK		0x000003FF
 #define E1000_LTRV_SCALE_MAX		5
 #define E1000_LTRV_SCALE_FACTOR		5
+#define E1000_LTRV_SCALE_SHIFT		10
+#define E1000_LTRV_SCALE_MASK		0x00001C00
 #define E1000_LTRV_REQ_SHIFT		15
 #define E1000_LTRV_NOSNOOP_SHIFT	16
 #define E1000_LTRV_SEND			(1 << 30)

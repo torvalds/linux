@@ -166,8 +166,6 @@ static int raspberrypi_pwm_probe(struct platform_device *pdev)
 	rpipwm->chip.base = -1;
 	rpipwm->chip.npwm = RASPBERRYPI_FIRMWARE_PWM_NUM;
 
-	platform_set_drvdata(pdev, rpipwm);
-
 	ret = raspberrypi_pwm_get_property(rpipwm->firmware, RPI_PWM_CUR_DUTY_REG,
 					   &rpipwm->duty_cycle);
 	if (ret) {
@@ -175,14 +173,7 @@ static int raspberrypi_pwm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	return pwmchip_add(&rpipwm->chip);
-}
-
-static int raspberrypi_pwm_remove(struct platform_device *pdev)
-{
-	struct raspberrypi_pwm *rpipwm = platform_get_drvdata(pdev);
-
-	return pwmchip_remove(&rpipwm->chip);
+	return devm_pwmchip_add(dev, &rpipwm->chip);
 }
 
 static const struct of_device_id raspberrypi_pwm_of_match[] = {
@@ -197,7 +188,6 @@ static struct platform_driver raspberrypi_pwm_driver = {
 		.of_match_table = raspberrypi_pwm_of_match,
 	},
 	.probe = raspberrypi_pwm_probe,
-	.remove = raspberrypi_pwm_remove,
 };
 module_platform_driver(raspberrypi_pwm_driver);
 

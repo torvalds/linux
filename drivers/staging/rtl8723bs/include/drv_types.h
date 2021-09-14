@@ -57,7 +57,6 @@
 
 #include <linux/ip.h>
 #include <linux/if_ether.h>
-#include <ethernet.h>
 
 #define SPEC_DEV_ID_NONE BIT(0)
 #define SPEC_DEV_ID_DISABLE_HT BIT(1)
@@ -132,17 +131,12 @@ struct registry_priv {
 
 	u8 lowrate_two_xmit;
 
-	u8 rf_config;
 	u8 low_power;
 
 	u8 wifi_spec;/*  !turbo_mode */
 
 	u8 channel_plan;
 
-	u8 btcoex;
-	u8 bt_iso;
-	u8 bt_sco;
-	u8 bt_ampdu;
 	s8	ant_num;
 
 	/* false:Reject AP's Add BA req, true:accept AP's Add BA req */
@@ -500,9 +494,6 @@ static inline u8 *myid(struct eeprom_priv *peepriv)
 
 #include <rtw_btcoex.h>
 
-void rtw_indicate_wx_disassoc_event(struct adapter *padapter);
-void rtw_indicate_wx_assoc_event(struct adapter *padapter);
-void indicate_wx_scan_complete_event(struct adapter *padapter);
 int rtw_change_ifname(struct adapter *padapter, const char *ifname);
 
 extern char *rtw_initmac;

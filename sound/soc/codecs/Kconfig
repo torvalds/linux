@@ -187,6 +187,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT715_SDCA_SDW
 	imply SND_SOC_RT1308_SDW
 	imply SND_SOC_RT1316_SDW
+	imply SND_SOC_SDW_MOCKUP
 	imply SND_SOC_SGTL5000
 	imply SND_SOC_SI476X
 	imply SND_SOC_SIMPLE_AMPLIFIER
@@ -847,7 +848,7 @@ config SND_SOC_HDAC_HDA
 	select SND_HDA
 
 config SND_SOC_ICS43432
-	tristate
+	tristate "ICS43423 and compatible i2s microphones"
 
 config SND_SOC_INNO_RK3036
 	tristate "Inno codec driver for RK3036 SoC"
@@ -1287,6 +1288,23 @@ config SND_SOC_RT715_SDCA_SDW
 	select REGMAP_SOUNDWIRE
 	select REGMAP_SOUNDWIRE_MBQ
 
+config SND_SOC_SDW_MOCKUP
+	tristate "SoundWire mockup codec"
+	depends on EXPERT
+	depends on SOUNDWIRE
+	help
+	  This option enables a SoundWire mockup codec that does not drive the
+	  bus, take part in the command/command protocol or generate data on a
+	  Source port.
+	  This option is only intended to be used for tests on a device
+	  with a connector, in combination with a bus analyzer, or to test new
+	  topologies that differ from the actual hardware layout.
+	  This mockup device could be totally virtual but could also be a
+	  real physical one with one key restriction: it is not allowed by the
+	  SoundWire specification to be configured via a sideband mechanism and
+	  generate audio data for capture. However, nothing prevents such a
+	  peripheral device from snooping the bus.
+
 #Freescale sgtl5000 codec
 config SND_SOC_SGTL5000
 	tristate "Freescale SGTL5000 CODEC"
@@ -1559,10 +1577,12 @@ config SND_SOC_WCD934X
 config SND_SOC_WCD938X
 	depends on SND_SOC_WCD938X_SDW
 	tristate
+	depends on SOUNDWIRE || !SOUNDWIRE
 
 config SND_SOC_WCD938X_SDW
 	tristate "WCD9380/WCD9385 Codec - SDW"
 	select SND_SOC_WCD938X
+	select SND_SOC_WCD_MBHC
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
 	help

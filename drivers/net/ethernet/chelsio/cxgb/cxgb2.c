@@ -748,7 +748,9 @@ static int set_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 	return 0;
 }
 
-static int set_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
+static int set_coalesce(struct net_device *dev, struct ethtool_coalesce *c,
+			struct kernel_ethtool_coalesce *kernel_coal,
+			struct netlink_ext_ack *extack)
 {
 	struct adapter *adapter = dev->ml_priv;
 
@@ -759,7 +761,9 @@ static int set_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 	return 0;
 }
 
-static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
+static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c,
+			struct kernel_ethtool_coalesce *kernel_coal,
+			struct netlink_ext_ack *extack)
 {
 	struct adapter *adapter = dev->ml_priv;
 
@@ -924,7 +928,7 @@ static const struct net_device_ops cxgb_netdev_ops = {
 	.ndo_get_stats		= t1_get_stats,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= t1_set_rxmode,
-	.ndo_do_ioctl		= t1_ioctl,
+	.ndo_eth_ioctl		= t1_ioctl,
 	.ndo_change_mtu		= t1_change_mtu,
 	.ndo_set_mac_address	= t1_set_mac_addr,
 	.ndo_fix_features	= t1_fix_features,
@@ -1107,6 +1111,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!adapter->registered_device_map) {
 		pr_err("%s: could not register any net devices\n",
 		       pci_name(pdev));
+		err = -EINVAL;
 		goto out_release_adapter_res;
 	}
 

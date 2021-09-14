@@ -980,7 +980,7 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 	default:
 		/* if we got here and link is up something bad is afoot */
 		netdev_info(netdev,
-			    "WARNING: Link is up but PHY type 0x%x is not recognized.\n",
+			    "WARNING: Link is up but PHY type 0x%x is not recognized, or incorrect cable is in use\n",
 			    hw_link_info->phy_type);
 	}
 
@@ -2812,13 +2812,17 @@ static int __i40e_get_coalesce(struct net_device *netdev,
  * i40e_get_coalesce - get a netdev's coalesce settings
  * @netdev: the netdev to check
  * @ec: ethtool coalesce data structure
+ * @kernel_coal: ethtool CQE mode setting structure
+ * @extack: extack for reporting error messages
  *
  * Gets the coalesce settings for a particular netdev. Note that if user has
  * modified per-queue settings, this only guarantees to represent queue 0. See
  * __i40e_get_coalesce for more details.
  **/
 static int i40e_get_coalesce(struct net_device *netdev,
-			     struct ethtool_coalesce *ec)
+			     struct ethtool_coalesce *ec,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	return __i40e_get_coalesce(netdev, ec, -1);
 }
@@ -2986,11 +2990,15 @@ static int __i40e_set_coalesce(struct net_device *netdev,
  * i40e_set_coalesce - set coalesce settings for every queue on the netdev
  * @netdev: the netdev to change
  * @ec: ethtool coalesce settings
+ * @kernel_coal: ethtool CQE mode setting structure
+ * @extack: extack for reporting error messages
  *
  * This will set each queue to the same coalesce settings.
  **/
 static int i40e_set_coalesce(struct net_device *netdev,
-			     struct ethtool_coalesce *ec)
+			     struct ethtool_coalesce *ec,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	return __i40e_set_coalesce(netdev, ec, -1);
 }
@@ -5294,6 +5302,10 @@ flags_complete:
 					dev_warn(&pf->pdev->dev,
 						 "Device configuration forbids SW from starting the LLDP agent.\n");
 					return -EINVAL;
+				case I40E_AQ_RC_EAGAIN:
+					dev_warn(&pf->pdev->dev,
+						 "Stop FW LLDP agent command is still being processed, please try again in a second.\n");
+					return -EBUSY;
 				default:
 					dev_warn(&pf->pdev->dev,
 						 "Starting FW LLDP agent failed: error: %s, %s\n",

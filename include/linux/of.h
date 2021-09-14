@@ -896,7 +896,7 @@ static inline int of_parse_phandle_with_fixed_args(const struct device_node *np,
 	return -ENOSYS;
 }
 
-static inline int of_count_phandle_with_args(struct device_node *np,
+static inline int of_count_phandle_with_args(const struct device_node *np,
 					     const char *list_name,
 					     const char *cells_name)
 {
@@ -942,6 +942,11 @@ static inline int of_alias_get_alias_list(const struct of_device_id *matches,
 }
 
 static inline int of_machine_is_compatible(const char *compat)
+{
+	return 0;
+}
+
+static inline int of_add_property(struct device_node *np, struct property *prop)
 {
 	return 0;
 }

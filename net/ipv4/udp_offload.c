@@ -152,8 +152,8 @@ struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
 				       netdev_features_t features,
 				       bool is_ipv6)
 {
+	const struct net_offload __rcu **offloads;
 	__be16 protocol = skb->protocol;
-	const struct net_offload **offloads;
 	const struct net_offload *ops;
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	struct sk_buff *(*gso_inner_segment)(struct sk_buff *skb,
@@ -624,6 +624,10 @@ static int udp_gro_complete_segment(struct sk_buff *skb)
 
 	skb_shinfo(skb)->gso_segs = NAPI_GRO_CB(skb)->count;
 	skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_L4;
+
+	if (skb->encapsulation)
+		skb->inner_transport_header = skb->transport_header;
+
 	return 0;
 }
 

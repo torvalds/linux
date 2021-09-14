@@ -25,7 +25,7 @@ struct bxt_ddi_buf_trans {
 	u8 deemphasis;
 };
 
-struct cnl_ddi_buf_trans {
+struct icl_ddi_buf_trans {
 	u8 dw2_swing_sel;
 	u8 dw7_n_scalar;
 	u8 dw4_cursor_coeff;
@@ -48,7 +48,7 @@ struct tgl_dkl_phy_ddi_buf_trans {
 union intel_ddi_buf_trans_entry {
 	struct hsw_ddi_buf_trans hsw;
 	struct bxt_ddi_buf_trans bxt;
-	struct cnl_ddi_buf_trans cnl;
+	struct icl_ddi_buf_trans icl;
 	struct icl_mg_phy_ddi_buf_trans mg;
 	struct tgl_dkl_phy_ddi_buf_trans dkl;
 };

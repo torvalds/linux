@@ -57,23 +57,18 @@ MODULE_FIRMWARE(ADLS_DMC_PATH);
 #define DG1_DMC_VERSION_REQUIRED	DMC_VERSION(2, 2)
 MODULE_FIRMWARE(DG1_DMC_PATH);
 
-#define RKL_DMC_PATH			DMC_PATH(rkl, 2, 02)
-#define RKL_DMC_VERSION_REQUIRED	DMC_VERSION(2, 2)
+#define RKL_DMC_PATH			DMC_PATH(rkl, 2, 03)
+#define RKL_DMC_VERSION_REQUIRED	DMC_VERSION(2, 3)
 MODULE_FIRMWARE(RKL_DMC_PATH);
 
-#define TGL_DMC_PATH			DMC_PATH(tgl, 2, 08)
-#define TGL_DMC_VERSION_REQUIRED	DMC_VERSION(2, 8)
+#define TGL_DMC_PATH			DMC_PATH(tgl, 2, 12)
+#define TGL_DMC_VERSION_REQUIRED	DMC_VERSION(2, 12)
 MODULE_FIRMWARE(TGL_DMC_PATH);
 
 #define ICL_DMC_PATH			DMC_PATH(icl, 1, 09)
 #define ICL_DMC_VERSION_REQUIRED	DMC_VERSION(1, 9)
 #define ICL_DMC_MAX_FW_SIZE		0x6000
 MODULE_FIRMWARE(ICL_DMC_PATH);
-
-#define CNL_DMC_PATH			DMC_PATH(cnl, 1, 07)
-#define CNL_DMC_VERSION_REQUIRED	DMC_VERSION(1, 7)
-#define CNL_DMC_MAX_FW_SIZE		GLK_DMC_MAX_FW_SIZE
-MODULE_FIRMWARE(CNL_DMC_PATH);
 
 #define GLK_DMC_PATH			DMC_PATH(glk, 1, 04)
 #define GLK_DMC_VERSION_REQUIRED	DMC_VERSION(1, 4)
@@ -247,50 +242,15 @@ bool intel_dmc_has_payload(struct drm_i915_private *i915)
 	return i915->dmc.dmc_info[DMC_FW_MAIN].payload;
 }
 
-static const struct stepping_info skl_stepping_info[] = {
-	{'A', '0'}, {'B', '0'}, {'C', '0'},
-	{'D', '0'}, {'E', '0'}, {'F', '0'},
-	{'G', '0'}, {'H', '0'}, {'I', '0'},
-	{'J', '0'}, {'K', '0'}
-};
-
-static const struct stepping_info bxt_stepping_info[] = {
-	{'A', '0'}, {'A', '1'}, {'A', '2'},
-	{'B', '0'}, {'B', '1'}, {'B', '2'}
-};
-
-static const struct stepping_info icl_stepping_info[] = {
-	{'A', '0'}, {'A', '1'}, {'A', '2'},
-	{'B', '0'}, {'B', '2'},
-	{'C', '0'}
-};
-
-static const struct stepping_info no_stepping_info = { '*', '*' };
-
 static const struct stepping_info *
-intel_get_stepping_info(struct drm_i915_private *dev_priv)
+intel_get_stepping_info(struct drm_i915_private *i915,
+			struct stepping_info *si)
 {
-	const struct stepping_info *si;
-	unsigned int size;
+	const char *step_name = intel_step_name(RUNTIME_INFO(i915)->step.display_step);
 
-	if (IS_ICELAKE(dev_priv)) {
-		size = ARRAY_SIZE(icl_stepping_info);
-		si = icl_stepping_info;
-	} else if (IS_SKYLAKE(dev_priv)) {
-		size = ARRAY_SIZE(skl_stepping_info);
-		si = skl_stepping_info;
-	} else if (IS_BROXTON(dev_priv)) {
-		size = ARRAY_SIZE(bxt_stepping_info);
-		si = bxt_stepping_info;
-	} else {
-		size = 0;
-		si = NULL;
-	}
-
-	if (INTEL_REVID(dev_priv) < size)
-		return si + INTEL_REVID(dev_priv);
-
-	return &no_stepping_info;
+	si->stepping = step_name[0];
+	si->substepping = step_name[1];
+	return si;
 }
 
 static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
@@ -616,7 +576,8 @@ static void parse_dmc_fw(struct drm_i915_private *dev_priv,
 	struct intel_package_header *package_header;
 	struct intel_dmc_header_base *dmc_header;
 	struct intel_dmc *dmc = &dev_priv->dmc;
-	const struct stepping_info *si = intel_get_stepping_info(dev_priv);
+	struct stepping_info display_info = { '*', '*'};
+	const struct stepping_info *si = intel_get_stepping_info(dev_priv, &display_info);
 	u32 readcount = 0;
 	u32 r, offset;
 	int id;
@@ -752,10 +713,6 @@ void intel_dmc_ucode_init(struct drm_i915_private *dev_priv)
 		dmc->fw_path = ICL_DMC_PATH;
 		dmc->required_version = ICL_DMC_VERSION_REQUIRED;
 		dmc->max_fw_size = ICL_DMC_MAX_FW_SIZE;
-	} else if (IS_CANNONLAKE(dev_priv)) {
-		dmc->fw_path = CNL_DMC_PATH;
-		dmc->required_version = CNL_DMC_VERSION_REQUIRED;
-		dmc->max_fw_size = CNL_DMC_MAX_FW_SIZE;
 	} else if (IS_GEMINILAKE(dev_priv)) {
 		dmc->fw_path = GLK_DMC_PATH;
 		dmc->required_version = GLK_DMC_VERSION_REQUIRED;

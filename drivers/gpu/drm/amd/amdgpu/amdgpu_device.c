@@ -2829,12 +2829,11 @@ static void amdgpu_device_delay_enable_gfx_off(struct work_struct *work)
 	struct amdgpu_device *adev =
 		container_of(work, struct amdgpu_device, gfx.gfx_off_delay_work.work);
 
-	mutex_lock(&adev->gfx.gfx_off_mutex);
-	if (!adev->gfx.gfx_off_state && !adev->gfx.gfx_off_req_count) {
-		if (!amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, true))
-			adev->gfx.gfx_off_state = true;
-	}
-	mutex_unlock(&adev->gfx.gfx_off_mutex);
+	WARN_ON_ONCE(adev->gfx.gfx_off_state);
+	WARN_ON_ONCE(adev->gfx.gfx_off_req_count);
+
+	if (!amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, true))
+		adev->gfx.gfx_off_state = true;
 }
 
 /**
@@ -3647,9 +3646,9 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 fence_driver_init:
 	/* Fence driver */
-	r = amdgpu_fence_driver_init(adev);
+	r = amdgpu_fence_driver_sw_init(adev);
 	if (r) {
-		dev_err(adev->dev, "amdgpu_fence_driver_init failed\n");
+		dev_err(adev->dev, "amdgpu_fence_driver_sw_init failed\n");
 		amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_FENCE_INIT_FAIL, 0, 0);
 		goto failed;
 	}
@@ -3826,7 +3825,10 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 {
 	dev_info(adev->dev, "amdgpu: finishing device.\n");
 	flush_delayed_work(&adev->delayed_init_work);
-	ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
+	if (adev->mman.initialized) {
+		flush_delayed_work(&adev->mman.bdev.wq);
+		ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
+	}
 	adev->shutdown = true;
 
 	/* make sure IB test finished before entering exclusive mode
@@ -3988,7 +3990,6 @@ int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 		return r;
 	}
 	amdgpu_fence_driver_hw_init(adev);
-
 
 	r = amdgpu_device_ip_late_init(adev);
 	if (r)
@@ -4449,7 +4450,7 @@ int amdgpu_device_mode1_reset(struct amdgpu_device *adev)
 int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 				 struct amdgpu_reset_context *reset_context)
 {
-	int i, r = 0;
+	int i, j, r = 0;
 	struct amdgpu_job *job = NULL;
 	bool need_full_reset =
 		test_bit(AMDGPU_NEED_FULL_RESET, &reset_context->flags);
@@ -4473,6 +4474,17 @@ int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 		if (!ring || !ring->sched.thread)
 			continue;
 
+		/*clear job fence from fence drv to avoid force_completion
+		 *leave NULL and vm flush fence in fence drv */
+		for (j = 0; j <= ring->fence_drv.num_fences_mask; j++) {
+			struct dma_fence *old, **ptr;
+
+			ptr = &ring->fence_drv.fences[j];
+			old = rcu_dereference_protected(*ptr, 1);
+			if (old && test_bit(AMDGPU_FENCE_FLAG_EMBED_IN_JOB_BIT, &old->flags)) {
+				RCU_INIT_POINTER(*ptr, NULL);
+			}
+		}
 		/* after all hw jobs are reset, hw fence is meaningless, so force_completion */
 		amdgpu_fence_driver_force_completion(ring);
 	}

@@ -1447,4 +1447,40 @@ static inline void drv_sta_set_decap_offload(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+static inline void drv_add_twt_setup(struct ieee80211_local *local,
+				     struct ieee80211_sub_if_data *sdata,
+				     struct ieee80211_sta *sta,
+				     struct ieee80211_twt_setup *twt)
+{
+	struct ieee80211_twt_params *twt_agrt;
+
+	might_sleep();
+
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	twt_agrt = (void *)twt->params;
+
+	trace_drv_add_twt_setup(local, sta, twt, twt_agrt);
+	local->ops->add_twt_setup(&local->hw, sta, twt);
+	trace_drv_return_void(local);
+}
+
+static inline void drv_twt_teardown_request(struct ieee80211_local *local,
+					    struct ieee80211_sub_if_data *sdata,
+					    struct ieee80211_sta *sta,
+					    u8 flowid)
+{
+	might_sleep();
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	if (!local->ops->twt_teardown_request)
+		return;
+
+	trace_drv_twt_teardown_request(local, sta, flowid);
+	local->ops->twt_teardown_request(&local->hw, sta, flowid);
+	trace_drv_return_void(local);
+}
+
 #endif /* __MAC80211_DRIVER_OPS */

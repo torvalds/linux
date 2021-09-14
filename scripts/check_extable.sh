@@ -4,7 +4,7 @@
 
 obj=$1
 
-file ${obj} | grep -q ELF || (echo "${obj} is not and ELF file." 1>&2 ; exit 0)
+file ${obj} | grep -q ELF || (echo "${obj} is not an ELF file." 1>&2 ; exit 0)
 
 # Bail out early if there isn't an __ex_table section in this object file.
 objdump -hj __ex_table ${obj} 2> /dev/null > /dev/null

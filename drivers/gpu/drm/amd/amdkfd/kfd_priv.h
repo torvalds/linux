@@ -196,6 +196,7 @@ struct kfd_event_interrupt_class {
 struct kfd_device_info {
 	enum amd_asic_type asic_family;
 	const char *asic_name;
+	uint32_t gfx_target_version;
 	const struct kfd_event_interrupt_class *event_interrupt_class;
 	unsigned int max_pasid_bits;
 	unsigned int max_no_of_hqd;

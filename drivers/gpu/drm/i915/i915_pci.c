@@ -22,18 +22,13 @@
  *
  */
 
-#include <linux/console.h>
 #include <linux/vga_switcheroo.h>
 
 #include <drm/drm_drv.h>
 #include <drm/i915_pciids.h>
 
-#include "display/intel_fbdev.h"
-
 #include "i915_drv.h"
-#include "i915_perf.h"
-#include "i915_globals.h"
-#include "i915_selftest.h"
+#include "i915_pci.h"
 
 #define PLATFORM(x) .platform = (x)
 #define GEN(x) \
@@ -787,27 +782,13 @@ static const struct intel_device_info cml_gt2_info = {
 	.gt = 2,
 };
 
-#define GEN10_FEATURES \
-	GEN9_FEATURES, \
-	GEN(10), \
-	.dbuf.size = 1024 - 4, /* 4 blocks for bypass path allocation */ \
-	.display.has_dsc = 1, \
-	.has_coherent_ggtt = false, \
-	GLK_COLORS
-
-static const struct intel_device_info cnl_info = {
-	GEN10_FEATURES,
-	PLATFORM(INTEL_CANNONLAKE),
-	.gt = 2,
-};
-
 #define GEN11_DEFAULT_PAGE_SIZES \
 	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
 		      I915_GTT_PAGE_SIZE_64K | \
 		      I915_GTT_PAGE_SIZE_2M
 
 #define GEN11_FEATURES \
-	GEN10_FEATURES, \
+	GEN9_FEATURES, \
 	GEN11_DEFAULT_PAGE_SIZES, \
 	.abox_mask = BIT(0), \
 	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
@@ -830,10 +811,12 @@ static const struct intel_device_info cnl_info = {
 		[TRANSCODER_DSI_1] = TRANSCODER_DSI1_OFFSET, \
 	}, \
 	GEN(11), \
+	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145 }, \
 	.dbuf.size = 2048, \
 	.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2), \
-	.has_logical_ring_elsq = 1, \
-	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145 }
+	.display.has_dsc = 1, \
+	.has_coherent_ggtt = false, \
+	.has_logical_ring_elsq = 1
 
 static const struct intel_device_info icl_info = {
 	GEN11_FEATURES,
@@ -907,7 +890,6 @@ static const struct intel_device_info rkl_info = {
 
 #define DGFX_FEATURES \
 	.memory_regions = REGION_SMEM | REGION_LMEM | REGION_STOLEN_LMEM, \
-	.has_master_unit_irq = 1, \
 	.has_llc = 0, \
 	.has_snoop = 1, \
 	.is_dgfx = 1
@@ -915,6 +897,7 @@ static const struct intel_device_info rkl_info = {
 static const struct intel_device_info dg1_info __maybe_unused = {
 	GEN12_FEATURES,
 	DGFX_FEATURES,
+	.graphics_rel = 10,
 	PLATFORM(INTEL_DG1),
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),
 	.require_force_probe = 1,
@@ -934,7 +917,7 @@ static const struct intel_device_info adl_s_info = {
 	.display.has_psr_hw_tracking = 0,
 	.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
-	.dma_mask_size = 46,
+	.dma_mask_size = 39,
 };
 
 #define XE_LPD_CURSOR_OFFSETS \
@@ -947,7 +930,7 @@ static const struct intel_device_info adl_s_info = {
 
 #define XE_LPD_FEATURES \
 	.abox_mask = GENMASK(1, 0),						\
-	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145 },		\
+	.color = { .degamma_lut_size = 0, .gamma_lut_size = 0 },		\
 	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |		\
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_D),				\
 	.dbuf.size = 4096,							\
@@ -984,8 +967,8 @@ static const struct intel_device_info adl_p_info = {
 	GEN12_FEATURES,
 	XE_LPD_FEATURES,
 	PLATFORM(INTEL_ALDERLAKE_P),
-	.has_cdclk_crawl = 1,
 	.require_force_probe = 1,
+	.display.has_cdclk_crawl = 1,
 	.display.has_modular_fia = 1,
 	.display.has_psr_hw_tracking = 0,
 	.platform_engine_mask =
@@ -995,6 +978,67 @@ static const struct intel_device_info adl_p_info = {
 };
 
 #undef GEN
+
+#define XE_HP_PAGE_SIZES \
+	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
+		      I915_GTT_PAGE_SIZE_64K | \
+		      I915_GTT_PAGE_SIZE_2M
+
+#define XE_HP_FEATURES \
+	.graphics_ver = 12, \
+	.graphics_rel = 50, \
+	XE_HP_PAGE_SIZES, \
+	.dma_mask_size = 46, \
+	.has_64bit_reloc = 1, \
+	.has_global_mocs = 1, \
+	.has_gt_uc = 1, \
+	.has_llc = 1, \
+	.has_logical_ring_contexts = 1, \
+	.has_logical_ring_elsq = 1, \
+	.has_mslices = 1, \
+	.has_rc6 = 1, \
+	.has_reset_engine = 1, \
+	.has_rps = 1, \
+	.has_runtime_pm = 1, \
+	.ppgtt_size = 48, \
+	.ppgtt_type = INTEL_PPGTT_FULL
+
+#define XE_HPM_FEATURES \
+	.media_ver = 12, \
+	.media_rel = 50
+
+__maybe_unused
+static const struct intel_device_info xehpsdv_info = {
+	XE_HP_FEATURES,
+	XE_HPM_FEATURES,
+	DGFX_FEATURES,
+	PLATFORM(INTEL_XEHPSDV),
+	.display = { },
+	.pipe_mask = 0,
+	.platform_engine_mask =
+		BIT(RCS0) | BIT(BCS0) |
+		BIT(VECS0) | BIT(VECS1) | BIT(VECS2) | BIT(VECS3) |
+		BIT(VCS0) | BIT(VCS1) | BIT(VCS2) | BIT(VCS3) |
+		BIT(VCS4) | BIT(VCS5) | BIT(VCS6) | BIT(VCS7),
+	.require_force_probe = 1,
+};
+
+__maybe_unused
+static const struct intel_device_info dg2_info = {
+	XE_HP_FEATURES,
+	XE_HPM_FEATURES,
+	XE_LPD_FEATURES,
+	DGFX_FEATURES,
+	.graphics_rel = 55,
+	.media_rel = 55,
+	PLATFORM(INTEL_DG2),
+	.platform_engine_mask =
+		BIT(RCS0) | BIT(BCS0) |
+		BIT(VECS0) | BIT(VECS1) |
+		BIT(VCS0) | BIT(VCS2),
+	.require_force_probe = 1,
+};
+
 #undef PLATFORM
 
 /*
@@ -1064,7 +1108,6 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_CML_GT2_IDS(&cml_gt2_info),
 	INTEL_CML_U_GT1_IDS(&cml_gt1_info),
 	INTEL_CML_U_GT2_IDS(&cml_gt2_info),
-	INTEL_CNL_IDS(&cnl_info),
 	INTEL_ICL_11_IDS(&icl_info),
 	INTEL_EHL_IDS(&ehl_info),
 	INTEL_JSL_IDS(&jsl_info),
@@ -1191,65 +1234,12 @@ static struct pci_driver i915_pci_driver = {
 	.driver.pm = &i915_pm_ops,
 };
 
-static int __init i915_init(void)
+int i915_register_pci_driver(void)
 {
-	bool use_kms = true;
-	int err;
-
-	err = i915_globals_init();
-	if (err)
-		return err;
-
-	err = i915_mock_selftests();
-	if (err)
-		return err > 0 ? 0 : err;
-
-	/*
-	 * Enable KMS by default, unless explicitly overriden by
-	 * either the i915.modeset prarameter or by the
-	 * vga_text_mode_force boot option.
-	 */
-
-	if (i915_modparams.modeset == 0)
-		use_kms = false;
-
-	if (vgacon_text_force() && i915_modparams.modeset == -1)
-		use_kms = false;
-
-	if (!use_kms) {
-		/* Silently fail loading to not upset userspace. */
-		DRM_DEBUG_DRIVER("KMS disabled.\n");
-		return 0;
-	}
-
-	i915_pmu_init();
-
-	err = pci_register_driver(&i915_pci_driver);
-	if (err) {
-		i915_pmu_exit();
-		return err;
-	}
-
-	i915_perf_sysctl_register();
-	return 0;
+	return pci_register_driver(&i915_pci_driver);
 }
 
-static void __exit i915_exit(void)
+void i915_unregister_pci_driver(void)
 {
-	if (!i915_pci_driver.driver.owner)
-		return;
-
-	i915_perf_sysctl_unregister();
 	pci_unregister_driver(&i915_pci_driver);
-	i915_globals_exit();
-	i915_pmu_exit();
 }
-
-module_init(i915_init);
-module_exit(i915_exit);
-
-MODULE_AUTHOR("Tungsten Graphics, Inc.");
-MODULE_AUTHOR("Intel Corporation");
-
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL and additional rights");

@@ -284,8 +284,7 @@ static int sja1105_mdiobus_base_tx_register(struct sja1105_private *priv,
 	struct mii_bus *bus;
 	int rc = 0;
 
-	np = of_find_compatible_node(mdio_node, NULL,
-				     "nxp,sja1110-base-tx-mdio");
+	np = of_get_compatible_child(mdio_node, "nxp,sja1110-base-tx-mdio");
 	if (!np)
 		return 0;
 
@@ -339,8 +338,7 @@ static int sja1105_mdiobus_base_t1_register(struct sja1105_private *priv,
 	struct mii_bus *bus;
 	int rc = 0;
 
-	np = of_find_compatible_node(mdio_node, NULL,
-				     "nxp,sja1110-base-t1-mdio");
+	np = of_get_compatible_child(mdio_node, "nxp,sja1110-base-t1-mdio");
 	if (!np)
 		return 0;
 

@@ -85,7 +85,7 @@ static int smdk_wm8994_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops smdk_wm8994_pcm_ops = {
+static const struct snd_soc_ops smdk_wm8994_pcm_ops = {
 	.hw_params = smdk_wm8994_pcm_hw_params,
 };
 

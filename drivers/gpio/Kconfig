@@ -520,6 +520,14 @@ config GPIO_REG
 	  A 32-bit single register GPIO fixed in/out implementation.  This
 	  can be used to represent any register as a set of GPIO signals.
 
+config GPIO_ROCKCHIP
+	tristate "Rockchip GPIO support"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	select GPIOLIB_IRQCHIP
+	default ARCH_ROCKCHIP
+	help
+	  Say yes here to support GPIO on Rockchip SoCs.
+
 config GPIO_SAMA5D2_PIOBU
 	tristate "SAMA5D2 PIOBU GPIO support"
 	depends on MFD_SYSCON
@@ -1009,12 +1017,6 @@ config GPIO_MAX732X_IRQ
 	help
 	  Say yes here to enable the max732x to be used as an interrupt
 	  controller. It requires the driver to be built in the kernel.
-
-config GPIO_MC9S08DZ60
-	bool "MX35 3DS BOARD MC9S08DZ60 GPIO functions"
-	depends on I2C=y && MACH_MX35_3DS
-	help
-	  Select this to enable the MC9S08DZ60 GPIO driver
 
 config GPIO_PCA953X
 	tristate "PCA95[357]x, PCA9698, TCA64xx, and MAX7310 I/O ports"
@@ -1668,6 +1670,15 @@ config GPIO_MOCKUP
 	  User could use it through the script in
 	  tools/testing/selftests/gpio/gpio-mockup.sh. Reference the usage in
 	  it.
+
+config GPIO_VIRTIO
+	tristate "VirtIO GPIO support"
+	depends on VIRTIO
+	help
+	  Say Y here to enable guest support for virtio-based GPIO controllers.
+
+	  These virtual GPIOs can be routed to real GPIOs or attached to
+	  simulators on the host (like QEMU).
 
 endmenu
 

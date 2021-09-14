@@ -2081,7 +2081,7 @@ static int __must_check ffs_do_single_desc(char *data, unsigned len,
 		break;
 
 	case USB_TYPE_CLASS | 0x01:
-                if (*current_class == USB_INTERFACE_CLASS_HID) {
+		if (*current_class == USB_INTERFACE_CLASS_HID) {
 			pr_vdebug("hid descriptor\n");
 			if (length != sizeof(struct hid_descriptor))
 				goto inv_length;
@@ -3831,7 +3831,7 @@ static char *ffs_prepare_buffer(const char __user *buf, size_t len)
 
 	data = memdup_user(buf, len);
 	if (IS_ERR(data))
-		return ERR_PTR(PTR_ERR(data));
+		return data;
 
 	pr_vdebug("Buffer from user space:\n");
 	ffs_dump_mem("", data, len);

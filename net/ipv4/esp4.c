@@ -97,7 +97,6 @@ static inline struct scatterlist *esp_req_sg(struct crypto_aead *aead,
 
 static void esp_ssg_unref(struct xfrm_state *x, void *tmp)
 {
-	struct esp_output_extra *extra = esp_tmp_extra(tmp);
 	struct crypto_aead *aead = x->data;
 	int extralen = 0;
 	u8 *iv;
@@ -105,9 +104,8 @@ static void esp_ssg_unref(struct xfrm_state *x, void *tmp)
 	struct scatterlist *sg;
 
 	if (x->props.flags & XFRM_STATE_ESN)
-		extralen += sizeof(*extra);
+		extralen += sizeof(struct esp_output_extra);
 
-	extra = esp_tmp_extra(tmp);
 	iv = esp_tmp_iv(aead, tmp, extralen);
 	req = esp_tmp_req(aead, iv);
 

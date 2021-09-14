@@ -210,7 +210,8 @@ static int scc_net_close(struct net_device *dev);
 static void scc_net_rx(struct scc_channel *scc, struct sk_buff *skb);
 static netdev_tx_t scc_net_tx(struct sk_buff *skb,
 			      struct net_device *dev);
-static int scc_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
+static int scc_net_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+				  void __user *data, int cmd);
 static int scc_net_set_mac_address(struct net_device *dev, void *addr);
 static struct net_device_stats * scc_net_get_stats(struct net_device *dev);
 
@@ -1550,7 +1551,7 @@ static const struct net_device_ops scc_netdev_ops = {
 	.ndo_start_xmit	     = scc_net_tx,
 	.ndo_set_mac_address = scc_net_set_mac_address,
 	.ndo_get_stats       = scc_net_get_stats,
-	.ndo_do_ioctl        = scc_net_ioctl,
+	.ndo_siocdevprivate  = scc_net_siocdevprivate,
 };
 
 /* ----> Initialize device <----- */
@@ -1703,7 +1704,8 @@ static netdev_tx_t scc_net_tx(struct sk_buff *skb, struct net_device *dev)
  * SIOCSCCCAL		- send calib. pattern	arg: (struct scc_calibrate *) arg
  */
 
-static int scc_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int scc_net_siocdevprivate(struct net_device *dev,
+				  struct ifreq *ifr, void __user *arg, int cmd)
 {
 	struct scc_kiss_cmd kiss_cmd;
 	struct scc_mem_config memcfg;
@@ -1712,8 +1714,6 @@ static int scc_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct scc_channel *scc = (struct scc_channel *) dev->ml_priv;
 	int chan;
 	unsigned char device_name[IFNAMSIZ];
-	void __user *arg = ifr->ifr_data;
-	
 	
 	if (!Driver_Initialized)
 	{
@@ -1722,6 +1722,9 @@ static int scc_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			int found = 1;
 
 			if (!capable(CAP_SYS_RAWIO)) return -EPERM;
+			if (in_compat_syscall())
+				return -EOPNOTSUPP;
+
 			if (!arg) return -EFAULT;
 
 			if (Nchips >= SCC_MAXCHIPS) 

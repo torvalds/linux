@@ -320,7 +320,7 @@ int main(int ac, char **av)
 		run_delay = get_run_delay();
 		pthread_create(&thread, &attr, do_steal_time, NULL);
 		do
-			pthread_yield();
+			sched_yield();
 		while (get_run_delay() - run_delay < MIN_RUN_DELAY_NS);
 		pthread_join(thread, NULL);
 		run_delay = get_run_delay() - run_delay;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *    driver for Microsemi PQI-based storage controllers
- *    Copyright (c) 2019-2020 Microchip Technology Inc. and its subsidiaries
+ *    driver for Microchip PQI-based storage controllers
+ *    Copyright (c) 2019-2021 Microchip Technology Inc. and its subsidiaries
  *    Copyright (c) 2016-2018 Microsemi Corporation
  *    Copyright (c) 2016 PMC-Sierra, Inc.
  *
@@ -33,13 +33,13 @@
 #define BUILD_TIMESTAMP
 #endif
 
-#define DRIVER_VERSION		"2.1.8-045"
+#define DRIVER_VERSION		"2.1.10-020"
 #define DRIVER_MAJOR		2
 #define DRIVER_MINOR		1
-#define DRIVER_RELEASE		8
-#define DRIVER_REVISION		45
+#define DRIVER_RELEASE		10
+#define DRIVER_REVISION		20
 
-#define DRIVER_NAME		"Microsemi PQI Driver (v" \
+#define DRIVER_NAME		"Microchip SmartPQI Driver (v" \
 				DRIVER_VERSION BUILD_TIMESTAMP ")"
 #define DRIVER_NAME_SHORT	"smartpqi"
 
@@ -48,8 +48,8 @@
 #define PQI_POST_RESET_DELAY_SECS			5
 #define PQI_POST_OFA_RESET_DELAY_UPON_TIMEOUT_SECS	10
 
-MODULE_AUTHOR("Microsemi");
-MODULE_DESCRIPTION("Driver for Microsemi Smart Family Controller version "
+MODULE_AUTHOR("Microchip");
+MODULE_DESCRIPTION("Driver for Microchip Smart Family Controller version "
 	DRIVER_VERSION);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
@@ -1322,6 +1322,7 @@ static int pqi_get_raid_map(struct pqi_ctrl_info *ctrl_info,
 				"requested %u bytes, received %u bytes\n",
 				raid_map_size,
 				get_unaligned_le32(&raid_map->structure_size));
+			rc = -EINVAL;
 			goto error;
 		}
 	}
@@ -4740,8 +4741,7 @@ static int pqi_create_queues(struct pqi_ctrl_info *ctrl_info)
 }
 
 #define PQI_REPORT_EVENT_CONFIG_BUFFER_LENGTH	\
-	(offsetof(struct pqi_event_config, descriptors) + \
-	(PQI_MAX_EVENT_DESCRIPTORS * sizeof(struct pqi_event_descriptor)))
+	struct_size((struct pqi_event_config *)0, descriptors, PQI_MAX_EVENT_DESCRIPTORS)
 
 static int pqi_configure_events(struct pqi_ctrl_info *ctrl_info,
 	bool enable_events)
@@ -5568,7 +5568,7 @@ static inline u16 pqi_get_hw_queue(struct pqi_ctrl_info *ctrl_info,
 {
 	u16 hw_queue;
 
-	hw_queue = blk_mq_unique_tag_to_hwq(blk_mq_unique_tag(scmd->request));
+	hw_queue = blk_mq_unique_tag_to_hwq(blk_mq_unique_tag(scsi_cmd_to_rq(scmd)));
 	if (hw_queue > ctrl_info->max_hw_queue_index)
 		hw_queue = 0;
 
@@ -5577,7 +5577,7 @@ static inline u16 pqi_get_hw_queue(struct pqi_ctrl_info *ctrl_info,
 
 static inline bool pqi_is_bypass_eligible_request(struct scsi_cmnd *scmd)
 {
-	if (blk_rq_is_passthrough(scmd->request))
+	if (blk_rq_is_passthrough(scsi_cmd_to_rq(scmd)))
 		return false;
 
 	return scmd->SCp.this_residual == 0;
@@ -6033,8 +6033,10 @@ static int pqi_eh_device_reset_handler(struct scsi_cmnd *scmd)
 	mutex_lock(&ctrl_info->lun_reset_mutex);
 
 	dev_err(&ctrl_info->pci_dev->dev,
-		"resetting scsi %d:%d:%d:%d\n",
-		shost->host_no, device->bus, device->target, device->lun);
+		"resetting scsi %d:%d:%d:%d due to cmd 0x%02x\n",
+		shost->host_no,
+		device->bus, device->target, device->lun,
+		scmd->cmd_len > 0 ? scmd->cmnd[0] : 0xff);
 
 	pqi_check_ctrl_health(ctrl_info);
 	if (pqi_ctrl_offline(ctrl_info))
@@ -7758,11 +7760,11 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 
 	pqi_init_operational_queues(ctrl_info);
 
-	rc = pqi_request_irqs(ctrl_info);
+	rc = pqi_create_queues(ctrl_info);
 	if (rc)
 		return rc;
 
-	rc = pqi_create_queues(ctrl_info);
+	rc = pqi_request_irqs(ctrl_info);
 	if (rc)
 		return rc;
 
@@ -8451,7 +8453,7 @@ static void pqi_print_ctrl_info(struct pci_dev *pci_dev,
 	if (id->driver_data)
 		ctrl_description = (char *)id->driver_data;
 	else
-		ctrl_description = "Microsemi Smart Family Controller";
+		ctrl_description = "Microchip Smart Family Controller";
 
 	dev_info(&pci_dev->dev, "%s found\n", ctrl_description);
 }
@@ -8710,6 +8712,14 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
 			       0x193d, 0x1107)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x193d, 0x1108)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x193d, 0x1109)
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
@@ -9170,6 +9180,34 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
 			       PCI_VENDOR_ID_GIGABYTE, 0x1000)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x1dfc, 0x3161)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x1cf2, 0x5445)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x1cf2, 0x5446)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x1cf2, 0x5447)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x1cf2, 0x0b27)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x1cf2, 0x0b29)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x1cf2, 0x0b45)
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,

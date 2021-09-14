@@ -255,7 +255,7 @@ static int ishtp_cl_bus_match(struct device *dev, struct device_driver *drv)
  *
  * Return: Return value from driver remove() call.
  */
-static int ishtp_cl_device_remove(struct device *dev)
+static void ishtp_cl_device_remove(struct device *dev)
 {
 	struct ishtp_cl_device *device = to_ishtp_cl_device(dev);
 	struct ishtp_cl_driver *driver = to_ishtp_cl_driver(dev->driver);
@@ -267,8 +267,6 @@ static int ishtp_cl_device_remove(struct device *dev)
 
 	if (driver->remove)
 		driver->remove(device);
-
-	return 0;
 }
 
 /**
@@ -312,13 +310,6 @@ static int ishtp_cl_device_resume(struct device *dev)
 	int ret = 0;
 
 	if (!device)
-		return 0;
-
-	/*
-	 * When ISH needs hard reset, it is done asynchrnously, hence bus
-	 * resume will  be called before full ISH resume
-	 */
-	if (device->ishtp_dev->resume_flag)
 		return 0;
 
 	driver = to_ishtp_cl_driver(dev->driver);
@@ -848,6 +839,28 @@ struct device *ishtp_device(struct ishtp_cl_device *device)
 	return &device->dev;
 }
 EXPORT_SYMBOL(ishtp_device);
+
+/**
+ * ishtp_wait_resume() - Wait for IPC resume
+ *
+ * Wait for IPC resume
+ *
+ * Return: resume complete or not
+ */
+bool ishtp_wait_resume(struct ishtp_device *dev)
+{
+	/* 50ms to get resume response */
+	#define WAIT_FOR_RESUME_ACK_MS		50
+
+	/* Waiting to get resume response */
+	if (dev->resume_flag)
+		wait_event_interruptible_timeout(dev->resume_wait,
+						 !dev->resume_flag,
+						 msecs_to_jiffies(WAIT_FOR_RESUME_ACK_MS));
+
+	return (!dev->resume_flag);
+}
+EXPORT_SYMBOL_GPL(ishtp_wait_resume);
 
 /**
  * ishtp_get_pci_device() - Return PCI device dev pointer

@@ -14,7 +14,7 @@ static unsigned long *get_bitmap(const char *str, int nbits)
 	unsigned long *bm = NULL;
 	int i;
 
-	bm = bitmap_alloc(nbits);
+	bm = bitmap_zalloc(nbits);
 
 	if (map && bm) {
 		for (i = 0; i < map->nr; i++)

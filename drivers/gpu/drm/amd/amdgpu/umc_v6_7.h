@@ -36,9 +36,9 @@
 #define UMC_V6_7_INST_DIST	0x40000
 
 /* number of umc channel instance with memory map register access */
-#define UMC_V6_7_CHANNEL_INSTANCE_NUM		4
+#define UMC_V6_7_UMC_INSTANCE_NUM		4
 /* number of umc instance with memory map register access */
-#define UMC_V6_7_UMC_INSTANCE_NUM		8
+#define UMC_V6_7_CHANNEL_INSTANCE_NUM		8
 /* total channel instances in one umc block */
 #define UMC_V6_7_TOTAL_CHANNEL_NUM	(UMC_V6_7_CHANNEL_INSTANCE_NUM * UMC_V6_7_UMC_INSTANCE_NUM)
 /* UMC regiser per channel offset */

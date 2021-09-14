@@ -65,6 +65,13 @@ struct netns_xfrm {
 	u32			sysctl_aevent_rseqth;
 	int			sysctl_larval_drop;
 	u32			sysctl_acq_expires;
+
+	u8			policy_default;
+#define XFRM_POL_DEFAULT_IN	1
+#define XFRM_POL_DEFAULT_OUT	2
+#define XFRM_POL_DEFAULT_FWD	4
+#define XFRM_POL_DEFAULT_MASK	7
+
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*sysctl_hdr;
 #endif
@@ -75,6 +82,7 @@ struct netns_xfrm {
 #endif
 	spinlock_t		xfrm_state_lock;
 	seqcount_spinlock_t	xfrm_state_hash_generation;
+	seqcount_spinlock_t	xfrm_policy_hash_generation;
 
 	spinlock_t xfrm_policy_lock;
 	struct mutex xfrm_cfg_mutex;

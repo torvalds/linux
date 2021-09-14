@@ -45,7 +45,7 @@
 /* forward declaration */
 struct aux_payload;
 
-#define DC_VER "3.2.146"
+#define DC_VER "3.2.149"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -183,6 +183,8 @@ struct dc_caps {
 	unsigned int cursor_cache_size;
 	struct dc_plane_cap planes[MAX_PLANES];
 	struct dc_color_caps color;
+	bool vbios_lttpr_aware;
+	bool vbios_lttpr_enable;
 };
 
 struct dc_bug_wa {
@@ -1336,6 +1338,7 @@ void dc_hardware_release(struct dc *dc);
 bool dc_set_psr_allow_active(struct dc *dc, bool enable);
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 void dc_z10_restore(struct dc *dc);
+void dc_z10_save_init(struct dc *dc);
 #endif
 
 bool dc_enable_dmub_notifications(struct dc *dc);

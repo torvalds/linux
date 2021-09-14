@@ -225,6 +225,7 @@ struct mod_hdcp_output {
 	uint8_t watchdog_timer_stop;
 	uint16_t callback_delay;
 	uint16_t watchdog_timer_delay;
+	uint8_t auth_complete;
 };
 
 /* used to represent per display info */

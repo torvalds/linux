@@ -33,8 +33,6 @@ DECLARE_PER_CPU(unsigned long, nmi_count);
 
 asmlinkage void do_IRQ(int hwirq, struct pt_regs *regs)
 {
-	int irq = irq_find_mapping(NULL, hwirq);
-
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 	/* Debugging check for stack overflow: is there less than 1KB free? */
 	{
@@ -48,7 +46,7 @@ asmlinkage void do_IRQ(int hwirq, struct pt_regs *regs)
 			       sp - sizeof(struct thread_info));
 	}
 #endif
-	generic_handle_irq(irq);
+	generic_handle_domain_irq(NULL, hwirq);
 }
 
 int arch_show_interrupts(struct seq_file *p, int prec)

@@ -484,11 +484,8 @@ err_bus:
 static int sun4i_pwm_remove(struct platform_device *pdev)
 {
 	struct sun4i_pwm_chip *pwm = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = pwmchip_remove(&pwm->chip);
-	if (ret)
-		return ret;
+	pwmchip_remove(&pwm->chip);
 
 	clk_disable_unprepare(pwm->bus_clk);
 	reset_control_assert(pwm->rst);

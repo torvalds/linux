@@ -326,7 +326,6 @@ static void iproc_msi_handler(struct irq_desc *desc)
 	struct iproc_msi *msi;
 	u32 eq, head, tail, nr_events;
 	unsigned long hwirq;
-	int virq;
 
 	chained_irq_enter(chip, desc);
 
@@ -362,8 +361,7 @@ static void iproc_msi_handler(struct irq_desc *desc)
 		/* process all outstanding events */
 		while (nr_events--) {
 			hwirq = decode_msi_hwirq(msi, eq, head);
-			virq = irq_find_mapping(msi->inner_domain, hwirq);
-			generic_handle_irq(virq);
+			generic_handle_domain_irq(msi->inner_domain, hwirq);
 
 			head++;
 			head %= EQ_LEN;

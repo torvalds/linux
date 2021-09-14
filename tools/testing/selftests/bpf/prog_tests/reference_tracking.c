@@ -34,8 +34,8 @@ void test_reference_tracking(void)
 		if (!test__start_subtest(title))
 			continue;
 
-		/* Expect verifier failure if test name has 'fail' */
-		if (strstr(title, "fail") != NULL) {
+		/* Expect verifier failure if test name has 'err' */
+		if (strstr(title, "err_") != NULL) {
 			libbpf_print_fn_t old_print_fn;
 
 			old_print_fn = libbpf_set_print(NULL);

@@ -49,21 +49,11 @@
 #include <net/seg6_hmac.h>
 #endif
 #include <net/rpl.h>
+#include <linux/ioam6.h>
+#include <net/ioam6.h>
+#include <net/dst_metadata.h>
 
 #include <linux/uaccess.h>
-
-/*
- *	Parsing tlv encoded headers.
- *
- *	Parsing function "func" returns true, if parsing succeed
- *	and false, if it failed.
- *	It MUST NOT touch skb->h.
- */
-
-struct tlvtype_proc {
-	int	type;
-	bool	(*func)(struct sk_buff *skb, int offset);
-};
 
 /*********************
   Generic functions
@@ -109,16 +99,23 @@ drop:
 	return false;
 }
 
+static bool ipv6_hop_ra(struct sk_buff *skb, int optoff);
+static bool ipv6_hop_ioam(struct sk_buff *skb, int optoff);
+static bool ipv6_hop_jumbo(struct sk_buff *skb, int optoff);
+static bool ipv6_hop_calipso(struct sk_buff *skb, int optoff);
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
+static bool ipv6_dest_hao(struct sk_buff *skb, int optoff);
+#endif
+
 /* Parse tlv encoded option header (hop-by-hop or destination) */
 
-static bool ip6_parse_tlv(const struct tlvtype_proc *procs,
+static bool ip6_parse_tlv(bool hopbyhop,
 			  struct sk_buff *skb,
 			  int max_count)
 {
 	int len = (skb_transport_header(skb)[1] + 1) << 3;
 	const unsigned char *nh = skb_network_header(skb);
 	int off = skb_network_header_len(skb);
-	const struct tlvtype_proc *curr;
 	bool disallow_unknowns = false;
 	int tlv_count = 0;
 	int padlen = 0;
@@ -173,20 +170,45 @@ static bool ip6_parse_tlv(const struct tlvtype_proc *procs,
 			if (tlv_count > max_count)
 				goto bad;
 
-			for (curr = procs; curr->type >= 0; curr++) {
-				if (curr->type == nh[off]) {
-					/* type specific length/alignment
-					   checks will be performed in the
-					   func(). */
-					if (curr->func(skb, off) == false)
+			if (hopbyhop) {
+				switch (nh[off]) {
+				case IPV6_TLV_ROUTERALERT:
+					if (!ipv6_hop_ra(skb, off))
+						return false;
+					break;
+				case IPV6_TLV_IOAM:
+					if (!ipv6_hop_ioam(skb, off))
+						return false;
+					break;
+				case IPV6_TLV_JUMBO:
+					if (!ipv6_hop_jumbo(skb, off))
+						return false;
+					break;
+				case IPV6_TLV_CALIPSO:
+					if (!ipv6_hop_calipso(skb, off))
+						return false;
+					break;
+				default:
+					if (!ip6_tlvopt_unknown(skb, off,
+								disallow_unknowns))
+						return false;
+					break;
+				}
+			} else {
+				switch (nh[off]) {
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
+				case IPV6_TLV_HAO:
+					if (!ipv6_dest_hao(skb, off))
+						return false;
+					break;
+#endif
+				default:
+					if (!ip6_tlvopt_unknown(skb, off,
+								disallow_unknowns))
 						return false;
 					break;
 				}
 			}
-			if (curr->type < 0 &&
-			    !ip6_tlvopt_unknown(skb, off, disallow_unknowns))
-				return false;
-
 			padlen = 0;
 		}
 		off += optlen;
@@ -264,16 +286,6 @@ static bool ipv6_dest_hao(struct sk_buff *skb, int optoff)
 }
 #endif
 
-static const struct tlvtype_proc tlvprocdestopt_lst[] = {
-#if IS_ENABLED(CONFIG_IPV6_MIP6)
-	{
-		.type	= IPV6_TLV_HAO,
-		.func	= ipv6_dest_hao,
-	},
-#endif
-	{-1,			NULL}
-};
-
 static int ipv6_destopt_rcv(struct sk_buff *skb)
 {
 	struct inet6_dev *idev = __in6_dev_get(skb->dev);
@@ -304,8 +316,7 @@ fail_and_free:
 	dstbuf = opt->dst1;
 #endif
 
-	if (ip6_parse_tlv(tlvprocdestopt_lst, skb,
-			  net->ipv6.sysctl.max_dst_opts_cnt)) {
+	if (ip6_parse_tlv(false, skb, net->ipv6.sysctl.max_dst_opts_cnt)) {
 		skb->transport_header += extlen;
 		opt = IP6CB(skb);
 #if IS_ENABLED(CONFIG_IPV6_MIP6)
@@ -928,6 +939,60 @@ static bool ipv6_hop_ra(struct sk_buff *skb, int optoff)
 	return false;
 }
 
+/* IOAM */
+
+static bool ipv6_hop_ioam(struct sk_buff *skb, int optoff)
+{
+	struct ioam6_trace_hdr *trace;
+	struct ioam6_namespace *ns;
+	struct ioam6_hdr *hdr;
+
+	/* Bad alignment (must be 4n-aligned) */
+	if (optoff & 3)
+		goto drop;
+
+	/* Ignore if IOAM is not enabled on ingress */
+	if (!__in6_dev_get(skb->dev)->cnf.ioam6_enabled)
+		goto ignore;
+
+	/* Truncated Option header */
+	hdr = (struct ioam6_hdr *)(skb_network_header(skb) + optoff);
+	if (hdr->opt_len < 2)
+		goto drop;
+
+	switch (hdr->type) {
+	case IOAM6_TYPE_PREALLOC:
+		/* Truncated Pre-allocated Trace header */
+		if (hdr->opt_len < 2 + sizeof(*trace))
+			goto drop;
+
+		/* Malformed Pre-allocated Trace header */
+		trace = (struct ioam6_trace_hdr *)((u8 *)hdr + sizeof(*hdr));
+		if (hdr->opt_len < 2 + sizeof(*trace) + trace->remlen * 4)
+			goto drop;
+
+		/* Ignore if the IOAM namespace is unknown */
+		ns = ioam6_namespace(ipv6_skb_net(skb), trace->namespace_id);
+		if (!ns)
+			goto ignore;
+
+		if (!skb_valid_dst(skb))
+			ip6_route_input(skb);
+
+		ioam6_fill_trace_data(skb, ns, trace);
+		break;
+	default:
+		break;
+	}
+
+ignore:
+	return true;
+
+drop:
+	kfree_skb(skb);
+	return false;
+}
+
 /* Jumbo payload */
 
 static bool ipv6_hop_jumbo(struct sk_buff *skb, int optoff)
@@ -994,22 +1059,6 @@ drop:
 	return false;
 }
 
-static const struct tlvtype_proc tlvprochopopt_lst[] = {
-	{
-		.type	= IPV6_TLV_ROUTERALERT,
-		.func	= ipv6_hop_ra,
-	},
-	{
-		.type	= IPV6_TLV_JUMBO,
-		.func	= ipv6_hop_jumbo,
-	},
-	{
-		.type	= IPV6_TLV_CALIPSO,
-		.func	= ipv6_hop_calipso,
-	},
-	{ -1, }
-};
-
 int ipv6_parse_hopopts(struct sk_buff *skb)
 {
 	struct inet6_skb_parm *opt = IP6CB(skb);
@@ -1035,8 +1084,7 @@ fail_and_free:
 		goto fail_and_free;
 
 	opt->flags |= IP6SKB_HOPBYHOP;
-	if (ip6_parse_tlv(tlvprochopopt_lst, skb,
-			  net->ipv6.sysctl.max_hbh_opts_cnt)) {
+	if (ip6_parse_tlv(true, skb, net->ipv6.sysctl.max_hbh_opts_cnt)) {
 		skb->transport_header += extlen;
 		opt = IP6CB(skb);
 		opt->nhoff = sizeof(struct ipv6hdr);

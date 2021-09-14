@@ -83,7 +83,7 @@ static inline void dmub_dcn31_translate_addr(const union dmub_addr *addr_in,
 void dmub_dcn31_reset(struct dmub_srv *dmub)
 {
 	union dmub_gpint_data_register cmd;
-	const uint32_t timeout = 30;
+	const uint32_t timeout = 100;
 	uint32_t in_reset, scratch, i;
 
 	REG_GET(DMCUB_CNTL2, DMCUB_SOFT_RESET, &in_reset);
@@ -98,26 +98,22 @@ void dmub_dcn31_reset(struct dmub_srv *dmub)
 		/**
 		 * Timeout covers both the ACK and the wait
 		 * for remaining work to finish.
-		 *
-		 * This is mostly bound by the PHY disable sequence.
-		 * Each register check will be greater than 1us, so
-		 * don't bother using udelay.
 		 */
 
 		for (i = 0; i < timeout; ++i) {
 			if (dmub->hw_funcs.is_gpint_acked(dmub, cmd))
 				break;
+
+			udelay(1);
 		}
 
 		for (i = 0; i < timeout; ++i) {
 			scratch = dmub->hw_funcs.get_gpint_response(dmub);
 			if (scratch == DMUB_GPINT__STOP_FW_RESPONSE)
 				break;
-		}
 
-		/* Clear the GPINT command manually so we don't reset again. */
-		cmd.all = 0;
-		dmub->hw_funcs.set_gpint(dmub, cmd);
+			udelay(1);
+		}
 
 		/* Force reset in case we timed out, DMCUB is likely hung. */
 	}
@@ -130,6 +126,10 @@ void dmub_dcn31_reset(struct dmub_srv *dmub)
 	REG_WRITE(DMCUB_OUTBOX1_RPTR, 0);
 	REG_WRITE(DMCUB_OUTBOX1_WPTR, 0);
 	REG_WRITE(DMCUB_SCRATCH0, 0);
+
+	/* Clear the GPINT command manually so we don't send anything during boot. */
+	cmd.all = 0;
+	dmub->hw_funcs.set_gpint(dmub, cmd);
 }
 
 void dmub_dcn31_reset_release(struct dmub_srv *dmub)
@@ -270,11 +270,13 @@ void dmub_dcn31_set_outbox1_rptr(struct dmub_srv *dmub, uint32_t rptr_offset)
 
 bool dmub_dcn31_is_hw_init(struct dmub_srv *dmub)
 {
-	uint32_t is_hw_init;
+	union dmub_fw_boot_status status;
+	uint32_t is_enable;
 
-	REG_GET(DMCUB_CNTL, DMCUB_ENABLE, &is_hw_init);
+	status.all = REG_READ(DMCUB_SCRATCH0);
+	REG_GET(DMCUB_CNTL, DMCUB_ENABLE, &is_enable);
 
-	return is_hw_init != 0;
+	return is_enable != 0 && status.bits.dal_fw;
 }
 
 bool dmub_dcn31_is_supported(struct dmub_srv *dmub)

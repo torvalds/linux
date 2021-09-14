@@ -21,6 +21,7 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data);
 int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data);
 int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data);
 int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc);
+void kvm_xen_init_vm(struct kvm *kvm);
 void kvm_xen_destroy_vm(struct kvm *kvm);
 
 static inline bool kvm_xen_msr_enabled(struct kvm *kvm)
@@ -48,6 +49,10 @@ static inline int kvm_xen_has_interrupt(struct kvm_vcpu *vcpu)
 static inline int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 {
 	return 1;
+}
+
+static inline void kvm_xen_init_vm(struct kvm *kvm)
+{
 }
 
 static inline void kvm_xen_destroy_vm(struct kvm *kvm)

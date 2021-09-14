@@ -263,7 +263,7 @@ Userspace can also add file descriptors to the notifying process via
 ``ioctl(SECCOMP_IOCTL_NOTIF_ADDFD)``. The ``id`` member of
 ``struct seccomp_notif_addfd`` should be the same ``id`` as in
 ``struct seccomp_notif``. The ``newfd_flags`` flag may be used to set flags
-like O_EXEC on the file descriptor in the notifying process. If the supervisor
+like O_CLOEXEC on the file descriptor in the notifying process. If the supervisor
 wants to inject the file descriptor with a specific number, the
 ``SECCOMP_ADDFD_FLAG_SETFD`` flag can be used, and set the ``newfd`` member to
 the specific number to use. If that file descriptor is already open in the

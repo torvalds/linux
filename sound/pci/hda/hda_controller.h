@@ -74,8 +74,6 @@ struct azx;
 struct hda_controller_ops {
 	/* Disable msi if supported, PCI only */
 	int (*disable_msi_reset_irq)(struct azx *);
-	void (*pcm_mmap_prepare)(struct snd_pcm_substream *substream,
-				 struct vm_area_struct *area);
 	/* Check if current position is acceptable */
 	int (*position_check)(struct azx *chip, struct azx_dev *azx_dev);
 	/* enable/disable the link power */
@@ -141,7 +139,6 @@ struct azx {
 	unsigned int snoop:1;
 	unsigned int uc_buffer:1; /* non-cached pages for stream buffers */
 	unsigned int align_buffer_size:1;
-	unsigned int region_requested:1;
 	unsigned int disabled:1; /* disabled by vga_switcheroo */
 	unsigned int pm_prepared:1;
 

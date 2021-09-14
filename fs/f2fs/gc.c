@@ -19,6 +19,7 @@
 #include "node.h"
 #include "segment.h"
 #include "gc.h"
+#include "iostat.h"
 #include <trace/events/f2fs.h>
 
 static struct kmem_cache *victim_entry_slab;
@@ -371,7 +372,8 @@ static struct victim_entry *attach_victim_entry(struct f2fs_sb_info *sbi,
 	struct atgc_management *am = &sbi->am;
 	struct victim_entry *ve;
 
-	ve =  f2fs_kmem_cache_alloc(victim_entry_slab, GFP_NOFS);
+	ve =  f2fs_kmem_cache_alloc(victim_entry_slab,
+				GFP_NOFS, true, NULL);
 
 	ve->mtime = mtime;
 	ve->segno = segno;
@@ -849,7 +851,8 @@ static void add_gc_inode(struct gc_inode_list *gc_list, struct inode *inode)
 		iput(inode);
 		return;
 	}
-	new_ie = f2fs_kmem_cache_alloc(f2fs_inode_entry_slab, GFP_NOFS);
+	new_ie = f2fs_kmem_cache_alloc(f2fs_inode_entry_slab,
+					GFP_NOFS, true, NULL);
 	new_ie->inode = inode;
 
 	f2fs_radix_tree_insert(&gc_list->iroot, inode->i_ino, new_ie);
@@ -1497,8 +1500,10 @@ next_step:
 			int err;
 
 			if (S_ISREG(inode->i_mode)) {
-				if (!down_write_trylock(&fi->i_gc_rwsem[READ]))
+				if (!down_write_trylock(&fi->i_gc_rwsem[READ])) {
+					sbi->skipped_gc_rwsem++;
 					continue;
+				}
 				if (!down_write_trylock(
 						&fi->i_gc_rwsem[WRITE])) {
 					sbi->skipped_gc_rwsem++;
@@ -1646,6 +1651,7 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 							force_migrate);
 
 		stat_inc_seg_count(sbi, type, gc_type);
+		sbi->gc_reclaimed_segs[sbi->gc_mode]++;
 		migrated++;
 
 freed:
@@ -1747,7 +1753,7 @@ gc_more:
 		round++;
 	}
 
-	if (gc_type == FG_GC && seg_freed)
+	if (gc_type == FG_GC)
 		sbi->cur_victim_sec = NULL_SEGNO;
 
 	if (sync)

@@ -134,7 +134,8 @@ struct ta_xgmi_shared_memory {
 	uint32_t			cmd_id;
 	uint32_t			resp_id;
 	enum ta_xgmi_status		xgmi_status;
-	uint32_t			reserved;
+	uint8_t				flag_extend_link_record;
+	uint8_t				reserved0[3];
 	union ta_xgmi_cmd_input		xgmi_in_message;
 	union ta_xgmi_cmd_output	xgmi_out_message;
 };

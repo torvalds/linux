@@ -11,9 +11,9 @@ maintainers:
 
 properties:
   compatible:
-    oneOf:
-      - const: ti,lp87565
-      - const: ti,lp87565-q1
+    enum:
+      - ti,lp87565
+      - ti,lp87565-q1
 
   reg:
     description: I2C slave address

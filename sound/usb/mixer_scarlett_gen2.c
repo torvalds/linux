@@ -228,7 +228,7 @@ enum {
 };
 
 static const char *const scarlett2_dim_mute_names[SCARLETT2_DIM_MUTE_COUNT] = {
-	"Mute", "Dim"
+	"Mute Playback Switch", "Dim Playback Switch"
 };
 
 /* Description of each hardware port type:
@@ -1856,8 +1856,14 @@ static int scarlett2_mute_ctl_get(struct snd_kcontrol *kctl,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	struct usb_mixer_elem_info *elem = kctl->private_data;
-	struct scarlett2_data *private = elem->head.mixer->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
 	int index = line_out_remap(private, elem->control);
+
+	mutex_lock(&private->data_mutex);
+	if (private->vol_updated)
+		scarlett2_update_volumes(mixer);
+	mutex_unlock(&private->data_mutex);
 
 	ucontrol->value.integer.value[0] = private->mute_switch[index];
 	return 0;
@@ -1955,10 +1961,12 @@ static void scarlett2_vol_ctl_set_writable(struct usb_mixer_interface *mixer,
 			~SNDRV_CTL_ELEM_ACCESS_WRITE;
 	}
 
-	/* Notify of write bit change */
-	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
+	/* Notify of write bit and possible value change */
+	snd_ctl_notify(card,
+		       SNDRV_CTL_EVENT_MASK_VALUE | SNDRV_CTL_EVENT_MASK_INFO,
 		       &private->vol_ctls[index]->id);
-	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
+	snd_ctl_notify(card,
+		       SNDRV_CTL_EVENT_MASK_VALUE | SNDRV_CTL_EVENT_MASK_INFO,
 		       &private->mute_ctls[index]->id);
 }
 
@@ -2530,14 +2538,18 @@ static int scarlett2_add_direct_monitor_ctl(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
+	const char *s;
 
 	if (!info->direct_monitor)
 		return 0;
 
+	s = info->direct_monitor == 1
+	      ? "Direct Monitor Playback Switch"
+	      : "Direct Monitor Playback Enum";
+
 	return scarlett2_add_new_ctl(
 		mixer, &scarlett2_direct_monitor_ctl[info->direct_monitor - 1],
-		0, 1, "Direct Monitor Playback Switch",
-		&private->direct_monitor_ctl);
+		0, 1, s, &private->direct_monitor_ctl);
 }
 
 /*** Speaker Switching Control ***/
@@ -2589,7 +2601,9 @@ static int scarlett2_speaker_switch_enable(struct usb_mixer_interface *mixer)
 
 		/* disable the line out SW/HW switch */
 		scarlett2_sw_hw_ctl_ro(private, i);
-		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
+		snd_ctl_notify(card,
+			       SNDRV_CTL_EVENT_MASK_VALUE |
+				 SNDRV_CTL_EVENT_MASK_INFO,
 			       &private->sw_hw_ctls[i]->id);
 	}
 
@@ -2913,7 +2927,7 @@ static int scarlett2_dim_mute_ctl_put(struct snd_kcontrol *kctl,
 			if (private->vol_sw_hw_switch[line_index]) {
 				private->mute_switch[line_index] = val;
 				snd_ctl_notify(mixer->chip->card,
-					       SNDRV_CTL_EVENT_MASK_INFO,
+					       SNDRV_CTL_EVENT_MASK_VALUE,
 					       &private->mute_ctls[i]->id);
 			}
 		}
@@ -3455,7 +3469,7 @@ static int scarlett2_add_msd_ctl(struct usb_mixer_interface *mixer)
 
 	/* Add MSD control */
 	return scarlett2_add_new_ctl(mixer, &scarlett2_msd_ctl,
-				     0, 1, "MSD Mode", NULL);
+				     0, 1, "MSD Mode Switch", NULL);
 }
 
 /*** Cleanup/Suspend Callbacks ***/

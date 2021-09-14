@@ -27,6 +27,7 @@
 #include <linux/bits.h>
 #include "atom.h"
 #include "amdgpu_eeprom.h"
+#include "amdgpu_atomfirmware.h"
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 
@@ -113,8 +114,25 @@ static bool __get_eeprom_i2c_addr_arct(struct amdgpu_device *adev,
 static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 				  struct amdgpu_ras_eeprom_control *control)
 {
+	u8 i2c_addr;
+
 	if (!control)
 		return false;
+
+	if (amdgpu_atomfirmware_ras_rom_addr(adev, &i2c_addr)) {
+		/* The address given by VBIOS is an 8-bit, wire-format
+		 * address, i.e. the most significant byte.
+		 *
+		 * Normalize it to a 19-bit EEPROM address. Remove the
+		 * device type identifier and make it a 7-bit address;
+		 * then make it a 19-bit EEPROM address. See top of
+		 * amdgpu_eeprom.c.
+		 */
+		i2c_addr = (i2c_addr & 0x0F) >> 1;
+		control->i2c_address = ((u32) i2c_addr) << 16;
+
+		return true;
+	}
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:

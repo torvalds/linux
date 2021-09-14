@@ -123,7 +123,7 @@ fail:
 	return error;
 }
 
-static int pnp_device_remove(struct device *dev)
+static void pnp_device_remove(struct device *dev)
 {
 	struct pnp_dev *pnp_dev = to_pnp_dev(dev);
 	struct pnp_driver *drv = pnp_dev->driver;
@@ -139,7 +139,6 @@ static int pnp_device_remove(struct device *dev)
 		pnp_disable_dev(pnp_dev);
 
 	pnp_device_detach(pnp_dev);
-	return 0;
 }
 
 static void pnp_device_shutdown(struct device *dev)

@@ -199,12 +199,12 @@ static ssize_t store_fastsleep_workaround_applyonce(struct device *dev,
 	 */
 	power7_fastsleep_workaround_exit = false;
 
-	get_online_cpus();
+	cpus_read_lock();
 	primary_thread_mask = cpu_online_cores_map();
 	on_each_cpu_mask(&primary_thread_mask,
 				pnv_fastsleep_workaround_apply,
 				&err, 1);
-	put_online_cpus();
+	cpus_read_unlock();
 	if (err) {
 		pr_err("fastsleep_workaround_applyonce change failed while running pnv_fastsleep_workaround_apply");
 		goto fail;
@@ -667,7 +667,6 @@ static unsigned long power9_idle_stop(unsigned long psscr)
 		sprs.purr	= mfspr(SPRN_PURR);
 		sprs.spurr	= mfspr(SPRN_SPURR);
 		sprs.dscr	= mfspr(SPRN_DSCR);
-		sprs.wort	= mfspr(SPRN_WORT);
 		sprs.ciabr	= mfspr(SPRN_CIABR);
 
 		sprs.mmcra	= mfspr(SPRN_MMCRA);
@@ -785,7 +784,6 @@ core_woken:
 	mtspr(SPRN_PURR,	sprs.purr);
 	mtspr(SPRN_SPURR,	sprs.spurr);
 	mtspr(SPRN_DSCR,	sprs.dscr);
-	mtspr(SPRN_WORT,	sprs.wort);
 	mtspr(SPRN_CIABR,	sprs.ciabr);
 
 	mtspr(SPRN_MMCRA,	sprs.mmcra);

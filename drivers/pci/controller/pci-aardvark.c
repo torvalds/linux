@@ -58,6 +58,7 @@
 #define   PIO_COMPLETION_STATUS_CRS		2
 #define   PIO_COMPLETION_STATUS_CA		4
 #define   PIO_NON_POSTED_REQ			BIT(10)
+#define   PIO_ERR_STATUS			BIT(11)
 #define PIO_ADDR_LS				(PIO_BASE_ADDR + 0x8)
 #define PIO_ADDR_MS				(PIO_BASE_ADDR + 0xc)
 #define PIO_WR_DATA				(PIO_BASE_ADDR + 0x10)
@@ -118,6 +119,46 @@
 #define PCIE_MSI_MASK_REG			(CONTROL_BASE_ADDR + 0x5C)
 #define PCIE_MSI_PAYLOAD_REG			(CONTROL_BASE_ADDR + 0x9C)
 
+/* PCIe window configuration */
+#define OB_WIN_BASE_ADDR			0x4c00
+#define OB_WIN_BLOCK_SIZE			0x20
+#define OB_WIN_COUNT				8
+#define OB_WIN_REG_ADDR(win, offset)		(OB_WIN_BASE_ADDR + \
+						 OB_WIN_BLOCK_SIZE * (win) + \
+						 (offset))
+#define OB_WIN_MATCH_LS(win)			OB_WIN_REG_ADDR(win, 0x00)
+#define     OB_WIN_ENABLE			BIT(0)
+#define OB_WIN_MATCH_MS(win)			OB_WIN_REG_ADDR(win, 0x04)
+#define OB_WIN_REMAP_LS(win)			OB_WIN_REG_ADDR(win, 0x08)
+#define OB_WIN_REMAP_MS(win)			OB_WIN_REG_ADDR(win, 0x0c)
+#define OB_WIN_MASK_LS(win)			OB_WIN_REG_ADDR(win, 0x10)
+#define OB_WIN_MASK_MS(win)			OB_WIN_REG_ADDR(win, 0x14)
+#define OB_WIN_ACTIONS(win)			OB_WIN_REG_ADDR(win, 0x18)
+#define OB_WIN_DEFAULT_ACTIONS			(OB_WIN_ACTIONS(OB_WIN_COUNT-1) + 0x4)
+#define     OB_WIN_FUNC_NUM_MASK		GENMASK(31, 24)
+#define     OB_WIN_FUNC_NUM_SHIFT		24
+#define     OB_WIN_FUNC_NUM_ENABLE		BIT(23)
+#define     OB_WIN_BUS_NUM_BITS_MASK		GENMASK(22, 20)
+#define     OB_WIN_BUS_NUM_BITS_SHIFT		20
+#define     OB_WIN_MSG_CODE_ENABLE		BIT(22)
+#define     OB_WIN_MSG_CODE_MASK		GENMASK(21, 14)
+#define     OB_WIN_MSG_CODE_SHIFT		14
+#define     OB_WIN_MSG_PAYLOAD_LEN		BIT(12)
+#define     OB_WIN_ATTR_ENABLE			BIT(11)
+#define     OB_WIN_ATTR_TC_MASK			GENMASK(10, 8)
+#define     OB_WIN_ATTR_TC_SHIFT		8
+#define     OB_WIN_ATTR_RELAXED			BIT(7)
+#define     OB_WIN_ATTR_NOSNOOP			BIT(6)
+#define     OB_WIN_ATTR_POISON			BIT(5)
+#define     OB_WIN_ATTR_IDO			BIT(4)
+#define     OB_WIN_TYPE_MASK			GENMASK(3, 0)
+#define     OB_WIN_TYPE_SHIFT			0
+#define     OB_WIN_TYPE_MEM			0x0
+#define     OB_WIN_TYPE_IO			0x4
+#define     OB_WIN_TYPE_CONFIG_TYPE0		0x8
+#define     OB_WIN_TYPE_CONFIG_TYPE1		0x9
+#define     OB_WIN_TYPE_MSG			0xc
+
 /* LMI registers base address and register offsets */
 #define LMI_BASE_ADDR				0x6000
 #define CFG_REG					(LMI_BASE_ADDR + 0x0)
@@ -166,7 +207,7 @@
 #define PCIE_CONFIG_WR_TYPE0			0xa
 #define PCIE_CONFIG_WR_TYPE1			0xb
 
-#define PIO_RETRY_CNT			500
+#define PIO_RETRY_CNT			750000 /* 1.5 s */
 #define PIO_RETRY_DELAY			2 /* 2 us*/
 
 #define LINK_WAIT_MAX_RETRIES		10
@@ -177,11 +218,21 @@
 
 #define MSI_IRQ_NUM			32
 
+#define CFG_RD_CRS_VAL			0xffff0001
+
 struct advk_pcie {
 	struct platform_device *pdev;
 	void __iomem *base;
+	struct {
+		phys_addr_t match;
+		phys_addr_t remap;
+		phys_addr_t mask;
+		u32 actions;
+	} wins[OB_WIN_COUNT];
+	u8 wins_count;
 	struct irq_domain *irq_domain;
 	struct irq_chip irq_chip;
+	raw_spinlock_t irq_lock;
 	struct irq_domain *msi_domain;
 	struct irq_domain *msi_inner_domain;
 	struct irq_chip msi_bottom_irq_chip;
@@ -366,9 +417,39 @@ err:
 	dev_err(dev, "link never came up\n");
 }
 
+/*
+ * Set PCIe address window register which could be used for memory
+ * mapping.
+ */
+static void advk_pcie_set_ob_win(struct advk_pcie *pcie, u8 win_num,
+				 phys_addr_t match, phys_addr_t remap,
+				 phys_addr_t mask, u32 actions)
+{
+	advk_writel(pcie, OB_WIN_ENABLE |
+			  lower_32_bits(match), OB_WIN_MATCH_LS(win_num));
+	advk_writel(pcie, upper_32_bits(match), OB_WIN_MATCH_MS(win_num));
+	advk_writel(pcie, lower_32_bits(remap), OB_WIN_REMAP_LS(win_num));
+	advk_writel(pcie, upper_32_bits(remap), OB_WIN_REMAP_MS(win_num));
+	advk_writel(pcie, lower_32_bits(mask), OB_WIN_MASK_LS(win_num));
+	advk_writel(pcie, upper_32_bits(mask), OB_WIN_MASK_MS(win_num));
+	advk_writel(pcie, actions, OB_WIN_ACTIONS(win_num));
+}
+
+static void advk_pcie_disable_ob_win(struct advk_pcie *pcie, u8 win_num)
+{
+	advk_writel(pcie, 0, OB_WIN_MATCH_LS(win_num));
+	advk_writel(pcie, 0, OB_WIN_MATCH_MS(win_num));
+	advk_writel(pcie, 0, OB_WIN_REMAP_LS(win_num));
+	advk_writel(pcie, 0, OB_WIN_REMAP_MS(win_num));
+	advk_writel(pcie, 0, OB_WIN_MASK_LS(win_num));
+	advk_writel(pcie, 0, OB_WIN_MASK_MS(win_num));
+	advk_writel(pcie, 0, OB_WIN_ACTIONS(win_num));
+}
+
 static void advk_pcie_setup_hw(struct advk_pcie *pcie)
 {
 	u32 reg;
+	int i;
 
 	/* Enable TX */
 	reg = advk_readl(pcie, PCIE_CORE_REF_CLK_REG);
@@ -447,14 +528,50 @@ static void advk_pcie_setup_hw(struct advk_pcie *pcie)
 	reg = PCIE_IRQ_ALL_MASK & (~PCIE_IRQ_ENABLE_INTS_MASK);
 	advk_writel(pcie, reg, HOST_CTRL_INT_MASK_REG);
 
+	/*
+	 * Enable AXI address window location generation:
+	 * When it is enabled, the default outbound window
+	 * configurations (Default User Field: 0xD0074CFC)
+	 * are used to transparent address translation for
+	 * the outbound transactions. Thus, PCIe address
+	 * windows are not required for transparent memory
+	 * access when default outbound window configuration
+	 * is set for memory access.
+	 */
 	reg = advk_readl(pcie, PCIE_CORE_CTRL2_REG);
 	reg |= PCIE_CORE_CTRL2_OB_WIN_ENABLE;
 	advk_writel(pcie, reg, PCIE_CORE_CTRL2_REG);
 
-	/* Bypass the address window mapping for PIO */
+	/*
+	 * Set memory access in Default User Field so it
+	 * is not required to configure PCIe address for
+	 * transparent memory access.
+	 */
+	advk_writel(pcie, OB_WIN_TYPE_MEM, OB_WIN_DEFAULT_ACTIONS);
+
+	/*
+	 * Bypass the address window mapping for PIO:
+	 * Since PIO access already contains all required
+	 * info over AXI interface by PIO registers, the
+	 * address window is not required.
+	 */
 	reg = advk_readl(pcie, PIO_CTRL);
 	reg |= PIO_CTRL_ADDR_WIN_DISABLE;
 	advk_writel(pcie, reg, PIO_CTRL);
+
+	/*
+	 * Configure PCIe address windows for non-memory or
+	 * non-transparent access as by default PCIe uses
+	 * transparent memory access.
+	 */
+	for (i = 0; i < pcie->wins_count; i++)
+		advk_pcie_set_ob_win(pcie, i,
+				     pcie->wins[i].match, pcie->wins[i].remap,
+				     pcie->wins[i].mask, pcie->wins[i].actions);
+
+	/* Disable remaining PCIe outbound windows */
+	for (i = pcie->wins_count; i < OB_WIN_COUNT; i++)
+		advk_pcie_disable_ob_win(pcie, i);
 
 	advk_pcie_train_link(pcie);
 
@@ -472,7 +589,7 @@ static void advk_pcie_setup_hw(struct advk_pcie *pcie)
 	advk_writel(pcie, reg, PCIE_CORE_CMD_STATUS_REG);
 }
 
-static void advk_pcie_check_pio_status(struct advk_pcie *pcie)
+static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u32 *val)
 {
 	struct device *dev = &pcie->pdev->dev;
 	u32 reg;
@@ -483,14 +600,70 @@ static void advk_pcie_check_pio_status(struct advk_pcie *pcie)
 	status = (reg & PIO_COMPLETION_STATUS_MASK) >>
 		PIO_COMPLETION_STATUS_SHIFT;
 
-	if (!status)
-		return;
-
+	/*
+	 * According to HW spec, the PIO status check sequence as below:
+	 * 1) even if COMPLETION_STATUS(bit9:7) indicates successful,
+	 *    it still needs to check Error Status(bit11), only when this bit
+	 *    indicates no error happen, the operation is successful.
+	 * 2) value Unsupported Request(1) of COMPLETION_STATUS(bit9:7) only
+	 *    means a PIO write error, and for PIO read it is successful with
+	 *    a read value of 0xFFFFFFFF.
+	 * 3) value Completion Retry Status(CRS) of COMPLETION_STATUS(bit9:7)
+	 *    only means a PIO write error, and for PIO read it is successful
+	 *    with a read value of 0xFFFF0001.
+	 * 4) value Completer Abort (CA) of COMPLETION_STATUS(bit9:7) means
+	 *    error for both PIO read and PIO write operation.
+	 * 5) other errors are indicated as 'unknown'.
+	 */
 	switch (status) {
+	case PIO_COMPLETION_STATUS_OK:
+		if (reg & PIO_ERR_STATUS) {
+			strcomp_status = "COMP_ERR";
+			break;
+		}
+		/* Get the read result */
+		if (val)
+			*val = advk_readl(pcie, PIO_RD_DATA);
+		/* No error */
+		strcomp_status = NULL;
+		break;
 	case PIO_COMPLETION_STATUS_UR:
 		strcomp_status = "UR";
 		break;
 	case PIO_COMPLETION_STATUS_CRS:
+		if (allow_crs && val) {
+			/* PCIe r4.0, sec 2.3.2, says:
+			 * If CRS Software Visibility is enabled:
+			 * For a Configuration Read Request that includes both
+			 * bytes of the Vendor ID field of a device Function's
+			 * Configuration Space Header, the Root Complex must
+			 * complete the Request to the host by returning a
+			 * read-data value of 0001h for the Vendor ID field and
+			 * all '1's for any additional bytes included in the
+			 * request.
+			 *
+			 * So CRS in this case is not an error status.
+			 */
+			*val = CFG_RD_CRS_VAL;
+			strcomp_status = NULL;
+			break;
+		}
+		/* PCIe r4.0, sec 2.3.2, says:
+		 * If CRS Software Visibility is not enabled, the Root Complex
+		 * must re-issue the Configuration Request as a new Request.
+		 * If CRS Software Visibility is enabled: For a Configuration
+		 * Write Request or for any other Configuration Read Request,
+		 * the Root Complex must re-issue the Configuration Request as
+		 * a new Request.
+		 * A Root Complex implementation may choose to limit the number
+		 * of Configuration Request/CRS Completion Status loops before
+		 * determining that something is wrong with the target of the
+		 * Request and taking appropriate action, e.g., complete the
+		 * Request to the host as a failed transaction.
+		 *
+		 * To simplify implementation do not re-issue the Configuration
+		 * Request and complete the Request as a failed transaction.
+		 */
 		strcomp_status = "CRS";
 		break;
 	case PIO_COMPLETION_STATUS_CA:
@@ -501,6 +674,9 @@ static void advk_pcie_check_pio_status(struct advk_pcie *pcie)
 		break;
 	}
 
+	if (!strcomp_status)
+		return 0;
+
 	if (reg & PIO_NON_POSTED_REQ)
 		str_posted = "Non-posted";
 	else
@@ -508,6 +684,8 @@ static void advk_pcie_check_pio_status(struct advk_pcie *pcie)
 
 	dev_err(dev, "%s PIO Response Status: %s, %#x @ %#x\n",
 		str_posted, strcomp_status, reg, advk_readl(pcie, PIO_ADDR_LS));
+
+	return -EFAULT;
 }
 
 static int advk_pcie_wait_pio(struct advk_pcie *pcie)
@@ -545,6 +723,7 @@ advk_pci_bridge_emul_pcie_conf_read(struct pci_bridge_emul *bridge,
 	case PCI_EXP_RTCTL: {
 		u32 val = advk_readl(pcie, PCIE_ISR0_MASK_REG);
 		*value = (val & PCIE_MSG_PM_PME_MASK) ? 0 : PCI_EXP_RTCTL_PMEIE;
+		*value |= PCI_EXP_RTCAP_CRSVIS << 16;
 		return PCI_BRIDGE_EMUL_HANDLED;
 	}
 
@@ -626,6 +805,7 @@ static struct pci_bridge_emul_ops advk_pci_bridge_emul_ops = {
 static int advk_sw_pci_bridge_init(struct advk_pcie *pcie)
 {
 	struct pci_bridge_emul *bridge = &pcie->bridge;
+	int ret;
 
 	bridge->conf.vendor =
 		cpu_to_le16(advk_readl(pcie, PCIE_CORE_DEV_ID_REG) & 0xffff);
@@ -649,7 +829,15 @@ static int advk_sw_pci_bridge_init(struct advk_pcie *pcie)
 	bridge->data = pcie;
 	bridge->ops = &advk_pci_bridge_emul_ops;
 
-	return pci_bridge_emul_init(bridge, 0);
+	/* PCIe config space can be initialized after pci_bridge_emul_init() */
+	ret = pci_bridge_emul_init(bridge, 0);
+	if (ret < 0)
+		return ret;
+
+	/* Indicates supports for Completion Retry Status */
+	bridge->pcie_conf.rootcap = cpu_to_le16(PCI_EXP_RTCAP_CRSVIS);
+
+	return 0;
 }
 
 static bool advk_pcie_valid_device(struct advk_pcie *pcie, struct pci_bus *bus,
@@ -701,6 +889,7 @@ static int advk_pcie_rd_conf(struct pci_bus *bus, u32 devfn,
 			     int where, int size, u32 *val)
 {
 	struct advk_pcie *pcie = bus->sysdata;
+	bool allow_crs;
 	u32 reg;
 	int ret;
 
@@ -713,7 +902,24 @@ static int advk_pcie_rd_conf(struct pci_bus *bus, u32 devfn,
 		return pci_bridge_emul_conf_read(&pcie->bridge, where,
 						 size, val);
 
+	/*
+	 * Completion Retry Status is possible to return only when reading all
+	 * 4 bytes from PCI_VENDOR_ID and PCI_DEVICE_ID registers at once and
+	 * CRSSVE flag on Root Bridge is enabled.
+	 */
+	allow_crs = (where == PCI_VENDOR_ID) && (size == 4) &&
+		    (le16_to_cpu(pcie->bridge.pcie_conf.rootctl) &
+		     PCI_EXP_RTCTL_CRSSVE);
+
 	if (advk_pcie_pio_is_running(pcie)) {
+		/*
+		 * If it is possible return Completion Retry Status so caller
+		 * tries to issue the request again instead of failing.
+		 */
+		if (allow_crs) {
+			*val = CFG_RD_CRS_VAL;
+			return PCIBIOS_SUCCESSFUL;
+		}
 		*val = 0xffffffff;
 		return PCIBIOS_SET_FAILED;
 	}
@@ -741,14 +947,25 @@ static int advk_pcie_rd_conf(struct pci_bus *bus, u32 devfn,
 
 	ret = advk_pcie_wait_pio(pcie);
 	if (ret < 0) {
+		/*
+		 * If it is possible return Completion Retry Status so caller
+		 * tries to issue the request again instead of failing.
+		 */
+		if (allow_crs) {
+			*val = CFG_RD_CRS_VAL;
+			return PCIBIOS_SUCCESSFUL;
+		}
 		*val = 0xffffffff;
 		return PCIBIOS_SET_FAILED;
 	}
 
-	advk_pcie_check_pio_status(pcie);
+	/* Check PIO status and get the read result */
+	ret = advk_pcie_check_pio_status(pcie, allow_crs, val);
+	if (ret < 0) {
+		*val = 0xffffffff;
+		return PCIBIOS_SET_FAILED;
+	}
 
-	/* Get the read result */
-	*val = advk_readl(pcie, PIO_RD_DATA);
 	if (size == 1)
 		*val = (*val >> (8 * (where & 3))) & 0xff;
 	else if (size == 2)
@@ -812,7 +1029,9 @@ static int advk_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 	if (ret < 0)
 		return PCIBIOS_SET_FAILED;
 
-	advk_pcie_check_pio_status(pcie);
+	ret = advk_pcie_check_pio_status(pcie, false, NULL);
+	if (ret < 0)
+		return PCIBIOS_SET_FAILED;
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -886,22 +1105,28 @@ static void advk_pcie_irq_mask(struct irq_data *d)
 {
 	struct advk_pcie *pcie = d->domain->host_data;
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+	unsigned long flags;
 	u32 mask;
 
+	raw_spin_lock_irqsave(&pcie->irq_lock, flags);
 	mask = advk_readl(pcie, PCIE_ISR1_MASK_REG);
 	mask |= PCIE_ISR1_INTX_ASSERT(hwirq);
 	advk_writel(pcie, mask, PCIE_ISR1_MASK_REG);
+	raw_spin_unlock_irqrestore(&pcie->irq_lock, flags);
 }
 
 static void advk_pcie_irq_unmask(struct irq_data *d)
 {
 	struct advk_pcie *pcie = d->domain->host_data;
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+	unsigned long flags;
 	u32 mask;
 
+	raw_spin_lock_irqsave(&pcie->irq_lock, flags);
 	mask = advk_readl(pcie, PCIE_ISR1_MASK_REG);
 	mask &= ~PCIE_ISR1_INTX_ASSERT(hwirq);
 	advk_writel(pcie, mask, PCIE_ISR1_MASK_REG);
+	raw_spin_unlock_irqrestore(&pcie->irq_lock, flags);
 }
 
 static int advk_pcie_irq_map(struct irq_domain *h,
@@ -985,6 +1210,8 @@ static int advk_pcie_init_irq_domain(struct advk_pcie *pcie)
 	struct irq_chip *irq_chip;
 	int ret = 0;
 
+	raw_spin_lock_init(&pcie->irq_lock);
+
 	pcie_intc_node =  of_get_next_child(node, NULL);
 	if (!pcie_intc_node) {
 		dev_err(dev, "No PCIe Intc node found\n");
@@ -1049,7 +1276,7 @@ static void advk_pcie_handle_int(struct advk_pcie *pcie)
 {
 	u32 isr0_val, isr0_mask, isr0_status;
 	u32 isr1_val, isr1_mask, isr1_status;
-	int i, virq;
+	int i;
 
 	isr0_val = advk_readl(pcie, PCIE_ISR0_REG);
 	isr0_mask = advk_readl(pcie, PCIE_ISR0_MASK_REG);
@@ -1077,8 +1304,7 @@ static void advk_pcie_handle_int(struct advk_pcie *pcie)
 		advk_writel(pcie, PCIE_ISR1_INTX_ASSERT(i),
 			    PCIE_ISR1_REG);
 
-		virq = irq_find_mapping(pcie->irq_domain, i);
-		generic_handle_irq(virq);
+		generic_handle_domain_irq(pcie->irq_domain, i);
 	}
 }
 
@@ -1162,6 +1388,7 @@ static int advk_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct advk_pcie *pcie;
 	struct pci_host_bridge *bridge;
+	struct resource_entry *entry;
 	int ret, irq;
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(struct advk_pcie));
@@ -1171,6 +1398,80 @@ static int advk_pcie_probe(struct platform_device *pdev)
 	pcie = pci_host_bridge_priv(bridge);
 	pcie->pdev = pdev;
 	platform_set_drvdata(pdev, pcie);
+
+	resource_list_for_each_entry(entry, &bridge->windows) {
+		resource_size_t start = entry->res->start;
+		resource_size_t size = resource_size(entry->res);
+		unsigned long type = resource_type(entry->res);
+		u64 win_size;
+
+		/*
+		 * Aardvark hardware allows to configure also PCIe window
+		 * for config type 0 and type 1 mapping, but driver uses
+		 * only PIO for issuing configuration transfers which does
+		 * not use PCIe window configuration.
+		 */
+		if (type != IORESOURCE_MEM && type != IORESOURCE_MEM_64 &&
+		    type != IORESOURCE_IO)
+			continue;
+
+		/*
+		 * Skip transparent memory resources. Default outbound access
+		 * configuration is set to transparent memory access so it
+		 * does not need window configuration.
+		 */
+		if ((type == IORESOURCE_MEM || type == IORESOURCE_MEM_64) &&
+		    entry->offset == 0)
+			continue;
+
+		/*
+		 * The n-th PCIe window is configured by tuple (match, remap, mask)
+		 * and an access to address A uses this window if A matches the
+		 * match with given mask.
+		 * So every PCIe window size must be a power of two and every start
+		 * address must be aligned to window size. Minimal size is 64 KiB
+		 * because lower 16 bits of mask must be zero. Remapped address
+		 * may have set only bits from the mask.
+		 */
+		while (pcie->wins_count < OB_WIN_COUNT && size > 0) {
+			/* Calculate the largest aligned window size */
+			win_size = (1ULL << (fls64(size)-1)) |
+				   (start ? (1ULL << __ffs64(start)) : 0);
+			win_size = 1ULL << __ffs64(win_size);
+			if (win_size < 0x10000)
+				break;
+
+			dev_dbg(dev,
+				"Configuring PCIe window %d: [0x%llx-0x%llx] as %lu\n",
+				pcie->wins_count, (unsigned long long)start,
+				(unsigned long long)start + win_size, type);
+
+			if (type == IORESOURCE_IO) {
+				pcie->wins[pcie->wins_count].actions = OB_WIN_TYPE_IO;
+				pcie->wins[pcie->wins_count].match = pci_pio_to_address(start);
+			} else {
+				pcie->wins[pcie->wins_count].actions = OB_WIN_TYPE_MEM;
+				pcie->wins[pcie->wins_count].match = start;
+			}
+			pcie->wins[pcie->wins_count].remap = start - entry->offset;
+			pcie->wins[pcie->wins_count].mask = ~(win_size - 1);
+
+			if (pcie->wins[pcie->wins_count].remap & (win_size - 1))
+				break;
+
+			start += win_size;
+			size -= win_size;
+			pcie->wins_count++;
+		}
+
+		if (size > 0) {
+			dev_err(&pcie->pdev->dev,
+				"Invalid PCIe region [0x%llx-0x%llx]\n",
+				(unsigned long long)entry->res->start,
+				(unsigned long long)entry->res->end + 1);
+			return -EINVAL;
+		}
+	}
 
 	pcie->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pcie->base))
@@ -1252,6 +1553,7 @@ static int advk_pcie_remove(struct platform_device *pdev)
 {
 	struct advk_pcie *pcie = platform_get_drvdata(pdev);
 	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(pcie);
+	int i;
 
 	pci_lock_rescan_remove();
 	pci_stop_root_bus(bridge->bus);
@@ -1260,6 +1562,10 @@ static int advk_pcie_remove(struct platform_device *pdev)
 
 	advk_pcie_remove_msi_irq_domain(pcie);
 	advk_pcie_remove_irq_domain(pcie);
+
+	/* Disable outbound address windows mapping */
+	for (i = 0; i < OB_WIN_COUNT; i++)
+		advk_pcie_disable_ob_win(pcie, i);
 
 	return 0;
 }

@@ -1822,7 +1822,7 @@ static void ofdpa_port_fdb_learn_work(struct work_struct *work)
 		container_of(work, struct ofdpa_fdb_learn_work, work);
 	bool removing = (lw->flags & OFDPA_OP_FLAG_REMOVE);
 	bool learned = (lw->flags & OFDPA_OP_FLAG_LEARNED);
-	struct switchdev_notifier_fdb_info info;
+	struct switchdev_notifier_fdb_info info = {};
 
 	info.addr = lw->addr;
 	info.vid = lw->vid;
@@ -2571,8 +2571,10 @@ static int ofdpa_port_obj_fdb_del(struct rocker_port *rocker_port,
 }
 
 static int ofdpa_port_bridge_join(struct ofdpa_port *ofdpa_port,
-				  struct net_device *bridge)
+				  struct net_device *bridge,
+				  struct netlink_ext_ack *extack)
 {
+	struct net_device *dev = ofdpa_port->dev;
 	int err;
 
 	/* Port is joining bridge, so the internal VLAN for the
@@ -2592,12 +2594,20 @@ static int ofdpa_port_bridge_join(struct ofdpa_port *ofdpa_port,
 
 	ofdpa_port->bridge_dev = bridge;
 
-	return ofdpa_port_vlan_add(ofdpa_port, OFDPA_UNTAGGED_VID, 0);
+	err = ofdpa_port_vlan_add(ofdpa_port, OFDPA_UNTAGGED_VID, 0);
+	if (err)
+		return err;
+
+	return switchdev_bridge_port_offload(dev, dev, NULL, NULL, NULL,
+					     false, extack);
 }
 
 static int ofdpa_port_bridge_leave(struct ofdpa_port *ofdpa_port)
 {
+	struct net_device *dev = ofdpa_port->dev;
 	int err;
+
+	switchdev_bridge_port_unoffload(dev, NULL, NULL, NULL);
 
 	err = ofdpa_port_vlan_del(ofdpa_port, OFDPA_UNTAGGED_VID, 0);
 	if (err)
@@ -2637,13 +2647,14 @@ static int ofdpa_port_ovs_changed(struct ofdpa_port *ofdpa_port,
 }
 
 static int ofdpa_port_master_linked(struct rocker_port *rocker_port,
-				    struct net_device *master)
+				    struct net_device *master,
+				    struct netlink_ext_ack *extack)
 {
 	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
 	int err = 0;
 
 	if (netif_is_bridge_master(master))
-		err = ofdpa_port_bridge_join(ofdpa_port, master);
+		err = ofdpa_port_bridge_join(ofdpa_port, master, extack);
 	else if (netif_is_ovs_master(master))
 		err = ofdpa_port_ovs_changed(ofdpa_port, master);
 	return err;

@@ -38,7 +38,11 @@ static void hl_sob_reset(struct kref *ref)
 							kref);
 	struct hl_device *hdev = hw_sob->hdev;
 
+	dev_dbg(hdev->dev, "reset sob id %u\n", hw_sob->sob_id);
+
 	hdev->asic_funcs->reset_sob(hdev, hw_sob);
+
+	hw_sob->need_reset = false;
 }
 
 void hl_sob_reset_error(struct kref *ref)
@@ -50,6 +54,24 @@ void hl_sob_reset_error(struct kref *ref)
 	dev_crit(hdev->dev,
 		"SOB release shouldn't be called here, q_idx: %d, sob_id: %d\n",
 		hw_sob->q_idx, hw_sob->sob_id);
+}
+
+void hw_sob_put(struct hl_hw_sob *hw_sob)
+{
+	if (hw_sob)
+		kref_put(&hw_sob->kref, hl_sob_reset);
+}
+
+static void hw_sob_put_err(struct hl_hw_sob *hw_sob)
+{
+	if (hw_sob)
+		kref_put(&hw_sob->kref, hl_sob_reset_error);
+}
+
+void hw_sob_get(struct hl_hw_sob *hw_sob)
+{
+	if (hw_sob)
+		kref_get(&hw_sob->kref);
 }
 
 /**
@@ -84,76 +106,29 @@ int hl_gen_sob_mask(u16 sob_base, u8 sob_mask, u8 *mask)
 	return 0;
 }
 
-static void sob_reset_work(struct work_struct *work)
-{
-	struct hl_cs_compl *hl_cs_cmpl =
-		container_of(work, struct hl_cs_compl, sob_reset_work);
-	struct hl_device *hdev = hl_cs_cmpl->hdev;
-
-	/*
-	 * A signal CS can get completion while the corresponding wait
-	 * for signal CS is on its way to the PQ. The wait for signal CS
-	 * will get stuck if the signal CS incremented the SOB to its
-	 * max value and there are no pending (submitted) waits on this
-	 * SOB.
-	 * We do the following to void this situation:
-	 * 1. The wait for signal CS must get a ref for the signal CS as
-	 *    soon as possible in cs_ioctl_signal_wait() and put it
-	 *    before being submitted to the PQ but after it incremented
-	 *    the SOB refcnt in init_signal_wait_cs().
-	 * 2. Signal/Wait for signal CS will decrement the SOB refcnt
-	 *    here.
-	 * These two measures guarantee that the wait for signal CS will
-	 * reset the SOB upon completion rather than the signal CS and
-	 * hence the above scenario is avoided.
-	 */
-	kref_put(&hl_cs_cmpl->hw_sob->kref, hl_sob_reset);
-
-	if (hl_cs_cmpl->type == CS_TYPE_COLLECTIVE_WAIT)
-		hdev->asic_funcs->reset_sob_group(hdev,
-				hl_cs_cmpl->sob_group);
-
-	kfree(hl_cs_cmpl);
-}
-
 static void hl_fence_release(struct kref *kref)
 {
 	struct hl_fence *fence =
 		container_of(kref, struct hl_fence, refcount);
 	struct hl_cs_compl *hl_cs_cmpl =
 		container_of(fence, struct hl_cs_compl, base_fence);
-	struct hl_device *hdev = hl_cs_cmpl->hdev;
 
-	/* EBUSY means the CS was never submitted and hence we don't have
-	 * an attached hw_sob object that we should handle here
-	 */
-	if (fence->error == -EBUSY)
-		goto free;
-
-	if ((hl_cs_cmpl->type == CS_TYPE_SIGNAL) ||
-		(hl_cs_cmpl->type == CS_TYPE_WAIT) ||
-		(hl_cs_cmpl->type == CS_TYPE_COLLECTIVE_WAIT)) {
-
-		dev_dbg(hdev->dev,
-			"CS 0x%llx type %d finished, sob_id: %d, sob_val: 0x%x\n",
-			hl_cs_cmpl->cs_seq,
-			hl_cs_cmpl->type,
-			hl_cs_cmpl->hw_sob->sob_id,
-			hl_cs_cmpl->sob_val);
-
-		queue_work(hdev->sob_reset_wq, &hl_cs_cmpl->sob_reset_work);
-
-		return;
-	}
-
-free:
 	kfree(hl_cs_cmpl);
 }
 
 void hl_fence_put(struct hl_fence *fence)
 {
-	if (fence)
-		kref_put(&fence->refcount, hl_fence_release);
+	if (IS_ERR_OR_NULL(fence))
+		return;
+	kref_put(&fence->refcount, hl_fence_release);
+}
+
+void hl_fences_put(struct hl_fence **fence, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++, fence++)
+		hl_fence_put(*fence);
 }
 
 void hl_fence_get(struct hl_fence *fence)
@@ -473,11 +448,139 @@ static void cs_handle_tdr(struct hl_device *hdev, struct hl_cs *cs)
 	spin_unlock(&hdev->cs_mirror_lock);
 }
 
+/*
+ * force_complete_multi_cs - complete all contexts that wait on multi-CS
+ *
+ * @hdev: pointer to habanalabs device structure
+ */
+static void force_complete_multi_cs(struct hl_device *hdev)
+{
+	int i;
+
+	for (i = 0; i < MULTI_CS_MAX_USER_CTX; i++) {
+		struct multi_cs_completion *mcs_compl;
+
+		mcs_compl = &hdev->multi_cs_completion[i];
+
+		spin_lock(&mcs_compl->lock);
+
+		if (!mcs_compl->used) {
+			spin_unlock(&mcs_compl->lock);
+			continue;
+		}
+
+		/* when calling force complete no context should be waiting on
+		 * multi-cS.
+		 * We are calling the function as a protection for such case
+		 * to free any pending context and print error message
+		 */
+		dev_err(hdev->dev,
+				"multi-CS completion context %d still waiting when calling force completion\n",
+				i);
+		complete_all(&mcs_compl->completion);
+		spin_unlock(&mcs_compl->lock);
+	}
+}
+
+/*
+ * complete_multi_cs - complete all waiting entities on multi-CS
+ *
+ * @hdev: pointer to habanalabs device structure
+ * @cs: CS structure
+ * The function signals a waiting entity that has an overlapping stream masters
+ * with the completed CS.
+ * For example:
+ * - a completed CS worked on stream master QID 4, multi CS completion
+ *   is actively waiting on stream master QIDs 3, 5. don't send signal as no
+ *   common stream master QID
+ * - a completed CS worked on stream master QID 4, multi CS completion
+ *   is actively waiting on stream master QIDs 3, 4. send signal as stream
+ *   master QID 4 is common
+ */
+static void complete_multi_cs(struct hl_device *hdev, struct hl_cs *cs)
+{
+	struct hl_fence *fence = cs->fence;
+	int i;
+
+	/* in case of multi CS check for completion only for the first CS */
+	if (cs->staged_cs && !cs->staged_first)
+		return;
+
+	for (i = 0; i < MULTI_CS_MAX_USER_CTX; i++) {
+		struct multi_cs_completion *mcs_compl;
+
+		mcs_compl = &hdev->multi_cs_completion[i];
+		if (!mcs_compl->used)
+			continue;
+
+		spin_lock(&mcs_compl->lock);
+
+		/*
+		 * complete if:
+		 * 1. still waiting for completion
+		 * 2. the completed CS has at least one overlapping stream
+		 *    master with the stream masters in the completion
+		 */
+		if (mcs_compl->used &&
+				(fence->stream_master_qid_map &
+					mcs_compl->stream_master_qid_map)) {
+			/* extract the timestamp only of first completed CS */
+			if (!mcs_compl->timestamp)
+				mcs_compl->timestamp =
+						ktime_to_ns(fence->timestamp);
+			complete_all(&mcs_compl->completion);
+		}
+
+		spin_unlock(&mcs_compl->lock);
+	}
+}
+
+static inline void cs_release_sob_reset_handler(struct hl_device *hdev,
+					struct hl_cs *cs,
+					struct hl_cs_compl *hl_cs_cmpl)
+{
+	/* Skip this handler if the cs wasn't submitted, to avoid putting
+	 * the hw_sob twice, since this case already handled at this point,
+	 * also skip if the hw_sob pointer wasn't set.
+	 */
+	if (!hl_cs_cmpl->hw_sob || !cs->submitted)
+		return;
+
+	spin_lock(&hl_cs_cmpl->lock);
+
+	/*
+	 * we get refcount upon reservation of signals or signal/wait cs for the
+	 * hw_sob object, and need to put it when the first staged cs
+	 * (which cotains the encaps signals) or cs signal/wait is completed.
+	 */
+	if ((hl_cs_cmpl->type == CS_TYPE_SIGNAL) ||
+			(hl_cs_cmpl->type == CS_TYPE_WAIT) ||
+			(hl_cs_cmpl->type == CS_TYPE_COLLECTIVE_WAIT) ||
+			(!!hl_cs_cmpl->encaps_signals)) {
+		dev_dbg(hdev->dev,
+				"CS 0x%llx type %d finished, sob_id: %d, sob_val: %u\n",
+				hl_cs_cmpl->cs_seq,
+				hl_cs_cmpl->type,
+				hl_cs_cmpl->hw_sob->sob_id,
+				hl_cs_cmpl->sob_val);
+
+		hw_sob_put(hl_cs_cmpl->hw_sob);
+
+		if (hl_cs_cmpl->type == CS_TYPE_COLLECTIVE_WAIT)
+			hdev->asic_funcs->reset_sob_group(hdev,
+					hl_cs_cmpl->sob_group);
+	}
+
+	spin_unlock(&hl_cs_cmpl->lock);
+}
+
 static void cs_do_release(struct kref *ref)
 {
 	struct hl_cs *cs = container_of(ref, struct hl_cs, refcount);
 	struct hl_device *hdev = cs->ctx->hdev;
 	struct hl_cs_job *job, *tmp;
+	struct hl_cs_compl *hl_cs_cmpl =
+			container_of(cs->fence, struct hl_cs_compl, base_fence);
 
 	cs->completed = true;
 
@@ -493,8 +596,9 @@ static void cs_do_release(struct kref *ref)
 		complete_job(hdev, job);
 
 	if (!cs->submitted) {
-		/* In case the wait for signal CS was submitted, the put occurs
-		 * in init_signal_wait_cs() or collective_wait_init_cs()
+		/*
+		 * In case the wait for signal CS was submitted, the fence put
+		 * occurs in init_signal_wait_cs() or collective_wait_init_cs()
 		 * right before hanging on the PQ.
 		 */
 		if (cs->type == CS_TYPE_WAIT ||
@@ -535,7 +639,19 @@ static void cs_do_release(struct kref *ref)
 			list_del(&cs->staged_cs_node);
 			spin_unlock(&hdev->cs_mirror_lock);
 		}
+
+		/* decrement refcount to handle when first staged cs
+		 * with encaps signals is completed.
+		 */
+		if (hl_cs_cmpl->encaps_signals)
+			kref_put(&hl_cs_cmpl->encaps_sig_hdl->refcount,
+						hl_encaps_handle_do_release);
 	}
+
+	if ((cs->type == CS_TYPE_WAIT || cs->type == CS_TYPE_COLLECTIVE_WAIT)
+			&& cs->encaps_signals)
+		kref_put(&cs->encaps_sig_hdl->refcount,
+					hl_encaps_handle_do_release);
 
 out:
 	/* Must be called before hl_ctx_put because inside we use ctx to get
@@ -566,6 +682,10 @@ out:
 	if (cs->timestamp)
 		cs->fence->timestamp = ktime_get();
 	complete_all(&cs->fence->completion);
+	complete_multi_cs(hdev, cs);
+
+	cs_release_sob_reset_handler(hdev, cs, hl_cs_cmpl);
+
 	hl_fence_put(cs->fence);
 
 	kfree(cs->jobs_in_queue_cnt);
@@ -621,6 +741,10 @@ static void cs_timedout(struct work_struct *work)
 		break;
 	}
 
+	rc = hl_state_dump(hdev);
+	if (rc)
+		dev_err(hdev->dev, "Error during system state dump %d\n", rc);
+
 	cs_put(cs);
 
 	if (likely(!skip_reset_on_timeout)) {
@@ -661,6 +785,7 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	cs->completed = false;
 	cs->type = cs_type;
 	cs->timestamp = !!(flags & HL_CS_FLAGS_TIMESTAMP);
+	cs->encaps_signals = !!(flags & HL_CS_FLAGS_ENCAP_SIGNALS);
 	cs->timeout_jiffies = timeout;
 	cs->skip_reset_on_timeout =
 		hdev->skip_reset_on_timeout ||
@@ -671,9 +796,9 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	kref_init(&cs->refcount);
 	spin_lock_init(&cs->job_lock);
 
-	cs_cmpl = kmalloc(sizeof(*cs_cmpl), GFP_ATOMIC);
+	cs_cmpl = kzalloc(sizeof(*cs_cmpl), GFP_ATOMIC);
 	if (!cs_cmpl)
-		cs_cmpl = kmalloc(sizeof(*cs_cmpl), GFP_KERNEL);
+		cs_cmpl = kzalloc(sizeof(*cs_cmpl), GFP_KERNEL);
 
 	if (!cs_cmpl) {
 		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
@@ -698,7 +823,6 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	cs_cmpl->hdev = hdev;
 	cs_cmpl->type = cs->type;
 	spin_lock_init(&cs_cmpl->lock);
-	INIT_WORK(&cs_cmpl->sob_reset_work, sob_reset_work);
 	cs->fence = &cs_cmpl->base_fence;
 
 	spin_lock(&ctx->cs_lock);
@@ -791,31 +915,22 @@ void hl_cs_rollback_all(struct hl_device *hdev)
 		cs_rollback(hdev, cs);
 		cs_put(cs);
 	}
-}
 
-void hl_pending_cb_list_flush(struct hl_ctx *ctx)
-{
-	struct hl_pending_cb *pending_cb, *tmp;
-
-	list_for_each_entry_safe(pending_cb, tmp,
-			&ctx->pending_cb_list, cb_node) {
-		list_del(&pending_cb->cb_node);
-		hl_cb_put(pending_cb->cb);
-		kfree(pending_cb);
-	}
+	force_complete_multi_cs(hdev);
 }
 
 static void
 wake_pending_user_interrupt_threads(struct hl_user_interrupt *interrupt)
 {
 	struct hl_user_pending_interrupt *pend;
+	unsigned long flags;
 
-	spin_lock(&interrupt->wait_list_lock);
+	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
 	list_for_each_entry(pend, &interrupt->wait_list_head, wait_list_node) {
 		pend->fence.error = -EIO;
 		complete_all(&pend->fence.completion);
 	}
-	spin_unlock(&interrupt->wait_list_lock);
+	spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 }
 
 void hl_release_pending_user_interrupts(struct hl_device *hdev)
@@ -981,6 +1096,10 @@ static enum hl_cs_type hl_cs_get_cs_type(u32 cs_type_flags)
 		return CS_TYPE_WAIT;
 	else if (cs_type_flags & HL_CS_FLAGS_COLLECTIVE_WAIT)
 		return CS_TYPE_COLLECTIVE_WAIT;
+	else if (cs_type_flags & HL_CS_FLAGS_RESERVE_SIGNALS_ONLY)
+		return CS_RESERVE_SIGNALS;
+	else if (cs_type_flags & HL_CS_FLAGS_UNRESERVE_SIGNALS_ONLY)
+		return CS_UNRESERVE_SIGNALS;
 	else
 		return CS_TYPE_DEFAULT;
 }
@@ -1081,7 +1200,8 @@ static int hl_cs_copy_chunk_array(struct hl_device *hdev,
 }
 
 static int cs_staged_submission(struct hl_device *hdev, struct hl_cs *cs,
-				u64 sequence, u32 flags)
+				u64 sequence, u32 flags,
+				u32 encaps_signal_handle)
 {
 	if (!(flags & HL_CS_FLAGS_STAGED_SUBMISSION))
 		return 0;
@@ -1093,6 +1213,9 @@ static int cs_staged_submission(struct hl_device *hdev, struct hl_cs *cs,
 		/* Staged CS sequence is the first CS sequence */
 		INIT_LIST_HEAD(&cs->staged_cs_node);
 		cs->staged_sequence = cs->sequence;
+
+		if (cs->encaps_signals)
+			cs->encaps_sig_hdl_id = encaps_signal_handle;
 	} else {
 		/* User sequence will be validated in 'hl_hw_queue_schedule_cs'
 		 * under the cs_mirror_lock
@@ -1108,9 +1231,20 @@ static int cs_staged_submission(struct hl_device *hdev, struct hl_cs *cs,
 	return 0;
 }
 
+static u32 get_stream_master_qid_mask(struct hl_device *hdev, u32 qid)
+{
+	int i;
+
+	for (i = 0; i < hdev->stream_master_qid_arr_size; i++)
+		if (qid == hdev->stream_master_qid_arr[i])
+			return BIT(i);
+
+	return 0;
+}
+
 static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 				u32 num_chunks, u64 *cs_seq, u32 flags,
-				u32 timeout)
+				u32 encaps_signals_handle, u32 timeout)
 {
 	bool staged_mid, int_queues_only = true;
 	struct hl_device *hdev = hpriv->hdev;
@@ -1121,6 +1255,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 	struct hl_cs *cs;
 	struct hl_cb *cb;
 	u64 user_sequence;
+	u8 stream_master_qid_map = 0;
 	int rc, i;
 
 	cntr = &hdev->aggregated_cs_counters;
@@ -1148,7 +1283,8 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 
 	hl_debugfs_add_cs(cs);
 
-	rc = cs_staged_submission(hdev, cs, user_sequence, flags);
+	rc = cs_staged_submission(hdev, cs, user_sequence, flags,
+						encaps_signals_handle);
 	if (rc)
 		goto free_cs_object;
 
@@ -1179,8 +1315,19 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 			cb = (struct hl_cb *) (uintptr_t) chunk->cb_handle;
 		}
 
-		if (queue_type == QUEUE_TYPE_EXT || queue_type == QUEUE_TYPE_HW)
+		if (queue_type == QUEUE_TYPE_EXT ||
+						queue_type == QUEUE_TYPE_HW) {
 			int_queues_only = false;
+
+			/*
+			 * store which stream are being used for external/HW
+			 * queues of this CS
+			 */
+			if (hdev->supports_wait_for_multi_cs)
+				stream_master_qid_map |=
+					get_stream_master_qid_mask(hdev,
+							chunk->queue_index);
+		}
 
 		job = hl_cs_allocate_job(hdev, queue_type,
 						is_kernel_allocated_cb);
@@ -1242,6 +1389,13 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		goto free_cs_object;
 	}
 
+	/*
+	 * store the (external/HW queues) streams used by the CS in the
+	 * fence object for multi-CS completion
+	 */
+	if (hdev->supports_wait_for_multi_cs)
+		cs->fence->stream_master_qid_map = stream_master_qid_map;
+
 	rc = hl_hw_queue_schedule_cs(cs);
 	if (rc) {
 		if (rc != -EAGAIN)
@@ -1267,130 +1421,6 @@ put_cs:
 free_cs_chunk_array:
 	kfree(cs_chunk_array);
 out:
-	return rc;
-}
-
-static int pending_cb_create_job(struct hl_device *hdev, struct hl_ctx *ctx,
-		struct hl_cs *cs, struct hl_cb *cb, u32 size, u32 hw_queue_id)
-{
-	struct hw_queue_properties *hw_queue_prop;
-	struct hl_cs_counters_atomic *cntr;
-	struct hl_cs_job *job;
-
-	hw_queue_prop = &hdev->asic_prop.hw_queues_props[hw_queue_id];
-	cntr = &hdev->aggregated_cs_counters;
-
-	job = hl_cs_allocate_job(hdev, hw_queue_prop->type, true);
-	if (!job) {
-		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
-		atomic64_inc(&cntr->out_of_mem_drop_cnt);
-		dev_err(hdev->dev, "Failed to allocate a new job\n");
-		return -ENOMEM;
-	}
-
-	job->id = 0;
-	job->cs = cs;
-	job->user_cb = cb;
-	atomic_inc(&job->user_cb->cs_cnt);
-	job->user_cb_size = size;
-	job->hw_queue_id = hw_queue_id;
-	job->patched_cb = job->user_cb;
-	job->job_cb_size = job->user_cb_size;
-
-	/* increment refcount as for external queues we get completion */
-	cs_get(cs);
-
-	cs->jobs_in_queue_cnt[job->hw_queue_id]++;
-
-	list_add_tail(&job->cs_node, &cs->job_list);
-
-	hl_debugfs_add_job(hdev, job);
-
-	return 0;
-}
-
-static int hl_submit_pending_cb(struct hl_fpriv *hpriv)
-{
-	struct hl_device *hdev = hpriv->hdev;
-	struct hl_ctx *ctx = hpriv->ctx;
-	struct hl_pending_cb *pending_cb, *tmp;
-	struct list_head local_cb_list;
-	struct hl_cs *cs;
-	struct hl_cb *cb;
-	u32 hw_queue_id;
-	u32 cb_size;
-	int process_list, rc = 0;
-
-	if (list_empty(&ctx->pending_cb_list))
-		return 0;
-
-	process_list = atomic_cmpxchg(&ctx->thread_pending_cb_token, 1, 0);
-
-	/* Only a single thread is allowed to process the list */
-	if (!process_list)
-		return 0;
-
-	if (list_empty(&ctx->pending_cb_list))
-		goto free_pending_cb_token;
-
-	/* move all list elements to a local list */
-	INIT_LIST_HEAD(&local_cb_list);
-	spin_lock(&ctx->pending_cb_lock);
-	list_for_each_entry_safe(pending_cb, tmp, &ctx->pending_cb_list,
-								cb_node)
-		list_move_tail(&pending_cb->cb_node, &local_cb_list);
-	spin_unlock(&ctx->pending_cb_lock);
-
-	rc = allocate_cs(hdev, ctx, CS_TYPE_DEFAULT, ULLONG_MAX, &cs, 0,
-				hdev->timeout_jiffies);
-	if (rc)
-		goto add_list_elements;
-
-	hl_debugfs_add_cs(cs);
-
-	/* Iterate through pending cb list, create jobs and add to CS */
-	list_for_each_entry(pending_cb, &local_cb_list, cb_node) {
-		cb = pending_cb->cb;
-		cb_size = pending_cb->cb_size;
-		hw_queue_id = pending_cb->hw_queue_id;
-
-		rc = pending_cb_create_job(hdev, ctx, cs, cb, cb_size,
-								hw_queue_id);
-		if (rc)
-			goto free_cs_object;
-	}
-
-	rc = hl_hw_queue_schedule_cs(cs);
-	if (rc) {
-		if (rc != -EAGAIN)
-			dev_err(hdev->dev,
-				"Failed to submit CS %d.%llu (%d)\n",
-				ctx->asid, cs->sequence, rc);
-		goto free_cs_object;
-	}
-
-	/* pending cb was scheduled successfully */
-	list_for_each_entry_safe(pending_cb, tmp, &local_cb_list, cb_node) {
-		list_del(&pending_cb->cb_node);
-		kfree(pending_cb);
-	}
-
-	cs_put(cs);
-
-	goto free_pending_cb_token;
-
-free_cs_object:
-	cs_rollback(hdev, cs);
-	cs_put(cs);
-add_list_elements:
-	spin_lock(&ctx->pending_cb_lock);
-	list_for_each_entry_safe_reverse(pending_cb, tmp, &local_cb_list,
-								cb_node)
-		list_move(&pending_cb->cb_node, &ctx->pending_cb_list);
-	spin_unlock(&ctx->pending_cb_lock);
-free_pending_cb_token:
-	atomic_set(&ctx->thread_pending_cb_token, 1);
-
 	return rc;
 }
 
@@ -1443,7 +1473,7 @@ static int hl_cs_ctx_switch(struct hl_fpriv *hpriv, union hl_cs_args *args,
 			rc = 0;
 		} else {
 			rc = cs_ioctl_default(hpriv, chunks, num_chunks,
-					cs_seq, 0, hdev->timeout_jiffies);
+					cs_seq, 0, 0, hdev->timeout_jiffies);
 		}
 
 		mutex_unlock(&hpriv->restore_phase_mutex);
@@ -1501,10 +1531,17 @@ out:
  * hl_cs_signal_sob_wraparound_handler: handle SOB value wrapaound case.
  * if the SOB value reaches the max value move to the other SOB reserved
  * to the queue.
+ * @hdev: pointer to device structure
+ * @q_idx: stream queue index
+ * @hw_sob: the H/W SOB used in this signal CS.
+ * @count: signals count
+ * @encaps_sig: tells whether it's reservation for encaps signals or not.
+ *
  * Note that this function must be called while hw_queues_lock is taken.
  */
 int hl_cs_signal_sob_wraparound_handler(struct hl_device *hdev, u32 q_idx,
-			struct hl_hw_sob **hw_sob, u32 count)
+			struct hl_hw_sob **hw_sob, u32 count, bool encaps_sig)
+
 {
 	struct hl_sync_stream_properties *prop;
 	struct hl_hw_sob *sob = *hw_sob, *other_sob;
@@ -1512,7 +1549,7 @@ int hl_cs_signal_sob_wraparound_handler(struct hl_device *hdev, u32 q_idx,
 
 	prop = &hdev->kernel_queues[q_idx].sync_stream_prop;
 
-	kref_get(&sob->kref);
+	hw_sob_get(sob);
 
 	/* check for wraparound */
 	if (prop->next_sob_val + count >= HL_MAX_SOB_VAL) {
@@ -1522,7 +1559,7 @@ int hl_cs_signal_sob_wraparound_handler(struct hl_device *hdev, u32 q_idx,
 		 * just incremented the refcount right before calling this
 		 * function.
 		 */
-		kref_put(&sob->kref, hl_sob_reset_error);
+		hw_sob_put_err(sob);
 
 		/*
 		 * check the other sob value, if it still in use then fail
@@ -1537,11 +1574,41 @@ int hl_cs_signal_sob_wraparound_handler(struct hl_device *hdev, u32 q_idx,
 			return -EINVAL;
 		}
 
-		prop->next_sob_val = 1;
+		/*
+		 * next_sob_val always points to the next available signal
+		 * in the sob, so in encaps signals it will be the next one
+		 * after reserving the required amount.
+		 */
+		if (encaps_sig)
+			prop->next_sob_val = count + 1;
+		else
+			prop->next_sob_val = count;
 
 		/* only two SOBs are currently in use */
 		prop->curr_sob_offset = other_sob_offset;
 		*hw_sob = other_sob;
+
+		/*
+		 * check if other_sob needs reset, then do it before using it
+		 * for the reservation or the next signal cs.
+		 * we do it here, and for both encaps and regular signal cs
+		 * cases in order to avoid possible races of two kref_put
+		 * of the sob which can occur at the same time if we move the
+		 * sob reset(kref_put) to cs_do_release function.
+		 * in addition, if we have combination of cs signal and
+		 * encaps, and at the point we need to reset the sob there was
+		 * no more reservations and only signal cs keep coming,
+		 * in such case we need signal_cs to put the refcount and
+		 * reset the sob.
+		 */
+		if (other_sob->need_reset)
+			hw_sob_put(other_sob);
+
+		if (encaps_sig) {
+			/* set reset indication for the sob */
+			sob->need_reset = true;
+			hw_sob_get(other_sob);
+		}
 
 		dev_dbg(hdev->dev, "switched to SOB %d, q_idx: %d\n",
 				prop->curr_sob_offset, q_idx);
@@ -1553,11 +1620,17 @@ int hl_cs_signal_sob_wraparound_handler(struct hl_device *hdev, u32 q_idx,
 }
 
 static int cs_ioctl_extract_signal_seq(struct hl_device *hdev,
-		struct hl_cs_chunk *chunk, u64 *signal_seq, struct hl_ctx *ctx)
+		struct hl_cs_chunk *chunk, u64 *signal_seq, struct hl_ctx *ctx,
+		bool encaps_signals)
 {
 	u64 *signal_seq_arr = NULL;
 	u32 size_to_copy, signal_seq_arr_len;
 	int rc = 0;
+
+	if (encaps_signals) {
+		*signal_seq = chunk->encaps_signal_seq;
+		return 0;
+	}
 
 	signal_seq_arr_len = chunk->num_signal_seq_arr;
 
@@ -1583,7 +1656,7 @@ static int cs_ioctl_extract_signal_seq(struct hl_device *hdev,
 		return -ENOMEM;
 	}
 
-	size_to_copy = chunk->num_signal_seq_arr * sizeof(*signal_seq_arr);
+	size_to_copy = signal_seq_arr_len * sizeof(*signal_seq_arr);
 	if (copy_from_user(signal_seq_arr,
 				u64_to_user_ptr(chunk->signal_seq_arr),
 				size_to_copy)) {
@@ -1605,8 +1678,8 @@ out:
 }
 
 static int cs_ioctl_signal_wait_create_jobs(struct hl_device *hdev,
-		struct hl_ctx *ctx, struct hl_cs *cs, enum hl_queue_type q_type,
-		u32 q_idx)
+		struct hl_ctx *ctx, struct hl_cs *cs,
+		enum hl_queue_type q_type, u32 q_idx, u32 encaps_signal_offset)
 {
 	struct hl_cs_counters_atomic *cntr;
 	struct hl_cs_job *job;
@@ -1644,6 +1717,9 @@ static int cs_ioctl_signal_wait_create_jobs(struct hl_device *hdev,
 	job->user_cb_size = cb_size;
 	job->hw_queue_id = q_idx;
 
+	if ((cs->type == CS_TYPE_WAIT || cs->type == CS_TYPE_COLLECTIVE_WAIT)
+			&& cs->encaps_signals)
+		job->encaps_sig_wait_offset = encaps_signal_offset;
 	/*
 	 * No need in parsing, user CB is the patched CB.
 	 * We call hl_cb_destroy() out of two reasons - we don't need the CB in
@@ -1666,11 +1742,196 @@ static int cs_ioctl_signal_wait_create_jobs(struct hl_device *hdev,
 	return 0;
 }
 
+static int cs_ioctl_reserve_signals(struct hl_fpriv *hpriv,
+				u32 q_idx, u32 count,
+				u32 *handle_id, u32 *sob_addr,
+				u32 *signals_count)
+{
+	struct hw_queue_properties *hw_queue_prop;
+	struct hl_sync_stream_properties *prop;
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_cs_encaps_sig_handle *handle;
+	struct hl_encaps_signals_mgr *mgr;
+	struct hl_hw_sob *hw_sob;
+	int hdl_id;
+	int rc = 0;
+
+	if (count >= HL_MAX_SOB_VAL) {
+		dev_err(hdev->dev, "signals count(%u) exceeds the max SOB value\n",
+						count);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if (q_idx >= hdev->asic_prop.max_queues) {
+		dev_err(hdev->dev, "Queue index %d is invalid\n",
+			q_idx);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	hw_queue_prop = &hdev->asic_prop.hw_queues_props[q_idx];
+
+	if (!hw_queue_prop->supports_sync_stream) {
+		dev_err(hdev->dev,
+			"Queue index %d does not support sync stream operations\n",
+									q_idx);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	prop = &hdev->kernel_queues[q_idx].sync_stream_prop;
+
+	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
+	if (!handle) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	handle->count = count;
+	mgr = &hpriv->ctx->sig_mgr;
+
+	spin_lock(&mgr->lock);
+	hdl_id = idr_alloc(&mgr->handles, handle, 1, 0, GFP_ATOMIC);
+	spin_unlock(&mgr->lock);
+
+	if (hdl_id < 0) {
+		dev_err(hdev->dev, "Failed to allocate IDR for a new signal reservation\n");
+		rc = -EINVAL;
+		goto out;
+	}
+
+	handle->id = hdl_id;
+	handle->q_idx = q_idx;
+	handle->hdev = hdev;
+	kref_init(&handle->refcount);
+
+	hdev->asic_funcs->hw_queues_lock(hdev);
+
+	hw_sob = &prop->hw_sob[prop->curr_sob_offset];
+
+	/*
+	 * Increment the SOB value by count by user request
+	 * to reserve those signals
+	 * check if the signals amount to reserve is not exceeding the max sob
+	 * value, if yes then switch sob.
+	 */
+	rc = hl_cs_signal_sob_wraparound_handler(hdev, q_idx, &hw_sob, count,
+								true);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to switch SOB\n");
+		hdev->asic_funcs->hw_queues_unlock(hdev);
+		rc = -EINVAL;
+		goto remove_idr;
+	}
+	/* set the hw_sob to the handle after calling the sob wraparound handler
+	 * since sob could have changed.
+	 */
+	handle->hw_sob = hw_sob;
+
+	/* store the current sob value for unreserve validity check, and
+	 * signal offset support
+	 */
+	handle->pre_sob_val = prop->next_sob_val - handle->count;
+
+	*signals_count = prop->next_sob_val;
+	hdev->asic_funcs->hw_queues_unlock(hdev);
+
+	*sob_addr = handle->hw_sob->sob_addr;
+	*handle_id = hdl_id;
+
+	dev_dbg(hdev->dev,
+		"Signals reserved, sob_id: %d, sob addr: 0x%x, last sob_val: %u, q_idx: %d, hdl_id: %d\n",
+			hw_sob->sob_id, handle->hw_sob->sob_addr,
+			prop->next_sob_val - 1, q_idx, hdl_id);
+	goto out;
+
+remove_idr:
+	spin_lock(&mgr->lock);
+	idr_remove(&mgr->handles, hdl_id);
+	spin_unlock(&mgr->lock);
+
+	kfree(handle);
+out:
+	return rc;
+}
+
+static int cs_ioctl_unreserve_signals(struct hl_fpriv *hpriv, u32 handle_id)
+{
+	struct hl_cs_encaps_sig_handle *encaps_sig_hdl;
+	struct hl_sync_stream_properties *prop;
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_encaps_signals_mgr *mgr;
+	struct hl_hw_sob *hw_sob;
+	u32 q_idx, sob_addr;
+	int rc = 0;
+
+	mgr = &hpriv->ctx->sig_mgr;
+
+	spin_lock(&mgr->lock);
+	encaps_sig_hdl = idr_find(&mgr->handles, handle_id);
+	if (encaps_sig_hdl) {
+		dev_dbg(hdev->dev, "unreserve signals, handle: %u, SOB:0x%x, count: %u\n",
+				handle_id, encaps_sig_hdl->hw_sob->sob_addr,
+					encaps_sig_hdl->count);
+
+		hdev->asic_funcs->hw_queues_lock(hdev);
+
+		q_idx = encaps_sig_hdl->q_idx;
+		prop = &hdev->kernel_queues[q_idx].sync_stream_prop;
+		hw_sob = &prop->hw_sob[prop->curr_sob_offset];
+		sob_addr = hdev->asic_funcs->get_sob_addr(hdev, hw_sob->sob_id);
+
+		/* Check if sob_val got out of sync due to other
+		 * signal submission requests which were handled
+		 * between the reserve-unreserve calls or SOB switch
+		 * upon reaching SOB max value.
+		 */
+		if (encaps_sig_hdl->pre_sob_val + encaps_sig_hdl->count
+				!= prop->next_sob_val ||
+				sob_addr != encaps_sig_hdl->hw_sob->sob_addr) {
+			dev_err(hdev->dev, "Cannot unreserve signals, SOB val ran out of sync, expected: %u, actual val: %u\n",
+				encaps_sig_hdl->pre_sob_val,
+				(prop->next_sob_val - encaps_sig_hdl->count));
+
+			hdev->asic_funcs->hw_queues_unlock(hdev);
+			rc = -EINVAL;
+			goto out;
+		}
+
+		/*
+		 * Decrement the SOB value by count by user request
+		 * to unreserve those signals
+		 */
+		prop->next_sob_val -= encaps_sig_hdl->count;
+
+		hdev->asic_funcs->hw_queues_unlock(hdev);
+
+		hw_sob_put(hw_sob);
+
+		/* Release the id and free allocated memory of the handle */
+		idr_remove(&mgr->handles, handle_id);
+		kfree(encaps_sig_hdl);
+	} else {
+		rc = -EINVAL;
+		dev_err(hdev->dev, "failed to unreserve signals, cannot find handler\n");
+	}
+out:
+	spin_unlock(&mgr->lock);
+
+	return rc;
+}
+
 static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 				void __user *chunks, u32 num_chunks,
 				u64 *cs_seq, u32 flags, u32 timeout)
 {
+	struct hl_cs_encaps_sig_handle *encaps_sig_hdl = NULL;
+	bool handle_found = false, is_wait_cs = false,
+			wait_cs_submitted = false,
+			cs_encaps_signals = false;
 	struct hl_cs_chunk *cs_chunk_array, *chunk;
+	bool staged_cs_with_encaps_signals = false;
 	struct hw_queue_properties *hw_queue_prop;
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_cs_compl *sig_waitcs_cmpl;
@@ -1730,10 +1991,57 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 		collective_engine_id = chunk->collective_engine_id;
 	}
 
-	if (cs_type == CS_TYPE_WAIT || cs_type == CS_TYPE_COLLECTIVE_WAIT) {
-		rc = cs_ioctl_extract_signal_seq(hdev, chunk, &signal_seq, ctx);
+	is_wait_cs = !!(cs_type == CS_TYPE_WAIT ||
+			cs_type == CS_TYPE_COLLECTIVE_WAIT);
+
+	cs_encaps_signals = !!(flags & HL_CS_FLAGS_ENCAP_SIGNALS);
+
+	if (is_wait_cs) {
+		rc = cs_ioctl_extract_signal_seq(hdev, chunk, &signal_seq,
+				ctx, cs_encaps_signals);
 		if (rc)
 			goto free_cs_chunk_array;
+
+		if (cs_encaps_signals) {
+			/* check if cs sequence has encapsulated
+			 * signals handle
+			 */
+			struct idr *idp;
+			u32 id;
+
+			spin_lock(&ctx->sig_mgr.lock);
+			idp = &ctx->sig_mgr.handles;
+			idr_for_each_entry(idp, encaps_sig_hdl, id) {
+				if (encaps_sig_hdl->cs_seq == signal_seq) {
+					handle_found = true;
+					/* get refcount to protect removing
+					 * this handle from idr, needed when
+					 * multiple wait cs are used with offset
+					 * to wait on reserved encaps signals.
+					 */
+					kref_get(&encaps_sig_hdl->refcount);
+					break;
+				}
+			}
+			spin_unlock(&ctx->sig_mgr.lock);
+
+			if (!handle_found) {
+				dev_err(hdev->dev, "Cannot find encapsulated signals handle for seq 0x%llx\n",
+						signal_seq);
+				rc = -EINVAL;
+				goto free_cs_chunk_array;
+			}
+
+			/* validate also the signal offset value */
+			if (chunk->encaps_signal_offset >
+					encaps_sig_hdl->count) {
+				dev_err(hdev->dev, "offset(%u) value exceed max reserved signals count(%u)!\n",
+						chunk->encaps_signal_offset,
+						encaps_sig_hdl->count);
+				rc = -EINVAL;
+				goto free_cs_chunk_array;
+			}
+		}
 
 		sig_fence = hl_ctx_get_fence(ctx, signal_seq);
 		if (IS_ERR(sig_fence)) {
@@ -1755,11 +2063,16 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 		sig_waitcs_cmpl =
 			container_of(sig_fence, struct hl_cs_compl, base_fence);
 
-		if (sig_waitcs_cmpl->type != CS_TYPE_SIGNAL) {
+		staged_cs_with_encaps_signals = !!
+				(sig_waitcs_cmpl->type == CS_TYPE_DEFAULT &&
+				(flags & HL_CS_FLAGS_ENCAP_SIGNALS));
+
+		if (sig_waitcs_cmpl->type != CS_TYPE_SIGNAL &&
+				!staged_cs_with_encaps_signals) {
 			atomic64_inc(&ctx->cs_counters.validation_drop_cnt);
 			atomic64_inc(&cntr->validation_drop_cnt);
 			dev_err(hdev->dev,
-				"CS seq 0x%llx is not of a signal CS\n",
+				"CS seq 0x%llx is not of a signal/encaps-signal CS\n",
 				signal_seq);
 			hl_fence_put(sig_fence);
 			rc = -EINVAL;
@@ -1776,18 +2089,27 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 
 	rc = allocate_cs(hdev, ctx, cs_type, ULLONG_MAX, &cs, flags, timeout);
 	if (rc) {
-		if (cs_type == CS_TYPE_WAIT ||
-			cs_type == CS_TYPE_COLLECTIVE_WAIT)
+		if (is_wait_cs)
 			hl_fence_put(sig_fence);
+
 		goto free_cs_chunk_array;
 	}
 
 	/*
 	 * Save the signal CS fence for later initialization right before
 	 * hanging the wait CS on the queue.
+	 * for encaps signals case, we save the cs sequence and handle pointer
+	 * for later initialization.
 	 */
-	if (cs_type == CS_TYPE_WAIT || cs_type == CS_TYPE_COLLECTIVE_WAIT)
+	if (is_wait_cs) {
 		cs->signal_fence = sig_fence;
+		/* store the handle pointer, so we don't have to
+		 * look for it again, later on the flow
+		 * when we need to set SOB info in hw_queue.
+		 */
+		if (cs->encaps_signals)
+			cs->encaps_sig_hdl = encaps_sig_hdl;
+	}
 
 	hl_debugfs_add_cs(cs);
 
@@ -1795,10 +2117,11 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 
 	if (cs_type == CS_TYPE_WAIT || cs_type == CS_TYPE_SIGNAL)
 		rc = cs_ioctl_signal_wait_create_jobs(hdev, ctx, cs, q_type,
-				q_idx);
+				q_idx, chunk->encaps_signal_offset);
 	else if (cs_type == CS_TYPE_COLLECTIVE_WAIT)
 		rc = hdev->asic_funcs->collective_wait_create_jobs(hdev, ctx,
-				cs, q_idx, collective_engine_id);
+				cs, q_idx, collective_engine_id,
+				chunk->encaps_signal_offset);
 	else {
 		atomic64_inc(&ctx->cs_counters.validation_drop_cnt);
 		atomic64_inc(&cntr->validation_drop_cnt);
@@ -1810,7 +2133,13 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 
 	rc = hl_hw_queue_schedule_cs(cs);
 	if (rc) {
-		if (rc != -EAGAIN)
+		/* In case wait cs failed here, it means the signal cs
+		 * already completed. we want to free all it's related objects
+		 * but we don't want to fail the ioctl.
+		 */
+		if (is_wait_cs)
+			rc = 0;
+		else if (rc != -EAGAIN)
 			dev_err(hdev->dev,
 				"Failed to submit CS %d.%llu to H/W queues, error %d\n",
 				ctx->asid, cs->sequence, rc);
@@ -1818,6 +2147,8 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	}
 
 	rc = HL_CS_STATUS_SUCCESS;
+	if (is_wait_cs)
+		wait_cs_submitted = true;
 	goto put_cs;
 
 free_cs_object:
@@ -1828,6 +2159,10 @@ put_cs:
 	/* We finished with the CS in this function, so put the ref */
 	cs_put(cs);
 free_cs_chunk_array:
+	if (!wait_cs_submitted && cs_encaps_signals && handle_found &&
+							is_wait_cs)
+		kref_put(&encaps_sig_hdl->refcount,
+				hl_encaps_handle_do_release);
 	kfree(cs_chunk_array);
 out:
 	return rc;
@@ -1836,10 +2171,11 @@ out:
 int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 {
 	union hl_cs_args *args = data;
-	enum hl_cs_type cs_type;
+	enum hl_cs_type cs_type = 0;
 	u64 cs_seq = ULONG_MAX;
 	void __user *chunks;
-	u32 num_chunks, flags, timeout;
+	u32 num_chunks, flags, timeout,
+		signals_count = 0, sob_addr = 0, handle_id = 0;
 	int rc;
 
 	rc = hl_cs_sanity_checks(hpriv, args);
@@ -1847,10 +2183,6 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 		goto out;
 
 	rc = hl_cs_ctx_switch(hpriv, args, &cs_seq);
-	if (rc)
-		goto out;
-
-	rc = hl_submit_pending_cb(hpriv);
 	if (rc)
 		goto out;
 
@@ -1876,18 +2208,179 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 		rc = cs_ioctl_signal_wait(hpriv, cs_type, chunks, num_chunks,
 					&cs_seq, args->in.cs_flags, timeout);
 		break;
+	case CS_RESERVE_SIGNALS:
+		rc = cs_ioctl_reserve_signals(hpriv,
+					args->in.encaps_signals_q_idx,
+					args->in.encaps_signals_count,
+					&handle_id, &sob_addr, &signals_count);
+		break;
+	case CS_UNRESERVE_SIGNALS:
+		rc = cs_ioctl_unreserve_signals(hpriv,
+					args->in.encaps_sig_handle_id);
+		break;
 	default:
 		rc = cs_ioctl_default(hpriv, chunks, num_chunks, &cs_seq,
-						args->in.cs_flags, timeout);
+						args->in.cs_flags,
+						args->in.encaps_sig_handle_id,
+						timeout);
 		break;
 	}
-
 out:
 	if (rc != -EAGAIN) {
 		memset(args, 0, sizeof(*args));
+
+		if (cs_type == CS_RESERVE_SIGNALS) {
+			args->out.handle_id = handle_id;
+			args->out.sob_base_addr_offset = sob_addr;
+			args->out.count = signals_count;
+		} else {
+			args->out.seq = cs_seq;
+		}
 		args->out.status = rc;
-		args->out.seq = cs_seq;
 	}
+
+	return rc;
+}
+
+static int hl_wait_for_fence(struct hl_ctx *ctx, u64 seq, struct hl_fence *fence,
+				enum hl_cs_wait_status *status, u64 timeout_us,
+				s64 *timestamp)
+{
+	struct hl_device *hdev = ctx->hdev;
+	long completion_rc;
+	int rc = 0;
+
+	if (IS_ERR(fence)) {
+		rc = PTR_ERR(fence);
+		if (rc == -EINVAL)
+			dev_notice_ratelimited(hdev->dev,
+				"Can't wait on CS %llu because current CS is at seq %llu\n",
+				seq, ctx->cs_sequence);
+		return rc;
+	}
+
+	if (!fence) {
+		dev_dbg(hdev->dev,
+			"Can't wait on seq %llu because current CS is at seq %llu (Fence is gone)\n",
+				seq, ctx->cs_sequence);
+
+		*status = CS_WAIT_STATUS_GONE;
+		return 0;
+	}
+
+	if (!timeout_us) {
+		completion_rc = completion_done(&fence->completion);
+	} else {
+		unsigned long timeout;
+
+		timeout = (timeout_us == MAX_SCHEDULE_TIMEOUT) ?
+				timeout_us : usecs_to_jiffies(timeout_us);
+		completion_rc =
+			wait_for_completion_interruptible_timeout(
+				&fence->completion, timeout);
+	}
+
+	if (completion_rc > 0) {
+		*status = CS_WAIT_STATUS_COMPLETED;
+		if (timestamp)
+			*timestamp = ktime_to_ns(fence->timestamp);
+	} else {
+		*status = CS_WAIT_STATUS_BUSY;
+	}
+
+	if (fence->error == -ETIMEDOUT)
+		rc = -ETIMEDOUT;
+	else if (fence->error == -EIO)
+		rc = -EIO;
+
+	return rc;
+}
+
+/*
+ * hl_cs_poll_fences - iterate CS fences to check for CS completion
+ *
+ * @mcs_data: multi-CS internal data
+ *
+ * @return 0 on success, otherwise non 0 error code
+ *
+ * The function iterates on all CS sequence in the list and set bit in
+ * completion_bitmap for each completed CS.
+ * while iterating, the function can extracts the stream map to be later
+ * used by the waiting function.
+ * this function shall be called after taking context ref
+ */
+static int hl_cs_poll_fences(struct multi_cs_data *mcs_data)
+{
+	struct hl_fence **fence_ptr = mcs_data->fence_arr;
+	struct hl_device *hdev = mcs_data->ctx->hdev;
+	int i, rc, arr_len = mcs_data->arr_len;
+	u64 *seq_arr = mcs_data->seq_arr;
+	ktime_t max_ktime, first_cs_time;
+	enum hl_cs_wait_status status;
+
+	memset(fence_ptr, 0, arr_len * sizeof(*fence_ptr));
+
+	/* get all fences under the same lock */
+	rc = hl_ctx_get_fences(mcs_data->ctx, seq_arr, fence_ptr, arr_len);
+	if (rc)
+		return rc;
+
+	/*
+	 * set to maximum time to verify timestamp is valid: if at the end
+	 * this value is maintained- no timestamp was updated
+	 */
+	max_ktime = ktime_set(KTIME_SEC_MAX, 0);
+	first_cs_time = max_ktime;
+
+	for (i = 0; i < arr_len; i++, fence_ptr++) {
+		struct hl_fence *fence = *fence_ptr;
+
+		/*
+		 * function won't sleep as it is called with timeout 0 (i.e.
+		 * poll the fence)
+		 */
+		rc = hl_wait_for_fence(mcs_data->ctx, seq_arr[i], fence,
+						&status, 0, NULL);
+		if (rc) {
+			dev_err(hdev->dev,
+				"wait_for_fence error :%d for CS seq %llu\n",
+								rc, seq_arr[i]);
+			break;
+		}
+
+		mcs_data->stream_master_qid_map |= fence->stream_master_qid_map;
+
+		if (status == CS_WAIT_STATUS_BUSY)
+			continue;
+
+		mcs_data->completion_bitmap |= BIT(i);
+
+		/*
+		 * best effort to extract timestamp. few notes:
+		 * - if even single fence is gone we cannot extract timestamp
+		 *   (as fence not exist anymore)
+		 * - for all completed CSs we take the earliest timestamp.
+		 *   for this we have to validate that:
+		 *       1. given timestamp was indeed set
+		 *       2. the timestamp is earliest of all timestamps so far
+		 */
+
+		if (status == CS_WAIT_STATUS_GONE) {
+			mcs_data->update_ts = false;
+			mcs_data->gone_cs = true;
+		} else if (mcs_data->update_ts &&
+			(ktime_compare(fence->timestamp,
+						ktime_set(0, 0)) > 0) &&
+			(ktime_compare(fence->timestamp, first_cs_time) < 0)) {
+			first_cs_time = fence->timestamp;
+		}
+	}
+
+	hl_fences_put(mcs_data->fence_arr, arr_len);
+
+	if (mcs_data->update_ts &&
+			(ktime_compare(first_cs_time, max_ktime) != 0))
+		mcs_data->timestamp = ktime_to_ns(first_cs_time);
 
 	return rc;
 }
@@ -1897,59 +2390,266 @@ static int _hl_cs_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 				enum hl_cs_wait_status *status, s64 *timestamp)
 {
 	struct hl_fence *fence;
-	unsigned long timeout;
 	int rc = 0;
-	long completion_rc;
 
 	if (timestamp)
 		*timestamp = 0;
 
-	if (timeout_us == MAX_SCHEDULE_TIMEOUT)
-		timeout = timeout_us;
-	else
-		timeout = usecs_to_jiffies(timeout_us);
-
 	hl_ctx_get(hdev, ctx);
 
 	fence = hl_ctx_get_fence(ctx, seq);
-	if (IS_ERR(fence)) {
-		rc = PTR_ERR(fence);
-		if (rc == -EINVAL)
-			dev_notice_ratelimited(hdev->dev,
-				"Can't wait on CS %llu because current CS is at seq %llu\n",
-				seq, ctx->cs_sequence);
-	} else if (fence) {
-		if (!timeout_us)
-			completion_rc = completion_done(&fence->completion);
-		else
-			completion_rc =
-				wait_for_completion_interruptible_timeout(
-					&fence->completion, timeout);
 
-		if (completion_rc > 0) {
-			*status = CS_WAIT_STATUS_COMPLETED;
-			if (timestamp)
-				*timestamp = ktime_to_ns(fence->timestamp);
-		} else {
-			*status = CS_WAIT_STATUS_BUSY;
-		}
-
-		if (fence->error == -ETIMEDOUT)
-			rc = -ETIMEDOUT;
-		else if (fence->error == -EIO)
-			rc = -EIO;
-
-		hl_fence_put(fence);
-	} else {
-		dev_dbg(hdev->dev,
-			"Can't wait on seq %llu because current CS is at seq %llu (Fence is gone)\n",
-			seq, ctx->cs_sequence);
-		*status = CS_WAIT_STATUS_GONE;
-	}
-
+	rc = hl_wait_for_fence(ctx, seq, fence, status, timeout_us, timestamp);
+	hl_fence_put(fence);
 	hl_ctx_put(ctx);
 
 	return rc;
+}
+
+/*
+ * hl_wait_multi_cs_completion_init - init completion structure
+ *
+ * @hdev: pointer to habanalabs device structure
+ * @stream_master_bitmap: stream master QIDs map, set bit indicates stream
+ *                        master QID to wait on
+ *
+ * @return valid completion struct pointer on success, otherwise error pointer
+ *
+ * up to MULTI_CS_MAX_USER_CTX calls can be done concurrently to the driver.
+ * the function gets the first available completion (by marking it "used")
+ * and initialize its values.
+ */
+static struct multi_cs_completion *hl_wait_multi_cs_completion_init(
+							struct hl_device *hdev,
+							u8 stream_master_bitmap)
+{
+	struct multi_cs_completion *mcs_compl;
+	int i;
+
+	/* find free multi_cs completion structure */
+	for (i = 0; i < MULTI_CS_MAX_USER_CTX; i++) {
+		mcs_compl = &hdev->multi_cs_completion[i];
+		spin_lock(&mcs_compl->lock);
+		if (!mcs_compl->used) {
+			mcs_compl->used = 1;
+			mcs_compl->timestamp = 0;
+			mcs_compl->stream_master_qid_map = stream_master_bitmap;
+			reinit_completion(&mcs_compl->completion);
+			spin_unlock(&mcs_compl->lock);
+			break;
+		}
+		spin_unlock(&mcs_compl->lock);
+	}
+
+	if (i == MULTI_CS_MAX_USER_CTX) {
+		dev_err(hdev->dev,
+				"no available multi-CS completion structure\n");
+		return ERR_PTR(-ENOMEM);
+	}
+	return mcs_compl;
+}
+
+/*
+ * hl_wait_multi_cs_completion_fini - return completion structure and set as
+ *                                    unused
+ *
+ * @mcs_compl: pointer to the completion structure
+ */
+static void hl_wait_multi_cs_completion_fini(
+					struct multi_cs_completion *mcs_compl)
+{
+	/*
+	 * free completion structure, do it under lock to be in-sync with the
+	 * thread that signals completion
+	 */
+	spin_lock(&mcs_compl->lock);
+	mcs_compl->used = 0;
+	spin_unlock(&mcs_compl->lock);
+}
+
+/*
+ * hl_wait_multi_cs_completion - wait for first CS to complete
+ *
+ * @mcs_data: multi-CS internal data
+ *
+ * @return 0 on success, otherwise non 0 error code
+ */
+static int hl_wait_multi_cs_completion(struct multi_cs_data *mcs_data)
+{
+	struct hl_device *hdev = mcs_data->ctx->hdev;
+	struct multi_cs_completion *mcs_compl;
+	long completion_rc;
+
+	mcs_compl = hl_wait_multi_cs_completion_init(hdev,
+					mcs_data->stream_master_qid_map);
+	if (IS_ERR(mcs_compl))
+		return PTR_ERR(mcs_compl);
+
+	completion_rc = wait_for_completion_interruptible_timeout(
+					&mcs_compl->completion,
+					usecs_to_jiffies(mcs_data->timeout_us));
+
+	/* update timestamp */
+	if (completion_rc > 0)
+		mcs_data->timestamp = mcs_compl->timestamp;
+
+	hl_wait_multi_cs_completion_fini(mcs_compl);
+
+	mcs_data->wait_status = completion_rc;
+
+	return 0;
+}
+
+/*
+ * hl_multi_cs_completion_init - init array of multi-CS completion structures
+ *
+ * @hdev: pointer to habanalabs device structure
+ */
+void hl_multi_cs_completion_init(struct hl_device *hdev)
+{
+	struct multi_cs_completion *mcs_cmpl;
+	int i;
+
+	for (i = 0; i < MULTI_CS_MAX_USER_CTX; i++) {
+		mcs_cmpl = &hdev->multi_cs_completion[i];
+		mcs_cmpl->used = 0;
+		spin_lock_init(&mcs_cmpl->lock);
+		init_completion(&mcs_cmpl->completion);
+	}
+}
+
+/*
+ * hl_multi_cs_wait_ioctl - implementation of the multi-CS wait ioctl
+ *
+ * @hpriv: pointer to the private data of the fd
+ * @data: pointer to multi-CS wait ioctl in/out args
+ *
+ */
+static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	struct multi_cs_data mcs_data = {0};
+	union hl_wait_cs_args *args = data;
+	struct hl_ctx *ctx = hpriv->ctx;
+	struct hl_fence **fence_arr;
+	void __user *seq_arr;
+	u32 size_to_copy;
+	u64 *cs_seq_arr;
+	u8 seq_arr_len;
+	int rc;
+
+	if (!hdev->supports_wait_for_multi_cs) {
+		dev_err(hdev->dev, "Wait for multi CS is not supported\n");
+		return -EPERM;
+	}
+
+	seq_arr_len = args->in.seq_arr_len;
+
+	if (seq_arr_len > HL_WAIT_MULTI_CS_LIST_MAX_LEN) {
+		dev_err(hdev->dev, "Can wait only up to %d CSs, input sequence is of length %u\n",
+				HL_WAIT_MULTI_CS_LIST_MAX_LEN, seq_arr_len);
+		return -EINVAL;
+	}
+
+	/* allocate memory for sequence array */
+	cs_seq_arr =
+		kmalloc_array(seq_arr_len, sizeof(*cs_seq_arr), GFP_KERNEL);
+	if (!cs_seq_arr)
+		return -ENOMEM;
+
+	/* copy CS sequence array from user */
+	seq_arr = (void __user *) (uintptr_t) args->in.seq;
+	size_to_copy = seq_arr_len * sizeof(*cs_seq_arr);
+	if (copy_from_user(cs_seq_arr, seq_arr, size_to_copy)) {
+		dev_err(hdev->dev, "Failed to copy multi-cs sequence array from user\n");
+		rc = -EFAULT;
+		goto free_seq_arr;
+	}
+
+	/* allocate array for the fences */
+	fence_arr = kmalloc_array(seq_arr_len, sizeof(*fence_arr), GFP_KERNEL);
+	if (!fence_arr) {
+		rc = -ENOMEM;
+		goto free_seq_arr;
+	}
+
+	/* initialize the multi-CS internal data */
+	mcs_data.ctx = ctx;
+	mcs_data.seq_arr = cs_seq_arr;
+	mcs_data.fence_arr = fence_arr;
+	mcs_data.arr_len = seq_arr_len;
+
+	hl_ctx_get(hdev, ctx);
+
+	/* poll all CS fences, extract timestamp */
+	mcs_data.update_ts = true;
+	rc = hl_cs_poll_fences(&mcs_data);
+	/*
+	 * skip wait for CS completion when one of the below is true:
+	 * - an error on the poll function
+	 * - one or more CS in the list completed
+	 * - the user called ioctl with timeout 0
+	 */
+	if (rc || mcs_data.completion_bitmap || !args->in.timeout_us)
+		goto put_ctx;
+
+	/* wait (with timeout) for the first CS to be completed */
+	mcs_data.timeout_us = args->in.timeout_us;
+	rc = hl_wait_multi_cs_completion(&mcs_data);
+	if (rc)
+		goto put_ctx;
+
+	if (mcs_data.wait_status > 0) {
+		/*
+		 * poll fences once again to update the CS map.
+		 * no timestamp should be updated this time.
+		 */
+		mcs_data.update_ts = false;
+		rc = hl_cs_poll_fences(&mcs_data);
+
+		/*
+		 * if hl_wait_multi_cs_completion returned before timeout (i.e.
+		 * it got a completion) we expect to see at least one CS
+		 * completed after the poll function.
+		 */
+		if (!mcs_data.completion_bitmap) {
+			dev_err(hdev->dev, "Multi-CS got completion on wait but no CS completed\n");
+			rc = -EFAULT;
+		}
+	}
+
+put_ctx:
+	hl_ctx_put(ctx);
+	kfree(fence_arr);
+
+free_seq_arr:
+	kfree(cs_seq_arr);
+
+	/* update output args */
+	memset(args, 0, sizeof(*args));
+	if (rc)
+		return rc;
+
+	if (mcs_data.completion_bitmap) {
+		args->out.status = HL_WAIT_CS_STATUS_COMPLETED;
+		args->out.cs_completion_map = mcs_data.completion_bitmap;
+
+		/* if timestamp not 0- it's valid */
+		if (mcs_data.timestamp) {
+			args->out.timestamp_nsec = mcs_data.timestamp;
+			args->out.flags |= HL_WAIT_CS_STATUS_FLAG_TIMESTAMP_VLD;
+		}
+
+		/* update if some CS was gone */
+		if (mcs_data.timestamp)
+			args->out.flags |= HL_WAIT_CS_STATUS_FLAG_GONE;
+	} else if (mcs_data.wait_status == -ERESTARTSYS) {
+		args->out.status = HL_WAIT_CS_STATUS_INTERRUPTED;
+	} else {
+		args->out.status = HL_WAIT_CS_STATUS_BUSY;
+	}
+
+	return 0;
 }
 
 static int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
@@ -2015,9 +2715,9 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 {
 	struct hl_user_pending_interrupt *pend;
 	struct hl_user_interrupt *interrupt;
-	unsigned long timeout;
-	long completion_rc;
+	unsigned long timeout, flags;
 	u32 completion_value;
+	long completion_rc;
 	int rc = 0;
 
 	if (timeout_us == U32_MAX)
@@ -2040,17 +2740,10 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	else
 		interrupt = &hdev->user_interrupt[interrupt_offset];
 
-	spin_lock(&interrupt->wait_list_lock);
-	if (!hl_device_operational(hdev, NULL)) {
-		rc = -EPERM;
-		goto unlock_and_free_fence;
-	}
-
 	if (copy_from_user(&completion_value, u64_to_user_ptr(user_address), 4)) {
-		dev_err(hdev->dev,
-			"Failed to copy completion value from user\n");
+		dev_err(hdev->dev, "Failed to copy completion value from user\n");
 		rc = -EFAULT;
-		goto unlock_and_free_fence;
+		goto free_fence;
 	}
 
 	if (completion_value >= target_value)
@@ -2059,48 +2752,57 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 		*status = CS_WAIT_STATUS_BUSY;
 
 	if (!timeout_us || (*status == CS_WAIT_STATUS_COMPLETED))
-		goto unlock_and_free_fence;
+		goto free_fence;
 
 	/* Add pending user interrupt to relevant list for the interrupt
 	 * handler to monitor
 	 */
+	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
 	list_add_tail(&pend->wait_list_node, &interrupt->wait_list_head);
-	spin_unlock(&interrupt->wait_list_lock);
+	spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 
 wait_again:
 	/* Wait for interrupt handler to signal completion */
-	completion_rc =
-		wait_for_completion_interruptible_timeout(
-				&pend->fence.completion, timeout);
+	completion_rc = wait_for_completion_interruptible_timeout(&pend->fence.completion,
+										timeout);
 
 	/* If timeout did not expire we need to perform the comparison.
 	 * If comparison fails, keep waiting until timeout expires
 	 */
 	if (completion_rc > 0) {
-		if (copy_from_user(&completion_value,
-				u64_to_user_ptr(user_address), 4)) {
-			dev_err(hdev->dev,
-				"Failed to copy completion value from user\n");
+		if (copy_from_user(&completion_value, u64_to_user_ptr(user_address), 4)) {
+			dev_err(hdev->dev, "Failed to copy completion value from user\n");
 			rc = -EFAULT;
+
 			goto remove_pending_user_interrupt;
 		}
 
 		if (completion_value >= target_value) {
 			*status = CS_WAIT_STATUS_COMPLETED;
 		} else {
+			spin_lock_irqsave(&interrupt->wait_list_lock, flags);
+			reinit_completion(&pend->fence.completion);
 			timeout = completion_rc;
+
+			spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 			goto wait_again;
 		}
+	} else if (completion_rc == -ERESTARTSYS) {
+		dev_err_ratelimited(hdev->dev,
+			"user process got signal while waiting for interrupt ID %d\n",
+			interrupt->interrupt_id);
+		*status = HL_WAIT_CS_STATUS_INTERRUPTED;
+		rc = -EINTR;
 	} else {
 		*status = CS_WAIT_STATUS_BUSY;
 	}
 
 remove_pending_user_interrupt:
-	spin_lock(&interrupt->wait_list_lock);
+	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
 	list_del(&pend->wait_list_node);
+	spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 
-unlock_and_free_fence:
-	spin_unlock(&interrupt->wait_list_lock);
+free_fence:
 	kfree(pend);
 	hl_ctx_put(ctx);
 
@@ -2148,8 +2850,9 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	memset(args, 0, sizeof(*args));
 
 	if (rc) {
-		dev_err_ratelimited(hdev->dev,
-			"interrupt_wait_ioctl failed (%d)\n", rc);
+		if (rc != -EINTR)
+			dev_err_ratelimited(hdev->dev,
+				"interrupt_wait_ioctl failed (%d)\n", rc);
 
 		return rc;
 	}
@@ -2173,8 +2876,16 @@ int hl_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	u32 flags = args->in.flags;
 	int rc;
 
+	/* If the device is not operational, no point in waiting for any command submission or
+	 * user interrupt
+	 */
+	if (!hl_device_operational(hpriv->hdev, NULL))
+		return -EPERM;
+
 	if (flags & HL_WAIT_CS_FLAGS_INTERRUPT)
 		rc = hl_interrupt_wait_ioctl(hpriv, data);
+	else if (flags & HL_WAIT_CS_FLAGS_MULTI_CS)
+		rc = hl_multi_cs_wait_ioctl(hpriv, data);
 	else
 		rc = hl_cs_wait_ioctl(hpriv, data);
 

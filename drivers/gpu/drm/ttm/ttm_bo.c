@@ -1124,9 +1124,9 @@ int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 	}
 
 	if (bo->deleted) {
-		ttm_bo_cleanup_refs(bo, false, false, locked);
+		ret = ttm_bo_cleanup_refs(bo, false, false, locked);
 		ttm_bo_put(bo);
-		return 0;
+		return ret == -EBUSY ? -ENOSPC : ret;
 	}
 
 	ttm_bo_move_to_pinned(bo);
@@ -1180,7 +1180,7 @@ out:
 	if (locked)
 		dma_resv_unlock(bo->base.resv);
 	ttm_bo_put(bo);
-	return ret;
+	return ret == -EBUSY ? -ENOSPC : ret;
 }
 
 void ttm_bo_tt_destroy(struct ttm_buffer_object *bo)
