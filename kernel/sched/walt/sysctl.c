@@ -56,6 +56,7 @@ unsigned int __read_mostly sysctl_sched_asym_cap_sibling_freq_match_pct;
 unsigned int sysctl_walt_low_latency_task_threshold; /* disabled by default */
 unsigned int sysctl_sched_conservative_pl;
 unsigned int sysctl_sched_min_task_util_for_boost = 51;
+unsigned int sysctl_sched_min_task_util_for_uclamp = 51;
 unsigned int sysctl_sched_min_task_util_for_colocation = 35;
 unsigned int sysctl_sched_many_wakeup_threshold = WALT_MANY_WAKEUP_DEFAULT;
 const int sched_user_hint_max = 1000;
@@ -537,6 +538,15 @@ struct ctl_table walt_table[] = {
 	{
 		.procname	= "sched_min_task_util_for_boost",
 		.data		= &sysctl_sched_min_task_util_for_boost,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= &one_thousand,
+	},
+	{
+		.procname	= "sched_min_task_util_for_uclamp",
+		.data		= &sysctl_sched_min_task_util_for_uclamp,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,

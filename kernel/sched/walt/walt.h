@@ -202,6 +202,7 @@ extern unsigned int __read_mostly sched_load_granule;
 
 /* 1ms default for 20ms window size scaled to 1024 */
 extern unsigned int sysctl_sched_min_task_util_for_boost;
+extern unsigned int sysctl_sched_min_task_util_for_uclamp;
 /* 0.68ms default for 20ms window size scaled to 1024 */
 extern unsigned int sysctl_sched_min_task_util_for_colocation;
 extern unsigned int __read_mostly sysctl_sched_silver_thres;
@@ -484,9 +485,8 @@ static inline enum sched_boost_policy task_boost_policy(struct task_struct *p)
 
 static inline bool walt_uclamp_boosted(struct task_struct *p)
 {
-	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-
-	return uclamp_eff_value(p, UCLAMP_MIN) > 0 && wts->unfilter;
+	return ((uclamp_eff_value(p, UCLAMP_MIN) > 0) &&
+			(task_util(p) > sysctl_sched_min_task_util_for_uclamp));
 }
 
 static inline unsigned long capacity_of(int cpu)
