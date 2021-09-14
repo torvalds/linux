@@ -580,7 +580,6 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 	unsigned int val;
 	int ret = 0;
 	bool pdn;
-	int i;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -599,19 +598,11 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 				CS35L41_GLOBAL_EN_MASK, 0);
 
 		pdn = false;
-		for (i = 0; i < 100; i++) {
-			regmap_read(cs35l41->regmap,
-				CS35L41_IRQ1_STATUS1,
-				&val);
-			if (val & CS35L41_PDN_DONE_MASK) {
-				pdn = true;
-				break;
-			}
-			usleep_range(1000, 1100);
-		}
-
-		if (!pdn)
-			dev_warn(cs35l41->dev, "PDN failed\n");
+		ret = regmap_read_poll_timeout(cs35l41->regmap, CS35L41_IRQ1_STATUS1,
+					       val, val &  CS35L41_PDN_DONE_MASK,
+					       1000, 100000);
+		if (ret)
+			dev_warn(cs35l41->dev, "PDN failed: %d\n", ret);
 
 		regmap_write(cs35l41->regmap, CS35L41_IRQ1_STATUS1,
 				CS35L41_PDN_DONE_MASK);
