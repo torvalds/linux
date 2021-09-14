@@ -38,6 +38,9 @@ enum {				/* SMC PNET Table commands */
 #define SMC_GENL_FAMILY_VERSION		1
 
 #define SMC_PCI_ID_STR_LEN		16 /* Max length of pci id string */
+#define SMC_MAX_HOSTNAME_LEN		32 /* Max length of the hostname */
+#define SMC_MAX_UEID			4  /* Max number of user EIDs */
+#define SMC_MAX_EID_LEN			32 /* Max length of an EID */
 
 /* SMC_GENL_FAMILY commands */
 enum {
@@ -49,6 +52,13 @@ enum {
 	SMC_NETLINK_GET_DEV_SMCR,
 	SMC_NETLINK_GET_STATS,
 	SMC_NETLINK_GET_FBACK_STATS,
+	SMC_NETLINK_DUMP_UEID,
+	SMC_NETLINK_ADD_UEID,
+	SMC_NETLINK_REMOVE_UEID,
+	SMC_NETLINK_FLUSH_UEID,
+	SMC_NETLINK_DUMP_SEID,
+	SMC_NETLINK_ENABLE_SEID,
+	SMC_NETLINK_DISABLE_SEID,
 };
 
 /* SMC_GENL_FAMILY top level attributes */
@@ -241,5 +251,22 @@ enum {
 	SMC_NLA_FBACK_STATS_RSN_CNT,	/* u16 */
 	__SMC_NLA_FBACK_STATS_MAX,
 	SMC_NLA_FBACK_STATS_MAX = __SMC_NLA_FBACK_STATS_MAX - 1
+};
+
+/* SMC_NETLINK_UEID attributes */
+enum {
+	SMC_NLA_EID_TABLE_UNSPEC,
+	SMC_NLA_EID_TABLE_ENTRY,	/* string */
+	__SMC_NLA_EID_TABLE_MAX,
+	SMC_NLA_EID_TABLE_MAX = __SMC_NLA_EID_TABLE_MAX - 1
+};
+
+/* SMC_NETLINK_SEID attributes */
+enum {
+	SMC_NLA_SEID_UNSPEC,
+	SMC_NLA_SEID_ENTRY,	/* string */
+	SMC_NLA_SEID_ENABLED,	/* u8 */
+	__SMC_NLA_SEID_TABLE_MAX,
+	SMC_NLA_SEID_TABLE_MAX = __SMC_NLA_SEID_TABLE_MAX - 1
 };
 #endif /* _UAPI_LINUX_SMC_H */

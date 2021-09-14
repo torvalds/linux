@@ -26,6 +26,7 @@
 #include "smc_clc.h"
 #include "smc_ib.h"
 #include "smc_ism.h"
+#include "smc_netlink.h"
 
 #define SMCR_CLC_ACCEPT_CONFIRM_LEN 68
 #define SMCD_CLC_ACCEPT_CONFIRM_LEN 48
@@ -38,6 +39,285 @@ static const char SMC_EYECATCHER[4] = {'\xe2', '\xd4', '\xc3', '\xd9'};
 static const char SMCD_EYECATCHER[4] = {'\xe2', '\xd4', '\xc3', '\xc4'};
 
 static u8 smc_hostname[SMC_MAX_HOSTNAME_LEN];
+
+struct smc_clc_eid_table {
+	rwlock_t lock;
+	struct list_head list;
+	u8 ueid_cnt;
+	u8 seid_enabled;
+};
+
+static struct smc_clc_eid_table smc_clc_eid_table;
+
+struct smc_clc_eid_entry {
+	struct list_head list;
+	u8 eid[SMC_MAX_EID_LEN];
+};
+
+/* The size of a user EID is 32 characters.
+ * Valid characters should be (single-byte character set) A-Z, 0-9, '.' and '-'.
+ * Blanks should only be used to pad to the expected size.
+ * First character must be alphanumeric.
+ */
+static bool smc_clc_ueid_valid(char *ueid)
+{
+	char *end = ueid + SMC_MAX_EID_LEN;
+
+	while (--end >= ueid && isspace(*end))
+		;
+	if (end < ueid)
+		return false;
+	if (!isalnum(*ueid) || islower(*ueid))
+		return false;
+	while (ueid <= end) {
+		if ((!isalnum(*ueid) || islower(*ueid)) && *ueid != '.' &&
+		    *ueid != '-')
+			return false;
+		ueid++;
+	}
+	return true;
+}
+
+static int smc_clc_ueid_add(char *ueid)
+{
+	struct smc_clc_eid_entry *new_ueid, *tmp_ueid;
+	int rc;
+
+	if (!smc_clc_ueid_valid(ueid))
+		return -EINVAL;
+
+	/* add a new ueid entry to the ueid table if there isn't one */
+	new_ueid = kzalloc(sizeof(*new_ueid), GFP_KERNEL);
+	if (!new_ueid)
+		return -ENOMEM;
+	memcpy(new_ueid->eid, ueid, SMC_MAX_EID_LEN);
+
+	write_lock(&smc_clc_eid_table.lock);
+	if (smc_clc_eid_table.ueid_cnt >= SMC_MAX_UEID) {
+		rc = -ERANGE;
+		goto err_out;
+	}
+	list_for_each_entry(tmp_ueid, &smc_clc_eid_table.list, list) {
+		if (!memcmp(tmp_ueid->eid, ueid, SMC_MAX_EID_LEN)) {
+			rc = -EEXIST;
+			goto err_out;
+		}
+	}
+	list_add_tail(&new_ueid->list, &smc_clc_eid_table.list);
+	smc_clc_eid_table.ueid_cnt++;
+	write_unlock(&smc_clc_eid_table.lock);
+	return 0;
+
+err_out:
+	write_unlock(&smc_clc_eid_table.lock);
+	kfree(new_ueid);
+	return rc;
+}
+
+int smc_nl_add_ueid(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *nla_ueid = info->attrs[SMC_NLA_EID_TABLE_ENTRY];
+	char *ueid;
+
+	if (!nla_ueid || nla_len(nla_ueid) != SMC_MAX_EID_LEN + 1)
+		return -EINVAL;
+	ueid = (char *)nla_data(nla_ueid);
+
+	return smc_clc_ueid_add(ueid);
+}
+
+/* remove one or all ueid entries from the table */
+static int smc_clc_ueid_remove(char *ueid)
+{
+	struct smc_clc_eid_entry *lst_ueid, *tmp_ueid;
+	int rc = -ENOENT;
+
+	/* remove table entry */
+	write_lock(&smc_clc_eid_table.lock);
+	list_for_each_entry_safe(lst_ueid, tmp_ueid, &smc_clc_eid_table.list,
+				 list) {
+		if (!ueid || !memcmp(lst_ueid->eid, ueid, SMC_MAX_EID_LEN)) {
+			list_del(&lst_ueid->list);
+			smc_clc_eid_table.ueid_cnt--;
+			kfree(lst_ueid);
+			rc = 0;
+		}
+	}
+	if (!rc && !smc_clc_eid_table.ueid_cnt) {
+		smc_clc_eid_table.seid_enabled = 1;
+		rc = -EAGAIN;	/* indicate success and enabling of seid */
+	}
+	write_unlock(&smc_clc_eid_table.lock);
+	return rc;
+}
+
+int smc_nl_remove_ueid(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *nla_ueid = info->attrs[SMC_NLA_EID_TABLE_ENTRY];
+	char *ueid;
+
+	if (!nla_ueid || nla_len(nla_ueid) != SMC_MAX_EID_LEN + 1)
+		return -EINVAL;
+	ueid = (char *)nla_data(nla_ueid);
+
+	return smc_clc_ueid_remove(ueid);
+}
+
+int smc_nl_flush_ueid(struct sk_buff *skb, struct genl_info *info)
+{
+	smc_clc_ueid_remove(NULL);
+	return 0;
+}
+
+static int smc_nl_ueid_dumpinfo(struct sk_buff *skb, u32 portid, u32 seq,
+				u32 flags, char *ueid)
+{
+	char ueid_str[SMC_MAX_EID_LEN + 1];
+	void *hdr;
+
+	hdr = genlmsg_put(skb, portid, seq, &smc_gen_nl_family,
+			  flags, SMC_NETLINK_DUMP_UEID);
+	if (!hdr)
+		return -ENOMEM;
+	snprintf(ueid_str, sizeof(ueid_str), "%s", ueid);
+	if (nla_put_string(skb, SMC_NLA_EID_TABLE_ENTRY, ueid_str)) {
+		genlmsg_cancel(skb, hdr);
+		return -EMSGSIZE;
+	}
+	genlmsg_end(skb, hdr);
+	return 0;
+}
+
+static int _smc_nl_ueid_dump(struct sk_buff *skb, u32 portid, u32 seq,
+			     int start_idx)
+{
+	struct smc_clc_eid_entry *lst_ueid;
+	int idx = 0;
+
+	read_lock(&smc_clc_eid_table.lock);
+	list_for_each_entry(lst_ueid, &smc_clc_eid_table.list, list) {
+		if (idx++ < start_idx)
+			continue;
+		if (smc_nl_ueid_dumpinfo(skb, portid, seq, NLM_F_MULTI,
+					 lst_ueid->eid)) {
+			--idx;
+			break;
+		}
+	}
+	read_unlock(&smc_clc_eid_table.lock);
+	return idx;
+}
+
+int smc_nl_dump_ueid(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct smc_nl_dmp_ctx *cb_ctx = smc_nl_dmp_ctx(cb);
+	int idx;
+
+	idx = _smc_nl_ueid_dump(skb, NETLINK_CB(cb->skb).portid,
+				cb->nlh->nlmsg_seq, cb_ctx->pos[0]);
+
+	cb_ctx->pos[0] = idx;
+	return skb->len;
+}
+
+int smc_nl_dump_seid(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct smc_nl_dmp_ctx *cb_ctx = smc_nl_dmp_ctx(cb);
+	char seid_str[SMC_MAX_EID_LEN + 1];
+	u8 seid_enabled;
+	void *hdr;
+	u8 *seid;
+
+	if (cb_ctx->pos[0])
+		return skb->len;
+
+	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+			  &smc_gen_nl_family, NLM_F_MULTI,
+			  SMC_NETLINK_DUMP_SEID);
+	if (!hdr)
+		return -ENOMEM;
+	if (!smc_ism_is_v2_capable())
+		goto end;
+
+	smc_ism_get_system_eid(&seid);
+	snprintf(seid_str, sizeof(seid_str), "%s", seid);
+	if (nla_put_string(skb, SMC_NLA_SEID_ENTRY, seid_str))
+		goto err;
+	read_lock(&smc_clc_eid_table.lock);
+	seid_enabled = smc_clc_eid_table.seid_enabled;
+	read_unlock(&smc_clc_eid_table.lock);
+	if (nla_put_u8(skb, SMC_NLA_SEID_ENABLED, seid_enabled))
+		goto err;
+end:
+	genlmsg_end(skb, hdr);
+	cb_ctx->pos[0]++;
+	return skb->len;
+err:
+	genlmsg_cancel(skb, hdr);
+	return -EMSGSIZE;
+}
+
+int smc_nl_enable_seid(struct sk_buff *skb, struct genl_info *info)
+{
+	write_lock(&smc_clc_eid_table.lock);
+	smc_clc_eid_table.seid_enabled = 1;
+	write_unlock(&smc_clc_eid_table.lock);
+	return 0;
+}
+
+int smc_nl_disable_seid(struct sk_buff *skb, struct genl_info *info)
+{
+	int rc = 0;
+
+	write_lock(&smc_clc_eid_table.lock);
+	if (!smc_clc_eid_table.ueid_cnt)
+		rc = -ENOENT;
+	else
+		smc_clc_eid_table.seid_enabled = 0;
+	write_unlock(&smc_clc_eid_table.lock);
+	return rc;
+}
+
+static bool _smc_clc_match_ueid(u8 *peer_ueid)
+{
+	struct smc_clc_eid_entry *tmp_ueid;
+
+	list_for_each_entry(tmp_ueid, &smc_clc_eid_table.list, list) {
+		if (!memcmp(tmp_ueid->eid, peer_ueid, SMC_MAX_EID_LEN))
+			return true;
+	}
+	return false;
+}
+
+bool smc_clc_match_eid(u8 *negotiated_eid,
+		       struct smc_clc_v2_extension *smc_v2_ext,
+		       u8 *peer_eid, u8 *local_eid)
+{
+	bool match = false;
+	int i;
+
+	negotiated_eid[0] = 0;
+	read_lock(&smc_clc_eid_table.lock);
+	if (smc_clc_eid_table.seid_enabled &&
+	    smc_v2_ext->hdr.flag.seid &&
+	    !memcmp(peer_eid, local_eid, SMC_MAX_EID_LEN)) {
+		memcpy(negotiated_eid, peer_eid, SMC_MAX_EID_LEN);
+		match = true;
+		goto out;
+	}
+
+	for (i = 0; i < smc_v2_ext->hdr.eid_cnt; i++) {
+		if (_smc_clc_match_ueid(smc_v2_ext->user_eids[i])) {
+			memcpy(negotiated_eid, smc_v2_ext->user_eids[i],
+			       SMC_MAX_EID_LEN);
+			match = true;
+			goto out;
+		}
+	}
+out:
+	read_unlock(&smc_clc_eid_table.lock);
+	return match;
+}
 
 /* check arriving CLC proposal */
 static bool smc_clc_msg_prop_valid(struct smc_clc_msg_proposal *pclc)
@@ -550,6 +830,7 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 	if (ini->smc_type_v2 == SMC_TYPE_N) {
 		pclc_smcd->v2_ext_offset = 0;
 	} else {
+		struct smc_clc_eid_entry *ueident;
 		u16 v2_ext_offset;
 		u8 *eid = NULL;
 
@@ -560,19 +841,25 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 						pclc_prfx->ipv6_prefixes_cnt *
 						sizeof(ipv6_prfx[0]);
 		pclc_smcd->v2_ext_offset = htons(v2_ext_offset);
-		v2_ext->hdr.eid_cnt = 0;
+
+		read_lock(&smc_clc_eid_table.lock);
+		v2_ext->hdr.eid_cnt = smc_clc_eid_table.ueid_cnt;
+		plen += smc_clc_eid_table.ueid_cnt * SMC_MAX_EID_LEN;
+		i = 0;
+		list_for_each_entry(ueident, &smc_clc_eid_table.list, list) {
+			memcpy(v2_ext->user_eids[i++], ueident->eid,
+			       sizeof(ueident->eid));
+		}
+		v2_ext->hdr.flag.seid = smc_clc_eid_table.seid_enabled;
+		read_unlock(&smc_clc_eid_table.lock);
 		v2_ext->hdr.ism_gid_cnt = ini->ism_offered_cnt;
 		v2_ext->hdr.flag.release = SMC_RELEASE;
-		v2_ext->hdr.flag.seid = 1;
 		v2_ext->hdr.smcd_v2_ext_offset = htons(sizeof(*v2_ext) -
 				offsetofend(struct smc_clnt_opts_area_hdr,
 					    smcd_v2_ext_offset) +
 				v2_ext->hdr.eid_cnt * SMC_MAX_EID_LEN);
-		if (ini->ism_dev[0])
-			smc_ism_get_system_eid(ini->ism_dev[0], &eid);
-		else
-			smc_ism_get_system_eid(ini->ism_dev[1], &eid);
-		if (eid)
+		smc_ism_get_system_eid(&eid);
+		if (eid && v2_ext->hdr.flag.seid)
 			memcpy(smcd_v2_ext->system_eid, eid, SMC_MAX_EID_LEN);
 		plen += sizeof(*v2_ext) + sizeof(*smcd_v2_ext);
 		if (ini->ism_offered_cnt) {
@@ -607,7 +894,8 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 	}
 	if (ini->smc_type_v2 != SMC_TYPE_N) {
 		vec[i].iov_base = v2_ext;
-		vec[i++].iov_len = sizeof(*v2_ext);
+		vec[i++].iov_len = sizeof(*v2_ext) +
+				   (v2_ext->hdr.eid_cnt * SMC_MAX_EID_LEN);
 		vec[i].iov_base = smcd_v2_ext;
 		vec[i++].iov_len = sizeof(*smcd_v2_ext);
 		if (ini->ism_offered_cnt) {
@@ -635,7 +923,8 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 /* build and send CLC CONFIRM / ACCEPT message */
 static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 				       struct smc_clc_msg_accept_confirm_v2 *clc_v2,
-				       int first_contact, u8 version)
+				       int first_contact, u8 version,
+				       u8 *eid)
 {
 	struct smc_connection *conn = &smc->conn;
 	struct smc_clc_msg_accept_confirm *clc;
@@ -663,11 +952,8 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 		if (version == SMC_V1) {
 			clc->hdr.length = htons(SMCD_CLC_ACCEPT_CONFIRM_LEN);
 		} else {
-			u8 *eid = NULL;
-
 			clc_v2->chid = htons(smc_ism_get_chid(conn->lgr->smcd));
-			smc_ism_get_system_eid(conn->lgr->smcd, &eid);
-			if (eid)
+			if (eid[0])
 				memcpy(clc_v2->eid, eid, SMC_MAX_EID_LEN);
 			len = SMCD_CLC_ACCEPT_CONFIRM_LEN_V2;
 			if (first_contact)
@@ -732,7 +1018,7 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 
 /* send CLC CONFIRM message across internal TCP socket */
 int smc_clc_send_confirm(struct smc_sock *smc, bool clnt_first_contact,
-			 u8 version)
+			 u8 version, u8 *eid)
 {
 	struct smc_clc_msg_accept_confirm_v2 cclc_v2;
 	int reason_code = 0;
@@ -742,7 +1028,7 @@ int smc_clc_send_confirm(struct smc_sock *smc, bool clnt_first_contact,
 	memset(&cclc_v2, 0, sizeof(cclc_v2));
 	cclc_v2.hdr.type = SMC_CLC_CONFIRM;
 	len = smc_clc_send_confirm_accept(smc, &cclc_v2, clnt_first_contact,
-					  version);
+					  version, eid);
 	if (len < ntohs(cclc_v2.hdr.length)) {
 		if (len >= 0) {
 			reason_code = -ENETUNREACH;
@@ -757,7 +1043,7 @@ int smc_clc_send_confirm(struct smc_sock *smc, bool clnt_first_contact,
 
 /* send CLC ACCEPT message across internal TCP socket */
 int smc_clc_send_accept(struct smc_sock *new_smc, bool srv_first_contact,
-			u8 version)
+			u8 version, u8 *negotiated_eid)
 {
 	struct smc_clc_msg_accept_confirm_v2 aclc_v2;
 	int len;
@@ -765,7 +1051,7 @@ int smc_clc_send_accept(struct smc_sock *new_smc, bool srv_first_contact,
 	memset(&aclc_v2, 0, sizeof(aclc_v2));
 	aclc_v2.hdr.type = SMC_CLC_ACCEPT;
 	len = smc_clc_send_confirm_accept(new_smc, &aclc_v2, srv_first_contact,
-					  version);
+					  version, negotiated_eid);
 	if (len < ntohs(aclc_v2.hdr.length))
 		len = len >= 0 ? -EPROTO : -new_smc->clcsock->sk->sk_err;
 
@@ -785,4 +1071,14 @@ void __init smc_clc_init(void)
 	u = utsname();
 	memcpy(smc_hostname, u->nodename,
 	       min_t(size_t, strlen(u->nodename), sizeof(smc_hostname)));
+
+	INIT_LIST_HEAD(&smc_clc_eid_table.list);
+	rwlock_init(&smc_clc_eid_table.lock);
+	smc_clc_eid_table.ueid_cnt = 0;
+	smc_clc_eid_table.seid_enabled = 1;
+}
+
+void smc_clc_exit(void)
+{
+	smc_clc_ueid_remove(NULL);
 }
