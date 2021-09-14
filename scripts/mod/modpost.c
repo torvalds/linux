@@ -17,6 +17,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <errno.h>
 #include "modpost.h"
 #include "../../include/linux/license.h"
@@ -89,6 +90,14 @@ modpost_log(enum loglevel loglevel, const char *fmt, ...)
 		exit(1);
 	if (loglevel == LOG_ERROR)
 		error_occurred = true;
+}
+
+static inline bool strends(const char *str, const char *postfix)
+{
+	if (strlen(str) < strlen(postfix))
+		return false;
+
+	return strcmp(str + strlen(str) - strlen(postfix), postfix) == 0;
 }
 
 void *do_nofail(void *ptr, const char *expr)
@@ -2061,7 +2070,7 @@ static void read_symbols(const char *modname)
 	if (!mod->is_vmlinux) {
 		version = get_modinfo(&info, "version");
 		if (version || all_versions)
-			get_src_version(modname, mod->srcversion,
+			get_src_version(mod->name, mod->srcversion,
 					sizeof(mod->srcversion) - 1);
 	}
 
