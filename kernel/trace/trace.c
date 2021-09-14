@@ -3698,11 +3698,11 @@ static bool trace_safe_str(struct trace_iterator *iter, const char *str)
 		return false;
 
 	event = container_of(trace_event, struct trace_event_call, event);
-	if (!event->mod)
+	if ((event->flags & TRACE_EVENT_FL_DYNAMIC) || !event->module)
 		return false;
 
 	/* Would rather have rodata, but this will suffice */
-	if (within_module_core(addr, event->mod))
+	if (within_module_core(addr, event->module))
 		return true;
 
 	return false;
@@ -5544,6 +5544,7 @@ static const char readme_msg[] =
 #ifdef CONFIG_HIST_TRIGGERS
 	"\t           s:[synthetic/]<event> <field> [<field>]\n"
 #endif
+	"\t           e[:[<group>/]<event>] <attached-group>.<attached-event> [<args>]\n"
 	"\t           -:[<group>/]<event>\n"
 #ifdef CONFIG_KPROBE_EVENTS
 	"\t    place: [<module>:]<symbol>[+<offset>]|<memaddr>\n"
@@ -5553,7 +5554,7 @@ static const char readme_msg[] =
   "   place (uprobe): <path>:<offset>[%return][(ref_ctr_offset)]\n"
 #endif
 	"\t     args: <name>=fetcharg[:type]\n"
-	"\t fetcharg: %<register>, @<address>, @<symbol>[+|-<offset>],\n"
+	"\t fetcharg: (%<register>|$<efield>), @<address>, @<symbol>[+|-<offset>],\n"
 #ifdef CONFIG_HAVE_FUNCTION_ARG_ACCESS_API
 	"\t           $stack<index>, $stack, $retval, $comm, $arg<N>,\n"
 #else
@@ -5568,6 +5569,8 @@ static const char readme_msg[] =
 	"\t    stype: u8/u16/u32/u64, s8/s16/s32/s64, pid_t,\n"
 	"\t           [unsigned] char/int/long\n"
 #endif
+	"\t    efield: For event probes ('e' types), the field is on of the fields\n"
+	"\t            of the <attached-group>/<attached-event>.\n"
 #endif
 	"  events/\t\t- Directory containing all trace event subsystems:\n"
 	"      enable\t\t- Write 0/1 to enable/disable tracing of all events\n"
@@ -5655,6 +5658,7 @@ static const char readme_msg[] =
 	"\t            .execname   display a common_pid as a program name\n"
 	"\t            .syscall    display a syscall id as a syscall name\n"
 	"\t            .log2       display log2 value rather than raw number\n"
+	"\t            .buckets=size  display values in groups of size rather than raw number\n"
 	"\t            .usecs      display a common_timestamp in microseconds\n\n"
 	"\t    The 'pause' parameter can be used to pause an existing hist\n"
 	"\t    trigger or to start a hist trigger but not log any events\n"

@@ -113,6 +113,7 @@ config RISCV
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
+	select TRACE_IRQFLAGS_SUPPORT
 	select UACCESS_MEMCPY if !MMU
 	select ZONE_DMA32 if 64BIT
 
@@ -180,9 +181,6 @@ config ARCH_SUPPORTS_UPROBES
 	def_bool y
 
 config STACKTRACE_SUPPORT
-	def_bool y
-
-config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 
 config GENERIC_BUG

@@ -2790,7 +2790,7 @@ static int perf_c2c__report(int argc, const char **argv)
 		goto out;
 	}
 
-	session = perf_session__new(&data, 0, &c2c.tool);
+	session = perf_session__new(&data, &c2c.tool);
 	if (IS_ERR(session)) {
 		err = PTR_ERR(session);
 		pr_debug("Error creating perf session\n");

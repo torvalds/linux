@@ -126,6 +126,7 @@ config ARM
 	select RTC_LIB
 	select SET_FS
 	select SYS_SUPPORTS_APM_EMULATION
+	select TRACE_IRQFLAGS_SUPPORT if !CPU_V7M
 	# Above selects are sorted alphabetically; please add new ones
 	# according to that.  Thanks.
 	help
@@ -188,10 +189,6 @@ config STACKTRACE_SUPPORT
 config LOCKDEP_SUPPORT
 	bool
 	default y
-
-config TRACE_IRQFLAGS_SUPPORT
-	bool
-	default !CPU_V7M
 
 config ARCH_HAS_ILOG2_U32
 	bool

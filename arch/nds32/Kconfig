@@ -46,6 +46,7 @@ config NDS32
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
 	select SET_FS
+	select TRACE_IRQFLAGS_SUPPORT
 	help
 	  Andes(nds32) Linux support.
 
@@ -61,9 +62,6 @@ config GENERIC_HWEIGHT
 config GENERIC_LOCKBREAK
 	def_bool y
 	depends on PREEMPTION
-
-config TRACE_IRQFLAGS_SUPPORT
-	def_bool y
 
 config STACKTRACE_SUPPORT
 	def_bool y

@@ -1691,7 +1691,7 @@ EXPORT_SYMBOL(bioset_init_from_src);
 /**
  * bio_alloc_kiocb - Allocate a bio from bio_set based on kiocb
  * @kiocb:	kiocb describing the IO
- * @nr_iovecs:	number of iovecs to pre-allocate
+ * @nr_vecs:	number of iovecs to pre-allocate
  * @bs:		bio_set to allocate from
  *
  * Description:

@@ -135,10 +135,9 @@ config TRACING_SUPPORT
 	depends on STACKTRACE_SUPPORT
 	default y
 
-if TRACING_SUPPORT
-
 menuconfig FTRACE
 	bool "Tracers"
+	depends on TRACING_SUPPORT
 	default y if DEBUG_KERNEL
 	help
 	  Enable the kernel tracing infrastructure.
@@ -1038,6 +1037,3 @@ config HIST_TRIGGERS_DEBUG
           If unsure, say N.
 
 endif # FTRACE
-
-endif # TRACING_SUPPORT
-

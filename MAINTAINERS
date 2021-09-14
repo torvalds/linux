@@ -18986,6 +18986,20 @@ F:	arch/x86/mm/testmmiotrace.c
 F:	include/linux/mmiotrace.h
 F:	kernel/trace/trace_mmiotrace.c
 
+TRACING OS NOISE / LATENCY TRACERS
+M:	Steven Rostedt <rostedt@goodmis.org>
+M:	Daniel Bristot de Oliveira <bristot@kernel.org>
+S:	Maintained
+F:	kernel/trace/trace_osnoise.c
+F:	include/trace/events/osnoise.h
+F:	kernel/trace/trace_hwlat.c
+F:	kernel/trace/trace_irqsoff.c
+F:	kernel/trace/trace_sched_wakeup.c
+F:	Documentation/trace/osnoise-tracer.rst
+F:	Documentation/trace/timerlat-tracer.rst
+F:	Documentation/trace/hwlat_detector.rst
+F:	arch/*/kernel/trace.c
+
 TRADITIONAL CHINESE DOCUMENTATION
 M:	Hu Haowen <src.res@email.cn>
 L:	linux-doc-tw-discuss@lists.sourceforge.net
@@ -19166,9 +19180,8 @@ W:	http://dotat.at/prog/unifdef
 F:	scripts/unifdef.c
 
 UNIFORM CDROM DRIVER
-M:	Jens Axboe <axboe@kernel.dk>
+M:	Phillip Potter <phil@philpotter.co.uk>
 S:	Maintained
-W:	http://www.kernel.dk
 F:	Documentation/cdrom/
 F:	drivers/cdrom/cdrom.c
 F:	include/linux/cdrom.h
