@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/reset-controller.h>
 #include <linux/slab.h>
 
 #include "clk.h"
@@ -47,6 +48,99 @@ static const char * const xbar_divbus[] = { "xbar_divbus" };
 static const char * const nic_per_divplat[] = { "nic_per_divplat" };
 static const char * const lpav_axi_div[] = { "lpav_axi_div" };
 static const char * const lpav_bus_div[] = { "lpav_bus_div" };
+
+struct pcc_reset_dev {
+	void __iomem *base;
+	struct reset_controller_dev rcdev;
+	const u32 *resets;
+	/* Set to imx_ccm_lock to protect register access shared with clock control */
+	spinlock_t *lock;
+};
+
+#define PCC_SW_RST	BIT(28)
+#define to_pcc_reset_dev(_rcdev)	container_of(_rcdev, struct pcc_reset_dev, rcdev)
+
+static const u32 pcc3_resets[] = {
+	0xa8, 0xac, 0xc8, 0xcc, 0xd0,
+	0xd4, 0xd8, 0xdc, 0xe0, 0xe4,
+	0xe8, 0xec, 0xf0
+};
+
+static const u32 pcc4_resets[] = {
+	0x4, 0x8, 0xc, 0x10, 0x14,
+	0x18, 0x1c, 0x20, 0x24, 0x34,
+	0x38, 0x3c, 0x40, 0x44, 0x48,
+	0x4c, 0x54
+};
+
+static const u32 pcc5_resets[] = {
+	0xa0, 0xa4, 0xa8, 0xac, 0xb0,
+	0xb4, 0xbc, 0xc0, 0xc8, 0xcc,
+	0xd0, 0xf0, 0xf4, 0xf8
+};
+
+static int imx8ulp_pcc_assert(struct reset_controller_dev *rcdev, unsigned long id)
+{
+	struct pcc_reset_dev *pcc_reset = to_pcc_reset_dev(rcdev);
+	u32 offset = pcc_reset->resets[id];
+	unsigned long flags;
+	u32 val;
+
+	spin_lock_irqsave(pcc_reset->lock, flags);
+
+	val = readl(pcc_reset->base + offset);
+	val &= ~PCC_SW_RST;
+	writel(val, pcc_reset->base + offset);
+
+	spin_unlock_irqrestore(pcc_reset->lock, flags);
+
+	return 0;
+}
+
+static int imx8ulp_pcc_deassert(struct reset_controller_dev *rcdev, unsigned long id)
+{
+	struct pcc_reset_dev *pcc_reset = to_pcc_reset_dev(rcdev);
+	u32 offset = pcc_reset->resets[id];
+	unsigned long flags;
+	u32 val;
+
+	spin_lock_irqsave(pcc_reset->lock, flags);
+
+	val = readl(pcc_reset->base + offset);
+	val |= PCC_SW_RST;
+	writel(val, pcc_reset->base + offset);
+
+	spin_unlock_irqrestore(pcc_reset->lock, flags);
+
+	return 0;
+}
+
+static const struct reset_control_ops imx8ulp_pcc_reset_ops = {
+	.assert = imx8ulp_pcc_assert,
+	.deassert = imx8ulp_pcc_deassert,
+};
+
+static int imx8ulp_pcc_reset_init(struct platform_device *pdev, void __iomem *base,
+	 const u32 *resets, unsigned int nr_resets)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct pcc_reset_dev *pcc_reset;
+
+	pcc_reset = devm_kzalloc(dev, sizeof(*pcc_reset), GFP_KERNEL);
+	if (!pcc_reset)
+		return -ENOMEM;
+
+	pcc_reset->base = base;
+	pcc_reset->lock = &imx_ccm_lock;
+	pcc_reset->resets = resets;
+	pcc_reset->rcdev.owner = THIS_MODULE;
+	pcc_reset->rcdev.nr_resets = nr_resets;
+	pcc_reset->rcdev.ops = &imx8ulp_pcc_reset_ops;
+	pcc_reset->rcdev.of_node = np;
+
+	return devm_reset_controller_register(dev, &pcc_reset->rcdev);
+}
 
 static int imx8ulp_clk_cgc1_init(struct platform_device *pdev)
 {
@@ -288,10 +382,13 @@ static int imx8ulp_clk_pcc3_init(struct platform_device *pdev)
 	imx_check_clk_hws(clks, clk_data->num);
 
 	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get, clk_data);
+	if (ret)
+		return ret;
 
 	imx_register_uart_clocks(1);
 
-	return ret;
+	/* register the pcc3 reset controller */
+	return imx8ulp_pcc_reset_init(pdev, base, pcc3_resets, ARRAY_SIZE(pcc3_resets));
 }
 
 static int imx8ulp_clk_pcc4_init(struct platform_device *pdev)
@@ -300,6 +397,7 @@ static int imx8ulp_clk_pcc4_init(struct platform_device *pdev)
 	struct clk_hw_onecell_data *clk_data;
 	struct clk_hw **clks;
 	void __iomem *base;
+	int ret;
 
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, IMX8ULP_CLK_PCC4_END),
 			   GFP_KERNEL);
@@ -339,7 +437,13 @@ static int imx8ulp_clk_pcc4_init(struct platform_device *pdev)
 
 	imx_check_clk_hws(clks, clk_data->num);
 
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get, clk_data);
+	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get, clk_data);
+	if (ret)
+		return ret;
+
+	/* register the pcc4 reset controller */
+	return imx8ulp_pcc_reset_init(pdev, base, pcc4_resets, ARRAY_SIZE(pcc4_resets));
+
 }
 
 static int imx8ulp_clk_pcc5_init(struct platform_device *pdev)
@@ -348,6 +452,7 @@ static int imx8ulp_clk_pcc5_init(struct platform_device *pdev)
 	struct clk_hw_onecell_data *clk_data;
 	struct clk_hw **clks;
 	void __iomem *base;
+	int ret;
 
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, IMX8ULP_CLK_PCC5_END),
 			   GFP_KERNEL);
@@ -420,7 +525,12 @@ static int imx8ulp_clk_pcc5_init(struct platform_device *pdev)
 
 	imx_check_clk_hws(clks, clk_data->num);
 
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get, clk_data);
+	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get, clk_data);
+	if (ret)
+		return ret;
+
+	/* register the pcc5 reset controller */
+	return imx8ulp_pcc_reset_init(pdev, base, pcc5_resets, ARRAY_SIZE(pcc5_resets));
 }
 
 static int imx8ulp_clk_probe(struct platform_device *pdev)
