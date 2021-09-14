@@ -691,7 +691,7 @@ static int slcan_ioctl(struct tty_struct *tty, struct file *file,
 		return -EINVAL;
 
 	default:
-		return tty_mode_ioctl(tty, file, cmd, arg);
+		return tty_mode_ioctl(tty, cmd, arg);
 	}
 }
 

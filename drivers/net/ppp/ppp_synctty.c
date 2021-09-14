@@ -314,7 +314,7 @@ ppp_synctty_ioctl(struct tty_struct *tty, struct file *file,
 		break;
 
 	default:
-		err = tty_mode_ioctl(tty, file, cmd, arg);
+		err = tty_mode_ioctl(tty, cmd, arg);
 		break;
 	}
 
