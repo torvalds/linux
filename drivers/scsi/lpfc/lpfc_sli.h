@@ -107,6 +107,7 @@ struct lpfc_iocbq {
 #define LPFC_IO_NVME_LS		0x400000 /* NVME LS command */
 #define LPFC_IO_NVMET		0x800000 /* NVMET command */
 #define LPFC_IO_VMID            0x1000000 /* VMID tagged IO */
+#define LPFC_IO_CMF		0x4000000 /* CMF command */
 
 	uint32_t drvrTimeout;	/* driver timeout in seconds */
 	struct lpfc_vport *vport;/* virtual port pointer */
@@ -462,4 +463,5 @@ struct lpfc_io_buf {
 	uint64_t ts_isr_cmpl;
 	uint64_t ts_data_io;
 #endif
+	uint64_t rx_cmd_start;
 };

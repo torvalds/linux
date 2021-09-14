@@ -40,7 +40,7 @@ static inline void ufshcd_crypto_clear_prdt(struct ufs_hba *hba,
 	if (!(hba->quirks & UFSHCD_QUIRK_KEYS_IN_PRDT))
 		return;
 
-	if (!lrbp->cmd->request->crypt_ctx)
+	if (!(scsi_cmd_to_rq(lrbp->cmd)->crypt_ctx))
 		return;
 
 	memzero_explicit(lrbp->ucd_prdt_ptr,
