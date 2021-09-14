@@ -6,10 +6,10 @@
 
 /dts-v1/;
 
-#include "rk3588-evb2-lp4.dtsi"
+#include "rk3588-evb3-lp5.dtsi"
 #include "rk3588-android.dtsi"
 
 / {
-	model = "Rockchip RK3588 EVB2 LP4 V10 Board";
-	compatible = "rockchip,rk3588-evb2-lp4-v10", "rockchip,rk3588";
+	model = "Rockchip RK3588 EVB3 LP5 V10 Board";
+	compatible = "rockchip,rk3588-evb3-lp5-v10", "rockchip,rk3588";
 };
