@@ -533,14 +533,14 @@ mlxsw_sp_port_module_info_get(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	return 0;
 }
 
-static int mlxsw_sp_port_module_map(struct mlxsw_sp_port *mlxsw_sp_port)
+static int
+mlxsw_sp_port_module_map(struct mlxsw_sp *mlxsw_sp, u8 local_port,
+			 const struct mlxsw_sp_port_mapping *port_mapping)
 {
-	struct mlxsw_sp_port_mapping *port_mapping = &mlxsw_sp_port->mapping;
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char pmlp_pl[MLXSW_REG_PMLP_LEN];
 	int i;
 
-	mlxsw_reg_pmlp_pack(pmlp_pl, mlxsw_sp_port->local_port);
+	mlxsw_reg_pmlp_pack(pmlp_pl, local_port);
 	mlxsw_reg_pmlp_width_set(pmlp_pl, port_mapping->width);
 	for (i = 0; i < port_mapping->width; i++) {
 		mlxsw_reg_pmlp_module_set(pmlp_pl, i, port_mapping->module);
@@ -550,12 +550,11 @@ static int mlxsw_sp_port_module_map(struct mlxsw_sp_port *mlxsw_sp_port)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pmlp), pmlp_pl);
 }
 
-static int mlxsw_sp_port_module_unmap(struct mlxsw_sp_port *mlxsw_sp_port)
+static int mlxsw_sp_port_module_unmap(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 {
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char pmlp_pl[MLXSW_REG_PMLP_LEN];
 
-	mlxsw_reg_pmlp_pack(pmlp_pl, mlxsw_sp_port->local_port);
+	mlxsw_reg_pmlp_pack(pmlp_pl, local_port);
 	mlxsw_reg_pmlp_width_set(pmlp_pl, 0);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pmlp), pmlp_pl);
 }
@@ -1454,6 +1453,13 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	bool splittable;
 	int err;
 
+	err = mlxsw_sp_port_module_map(mlxsw_sp, local_port, port_mapping);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to map module\n",
+			local_port);
+		return err;
+	}
+
 	splittable = lanes > 1 && !split;
 	err = mlxsw_core_port_init(mlxsw_sp->core, local_port,
 				   port_mapping->module + 1, split,
@@ -1464,7 +1470,7 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to init core port\n",
 			local_port);
-		return err;
+		goto err_core_port_init;
 	}
 
 	dev = alloc_etherdev(sizeof(struct mlxsw_sp_port));
@@ -1497,13 +1503,6 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 
 	dev->netdev_ops = &mlxsw_sp_port_netdev_ops;
 	dev->ethtool_ops = &mlxsw_sp_port_ethtool_ops;
-
-	err = mlxsw_sp_port_module_map(mlxsw_sp_port);
-	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to map module\n",
-			mlxsw_sp_port->local_port);
-		goto err_port_module_map;
-	}
 
 	err = mlxsw_sp_port_swid_set(mlxsw_sp_port, 0);
 	if (err) {
@@ -1714,13 +1713,13 @@ err_port_system_port_mapping_set:
 err_dev_addr_init:
 	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
 err_port_swid_set:
-	mlxsw_sp_port_module_unmap(mlxsw_sp_port);
-err_port_module_map:
 	free_percpu(mlxsw_sp_port->pcpu_stats);
 err_alloc_stats:
 	free_netdev(dev);
 err_alloc_etherdev:
 	mlxsw_core_port_fini(mlxsw_sp->core, local_port);
+err_core_port_init:
+	mlxsw_sp_port_module_unmap(mlxsw_sp, local_port);
 	return err;
 }
 
@@ -1743,11 +1742,11 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp_port_tc_mc_mode_set(mlxsw_sp_port, false);
 	mlxsw_sp_port_buffers_fini(mlxsw_sp_port);
 	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
-	mlxsw_sp_port_module_unmap(mlxsw_sp_port);
 	free_percpu(mlxsw_sp_port->pcpu_stats);
 	WARN_ON_ONCE(!list_empty(&mlxsw_sp_port->vlans_list));
 	free_netdev(mlxsw_sp_port->dev);
 	mlxsw_core_port_fini(mlxsw_sp->core, local_port);
+	mlxsw_sp_port_module_unmap(mlxsw_sp, local_port);
 }
 
 static int mlxsw_sp_cpu_port_create(struct mlxsw_sp *mlxsw_sp)
