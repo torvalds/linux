@@ -298,15 +298,6 @@ HyperSparc cpu就是这样一个具有这种属性的cpu。
 	用。默认的实现是nop（对于所有相干的架构应该保持这样）。对于不一致性
 	的架构，它应该刷新vmaddr处的页面缓存。
 
-  ``void flush_kernel_dcache_page(struct page *page)``
-
-	当内核需要修改一个用kmap获得的用户页时，它会在所有修改完成后（但在
-	kunmapping之前）调用这个函数，以使底层页面达到最新状态。这里假定用
-	户没有不一致性的缓存副本（即原始页面是从类似get_user_pages()的机制
-	中获得的）。默认的实现是一个nop，在所有相干的架构上都应该如此。在不
-	一致性的架构上，这应该刷新内核缓存中的页面（使用page_address(page)）。
-
-
   ``void flush_icache_range(unsigned long start, unsigned long end)``
 
 	当内核存储到它将执行的地址中时（例如在加载模块时），这个函数被调用。

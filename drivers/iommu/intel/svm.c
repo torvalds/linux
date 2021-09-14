@@ -31,8 +31,6 @@ static irqreturn_t prq_event_thread(int irq, void *d);
 static void intel_svm_drain_prq(struct device *dev, u32 pasid);
 #define to_intel_svm_dev(handle) container_of(handle, struct intel_svm_dev, sva)
 
-#define PRQ_ORDER 0
-
 static DEFINE_XARRAY_ALLOC(pasid_private_array);
 static int pasid_private_add(ioasid_t pasid, void *priv)
 {
@@ -724,8 +722,6 @@ struct page_req_dsc {
 	};
 	u64 priv_data[2];
 };
-
-#define PRQ_RING_MASK	((0x1000 << PRQ_ORDER) - 0x20)
 
 static bool is_canonical_address(u64 addr)
 {

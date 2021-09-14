@@ -1268,6 +1268,13 @@ L:	linux-input@vger.kernel.org
 S:	Odd fixes
 F:	drivers/input/mouse/bcm5974.c
 
+APPLE DART IOMMU DRIVER
+M:	Sven Peter <sven@svenpeter.dev>
+L:	iommu@lists.linux-foundation.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/iommu/apple,dart.yaml
+F:	drivers/iommu/apple-dart.c
+
 APPLE SMC DRIVER
 M:	Henrik Rydberg <rydberg@bitmath.org>
 L:	linux-hwmon@vger.kernel.org
@@ -6846,7 +6853,6 @@ F:	Documentation/admin-guide/media/em28xx*
 F:	drivers/media/usb/em28xx/
 
 EMBEDDED LINUX
-M:	Paul Gortmaker <paul.gortmaker@windriver.com>
 M:	Matt Mackall <mpm@selenic.com>
 M:	David Woodhouse <dwmw2@infradead.org>
 L:	linux-embedded@vger.kernel.org
@@ -11120,7 +11126,7 @@ MARDUK (CREATOR CI40) DEVICE TREE SUPPORT
 M:	Rahul Bedarkar <rahulbedarkar89@gmail.com>
 L:	linux-mips@vger.kernel.org
 S:	Maintained
-F:	arch/mips/boot/dts/img/pistachio_marduk.dts
+F:	arch/mips/boot/dts/img/pistachio*
 
 MARVELL 88E6XXX ETHERNET SWITCH FABRIC DRIVER
 M:	Andrew Lunn <andrew@lunn.ch>
@@ -14829,14 +14835,6 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 W:	http://www.st.com/spear
 F:	drivers/pinctrl/spear/
-
-PISTACHIO SOC SUPPORT
-M:	James Hartley <james.hartley@sondrel.com>
-L:	linux-mips@vger.kernel.org
-S:	Odd Fixes
-F:	arch/mips/boot/dts/img/pistachio*
-F:	arch/mips/configs/pistachio*_defconfig
-F:	arch/mips/pistachio/
 
 PKTCDVD DRIVER
 M:	linux-block@vger.kernel.org

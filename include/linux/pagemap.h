@@ -734,7 +734,7 @@ extern void add_page_wait_queue(struct page *page, wait_queue_entry_t *waiter);
 /*
  * Fault everything in given userspace address range in.
  */
-static inline int fault_in_pages_writeable(char __user *uaddr, int size)
+static inline int fault_in_pages_writeable(char __user *uaddr, size_t size)
 {
 	char __user *end = uaddr + size - 1;
 
@@ -761,7 +761,7 @@ static inline int fault_in_pages_writeable(char __user *uaddr, int size)
 	return 0;
 }
 
-static inline int fault_in_pages_readable(const char __user *uaddr, int size)
+static inline int fault_in_pages_readable(const char __user *uaddr, size_t size)
 {
 	volatile char c;
 	const char __user *end = uaddr + size - 1;
