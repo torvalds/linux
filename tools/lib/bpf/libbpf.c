@@ -8438,22 +8438,13 @@ static int libbpf_find_attach_btf_id(struct bpf_program *prog, int *btf_obj_fd, 
 	__u32 attach_prog_fd = prog->attach_prog_fd;
 	const char *name = prog->sec_name, *attach_name;
 	const struct bpf_sec_def *sec = NULL;
-	int i, err = 0;
+	int err = 0;
 
 	if (!name)
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(section_defs); i++) {
-		if (!section_defs[i].is_attach_btf)
-			continue;
-		if (strncmp(name, section_defs[i].sec, section_defs[i].len))
-			continue;
-
-		sec = &section_defs[i];
-		break;
-	}
-
-	if (!sec) {
+	sec = find_sec_def(name);
+	if (!sec || !sec->is_attach_btf) {
 		pr_warn("failed to identify BTF ID based on ELF section name '%s'\n", name);
 		return -ESRCH;
 	}
@@ -8491,27 +8482,28 @@ int libbpf_attach_type_by_name(const char *name,
 			       enum bpf_attach_type *attach_type)
 {
 	char *type_names;
-	int i;
+	const struct bpf_sec_def *sec_def;
 
 	if (!name)
 		return libbpf_err(-EINVAL);
 
-	for (i = 0; i < ARRAY_SIZE(section_defs); i++) {
-		if (strncmp(name, section_defs[i].sec, section_defs[i].len))
-			continue;
-		if (!section_defs[i].is_attachable)
-			return libbpf_err(-EINVAL);
-		*attach_type = section_defs[i].expected_attach_type;
-		return 0;
-	}
-	pr_debug("failed to guess attach type based on ELF section name '%s'\n", name);
-	type_names = libbpf_get_type_names(true);
-	if (type_names != NULL) {
-		pr_debug("attachable section(type) names are:%s\n", type_names);
-		free(type_names);
+	sec_def = find_sec_def(name);
+	if (!sec_def) {
+		pr_debug("failed to guess attach type based on ELF section name '%s'\n", name);
+		type_names = libbpf_get_type_names(true);
+		if (type_names != NULL) {
+			pr_debug("attachable section(type) names are:%s\n", type_names);
+			free(type_names);
+		}
+
+		return libbpf_err(-EINVAL);
 	}
 
-	return libbpf_err(-EINVAL);
+	if (!sec_def->is_attachable)
+		return libbpf_err(-EINVAL);
+
+	*attach_type = sec_def->expected_attach_type;
+	return 0;
 }
 
 int bpf_map__fd(const struct bpf_map *map)
