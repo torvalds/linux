@@ -1230,7 +1230,7 @@ static int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
 		rgrp_set_bitmap_flags(rgd);
 		rgd->rd_flags |= (GFS2_RDF_UPTODATE | GFS2_RDF_CHECK);
 		rgd->rd_free_clone = rgd->rd_free;
-		BUG_ON(rgd->rd_reserved);
+		GLOCK_BUG_ON(rgd->rd_gl, rgd->rd_reserved);
 		/* max out the rgrp allocation failure point */
 		rgd->rd_extfail_pt = rgd->rd_free;
 	}
@@ -1280,7 +1280,7 @@ static int update_rgrp_lvb(struct gfs2_rgrpd *rgd)
 	rgd->rd_free = be32_to_cpu(rgd->rd_rgl->rl_free);
 	rgrp_set_bitmap_flags(rgd);
 	rgd->rd_free_clone = rgd->rd_free;
-	BUG_ON(rgd->rd_reserved);
+	GLOCK_BUG_ON(rgd->rd_gl, rgd->rd_reserved);
 	/* max out the rgrp allocation failure point */
 	rgd->rd_extfail_pt = rgd->rd_free;
 	rgd->rd_dinodes = be32_to_cpu(rgd->rd_rgl->rl_dinodes);
@@ -2212,7 +2212,7 @@ void gfs2_inplace_release(struct gfs2_inode *ip)
 		struct gfs2_rgrpd *rgd = rs->rs_rgd;
 
 		spin_lock(&rgd->rd_rsspin);
-		BUG_ON(rgd->rd_reserved < rs->rs_reserved);
+		GLOCK_BUG_ON(rgd->rd_gl, rgd->rd_reserved < rs->rs_reserved);
 		rgd->rd_reserved -= rs->rs_reserved;
 		spin_unlock(&rgd->rd_rsspin);
 		rs->rs_reserved = 0;
@@ -2473,9 +2473,9 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 		spin_unlock(&rbm.rgd->rd_rsspin);
 		goto rgrp_error;
 	}
-	BUG_ON(rbm.rgd->rd_reserved < *nblocks);
-	BUG_ON(rbm.rgd->rd_free_clone < *nblocks);
-	BUG_ON(rbm.rgd->rd_free < *nblocks);
+	GLOCK_BUG_ON(rbm.rgd->rd_gl, rbm.rgd->rd_reserved < *nblocks);
+	GLOCK_BUG_ON(rbm.rgd->rd_gl, rbm.rgd->rd_free_clone < *nblocks);
+	GLOCK_BUG_ON(rbm.rgd->rd_gl, rbm.rgd->rd_free < *nblocks);
 	rbm.rgd->rd_reserved -= *nblocks;
 	rbm.rgd->rd_free_clone -= *nblocks;
 	rbm.rgd->rd_free -= *nblocks;
@@ -2762,8 +2762,8 @@ void gfs2_rlist_free(struct gfs2_rgrp_list *rlist)
 
 void rgrp_lock_local(struct gfs2_rgrpd *rgd)
 {
-	BUG_ON(!gfs2_glock_is_held_excl(rgd->rd_gl) &&
-	       !test_bit(SDF_NORECOVERY, &rgd->rd_sbd->sd_flags));
+	GLOCK_BUG_ON(rgd->rd_gl, !gfs2_glock_is_held_excl(rgd->rd_gl) &&
+		     !test_bit(SDF_NORECOVERY, &rgd->rd_sbd->sd_flags));
 	mutex_lock(&rgd->rd_mutex);
 }
 
