@@ -2712,7 +2712,7 @@ static int gsmld_ioctl(struct tty_struct *tty, struct file *file,
 		base = mux_num_to_base(gsm);
 		return put_user(base + 1, (__u32 __user *)arg);
 	default:
-		return n_tty_ioctl_helper(tty, file, cmd, arg);
+		return n_tty_ioctl_helper(tty, cmd, arg);
 	}
 }
 

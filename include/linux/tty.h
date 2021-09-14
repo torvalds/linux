@@ -407,8 +407,8 @@ static inline int tty_audit_push(void)
 #endif
 
 /* tty_ioctl.c */
-int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
-		unsigned int cmd, unsigned long arg);
+int n_tty_ioctl_helper(struct tty_struct *tty, unsigned int cmd,
+		unsigned long arg);
 
 /* vt.c */
 
