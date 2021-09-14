@@ -80,6 +80,7 @@ struct bpf_test {
 	int expected_errcode; /* used when FLAG_EXPECTED_FAIL is set in the aux */
 	__u8 frag_data[MAX_DATA];
 	int stack_depth; /* for eBPF only, since tests don't call verifier */
+	int nr_testruns; /* Custom run count, defaults to MAX_TESTRUNS if 0 */
 };
 
 /* Large test cases need separate allocation and fill handler. */
@@ -8630,6 +8631,9 @@ static int __run_one(const struct bpf_prog *fp, const void *data,
 static int run_one(const struct bpf_prog *fp, struct bpf_test *test)
 {
 	int err_cnt = 0, i, runs = MAX_TESTRUNS;
+
+	if (test->nr_testruns)
+		runs = min(test->nr_testruns, MAX_TESTRUNS);
 
 	for (i = 0; i < MAX_SUBTESTS; i++) {
 		void *data;
