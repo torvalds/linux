@@ -1088,6 +1088,16 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp)
 	}
 
 	/*
+	 * Wa_16014451276:adlp
+	 * All supported adlp panels have 1-based X granularity, this may
+	 * cause issues if non-supported panels are used.
+	 */
+	if (IS_ALDERLAKE_P(dev_priv) &&
+	    intel_dp->psr.psr2_enabled)
+		intel_de_rmw(dev_priv, CHICKEN_TRANS(cpu_transcoder), 0,
+			     ADLP_1_BASED_X_GRANULARITY);
+
+	/*
 	 * Per Spec: Avoid continuous PSR exit by masking MEMUP and HPD also
 	 * mask LPSP to avoid dependency on other drivers that might block
 	 * runtime_pm besides preventing  other hw tracking issues now we
@@ -1132,6 +1142,11 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp)
 			     TRANS_SET_CONTEXT_LATENCY(intel_dp->psr.transcoder),
 			     TRANS_SET_CONTEXT_LATENCY_MASK,
 			     TRANS_SET_CONTEXT_LATENCY_VALUE(1));
+
+	/* Wa_16012604467:adlp */
+	if (IS_ALDERLAKE_P(dev_priv) && intel_dp->psr.psr2_enabled)
+		intel_de_rmw(dev_priv, CLKGATE_DIS_MISC, 0,
+			     CLKGATE_DIS_MISC_DMASC_GATING_DIS);
 }
 
 static bool psr_interrupt_error_check(struct intel_dp *intel_dp)
@@ -1321,6 +1336,11 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 			     TRANS_SET_CONTEXT_LATENCY(intel_dp->psr.transcoder),
 			     TRANS_SET_CONTEXT_LATENCY_MASK, 0);
 
+	/* Wa_16012604467:adlp */
+	if (IS_ALDERLAKE_P(dev_priv) && intel_dp->psr.psr2_enabled)
+		intel_de_rmw(dev_priv, CLKGATE_DIS_MISC,
+			     CLKGATE_DIS_MISC_DMASC_GATING_DIS, 0);
+
 	intel_snps_phy_update_psr_power_state(dev_priv, phy, false);
 
 	/* Disable PSR on Sink */
@@ -1489,8 +1509,13 @@ static void psr2_man_trk_ctl_calc(struct intel_crtc_state *crtc_state,
 	u32 val = PSR2_MAN_TRK_CTL_ENABLE;
 
 	if (full_update) {
+		/*
+		 * Wa_14014971508:adlp
+		 * SINGLE_FULL_FRAME bit is not hold in register so can not be
+		 * restored by DMC, so using CONTINUOS_FULL_FRAME to mimic that
+		 */
 		if (IS_ALDERLAKE_P(dev_priv))
-			val |= ADLP_PSR2_MAN_TRK_CTL_SF_SINGLE_FULL_FRAME;
+			val |= ADLP_PSR2_MAN_TRK_CTL_SF_CONTINUOS_FULL_FRAME;
 		else
 			val |= PSR2_MAN_TRK_CTL_SF_SINGLE_FULL_FRAME;
 
