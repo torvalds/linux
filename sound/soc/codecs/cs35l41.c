@@ -712,24 +712,29 @@ static int cs35l41_set_channel_map(struct snd_soc_dai *dai, unsigned int tx_num,
 {
 	struct cs35l41_private *cs35l41 =
 			snd_soc_component_get_drvdata(dai->component);
+	unsigned int val, mask;
 	int i;
 
 	if (tx_num > 4 || rx_num > 2)
 		return -EINVAL;
 
+	val = 0;
+	mask = 0;
 	for (i = 0; i < rx_num; i++) {
-		dev_dbg(cs35l41->dev, "%s: rx slot %d position = %d\n",
-				__func__, i, rx_slot[i]);
-		regmap_update_bits(cs35l41->regmap, CS35L41_SP_FRAME_RX_SLOT,
-				0x3F << (i * 8), rx_slot[i] << (i * 8));
+		dev_dbg(cs35l41->dev, "rx slot %d position = %d\n", i, rx_slot[i]);
+		val |= rx_slot[i] << (i * 8);
+		mask |= 0x3F << (i * 8);
 	}
+	regmap_update_bits(cs35l41->regmap, CS35L41_SP_FRAME_RX_SLOT, mask, val);
 
+	val = 0;
+	mask = 0;
 	for (i = 0; i < tx_num; i++) {
-		dev_dbg(cs35l41->dev, "%s: tx slot %d position = %d\n",
-				__func__, i, tx_slot[i]);
-		regmap_update_bits(cs35l41->regmap, CS35L41_SP_FRAME_TX_SLOT,
-				0x3F << (i * 8), tx_slot[i] << (i * 8));
+		dev_dbg(cs35l41->dev, "tx slot %d position = %d\n", i, tx_slot[i]);
+		val |= tx_slot[i] << (i * 8);
+		mask |= 0x3F << (i * 8);
 	}
+	regmap_update_bits(cs35l41->regmap, CS35L41_SP_FRAME_TX_SLOT, mask, val);
 
 	return 0;
 }
@@ -738,14 +743,13 @@ static int cs35l41_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
 	struct cs35l41_private *cs35l41 =
 			snd_soc_component_get_drvdata(codec_dai->component);
-	unsigned int asp_fmt, lrclk_fmt, sclk_fmt, clock_provider;
+	unsigned int daifmt = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
 	case SND_SOC_DAIFMT_CBP_CFP:
-		clock_provider = 1;
+		daifmt |= CS35L41_SCLK_MSTR_MASK | CS35L41_LRCLK_MSTR_MASK;
 		break;
 	case SND_SOC_DAIFMT_CBC_CFC:
-		clock_provider = 0;
 		break;
 	default:
 		dev_warn(cs35l41->dev,
@@ -754,19 +758,11 @@ static int cs35l41_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	regmap_update_bits(cs35l41->regmap, CS35L41_SP_FORMAT,
-				CS35L41_SCLK_MSTR_MASK,
-				clock_provider << CS35L41_SCLK_MSTR_SHIFT);
-	regmap_update_bits(cs35l41->regmap, CS35L41_SP_FORMAT,
-				CS35L41_LRCLK_MSTR_MASK,
-				clock_provider << CS35L41_LRCLK_MSTR_SHIFT);
-
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
-		asp_fmt = 0;
 		break;
 	case SND_SOC_DAIFMT_I2S:
-		asp_fmt = 2;
+		daifmt |= 2 << CS35L41_ASP_FMT_SHIFT;
 		break;
 	default:
 		dev_warn(cs35l41->dev,
@@ -774,26 +770,17 @@ static int cs35l41_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	regmap_update_bits(cs35l41->regmap, CS35L41_SP_FORMAT,
-					CS35L41_ASP_FMT_MASK,
-					asp_fmt << CS35L41_ASP_FMT_SHIFT);
-
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_IF:
-		lrclk_fmt = 1;
-		sclk_fmt = 0;
+		daifmt |= CS35L41_LRCLK_INV_MASK;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
-		lrclk_fmt = 0;
-		sclk_fmt = 1;
+		daifmt |= CS35L41_SCLK_INV_MASK;
 		break;
 	case SND_SOC_DAIFMT_IB_IF:
-		lrclk_fmt = 1;
-		sclk_fmt = 1;
+		daifmt |= CS35L41_LRCLK_INV_MASK | CS35L41_SCLK_INV_MASK;
 		break;
 	case SND_SOC_DAIFMT_NB_NF:
-		lrclk_fmt = 0;
-		sclk_fmt = 0;
 		break;
 	default:
 		dev_warn(cs35l41->dev,
@@ -801,14 +788,10 @@ static int cs35l41_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	regmap_update_bits(cs35l41->regmap, CS35L41_SP_FORMAT,
-				CS35L41_LRCLK_INV_MASK,
-				lrclk_fmt << CS35L41_LRCLK_INV_SHIFT);
-	regmap_update_bits(cs35l41->regmap, CS35L41_SP_FORMAT,
-				CS35L41_SCLK_INV_MASK,
-				sclk_fmt << CS35L41_SCLK_INV_SHIFT);
-
-	return 0;
+	return regmap_update_bits(cs35l41->regmap, CS35L41_SP_FORMAT,
+				  CS35L41_SCLK_MSTR_MASK | CS35L41_LRCLK_MSTR_MASK |
+				  CS35L41_ASP_FMT_MASK | CS35L41_LRCLK_INV_MASK |
+				  CS35L41_SCLK_INV_MASK, daifmt);
 }
 
 struct cs35l41_global_fs_config {
@@ -1041,37 +1024,23 @@ static int cs35l41_boost_config(struct cs35l41_private *cs35l41,
 	}
 
 	ret = regmap_update_bits(regmap, CS35L41_BSTCVRT_COEFF,
-			CS35L41_BST_K1_MASK,
-			cs35l41_bst_k1_table[bst_lbst_val][bst_cbst_range]
-				<< CS35L41_BST_K1_SHIFT);
+				 CS35L41_BST_K1_MASK | CS35L41_BST_K2_MASK,
+				 cs35l41_bst_k1_table[bst_lbst_val][bst_cbst_range]
+					<< CS35L41_BST_K1_SHIFT |
+				 cs35l41_bst_k2_table[bst_lbst_val][bst_cbst_range]
+					<< CS35L41_BST_K2_SHIFT);
 	if (ret) {
-		dev_err(dev, "Failed to write boost K1 coefficient\n");
-		return ret;
-	}
-
-	ret = regmap_update_bits(regmap, CS35L41_BSTCVRT_COEFF,
-			CS35L41_BST_K2_MASK,
-			cs35l41_bst_k2_table[bst_lbst_val][bst_cbst_range]
-				<< CS35L41_BST_K2_SHIFT);
-	if (ret) {
-		dev_err(dev, "Failed to write boost K2 coefficient\n");
+		dev_err(dev, "Failed to write boost coefficients: %d\n", ret);
 		return ret;
 	}
 
 	ret = regmap_update_bits(regmap, CS35L41_BSTCVRT_SLOPE_LBST,
-			CS35L41_BST_SLOPE_MASK,
-			cs35l41_bst_slope_table[bst_lbst_val]
-				<< CS35L41_BST_SLOPE_SHIFT);
+				 CS35L41_BST_SLOPE_MASK | CS35L41_BST_LBST_VAL_MASK,
+				 cs35l41_bst_slope_table[bst_lbst_val]
+					<< CS35L41_BST_SLOPE_SHIFT |
+				 bst_lbst_val << CS35L41_BST_LBST_VAL_SHIFT);
 	if (ret) {
-		dev_err(dev, "Failed to write boost slope coefficient\n");
-		return ret;
-	}
-
-	ret = regmap_update_bits(regmap, CS35L41_BSTCVRT_SLOPE_LBST,
-			CS35L41_BST_LBST_VAL_MASK,
-			bst_lbst_val << CS35L41_BST_LBST_VAL_SHIFT);
-	if (ret) {
-		dev_err(dev, "Failed to write boost inductor value\n");
+		dev_err(dev, "Failed to write boost slope/inductor value: %d\n", ret);
 		return ret;
 	}
 
@@ -1129,39 +1098,20 @@ static int cs35l41_irq_gpio_config(struct cs35l41_private *cs35l41)
 	struct cs35l41_irq_cfg *irq_gpio_cfg2 = &cs35l41->pdata.irq_config2;
 	int irq_pol = IRQF_TRIGGER_NONE;
 
-	if (irq_gpio_cfg1->irq_pol_inv)
-		regmap_update_bits(cs35l41->regmap,
-					CS35L41_GPIO1_CTRL1,
-					CS35L41_GPIO_POL_MASK,
-					CS35L41_GPIO_POL_MASK);
-	if (irq_gpio_cfg1->irq_out_en)
-		regmap_update_bits(cs35l41->regmap,
-					CS35L41_GPIO1_CTRL1,
-					CS35L41_GPIO_DIR_MASK,
-					0);
-	if (irq_gpio_cfg1->irq_src_sel)
-		regmap_update_bits(cs35l41->regmap,
-					CS35L41_GPIO_PAD_CONTROL,
-					CS35L41_GPIO1_CTRL_MASK,
-					irq_gpio_cfg1->irq_src_sel <<
-					CS35L41_GPIO1_CTRL_SHIFT);
+	regmap_update_bits(cs35l41->regmap, CS35L41_GPIO1_CTRL1,
+			   CS35L41_GPIO_POL_MASK | CS35L41_GPIO_DIR_MASK,
+			   irq_gpio_cfg1->irq_pol_inv << CS35L41_GPIO_POL_SHIFT |
+			   !irq_gpio_cfg1->irq_out_en << CS35L41_GPIO_DIR_SHIFT);
 
-	if (irq_gpio_cfg2->irq_pol_inv)
-		regmap_update_bits(cs35l41->regmap,
-					CS35L41_GPIO2_CTRL1,
-					CS35L41_GPIO_POL_MASK,
-					CS35L41_GPIO_POL_MASK);
-	if (irq_gpio_cfg2->irq_out_en)
-		regmap_update_bits(cs35l41->regmap,
-					CS35L41_GPIO2_CTRL1,
-					CS35L41_GPIO_DIR_MASK,
-					0);
-	if (irq_gpio_cfg2->irq_src_sel)
-		regmap_update_bits(cs35l41->regmap,
-					CS35L41_GPIO_PAD_CONTROL,
-					CS35L41_GPIO2_CTRL_MASK,
-					irq_gpio_cfg2->irq_src_sel <<
-					CS35L41_GPIO2_CTRL_SHIFT);
+	regmap_update_bits(cs35l41->regmap, CS35L41_GPIO2_CTRL1,
+			   CS35L41_GPIO_POL_MASK | CS35L41_GPIO_DIR_MASK,
+			   irq_gpio_cfg1->irq_pol_inv << CS35L41_GPIO_POL_SHIFT |
+			   !irq_gpio_cfg1->irq_out_en << CS35L41_GPIO_DIR_SHIFT);
+
+	regmap_update_bits(cs35l41->regmap, CS35L41_GPIO_PAD_CONTROL,
+			   CS35L41_GPIO1_CTRL_MASK | CS35L41_GPIO2_CTRL_MASK,
+			   irq_gpio_cfg1->irq_src_sel << CS35L41_GPIO1_CTRL_SHIFT |
+			   irq_gpio_cfg2->irq_src_sel << CS35L41_GPIO2_CTRL_SHIFT);
 
 	if ((irq_gpio_cfg2->irq_src_sel ==
 			(CS35L41_GPIO_CTRL_ACTV_LO | CS35L41_VALID_PDATA)) ||
