@@ -139,6 +139,9 @@ static int tps6598x_block_write(struct tps6598x *tps, u8 reg,
 {
 	u8 data[TPS_MAX_LEN + 1];
 
+	if (len + 1 > sizeof(data))
+		return -EINVAL;
+
 	if (!tps->i2c_protocol)
 		return regmap_raw_write(tps->regmap, reg, val, len);
 
