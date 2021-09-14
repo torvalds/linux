@@ -800,16 +800,6 @@ error:
 }
 EXPORT_SYMBOL(snd_sof_load_firmware_memcpy);
 
-int snd_sof_load_firmware(struct snd_sof_dev *sdev)
-{
-	dev_dbg(sdev->dev, "loading firmware\n");
-
-	if (sof_ops(sdev)->load_firmware)
-		return sof_ops(sdev)->load_firmware(sdev);
-	return 0;
-}
-EXPORT_SYMBOL(snd_sof_load_firmware);
-
 int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 {
 	int ret;

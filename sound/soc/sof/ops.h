@@ -400,6 +400,14 @@ snd_sof_pcm_platform_trigger(struct snd_sof_dev *sdev,
 	return 0;
 }
 
+/* Firmware loading */
+static inline int snd_sof_load_firmware(struct snd_sof_dev *sdev)
+{
+	dev_dbg(sdev->dev, "loading firmware\n");
+
+	return sof_ops(sdev)->load_firmware(sdev);
+}
+
 /* host DSP message data */
 static inline void snd_sof_ipc_msg_data(struct snd_sof_dev *sdev,
 					struct snd_pcm_substream *substream,

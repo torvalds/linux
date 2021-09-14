@@ -485,7 +485,6 @@ int snd_sof_create_page_table(struct device *dev,
 /*
  * Firmware loading.
  */
-int snd_sof_load_firmware(struct snd_sof_dev *sdev);
 int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev);
 int snd_sof_load_firmware_memcpy(struct snd_sof_dev *sdev);
 int snd_sof_run_firmware(struct snd_sof_dev *sdev);
