@@ -2224,6 +2224,10 @@ static int gp_interception(struct kvm_vcpu *vcpu)
 	if (error_code)
 		goto reinject;
 
+	/* All SVM instructions expect page aligned RAX */
+	if (svm->vmcb->save.rax & ~PAGE_MASK)
+		goto reinject;
+
 	/* Decode the instruction for usage later */
 	if (x86_decode_emulated_instruction(vcpu, 0, NULL, 0) != EMULATION_OK)
 		goto reinject;
