@@ -266,16 +266,9 @@ struct rxe_qp {
 };
 
 enum rxe_mr_state {
-	RXE_MR_STATE_ZOMBIE,
 	RXE_MR_STATE_INVALID,
 	RXE_MR_STATE_FREE,
 	RXE_MR_STATE_VALID,
-};
-
-enum rxe_mr_type {
-	RXE_MR_TYPE_NONE,
-	RXE_MR_TYPE_DMA,
-	RXE_MR_TYPE_MR,
 };
 
 enum rxe_mr_copy_dir {
@@ -313,7 +306,7 @@ struct rxe_mr {
 	struct ib_umem		*umem;
 
 	enum rxe_mr_state	state;
-	enum rxe_mr_type	type;
+	enum ib_mr_type		type;
 	u64			va;
 	u64			iova;
 	size_t			length;

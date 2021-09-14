@@ -24,17 +24,22 @@ u8 rxe_get_next_key(u32 last_key)
 
 int mr_check_range(struct rxe_mr *mr, u64 iova, size_t length)
 {
+
+
 	switch (mr->type) {
-	case RXE_MR_TYPE_DMA:
+	case IB_MR_TYPE_DMA:
 		return 0;
 
-	case RXE_MR_TYPE_MR:
+	case IB_MR_TYPE_USER:
+	case IB_MR_TYPE_MEM_REG:
 		if (iova < mr->iova || length > mr->length ||
 		    iova > mr->iova + mr->length - length)
 			return -EFAULT;
 		return 0;
 
 	default:
+		pr_warn("%s: mr type (%d) not supported\n",
+			__func__, mr->type);
 		return -EFAULT;
 	}
 }
@@ -51,7 +56,6 @@ static void rxe_mr_init(int access, struct rxe_mr *mr)
 	mr->ibmr.lkey = lkey;
 	mr->ibmr.rkey = rkey;
 	mr->state = RXE_MR_STATE_INVALID;
-	mr->type = RXE_MR_TYPE_NONE;
 	mr->map_shift = ilog2(RXE_BUF_PER_MAP);
 }
 
@@ -100,7 +104,7 @@ void rxe_mr_init_dma(struct rxe_pd *pd, int access, struct rxe_mr *mr)
 	mr->ibmr.pd = &pd->ibpd;
 	mr->access = access;
 	mr->state = RXE_MR_STATE_VALID;
-	mr->type = RXE_MR_TYPE_DMA;
+	mr->type = IB_MR_TYPE_DMA;
 }
 
 int rxe_mr_init_user(struct rxe_pd *pd, u64 start, u64 length, u64 iova,
@@ -173,7 +177,7 @@ int rxe_mr_init_user(struct rxe_pd *pd, u64 start, u64 length, u64 iova,
 	mr->va = start;
 	mr->offset = ib_umem_offset(umem);
 	mr->state = RXE_MR_STATE_VALID;
-	mr->type = RXE_MR_TYPE_MR;
+	mr->type = IB_MR_TYPE_USER;
 
 	return 0;
 
@@ -203,7 +207,7 @@ int rxe_mr_init_fast(struct rxe_pd *pd, int max_pages, struct rxe_mr *mr)
 	mr->ibmr.pd = &pd->ibpd;
 	mr->max_buf = max_pages;
 	mr->state = RXE_MR_STATE_FREE;
-	mr->type = RXE_MR_TYPE_MR;
+	mr->type = IB_MR_TYPE_MEM_REG;
 
 	return 0;
 
@@ -302,7 +306,7 @@ int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
 	if (length == 0)
 		return 0;
 
-	if (mr->type == RXE_MR_TYPE_DMA) {
+	if (mr->type == IB_MR_TYPE_DMA) {
 		u8 *src, *dest;
 
 		src = (dir == RXE_TO_MR_OBJ) ? addr : ((void *)(uintptr_t)iova);
@@ -564,7 +568,7 @@ int rxe_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 		return -EINVAL;
 	}
 
-	mr->state = RXE_MR_STATE_ZOMBIE;
+	mr->state = RXE_MR_STATE_INVALID;
 	rxe_drop_ref(mr_pd(mr));
 	rxe_drop_index(mr);
 	rxe_drop_ref(mr);
