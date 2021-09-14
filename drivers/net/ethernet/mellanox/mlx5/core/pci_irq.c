@@ -633,8 +633,9 @@ void mlx5_irq_table_destroy(struct mlx5_core_dev *dev)
 int mlx5_irq_table_get_sfs_vec(struct mlx5_irq_table *table)
 {
 	if (table->sf_comp_pool)
-		return table->sf_comp_pool->xa_num_irqs.max -
-			table->sf_comp_pool->xa_num_irqs.min + 1;
+		return min_t(int, num_online_cpus(),
+			     table->sf_comp_pool->xa_num_irqs.max -
+			     table->sf_comp_pool->xa_num_irqs.min + 1);
 	else
 		return mlx5_irq_table_get_num_comp(table);
 }
