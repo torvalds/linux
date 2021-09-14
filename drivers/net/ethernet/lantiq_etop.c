@@ -96,6 +96,9 @@ struct ltq_etop_priv {
 	struct ltq_etop_chan ch[MAX_DMA_CHAN];
 	int tx_free[MAX_DMA_CHAN >> 1];
 
+	int tx_burst_len;
+	int rx_burst_len;
+
 	spinlock_t lock;
 };
 
@@ -259,7 +262,7 @@ ltq_etop_hw_init(struct net_device *dev)
 	/* enable crc generation */
 	ltq_etop_w32(PPE32_CGEN, LQ_PPE32_ENET_MAC_CFG);
 
-	ltq_dma_init_port(DMA_PORT_ETOP);
+	ltq_dma_init_port(DMA_PORT_ETOP, priv->tx_burst_len, rx_burst_len);
 
 	for (i = 0; i < MAX_DMA_CHAN; i++) {
 		int irq = LTQ_DMA_CH0_INT + i;
@@ -472,8 +475,8 @@ ltq_etop_tx(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
-	/* dma needs to start on a 16 byte aligned address */
-	byte_offset = CPHYSADDR(skb->data) % 16;
+	/* dma needs to start on a burst length value aligned address */
+	byte_offset = CPHYSADDR(skb->data) % (priv->tx_burst_len * 4);
 	ch->skb[ch->dma.desc] = skb;
 
 	netif_trans_update(dev);
@@ -666,6 +669,18 @@ ltq_etop_probe(struct platform_device *pdev)
 	priv->netdev = dev;
 	spin_lock_init(&priv->lock);
 	SET_NETDEV_DEV(dev, &pdev->dev);
+
+	err = device_property_read_u32(&pdev->dev, "lantiq,tx-burst-length", &priv->tx_burst_len);
+	if (err < 0) {
+		dev_err(&pdev->dev, "unable to read tx-burst-length property\n");
+		return err;
+	}
+
+	err = device_property_read_u32(&pdev->dev, "lantiq,rx-burst-length", &priv->rx_burst_len);
+	if (err < 0) {
+		dev_err(&pdev->dev, "unable to read rx-burst-length property\n");
+		return err;
+	}
 
 	for (i = 0; i < MAX_DMA_CHAN; i++) {
 		if (IS_TX(i))
