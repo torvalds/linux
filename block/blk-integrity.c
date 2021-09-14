@@ -430,6 +430,9 @@ void blk_integrity_unregister(struct gendisk *disk)
 
 	if (!bi->profile)
 		return;
+
+	/* ensure all bios are off the integrity workqueue */
+	blk_flush_integrity();
 	blk_queue_flag_clear(QUEUE_FLAG_STABLE_WRITES, disk->queue);
 	memset(bi, 0, sizeof(*bi));
 }
