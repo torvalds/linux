@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
+obj-m += cxl_test.o
+obj-m += cxl_mock.o
+
+cxl_test-y := cxl.o
+cxl_mock-y := mock.o

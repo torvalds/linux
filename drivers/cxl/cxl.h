@@ -226,6 +226,14 @@ struct cxl_nvdimm {
 	struct nvdimm *nvdimm;
 };
 
+struct cxl_walk_context {
+	struct device *dev;
+	struct pci_bus *root;
+	struct cxl_port *port;
+	int error;
+	int count;
+};
+
 /**
  * struct cxl_port - logical collection of upstream port devices and
  *		     downstream port devices to construct a CXL memory
@@ -325,4 +333,12 @@ struct cxl_nvdimm *to_cxl_nvdimm(struct device *dev);
 bool is_cxl_nvdimm(struct device *dev);
 int devm_cxl_add_nvdimm(struct device *host, struct cxl_memdev *cxlmd);
 struct cxl_nvdimm_bridge *cxl_find_nvdimm_bridge(void);
+
+/*
+ * Unit test builds overrides this to __weak, find the 'strong' version
+ * of these symbols in tools/testing/cxl/.
+ */
+#ifndef __mock
+#define __mock static
+#endif
 #endif /* __CXL_H__ */
