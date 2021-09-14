@@ -182,7 +182,7 @@ ltq_dma_free(struct ltq_dma_channel *ch)
 EXPORT_SYMBOL_GPL(ltq_dma_free);
 
 void
-ltq_dma_init_port(int p)
+ltq_dma_init_port(int p, int tx_burst, int rx_burst)
 {
 	ltq_dma_w32(p, LTQ_DMA_PS);
 	switch (p) {
@@ -191,16 +191,44 @@ ltq_dma_init_port(int p)
 		 * Tell the DMA engine to swap the endianness of data frames and
 		 * drop packets if the channel arbitration fails.
 		 */
-		ltq_dma_w32_mask(0, DMA_ETOP_ENDIANNESS | DMA_PDEN,
+		ltq_dma_w32_mask(0, (DMA_ETOP_ENDIANNESS | DMA_PDEN),
 			LTQ_DMA_PCTRL);
 		break;
 
-	case DMA_PORT_DEU:
-		ltq_dma_w32((DMA_PCTRL_2W_BURST << DMA_TX_BURST_SHIFT) |
-			(DMA_PCTRL_2W_BURST << DMA_RX_BURST_SHIFT),
+	default:
+		break;
+	}
+
+	switch (rx_burst) {
+	case 8:
+		ltq_dma_w32_mask(0x0c, (DMA_PCTRL_8W_BURST << DMA_RX_BURST_SHIFT),
 			LTQ_DMA_PCTRL);
 		break;
+	case 4:
+		ltq_dma_w32_mask(0x0c, (DMA_PCTRL_4W_BURST << DMA_RX_BURST_SHIFT),
+			LTQ_DMA_PCTRL);
+		break;
+	case 2:
+		ltq_dma_w32_mask(0x0c, (DMA_PCTRL_2W_BURST << DMA_RX_BURST_SHIFT),
+			LTQ_DMA_PCTRL);
+		break;
+	default:
+		break;
+	}
 
+	switch (tx_burst) {
+	case 8:
+		ltq_dma_w32_mask(0x30, (DMA_PCTRL_8W_BURST << DMA_TX_BURST_SHIFT),
+			LTQ_DMA_PCTRL);
+		break;
+	case 4:
+		ltq_dma_w32_mask(0x30, (DMA_PCTRL_4W_BURST << DMA_TX_BURST_SHIFT),
+			LTQ_DMA_PCTRL);
+		break;
+	case 2:
+		ltq_dma_w32_mask(0x30, (DMA_PCTRL_2W_BURST << DMA_TX_BURST_SHIFT),
+			LTQ_DMA_PCTRL);
+		break;
 	default:
 		break;
 	}
