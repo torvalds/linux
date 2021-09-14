@@ -137,20 +137,6 @@ config COMPILE_TEST
 	  here. If you are a user/distributor, say N here to exclude useless
 	  drivers to be distributed.
 
-config WERROR
-	bool "Compile the kernel with warnings as errors"
-	default y
-	help
-	  A kernel build should not cause any compiler warnings, and this
-	  enables the '-Werror' flag to enforce that rule by default.
-
-	  However, if you have a new (or very old) compiler with odd and
-	  unusual warnings, or you have some architecture with problems,
-	  you may need to disable this config option in order to
-	  successfully build the kernel.
-
-	  If in doubt, say Y.
-
 config UAPI_HEADER_TEST
 	bool "Compile test UAPI headers"
 	depends on HEADERS_INSTALL && CC_CAN_LINK
