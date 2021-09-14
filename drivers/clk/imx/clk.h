@@ -287,6 +287,12 @@ struct clk_hw *imx7ulp_clk_hw_composite(const char *name,
 				     bool rate_present, bool gate_present,
 				     void __iomem *reg);
 
+struct clk_hw *imx8ulp_clk_hw_composite(const char *name,
+				     const char * const *parent_names,
+				     int num_parents, bool mux_present,
+				     bool rate_present, bool gate_present,
+				     void __iomem *reg, bool has_swrst);
+
 struct clk_hw *imx_clk_hw_fixup_divider(const char *name, const char *parent,
 				  void __iomem *reg, u8 shift, u8 width,
 				  void (*fixup)(u32 *val));

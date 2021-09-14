@@ -23,11 +23,50 @@
 #define PCG_PCD_WIDTH	3
 #define PCG_PCD_MASK	0x7
 
-struct clk_hw *imx7ulp_clk_hw_composite(const char *name,
+#define SW_RST		BIT(28)
+
+static int pcc_gate_enable(struct clk_hw *hw)
+{
+	struct clk_gate *gate = to_clk_gate(hw);
+	u32 val;
+	int ret;
+
+	ret = clk_gate_ops.enable(hw);
+	if (ret)
+		return ret;
+
+	/*
+	 * release the sw reset for peripherals associated with
+	 * with this pcc clock.
+	 */
+	val = readl(gate->reg);
+	val |= SW_RST;
+	writel(val, gate->reg);
+
+	return 0;
+}
+
+static void pcc_gate_disable(struct clk_hw *hw)
+{
+	clk_gate_ops.disable(hw);
+}
+
+static int pcc_gate_is_enabled(struct clk_hw *hw)
+{
+	return clk_gate_ops.is_enabled(hw);
+}
+
+static const struct clk_ops pcc_gate_ops = {
+	.enable = pcc_gate_enable,
+	.disable = pcc_gate_disable,
+	.is_enabled = pcc_gate_is_enabled,
+};
+
+static struct clk_hw *imx_ulp_clk_hw_composite(const char *name,
 				     const char * const *parent_names,
 				     int num_parents, bool mux_present,
 				     bool rate_present, bool gate_present,
-				     void __iomem *reg)
+				     void __iomem *reg, bool has_swrst)
 {
 	struct clk_hw *mux_hw = NULL, *fd_hw = NULL, *gate_hw = NULL;
 	struct clk_fractional_divider *fd = NULL;
@@ -77,7 +116,7 @@ struct clk_hw *imx7ulp_clk_hw_composite(const char *name,
 	hw = clk_hw_register_composite(NULL, name, parent_names, num_parents,
 				       mux_hw, &clk_mux_ops, fd_hw,
 				       &clk_fractional_divider_ops, gate_hw,
-				       &clk_gate_ops, CLK_SET_RATE_GATE |
+				       has_swrst ? &pcc_gate_ops : &clk_gate_ops, CLK_SET_RATE_GATE |
 				       CLK_SET_PARENT_GATE);
 	if (IS_ERR(hw)) {
 		kfree(mux);
@@ -86,4 +125,20 @@ struct clk_hw *imx7ulp_clk_hw_composite(const char *name,
 	}
 
 	return hw;
+}
+
+struct clk_hw *imx7ulp_clk_hw_composite(const char *name, const char * const *parent_names,
+				int num_parents, bool mux_present, bool rate_present,
+				bool gate_present, void __iomem *reg)
+{
+	return imx_ulp_clk_hw_composite(name, parent_names, num_parents, mux_present, rate_present,
+					gate_present, reg, false);
+}
+
+struct clk_hw *imx8ulp_clk_hw_composite(const char *name, const char * const *parent_names,
+				int num_parents, bool mux_present, bool rate_present,
+				bool gate_present, void __iomem *reg, bool has_swrst)
+{
+	return imx_ulp_clk_hw_composite(name, parent_names, num_parents, mux_present, rate_present,
+					gate_present, reg, has_swrst);
 }
