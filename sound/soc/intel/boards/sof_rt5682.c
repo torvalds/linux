@@ -18,9 +18,11 @@
 #include <sound/soc.h>
 #include <sound/sof.h>
 #include <sound/rt5682.h>
+#include <sound/rt5682s.h>
 #include <sound/soc-acpi.h>
 #include "../../codecs/rt1015.h"
 #include "../../codecs/rt5682.h"
+#include "../../codecs/rt5682s.h"
 #include "../../codecs/hdac_hdmi.h"
 #include "../common/soc-intel-quirks.h"
 #include "hda_dsp_common.h"
@@ -56,6 +58,7 @@
 #define SOF_BT_OFFLOAD_SSP(quirk)	\
 	(((quirk) << SOF_BT_OFFLOAD_SSP_SHIFT) & SOF_BT_OFFLOAD_SSP_MASK)
 #define SOF_SSP_BT_OFFLOAD_PRESENT		BIT(22)
+#define SOF_RT5682S_HEADPHONE_CODEC_PRESENT	BIT(23)
 
 /* Default: MCLK on, MCLK 19.2M, SSP0  */
 static unsigned long sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
@@ -208,9 +211,16 @@ static int sof_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 	/* need to enable ASRC function for 24MHz mclk rate */
 	if ((sof_rt5682_quirk & SOF_RT5682_MCLK_EN) &&
 	    (sof_rt5682_quirk & SOF_RT5682_MCLK_24MHZ)) {
-		rt5682_sel_asrc_clk_src(component, RT5682_DA_STEREO1_FILTER |
-					RT5682_AD_STEREO1_FILTER,
-					RT5682_CLK_SEL_I2S1_ASRC);
+		if (sof_rt5682_quirk & SOF_RT5682S_HEADPHONE_CODEC_PRESENT)
+			rt5682s_sel_asrc_clk_src(component,
+						 RT5682S_DA_STEREO1_FILTER |
+						 RT5682S_AD_STEREO1_FILTER,
+						 RT5682S_CLK_SEL_I2S1_ASRC);
+		else
+			rt5682_sel_asrc_clk_src(component,
+						RT5682_DA_STEREO1_FILTER |
+						RT5682_AD_STEREO1_FILTER,
+						RT5682_CLK_SEL_I2S1_ASRC);
 	}
 
 	if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
@@ -277,7 +287,7 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
-	int clk_id, clk_freq, pll_out, ret;
+	int pll_id, pll_source, pll_in, pll_out, clk_id, ret;
 
 	if (sof_rt5682_quirk & SOF_RT5682_MCLK_EN) {
 		if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
@@ -289,35 +299,52 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 			}
 		}
 
-		clk_id = RT5682_PLL1_S_MCLK;
+		if (sof_rt5682_quirk & SOF_RT5682S_HEADPHONE_CODEC_PRESENT)
+			pll_source = RT5682S_PLL_S_MCLK;
+		else
+			pll_source = RT5682_PLL1_S_MCLK;
 
 		/* get the tplg configured mclk. */
-		clk_freq = sof_dai_get_mclk(rtd);
+		pll_in = sof_dai_get_mclk(rtd);
 
 		/* mclk from the quirk is the first choice */
 		if (sof_rt5682_quirk & SOF_RT5682_MCLK_24MHZ) {
-			if (clk_freq != 24000000)
+			if (pll_in != 24000000)
 				dev_warn(rtd->dev, "configure wrong mclk in tplg, please use 24MHz.\n");
-			clk_freq = 24000000;
-		} else if (clk_freq == 0) {
+			pll_in = 24000000;
+		} else if (pll_in == 0) {
 			/* use default mclk if not specified correct in topology */
-			clk_freq = 19200000;
-		} else if (clk_freq < 0) {
-			return clk_freq;
+			pll_in = 19200000;
+		} else if (pll_in < 0) {
+			return pll_in;
 		}
 	} else {
-		clk_id = RT5682_PLL1_S_BCLK1;
-		clk_freq = params_rate(params) * 50;
+		if (sof_rt5682_quirk & SOF_RT5682S_HEADPHONE_CODEC_PRESENT)
+			pll_source = RT5682S_PLL_S_BCLK1;
+		else
+			pll_source = RT5682_PLL1_S_BCLK1;
+
+		pll_in = params_rate(params) * 50;
+	}
+
+	if (sof_rt5682_quirk & SOF_RT5682S_HEADPHONE_CODEC_PRESENT) {
+		pll_id = RT5682S_PLL2;
+		clk_id = RT5682S_SCLK_S_PLL2;
+	} else {
+		pll_id = RT5682_PLL1;
+		clk_id = RT5682_SCLK_S_PLL1;
 	}
 
 	pll_out = params_rate(params) * 512;
 
-	ret = snd_soc_dai_set_pll(codec_dai, 0, clk_id, clk_freq, pll_out);
+	/* Configure pll for codec */
+	ret = snd_soc_dai_set_pll(codec_dai, pll_id, pll_source, pll_in,
+				  pll_out);
 	if (ret < 0)
 		dev_err(rtd->dev, "snd_soc_dai_set_pll err = %d\n", ret);
 
 	/* Configure sysclk for codec */
-	ret = snd_soc_dai_set_sysclk(codec_dai, RT5682_SCLK_S_PLL1,
+	ret = snd_soc_dai_set_sysclk(codec_dai, clk_id,
 				     pll_out, SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		dev_err(rtd->dev, "snd_soc_dai_set_sysclk err = %d\n", ret);
@@ -560,6 +587,13 @@ static struct snd_soc_dai_link_component rt5682_component[] = {
 	}
 };
 
+static struct snd_soc_dai_link_component rt5682s_component[] = {
+	{
+		.name = "i2c-RTL5682:00",
+		.dai_name = "rt5682s-aif1",
+	}
+};
+
 static struct snd_soc_dai_link_component dmic_component[] = {
 	{
 		.name = "dmic-codec",
@@ -610,8 +644,13 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		goto devm_err;
 
 	links[id].id = id;
-	links[id].codecs = rt5682_component;
-	links[id].num_codecs = ARRAY_SIZE(rt5682_component);
+	if (sof_rt5682_quirk & SOF_RT5682S_HEADPHONE_CODEC_PRESENT) {
+		links[id].codecs = rt5682s_component;
+		links[id].num_codecs = ARRAY_SIZE(rt5682s_component);
+	} else {
+		links[id].codecs = rt5682_component;
+		links[id].num_codecs = ARRAY_SIZE(rt5682_component);
+	}
 	links[id].platforms = platform_component;
 	links[id].num_platforms = ARRAY_SIZE(platform_component);
 	links[id].init = sof_rt5682_codec_init;
