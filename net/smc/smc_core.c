@@ -223,7 +223,6 @@ int smc_nl_get_sys_info(struct sk_buff *skb, struct netlink_callback *cb)
 	struct smc_nl_dmp_ctx *cb_ctx = smc_nl_dmp_ctx(cb);
 	char hostname[SMC_MAX_HOSTNAME_LEN + 1];
 	char smc_seid[SMC_MAX_EID_LEN + 1];
-	struct smcd_dev *smcd_dev;
 	struct nlattr *attrs;
 	u8 *seid = NULL;
 	u8 *host = NULL;
@@ -252,13 +251,8 @@ int smc_nl_get_sys_info(struct sk_buff *skb, struct netlink_callback *cb)
 		if (nla_put_string(skb, SMC_NLA_SYS_LOCAL_HOST, hostname))
 			goto errattr;
 	}
-	mutex_lock(&smcd_dev_list.mutex);
-	smcd_dev = list_first_entry_or_null(&smcd_dev_list.list,
-					    struct smcd_dev, list);
-	if (smcd_dev)
-		smc_ism_get_system_eid(smcd_dev, &seid);
-	mutex_unlock(&smcd_dev_list.mutex);
-	if (seid && smc_ism_is_v2_capable()) {
+	if (smc_ism_is_v2_capable()) {
+		smc_ism_get_system_eid(&seid);
 		memcpy(smc_seid, seid, SMC_MAX_EID_LEN);
 		smc_seid[SMC_MAX_EID_LEN] = 0;
 		if (nla_put_string(skb, SMC_NLA_SYS_SEID, smc_seid))

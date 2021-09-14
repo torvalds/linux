@@ -1565,7 +1565,7 @@ static void smc_find_ism_v2_device_serv(struct smc_sock *new_smc,
 	if (!ini->ism_dev[0])
 		goto not_found;
 
-	smc_ism_get_system_eid(ini->ism_dev[0], &eid);
+	smc_ism_get_system_eid(&eid);
 	if (!smc_clc_match_eid(ini->negotiated_eid, smc_v2_ext,
 			       smcd_v2_ext->system_eid, eid))
 		goto not_found;

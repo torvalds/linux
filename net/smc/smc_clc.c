@@ -796,10 +796,7 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 				offsetofend(struct smc_clnt_opts_area_hdr,
 					    smcd_v2_ext_offset) +
 				v2_ext->hdr.eid_cnt * SMC_MAX_EID_LEN);
-		if (ini->ism_dev[0])
-			smc_ism_get_system_eid(ini->ism_dev[0], &eid);
-		else
-			smc_ism_get_system_eid(ini->ism_dev[1], &eid);
+		smc_ism_get_system_eid(&eid);
 		if (eid && v2_ext->hdr.flag.seid)
 			memcpy(smcd_v2_ext->system_eid, eid, SMC_MAX_EID_LEN);
 		plen += sizeof(*v2_ext) + sizeof(*smcd_v2_ext);
