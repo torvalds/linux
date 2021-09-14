@@ -460,14 +460,14 @@ static void __used kretprobe_trampoline_holder(void)
 		/* Keep the assembler from reordering and placing JR here. */
 		".set noreorder\n\t"
 		"nop\n\t"
-		".global kretprobe_trampoline\n"
-		"kretprobe_trampoline:\n\t"
+		".global __kretprobe_trampoline\n"
+		"__kretprobe_trampoline:\n\t"
 		"nop\n\t"
 		".set pop"
 		: : : "memory");
 }
 
-void kretprobe_trampoline(void);
+void __kretprobe_trampoline(void);
 
 void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 				      struct pt_regs *regs)
@@ -476,7 +476,7 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 	ri->fp = NULL;
 
 	/* Replace the return addr with trampoline addr */
-	regs->regs[31] = (unsigned long)kretprobe_trampoline;
+	regs->regs[31] = (unsigned long)__kretprobe_trampoline;
 }
 
 /*
@@ -496,14 +496,14 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 
 int __kprobes arch_trampoline_kprobe(struct kprobe *p)
 {
-	if (p->addr == (kprobe_opcode_t *)kretprobe_trampoline)
+	if (p->addr == (kprobe_opcode_t *)__kretprobe_trampoline)
 		return 1;
 
 	return 0;
 }
 
 static struct kprobe trampoline_p = {
-	.addr = (kprobe_opcode_t *)kretprobe_trampoline,
+	.addr = (kprobe_opcode_t *)__kretprobe_trampoline,
 	.pre_handler = trampoline_probe_handler
 };
 

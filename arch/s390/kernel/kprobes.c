@@ -242,7 +242,7 @@ void arch_prepare_kretprobe(struct kretprobe_instance *ri, struct pt_regs *regs)
 	ri->fp = NULL;
 
 	/* Replace the return addr with trampoline addr */
-	regs->gprs[14] = (unsigned long) &kretprobe_trampoline;
+	regs->gprs[14] = (unsigned long) &__kretprobe_trampoline;
 }
 NOKPROBE_SYMBOL(arch_prepare_kretprobe);
 
@@ -334,8 +334,8 @@ NOKPROBE_SYMBOL(kprobe_handler);
  */
 static void __used kretprobe_trampoline_holder(void)
 {
-	asm volatile(".global kretprobe_trampoline\n"
-		     "kretprobe_trampoline: bcr 0,0\n");
+	asm volatile(".global __kretprobe_trampoline\n"
+		     "__kretprobe_trampoline: bcr 0,0\n");
 }
 
 /*
@@ -509,7 +509,7 @@ int kprobe_exceptions_notify(struct notifier_block *self,
 NOKPROBE_SYMBOL(kprobe_exceptions_notify);
 
 static struct kprobe trampoline = {
-	.addr = (kprobe_opcode_t *) &kretprobe_trampoline,
+	.addr = (kprobe_opcode_t *) &__kretprobe_trampoline,
 	.pre_handler = trampoline_probe_handler
 };
 
@@ -520,6 +520,6 @@ int __init arch_init_kprobes(void)
 
 int arch_trampoline_kprobe(struct kprobe *p)
 {
-	return p->addr == (kprobe_opcode_t *) &kretprobe_trampoline;
+	return p->addr == (kprobe_opcode_t *) &__kretprobe_trampoline;
 }
 NOKPROBE_SYMBOL(arch_trampoline_kprobe);

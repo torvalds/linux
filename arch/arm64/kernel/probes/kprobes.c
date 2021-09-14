@@ -411,7 +411,7 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 	ri->fp = (void *)kernel_stack_pointer(regs);
 
 	/* replace return addr (x30) with trampoline */
-	regs->regs[30] = (long)&kretprobe_trampoline;
+	regs->regs[30] = (long)&__kretprobe_trampoline;
 }
 
 int __kprobes arch_trampoline_kprobe(struct kprobe *p)

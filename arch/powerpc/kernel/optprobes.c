@@ -56,7 +56,7 @@ static unsigned long can_optimize(struct kprobe *p)
 	 * has a 'nop' instruction, which can be emulated.
 	 * So further checks can be skipped.
 	 */
-	if (p->addr == (kprobe_opcode_t *)&kretprobe_trampoline)
+	if (p->addr == (kprobe_opcode_t *)&__kretprobe_trampoline)
 		return addr + sizeof(kprobe_opcode_t);
 
 	/*

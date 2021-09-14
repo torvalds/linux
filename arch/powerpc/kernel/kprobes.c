@@ -237,7 +237,7 @@ void arch_prepare_kretprobe(struct kretprobe_instance *ri, struct pt_regs *regs)
 	ri->fp = NULL;
 
 	/* Replace the return addr with trampoline addr */
-	regs->link = (unsigned long)kretprobe_trampoline;
+	regs->link = (unsigned long)__kretprobe_trampoline;
 }
 NOKPROBE_SYMBOL(arch_prepare_kretprobe);
 
@@ -403,12 +403,12 @@ NOKPROBE_SYMBOL(kprobe_handler);
  * 	- When the probed function returns, this probe
  * 		causes the handlers to fire
  */
-asm(".global kretprobe_trampoline\n"
-	".type kretprobe_trampoline, @function\n"
-	"kretprobe_trampoline:\n"
+asm(".global __kretprobe_trampoline\n"
+	".type __kretprobe_trampoline, @function\n"
+	"__kretprobe_trampoline:\n"
 	"nop\n"
 	"blr\n"
-	".size kretprobe_trampoline, .-kretprobe_trampoline\n");
+	".size __kretprobe_trampoline, .-__kretprobe_trampoline\n");
 
 /*
  * Called when the probe at kretprobe trampoline is hit
@@ -427,7 +427,7 @@ static int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	 * as it is used to determine the return address from the trap.
 	 * For (2), since nip is not honoured with optprobes, we instead setup
 	 * the link register properly so that the subsequent 'blr' in
-	 * kretprobe_trampoline jumps back to the right instruction.
+	 * __kretprobe_trampoline jumps back to the right instruction.
 	 *
 	 * For nip, we should set the address to the previous instruction since
 	 * we end up emulating it in kprobe_handler(), which increments the nip
@@ -543,7 +543,7 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 NOKPROBE_SYMBOL(kprobe_fault_handler);
 
 static struct kprobe trampoline_p = {
-	.addr = (kprobe_opcode_t *) &kretprobe_trampoline,
+	.addr = (kprobe_opcode_t *) &__kretprobe_trampoline,
 	.pre_handler = trampoline_probe_handler
 };
 
@@ -554,7 +554,7 @@ int __init arch_init_kprobes(void)
 
 int arch_trampoline_kprobe(struct kprobe *p)
 {
-	if (p->addr == (kprobe_opcode_t *)&kretprobe_trampoline)
+	if (p->addr == (kprobe_opcode_t *)&__kretprobe_trampoline)
 		return 1;
 
 	return 0;

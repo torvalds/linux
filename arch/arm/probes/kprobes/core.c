@@ -373,7 +373,7 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
  * for kretprobe handlers which should normally be interested in r0 only
  * anyway.
  */
-void __naked __kprobes kretprobe_trampoline(void)
+void __naked __kprobes __kretprobe_trampoline(void)
 {
 	__asm__ __volatile__ (
 		"stmdb	sp!, {r0 - r11}		\n\t"
@@ -389,7 +389,7 @@ void __naked __kprobes kretprobe_trampoline(void)
 		: : : "memory");
 }
 
-/* Called from kretprobe_trampoline */
+/* Called from __kretprobe_trampoline */
 static __used __kprobes void *trampoline_handler(struct pt_regs *regs)
 {
 	return (void *)kretprobe_trampoline_handler(regs, (void *)regs->ARM_fp);
@@ -402,7 +402,7 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 	ri->fp = (void *)regs->ARM_fp;
 
 	/* Replace the return addr with trampoline addr. */
-	regs->ARM_lr = (unsigned long)&kretprobe_trampoline;
+	regs->ARM_lr = (unsigned long)&__kretprobe_trampoline;
 }
 
 int __kprobes arch_trampoline_kprobe(struct kprobe *p)

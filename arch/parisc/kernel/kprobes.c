@@ -175,7 +175,7 @@ int __kprobes parisc_kprobe_ss_handler(struct pt_regs *regs)
 	return 1;
 }
 
-void kretprobe_trampoline(void)
+void __kretprobe_trampoline(void)
 {
 	asm volatile("nop");
 	asm volatile("nop");
@@ -217,6 +217,6 @@ int __kprobes arch_trampoline_kprobe(struct kprobe *p)
 int __init arch_init_kprobes(void)
 {
 	trampoline_p.addr = (kprobe_opcode_t *)
-		dereference_function_descriptor(kretprobe_trampoline);
+		dereference_function_descriptor(__kretprobe_trampoline);
 	return register_kprobe(&trampoline_p);
 }

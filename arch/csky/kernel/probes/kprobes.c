@@ -394,7 +394,7 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 {
 	ri->ret_addr = (kprobe_opcode_t *)regs->lr;
 	ri->fp = NULL;
-	regs->lr = (unsigned long) &kretprobe_trampoline;
+	regs->lr = (unsigned long) &__kretprobe_trampoline;
 }
 
 int __kprobes arch_trampoline_kprobe(struct kprobe *p)

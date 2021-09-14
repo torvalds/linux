@@ -809,7 +809,7 @@ void arch_prepare_kretprobe(struct kretprobe_instance *ri, struct pt_regs *regs)
 	ri->fp = sara;
 
 	/* Replace the return addr with trampoline addr */
-	*sara = (unsigned long) &kretprobe_trampoline;
+	*sara = (unsigned long) &__kretprobe_trampoline;
 }
 NOKPROBE_SYMBOL(arch_prepare_kretprobe);
 
@@ -1019,9 +1019,9 @@ NOKPROBE_SYMBOL(kprobe_int3_handler);
  */
 asm(
 	".text\n"
-	".global kretprobe_trampoline\n"
-	".type kretprobe_trampoline, @function\n"
-	"kretprobe_trampoline:\n"
+	".global __kretprobe_trampoline\n"
+	".type __kretprobe_trampoline, @function\n"
+	"__kretprobe_trampoline:\n"
 	/* We don't bother saving the ss register */
 #ifdef CONFIG_X86_64
 	"	pushq %rsp\n"
@@ -1045,14 +1045,14 @@ asm(
 	"	popfl\n"
 #endif
 	"	ret\n"
-	".size kretprobe_trampoline, .-kretprobe_trampoline\n"
+	".size __kretprobe_trampoline, .-__kretprobe_trampoline\n"
 );
-NOKPROBE_SYMBOL(kretprobe_trampoline);
-STACK_FRAME_NON_STANDARD(kretprobe_trampoline);
+NOKPROBE_SYMBOL(__kretprobe_trampoline);
+STACK_FRAME_NON_STANDARD(__kretprobe_trampoline);
 
 
 /*
- * Called from kretprobe_trampoline
+ * Called from __kretprobe_trampoline
  */
 __used __visible void *trampoline_handler(struct pt_regs *regs)
 {
@@ -1061,7 +1061,7 @@ __used __visible void *trampoline_handler(struct pt_regs *regs)
 #ifdef CONFIG_X86_32
 	regs->gs = 0;
 #endif
-	regs->ip = (unsigned long)&kretprobe_trampoline;
+	regs->ip = (unsigned long)&__kretprobe_trampoline;
 	regs->orig_ax = ~0UL;
 
 	return (void *)kretprobe_trampoline_handler(regs, &regs->sp);

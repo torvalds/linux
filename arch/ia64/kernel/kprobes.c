@@ -392,7 +392,7 @@ static void __kprobes set_current_kprobe(struct kprobe *p,
 	__this_cpu_write(current_kprobe, p);
 }
 
-void kretprobe_trampoline(void)
+void __kretprobe_trampoline(void)
 {
 }
 
@@ -414,7 +414,7 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 	ri->fp = NULL;
 
 	/* Replace the return addr with trampoline addr */
-	regs->b0 = (unsigned long)dereference_function_descriptor(kretprobe_trampoline);
+	regs->b0 = (unsigned long)dereference_function_descriptor(__kretprobe_trampoline);
 }
 
 /* Check the instruction in the slot is break */
@@ -897,14 +897,14 @@ static struct kprobe trampoline_p = {
 int __init arch_init_kprobes(void)
 {
 	trampoline_p.addr =
-		dereference_function_descriptor(kretprobe_trampoline);
+		dereference_function_descriptor(__kretprobe_trampoline);
 	return register_kprobe(&trampoline_p);
 }
 
 int __kprobes arch_trampoline_kprobe(struct kprobe *p)
 {
 	if (p->addr ==
-		dereference_function_descriptor(kretprobe_trampoline))
+		dereference_function_descriptor(__kretprobe_trampoline))
 		return 1;
 
 	return 0;

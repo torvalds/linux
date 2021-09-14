@@ -349,7 +349,7 @@ EXPORT_SYMBOL_GPL(trace_output_call);
 #ifdef CONFIG_KRETPROBES
 static inline const char *kretprobed(const char *name)
 {
-	static const char tramp_name[] = "kretprobe_trampoline";
+	static const char tramp_name[] = "__kretprobe_trampoline";
 	int size = sizeof(tramp_name);
 
 	if (strncmp(tramp_name, name, size) == 0)
