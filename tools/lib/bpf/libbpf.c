@@ -195,6 +195,8 @@ enum kern_feature_id {
 	FEAT_BTF_FLOAT,
 	/* BPF perf link support */
 	FEAT_PERF_LINK,
+	/* BTF_KIND_TAG support */
+	FEAT_BTF_TAG,
 	__FEAT_CNT,
 };
 
@@ -1986,6 +1988,7 @@ static const char *__btf_kind_str(__u16 kind)
 	case BTF_KIND_VAR: return "var";
 	case BTF_KIND_DATASEC: return "datasec";
 	case BTF_KIND_FLOAT: return "float";
+	case BTF_KIND_TAG: return "tag";
 	default: return "unknown";
 	}
 }
@@ -2485,8 +2488,9 @@ static bool btf_needs_sanitization(struct bpf_object *obj)
 	bool has_datasec = kernel_supports(obj, FEAT_BTF_DATASEC);
 	bool has_float = kernel_supports(obj, FEAT_BTF_FLOAT);
 	bool has_func = kernel_supports(obj, FEAT_BTF_FUNC);
+	bool has_tag = kernel_supports(obj, FEAT_BTF_TAG);
 
-	return !has_func || !has_datasec || !has_func_global || !has_float;
+	return !has_func || !has_datasec || !has_func_global || !has_float || !has_tag;
 }
 
 static void bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
@@ -2495,14 +2499,15 @@ static void bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
 	bool has_datasec = kernel_supports(obj, FEAT_BTF_DATASEC);
 	bool has_float = kernel_supports(obj, FEAT_BTF_FLOAT);
 	bool has_func = kernel_supports(obj, FEAT_BTF_FUNC);
+	bool has_tag = kernel_supports(obj, FEAT_BTF_TAG);
 	struct btf_type *t;
 	int i, j, vlen;
 
 	for (i = 1; i <= btf__get_nr_types(btf); i++) {
 		t = (struct btf_type *)btf__type_by_id(btf, i);
 
-		if (!has_datasec && btf_is_var(t)) {
-			/* replace VAR with INT */
+		if ((!has_datasec && btf_is_var(t)) || (!has_tag && btf_is_tag(t))) {
+			/* replace VAR/TAG with INT */
 			t->info = BTF_INFO_ENC(BTF_KIND_INT, 0, 0);
 			/*
 			 * using size = 1 is the safest choice, 4 will be too
@@ -4212,6 +4217,23 @@ static int probe_kern_btf_float(void)
 					     strs, sizeof(strs)));
 }
 
+static int probe_kern_btf_tag(void)
+{
+	static const char strs[] = "\0tag";
+	__u32 types[] = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),  /* [1] */
+		/* VAR x */                                     /* [2] */
+		BTF_TYPE_ENC(1, BTF_INFO_ENC(BTF_KIND_VAR, 0, 0), 1),
+		BTF_VAR_STATIC,
+		/* attr */
+		BTF_TYPE_TAG_ENC(1, 2, -1),
+	};
+
+	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
+					     strs, sizeof(strs)));
+}
+
 static int probe_kern_array_mmap(void)
 {
 	struct bpf_create_map_attr attr = {
@@ -4427,6 +4449,9 @@ static struct kern_feature_desc {
 	},
 	[FEAT_PERF_LINK] = {
 		"BPF perf link support", probe_perf_link,
+	},
+	[FEAT_BTF_TAG] = {
+		"BTF_KIND_TAG support", probe_kern_btf_tag,
 	},
 };
 
