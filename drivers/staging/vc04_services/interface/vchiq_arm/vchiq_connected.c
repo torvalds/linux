@@ -17,9 +17,8 @@ static   DEFINE_MUTEX(g_connected_mutex);
 /* Function to initialize our lock */
 static void connected_init(void)
 {
-	if (!g_once_init) {
+	if (!g_once_init)
 		g_once_init = 1;
-	}
 }
 
 /*
