@@ -566,7 +566,7 @@ static int hclge_reset_vf(struct hclge_vport *vport)
 	struct hclge_dev *hdev = vport->back;
 
 	dev_warn(&hdev->pdev->dev, "PF received VF reset request from VF %u!",
-		 vport->vport_id);
+		 vport->vport_id - HCLGE_VF_VPORT_START_NUM);
 
 	return hclge_func_reset_cmd(hdev, vport->vport_id);
 }
