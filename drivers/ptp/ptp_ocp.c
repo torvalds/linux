@@ -131,6 +131,13 @@ struct ptp_ocp_flash_info {
 	void *data;
 };
 
+struct ptp_ocp_i2c_info {
+	const char *name;
+	unsigned long fixed_rate;
+	size_t data_size;
+	void *data;
+};
+
 struct ptp_ocp_ext_info {
 	const char *name;
 	int index;
@@ -269,6 +276,10 @@ static struct ocp_resource ocp_fb_resource[] = {
 	{
 		OCP_I2C_RESOURCE(i2c_ctrl),
 		.offset = 0x00150000, .size = 0x10000, .irq_vec = 7,
+		.extra = &(struct ptp_ocp_i2c_info) {
+			.name = "xiic-i2c",
+			.fixed_rate = 50000000,
+		},
 	},
 	{
 		OCP_SERIAL_RESOURCE(gnss_port),
@@ -944,21 +955,25 @@ ptp_ocp_register_spi(struct ptp_ocp *bp, struct ocp_resource *r)
 static struct platform_device *
 ptp_ocp_i2c_bus(struct pci_dev *pdev, struct ocp_resource *r, int id)
 {
+	struct ptp_ocp_i2c_info *info;
 	struct resource res[2];
 	unsigned long start;
 
+	info = r->extra;
 	start = pci_resource_start(pdev, 0) + r->offset;
 	ptp_ocp_set_mem_resource(&res[0], start, r->size);
 	ptp_ocp_set_irq_resource(&res[1], pci_irq_vector(pdev, r->irq_vec));
 
-	return platform_device_register_resndata(&pdev->dev, "xiic-i2c",
-						 id, res, 2, NULL, 0);
+	return platform_device_register_resndata(&pdev->dev, info->name,
+						 id, res, 2,
+						 info->data, info->data_size);
 }
 
 static int
 ptp_ocp_register_i2c(struct ptp_ocp *bp, struct ocp_resource *r)
 {
 	struct pci_dev *pdev = bp->pdev;
+	struct ptp_ocp_i2c_info *info;
 	struct platform_device *p;
 	struct clk_hw *clk;
 	char buf[32];
@@ -970,15 +985,17 @@ ptp_ocp_register_i2c(struct ptp_ocp *bp, struct ocp_resource *r)
 		return 0;
 	}
 
+	info = r->extra;
 	id = pci_dev_id(bp->pdev);
 
 	sprintf(buf, "AXI.%d", id);
-	clk = clk_hw_register_fixed_rate(&pdev->dev, buf, NULL, 0, 50000000);
+	clk = clk_hw_register_fixed_rate(&pdev->dev, buf, NULL, 0,
+					 info->fixed_rate);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 	bp->i2c_clk = clk;
 
-	sprintf(buf, "xiic-i2c.%d", id);
+	sprintf(buf, "%s.%d", info->name, id);
 	devm_clk_hw_register_clkdev(&pdev->dev, clk, NULL, buf);
 	p = ptp_ocp_i2c_bus(bp->pdev, r, id);
 	if (IS_ERR(p))
