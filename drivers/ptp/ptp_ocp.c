@@ -72,7 +72,7 @@ struct tod_reg {
 	u32	status;
 	u32	uart_polarity;
 	u32	version;
-	u32	correction_sec;
+	u32	adj_sec;
 	u32	__pad0[3];
 	u32	uart_baud;
 	u32	__pad1[3];
@@ -728,16 +728,15 @@ ptp_ocp_init_clock(struct ptp_ocp *bp)
 
 	sync = ioread32(&bp->reg->status) & OCP_STATUS_IN_SYNC;
 	if (!sync) {
-		ktime_get_real_ts64(&ts);
+		ktime_get_clocktai_ts64(&ts);
 		ptp_ocp_settime(&bp->ptp_info, &ts);
 	}
-	if (!ptp_ocp_gettimex(&bp->ptp_info, &ts, NULL))
-		dev_info(&bp->pdev->dev, "Time: %lld.%ld, %s\n",
-			 ts.tv_sec, ts.tv_nsec,
-			 sync ? "in-sync" : "UNSYNCED");
 
-	timer_setup(&bp->watchdog, ptp_ocp_watchdog, 0);
-	mod_timer(&bp->watchdog, jiffies + HZ);
+	/* If there is a clock supervisor, then enable the watchdog */
+	if (bp->pps_to_clk) {
+		timer_setup(&bp->watchdog, ptp_ocp_watchdog, 0);
+		mod_timer(&bp->watchdog, jiffies + HZ);
+	}
 
 	return 0;
 }
@@ -760,6 +759,21 @@ ptp_ocp_utc_distribute(struct ptp_ocp *bp, u32 val)
 }
 
 static void
+ptp_ocp_tod_init(struct ptp_ocp *bp)
+{
+	u32 ctrl, reg;
+
+	ctrl = ioread32(&bp->tod->ctrl);
+	ctrl |= TOD_CTRL_PROTOCOL | TOD_CTRL_ENABLE;
+	ctrl &= ~(TOD_CTRL_DISABLE_FMT_A | TOD_CTRL_DISABLE_FMT_B);
+	iowrite32(ctrl, &bp->tod->ctrl);
+
+	reg = ioread32(&bp->tod->utc_status);
+	if (reg & TOD_STATUS_UTC_VALID)
+		ptp_ocp_utc_distribute(bp, reg & TOD_STATUS_UTC_MASK);
+}
+
+static void
 ptp_ocp_tod_info(struct ptp_ocp *bp)
 {
 	static const char * const proto_name[] = {
@@ -777,11 +791,6 @@ ptp_ocp_tod_info(struct ptp_ocp *bp)
 		 version >> 24, (version >> 16) & 0xff, version & 0xffff);
 
 	ctrl = ioread32(&bp->tod->ctrl);
-	ctrl |= TOD_CTRL_PROTOCOL | TOD_CTRL_ENABLE;
-	ctrl &= ~(TOD_CTRL_DISABLE_FMT_A | TOD_CTRL_DISABLE_FMT_B);
-	iowrite32(ctrl, &bp->tod->ctrl);
-
-	ctrl = ioread32(&bp->tod->ctrl);
 	idx = ctrl & TOD_CTRL_PROTOCOL ? 4 : 0;
 	idx += (ctrl >> 16) & 3;
 	dev_info(&bp->pdev->dev, "control: %x\n", ctrl);
@@ -795,7 +804,7 @@ ptp_ocp_tod_info(struct ptp_ocp *bp)
 	reg = ioread32(&bp->tod->status);
 	dev_info(&bp->pdev->dev, "status: %x\n", reg);
 
-	reg = ioread32(&bp->tod->correction_sec);
+	reg = ioread32(&bp->tod->adj_sec);
 	dev_info(&bp->pdev->dev, "correction: %d\n", reg);
 
 	reg = ioread32(&bp->tod->utc_status);
@@ -877,22 +886,6 @@ ptp_ocp_get_serial_number(struct ptp_ocp *bp)
 
 out:
 	put_device(dev);
-}
-
-static void
-ptp_ocp_info(struct ptp_ocp *bp)
-{
-	u32 version, select;
-
-	version = ioread32(&bp->reg->version);
-	select = ioread32(&bp->reg->select);
-	dev_info(&bp->pdev->dev, "Version %d.%d.%d, clock %s, device ptp%d\n",
-		 version >> 24, (version >> 16) & 0xff, version & 0xffff,
-		 ptp_ocp_select_name_from_val(ptp_ocp_clock, select >> 16),
-		 ptp_clock_index(bp->ptp));
-
-	if (bp->tod)
-		ptp_ocp_tod_info(bp);
 }
 
 static struct device *
@@ -1277,6 +1270,8 @@ static int
 ptp_ocp_fb_board_init(struct ptp_ocp *bp, struct ocp_resource *r)
 {
 	bp->flash_start = 1024 * 4096;
+
+	ptp_ocp_tod_init(bp);
 
 	return ptp_ocp_init_clock(bp);
 }
@@ -1927,9 +1922,41 @@ ptp_ocp_complete(struct ptp_ocp *bp)
 }
 
 static void
-ptp_ocp_resource_summary(struct ptp_ocp *bp)
+ptp_ocp_phc_info(struct ptp_ocp *bp)
+{
+	struct timespec64 ts;
+	u32 version, select;
+	bool sync;
+
+	version = ioread32(&bp->reg->version);
+	select = ioread32(&bp->reg->select);
+	dev_info(&bp->pdev->dev, "Version %d.%d.%d, clock %s, device ptp%d\n",
+		 version >> 24, (version >> 16) & 0xff, version & 0xffff,
+		 ptp_ocp_select_name_from_val(ptp_ocp_clock, select >> 16),
+		 ptp_clock_index(bp->ptp));
+
+	sync = ioread32(&bp->reg->status) & OCP_STATUS_IN_SYNC;
+	if (!ptp_ocp_gettimex(&bp->ptp_info, &ts, NULL))
+		dev_info(&bp->pdev->dev, "Time: %lld.%ld, %s\n",
+			 ts.tv_sec, ts.tv_nsec,
+			 sync ? "in-sync" : "UNSYNCED");
+}
+
+static void
+ptp_ocp_serial_info(struct device *dev, const char *name, int port, int baud)
+{
+	if (port != -1)
+		dev_info(dev, "%5s: /dev/ttyS%-2d @ %6d\n", name, port, baud);
+}
+
+static void
+ptp_ocp_info(struct ptp_ocp *bp)
 {
 	struct device *dev = &bp->pdev->dev;
+
+	ptp_ocp_phc_info(bp);
+	if (bp->tod)
+		ptp_ocp_tod_info(bp);
 
 	if (bp->image) {
 		u32 ver = ioread32(&bp->image->version);
@@ -1942,10 +1969,8 @@ ptp_ocp_resource_summary(struct ptp_ocp *bp)
 			dev_info(dev, "golden image, version %d\n",
 				 ver >> 16);
 	}
-	if (bp->gnss_port != -1)
-		dev_info(dev, "GNSS @ /dev/ttyS%d 115200\n", bp->gnss_port);
-	if (bp->mac_port != -1)
-		dev_info(dev, "MAC @ /dev/ttyS%d   57600\n", bp->mac_port);
+	ptp_ocp_serial_info(dev, "GNSS", bp->gnss_port, 115200);
+	ptp_ocp_serial_info(dev, "MAC", bp->mac_port, 57600);
 }
 
 static void
@@ -2049,7 +2074,6 @@ ptp_ocp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out;
 
 	ptp_ocp_info(bp);
-	ptp_ocp_resource_summary(bp);
 
 	return 0;
 
