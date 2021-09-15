@@ -620,14 +620,16 @@ static int init_rx_pools(struct net_device *netdev)
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	struct device *dev = &adapter->vdev->dev;
 	struct ibmvnic_rx_pool *rx_pool;
-	int rxadd_subcrqs;
+	u64 num_pools;
+	u64 pool_size;		/* # of buffers in one pool */
 	u64 buff_size;
 	int i, j;
 
-	rxadd_subcrqs = adapter->num_active_rx_scrqs;
+	num_pools = adapter->num_active_rx_scrqs;
+	pool_size = adapter->req_rx_add_entries_per_subcrq;
 	buff_size = adapter->cur_rx_buf_sz;
 
-	adapter->rx_pool = kcalloc(rxadd_subcrqs,
+	adapter->rx_pool = kcalloc(num_pools,
 				   sizeof(struct ibmvnic_rx_pool),
 				   GFP_KERNEL);
 	if (!adapter->rx_pool) {
@@ -638,17 +640,16 @@ static int init_rx_pools(struct net_device *netdev)
 	/* Set num_active_rx_pools early. If we fail below after partial
 	 * allocation, release_rx_pools() will know how many to look for.
 	 */
-	adapter->num_active_rx_pools = rxadd_subcrqs;
+	adapter->num_active_rx_pools = num_pools;
 
-	for (i = 0; i < rxadd_subcrqs; i++) {
+	for (i = 0; i < num_pools; i++) {
 		rx_pool = &adapter->rx_pool[i];
 
 		netdev_dbg(adapter->netdev,
 			   "Initializing rx_pool[%d], %lld buffs, %lld bytes each\n",
-			   i, adapter->req_rx_add_entries_per_subcrq,
-			   buff_size);
+			   i, pool_size, buff_size);
 
-		rx_pool->size = adapter->req_rx_add_entries_per_subcrq;
+		rx_pool->size = pool_size;
 		rx_pool->index = i;
 		rx_pool->buff_size = ALIGN(buff_size, L1_CACHE_BYTES);
 		rx_pool->active = 1;

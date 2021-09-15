@@ -827,7 +827,7 @@ struct ibmvnic_rx_buff {
 
 struct ibmvnic_rx_pool {
 	struct ibmvnic_rx_buff *rx_buff;
-	int size;
+	int size;			/* # of buffers in the pool */
 	int index;
 	int buff_size;
 	atomic_t available;
