@@ -577,7 +577,8 @@ static int mlxsw_sp_port_stop(struct net_device *dev)
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 
 	netif_stop_queue(dev);
-	return mlxsw_sp_port_admin_status_set(mlxsw_sp_port, false);
+	mlxsw_sp_port_admin_status_set(mlxsw_sp_port, false);
+	return 0;
 }
 
 static netdev_tx_t mlxsw_sp_port_xmit(struct sk_buff *skb,
