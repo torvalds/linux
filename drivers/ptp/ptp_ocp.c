@@ -162,6 +162,7 @@ struct ptp_ocp {
 	struct ptp_ocp_ext_src	*pps;
 	struct ptp_ocp_ext_src	*ts0;
 	struct ptp_ocp_ext_src	*ts1;
+	struct ptp_ocp_ext_src	*ts2;
 	struct img_reg __iomem	*image;
 	struct ptp_clock	*ptp;
 	struct ptp_clock_info	ptp_info;
@@ -228,7 +229,7 @@ static int ptp_ocp_ts_enable(void *priv, bool enable);
  * 3: GPS
  * 4: GPS2 (n/c)
  * 5: MAC
- * 6: N/C
+ * 6: TS2
  * 7: I2C controller
  * 8: HWICAP
  * 9: SPI Flash
@@ -253,6 +254,15 @@ static struct ocp_resource ocp_fb_resource[] = {
 		.offset = 0x01020000, .size = 0x10000, .irq_vec = 2,
 		.extra = &(struct ptp_ocp_ext_info) {
 			.index = 1,
+			.irq_fcn = ptp_ocp_ts_irq,
+			.enable = ptp_ocp_ts_enable,
+		},
+	},
+	{
+		OCP_EXT_RESOURCE(ts2),
+		.offset = 0x01060000, .size = 0x10000, .irq_vec = 6,
+		.extra = &(struct ptp_ocp_ext_info) {
+			.index = 2,
 			.irq_fcn = ptp_ocp_ts_irq,
 			.enable = ptp_ocp_ts_enable,
 		},
@@ -497,6 +507,9 @@ ptp_ocp_enable(struct ptp_clock_info *ptp_info, struct ptp_clock_request *rq,
 		case 1:
 			ext = bp->ts1;
 			break;
+		case 2:
+			ext = bp->ts2;
+			break;
 		}
 		break;
 	case PTP_CLK_REQ_PPS:
@@ -524,7 +537,7 @@ static const struct ptp_clock_info ptp_ocp_clock_info = {
 	.adjphase	= ptp_ocp_adjphase,
 	.enable		= ptp_ocp_enable,
 	.pps		= true,
-	.n_ext_ts	= 2,
+	.n_ext_ts	= 3,
 };
 
 static void
@@ -1407,6 +1420,8 @@ ptp_ocp_detach(struct ptp_ocp *bp)
 		ptp_ocp_unregister_ext(bp->ts0);
 	if (bp->ts1)
 		ptp_ocp_unregister_ext(bp->ts1);
+	if (bp->ts2)
+		ptp_ocp_unregister_ext(bp->ts2);
 	if (bp->pps)
 		ptp_ocp_unregister_ext(bp->pps);
 	if (bp->gnss_port != -1)
