@@ -171,8 +171,7 @@ static bool valid_state(suspend_state_t state)
 
 void __init pm_states_init(void)
 {
-	/* "mem" and "freeze" are always present in /sys/power/state. */
-	pm_states[PM_SUSPEND_MEM] = pm_labels[PM_SUSPEND_MEM];
+	/* "freeze" is always present in /sys/power/state. */
 	pm_states[PM_SUSPEND_TO_IDLE] = pm_labels[PM_SUSPEND_TO_IDLE];
 	/*
 	 * Suspend-to-idle should be supported even without any suspend_ops,
@@ -214,6 +213,7 @@ void suspend_set_ops(const struct platform_suspend_ops *ops)
 	}
 	if (valid_state(PM_SUSPEND_MEM)) {
 		mem_sleep_states[PM_SUSPEND_MEM] = mem_sleep_labels[PM_SUSPEND_MEM];
+		pm_states[PM_SUSPEND_MEM] = pm_labels[PM_SUSPEND_MEM];
 		if (mem_sleep_default >= PM_SUSPEND_MEM)
 			mem_sleep_current = PM_SUSPEND_MEM;
 	}
