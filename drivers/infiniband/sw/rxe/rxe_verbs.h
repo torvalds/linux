@@ -240,7 +240,6 @@ struct rxe_qp {
 
 	struct sk_buff_head	req_pkts;
 	struct sk_buff_head	resp_pkts;
-	struct sk_buff_head	send_pkts;
 
 	struct rxe_req_info	req;
 	struct rxe_comp_info	comp;

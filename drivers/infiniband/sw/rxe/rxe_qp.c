@@ -190,8 +190,6 @@ static void rxe_qp_init_misc(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 	INIT_LIST_HEAD(&qp->grp_list);
 
-	skb_queue_head_init(&qp->send_pkts);
-
 	spin_lock_init(&qp->grp_lock);
 	spin_lock_init(&qp->state_lock);
 
