@@ -139,7 +139,6 @@ struct ptp_ocp_i2c_info {
 };
 
 struct ptp_ocp_ext_info {
-	const char *name;
 	int index;
 	irqreturn_t (*irq_fcn)(int irq, void *priv);
 	int (*enable)(void *priv, bool enable);
@@ -187,6 +186,7 @@ struct ocp_resource {
 	int (*setup)(struct ptp_ocp *bp, struct ocp_resource *r);
 	void *extra;
 	unsigned long bp_offset;
+	const char * const name;
 };
 
 static int ptp_ocp_register_mem(struct ptp_ocp *bp, struct ocp_resource *r);
@@ -204,7 +204,7 @@ static int ptp_ocp_ts_enable(void *priv, bool enable);
 })
 
 #define OCP_RES_LOCATION(member) \
-	.bp_offset = offsetof(struct ptp_ocp, member)
+	.name = #member, .bp_offset = offsetof(struct ptp_ocp, member)
 
 #define OCP_MEM_RESOURCE(member) \
 	OCP_RES_LOCATION(member), .setup = ptp_ocp_register_mem
@@ -243,7 +243,7 @@ static struct ocp_resource ocp_fb_resource[] = {
 		OCP_EXT_RESOURCE(ts0),
 		.offset = 0x01010000, .size = 0x10000, .irq_vec = 1,
 		.extra = &(struct ptp_ocp_ext_info) {
-			.name = "ts0", .index = 0,
+			.index = 0,
 			.irq_fcn = ptp_ocp_ts_irq,
 			.enable = ptp_ocp_ts_enable,
 		},
@@ -252,7 +252,7 @@ static struct ocp_resource ocp_fb_resource[] = {
 		OCP_EXT_RESOURCE(ts1),
 		.offset = 0x01020000, .size = 0x10000, .irq_vec = 2,
 		.extra = &(struct ptp_ocp_ext_info) {
-			.name = "ts1", .index = 1,
+			.index = 1,
 			.irq_fcn = ptp_ocp_ts_irq,
 			.enable = ptp_ocp_ts_enable,
 		},
@@ -925,18 +925,6 @@ ptp_ocp_register_spi(struct ptp_ocp *bp, struct ocp_resource *r)
 	unsigned long start;
 	int id;
 
-	/* XXX hack to work around old FPGA */
-	if (bp->n_irqs < 10) {
-		dev_err(&bp->pdev->dev, "FPGA does not have SPI devices\n");
-		return 0;
-	}
-
-	if (r->irq_vec > bp->n_irqs) {
-		dev_err(&bp->pdev->dev, "spi device irq %d out of range\n",
-			r->irq_vec);
-		return 0;
-	}
-
 	start = pci_resource_start(pdev, 0) + r->offset;
 	ptp_ocp_set_mem_resource(&res[0], start, r->size);
 	ptp_ocp_set_irq_resource(&res[1], pci_irq_vector(pdev, r->irq_vec));
@@ -982,12 +970,6 @@ ptp_ocp_register_i2c(struct ptp_ocp *bp, struct ocp_resource *r)
 	struct clk_hw *clk;
 	char buf[32];
 	int id;
-
-	if (r->irq_vec > bp->n_irqs) {
-		dev_err(&bp->pdev->dev, "i2c device irq %d out of range\n",
-			r->irq_vec);
-		return 0;
-	}
 
 	info = r->extra;
 	id = pci_dev_id(bp->pdev);
@@ -1080,7 +1062,7 @@ ptp_ocp_register_ext(struct ptp_ocp *bp, struct ocp_resource *r)
 	ext->irq_vec = r->irq_vec;
 
 	err = pci_request_irq(pdev, r->irq_vec, ext->info->irq_fcn, NULL,
-			      ext, "ocp%d.%s", bp->id, ext->info->name);
+			      ext, "ocp%d.%s", bp->id, r->name);
 	if (err) {
 		dev_err(&pdev->dev, "Could not get irq %d\n", r->irq_vec);
 		goto out;
@@ -1122,12 +1104,6 @@ ptp_ocp_register_serial(struct ptp_ocp *bp, struct ocp_resource *r)
 {
 	int port;
 
-	if (r->irq_vec > bp->n_irqs) {
-		dev_err(&bp->pdev->dev, "serial device irq %d out of range\n",
-			r->irq_vec);
-		return 0;
-	}
-
 	port = ptp_ocp_serial_line(bp, r);
 	if (port < 0)
 		return port;
@@ -1160,6 +1136,17 @@ ptp_ocp_fb_board_init(struct ptp_ocp *bp, struct ocp_resource *r)
 	return ptp_ocp_init_clock(bp);
 }
 
+static bool
+ptp_ocp_allow_irq(struct ptp_ocp *bp, struct ocp_resource *r)
+{
+	bool allow = !r->irq_vec || r->irq_vec < bp->n_irqs;
+
+	if (!allow)
+		dev_err(&bp->pdev->dev, "irq %d out of range, skipping %s\n",
+			r->irq_vec, r->name);
+	return allow;
+}
+
 static int
 ptp_ocp_register_resources(struct ptp_ocp *bp, kernel_ulong_t driver_data)
 {
@@ -1168,6 +1155,8 @@ ptp_ocp_register_resources(struct ptp_ocp *bp, kernel_ulong_t driver_data)
 
 	table = (struct ocp_resource *)driver_data;
 	for (r = table; r->setup; r++) {
+		if (!ptp_ocp_allow_irq(bp, r))
+			continue;
 		err = r->setup(bp, r);
 		if (err)
 			break;
