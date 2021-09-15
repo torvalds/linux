@@ -5,6 +5,7 @@
 #include <linux/err.h>
 #include <linux/ethtool.h>
 #include <linux/sfp.h>
+#include <linux/mutex.h>
 
 #include "core.h"
 #include "core_env.h"
@@ -19,7 +20,7 @@ struct mlxsw_env_module_info {
 struct mlxsw_env {
 	struct mlxsw_core *core;
 	u8 module_count;
-	spinlock_t module_info_lock; /* Protects 'module_info'. */
+	struct mutex module_info_lock; /* Protects 'module_info'. */
 	struct mlxsw_env_module_info module_info[];
 };
 
@@ -507,7 +508,7 @@ static void mlxsw_env_mtwe_event_work(struct work_struct *work)
 		sensor_warning =
 			mlxsw_reg_mtwe_sensor_warning_get(event->mtwe_pl,
 							  i + MLXSW_REG_MTMP_MODULE_INDEX_MIN);
-		spin_lock(&mlxsw_env->module_info_lock);
+		mutex_lock(&mlxsw_env->module_info_lock);
 		is_overheat =
 			mlxsw_env->module_info[i].is_overheat;
 
@@ -517,13 +518,13 @@ static void mlxsw_env_mtwe_event_work(struct work_struct *work)
 			 * warning OR current state in "no warning" and MTWE
 			 * does not report warning.
 			 */
-			spin_unlock(&mlxsw_env->module_info_lock);
+			mutex_unlock(&mlxsw_env->module_info_lock);
 			continue;
 		} else if (is_overheat && !sensor_warning) {
 			/* MTWE reports "no warning", turn is_overheat off.
 			 */
 			mlxsw_env->module_info[i].is_overheat = false;
-			spin_unlock(&mlxsw_env->module_info_lock);
+			mutex_unlock(&mlxsw_env->module_info_lock);
 		} else {
 			/* Current state is "no warning" and MTWE reports
 			 * "warning", increase the counter and turn is_overheat
@@ -531,7 +532,7 @@ static void mlxsw_env_mtwe_event_work(struct work_struct *work)
 			 */
 			mlxsw_env->module_info[i].is_overheat = true;
 			mlxsw_env->module_info[i].module_overheat_counter++;
-			spin_unlock(&mlxsw_env->module_info_lock);
+			mutex_unlock(&mlxsw_env->module_info_lock);
 		}
 	}
 
@@ -597,9 +598,9 @@ static void mlxsw_env_pmpe_event_work(struct work_struct *work)
 			     work);
 	mlxsw_env = event->mlxsw_env;
 
-	spin_lock_bh(&mlxsw_env->module_info_lock);
+	mutex_lock(&mlxsw_env->module_info_lock);
 	mlxsw_env->module_info[event->module].is_overheat = false;
-	spin_unlock_bh(&mlxsw_env->module_info_lock);
+	mutex_unlock(&mlxsw_env->module_info_lock);
 
 	err = mlxsw_env_module_has_temp_sensor(mlxsw_env->core, event->module,
 					       &has_temp_sensor);
@@ -699,9 +700,9 @@ mlxsw_env_module_overheat_counter_get(struct mlxsw_core *mlxsw_core, u8 module,
 	if (WARN_ON_ONCE(module >= mlxsw_env->module_count))
 		return -EINVAL;
 
-	spin_lock_bh(&mlxsw_env->module_info_lock);
+	mutex_lock(&mlxsw_env->module_info_lock);
 	*p_counter = mlxsw_env->module_info[module].module_overheat_counter;
-	spin_unlock_bh(&mlxsw_env->module_info_lock);
+	mutex_unlock(&mlxsw_env->module_info_lock);
 
 	return 0;
 }
@@ -725,7 +726,7 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core, struct mlxsw_env **p_env)
 	if (!env)
 		return -ENOMEM;
 
-	spin_lock_init(&env->module_info_lock);
+	mutex_init(&env->module_info_lock);
 	env->core = mlxsw_core;
 	env->module_count = module_count;
 	*p_env = env;
@@ -755,6 +756,7 @@ err_oper_state_event_enable:
 err_module_plug_event_register:
 	mlxsw_env_temp_warn_event_unregister(env);
 err_temp_warn_event_register:
+	mutex_destroy(&env->module_info_lock);
 	kfree(env);
 	return err;
 }
@@ -765,5 +767,6 @@ void mlxsw_env_fini(struct mlxsw_env *env)
 	/* Make sure there is no more event work scheduled. */
 	mlxsw_core_flush_owq();
 	mlxsw_env_temp_warn_event_unregister(env);
+	mutex_destroy(&env->module_info_lock);
 	kfree(env);
 }
