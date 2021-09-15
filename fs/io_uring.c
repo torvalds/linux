@@ -103,9 +103,11 @@
 
 #define IORING_MAX_REG_BUFFERS	(1U << 14)
 
-#define SQE_VALID_FLAGS	(IOSQE_FIXED_FILE|IOSQE_IO_DRAIN|IOSQE_IO_LINK|	\
-				IOSQE_IO_HARDLINK | IOSQE_ASYNC | \
-				IOSQE_BUFFER_SELECT)
+#define SQE_COMMON_FLAGS (IOSQE_FIXED_FILE | IOSQE_IO_LINK | \
+			  IOSQE_IO_HARDLINK | IOSQE_ASYNC)
+
+#define SQE_VALID_FLAGS	(SQE_COMMON_FLAGS|IOSQE_BUFFER_SELECT|IOSQE_IO_DRAIN)
+
 #define IO_REQ_CLEAN_FLAGS (REQ_F_BUFFER_SELECTED | REQ_F_NEED_CLEANUP | \
 				REQ_F_POLLED | REQ_F_INFLIGHT | REQ_F_CREDS)
 
@@ -7059,19 +7061,20 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	req->fixed_rsrc_refs = NULL;
 	req->task = current;
 
-	/* enforce forwards compatibility on users */
-	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS))
-		return -EINVAL;
 	if (unlikely(req->opcode >= IORING_OP_LAST))
 		return -EINVAL;
+	if (unlikely(sqe_flags & ~SQE_COMMON_FLAGS)) {
+		/* enforce forwards compatibility on users */
+		if (sqe_flags & ~SQE_VALID_FLAGS)
+			return -EINVAL;
+		if ((sqe_flags & IOSQE_BUFFER_SELECT) &&
+		    !io_op_defs[req->opcode].buffer_select)
+			return -EOPNOTSUPP;
+		if (sqe_flags & IOSQE_IO_DRAIN)
+			ctx->drain_active = true;
+	}
 	if (!io_check_restriction(ctx, req, sqe_flags))
 		return -EACCES;
-
-	if ((sqe_flags & IOSQE_BUFFER_SELECT) &&
-	    !io_op_defs[req->opcode].buffer_select)
-		return -EOPNOTSUPP;
-	if (unlikely(sqe_flags & IOSQE_IO_DRAIN))
-		ctx->drain_active = true;
 
 	personality = READ_ONCE(sqe->personality);
 	if (personality) {
@@ -11017,6 +11020,8 @@ static int __init io_uring_init(void)
 
 	/* should fit into one byte */
 	BUILD_BUG_ON(SQE_VALID_FLAGS >= (1 << 8));
+	BUILD_BUG_ON(SQE_COMMON_FLAGS >= (1 << 8));
+	BUILD_BUG_ON((SQE_VALID_FLAGS | SQE_COMMON_FLAGS) != SQE_VALID_FLAGS);
 
 	BUILD_BUG_ON(ARRAY_SIZE(io_op_defs) != IORING_OP_LAST);
 	BUILD_BUG_ON(__REQ_F_LAST_BIT > 8 * sizeof(int));
