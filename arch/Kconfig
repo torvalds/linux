@@ -889,7 +889,7 @@ config HAVE_SOFTIRQ_ON_OWN_STACK
 	bool
 	help
 	  Architecture provides a function to run __do_softirq() on a
-	  seperate stack.
+	  separate stack.
 
 config PGTABLE_LEVELS
 	int

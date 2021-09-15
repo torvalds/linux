@@ -538,6 +538,10 @@ struct zone {
 	 * is calculated as:
 	 *	present_pages = spanned_pages - absent_pages(pages in holes);
 	 *
+	 * present_early_pages is present pages existing within the zone
+	 * located on memory available since early boot, excluding hotplugged
+	 * memory.
+	 *
 	 * managed_pages is present pages managed by the buddy system, which
 	 * is calculated as (reserved_pages includes pages allocated by the
 	 * bootmem allocator):
@@ -570,6 +574,9 @@ struct zone {
 	atomic_long_t		managed_pages;
 	unsigned long		spanned_pages;
 	unsigned long		present_pages;
+#if defined(CONFIG_MEMORY_HOTPLUG)
+	unsigned long		present_early_pages;
+#endif
 #ifdef CONFIG_CMA
 	unsigned long		cma_pages;
 #endif
@@ -1522,18 +1529,6 @@ void sparse_init(void);
 #define pfn_in_present_section pfn_valid
 #define subsection_map_init(_pfn, _nr_pages) do {} while (0)
 #endif /* CONFIG_SPARSEMEM */
-
-/*
- * If it is possible to have holes within a MAX_ORDER_NR_PAGES, then we
- * need to check pfn validity within that MAX_ORDER_NR_PAGES block.
- * pfn_valid_within() should be used in this case; we optimise this away
- * when we have no holes within a MAX_ORDER_NR_PAGES block.
- */
-#ifdef CONFIG_HOLES_IN_ZONE
-#define pfn_valid_within(pfn) pfn_valid(pfn)
-#else
-#define pfn_valid_within(pfn) (1)
-#endif
 
 #endif /* !__GENERATING_BOUNDS.H */
 #endif /* !__ASSEMBLY__ */

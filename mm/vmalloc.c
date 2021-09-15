@@ -44,6 +44,19 @@
 #include "internal.h"
 #include "pgalloc-track.h"
 
+#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
+static unsigned int __ro_after_init ioremap_max_page_shift = BITS_PER_LONG - 1;
+
+static int __init set_nohugeiomap(char *str)
+{
+	ioremap_max_page_shift = PAGE_SHIFT;
+	return 0;
+}
+early_param("nohugeiomap", set_nohugeiomap);
+#else /* CONFIG_HAVE_ARCH_HUGE_VMAP */
+static const unsigned int ioremap_max_page_shift = PAGE_SHIFT;
+#endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
+
 #ifdef CONFIG_HAVE_ARCH_HUGE_VMALLOC
 static bool __ro_after_init vmap_allow_huge = true;
 
@@ -298,15 +311,14 @@ static int vmap_range_noflush(unsigned long addr, unsigned long end,
 	return err;
 }
 
-int vmap_range(unsigned long addr, unsigned long end,
-			phys_addr_t phys_addr, pgprot_t prot,
-			unsigned int max_page_shift)
+int ioremap_page_range(unsigned long addr, unsigned long end,
+		phys_addr_t phys_addr, pgprot_t prot)
 {
 	int err;
 
-	err = vmap_range_noflush(addr, end, phys_addr, prot, max_page_shift);
+	err = vmap_range_noflush(addr, end, phys_addr, pgprot_nx(prot),
+				 ioremap_max_page_shift);
 	flush_cache_vmap(addr, end);
-
 	return err;
 }
 
