@@ -416,9 +416,9 @@ static int dw_mci_rockchip_probe(struct platform_device *pdev)
 	 * pm_runtime_force_resume calls rpm resume callback
 	 */
 	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
 
 	if (use_rpm) {
-		pm_runtime_set_active(&pdev->dev);
 		pm_runtime_enable(&pdev->dev);
 		pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
 		pm_runtime_use_autosuspend(&pdev->dev);
