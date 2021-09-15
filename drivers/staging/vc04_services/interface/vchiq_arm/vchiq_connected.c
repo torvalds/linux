@@ -34,16 +34,15 @@ void vchiq_add_connected_callback(void (*callback)(void))
 	if (mutex_lock_killable(&g_connected_mutex))
 		return;
 
-	if (g_connected)
+	if (g_connected) {
 		/* We're already connected. Call the callback immediately. */
-
 		callback();
-	else {
-		if (g_num_deferred_callbacks >= MAX_CALLBACKS)
+	} else {
+		if (g_num_deferred_callbacks >= MAX_CALLBACKS) {
 			vchiq_log_error(vchiq_core_log_level,
 				"There already %d callback registered - please increase MAX_CALLBACKS",
 				g_num_deferred_callbacks);
-		else {
+		} else {
 			g_deferred_callback[g_num_deferred_callbacks] =
 				callback;
 			g_num_deferred_callbacks++;
