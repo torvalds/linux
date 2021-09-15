@@ -13,25 +13,7 @@
 #include <linux/module.h>
 #include <linux/unicode.h>
 
-int utf8version_is_supported(unsigned int version);
-
-/*
- * Look for the correct const struct utf8data for a unicode version.
- * Returns NULL if the version requested is too new.
- *
- * Two normalization forms are supported: nfdi and nfdicf.
- *
- * nfdi:
- *  - Apply unicode normalization form NFD.
- *  - Remove any Default_Ignorable_Code_Point.
- *
- * nfdicf:
- *  - Apply unicode normalization form NFD.
- *  - Remove any Default_Ignorable_Code_Point.
- *  - Apply a full casefold (C + F).
- */
-extern const struct utf8data *utf8nfdi(unsigned int maxage);
-extern const struct utf8data *utf8nfdicf(unsigned int maxage);
+int utf8version_is_supported(const struct unicode_map *um, unsigned int version);
 
 /*
  * Determine the length of the normalized from of the string,
@@ -77,5 +59,25 @@ int utf8ncursor(struct utf8cursor *u8c, const struct unicode_map *um,
  * Returns -1 if the string being normalized is not valid UTF-8.
  */
 extern int utf8byte(struct utf8cursor *u8c);
+
+struct utf8data {
+	unsigned int maxage;
+	unsigned int offset;
+};
+
+struct utf8data_table {
+	const unsigned int *utf8agetab;
+	int utf8agetab_size;
+
+	const struct utf8data *utf8nfdicfdata;
+	int utf8nfdicfdata_size;
+
+	const struct utf8data *utf8nfdidata;
+	int utf8nfdidata_size;
+
+	const unsigned char *utf8data;
+};
+
+extern struct utf8data_table utf8_data_table;
 
 #endif /* UTF8NORM_H */

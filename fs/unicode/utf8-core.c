@@ -160,25 +160,45 @@ int utf8_normalize(const struct unicode_map *um, const struct qstr *str,
 }
 EXPORT_SYMBOL(utf8_normalize);
 
+static const struct utf8data *find_table_version(const struct utf8data *table,
+		size_t nr_entries, unsigned int version)
+{
+	size_t i = nr_entries - 1;
+
+	while (version < table[i].maxage)
+		i--;
+	if (version > table[i].maxage)
+		return NULL;
+	return &table[i];
+}
+
 struct unicode_map *utf8_load(unsigned int version)
 {
 	struct unicode_map *um;
-
-	if (!utf8version_is_supported(version))
-		return ERR_PTR(-EINVAL);
 
 	um = kzalloc(sizeof(struct unicode_map), GFP_KERNEL);
 	if (!um)
 		return ERR_PTR(-ENOMEM);
 	um->version = version;
-	um->ntab[UTF8_NFDI] = utf8nfdi(version);
+
+	um->tables = symbol_request(utf8_data_table);
+	if (!um->tables)
+		goto out_free_um;
+
+	if (!utf8version_is_supported(um, version))
+		goto out_symbol_put;
+	um->ntab[UTF8_NFDI] = find_table_version(um->tables->utf8nfdidata,
+			um->tables->utf8nfdidata_size, um->version);
 	if (!um->ntab[UTF8_NFDI])
-		goto out_free_um;
-	um->ntab[UTF8_NFDICF] = utf8nfdicf(version);
+		goto out_symbol_put;
+	um->ntab[UTF8_NFDICF] = find_table_version(um->tables->utf8nfdicfdata,
+			um->tables->utf8nfdicfdata_size, um->version);
 	if (!um->ntab[UTF8_NFDICF])
-		goto out_free_um;
+		goto out_symbol_put;
 	return um;
 
+out_symbol_put:
+	symbol_put(um->tables);
 out_free_um:
 	kfree(um);
 	return ERR_PTR(-EINVAL);
@@ -187,7 +207,10 @@ EXPORT_SYMBOL(utf8_load);
 
 void utf8_unload(struct unicode_map *um)
 {
-	kfree(um);
+	if (um) {
+		symbol_put(utf8_data_table);
+		kfree(um);
+	}
 }
 EXPORT_SYMBOL(utf8_unload);
 

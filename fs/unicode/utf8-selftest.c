@@ -255,21 +255,21 @@ static void check_utf8_comparisons(struct unicode_map *table)
 	}
 }
 
-static void check_supported_versions(void)
+static void check_supported_versions(struct unicode_map *um)
 {
 	/* Unicode 7.0.0 should be supported. */
-	test(utf8version_is_supported(UNICODE_AGE(7, 0, 0)));
+	test(utf8version_is_supported(um, UNICODE_AGE(7, 0, 0)));
 
 	/* Unicode 9.0.0 should be supported. */
-	test(utf8version_is_supported(UNICODE_AGE(9, 0, 0)));
+	test(utf8version_is_supported(um, UNICODE_AGE(9, 0, 0)));
 
 	/* Unicode 1x.0.0 (the latest version) should be supported. */
-	test(utf8version_is_supported(UTF8_LATEST));
+	test(utf8version_is_supported(um, UTF8_LATEST));
 
 	/* Next versions don't exist. */
-	test(!utf8version_is_supported(UNICODE_AGE(13, 0, 0)));
-	test(!utf8version_is_supported(UNICODE_AGE(0, 0, 0)));
-	test(!utf8version_is_supported(UNICODE_AGE(-1, -1, -1)));
+	test(!utf8version_is_supported(um, UNICODE_AGE(13, 0, 0)));
+	test(!utf8version_is_supported(um, UNICODE_AGE(0, 0, 0)));
+	test(!utf8version_is_supported(um, UNICODE_AGE(-1, -1, -1)));
 }
 
 static int __init init_test_ucd(void)
@@ -285,7 +285,7 @@ static int __init init_test_ucd(void)
 		return PTR_ERR(um);
 	}
 
-	check_supported_versions();
+	check_supported_versions(um);
 	check_utf8_nfdi(um);
 	check_utf8_nfdicf(um);
 	check_utf8_comparisons(um);
