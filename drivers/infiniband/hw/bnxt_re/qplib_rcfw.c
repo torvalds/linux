@@ -78,7 +78,7 @@ static int __block_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie)
 	if (!test_bit(cbit, cmdq->cmdq_bitmap))
 		goto done;
 	do {
-		mdelay(1); /* 1m sec */
+		udelay(1);
 		bnxt_qplib_service_creq(&rcfw->creq.creq_tasklet);
 	} while (test_bit(cbit, cmdq->cmdq_bitmap) && --count);
 done:
