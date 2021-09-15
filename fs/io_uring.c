@@ -1809,17 +1809,11 @@ static void io_req_complete_post(struct io_kiocb *req, long res,
 		io_put_task(req->task, 1);
 		list_add(&req->inflight_entry, &ctx->locked_free_list);
 		ctx->locked_free_nr++;
-	} else {
-		if (!percpu_ref_tryget(&ctx->refs))
-			req = NULL;
+		percpu_ref_put(&ctx->refs);
 	}
 	io_commit_cqring(ctx);
 	spin_unlock(&ctx->completion_lock);
-
-	if (req) {
-		io_cqring_ev_posted(ctx);
-		percpu_ref_put(&ctx->refs);
-	}
+	io_cqring_ev_posted(ctx);
 }
 
 static inline bool io_req_needs_clean(struct io_kiocb *req)
