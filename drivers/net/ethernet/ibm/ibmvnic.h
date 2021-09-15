@@ -967,6 +967,7 @@ struct ibmvnic_adapter {
 	u64 min_mtu;
 	u64 max_mtu;
 	u64 req_mtu;
+	u64 prev_mtu;
 	u64 max_multicast_filters;
 	u64 vlan_header_insertion;
 	u64 rx_vlan_header_insertion;
@@ -988,6 +989,7 @@ struct ibmvnic_adapter {
 	u32 num_active_tx_pools;
 
 	u32 prev_rx_pool_size;
+	u32 prev_tx_pool_size;
 	u32 cur_rx_buf_sz;
 	u32 prev_rx_buf_sz;
 
