@@ -371,6 +371,8 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 		}
 
 		index = pool->free_map[pool->next_free];
+		pool->free_map[pool->next_free] = IBMVNIC_INVALID_MAP;
+		pool->next_free = (pool->next_free + 1) % pool->size;
 
 		if (pool->rx_buff[index].skb)
 			dev_err(dev, "Inconsistent free_map!\n");
@@ -380,14 +382,15 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 		dst = pool->long_term_buff.buff + offset;
 		memset(dst, 0, pool->buff_size);
 		dma_addr = pool->long_term_buff.addr + offset;
-		pool->rx_buff[index].data = dst;
 
-		pool->free_map[pool->next_free] = IBMVNIC_INVALID_MAP;
+		/* add the skb to an rx_buff in the pool */
+		pool->rx_buff[index].data = dst;
 		pool->rx_buff[index].dma = dma_addr;
 		pool->rx_buff[index].skb = skb;
 		pool->rx_buff[index].pool_index = pool->index;
 		pool->rx_buff[index].size = pool->buff_size;
 
+		/* queue the rx_buff for the next send_subcrq_indirect */
 		sub_crq = &ind_bufp->indir_arr[ind_bufp->index++];
 		memset(sub_crq, 0, sizeof(*sub_crq));
 		sub_crq->rx_add.first = IBMVNIC_CRQ_CMD;
@@ -405,7 +408,8 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 		shift = 8;
 #endif
 		sub_crq->rx_add.len = cpu_to_be32(pool->buff_size << shift);
-		pool->next_free = (pool->next_free + 1) % pool->size;
+
+		/* if send_subcrq_indirect queue is full, flush to VIOS */
 		if (ind_bufp->index == IBMVNIC_MAX_IND_DESCS ||
 		    i == count - 1) {
 			lpar_rc =
