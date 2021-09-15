@@ -610,7 +610,7 @@
 		clock-names = "fck";
 		#address-cells = <3>;
 		#size-cells = <2>;
-		bus-range = <0x0 0xf>;
+		bus-range = <0x0 0xff>;
 		vendor-id = <0x104c>;
 		device-id = <0xb00d>;
 		msi-map = <0x0 &gic_its 0x0 0x10000>;
@@ -658,7 +658,7 @@
 		clock-names = "fck";
 		#address-cells = <3>;
 		#size-cells = <2>;
-		bus-range = <0x0 0xf>;
+		bus-range = <0x0 0xff>;
 		vendor-id = <0x104c>;
 		device-id = <0xb00d>;
 		msi-map = <0x0 &gic_its 0x10000 0x10000>;
@@ -706,7 +706,7 @@
 		clock-names = "fck";
 		#address-cells = <3>;
 		#size-cells = <2>;
-		bus-range = <0x0 0xf>;
+		bus-range = <0x0 0xff>;
 		vendor-id = <0x104c>;
 		device-id = <0xb00d>;
 		msi-map = <0x0 &gic_its 0x20000 0x10000>;
@@ -754,7 +754,7 @@
 		clock-names = "fck";
 		#address-cells = <3>;
 		#size-cells = <2>;
-		bus-range = <0x0 0xf>;
+		bus-range = <0x0 0xff>;
 		vendor-id = <0x104c>;
 		device-id = <0xb00d>;
 		msi-map = <0x0 &gic_its 0x30000 0x10000>;
