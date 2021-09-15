@@ -219,10 +219,7 @@ struct unicode_map *utf8_load(const char *version)
 	um = kzalloc(sizeof(struct unicode_map), GFP_KERNEL);
 	if (!um)
 		return ERR_PTR(-ENOMEM);
-
-	um->charset = "UTF-8";
 	um->version = unicode_version;
-
 	return um;
 }
 EXPORT_SYMBOL(utf8_load);
