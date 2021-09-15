@@ -514,13 +514,6 @@ enum odm_mac_phy_mode {
 	ODM_DMDP	= 2,
 };
 
-enum odm_bt_coexist {
-	ODM_BT_BUSY		= 1,
-	ODM_BT_ON		= 2,
-	ODM_BT_OFF		= 3,
-	ODM_BT_NONE		= 4,
-};
-
 /*  ODM_CMNINFO_OP_MODE */
 enum odm_operation_mode {
 	ODM_NO_LINK		= BIT(0),
