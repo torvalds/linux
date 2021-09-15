@@ -633,6 +633,7 @@
 		clocks = <&k3_clks 240 6>;
 		clock-names = "fck";
 		max-functions = /bits/ 8 <6>;
+		max-virtual-functions = /bits/ 8 <4 4 4 4 0 0>;
 		dma-coherent;
 	};
 
