@@ -34,22 +34,6 @@ extern const struct utf8data *utf8nfdi(unsigned int maxage);
 extern const struct utf8data *utf8nfdicf(unsigned int maxage);
 
 /*
- * Determine the maximum age of any unicode character in the string.
- * Returns 0 if only unassigned code points are present.
- * Returns -1 if the input is not valid UTF-8.
- */
-extern int utf8agemax(const struct utf8data *data, const char *s);
-extern int utf8nagemax(const struct utf8data *data, const char *s, size_t len);
-
-/*
- * Determine the minimum age of any unicode character in the string.
- * Returns 0 if any unassigned code points are present.
- * Returns -1 if the input is not valid UTF-8.
- */
-extern int utf8agemin(const struct utf8data *data, const char *s);
-extern int utf8nagemin(const struct utf8data *data, const char *s, size_t len);
-
-/*
  * Determine the length of the normalized from of the string,
  * excluding any terminating NULL byte.
  * Returns 0 if only ignorable code points are present.
