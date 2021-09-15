@@ -297,13 +297,6 @@
 	/*Y0-Y7*/	"","","","","","","","",
 	/*Z0-Z7*/	"","","","","","","","";
 
-	pin_mclr_vpp {
-		gpio-hog;
-		gpios = <ASPEED_GPIO(P, 7) GPIO_OPEN_DRAIN>;
-		output-high;
-		line-name = "mclr_vpp";
-	};
-
 	i2c3_mux_oe_n {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(G, 6) GPIO_ACTIVE_LOW>;
