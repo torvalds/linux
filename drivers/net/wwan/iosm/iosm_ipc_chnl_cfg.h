@@ -23,7 +23,6 @@ enum ipc_channel_id {
 	IPC_MEM_CTRL_CHL_ID_4,
 	IPC_MEM_CTRL_CHL_ID_5,
 	IPC_MEM_CTRL_CHL_ID_6,
-	IPC_MEM_CTRL_CHL_ID_7,
 };
 
 /**
