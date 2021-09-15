@@ -684,8 +684,10 @@ mlxsw_env_module_oper_state_event_enable(struct mlxsw_core *mlxsw_core,
 	for (i = 0; i < module_count; i++) {
 		char pmaos_pl[MLXSW_REG_PMAOS_LEN];
 
-		mlxsw_reg_pmaos_pack(pmaos_pl, i,
-				     MLXSW_REG_PMAOS_E_GENERATE_EVENT);
+		mlxsw_reg_pmaos_pack(pmaos_pl, i);
+		mlxsw_reg_pmaos_e_set(pmaos_pl,
+				      MLXSW_REG_PMAOS_E_GENERATE_EVENT);
+		mlxsw_reg_pmaos_ee_set(pmaos_pl, true);
 		err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(pmaos), pmaos_pl);
 		if (err)
 			return err;
