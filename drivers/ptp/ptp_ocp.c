@@ -1158,8 +1158,12 @@ ptp_ocp_register_resources(struct ptp_ocp *bp, kernel_ulong_t driver_data)
 		if (!ptp_ocp_allow_irq(bp, r))
 			continue;
 		err = r->setup(bp, r);
-		if (err)
+		if (err) {
+			dev_err(&bp->pdev->dev,
+				"Could not register %s: err %d\n",
+				r->name, err);
 			break;
+		}
 	}
 	return err;
 }
