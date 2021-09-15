@@ -15,25 +15,18 @@ struct utf8data {
 #include "utf8data.h"
 #undef __INCLUDED_FROM_UTF8NORM_C__
 
-int utf8version_is_supported(u8 maj, u8 min, u8 rev)
+int utf8version_is_supported(unsigned int version)
 {
 	int i = ARRAY_SIZE(utf8agetab) - 1;
-	unsigned int sb_utf8version = UNICODE_AGE(maj, min, rev);
 
 	while (i >= 0 && utf8agetab[i] != 0) {
-		if (sb_utf8version == utf8agetab[i])
+		if (version == utf8agetab[i])
 			return 1;
 		i--;
 	}
 	return 0;
 }
 EXPORT_SYMBOL(utf8version_is_supported);
-
-int utf8version_latest(void)
-{
-	return utf8vers;
-}
-EXPORT_SYMBOL(utf8version_latest);
 
 /*
  * UTF-8 valid ranges.

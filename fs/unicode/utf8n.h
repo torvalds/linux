@@ -11,19 +11,9 @@
 #include <linux/export.h>
 #include <linux/string.h>
 #include <linux/module.h>
+#include <linux/unicode.h>
 
-/* Encoding a unicode version number as a single unsigned int. */
-#define UNICODE_MAJ_SHIFT		(16)
-#define UNICODE_MIN_SHIFT		(8)
-
-#define UNICODE_AGE(MAJ, MIN, REV)			\
-	(((unsigned int)(MAJ) << UNICODE_MAJ_SHIFT) |	\
-	 ((unsigned int)(MIN) << UNICODE_MIN_SHIFT) |	\
-	 ((unsigned int)(REV)))
-
-/* Highest unicode version supported by the data tables. */
-extern int utf8version_is_supported(u8 maj, u8 min, u8 rev);
-extern int utf8version_latest(void);
+int utf8version_is_supported(unsigned int version);
 
 /*
  * Look for the correct const struct utf8data for a unicode version.
