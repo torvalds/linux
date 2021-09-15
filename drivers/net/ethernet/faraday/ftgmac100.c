@@ -34,8 +34,8 @@
 /* Arbitrary values, I am not sure the HW has limits */
 #define MAX_RX_QUEUE_ENTRIES	1024
 #define MAX_TX_QUEUE_ENTRIES	1024
-#define MIN_RX_QUEUE_ENTRIES	32
-#define MIN_TX_QUEUE_ENTRIES	32
+#define MIN_RX_QUEUE_ENTRIES	64
+#define MIN_TX_QUEUE_ENTRIES	64
 
 /* Defaults */
 #define DEF_RX_QUEUE_ENTRIES	128
