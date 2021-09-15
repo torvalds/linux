@@ -55,6 +55,7 @@ struct mlx5e_ktls_offload_context_rx {
 	DECLARE_BITMAP(flags, MLX5E_NUM_PRIV_RX_FLAGS);
 
 	/* resync */
+	spinlock_t lock; /* protects resync fields */
 	struct mlx5e_ktls_rx_resync_ctx resync;
 	struct list_head list;
 };
@@ -386,14 +387,18 @@ static void resync_handle_seq_match(struct mlx5e_ktls_offload_context_rx *priv_r
 	struct mlx5e_icosq *sq;
 	bool trigger_poll;
 
-	memcpy(info->rec_seq, &priv_rx->resync.sw_rcd_sn_be, sizeof(info->rec_seq));
-
 	sq = &c->async_icosq;
 	ktls_resync = sq->ktls_resync;
+	trigger_poll = false;
 
 	spin_lock_bh(&ktls_resync->lock);
-	list_add_tail(&priv_rx->list, &ktls_resync->list);
-	trigger_poll = !test_and_set_bit(MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC, &sq->state);
+	spin_lock_bh(&priv_rx->lock);
+	memcpy(info->rec_seq, &priv_rx->resync.sw_rcd_sn_be, sizeof(info->rec_seq));
+	if (list_empty(&priv_rx->list)) {
+		list_add_tail(&priv_rx->list, &ktls_resync->list);
+		trigger_poll = !test_and_set_bit(MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC, &sq->state);
+	}
+	spin_unlock_bh(&priv_rx->lock);
 	spin_unlock_bh(&ktls_resync->lock);
 
 	if (!trigger_poll)
@@ -617,6 +622,8 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 	if (err)
 		goto err_create_key;
 
+	INIT_LIST_HEAD(&priv_rx->list);
+	spin_lock_init(&priv_rx->lock);
 	priv_rx->crypto_info  =
 		*(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
 
@@ -730,10 +737,14 @@ bool mlx5e_ktls_rx_handle_resync_list(struct mlx5e_channel *c, int budget)
 		priv_rx = list_first_entry(&local_list,
 					   struct mlx5e_ktls_offload_context_rx,
 					   list);
+		spin_lock(&priv_rx->lock);
 		cseg = post_static_params(sq, priv_rx);
-		if (IS_ERR(cseg))
+		if (IS_ERR(cseg)) {
+			spin_unlock(&priv_rx->lock);
 			break;
-		list_del(&priv_rx->list);
+		}
+		list_del_init(&priv_rx->list);
+		spin_unlock(&priv_rx->lock);
 		db_cseg = cseg;
 	}
 	if (db_cseg)
