@@ -790,22 +790,6 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol,
 }
 EXPORT_SYMBOL(snd_sof_ipc_set_get_comp_data);
 
-/*
- * IPC layer enumeration.
- */
-
-int snd_sof_dsp_mailbox_init(struct snd_sof_dev *sdev, u32 dspbox,
-			     size_t dspbox_size, u32 hostbox,
-			     size_t hostbox_size)
-{
-	sdev->dsp_box.offset = dspbox;
-	sdev->dsp_box.size = dspbox_size;
-	sdev->host_box.offset = hostbox;
-	sdev->host_box.size = hostbox_size;
-	return 0;
-}
-EXPORT_SYMBOL(snd_sof_dsp_mailbox_init);
-
 int snd_sof_ipc_valid(struct snd_sof_dev *sdev)
 {
 	struct sof_ipc_fw_ready *ready = &sdev->fw_ready;
