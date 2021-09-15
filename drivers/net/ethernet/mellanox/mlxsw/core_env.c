@@ -392,6 +392,59 @@ mlxsw_env_get_module_eeprom_by_page(struct mlxsw_core *mlxsw_core, u8 module,
 }
 EXPORT_SYMBOL(mlxsw_env_get_module_eeprom_by_page);
 
+static int mlxsw_env_module_reset(struct mlxsw_core *mlxsw_core, u8 module)
+{
+	char pmaos_pl[MLXSW_REG_PMAOS_LEN];
+
+	mlxsw_reg_pmaos_pack(pmaos_pl, module);
+	mlxsw_reg_pmaos_rst_set(pmaos_pl, true);
+
+	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(pmaos), pmaos_pl);
+}
+
+int mlxsw_env_reset_module(struct net_device *netdev,
+			   struct mlxsw_core *mlxsw_core, u8 module, u32 *flags)
+{
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
+	u32 req = *flags;
+	int err;
+
+	if (!(req & ETH_RESET_PHY) &&
+	    !(req & (ETH_RESET_PHY << ETH_RESET_SHARED_SHIFT)))
+		return 0;
+
+	if (WARN_ON_ONCE(module >= mlxsw_env->module_count))
+		return -EINVAL;
+
+	mutex_lock(&mlxsw_env->module_info_lock);
+
+	if (mlxsw_env->module_info[module].num_ports_up) {
+		netdev_err(netdev, "Cannot reset module when ports using it are administratively up\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+	if (mlxsw_env->module_info[module].num_ports_mapped > 1 &&
+	    !(req & (ETH_RESET_PHY << ETH_RESET_SHARED_SHIFT))) {
+		netdev_err(netdev, "Cannot reset module without \"phy-shared\" flag when shared by multiple ports\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+	err = mlxsw_env_module_reset(mlxsw_core, module);
+	if (err) {
+		netdev_err(netdev, "Failed to reset module\n");
+		goto out;
+	}
+
+	*flags &= ~(ETH_RESET_PHY | (ETH_RESET_PHY << ETH_RESET_SHARED_SHIFT));
+
+out:
+	mutex_unlock(&mlxsw_env->module_info_lock);
+	return err;
+}
+EXPORT_SYMBOL(mlxsw_env_reset_module);
+
 static int mlxsw_env_module_has_temp_sensor(struct mlxsw_core *mlxsw_core,
 					    u8 module,
 					    bool *p_has_temp_sensor)
