@@ -1109,7 +1109,7 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 	struct iwl_tas_config_cmd cmd = {};
 	int list_size;
 
-	BUILD_BUG_ON(ARRAY_SIZE(cmd.black_list_array) <
+	BUILD_BUG_ON(ARRAY_SIZE(cmd.block_list_array) <
 		     APCI_WTAS_BLACK_LIST_MAX);
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TAS_CFG)) {
@@ -1117,7 +1117,7 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 		return;
 	}
 
-	ret = iwl_acpi_get_tas(&mvm->fwrt, cmd.black_list_array, &list_size);
+	ret = iwl_acpi_get_tas(&mvm->fwrt, cmd.block_list_array, &list_size);
 	if (ret < 0) {
 		IWL_DEBUG_RADIO(mvm,
 				"TAS table invalid or unavailable. (%d)\n",
@@ -1129,7 +1129,7 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 		return;
 
 	/* list size if TAS enabled can only be non-negative */
-	cmd.black_list_size = cpu_to_le32((u32)list_size);
+	cmd.block_list_size = cpu_to_le32((u32)list_size);
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						TAS_CONFIG),

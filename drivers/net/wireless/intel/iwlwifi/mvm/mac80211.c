@@ -2279,9 +2279,9 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 	int ret;
 
 	/*
-	 * Re-calculate the tsf id, as the master-slave relations depend on the
-	 * beacon interval, which was not known when the station interface was
-	 * added.
+	 * Re-calculate the tsf id, as the leader-follower relations depend
+	 * on the beacon interval, which was not known when the station
+	 * interface was added.
 	 */
 	if (changes & BSS_CHANGED_ASSOC && bss_conf->assoc) {
 		if (vif->bss_conf.he_support &&
@@ -2499,8 +2499,9 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 		goto out_unlock;
 
 	/*
-	 * Re-calculate the tsf id, as the master-slave relations depend on the
-	 * beacon interval, which was not known when the AP interface was added.
+	 * Re-calculate the tsf id, as the leader-follower relations depend on
+	 * the beacon interval, which was not known when the AP interface
+	 * was added.
 	 */
 	if (vif->type == NL80211_IFTYPE_AP)
 		iwl_mvm_mac_ctxt_recalc_tsf_id(mvm, vif);
@@ -3116,7 +3117,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		 * than 16. We can't avoid connecting at all, so refuse the
 		 * station state change, this will cause mac80211 to abandon
 		 * attempts to connect to this AP, and eventually wpa_s will
-		 * blacklist the AP...
+		 * blocklist the AP...
 		 */
 		if (vif->type == NL80211_IFTYPE_STATION &&
 		    vif->bss_conf.beacon_int < 16) {

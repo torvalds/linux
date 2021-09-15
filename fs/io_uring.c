@@ -889,6 +889,7 @@ static const struct io_op_def io_op_defs[] = {
 	},
 	[IORING_OP_WRITE] = {
 		.needs_file		= 1,
+		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.async_size		= sizeof(struct io_async_rw),
