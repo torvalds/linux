@@ -1421,14 +1421,14 @@ static int rcsi2_probe(struct platform_device *pdev)
 	ret = rcsi2_probe_resources(priv, pdev);
 	if (ret) {
 		dev_err(priv->dev, "Failed to get resources\n");
-		return ret;
+		goto error_mutex;
 	}
 
 	platform_set_drvdata(pdev, priv);
 
 	ret = rcsi2_parse_dt(priv);
 	if (ret)
-		return ret;
+		goto error_mutex;
 
 	priv->subdev.owner = THIS_MODULE;
 	priv->subdev.dev = &pdev->dev;
@@ -1450,21 +1450,23 @@ static int rcsi2_probe(struct platform_device *pdev)
 	ret = media_entity_pads_init(&priv->subdev.entity, num_pads,
 				     priv->pads);
 	if (ret)
-		goto error;
+		goto error_async;
 
 	pm_runtime_enable(&pdev->dev);
 
 	ret = v4l2_async_register_subdev(&priv->subdev);
 	if (ret < 0)
-		goto error;
+		goto error_async;
 
 	dev_info(priv->dev, "%d lanes found\n", priv->lanes);
 
 	return 0;
 
-error:
+error_async:
 	v4l2_async_nf_unregister(&priv->notifier);
 	v4l2_async_nf_cleanup(&priv->notifier);
+error_mutex:
+	mutex_destroy(&priv->lock);
 
 	return ret;
 }
@@ -1478,6 +1480,8 @@ static int rcsi2_remove(struct platform_device *pdev)
 	v4l2_async_unregister_subdev(&priv->subdev);
 
 	pm_runtime_disable(&pdev->dev);
+
+	mutex_destroy(&priv->lock);
 
 	return 0;
 }
