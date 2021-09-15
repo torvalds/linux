@@ -36,7 +36,7 @@
  * place.
  */
 #define PARAM			ZERO_PGE
-#define COMMAND_LINE		((char *)(PARAM + 0x0000))
+#define COMMAND_LINE		((char *)(absolute_pointer(PARAM + 0x0000)))
 #define INITRD_START		(*(unsigned long *) (PARAM+0x100))
 #define INITRD_SIZE		(*(unsigned long *) (PARAM+0x108))
 
