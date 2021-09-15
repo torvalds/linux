@@ -362,7 +362,6 @@ static int snd_sof_fw_ext_man_parse(struct snd_sof_dev *sdev,
  */
 static void sof_get_windows(struct snd_sof_dev *sdev)
 {
-	int bar = snd_sof_dsp_get_bar_index(sdev, SOF_FW_BLK_TYPE_SRAM);
 	struct sof_ipc_window_elem *elem;
 	u32 outbox_offset = 0;
 	u32 stream_offset = 0;
@@ -394,64 +393,53 @@ static void sof_get_windows(struct snd_sof_dev *sdev)
 		case SOF_IPC_REGION_UPBOX:
 			inbox_offset = window_offset + elem->offset;
 			inbox_size = elem->size;
-			snd_sof_debugfs_io_item(sdev,
-						sdev->bar[bar] +
-						inbox_offset,
-						elem->size, "inbox",
-						SOF_DEBUGFS_ACCESS_D0_ONLY);
+			snd_sof_debugfs_add_region_item(sdev, SOF_FW_BLK_TYPE_SRAM,
+							inbox_offset,
+							elem->size, "inbox",
+							SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_DOWNBOX:
 			outbox_offset = window_offset + elem->offset;
 			outbox_size = elem->size;
-			snd_sof_debugfs_io_item(sdev,
-						sdev->bar[bar] +
-						outbox_offset,
-						elem->size, "outbox",
-						SOF_DEBUGFS_ACCESS_D0_ONLY);
+			snd_sof_debugfs_add_region_item(sdev, SOF_FW_BLK_TYPE_SRAM,
+							outbox_offset,
+							elem->size, "outbox",
+							SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_TRACE:
-			snd_sof_debugfs_io_item(sdev,
-						sdev->bar[bar] +
-						window_offset +
-						elem->offset,
-						elem->size, "etrace",
-						SOF_DEBUGFS_ACCESS_D0_ONLY);
+			snd_sof_debugfs_add_region_item(sdev, SOF_FW_BLK_TYPE_SRAM,
+							window_offset + elem->offset,
+							elem->size, "etrace",
+							SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_DEBUG:
 			debug_offset = window_offset + elem->offset;
 			debug_size = elem->size;
-			snd_sof_debugfs_io_item(sdev,
-						sdev->bar[bar] +
-						window_offset +
-						elem->offset,
-						elem->size, "debug",
-						SOF_DEBUGFS_ACCESS_D0_ONLY);
+			snd_sof_debugfs_add_region_item(sdev, SOF_FW_BLK_TYPE_SRAM,
+							window_offset + elem->offset,
+							elem->size, "debug",
+							SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_STREAM:
 			stream_offset = window_offset + elem->offset;
 			stream_size = elem->size;
-			snd_sof_debugfs_io_item(sdev,
-						sdev->bar[bar] +
-						stream_offset,
-						elem->size, "stream",
-						SOF_DEBUGFS_ACCESS_D0_ONLY);
+			snd_sof_debugfs_add_region_item(sdev, SOF_FW_BLK_TYPE_SRAM,
+							stream_offset,
+							elem->size, "stream",
+							SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_REGS:
-			snd_sof_debugfs_io_item(sdev,
-						sdev->bar[bar] +
-						window_offset +
-						elem->offset,
-						elem->size, "regs",
-						SOF_DEBUGFS_ACCESS_D0_ONLY);
+			snd_sof_debugfs_add_region_item(sdev, SOF_FW_BLK_TYPE_SRAM,
+							window_offset + elem->offset,
+							elem->size, "regs",
+							SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_EXCEPTION:
 			sdev->dsp_oops_offset = window_offset + elem->offset;
-			snd_sof_debugfs_io_item(sdev,
-						sdev->bar[bar] +
-						window_offset +
-						elem->offset,
-						elem->size, "exception",
-						SOF_DEBUGFS_ACCESS_D0_ONLY);
+			snd_sof_debugfs_add_region_item(sdev, SOF_FW_BLK_TYPE_SRAM,
+							window_offset + elem->offset,
+							elem->size, "exception",
+							SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		default:
 			dev_err(sdev->dev, "error: get illegal window info\n");
