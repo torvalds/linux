@@ -457,22 +457,6 @@ int utf8ncursor(struct utf8cursor *u8c, const struct utf8data *data,
 EXPORT_SYMBOL(utf8ncursor);
 
 /*
- * Set up an utf8cursor for use by utf8byte().
- *
- *   u8c    : pointer to cursor.
- *   data   : const struct utf8data to use for normalization.
- *   s      : NUL-terminated string.
- *
- * Returns -1 on error, 0 on success.
- */
-int utf8cursor(struct utf8cursor *u8c, const struct utf8data *data,
-	       const char *s)
-{
-	return utf8ncursor(u8c, data, s, (unsigned int)-1);
-}
-EXPORT_SYMBOL(utf8cursor);
-
-/*
  * Get one byte from the normalized form of the string described by u8c.
  *
  * Returns the byte cast to an unsigned char on succes, and -1 on failure.
