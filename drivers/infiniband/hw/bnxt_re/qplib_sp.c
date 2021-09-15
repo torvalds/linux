@@ -161,6 +161,7 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	attr->l2_db_size = (sb->l2_db_space_size + 1) *
 			    (0x01 << RCFW_DBR_BASE_PAGE_SHIFT);
 	attr->max_sgid = BNXT_QPLIB_NUM_GIDS_SUPPORTED;
+	attr->dev_cap_flags = le16_to_cpu(sb->dev_cap_flags);
 
 	bnxt_qplib_query_version(rcfw, attr->fw_ver);
 
@@ -864,6 +865,56 @@ int bnxt_qplib_get_roce_stats(struct bnxt_qplib_rcfw *rcfw,
 				 rcfw->oos_prev) & BNXT_QPLIB_OOS_COUNT_MASK;
 		rcfw->oos_prev = le64_to_cpu(sb->res_oos_drop_count);
 	}
+
+bail:
+	bnxt_qplib_rcfw_free_sbuf(rcfw, sbuf);
+	return rc;
+}
+
+int bnxt_qplib_qext_stat(struct bnxt_qplib_rcfw *rcfw, u32 fid,
+			 struct bnxt_qplib_ext_stat *estat)
+{
+	struct creq_query_roce_stats_ext_resp resp = {};
+	struct creq_query_roce_stats_ext_resp_sb *sb;
+	struct cmdq_query_roce_stats_ext req = {};
+	struct bnxt_qplib_rcfw_sbuf *sbuf;
+	u16 cmd_flags = 0;
+	int rc;
+
+	sbuf = bnxt_qplib_rcfw_alloc_sbuf(rcfw, sizeof(*sb));
+	if (!sbuf) {
+		dev_err(&rcfw->pdev->dev,
+			"SP: QUERY_ROCE_STATS_EXT alloc sb failed");
+		return -ENOMEM;
+	}
+
+	RCFW_CMD_PREP(req, QUERY_ROCE_STATS_EXT, cmd_flags);
+
+	req.resp_size = ALIGN(sizeof(*sb), BNXT_QPLIB_CMDQE_UNITS);
+	req.resp_addr = cpu_to_le64(sbuf->dma_addr);
+	req.function_id = cpu_to_le32(fid);
+	req.flags = cpu_to_le16(CMDQ_QUERY_ROCE_STATS_EXT_FLAGS_FUNCTION_ID);
+
+	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
+					  (void *)&resp, (void *)sbuf, 0);
+	if (rc)
+		goto bail;
+
+	sb = sbuf->sb;
+	estat->tx_atomic_req = le64_to_cpu(sb->tx_atomic_req_pkts);
+	estat->tx_read_req = le64_to_cpu(sb->tx_read_req_pkts);
+	estat->tx_read_res = le64_to_cpu(sb->tx_read_res_pkts);
+	estat->tx_write_req = le64_to_cpu(sb->tx_write_req_pkts);
+	estat->tx_send_req = le64_to_cpu(sb->tx_send_req_pkts);
+	estat->rx_atomic_req = le64_to_cpu(sb->rx_atomic_req_pkts);
+	estat->rx_read_req = le64_to_cpu(sb->rx_read_req_pkts);
+	estat->rx_read_res = le64_to_cpu(sb->rx_read_res_pkts);
+	estat->rx_write_req = le64_to_cpu(sb->rx_write_req_pkts);
+	estat->rx_send_req = le64_to_cpu(sb->rx_send_req_pkts);
+	estat->rx_roce_good_pkts = le64_to_cpu(sb->rx_roce_good_pkts);
+	estat->rx_roce_good_bytes = le64_to_cpu(sb->rx_roce_good_bytes);
+	estat->rx_out_of_buffer = le64_to_cpu(sb->rx_out_of_buffer_pkts);
+	estat->rx_out_of_sequence = le64_to_cpu(sb->rx_out_of_sequence_pkts);
 
 bail:
 	bnxt_qplib_rcfw_free_sbuf(rcfw, sbuf);

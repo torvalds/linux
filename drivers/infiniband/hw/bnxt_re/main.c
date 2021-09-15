@@ -127,6 +127,8 @@ static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev, u8 wqe_mode)
 
 	rdev->qplib_res.cctx = rdev->chip_ctx;
 	rdev->rcfw.res = &rdev->qplib_res;
+	rdev->qplib_res.dattr = &rdev->dev_attr;
+	rdev->qplib_res.is_vf = BNXT_VF(bp);
 
 	bnxt_re_set_drv_mode(rdev, wqe_mode);
 	if (bnxt_qplib_determine_atomics(en_dev->pdev))
@@ -777,6 +779,8 @@ static struct bnxt_re_dev *bnxt_re_dev_add(struct net_device *netdev,
 	atomic_set(&rdev->srq_count, 0);
 	atomic_set(&rdev->mr_count, 0);
 	atomic_set(&rdev->mw_count, 0);
+	atomic_set(&rdev->ah_count, 0);
+	atomic_set(&rdev->pd_count, 0);
 	rdev->cosq[0] = 0xFFFF;
 	rdev->cosq[1] = 0xFFFF;
 
