@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/sound/cs35l41.yaml#
+$id: http://devicetree.org/schemas/sound/cirrus,cs35l41.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Cirrus Logic CS35L41 Speaker Amplifier
@@ -135,17 +135,23 @@ required:
   - cirrus,boost-ind-nanohenry
   - cirrus,boost-cap-microfarad
 
-unevaluatedProperties: false
+additionalProperties: false
 
 examples:
   - |
-      cs35l41: cs35l41@2 {
-        compatible = "cirrus,cs35l41";
-        reg = <2>;
-        VA-supply = <&dummy_vreg>;
-        VP-supply = <&dummy_vreg>;
-        reset-gpios = <&gpio 110 0>;
-        cirrus,boost-peak-milliamp = <4500>;
-        cirrus,boost-ind-nanohenry = <1000>;
-        cirrus,boost-cap-microfarad = <15>;
-      };
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        cs35l41: cs35l41@2 {
+          #sound-dai-cells = <1>;
+          compatible = "cirrus,cs35l41";
+          reg = <2>;
+          VA-supply = <&dummy_vreg>;
+          VP-supply = <&dummy_vreg>;
+          reset-gpios = <&gpio 110 0>;
+          cirrus,boost-peak-milliamp = <4500>;
+          cirrus,boost-ind-nanohenry = <1000>;
+          cirrus,boost-cap-microfarad = <15>;
+        };
+    };
