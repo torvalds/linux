@@ -1379,10 +1379,8 @@ static int hinic_probe(struct pci_dev *pdev,
 {
 	int err = pci_enable_device(pdev);
 
-	if (err) {
-		dev_err(&pdev->dev, "Failed to enable PCI device\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&pdev->dev, err, "Failed to enable PCI device\n");
 
 	err = pci_request_regions(pdev, HINIC_DRV_NAME);
 	if (err) {
