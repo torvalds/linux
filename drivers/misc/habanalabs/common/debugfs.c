@@ -209,12 +209,12 @@ static int userptr_show(struct seq_file *s, void *data)
 		if (first) {
 			first = false;
 			seq_puts(s, "\n");
-			seq_puts(s, " user virtual address     size             dma dir\n");
+			seq_puts(s, " pid      user virtual address     size             dma dir\n");
 			seq_puts(s, "----------------------------------------------------------\n");
 		}
-		seq_printf(s,
-			"    0x%-14llx      %-10u    %-30s\n",
-			userptr->addr, userptr->size, dma_dir[userptr->dir]);
+		seq_printf(s, " %-7d  0x%-14llx      %-10llu    %-30s\n",
+				userptr->pid, userptr->addr, userptr->size,
+				dma_dir[userptr->dir]);
 	}
 
 	spin_unlock(&dev_entry->userptr_spinlock);
@@ -235,7 +235,7 @@ static int vm_show(struct seq_file *s, void *data)
 	struct hl_vm_hash_node *hnode;
 	struct hl_userptr *userptr;
 	struct hl_vm_phys_pg_pack *phys_pg_pack = NULL;
-	enum vm_type_t *vm_type;
+	enum vm_type *vm_type;
 	bool once = true;
 	u64 j;
 	int i;
@@ -261,7 +261,7 @@ static int vm_show(struct seq_file *s, void *data)
 			if (*vm_type == VM_TYPE_USERPTR) {
 				userptr = hnode->ptr;
 				seq_printf(s,
-					"    0x%-14llx      %-10u\n",
+					"    0x%-14llx      %-10llu\n",
 					hnode->vaddr, userptr->size);
 			} else {
 				phys_pg_pack = hnode->ptr;
@@ -320,6 +320,77 @@ static int vm_show(struct seq_file *s, void *data)
 	return 0;
 }
 
+static int userptr_lookup_show(struct seq_file *s, void *data)
+{
+	struct hl_debugfs_entry *entry = s->private;
+	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
+	struct scatterlist *sg;
+	struct hl_userptr *userptr;
+	bool first = true;
+	u64 total_npages, npages, sg_start, sg_end;
+	dma_addr_t dma_addr;
+	int i;
+
+	spin_lock(&dev_entry->userptr_spinlock);
+
+	list_for_each_entry(userptr, &dev_entry->userptr_list, debugfs_list) {
+		if (dev_entry->userptr_lookup >= userptr->addr &&
+		dev_entry->userptr_lookup < userptr->addr + userptr->size) {
+			total_npages = 0;
+			for_each_sg(userptr->sgt->sgl, sg, userptr->sgt->nents,
+					i) {
+				npages = hl_get_sg_info(sg, &dma_addr);
+				sg_start = userptr->addr +
+					total_npages * PAGE_SIZE;
+				sg_end = userptr->addr +
+					(total_npages + npages) * PAGE_SIZE;
+
+				if (dev_entry->userptr_lookup >= sg_start &&
+				    dev_entry->userptr_lookup < sg_end) {
+					dma_addr += (dev_entry->userptr_lookup -
+							sg_start);
+					if (first) {
+						first = false;
+						seq_puts(s, "\n");
+						seq_puts(s, " user virtual address         dma address       pid        region start     region size\n");
+						seq_puts(s, "---------------------------------------------------------------------------------------\n");
+					}
+					seq_printf(s, " 0x%-18llx  0x%-16llx  %-8u  0x%-16llx %-12llu\n",
+						dev_entry->userptr_lookup,
+						(u64)dma_addr, userptr->pid,
+						userptr->addr, userptr->size);
+				}
+				total_npages += npages;
+			}
+		}
+	}
+
+	spin_unlock(&dev_entry->userptr_spinlock);
+
+	if (!first)
+		seq_puts(s, "\n");
+
+	return 0;
+}
+
+static ssize_t userptr_lookup_write(struct file *file, const char __user *buf,
+		size_t count, loff_t *f_pos)
+{
+	struct seq_file *s = file->private_data;
+	struct hl_debugfs_entry *entry = s->private;
+	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
+	ssize_t rc;
+	u64 value;
+
+	rc = kstrtoull_from_user(buf, count, 16, &value);
+	if (rc)
+		return rc;
+
+	dev_entry->userptr_lookup = value;
+
+	return count;
+}
+
 static int mmu_show(struct seq_file *s, void *data)
 {
 	struct hl_debugfs_entry *entry = s->private;
@@ -349,7 +420,7 @@ static int mmu_show(struct seq_file *s, void *data)
 		return 0;
 	}
 
-	phys_addr = hops_info.hop_info[hops_info.used_hops - 1].hop_pte_val;
+	hl_mmu_va_to_pa(ctx, virt_addr, &phys_addr);
 
 	if (hops_info.scrambled_vaddr &&
 		(dev_entry->mmu_addr != hops_info.scrambled_vaddr))
@@ -491,11 +562,10 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr, u32 size,
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
 	struct hl_ctx *ctx = hdev->compute_ctx;
 	struct hl_vm_hash_node *hnode;
+	u64 end_address, range_size;
 	struct hl_userptr *userptr;
-	enum vm_type_t *vm_type;
+	enum vm_type *vm_type;
 	bool valid = false;
-	u64 end_address;
-	u32 range_size;
 	int i, rc = 0;
 
 	if (!ctx) {
@@ -1043,6 +1113,60 @@ static ssize_t hl_security_violations_read(struct file *f, char __user *buf,
 	return 0;
 }
 
+static ssize_t hl_state_dump_read(struct file *f, char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	ssize_t rc;
+
+	down_read(&entry->state_dump_sem);
+	if (!entry->state_dump[entry->state_dump_head])
+		rc = 0;
+	else
+		rc = simple_read_from_buffer(
+			buf, count, ppos,
+			entry->state_dump[entry->state_dump_head],
+			strlen(entry->state_dump[entry->state_dump_head]));
+	up_read(&entry->state_dump_sem);
+
+	return rc;
+}
+
+static ssize_t hl_state_dump_write(struct file *f, const char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_device *hdev = entry->hdev;
+	ssize_t rc;
+	u32 size;
+	int i;
+
+	rc = kstrtouint_from_user(buf, count, 10, &size);
+	if (rc)
+		return rc;
+
+	if (size <= 0 || size >= ARRAY_SIZE(entry->state_dump)) {
+		dev_err(hdev->dev, "Invalid number of dumps to skip\n");
+		return -EINVAL;
+	}
+
+	if (entry->state_dump[entry->state_dump_head]) {
+		down_write(&entry->state_dump_sem);
+		for (i = 0; i < size; ++i) {
+			vfree(entry->state_dump[entry->state_dump_head]);
+			entry->state_dump[entry->state_dump_head] = NULL;
+			if (entry->state_dump_head > 0)
+				entry->state_dump_head--;
+			else
+				entry->state_dump_head =
+					ARRAY_SIZE(entry->state_dump) - 1;
+		}
+		up_write(&entry->state_dump_sem);
+	}
+
+	return count;
+}
+
 static const struct file_operations hl_data32b_fops = {
 	.owner = THIS_MODULE,
 	.read = hl_data_read32,
@@ -1110,12 +1234,19 @@ static const struct file_operations hl_security_violations_fops = {
 	.read = hl_security_violations_read
 };
 
+static const struct file_operations hl_state_dump_fops = {
+	.owner = THIS_MODULE,
+	.read = hl_state_dump_read,
+	.write = hl_state_dump_write
+};
+
 static const struct hl_info_list hl_debugfs_list[] = {
 	{"command_buffers", command_buffers_show, NULL},
 	{"command_submission", command_submission_show, NULL},
 	{"command_submission_jobs", command_submission_jobs_show, NULL},
 	{"userptr", userptr_show, NULL},
 	{"vm", vm_show, NULL},
+	{"userptr_lookup", userptr_lookup_show, userptr_lookup_write},
 	{"mmu", mmu_show, mmu_asid_va_write},
 	{"engines", engines_show, NULL}
 };
@@ -1172,6 +1303,7 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 	INIT_LIST_HEAD(&dev_entry->userptr_list);
 	INIT_LIST_HEAD(&dev_entry->ctx_mem_hash_list);
 	mutex_init(&dev_entry->file_mutex);
+	init_rwsem(&dev_entry->state_dump_sem);
 	spin_lock_init(&dev_entry->cb_spinlock);
 	spin_lock_init(&dev_entry->cs_spinlock);
 	spin_lock_init(&dev_entry->cs_job_spinlock);
@@ -1283,6 +1415,12 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 				dev_entry->root,
 				&hdev->skip_reset_on_timeout);
 
+	debugfs_create_file("state_dump",
+				0600,
+				dev_entry->root,
+				dev_entry,
+				&hl_state_dump_fops);
+
 	for (i = 0, entry = dev_entry->entry_arr ; i < count ; i++, entry++) {
 		debugfs_create_file(hl_debugfs_list[i].name,
 					0444,
@@ -1297,12 +1435,16 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 void hl_debugfs_remove_device(struct hl_device *hdev)
 {
 	struct hl_dbg_device_entry *entry = &hdev->hl_debugfs;
+	int i;
 
 	debugfs_remove_recursive(entry->root);
 
 	mutex_destroy(&entry->file_mutex);
 
 	vfree(entry->blob_desc.data);
+
+	for (i = 0; i < ARRAY_SIZE(entry->state_dump); ++i)
+		vfree(entry->state_dump[i]);
 
 	kfree(entry->entry_arr);
 }
@@ -1414,6 +1556,28 @@ void hl_debugfs_remove_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx)
 	spin_lock(&dev_entry->ctx_mem_hash_spinlock);
 	list_del(&ctx->debugfs_list);
 	spin_unlock(&dev_entry->ctx_mem_hash_spinlock);
+}
+
+/**
+ * hl_debugfs_set_state_dump - register state dump making it accessible via
+ *                             debugfs
+ * @hdev: pointer to the device structure
+ * @data: the actual dump data
+ * @length: the length of the data
+ */
+void hl_debugfs_set_state_dump(struct hl_device *hdev, char *data,
+					unsigned long length)
+{
+	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
+
+	down_write(&dev_entry->state_dump_sem);
+
+	dev_entry->state_dump_head = (dev_entry->state_dump_head + 1) %
+					ARRAY_SIZE(dev_entry->state_dump);
+	vfree(dev_entry->state_dump[dev_entry->state_dump_head]);
+	dev_entry->state_dump[dev_entry->state_dump_head] = data;
+
+	up_write(&dev_entry->state_dump_sem);
 }
 
 void __init hl_debugfs_init(void)

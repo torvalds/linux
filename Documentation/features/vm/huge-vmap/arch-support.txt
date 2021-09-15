@@ -1,7 +1,7 @@
 #
 # Feature name:          huge-vmap
 #         Kconfig:       HAVE_ARCH_HUGE_VMAP
-#         description:   arch supports the ioremap_pud_enabled() and ioremap_pmd_enabled() VM APIs
+#         description:   arch supports the arch_vmap_pud_supported() and arch_vmap_pmd_supported() VM APIs
 #
     -----------------------
     |         arch |status|

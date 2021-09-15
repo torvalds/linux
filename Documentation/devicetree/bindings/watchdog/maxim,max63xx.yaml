@@ -15,13 +15,13 @@ maintainers:
 
 properties:
   compatible:
-    oneOf:
-      - const: maxim,max6369
-      - const: maxim,max6370
-      - const: maxim,max6371
-      - const: maxim,max6372
-      - const: maxim,max6373
-      - const: maxim,max6374
+    enum:
+      - maxim,max6369
+      - maxim,max6370
+      - maxim,max6371
+      - maxim,max6372
+      - maxim,max6373
+      - maxim,max6374
 
   reg:
     description: This is a 1-byte memory-mapped address

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -240,11 +240,15 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	/* set fence to a non valid value */
 	pkt->fence = cpu_to_le32(UINT_MAX);
 
-	rc = hl_hw_queue_send_cb_no_cmpl(hdev, hw_queue_id, len, pkt_dma_addr);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to send CB on CPU PQ (%d)\n", rc);
-		goto out;
-	}
+	/*
+	 * The CPU queue is a synchronous queue with an effective depth of
+	 * a single entry (although it is allocated with room for multiple
+	 * entries). We lock on it using 'send_cpu_message_lock' which
+	 * serializes accesses to the CPU queue.
+	 * Which means that we don't need to lock the access to the entire H/W
+	 * queues module when submitting a JOB to the CPU queue.
+	 */
+	hl_hw_queue_submit_bd(hdev, queue, 0, len, pkt_dma_addr);
 
 	if (prop->fw_app_cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_PKT_PI_ACK_EN)
 		expected_ack_val = queue->pi;
@@ -663,17 +667,15 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev,
 	hdev->event_queue.check_eqe_index = false;
 
 	/* Read FW application security bits again */
-	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid) {
-		hdev->asic_prop.fw_app_cpu_boot_dev_sts0 =
-						RREG32(sts_boot_dev_sts0_reg);
-		if (hdev->asic_prop.fw_app_cpu_boot_dev_sts0 &
+	if (prop->fw_cpu_boot_dev_sts0_valid) {
+		prop->fw_app_cpu_boot_dev_sts0 = RREG32(sts_boot_dev_sts0_reg);
+		if (prop->fw_app_cpu_boot_dev_sts0 &
 				CPU_BOOT_DEV_STS0_EQ_INDEX_EN)
 			hdev->event_queue.check_eqe_index = true;
 	}
 
-	if (hdev->asic_prop.fw_cpu_boot_dev_sts1_valid)
-		hdev->asic_prop.fw_app_cpu_boot_dev_sts1 =
-						RREG32(sts_boot_dev_sts1_reg);
+	if (prop->fw_cpu_boot_dev_sts1_valid)
+		prop->fw_app_cpu_boot_dev_sts1 = RREG32(sts_boot_dev_sts1_reg);
 
 out:
 	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
@@ -1008,6 +1010,11 @@ void hl_fw_ask_halt_machine_without_linux(struct hl_device *hdev)
 	} else {
 		WREG32(static_loader->kmd_msg_to_cpu_reg, KMD_MSG_GOTO_WFE);
 		msleep(static_loader->cpu_reset_wait_msec);
+
+		/* Must clear this register in order to prevent preboot
+		 * from reading WFE after reboot
+		 */
+		WREG32(static_loader->kmd_msg_to_cpu_reg, KMD_MSG_NA);
 	}
 
 	hdev->device_cpu_is_halted = true;
@@ -1054,6 +1061,10 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 	case CPU_BOOT_STATUS_TS_INIT_FAIL:
 		dev_err(hdev->dev,
 			"Device boot progress - Thermal Sensor initialization failed\n");
+		break;
+	case CPU_BOOT_STATUS_SECURITY_READY:
+		dev_err(hdev->dev,
+			"Device boot progress - Stuck in preboot after security initialization\n");
 		break;
 	default:
 		dev_err(hdev->dev,
@@ -1238,11 +1249,6 @@ static void hl_fw_preboot_update_state(struct hl_device *hdev)
 	 *               b. Check whether hard reset is done by boot cpu
 	 * 3. FW application - a. Fetch fw application security status
 	 *                     b. Check whether hard reset is done by fw app
-	 *
-	 * Preboot:
-	 * Check security status bit (CPU_BOOT_DEV_STS0_ENABLED). If set, then-
-	 * check security enabled bit (CPU_BOOT_DEV_STS0_SECURITY_EN)
-	 * If set, then mark GIC controller to be disabled.
 	 */
 	prop->hard_reset_done_by_fw =
 		!!(cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN);
@@ -1953,8 +1959,8 @@ static void hl_fw_dynamic_update_linux_interrupt_if(struct hl_device *hdev)
 	if (!hdev->asic_prop.gic_interrupts_enable &&
 			!(hdev->asic_prop.fw_app_cpu_boot_dev_sts0 &
 				CPU_BOOT_DEV_STS0_MULTI_IRQ_POLL_EN)) {
-		dyn_regs->gic_host_halt_irq = dyn_regs->gic_host_irq_ctrl;
-		dyn_regs->gic_host_ints_irq = dyn_regs->gic_host_irq_ctrl;
+		dyn_regs->gic_host_halt_irq = dyn_regs->gic_host_pi_upd_irq;
+		dyn_regs->gic_host_ints_irq = dyn_regs->gic_host_pi_upd_irq;
 
 		dev_warn(hdev->dev,
 			"Using a single interrupt interface towards cpucp");
@@ -2122,8 +2128,7 @@ static void hl_fw_linux_update_state(struct hl_device *hdev,
 
 	/* Read FW application security bits */
 	if (prop->fw_cpu_boot_dev_sts0_valid) {
-		prop->fw_app_cpu_boot_dev_sts0 =
-				RREG32(cpu_boot_dev_sts0_reg);
+		prop->fw_app_cpu_boot_dev_sts0 = RREG32(cpu_boot_dev_sts0_reg);
 
 		if (prop->fw_app_cpu_boot_dev_sts0 &
 				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
@@ -2143,8 +2148,7 @@ static void hl_fw_linux_update_state(struct hl_device *hdev,
 	}
 
 	if (prop->fw_cpu_boot_dev_sts1_valid) {
-		prop->fw_app_cpu_boot_dev_sts1 =
-				RREG32(cpu_boot_dev_sts1_reg);
+		prop->fw_app_cpu_boot_dev_sts1 = RREG32(cpu_boot_dev_sts1_reg);
 
 		dev_dbg(hdev->dev,
 			"Firmware application CPU status1 %#x\n",
@@ -2235,6 +2239,10 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	dev_info(hdev->dev,
 		"Loading firmware to device, may take some time...\n");
 
+	/*
+	 * In this stage, "cpu_dyn_regs" contains only LKD's hard coded values!
+	 * It will be updated from FW after hl_fw_dynamic_request_descriptor().
+	 */
 	dyn_regs = &fw_loader->dynamic_loader.comm_desc.cpu_dyn_regs;
 
 	rc = hl_fw_dynamic_send_protocol_cmd(hdev, fw_loader, COMMS_RST_STATE,

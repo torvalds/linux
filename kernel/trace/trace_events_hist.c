@@ -508,7 +508,8 @@ struct track_data {
 struct hist_elt_data {
 	char *comm;
 	u64 *var_ref_vals;
-	char *field_var_str[SYNTH_FIELDS_MAX];
+	char **field_var_str;
+	int n_field_var_str;
 };
 
 struct snapshot_context {
@@ -1401,8 +1402,10 @@ static void hist_elt_data_free(struct hist_elt_data *elt_data)
 {
 	unsigned int i;
 
-	for (i = 0; i < SYNTH_FIELDS_MAX; i++)
+	for (i = 0; i < elt_data->n_field_var_str; i++)
 		kfree(elt_data->field_var_str[i]);
+
+	kfree(elt_data->field_var_str);
 
 	kfree(elt_data->comm);
 	kfree(elt_data);
@@ -1450,6 +1453,13 @@ static int hist_trigger_elt_data_alloc(struct tracing_map_elt *elt)
 	BUILD_BUG_ON(STR_VAR_LEN_MAX & (sizeof(u64) - 1));
 
 	size = STR_VAR_LEN_MAX;
+
+	elt_data->field_var_str = kcalloc(n_str, sizeof(char *), GFP_KERNEL);
+	if (!elt_data->field_var_str) {
+		hist_elt_data_free(elt_data);
+		return -EINVAL;
+	}
+	elt_data->n_field_var_str = n_str;
 
 	for (i = 0; i < n_str; i++) {
 		elt_data->field_var_str[i] = kzalloc(size, GFP_KERNEL);

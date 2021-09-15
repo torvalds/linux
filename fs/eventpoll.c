@@ -1687,8 +1687,8 @@ static int ep_send_events(struct eventpoll *ep,
 		if (!revents)
 			continue;
 
-		if (__put_user(revents, &events->events) ||
-		    __put_user(epi->event.data, &events->data)) {
+		events = epoll_put_uevent(revents, epi->event.data, events);
+		if (!events) {
 			list_add(&epi->rdllink, &txlist);
 			ep_pm_stay_awake(epi);
 			if (!res)
@@ -1696,7 +1696,6 @@ static int ep_send_events(struct eventpoll *ep,
 			break;
 		}
 		res++;
-		events++;
 		if (epi->event.events & EPOLLONESHOT)
 			epi->event.events &= EP_PRIVATE_BITS;
 		else if (!(epi->event.events & EPOLLET)) {

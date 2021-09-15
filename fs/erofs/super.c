@@ -546,7 +546,7 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 		return err;
 
 	if (test_opt(ctx, DAX_ALWAYS) &&
-	    !bdev_dax_supported(sb->s_bdev, EROFS_BLKSIZ)) {
+	    !dax_supported(sbi->dax_dev, sb->s_bdev, EROFS_BLKSIZ, 0, bdev_nr_sectors(sb->s_bdev))) {
 		errorfc(fc, "DAX unsupported by block device. Turning off DAX.");
 		clear_opt(ctx, DAX_ALWAYS);
 	}

@@ -2942,9 +2942,6 @@ static int rt5682_suspend(struct snd_soc_component *component)
 			break;
 		}
 
-		snd_soc_component_update_bits(component, RT5682_PWR_ANLG_3,
-			RT5682_PWR_CBJ, 0);
-
 		/* enter SAR ADC power saving mode */
 		snd_soc_component_update_bits(component, RT5682_SAR_IL_CMD_1,
 			RT5682_SAR_BUTT_DET_MASK | RT5682_SAR_BUTDET_MODE_MASK |

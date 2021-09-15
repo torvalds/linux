@@ -488,7 +488,7 @@ struct hfi1_ctxt_hist {
 	atomic_t data[255];
 };
 
-struct hfi1_ctxt_hist hist = {
+static struct hfi1_ctxt_hist hist = {
 	.count = ATOMIC_INIT(0)
 };
 

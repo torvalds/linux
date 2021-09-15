@@ -333,11 +333,11 @@ error_free:
 	goto out;
 }
 
-static int evsel__copy_config_terms(struct evsel *dst, struct evsel *src)
+int copy_config_terms(struct list_head *dst, struct list_head *src)
 {
 	struct evsel_config_term *pos, *tmp;
 
-	list_for_each_entry(pos, &src->config_terms, list) {
+	list_for_each_entry(pos, src, list) {
 		tmp = malloc(sizeof(*tmp));
 		if (tmp == NULL)
 			return -ENOMEM;
@@ -350,9 +350,14 @@ static int evsel__copy_config_terms(struct evsel *dst, struct evsel *src)
 				return -ENOMEM;
 			}
 		}
-		list_add_tail(&tmp->list, &dst->config_terms);
+		list_add_tail(&tmp->list, dst);
 	}
 	return 0;
+}
+
+static int evsel__copy_config_terms(struct evsel *dst, struct evsel *src)
+{
+	return copy_config_terms(&dst->config_terms, &src->config_terms);
 }
 
 /**
@@ -1385,16 +1390,21 @@ int evsel__disable(struct evsel *evsel)
 	return err;
 }
 
-static void evsel__free_config_terms(struct evsel *evsel)
+void free_config_terms(struct list_head *config_terms)
 {
 	struct evsel_config_term *term, *h;
 
-	list_for_each_entry_safe(term, h, &evsel->config_terms, list) {
+	list_for_each_entry_safe(term, h, config_terms, list) {
 		list_del_init(&term->list);
 		if (term->free_str)
 			zfree(&term->val.str);
 		free(term);
 	}
+}
+
+static void evsel__free_config_terms(struct evsel *evsel)
+{
+	free_config_terms(&evsel->config_terms);
 }
 
 void evsel__exit(struct evsel *evsel)
