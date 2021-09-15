@@ -848,13 +848,13 @@ struct bnxt_qplib_rcfw_sbuf *bnxt_qplib_rcfw_alloc_sbuf(
 {
 	struct bnxt_qplib_rcfw_sbuf *sbuf;
 
-	sbuf = kzalloc(sizeof(*sbuf), GFP_ATOMIC);
+	sbuf = kzalloc(sizeof(*sbuf), GFP_KERNEL);
 	if (!sbuf)
 		return NULL;
 
 	sbuf->size = size;
 	sbuf->sb = dma_alloc_coherent(&rcfw->pdev->dev, sbuf->size,
-				      &sbuf->dma_addr, GFP_ATOMIC);
+				      &sbuf->dma_addr, GFP_KERNEL);
 	if (!sbuf->sb)
 		goto bail;
 

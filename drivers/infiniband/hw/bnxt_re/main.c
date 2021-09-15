@@ -1730,7 +1730,7 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 	}
 	if (sch_work) {
 		/* Allocate for the deferred task */
-		re_work = kzalloc(sizeof(*re_work), GFP_ATOMIC);
+		re_work = kzalloc(sizeof(*re_work), GFP_KERNEL);
 		if (re_work) {
 			get_device(&rdev->ibdev.dev);
 			re_work->rdev = rdev;
