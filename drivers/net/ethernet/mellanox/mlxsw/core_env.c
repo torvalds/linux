@@ -667,12 +667,6 @@ mlxsw_env_module_overheat_counter_get(struct mlxsw_core *mlxsw_core, u8 module,
 {
 	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
 
-	/* Prevent switch driver from accessing uninitialized data. */
-	if (!mlxsw_core_is_initialized(mlxsw_core)) {
-		*p_counter = 0;
-		return 0;
-	}
-
 	if (WARN_ON_ONCE(module >= mlxsw_env->module_count))
 		return -EINVAL;
 
