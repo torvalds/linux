@@ -743,7 +743,8 @@ ptp_ocp_info(struct ptp_ocp *bp)
 		 ptp_ocp_clock_name_from_val(select >> 16),
 		 ptp_clock_index(bp->ptp));
 
-	ptp_ocp_tod_info(bp);
+	if (bp->tod)
+		ptp_ocp_tod_info(bp);
 }
 
 static struct device *
