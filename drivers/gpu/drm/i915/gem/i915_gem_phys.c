@@ -76,7 +76,7 @@ static int i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 	intel_gt_chipset_flush(&to_i915(obj->base.dev)->gt);
 
 	/* We're no longer struct page backed */
-	obj->flags &= ~I915_BO_ALLOC_STRUCT_PAGE;
+	obj->mem_flags &= ~I915_BO_FLAG_STRUCT_PAGE;
 	__i915_gem_object_set_pages(obj, st, sg->length);
 
 	return 0;

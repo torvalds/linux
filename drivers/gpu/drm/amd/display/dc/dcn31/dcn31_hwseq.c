@@ -226,6 +226,7 @@ void dcn31_init_hw(struct dc *dc)
 	if (dc->config.power_down_display_on_boot) {
 		struct dc_link *edp_links[MAX_NUM_EDP];
 		struct dc_link *edp_link;
+		bool power_down = false;
 
 		get_edp_links(dc, edp_links, &edp_num);
 		if (edp_num) {
@@ -239,9 +240,11 @@ void dcn31_init_hw(struct dc *dc)
 					dc->hwss.edp_backlight_control(edp_link, false);
 					dc->hwss.power_down(dc);
 					dc->hwss.edp_power_control(edp_link, false);
+					power_down = true;
 				}
 			}
-		} else {
+		}
+		if (!power_down) {
 			for (i = 0; i < dc->link_count; i++) {
 				struct dc_link *link = dc->links[i];
 
@@ -606,21 +609,4 @@ bool dcn31_is_abm_supported(struct dc *dc,
 			return true;
 	}
 	return false;
-}
-
-static void apply_riommu_invalidation_wa(struct dc *dc)
-{
-	struct dce_hwseq *hws = dc->hwseq;
-
-	if (!hws->wa.early_riommu_invalidation)
-		return;
-
-	REG_UPDATE(DCHUBBUB_ARB_HOSTVM_CNTL, DISABLE_HOSTVM_FORCE_ALLOW_PSTATE, 0);
-}
-
-void dcn31_init_pipes(struct dc *dc, struct dc_state *context)
-{
-	dcn10_init_pipes(dc, context);
-	apply_riommu_invalidation_wa(dc);
-
 }

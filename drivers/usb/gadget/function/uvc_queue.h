@@ -34,6 +34,9 @@ struct uvc_buffer {
 
 	enum uvc_buffer_state state;
 	void *mem;
+	struct sg_table *sgt;
+	struct scatterlist *sg;
+	unsigned int offset;
 	unsigned int length;
 	unsigned int bytesused;
 };
@@ -50,6 +53,8 @@ struct uvc_video_queue {
 
 	unsigned int buf_used;
 
+	bool use_sg;
+
 	spinlock_t irqlock;	/* Protects flags and irqqueue */
 	struct list_head irqqueue;
 };
@@ -59,7 +64,7 @@ static inline int uvc_queue_streaming(struct uvc_video_queue *queue)
 	return vb2_is_streaming(&queue->queue);
 }
 
-int uvcg_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type,
+int uvcg_queue_init(struct uvc_video_queue *queue, struct device *dev, enum v4l2_buf_type type,
 		    struct mutex *lock);
 
 void uvcg_free_buffers(struct uvc_video_queue *queue);

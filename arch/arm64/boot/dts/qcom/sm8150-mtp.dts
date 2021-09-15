@@ -15,7 +15,7 @@
 
 / {
 	model = "Qualcomm Technologies, Inc. SM8150 MTP";
-	compatible = "qcom,sm8150-mtp";
+	compatible = "qcom,sm8150-mtp", "qcom,sm8150";
 
 	aliases {
 		serial0 = &uart2;

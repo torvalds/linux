@@ -19,10 +19,10 @@ allOf:
 
 properties:
   compatible:
-    oneOf:
-      - const: loongson,liointc-1.0
-      - const: loongson,liointc-1.0a
-      - const: loongson,liointc-2.0
+    enum:
+      - loongson,liointc-1.0
+      - loongson,liointc-1.0a
+      - loongson,liointc-2.0
 
   reg:
     minItems: 1

@@ -35,6 +35,12 @@ MODULE_FIRMWARE("amdgpu/yellow_carp_asd.bin");
 MODULE_FIRMWARE("amdgpu/yellow_carp_toc.bin");
 MODULE_FIRMWARE("amdgpu/yellow_carp_ta.bin");
 
+/* For large FW files the time to complete can be very long */
+#define USBC_PD_POLLING_LIMIT_S 240
+
+/* Read USB-PD from LFB */
+#define GFX_CMD_USB_PD_USE_LFB 0x480
+
 static int psp_v13_0_init_microcode(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
@@ -111,7 +117,9 @@ static int psp_v13_0_wait_for_bootloader(struct psp_context *psp)
 	return ret;
 }
 
-static int psp_v13_0_bootloader_load_kdb(struct psp_context *psp)
+static int psp_v13_0_bootloader_load_component(struct psp_context  	*psp,
+					       struct psp_bin_desc 	*bin_desc,
+					       enum psp_bootloader_cmd  bl_cmd)
 {
 	int ret;
 	uint32_t psp_gfxdrv_command_reg = 0;
@@ -130,12 +138,12 @@ static int psp_v13_0_bootloader_load_kdb(struct psp_context *psp)
 	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
 
 	/* Copy PSP KDB binary to memory */
-	memcpy(psp->fw_pri_buf, psp->kdb_start_addr, psp->kdb_bin_size);
+	memcpy(psp->fw_pri_buf, bin_desc->start_addr, bin_desc->size_bytes);
 
 	/* Provide the PSP KDB to bootloader */
 	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_36,
 	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
-	psp_gfxdrv_command_reg = PSP_BL__LOAD_KEY_DATABASE;
+	psp_gfxdrv_command_reg = bl_cmd;
 	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_35,
 	       psp_gfxdrv_command_reg);
 
@@ -144,40 +152,29 @@ static int psp_v13_0_bootloader_load_kdb(struct psp_context *psp)
 	return ret;
 }
 
+static int psp_v13_0_bootloader_load_kdb(struct psp_context *psp)
+{
+	return psp_v13_0_bootloader_load_component(psp, &psp->kdb, PSP_BL__LOAD_KEY_DATABASE);
+}
+
 static int psp_v13_0_bootloader_load_sysdrv(struct psp_context *psp)
 {
-	int ret;
-	uint32_t psp_gfxdrv_command_reg = 0;
-	struct amdgpu_device *adev = psp->adev;
+	return psp_v13_0_bootloader_load_component(psp, &psp->sys, PSP_BL__LOAD_SYSDRV);
+}
 
-	/* Check sOS sign of life register to confirm sys driver and sOS
-	 * are already been loaded.
-	 */
-	if (psp_v13_0_is_sos_alive(psp))
-		return 0;
+static int psp_v13_0_bootloader_load_soc_drv(struct psp_context *psp)
+{
+	return psp_v13_0_bootloader_load_component(psp, &psp->soc_drv, PSP_BL__LOAD_SOCDRV);
+}
 
-	ret = psp_v13_0_wait_for_bootloader(psp);
-	if (ret)
-		return ret;
+static int psp_v13_0_bootloader_load_intf_drv(struct psp_context *psp)
+{
+	return psp_v13_0_bootloader_load_component(psp, &psp->intf_drv, PSP_BL__LOAD_INTFDRV);
+}
 
-	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
-
-	/* Copy PSP System Driver binary to memory */
-	memcpy(psp->fw_pri_buf, psp->sys_start_addr, psp->sys_bin_size);
-
-	/* Provide the sys driver to bootloader */
-	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_36,
-	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
-	psp_gfxdrv_command_reg = PSP_BL__LOAD_SYSDRV;
-	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_35,
-	       psp_gfxdrv_command_reg);
-
-	/* there might be handshake issue with hardware which needs delay */
-	mdelay(20);
-
-	ret = psp_v13_0_wait_for_bootloader(psp);
-
-	return ret;
+static int psp_v13_0_bootloader_load_dbg_drv(struct psp_context *psp)
+{
+	return psp_v13_0_bootloader_load_component(psp, &psp->dbg_drv, PSP_BL__LOAD_DBGDRV);
 }
 
 static int psp_v13_0_bootloader_load_sos(struct psp_context *psp)
@@ -199,7 +196,7 @@ static int psp_v13_0_bootloader_load_sos(struct psp_context *psp)
 	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
 
 	/* Copy Secure OS binary to PSP memory */
-	memcpy(psp->fw_pri_buf, psp->sos_start_addr, psp->sos_bin_size);
+	memcpy(psp->fw_pri_buf, psp->sos.start_addr, psp->sos.size_bytes);
 
 	/* Provide the PSP secure OS to bootloader */
 	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_36,
@@ -382,10 +379,71 @@ static void psp_v13_0_ring_set_wptr(struct psp_context *psp, uint32_t value)
 		WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_67, value);
 }
 
+static int psp_v13_0_load_usbc_pd_fw(struct psp_context *psp, uint64_t fw_pri_mc_addr)
+{
+	struct amdgpu_device *adev = psp->adev;
+	uint32_t reg_status;
+	int ret, i = 0;
+
+	/*
+	 * LFB address which is aligned to 1MB address and has to be
+	 * right-shifted by 20 so that LFB address can be passed on a 32-bit C2P
+	 * register
+	 */
+	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_36, (fw_pri_mc_addr >> 20));
+
+	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_35),
+			     0x80000000, 0x80000000, false);
+	if (ret)
+		return ret;
+
+	/* Fireup interrupt so PSP can pick up the address */
+	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_35, (GFX_CMD_USB_PD_USE_LFB << 16));
+
+	/* FW load takes very long time */
+	do {
+		msleep(1000);
+		reg_status = RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_35);
+
+		if (reg_status & 0x80000000)
+			goto done;
+
+	} while (++i < USBC_PD_POLLING_LIMIT_S);
+
+	return -ETIME;
+done:
+
+	if ((reg_status & 0xFFFF) != 0) {
+		DRM_ERROR("Address load failed - MP0_SMN_C2PMSG_35.Bits [15:0] = %04x\n",
+				reg_status & 0xFFFF);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int psp_v13_0_read_usbc_pd_fw(struct psp_context *psp, uint32_t *fw_ver)
+{
+	struct amdgpu_device *adev = psp->adev;
+	int ret;
+
+	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_35, C2PMSG_CMD_GFX_USB_PD_FW_VER);
+
+	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_35),
+				     0x80000000, 0x80000000, false);
+	if (!ret)
+		*fw_ver = RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_36);
+
+	return ret;
+}
+
 static const struct psp_funcs psp_v13_0_funcs = {
 	.init_microcode = psp_v13_0_init_microcode,
 	.bootloader_load_kdb = psp_v13_0_bootloader_load_kdb,
 	.bootloader_load_sysdrv = psp_v13_0_bootloader_load_sysdrv,
+	.bootloader_load_soc_drv = psp_v13_0_bootloader_load_soc_drv,
+	.bootloader_load_intf_drv = psp_v13_0_bootloader_load_intf_drv,
+	.bootloader_load_dbg_drv = psp_v13_0_bootloader_load_dbg_drv,
 	.bootloader_load_sos = psp_v13_0_bootloader_load_sos,
 	.ring_init = psp_v13_0_ring_init,
 	.ring_create = psp_v13_0_ring_create,
@@ -393,6 +451,8 @@ static const struct psp_funcs psp_v13_0_funcs = {
 	.ring_destroy = psp_v13_0_ring_destroy,
 	.ring_get_wptr = psp_v13_0_ring_get_wptr,
 	.ring_set_wptr = psp_v13_0_ring_set_wptr,
+	.load_usbc_pd_fw = psp_v13_0_load_usbc_pd_fw,
+	.read_usbc_pd_fw = psp_v13_0_read_usbc_pd_fw
 };
 
 void psp_v13_0_set_psp_funcs(struct psp_context *psp)

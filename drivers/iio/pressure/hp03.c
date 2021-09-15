@@ -242,46 +242,25 @@ static int hp03_probe(struct i2c_client *client,
 	 * which has it's dedicated I2C address and contains
 	 * the calibration constants for the sensor.
 	 */
-	priv->eeprom_client = i2c_new_dummy_device(client->adapter, HP03_EEPROM_ADDR);
+	priv->eeprom_client = devm_i2c_new_dummy_device(dev, client->adapter,
+							HP03_EEPROM_ADDR);
 	if (IS_ERR(priv->eeprom_client)) {
 		dev_err(dev, "New EEPROM I2C device failed\n");
 		return PTR_ERR(priv->eeprom_client);
 	}
 
-	priv->eeprom_regmap = regmap_init_i2c(priv->eeprom_client,
-					      &hp03_regmap_config);
+	priv->eeprom_regmap = devm_regmap_init_i2c(priv->eeprom_client,
+						   &hp03_regmap_config);
 	if (IS_ERR(priv->eeprom_regmap)) {
 		dev_err(dev, "Failed to allocate EEPROM regmap\n");
-		ret = PTR_ERR(priv->eeprom_regmap);
-		goto err_cleanup_eeprom_client;
+		return PTR_ERR(priv->eeprom_regmap);
 	}
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret) {
 		dev_err(dev, "Failed to register IIO device\n");
-		goto err_cleanup_eeprom_regmap;
+		return ret;
 	}
-
-	i2c_set_clientdata(client, indio_dev);
-
-	return 0;
-
-err_cleanup_eeprom_regmap:
-	regmap_exit(priv->eeprom_regmap);
-
-err_cleanup_eeprom_client:
-	i2c_unregister_device(priv->eeprom_client);
-	return ret;
-}
-
-static int hp03_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-	struct hp03_priv *priv = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	regmap_exit(priv->eeprom_regmap);
-	i2c_unregister_device(priv->eeprom_client);
 
 	return 0;
 }
@@ -304,7 +283,6 @@ static struct i2c_driver hp03_driver = {
 		.of_match_table = hp03_of_match,
 	},
 	.probe		= hp03_probe,
-	.remove		= hp03_remove,
 	.id_table	= hp03_id,
 };
 module_i2c_driver(hp03_driver);

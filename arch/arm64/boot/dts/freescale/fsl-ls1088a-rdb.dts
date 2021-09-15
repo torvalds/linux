@@ -83,34 +83,42 @@
 	status = "okay";
 
 	mdio1_phy5: ethernet-phy@c {
+		interrupts-extended = <&extirq 1 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0xc>;
 	};
 
 	mdio1_phy6: ethernet-phy@d {
+		interrupts-extended = <&extirq 1 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0xd>;
 	};
 
 	mdio1_phy7: ethernet-phy@e {
+		interrupts-extended = <&extirq 1 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0xe>;
 	};
 
 	mdio1_phy8: ethernet-phy@f {
+		interrupts-extended = <&extirq 1 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0xf>;
 	};
 
 	mdio1_phy1: ethernet-phy@1c {
+		interrupts-extended = <&extirq 1 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x1c>;
 	};
 
 	mdio1_phy2: ethernet-phy@1d {
+		interrupts-extended = <&extirq 1 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x1d>;
 	};
 
 	mdio1_phy3: ethernet-phy@1e {
+		interrupts-extended = <&extirq 1 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x1e>;
 	};
 
 	mdio1_phy4: ethernet-phy@1f {
+		interrupts-extended = <&extirq 1 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x1f>;
 	};
 };
@@ -120,6 +128,7 @@
 
 	mdio2_aquantia_phy: ethernet-phy@0 {
 		compatible = "ethernet-phy-ieee802.3-c45";
+		interrupts-extended = <&extirq 2 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x0>;
 	};
 };

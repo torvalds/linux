@@ -244,6 +244,8 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.DRAMClockChangeSupportsVActive = !soc->disable_dram_clock_change_vactive_support ||
 			mode_lib->vba.DummyPStateCheck;
 	mode_lib->vba.AllowDramClockChangeOneDisplayVactive = soc->allow_dram_clock_one_display_vactive;
+	mode_lib->vba.AllowDRAMSelfRefreshOrDRAMClockChangeInVblank =
+		soc->allow_dram_self_refresh_or_dram_clock_change_in_vblank;
 
 	mode_lib->vba.Downspreading = soc->downspread_percent;
 	mode_lib->vba.DRAMChannelWidth = soc->dram_channel_width_bytes;   // new!
@@ -396,7 +398,6 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 
 	mode_lib->vba.NumberOfActivePlanes = 0;
 	mode_lib->vba.ImmediateFlipSupport = false;
-	mode_lib->vba.ImmediateFlipRequirement = dm_immediate_flip_not_required;
 	for (j = 0; j < mode_lib->vba.cache_num_pipes; ++j) {
 		display_pipe_source_params_st *src = &pipes[j].pipe.src;
 		display_pipe_dest_params_st *dst = &pipes[j].pipe.dest;
@@ -409,6 +410,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 			continue;
 		visited[j] = true;
 
+		mode_lib->vba.ImmediateFlipRequirement[j] = dm_immediate_flip_not_required;
 		mode_lib->vba.pipe_plane[j] = mode_lib->vba.NumberOfActivePlanes;
 		mode_lib->vba.DPPPerPlane[mode_lib->vba.NumberOfActivePlanes] = 1;
 		mode_lib->vba.SourceScan[mode_lib->vba.NumberOfActivePlanes] =
@@ -667,9 +669,9 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 				mode_lib->vba.ViewportHeightChroma[mode_lib->vba.NumberOfActivePlanes] = src->viewport_height_max / vdiv_c;
 		}
 
-		if (pipes[k].pipe.src.immediate_flip) {
+		if (pipes[j].pipe.src.immediate_flip) {
 			mode_lib->vba.ImmediateFlipSupport = true;
-			mode_lib->vba.ImmediateFlipRequirement = dm_immediate_flip_required;
+			mode_lib->vba.ImmediateFlipRequirement[j] = dm_immediate_flip_required;
 		}
 
 		mode_lib->vba.NumberOfActivePlanes++;
@@ -732,8 +734,6 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 						pipes[k].pipe.src.hostvm_levels_force :
 						mode_lib->vba.OverrideHostVMPageTableLevels;
 	}
-
-	mode_lib->vba.AllowDRAMSelfRefreshOrDRAMClockChangeInVblank = dm_try_to_allow_self_refresh_and_mclk_switch;
 
 	if (mode_lib->vba.OverrideGPUVMPageTableLevels)
 		mode_lib->vba.GPUVMMaxPageTableLevels = mode_lib->vba.OverrideGPUVMPageTableLevels;
@@ -845,9 +845,10 @@ void PixelClockAdjustmentForProgressiveToInterlaceUnit(struct display_mode_lib *
 
 	//Progressive To Interlace Unit Effect
 	for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k) {
+		mode_lib->vba.PixelClockBackEnd[k] = mode_lib->vba.PixelClock[k];
 		if (mode_lib->vba.Interlace[k] == 1
 				&& mode_lib->vba.ProgressiveToInterlaceUnitInOPP == true) {
-			mode_lib->vba.PixelClock[k] = 2 * mode_lib->vba.PixelClockBackEnd[k];
+			mode_lib->vba.PixelClock[k] = 2 * mode_lib->vba.PixelClock[k];
 		}
 	}
 }
@@ -890,8 +891,9 @@ void ModeSupportAndSystemConfiguration(struct display_mode_lib *mode_lib)
 		mode_lib->vba.DISPCLK = soc->clock_limits[mode_lib->vba.VoltageLevel].dispclk_mhz;
 
 	// Total Available Pipes Support Check
-	for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k)
+	for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k) {
 		total_pipes += mode_lib->vba.DPPPerPlane[k];
+	}
 	ASSERT(total_pipes <= DC__NUM_DPP__MAX);
 }
 

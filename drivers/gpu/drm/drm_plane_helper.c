@@ -210,7 +210,7 @@ static int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *c
 	 * We call set_config() directly here rather than using
 	 * drm_mode_set_config_internal.  We're reprogramming the same
 	 * connectors that were already in use, so we shouldn't need the extra
-	 * cross-CRTC fb refcounting to accomodate stealing connectors.
+	 * cross-CRTC fb refcounting to accommodate stealing connectors.
 	 * drm_mode_setplane() already handles the basic refcounting for the
 	 * framebuffers involved in this operation.
 	 */

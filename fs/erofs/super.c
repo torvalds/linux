@@ -11,6 +11,7 @@
 #include <linux/crc32c.h>
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
+#include <linux/dax.h>
 #include "xattr.h"
 
 #define CREATE_TRACE_POINTS
@@ -355,6 +356,8 @@ enum {
 	Opt_user_xattr,
 	Opt_acl,
 	Opt_cache_strategy,
+	Opt_dax,
+	Opt_dax_enum,
 	Opt_err
 };
 
@@ -365,13 +368,46 @@ static const struct constant_table erofs_param_cache_strategy[] = {
 	{}
 };
 
+static const struct constant_table erofs_dax_param_enums[] = {
+	{"always",	EROFS_MOUNT_DAX_ALWAYS},
+	{"never",	EROFS_MOUNT_DAX_NEVER},
+	{}
+};
+
 static const struct fs_parameter_spec erofs_fs_parameters[] = {
 	fsparam_flag_no("user_xattr",	Opt_user_xattr),
 	fsparam_flag_no("acl",		Opt_acl),
 	fsparam_enum("cache_strategy",	Opt_cache_strategy,
 		     erofs_param_cache_strategy),
+	fsparam_flag("dax",             Opt_dax),
+	fsparam_enum("dax",		Opt_dax_enum, erofs_dax_param_enums),
 	{}
 };
+
+static bool erofs_fc_set_dax_mode(struct fs_context *fc, unsigned int mode)
+{
+#ifdef CONFIG_FS_DAX
+	struct erofs_fs_context *ctx = fc->fs_private;
+
+	switch (mode) {
+	case EROFS_MOUNT_DAX_ALWAYS:
+		warnfc(fc, "DAX enabled. Warning: EXPERIMENTAL, use at your own risk");
+		set_opt(ctx, DAX_ALWAYS);
+		clear_opt(ctx, DAX_NEVER);
+		return true;
+	case EROFS_MOUNT_DAX_NEVER:
+		set_opt(ctx, DAX_NEVER);
+		clear_opt(ctx, DAX_ALWAYS);
+		return true;
+	default:
+		DBG_BUGON(1);
+		return false;
+	}
+#else
+	errorfc(fc, "dax options not supported");
+	return false;
+#endif
+}
 
 static int erofs_fc_parse_param(struct fs_context *fc,
 				struct fs_parameter *param)
@@ -412,6 +448,14 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 		errorfc(fc, "compression not supported, cache_strategy ignored");
 #endif
 		break;
+	case Opt_dax:
+		if (!erofs_fc_set_dax_mode(fc, EROFS_MOUNT_DAX_ALWAYS))
+			return -EINVAL;
+		break;
+	case Opt_dax_enum:
+		if (!erofs_fc_set_dax_mode(fc, result.uint_32))
+			return -EINVAL;
+		break;
 	default:
 		return -ENOPARAM;
 	}
@@ -430,7 +474,7 @@ static int erofs_managed_cache_releasepage(struct page *page, gfp_t gfp_mask)
 	DBG_BUGON(mapping->a_ops != &managed_cache_aops);
 
 	if (PagePrivate(page))
-		ret = erofs_try_to_free_cached_page(mapping, page);
+		ret = erofs_try_to_free_cached_page(page);
 
 	return ret;
 }
@@ -496,10 +540,16 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 		return -ENOMEM;
 
 	sb->s_fs_info = sbi;
+	sbi->dax_dev = fs_dax_get_by_bdev(sb->s_bdev);
 	err = erofs_read_superblock(sb);
 	if (err)
 		return err;
 
+	if (test_opt(ctx, DAX_ALWAYS) &&
+	    !bdev_dax_supported(sb->s_bdev, EROFS_BLKSIZ)) {
+		errorfc(fc, "DAX unsupported by block device. Turning off DAX.");
+		clear_opt(ctx, DAX_ALWAYS);
+	}
 	sb->s_flags |= SB_RDONLY | SB_NOATIME;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_time_gran = 1;
@@ -609,6 +659,7 @@ static void erofs_kill_sb(struct super_block *sb)
 	sbi = EROFS_SB(sb);
 	if (!sbi)
 		return;
+	fs_put_dax(sbi->dax_dev);
 	kfree(sbi);
 	sb->s_fs_info = NULL;
 }
@@ -711,8 +762,8 @@ static int erofs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 {
-	struct erofs_sb_info *sbi __maybe_unused = EROFS_SB(root->d_sb);
-	struct erofs_fs_context *ctx __maybe_unused = &sbi->ctx;
+	struct erofs_sb_info *sbi = EROFS_SB(root->d_sb);
+	struct erofs_fs_context *ctx = &sbi->ctx;
 
 #ifdef CONFIG_EROFS_FS_XATTR
 	if (test_opt(ctx, XATTR_USER))
@@ -734,6 +785,10 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 	else if (ctx->cache_strategy == EROFS_ZIP_CACHE_READAROUND)
 		seq_puts(seq, ",cache_strategy=readaround");
 #endif
+	if (test_opt(ctx, DAX_ALWAYS))
+		seq_puts(seq, ",dax=always");
+	if (test_opt(ctx, DAX_NEVER))
+		seq_puts(seq, ",dax=never");
 	return 0;
 }
 

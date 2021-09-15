@@ -154,7 +154,7 @@ struct wlandevice;
 int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 			struct sk_buff *skb);
 int skb_ether_to_p80211(struct wlandevice *wlandev, u32 ethconv,
-			struct sk_buff *skb, union p80211_hdr *p80211_hdr,
+			struct sk_buff *skb, struct p80211_hdr *p80211_hdr,
 			struct p80211_metawep *p80211_wep);
 
 int p80211_stt_findproto(u16 proto);

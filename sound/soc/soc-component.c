@@ -1171,10 +1171,10 @@ int snd_soc_pcm_component_pm_runtime_get(struct snd_soc_pcm_runtime *rtd,
 					 void *stream)
 {
 	struct snd_soc_component *component;
-	int i, ret;
+	int i;
 
 	for_each_rtd_components(rtd, i, component) {
-		ret = pm_runtime_get_sync(component->dev);
+		int ret = pm_runtime_get_sync(component->dev);
 		if (ret < 0 && ret != -EACCES) {
 			pm_runtime_put_noidle(component->dev);
 			return soc_component_ret(component, ret);

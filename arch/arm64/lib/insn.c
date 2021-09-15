@@ -185,7 +185,7 @@ u64 aarch64_insn_decode_immediate(enum aarch64_insn_imm_type type, u32 insn)
 		break;
 	default:
 		if (aarch64_get_imm_shift_mask(type, &mask, &shift) < 0) {
-			pr_err("aarch64_insn_decode_immediate: unknown immediate encoding %d\n",
+			pr_err("%s: unknown immediate encoding %d\n", __func__,
 			       type);
 			return 0;
 		}
@@ -215,7 +215,7 @@ u32 __kprobes aarch64_insn_encode_immediate(enum aarch64_insn_imm_type type,
 		break;
 	default:
 		if (aarch64_get_imm_shift_mask(type, &mask, &shift) < 0) {
-			pr_err("aarch64_insn_encode_immediate: unknown immediate encoding %d\n",
+			pr_err("%s: unknown immediate encoding %d\n", __func__,
 			       type);
 			return AARCH64_BREAK_FAULT;
 		}

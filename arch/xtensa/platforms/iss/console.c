@@ -136,28 +136,41 @@ static const struct tty_operations serial_ops = {
 
 static int __init rs_init(void)
 {
-	tty_port_init(&serial_port);
+	struct tty_driver *driver;
+	int ret;
 
-	serial_driver = alloc_tty_driver(SERIAL_MAX_NUM_LINES);
+	driver = tty_alloc_driver(SERIAL_MAX_NUM_LINES, TTY_DRIVER_REAL_RAW);
+	if (IS_ERR(driver))
+		return PTR_ERR(driver);
+
+	tty_port_init(&serial_port);
 
 	/* Initialize the tty_driver structure */
 
-	serial_driver->driver_name = "iss_serial";
-	serial_driver->name = "ttyS";
-	serial_driver->major = TTY_MAJOR;
-	serial_driver->minor_start = 64;
-	serial_driver->type = TTY_DRIVER_TYPE_SERIAL;
-	serial_driver->subtype = SERIAL_TYPE_NORMAL;
-	serial_driver->init_termios = tty_std_termios;
-	serial_driver->init_termios.c_cflag =
+	driver->driver_name = "iss_serial";
+	driver->name = "ttyS";
+	driver->major = TTY_MAJOR;
+	driver->minor_start = 64;
+	driver->type = TTY_DRIVER_TYPE_SERIAL;
+	driver->subtype = SERIAL_TYPE_NORMAL;
+	driver->init_termios = tty_std_termios;
+	driver->init_termios.c_cflag =
 		B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-	serial_driver->flags = TTY_DRIVER_REAL_RAW;
 
-	tty_set_operations(serial_driver, &serial_ops);
-	tty_port_link_device(&serial_port, serial_driver, 0);
+	tty_set_operations(driver, &serial_ops);
+	tty_port_link_device(&serial_port, driver, 0);
 
-	if (tty_register_driver(serial_driver))
-		panic("Couldn't register serial driver\n");
+	ret = tty_register_driver(driver);
+	if (ret) {
+		pr_err("Couldn't register serial driver\n");
+		tty_driver_kref_put(driver);
+		tty_port_destroy(&serial_port);
+
+		return ret;
+	}
+
+	serial_driver = driver;
+
 	return 0;
 }
 
@@ -165,7 +178,7 @@ static int __init rs_init(void)
 static __exit void rs_exit(void)
 {
 	tty_unregister_driver(serial_driver);
-	put_tty_driver(serial_driver);
+	tty_driver_kref_put(serial_driver);
 	tty_port_destroy(&serial_port);
 }
 

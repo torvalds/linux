@@ -14,7 +14,7 @@
  * may be that only one operation succeeds.
  */
 static __always_inline void
-arch___set_bit(int nr, volatile unsigned long *addr)
+arch___set_bit(unsigned int nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -24,7 +24,7 @@ arch___set_bit(int nr, volatile unsigned long *addr)
 #define __set_bit arch___set_bit
 
 static __always_inline void
-arch___clear_bit(int nr, volatile unsigned long *addr)
+arch___clear_bit(unsigned int nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -43,7 +43,7 @@ arch___clear_bit(int nr, volatile unsigned long *addr)
  * may be that only one operation succeeds.
  */
 static __always_inline
-void arch___change_bit(int nr, volatile unsigned long *addr)
+void arch___change_bit(unsigned int nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -62,7 +62,7 @@ void arch___change_bit(int nr, volatile unsigned long *addr)
  * but actually fail.  You must protect multiple accesses with a lock.
  */
 static __always_inline int
-arch___test_and_set_bit(int nr, volatile unsigned long *addr)
+arch___test_and_set_bit(unsigned int nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -83,7 +83,7 @@ arch___test_and_set_bit(int nr, volatile unsigned long *addr)
  * but actually fail.  You must protect multiple accesses with a lock.
  */
 static __always_inline int
-arch___test_and_clear_bit(int nr, volatile unsigned long *addr)
+arch___test_and_clear_bit(unsigned int nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -96,7 +96,7 @@ arch___test_and_clear_bit(int nr, volatile unsigned long *addr)
 
 /* WARNING: non atomic and it can be reordered! */
 static __always_inline int
-arch___test_and_change_bit(int nr, volatile unsigned long *addr)
+arch___test_and_change_bit(unsigned int nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -113,7 +113,7 @@ arch___test_and_change_bit(int nr, volatile unsigned long *addr)
  * @addr: Address to start counting from
  */
 static __always_inline int
-arch_test_bit(int nr, const volatile unsigned long *addr)
+arch_test_bit(unsigned int nr, const volatile unsigned long *addr)
 {
 	return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
 }

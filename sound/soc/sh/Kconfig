@@ -45,6 +45,12 @@ config SND_SOC_RCAR
 	help
 	  This option enables R-Car SRU/SCU/SSIU/SSI sound support
 
+config SND_SOC_RZ
+	tristate "RZ/G2L series SSIF-2 support"
+	depends on ARCH_R9A07G044 || COMPILE_TEST
+	help
+	  This option enables RZ/G2L SSIF-2 sound support.
+
 ##
 ## Boards
 ##

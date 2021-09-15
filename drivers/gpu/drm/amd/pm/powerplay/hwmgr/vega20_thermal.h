@@ -56,9 +56,9 @@ extern int vega20_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr,
 		uint32_t *speed);
 extern int vega20_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr,
 		uint32_t speed);
-extern int vega20_fan_ctrl_get_fan_speed_percent(struct pp_hwmgr *hwmgr,
+extern int vega20_fan_ctrl_get_fan_speed_pwm(struct pp_hwmgr *hwmgr,
 		uint32_t *speed);
-extern int vega20_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
+extern int vega20_fan_ctrl_set_fan_speed_pwm(struct pp_hwmgr *hwmgr,
 		uint32_t speed);
 extern int vega20_fan_ctrl_stop_smc_fan_control(struct pp_hwmgr *hwmgr);
 extern int vega20_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr);

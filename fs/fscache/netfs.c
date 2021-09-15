@@ -37,7 +37,7 @@ int __fscache_register_netfs(struct fscache_netfs *netfs)
 	if (!cookie)
 		goto already_registered;
 	if (cookie != candidate) {
-		trace_fscache_cookie(candidate, fscache_cookie_discard, 1);
+		trace_fscache_cookie(candidate->debug_id, 1, fscache_cookie_discard);
 		fscache_free_cookie(candidate);
 	}
 

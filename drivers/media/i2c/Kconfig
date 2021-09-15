@@ -842,6 +842,20 @@ config VIDEO_IMX334
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx334.
 
+config VIDEO_IMX335
+	tristate "Sony IMX335 sensor support"
+	depends on OF_GPIO
+	depends on I2C && VIDEO_V4L2
+	select VIDEO_V4L2_SUBDEV_API
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX335 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx335.
+
 config VIDEO_IMX355
 	tristate "Sony IMX355 sensor support"
 	depends on I2C && VIDEO_V4L2
@@ -853,6 +867,20 @@ config VIDEO_IMX355
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx355.
+
+config VIDEO_IMX412
+	tristate "Sony IMX412 sensor support"
+	depends on OF_GPIO
+	depends on I2C && VIDEO_V4L2
+	select VIDEO_V4L2_SUBDEV_API
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX412 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx412.
 
 config VIDEO_OV02A10
 	tristate "OmniVision OV02A10 sensor support"
@@ -1102,6 +1130,20 @@ config VIDEO_OV8865
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov8865.
+
+config VIDEO_OV9282
+	tristate "OmniVision OV9282 sensor support"
+	depends on OF_GPIO
+	depends on I2C && VIDEO_V4L2
+	select VIDEO_V4L2_SUBDEV_API
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV9282 camera sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov9282.
 
 config VIDEO_OV9640
 	tristate "OmniVision OV9640 sensor support"

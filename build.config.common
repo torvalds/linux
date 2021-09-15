@@ -4,7 +4,7 @@ KMI_GENERATION=0
 LLVM=1
 DEPMOD=depmod
 DTC=dtc
-CLANG_PREBUILT_BIN=prebuilts/clang/host/linux-x86/clang-r428724/bin
+CLANG_PREBUILT_BIN=prebuilts/clang/host/linux-x86/clang-r433403/bin
 BUILDTOOLS_PREBUILT_BIN=build/build-tools/path/linux-x86
 
 EXTRA_CMDS=''
