@@ -29,13 +29,10 @@ static int rxe_query_port(struct ib_device *dev,
 			  u32 port_num, struct ib_port_attr *attr)
 {
 	struct rxe_dev *rxe = to_rdev(dev);
-	struct rxe_port *port;
 	int rc;
 
-	port = &rxe->port;
-
 	/* *attr being zeroed by the caller, avoid zeroing it here */
-	*attr = port->attr;
+	*attr = rxe->port.attr;
 
 	mutex_lock(&rxe->usdev_lock);
 	rc = ib_get_eth_speed(dev, port_num, &attr->active_speed,
