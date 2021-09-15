@@ -566,7 +566,9 @@ static int nbio_v7_4_init_ras_err_event_athub_interrupt (struct amdgpu_device *a
 	return r;
 }
 
-#define smnPARITY_ERROR_STATUS_UNCORR_GRP2	0x13a20030
+#define smnPARITY_ERROR_STATUS_UNCORR_GRP2	    0x13a20030
+#define smnPARITY_ERROR_STATUS_UNCORR_GRP2_ALDE	0x13b20030
+#define smnRAS_GLOBAL_STATUS_LO_ALDE            0x13b20020
 
 static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status)
@@ -575,12 +577,20 @@ static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 	uint32_t corr, fatal, non_fatal;
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 
-	global_sts = RREG32_PCIE(smnRAS_GLOBAL_STATUS_LO);
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		global_sts = RREG32_PCIE(smnRAS_GLOBAL_STATUS_LO_ALDE);
+	else
+		global_sts = RREG32_PCIE(smnRAS_GLOBAL_STATUS_LO);
+
 	corr = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO, ParityErrCorr);
 	fatal = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO, ParityErrFatal);
 	non_fatal = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO,
 				ParityErrNonFatal);
-	parity_sts = RREG32_PCIE(smnPARITY_ERROR_STATUS_UNCORR_GRP2);
+
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		parity_sts = RREG32_PCIE(smnPARITY_ERROR_STATUS_UNCORR_GRP2_ALDE);
+	else
+		parity_sts = RREG32_PCIE(smnPARITY_ERROR_STATUS_UNCORR_GRP2);
 
 	if (corr)
 		err_data->ce_count++;
@@ -589,13 +599,21 @@ static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 
 	if (corr || fatal || non_fatal) {
 		central_sts = RREG32_PCIE(smnBIFL_RAS_CENTRAL_STATUS);
+
 		/* clear error status register */
-		WREG32_PCIE(smnRAS_GLOBAL_STATUS_LO, global_sts);
+		if (adev->asic_type == CHIP_ALDEBARAN)
+			WREG32_PCIE(smnRAS_GLOBAL_STATUS_LO_ALDE, global_sts);
+		else
+			WREG32_PCIE(smnRAS_GLOBAL_STATUS_LO, global_sts);
 
 		if (fatal)
+		{
 			/* clear parity fatal error indication field */
-			WREG32_PCIE(smnPARITY_ERROR_STATUS_UNCORR_GRP2,
-				    parity_sts);
+			if (adev->asic_type == CHIP_ALDEBARAN)
+				WREG32_PCIE(smnPARITY_ERROR_STATUS_UNCORR_GRP2_ALDE, parity_sts);
+			else
+				WREG32_PCIE(smnPARITY_ERROR_STATUS_UNCORR_GRP2, parity_sts);
+		}
 
 		if (REG_GET_FIELD(central_sts, BIFL_RAS_CENTRAL_STATUS,
 				BIFL_RasContller_Intr_Recv)) {
