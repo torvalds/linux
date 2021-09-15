@@ -39,7 +39,8 @@ extern const struct utf8data *utf8nfdicf(unsigned int maxage);
  * Returns 0 if only ignorable code points are present.
  * Returns -1 if the input is not valid UTF-8.
  */
-extern ssize_t utf8nlen(const struct utf8data *data, const char *s, size_t len);
+ssize_t utf8nlen(const struct unicode_map *um, enum utf8_normalization n,
+		const char *s, size_t len);
 
 /* Needed in struct utf8cursor below. */
 #define UTF8HANGULLEAF	(12)
@@ -48,7 +49,8 @@ extern ssize_t utf8nlen(const struct utf8data *data, const char *s, size_t len);
  * Cursor structure used by the normalizer.
  */
 struct utf8cursor {
-	const struct utf8data	*data;
+	const struct unicode_map *um;
+	enum utf8_normalization n;
 	const char	*s;
 	const char	*p;
 	const char	*ss;
@@ -65,8 +67,8 @@ struct utf8cursor {
  * Returns 0 on success.
  * Returns -1 on failure.
  */
-extern int utf8ncursor(struct utf8cursor *u8c, const struct utf8data *data,
-		       const char *s, size_t len);
+int utf8ncursor(struct utf8cursor *u8c, const struct unicode_map *um,
+		enum utf8_normalization n, const char *s, size_t len);
 
 /*
  * Get the next byte in the normalization.
