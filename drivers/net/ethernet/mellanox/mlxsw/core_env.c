@@ -15,6 +15,8 @@
 struct mlxsw_env_module_info {
 	u64 module_overheat_counter;
 	bool is_overheat;
+	int num_ports_mapped;
+	int num_ports_up;
 };
 
 struct mlxsw_env {
@@ -707,6 +709,60 @@ mlxsw_env_module_overheat_counter_get(struct mlxsw_core *mlxsw_core, u8 module,
 	return 0;
 }
 EXPORT_SYMBOL(mlxsw_env_module_overheat_counter_get);
+
+void mlxsw_env_module_port_map(struct mlxsw_core *mlxsw_core, u8 module)
+{
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
+
+	if (WARN_ON_ONCE(module >= mlxsw_env->module_count))
+		return;
+
+	mutex_lock(&mlxsw_env->module_info_lock);
+	mlxsw_env->module_info[module].num_ports_mapped++;
+	mutex_unlock(&mlxsw_env->module_info_lock);
+}
+EXPORT_SYMBOL(mlxsw_env_module_port_map);
+
+void mlxsw_env_module_port_unmap(struct mlxsw_core *mlxsw_core, u8 module)
+{
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
+
+	if (WARN_ON_ONCE(module >= mlxsw_env->module_count))
+		return;
+
+	mutex_lock(&mlxsw_env->module_info_lock);
+	mlxsw_env->module_info[module].num_ports_mapped--;
+	mutex_unlock(&mlxsw_env->module_info_lock);
+}
+EXPORT_SYMBOL(mlxsw_env_module_port_unmap);
+
+int mlxsw_env_module_port_up(struct mlxsw_core *mlxsw_core, u8 module)
+{
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
+
+	if (WARN_ON_ONCE(module >= mlxsw_env->module_count))
+		return -EINVAL;
+
+	mutex_lock(&mlxsw_env->module_info_lock);
+	mlxsw_env->module_info[module].num_ports_up++;
+	mutex_unlock(&mlxsw_env->module_info_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_env_module_port_up);
+
+void mlxsw_env_module_port_down(struct mlxsw_core *mlxsw_core, u8 module)
+{
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
+
+	if (WARN_ON_ONCE(module >= mlxsw_env->module_count))
+		return;
+
+	mutex_lock(&mlxsw_env->module_info_lock);
+	mlxsw_env->module_info[module].num_ports_up--;
+	mutex_unlock(&mlxsw_env->module_info_lock);
+}
+EXPORT_SYMBOL(mlxsw_env_module_port_down);
 
 int mlxsw_env_init(struct mlxsw_core *mlxsw_core, struct mlxsw_env **p_env)
 {

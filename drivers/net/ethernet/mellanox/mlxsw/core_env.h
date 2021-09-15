@@ -27,6 +27,15 @@ mlxsw_env_get_module_eeprom_by_page(struct mlxsw_core *mlxsw_core, u8 module,
 int
 mlxsw_env_module_overheat_counter_get(struct mlxsw_core *mlxsw_core, u8 module,
 				      u64 *p_counter);
+
+void mlxsw_env_module_port_map(struct mlxsw_core *mlxsw_core, u8 module);
+
+void mlxsw_env_module_port_unmap(struct mlxsw_core *mlxsw_core, u8 module);
+
+int mlxsw_env_module_port_up(struct mlxsw_core *mlxsw_core, u8 module);
+
+void mlxsw_env_module_port_down(struct mlxsw_core *mlxsw_core, u8 module);
+
 int mlxsw_env_init(struct mlxsw_core *core, struct mlxsw_env **p_env);
 void mlxsw_env_fini(struct mlxsw_env *env);
 
