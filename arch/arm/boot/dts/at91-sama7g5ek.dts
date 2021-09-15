@@ -558,6 +558,7 @@
 				 <PIN_PA8__SDMMC0_DAT5>,
 				 <PIN_PA9__SDMMC0_DAT6>,
 				 <PIN_PA10__SDMMC0_DAT7>;
+			slew-rate = <0>;
 			bias-pull-up;
 		};
 
@@ -565,6 +566,7 @@
 			pinmux = <PIN_PA0__SDMMC0_CK>,
 				 <PIN_PA2__SDMMC0_RSTN>,
 				 <PIN_PA11__SDMMC0_DS>;
+			slew-rate = <0>;
 			bias-pull-up;
 		};
 	};
@@ -576,6 +578,7 @@
 				 <PIN_PC0__SDMMC1_DAT1>,
 				 <PIN_PC1__SDMMC1_DAT2>,
 				 <PIN_PC2__SDMMC1_DAT3>;
+			slew-rate = <0>;
 			bias-pull-up;
 		};
 
@@ -584,6 +587,7 @@
 				 <PIN_PB28__SDMMC1_RSTN>,
 				 <PIN_PC5__SDMMC1_1V8SEL>,
 				 <PIN_PC4__SDMMC1_CD>;
+			slew-rate = <0>;
 			bias-pull-up;
 		};
 	};
@@ -595,11 +599,13 @@
 				 <PIN_PD6__SDMMC2_DAT1>,
 				 <PIN_PD7__SDMMC2_DAT2>,
 				 <PIN_PD8__SDMMC2_DAT3>;
+			slew-rate = <0>;
 			bias-pull-up;
 		};
 
 		ck {
 			pinmux = <PIN_PD4__SDMMC2_CK>;
+			slew-rate = <0>;
 			bias-pull-up;
 		};
 	};
