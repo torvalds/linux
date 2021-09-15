@@ -900,7 +900,7 @@ static u32
 sanitize_target_dc_state(struct drm_i915_private *dev_priv,
 			 u32 target_dc_state)
 {
-	u32 states[] = {
+	static const u32 states[] = {
 		DC_STATE_EN_UPTO_DC6,
 		DC_STATE_EN_UPTO_DC5,
 		DC_STATE_EN_DC3CO,
