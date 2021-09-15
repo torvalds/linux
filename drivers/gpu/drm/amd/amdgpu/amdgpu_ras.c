@@ -2131,19 +2131,6 @@ static int amdgpu_ras_recovery_fini(struct amdgpu_device *adev)
 }
 /* recovery end */
 
-/* return 0 if ras will reset gpu and repost.*/
-int amdgpu_ras_request_reset_on_boot(struct amdgpu_device *adev,
-		unsigned int block)
-{
-	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
-
-	if (!ras)
-		return -EINVAL;
-
-	ras->flags |= AMDGPU_RAS_FLAG_INIT_NEED_RESET;
-	return 0;
-}
-
 static bool amdgpu_ras_asic_supported(struct amdgpu_device *adev)
 {
 	return adev->asic_type == CHIP_VEGA10 ||
@@ -2382,12 +2369,7 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev,
 
 	r = amdgpu_ras_feature_enable_on_boot(adev, ras_block, 1);
 	if (r) {
-		if (r == -EAGAIN) {
-			/* request gpu reset. will run again */
-			amdgpu_ras_request_reset_on_boot(adev,
-					ras_block->block);
-			return 0;
-		} else if (adev->in_suspend || amdgpu_in_reset(adev)) {
+		if (adev->in_suspend || amdgpu_in_reset(adev)) {
 			/* in resume phase, if fail to enable ras,
 			 * clean up all ras fs nodes, and disable ras */
 			goto cleanup;
@@ -2478,19 +2460,6 @@ void amdgpu_ras_resume(struct amdgpu_device *adev)
 				WARN_ON(alive_obj(obj));
 			}
 		}
-	}
-
-	if (con->flags & AMDGPU_RAS_FLAG_INIT_NEED_RESET) {
-		con->flags &= ~AMDGPU_RAS_FLAG_INIT_NEED_RESET;
-		/* setup ras obj state as disabled.
-		 * for init_by_vbios case.
-		 * if we want to enable ras, just enable it in a normal way.
-		 * If we want do disable it, need setup ras obj as enabled,
-		 * then issue another TA disable cmd.
-		 * See feature_enable_on_boot
-		 */
-		amdgpu_ras_disable_all_features(adev, 1);
-		amdgpu_ras_reset_gpu(adev);
 	}
 }
 

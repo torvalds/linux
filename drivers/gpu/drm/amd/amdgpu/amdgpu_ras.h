@@ -32,7 +32,6 @@
 #include "amdgpu_ras_eeprom.h"
 
 #define AMDGPU_RAS_FLAG_INIT_BY_VBIOS		(0x1 << 0)
-#define AMDGPU_RAS_FLAG_INIT_NEED_RESET		(0x1 << 1)
 
 enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__UMC = 0,
@@ -495,8 +494,6 @@ static inline int amdgpu_ras_is_supported(struct amdgpu_device *adev,
 }
 
 int amdgpu_ras_recovery_init(struct amdgpu_device *adev);
-int amdgpu_ras_request_reset_on_boot(struct amdgpu_device *adev,
-		unsigned int block);
 
 void amdgpu_ras_resume(struct amdgpu_device *adev);
 void amdgpu_ras_suspend(struct amdgpu_device *adev);
