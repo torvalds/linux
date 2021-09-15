@@ -546,10 +546,10 @@ static const struct file_operations sof_dfs_fops = {
 };
 
 /* create FS entry for debug files that can expose DSP memories, registers */
-int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
-			    void __iomem *base, size_t size,
-			    const char *name,
-			    enum sof_debugfs_access_type access_type)
+static int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
+				   void __iomem *base, size_t size,
+				   const char *name,
+				   enum sof_debugfs_access_type access_type)
 {
 	struct snd_sof_dfsentry *dfse;
 
@@ -586,7 +586,6 @@ int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_sof_debugfs_io_item);
 
 int snd_sof_debugfs_add_region_item_iomem(struct snd_sof_dev *sdev,
 					  enum snd_sof_fw_blk_type blk_type, u32 offset,
