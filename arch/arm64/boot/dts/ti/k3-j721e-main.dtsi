@@ -656,7 +656,7 @@
 		clock-names = "fck";
 		cdns,max-outbound-regions = <16>;
 		max-functions = /bits/ 8 <6>;
-		max-virtual-functions = /bits/ 16 <4 4 4 4 0 0>;
+		max-virtual-functions = /bits/ 8 <4 4 4 4 0 0>;
 		dma-coherent;
 	};
 
@@ -705,7 +705,7 @@
 		clock-names = "fck";
 		cdns,max-outbound-regions = <16>;
 		max-functions = /bits/ 8 <6>;
-		max-virtual-functions = /bits/ 16 <4 4 4 4 0 0>;
+		max-virtual-functions = /bits/ 8 <4 4 4 4 0 0>;
 		dma-coherent;
 	};
 
@@ -754,7 +754,7 @@
 		clock-names = "fck";
 		cdns,max-outbound-regions = <16>;
 		max-functions = /bits/ 8 <6>;
-		max-virtual-functions = /bits/ 16 <4 4 4 4 0 0>;
+		max-virtual-functions = /bits/ 8 <4 4 4 4 0 0>;
 		dma-coherent;
 	};
 
@@ -803,7 +803,7 @@
 		clock-names = "fck";
 		cdns,max-outbound-regions = <16>;
 		max-functions = /bits/ 8 <6>;
-		max-virtual-functions = /bits/ 16 <4 4 4 4 0 0>;
+		max-virtual-functions = /bits/ 8 <4 4 4 4 0 0>;
 		dma-coherent;
 		#address-cells = <2>;
 		#size-cells = <2>;
