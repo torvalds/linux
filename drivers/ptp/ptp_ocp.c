@@ -230,8 +230,9 @@ struct ptp_ocp {
 	int			gnss_port;
 	int			mac_port;	/* miniature atomic clock */
 	u8			serial[6];
-	int			flash_start;
 	bool			has_serial;
+	int			flash_start;
+	u32			utc_tai_offset;
 };
 
 struct ocp_resource {
@@ -739,6 +740,23 @@ ptp_ocp_init_clock(struct ptp_ocp *bp)
 	mod_timer(&bp->watchdog, jiffies + HZ);
 
 	return 0;
+}
+
+static void
+ptp_ocp_utc_distribute(struct ptp_ocp *bp, u32 val)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&bp->lock, flags);
+
+	bp->utc_tai_offset = val;
+
+	if (bp->irig_out)
+		iowrite32(val, &bp->irig_out->adj_sec);
+	if (bp->dcf_out)
+		iowrite32(val, &bp->dcf_out->adj_sec);
+
+	spin_unlock_irqrestore(&bp->lock, flags);
 }
 
 static void
@@ -1677,6 +1695,34 @@ gnss_sync_show(struct device *dev, struct device_attribute *attr, char *buf)
 static DEVICE_ATTR_RO(gnss_sync);
 
 static ssize_t
+utc_tai_offset_show(struct device *dev,
+		    struct device_attribute *attr, char *buf)
+{
+	struct ptp_ocp *bp = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%d\n", bp->utc_tai_offset);
+}
+
+static ssize_t
+utc_tai_offset_store(struct device *dev,
+		     struct device_attribute *attr,
+		     const char *buf, size_t count)
+{
+	struct ptp_ocp *bp = dev_get_drvdata(dev);
+	int err;
+	u32 val;
+
+	err = kstrtou32(buf, 0, &val);
+	if (err)
+		return err;
+
+	ptp_ocp_utc_distribute(bp, val);
+
+	return count;
+}
+static DEVICE_ATTR_RW(utc_tai_offset);
+
+static ssize_t
 irig_b_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ptp_ocp *bp = dev_get_drvdata(dev);
@@ -1769,6 +1815,7 @@ static struct attribute *timecard_attrs[] = {
 	&dev_attr_available_sma_inputs.attr,
 	&dev_attr_available_sma_outputs.attr,
 	&dev_attr_irig_b_mode.attr,
+	&dev_attr_utc_tai_offset.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(timecard);
