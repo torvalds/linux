@@ -843,11 +843,10 @@ static int init_tx_pools(struct net_device *netdev)
 	 * allocation, release_tx_pools() will know how many to look for.
 	 */
 	adapter->num_active_tx_pools = num_pools;
+	buff_size = adapter->req_mtu + VLAN_HLEN;
+	buff_size = ALIGN(buff_size, L1_CACHE_BYTES);
 
 	for (i = 0; i < num_pools; i++) {
-		buff_size = adapter->req_mtu + VLAN_HLEN;
-		buff_size = ALIGN(buff_size, L1_CACHE_BYTES);
-
 		dev_dbg(dev, "Init tx pool %d [%llu, %llu]\n",
 			i, adapter->req_tx_entries_per_subcrq, buff_size);
 
