@@ -543,10 +543,37 @@ static struct dma_heap_ops system_uncached_heap_ops = {
 	.allocate = system_uncached_heap_not_initialized,
 };
 
+static int set_heap_dev_dma(struct device *heap_dev)
+{
+	int err = 0;
+
+	if (!heap_dev)
+		return -EINVAL;
+
+	dma_coerce_mask_and_coherent(heap_dev, DMA_BIT_MASK(64));
+
+	if (!heap_dev->dma_parms) {
+		heap_dev->dma_parms = devm_kzalloc(heap_dev,
+						   sizeof(*heap_dev->dma_parms),
+						   GFP_KERNEL);
+		if (!heap_dev->dma_parms)
+			return -ENOMEM;
+
+		err = dma_set_max_seg_size(heap_dev, (unsigned int)DMA_BIT_MASK(64));
+		if (err) {
+			devm_kfree(heap_dev, heap_dev->dma_parms);
+			dev_err(heap_dev, "Failed to set DMA segment size, err:%d\n", err);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
 static int system_heap_create(void)
 {
 	struct dma_heap_export_info exp_info;
-	int i;
+	int i, err = 0;
 
 	for (i = 0; i < NUM_ORDERS; i++) {
 		pools[i] = dmabuf_page_pool_create(order_flags[i], orders[i]);
@@ -577,7 +604,10 @@ static int system_heap_create(void)
 	if (IS_ERR(sys_uncached_heap))
 		return PTR_ERR(sys_uncached_heap);
 
-	dma_coerce_mask_and_coherent(dma_heap_get_dev(sys_uncached_heap), DMA_BIT_MASK(64));
+	err = set_heap_dev_dma(dma_heap_get_dev(sys_uncached_heap));
+	if (err)
+		return err;
+
 	mb(); /* make sure we only set allocate after dma_mask is set */
 	system_uncached_heap_ops.allocate = system_uncached_heap_allocate;
 
