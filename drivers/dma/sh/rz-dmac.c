@@ -574,7 +574,7 @@ static void rz_dmac_issue_pending(struct dma_chan *chan)
 static u8 rz_dmac_ds_to_val_mapping(enum dma_slave_buswidth ds)
 {
 	u8 i;
-	const enum dma_slave_buswidth ds_lut[] = {
+	static const enum dma_slave_buswidth ds_lut[] = {
 		DMA_SLAVE_BUSWIDTH_1_BYTE,
 		DMA_SLAVE_BUSWIDTH_2_BYTES,
 		DMA_SLAVE_BUSWIDTH_4_BYTES,
