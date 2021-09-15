@@ -26,8 +26,8 @@ void xchk_btree_xref_set_corrupt(struct xfs_scrub *sc,
 
 struct xchk_btree;
 typedef int (*xchk_btree_rec_fn)(
-	struct xchk_btree	*bs,
-	union xfs_btree_rec	*rec);
+	struct xchk_btree		*bs,
+	const union xfs_btree_rec	*rec);
 
 struct xchk_btree {
 	/* caller-provided scrub state */

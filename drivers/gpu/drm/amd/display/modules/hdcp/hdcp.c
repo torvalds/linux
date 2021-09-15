@@ -145,6 +145,7 @@ static enum mod_hdcp_status transition(struct mod_hdcp *hdcp,
 			} else {
 				callback_in_ms(0, output);
 				set_state_id(hdcp, output, HDCP_CP_NOT_DESIRED);
+				set_auth_complete(hdcp, output);
 			}
 		else if (is_hdmi_dvi_sl_hdcp(hdcp))
 			if (is_cp_desired_hdcp2(hdcp)) {
@@ -156,10 +157,12 @@ static enum mod_hdcp_status transition(struct mod_hdcp *hdcp,
 			} else {
 				callback_in_ms(0, output);
 				set_state_id(hdcp, output, HDCP_CP_NOT_DESIRED);
+				set_auth_complete(hdcp, output);
 			}
 		else {
 			callback_in_ms(0, output);
 			set_state_id(hdcp, output, HDCP_CP_NOT_DESIRED);
+			set_auth_complete(hdcp, output);
 		}
 	} else if (is_in_cp_not_desired_state(hdcp)) {
 		increment_stay_counter(hdcp);
@@ -520,7 +523,7 @@ enum mod_hdcp_status mod_hdcp_process_event(struct mod_hdcp *hdcp,
 
 	/* reset authentication if needed */
 	if (trans_status == MOD_HDCP_STATUS_RESET_NEEDED) {
-		HDCP_FULL_DDC_TRACE(hdcp);
+		mod_hdcp_log_ddc_trace(hdcp);
 		reset_status = reset_authentication(hdcp, output);
 		if (reset_status != MOD_HDCP_STATUS_SUCCESS)
 			push_error_status(hdcp, reset_status);

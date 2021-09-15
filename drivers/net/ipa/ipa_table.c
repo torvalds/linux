@@ -120,8 +120,6 @@
  */
 #define IPA_ZERO_RULE_SIZE		(2 * sizeof(__le32))
 
-#ifdef IPA_VALIDATE
-
 /* Check things that can be validated at build time. */
 static void ipa_table_validate_build(void)
 {
@@ -161,7 +159,7 @@ ipa_table_valid_one(struct ipa *ipa, enum ipa_mem_id mem_id, bool route)
 	else
 		size = (1 + IPA_FILTER_COUNT_MAX) * sizeof(__le64);
 
-	if (!ipa_cmd_table_valid(ipa, mem, route, ipv6, hashed))
+	if (!ipa_cmd_table_valid(ipa, mem, route))
 		return false;
 
 	/* mem->size >= size is sufficient, but we'll demand more */
@@ -169,7 +167,7 @@ ipa_table_valid_one(struct ipa *ipa, enum ipa_mem_id mem_id, bool route)
 		return true;
 
 	/* Hashed table regions can be zero size if hashing is not supported */
-	if (hashed && !mem->size)
+	if (ipa_table_hash_support(ipa) && !mem->size)
 		return true;
 
 	dev_err(dev, "%s table region %u size 0x%02x, expected 0x%02x\n",
@@ -183,14 +181,22 @@ bool ipa_table_valid(struct ipa *ipa)
 {
 	bool valid;
 
-	valid = ipa_table_valid_one(IPA_MEM_V4_FILTER, false);
-	valid = valid && ipa_table_valid_one(IPA_MEM_V4_FILTER_HASHED, false);
-	valid = valid && ipa_table_valid_one(IPA_MEM_V6_FILTER, false);
-	valid = valid && ipa_table_valid_one(IPA_MEM_V6_FILTER_HASHED, false);
-	valid = valid && ipa_table_valid_one(IPA_MEM_V4_ROUTE, true);
-	valid = valid && ipa_table_valid_one(IPA_MEM_V4_ROUTE_HASHED, true);
-	valid = valid && ipa_table_valid_one(IPA_MEM_V6_ROUTE, true);
-	valid = valid && ipa_table_valid_one(IPA_MEM_V6_ROUTE_HASHED, true);
+	valid = ipa_table_valid_one(ipa, IPA_MEM_V4_FILTER, false);
+	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V6_FILTER, false);
+	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V4_ROUTE, true);
+	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V6_ROUTE, true);
+
+	if (!ipa_table_hash_support(ipa))
+		return valid;
+
+	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V4_FILTER_HASHED,
+					     false);
+	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V6_FILTER_HASHED,
+					     false);
+	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V4_ROUTE_HASHED,
+					     true);
+	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V6_ROUTE_HASHED,
+					     true);
 
 	return valid;
 }
@@ -217,14 +223,6 @@ bool ipa_filter_map_valid(struct ipa *ipa, u32 filter_map)
 	return true;
 }
 
-#else /* !IPA_VALIDATE */
-static void ipa_table_validate_build(void)
-
-{
-}
-
-#endif /* !IPA_VALIDATE */
-
 /* Zero entry count means no table, so just return a 0 address */
 static dma_addr_t ipa_table_addr(struct ipa *ipa, bool filter_mask, u16 count)
 {
@@ -233,7 +231,7 @@ static dma_addr_t ipa_table_addr(struct ipa *ipa, bool filter_mask, u16 count)
 	if (!count)
 		return 0;
 
-/* assert(count <= max_t(u32, IPA_FILTER_COUNT_MAX, IPA_ROUTE_COUNT_MAX)); */
+	WARN_ON(count > max_t(u32, IPA_FILTER_COUNT_MAX, IPA_ROUTE_COUNT_MAX));
 
 	/* Skip over the zero rule and possibly the filter mask */
 	skip = filter_mask ? 1 : 2;

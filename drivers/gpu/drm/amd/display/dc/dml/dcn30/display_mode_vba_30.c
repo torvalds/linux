@@ -3644,8 +3644,7 @@ static double TruncToValidBPP(
 void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_lib)
 {
 	struct vba_vars_st *v = &mode_lib->vba;
-	int MinPrefetchMode = 0;
-	int MaxPrefetchMode = 2;
+	int MinPrefetchMode, MaxPrefetchMode;
 	int i;
 	unsigned int j, k, m;
 	bool   EnoughWritebackUnits = true;
@@ -3656,6 +3655,10 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	bool NotUrgentLatencyHiding[DC__NUM_DPP__MAX] = { 0 };
 
 	/*MODE SUPPORT, VOLTAGE STATE AND SOC CONFIGURATION*/
+
+	CalculateMinAndMaxPrefetchMode(
+		mode_lib->vba.AllowDRAMSelfRefreshOrDRAMClockChangeInVblank,
+		&MinPrefetchMode, &MaxPrefetchMode);
 
 	/*Scale Ratio, taps Support Check*/
 

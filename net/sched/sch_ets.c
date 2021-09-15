@@ -390,7 +390,7 @@ static struct ets_class *ets_classify(struct sk_buff *skb, struct Qdisc *sch,
 	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 	if (TC_H_MAJ(skb->priority) != sch->handle) {
 		fl = rcu_dereference_bh(q->filter_list);
-		err = tcf_classify(skb, fl, &res, false);
+		err = tcf_classify(skb, NULL, fl, &res, false);
 #ifdef CONFIG_NET_CLS_ACT
 		switch (err) {
 		case TC_ACT_STOLEN:
@@ -660,6 +660,13 @@ static int ets_qdisc_change(struct Qdisc *sch, struct nlattr *opt,
 	sch_tree_lock(sch);
 
 	q->nbands = nbands;
+	for (i = nstrict; i < q->nstrict; i++) {
+		INIT_LIST_HEAD(&q->classes[i].alist);
+		if (q->classes[i].qdisc->q.qlen) {
+			list_add_tail(&q->classes[i].alist, &q->active);
+			q->classes[i].deficit = quanta[i];
+		}
+	}
 	q->nstrict = nstrict;
 	memcpy(q->prio2band, priomap, sizeof(priomap));
 

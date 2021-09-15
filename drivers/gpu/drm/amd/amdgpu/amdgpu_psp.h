@@ -136,59 +136,32 @@ struct psp_asd_context {
 	uint32_t		session_id;
 };
 
+struct ta_mem_context {
+	struct amdgpu_bo		*shared_bo;
+	uint64_t		shared_mc_addr;
+	void			*shared_buf;
+};
+
+struct ta_context {
+	bool			initialized;
+	uint32_t		session_id;
+	struct ta_mem_context	mem_context;
+};
+
+struct ta_cp_context {
+	struct ta_context		context;
+	struct mutex			mutex;
+};
+
 struct psp_xgmi_context {
-	uint8_t				initialized;
-	uint32_t			session_id;
-	struct amdgpu_bo                *xgmi_shared_bo;
-	uint64_t                        xgmi_shared_mc_addr;
-	void                            *xgmi_shared_buf;
+	struct ta_context		context;
 	struct psp_xgmi_topology_info	top_info;
+	bool				supports_extended_data;
 };
 
 struct psp_ras_context {
-	/*ras fw*/
-	bool			ras_initialized;
-	uint32_t		session_id;
-	struct amdgpu_bo	*ras_shared_bo;
-	uint64_t		ras_shared_mc_addr;
-	void			*ras_shared_buf;
-	struct amdgpu_ras	*ras;
-};
-
-struct psp_hdcp_context {
-	bool			hdcp_initialized;
-	uint32_t		session_id;
-	struct amdgpu_bo	*hdcp_shared_bo;
-	uint64_t		hdcp_shared_mc_addr;
-	void			*hdcp_shared_buf;
-	struct mutex		mutex;
-};
-
-struct psp_dtm_context {
-	bool			dtm_initialized;
-	uint32_t		session_id;
-	struct amdgpu_bo	*dtm_shared_bo;
-	uint64_t		dtm_shared_mc_addr;
-	void			*dtm_shared_buf;
-	struct mutex		mutex;
-};
-
-struct psp_rap_context {
-	bool			rap_initialized;
-	uint32_t		session_id;
-	struct amdgpu_bo	*rap_shared_bo;
-	uint64_t		rap_shared_mc_addr;
-	void			*rap_shared_buf;
-	struct mutex		mutex;
-};
-
-struct psp_securedisplay_context {
-	bool			securedisplay_initialized;
-	uint32_t		session_id;
-	struct amdgpu_bo	*securedisplay_shared_bo;
-	uint64_t		securedisplay_shared_mc_addr;
-	void			*securedisplay_shared_buf;
-	struct mutex		mutex;
+	struct ta_context		context;
+	struct amdgpu_ras		*ras;
 };
 
 #define MEM_TRAIN_SYSTEM_SIGNATURE		0x54534942
@@ -327,11 +300,8 @@ struct psp_context
 	uint64_t			tmr_mc_addr;
 
 	/* asd firmware */
-	const struct firmware		*asd_fw;
-	uint32_t			asd_fw_version;
-	uint32_t			asd_feature_version;
-	uint32_t			asd_ucode_size;
-	uint8_t				*asd_start_addr;
+	const struct firmware	*asd_fw;
+	struct psp_bin_desc		asd;
 
 	/* toc firmware */
 	const struct firmware		*toc_fw;
@@ -356,36 +326,20 @@ struct psp_context
 	/* xgmi ta firmware and buffer */
 	const struct firmware		*ta_fw;
 	uint32_t			ta_fw_version;
-	uint32_t			ta_xgmi_ucode_version;
-	uint32_t			ta_xgmi_ucode_size;
-	uint8_t				*ta_xgmi_start_addr;
-	uint32_t			ta_ras_ucode_version;
-	uint32_t			ta_ras_ucode_size;
-	uint8_t				*ta_ras_start_addr;
-
-	uint32_t			ta_hdcp_ucode_version;
-	uint32_t			ta_hdcp_ucode_size;
-	uint8_t				*ta_hdcp_start_addr;
-
-	uint32_t			ta_dtm_ucode_version;
-	uint32_t			ta_dtm_ucode_size;
-	uint8_t				*ta_dtm_start_addr;
-
-	uint32_t			ta_rap_ucode_version;
-	uint32_t			ta_rap_ucode_size;
-	uint8_t				*ta_rap_start_addr;
-
-	uint32_t			ta_securedisplay_ucode_version;
-	uint32_t			ta_securedisplay_ucode_size;
-	uint8_t				*ta_securedisplay_start_addr;
+	struct psp_bin_desc		xgmi;
+	struct psp_bin_desc		ras;
+	struct psp_bin_desc		hdcp;
+	struct psp_bin_desc		dtm;
+	struct psp_bin_desc		rap;
+	struct psp_bin_desc		securedisplay;
 
 	struct psp_asd_context		asd_context;
 	struct psp_xgmi_context		xgmi_context;
-	struct psp_ras_context		ras;
-	struct psp_hdcp_context 	hdcp_context;
-	struct psp_dtm_context		dtm_context;
-	struct psp_rap_context		rap_context;
-	struct psp_securedisplay_context	securedisplay_context;
+	struct psp_ras_context		ras_context;
+	struct ta_cp_context		hdcp_context;
+	struct ta_cp_context		dtm_context;
+	struct ta_cp_context		rap_context;
+	struct ta_cp_context		securedisplay_context;
 	struct mutex			mutex;
 	struct psp_memory_training_context mem_train_ctx;
 
@@ -452,14 +406,15 @@ int psp_gpu_reset(struct amdgpu_device *adev);
 int psp_update_vcn_sram(struct amdgpu_device *adev, int inst_idx,
 			uint64_t cmd_gpu_addr, int cmd_size);
 
-int psp_xgmi_initialize(struct psp_context *psp);
+int psp_xgmi_initialize(struct psp_context *psp, bool set_extended_data, bool load_ta);
 int psp_xgmi_terminate(struct psp_context *psp);
 int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_xgmi_get_hive_id(struct psp_context *psp, uint64_t *hive_id);
 int psp_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id);
 int psp_xgmi_get_topology_info(struct psp_context *psp,
 			       int number_devices,
-			       struct psp_xgmi_topology_info *topology);
+			       struct psp_xgmi_topology_info *topology,
+			       bool get_extended_data);
 int psp_xgmi_set_topology_info(struct psp_context *psp,
 			       int number_devices,
 			       struct psp_xgmi_topology_info *topology);

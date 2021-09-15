@@ -726,21 +726,21 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 
 /*
  * search for key in the extent_buffer.  The items start at offset p,
- * and they are item_size apart.  There are 'max' items in p.
+ * and they are item_size apart.
  *
  * the slot in the array is returned via slot, and it points to
  * the place where you would insert key if it is not found in
  * the array.
  *
- * slot may point to max if the key is bigger than all of the keys
+ * Slot may point to total number of items if the key is bigger than
+ * all of the keys
  */
 static noinline int generic_bin_search(struct extent_buffer *eb,
 				       unsigned long p, int item_size,
-				       const struct btrfs_key *key,
-				       int max, int *slot)
+				       const struct btrfs_key *key, int *slot)
 {
 	int low = 0;
-	int high = max;
+	int high = btrfs_header_nritems(eb);
 	int ret;
 	const int key_size = sizeof(struct btrfs_disk_key);
 
@@ -799,15 +799,11 @@ int btrfs_bin_search(struct extent_buffer *eb, const struct btrfs_key *key,
 	if (btrfs_header_level(eb) == 0)
 		return generic_bin_search(eb,
 					  offsetof(struct btrfs_leaf, items),
-					  sizeof(struct btrfs_item),
-					  key, btrfs_header_nritems(eb),
-					  slot);
+					  sizeof(struct btrfs_item), key, slot);
 	else
 		return generic_bin_search(eb,
 					  offsetof(struct btrfs_node, ptrs),
-					  sizeof(struct btrfs_key_ptr),
-					  key, btrfs_header_nritems(eb),
-					  slot);
+					  sizeof(struct btrfs_key_ptr), key, slot);
 }
 
 static void root_add_used(struct btrfs_root *root, u32 size)
@@ -1237,7 +1233,6 @@ static void reada_for_search(struct btrfs_fs_info *fs_info,
 	u64 target;
 	u64 nread = 0;
 	u64 nread_max;
-	struct extent_buffer *eb;
 	u32 nr;
 	u32 blocksize;
 	u32 nscan = 0;
@@ -1266,10 +1261,14 @@ static void reada_for_search(struct btrfs_fs_info *fs_info,
 
 	search = btrfs_node_blockptr(node, slot);
 	blocksize = fs_info->nodesize;
-	eb = find_extent_buffer(fs_info, search);
-	if (eb) {
-		free_extent_buffer(eb);
-		return;
+	if (path->reada != READA_FORWARD_ALWAYS) {
+		struct extent_buffer *eb;
+
+		eb = find_extent_buffer(fs_info, search);
+		if (eb) {
+			free_extent_buffer(eb);
+			return;
+		}
 	}
 
 	target = search;
@@ -2100,6 +2099,27 @@ again:
 		}
 	}
 	return 0;
+}
+
+/*
+ * Execute search and call btrfs_previous_item to traverse backwards if the item
+ * was not found.
+ *
+ * Return 0 if found, 1 if not found and < 0 if error.
+ */
+int btrfs_search_backwards(struct btrfs_root *root, struct btrfs_key *key,
+			   struct btrfs_path *path)
+{
+	int ret;
+
+	ret = btrfs_search_slot(NULL, root, key, path, 0, 0);
+	if (ret > 0)
+		ret = btrfs_previous_item(root, path, key->objectid, key->type);
+
+	if (ret == 0)
+		btrfs_item_key_to_cpu(path->nodes[0], key, path->slots[0]);
+
+	return ret;
 }
 
 /*
@@ -4356,16 +4376,6 @@ next:
 		return 0;
 	}
 	return 1;
-}
-
-/*
- * search the tree again to find a leaf with greater keys
- * returns 0 if it found something or 1 if there are no greater leaves.
- * returns < 0 on io errors.
- */
-int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
-{
-	return btrfs_next_old_leaf(root, path, 0);
 }
 
 int btrfs_next_old_leaf(struct btrfs_root *root, struct btrfs_path *path,

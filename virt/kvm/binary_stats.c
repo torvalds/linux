@@ -136,9 +136,7 @@ ssize_t kvm_stats_read(char *id, const struct kvm_stats_header *header,
 		src = stats + pos - header->data_offset;
 		if (copy_to_user(dest, src, copylen))
 			return -EFAULT;
-		remain -= copylen;
 		pos += copylen;
-		dest += copylen;
 	}
 
 	*offset = pos;

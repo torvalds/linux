@@ -14,9 +14,9 @@ if [ $? -ne 0 ]; then
 fi
 
 cat <<EOF |
-asm-generic/atomic-instrumented.h
-asm-generic/atomic-long.h
-linux/atomic-arch-fallback.h
+linux/atomic/atomic-instrumented.h
+linux/atomic/atomic-long.h
+linux/atomic/atomic-arch-fallback.h
 EOF
 while read header; do
 	OLDSUM="$(tail -n 1 ${LINUXDIR}/include/${header})"

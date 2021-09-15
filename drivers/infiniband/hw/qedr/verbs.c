@@ -1339,6 +1339,15 @@ static int qedr_copy_qp_uresp(struct qedr_dev *dev,
 	return rc;
 }
 
+static void qedr_reset_qp_hwq_info(struct qedr_qp_hwq_info *qph)
+{
+	qed_chain_reset(&qph->pbl);
+	qph->prod = 0;
+	qph->cons = 0;
+	qph->wqe_cons = 0;
+	qph->db_data.data.value = cpu_to_le16(0);
+}
+
 static void qedr_set_common_qp_params(struct qedr_dev *dev,
 				      struct qedr_qp *qp,
 				      struct qedr_pd *pd,
@@ -1354,9 +1363,13 @@ static void qedr_set_common_qp_params(struct qedr_dev *dev,
 	qp->qp_type = attrs->qp_type;
 	qp->max_inline_data = attrs->cap.max_inline_data;
 	qp->state = QED_ROCE_QP_STATE_RESET;
+
+	qp->prev_wqe_size = 0;
+
 	qp->signaled = (attrs->sq_sig_type == IB_SIGNAL_ALL_WR) ? true : false;
 	qp->dev = dev;
 	if (qedr_qp_has_sq(qp)) {
+		qedr_reset_qp_hwq_info(&qp->sq);
 		qp->sq.max_sges = attrs->cap.max_send_sge;
 		qp->sq_cq = get_qedr_cq(attrs->send_cq);
 		DP_DEBUG(dev, QEDR_MSG_QP,
@@ -1368,6 +1381,7 @@ static void qedr_set_common_qp_params(struct qedr_dev *dev,
 		qp->srq = get_qedr_srq(attrs->srq);
 
 	if (qedr_qp_has_rq(qp)) {
+		qedr_reset_qp_hwq_info(&qp->rq);
 		qp->rq_cq = get_qedr_cq(attrs->recv_cq);
 		qp->rq.max_sges = attrs->cap.max_recv_sge;
 		DP_DEBUG(dev, QEDR_MSG_QP,
@@ -1481,7 +1495,7 @@ static int qedr_init_srq_user_params(struct ib_udata *udata,
 		return PTR_ERR(srq->prod_umem);
 	}
 
-	sg = srq->prod_umem->sg_head.sgl;
+	sg = srq->prod_umem->sgt_append.sgt.sgl;
 	srq->hw_srq.phy_prod_pair_addr = sg_dma_address(sg);
 
 	return 0;
@@ -2239,34 +2253,30 @@ static int qedr_free_qp_resources(struct qedr_dev *dev, struct qedr_qp *qp,
 	return 0;
 }
 
-struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
-			     struct ib_qp_init_attr *attrs,
-			     struct ib_udata *udata)
+int qedr_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
+		   struct ib_udata *udata)
 {
 	struct qedr_xrcd *xrcd = NULL;
-	struct qedr_pd *pd = NULL;
-	struct qedr_dev *dev;
-	struct qedr_qp *qp;
-	struct ib_qp *ibqp;
+	struct ib_pd *ibpd = ibqp->pd;
+	struct qedr_pd *pd = get_qedr_pd(ibpd);
+	struct qedr_dev *dev = get_qedr_dev(ibqp->device);
+	struct qedr_qp *qp = get_qedr_qp(ibqp);
 	int rc = 0;
 
 	if (attrs->create_flags)
-		return ERR_PTR(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
-	if (attrs->qp_type == IB_QPT_XRC_TGT) {
+	if (attrs->qp_type == IB_QPT_XRC_TGT)
 		xrcd = get_qedr_xrcd(attrs->xrcd);
-		dev = get_qedr_dev(xrcd->ibxrcd.device);
-	} else {
+	else
 		pd = get_qedr_pd(ibpd);
-		dev = get_qedr_dev(ibpd->device);
-	}
 
 	DP_DEBUG(dev, QEDR_MSG_QP, "create qp: called from %s, pd=%p\n",
 		 udata ? "user library" : "kernel", pd);
 
 	rc = qedr_check_qp_attrs(ibpd, dev, attrs, udata);
 	if (rc)
-		return ERR_PTR(rc);
+		return rc;
 
 	DP_DEBUG(dev, QEDR_MSG_QP,
 		 "create qp: called from %s, event_handler=%p, eepd=%p sq_cq=%p, sq_icid=%d, rq_cq=%p, rq_icid=%d\n",
@@ -2276,20 +2286,10 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 		 get_qedr_cq(attrs->recv_cq),
 		 attrs->recv_cq ? get_qedr_cq(attrs->recv_cq)->icid : 0);
 
-	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
-	if (!qp) {
-		DP_ERR(dev, "create qp: failed allocating memory\n");
-		return ERR_PTR(-ENOMEM);
-	}
-
 	qedr_set_common_qp_params(dev, qp, pd, attrs);
 
-	if (attrs->qp_type == IB_QPT_GSI) {
-		ibqp = qedr_create_gsi_qp(dev, attrs, qp);
-		if (IS_ERR(ibqp))
-			kfree(qp);
-		return ibqp;
-	}
+	if (attrs->qp_type == IB_QPT_GSI)
+		return qedr_create_gsi_qp(dev, attrs, qp);
 
 	if (udata || xrcd)
 		rc = qedr_create_user_qp(dev, qp, ibpd, udata, attrs);
@@ -2297,7 +2297,7 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 		rc = qedr_create_kernel_qp(dev, qp, ibpd, attrs);
 
 	if (rc)
-		goto out_free_qp;
+		return rc;
 
 	qp->ibqp.qp_num = qp->qp_id;
 
@@ -2307,14 +2307,11 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 			goto out_free_qp_resources;
 	}
 
-	return &qp->ibqp;
+	return 0;
 
 out_free_qp_resources:
 	qedr_free_qp_resources(dev, qp, udata);
-out_free_qp:
-	kfree(qp);
-
-	return ERR_PTR(-EFAULT);
+	return -EFAULT;
 }
 
 static enum ib_qp_state qedr_get_ibqp_state(enum qed_roce_qp_state qp_state)
@@ -2359,15 +2356,6 @@ static enum qed_roce_qp_state qedr_get_state_from_ibqp(
 	}
 }
 
-static void qedr_reset_qp_hwq_info(struct qedr_qp_hwq_info *qph)
-{
-	qed_chain_reset(&qph->pbl);
-	qph->prod = 0;
-	qph->cons = 0;
-	qph->wqe_cons = 0;
-	qph->db_data.data.value = cpu_to_le16(0);
-}
-
 static int qedr_update_qp_state(struct qedr_dev *dev,
 				struct qedr_qp *qp,
 				enum qed_roce_qp_state cur_state,
@@ -2382,9 +2370,6 @@ static int qedr_update_qp_state(struct qedr_dev *dev,
 	case QED_ROCE_QP_STATE_RESET:
 		switch (new_state) {
 		case QED_ROCE_QP_STATE_INIT:
-			qp->prev_wqe_size = 0;
-			qedr_reset_qp_hwq_info(&qp->sq);
-			qedr_reset_qp_hwq_info(&qp->rq);
 			break;
 		default:
 			status = -EINVAL;
@@ -2874,8 +2859,6 @@ int qedr_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 
 	if (rdma_protocol_iwarp(&dev->ibdev, 1))
 		qedr_iw_qp_rem_ref(&qp->ibqp);
-	else
-		kfree(qp);
 
 	return 0;
 }
@@ -2996,7 +2979,11 @@ struct ib_mr *qedr_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 
 	rc = dev->ops->rdma_alloc_tid(dev->rdma_ctx, &mr->hw_mr.itid);
 	if (rc) {
-		DP_ERR(dev, "roce alloc tid returned an error %d\n", rc);
+		if (rc == -EINVAL)
+			DP_ERR(dev, "Out of MR resources\n");
+		else
+			DP_ERR(dev, "roce alloc tid returned error %d\n", rc);
+
 		goto err1;
 	}
 
@@ -3091,7 +3078,11 @@ static struct qedr_mr *__qedr_alloc_mr(struct ib_pd *ibpd,
 
 	rc = dev->ops->rdma_alloc_tid(dev->rdma_ctx, &mr->hw_mr.itid);
 	if (rc) {
-		DP_ERR(dev, "roce alloc tid returned an error %d\n", rc);
+		if (rc == -EINVAL)
+			DP_ERR(dev, "Out of MR resources\n");
+		else
+			DP_ERR(dev, "roce alloc tid returned error %d\n", rc);
+
 		goto err0;
 	}
 
@@ -3221,7 +3212,11 @@ struct ib_mr *qedr_get_dma_mr(struct ib_pd *ibpd, int acc)
 
 	rc = dev->ops->rdma_alloc_tid(dev->rdma_ctx, &mr->hw_mr.itid);
 	if (rc) {
-		DP_ERR(dev, "roce alloc tid returned an error %d\n", rc);
+		if (rc == -EINVAL)
+			DP_ERR(dev, "Out of MR resources\n");
+		else
+			DP_ERR(dev, "roce alloc tid returned error %d\n", rc);
+
 		goto err1;
 	}
 
@@ -3914,12 +3909,6 @@ int qedr_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 		return qedr_gsi_post_recv(ibqp, wr, bad_wr);
 
 	spin_lock_irqsave(&qp->q_lock, flags);
-
-	if (qp->state == QED_ROCE_QP_STATE_RESET) {
-		spin_unlock_irqrestore(&qp->q_lock, flags);
-		*bad_wr = wr;
-		return -EINVAL;
-	}
 
 	while (wr) {
 		int i;

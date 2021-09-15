@@ -147,7 +147,6 @@ struct fscache_retrieval {
 	fscache_rw_complete_t	end_io_func;	/* function to call on I/O completion */
 	void			*context;	/* netfs read context (pinned) */
 	struct list_head	to_do;		/* list of things to be done by the backend */
-	unsigned long		start_time;	/* time at which retrieval started */
 	atomic_t		n_pages;	/* number of pages to be retrieved */
 };
 
@@ -385,9 +384,6 @@ struct fscache_object {
 	struct list_head	dependents;	/* FIFO of dependent objects */
 	struct list_head	dep_link;	/* link in parent's dependents list */
 	struct list_head	pending_ops;	/* unstarted operations on this object */
-#ifdef CONFIG_FSCACHE_OBJECT_LIST
-	struct rb_node		objlist_link;	/* link in global object list */
-#endif
 	pgoff_t			store_limit;	/* current storage limit */
 	loff_t			store_limit_l;	/* current storage limit */
 };

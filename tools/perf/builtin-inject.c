@@ -46,6 +46,7 @@ struct perf_inject {
 	bool			jit_mode;
 	bool			in_place_update;
 	bool			in_place_update_dry_run;
+	bool			is_pipe;
 	const char		*input_name;
 	struct perf_data	output;
 	u64			bytes_written;
@@ -126,7 +127,7 @@ static int perf_event__repipe_attr(struct perf_tool *tool,
 	if (ret)
 		return ret;
 
-	if (!inject->output.is_pipe)
+	if (!inject->is_pipe)
 		return 0;
 
 	return perf_event__repipe_synth(tool, event);
@@ -826,14 +827,14 @@ static int __cmd_inject(struct perf_inject *inject)
 	if (!inject->itrace_synth_opts.set)
 		auxtrace_index__free(&session->auxtrace_index);
 
-	if (!data_out->is_pipe && !inject->in_place_update)
+	if (!inject->is_pipe && !inject->in_place_update)
 		lseek(fd, output_data_offset, SEEK_SET);
 
 	ret = perf_session__process_events(session);
 	if (ret)
 		return ret;
 
-	if (!data_out->is_pipe && !inject->in_place_update) {
+	if (!inject->is_pipe && !inject->in_place_update) {
 		if (inject->build_ids)
 			perf_header__set_feat(&session->header,
 					      HEADER_BUILD_ID);
@@ -918,6 +919,7 @@ int cmd_inject(int argc, const char **argv)
 		.use_stdio = true,
 	};
 	int ret;
+	bool repipe = true;
 
 	struct option options[] = {
 		OPT_BOOLEAN('b', "build-ids", &inject.build_ids,
@@ -992,7 +994,20 @@ int cmd_inject(int argc, const char **argv)
 	}
 
 	data.path = inject.input_name;
-	inject.session = perf_session__new(&data, inject.output.is_pipe, &inject.tool);
+	if (!strcmp(inject.input_name, "-") || inject.output.is_pipe) {
+		inject.is_pipe = true;
+		/*
+		 * Do not repipe header when input is a regular file
+		 * since either it can rewrite the header at the end
+		 * or write a new pipe header.
+		 */
+		if (strcmp(inject.input_name, "-"))
+			repipe = false;
+	}
+
+	inject.session = __perf_session__new(&data, repipe,
+					     perf_data__fd(&inject.output),
+					     &inject.tool);
 	if (IS_ERR(inject.session)) {
 		ret = PTR_ERR(inject.session);
 		goto out_close_output;
@@ -1000,6 +1015,21 @@ int cmd_inject(int argc, const char **argv)
 
 	if (zstd_init(&(inject.session->zstd_data), 0) < 0)
 		pr_warning("Decompression initialization failed.\n");
+
+	if (!data.is_pipe && inject.output.is_pipe) {
+		ret = perf_header__write_pipe(perf_data__fd(&inject.output));
+		if (ret < 0) {
+			pr_err("Couldn't write a new pipe header.\n");
+			goto out_delete;
+		}
+
+		ret = perf_event__synthesize_for_pipe(&inject.tool,
+						      inject.session,
+						      &inject.output,
+						      perf_event__repipe);
+		if (ret < 0)
+			goto out_delete;
+	}
 
 	if (inject.build_ids && !inject.build_id_all) {
 		/*

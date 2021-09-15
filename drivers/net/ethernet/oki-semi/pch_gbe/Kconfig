@@ -6,6 +6,7 @@
 config PCH_GBE
 	tristate "OKI SEMICONDUCTOR IOH(ML7223/ML7831) GbE"
 	depends on PCI && (X86_32 || COMPILE_TEST)
+	depends on PTP_1588_CLOCK
 	select MII
 	select PTP_1588_CLOCK_PCH
 	select NET_PTP_CLASSIFY

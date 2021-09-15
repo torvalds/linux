@@ -184,6 +184,8 @@
 		dmas = <0>, <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_flx4_default>;
+		i2c-digital-filter;
+		i2c-digital-filter-width-ns = <35>;
 		status = "okay";
 
 		mcp16502@5b {
@@ -307,6 +309,8 @@
 &i2c0 { /* mikrobus i2c */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_mikrobus_i2c>;
+	i2c-digital-filter;
+	i2c-digital-filter-width-ns = <35>;
 	status = "okay";
 };
 
@@ -314,6 +318,8 @@
 	dmas = <0>, <0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c1_default>;
+	i2c-digital-filter;
+	i2c-digital-filter-width-ns = <35>;
 	status = "okay";
 
 	eeprom@50 {
@@ -693,7 +699,7 @@
 };
 
 &shutdown_controller {
-	atmel,shdwc-debouncer = <976>;
+	debounce-delay-us = <976>;
 	atmel,wakeup-rtc-timer;
 
 	input@0 {

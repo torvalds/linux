@@ -366,7 +366,7 @@ static int usbhs_dcp_dir_switch_to_write(struct usbhs_pkt *pkt, int *is_done)
 
 	ret = usbhsf_fifo_select(pipe, fifo, 1);
 	if (ret < 0) {
-		dev_err(dev, "%s() faile\n", __func__);
+		dev_err(dev, "%s() failed\n", __func__);
 		return ret;
 	}
 

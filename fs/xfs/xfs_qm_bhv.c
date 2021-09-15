@@ -75,7 +75,7 @@ xfs_qm_newmount(
 	uint		quotaondisk;
 	uint		uquotaondisk = 0, gquotaondisk = 0, pquotaondisk = 0;
 
-	quotaondisk = xfs_sb_version_hasquota(&mp->m_sb) &&
+	quotaondisk = xfs_has_quota(mp) &&
 				(mp->m_sb.sb_qflags & XFS_ALL_QUOTA_ACCT);
 
 	if (quotaondisk) {

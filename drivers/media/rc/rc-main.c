@@ -1940,7 +1940,7 @@ int rc_register_device(struct rc_dev *dev)
 	kfree(path);
 
 	/*
-	 * once the the input device is registered in rc_setup_rx_device,
+	 * once the input device is registered in rc_setup_rx_device,
 	 * userspace can open the input device and rc_open() will be called
 	 * as a result. This results in driver code being allowed to submit
 	 * keycodes with rc_keydown, so lirc must be registered first.

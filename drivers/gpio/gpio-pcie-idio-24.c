@@ -468,8 +468,7 @@ static irqreturn_t idio_24_irq_handler(int irq, void *dev_id)
 	irq_mask = idio24gpio->irq_mask & irq_status;
 
 	for_each_set_bit(gpio, &irq_mask, chip->ngpio - 24)
-		generic_handle_irq(irq_find_mapping(chip->irq.domain,
-			gpio + 24));
+		generic_handle_domain_irq(chip->irq.domain, gpio + 24);
 
 	raw_spin_lock(&idio24gpio->lock);
 

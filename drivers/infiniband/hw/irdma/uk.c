@@ -931,16 +931,13 @@ enum irdma_status_code irdma_uk_mw_bind(struct irdma_qp_uk *qp,
 enum irdma_status_code irdma_uk_post_receive(struct irdma_qp_uk *qp,
 					     struct irdma_post_rq_info *info)
 {
-	u32 total_size = 0, wqe_idx, i, byte_off;
+	u32 wqe_idx, i, byte_off;
 	u32 addl_frag_cnt;
 	__le64 *wqe;
 	u64 hdr;
 
 	if (qp->max_rq_frag_cnt < info->num_sges)
 		return IRDMA_ERR_INVALID_FRAG_COUNT;
-
-	for (i = 0; i < info->num_sges; i++)
-		total_size += info->sg_list[i].len;
 
 	wqe = irdma_qp_get_next_recv_wqe(qp, &wqe_idx);
 	if (!wqe)

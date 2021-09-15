@@ -159,8 +159,10 @@ static int detect_quirks(struct snd_oxfw *oxfw, const struct ieee1394_device_id 
 		return snd_oxfw_scs1x_add(oxfw);
 	}
 
-	if (entry->vendor_id == OUI_APOGEE && entry->model_id == MODEL_DUET_FW)
-		oxfw->quirks |= SND_OXFW_QUIRK_BLOCKING_TRANSMISSION;
+	if (entry->vendor_id == OUI_APOGEE && entry->model_id == MODEL_DUET_FW) {
+		oxfw->quirks |= SND_OXFW_QUIRK_BLOCKING_TRANSMISSION |
+				SND_OXFW_QUIRK_IGNORE_NO_INFO_PACKET;
+	}
 
 	/*
 	 * TASCAM FireOne has physical control and requires a pair of additional

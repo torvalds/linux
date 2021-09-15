@@ -255,6 +255,7 @@ int tm_trap_test(void)
 	struct sigaction trap_sa;
 
 	SKIP_IF(!have_htm());
+	SKIP_IF(htm_is_synthetic());
 
 	trap_sa.sa_flags = SA_SIGINFO;
 	trap_sa.sa_sigaction = trap_signal_handler;

@@ -1141,10 +1141,7 @@ void irdma_free_qp_rsrc(struct irdma_qp *iwqp)
 			  iwqp->kqp.dma_mem.va, iwqp->kqp.dma_mem.pa);
 	iwqp->kqp.dma_mem.va = NULL;
 	kfree(iwqp->kqp.sq_wrid_mem);
-	iwqp->kqp.sq_wrid_mem = NULL;
 	kfree(iwqp->kqp.rq_wrid_mem);
-	iwqp->kqp.rq_wrid_mem = NULL;
-	kfree(iwqp);
 }
 
 /**

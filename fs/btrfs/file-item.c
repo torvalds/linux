@@ -233,7 +233,6 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_path *path, u64 objectid,
 			     u64 offset, int mod)
 {
-	int ret;
 	struct btrfs_key file_key;
 	int ins_len = mod < 0 ? -1 : 0;
 	int cow = mod != 0;
@@ -241,8 +240,8 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 	file_key.objectid = objectid;
 	file_key.offset = offset;
 	file_key.type = BTRFS_EXTENT_DATA_KEY;
-	ret = btrfs_search_slot(trans, root, &file_key, path, ins_len, cow);
-	return ret;
+
+	return btrfs_search_slot(trans, root, &file_key, path, ins_len, cow);
 }
 
 /*

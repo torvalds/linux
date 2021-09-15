@@ -594,24 +594,29 @@ static int u32_reader(struct driver_data *drv_data)
 
 static void reset_sccr1(struct driver_data *drv_data)
 {
-	struct chip_data *chip =
-		spi_get_ctldata(drv_data->controller->cur_msg->spi);
-	u32 sccr1_reg;
+	u32 mask = drv_data->int_cr1 | drv_data->dma_cr1, threshold;
+	struct chip_data *chip;
 
-	sccr1_reg = pxa2xx_spi_read(drv_data, SSCR1) & ~drv_data->int_cr1;
+	if (drv_data->controller->cur_msg) {
+		chip = spi_get_ctldata(drv_data->controller->cur_msg->spi);
+		threshold = chip->threshold;
+	} else {
+		threshold = 0;
+	}
+
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
-		sccr1_reg &= ~QUARK_X1000_SSCR1_RFT;
+		mask |= QUARK_X1000_SSCR1_RFT;
 		break;
 	case CE4100_SSP:
-		sccr1_reg &= ~CE4100_SSCR1_RFT;
+		mask |= CE4100_SSCR1_RFT;
 		break;
 	default:
-		sccr1_reg &= ~SSCR1_RFT;
+		mask |= SSCR1_RFT;
 		break;
 	}
-	sccr1_reg |= chip->threshold;
-	pxa2xx_spi_write(drv_data, SSCR1, sccr1_reg);
+
+	pxa2xx_spi_update(drv_data, SSCR1, mask, threshold);
 }
 
 static void int_stop_and_reset(struct driver_data *drv_data)
@@ -724,11 +729,8 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 
 static void handle_bad_msg(struct driver_data *drv_data)
 {
+	int_stop_and_reset(drv_data);
 	pxa2xx_spi_off(drv_data);
-	clear_SSCR1_bits(drv_data, drv_data->int_cr1);
-	if (!pxa25x_ssp_comp(drv_data))
-		pxa2xx_spi_write(drv_data, SSTO, 0);
-	write_SSSR_CS(drv_data, drv_data->clear_sr);
 
 	dev_err(drv_data->ssp->dev, "bad message state in interrupt handler\n");
 }
@@ -1156,13 +1158,10 @@ static void pxa2xx_spi_handle_err(struct spi_controller *controller,
 {
 	struct driver_data *drv_data = spi_controller_get_devdata(controller);
 
+	int_stop_and_reset(drv_data);
+
 	/* Disable the SSP */
 	pxa2xx_spi_off(drv_data);
-	/* Clear and disable interrupts and service requests */
-	write_SSSR_CS(drv_data, drv_data->clear_sr);
-	clear_SSCR1_bits(drv_data, drv_data->int_cr1 | drv_data->dma_cr1);
-	if (!pxa25x_ssp_comp(drv_data))
-		pxa2xx_spi_write(drv_data, SSTO, 0);
 
 	/*
 	 * Stop the DMA if running. Note DMA callback handler may have unset

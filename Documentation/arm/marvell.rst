@@ -58,11 +58,19 @@ Kirkwood family
                 - Product Brief  : https://web.archive.org/web/20120616201621/http://www.marvell.com/embedded-processors/kirkwood/assets/88F6180-003_ver1.pdf
                 - Hardware Spec  : https://web.archive.org/web/20130730091654/http://www.marvell.com/embedded-processors/kirkwood/assets/HW_88F6180_OpenSource.pdf
                 - Functional Spec: https://web.archive.org/web/20130730091033/http://www.marvell.com/embedded-processors/kirkwood/assets/FS_88F6180_9x_6281_OpenSource.pdf
+        - 88F6280
+
+                - Product Brief  : https://web.archive.org/web/20130730091058/http://www.marvell.com/embedded-processors/kirkwood/assets/88F6280_SoC_PB-001.pdf
         - 88F6281
 
                 - Product Brief  : https://web.archive.org/web/20120131133709/http://www.marvell.com/embedded-processors/kirkwood/assets/88F6281-004_ver1.pdf
                 - Hardware Spec  : https://web.archive.org/web/20120620073511/http://www.marvell.com/embedded-processors/kirkwood/assets/HW_88F6281_OpenSource.pdf
                 - Functional Spec: https://web.archive.org/web/20130730091033/http://www.marvell.com/embedded-processors/kirkwood/assets/FS_88F6180_9x_6281_OpenSource.pdf
+        - 88F6321
+        - 88F6322
+        - 88F6323
+
+                - Product Brief  : https://web.archive.org/web/20120616201639/http://www.marvell.com/embedded-processors/kirkwood/assets/88f632x_pb.pdf
   Homepage:
 	https://web.archive.org/web/20160513194943/http://www.marvell.com/embedded-processors/kirkwood/
   Core:
@@ -88,6 +96,10 @@ Discovery family
                 - Functional Spec: https://web.archive.org/web/20111110081125/http://www.marvell.com/embedded-processors/discovery-innovation/assets/FS_MV76100_78100_78200_OpenSource.pdf
 
         - MV76100
+
+                - Product Brief  : https://web.archive.org/web/20140722064429/http://www.marvell.com/embedded-processors/discovery-innovation/assets/MV76100-002_WEB.pdf
+                - Hardware Spec  : https://web.archive.org/web/20140722064425/http://www.marvell.com/embedded-processors/discovery-innovation/assets/HW_MV76100_OpenSource.pdf
+                - Functional Spec: https://web.archive.org/web/20111110081125/http://www.marvell.com/embedded-processors/discovery-innovation/assets/FS_MV76100_78100_78200_OpenSource.pdf
 
                 Not supported by the Linux kernel.
 
@@ -124,17 +136,24 @@ EBU Armada family
 
   Armada 38x Flavors:
 	- 88F6810	Armada 380
+	- 88F6811 Armada 381
+	- 88F6821 Armada 382
+	- 88F6W21 Armada 383
 	- 88F6820 Armada 385
+	- 88F6825
 	- 88F6828 Armada 388
 
     - Product infos:   https://web.archive.org/web/20181006144616/http://www.marvell.com/embedded-processors/armada-38x/
     - Functional Spec: https://web.archive.org/web/20200420191927/https://www.marvell.com/content/dam/marvell/en/public-collateral/embedded-processors/marvell-embedded-processors-armada-38x-functional-specifications-2015-11.pdf
+    - Hardware Spec:   https://web.archive.org/web/20180713105318/https://www.marvell.com/docs/embedded-processors/assets/marvell-embedded-processors-armada-38x-hardware-specifications-2017-03.pdf
+    - Design guide:    https://web.archive.org/web/20180712231737/https://www.marvell.com/docs/embedded-processors/assets/marvell-embedded-processors-armada-38x-hardware-design-guide-2017-08.pdf
 
   Core:
 	ARM Cortex-A9
 
   Armada 39x Flavors:
 	- 88F6920 Armada 390
+	- 88F6925 Armada 395
 	- 88F6928 Armada 398
 
     - Product infos: https://web.archive.org/web/20181020222559/http://www.marvell.com/embedded-processors/armada-39x/

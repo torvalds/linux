@@ -244,6 +244,8 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.DRAMClockChangeSupportsVActive = !soc->disable_dram_clock_change_vactive_support ||
 			mode_lib->vba.DummyPStateCheck;
 	mode_lib->vba.AllowDramClockChangeOneDisplayVactive = soc->allow_dram_clock_one_display_vactive;
+	mode_lib->vba.AllowDRAMSelfRefreshOrDRAMClockChangeInVblank =
+		soc->allow_dram_self_refresh_or_dram_clock_change_in_vblank;
 
 	mode_lib->vba.Downspreading = soc->downspread_percent;
 	mode_lib->vba.DRAMChannelWidth = soc->dram_channel_width_bytes;   // new!
@@ -732,8 +734,6 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 						pipes[k].pipe.src.hostvm_levels_force :
 						mode_lib->vba.OverrideHostVMPageTableLevels;
 	}
-
-	mode_lib->vba.AllowDRAMSelfRefreshOrDRAMClockChangeInVblank = dm_try_to_allow_self_refresh_and_mclk_switch;
 
 	if (mode_lib->vba.OverrideGPUVMPageTableLevels)
 		mode_lib->vba.GPUVMMaxPageTableLevels = mode_lib->vba.OverrideGPUVMPageTableLevels;

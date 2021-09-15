@@ -642,22 +642,6 @@ int platform_device_add_data(struct platform_device *pdev, const void *data,
 EXPORT_SYMBOL_GPL(platform_device_add_data);
 
 /**
- * platform_device_add_properties - add built-in properties to a platform device
- * @pdev: platform device to add properties to
- * @properties: null terminated array of properties to add
- *
- * The function will take deep copy of @properties and attach the copy to the
- * platform device. The memory associated with properties will be freed when the
- * platform device is released.
- */
-int platform_device_add_properties(struct platform_device *pdev,
-				   const struct property_entry *properties)
-{
-	return device_add_properties(&pdev->dev, properties);
-}
-EXPORT_SYMBOL_GPL(platform_device_add_properties);
-
-/**
  * platform_device_add - add a platform device to device hierarchy
  * @pdev: platform device we're adding
  *
@@ -842,8 +826,8 @@ struct platform_device *platform_device_register_full(
 		goto err;
 
 	if (pdevinfo->properties) {
-		ret = platform_device_add_properties(pdev,
-						     pdevinfo->properties);
+		ret = device_create_managed_software_node(&pdev->dev,
+							  pdevinfo->properties, NULL);
 		if (ret)
 			goto err;
 	}

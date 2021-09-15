@@ -163,6 +163,24 @@
 	};
 
 	i2c2 {
+		i2c2_b_1_default: i2c2_b_1_default {
+			default_mux {
+				function = "i2c2";
+				groups = "i2c2_b_1";
+			};
+			default_cfg1 {
+				pins = "GPIO8_AD5", "GPIO9_AE4"; /* SDA/SCL */
+				ste,config = <&in_nopull>;
+			};
+		};
+
+		i2c2_b_1_sleep: i2c2_b_1_sleep {
+			sleep_cfg1 {
+				pins = "GPIO8_AD5", "GPIO9_AE4"; /* SDA/SCL */
+				ste,config = <&slpm_in_wkup_pdis>;
+			};
+		};
+
 		i2c2_b_2_default: i2c2_b_2_default {
 			default_mux {
 				function = "i2c2";

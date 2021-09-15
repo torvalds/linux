@@ -1,0 +1,139 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright (C) 2021 DH electronics GmbH
+ */
+
+/ {
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+};
+
+/*
+ * Special SoM hardware required which uses the pins from micro SD card. The
+ * pins SD3_DAT0 and SD3_DAT1 are muxed as can2 Tx and Rx. The signals for can2
+ * Tx and Rx are routed to the DHCOM UART1 rts/cts pins. Therefore the micro SD
+ * card must be disabled and the uart1 rts/cts must be output on other DHCOM
+ * pins, see uart1 and usdhc3 node below.
+ */
+&can2 {
+	status = "okay";
+};
+
+&gpio1 {
+	/*
+	 * NOTE: On DRC02, the RS485_RX_En is controlled by a separate
+	 * GPIO line, however the i.MX6 UART driver assumes RX happens
+	 * during TX anyway and that it only controls drive enable DE
+	 * line. Hence, the RX is always enabled here.
+	 */
+	rs485-rx-en-hog {
+		gpio-hog;
+		gpios = <18 0>; /* GPIO Q */
+		line-name = "rs485-rx-en";
+		output-low;
+	};
+};
+
+&gpio3 {
+	gpio-line-names =
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "DRC02-In1", "", "", "", "";
+};
+
+&gpio4 {
+	gpio-line-names =
+		"", "", "", "", "", "DHCOM-E", "DRC02-In2", "DHCOM-H",
+		"DHCOM-I", "DRC02-HW0", "", "", "", "", "", "",
+		"", "", "", "", "DRC02-Out1", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio6 {
+	gpio-line-names =
+		"", "", "", "DRC02-Out2", "", "", "SOM-HW1", "",
+		"", "", "", "", "", "", "DRC02-HW2", "DRC02-HW1",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&i2c1 {
+	eeprom@50 {
+		compatible = "atmel,24c04";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+};
+
+&uart1 {
+	/*
+	 * Due to the use of can2 the signals for can2 Tx and Rx are routed to
+	 * DHCOM UART1 rts/cts pins. Therefore this UART have to use DHCOM GPIOs
+	 * for rts/cts. So configure DHCOM GPIO I as rts and GPIO M as cts.
+	 */
+	/delete-property/ uart-has-rtscts;
+	cts-gpios = <&gpio7 0 GPIO_ACTIVE_HIGH>; /* GPIO M */
+	pinctrl-0 = <&pinctrl_uart1 &pinctrl_dhcom_i &pinctrl_dhcom_m>;
+	pinctrl-names = "default";
+	rts-gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>; /* GPIO I */
+};
+
+&uart5 {
+	/*
+	 * On DRC02 this UART is used as RS485 interface and RS485_TX_En is
+	 * controlled by DHCOM GPIO P. So remove rts/cts pins and the property
+	 * uart-has-rtscts from this UART and add the DHCOM GPIO P pin via
+	 * rts-gpios. The RS485_RX_En is controlled by DHCOM GPIO Q, see gpio1
+	 * node above.
+	 */
+	/delete-property/ uart-has-rtscts;
+	linux,rs485-enabled-at-boot-time;
+	pinctrl-0 = <&pinctrl_uart5_core &pinctrl_dhcom_p &pinctrl_dhcom_q>;
+	pinctrl-names = "default";
+	rts-gpios = <&gpio7 13 GPIO_ACTIVE_HIGH>; /* GPIO P */
+};
+
+&usdhc2 { /* SD card */
+	status = "okay";
+};
+
+&usdhc3 {
+	/*
+	 * Due to the use of can2 the micro SD card on module have to be
+	 * disabled, because the pins SD3_DAT0 and SD3_DAT1 are muxed as
+	 * can2 Tx and Rx.
+	 */
+	status = "disabled";
+};
+
+&iomuxc {
+	pinctrl-0 = <
+			/*
+			 * The following DHCOM GPIOs are used on this board.
+			 * Therefore, they have been removed from the list below.
+			 * I: uart1 rts
+			 * M: uart1 cts
+			 * P: uart5 rs485-tx-en
+			 * Q: uart5 rs485-rx-en
+			 */
+			&pinctrl_hog_base
+			&pinctrl_dhcom_a &pinctrl_dhcom_b &pinctrl_dhcom_c
+			&pinctrl_dhcom_d &pinctrl_dhcom_e &pinctrl_dhcom_f
+			&pinctrl_dhcom_g &pinctrl_dhcom_h
+			&pinctrl_dhcom_j &pinctrl_dhcom_k &pinctrl_dhcom_l
+			&pinctrl_dhcom_n &pinctrl_dhcom_o
+			&pinctrl_dhcom_r
+			&pinctrl_dhcom_s &pinctrl_dhcom_t &pinctrl_dhcom_u
+			&pinctrl_dhcom_v &pinctrl_dhcom_w &pinctrl_dhcom_int
+		>;
+	pinctrl-names = "default";
+
+	pinctrl_uart5_core: uart5-core-grp {
+		fsl,pins = <
+			MX6QDL_PAD_CSI0_DAT14__UART5_TX_DATA	0x1b0b1
+			MX6QDL_PAD_CSI0_DAT15__UART5_RX_DATA	0x1b0b1
+		>;
+	};
+};

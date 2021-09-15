@@ -28,6 +28,7 @@ struct bpf_struct_ops_value {
 
 struct bpf_struct_ops_map {
 	struct bpf_map map;
+	struct rcu_head rcu;
 	const struct bpf_struct_ops *st_ops;
 	/* protect map_update */
 	struct mutex lock;
@@ -622,6 +623,14 @@ bool bpf_struct_ops_get(const void *kdata)
 	return refcount_inc_not_zero(&kvalue->refcnt);
 }
 
+static void bpf_struct_ops_put_rcu(struct rcu_head *head)
+{
+	struct bpf_struct_ops_map *st_map;
+
+	st_map = container_of(head, struct bpf_struct_ops_map, rcu);
+	bpf_map_put(&st_map->map);
+}
+
 void bpf_struct_ops_put(const void *kdata)
 {
 	struct bpf_struct_ops_value *kvalue;
@@ -632,6 +641,17 @@ void bpf_struct_ops_put(const void *kdata)
 
 		st_map = container_of(kvalue, struct bpf_struct_ops_map,
 				      kvalue);
-		bpf_map_put(&st_map->map);
+		/* The struct_ops's function may switch to another struct_ops.
+		 *
+		 * For example, bpf_tcp_cc_x->init() may switch to
+		 * another tcp_cc_y by calling
+		 * setsockopt(TCP_CONGESTION, "tcp_cc_y").
+		 * During the switch,  bpf_struct_ops_put(tcp_cc_x) is called
+		 * and its map->refcnt may reach 0 which then free its
+		 * trampoline image while tcp_cc_x is still running.
+		 *
+		 * Thus, a rcu grace period is needed here.
+		 */
+		call_rcu(&st_map->rcu, bpf_struct_ops_put_rcu);
 	}
 }

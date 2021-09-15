@@ -3684,38 +3684,6 @@ CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
 		*bcc_ptr = 0; /* password is null byte */
 		bcc_ptr++;              /* skip password */
 		/* already aligned so no need to do it below */
-	} else {
-		pSMB->PasswordLength = cpu_to_le16(CIFS_AUTH_RESP_SIZE);
-		/* BB FIXME add code to fail this if NTLMv2 or Kerberos
-		   specified as required (when that support is added to
-		   the vfs in the future) as only NTLM or the much
-		   weaker LANMAN (which we do not send by default) is accepted
-		   by Samba (not sure whether other servers allow
-		   NTLMv2 password here) */
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-		if ((global_secflags & CIFSSEC_MAY_LANMAN) &&
-		    (ses->sectype == LANMAN))
-			calc_lanman_hash(tcon->password, ses->server->cryptkey,
-					 ses->server->sec_mode &
-					    SECMODE_PW_ENCRYPT ? true : false,
-					 bcc_ptr);
-		else
-#endif /* CIFS_WEAK_PW_HASH */
-		rc = SMBNTencrypt(tcon->password, ses->server->cryptkey,
-					bcc_ptr, nls_codepage);
-		if (rc) {
-			cifs_dbg(FYI, "%s Can't generate NTLM rsp. Error: %d\n",
-				 __func__, rc);
-			cifs_buf_release(smb_buffer);
-			return rc;
-		}
-
-		bcc_ptr += CIFS_AUTH_RESP_SIZE;
-		if (ses->capabilities & CAP_UNICODE) {
-			/* must align unicode strings */
-			*bcc_ptr = 0; /* null byte password */
-			bcc_ptr++;
-		}
 	}
 
 	if (ses->server->sign)

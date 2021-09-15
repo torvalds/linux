@@ -640,8 +640,8 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 			cnf_num += li->num[i].codecs;
 	}
 
-	dais = devm_kcalloc(dev, dai_num, sizeof(*dais),      GFP_KERNEL);
-	dlcs = devm_kcalloc(dev, dlc_num, sizeof(*dai_props), GFP_KERNEL);
+	dais = devm_kcalloc(dev, dai_num, sizeof(*dais), GFP_KERNEL);
+	dlcs = devm_kcalloc(dev, dlc_num, sizeof(*dlcs), GFP_KERNEL);
 	if (!dais || !dlcs)
 		return -ENOMEM;
 

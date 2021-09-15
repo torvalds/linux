@@ -19,22 +19,3 @@ config CACHEFILES_DEBUG
 	  caching on files module.  If this is set, the debugging output may be
 	  enabled by setting bits in /sys/modules/cachefiles/parameter/debug or
 	  by including a debugging specifier in /etc/cachefilesd.conf.
-
-config CACHEFILES_HISTOGRAM
-	bool "Gather latency information on CacheFiles"
-	depends on CACHEFILES && PROC_FS
-	help
-
-	  This option causes latency information to be gathered on CacheFiles
-	  operation and exported through file:
-
-		/proc/fs/cachefiles/histogram
-
-	  The generation of this histogram adds a certain amount of overhead to
-	  execution as there are a number of points at which data is gathered,
-	  and on a multi-CPU system these may be on cachelines that keep
-	  bouncing between CPUs.  On the other hand, the histogram may be
-	  useful for debugging purposes.  Saying 'N' here is recommended.
-
-	  See Documentation/filesystems/caching/cachefiles.rst for more
-	  information.

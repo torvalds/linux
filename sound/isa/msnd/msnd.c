@@ -425,7 +425,7 @@ static void snd_msnd_capture_reset_queue(struct snd_msnd *chip,
 }
 
 static const struct snd_pcm_hardware snd_msnd_playback = {
-	.info =			SNDRV_PCM_INFO_MMAP |
+	.info =			SNDRV_PCM_INFO_MMAP_IOMEM |
 				SNDRV_PCM_INFO_INTERLEAVED |
 				SNDRV_PCM_INFO_MMAP_VALID |
 				SNDRV_PCM_INFO_BATCH,
@@ -444,7 +444,7 @@ static const struct snd_pcm_hardware snd_msnd_playback = {
 };
 
 static const struct snd_pcm_hardware snd_msnd_capture = {
-	.info =			SNDRV_PCM_INFO_MMAP |
+	.info =			SNDRV_PCM_INFO_MMAP_IOMEM |
 				SNDRV_PCM_INFO_INTERLEAVED |
 				SNDRV_PCM_INFO_MMAP_VALID |
 				SNDRV_PCM_INFO_BATCH,
@@ -473,6 +473,7 @@ static int snd_msnd_playback_open(struct snd_pcm_substream *substream)
 	snd_msnd_enable_irq(chip);
 
 	runtime->dma_area = (__force void *)chip->mappedbase;
+	runtime->dma_addr = chip->base;
 	runtime->dma_bytes = 0x3000;
 
 	chip->playback_substream = substream;
@@ -566,6 +567,7 @@ static const struct snd_pcm_ops snd_msnd_playback_ops = {
 	.prepare =	snd_msnd_playback_prepare,
 	.trigger =	snd_msnd_playback_trigger,
 	.pointer =	snd_msnd_playback_pointer,
+	.mmap =		snd_pcm_lib_mmap_iomem,
 };
 
 static int snd_msnd_capture_open(struct snd_pcm_substream *substream)
@@ -576,6 +578,7 @@ static int snd_msnd_capture_open(struct snd_pcm_substream *substream)
 	set_bit(F_AUDIO_READ_INUSE, &chip->flags);
 	snd_msnd_enable_irq(chip);
 	runtime->dma_area = (__force void *)chip->mappedbase + 0x3000;
+	runtime->dma_addr = chip->base + 0x3000;
 	runtime->dma_bytes = 0x3000;
 	memset(runtime->dma_area, 0, runtime->dma_bytes);
 	chip->capture_substream = substream;
@@ -662,6 +665,7 @@ static const struct snd_pcm_ops snd_msnd_capture_ops = {
 	.prepare =	snd_msnd_capture_prepare,
 	.trigger =	snd_msnd_capture_trigger,
 	.pointer =	snd_msnd_capture_pointer,
+	.mmap =		snd_pcm_lib_mmap_iomem,
 };
 
 

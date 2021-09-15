@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Marvell OcteonTx2 RVU Devlink
+/* Marvell RVU Admin Function Devlink
  *
  * Copyright (C) 2020 Marvell.
  *
@@ -1364,6 +1364,89 @@ static void rvu_health_reporters_destroy(struct rvu *rvu)
 	rvu_nix_health_reporters_destroy(rvu_dl);
 }
 
+/* Devlink Params APIs */
+static int rvu_af_dl_dwrr_mtu_validate(struct devlink *devlink, u32 id,
+				       union devlink_param_value val,
+				       struct netlink_ext_ack *extack)
+{
+	struct rvu_devlink *rvu_dl = devlink_priv(devlink);
+	struct rvu *rvu = rvu_dl->rvu;
+	int dwrr_mtu = val.vu32;
+	struct nix_txsch *txsch;
+	struct nix_hw *nix_hw;
+
+	if (!rvu->hw->cap.nix_common_dwrr_mtu) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Setting DWRR_MTU is not supported on this silicon");
+		return -EOPNOTSUPP;
+	}
+
+	if ((dwrr_mtu > 65536 || !is_power_of_2(dwrr_mtu)) &&
+	    (dwrr_mtu != 9728 && dwrr_mtu != 10240)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Invalid, supported MTUs are 0,2,4,8.16,32,64....4K,8K,32K,64K and 9728, 10240");
+		return -EINVAL;
+	}
+
+	nix_hw = get_nix_hw(rvu->hw, BLKADDR_NIX0);
+	if (!nix_hw)
+		return -ENODEV;
+
+	txsch = &nix_hw->txsch[NIX_TXSCH_LVL_SMQ];
+	if (rvu_rsrc_free_count(&txsch->schq) != txsch->schq.max) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Changing DWRR MTU is not supported when there are active NIXLFs");
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Make sure none of the PF/VF interfaces are initialized and retry");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int rvu_af_dl_dwrr_mtu_set(struct devlink *devlink, u32 id,
+				  struct devlink_param_gset_ctx *ctx)
+{
+	struct rvu_devlink *rvu_dl = devlink_priv(devlink);
+	struct rvu *rvu = rvu_dl->rvu;
+	u64 dwrr_mtu;
+
+	dwrr_mtu = convert_bytes_to_dwrr_mtu(ctx->val.vu32);
+	rvu_write64(rvu, BLKADDR_NIX0, NIX_AF_DWRR_RPM_MTU, dwrr_mtu);
+
+	return 0;
+}
+
+static int rvu_af_dl_dwrr_mtu_get(struct devlink *devlink, u32 id,
+				  struct devlink_param_gset_ctx *ctx)
+{
+	struct rvu_devlink *rvu_dl = devlink_priv(devlink);
+	struct rvu *rvu = rvu_dl->rvu;
+	u64 dwrr_mtu;
+
+	if (!rvu->hw->cap.nix_common_dwrr_mtu)
+		return -EOPNOTSUPP;
+
+	dwrr_mtu = rvu_read64(rvu, BLKADDR_NIX0, NIX_AF_DWRR_RPM_MTU);
+	ctx->val.vu32 = convert_dwrr_mtu_to_bytes(dwrr_mtu);
+
+	return 0;
+}
+
+enum rvu_af_dl_param_id {
+	RVU_AF_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
+	RVU_AF_DEVLINK_PARAM_ID_DWRR_MTU,
+};
+
+static const struct devlink_param rvu_af_dl_params[] = {
+	DEVLINK_PARAM_DRIVER(RVU_AF_DEVLINK_PARAM_ID_DWRR_MTU,
+			     "dwrr_mtu", DEVLINK_PARAM_TYPE_U32,
+			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
+			     rvu_af_dl_dwrr_mtu_get, rvu_af_dl_dwrr_mtu_set,
+			     rvu_af_dl_dwrr_mtu_validate),
+};
+
+/* Devlink switch mode */
 static int rvu_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 {
 	struct rvu_devlink *rvu_dl = devlink_priv(devlink);
@@ -1420,13 +1503,14 @@ int rvu_register_dl(struct rvu *rvu)
 	struct devlink *dl;
 	int err;
 
-	dl = devlink_alloc(&rvu_devlink_ops, sizeof(struct rvu_devlink));
+	dl = devlink_alloc(&rvu_devlink_ops, sizeof(struct rvu_devlink),
+			   rvu->dev);
 	if (!dl) {
 		dev_warn(rvu->dev, "devlink_alloc failed\n");
 		return -ENOMEM;
 	}
 
-	err = devlink_register(dl, rvu->dev);
+	err = devlink_register(dl);
 	if (err) {
 		dev_err(rvu->dev, "devlink register failed with error %d\n", err);
 		devlink_free(dl);
@@ -1438,7 +1522,30 @@ int rvu_register_dl(struct rvu *rvu)
 	rvu_dl->rvu = rvu;
 	rvu->rvu_dl = rvu_dl;
 
-	return rvu_health_reporters_create(rvu);
+	err = rvu_health_reporters_create(rvu);
+	if (err) {
+		dev_err(rvu->dev,
+			"devlink health reporter creation failed with error %d\n", err);
+		goto err_dl_health;
+	}
+
+	err = devlink_params_register(dl, rvu_af_dl_params,
+				      ARRAY_SIZE(rvu_af_dl_params));
+	if (err) {
+		dev_err(rvu->dev,
+			"devlink params register failed with error %d", err);
+		goto err_dl_health;
+	}
+
+	devlink_params_publish(dl);
+
+	return 0;
+
+err_dl_health:
+	rvu_health_reporters_destroy(rvu);
+	devlink_unregister(dl);
+	devlink_free(dl);
+	return err;
 }
 
 void rvu_unregister_dl(struct rvu *rvu)
@@ -1449,6 +1556,8 @@ void rvu_unregister_dl(struct rvu *rvu)
 	if (!dl)
 		return;
 
+	devlink_params_unregister(dl, rvu_af_dl_params,
+				  ARRAY_SIZE(rvu_af_dl_params));
 	rvu_health_reporters_destroy(rvu);
 	devlink_unregister(dl);
 	devlink_free(dl);

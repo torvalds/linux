@@ -38,18 +38,17 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 }
 
 static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
-				  struct net_device *netdev,
-				  struct packet_type *pt)
+				  struct net_device *netdev)
 {
-	int src_port, switch_id, subvlan;
+	int src_port, switch_id;
 
-	dsa_8021q_rcv(skb, &src_port, &switch_id, &subvlan);
+	dsa_8021q_rcv(skb, &src_port, &switch_id);
 
 	skb->dev = dsa_master_find_slave(netdev, switch_id, src_port);
 	if (!skb->dev)
 		return NULL;
 
-	skb->offload_fwd_mark = 1;
+	dsa_default_offload_fwd_mark(skb);
 
 	return skb;
 }

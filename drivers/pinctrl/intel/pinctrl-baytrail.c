@@ -1444,7 +1444,6 @@ static void byt_gpio_irq_handler(struct irq_desc *desc)
 	u32 base, pin;
 	void __iomem *reg;
 	unsigned long pending;
-	unsigned int virq;
 
 	/* check from GPIO controller which pin triggered the interrupt */
 	for (base = 0; base < vg->chip.ngpio; base += 32) {
@@ -1460,10 +1459,8 @@ static void byt_gpio_irq_handler(struct irq_desc *desc)
 		raw_spin_lock(&byt_lock);
 		pending = readl(reg);
 		raw_spin_unlock(&byt_lock);
-		for_each_set_bit(pin, &pending, 32) {
-			virq = irq_find_mapping(vg->chip.irq.domain, base + pin);
-			generic_handle_irq(virq);
-		}
+		for_each_set_bit(pin, &pending, 32)
+			generic_handle_domain_irq(vg->chip.irq.domain, base + pin);
 	}
 	chip->irq_eoi(data);
 }

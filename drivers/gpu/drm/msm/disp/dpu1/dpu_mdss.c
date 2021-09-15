@@ -45,20 +45,13 @@ static void dpu_mdss_irq(struct irq_desc *desc)
 
 	while (interrupts) {
 		irq_hw_number_t hwirq = fls(interrupts) - 1;
-		unsigned int mapping;
 		int rc;
 
-		mapping = irq_find_mapping(dpu_mdss->irq_controller.domain,
-					   hwirq);
-		if (mapping == 0) {
-			DRM_ERROR("couldn't find irq mapping for %lu\n", hwirq);
-			break;
-		}
-
-		rc = generic_handle_irq(mapping);
+		rc = generic_handle_domain_irq(dpu_mdss->irq_controller.domain,
+					       hwirq);
 		if (rc < 0) {
-			DRM_ERROR("handle irq fail: irq=%lu mapping=%u rc=%d\n",
-				  hwirq, mapping, rc);
+			DRM_ERROR("handle irq fail: irq=%lu rc=%d\n",
+				  hwirq, rc);
 			break;
 		}
 

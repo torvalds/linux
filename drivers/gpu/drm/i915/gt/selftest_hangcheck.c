@@ -462,7 +462,7 @@ static int igt_reset_nop_engine(void *arg)
 
 		ce = intel_context_create(engine);
 		if (IS_ERR(ce)) {
-			pr_err("[%s] Create context failed: %d!\n", engine->name, err);
+			pr_err("[%s] Create context failed: %pe!\n", engine->name, ce);
 			return PTR_ERR(ce);
 		}
 
@@ -577,7 +577,7 @@ static int igt_reset_fail_engine(void *arg)
 
 		ce = intel_context_create(engine);
 		if (IS_ERR(ce)) {
-			pr_err("[%s] Create context failed: %d!\n", engine->name, err);
+			pr_err("[%s] Create context failed: %pe!\n", engine->name, ce);
 			return PTR_ERR(ce);
 		}
 

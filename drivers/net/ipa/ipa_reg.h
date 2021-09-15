@@ -99,7 +99,7 @@ struct ipa;
 static inline u32 arbitration_lock_disable_encoded(enum ipa_version version,
 						   u32 mask)
 {
-	/* assert(version >= IPA_VERSION_4_0); */
+	WARN_ON(version < IPA_VERSION_4_0);
 
 	if (version < IPA_VERSION_4_9)
 		return u32_encode_bits(mask, GENMASK(20, 17));
@@ -116,7 +116,7 @@ static inline u32 full_flush_rsc_closure_en_encoded(enum ipa_version version,
 {
 	u32 val = enable ? 1 : 0;
 
-	/* assert(version >= IPA_VERSION_4_5); */
+	WARN_ON(version < IPA_VERSION_4_5);
 
 	if (version == IPA_VERSION_4_5 || version == IPA_VERSION_4_7)
 		return u32_encode_bits(val, GENMASK(21, 21));
@@ -409,7 +409,7 @@ static inline u32 ipa_header_size_encoded(enum ipa_version version,
 
 	val = u32_encode_bits(size, HDR_LEN_FMASK);
 	if (version < IPA_VERSION_4_5) {
-		/* ipa_assert(header_size == size); */
+		WARN_ON(header_size != size);
 		return val;
 	}
 
@@ -429,7 +429,7 @@ static inline u32 ipa_metadata_offset_encoded(enum ipa_version version,
 
 	val = u32_encode_bits(off, HDR_OFST_METADATA_FMASK);
 	if (version < IPA_VERSION_4_5) {
-		/* ipa_assert(offset == off); */
+		WARN_ON(offset != off);
 		return val;
 	}
 
@@ -812,7 +812,7 @@ ipa_reg_irq_suspend_info_offset(enum ipa_version version)
 static inline u32
 ipa_reg_irq_suspend_en_ee_n_offset(enum ipa_version version, u32 ee)
 {
-	/* assert(version != IPA_VERSION_3_0); */
+	WARN_ON(version == IPA_VERSION_3_0);
 
 	if (version < IPA_VERSION_4_9)
 		return 0x00003034 + 0x1000 * ee;
@@ -830,7 +830,7 @@ ipa_reg_irq_suspend_en_offset(enum ipa_version version)
 static inline u32
 ipa_reg_irq_suspend_clr_ee_n_offset(enum ipa_version version, u32 ee)
 {
-	/* assert(version != IPA_VERSION_3_0); */
+	WARN_ON(version == IPA_VERSION_3_0);
 
 	if (version < IPA_VERSION_4_9)
 		return 0x00003038 + 0x1000 * ee;

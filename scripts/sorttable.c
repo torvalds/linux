@@ -349,6 +349,7 @@ static int do_file(char const *const fname, void *addr)
 	case EM_ARM:
 	case EM_MICROBLAZE:
 	case EM_MIPS:
+	case EM_RISCV:
 	case EM_XTENSA:
 		break;
 	default:

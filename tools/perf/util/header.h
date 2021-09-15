@@ -115,7 +115,7 @@ struct perf_session;
 struct perf_tool;
 union perf_event;
 
-int perf_session__read_header(struct perf_session *session);
+int perf_session__read_header(struct perf_session *session, int repipe_fd);
 int perf_session__write_header(struct perf_session *session,
 			       struct evlist *evlist,
 			       int fd, bool at_exit);

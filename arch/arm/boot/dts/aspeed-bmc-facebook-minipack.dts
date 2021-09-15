@@ -265,19 +265,19 @@
 		};
 
 		/*
-		 * FIT image: 59.5 MB.
+		 * FIT image: 55.5 MB.
 		 */
 		fit@80000 {
-			reg = <0x80000 0x3b80000>;
+			reg = <0x80000 0x3780000>;
 			label = "fit";
 		};
 
 		/*
-		 * "data0" partition (4MB) is reserved for persistent
+		 * "data0" partition (8MB) is reserved for persistent
 		 * data store.
 		 */
 		data0@3800000 {
-			reg = <0x3c00000 0x400000>;
+			reg = <0x3800000 0x800000>;
 			label = "data0";
 		};
 

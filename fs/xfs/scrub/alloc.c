@@ -91,7 +91,7 @@ xchk_allocbt_xref(
 STATIC int
 xchk_allocbt_rec(
 	struct xchk_btree	*bs,
-	union xfs_btree_rec	*rec)
+	const union xfs_btree_rec *rec)
 {
 	struct xfs_mount	*mp = bs->cur->bc_mp;
 	xfs_agnumber_t		agno = bs->cur->bc_ag.pag->pag_agno;

@@ -845,6 +845,11 @@ static int sve_set(struct task_struct *target,
 	}
 
 	sve_alloc(target);
+	if (!target->thread.sve_state) {
+		ret = -ENOMEM;
+		clear_tsk_thread_flag(target, TIF_SVE);
+		goto out;
+	}
 
 	/*
 	 * Ensure target->thread.sve_state is up to date with target's
@@ -1862,7 +1867,7 @@ void syscall_trace_exit(struct pt_regs *regs)
 	audit_syscall_exit(regs);
 
 	if (flags & _TIF_SYSCALL_TRACEPOINT)
-		trace_sys_exit(regs, regs_return_value(regs));
+		trace_sys_exit(regs, syscall_get_return_value(current, regs));
 
 	if (flags & (_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP))
 		tracehook_report_syscall(regs, PTRACE_SYSCALL_EXIT);

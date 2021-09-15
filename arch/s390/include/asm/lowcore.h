@@ -124,7 +124,8 @@ struct lowcore {
 	/* Restart function and parameter. */
 	__u64	restart_fn;			/* 0x0370 */
 	__u64	restart_data;			/* 0x0378 */
-	__u64	restart_source;			/* 0x0380 */
+	__u32	restart_source;			/* 0x0380 */
+	__u32	restart_flags;			/* 0x0384 */
 
 	/* Address space pointer. */
 	__u64	kernel_asce;			/* 0x0388 */

@@ -61,8 +61,6 @@
 #define NV10_CHANNEL_DMA                              /* cl506b.h */ 0x0000006e
 #define NV17_CHANNEL_DMA                              /* cl506b.h */ 0x0000176e
 #define NV40_CHANNEL_DMA                              /* cl506b.h */ 0x0000406e
-#define NV50_CHANNEL_DMA                              /* cl506e.h */ 0x0000506e
-#define G82_CHANNEL_DMA                               /* cl826e.h */ 0x0000826e
 
 #define NV50_CHANNEL_GPFIFO                           /* cl506f.h */ 0x0000506f
 #define G82_CHANNEL_GPFIFO                            /* cl826f.h */ 0x0000826f

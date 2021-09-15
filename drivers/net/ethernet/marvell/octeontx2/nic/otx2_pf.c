@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Marvell OcteonTx2 RVU Physical Function ethernet driver
+/* Marvell RVU Physical Function ethernet driver
  *
- * Copyright (C) 2020 Marvell International Ltd.
+ * Copyright (C) 2020 Marvell.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -1536,14 +1533,6 @@ int otx2_open(struct net_device *netdev)
 	if (!qset->rq)
 		goto err_free_mem;
 
-	if (test_bit(CN10K_LMTST, &pf->hw.cap_flag)) {
-		/* Reserve LMT lines for NPA AURA batch free */
-		pf->hw.npa_lmt_base = pf->hw.lmt_base;
-		/* Reserve LMT lines for NIX TX */
-		pf->hw.nix_lmt_base = (u64 *)((u64)pf->hw.npa_lmt_base +
-				      (pf->npa_lmt_lines * LMT_LINE_SIZE));
-	}
-
 	err = otx2_init_hw_resources(pf);
 	if (err)
 		goto err_free_mem;
@@ -1662,6 +1651,7 @@ int otx2_open(struct net_device *netdev)
 err_tx_stop_queues:
 	netif_tx_stop_all_queues(netdev);
 	netif_carrier_off(netdev);
+	pf->flags |= OTX2_FLAG_INTF_DOWN;
 err_free_cints:
 	otx2_free_cints(pf, qidx);
 	vec = pci_irq_vector(pf->pdev,
@@ -1688,6 +1678,10 @@ int otx2_stop(struct net_device *netdev)
 	struct otx2_qset *qset = &pf->qset;
 	struct otx2_rss_info *rss;
 	int qidx, vec, wrk;
+
+	/* If the DOWN flag is set resources are already freed */
+	if (pf->flags & OTX2_FLAG_INTF_DOWN)
+		return 0;
 
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(netdev);
@@ -1782,17 +1776,10 @@ static netdev_tx_t otx2_xmit(struct sk_buff *skb, struct net_device *netdev)
 static netdev_features_t otx2_fix_features(struct net_device *dev,
 					   netdev_features_t features)
 {
-	/* check if n-tuple filters are ON */
-	if ((features & NETIF_F_HW_TC) && (dev->features & NETIF_F_NTUPLE)) {
-		netdev_info(dev, "Disabling n-tuple filters\n");
-		features &= ~NETIF_F_NTUPLE;
-	}
-
-	/* check if tc hw offload is ON */
-	if ((features & NETIF_F_NTUPLE) && (dev->features & NETIF_F_HW_TC)) {
-		netdev_info(dev, "Disabling TC hardware offload\n");
-		features &= ~NETIF_F_HW_TC;
-	}
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		features |= NETIF_F_HW_VLAN_STAG_RX;
+	else
+		features &= ~NETIF_F_HW_VLAN_STAG_RX;
 
 	return features;
 }
@@ -1849,6 +1836,7 @@ static int otx2_set_features(struct net_device *netdev,
 	netdev_features_t changed = features ^ netdev->features;
 	bool ntuple = !!(features & NETIF_F_NTUPLE);
 	struct otx2_nic *pf = netdev_priv(netdev);
+	bool tc = !!(features & NETIF_F_HW_TC);
 
 	if ((changed & NETIF_F_LOOPBACK) && netif_running(netdev))
 		return otx2_cgx_config_loopback(pf,
@@ -1861,10 +1849,40 @@ static int otx2_set_features(struct net_device *netdev,
 	if ((changed & NETIF_F_NTUPLE) && !ntuple)
 		otx2_destroy_ntuple_flows(pf);
 
-	if ((netdev->features & NETIF_F_HW_TC) > (features & NETIF_F_HW_TC) &&
-	    pf->tc_info.num_entries) {
+	if ((changed & NETIF_F_NTUPLE) && ntuple) {
+		if (!pf->flow_cfg->max_flows) {
+			netdev_err(netdev,
+				   "Can't enable NTUPLE, MCAM entries not allocated\n");
+			return -EINVAL;
+		}
+	}
+
+	if ((changed & NETIF_F_HW_TC) && tc) {
+		if (!pf->flow_cfg->max_flows) {
+			netdev_err(netdev,
+				   "Can't enable TC, MCAM entries not allocated\n");
+			return -EINVAL;
+		}
+	}
+
+	if ((changed & NETIF_F_HW_TC) && !tc &&
+	    pf->flow_cfg && pf->flow_cfg->nr_flows) {
 		netdev_err(netdev, "Can't disable TC hardware offload while flows are active\n");
 		return -EBUSY;
+	}
+
+	if ((changed & NETIF_F_NTUPLE) && ntuple &&
+	    (netdev->features & NETIF_F_HW_TC) && !(changed & NETIF_F_HW_TC)) {
+		netdev_err(netdev,
+			   "Can't enable NTUPLE when TC is active, disable TC and retry\n");
+		return -EINVAL;
+	}
+
+	if ((changed & NETIF_F_HW_TC) && tc &&
+	    (netdev->features & NETIF_F_NTUPLE) && !(changed & NETIF_F_NTUPLE)) {
+		netdev_err(netdev,
+			   "Can't enable TC when NTUPLE is active, disable NTUPLE and retry\n");
+		return -EINVAL;
 	}
 
 	return 0;
@@ -2326,7 +2344,7 @@ static const struct net_device_ops otx2_netdev_ops = {
 	.ndo_set_features	= otx2_set_features,
 	.ndo_tx_timeout		= otx2_tx_timeout,
 	.ndo_get_stats64	= otx2_get_stats64,
-	.ndo_do_ioctl		= otx2_ioctl,
+	.ndo_eth_ioctl		= otx2_ioctl,
 	.ndo_set_vf_mac		= otx2_set_vf_mac,
 	.ndo_set_vf_vlan	= otx2_set_vf_vlan,
 	.ndo_get_vf_config	= otx2_get_vf_config,
@@ -2564,8 +2582,6 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			       NETIF_F_GSO_UDP_L4);
 	netdev->features |= netdev->hw_features;
 
-	netdev->hw_features |= NETIF_F_LOOPBACK | NETIF_F_RXALL;
-
 	err = otx2_mcam_flow_init(pf);
 	if (err)
 		goto err_ptp_destroy;
@@ -2589,12 +2605,13 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (pf->flags & OTX2_FLAG_TC_FLOWER_SUPPORT)
 		netdev->hw_features |= NETIF_F_HW_TC;
 
+	netdev->hw_features |= NETIF_F_LOOPBACK | NETIF_F_RXALL;
+
 	netdev->gso_max_segs = OTX2_MAX_GSO_SEGS;
 	netdev->watchdog_timeo = OTX2_TX_TIMEOUT;
 
 	netdev->netdev_ops = &otx2_netdev_ops;
 
-	/* MTU range: 64 - 9190 */
 	netdev->min_mtu = OTX2_MIN_MTU;
 	netdev->max_mtu = otx2_get_max_mtu(pf);
 
@@ -2611,6 +2628,10 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	otx2_set_ethtool_ops(netdev);
 
 	err = otx2_init_tc(pf);
+	if (err)
+		goto err_mcam_flow_del;
+
+	err = otx2_register_dl(pf);
 	if (err)
 		goto err_mcam_flow_del;
 
@@ -2639,6 +2660,8 @@ err_del_mcam_entries:
 err_ptp_destroy:
 	otx2_ptp_destroy(pf);
 err_detach_rsrc:
+	if (pf->hw.lmt_info)
+		free_percpu(pf->hw.lmt_info);
 	if (test_bit(CN10K_LMTST, &pf->hw.cap_flag))
 		qmem_free(pf->dev, pf->dync_lmt);
 	otx2_detach_resources(&pf->mbox);
@@ -2771,6 +2794,7 @@ static void otx2_remove(struct pci_dev *pdev)
 	/* Disable link notifications */
 	otx2_cgx_config_linkevents(pf, false);
 
+	otx2_unregister_dl(pf);
 	unregister_netdev(netdev);
 	otx2_sriov_disable(pf->pdev);
 	otx2_sriov_vfcfg_cleanup(pf);
@@ -2781,6 +2805,8 @@ static void otx2_remove(struct pci_dev *pdev)
 	otx2_mcam_flow_del(pf);
 	otx2_shutdown_tc(pf);
 	otx2_detach_resources(&pf->mbox);
+	if (pf->hw.lmt_info)
+		free_percpu(pf->hw.lmt_info);
 	if (test_bit(CN10K_LMTST, &pf->hw.cap_flag))
 		qmem_free(pf->dev, pf->dync_lmt);
 	otx2_disable_mbox_intr(pf);

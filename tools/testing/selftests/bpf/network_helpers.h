@@ -17,6 +17,11 @@ typedef __u16 __sum16;
 #define VIP_NUM 5
 #define MAGIC_BYTES 123
 
+struct network_helper_opts {
+	const char *cc;
+	int timeout_ms;
+};
+
 /* ipv4 test vector */
 struct ipv4_packet {
 	struct ethhdr eth;
@@ -36,11 +41,17 @@ extern struct ipv6_packet pkt_v6;
 int settimeo(int fd, int timeout_ms);
 int start_server(int family, int type, const char *addr, __u16 port,
 		 int timeout_ms);
+int *start_reuseport_server(int family, int type, const char *addr_str,
+			    __u16 port, int timeout_ms,
+			    unsigned int nr_listens);
+void free_fds(int *fds, unsigned int nr_close_fds);
 int connect_to_fd(int server_fd, int timeout_ms);
+int connect_to_fd_opts(int server_fd, const struct network_helper_opts *opts);
 int connect_fd_to_fd(int client_fd, int server_fd, int timeout_ms);
 int fastopen_connect(int server_fd, const char *data, unsigned int data_len,
 		     int timeout_ms);
 int make_sockaddr(int family, const char *addr_str, __u16 port,
 		  struct sockaddr_storage *addr, socklen_t *len);
+char *ping_command(int family);
 
 #endif

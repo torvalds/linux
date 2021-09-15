@@ -136,21 +136,11 @@ struct psp_firmware_header_v2_0 {
 /* version_major=1, version_minor=0 */
 struct ta_firmware_header_v1_0 {
 	struct common_firmware_header header;
-	uint32_t ta_xgmi_ucode_version;
-	uint32_t ta_xgmi_offset_bytes;
-	uint32_t ta_xgmi_size_bytes;
-	uint32_t ta_ras_ucode_version;
-	uint32_t ta_ras_offset_bytes;
-	uint32_t ta_ras_size_bytes;
-	uint32_t ta_hdcp_ucode_version;
-	uint32_t ta_hdcp_offset_bytes;
-	uint32_t ta_hdcp_size_bytes;
-	uint32_t ta_dtm_ucode_version;
-	uint32_t ta_dtm_offset_bytes;
-	uint32_t ta_dtm_size_bytes;
-	uint32_t ta_securedisplay_ucode_version;
-	uint32_t ta_securedisplay_offset_bytes;
-	uint32_t ta_securedisplay_size_bytes;
+	struct psp_fw_legacy_bin_desc xgmi;
+	struct psp_fw_legacy_bin_desc ras;
+	struct psp_fw_legacy_bin_desc hdcp;
+	struct psp_fw_legacy_bin_desc dtm;
+	struct psp_fw_legacy_bin_desc securedisplay;
 };
 
 enum ta_fw_type {

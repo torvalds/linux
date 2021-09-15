@@ -41,6 +41,7 @@ enum fc_els_cmd {
 	ELS_REC =	0x13,	/* read exchange concise */
 	ELS_SRR =	0x14,	/* sequence retransmission request */
 	ELS_FPIN =	0x16,	/* Fabric Performance Impact Notification */
+	ELS_EDC =	0x17,	/* Exchange Diagnostic Capabilities */
 	ELS_RDP =	0x18,	/* Read Diagnostic Parameters */
 	ELS_RDF =	0x19,	/* Register Diagnostic Functions */
 	ELS_PRLI =	0x20,	/* process login */
@@ -111,6 +112,7 @@ enum fc_els_cmd {
 	[ELS_REC] =	"REC",			\
 	[ELS_SRR] =	"SRR",			\
 	[ELS_FPIN] =	"FPIN",			\
+	[ELS_EDC] =	"EDC",			\
 	[ELS_RDP] =	"RDP",			\
 	[ELS_RDF] =	"RDF",			\
 	[ELS_PRLI] =	"PRLI",			\
@@ -218,6 +220,10 @@ enum fc_els_rjt_explan {
 enum fc_ls_tlv_dtag {
 	ELS_DTAG_LS_REQ_INFO =		0x00000001,
 		/* Link Service Request Information Descriptor */
+	ELS_DTAG_LNK_FAULT_CAP =	0x0001000D,
+		/* Link Fault Capability Descriptor */
+	ELS_DTAG_CG_SIGNAL_CAP =	0x0001000F,
+		/* Congestion Signaling Capability Descriptor */
 	ELS_DTAG_LNK_INTEGRITY =	0x00020001,
 		/* Link Integrity Notification Descriptor */
 	ELS_DTAG_DELIVERY =		0x00020002,
@@ -236,6 +242,8 @@ enum fc_ls_tlv_dtag {
  */
 #define FC_LS_TLV_DTAG_INIT {					      \
 	{ ELS_DTAG_LS_REQ_INFO,		"Link Service Request Information" }, \
+	{ ELS_DTAG_LNK_FAULT_CAP,	"Link Fault Capability" },	      \
+	{ ELS_DTAG_CG_SIGNAL_CAP,	"Congestion Signaling Capability" },  \
 	{ ELS_DTAG_LNK_INTEGRITY,	"Link Integrity Notification" },      \
 	{ ELS_DTAG_DELIVERY,		"Delivery Notification Present" },    \
 	{ ELS_DTAG_PEER_CONGEST,	"Peer Congestion Notification" },     \
@@ -1141,6 +1149,104 @@ struct fc_els_rdf_resp {
 						 */
 	struct fc_els_lsri_desc	lsri;
 	struct fc_tlv_desc	desc[0];	/* Supported Descriptor list */
+};
+
+
+/*
+ * Diagnostic Capability Descriptors for EDC ELS
+ */
+
+/*
+ * Diagnostic: Link Fault Capability Descriptor
+ */
+struct fc_diag_lnkflt_desc {
+	__be32		desc_tag;	/* Descriptor Tag (0x0001000D) */
+	__be32		desc_len;	/* Length of Descriptor (in bytes).
+					 * Size of descriptor excluding
+					 * desc_tag and desc_len fields.
+					 * 12 bytes
+					 */
+	__be32		degrade_activate_threshold;
+	__be32		degrade_deactivate_threshold;
+	__be32		fec_degrade_interval;
+};
+
+enum fc_edc_cg_signal_cap_types {
+	/* Note: Capability: bits 31:4 Rsvd; bits 3:0 are capabilities */
+	EDC_CG_SIG_NOTSUPPORTED =	0x00, /* neither supported */
+	EDC_CG_SIG_WARN_ONLY =		0x01,
+	EDC_CG_SIG_WARN_ALARM =		0x02, /* both supported */
+};
+
+/*
+ * Initializer useful for decoding table.
+ * Please keep this in sync with the above definitions.
+ */
+#define FC_EDC_CG_SIGNAL_CAP_TYPES_INIT {				\
+	{ EDC_CG_SIG_NOTSUPPORTED,	"Signaling Not Supported" },	\
+	{ EDC_CG_SIG_WARN_ONLY,		"Warning Signal" },		\
+	{ EDC_CG_SIG_WARN_ALARM,	"Warning and Alarm Signals" },	\
+}
+
+enum fc_diag_cg_sig_freq_types {
+	EDC_CG_SIGFREQ_CNT_MIN =	1,	/* Min Frequency Count */
+	EDC_CG_SIGFREQ_CNT_MAX =	999,	/* Max Frequency Count */
+
+	EDC_CG_SIGFREQ_SEC =		0x1,	/* Units: seconds */
+	EDC_CG_SIGFREQ_MSEC =		0x2,	/* Units: milliseconds */
+};
+
+struct fc_diag_cg_sig_freq {
+	__be16		count;		/* Time between signals
+					 * note: upper 6 bits rsvd
+					 */
+	__be16		units;		/* Time unit for count
+					 * note: upper 12 bits rsvd
+					 */
+};
+
+/*
+ * Diagnostic: Congestion Signaling Capability Descriptor
+ */
+struct fc_diag_cg_sig_desc {
+	__be32		desc_tag;	/* Descriptor Tag (0x0001000F) */
+	__be32		desc_len;	/* Length of Descriptor (in bytes).
+					 * Size of descriptor excluding
+					 * desc_tag and desc_len fields.
+					 * 16 bytes
+					 */
+	__be32				xmt_signal_capability;
+	struct fc_diag_cg_sig_freq	xmt_signal_frequency;
+	__be32				rcv_signal_capability;
+	struct fc_diag_cg_sig_freq	rcv_signal_frequency;
+};
+
+/*
+ * ELS_EDC - Exchange Diagnostic Capabilities
+ */
+struct fc_els_edc {
+	__u8		edc_cmd;	/* command (0x17) */
+	__u8		edc_zero[3];	/* specified as zero - part of cmd */
+	__be32		desc_len;	/* Length of Descriptor List (in bytes).
+					 * Size of ELS excluding edc_cmd,
+					 * edc_zero and desc_len fields.
+					 */
+	struct fc_tlv_desc	desc[0];
+					/* Diagnostic Descriptor list */
+};
+
+/*
+ * ELS EDC LS_ACC Response.
+ */
+struct fc_els_edc_resp {
+	struct fc_els_ls_acc	acc_hdr;
+	__be32			desc_list_len;	/* Length of response (in
+						 * bytes). Excludes acc_hdr
+						 * and desc_list_len fields.
+						 */
+	struct fc_els_lsri_desc	lsri;
+	struct fc_tlv_desc	desc[0];
+				    /* Supported Diagnostic Descriptor list */
 };
 
 

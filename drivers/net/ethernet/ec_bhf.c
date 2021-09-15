@@ -488,15 +488,7 @@ static int ec_bhf_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	pci_set_master(dev);
 
-	err = pci_set_dma_mask(dev, DMA_BIT_MASK(32));
-	if (err) {
-		dev_err(&dev->dev,
-			"Required dma mask not supported, failed to initialize device\n");
-		err = -EIO;
-		goto err_disable_dev;
-	}
-
-	err = pci_set_consistent_dma_mask(dev, DMA_BIT_MASK(32));
+	err = dma_set_mask_and_coherent(&dev->dev, DMA_BIT_MASK(32));
 	if (err) {
 		dev_err(&dev->dev,
 			"Required dma mask not supported, failed to initialize device\n");

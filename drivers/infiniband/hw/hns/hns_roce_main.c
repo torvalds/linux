@@ -325,7 +325,7 @@ static int hns_roce_alloc_ucontext(struct ib_ucontext *uctx,
 	return 0;
 
 error_fail_copy_to_udata:
-	hns_roce_uar_free(hr_dev, &context->uar);
+	ida_free(&hr_dev->uar_ida.ida, (int)context->uar.logic_idx);
 
 error_fail_uar_alloc:
 	return ret;
@@ -334,8 +334,9 @@ error_fail_uar_alloc:
 static void hns_roce_dealloc_ucontext(struct ib_ucontext *ibcontext)
 {
 	struct hns_roce_ucontext *context = to_hr_ucontext(ibcontext);
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibcontext->device);
 
-	hns_roce_uar_free(to_hr_dev(ibcontext->device), &context->uar);
+	ida_free(&hr_dev->uar_ida.ida, (int)context->uar.logic_idx);
 }
 
 static int hns_roce_mmap(struct ib_ucontext *context,
@@ -454,6 +455,7 @@ static const struct ib_device_ops hns_roce_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_ah, hns_roce_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, hns_roce_cq, ib_cq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, hns_roce_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_qp, hns_roce_qp, ibqp),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, hns_roce_ucontext, ibucontext),
 };
 
@@ -736,15 +738,17 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 		mutex_init(&hr_dev->pgdir_mutex);
 	}
 
-	ret = hns_roce_init_uar_table(hr_dev);
-	if (ret) {
-		dev_err(dev, "Failed to initialize uar table. aborting\n");
-		return ret;
-	}
+	hns_roce_init_uar_table(hr_dev);
 
 	ret = hns_roce_uar_alloc(hr_dev, &hr_dev->priv_uar);
 	if (ret) {
 		dev_err(dev, "Failed to allocate priv_uar.\n");
+		goto err_uar_table_free;
+	}
+
+	ret = hns_roce_init_qp_table(hr_dev);
+	if (ret) {
+		dev_err(dev, "Failed to init qp_table.\n");
 		goto err_uar_table_free;
 	}
 
@@ -757,32 +761,14 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 
 	hns_roce_init_cq_table(hr_dev);
 
-	hns_roce_init_qp_table(hr_dev);
-
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
-		ret = hns_roce_init_srq_table(hr_dev);
-		if (ret) {
-			dev_err(dev,
-				"Failed to init share receive queue table.\n");
-			goto err_qp_table_free;
-		}
+		hns_roce_init_srq_table(hr_dev);
 	}
 
 	return 0;
 
-err_qp_table_free:
-	hns_roce_cleanup_qp_table(hr_dev);
-	hns_roce_cleanup_cq_table(hr_dev);
-	ida_destroy(&hr_dev->mr_table.mtpt_ida.ida);
-
-	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC)
-		ida_destroy(&hr_dev->xrcd_ida.ida);
-
-	ida_destroy(&hr_dev->pd_ida.ida);
-	hns_roce_uar_free(hr_dev, &hr_dev->priv_uar);
-
 err_uar_table_free:
-	hns_roce_cleanup_uar_table(hr_dev);
+	ida_destroy(&hr_dev->uar_ida.ida);
 	return ret;
 }
 
@@ -873,11 +859,9 @@ int hns_roce_init(struct hns_roce_dev *hr_dev)
 
 	if (hr_dev->cmd_mod) {
 		ret = hns_roce_cmd_use_events(hr_dev);
-		if (ret) {
+		if (ret)
 			dev_warn(dev,
 				 "Cmd event  mode failed, set back to poll!\n");
-			hns_roce_cmd_use_polling(hr_dev);
-		}
 	}
 
 	ret = hns_roce_init_hem(hr_dev);

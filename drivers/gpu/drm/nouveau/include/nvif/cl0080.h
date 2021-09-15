@@ -4,7 +4,8 @@
 
 struct nv_device_v0 {
 	__u8  version;
-	__u8  pad01[7];
+	__u8  priv;
+	__u8  pad02[6];
 	__u64 device;	/* device identifier, ~0 for client default */
 };
 

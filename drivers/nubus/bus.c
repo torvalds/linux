@@ -33,7 +33,7 @@ static void nubus_device_remove(struct device *dev)
 {
 	struct nubus_driver *ndrv = to_nubus_driver(dev->driver);
 
-	if (dev->driver && ndrv->remove)
+	if (ndrv->remove)
 		ndrv->remove(to_nubus_board(dev));
 }
 

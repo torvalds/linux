@@ -66,8 +66,6 @@ const struct _kvm_stats_desc kvm_vm_stats_desc[] = {
 	STATS_DESC_COUNTER(VM, inject_service_signal),
 	STATS_DESC_COUNTER(VM, inject_virtio)
 };
-static_assert(ARRAY_SIZE(kvm_vm_stats_desc) ==
-		sizeof(struct kvm_vm_stat) / sizeof(u64));
 
 const struct kvm_stats_header kvm_vm_stats_header = {
 	.name_size = KVM_STATS_NAME_SIZE,
@@ -163,19 +161,17 @@ const struct _kvm_stats_desc kvm_vcpu_stats_desc[] = {
 	STATS_DESC_COUNTER(VCPU, instruction_sigp_init_cpu_reset),
 	STATS_DESC_COUNTER(VCPU, instruction_sigp_cpu_reset),
 	STATS_DESC_COUNTER(VCPU, instruction_sigp_unknown),
-	STATS_DESC_COUNTER(VCPU, diagnose_10),
-	STATS_DESC_COUNTER(VCPU, diagnose_44),
-	STATS_DESC_COUNTER(VCPU, diagnose_9c),
-	STATS_DESC_COUNTER(VCPU, diagnose_9c_ignored),
-	STATS_DESC_COUNTER(VCPU, diagnose_9c_forward),
-	STATS_DESC_COUNTER(VCPU, diagnose_258),
-	STATS_DESC_COUNTER(VCPU, diagnose_308),
-	STATS_DESC_COUNTER(VCPU, diagnose_500),
-	STATS_DESC_COUNTER(VCPU, diagnose_other),
+	STATS_DESC_COUNTER(VCPU, instruction_diagnose_10),
+	STATS_DESC_COUNTER(VCPU, instruction_diagnose_44),
+	STATS_DESC_COUNTER(VCPU, instruction_diagnose_9c),
+	STATS_DESC_COUNTER(VCPU, diag_9c_ignored),
+	STATS_DESC_COUNTER(VCPU, diag_9c_forward),
+	STATS_DESC_COUNTER(VCPU, instruction_diagnose_258),
+	STATS_DESC_COUNTER(VCPU, instruction_diagnose_308),
+	STATS_DESC_COUNTER(VCPU, instruction_diagnose_500),
+	STATS_DESC_COUNTER(VCPU, instruction_diagnose_other),
 	STATS_DESC_COUNTER(VCPU, pfault_sync)
 };
-static_assert(ARRAY_SIZE(kvm_vcpu_stats_desc) ==
-		sizeof(struct kvm_vcpu_stat) / sizeof(u64));
 
 const struct kvm_stats_header kvm_vcpu_stats_header = {
 	.name_size = KVM_STATS_NAME_SIZE,
@@ -1953,7 +1949,7 @@ out:
 static int gfn_to_memslot_approx(struct kvm_memslots *slots, gfn_t gfn)
 {
 	int start = 0, end = slots->used_slots;
-	int slot = atomic_read(&slots->lru_slot);
+	int slot = atomic_read(&slots->last_used_slot);
 	struct kvm_memory_slot *memslots = slots->memslots;
 
 	if (gfn >= memslots[slot].base_gfn &&
@@ -1974,7 +1970,7 @@ static int gfn_to_memslot_approx(struct kvm_memslots *slots, gfn_t gfn)
 
 	if (gfn >= memslots[start].base_gfn &&
 	    gfn < memslots[start].base_gfn + memslots[start].npages) {
-		atomic_set(&slots->lru_slot, start);
+		atomic_set(&slots->last_used_slot, start);
 	}
 
 	return start;
@@ -2559,12 +2555,26 @@ static void kvm_s390_set_crycb_format(struct kvm *kvm)
 		kvm->arch.crypto.crycbd |= CRYCB_FORMAT1;
 }
 
+/*
+ * kvm_arch_crypto_set_masks
+ *
+ * @kvm: pointer to the target guest's KVM struct containing the crypto masks
+ *	 to be set.
+ * @apm: the mask identifying the accessible AP adapters
+ * @aqm: the mask identifying the accessible AP domains
+ * @adm: the mask identifying the accessible AP control domains
+ *
+ * Set the masks that identify the adapters, domains and control domains to
+ * which the KVM guest is granted access.
+ *
+ * Note: The kvm->lock mutex must be locked by the caller before invoking this
+ *	 function.
+ */
 void kvm_arch_crypto_set_masks(struct kvm *kvm, unsigned long *apm,
 			       unsigned long *aqm, unsigned long *adm)
 {
 	struct kvm_s390_crypto_cb *crycb = kvm->arch.crypto.crycb;
 
-	mutex_lock(&kvm->lock);
 	kvm_s390_vcpu_block_all(kvm);
 
 	switch (kvm->arch.crypto.crycbd & CRYCB_FORMAT_MASK) {
@@ -2595,13 +2605,23 @@ void kvm_arch_crypto_set_masks(struct kvm *kvm, unsigned long *apm,
 	/* recreate the shadow crycb for each vcpu */
 	kvm_s390_sync_request_broadcast(kvm, KVM_REQ_VSIE_RESTART);
 	kvm_s390_vcpu_unblock_all(kvm);
-	mutex_unlock(&kvm->lock);
 }
 EXPORT_SYMBOL_GPL(kvm_arch_crypto_set_masks);
 
+/*
+ * kvm_arch_crypto_clear_masks
+ *
+ * @kvm: pointer to the target guest's KVM struct containing the crypto masks
+ *	 to be cleared.
+ *
+ * Clear the masks that identify the adapters, domains and control domains to
+ * which the KVM guest is granted access.
+ *
+ * Note: The kvm->lock mutex must be locked by the caller before invoking this
+ *	 function.
+ */
 void kvm_arch_crypto_clear_masks(struct kvm *kvm)
 {
-	mutex_lock(&kvm->lock);
 	kvm_s390_vcpu_block_all(kvm);
 
 	memset(&kvm->arch.crypto.crycb->apcb0, 0,
@@ -2613,7 +2633,6 @@ void kvm_arch_crypto_clear_masks(struct kvm *kvm)
 	/* recreate the shadow crycb for each vcpu */
 	kvm_s390_sync_request_broadcast(kvm, KVM_REQ_VSIE_RESTART);
 	kvm_s390_vcpu_unblock_all(kvm);
-	mutex_unlock(&kvm->lock);
 }
 EXPORT_SYMBOL_GPL(kvm_arch_crypto_clear_masks);
 
@@ -2630,6 +2649,7 @@ static void kvm_s390_crypto_init(struct kvm *kvm)
 {
 	kvm->arch.crypto.crycb = &kvm->arch.sie_page2->crycb;
 	kvm_s390_set_crycb_format(kvm);
+	init_rwsem(&kvm->arch.crypto.pqap_hook_rwsem);
 
 	if (!test_kvm_facility(kvm, 76))
 		return;
@@ -3200,6 +3220,8 @@ static int kvm_s390_vcpu_setup(struct kvm_vcpu *vcpu)
 		vcpu->arch.sie_block->ecb |= ECB_SRSI;
 	if (test_kvm_facility(vcpu->kvm, 73))
 		vcpu->arch.sie_block->ecb |= ECB_TE;
+	if (!kvm_is_ucontrol(vcpu->kvm))
+		vcpu->arch.sie_block->ecb |= ECB_SPECI;
 
 	if (test_kvm_facility(vcpu->kvm, 8) && vcpu->kvm->arch.use_pfmfi)
 		vcpu->arch.sie_block->ecb2 |= ECB2_PFMFI;
@@ -4044,7 +4066,7 @@ static int vcpu_pre_run(struct kvm_vcpu *vcpu)
 		kvm_s390_patch_guest_per_regs(vcpu);
 	}
 
-	clear_bit(vcpu->vcpu_id, vcpu->kvm->arch.gisa_int.kicked_mask);
+	clear_bit(kvm_vcpu_get_idx(vcpu), vcpu->kvm->arch.gisa_int.kicked_mask);
 
 	vcpu->arch.sie_block->icptcode = 0;
 	cpuflags = atomic_read(&vcpu->arch.sie_block->cpuflags);

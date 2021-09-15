@@ -8,8 +8,6 @@
 
 #include "adreno_gpu.h"
 
-#define ANY_ID 0xff
-
 bool hang_debug = false;
 MODULE_PARM_DESC(hang_debug, "Dump registers when hang is detected (can be slow!)");
 module_param_named(hang_debug, hang_debug, bool, 0600);
@@ -300,6 +298,30 @@ static const struct adreno_info gpulist[] = {
 		.init = a6xx_gpu_init,
 		.zapfw = "a660_zap.mdt",
 		.hwcg = a660_hwcg,
+	}, {
+		.rev = ADRENO_REV(6, 3, 5, ANY_ID),
+		.name = "Adreno 7c Gen 3",
+		.fw = {
+			[ADRENO_FW_SQE] = "a660_sqe.fw",
+			[ADRENO_FW_GMU] = "a660_gmu.bin",
+		},
+		.gmem = SZ_512K,
+		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.init = a6xx_gpu_init,
+		.hwcg = a660_hwcg,
+	}, {
+		.rev = ADRENO_REV(6, 8, 0, ANY_ID),
+		.revn = 680,
+		.name = "A680",
+		.fw = {
+			[ADRENO_FW_SQE] = "a630_sqe.fw",
+			[ADRENO_FW_GMU] = "a640_gmu.bin",
+		},
+		.gmem = SZ_2M,
+		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.init = a6xx_gpu_init,
+		.zapfw = "a640_zap.mdt",
+		.hwcg = a640_hwcg,
 	},
 };
 
@@ -325,6 +347,15 @@ static inline bool _rev_match(uint8_t entry, uint8_t id)
 	return (entry == ANY_ID) || (entry == id);
 }
 
+bool adreno_cmp_rev(struct adreno_rev rev1, struct adreno_rev rev2)
+{
+
+	return _rev_match(rev1.core, rev2.core) &&
+		_rev_match(rev1.major, rev2.major) &&
+		_rev_match(rev1.minor, rev2.minor) &&
+		_rev_match(rev1.patchid, rev2.patchid);
+}
+
 const struct adreno_info *adreno_info(struct adreno_rev rev)
 {
 	int i;
@@ -332,10 +363,7 @@ const struct adreno_info *adreno_info(struct adreno_rev rev)
 	/* identify gpu: */
 	for (i = 0; i < ARRAY_SIZE(gpulist); i++) {
 		const struct adreno_info *info = &gpulist[i];
-		if (_rev_match(info->rev.core, rev.core) &&
-				_rev_match(info->rev.major, rev.major) &&
-				_rev_match(info->rev.minor, rev.minor) &&
-				_rev_match(info->rev.patchid, rev.patchid))
+		if (adreno_cmp_rev(info->rev, rev))
 			return info;
 	}
 

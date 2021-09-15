@@ -447,6 +447,35 @@ static int scan_block_fast(struct nand_chip *this, struct nand_bbt_descr *bd,
 	return 0;
 }
 
+/* Check if a potential BBT block is marked as bad */
+static int bbt_block_checkbad(struct nand_chip *this, struct nand_bbt_descr *td,
+			      loff_t offs, uint8_t *buf)
+{
+	struct nand_bbt_descr *bd = this->badblock_pattern;
+
+	/*
+	 * No need to check for a bad BBT block if the BBM area overlaps with
+	 * the bad block table marker area in OOB since writing a BBM here
+	 * invalidates the bad block table marker anyway.
+	 */
+	if (!(td->options & NAND_BBT_NO_OOB) &&
+	    td->offs >= bd->offs && td->offs < bd->offs + bd->len)
+		return 0;
+
+	/*
+	 * There is no point in checking for a bad block marker if writing
+	 * such marker is not supported
+	 */
+	if (this->bbt_options & NAND_BBT_NO_OOB_BBM ||
+	    this->options & NAND_NO_BBM_QUIRK)
+		return 0;
+
+	if (scan_block_fast(this, bd, offs, buf) > 0)
+		return 1;
+
+	return 0;
+}
+
 /**
  * create_bbt - [GENERIC] Create a bad block table by scanning the device
  * @this: NAND chip object
@@ -559,6 +588,10 @@ static int search_bbt(struct nand_chip *this, uint8_t *buf,
 
 			int actblock = startblock + dir * block;
 			loff_t offs = (loff_t)actblock << this->bbt_erase_shift;
+
+			/* Check if block is marked bad */
+			if (bbt_block_checkbad(this, td, offs, buf))
+				continue;
 
 			/* Read first page */
 			scan_read(this, buf, offs, mtd->writesize, td);

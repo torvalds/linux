@@ -44,7 +44,6 @@ static void *vcpu_worker(void *data)
 	struct perf_test_vcpu_args *vcpu_args = (struct perf_test_vcpu_args *)data;
 	int vcpu_id = vcpu_args->vcpu_id;
 
-	vcpu_args_set(vm, vcpu_id, 1, vcpu_id);
 	run = vcpu_state(vm, vcpu_id);
 
 	while (!READ_ONCE(host_quit)) {
@@ -94,7 +93,58 @@ struct test_params {
 	int wr_fract;
 	bool partition_vcpu_memory_access;
 	enum vm_mem_backing_src_type backing_src;
+	int slots;
 };
+
+static void toggle_dirty_logging(struct kvm_vm *vm, int slots, bool enable)
+{
+	int i;
+
+	for (i = 0; i < slots; i++) {
+		int slot = PERF_TEST_MEM_SLOT_INDEX + i;
+		int flags = enable ? KVM_MEM_LOG_DIRTY_PAGES : 0;
+
+		vm_mem_region_set_flags(vm, slot, flags);
+	}
+}
+
+static inline void enable_dirty_logging(struct kvm_vm *vm, int slots)
+{
+	toggle_dirty_logging(vm, slots, true);
+}
+
+static inline void disable_dirty_logging(struct kvm_vm *vm, int slots)
+{
+	toggle_dirty_logging(vm, slots, false);
+}
+
+static void get_dirty_log(struct kvm_vm *vm, int slots, unsigned long *bitmap,
+			  uint64_t nr_pages)
+{
+	uint64_t slot_pages = nr_pages / slots;
+	int i;
+
+	for (i = 0; i < slots; i++) {
+		int slot = PERF_TEST_MEM_SLOT_INDEX + i;
+		unsigned long *slot_bitmap = bitmap + i * slot_pages;
+
+		kvm_vm_get_dirty_log(vm, slot, slot_bitmap);
+	}
+}
+
+static void clear_dirty_log(struct kvm_vm *vm, int slots, unsigned long *bitmap,
+			    uint64_t nr_pages)
+{
+	uint64_t slot_pages = nr_pages / slots;
+	int i;
+
+	for (i = 0; i < slots; i++) {
+		int slot = PERF_TEST_MEM_SLOT_INDEX + i;
+		unsigned long *slot_bitmap = bitmap + i * slot_pages;
+
+		kvm_vm_clear_dirty_log(vm, slot, slot_bitmap, 0, slot_pages);
+	}
+}
 
 static void run_test(enum vm_guest_mode mode, void *arg)
 {
@@ -114,14 +164,14 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	struct timespec clear_dirty_log_total = (struct timespec){0};
 
 	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size,
-				 p->backing_src);
+				 p->slots, p->backing_src);
 
 	perf_test_args.wr_fract = p->wr_fract;
 
 	guest_num_pages = (nr_vcpus * guest_percpu_mem_size) >> vm_get_page_shift(vm);
 	guest_num_pages = vm_adjust_num_guest_pages(mode, guest_num_pages);
 	host_num_pages = vm_num_host_pages(mode, guest_num_pages);
-	bmap = bitmap_alloc(host_num_pages);
+	bmap = bitmap_zalloc(host_num_pages);
 
 	if (dirty_log_manual_caps) {
 		cap.cap = KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2;
@@ -163,8 +213,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	/* Enable dirty logging */
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	vm_mem_region_set_flags(vm, PERF_TEST_MEM_SLOT_INDEX,
-				KVM_MEM_LOG_DIRTY_PAGES);
+	enable_dirty_logging(vm, p->slots);
 	ts_diff = timespec_elapsed(start);
 	pr_info("Enabling dirty logging time: %ld.%.9lds\n\n",
 		ts_diff.tv_sec, ts_diff.tv_nsec);
@@ -190,8 +239,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 			iteration, ts_diff.tv_sec, ts_diff.tv_nsec);
 
 		clock_gettime(CLOCK_MONOTONIC, &start);
-		kvm_vm_get_dirty_log(vm, PERF_TEST_MEM_SLOT_INDEX, bmap);
-
+		get_dirty_log(vm, p->slots, bmap, host_num_pages);
 		ts_diff = timespec_elapsed(start);
 		get_dirty_log_total = timespec_add(get_dirty_log_total,
 						   ts_diff);
@@ -200,9 +248,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 		if (dirty_log_manual_caps) {
 			clock_gettime(CLOCK_MONOTONIC, &start);
-			kvm_vm_clear_dirty_log(vm, PERF_TEST_MEM_SLOT_INDEX, bmap, 0,
-					       host_num_pages);
-
+			clear_dirty_log(vm, p->slots, bmap, host_num_pages);
 			ts_diff = timespec_elapsed(start);
 			clear_dirty_log_total = timespec_add(clear_dirty_log_total,
 							     ts_diff);
@@ -213,7 +259,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	/* Disable dirty logging */
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	vm_mem_region_set_flags(vm, PERF_TEST_MEM_SLOT_INDEX, 0);
+	disable_dirty_logging(vm, p->slots);
 	ts_diff = timespec_elapsed(start);
 	pr_info("Disabling dirty logging time: %ld.%.9lds\n",
 		ts_diff.tv_sec, ts_diff.tv_nsec);
@@ -244,7 +290,8 @@ static void help(char *name)
 {
 	puts("");
 	printf("usage: %s [-h] [-i iterations] [-p offset] "
-	       "[-m mode] [-b vcpu bytes] [-v vcpus] [-o] [-s mem type]\n", name);
+	       "[-m mode] [-b vcpu bytes] [-v vcpus] [-o] [-s mem type]"
+	       "[-x memslots]\n", name);
 	puts("");
 	printf(" -i: specify iteration counts (default: %"PRIu64")\n",
 	       TEST_HOST_LOOP_N);
@@ -263,6 +310,8 @@ static void help(char *name)
 	       "     them into a separate region of memory for each vCPU.\n");
 	printf(" -s: specify the type of memory that should be used to\n"
 	       "     back the guest data region.\n\n");
+	printf(" -x: Split the memory region into this number of memslots.\n"
+	       "     (default: 1)");
 	backing_src_help();
 	puts("");
 	exit(0);
@@ -276,6 +325,7 @@ int main(int argc, char *argv[])
 		.wr_fract = 1,
 		.partition_vcpu_memory_access = true,
 		.backing_src = VM_MEM_SRC_ANONYMOUS,
+		.slots = 1,
 	};
 	int opt;
 
@@ -286,7 +336,7 @@ int main(int argc, char *argv[])
 
 	guest_modes_append_default();
 
-	while ((opt = getopt(argc, argv, "hi:p:m:b:f:v:os:")) != -1) {
+	while ((opt = getopt(argc, argv, "hi:p:m:b:f:v:os:x:")) != -1) {
 		switch (opt) {
 		case 'i':
 			p.iterations = atoi(optarg);
@@ -312,8 +362,12 @@ int main(int argc, char *argv[])
 			break;
 		case 'o':
 			p.partition_vcpu_memory_access = false;
+			break;
 		case 's':
 			p.backing_src = parse_backing_src_type(optarg);
+			break;
+		case 'x':
+			p.slots = atoi(optarg);
 			break;
 		case 'h':
 		default:

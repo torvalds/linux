@@ -18,8 +18,8 @@ config ARM
 	select ARCH_HAS_SET_MEMORY
 	select ARCH_HAS_STRICT_KERNEL_RWX if MMU && !XIP_KERNEL
 	select ARCH_HAS_STRICT_MODULE_RWX if MMU
-	select ARCH_HAS_SYNC_DMA_FOR_DEVICE if SWIOTLB
-	select ARCH_HAS_SYNC_DMA_FOR_CPU if SWIOTLB
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE if SWIOTLB || !MMU
+	select ARCH_HAS_SYNC_DMA_FOR_CPU if SWIOTLB || !MMU
 	select ARCH_HAS_TEARDOWN_DMA_OPS if MMU
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAVE_CUSTOM_GPIO_H
@@ -44,6 +44,7 @@ config ARM
 	select CPU_PM if SUSPEND || CPU_IDLE
 	select DCACHE_WORD_ACCESS if HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select DMA_DECLARE_COHERENT
+	select DMA_GLOBAL_POOL if !MMU
 	select DMA_OPS
 	select DMA_REMAP if MMU
 	select EDAC_SUPPORT
@@ -63,8 +64,6 @@ config ARM
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_SMP_IDLE_THREAD
-	select GENERIC_STRNCPY_FROM_USER
-	select GENERIC_STRNLEN_USER
 	select HANDLE_DOMAIN_IRQ
 	select HARDIRQS_SW_RESEND
 	select HAVE_ARCH_AUDITSYSCALL if AEABI && !OABI_COMPAT
@@ -95,7 +94,6 @@ config ARM
 	select HAVE_FUNCTION_TRACER if !XIP_KERNEL
 	select HAVE_GCC_PLUGINS
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS && (CPU_V6 || CPU_V6K || CPU_V7)
-	select HAVE_IDE if PCI || ISA || PCMCIA
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZ4
@@ -126,8 +124,8 @@ config ARM
 	select PCI_SYSCALL if PCI
 	select PERF_USE_VMALLOC
 	select RTC_LIB
-	select SET_FS
 	select SYS_SUPPORTS_APM_EMULATION
+	select TRACE_IRQFLAGS_SUPPORT if !CPU_V7M
 	# Above selects are sorted alphabetically; please add new ones
 	# according to that.  Thanks.
 	help
@@ -190,10 +188,6 @@ config STACKTRACE_SUPPORT
 config LOCKDEP_SUPPORT
 	bool
 	default y
-
-config TRACE_IRQFLAGS_SUPPORT
-	bool
-	default !CPU_V7M
 
 config ARCH_HAS_ILOG2_U32
 	bool
@@ -361,7 +355,6 @@ config ARCH_FOOTBRIDGE
 	bool "FootBridge"
 	select CPU_SA110
 	select FOOTBRIDGE
-	select HAVE_IDE
 	select NEED_MACH_IO_H if !MMU
 	select NEED_MACH_MEMORY_H
 	help
@@ -430,7 +423,6 @@ config ARCH_PXA
 	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIO_PXA
 	select GPIOLIB
-	select HAVE_IDE
 	select IRQ_DOMAIN
 	select PLAT_PXA
 	select SPARSE_IRQ
@@ -446,7 +438,6 @@ config ARCH_RPC
 	select ARM_HAS_SG_CHAIN
 	select CPU_SA110
 	select FIQ
-	select HAVE_IDE
 	select HAVE_PATA_PLATFORM
 	select ISA_DMA_API
 	select LEGACY_TIMER_TICK
@@ -469,7 +460,6 @@ config ARCH_SA1100
 	select CPU_SA1100
 	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
-	select HAVE_IDE
 	select IRQ_DOMAIN
 	select ISA
 	select NEED_MACH_MEMORY_H
@@ -505,7 +495,6 @@ config ARCH_OMAP1
 	select GENERIC_IRQ_CHIP
 	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
-	select HAVE_IDE
 	select HAVE_LEGACY_CLK
 	select IRQ_DOMAIN
 	select NEED_MACH_IO_H if PCCARD

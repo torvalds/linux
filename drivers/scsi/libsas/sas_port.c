@@ -10,7 +10,7 @@
 
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_sas.h>
-#include "../scsi_sas_internal.h"
+#include "scsi_sas_internal.h"
 
 static bool phy_is_wideport_member(struct asd_sas_port *port, struct asd_sas_phy *phy)
 {

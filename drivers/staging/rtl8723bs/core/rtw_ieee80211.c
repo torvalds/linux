@@ -4,7 +4,6 @@
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define _IEEE80211_C
 
 #include <drv_types.h>
 #include <rtw_debug.h>
@@ -253,25 +252,25 @@ exit:
 	return ret;
 }
 
-void rtw_set_supported_rate(u8 *SupportedRates, uint mode)
+void rtw_set_supported_rate(u8 *supported_rates, uint mode)
 {
-	memset(SupportedRates, 0, NDIS_802_11_LENGTH_RATES_EX);
+	memset(supported_rates, 0, NDIS_802_11_LENGTH_RATES_EX);
 
 	switch (mode) {
 	case WIRELESS_11B:
-		memcpy(SupportedRates, WIFI_CCKRATES, IEEE80211_CCK_RATE_LEN);
+		memcpy(supported_rates, WIFI_CCKRATES, IEEE80211_CCK_RATE_LEN);
 		break;
 
 	case WIRELESS_11G:
-		memcpy(SupportedRates, WIFI_OFDMRATES, IEEE80211_NUM_OFDM_RATESLEN);
+		memcpy(supported_rates, WIFI_OFDMRATES, IEEE80211_NUM_OFDM_RATESLEN);
 		break;
 
 	case WIRELESS_11BG:
 	case WIRELESS_11G_24N:
 	case WIRELESS_11_24N:
 	case WIRELESS_11BG_24N:
-		memcpy(SupportedRates, WIFI_CCKRATES, IEEE80211_CCK_RATE_LEN);
-		memcpy(SupportedRates + IEEE80211_CCK_RATE_LEN, WIFI_OFDMRATES, IEEE80211_NUM_OFDM_RATESLEN);
+		memcpy(supported_rates, WIFI_CCKRATES, IEEE80211_CCK_RATE_LEN);
+		memcpy(supported_rates + IEEE80211_CCK_RATE_LEN, WIFI_OFDMRATES, IEEE80211_NUM_OFDM_RATESLEN);
 		break;
 	}
 }
@@ -291,14 +290,14 @@ int rtw_generate_ie(struct registry_priv *pregistrypriv)
 	u8 wireless_mode;
 	int	sz = 0, rateLen;
 	struct wlan_bssid_ex *pdev_network = &pregistrypriv->dev_network;
-	u8 *ie = pdev_network->IEs;
+	u8 *ie = pdev_network->ies;
 
 	/* timestamp will be inserted by hardware */
 	sz += 8;
 	ie += sz;
 
 	/* beacon interval : 2bytes */
-	*(__le16 *)ie = cpu_to_le16((u16)pdev_network->Configuration.BeaconPeriod);/* BCN_INTERVAL; */
+	*(__le16 *)ie = cpu_to_le16((u16)pdev_network->configuration.beacon_period);/* BCN_INTERVAL; */
 	sz += 2;
 	ie += 2;
 
@@ -310,38 +309,38 @@ int rtw_generate_ie(struct registry_priv *pregistrypriv)
 	if (pregistrypriv->preamble == PREAMBLE_SHORT)
 		*(__le16 *)ie |= cpu_to_le16(WLAN_CAPABILITY_SHORT_PREAMBLE);
 
-	if (pdev_network->Privacy)
+	if (pdev_network->privacy)
 		*(__le16 *)ie |= cpu_to_le16(WLAN_CAPABILITY_PRIVACY);
 
 	sz += 2;
 	ie += 2;
 
 	/* SSID */
-	ie = rtw_set_ie(ie, WLAN_EID_SSID, pdev_network->Ssid.SsidLength, pdev_network->Ssid.Ssid, &sz);
+	ie = rtw_set_ie(ie, WLAN_EID_SSID, pdev_network->ssid.ssid_length, pdev_network->ssid.ssid, &sz);
 
 	/* supported rates */
 	wireless_mode = pregistrypriv->wireless_mode;
 
-	rtw_set_supported_rate(pdev_network->SupportedRates, wireless_mode);
+	rtw_set_supported_rate(pdev_network->supported_rates, wireless_mode);
 
-	rateLen = rtw_get_rateset_len(pdev_network->SupportedRates);
+	rateLen = rtw_get_rateset_len(pdev_network->supported_rates);
 
 	if (rateLen > 8) {
-		ie = rtw_set_ie(ie, WLAN_EID_SUPP_RATES, 8, pdev_network->SupportedRates, &sz);
-		/* ie = rtw_set_ie(ie, WLAN_EID_EXT_SUPP_RATES, (rateLen - 8), (pdev_network->SupportedRates + 8), &sz); */
+		ie = rtw_set_ie(ie, WLAN_EID_SUPP_RATES, 8, pdev_network->supported_rates, &sz);
+		/* ie = rtw_set_ie(ie, WLAN_EID_EXT_SUPP_RATES, (rateLen - 8), (pdev_network->supported_rates + 8), &sz); */
 	} else {
-		ie = rtw_set_ie(ie, WLAN_EID_SUPP_RATES, rateLen, pdev_network->SupportedRates, &sz);
+		ie = rtw_set_ie(ie, WLAN_EID_SUPP_RATES, rateLen, pdev_network->supported_rates, &sz);
 	}
 
 	/* DS parameter set */
-	ie = rtw_set_ie(ie, WLAN_EID_DS_PARAMS, 1, (u8 *)&(pdev_network->Configuration.DSConfig), &sz);
+	ie = rtw_set_ie(ie, WLAN_EID_DS_PARAMS, 1, (u8 *)&(pdev_network->configuration.ds_config), &sz);
 
 	/* IBSS Parameter Set */
 
-	ie = rtw_set_ie(ie, WLAN_EID_IBSS_PARAMS, 2, (u8 *)&(pdev_network->Configuration.ATIMWindow), &sz);
+	ie = rtw_set_ie(ie, WLAN_EID_IBSS_PARAMS, 2, (u8 *)&(pdev_network->configuration.atim_window), &sz);
 
 	if (rateLen > 8) {
-		ie = rtw_set_ie(ie, WLAN_EID_EXT_SUPP_RATES, (rateLen - 8), (pdev_network->SupportedRates + 8), &sz);
+		ie = rtw_set_ie(ie, WLAN_EID_EXT_SUPP_RATES, (rateLen - 8), (pdev_network->supported_rates + 8), &sz);
 	}
 
 	/* HT Cap. */
@@ -350,7 +349,7 @@ int rtw_generate_ie(struct registry_priv *pregistrypriv)
 		/* todo: */
 	}
 
-	/* pdev_network->IELength =  sz; update IELength */
+	/* pdev_network->ie_length =  sz; update ie_length */
 
 	/* return _SUCCESS; */
 
@@ -1030,23 +1029,23 @@ static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 	int group_cipher = 0, pairwise_cipher = 0, is8021x = 0;
 	int ret = _FAIL;
 
-	pbuf = rtw_get_wpa_ie(&pnetwork->network.IEs[12], &wpa_ielen, pnetwork->network.IELength-12);
+	pbuf = rtw_get_wpa_ie(&pnetwork->network.ies[12], &wpa_ielen, pnetwork->network.ie_length-12);
 
 	if (pbuf && (wpa_ielen > 0)) {
 		if (_SUCCESS == rtw_parse_wpa_ie(pbuf, wpa_ielen+2, &group_cipher, &pairwise_cipher, &is8021x)) {
-			pnetwork->BcnInfo.pairwise_cipher = pairwise_cipher;
-			pnetwork->BcnInfo.group_cipher = group_cipher;
-			pnetwork->BcnInfo.is_8021x = is8021x;
+			pnetwork->bcn_info.pairwise_cipher = pairwise_cipher;
+			pnetwork->bcn_info.group_cipher = group_cipher;
+			pnetwork->bcn_info.is_8021x = is8021x;
 			ret = _SUCCESS;
 		}
 	} else {
-		pbuf = rtw_get_wpa2_ie(&pnetwork->network.IEs[12], &wpa_ielen, pnetwork->network.IELength-12);
+		pbuf = rtw_get_wpa2_ie(&pnetwork->network.ies[12], &wpa_ielen, pnetwork->network.ie_length-12);
 
 		if (pbuf && (wpa_ielen > 0)) {
 			if (_SUCCESS == rtw_parse_wpa2_ie(pbuf, wpa_ielen+2, &group_cipher, &pairwise_cipher, &is8021x)) {
-				pnetwork->BcnInfo.pairwise_cipher = pairwise_cipher;
-				pnetwork->BcnInfo.group_cipher = group_cipher;
-				pnetwork->BcnInfo.is_8021x = is8021x;
+				pnetwork->bcn_info.pairwise_cipher = pairwise_cipher;
+				pnetwork->bcn_info.group_cipher = group_cipher;
+				pnetwork->bcn_info.is_8021x = is8021x;
 				ret = _SUCCESS;
 			}
 		}
@@ -1067,104 +1066,67 @@ void rtw_get_bcn_info(struct wlan_network *pnetwork)
 	unsigned char 	*p;
 	__le16 le_cap;
 
-	memcpy((u8 *)&le_cap, rtw_get_capability_from_ie(pnetwork->network.IEs), 2);
+	memcpy((u8 *)&le_cap, rtw_get_capability_from_ie(pnetwork->network.ies), 2);
 	cap = le16_to_cpu(le_cap);
 	if (cap & WLAN_CAPABILITY_PRIVACY) {
 		bencrypt = 1;
-		pnetwork->network.Privacy = 1;
+		pnetwork->network.privacy = 1;
 	} else {
-		pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_OPENSYS;
+		pnetwork->bcn_info.encryp_protocol = ENCRYP_PROTOCOL_OPENSYS;
 	}
-	rtw_get_sec_ie(pnetwork->network.IEs, pnetwork->network.IELength, NULL, &rsn_len, NULL, &wpa_len);
+	rtw_get_sec_ie(pnetwork->network.ies, pnetwork->network.ie_length, NULL, &rsn_len, NULL, &wpa_len);
 
 	if (rsn_len > 0) {
-		pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_WPA2;
+		pnetwork->bcn_info.encryp_protocol = ENCRYP_PROTOCOL_WPA2;
 	} else if (wpa_len > 0) {
-		pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_WPA;
+		pnetwork->bcn_info.encryp_protocol = ENCRYP_PROTOCOL_WPA;
 	} else {
 		if (bencrypt)
-			pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_WEP;
+			pnetwork->bcn_info.encryp_protocol = ENCRYP_PROTOCOL_WEP;
 	}
 	rtw_get_cipher_info(pnetwork);
 
 	/* get bwmode and ch_offset */
 	/* parsing HT_CAP_IE */
-	p = rtw_get_ie(pnetwork->network.IEs + _FIXED_IE_LENGTH_, WLAN_EID_HT_CAPABILITY, &len, pnetwork->network.IELength - _FIXED_IE_LENGTH_);
+	p = rtw_get_ie(pnetwork->network.ies + _FIXED_IE_LENGTH_, WLAN_EID_HT_CAPABILITY, &len, pnetwork->network.ie_length - _FIXED_IE_LENGTH_);
 	if (p && len > 0) {
 			pht_cap = (struct ieee80211_ht_cap *)(p + 2);
-			pnetwork->BcnInfo.ht_cap_info = le16_to_cpu(pht_cap->cap_info);
+			pnetwork->bcn_info.ht_cap_info = le16_to_cpu(pht_cap->cap_info);
 	} else {
-			pnetwork->BcnInfo.ht_cap_info = 0;
+			pnetwork->bcn_info.ht_cap_info = 0;
 	}
 	/* parsing HT_INFO_IE */
-	p = rtw_get_ie(pnetwork->network.IEs + _FIXED_IE_LENGTH_, WLAN_EID_HT_OPERATION, &len, pnetwork->network.IELength - _FIXED_IE_LENGTH_);
+	p = rtw_get_ie(pnetwork->network.ies + _FIXED_IE_LENGTH_, WLAN_EID_HT_OPERATION, &len, pnetwork->network.ie_length - _FIXED_IE_LENGTH_);
 	if (p && len > 0) {
 			pht_info = (struct HT_info_element *)(p + 2);
-			pnetwork->BcnInfo.ht_info_infos_0 = pht_info->infos[0];
+			pnetwork->bcn_info.ht_info_infos_0 = pht_info->infos[0];
 	} else {
-			pnetwork->BcnInfo.ht_info_infos_0 = 0;
+			pnetwork->bcn_info.ht_info_infos_0 = 0;
 	}
 }
 
 /* show MCS rate, unit: 100Kbps */
-u16 rtw_mcs_rate(u8 rf_type, u8 bw_40MHz, u8 short_GI, unsigned char *MCS_rate)
+u16 rtw_mcs_rate(u8 bw_40MHz, u8 short_GI, unsigned char *MCS_rate)
 {
 	u16 max_rate = 0;
 
-	if (rf_type == RF_1T1R) {
-		if (MCS_rate[0] & BIT(7))
-			max_rate = (bw_40MHz) ? ((short_GI)?1500:1350):((short_GI)?722:650);
-		else if (MCS_rate[0] & BIT(6))
-			max_rate = (bw_40MHz) ? ((short_GI)?1350:1215):((short_GI)?650:585);
-		else if (MCS_rate[0] & BIT(5))
-			max_rate = (bw_40MHz) ? ((short_GI)?1200:1080):((short_GI)?578:520);
-		else if (MCS_rate[0] & BIT(4))
-			max_rate = (bw_40MHz) ? ((short_GI)?900:810):((short_GI)?433:390);
-		else if (MCS_rate[0] & BIT(3))
-			max_rate = (bw_40MHz) ? ((short_GI)?600:540):((short_GI)?289:260);
-		else if (MCS_rate[0] & BIT(2))
-			max_rate = (bw_40MHz) ? ((short_GI)?450:405):((short_GI)?217:195);
-		else if (MCS_rate[0] & BIT(1))
-			max_rate = (bw_40MHz) ? ((short_GI)?300:270):((short_GI)?144:130);
-		else if (MCS_rate[0] & BIT(0))
-			max_rate = (bw_40MHz) ? ((short_GI)?150:135):((short_GI)?72:65);
-	} else {
-		if (MCS_rate[1]) {
-			if (MCS_rate[1] & BIT(7))
-				max_rate = (bw_40MHz) ? ((short_GI)?3000:2700):((short_GI)?1444:1300);
-			else if (MCS_rate[1] & BIT(6))
-				max_rate = (bw_40MHz) ? ((short_GI)?2700:2430):((short_GI)?1300:1170);
-			else if (MCS_rate[1] & BIT(5))
-				max_rate = (bw_40MHz) ? ((short_GI)?2400:2160):((short_GI)?1156:1040);
-			else if (MCS_rate[1] & BIT(4))
-				max_rate = (bw_40MHz) ? ((short_GI)?1800:1620):((short_GI)?867:780);
-			else if (MCS_rate[1] & BIT(3))
-				max_rate = (bw_40MHz) ? ((short_GI)?1200:1080):((short_GI)?578:520);
-			else if (MCS_rate[1] & BIT(2))
-				max_rate = (bw_40MHz) ? ((short_GI)?900:810):((short_GI)?433:390);
-			else if (MCS_rate[1] & BIT(1))
-				max_rate = (bw_40MHz) ? ((short_GI)?600:540):((short_GI)?289:260);
-			else if (MCS_rate[1] & BIT(0))
-				max_rate = (bw_40MHz) ? ((short_GI)?300:270):((short_GI)?144:130);
-		} else {
-			if (MCS_rate[0] & BIT(7))
-				max_rate = (bw_40MHz) ? ((short_GI)?1500:1350):((short_GI)?722:650);
-			else if (MCS_rate[0] & BIT(6))
-				max_rate = (bw_40MHz) ? ((short_GI)?1350:1215):((short_GI)?650:585);
-			else if (MCS_rate[0] & BIT(5))
-				max_rate = (bw_40MHz) ? ((short_GI)?1200:1080):((short_GI)?578:520);
-			else if (MCS_rate[0] & BIT(4))
-				max_rate = (bw_40MHz) ? ((short_GI)?900:810):((short_GI)?433:390);
-			else if (MCS_rate[0] & BIT(3))
-				max_rate = (bw_40MHz) ? ((short_GI)?600:540):((short_GI)?289:260);
-			else if (MCS_rate[0] & BIT(2))
-				max_rate = (bw_40MHz) ? ((short_GI)?450:405):((short_GI)?217:195);
-			else if (MCS_rate[0] & BIT(1))
-				max_rate = (bw_40MHz) ? ((short_GI)?300:270):((short_GI)?144:130);
-			else if (MCS_rate[0] & BIT(0))
-				max_rate = (bw_40MHz) ? ((short_GI)?150:135):((short_GI)?72:65);
-		}
-	}
+	if (MCS_rate[0] & BIT(7))
+		max_rate = (bw_40MHz) ? ((short_GI)?1500:1350):((short_GI)?722:650);
+	else if (MCS_rate[0] & BIT(6))
+		max_rate = (bw_40MHz) ? ((short_GI)?1350:1215):((short_GI)?650:585);
+	else if (MCS_rate[0] & BIT(5))
+		max_rate = (bw_40MHz) ? ((short_GI)?1200:1080):((short_GI)?578:520);
+	else if (MCS_rate[0] & BIT(4))
+		max_rate = (bw_40MHz) ? ((short_GI)?900:810):((short_GI)?433:390);
+	else if (MCS_rate[0] & BIT(3))
+		max_rate = (bw_40MHz) ? ((short_GI)?600:540):((short_GI)?289:260);
+	else if (MCS_rate[0] & BIT(2))
+		max_rate = (bw_40MHz) ? ((short_GI)?450:405):((short_GI)?217:195);
+	else if (MCS_rate[0] & BIT(1))
+		max_rate = (bw_40MHz) ? ((short_GI)?300:270):((short_GI)?144:130);
+	else if (MCS_rate[0] & BIT(0))
+		max_rate = (bw_40MHz) ? ((short_GI)?150:135):((short_GI)?72:65);
+
 	return max_rate;
 }
 

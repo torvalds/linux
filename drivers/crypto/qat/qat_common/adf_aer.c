@@ -194,7 +194,7 @@ int adf_enable_aer(struct adf_accel_dev *accel_dev)
 EXPORT_SYMBOL_GPL(adf_enable_aer);
 
 /**
- * adf_disable_aer() - Enable Advance Error Reporting for acceleration device
+ * adf_disable_aer() - Disable Advance Error Reporting for acceleration device
  * @accel_dev:  Pointer to acceleration device.
  *
  * Function disables PCI Advance Error Reporting for the

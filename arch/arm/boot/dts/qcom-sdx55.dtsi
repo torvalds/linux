@@ -143,7 +143,7 @@
 			reg = <0x8ff00000 0x100000>;
 		};
 
-		tz_apps_mem: memory@0x90000000 {
+		tz_apps_mem: memory@90000000 {
 			no-map;
 			reg = <0x90000000 0x500000>;
 		};

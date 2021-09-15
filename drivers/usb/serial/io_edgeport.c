@@ -389,39 +389,6 @@ static void update_edgeport_E2PROM(struct edgeport_serial *edge_serial)
 	release_firmware(fw);
 }
 
-#if 0
-/************************************************************************
- *
- *  Get string descriptor from device
- *
- ************************************************************************/
-static int get_string_desc(struct usb_device *dev, int Id,
-				struct usb_string_descriptor **pRetDesc)
-{
-	struct usb_string_descriptor StringDesc;
-	struct usb_string_descriptor *pStringDesc;
-
-	dev_dbg(&dev->dev, "%s - USB String ID = %d\n", __func__, Id);
-
-	if (!usb_get_descriptor(dev, USB_DT_STRING, Id, &StringDesc,
-						sizeof(StringDesc)))
-		return 0;
-
-	pStringDesc = kmalloc(StringDesc.bLength, GFP_KERNEL);
-	if (!pStringDesc)
-		return -1;
-
-	if (!usb_get_descriptor(dev, USB_DT_STRING, Id, pStringDesc,
-							StringDesc.bLength)) {
-		kfree(pStringDesc);
-		return -1;
-	}
-
-	*pRetDesc = pStringDesc;
-	return 0;
-}
-#endif
-
 static void dump_product_info(struct edgeport_serial *edge_serial,
 			      struct edgeport_product_info *product_info)
 {

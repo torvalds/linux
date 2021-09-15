@@ -218,6 +218,11 @@ static inline bool gfs2_withdrawing(struct gfs2_sbd *sdp)
 	       !test_bit(SDF_WITHDRAWN, &sdp->sd_flags);
 }
 
+static inline bool gfs2_withdraw_in_prog(struct gfs2_sbd *sdp)
+{
+	return test_bit(SDF_WITHDRAW_IN_PROG, &sdp->sd_flags);
+}
+
 #define gfs2_tune_get(sdp, field) \
 gfs2_tune_get_i(&(sdp)->sd_tune, &(sdp)->sd_tune.field)
 

@@ -126,7 +126,7 @@ int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	/* Create a separate SQ, so that when the buff pool is disabled, we could
 	 * close this SQ safely and stop receiving CQEs. In other case, e.g., if
 	 * the XDPSQ was used instead, we might run into trouble when the buff pool
-	 * is disabled and then reenabled, but the SQ continues receiving CQEs
+	 * is disabled and then re-enabled, but the SQ continues receiving CQEs
 	 * from the old buff pool.
 	 */
 	err = mlx5e_open_xdpsq(c, params, &cparam->xdp_sq, pool, &c->xsksq, true);
@@ -182,74 +182,4 @@ void mlx5e_deactivate_xsk(struct mlx5e_channel *c)
 {
 	mlx5e_deactivate_rq(&c->xskrq);
 	/* TX queue is disabled on close. */
-}
-
-static int mlx5e_redirect_xsk_rqt(struct mlx5e_priv *priv, u16 ix, u32 rqn)
-{
-	struct mlx5e_redirect_rqt_param direct_rrp = {
-		.is_rss = false,
-		{
-			.rqn = rqn,
-		},
-	};
-
-	u32 rqtn = priv->xsk_tir[ix].rqt.rqtn;
-
-	return mlx5e_redirect_rqt(priv, rqtn, 1, direct_rrp);
-}
-
-int mlx5e_xsk_redirect_rqt_to_channel(struct mlx5e_priv *priv, struct mlx5e_channel *c)
-{
-	return mlx5e_redirect_xsk_rqt(priv, c->ix, c->xskrq.rqn);
-}
-
-int mlx5e_xsk_redirect_rqt_to_drop(struct mlx5e_priv *priv, u16 ix)
-{
-	return mlx5e_redirect_xsk_rqt(priv, ix, priv->drop_rq.rqn);
-}
-
-int mlx5e_xsk_redirect_rqts_to_channels(struct mlx5e_priv *priv, struct mlx5e_channels *chs)
-{
-	int err, i;
-
-	if (!priv->xsk.refcnt)
-		return 0;
-
-	for (i = 0; i < chs->num; i++) {
-		struct mlx5e_channel *c = chs->c[i];
-
-		if (!test_bit(MLX5E_CHANNEL_STATE_XSK, c->state))
-			continue;
-
-		err = mlx5e_xsk_redirect_rqt_to_channel(priv, c);
-		if (unlikely(err))
-			goto err_stop;
-	}
-
-	return 0;
-
-err_stop:
-	for (i--; i >= 0; i--) {
-		if (!test_bit(MLX5E_CHANNEL_STATE_XSK, chs->c[i]->state))
-			continue;
-
-		mlx5e_xsk_redirect_rqt_to_drop(priv, i);
-	}
-
-	return err;
-}
-
-void mlx5e_xsk_redirect_rqts_to_drop(struct mlx5e_priv *priv, struct mlx5e_channels *chs)
-{
-	int i;
-
-	if (!priv->xsk.refcnt)
-		return;
-
-	for (i = 0; i < chs->num; i++) {
-		if (!test_bit(MLX5E_CHANNEL_STATE_XSK, chs->c[i]->state))
-			continue;
-
-		mlx5e_xsk_redirect_rqt_to_drop(priv, i);
-	}
 }

@@ -29,7 +29,7 @@ ENTRY(lpae_pgtables_remap_asm)
 	ldr	r6, =(_end - 1)
 	add	r7, r2, #0x1000
 	add	r6, r7, r6, lsr #SECTION_SHIFT - L2_ORDER
-	add	r7, r7, #PAGE_OFFSET >> (SECTION_SHIFT - L2_ORDER)
+	add	r7, r7, #KERNEL_OFFSET >> (SECTION_SHIFT - L2_ORDER)
 1:	ldrd	r4, r5, [r7]
 	adds	r4, r4, r0
 	adc	r5, r5, r1

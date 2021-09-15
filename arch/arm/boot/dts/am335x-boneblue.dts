@@ -435,12 +435,153 @@
 	status = "okay";
 };
 
+&gpio0 {
+	gpio-line-names =
+		"UART3_CTS", /* M17 */
+		"UART3_RTS", /* M18 */
+		"UART2_RX", /* A17 */
+		"UART2_TX", /* B17 */
+		"I2C1_SDA", /* B16 */
+		"I2C1_SCL", /* A16 */
+		"MMC0_CD", /* C15 */
+		"SPI1_SS2", /* C18 */
+		"EQEP_1A", /* V2 */
+		"EQEP_1B", /* V3 */
+		"MDIR_2B", /* V4 */
+		"BATT_LED_2", /* T5 */
+		"I2C2_SDA", /* D18 */
+		"I2C2_SCL", /* D17 */
+		"UART1_RX", /* D16 */
+		"UART1_TX", /* D15 */
+		"MMC2_DAT1", /* J18 */
+		"MMC2_DAT2", /* K15 */
+		"NC", /* F16 */
+		"WIFI_LED", /* A15 */
+		"MOT_STBY", /* D14 */
+		"WLAN_IRQ", /* K16 */
+		"PWM_2A", /* U10 */
+		"PWM_2B", /* T10 */
+		"",
+		"",
+		"BATT_LED_4", /* T11 */
+		"BATT_LED_1", /* U12 */
+		"BT_EN", /* K17 */
+		"SPI1_SS1", /* H18 */
+		"UART4_RX", /* T17 */
+		"MDIR_1B"; /* U17 */
+};
+
+&gpio1 {
+	gpio-line-names =
+		"MMC1_DAT0", /* U7 */
+		"MMC1_DAT1", /* V7 */
+		"MMC1_DAT2", /* R8 */
+		"MMC1_DAT3", /* T8 */
+		"MMC1_DAT4", /* U8 */
+		"MMC1_DAT5", /* V8 */
+		"MMC1_DAT6", /* R9 */
+		"MMC1_DAT7", /* T9 */
+		"DCAN1_TX", /* E18 */
+		"DCAN1_RX", /* E17 */
+		"UART0_RX", /* E15 */
+		"UART0_TX", /* E16 */
+		"EQEP_2A", /* T12 */
+		"EQEP_2B", /* R12 */
+		"PRU_E_A", /* V13 */
+		"PRU_E_B", /* U13 */
+		"MDIR_2A", /* R13 */
+		"GPIO1_17", /* V14 */
+		"PWM_1A", /* U14 */
+		"PWM_1B", /* T14 */
+		"EMMC_RST", /* R14 */
+		"USR_LED_0", /* V15 */
+		"USR_LED_1", /* U15 */
+		"USR_LED_2", /* T15 */
+		"USR_LED_3", /* V16 */
+		"GPIO1_25", /* U16 */
+		"MCASP0_AXR0", /* T16 */
+		"MCASP0_AXR1", /* V17 */
+		"MCASP0_ACLKR", /* U18 */
+		"BATT_LED_3", /* V6 */
+		"MMC1_CLK", /* U9 */
+		"MMC1_CMD"; /* V9 */
+};
+
+&gpio2 {
+	gpio-line-names =
+		"MDIR_1A", /* T13 */
+		"MCASP0_FSR", /* V12 */
+		"LED_RED", /* R7 */
+		"LED_GREEN", /* T7 */
+		"MODE_BTN", /* U6 */
+		"PAUSE_BTN", /* T6 */
+		"MDIR_4A", /* R1 */
+		"MDIR_4B", /* R2 */
+		"MDIR_3B", /* R3 */
+		"MDIR_3A", /* R4 */
+		"SVO7", /* T1 */
+		"SVO8", /* T2 */
+		"SVO5", /* T3 */
+		"SVO6", /* T4 */
+		"UART5_TX", /* U1 */
+		"UART5_RX", /* U2 */
+		"SERVO_EN", /* U3 */
+		"NC", /* U4 */
+		"UART3_RX", /* L17 */
+		"UART3_TX", /* L16 */
+		"MMC2_CLK", /* L15 */
+		"DCAN1_SILENT", /* M16 */
+		"SVO1", /* U5 */
+		"SVO3", /* R5 */
+		"SVO2", /* V5 */
+		"SVO4", /* R6 */
+		"MMC0_DAT3", /* F17 */
+		"MMC0_DAT2", /* F18 */
+		"MMC0_DAT1", /* G15 */
+		"MMC0_DAT0", /* G16 */
+		"MMC0_CLK", /* G17 */
+		"MMC0_CMD"; /* G18 */
+};
+
 &gpio3 {
+	gpio-line-names =
+		"MMC2_DAT3", /* H16 */
+		"GPIO3_1", /* H17 */
+		"GPIO3_2", /* J15 */
+		"MMC2_CMD", /* J16 */
+		"MMC2_DAT0", /* J17 */
+		"I2C0_SDA", /* C17 */
+		"I2C0_SCL", /* C16 */
+		"EMU1", /* C14 */
+		"EMU0", /* B14 */
+		"WL_EN", /* K18 */
+		"WL_BT_OE", /* L18 */
+		"",
+		"",
+		"NC", /* F15 */
+		"SPI1_SCK", /* A13 */
+		"SPI1_MISO", /* B13 */
+		"SPI1_MOSI", /* D12 */
+		"GPIO3_17", /* C12 */
+		"EQEP_0A", /* B12 */
+		"EQEP_0B", /* C13 */
+		"GPIO3_20", /* D13 */
+		"IMU_INT", /* A14 */
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"";
+
 	ls-buf-en-hog {
 		gpio-hog;
 		gpios = <10 GPIO_ACTIVE_HIGH>;
 		output-high;
-		line-name = "LS_BUF_EN";
 	};
 };
 

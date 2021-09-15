@@ -42,6 +42,11 @@ enum snd_oxfw_quirk {
 	SND_OXFW_QUIRK_BLOCKING_TRANSMISSION = 0x04,
 	// Stanton SCS1.d and SCS1.m support unique transaction.
 	SND_OXFW_QUIRK_SCS_TRANSACTION = 0x08,
+	// Apogee Duet FireWire ignores data blocks in packet with NO_INFO for audio data
+	// processing, while output level meter moves. Any value in syt field of packet takes
+	// the device to process audio data even if the value is invalid in a point of
+	// IEC 61883-1/6.
+	SND_OXFW_QUIRK_IGNORE_NO_INFO_PACKET = 0x10,
 };
 
 /* This is an arbitrary number for convinience. */

@@ -19,13 +19,9 @@
 
 typedef u32		__compat_uid_t;
 typedef u32		__compat_gid_t;
-typedef u32		__compat_uid32_t;
-typedef u32		__compat_gid32_t;
-typedef u32		compat_mode_t;
 typedef u32		compat_dev_t;
 typedef s16		compat_nlink_t;
 typedef u16		compat_ipc_pid_t;
-typedef u32		compat_caddr_t;
 typedef __kernel_fsid_t	compat_fsid_t;
 
 struct compat_stat {
@@ -85,30 +81,7 @@ struct compat_statfs {
 
 #define COMPAT_RLIM_INFINITY		0xffffffff
 
-typedef u32		compat_old_sigset_t;
-
-#define _COMPAT_NSIG		64
-#define _COMPAT_NSIG_BPW	32
-
-typedef u32		compat_sigset_word;
-
 #define COMPAT_OFF_T_MAX	0x7fffffff
-
-static inline void __user *arch_compat_alloc_user_space(long len)
-{
-	struct pt_regs *regs = current->thread.regs;
-	unsigned long usp = regs->gpr[1];
-
-	/*
-	 * We can't access below the stack pointer in the 32bit ABI and
-	 * can access 288 bytes in the 64bit big-endian ABI,
-	 * or 512 bytes with the new ELFv2 little-endian ABI.
-	 */
-	if (!is_32bit_task())
-		usp -= USER_REDZONE_SIZE;
-
-	return (void __user *) (usp - len);
-}
 
 /*
  * ipc64_perm is actually 32/64bit clean but since the compat layer refers to

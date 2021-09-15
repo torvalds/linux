@@ -568,7 +568,7 @@ register_wide_hw_breakpoint(struct perf_event_attr *attr,
 	if (!cpu_events)
 		return (void __percpu __force *)ERR_PTR(-ENOMEM);
 
-	get_online_cpus();
+	cpus_read_lock();
 	for_each_online_cpu(cpu) {
 		bp = perf_event_create_kernel_counter(attr, cpu, NULL,
 						      triggered, context);
@@ -579,7 +579,7 @@ register_wide_hw_breakpoint(struct perf_event_attr *attr,
 
 		per_cpu(*cpu_events, cpu) = bp;
 	}
-	put_online_cpus();
+	cpus_read_unlock();
 
 	if (likely(!err))
 		return cpu_events;

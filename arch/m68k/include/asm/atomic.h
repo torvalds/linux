@@ -48,7 +48,7 @@ static inline int arch_atomic_##op##_return(int i, atomic_t *v)		\
 			"	casl %2,%1,%0\n"			\
 			"	jne 1b"					\
 			: "+m" (*v), "=&d" (t), "=&d" (tmp)		\
-			: "g" (i), "2" (arch_atomic_read(v)));		\
+			: "di" (i), "2" (arch_atomic_read(v)));		\
 	return t;							\
 }
 
@@ -63,7 +63,7 @@ static inline int arch_atomic_fetch_##op(int i, atomic_t *v)		\
 			"	casl %2,%1,%0\n"			\
 			"	jne 1b"					\
 			: "+m" (*v), "=&d" (t), "=&d" (tmp)		\
-			: "g" (i), "2" (arch_atomic_read(v)));		\
+			: "di" (i), "2" (arch_atomic_read(v)));		\
 	return tmp;							\
 }
 

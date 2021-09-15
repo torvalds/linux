@@ -1290,8 +1290,7 @@ static void ocelot_irq_handler(struct irq_desc *desc)
 
 		for_each_set_bit(irq, &irqs,
 				 min(32U, info->desc->npins - 32 * i))
-			generic_handle_irq(irq_linear_revmap(chip->irq.domain,
-							     irq + 32 * i));
+			generic_handle_domain_irq(chip->irq.domain, irq + 32 * i);
 
 		chained_irq_exit(parent_chip, desc);
 	}

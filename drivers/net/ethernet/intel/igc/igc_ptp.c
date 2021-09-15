@@ -9,12 +9,17 @@
 #include <linux/ptp_classify.h>
 #include <linux/clocksource.h>
 #include <linux/ktime.h>
+#include <linux/delay.h>
+#include <linux/iopoll.h>
 
 #define INCVALUE_MASK		0x7fffffff
 #define ISGN			0x80000000
 
 #define IGC_SYSTIM_OVERFLOW_PERIOD	(HZ * 60 * 9)
 #define IGC_PTP_TX_TIMEOUT		(HZ * 15)
+
+#define IGC_PTM_STAT_SLEEP		2
+#define IGC_PTM_STAT_TIMEOUT		100
 
 /* SYSTIM read access for I225 */
 void igc_ptp_read(struct igc_adapter *adapter, struct timespec64 *ts)
@@ -752,6 +757,147 @@ int igc_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr)
 		-EFAULT : 0;
 }
 
+/* The two conditions below must be met for cross timestamping via
+ * PCIe PTM:
+ *
+ * 1. We have an way to convert the timestamps in the PTM messages
+ *    to something related to the system clocks (right now, only
+ *    X86 systems with support for the Always Running Timer allow that);
+ *
+ * 2. We have PTM enabled in the path from the device to the PCIe root port.
+ */
+static bool igc_is_crosststamp_supported(struct igc_adapter *adapter)
+{
+	return IS_ENABLED(CONFIG_X86_TSC) ? pcie_ptm_enabled(adapter->pdev) : false;
+}
+
+static struct system_counterval_t igc_device_tstamp_to_system(u64 tstamp)
+{
+#if IS_ENABLED(CONFIG_X86_TSC)
+	return convert_art_ns_to_tsc(tstamp);
+#else
+	return (struct system_counterval_t) { };
+#endif
+}
+
+static void igc_ptm_log_error(struct igc_adapter *adapter, u32 ptm_stat)
+{
+	struct net_device *netdev = adapter->netdev;
+
+	switch (ptm_stat) {
+	case IGC_PTM_STAT_RET_ERR:
+		netdev_err(netdev, "PTM Error: Root port timeout\n");
+		break;
+	case IGC_PTM_STAT_BAD_PTM_RES:
+		netdev_err(netdev, "PTM Error: Bad response, PTM Response Data expected\n");
+		break;
+	case IGC_PTM_STAT_T4M1_OVFL:
+		netdev_err(netdev, "PTM Error: T4 minus T1 overflow\n");
+		break;
+	case IGC_PTM_STAT_ADJUST_1ST:
+		netdev_err(netdev, "PTM Error: 1588 timer adjusted during first PTM cycle\n");
+		break;
+	case IGC_PTM_STAT_ADJUST_CYC:
+		netdev_err(netdev, "PTM Error: 1588 timer adjusted during non-first PTM cycle\n");
+		break;
+	default:
+		netdev_err(netdev, "PTM Error: Unknown error (%#x)\n", ptm_stat);
+		break;
+	}
+}
+
+static int igc_phc_get_syncdevicetime(ktime_t *device,
+				      struct system_counterval_t *system,
+				      void *ctx)
+{
+	u32 stat, t2_curr_h, t2_curr_l, ctrl;
+	struct igc_adapter *adapter = ctx;
+	struct igc_hw *hw = &adapter->hw;
+	int err, count = 100;
+	ktime_t t1, t2_curr;
+
+	/* Get a snapshot of system clocks to use as historic value. */
+	ktime_get_snapshot(&adapter->snapshot);
+
+	do {
+		/* Doing this in a loop because in the event of a
+		 * badly timed (ha!) system clock adjustment, we may
+		 * get PTM errors from the PCI root, but these errors
+		 * are transitory. Repeating the process returns valid
+		 * data eventually.
+		 */
+
+		/* To "manually" start the PTM cycle we need to clear and
+		 * then set again the TRIG bit.
+		 */
+		ctrl = rd32(IGC_PTM_CTRL);
+		ctrl &= ~IGC_PTM_CTRL_TRIG;
+		wr32(IGC_PTM_CTRL, ctrl);
+		ctrl |= IGC_PTM_CTRL_TRIG;
+		wr32(IGC_PTM_CTRL, ctrl);
+
+		/* The cycle only starts "for real" when software notifies
+		 * that it has read the registers, this is done by setting
+		 * VALID bit.
+		 */
+		wr32(IGC_PTM_STAT, IGC_PTM_STAT_VALID);
+
+		err = readx_poll_timeout(rd32, IGC_PTM_STAT, stat,
+					 stat, IGC_PTM_STAT_SLEEP,
+					 IGC_PTM_STAT_TIMEOUT);
+		if (err < 0) {
+			netdev_err(adapter->netdev, "Timeout reading IGC_PTM_STAT register\n");
+			return err;
+		}
+
+		if ((stat & IGC_PTM_STAT_VALID) == IGC_PTM_STAT_VALID)
+			break;
+
+		if (stat & ~IGC_PTM_STAT_VALID) {
+			/* An error occurred, log it. */
+			igc_ptm_log_error(adapter, stat);
+			/* The STAT register is write-1-to-clear (W1C),
+			 * so write the previous error status to clear it.
+			 */
+			wr32(IGC_PTM_STAT, stat);
+			continue;
+		}
+	} while (--count);
+
+	if (!count) {
+		netdev_err(adapter->netdev, "Exceeded number of tries for PTM cycle\n");
+		return -ETIMEDOUT;
+	}
+
+	t1 = ktime_set(rd32(IGC_PTM_T1_TIM0_H), rd32(IGC_PTM_T1_TIM0_L));
+
+	t2_curr_l = rd32(IGC_PTM_CURR_T2_L);
+	t2_curr_h = rd32(IGC_PTM_CURR_T2_H);
+
+	/* FIXME: When the register that tells the endianness of the
+	 * PTM registers are implemented, check them here and add the
+	 * appropriate conversion.
+	 */
+	t2_curr_h = swab32(t2_curr_h);
+
+	t2_curr = ((s64)t2_curr_h << 32 | t2_curr_l);
+
+	*device = t1;
+	*system = igc_device_tstamp_to_system(t2_curr);
+
+	return 0;
+}
+
+static int igc_ptp_getcrosststamp(struct ptp_clock_info *ptp,
+				  struct system_device_crosststamp *cts)
+{
+	struct igc_adapter *adapter = container_of(ptp, struct igc_adapter,
+						   ptp_caps);
+
+	return get_device_system_crosststamp(igc_phc_get_syncdevicetime,
+					     adapter, &adapter->snapshot, cts);
+}
+
 /**
  * igc_ptp_init - Initialize PTP functionality
  * @adapter: Board private structure
@@ -788,6 +934,11 @@ void igc_ptp_init(struct igc_adapter *adapter)
 		adapter->ptp_caps.n_per_out = IGC_N_PEROUT;
 		adapter->ptp_caps.n_pins = IGC_N_SDP;
 		adapter->ptp_caps.verify = igc_ptp_verify_pin;
+
+		if (!igc_is_crosststamp_supported(adapter))
+			break;
+
+		adapter->ptp_caps.getcrosststamp = igc_ptp_getcrosststamp;
 		break;
 	default:
 		adapter->ptp_clock = NULL;
@@ -849,7 +1000,8 @@ void igc_ptp_suspend(struct igc_adapter *adapter)
 	adapter->ptp_tx_skb = NULL;
 	clear_bit_unlock(__IGC_PTP_TX_IN_PROGRESS, &adapter->state);
 
-	igc_ptp_time_save(adapter);
+	if (pci_device_is_present(adapter->pdev))
+		igc_ptp_time_save(adapter);
 }
 
 /**
@@ -878,7 +1030,9 @@ void igc_ptp_stop(struct igc_adapter *adapter)
 void igc_ptp_reset(struct igc_adapter *adapter)
 {
 	struct igc_hw *hw = &adapter->hw;
+	u32 cycle_ctrl, ctrl;
 	unsigned long flags;
+	u32 timadj;
 
 	/* reset the tstamp_config */
 	igc_ptp_set_timestamp_mode(adapter, &adapter->tstamp_config);
@@ -887,12 +1041,38 @@ void igc_ptp_reset(struct igc_adapter *adapter)
 
 	switch (adapter->hw.mac.type) {
 	case igc_i225:
+		timadj = rd32(IGC_TIMADJ);
+		timadj |= IGC_TIMADJ_ADJUST_METH;
+		wr32(IGC_TIMADJ, timadj);
+
 		wr32(IGC_TSAUXC, 0x0);
 		wr32(IGC_TSSDP, 0x0);
 		wr32(IGC_TSIM,
 		     IGC_TSICR_INTERRUPTS |
 		     (adapter->pps_sys_wrap_on ? IGC_TSICR_SYS_WRAP : 0));
 		wr32(IGC_IMS, IGC_IMS_TS);
+
+		if (!igc_is_crosststamp_supported(adapter))
+			break;
+
+		wr32(IGC_PCIE_DIG_DELAY, IGC_PCIE_DIG_DELAY_DEFAULT);
+		wr32(IGC_PCIE_PHY_DELAY, IGC_PCIE_PHY_DELAY_DEFAULT);
+
+		cycle_ctrl = IGC_PTM_CYCLE_CTRL_CYC_TIME(IGC_PTM_CYC_TIME_DEFAULT);
+
+		wr32(IGC_PTM_CYCLE_CTRL, cycle_ctrl);
+
+		ctrl = IGC_PTM_CTRL_EN |
+			IGC_PTM_CTRL_START_NOW |
+			IGC_PTM_CTRL_SHRT_CYC(IGC_PTM_SHORT_CYC_DEFAULT) |
+			IGC_PTM_CTRL_PTM_TO(IGC_PTM_TIMEOUT_DEFAULT) |
+			IGC_PTM_CTRL_TRIG;
+
+		wr32(IGC_PTM_CTRL, ctrl);
+
+		/* Force the first cycle to run. */
+		wr32(IGC_PTM_STAT, IGC_PTM_STAT_VALID);
+
 		break;
 	default:
 		/* No work to do. */

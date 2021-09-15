@@ -341,27 +341,27 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		switch (query_fw->index) {
 		case TA_FW_TYPE_PSP_XGMI:
 			fw_info->ver = adev->psp.ta_fw_version;
-			fw_info->feature = adev->psp.ta_xgmi_ucode_version;
+			fw_info->feature = adev->psp.xgmi.feature_version;
 			break;
 		case TA_FW_TYPE_PSP_RAS:
 			fw_info->ver = adev->psp.ta_fw_version;
-			fw_info->feature = adev->psp.ta_ras_ucode_version;
+			fw_info->feature = adev->psp.ras.feature_version;
 			break;
 		case TA_FW_TYPE_PSP_HDCP:
 			fw_info->ver = adev->psp.ta_fw_version;
-			fw_info->feature = adev->psp.ta_hdcp_ucode_version;
+			fw_info->feature = adev->psp.hdcp.feature_version;
 			break;
 		case TA_FW_TYPE_PSP_DTM:
 			fw_info->ver = adev->psp.ta_fw_version;
-			fw_info->feature = adev->psp.ta_dtm_ucode_version;
+			fw_info->feature = adev->psp.dtm.feature_version;
 			break;
 		case TA_FW_TYPE_PSP_RAP:
 			fw_info->ver = adev->psp.ta_fw_version;
-			fw_info->feature = adev->psp.ta_rap_ucode_version;
+			fw_info->feature = adev->psp.rap.feature_version;
 			break;
 		case TA_FW_TYPE_PSP_SECUREDISPLAY:
 			fw_info->ver = adev->psp.ta_fw_version;
-			fw_info->feature = adev->psp.ta_securedisplay_ucode_version;
+			fw_info->feature = adev->psp.securedisplay.feature_version;
 			break;
 		default:
 			return -EINVAL;
@@ -378,8 +378,8 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->feature = adev->psp.sos.feature_version;
 		break;
 	case AMDGPU_INFO_FW_ASD:
-		fw_info->ver = adev->psp.asd_fw_version;
-		fw_info->feature = adev->psp.asd_feature_version;
+		fw_info->ver = adev->psp.asd.fw_version;
+		fw_info->feature = adev->psp.asd.feature_version;
 		break;
 	case AMDGPU_INFO_FW_DMCU:
 		fw_info->ver = adev->dm.dmcu_fw_version;

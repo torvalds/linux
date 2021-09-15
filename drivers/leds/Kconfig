@@ -59,16 +59,6 @@ config LEDS_88PM860X
 	  This option enables support for on-chip LED drivers found on Marvell
 	  Semiconductor 88PM8606 PMIC.
 
-config LEDS_AAT1290
-	tristate "LED support for the AAT1290"
-	depends on LEDS_CLASS_FLASH
-	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
-	depends on GPIOLIB || COMPILE_TEST
-	depends on OF
-	depends on PINCTRL
-	help
-	  This option enables support for the LEDs on the AAT1290.
-
 config LEDS_AN30259A
 	tristate "LED support for Panasonic AN30259A"
 	depends on LEDS_CLASS && I2C && OF
@@ -103,15 +93,6 @@ config LEDS_ARIEL
 	  Controller.
 
 	  Say Y to if your machine is a Dell Wyse 3020 thin client.
-
-config LEDS_AS3645A
-	tristate "AS3645A and LM3555 LED flash controllers support"
-	depends on I2C && LEDS_CLASS_FLASH
-	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
-	help
-	  Enable LED flash class support for AS3645A LED flash
-	  controller. V4L2 flash API is provided as well if
-	  CONFIG_V4L2_FLASH_API is enabled.
 
 config LEDS_AW2013
 	tristate "LED support for Awinic AW2013"
@@ -238,15 +219,6 @@ config LEDS_LM3692X
 	help
 	  This option enables support for the TI LM3692x family
 	  of white LED string drivers used for backlighting.
-
-config LEDS_LM3601X
-	tristate "LED support for LM3601x Chips"
-	depends on LEDS_CLASS && I2C
-	depends on LEDS_CLASS_FLASH
-	select REGMAP_I2C
-	help
-	  This option enables support for the TI LM3601x family
-	  of flash, torch and indicator classes.
 
 config LEDS_LOCOMO
 	tristate "LED Support for Locomo device"
@@ -397,7 +369,7 @@ config LEDS_LP3952
 	  module will be called leds-lp3952.
 
 config LEDS_LP50XX
-	tristate "LED Support for TI LP5036/30/24/18/12/9 LED driver chip"
+	tristate "LED Support for TI LP5036/30/24/18/12/09 LED driver chip"
 	depends on LEDS_CLASS && REGMAP_I2C
 	depends on LEDS_CLASS_MULTICOLOR || !LEDS_CLASS_MULTICOLOR
 	help
@@ -699,17 +671,6 @@ config LEDS_MAX77650
 	help
 	  LEDs driver for MAX77650 family of PMICs from Maxim Integrated.
 
-config LEDS_MAX77693
-	tristate "LED support for MAX77693 Flash"
-	depends on LEDS_CLASS_FLASH
-	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
-	depends on MFD_MAX77693
-	depends on OF
-	help
-	  This option enables support for the flash part of the MAX77693
-	  multifunction device. It has build in control for two leds in flash
-	  and torch mode.
-
 config LEDS_MAX8997
 	tristate "LED support for MAX8997 PMIC"
 	depends on LEDS_CLASS && MFD_MAX8997
@@ -740,16 +701,6 @@ config LEDS_MENF21BMC
 
 	  This driver can also be built as a module. If so the module
 	  will be called leds-menf21bmc.
-
-config LEDS_KTD2692
-	tristate "LED support for KTD2692 flash LED controller"
-	depends on LEDS_CLASS_FLASH && OF
-	depends on GPIOLIB || COMPILE_TEST
-	help
-	  This option enables support for KTD2692 LED flash connected
-	  through ExpressWire interface.
-
-	  Say Y to enable this driver.
 
 config LEDS_IS31FL319X
 	tristate "LED Support for ISSI IS31FL319x I2C LED controller family"
@@ -912,14 +863,6 @@ config LEDS_IP30
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-ip30.
-
-config LEDS_SGM3140
-	tristate "LED support for the SGM3140"
-	depends on LEDS_CLASS_FLASH
-	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
-	help
-	  This option enables support for the SGM3140 500mA Buck/Boost Charge
-	  Pump LED Driver.
 
 config LEDS_ACER_A500
 	tristate "Power button LED support for Acer Iconia Tab A500"
