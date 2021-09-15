@@ -986,7 +986,10 @@ struct ibmvnic_adapter {
 	u32 num_active_rx_napi;
 	u32 num_active_tx_scrqs;
 	u32 num_active_tx_pools;
+
+	u32 prev_rx_pool_size;
 	u32 cur_rx_buf_sz;
+	u32 prev_rx_buf_sz;
 
 	struct tasklet_struct tasklet;
 	enum vnic_state state;
