@@ -32,6 +32,7 @@
 #include <asm/pgtable_areas.h>		/* VMALLOC_START, ...		*/
 #include <asm/kvm_para.h>		/* kvm_handle_async_pf		*/
 #include <asm/vdso.h>			/* fixup_vdso_exception()	*/
+#include <asm/irq_stack.h>
 
 #define CREATE_TRACE_POINTS
 #include <asm/trace/exceptions.h>
@@ -631,6 +632,9 @@ static noinline void
 page_fault_oops(struct pt_regs *regs, unsigned long error_code,
 		unsigned long address)
 {
+#ifdef CONFIG_VMAP_STACK
+	struct stack_info info;
+#endif
 	unsigned long flags;
 	int sig;
 
@@ -649,9 +653,7 @@ page_fault_oops(struct pt_regs *regs, unsigned long error_code,
 	 * that we're in vmalloc space to avoid this.
 	 */
 	if (is_vmalloc_addr((void *)address) &&
-	    (((unsigned long)current->stack - 1 - address < PAGE_SIZE) ||
-	     address - ((unsigned long)current->stack + THREAD_SIZE) < PAGE_SIZE)) {
-		unsigned long stack = __this_cpu_ist_top_va(DF) - sizeof(void *);
+	    get_stack_guard_info((void *)address, &info)) {
 		/*
 		 * We're likely to be running with very little stack space
 		 * left.  It's plausible that we'd hit this condition but
@@ -662,13 +664,11 @@ page_fault_oops(struct pt_regs *regs, unsigned long error_code,
 		 * and then double-fault, though, because we're likely to
 		 * break the console driver and lose most of the stack dump.
 		 */
-		asm volatile ("movq %[stack], %%rsp\n\t"
-			      "call handle_stack_overflow\n\t"
-			      "1: jmp 1b"
-			      : ASM_CALL_CONSTRAINT
-			      : "D" ("kernel stack overflow (page fault)"),
-				"S" (regs), "d" (address),
-				[stack] "rm" (stack));
+		call_on_stack(__this_cpu_ist_top_va(DF) - sizeof(void*),
+			      handle_stack_overflow,
+			      ASM_CALL_ARG3,
+			      , [arg1] "r" (regs), [arg2] "r" (address), [arg3] "r" (&info));
+
 		unreachable();
 	}
 #endif

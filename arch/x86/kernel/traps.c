@@ -313,17 +313,19 @@ out:
 }
 
 #ifdef CONFIG_VMAP_STACK
-__visible void __noreturn handle_stack_overflow(const char *message,
-						struct pt_regs *regs,
-						unsigned long fault_address)
+__visible void __noreturn handle_stack_overflow(struct pt_regs *regs,
+						unsigned long fault_address,
+						struct stack_info *info)
 {
-	printk(KERN_EMERG "BUG: stack guard page was hit at %p (stack is %p..%p)\n",
-		 (void *)fault_address, current->stack,
-		 (char *)current->stack + THREAD_SIZE - 1);
-	die(message, regs, 0);
+	const char *name = stack_type_name(info->type);
+
+	printk(KERN_EMERG "BUG: %s stack guard page was hit at %p (stack is %p..%p)\n",
+	       name, (void *)fault_address, info->begin, info->end);
+
+	die("stack guard page", regs, 0);
 
 	/* Be absolutely certain we don't return. */
-	panic("%s", message);
+	panic("%s stack guard hit", name);
 }
 #endif
 
@@ -353,6 +355,7 @@ DEFINE_IDTENTRY_DF(exc_double_fault)
 
 #ifdef CONFIG_VMAP_STACK
 	unsigned long address = read_cr2();
+	struct stack_info info;
 #endif
 
 #ifdef CONFIG_X86_ESPFIX64
@@ -455,10 +458,8 @@ DEFINE_IDTENTRY_DF(exc_double_fault)
 	 * stack even if the actual trigger for the double fault was
 	 * something else.
 	 */
-	if ((unsigned long)task_stack_page(tsk) - 1 - address < PAGE_SIZE) {
-		handle_stack_overflow("kernel stack overflow (double-fault)",
-				      regs, address);
-	}
+	if (get_stack_guard_info((void *)address, &info))
+		handle_stack_overflow(regs, address, &info);
 #endif
 
 	pr_emerg("PANIC: double fault, error_code: 0x%lx\n", error_code);
