@@ -108,6 +108,8 @@ static int init_crq_queue(struct ibmvnic_adapter *adapter);
 static int send_query_phys_parms(struct ibmvnic_adapter *adapter);
 static void ibmvnic_tx_scrq_clean_buffer(struct ibmvnic_adapter *adapter,
 					 struct ibmvnic_sub_crq_queue *tx_scrq);
+static void free_long_term_buff(struct ibmvnic_adapter *adapter,
+				struct ibmvnic_long_term_buff *ltb);
 
 struct ibmvnic_stat {
 	char name[ETH_GSTRING_LEN];
@@ -214,23 +216,77 @@ static int ibmvnic_wait_for_completion(struct ibmvnic_adapter *adapter,
 	return -ETIMEDOUT;
 }
 
+/**
+ * reuse_ltb() - Check if a long term buffer can be reused
+ * @ltb:  The long term buffer to be checked
+ * @size: The size of the long term buffer.
+ *
+ * An LTB can be reused unless its size has changed.
+ *
+ * Return: Return true if the LTB can be reused, false otherwise.
+ */
+static bool reuse_ltb(struct ibmvnic_long_term_buff *ltb, int size)
+{
+	return (ltb->buff && ltb->size == size);
+}
+
+/**
+ * alloc_long_term_buff() - Allocate a long term buffer (LTB)
+ *
+ * @adapter: ibmvnic adapter associated to the LTB
+ * @ltb:     container object for the LTB
+ * @size:    size of the LTB
+ *
+ * Allocate an LTB of the specified size and notify VIOS.
+ *
+ * If the given @ltb already has the correct size, reuse it. Otherwise if
+ * its non-NULL, free it. Then allocate a new one of the correct size.
+ * Notify the VIOS either way since we may now be working with a new VIOS.
+ *
+ * Allocating larger chunks of memory during resets, specially LPM or under
+ * low memory situations can cause resets to fail/timeout and for LPAR to
+ * lose connectivity. So hold onto the LTB even if we fail to communicate
+ * with the VIOS and reuse it on next open. Free LTB when adapter is closed.
+ *
+ * Return: 0 if we were able to allocate the LTB and notify the VIOS and
+ *	   a negative value otherwise.
+ */
 static int alloc_long_term_buff(struct ibmvnic_adapter *adapter,
 				struct ibmvnic_long_term_buff *ltb, int size)
 {
 	struct device *dev = &adapter->vdev->dev;
 	int rc;
 
-	ltb->size = size;
-	ltb->buff = dma_alloc_coherent(dev, ltb->size, &ltb->addr,
-				       GFP_KERNEL);
-
-	if (!ltb->buff) {
-		dev_err(dev, "Couldn't alloc long term buffer\n");
-		return -ENOMEM;
+	if (!reuse_ltb(ltb, size)) {
+		dev_dbg(dev,
+			"LTB size changed from 0x%llx to 0x%x, reallocating\n",
+			 ltb->size, size);
+		free_long_term_buff(adapter, ltb);
 	}
-	ltb->map_id = find_first_zero_bit(adapter->map_ids,
-					  MAX_MAP_ID);
-	bitmap_set(adapter->map_ids, ltb->map_id, 1);
+
+	if (ltb->buff) {
+		dev_dbg(dev, "Reusing LTB [map %d, size 0x%llx]\n",
+			ltb->map_id, ltb->size);
+	} else {
+		ltb->buff = dma_alloc_coherent(dev, size, &ltb->addr,
+					       GFP_KERNEL);
+		if (!ltb->buff) {
+			dev_err(dev, "Couldn't alloc long term buffer\n");
+			return -ENOMEM;
+		}
+		ltb->size = size;
+
+		ltb->map_id = find_first_zero_bit(adapter->map_ids,
+						  MAX_MAP_ID);
+		bitmap_set(adapter->map_ids, ltb->map_id, 1);
+
+		dev_dbg(dev,
+			"Allocated new LTB [map %d, size 0x%llx]\n",
+			 ltb->map_id, ltb->size);
+	}
+
+	/* Ensure ltb is zeroed - specially when reusing it. */
+	memset(ltb->buff, 0, ltb->size);
 
 	mutex_lock(&adapter->fw_lock);
 	adapter->fw_done_rc = 0;
@@ -257,10 +313,7 @@ static int alloc_long_term_buff(struct ibmvnic_adapter *adapter,
 	}
 	rc = 0;
 out:
-	if (rc) {
-		dma_free_coherent(dev, ltb->size, ltb->buff, ltb->addr);
-		ltb->buff = NULL;
-	}
+	/* don't free LTB on communication error - see function header */
 	mutex_unlock(&adapter->fw_lock);
 	return rc;
 }
@@ -288,43 +341,6 @@ static void free_long_term_buff(struct ibmvnic_adapter *adapter,
 	/* mark this map_id free */
 	bitmap_clear(adapter->map_ids, ltb->map_id, 1);
 	ltb->map_id = 0;
-}
-
-static int reset_long_term_buff(struct ibmvnic_adapter *adapter,
-				struct ibmvnic_long_term_buff *ltb)
-{
-	struct device *dev = &adapter->vdev->dev;
-	int rc;
-
-	memset(ltb->buff, 0, ltb->size);
-
-	mutex_lock(&adapter->fw_lock);
-	adapter->fw_done_rc = 0;
-
-	reinit_completion(&adapter->fw_done);
-	rc = send_request_map(adapter, ltb->addr, ltb->size, ltb->map_id);
-	if (rc) {
-		mutex_unlock(&adapter->fw_lock);
-		return rc;
-	}
-
-	rc = ibmvnic_wait_for_completion(adapter, &adapter->fw_done, 10000);
-	if (rc) {
-		dev_info(dev,
-			 "Reset failed, long term map request timed out or aborted\n");
-		mutex_unlock(&adapter->fw_lock);
-		return rc;
-	}
-
-	if (adapter->fw_done_rc) {
-		dev_info(dev,
-			 "Reset failed, attempting to free and reallocate buffer\n");
-		free_long_term_buff(adapter, ltb);
-		mutex_unlock(&adapter->fw_lock);
-		return alloc_long_term_buff(adapter, ltb, ltb->size);
-	}
-	mutex_unlock(&adapter->fw_lock);
-	return 0;
 }
 
 static void deactivate_rx_pools(struct ibmvnic_adapter *adapter)
@@ -548,18 +564,10 @@ static int reset_rx_pools(struct ibmvnic_adapter *adapter)
 
 		netdev_dbg(adapter->netdev, "Re-setting rx_pool[%d]\n", i);
 
-		if (rx_pool->buff_size != buff_size) {
-			free_long_term_buff(adapter, &rx_pool->long_term_buff);
-			rx_pool->buff_size = ALIGN(buff_size, L1_CACHE_BYTES);
-			rc = alloc_long_term_buff(adapter,
-						  &rx_pool->long_term_buff,
-						  rx_pool->size *
-						  rx_pool->buff_size);
-		} else {
-			rc = reset_long_term_buff(adapter,
-						  &rx_pool->long_term_buff);
-		}
-
+		rx_pool->buff_size = ALIGN(buff_size, L1_CACHE_BYTES);
+		rc = alloc_long_term_buff(adapter,
+					  &rx_pool->long_term_buff,
+					  rx_pool->size * rx_pool->buff_size);
 		if (rc)
 			return rc;
 
@@ -694,9 +702,12 @@ static int init_rx_pools(struct net_device *netdev)
 static int reset_one_tx_pool(struct ibmvnic_adapter *adapter,
 			     struct ibmvnic_tx_pool *tx_pool)
 {
+	struct ibmvnic_long_term_buff *ltb;
 	int rc, i;
 
-	rc = reset_long_term_buff(adapter, &tx_pool->long_term_buff);
+	ltb = &tx_pool->long_term_buff;
+
+	rc = alloc_long_term_buff(adapter, ltb, ltb->size);
 	if (rc)
 		return rc;
 
