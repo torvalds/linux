@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
 /* Copyright (c) 2018 Facebook */
+/*! \file */
 
 #ifndef __LIBBPF_BTF_H
 #define __LIBBPF_BTF_H
@@ -30,11 +31,80 @@ enum btf_endianness {
 	BTF_BIG_ENDIAN = 1,
 };
 
+/**
+ * @brief **btf__free()** frees all data of a BTF object
+ * @param btf BTF object to free
+ */
 LIBBPF_API void btf__free(struct btf *btf);
 
+/**
+ * @brief **btf__new()** creates a new instance of a BTF object from the raw
+ * bytes of an ELF's BTF section
+ * @param data raw bytes
+ * @param size number of bytes passed in `data`
+ * @return new BTF object instance which has to be eventually freed with
+ * **btf__free()**
+ *
+ * On error, error-code-encoded-as-pointer is returned, not a NULL. To extract
+ * error code from such a pointer `libbpf_get_error()` should be used. If
+ * `libbpf_set_strict_mode(LIBBPF_STRICT_CLEAN_PTRS)` is enabled, NULL is
+ * returned on error instead. In both cases thread-local `errno` variable is
+ * always set to error code as well.
+ */
 LIBBPF_API struct btf *btf__new(const void *data, __u32 size);
+
+/**
+ * @brief **btf__new_split()** create a new instance of a BTF object from the
+ * provided raw data bytes. It takes another BTF instance, **base_btf**, which
+ * serves as a base BTF, which is extended by types in a newly created BTF
+ * instance
+ * @param data raw bytes
+ * @param size length of raw bytes
+ * @param base_btf the base BTF object
+ * @return new BTF object instance which has to be eventually freed with
+ * **btf__free()**
+ *
+ * If *base_btf* is NULL, `btf__new_split()` is equivalent to `btf__new()` and
+ * creates non-split BTF.
+ *
+ * On error, error-code-encoded-as-pointer is returned, not a NULL. To extract
+ * error code from such a pointer `libbpf_get_error()` should be used. If
+ * `libbpf_set_strict_mode(LIBBPF_STRICT_CLEAN_PTRS)` is enabled, NULL is
+ * returned on error instead. In both cases thread-local `errno` variable is
+ * always set to error code as well.
+ */
 LIBBPF_API struct btf *btf__new_split(const void *data, __u32 size, struct btf *base_btf);
+
+/**
+ * @brief **btf__new_empty()** creates an empty BTF object.  Use
+ * `btf__add_*()` to populate such BTF object.
+ * @return new BTF object instance which has to be eventually freed with
+ * **btf__free()**
+ *
+ * On error, error-code-encoded-as-pointer is returned, not a NULL. To extract
+ * error code from such a pointer `libbpf_get_error()` should be used. If
+ * `libbpf_set_strict_mode(LIBBPF_STRICT_CLEAN_PTRS)` is enabled, NULL is
+ * returned on error instead. In both cases thread-local `errno` variable is
+ * always set to error code as well.
+ */
 LIBBPF_API struct btf *btf__new_empty(void);
+
+/**
+ * @brief **btf__new_empty_split()** creates an unpopulated BTF object from an
+ * ELF BTF section except with a base BTF on top of which split BTF should be
+ * based
+ * @return new BTF object instance which has to be eventually freed with
+ * **btf__free()**
+ *
+ * If *base_btf* is NULL, `btf__new_empty_split()` is equivalent to
+ * `btf__new_empty()` and creates non-split BTF.
+ *
+ * On error, error-code-encoded-as-pointer is returned, not a NULL. To extract
+ * error code from such a pointer `libbpf_get_error()` should be used. If
+ * `libbpf_set_strict_mode(LIBBPF_STRICT_CLEAN_PTRS)` is enabled, NULL is
+ * returned on error instead. In both cases thread-local `errno` variable is
+ * always set to error code as well.
+ */
 LIBBPF_API struct btf *btf__new_empty_split(struct btf *base_btf);
 
 LIBBPF_API struct btf *btf__parse(const char *path, struct btf_ext **btf_ext);
