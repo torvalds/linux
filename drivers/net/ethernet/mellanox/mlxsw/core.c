@@ -90,7 +90,6 @@ struct mlxsw_core {
 		struct devlink_health_reporter *fw_fatal;
 	} health;
 	struct mlxsw_env *env;
-	bool is_initialized; /* Denotes if core was already initialized. */
 	unsigned long driver_priv[];
 	/* driver_priv has to be always the last item */
 };
@@ -1995,12 +1994,6 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_health_init;
 
-	if (mlxsw_driver->init) {
-		err = mlxsw_driver->init(mlxsw_core, mlxsw_bus_info, extack);
-		if (err)
-			goto err_driver_init;
-	}
-
 	err = mlxsw_hwmon_init(mlxsw_core, mlxsw_bus_info, &mlxsw_core->hwmon);
 	if (err)
 		goto err_hwmon_init;
@@ -2014,7 +2007,12 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_env_init;
 
-	mlxsw_core->is_initialized = true;
+	if (mlxsw_driver->init) {
+		err = mlxsw_driver->init(mlxsw_core, mlxsw_bus_info, extack);
+		if (err)
+			goto err_driver_init;
+	}
+
 	devlink_params_publish(devlink);
 
 	if (!reload)
@@ -2022,14 +2020,13 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 
 	return 0;
 
+err_driver_init:
+	mlxsw_env_fini(mlxsw_core->env);
 err_env_init:
 	mlxsw_thermal_fini(mlxsw_core->thermal);
 err_thermal_init:
 	mlxsw_hwmon_fini(mlxsw_core->hwmon);
 err_hwmon_init:
-	if (mlxsw_core->driver->fini)
-		mlxsw_core->driver->fini(mlxsw_core);
-err_driver_init:
 	mlxsw_core_health_fini(mlxsw_core);
 err_health_init:
 err_fw_rev_validate:
@@ -2100,12 +2097,11 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 	}
 
 	devlink_params_unpublish(devlink);
-	mlxsw_core->is_initialized = false;
+	if (mlxsw_core->driver->fini)
+		mlxsw_core->driver->fini(mlxsw_core);
 	mlxsw_env_fini(mlxsw_core->env);
 	mlxsw_thermal_fini(mlxsw_core->thermal);
 	mlxsw_hwmon_fini(mlxsw_core->hwmon);
-	if (mlxsw_core->driver->fini)
-		mlxsw_core->driver->fini(mlxsw_core);
 	mlxsw_core_health_fini(mlxsw_core);
 	if (!reload)
 		mlxsw_core_params_unregister(mlxsw_core);
@@ -2937,11 +2933,6 @@ EXPORT_SYMBOL(mlxsw_core_port_is_xm);
 struct mlxsw_env *mlxsw_core_env(const struct mlxsw_core *mlxsw_core)
 {
 	return mlxsw_core->env;
-}
-
-bool mlxsw_core_is_initialized(const struct mlxsw_core *mlxsw_core)
-{
-	return mlxsw_core->is_initialized;
 }
 
 static void mlxsw_core_buf_dump_dbg(struct mlxsw_core *mlxsw_core,
