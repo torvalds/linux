@@ -240,6 +240,7 @@ struct ptp_ocp {
 	u32			pps_req_map;
 	int			flash_start;
 	u32			utc_tai_offset;
+	u32			ts_window_adjust;
 };
 
 #define OCP_REQ_TIMESTAMP	BIT(0)
@@ -528,10 +529,9 @@ __ptp_ocp_gettime_locked(struct ptp_ocp *bp, struct timespec64 *ts,
 	u32 ctrl, time_sec, time_ns;
 	int i;
 
-	ctrl = ioread32(&bp->reg->ctrl);
-	ctrl |= OCP_CTRL_READ_TIME_REQ;
-
 	ptp_read_system_prets(sts);
+
+	ctrl = OCP_CTRL_READ_TIME_REQ | OCP_CTRL_ENABLE;
 	iowrite32(ctrl, &bp->reg->ctrl);
 
 	for (i = 0; i < 100; i++) {
@@ -540,6 +540,12 @@ __ptp_ocp_gettime_locked(struct ptp_ocp *bp, struct timespec64 *ts,
 			break;
 	}
 	ptp_read_system_postts(sts);
+
+	if (sts && bp->ts_window_adjust) {
+		s64 ns = timespec64_to_ns(&sts->post_ts);
+
+		sts->post_ts = ns_to_timespec64(ns - bp->ts_window_adjust);
+	}
 
 	time_ns = ioread32(&bp->reg->time_ns);
 	time_sec = ioread32(&bp->reg->time_sec);
@@ -580,8 +586,7 @@ __ptp_ocp_settime_locked(struct ptp_ocp *bp, const struct timespec64 *ts)
 	iowrite32(time_ns, &bp->reg->adjust_ns);
 	iowrite32(time_sec, &bp->reg->adjust_sec);
 
-	ctrl = ioread32(&bp->reg->ctrl);
-	ctrl |= OCP_CTRL_ADJUST_TIME;
+	ctrl = OCP_CTRL_ADJUST_TIME | OCP_CTRL_ENABLE;
 	iowrite32(ctrl, &bp->reg->ctrl);
 
 	/* restore clock selection */
@@ -726,8 +731,7 @@ __ptp_ocp_clear_drift_locked(struct ptp_ocp *bp)
 
 	iowrite32(0, &bp->reg->drift_ns);
 
-	ctrl = ioread32(&bp->reg->ctrl);
-	ctrl |= OCP_CTRL_ADJUST_DRIFT;
+	ctrl = OCP_CTRL_ADJUST_DRIFT | OCP_CTRL_ENABLE;
 	iowrite32(ctrl, &bp->reg->ctrl);
 
 	/* restore clock selection */
@@ -759,6 +763,28 @@ ptp_ocp_watchdog(struct timer_list *t)
 	mod_timer(&bp->watchdog, jiffies + HZ);
 }
 
+static void
+ptp_ocp_estimate_pci_timing(struct ptp_ocp *bp)
+{
+	ktime_t start, end;
+	ktime_t delay;
+	u32 ctrl;
+
+	ctrl = ioread32(&bp->reg->ctrl);
+	ctrl = OCP_CTRL_READ_TIME_REQ | OCP_CTRL_ENABLE;
+
+	iowrite32(ctrl, &bp->reg->ctrl);
+
+	start = ktime_get_ns();
+
+	ctrl = ioread32(&bp->reg->ctrl);
+
+	end = ktime_get_ns();
+
+	delay = end - start;
+	bp->ts_window_adjust = (delay >> 5) * 3;
+}
+
 static int
 ptp_ocp_init_clock(struct ptp_ocp *bp)
 {
@@ -766,9 +792,7 @@ ptp_ocp_init_clock(struct ptp_ocp *bp)
 	bool sync;
 	u32 ctrl;
 
-	/* make sure clock is enabled */
-	ctrl = ioread32(&bp->reg->ctrl);
-	ctrl |= OCP_CTRL_ENABLE;
+	ctrl = OCP_CTRL_ENABLE;
 	iowrite32(ctrl, &bp->reg->ctrl);
 
 	/* NO DRIFT Correction */
@@ -786,6 +810,8 @@ ptp_ocp_init_clock(struct ptp_ocp *bp)
 		dev_err(&bp->pdev->dev, "clock not enabled\n");
 		return -ENODEV;
 	}
+
+	ptp_ocp_estimate_pci_timing(bp);
 
 	sync = ioread32(&bp->reg->status) & OCP_STATUS_IN_SYNC;
 	if (!sync) {
@@ -1217,7 +1243,7 @@ ptp_ocp_ts_irq(int irq, void *priv)
 
 	ev.type = PTP_CLOCK_EXTTS;
 	ev.index = ext->info->index;
-	ev.timestamp = sec * 1000000000ULL + nsec;
+	ev.timestamp = sec * NSEC_PER_SEC + nsec;
 
 	ptp_clock_event(ext->bp->ptp, &ev);
 
@@ -1818,6 +1844,34 @@ utc_tai_offset_store(struct device *dev,
 static DEVICE_ATTR_RW(utc_tai_offset);
 
 static ssize_t
+ts_window_adjust_show(struct device *dev,
+		      struct device_attribute *attr, char *buf)
+{
+	struct ptp_ocp *bp = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%d\n", bp->ts_window_adjust);
+}
+
+static ssize_t
+ts_window_adjust_store(struct device *dev,
+		       struct device_attribute *attr,
+		       const char *buf, size_t count)
+{
+	struct ptp_ocp *bp = dev_get_drvdata(dev);
+	int err;
+	u32 val;
+
+	err = kstrtou32(buf, 0, &val);
+	if (err)
+		return err;
+
+	bp->ts_window_adjust = val;
+
+	return count;
+}
+static DEVICE_ATTR_RW(ts_window_adjust);
+
+static ssize_t
 irig_b_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ptp_ocp *bp = dev_get_drvdata(dev);
@@ -1911,6 +1965,7 @@ static struct attribute *timecard_attrs[] = {
 	&dev_attr_available_sma_outputs.attr,
 	&dev_attr_irig_b_mode.attr,
 	&dev_attr_utc_tai_offset.attr,
+	&dev_attr_ts_window_adjust.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(timecard);
