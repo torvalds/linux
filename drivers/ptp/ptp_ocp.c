@@ -1677,6 +1677,46 @@ gnss_sync_show(struct device *dev, struct device_attribute *attr, char *buf)
 static DEVICE_ATTR_RO(gnss_sync);
 
 static ssize_t
+irig_b_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct ptp_ocp *bp = dev_get_drvdata(dev);
+	u32 val;
+
+	val = ioread32(&bp->irig_out->ctrl);
+	val = (val >> 16) & 0x07;
+	return sysfs_emit(buf, "%d\n", val);
+}
+
+static ssize_t
+irig_b_mode_store(struct device *dev,
+		  struct device_attribute *attr,
+		  const char *buf, size_t count)
+{
+	struct ptp_ocp *bp = dev_get_drvdata(dev);
+	unsigned long flags;
+	int err;
+	u32 reg;
+	u8 val;
+
+	err = kstrtou8(buf, 0, &val);
+	if (err)
+		return err;
+	if (val > 7)
+		return -EINVAL;
+
+	reg = ((val & 0x7) << 16);
+
+	spin_lock_irqsave(&bp->lock, flags);
+	iowrite32(0, &bp->irig_out->ctrl);		/* disable */
+	iowrite32(reg, &bp->irig_out->ctrl);		/* change mode */
+	iowrite32(reg | IRIG_M_CTRL_ENABLE, &bp->irig_out->ctrl);
+	spin_unlock_irqrestore(&bp->lock, flags);
+
+	return count;
+}
+static DEVICE_ATTR_RW(irig_b_mode);
+
+static ssize_t
 clock_source_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ptp_ocp *bp = dev_get_drvdata(dev);
@@ -1728,6 +1768,7 @@ static struct attribute *timecard_attrs[] = {
 	&dev_attr_sma4.attr,
 	&dev_attr_available_sma_inputs.attr,
 	&dev_attr_available_sma_outputs.attr,
+	&dev_attr_irig_b_mode.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(timecard);
