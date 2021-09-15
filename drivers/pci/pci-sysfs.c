@@ -273,14 +273,15 @@ static ssize_t enable_store(struct device *dev, struct device_attribute *attr,
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	unsigned long val;
-	ssize_t result = kstrtoul(buf, 0, &val);
-
-	if (result < 0)
-		return result;
+	ssize_t result;
 
 	/* this can crash the machine when done on the "wrong" device */
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
+
+	result = kstrtoul(buf, 0, &val);
+	if (result < 0)
+		return result;
 
 	device_lock(dev);
 	if (dev->driver)
@@ -378,11 +379,11 @@ static ssize_t msi_bus_store(struct device *dev, struct device_attribute *attr,
 	struct pci_bus *subordinate = pdev->subordinate;
 	unsigned long val;
 
-	if (kstrtoul(buf, 0, &val) < 0)
-		return -EINVAL;
-
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
 
 	/*
 	 * "no_msi" and "bus_flags" only affect what happens when a driver
