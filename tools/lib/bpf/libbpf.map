@@ -388,4 +388,6 @@ LIBBPF_0.5.0 {
 } LIBBPF_0.4.0;
 
 LIBBPF_0.6.0 {
+	global:
+		btf__add_tag;
 } LIBBPF_0.5.0;
