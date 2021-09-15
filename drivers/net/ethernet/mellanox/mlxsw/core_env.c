@@ -482,12 +482,22 @@ static int mlxsw_env_module_temp_event_enable(struct mlxsw_core *mlxsw_core,
 	return 0;
 }
 
-static void mlxsw_env_mtwe_event_func(const struct mlxsw_reg_info *reg,
-				      char *mtwe_pl, void *priv)
+struct mlxsw_env_module_temp_warn_event {
+	struct mlxsw_env *mlxsw_env;
+	char mtwe_pl[MLXSW_REG_MTWE_LEN];
+	struct work_struct work;
+};
+
+static void mlxsw_env_mtwe_event_work(struct work_struct *work)
 {
-	struct mlxsw_env *mlxsw_env = priv;
+	struct mlxsw_env_module_temp_warn_event *event;
+	struct mlxsw_env *mlxsw_env;
 	int i, sensor_warning;
 	bool is_overheat;
+
+	event = container_of(work, struct mlxsw_env_module_temp_warn_event,
+			     work);
+	mlxsw_env = event->mlxsw_env;
 
 	for (i = 0; i < mlxsw_env->module_count; i++) {
 		/* 64-127 of sensor_index are mapped to the port modules
@@ -495,7 +505,7 @@ static void mlxsw_env_mtwe_event_func(const struct mlxsw_reg_info *reg,
 		 * module 1 to sensor_index 65 and so on)
 		 */
 		sensor_warning =
-			mlxsw_reg_mtwe_sensor_warning_get(mtwe_pl,
+			mlxsw_reg_mtwe_sensor_warning_get(event->mtwe_pl,
 							  i + MLXSW_REG_MTMP_MODULE_INDEX_MIN);
 		spin_lock(&mlxsw_env->module_info_lock);
 		is_overheat =
@@ -524,10 +534,29 @@ static void mlxsw_env_mtwe_event_func(const struct mlxsw_reg_info *reg,
 			spin_unlock(&mlxsw_env->module_info_lock);
 		}
 	}
+
+	kfree(event);
+}
+
+static void
+mlxsw_env_mtwe_listener_func(const struct mlxsw_reg_info *reg, char *mtwe_pl,
+			     void *priv)
+{
+	struct mlxsw_env_module_temp_warn_event *event;
+	struct mlxsw_env *mlxsw_env = priv;
+
+	event = kmalloc(sizeof(*event), GFP_ATOMIC);
+	if (!event)
+		return;
+
+	event->mlxsw_env = mlxsw_env;
+	memcpy(event->mtwe_pl, mtwe_pl, MLXSW_REG_MTWE_LEN);
+	INIT_WORK(&event->work, mlxsw_env_mtwe_event_work);
+	mlxsw_core_schedule_work(&event->work);
 }
 
 static const struct mlxsw_listener mlxsw_env_temp_warn_listener =
-	MLXSW_EVENTL(mlxsw_env_mtwe_event_func, MTWE, MTWE);
+	MLXSW_EVENTL(mlxsw_env_mtwe_listener_func, MTWE, MTWE);
 
 static int mlxsw_env_temp_warn_event_register(struct mlxsw_core *mlxsw_core)
 {
