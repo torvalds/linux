@@ -121,6 +121,23 @@ Description:
 		child buses, and re-discover devices removed earlier
 		from this part of the device tree.
 
+What:		/sys/bus/pci/devices/.../reset_method
+Date:		August 2021
+Contact:	Amey Narkhede <ameynarkhede03@gmail.com>
+Description:
+		Some devices allow an individual function to be reset
+		without affecting other functions in the same slot.
+
+		For devices that have this support, a file named
+		reset_method is present in sysfs.  Reading this file
+		gives names of the supported and enabled reset methods and
+		their ordering.  Writing a space-separated list of names of
+		reset methods sets the reset methods and ordering to be
+		used when resetting the device.  Writing an empty string
+		disables the ability to reset the device.  Writing
+		"default" enables all supported reset methods in the
+		default ordering.
+
 What:		/sys/bus/pci/devices/.../reset
 Date:		July 2009
 Contact:	Michael S. Tsirkin <mst@redhat.com>
