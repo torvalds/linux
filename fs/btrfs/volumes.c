@@ -6573,7 +6573,7 @@ static void btrfs_end_bio(struct bio *bio)
 		atomic_inc(&bioc->error);
 		if (bio->bi_status == BLK_STS_IOERR ||
 		    bio->bi_status == BLK_STS_TARGET) {
-			struct btrfs_device *dev = btrfs_io_bio(bio)->device;
+			struct btrfs_device *dev = btrfs_bio(bio)->device;
 
 			ASSERT(dev->bdev);
 			if (btrfs_op(bio) == BTRFS_MAP_WRITE)
@@ -6599,7 +6599,7 @@ static void btrfs_end_bio(struct bio *bio)
 			bio = bioc->orig_bio;
 		}
 
-		btrfs_io_bio(bio)->mirror_num = bioc->mirror_num;
+		btrfs_bio(bio)->mirror_num = bioc->mirror_num;
 		/* only send an error to the higher layers if it is
 		 * beyond the tolerance of the btrfs bio
 		 */
@@ -6625,7 +6625,7 @@ static void submit_stripe_bio(struct btrfs_io_context *bioc, struct bio *bio,
 	struct btrfs_fs_info *fs_info = bioc->fs_info;
 
 	bio->bi_private = bioc;
-	btrfs_io_bio(bio)->device = dev;
+	btrfs_bio(bio)->device = dev;
 	bio->bi_end_io = btrfs_end_bio;
 	bio->bi_iter.bi_sector = physical >> 9;
 	/*
@@ -6661,7 +6661,7 @@ static void bioc_error(struct btrfs_io_context *bioc, struct bio *bio, u64 logic
 		/* Should be the original bio. */
 		WARN_ON(bio != bioc->orig_bio);
 
-		btrfs_io_bio(bio)->mirror_num = bioc->mirror_num;
+		btrfs_bio(bio)->mirror_num = bioc->mirror_num;
 		bio->bi_iter.bi_sector = logical >> 9;
 		if (atomic_read(&bioc->error) > bioc->max_errors)
 			bio->bi_status = BLK_STS_IOERR;

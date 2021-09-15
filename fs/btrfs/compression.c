@@ -179,9 +179,9 @@ static int check_compressed_csum(struct btrfs_inode *inode, struct bio *bio,
 			if (memcmp(&csum, cb_sum, csum_size) != 0) {
 				btrfs_print_data_csum_error(inode, disk_start,
 						csum, cb_sum, cb->mirror_num);
-				if (btrfs_io_bio(bio)->device)
+				if (btrfs_bio(bio)->device)
 					btrfs_dev_stat_inc_and_print(
-						btrfs_io_bio(bio)->device,
+						btrfs_bio(bio)->device,
 						BTRFS_DEV_STAT_CORRUPTION_ERRS);
 				return -EIO;
 			}
@@ -208,7 +208,7 @@ static void end_compressed_bio_read(struct bio *bio)
 	struct inode *inode;
 	struct page *page;
 	unsigned int index;
-	unsigned int mirror = btrfs_io_bio(bio)->mirror_num;
+	unsigned int mirror = btrfs_bio(bio)->mirror_num;
 	int ret = 0;
 
 	if (bio->bi_status)
@@ -224,7 +224,7 @@ static void end_compressed_bio_read(struct bio *bio)
 	 * Record the correct mirror_num in cb->orig_bio so that
 	 * read-repair can work properly.
 	 */
-	btrfs_io_bio(cb->orig_bio)->mirror_num = mirror;
+	btrfs_bio(cb->orig_bio)->mirror_num = mirror;
 	cb->mirror_num = mirror;
 
 	/*
@@ -418,7 +418,7 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	cb->orig_bio = NULL;
 	cb->nr_pages = nr_pages;
 
-	bio = btrfs_io_bio_alloc(BIO_MAX_VECS);
+	bio = btrfs_bio_alloc(BIO_MAX_VECS);
 	bio->bi_iter.bi_sector = first_byte >> SECTOR_SHIFT;
 	bio->bi_opf = bio_op | write_flags;
 	bio->bi_private = cb;
@@ -491,7 +491,7 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 				bio_endio(bio);
 			}
 
-			bio = btrfs_io_bio_alloc(BIO_MAX_VECS);
+			bio = btrfs_bio_alloc(BIO_MAX_VECS);
 			bio->bi_iter.bi_sector = first_byte >> SECTOR_SHIFT;
 			bio->bi_opf = bio_op | write_flags;
 			bio->bi_private = cb;
@@ -750,7 +750,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	/* include any pages we added in add_ra-bio_pages */
 	cb->len = bio->bi_iter.bi_size;
 
-	comp_bio = btrfs_io_bio_alloc(BIO_MAX_VECS);
+	comp_bio = btrfs_bio_alloc(BIO_MAX_VECS);
 	comp_bio->bi_iter.bi_sector = cur_disk_byte >> SECTOR_SHIFT;
 	comp_bio->bi_opf = REQ_OP_READ;
 	comp_bio->bi_private = cb;
@@ -809,7 +809,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 				bio_endio(comp_bio);
 			}
 
-			comp_bio = btrfs_io_bio_alloc(BIO_MAX_VECS);
+			comp_bio = btrfs_bio_alloc(BIO_MAX_VECS);
 			comp_bio->bi_iter.bi_sector = cur_disk_byte >> SECTOR_SHIFT;
 			comp_bio->bi_opf = REQ_OP_READ;
 			comp_bio->bi_private = cb;

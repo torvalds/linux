@@ -1104,8 +1104,8 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 	}
 
 	/* put a new bio on the list */
-	bio = btrfs_io_bio_alloc(bio_max_len >> PAGE_SHIFT ?: 1);
-	btrfs_io_bio(bio)->device = stripe->dev;
+	bio = btrfs_bio_alloc(bio_max_len >> PAGE_SHIFT ?: 1);
+	btrfs_bio(bio)->device = stripe->dev;
 	bio->bi_iter.bi_size = 0;
 	bio_set_dev(bio, stripe->dev->bdev);
 	bio->bi_iter.bi_sector = disk_start >> 9;
@@ -1158,7 +1158,7 @@ static void index_rbio_pages(struct btrfs_raid_bio *rbio)
 		page_index = stripe_offset >> PAGE_SHIFT;
 
 		if (bio_flagged(bio, BIO_CLONED))
-			bio->bi_iter = btrfs_io_bio(bio)->iter;
+			bio->bi_iter = btrfs_bio(bio)->iter;
 
 		bio_for_each_segment(bvec, bio, iter) {
 			rbio->bio_pages[page_index + i] = bvec.bv_page;
@@ -2124,7 +2124,7 @@ int raid56_parity_recover(struct btrfs_fs_info *fs_info, struct bio *bio,
 
 	if (generic_io) {
 		ASSERT(bioc->mirror_num == mirror_num);
-		btrfs_io_bio(bio)->mirror_num = mirror_num;
+		btrfs_bio(bio)->mirror_num = mirror_num;
 	}
 
 	rbio = alloc_rbio(fs_info, bioc, stripe_len);
