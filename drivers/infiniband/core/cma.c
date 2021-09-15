@@ -3732,9 +3732,13 @@ int rdma_listen(struct rdma_cm_id *id, int backlog)
 	int ret;
 
 	if (!cma_comp_exch(id_priv, RDMA_CM_ADDR_BOUND, RDMA_CM_LISTEN)) {
+		struct sockaddr_in any_in = {
+			.sin_family = AF_INET,
+			.sin_addr.s_addr = htonl(INADDR_ANY),
+		};
+
 		/* For a well behaved ULP state will be RDMA_CM_IDLE */
-		id->route.addr.src_addr.ss_family = AF_INET;
-		ret = rdma_bind_addr(id, cma_src_addr(id_priv));
+		ret = rdma_bind_addr(id, (struct sockaddr *)&any_in);
 		if (ret)
 			return ret;
 		if (WARN_ON(!cma_comp_exch(id_priv, RDMA_CM_ADDR_BOUND,
