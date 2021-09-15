@@ -289,7 +289,6 @@ struct hal_data_8188e {
 	u8	CrystalCap;
 	u32	AntennaTxPath;			/*  Antenna path Tx */
 	u32	AntennaRxPath;			/*  Antenna path Rx */
-	u8	BluetoothCoexist;
 	u8	ExternalPA;
 
 	u8	bLedOpenDrain; /* Open-drain support for controlling the LED.*/
