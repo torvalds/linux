@@ -65,6 +65,7 @@ const struct snd_sof_dsp_ops sof_apl_ops = {
 	.debug_map_count	= ARRAY_SIZE(apl_dsp_debugfs),
 	.dbg_dump	= hda_dsp_dump,
 	.ipc_dump	= hda_ipc_dump,
+	.debugfs_add_region_item = snd_sof_debugfs_add_region_item_iomem,
 
 	/* stream callbacks */
 	.pcm_open	= hda_dsp_pcm_open,

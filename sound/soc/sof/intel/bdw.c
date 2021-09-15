@@ -635,6 +635,7 @@ static const struct snd_sof_dsp_ops sof_bdw_ops = {
 	.debug_map  = bdw_debugfs,
 	.debug_map_count    = ARRAY_SIZE(bdw_debugfs),
 	.dbg_dump   = bdw_dump,
+	.debugfs_add_region_item = snd_sof_debugfs_add_region_item_iomem,
 
 	/* stream callbacks */
 	.pcm_open	= intel_pcm_open,

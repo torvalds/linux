@@ -165,6 +165,7 @@ const struct snd_sof_dsp_ops sof_tng_ops = {
 	.debug_map	= tng_debugfs,
 	.debug_map_count	= ARRAY_SIZE(tng_debugfs),
 	.dbg_dump	= atom_dump,
+	.debugfs_add_region_item = snd_sof_debugfs_add_region_item_iomem,
 
 	/* stream callbacks */
 	.pcm_open	= intel_pcm_open,
