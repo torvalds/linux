@@ -228,8 +228,8 @@ static int ptp_ocp_ts_enable(void *priv, bool enable);
  * 3: GPS
  * 4: GPS2 (n/c)
  * 5: MAC
- * 6: SPI IMU (inertial measurement unit)
- * 7: I2C oscillator
+ * 6: N/C
+ * 7: I2C controller
  * 8: HWICAP
  * 9: SPI Flash
  */
@@ -705,6 +705,9 @@ ptp_ocp_get_serial_number(struct ptp_ocp *bp)
 	struct i2c_adapter *adap;
 	struct device *dev;
 	int err;
+
+	if (!bp->i2c_ctrl)
+		return;
 
 	dev = device_find_child(&bp->i2c_ctrl->dev, NULL, ptp_ocp_firstchild);
 	if (!dev) {
