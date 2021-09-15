@@ -418,7 +418,8 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	cb->orig_bio = NULL;
 	cb->nr_pages = nr_pages;
 
-	bio = btrfs_bio_alloc(first_byte);
+	bio = btrfs_io_bio_alloc(BIO_MAX_VECS);
+	bio->bi_iter.bi_sector = first_byte >> SECTOR_SHIFT;
 	bio->bi_opf = bio_op | write_flags;
 	bio->bi_private = cb;
 	bio->bi_end_io = end_compressed_bio_write;
@@ -490,7 +491,8 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 				bio_endio(bio);
 			}
 
-			bio = btrfs_bio_alloc(first_byte);
+			bio = btrfs_io_bio_alloc(BIO_MAX_VECS);
+			bio->bi_iter.bi_sector = first_byte >> SECTOR_SHIFT;
 			bio->bi_opf = bio_op | write_flags;
 			bio->bi_private = cb;
 			bio->bi_end_io = end_compressed_bio_write;
@@ -748,7 +750,8 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	/* include any pages we added in add_ra-bio_pages */
 	cb->len = bio->bi_iter.bi_size;
 
-	comp_bio = btrfs_bio_alloc(cur_disk_byte);
+	comp_bio = btrfs_io_bio_alloc(BIO_MAX_VECS);
+	comp_bio->bi_iter.bi_sector = cur_disk_byte >> SECTOR_SHIFT;
 	comp_bio->bi_opf = REQ_OP_READ;
 	comp_bio->bi_private = cb;
 	comp_bio->bi_end_io = end_compressed_bio_read;
@@ -806,7 +809,8 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 				bio_endio(comp_bio);
 			}
 
-			comp_bio = btrfs_bio_alloc(cur_disk_byte);
+			comp_bio = btrfs_io_bio_alloc(BIO_MAX_VECS);
+			comp_bio->bi_iter.bi_sector = cur_disk_byte >> SECTOR_SHIFT;
 			comp_bio->bi_opf = REQ_OP_READ;
 			comp_bio->bi_private = cb;
 			comp_bio->bi_end_io = end_compressed_bio_read;
