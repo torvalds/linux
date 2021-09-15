@@ -73,6 +73,7 @@ struct tegra_adma;
 
 /*
  * struct tegra_adma_chip_data - Tegra chip specific data
+ * @adma_get_burst_config: Function callback used to set DMA burst size.
  * @global_reg_offset: Register offset of DMA global register.
  * @global_int_clear: Register offset of DMA global interrupt clear.
  * @ch_req_tx_shift: Register offset for AHUB transmit channel select.
