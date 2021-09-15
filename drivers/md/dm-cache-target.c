@@ -3122,6 +3122,30 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 			DMEMIT(" %s", cache->ctr_args[i]);
 		if (cache->nr_ctr_args)
 			DMEMIT(" %s", cache->ctr_args[cache->nr_ctr_args - 1]);
+		break;
+
+	case STATUSTYPE_IMA:
+		DMEMIT_TARGET_NAME_VERSION(ti->type);
+		if (get_cache_mode(cache) == CM_FAIL)
+			DMEMIT(",metadata_mode=fail");
+		else if (get_cache_mode(cache) == CM_READ_ONLY)
+			DMEMIT(",metadata_mode=ro");
+		else
+			DMEMIT(",metadata_mode=rw");
+
+		format_dev_t(buf, cache->metadata_dev->bdev->bd_dev);
+		DMEMIT(",cache_metadata_device=%s", buf);
+		format_dev_t(buf, cache->cache_dev->bdev->bd_dev);
+		DMEMIT(",cache_device=%s", buf);
+		format_dev_t(buf, cache->origin_dev->bdev->bd_dev);
+		DMEMIT(",cache_origin_device=%s", buf);
+		DMEMIT(",writethrough=%c", writethrough_mode(cache) ? 'y' : 'n');
+		DMEMIT(",writeback=%c", writeback_mode(cache) ? 'y' : 'n');
+		DMEMIT(",passthrough=%c", passthrough_mode(cache) ? 'y' : 'n');
+		DMEMIT(",metadata2=%c", cache->features.metadata_version == 2 ? 'y' : 'n');
+		DMEMIT(",no_discard_passdown=%c", cache->features.discard_passdown ? 'n' : 'y');
+		DMEMIT(";");
+		break;
 	}
 
 	return;

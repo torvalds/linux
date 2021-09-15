@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Marvell OcteonTx2 RVU Admin Function driver
+/* Marvell RVU Admin Function driver
  *
  * Copyright (C) 2020 Marvell.
  */
@@ -20,6 +20,8 @@ static const char * const npc_flow_names[] = {
 	[NPC_DMAC]	= "dmac",
 	[NPC_SMAC]	= "smac",
 	[NPC_ETYPE]	= "ether type",
+	[NPC_VLAN_ETYPE_CTAG] = "vlan ether type ctag",
+	[NPC_VLAN_ETYPE_STAG] = "vlan ether type stag",
 	[NPC_OUTER_VID]	= "outer vlan id",
 	[NPC_TOS]	= "tos",
 	[NPC_SIP_IPV4]	= "ipv4 source ip",
@@ -492,6 +494,11 @@ static void npc_set_features(struct rvu *rvu, int blkaddr, u8 intf)
 	if (*features & BIT_ULL(NPC_OUTER_VID))
 		if (!npc_check_field(rvu, blkaddr, NPC_LB, intf))
 			*features &= ~BIT_ULL(NPC_OUTER_VID);
+
+	/* for vlan ethertypes corresponding layer type should be in the key */
+	if (npc_check_field(rvu, blkaddr, NPC_LB, intf))
+		*features |= BIT_ULL(NPC_VLAN_ETYPE_CTAG) |
+			     BIT_ULL(NPC_VLAN_ETYPE_STAG);
 }
 
 /* Scan key extraction profile and record how fields of our interest
@@ -600,7 +607,7 @@ static int npc_check_unsupported_flows(struct rvu *rvu, u64 features, u8 intf)
 		dev_info(rvu->dev, "Unsupported flow(s):\n");
 		for_each_set_bit(bit, (unsigned long *)&unsupported, 64)
 			dev_info(rvu->dev, "%s ", npc_get_field_name(bit));
-		return NIX_AF_ERR_NPC_KEY_NOT_SUPP;
+		return -EOPNOTSUPP;
 	}
 
 	return 0;
@@ -747,6 +754,28 @@ static void npc_update_ipv6_flow(struct rvu *rvu, struct mcam_entry *entry,
 	}
 }
 
+static void npc_update_vlan_features(struct rvu *rvu, struct mcam_entry *entry,
+				     u64 features, u8 intf)
+{
+	bool ctag = !!(features & BIT_ULL(NPC_VLAN_ETYPE_CTAG));
+	bool stag = !!(features & BIT_ULL(NPC_VLAN_ETYPE_STAG));
+	bool vid = !!(features & BIT_ULL(NPC_OUTER_VID));
+
+	/* If only VLAN id is given then always match outer VLAN id */
+	if (vid && !ctag && !stag) {
+		npc_update_entry(rvu, NPC_LB, entry,
+				 NPC_LT_LB_STAG_QINQ | NPC_LT_LB_CTAG, 0,
+				 NPC_LT_LB_STAG_QINQ & NPC_LT_LB_CTAG, 0, intf);
+		return;
+	}
+	if (ctag)
+		npc_update_entry(rvu, NPC_LB, entry, NPC_LT_LB_CTAG, 0,
+				 ~0ULL, 0, intf);
+	if (stag)
+		npc_update_entry(rvu, NPC_LB, entry, NPC_LT_LB_STAG_QINQ, 0,
+				 ~0ULL, 0, intf);
+}
+
 static void npc_update_flow(struct rvu *rvu, struct mcam_entry *entry,
 			    u64 features, struct flow_msg *pkt,
 			    struct flow_msg *mask,
@@ -778,11 +807,6 @@ static void npc_update_flow(struct rvu *rvu, struct mcam_entry *entry,
 	if (features & BIT_ULL(NPC_IPPROTO_ICMP6))
 		npc_update_entry(rvu, NPC_LD, entry, NPC_LT_LD_ICMP6,
 				 0, ~0ULL, 0, intf);
-
-	if (features & BIT_ULL(NPC_OUTER_VID))
-		npc_update_entry(rvu, NPC_LB, entry,
-				 NPC_LT_LB_STAG_QINQ | NPC_LT_LB_CTAG, 0,
-				 NPC_LT_LB_STAG_QINQ & NPC_LT_LB_CTAG, 0, intf);
 
 	/* For AH, LTYPE should be present in entry */
 	if (features & BIT_ULL(NPC_IPPROTO_AH))
@@ -829,6 +853,7 @@ do {									      \
 		       ntohs(mask->vlan_tci), 0);
 
 	npc_update_ipv6_flow(rvu, entry, features, pkt, mask, output, intf);
+	npc_update_vlan_features(rvu, entry, features, intf);
 }
 
 static struct rvu_npc_mcam_rule *rvu_mcam_find_rule(struct npc_mcam *mcam,
@@ -910,14 +935,17 @@ static void rvu_mcam_add_counter_to_rule(struct rvu *rvu, u16 pcifunc,
 
 static void npc_update_rx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 				struct mcam_entry *entry,
-				struct npc_install_flow_req *req, u16 target)
+				struct npc_install_flow_req *req,
+				u16 target, bool pf_set_vfs_mac)
 {
+	struct rvu_switch *rswitch = &rvu->rswitch;
 	struct nix_rx_action action;
-	u64 chan_mask;
 
-	chan_mask = req->chan_mask ? req->chan_mask : ~0ULL;
-	npc_update_entry(rvu, NPC_CHAN, entry, req->channel, 0, chan_mask, 0,
-			 NIX_INTF_RX);
+	if (rswitch->mode == DEVLINK_ESWITCH_MODE_SWITCHDEV && pf_set_vfs_mac)
+		req->chan_mask = 0x0; /* Do not care channel */
+
+	npc_update_entry(rvu, NPC_CHAN, entry, req->channel, 0, req->chan_mask,
+			 0, NIX_INTF_RX);
 
 	*(u64 *)&action = 0x00;
 	action.pf_func = target;
@@ -949,9 +977,16 @@ static void npc_update_tx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 				struct npc_install_flow_req *req, u16 target)
 {
 	struct nix_tx_action action;
+	u64 mask = ~0ULL;
+
+	/* If AF is installing then do not care about
+	 * PF_FUNC in Send Descriptor
+	 */
+	if (is_pffunc_af(req->hdr.pcifunc))
+		mask = 0;
 
 	npc_update_entry(rvu, NPC_PF_FUNC, entry, (__force u16)htons(target),
-			 0, ~0ULL, 0, NIX_INTF_TX);
+			 0, mask, 0, NIX_INTF_TX);
 
 	*(u64 *)&action = 0x00;
 	action.op = req->op;
@@ -985,13 +1020,11 @@ static int npc_install_flow(struct rvu *rvu, int blkaddr, u16 target,
 	struct npc_mcam *mcam = &rvu->hw->mcam;
 	struct rvu_npc_mcam_rule dummy = { 0 };
 	struct rvu_npc_mcam_rule *rule;
-	bool new = false, msg_from_vf;
 	u16 owner = req->hdr.pcifunc;
 	struct msg_rsp write_rsp;
 	struct mcam_entry *entry;
 	int entry_index, err;
-
-	msg_from_vf = !!(owner & RVU_PFVF_FUNC_MASK);
+	bool new = false;
 
 	installed_features = req->features;
 	features = req->features;
@@ -1002,7 +1035,7 @@ static int npc_install_flow(struct rvu *rvu, int blkaddr, u16 target,
 			req->intf);
 
 	if (is_npc_intf_rx(req->intf))
-		npc_update_rx_entry(rvu, pfvf, entry, req, target);
+		npc_update_rx_entry(rvu, pfvf, entry, req, target, pf_set_vfs_mac);
 	else
 		npc_update_tx_entry(rvu, pfvf, entry, req, target);
 
@@ -1017,7 +1050,7 @@ static int npc_install_flow(struct rvu *rvu, int blkaddr, u16 target,
 	}
 
 	/* update mcam entry with default unicast rule attributes */
-	if (def_ucast_rule && (msg_from_vf || (req->default_rule && req->append))) {
+	if (def_ucast_rule && (req->default_rule && req->append)) {
 		missing_features = (def_ucast_rule->features ^ features) &
 					def_ucast_rule->features;
 		if (missing_features)
@@ -1120,6 +1153,7 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 				      struct npc_install_flow_rsp *rsp)
 {
 	bool from_vf = !!(req->hdr.pcifunc & RVU_PFVF_FUNC_MASK);
+	struct rvu_switch *rswitch = &rvu->rswitch;
 	int blkaddr, nixlf, err;
 	struct rvu_pfvf *pfvf;
 	bool pf_set_vfs_mac = false;
@@ -1129,14 +1163,14 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0) {
 		dev_err(rvu->dev, "%s: NPC block not implemented\n", __func__);
-		return -ENODEV;
+		return NPC_MCAM_INVALID_REQ;
 	}
 
 	if (!is_npc_interface_valid(rvu, req->intf))
-		return -EINVAL;
+		return NPC_FLOW_INTF_INVALID;
 
 	if (from_vf && req->default_rule)
-		return NPC_MCAM_PERM_DENIED;
+		return NPC_FLOW_VF_PERM_DENIED;
 
 	/* Each PF/VF info is maintained in struct rvu_pfvf.
 	 * rvu_pfvf for the target PF/VF needs to be retrieved
@@ -1162,10 +1196,7 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 
 	err = npc_check_unsupported_flows(rvu, req->features, req->intf);
 	if (err)
-		return err;
-
-	if (npc_mcam_verify_channel(rvu, target, req->intf, req->channel))
-		return -EINVAL;
+		return NPC_FLOW_NOT_SUPPORTED;
 
 	pfvf = rvu_get_pfvf(rvu, target);
 
@@ -1180,9 +1211,10 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 		eth_broadcast_addr((u8 *)&req->mask.dmac);
 	}
 
+	/* Proceed if NIXLF is attached or not for TX rules */
 	err = nix_get_nixlf(rvu, target, &nixlf, NULL);
 	if (err && is_npc_intf_rx(req->intf) && !pf_set_vfs_mac)
-		return -EINVAL;
+		return NPC_FLOW_NO_NIXLF;
 
 	/* don't enable rule when nixlf not attached or initialized */
 	if (!(is_nixlf_attached(rvu, target) &&
@@ -1198,7 +1230,7 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 
 	/* Do not allow requests from uninitialized VFs */
 	if (from_vf && !enable)
-		return -EINVAL;
+		return NPC_FLOW_VF_NOT_INIT;
 
 	/* PF sets VF mac & VF NIXLF is not attached, update the mac addr */
 	if (pf_set_vfs_mac && !enable) {
@@ -1208,15 +1240,12 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 		return 0;
 	}
 
-	/* If message is from VF then its flow should not overlap with
-	 * reserved unicast flow.
-	 */
-	if (from_vf && pfvf->def_ucast_rule && is_npc_intf_rx(req->intf) &&
-	    pfvf->def_ucast_rule->features & req->features)
-		return -EINVAL;
+	mutex_lock(&rswitch->switch_lock);
+	err = npc_install_flow(rvu, blkaddr, target, nixlf, pfvf,
+			       req, rsp, enable, pf_set_vfs_mac);
+	mutex_unlock(&rswitch->switch_lock);
 
-	return npc_install_flow(rvu, blkaddr, target, nixlf, pfvf, req, rsp,
-				enable, pf_set_vfs_mac);
+	return err;
 }
 
 static int npc_delete_flow(struct rvu *rvu, struct rvu_npc_mcam_rule *rule,

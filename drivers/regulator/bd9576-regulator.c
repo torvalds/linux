@@ -294,9 +294,9 @@ static bool check_temp_flag_mismatch(struct regulator_dev *rdev, int severity,
 				    struct bd957x_regulator_data *r)
 {
 	if ((severity == REGULATOR_SEVERITY_ERR &&
-	     r->ovd_notif != REGULATOR_EVENT_OVER_TEMP) ||
+	     r->temp_notif != REGULATOR_EVENT_OVER_TEMP) ||
 	     (severity == REGULATOR_SEVERITY_WARN &&
-	     r->ovd_notif != REGULATOR_EVENT_OVER_TEMP_WARN)) {
+	     r->temp_notif != REGULATOR_EVENT_OVER_TEMP_WARN)) {
 		dev_warn(rdev_get_dev(rdev),
 			 "Can't support both thermal WARN and ERR\n");
 		if (severity == REGULATOR_SEVERITY_WARN)

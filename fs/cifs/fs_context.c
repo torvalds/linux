@@ -13,6 +13,9 @@
 #include <linux/magic.h>
 #include <linux/security.h>
 #include <net/net_namespace.h>
+#ifdef CONFIG_CIFS_DFS_UPCALL
+#include "dfs_cache.h"
+#endif
 */
 
 #include <linux/ctype.h>
@@ -54,12 +57,9 @@ static const match_table_t cifs_secflavor_tokens = {
 	{ Opt_sec_krb5p, "krb5p" },
 	{ Opt_sec_ntlmsspi, "ntlmsspi" },
 	{ Opt_sec_ntlmssp, "ntlmssp" },
-	{ Opt_ntlm, "ntlm" },
-	{ Opt_sec_ntlmi, "ntlmi" },
 	{ Opt_sec_ntlmv2, "nontlm" },
 	{ Opt_sec_ntlmv2, "ntlmv2" },
 	{ Opt_sec_ntlmv2i, "ntlmv2i" },
-	{ Opt_sec_lanman, "lanman" },
 	{ Opt_sec_none, "none" },
 
 	{ Opt_sec_err, NULL }
@@ -218,23 +218,12 @@ cifs_parse_security_flavors(struct fs_context *fc, char *value, struct smb3_fs_c
 	case Opt_sec_ntlmssp:
 		ctx->sectype = RawNTLMSSP;
 		break;
-	case Opt_sec_ntlmi:
-		ctx->sign = true;
-		fallthrough;
-	case Opt_ntlm:
-		ctx->sectype = NTLM;
-		break;
 	case Opt_sec_ntlmv2i:
 		ctx->sign = true;
 		fallthrough;
 	case Opt_sec_ntlmv2:
 		ctx->sectype = NTLMv2;
 		break;
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-	case Opt_sec_lanman:
-		ctx->sectype = LANMAN;
-		break;
-#endif
 	case Opt_sec_none:
 		ctx->nullauth = 1;
 		break;
@@ -779,6 +768,10 @@ static int smb3_reconfigure(struct fs_context *fc)
 	smb3_cleanup_fs_context_contents(cifs_sb->ctx);
 	rc = smb3_fs_context_dup(cifs_sb->ctx, ctx);
 	smb3_update_mnt_flags(cifs_sb);
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	if (!rc)
+		rc = dfs_cache_remount_fs(cifs_sb);
+#endif
 
 	return rc;
 }
@@ -917,6 +910,13 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 			goto cifs_parse_mount_err;
 		ctx->cred_uid = uid;
 		ctx->cruid_specified = true;
+		break;
+	case Opt_backupuid:
+		uid = make_kuid(current_user_ns(), result.uint_32);
+		if (!uid_valid(uid))
+			goto cifs_parse_mount_err;
+		ctx->backupuid = uid;
+		ctx->backupuid_specified = true;
 		break;
 	case Opt_backupgid:
 		gid = make_kgid(current_user_ns(), result.uint_32);
@@ -1252,10 +1252,17 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 			ctx->posix_paths = 1;
 		break;
 	case Opt_unix:
-		if (result.negated)
+		if (result.negated) {
+			if (ctx->linux_ext == 1)
+				pr_warn_once("conflicting posix mount options specified\n");
 			ctx->linux_ext = 0;
-		else
 			ctx->no_linux_ext = 1;
+		} else {
+			if (ctx->no_linux_ext == 1)
+				pr_warn_once("conflicting posix mount options specified\n");
+			ctx->linux_ext = 1;
+			ctx->no_linux_ext = 0;
+		}
 		break;
 	case Opt_nocase:
 		ctx->nocase = 1;

@@ -428,7 +428,6 @@ do {									\
 
 extern size_t __raw_copy_from_user(void *__to, const void *__from, size_t __n);
 extern size_t __raw_copy_to_user(void *__to, const void *__from, size_t __n);
-extern size_t __raw_copy_in_user(void *__to, const void *__from, size_t __n);
 
 static inline unsigned long
 raw_copy_from_user(void *to, const void __user *from, unsigned long n)
@@ -479,31 +478,6 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 
 #define INLINE_COPY_FROM_USER
 #define INLINE_COPY_TO_USER
-
-static inline unsigned long
-raw_copy_in_user(void __user *to, const void __user *from, unsigned long n)
-{
-	register void __user *__cu_to_r __asm__("$4");
-	register const void __user *__cu_from_r __asm__("$5");
-	register long __cu_len_r __asm__("$6");
-
-	__cu_to_r = to;
-	__cu_from_r = from;
-	__cu_len_r = n;
-
-	__asm__ __volatile__(
-		".set\tnoreorder\n\t"
-		__MODULE_JAL(__raw_copy_in_user)
-		".set\tnoat\n\t"
-		__UA_ADDU "\t$1, %1, %2\n\t"
-		".set\tat\n\t"
-		".set\treorder"
-		: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)
-		:
-		: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",
-		  DADDI_SCRATCH, "memory");
-	return __cu_len_r;
-}
 
 extern __kernel_size_t __bzero(void __user *addr, __kernel_size_t size);
 

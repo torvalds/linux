@@ -2825,6 +2825,73 @@ DEFINE_EVENT(sta_flag_evt, drv_sta_set_decap_offload,
 	TP_ARGS(local, sdata, sta, enabled)
 );
 
+TRACE_EVENT(drv_add_twt_setup,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sta *sta,
+		 struct ieee80211_twt_setup *twt,
+		 struct ieee80211_twt_params *twt_agrt),
+
+	TP_ARGS(local, sta, twt, twt_agrt),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		STA_ENTRY
+		__field(u8, dialog_token)
+		__field(u8, control)
+		__field(__le16, req_type)
+		__field(__le64, twt)
+		__field(u8, duration)
+		__field(__le16, mantissa)
+		__field(u8, channel)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		STA_ASSIGN;
+		__entry->dialog_token = twt->dialog_token;
+		__entry->control = twt->control;
+		__entry->req_type = twt_agrt->req_type;
+		__entry->twt = twt_agrt->twt;
+		__entry->duration = twt_agrt->min_twt_dur;
+		__entry->mantissa = twt_agrt->mantissa;
+		__entry->channel = twt_agrt->channel;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT STA_PR_FMT
+		" token:%d control:0x%02x req_type:0x%04x"
+		" twt:%llu duration:%d mantissa:%d channel:%d",
+		LOCAL_PR_ARG, STA_PR_ARG, __entry->dialog_token,
+		__entry->control, le16_to_cpu(__entry->req_type),
+		le64_to_cpu(__entry->twt), __entry->duration,
+		le16_to_cpu(__entry->mantissa), __entry->channel
+	)
+);
+
+TRACE_EVENT(drv_twt_teardown_request,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sta *sta, u8 flowid),
+
+	TP_ARGS(local, sta, flowid),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		STA_ENTRY
+		__field(u8, flowid)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		STA_ASSIGN;
+		__entry->flowid = flowid;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT STA_PR_FMT " flowid:%d",
+		LOCAL_PR_ARG, STA_PR_ARG, __entry->flowid
+	)
+);
+
 #endif /* !__MAC80211_DRIVER_TRACE || TRACE_HEADER_MULTI_READ */
 
 #undef TRACE_INCLUDE_PATH

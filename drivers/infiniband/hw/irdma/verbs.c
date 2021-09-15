@@ -557,7 +557,7 @@ static int irdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
  * @iwqp: qp ptr
  * @init_info: initialize info to return
  */
-static int irdma_setup_virt_qp(struct irdma_device *iwdev,
+static void irdma_setup_virt_qp(struct irdma_device *iwdev,
 			       struct irdma_qp *iwqp,
 			       struct irdma_qp_init_info *init_info)
 {
@@ -574,8 +574,6 @@ static int irdma_setup_virt_qp(struct irdma_device *iwdev,
 		init_info->sq_pa = qpmr->sq_pbl.addr;
 		init_info->rq_pa = qpmr->rq_pbl.addr;
 	}
-
-	return 0;
 }
 
 /**
@@ -792,18 +790,19 @@ static int irdma_validate_qp_attrs(struct ib_qp_init_attr *init_attr,
 
 /**
  * irdma_create_qp - create qp
- * @ibpd: ptr of pd
+ * @ibqp: ptr of qp
  * @init_attr: attributes for qp
  * @udata: user data for create qp
  */
-static struct ib_qp *irdma_create_qp(struct ib_pd *ibpd,
-				     struct ib_qp_init_attr *init_attr,
-				     struct ib_udata *udata)
+static int irdma_create_qp(struct ib_qp *ibqp,
+			   struct ib_qp_init_attr *init_attr,
+			   struct ib_udata *udata)
 {
+	struct ib_pd *ibpd = ibqp->pd;
 	struct irdma_pd *iwpd = to_iwpd(ibpd);
 	struct irdma_device *iwdev = to_iwdev(ibpd->device);
 	struct irdma_pci_f *rf = iwdev->rf;
-	struct irdma_qp *iwqp;
+	struct irdma_qp *iwqp = to_iwqp(ibqp);
 	struct irdma_create_qp_req req;
 	struct irdma_create_qp_resp uresp = {};
 	u32 qp_num = 0;
@@ -820,7 +819,7 @@ static struct ib_qp *irdma_create_qp(struct ib_pd *ibpd,
 
 	err_code = irdma_validate_qp_attrs(init_attr, iwdev);
 	if (err_code)
-		return ERR_PTR(err_code);
+		return err_code;
 
 	sq_size = init_attr->cap.max_send_wr;
 	rq_size = init_attr->cap.max_recv_wr;
@@ -832,10 +831,6 @@ static struct ib_qp *irdma_create_qp(struct ib_pd *ibpd,
 	init_info.qp_uk_init_info.max_sq_frag_cnt = init_attr->cap.max_send_sge;
 	init_info.qp_uk_init_info.max_rq_frag_cnt = init_attr->cap.max_recv_sge;
 	init_info.qp_uk_init_info.max_inline_data = init_attr->cap.max_inline_data;
-
-	iwqp = kzalloc(sizeof(*iwqp), GFP_KERNEL);
-	if (!iwqp)
-		return ERR_PTR(-ENOMEM);
 
 	qp = &iwqp->sc_qp;
 	qp->qp_uk.back_qp = iwqp;
@@ -849,10 +844,8 @@ static struct ib_qp *irdma_create_qp(struct ib_pd *ibpd,
 						 iwqp->q2_ctx_mem.size,
 						 &iwqp->q2_ctx_mem.pa,
 						 GFP_KERNEL);
-	if (!iwqp->q2_ctx_mem.va) {
-		err_code = -ENOMEM;
-		goto error;
-	}
+	if (!iwqp->q2_ctx_mem.va)
+		return -ENOMEM;
 
 	init_info.q2 = iwqp->q2_ctx_mem.va;
 	init_info.q2_pa = iwqp->q2_ctx_mem.pa;
@@ -914,7 +907,7 @@ static struct ib_qp *irdma_create_qp(struct ib_pd *ibpd,
 			}
 		}
 		init_info.qp_uk_init_info.abi_ver = iwpd->sc_pd.abi_ver;
-		err_code = irdma_setup_virt_qp(iwdev, iwqp, &init_info);
+		irdma_setup_virt_qp(iwdev, iwqp, &init_info);
 	} else {
 		init_info.qp_uk_init_info.abi_ver = IRDMA_ABI_VER;
 		err_code = irdma_setup_kmode_qp(iwdev, iwqp, &init_info, init_attr);
@@ -1001,17 +994,16 @@ static struct ib_qp *irdma_create_qp(struct ib_pd *ibpd,
 		if (err_code) {
 			ibdev_dbg(&iwdev->ibdev, "VERBS: copy_to_udata failed\n");
 			irdma_destroy_qp(&iwqp->ibqp, udata);
-			return ERR_PTR(err_code);
+			return err_code;
 		}
 	}
 
 	init_completion(&iwqp->free_qp);
-	return &iwqp->ibqp;
+	return 0;
 
 error:
 	irdma_free_qp_rsrc(iwqp);
-
-	return ERR_PTR(err_code);
+	return err_code;
 }
 
 static int irdma_get_ib_acc_flags(struct irdma_qp *iwqp)
@@ -2237,7 +2229,7 @@ static void irdma_copy_user_pgaddrs(struct irdma_mr *iwmr, u64 *pbl,
 	pinfo = (level == PBLE_LEVEL_1) ? NULL : palloc->level2.leaf;
 
 	if (iwmr->type == IRDMA_MEMREG_TYPE_QP)
-		iwpbl->qp_mr.sq_page = sg_page(region->sg_head.sgl);
+		iwpbl->qp_mr.sq_page = sg_page(region->sgt_append.sgt.sgl);
 
 	rdma_umem_for_each_dma_block(region, &biter, iwmr->page_size) {
 		*pbl = rdma_block_iter_dma_address(&biter);
@@ -4406,6 +4398,7 @@ static const struct ib_device_ops irdma_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_ah, irdma_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, irdma_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_mw, irdma_mr, ibmw),
+	INIT_RDMA_OBJ_SIZE(ib_qp, irdma_qp, ibqp),
 };
 
 /**

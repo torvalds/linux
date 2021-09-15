@@ -7,6 +7,7 @@
 
 #include <drm/drm.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_writeback.h>
 
@@ -19,9 +20,15 @@
 #define XRES_MAX  8192
 #define YRES_MAX  8192
 
+struct vkms_writeback_job {
+	struct dma_buf_map map[DRM_FORMAT_MAX_PLANES];
+	struct dma_buf_map data[DRM_FORMAT_MAX_PLANES];
+};
+
 struct vkms_composer {
 	struct drm_framebuffer fb;
 	struct drm_rect src, dst;
+	struct dma_buf_map map[4];
 	unsigned int offset;
 	unsigned int pitch;
 	unsigned int cpp;
@@ -33,7 +40,7 @@ struct vkms_composer {
  * @composer: data required for composing computation
  */
 struct vkms_plane_state {
-	struct drm_plane_state base;
+	struct drm_shadow_plane_state base;
 	struct vkms_composer *composer;
 };
 
@@ -55,7 +62,7 @@ struct vkms_crtc_state {
 	int num_active_planes;
 	/* stack of active planes for crc computation, should be in z order */
 	struct vkms_plane_state **active_planes;
-	void *active_writeback;
+	struct vkms_writeback_job *active_writeback;
 
 	/* below four are protected by vkms_output.composer_lock */
 	bool crc_pending;
@@ -111,7 +118,7 @@ struct vkms_device {
 	container_of(target, struct vkms_crtc_state, base)
 
 #define to_vkms_plane_state(target)\
-	container_of(target, struct vkms_plane_state, base)
+	container_of(target, struct vkms_plane_state, base.base)
 
 /* CRTC */
 int vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,

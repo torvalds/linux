@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef _DMUB_CMD_H_
-#define _DMUB_CMD_H_
+#ifndef DMUB_CMD_H
+#define DMUB_CMD_H
 
 #if defined(_TEST_HARNESS) || defined(FPGA_USB4)
 #include "dmub_fw_types.h"
@@ -39,7 +39,6 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <stdarg.h>
 
 #include "atomfirmware.h"
 
@@ -47,10 +46,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0xf3da2b656
+#define DMUB_FW_VERSION_GIT_HASH 0x7383caadc
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 71
+#define DMUB_FW_VERSION_REVISION 79
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -322,6 +321,10 @@ union dmub_fw_boot_status {
 		uint32_t mailbox_rdy : 1; /**< 1 if mailbox ready */
 		uint32_t optimized_init_done : 1; /**< 1 if optimized init done */
 		uint32_t restore_required : 1; /**< 1 if driver should call restore */
+		uint32_t defer_load : 1; /**< 1 if VBIOS data is deferred programmed */
+		uint32_t reserved : 1;
+		uint32_t detection_required: 1; /**<  if detection need to be triggered by driver */
+
 	} bits; /**< status bits */
 	uint32_t all; /**< 32-bit access to status bits */
 };
@@ -334,6 +337,8 @@ enum dmub_fw_boot_status_bit {
 	DMUB_FW_BOOT_STATUS_BIT_MAILBOX_READY = (1 << 1), /**< 1 if mailbox ready */
 	DMUB_FW_BOOT_STATUS_BIT_OPTIMIZED_INIT_DONE = (1 << 2), /**< 1 if init done */
 	DMUB_FW_BOOT_STATUS_BIT_RESTORE_REQUIRED = (1 << 3), /**< 1 if driver should call restore */
+	DMUB_FW_BOOT_STATUS_BIT_DEFERRED_LOADED = (1 << 4), /**< 1 if VBIOS data is deferred programmed */
+	DMUB_FW_BOOT_STATUS_BIT_DETECTION_REQUIRED = (1 << 6), /**< 1 if detection need to be triggered by driver*/
 };
 
 /* Register bit definition for SCRATCH5 */
@@ -352,7 +357,7 @@ enum dmub_lvtma_status_bit {
 };
 
 /**
- * union dmub_fw_boot_options - Boot option definitions for SCRATCH15
+ * union dmub_fw_boot_options - Boot option definitions for SCRATCH14
  */
 union dmub_fw_boot_options {
 	struct {
@@ -363,7 +368,10 @@ union dmub_fw_boot_options {
 		uint32_t disable_clk_gate: 1; /**< 1 if clock gating should be disabled */
 		uint32_t skip_phy_init_panel_sequence: 1; /**< 1 to skip panel init seq */
 		uint32_t z10_disable: 1; /**< 1 to disable z10 */
-		uint32_t reserved : 25; /**< reserved */
+		uint32_t reserved2: 1; /**< reserved for an unreleased feature */
+		uint32_t reserved_unreleased1: 1; /**< reserved for an unreleased feature */
+		uint32_t invalid_vbios_data: 1; /**< 1 if VBIOS data table is invalid */
+		uint32_t reserved : 23; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
@@ -485,6 +493,11 @@ enum dmub_gpint_command {
 	 * RETURN: PSR residency in milli-percent.
 	 */
 	DMUB_GPINT__PSR_RESIDENCY = 9,
+
+	/**
+	 * DESC: Notifies DMCUB detection is done so detection required can be cleared.
+	 */
+	DMUB_GPINT__NOTIFY_DETECTION_DONE = 12,
 };
 
 /**
@@ -856,6 +869,11 @@ enum dmub_cmd_idle_opt_type {
 	 * DCN hardware restore.
 	 */
 	DMUB_CMD__IDLE_OPT_DCN_RESTORE = 0,
+
+	/**
+	 * DCN hardware save.
+	 */
+	DMUB_CMD__IDLE_OPT_DCN_SAVE_INIT = 1
 };
 
 /**
@@ -1406,6 +1424,10 @@ struct dmub_cmd_psr_copy_settings_data {
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad3[4];
 };
 
 /**
@@ -1430,7 +1452,7 @@ struct dmub_cmd_psr_set_level_data {
 	 * 16-bit value dicated by driver that will enable/disable different functionality.
 	 */
 	uint16_t psr_level;
-		/**
+	/**
 	 * PSR control version.
 	 */
 	uint8_t cmd_version;
@@ -2462,16 +2484,14 @@ static inline bool dmub_rb_full(struct dmub_rb *rb)
 static inline bool dmub_rb_push_front(struct dmub_rb *rb,
 				      const union dmub_rb_cmd *cmd)
 {
-	uint64_t volatile *dst = (uint64_t volatile *)(rb->base_address) + rb->wrpt / sizeof(uint64_t);
-	const uint64_t *src = (const uint64_t *)cmd;
-	uint8_t i;
+	uint8_t *dst = (uint8_t *)(rb->base_address) + rb->wrpt;
+	const uint8_t *src = (const uint8_t *)cmd;
 
 	if (dmub_rb_full(rb))
 		return false;
 
 	// copying data
-	for (i = 0; i < DMUB_RB_CMD_SIZE / sizeof(uint64_t); i++)
-		*dst++ = *src++;
+	dmub_memcpy(dst, src, DMUB_RB_CMD_SIZE);
 
 	rb->wrpt += DMUB_RB_CMD_SIZE;
 
@@ -2493,7 +2513,7 @@ static inline bool dmub_rb_out_push_front(struct dmub_rb *rb,
 				      const union dmub_rb_out_cmd *cmd)
 {
 	uint8_t *dst = (uint8_t *)(rb->base_address) + rb->wrpt;
-	const uint8_t *src = (uint8_t *)cmd;
+	const uint8_t *src = (const uint8_t *)cmd;
 
 	if (dmub_rb_full(rb))
 		return false;
@@ -2578,18 +2598,16 @@ static inline bool dmub_rb_peek_offset(struct dmub_rb *rb,
  * @return false otherwise
  */
 static inline bool dmub_rb_out_front(struct dmub_rb *rb,
-				 union dmub_rb_out_cmd  *cmd)
+				 union dmub_rb_out_cmd *cmd)
 {
-	const uint64_t volatile *src = (const uint64_t volatile *)(rb->base_address) + rb->rptr / sizeof(uint64_t);
-	uint64_t *dst = (uint64_t *)cmd;
-	uint8_t i;
+	const uint8_t *src = (const uint8_t *)(rb->base_address) + rb->rptr;
+	uint8_t *dst = (uint8_t *)cmd;
 
 	if (dmub_rb_empty(rb))
 		return false;
 
 	// copying data
-	for (i = 0; i < DMUB_RB_CMD_SIZE / sizeof(uint64_t); i++)
-		*dst++ = *src++;
+	dmub_memcpy(dst, src, DMUB_RB_CMD_SIZE);
 
 	return true;
 }
@@ -2624,15 +2642,14 @@ static inline bool dmub_rb_pop_front(struct dmub_rb *rb)
  */
 static inline void dmub_rb_flush_pending(const struct dmub_rb *rb)
 {
+	uint8_t buf[DMUB_RB_CMD_SIZE];
 	uint32_t rptr = rb->rptr;
 	uint32_t wptr = rb->wrpt;
 
 	while (rptr != wptr) {
-		uint64_t volatile *data = (uint64_t volatile *)rb->base_address + rptr / sizeof(uint64_t);
-		uint8_t i;
+		const uint8_t *data = (const uint8_t *)rb->base_address + rptr;
 
-		for (i = 0; i < DMUB_RB_CMD_SIZE / sizeof(uint64_t); i++)
-			*data++;
+		dmub_memcpy(buf, data, DMUB_RB_CMD_SIZE);
 
 		rptr += DMUB_RB_CMD_SIZE;
 		if (rptr >= rb->capacity)

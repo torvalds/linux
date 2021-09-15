@@ -18,10 +18,10 @@
 
 	chosen { };
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		/* We expect the bootloader to fill in the reg */
-		reg = <0 0 0 0>;
+		reg = <0x0 0x80000000 0x0 0x0>;
 	};
 
 	reserved-memory {
@@ -1964,7 +1964,7 @@
 
 			resets = <&gcc GCC_USB_30_BCR>;
 
-			usb3_dwc3: usb@a800000 {
+			usb3_dwc3: dwc3@a800000 {
 				compatible = "snps,dwc3";
 				reg = <0x0a800000 0xcd00>;
 				interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;

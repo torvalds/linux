@@ -964,7 +964,7 @@ static int tvp5150_enable(struct v4l2_subdev *sd)
 
 	/*
 	 * Enable the YCbCr and clock outputs. In discrete sync mode
-	 * (non-BT.656) additionally enable the the sync outputs.
+	 * (non-BT.656) additionally enable the sync outputs.
 	 */
 	switch (decoder->mbus_type) {
 	case V4L2_MBUS_PARALLEL:

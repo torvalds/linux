@@ -27,60 +27,6 @@
 #define __DCN31_CLK_MGR_H__
 #include "clk_mgr_internal.h"
 
-//CLK1_CLK_PLL_REQ
-#ifndef CLK11_CLK1_CLK_PLL_REQ__FbMult_int__SHIFT
-#define CLK11_CLK1_CLK_PLL_REQ__FbMult_int__SHIFT                                                                   0x0
-#define CLK11_CLK1_CLK_PLL_REQ__PllSpineDiv__SHIFT                                                                  0xc
-#define CLK11_CLK1_CLK_PLL_REQ__FbMult_frac__SHIFT                                                                  0x10
-#define CLK11_CLK1_CLK_PLL_REQ__FbMult_int_MASK                                                                     0x000001FFL
-#define CLK11_CLK1_CLK_PLL_REQ__PllSpineDiv_MASK                                                                    0x0000F000L
-#define CLK11_CLK1_CLK_PLL_REQ__FbMult_frac_MASK                                                                    0xFFFF0000L
-//CLK1_CLK0_DFS_CNTL
-#define CLK11_CLK1_CLK0_DFS_CNTL__CLK0_DIVIDER__SHIFT                                                               0x0
-#define CLK11_CLK1_CLK0_DFS_CNTL__CLK0_DIVIDER_MASK                                                                 0x0000007FL
-/*DPREF clock related*/
-#define CLK0_CLK3_DFS_CNTL__CLK3_DIVIDER__SHIFT                                                               0x0
-#define CLK0_CLK3_DFS_CNTL__CLK3_DIVIDER_MASK                                                                 0x0000007FL
-#define CLK1_CLK3_DFS_CNTL__CLK3_DIVIDER__SHIFT                                                               0x0
-#define CLK1_CLK3_DFS_CNTL__CLK3_DIVIDER_MASK                                                                 0x0000007FL
-#define CLK2_CLK3_DFS_CNTL__CLK3_DIVIDER__SHIFT                                                               0x0
-#define CLK2_CLK3_DFS_CNTL__CLK3_DIVIDER_MASK                                                                 0x0000007FL
-#define CLK3_CLK3_DFS_CNTL__CLK3_DIVIDER__SHIFT                                                               0x0
-#define CLK3_CLK3_DFS_CNTL__CLK3_DIVIDER_MASK                                                                 0x0000007FL
-
-//CLK3_0_CLK3_CLK_PLL_REQ
-#define CLK3_0_CLK3_CLK_PLL_REQ__FbMult_int__SHIFT                                                            0x0
-#define CLK3_0_CLK3_CLK_PLL_REQ__PllSpineDiv__SHIFT                                                           0xc
-#define CLK3_0_CLK3_CLK_PLL_REQ__FbMult_frac__SHIFT                                                           0x10
-#define CLK3_0_CLK3_CLK_PLL_REQ__FbMult_int_MASK                                                              0x000001FFL
-#define CLK3_0_CLK3_CLK_PLL_REQ__PllSpineDiv_MASK                                                             0x0000F000L
-#define CLK3_0_CLK3_CLK_PLL_REQ__FbMult_frac_MASK                                                             0xFFFF0000L
-
-#define mmCLK0_CLK3_DFS_CNTL                            0x16C60
-#define mmCLK00_CLK0_CLK3_DFS_CNTL                      0x16C60
-#define mmCLK01_CLK0_CLK3_DFS_CNTL                      0x16E60
-#define mmCLK02_CLK0_CLK3_DFS_CNTL                      0x17060
-#define mmCLK03_CLK0_CLK3_DFS_CNTL                      0x17260
-
-#define mmCLK0_CLK_PLL_REQ                              0x16C10
-#define mmCLK00_CLK0_CLK_PLL_REQ                        0x16C10
-#define mmCLK01_CLK0_CLK_PLL_REQ                        0x16E10
-#define mmCLK02_CLK0_CLK_PLL_REQ                        0x17010
-#define mmCLK03_CLK0_CLK_PLL_REQ                        0x17210
-
-#define mmCLK1_CLK_PLL_REQ                              0x1B00D
-#define mmCLK10_CLK1_CLK_PLL_REQ                        0x1B00D
-#define mmCLK11_CLK1_CLK_PLL_REQ                        0x1B20D
-#define mmCLK12_CLK1_CLK_PLL_REQ                        0x1B40D
-#define mmCLK13_CLK1_CLK_PLL_REQ                        0x1B60D
-
-#define mmCLK2_CLK_PLL_REQ                              0x17E0D
-
-/*AMCLK*/
-#define mmCLK11_CLK1_CLK0_DFS_CNTL                      0x1B23F
-#define mmCLK11_CLK1_CLK_PLL_REQ                        0x1B20D
-#endif
-
 struct dcn31_watermarks;
 
 struct dcn31_smu_watermark_set {

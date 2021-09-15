@@ -191,6 +191,14 @@ static int ice_add_mac_to_unsync_list(struct net_device *netdev, const u8 *addr)
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
 
+	/* Under some circumstances, we might receive a request to delete our
+	 * own device address from our uc list. Because we store the device
+	 * address in the VSI's MAC filter list, we need to ignore such
+	 * requests and not delete our device address from this list.
+	 */
+	if (ether_addr_equal(addr, netdev->dev_addr))
+		return 0;
+
 	if (ice_fltr_add_mac_to_list(vsi, &vsi->tmp_unsync_list, addr,
 				     ICE_FWD_TO_VSI))
 		return -EINVAL;
@@ -4194,6 +4202,11 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	struct ice_hw *hw;
 	int i, err;
 
+	if (pdev->is_virtfn) {
+		dev_err(dev, "can't probe a virtual function\n");
+		return -EINVAL;
+	}
+
 	/* this driver uses devres, see
 	 * Documentation/driver-api/driver-model/devres.rst
 	 */
@@ -5109,6 +5122,7 @@ static int ice_set_mac_address(struct net_device *netdev, void *pi)
 	struct ice_hw *hw = &pf->hw;
 	struct sockaddr *addr = pi;
 	enum ice_status status;
+	u8 old_mac[ETH_ALEN];
 	u8 flags = 0;
 	int err = 0;
 	u8 *mac;
@@ -5119,7 +5133,7 @@ static int ice_set_mac_address(struct net_device *netdev, void *pi)
 		return -EADDRNOTAVAIL;
 
 	if (ether_addr_equal(netdev->dev_addr, mac)) {
-		netdev_warn(netdev, "already using mac %pM\n", mac);
+		netdev_dbg(netdev, "already using mac %pM\n", mac);
 		return 0;
 	}
 
@@ -5130,8 +5144,14 @@ static int ice_set_mac_address(struct net_device *netdev, void *pi)
 		return -EBUSY;
 	}
 
+	netif_addr_lock_bh(netdev);
+	ether_addr_copy(old_mac, netdev->dev_addr);
+	/* change the netdev's MAC address */
+	memcpy(netdev->dev_addr, mac, netdev->addr_len);
+	netif_addr_unlock_bh(netdev);
+
 	/* Clean up old MAC filter. Not an error if old filter doesn't exist */
-	status = ice_fltr_remove_mac(vsi, netdev->dev_addr, ICE_FWD_TO_VSI);
+	status = ice_fltr_remove_mac(vsi, old_mac, ICE_FWD_TO_VSI);
 	if (status && status != ICE_ERR_DOES_NOT_EXIST) {
 		err = -EADDRNOTAVAIL;
 		goto err_update_filters;
@@ -5139,30 +5159,27 @@ static int ice_set_mac_address(struct net_device *netdev, void *pi)
 
 	/* Add filter for new MAC. If filter exists, return success */
 	status = ice_fltr_add_mac(vsi, mac, ICE_FWD_TO_VSI);
-	if (status == ICE_ERR_ALREADY_EXISTS) {
+	if (status == ICE_ERR_ALREADY_EXISTS)
 		/* Although this MAC filter is already present in hardware it's
 		 * possible in some cases (e.g. bonding) that dev_addr was
 		 * modified outside of the driver and needs to be restored back
 		 * to this value.
 		 */
-		memcpy(netdev->dev_addr, mac, netdev->addr_len);
 		netdev_dbg(netdev, "filter for MAC %pM already exists\n", mac);
-		return 0;
-	}
-
-	/* error if the new filter addition failed */
-	if (status)
+	else if (status)
+		/* error if the new filter addition failed */
 		err = -EADDRNOTAVAIL;
 
 err_update_filters:
 	if (err) {
 		netdev_err(netdev, "can't set MAC %pM. filter update failed\n",
 			   mac);
+		netif_addr_lock_bh(netdev);
+		ether_addr_copy(netdev->dev_addr, old_mac);
+		netif_addr_unlock_bh(netdev);
 		return err;
 	}
 
-	/* change the netdev's MAC address */
-	memcpy(netdev->dev_addr, mac, netdev->addr_len);
 	netdev_dbg(vsi->netdev, "updated MAC address to %pM\n",
 		   netdev->dev_addr);
 
@@ -6558,12 +6575,12 @@ event_after:
 }
 
 /**
- * ice_do_ioctl - Access the hwtstamp interface
+ * ice_eth_ioctl - Access the hwtstamp interface
  * @netdev: network interface device structure
  * @ifr: interface request data
  * @cmd: ioctl command
  */
-static int ice_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
+static int ice_eth_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_pf *pf = np->vsi->back;
@@ -7229,7 +7246,7 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_change_mtu = ice_change_mtu,
 	.ndo_get_stats64 = ice_get_stats64,
 	.ndo_set_tx_maxrate = ice_set_tx_maxrate,
-	.ndo_do_ioctl = ice_do_ioctl,
+	.ndo_eth_ioctl = ice_eth_ioctl,
 	.ndo_set_vf_spoofchk = ice_set_vf_spoofchk,
 	.ndo_set_vf_mac = ice_set_vf_mac,
 	.ndo_get_vf_config = ice_get_vf_cfg,

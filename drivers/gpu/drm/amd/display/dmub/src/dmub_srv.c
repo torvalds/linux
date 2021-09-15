@@ -224,6 +224,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->set_gpint = dmub_dcn31_set_gpint;
 		funcs->is_gpint_acked = dmub_dcn31_is_gpint_acked;
 		funcs->get_gpint_response = dmub_dcn31_get_gpint_response;
+		funcs->get_gpint_dataout = dmub_dcn31_get_gpint_dataout;
 		funcs->get_fw_status = dmub_dcn31_get_fw_boot_status;
 		funcs->enable_dmub_boot_options = dmub_dcn31_enable_dmub_boot_options;
 		funcs->skip_dmub_panel_power_sequence = dmub_dcn31_skip_dmub_panel_power_sequence;
@@ -715,6 +716,22 @@ enum dmub_status dmub_srv_get_gpint_response(struct dmub_srv *dmub,
 		return DMUB_STATUS_INVALID;
 
 	*response = dmub->hw_funcs.get_gpint_response(dmub);
+
+	return DMUB_STATUS_OK;
+}
+
+enum dmub_status dmub_srv_get_gpint_dataout(struct dmub_srv *dmub,
+					     uint32_t *dataout)
+{
+	*dataout = 0;
+
+	if (!dmub->sw_init)
+		return DMUB_STATUS_INVALID;
+
+	if (!dmub->hw_funcs.get_gpint_dataout)
+		return DMUB_STATUS_INVALID;
+
+	*dataout = dmub->hw_funcs.get_gpint_dataout(dmub);
 
 	return DMUB_STATUS_OK;
 }

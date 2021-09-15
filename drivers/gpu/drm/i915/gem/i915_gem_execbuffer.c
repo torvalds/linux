@@ -2427,7 +2427,7 @@ __free_fence_array(struct eb_fence *fences, unsigned int n)
 	while (n--) {
 		drm_syncobj_put(ptr_mask_bits(fences[n].syncobj, 2));
 		dma_fence_put(fences[n].dma_fence);
-		kfree(fences[n].chain_fence);
+		dma_fence_chain_free(fences[n].chain_fence);
 	}
 	kvfree(fences);
 }
@@ -2541,9 +2541,7 @@ add_timeline_fence_array(struct i915_execbuffer *eb,
 				return -EINVAL;
 			}
 
-			f->chain_fence =
-				kmalloc(sizeof(*f->chain_fence),
-					GFP_KERNEL);
+			f->chain_fence = dma_fence_chain_alloc();
 			if (!f->chain_fence) {
 				drm_syncobj_put(syncobj);
 				dma_fence_put(fence);

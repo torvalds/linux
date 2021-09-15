@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Marvell OcteonTx2 RVU Physcial Function ethernet driver
+/* Marvell RVU Ethernet driver
  *
  * Copyright (C) 2021 Marvell.
+ *
  */
+
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/inetdevice.h>
@@ -51,6 +53,29 @@ struct otx2_tc_flow {
 	u16				leaf_profile;
 	bool				is_act_police;
 };
+
+int otx2_tc_alloc_ent_bitmap(struct otx2_nic *nic)
+{
+	struct otx2_tc_info *tc = &nic->tc_info;
+
+	if (!nic->flow_cfg->max_flows || is_otx2_vf(nic->pcifunc))
+		return 0;
+
+	/* Max flows changed, free the existing bitmap */
+	kfree(tc->tc_entries_bitmap);
+
+	tc->tc_entries_bitmap =
+			kcalloc(BITS_TO_LONGS(nic->flow_cfg->max_flows),
+				sizeof(long), GFP_KERNEL);
+	if (!tc->tc_entries_bitmap) {
+		netdev_err(nic->netdev,
+			   "Unable to alloc TC flow entries bitmap\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(otx2_tc_alloc_ent_bitmap);
 
 static void otx2_get_egress_burst_cfg(u32 burst, u32 *burst_exp,
 				      u32 *burst_mantissa)
@@ -288,7 +313,7 @@ static int otx2_tc_parse_actions(struct otx2_nic *nic,
 	struct otx2_nic *priv;
 	u32 burst, mark = 0;
 	u8 nr_police = 0;
-	bool pps;
+	bool pps = false;
 	u64 rate;
 	int i;
 
@@ -485,8 +510,8 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 				   match.key->vlan_priority << 13;
 
 			vlan_tci_mask = match.mask->vlan_id |
-					match.key->vlan_dei << 12 |
-					match.key->vlan_priority << 13;
+					match.mask->vlan_dei << 12 |
+					match.mask->vlan_priority << 13;
 
 			flow_spec->vlan_tci = htons(vlan_tci);
 			flow_mask->vlan_tci = htons(vlan_tci_mask);
@@ -596,6 +621,7 @@ static int otx2_del_mcam_flow_entry(struct otx2_nic *nic, u16 entry)
 static int otx2_tc_del_flow(struct otx2_nic *nic,
 			    struct flow_cls_offload *tc_flow_cmd)
 {
+	struct otx2_flow_config *flow_cfg = nic->flow_cfg;
 	struct otx2_tc_info *tc_info = &nic->tc_info;
 	struct otx2_tc_flow *flow_node;
 	int err;
@@ -638,7 +664,7 @@ static int otx2_tc_del_flow(struct otx2_nic *nic,
 	kfree_rcu(flow_node, rcu);
 
 	clear_bit(flow_node->bitpos, tc_info->tc_entries_bitmap);
-	tc_info->num_entries--;
+	flow_cfg->nr_flows--;
 
 	return 0;
 }
@@ -647,6 +673,7 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 			    struct flow_cls_offload *tc_flow_cmd)
 {
 	struct netlink_ext_ack *extack = tc_flow_cmd->common.extack;
+	struct otx2_flow_config *flow_cfg = nic->flow_cfg;
 	struct otx2_tc_info *tc_info = &nic->tc_info;
 	struct otx2_tc_flow *new_node, *old_node;
 	struct npc_install_flow_req *req, dummy;
@@ -655,9 +682,9 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 	if (!(nic->flags & OTX2_FLAG_TC_FLOWER_SUPPORT))
 		return -ENOMEM;
 
-	if (bitmap_full(tc_info->tc_entries_bitmap, nic->flow_cfg->tc_max_flows)) {
+	if (bitmap_full(tc_info->tc_entries_bitmap, flow_cfg->max_flows)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Not enough MCAM space to add the flow");
+				   "Free MCAM entry not available to add the flow");
 		return -ENOMEM;
 	}
 
@@ -695,10 +722,9 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 	memcpy(req, &dummy, sizeof(struct npc_install_flow_req));
 
 	new_node->bitpos = find_first_zero_bit(tc_info->tc_entries_bitmap,
-					       nic->flow_cfg->tc_max_flows);
+					       flow_cfg->max_flows);
 	req->channel = nic->hw.rx_chan_base;
-	req->entry = nic->flow_cfg->flow_ent[nic->flow_cfg->tc_flower_offset +
-				nic->flow_cfg->tc_max_flows - new_node->bitpos];
+	req->entry = flow_cfg->flow_ent[flow_cfg->max_flows - new_node->bitpos - 1];
 	req->intf = NIX_INTF_RX;
 	req->set_cntr = 1;
 	new_node->entry = req->entry;
@@ -723,7 +749,7 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 	}
 
 	set_bit(new_node->bitpos, tc_info->tc_entries_bitmap);
-	tc_info->num_entries++;
+	flow_cfg->nr_flows++;
 
 	return 0;
 
@@ -1008,9 +1034,20 @@ static const struct rhashtable_params tc_flow_ht_params = {
 int otx2_init_tc(struct otx2_nic *nic)
 {
 	struct otx2_tc_info *tc = &nic->tc_info;
+	int err;
 
 	/* Exclude receive queue 0 being used for police action */
 	set_bit(0, &nic->rq_bmap);
+
+	if (!nic->flow_cfg) {
+		netdev_err(nic->netdev,
+			   "Can't init TC, nic->flow_cfg is not setup\n");
+		return -EINVAL;
+	}
+
+	err = otx2_tc_alloc_ent_bitmap(nic);
+	if (err)
+		return err;
 
 	tc->flow_ht_params = tc_flow_ht_params;
 	return rhashtable_init(&tc->flow_table, &tc->flow_ht_params);
@@ -1020,5 +1057,6 @@ void otx2_shutdown_tc(struct otx2_nic *nic)
 {
 	struct otx2_tc_info *tc = &nic->tc_info;
 
+	kfree(tc->tc_entries_bitmap);
 	rhashtable_destroy(&tc->flow_table);
 }

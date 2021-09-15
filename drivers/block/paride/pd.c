@@ -892,7 +892,7 @@ static void pd_probe_drive(struct pd_unit *disk)
 		return;
 
 	p = blk_mq_alloc_disk(&disk->tag_set, disk);
-	if (!p) {
+	if (IS_ERR(p)) {
 		blk_mq_free_tag_set(&disk->tag_set);
 		return;
 	}
@@ -1014,8 +1014,8 @@ static void __exit pd_exit(void)
 		if (p) {
 			disk->gd = NULL;
 			del_gendisk(p);
-			blk_mq_free_tag_set(&disk->tag_set);
 			blk_cleanup_disk(p);
+			blk_mq_free_tag_set(&disk->tag_set);
 			pi_release(disk->pi);
 		}
 	}

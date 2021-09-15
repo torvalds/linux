@@ -447,7 +447,6 @@ static int i915_gem_init_stolen(struct intel_memory_region *mem)
 		break;
 	case 8:
 	case 9:
-	case 10:
 		if (IS_LP(i915))
 			chv_get_stolen_reserved(i915, uncore,
 						&reserved_base, &reserved_size);

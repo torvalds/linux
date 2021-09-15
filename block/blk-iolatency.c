@@ -833,7 +833,11 @@ static ssize_t iolatency_set_limit(struct kernfs_open_file *of, char *buf,
 
 	enable = iolatency_set_min_lat_nsec(blkg, lat_val);
 	if (enable) {
-		WARN_ON_ONCE(!blk_get_queue(blkg->q));
+		if (!blk_get_queue(blkg->q)) {
+			ret = -ENODEV;
+			goto out;
+		}
+
 		blkg_get(blkg);
 	}
 
@@ -886,8 +890,7 @@ static int iolatency_print_limit(struct seq_file *sf, void *v)
 	return 0;
 }
 
-static size_t iolatency_ssd_stat(struct iolatency_grp *iolat, char *buf,
-				 size_t size)
+static bool iolatency_ssd_stat(struct iolatency_grp *iolat, struct seq_file *s)
 {
 	struct latency_stat stat;
 	int cpu;
@@ -902,38 +905,39 @@ static size_t iolatency_ssd_stat(struct iolatency_grp *iolat, char *buf,
 	preempt_enable();
 
 	if (iolat->rq_depth.max_depth == UINT_MAX)
-		return scnprintf(buf, size, " missed=%llu total=%llu depth=max",
-				 (unsigned long long)stat.ps.missed,
-				 (unsigned long long)stat.ps.total);
-	return scnprintf(buf, size, " missed=%llu total=%llu depth=%u",
-			 (unsigned long long)stat.ps.missed,
-			 (unsigned long long)stat.ps.total,
-			 iolat->rq_depth.max_depth);
+		seq_printf(s, " missed=%llu total=%llu depth=max",
+			(unsigned long long)stat.ps.missed,
+			(unsigned long long)stat.ps.total);
+	else
+		seq_printf(s, " missed=%llu total=%llu depth=%u",
+			(unsigned long long)stat.ps.missed,
+			(unsigned long long)stat.ps.total,
+			iolat->rq_depth.max_depth);
+	return true;
 }
 
-static size_t iolatency_pd_stat(struct blkg_policy_data *pd, char *buf,
-				size_t size)
+static bool iolatency_pd_stat(struct blkg_policy_data *pd, struct seq_file *s)
 {
 	struct iolatency_grp *iolat = pd_to_lat(pd);
 	unsigned long long avg_lat;
 	unsigned long long cur_win;
 
 	if (!blkcg_debug_stats)
-		return 0;
+		return false;
 
 	if (iolat->ssd)
-		return iolatency_ssd_stat(iolat, buf, size);
+		return iolatency_ssd_stat(iolat, s);
 
 	avg_lat = div64_u64(iolat->lat_avg, NSEC_PER_USEC);
 	cur_win = div64_u64(iolat->cur_win_nsec, NSEC_PER_MSEC);
 	if (iolat->rq_depth.max_depth == UINT_MAX)
-		return scnprintf(buf, size, " depth=max avg_lat=%llu win=%llu",
-				 avg_lat, cur_win);
-
-	return scnprintf(buf, size, " depth=%u avg_lat=%llu win=%llu",
-			 iolat->rq_depth.max_depth, avg_lat, cur_win);
+		seq_printf(s, " depth=max avg_lat=%llu win=%llu",
+			avg_lat, cur_win);
+	else
+		seq_printf(s, " depth=%u avg_lat=%llu win=%llu",
+			iolat->rq_depth.max_depth, avg_lat, cur_win);
+	return true;
 }
-
 
 static struct blkg_policy_data *iolatency_pd_alloc(gfp_t gfp,
 						   struct request_queue *q,

@@ -50,7 +50,6 @@ properties:
 
   reg:
     minItems: 1
-    maxItems: 3
     items:
       - description: base register
       - description: power register
@@ -62,13 +61,30 @@ properties:
     maxItems: 1
 
   '#clock-cells':
-    const: 1
+    true
 
   clock-output-names:
     minItems: 1
     maxItems: 45
 
 allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - brcm,cygnus-armpll
+              - brcm,nsp-armpll
+    then:
+      properties:
+        '#clock-cells':
+          const: 0
+    else:
+      properties:
+        '#clock-cells':
+          const: 1
+      required:
+        - clock-output-names
   - if:
       properties:
         compatible:
@@ -359,7 +375,6 @@ required:
   - reg
   - clocks
   - '#clock-cells'
-  - clock-output-names
 
 additionalProperties: false
 
@@ -392,4 +407,11 @@ examples:
         reg = <0x301d048 0xc>, <0x180aa024 0x4>;
         clocks = <&osc2>;
         clock-output-names = "keypad", "adc/touch", "pwm";
+    };
+  - |
+    arm_clk@0 {
+        #clock-cells = <0>;
+        compatible = "brcm,nsp-armpll";
+        clocks = <&osc>;
+        reg = <0x0 0x1000>;
     };

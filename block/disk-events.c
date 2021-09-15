@@ -163,15 +163,31 @@ void disk_flush_events(struct gendisk *disk, unsigned int mask)
 	spin_unlock_irq(&ev->lock);
 }
 
+/*
+ * Tell userland about new events.  Only the events listed in @disk->events are
+ * reported, and only if DISK_EVENT_FLAG_UEVENT is set.  Otherwise, events are
+ * processed internally but never get reported to userland.
+ */
+static void disk_event_uevent(struct gendisk *disk, unsigned int events)
+{
+	char *envp[ARRAY_SIZE(disk_uevents) + 1] = { };
+	int nr_events = 0, i;
+
+	for (i = 0; i < ARRAY_SIZE(disk_uevents); i++)
+		if (events & disk->events & (1 << i))
+			envp[nr_events++] = disk_uevents[i];
+
+	if (nr_events)
+		kobject_uevent_env(&disk_to_dev(disk)->kobj, KOBJ_CHANGE, envp);
+}
+
 static void disk_check_events(struct disk_events *ev,
 			      unsigned int *clearing_ptr)
 {
 	struct gendisk *disk = ev->disk;
-	char *envp[ARRAY_SIZE(disk_uevents) + 1] = { };
 	unsigned int clearing = *clearing_ptr;
 	unsigned int events;
 	unsigned long intv;
-	int nr_events = 0, i;
 
 	/* check events */
 	events = disk->fops->check_events(disk, clearing);
@@ -190,19 +206,11 @@ static void disk_check_events(struct disk_events *ev,
 
 	spin_unlock_irq(&ev->lock);
 
-	/*
-	 * Tell userland about new events.  Only the events listed in
-	 * @disk->events are reported, and only if DISK_EVENT_FLAG_UEVENT
-	 * is set. Otherwise, events are processed internally but never
-	 * get reported to userland.
-	 */
-	for (i = 0; i < ARRAY_SIZE(disk_uevents); i++)
-		if ((events & disk->events & (1 << i)) &&
-		    (disk->event_flags & DISK_EVENT_FLAG_UEVENT))
-			envp[nr_events++] = disk_uevents[i];
+	if (events & DISK_EVENT_MEDIA_CHANGE)
+		inc_diskseq(disk);
 
-	if (nr_events)
-		kobject_uevent_env(&disk_to_dev(disk)->kobj, KOBJ_CHANGE, envp);
+	if (disk->event_flags & DISK_EVENT_FLAG_UEVENT)
+		disk_event_uevent(disk, events);
 }
 
 /**
@@ -280,6 +288,32 @@ bool bdev_check_media_change(struct block_device *bdev)
 	return true;
 }
 EXPORT_SYMBOL(bdev_check_media_change);
+
+/**
+ * disk_force_media_change - force a media change event
+ * @disk: the disk which will raise the event
+ * @events: the events to raise
+ *
+ * Generate uevents for the disk. If DISK_EVENT_MEDIA_CHANGE is present,
+ * attempt to free all dentries and inodes and invalidates all block
+ * device page cache entries in that case.
+ *
+ * Returns %true if DISK_EVENT_MEDIA_CHANGE was raised, or %false if not.
+ */
+bool disk_force_media_change(struct gendisk *disk, unsigned int events)
+{
+	disk_event_uevent(disk, events);
+
+	if (!(events & DISK_EVENT_MEDIA_CHANGE))
+		return false;
+
+	if (__invalidate_device(disk->part0, true))
+		pr_warn("VFS: busy inodes on changed media %s\n",
+			disk->disk_name);
+	set_bit(GD_NEED_PART_SCAN, &disk->state);
+	return true;
+}
+EXPORT_SYMBOL_GPL(disk_force_media_change);
 
 /*
  * Separate this part out so that a different pointer for clearing_ptr can be
@@ -410,17 +444,17 @@ module_param_cb(events_dfl_poll_msecs, &disk_events_dfl_poll_msecs_param_ops,
 /*
  * disk_{alloc|add|del|release}_events - initialize and destroy disk_events.
  */
-void disk_alloc_events(struct gendisk *disk)
+int disk_alloc_events(struct gendisk *disk)
 {
 	struct disk_events *ev;
 
 	if (!disk->fops->check_events || !disk->events)
-		return;
+		return 0;
 
 	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
 	if (!ev) {
 		pr_warn("%s: failed to initialize events\n", disk->disk_name);
-		return;
+		return -ENOMEM;
 	}
 
 	INIT_LIST_HEAD(&ev->node);
@@ -432,6 +466,7 @@ void disk_alloc_events(struct gendisk *disk)
 	INIT_DELAYED_WORK(&ev->dwork, disk_events_workfn);
 
 	disk->ev = ev;
+	return 0;
 }
 
 void disk_add_events(struct gendisk *disk)

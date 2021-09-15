@@ -48,7 +48,6 @@ void rtw_os_indicate_connect(struct adapter *adapter)
 		rtw_cfg80211_indicate_connect(adapter);
 	}
 
-	rtw_indicate_wx_assoc_event(adapter);
 	netif_carrier_on(adapter->pnetdev);
 
 	if (adapter->pid[2] != 0)
@@ -58,7 +57,6 @@ void rtw_os_indicate_connect(struct adapter *adapter)
 void rtw_os_indicate_scan_done(struct adapter *padapter, bool aborted)
 {
 	rtw_cfg80211_indicate_scan_done(padapter, aborted);
-	indicate_wx_scan_complete_event(padapter);
 }
 
 static struct rt_pmkid_list   backupPMKIDList[NUM_PMKID_CACHE];
@@ -128,8 +126,6 @@ void rtw_os_indicate_disconnect(struct adapter *adapter)
 	netif_carrier_off(adapter->pnetdev); /*  Do it first for tx broadcast pkt after disconnection issue! */
 
 	rtw_cfg80211_indicate_disconnect(adapter);
-
-	rtw_indicate_wx_disassoc_event(adapter);
 
 	/* modify for CONFIG_IEEE80211W, none 11w also can use the same command */
 	rtw_reset_securitypriv_cmd(adapter);

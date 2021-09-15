@@ -384,7 +384,7 @@ static void update_outbnd_queue_table(struct pm8001_hba_info *pm8001_ha,
 
 /**
  * pm8001_bar4_shift - function is called to shift BAR base address
- * @pm8001_ha : our hba card infomation
+ * @pm8001_ha : our hba card information
  * @shiftValue : shifting value in memory bar.
  */
 int pm8001_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue)
@@ -1151,7 +1151,7 @@ static void pm8001_hw_chip_rst(struct pm8001_hba_info *pm8001_ha)
 }
 
 /**
- * pm8001_chip_iounmap - which maped when initialized.
+ * pm8001_chip_iounmap - which mapped when initialized.
  * @pm8001_ha: our hba card information
  */
 void pm8001_chip_iounmap(struct pm8001_hba_info *pm8001_ha)
@@ -1187,10 +1187,10 @@ pm8001_chip_intx_interrupt_enable(struct pm8001_hba_info *pm8001_ha)
 	pm8001_cw32(pm8001_ha, 0, MSGU_ODCR, ODCR_CLEAR_ALL);
 }
 
- /**
-  * pm8001_chip_intx_interrupt_disable- disable PM8001 chip interrupt
-  * @pm8001_ha: our hba card information
-  */
+/**
+ * pm8001_chip_intx_interrupt_disable - disable PM8001 chip interrupt
+ * @pm8001_ha: our hba card information
+ */
 static void
 pm8001_chip_intx_interrupt_disable(struct pm8001_hba_info *pm8001_ha)
 {
@@ -1323,7 +1323,7 @@ int pm8001_mpi_build_cmd(struct pm8001_hba_info *pm8001_ha,
 	void *pMessage;
 	unsigned long flags;
 	int q_index = circularQ - pm8001_ha->inbnd_q_tbl;
-	int rv = -1;
+	int rv;
 
 	WARN_ON(q_index >= PM8001_MAX_INB_NUM);
 	spin_lock_irqsave(&circularQ->iq_lock, flags);
@@ -1876,8 +1876,8 @@ static void pm8001_send_read_log(struct pm8001_hba_info *pm8001_ha,
  * @piomb: the message contents of this outbound message.
  *
  * When FW has completed a ssp request for example a IO request, after it has
- * filled the SG data with the data, it will trigger this event represent
- * that he has finished the job,please check the coresponding buffer.
+ * filled the SG data with the data, it will trigger this event representing
+ * that he has finished the job; please check the corresponding buffer.
  * So we will tell the caller who maybe waiting the result to tell upper layer
  * that the task has been finished.
  */
@@ -3522,7 +3522,7 @@ hw_event_phy_down(struct pm8001_hba_info *pm8001_ha, void *piomb)
  *
  * when sas layer find a device it will notify LLDD, then the driver register
  * the domain device to FW, this event is the return device ID which the FW
- * has assigned, from now,inter-communication with FW is no longer using the
+ * has assigned, from now, inter-communication with FW is no longer using the
  * SAS address, use device ID which FW assigned.
  */
 int pm8001_mpi_reg_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)

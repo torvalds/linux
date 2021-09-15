@@ -34,12 +34,35 @@ void copy_user_highpage(struct page *to, struct page *from,
 			unsigned long u_vaddr, struct vm_area_struct *vma);
 void clear_user_page(void *to, unsigned long u_vaddr, struct page *page);
 
-#undef STRICT_MM_TYPECHECKS
+typedef struct {
+	unsigned long pgd;
+} pgd_t;
 
-#ifdef STRICT_MM_TYPECHECKS
-/*
- * These are used to make use of C type-checking..
- */
+#define pgd_val(x)	((x).pgd)
+#define __pgd(x)	((pgd_t) { (x) })
+
+#if CONFIG_PGTABLE_LEVELS > 3
+
+typedef struct {
+	unsigned long pud;
+} pud_t;
+
+#define pud_val(x)      	((x).pud)
+#define __pud(x)        	((pud_t) { (x) })
+
+#endif
+
+#if CONFIG_PGTABLE_LEVELS > 2
+
+typedef struct {
+	unsigned long pmd;
+} pmd_t;
+
+#define pmd_val(x)	((x).pmd)
+#define __pmd(x)	((pmd_t) { (x) })
+
+#endif
+
 typedef struct {
 #ifdef CONFIG_ARC_HAS_PAE40
 	unsigned long long pte;
@@ -47,44 +70,19 @@ typedef struct {
 	unsigned long pte;
 #endif
 } pte_t;
-typedef struct {
-	unsigned long pgd;
-} pgd_t;
+
+#define pte_val(x)	((x).pte)
+#define __pte(x)	((pte_t) { (x) })
+
 typedef struct {
 	unsigned long pgprot;
 } pgprot_t;
 
-#define pte_val(x)      ((x).pte)
-#define pgd_val(x)      ((x).pgd)
-#define pgprot_val(x)   ((x).pgprot)
+#define pgprot_val(x)	((x).pgprot)
+#define __pgprot(x)	((pgprot_t) { (x) })
+#define pte_pgprot(x)	__pgprot(pte_val(x))
 
-#define __pte(x)        ((pte_t) { (x) })
-#define __pgd(x)        ((pgd_t) { (x) })
-#define __pgprot(x)     ((pgprot_t) { (x) })
-
-#define pte_pgprot(x) __pgprot(pte_val(x))
-
-#else /* !STRICT_MM_TYPECHECKS */
-
-#ifdef CONFIG_ARC_HAS_PAE40
-typedef unsigned long long pte_t;
-#else
-typedef unsigned long pte_t;
-#endif
-typedef unsigned long pgd_t;
-typedef unsigned long pgprot_t;
-
-#define pte_val(x)	(x)
-#define pgd_val(x)	(x)
-#define pgprot_val(x)	(x)
-#define __pte(x)	(x)
-#define __pgd(x)	(x)
-#define __pgprot(x)	(x)
-#define pte_pgprot(x)	(x)
-
-#endif
-
-typedef pte_t * pgtable_t;
+typedef struct page *pgtable_t;
 
 /*
  * Use virt_to_pfn with caution:
@@ -122,8 +120,8 @@ extern int pfn_valid(unsigned long pfn);
  * virt here means link-address/program-address as embedded in object code.
  * And for ARC, link-addr = physical address
  */
-#define __pa(vaddr)  ((unsigned long)(vaddr))
-#define __va(paddr)  ((void *)((unsigned long)(paddr)))
+#define __pa(vaddr)  		((unsigned long)(vaddr))
+#define __va(paddr)  		((void *)((unsigned long)(paddr)))
 
 #define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
 #define virt_addr_valid(kaddr)  pfn_valid(virt_to_pfn(kaddr))

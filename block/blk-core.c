@@ -14,7 +14,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/backing-dev.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
@@ -122,7 +121,6 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	rq->internal_tag = BLK_MQ_NO_TAG;
 	rq->start_time_ns = ktime_get_ns();
 	rq->part = NULL;
-	refcount_set(&rq->ref, 1);
 	blk_crypto_rq_set_defaults(rq);
 }
 EXPORT_SYMBOL(blk_rq_init);
@@ -394,10 +392,7 @@ void blk_cleanup_queue(struct request_queue *q)
 	/* for synchronous bio-based driver finish in-flight integrity i/o */
 	blk_flush_integrity();
 
-	/* @q won't process any more request, flush async actions */
-	del_timer_sync(&q->backing_dev_info->laptop_mode_wb_timer);
 	blk_sync_queue(q);
-
 	if (queue_is_mq(q))
 		blk_mq_exit_queue(q);
 
@@ -534,20 +529,14 @@ struct request_queue *blk_alloc_queue(int node_id)
 	if (ret)
 		goto fail_id;
 
-	q->backing_dev_info = bdi_alloc(node_id);
-	if (!q->backing_dev_info)
-		goto fail_split;
-
 	q->stats = blk_alloc_queue_stats();
 	if (!q->stats)
-		goto fail_stats;
+		goto fail_split;
 
 	q->node = node_id;
 
 	atomic_set(&q->nr_active_requests_shared_sbitmap, 0);
 
-	timer_setup(&q->backing_dev_info->laptop_mode_wb_timer,
-		    laptop_mode_timer_fn, 0);
 	timer_setup(&q->timeout, blk_rq_timed_out_timer, 0);
 	INIT_WORK(&q->timeout_work, blk_timeout_work);
 	INIT_LIST_HEAD(&q->icq_list);
@@ -572,7 +561,7 @@ struct request_queue *blk_alloc_queue(int node_id)
 	if (percpu_ref_init(&q->q_usage_counter,
 				blk_queue_usage_counter_release,
 				PERCPU_REF_INIT_ATOMIC, GFP_KERNEL))
-		goto fail_bdi;
+		goto fail_stats;
 
 	if (blkcg_init_queue(q))
 		goto fail_ref;
@@ -585,10 +574,8 @@ struct request_queue *blk_alloc_queue(int node_id)
 
 fail_ref:
 	percpu_ref_exit(&q->q_usage_counter);
-fail_bdi:
-	blk_free_queue_stats(q->stats);
 fail_stats:
-	bdi_put(q->backing_dev_info);
+	blk_free_queue_stats(q->stats);
 fail_split:
 	bioset_exit(&q->bio_split);
 fail_id:
@@ -834,7 +821,7 @@ static noinline_for_stack bool submit_bio_checks(struct bio *bio)
 	}
 
 	if (!test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
-		bio->bi_opf &= ~REQ_HIPRI;
+		bio_clear_hipri(bio);
 
 	switch (bio_op(bio)) {
 	case REQ_OP_DISCARD:

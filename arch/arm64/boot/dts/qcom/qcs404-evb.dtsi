@@ -337,7 +337,7 @@
 &usb3 {
 	status = "okay";
 
-	usb@7580000 {
+	dwc3@7580000 {
 		dr_mode = "host";
 	};
 };

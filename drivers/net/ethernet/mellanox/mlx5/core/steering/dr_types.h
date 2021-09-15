@@ -83,15 +83,14 @@ enum {
 	DR_STE_SIZE_CTRL = 32,
 	DR_STE_SIZE_TAG = 16,
 	DR_STE_SIZE_MASK = 16,
-};
-
-enum {
 	DR_STE_SIZE_REDUCED = DR_STE_SIZE - DR_STE_SIZE_MASK,
 };
 
 enum mlx5dr_ste_ctx_action_cap {
 	DR_STE_CTX_ACTION_CAP_NONE = 0,
-	DR_STE_CTX_ACTION_CAP_RX_ENCAP = 1 << 0,
+	DR_STE_CTX_ACTION_CAP_TX_POP   = 1 << 0,
+	DR_STE_CTX_ACTION_CAP_RX_PUSH  = 1 << 1,
+	DR_STE_CTX_ACTION_CAP_RX_ENCAP = 1 << 2,
 };
 
 enum {
@@ -124,6 +123,7 @@ enum mlx5dr_action_type {
 	DR_ACTION_TYP_POP_VLAN,
 	DR_ACTION_TYP_PUSH_VLAN,
 	DR_ACTION_TYP_INSERT_HDR,
+	DR_ACTION_TYP_REMOVE_HDR,
 	DR_ACTION_TYP_SAMPLER,
 	DR_ACTION_TYP_MAX,
 };
@@ -140,6 +140,7 @@ struct mlx5dr_icm_buddy_mem;
 struct mlx5dr_ste_htbl;
 struct mlx5dr_match_param;
 struct mlx5dr_cmd_caps;
+struct mlx5dr_rule_rx_tx;
 struct mlx5dr_matcher_rx_tx;
 struct mlx5dr_ste_ctx;
 
@@ -151,13 +152,13 @@ struct mlx5dr_ste {
 	/* attached to the miss_list head at each htbl entry */
 	struct list_head miss_list_node;
 
-	/* each rule member that uses this ste attached here */
-	struct list_head rule_list;
-
 	/* this ste is member of htbl */
 	struct mlx5dr_ste_htbl *htbl;
 
 	struct mlx5dr_ste_htbl *next_htbl;
+
+	/* The rule this STE belongs to */
+	struct mlx5dr_rule_rx_tx *rule_rx_tx;
 
 	/* this ste is part of a rule, located in ste's chain */
 	u8 ste_chain_location;
@@ -171,8 +172,6 @@ struct mlx5dr_ste_htbl_ctrl {
 
 	/* total number of collisions entries attached to this table */
 	unsigned int num_of_collisions;
-	unsigned int increase_threshold;
-	u8 may_grow:1;
 };
 
 struct mlx5dr_ste_htbl {
@@ -804,10 +803,15 @@ struct mlx5dr_cmd_caps {
 	u8 isolate_vl_tc:1;
 };
 
+enum mlx5dr_domain_nic_type {
+	DR_DOMAIN_NIC_TYPE_RX,
+	DR_DOMAIN_NIC_TYPE_TX,
+};
+
 struct mlx5dr_domain_rx_tx {
 	u64 drop_icm_addr;
 	u64 default_icm_addr;
-	enum mlx5dr_ste_entry_type ste_type;
+	enum mlx5dr_domain_nic_type type;
 	struct mutex mutex; /* protect rx/tx domain */
 };
 
@@ -883,14 +887,6 @@ struct mlx5dr_matcher {
 	u8 match_criteria;
 	refcount_t refcount;
 	struct mlx5dv_flow_matcher *dv_matcher;
-};
-
-struct mlx5dr_rule_member {
-	struct mlx5dr_ste *ste;
-	/* attached to mlx5dr_rule via this */
-	struct list_head list;
-	/* attached to mlx5dr_ste via this */
-	struct list_head use_ste_list;
 };
 
 struct mlx5dr_ste_action_modify_field {
@@ -993,8 +989,8 @@ struct mlx5dr_htbl_connect_info {
 };
 
 struct mlx5dr_rule_rx_tx {
-	struct list_head rule_members_list;
 	struct mlx5dr_matcher_rx_tx *nic_matcher;
+	struct mlx5dr_ste *last_rule_ste;
 };
 
 struct mlx5dr_rule {
@@ -1005,8 +1001,12 @@ struct mlx5dr_rule {
 	u32 flow_source;
 };
 
-void mlx5dr_rule_update_rule_member(struct mlx5dr_ste *new_ste,
-				    struct mlx5dr_ste *ste);
+void mlx5dr_rule_set_last_member(struct mlx5dr_rule_rx_tx *nic_rule,
+				 struct mlx5dr_ste *ste,
+				 bool force);
+int mlx5dr_rule_get_reverse_rule_members(struct mlx5dr_ste **ste_arr,
+					 struct mlx5dr_ste *curr_ste,
+					 int *num_of_stes);
 
 struct mlx5dr_icm_chunk {
 	struct mlx5dr_icm_buddy_mem *buddy_mem;
@@ -1081,6 +1081,25 @@ mlx5dr_icm_pool_chunk_size_to_byte(enum mlx5dr_icm_chunk_size chunk_size,
 	num_of_entries = mlx5dr_icm_pool_chunk_size_to_entries(chunk_size);
 
 	return entry_size * num_of_entries;
+}
+
+static inline int
+mlx5dr_ste_htbl_increase_threshold(struct mlx5dr_ste_htbl *htbl)
+{
+	int num_of_entries =
+		mlx5dr_icm_pool_chunk_size_to_entries(htbl->chunk_size);
+
+	/* Threshold is 50%, one is added to table of size 1 */
+	return (num_of_entries + 1) / 2;
+}
+
+static inline bool
+mlx5dr_ste_htbl_may_grow(struct mlx5dr_ste_htbl *htbl)
+{
+	if (htbl->chunk_size == DR_CHUNK_SIZE_MAX - 1 || !htbl->byte_mask)
+		return false;
+
+	return true;
 }
 
 static inline struct mlx5dr_cmd_vport_cap *
@@ -1216,7 +1235,7 @@ int mlx5dr_ste_htbl_init_and_postsend(struct mlx5dr_domain *dmn,
 				      bool update_hw_ste);
 void mlx5dr_ste_set_formatted_ste(struct mlx5dr_ste_ctx *ste_ctx,
 				  u16 gvmi,
-				  struct mlx5dr_domain_rx_tx *nic_dmn,
+				  enum mlx5dr_domain_nic_type nic_type,
 				  struct mlx5dr_ste_htbl *htbl,
 				  u8 *formatted_ste,
 				  struct mlx5dr_htbl_connect_info *connect_info);
@@ -1282,6 +1301,7 @@ struct mlx5dr_send_ring {
 	u8 sync_buff[MIN_READ_SYNC];
 	struct mlx5dr_mr *sync_mr;
 	spinlock_t lock; /* Protect the data path of the send ring */
+	bool err_state; /* send_ring is not usable in err state */
 };
 
 int mlx5dr_send_ring_alloc(struct mlx5dr_domain *dmn);
@@ -1333,6 +1353,7 @@ struct mlx5dr_cmd_fte_info {
 	u32 *val;
 	struct mlx5_flow_act action;
 	struct mlx5dr_cmd_flow_destination_hw_info *dest_arr;
+	bool ignore_flow_level;
 };
 
 int mlx5dr_cmd_set_fte(struct mlx5_core_dev *dev,
@@ -1362,7 +1383,8 @@ int mlx5dr_fw_create_md_tbl(struct mlx5dr_domain *dmn,
 			    int num_dest,
 			    bool reformat_req,
 			    u32 *tbl_id,
-			    u32 *group_id);
+			    u32 *group_id,
+			    bool ignore_flow_level);
 void mlx5dr_fw_destroy_md_tbl(struct mlx5dr_domain *dmn, u32 tbl_id,
 			      u32 group_id);
 #endif  /* _DR_TYPES_H_ */

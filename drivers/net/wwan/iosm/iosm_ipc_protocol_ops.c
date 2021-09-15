@@ -74,9 +74,9 @@ static int ipc_protocol_msg_prepipe_open(struct iosm_protocol *ipc_protocol,
 		return -ENOMEM;
 
 	/* Allocate the transfer descriptors for the pipe. */
-	tdr = pci_alloc_consistent(ipc_protocol->pcie->pci,
-				   pipe->nr_of_entries * sizeof(*tdr),
-				   &pipe->phy_tdr_start);
+	tdr = dma_alloc_coherent(&ipc_protocol->pcie->pci->dev,
+				 pipe->nr_of_entries * sizeof(*tdr),
+				 &pipe->phy_tdr_start, GFP_ATOMIC);
 	if (!tdr) {
 		kfree(skbr);
 		dev_err(ipc_protocol->dev, "tdr alloc error");
@@ -412,8 +412,8 @@ struct sk_buff *ipc_protocol_dl_td_process(struct iosm_protocol *ipc_protocol,
 	}
 
 	if (p_td->buffer.address != IPC_CB(skb)->mapping) {
-		dev_err(ipc_protocol->dev, "invalid buf=%p or skb=%p",
-			(void *)p_td->buffer.address, skb->data);
+		dev_err(ipc_protocol->dev, "invalid buf=%llx or skb=%p",
+			(unsigned long long)p_td->buffer.address, skb->data);
 		ipc_pcie_kfree_skb(ipc_protocol->pcie, skb);
 		skb = NULL;
 		goto ret;
@@ -492,10 +492,9 @@ void ipc_protocol_pipe_cleanup(struct iosm_protocol *ipc_protocol,
 
 	/* Free and reset the td and skbuf circular buffers. kfree is save! */
 	if (pipe->tdr_start) {
-		pci_free_consistent(ipc_protocol->pcie->pci,
-				    sizeof(*pipe->tdr_start) *
-					    pipe->nr_of_entries,
-				    pipe->tdr_start, pipe->phy_tdr_start);
+		dma_free_coherent(&ipc_protocol->pcie->pci->dev,
+				  sizeof(*pipe->tdr_start) * pipe->nr_of_entries,
+				  pipe->tdr_start, pipe->phy_tdr_start);
 
 		pipe->tdr_start = NULL;
 	}

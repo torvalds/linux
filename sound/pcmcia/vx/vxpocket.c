@@ -51,19 +51,6 @@ static void vxpocket_release(struct pcmcia_device *link)
 }
 
 /*
- * destructor, called from snd_card_free_when_closed()
- */
-static int snd_vxpocket_dev_free(struct snd_device *device)
-{
-	struct vx_core *chip = device->device_data;
-
-	snd_vx_free_firmware(chip);
-	kfree(chip);
-	return 0;
-}
-
-
-/*
  * Hardware information
  */
 
@@ -122,21 +109,12 @@ static int snd_vxpocket_new(struct snd_card *card, int ibl,
 {
 	struct vx_core *chip;
 	struct snd_vxpocket *vxp;
-	static const struct snd_device_ops ops = {
-		.dev_free =	snd_vxpocket_dev_free,
-	};
-	int err;
 
 	chip = snd_vx_create(card, &vxpocket_hw, &snd_vxpocket_ops,
 			     sizeof(struct snd_vxpocket) - sizeof(struct vx_core));
 	if (!chip)
 		return -ENOMEM;
 
-	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
-	if (err < 0) {
-		kfree(chip);
-		return err;
-	}
 	chip->ibl.size = ibl;
 
 	vxp = to_vxpocket(chip);

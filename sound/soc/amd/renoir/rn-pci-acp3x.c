@@ -382,6 +382,8 @@ static const struct dev_pm_ops rn_acp_pm = {
 	.runtime_resume =  snd_rn_acp_resume,
 	.suspend = snd_rn_acp_suspend,
 	.resume =	snd_rn_acp_resume,
+	.restore =	snd_rn_acp_resume,
+	.poweroff =	snd_rn_acp_suspend,
 };
 
 static void snd_rn_acp_remove(struct pci_dev *pci)

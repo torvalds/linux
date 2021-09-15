@@ -104,4 +104,63 @@ static inline bool arch_syscall_is_vdso_sigreturn(struct pt_regs *regs)
 	return false;
 }
 
+#define SYSCALL_FMT_0
+#define SYSCALL_FMT_1 , "0" (r2)
+#define SYSCALL_FMT_2 , "d" (r3) SYSCALL_FMT_1
+#define SYSCALL_FMT_3 , "d" (r4) SYSCALL_FMT_2
+#define SYSCALL_FMT_4 , "d" (r5) SYSCALL_FMT_3
+#define SYSCALL_FMT_5 , "d" (r6) SYSCALL_FMT_4
+#define SYSCALL_FMT_6 , "d" (r7) SYSCALL_FMT_5
+
+#define SYSCALL_PARM_0
+#define SYSCALL_PARM_1 , long arg1
+#define SYSCALL_PARM_2 SYSCALL_PARM_1, long arg2
+#define SYSCALL_PARM_3 SYSCALL_PARM_2, long arg3
+#define SYSCALL_PARM_4 SYSCALL_PARM_3, long arg4
+#define SYSCALL_PARM_5 SYSCALL_PARM_4, long arg5
+#define SYSCALL_PARM_6 SYSCALL_PARM_5, long arg6
+
+#define SYSCALL_REGS_0
+#define SYSCALL_REGS_1							\
+	register long r2 asm("2") = arg1
+#define SYSCALL_REGS_2							\
+	SYSCALL_REGS_1;							\
+	register long r3 asm("3") = arg2
+#define SYSCALL_REGS_3							\
+	SYSCALL_REGS_2;							\
+	register long r4 asm("4") = arg3
+#define SYSCALL_REGS_4							\
+	SYSCALL_REGS_3;							\
+	register long r5 asm("5") = arg4
+#define SYSCALL_REGS_5							\
+	SYSCALL_REGS_4;							\
+	register long r6 asm("6") = arg5
+#define SYSCALL_REGS_6							\
+	SYSCALL_REGS_5;							\
+	register long r7 asm("7") = arg6
+
+#define GENERATE_SYSCALL_FUNC(nr)					\
+static __always_inline							\
+long syscall##nr(unsigned long syscall SYSCALL_PARM_##nr)		\
+{									\
+	register unsigned long r1 asm ("1") = syscall;			\
+	register long rc asm ("2");					\
+	SYSCALL_REGS_##nr;						\
+									\
+	asm volatile (							\
+		"	svc	0\n"					\
+		: "=d" (rc)						\
+		: "d" (r1) SYSCALL_FMT_##nr				\
+		: "memory");						\
+	return rc;							\
+}
+
+GENERATE_SYSCALL_FUNC(0)
+GENERATE_SYSCALL_FUNC(1)
+GENERATE_SYSCALL_FUNC(2)
+GENERATE_SYSCALL_FUNC(3)
+GENERATE_SYSCALL_FUNC(4)
+GENERATE_SYSCALL_FUNC(5)
+GENERATE_SYSCALL_FUNC(6)
+
 #endif	/* _ASM_SYSCALL_H */

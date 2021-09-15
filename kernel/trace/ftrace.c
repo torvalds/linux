@@ -3100,6 +3100,7 @@ ops_references_rec(struct ftrace_ops *ops, struct dyn_ftrace *rec)
 
 static int ftrace_update_code(struct module *mod, struct ftrace_page *new_pgs)
 {
+	bool init_nop = ftrace_need_init_nop();
 	struct ftrace_page *pg;
 	struct dyn_ftrace *p;
 	u64 start, stop;
@@ -3138,8 +3139,7 @@ static int ftrace_update_code(struct module *mod, struct ftrace_page *new_pgs)
 			 * Do the initial record conversion from mcount jump
 			 * to the NOP instructions.
 			 */
-			if (!__is_defined(CC_USING_NOP_MCOUNT) &&
-			    !ftrace_nop_initialize(mod, p))
+			if (init_nop && !ftrace_nop_initialize(mod, p))
 				break;
 
 			update_cnt++;
@@ -5985,7 +5985,8 @@ ftrace_graph_release(struct inode *inode, struct file *file)
 		 * infrastructure to do the synchronization, thus we must do it
 		 * ourselves.
 		 */
-		synchronize_rcu_tasks_rude();
+		if (old_hash != EMPTY_HASH)
+			synchronize_rcu_tasks_rude();
 
 		free_ftrace_hash(old_hash);
 	}
@@ -7544,7 +7545,7 @@ int ftrace_is_dead(void)
  */
 int register_ftrace_function(struct ftrace_ops *ops)
 {
-	int ret = -1;
+	int ret;
 
 	ftrace_ops_init(ops);
 

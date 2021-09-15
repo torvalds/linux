@@ -644,10 +644,13 @@ static int hfi1_ipoib_sdma_sleep(struct sdma_engine *sde,
 			/* came from non-list submit */
 			list_add_tail(&txreq->list, &txq->tx_list);
 		if (list_empty(&txq->wait.list)) {
+			struct hfi1_ibport *ibp = &sde->ppd->ibport_data;
+
 			if (!atomic_xchg(&txq->no_desc, 1)) {
 				trace_hfi1_txq_queued(txq);
 				hfi1_ipoib_stop_txq(txq);
 			}
+			ibp->rvp.n_dmawait++;
 			iowait_queue(pkts_sent, wait->iow, &sde->dmawait);
 		}
 

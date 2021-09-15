@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*  Marvell OcteonTx2 RPM driver
+/* Marvell CN10K RPM driver
  *
  * Copyright (C) 2020 Marvell.
+ *
  */
 
 #ifndef LMAC_COMMON_H
@@ -10,17 +11,19 @@
 #include "rvu.h"
 #include "cgx.h"
 /**
- * struct lmac
+ * struct lmac - per lmac locks and properties
  * @wq_cmd_cmplt:	waitq to keep the process blocked until cmd completion
  * @cmd_lock:		Lock to serialize the command interface
  * @resp:		command response
  * @link_info:		link related information
+ * @mac_to_index_bmap:	Mac address to CGX table index mapping
  * @event_cb:		callback for linkchange events
  * @event_cb_lock:	lock for serializing callback with unregister
+ * @cgx:		parent cgx port
+ * @mcast_filters_count:  Number of multicast filters installed
+ * @lmac_id:		lmac port id
  * @cmd_pend:		flag set before new command is started
  *			flag cleared after command response is received
- * @cgx:		parent cgx port
- * @lmac_id:		lmac port id
  * @name:		lmac port name
  */
 struct lmac {
@@ -29,12 +32,14 @@ struct lmac {
 	struct mutex cmd_lock;
 	u64 resp;
 	struct cgx_link_user_info link_info;
+	struct rsrc_bmap mac_to_index_bmap;
 	struct cgx_event_cb event_cb;
 	/* lock for serializing callback with unregister */
 	spinlock_t event_cb_lock;
-	bool cmd_pend;
 	struct cgx *cgx;
+	u8 mcast_filters_count;
 	u8 lmac_id;
+	bool cmd_pend;
 	char *name;
 };
 

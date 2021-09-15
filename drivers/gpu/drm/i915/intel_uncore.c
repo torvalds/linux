@@ -2149,7 +2149,7 @@ int intel_uncore_init_mmio(struct intel_uncore *uncore)
 		return -ENODEV;
 	}
 
-	if (INTEL_GEN(i915) > 5 && !intel_vgpu_active(i915))
+	if (GRAPHICS_VER(i915) > 5 && !intel_vgpu_active(i915))
 		uncore->flags |= UNCORE_HAS_FORCEWAKE;
 
 	if (!intel_uncore_has_forcewake(uncore)) {

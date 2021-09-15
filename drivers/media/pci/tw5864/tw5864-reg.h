@@ -663,7 +663,7 @@
 #define TW5864_SYNC 0x8008
 /* Define controls in register TW5864_SYNC */
 /*
- * 0 vlc stream to syncrous port
+ * 0 vlc stream to synchronous port
  * 1 vlc stream to ddr buffers
  */
 #define TW5864_SYNC_CFG BIT(7)

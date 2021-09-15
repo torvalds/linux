@@ -15,15 +15,7 @@ that goes into great technical depth about the BPF Architecture.
 libbpf
 ======
 
-Libbpf is a userspace library for loading and interacting with bpf programs.
-
-.. toctree::
-   :maxdepth: 1
-
-   libbpf/libbpf
-   libbpf/libbpf_api
-   libbpf/libbpf_build
-   libbpf/libbpf_naming_convention
+Documentation/bpf/libbpf/libbpf.rst is a userspace library for loading and interacting with bpf programs.
 
 BPF Type Format (BTF)
 =====================

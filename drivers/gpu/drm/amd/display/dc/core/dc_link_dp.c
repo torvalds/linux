@@ -1241,29 +1241,15 @@ enum link_training_result dp_check_link_loss_status(
 static inline void decide_8b_10b_training_settings(
 	 struct dc_link *link,
 	const struct dc_link_settings *link_setting,
-	const struct dc_link_training_overrides *overrides,
 	struct link_training_settings *lt_settings)
 {
-	uint32_t lane;
-
 	memset(lt_settings, '\0', sizeof(struct link_training_settings));
 
 	/* Initialize link settings */
 	lt_settings->link_settings.use_link_rate_set = link_setting->use_link_rate_set;
 	lt_settings->link_settings.link_rate_set = link_setting->link_rate_set;
-
-	if (link->preferred_link_setting.link_rate != LINK_RATE_UNKNOWN)
-		lt_settings->link_settings.link_rate = link->preferred_link_setting.link_rate;
-	else
-		lt_settings->link_settings.link_rate = link_setting->link_rate;
-
-	if (link->preferred_link_setting.lane_count != LANE_COUNT_UNKNOWN)
-		lt_settings->link_settings.lane_count = link->preferred_link_setting.lane_count;
-	else
-		lt_settings->link_settings.lane_count = link_setting->lane_count;
-
-	/*@todo[vdevulap] move SS to LS, should not be handled by displaypath*/
-
+	lt_settings->link_settings.link_rate = link_setting->link_rate;
+	lt_settings->link_settings.lane_count = link_setting->lane_count;
 	/* TODO hard coded to SS for now
 	 * lt_settings.link_settings.link_spread =
 	 * dal_display_path_is_ss_supported(
@@ -1271,30 +1257,52 @@ static inline void decide_8b_10b_training_settings(
 	 * LINK_SPREAD_05_DOWNSPREAD_30KHZ :
 	 * LINK_SPREAD_DISABLED;
 	 */
-	/* Initialize link spread */
-	if (link->dp_ss_off)
-		lt_settings->link_settings.link_spread = LINK_SPREAD_DISABLED;
-	else if (overrides->downspread != NULL)
-		lt_settings->link_settings.link_spread
-			= *overrides->downspread
-			? LINK_SPREAD_05_DOWNSPREAD_30KHZ
-			: LINK_SPREAD_DISABLED;
-	else
-		lt_settings->link_settings.link_spread = LINK_SPREAD_05_DOWNSPREAD_30KHZ;
-
+	lt_settings->link_settings.link_spread = link->dp_ss_off ?
+			LINK_SPREAD_DISABLED : LINK_SPREAD_05_DOWNSPREAD_30KHZ;
 	lt_settings->lttpr_mode = link->lttpr_mode;
+	lt_settings->cr_pattern_time = get_cr_training_aux_rd_interval(link, link_setting);
+	lt_settings->eq_pattern_time = get_eq_training_aux_rd_interval(link, link_setting);
+	lt_settings->pattern_for_cr = decide_cr_training_pattern(link_setting);
+	lt_settings->pattern_for_eq = decide_eq_training_pattern(link, link_setting);
+	lt_settings->enhanced_framing = 1;
+	lt_settings->should_set_fec_ready = true;
+}
 
-	/* Initialize lane settings overrides */
+void dp_decide_training_settings(
+		struct dc_link *link,
+		const struct dc_link_settings *link_settings,
+		struct link_training_settings *lt_settings)
+{
+	if (dp_get_link_encoding_format(link_settings) == DP_8b_10b_ENCODING)
+		decide_8b_10b_training_settings(link, link_settings, lt_settings);
+}
+
+static void override_training_settings(
+		struct dc_link *link,
+		const struct dc_link_training_overrides *overrides,
+		struct link_training_settings *lt_settings)
+{
+	uint32_t lane;
+
+	/* Override link settings */
+	if (link->preferred_link_setting.link_rate != LINK_RATE_UNKNOWN)
+		lt_settings->link_settings.link_rate = link->preferred_link_setting.link_rate;
+	if (link->preferred_link_setting.lane_count != LANE_COUNT_UNKNOWN)
+		lt_settings->link_settings.lane_count = link->preferred_link_setting.lane_count;
+
+	/* Override link spread */
+	if (!link->dp_ss_off && overrides->downspread != NULL)
+		lt_settings->link_settings.link_spread = *overrides->downspread ?
+				LINK_SPREAD_05_DOWNSPREAD_30KHZ
+				: LINK_SPREAD_DISABLED;
+
+	/* Override lane settings */
 	if (overrides->voltage_swing != NULL)
 		lt_settings->voltage_swing = overrides->voltage_swing;
-
 	if (overrides->pre_emphasis != NULL)
 		lt_settings->pre_emphasis = overrides->pre_emphasis;
-
 	if (overrides->post_cursor2 != NULL)
 		lt_settings->post_cursor2 = overrides->post_cursor2;
-
-	/* Initialize lane settings (VS/PE/PC2) */
 	for (lane = 0; lane < LANE_COUNT_DP_MAX; lane++) {
 		lt_settings->lane_settings[lane].VOLTAGE_SWING =
 			lt_settings->voltage_swing != NULL ?
@@ -1313,44 +1321,21 @@ static inline void decide_8b_10b_training_settings(
 	/* Initialize training timings */
 	if (overrides->cr_pattern_time != NULL)
 		lt_settings->cr_pattern_time = *overrides->cr_pattern_time;
-	else
-		lt_settings->cr_pattern_time = get_cr_training_aux_rd_interval(link, link_setting);
 
 	if (overrides->eq_pattern_time != NULL)
 		lt_settings->eq_pattern_time = *overrides->eq_pattern_time;
-	else
-		lt_settings->eq_pattern_time = get_eq_training_aux_rd_interval(link, link_setting);
 
 	if (overrides->pattern_for_cr != NULL)
 		lt_settings->pattern_for_cr = *overrides->pattern_for_cr;
-	else
-		lt_settings->pattern_for_cr = decide_cr_training_pattern(link_setting);
 	if (overrides->pattern_for_eq != NULL)
 		lt_settings->pattern_for_eq = *overrides->pattern_for_eq;
-	else
-		lt_settings->pattern_for_eq = decide_eq_training_pattern(link, link_setting);
 
 	if (overrides->enhanced_framing != NULL)
 		lt_settings->enhanced_framing = *overrides->enhanced_framing;
-	else
-		lt_settings->enhanced_framing = 1;
 
 	if (link->preferred_training_settings.fec_enable != NULL)
 		lt_settings->should_set_fec_ready = *link->preferred_training_settings.fec_enable;
-	else
-		lt_settings->should_set_fec_ready = true;
 }
-
-void dp_decide_training_settings(
-		struct dc_link *link,
-		const struct dc_link_settings *link_settings,
-		const struct dc_link_training_overrides *overrides,
-		struct link_training_settings *lt_settings)
-{
-	if (dp_get_link_encoding_format(link_settings) == DP_8b_10b_ENCODING)
-		decide_8b_10b_training_settings(link, link_settings, overrides, lt_settings);
-}
-
 
 uint8_t dp_convert_to_count(uint8_t lttpr_repeater_count)
 {
@@ -1576,11 +1561,14 @@ bool dc_link_dp_perform_link_training_skip_aux(
 	struct dc_link *link,
 	const struct dc_link_settings *link_setting)
 {
-	struct link_training_settings lt_settings;
+	struct link_training_settings lt_settings = {0};
 
 	dp_decide_training_settings(
 			link,
 			link_setting,
+			&lt_settings);
+	override_training_settings(
+			link,
 			&link->preferred_training_settings,
 			&lt_settings);
 
@@ -1620,10 +1608,11 @@ enum dc_status dpcd_configure_lttpr_mode(struct dc_link *link, struct link_train
 {
 	enum dc_status status = DC_OK;
 
-	if (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
-		status = configure_lttpr_mode_non_transparent(link, lt_settings);
-	else
+	if (lt_settings->lttpr_mode == LTTPR_MODE_TRANSPARENT)
 		status = configure_lttpr_mode_transparent(link);
+
+	else if (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
+		status = configure_lttpr_mode_non_transparent(link, lt_settings);
 
 	return status;
 }
@@ -1718,7 +1707,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 	bool skip_video_pattern)
 {
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
-	struct link_training_settings lt_settings;
+	struct link_training_settings lt_settings = {0};
 	enum dp_link_encoding encoding =
 			dp_get_link_encoding_format(link_settings);
 
@@ -1726,6 +1715,9 @@ enum link_training_result dc_link_dp_perform_link_training(
 	dp_decide_training_settings(
 			link,
 			link_settings,
+			&lt_settings);
+	override_training_settings(
+			link,
 			&link->preferred_training_settings,
 			&lt_settings);
 
@@ -1784,7 +1776,6 @@ bool perform_link_training_with_retries(
 		link_enc = stream->link_enc;
 	else
 		link_enc = link->link_enc;
-	ASSERT(link_enc);
 
 	/* We need to do this before the link training to ensure the idle pattern in SST
 	 * mode will be sent right after the link training
@@ -1820,8 +1811,7 @@ bool perform_link_training_with_retries(
 					 */
 					panel_mode = DP_PANEL_MODE_DEFAULT;
 				}
-			} else
-				panel_mode = DP_PANEL_MODE_DEFAULT;
+			}
 		}
 #endif
 
@@ -1933,18 +1923,20 @@ enum link_training_result dc_link_dp_sync_lt_attempt(
     struct dc_link_settings *link_settings,
     struct dc_link_training_overrides *lt_overrides)
 {
-	struct link_training_settings lt_settings;
+	struct link_training_settings lt_settings = {0};
 	enum link_training_result lt_status = LINK_TRAINING_SUCCESS;
 	enum dp_panel_mode panel_mode = DP_PANEL_MODE_DEFAULT;
 	enum clock_source_id dp_cs_id = CLOCK_SOURCE_ID_EXTERNAL;
 	bool fec_enable = false;
 
 	dp_decide_training_settings(
-		link,
-		link_settings,
-		lt_overrides,
-		&lt_settings);
-
+			link,
+			link_settings,
+			&lt_settings);
+	override_training_settings(
+			link,
+			lt_overrides,
+			&lt_settings);
 	/* Setup MST Mode */
 	if (lt_overrides->mst_enable)
 		set_dp_mst_mode(link, *lt_overrides->mst_enable);
@@ -3603,29 +3595,12 @@ static bool dpcd_read_sink_ext_caps(struct dc_link *link)
 bool dp_retrieve_lttpr_cap(struct dc_link *link)
 {
 	uint8_t lttpr_dpcd_data[6];
-	bool vbios_lttpr_enable = false;
-	bool vbios_lttpr_interop = false;
-	struct dc_bios *bios = link->dc->ctx->dc_bios;
+	bool vbios_lttpr_enable = link->dc->caps.vbios_lttpr_enable;
+	bool vbios_lttpr_interop = link->dc->caps.vbios_lttpr_aware;
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	bool is_lttpr_present = false;
 
 	memset(lttpr_dpcd_data, '\0', sizeof(lttpr_dpcd_data));
-	/* Query BIOS to determine if LTTPR functionality is forced on by system */
-	if (bios->funcs->get_lttpr_caps) {
-		enum bp_result bp_query_result;
-		uint8_t is_vbios_lttpr_enable = 0;
-
-		bp_query_result = bios->funcs->get_lttpr_caps(bios, &is_vbios_lttpr_enable);
-		vbios_lttpr_enable = (bp_query_result == BP_RESULT_OK) && !!is_vbios_lttpr_enable;
-	}
-
-	if (bios->funcs->get_lttpr_interop) {
-		enum bp_result bp_query_result;
-		uint8_t is_vbios_interop_enabled = 0;
-
-		bp_query_result = bios->funcs->get_lttpr_interop(bios, &is_vbios_interop_enabled);
-		vbios_lttpr_interop = (bp_query_result == BP_RESULT_OK) && !!is_vbios_interop_enabled;
-	}
 
 	/*
 	 * Logic to determine LTTPR mode
@@ -4650,7 +4625,10 @@ enum dp_panel_mode dp_get_panel_mode(struct dc_link *link)
 		}
 	}
 
-	if (link->dpcd_caps.panel_mode_edp) {
+	if (link->dpcd_caps.panel_mode_edp &&
+		(link->connector_signal == SIGNAL_TYPE_EDP ||
+		 (link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
+		  link->is_internal_display))) {
 		return DP_PANEL_MODE_EDP;
 	}
 
@@ -4791,10 +4769,18 @@ void dpcd_set_source_specific_data(struct dc_link *link)
 
 			uint8_t hblank_size = (uint8_t)link->dc->caps.min_horizontal_blanking_period;
 
-			result_write_min_hblank = core_link_write_dpcd(link,
-				DP_SOURCE_MINIMUM_HBLANK_SUPPORTED, (uint8_t *)(&hblank_size),
-				sizeof(hblank_size));
+			if (link->preferred_link_setting.dpcd_source_device_specific_field_support) {
+				result_write_min_hblank = core_link_write_dpcd(link,
+					DP_SOURCE_MINIMUM_HBLANK_SUPPORTED, (uint8_t *)(&hblank_size),
+					sizeof(hblank_size));
+
+				if (result_write_min_hblank == DC_ERROR_UNEXPECTED)
+					link->preferred_link_setting.dpcd_source_device_specific_field_support = false;
+			} else {
+				DC_LOG_DC("Sink device does not support 00340h DPCD write. Skipping on purpose.\n");
+			}
 		}
+
 		DC_TRACE_LEVEL_MESSAGE(DAL_TRACE_LEVEL_INFORMATION,
 							WPP_BIT_FLAG_DC_DETECTION_DP_CAPS,
 							"result=%u link_index=%u enum dce_version=%d DPCD=0x%04X min_hblank=%u branch_dev_id=0x%x branch_dev_name='%c%c%c%c%c%c'",
@@ -4914,9 +4900,7 @@ bool dc_link_set_default_brightness_aux(struct dc_link *link)
 {
 	uint32_t default_backlight;
 
-	if (link &&
-		(link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1 ||
-		link->dpcd_sink_ext_caps.bits.sdr_aux_backlight_control == 1)) {
+	if (link && link->dpcd_sink_ext_caps.bits.oled == 1) {
 		if (!dc_link_read_default_bl_aux(link, &default_backlight))
 			default_backlight = 150000;
 		// if < 5 nits or > 5000, it might be wrong readback

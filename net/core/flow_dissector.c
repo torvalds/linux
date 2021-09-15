@@ -1056,8 +1056,10 @@ proto_again:
 							      FLOW_DISSECTOR_KEY_IPV4_ADDRS,
 							      target_container);
 
-			memcpy(&key_addrs->v4addrs, &iph->saddr,
-			       sizeof(key_addrs->v4addrs));
+			memcpy(&key_addrs->v4addrs.src, &iph->saddr,
+			       sizeof(key_addrs->v4addrs.src));
+			memcpy(&key_addrs->v4addrs.dst, &iph->daddr,
+			       sizeof(key_addrs->v4addrs.dst));
 			key_control->addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
 		}
 
@@ -1101,8 +1103,10 @@ proto_again:
 							      FLOW_DISSECTOR_KEY_IPV6_ADDRS,
 							      target_container);
 
-			memcpy(&key_addrs->v6addrs, &iph->saddr,
-			       sizeof(key_addrs->v6addrs));
+			memcpy(&key_addrs->v6addrs.src, &iph->saddr,
+			       sizeof(key_addrs->v6addrs.src));
+			memcpy(&key_addrs->v6addrs.dst, &iph->daddr,
+			       sizeof(key_addrs->v6addrs.dst));
 			key_control->addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
 		}
 
@@ -1504,7 +1508,7 @@ __be32 flow_get_u32_dst(const struct flow_keys *flow)
 }
 EXPORT_SYMBOL(flow_get_u32_dst);
 
-/* Sort the source and destination IP (and the ports if the IP are the same),
+/* Sort the source and destination IP and the ports,
  * to have consistent hash within the two directions
  */
 static inline void __flow_hash_consistentify(struct flow_keys *keys)
@@ -1515,11 +1519,11 @@ static inline void __flow_hash_consistentify(struct flow_keys *keys)
 	case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
 		addr_diff = (__force u32)keys->addrs.v4addrs.dst -
 			    (__force u32)keys->addrs.v4addrs.src;
-		if ((addr_diff < 0) ||
-		    (addr_diff == 0 &&
-		     ((__force u16)keys->ports.dst <
-		      (__force u16)keys->ports.src))) {
+		if (addr_diff < 0)
 			swap(keys->addrs.v4addrs.src, keys->addrs.v4addrs.dst);
+
+		if ((__force u16)keys->ports.dst <
+		    (__force u16)keys->ports.src) {
 			swap(keys->ports.src, keys->ports.dst);
 		}
 		break;
@@ -1527,13 +1531,13 @@ static inline void __flow_hash_consistentify(struct flow_keys *keys)
 		addr_diff = memcmp(&keys->addrs.v6addrs.dst,
 				   &keys->addrs.v6addrs.src,
 				   sizeof(keys->addrs.v6addrs.dst));
-		if ((addr_diff < 0) ||
-		    (addr_diff == 0 &&
-		     ((__force u16)keys->ports.dst <
-		      (__force u16)keys->ports.src))) {
+		if (addr_diff < 0) {
 			for (i = 0; i < 4; i++)
 				swap(keys->addrs.v6addrs.src.s6_addr32[i],
 				     keys->addrs.v6addrs.dst.s6_addr32[i]);
+		}
+		if ((__force u16)keys->ports.dst <
+		    (__force u16)keys->ports.src) {
 			swap(keys->ports.src, keys->ports.dst);
 		}
 		break;

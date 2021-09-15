@@ -146,8 +146,8 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_03_soc = {
 
 		.min_dcfclk = 500.0, /* TODO: set this to actual min DCFCLK */
 		.num_states = 1,
-		.sr_exit_time_us = 26.5,
-		.sr_enter_plus_exit_time_us = 31,
+		.sr_exit_time_us = 35.5,
+		.sr_enter_plus_exit_time_us = 40,
 		.urgent_latency_us = 4.0,
 		.urgent_latency_pixel_data_only_us = 4.0,
 		.urgent_latency_pixel_mixed_with_vm_data_us = 4.0,
@@ -510,8 +510,12 @@ static struct stream_encoder *dcn303_stream_encoder_create(enum engine_id eng_id
 	vpg = dcn303_vpg_create(ctx, vpg_inst);
 	afmt = dcn303_afmt_create(ctx, afmt_inst);
 
-	if (!enc1 || !vpg || !afmt)
+	if (!enc1 || !vpg || !afmt) {
+		kfree(enc1);
+		kfree(vpg);
+		kfree(afmt);
 		return NULL;
+	}
 
 	dcn30_dio_stream_encoder_construct(enc1, ctx, ctx->dc_bios, eng_id, vpg, afmt, &stream_enc_regs[eng_id],
 			&se_shift, &se_mask);
@@ -1326,11 +1330,18 @@ void dcn303_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 			dcn3_03_soc.clock_limits[i].dispclk_mhz = max_dispclk_mhz;
 			dcn3_03_soc.clock_limits[i].dppclk_mhz  = max_dppclk_mhz;
 			dcn3_03_soc.clock_limits[i].phyclk_mhz  = max_phyclk_mhz;
-			dcn3_03_soc.clock_limits[i].dtbclk_mhz = dcn3_03_soc.clock_limits[0].dtbclk_mhz;
+			/* Populate from bw_params for DTBCLK, SOCCLK */
+			if (!bw_params->clk_table.entries[i].dtbclk_mhz && i > 0)
+				dcn3_03_soc.clock_limits[i].dtbclk_mhz = dcn3_03_soc.clock_limits[i-1].dtbclk_mhz;
+			else
+				dcn3_03_soc.clock_limits[i].dtbclk_mhz = bw_params->clk_table.entries[i].dtbclk_mhz;
+			if (!bw_params->clk_table.entries[i].socclk_mhz && i > 0)
+				dcn3_03_soc.clock_limits[i].socclk_mhz = dcn3_03_soc.clock_limits[i-1].socclk_mhz;
+			else
+				dcn3_03_soc.clock_limits[i].socclk_mhz = bw_params->clk_table.entries[i].socclk_mhz;
 			/* These clocks cannot come from bw_params, always fill from dcn3_03_soc[1] */
-			/* FCLK, PHYCLK_D18, SOCCLK, DSCCLK */
+			/* FCLK, PHYCLK_D18, DSCCLK */
 			dcn3_03_soc.clock_limits[i].phyclk_d18_mhz = dcn3_03_soc.clock_limits[0].phyclk_d18_mhz;
-			dcn3_03_soc.clock_limits[i].socclk_mhz = dcn3_03_soc.clock_limits[0].socclk_mhz;
 			dcn3_03_soc.clock_limits[i].dscclk_mhz = dcn3_03_soc.clock_limits[0].dscclk_mhz;
 		}
 		/* re-init DML with updated bb */

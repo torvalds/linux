@@ -146,7 +146,7 @@ struct frad_state {
 	u8 rxseq; /* RX sequence number */
 };
 
-static int fr_ioctl(struct net_device *dev, struct ifreq *ifr);
+static int fr_ioctl(struct net_device *dev, struct if_settings *ifs);
 
 static inline u16 q922_to_dlci(u8 *hdr)
 {
@@ -357,26 +357,26 @@ static int pvc_close(struct net_device *dev)
 	return 0;
 }
 
-static int pvc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int pvc_ioctl(struct net_device *dev, struct if_settings *ifs)
 {
 	struct pvc_device *pvc = dev->ml_priv;
 	fr_proto_pvc_info info;
 
-	if (ifr->ifr_settings.type == IF_GET_PROTO) {
+	if (ifs->type == IF_GET_PROTO) {
 		if (dev->type == ARPHRD_ETHER)
-			ifr->ifr_settings.type = IF_PROTO_FR_ETH_PVC;
+			ifs->type = IF_PROTO_FR_ETH_PVC;
 		else
-			ifr->ifr_settings.type = IF_PROTO_FR_PVC;
+			ifs->type = IF_PROTO_FR_PVC;
 
-		if (ifr->ifr_settings.size < sizeof(info)) {
+		if (ifs->size < sizeof(info)) {
 			/* data size wanted */
-			ifr->ifr_settings.size = sizeof(info);
+			ifs->size = sizeof(info);
 			return -ENOBUFS;
 		}
 
 		info.dlci = pvc->dlci;
 		memcpy(info.master, pvc->frad->name, IFNAMSIZ);
-		if (copy_to_user(ifr->ifr_settings.ifs_ifsu.fr_pvc_info,
+		if (copy_to_user(ifs->ifs_ifsu.fr_pvc_info,
 				 &info, sizeof(info)))
 			return -EFAULT;
 		return 0;
@@ -1056,7 +1056,7 @@ static const struct net_device_ops pvc_ops = {
 	.ndo_open       = pvc_open,
 	.ndo_stop       = pvc_close,
 	.ndo_start_xmit = pvc_xmit,
-	.ndo_do_ioctl   = pvc_ioctl,
+	.ndo_siocwandev = pvc_ioctl,
 };
 
 static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
@@ -1179,22 +1179,22 @@ static struct hdlc_proto proto = {
 	.module		= THIS_MODULE,
 };
 
-static int fr_ioctl(struct net_device *dev, struct ifreq *ifr)
+static int fr_ioctl(struct net_device *dev, struct if_settings *ifs)
 {
-	fr_proto __user *fr_s = ifr->ifr_settings.ifs_ifsu.fr;
+	fr_proto __user *fr_s = ifs->ifs_ifsu.fr;
 	const size_t size = sizeof(fr_proto);
 	fr_proto new_settings;
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	fr_proto_pvc pvc;
 	int result;
 
-	switch (ifr->ifr_settings.type) {
+	switch (ifs->type) {
 	case IF_GET_PROTO:
 		if (dev_to_hdlc(dev)->proto != &proto) /* Different proto */
 			return -EINVAL;
-		ifr->ifr_settings.type = IF_PROTO_FR;
-		if (ifr->ifr_settings.size < size) {
-			ifr->ifr_settings.size = size; /* data size wanted */
+		ifs->type = IF_PROTO_FR;
+		if (ifs->size < size) {
+			ifs->size = size; /* data size wanted */
 			return -ENOBUFS;
 		}
 		if (copy_to_user(fr_s, &state(hdlc)->settings, size))
@@ -1256,21 +1256,21 @@ static int fr_ioctl(struct net_device *dev, struct ifreq *ifr)
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 
-		if (copy_from_user(&pvc, ifr->ifr_settings.ifs_ifsu.fr_pvc,
+		if (copy_from_user(&pvc, ifs->ifs_ifsu.fr_pvc,
 				   sizeof(fr_proto_pvc)))
 			return -EFAULT;
 
 		if (pvc.dlci <= 0 || pvc.dlci >= 1024)
 			return -EINVAL;	/* Only 10 bits, DLCI 0 reserved */
 
-		if (ifr->ifr_settings.type == IF_PROTO_FR_ADD_ETH_PVC ||
-		    ifr->ifr_settings.type == IF_PROTO_FR_DEL_ETH_PVC)
+		if (ifs->type == IF_PROTO_FR_ADD_ETH_PVC ||
+		    ifs->type == IF_PROTO_FR_DEL_ETH_PVC)
 			result = ARPHRD_ETHER; /* bridged Ethernet device */
 		else
 			result = ARPHRD_DLCI;
 
-		if (ifr->ifr_settings.type == IF_PROTO_FR_ADD_PVC ||
-		    ifr->ifr_settings.type == IF_PROTO_FR_ADD_ETH_PVC)
+		if (ifs->type == IF_PROTO_FR_ADD_PVC ||
+		    ifs->type == IF_PROTO_FR_ADD_ETH_PVC)
 			return fr_add_pvc(dev, pvc.dlci, result);
 		else
 			return fr_del_pvc(hdlc, pvc.dlci, result);
@@ -1279,19 +1279,19 @@ static int fr_ioctl(struct net_device *dev, struct ifreq *ifr)
 	return -EINVAL;
 }
 
-static int __init mod_init(void)
+static int __init hdlc_fr_init(void)
 {
 	register_hdlc_protocol(&proto);
 	return 0;
 }
 
-static void __exit mod_exit(void)
+static void __exit hdlc_fr_exit(void)
 {
 	unregister_hdlc_protocol(&proto);
 }
 
-module_init(mod_init);
-module_exit(mod_exit);
+module_init(hdlc_fr_init);
+module_exit(hdlc_fr_exit);
 
 MODULE_AUTHOR("Krzysztof Halasa <khc@pm.waw.pl>");
 MODULE_DESCRIPTION("Frame-Relay protocol support for generic HDLC");

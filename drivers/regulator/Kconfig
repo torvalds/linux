@@ -1044,7 +1044,7 @@ config REGULATOR_RT6160
 	help
 	  This adds support for voltage regulator in Richtek RT6160.
 	  This device automatically change voltage output mode from
-	  Buck or Boost. The mode transistion depend on the input source voltage.
+	  Buck or Boost. The mode transition depend on the input source voltage.
 	  The wide output range is from 2025mV to 5200mV and can be used on most
 	  common application scenario.
 
@@ -1053,9 +1053,20 @@ config REGULATOR_RT6245
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  This adds supprot for Richtek RT6245 voltage regulator.
+	  This adds support for Richtek RT6245 voltage regulator.
 	  It can support up to 14A output current and adjustable output voltage
 	  from 0.4375V to 1.3875V, per step 12.5mV.
+
+config REGULATOR_RTQ2134
+	tristate "Richtek RTQ2134 SubPMIC Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver adds support for RTQ2134 SubPMIC regulators.
+	  The RTQ2134 is a multi-phase, programmable power management IC that
+	  integrate with four high efficient, synchronous step-down converter
+	  cores. It features wide output voltage range and the capability to
+	  configure the corresponding power stages.
 
 config REGULATOR_RTMV20
 	tristate "Richtek RTMV20 Laser Diode Regulator"
@@ -1065,6 +1076,15 @@ config REGULATOR_RTMV20
 	  This driver adds support for the load switch current regulator on
 	  the Richtek RTMV20. It can support the load current up to 6A and
 	  integrate strobe/vsync/fsin signal to synchronize the IR camera.
+
+config REGULATOR_RTQ6752
+	tristate "Richtek RTQ6752 TFT LCD voltage regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver adds support for Richtek RTQ6752. RTQ6752 includes two
+	  synchronous boost converters for PAVDD, and one synchronous NAVDD
+	  buck-boost. This device is suitable for automotive TFT-LCD panel.
 
 config REGULATOR_S2MPA01
 	tristate "Samsung S2MPA01 voltage regulator"

@@ -233,6 +233,7 @@
 
 #include <linux/export.h>
 #include <linux/fs.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/cdev.h>
 #include <linux/termios.h>
@@ -328,9 +329,6 @@ extern struct list_head tty_drivers;
 
 extern struct tty_driver *__tty_alloc_driver(unsigned int lines,
 		struct module *owner, unsigned long flags);
-extern void put_tty_driver(struct tty_driver *driver);
-extern void tty_set_operations(struct tty_driver *driver,
-			const struct tty_operations *op);
 extern struct tty_driver *tty_find_polling_driver(char *name, int *line);
 
 extern void tty_driver_kref_put(struct tty_driver *driver);
@@ -339,22 +337,16 @@ extern void tty_driver_kref_put(struct tty_driver *driver);
 #define tty_alloc_driver(lines, flags) \
 		__tty_alloc_driver(lines, THIS_MODULE, flags)
 
-/*
- * DEPRECATED Do not use this in new code, use tty_alloc_driver instead.
- * (And change the return value checks.)
- */
-static inline struct tty_driver *alloc_tty_driver(unsigned int lines)
-{
-	struct tty_driver *ret = tty_alloc_driver(lines, 0);
-	if (IS_ERR(ret))
-		return NULL;
-	return ret;
-}
-
 static inline struct tty_driver *tty_driver_kref_get(struct tty_driver *d)
 {
 	kref_get(&d->kref);
 	return d;
+}
+
+static inline void tty_set_operations(struct tty_driver *driver,
+		const struct tty_operations *op)
+{
+	driver->ops = op;
 }
 
 /* tty driver magic number */
@@ -433,5 +425,22 @@ static inline struct tty_driver *tty_driver_kref_get(struct tty_driver *d)
 
 /* serial subtype definitions */
 #define SERIAL_TYPE_NORMAL	1
+
+int tty_register_driver(struct tty_driver *driver);
+void tty_unregister_driver(struct tty_driver *driver);
+struct device *tty_register_device(struct tty_driver *driver, unsigned index,
+		struct device *dev);
+struct device *tty_register_device_attr(struct tty_driver *driver,
+		unsigned index, struct device *device, void *drvdata,
+		const struct attribute_group **attr_grp);
+void tty_unregister_device(struct tty_driver *driver, unsigned index);
+
+#ifdef CONFIG_PROC_FS
+void proc_tty_register_driver(struct tty_driver *);
+void proc_tty_unregister_driver(struct tty_driver *);
+#else
+static inline void proc_tty_register_driver(struct tty_driver *d) {}
+static inline void proc_tty_unregister_driver(struct tty_driver *d) {}
+#endif
 
 #endif /* #ifdef _LINUX_TTY_DRIVER_H */

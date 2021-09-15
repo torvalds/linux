@@ -19,14 +19,14 @@
 	chosen { };
 
 	clocks {
-		xo_board: xo_board {
+		xo_board: xo-board {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <19200000>;
 			clock-output-names = "xo_board";
 		};
 
-		sleep_clk: sleep_clk {
+		sleep_clk: sleep-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <32764>;
@@ -368,10 +368,10 @@
 		#hwlock-cells = <1>;
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		/* We expect the bootloader to fill in the reg */
-		reg = <0 0 0 0>;
+		reg = <0x0 0x80000000 0x0 0x0>;
 	};
 
 	psci {
@@ -898,6 +898,8 @@
 				phy-names = "hdmi_phy";
 				#sound-dai-cells = <1>;
 
+				status = "disabled";
+
 				ports {
 					#address-cells = <1>;
 					#size-cells = <0>;
@@ -931,6 +933,8 @@
 					 <&gcc GCC_HDMI_CLKREF_CLK>;
 				clock-names = "iface",
 					      "ref";
+
+				status = "disabled";
 			};
 		};
 
@@ -967,6 +971,8 @@
 			operating-points-v2 = <&gpu_opp_table>;
 
 			status = "disabled";
+
+			#cooling-cells = <2>;
 
 			gpu_opp_table: opp-table {
 				compatible  ="operating-points-v2";
@@ -1082,21 +1088,21 @@
 
 			camera0_state_on:
 			camera_rear_default: camera-rear-default {
-				mclk0 {
+				camera0_mclk: mclk0 {
 					pins = "gpio13";
 					function = "cam_mclk";
 					drive-strength = <16>;
 					bias-disable;
 				};
 
-				rst {
+				camera0_rst: rst {
 					pins = "gpio25";
 					function = "gpio";
 					drive-strength = <16>;
 					bias-disable;
 				};
 
-				pwdn {
+				camera0_pwdn: pwdn {
 					pins = "gpio26";
 					function = "gpio";
 					drive-strength = <16>;
@@ -1137,14 +1143,14 @@
 
 			camera2_state_on:
 			camera_front_default: camera-front-default {
-				mclk2 {
+				camera2_mclk: mclk2 {
 					pins = "gpio15";
 					function = "cam_mclk";
 					drive-strength = <16>;
 					bias-disable;
 				};
 
-				rst {
+				camera2_rst: rst {
 					pins = "gpio23";
 					function = "gpio";
 					drive-strength = <16>;
@@ -2566,7 +2572,7 @@
 			power-domains = <&gcc USB30_GDSC>;
 			status = "disabled";
 
-			usb@6a00000 {
+			usb3_dwc3: dwc3@6a00000 {
 				compatible = "snps,dwc3";
 				reg = <0x06a00000 0xcc00>;
 				interrupts = <0 131 IRQ_TYPE_LEVEL_HIGH>;
@@ -2873,7 +2879,7 @@
 			qcom,select-utmi-as-pipe-clk;
 			status = "disabled";
 
-			usb@7600000 {
+			dwc3@7600000 {
 				compatible = "snps,dwc3";
 				reg = <0x07600000 0xcc00>;
 				interrupts = <0 138 IRQ_TYPE_LEVEL_HIGH>;
@@ -3205,7 +3211,14 @@
 				gpu1_alert0: trip-point0 {
 					temperature = <90000>;
 					hysteresis = <2000>;
-					type = "hot";
+					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&gpu1_alert0>;
+					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
@@ -3220,7 +3233,14 @@
 				gpu2_alert0: trip-point0 {
 					temperature = <90000>;
 					hysteresis = <2000>;
-					type = "hot";
+					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&gpu2_alert0>;
+					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};

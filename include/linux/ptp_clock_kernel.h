@@ -11,7 +11,10 @@
 #include <linux/device.h>
 #include <linux/pps_kernel.h>
 #include <linux/ptp_clock.h>
+#include <linux/timecounter.h>
+#include <linux/skbuff.h>
 
+#define PTP_CLOCK_NAME_LEN	32
 /**
  * struct ptp_clock_request - request PTP clock event
  *
@@ -134,7 +137,7 @@ struct ptp_system_timestamp {
 
 struct ptp_clock_info {
 	struct module *owner;
-	char name[16];
+	char name[PTP_CLOCK_NAME_LEN];
 	s32 max_adj;
 	int n_alarm;
 	int n_ext_ts;
@@ -212,7 +215,7 @@ static inline long scaled_ppm_to_ppb(long ppm)
 	return (long)ppb;
 }
 
-#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
+#if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
 
 /**
  * ptp_clock_register() - register a PTP hardware clock driver
@@ -322,6 +325,40 @@ static inline int ptp_schedule_worker(struct ptp_clock *ptp,
 				      unsigned long delay)
 { return -EOPNOTSUPP; }
 static inline void ptp_cancel_worker_sync(struct ptp_clock *ptp)
+{ }
+#endif
+
+#if IS_BUILTIN(CONFIG_PTP_1588_CLOCK)
+/*
+ * These are called by the network core, and don't work if PTP is in
+ * a loadable module.
+ */
+
+/**
+ * ptp_get_vclocks_index() - get all vclocks index on pclock, and
+ *                           caller is responsible to free memory
+ *                           of vclock_index
+ *
+ * @pclock_index: phc index of ptp pclock.
+ * @vclock_index: pointer to pointer of vclock index.
+ *
+ * return number of vclocks.
+ */
+int ptp_get_vclocks_index(int pclock_index, int **vclock_index);
+
+/**
+ * ptp_convert_timestamp() - convert timestamp to a ptp vclock time
+ *
+ * @hwtstamps:    skb_shared_hwtstamps structure pointer
+ * @vclock_index: phc index of ptp vclock.
+ */
+void ptp_convert_timestamp(struct skb_shared_hwtstamps *hwtstamps,
+			   int vclock_index);
+#else
+static inline int ptp_get_vclocks_index(int pclock_index, int **vclock_index)
+{ return 0; }
+static inline void ptp_convert_timestamp(struct skb_shared_hwtstamps *hwtstamps,
+					 int vclock_index)
 { }
 
 #endif

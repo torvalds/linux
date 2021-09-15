@@ -77,14 +77,6 @@ union fp_state {
 
 #define FP_SIZE (sizeof(union fp_state) / sizeof(int))
 
-struct crunch_state {
-	unsigned int	mvdx[16][2];
-	unsigned int	mvax[4][3];
-	unsigned int	dspsc[2];
-};
-
-#define CRUNCH_SIZE	sizeof(struct crunch_state)
-
 #endif
 
 #endif

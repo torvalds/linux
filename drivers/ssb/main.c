@@ -283,7 +283,7 @@ static void ssb_device_shutdown(struct device *dev)
 		ssb_drv->shutdown(ssb_dev);
 }
 
-static int ssb_device_remove(struct device *dev)
+static void ssb_device_remove(struct device *dev)
 {
 	struct ssb_device *ssb_dev = dev_to_ssb_dev(dev);
 	struct ssb_driver *ssb_drv = drv_to_ssb_drv(dev->driver);
@@ -291,8 +291,6 @@ static int ssb_device_remove(struct device *dev)
 	if (ssb_drv && ssb_drv->remove)
 		ssb_drv->remove(ssb_dev);
 	ssb_device_put(ssb_dev);
-
-	return 0;
 }
 
 static int ssb_device_probe(struct device *dev)

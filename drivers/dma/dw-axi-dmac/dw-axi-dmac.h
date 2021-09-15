@@ -184,6 +184,8 @@ static inline struct axi_dma_chan *dchan_to_axi_dma_chan(struct dma_chan *dchan)
 #define DMAC_APB_HALFWORD_WR_CH_EN	0x020 /* DMAC Halfword write enables */
 
 #define UNUSED_CHANNEL		0x3F /* Set unused DMA channel to 0x3F */
+#define DMA_APB_HS_SEL_BIT_SIZE	0x08 /* HW handshake bits per channel */
+#define DMA_APB_HS_SEL_MASK	0xFF /* HW handshake select masks */
 #define MAX_BLOCK_SIZE		0x1000 /* 1024 blocks * 4 bytes data width */
 
 /* DMAC_CFG */
@@ -256,6 +258,8 @@ enum {
 
 /* CH_CFG_H */
 #define CH_CFG_H_PRIORITY_POS		17
+#define CH_CFG_H_DST_PER_POS		12
+#define CH_CFG_H_SRC_PER_POS		7
 #define CH_CFG_H_HS_SEL_DST_POS		4
 #define CH_CFG_H_HS_SEL_SRC_POS		3
 enum {

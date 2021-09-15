@@ -38,11 +38,10 @@ riscv_probe_decode_insn(probe_opcode_t *addr, struct arch_probe_insn *api)
 	RISCV_INSN_REJECTED(c_ebreak,		insn);
 #endif
 
-	RISCV_INSN_REJECTED(auipc,		insn);
-	RISCV_INSN_REJECTED(branch,		insn);
-
 	RISCV_INSN_SET_SIMULATE(jal,		insn);
 	RISCV_INSN_SET_SIMULATE(jalr,		insn);
+	RISCV_INSN_SET_SIMULATE(auipc,		insn);
+	RISCV_INSN_SET_SIMULATE(branch,		insn);
 
 	return INSN_GOOD;
 }

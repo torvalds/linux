@@ -47,6 +47,7 @@ struct iov_iter {
 		};
 		loff_t xarray_start;
 	};
+	size_t truncated;
 };
 
 static inline enum iter_type iov_iter_type(const struct iov_iter *i)
@@ -254,8 +255,10 @@ static inline void iov_iter_truncate(struct iov_iter *i, u64 count)
 	 * conversion in assignement is by definition greater than all
 	 * values of size_t, including old i->count.
 	 */
-	if (i->count > count)
+	if (i->count > count) {
+		i->truncated += i->count - count;
 		i->count = count;
+	}
 }
 
 /*
@@ -264,6 +267,7 @@ static inline void iov_iter_truncate(struct iov_iter *i, u64 count)
  */
 static inline void iov_iter_reexpand(struct iov_iter *i, size_t count)
 {
+	i->truncated -= count - i->count;
 	i->count = count;
 }
 

@@ -113,6 +113,7 @@ xfs_quota_reserve_blkres(struct xfs_inode *ip, int64_t blocks)
 {
 	return xfs_trans_reserve_quota_nblks(NULL, ip, blocks, 0, false);
 }
+bool xfs_inode_near_dquot_enforcement(struct xfs_inode *ip, xfs_dqtype_t type);
 #else
 static inline int
 xfs_qm_vop_dqalloc(struct xfs_inode *ip, kuid_t kuid, kgid_t kgid,
@@ -168,6 +169,7 @@ xfs_trans_reserve_quota_icreate(struct xfs_trans *tp, struct xfs_dquot *udqp,
 #define xfs_qm_mount_quotas(mp)
 #define xfs_qm_unmount(mp)
 #define xfs_qm_unmount_quotas(mp)
+#define xfs_inode_near_dquot_enforcement(ip, type)			(false)
 #endif /* CONFIG_XFS_QUOTA */
 
 static inline int

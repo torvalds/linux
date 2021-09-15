@@ -83,6 +83,7 @@ static ssize_t proc_bus_pci_read(struct file *file, char __user *buf,
 		buf += 4;
 		pos += 4;
 		cnt -= 4;
+		cond_resched();
 	}
 
 	if (cnt >= 2) {
@@ -230,8 +231,8 @@ static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 		/* If arch decided it can't, fall through... */
-#endif /* HAVE_PCI_MMAP */
 		fallthrough;
+#endif /* HAVE_PCI_MMAP */
 	default:
 		ret = -EINVAL;
 		break;

@@ -8,6 +8,7 @@
 #include <asm/cacheflush.h>
 #include <asm/facility.h>
 #include <asm/pgalloc.h>
+#include <asm/kfence.h>
 #include <asm/page.h>
 #include <asm/set_memory.h>
 
@@ -85,6 +86,8 @@ static int walk_pte_level(pmd_t *pmdp, unsigned long addr, unsigned long end,
 {
 	pte_t *ptep, new;
 
+	if (flags == SET_MEMORY_4K)
+		return 0;
 	ptep = pte_offset_kernel(pmdp, addr);
 	do {
 		new = *ptep;
@@ -155,6 +158,7 @@ static int walk_pmd_level(pud_t *pudp, unsigned long addr, unsigned long end,
 			  unsigned long flags)
 {
 	unsigned long next;
+	int need_split;
 	pmd_t *pmdp;
 	int rc = 0;
 
@@ -164,7 +168,10 @@ static int walk_pmd_level(pud_t *pudp, unsigned long addr, unsigned long end,
 			return -EINVAL;
 		next = pmd_addr_end(addr, end);
 		if (pmd_large(*pmdp)) {
-			if (addr & ~PMD_MASK || addr + PMD_SIZE > next) {
+			need_split  = !!(flags & SET_MEMORY_4K);
+			need_split |= !!(addr & ~PMD_MASK);
+			need_split |= !!(addr + PMD_SIZE > next);
+			if (need_split) {
 				rc = split_pmd_page(pmdp, addr);
 				if (rc)
 					return rc;
@@ -232,6 +239,7 @@ static int walk_pud_level(p4d_t *p4d, unsigned long addr, unsigned long end,
 			  unsigned long flags)
 {
 	unsigned long next;
+	int need_split;
 	pud_t *pudp;
 	int rc = 0;
 
@@ -241,7 +249,10 @@ static int walk_pud_level(p4d_t *p4d, unsigned long addr, unsigned long end,
 			return -EINVAL;
 		next = pud_addr_end(addr, end);
 		if (pud_large(*pudp)) {
-			if (addr & ~PUD_MASK || addr + PUD_SIZE > next) {
+			need_split  = !!(flags & SET_MEMORY_4K);
+			need_split |= !!(addr & ~PUD_MASK);
+			need_split |= !!(addr + PUD_SIZE > next);
+			if (need_split) {
 				rc = split_pud_page(pudp, addr);
 				if (rc)
 					break;
@@ -316,7 +327,7 @@ int __set_memory(unsigned long addr, int numpages, unsigned long flags)
 	return change_page_attr(addr, addr + numpages * PAGE_SIZE, flags);
 }
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
+#if defined(CONFIG_DEBUG_PAGEALLOC) || defined(CONFIG_KFENCE)
 
 static void ipte_range(pte_t *pte, unsigned long address, int nr)
 {
@@ -340,7 +351,7 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 	pte_t *pte;
 
 	for (i = 0; i < numpages;) {
-		address = page_to_phys(page + i);
+		address = (unsigned long)page_to_virt(page + i);
 		pte = virt_to_kpte(address);
 		nr = (unsigned long)pte >> ilog2(sizeof(long));
 		nr = PTRS_PER_PTE - (nr & (PTRS_PER_PTE - 1));

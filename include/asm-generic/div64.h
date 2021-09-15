@@ -57,16 +57,10 @@
 /*
  * If the divisor happens to be constant, we determine the appropriate
  * inverse at compile time to turn the division into a few inline
- * multiplications which ought to be much faster. And yet only if compiling
- * with a sufficiently recent gcc version to perform proper 64-bit constant
- * propagation.
+ * multiplications which ought to be much faster.
  *
  * (It is unfortunate that gcc doesn't perform all this internally.)
  */
-
-#ifndef __div64_const32_is_OK
-#define __div64_const32_is_OK (__GNUC__ >= 4)
-#endif
 
 #define __div64_const32(n, ___b)					\
 ({									\
@@ -230,8 +224,7 @@ extern uint32_t __div64_32(uint64_t *dividend, uint32_t divisor);
 	    is_power_of_2(__base)) {			\
 		__rem = (n) & (__base - 1);		\
 		(n) >>= ilog2(__base);			\
-	} else if (__div64_const32_is_OK &&		\
-		   __builtin_constant_p(__base) &&	\
+	} else if (__builtin_constant_p(__base) &&	\
 		   __base != 0) {			\
 		uint32_t __res_lo, __n_lo = (n);	\
 		(n) = __div64_const32(n, __base);	\
@@ -241,8 +234,9 @@ extern uint32_t __div64_32(uint64_t *dividend, uint32_t divisor);
 	} else if (likely(((n) >> 32) == 0)) {		\
 		__rem = (uint32_t)(n) % __base;		\
 		(n) = (uint32_t)(n) / __base;		\
-	} else 						\
+	} else {					\
 		__rem = __div64_32(&(n), __base);	\
+	}						\
 	__rem;						\
  })
 

@@ -44,7 +44,8 @@ properties:
     const: isc-mck
 
   port:
-    $ref: /schemas/graph.yaml#/properties/port
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
     description:
       Input port node, single endpoint describing the input pad.
 

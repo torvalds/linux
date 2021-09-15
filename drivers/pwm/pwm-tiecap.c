@@ -189,16 +189,13 @@ static int ecap_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 	}
 
-	if (state->period != pwm->state.period ||
-	    state->duty_cycle != pwm->state.duty_cycle) {
-		if (state->period > NSEC_PER_SEC)
-			return -ERANGE;
+	if (state->period > NSEC_PER_SEC)
+		return -ERANGE;
 
-		err = ecap_pwm_config(chip, pwm, state->duty_cycle,
-				      state->period, enabled);
-		if (err)
-			return err;
-	}
+	err = ecap_pwm_config(chip, pwm, state->duty_cycle,
+			      state->period, enabled);
+	if (err)
+		return err;
 
 	if (!enabled)
 		return ecap_pwm_enable(chip, pwm);
@@ -256,7 +253,7 @@ static int ecap_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(pc->mmio_base))
 		return PTR_ERR(pc->mmio_base);
 
-	ret = pwmchip_add(&pc->chip);
+	ret = devm_pwmchip_add(&pdev->dev, &pc->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
 		return ret;
@@ -270,11 +267,9 @@ static int ecap_pwm_probe(struct platform_device *pdev)
 
 static int ecap_pwm_remove(struct platform_device *pdev)
 {
-	struct ecap_pwm_chip *pc = platform_get_drvdata(pdev);
-
 	pm_runtime_disable(&pdev->dev);
 
-	return pwmchip_remove(&pc->chip);
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

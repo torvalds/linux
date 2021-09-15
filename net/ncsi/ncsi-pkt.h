@@ -178,6 +178,12 @@ struct ncsi_rsp_oem_bcm_pkt {
 	unsigned char           data[];      /* Cmd specific Data */
 };
 
+/* Intel Response Data */
+struct ncsi_rsp_oem_intel_pkt {
+	unsigned char           cmd;         /* OEM Command ID    */
+	unsigned char           data[];      /* Cmd specific Data */
+};
+
 /* Get Link Status */
 struct ncsi_rsp_gls_pkt {
 	struct ncsi_rsp_pkt_hdr rsp;        /* Response header   */

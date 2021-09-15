@@ -1871,12 +1871,12 @@ intel_bios_encoder_supports_edp(const struct intel_bios_encoder_data *devdata)
 static bool is_port_valid(struct drm_i915_private *i915, enum port port)
 {
 	/*
-	 * On some ICL/CNL SKUs port F is not present, but broken VBTs mark
+	 * On some ICL SKUs port F is not present, but broken VBTs mark
 	 * the port as present. Only try to initialize port F for the
 	 * SKUs that may actually have it.
 	 */
-	if (port == PORT_F && (IS_ICELAKE(i915) || IS_CANNONLAKE(i915)))
-		return IS_ICL_WITH_PORT_F(i915) || IS_CNL_WITH_PORT_F(i915);
+	if (port == PORT_F && IS_ICELAKE(i915))
+		return IS_ICL_WITH_PORT_F(i915);
 
 	return true;
 }
@@ -1998,7 +1998,7 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 			    "Port %c VBT HDMI boost level: %d\n",
 			    port_name(port), hdmi_boost_level);
 
-	/* DP max link rate for CNL+ */
+	/* DP max link rate for GLK+ */
 	if (i915->vbt.version >= 216) {
 		if (i915->vbt.version >= 230)
 			info->dp_max_link_rate = parse_bdb_230_dp_max_link_rate(child->dp_max_link_rate);
@@ -2166,7 +2166,8 @@ static void
 init_vbt_missing_defaults(struct drm_i915_private *i915)
 {
 	enum port port;
-	int ports = PORT_A | PORT_B | PORT_C | PORT_D | PORT_E | PORT_F;
+	int ports = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) |
+		    BIT(PORT_D) | BIT(PORT_E) | BIT(PORT_F);
 
 	if (!HAS_DDI(i915) && !IS_CHERRYVIEW(i915))
 		return;

@@ -118,6 +118,7 @@ static const struct intel_step_info dg2_g10_revid_step_tbl[] = {
 static const struct intel_step_info dg2_g11_revid_step_tbl[] = {
 	[0x0] = { .gt_step = STEP_A0, .display_step = STEP_B0 },
 	[0x4] = { .gt_step = STEP_B0, .display_step = STEP_C0 },
+	[0x5] = { .gt_step = STEP_B1, .display_step = STEP_C0 },
 };
 
 void intel_step_init(struct drm_i915_private *i915)
@@ -209,4 +210,18 @@ void intel_step_init(struct drm_i915_private *i915)
 		return;
 
 	RUNTIME_INFO(i915)->step = step;
+}
+
+#define STEP_NAME_CASE(name)	\
+	case STEP_##name:	\
+		return #name;
+
+const char *intel_step_name(enum intel_step step)
+{
+	switch (step) {
+	STEP_NAME_LIST(STEP_NAME_CASE);
+
+	default:
+		return "**";
+	}
 }

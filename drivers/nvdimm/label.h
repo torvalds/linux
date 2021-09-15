@@ -135,7 +135,6 @@ struct nd_namespace_label *nd_label_active(struct nvdimm_drvdata *ndd, int n);
 u32 nd_label_alloc_slot(struct nvdimm_drvdata *ndd);
 bool nd_label_free_slot(struct nvdimm_drvdata *ndd, u32 slot);
 u32 nd_label_nfree(struct nvdimm_drvdata *ndd);
-enum nvdimm_claim_class to_nvdimm_cclass(guid_t *guid);
 struct nd_region;
 struct nd_namespace_pmem;
 struct nd_namespace_blk;

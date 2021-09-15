@@ -112,7 +112,6 @@ static void rkisp1_stats_vb2_buf_queue(struct vb2_buffer *vb)
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct rkisp1_stats *stats_dev = vq->drv_priv;
 
-	stats_buf->vaddr = vb2_plane_vaddr(vb, 0);
 
 	spin_lock_irq(&stats_dev->lock);
 	list_add_tail(&stats_buf->queue, &stats_dev->stat);
@@ -305,9 +304,8 @@ rkisp1_stats_send_measurement(struct rkisp1_stats *stats, u32 isp_ris)
 	if (!cur_buf)
 		return;
 
-	cur_stat_buf =
-		(struct rkisp1_stat_buffer *)(cur_buf->vaddr);
-
+	cur_stat_buf = (struct rkisp1_stat_buffer *)
+			vb2_plane_vaddr(&cur_buf->vb.vb2_buf, 0);
 	if (isp_ris & RKISP1_CIF_ISP_AWB_DONE)
 		rkisp1_stats_get_awb_meas(stats, cur_stat_buf);
 

@@ -54,18 +54,9 @@ int pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		return ret;
 
-	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
-
 	return 0;
 }
 EXPORT_SYMBOL(pxa2xx_pcm_hw_params);
-
-int pxa2xx_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	snd_pcm_set_runtime_buffer(substream, NULL);
-	return 0;
-}
-EXPORT_SYMBOL(pxa2xx_pcm_hw_free);
 
 int pxa2xx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
@@ -131,56 +122,14 @@ int pxa2xx_pcm_close(struct snd_pcm_substream *substream)
 }
 EXPORT_SYMBOL(pxa2xx_pcm_close);
 
-int pxa2xx_pcm_mmap(struct snd_pcm_substream *substream,
-	struct vm_area_struct *vma)
+int pxa2xx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	return dma_mmap_wc(substream->pcm->card->dev, vma, runtime->dma_area,
-			   runtime->dma_addr, runtime->dma_bytes);
-}
-EXPORT_SYMBOL(pxa2xx_pcm_mmap);
-
-int pxa2xx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
-{
-	struct snd_pcm_substream *substream = pcm->streams[stream].substream;
-	struct snd_dma_buffer *buf = &substream->dma_buffer;
 	size_t size = pxa2xx_pcm_hardware.buffer_bytes_max;
-	buf->dev.type = SNDRV_DMA_TYPE_DEV;
-	buf->dev.dev = pcm->card->dev;
-	buf->private_data = NULL;
-	buf->area = dma_alloc_wc(pcm->card->dev, size, &buf->addr, GFP_KERNEL);
-	if (!buf->area)
-		return -ENOMEM;
-	buf->bytes = size;
-	return 0;
+
+	return snd_pcm_set_fixed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_WC,
+					    pcm->card->dev, size);
 }
 EXPORT_SYMBOL(pxa2xx_pcm_preallocate_dma_buffer);
-
-void pxa2xx_pcm_free_dma_buffers(struct snd_pcm *pcm)
-{
-	struct snd_pcm_substream *substream;
-	struct snd_dma_buffer *buf;
-	int stream;
-
-	for (stream = 0; stream < 2; stream++) {
-		substream = pcm->streams[stream].substream;
-		if (!substream)
-			continue;
-		buf = &substream->dma_buffer;
-		if (!buf->area)
-			continue;
-		dma_free_wc(pcm->card->dev, buf->bytes, buf->area, buf->addr);
-		buf->area = NULL;
-	}
-}
-EXPORT_SYMBOL(pxa2xx_pcm_free_dma_buffers);
-
-void pxa2xx_soc_pcm_free(struct snd_soc_component *component,
-			 struct snd_pcm *pcm)
-{
-	pxa2xx_pcm_free_dma_buffers(pcm);
-}
-EXPORT_SYMBOL(pxa2xx_soc_pcm_free);
 
 int pxa2xx_soc_pcm_new(struct snd_soc_component *component,
 		       struct snd_soc_pcm_runtime *rtd)
@@ -193,21 +142,7 @@ int pxa2xx_soc_pcm_new(struct snd_soc_component *component,
 	if (ret)
 		return ret;
 
-	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
-		ret = pxa2xx_pcm_preallocate_dma_buffer(pcm,
-			SNDRV_PCM_STREAM_PLAYBACK);
-		if (ret)
-			goto out;
-	}
-
-	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
-		ret = pxa2xx_pcm_preallocate_dma_buffer(pcm,
-			SNDRV_PCM_STREAM_CAPTURE);
-		if (ret)
-			goto out;
-	}
- out:
-	return ret;
+	return pxa2xx_pcm_preallocate_dma_buffer(pcm);
 }
 EXPORT_SYMBOL(pxa2xx_soc_pcm_new);
 
@@ -233,13 +168,6 @@ int pxa2xx_soc_pcm_hw_params(struct snd_soc_component *component,
 }
 EXPORT_SYMBOL(pxa2xx_soc_pcm_hw_params);
 
-int pxa2xx_soc_pcm_hw_free(struct snd_soc_component *component,
-			   struct snd_pcm_substream *substream)
-{
-	return pxa2xx_pcm_hw_free(substream);
-}
-EXPORT_SYMBOL(pxa2xx_soc_pcm_hw_free);
-
 int pxa2xx_soc_pcm_prepare(struct snd_soc_component *component,
 			   struct snd_pcm_substream *substream)
 {
@@ -261,14 +189,6 @@ pxa2xx_soc_pcm_pointer(struct snd_soc_component *component,
 	return pxa2xx_pcm_pointer(substream);
 }
 EXPORT_SYMBOL(pxa2xx_soc_pcm_pointer);
-
-int pxa2xx_soc_pcm_mmap(struct snd_soc_component *component,
-			struct snd_pcm_substream *substream,
-			struct vm_area_struct *vma)
-{
-	return pxa2xx_pcm_mmap(substream, vma);
-}
-EXPORT_SYMBOL(pxa2xx_soc_pcm_mmap);
 
 MODULE_AUTHOR("Nicolas Pitre");
 MODULE_DESCRIPTION("Intel PXA2xx sound library");

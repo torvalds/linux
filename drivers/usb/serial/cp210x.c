@@ -155,6 +155,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0x89A4) }, /* CESINEL FTBC Flexible Thyristor Bridge Controller */
 	{ USB_DEVICE(0x10C4, 0x89FB) }, /* Qivicon ZigBee USB Radio Stick */
 	{ USB_DEVICE(0x10C4, 0x8A2A) }, /* HubZ dual ZigBee and Z-Wave dongle */
+	{ USB_DEVICE(0x10C4, 0x8A5B) }, /* CEL EM3588 ZigBee USB Stick */
 	{ USB_DEVICE(0x10C4, 0x8A5E) }, /* CEL EM3588 ZigBee USB Stick Long Range */
 	{ USB_DEVICE(0x10C4, 0x8B34) }, /* Qivicon ZigBee USB Radio Stick */
 	{ USB_DEVICE(0x10C4, 0xEA60) }, /* Silicon Labs factory default */
@@ -202,8 +203,8 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x1901, 0x0194) },	/* GE Healthcare Remote Alarm Box */
 	{ USB_DEVICE(0x1901, 0x0195) },	/* GE B850/B650/B450 CP2104 DP UART interface */
 	{ USB_DEVICE(0x1901, 0x0196) },	/* GE B850 CP2105 DP UART interface */
-	{ USB_DEVICE(0x1901, 0x0197) }, /* GE CS1000 Display serial interface */
-	{ USB_DEVICE(0x1901, 0x0198) }, /* GE CS1000 M.2 Key E serial interface */
+	{ USB_DEVICE(0x1901, 0x0197) }, /* GE CS1000 M.2 Key E serial interface */
+	{ USB_DEVICE(0x1901, 0x0198) }, /* GE CS1000 Display serial interface */
 	{ USB_DEVICE(0x199B, 0xBA30) }, /* LORD WSDA-200-USB */
 	{ USB_DEVICE(0x19CF, 0x3000) }, /* Parrot NMEA GPS Flight Recorder */
 	{ USB_DEVICE(0x1ADB, 0x0001) }, /* Schweitzer Engineering C662 Cable */
@@ -399,6 +400,7 @@ struct cp210x_special_chars {
 };
 
 /* CP210X_VENDOR_SPECIFIC values */
+#define CP210X_GET_FW_VER	0x000E
 #define CP210X_READ_2NCONFIG	0x000E
 #define CP210X_GET_FW_VER_2N	0x0010
 #define CP210X_READ_LATCH	0x00C2
@@ -637,7 +639,7 @@ static int cp210x_read_reg_block(struct usb_serial_port *port, u8 req,
 	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 			req, REQTYPE_INTERFACE_TO_HOST, 0,
 			port_priv->bInterfaceNumber, dmabuf, bufsize,
-			USB_CTRL_SET_TIMEOUT);
+			USB_CTRL_GET_TIMEOUT);
 	if (result == bufsize) {
 		memcpy(buf, dmabuf, bufsize);
 		result = 0;
@@ -1144,33 +1146,6 @@ static void cp210x_disable_event_mode(struct usb_serial_port *port)
 	port_priv->event_mode = false;
 }
 
-static int cp210x_set_chars(struct usb_serial_port *port,
-		struct cp210x_special_chars *chars)
-{
-	struct cp210x_port_private *port_priv = usb_get_serial_port_data(port);
-	struct usb_serial *serial = port->serial;
-	void *dmabuf;
-	int result;
-
-	dmabuf = kmemdup(chars, sizeof(*chars), GFP_KERNEL);
-	if (!dmabuf)
-		return -ENOMEM;
-
-	result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
-				CP210X_SET_CHARS, REQTYPE_HOST_TO_INTERFACE, 0,
-				port_priv->bInterfaceNumber,
-				dmabuf, sizeof(*chars), USB_CTRL_SET_TIMEOUT);
-
-	kfree(dmabuf);
-
-	if (result < 0) {
-		dev_err(&port->dev, "failed to set special chars: %d\n", result);
-		return result;
-	}
-
-	return 0;
-}
-
 static bool cp210x_termios_change(const struct ktermios *a, const struct ktermios *b)
 {
 	bool iflag_change, cc_change;
@@ -1191,6 +1166,7 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 	struct cp210x_flow_ctl flow_ctl;
 	u32 flow_repl;
 	u32 ctl_hs;
+	bool crtscts;
 	int ret;
 
 	/*
@@ -1217,9 +1193,12 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 		chars.bXonChar = START_CHAR(tty);
 		chars.bXoffChar = STOP_CHAR(tty);
 
-		ret = cp210x_set_chars(port, &chars);
-		if (ret)
-			return;
+		ret = cp210x_write_reg_block(port, CP210X_SET_CHARS, &chars,
+				sizeof(chars));
+		if (ret) {
+			dev_err(&port->dev, "failed to set special chars: %d\n",
+					ret);
+		}
 	}
 
 	mutex_lock(&port_priv->mutex);
@@ -1248,14 +1227,14 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 			flow_repl |= CP210X_SERIAL_RTS_FLOW_CTL;
 		else
 			flow_repl |= CP210X_SERIAL_RTS_INACTIVE;
-		port_priv->crtscts = true;
+		crtscts = true;
 	} else {
 		ctl_hs &= ~CP210X_SERIAL_CTS_HANDSHAKE;
 		if (port_priv->rts)
 			flow_repl |= CP210X_SERIAL_RTS_ACTIVE;
 		else
 			flow_repl |= CP210X_SERIAL_RTS_INACTIVE;
-		port_priv->crtscts = false;
+		crtscts = false;
 	}
 
 	if (I_IXOFF(tty)) {
@@ -1278,8 +1257,12 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 	flow_ctl.ulControlHandshake = cpu_to_le32(ctl_hs);
 	flow_ctl.ulFlowReplace = cpu_to_le32(flow_repl);
 
-	cp210x_write_reg_block(port, CP210X_SET_FLOW, &flow_ctl,
+	ret = cp210x_write_reg_block(port, CP210X_SET_FLOW, &flow_ctl,
 			sizeof(flow_ctl));
+	if (ret)
+		goto out_unlock;
+
+	port_priv->crtscts = crtscts;
 out_unlock:
 	mutex_unlock(&port_priv->mutex);
 }
@@ -2110,12 +2093,26 @@ static int cp210x_get_fw_version(struct usb_serial *serial, u16 value)
 	return 0;
 }
 
-static void cp210x_determine_quirks(struct usb_serial *serial)
+static void cp210x_determine_type(struct usb_serial *serial)
 {
 	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
 	int ret;
 
+	ret = cp210x_read_vendor_block(serial, REQTYPE_DEVICE_TO_HOST,
+			CP210X_GET_PARTNUM, &priv->partnum,
+			sizeof(priv->partnum));
+	if (ret < 0) {
+		dev_warn(&serial->interface->dev,
+				"querying part number failed\n");
+		priv->partnum = CP210X_PARTNUM_UNKNOWN;
+		return;
+	}
+
 	switch (priv->partnum) {
+	case CP210X_PARTNUM_CP2105:
+	case CP210X_PARTNUM_CP2108:
+		cp210x_get_fw_version(serial, CP210X_GET_FW_VER);
+		break;
 	case CP210X_PARTNUM_CP2102N_QFN28:
 	case CP210X_PARTNUM_CP2102N_QFN24:
 	case CP210X_PARTNUM_CP2102N_QFN20:
@@ -2139,18 +2136,9 @@ static int cp210x_attach(struct usb_serial *serial)
 	if (!priv)
 		return -ENOMEM;
 
-	result = cp210x_read_vendor_block(serial, REQTYPE_DEVICE_TO_HOST,
-					  CP210X_GET_PARTNUM, &priv->partnum,
-					  sizeof(priv->partnum));
-	if (result < 0) {
-		dev_warn(&serial->interface->dev,
-			 "querying part number failed\n");
-		priv->partnum = CP210X_PARTNUM_UNKNOWN;
-	}
-
 	usb_set_serial_data(serial, priv);
 
-	cp210x_determine_quirks(serial);
+	cp210x_determine_type(serial);
 	cp210x_init_max_speed(serial);
 
 	result = cp210x_gpio_init(serial);

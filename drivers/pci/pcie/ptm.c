@@ -60,10 +60,8 @@ void pci_save_ptm_state(struct pci_dev *dev)
 		return;
 
 	save_state = pci_find_saved_ext_cap(dev, PCI_EXT_CAP_ID_PTM);
-	if (!save_state) {
-		pci_err(dev, "no suspend buffer for PTM\n");
+	if (!save_state)
 		return;
-	}
 
 	cap = (u16 *)&save_state->cap.data[0];
 	pci_read_config_word(dev, ptm + PCI_PTM_CTRL, cap);
@@ -204,3 +202,12 @@ int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
 	return 0;
 }
 EXPORT_SYMBOL(pci_enable_ptm);
+
+bool pcie_ptm_enabled(struct pci_dev *dev)
+{
+	if (!dev)
+		return false;
+
+	return dev->ptm_enabled;
+}
+EXPORT_SYMBOL(pcie_ptm_enabled);

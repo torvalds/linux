@@ -607,6 +607,8 @@ struct ib_device *_ib_alloc_device(size_t size)
 	for (i = 0; i < ARRAY_SIZE(device->cq_pools); i++)
 		INIT_LIST_HEAD(&device->cq_pools[i]);
 
+	rwlock_init(&device->cache_lock);
+
 	device->uverbs_cmd_mask =
 		BIT_ULL(IB_USER_VERBS_CMD_ALLOC_MW) |
 		BIT_ULL(IB_USER_VERBS_CMD_ALLOC_PD) |
@@ -2050,7 +2052,6 @@ static int __ib_query_port(struct ib_device *device,
 			   u32 port_num,
 			   struct ib_port_attr *port_attr)
 {
-	union ib_gid gid = {};
 	int err;
 
 	memset(port_attr, 0, sizeof(*port_attr));
@@ -2063,11 +2064,8 @@ static int __ib_query_port(struct ib_device *device,
 	    IB_LINK_LAYER_INFINIBAND)
 		return 0;
 
-	err = device->ops.query_gid(device, port_num, 0, &gid);
-	if (err)
-		return err;
-
-	port_attr->subnet_prefix = be64_to_cpu(gid.global.subnet_prefix);
+	ib_get_cached_subnet_prefix(device, port_num,
+				    &port_attr->subnet_prefix);
 	return 0;
 }
 
@@ -2656,6 +2654,7 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_DEVICE_OP(dev_ops, get_hw_stats);
 	SET_DEVICE_OP(dev_ops, get_link_layer);
 	SET_DEVICE_OP(dev_ops, get_netdev);
+	SET_DEVICE_OP(dev_ops, get_numa_node);
 	SET_DEVICE_OP(dev_ops, get_port_immutable);
 	SET_DEVICE_OP(dev_ops, get_vector_affinity);
 	SET_DEVICE_OP(dev_ops, get_vf_config);
@@ -2712,6 +2711,7 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_OBJ_SIZE(dev_ops, ib_cq);
 	SET_OBJ_SIZE(dev_ops, ib_mw);
 	SET_OBJ_SIZE(dev_ops, ib_pd);
+	SET_OBJ_SIZE(dev_ops, ib_qp);
 	SET_OBJ_SIZE(dev_ops, ib_rwq_ind_table);
 	SET_OBJ_SIZE(dev_ops, ib_srq);
 	SET_OBJ_SIZE(dev_ops, ib_ucontext);

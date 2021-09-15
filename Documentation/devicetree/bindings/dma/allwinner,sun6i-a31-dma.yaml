@@ -19,12 +19,12 @@ properties:
     description: The cell is the request line number.
 
   compatible:
-    oneOf:
-      - const: allwinner,sun6i-a31-dma
-      - const: allwinner,sun8i-a23-dma
-      - const: allwinner,sun8i-a83t-dma
-      - const: allwinner,sun8i-h3-dma
-      - const: allwinner,sun8i-v3s-dma
+    enum:
+      - allwinner,sun6i-a31-dma
+      - allwinner,sun8i-a23-dma
+      - allwinner,sun8i-a83t-dma
+      - allwinner,sun8i-h3-dma
+      - allwinner,sun8i-v3s-dma
 
   reg:
     maxItems: 1

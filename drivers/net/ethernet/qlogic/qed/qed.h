@@ -26,15 +26,6 @@
 
 extern const struct qed_common_ops qed_common_ops_pass;
 
-#define QED_MAJOR_VERSION		8
-#define QED_MINOR_VERSION		37
-#define QED_REVISION_VERSION		0
-#define QED_ENGINEERING_VERSION		20
-
-#define QED_VERSION						 \
-	((QED_MAJOR_VERSION << 24) | (QED_MINOR_VERSION << 16) | \
-	 (QED_REVISION_VERSION << 8) | QED_ENGINEERING_VERSION)
-
 #define STORM_FW_VERSION				       \
 	((FW_MAJOR_VERSION << 24) | (FW_MINOR_VERSION << 16) | \
 	 (FW_REVISION_VERSION << 8) | FW_ENGINEERING_VERSION)
@@ -516,12 +507,6 @@ enum qed_hsi_def_type {
 	QED_HSI_DEF_MAX_BTB_BLOCKS,
 	QED_NUM_HSI_DEFS
 };
-
-#define DRV_MODULE_VERSION		      \
-	__stringify(QED_MAJOR_VERSION) "."    \
-	__stringify(QED_MINOR_VERSION) "."    \
-	__stringify(QED_REVISION_VERSION) "." \
-	__stringify(QED_ENGINEERING_VERSION)
 
 struct qed_simd_fp_handler {
 	void	*token;

@@ -409,11 +409,95 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 			return AMDGPU_FW_LOAD_DIRECT;
 		else
 			return AMDGPU_FW_LOAD_PSP;
+	case CHIP_CYAN_SKILLFISH:
+		if (!(load_type &&
+		      adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2))
+			return AMDGPU_FW_LOAD_DIRECT;
+		else
+			return AMDGPU_FW_LOAD_PSP;
 	default:
 		DRM_ERROR("Unknown firmware load type\n");
 	}
 
 	return AMDGPU_FW_LOAD_DIRECT;
+}
+
+const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
+{
+	switch (ucode_id) {
+	case AMDGPU_UCODE_ID_SDMA0:
+		return "SDMA0";
+	case AMDGPU_UCODE_ID_SDMA1:
+		return "SDMA1";
+	case AMDGPU_UCODE_ID_SDMA2:
+		return "SDMA2";
+	case AMDGPU_UCODE_ID_SDMA3:
+		return "SDMA3";
+	case AMDGPU_UCODE_ID_SDMA4:
+		return "SDMA4";
+	case AMDGPU_UCODE_ID_SDMA5:
+		return "SDMA5";
+	case AMDGPU_UCODE_ID_SDMA6:
+		return "SDMA6";
+	case AMDGPU_UCODE_ID_SDMA7:
+		return "SDMA7";
+	case AMDGPU_UCODE_ID_CP_CE:
+		return "CP_CE";
+	case AMDGPU_UCODE_ID_CP_PFP:
+		return "CP_PFP";
+	case AMDGPU_UCODE_ID_CP_ME:
+		return "CP_ME";
+	case AMDGPU_UCODE_ID_CP_MEC1:
+		return "CP_MEC1";
+	case AMDGPU_UCODE_ID_CP_MEC1_JT:
+		return "CP_MEC1_JT";
+	case AMDGPU_UCODE_ID_CP_MEC2:
+		return "CP_MEC2";
+	case AMDGPU_UCODE_ID_CP_MEC2_JT:
+		return "CP_MEC2_JT";
+	case AMDGPU_UCODE_ID_CP_MES:
+		return "CP_MES";
+	case AMDGPU_UCODE_ID_CP_MES_DATA:
+		return "CP_MES_DATA";
+	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL:
+		return "RLC_RESTORE_LIST_CNTL";
+	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM:
+		return "RLC_RESTORE_LIST_GPM_MEM";
+	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM:
+		return "RLC_RESTORE_LIST_SRM_MEM";
+	case AMDGPU_UCODE_ID_RLC_IRAM:
+		return "RLC_IRAM";
+	case AMDGPU_UCODE_ID_RLC_DRAM:
+		return "RLC_DRAM";
+	case AMDGPU_UCODE_ID_RLC_G:
+		return "RLC_G";
+	case AMDGPU_UCODE_ID_STORAGE:
+		return "STORAGE";
+	case AMDGPU_UCODE_ID_SMC:
+		return "SMC";
+	case AMDGPU_UCODE_ID_UVD:
+		return "UVD";
+	case AMDGPU_UCODE_ID_UVD1:
+		return "UVD1";
+	case AMDGPU_UCODE_ID_VCE:
+		return "VCE";
+	case AMDGPU_UCODE_ID_VCN:
+		return "VCN";
+	case AMDGPU_UCODE_ID_VCN1:
+		return "VCN1";
+	case AMDGPU_UCODE_ID_DMCU_ERAM:
+		return "DMCU_ERAM";
+	case AMDGPU_UCODE_ID_DMCU_INTV:
+		return "DMCU_INTV";
+	case AMDGPU_UCODE_ID_VCN0_RAM:
+		return "VCN0_RAM";
+	case AMDGPU_UCODE_ID_VCN1_RAM:
+		return "VCN1_RAM";
+	case AMDGPU_UCODE_ID_DMCUB:
+		return "DMCUB";
+	default:
+		return "UNKNOWN UCODE";
+	}
 }
 
 #define FW_VERSION_ATTR(name, mode, field)				\
@@ -440,10 +524,10 @@ FW_VERSION_ATTR(rlc_srlg_fw_version, 0444, gfx.rlc_srlg_fw_version);
 FW_VERSION_ATTR(rlc_srls_fw_version, 0444, gfx.rlc_srls_fw_version);
 FW_VERSION_ATTR(mec_fw_version, 0444, gfx.mec_fw_version);
 FW_VERSION_ATTR(mec2_fw_version, 0444, gfx.mec2_fw_version);
-FW_VERSION_ATTR(sos_fw_version, 0444, psp.sos_fw_version);
-FW_VERSION_ATTR(asd_fw_version, 0444, psp.asd_fw_version);
-FW_VERSION_ATTR(ta_ras_fw_version, 0444, psp.ta_ras_ucode_version);
-FW_VERSION_ATTR(ta_xgmi_fw_version, 0444, psp.ta_xgmi_ucode_version);
+FW_VERSION_ATTR(sos_fw_version, 0444, psp.sos.fw_version);
+FW_VERSION_ATTR(asd_fw_version, 0444, psp.asd.fw_version);
+FW_VERSION_ATTR(ta_ras_fw_version, 0444, psp.ras.feature_version);
+FW_VERSION_ATTR(ta_xgmi_fw_version, 0444, psp.xgmi.feature_version);
 FW_VERSION_ATTR(smc_fw_version, 0444, pm.fw_version);
 FW_VERSION_ATTR(sdma_fw_version, 0444, sdma.instance[0].fw_version);
 FW_VERSION_ATTR(sdma2_fw_version, 0444, sdma.instance[1].fw_version);

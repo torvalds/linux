@@ -139,7 +139,7 @@ TRACE_EVENT(netfs_read,
 
 	    TP_fast_assign(
 		    __entry->rreq	= rreq->debug_id;
-		    __entry->cookie	= rreq->cookie_debug_id;
+		    __entry->cookie	= rreq->cache_resources.debug_id;
 		    __entry->start	= start;
 		    __entry->len	= len;
 		    __entry->what	= what;

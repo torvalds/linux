@@ -1,11 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*  Marvell OcteonTx2 RVU Admin Function driver
+/* Marvell RVU Admin Function driver
  *
- * Copyright (C) 2018 Marvell International Ltd.
+ * Copyright (C) 2018 Marvell.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef RVU_STRUCT_H
@@ -35,7 +32,8 @@ enum rvu_block_addr_e {
 	BLKADDR_NDC_NPA0	= 0xeULL,
 	BLKADDR_NDC_NIX1_RX	= 0x10ULL,
 	BLKADDR_NDC_NIX1_TX	= 0x11ULL,
-	BLK_COUNT		= 0x12ULL,
+	BLKADDR_APR		= 0x16ULL,
+	BLK_COUNT		= 0x17ULL,
 };
 
 /* RVU Block Type Enumeration */
