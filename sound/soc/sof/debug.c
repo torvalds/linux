@@ -588,6 +588,21 @@ int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
 }
 EXPORT_SYMBOL_GPL(snd_sof_debugfs_io_item);
 
+int snd_sof_debugfs_add_region_item_iomem(struct snd_sof_dev *sdev,
+					  enum snd_sof_fw_blk_type blk_type, u32 offset,
+					  size_t size, const char *name,
+					  enum sof_debugfs_access_type access_type)
+{
+	int bar = snd_sof_dsp_get_bar_index(sdev, blk_type);
+
+	if (bar < 0)
+		return bar;
+
+	return snd_sof_debugfs_io_item(sdev, sdev->bar[bar] + offset, size, name,
+				       access_type);
+}
+EXPORT_SYMBOL_GPL(snd_sof_debugfs_add_region_item_iomem);
+
 /* create FS entry for debug files to expose kernel memory */
 int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
 			     void *base, size_t size,
