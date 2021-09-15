@@ -127,12 +127,12 @@ struct snd_sof_dsp_ops {
 		      void __iomem *addr); /* optional */
 
 	/* memcpy IO */
-	void (*block_read)(struct snd_sof_dev *sof_dev, u32 bar,
-			   u32 offset, void *dest,
-			   size_t size); /* mandatory */
-	void (*block_write)(struct snd_sof_dev *sof_dev, u32 bar,
-			    u32 offset, void *src,
-			    size_t size); /* mandatory */
+	int (*block_read)(struct snd_sof_dev *sof_dev,
+			  enum snd_sof_fw_blk_type type, u32 offset,
+			  void *dest, size_t size); /* mandatory */
+	int (*block_write)(struct snd_sof_dev *sof_dev,
+			   enum snd_sof_fw_blk_type type, u32 offset,
+			   void *src, size_t size); /* mandatory */
 
 	/* doorbell */
 	irqreturn_t (*irq_handler)(int irq, void *context); /* optional */
@@ -568,10 +568,10 @@ void sof_mailbox_write(struct snd_sof_dev *sdev, u32 offset,
 		       void *message, size_t bytes);
 void sof_mailbox_read(struct snd_sof_dev *sdev, u32 offset,
 		      void *message, size_t bytes);
-void sof_block_write(struct snd_sof_dev *sdev, u32 bar, u32 offset, void *src,
-		     size_t size);
-void sof_block_read(struct snd_sof_dev *sdev, u32 bar, u32 offset, void *dest,
-		    size_t size);
+int sof_block_write(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_type,
+		    u32 offset, void *src, size_t size);
+int sof_block_read(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_type,
+		   u32 offset, void *dest, size_t size);
 
 int sof_fw_ready(struct snd_sof_dev *sdev, u32 msg_id);
 

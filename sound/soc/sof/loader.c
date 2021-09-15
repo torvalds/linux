@@ -86,7 +86,7 @@ static int get_cc_info(struct snd_sof_dev *sdev,
 }
 
 /* parse the extended FW boot data structures from FW boot message */
-static int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 bar, u32 offset)
+static int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 offset)
 {
 	struct sof_ipc_ext_data_hdr *ext_hdr;
 	void *ext_data;
@@ -97,15 +97,16 @@ static int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 bar, u32 offs
 		return -ENOMEM;
 
 	/* get first header */
-	snd_sof_dsp_block_read(sdev, bar, offset, ext_data,
+	snd_sof_dsp_block_read(sdev, SOF_FW_BLK_TYPE_SRAM, offset, ext_data,
 			       sizeof(*ext_hdr));
 	ext_hdr = ext_data;
 
 	while (ext_hdr->hdr.cmd == SOF_IPC_FW_READY) {
 		/* read in ext structure */
-		snd_sof_dsp_block_read(sdev, bar, offset + sizeof(*ext_hdr),
-				   (void *)((u8 *)ext_data + sizeof(*ext_hdr)),
-				   ext_hdr->hdr.size - sizeof(*ext_hdr));
+		snd_sof_dsp_block_read(sdev, SOF_FW_BLK_TYPE_SRAM,
+				       offset + sizeof(*ext_hdr),
+				       (void *)((u8 *)ext_data + sizeof(*ext_hdr)),
+				       ext_hdr->hdr.size - sizeof(*ext_hdr));
 
 		dev_dbg(sdev->dev, "found ext header type %d size 0x%x\n",
 			ext_hdr->type, ext_hdr->hdr.size);
@@ -138,7 +139,7 @@ static int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 bar, u32 offs
 
 		/* move to next header */
 		offset += ext_hdr->hdr.size;
-		snd_sof_dsp_block_read(sdev, bar, offset, ext_data,
+		snd_sof_dsp_block_read(sdev, SOF_FW_BLK_TYPE_SRAM, offset, ext_data,
 				       sizeof(*ext_hdr));
 		ext_hdr = ext_data;
 	}
@@ -361,6 +362,7 @@ static int snd_sof_fw_ext_man_parse(struct snd_sof_dev *sdev,
  */
 static void sof_get_windows(struct snd_sof_dev *sdev)
 {
+	int bar = snd_sof_dsp_get_bar_index(sdev, SOF_FW_BLK_TYPE_SRAM);
 	struct sof_ipc_window_elem *elem;
 	u32 outbox_offset = 0;
 	u32 stream_offset = 0;
@@ -371,17 +373,10 @@ static void sof_get_windows(struct snd_sof_dev *sdev)
 	u32 debug_size = 0;
 	u32 debug_offset = 0;
 	int window_offset;
-	int bar;
 	int i;
 
 	if (!sdev->info_window) {
 		dev_err(sdev->dev, "error: have no window info\n");
-		return;
-	}
-
-	bar = snd_sof_dsp_get_bar_index(sdev, SOF_FW_BLK_TYPE_SRAM);
-	if (bar < 0) {
-		dev_err(sdev->dev, "error: have no bar mapping\n");
 		return;
 	}
 
@@ -496,7 +491,6 @@ int sof_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 {
 	struct sof_ipc_fw_ready *fw_ready = &sdev->fw_ready;
 	int offset;
-	int bar;
 	int ret;
 
 	/* mailbox must be on 4k boundary */
@@ -506,12 +500,6 @@ int sof_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 		return offset;
 	}
 
-	bar = snd_sof_dsp_get_bar_index(sdev, SOF_FW_BLK_TYPE_SRAM);
-	if (bar < 0) {
-		dev_err(sdev->dev, "error: have no bar mapping\n");
-		return -EINVAL;
-	}
-
 	dev_dbg(sdev->dev, "ipc: DSP is ready 0x%8.8x offset 0x%x\n",
 		msg_id, offset);
 
@@ -519,8 +507,17 @@ int sof_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 	if (!sdev->first_boot)
 		return 0;
 
-	/* copy data from the DSP FW ready offset */
-	snd_sof_dsp_block_read(sdev, bar, offset, fw_ready, sizeof(*fw_ready));
+	/*
+	 * copy data from the DSP FW ready offset
+	 * Subsequent error handling is not needed for BLK_TYPE_SRAM
+	 */
+	ret = snd_sof_dsp_block_read(sdev, SOF_FW_BLK_TYPE_SRAM, offset, fw_ready,
+				     sizeof(*fw_ready));
+	if (ret) {
+		dev_err(sdev->dev,
+			"error: unable to read fw_ready, read from TYPE_SRAM failed\n");
+		return ret;
+	}
 
 	/* make sure ABI version is compatible */
 	ret = snd_sof_ipc_valid(sdev);
@@ -528,8 +525,7 @@ int sof_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 		return ret;
 
 	/* now check for extended data */
-	snd_sof_fw_parse_ext_data(sdev, bar, offset +
-				  sizeof(struct sof_ipc_fw_ready));
+	snd_sof_fw_parse_ext_data(sdev, offset + sizeof(struct sof_ipc_fw_ready));
 
 	sof_get_windows(sdev);
 
@@ -542,7 +538,7 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 				struct snd_sof_mod_hdr *module)
 {
 	struct snd_sof_blk_hdr *block;
-	int count, bar;
+	int count, ret;
 	u32 offset;
 	size_t remaining;
 
@@ -579,13 +575,6 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 		case SOF_FW_BLK_TYPE_DRAM:
 		case SOF_FW_BLK_TYPE_SRAM:
 			offset = block->offset;
-			bar = snd_sof_dsp_get_bar_index(sdev, block->type);
-			if (bar < 0) {
-				dev_err(sdev->dev,
-					"error: no BAR mapping for block type 0x%x\n",
-					block->type);
-				return bar;
-			}
 			break;
 		default:
 			dev_err(sdev->dev, "error: bad type 0x%x for block 0x%x\n",
@@ -603,8 +592,13 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 				block->size);
 			return -EINVAL;
 		}
-		snd_sof_dsp_block_write(sdev, bar, offset,
-					block + 1, block->size);
+		ret = snd_sof_dsp_block_write(sdev, block->type, offset,
+					      block + 1, block->size);
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: write to block type 0x%x failed\n",
+				block->type);
+			return ret;
+		}
 
 		if (remaining < block->size) {
 			dev_err(sdev->dev, "error: not enough data remaining\n");

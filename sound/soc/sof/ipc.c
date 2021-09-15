@@ -709,15 +709,19 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol,
 		send_bytes = sizeof(struct sof_ipc_ctrl_value_chan) *
 		cdata->num_elems;
 		if (send)
-			snd_sof_dsp_block_write(sdev, sdev->mmio_bar,
-						scontrol->readback_offset,
-						cdata->chanv, send_bytes);
+			err = snd_sof_dsp_block_write(sdev, SOF_FW_BLK_TYPE_IRAM,
+						      scontrol->readback_offset,
+						      cdata->chanv, send_bytes);
 
 		else
-			snd_sof_dsp_block_read(sdev, sdev->mmio_bar,
-					       scontrol->readback_offset,
-					       cdata->chanv, send_bytes);
-		return 0;
+			err = snd_sof_dsp_block_read(sdev, SOF_FW_BLK_TYPE_IRAM,
+						     scontrol->readback_offset,
+						     cdata->chanv, send_bytes);
+
+		if (err)
+			dev_err_once(sdev->dev, "error: %s TYPE_IRAM failed\n",
+				     send ? "write to" :  "read from");
+		return err;
 	}
 
 	cdata->rhdr.hdr.cmd = SOF_IPC_GLB_COMP_MSG | ipc_cmd;

@@ -297,16 +297,18 @@ static inline u64 snd_sof_dsp_read64(struct snd_sof_dev *sdev, u32 bar,
 }
 
 /* block IO */
-static inline void snd_sof_dsp_block_read(struct snd_sof_dev *sdev, u32 bar,
-					  u32 offset, void *dest, size_t bytes)
+static inline int snd_sof_dsp_block_read(struct snd_sof_dev *sdev,
+					 enum snd_sof_fw_blk_type blk_type,
+					 u32 offset, void *dest, size_t bytes)
 {
-	sof_ops(sdev)->block_read(sdev, bar, offset, dest, bytes);
+	return sof_ops(sdev)->block_read(sdev, blk_type, offset, dest, bytes);
 }
 
-static inline void snd_sof_dsp_block_write(struct snd_sof_dev *sdev, u32 bar,
-					   u32 offset, void *src, size_t bytes)
+static inline int snd_sof_dsp_block_write(struct snd_sof_dev *sdev,
+					  enum snd_sof_fw_blk_type blk_type,
+					  u32 offset, void *src, size_t bytes)
 {
-	sof_ops(sdev)->block_write(sdev, bar, offset, src, bytes);
+	return sof_ops(sdev)->block_write(sdev, blk_type, offset, src, bytes);
 }
 
 /* ipc */
