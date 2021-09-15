@@ -232,6 +232,7 @@ struct ptp_ocp {
 	int			id;
 	int			n_irqs;
 	int			gnss_port;
+	int			gnss2_port;
 	int			mac_port;	/* miniature atomic clock */
 	int			nmea_port;
 	u8			serial[6];
@@ -286,8 +287,8 @@ static int ptp_ocp_ts_enable(void *priv, bool enable);
  * 0: N/C
  * 1: TS0
  * 2: TS1
- * 3: GPS
- * 4: GPS2 (n/c)
+ * 3: GNSS
+ * 4: GNSS2
  * 5: MAC
  * 6: TS2
  * 7: I2C controller
@@ -383,6 +384,10 @@ static struct ocp_resource ocp_fb_resource[] = {
 	{
 		OCP_SERIAL_RESOURCE(gnss_port),
 		.offset = 0x00160000 + 0x1000, .irq_vec = 3,
+	},
+	{
+		OCP_SERIAL_RESOURCE(gnss2_port),
+		.offset = 0x00170000 + 0x1000, .irq_vec = 4,
 	},
 	{
 		OCP_SERIAL_RESOURCE(mac_port),
@@ -2100,6 +2105,7 @@ ptp_ocp_device_init(struct ptp_ocp *bp, struct pci_dev *pdev)
 	bp->ptp_info = ptp_ocp_clock_info;
 	spin_lock_init(&bp->lock);
 	bp->gnss_port = -1;
+	bp->gnss2_port = -1;
 	bp->mac_port = -1;
 	bp->nmea_port = -1;
 	bp->pdev = pdev;
@@ -2162,6 +2168,10 @@ ptp_ocp_complete(struct ptp_ocp *bp)
 	if (bp->gnss_port != -1) {
 		sprintf(buf, "ttyS%d", bp->gnss_port);
 		ptp_ocp_link_child(bp, buf, "ttyGNSS");
+	}
+	if (bp->gnss2_port != -1) {
+		sprintf(buf, "ttyS%d", bp->gnss2_port);
+		ptp_ocp_link_child(bp, buf, "ttyGNSS2");
 	}
 	if (bp->mac_port != -1) {
 		sprintf(buf, "ttyS%d", bp->mac_port);
@@ -2241,6 +2251,7 @@ ptp_ocp_info(struct ptp_ocp *bp)
 				 ver >> 16);
 	}
 	ptp_ocp_serial_info(dev, "GNSS", bp->gnss_port, 115200);
+	ptp_ocp_serial_info(dev, "GNSS2", bp->gnss2_port, 115200);
 	ptp_ocp_serial_info(dev, "MAC", bp->mac_port, 57600);
 	if (bp->nmea_out && bp->nmea_port != -1) {
 		int baud = -1;
@@ -2281,6 +2292,8 @@ ptp_ocp_detach(struct ptp_ocp *bp)
 		ptp_ocp_unregister_ext(bp->pps);
 	if (bp->gnss_port != -1)
 		serial8250_unregister_port(bp->gnss_port);
+	if (bp->gnss2_port != -1)
+		serial8250_unregister_port(bp->gnss2_port);
 	if (bp->mac_port != -1)
 		serial8250_unregister_port(bp->mac_port);
 	if (bp->nmea_port != -1)
