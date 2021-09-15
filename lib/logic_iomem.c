@@ -21,15 +21,15 @@ struct logic_iomem_area {
 
 #define AREA_SHIFT	24
 #define MAX_AREA_SIZE	(1 << AREA_SHIFT)
-#define MAX_AREAS	((1ULL<<32) / MAX_AREA_SIZE)
+#define MAX_AREAS	((1U << 31) / MAX_AREA_SIZE)
 #define AREA_BITS	((MAX_AREAS - 1) << AREA_SHIFT)
 #define AREA_MASK	(MAX_AREA_SIZE - 1)
 #ifdef CONFIG_64BIT
 #define IOREMAP_BIAS	0xDEAD000000000000UL
 #define IOREMAP_MASK	0xFFFFFFFF00000000UL
 #else
-#define IOREMAP_BIAS	0
-#define IOREMAP_MASK	0
+#define IOREMAP_BIAS	0x80000000UL
+#define IOREMAP_MASK	0x80000000UL
 #endif
 
 static DEFINE_MUTEX(regions_mtx);
