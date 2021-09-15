@@ -27,7 +27,8 @@ int cn10k_lmtst_init(struct otx2_nic *pfvf)
 {
 
 	struct lmtst_tbl_setup_req *req;
-	int qcount, err;
+	struct otx2_lmt_info *lmt_info;
+	int err, cpu;
 
 	if (!test_bit(CN10K_LMTST, &pfvf->hw.cap_flag)) {
 		pfvf->hw_ops = &otx2_hw_ops;
@@ -35,15 +36,9 @@ int cn10k_lmtst_init(struct otx2_nic *pfvf)
 	}
 
 	pfvf->hw_ops = &cn10k_hw_ops;
-	qcount = pfvf->hw.max_queues;
-	/* LMTST lines allocation
-	 * qcount = num_online_cpus();
-	 * NPA = TX + RX + XDP.
-	 * NIX = TX * 32 (For Burst SQE flush).
-	 */
-	pfvf->tot_lmt_lines = (qcount * 3) + (qcount * 32);
-	pfvf->npa_lmt_lines = qcount * 3;
-	pfvf->nix_lmt_size =  LMT_BURST_SIZE * LMT_LINE_SIZE;
+	/* Total LMTLINES = num_online_cpus() * 32 (For Burst flush).*/
+	pfvf->tot_lmt_lines = (num_online_cpus() * LMT_BURST_SIZE);
+	pfvf->hw.lmt_info = alloc_percpu(struct otx2_lmt_info);
 
 	mutex_lock(&pfvf->mbox.lock);
 	req = otx2_mbox_alloc_msg_lmtst_tbl_setup(&pfvf->mbox);
@@ -66,6 +61,13 @@ int cn10k_lmtst_init(struct otx2_nic *pfvf)
 	err = otx2_sync_mbox_msg(&pfvf->mbox);
 	mutex_unlock(&pfvf->mbox.lock);
 
+	for_each_possible_cpu(cpu) {
+		lmt_info = per_cpu_ptr(pfvf->hw.lmt_info, cpu);
+		lmt_info->lmt_addr = ((u64)pfvf->hw.lmt_base +
+				      (cpu * LMT_BURST_SIZE * LMT_LINE_SIZE));
+		lmt_info->lmt_id = cpu * LMT_BURST_SIZE;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(cn10k_lmtst_init);
@@ -74,13 +76,6 @@ int cn10k_sq_aq_init(void *dev, u16 qidx, u16 sqb_aura)
 {
 	struct nix_cn10k_aq_enq_req *aq;
 	struct otx2_nic *pfvf = dev;
-	struct otx2_snd_queue *sq;
-
-	sq = &pfvf->qset.sq[qidx];
-	sq->lmt_addr = (u64 *)((u64)pfvf->hw.nix_lmt_base +
-			       (qidx * pfvf->nix_lmt_size));
-
-	sq->lmt_id = pfvf->npa_lmt_lines + (qidx * LMT_BURST_SIZE);
 
 	/* Get memory to put this msg */
 	aq = otx2_mbox_alloc_msg_nix_cn10k_aq_enq(&pfvf->mbox);
@@ -125,8 +120,7 @@ void cn10k_refill_pool_ptrs(void *dev, struct otx2_cq_queue *cq)
 		if (otx2_alloc_buffer(pfvf, cq, &bufptr)) {
 			if (num_ptrs--)
 				__cn10k_aura_freeptr(pfvf, cq->cq_idx, ptrs,
-						     num_ptrs,
-						     cq->rbpool->lmt_addr);
+						     num_ptrs);
 			break;
 		}
 		cq->pool_ptrs--;
@@ -134,8 +128,7 @@ void cn10k_refill_pool_ptrs(void *dev, struct otx2_cq_queue *cq)
 		num_ptrs++;
 		if (num_ptrs == NPA_MAX_BURST || cq->pool_ptrs == 0) {
 			__cn10k_aura_freeptr(pfvf, cq->cq_idx, ptrs,
-					     num_ptrs,
-					     cq->rbpool->lmt_addr);
+					     num_ptrs);
 			num_ptrs = 1;
 		}
 	}
@@ -143,20 +136,23 @@ void cn10k_refill_pool_ptrs(void *dev, struct otx2_cq_queue *cq)
 
 void cn10k_sqe_flush(void *dev, struct otx2_snd_queue *sq, int size, int qidx)
 {
+	struct otx2_lmt_info *lmt_info;
+	struct otx2_nic *pfvf = dev;
 	u64 val = 0, tar_addr = 0;
 
+	lmt_info = per_cpu_ptr(pfvf->hw.lmt_info, smp_processor_id());
 	/* FIXME: val[0:10] LMT_ID.
 	 * [12:15] no of LMTST - 1 in the burst.
 	 * [19:63] data size of each LMTST in the burst except first.
 	 */
-	val = (sq->lmt_id & 0x7FF);
+	val = (lmt_info->lmt_id & 0x7FF);
 	/* Target address for LMTST flush tells HW how many 128bit
 	 * words are present.
 	 * tar_addr[6:4] size of first LMTST - 1 in units of 128b.
 	 */
 	tar_addr |= sq->io_addr | (((size / 16) - 1) & 0x7) << 4;
 	dma_wmb();
-	memcpy(sq->lmt_addr, sq->sqe_base, size);
+	memcpy((u64 *)lmt_info->lmt_addr, sq->sqe_base, size);
 	cn10k_lmt_flush(val, tar_addr);
 
 	sq->head++;

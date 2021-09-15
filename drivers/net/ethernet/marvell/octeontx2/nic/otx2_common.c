@@ -1230,11 +1230,6 @@ static int otx2_pool_init(struct otx2_nic *pfvf, u16 pool_id,
 
 	pool->rbsize = buf_size;
 
-	/* Set LMTST addr for NPA batch free */
-	if (test_bit(CN10K_LMTST, &pfvf->hw.cap_flag))
-		pool->lmt_addr = (__force u64 *)((u64)pfvf->hw.npa_lmt_base +
-						 (pool_id * LMT_LINE_SIZE));
-
 	/* Initialize this pool's context via AF */
 	aq = otx2_mbox_alloc_msg_npa_aq_enq(&pfvf->mbox);
 	if (!aq) {

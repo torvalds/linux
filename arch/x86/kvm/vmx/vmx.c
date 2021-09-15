@@ -136,8 +136,7 @@ module_param(allow_smaller_maxphyaddr, bool, S_IRUGO);
 #define KVM_VM_CR0_ALWAYS_OFF (X86_CR0_NW | X86_CR0_CD)
 #define KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST X86_CR0_NE
 #define KVM_VM_CR0_ALWAYS_ON				\
-	(KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST | 	\
-	 X86_CR0_WP | X86_CR0_PG | X86_CR0_PE)
+	(KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST | X86_CR0_PG | X86_CR0_PE)
 
 #define KVM_VM_CR4_ALWAYS_ON_UNRESTRICTED_GUEST X86_CR4_VMXE
 #define KVM_PMODE_VM_CR4_ALWAYS_ON (X86_CR4_PAE | X86_CR4_VMXE)
@@ -1648,11 +1647,12 @@ static void vmx_setup_uret_msr(struct vcpu_vmx *vmx, unsigned int msr,
 }
 
 /*
- * Set up the vmcs to automatically save and restore system
- * msrs.  Don't touch the 64-bit msrs if the guest is in legacy
- * mode, as fiddling with msrs is very expensive.
+ * Configuring user return MSRs to automatically save, load, and restore MSRs
+ * that need to be shoved into hardware when running the guest.  Note, omitting
+ * an MSR here does _NOT_ mean it's not emulated, only that it will not be
+ * loaded into hardware when running the guest.
  */
-static void setup_msrs(struct vcpu_vmx *vmx)
+static void vmx_setup_uret_msrs(struct vcpu_vmx *vmx)
 {
 #ifdef CONFIG_X86_64
 	bool load_syscall_msrs;
@@ -1681,9 +1681,6 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 	 * so that TSX remains always disabled.
 	 */
 	vmx_setup_uret_msr(vmx, MSR_IA32_TSX_CTRL, boot_cpu_has(X86_FEATURE_RTM));
-
-	if (cpu_has_vmx_msr_bitmap())
-		vmx_update_msr_bitmap(&vmx->vcpu);
 
 	/*
 	 * The set of MSRs to load may have changed, reload MSRs before the
@@ -2263,8 +2260,11 @@ static void vmx_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 		vcpu->arch.cr0 |= vmcs_readl(GUEST_CR0) & guest_owned_bits;
 		break;
 	case VCPU_EXREG_CR3:
-		if (is_unrestricted_guest(vcpu) ||
-		    (enable_ept && is_paging(vcpu)))
+		/*
+		 * When intercepting CR3 loads, e.g. for shadowing paging, KVM's
+		 * CR3 is loaded into hardware, not the guest's CR3.
+		 */
+		if (!(exec_controls_get(to_vmx(vcpu)) & CPU_BASED_CR3_LOAD_EXITING))
 			vcpu->arch.cr3 = vmcs_readl(GUEST_CR3);
 		break;
 	case VCPU_EXREG_CR4:
@@ -2274,7 +2274,7 @@ static void vmx_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 		vcpu->arch.cr4 |= vmcs_readl(GUEST_CR4) & guest_owned_bits;
 		break;
 	default:
-		WARN_ON_ONCE(1);
+		KVM_BUG_ON(1, vcpu->kvm);
 		break;
 	}
 }
@@ -2733,7 +2733,7 @@ static void fix_pmode_seg(struct kvm_vcpu *vcpu, int seg,
 		save->dpl = save->selector & SEGMENT_RPL_MASK;
 		save->s = 1;
 	}
-	vmx_set_segment(vcpu, save, seg);
+	__vmx_set_segment(vcpu, save, seg);
 }
 
 static void enter_pmode(struct kvm_vcpu *vcpu)
@@ -2754,7 +2754,7 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 
 	vmx->rmode.vm86_active = 0;
 
-	vmx_set_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_TR], VCPU_SREG_TR);
+	__vmx_set_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_TR], VCPU_SREG_TR);
 
 	flags = vmcs_readl(GUEST_RFLAGS);
 	flags &= RMODE_GUEST_OWNED_EFLAGS_BITS;
@@ -2852,8 +2852,6 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	fix_rmode_seg(VCPU_SREG_DS, &vmx->rmode.segs[VCPU_SREG_DS]);
 	fix_rmode_seg(VCPU_SREG_GS, &vmx->rmode.segs[VCPU_SREG_GS]);
 	fix_rmode_seg(VCPU_SREG_FS, &vmx->rmode.segs[VCPU_SREG_FS]);
-
-	kvm_mmu_reset_context(vcpu);
 }
 
 int vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
@@ -2874,7 +2872,7 @@ int vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 
 		msr->data = efer & ~EFER_LME;
 	}
-	setup_msrs(vmx);
+	vmx_setup_uret_msrs(vmx);
 	return 0;
 }
 
@@ -2997,42 +2995,24 @@ void ept_save_pdptrs(struct kvm_vcpu *vcpu)
 	kvm_register_mark_dirty(vcpu, VCPU_EXREG_PDPTR);
 }
 
-static void ept_update_paging_mode_cr0(unsigned long *hw_cr0,
-					unsigned long cr0,
-					struct kvm_vcpu *vcpu)
-{
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-
-	if (!kvm_register_is_available(vcpu, VCPU_EXREG_CR3))
-		vmx_cache_reg(vcpu, VCPU_EXREG_CR3);
-	if (!(cr0 & X86_CR0_PG)) {
-		/* From paging/starting to nonpaging */
-		exec_controls_setbit(vmx, CPU_BASED_CR3_LOAD_EXITING |
-					  CPU_BASED_CR3_STORE_EXITING);
-		vcpu->arch.cr0 = cr0;
-		vmx_set_cr4(vcpu, kvm_read_cr4(vcpu));
-	} else if (!is_paging(vcpu)) {
-		/* From nonpaging to paging */
-		exec_controls_clearbit(vmx, CPU_BASED_CR3_LOAD_EXITING |
-					    CPU_BASED_CR3_STORE_EXITING);
-		vcpu->arch.cr0 = cr0;
-		vmx_set_cr4(vcpu, kvm_read_cr4(vcpu));
-	}
-
-	if (!(cr0 & X86_CR0_WP))
-		*hw_cr0 &= ~X86_CR0_WP;
-}
+#define CR3_EXITING_BITS (CPU_BASED_CR3_LOAD_EXITING | \
+			  CPU_BASED_CR3_STORE_EXITING)
 
 void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	unsigned long hw_cr0;
+	unsigned long hw_cr0, old_cr0_pg;
+	u32 tmp;
+
+	old_cr0_pg = kvm_read_cr0_bits(vcpu, X86_CR0_PG);
 
 	hw_cr0 = (cr0 & ~KVM_VM_CR0_ALWAYS_OFF);
 	if (is_unrestricted_guest(vcpu))
 		hw_cr0 |= KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST;
 	else {
 		hw_cr0 |= KVM_VM_CR0_ALWAYS_ON;
+		if (!enable_ept)
+			hw_cr0 |= X86_CR0_WP;
 
 		if (vmx->rmode.vm86_active && (cr0 & X86_CR0_PE))
 			enter_pmode(vcpu);
@@ -3041,22 +3021,60 @@ void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 			enter_rmode(vcpu);
 	}
 
-#ifdef CONFIG_X86_64
-	if (vcpu->arch.efer & EFER_LME) {
-		if (!is_paging(vcpu) && (cr0 & X86_CR0_PG))
-			enter_lmode(vcpu);
-		if (is_paging(vcpu) && !(cr0 & X86_CR0_PG))
-			exit_lmode(vcpu);
-	}
-#endif
-
-	if (enable_ept && !is_unrestricted_guest(vcpu))
-		ept_update_paging_mode_cr0(&hw_cr0, cr0, vcpu);
-
 	vmcs_writel(CR0_READ_SHADOW, cr0);
 	vmcs_writel(GUEST_CR0, hw_cr0);
 	vcpu->arch.cr0 = cr0;
 	kvm_register_mark_available(vcpu, VCPU_EXREG_CR0);
+
+#ifdef CONFIG_X86_64
+	if (vcpu->arch.efer & EFER_LME) {
+		if (!old_cr0_pg && (cr0 & X86_CR0_PG))
+			enter_lmode(vcpu);
+		else if (old_cr0_pg && !(cr0 & X86_CR0_PG))
+			exit_lmode(vcpu);
+	}
+#endif
+
+	if (enable_ept && !is_unrestricted_guest(vcpu)) {
+		/*
+		 * Ensure KVM has an up-to-date snapshot of the guest's CR3.  If
+		 * the below code _enables_ CR3 exiting, vmx_cache_reg() will
+		 * (correctly) stop reading vmcs.GUEST_CR3 because it thinks
+		 * KVM's CR3 is installed.
+		 */
+		if (!kvm_register_is_available(vcpu, VCPU_EXREG_CR3))
+			vmx_cache_reg(vcpu, VCPU_EXREG_CR3);
+
+		/*
+		 * When running with EPT but not unrestricted guest, KVM must
+		 * intercept CR3 accesses when paging is _disabled_.  This is
+		 * necessary because restricted guests can't actually run with
+		 * paging disabled, and so KVM stuffs its own CR3 in order to
+		 * run the guest when identity mapped page tables.
+		 *
+		 * Do _NOT_ check the old CR0.PG, e.g. to optimize away the
+		 * update, it may be stale with respect to CR3 interception,
+		 * e.g. after nested VM-Enter.
+		 *
+		 * Lastly, honor L1's desires, i.e. intercept CR3 loads and/or
+		 * stores to forward them to L1, even if KVM does not need to
+		 * intercept them to preserve its identity mapped page tables.
+		 */
+		if (!(cr0 & X86_CR0_PG)) {
+			exec_controls_setbit(vmx, CR3_EXITING_BITS);
+		} else if (!is_guest_mode(vcpu)) {
+			exec_controls_clearbit(vmx, CR3_EXITING_BITS);
+		} else {
+			tmp = exec_controls_get(vmx);
+			tmp &= ~CR3_EXITING_BITS;
+			tmp |= get_vmcs12(vcpu)->cpu_based_vm_exec_control & CR3_EXITING_BITS;
+			exec_controls_set(vmx, tmp);
+		}
+
+		/* Note, vmx_set_cr4() consumes the new vcpu->arch.cr0. */
+		if ((old_cr0_pg ^ cr0) & X86_CR0_PG)
+			vmx_set_cr4(vcpu, kvm_read_cr4(vcpu));
+	}
 
 	/* depends on vcpu->arch.cr0 to be set to a new value */
 	vmx->emulation_required = emulation_required(vcpu);
@@ -3271,7 +3289,7 @@ static u32 vmx_segment_access_rights(struct kvm_segment *var)
 	return ar;
 }
 
-void vmx_set_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg)
+void __vmx_set_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	const struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
@@ -3284,7 +3302,7 @@ void vmx_set_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg)
 			vmcs_write16(sf->selector, var->selector);
 		else if (var->s)
 			fix_rmode_seg(seg, &vmx->rmode.segs[seg]);
-		goto out;
+		return;
 	}
 
 	vmcs_writel(sf->base, var->base);
@@ -3306,9 +3324,13 @@ void vmx_set_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg)
 		var->type |= 0x1; /* Accessed */
 
 	vmcs_write32(sf->ar_bytes, vmx_segment_access_rights(var));
+}
 
-out:
-	vmx->emulation_required = emulation_required(vcpu);
+static void vmx_set_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg)
+{
+	__vmx_set_segment(vcpu, var, seg);
+
+	to_vmx(vcpu)->emulation_required = emulation_required(vcpu);
 }
 
 static void vmx_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l)
@@ -3790,21 +3812,6 @@ void vmx_enable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type)
 		vmx_set_msr_bitmap_write(msr_bitmap, msr);
 }
 
-static u8 vmx_msr_bitmap_mode(struct kvm_vcpu *vcpu)
-{
-	u8 mode = 0;
-
-	if (cpu_has_secondary_exec_ctrls() &&
-	    (secondary_exec_controls_get(to_vmx(vcpu)) &
-	     SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE)) {
-		mode |= MSR_BITMAP_MODE_X2APIC;
-		if (enable_apicv && kvm_vcpu_apicv_active(vcpu))
-			mode |= MSR_BITMAP_MODE_X2APIC_APICV;
-	}
-
-	return mode;
-}
-
 static void vmx_reset_x2apic_msrs(struct kvm_vcpu *vcpu, u8 mode)
 {
 	unsigned long *msr_bitmap = to_vmx(vcpu)->vmcs01.msr_bitmap;
@@ -3822,10 +3829,28 @@ static void vmx_reset_x2apic_msrs(struct kvm_vcpu *vcpu, u8 mode)
 	}
 }
 
-static void vmx_update_msr_bitmap_x2apic(struct kvm_vcpu *vcpu, u8 mode)
+static void vmx_update_msr_bitmap_x2apic(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u8 mode;
+
 	if (!cpu_has_vmx_msr_bitmap())
 		return;
+
+	if (cpu_has_secondary_exec_ctrls() &&
+	    (secondary_exec_controls_get(vmx) &
+	     SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE)) {
+		mode = MSR_BITMAP_MODE_X2APIC;
+		if (enable_apicv && kvm_vcpu_apicv_active(vcpu))
+			mode |= MSR_BITMAP_MODE_X2APIC_APICV;
+	} else {
+		mode = 0;
+	}
+
+	if (mode == vmx->x2apic_msr_bitmap_mode)
+		return;
+
+	vmx->x2apic_msr_bitmap_mode = mode;
 
 	vmx_reset_x2apic_msrs(vcpu, mode);
 
@@ -3841,21 +3866,6 @@ static void vmx_update_msr_bitmap_x2apic(struct kvm_vcpu *vcpu, u8 mode)
 		vmx_disable_intercept_for_msr(vcpu, X2APIC_MSR(APIC_EOI), MSR_TYPE_W);
 		vmx_disable_intercept_for_msr(vcpu, X2APIC_MSR(APIC_SELF_IPI), MSR_TYPE_W);
 	}
-}
-
-void vmx_update_msr_bitmap(struct kvm_vcpu *vcpu)
-{
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	u8 mode = vmx_msr_bitmap_mode(vcpu);
-	u8 changed = mode ^ vmx->msr_bitmap_mode;
-
-	if (!changed)
-		return;
-
-	if (changed & (MSR_BITMAP_MODE_X2APIC | MSR_BITMAP_MODE_X2APIC_APICV))
-		vmx_update_msr_bitmap_x2apic(vcpu, mode);
-
-	vmx->msr_bitmap_mode = mode;
 }
 
 void pt_update_intercept_for_msr(struct kvm_vcpu *vcpu)
@@ -3914,7 +3924,6 @@ static void vmx_msr_filter_changed(struct kvm_vcpu *vcpu)
 	}
 
 	pt_update_intercept_for_msr(vcpu);
-	vmx_update_msr_bitmap_x2apic(vcpu, vmx_msr_bitmap_mode(vcpu));
 }
 
 static inline bool kvm_vcpu_trigger_posted_interrupt(struct kvm_vcpu *vcpu,
@@ -4086,7 +4095,7 @@ void set_cr4_guest_host_mask(struct vcpu_vmx *vmx)
 	vmcs_writel(CR4_GUEST_HOST_MASK, ~vcpu->arch.cr4_guest_owned_bits);
 }
 
-u32 vmx_pin_based_exec_ctrl(struct vcpu_vmx *vmx)
+static u32 vmx_pin_based_exec_ctrl(struct vcpu_vmx *vmx)
 {
 	u32 pin_based_exec_ctrl = vmcs_config.pin_based_exec_ctrl;
 
@@ -4100,6 +4109,30 @@ u32 vmx_pin_based_exec_ctrl(struct vcpu_vmx *vmx)
 		pin_based_exec_ctrl &= ~PIN_BASED_VMX_PREEMPTION_TIMER;
 
 	return pin_based_exec_ctrl;
+}
+
+static u32 vmx_vmentry_ctrl(void)
+{
+	u32 vmentry_ctrl = vmcs_config.vmentry_ctrl;
+
+	if (vmx_pt_mode_is_system())
+		vmentry_ctrl &= ~(VM_ENTRY_PT_CONCEAL_PIP |
+				  VM_ENTRY_LOAD_IA32_RTIT_CTL);
+	/* Loading of EFER and PERF_GLOBAL_CTRL are toggled dynamically */
+	return vmentry_ctrl &
+		~(VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL | VM_ENTRY_LOAD_IA32_EFER);
+}
+
+static u32 vmx_vmexit_ctrl(void)
+{
+	u32 vmexit_ctrl = vmcs_config.vmexit_ctrl;
+
+	if (vmx_pt_mode_is_system())
+		vmexit_ctrl &= ~(VM_EXIT_PT_CONCEAL_PIP |
+				 VM_EXIT_CLEAR_IA32_RTIT_CTL);
+	/* Loading of EFER and PERF_GLOBAL_CTRL are toggled dynamically */
+	return vmexit_ctrl &
+		~(VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL | VM_EXIT_LOAD_IA32_EFER);
 }
 
 static void vmx_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
@@ -4118,11 +4151,10 @@ static void vmx_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 					SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY);
 	}
 
-	if (cpu_has_vmx_msr_bitmap())
-		vmx_update_msr_bitmap(vcpu);
+	vmx_update_msr_bitmap_x2apic(vcpu);
 }
 
-u32 vmx_exec_control(struct vcpu_vmx *vmx)
+static u32 vmx_exec_control(struct vcpu_vmx *vmx)
 {
 	u32 exec_control = vmcs_config.cpu_based_exec_ctrl;
 
@@ -4204,7 +4236,7 @@ vmx_adjust_secondary_exec_control(struct vcpu_vmx *vmx, u32 *exec_control,
 #define vmx_adjust_sec_exec_exiting(vmx, exec_control, lname, uname) \
 	vmx_adjust_sec_exec_control(vmx, exec_control, lname, uname, uname##_EXITING, true)
 
-static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
+static u32 vmx_secondary_exec_control(struct vcpu_vmx *vmx)
 {
 	struct kvm_vcpu *vcpu = &vmx->vcpu;
 
@@ -4290,7 +4322,7 @@ static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
 	if (!vcpu->kvm->arch.bus_lock_detection_enabled)
 		exec_control &= ~SECONDARY_EXEC_BUS_LOCK_DETECTION;
 
-	vmx->secondary_exec_control = exec_control;
+	return exec_control;
 }
 
 #define VMX_XSS_EXIT_BITMAP 0
@@ -4314,10 +4346,8 @@ static void init_vmcs(struct vcpu_vmx *vmx)
 
 	exec_controls_set(vmx, vmx_exec_control(vmx));
 
-	if (cpu_has_secondary_exec_ctrls()) {
-		vmx_compute_secondary_exec_control(vmx);
-		secondary_exec_controls_set(vmx, vmx->secondary_exec_control);
-	}
+	if (cpu_has_secondary_exec_ctrls())
+		secondary_exec_controls_set(vmx, vmx_secondary_exec_control(vmx));
 
 	if (kvm_vcpu_apicv_active(&vmx->vcpu)) {
 		vmcs_write64(EOI_EXIT_BITMAP0, 0);
@@ -4388,31 +4418,34 @@ static void init_vmcs(struct vcpu_vmx *vmx)
 		vmx->pt_desc.guest.output_mask = 0x7F;
 		vmcs_write64(GUEST_IA32_RTIT_CTL, 0);
 	}
+
+	vmcs_write32(GUEST_SYSENTER_CS, 0);
+	vmcs_writel(GUEST_SYSENTER_ESP, 0);
+	vmcs_writel(GUEST_SYSENTER_EIP, 0);
+	vmcs_write64(GUEST_IA32_DEBUGCTL, 0);
+
+	if (cpu_has_vmx_tpr_shadow()) {
+		vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, 0);
+		if (cpu_need_tpr_shadow(&vmx->vcpu))
+			vmcs_write64(VIRTUAL_APIC_PAGE_ADDR,
+				     __pa(vmx->vcpu.arch.apic->regs));
+		vmcs_write32(TPR_THRESHOLD, 0);
+	}
+
+	vmx_setup_uret_msrs(vmx);
 }
 
 static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	struct msr_data apic_base_msr;
-	u64 cr0;
 
 	vmx->rmode.vm86_active = 0;
 	vmx->spec_ctrl = 0;
 
 	vmx->msr_ia32_umwait_control = 0;
 
-	vmx->vcpu.arch.regs[VCPU_REGS_RDX] = get_rdx_init_val();
 	vmx->hv_deadline_tsc = -1;
 	kvm_set_cr8(vcpu, 0);
-
-	if (!init_event) {
-		apic_base_msr.data = APIC_DEFAULT_PHYS_BASE |
-				     MSR_IA32_APICBASE_ENABLE;
-		if (kvm_vcpu_is_reset_bsp(vcpu))
-			apic_base_msr.data |= MSR_IA32_APICBASE_BSP;
-		apic_base_msr.host_initiated = true;
-		kvm_set_apic_base(vcpu, &apic_base_msr);
-	}
 
 	vmx_segment_cache_clear(vmx);
 
@@ -4436,16 +4469,6 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	vmcs_write32(GUEST_LDTR_LIMIT, 0xffff);
 	vmcs_write32(GUEST_LDTR_AR_BYTES, 0x00082);
 
-	if (!init_event) {
-		vmcs_write32(GUEST_SYSENTER_CS, 0);
-		vmcs_writel(GUEST_SYSENTER_ESP, 0);
-		vmcs_writel(GUEST_SYSENTER_EIP, 0);
-		vmcs_write64(GUEST_IA32_DEBUGCTL, 0);
-	}
-
-	kvm_set_rflags(vcpu, X86_EFLAGS_FIXED);
-	kvm_rip_write(vcpu, 0xfff0);
-
 	vmcs_writel(GUEST_GDTR_BASE, 0);
 	vmcs_write32(GUEST_GDTR_LIMIT, 0xffff);
 
@@ -4458,31 +4481,11 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	if (kvm_mpx_supported())
 		vmcs_write64(GUEST_BNDCFGS, 0);
 
-	setup_msrs(vmx);
-
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, 0);  /* 22.2.1 */
-
-	if (cpu_has_vmx_tpr_shadow() && !init_event) {
-		vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, 0);
-		if (cpu_need_tpr_shadow(vcpu))
-			vmcs_write64(VIRTUAL_APIC_PAGE_ADDR,
-				     __pa(vcpu->arch.apic->regs));
-		vmcs_write32(TPR_THRESHOLD, 0);
-	}
 
 	kvm_make_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu);
 
-	cr0 = X86_CR0_NW | X86_CR0_CD | X86_CR0_ET;
-	vmx->vcpu.arch.cr0 = cr0;
-	vmx_set_cr0(vcpu, cr0); /* enter rmode */
-	vmx_set_cr4(vcpu, 0);
-	vmx_set_efer(vcpu, 0);
-
-	vmx_update_exception_bitmap(vcpu);
-
 	vpid_sync_context(vmx->vpid);
-	if (init_event)
-		vmx_clear_hlt(vcpu);
 }
 
 static void vmx_enable_irq_window(struct kvm_vcpu *vcpu)
@@ -4996,6 +4999,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 			return kvm_complete_insn_gp(vcpu, err);
 		case 3:
 			WARN_ON_ONCE(enable_unrestricted_guest);
+
 			err = kvm_set_cr3(vcpu, val);
 			return kvm_complete_insn_gp(vcpu, err);
 		case 4:
@@ -5021,14 +5025,13 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 		}
 		break;
 	case 2: /* clts */
-		WARN_ONCE(1, "Guest should always own CR0.TS");
-		vmx_set_cr0(vcpu, kvm_read_cr0_bits(vcpu, ~X86_CR0_TS));
-		trace_kvm_cr_write(0, kvm_read_cr0(vcpu));
-		return kvm_skip_emulated_instruction(vcpu);
+		KVM_BUG(1, vcpu->kvm, "Guest always owns CR0.TS");
+		return -EIO;
 	case 1: /*mov from cr*/
 		switch (cr) {
 		case 3:
 			WARN_ON_ONCE(enable_unrestricted_guest);
+
 			val = kvm_read_cr3(vcpu);
 			kvm_register_write(vcpu, reg, val);
 			trace_kvm_cr_read(cr, val);
@@ -5129,6 +5132,12 @@ static void vmx_sync_dirty_debug_regs(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.switch_db_regs &= ~KVM_DEBUGREG_WONT_EXIT;
 	exec_controls_setbit(to_vmx(vcpu), CPU_BASED_MOV_DR_EXITING);
+
+	/*
+	 * exc_debug expects dr6 to be cleared after it runs, avoid that it sees
+	 * a stale dr6 from the guest.
+	 */
+	set_debugreg(DR6_RESERVED, 6);
 }
 
 static void vmx_set_dr7(struct kvm_vcpu *vcpu, unsigned long val)
@@ -5338,7 +5347,9 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 
 static int handle_nmi_window(struct kvm_vcpu *vcpu)
 {
-	WARN_ON_ONCE(!enable_vnmi);
+	if (KVM_BUG_ON(!enable_vnmi, vcpu->kvm))
+		return -EIO;
+
 	exec_controls_clearbit(to_vmx(vcpu), CPU_BASED_NMI_WINDOW_EXITING);
 	++vcpu->stat.nmi_window_exits;
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
@@ -5896,7 +5907,8 @@ static int __vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 	 * below) should never happen as that means we incorrectly allowed a
 	 * nested VM-Enter with an invalid vmcs12.
 	 */
-	WARN_ON_ONCE(vmx->nested.nested_run_pending);
+	if (KVM_BUG_ON(vmx->nested.nested_run_pending, vcpu->kvm))
+		return -EIO;
 
 	/* If guest state is invalid, start emulating */
 	if (vmx->emulation_required)
@@ -6189,7 +6201,7 @@ void vmx_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
 	}
 	secondary_exec_controls_set(vmx, sec_exec_control);
 
-	vmx_update_msr_bitmap(vcpu);
+	vmx_update_msr_bitmap_x2apic(vcpu);
 }
 
 static void vmx_set_apic_access_page_addr(struct kvm_vcpu *vcpu)
@@ -6274,7 +6286,9 @@ static int vmx_sync_pir_to_irr(struct kvm_vcpu *vcpu)
 	int max_irr;
 	bool max_irr_updated;
 
-	WARN_ON(!vcpu->arch.apicv_active);
+	if (KVM_BUG_ON(!vcpu->arch.apicv_active, vcpu->kvm))
+		return -EIO;
+
 	if (pi_test_on(&vmx->pi_desc)) {
 		pi_clear_on(&vmx->pi_desc);
 		/*
@@ -6357,7 +6371,7 @@ static void handle_external_interrupt_irqoff(struct kvm_vcpu *vcpu)
 	unsigned int vector = intr_info & INTR_INFO_VECTOR_MASK;
 	gate_desc *desc = (gate_desc *)host_idt_base + vector;
 
-	if (WARN_ONCE(!is_external_intr(intr_info),
+	if (KVM_BUG(!is_external_intr(intr_info), vcpu->kvm,
 	    "KVM: unexpected VM-Exit interrupt info: 0x%x", intr_info))
 		return;
 
@@ -6367,6 +6381,9 @@ static void handle_external_interrupt_irqoff(struct kvm_vcpu *vcpu)
 static void vmx_handle_exit_irqoff(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	if (vmx->emulation_required)
+		return;
 
 	if (vmx->exit_reason.basic == EXIT_REASON_EXTERNAL_INTERRUPT)
 		handle_external_interrupt_irqoff(vcpu);
@@ -6639,6 +6656,10 @@ static fastpath_t vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		vmx->loaded_vmcs->host_state.cr4 = cr4;
 	}
 
+	/* When KVM_DEBUGREG_WONT_EXIT, dr6 is accessible in guest. */
+	if (unlikely(vcpu->arch.switch_db_regs & KVM_DEBUGREG_WONT_EXIT))
+		set_debugreg(vcpu->arch.dr6, 6);
+
 	/* When single-stepping over STI and MOV SS, we must clear the
 	 * corresponding interruptibility bits in the guest state. Otherwise
 	 * vmentry fails as it then expects bit 14 (BS) in pending debug
@@ -6838,7 +6859,6 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 		vmx_disable_intercept_for_msr(vcpu, MSR_CORE_C6_RESIDENCY, MSR_TYPE_R);
 		vmx_disable_intercept_for_msr(vcpu, MSR_CORE_C7_RESIDENCY, MSR_TYPE_R);
 	}
-	vmx->msr_bitmap_mode = 0;
 
 	vmx->loaded_vmcs = &vmx->vmcs01;
 	cpu = get_cpu();
@@ -6997,7 +7017,7 @@ exit:
 	return (cache << VMX_EPT_MT_EPTE_SHIFT) | ipat;
 }
 
-static void vmcs_set_secondary_exec_control(struct vcpu_vmx *vmx)
+static void vmcs_set_secondary_exec_control(struct vcpu_vmx *vmx, u32 new_ctl)
 {
 	/*
 	 * These bits in the secondary execution controls field
@@ -7011,7 +7031,6 @@ static void vmcs_set_secondary_exec_control(struct vcpu_vmx *vmx)
 		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
 		SECONDARY_EXEC_DESC;
 
-	u32 new_ctl = vmx->secondary_exec_control;
 	u32 cur_ctl = secondary_exec_controls_get(vmx);
 
 	secondary_exec_controls_set(vmx, (new_ctl & ~mask) | (cur_ctl & mask));
@@ -7154,10 +7173,11 @@ static void vmx_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	/* xsaves_enabled is recomputed in vmx_compute_secondary_exec_control(). */
 	vcpu->arch.xsaves_enabled = false;
 
-	if (cpu_has_secondary_exec_ctrls()) {
-		vmx_compute_secondary_exec_control(vmx);
-		vmcs_set_secondary_exec_control(vmx);
-	}
+	vmx_setup_uret_msrs(vmx);
+
+	if (cpu_has_secondary_exec_ctrls())
+		vmcs_set_secondary_exec_control(vmx,
+						vmx_secondary_exec_control(vmx));
 
 	if (nested_vmx_allowed(vcpu))
 		to_vmx(vcpu)->msr_ia32_feature_control_valid_bits |=
@@ -7803,7 +7823,8 @@ static __init int hardware_setup(void)
 		ept_lpage_level = PG_LEVEL_2M;
 	else
 		ept_lpage_level = PG_LEVEL_4K;
-	kvm_configure_mmu(enable_ept, vmx_get_max_tdp_level(), ept_lpage_level);
+	kvm_configure_mmu(enable_ept, 0, vmx_get_max_tdp_level(),
+			  ept_lpage_level);
 
 	/*
 	 * Only enable PML when hardware supports PML feature, and both EPT

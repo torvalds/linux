@@ -638,6 +638,7 @@ static inline bool is_rvu_fwdata_valid(struct rvu *rvu)
 }
 
 int rvu_alloc_bitmap(struct rsrc_bmap *rsrc);
+void rvu_free_bitmap(struct rsrc_bmap *rsrc);
 int rvu_alloc_rsrc(struct rsrc_bmap *rsrc);
 void rvu_free_rsrc(struct rsrc_bmap *rsrc, int id);
 bool is_rsrc_free(struct rsrc_bmap *rsrc, int id);
