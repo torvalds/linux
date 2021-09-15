@@ -436,6 +436,7 @@ struct snd_sof_dsp_ops sof_imx8_ops = {
 
 	/* Debug information */
 	.dbg_dump = imx8_dump,
+	.debugfs_add_region_item = snd_sof_debugfs_add_region_item_iomem,
 
 	/* Firmware ops */
 	.arch_ops = &sof_xtensa_arch_ops,
@@ -482,6 +483,7 @@ struct snd_sof_dsp_ops sof_imx8x_ops = {
 
 	/* Debug information */
 	.dbg_dump = imx8_dump,
+	.debugfs_add_region_item = snd_sof_debugfs_add_region_item_iomem,
 
 	/* Firmware ops */
 	.arch_ops = &sof_xtensa_arch_ops,
