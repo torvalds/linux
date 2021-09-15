@@ -228,8 +228,9 @@ static int alloc_long_term_buff(struct ibmvnic_adapter *adapter,
 		dev_err(dev, "Couldn't alloc long term buffer\n");
 		return -ENOMEM;
 	}
-	ltb->map_id = adapter->map_id;
-	adapter->map_id++;
+	ltb->map_id = find_first_zero_bit(adapter->map_ids,
+					  MAX_MAP_ID);
+	bitmap_set(adapter->map_ids, ltb->map_id, 1);
 
 	mutex_lock(&adapter->fw_lock);
 	adapter->fw_done_rc = 0;
@@ -284,6 +285,8 @@ static void free_long_term_buff(struct ibmvnic_adapter *adapter,
 	dma_free_coherent(dev, ltb->size, ltb->buff, ltb->addr);
 
 	ltb->buff = NULL;
+	/* mark this map_id free */
+	bitmap_clear(adapter->map_ids, ltb->map_id, 1);
 	ltb->map_id = 0;
 }
 
@@ -1234,8 +1237,6 @@ static int init_resources(struct ibmvnic_adapter *adapter)
 		netdev_err(netdev, "failed to initialize Vital Product Data (VPD)\n");
 		return rc;
 	}
-
-	adapter->map_id = 1;
 
 	rc = init_napi(adapter);
 	if (rc)
@@ -5557,6 +5558,9 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	adapter->vdev = dev;
 	adapter->netdev = netdev;
 	adapter->login_pending = false;
+	memset(&adapter->map_ids, 0, sizeof(adapter->map_ids));
+	/* map_ids start at 1, so ensure map_id 0 is always "in-use" */
+	bitmap_set(adapter->map_ids, 0, 1);
 
 	ether_addr_copy(adapter->mac_addr, mac_addr_p);
 	ether_addr_copy(netdev->dev_addr, adapter->mac_addr);
