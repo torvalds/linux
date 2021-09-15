@@ -306,11 +306,11 @@ struct btrfs_fs_devices {
 /*
  * we need the mirror number and stripe index to be passed around
  * the call chain while we are processing end_io (especially errors).
- * Really, what we need is a btrfs_bio structure that has this info
+ * Really, what we need is a btrfs_io_context structure that has this info
  * and is properly sized with its stripe array, but we're not there
  * quite yet.  We have our own btrfs bioset, and all of the bios
  * we allocate are actually btrfs_io_bios.  We'll cram as much of
- * struct btrfs_bio as we can into this over time.
+ * struct btrfs_io_context as we can into this over time.
  */
 struct btrfs_io_bio {
 	unsigned int mirror_num;
@@ -339,13 +339,29 @@ static inline void btrfs_io_bio_free_csum(struct btrfs_io_bio *io_bio)
 	}
 }
 
-struct btrfs_bio_stripe {
+struct btrfs_io_stripe {
 	struct btrfs_device *dev;
 	u64 physical;
 	u64 length; /* only used for discard mappings */
 };
 
-struct btrfs_bio {
+/*
+ * Context for IO subsmission for device stripe.
+ *
+ * - Track the unfinished mirrors for mirror based profiles
+ *   Mirror based profiles are SINGLE/DUP/RAID1/RAID10.
+ *
+ * - Contain the logical -> physical mapping info
+ *   Used by submit_stripe_bio() for mapping logical bio
+ *   into physical device address.
+ *
+ * - Contain device replace info
+ *   Used by handle_ops_on_dev_replace() to copy logical bios
+ *   into the new device.
+ *
+ * - Contain RAID56 full stripe logical bytenrs
+ */
+struct btrfs_io_context {
 	refcount_t refs;
 	atomic_t stripes_pending;
 	struct btrfs_fs_info *fs_info;
@@ -365,7 +381,7 @@ struct btrfs_bio {
 	 * so raid_map[0] is the start of our full stripe
 	 */
 	u64 *raid_map;
-	struct btrfs_bio_stripe stripes[];
+	struct btrfs_io_stripe stripes[];
 };
 
 struct btrfs_device_info {
@@ -400,11 +416,11 @@ struct map_lookup {
 	int num_stripes;
 	int sub_stripes;
 	int verified_stripes; /* For mount time dev extent verification */
-	struct btrfs_bio_stripe stripes[];
+	struct btrfs_io_stripe stripes[];
 };
 
 #define map_lookup_size(n) (sizeof(struct map_lookup) + \
-			    (sizeof(struct btrfs_bio_stripe) * (n)))
+			    (sizeof(struct btrfs_io_stripe) * (n)))
 
 struct btrfs_balance_args;
 struct btrfs_balance_progress;
@@ -457,14 +473,14 @@ static inline enum btrfs_map_op btrfs_op(struct bio *bio)
 	}
 }
 
-void btrfs_get_bbio(struct btrfs_bio *bbio);
-void btrfs_put_bbio(struct btrfs_bio *bbio);
+void btrfs_get_bioc(struct btrfs_io_context *bioc);
+void btrfs_put_bioc(struct btrfs_io_context *bioc);
 int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		    u64 logical, u64 *length,
-		    struct btrfs_bio **bbio_ret, int mirror_num);
+		    struct btrfs_io_context **bioc_ret, int mirror_num);
 int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		     u64 logical, u64 *length,
-		     struct btrfs_bio **bbio_ret);
+		     struct btrfs_io_context **bioc_ret);
 int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, struct extent_map *map,
 			  enum btrfs_map_op op, u64 logical,
 			  struct btrfs_io_geometry *io_geom);

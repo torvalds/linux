@@ -227,7 +227,7 @@ start_machine:
 }
 
 static struct reada_zone *reada_find_zone(struct btrfs_device *dev, u64 logical,
-					  struct btrfs_bio *bbio)
+					  struct btrfs_io_context *bioc)
 {
 	struct btrfs_fs_info *fs_info = dev->fs_info;
 	int ret;
@@ -275,11 +275,11 @@ static struct reada_zone *reada_find_zone(struct btrfs_device *dev, u64 logical,
 	kref_init(&zone->refcnt);
 	zone->elems = 0;
 	zone->device = dev; /* our device always sits at index 0 */
-	for (i = 0; i < bbio->num_stripes; ++i) {
+	for (i = 0; i < bioc->num_stripes; ++i) {
 		/* bounds have already been checked */
-		zone->devs[i] = bbio->stripes[i].dev;
+		zone->devs[i] = bioc->stripes[i].dev;
 	}
-	zone->ndevs = bbio->num_stripes;
+	zone->ndevs = bioc->num_stripes;
 
 	spin_lock(&fs_info->reada_lock);
 	ret = radix_tree_insert(&dev->reada_zones,
@@ -309,7 +309,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 	int ret;
 	struct reada_extent *re = NULL;
 	struct reada_extent *re_exist = NULL;
-	struct btrfs_bio *bbio = NULL;
+	struct btrfs_io_context *bioc = NULL;
 	struct btrfs_device *dev;
 	struct btrfs_device *prev_dev;
 	u64 length;
@@ -345,28 +345,28 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 	 */
 	length = fs_info->nodesize;
 	ret = btrfs_map_block(fs_info, BTRFS_MAP_GET_READ_MIRRORS, logical,
-			&length, &bbio, 0);
-	if (ret || !bbio || length < fs_info->nodesize)
+			      &length, &bioc, 0);
+	if (ret || !bioc || length < fs_info->nodesize)
 		goto error;
 
-	if (bbio->num_stripes > BTRFS_MAX_MIRRORS) {
+	if (bioc->num_stripes > BTRFS_MAX_MIRRORS) {
 		btrfs_err(fs_info,
 			   "readahead: more than %d copies not supported",
 			   BTRFS_MAX_MIRRORS);
 		goto error;
 	}
 
-	real_stripes = bbio->num_stripes - bbio->num_tgtdevs;
+	real_stripes = bioc->num_stripes - bioc->num_tgtdevs;
 	for (nzones = 0; nzones < real_stripes; ++nzones) {
 		struct reada_zone *zone;
 
-		dev = bbio->stripes[nzones].dev;
+		dev = bioc->stripes[nzones].dev;
 
 		/* cannot read ahead on missing device. */
 		if (!dev->bdev)
 			continue;
 
-		zone = reada_find_zone(dev, logical, bbio);
+		zone = reada_find_zone(dev, logical, bioc);
 		if (!zone)
 			continue;
 
@@ -464,7 +464,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 	if (!have_zone)
 		goto error;
 
-	btrfs_put_bbio(bbio);
+	btrfs_put_bioc(bioc);
 	return re;
 
 error:
@@ -488,7 +488,7 @@ error:
 		kref_put(&zone->refcnt, reada_zone_release);
 		spin_unlock(&fs_info->reada_lock);
 	}
-	btrfs_put_bbio(bbio);
+	btrfs_put_bioc(bioc);
 	kfree(re);
 	return re_exist;
 }

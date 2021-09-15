@@ -1502,27 +1502,27 @@ int btrfs_zoned_issue_zeroout(struct btrfs_device *device, u64 physical, u64 len
 static int read_zone_info(struct btrfs_fs_info *fs_info, u64 logical,
 			  struct blk_zone *zone)
 {
-	struct btrfs_bio *bbio = NULL;
+	struct btrfs_io_context *bioc = NULL;
 	u64 mapped_length = PAGE_SIZE;
 	unsigned int nofs_flag;
 	int nmirrors;
 	int i, ret;
 
 	ret = btrfs_map_sblock(fs_info, BTRFS_MAP_GET_READ_MIRRORS, logical,
-			       &mapped_length, &bbio);
-	if (ret || !bbio || mapped_length < PAGE_SIZE) {
-		btrfs_put_bbio(bbio);
+			       &mapped_length, &bioc);
+	if (ret || !bioc || mapped_length < PAGE_SIZE) {
+		btrfs_put_bioc(bioc);
 		return -EIO;
 	}
 
-	if (bbio->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK)
+	if (bioc->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK)
 		return -EINVAL;
 
 	nofs_flag = memalloc_nofs_save();
-	nmirrors = (int)bbio->num_stripes;
+	nmirrors = (int)bioc->num_stripes;
 	for (i = 0; i < nmirrors; i++) {
-		u64 physical = bbio->stripes[i].physical;
-		struct btrfs_device *dev = bbio->stripes[i].dev;
+		u64 physical = bioc->stripes[i].physical;
+		struct btrfs_device *dev = bioc->stripes[i].dev;
 
 		/* Missing device */
 		if (!dev->bdev)

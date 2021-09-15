@@ -2290,7 +2290,7 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 	struct btrfs_device *dev;
 	u64 map_length = 0;
 	u64 sector;
-	struct btrfs_bio *bbio = NULL;
+	struct btrfs_io_context *bioc = NULL;
 	int ret;
 
 	ASSERT(!(fs_info->sb->s_flags & SB_RDONLY));
@@ -2304,7 +2304,7 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 	map_length = length;
 
 	/*
-	 * Avoid races with device replace and make sure our bbio has devices
+	 * Avoid races with device replace and make sure our bioc has devices
 	 * associated to its stripes that don't go away while we are doing the
 	 * read repair operation.
 	 */
@@ -2317,28 +2317,28 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 		 * stripe's dev and sector.
 		 */
 		ret = btrfs_map_block(fs_info, BTRFS_MAP_READ, logical,
-				      &map_length, &bbio, 0);
+				      &map_length, &bioc, 0);
 		if (ret) {
 			btrfs_bio_counter_dec(fs_info);
 			bio_put(bio);
 			return -EIO;
 		}
-		ASSERT(bbio->mirror_num == 1);
+		ASSERT(bioc->mirror_num == 1);
 	} else {
 		ret = btrfs_map_block(fs_info, BTRFS_MAP_WRITE, logical,
-				      &map_length, &bbio, mirror_num);
+				      &map_length, &bioc, mirror_num);
 		if (ret) {
 			btrfs_bio_counter_dec(fs_info);
 			bio_put(bio);
 			return -EIO;
 		}
-		BUG_ON(mirror_num != bbio->mirror_num);
+		BUG_ON(mirror_num != bioc->mirror_num);
 	}
 
-	sector = bbio->stripes[bbio->mirror_num - 1].physical >> 9;
+	sector = bioc->stripes[bioc->mirror_num - 1].physical >> 9;
 	bio->bi_iter.bi_sector = sector;
-	dev = bbio->stripes[bbio->mirror_num - 1].dev;
-	btrfs_put_bbio(bbio);
+	dev = bioc->stripes[bioc->mirror_num - 1].dev;
+	btrfs_put_bioc(bioc);
 	if (!dev || !dev->bdev ||
 	    !test_bit(BTRFS_DEV_STATE_WRITEABLE, &dev->dev_state)) {
 		btrfs_bio_counter_dec(fs_info);
