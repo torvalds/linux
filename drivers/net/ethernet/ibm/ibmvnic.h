@@ -827,7 +827,7 @@ struct ibmvnic_rx_buff {
 
 struct ibmvnic_rx_pool {
 	struct ibmvnic_rx_buff *rx_buff;
-	int size;
+	int size;			/* # of buffers in the pool */
 	int index;
 	int buff_size;
 	atomic_t available;
@@ -967,6 +967,7 @@ struct ibmvnic_adapter {
 	u64 min_mtu;
 	u64 max_mtu;
 	u64 req_mtu;
+	u64 prev_mtu;
 	u64 max_multicast_filters;
 	u64 vlan_header_insertion;
 	u64 rx_vlan_header_insertion;
@@ -979,13 +980,18 @@ struct ibmvnic_adapter {
 	u64 opt_tx_entries_per_subcrq;
 	u64 opt_rxba_entries_per_subcrq;
 	__be64 tx_rx_desc_req;
-	u8 map_id;
+#define MAX_MAP_ID	255
+	DECLARE_BITMAP(map_ids, MAX_MAP_ID);
 	u32 num_active_rx_scrqs;
 	u32 num_active_rx_pools;
 	u32 num_active_rx_napi;
 	u32 num_active_tx_scrqs;
 	u32 num_active_tx_pools;
+
+	u32 prev_rx_pool_size;
+	u32 prev_tx_pool_size;
 	u32 cur_rx_buf_sz;
+	u32 prev_rx_buf_sz;
 
 	struct tasklet_struct tasklet;
 	enum vnic_state state;
