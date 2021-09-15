@@ -527,7 +527,6 @@ static struct usb_descriptor_header *ss_audio_desc[] = {
 	(struct usb_descriptor_header *)&ss_epout_desc_comp,
 	(struct usb_descriptor_header *)&as_iso_out_desc,
 	(struct usb_descriptor_header *)&ss_epin_fback_desc,
-	(struct usb_descriptor_header *)&ss_epin_desc_comp,
 
 	(struct usb_descriptor_header *)&std_as_in_if0_desc,
 	(struct usb_descriptor_header *)&std_as_in_if1_desc,
@@ -661,11 +660,8 @@ static void setup_headers(struct f_uac2_opts *opts,
 
 		headers[i++] = USBDHDR(&as_iso_out_desc);
 
-		if (EPOUT_FBACK_IN_EN(opts)) {
+		if (EPOUT_FBACK_IN_EN(opts))
 			headers[i++] = USBDHDR(epin_fback_desc);
-			if (epin_desc_comp)
-				headers[i++] = USBDHDR(epin_desc_comp);
-		}
 	}
 	if (EPIN_EN(opts)) {
 		headers[i++] = USBDHDR(&std_as_in_if0_desc);
