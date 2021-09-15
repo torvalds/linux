@@ -9817,6 +9817,9 @@ static int hclge_set_vlan_filter_hw(struct hclge_dev *hdev, __be16 proto,
 	if (is_kill && !vlan_id)
 		return 0;
 
+	if (vlan_id >= VLAN_N_VID)
+		return -EINVAL;
+
 	ret = hclge_set_vf_vlan_common(hdev, vport_id, is_kill, vlan_id);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
