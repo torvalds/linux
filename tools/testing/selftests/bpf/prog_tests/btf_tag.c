@@ -10,5 +10,11 @@ void test_btf_tag(void)
 	skel = tag__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "btf_tag"))
 		return;
+
+	if (skel->rodata->skip_tests) {
+		printf("%s:SKIP: btf_tag attribute not supported", __func__);
+		test__skip();
+	}
+
 	tag__destroy(skel);
 }

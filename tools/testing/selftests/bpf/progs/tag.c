@@ -4,8 +4,19 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
+#ifndef __has_attribute
+#define __has_attribute(x) 0
+#endif
+
+#if __has_attribute(btf_tag)
 #define __tag1 __attribute__((btf_tag("tag1")))
 #define __tag2 __attribute__((btf_tag("tag2")))
+volatile const bool skip_tests __tag1 __tag2 = false;
+#else
+#define __tag1
+#define __tag2
+volatile const bool skip_tests = true;
+#endif
 
 struct key_t {
 	int a;
@@ -20,7 +31,6 @@ struct {
 	__type(value, __u64);
 } hashmap1 SEC(".maps");
 
-__u32 total __tag1 __tag2 = 0;
 
 static __noinline int foo(int x __tag1 __tag2) __tag1 __tag2
 {
