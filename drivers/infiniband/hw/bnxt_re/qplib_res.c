@@ -228,15 +228,16 @@ int bnxt_qplib_alloc_init_hwq(struct bnxt_qplib_hwq *hwq,
 				npages++;
 	}
 
-	if (npages == MAX_PBL_LVL_0_PGS) {
+	if (npages == MAX_PBL_LVL_0_PGS && !hwq_attr->sginfo->nopte) {
 		/* This request is Level 0, map PTE */
 		rc = __alloc_pbl(res, &hwq->pbl[PBL_LVL_0], hwq_attr->sginfo);
 		if (rc)
 			goto fail;
 		hwq->level = PBL_LVL_0;
+		goto done;
 	}
 
-	if (npages > MAX_PBL_LVL_0_PGS) {
+	if (npages >= MAX_PBL_LVL_0_PGS) {
 		if (npages > MAX_PBL_LVL_1_PGS) {
 			u32 flag = (hwq_attr->type == HWQ_TYPE_L2_CMPL) ?
 				    0 : PTU_PTE_VALID;
