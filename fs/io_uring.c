@@ -736,7 +736,6 @@ enum {
 	REQ_F_BUFFER_SELECTED_BIT,
 	REQ_F_COMPLETE_INLINE_BIT,
 	REQ_F_REISSUE_BIT,
-	REQ_F_DONT_REISSUE_BIT,
 	REQ_F_CREDS_BIT,
 	REQ_F_REFCOUNT_BIT,
 	REQ_F_ARM_LTIMEOUT_BIT,
@@ -783,8 +782,6 @@ enum {
 	REQ_F_COMPLETE_INLINE	= BIT(REQ_F_COMPLETE_INLINE_BIT),
 	/* caller should reissue async */
 	REQ_F_REISSUE		= BIT(REQ_F_REISSUE_BIT),
-	/* don't attempt request reissue, see io_rw_reissue() */
-	REQ_F_DONT_REISSUE	= BIT(REQ_F_DONT_REISSUE_BIT),
 	/* supports async reads */
 	REQ_F_NOWAIT_READ	= BIT(REQ_F_NOWAIT_READ_BIT),
 	/* supports async writes */
@@ -2440,13 +2437,6 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		req = list_first_entry(done, struct io_kiocb, inflight_entry);
 		list_del(&req->inflight_entry);
 
-		if (READ_ONCE(req->result) == -EAGAIN &&
-		    !(req->flags & REQ_F_DONT_REISSUE)) {
-			req->iopoll_completed = 0;
-			io_req_task_queue_reissue(req);
-			continue;
-		}
-
 		__io_cqring_fill_event(ctx, req->user_data, req->result,
 					io_put_rw_kbuf(req));
 		(*nr_events)++;
@@ -2709,10 +2699,9 @@ static void io_complete_rw_iopoll(struct kiocb *kiocb, long res, long res2)
 	if (kiocb->ki_flags & IOCB_WRITE)
 		kiocb_end_write(req);
 	if (unlikely(res != req->result)) {
-		if (!(res == -EAGAIN && io_rw_should_reissue(req) &&
-		    io_resubmit_prep(req))) {
-			req_set_fail(req);
-			req->flags |= REQ_F_DONT_REISSUE;
+		if (res == -EAGAIN && io_rw_should_reissue(req)) {
+			req->flags |= REQ_F_REISSUE;
+			return;
 		}
 	}
 
@@ -2926,7 +2915,6 @@ static void kiocb_done(struct kiocb *kiocb, ssize_t ret,
 {
 	struct io_kiocb *req = container_of(kiocb, struct io_kiocb, rw.kiocb);
 	struct io_async_rw *io = req->async_data;
-	bool check_reissue = kiocb->ki_complete == io_complete_rw;
 
 	/* add previously done IO, if any */
 	if (io && io->bytes_done > 0) {
@@ -2938,19 +2926,27 @@ static void kiocb_done(struct kiocb *kiocb, ssize_t ret,
 
 	if (req->flags & REQ_F_CUR_POS)
 		req->file->f_pos = kiocb->ki_pos;
-	if (ret >= 0 && check_reissue)
+	if (ret >= 0 && (kiocb->ki_complete == io_complete_rw))
 		__io_complete_rw(req, ret, 0, issue_flags);
 	else
 		io_rw_done(kiocb, ret);
 
-	if (check_reissue && (req->flags & REQ_F_REISSUE)) {
+	if (req->flags & REQ_F_REISSUE) {
 		req->flags &= ~REQ_F_REISSUE;
 		if (io_resubmit_prep(req)) {
 			io_req_task_queue_reissue(req);
 		} else {
+			unsigned int cflags = io_put_rw_kbuf(req);
+			struct io_ring_ctx *ctx = req->ctx;
+
 			req_set_fail(req);
-			__io_req_complete(req, issue_flags, ret,
-					  io_put_rw_kbuf(req));
+			if (issue_flags & IO_URING_F_NONBLOCK) {
+				mutex_lock(&ctx->uring_lock);
+				__io_req_complete(req, issue_flags, ret, cflags);
+				mutex_unlock(&ctx->uring_lock);
+			} else {
+				__io_req_complete(req, issue_flags, ret, cflags);
+			}
 		}
 	}
 }
