@@ -89,10 +89,6 @@ enum rockchip_plane_feture {
 	ROCKCHIP_DRM_PLANE_FEATURE_MAX,
 };
 
-enum rockchip_crtc_feture {
-	ROCKCHIP_DRM_CRTC_FEATURE_AFBDC,
-};
-
 enum rockchip_cabc_mode {
 	ROCKCHIP_DRM_CABC_MODE_DISABLE,
 	ROCKCHIP_DRM_CABC_MODE_NORMAL,

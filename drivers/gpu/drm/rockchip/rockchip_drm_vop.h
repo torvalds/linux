@@ -26,8 +26,7 @@
 #define AFBDC_FMT_U8U8U8U8	0x5
 #define AFBDC_FMT_U8U8U8	0x4
 #define VOP_FEATURE_OUTPUT_10BIT	BIT(0)
-#define VOP_FEATURE_AFBDC		BIT(1)
-#define VOP_FEATURE_ALPHA_SCALE		BIT(2)
+#define VOP_FEATURE_ALPHA_SCALE		BIT(1)
 
 #define WIN_FEATURE_HDR2SDR		BIT(0)
 #define WIN_FEATURE_SDR2HDR		BIT(1)
@@ -47,6 +46,14 @@
 
 
 #define VOP2_SOC_VARIANT		4
+
+enum vop_win_phy_id {
+	ROCKCHIP_VOP_WIN0 = 0,
+	ROCKCHIP_VOP_WIN1,
+	ROCKCHIP_VOP_WIN2,
+	ROCKCHIP_VOP_WIN3,
+	ROCKCHIP_VOP_PHY_ID_INVALID = -1,
+};
 
 enum bcsh_out_mode {
 	BCSH_OUT_MODE_BLACK,
@@ -473,6 +480,7 @@ struct vop_win_data {
 	enum drm_plane_type type;
 	const struct vop_win_phy *phy;
 	const struct vop_win_phy **area;
+	const uint64_t *format_modifiers;
 	const struct vop_csc *csc;
 	unsigned int area_size;
 	u64 feature;
@@ -751,6 +759,8 @@ struct vop_data {
 	struct vop_rect max_input;
 	struct vop_rect max_output;
 	u64 feature;
+	u64 soc_id;
+	u8 vop_id;
 };
 
 struct vop2_ctrl {

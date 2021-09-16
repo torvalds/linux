@@ -344,6 +344,8 @@ static const struct vop_grf_ctrl rk3288_vop_lit_grf_ctrl = {
 };
 
 static const struct vop_data rk3288_vop_big = {
+	.soc_id = 0x3288,
+	.vop_id = 0,
 	.version = VOP_VERSION(3, 0),
 	.feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE,
 	.max_input = {4096, 8192},
@@ -356,6 +358,8 @@ static const struct vop_data rk3288_vop_big = {
 };
 
 static const struct vop_data rk3288_vop_lit = {
+	.soc_id = 0x3288,
+	.vop_id = 1,
 	.version = VOP_VERSION(3, 0),
 	.feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE,
 	.max_input = {4096, 8192},
@@ -463,6 +467,8 @@ static const struct vop_win_data rk3368_vop_win_data[] = {
 };
 
 static const struct vop_data rk3368_vop = {
+	.soc_id = 0x3368,
+	.vop_id = 0,
 	.version = VOP_VERSION(3, 2),
 	.feature = VOP_FEATURE_ALPHA_SCALE,
 	.max_input = {4096, 8192},
@@ -488,6 +494,8 @@ static const struct vop_grf_ctrl rk3368_vop_grf_ctrl = {
 };
 
 static const struct vop_data rk3366_vop = {
+	.soc_id = 0x3366,
+	.vop_id = 0,
 	.version = VOP_VERSION(3, 4),
 	.feature = VOP_FEATURE_ALPHA_SCALE,
 	.max_input = {4096, 8192},
@@ -642,10 +650,11 @@ static const struct vop_win_data rk3399_vop_win_data[] = {
 };
 
 static const struct vop_data rk3399_vop_big = {
+	.soc_id = 0x3399,
+	.vop_id = 0,
 	.version = VOP_VERSION(3, 5),
 	.csc_table = &rk3399_csc_table,
-	.feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_AFBDC |
-			VOP_FEATURE_ALPHA_SCALE,
+	.feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE,
 	.max_input = {4096, 8192},
 	.max_output = {4096, 2160},
 	.intr = &rk3366_vop_intr,
@@ -669,6 +678,8 @@ static const struct vop_win_data rk3399_vop_lit_win_data[] = {
 
 
 static const struct vop_data rk3399_vop_lit = {
+	.soc_id = 0x3399,
+	.vop_id = 1,
 	.version = VOP_VERSION(3, 6),
 	.feature = VOP_FEATURE_ALPHA_SCALE,
 	.csc_table = &rk3399_csc_table,
@@ -688,6 +699,8 @@ static const struct vop_win_data rk322x_vop_win_data[] = {
 };
 
 static const struct vop_data rk3228_vop = {
+	.soc_id = 0x3228,
+	.vop_id = 0,
 	.version = VOP_VERSION(3, 7),
 	.feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE,
 	.max_input = {4096, 8192},
@@ -1079,6 +1092,8 @@ static const struct vop_win_data rk3328_vop_win_data[] = {
 };
 
 static const struct vop_data rk3328_vop = {
+	.soc_id = 0x3328,
+	.vop_id = 0,
 	.version = VOP_VERSION(3, 8),
 	.feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE,
 	.hdr_table = &rk3328_hdr_table,
@@ -1188,6 +1203,8 @@ static const struct vop_ctrl rk3036_ctrl_data = {
 };
 
 static const struct vop_data rk3036_vop = {
+	.soc_id = 0x3036,
+	.vop_id = 0,
 	.version = VOP_VERSION(2, 2),
 	.max_input = {1920, 1080},
 	.max_output = {1920, 1080},
@@ -1294,6 +1311,8 @@ static const struct vop_ctrl rk3066_ctrl_data = {
 };
 
 static const struct vop_data rk3066_vop = {
+	.soc_id = 0x3066,
+	.vop_id = 0,
 	.version = VOP_VERSION(2, 1),
 	.max_input = {1920, 4096},
 	.max_output = {1920, 1080},
@@ -1409,6 +1428,8 @@ static const struct vop_win_data rk3126_vop_win_data[] = {
 };
 
 static const struct vop_data rk3126_vop = {
+	.soc_id = 0x3126,
+	.vop_id = 0,
 	.version = VOP_VERSION(2, 4),
 	.max_input = {1920, 8192},
 	.max_output = {1920, 1080},
@@ -1544,6 +1565,8 @@ static const struct vop_grf_ctrl px30_grf_ctrl = {
 };
 
 static const struct vop_data px30_vop_lit = {
+	.soc_id = 0x3326,
+	.vop_id = 1,
 	.version = VOP_VERSION(2, 5),
 	.max_input = {1920, 8192},
 	.max_output = {1920, 1080},
@@ -1555,8 +1578,9 @@ static const struct vop_data px30_vop_lit = {
 };
 
 static const struct vop_data px30_vop_big = {
+	.soc_id = 0x3326,
+	.vop_id = 0,
 	.version = VOP_VERSION(2, 6),
-	.feature = VOP_FEATURE_AFBDC,
 	.max_input = {1920, 8192},
 	.max_output = {1920, 1080},
 	.ctrl = &px30_ctrl_data,
@@ -1652,6 +1676,8 @@ static const struct vop_intr rk3308_vop_intr = {
 };
 
 static const struct vop_data rk3308_vop = {
+	.soc_id = 0x3308,
+	.vop_id = 0,
 	.version = VOP_VERSION(2, 7),
 	.max_input = {1920, 8192},
 	.max_output = {1920, 1080},
@@ -1750,6 +1776,8 @@ static const struct vop_grf_ctrl rv1126_grf_ctrl = {
 };
 
 static const struct vop_data rv1126_vop = {
+	.soc_id = 0x1126,
+	.vop_id = 0,
 	.version = VOP_VERSION(2, 0xb),
 	.max_input = {1920, 1920},
 	.max_output = {1920, 1080},
