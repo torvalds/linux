@@ -627,15 +627,8 @@ xchk_btree(
 	const struct xfs_owner_info	*oinfo,
 	void				*private)
 {
-	struct xchk_btree		bs = {
-		.cur			= cur,
-		.scrub_rec		= scrub_fn,
-		.oinfo			= oinfo,
-		.firstrec		= true,
-		.private		= private,
-		.sc			= sc,
-	};
 	union xfs_btree_ptr		ptr;
+	struct xchk_btree		*bs;
 	union xfs_btree_ptr		*pp;
 	union xfs_btree_rec		*recp;
 	struct xfs_btree_block		*block;
@@ -646,10 +639,24 @@ xchk_btree(
 	int				i;
 	int				error = 0;
 
+	/*
+	 * Allocate the btree scrub context from the heap, because this
+	 * structure can get rather large.
+	 */
+	bs = kmem_zalloc(sizeof(struct xchk_btree), KM_NOFS | KM_MAYFAIL);
+	if (!bs)
+		return -ENOMEM;
+	bs->cur = cur;
+	bs->scrub_rec = scrub_fn;
+	bs->oinfo = oinfo;
+	bs->firstrec = true;
+	bs->private = private;
+	bs->sc = sc;
+
 	/* Initialize scrub state */
 	for (i = 0; i < XFS_BTREE_MAXLEVELS; i++)
-		bs.firstkey[i] = true;
-	INIT_LIST_HEAD(&bs.to_check);
+		bs->firstkey[i] = true;
+	INIT_LIST_HEAD(&bs->to_check);
 
 	/* Don't try to check a tree with a height we can't handle. */
 	if (cur->bc_nlevels > XFS_BTREE_MAXLEVELS) {
@@ -663,9 +670,9 @@ xchk_btree(
 	 */
 	level = cur->bc_nlevels - 1;
 	cur->bc_ops->init_ptr_from_cur(cur, &ptr);
-	if (!xchk_btree_ptr_ok(&bs, cur->bc_nlevels, &ptr))
+	if (!xchk_btree_ptr_ok(bs, cur->bc_nlevels, &ptr))
 		goto out;
-	error = xchk_btree_get_block(&bs, level, &ptr, &block, &bp);
+	error = xchk_btree_get_block(bs, level, &ptr, &block, &bp);
 	if (error || !block)
 		goto out;
 
@@ -678,7 +685,7 @@ xchk_btree(
 			/* End of leaf, pop back towards the root. */
 			if (cur->bc_ptrs[level] >
 			    be16_to_cpu(block->bb_numrecs)) {
-				xchk_btree_block_keys(&bs, level, block);
+				xchk_btree_block_keys(bs, level, block);
 				if (level < cur->bc_nlevels - 1)
 					cur->bc_ptrs[level + 1]++;
 				level++;
@@ -686,11 +693,11 @@ xchk_btree(
 			}
 
 			/* Records in order for scrub? */
-			xchk_btree_rec(&bs);
+			xchk_btree_rec(bs);
 
 			/* Call out to the record checker. */
 			recp = xfs_btree_rec_addr(cur, cur->bc_ptrs[0], block);
-			error = bs.scrub_rec(&bs, recp);
+			error = bs->scrub_rec(bs, recp);
 			if (error)
 				break;
 			if (xchk_should_terminate(sc, &error) ||
@@ -703,7 +710,7 @@ xchk_btree(
 
 		/* End of node, pop back towards the root. */
 		if (cur->bc_ptrs[level] > be16_to_cpu(block->bb_numrecs)) {
-			xchk_btree_block_keys(&bs, level, block);
+			xchk_btree_block_keys(bs, level, block);
 			if (level < cur->bc_nlevels - 1)
 				cur->bc_ptrs[level + 1]++;
 			level++;
@@ -711,16 +718,16 @@ xchk_btree(
 		}
 
 		/* Keys in order for scrub? */
-		xchk_btree_key(&bs, level);
+		xchk_btree_key(bs, level);
 
 		/* Drill another level deeper. */
 		pp = xfs_btree_ptr_addr(cur, cur->bc_ptrs[level], block);
-		if (!xchk_btree_ptr_ok(&bs, level, pp)) {
+		if (!xchk_btree_ptr_ok(bs, level, pp)) {
 			cur->bc_ptrs[level]++;
 			continue;
 		}
 		level--;
-		error = xchk_btree_get_block(&bs, level, pp, &block, &bp);
+		error = xchk_btree_get_block(bs, level, pp, &block, &bp);
 		if (error || !block)
 			goto out;
 
@@ -729,13 +736,14 @@ xchk_btree(
 
 out:
 	/* Process deferred owner checks on btree blocks. */
-	list_for_each_entry_safe(co, n, &bs.to_check, list) {
-		if (!error && bs.cur)
-			error = xchk_btree_check_block_owner(&bs,
-					co->level, co->daddr);
+	list_for_each_entry_safe(co, n, &bs->to_check, list) {
+		if (!error && bs->cur)
+			error = xchk_btree_check_block_owner(bs, co->level,
+					co->daddr);
 		list_del(&co->list);
 		kmem_free(co);
 	}
+	kmem_free(bs);
 
 	return error;
 }
