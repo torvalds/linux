@@ -6269,23 +6269,21 @@ static int devlink_fmsg_put_value(struct devlink_fmsg *fmsg,
 	return 0;
 }
 
-int devlink_fmsg_bool_put(struct devlink_fmsg *fmsg, bool value)
+static int devlink_fmsg_bool_put(struct devlink_fmsg *fmsg, bool value)
 {
 	if (fmsg->putting_binary)
 		return -EINVAL;
 
 	return devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_FLAG);
 }
-EXPORT_SYMBOL_GPL(devlink_fmsg_bool_put);
 
-int devlink_fmsg_u8_put(struct devlink_fmsg *fmsg, u8 value)
+static int devlink_fmsg_u8_put(struct devlink_fmsg *fmsg, u8 value)
 {
 	if (fmsg->putting_binary)
 		return -EINVAL;
 
 	return devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_U8);
 }
-EXPORT_SYMBOL_GPL(devlink_fmsg_u8_put);
 
 int devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value)
 {
@@ -6296,14 +6294,13 @@ int devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value)
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_u32_put);
 
-int devlink_fmsg_u64_put(struct devlink_fmsg *fmsg, u64 value)
+static int devlink_fmsg_u64_put(struct devlink_fmsg *fmsg, u64 value)
 {
 	if (fmsg->putting_binary)
 		return -EINVAL;
 
 	return devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_U64);
 }
-EXPORT_SYMBOL_GPL(devlink_fmsg_u64_put);
 
 int devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value)
 {
@@ -10258,55 +10255,6 @@ int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 EXPORT_SYMBOL_GPL(devlink_param_driverinit_value_set);
 
 /**
- *	devlink_port_param_driverinit_value_get - get configuration parameter
- *						value for driver initializing
- *
- *	@devlink_port: devlink_port
- *	@param_id: parameter ID
- *	@init_val: value of parameter in driverinit configuration mode
- *
- *	This function should be used by the driver to get driverinit
- *	configuration for initialization after reload command.
- */
-int devlink_port_param_driverinit_value_get(struct devlink_port *devlink_port,
-					    u32 param_id,
-					    union devlink_param_value *init_val)
-{
-	struct devlink *devlink = devlink_port->devlink;
-
-	if (!devlink_reload_supported(devlink->ops))
-		return -EOPNOTSUPP;
-
-	return __devlink_param_driverinit_value_get(&devlink_port->param_list,
-						    param_id, init_val);
-}
-EXPORT_SYMBOL_GPL(devlink_port_param_driverinit_value_get);
-
-/**
- *     devlink_port_param_driverinit_value_set - set value of configuration
- *                                               parameter for driverinit
- *                                               configuration mode
- *
- *     @devlink_port: devlink_port
- *     @param_id: parameter ID
- *     @init_val: value of parameter to set for driverinit configuration mode
- *
- *     This function should be used by the driver to set driverinit
- *     configuration mode default value.
- */
-int devlink_port_param_driverinit_value_set(struct devlink_port *devlink_port,
-					    u32 param_id,
-					    union devlink_param_value init_val)
-{
-	return __devlink_param_driverinit_value_set(devlink_port->devlink,
-						    devlink_port->index,
-						    &devlink_port->param_list,
-						    param_id, init_val,
-						    DEVLINK_CMD_PORT_PARAM_NEW);
-}
-EXPORT_SYMBOL_GPL(devlink_port_param_driverinit_value_set);
-
-/**
  *	devlink_param_value_changed - notify devlink on a parameter's value
  *				      change. Should be called by the driver
  *				      right after the change.
@@ -10328,50 +10276,6 @@ void devlink_param_value_changed(struct devlink *devlink, u32 param_id)
 	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_NEW);
 }
 EXPORT_SYMBOL_GPL(devlink_param_value_changed);
-
-/**
- *     devlink_port_param_value_changed - notify devlink on a parameter's value
- *                                      change. Should be called by the driver
- *                                      right after the change.
- *
- *     @devlink_port: devlink_port
- *     @param_id: parameter ID
- *
- *     This function should be used by the driver to notify devlink on value
- *     change, excluding driverinit configuration mode.
- *     For driverinit configuration mode driver should use the function
- *     devlink_port_param_driverinit_value_set() instead.
- */
-void devlink_port_param_value_changed(struct devlink_port *devlink_port,
-				      u32 param_id)
-{
-	struct devlink_param_item *param_item;
-
-	param_item = devlink_param_find_by_id(&devlink_port->param_list,
-					      param_id);
-	WARN_ON(!param_item);
-
-	devlink_param_notify(devlink_port->devlink, devlink_port->index,
-			     param_item, DEVLINK_CMD_PORT_PARAM_NEW);
-}
-EXPORT_SYMBOL_GPL(devlink_port_param_value_changed);
-
-/**
- *	devlink_param_value_str_fill - Safely fill-up the string preventing
- *				       from overflow of the preallocated buffer
- *
- *	@dst_val: destination devlink_param_value
- *	@src: source buffer
- */
-void devlink_param_value_str_fill(union devlink_param_value *dst_val,
-				  const char *src)
-{
-	size_t len;
-
-	len = strlcpy(dst_val->vstr, src, __DEVLINK_PARAM_MAX_STRING_VALUE);
-	WARN_ON(len >= __DEVLINK_PARAM_MAX_STRING_VALUE);
-}
-EXPORT_SYMBOL_GPL(devlink_param_value_str_fill);
 
 /**
  *	devlink_region_create - create a new address region

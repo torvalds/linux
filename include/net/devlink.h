@@ -1663,18 +1663,7 @@ int devlink_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
 				       union devlink_param_value *init_val);
 int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 				       union devlink_param_value init_val);
-int
-devlink_port_param_driverinit_value_get(struct devlink_port *devlink_port,
-					u32 param_id,
-					union devlink_param_value *init_val);
-int devlink_port_param_driverinit_value_set(struct devlink_port *devlink_port,
-					    u32 param_id,
-					    union devlink_param_value init_val);
 void devlink_param_value_changed(struct devlink *devlink, u32 param_id);
-void devlink_port_param_value_changed(struct devlink_port *devlink_port,
-				      u32 param_id);
-void devlink_param_value_str_fill(union devlink_param_value *dst_val,
-				  const char *src);
 struct devlink_region *
 devlink_region_create(struct devlink *devlink,
 		      const struct devlink_region_ops *ops,
@@ -1719,10 +1708,7 @@ int devlink_fmsg_binary_pair_nest_start(struct devlink_fmsg *fmsg,
 					const char *name);
 int devlink_fmsg_binary_pair_nest_end(struct devlink_fmsg *fmsg);
 
-int devlink_fmsg_bool_put(struct devlink_fmsg *fmsg, bool value);
-int devlink_fmsg_u8_put(struct devlink_fmsg *fmsg, u8 value);
 int devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value);
-int devlink_fmsg_u64_put(struct devlink_fmsg *fmsg, u64 value);
 int devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value);
 int devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
 			    u16 value_len);
