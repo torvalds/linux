@@ -84,6 +84,20 @@
 #define TLS_CIPHER_CHACHA20_POLY1305_TAG_SIZE	16
 #define TLS_CIPHER_CHACHA20_POLY1305_REC_SEQ_SIZE	8
 
+#define TLS_CIPHER_SM4_GCM				55
+#define TLS_CIPHER_SM4_GCM_IV_SIZE			8
+#define TLS_CIPHER_SM4_GCM_KEY_SIZE		16
+#define TLS_CIPHER_SM4_GCM_SALT_SIZE		4
+#define TLS_CIPHER_SM4_GCM_TAG_SIZE		16
+#define TLS_CIPHER_SM4_GCM_REC_SEQ_SIZE		8
+
+#define TLS_CIPHER_SM4_CCM				56
+#define TLS_CIPHER_SM4_CCM_IV_SIZE			8
+#define TLS_CIPHER_SM4_CCM_KEY_SIZE		16
+#define TLS_CIPHER_SM4_CCM_SALT_SIZE		4
+#define TLS_CIPHER_SM4_CCM_TAG_SIZE		16
+#define TLS_CIPHER_SM4_CCM_REC_SEQ_SIZE		8
+
 #define TLS_SET_RECORD_TYPE	1
 #define TLS_GET_RECORD_TYPE	2
 
@@ -122,6 +136,22 @@ struct tls12_crypto_info_chacha20_poly1305 {
 	unsigned char key[TLS_CIPHER_CHACHA20_POLY1305_KEY_SIZE];
 	unsigned char salt[TLS_CIPHER_CHACHA20_POLY1305_SALT_SIZE];
 	unsigned char rec_seq[TLS_CIPHER_CHACHA20_POLY1305_REC_SEQ_SIZE];
+};
+
+struct tls12_crypto_info_sm4_gcm {
+	struct tls_crypto_info info;
+	unsigned char iv[TLS_CIPHER_SM4_GCM_IV_SIZE];
+	unsigned char key[TLS_CIPHER_SM4_GCM_KEY_SIZE];
+	unsigned char salt[TLS_CIPHER_SM4_GCM_SALT_SIZE];
+	unsigned char rec_seq[TLS_CIPHER_SM4_GCM_REC_SEQ_SIZE];
+};
+
+struct tls12_crypto_info_sm4_ccm {
+	struct tls_crypto_info info;
+	unsigned char iv[TLS_CIPHER_SM4_CCM_IV_SIZE];
+	unsigned char key[TLS_CIPHER_SM4_CCM_KEY_SIZE];
+	unsigned char salt[TLS_CIPHER_SM4_CCM_SALT_SIZE];
+	unsigned char rec_seq[TLS_CIPHER_SM4_CCM_REC_SEQ_SIZE];
 };
 
 enum {

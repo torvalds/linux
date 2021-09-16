@@ -2424,6 +2424,40 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		cipher_name = "rfc7539(chacha20,poly1305)";
 		break;
 	}
+	case TLS_CIPHER_SM4_GCM: {
+		struct tls12_crypto_info_sm4_gcm *sm4_gcm_info;
+
+		sm4_gcm_info = (void *)crypto_info;
+		nonce_size = TLS_CIPHER_SM4_GCM_IV_SIZE;
+		tag_size = TLS_CIPHER_SM4_GCM_TAG_SIZE;
+		iv_size = TLS_CIPHER_SM4_GCM_IV_SIZE;
+		iv = sm4_gcm_info->iv;
+		rec_seq_size = TLS_CIPHER_SM4_GCM_REC_SEQ_SIZE;
+		rec_seq = sm4_gcm_info->rec_seq;
+		keysize = TLS_CIPHER_SM4_GCM_KEY_SIZE;
+		key = sm4_gcm_info->key;
+		salt = sm4_gcm_info->salt;
+		salt_size = TLS_CIPHER_SM4_GCM_SALT_SIZE;
+		cipher_name = "gcm(sm4)";
+		break;
+	}
+	case TLS_CIPHER_SM4_CCM: {
+		struct tls12_crypto_info_sm4_ccm *sm4_ccm_info;
+
+		sm4_ccm_info = (void *)crypto_info;
+		nonce_size = TLS_CIPHER_SM4_CCM_IV_SIZE;
+		tag_size = TLS_CIPHER_SM4_CCM_TAG_SIZE;
+		iv_size = TLS_CIPHER_SM4_CCM_IV_SIZE;
+		iv = sm4_ccm_info->iv;
+		rec_seq_size = TLS_CIPHER_SM4_CCM_REC_SEQ_SIZE;
+		rec_seq = sm4_ccm_info->rec_seq;
+		keysize = TLS_CIPHER_SM4_CCM_KEY_SIZE;
+		key = sm4_ccm_info->key;
+		salt = sm4_ccm_info->salt;
+		salt_size = TLS_CIPHER_SM4_CCM_SALT_SIZE;
+		cipher_name = "ccm(sm4)";
+		break;
+	}
 	default:
 		rc = -EINVAL;
 		goto free_priv;
