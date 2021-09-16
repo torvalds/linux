@@ -168,4 +168,7 @@ static inline void arch_io_free_memtype_wc(resource_size_t base,
 }
 #endif
 
+int devm_arch_io_reserve_memtype_wc(struct device *dev, resource_size_t start,
+				    resource_size_t size);
+
 #endif /* _LINUX_IO_H */

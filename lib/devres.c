@@ -564,3 +564,49 @@ int devm_arch_phys_wc_add(struct device *dev, unsigned long base, unsigned long 
 	return ret;
 }
 EXPORT_SYMBOL(devm_arch_phys_wc_add);
+
+struct arch_io_reserve_memtype_wc_devres {
+	resource_size_t start;
+	resource_size_t size;
+};
+
+static void devm_arch_io_free_memtype_wc_release(struct device *dev, void *res)
+{
+	const struct arch_io_reserve_memtype_wc_devres *this = res;
+
+	arch_io_free_memtype_wc(this->start, this->size);
+}
+
+/**
+ * devm_arch_io_reserve_memtype_wc - Managed arch_io_reserve_memtype_wc()
+ * @dev: Managed device
+ * @start: Memory base address
+ * @size: Size of memory range
+ *
+ * Reserves a memory range with WC caching using arch_io_reserve_memtype_wc()
+ * and sets up a release callback See arch_io_reserve_memtype_wc() for more
+ * information.
+ */
+int devm_arch_io_reserve_memtype_wc(struct device *dev, resource_size_t start,
+				    resource_size_t size)
+{
+	struct arch_io_reserve_memtype_wc_devres *dr;
+	int ret;
+
+	dr = devres_alloc(devm_arch_io_free_memtype_wc_release, sizeof(*dr), GFP_KERNEL);
+	if (!dr)
+		return -ENOMEM;
+
+	ret = arch_io_reserve_memtype_wc(start, size);
+	if (ret < 0) {
+		devres_free(dr);
+		return ret;
+	}
+
+	dr->start = start;
+	dr->size = size;
+	devres_add(dev, dr);
+
+	return ret;
+}
+EXPORT_SYMBOL(devm_arch_io_reserve_memtype_wc);
