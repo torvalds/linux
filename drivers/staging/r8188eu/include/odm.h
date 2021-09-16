@@ -847,13 +847,6 @@ struct odm_dm_struct {
 	struct odm_ra_info RAInfo[ODM_ASSOCIATE_ENTRY_NUM]; /* Use MacID as
 			* array index. STA MacID=0,
 			* VWiFi Client MacID={1, ODM_ASSOCIATE_ENTRY_NUM-1} */
-	/*  */
-	/*  2012/02/14 MH Add to share 88E ra with other SW team. */
-	/*  We need to colelct all support abilit to a proper area. */
-	/*  */
-	bool	RaSupport88E;
-
-	/*  Define ........... */
 
 	/*  Latest packet phy info (ODM write) */
 	struct odm_phy_dbg_info PhyDbgInfo;
