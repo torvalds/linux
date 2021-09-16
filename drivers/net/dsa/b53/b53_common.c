@@ -1222,7 +1222,7 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 		return;
 
 	/* Enable flow control on BCM5301x's CPU port */
-	if (is5301x(dev) && port == dev->cpu_port)
+	if (is5301x(dev) && dsa_is_cpu_port(ds, port))
 		tx_pause = rx_pause = true;
 
 	if (phydev->pause) {
