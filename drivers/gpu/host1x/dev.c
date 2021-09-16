@@ -132,6 +132,12 @@ static const struct host1x_sid_entry tegra186_sid_table[] = {
 		.offset = 0x30,
 		.limit = 0x34
 	},
+	{
+		/* NVDEC */
+		.base = 0x1b00,
+		.offset = 0x30,
+		.limit = 0x34
+	},
 };
 
 static const struct host1x_info host1x06_info = {
@@ -153,6 +159,18 @@ static const struct host1x_sid_entry tegra194_sid_table[] = {
 	{
 		/* VIC */
 		.base = 0x1af0,
+		.offset = 0x30,
+		.limit = 0x34
+	},
+	{
+		/* NVDEC */
+		.base = 0x1b00,
+		.offset = 0x30,
+		.limit = 0x34
+	},
+	{
+		/* NVDEC1 */
+		.base = 0x1bc0,
 		.offset = 0x30,
 		.limit = 0x34
 	},
