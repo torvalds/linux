@@ -189,9 +189,9 @@ xchk_btree_key(
 
 	/* If this isn't the first key, are they in order? */
 	if (cur->bc_ptrs[level] > 1 &&
-	    !cur->bc_ops->keys_inorder(cur, &bs->lastkey[level], key))
+	    !cur->bc_ops->keys_inorder(cur, &bs->lastkey[level - 1], key))
 		xchk_btree_set_corrupt(bs->sc, cur, level);
-	memcpy(&bs->lastkey[level], key, cur->bc_ops->key_len);
+	memcpy(&bs->lastkey[level - 1], key, cur->bc_ops->key_len);
 
 	if (level + 1 >= cur->bc_nlevels)
 		return;
@@ -631,17 +631,24 @@ xchk_btree(
 	union xfs_btree_ptr		*pp;
 	union xfs_btree_rec		*recp;
 	struct xfs_btree_block		*block;
-	int				level;
 	struct xfs_buf			*bp;
 	struct check_owner		*co;
 	struct check_owner		*n;
+	size_t				cur_sz;
+	int				level;
 	int				error = 0;
 
 	/*
 	 * Allocate the btree scrub context from the heap, because this
-	 * structure can get rather large.
+	 * structure can get rather large.  Don't let a caller feed us a
+	 * totally absurd size.
 	 */
-	bs = kmem_zalloc(sizeof(struct xchk_btree), KM_NOFS | KM_MAYFAIL);
+	cur_sz = xchk_btree_sizeof(cur->bc_nlevels);
+	if (cur_sz > PAGE_SIZE) {
+		xchk_btree_set_corrupt(sc, cur, 0);
+		return 0;
+	}
+	bs = kmem_zalloc(cur_sz, KM_NOFS | KM_MAYFAIL);
 	if (!bs)
 		return -ENOMEM;
 	bs->cur = cur;
@@ -652,12 +659,6 @@ xchk_btree(
 
 	/* Initialize scrub state */
 	INIT_LIST_HEAD(&bs->to_check);
-
-	/* Don't try to check a tree with a height we can't handle. */
-	if (cur->bc_nlevels > XFS_BTREE_MAXLEVELS) {
-		xchk_btree_set_corrupt(sc, cur, 0);
-		goto out;
-	}
 
 	/*
 	 * Load the root of the btree.  The helper function absorbs
