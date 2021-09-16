@@ -68,7 +68,7 @@ static unsigned int bcm_sf2_num_active_ports(struct dsa_switch *ds)
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	unsigned int port, count = 0;
 
-	for (port = 0; port < ARRAY_SIZE(priv->port_sts); port++) {
+	for (port = 0; port < ds->num_ports; port++) {
 		if (dsa_is_cpu_port(ds, port))
 			continue;
 		if (priv->port_sts[port].enabled)
