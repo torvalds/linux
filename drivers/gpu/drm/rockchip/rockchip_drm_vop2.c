@@ -543,11 +543,6 @@ struct vop2 {
 	struct vop2_wb wb;
 	struct dentry *debugfs;
 	struct drm_info_list *debugfs_files;
-	struct drm_property *soc_id_prop;
-	struct drm_property *vp_id_prop;
-	struct drm_property *aclk_prop;
-	struct drm_property *bg_prop;
-	struct drm_property *line_flag_prop;
 	struct drm_prop_enum_list *plane_name_list;
 	bool is_iommu_enabled;
 	bool is_iommu_needed;
@@ -5535,6 +5530,8 @@ static int vop2_crtc_atomic_get_property(struct drm_crtc *crtc,
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(state);
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 
 	if (property == mode_config->tv_left_margin_property) {
 		*val = vcstate->left_margin;
@@ -5557,23 +5554,23 @@ static int vop2_crtc_atomic_get_property(struct drm_crtc *crtc,
 	}
 
 	if (property == private->alpha_scale_prop) {
-		*val = (vop2->data->feature & VOP_FEATURE_ALPHA_SCALE) ? 1 : 0;
+		*val = (vp_data->feature & VOP_FEATURE_ALPHA_SCALE) ? 1 : 0;
 		return 0;
 	}
 
-	if (property == vop2->aclk_prop) {
+	if (property == private->aclk_prop) {
 		/* KHZ, keep align with mode->clock */
 		*val = clk_get_rate(vop2->aclk) / 1000;
 		return 0;
 	}
 
 
-	if (property == vop2->bg_prop) {
+	if (property == private->bg_prop) {
 		*val = vcstate->background;
 		return 0;
 	}
 
-	if (property == vop2->line_flag_prop) {
+	if (property == private->line_flag_prop) {
 		*val = vcstate->line_flag;
 		return 0;
 	}
@@ -5589,10 +5586,9 @@ static int vop2_crtc_atomic_set_property(struct drm_crtc *crtc,
 					 uint64_t val)
 {
 	struct drm_device *drm_dev = crtc->dev;
+	struct rockchip_drm_private *private = drm_dev->dev_private;
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(state);
 	struct drm_mode_config *mode_config = &drm_dev->mode_config;
-	struct vop2_video_port *vp = to_vop2_video_port(crtc);
-	struct vop2 *vop2 = vp->vop2;
 
 	if (property == mode_config->tv_left_margin_property) {
 		vcstate->left_margin = val;
@@ -5615,12 +5611,12 @@ static int vop2_crtc_atomic_set_property(struct drm_crtc *crtc,
 	}
 
 
-	if (property == vop2->bg_prop) {
+	if (property == private->bg_prop) {
 		vcstate->background = val;
 		return 0;
 	}
 
-	if (property == vop2->line_flag_prop) {
+	if (property == private->line_flag_prop) {
 		vcstate->line_flag = val;
 		return 0;
 	}
@@ -6151,6 +6147,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 	bool be_used_for_primary_plane = false;
 	bool find_primary_plane = false;
 	bool bootloader_initialized = false;
+	struct rockchip_drm_private *private = drm_dev->dev_private;
 
 	/* all planes can attach to any crtc */
 	possible_crtcs = (1 << vop2_data->nr_vps) - 1;
@@ -6284,11 +6281,12 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		init_completion(&vp->line_flag_completion);
 		rockchip_register_crtc_funcs(crtc, &private_crtc_funcs);
 		soc_id = vop2_soc_id_fixup(soc_id);
-		drm_object_attach_property(&crtc->base, vop2->soc_id_prop, soc_id);
-		drm_object_attach_property(&crtc->base, vop2->vp_id_prop, vp->id);
-		drm_object_attach_property(&crtc->base, vop2->aclk_prop, 0);
-		drm_object_attach_property(&crtc->base, vop2->bg_prop, 0);
-		drm_object_attach_property(&crtc->base, vop2->line_flag_prop, 0);
+		drm_object_attach_property(&crtc->base, private->soc_id_prop, soc_id);
+		drm_object_attach_property(&crtc->base, private->port_id_prop, vp->id);
+		drm_object_attach_property(&crtc->base, private->aclk_prop, 0);
+		drm_object_attach_property(&crtc->base, private->bg_prop, 0);
+		drm_object_attach_property(&crtc->base, private->line_flag_prop, 0);
+		drm_object_attach_property(&crtc->base, private->alpha_scale_prop, 0);
 		drm_object_attach_property(&crtc->base,
 					   drm_dev->mode_config.tv_left_margin_property, 100);
 		drm_object_attach_property(&crtc->base,
@@ -6364,7 +6362,6 @@ static int vop2_win_init(struct vop2 *vop2)
 	struct drm_prop_enum_list *plane_name_list;
 	struct vop2_win *win;
 	struct vop2_layer *layer;
-	struct drm_property *prop;
 	char name[DRM_PROP_NAME_LEN];
 	unsigned int num_wins = 0;
 	uint8_t plane_id = 0;
@@ -6460,27 +6457,6 @@ static int vop2_win_init(struct vop2 *vop2)
 	}
 
 	vop2->plane_name_list = plane_name_list;
-
-	prop = drm_property_create_object(vop2->drm_dev,
-					  DRM_MODE_PROP_ATOMIC | DRM_MODE_PROP_IMMUTABLE,
-					  "SOC_ID", DRM_MODE_OBJECT_CRTC);
-	vop2->soc_id_prop = prop;
-
-	prop = drm_property_create_object(vop2->drm_dev,
-					  DRM_MODE_PROP_ATOMIC | DRM_MODE_PROP_IMMUTABLE,
-					  "PORT_ID", DRM_MODE_OBJECT_CRTC);
-	vop2->vp_id_prop = prop;
-
-	vop2->aclk_prop = drm_property_create_range(vop2->drm_dev, 0, "ACLK", 0, UINT_MAX);
-	vop2->bg_prop = drm_property_create_range(vop2->drm_dev, 0, "BACKGROUND", 0, UINT_MAX);
-
-	vop2->line_flag_prop = drm_property_create_range(vop2->drm_dev, 0, "LINE_FLAG1", 0, UINT_MAX);
-
-	if (!vop2->soc_id_prop || !vop2->vp_id_prop || !vop2->aclk_prop || !vop2->bg_prop ||
-	    !vop2->line_flag_prop) {
-		DRM_DEV_ERROR(vop2->dev, "failed to create soc_id/vp_id/aclk property\n");
-		return -ENOMEM;
-	}
 
 	return 0;
 }
