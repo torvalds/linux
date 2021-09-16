@@ -47,7 +47,7 @@ static const u32 rtw_cipher_suites[] = {
  * Moreover wowlan has to be enabled via a the nl80211_set_wowlan callback.
  * (from user space, e.g. iw phy0 wowlan enable)
  */
-static const struct wiphy_wowlan_support wowlan_stub = {
+static __maybe_unused const struct wiphy_wowlan_support wowlan_stub = {
 	.flags = WIPHY_WOWLAN_ANY,
 	.n_patterns = 0,
 	.pattern_max_len = 0,
