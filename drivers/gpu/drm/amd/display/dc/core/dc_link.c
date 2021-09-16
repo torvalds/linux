@@ -3197,6 +3197,29 @@ static void update_mst_stream_alloc_table(
 				work_table[i];
 }
 #if defined(CONFIG_DRM_AMD_DC_DCN)
+static void dc_log_vcp_x_y(const struct dc_link *link, struct fixed31_32 avg_time_slots_per_mtp)
+{
+	const uint32_t VCP_Y_PRECISION = 1000;
+	uint64_t vcp_x, vcp_y;
+
+	// Add 0.5*(1/VCP_Y_PRECISION) to round up to decimal precision
+	avg_time_slots_per_mtp = dc_fixpt_add(
+			avg_time_slots_per_mtp, dc_fixpt_from_fraction(1, 2 * VCP_Y_PRECISION));
+
+	vcp_x = dc_fixpt_floor(avg_time_slots_per_mtp);
+	vcp_y = dc_fixpt_floor(
+			dc_fixpt_mul_int(
+				dc_fixpt_sub_int(avg_time_slots_per_mtp, dc_fixpt_floor(avg_time_slots_per_mtp)),
+				VCP_Y_PRECISION));
+
+	if (link->type == dc_connection_mst_branch)
+		DC_LOG_DP2("MST Update Payload: set_throttled_vcp_size slot X.Y for MST stream "
+				"X: %lld Y: %lld/%d", vcp_x, vcp_y, VCP_Y_PRECISION);
+	else
+		DC_LOG_DP2("SST Update Payload: set_throttled_vcp_size slot X.Y for SST stream "
+				"X: %lld Y: %lld/%d", vcp_x, vcp_y, VCP_Y_PRECISION);
+}
+
 /*
  * Payload allocation/deallocation for SST introduced in DP2.0
  */
@@ -3214,18 +3237,7 @@ enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx, bool alloca
 	if (!allocate) {
 		avg_time_slots_per_mtp = dc_fixpt_from_int(0);
 
-		DC_LOG_DP2("SST Update Payload: set_throttled_vcp_size slot X.Y for SST stream"
-				"X: %d "
-				"Y: %d",
-				dc_fixpt_floor(
-					avg_time_slots_per_mtp),
-				dc_fixpt_ceil(
-					dc_fixpt_shl(
-						dc_fixpt_sub_int(
-							avg_time_slots_per_mtp,
-							dc_fixpt_floor(
-									avg_time_slots_per_mtp)),
-						26)));
+		dc_log_vcp_x_y(link, avg_time_slots_per_mtp);
 
 		hpo_dp_link_encoder->funcs->set_throttled_vcp_size(
 				hpo_dp_link_encoder,
@@ -3272,18 +3284,7 @@ enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx, bool alloca
 	if (allocate) {
 		avg_time_slots_per_mtp = calculate_sst_avg_time_slots_per_mtp(stream, link);
 
-		DC_LOG_DP2("SST Update Payload: "
-				"slot.X: %d      "
-				"slot.Y: %d",
-				dc_fixpt_floor(
-					avg_time_slots_per_mtp),
-				dc_fixpt_ceil(
-					dc_fixpt_shl(
-						dc_fixpt_sub_int(
-							avg_time_slots_per_mtp,
-							dc_fixpt_floor(
-									avg_time_slots_per_mtp)),
-						26)));
+		dc_log_vcp_x_y(link, avg_time_slots_per_mtp);
 
 		hpo_dp_link_encoder->funcs->set_throttled_vcp_size(
 				hpo_dp_link_encoder,
