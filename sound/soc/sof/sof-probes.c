@@ -230,8 +230,8 @@ int sof_ipc_probe_points_remove(struct snd_sof_dev *sdev,
 }
 EXPORT_SYMBOL(sof_ipc_probe_points_remove);
 
-static int sof_probe_compr_open(struct snd_compr_stream *cstream,
-				struct snd_soc_dai *dai)
+static int sof_probe_compr_startup(struct snd_compr_stream *cstream,
+				   struct snd_soc_dai *dai)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(dai->component);
 	int ret;
@@ -246,8 +246,8 @@ static int sof_probe_compr_open(struct snd_compr_stream *cstream,
 	return 0;
 }
 
-static int sof_probe_compr_free(struct snd_compr_stream *cstream,
-				struct snd_soc_dai *dai)
+static int sof_probe_compr_shutdown(struct snd_compr_stream *cstream,
+				    struct snd_soc_dai *dai)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(dai->component);
 	struct sof_probe_point_desc *desc;
@@ -322,8 +322,8 @@ static int sof_probe_compr_pointer(struct snd_compr_stream *cstream,
 }
 
 struct snd_soc_cdai_ops sof_probe_compr_ops = {
-	.startup	= sof_probe_compr_open,
-	.shutdown	= sof_probe_compr_free,
+	.startup	= sof_probe_compr_startup,
+	.shutdown	= sof_probe_compr_shutdown,
 	.set_params	= sof_probe_compr_set_params,
 	.trigger	= sof_probe_compr_trigger,
 	.pointer	= sof_probe_compr_pointer,
