@@ -13,13 +13,8 @@
 #include "ops.h"
 #include "probe.h"
 
-const struct snd_compress_ops sof_probe_compressed_ops = {
-	.copy		= sof_probe_compr_copy,
-};
-EXPORT_SYMBOL(sof_probe_compressed_ops);
-
-int sof_probe_compr_open(struct snd_compr_stream *cstream,
-		struct snd_soc_dai *dai)
+static int sof_probe_compr_open(struct snd_compr_stream *cstream,
+				struct snd_soc_dai *dai)
 {
 	struct snd_sof_dev *sdev =
 				snd_soc_component_get_drvdata(dai->component);
@@ -34,10 +29,9 @@ int sof_probe_compr_open(struct snd_compr_stream *cstream,
 	sdev->extractor_stream_tag = ret;
 	return 0;
 }
-EXPORT_SYMBOL(sof_probe_compr_open);
 
-int sof_probe_compr_free(struct snd_compr_stream *cstream,
-		struct snd_soc_dai *dai)
+static int sof_probe_compr_free(struct snd_compr_stream *cstream,
+				struct snd_soc_dai *dai)
 {
 	struct snd_sof_dev *sdev =
 				snd_soc_component_get_drvdata(dai->component);
@@ -66,10 +60,10 @@ exit:
 
 	return snd_sof_probe_compr_free(sdev, cstream, dai);
 }
-EXPORT_SYMBOL(sof_probe_compr_free);
 
-int sof_probe_compr_set_params(struct snd_compr_stream *cstream,
-		struct snd_compr_params *params, struct snd_soc_dai *dai)
+static int sof_probe_compr_set_params(struct snd_compr_stream *cstream,
+				      struct snd_compr_params *params,
+				      struct snd_soc_dai *dai)
 {
 	struct snd_compr_runtime *rtd = cstream->runtime;
 	struct snd_sof_dev *sdev =
@@ -95,31 +89,38 @@ int sof_probe_compr_set_params(struct snd_compr_stream *cstream,
 
 	return 0;
 }
-EXPORT_SYMBOL(sof_probe_compr_set_params);
 
-int sof_probe_compr_trigger(struct snd_compr_stream *cstream, int cmd,
-		struct snd_soc_dai *dai)
+static int sof_probe_compr_trigger(struct snd_compr_stream *cstream, int cmd,
+				   struct snd_soc_dai *dai)
 {
 	struct snd_sof_dev *sdev =
 				snd_soc_component_get_drvdata(dai->component);
 
 	return snd_sof_probe_compr_trigger(sdev, cstream, cmd, dai);
 }
-EXPORT_SYMBOL(sof_probe_compr_trigger);
 
-int sof_probe_compr_pointer(struct snd_compr_stream *cstream,
-		struct snd_compr_tstamp *tstamp, struct snd_soc_dai *dai)
+static int sof_probe_compr_pointer(struct snd_compr_stream *cstream,
+				   struct snd_compr_tstamp *tstamp,
+				   struct snd_soc_dai *dai)
 {
 	struct snd_sof_dev *sdev =
 				snd_soc_component_get_drvdata(dai->component);
 
 	return snd_sof_probe_compr_pointer(sdev, cstream, tstamp, dai);
 }
-EXPORT_SYMBOL(sof_probe_compr_pointer);
 
-int sof_probe_compr_copy(struct snd_soc_component *component,
-			 struct snd_compr_stream *cstream,
-			 char __user *buf, size_t count)
+struct snd_soc_cdai_ops sof_probe_compr_ops = {
+	.startup	= sof_probe_compr_open,
+	.shutdown	= sof_probe_compr_free,
+	.set_params	= sof_probe_compr_set_params,
+	.trigger	= sof_probe_compr_trigger,
+	.pointer	= sof_probe_compr_pointer,
+};
+EXPORT_SYMBOL(sof_probe_compr_ops);
+
+static int sof_probe_compr_copy(struct snd_soc_component *component,
+				struct snd_compr_stream *cstream,
+				char __user *buf, size_t count)
 {
 	struct snd_compr_runtime *rtd = cstream->runtime;
 	unsigned int offset, n;
@@ -144,4 +145,8 @@ int sof_probe_compr_copy(struct snd_soc_component *component,
 		return count - ret;
 	return count;
 }
-EXPORT_SYMBOL(sof_probe_compr_copy);
+
+const struct snd_compress_ops sof_probe_compressed_ops = {
+	.copy		= sof_probe_compr_copy,
+};
+EXPORT_SYMBOL(sof_probe_compressed_ops);
