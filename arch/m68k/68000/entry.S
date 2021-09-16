@@ -15,7 +15,6 @@
 #include <asm/unistd.h>
 #include <asm/errno.h>
 #include <asm/setup.h>
-#include <asm/segment.h>
 #include <asm/traps.h>
 #include <asm/asm-offsets.h>
 #include <asm/entry.h>

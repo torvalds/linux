@@ -36,7 +36,6 @@
 #include <linux/linkage.h>
 #include <asm/errno.h>
 #include <asm/setup.h>
-#include <asm/segment.h>
 #include <asm/traps.h>
 #include <asm/unistd.h>
 #include <asm/asm-offsets.h>
@@ -337,7 +336,7 @@ resume:
 
 	/* save fs (sfc,%dfc) (may be pointing to kernel memory) */
 	movec	%sfc,%d0
-	movew	%d0,%a0@(TASK_THREAD+THREAD_FS)
+	movew	%d0,%a0@(TASK_THREAD+THREAD_FC)
 
 	/* save usp */
 	/* it is better to use a movel here instead of a movew 8*) */
@@ -423,7 +422,7 @@ resume:
 	movel	%a0,%usp
 
 	/* restore fs (sfc,%dfc) */
-	movew	%a1@(TASK_THREAD+THREAD_FS),%a0
+	movew	%a1@(TASK_THREAD+THREAD_FC),%a0
 	movec	%a0,%sfc
 	movec	%a0,%dfc
 

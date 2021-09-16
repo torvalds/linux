@@ -90,11 +90,9 @@ void flush_icache_user_range(unsigned long address, unsigned long endaddr)
 
 void flush_icache_range(unsigned long address, unsigned long endaddr)
 {
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
+	set_fc(SUPER_DATA);
 	flush_icache_user_range(address, endaddr);
-	set_fs(old_fs);
+	set_fc(USER_DATA);
 }
 EXPORT_SYMBOL(flush_icache_range);
 

@@ -9,7 +9,6 @@
  */
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <asm/segment.h>
 #include <asm/extable.h>
 
 /* We let the MMU do all checking */
@@ -450,9 +449,6 @@ do {									\
 	if (unlikely(__pk_err))						\
 		goto err_label;						\
 } while (0)
-
-#define user_addr_max() \
-	(uaccess_kernel() ? ~0UL : TASK_SIZE)
 
 extern long strncpy_from_user(char *dst, const char __user *src, long count);
 extern __must_check long strnlen_user(const char __user *str, long n);

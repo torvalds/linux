@@ -31,7 +31,6 @@
 #include <asm/thread_info.h>
 #include <asm/errno.h>
 #include <asm/setup.h>
-#include <asm/segment.h>
 #include <asm/asm-offsets.h>
 #include <asm/entry.h>
 
