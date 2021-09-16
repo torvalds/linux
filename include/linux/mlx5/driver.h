@@ -1243,6 +1243,11 @@ static inline int mlx5_core_native_port_num(struct mlx5_core_dev *dev)
 	return MLX5_CAP_GEN(dev, native_port_num);
 }
 
+static inline int mlx5_get_dev_index(struct mlx5_core_dev *dev)
+{
+	return PCI_FUNC(dev->pdev->devfn);
+}
+
 enum {
 	MLX5_TRIGGERED_CMD_COMP = (u64)1 << 32,
 };

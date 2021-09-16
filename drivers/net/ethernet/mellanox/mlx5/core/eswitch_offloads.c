@@ -2798,7 +2798,7 @@ u32 mlx5_esw_match_metadata_alloc(struct mlx5_eswitch *esw)
 	int id;
 
 	/* Only 4 bits of pf_num */
-	pf_num = PCI_FUNC(esw->dev->pdev->devfn);
+	pf_num = mlx5_get_dev_index(esw->dev);
 	if (pf_num > max_pf_num)
 		return 0;
 
