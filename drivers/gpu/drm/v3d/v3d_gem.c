@@ -567,14 +567,14 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	if (args->bcl_start != args->bcl_end) {
 		bin = kcalloc(1, sizeof(*bin), GFP_KERNEL);
 		if (!bin) {
-			v3d_job_put(&render->base);
+			v3d_job_cleanup(&render->base);
 			return -ENOMEM;
 		}
 
 		ret = v3d_job_init(v3d, file_priv, &bin->base,
 				   v3d_job_free, args->in_sync_bcl, V3D_BIN);
 		if (ret) {
-			v3d_job_put(&render->base);
+			v3d_job_cleanup(&render->base);
 			kfree(bin);
 			return ret;
 		}
@@ -716,7 +716,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 	job->base.bo = kcalloc(ARRAY_SIZE(args->bo_handles),
 			       sizeof(*job->base.bo), GFP_KERNEL);
 	if (!job->base.bo) {
-		v3d_job_put(&job->base);
+		v3d_job_cleanup(&job->base);
 		return -ENOMEM;
 	}
 
@@ -810,14 +810,13 @@ v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 
 	clean_job = kcalloc(1, sizeof(*clean_job), GFP_KERNEL);
 	if (!clean_job) {
-		v3d_job_put(&job->base);
-		kfree(job);
+		v3d_job_cleanup(&job->base);
 		return -ENOMEM;
 	}
 
 	ret = v3d_job_init(v3d, file_priv, clean_job, v3d_job_free, 0, V3D_CACHE_CLEAN);
 	if (ret) {
-		v3d_job_put(&job->base);
+		v3d_job_cleanup(&job->base);
 		kfree(clean_job);
 		return ret;
 	}
