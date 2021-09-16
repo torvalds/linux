@@ -10643,11 +10643,19 @@ int bpf_program__set_attach_target(struct bpf_program *prog,
 {
 	int btf_obj_fd = 0, btf_id = 0, err;
 
-	if (!prog || attach_prog_fd < 0 || !attach_func_name)
+	if (!prog || attach_prog_fd < 0)
 		return libbpf_err(-EINVAL);
 
 	if (prog->obj->loaded)
 		return libbpf_err(-EINVAL);
+
+	if (attach_prog_fd && !attach_func_name) {
+		/* remember attach_prog_fd and let bpf_program__load() find
+		 * BTF ID during the program load
+		 */
+		prog->attach_prog_fd = attach_prog_fd;
+		return 0;
+	}
 
 	if (attach_prog_fd) {
 		btf_id = libbpf_find_prog_btf_id(attach_func_name,
@@ -10655,6 +10663,9 @@ int bpf_program__set_attach_target(struct bpf_program *prog,
 		if (btf_id < 0)
 			return libbpf_err(btf_id);
 	} else {
+		if (!attach_func_name)
+			return libbpf_err(-EINVAL);
+
 		/* load btf_vmlinux, if not yet */
 		err = bpf_object__load_vmlinux_btf(prog->obj, true);
 		if (err)
