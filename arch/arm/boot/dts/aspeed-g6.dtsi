@@ -364,6 +364,26 @@
 				status = "disabled";
 			};
 
+			adc0: adc@1e6e9000 {
+				compatible = "aspeed,ast2600-adc0";
+				reg = <0x1e6e9000 0x100>;
+				clocks = <&syscon ASPEED_CLK_APB2>;
+				resets = <&syscon ASPEED_RESET_ADC>;
+				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+				#io-channel-cells = <1>;
+				status = "disabled";
+			};
+
+			adc1: adc@1e6e9100 {
+				compatible = "aspeed,ast2600-adc1";
+				reg = <0x1e6e9100 0x100>;
+				clocks = <&syscon ASPEED_CLK_APB2>;
+				resets = <&syscon ASPEED_RESET_ADC>;
+				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+				#io-channel-cells = <1>;
+				status = "disabled";
+			};
+
 			gpio0: gpio@1e780000 {
 				#gpio-cells = <2>;
 				gpio-controller;
