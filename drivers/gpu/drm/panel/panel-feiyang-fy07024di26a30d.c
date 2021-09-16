@@ -200,22 +200,19 @@ static int feiyang_dsi_probe(struct mipi_dsi_device *dsi)
 		       DRM_MODE_CONNECTOR_DSI);
 
 	ctx->dvdd = devm_regulator_get(&dsi->dev, "dvdd");
-	if (IS_ERR(ctx->dvdd)) {
-		dev_err(&dsi->dev, "Couldn't get dvdd regulator\n");
-		return PTR_ERR(ctx->dvdd);
-	}
+	if (IS_ERR(ctx->dvdd))
+		return dev_err_probe(&dsi->dev, PTR_ERR(ctx->dvdd),
+				     "Couldn't get dvdd regulator\n");
 
 	ctx->avdd = devm_regulator_get(&dsi->dev, "avdd");
-	if (IS_ERR(ctx->avdd)) {
-		dev_err(&dsi->dev, "Couldn't get avdd regulator\n");
-		return PTR_ERR(ctx->avdd);
-	}
+	if (IS_ERR(ctx->avdd))
+		return dev_err_probe(&dsi->dev, PTR_ERR(ctx->avdd),
+				     "Couldn't get avdd regulator\n");
 
 	ctx->reset = devm_gpiod_get(&dsi->dev, "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(ctx->reset)) {
-		dev_err(&dsi->dev, "Couldn't get our reset GPIO\n");
-		return PTR_ERR(ctx->reset);
-	}
+	if (IS_ERR(ctx->reset))
+		return dev_err_probe(&dsi->dev, PTR_ERR(ctx->reset),
+				     "Couldn't get our reset GPIO\n");
 
 	ret = drm_panel_of_backlight(&ctx->panel);
 	if (ret)
