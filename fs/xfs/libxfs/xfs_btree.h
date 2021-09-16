@@ -238,6 +238,7 @@ struct xfs_btree_cur
 	xfs_btnum_t		bc_btnum; /* identifies which btree type */
 	union xfs_btree_irec	bc_rec;	/* current insert/search record value */
 	uint8_t			bc_nlevels; /* number of levels in the tree */
+	uint8_t			bc_maxlevels; /* maximum levels for this btree type */
 	int			bc_statoff; /* offset of btree stats array */
 
 	/*
@@ -590,6 +591,7 @@ xfs_btree_alloc_cursor(
 	cur->bc_tp = tp;
 	cur->bc_mp = mp;
 	cur->bc_btnum = btnum;
+	cur->bc_maxlevels = XFS_BTREE_MAXLEVELS;
 
 	return cur;
 }
