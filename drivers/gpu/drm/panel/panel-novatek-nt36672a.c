@@ -618,7 +618,7 @@ static int nt36672a_panel_add(struct nt36672a_panel *pinfo)
 		ret = regulator_set_load(pinfo->supplies[i].consumer,
 					 nt36672a_regulator_enable_loads[i]);
 		if (ret)
-			return  dev_err_probe(dev, ret, "failed to set regulator enable loads\n");
+			return dev_err_probe(dev, ret, "failed to set regulator enable loads\n");
 	}
 
 	pinfo->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
