@@ -402,7 +402,7 @@ xchk_bmapbt_rec(
 	 * the root since the verifiers don't do that.
 	 */
 	if (xfs_has_crc(bs->cur->bc_mp) &&
-	    bs->cur->bc_ptrs[0] == 1) {
+	    bs->cur->bc_levels[0].ptr == 1) {
 		for (i = 0; i < bs->cur->bc_nlevels - 1; i++) {
 			block = xfs_btree_get_block(bs->cur, i, &bp);
 			owner = be64_to_cpu(block->bb_u.l.bb_owner);

@@ -488,8 +488,8 @@ xfs_alloc_fixup_trees(
 		struct xfs_btree_block	*bnoblock;
 		struct xfs_btree_block	*cntblock;
 
-		bnoblock = XFS_BUF_TO_BLOCK(bno_cur->bc_bufs[0]);
-		cntblock = XFS_BUF_TO_BLOCK(cnt_cur->bc_bufs[0]);
+		bnoblock = XFS_BUF_TO_BLOCK(bno_cur->bc_levels[0].bp);
+		cntblock = XFS_BUF_TO_BLOCK(cnt_cur->bc_levels[0].bp);
 
 		if (XFS_IS_CORRUPT(mp,
 				   bnoblock->bb_numrecs !=
@@ -1512,7 +1512,7 @@ xfs_alloc_ag_vextent_lastblock(
 	 * than minlen.
 	 */
 	if (*len || args->alignment > 1) {
-		acur->cnt->bc_ptrs[0] = 1;
+		acur->cnt->bc_levels[0].ptr = 1;
 		do {
 			error = xfs_alloc_get_rec(acur->cnt, bno, len, &i);
 			if (error)

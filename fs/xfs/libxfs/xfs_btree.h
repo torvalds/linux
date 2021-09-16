@@ -212,6 +212,19 @@ struct xfs_btree_cur_ino {
 #define	XFS_BTCUR_BMBT_INVALID_OWNER	(1 << 1)
 };
 
+struct xfs_btree_level {
+	/* buffer pointer */
+	struct xfs_buf		*bp;
+
+	/* key/record number */
+	uint16_t		ptr;
+
+	/* readahead info */
+#define XFS_BTCUR_LEFTRA	(1 << 0) /* left sibling has been read-ahead */
+#define XFS_BTCUR_RIGHTRA	(1 << 1) /* right sibling has been read-ahead */
+	uint16_t		ra;
+};
+
 /*
  * Btree cursor structure.
  * This collects all information needed by the btree code in one place.
@@ -223,11 +236,6 @@ struct xfs_btree_cur
 	const struct xfs_btree_ops *bc_ops;
 	uint			bc_flags; /* btree features - below */
 	union xfs_btree_irec	bc_rec;	/* current insert/search record value */
-	struct xfs_buf	*bc_bufs[XFS_BTREE_MAXLEVELS];	/* buf ptr per level */
-	int		bc_ptrs[XFS_BTREE_MAXLEVELS];	/* key/record # */
-	uint8_t		bc_ra[XFS_BTREE_MAXLEVELS];	/* readahead bits */
-#define	XFS_BTCUR_LEFTRA	1	/* left sibling has been read-ahead */
-#define	XFS_BTCUR_RIGHTRA	2	/* right sibling has been read-ahead */
 	uint8_t		bc_nlevels;	/* number of levels in the tree */
 	xfs_btnum_t	bc_btnum;	/* identifies which btree type */
 	int		bc_statoff;	/* offset of btre stats array */
@@ -242,7 +250,21 @@ struct xfs_btree_cur
 		struct xfs_btree_cur_ag	bc_ag;
 		struct xfs_btree_cur_ino bc_ino;
 	};
+
+	/* Must be at the end of the struct! */
+	struct xfs_btree_level	bc_levels[];
 };
+
+/*
+ * Compute the size of a btree cursor that can handle a btree of a given
+ * height.  The bc_levels array handles node and leaf blocks, so its size
+ * is exactly nlevels.
+ */
+static inline size_t
+xfs_btree_cur_sizeof(unsigned int nlevels)
+{
+	return struct_size((struct xfs_btree_cur *)NULL, bc_levels, nlevels);
+}
 
 /* cursor flags */
 #define XFS_BTREE_LONG_PTRS		(1<<0)	/* pointers are 64bits long */
@@ -256,7 +278,6 @@ struct xfs_btree_cur
  * is dynamically allocated and must be freed when the cursor is deleted.
  */
 #define XFS_BTREE_STAGING		(1<<5)
-
 
 #define	XFS_BTREE_NOERROR	0
 #define	XFS_BTREE_ERROR		1

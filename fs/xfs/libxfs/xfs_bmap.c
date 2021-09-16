@@ -240,10 +240,10 @@ xfs_bmap_get_bp(
 		return NULL;
 
 	for (i = 0; i < XFS_BTREE_MAXLEVELS; i++) {
-		if (!cur->bc_bufs[i])
+		if (!cur->bc_levels[i].bp)
 			break;
-		if (xfs_buf_daddr(cur->bc_bufs[i]) == bno)
-			return cur->bc_bufs[i];
+		if (xfs_buf_daddr(cur->bc_levels[i].bp) == bno)
+			return cur->bc_levels[i].bp;
 	}
 
 	/* Chase down all the log items to see if the bp is there */
@@ -629,8 +629,8 @@ xfs_bmap_btree_to_extents(
 	ip->i_nblocks--;
 	xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_BCOUNT, -1L);
 	xfs_trans_binval(tp, cbp);
-	if (cur->bc_bufs[0] == cbp)
-		cur->bc_bufs[0] = NULL;
+	if (cur->bc_levels[0].bp == cbp)
+		cur->bc_levels[0].bp = NULL;
 	xfs_iroot_realloc(ip, -1, whichfork);
 	ASSERT(ifp->if_broot == NULL);
 	ifp->if_format = XFS_DINODE_FMT_EXTENTS;
