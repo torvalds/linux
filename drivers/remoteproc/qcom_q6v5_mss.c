@@ -137,7 +137,6 @@ struct rproc_hexagon_res {
 	char **proxy_clk_names;
 	char **reset_clk_names;
 	char **active_clk_names;
-	char **active_pd_names;
 	char **proxy_pd_names;
 	int version;
 	bool need_mem_protection;
@@ -169,12 +168,10 @@ struct q6v5 {
 	struct clk *active_clks[8];
 	struct clk *reset_clks[4];
 	struct clk *proxy_clks[4];
-	struct device *active_pds[1];
 	struct device *proxy_pds[3];
 	int active_clk_count;
 	int reset_clk_count;
 	int proxy_clk_count;
-	int active_pd_count;
 	int proxy_pd_count;
 
 	struct reg_info active_regs[1];
@@ -895,18 +892,14 @@ static int q6v5_mba_load(struct q6v5 *qproc)
 	int xfermemop_ret;
 	bool mba_load_err = false;
 
-	qcom_q6v5_prepare(&qproc->q6v5);
-
-	ret = q6v5_pds_enable(qproc, qproc->active_pds, qproc->active_pd_count);
-	if (ret < 0) {
-		dev_err(qproc->dev, "failed to enable active power domains\n");
-		goto disable_irqs;
-	}
+	ret = qcom_q6v5_prepare(&qproc->q6v5);
+	if (ret)
+		return ret;
 
 	ret = q6v5_pds_enable(qproc, qproc->proxy_pds, qproc->proxy_pd_count);
 	if (ret < 0) {
 		dev_err(qproc->dev, "failed to enable proxy power domains\n");
-		goto disable_active_pds;
+		goto disable_irqs;
 	}
 
 	ret = q6v5_regulator_enable(qproc, qproc->fallback_proxy_regs,
@@ -1039,8 +1032,6 @@ disable_fallback_proxy_reg:
 			       qproc->fallback_proxy_reg_count);
 disable_proxy_pds:
 	q6v5_pds_disable(qproc, qproc->proxy_pds, qproc->proxy_pd_count);
-disable_active_pds:
-	q6v5_pds_disable(qproc, qproc->active_pds, qproc->active_pd_count);
 disable_irqs:
 	qcom_q6v5_unprepare(&qproc->q6v5);
 
@@ -1076,7 +1067,6 @@ static void q6v5_mba_reclaim(struct q6v5 *qproc)
 			 qproc->active_clk_count);
 	q6v5_regulator_disable(qproc, qproc->active_regs,
 			       qproc->active_reg_count);
-	q6v5_pds_disable(qproc, qproc->active_pds, qproc->active_pd_count);
 
 	/* In case of failure or coredump scenario where reclaiming MBA memory
 	 * could not happen reclaim it here.
@@ -1756,14 +1746,6 @@ static int q6v5_probe(struct platform_device *pdev)
 	}
 	qproc->active_reg_count = ret;
 
-	ret = q6v5_pds_attach(&pdev->dev, qproc->active_pds,
-			      desc->active_pd_names);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to attach active power domains\n");
-		goto free_rproc;
-	}
-	qproc->active_pd_count = ret;
-
 	ret = q6v5_pds_attach(&pdev->dev, qproc->proxy_pds,
 			      desc->proxy_pd_names);
 	/* Fallback to regulators for old device trees */
@@ -1773,12 +1755,12 @@ static int q6v5_probe(struct platform_device *pdev)
 					  desc->fallback_proxy_supply);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "Failed to get fallback proxy regulators.\n");
-			goto detach_active_pds;
+			goto free_rproc;
 		}
 		qproc->fallback_proxy_reg_count = ret;
 	} else if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to init power domains\n");
-		goto detach_active_pds;
+		goto free_rproc;
 	} else {
 		qproc->proxy_pd_count = ret;
 	}
@@ -1792,7 +1774,7 @@ static int q6v5_probe(struct platform_device *pdev)
 	qproc->need_mem_protection = desc->need_mem_protection;
 	qproc->has_mba_logs = desc->has_mba_logs;
 
-	ret = qcom_q6v5_init(&qproc->q6v5, pdev, rproc, MPSS_CRASH_REASON_SMEM,
+	ret = qcom_q6v5_init(&qproc->q6v5, pdev, rproc, MPSS_CRASH_REASON_SMEM, "modem",
 			     qcom_msa_handover);
 	if (ret)
 		goto detach_proxy_pds;
@@ -1822,8 +1804,6 @@ remove_subdevs:
 	qcom_remove_glink_subdev(rproc, &qproc->glink_subdev);
 detach_proxy_pds:
 	q6v5_pds_detach(qproc, qproc->proxy_pds, qproc->proxy_pd_count);
-detach_active_pds:
-	q6v5_pds_detach(qproc, qproc->active_pds, qproc->active_pd_count);
 free_rproc:
 	rproc_free(rproc);
 
@@ -1837,13 +1817,13 @@ static int q6v5_remove(struct platform_device *pdev)
 
 	rproc_del(rproc);
 
+	qcom_q6v5_deinit(&qproc->q6v5);
 	qcom_remove_sysmon_subdev(qproc->sysmon);
 	qcom_remove_ssr_subdev(rproc, &qproc->ssr_subdev);
 	qcom_remove_smd_subdev(rproc, &qproc->smd_subdev);
 	qcom_remove_glink_subdev(rproc, &qproc->glink_subdev);
 
 	q6v5_pds_detach(qproc, qproc->proxy_pds, qproc->proxy_pd_count);
-	q6v5_pds_detach(qproc, qproc->active_pds, qproc->active_pd_count);
 
 	rproc_free(rproc);
 
@@ -1865,10 +1845,6 @@ static const struct rproc_hexagon_res sc7180_mss = {
 	.active_clk_names = (char*[]){
 		"mnoc_axi",
 		"nav",
-		NULL
-	},
-	.active_pd_names = (char*[]){
-		"load_state",
 		NULL
 	},
 	.proxy_pd_names = (char*[]){
@@ -1901,10 +1877,6 @@ static const struct rproc_hexagon_res sdm845_mss = {
 			"mem",
 			"gpll0_mss",
 			"mnoc_axi",
-			NULL
-	},
-	.active_pd_names = (char*[]){
-			"load_state",
 			NULL
 	},
 	.proxy_pd_names = (char*[]){
