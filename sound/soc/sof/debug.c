@@ -20,7 +20,7 @@
 #include "ops.h"
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
-#include "probe.h"
+#include "sof-probes.h"
 
 /**
  * strsplit_u32 - Split string into sequence of u32 tokens

@@ -16,6 +16,10 @@
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
+#include "../sof-probes.h"
+#endif
+
 struct hda_pipe_params {
 	u8 host_dma_id;
 	u8 link_dma_id;
@@ -400,18 +404,6 @@ static const struct snd_soc_dai_ops hda_link_dai_ops = {
 	.prepare = hda_link_pcm_prepare,
 };
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_PROBES)
-#include "../compress.h"
-
-static struct snd_soc_cdai_ops sof_probe_compr_ops = {
-	.startup	= sof_probe_compr_open,
-	.shutdown	= sof_probe_compr_free,
-	.set_params	= sof_probe_compr_set_params,
-	.trigger	= sof_probe_compr_trigger,
-	.pointer	= sof_probe_compr_pointer,
-};
-
-#endif
 #endif
 
 static int ssp_dai_hw_params(struct snd_pcm_substream *substream,

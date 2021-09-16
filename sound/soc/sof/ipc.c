@@ -192,6 +192,29 @@ static void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
 			str2 = "unknown type"; break;
 		}
 		break;
+	case SOF_IPC_GLB_PROBE:
+		str = "GLB_PROBE";
+		switch (type) {
+		case SOF_IPC_PROBE_INIT:
+			str2 = "INIT"; break;
+		case SOF_IPC_PROBE_DEINIT:
+			str2 = "DEINIT"; break;
+		case SOF_IPC_PROBE_DMA_ADD:
+			str2 = "DMA_ADD"; break;
+		case SOF_IPC_PROBE_DMA_INFO:
+			str2 = "DMA_INFO"; break;
+		case SOF_IPC_PROBE_DMA_REMOVE:
+			str2 = "DMA_REMOVE"; break;
+		case SOF_IPC_PROBE_POINT_ADD:
+			str2 = "POINT_ADD"; break;
+		case SOF_IPC_PROBE_POINT_INFO:
+			str2 = "POINT_INFO"; break;
+		case SOF_IPC_PROBE_POINT_REMOVE:
+			str2 = "POINT_REMOVE"; break;
+		default:
+			str2 = "unknown type"; break;
+		}
+		break;
 	default:
 		str = "unknown GLB command"; break;
 	}

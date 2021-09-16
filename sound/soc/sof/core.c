@@ -15,7 +15,7 @@
 #include "sof-priv.h"
 #include "ops.h"
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
-#include "probe.h"
+#include "sof-probes.h"
 #endif
 
 /* see SOF_DBG_ flags */
