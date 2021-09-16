@@ -374,6 +374,12 @@ static int nvdec_probe(struct platform_device *pdev)
 		return PTR_ERR(nvdec->clk);
 	}
 
+	err = clk_set_rate(nvdec->clk, ULONG_MAX);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to set clock rate\n");
+		return err;
+	}
+
 	err = of_property_read_u32(dev->of_node, "nvidia,host1x-class", &host_class);
 	if (err < 0)
 		host_class = HOST1X_CLASS_NVDEC;

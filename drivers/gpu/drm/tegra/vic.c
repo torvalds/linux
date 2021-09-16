@@ -441,6 +441,12 @@ static int vic_probe(struct platform_device *pdev)
 		return PTR_ERR(vic->clk);
 	}
 
+	err = clk_set_rate(vic->clk, ULONG_MAX);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to set clock rate\n");
+		return err;
+	}
+
 	if (!dev->pm_domain) {
 		vic->rst = devm_reset_control_get(dev, "vic");
 		if (IS_ERR(vic->rst)) {
