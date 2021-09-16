@@ -576,10 +576,12 @@ static int json_events(const char *fn,
 		struct json_event je = {};
 		char *arch_std = NULL;
 		unsigned long long eventcode = 0;
+		unsigned long long configcode = 0;
 		struct msrmap *msr = NULL;
 		jsmntok_t *msrval = NULL;
 		jsmntok_t *precise = NULL;
 		jsmntok_t *obj = tok++;
+		bool configcode_present = false;
 
 		EXPECT(obj->type == JSMN_OBJECT, obj, "expected object");
 		for (j = 0; j < obj->size; j += 2) {
@@ -602,6 +604,12 @@ static int json_events(const char *fn,
 				addfield(map, &code, "", "", val);
 				eventcode |= strtoul(code, NULL, 0);
 				free(code);
+			} else if (json_streq(map, field, "ConfigCode")) {
+				char *code = NULL;
+				addfield(map, &code, "", "", val);
+				configcode |= strtoul(code, NULL, 0);
+				free(code);
+				configcode_present = true;
 			} else if (json_streq(map, field, "ExtSel")) {
 				char *code = NULL;
 				addfield(map, &code, "", "", val);
@@ -683,7 +691,10 @@ static int json_events(const char *fn,
 				addfield(map, &extra_desc, " ",
 						"(Precise event)", NULL);
 		}
-		snprintf(buf, sizeof buf, "event=%#llx", eventcode);
+		if (configcode_present)
+			snprintf(buf, sizeof buf, "config=%#llx", configcode);
+		else
+			snprintf(buf, sizeof buf, "event=%#llx", eventcode);
 		addfield(map, &event, ",", buf, NULL);
 		if (je.desc && extra_desc)
 			addfield(map, &je.desc, " ", extra_desc, NULL);
