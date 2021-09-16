@@ -613,6 +613,8 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
 		 "readback frame:%d time:%d 0x%x\n",
 		 cur_frame_id, dma2frm + 1, val);
+	if (!dma2frm)
+		rkisp_bridge_update_mi(dev, 0);
 	if (!hw->is_shutdown)
 		rkisp_write(dev, CSI2RX_CTRL0, val, true);
 }
@@ -2972,7 +2974,7 @@ void rkisp_isp_isr(unsigned int isp_mis,
 		}
 		/* last vsync to config next buf */
 		if (!dev->filt_state[RDBK_F_VS])
-			rkisp_bridge_update_mi(dev);
+			rkisp_bridge_update_mi(dev, isp_mis);
 		else
 			dev->filt_state[RDBK_F_VS]--;
 		if (IS_HDR_RDBK(dev->hdr.op_mode)) {

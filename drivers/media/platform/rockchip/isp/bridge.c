@@ -523,7 +523,7 @@ static int frame_end(struct rkisp_bridge_device *dev, bool en, u32 state)
 
 	if (state == FRAME_IRQ && ispdev->cap_dev.is_done_early)
 		return 0;
-
+	dev->frame_early = false;
 	rkisp_dmarx_get_frame(dev->ispdev, &dev->dbg.id, NULL, NULL, true);
 	dev->dbg.interval = ns - dev->dbg.timestamp;
 	dev->dbg.timestamp = ns;
@@ -1495,7 +1495,7 @@ void rkisp_bridge_stop_spstream(struct rkisp_device *dev)
 	spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
 }
 
-void rkisp_bridge_update_mi(struct rkisp_device *dev)
+void rkisp_bridge_update_mi(struct rkisp_device *dev, u32 isp_mis)
 {
 	struct rkisp_bridge_device *br = &dev->br_dev;
 	struct rkisp_hw_dev *hw = dev->hw_dev;
@@ -1504,7 +1504,8 @@ void rkisp_bridge_update_mi(struct rkisp_device *dev)
 	u32 val;
 
 	if (dev->isp_ver != ISP_V20 || !br->en ||
-	    br->work_mode & ISP_ISPP_QUICK)
+	    br->work_mode & ISP_ISPP_QUICK ||
+	    isp_mis & CIF_ISP_FRAME)
 		return;
 
 	br->fs_ns = ktime_get_ns();
@@ -1526,8 +1527,10 @@ void rkisp_bridge_update_mi(struct rkisp_device *dev)
 		rkisp_write(dev, br->cfg->reg.g0_base, val, true);
 	}
 
-	if (dev->cap_dev.is_done_early)
+	if (dev->cap_dev.is_done_early && !br->frame_early) {
+		br->frame_early = true;
 		hrtimer_start(&br->frame_qst, ns_to_ktime(1000000), HRTIMER_MODE_REL);
+	}
 
 	v4l2_dbg(2, rkisp_debug, &br->sd,
 		 "update pic(shd:0x%x base:0x%x) gain(shd:0x%x base:0x%x)\n",
