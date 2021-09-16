@@ -9161,8 +9161,10 @@ void btrfs_destroy_inode(struct inode *vfs_inode)
 	WARN_ON(inode->block_rsv.reserved);
 	WARN_ON(inode->block_rsv.size);
 	WARN_ON(inode->outstanding_extents);
-	WARN_ON(inode->delalloc_bytes);
-	WARN_ON(inode->new_delalloc_bytes);
+	if (!S_ISDIR(vfs_inode->i_mode)) {
+		WARN_ON(inode->delalloc_bytes);
+		WARN_ON(inode->new_delalloc_bytes);
+	}
 	WARN_ON(inode->csum_bytes);
 	WARN_ON(inode->defrag_bytes);
 

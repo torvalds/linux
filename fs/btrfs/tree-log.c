@@ -3734,10 +3734,16 @@ static int process_dir_items_leaf(struct btrfs_trans_handle *trans,
 	const int nritems = btrfs_header_nritems(src);
 	const u64 ino = btrfs_ino(inode);
 	const bool inode_logged_before = inode_logged(trans, inode);
+	u64 last_logged_key_offset;
 	bool last_found = false;
 	int batch_start = 0;
 	int batch_size = 0;
 	int i;
+
+	if (key_type == BTRFS_DIR_ITEM_KEY)
+		last_logged_key_offset = inode->last_dir_item_offset;
+	else
+		last_logged_key_offset = inode->last_dir_index_offset;
 
 	for (i = path->slots[0]; i < nritems; i++) {
 		struct btrfs_key key;
@@ -3750,6 +3756,7 @@ static int process_dir_items_leaf(struct btrfs_trans_handle *trans,
 			break;
 		}
 
+		ctx->last_dir_item_offset = key.offset;
 		/*
 		 * We must make sure that when we log a directory entry, the
 		 * corresponding inode, after log replay, has a matching link
@@ -3785,6 +3792,15 @@ static int process_dir_items_leaf(struct btrfs_trans_handle *trans,
 		}
 
 		if (!inode_logged_before)
+			goto add_to_batch;
+
+		/*
+		 * If we were logged before and have logged dir items, we can skip
+		 * checking if any item with a key offset larger than the last one
+		 * we logged is in the log tree, saving time and avoiding adding
+		 * contention on the log tree.
+		 */
+		if (key.offset > last_logged_key_offset)
 			goto add_to_batch;
 		/*
 		 * Check if the key was already logged before. If not we can add
@@ -4012,9 +4028,31 @@ static noinline int log_directory_changes(struct btrfs_trans_handle *trans,
 	int ret;
 	int key_type = BTRFS_DIR_ITEM_KEY;
 
+	/*
+	 * If this is the first time we are being logged in the current
+	 * transaction, or we were logged before but the inode was evicted and
+	 * reloaded later, in which case its logged_trans is 0, reset the values
+	 * of the last logged key offsets. Note that we don't use the helper
+	 * function inode_logged() here - that is because the function returns
+	 * true after an inode eviction, assuming the worst case as it can not
+	 * know for sure if the inode was logged before. So we can not skip key
+	 * searches in the case the inode was evicted, because it may not have
+	 * been logged in this transaction and may have been logged in a past
+	 * transaction, so we need to reset the last dir item and index offsets
+	 * to (u64)-1.
+	 */
+	if (inode->logged_trans != trans->transid) {
+		inode->last_dir_item_offset = (u64)-1;
+		inode->last_dir_index_offset = (u64)-1;
+	}
 again:
 	min_key = 0;
 	max_key = 0;
+	if (key_type == BTRFS_DIR_ITEM_KEY)
+		ctx->last_dir_item_offset = inode->last_dir_item_offset;
+	else
+		ctx->last_dir_item_offset = inode->last_dir_index_offset;
+
 	while (1) {
 		ret = log_dir_items(trans, inode, path, dst_path, key_type,
 				ctx, min_key, &max_key);
@@ -4026,8 +4064,11 @@ again:
 	}
 
 	if (key_type == BTRFS_DIR_ITEM_KEY) {
+		inode->last_dir_item_offset = ctx->last_dir_item_offset;
 		key_type = BTRFS_DIR_INDEX_KEY;
 		goto again;
+	} else {
+		inode->last_dir_index_offset = ctx->last_dir_item_offset;
 	}
 	return 0;
 }

@@ -17,6 +17,8 @@ struct btrfs_log_ctx {
 	int log_transid;
 	bool log_new_dentries;
 	bool logging_new_name;
+	/* Tracks the last logged dir item/index key offset. */
+	u64 last_dir_item_offset;
 	struct inode *inode;
 	struct list_head list;
 	/* Only used for fast fsyncs. */
