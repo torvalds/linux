@@ -220,7 +220,7 @@ struct reloc_desc {
 
 struct bpf_sec_def;
 
-typedef struct bpf_link *(*attach_fn_t)(struct bpf_program *prog);
+typedef struct bpf_link *(*attach_fn_t)(const struct bpf_program *prog);
 
 struct bpf_sec_def {
 	const char *sec;
@@ -7947,12 +7947,12 @@ void bpf_program__set_expected_attach_type(struct bpf_program *prog,
 	__VA_ARGS__							    \
 }
 
-static struct bpf_link *attach_kprobe(struct bpf_program *prog);
-static struct bpf_link *attach_tp(struct bpf_program *prog);
-static struct bpf_link *attach_raw_tp(struct bpf_program *prog);
-static struct bpf_link *attach_trace(struct bpf_program *prog);
-static struct bpf_link *attach_lsm(struct bpf_program *prog);
-static struct bpf_link *attach_iter(struct bpf_program *prog);
+static struct bpf_link *attach_kprobe(const struct bpf_program *prog);
+static struct bpf_link *attach_tp(const struct bpf_program *prog);
+static struct bpf_link *attach_raw_tp(const struct bpf_program *prog);
+static struct bpf_link *attach_trace(const struct bpf_program *prog);
+static struct bpf_link *attach_lsm(const struct bpf_program *prog);
+static struct bpf_link *attach_iter(const struct bpf_program *prog);
 
 static const struct bpf_sec_def section_defs[] = {
 	BPF_PROG_SEC("socket",			BPF_PROG_TYPE_SOCKET_FILTER),
@@ -9092,7 +9092,7 @@ static void bpf_link_perf_dealloc(struct bpf_link *link)
 	free(perf_link);
 }
 
-struct bpf_link *bpf_program__attach_perf_event_opts(struct bpf_program *prog, int pfd,
+struct bpf_link *bpf_program__attach_perf_event_opts(const struct bpf_program *prog, int pfd,
 						     const struct bpf_perf_event_opts *opts)
 {
 	char errmsg[STRERR_BUFSIZE];
@@ -9167,7 +9167,7 @@ err_out:
 	return libbpf_err_ptr(err);
 }
 
-struct bpf_link *bpf_program__attach_perf_event(struct bpf_program *prog, int pfd)
+struct bpf_link *bpf_program__attach_perf_event(const struct bpf_program *prog, int pfd)
 {
 	return bpf_program__attach_perf_event_opts(prog, pfd, NULL);
 }
@@ -9332,7 +9332,7 @@ static int perf_event_kprobe_open_legacy(bool retprobe, const char *name, uint64
 }
 
 struct bpf_link *
-bpf_program__attach_kprobe_opts(struct bpf_program *prog,
+bpf_program__attach_kprobe_opts(const struct bpf_program *prog,
 				const char *func_name,
 				const struct bpf_kprobe_opts *opts)
 {
@@ -9389,7 +9389,7 @@ bpf_program__attach_kprobe_opts(struct bpf_program *prog,
 	return link;
 }
 
-struct bpf_link *bpf_program__attach_kprobe(struct bpf_program *prog,
+struct bpf_link *bpf_program__attach_kprobe(const struct bpf_program *prog,
 					    bool retprobe,
 					    const char *func_name)
 {
@@ -9400,7 +9400,7 @@ struct bpf_link *bpf_program__attach_kprobe(struct bpf_program *prog,
 	return bpf_program__attach_kprobe_opts(prog, func_name, &opts);
 }
 
-static struct bpf_link *attach_kprobe(struct bpf_program *prog)
+static struct bpf_link *attach_kprobe(const struct bpf_program *prog)
 {
 	DECLARE_LIBBPF_OPTS(bpf_kprobe_opts, opts);
 	unsigned long offset = 0;
@@ -9432,7 +9432,7 @@ static struct bpf_link *attach_kprobe(struct bpf_program *prog)
 }
 
 LIBBPF_API struct bpf_link *
-bpf_program__attach_uprobe_opts(struct bpf_program *prog, pid_t pid,
+bpf_program__attach_uprobe_opts(const struct bpf_program *prog, pid_t pid,
 				const char *binary_path, size_t func_offset,
 				const struct bpf_uprobe_opts *opts)
 {
@@ -9472,7 +9472,7 @@ bpf_program__attach_uprobe_opts(struct bpf_program *prog, pid_t pid,
 	return link;
 }
 
-struct bpf_link *bpf_program__attach_uprobe(struct bpf_program *prog,
+struct bpf_link *bpf_program__attach_uprobe(const struct bpf_program *prog,
 					    bool retprobe, pid_t pid,
 					    const char *binary_path,
 					    size_t func_offset)
@@ -9532,7 +9532,7 @@ static int perf_event_open_tracepoint(const char *tp_category,
 	return pfd;
 }
 
-struct bpf_link *bpf_program__attach_tracepoint_opts(struct bpf_program *prog,
+struct bpf_link *bpf_program__attach_tracepoint_opts(const struct bpf_program *prog,
 						     const char *tp_category,
 						     const char *tp_name,
 						     const struct bpf_tracepoint_opts *opts)
@@ -9566,14 +9566,14 @@ struct bpf_link *bpf_program__attach_tracepoint_opts(struct bpf_program *prog,
 	return link;
 }
 
-struct bpf_link *bpf_program__attach_tracepoint(struct bpf_program *prog,
+struct bpf_link *bpf_program__attach_tracepoint(const struct bpf_program *prog,
 						const char *tp_category,
 						const char *tp_name)
 {
 	return bpf_program__attach_tracepoint_opts(prog, tp_category, tp_name, NULL);
 }
 
-static struct bpf_link *attach_tp(struct bpf_program *prog)
+static struct bpf_link *attach_tp(const struct bpf_program *prog)
 {
 	char *sec_name, *tp_cat, *tp_name;
 	struct bpf_link *link;
@@ -9597,7 +9597,7 @@ static struct bpf_link *attach_tp(struct bpf_program *prog)
 	return link;
 }
 
-struct bpf_link *bpf_program__attach_raw_tracepoint(struct bpf_program *prog,
+struct bpf_link *bpf_program__attach_raw_tracepoint(const struct bpf_program *prog,
 						    const char *tp_name)
 {
 	char errmsg[STRERR_BUFSIZE];
@@ -9627,7 +9627,7 @@ struct bpf_link *bpf_program__attach_raw_tracepoint(struct bpf_program *prog,
 	return link;
 }
 
-static struct bpf_link *attach_raw_tp(struct bpf_program *prog)
+static struct bpf_link *attach_raw_tp(const struct bpf_program *prog)
 {
 	const char *tp_name = prog->sec_name + prog->sec_def->len;
 
@@ -9635,7 +9635,7 @@ static struct bpf_link *attach_raw_tp(struct bpf_program *prog)
 }
 
 /* Common logic for all BPF program types that attach to a btf_id */
-static struct bpf_link *bpf_program__attach_btf_id(struct bpf_program *prog)
+static struct bpf_link *bpf_program__attach_btf_id(const struct bpf_program *prog)
 {
 	char errmsg[STRERR_BUFSIZE];
 	struct bpf_link *link;
@@ -9664,28 +9664,28 @@ static struct bpf_link *bpf_program__attach_btf_id(struct bpf_program *prog)
 	return (struct bpf_link *)link;
 }
 
-struct bpf_link *bpf_program__attach_trace(struct bpf_program *prog)
+struct bpf_link *bpf_program__attach_trace(const struct bpf_program *prog)
 {
 	return bpf_program__attach_btf_id(prog);
 }
 
-struct bpf_link *bpf_program__attach_lsm(struct bpf_program *prog)
+struct bpf_link *bpf_program__attach_lsm(const struct bpf_program *prog)
 {
 	return bpf_program__attach_btf_id(prog);
 }
 
-static struct bpf_link *attach_trace(struct bpf_program *prog)
+static struct bpf_link *attach_trace(const struct bpf_program *prog)
 {
 	return bpf_program__attach_trace(prog);
 }
 
-static struct bpf_link *attach_lsm(struct bpf_program *prog)
+static struct bpf_link *attach_lsm(const struct bpf_program *prog)
 {
 	return bpf_program__attach_lsm(prog);
 }
 
 static struct bpf_link *
-bpf_program__attach_fd(struct bpf_program *prog, int target_fd, int btf_id,
+bpf_program__attach_fd(const struct bpf_program *prog, int target_fd, int btf_id,
 		       const char *target_name)
 {
 	DECLARE_LIBBPF_OPTS(bpf_link_create_opts, opts,
@@ -9721,24 +9721,24 @@ bpf_program__attach_fd(struct bpf_program *prog, int target_fd, int btf_id,
 }
 
 struct bpf_link *
-bpf_program__attach_cgroup(struct bpf_program *prog, int cgroup_fd)
+bpf_program__attach_cgroup(const struct bpf_program *prog, int cgroup_fd)
 {
 	return bpf_program__attach_fd(prog, cgroup_fd, 0, "cgroup");
 }
 
 struct bpf_link *
-bpf_program__attach_netns(struct bpf_program *prog, int netns_fd)
+bpf_program__attach_netns(const struct bpf_program *prog, int netns_fd)
 {
 	return bpf_program__attach_fd(prog, netns_fd, 0, "netns");
 }
 
-struct bpf_link *bpf_program__attach_xdp(struct bpf_program *prog, int ifindex)
+struct bpf_link *bpf_program__attach_xdp(const struct bpf_program *prog, int ifindex)
 {
 	/* target_fd/target_ifindex use the same field in LINK_CREATE */
 	return bpf_program__attach_fd(prog, ifindex, 0, "xdp");
 }
 
-struct bpf_link *bpf_program__attach_freplace(struct bpf_program *prog,
+struct bpf_link *bpf_program__attach_freplace(const struct bpf_program *prog,
 					      int target_fd,
 					      const char *attach_func_name)
 {
@@ -9771,7 +9771,7 @@ struct bpf_link *bpf_program__attach_freplace(struct bpf_program *prog,
 }
 
 struct bpf_link *
-bpf_program__attach_iter(struct bpf_program *prog,
+bpf_program__attach_iter(const struct bpf_program *prog,
 			 const struct bpf_iter_attach_opts *opts)
 {
 	DECLARE_LIBBPF_OPTS(bpf_link_create_opts, link_create_opts);
@@ -9810,12 +9810,12 @@ bpf_program__attach_iter(struct bpf_program *prog,
 	return link;
 }
 
-static struct bpf_link *attach_iter(struct bpf_program *prog)
+static struct bpf_link *attach_iter(const struct bpf_program *prog)
 {
 	return bpf_program__attach_iter(prog, NULL);
 }
 
-struct bpf_link *bpf_program__attach(struct bpf_program *prog)
+struct bpf_link *bpf_program__attach(const struct bpf_program *prog)
 {
 	if (!prog->sec_def || !prog->sec_def->attach_fn)
 		return libbpf_err_ptr(-ESRCH);
@@ -9833,7 +9833,7 @@ static int bpf_link__detach_struct_ops(struct bpf_link *link)
 	return 0;
 }
 
-struct bpf_link *bpf_map__attach_struct_ops(struct bpf_map *map)
+struct bpf_link *bpf_map__attach_struct_ops(const struct bpf_map *map)
 {
 	struct bpf_struct_ops *st_ops;
 	struct bpf_link *link;
@@ -10918,7 +10918,7 @@ int bpf_object__attach_skeleton(struct bpf_object_skeleton *s)
 		if (!prog->sec_def || !prog->sec_def->attach_fn)
 			continue;
 
-		*link = prog->sec_def->attach_fn(prog);
+		*link = bpf_program__attach(prog);
 		err = libbpf_get_error(*link);
 		if (err) {
 			pr_warn("failed to auto-attach program '%s': %d\n",
