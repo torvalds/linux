@@ -316,7 +316,7 @@ static int free_phys_pg_pack(struct hl_device *hdev,
 	}
 
 	if (rc && !hdev->disabled)
-		hl_device_reset(hdev, HL_RESET_HARD);
+		hl_device_reset(hdev, HL_DRV_RESET_HARD);
 
 end:
 	kvfree(phys_pg_pack->pages);

@@ -767,7 +767,7 @@ static void cs_timedout(struct work_struct *work)
 
 	if (likely(!skip_reset_on_timeout)) {
 		if (hdev->reset_on_lockup)
-			hl_device_reset(hdev, HL_RESET_TDR);
+			hl_device_reset(hdev, HL_DRV_RESET_TDR);
 		else
 			hdev->needs_reset = true;
 	}

@@ -120,37 +120,37 @@ enum hl_mmu_page_table_location {
 /*
  * Reset Flags
  *
- * - HL_RESET_HARD
+ * - HL_DRV_RESET_HARD
  *       If set do hard reset to all engines. If not set reset just
  *       compute/DMA engines.
  *
- * - HL_RESET_FROM_RESET_THREAD
+ * - HL_DRV_RESET_FROM_RESET_THR
  *       Set if the caller is the hard-reset thread
  *
- * - HL_RESET_HEARTBEAT
+ * - HL_DRV_RESET_HEARTBEAT
  *       Set if reset is due to heartbeat
  *
- * - HL_RESET_TDR
+ * - HL_DRV_RESET_TDR
  *       Set if reset is due to TDR
  *
- * - HL_RESET_DEVICE_RELEASE
+ * - HL_DRV_RESET_DEV_RELEASE
  *       Set if reset is due to device release
  *
- * - HL_RESET_FW
+ * - HL_DRV_RESET_BYPASS_REQ_TO_FW
  *       F/W will perform the reset. No need to ask it to reset the device. This is relevant
  *       only when running with secured f/w
  *
- * - HL_RESET_FW_FATAL_ERR
+ * - HL_DRV_RESET_FW_FATAL_ERR
  *       Set if reset is due to a fatal error from FW
  */
 
-#define HL_RESET_HARD			(1 << 0)
-#define HL_RESET_FROM_RESET_THREAD	(1 << 1)
-#define HL_RESET_HEARTBEAT		(1 << 2)
-#define HL_RESET_TDR			(1 << 3)
-#define HL_RESET_DEVICE_RELEASE		(1 << 4)
-#define HL_RESET_FW			(1 << 5)
-#define HL_RESET_FW_FATAL_ERR		(1 << 6)
+#define HL_DRV_RESET_HARD		(1 << 0)
+#define HL_DRV_RESET_FROM_RESET_THR	(1 << 1)
+#define HL_DRV_RESET_HEARTBEAT		(1 << 2)
+#define HL_DRV_RESET_TDR		(1 << 3)
+#define HL_DRV_RESET_DEV_RELEASE	(1 << 4)
+#define HL_DRV_RESET_BYPASS_REQ_TO_FW	(1 << 5)
+#define HL_DRV_RESET_FW_FATAL_ERR	(1 << 6)
 
 #define HL_MAX_SOBS_PER_MONITOR	8
 

@@ -95,7 +95,7 @@ static void hpriv_release(struct kref *ref)
 
 	if ((hdev->reset_if_device_not_idle && !device_is_idle)
 			|| hdev->reset_upon_device_release)
-		hl_device_reset(hdev, HL_RESET_DEVICE_RELEASE);
+		hl_device_reset(hdev, HL_DRV_RESET_DEV_RELEASE);
 
 	/* Now we can mark the compute_ctx as empty. Even if a reset is running in a different
 	 * thread, we don't care because the in_reset is marked so if a user will try to open
@@ -330,10 +330,10 @@ static void device_hard_reset_pending(struct work_struct *work)
 	u32 flags;
 	int rc;
 
-	flags = HL_RESET_HARD | HL_RESET_FROM_RESET_THREAD;
+	flags = HL_DRV_RESET_HARD | HL_DRV_RESET_FROM_RESET_THR;
 
 	if (device_reset_work->fw_reset)
-		flags |= HL_RESET_FW;
+		flags |= HL_DRV_RESET_BYPASS_REQ_TO_FW;
 
 	rc = hl_device_reset(hdev, flags);
 	if ((rc == -EBUSY) && !hdev->device_fini_pending) {
@@ -541,7 +541,7 @@ static void hl_device_heartbeat(struct work_struct *work)
 		goto reschedule;
 
 	dev_err(hdev->dev, "Device heartbeat failed!\n");
-	hl_device_reset(hdev, HL_RESET_HARD | HL_RESET_HEARTBEAT);
+	hl_device_reset(hdev, HL_DRV_RESET_HARD | HL_DRV_RESET_HEARTBEAT);
 
 	return;
 
@@ -552,7 +552,7 @@ reschedule:
 	 * If control reached here, then at least one heartbeat work has been
 	 * scheduled since last reset/init cycle.
 	 * So if the device is not already in reset cycle, reset the flag
-	 * prev_reset_trigger as no reset occurred with HL_RESET_FW_FATAL_ERR
+	 * prev_reset_trigger as no reset occurred with HL_DRV_RESET_FW_FATAL_ERR
 	 * status for at least one heartbeat. From this point driver restarts
 	 * tracking future consecutive fatal errors.
 	 */
@@ -831,7 +831,7 @@ int hl_device_resume(struct hl_device *hdev)
 	hdev->disabled = false;
 	atomic_set(&hdev->in_reset, 0);
 
-	rc = hl_device_reset(hdev, HL_RESET_HARD);
+	rc = hl_device_reset(hdev, HL_DRV_RESET_HARD);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to reset device during resume\n");
 		goto disable_device;
@@ -948,15 +948,15 @@ static void handle_reset_trigger(struct hl_device *hdev, u32 flags)
 	 * ('in_reset' makes sure of it). This makes sure that
 	 * 'reset_cause' will continue holding its 1st recorded reason!
 	 */
-	if (flags & HL_RESET_HEARTBEAT) {
+	if (flags & HL_DRV_RESET_HEARTBEAT) {
 		hdev->curr_reset_cause = HL_RESET_CAUSE_HEARTBEAT;
-		cur_reset_trigger = HL_RESET_HEARTBEAT;
-	} else if (flags & HL_RESET_TDR) {
+		cur_reset_trigger = HL_DRV_RESET_HEARTBEAT;
+	} else if (flags & HL_DRV_RESET_TDR) {
 		hdev->curr_reset_cause = HL_RESET_CAUSE_TDR;
-		cur_reset_trigger = HL_RESET_TDR;
-	} else if (flags & HL_RESET_FW_FATAL_ERR) {
+		cur_reset_trigger = HL_DRV_RESET_TDR;
+	} else if (flags & HL_DRV_RESET_FW_FATAL_ERR) {
 		hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
-		cur_reset_trigger = HL_RESET_FW_FATAL_ERR;
+		cur_reset_trigger = HL_DRV_RESET_FW_FATAL_ERR;
 	} else {
 		hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
 	}
@@ -979,8 +979,8 @@ static void handle_reset_trigger(struct hl_device *hdev, u32 flags)
 	 * If F/W is performing the reset, no need to send it a message to disable
 	 * PCI access
 	 */
-	if ((flags & HL_RESET_HARD) &&
-			!(flags & (HL_RESET_HEARTBEAT | HL_RESET_FW))) {
+	if ((flags & HL_DRV_RESET_HARD) &&
+			!(flags & (HL_DRV_RESET_HEARTBEAT | HL_DRV_RESET_BYPASS_REQ_TO_FW))) {
 		/* Disable PCI access from device F/W so he won't send
 		 * us additional interrupts. We disable MSI/MSI-X at
 		 * the halt_engines function and we can't have the F/W
@@ -1025,9 +1025,9 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 		return 0;
 	}
 
-	hard_reset = !!(flags & HL_RESET_HARD);
-	from_hard_reset_thread = !!(flags & HL_RESET_FROM_RESET_THREAD);
-	fw_reset = !!(flags & HL_RESET_FW);
+	hard_reset = !!(flags & HL_DRV_RESET_HARD);
+	from_hard_reset_thread = !!(flags & HL_DRV_RESET_FROM_RESET_THR);
+	fw_reset = !!(flags & HL_DRV_RESET_BYPASS_REQ_TO_FW);
 
 	if (!hard_reset && !hdev->supports_soft_reset) {
 		hard_instead_soft = true;
@@ -1035,7 +1035,7 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 	}
 
 	if (hdev->reset_upon_device_release &&
-			(flags & HL_RESET_DEVICE_RELEASE)) {
+			(flags & HL_DRV_RESET_DEV_RELEASE)) {
 		dev_dbg(hdev->dev,
 			"Perform %s-reset upon device release\n",
 			hard_reset ? "hard" : "soft");
@@ -1075,7 +1075,7 @@ do_reset:
 
 		if (hard_reset)
 			dev_info(hdev->dev, "Going to reset device\n");
-		else if (flags & HL_RESET_DEVICE_RELEASE)
+		else if (flags & HL_DRV_RESET_DEV_RELEASE)
 			dev_info(hdev->dev,
 				"Going to reset device after it was released by user\n");
 		else
@@ -1171,7 +1171,7 @@ kill_processes:
 		hdev->hard_reset_pending = false;
 
 		if (hdev->reset_trigger_repeated &&
-				(hdev->prev_reset_trigger == HL_RESET_FW_FATAL_ERR)) {
+				(hdev->prev_reset_trigger == HL_DRV_RESET_FW_FATAL_ERR)) {
 			/* if there 2 back to back resets from FW,
 			 * ensure driver puts the driver in a unusable state
 			 */

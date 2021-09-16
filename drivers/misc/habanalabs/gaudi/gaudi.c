@@ -8003,7 +8003,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_NIC0_CS_DBG_DERR ... GAUDI_EVENT_NIC4_CS_DBG_DERR:
 		gaudi_print_irq_info(hdev, event_type, true);
 		gaudi_handle_ecc_event(hdev, event_type, &eq_entry->ecc_data);
-		fw_fatal_err_flag = HL_RESET_FW_FATAL_ERR;
+		fw_fatal_err_flag = HL_DRV_RESET_FW_FATAL_ERR;
 		goto reset_device;
 
 	case GAUDI_EVENT_GIC500:
@@ -8011,7 +8011,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_L2_RAM_ECC:
 	case GAUDI_EVENT_PLL0 ... GAUDI_EVENT_PLL17:
 		gaudi_print_irq_info(hdev, event_type, false);
-		fw_fatal_err_flag = HL_RESET_FW_FATAL_ERR;
+		fw_fatal_err_flag = HL_DRV_RESET_FW_FATAL_ERR;
 		goto reset_device;
 
 	case GAUDI_EVENT_HBM0_SPI_0:
@@ -8022,7 +8022,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 		gaudi_hbm_read_interrupts(hdev,
 				gaudi_hbm_event_to_dev(event_type),
 				&eq_entry->hbm_ecc_data);
-		fw_fatal_err_flag = HL_RESET_FW_FATAL_ERR;
+		fw_fatal_err_flag = HL_DRV_RESET_FW_FATAL_ERR;
 		goto reset_device;
 
 	case GAUDI_EVENT_HBM0_SPI_1:
@@ -8205,9 +8205,11 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 
 reset_device:
 	if (hdev->asic_prop.fw_security_enabled)
-		hl_device_reset(hdev, HL_RESET_HARD | HL_RESET_FW | fw_fatal_err_flag);
+		hl_device_reset(hdev, HL_DRV_RESET_HARD
+					| HL_DRV_RESET_BYPASS_REQ_TO_FW
+					| fw_fatal_err_flag);
 	else if (hdev->hard_reset_on_fw_events)
-		hl_device_reset(hdev, HL_RESET_HARD | fw_fatal_err_flag);
+		hl_device_reset(hdev, HL_DRV_RESET_HARD | fw_fatal_err_flag);
 	else
 		hl_fw_unmask_irq(hdev, event_type);
 }
@@ -8260,7 +8262,7 @@ static int gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 	if (rc) {
 		dev_err_ratelimited(hdev->dev,
 					"MMU cache invalidation timeout\n");
-		hl_device_reset(hdev, HL_RESET_HARD);
+		hl_device_reset(hdev, HL_DRV_RESET_HARD);
 	}
 
 	return rc;
