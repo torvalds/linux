@@ -4554,6 +4554,39 @@ xfs_btree_calc_size(
 }
 
 /*
+ * Given a number of available blocks for the btree to consume with records and
+ * pointers, calculate the height of the tree needed to index all the records
+ * that space can hold based on the number of pointers each interior node
+ * holds.
+ *
+ * We start by assuming a single level tree consumes a single block, then track
+ * the number of blocks each node level consumes until we no longer have space
+ * to store the next node level. At this point, we are indexing all the leaf
+ * blocks in the space, and there's no more free space to split the tree any
+ * further. That's our maximum btree height.
+ */
+unsigned int
+xfs_btree_space_to_height(
+	const unsigned int	*limits,
+	unsigned long long	leaf_blocks)
+{
+	unsigned long long	node_blocks = limits[1];
+	unsigned long long	blocks_left = leaf_blocks - 1;
+	unsigned int		height = 1;
+
+	if (leaf_blocks < 1)
+		return 0;
+
+	while (node_blocks < blocks_left) {
+		blocks_left -= node_blocks;
+		node_blocks *= limits[1];
+		height++;
+	}
+
+	return height;
+}
+
+/*
  * Query a regular btree for all records overlapping a given interval.
  * Start with a LE lookup of the key of low_rec and return all records
  * until we find a record with a key greater than the key of high_rec.

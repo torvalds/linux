@@ -491,6 +491,8 @@ unsigned int xfs_btree_compute_maxlevels(const unsigned int *limits,
 		unsigned long long records);
 unsigned long long xfs_btree_calc_size(const unsigned int *limits,
 		unsigned long long records);
+unsigned int xfs_btree_space_to_height(const unsigned int *limits,
+		unsigned long long blocks);
 
 /*
  * Return codes for the query range iterator function are 0 to continue
