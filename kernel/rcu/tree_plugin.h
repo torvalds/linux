@@ -849,10 +849,8 @@ static void rcu_qs(void)
 	trace_rcu_grace_period(TPS("rcu_sched"),
 			       __this_cpu_read(rcu_data.gp_seq), TPS("cpuqs"));
 	__this_cpu_write(rcu_data.cpu_no_qs.b.norm, false);
-	if (!__this_cpu_read(rcu_data.cpu_no_qs.b.exp))
-		return;
-	__this_cpu_write(rcu_data.cpu_no_qs.b.exp, false);
-	rcu_report_exp_rdp(this_cpu_ptr(&rcu_data));
+	if (__this_cpu_read(rcu_data.cpu_no_qs.b.exp))
+		rcu_report_exp_rdp(this_cpu_ptr(&rcu_data));
 }
 
 /*

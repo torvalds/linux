@@ -256,6 +256,7 @@ static void rcu_report_exp_cpu_mult(struct rcu_node *rnp,
 static void rcu_report_exp_rdp(struct rcu_data *rdp)
 {
 	WRITE_ONCE(rdp->exp_deferred_qs, false);
+	WRITE_ONCE(rdp->cpu_no_qs.b.exp, false);
 	rcu_report_exp_cpu_mult(rdp->mynode, rdp->grpmask, true);
 }
 
