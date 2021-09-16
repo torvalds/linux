@@ -16,6 +16,10 @@
 static inline int access_ok(const void __user *addr,
 			    unsigned long size)
 {
+	/*
+	 * XXX: for !CONFIG_CPU_HAS_ADDRESS_SPACES this really needs to check
+	 * for TASK_SIZE!
+	 */
 	return 1;
 }
 
