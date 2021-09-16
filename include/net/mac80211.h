@@ -1723,6 +1723,7 @@ enum ieee80211_offload_flags {
  *	write-protected by sdata_lock and local->mtx so holding either is fine
  *	for read access.
  * @color_change_color: the bss color that will be used after the change.
+ * @mbssid_tx_vif: Pointer to the transmitting interface if MBSSID is enabled.
  */
 struct ieee80211_vif {
 	enum nl80211_iftype type;
@@ -1753,6 +1754,8 @@ struct ieee80211_vif {
 
 	bool color_change_active;
 	u8 color_change_color;
+
+	struct ieee80211_vif *mbssid_tx_vif;
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
