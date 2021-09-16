@@ -427,6 +427,11 @@ int wilc_wlan_txq_add_net_pkt(struct net_device *dev,
 		return 0;
 	}
 
+	if (!wilc->initialized) {
+		tx_complete_fn(tx_data, 0);
+		return 0;
+	}
+
 	tqe = kmalloc(sizeof(*tqe), GFP_ATOMIC);
 
 	if (!tqe) {
@@ -476,6 +481,10 @@ int wilc_wlan_txq_add_mgmt_pkt(struct net_device *dev, void *priv, u8 *buffer,
 		return 0;
 	}
 
+	if (!wilc->initialized) {
+		tx_complete_fn(priv, 0);
+		return 0;
+	}
 	tqe = kmalloc(sizeof(*tqe), GFP_ATOMIC);
 
 	if (!tqe) {

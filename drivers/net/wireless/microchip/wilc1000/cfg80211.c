@@ -728,6 +728,7 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc_priv *priv = &vif->priv;
+	struct wilc *wilc = vif->wilc;
 	u32 i = 0;
 	u32 associatedsta = ~0;
 	u32 inactive_time = 0;
@@ -753,6 +754,9 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 		sinfo->inactive_time = 1000 * inactive_time;
 	} else if (vif->iftype == WILC_STATION_MODE) {
 		struct rf_info stats;
+
+		if (!wilc->initialized)
+			return -EBUSY;
 
 		wilc_get_statistics(vif, &stats);
 
