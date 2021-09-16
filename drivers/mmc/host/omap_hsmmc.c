@@ -1510,7 +1510,7 @@ static void omap_hsmmc_init_card(struct mmc_host *mmc, struct mmc_card *card)
 		 * REVISIT: should be moved to sdio core and made more
 		 * general e.g. by expanding the DT bindings of child nodes
 		 * to provide a mechanism to provide this information:
-		 * Documentation/devicetree/bindings/mmc/mmc-card.txt
+		 * Documentation/devicetree/bindings/mmc/mmc-card.yaml
 		 */
 
 		np = of_get_compatible_child(np, "ti,wl1251");
