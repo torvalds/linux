@@ -13,6 +13,8 @@
 #include <linux/thermal.h>
 
 #define MLXREG_FAN_MAX_TACHO		14
+#define MLXREG_FAN_MAX_PWM		4
+#define MLXREG_FAN_PWM_NOT_CONNECTED	0xff
 #define MLXREG_FAN_MAX_STATE		10
 #define MLXREG_FAN_MIN_DUTY		51	/* 20% */
 #define MLXREG_FAN_MAX_DUTY		255	/* 100% */
@@ -105,7 +107,7 @@ struct mlxreg_fan {
 	void *regmap;
 	struct mlxreg_core_platform_data *pdata;
 	struct mlxreg_fan_tacho tacho[MLXREG_FAN_MAX_TACHO];
-	struct mlxreg_fan_pwm pwm;
+	struct mlxreg_fan_pwm pwm[MLXREG_FAN_MAX_PWM];
 	int tachos_per_drwr;
 	int samples;
 	int divider;
@@ -119,6 +121,7 @@ mlxreg_fan_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 {
 	struct mlxreg_fan *fan = dev_get_drvdata(dev);
 	struct mlxreg_fan_tacho *tacho;
+	struct mlxreg_fan_pwm *pwm;
 	u32 regval;
 	int err;
 
@@ -169,9 +172,10 @@ mlxreg_fan_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		break;
 
 	case hwmon_pwm:
+		pwm = &fan->pwm[channel];
 		switch (attr) {
 		case hwmon_pwm_input:
-			err = regmap_read(fan->regmap, fan->pwm.reg, &regval);
+			err = regmap_read(fan->regmap, pwm->reg, &regval);
 			if (err)
 				return err;
 
@@ -195,6 +199,7 @@ mlxreg_fan_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		 int channel, long val)
 {
 	struct mlxreg_fan *fan = dev_get_drvdata(dev);
+	struct mlxreg_fan_pwm *pwm;
 
 	switch (type) {
 	case hwmon_pwm:
@@ -203,7 +208,8 @@ mlxreg_fan_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 			if (val < MLXREG_FAN_MIN_DUTY ||
 			    val > MLXREG_FAN_MAX_DUTY)
 				return -EINVAL;
-			return regmap_write(fan->regmap, fan->pwm.reg, val);
+			pwm = &fan->pwm[channel];
+			return regmap_write(fan->regmap, pwm->reg, val);
 		default:
 			return -EOPNOTSUPP;
 		}
@@ -235,7 +241,7 @@ mlxreg_fan_is_visible(const void *data, enum hwmon_sensor_types type, u32 attr,
 		break;
 
 	case hwmon_pwm:
-		if (!(((struct mlxreg_fan *)data)->pwm.connected))
+		if (!(((struct mlxreg_fan *)data)->pwm[channel].connected))
 			return 0;
 
 		switch (attr) {
@@ -270,6 +276,9 @@ static const struct hwmon_channel_info *mlxreg_fan_hwmon_info[] = {
 			   HWMON_F_INPUT | HWMON_F_FAULT,
 			   HWMON_F_INPUT | HWMON_F_FAULT),
 	HWMON_CHANNEL_INFO(pwm,
+			   HWMON_PWM_INPUT,
+			   HWMON_PWM_INPUT,
+			   HWMON_PWM_INPUT,
 			   HWMON_PWM_INPUT),
 	NULL
 };
@@ -300,7 +309,7 @@ static int mlxreg_fan_get_cur_state(struct thermal_cooling_device *cdev,
 	u32 regval;
 	int err;
 
-	err = regmap_read(fan->regmap, fan->pwm.reg, &regval);
+	err = regmap_read(fan->regmap, fan->pwm[0].reg, &regval);
 	if (err) {
 		dev_err(fan->dev, "Failed to query PWM duty\n");
 		return err;
@@ -343,7 +352,7 @@ static int mlxreg_fan_set_cur_state(struct thermal_cooling_device *cdev,
 		for (i = state; i <= MLXREG_FAN_MAX_STATE; i++)
 			fan->cooling_levels[i] = i;
 
-		err = regmap_read(fan->regmap, fan->pwm.reg, &regval);
+		err = regmap_read(fan->regmap, fan->pwm[0].reg, &regval);
 		if (err) {
 			dev_err(fan->dev, "Failed to query PWM duty\n");
 			return err;
@@ -361,7 +370,7 @@ static int mlxreg_fan_set_cur_state(struct thermal_cooling_device *cdev,
 
 	/* Normalize the state to the valid speed range. */
 	state = fan->cooling_levels[state];
-	err = regmap_write(fan->regmap, fan->pwm.reg,
+	err = regmap_write(fan->regmap, fan->pwm[0].reg,
 			   MLXREG_FAN_PWM_STATE2DUTY(state));
 	if (err) {
 		dev_err(fan->dev, "Failed to write PWM duty\n");
@@ -392,6 +401,22 @@ static int mlxreg_fan_connect_verify(struct mlxreg_fan *fan,
 	return !!(regval & data->bit);
 }
 
+static int mlxreg_pwm_connect_verify(struct mlxreg_fan *fan,
+				     struct mlxreg_core_data *data)
+{
+	u32 regval;
+	int err;
+
+	err = regmap_read(fan->regmap, data->reg, &regval);
+	if (err) {
+		dev_err(fan->dev, "Failed to query pwm register 0x%08x\n",
+			data->reg);
+		return err;
+	}
+
+	return regval != MLXREG_FAN_PWM_NOT_CONNECTED;
+}
+
 static int mlxreg_fan_speed_divider_get(struct mlxreg_fan *fan,
 					struct mlxreg_core_data *data)
 {
@@ -420,8 +445,8 @@ static int mlxreg_fan_speed_divider_get(struct mlxreg_fan *fan,
 static int mlxreg_fan_config(struct mlxreg_fan *fan,
 			     struct mlxreg_core_platform_data *pdata)
 {
+	int tacho_num = 0, tacho_avail = 0, pwm_num = 0, i;
 	struct mlxreg_core_data *data = pdata->data;
-	int tacho_num = 0, tacho_avail = 0, i;
 	bool configured = false;
 	int err;
 
@@ -451,13 +476,19 @@ static int mlxreg_fan_config(struct mlxreg_fan *fan,
 			fan->tacho[tacho_num++].connected = true;
 			tacho_avail++;
 		} else if (strnstr(data->label, "pwm", sizeof(data->label))) {
-			if (fan->pwm.connected) {
-				dev_err(fan->dev, "duplicate pwm entry: %s\n",
+			if (pwm_num == MLXREG_FAN_MAX_TACHO) {
+				dev_err(fan->dev, "too many pwm entries: %s\n",
 					data->label);
 				return -EINVAL;
 			}
-			fan->pwm.reg = data->reg;
-			fan->pwm.connected = true;
+
+			err = mlxreg_pwm_connect_verify(fan, data);
+			if (err)
+				return err;
+
+			fan->pwm[pwm_num].reg = data->reg;
+			fan->pwm[pwm_num].connected = true;
+			pwm_num++;
 		} else if (strnstr(data->label, "conf", sizeof(data->label))) {
 			if (configured) {
 				dev_err(fan->dev, "duplicate conf entry: %s\n",
