@@ -71,17 +71,25 @@ static void psp_check_pmfw_centralized_cstate_management(struct psp_context *psp
 {
 	struct amdgpu_device *adev = psp->adev;
 
-	psp->pmfw_centralized_cstate_management = false;
-
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev)) {
+		psp->pmfw_centralized_cstate_management = false;
 		return;
+	}
 
-	if (adev->flags & AMD_IS_APU)
-		return;
-
-	if ((adev->asic_type >= CHIP_ARCTURUS) ||
-	    (adev->asic_type >= CHIP_NAVI12))
+	switch (adev->ip_versions[MP0_HWIP]) {
+	case IP_VERSION(11, 0, 4):
+	case IP_VERSION(11, 0, 7):
+	case IP_VERSION(11, 0, 9):
+	case IP_VERSION(11, 0, 11):
+	case IP_VERSION(11, 0, 12):
+	case IP_VERSION(11, 0, 13):
+	case IP_VERSION(13, 0, 2):
 		psp->pmfw_centralized_cstate_management = true;
+		break;
+	default:
+		psp->pmfw_centralized_cstate_management = false;
+		break;
+	}
 }
 
 static int psp_early_init(void *handle)
@@ -89,43 +97,45 @@ static int psp_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct psp_context *psp = &adev->psp;
 
-	switch (adev->asic_type) {
-	case CHIP_VEGA10:
-	case CHIP_VEGA12:
+	switch (adev->ip_versions[MP0_HWIP]) {
+	case IP_VERSION(9, 0, 0):
 		psp_v3_1_set_psp_funcs(psp);
 		psp->autoload_supported = false;
 		break;
-	case CHIP_RAVEN:
+	case IP_VERSION(10, 0, 0):
+	case IP_VERSION(10, 0, 1):
 		psp_v10_0_set_psp_funcs(psp);
 		psp->autoload_supported = false;
 		break;
-	case CHIP_VEGA20:
-	case CHIP_ARCTURUS:
+	case IP_VERSION(11, 0, 2):
+	case IP_VERSION(11, 0, 4):
 		psp_v11_0_set_psp_funcs(psp);
 		psp->autoload_supported = false;
 		break;
-	case CHIP_NAVI10:
-	case CHIP_NAVI14:
-	case CHIP_NAVI12:
-	case CHIP_SIENNA_CICHLID:
-	case CHIP_NAVY_FLOUNDER:
-	case CHIP_VANGOGH:
-	case CHIP_DIMGREY_CAVEFISH:
-	case CHIP_BEIGE_GOBY:
+	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 5):
+	case IP_VERSION(11, 0, 9):
+	case IP_VERSION(11, 0, 7):
+	case IP_VERSION(11, 0, 11):
+	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(11, 0, 12):
+	case IP_VERSION(11, 0, 13):
 		psp_v11_0_set_psp_funcs(psp);
 		psp->autoload_supported = true;
 		break;
-	case CHIP_RENOIR:
+	case IP_VERSION(11, 0, 3):
+	case IP_VERSION(12, 0, 1):
 		psp_v12_0_set_psp_funcs(psp);
 		break;
-	case CHIP_ALDEBARAN:
+	case IP_VERSION(13, 0, 2):
 		psp_v13_0_set_psp_funcs(psp);
 		break;
-	case CHIP_YELLOW_CARP:
+	case IP_VERSION(13, 0, 1):
+	case IP_VERSION(13, 0, 3):
 		psp_v13_0_set_psp_funcs(psp);
 		psp->autoload_supported = true;
 		break;
-	case CHIP_CYAN_SKILLFISH:
+	case IP_VERSION(11, 0, 8):
 		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2) {
 			psp_v11_0_8_set_psp_funcs(psp);
 			psp->autoload_supported = false;
@@ -268,7 +278,8 @@ static int psp_sw_init(void *handle)
 			DRM_ERROR("Failed to load psp firmware!\n");
 			return ret;
 		}
-	} else if (amdgpu_sriov_vf(adev) && adev->asic_type == CHIP_ALDEBARAN) {
+	} else if (amdgpu_sriov_vf(adev) &&
+		   adev->ip_versions[MP0_HWIP] == IP_VERSION(13, 0, 2)) {
 		ret = psp_init_ta_microcode(psp, "aldebaran");
 		if (ret) {
 			DRM_ERROR("Failed to initialize ta microcode!\n");
@@ -311,7 +322,8 @@ static int psp_sw_init(void *handle)
 		}
 	}
 
-	if (adev->asic_type == CHIP_NAVI10 || adev->asic_type == CHIP_SIENNA_CICHLID) {
+	if (adev->ip_versions[MP0_HWIP] == IP_VERSION(11, 0, 0) ||
+	    adev->ip_versions[MP0_HWIP] == IP_VERSION(11, 0, 7)) {
 		ret= psp_sysfs_init(adev);
 		if (ret) {
 			return ret;
@@ -341,8 +353,8 @@ static int psp_sw_fini(void *handle)
 		psp->ta_fw = NULL;
 	}
 
-	if (adev->asic_type == CHIP_NAVI10 ||
-	    adev->asic_type == CHIP_SIENNA_CICHLID)
+	if (adev->ip_versions[MP0_HWIP] == IP_VERSION(11, 0, 0) ||
+	    adev->ip_versions[MP0_HWIP] == IP_VERSION(11, 0, 7))
 		psp_sysfs_fini(adev);
 
 	kfree(cmd);
@@ -601,10 +613,10 @@ static int psp_tmr_init(struct psp_context *psp)
 
 static bool psp_skip_tmr(struct psp_context *psp)
 {
-	switch (psp->adev->asic_type) {
-	case CHIP_NAVI12:
-	case CHIP_SIENNA_CICHLID:
-	case CHIP_ALDEBARAN:
+	switch (psp->adev->ip_versions[MP0_HWIP]) {
+	case IP_VERSION(11, 0, 9):
+	case IP_VERSION(11, 0, 7):
+	case IP_VERSION(13, 0, 2):
 		return true;
 	default:
 		return false;
@@ -998,8 +1010,9 @@ int psp_xgmi_terminate(struct psp_context *psp)
 	struct amdgpu_device *adev = psp->adev;
 
 	/* XGMI TA unload currently is not supported on Arcturus/Aldebaran A+A */
-	if (adev->asic_type == CHIP_ARCTURUS ||
-		(adev->asic_type == CHIP_ALDEBARAN && adev->gmc.xgmi.connected_to_cpu))
+	if (adev->ip_versions[MP0_HWIP] == IP_VERSION(11, 0, 4) ||
+	    (adev->ip_versions[MP0_HWIP] == IP_VERSION(13, 0, 2) &&
+	     adev->gmc.xgmi.connected_to_cpu))
 		return 0;
 
 	if (!psp->xgmi_context.context.initialized)
@@ -1100,8 +1113,8 @@ int psp_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id)
 
 static bool psp_xgmi_peer_link_info_supported(struct psp_context *psp)
 {
-	return psp->adev->asic_type == CHIP_ALDEBARAN &&
-				psp->xgmi_context.context.bin_desc.feature_version >= 0x2000000b;
+	return psp->adev->ip_versions[MP0_HWIP] == IP_VERSION(13, 0, 2) &&
+		psp->xgmi_context.context.bin_desc.feature_version >= 0x2000000b;
 }
 
 /*
@@ -2219,8 +2232,8 @@ static int psp_load_smu_fw(struct psp_context *psp)
 
 	if ((amdgpu_in_reset(adev) &&
 	     ras && adev->ras_enabled &&
-	     (adev->asic_type == CHIP_ARCTURUS ||
-	      adev->asic_type == CHIP_VEGA20))) {
+	     (adev->ip_versions[MP0_HWIP] == IP_VERSION(11, 0, 4) ||
+	      adev->ip_versions[MP0_HWIP] == IP_VERSION(11, 0, 2)))) {
 		ret = amdgpu_dpm_set_mp1_state(adev, PP_MP1_STATE_UNLOAD);
 		if (ret) {
 			DRM_WARN("Failed to set MP1 state prepare for reload\n");
@@ -2317,8 +2330,9 @@ static int psp_load_non_psp_fw(struct psp_context *psp)
 			continue;
 
 		if (psp->autoload_supported &&
-		    (adev->asic_type >= CHIP_SIENNA_CICHLID &&
-		     adev->asic_type <= CHIP_DIMGREY_CAVEFISH) &&
+		    (adev->ip_versions[MP0_HWIP] == IP_VERSION(11, 0, 7) ||
+		     adev->ip_versions[MP0_HWIP] == IP_VERSION(11, 0, 11) ||
+		     adev->ip_versions[MP0_HWIP] == IP_VERSION(11, 0, 12)) &&
 		    (ucode->ucode_id == AMDGPU_UCODE_ID_SDMA1 ||
 		     ucode->ucode_id == AMDGPU_UCODE_ID_SDMA2 ||
 		     ucode->ucode_id == AMDGPU_UCODE_ID_SDMA3))
@@ -2905,7 +2919,8 @@ static int psp_init_sos_base_fw(struct amdgpu_device *adev)
 	ucode_array_start_addr = (uint8_t *)sos_hdr +
 		le32_to_cpu(sos_hdr->header.ucode_array_offset_bytes);
 
-	if (adev->gmc.xgmi.connected_to_cpu || (adev->asic_type != CHIP_ALDEBARAN)) {
+	if (adev->gmc.xgmi.connected_to_cpu ||
+	    (adev->ip_versions[MP0_HWIP] != IP_VERSION(13, 0, 2))) {
 		adev->psp.sos.fw_version = le32_to_cpu(sos_hdr->header.ucode_version);
 		adev->psp.sos.feature_version = le32_to_cpu(sos_hdr->sos.fw_version);
 
