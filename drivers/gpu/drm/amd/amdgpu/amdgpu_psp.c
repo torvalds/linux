@@ -469,10 +469,10 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	 */
 	if (!skip_unsupport && (psp->cmd_buf_mem->resp.status || !timeout) && !ras_intr) {
 		if (ucode)
-			DRM_WARN("failed to load ucode (%s) ",
-				  amdgpu_ucode_name(ucode->ucode_id));
-		DRM_WARN("psp gfx command (%s) failed and response status is (0x%X)\n",
-			 psp_gfx_cmd_name(psp->cmd_buf_mem->cmd_id),
+			DRM_WARN("failed to load ucode %s(0x%X) ",
+				  amdgpu_ucode_name(ucode->ucode_id), ucode->ucode_id);
+		DRM_WARN("psp gfx command %s(0x%X) failed and response status is (0x%X)\n",
+			 psp_gfx_cmd_name(psp->cmd_buf_mem->cmd_id), psp->cmd_buf_mem->cmd_id,
 			 psp->cmd_buf_mem->resp.status);
 		if (!timeout) {
 			ret = -EINVAL;

@@ -491,6 +491,7 @@ struct irq_domain *irq_get_default_host(void)
 {
 	return irq_default_domain;
 }
+EXPORT_SYMBOL_GPL(irq_get_default_host);
 
 static bool irq_domain_is_nomap(struct irq_domain *domain)
 {

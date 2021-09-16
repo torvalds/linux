@@ -65,7 +65,7 @@ static struct ap_device_id zcrypt_cex2a_queue_ids[] = {
 
 MODULE_DEVICE_TABLE(ap, zcrypt_cex2a_queue_ids);
 
-/**
+/*
  * Probe function for CEX2A card devices. It always accepts the AP device
  * since the bus_match already checked the card type.
  * @ap_dev: pointer to the AP device.
@@ -124,7 +124,7 @@ static int zcrypt_cex2a_card_probe(struct ap_device *ap_dev)
 	return rc;
 }
 
-/**
+/*
  * This is called to remove the CEX2A card driver information
  * if an AP card device is removed.
  */
@@ -142,7 +142,7 @@ static struct ap_driver zcrypt_cex2a_card_driver = {
 	.flags = AP_DRIVER_FLAG_DEFAULT,
 };
 
-/**
+/*
  * Probe function for CEX2A queue devices. It always accepts the AP device
  * since the bus_match already checked the queue type.
  * @ap_dev: pointer to the AP device.
@@ -183,7 +183,7 @@ static int zcrypt_cex2a_queue_probe(struct ap_device *ap_dev)
 	return rc;
 }
 
-/**
+/*
  * This is called to remove the CEX2A queue driver information
  * if an AP queue device is removed.
  */

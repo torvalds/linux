@@ -599,10 +599,10 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-module_param(connect_retries, int, S_IRUGO|S_IWUSR);
+module_param(connect_retries, int, 0644);
 MODULE_PARM_DESC(connect_retries,
 		"Maximum number of connect retries (one second each)");
 
-module_param(initial_wait, int, S_IRUGO|S_IWUSR);
+module_param(initial_wait, int, 0644);
 MODULE_PARM_DESC(initial_wait,
 		"Time to wait before attempting a connection (in seconds)");

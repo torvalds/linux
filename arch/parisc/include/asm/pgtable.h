@@ -112,7 +112,7 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 #define KERNEL_INITIAL_SIZE	(1 << KERNEL_INITIAL_ORDER)
 
 #if CONFIG_PGTABLE_LEVELS == 3
-#define PMD_ORDER	1
+#define PMD_TABLE_ORDER	1
 #define PGD_ORDER	0
 #else
 #define PGD_ORDER	1
@@ -131,7 +131,7 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 #define PMD_SHIFT       (PLD_SHIFT + BITS_PER_PTE)
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
-#define BITS_PER_PMD	(PAGE_SHIFT + PMD_ORDER - BITS_PER_PMD_ENTRY)
+#define BITS_PER_PMD	(PAGE_SHIFT + PMD_TABLE_ORDER - BITS_PER_PMD_ENTRY)
 #define PTRS_PER_PMD    (1UL << BITS_PER_PMD)
 #else
 #define BITS_PER_PMD	0

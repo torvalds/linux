@@ -3494,8 +3494,9 @@ out:
 
 
 /* The ioctl command */
-static long st_ioctl_common(struct file *file, unsigned int cmd_in, void __user *p)
+static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 {
+	void __user *p = (void __user *)arg;
 	int i, cmd_nr, cmd_type, bt;
 	int retval = 0;
 	unsigned int blk;
@@ -3815,74 +3816,44 @@ static long st_ioctl_common(struct file *file, unsigned int cmd_in, void __user 
 		goto out;
 	}
 	mutex_unlock(&STp->lock);
+
 	switch (cmd_in) {
-		case SCSI_IOCTL_STOP_UNIT:
-			/* unload */
-			retval = scsi_ioctl(STp->device, cmd_in, p);
-			if (!retval) {
-				STp->rew_at_close = 0;
-				STp->ready = ST_NO_TAPE;
-			}
-			return retval;
-
-		case SCSI_IOCTL_GET_IDLUN:
-		case SCSI_IOCTL_GET_BUS_NUMBER:
-			break;
-
-		default:
-			if ((cmd_in == SG_IO ||
-			     cmd_in == SCSI_IOCTL_SEND_COMMAND ||
-			     cmd_in == CDROM_SEND_PACKET) &&
-			    !capable(CAP_SYS_RAWIO))
-				i = -EPERM;
-			else
-				i = scsi_cmd_ioctl(STp->device->request_queue,
-						   NULL, file->f_mode, cmd_in,
-						   p);
-			if (i != -ENOTTY)
-				return i;
-			break;
+	case SG_IO:
+	case SCSI_IOCTL_SEND_COMMAND:
+	case CDROM_SEND_PACKET:
+		if (!capable(CAP_SYS_RAWIO))
+			return -EPERM;
+	default:
+		break;
 	}
-	return -ENOTTY;
+
+	retval = scsi_ioctl(STp->device, NULL, file->f_mode, cmd_in, p);
+	if (!retval && cmd_in == SCSI_IOCTL_STOP_UNIT) {
+		/* unload */
+		STp->rew_at_close = 0;
+		STp->ready = ST_NO_TAPE;
+	}
+	return retval;
 
  out:
 	mutex_unlock(&STp->lock);
 	return retval;
 }
 
-static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
-{
-	void __user *p = (void __user *)arg;
-	struct scsi_tape *STp = file->private_data;
-	int ret;
-
-	ret = st_ioctl_common(file, cmd_in, p);
-	if (ret != -ENOTTY)
-		return ret;
-
-	return scsi_ioctl(STp->device, cmd_in, p);
-}
-
 #ifdef CONFIG_COMPAT
 static long st_compat_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 {
-	void __user *p = compat_ptr(arg);
-	struct scsi_tape *STp = file->private_data;
-	int ret;
-
 	/* argument conversion is handled using put_user_mtpos/put_user_mtget */
 	switch (cmd_in) {
 	case MTIOCPOS32:
-		return st_ioctl_common(file, MTIOCPOS, p);
+		cmd_in = MTIOCPOS;
+		break;
 	case MTIOCGET32:
-		return st_ioctl_common(file, MTIOCGET, p);
+		cmd_in = MTIOCGET;
+		break;
 	}
 
-	ret = st_ioctl_common(file, cmd_in, p);
-	if (ret != -ENOTTY)
-		return ret;
-
-	return scsi_compat_ioctl(STp->device, cmd_in, p);
+	return st_ioctl(file, cmd_in, arg);
 }
 #endif
 

@@ -2240,9 +2240,15 @@ static struct platform_driver at_xdmac_driver = {
 
 static int __init at_xdmac_init(void)
 {
-	return platform_driver_probe(&at_xdmac_driver, at_xdmac_probe);
+	return platform_driver_register(&at_xdmac_driver);
 }
 subsys_initcall(at_xdmac_init);
+
+static void __exit at_xdmac_exit(void)
+{
+	platform_driver_unregister(&at_xdmac_driver);
+}
+module_exit(at_xdmac_exit);
 
 MODULE_DESCRIPTION("Atmel Extended DMA Controller driver");
 MODULE_AUTHOR("Ludovic Desroches <ludovic.desroches@atmel.com>");

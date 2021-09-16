@@ -285,7 +285,7 @@ struct thermal_zone_params {
 };
 
 /**
- * struct thermal_zone_of_device_ops - scallbacks for handling DT based zones
+ * struct thermal_zone_of_device_ops - callbacks for handling DT based zones
  *
  * Mandatory:
  * @get_temp: a pointer to a function that reads the sensor temperature.
@@ -404,12 +404,13 @@ static inline void thermal_zone_device_unregister(
 	struct thermal_zone_device *tz)
 { }
 static inline struct thermal_cooling_device *
-thermal_cooling_device_register(char *type, void *devdata,
+thermal_cooling_device_register(const char *type, void *devdata,
 	const struct thermal_cooling_device_ops *ops)
 { return ERR_PTR(-ENODEV); }
 static inline struct thermal_cooling_device *
 thermal_of_cooling_device_register(struct device_node *np,
-	char *type, void *devdata, const struct thermal_cooling_device_ops *ops)
+	const char *type, void *devdata,
+	const struct thermal_cooling_device_ops *ops)
 { return ERR_PTR(-ENODEV); }
 static inline struct thermal_cooling_device *
 devm_thermal_of_cooling_device_register(struct device *dev,

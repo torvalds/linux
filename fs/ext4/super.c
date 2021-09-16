@@ -4287,7 +4287,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 	}
 
-	if (bdev_dax_supported(sb->s_bdev, blocksize))
+	if (dax_supported(dax_dev, sb->s_bdev, blocksize, 0,
+			bdev_nr_sectors(sb->s_bdev)))
 		set_bit(EXT4_FLAGS_BDEV_IS_DAX, &sbi->s_ext4_flags);
 
 	if (sbi->s_mount_opt & EXT4_MOUNT_DAX_ALWAYS) {

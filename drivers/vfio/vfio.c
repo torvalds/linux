@@ -96,6 +96,79 @@ module_param_named(enable_unsafe_noiommu_mode,
 MODULE_PARM_DESC(enable_unsafe_noiommu_mode, "Enable UNSAFE, no-IOMMU mode.  This mode provides no device isolation, no DMA translation, no host kernel protection, cannot be used for device assignment to virtual machines, requires RAWIO permissions, and will taint the kernel.  If you do not know what this is for, step away. (default: false)");
 #endif
 
+static DEFINE_XARRAY(vfio_device_set_xa);
+
+int vfio_assign_device_set(struct vfio_device *device, void *set_id)
+{
+	unsigned long idx = (unsigned long)set_id;
+	struct vfio_device_set *new_dev_set;
+	struct vfio_device_set *dev_set;
+
+	if (WARN_ON(!set_id))
+		return -EINVAL;
+
+	/*
+	 * Atomically acquire a singleton object in the xarray for this set_id
+	 */
+	xa_lock(&vfio_device_set_xa);
+	dev_set = xa_load(&vfio_device_set_xa, idx);
+	if (dev_set)
+		goto found_get_ref;
+	xa_unlock(&vfio_device_set_xa);
+
+	new_dev_set = kzalloc(sizeof(*new_dev_set), GFP_KERNEL);
+	if (!new_dev_set)
+		return -ENOMEM;
+	mutex_init(&new_dev_set->lock);
+	INIT_LIST_HEAD(&new_dev_set->device_list);
+	new_dev_set->set_id = set_id;
+
+	xa_lock(&vfio_device_set_xa);
+	dev_set = __xa_cmpxchg(&vfio_device_set_xa, idx, NULL, new_dev_set,
+			       GFP_KERNEL);
+	if (!dev_set) {
+		dev_set = new_dev_set;
+		goto found_get_ref;
+	}
+
+	kfree(new_dev_set);
+	if (xa_is_err(dev_set)) {
+		xa_unlock(&vfio_device_set_xa);
+		return xa_err(dev_set);
+	}
+
+found_get_ref:
+	dev_set->device_count++;
+	xa_unlock(&vfio_device_set_xa);
+	mutex_lock(&dev_set->lock);
+	device->dev_set = dev_set;
+	list_add_tail(&device->dev_set_list, &dev_set->device_list);
+	mutex_unlock(&dev_set->lock);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vfio_assign_device_set);
+
+static void vfio_release_device_set(struct vfio_device *device)
+{
+	struct vfio_device_set *dev_set = device->dev_set;
+
+	if (!dev_set)
+		return;
+
+	mutex_lock(&dev_set->lock);
+	list_del(&device->dev_set_list);
+	mutex_unlock(&dev_set->lock);
+
+	xa_lock(&vfio_device_set_xa);
+	if (!--dev_set->device_count) {
+		__xa_erase(&vfio_device_set_xa,
+			   (unsigned long)dev_set->set_id);
+		mutex_destroy(&dev_set->lock);
+		kfree(dev_set);
+	}
+	xa_unlock(&vfio_device_set_xa);
+}
+
 /*
  * vfio_iommu_group_{get,put} are only intended for VFIO bus driver probe
  * and remove functions, any use cases other than acquiring the first
@@ -749,11 +822,24 @@ void vfio_init_group_dev(struct vfio_device *device, struct device *dev,
 }
 EXPORT_SYMBOL_GPL(vfio_init_group_dev);
 
+void vfio_uninit_group_dev(struct vfio_device *device)
+{
+	vfio_release_device_set(device);
+}
+EXPORT_SYMBOL_GPL(vfio_uninit_group_dev);
+
 int vfio_register_group_dev(struct vfio_device *device)
 {
 	struct vfio_device *existing_device;
 	struct iommu_group *iommu_group;
 	struct vfio_group *group;
+
+	/*
+	 * If the driver doesn't specify a set then the device is added to a
+	 * singleton set just for itself.
+	 */
+	if (!device->dev_set)
+		vfio_assign_device_set(device, device);
 
 	iommu_group = iommu_group_get(device->dev);
 	if (!iommu_group)
@@ -1356,7 +1442,8 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 {
 	struct vfio_device *device;
 	struct file *filep;
-	int ret;
+	int fdno;
+	int ret = 0;
 
 	if (0 == atomic_read(&group->container_users) ||
 	    !group->container->iommu_driver || !vfio_group_viable(group))
@@ -1370,38 +1457,32 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 		return PTR_ERR(device);
 
 	if (!try_module_get(device->dev->driver->owner)) {
-		vfio_device_put(device);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_device_put;
 	}
 
-	ret = device->ops->open(device);
-	if (ret) {
-		module_put(device->dev->driver->owner);
-		vfio_device_put(device);
-		return ret;
+	mutex_lock(&device->dev_set->lock);
+	device->open_count++;
+	if (device->open_count == 1 && device->ops->open_device) {
+		ret = device->ops->open_device(device);
+		if (ret)
+			goto err_undo_count;
 	}
+	mutex_unlock(&device->dev_set->lock);
 
 	/*
 	 * We can't use anon_inode_getfd() because we need to modify
 	 * the f_mode flags directly to allow more than just ioctls
 	 */
-	ret = get_unused_fd_flags(O_CLOEXEC);
-	if (ret < 0) {
-		device->ops->release(device);
-		module_put(device->dev->driver->owner);
-		vfio_device_put(device);
-		return ret;
-	}
+	fdno = ret = get_unused_fd_flags(O_CLOEXEC);
+	if (ret < 0)
+		goto err_close_device;
 
 	filep = anon_inode_getfile("[vfio-device]", &vfio_device_fops,
 				   device, O_RDWR);
 	if (IS_ERR(filep)) {
-		put_unused_fd(ret);
 		ret = PTR_ERR(filep);
-		device->ops->release(device);
-		module_put(device->dev->driver->owner);
-		vfio_device_put(device);
-		return ret;
+		goto err_fd;
 	}
 
 	/*
@@ -1413,12 +1494,25 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 
 	atomic_inc(&group->container_users);
 
-	fd_install(ret, filep);
+	fd_install(fdno, filep);
 
 	if (group->noiommu)
 		dev_warn(device->dev, "vfio-noiommu device opened by user "
 			 "(%s:%d)\n", current->comm, task_pid_nr(current));
+	return fdno;
 
+err_fd:
+	put_unused_fd(fdno);
+err_close_device:
+	mutex_lock(&device->dev_set->lock);
+	if (device->open_count == 1 && device->ops->close_device)
+		device->ops->close_device(device);
+err_undo_count:
+	device->open_count--;
+	mutex_unlock(&device->dev_set->lock);
+	module_put(device->dev->driver->owner);
+err_device_put:
+	vfio_device_put(device);
 	return ret;
 }
 
@@ -1556,7 +1650,10 @@ static int vfio_device_fops_release(struct inode *inode, struct file *filep)
 {
 	struct vfio_device *device = filep->private_data;
 
-	device->ops->release(device);
+	mutex_lock(&device->dev_set->lock);
+	if (!--device->open_count && device->ops->close_device)
+		device->ops->close_device(device);
+	mutex_unlock(&device->dev_set->lock);
 
 	module_put(device->dev->driver->owner);
 
@@ -2359,6 +2456,7 @@ static void __exit vfio_cleanup(void)
 	class_destroy(vfio.class);
 	vfio.class = NULL;
 	misc_deregister(&vfio_dev);
+	xa_destroy(&vfio_device_set_xa);
 }
 
 module_init(vfio_init);

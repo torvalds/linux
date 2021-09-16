@@ -2381,10 +2381,12 @@ static int smb2_create_sd_buffer(struct ksmbd_work *work,
 			    le32_to_cpu(sd_buf->ccontext.DataLength), true);
 }
 
-static void ksmbd_acls_fattr(struct smb_fattr *fattr, struct inode *inode)
+static void ksmbd_acls_fattr(struct smb_fattr *fattr,
+			     struct user_namespace *mnt_userns,
+			     struct inode *inode)
 {
-	fattr->cf_uid = inode->i_uid;
-	fattr->cf_gid = inode->i_gid;
+	fattr->cf_uid = i_uid_into_mnt(mnt_userns, inode);
+	fattr->cf_gid = i_gid_into_mnt(mnt_userns, inode);
 	fattr->cf_mode = inode->i_mode;
 	fattr->cf_acls = NULL;
 	fattr->cf_dacls = NULL;
@@ -2893,7 +2895,7 @@ int smb2_open(struct ksmbd_work *work)
 					struct smb_ntsd *pntsd;
 					int pntsd_size, ace_num = 0;
 
-					ksmbd_acls_fattr(&fattr, inode);
+					ksmbd_acls_fattr(&fattr, user_ns, inode);
 					if (fattr.cf_acls)
 						ace_num = fattr.cf_acls->a_count;
 					if (fattr.cf_dacls)
@@ -3324,7 +3326,6 @@ static int dentry_name(struct ksmbd_dir_info *d_info, int info_level)
  */
 static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 				       struct ksmbd_dir_info *d_info,
-				       struct user_namespace *user_ns,
 				       struct ksmbd_kstat *ksmbd_kstat)
 {
 	int next_entry_offset = 0;
@@ -3478,9 +3479,9 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 			S_ISDIR(ksmbd_kstat->kstat->mode) ? ATTR_DIRECTORY_LE : ATTR_ARCHIVE_LE;
 		if (d_info->hide_dot_file && d_info->name[0] == '.')
 			posix_info->DosAttributes |= ATTR_HIDDEN_LE;
-		id_to_sid(from_kuid(user_ns, ksmbd_kstat->kstat->uid),
+		id_to_sid(from_kuid_munged(&init_user_ns, ksmbd_kstat->kstat->uid),
 			  SIDNFS_USER, (struct smb_sid *)&posix_info->SidBuffer[0]);
-		id_to_sid(from_kgid(user_ns, ksmbd_kstat->kstat->gid),
+		id_to_sid(from_kgid_munged(&init_user_ns, ksmbd_kstat->kstat->gid),
 			  SIDNFS_GROUP, (struct smb_sid *)&posix_info->SidBuffer[20]);
 		memcpy(posix_info->name, conv_name, conv_len);
 		posix_info->name_len = cpu_to_le32(conv_len);
@@ -3543,9 +3544,9 @@ static int process_query_dir_entries(struct smb2_query_dir_private *priv)
 			return -EINVAL;
 
 		lock_dir(priv->dir_fp);
-		dent = lookup_one_len(priv->d_info->name,
-				      priv->dir_fp->filp->f_path.dentry,
-				      priv->d_info->name_len);
+		dent = lookup_one(user_ns, priv->d_info->name,
+				  priv->dir_fp->filp->f_path.dentry,
+				  priv->d_info->name_len);
 		unlock_dir(priv->dir_fp);
 
 		if (IS_ERR(dent)) {
@@ -3571,7 +3572,6 @@ static int process_query_dir_entries(struct smb2_query_dir_private *priv)
 		rc = smb2_populate_readdir_entry(priv->work->conn,
 						 priv->info_level,
 						 priv->d_info,
-						 user_ns,
 						 &ksmbd_kstat);
 		dput(dent);
 		if (rc)
@@ -5008,7 +5008,7 @@ static int smb2_get_info_sec(struct ksmbd_work *work,
 
 	user_ns = file_mnt_user_ns(fp->filp);
 	inode = file_inode(fp->filp);
-	ksmbd_acls_fattr(&fattr, inode);
+	ksmbd_acls_fattr(&fattr, user_ns, inode);
 
 	if (test_share_config_flag(work->tcon->share_conf,
 				   KSMBD_SHARE_FLAG_ACL_XATTR))
@@ -5246,7 +5246,9 @@ int smb2_echo(struct ksmbd_work *work)
 	return 0;
 }
 
-static int smb2_rename(struct ksmbd_work *work, struct ksmbd_file *fp,
+static int smb2_rename(struct ksmbd_work *work,
+		       struct ksmbd_file *fp,
+		       struct user_namespace *user_ns,
 		       struct smb2_file_rename_info *file_info,
 		       struct nls_table *local_nls)
 {
@@ -5310,7 +5312,7 @@ static int smb2_rename(struct ksmbd_work *work, struct ksmbd_file *fp,
 		if (rc)
 			goto out;
 
-		rc = ksmbd_vfs_setxattr(file_mnt_user_ns(fp->filp),
+		rc = ksmbd_vfs_setxattr(user_ns,
 					fp->filp->f_path.dentry,
 					xattr_stream_name,
 					NULL, 0, 0);
@@ -5438,11 +5440,11 @@ static int set_file_basic_info(struct ksmbd_file *fp, char *buf,
 {
 	struct smb2_file_all_info *file_info;
 	struct iattr attrs;
-	struct iattr temp_attrs;
+	struct timespec64 ctime;
 	struct file *filp;
 	struct inode *inode;
 	struct user_namespace *user_ns;
-	int rc;
+	int rc = 0;
 
 	if (!(fp->daccess & FILE_WRITE_ATTRIBUTES_LE))
 		return -EACCES;
@@ -5462,11 +5464,11 @@ static int set_file_basic_info(struct ksmbd_file *fp, char *buf,
 	}
 
 	if (file_info->ChangeTime) {
-		temp_attrs.ia_ctime = ksmbd_NTtimeToUnix(file_info->ChangeTime);
-		attrs.ia_ctime = temp_attrs.ia_ctime;
+		attrs.ia_ctime = ksmbd_NTtimeToUnix(file_info->ChangeTime);
+		ctime = attrs.ia_ctime;
 		attrs.ia_valid |= ATTR_CTIME;
 	} else {
-		temp_attrs.ia_ctime = inode->i_ctime;
+		ctime = inode->i_ctime;
 	}
 
 	if (file_info->LastWriteTime) {
@@ -5505,13 +5507,6 @@ static int set_file_basic_info(struct ksmbd_file *fp, char *buf,
 		rc = 0;
 	}
 
-	/*
-	 * HACK : set ctime here to avoid ctime changed
-	 * when file_info->ChangeTime is zero.
-	 */
-	attrs.ia_ctime = temp_attrs.ia_ctime;
-	attrs.ia_valid |= ATTR_CTIME;
-
 	if (attrs.ia_valid) {
 		struct dentry *dentry = filp->f_path.dentry;
 		struct inode *inode = d_inode(dentry);
@@ -5519,17 +5514,15 @@ static int set_file_basic_info(struct ksmbd_file *fp, char *buf,
 		if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 			return -EACCES;
 
-		rc = setattr_prepare(user_ns, dentry, &attrs);
-		if (rc)
-			return -EINVAL;
-
 		inode_lock(inode);
-		setattr_copy(user_ns, inode, &attrs);
-		attrs.ia_valid &= ~ATTR_CTIME;
 		rc = notify_change(user_ns, dentry, &attrs, NULL);
+		if (!rc) {
+			inode->i_ctime = ctime;
+			mark_inode_dirty(inode);
+		}
 		inode_unlock(inode);
 	}
-	return 0;
+	return rc;
 }
 
 static int set_file_allocation_info(struct ksmbd_work *work,
@@ -5624,6 +5617,7 @@ static int set_end_of_file_info(struct ksmbd_work *work, struct ksmbd_file *fp,
 static int set_rename_info(struct ksmbd_work *work, struct ksmbd_file *fp,
 			   char *buf)
 {
+	struct user_namespace *user_ns;
 	struct ksmbd_file *parent_fp;
 	struct dentry *parent;
 	struct dentry *dentry = fp->filp->f_path.dentry;
@@ -5634,11 +5628,12 @@ static int set_rename_info(struct ksmbd_work *work, struct ksmbd_file *fp,
 		return -EACCES;
 	}
 
+	user_ns = file_mnt_user_ns(fp->filp);
 	if (ksmbd_stream_fd(fp))
 		goto next;
 
 	parent = dget_parent(dentry);
-	ret = ksmbd_vfs_lock_parent(parent, dentry);
+	ret = ksmbd_vfs_lock_parent(user_ns, parent, dentry);
 	if (ret) {
 		dput(parent);
 		return ret;
@@ -5655,7 +5650,7 @@ static int set_rename_info(struct ksmbd_work *work, struct ksmbd_file *fp,
 		}
 	}
 next:
-	return smb2_rename(work, fp,
+	return smb2_rename(work, fp, user_ns,
 			   (struct smb2_file_rename_info *)buf,
 			   work->sess->conn->local_nls);
 }
@@ -7116,8 +7111,8 @@ static int fsctl_query_iface_info_ioctl(struct ksmbd_conn *conn,
 			netdev->ethtool_ops->get_link_ksettings(netdev, &cmd);
 			speed = cmd.base.speed;
 		} else {
-			pr_err("%s %s\n", netdev->name,
-			       "speed is unknown, defaulting to 1Gb/sec");
+			ksmbd_debug(SMB, "%s %s\n", netdev->name,
+				    "speed is unknown, defaulting to 1Gb/sec");
 			speed = SPEED_1000;
 		}
 

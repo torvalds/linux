@@ -489,6 +489,7 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 	[LPC_DH89XXCC] = {
 		.name = "DH89xxCC",
 		.iTCO_version = 2,
+		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_PPT] = {
 		.name = "Panther Point",

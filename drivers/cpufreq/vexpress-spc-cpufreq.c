@@ -15,7 +15,6 @@
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/cpumask.h>
-#include <linux/cpu_cooling.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -47,7 +46,6 @@ static bool bL_switching_enabled;
 #define ACTUAL_FREQ(cluster, freq)  ((cluster == A7_CLUSTER) ? freq << 1 : freq)
 #define VIRT_FREQ(cluster, freq)    ((cluster == A7_CLUSTER) ? freq >> 1 : freq)
 
-static struct thermal_cooling_device *cdev[MAX_CLUSTERS];
 static struct clk *clk[MAX_CLUSTERS];
 static struct cpufreq_frequency_table *freq_table[MAX_CLUSTERS + 1];
 static atomic_t cluster_usage[MAX_CLUSTERS + 1];
@@ -442,8 +440,6 @@ static int ve_spc_cpufreq_init(struct cpufreq_policy *policy)
 	policy->freq_table = freq_table[cur_cluster];
 	policy->cpuinfo.transition_latency = 1000000; /* 1 ms */
 
-	dev_pm_opp_of_register_em(cpu_dev, policy->cpus);
-
 	if (is_bL_switching_enabled())
 		per_cpu(cpu_last_req_freq, policy->cpu) =
 						clk_get_cpu_rate(policy->cpu);
@@ -457,11 +453,6 @@ static int ve_spc_cpufreq_exit(struct cpufreq_policy *policy)
 	struct device *cpu_dev;
 	int cur_cluster = cpu_to_cluster(policy->cpu);
 
-	if (cur_cluster < MAX_CLUSTERS) {
-		cpufreq_cooling_unregister(cdev[cur_cluster]);
-		cdev[cur_cluster] = NULL;
-	}
-
 	cpu_dev = get_cpu_device(policy->cpu);
 	if (!cpu_dev) {
 		pr_err("%s: failed to get cpu%d device\n", __func__,
@@ -473,17 +464,6 @@ static int ve_spc_cpufreq_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static void ve_spc_cpufreq_ready(struct cpufreq_policy *policy)
-{
-	int cur_cluster = cpu_to_cluster(policy->cpu);
-
-	/* Do not register a cpu_cooling device if we are in IKS mode */
-	if (cur_cluster >= MAX_CLUSTERS)
-		return;
-
-	cdev[cur_cluster] = of_cpufreq_cooling_register(policy);
-}
-
 static struct cpufreq_driver ve_spc_cpufreq_driver = {
 	.name			= "vexpress-spc",
 	.flags			= CPUFREQ_HAVE_GOVERNOR_PER_POLICY |
@@ -493,7 +473,7 @@ static struct cpufreq_driver ve_spc_cpufreq_driver = {
 	.get			= ve_spc_cpufreq_get_rate,
 	.init			= ve_spc_cpufreq_init,
 	.exit			= ve_spc_cpufreq_exit,
-	.ready			= ve_spc_cpufreq_ready,
+	.register_em		= cpufreq_register_em_with_opp,
 	.attr			= cpufreq_generic_attr,
 };
 
@@ -552,6 +532,9 @@ static int ve_spc_cpufreq_probe(struct platform_device *pdev)
 
 	for (i = 0; i < MAX_CLUSTERS; i++)
 		mutex_init(&cluster_lock[i]);
+
+	if (!is_bL_switching_enabled())
+		ve_spc_cpufreq_driver.flags |= CPUFREQ_IS_COOLING_DEV;
 
 	ret = cpufreq_register_driver(&ve_spc_cpufreq_driver);
 	if (ret) {

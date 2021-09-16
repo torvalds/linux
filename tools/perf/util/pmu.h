@@ -11,6 +11,7 @@
 #include "pmu-events/pmu-events.h"
 
 struct evsel_config_term;
+struct perf_cpu_map;
 
 enum {
 	PERF_PMU_FORMAT_VALUE_CONFIG,
@@ -21,6 +22,7 @@ enum {
 #define PERF_PMU_FORMAT_BITS 64
 #define EVENT_SOURCE_DEVICE_PATH "/bus/event_source/devices/"
 #define CPUS_TEMPLATE_CPU	"%s/bus/event_source/devices/%s/cpus"
+#define MAX_PMU_NAME_LEN 128
 
 struct perf_event_attr;
 
@@ -32,6 +34,7 @@ struct perf_pmu_caps {
 
 struct perf_pmu {
 	char *name;
+	char *alias_name;
 	char *id;
 	__u32 type;
 	bool selectable;
@@ -81,6 +84,7 @@ struct perf_pmu_alias {
 
 struct perf_pmu *perf_pmu__find(const char *name);
 struct perf_pmu *perf_pmu__find_by_type(unsigned int type);
+void pmu_add_sys_aliases(struct list_head *head, struct perf_pmu *pmu);
 int perf_pmu__config(struct perf_pmu *pmu, struct perf_event_attr *attr,
 		     struct list_head *head_terms,
 		     struct parse_events_error *error);
@@ -135,4 +139,10 @@ void perf_pmu__warn_invalid_config(struct perf_pmu *pmu, __u64 config,
 bool perf_pmu__has_hybrid(void);
 int perf_pmu__match(char *pattern, char *name, char *tok);
 
+int perf_pmu__cpus_match(struct perf_pmu *pmu, struct perf_cpu_map *cpus,
+			 struct perf_cpu_map **mcpus_ptr,
+			 struct perf_cpu_map **ucpus_ptr);
+
+char *pmu_find_real_name(const char *name);
+char *pmu_find_alias_name(const char *name);
 #endif /* __PMU_H */

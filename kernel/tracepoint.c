@@ -577,7 +577,7 @@ bool trace_module_has_bad_taint(struct module *mod)
 static BLOCKING_NOTIFIER_HEAD(tracepoint_notify_list);
 
 /**
- * register_tracepoint_notifier - register tracepoint coming/going notifier
+ * register_tracepoint_module_notifier - register tracepoint coming/going notifier
  * @nb: notifier block
  *
  * Notifiers registered with this function are called on module
@@ -603,7 +603,7 @@ end:
 EXPORT_SYMBOL_GPL(register_tracepoint_module_notifier);
 
 /**
- * unregister_tracepoint_notifier - unregister tracepoint coming/going notifier
+ * unregister_tracepoint_module_notifier - unregister tracepoint coming/going notifier
  * @nb: notifier block
  *
  * The notifier block callback should expect a "struct tp_module" data

@@ -85,10 +85,13 @@
 #define mmRCC_DEV0_EPF0_STRAP0_ALDE			0x0015
 #define mmRCC_DEV0_EPF0_STRAP0_ALDE_BASE_IDX		2
 
-#define mmBIF_DOORBELL_INT_CNTL_ALDE 			0x3878
+#define mmBIF_DOORBELL_INT_CNTL_ALDE 			0x00fe
 #define mmBIF_DOORBELL_INT_CNTL_ALDE_BASE_IDX 		2
 #define BIF_DOORBELL_INT_CNTL_ALDE__DOORBELL_INTERRUPT_DISABLE__SHIFT	0x18
 #define BIF_DOORBELL_INT_CNTL_ALDE__DOORBELL_INTERRUPT_DISABLE_MASK	0x01000000L
+
+#define mmBIF_INTR_CNTL_ALDE 				0x0101
+#define mmBIF_INTR_CNTL_ALDE_BASE_IDX 			2
 
 static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status);
@@ -440,14 +443,23 @@ static int nbio_v7_4_set_ras_controller_irq_state(struct amdgpu_device *adev,
 	 */
 	uint32_t bif_intr_cntl;
 
-	bif_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL);
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		bif_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL_ALDE);
+	else
+		bif_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL);
+
 	if (state == AMDGPU_IRQ_STATE_ENABLE) {
 		/* set interrupt vector select bit to 0 to select
 		 * vetcor 1 for bare metal case */
 		bif_intr_cntl = REG_SET_FIELD(bif_intr_cntl,
 					      BIF_INTR_CNTL,
 					      RAS_INTR_VEC_SEL, 0);
-		WREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL, bif_intr_cntl);
+
+		if (adev->asic_type == CHIP_ALDEBARAN)
+			WREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL_ALDE, bif_intr_cntl);
+		else
+			WREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL, bif_intr_cntl);
+
 	}
 
 	return 0;
@@ -476,14 +488,22 @@ static int nbio_v7_4_set_ras_err_event_athub_irq_state(struct amdgpu_device *ade
 	 */
 	uint32_t bif_intr_cntl;
 
-	bif_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL);
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		bif_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL_ALDE);
+	else
+		bif_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL);
+
 	if (state == AMDGPU_IRQ_STATE_ENABLE) {
 		/* set interrupt vector select bit to 0 to select
 		 * vetcor 1 for bare metal case */
 		bif_intr_cntl = REG_SET_FIELD(bif_intr_cntl,
 					      BIF_INTR_CNTL,
 					      RAS_INTR_VEC_SEL, 0);
-		WREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL, bif_intr_cntl);
+
+		if (adev->asic_type == CHIP_ALDEBARAN)
+			WREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL_ALDE, bif_intr_cntl);
+		else
+			WREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL, bif_intr_cntl);
 	}
 
 	return 0;

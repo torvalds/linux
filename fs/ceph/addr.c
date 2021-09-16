@@ -1281,8 +1281,8 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
 	dout("write_end file %p inode %p page %p %d~%d (%d)\n", file,
 	     inode, page, (int)pos, (int)copied, (int)len);
 
-	/* zero the stale part of the page if we did a short copy */
 	if (!PageUptodate(page)) {
+		/* just return that nothing was copied on a short copy */
 		if (copied < len) {
 			copied = 0;
 			goto out;

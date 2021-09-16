@@ -205,92 +205,23 @@ slc_chk:
 #define OP_INV_IC	0x4
 
 /*
- *		I-Cache Aliasing in ARC700 VIPT caches (MMU v1-v3)
+ * Cache Flush programming model
  *
- * ARC VIPT I-cache uses vaddr to index into cache and paddr to match the tag.
- * The orig Cache Management Module "CDU" only required paddr to invalidate a
- * certain line since it sufficed as index in Non-Aliasing VIPT cache-geometry.
- * Infact for distinct V1,V2,P: all of {V1-P},{V2-P},{P-P} would end up fetching
- * the exact same line.
+ * ARC700 MMUv3 I$ and D$ are both VIPT and can potentially alias.
+ * Programming model requires both paddr and vaddr irrespecive of aliasing
+ * considerations:
+ *  - vaddr in {I,D}C_IV?L
+ *  - paddr in {I,D}C_PTAG
  *
- * However for larger Caches (way-size > page-size) - i.e. in Aliasing config,
- * paddr alone could not be used to correctly index the cache.
+ * In HS38x (MMUv4), D$ is PIPT, I$ is VIPT and can still alias.
+ * Programming model is different for aliasing vs. non-aliasing I$
+ *  - D$ / Non-aliasing I$: only paddr in {I,D}C_IV?L
+ *  - Aliasing I$: same as ARC700 above (so MMUv3 routine used for MMUv4 I$)
  *
- * ------------------
- * MMU v1/v2 (Fixed Page Size 8k)
- * ------------------
- * The solution was to provide CDU with these additonal vaddr bits. These
- * would be bits [x:13], x would depend on cache-geometry, 13 comes from
- * standard page size of 8k.
- * H/w folks chose [17:13] to be a future safe range, and moreso these 5 bits
- * of vaddr could easily be "stuffed" in the paddr as bits [4:0] since the
- * orig 5 bits of paddr were anyways ignored by CDU line ops, as they
- * represent the offset within cache-line. The adv of using this "clumsy"
- * interface for additional info was no new reg was needed in CDU programming
- * model.
- *
- * 17:13 represented the max num of bits passable, actual bits needed were
- * fewer, based on the num-of-aliases possible.
- * -for 2 alias possibility, only bit 13 needed (32K cache)
- * -for 4 alias possibility, bits 14:13 needed (64K cache)
- *
- * ------------------
- * MMU v3
- * ------------------
- * This ver of MMU supports variable page sizes (1k-16k): although Linux will
- * only support 8k (default), 16k and 4k.
- * However from hardware perspective, smaller page sizes aggravate aliasing
- * meaning more vaddr bits needed to disambiguate the cache-line-op ;
- * the existing scheme of piggybacking won't work for certain configurations.
- * Two new registers IC_PTAG and DC_PTAG inttoduced.
- * "tag" bits are provided in PTAG, index bits in existing IVIL/IVDL/FLDL regs
+ *  - If PAE40 is enabled, independent of aliasing considerations, the higher
+ *    bits needs to be written into PTAG_HI
  */
 
-static inline
-void __cache_line_loop_v2(phys_addr_t paddr, unsigned long vaddr,
-			  unsigned long sz, const int op, const int full_page)
-{
-	unsigned int aux_cmd;
-	int num_lines;
-
-	if (op == OP_INV_IC) {
-		aux_cmd = ARC_REG_IC_IVIL;
-	} else {
-		/* d$ cmd: INV (discard or wback-n-discard) OR FLUSH (wback) */
-		aux_cmd = op & OP_INV ? ARC_REG_DC_IVDL : ARC_REG_DC_FLDL;
-	}
-
-	/* Ensure we properly floor/ceil the non-line aligned/sized requests
-	 * and have @paddr - aligned to cache line and integral @num_lines.
-	 * This however can be avoided for page sized since:
-	 *  -@paddr will be cache-line aligned already (being page aligned)
-	 *  -@sz will be integral multiple of line size (being page sized).
-	 */
-	if (!full_page) {
-		sz += paddr & ~CACHE_LINE_MASK;
-		paddr &= CACHE_LINE_MASK;
-		vaddr &= CACHE_LINE_MASK;
-	}
-
-	num_lines = DIV_ROUND_UP(sz, L1_CACHE_BYTES);
-
-	/* MMUv2 and before: paddr contains stuffed vaddrs bits */
-	paddr |= (vaddr >> PAGE_SHIFT) & 0x1F;
-
-	while (num_lines-- > 0) {
-		write_aux_reg(aux_cmd, paddr);
-		paddr += L1_CACHE_BYTES;
-	}
-}
-
-/*
- * For ARC700 MMUv3 I-cache and D-cache flushes
- *  - ARC700 programming model requires paddr and vaddr be passed in seperate
- *    AUX registers (*_IV*L and *_PTAG respectively) irrespective of whether the
- *    caches actually alias or not.
- * -  For HS38, only the aliasing I-cache configuration uses the PTAG reg
- *    (non aliasing I-cache version doesn't; while D-cache can't possibly alias)
- */
 static inline
 void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
 			  unsigned long sz, const int op, const int full_page)
@@ -350,17 +281,6 @@ void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
 #ifndef USE_RGN_FLSH
 
 /*
- * In HS38x (MMU v4), I-cache is VIPT (can alias), D-cache is PIPT
- * Here's how cache ops are implemented
- *
- *  - D-cache: only paddr needed (in DC_IVDL/DC_FLDL)
- *  - I-cache Non Aliasing: Despite VIPT, only paddr needed (in IC_IVIL)
- *  - I-cache Aliasing: Both vaddr and paddr needed (in IC_IVIL, IC_PTAG
- *    respectively, similar to MMU v3 programming model, hence
- *    __cache_line_loop_v3() is used)
- *
- * If PAE40 is enabled, independent of aliasing considerations, the higher bits
- * needs to be written into PTAG_HI
  */
 static inline
 void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
@@ -460,11 +380,9 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 
 #endif
 
-#if (CONFIG_ARC_MMU_VER < 3)
-#define __cache_line_loop	__cache_line_loop_v2
-#elif (CONFIG_ARC_MMU_VER == 3)
+#ifdef CONFIG_ARC_MMU_V3
 #define __cache_line_loop	__cache_line_loop_v3
-#elif (CONFIG_ARC_MMU_VER > 3)
+#else
 #define __cache_line_loop	__cache_line_loop_v4
 #endif
 
@@ -1123,7 +1041,7 @@ void clear_user_page(void *to, unsigned long u_vaddr, struct page *page)
 	clear_page(to);
 	clear_bit(PG_dc_clean, &page->flags);
 }
-
+EXPORT_SYMBOL(clear_user_page);
 
 /**********************************************************************
  * Explicit Cache flush request from user space via syscall

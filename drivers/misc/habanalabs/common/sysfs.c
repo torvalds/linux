@@ -9,8 +9,7 @@
 
 #include <linux/pci.h>
 
-long hl_get_frequency(struct hl_device *hdev, u32 pll_index,
-								bool curr)
+long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
 {
 	struct cpucp_packet pkt;
 	u32 used_pll_idx;
@@ -44,8 +43,7 @@ long hl_get_frequency(struct hl_device *hdev, u32 pll_index,
 	return (long) result;
 }
 
-void hl_set_frequency(struct hl_device *hdev, u32 pll_index,
-								u64 freq)
+void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq)
 {
 	struct cpucp_packet pkt;
 	u32 used_pll_idx;
@@ -285,16 +283,12 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 				char *buf)
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
-	char *str;
+	char str[HL_STR_MAX];
 
-	if (atomic_read(&hdev->in_reset))
-		str = "In reset";
-	else if (hdev->disabled)
-		str = "Malfunction";
-	else if (hdev->needs_reset)
-		str = "Needs Reset";
-	else
-		str = "Operational";
+	strscpy(str, hdev->status[hl_device_status(hdev)], HL_STR_MAX);
+
+	/* use uppercase for backward compatibility */
+	str[0] = 'A' + (str[0] - 'a');
 
 	return sprintf(buf, "%s\n", str);
 }

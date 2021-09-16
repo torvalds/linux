@@ -93,6 +93,7 @@ static uint32_t lpfc_sli4_enable_intr(struct lpfc_hba *, uint32_t);
 static void lpfc_sli4_oas_verify(struct lpfc_hba *phba);
 static uint16_t lpfc_find_cpu_handle(struct lpfc_hba *, uint16_t, int);
 static void lpfc_setup_bg(struct lpfc_hba *, struct Scsi_Host *);
+static int lpfc_sli4_cgn_parm_chg_evt(struct lpfc_hba *);
 
 static struct scsi_transport_template *lpfc_transport_template = NULL;
 static struct scsi_transport_template *lpfc_vport_transport_template = NULL;
@@ -1243,7 +1244,8 @@ lpfc_idle_stat_delay_work(struct work_struct *work)
 		return;
 
 	if (phba->link_state == LPFC_HBA_ERROR ||
-	    phba->pport->fc_flag & FC_OFFLINE_MODE)
+	    phba->pport->fc_flag & FC_OFFLINE_MODE ||
+	    phba->cmf_active_mode != LPFC_CFG_OFF)
 		goto requeue;
 
 	for_each_present_cpu(i) {
@@ -1852,6 +1854,7 @@ lpfc_sli4_port_sta_fn_reset(struct lpfc_hba *phba, int mbx_action,
 {
 	int rc;
 	uint32_t intr_mode;
+	LPFC_MBOXQ_t *mboxq;
 
 	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) >=
 	    LPFC_SLI_INTF_IF_TYPE_2) {
@@ -1871,11 +1874,19 @@ lpfc_sli4_port_sta_fn_reset(struct lpfc_hba *phba, int mbx_action,
 				"Recovery...\n");
 
 	/* If we are no wait, the HBA has been reset and is not
-	 * functional, thus we should clear LPFC_SLI_ACTIVE flag.
+	 * functional, thus we should clear
+	 * (LPFC_SLI_ACTIVE | LPFC_SLI_MBOX_ACTIVE) flags.
 	 */
 	if (mbx_action == LPFC_MBX_NO_WAIT) {
 		spin_lock_irq(&phba->hbalock);
 		phba->sli.sli_flag &= ~LPFC_SLI_ACTIVE;
+		if (phba->sli.mbox_active) {
+			mboxq = phba->sli.mbox_active;
+			mboxq->u.mb.mbxStatus = MBX_NOT_FINISHED;
+			__lpfc_mbox_cmpl_put(phba, mboxq);
+			phba->sli.sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
+			phba->sli.mbox_active = NULL;
+		}
 		spin_unlock_irq(&phba->hbalock);
 	}
 
@@ -2590,6 +2601,9 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 	case PCI_DEVICE_ID_LANCER_G7_FC:
 		m = (typeof(m)){"LPe36000", "PCIe", "Fibre Channel Adapter"};
 		break;
+	case PCI_DEVICE_ID_LANCER_G7P_FC:
+		m = (typeof(m)){"LPe38000", "PCIe", "Fibre Channel Adapter"};
+		break;
 	case PCI_DEVICE_ID_SKYHAWK:
 	case PCI_DEVICE_ID_SKYHAWK_VF:
 		oneConnect = 1;
@@ -3005,6 +3019,123 @@ lpfc_sli4_stop_fcf_redisc_wait_timer(struct lpfc_hba *phba)
 	/* Clear failover in progress flags */
 	phba->fcf.fcf_flag &= ~(FCF_DEAD_DISC | FCF_ACVL_DISC);
 	spin_unlock_irq(&phba->hbalock);
+}
+
+/**
+ * lpfc_cmf_stop - Stop CMF processing
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This is called when the link goes down or if CMF mode is turned OFF.
+ * It is also called when going offline or unloaded just before the
+ * congestion info buffer is unregistered.
+ **/
+void
+lpfc_cmf_stop(struct lpfc_hba *phba)
+{
+	int cpu;
+	struct lpfc_cgn_stat *cgs;
+
+	/* We only do something if CMF is enabled */
+	if (!phba->sli4_hba.pc_sli4_params.cmf)
+		return;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+			"6221 Stop CMF / Cancel Timer\n");
+
+	/* Cancel the CMF timer */
+	hrtimer_cancel(&phba->cmf_timer);
+
+	/* Zero CMF counters */
+	atomic_set(&phba->cmf_busy, 0);
+	for_each_present_cpu(cpu) {
+		cgs = per_cpu_ptr(phba->cmf_stat, cpu);
+		atomic64_set(&cgs->total_bytes, 0);
+		atomic64_set(&cgs->rcv_bytes, 0);
+		atomic_set(&cgs->rx_io_cnt, 0);
+		atomic64_set(&cgs->rx_latency, 0);
+	}
+	atomic_set(&phba->cmf_bw_wait, 0);
+
+	/* Resume any blocked IO - Queue unblock on workqueue */
+	queue_work(phba->wq, &phba->unblock_request_work);
+}
+
+static inline uint64_t
+lpfc_get_max_line_rate(struct lpfc_hba *phba)
+{
+	uint64_t rate = lpfc_sli_port_speed_get(phba);
+
+	return ((((unsigned long)rate) * 1024 * 1024) / 10);
+}
+
+void
+lpfc_cmf_signal_init(struct lpfc_hba *phba)
+{
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+			"6223 Signal CMF init\n");
+
+	/* Use the new fc_linkspeed to recalculate */
+	phba->cmf_interval_rate = LPFC_CMF_INTERVAL;
+	phba->cmf_max_line_rate = lpfc_get_max_line_rate(phba);
+	phba->cmf_link_byte_count = div_u64(phba->cmf_max_line_rate *
+					    phba->cmf_interval_rate, 1000);
+	phba->cmf_max_bytes_per_interval = phba->cmf_link_byte_count;
+
+	/* This is a signal to firmware to sync up CMF BW with link speed */
+	lpfc_issue_cmf_sync_wqe(phba, 0, 0);
+}
+
+/**
+ * lpfc_cmf_start - Start CMF processing
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This is called when the link comes up or if CMF mode is turned OFF
+ * to Monitor or Managed.
+ **/
+void
+lpfc_cmf_start(struct lpfc_hba *phba)
+{
+	struct lpfc_cgn_stat *cgs;
+	int cpu;
+
+	/* We only do something if CMF is enabled */
+	if (!phba->sli4_hba.pc_sli4_params.cmf ||
+	    phba->cmf_active_mode == LPFC_CFG_OFF)
+		return;
+
+	/* Reinitialize congestion buffer info */
+	lpfc_init_congestion_buf(phba);
+
+	atomic_set(&phba->cgn_fabric_warn_cnt, 0);
+	atomic_set(&phba->cgn_fabric_alarm_cnt, 0);
+	atomic_set(&phba->cgn_sync_alarm_cnt, 0);
+	atomic_set(&phba->cgn_sync_warn_cnt, 0);
+
+	atomic_set(&phba->cmf_busy, 0);
+	for_each_present_cpu(cpu) {
+		cgs = per_cpu_ptr(phba->cmf_stat, cpu);
+		atomic64_set(&cgs->total_bytes, 0);
+		atomic64_set(&cgs->rcv_bytes, 0);
+		atomic_set(&cgs->rx_io_cnt, 0);
+		atomic64_set(&cgs->rx_latency, 0);
+	}
+	phba->cmf_latency.tv_sec = 0;
+	phba->cmf_latency.tv_nsec = 0;
+
+	lpfc_cmf_signal_init(phba);
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+			"6222 Start CMF / Timer\n");
+
+	phba->cmf_timer_cnt = 0;
+	hrtimer_start(&phba->cmf_timer,
+		      ktime_set(0, LPFC_CMF_INTERVAL * 1000000),
+		      HRTIMER_MODE_REL);
+	/* Setup for latency check in IO cmpl routines */
+	ktime_get_real_ts64(&phba->cmf_latency);
+
+	atomic_set(&phba->cmf_bw_wait, 0);
+	atomic_set(&phba->cmf_stop_io, 0);
 }
 
 /**
@@ -3541,6 +3672,8 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 				spin_lock_irq(&ndlp->lock);
 				ndlp->nlp_flag &= ~NLP_NPR_ADISC;
 				spin_unlock_irq(&ndlp->lock);
+
+				lpfc_unreg_rpi(vports[i], ndlp);
 				/*
 				 * Whenever an SLI4 port goes offline, free the
 				 * RPI. Get a new RPI when the adapter port
@@ -3556,7 +3689,6 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 					lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
 					ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
 				}
-				lpfc_unreg_rpi(vports[i], ndlp);
 
 				if (ndlp->nlp_type & NLP_FABRIC) {
 					lpfc_disc_state_machine(vports[i], ndlp,
@@ -4666,6 +4798,8 @@ static void lpfc_host_supported_speeds_set(struct Scsi_Host *shost)
 	if (phba->hba_flag & HBA_FCOE_MODE)
 		return;
 
+	if (phba->lmt & LMT_256Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_256GBIT;
 	if (phba->lmt & LMT_128Gb)
 		fc_host_supported_speeds(shost) |= FC_PORTSPEED_128GBIT;
 	if (phba->lmt & LMT_64Gb)
@@ -4845,7 +4979,7 @@ lpfc_sli4_fcf_redisc_wait_tmo(struct timer_list *t)
 
 /**
  * lpfc_vmid_poll - VMID timeout detection
- * @ptr: Map to lpfc_hba data structure pointer.
+ * @t: Timer context used to obtain the pointer to lpfc hba data structure.
  *
  * This routine is invoked when there is no I/O on by a VM for the specified
  * amount of time. When this situation is detected, the VMID has to be
@@ -5074,6 +5208,9 @@ lpfc_sli4_port_speed_parse(struct lpfc_hba *phba, uint32_t evt_code,
 		case LPFC_FC_LA_SPEED_128G:
 			port_speed = 128000;
 			break;
+		case LPFC_FC_LA_SPEED_256G:
+			port_speed = 256000;
+			break;
 		default:
 			port_speed = 0;
 		}
@@ -5267,6 +5404,645 @@ lpfc_async_link_speed_to_read_top(struct lpfc_hba *phba, uint8_t speed_code)
 	return port_speed;
 }
 
+void
+lpfc_cgn_dump_rxmonitor(struct lpfc_hba *phba)
+{
+	struct rxtable_entry *entry;
+	int cnt = 0, head, tail, last, start;
+
+	head = atomic_read(&phba->rxtable_idx_head);
+	tail = atomic_read(&phba->rxtable_idx_tail);
+	if (!phba->rxtable || head == tail) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT,
+				"4411 Rxtable is empty\n");
+		return;
+	}
+	last = tail;
+	start = head;
+
+	/* Display the last LPFC_MAX_RXMONITOR_DUMP entries from the rxtable */
+	while (start != last) {
+		if (start)
+			start--;
+		else
+			start = LPFC_MAX_RXMONITOR_ENTRY - 1;
+		entry = &phba->rxtable[start];
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"4410 %02d: MBPI %lld Xmit %lld Cmpl %lld "
+				"Lat %lld ASz %lld Info %02d BWUtil %d "
+				"Int %d slot %d\n",
+				cnt, entry->max_bytes_per_interval,
+				entry->total_bytes, entry->rcv_bytes,
+				entry->avg_io_latency, entry->avg_io_size,
+				entry->cmf_info, entry->timer_utilization,
+				entry->timer_interval, start);
+		cnt++;
+		if (cnt >= LPFC_MAX_RXMONITOR_DUMP)
+			return;
+	}
+}
+
+/**
+ * lpfc_cgn_update_stat - Save data into congestion stats buffer
+ * @phba: pointer to lpfc hba data structure.
+ * @dtag: FPIN descriptor received
+ *
+ * Increment the FPIN received counter/time when it happens.
+ */
+void
+lpfc_cgn_update_stat(struct lpfc_hba *phba, uint32_t dtag)
+{
+	struct lpfc_cgn_info *cp;
+	struct tm broken;
+	struct timespec64 cur_time;
+	u32 cnt;
+	u16 value;
+
+	/* Make sure we have a congestion info buffer */
+	if (!phba->cgn_i)
+		return;
+	cp = (struct lpfc_cgn_info *)phba->cgn_i->virt;
+	ktime_get_real_ts64(&cur_time);
+	time64_to_tm(cur_time.tv_sec, 0, &broken);
+
+	/* Update congestion statistics */
+	switch (dtag) {
+	case ELS_DTAG_LNK_INTEGRITY:
+		cnt = le32_to_cpu(cp->link_integ_notification);
+		cnt++;
+		cp->link_integ_notification = cpu_to_le32(cnt);
+
+		cp->cgn_stat_lnk_month = broken.tm_mon + 1;
+		cp->cgn_stat_lnk_day = broken.tm_mday;
+		cp->cgn_stat_lnk_year = broken.tm_year - 100;
+		cp->cgn_stat_lnk_hour = broken.tm_hour;
+		cp->cgn_stat_lnk_min = broken.tm_min;
+		cp->cgn_stat_lnk_sec = broken.tm_sec;
+		break;
+	case ELS_DTAG_DELIVERY:
+		cnt = le32_to_cpu(cp->delivery_notification);
+		cnt++;
+		cp->delivery_notification = cpu_to_le32(cnt);
+
+		cp->cgn_stat_del_month = broken.tm_mon + 1;
+		cp->cgn_stat_del_day = broken.tm_mday;
+		cp->cgn_stat_del_year = broken.tm_year - 100;
+		cp->cgn_stat_del_hour = broken.tm_hour;
+		cp->cgn_stat_del_min = broken.tm_min;
+		cp->cgn_stat_del_sec = broken.tm_sec;
+		break;
+	case ELS_DTAG_PEER_CONGEST:
+		cnt = le32_to_cpu(cp->cgn_peer_notification);
+		cnt++;
+		cp->cgn_peer_notification = cpu_to_le32(cnt);
+
+		cp->cgn_stat_peer_month = broken.tm_mon + 1;
+		cp->cgn_stat_peer_day = broken.tm_mday;
+		cp->cgn_stat_peer_year = broken.tm_year - 100;
+		cp->cgn_stat_peer_hour = broken.tm_hour;
+		cp->cgn_stat_peer_min = broken.tm_min;
+		cp->cgn_stat_peer_sec = broken.tm_sec;
+		break;
+	case ELS_DTAG_CONGESTION:
+		cnt = le32_to_cpu(cp->cgn_notification);
+		cnt++;
+		cp->cgn_notification = cpu_to_le32(cnt);
+
+		cp->cgn_stat_cgn_month = broken.tm_mon + 1;
+		cp->cgn_stat_cgn_day = broken.tm_mday;
+		cp->cgn_stat_cgn_year = broken.tm_year - 100;
+		cp->cgn_stat_cgn_hour = broken.tm_hour;
+		cp->cgn_stat_cgn_min = broken.tm_min;
+		cp->cgn_stat_cgn_sec = broken.tm_sec;
+	}
+	if (phba->cgn_fpin_frequency &&
+	    phba->cgn_fpin_frequency != LPFC_FPIN_INIT_FREQ) {
+		value = LPFC_CGN_TIMER_TO_MIN / phba->cgn_fpin_frequency;
+		cp->cgn_stat_npm = cpu_to_le32(value);
+	}
+	value = lpfc_cgn_calc_crc32(cp, LPFC_CGN_INFO_SZ,
+				    LPFC_CGN_CRC32_SEED);
+	cp->cgn_info_crc = cpu_to_le32(value);
+}
+
+/**
+ * lpfc_cgn_save_evt_cnt - Save data into registered congestion buffer
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * Save the congestion event data every minute.
+ * On the hour collapse all the minute data into hour data. Every day
+ * collapse all the hour data into daily data. Separate driver
+ * and fabrc congestion event counters that will be saved out
+ * to the registered congestion buffer every minute.
+ */
+static void
+lpfc_cgn_save_evt_cnt(struct lpfc_hba *phba)
+{
+	struct lpfc_cgn_info *cp;
+	struct tm broken;
+	struct timespec64 cur_time;
+	uint32_t i, index;
+	uint16_t value, mvalue;
+	uint64_t bps;
+	uint32_t mbps;
+	uint32_t dvalue, wvalue, lvalue, avalue;
+	uint64_t latsum;
+	uint16_t *ptr;
+	uint32_t *lptr;
+	uint16_t *mptr;
+
+	/* Make sure we have a congestion info buffer */
+	if (!phba->cgn_i)
+		return;
+	cp = (struct lpfc_cgn_info *)phba->cgn_i->virt;
+
+	if (time_before(jiffies, phba->cgn_evt_timestamp))
+		return;
+	phba->cgn_evt_timestamp = jiffies +
+			msecs_to_jiffies(LPFC_CGN_TIMER_TO_MIN);
+	phba->cgn_evt_minute++;
+
+	/* We should get to this point in the routine on 1 minute intervals */
+
+	ktime_get_real_ts64(&cur_time);
+	time64_to_tm(cur_time.tv_sec, 0, &broken);
+
+	if (phba->cgn_fpin_frequency &&
+	    phba->cgn_fpin_frequency != LPFC_FPIN_INIT_FREQ) {
+		value = LPFC_CGN_TIMER_TO_MIN / phba->cgn_fpin_frequency;
+		cp->cgn_stat_npm = cpu_to_le32(value);
+	}
+
+	/* Read and clear the latency counters for this minute */
+	lvalue = atomic_read(&phba->cgn_latency_evt_cnt);
+	latsum = atomic64_read(&phba->cgn_latency_evt);
+	atomic_set(&phba->cgn_latency_evt_cnt, 0);
+	atomic64_set(&phba->cgn_latency_evt, 0);
+
+	/* We need to store MB/sec bandwidth in the congestion information.
+	 * block_cnt is count of 512 byte blocks for the entire minute,
+	 * bps will get bytes per sec before finally converting to MB/sec.
+	 */
+	bps = div_u64(phba->rx_block_cnt, LPFC_SEC_MIN) * 512;
+	phba->rx_block_cnt = 0;
+	mvalue = bps / (1024 * 1024); /* convert to MB/sec */
+
+	/* Every minute */
+	/* cgn parameters */
+	cp->cgn_info_mode = phba->cgn_p.cgn_param_mode;
+	cp->cgn_info_level0 = phba->cgn_p.cgn_param_level0;
+	cp->cgn_info_level1 = phba->cgn_p.cgn_param_level1;
+	cp->cgn_info_level2 = phba->cgn_p.cgn_param_level2;
+
+	/* Fill in default LUN qdepth */
+	value = (uint16_t)(phba->pport->cfg_lun_queue_depth);
+	cp->cgn_lunq = cpu_to_le16(value);
+
+	/* Record congestion buffer info - every minute
+	 * cgn_driver_evt_cnt (Driver events)
+	 * cgn_fabric_warn_cnt (Congestion Warnings)
+	 * cgn_latency_evt_cnt / cgn_latency_evt (IO Latency)
+	 * cgn_fabric_alarm_cnt (Congestion Alarms)
+	 */
+	index = ++cp->cgn_index_minute;
+	if (cp->cgn_index_minute == LPFC_MIN_HOUR) {
+		cp->cgn_index_minute = 0;
+		index = 0;
+	}
+
+	/* Get the number of driver events in this sample and reset counter */
+	dvalue = atomic_read(&phba->cgn_driver_evt_cnt);
+	atomic_set(&phba->cgn_driver_evt_cnt, 0);
+
+	/* Get the number of warning events - FPIN and Signal for this minute */
+	wvalue = 0;
+	if ((phba->cgn_reg_fpin & LPFC_CGN_FPIN_WARN) ||
+	    phba->cgn_reg_signal == EDC_CG_SIG_WARN_ONLY ||
+	    phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM)
+		wvalue = atomic_read(&phba->cgn_fabric_warn_cnt);
+	atomic_set(&phba->cgn_fabric_warn_cnt, 0);
+
+	/* Get the number of alarm events - FPIN and Signal for this minute */
+	avalue = 0;
+	if ((phba->cgn_reg_fpin & LPFC_CGN_FPIN_ALARM) ||
+	    phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM)
+		avalue = atomic_read(&phba->cgn_fabric_alarm_cnt);
+	atomic_set(&phba->cgn_fabric_alarm_cnt, 0);
+
+	/* Collect the driver, warning, alarm and latency counts for this
+	 * minute into the driver congestion buffer.
+	 */
+	ptr = &cp->cgn_drvr_min[index];
+	value = (uint16_t)dvalue;
+	*ptr = cpu_to_le16(value);
+
+	ptr = &cp->cgn_warn_min[index];
+	value = (uint16_t)wvalue;
+	*ptr = cpu_to_le16(value);
+
+	ptr = &cp->cgn_alarm_min[index];
+	value = (uint16_t)avalue;
+	*ptr = cpu_to_le16(value);
+
+	lptr = &cp->cgn_latency_min[index];
+	if (lvalue) {
+		lvalue = (uint32_t)div_u64(latsum, lvalue);
+		*lptr = cpu_to_le32(lvalue);
+	} else {
+		*lptr = 0;
+	}
+
+	/* Collect the bandwidth value into the driver's congesion buffer. */
+	mptr = &cp->cgn_bw_min[index];
+	*mptr = cpu_to_le16(mvalue);
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+			"2418 Congestion Info - minute (%d): %d %d %d %d %d\n",
+			index, dvalue, wvalue, *lptr, mvalue, avalue);
+
+	/* Every hour */
+	if ((phba->cgn_evt_minute % LPFC_MIN_HOUR) == 0) {
+		/* Record congestion buffer info - every hour
+		 * Collapse all minutes into an hour
+		 */
+		index = ++cp->cgn_index_hour;
+		if (cp->cgn_index_hour == LPFC_HOUR_DAY) {
+			cp->cgn_index_hour = 0;
+			index = 0;
+		}
+
+		dvalue = 0;
+		wvalue = 0;
+		lvalue = 0;
+		avalue = 0;
+		mvalue = 0;
+		mbps = 0;
+		for (i = 0; i < LPFC_MIN_HOUR; i++) {
+			dvalue += le16_to_cpu(cp->cgn_drvr_min[i]);
+			wvalue += le16_to_cpu(cp->cgn_warn_min[i]);
+			lvalue += le32_to_cpu(cp->cgn_latency_min[i]);
+			mbps += le16_to_cpu(cp->cgn_bw_min[i]);
+			avalue += le16_to_cpu(cp->cgn_alarm_min[i]);
+		}
+		if (lvalue)		/* Avg of latency averages */
+			lvalue /= LPFC_MIN_HOUR;
+		if (mbps)		/* Avg of Bandwidth averages */
+			mvalue = mbps / LPFC_MIN_HOUR;
+
+		lptr = &cp->cgn_drvr_hr[index];
+		*lptr = cpu_to_le32(dvalue);
+		lptr = &cp->cgn_warn_hr[index];
+		*lptr = cpu_to_le32(wvalue);
+		lptr = &cp->cgn_latency_hr[index];
+		*lptr = cpu_to_le32(lvalue);
+		mptr = &cp->cgn_bw_hr[index];
+		*mptr = cpu_to_le16(mvalue);
+		lptr = &cp->cgn_alarm_hr[index];
+		*lptr = cpu_to_le32(avalue);
+
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"2419 Congestion Info - hour "
+				"(%d): %d %d %d %d %d\n",
+				index, dvalue, wvalue, lvalue, mvalue, avalue);
+	}
+
+	/* Every day */
+	if ((phba->cgn_evt_minute % LPFC_MIN_DAY) == 0) {
+		/* Record congestion buffer info - every hour
+		 * Collapse all hours into a day. Rotate days
+		 * after LPFC_MAX_CGN_DAYS.
+		 */
+		index = ++cp->cgn_index_day;
+		if (cp->cgn_index_day == LPFC_MAX_CGN_DAYS) {
+			cp->cgn_index_day = 0;
+			index = 0;
+		}
+
+		/* Anytime we overwrite daily index 0, after we wrap,
+		 * we will be overwriting the oldest day, so we must
+		 * update the congestion data start time for that day.
+		 * That start time should have previously been saved after
+		 * we wrote the last days worth of data.
+		 */
+		if ((phba->hba_flag & HBA_CGN_DAY_WRAP) && index == 0) {
+			time64_to_tm(phba->cgn_daily_ts.tv_sec, 0, &broken);
+
+			cp->cgn_info_month = broken.tm_mon + 1;
+			cp->cgn_info_day = broken.tm_mday;
+			cp->cgn_info_year = broken.tm_year - 100;
+			cp->cgn_info_hour = broken.tm_hour;
+			cp->cgn_info_minute = broken.tm_min;
+			cp->cgn_info_second = broken.tm_sec;
+
+			lpfc_printf_log
+				(phba, KERN_INFO, LOG_CGN_MGMT,
+				"2646 CGNInfo idx0 Start Time: "
+				"%d/%d/%d %d:%d:%d\n",
+				cp->cgn_info_day, cp->cgn_info_month,
+				cp->cgn_info_year, cp->cgn_info_hour,
+				cp->cgn_info_minute, cp->cgn_info_second);
+		}
+
+		dvalue = 0;
+		wvalue = 0;
+		lvalue = 0;
+		mvalue = 0;
+		mbps = 0;
+		avalue = 0;
+		for (i = 0; i < LPFC_HOUR_DAY; i++) {
+			dvalue += le32_to_cpu(cp->cgn_drvr_hr[i]);
+			wvalue += le32_to_cpu(cp->cgn_warn_hr[i]);
+			lvalue += le32_to_cpu(cp->cgn_latency_hr[i]);
+			mbps += le32_to_cpu(cp->cgn_bw_hr[i]);
+			avalue += le32_to_cpu(cp->cgn_alarm_hr[i]);
+		}
+		if (lvalue)		/* Avg of latency averages */
+			lvalue /= LPFC_HOUR_DAY;
+		if (mbps)		/* Avg of Bandwidth averages */
+			mvalue = mbps / LPFC_HOUR_DAY;
+
+		lptr = &cp->cgn_drvr_day[index];
+		*lptr = cpu_to_le32(dvalue);
+		lptr = &cp->cgn_warn_day[index];
+		*lptr = cpu_to_le32(wvalue);
+		lptr = &cp->cgn_latency_day[index];
+		*lptr = cpu_to_le32(lvalue);
+		mptr = &cp->cgn_bw_day[index];
+		*mptr = cpu_to_le16(mvalue);
+		lptr = &cp->cgn_alarm_day[index];
+		*lptr = cpu_to_le32(avalue);
+
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"2420 Congestion Info - daily (%d): "
+				"%d %d %d %d %d\n",
+				index, dvalue, wvalue, lvalue, mvalue, avalue);
+
+		/* We just wrote LPFC_MAX_CGN_DAYS of data,
+		 * so we are wrapped on any data after this.
+		 * Save this as the start time for the next day.
+		 */
+		if (index == (LPFC_MAX_CGN_DAYS - 1)) {
+			phba->hba_flag |= HBA_CGN_DAY_WRAP;
+			ktime_get_real_ts64(&phba->cgn_daily_ts);
+		}
+	}
+
+	/* Use the frequency found in the last rcv'ed FPIN */
+	value = phba->cgn_fpin_frequency;
+	if (phba->cgn_reg_fpin & LPFC_CGN_FPIN_WARN)
+		cp->cgn_warn_freq = cpu_to_le16(value);
+	if (phba->cgn_reg_fpin & LPFC_CGN_FPIN_ALARM)
+		cp->cgn_alarm_freq = cpu_to_le16(value);
+
+	/* Frequency (in ms) Signal Warning/Signal Congestion Notifications
+	 * are received by the HBA
+	 */
+	value = phba->cgn_sig_freq;
+
+	if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ONLY ||
+	    phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM)
+		cp->cgn_warn_freq = cpu_to_le16(value);
+	if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM)
+		cp->cgn_alarm_freq = cpu_to_le16(value);
+
+	lvalue = lpfc_cgn_calc_crc32(cp, LPFC_CGN_INFO_SZ,
+				     LPFC_CGN_CRC32_SEED);
+	cp->cgn_info_crc = cpu_to_le32(lvalue);
+}
+
+/**
+ * lpfc_calc_cmf_latency - latency from start of rxate timer interval
+ * @phba: The Hba for which this call is being executed.
+ *
+ * The routine calculates the latency from the beginning of the CMF timer
+ * interval to the current point in time. It is called from IO completion
+ * when we exceed our Bandwidth limitation for the time interval.
+ */
+uint32_t
+lpfc_calc_cmf_latency(struct lpfc_hba *phba)
+{
+	struct timespec64 cmpl_time;
+	uint32_t msec = 0;
+
+	ktime_get_real_ts64(&cmpl_time);
+
+	/* This routine works on a ms granularity so sec and usec are
+	 * converted accordingly.
+	 */
+	if (cmpl_time.tv_sec == phba->cmf_latency.tv_sec) {
+		msec = (cmpl_time.tv_nsec - phba->cmf_latency.tv_nsec) /
+			NSEC_PER_MSEC;
+	} else {
+		if (cmpl_time.tv_nsec >= phba->cmf_latency.tv_nsec) {
+			msec = (cmpl_time.tv_sec -
+				phba->cmf_latency.tv_sec) * MSEC_PER_SEC;
+			msec += ((cmpl_time.tv_nsec -
+				  phba->cmf_latency.tv_nsec) / NSEC_PER_MSEC);
+		} else {
+			msec = (cmpl_time.tv_sec - phba->cmf_latency.tv_sec -
+				1) * MSEC_PER_SEC;
+			msec += (((NSEC_PER_SEC - phba->cmf_latency.tv_nsec) +
+				 cmpl_time.tv_nsec) / NSEC_PER_MSEC);
+		}
+	}
+	return msec;
+}
+
+/**
+ * lpfc_cmf_timer -  This is the timer function for one congestion
+ * rate interval.
+ * @timer: Pointer to the high resolution timer that expired
+ */
+static enum hrtimer_restart
+lpfc_cmf_timer(struct hrtimer *timer)
+{
+	struct lpfc_hba *phba = container_of(timer, struct lpfc_hba,
+					     cmf_timer);
+	struct rxtable_entry *entry;
+	uint32_t io_cnt;
+	uint32_t head, tail;
+	uint32_t busy, max_read;
+	uint64_t total, rcv, lat, mbpi;
+	int timer_interval = LPFC_CMF_INTERVAL;
+	uint32_t ms;
+	struct lpfc_cgn_stat *cgs;
+	int cpu;
+
+	/* Only restart the timer if congestion mgmt is on */
+	if (phba->cmf_active_mode == LPFC_CFG_OFF ||
+	    !phba->cmf_latency.tv_sec) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"6224 CMF timer exit: %d %lld\n",
+				phba->cmf_active_mode,
+				(uint64_t)phba->cmf_latency.tv_sec);
+		return HRTIMER_NORESTART;
+	}
+
+	/* If pport is not ready yet, just exit and wait for
+	 * the next timer cycle to hit.
+	 */
+	if (!phba->pport)
+		goto skip;
+
+	/* Do not block SCSI IO while in the timer routine since
+	 * total_bytes will be cleared
+	 */
+	atomic_set(&phba->cmf_stop_io, 1);
+
+	/* First we need to calculate the actual ms between
+	 * the last timer interrupt and this one. We ask for
+	 * LPFC_CMF_INTERVAL, however the actual time may
+	 * vary depending on system overhead.
+	 */
+	ms = lpfc_calc_cmf_latency(phba);
+
+
+	/* Immediately after we calculate the time since the last
+	 * timer interrupt, set the start time for the next
+	 * interrupt
+	 */
+	ktime_get_real_ts64(&phba->cmf_latency);
+
+	phba->cmf_link_byte_count =
+		div_u64(phba->cmf_max_line_rate * LPFC_CMF_INTERVAL, 1000);
+
+	/* Collect all the stats from the prior timer interval */
+	total = 0;
+	io_cnt = 0;
+	lat = 0;
+	rcv = 0;
+	for_each_present_cpu(cpu) {
+		cgs = per_cpu_ptr(phba->cmf_stat, cpu);
+		total += atomic64_xchg(&cgs->total_bytes, 0);
+		io_cnt += atomic_xchg(&cgs->rx_io_cnt, 0);
+		lat += atomic64_xchg(&cgs->rx_latency, 0);
+		rcv += atomic64_xchg(&cgs->rcv_bytes, 0);
+	}
+
+	/* Before we issue another CMF_SYNC_WQE, retrieve the BW
+	 * returned from the last CMF_SYNC_WQE issued, from
+	 * cmf_last_sync_bw. This will be the target BW for
+	 * this next timer interval.
+	 */
+	if (phba->cmf_active_mode == LPFC_CFG_MANAGED &&
+	    phba->link_state != LPFC_LINK_DOWN &&
+	    phba->hba_flag & HBA_SETUP) {
+		mbpi = phba->cmf_last_sync_bw;
+		phba->cmf_last_sync_bw = 0;
+		lpfc_issue_cmf_sync_wqe(phba, LPFC_CMF_INTERVAL, total);
+	} else {
+		/* For Monitor mode or link down we want mbpi
+		 * to be the full link speed
+		 */
+		mbpi = phba->cmf_link_byte_count;
+	}
+	phba->cmf_timer_cnt++;
+
+	if (io_cnt) {
+		/* Update congestion info buffer latency in us */
+		atomic_add(io_cnt, &phba->cgn_latency_evt_cnt);
+		atomic64_add(lat, &phba->cgn_latency_evt);
+	}
+	busy = atomic_xchg(&phba->cmf_busy, 0);
+	max_read = atomic_xchg(&phba->rx_max_read_cnt, 0);
+
+	/* Calculate MBPI for the next timer interval */
+	if (mbpi) {
+		if (mbpi > phba->cmf_link_byte_count ||
+		    phba->cmf_active_mode == LPFC_CFG_MONITOR)
+			mbpi = phba->cmf_link_byte_count;
+
+		/* Change max_bytes_per_interval to what the prior
+		 * CMF_SYNC_WQE cmpl indicated.
+		 */
+		if (mbpi != phba->cmf_max_bytes_per_interval)
+			phba->cmf_max_bytes_per_interval = mbpi;
+	}
+
+	/* Save rxmonitor information for debug */
+	if (phba->rxtable) {
+		head = atomic_xchg(&phba->rxtable_idx_head,
+				   LPFC_RXMONITOR_TABLE_IN_USE);
+		entry = &phba->rxtable[head];
+		entry->total_bytes = total;
+		entry->rcv_bytes = rcv;
+		entry->cmf_busy = busy;
+		entry->cmf_info = phba->cmf_active_info;
+		if (io_cnt) {
+			entry->avg_io_latency = div_u64(lat, io_cnt);
+			entry->avg_io_size = div_u64(rcv, io_cnt);
+		} else {
+			entry->avg_io_latency = 0;
+			entry->avg_io_size = 0;
+		}
+		entry->max_read_cnt = max_read;
+		entry->io_cnt = io_cnt;
+		entry->max_bytes_per_interval = mbpi;
+		if (phba->cmf_active_mode == LPFC_CFG_MANAGED)
+			entry->timer_utilization = phba->cmf_last_ts;
+		else
+			entry->timer_utilization = ms;
+		entry->timer_interval = ms;
+		phba->cmf_last_ts = 0;
+
+		/* Increment rxtable index */
+		head = (head + 1) % LPFC_MAX_RXMONITOR_ENTRY;
+		tail = atomic_read(&phba->rxtable_idx_tail);
+		if (head == tail) {
+			tail = (tail + 1) % LPFC_MAX_RXMONITOR_ENTRY;
+			atomic_set(&phba->rxtable_idx_tail, tail);
+		}
+		atomic_set(&phba->rxtable_idx_head, head);
+	}
+
+	if (phba->cmf_active_mode == LPFC_CFG_MONITOR) {
+		/* If Monitor mode, check if we are oversubscribed
+		 * against the full line rate.
+		 */
+		if (mbpi && total > mbpi)
+			atomic_inc(&phba->cgn_driver_evt_cnt);
+	}
+	phba->rx_block_cnt += div_u64(rcv, 512);  /* save 512 byte block cnt */
+
+	/* Each minute save Fabric and Driver congestion information */
+	lpfc_cgn_save_evt_cnt(phba);
+
+	/* Since we need to call lpfc_cgn_save_evt_cnt every minute, on the
+	 * minute, adjust our next timer interval, if needed, to ensure a
+	 * 1 minute granularity when we get the next timer interrupt.
+	 */
+	if (time_after(jiffies + msecs_to_jiffies(LPFC_CMF_INTERVAL),
+		       phba->cgn_evt_timestamp)) {
+		timer_interval = jiffies_to_msecs(phba->cgn_evt_timestamp -
+						  jiffies);
+		if (timer_interval <= 0)
+			timer_interval = LPFC_CMF_INTERVAL;
+
+		/* If we adjust timer_interval, max_bytes_per_interval
+		 * needs to be adjusted as well.
+		 */
+		phba->cmf_link_byte_count = div_u64(phba->cmf_max_line_rate *
+						    timer_interval, 1000);
+		if (phba->cmf_active_mode == LPFC_CFG_MONITOR)
+			phba->cmf_max_bytes_per_interval =
+				phba->cmf_link_byte_count;
+	}
+
+	/* Since total_bytes has already been zero'ed, its okay to unblock
+	 * after max_bytes_per_interval is setup.
+	 */
+	if (atomic_xchg(&phba->cmf_bw_wait, 0))
+		queue_work(phba->wq, &phba->unblock_request_work);
+
+	/* SCSI IO is now unblocked */
+	atomic_set(&phba->cmf_stop_io, 0);
+
+skip:
+	hrtimer_forward_now(timer,
+			    ktime_set(0, timer_interval * NSEC_PER_MSEC));
+	return HRTIMER_RESTART;
+}
+
 #define trunk_link_status(__idx)\
 	bf_get(lpfc_acqe_fc_la_trunk_config_port##__idx, acqe_fc) ?\
 	       ((phba->trunk_link.link##__idx.state == LPFC_LINK_UP) ?\
@@ -5328,6 +6104,9 @@ lpfc_update_trunk_link_status(struct lpfc_hba *phba,
 			phba->sli4_hba.link_state.logical_speed,
 			trunk_link_status(0), trunk_link_status(1),
 			trunk_link_status(2), trunk_link_status(3));
+
+	if (phba->cmf_active_mode != LPFC_CFG_OFF)
+		lpfc_cmf_signal_init(phba);
 
 	if (port_fault)
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
@@ -5510,9 +6289,10 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 	uint8_t operational = 0;
 	struct temp_event temp_event_data;
 	struct lpfc_acqe_misconfigured_event *misconfigured;
+	struct lpfc_acqe_cgn_signal *cgn_signal;
 	struct Scsi_Host  *shost;
 	struct lpfc_vport **vports;
-	int rc, i;
+	int rc, i, cnt;
 
 	evt_type = bf_get(lpfc_trailer_type, acqe_sli);
 
@@ -5668,6 +6448,10 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 				"Event Data1:x%08x Event Data2: x%08x\n",
 				acqe_sli->event_data1, acqe_sli->event_data2);
 		break;
+	case LPFC_SLI_EVENT_TYPE_PORT_PARAMS_CHG:
+		/* Call FW to obtain active parms */
+		lpfc_sli4_cgn_parm_chg_evt(phba);
+		break;
 	case LPFC_SLI_EVENT_TYPE_MISCONF_FAWWN:
 		/* Misconfigured WWN. Reports that the SLI Port is configured
 		 * to use FA-WWN, but the attached device doesn’t support it.
@@ -5684,6 +6468,40 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 			     "2518 EEPROM failure - "
 			     "Event Data1: x%08x Event Data2: x%08x\n",
 			     acqe_sli->event_data1, acqe_sli->event_data2);
+		break;
+	case LPFC_SLI_EVENT_TYPE_CGN_SIGNAL:
+		if (phba->cmf_active_mode == LPFC_CFG_OFF)
+			break;
+		cgn_signal = (struct lpfc_acqe_cgn_signal *)
+					&acqe_sli->event_data1;
+		phba->cgn_acqe_cnt++;
+
+		cnt = bf_get(lpfc_warn_acqe, cgn_signal);
+		atomic64_add(cnt, &phba->cgn_acqe_stat.warn);
+		atomic64_add(cgn_signal->alarm_cnt, &phba->cgn_acqe_stat.alarm);
+
+		/* no threshold for CMF, even 1 signal will trigger an event */
+
+		/* Alarm overrides warning, so check that first */
+		if (cgn_signal->alarm_cnt) {
+			if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM) {
+				/* Keep track of alarm cnt for cgn_info */
+				atomic_add(cgn_signal->alarm_cnt,
+					   &phba->cgn_fabric_alarm_cnt);
+				/* Keep track of alarm cnt for CMF_SYNC_WQE */
+				atomic_add(cgn_signal->alarm_cnt,
+					   &phba->cgn_sync_alarm_cnt);
+			}
+		} else if (cnt) {
+			/* signal action needs to be taken */
+			if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ONLY ||
+			    phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM) {
+				/* Keep track of warning cnt for cgn_info */
+				atomic_add(cnt, &phba->cgn_fabric_warn_cnt);
+				/* Keep track of warning cnt for CMF_SYNC_WQE */
+				atomic_add(cnt, &phba->cgn_sync_warn_cnt);
+			}
+		}
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
@@ -6060,6 +6878,276 @@ lpfc_sli4_async_grp5_evt(struct lpfc_hba *phba,
 }
 
 /**
+ * lpfc_sli4_async_cmstat_evt - Process the asynchronous cmstat event
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is to handle the SLI4 asynchronous cmstat event. A cmstat event
+ * is an asynchronous notification of a request to reset CM stats.
+ **/
+static void
+lpfc_sli4_async_cmstat_evt(struct lpfc_hba *phba)
+{
+	if (!phba->cgn_i)
+		return;
+	lpfc_init_congestion_stat(phba);
+}
+
+/**
+ * lpfc_cgn_params_val - Validate FW congestion parameters.
+ * @phba: pointer to lpfc hba data structure.
+ * @p_cfg_param: pointer to FW provided congestion parameters.
+ *
+ * This routine validates the congestion parameters passed
+ * by the FW to the driver via an ACQE event.
+ **/
+static void
+lpfc_cgn_params_val(struct lpfc_hba *phba, struct lpfc_cgn_param *p_cfg_param)
+{
+	spin_lock_irq(&phba->hbalock);
+
+	if (!lpfc_rangecheck(p_cfg_param->cgn_param_mode, LPFC_CFG_OFF,
+			     LPFC_CFG_MONITOR)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT,
+				"6225 CMF mode param out of range: %d\n",
+				 p_cfg_param->cgn_param_mode);
+		p_cfg_param->cgn_param_mode = LPFC_CFG_OFF;
+	}
+
+	spin_unlock_irq(&phba->hbalock);
+}
+
+/**
+ * lpfc_cgn_params_parse - Process a FW cong parm change event
+ * @phba: pointer to lpfc hba data structure.
+ * @p_cgn_param: pointer to a data buffer with the FW cong params.
+ * @len: the size of pdata in bytes.
+ *
+ * This routine validates the congestion management buffer signature
+ * from the FW, validates the contents and makes corrections for
+ * valid, in-range values.  If the signature magic is correct and
+ * after parameter validation, the contents are copied to the driver's
+ * @phba structure. If the magic is incorrect, an error message is
+ * logged.
+ **/
+static void
+lpfc_cgn_params_parse(struct lpfc_hba *phba,
+		      struct lpfc_cgn_param *p_cgn_param, uint32_t len)
+{
+	struct lpfc_cgn_info *cp;
+	uint32_t crc, oldmode;
+
+	/* Make sure the FW has encoded the correct magic number to
+	 * validate the congestion parameter in FW memory.
+	 */
+	if (p_cgn_param->cgn_param_magic == LPFC_CFG_PARAM_MAGIC_NUM) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT | LOG_INIT,
+				"4668 FW cgn parm buffer data: "
+				"magic 0x%x version %d mode %d "
+				"level0 %d level1 %d "
+				"level2 %d byte13 %d "
+				"byte14 %d byte15 %d "
+				"byte11 %d byte12 %d activeMode %d\n",
+				p_cgn_param->cgn_param_magic,
+				p_cgn_param->cgn_param_version,
+				p_cgn_param->cgn_param_mode,
+				p_cgn_param->cgn_param_level0,
+				p_cgn_param->cgn_param_level1,
+				p_cgn_param->cgn_param_level2,
+				p_cgn_param->byte13,
+				p_cgn_param->byte14,
+				p_cgn_param->byte15,
+				p_cgn_param->byte11,
+				p_cgn_param->byte12,
+				phba->cmf_active_mode);
+
+		oldmode = phba->cmf_active_mode;
+
+		/* Any parameters out of range are corrected to defaults
+		 * by this routine.  No need to fail.
+		 */
+		lpfc_cgn_params_val(phba, p_cgn_param);
+
+		/* Parameters are verified, move them into driver storage */
+		spin_lock_irq(&phba->hbalock);
+		memcpy(&phba->cgn_p, p_cgn_param,
+		       sizeof(struct lpfc_cgn_param));
+
+		/* Update parameters in congestion info buffer now */
+		if (phba->cgn_i) {
+			cp = (struct lpfc_cgn_info *)phba->cgn_i->virt;
+			cp->cgn_info_mode = phba->cgn_p.cgn_param_mode;
+			cp->cgn_info_level0 = phba->cgn_p.cgn_param_level0;
+			cp->cgn_info_level1 = phba->cgn_p.cgn_param_level1;
+			cp->cgn_info_level2 = phba->cgn_p.cgn_param_level2;
+			crc = lpfc_cgn_calc_crc32(cp, LPFC_CGN_INFO_SZ,
+						  LPFC_CGN_CRC32_SEED);
+			cp->cgn_info_crc = cpu_to_le32(crc);
+		}
+		spin_unlock_irq(&phba->hbalock);
+
+		phba->cmf_active_mode = phba->cgn_p.cgn_param_mode;
+
+		switch (oldmode) {
+		case LPFC_CFG_OFF:
+			if (phba->cgn_p.cgn_param_mode != LPFC_CFG_OFF) {
+				/* Turning CMF on */
+				lpfc_cmf_start(phba);
+
+				if (phba->link_state >= LPFC_LINK_UP) {
+					phba->cgn_reg_fpin =
+						phba->cgn_init_reg_fpin;
+					phba->cgn_reg_signal =
+						phba->cgn_init_reg_signal;
+					lpfc_issue_els_edc(phba->pport, 0);
+				}
+			}
+			break;
+		case LPFC_CFG_MANAGED:
+			switch (phba->cgn_p.cgn_param_mode) {
+			case LPFC_CFG_OFF:
+				/* Turning CMF off */
+				lpfc_cmf_stop(phba);
+				if (phba->link_state >= LPFC_LINK_UP)
+					lpfc_issue_els_edc(phba->pport, 0);
+				break;
+			case LPFC_CFG_MONITOR:
+				lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+						"4661 Switch from MANAGED to "
+						"`MONITOR mode\n");
+				phba->cmf_max_bytes_per_interval =
+					phba->cmf_link_byte_count;
+
+				/* Resume blocked IO - unblock on workqueue */
+				queue_work(phba->wq,
+					   &phba->unblock_request_work);
+				break;
+			}
+			break;
+		case LPFC_CFG_MONITOR:
+			switch (phba->cgn_p.cgn_param_mode) {
+			case LPFC_CFG_OFF:
+				/* Turning CMF off */
+				lpfc_cmf_stop(phba);
+				if (phba->link_state >= LPFC_LINK_UP)
+					lpfc_issue_els_edc(phba->pport, 0);
+				break;
+			case LPFC_CFG_MANAGED:
+				lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+						"4662 Switch from MONITOR to "
+						"MANAGED mode\n");
+				lpfc_cmf_signal_init(phba);
+				break;
+			}
+			break;
+		}
+	} else {
+		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT | LOG_INIT,
+				"4669 FW cgn parm buf wrong magic 0x%x "
+				"version %d\n", p_cgn_param->cgn_param_magic,
+				p_cgn_param->cgn_param_version);
+	}
+}
+
+/**
+ * lpfc_sli4_cgn_params_read - Read and Validate FW congestion parameters.
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine issues a read_object mailbox command to
+ * get the congestion management parameters from the FW
+ * parses it and updates the driver maintained values.
+ *
+ * Returns
+ *  0     if the object was empty
+ *  -Eval if an error was encountered
+ *  Count if bytes were read from object
+ **/
+int
+lpfc_sli4_cgn_params_read(struct lpfc_hba *phba)
+{
+	int ret = 0;
+	struct lpfc_cgn_param *p_cgn_param = NULL;
+	u32 *pdata = NULL;
+	u32 len = 0;
+
+	/* Find out if the FW has a new set of congestion parameters. */
+	len = sizeof(struct lpfc_cgn_param);
+	pdata = kzalloc(len, GFP_KERNEL);
+	ret = lpfc_read_object(phba, (char *)LPFC_PORT_CFG_NAME,
+			       pdata, len);
+
+	/* 0 means no data.  A negative means error.  A positive means
+	 * bytes were copied.
+	 */
+	if (!ret) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT | LOG_INIT,
+				"4670 CGN RD OBJ returns no data\n");
+		goto rd_obj_err;
+	} else if (ret < 0) {
+		/* Some error.  Just exit and return it to the caller.*/
+		goto rd_obj_err;
+	}
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT | LOG_INIT,
+			"6234 READ CGN PARAMS Successful %d\n", len);
+
+	/* Parse data pointer over len and update the phba congestion
+	 * parameters with values passed back.  The receive rate values
+	 * may have been altered in FW, but take no action here.
+	 */
+	p_cgn_param = (struct lpfc_cgn_param *)pdata;
+	lpfc_cgn_params_parse(phba, p_cgn_param, len);
+
+ rd_obj_err:
+	kfree(pdata);
+	return ret;
+}
+
+/**
+ * lpfc_sli4_cgn_parm_chg_evt - Process a FW congestion param change event
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * The FW generated Async ACQE SLI event calls this routine when
+ * the event type is an SLI Internal Port Event and the Event Code
+ * indicates a change to the FW maintained congestion parameters.
+ *
+ * This routine executes a Read_Object mailbox call to obtain the
+ * current congestion parameters maintained in FW and corrects
+ * the driver's active congestion parameters.
+ *
+ * The acqe event is not passed because there is no further data
+ * required.
+ *
+ * Returns nonzero error if event processing encountered an error.
+ * Zero otherwise for success.
+ **/
+static int
+lpfc_sli4_cgn_parm_chg_evt(struct lpfc_hba *phba)
+{
+	int ret = 0;
+
+	if (!phba->sli4_hba.pc_sli4_params.cmf) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT | LOG_INIT,
+				"4664 Cgn Evt when E2E off. Drop event\n");
+		return -EACCES;
+	}
+
+	/* If the event is claiming an empty object, it's ok.  A write
+	 * could have cleared it.  Only error is a negative return
+	 * status.
+	 */
+	ret = lpfc_sli4_cgn_params_read(phba);
+	if (ret < 0) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT | LOG_INIT,
+				"4667 Error reading Cgn Params (%d)\n",
+				ret);
+	} else if (!ret) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT | LOG_INIT,
+				"4673 CGN Event empty object.\n");
+	}
+	return ret;
+}
+
+/**
  * lpfc_sli4_async_event_proc - Process all the pending asynchronous event
  * @phba: pointer to lpfc hba data structure.
  *
@@ -6106,6 +7194,9 @@ void lpfc_sli4_async_event_proc(struct lpfc_hba *phba)
 			break;
 		case LPFC_TRAILER_CODE_SLI:
 			lpfc_sli4_async_sli_evt(phba, &cq_event->cqe.acqe_sli);
+			break;
+		case LPFC_TRAILER_CODE_CMSTAT:
+			lpfc_sli4_async_cmstat_evt(phba);
 			break;
 		default:
 			lpfc_printf_log(phba, KERN_ERR,
@@ -6391,6 +7482,15 @@ lpfc_sli_probe_sriov_nr_virtfn(struct lpfc_hba *phba, int nr_vfn)
 	return rc;
 }
 
+static void
+lpfc_unblock_requests_work(struct work_struct *work)
+{
+	struct lpfc_hba *phba = container_of(work, struct lpfc_hba,
+					     unblock_request_work);
+
+	lpfc_unblock_requests(phba);
+}
+
 /**
  * lpfc_setup_driver_resource_phase1 - Phase1 etup driver internal resources.
  * @phba: pointer to lpfc hba data structure.
@@ -6466,7 +7566,7 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 
 	INIT_DELAYED_WORK(&phba->idle_stat_delay_work,
 			  lpfc_idle_stat_delay_work);
-
+	INIT_WORK(&phba->unblock_request_work, lpfc_unblock_requests_work);
 	return 0;
 }
 
@@ -6696,6 +7796,10 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 	/* FCF rediscover timer */
 	timer_setup(&phba->fcf.redisc_wait, lpfc_sli4_fcf_redisc_wait_tmo, 0);
+
+	/* CMF congestion timer */
+	hrtimer_init(&phba->cmf_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	phba->cmf_timer.function = lpfc_cmf_timer;
 
 	/*
 	 * Control structure for handling external multi-buffer mailbox
@@ -7145,6 +8249,14 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	}
 #endif
 
+	phba->cmf_stat = alloc_percpu(struct lpfc_cgn_stat);
+	if (!phba->cmf_stat) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"3331 Failed allocating per cpu cgn stats\n");
+		rc = -ENOMEM;
+		goto out_free_hba_hdwq_info;
+	}
+
 	/*
 	 * Enable sr-iov virtual functions if supported and configured
 	 * through the module parameter.
@@ -7164,6 +8276,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 	return 0;
 
+out_free_hba_hdwq_info:
+	free_percpu(phba->sli4_hba.c_stat);
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 out_free_hba_idle_stat:
 	kfree(phba->sli4_hba.idle_stat);
@@ -7211,6 +8325,7 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	free_percpu(phba->sli4_hba.c_stat);
 #endif
+	free_percpu(phba->cmf_stat);
 	kfree(phba->sli4_hba.idle_stat);
 
 	/* Free memory allocated for msi-x interrupt vector to CPU mapping */
@@ -8537,9 +9652,12 @@ lpfc_map_topology(struct lpfc_hba *phba, struct lpfc_mbx_read_config *rd_config)
 	}
 	/* FW supports persistent topology - override module parameter value */
 	phba->hba_flag |= HBA_PERSISTENT_TOPO;
-	switch (phba->pcidev->device) {
-	case PCI_DEVICE_ID_LANCER_G7_FC:
-	case PCI_DEVICE_ID_LANCER_G6_FC:
+
+	/* if ASIC_GEN_NUM >= 0xC) */
+	if ((bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+		    LPFC_SLI_INTF_IF_TYPE_6) ||
+	    (bf_get(lpfc_sli_intf_sli_family, &phba->sli4_hba.sli_intf) ==
+		    LPFC_SLI_INTF_FAMILY_G6)) {
 		if (!tf) {
 			phba->cfg_topology = ((pt == LINK_FLAGS_LOOP)
 					? FLAGS_TOPOLOGY_MODE_LOOP
@@ -8547,8 +9665,7 @@ lpfc_map_topology(struct lpfc_hba *phba, struct lpfc_mbx_read_config *rd_config)
 		} else {
 			phba->hba_flag &= ~HBA_PERSISTENT_TOPO;
 		}
-		break;
-	default:	/* G5 */
+	} else { /* G5 */
 		if (tf) {
 			/* If topology failover set - pt is '0' or '1' */
 			phba->cfg_topology = (pt ? FLAGS_TOPOLOGY_MODE_PT_LOOP :
@@ -8558,7 +9675,6 @@ lpfc_map_topology(struct lpfc_hba *phba, struct lpfc_mbx_read_config *rd_config)
 					? FLAGS_TOPOLOGY_MODE_PT_PT
 					: FLAGS_TOPOLOGY_MODE_LOOP);
 		}
-		break;
 	}
 	if (phba->hba_flag & HBA_PERSISTENT_TOPO) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
@@ -8683,6 +9799,52 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		phba->max_vpi = (phba->sli4_hba.max_cfg_param.max_vpi > 0) ?
 				(phba->sli4_hba.max_cfg_param.max_vpi - 1) : 0;
 		phba->max_vports = phba->max_vpi;
+
+		/* Next decide on FPIN or Signal E2E CGN support
+		 * For congestion alarms and warnings valid combination are:
+		 * 1. FPIN alarms / FPIN warnings
+		 * 2. Signal alarms / Signal warnings
+		 * 3. FPIN alarms / Signal warnings
+		 * 4. Signal alarms / FPIN warnings
+		 *
+		 * Initialize the adapter frequency to 100 mSecs
+		 */
+		phba->cgn_reg_fpin = LPFC_CGN_FPIN_BOTH;
+		phba->cgn_reg_signal = EDC_CG_SIG_NOTSUPPORTED;
+		phba->cgn_sig_freq = lpfc_fabric_cgn_frequency;
+
+		if (lpfc_use_cgn_signal) {
+			if (bf_get(lpfc_mbx_rd_conf_wcs, rd_config)) {
+				phba->cgn_reg_signal = EDC_CG_SIG_WARN_ONLY;
+				phba->cgn_reg_fpin &= ~LPFC_CGN_FPIN_WARN;
+			}
+			if (bf_get(lpfc_mbx_rd_conf_acs, rd_config)) {
+				/* MUST support both alarm and warning
+				 * because EDC does not support alarm alone.
+				 */
+				if (phba->cgn_reg_signal !=
+				    EDC_CG_SIG_WARN_ONLY) {
+					/* Must support both or none */
+					phba->cgn_reg_fpin = LPFC_CGN_FPIN_BOTH;
+					phba->cgn_reg_signal =
+						EDC_CG_SIG_NOTSUPPORTED;
+				} else {
+					phba->cgn_reg_signal =
+						EDC_CG_SIG_WARN_ALARM;
+					phba->cgn_reg_fpin =
+						LPFC_CGN_FPIN_NONE;
+				}
+			}
+		}
+
+		/* Set the congestion initial signal and fpin values. */
+		phba->cgn_init_reg_fpin = phba->cgn_reg_fpin;
+		phba->cgn_init_reg_signal = phba->cgn_reg_signal;
+
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"6446 READ_CONFIG reg_sig x%x reg_fpin:x%x\n",
+				phba->cgn_reg_signal, phba->cgn_reg_fpin);
+
 		lpfc_map_topology(phba, rd_config);
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 				"2003 cfg params Extents? %d "
@@ -12063,6 +13225,8 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 	struct pci_dev *pdev = phba->pcidev;
 
 	lpfc_stop_hba_timers(phba);
+	hrtimer_cancel(&phba->cmf_timer);
+
 	if (phba->pport)
 		phba->sli4_hba.intr_enable = 0;
 
@@ -12131,6 +13295,240 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 	/* Stop the SLI4 device port */
 	if (phba->pport)
 		phba->pport->work_port_events = 0;
+}
+
+static uint32_t
+lpfc_cgn_crc32(uint32_t crc, u8 byte)
+{
+	uint32_t msb = 0;
+	uint32_t bit;
+
+	for (bit = 0; bit < 8; bit++) {
+		msb = (crc >> 31) & 1;
+		crc <<= 1;
+
+		if (msb ^ (byte & 1)) {
+			crc ^= LPFC_CGN_CRC32_MAGIC_NUMBER;
+			crc |= 1;
+		}
+		byte >>= 1;
+	}
+	return crc;
+}
+
+static uint32_t
+lpfc_cgn_reverse_bits(uint32_t wd)
+{
+	uint32_t result = 0;
+	uint32_t i;
+
+	for (i = 0; i < 32; i++) {
+		result <<= 1;
+		result |= (1 & (wd >> i));
+	}
+	return result;
+}
+
+/*
+ * The routine corresponds with the algorithm the HBA firmware
+ * uses to validate the data integrity.
+ */
+uint32_t
+lpfc_cgn_calc_crc32(void *ptr, uint32_t byteLen, uint32_t crc)
+{
+	uint32_t  i;
+	uint32_t result;
+	uint8_t  *data = (uint8_t *)ptr;
+
+	for (i = 0; i < byteLen; ++i)
+		crc = lpfc_cgn_crc32(crc, data[i]);
+
+	result = ~lpfc_cgn_reverse_bits(crc);
+	return result;
+}
+
+void
+lpfc_init_congestion_buf(struct lpfc_hba *phba)
+{
+	struct lpfc_cgn_info *cp;
+	struct timespec64 cmpl_time;
+	struct tm broken;
+	uint16_t size;
+	uint32_t crc;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+			"6235 INIT Congestion Buffer %p\n", phba->cgn_i);
+
+	if (!phba->cgn_i)
+		return;
+	cp = (struct lpfc_cgn_info *)phba->cgn_i->virt;
+
+	atomic_set(&phba->cgn_fabric_warn_cnt, 0);
+	atomic_set(&phba->cgn_fabric_alarm_cnt, 0);
+	atomic_set(&phba->cgn_sync_alarm_cnt, 0);
+	atomic_set(&phba->cgn_sync_warn_cnt, 0);
+
+	atomic64_set(&phba->cgn_acqe_stat.alarm, 0);
+	atomic64_set(&phba->cgn_acqe_stat.warn, 0);
+	atomic_set(&phba->cgn_driver_evt_cnt, 0);
+	atomic_set(&phba->cgn_latency_evt_cnt, 0);
+	atomic64_set(&phba->cgn_latency_evt, 0);
+	phba->cgn_evt_minute = 0;
+	phba->hba_flag &= ~HBA_CGN_DAY_WRAP;
+
+	memset(cp, 0xff, LPFC_CGN_DATA_SIZE);
+	cp->cgn_info_size = cpu_to_le16(LPFC_CGN_INFO_SZ);
+	cp->cgn_info_version = LPFC_CGN_INFO_V3;
+
+	/* cgn parameters */
+	cp->cgn_info_mode = phba->cgn_p.cgn_param_mode;
+	cp->cgn_info_level0 = phba->cgn_p.cgn_param_level0;
+	cp->cgn_info_level1 = phba->cgn_p.cgn_param_level1;
+	cp->cgn_info_level2 = phba->cgn_p.cgn_param_level2;
+
+	ktime_get_real_ts64(&cmpl_time);
+	time64_to_tm(cmpl_time.tv_sec, 0, &broken);
+
+	cp->cgn_info_month = broken.tm_mon + 1;
+	cp->cgn_info_day = broken.tm_mday;
+	cp->cgn_info_year = broken.tm_year - 100; /* relative to 2000 */
+	cp->cgn_info_hour = broken.tm_hour;
+	cp->cgn_info_minute = broken.tm_min;
+	cp->cgn_info_second = broken.tm_sec;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT | LOG_INIT,
+			"2643 CGNInfo Init: Start Time "
+			"%d/%d/%d %d:%d:%d\n",
+			cp->cgn_info_day, cp->cgn_info_month,
+			cp->cgn_info_year, cp->cgn_info_hour,
+			cp->cgn_info_minute, cp->cgn_info_second);
+
+	/* Fill in default LUN qdepth */
+	if (phba->pport) {
+		size = (uint16_t)(phba->pport->cfg_lun_queue_depth);
+		cp->cgn_lunq = cpu_to_le16(size);
+	}
+
+	/* last used Index initialized to 0xff already */
+
+	cp->cgn_warn_freq = LPFC_FPIN_INIT_FREQ;
+	cp->cgn_alarm_freq = LPFC_FPIN_INIT_FREQ;
+	crc = lpfc_cgn_calc_crc32(cp, LPFC_CGN_INFO_SZ, LPFC_CGN_CRC32_SEED);
+	cp->cgn_info_crc = cpu_to_le32(crc);
+
+	phba->cgn_evt_timestamp = jiffies +
+		msecs_to_jiffies(LPFC_CGN_TIMER_TO_MIN);
+}
+
+void
+lpfc_init_congestion_stat(struct lpfc_hba *phba)
+{
+	struct lpfc_cgn_info *cp;
+	struct timespec64 cmpl_time;
+	struct tm broken;
+	uint32_t crc;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+			"6236 INIT Congestion Stat %p\n", phba->cgn_i);
+
+	if (!phba->cgn_i)
+		return;
+
+	cp = (struct lpfc_cgn_info *)phba->cgn_i->virt;
+	memset(&cp->cgn_stat_npm, 0, LPFC_CGN_STAT_SIZE);
+
+	ktime_get_real_ts64(&cmpl_time);
+	time64_to_tm(cmpl_time.tv_sec, 0, &broken);
+
+	cp->cgn_stat_month = broken.tm_mon + 1;
+	cp->cgn_stat_day = broken.tm_mday;
+	cp->cgn_stat_year = broken.tm_year - 100; /* relative to 2000 */
+	cp->cgn_stat_hour = broken.tm_hour;
+	cp->cgn_stat_minute = broken.tm_min;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT | LOG_INIT,
+			"2647 CGNstat Init: Start Time "
+			"%d/%d/%d %d:%d\n",
+			cp->cgn_stat_day, cp->cgn_stat_month,
+			cp->cgn_stat_year, cp->cgn_stat_hour,
+			cp->cgn_stat_minute);
+
+	crc = lpfc_cgn_calc_crc32(cp, LPFC_CGN_INFO_SZ, LPFC_CGN_CRC32_SEED);
+	cp->cgn_info_crc = cpu_to_le32(crc);
+}
+
+/**
+ * __lpfc_reg_congestion_buf - register congestion info buffer with HBA
+ * @phba: Pointer to hba context object.
+ * @reg: flag to determine register or unregister.
+ */
+static int
+__lpfc_reg_congestion_buf(struct lpfc_hba *phba, int reg)
+{
+	struct lpfc_mbx_reg_congestion_buf *reg_congestion_buf;
+	union  lpfc_sli4_cfg_shdr *shdr;
+	uint32_t shdr_status, shdr_add_status;
+	LPFC_MBOXQ_t *mboxq;
+	int length, rc;
+
+	if (!phba->cgn_i)
+		return -ENXIO;
+
+	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+				"2641 REG_CONGESTION_BUF mbox allocation fail: "
+				"HBA state x%x reg %d\n",
+				phba->pport->port_state, reg);
+		return -ENOMEM;
+	}
+
+	length = (sizeof(struct lpfc_mbx_reg_congestion_buf) -
+		sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_REG_CONGESTION_BUF, length,
+			 LPFC_SLI4_MBX_EMBED);
+	reg_congestion_buf = &mboxq->u.mqe.un.reg_congestion_buf;
+	bf_set(lpfc_mbx_reg_cgn_buf_type, reg_congestion_buf, 1);
+	if (reg > 0)
+		bf_set(lpfc_mbx_reg_cgn_buf_cnt, reg_congestion_buf, 1);
+	else
+		bf_set(lpfc_mbx_reg_cgn_buf_cnt, reg_congestion_buf, 0);
+	reg_congestion_buf->length = sizeof(struct lpfc_cgn_info);
+	reg_congestion_buf->addr_lo =
+		putPaddrLow(phba->cgn_i->phys);
+	reg_congestion_buf->addr_hi =
+		putPaddrHigh(phba->cgn_i->phys);
+
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+	shdr = (union lpfc_sli4_cfg_shdr *)
+		&mboxq->u.mqe.un.sli4_config.header.cfg_shdr;
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
+				 &shdr->response);
+	mempool_free(mboxq, phba->mbox_mem_pool);
+	if (shdr_status || shdr_add_status || rc) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"2642 REG_CONGESTION_BUF mailbox "
+				"failed with status x%x add_status x%x,"
+				" mbx status x%x reg %d\n",
+				shdr_status, shdr_add_status, rc, reg);
+		return -ENXIO;
+	}
+	return 0;
+}
+
+int
+lpfc_unreg_congestion_buf(struct lpfc_hba *phba)
+{
+	lpfc_cmf_stop(phba);
+	return __lpfc_reg_congestion_buf(phba, 0);
+}
+
+int
+lpfc_reg_congestion_buf(struct lpfc_hba *phba)
+{
+	return __lpfc_reg_congestion_buf(phba, 1);
 }
 
 /**
@@ -12241,7 +13639,6 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 					bf_get(cfg_xib, mbx_sli4_parameters),
 					phba->cfg_enable_fc4_type);
 fcponly:
-			phba->nvme_support = 0;
 			phba->nvmet_support = 0;
 			phba->cfg_nvmet_mrq = 0;
 			phba->cfg_nvme_seg_cnt = 0;
@@ -12259,9 +13656,10 @@ fcponly:
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
 		phba->cfg_sg_seg_cnt = LPFC_MAX_NVME_SEG_CNT;
 
-	/* Only embed PBDE for if_type 6, PBDE support requires xib be set */
-	if ((bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
-	    LPFC_SLI_INTF_IF_TYPE_6) || (!bf_get(cfg_xib, mbx_sli4_parameters)))
+	/* Enable embedded Payload BDE if support is indicated */
+	if (bf_get(cfg_pbde, mbx_sli4_parameters))
+		phba->cfg_enable_pbde = 1;
+	else
 		phba->cfg_enable_pbde = 0;
 
 	/*
@@ -12299,7 +13697,7 @@ fcponly:
 			"6422 XIB %d PBDE %d: FCP %d NVME %d %d %d\n",
 			bf_get(cfg_xib, mbx_sli4_parameters),
 			phba->cfg_enable_pbde,
-			phba->fcp_embed_io, phba->nvme_support,
+			phba->fcp_embed_io, sli4_params->nvme,
 			phba->cfg_nvme_embed_cmd, phba->cfg_suppress_rsp);
 
 	if ((bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
@@ -12331,21 +13729,6 @@ fcponly:
 	else
 		phba->nsler = 0;
 
-	/* Save PB info for use during HBA setup */
-	sli4_params->mi_ver = bf_get(cfg_mi_ver, mbx_sli4_parameters);
-	sli4_params->mib_bde_cnt = bf_get(cfg_mib_bde_cnt, mbx_sli4_parameters);
-	sli4_params->mib_size = mbx_sli4_parameters->mib_size;
-	sli4_params->mi_value = LPFC_DFLT_MIB_VAL;
-
-	/* Next we check for Vendor MIB support */
-	if (sli4_params->mi_ver && phba->cfg_enable_mi)
-		phba->cfg_fdmi_on = LPFC_FDMI_SUPPORT;
-
-	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-			"6461 MIB attr %d  enable %d  FDMI %d buf %d:%d\n",
-			sli4_params->mi_ver, phba->cfg_enable_mi,
-			sli4_params->mi_value, sli4_params->mib_bde_cnt,
-			sli4_params->mib_size);
 	return 0;
 }
 
@@ -12978,7 +14361,9 @@ lpfc_log_write_firmware_error(struct lpfc_hba *phba, uint32_t offset,
 	const struct firmware *fw)
 {
 	int rc;
+	u8 sli_family;
 
+	sli_family = bf_get(lpfc_sli_intf_sli_family, &phba->sli4_hba.sli_intf);
 	/* Three cases:  (1) FW was not supported on the detected adapter.
 	 * (2) FW update has been locked out administratively.
 	 * (3) Some other error during FW update.
@@ -12986,10 +14371,12 @@ lpfc_log_write_firmware_error(struct lpfc_hba *phba, uint32_t offset,
 	 * for admin diagnosis.
 	 */
 	if (offset == ADD_STATUS_FW_NOT_SUPPORTED ||
-	    (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G6_FC &&
+	    (sli_family == LPFC_SLI_INTF_FAMILY_G6 &&
 	     magic_number != MAGIC_NUMBER_G6) ||
-	    (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G7_FC &&
-	     magic_number != MAGIC_NUMBER_G7)) {
+	    (sli_family == LPFC_SLI_INTF_FAMILY_G7 &&
+	     magic_number != MAGIC_NUMBER_G7) ||
+	    (sli_family == LPFC_SLI_INTF_FAMILY_G7P &&
+	     magic_number != MAGIC_NUMBER_G7P)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3030 This firmware version is not supported on"
 				" this HBA model. Device:%x Magic:%x Type:%x "
@@ -13377,6 +14764,8 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	spin_lock_irq(&phba->hbalock);
 	vport->load_flag |= FC_UNLOADING;
 	spin_unlock_irq(&phba->hbalock);
+	if (phba->cgn_i)
+		lpfc_unreg_congestion_buf(phba);
 
 	lpfc_free_sysfs_attr(vport);
 
@@ -14041,17 +15430,18 @@ lpfc_sli4_oas_verify(struct lpfc_hba *phba)
 void
 lpfc_sli4_ras_init(struct lpfc_hba *phba)
 {
-	switch (phba->pcidev->device) {
-	case PCI_DEVICE_ID_LANCER_G6_FC:
-	case PCI_DEVICE_ID_LANCER_G7_FC:
+	/* if ASIC_GEN_NUM >= 0xC) */
+	if ((bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+		    LPFC_SLI_INTF_IF_TYPE_6) ||
+	    (bf_get(lpfc_sli_intf_sli_family, &phba->sli4_hba.sli_intf) ==
+		    LPFC_SLI_INTF_FAMILY_G6)) {
 		phba->ras_fwlog.ras_hwsupport = true;
 		if (phba->cfg_ras_fwlog_func == PCI_FUNC(phba->pcidev->devfn) &&
 		    phba->cfg_ras_fwlog_buffsize)
 			phba->ras_fwlog.ras_enabled = true;
 		else
 			phba->ras_fwlog.ras_enabled = false;
-		break;
-	default:
+	} else {
 		phba->ras_fwlog.ras_hwsupport = false;
 	}
 }
@@ -14164,8 +15554,9 @@ void lpfc_dmp_dbg(struct lpfc_hba *phba)
 	unsigned int temp_idx;
 	int i;
 	int j = 0;
-	unsigned long rem_nsec;
-	struct lpfc_vport **vports;
+	unsigned long rem_nsec, iflags;
+	bool log_verbose = false;
+	struct lpfc_vport *port_iterator;
 
 	/* Don't dump messages if we explicitly set log_verbose for the
 	 * physical port or any vport.
@@ -14173,16 +15564,24 @@ void lpfc_dmp_dbg(struct lpfc_hba *phba)
 	if (phba->cfg_log_verbose)
 		return;
 
-	vports = lpfc_create_vport_work_array(phba);
-	if (vports != NULL) {
-		for (i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
-			if (vports[i]->cfg_log_verbose) {
-				lpfc_destroy_vport_work_array(phba, vports);
+	spin_lock_irqsave(&phba->port_list_lock, iflags);
+	list_for_each_entry(port_iterator, &phba->port_list, listentry) {
+		if (port_iterator->load_flag & FC_UNLOADING)
+			continue;
+		if (scsi_host_get(lpfc_shost_from_vport(port_iterator))) {
+			if (port_iterator->cfg_log_verbose)
+				log_verbose = true;
+
+			scsi_host_put(lpfc_shost_from_vport(port_iterator));
+
+			if (log_verbose) {
+				spin_unlock_irqrestore(&phba->port_list_lock,
+						       iflags);
 				return;
 			}
 		}
 	}
-	lpfc_destroy_vport_work_array(phba, vports);
+	spin_unlock_irqrestore(&phba->port_list_lock, iflags);
 
 	if (atomic_cmpxchg(&phba->dbg_log_dmping, 0, 1) != 0)
 		return;
