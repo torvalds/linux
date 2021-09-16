@@ -1291,12 +1291,6 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 				return;
 			}
 		}
-	} else if (is5301x(dev)) {
-		if (port != dev->cpu_port) {
-			b53_force_port_config(dev, dev->cpu_port, 2000,
-					      DUPLEX_FULL, true, true);
-			b53_force_link(dev, dev->cpu_port, 1);
-		}
 	}
 
 	/* Re-negotiate EEE if it was enabled already */
