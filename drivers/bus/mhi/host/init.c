@@ -563,6 +563,8 @@ int mhi_init_mmio(struct mhi_controller *mhi_cntrl)
 		return ret;
 	}
 
+	mhi_misc_init_mmio(mhi_cntrl);
+
 	return 0;
 }
 
@@ -706,6 +708,9 @@ static int parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 			break;
 		case MHI_ER_CTRL:
 			mhi_event->process_event = mhi_process_ctrl_ev_ring;
+			break;
+		case MHI_ER_BW_SCALE:
+			mhi_event->process_event = mhi_process_misc_bw_ev_ring;
 			break;
 		default:
 			dev_err(dev, "Event Ring type not supported\n");
