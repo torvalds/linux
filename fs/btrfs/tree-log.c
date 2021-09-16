@@ -3656,8 +3656,6 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 	u64 last_offset = (u64)-1;
 	u64 ino = btrfs_ino(inode);
 
-	log = root->log_root;
-
 	min_key.objectid = ino;
 	min_key.type = key_type;
 	min_key.offset = min_offset;
