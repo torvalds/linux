@@ -9387,7 +9387,7 @@ lpfc_display_fpin_wwpn(struct lpfc_hba *phba, __be64 *wwnlist, u32 cnt)
 		/* Extract the next WWPN from the payload */
 		wwn = *wwnlist++;
 		wwpn = be64_to_cpu(wwn);
-		len += scnprintf(buf + len, LPFC_FPIN_WWPN_LINE_SZ,
+		len += scnprintf(buf + len, LPFC_FPIN_WWPN_LINE_SZ - len,
 				 " %016llx", wwpn);
 
 		/* Log a message if we are on the last WWPN
