@@ -304,34 +304,24 @@ quiet_cmd_gzip = GZIP    $@
 
 # DTC
 # ---------------------------------------------------------------------------
-ifeq ("$(origin DTC)", "command line")
-PHONY += $(DTC)
-dtc-option = $(call try-run, $(DTC) $1 -v,$1)
-else
-# Just add the flag. DTC is compiled later as a prerequisite, so there's no dtc
-# to test the flag against. This is okay because we're not testing flags which
-# aren't supported by in-kernel dtc to begin with.
-dtc-option = $1
-endif
-
 DTC ?= $(objtree)/scripts/dtc/dtc
-DTC_FLAGS += $(call dtc-option,-Wno-interrupt_provider)
+DTC_FLAGS += -Wno-interrupt_provider
 
 # Disable noisy checks by default
 ifeq ($(findstring 1,$(KBUILD_EXTRA_WARN)),)
-DTC_FLAGS += $(call dtc-option,-Wno-unit_address_vs_reg) \
-	$(call dtc-option,-Wno-unit_address_format) \
-	$(call dtc-option,-Wno-avoid_unnecessary_addr_size) \
-	$(call dtc-option,-Wno-alias_paths) \
-	$(call dtc-option,-Wno-graph_child_address) \
-	$(call dtc-option,-Wno-simple_bus_reg) \
-	$(call dtc-option,-Wno-unique_unit_address)
+DTC_FLAGS += -Wno-unit_address_vs_reg \
+	-Wno-unit_address_format \
+	-Wno-avoid_unnecessary_addr_size \
+	-Wno-alias_paths \
+	-Wno-graph_child_address \
+	-Wno-simple_bus_reg \
+	-Wno-unique_unit_address
 endif
 
 ifneq ($(findstring 2,$(KBUILD_EXTRA_WARN)),)
-DTC_FLAGS += $(call dtc-option,-Wnode_name_chars_strict) \
-	$(call dtc-option,-Wproperty_name_chars_strict) \
-	$(call dtc-option,-Winterrupt_provider)
+DTC_FLAGS += -Wnode_name_chars_strict \
+	-Wproperty_name_chars_strict \
+	-Winterrupt_provider
 endif
 
 DTC_FLAGS += $(DTC_FLAGS_$(basetarget))
