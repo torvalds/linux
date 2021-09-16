@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2020 Intel Corporation */
+#include <linux/iopoll.h>
 #include <adf_accel_devices.h>
 #include <adf_common_drv.h>
 #include <adf_pf2vf_msg.h>
@@ -161,6 +162,35 @@ static void adf_enable_ints(struct adf_accel_dev *accel_dev)
 	ADF_CSR_WR(addr, ADF_4XXX_SMIAPF_MASK_OFFSET, 0);
 }
 
+static int adf_init_device(struct adf_accel_dev *accel_dev)
+{
+	void __iomem *addr;
+	u32 status;
+	u32 csr;
+	int ret;
+
+	addr = (&GET_BARS(accel_dev)[ADF_4XXX_PMISC_BAR])->virt_addr;
+
+	/* Temporarily mask PM interrupt */
+	csr = ADF_CSR_RD(addr, ADF_4XXX_ERRMSK2);
+	csr |= ADF_4XXX_PM_SOU;
+	ADF_CSR_WR(addr, ADF_4XXX_ERRMSK2, csr);
+
+	/* Set DRV_ACTIVE bit to power up the device */
+	ADF_CSR_WR(addr, ADF_4XXX_PM_INTERRUPT, ADF_4XXX_PM_DRV_ACTIVE);
+
+	/* Poll status register to make sure the device is powered up */
+	ret = read_poll_timeout(ADF_CSR_RD, status,
+				status & ADF_4XXX_PM_INIT_STATE,
+				ADF_4XXX_PM_POLL_DELAY_US,
+				ADF_4XXX_PM_POLL_TIMEOUT_US, true, addr,
+				ADF_4XXX_PM_STATUS);
+	if (ret)
+		dev_err(&GET_DEV(accel_dev), "Failed to power up the device\n");
+
+	return ret;
+}
+
 static int adf_enable_pf2vf_comms(struct adf_accel_dev *accel_dev)
 {
 	return 0;
@@ -215,6 +245,7 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data)
 	hw_data->exit_arb = adf_exit_arb;
 	hw_data->get_arb_mapping = adf_get_arbiter_mapping;
 	hw_data->enable_ints = adf_enable_ints;
+	hw_data->init_device = adf_init_device;
 	hw_data->reset_device = adf_reset_flr;
 	hw_data->admin_ae_mask = ADF_4XXX_ADMIN_AE_MASK;
 	hw_data->uof_get_num_objs = uof_get_num_objs;
