@@ -1010,20 +1010,37 @@ such as migration.
 When KVM_CAP_ADJUST_CLOCK is passed to KVM_CHECK_EXTENSION, it returns the
 set of bits that KVM can return in struct kvm_clock_data's flag member.
 
-The only flag defined now is KVM_CLOCK_TSC_STABLE.  If set, the returned
-value is the exact kvmclock value seen by all VCPUs at the instant
-when KVM_GET_CLOCK was called.  If clear, the returned value is simply
-CLOCK_MONOTONIC plus a constant offset; the offset can be modified
-with KVM_SET_CLOCK.  KVM will try to make all VCPUs follow this clock,
-but the exact value read by each VCPU could differ, because the host
-TSC is not stable.
+The following flags are defined:
+
+KVM_CLOCK_TSC_STABLE
+  If set, the returned value is the exact kvmclock
+  value seen by all VCPUs at the instant when KVM_GET_CLOCK was called.
+  If clear, the returned value is simply CLOCK_MONOTONIC plus a constant
+  offset; the offset can be modified with KVM_SET_CLOCK.  KVM will try
+  to make all VCPUs follow this clock, but the exact value read by each
+  VCPU could differ, because the host TSC is not stable.
+
+KVM_CLOCK_REALTIME
+  If set, the `realtime` field in the kvm_clock_data
+  structure is populated with the value of the host's real time
+  clocksource at the instant when KVM_GET_CLOCK was called. If clear,
+  the `realtime` field does not contain a value.
+
+KVM_CLOCK_HOST_TSC
+  If set, the `host_tsc` field in the kvm_clock_data
+  structure is populated with the value of the host's timestamp counter (TSC)
+  at the instant when KVM_GET_CLOCK was called. If clear, the `host_tsc` field
+  does not contain a value.
 
 ::
 
   struct kvm_clock_data {
 	__u64 clock;  /* kvmclock current value */
 	__u32 flags;
-	__u32 pad[9];
+	__u32 pad0;
+	__u64 realtime;
+	__u64 host_tsc;
+	__u32 pad[4];
   };
 
 
@@ -1040,12 +1057,25 @@ Sets the current timestamp of kvmclock to the value specified in its parameter.
 In conjunction with KVM_GET_CLOCK, it is used to ensure monotonicity on scenarios
 such as migration.
 
+The following flags can be passed:
+
+KVM_CLOCK_REALTIME
+  If set, KVM will compare the value of the `realtime` field
+  with the value of the host's real time clocksource at the instant when
+  KVM_SET_CLOCK was called. The difference in elapsed time is added to the final
+  kvmclock value that will be provided to guests.
+
+Other flags returned by ``KVM_GET_CLOCK`` are accepted but ignored.
+
 ::
 
   struct kvm_clock_data {
 	__u64 clock;  /* kvmclock current value */
 	__u32 flags;
-	__u32 pad[9];
+	__u32 pad0;
+	__u64 realtime;
+	__u64 host_tsc;
+	__u32 pad[4];
   };
 
 
