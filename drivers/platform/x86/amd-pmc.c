@@ -133,7 +133,7 @@ static inline void amd_pmc_reg_write(struct amd_pmc_dev *dev, int reg_offset, u3
 struct smu_metrics {
 	u32 table_version;
 	u32 hint_count;
-	u32 s0i3_cyclecount;
+	u32 s0i3_last_entry_status;
 	u32 timein_s0i2;
 	u64 timeentering_s0i3_lastcapture;
 	u64 timeentering_s0i3_totaltime;
@@ -162,7 +162,8 @@ static int smu_fw_info_show(struct seq_file *s, void *unused)
 	seq_puts(s, "\n=== SMU Statistics ===\n");
 	seq_printf(s, "Table Version: %d\n", table.table_version);
 	seq_printf(s, "Hint Count: %d\n", table.hint_count);
-	seq_printf(s, "S0i3 Cycle Count: %d\n", table.s0i3_cyclecount);
+	seq_printf(s, "Last S0i3 Status: %s\n", table.s0i3_last_entry_status ? "Success" :
+		   "Unknown/Fail");
 	seq_printf(s, "Time (in us) to S0i3: %lld\n", table.timeentering_s0i3_lastcapture);
 	seq_printf(s, "Time (in us) in S0i3: %lld\n", table.timein_s0i3_lastcapture);
 
