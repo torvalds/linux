@@ -2275,7 +2275,7 @@ static void zfcp_fsf_close_lun_handler(struct zfcp_fsf_req *req)
 }
 
 /**
- * zfcp_fsf_close_LUN - close LUN
+ * zfcp_fsf_close_lun - close LUN
  * @erp_action: pointer to erp_action triggering the "close LUN"
  * Returns: 0 on success, error otherwise
  */

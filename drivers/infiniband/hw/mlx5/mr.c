@@ -995,7 +995,7 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 static void *mlx5_ib_alloc_xlt(size_t *nents, size_t ent_size, gfp_t gfp_mask)
 {
 	const size_t xlt_chunk_align =
-		MLX5_UMR_MTT_ALIGNMENT / sizeof(ent_size);
+		MLX5_UMR_MTT_ALIGNMENT / ent_size;
 	size_t size;
 	void *res = NULL;
 
@@ -1024,7 +1024,7 @@ static void *mlx5_ib_alloc_xlt(size_t *nents, size_t ent_size, gfp_t gfp_mask)
 
 	if (size > MLX5_SPARE_UMR_CHUNK) {
 		size = MLX5_SPARE_UMR_CHUNK;
-		*nents = get_order(size) / ent_size;
+		*nents = size / ent_size;
 		res = (void *)__get_free_pages(gfp_mask | __GFP_NOWARN,
 					       get_order(size));
 		if (res)

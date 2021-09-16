@@ -666,22 +666,6 @@ void ksmbd_free_global_file_table(void)
 	ksmbd_destroy_file_table(&global_ft);
 }
 
-int ksmbd_file_table_flush(struct ksmbd_work *work)
-{
-	struct ksmbd_file	*fp = NULL;
-	unsigned int		id;
-	int			ret;
-
-	read_lock(&work->sess->file_table.lock);
-	idr_for_each_entry(work->sess->file_table.idr, fp, id) {
-		ret = ksmbd_vfs_fsync(work, fp->volatile_id, KSMBD_NO_FID);
-		if (ret)
-			break;
-	}
-	read_unlock(&work->sess->file_table.lock);
-	return ret;
-}
-
 int ksmbd_init_file_table(struct ksmbd_file_table *ft)
 {
 	ft->idr = kzalloc(sizeof(struct idr), GFP_KERNEL);

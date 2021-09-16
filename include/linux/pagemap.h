@@ -521,18 +521,17 @@ static inline struct page *read_mapping_page(struct address_space *mapping,
  */
 static inline pgoff_t page_to_index(struct page *page)
 {
-	pgoff_t pgoff;
+	struct page *head;
 
 	if (likely(!PageTransTail(page)))
 		return page->index;
 
+	head = compound_head(page);
 	/*
 	 *  We don't initialize ->index for tail pages: calculate based on
 	 *  head page
 	 */
-	pgoff = compound_head(page)->index;
-	pgoff += page - compound_head(page);
-	return pgoff;
+	return head->index + page - head;
 }
 
 extern pgoff_t hugetlb_basepage_index(struct page *page);

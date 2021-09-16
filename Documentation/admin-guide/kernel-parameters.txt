@@ -1758,6 +1758,11 @@
 			support for the idxd driver. By default it is set to
 			true (1).
 
+	idxd.tc_override= [HW]
+			Format: <bool>
+			Allow override of default traffic class configuration
+			for the device. By default it is set to false (0).
+
 	ieee754=	[MIPS] Select IEEE Std 754 conformance mode
 			Format: { strict | legacy | 2008 | relaxed }
 			Default: strict

@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 5
-PATCHLEVEL = 14
+PATCHLEVEL = 15
 SUBLEVEL = 0
-EXTRAVERSION =
+EXTRAVERSION = -rc1
 NAME = Opossums on Parade
 
 # *DOCUMENTATION*
@@ -802,6 +802,8 @@ else
 # Disabled for clang while comment to attribute conversion happens and
 # https://github.com/ClangBuiltLinux/linux/issues/636 is discussed.
 KBUILD_CFLAGS += $(call cc-option,-Wimplicit-fallthrough=5,)
+# gcc inanely warns about local variables called 'main'
+KBUILD_CFLAGS += -Wno-main
 endif
 
 # These warnings generated too much noise in a regular build.
@@ -846,12 +848,6 @@ KBUILD_CFLAGS	+= -fzero-call-used-regs=used-gpr
 endif
 
 DEBUG_CFLAGS	:=
-
-# Workaround for GCC versions < 5.0
-# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61801
-ifdef CONFIG_CC_IS_GCC
-DEBUG_CFLAGS	+= $(call cc-ifversion, -lt, 0500, $(call cc-option, -fno-var-tracking-assignments))
-endif
 
 ifdef CONFIG_DEBUG_INFO
 

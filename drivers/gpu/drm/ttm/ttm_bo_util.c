@@ -143,7 +143,6 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	struct ttm_resource *src_mem = bo->resource;
 	struct ttm_resource_manager *src_man =
 		ttm_manager_type(bdev, src_mem->mem_type);
-	struct ttm_resource src_copy = *src_mem;
 	union {
 		struct ttm_kmap_iter_tt tt;
 		struct ttm_kmap_iter_linear_io io;
@@ -173,11 +172,11 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	}
 
 	ttm_move_memcpy(bo, dst_mem->num_pages, dst_iter, src_iter);
-	src_copy = *src_mem;
-	ttm_bo_move_sync_cleanup(bo, dst_mem);
 
 	if (!src_iter->ops->maps_tt)
-		ttm_kmap_iter_linear_io_fini(&_src_iter.io, bdev, &src_copy);
+		ttm_kmap_iter_linear_io_fini(&_src_iter.io, bdev, src_mem);
+	ttm_bo_move_sync_cleanup(bo, dst_mem);
+
 out_src_iter:
 	if (!dst_iter->ops->maps_tt)
 		ttm_kmap_iter_linear_io_fini(&_dst_iter.io, bdev, dst_mem);

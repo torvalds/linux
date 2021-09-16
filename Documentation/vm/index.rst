@@ -32,6 +32,7 @@ descriptions of data structures and algorithms.
    arch_pgtable_helpers
    balance
    cleancache
+   damon/index
    free_page_reporting
    frontswap
    highmem

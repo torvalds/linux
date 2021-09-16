@@ -26,12 +26,6 @@ void ceph_fscache_unregister_inode_cookie(struct ceph_inode_info* ci);
 void ceph_fscache_file_set_cookie(struct inode *inode, struct file *filp);
 void ceph_fscache_revalidate_cookie(struct ceph_inode_info *ci);
 
-int ceph_readpage_from_fscache(struct inode *inode, struct page *page);
-int ceph_readpages_from_fscache(struct inode *inode,
-				struct address_space *mapping,
-				struct list_head *pages,
-				unsigned *nr_pages);
-
 static inline void ceph_fscache_inode_init(struct ceph_inode_info *ci)
 {
 	ci->fscache = NULL;

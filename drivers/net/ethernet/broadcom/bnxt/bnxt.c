@@ -2213,12 +2213,11 @@ static int bnxt_async_event_process(struct bnxt *bp,
 			DIV_ROUND_UP(fw_health->polling_dsecs * HZ,
 				     bp->current_interval * 10);
 		fw_health->tmr_counter = fw_health->tmr_multiplier;
-		if (!fw_health->enabled) {
+		if (!fw_health->enabled)
 			fw_health->last_fw_heartbeat =
 				bnxt_fw_health_readl(bp, BNXT_FW_HEARTBEAT_REG);
-			fw_health->last_fw_reset_cnt =
-				bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
-		}
+		fw_health->last_fw_reset_cnt =
+			bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
 		netif_info(bp, drv, bp->dev,
 			   "Error recovery info: error recovery[1], master[%d], reset count[%u], health status: 0x%x\n",
 			   fw_health->master, fw_health->last_fw_reset_cnt,
@@ -2730,6 +2729,9 @@ static void bnxt_free_tx_skbs(struct bnxt *bp)
 		struct bnxt_tx_ring_info *txr = &bp->tx_ring[i];
 		int j;
 
+		if (!txr->tx_buf_ring)
+			continue;
+
 		for (j = 0; j < max_idx;) {
 			struct bnxt_sw_tx_bd *tx_buf = &txr->tx_buf_ring[j];
 			struct sk_buff *skb;
@@ -2814,6 +2816,9 @@ static void bnxt_free_one_rx_ring_skbs(struct bnxt *bp, int ring_nr)
 	}
 
 skip_rx_tpa_free:
+	if (!rxr->rx_buf_ring)
+		goto skip_rx_buf_free;
+
 	for (i = 0; i < max_idx; i++) {
 		struct bnxt_sw_rx_bd *rx_buf = &rxr->rx_buf_ring[i];
 		dma_addr_t mapping = rx_buf->mapping;
@@ -2836,6 +2841,11 @@ skip_rx_tpa_free:
 			kfree(data);
 		}
 	}
+
+skip_rx_buf_free:
+	if (!rxr->rx_agg_ring)
+		goto skip_rx_agg_free;
+
 	for (i = 0; i < max_agg_idx; i++) {
 		struct bnxt_sw_rx_agg_bd *rx_agg_buf = &rxr->rx_agg_ring[i];
 		struct page *page = rx_agg_buf->page;
@@ -2852,6 +2862,8 @@ skip_rx_tpa_free:
 
 		__free_page(page);
 	}
+
+skip_rx_agg_free:
 	if (rxr->rx_page) {
 		__free_page(rxr->rx_page);
 		rxr->rx_page = NULL;
@@ -2900,6 +2912,9 @@ static void bnxt_free_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 	struct pci_dev *pdev = bp->pdev;
 	int i;
 
+	if (!rmem->pg_arr)
+		goto skip_pages;
+
 	for (i = 0; i < rmem->nr_pages; i++) {
 		if (!rmem->pg_arr[i])
 			continue;
@@ -2909,6 +2924,7 @@ static void bnxt_free_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 
 		rmem->pg_arr[i] = NULL;
 	}
+skip_pages:
 	if (rmem->pg_tbl) {
 		size_t pg_tbl_size = rmem->nr_pages * 8;
 
@@ -3228,10 +3244,14 @@ static int bnxt_alloc_tx_rings(struct bnxt *bp)
 
 static void bnxt_free_cp_arrays(struct bnxt_cp_ring_info *cpr)
 {
+	struct bnxt_ring_struct *ring = &cpr->cp_ring_struct;
+
 	kfree(cpr->cp_desc_ring);
 	cpr->cp_desc_ring = NULL;
+	ring->ring_mem.pg_arr = NULL;
 	kfree(cpr->cp_desc_mapping);
 	cpr->cp_desc_mapping = NULL;
+	ring->ring_mem.dma_arr = NULL;
 }
 
 static int bnxt_alloc_cp_arrays(struct bnxt_cp_ring_info *cpr, int n)
@@ -12207,6 +12227,11 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 			return;
 		}
 
+		if ((bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY) &&
+		    bp->fw_health->enabled) {
+			bp->fw_health->last_fw_reset_cnt =
+				bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
+		}
 		bp->fw_reset_state = 0;
 		/* Make sure fw_reset_state is 0 before clearing the flag */
 		smp_mb__before_atomic();
@@ -13100,66 +13125,35 @@ static int bnxt_init_mac_addr(struct bnxt *bp)
 	return rc;
 }
 
-#define BNXT_VPD_LEN	512
 static void bnxt_vpd_read_info(struct bnxt *bp)
 {
 	struct pci_dev *pdev = bp->pdev;
-	int i, len, pos, ro_size, size;
-	ssize_t vpd_size;
+	unsigned int vpd_size, kw_len;
+	int pos, size;
 	u8 *vpd_data;
 
-	vpd_data = kmalloc(BNXT_VPD_LEN, GFP_KERNEL);
-	if (!vpd_data)
+	vpd_data = pci_vpd_alloc(pdev, &vpd_size);
+	if (IS_ERR(vpd_data)) {
+		pci_warn(pdev, "Unable to read VPD\n");
 		return;
-
-	vpd_size = pci_read_vpd(pdev, 0, BNXT_VPD_LEN, vpd_data);
-	if (vpd_size <= 0) {
-		netdev_err(bp->dev, "Unable to read VPD\n");
-		goto exit;
 	}
 
-	i = pci_vpd_find_tag(vpd_data, vpd_size, PCI_VPD_LRDT_RO_DATA);
-	if (i < 0) {
-		netdev_err(bp->dev, "VPD READ-Only not found\n");
-		goto exit;
-	}
-
-	i = pci_vpd_find_tag(vpd_data, vpd_size, PCI_VPD_LRDT_RO_DATA);
-	if (i < 0) {
-		netdev_err(bp->dev, "VPD READ-Only not found\n");
-		goto exit;
-	}
-
-	ro_size = pci_vpd_lrdt_size(&vpd_data[i]);
-	i += PCI_VPD_LRDT_TAG_SIZE;
-	if (i + ro_size > vpd_size)
-		goto exit;
-
-	pos = pci_vpd_find_info_keyword(vpd_data, i, ro_size,
-					PCI_VPD_RO_KEYWORD_PARTNO);
+	pos = pci_vpd_find_ro_info_keyword(vpd_data, vpd_size,
+					   PCI_VPD_RO_KEYWORD_PARTNO, &kw_len);
 	if (pos < 0)
 		goto read_sn;
 
-	len = pci_vpd_info_field_size(&vpd_data[pos]);
-	pos += PCI_VPD_INFO_FLD_HDR_SIZE;
-	if (len + pos > vpd_size)
-		goto read_sn;
-
-	size = min(len, BNXT_VPD_FLD_LEN - 1);
+	size = min_t(int, kw_len, BNXT_VPD_FLD_LEN - 1);
 	memcpy(bp->board_partno, &vpd_data[pos], size);
 
 read_sn:
-	pos = pci_vpd_find_info_keyword(vpd_data, i, ro_size,
-					PCI_VPD_RO_KEYWORD_SERIALNO);
+	pos = pci_vpd_find_ro_info_keyword(vpd_data, vpd_size,
+					   PCI_VPD_RO_KEYWORD_SERIALNO,
+					   &kw_len);
 	if (pos < 0)
 		goto exit;
 
-	len = pci_vpd_info_field_size(&vpd_data[pos]);
-	pos += PCI_VPD_INFO_FLD_HDR_SIZE;
-	if (len + pos > vpd_size)
-		goto exit;
-
-	size = min(len, BNXT_VPD_FLD_LEN - 1);
+	size = min_t(int, kw_len, BNXT_VPD_FLD_LEN - 1);
 	memcpy(bp->board_serialno, &vpd_data[pos], size);
 exit:
 	kfree(vpd_data);

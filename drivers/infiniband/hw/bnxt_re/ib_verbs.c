@@ -1309,7 +1309,7 @@ out:
 static int bnxt_re_create_shadow_gsi(struct bnxt_re_qp *qp,
 				     struct bnxt_re_pd *pd)
 {
-	struct bnxt_re_sqp_entries *sqp_tbl = NULL;
+	struct bnxt_re_sqp_entries *sqp_tbl;
 	struct bnxt_re_dev *rdev;
 	struct bnxt_re_qp *sqp;
 	struct bnxt_re_ah *sah;
@@ -1317,7 +1317,7 @@ static int bnxt_re_create_shadow_gsi(struct bnxt_re_qp *qp,
 
 	rdev = qp->rdev;
 	/* Create a shadow QP to handle the QP1 traffic */
-	sqp_tbl = kzalloc(sizeof(*sqp_tbl) * BNXT_RE_MAX_GSI_SQP_ENTRIES,
+	sqp_tbl = kcalloc(BNXT_RE_MAX_GSI_SQP_ENTRIES, sizeof(*sqp_tbl),
 			  GFP_KERNEL);
 	if (!sqp_tbl)
 		return -ENOMEM;
