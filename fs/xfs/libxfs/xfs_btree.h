@@ -216,7 +216,7 @@ struct xfs_btree_cur_ino {
  * Btree cursor structure.
  * This collects all information needed by the btree code in one place.
  */
-typedef struct xfs_btree_cur
+struct xfs_btree_cur
 {
 	struct xfs_trans	*bc_tp;	/* transaction we're in, if any */
 	struct xfs_mount	*bc_mp;	/* file system mount struct */
@@ -243,7 +243,7 @@ typedef struct xfs_btree_cur
 		struct xfs_btree_cur_ag	bc_ag;
 		struct xfs_btree_cur_ino bc_ino;
 	};
-} xfs_btree_cur_t;
+};
 
 /* cursor flags */
 #define XFS_BTREE_LONG_PTRS		(1<<0)	/* pointers are 64bits long */
@@ -309,7 +309,7 @@ xfs_btree_check_sptr(
  */
 void
 xfs_btree_del_cursor(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
+	struct xfs_btree_cur	*cur,	/* btree cursor */
 	int			error);	/* del because of error */
 
 /*
@@ -318,8 +318,8 @@ xfs_btree_del_cursor(
  */
 int					/* error */
 xfs_btree_dup_cursor(
-	xfs_btree_cur_t		*cur,	/* input cursor */
-	xfs_btree_cur_t		**ncur);/* output cursor */
+	struct xfs_btree_cur		*cur,	/* input cursor */
+	struct xfs_btree_cur		**ncur);/* output cursor */
 
 /*
  * Compute first and last byte offsets for the fields given.
@@ -527,7 +527,7 @@ struct xfs_ifork *xfs_btree_ifork_ptr(struct xfs_btree_cur *cur);
 /* Does this cursor point to the last block in the given level? */
 static inline bool
 xfs_btree_islastblock(
-	xfs_btree_cur_t		*cur,
+	struct xfs_btree_cur	*cur,
 	int			level)
 {
 	struct xfs_btree_block	*block;

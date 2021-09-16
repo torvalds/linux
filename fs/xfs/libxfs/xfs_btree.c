@@ -388,14 +388,14 @@ xfs_btree_del_cursor(
  */
 int					/* error */
 xfs_btree_dup_cursor(
-	xfs_btree_cur_t	*cur,		/* input cursor */
-	xfs_btree_cur_t	**ncur)		/* output cursor */
+	struct xfs_btree_cur *cur,		/* input cursor */
+	struct xfs_btree_cur **ncur)		/* output cursor */
 {
 	struct xfs_buf	*bp;		/* btree block's buffer pointer */
 	int		error;		/* error return value */
 	int		i;		/* level number of btree block */
 	xfs_mount_t	*mp;		/* mount structure for filesystem */
-	xfs_btree_cur_t	*new;		/* new cursor value */
+	struct xfs_btree_cur *new;		/* new cursor value */
 	xfs_trans_t	*tp;		/* transaction pointer, can be NULL */
 
 	tp = cur->bc_tp;
@@ -691,7 +691,7 @@ xfs_btree_get_block(
  */
 STATIC int				/* success=1, failure=0 */
 xfs_btree_firstrec(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
+	struct xfs_btree_cur	*cur,	/* btree cursor */
 	int			level)	/* level to change */
 {
 	struct xfs_btree_block	*block;	/* generic btree block pointer */
@@ -721,7 +721,7 @@ xfs_btree_firstrec(
  */
 STATIC int				/* success=1, failure=0 */
 xfs_btree_lastrec(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
+	struct xfs_btree_cur	*cur,	/* btree cursor */
 	int			level)	/* level to change */
 {
 	struct xfs_btree_block	*block;	/* generic btree block pointer */
@@ -985,7 +985,7 @@ xfs_btree_readahead_ptr(
  */
 STATIC void
 xfs_btree_setbuf(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
+	struct xfs_btree_cur	*cur,	/* btree cursor */
 	int			lev,	/* level in btree */
 	struct xfs_buf		*bp)	/* new buffer to set */
 {
