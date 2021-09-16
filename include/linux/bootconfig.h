@@ -271,7 +271,7 @@ static inline int __init xbc_node_compose_key(struct xbc_node *node,
 }
 
 /* XBC node initializer */
-int __init xbc_init(char *buf, const char **emsg, int *epos);
+int __init xbc_init(const char *buf, size_t size, const char **emsg, int *epos);
 
 
 /* XBC cleanup data structures */
