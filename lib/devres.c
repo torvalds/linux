@@ -528,3 +528,39 @@ void pcim_iounmap_regions(struct pci_dev *pdev, int mask)
 }
 EXPORT_SYMBOL(pcim_iounmap_regions);
 #endif /* CONFIG_PCI */
+
+static void devm_arch_phys_ac_add_release(struct device *dev, void *res)
+{
+	arch_phys_wc_del(*((int *)res));
+}
+
+/**
+ * devm_arch_phys_wc_add - Managed arch_phys_wc_add()
+ * @dev: Managed device
+ * @base: Memory base address
+ * @size: Size of memory range
+ *
+ * Adds a WC MTRR using arch_phys_wc_add() and sets up a release callback.
+ * See arch_phys_wc_add() for more information.
+ */
+int devm_arch_phys_wc_add(struct device *dev, unsigned long base, unsigned long size)
+{
+	int *mtrr;
+	int ret;
+
+	mtrr = devres_alloc(devm_arch_phys_ac_add_release, sizeof(*mtrr), GFP_KERNEL);
+	if (!mtrr)
+		return -ENOMEM;
+
+	ret = arch_phys_wc_add(base, size);
+	if (ret < 0) {
+		devres_free(mtrr);
+		return ret;
+	}
+
+	*mtrr = ret;
+	devres_add(dev, mtrr);
+
+	return ret;
+}
+EXPORT_SYMBOL(devm_arch_phys_wc_add);

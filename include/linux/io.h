@@ -132,6 +132,8 @@ static inline int arch_phys_wc_index(int handle)
 #endif
 #endif
 
+int devm_arch_phys_wc_add(struct device *dev, unsigned long base, unsigned long size);
+
 enum {
 	/* See memremap() kernel-doc for usage description... */
 	MEMREMAP_WB = 1 << 0,
