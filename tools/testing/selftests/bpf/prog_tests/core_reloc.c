@@ -249,8 +249,7 @@ static int duration = 0;
 #define SIZE_CASE_COMMON(name)						\
 	.case_name = #name,						\
 	.bpf_obj_file = "test_core_reloc_size.o",			\
-	.btf_src_file = "btf__core_reloc_" #name ".o",			\
-	.relaxed_core_relocs = true
+	.btf_src_file = "btf__core_reloc_" #name ".o"
 
 #define SIZE_OUTPUT_DATA(type)						\
 	STRUCT_TO_CHAR_PTR(core_reloc_size_output) {			\
