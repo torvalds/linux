@@ -28,5 +28,8 @@ int rga2_set_mmu_info(struct rga2_reg *reg, struct rga2_req *req);
 void rga2_dma_flush_range(void *pstart, void *pend);
 dma_addr_t rga2_dma_flush_page(struct page *page, int map);
 
+int rga2_get_dma_info(struct rga2_reg *reg, struct rga2_req *req);
+void rga2_put_dma_info(struct rga2_reg *reg);
+
 #endif
 

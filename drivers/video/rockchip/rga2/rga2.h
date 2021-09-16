@@ -337,6 +337,18 @@ typedef struct rga_img_info_32_t
 }
 rga_img_info_32_t;
 
+struct rga_dma_buffer_t {
+	/* DMABUF information */
+	struct dma_buf *dma_buf;
+	struct dma_buf_attachment *attach;
+	struct sg_table *sgt;
+
+	dma_addr_t iova;
+	unsigned long size;
+	void *vaddr;
+	enum dma_data_direction dir;
+};
+
 struct rga_req {
     uint8_t render_mode;            /* (enum) process mode sel */
 
@@ -578,14 +590,6 @@ struct rga2_req
     u8 rgb2yuv_mode;
 
 	u8 buf_type;
-	struct sg_table *sg_src0;
-	struct sg_table *sg_src1;
-	struct sg_table *sg_dst;
-	struct sg_table *sg_els;
-	struct dma_buf_attachment *attach_src0;
-	struct dma_buf_attachment *attach_src1;
-	struct dma_buf_attachment *attach_dst;
-	struct dma_buf_attachment *attach_els;
 };
 
 struct rga2_mmu_buf_t {
@@ -726,15 +730,10 @@ struct rga2_reg {
 	uint32_t MMU_len;
 	bool MMU_map;
 
-	struct sg_table *sg_src0;
-	struct sg_table *sg_src1;
-	struct sg_table *sg_dst;
-	struct sg_table *sg_els;
-
-	struct dma_buf_attachment *attach_src0;
-	struct dma_buf_attachment *attach_src1;
-	struct dma_buf_attachment *attach_dst;
-	struct dma_buf_attachment *attach_els;
+	struct rga_dma_buffer_t dma_buffer_src0;
+	struct rga_dma_buffer_t dma_buffer_src1;
+	struct rga_dma_buffer_t dma_buffer_dst;
+	struct rga_dma_buffer_t dma_buffer_els;
 };
 
 struct rga2_service_info {
