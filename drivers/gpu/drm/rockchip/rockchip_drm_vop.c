@@ -212,6 +212,7 @@ struct vop_win {
 	const struct vop_csc *csc;
 	const uint32_t *data_formats;
 	uint32_t nformats;
+	const uint64_t *format_modifiers;
 	u64 feature;
 	struct vop *vop;
 	struct vop_plane_state state;
@@ -4197,7 +4198,7 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 	int ret;
 
 	ret = drm_universal_plane_init(vop->drm_dev, &win->base, possible_crtcs, &vop_plane_funcs,
-				       win->data_formats, win->nformats, NULL,
+				       win->data_formats, win->nformats, win->format_modifiers,
 				       win->type, win->name);
 	if (ret) {
 		DRM_ERROR("failed to initialize plane %d\n", ret);
@@ -4574,6 +4575,7 @@ static int vop_win_init(struct vop *vop)
 		vop_win->type = win_data->type;
 		vop_win->data_formats = win_data->phy->data_formats;
 		vop_win->nformats = win_data->phy->nformats;
+		vop_win->format_modifiers = win_data->format_modifiers;
 		vop_win->feature = win_data->feature;
 		vop_win->vop = vop;
 		vop_win->win_id = i;
@@ -4599,6 +4601,7 @@ static int vop_win_init(struct vop *vop)
 			vop_area->type = DRM_PLANE_TYPE_OVERLAY;
 			vop_area->data_formats = vop_win->data_formats;
 			vop_area->nformats = vop_win->nformats;
+			vop_area->format_modifiers = win_data->format_modifiers;
 			vop_area->vop = vop;
 			vop_area->win_id = i;
 			vop_area->area_id = j + 1;
