@@ -207,7 +207,8 @@
 		gpio = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-always-on;
-		vin-supply = <&vccsys>;
+		regulator-boot-on;
+		vin-supply = <&usb_midu>;
 	};
 };
 
@@ -311,6 +312,7 @@
 		vcc5-supply = <&vccsys>;
 		vcc6-supply = <&vccsys>;
 		vcc7-supply = <&vccsys>;
+		vcc8-supply = <&vccsys>;
 
 		regulators {
 			vdd_logic: DCDC_REG1 {
@@ -459,6 +461,14 @@
 					regulator-off-in-suspend;
 					regulator-suspend-microvolt = <3000000>;
 				};
+			};
+
+			usb_midu: BOOST {
+				regulator-name = "usb_midu";
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5400000>;
+				regulator-always-on;
+				regulator-boot-on;
 			};
 		};
 
