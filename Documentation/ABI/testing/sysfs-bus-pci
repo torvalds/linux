@@ -160,7 +160,7 @@ Description:
 		If the underlying VPD has a writable section then the
 		corresponding section of this file will be writable.
 
-What:		/sys/bus/pci/devices/.../virtfnN
+What:		/sys/bus/pci/devices/.../virtfn<N>
 Date:		March 2009
 Contact:	Yu Zhao <yu.zhao@intel.com>
 Description:
