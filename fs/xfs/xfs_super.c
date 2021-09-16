@@ -1966,8 +1966,8 @@ xfs_init_zones(void)
 		goto out_destroy_log_ticket_zone;
 
 	xfs_btree_cur_zone = kmem_cache_create("xfs_btree_cur",
-				xfs_btree_cur_sizeof(XFS_BTREE_MAXLEVELS),
-					       0, 0, NULL);
+			xfs_btree_cur_sizeof(XFS_BTREE_CUR_CACHE_MAXLEVELS),
+			0, 0, NULL);
 	if (!xfs_btree_cur_zone)
 		goto out_destroy_bmap_free_item_zone;
 
