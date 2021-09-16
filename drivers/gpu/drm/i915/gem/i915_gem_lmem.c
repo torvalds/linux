@@ -104,6 +104,32 @@ __i915_gem_object_create_lmem_with_ps(struct drm_i915_private *i915,
 }
 
 struct drm_i915_gem_object *
+i915_gem_object_create_lmem_from_data(struct drm_i915_private *i915,
+				      const void *data, size_t size)
+{
+	struct drm_i915_gem_object *obj;
+	void *map;
+
+	obj = i915_gem_object_create_lmem(i915,
+					  round_up(size, PAGE_SIZE),
+					  I915_BO_ALLOC_CONTIGUOUS);
+	if (IS_ERR(obj))
+		return obj;
+
+	map = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
+	if (IS_ERR(map)) {
+		i915_gem_object_put(obj);
+		return map;
+	}
+
+	memcpy(map, data, size);
+
+	i915_gem_object_unpin_map(obj);
+
+	return obj;
+}
+
+struct drm_i915_gem_object *
 i915_gem_object_create_lmem(struct drm_i915_private *i915,
 			    resource_size_t size,
 			    unsigned int flags)
