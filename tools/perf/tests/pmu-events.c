@@ -208,8 +208,23 @@ static const struct perf_pmu_test_event sys_ddr_pmu_write_cycles = {
 	.matching_pmu = "uncore_sys_ddr_pmu",
 };
 
+static const struct perf_pmu_test_event sys_ccn_pmu_read_cycles = {
+	.event = {
+		.name = "sys_ccn_pmu.read_cycles",
+		.event = "config=0x2c",
+		.desc = "ccn read-cycles event. Unit: uncore_sys_ccn_pmu ",
+		.topic = "uncore",
+		.pmu = "uncore_sys_ccn_pmu",
+		.compat = "0x01",
+	},
+	.alias_str = "config=0x2c",
+	.alias_long_desc = "ccn read-cycles event. Unit: uncore_sys_ccn_pmu ",
+	.matching_pmu = "uncore_sys_ccn_pmu",
+};
+
 static const struct perf_pmu_test_event *sys_events[] = {
 	&sys_ddr_pmu_write_cycles,
+	&sys_ccn_pmu_read_cycles,
 	NULL
 };
 
@@ -675,6 +690,16 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 		},
 		.aliases = {
 			&sys_ddr_pmu_write_cycles,
+		},
+	},
+	{
+		.pmu = {
+			.name = (char *)"uncore_sys_ccn_pmu4",
+			.is_uncore = 1,
+			.id = (char *)"0x01",
+		},
+		.aliases = {
+			&sys_ccn_pmu_read_cycles,
 		},
 	},
 };
