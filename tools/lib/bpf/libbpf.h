@@ -90,6 +90,8 @@ struct bpf_object_open_opts {
 	 * auto-pinned to that path on load; defaults to "/sys/fs/bpf".
 	 */
 	const char *pin_root_path;
+
+	LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_program__set_attach_target() on each individual bpf_program")
 	__u32 attach_prog_fd;
 	/* Additional kernel config content that augments and overrides
 	 * system Kconfig for CONFIG_xxx externs.

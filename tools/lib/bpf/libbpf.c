@@ -6415,9 +6415,12 @@ static int bpf_object_init_progs(struct bpf_object *obj, const struct bpf_object
 		bpf_program__set_type(prog, prog->sec_def->prog_type);
 		bpf_program__set_expected_attach_type(prog, prog->sec_def->expected_attach_type);
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 		if (prog->sec_def->prog_type == BPF_PROG_TYPE_TRACING ||
 		    prog->sec_def->prog_type == BPF_PROG_TYPE_EXT)
 			prog->attach_prog_fd = OPTS_GET(opts, attach_prog_fd, 0);
+#pragma GCC diagnostic pop
 	}
 
 	return 0;
