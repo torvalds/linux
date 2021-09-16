@@ -703,6 +703,7 @@ xfs_btree_bload_compute_geometry(
 			 * block-based btree level.
 			 */
 			cur->bc_nlevels++;
+			ASSERT(cur->bc_nlevels <= XFS_BTREE_MAXLEVELS);
 			xfs_btree_bload_level_geometry(cur, bbl, level,
 					nr_this_level, &avg_per_block,
 					&level_blocks, &dontcare64);
@@ -718,6 +719,7 @@ xfs_btree_bload_compute_geometry(
 
 			/* Otherwise, we need another level of btree. */
 			cur->bc_nlevels++;
+			ASSERT(cur->bc_nlevels <= XFS_BTREE_MAXLEVELS);
 		}
 
 		nr_blocks += level_blocks;
