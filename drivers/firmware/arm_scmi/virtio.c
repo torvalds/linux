@@ -390,8 +390,11 @@ static int scmi_vio_probe(struct virtio_device *vdev)
 	struct virtqueue *vqs[VIRTIO_SCMI_VQ_MAX_CNT];
 
 	/* Only one SCMI VirtiO device allowed */
-	if (scmi_vdev)
-		return -EINVAL;
+	if (scmi_vdev) {
+		dev_err(dev,
+			"One SCMI Virtio device was already initialized: only one allowed.\n");
+		return -EBUSY;
+	}
 
 	have_vq_rx = scmi_vio_have_vq_rx(vdev);
 	vq_cnt = have_vq_rx ? VIRTIO_SCMI_VQ_MAX_CNT : 1;
@@ -434,7 +437,8 @@ static int scmi_vio_probe(struct virtio_device *vdev)
 	}
 
 	vdev->priv = channels;
-	scmi_vdev = vdev;
+	/* Ensure initialized scmi_vdev is visible */
+	smp_store_mb(scmi_vdev, vdev);
 
 	return 0;
 }
@@ -450,7 +454,8 @@ static void scmi_vio_remove(struct virtio_device *vdev)
 	 */
 	vdev->config->reset(vdev);
 	vdev->config->del_vqs(vdev);
-	scmi_vdev = NULL;
+	/* Ensure scmi_vdev is visible as NULL */
+	smp_store_mb(scmi_vdev, NULL);
 }
 
 static int scmi_vio_validate(struct virtio_device *vdev)
