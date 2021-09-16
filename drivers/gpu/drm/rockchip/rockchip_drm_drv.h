@@ -182,6 +182,14 @@ struct rockchip_drm_private {
 	struct mutex psr_list_lock;
 	struct mutex commit_lock;
 
+	/* private crtc prop */
+	struct drm_property *soc_id_prop;
+	struct drm_property *port_id_prop;
+	struct drm_property *aclk_prop;
+	struct drm_property *bg_prop;
+	struct drm_property *line_flag_prop;
+
+	/* private plane prop */
 	struct drm_property *eotf_prop;
 	struct drm_property *color_space_prop;
 	struct drm_property *global_alpha_prop;
@@ -189,6 +197,8 @@ struct rockchip_drm_private {
 	struct drm_property *alpha_scale_prop;
 	struct drm_property *async_commit_prop;
 	struct drm_property *share_id_prop;
+
+	/* private connector prop */
 	struct drm_property *connector_id_prop;
 
 	const struct rockchip_crtc_funcs *crtc_funcs[ROCKCHIP_MAX_CRTC];

@@ -461,6 +461,20 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 		return -ENOMEM;
 	private->connector_id_prop = prop;
 
+	prop = drm_property_create_object(dev,
+					  DRM_MODE_PROP_ATOMIC | DRM_MODE_PROP_IMMUTABLE,
+					  "SOC_ID", DRM_MODE_OBJECT_CRTC);
+	private->soc_id_prop = prop;
+
+	prop = drm_property_create_object(dev,
+					  DRM_MODE_PROP_ATOMIC | DRM_MODE_PROP_IMMUTABLE,
+					  "PORT_ID", DRM_MODE_OBJECT_CRTC);
+	private->port_id_prop = prop;
+
+	private->aclk_prop = drm_property_create_range(dev, 0, "ACLK", 0, UINT_MAX);
+	private->bg_prop = drm_property_create_range(dev, 0, "BACKGROUND", 0, UINT_MAX);
+	private->line_flag_prop = drm_property_create_range(dev, 0, "LINE_FLAG1", 0, UINT_MAX);
+
 	return drm_mode_create_tv_properties(dev, 0, NULL);
 }
 
