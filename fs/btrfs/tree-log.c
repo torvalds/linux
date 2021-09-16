@@ -3632,6 +3632,66 @@ static noinline int insert_dir_log_key(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+static int process_dir_items_leaf(struct btrfs_trans_handle *trans,
+				  struct btrfs_inode *inode,
+				  struct btrfs_path *path,
+				  struct btrfs_path *dst_path,
+				  int key_type,
+				  struct btrfs_log_ctx *ctx)
+{
+	struct btrfs_root *log = inode->root->log_root;
+	struct extent_buffer *src = path->nodes[0];
+	const int nritems = btrfs_header_nritems(src);
+	const u64 ino = btrfs_ino(inode);
+	int i;
+
+	for (i = path->slots[0]; i < nritems; i++) {
+		struct btrfs_key key;
+		struct btrfs_dir_item *di;
+		int ret;
+
+		btrfs_item_key_to_cpu(src, &key, i);
+
+		if (key.objectid != ino || key.type != key_type)
+			return 1;
+
+		ret = overwrite_item(trans, log, dst_path, src, i, &key);
+		if (ret < 0)
+			return ret;
+
+		/*
+		 * We must make sure that when we log a directory entry, the
+		 * corresponding inode, after log replay, has a matching link
+		 * count. For example:
+		 *
+		 * touch foo
+		 * mkdir mydir
+		 * sync
+		 * ln foo mydir/bar
+		 * xfs_io -c "fsync" mydir
+		 * <crash>
+		 * <mount fs and log replay>
+		 *
+		 * Would result in a fsync log that when replayed, our file inode
+		 * would have a link count of 1, but we get two directory entries
+		 * pointing to the same inode. After removing one of the names,
+		 * it would not be possible to remove the other name, which
+		 * resulted always in stale file handle errors, and would not be
+		 * possible to rmdir the parent directory, since its i_size could
+		 * never be decremented to the value BTRFS_EMPTY_DIR_SIZE,
+		 * resulting in -ENOTEMPTY errors.
+		 */
+		di = btrfs_item_ptr(src, i, struct btrfs_dir_item);
+		btrfs_dir_item_key_to_cpu(src, di, &key);
+		if ((btrfs_dir_transid(src, di) == trans->transid ||
+		     btrfs_dir_type(src, di) == BTRFS_FT_DIR) &&
+		    key.type != BTRFS_ROOT_ITEM_KEY)
+			ctx->log_new_dentries = true;
+	}
+
+	return 0;
+}
+
 /*
  * log all the items included in the current transaction for a given
  * directory.  This also creates the range items in the log tree required
@@ -3647,11 +3707,8 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 	struct btrfs_key min_key;
 	struct btrfs_root *root = inode->root;
 	struct btrfs_root *log = root->log_root;
-	struct extent_buffer *src;
 	int err = 0;
 	int ret;
-	int i;
-	int nritems;
 	u64 first_offset = min_offset;
 	u64 last_offset = (u64)-1;
 	u64 ino = btrfs_ino(inode);
@@ -3729,61 +3786,14 @@ search:
 	 * from our directory
 	 */
 	while (1) {
-		struct btrfs_key tmp;
-		src = path->nodes[0];
-		nritems = btrfs_header_nritems(src);
-		for (i = path->slots[0]; i < nritems; i++) {
-			struct btrfs_dir_item *di;
-
-			btrfs_item_key_to_cpu(src, &min_key, i);
-
-			if (min_key.objectid != ino || min_key.type != key_type)
-				goto done;
-
-			if (need_resched()) {
-				btrfs_release_path(path);
-				cond_resched();
-				goto search;
-			}
-
-			ret = overwrite_item(trans, log, dst_path, src, i,
-					     &min_key);
-			if (ret) {
+		ret = process_dir_items_leaf(trans, inode, path, dst_path,
+					     key_type, ctx);
+		if (ret != 0) {
+			if (ret < 0)
 				err = ret;
-				goto done;
-			}
-
-			/*
-			 * We must make sure that when we log a directory entry,
-			 * the corresponding inode, after log replay, has a
-			 * matching link count. For example:
-			 *
-			 * touch foo
-			 * mkdir mydir
-			 * sync
-			 * ln foo mydir/bar
-			 * xfs_io -c "fsync" mydir
-			 * <crash>
-			 * <mount fs and log replay>
-			 *
-			 * Would result in a fsync log that when replayed, our
-			 * file inode would have a link count of 1, but we get
-			 * two directory entries pointing to the same inode.
-			 * After removing one of the names, it would not be
-			 * possible to remove the other name, which resulted
-			 * always in stale file handle errors, and would not
-			 * be possible to rmdir the parent directory, since
-			 * its i_size could never decrement to the value
-			 * BTRFS_EMPTY_DIR_SIZE, resulting in -ENOTEMPTY errors.
-			 */
-			di = btrfs_item_ptr(src, i, struct btrfs_dir_item);
-			btrfs_dir_item_key_to_cpu(src, di, &tmp);
-			if ((btrfs_dir_transid(src, di) == trans->transid ||
-			     btrfs_dir_type(src, di) == BTRFS_FT_DIR) &&
-			    tmp.type != BTRFS_ROOT_ITEM_KEY)
-				ctx->log_new_dentries = true;
+			goto done;
 		}
-		path->slots[0] = nritems;
+		path->slots[0] = btrfs_header_nritems(path->nodes[0]);
 
 		/*
 		 * look ahead to the next item and see if it is also
@@ -3797,20 +3807,25 @@ search:
 				err = ret;
 			goto done;
 		}
-		btrfs_item_key_to_cpu(path->nodes[0], &tmp, path->slots[0]);
-		if (tmp.objectid != ino || tmp.type != key_type) {
+		btrfs_item_key_to_cpu(path->nodes[0], &min_key, path->slots[0]);
+		if (min_key.objectid != ino || min_key.type != key_type) {
 			last_offset = (u64)-1;
 			goto done;
 		}
 		if (btrfs_header_generation(path->nodes[0]) != trans->transid) {
 			ret = overwrite_item(trans, log, dst_path,
 					     path->nodes[0], path->slots[0],
-					     &tmp);
+					     &min_key);
 			if (ret)
 				err = ret;
 			else
-				last_offset = tmp.offset;
+				last_offset = min_key.offset;
 			goto done;
+		}
+		if (need_resched()) {
+			btrfs_release_path(path);
+			cond_resched();
+			goto search;
 		}
 	}
 done:
