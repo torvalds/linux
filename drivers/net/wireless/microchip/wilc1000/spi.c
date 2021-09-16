@@ -47,6 +47,8 @@ struct wilc_spi {
 
 static const struct wilc_hif_func wilc_hif_spi;
 
+static int wilc_spi_reset(struct wilc *wilc);
+
 /********************************************
  *
  *      Spi protocol Function
@@ -956,6 +958,19 @@ static int wilc_spi_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
  *
  ********************************************/
 
+static int wilc_spi_reset(struct wilc *wilc)
+{
+	struct spi_device *spi = to_spi_device(wilc->dev);
+	struct wilc_spi *spi_priv = wilc->bus_data;
+	int result;
+
+	result = wilc_spi_special_cmd(wilc, CMD_RESET);
+	if (result && !spi_priv->probing_crc)
+		dev_err(&spi->dev, "Failed cmd reset\n");
+
+	return result;
+}
+
 static int wilc_spi_deinit(struct wilc *wilc)
 {
 	/*
@@ -1173,4 +1188,5 @@ static const struct wilc_hif_func wilc_hif_spi = {
 	.hif_block_tx_ext = wilc_spi_write,
 	.hif_block_rx_ext = wilc_spi_read,
 	.hif_sync_ext = wilc_spi_sync_ext,
+	.hif_reset = wilc_spi_reset,
 };

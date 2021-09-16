@@ -669,6 +669,11 @@ void chip_wakeup(struct wilc *wilc)
 		pr_err("Failed to wake-up the chip\n");
 		return;
 	}
+	/* Sometimes spi fail to read clock regs after reading
+	 * writing clockless registers
+	 */
+	if (wilc->io_type == WILC_HIF_SPI)
+		wilc->hif_func->hif_reset(wilc);
 }
 EXPORT_SYMBOL_GPL(chip_wakeup);
 
