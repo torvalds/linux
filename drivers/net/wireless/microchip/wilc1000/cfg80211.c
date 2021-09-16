@@ -1580,6 +1580,7 @@ static void wilc_set_wakeup(struct wiphy *wiphy, bool enabled)
 	}
 
 	netdev_info(vif->ndev, "cfg set wake up = %d\n", enabled);
+	wilc_set_wowlan_trigger(vif, enabled);
 	srcu_read_unlock(&wl->srcu, srcu_idx);
 }
 

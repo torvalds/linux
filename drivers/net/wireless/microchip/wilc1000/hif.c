@@ -23,6 +23,10 @@ struct wilc_set_multicast {
 	u8 *mc_list;
 };
 
+struct host_if_wowlan_trigger {
+	u8 wowlan_trigger;
+};
+
 struct wilc_del_all_sta {
 	u8 assoc_sta;
 	u8 mac[WILC_MAX_NUM_STA][ETH_ALEN];
@@ -34,6 +38,7 @@ union wilc_message_body {
 	struct wilc_set_multicast mc_info;
 	struct wilc_remain_ch remain_on_ch;
 	char *data;
+	struct host_if_wowlan_trigger wow_trigger;
 };
 
 struct host_if_msg {
@@ -960,6 +965,25 @@ error:
 	kfree(set_mc->mc_list);
 	kfree(wid.val);
 	kfree(msg);
+}
+
+void wilc_set_wowlan_trigger(struct wilc_vif *vif, bool enabled)
+{
+	int ret;
+	struct wid wid;
+	u8 wowlan_trigger = 0;
+
+	if (enabled)
+		wowlan_trigger = 1;
+
+	wid.id = WID_WOWLAN_TRIGGER;
+	wid.type = WID_CHAR;
+	wid.val = &wowlan_trigger;
+	wid.size = sizeof(char);
+
+	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
+	if (ret)
+		pr_err("Failed to send wowlan trigger config packet\n");
 }
 
 static void handle_scan_timer(struct work_struct *work)

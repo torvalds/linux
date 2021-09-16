@@ -662,6 +662,7 @@ enum {
 
 	WID_LOG_TERMINAL_SWITCH		= 0x00CD,
 	WID_TX_POWER			= 0x00CE,
+	WID_WOWLAN_TRIGGER		= 0X00CF,
 	/*  EMAC Short WID list */
 	/*  RTS Threshold */
 	/*
