@@ -83,6 +83,7 @@ struct bpf_object_open_opts {
 	 * Non-relocatable instructions are replaced with invalid ones to
 	 * prevent accidental errors.
 	 * */
+	LIBBPF_DEPRECATED_SINCE(0, 6, "field has no effect")
 	bool relaxed_core_relocs;
 	/* maps that set the 'pinning' attribute in their definition will have
 	 * their pin_path attribute set to a file in this directory, and be
