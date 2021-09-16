@@ -195,7 +195,7 @@ Description:	The "tpm_version_major" property shows the TCG spec major version
 
 		  2
 
-What:		/sys/class/tpm/tpmX/pcr-H/N
+What:		/sys/class/tpm/tpmX/pcr-<H>/<N>
 Date:		March 2021
 KernelVersion:	5.12
 Contact:	linux-integrity@vger.kernel.org
