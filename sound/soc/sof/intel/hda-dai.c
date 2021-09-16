@@ -17,7 +17,7 @@
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
-#include "../compress.h"
+#include "../sof-probes.h"
 #endif
 
 struct hda_pipe_params {

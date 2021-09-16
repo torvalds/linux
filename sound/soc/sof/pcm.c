@@ -17,7 +17,7 @@
 #include "sof-audio.h"
 #include "ops.h"
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
-#include "compress.h"
+#include "sof-probes.h"
 #endif
 
 /* Create DMA buffer page table for DSP */
