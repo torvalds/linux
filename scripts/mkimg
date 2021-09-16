@@ -55,14 +55,13 @@ KERNEL_IMAGE_PATH=${objtree}/arch/${ARCH}/boot/Image
 KERNEL_IMAGE_ARG="--kernel ${KERNEL_IMAGE_PATH}"
 if [ "${ARCH}" == "arm" ]; then
 	DTB_PATH=${objtree}/arch/arm/boot/dts/${DTB}
-	KERNEL_ZIMAGE_PATH=${objtree}/arch/arm/boot/zImage
-	KERNEL_ZIMAGE_ARG="--kernel ${KERNEL_ZIMAGE_PATH}"
 	ZIMAGE=zImage
 else
 	DTB_PATH=${objtree}/arch/arm64/boot/dts/rockchip/${DTB}
-	KERNEL_ZIMAGE_ARG="--kernel ${objtree}/arch/arm64/boot/Image.lz4"
 	ZIMAGE=Image.lz4
 fi
+KERNEL_ZIMAGE_PATH=${objtree}/arch/${ARCH}/boot/${ZIMAGE}
+KERNEL_ZIMAGE_ARG="--kernel ${KERNEL_ZIMAGE_PATH}"
 if [ ! -f ${DTB_PATH} ]; then
 	echo "No dtb" >&2
 	usage
@@ -204,6 +203,29 @@ repack_itb()
 	gen_itb
 }
 
+# Create U-Boot FIT Image use ${BOOT_ITS}
+make_fit_boot_img()
+{
+	ITS=${OUT}/boot.its
+
+	check_mkimage
+	mkdir -p ${OUT}
+	rm -f ${OUT}/fdt ${OUT}/kernel ${OUT}/resource ${ITS}
+
+	cp -a ${BOOT_ITS} ${ITS}
+	cp -a ${DTB_PATH} ${OUT}/fdt
+	cp -a ${KERNEL_ZIMAGE_PATH} ${OUT}/kernel
+	cp -a resource.img ${OUT}/resource
+
+	if [ "${ARCH}" == "arm64" ]; then
+		sed -i -e 's/arch = ""/arch = "arm64"/g' -e 's/compression = ""/compression = "lz4"/' ${ITS}
+	else
+		sed -i -e 's/arch = ""/arch = "arm"/g' -e 's/compression = ""/compression = "none"/' ${ITS}
+	fi
+	FIT_DESC=$(${MKIMAGE} ${MKIMAGE_ARG} -f ${ITS} boot.img | grep "FIT description" | sed 's/FIT description: //')
+	echo "  Image:  boot.img (${FIT_DESC}) is ready";
+}
+
 if [ -x ${srctree}/scripts/bmpconvert ]; then
 	if [ -f ${LOGO_PATH} ]; then
 		${srctree}/scripts/bmpconvert ${LOGO_PATH};
@@ -230,6 +252,8 @@ if [ -f "${BOOT_IMG}" ]; then
 	elif [ -x ${srctree}/scripts/repack-bootimg ]; then
 		repack_boot_img;
 	fi
+elif [ -f "${BOOT_ITS}" ]; then
+	make_fit_boot_img;
 elif [ -x ${srctree}/scripts/mkbootimg ]; then
 	make_boot_img;
 fi
