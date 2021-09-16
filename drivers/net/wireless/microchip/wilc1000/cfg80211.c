@@ -1726,7 +1726,6 @@ int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 	*wilc = wl;
 	wl->io_type = io_type;
 	wl->hif_func = ops;
-	wl->chip_ps_state = WILC_CHIP_WAKEDUP;
 
 	for (i = 0; i < NQUEUES; i++)
 		INIT_LIST_HEAD(&wl->txq[i].txq_head.list);

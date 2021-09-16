@@ -48,12 +48,6 @@ enum {
 	WILC_FW_MAX_PSPOLL_PS = 4
 };
 
-enum chip_ps_states {
-	WILC_CHIP_WAKEDUP = 0,
-	WILC_CHIP_SLEEPING_AUTO = 1,
-	WILC_CHIP_SLEEPING_MANUAL = 2
-};
-
 enum bus_acquire {
 	WILC_BUS_ACQUIRE_ONLY = 0,
 	WILC_BUS_ACQUIRE_AND_WAKEUP = 1,

@@ -265,7 +265,6 @@ struct wilc {
 	bool suspend_event;
 
 	struct workqueue_struct *hif_workqueue;
-	enum chip_ps_states chip_ps_state;
 	struct wilc_cfg cfg;
 	void *bus_data;
 	struct net_device *monitor_dev;
