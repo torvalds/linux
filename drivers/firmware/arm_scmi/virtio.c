@@ -110,18 +110,16 @@ static void scmi_finalize_message(struct scmi_vio_channel *vioch,
 	if (vioch->is_rx) {
 		scmi_vio_feed_vq_rx(vioch, msg);
 	} else {
-		unsigned long flags;
-
-		spin_lock_irqsave(&vioch->lock, flags);
+		/* Here IRQs are assumed to be already disabled by the caller */
+		spin_lock(&vioch->lock);
 		list_add(&msg->list, &vioch->free_list);
-		spin_unlock_irqrestore(&vioch->lock, flags);
+		spin_unlock(&vioch->lock);
 	}
 }
 
 static void scmi_vio_complete_cb(struct virtqueue *vqueue)
 {
 	unsigned long ready_flags;
-	unsigned long flags;
 	unsigned int length;
 	struct scmi_vio_channel *vioch;
 	struct scmi_vio_msg *msg;
@@ -140,7 +138,8 @@ static void scmi_vio_complete_cb(struct virtqueue *vqueue)
 			goto unlock_ready_out;
 		}
 
-		spin_lock_irqsave(&vioch->lock, flags);
+		/* IRQs already disabled here no need to irqsave */
+		spin_lock(&vioch->lock);
 		if (cb_enabled) {
 			virtqueue_disable_cb(vqueue);
 			cb_enabled = false;
@@ -151,7 +150,7 @@ static void scmi_vio_complete_cb(struct virtqueue *vqueue)
 				goto unlock_out;
 			cb_enabled = true;
 		}
-		spin_unlock_irqrestore(&vioch->lock, flags);
+		spin_unlock(&vioch->lock);
 
 		if (msg) {
 			msg->rx_len = length;
@@ -161,11 +160,18 @@ static void scmi_vio_complete_cb(struct virtqueue *vqueue)
 			scmi_finalize_message(vioch, msg);
 		}
 
+		/*
+		 * Release ready_lock and re-enable IRQs between loop iterations
+		 * to allow virtio_chan_free() to possibly kick in and set the
+		 * flag vioch->ready to false even in between processing of
+		 * messages, so as to force outstanding messages to be ignored
+		 * when system is shutting down.
+		 */
 		spin_unlock_irqrestore(&vioch->ready_lock, ready_flags);
 	}
 
 unlock_out:
-	spin_unlock_irqrestore(&vioch->lock, flags);
+	spin_unlock(&vioch->lock);
 unlock_ready_out:
 	spin_unlock_irqrestore(&vioch->ready_lock, ready_flags);
 }
@@ -435,6 +441,13 @@ static int scmi_vio_probe(struct virtio_device *vdev)
 
 static void scmi_vio_remove(struct virtio_device *vdev)
 {
+	/*
+	 * Once we get here, virtio_chan_free() will have already been called by
+	 * the SCMI core for any existing channel and, as a consequence, all the
+	 * virtio channels will have been already marked NOT ready, causing any
+	 * outstanding message on any vqueue to be ignored by complete_cb: now
+	 * we can just stop processing buffers and destroy the vqueues.
+	 */
 	vdev->config->reset(vdev);
 	vdev->config->del_vqs(vdev);
 	scmi_vdev = NULL;
