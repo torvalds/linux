@@ -367,6 +367,15 @@ config PINCTRL_RK805
 	help
 	  This selects the pinctrl driver for RK805.
 
+config PINCTRL_RK806
+	tristate "Pinctrl and GPIO driver for RK806 PMIC"
+	depends on MFD_RK806
+	select GPIOLIB
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  This selects the pinctrl driver for RK806
+
 config PINCTRL_OCELOT
 	bool "Pinctrl driver for the Microsemi Ocelot and Jaguar2 SoCs"
 	depends on OF
