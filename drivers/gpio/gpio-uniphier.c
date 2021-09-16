@@ -179,7 +179,7 @@ static int uniphier_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
 
 static void uniphier_gpio_irq_mask(struct irq_data *data)
 {
-	struct uniphier_gpio_priv *priv = data->chip_data;
+	struct uniphier_gpio_priv *priv = irq_data_get_irq_chip_data(data);
 	u32 mask = BIT(irqd_to_hwirq(data));
 
 	uniphier_gpio_reg_update(priv, UNIPHIER_GPIO_IRQ_EN, mask, 0);
@@ -189,7 +189,7 @@ static void uniphier_gpio_irq_mask(struct irq_data *data)
 
 static void uniphier_gpio_irq_unmask(struct irq_data *data)
 {
-	struct uniphier_gpio_priv *priv = data->chip_data;
+	struct uniphier_gpio_priv *priv = irq_data_get_irq_chip_data(data);
 	u32 mask = BIT(irqd_to_hwirq(data));
 
 	uniphier_gpio_reg_update(priv, UNIPHIER_GPIO_IRQ_EN, mask, mask);
@@ -199,7 +199,7 @@ static void uniphier_gpio_irq_unmask(struct irq_data *data)
 
 static int uniphier_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 {
-	struct uniphier_gpio_priv *priv = data->chip_data;
+	struct uniphier_gpio_priv *priv = irq_data_get_irq_chip_data(data);
 	u32 mask = BIT(irqd_to_hwirq(data));
 	u32 val = 0;
 
