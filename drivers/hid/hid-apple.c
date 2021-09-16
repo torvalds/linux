@@ -24,11 +24,11 @@
 #define APPLE_RDESC_JIS		0x0001
 #define APPLE_IGNORE_MOUSE	0x0002
 #define APPLE_HAS_FN		0x0004
-#define APPLE_HIDDEV		0x0008
+/* 0x0008 reserved, was: APPLE_HIDDEV */
 /* 0x0010 reserved, was: APPLE_ISO_KEYBOARD */
 #define APPLE_MIGHTYMOUSE	0x0020
 #define APPLE_INVERT_HWHEEL	0x0040
-#define APPLE_IGNORE_HIDINPUT	0x0080
+/* 0x0080 reserved, was: APPLE_IGNORE_HIDINPUT */
 #define APPLE_NUMLOCK_EMULATION	0x0100
 
 #define APPLE_FLAG_FKEY		0x01
@@ -433,7 +433,6 @@ static int apple_probe(struct hid_device *hdev,
 {
 	unsigned long quirks = id->driver_data;
 	struct apple_sc *asc;
-	unsigned int connect_mask = HID_CONNECT_DEFAULT;
 	int ret;
 
 	asc = devm_kzalloc(&hdev->dev, sizeof(*asc), GFP_KERNEL);
@@ -452,12 +451,7 @@ static int apple_probe(struct hid_device *hdev,
 		return ret;
 	}
 
-	if (quirks & APPLE_HIDDEV)
-		connect_mask |= HID_CONNECT_HIDDEV_FORCE;
-	if (quirks & APPLE_IGNORE_HIDINPUT)
-		connect_mask &= ~HID_CONNECT_HIDINPUT;
-
-	ret = hid_hw_start(hdev, connect_mask);
+	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret) {
 		hid_err(hdev, "hw start failed\n");
 		return ret;
