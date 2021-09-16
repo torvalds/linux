@@ -1287,6 +1287,60 @@ static int rvu_lookup_rsrc(struct rvu *rvu, struct rvu_block *block,
 	return (val & 0xFFF);
 }
 
+int rvu_get_blkaddr_from_slot(struct rvu *rvu, int blktype, u16 pcifunc,
+			      u16 global_slot, u16 *slot_in_block)
+{
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
+	int numlfs, total_lfs = 0, nr_blocks = 0;
+	int i, num_blkaddr[BLK_COUNT] = { 0 };
+	struct rvu_block *block;
+	int blkaddr = -ENODEV;
+	u16 start_slot;
+
+	if (!is_blktype_attached(pfvf, blktype))
+		return -ENODEV;
+
+	/* Get all the block addresses from which LFs are attached to
+	 * the given pcifunc in num_blkaddr[].
+	 */
+	for (blkaddr = BLKADDR_RVUM; blkaddr < BLK_COUNT; blkaddr++) {
+		block = &rvu->hw->block[blkaddr];
+		if (block->type != blktype)
+			continue;
+		if (!is_block_implemented(rvu->hw, blkaddr))
+			continue;
+
+		numlfs = rvu_get_rsrc_mapcount(pfvf, blkaddr);
+		if (numlfs) {
+			total_lfs += numlfs;
+			num_blkaddr[nr_blocks] = blkaddr;
+			nr_blocks++;
+		}
+	}
+
+	if (global_slot >= total_lfs)
+		return -ENODEV;
+
+	/* Based on the given global slot number retrieve the
+	 * correct block address out of all attached block
+	 * addresses and slot number in that block.
+	 */
+	total_lfs = 0;
+	blkaddr = -ENODEV;
+	for (i = 0; i < nr_blocks; i++) {
+		numlfs = rvu_get_rsrc_mapcount(pfvf, num_blkaddr[i]);
+		total_lfs += numlfs;
+		if (global_slot < total_lfs) {
+			blkaddr = num_blkaddr[i];
+			start_slot = total_lfs - numlfs;
+			*slot_in_block = global_slot - start_slot;
+			break;
+		}
+	}
+
+	return blkaddr;
+}
+
 static void rvu_detach_block(struct rvu *rvu, int pcifunc, int blktype)
 {
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
