@@ -605,7 +605,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong type val",
 			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
 	TEST_ASSERT_VAL("wrong val", term->val.num == 10);
-	TEST_ASSERT_VAL("wrong config", !term->config);
+	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "config"));
 
 	/* config1 */
 	term = list_entry(term->list.next, struct parse_events_term, list);
@@ -614,7 +614,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong type val",
 			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
 	TEST_ASSERT_VAL("wrong val", term->val.num == 1);
-	TEST_ASSERT_VAL("wrong config", !term->config);
+	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "config1"));
 
 	/* config2=3 */
 	term = list_entry(term->list.next, struct parse_events_term, list);
@@ -623,7 +623,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong type val",
 			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
 	TEST_ASSERT_VAL("wrong val", term->val.num == 3);
-	TEST_ASSERT_VAL("wrong config", !term->config);
+	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "config2"));
 
 	/* umask=1*/
 	term = list_entry(term->list.next, struct parse_events_term, list);
@@ -661,7 +661,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong type val",
 			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
 	TEST_ASSERT_VAL("wrong val", term->val.num == 0xead);
-	TEST_ASSERT_VAL("wrong config", !term->config);
+	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "config"));
 	return 0;
 }
 
