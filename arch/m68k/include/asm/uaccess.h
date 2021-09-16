@@ -57,6 +57,31 @@ asm volatile ("\n"					\
 	: "+d" (res), "=m" (*(ptr))			\
 	: #reg (x), "i" (err))
 
+#define __put_user_asm8(res, x, ptr)				\
+do {								\
+	const void *__pu_ptr = (const void __force *)(ptr);	\
+								\
+	asm volatile ("\n"					\
+		"1:	"MOVES".l %2,(%1)+\n"			\
+		"2:	"MOVES".l %R2,(%1)\n"			\
+		"3:\n"						\
+		"	.section .fixup,\"ax\"\n"		\
+		"	.even\n"				\
+		"10:	movel %3,%0\n"				\
+		"	jra 3b\n"				\
+		"	.previous\n"				\
+		"\n"						\
+		"	.section __ex_table,\"a\"\n"		\
+		"	.align 4\n"				\
+		"	.long 1b,10b\n"				\
+		"	.long 2b,10b\n"				\
+		"	.long 3b,10b\n"				\
+		"	.previous"				\
+		: "+d" (res), "+a" (__pu_ptr)			\
+		: "r" (x), "i" (-EFAULT)			\
+		: "memory");					\
+} while (0)
+
 /*
  * These are the main single-value transfer routines.  They automatically
  * use the right size if we just have the right pointer type.
@@ -78,29 +103,8 @@ asm volatile ("\n"					\
 		__put_user_asm(__pu_err, __pu_val, ptr, l, r, -EFAULT);	\
 		break;							\
 	case 8:								\
- 	    {								\
- 		const void __user *__pu_ptr = (ptr);			\
-		asm volatile ("\n"					\
-			"1:	"MOVES".l	%2,(%1)+\n"		\
-			"2:	"MOVES".l	%R2,(%1)\n"		\
-			"3:\n"						\
-			"	.section .fixup,\"ax\"\n"		\
-			"	.even\n"				\
-			"10:	movel %3,%0\n"				\
-			"	jra 3b\n"				\
-			"	.previous\n"				\
-			"\n"						\
-			"	.section __ex_table,\"a\"\n"		\
-			"	.align 4\n"				\
-			"	.long 1b,10b\n"				\
-			"	.long 2b,10b\n"				\
-			"	.long 3b,10b\n"				\
-			"	.previous"				\
-			: "+d" (__pu_err), "+a" (__pu_ptr)		\
-			: "r" (__pu_val), "i" (-EFAULT)			\
-			: "memory");					\
+		__put_user_asm8(__pu_err, __pu_val, ptr);		\
 		break;							\
-	    }								\
 	default:							\
 		BUILD_BUG();						\
 	}								\
@@ -130,6 +134,38 @@ asm volatile ("\n"					\
 	(x) = (__force typeof(*(ptr)))(__force unsigned long)__gu_val;	\
 })
 
+#define __get_user_asm8(res, x, ptr)					\
+do {									\
+	const void *__gu_ptr = (const void __force *)(ptr);		\
+	union {								\
+		u64 l;							\
+		__typeof__(*(ptr)) t;					\
+	} __gu_val;							\
+									\
+	asm volatile ("\n"						\
+		"1:	"MOVES".l	(%2)+,%1\n"			\
+		"2:	"MOVES".l	(%2),%R1\n"			\
+		"3:\n"							\
+		"	.section .fixup,\"ax\"\n"			\
+		"	.even\n"					\
+		"10:	move.l	%3,%0\n"				\
+		"	sub.l	%1,%1\n"				\
+		"	sub.l	%R1,%R1\n"				\
+		"	jra	3b\n"					\
+		"	.previous\n"					\
+		"\n"							\
+		"	.section __ex_table,\"a\"\n"			\
+		"	.align	4\n"					\
+		"	.long	1b,10b\n"				\
+		"	.long	2b,10b\n"				\
+		"	.previous"					\
+		: "+d" (res), "=&r" (__gu_val.l),			\
+		  "+a" (__gu_ptr)					\
+		: "i" (-EFAULT)						\
+		: "memory");						\
+	(x) = __gu_val.t;						\
+} while (0)
+
 #define __get_user(x, ptr)						\
 ({									\
 	int __gu_err = 0;						\
@@ -144,36 +180,9 @@ asm volatile ("\n"					\
 	case 4:								\
 		__get_user_asm(__gu_err, x, ptr, u32, l, r, -EFAULT);	\
 		break;							\
-	case 8: {							\
-		const void __user *__gu_ptr = (ptr);			\
-		union {							\
-			u64 l;						\
-			__typeof__(*(ptr)) t;				\
-		} __gu_val;						\
-		asm volatile ("\n"					\
-			"1:	"MOVES".l	(%2)+,%1\n"		\
-			"2:	"MOVES".l	(%2),%R1\n"		\
-			"3:\n"						\
-			"	.section .fixup,\"ax\"\n"		\
-			"	.even\n"				\
-			"10:	move.l	%3,%0\n"			\
-			"	sub.l	%1,%1\n"			\
-			"	sub.l	%R1,%R1\n"			\
-			"	jra	3b\n"				\
-			"	.previous\n"				\
-			"\n"						\
-			"	.section __ex_table,\"a\"\n"		\
-			"	.align	4\n"				\
-			"	.long	1b,10b\n"			\
-			"	.long	2b,10b\n"			\
-			"	.previous"				\
-			: "+d" (__gu_err), "=&r" (__gu_val.l),		\
-			  "+a" (__gu_ptr)				\
-			: "i" (-EFAULT)					\
-			: "memory");					\
-		(x) = __gu_val.t;					\
+	case 8:								\
+		__get_user_asm8(__gu_err, x, ptr);			\
 		break;							\
-	}								\
 	default:							\
 		BUILD_BUG();						\
 	}								\
