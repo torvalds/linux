@@ -1336,8 +1336,15 @@ int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	struct dma_fence *fence;
 	long r;
 
-	r = amdgpu_uvd_get_create_msg(ring, 1, NULL);
+	r = amdgpu_uvd_get_create_msg(ring, 1, &fence);
 	if (r)
+		goto error;
+
+	r = dma_fence_wait_timeout(fence, false, timeout);
+	dma_fence_put(fence);
+	if (r == 0)
+		r = -ETIMEDOUT;
+	if (r < 0)
 		goto error;
 
 	r = amdgpu_uvd_get_destroy_msg(ring, 1, true, &fence);
