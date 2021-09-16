@@ -808,9 +808,9 @@ EXPORT_SYMBOL(cros_ec_get_host_event);
  *
  * Call this function to test whether the ChromeOS EC supports a feature.
  *
- * Return: 1 if supported, 0 if not
+ * Return: true if supported, false if not (or if an error was encountered).
  */
-int cros_ec_check_features(struct cros_ec_dev *ec, int feature)
+bool cros_ec_check_features(struct cros_ec_dev *ec, int feature)
 {
 	struct cros_ec_command *msg;
 	int ret;
@@ -818,8 +818,10 @@ int cros_ec_check_features(struct cros_ec_dev *ec, int feature)
 	if (ec->features[0] == -1U && ec->features[1] == -1U) {
 		/* features bitmap not read yet */
 		msg = kzalloc(sizeof(*msg) + sizeof(ec->features), GFP_KERNEL);
-		if (!msg)
-			return -ENOMEM;
+		if (!msg) {
+			dev_err(ec->dev, "failed to allocate memory to get EC features\n");
+			return false;
+		}
 
 		msg->command = EC_CMD_GET_FEATURES + ec->cmd_offset;
 		msg->insize = sizeof(ec->features);
@@ -839,7 +841,7 @@ int cros_ec_check_features(struct cros_ec_dev *ec, int feature)
 		kfree(msg);
 	}
 
-	return ec->features[feature / 32] & EC_FEATURE_MASK_0(feature);
+	return !!(ec->features[feature / 32] & EC_FEATURE_MASK_0(feature));
 }
 EXPORT_SYMBOL_GPL(cros_ec_check_features);
 
