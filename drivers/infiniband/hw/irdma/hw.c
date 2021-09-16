@@ -179,6 +179,11 @@ static void irdma_set_flush_fields(struct irdma_sc_qp *qp,
 	case IRDMA_AE_LLP_TOO_MANY_RETRIES:
 		qp->flush_code = FLUSH_RETRY_EXC_ERR;
 		break;
+	case IRDMA_AE_AMP_MWBIND_INVALID_RIGHTS:
+	case IRDMA_AE_AMP_MWBIND_BIND_DISABLED:
+	case IRDMA_AE_AMP_MWBIND_INVALID_BOUNDS:
+		qp->flush_code = FLUSH_MW_BIND_ERR;
+		break;
 	default:
 		qp->flush_code = FLUSH_FATAL_ERR;
 		break;
