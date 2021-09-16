@@ -39,9 +39,6 @@ static inline int access_ok(const void __user *addr,
 #define	MOVES	"move"
 #endif
 
-extern int __put_user_bad(void);
-extern int __get_user_bad(void);
-
 #define __put_user_asm(res, x, ptr, bwl, reg, err)	\
 asm volatile ("\n"					\
 	"1:	"MOVES"."#bwl"	%2,%1\n"		\
@@ -105,8 +102,7 @@ asm volatile ("\n"					\
 		break;							\
 	    }								\
 	default:							\
-		__pu_err = __put_user_bad();				\
-		break;							\
+		BUILD_BUG();						\
 	}								\
 	__pu_err;							\
 })
@@ -179,8 +175,7 @@ asm volatile ("\n"					\
 		break;							\
 	}								\
 	default:							\
-		__gu_err = __get_user_bad();				\
-		break;							\
+		BUILD_BUG();						\
 	}								\
 	__gu_err;							\
 })
