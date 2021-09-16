@@ -474,7 +474,7 @@ static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
 	}
 
 	r = (struct wilc_spi_rsp_data *)&rb[cmd_len];
-	if (r->rsp_cmd_type != cmd) {
+	if (r->rsp_cmd_type != cmd && !clockless) {
 		if (!spi_priv->probing_crc)
 			dev_err(&spi->dev,
 				"Failed cmd, cmd (%02x), resp (%02x)\n",
@@ -482,7 +482,7 @@ static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
 		return -EINVAL;
 	}
 
-	if (r->status != WILC_SPI_COMMAND_STAT_SUCCESS) {
+	if (r->status != WILC_SPI_COMMAND_STAT_SUCCESS && !clockless) {
 		dev_err(&spi->dev, "Failed cmd state response state (%02x)\n",
 			r->status);
 		return -EINVAL;
@@ -571,14 +571,18 @@ static int wilc_spi_write_cmd(struct wilc *wilc, u8 cmd, u32 adr, u32 data,
 	}
 
 	r = (struct wilc_spi_rsp_data *)&rb[cmd_len];
-	if (r->rsp_cmd_type != cmd) {
+	/*
+	 * Clockless registers operations might return unexptected responses,
+	 * even if successful.
+	 */
+	if (r->rsp_cmd_type != cmd && !clockless) {
 		dev_err(&spi->dev,
 			"Failed cmd response, cmd (%02x), resp (%02x)\n",
 			cmd, r->rsp_cmd_type);
 		return -EINVAL;
 	}
 
-	if (r->status != WILC_SPI_COMMAND_STAT_SUCCESS) {
+	if (r->status != WILC_SPI_COMMAND_STAT_SUCCESS && !clockless) {
 		dev_err(&spi->dev, "Failed cmd state response state (%02x)\n",
 			r->status);
 		return -EINVAL;
