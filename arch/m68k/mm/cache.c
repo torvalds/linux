@@ -49,24 +49,7 @@ static unsigned long virt_to_phys_slow(unsigned long vaddr)
 		if (mmusr & MMU_R_040)
 			return (mmusr & PAGE_MASK) | (vaddr & ~PAGE_MASK);
 	} else {
-		unsigned short mmusr;
-		unsigned long *descaddr;
-
-		asm volatile ("ptestr %3,%2@,#7,%0\n\t"
-			      "pmove %%psr,%1"
-			      : "=a&" (descaddr), "=m" (mmusr)
-			      : "a" (vaddr), "d" (get_fs().seg));
-		if (mmusr & (MMU_I|MMU_B|MMU_L))
-			return 0;
-		descaddr = phys_to_virt((unsigned long)descaddr);
-		switch (mmusr & MMU_NUM) {
-		case 1:
-			return (*descaddr & 0xfe000000) | (vaddr & 0x01ffffff);
-		case 2:
-			return (*descaddr & 0xfffc0000) | (vaddr & 0x0003ffff);
-		case 3:
-			return (*descaddr & PAGE_MASK) | (vaddr & ~PAGE_MASK);
-		}
+		WARN_ON_ONCE(!CPU_IS_040_OR_060);
 	}
 	return 0;
 }
