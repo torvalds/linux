@@ -539,11 +539,6 @@ int snd_sof_debugfs_add_region_item_iomem(struct snd_sof_dev *sdev,
 		const char *name, enum sof_debugfs_access_type access_type);
 
 /*
- * Platform specific ops.
- */
-extern struct snd_compress_ops sof_compressed_ops;
-
-/*
  * DSP Architectures.
  */
 static inline void sof_stack(struct snd_sof_dev *sdev, void *oops, u32 *stack,
