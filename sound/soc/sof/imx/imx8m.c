@@ -302,7 +302,7 @@ struct snd_sof_dsp_ops sof_imx8m_ops = {
 	.debugfs_add_region_item = snd_sof_debugfs_add_region_item_iomem,
 
 	/* Firmware ops */
-	.arch_ops = &sof_xtensa_arch_ops,
+	.dsp_arch_ops = &sof_xtensa_arch_ops,
 
 	/* DAI drivers */
 	.drv = imx8m_dai,
