@@ -1,4 +1,4 @@
-What:		/sys/class/rc/rcN/wakeup_data
+What:		/sys/class/rc/rc<N>/wakeup_data
 Date:		Mar 2016
 KernelVersion:	4.6
 Contact:	Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
