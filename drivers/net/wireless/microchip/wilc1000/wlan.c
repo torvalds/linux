@@ -1080,6 +1080,7 @@ int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer,
 	u32 addr, size, size2, blksz;
 	u8 *dma_buffer;
 	int ret = 0;
+	u32 reg = 0;
 
 	blksz = BIT(12);
 
@@ -1088,10 +1089,22 @@ int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer,
 		return -EIO;
 
 	offset = 0;
+	pr_debug("%s: Downloading firmware size = %d\n", __func__, buffer_size);
+
+	acquire_bus(wilc, WILC_BUS_ACQUIRE_AND_WAKEUP);
+
+	wilc->hif_func->hif_read_reg(wilc, WILC_GLB_RESET_0, &reg);
+	reg &= ~BIT(10);
+	ret = wilc->hif_func->hif_write_reg(wilc, WILC_GLB_RESET_0, reg);
+	wilc->hif_func->hif_read_reg(wilc, WILC_GLB_RESET_0, &reg);
+	if (reg & BIT(10))
+		pr_err("%s: Failed to reset\n", __func__);
+
+	release_bus(wilc, WILC_BUS_RELEASE_ONLY);
 	do {
 		addr = get_unaligned_le32(&buffer[offset]);
 		size = get_unaligned_le32(&buffer[offset + 4]);
-		acquire_bus(wilc, WILC_BUS_ACQUIRE_ONLY);
+		acquire_bus(wilc, WILC_BUS_ACQUIRE_AND_WAKEUP);
 		offset += 8;
 		while (((int)size) && (offset < buffer_size)) {
 			if (size <= blksz)
@@ -1109,10 +1122,13 @@ int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer,
 			offset += size2;
 			size -= size2;
 		}
-		release_bus(wilc, WILC_BUS_RELEASE_ONLY);
+		release_bus(wilc, WILC_BUS_RELEASE_ALLOW_SLEEP);
 
-		if (ret)
+		if (ret) {
+			pr_err("%s Bus error\n", __func__);
 			goto fail;
+		}
+		pr_debug("%s Offset = %d\n", __func__, offset);
 	} while (offset < buffer_size);
 
 fail:
