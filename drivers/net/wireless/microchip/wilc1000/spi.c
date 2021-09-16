@@ -1167,7 +1167,7 @@ static int wilc_spi_sync_ext(struct wilc *wilc, int nint)
 		for (i = 0; (i < 3) && (nint > 0); i++, nint--)
 			reg |= BIT(i);
 
-		ret = wilc_spi_read_reg(wilc, WILC_INTR2_ENABLE, &reg);
+		ret = wilc_spi_write_reg(wilc, WILC_INTR2_ENABLE, reg);
 		if (ret) {
 			dev_err(&spi->dev, "Failed write reg (%08x)...\n",
 				WILC_INTR2_ENABLE);
