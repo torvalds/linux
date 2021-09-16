@@ -146,7 +146,7 @@ static const struct perf_pmu_test_event unc_cbo_xsnp_response_miss_eviction = {
 static const struct perf_pmu_test_event uncore_hisi_l3c_rd_hit_cpipe = {
 	.event = {
 		.name = "uncore_hisi_l3c.rd_hit_cpipe",
-		.event = "event=0x2",
+		.event = "event=0x7",
 		.desc = "Total read hits. Unit: hisi_sccl,l3c ",
 		.topic = "uncore",
 		.long_desc = "Total read hits",
@@ -255,6 +255,24 @@ static struct pmu_event *__test_pmu_get_sys_events_table(void)
 
 static int compare_pmu_events(struct pmu_event *e1, const struct pmu_event *e2)
 {
+	if (!is_same(e1->name, e2->name)) {
+		pr_debug2("testing event e1 %s: mismatched name string, %s vs %s\n",
+			  e1->name, e1->name, e2->name);
+		return -1;
+	}
+
+	if (!is_same(e1->compat, e2->compat)) {
+		pr_debug2("testing event e1 %s: mismatched compat string, %s vs %s\n",
+			  e1->name, e1->compat, e2->compat);
+		return -1;
+	}
+
+	if (!is_same(e1->event, e2->event)) {
+		pr_debug2("testing event e1 %s: mismatched event, %s vs %s\n",
+			  e1->name, e1->event, e2->event);
+		return -1;
+	}
+
 	if (!is_same(e1->desc, e2->desc)) {
 		pr_debug2("testing event e1 %s: mismatched desc, %s vs %s\n",
 			  e1->name, e1->desc, e2->desc);
@@ -273,6 +291,12 @@ static int compare_pmu_events(struct pmu_event *e1, const struct pmu_event *e2)
 		return -1;
 	}
 
+	if (!is_same(e1->pmu, e2->pmu)) {
+		pr_debug2("testing event e1 %s: mismatched pmu string, %s vs %s\n",
+			  e1->name, e1->pmu, e2->pmu);
+		return -1;
+	}
+
 	if (!is_same(e1->unit, e2->unit)) {
 		pr_debug2("testing event e1 %s: mismatched unit, %s vs %s\n",
 			  e1->name, e1->unit, e2->unit);
@@ -282,6 +306,12 @@ static int compare_pmu_events(struct pmu_event *e1, const struct pmu_event *e2)
 	if (!is_same(e1->perpkg, e2->perpkg)) {
 		pr_debug2("testing event e1 %s: mismatched perpkg, %s vs %s\n",
 			  e1->name, e1->perpkg, e2->perpkg);
+		return -1;
+	}
+
+	if (!is_same(e1->aggr_mode, e2->aggr_mode)) {
+		pr_debug2("testing event e1 %s: mismatched aggr_mode, %s vs %s\n",
+			  e1->name, e1->aggr_mode, e2->aggr_mode);
 		return -1;
 	}
 
@@ -297,21 +327,21 @@ static int compare_pmu_events(struct pmu_event *e1, const struct pmu_event *e2)
 		return -1;
 	}
 
+	if (!is_same(e1->metric_group, e2->metric_group)) {
+		pr_debug2("testing event e1 %s: mismatched metric_group, %s vs %s\n",
+			  e1->name, e1->metric_group, e2->metric_group);
+		return -1;
+	}
+
 	if (!is_same(e1->deprecated, e2->deprecated)) {
 		pr_debug2("testing event e1 %s: mismatched deprecated, %s vs %s\n",
 			  e1->name, e1->deprecated, e2->deprecated);
 		return -1;
 	}
 
-	if (!is_same(e1->pmu, e2->pmu)) {
-		pr_debug2("testing event e1 %s: mismatched pmu string, %s vs %s\n",
-			  e1->name, e1->pmu, e2->pmu);
-		return -1;
-	}
-
-	if (!is_same(e1->compat, e2->compat)) {
-		pr_debug2("testing event e1 %s: mismatched compat string, %s vs %s\n",
-			  e1->name, e1->compat, e2->compat);
+	if (!is_same(e1->metric_constraint, e2->metric_constraint)) {
+		pr_debug2("testing event e1 %s: mismatched metric_constant, %s vs %s\n",
+			  e1->name, e1->metric_constraint, e2->metric_constraint);
 		return -1;
 	}
 
