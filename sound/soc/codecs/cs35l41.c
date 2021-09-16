@@ -564,7 +564,6 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 	struct cs35l41_private *cs35l41 = snd_soc_component_get_drvdata(component);
 	unsigned int val;
 	int ret = 0;
-	bool pdn;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -582,7 +581,6 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 		regmap_update_bits(cs35l41->regmap, CS35L41_PWR_CTRL1,
 				   CS35L41_GLOBAL_EN_MASK, 0);
 
-		pdn = false;
 		ret = regmap_read_poll_timeout(cs35l41->regmap, CS35L41_IRQ1_STATUS1,
 					       val, val &  CS35L41_PDN_DONE_MASK,
 					       1000, 100000);
