@@ -2081,4 +2081,3 @@ module_platform_driver(imx_csi_driver);
 MODULE_DESCRIPTION("i.MX CSI subdev driver");
 MODULE_AUTHOR("Steve Longerbeam <steve_longerbeam@mentor.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:imx-ipuv3-csi");
