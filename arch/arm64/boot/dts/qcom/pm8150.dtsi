@@ -48,7 +48,7 @@
 		#size-cells = <0>;
 
 		pon: power-on@800 {
-			compatible = "qcom,pm8916-pon";
+			compatible = "qcom,pm8998-pon";
 			reg = <0x0800>;
 
 			pon_pwrkey: pwrkey {
