@@ -1494,7 +1494,6 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 {
 	struct host_if_drv *hif_drv;
 	struct wilc_vif *vif = netdev_priv(dev);
-	struct wilc *wilc = vif->wilc;
 
 	hif_drv  = kzalloc(sizeof(*hif_drv), GFP_KERNEL);
 	if (!hif_drv)
@@ -1503,9 +1502,6 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	*hif_drv_handler = hif_drv;
 
 	vif->hif_drv = hif_drv;
-
-	if (wilc->clients_count == 0)
-		mutex_init(&wilc->deinit_lock);
 
 	timer_setup(&vif->periodic_rssi, get_periodic_rssi, 0);
 	mod_timer(&vif->periodic_rssi, jiffies + msecs_to_jiffies(5000));
@@ -1517,8 +1513,6 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	hif_drv->hif_state = HOST_IF_IDLE;
 
 	hif_drv->p2p_timeout = 0;
-
-	wilc->clients_count++;
 
 	return 0;
 }
@@ -1550,7 +1544,6 @@ int wilc_deinit(struct wilc_vif *vif)
 
 	kfree(hif_drv);
 	vif->hif_drv = NULL;
-	vif->wilc->clients_count--;
 	mutex_unlock(&vif->wilc->deinit_lock);
 	return result;
 }
