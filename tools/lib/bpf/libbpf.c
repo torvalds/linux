@@ -8461,19 +8461,15 @@ static int libbpf_find_attach_btf_id(struct bpf_program *prog, int *btf_obj_fd, 
 {
 	enum bpf_attach_type attach_type = prog->expected_attach_type;
 	__u32 attach_prog_fd = prog->attach_prog_fd;
-	const char *name = prog->sec_name, *attach_name;
-	const struct bpf_sec_def *sec = NULL;
+	const char *attach_name;
 	int err = 0;
 
-	if (!name)
-		return -EINVAL;
-
-	sec = find_sec_def(name);
-	if (!sec || !sec->is_attach_btf) {
-		pr_warn("failed to identify BTF ID based on ELF section name '%s'\n", name);
+	if (!prog->sec_def || !prog->sec_def->is_attach_btf) {
+		pr_warn("failed to identify BTF ID based on ELF section name '%s'\n",
+			prog->sec_name);
 		return -ESRCH;
 	}
-	attach_name = name + sec->len;
+	attach_name = prog->sec_name + prog->sec_def->len;
 
 	/* BPF program's BTF ID */
 	if (attach_prog_fd) {
