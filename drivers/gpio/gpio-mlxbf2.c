@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <linux/acpi.h>
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/device.h>
@@ -8,6 +7,7 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
@@ -47,12 +47,10 @@
 #define YU_GPIO_MODE0_SET		0x54
 #define YU_GPIO_MODE0_CLEAR		0x58
 
-#ifdef CONFIG_PM
 struct mlxbf2_gpio_context_save_regs {
 	u32 gpio_mode0;
 	u32 gpio_mode1;
 };
-#endif
 
 /* BlueField-2 gpio block context structure. */
 struct mlxbf2_gpio_context {
@@ -61,9 +59,7 @@ struct mlxbf2_gpio_context {
 	/* YU GPIO blocks address */
 	void __iomem *gpio_io;
 
-#ifdef CONFIG_PM
 	struct mlxbf2_gpio_context_save_regs *csave_regs;
-#endif
 };
 
 /* BlueField-2 gpio shared structure. */
@@ -73,11 +69,8 @@ struct mlxbf2_gpio_param {
 	struct mutex *lock;
 };
 
-static struct resource yu_arm_gpio_lock_res = {
-	.start = YU_ARM_GPIO_LOCK_ADDR,
-	.end   = YU_ARM_GPIO_LOCK_ADDR + YU_ARM_GPIO_LOCK_SIZE - 1,
-	.name  = "YU_ARM_GPIO_LOCK",
-};
+static struct resource yu_arm_gpio_lock_res =
+	DEFINE_RES_MEM_NAMED(YU_ARM_GPIO_LOCK_ADDR, YU_ARM_GPIO_LOCK_SIZE, "YU_ARM_GPIO_LOCK");
 
 static DEFINE_MUTEX(yu_arm_gpio_lock_mutex);
 
@@ -232,7 +225,6 @@ mlxbf2_gpio_probe(struct platform_device *pdev)
 	struct mlxbf2_gpio_context *gs;
 	struct device *dev = &pdev->dev;
 	struct gpio_chip *gc;
-	struct resource *res;
 	unsigned int npins;
 	int ret;
 
@@ -241,13 +233,9 @@ mlxbf2_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* YU GPIO block address */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
-	gs->gpio_io = devm_ioremap(dev, res->start, resource_size(res));
-	if (!gs->gpio_io)
-		return -ENOMEM;
+	gs->gpio_io = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(gs->gpio_io))
+		return PTR_ERR(gs->gpio_io);
 
 	ret = mlxbf2_gpio_get_lock_res(pdev);
 	if (ret) {
@@ -284,11 +272,9 @@ mlxbf2_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int mlxbf2_gpio_suspend(struct platform_device *pdev,
-				pm_message_t state)
+static int __maybe_unused mlxbf2_gpio_suspend(struct device *dev)
 {
-	struct mlxbf2_gpio_context *gs = platform_get_drvdata(pdev);
+	struct mlxbf2_gpio_context *gs = dev_get_drvdata(dev);
 
 	gs->csave_regs->gpio_mode0 = readl(gs->gpio_io +
 		YU_GPIO_MODE0);
@@ -298,9 +284,9 @@ static int mlxbf2_gpio_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int mlxbf2_gpio_resume(struct platform_device *pdev)
+static int __maybe_unused mlxbf2_gpio_resume(struct device *dev)
 {
-	struct mlxbf2_gpio_context *gs = platform_get_drvdata(pdev);
+	struct mlxbf2_gpio_context *gs = dev_get_drvdata(dev);
 
 	writel(gs->csave_regs->gpio_mode0, gs->gpio_io +
 		YU_GPIO_MODE0);
@@ -309,7 +295,7 @@ static int mlxbf2_gpio_resume(struct platform_device *pdev)
 
 	return 0;
 }
-#endif
+static SIMPLE_DEV_PM_OPS(mlxbf2_pm_ops, mlxbf2_gpio_suspend, mlxbf2_gpio_resume);
 
 static const struct acpi_device_id __maybe_unused mlxbf2_gpio_acpi_match[] = {
 	{ "MLNXBF22", 0 },
@@ -320,13 +306,10 @@ MODULE_DEVICE_TABLE(acpi, mlxbf2_gpio_acpi_match);
 static struct platform_driver mlxbf2_gpio_driver = {
 	.driver = {
 		.name = "mlxbf2_gpio",
-		.acpi_match_table = ACPI_PTR(mlxbf2_gpio_acpi_match),
+		.acpi_match_table = mlxbf2_gpio_acpi_match,
+		.pm = &mlxbf2_pm_ops,
 	},
 	.probe    = mlxbf2_gpio_probe,
-#ifdef CONFIG_PM
-	.suspend  = mlxbf2_gpio_suspend,
-	.resume   = mlxbf2_gpio_resume,
-#endif
 };
 
 module_platform_driver(mlxbf2_gpio_driver);

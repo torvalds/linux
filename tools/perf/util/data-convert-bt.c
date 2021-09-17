@@ -1634,7 +1634,7 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 
 	err = -1;
 	/* perf.data session */
-	session = perf_session__new(&data, 0, &c.tool);
+	session = perf_session__new(&data, &c.tool);
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 

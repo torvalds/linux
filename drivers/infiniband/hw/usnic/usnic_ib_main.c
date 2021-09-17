@@ -360,6 +360,7 @@ static const struct ib_device_ops usnic_dev_ops = {
 	.reg_user_mr = usnic_ib_reg_mr,
 	INIT_RDMA_OBJ_SIZE(ib_pd, usnic_ib_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_cq, usnic_ib_cq, ibcq),
+	INIT_RDMA_OBJ_SIZE(ib_qp, usnic_ib_qp_grp, ibqp),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, usnic_ib_ucontext, ibucontext),
 };
 

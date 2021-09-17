@@ -13,7 +13,7 @@
 #include <linux/skbuff.h>
 #include <linux/gfp.h>
 #include <net/xfrm.h>
-#include <linux/jhash.h>
+#include <linux/siphash.h>
 #include <linux/rtnetlink.h>
 
 #include <net/netfilter/nf_conntrack.h>
@@ -34,7 +34,7 @@ static unsigned int nat_net_id __read_mostly;
 
 static struct hlist_head *nf_nat_bysource __read_mostly;
 static unsigned int nf_nat_htable_size __read_mostly;
-static unsigned int nf_nat_hash_rnd __read_mostly;
+static siphash_key_t nf_nat_hash_rnd __read_mostly;
 
 struct nf_nat_lookup_hook_priv {
 	struct nf_hook_entries __rcu *entries;
@@ -153,12 +153,22 @@ static unsigned int
 hash_by_src(const struct net *n, const struct nf_conntrack_tuple *tuple)
 {
 	unsigned int hash;
+	struct {
+		struct nf_conntrack_man src;
+		u32 net_mix;
+		u32 protonum;
+	} __aligned(SIPHASH_ALIGNMENT) combined;
 
 	get_random_once(&nf_nat_hash_rnd, sizeof(nf_nat_hash_rnd));
 
+	memset(&combined, 0, sizeof(combined));
+
 	/* Original src, to ensure we map it consistently if poss. */
-	hash = jhash2((u32 *)&tuple->src, sizeof(tuple->src) / sizeof(u32),
-		      tuple->dst.protonum ^ nf_nat_hash_rnd ^ net_hash_mix(n));
+	combined.src = tuple->src;
+	combined.net_mix = net_hash_mix(n);
+	combined.protonum = tuple->dst.protonum;
+
+	hash = siphash(&combined, sizeof(combined), &nf_nat_hash_rnd);
 
 	return reciprocal_scale(hash, nf_nat_htable_size);
 }

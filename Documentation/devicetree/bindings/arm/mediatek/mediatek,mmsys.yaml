@@ -29,6 +29,7 @@ properties:
               - mediatek,mt8167-mmsys
               - mediatek,mt8173-mmsys
               - mediatek,mt8183-mmsys
+              - mediatek,mt8192-mmsys
               - mediatek,mt8365-mmsys
           - const: syscon
       - items:

@@ -16,6 +16,7 @@
 
 #include <asm/kvm_page_track.h>
 
+#include "mmu.h"
 #include "mmu_internal.h"
 
 void kvm_page_track_free_memslot(struct kvm_memory_slot *slot)

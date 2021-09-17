@@ -109,7 +109,7 @@ bool dcn31_is_panel_backlight_on(struct panel_cntl *panel_cntl)
 	union dmub_rb_cmd cmd;
 
 	if (!dcn31_query_backlight_info(panel_cntl, &cmd))
-		return 0;
+		return false;
 
 	return cmd.panel_cntl.data.is_backlight_on;
 }
@@ -119,7 +119,7 @@ bool dcn31_is_panel_powered_on(struct panel_cntl *panel_cntl)
 	union dmub_rb_cmd cmd;
 
 	if (!dcn31_query_backlight_info(panel_cntl, &cmd))
-		return 0;
+		return false;
 
 	return cmd.panel_cntl.data.is_powered_on;
 }

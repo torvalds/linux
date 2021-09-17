@@ -91,24 +91,6 @@ struct kmem_cache *kmalloc_slab(size_t, gfp_t);
 
 gfp_t kmalloc_fix_flags(gfp_t flags);
 
-#ifdef CONFIG_SLUB
-/*
- * Tracking user of a slab.
- */
-#define TRACK_ADDRS_COUNT 16
-struct track {
-	unsigned long addr;	/* Called from address */
-#ifdef CONFIG_STACKTRACE
-	unsigned long addrs[TRACK_ADDRS_COUNT]; /* Called from address */
-#endif
-	int cpu;		/* Was running on cpu */
-	int pid;		/* Pid context */
-	unsigned long when;	/* When did the operation occur */
-};
-
-enum track_item { TRACK_ALLOC, TRACK_FREE };
-#endif
-
 /* Functions provided by the slab allocators */
 int __kmem_cache_create(struct kmem_cache *, slab_flags_t flags);
 
@@ -234,10 +216,6 @@ DECLARE_STATIC_KEY_FALSE(slub_debug_enabled);
 #endif
 extern void print_tracking(struct kmem_cache *s, void *object);
 long validate_slab_cache(struct kmem_cache *s);
-extern unsigned long get_each_object_track(struct kmem_cache *s,
-		struct page *page, enum track_item alloc,
-		int (*fn)(const struct kmem_cache *, const void *,
-		const struct track *, void *), void *private);
 static inline bool __slub_debug_enabled(void)
 {
 	return static_branch_unlikely(&slub_debug_enabled);
@@ -246,15 +224,6 @@ static inline bool __slub_debug_enabled(void)
 static inline void print_tracking(struct kmem_cache *s, void *object)
 {
 }
-#ifdef CONFIG_SLUB
-static inline unsigned long get_each_object_track(struct kmem_cache *s,
-		struct page *page, enum track_item alloc,
-		int (*fn)(const struct kmem_cache *, const void *,
-		const struct track *, void *), void *private)
-{
-	return 0;
-}
-#endif
 static inline bool __slub_debug_enabled(void)
 {
 	return false;

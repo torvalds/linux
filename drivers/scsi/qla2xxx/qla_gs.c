@@ -632,7 +632,7 @@ static int qla_async_rftid(scsi_qla_host_t *vha, port_id_t *d_id)
 	ct_req->req.rft_id.port_id = port_id_to_be_id(vha->d_id);
 	ct_req->req.rft_id.fc4_types[2] = 0x01;		/* FCP-3 */
 
-	if (vha->flags.nvme_enabled)
+	if (vha->flags.nvme_enabled && qla_ini_mode_enabled(vha))
 		ct_req->req.rft_id.fc4_types[6] = 1;    /* NVMe type 28h */
 
 	sp->u.iocb_cmd.u.ctarg.req_size = RFT_ID_REQ_SIZE;
@@ -1730,8 +1730,6 @@ qla2x00_hba_attributes(scsi_qla_host_t *vha, void *entries,
 	size += alen;
 	ql_dbg(ql_dbg_disc, vha, 0x20a8,
 	    "FIRMWARE VERSION = %s.\n", eiter->a.fw_version);
-	if (callopt == CALLOPT_FDMI1)
-		goto done;
 	/* OS Name and Version */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_HBA_OS_NAME_AND_VERSION);
@@ -1754,6 +1752,8 @@ qla2x00_hba_attributes(scsi_qla_host_t *vha, void *entries,
 	size += alen;
 	ql_dbg(ql_dbg_disc, vha, 0x20a9,
 	    "OS VERSION = %s.\n", eiter->a.os_version);
+	if (callopt == CALLOPT_FDMI1)
+		goto done;
 	/* MAX CT Payload Length */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_HBA_MAXIMUM_CT_PAYLOAD_LENGTH);
@@ -2826,6 +2826,10 @@ void qla24xx_handle_gpsc_event(scsi_qla_host_t *vha, struct event_arg *ea)
 	if (fcport->disc_state == DSC_DELETE_PEND)
 		return;
 
+	/* We will figure-out what happen after AUTH completes */
+	if (fcport->disc_state == DSC_LOGIN_AUTH_PEND)
+		return;
+
 	if (ea->sp->gen2 != fcport->login_gen) {
 		/* target side must have changed it. */
 		ql_dbg(ql_dbg_disc, vha, 0x20d3,
@@ -3498,7 +3502,16 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 				continue;
 			fcport->scan_state = QLA_FCPORT_FOUND;
 			fcport->last_rscn_gen = fcport->rscn_gen;
+			fcport->fc4_type = rp->fc4type;
 			found = true;
+
+			if (fcport->scan_needed) {
+				if (NVME_PRIORITY(vha->hw, fcport))
+					fcport->do_prli_nvme = 1;
+				else
+					fcport->do_prli_nvme = 0;
+			}
+
 			/*
 			 * If device was not a fabric device before.
 			 */

@@ -218,7 +218,7 @@ void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
 void wbc_detach_inode(struct writeback_control *wbc);
 void wbc_account_cgroup_owner(struct writeback_control *wbc, struct page *page,
 			      size_t bytes);
-int cgroup_writeback_by_id(u64 bdi_id, int memcg_id, unsigned long nr_pages,
+int cgroup_writeback_by_id(u64 bdi_id, int memcg_id,
 			   enum wb_reason reason, struct wb_completion *done);
 void cgroup_writeback_umount(void);
 bool cleanup_offline_cgwb(struct bdi_writeback *wb);
@@ -374,7 +374,7 @@ int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
 void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
 unsigned long wb_calc_thresh(struct bdi_writeback *wb, unsigned long thresh);
 
-void wb_update_bandwidth(struct bdi_writeback *wb, unsigned long start_time);
+void wb_update_bandwidth(struct bdi_writeback *wb);
 void balance_dirty_pages_ratelimited(struct address_space *mapping);
 bool wb_over_bg_thresh(struct bdi_writeback *wb);
 

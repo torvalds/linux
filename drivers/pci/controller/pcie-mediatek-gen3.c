@@ -645,7 +645,6 @@ static void mtk_pcie_msi_handler(struct mtk_pcie_port *port, int set_idx)
 {
 	struct mtk_msi_set *msi_set = &port->msi_sets[set_idx];
 	unsigned long msi_enable, msi_status;
-	unsigned int virq;
 	irq_hw_number_t bit, hwirq;
 
 	msi_enable = readl_relaxed(msi_set->base + PCIE_MSI_SET_ENABLE_OFFSET);
@@ -659,8 +658,7 @@ static void mtk_pcie_msi_handler(struct mtk_pcie_port *port, int set_idx)
 
 		for_each_set_bit(bit, &msi_status, PCIE_MSI_IRQS_PER_SET) {
 			hwirq = bit + set_idx * PCIE_MSI_IRQS_PER_SET;
-			virq = irq_find_mapping(port->msi_bottom_domain, hwirq);
-			generic_handle_irq(virq);
+			generic_handle_domain_irq(port->msi_bottom_domain, hwirq);
 		}
 	} while (true);
 }
@@ -670,18 +668,15 @@ static void mtk_pcie_irq_handler(struct irq_desc *desc)
 	struct mtk_pcie_port *port = irq_desc_get_handler_data(desc);
 	struct irq_chip *irqchip = irq_desc_get_chip(desc);
 	unsigned long status;
-	unsigned int virq;
 	irq_hw_number_t irq_bit = PCIE_INTX_SHIFT;
 
 	chained_irq_enter(irqchip, desc);
 
 	status = readl_relaxed(port->base + PCIE_INT_STATUS_REG);
 	for_each_set_bit_from(irq_bit, &status, PCI_NUM_INTX +
-			      PCIE_INTX_SHIFT) {
-		virq = irq_find_mapping(port->intx_domain,
-					irq_bit - PCIE_INTX_SHIFT);
-		generic_handle_irq(virq);
-	}
+			      PCIE_INTX_SHIFT)
+		generic_handle_domain_irq(port->intx_domain,
+					  irq_bit - PCIE_INTX_SHIFT);
 
 	irq_bit = PCIE_MSI_SHIFT;
 	for_each_set_bit_from(irq_bit, &status, PCIE_MSI_SET_NUM +

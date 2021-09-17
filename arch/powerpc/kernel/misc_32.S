@@ -67,7 +67,7 @@ _GLOBAL(reloc_got2)
 	srwi.	r8,r8,2
 	beqlr
 	mtctr	r8
-	bl	1f
+	bcl	20,31,$+4
 1:	mflr	r0
 	lis	r4,1b@ha
 	addi	r4,r4,1b@l
@@ -237,7 +237,7 @@ _GLOBAL(copy_page)
 	addi	r3,r3,-4
 
 0:	twnei	r5, 0	/* WARN if r3 is not cache aligned */
-	EMIT_BUG_ENTRY 0b,__FILE__,__LINE__, BUGFLAG_WARNING
+	EMIT_WARN_ENTRY 0b,__FILE__,__LINE__, BUGFLAG_WARNING
 
 	addi	r4,r4,-4
 

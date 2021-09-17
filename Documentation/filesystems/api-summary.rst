@@ -71,9 +71,6 @@ Other Functions
 .. kernel-doc:: fs/fs-writeback.c
    :export:
 
-.. kernel-doc:: fs/block_dev.c
-   :export:
-
 .. kernel-doc:: fs/anon_inodes.c
    :export:
 

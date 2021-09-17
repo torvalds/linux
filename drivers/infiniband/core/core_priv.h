@@ -316,45 +316,13 @@ struct ib_device *ib_device_get_by_index(const struct net *net, u32 index);
 void nldev_init(void);
 void nldev_exit(void);
 
-static inline struct ib_qp *
-_ib_create_qp(struct ib_device *dev, struct ib_pd *pd,
-	      struct ib_qp_init_attr *attr, struct ib_udata *udata,
-	      struct ib_uqp_object *uobj, const char *caller)
-{
-	struct ib_qp *qp;
+struct ib_qp *ib_create_qp_user(struct ib_device *dev, struct ib_pd *pd,
+				struct ib_qp_init_attr *attr,
+				struct ib_udata *udata,
+				struct ib_uqp_object *uobj, const char *caller);
 
-	if (!dev->ops.create_qp)
-		return ERR_PTR(-EOPNOTSUPP);
-
-	qp = dev->ops.create_qp(pd, attr, udata);
-	if (IS_ERR(qp))
-		return qp;
-
-	qp->device = dev;
-	qp->pd = pd;
-	qp->uobject = uobj;
-	qp->real_qp = qp;
-
-	qp->qp_type = attr->qp_type;
-	qp->rwq_ind_tbl = attr->rwq_ind_tbl;
-	qp->send_cq = attr->send_cq;
-	qp->recv_cq = attr->recv_cq;
-	qp->srq = attr->srq;
-	qp->rwq_ind_tbl = attr->rwq_ind_tbl;
-	qp->event_handler = attr->event_handler;
-	qp->port = attr->port_num;
-
-	atomic_set(&qp->usecnt, 0);
-	spin_lock_init(&qp->mr_lock);
-	INIT_LIST_HEAD(&qp->rdma_mrs);
-	INIT_LIST_HEAD(&qp->sig_mrs);
-
-	rdma_restrack_new(&qp->res, RDMA_RESTRACK_QP);
-	WARN_ONCE(!udata && !caller, "Missing kernel QP owner");
-	rdma_restrack_set_name(&qp->res, udata ? NULL : caller);
-	rdma_restrack_add(&qp->res);
-	return qp;
-}
+void ib_qp_usecnt_inc(struct ib_qp *qp);
+void ib_qp_usecnt_dec(struct ib_qp *qp);
 
 struct rdma_dev_addr;
 int rdma_resolve_ip_route(struct sockaddr *src_addr,

@@ -7,6 +7,8 @@
  * Copyright (C) 2020 Paul Cercueil <paul@crapouillou.net>
  */
 
+#include <linux/clk.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_fdt.h>
 #include <linux/pm.h>
@@ -21,6 +23,10 @@
 static __init char *ingenic_get_system_type(unsigned long machtype)
 {
 	switch (machtype) {
+	case MACH_INGENIC_X2100:
+		return "X2100";
+	case MACH_INGENIC_X2000H:
+		return "X2000H";
 	case MACH_INGENIC_X2000E:
 		return "X2000E";
 	case MACH_INGENIC_X2000:
@@ -37,8 +43,18 @@ static __init char *ingenic_get_system_type(unsigned long machtype)
 		return "JZ4775";
 	case MACH_INGENIC_JZ4770:
 		return "JZ4770";
+	case MACH_INGENIC_JZ4760B:
+		return "JZ4760B";
+	case MACH_INGENIC_JZ4760:
+		return "JZ4760";
+	case MACH_INGENIC_JZ4755:
+		return "JZ4755";
+	case MACH_INGENIC_JZ4750:
+		return "JZ4750";
 	case MACH_INGENIC_JZ4725B:
 		return "JZ4725B";
+	case MACH_INGENIC_JZ4730:
+		return "JZ4730";
 	default:
 		return "JZ4740";
 	}
@@ -61,8 +77,13 @@ static __init const void *ingenic_fixup_fdt(const void *fdt, const void *match_d
 }
 
 static const struct of_device_id ingenic_of_match[] __initconst = {
+	{ .compatible = "ingenic,jz4730", .data = (void *)MACH_INGENIC_JZ4730 },
 	{ .compatible = "ingenic,jz4740", .data = (void *)MACH_INGENIC_JZ4740 },
 	{ .compatible = "ingenic,jz4725b", .data = (void *)MACH_INGENIC_JZ4725B },
+	{ .compatible = "ingenic,jz4750", .data = (void *)MACH_INGENIC_JZ4750 },
+	{ .compatible = "ingenic,jz4755", .data = (void *)MACH_INGENIC_JZ4755 },
+	{ .compatible = "ingenic,jz4760", .data = (void *)MACH_INGENIC_JZ4760 },
+	{ .compatible = "ingenic,jz4760b", .data = (void *)MACH_INGENIC_JZ4760B },
 	{ .compatible = "ingenic,jz4770", .data = (void *)MACH_INGENIC_JZ4770 },
 	{ .compatible = "ingenic,jz4775", .data = (void *)MACH_INGENIC_JZ4775 },
 	{ .compatible = "ingenic,jz4780", .data = (void *)MACH_INGENIC_JZ4780 },
@@ -71,6 +92,8 @@ static const struct of_device_id ingenic_of_match[] __initconst = {
 	{ .compatible = "ingenic,x1830", .data = (void *)MACH_INGENIC_X1830 },
 	{ .compatible = "ingenic,x2000", .data = (void *)MACH_INGENIC_X2000 },
 	{ .compatible = "ingenic,x2000e", .data = (void *)MACH_INGENIC_X2000E },
+	{ .compatible = "ingenic,x2000h", .data = (void *)MACH_INGENIC_X2000H },
+	{ .compatible = "ingenic,x2100", .data = (void *)MACH_INGENIC_X2100 },
 	{}
 };
 
@@ -108,10 +131,36 @@ static const struct platform_suspend_ops ingenic_pm_ops __maybe_unused = {
 
 static int __init ingenic_pm_init(void)
 {
+	struct device_node *cpu_node;
+	struct clk *cpu0_clk;
+	int ret;
+
 	if (boot_cpu_type() == CPU_XBURST) {
 		if (IS_ENABLED(CONFIG_PM_SLEEP))
 			suspend_set_ops(&ingenic_pm_ops);
 		_machine_halt = ingenic_halt;
+
+		/*
+		 * Unconditionally enable the clock for the first CPU.
+		 * This makes sure that the PLL that feeds the CPU won't be
+		 * stopped while the kernel is running.
+		 */
+		cpu_node = of_get_cpu_node(0, NULL);
+		if (!cpu_node) {
+			pr_err("Unable to get CPU node\n");
+		} else {
+			cpu0_clk = of_clk_get(cpu_node, 0);
+			if (IS_ERR(cpu0_clk)) {
+				pr_err("Unable to get CPU0 clock\n");
+				return PTR_ERR(cpu0_clk);
+			}
+
+			ret = clk_prepare_enable(cpu0_clk);
+			if (ret) {
+				pr_err("Unable to enable CPU0 clock\n");
+				return ret;
+			}
+		}
 	}
 
 	return 0;

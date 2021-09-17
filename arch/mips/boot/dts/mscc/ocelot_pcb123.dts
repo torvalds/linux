@@ -47,17 +47,25 @@
 };
 
 &port0 {
+	status = "okay";
 	phy-handle = <&phy0>;
+	phy-mode = "internal";
 };
 
 &port1 {
+	status = "okay";
 	phy-handle = <&phy1>;
+	phy-mode = "internal";
 };
 
 &port2 {
+	status = "okay";
 	phy-handle = <&phy2>;
+	phy-mode = "internal";
 };
 
 &port3 {
+	status = "okay";
 	phy-handle = <&phy3>;
+	phy-mode = "internal";
 };

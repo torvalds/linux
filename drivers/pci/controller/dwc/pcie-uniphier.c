@@ -235,7 +235,7 @@ static void uniphier_pcie_irq_handler(struct irq_desc *desc)
 	struct uniphier_pcie_priv *priv = to_uniphier_pcie(pci);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned long reg;
-	u32 val, bit, virq;
+	u32 val, bit;
 
 	/* INT for debug */
 	val = readl(priv->base + PCL_RCV_INT);
@@ -257,10 +257,8 @@ static void uniphier_pcie_irq_handler(struct irq_desc *desc)
 	val = readl(priv->base + PCL_RCV_INTX);
 	reg = FIELD_GET(PCL_RCV_INTX_ALL_STATUS, val);
 
-	for_each_set_bit(bit, &reg, PCI_NUM_INTX) {
-		virq = irq_linear_revmap(priv->legacy_irq_domain, bit);
-		generic_handle_irq(virq);
-	}
+	for_each_set_bit(bit, &reg, PCI_NUM_INTX)
+		generic_handle_domain_irq(priv->legacy_irq_domain, bit);
 
 	chained_irq_exit(chip, desc);
 }

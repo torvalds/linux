@@ -2103,16 +2103,15 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx, !qhp->srq);
 
 	c4iw_put_wr_wait(qhp->wr_waitp);
-
-	kfree(qhp);
 	return 0;
 }
 
-struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
-			     struct ib_udata *udata)
+int c4iw_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *attrs,
+		   struct ib_udata *udata)
 {
+	struct ib_pd *pd = qp->pd;
 	struct c4iw_dev *rhp;
-	struct c4iw_qp *qhp;
+	struct c4iw_qp *qhp = to_c4iw_qp(qp);
 	struct c4iw_pd *php;
 	struct c4iw_cq *schp;
 	struct c4iw_cq *rchp;
@@ -2124,44 +2123,36 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	struct c4iw_mm_entry *sq_key_mm, *rq_key_mm = NULL, *sq_db_key_mm;
 	struct c4iw_mm_entry *rq_db_key_mm = NULL, *ma_sync_key_mm = NULL;
 
-	pr_debug("ib_pd %p\n", pd);
-
 	if (attrs->qp_type != IB_QPT_RC || attrs->create_flags)
-		return ERR_PTR(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	php = to_c4iw_pd(pd);
 	rhp = php->rhp;
 	schp = get_chp(rhp, ((struct c4iw_cq *)attrs->send_cq)->cq.cqid);
 	rchp = get_chp(rhp, ((struct c4iw_cq *)attrs->recv_cq)->cq.cqid);
 	if (!schp || !rchp)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (attrs->cap.max_inline_data > T4_MAX_SEND_INLINE)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (!attrs->srq) {
 		if (attrs->cap.max_recv_wr > rhp->rdev.hw_queue.t4_max_rq_size)
-			return ERR_PTR(-E2BIG);
+			return -E2BIG;
 		rqsize = attrs->cap.max_recv_wr + 1;
 		if (rqsize < 8)
 			rqsize = 8;
 	}
 
 	if (attrs->cap.max_send_wr > rhp->rdev.hw_queue.t4_max_sq_size)
-		return ERR_PTR(-E2BIG);
+		return -E2BIG;
 	sqsize = attrs->cap.max_send_wr + 1;
 	if (sqsize < 8)
 		sqsize = 8;
 
-	qhp = kzalloc(sizeof(*qhp), GFP_KERNEL);
-	if (!qhp)
-		return ERR_PTR(-ENOMEM);
-
 	qhp->wr_waitp = c4iw_alloc_wr_wait(GFP_KERNEL);
-	if (!qhp->wr_waitp) {
-		ret = -ENOMEM;
-		goto err_free_qhp;
-	}
+	if (!qhp->wr_waitp)
+		return -ENOMEM;
 
 	qhp->wq.sq.size = sqsize;
 	qhp->wq.sq.memsize =
@@ -2339,7 +2330,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 		 qhp->wq.sq.qid, qhp->wq.sq.size, qhp->wq.sq.memsize,
 		 attrs->cap.max_send_wr, qhp->wq.rq.qid, qhp->wq.rq.size,
 		 qhp->wq.rq.memsize, attrs->cap.max_recv_wr);
-	return &qhp->ibqp;
+	return 0;
 err_free_ma_sync_key:
 	kfree(ma_sync_key_mm);
 err_free_rq_db_key:
@@ -2359,9 +2350,7 @@ err_destroy_qp:
 		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx, !attrs->srq);
 err_free_wr_wait:
 	c4iw_put_wr_wait(qhp->wr_waitp);
-err_free_qhp:
-	kfree(qhp);
-	return ERR_PTR(ret);
+	return ret;
 }
 
 int c4iw_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,

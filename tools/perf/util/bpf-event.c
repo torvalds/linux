@@ -21,6 +21,14 @@
 #include "record.h"
 #include "util/synthetic-events.h"
 
+struct btf * __weak btf__load_from_kernel_by_id(__u32 id)
+{
+       struct btf *btf;
+       int err = btf__get_from_id(id, &btf);
+
+       return err ? ERR_PTR(err) : btf;
+}
+
 #define ptr_to_u64(ptr)    ((__u64)(unsigned long)(ptr))
 
 static int snprintf_hex(char *buf, size_t size, unsigned char *data, size_t len)

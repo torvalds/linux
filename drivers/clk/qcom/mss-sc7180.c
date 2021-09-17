@@ -73,36 +73,23 @@ static int mss_sc7180_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	pm_runtime_enable(&pdev->dev);
-	ret = pm_clk_create(&pdev->dev);
+	ret = devm_pm_runtime_enable(&pdev->dev);
 	if (ret)
-		goto disable_pm_runtime;
+		return ret;
+
+	ret = devm_pm_clk_create(&pdev->dev);
+	if (ret)
+		return ret;
 
 	ret = pm_clk_add(&pdev->dev, "cfg_ahb");
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to acquire iface clock\n");
-		goto destroy_pm_clk;
+		return ret;
 	}
 
 	ret = qcom_cc_probe(pdev, &mss_sc7180_desc);
 	if (ret < 0)
-		goto destroy_pm_clk;
-
-	return 0;
-
-destroy_pm_clk:
-	pm_clk_destroy(&pdev->dev);
-
-disable_pm_runtime:
-	pm_runtime_disable(&pdev->dev);
-
-	return ret;
-}
-
-static int mss_sc7180_remove(struct platform_device *pdev)
-{
-	pm_clk_destroy(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
+		return ret;
 
 	return 0;
 }
@@ -119,7 +106,6 @@ MODULE_DEVICE_TABLE(of, mss_sc7180_match_table);
 
 static struct platform_driver mss_sc7180_driver = {
 	.probe		= mss_sc7180_probe,
-	.remove		= mss_sc7180_remove,
 	.driver		= {
 		.name		= "sc7180-mss",
 		.of_match_table = mss_sc7180_match_table,

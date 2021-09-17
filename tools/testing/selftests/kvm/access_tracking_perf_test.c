@@ -222,8 +222,6 @@ static void *vcpu_thread_main(void *arg)
 	int vcpu_id = vcpu_args->vcpu_id;
 	int current_iteration = -1;
 
-	vcpu_args_set(vm, vcpu_id, 1, vcpu_id);
-
 	while (spin_wait_for_next_iteration(&current_iteration)) {
 		switch (READ_ONCE(iteration_work)) {
 		case ITERATION_ACCESS_MEMORY:
@@ -333,7 +331,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	pthread_t *vcpu_threads;
 	int vcpus = params->vcpus;
 
-	vm = perf_test_create_vm(mode, vcpus, params->vcpu_memory_bytes,
+	vm = perf_test_create_vm(mode, vcpus, params->vcpu_memory_bytes, 1,
 				 params->backing_src);
 
 	perf_test_setup_vcpus(vm, vcpus, params->vcpu_memory_bytes,

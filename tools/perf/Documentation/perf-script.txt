@@ -106,7 +106,7 @@ OPTIONS
 	Pass 'arg' as an argument to the dlfilter. --dlarg may be repeated
 	to add more arguments.
 
---list-dlfilters=::
+--list-dlfilters::
         Display a list of available dlfilters. Use with option -v (must come
         before option --list-dlfilters) to show long descriptions.
 

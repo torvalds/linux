@@ -1656,7 +1656,7 @@ static int xs_get_srcport(struct sock_xprt *transport)
 unsigned short get_srcport(struct rpc_xprt *xprt)
 {
 	struct sock_xprt *sock = container_of(xprt, struct sock_xprt, xprt);
-	return sock->srcport;
+	return xs_sock_getport(sock->sock);
 }
 EXPORT_SYMBOL(get_srcport);
 
@@ -2099,13 +2099,20 @@ static void xs_tcp_shutdown(struct rpc_xprt *xprt)
 
 	if (sock == NULL)
 		return;
+	if (!xprt->reuseport) {
+		xs_close(xprt);
+		return;
+	}
 	switch (skst) {
-	default:
+	case TCP_FIN_WAIT1:
+	case TCP_FIN_WAIT2:
+		break;
+	case TCP_ESTABLISHED:
+	case TCP_CLOSE_WAIT:
 		kernel_sock_shutdown(sock, SHUT_RDWR);
 		trace_rpc_socket_shutdown(xprt, sock);
 		break;
-	case TCP_CLOSE:
-	case TCP_TIME_WAIT:
+	default:
 		xs_reset_transport(transport);
 	}
 }
