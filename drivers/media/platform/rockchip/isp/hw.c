@@ -543,12 +543,11 @@ void rkisp_soft_reset(struct rkisp_hw_dev *dev, bool is_secure)
 		udelay(10);
 	}
 
-	if (dev->isp_ver == ISP_V20) {
-		/* reset for Dehaze */
+	/* reset for Dehaze */
+	if (dev->isp_ver == ISP_V20)
 		writel(CIF_ISP_CTRL_ISP_MODE_BAYER_ITU601, base + CIF_ISP_CTRL);
-		writel(0xffff, base + CIF_IRCL);
-		udelay(10);
-	}
+	writel(0xffff, base + CIF_IRCL);
+	udelay(10);
 
 	if (domain)
 		iommu_attach_device(domain, dev->dev);
