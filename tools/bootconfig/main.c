@@ -15,6 +15,8 @@
 #include <linux/kernel.h>
 #include <linux/bootconfig.h>
 
+#define pr_err(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
+
 static int xbc_show_value(struct xbc_node *node, bool semicolon)
 {
 	const char *val, *eol;
