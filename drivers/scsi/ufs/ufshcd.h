@@ -741,6 +741,8 @@ struct ufs_hba_monitor {
  * @is_powered: flag to check if HBA is powered
  * @shutting_down: flag to check if shutdown has been invoked
  * @host_sem: semaphore used to serialize concurrent contexts
+ * @eh_wq: Workqueue that eh_work works on
+ * @eh_work: Worker to handle UFS errors that require s/w attention
  * @eeh_work: Worker to handle exception events
  * @errors: HBA errors
  * @uic_error: UFS interconnect layer error status
@@ -843,6 +845,8 @@ struct ufs_hba {
 	struct semaphore host_sem;
 
 	/* Work Queues */
+	struct workqueue_struct *eh_wq;
+	struct work_struct eh_work;
 	struct work_struct eeh_work;
 
 	/* HBA Errors */
