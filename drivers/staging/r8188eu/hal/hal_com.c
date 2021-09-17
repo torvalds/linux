@@ -34,15 +34,7 @@ void dump_chip_info(struct HAL_VERSION	chip_vers)
 		cnt += sprintf((buf + cnt), "UNKNOWN_CUT(%d)_",
 			       chip_vers.CUTVersion);
 
-	if (IS_1T1R(chip_vers))
-		cnt += sprintf((buf + cnt), "1T1R_");
-	else if (IS_1T2R(chip_vers))
-		cnt += sprintf((buf + cnt), "1T2R_");
-	else if (IS_2T2R(chip_vers))
-		cnt += sprintf((buf + cnt), "2T2R_");
-	else
-		cnt += sprintf((buf + cnt), "UNKNOWN_RFTYPE(%d)_",
-			       chip_vers.RFType);
+	cnt += sprintf((buf + cnt), "1T1R_");
 
 	cnt += sprintf((buf + cnt), "RomVer(%d)\n", chip_vers.ROMVer);
 
