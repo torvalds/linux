@@ -235,17 +235,17 @@ static void getpowerbase88e(struct adapter *Adapter, u8 *pPowerLevelOFDM,
 		powerBase0 = (powerBase0 << 24) | (powerBase0 << 16) | (powerBase0 << 8) | powerBase0;
 		*(OfdmBase + i) = powerBase0;
 	}
-	for (i = 0; i < pHalData->NumTotalRFPath; i++) {
-		/* Check HT20 to HT40 diff */
-		if (pHalData->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
-			powerlevel[i] = pPowerLevelBW20[i];
-		else
-			powerlevel[i] = pPowerLevelBW40[i];
-		powerBase1 = powerlevel[i];
-		powerBase1 = (powerBase1 << 24) | (powerBase1 << 16) | (powerBase1 << 8) | powerBase1;
-		*(MCSBase + i) = powerBase1;
-	}
+
+	/* Check HT20 to HT40 diff */
+	if (pHalData->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
+		powerlevel[i] = pPowerLevelBW20[i];
+	else
+		powerlevel[i] = pPowerLevelBW40[i];
+	powerBase1 = powerlevel[i];
+	powerBase1 = (powerBase1 << 24) | (powerBase1 << 16) | (powerBase1 << 8) | powerBase1;
+	*(MCSBase + i) = powerBase1;
 }
+
 static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
 				    u8 index, u32 *powerBase0, u32 *powerBase1,
 				    u32 *pOutWriteVal)
@@ -458,70 +458,68 @@ static int phy_RF6052_Config_ParaFile(struct adapter *Adapter)
 	struct bb_reg_def *pPhyReg;
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
 	u32 u4RegValue = 0;
-	u8 eRFPath;
+	u8 eRFPath = 0;
 	int rtStatus = _SUCCESS;
 
-	/* 3----------------------------------------------------------------- */
-	/* 3 <2> Initialize RF */
-	/* 3----------------------------------------------------------------- */
-	for (eRFPath = 0; eRFPath < pHalData->NumTotalRFPath; eRFPath++) {
-		pPhyReg = &pHalData->PHYRegDef[eRFPath];
+	/* Initialize RF */
 
-		/*----Store original RFENV control type----*/
-		switch (eRFPath) {
-		case RF_PATH_A:
-		case RF_PATH_C:
-			u4RegValue = PHY_QueryBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV);
-			break;
-		case RF_PATH_B:
-		case RF_PATH_D:
-			u4RegValue = PHY_QueryBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV << 16);
-			break;
-		}
-		/*----Set RF_ENV enable----*/
-		PHY_SetBBReg(Adapter, pPhyReg->rfintfe, bRFSI_RFENV << 16, 0x1);
-		udelay(1);/* PlatformStallExecution(1); */
+	pPhyReg = &pHalData->PHYRegDef[eRFPath];
 
-		/*----Set RF_ENV output high----*/
-		PHY_SetBBReg(Adapter, pPhyReg->rfintfo, bRFSI_RFENV, 0x1);
-		udelay(1);/* PlatformStallExecution(1); */
-
-		/* Set bit number of Address and Data for RF register */
-		PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, b3WireAddressLength, 0x0);	/*  Set 1 to 4 bits for 8255 */
-		udelay(1);/* PlatformStallExecution(1); */
-
-		PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, b3WireDataLength, 0x0);	/*  Set 0 to 12  bits for 8255 */
-		udelay(1);/* PlatformStallExecution(1); */
-
-		/*----Initialize RF fom connfiguration file----*/
-		switch (eRFPath) {
-		case RF_PATH_A:
-			if (HAL_STATUS_FAILURE == ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, (enum rf_radio_path)eRFPath, (enum rf_radio_path)eRFPath))
-				rtStatus = _FAIL;
-			break;
-		case RF_PATH_B:
-		if (HAL_STATUS_FAILURE == ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, (enum rf_radio_path)eRFPath, (enum rf_radio_path)eRFPath))
-				rtStatus = _FAIL;
-			break;
-		case RF_PATH_C:
-			break;
-		case RF_PATH_D:
-			break;
-		}
-		/*----Restore RFENV control type----*/;
-		switch (eRFPath) {
-		case RF_PATH_A:
-		case RF_PATH_C:
-			PHY_SetBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV, u4RegValue);
-			break;
-		case RF_PATH_B:
-		case RF_PATH_D:
-			PHY_SetBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV << 16, u4RegValue);
-			break;
-		}
-		if (rtStatus != _SUCCESS)
-			goto phy_RF6052_Config_ParaFile_Fail;
+	/*----Store original RFENV control type----*/
+	switch (eRFPath) {
+	case RF_PATH_A:
+	case RF_PATH_C:
+		u4RegValue = PHY_QueryBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV);
+		break;
+	case RF_PATH_B:
+	case RF_PATH_D:
+		u4RegValue = PHY_QueryBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV << 16);
+		break;
 	}
+	/*----Set RF_ENV enable----*/
+	PHY_SetBBReg(Adapter, pPhyReg->rfintfe, bRFSI_RFENV << 16, 0x1);
+	udelay(1);/* PlatformStallExecution(1); */
+
+	/*----Set RF_ENV output high----*/
+	PHY_SetBBReg(Adapter, pPhyReg->rfintfo, bRFSI_RFENV, 0x1);
+	udelay(1);/* PlatformStallExecution(1); */
+
+	/* Set bit number of Address and Data for RF register */
+	PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, b3WireAddressLength, 0x0);	/*  Set 1 to 4 bits for 8255 */
+	udelay(1);/* PlatformStallExecution(1); */
+
+	PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, b3WireDataLength, 0x0);	/*  Set 0 to 12  bits for 8255 */
+	udelay(1);/* PlatformStallExecution(1); */
+
+	/*----Initialize RF fom connfiguration file----*/
+	switch (eRFPath) {
+	case RF_PATH_A:
+		if (HAL_STATUS_FAILURE == ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, (enum rf_radio_path)eRFPath, (enum rf_radio_path)eRFPath))
+			rtStatus = _FAIL;
+		break;
+	case RF_PATH_B:
+	if (HAL_STATUS_FAILURE == ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, (enum rf_radio_path)eRFPath, (enum rf_radio_path)eRFPath))
+			rtStatus = _FAIL;
+		break;
+	case RF_PATH_C:
+		break;
+	case RF_PATH_D:
+		break;
+	}
+	/*----Restore RFENV control type----*/;
+	switch (eRFPath) {
+	case RF_PATH_A:
+	case RF_PATH_C:
+		PHY_SetBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV, u4RegValue);
+		break;
+	case RF_PATH_B:
+	case RF_PATH_D:
+		PHY_SetBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV << 16, u4RegValue);
+		break;
+	}
+	if (rtStatus != _SUCCESS)
+		goto phy_RF6052_Config_ParaFile_Fail;
+
 	return rtStatus;
 
 phy_RF6052_Config_ParaFile_Fail:
@@ -530,10 +528,7 @@ phy_RF6052_Config_ParaFile_Fail:
 
 int PHY_RF6052_Config8188E(struct adapter *Adapter)
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
 	int rtStatus = _SUCCESS;
-
-	pHalData->NumTotalRFPath = 1;
 
 	/*  */
 	/*  Config BB and RF */

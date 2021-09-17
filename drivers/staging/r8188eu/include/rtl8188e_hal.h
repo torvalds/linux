@@ -228,7 +228,6 @@ struct hal_data_8188e {
 	/* rf_ctrl */
 	u8	rf_chip;
 	u8	rf_type;
-	u8	NumTotalRFPath;
 
 	u8	BoardType;
 

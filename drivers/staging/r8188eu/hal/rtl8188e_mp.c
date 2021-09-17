@@ -143,12 +143,11 @@ void Hal_SetChannel(struct adapter *pAdapter)
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(pAdapter);
 	struct mp_priv	*pmp = &pAdapter->mppriv;
 	struct odm_dm_struct *pDM_Odm = &pHalData->odmpriv;
-	u8		eRFPath;
+	u8		eRFPath = 0;
 	u8		channel = pmp->channel;
 
 	/*  set RF channel register */
-	for (eRFPath = 0; eRFPath < pHalData->NumTotalRFPath; eRFPath++)
-		_write_rfreg(pAdapter, eRFPath, ODM_CHANNEL, 0x3FF, channel);
+	_write_rfreg(pAdapter, eRFPath, ODM_CHANNEL, 0x3FF, channel);
 	Hal_mpt_SwitchRfSetting(pAdapter);
 
 	SelectChannel(pAdapter, channel);
