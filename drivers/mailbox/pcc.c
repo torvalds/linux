@@ -174,6 +174,10 @@ static int pcc_map_interrupt(u32 interrupt, u32 flags)
 
 /**
  * pcc_mbox_irq - PCC mailbox interrupt handler
+ * @irq:	interrupt number
+ * @p: data/cookie passed from the caller to identify the channel
+ *
+ * Returns: IRQ_HANDLED if interrupt is handled or IRQ_NONE if not
  */
 static irqreturn_t pcc_mbox_irq(int irq, void *p)
 {
@@ -364,7 +368,7 @@ static const struct mbox_chan_ops pcc_chan_ops = {
 };
 
 /**
- * parse_pcc_subspaces -- Count PCC subspaces defined
+ * parse_pcc_subspace - Count PCC subspaces defined
  * @header: Pointer to the ACPI subtable header under the PCCT.
  * @end: End of subtable entry.
  *
