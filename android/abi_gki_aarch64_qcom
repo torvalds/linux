@@ -2086,8 +2086,10 @@
   rproc_remove_subdev
   rproc_report_crash
   rproc_shutdown
+  rtc_ktime_to_tm
   __rtc_register_device
   rtc_time64_to_tm
+  rtc_tm_to_ktime
   rtc_tm_to_time64
   rtc_update_irq
   rt_mutex_lock
