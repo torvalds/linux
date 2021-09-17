@@ -106,10 +106,10 @@ Todolist:
    :maxdepth: 1
 
    memory-allocation
+   unaligned-memory-access
 
 Todolist:
 
-   unaligned-memory-access
    dma-api
    dma-api-howto
    dma-attributes
