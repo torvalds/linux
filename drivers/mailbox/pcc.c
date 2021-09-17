@@ -52,6 +52,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
+#include <linux/log2.h>
 #include <linux/platform_device.h>
 #include <linux/mailbox_controller.h>
 #include <linux/mailbox_client.h>
@@ -63,6 +64,23 @@
 #define MBOX_IRQ_NAME		"pcc-mbox"
 
 static struct mbox_chan *pcc_mbox_channels;
+
+/**
+ * struct pcc_chan_reg - PCC register bundle
+ *
+ * @vaddr: cached virtual address for this register
+ * @gas: pointer to the generic address structure for this register
+ * @preserve_mask: bitmask to preserve when writing to this register
+ * @set_mask: bitmask to set when writing to this register
+ * @status_mask: bitmask to determine and/or update the status for this register
+ */
+struct pcc_chan_reg {
+	void __iomem *vaddr;
+	struct acpi_generic_address *gas;
+	u64 preserve_mask;
+	u64 set_mask;
+	u64 status_mask;
+};
 
 /**
  * struct pcc_chan_info - PCC channel specific information
@@ -142,6 +160,53 @@ static int write_register(void __iomem *vaddr, u64 val, unsigned int bit_width)
 		break;
 	}
 	return ret_val;
+}
+
+static int pcc_chan_reg_read(struct pcc_chan_reg *reg, u64 *val)
+{
+	int ret = 0;
+
+	if (!reg->gas) {
+		*val = 0;
+		return 0;
+	}
+
+	if (reg->vaddr)
+		ret = read_register(reg->vaddr, val, reg->gas->bit_width);
+	else
+		ret = acpi_read(val, reg->gas);
+
+	return ret;
+}
+
+static int pcc_chan_reg_write(struct pcc_chan_reg *reg, u64 val)
+{
+	int ret = 0;
+
+	if (!reg->gas)
+		return 0;
+
+	if (reg->vaddr)
+		ret = write_register(reg->vaddr, val, reg->gas->bit_width);
+	else
+		ret = acpi_write(val, reg->gas);
+
+	return ret;
+}
+
+static int pcc_chan_reg_read_modify_write(struct pcc_chan_reg *reg)
+{
+	int ret = 0;
+	u64 val;
+
+	ret = pcc_chan_reg_read(reg, &val);
+	if (ret)
+		return ret;
+
+	val &= reg->preserve_mask;
+	val |= reg->set_mask;
+
+	return pcc_chan_reg_write(reg, val);
 }
 
 /**
@@ -377,6 +442,31 @@ static int parse_pcc_subspace(union acpi_subtable_headers *header,
 		return 0;
 
 	return -EINVAL;
+}
+
+static int
+pcc_chan_reg_init(struct pcc_chan_reg *reg, struct acpi_generic_address *gas,
+		  u64 preserve_mask, u64 set_mask, u64 status_mask, char *name)
+{
+	if (gas->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
+		if (!(gas->bit_width >= 8 && gas->bit_width <= 64 &&
+		      is_power_of_2(gas->bit_width))) {
+			pr_err("Error: Cannot access register of %u bit width",
+			       gas->bit_width);
+			return -EFAULT;
+		}
+
+		reg->vaddr = acpi_os_ioremap(gas->address, gas->bit_width / 8);
+		if (!reg->vaddr) {
+			pr_err("Failed to ioremap PCC %s register\n", name);
+			return -ENOMEM;
+		}
+	}
+	reg->gas = gas;
+	reg->preserve_mask = preserve_mask;
+	reg->set_mask = set_mask;
+	reg->status_mask = status_mask;
+	return 0;
 }
 
 /**
