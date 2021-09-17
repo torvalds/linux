@@ -4898,6 +4898,16 @@ union bpf_attr {
  *		**-EINVAL** if *flags* is not zero.
  *
  *		**-ENOENT** if architecture does not support branch records.
+ *
+ * long bpf_trace_vprintk(const char *fmt, u32 fmt_size, const void *data, u32 data_len)
+ *	Description
+ *		Behaves like **bpf_trace_printk**\ () helper, but takes an array of u64
+ *		to format and can handle more format args as a result.
+ *
+ *		Arguments are to be used as in **bpf_seq_printf**\ () helper.
+ *	Return
+ *		The number of bytes written to the buffer, or a negative error
+ *		in case of failure.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -5077,6 +5087,7 @@ union bpf_attr {
 	FN(get_attach_cookie),		\
 	FN(task_pt_regs),		\
 	FN(get_branch_snapshot),	\
+	FN(trace_vprintk),		\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
