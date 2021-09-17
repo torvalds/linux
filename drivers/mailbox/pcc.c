@@ -79,24 +79,9 @@ struct pcc_chan_info {
 	int db_irq;
 };
 
+#define to_pcc_chan_info(c) container_of(c, struct pcc_chan_info, chan)
 static struct pcc_chan_info *chan_info;
-
 static struct mbox_controller pcc_mbox_ctrl = {};
-/**
- * get_pcc_channel - Given a PCC subspace idx, get
- *	the respective mbox_channel.
- * @id: PCC subspace index.
- *
- * Return: ERR_PTR(errno) if error, else pointer
- *	to mbox channel.
- */
-static struct mbox_chan *get_pcc_channel(int id)
-{
-	if (id < 0 || id >= pcc_mbox_ctrl.num_chans)
-		return ERR_PTR(-ENOENT);
-
-	return &pcc_mbox_channels[id];
-}
 
 /*
  * PCC can be used with perf critical drivers such as CPPC
@@ -239,31 +224,25 @@ static irqreturn_t pcc_mbox_irq(int irq, void *p)
  *		ACPI package. This is used to lookup the array of PCC
  *		subspaces as parsed by the PCC Mailbox controller.
  *
- * Return: Pointer to the Mailbox Channel if successful or
- *		ERR_PTR.
+ * Return: Pointer to the PCC Mailbox Channel if successful or ERR_PTR.
  */
-struct mbox_chan *pcc_mbox_request_channel(struct mbox_client *cl,
-					   int subspace_id)
+struct pcc_mbox_chan *
+pcc_mbox_request_channel(struct mbox_client *cl, int subspace_id)
 {
 	struct pcc_chan_info *pchan;
 	struct device *dev = pcc_mbox_ctrl.dev;
 	struct mbox_chan *chan;
 	unsigned long flags;
 
-	/*
-	 * Each PCC Subspace is a Mailbox Channel.
-	 * The PCC Clients get their PCC Subspace ID
-	 * from their own tables and pass it here.
-	 * This returns a pointer to the PCC subspace
-	 * for the Client to operate on.
-	 */
-	chan = get_pcc_channel(subspace_id);
+	if (subspace_id < 0 || subspace_id >= pcc_mbox_ctrl.num_chans)
+		return ERR_PTR(-ENOENT);
 
+	pchan = chan_info + subspace_id;
+	chan = pchan->chan.mchan;
 	if (IS_ERR(chan) || chan->cl) {
 		dev_err(dev, "Channel not found for idx: %d\n", subspace_id);
 		return ERR_PTR(-EBUSY);
 	}
-	pchan = chan_info + subspace_id;
 
 	spin_lock_irqsave(&chan->lock, flags);
 	chan->msg_free = 0;
@@ -285,38 +264,32 @@ struct mbox_chan *pcc_mbox_request_channel(struct mbox_client *cl,
 		if (unlikely(rc)) {
 			dev_err(dev, "failed to register PCC interrupt %d\n",
 				pchan->db_irq);
-			pcc_mbox_free_channel(chan);
-			chan = ERR_PTR(rc);
+			pcc_mbox_free_channel(&pchan->chan);
+			return ERR_PTR(rc);
 		}
 	}
 
-	return chan;
+	return &pchan->chan;
 }
 EXPORT_SYMBOL_GPL(pcc_mbox_request_channel);
 
 /**
  * pcc_mbox_free_channel - Clients call this to free their Channel.
  *
- * @chan: Pointer to the mailbox channel as returned by
- *		pcc_mbox_request_channel()
+ * @pchan: Pointer to the PCC mailbox channel as returned by
+ *	   pcc_mbox_request_channel()
  */
-void pcc_mbox_free_channel(struct mbox_chan *chan)
+void pcc_mbox_free_channel(struct pcc_mbox_chan *pchan)
 {
-	u32 id = chan - pcc_mbox_channels;
-	struct pcc_chan_info *pchan;
+	struct pcc_chan_info *pchan_info = to_pcc_chan_info(pchan);
+	struct mbox_chan *chan = pchan->mchan;
 	unsigned long flags;
 
 	if (!chan || !chan->cl)
 		return;
 
-	if (id >= pcc_mbox_ctrl.num_chans) {
-		pr_debug("pcc_mbox_free_channel: Invalid mbox_chan passed\n");
-		return;
-	}
-
-	pchan = chan_info + id;
-	if (pchan->db_irq > 0)
-		devm_free_irq(chan->mbox->dev, pchan->db_irq, chan);
+	if (pchan_info->db_irq > 0)
+		devm_free_irq(chan->mbox->dev, pchan_info->db_irq, chan);
 
 	spin_lock_irqsave(&chan->lock, flags);
 	chan->cl = NULL;

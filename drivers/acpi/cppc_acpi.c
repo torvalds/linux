@@ -43,7 +43,7 @@
 #include <acpi/cppc_acpi.h>
 
 struct cppc_pcc_data {
-	struct mbox_chan *pcc_channel;
+	struct pcc_mbox_chan *pcc_channel;
 	void __iomem *pcc_comm_addr;
 	bool pcc_channel_acquired;
 	unsigned int deadline_us;
@@ -295,7 +295,7 @@ static int send_pcc_cmd(int pcc_ss_id, u16 cmd)
 	pcc_ss_data->platform_owns_pcc = true;
 
 	/* Ring doorbell */
-	ret = mbox_send_message(pcc_ss_data->pcc_channel, &cmd);
+	ret = mbox_send_message(pcc_ss_data->pcc_channel->mchan, &cmd);
 	if (ret < 0) {
 		pr_err("Err sending PCC mbox message. ss: %d cmd:%d, ret:%d\n",
 		       pcc_ss_id, cmd, ret);
@@ -308,10 +308,10 @@ static int send_pcc_cmd(int pcc_ss_id, u16 cmd)
 	if (pcc_ss_data->pcc_mrtt)
 		pcc_ss_data->last_cmd_cmpl_time = ktime_get();
 
-	if (pcc_ss_data->pcc_channel->mbox->txdone_irq)
-		mbox_chan_txdone(pcc_ss_data->pcc_channel, ret);
+	if (pcc_ss_data->pcc_channel->mchan->mbox->txdone_irq)
+		mbox_chan_txdone(pcc_ss_data->pcc_channel->mchan, ret);
 	else
-		mbox_client_txdone(pcc_ss_data->pcc_channel, ret);
+		mbox_client_txdone(pcc_ss_data->pcc_channel->mchan, ret);
 
 end:
 	if (cmd == CMD_WRITE) {
@@ -493,46 +493,33 @@ EXPORT_SYMBOL_GPL(acpi_get_psd_map);
 
 static int register_pcc_channel(int pcc_ss_idx)
 {
-	struct acpi_pcct_hw_reduced *cppc_ss;
+	struct pcc_mbox_chan *pcc_chan;
 	u64 usecs_lat;
 
 	if (pcc_ss_idx >= 0) {
-		pcc_data[pcc_ss_idx]->pcc_channel =
-			pcc_mbox_request_channel(&cppc_mbox_cl,	pcc_ss_idx);
+		pcc_chan = pcc_mbox_request_channel(&cppc_mbox_cl, pcc_ss_idx);
 
-		if (IS_ERR(pcc_data[pcc_ss_idx]->pcc_channel)) {
+		if (IS_ERR(pcc_chan)) {
 			pr_err("Failed to find PCC channel for subspace %d\n",
 			       pcc_ss_idx);
 			return -ENODEV;
 		}
 
-		/*
-		 * The PCC mailbox controller driver should
-		 * have parsed the PCCT (global table of all
-		 * PCC channels) and stored pointers to the
-		 * subspace communication region in con_priv.
-		 */
-		cppc_ss = (pcc_data[pcc_ss_idx]->pcc_channel)->con_priv;
-
-		if (!cppc_ss) {
-			pr_err("No PCC subspace found for %d CPPC\n",
-			       pcc_ss_idx);
-			return -ENODEV;
-		}
-
+		pcc_data[pcc_ss_idx]->pcc_channel = pcc_chan;
 		/*
 		 * cppc_ss->latency is just a Nominal value. In reality
 		 * the remote processor could be much slower to reply.
 		 * So add an arbitrary amount of wait on top of Nominal.
 		 */
-		usecs_lat = NUM_RETRIES * cppc_ss->latency;
+		usecs_lat = NUM_RETRIES * pcc_chan->latency;
 		pcc_data[pcc_ss_idx]->deadline_us = usecs_lat;
-		pcc_data[pcc_ss_idx]->pcc_mrtt = cppc_ss->min_turnaround_time;
-		pcc_data[pcc_ss_idx]->pcc_mpar = cppc_ss->max_access_rate;
-		pcc_data[pcc_ss_idx]->pcc_nominal = cppc_ss->latency;
+		pcc_data[pcc_ss_idx]->pcc_mrtt = pcc_chan->min_turnaround_time;
+		pcc_data[pcc_ss_idx]->pcc_mpar = pcc_chan->max_access_rate;
+		pcc_data[pcc_ss_idx]->pcc_nominal = pcc_chan->latency;
 
 		pcc_data[pcc_ss_idx]->pcc_comm_addr =
-			acpi_os_ioremap(cppc_ss->base_address, cppc_ss->length);
+			acpi_os_ioremap(pcc_chan->shmem_base_addr,
+					pcc_chan->shmem_size);
 		if (!pcc_data[pcc_ss_idx]->pcc_comm_addr) {
 			pr_err("Failed to ioremap PCC comm region mem for %d\n",
 			       pcc_ss_idx);
