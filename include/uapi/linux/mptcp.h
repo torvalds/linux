@@ -4,6 +4,13 @@
 
 #include <linux/const.h>
 #include <linux/types.h>
+#include <linux/in.h>		/* for sockaddr_in			*/
+#include <linux/in6.h>		/* for sockaddr_in6			*/
+#include <linux/socket.h>	/* for sockaddr_storage and sa_family	*/
+
+#ifndef __KERNEL__
+#include <sys/socket.h>		/* for struct sockaddr			*/
+#endif
 
 #define MPTCP_SUBFLOW_FLAG_MCAP_REM		_BITUL(0)
 #define MPTCP_SUBFLOW_FLAG_MCAP_LOC		_BITUL(1)
@@ -200,8 +207,25 @@ struct mptcp_subflow_data {
 	__u32		size_user;			/* size of one element in data[] */
 } __attribute__((aligned(8)));
 
+struct mptcp_subflow_addrs {
+	union {
+		__kernel_sa_family_t sa_family;
+		struct sockaddr sa_local;
+		struct sockaddr_in sin_local;
+		struct sockaddr_in6 sin6_local;
+		struct __kernel_sockaddr_storage ss_local;
+	};
+	union {
+		struct sockaddr sa_remote;
+		struct sockaddr_in sin_remote;
+		struct sockaddr_in6 sin6_remote;
+		struct __kernel_sockaddr_storage ss_remote;
+	};
+};
+
 /* MPTCP socket options */
 #define MPTCP_INFO		1
 #define MPTCP_TCPINFO		2
+#define MPTCP_SUBFLOW_ADDRS	3
 
 #endif /* _UAPI_MPTCP_H */

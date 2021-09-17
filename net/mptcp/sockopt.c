@@ -840,6 +840,95 @@ static int mptcp_getsockopt_tcpinfo(struct mptcp_sock *msk, char __user *optval,
 	return 0;
 }
 
+static void mptcp_get_sub_addrs(const struct sock *sk, struct mptcp_subflow_addrs *a)
+{
+	struct inet_sock *inet = inet_sk(sk);
+
+	memset(a, 0, sizeof(*a));
+
+	if (sk->sk_family == AF_INET) {
+		a->sin_local.sin_family = AF_INET;
+		a->sin_local.sin_port = inet->inet_sport;
+		a->sin_local.sin_addr.s_addr = inet->inet_rcv_saddr;
+
+		if (!a->sin_local.sin_addr.s_addr)
+			a->sin_local.sin_addr.s_addr = inet->inet_saddr;
+
+		a->sin_remote.sin_family = AF_INET;
+		a->sin_remote.sin_port = inet->inet_dport;
+		a->sin_remote.sin_addr.s_addr = inet->inet_daddr;
+#if IS_ENABLED(CONFIG_IPV6)
+	} else if (sk->sk_family == AF_INET6) {
+		const struct ipv6_pinfo *np = inet6_sk(sk);
+
+		a->sin6_local.sin6_family = AF_INET6;
+		a->sin6_local.sin6_port = inet->inet_sport;
+
+		if (ipv6_addr_any(&sk->sk_v6_rcv_saddr))
+			a->sin6_local.sin6_addr = np->saddr;
+		else
+			a->sin6_local.sin6_addr = sk->sk_v6_rcv_saddr;
+
+		a->sin6_remote.sin6_family = AF_INET6;
+		a->sin6_remote.sin6_port = inet->inet_dport;
+		a->sin6_remote.sin6_addr = sk->sk_v6_daddr;
+#endif
+	}
+}
+
+static int mptcp_getsockopt_subflow_addrs(struct mptcp_sock *msk, char __user *optval,
+					  int __user *optlen)
+{
+	struct sock *sk = &msk->sk.icsk_inet.sk;
+	struct mptcp_subflow_context *subflow;
+	unsigned int sfcount = 0, copied = 0;
+	struct mptcp_subflow_data sfd;
+	char __user *addrptr;
+	int len;
+
+	len = mptcp_get_subflow_data(&sfd, optval, optlen);
+	if (len < 0)
+		return len;
+
+	sfd.size_kernel = sizeof(struct mptcp_subflow_addrs);
+	sfd.size_user = min_t(unsigned int, sfd.size_user,
+			      sizeof(struct mptcp_subflow_addrs));
+
+	addrptr = optval + sfd.size_subflow_data;
+
+	lock_sock(sk);
+
+	mptcp_for_each_subflow(msk, subflow) {
+		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
+
+		++sfcount;
+
+		if (len && len >= sfd.size_user) {
+			struct mptcp_subflow_addrs a;
+
+			mptcp_get_sub_addrs(ssk, &a);
+
+			if (copy_to_user(addrptr, &a, sfd.size_user)) {
+				release_sock(sk);
+				return -EFAULT;
+			}
+
+			addrptr += sfd.size_user;
+			copied += sfd.size_user;
+			len -= sfd.size_user;
+		}
+	}
+
+	release_sock(sk);
+
+	sfd.num_subflows = sfcount;
+
+	if (mptcp_put_subflow_data(&sfd, optval, copied, optlen))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int mptcp_getsockopt_sol_tcp(struct mptcp_sock *msk, int optname,
 				    char __user *optval, int __user *optlen)
 {
@@ -862,6 +951,8 @@ static int mptcp_getsockopt_sol_mptcp(struct mptcp_sock *msk, int optname,
 		return mptcp_getsockopt_info(msk, optval, optlen);
 	case MPTCP_TCPINFO:
 		return mptcp_getsockopt_tcpinfo(msk, optval, optlen);
+	case MPTCP_SUBFLOW_ADDRS:
+		return mptcp_getsockopt_subflow_addrs(msk, optval, optlen);
 	}
 
 	return -EOPNOTSUPP;
