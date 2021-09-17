@@ -244,10 +244,9 @@ static int lb035q02_probe_of(struct spi_device *spi)
 	struct gpio_desc *gpio;
 
 	gpio = devm_gpiod_get(&spi->dev, "enable", GPIOD_OUT_LOW);
-	if (IS_ERR(gpio)) {
-		dev_err(&spi->dev, "failed to parse enable gpio\n");
-		return PTR_ERR(gpio);
-	}
+	if (IS_ERR(gpio))
+		return dev_err_probe(&spi->dev, PTR_ERR(gpio),
+				     "failed to parse enable gpio\n");
 
 	ddata->enable_gpio = gpio;
 
