@@ -124,7 +124,16 @@ enum
 	RGA2_FORMAT_BPP_1            = 0x24,
 	RGA2_FORMAT_BPP_2            = 0x25,
 	RGA2_FORMAT_BPP_4            = 0x26,
-	RGA2_FORMAT_BPP_8            = 0x27
+	RGA2_FORMAT_BPP_8            = 0x27,
+
+	RGA2_FORMAT_ARGB_8888    = 0x28,
+	RGA2_FORMAT_XRGB_8888    = 0x29,
+	RGA2_FORMAT_ARGB_5551    = 0x2a,
+	RGA2_FORMAT_ARGB_4444    = 0x2b,
+	RGA2_FORMAT_ABGR_8888    = 0x2c,
+	RGA2_FORMAT_XBGR_8888    = 0x2d,
+	RGA2_FORMAT_ABGR_5551    = 0x2e,
+	RGA2_FORMAT_ABGR_4444    = 0x2f,
 };
 
 typedef struct mdp_img
@@ -316,7 +325,7 @@ typedef struct rga_img_info_t
     unsigned short vir_h;
 
     unsigned short endian_mode; //for BPP
-    unsigned short alpha_swap;
+    unsigned short alpha_swap;    /* not use */
 }
 rga_img_info_t;
 
@@ -584,7 +593,7 @@ struct rga2_req
     u8 alpha_zero_key;
     u8 src_trans_mode;
 
-    u8 alpha_swp;
+    u8 alpha_swp;           /* not use */
     u8 dither_mode;
 
     u8 rgb2yuv_mode;

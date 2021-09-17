@@ -151,6 +151,10 @@ static int rga2_memory_check(void *vaddr, u32 w, u32 h, u32 format, int fd)
 	case RGA2_FORMAT_RGBX_8888:
 	case RGA2_FORMAT_BGRA_8888:
 	case RGA2_FORMAT_BGRX_8888:
+	case RGA2_FORMAT_ARGB_8888:
+	case RGA2_FORMAT_XRGB_8888:
+	case RGA2_FORMAT_ABGR_8888:
+	case RGA2_FORMAT_XBGR_8888:
 		bits = 32;
 		break;
 	case RGA2_FORMAT_RGB_888:
@@ -167,6 +171,10 @@ static int rga2_memory_check(void *vaddr, u32 w, u32 h, u32 format, int fd)
 	case RGA2_FORMAT_YCrCb_422_P:
 	case RGA2_FORMAT_BGRA_5551:
 	case RGA2_FORMAT_BGRA_4444:
+	case RGA2_FORMAT_ARGB_5551:
+	case RGA2_FORMAT_ARGB_4444:
+	case RGA2_FORMAT_ABGR_5551:
+	case RGA2_FORMAT_ABGR_4444:
 		bits = 16;
 		break;
 	case RGA2_FORMAT_YCbCr_420_SP:
@@ -619,6 +627,10 @@ static int rga2_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr, uns
         case RGA2_FORMAT_RGBX_8888 :
         case RGA2_FORMAT_BGRA_8888 :
         case RGA2_FORMAT_BGRX_8888 :
+        case RGA2_FORMAT_ARGB_8888 :
+        case RGA2_FORMAT_XRGB_8888 :
+        case RGA2_FORMAT_ABGR_8888 :
+        case RGA2_FORMAT_XBGR_8888 :
             stride = (w * 4 + 3) & (~3);
             size_yrgb = stride*h;
             start = yrgb_addr >> PAGE_SHIFT;
@@ -641,6 +653,10 @@ static int rga2_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr, uns
         case RGA2_FORMAT_BGR_565 :
         case RGA2_FORMAT_BGRA_5551 :
         case RGA2_FORMAT_BGRA_4444 :
+        case RGA2_FORMAT_ARGB_5551 :
+        case RGA2_FORMAT_ARGB_4444 :
+        case RGA2_FORMAT_ABGR_5551 :
+        case RGA2_FORMAT_ABGR_4444 :
             stride = (w*2 + 3) & (~3);
             size_yrgb = stride * h;
             start = yrgb_addr >> PAGE_SHIFT;
@@ -787,6 +803,10 @@ static int rga2_UserMemory_cheeck(struct page **pages, u32 w, u32 h, u32 format,
 	case RGA2_FORMAT_RGBX_8888:
 	case RGA2_FORMAT_BGRA_8888:
 	case RGA2_FORMAT_BGRX_8888:
+	case RGA2_FORMAT_ARGB_8888:
+	case RGA2_FORMAT_XRGB_8888:
+	case RGA2_FORMAT_ABGR_8888:
+	case RGA2_FORMAT_XBGR_8888:
 		bits = 32;
 		break;
 	case RGA2_FORMAT_RGB_888:
@@ -803,6 +823,10 @@ static int rga2_UserMemory_cheeck(struct page **pages, u32 w, u32 h, u32 format,
 	case RGA2_FORMAT_YCrCb_422_P:
 	case RGA2_FORMAT_BGRA_5551:
 	case RGA2_FORMAT_BGRA_4444:
+	case RGA2_FORMAT_ARGB_5551:
+	case RGA2_FORMAT_ARGB_4444:
+	case RGA2_FORMAT_ABGR_5551:
+	case RGA2_FORMAT_ABGR_4444:
 		bits = 16;
 		break;
 	case RGA2_FORMAT_YCbCr_420_SP:

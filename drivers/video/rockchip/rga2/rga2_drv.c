@@ -247,6 +247,23 @@ static const char *rga2_get_format_name(uint32_t format)
 	case RGA2_FORMAT_BGRA_4444:
 		return "BGRA4444";
 
+	case RGA2_FORMAT_ARGB_8888:
+		return "ARGB8888";
+	case RGA2_FORMAT_XRGB_8888:
+		return "XBGR8888";
+	case RGA2_FORMAT_ARGB_5551:
+		return "ARGB5551";
+	case RGA2_FORMAT_ARGB_4444:
+		return "ARGB4444";
+	case RGA2_FORMAT_ABGR_8888:
+		return "ABGR8888";
+	case RGA2_FORMAT_XBGR_8888:
+		return "XBGR8888";
+	case RGA2_FORMAT_ABGR_5551:
+		return "ABGR5551";
+	case RGA2_FORMAT_ABGR_4444:
+		return "ABGR4444";
+
 	case RGA2_FORMAT_YCbCr_422_SP:
 		return "YCbCr422SP";
 	case RGA2_FORMAT_YCbCr_422_P:
