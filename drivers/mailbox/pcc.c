@@ -63,8 +63,6 @@
 
 #define MBOX_IRQ_NAME		"pcc-mbox"
 
-static struct mbox_chan *pcc_mbox_channels;
-
 /**
  * struct pcc_chan_reg - PCC register bundle
  *
@@ -106,7 +104,7 @@ struct pcc_chan_info {
 
 #define to_pcc_chan_info(c) container_of(c, struct pcc_chan_info, chan)
 static struct pcc_chan_info *chan_info;
-static struct mbox_controller pcc_mbox_ctrl = {};
+static int pcc_chan_count;
 
 /*
  * PCC can be used with perf critical drivers such as CPPC
@@ -281,11 +279,11 @@ struct pcc_mbox_chan *
 pcc_mbox_request_channel(struct mbox_client *cl, int subspace_id)
 {
 	struct pcc_chan_info *pchan;
-	struct device *dev = pcc_mbox_ctrl.dev;
 	struct mbox_chan *chan;
+	struct device *dev;
 	unsigned long flags;
 
-	if (subspace_id < 0 || subspace_id >= pcc_mbox_ctrl.num_chans)
+	if (subspace_id < 0 || subspace_id >= pcc_chan_count)
 		return ERR_PTR(-ENOENT);
 
 	pchan = chan_info + subspace_id;
@@ -294,6 +292,7 @@ pcc_mbox_request_channel(struct mbox_client *cl, int subspace_id)
 		dev_err(dev, "Channel not found for idx: %d\n", subspace_id);
 		return ERR_PTR(-EBUSY);
 	}
+	dev = chan->mbox->dev;
 
 	spin_lock_irqsave(&chan->lock, flags);
 	chan->msg_free = 0;
@@ -576,16 +575,12 @@ static void pcc_parse_subspace_shmem(struct pcc_chan_info *pchan,
  */
 static int __init acpi_pcc_probe(void)
 {
+	int count, i, rc = 0;
+	acpi_status status;
 	struct acpi_table_header *pcct_tbl;
-	struct acpi_subtable_header *pcct_entry;
-	struct acpi_table_pcct *acpi_pcct_tbl;
 	struct acpi_subtable_proc proc[ACPI_PCCT_TYPE_RESERVED];
-	int count, i, rc;
-	acpi_status status = AE_OK;
 
-	/* Search for PCCT */
 	status = acpi_get_table(ACPI_SIG_PCCT, 0, &pcct_tbl);
-
 	if (ACPI_FAILURE(status) || !pcct_tbl)
 		return -ENODEV;
 
@@ -607,71 +602,12 @@ static int __init acpi_pcc_probe(void)
 			pr_warn("Invalid PCCT: %d PCC subspaces\n", count);
 
 		rc = -EINVAL;
-		goto err_put_pcct;
+	} else {
+		pcc_chan_count = count;
 	}
 
-	pcc_mbox_channels = kcalloc(count, sizeof(struct mbox_chan),
-				    GFP_KERNEL);
-	if (!pcc_mbox_channels) {
-		pr_err("Could not allocate space for PCC mbox channels\n");
-		rc = -ENOMEM;
-		goto err_put_pcct;
-	}
-
-	chan_info = kcalloc(count, sizeof(*chan_info), GFP_KERNEL);
-	if (!chan_info) {
-		rc = -ENOMEM;
-		goto err_free_mbox;
-	}
-
-	/* Point to the first PCC subspace entry */
-	pcct_entry = (struct acpi_subtable_header *) (
-		(unsigned long) pcct_tbl + sizeof(struct acpi_table_pcct));
-
-	acpi_pcct_tbl = (struct acpi_table_pcct *) pcct_tbl;
-	if (acpi_pcct_tbl->flags & ACPI_PCCT_DOORBELL)
-		pcc_mbox_ctrl.txdone_irq = true;
-
-	for (i = 0; i < count; i++) {
-		struct pcc_chan_info *pchan = chan_info + i;
-
-		pcc_mbox_channels[i].con_priv = pchan;
-		pchan->chan.mchan = &pcc_mbox_channels[i];
-
-		if (pcct_entry->type == ACPI_PCCT_TYPE_EXT_PCC_SLAVE_SUBSPACE &&
-		    !pcc_mbox_ctrl.txdone_irq) {
-			pr_err("Plaform Interrupt flag must be set to 1");
-			rc = -EINVAL;
-			goto err;
-		}
-
-		if (pcc_mbox_ctrl.txdone_irq) {
-			rc = pcc_parse_subspace_irq(pchan, pcct_entry);
-			if (rc < 0)
-				goto err;
-		}
-		rc = pcc_parse_subspace_db_reg(pchan, pcct_entry);
-		if (rc < 0)
-			goto err;
-
-		pcc_parse_subspace_shmem(pchan, pcct_entry);
-
-		pcct_entry = (struct acpi_subtable_header *)
-			((unsigned long) pcct_entry + pcct_entry->length);
-	}
-
-	pcc_mbox_ctrl.num_chans = count;
-
-	pr_info("Detected %d PCC Subspaces\n", pcc_mbox_ctrl.num_chans);
-
-	return 0;
-
-err:
-	kfree(chan_info);
-err_free_mbox:
-	kfree(pcc_mbox_channels);
-err_put_pcct:
 	acpi_put_table(pcct_tbl);
+
 	return rc;
 }
 
@@ -688,21 +624,93 @@ err_put_pcct:
  */
 static int pcc_mbox_probe(struct platform_device *pdev)
 {
-	int ret = 0;
+	struct device *dev = &pdev->dev;
+	struct mbox_controller *pcc_mbox_ctrl;
+	struct mbox_chan *pcc_mbox_channels;
+	struct acpi_table_header *pcct_tbl;
+	struct acpi_subtable_header *pcct_entry;
+	struct acpi_table_pcct *acpi_pcct_tbl;
+	acpi_status status = AE_OK;
+	int i, rc, count = pcc_chan_count;
 
-	pcc_mbox_ctrl.chans = pcc_mbox_channels;
-	pcc_mbox_ctrl.ops = &pcc_chan_ops;
-	pcc_mbox_ctrl.dev = &pdev->dev;
+	/* Search for PCCT */
+	status = acpi_get_table(ACPI_SIG_PCCT, 0, &pcct_tbl);
 
-	pr_info("Registering PCC driver as Mailbox controller\n");
-	ret = mbox_controller_register(&pcc_mbox_ctrl);
+	if (ACPI_FAILURE(status) || !pcct_tbl)
+		return -ENODEV;
 
-	if (ret) {
-		pr_err("Err registering PCC as Mailbox controller: %d\n", ret);
-		ret = -ENODEV;
+	pcc_mbox_channels = devm_kcalloc(dev, count, sizeof(*pcc_mbox_channels),
+					 GFP_KERNEL);
+	if (!pcc_mbox_channels) {
+		rc = -ENOMEM;
+		goto err;
 	}
 
-	return ret;
+	chan_info = devm_kcalloc(dev, count, sizeof(*chan_info), GFP_KERNEL);
+	if (!chan_info) {
+		rc = -ENOMEM;
+		goto err;
+	}
+
+	pcc_mbox_ctrl = devm_kmalloc(dev, sizeof(*pcc_mbox_ctrl), GFP_KERNEL);
+	if (!pcc_mbox_ctrl) {
+		rc = -ENOMEM;
+		goto err;
+	}
+
+	/* Point to the first PCC subspace entry */
+	pcct_entry = (struct acpi_subtable_header *) (
+		(unsigned long) pcct_tbl + sizeof(struct acpi_table_pcct));
+
+	acpi_pcct_tbl = (struct acpi_table_pcct *) pcct_tbl;
+	if (acpi_pcct_tbl->flags & ACPI_PCCT_DOORBELL)
+		pcc_mbox_ctrl->txdone_irq = true;
+
+	for (i = 0; i < count; i++) {
+		struct pcc_chan_info *pchan = chan_info + i;
+
+		pcc_mbox_channels[i].con_priv = pchan;
+		pchan->chan.mchan = &pcc_mbox_channels[i];
+
+		if (pcct_entry->type == ACPI_PCCT_TYPE_EXT_PCC_SLAVE_SUBSPACE &&
+		    !pcc_mbox_ctrl->txdone_irq) {
+			pr_err("Plaform Interrupt flag must be set to 1");
+			rc = -EINVAL;
+			goto err;
+		}
+
+		if (pcc_mbox_ctrl->txdone_irq) {
+			rc = pcc_parse_subspace_irq(pchan, pcct_entry);
+			if (rc < 0)
+				goto err;
+		}
+		rc = pcc_parse_subspace_db_reg(pchan, pcct_entry);
+		if (rc < 0)
+			goto err;
+
+		pcc_parse_subspace_shmem(pchan, pcct_entry);
+
+		pcct_entry = (struct acpi_subtable_header *)
+			((unsigned long) pcct_entry + pcct_entry->length);
+	}
+
+	pcc_mbox_ctrl->num_chans = count;
+
+	pr_info("Detected %d PCC Subspaces\n", pcc_mbox_ctrl->num_chans);
+
+	pcc_mbox_ctrl->chans = pcc_mbox_channels;
+	pcc_mbox_ctrl->ops = &pcc_chan_ops;
+	pcc_mbox_ctrl->dev = dev;
+
+	pr_info("Registering PCC driver as Mailbox controller\n");
+	rc = mbox_controller_register(pcc_mbox_ctrl);
+	if (rc)
+		pr_err("Err registering PCC as Mailbox controller: %d\n", rc);
+	else
+		return 0;
+err:
+	acpi_put_table(pcct_tbl);
+	return rc;
 }
 
 static struct platform_driver pcc_mbox_driver = {
