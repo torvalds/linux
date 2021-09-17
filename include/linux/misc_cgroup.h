@@ -37,7 +37,6 @@ struct misc_res {
 	unsigned long max;
 	atomic_long_t usage;
 	atomic_long_t events;
-	bool failed;
 };
 
 /**
