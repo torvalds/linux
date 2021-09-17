@@ -28,6 +28,7 @@ static int nix_verify_bandprof(struct nix_cn10k_aq_enq_req *req,
 static int nix_free_all_bandprof(struct rvu *rvu, u16 pcifunc);
 static void nix_clear_ratelimit_aggr(struct rvu *rvu, struct nix_hw *nix_hw,
 				     u32 leaf_prof);
+static const char *nix_get_ctx_name(int ctype);
 
 enum mc_tbl_sz {
 	MC_TBL_SZ_256,
@@ -1061,10 +1062,68 @@ static int rvu_nix_blk_aq_enq_inst(struct rvu *rvu, struct nix_hw *nix_hw,
 	return 0;
 }
 
+static int rvu_nix_verify_aq_ctx(struct rvu *rvu, struct nix_hw *nix_hw,
+				 struct nix_aq_enq_req *req, u8 ctype)
+{
+	struct nix_cn10k_aq_enq_req aq_req;
+	struct nix_cn10k_aq_enq_rsp aq_rsp;
+	int rc, word;
+
+	if (req->ctype != NIX_AQ_CTYPE_CQ)
+		return 0;
+
+	rc = nix_aq_context_read(rvu, nix_hw, &aq_req, &aq_rsp,
+				 req->hdr.pcifunc, ctype, req->qidx);
+	if (rc) {
+		dev_err(rvu->dev,
+			"%s: Failed to fetch %s%d context of PFFUNC 0x%x\n",
+			__func__, nix_get_ctx_name(ctype), req->qidx,
+			req->hdr.pcifunc);
+		return rc;
+	}
+
+	/* Make copy of original context & mask which are required
+	 * for resubmission
+	 */
+	memcpy(&aq_req.cq_mask, &req->cq_mask, sizeof(struct nix_cq_ctx_s));
+	memcpy(&aq_req.cq, &req->cq, sizeof(struct nix_cq_ctx_s));
+
+	/* exclude fields which HW can update */
+	aq_req.cq_mask.cq_err       = 0;
+	aq_req.cq_mask.wrptr        = 0;
+	aq_req.cq_mask.tail         = 0;
+	aq_req.cq_mask.head	    = 0;
+	aq_req.cq_mask.avg_level    = 0;
+	aq_req.cq_mask.update_time  = 0;
+	aq_req.cq_mask.substream    = 0;
+
+	/* Context mask (cq_mask) holds mask value of fields which
+	 * are changed in AQ WRITE operation.
+	 * for example cq.drop = 0xa;
+	 *	       cq_mask.drop = 0xff;
+	 * Below logic performs '&' between cq and cq_mask so that non
+	 * updated fields are masked out for request and response
+	 * comparison
+	 */
+	for (word = 0; word < sizeof(struct nix_cq_ctx_s) / sizeof(u64);
+	     word++) {
+		*(u64 *)((u8 *)&aq_rsp.cq + word * 8) &=
+			(*(u64 *)((u8 *)&aq_req.cq_mask + word * 8));
+		*(u64 *)((u8 *)&aq_req.cq + word * 8) &=
+			(*(u64 *)((u8 *)&aq_req.cq_mask + word * 8));
+	}
+
+	if (memcmp(&aq_req.cq, &aq_rsp.cq, sizeof(struct nix_cq_ctx_s)))
+		return NIX_AF_ERR_AQ_CTX_RETRY_WRITE;
+
+	return 0;
+}
+
 static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 			       struct nix_aq_enq_rsp *rsp)
 {
 	struct nix_hw *nix_hw;
+	int err, retries = 5;
 	int blkaddr;
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, req->hdr.pcifunc);
@@ -1075,7 +1134,24 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 	if (!nix_hw)
 		return NIX_AF_ERR_INVALID_NIXBLK;
 
-	return rvu_nix_blk_aq_enq_inst(rvu, nix_hw, req, rsp);
+retry:
+	err = rvu_nix_blk_aq_enq_inst(rvu, nix_hw, req, rsp);
+
+	/* HW errata 'AQ Modification to CQ could be discarded on heavy traffic'
+	 * As a work around perfrom CQ context read after each AQ write. If AQ
+	 * read shows AQ write is not updated perform AQ write again.
+	 */
+	if (!err && req->op == NIX_AQ_INSTOP_WRITE) {
+		err = rvu_nix_verify_aq_ctx(rvu, nix_hw, req, NIX_AQ_CTYPE_CQ);
+		if (err == NIX_AF_ERR_AQ_CTX_RETRY_WRITE) {
+			if (retries--)
+				goto retry;
+			else
+				return NIX_AF_ERR_CQ_CTX_WRITE_ERR;
+		}
+	}
+
+	return err;
 }
 
 static const char *nix_get_ctx_name(int ctype)
