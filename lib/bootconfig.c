@@ -244,7 +244,7 @@ int __init xbc_node_compose_key_after(struct xbc_node *root,
 				      struct xbc_node *node,
 				      char *buf, size_t size)
 {
-	u16 keys[XBC_DEPTH_MAX];
+	uint16_t keys[XBC_DEPTH_MAX];
 	int depth = 0, ret = 0, total = 0;
 
 	if (!node || node == root)
@@ -359,21 +359,21 @@ const char * __init xbc_node_find_next_key_value(struct xbc_node *root,
 
 /* XBC parse and tree build */
 
-static int __init xbc_init_node(struct xbc_node *node, char *data, u32 flag)
+static int __init xbc_init_node(struct xbc_node *node, char *data, uint32_t flag)
 {
 	unsigned long offset = data - xbc_data;
 
 	if (WARN_ON(offset >= XBC_DATA_MAX))
 		return -EINVAL;
 
-	node->data = (u16)offset | flag;
+	node->data = (uint16_t)offset | flag;
 	node->child = 0;
 	node->next = 0;
 
 	return 0;
 }
 
-static struct xbc_node * __init xbc_add_node(char *data, u32 flag)
+static struct xbc_node * __init xbc_add_node(char *data, uint32_t flag)
 {
 	struct xbc_node *node;
 
@@ -403,7 +403,7 @@ static inline __init struct xbc_node *xbc_last_child(struct xbc_node *node)
 	return node;
 }
 
-static struct xbc_node * __init __xbc_add_sibling(char *data, u32 flag, bool head)
+static struct xbc_node * __init __xbc_add_sibling(char *data, uint32_t flag, bool head)
 {
 	struct xbc_node *sib, *node = xbc_add_node(data, flag);
 
@@ -430,17 +430,17 @@ static struct xbc_node * __init __xbc_add_sibling(char *data, u32 flag, bool hea
 	return node;
 }
 
-static inline struct xbc_node * __init xbc_add_sibling(char *data, u32 flag)
+static inline struct xbc_node * __init xbc_add_sibling(char *data, uint32_t flag)
 {
 	return __xbc_add_sibling(data, flag, false);
 }
 
-static inline struct xbc_node * __init xbc_add_head_sibling(char *data, u32 flag)
+static inline struct xbc_node * __init xbc_add_head_sibling(char *data, uint32_t flag)
 {
 	return __xbc_add_sibling(data, flag, true);
 }
 
-static inline __init struct xbc_node *xbc_add_child(char *data, u32 flag)
+static inline __init struct xbc_node *xbc_add_child(char *data, uint32_t flag)
 {
 	struct xbc_node *node = xbc_add_sibling(data, flag);
 

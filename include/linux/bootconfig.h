@@ -25,10 +25,10 @@
  * The checksum will be used with the BOOTCONFIG_MAGIC and the size for
  * embedding the bootconfig in the initrd image.
  */
-static inline __init u32 xbc_calc_checksum(void *data, u32 size)
+static inline __init uint32_t xbc_calc_checksum(void *data, uint32_t size)
 {
 	unsigned char *p = data;
-	u32 ret = 0;
+	uint32_t ret = 0;
 
 	while (size--)
 		ret += *p++;
@@ -38,10 +38,10 @@ static inline __init u32 xbc_calc_checksum(void *data, u32 size)
 
 /* XBC tree node */
 struct xbc_node {
-	u16 next;
-	u16 child;
-	u16 parent;
-	u16 data;
+	uint16_t next;
+	uint16_t child;
+	uint16_t parent;
+	uint16_t data;
 } __attribute__ ((__packed__));
 
 #define XBC_KEY		0
