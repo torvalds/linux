@@ -138,6 +138,16 @@ config DWMAC_ROCKCHIP
 	  This selects the Rockchip RK3288 SoC glue layer support for
 	  the stmmac device driver.
 
+config DWMAC_ROCKCHIP_TOOL
+	bool "Rockchip dwmac tool support"
+	depends on DWMAC_ROCKCHIP
+	default DWMAC_ROCKCHIP
+	help
+	  Support for Ethernet functions on Rockchip SoCs.
+
+	  This selects the features for Rockchip's Ethernet, include PHY loopback,
+	  MAC loopback, and delayline scanning of RGMII mode.
+
 config DWMAC_SOCFPGA
 	tristate "SOCFPGA dwmac support"
 	default (ARCH_SOCFPGA || ARCH_STRATIX10)
