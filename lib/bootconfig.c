@@ -4,6 +4,7 @@
  * Masami Hiramatsu <mhiramat@kernel.org>
  */
 
+#ifdef __KERNEL__
 #include <linux/bootconfig.h>
 #include <linux/bug.h>
 #include <linux/ctype.h>
@@ -11,6 +12,16 @@
 #include <linux/kernel.h>
 #include <linux/memblock.h>
 #include <linux/string.h>
+#else /* !__KERNEL__ */
+/*
+ * NOTE: This is only for tools/bootconfig, because tools/bootconfig will
+ * run the parser sanity test.
+ * This does NOT mean lib/bootconfig.c is available in the user space.
+ * However, if you change this file, please make sure the tools/bootconfig
+ * has no issue on building and running.
+ */
+#include <linux/bootconfig.h>
+#endif
 
 /*
  * Extra Boot Config (XBC) is given as tree-structured ascii text of
@@ -31,6 +42,29 @@ static int xbc_err_pos __initdata;
 static int open_brace[XBC_DEPTH_MAX] __initdata;
 static int brace_index __initdata;
 
+#ifdef __KERNEL__
+static inline void *xbc_alloc_mem(size_t size)
+{
+	return memblock_alloc(size, SMP_CACHE_BYTES);
+}
+
+static inline void xbc_free_mem(void *addr, size_t size)
+{
+	memblock_free_ptr(addr, size);
+}
+
+#else /* !__KERNEL__ */
+
+static inline void *xbc_alloc_mem(size_t size)
+{
+	return malloc(size);
+}
+
+static inline void xbc_free_mem(void *addr, size_t size)
+{
+	free(addr);
+}
+#endif
 /**
  * xbc_get_info() - Get the information of loaded boot config
  * node_size: A pointer to store the number of nodes.
@@ -859,11 +893,11 @@ static int __init xbc_parse_tree(void)
  */
 void __init xbc_exit(void)
 {
-	memblock_free_ptr(xbc_data, xbc_data_size);
+	xbc_free_mem(xbc_data, xbc_data_size);
 	xbc_data = NULL;
 	xbc_data_size = 0;
 	xbc_node_num = 0;
-	memblock_free_ptr(xbc_nodes, sizeof(struct xbc_node) * XBC_NODE_MAX);
+	xbc_free_mem(xbc_nodes, sizeof(struct xbc_node) * XBC_NODE_MAX);
 	xbc_nodes = NULL;
 	brace_index = 0;
 }
@@ -902,7 +936,7 @@ int __init xbc_init(const char *data, size_t size, const char **emsg, int *epos)
 		return -ERANGE;
 	}
 
-	xbc_data = memblock_alloc(size + 1, SMP_CACHE_BYTES);
+	xbc_data = xbc_alloc_mem(size + 1);
 	if (!xbc_data) {
 		if (emsg)
 			*emsg = "Failed to allocate bootconfig data";
@@ -912,8 +946,7 @@ int __init xbc_init(const char *data, size_t size, const char **emsg, int *epos)
 	xbc_data[size] = '\0';
 	xbc_data_size = size + 1;
 
-	xbc_nodes = memblock_alloc(sizeof(struct xbc_node) * XBC_NODE_MAX,
-				   SMP_CACHE_BYTES);
+	xbc_nodes = xbc_alloc_mem(sizeof(struct xbc_node) * XBC_NODE_MAX);
 	if (!xbc_nodes) {
 		if (emsg)
 			*emsg = "Failed to allocate bootconfig nodes";

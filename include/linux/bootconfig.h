@@ -7,8 +7,18 @@
  * Author: Masami Hiramatsu <mhiramat@kernel.org>
  */
 
+#ifdef __KERNEL__
 #include <linux/kernel.h>
 #include <linux/types.h>
+#else /* !__KERNEL__ */
+/*
+ * NOTE: This is only for tools/bootconfig, because tools/bootconfig will
+ * run the parser sanity test.
+ * This does NOT mean linux/bootconfig.h is available in the user space.
+ * However, if you change this file, please make sure the tools/bootconfig
+ * has no issue on building and running.
+ */
+#endif
 
 #define BOOTCONFIG_MAGIC	"#BOOTCONFIG\n"
 #define BOOTCONFIG_MAGIC_LEN	12
