@@ -18,7 +18,7 @@
 #include "sof-audio.h"
 #include "ops.h"
 
-static void ipc_trace_message(struct snd_sof_dev *sdev, u32 msg_id);
+static void ipc_trace_message(struct snd_sof_dev *sdev, u32 msg_type);
 static void ipc_stream_message(struct snd_sof_dev *sdev, u32 msg_cmd);
 
 /*
@@ -477,19 +477,18 @@ EXPORT_SYMBOL(snd_sof_ipc_msgs_rx);
  * IPC trace mechanism.
  */
 
-static void ipc_trace_message(struct snd_sof_dev *sdev, u32 msg_id)
+static void ipc_trace_message(struct snd_sof_dev *sdev, u32 msg_type)
 {
 	struct sof_ipc_dma_trace_posn posn;
 
-	switch (msg_id) {
+	switch (msg_type) {
 	case SOF_IPC_TRACE_DMA_POSITION:
 		/* read back full message */
 		snd_sof_ipc_msg_data(sdev, NULL, &posn, sizeof(posn));
 		snd_sof_trace_update_pos(sdev, &posn);
 		break;
 	default:
-		dev_err(sdev->dev, "error: unhandled trace message %x\n",
-			msg_id);
+		dev_err(sdev->dev, "error: unhandled trace message %x\n", msg_type);
 		break;
 	}
 }
