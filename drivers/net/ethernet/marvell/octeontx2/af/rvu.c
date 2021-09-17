@@ -1294,7 +1294,7 @@ int rvu_get_blkaddr_from_slot(struct rvu *rvu, int blktype, u16 pcifunc,
 	int numlfs, total_lfs = 0, nr_blocks = 0;
 	int i, num_blkaddr[BLK_COUNT] = { 0 };
 	struct rvu_block *block;
-	int blkaddr = -ENODEV;
+	int blkaddr;
 	u16 start_slot;
 
 	if (!is_blktype_attached(pfvf, blktype))
