@@ -634,7 +634,7 @@ static char *
 smb2_get_name(struct ksmbd_share_config *share, const char *src,
 	      const int maxlen, struct nls_table *local_nls)
 {
-	char *name, *unixname;
+	char *name, *norm_name, *unixname;
 
 	name = smb_strndup_from_utf16(src, maxlen, 1, local_nls);
 	if (IS_ERR(name)) {
@@ -643,11 +643,15 @@ smb2_get_name(struct ksmbd_share_config *share, const char *src,
 	}
 
 	/* change it to absolute unix name */
-	ksmbd_conv_path_to_unix(name);
-	ksmbd_strip_last_slash(name);
-
-	unixname = convert_to_unix_name(share, name);
+	norm_name = ksmbd_conv_path_to_unix(name);
+	if (IS_ERR(norm_name)) {
+		kfree(name);
+		return norm_name;
+	}
 	kfree(name);
+
+	unixname = convert_to_unix_name(share, norm_name);
+	kfree(norm_name);
 	if (!unixname) {
 		pr_err("can not convert absolute name\n");
 		return ERR_PTR(-ENOMEM);
