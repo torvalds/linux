@@ -14342,7 +14342,8 @@ F:	Documentation/devicetree/bindings/pci/intel,ixp4xx-pci.yaml
 F:	drivers/pci/controller/pci-ixp4xx.c
 
 PCI DRIVER FOR INTEL VOLUME MANAGEMENT DEVICE (VMD)
-M:	Jonathan Derrick <jonathan.derrick@intel.com>
+M:	Nirmal Patel <nirmal.patel@linux.intel.com>
+R:	Jonathan Derrick <jonathan.derrick@linux.dev>
 L:	linux-pci@vger.kernel.org
 S:	Supported
 F:	drivers/pci/controller/vmd.c
