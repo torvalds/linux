@@ -4596,9 +4596,10 @@ static void nix_inline_ipsec_cfg(struct rvu *rvu, struct nix_inline_ipsec_cfg *r
 
 	cpt_idx = (blkaddr == BLKADDR_NIX0) ? 0 : 1;
 	if (req->enable) {
+		val = 0;
 		/* Enable context prefetching */
 		if (!is_rvu_otx2(rvu))
-			val = BIT_ULL(51);
+			val |= BIT_ULL(51);
 
 		/* Set OPCODE and EGRP */
 		val |= FIELD_PREP(IPSEC_GEN_CFG_EGRP, req->gen_cfg.egrp);
