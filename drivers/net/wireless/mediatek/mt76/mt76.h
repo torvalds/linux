@@ -1264,7 +1264,9 @@ static inline int
 mt76_mcu_send_firmware(struct mt76_dev *dev, int cmd, const void *data,
 		       int len)
 {
-	return __mt76_mcu_send_firmware(dev, cmd, data, len, 4096);
+	int max_len = 4096 - dev->mcu_ops->headroom;
+
+	return __mt76_mcu_send_firmware(dev, cmd, data, len, max_len);
 }
 
 static inline int

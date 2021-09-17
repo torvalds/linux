@@ -112,7 +112,7 @@ int __mt76_mcu_send_firmware(struct mt76_dev *dev, int cmd, const void *data,
 	int err, cur_len;
 
 	while (len > 0) {
-		cur_len = min_t(int, max_len - dev->mcu_ops->headroom, len);
+		cur_len = min_t(int, max_len, len);
 
 		err = mt76_mcu_send_msg(dev, cmd, data, cur_len, false);
 		if (err)

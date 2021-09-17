@@ -2648,8 +2648,8 @@ static int mt7915_load_patch(struct mt7915_dev *dev)
 			goto out;
 		}
 
-		ret = mt76_mcu_send_firmware(&dev->mt76, MCU_CMD(FW_SCATTER),
-					     dl, len);
+		ret = __mt76_mcu_send_firmware(&dev->mt76, MCU_CMD(FW_SCATTER),
+					       dl, len, 4096);
 		if (ret) {
 			dev_err(dev->mt76.dev, "Failed to send patch\n");
 			goto out;
@@ -2717,8 +2717,8 @@ mt7915_mcu_send_ram_firmware(struct mt7915_dev *dev,
 			return err;
 		}
 
-		err = mt76_mcu_send_firmware(&dev->mt76, MCU_CMD(FW_SCATTER),
-					     data + offset, len);
+		err = __mt76_mcu_send_firmware(&dev->mt76, MCU_CMD(FW_SCATTER),
+					       data + offset, len, 4096);
 		if (err) {
 			dev_err(dev->mt76.dev, "Failed to send firmware.\n");
 			return err;
