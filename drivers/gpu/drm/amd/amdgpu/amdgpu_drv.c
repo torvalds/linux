@@ -628,7 +628,7 @@ module_param_named(mcbp, amdgpu_mcbp, int, 0444);
 /**
  * DOC: discovery (int)
  * Allow driver to discover hardware IP information from IP Discovery table at the top of VRAM.
- * (-1 = auto (default), 0 = disabled, 1 = enabled)
+ * (-1 = auto (default), 0 = disabled, 1 = enabled, 2 = use ip_discovery table from file)
  */
 MODULE_PARM_DESC(discovery,
 	"Allow driver to discover hardware IPs from IP Discovery table at the top of VRAM");

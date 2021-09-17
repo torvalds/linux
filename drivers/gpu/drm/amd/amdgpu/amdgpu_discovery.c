@@ -21,6 +21,8 @@
  *
  */
 
+#include <linux/firmware.h>
+
 #include "amdgpu.h"
 #include "amdgpu_discovery.h"
 #include "soc15_hw_ip.h"
@@ -66,6 +68,8 @@
 #include "smuio_v11_0.h"
 #include "smuio_v11_0_6.h"
 #include "smuio_v13_0.h"
+
+MODULE_FIRMWARE("amdgpu/ip_discovery.bin");
 
 #define mmRCC_CONFIG_MEMSIZE	0xde3
 #define mmMM_INDEX		0x0
@@ -206,6 +210,7 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 	struct binary_header *bhdr;
 	struct ip_discovery_header *ihdr;
 	struct gpu_info_header *ghdr;
+	const struct firmware *fw;
 	uint16_t offset;
 	uint16_t size;
 	uint16_t checksum;
@@ -216,10 +221,21 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 	if (!adev->mman.discovery_bin)
 		return -ENOMEM;
 
-	r = amdgpu_discovery_read_binary(adev, adev->mman.discovery_bin);
-	if (r) {
-		DRM_ERROR("failed to read ip discovery binary\n");
-		goto out;
+	if (amdgpu_discovery == 2) {
+		r = request_firmware(&fw, "amdgpu/ip_discovery.bin", adev->dev);
+		if (r)
+			goto get_from_vram;
+		dev_info(adev->dev, "Using IP discovery from file\n");
+		memcpy((u8 *)adev->mman.discovery_bin, (u8 *)fw->data,
+		       adev->mman.discovery_tmr_size);
+		release_firmware(fw);
+	} else {
+get_from_vram:
+		r = amdgpu_discovery_read_binary(adev, adev->mman.discovery_bin);
+		if (r) {
+			DRM_ERROR("failed to read ip discovery binary\n");
+			goto out;
+		}
 	}
 
 	bhdr = (struct binary_header *)adev->mman.discovery_bin;
