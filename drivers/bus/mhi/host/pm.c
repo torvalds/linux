@@ -1238,7 +1238,7 @@ int mhi_sync_power_up(struct mhi_controller *mhi_cntrl)
 			   msecs_to_jiffies(mhi_cntrl->timeout_ms));
 
 	ret = (MHI_IN_MISSION_MODE(mhi_cntrl->ee)) ? 0 : -ETIMEDOUT;
-	if (ret)
+	if (ret && !mhi_cntrl->rddm_image)
 		mhi_power_down(mhi_cntrl, false);
 
 	return ret;
