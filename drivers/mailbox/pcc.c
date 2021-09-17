@@ -110,10 +110,8 @@ static struct mbox_controller pcc_mbox_ctrl = {};
  * The below read_register and write_registers are used to read and
  * write from perf critical registers such as PCC doorbell register
  */
-static int read_register(void __iomem *vaddr, u64 *val, unsigned int bit_width)
+static void read_register(void __iomem *vaddr, u64 *val, unsigned int bit_width)
 {
-	int ret_val = 0;
-
 	switch (bit_width) {
 	case 8:
 		*val = readb(vaddr);
@@ -127,19 +125,11 @@ static int read_register(void __iomem *vaddr, u64 *val, unsigned int bit_width)
 	case 64:
 		*val = readq(vaddr);
 		break;
-	default:
-		pr_debug("Error: Cannot read register of %u bit width",
-			bit_width);
-		ret_val = -EFAULT;
-		break;
 	}
-	return ret_val;
 }
 
-static int write_register(void __iomem *vaddr, u64 val, unsigned int bit_width)
+static void write_register(void __iomem *vaddr, u64 val, unsigned int bit_width)
 {
-	int ret_val = 0;
-
 	switch (bit_width) {
 	case 8:
 		writeb(val, vaddr);
@@ -153,13 +143,7 @@ static int write_register(void __iomem *vaddr, u64 val, unsigned int bit_width)
 	case 64:
 		writeq(val, vaddr);
 		break;
-	default:
-		pr_debug("Error: Cannot write register of %u bit width",
-			bit_width);
-		ret_val = -EFAULT;
-		break;
 	}
-	return ret_val;
 }
 
 static int pcc_chan_reg_read(struct pcc_chan_reg *reg, u64 *val)
@@ -172,7 +156,7 @@ static int pcc_chan_reg_read(struct pcc_chan_reg *reg, u64 *val)
 	}
 
 	if (reg->vaddr)
-		ret = read_register(reg->vaddr, val, reg->gas->bit_width);
+		read_register(reg->vaddr, val, reg->gas->bit_width);
 	else
 		ret = acpi_read(val, reg->gas);
 
@@ -187,7 +171,7 @@ static int pcc_chan_reg_write(struct pcc_chan_reg *reg, u64 val)
 		return 0;
 
 	if (reg->vaddr)
-		ret = write_register(reg->vaddr, val, reg->gas->bit_width);
+		write_register(reg->vaddr, val, reg->gas->bit_width);
 	else
 		ret = acpi_write(val, reg->gas);
 
