@@ -4046,7 +4046,7 @@ union bpf_attr {
  * 		arguments. The *data* are a **u64** array and corresponding format string
  * 		values are stored in the array. For strings and pointers where pointees
  * 		are accessed, only the pointer values are stored in the *data* array.
- * 		The *data_len* is the size of *data* in bytes.
+ * 		The *data_len* is the size of *data* in bytes - must be a multiple of 8.
  *
  *		Formats **%s**, **%p{i,I}{4,6}** requires to read kernel memory.
  *		Reading kernel memory may fail due to either invalid address or
@@ -4751,7 +4751,8 @@ union bpf_attr {
  *		Each format specifier in **fmt** corresponds to one u64 element
  *		in the **data** array. For strings and pointers where pointees
  *		are accessed, only the pointer values are stored in the *data*
- *		array. The *data_len* is the size of *data* in bytes.
+ *		array. The *data_len* is the size of *data* in bytes - must be
+ *		a multiple of 8.
  *
  *		Formats **%s** and **%p{i,I}{4,6}** require to read kernel
  *		memory. Reading kernel memory may fail due to either invalid
