@@ -286,6 +286,7 @@ int bcmgenet_mii_probe(struct net_device *dev)
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct device *kdev = &priv->pdev->dev;
 	struct device_node *dn = kdev->of_node;
+	phy_interface_t phy_iface = priv->phy_interface;
 	struct phy_device *phydev;
 	u32 phy_flags = 0;
 	int ret;
@@ -300,9 +301,42 @@ int bcmgenet_mii_probe(struct net_device *dev)
 	priv->old_duplex = -1;
 	priv->old_pause = -1;
 
+	/* This is an ugly quirk but we have not been correctly interpreting
+	 * the phy_interface values and we have done that across different
+	 * drivers, so at least we are consistent in our mistakes.
+	 *
+	 * When the Generic PHY driver is in use either the PHY has been
+	 * strapped or programmed correctly by the boot loader so we should
+	 * stick to our incorrect interpretation since we have validated it.
+	 *
+	 * Now when a dedicated PHY driver is in use, we need to reverse the
+	 * meaning of the phy_interface_mode values to something that the PHY
+	 * driver will interpret and act on such that we have two mistakes
+	 * canceling themselves so to speak. We only do this for the two
+	 * modes that GENET driver officially supports on Broadcom STB chips:
+	 * PHY_INTERFACE_MODE_RGMII and PHY_INTERFACE_MODE_RGMII_TXID. Other
+	 * modes are not *officially* supported with the boot loader and the
+	 * scripted environment generating Device Tree blobs for those
+	 * platforms.
+	 *
+	 * Note that internal PHY, MoCA and fixed-link configurations are not
+	 * affected because they use different phy_interface_t values or the
+	 * Generic PHY driver.
+	 */
+	switch (priv->phy_interface) {
+	case PHY_INTERFACE_MODE_RGMII:
+		phy_iface = PHY_INTERFACE_MODE_RGMII_ID;
+		break;
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		phy_iface = PHY_INTERFACE_MODE_RGMII_RXID;
+		break;
+	default:
+		break;
+	}
+
 	if (dn) {
 		phydev = of_phy_connect(dev, priv->phy_dn, bcmgenet_mii_setup,
-					phy_flags, priv->phy_interface);
+					phy_flags, phy_iface);
 		if (!phydev) {
 			pr_err("could not attach to PHY\n");
 			return -ENODEV;
@@ -332,7 +366,7 @@ int bcmgenet_mii_probe(struct net_device *dev)
 		phydev->dev_flags = phy_flags;
 
 		ret = phy_connect_direct(dev, phydev, bcmgenet_mii_setup,
-					 priv->phy_interface);
+					 phy_iface);
 		if (ret) {
 			pr_err("could not attach to PHY\n");
 			return -ENODEV;
