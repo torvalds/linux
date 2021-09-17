@@ -219,10 +219,7 @@ out:
 	bpf_object__close(obj);
 }
 
-/* test_tailcall_3 checks that the count value of the tail call limit
- * enforcement matches with expectations.
- */
-static void test_tailcall_3(void)
+static void test_tailcall_count(const char *which)
 {
 	int err, map_fd, prog_fd, main_fd, data_fd, i, val;
 	struct bpf_map *prog_array, *data_map;
@@ -231,7 +228,7 @@ static void test_tailcall_3(void)
 	__u32 retval, duration;
 	char buff[128] = {};
 
-	err = bpf_prog_load("tailcall3.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
+	err = bpf_prog_load(which, BPF_PROG_TYPE_SCHED_CLS, &obj,
 			    &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
@@ -294,6 +291,22 @@ static void test_tailcall_3(void)
 	      err, errno, retval);
 out:
 	bpf_object__close(obj);
+}
+
+/* test_tailcall_3 checks that the count value of the tail call limit
+ * enforcement matches with expectations. JIT uses direct jump.
+ */
+static void test_tailcall_3(void)
+{
+	test_tailcall_count("tailcall3.o");
+}
+
+/* test_tailcall_6 checks that the count value of the tail call limit
+ * enforcement matches with expectations. JIT uses indirect jump.
+ */
+static void test_tailcall_6(void)
+{
+	test_tailcall_count("tailcall6.o");
 }
 
 /* test_tailcall_4 checks that the kernel properly selects indirect jump
@@ -822,6 +835,8 @@ void test_tailcalls(void)
 		test_tailcall_4();
 	if (test__start_subtest("tailcall_5"))
 		test_tailcall_5();
+	if (test__start_subtest("tailcall_6"))
+		test_tailcall_6();
 	if (test__start_subtest("tailcall_bpf2bpf_1"))
 		test_tailcall_bpf2bpf_1();
 	if (test__start_subtest("tailcall_bpf2bpf_2"))

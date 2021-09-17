@@ -1070,41 +1070,34 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			break;
 
 		case BPF_ALU | BPF_MUL | BPF_K:
-		case BPF_ALU | BPF_MUL | BPF_X:
 		case BPF_ALU64 | BPF_MUL | BPF_K:
-		case BPF_ALU64 | BPF_MUL | BPF_X:
-		{
-			bool is64 = BPF_CLASS(insn->code) == BPF_ALU64;
+			if (BPF_CLASS(insn->code) == BPF_ALU64)
+				EMIT1(add_2mod(0x48, dst_reg, dst_reg));
+			else if (is_ereg(dst_reg))
+				EMIT1(add_2mod(0x40, dst_reg, dst_reg));
 
-			if (dst_reg != BPF_REG_0)
-				EMIT1(0x50); /* push rax */
-			if (dst_reg != BPF_REG_3)
-				EMIT1(0x52); /* push rdx */
-
-			/* mov r11, dst_reg */
-			EMIT_mov(AUX_REG, dst_reg);
-
-			if (BPF_SRC(insn->code) == BPF_X)
-				emit_mov_reg(&prog, is64, BPF_REG_0, src_reg);
+			if (is_imm8(imm32))
+				/* imul dst_reg, dst_reg, imm8 */
+				EMIT3(0x6B, add_2reg(0xC0, dst_reg, dst_reg),
+				      imm32);
 			else
-				emit_mov_imm32(&prog, is64, BPF_REG_0, imm32);
-
-			if (is64)
-				EMIT1(add_1mod(0x48, AUX_REG));
-			else if (is_ereg(AUX_REG))
-				EMIT1(add_1mod(0x40, AUX_REG));
-			/* mul(q) r11 */
-			EMIT2(0xF7, add_1reg(0xE0, AUX_REG));
-
-			if (dst_reg != BPF_REG_3)
-				EMIT1(0x5A); /* pop rdx */
-			if (dst_reg != BPF_REG_0) {
-				/* mov dst_reg, rax */
-				EMIT_mov(dst_reg, BPF_REG_0);
-				EMIT1(0x58); /* pop rax */
-			}
+				/* imul dst_reg, dst_reg, imm32 */
+				EMIT2_off32(0x69,
+					    add_2reg(0xC0, dst_reg, dst_reg),
+					    imm32);
 			break;
-		}
+
+		case BPF_ALU | BPF_MUL | BPF_X:
+		case BPF_ALU64 | BPF_MUL | BPF_X:
+			if (BPF_CLASS(insn->code) == BPF_ALU64)
+				EMIT1(add_2mod(0x48, src_reg, dst_reg));
+			else if (is_ereg(dst_reg) || is_ereg(src_reg))
+				EMIT1(add_2mod(0x40, src_reg, dst_reg));
+
+			/* imul dst_reg, src_reg */
+			EMIT3(0x0F, 0xAF, add_2reg(0xC0, src_reg, dst_reg));
+			break;
+
 			/* Shifts */
 		case BPF_ALU | BPF_LSH | BPF_K:
 		case BPF_ALU | BPF_RSH | BPF_K:

@@ -85,6 +85,7 @@ sequentially and type id is assigned to each recognized type starting from id
     #define BTF_KIND_VAR            14      /* Variable     */
     #define BTF_KIND_DATASEC        15      /* Section      */
     #define BTF_KIND_FLOAT          16      /* Floating point       */
+    #define BTF_KIND_TAG            17      /* Tag          */
 
 Note that the type section encodes debug info, not just pure types.
 ``BTF_KIND_FUNC`` is not a type, and it represents a defined subprogram.
@@ -106,7 +107,7 @@ Each type contains the following common data::
          * "size" tells the size of the type it is describing.
          *
          * "type" is used by PTR, TYPEDEF, VOLATILE, CONST, RESTRICT,
-         * FUNC and FUNC_PROTO.
+         * FUNC, FUNC_PROTO and TAG.
          * "type" is a type_id referring to another type.
          */
         union {
@@ -464,6 +465,32 @@ map definition.
  * ``size``: the size of the float type in bytes: 2, 4, 8, 12 or 16.
 
 No additional type data follow ``btf_type``.
+
+2.2.17 BTF_KIND_TAG
+~~~~~~~~~~~~~~~~~~~
+
+``struct btf_type`` encoding requirement:
+ * ``name_off``: offset to a non-empty string
+ * ``info.kind_flag``: 0
+ * ``info.kind``: BTF_KIND_TAG
+ * ``info.vlen``: 0
+ * ``type``: ``struct``, ``union``, ``func`` or ``var``
+
+``btf_type`` is followed by ``struct btf_tag``.::
+
+    struct btf_tag {
+        __u32   component_idx;
+    };
+
+The ``name_off`` encodes btf_tag attribute string.
+The ``type`` should be ``struct``, ``union``, ``func`` or ``var``.
+For ``var`` type, ``btf_tag.component_idx`` must be ``-1``.
+For the other three types, if the btf_tag attribute is
+applied to the ``struct``, ``union`` or ``func`` itself,
+``btf_tag.component_idx`` must be ``-1``. Otherwise,
+the attribute is applied to a ``struct``/``union`` member or
+a ``func`` argument, and ``btf_tag.component_idx`` should be a
+valid index (starting from 0) pointing to a member or an argument.
 
 3. BTF Kernel API
 *****************

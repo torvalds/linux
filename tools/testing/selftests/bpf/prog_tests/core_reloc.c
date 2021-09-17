@@ -30,7 +30,7 @@ static int duration = 0;
 	.output_len = sizeof(struct core_reloc_module_output),		\
 	.prog_sec_name = sec_name,					\
 	.raw_tp_name = tp_name,						\
-	.trigger = trigger_module_test_read,				\
+	.trigger = __trigger_module_test_read,				\
 	.needs_testmod = true,						\
 }
 
@@ -249,8 +249,7 @@ static int duration = 0;
 #define SIZE_CASE_COMMON(name)						\
 	.case_name = #name,						\
 	.bpf_obj_file = "test_core_reloc_size.o",			\
-	.btf_src_file = "btf__core_reloc_" #name ".o",			\
-	.relaxed_core_relocs = true
+	.btf_src_file = "btf__core_reloc_" #name ".o"
 
 #define SIZE_OUTPUT_DATA(type)						\
 	STRUCT_TO_CHAR_PTR(core_reloc_size_output) {			\
@@ -475,19 +474,11 @@ static int setup_type_id_case_failure(struct core_reloc_test_case *test)
 	return 0;
 }
 
-static int trigger_module_test_read(const struct core_reloc_test_case *test)
+static int __trigger_module_test_read(const struct core_reloc_test_case *test)
 {
 	struct core_reloc_module_output *exp = (void *)test->output;
-	int fd, err;
 
-	fd = open("/sys/kernel/bpf_testmod", O_RDONLY);
-	err = -errno;
-	if (CHECK(fd < 0, "testmod_file_open", "failed: %d\n", err))
-		return err;
-
-	read(fd, NULL, exp->len); /* request expected number of bytes */
-	close(fd);
-
+	trigger_module_test_read(exp->len);
 	return 0;
 }
 
