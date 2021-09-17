@@ -35,6 +35,11 @@
 #else
 #define __LIBBPF_MARK_DEPRECATED_0_6(X)
 #endif
+#if __LIBBPF_CURRENT_VERSION_GEQ(0, 7)
+#define __LIBBPF_MARK_DEPRECATED_0_7(X) X
+#else
+#define __LIBBPF_MARK_DEPRECATED_0_7(X)
+#endif
 
 /* Helper macro to declare and initialize libbpf options struct
  *
