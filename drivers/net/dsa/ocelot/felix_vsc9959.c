@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /* Copyright 2017 Microsemi Corporation
- * Copyright 2018-2019 NXP Semiconductors
+ * Copyright 2018-2019 NXP
  */
 #include <linux/fsl/enetc_mdio.h>
 #include <soc/mscc/ocelot_qsys.h>
