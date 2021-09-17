@@ -89,12 +89,18 @@ struct pcc_chan_reg {
  * @db: PCC register bundle for the doorbell register
  * @plat_irq_ack: PCC register bundle for the platform interrupt acknowledge
  *	register
+ * @cmd_complete: PCC register bundle for the command complete check register
+ * @cmd_update: PCC register bundle for the command complete update register
+ * @error: PCC register bundle for the error status register
  * @plat_irq: platform interrupt
  */
 struct pcc_chan_info {
 	struct pcc_mbox_chan chan;
 	struct pcc_chan_reg db;
 	struct pcc_chan_reg plat_irq_ack;
+	struct pcc_chan_reg cmd_complete;
+	struct pcc_chan_reg cmd_update;
+	struct pcc_chan_reg error;
 	int plat_irq;
 };
 
@@ -228,8 +234,28 @@ static irqreturn_t pcc_mbox_irq(int irq, void *p)
 {
 	struct pcc_chan_info *pchan;
 	struct mbox_chan *chan = p;
+	u64 val;
+	int ret;
 
 	pchan = chan->con_priv;
+
+	ret = pcc_chan_reg_read(&pchan->cmd_complete, &val);
+	if (ret)
+		return IRQ_NONE;
+
+	val &= pchan->cmd_complete.status_mask;
+	if (!val)
+		return IRQ_NONE;
+
+	ret = pcc_chan_reg_read(&pchan->error, &val);
+	if (ret)
+		return IRQ_NONE;
+	val &= pchan->error.status_mask;
+	if (val) {
+		val &= ~pchan->error.status_mask;
+		pcc_chan_reg_write(&pchan->error, val);
+		return IRQ_NONE;
+	}
 
 	if (pcc_chan_reg_read_modify_write(&pchan->plat_irq_ack))
 		return IRQ_NONE;
@@ -340,7 +366,12 @@ EXPORT_SYMBOL_GPL(pcc_mbox_free_channel);
  */
 static int pcc_send_data(struct mbox_chan *chan, void *data)
 {
+	int ret;
 	struct pcc_chan_info *pchan = chan->con_priv;
+
+	ret = pcc_chan_reg_read_modify_write(&pchan->cmd_update);
+	if (ret)
+		return ret;
 
 	return pcc_chan_reg_read_modify_write(&pchan->db);
 }
@@ -434,6 +465,16 @@ static int pcc_parse_subspace_irq(struct pcc_chan_info *pchan,
 					pcct2_ss->ack_preserve_mask,
 					pcct2_ss->ack_write_mask, 0,
 					"PLAT IRQ ACK");
+
+	} else if (pcct_ss->header.type == ACPI_PCCT_TYPE_EXT_PCC_MASTER_SUBSPACE ||
+		   pcct_ss->header.type == ACPI_PCCT_TYPE_EXT_PCC_SLAVE_SUBSPACE) {
+		struct acpi_pcct_ext_pcc_master *pcct_ext = (void *)pcct_ss;
+
+		ret = pcc_chan_reg_init(&pchan->plat_irq_ack,
+					&pcct_ext->platform_ack_register,
+					pcct_ext->ack_preserve_mask,
+					pcct_ext->ack_set_mask, 0,
+					"PLAT IRQ ACK");
 	}
 
 	return ret;
@@ -452,14 +493,48 @@ static int pcc_parse_subspace_db_reg(struct pcc_chan_info *pchan,
 {
 	int ret = 0;
 
-	struct acpi_pcct_subspace *pcct_ss;
+	if (pcct_entry->type <= ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE_TYPE2) {
+		struct acpi_pcct_subspace *pcct_ss;
 
-	pcct_ss = (struct acpi_pcct_subspace *)pcct_entry;
+		pcct_ss = (struct acpi_pcct_subspace *)pcct_entry;
 
-	ret = pcc_chan_reg_init(&pchan->db,
-				&pcct_ss->doorbell_register,
-				pcct_ss->preserve_mask,
-				pcct_ss->write_mask, 0,	"Doorbell");
+		ret = pcc_chan_reg_init(&pchan->db,
+					&pcct_ss->doorbell_register,
+					pcct_ss->preserve_mask,
+					pcct_ss->write_mask, 0,	"Doorbell");
+
+	} else {
+		struct acpi_pcct_ext_pcc_master *pcct_ext;
+
+		pcct_ext = (struct acpi_pcct_ext_pcc_master *)pcct_entry;
+
+		ret = pcc_chan_reg_init(&pchan->db,
+					&pcct_ext->doorbell_register,
+					pcct_ext->preserve_mask,
+					pcct_ext->write_mask, 0, "Doorbell");
+		if (ret)
+			return ret;
+
+		ret = pcc_chan_reg_init(&pchan->cmd_complete,
+					&pcct_ext->cmd_complete_register,
+					0, 0, pcct_ext->cmd_complete_mask,
+					"Command Complete Check");
+		if (ret)
+			return ret;
+
+		ret = pcc_chan_reg_init(&pchan->cmd_update,
+					&pcct_ext->cmd_update_register,
+					pcct_ext->cmd_update_preserve_mask,
+					pcct_ext->cmd_update_set_mask, 0,
+					"Command Complete Update");
+		if (ret)
+			return ret;
+
+		ret = pcc_chan_reg_init(&pchan->error,
+					&pcct_ext->error_status_register,
+					0, 0, pcct_ext->error_status_mask,
+					"Error Status");
+	}
 	return ret;
 }
 
@@ -473,15 +548,25 @@ static int pcc_parse_subspace_db_reg(struct pcc_chan_info *pchan,
 static void pcc_parse_subspace_shmem(struct pcc_chan_info *pchan,
 				     struct acpi_subtable_header *pcct_entry)
 {
-	struct acpi_pcct_subspace *pcct_ss;
+	if (pcct_entry->type <= ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE_TYPE2) {
+		struct acpi_pcct_subspace *pcct_ss =
+			(struct acpi_pcct_subspace *)pcct_entry;
 
-	pcct_ss = (struct acpi_pcct_subspace *)pcct_entry;
+		pchan->chan.shmem_base_addr = pcct_ss->base_address;
+		pchan->chan.shmem_size = pcct_ss->length;
+		pchan->chan.latency = pcct_ss->latency;
+		pchan->chan.max_access_rate = pcct_ss->max_access_rate;
+		pchan->chan.min_turnaround_time = pcct_ss->min_turnaround_time;
+	} else {
+		struct acpi_pcct_ext_pcc_master *pcct_ext =
+			(struct acpi_pcct_ext_pcc_master *)pcct_entry;
 
-	pchan->chan.shmem_base_addr = pcct_ss->base_address;
-	pchan->chan.shmem_size = pcct_ss->length;
-	pchan->chan.latency = pcct_ss->latency;
-	pchan->chan.max_access_rate = pcct_ss->max_access_rate;
-	pchan->chan.min_turnaround_time = pcct_ss->min_turnaround_time;
+		pchan->chan.shmem_base_addr = pcct_ext->base_address;
+		pchan->chan.shmem_size = pcct_ext->length;
+		pchan->chan.latency = pcct_ext->latency;
+		pchan->chan.max_access_rate = pcct_ext->max_access_rate;
+		pchan->chan.min_turnaround_time = pcct_ext->min_turnaround_time;
+	}
 }
 
 /**
@@ -552,6 +637,13 @@ static int __init acpi_pcc_probe(void)
 
 		pcc_mbox_channels[i].con_priv = pchan;
 		pchan->chan.mchan = &pcc_mbox_channels[i];
+
+		if (pcct_entry->type == ACPI_PCCT_TYPE_EXT_PCC_SLAVE_SUBSPACE &&
+		    !pcc_mbox_ctrl.txdone_irq) {
+			pr_err("Plaform Interrupt flag must be set to 1");
+			rc = -EINVAL;
+			goto err;
+		}
 
 		if (pcc_mbox_ctrl.txdone_irq) {
 			rc = pcc_parse_subspace_irq(pchan, pcct_entry);
