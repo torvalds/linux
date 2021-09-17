@@ -517,8 +517,7 @@ static int tpo_td043_probe(struct spi_device *spi)
 
 	ddata->vcc_reg = devm_regulator_get(&spi->dev, "vcc");
 	if (IS_ERR(ddata->vcc_reg)) {
-		dev_err(&spi->dev, "failed to get LCD VCC regulator\n");
-		r = PTR_ERR(ddata->vcc_reg);
+		r = dev_err_probe(&spi->dev, r, "failed to get LCD VCC regulator\n");
 		goto err_regulator;
 	}
 
