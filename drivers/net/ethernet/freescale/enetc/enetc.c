@@ -1879,7 +1879,6 @@ static void enetc_clear_bdrs(struct enetc_ndev_priv *priv)
 static int enetc_setup_irqs(struct enetc_ndev_priv *priv)
 {
 	struct pci_dev *pdev = priv->si->pdev;
-	cpumask_t cpu_mask;
 	int i, j, err;
 
 	for (i = 0; i < priv->bdr_int_num; i++) {
@@ -1908,9 +1907,7 @@ static int enetc_setup_irqs(struct enetc_ndev_priv *priv)
 
 			enetc_wr(hw, ENETC_SIMSITRV(idx), entry);
 		}
-		cpumask_clear(&cpu_mask);
-		cpumask_set_cpu(i % num_online_cpus(), &cpu_mask);
-		irq_set_affinity_hint(irq, &cpu_mask);
+		irq_set_affinity_hint(irq, get_cpu_mask(i % num_online_cpus()));
 	}
 
 	return 0;
