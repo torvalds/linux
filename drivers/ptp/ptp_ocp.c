@@ -2062,11 +2062,11 @@ ptp_ocp_summary_show(struct seq_file *s, void *data)
 		on = ioread32(&ts_reg->enable);
 		map = !!(bp->pps_req_map & OCP_REQ_TIMESTAMP);
 		seq_printf(s, "%7s: %s, src: %s\n", "TS3",
-			   on & map ? " ON" : "OFF", src);
+			   on && map ? " ON" : "OFF", src);
 
 		map = !!(bp->pps_req_map & OCP_REQ_PPS);
 		seq_printf(s, "%7s: %s, src: %s\n", "PPS",
-			   on & map ? " ON" : "OFF", src);
+			   on && map ? " ON" : "OFF", src);
 	}
 
 	if (bp->irig_out) {
