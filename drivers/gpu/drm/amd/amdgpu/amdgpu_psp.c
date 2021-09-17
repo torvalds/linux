@@ -1444,9 +1444,9 @@ static int psp_ras_initialize(struct psp_context *psp)
 	ras_cmd = (struct ta_ras_shared_memory *)psp->ras_context.context.mem_context.shared_buf;
 	memset(ras_cmd, 0, sizeof(struct ta_ras_shared_memory));
 
-	if (psp->adev->gmc.xgmi.connected_to_cpu)
+	if (amdgpu_ras_is_poison_mode_supported(adev))
 		ras_cmd->ras_in_message.init_flags.poison_mode_en = 1;
-	else
+	if (!adev->gmc.xgmi.connected_to_cpu)
 		ras_cmd->ras_in_message.init_flags.dgpu_mode = 1;
 
 	ret = psp_ras_load(psp);
