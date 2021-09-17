@@ -166,3 +166,4 @@ struct clk_hw *imx8ulp_clk_hw_composite(const char *name, const char * const *pa
 	return imx_ulp_clk_hw_composite(name, parent_names, num_parents, mux_present, rate_present,
 					gate_present, reg, has_swrst);
 }
+EXPORT_SYMBOL_GPL(imx8ulp_clk_hw_composite);

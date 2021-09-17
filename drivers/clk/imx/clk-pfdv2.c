@@ -239,3 +239,4 @@ struct clk_hw *imx_clk_hw_pfdv2(enum imx_pfdv2_type type, const char *name,
 
 	return hw;
 }
+EXPORT_SYMBOL_GPL(imx_clk_hw_pfdv2);
