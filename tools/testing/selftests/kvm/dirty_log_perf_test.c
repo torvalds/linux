@@ -308,11 +308,9 @@ static void help(char *name)
 	printf(" -v: specify the number of vCPUs to run.\n");
 	printf(" -o: Overlap guest memory accesses instead of partitioning\n"
 	       "     them into a separate region of memory for each vCPU.\n");
-	printf(" -s: specify the type of memory that should be used to\n"
-	       "     back the guest data region.\n\n");
+	backing_src_help("-s");
 	printf(" -x: Split the memory region into this number of memslots.\n"
-	       "     (default: 1)");
-	backing_src_help();
+	       "     (default: 1)\n");
 	puts("");
 	exit(0);
 }
@@ -324,7 +322,7 @@ int main(int argc, char *argv[])
 		.iterations = TEST_HOST_LOOP_N,
 		.wr_fract = 1,
 		.partition_vcpu_memory_access = true,
-		.backing_src = VM_MEM_SRC_ANONYMOUS,
+		.backing_src = DEFAULT_VM_MEM_SRC,
 		.slots = 1,
 	};
 	int opt;

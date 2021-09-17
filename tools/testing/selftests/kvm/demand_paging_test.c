@@ -426,8 +426,7 @@ static void help(char *name)
 	printf(" -b: specify the size of the memory region which should be\n"
 	       "     demand paged by each vCPU. e.g. 10M or 3G.\n"
 	       "     Default: 1G\n");
-	printf(" -s: The type of backing memory to use. Default: anonymous\n");
-	backing_src_help();
+	backing_src_help("-s");
 	printf(" -v: specify the number of vCPUs to run.\n");
 	printf(" -o: Overlap guest memory accesses instead of partitioning\n"
 	       "     them into a separate region of memory for each vCPU.\n");
@@ -439,7 +438,7 @@ int main(int argc, char *argv[])
 {
 	int max_vcpus = kvm_check_cap(KVM_CAP_MAX_VCPUS);
 	struct test_params p = {
-		.src_type = VM_MEM_SRC_ANONYMOUS,
+		.src_type = DEFAULT_VM_MEM_SRC,
 		.partition_vcpu_memory_access = true,
 	};
 	int opt;
