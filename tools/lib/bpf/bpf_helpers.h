@@ -216,9 +216,15 @@ enum libbpf_tristate {
 		     ___param, sizeof(___param));		\
 })
 
+#ifdef BPF_NO_GLOBAL_DATA
+#define BPF_PRINTK_FMT_MOD
+#else
+#define BPF_PRINTK_FMT_MOD static const
+#endif
+
 #define __bpf_printk(fmt, ...)				\
 ({							\
-	char ____fmt[] = fmt;				\
+	BPF_PRINTK_FMT_MOD char ____fmt[] = fmt;	\
 	bpf_trace_printk(____fmt, sizeof(____fmt),	\
 			 ##__VA_ARGS__);		\
 })
