@@ -1314,11 +1314,6 @@ static int gc4c33_get_fmt(struct v4l2_subdev *sd,
 		fmt->format.height = mode->height;
 		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
-		/* format info: width/height/data type/virctual channel */
-		if (fmt->pad < PAD_MAX && mode->hdr_mode != NO_HDR)
-			fmt->reserved[0] = mode->vc[fmt->pad];
-		else
-			fmt->reserved[0] = mode->vc[PAD0];
 	}
 	mutex_unlock(&gc4c33->mutex);
 
@@ -1552,6 +1547,17 @@ static void gc4c33_get_module_inf(struct gc4c33 *gc4c33,
 	strlcpy(inf->base.lens, gc4c33->len_name, sizeof(inf->base.lens));
 }
 
+static int gc4c33_get_channel_info(struct gc4c33 *gc4c33, struct rkmodule_channel_info *ch_info)
+{
+	if (ch_info->index < PAD0 || ch_info->index >= PAD_MAX)
+		return -EINVAL;
+	ch_info->vc = gc4c33->cur_mode->vc[ch_info->index];
+	ch_info->width = gc4c33->cur_mode->width;
+	ch_info->height = gc4c33->cur_mode->height;
+	ch_info->bus_fmt = gc4c33->cur_mode->bus_fmt;
+	return 0;
+}
+
 static long gc4c33_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct gc4c33 *gc4c33 = to_gc4c33(sd);
@@ -1560,6 +1566,7 @@ static long gc4c33_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	u32 i, h, w;
 	long ret = 0;
 	u32 stream = 0;
+	struct rkmodule_channel_info *ch_info;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1621,6 +1628,10 @@ static long gc4c33_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			ret = gc4c33_write_reg(gc4c33->client, GC4C33_REG_CTRL_MODE,
 				GC4C33_REG_VALUE_08BIT, GC4C33_MODE_SW_STANDBY);
 		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = (struct rkmodule_channel_info *)arg;
+		ret = gc4c33_get_channel_info(gc4c33, ch_info);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1642,6 +1653,7 @@ static long gc4c33_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_nr_switch_threshold *nr_switch;
 	long ret;
 	u32 stream = 0;
+	struct rkmodule_channel_info *ch_info;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1652,8 +1664,11 @@ static long gc4c33_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = gc4c33_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(inf);
 		break;
 	case RKMODULE_AWB_CFG:
@@ -1666,6 +1681,8 @@ static long gc4c33_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(cfg, up, sizeof(*cfg));
 		if (!ret)
 			ret = gc4c33_ioctl(sd, cmd, cfg);
+		else
+			ret = -EFAULT;
 		kfree(cfg);
 		break;
 	case RKMODULE_GET_HDR_CFG:
@@ -1676,8 +1693,11 @@ static long gc4c33_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = gc4c33_ioctl(sd, cmd, hdr);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, hdr, sizeof(*hdr));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(hdr);
 		break;
 	case RKMODULE_SET_HDR_CFG:
@@ -1690,6 +1710,8 @@ static long gc4c33_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(hdr, up, sizeof(*hdr));
 		if (!ret)
 			ret = gc4c33_ioctl(sd, cmd, hdr);
+		else
+			ret = -EFAULT;
 		kfree(hdr);
 		break;
 	case RKMODULE_SET_DPCC_CFG:
@@ -1702,6 +1724,8 @@ static long gc4c33_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(dpcc, up, sizeof(*dpcc));
 		if (!ret)
 			ret = gc4c33_ioctl(sd, cmd, dpcc);
+		else
+			ret = -EFAULT;
 		kfree(dpcc);
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1714,6 +1738,8 @@ static long gc4c33_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(hdrae, up, sizeof(*hdrae));
 		if (!ret)
 			ret = gc4c33_ioctl(sd, cmd, hdrae);
+		else
+			ret = -EFAULT;
 		kfree(hdrae);
 		break;
 	case RKMODULE_GET_NR_SWITCH_THRESHOLD:
@@ -1724,14 +1750,34 @@ static long gc4c33_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = gc4c33_ioctl(sd, cmd, nr_switch);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, nr_switch, sizeof(*nr_switch));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(nr_switch);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
 		ret = copy_from_user(&stream, up, sizeof(u32));
 		if (!ret)
 			ret = gc4c33_ioctl(sd, cmd, &stream);
+		else
+			ret = -EFAULT;
+		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = kzalloc(sizeof(*ch_info), GFP_KERNEL);
+		if (!ch_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = gc4c33_ioctl(sd, cmd, ch_info);
+		if (!ret) {
+			ret = copy_to_user(up, ch_info, sizeof(*ch_info));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(ch_info);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
