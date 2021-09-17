@@ -397,7 +397,7 @@ static int apply_xbc(const char *path, const char *xbc_path)
 	printf("\tChecksum: %d\n", (unsigned int)csum);
 
 	/* TODO: Check the options by schema */
-	xbc_destroy_all();
+	xbc_exit();
 	free(buf);
 
 	/* Remove old boot config if exists */

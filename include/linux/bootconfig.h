@@ -277,7 +277,7 @@ int __init xbc_init(const char *buf, size_t size, const char **emsg, int *epos);
 int __init xbc_get_info(int *node_size, size_t *data_size);
 
 /* XBC cleanup data structures */
-void __init xbc_destroy_all(void);
+void __init xbc_exit(void);
 
 /* Debug dump functions */
 void __init xbc_debug_dump(void);
