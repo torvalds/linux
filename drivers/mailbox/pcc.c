@@ -67,11 +67,13 @@ static struct mbox_chan *pcc_mbox_channels;
 /**
  * struct pcc_chan_info - PCC channel specific information
  *
+ * @chan: PCC channel information with Shared Memory Region info
  * @db_vaddr: cached virtual address for doorbell register
  * @db_ack_vaddr: cached virtual address for doorbell ack register
  * @db_irq: doorbell interrupt
  */
 struct pcc_chan_info {
+	struct pcc_mbox_chan chan;
 	void __iomem *db_vaddr;
 	void __iomem *db_ack_vaddr;
 	int db_irq;
@@ -471,6 +473,27 @@ static void pcc_parse_subspace_db_reg(struct pcc_chan_info *pchan,
 }
 
 /**
+ * pcc_parse_subspace_shmem - Parse the PCC Shared Memory Region information
+ *
+ * @pchan: Pointer to the PCC channel info structure.
+ * @pcct_entry: Pointer to the ACPI subtable header.
+ *
+ */
+static void pcc_parse_subspace_shmem(struct pcc_chan_info *pchan,
+				     struct acpi_subtable_header *pcct_entry)
+{
+	struct acpi_pcct_subspace *pcct_ss;
+
+	pcct_ss = (struct acpi_pcct_subspace *)pcct_entry;
+
+	pchan->chan.shmem_base_addr = pcct_ss->base_address;
+	pchan->chan.shmem_size = pcct_ss->length;
+	pchan->chan.latency = pcct_ss->latency;
+	pchan->chan.max_access_rate = pcct_ss->max_access_rate;
+	pchan->chan.min_turnaround_time = pcct_ss->min_turnaround_time;
+}
+
+/**
  * acpi_pcc_probe - Parse the ACPI tree for the PCCT.
  *
  * Return: 0 for Success, else errno.
@@ -537,12 +560,16 @@ static int __init acpi_pcc_probe(void)
 		struct pcc_chan_info *pchan = chan_info + i;
 		pcc_mbox_channels[i].con_priv = pcct_entry;
 
+		pchan->chan.mchan = &pcc_mbox_channels[i];
+
 		if (pcc_mbox_ctrl.txdone_irq) {
 			rc = pcc_parse_subspace_irq(pchan, pcct_entry);
 			if (rc < 0)
 				goto err;
 		}
 		pcc_parse_subspace_db_reg(pchan, pcct_entry);
+
+		pcc_parse_subspace_shmem(pchan, pcct_entry);
 
 		pcct_entry = (struct acpi_subtable_header *)
 			((unsigned long) pcct_entry + pcct_entry->length);
