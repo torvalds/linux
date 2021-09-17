@@ -930,7 +930,7 @@ static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_command *cmd,
 	struct mmc_data *data;
 	unsigned target_timeout, current_timeout;
 
-	*too_big = true;
+	*too_big = false;
 
 	/*
 	 * If the host controller provides us with an incorrect timeout
@@ -941,7 +941,7 @@ static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_command *cmd,
 	if (host->quirks & SDHCI_QUIRK_BROKEN_TIMEOUT_VAL)
 		return host->max_timeout_count;
 
-	/* Unspecified command, asume max */
+	/* Unspecified command, assume max */
 	if (cmd == NULL)
 		return host->max_timeout_count;
 
@@ -968,17 +968,14 @@ static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_command *cmd,
 	while (current_timeout < target_timeout) {
 		count++;
 		current_timeout <<= 1;
-		if (count > host->max_timeout_count)
+		if (count > host->max_timeout_count) {
+			if (!(host->quirks2 & SDHCI_QUIRK2_DISABLE_HW_TIMEOUT))
+				DBG("Too large timeout 0x%x requested for CMD%d!\n",
+				    count, cmd->opcode);
+			count = host->max_timeout_count;
+			*too_big = true;
 			break;
-	}
-
-	if (count > host->max_timeout_count) {
-		if (!(host->quirks2 & SDHCI_QUIRK2_DISABLE_HW_TIMEOUT))
-			DBG("Too large timeout 0x%x requested for CMD%d!\n",
-			    count, cmd->opcode);
-		count = host->max_timeout_count;
-	} else {
-		*too_big = false;
+		}
 	}
 
 	return count;
