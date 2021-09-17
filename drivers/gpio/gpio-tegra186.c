@@ -69,6 +69,8 @@ struct tegra_gpio_soc {
 	const char *name;
 	unsigned int instance;
 
+	unsigned int num_irqs_per_bank;
+
 	const struct tegra186_pin_range *pin_ranges;
 	unsigned int num_pin_ranges;
 	const char *pinmux;
@@ -452,7 +454,7 @@ static void tegra186_gpio_irq(struct irq_desc *desc)
 	struct irq_domain *domain = gpio->gpio.irq.domain;
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int parent = irq_desc_get_irq(desc);
-	unsigned int i, offset = 0;
+	unsigned int i, j, offset = 0;
 
 	chained_irq_enter(chip, desc);
 
@@ -465,7 +467,12 @@ static void tegra186_gpio_irq(struct irq_desc *desc)
 		base = gpio->base + port->bank * 0x1000 + port->port * 0x200;
 
 		/* skip ports that are not associated with this bank */
-		if (parent != gpio->irq[port->bank])
+		for (j = 0; j < gpio->num_irqs_per_bank; j++) {
+			if (parent == gpio->irq[port->bank * gpio->num_irqs_per_bank + j])
+				break;
+		}
+
+		if (j == gpio->num_irqs_per_bank)
 			goto skip;
 
 		value = readl(base + TEGRA186_GPIO_INTERRUPT_STATUS(1));
@@ -567,6 +574,7 @@ static const struct of_device_id tegra186_pmc_of_match[] = {
 
 static void tegra186_gpio_init_route_mapping(struct tegra_gpio *gpio)
 {
+	struct device *dev = gpio->gpio.parent;
 	unsigned int i, j;
 	u32 value;
 
@@ -585,12 +593,30 @@ static void tegra186_gpio_init_route_mapping(struct tegra_gpio *gpio)
 		 */
 		if ((value & TEGRA186_GPIO_CTL_SCR_SEC_REN) == 0 &&
 		    (value & TEGRA186_GPIO_CTL_SCR_SEC_WEN) == 0) {
-			for (j = 0; j < 8; j++) {
+			/*
+			 * On Tegra194 and later, each pin can be routed to one or more
+			 * interrupts.
+			 */
+			for (j = 0; j < gpio->num_irqs_per_bank; j++) {
+				dev_dbg(dev, "programming default interrupt routing for port %s\n",
+					port->name);
+
 				offset = TEGRA186_GPIO_INT_ROUTE_MAPPING(p, j);
 
-				value = readl(base + offset);
-				value = BIT(port->pins) - 1;
-				writel(value, base + offset);
+				/*
+				 * By default we only want to route GPIO pins to IRQ 0. This works
+				 * only under the assumption that we're running as the host kernel
+				 * and hence all GPIO pins are owned by Linux.
+				 *
+				 * For cases where Linux is the guest OS, the hypervisor will have
+				 * to configure the interrupt routing and pass only the valid
+				 * interrupts via device tree.
+				 */
+				if (j == 0) {
+					value = readl(base + offset);
+					value = BIT(port->pins) - 1;
+					writel(value, base + offset);
+				}
 			}
 		}
 	}
@@ -609,6 +635,9 @@ static unsigned int tegra186_gpio_irqs_per_bank(struct tegra_gpio *gpio)
 		goto error;
 
 	gpio->num_irqs_per_bank = gpio->num_irq / gpio->num_banks;
+
+	if (gpio->num_irqs_per_bank > gpio->soc->num_irqs_per_bank)
+		goto error;
 
 	return 0;
 
@@ -766,7 +795,8 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 		irq->parents = gpio->irq;
 	}
 
-	tegra186_gpio_init_route_mapping(gpio);
+	if (gpio->soc->num_irqs_per_bank > 1)
+		tegra186_gpio_init_route_mapping(gpio);
 
 	np = of_find_matching_node(NULL, tegra186_pmc_of_match);
 	if (np) {
@@ -833,6 +863,7 @@ static const struct tegra_gpio_soc tegra186_main_soc = {
 	.ports = tegra186_main_ports,
 	.name = "tegra186-gpio",
 	.instance = 0,
+	.num_irqs_per_bank = 1,
 };
 
 #define TEGRA186_AON_GPIO_PORT(_name, _bank, _port, _pins)	\
@@ -859,6 +890,7 @@ static const struct tegra_gpio_soc tegra186_aon_soc = {
 	.ports = tegra186_aon_ports,
 	.name = "tegra186-gpio-aon",
 	.instance = 1,
+	.num_irqs_per_bank = 1,
 };
 
 #define TEGRA194_MAIN_GPIO_PORT(_name, _bank, _port, _pins)	\
@@ -910,6 +942,7 @@ static const struct tegra_gpio_soc tegra194_main_soc = {
 	.ports = tegra194_main_ports,
 	.name = "tegra194-gpio",
 	.instance = 0,
+	.num_irqs_per_bank = 8,
 	.num_pin_ranges = ARRAY_SIZE(tegra194_main_pin_ranges),
 	.pin_ranges = tegra194_main_pin_ranges,
 	.pinmux = "nvidia,tegra194-pinmux",
@@ -936,6 +969,7 @@ static const struct tegra_gpio_soc tegra194_aon_soc = {
 	.ports = tegra194_aon_ports,
 	.name = "tegra194-gpio-aon",
 	.instance = 1,
+	.num_irqs_per_bank = 8,
 };
 
 static const struct of_device_id tegra186_gpio_of_match[] = {
