@@ -17968,10 +17968,11 @@ F:	Documentation/admin-guide/svga.rst
 F:	arch/x86/boot/video*
 
 SWIOTLB SUBSYSTEM
-M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+M:	Christoph Hellwig <hch@infradead.org>
 L:	iommu@lists.linux-foundation.org
 S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/konrad/swiotlb.git
+W:	http://git.infradead.org/users/hch/dma-mapping.git
+T:	git git://git.infradead.org/users/hch/dma-mapping.git
 F:	arch/*/kernel/pci-swiotlb.c
 F:	include/linux/swiotlb.h
 F:	kernel/dma/swiotlb.c
