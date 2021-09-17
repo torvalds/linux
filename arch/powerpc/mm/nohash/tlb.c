@@ -185,6 +185,7 @@ EXPORT_PER_CPU_SYMBOL(next_tlbcam_idx);
  *    processor
  */
 
+#ifndef CONFIG_PPC_8xx
 /*
  * These are the base non-SMP variants of page and mm flushing
  */
@@ -218,6 +219,7 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 			       mmu_get_tsize(mmu_virtual_psize), 0);
 }
 EXPORT_SYMBOL(local_flush_tlb_page);
+#endif
 
 /*
  * And here are the SMP non-local implementations
