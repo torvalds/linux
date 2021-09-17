@@ -232,23 +232,20 @@ xfs_defer_trans_abort(
 	}
 }
 
-/* Roll a transaction so we can do some deferred op processing. */
-STATIC int
-xfs_defer_trans_roll(
-	struct xfs_trans		**tpp)
+/*
+ * Capture resources that the caller said not to release ("held") when the
+ * transaction commits.  Caller is responsible for zero-initializing @dres.
+ */
+static int
+xfs_defer_save_resources(
+	struct xfs_defer_resources	*dres,
+	struct xfs_trans		*tp)
 {
-	struct xfs_trans		*tp = *tpp;
 	struct xfs_buf_log_item		*bli;
 	struct xfs_inode_log_item	*ili;
 	struct xfs_log_item		*lip;
-	struct xfs_buf			*bplist[XFS_DEFER_OPS_NR_BUFS];
-	struct xfs_inode		*iplist[XFS_DEFER_OPS_NR_INODES];
-	unsigned int			ordered = 0; /* bitmap */
-	int				bpcount = 0, ipcount = 0;
-	int				i;
-	int				error;
 
-	BUILD_BUG_ON(NBBY * sizeof(ordered) < XFS_DEFER_OPS_NR_BUFS);
+	BUILD_BUG_ON(NBBY * sizeof(dres->dr_ordered) < XFS_DEFER_OPS_NR_BUFS);
 
 	list_for_each_entry(lip, &tp->t_items, li_trans) {
 		switch (lip->li_type) {
@@ -256,28 +253,29 @@ xfs_defer_trans_roll(
 			bli = container_of(lip, struct xfs_buf_log_item,
 					   bli_item);
 			if (bli->bli_flags & XFS_BLI_HOLD) {
-				if (bpcount >= XFS_DEFER_OPS_NR_BUFS) {
+				if (dres->dr_bufs >= XFS_DEFER_OPS_NR_BUFS) {
 					ASSERT(0);
 					return -EFSCORRUPTED;
 				}
 				if (bli->bli_flags & XFS_BLI_ORDERED)
-					ordered |= (1U << bpcount);
+					dres->dr_ordered |=
+							(1U << dres->dr_bufs);
 				else
 					xfs_trans_dirty_buf(tp, bli->bli_buf);
-				bplist[bpcount++] = bli->bli_buf;
+				dres->dr_bp[dres->dr_bufs++] = bli->bli_buf;
 			}
 			break;
 		case XFS_LI_INODE:
 			ili = container_of(lip, struct xfs_inode_log_item,
 					   ili_item);
 			if (ili->ili_lock_flags == 0) {
-				if (ipcount >= XFS_DEFER_OPS_NR_INODES) {
+				if (dres->dr_inos >= XFS_DEFER_OPS_NR_INODES) {
 					ASSERT(0);
 					return -EFSCORRUPTED;
 				}
 				xfs_trans_log_inode(tp, ili->ili_inode,
 						    XFS_ILOG_CORE);
-				iplist[ipcount++] = ili->ili_inode;
+				dres->dr_ip[dres->dr_inos++] = ili->ili_inode;
 			}
 			break;
 		default:
@@ -285,7 +283,43 @@ xfs_defer_trans_roll(
 		}
 	}
 
-	trace_xfs_defer_trans_roll(tp, _RET_IP_);
+	return 0;
+}
+
+/* Attach the held resources to the transaction. */
+static void
+xfs_defer_restore_resources(
+	struct xfs_trans		*tp,
+	struct xfs_defer_resources	*dres)
+{
+	unsigned short			i;
+
+	/* Rejoin the joined inodes. */
+	for (i = 0; i < dres->dr_inos; i++)
+		xfs_trans_ijoin(tp, dres->dr_ip[i], 0);
+
+	/* Rejoin the buffers and dirty them so the log moves forward. */
+	for (i = 0; i < dres->dr_bufs; i++) {
+		xfs_trans_bjoin(tp, dres->dr_bp[i]);
+		if (dres->dr_ordered & (1U << i))
+			xfs_trans_ordered_buf(tp, dres->dr_bp[i]);
+		xfs_trans_bhold(tp, dres->dr_bp[i]);
+	}
+}
+
+/* Roll a transaction so we can do some deferred op processing. */
+STATIC int
+xfs_defer_trans_roll(
+	struct xfs_trans		**tpp)
+{
+	struct xfs_defer_resources	dres = { };
+	int				error;
+
+	error = xfs_defer_save_resources(&dres, *tpp);
+	if (error)
+		return error;
+
+	trace_xfs_defer_trans_roll(*tpp, _RET_IP_);
 
 	/*
 	 * Roll the transaction.  Rolling always given a new transaction (even
@@ -295,22 +329,11 @@ xfs_defer_trans_roll(
 	 * happened.
 	 */
 	error = xfs_trans_roll(tpp);
-	tp = *tpp;
 
-	/* Rejoin the joined inodes. */
-	for (i = 0; i < ipcount; i++)
-		xfs_trans_ijoin(tp, iplist[i], 0);
-
-	/* Rejoin the buffers and dirty them so the log moves forward. */
-	for (i = 0; i < bpcount; i++) {
-		xfs_trans_bjoin(tp, bplist[i]);
-		if (ordered & (1U << i))
-			xfs_trans_ordered_buf(tp, bplist[i]);
-		xfs_trans_bhold(tp, bplist[i]);
-	}
+	xfs_defer_restore_resources(*tpp, &dres);
 
 	if (error)
-		trace_xfs_defer_trans_roll_error(tp, error);
+		trace_xfs_defer_trans_roll_error(*tpp, error);
 	return error;
 }
 

@@ -65,6 +65,30 @@ extern const struct xfs_defer_op_type xfs_extent_free_defer_type;
 extern const struct xfs_defer_op_type xfs_agfl_free_defer_type;
 
 /*
+ * Deferred operation item relogging limits.
+ */
+#define XFS_DEFER_OPS_NR_INODES	2	/* join up to two inodes */
+#define XFS_DEFER_OPS_NR_BUFS	2	/* join up to two buffers */
+
+/* Resources that must be held across a transaction roll. */
+struct xfs_defer_resources {
+	/* held buffers */
+	struct xfs_buf		*dr_bp[XFS_DEFER_OPS_NR_BUFS];
+
+	/* inodes with no unlock flags */
+	struct xfs_inode	*dr_ip[XFS_DEFER_OPS_NR_INODES];
+
+	/* number of held buffers */
+	unsigned short		dr_bufs;
+
+	/* bitmap of ordered buffers */
+	unsigned short		dr_ordered;
+
+	/* number of held inodes */
+	unsigned short		dr_inos;
+};
+
+/*
  * This structure enables a dfops user to detach the chain of deferred
  * operations from a transaction so that they can be continued later.
  */
