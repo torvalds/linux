@@ -419,7 +419,7 @@ static void enetc_rx_dim_work(struct work_struct *w)
 
 static void enetc_rx_net_dim(struct enetc_int_vector *v)
 {
-	struct dim_sample dim_sample;
+	struct dim_sample dim_sample = {};
 
 	v->comp_cnt++;
 
