@@ -20475,7 +20475,6 @@ F:	samples/bpf/xdpsock*
 F:	tools/lib/bpf/xsk*
 
 XEN BLOCK SUBSYSTEM
-M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 M:	Roger Pau Monné <roger.pau@citrix.com>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
@@ -20523,7 +20522,7 @@ S:	Supported
 F:	drivers/net/xen-netback/*
 
 XEN PCI SUBSYSTEM
-M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+M:	Juergen Gross <jgross@suse.com>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	arch/x86/pci/*xen*
@@ -20546,7 +20545,8 @@ S:	Supported
 F:	sound/xen/*
 
 XEN SWIOTLB SUBSYSTEM
-M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+M:	Juergen Gross <jgross@suse.com>
+M:	Stefano Stabellini <sstabellini@kernel.org>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 L:	iommu@lists.linux-foundation.org
 S:	Supported
