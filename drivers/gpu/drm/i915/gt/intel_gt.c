@@ -660,6 +660,8 @@ int intel_gt_init(struct intel_gt *gt)
 	if (err)
 		return err;
 
+	intel_gt_init_workarounds(gt);
+
 	/*
 	 * This is just a security blanket to placate dragons.
 	 * On some systems, we very sporadically observe that the first TLBs
@@ -767,6 +769,7 @@ void intel_gt_driver_release(struct intel_gt *gt)
 	if (vm) /* FIXME being called twice on error paths :( */
 		i915_vm_put(vm);
 
+	intel_wa_list_free(&gt->wa_list);
 	intel_gt_pm_fini(gt);
 	intel_gt_fini_scratch(gt);
 	intel_gt_fini_buffer_pool(gt);
