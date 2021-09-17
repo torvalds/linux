@@ -405,18 +405,26 @@ static int parse_pcc_subspace(union acpi_subtable_headers *header,
 
 /**
  * pcc_parse_subspace_irq - Parse the PCC IRQ and PCC ACK register
- *		There should be one entry per PCC client.
- * @id: PCC subspace index.
- * @pcct_ss: Pointer to the ACPI subtable header under the PCCT.
+ *
+ * @pchan: Pointer to the PCC channel info structure.
+ * @pcct_entry: Pointer to the ACPI subtable header.
  *
  * Return: 0 for Success, else errno.
  *
- * This gets called for each entry in the PCC table.
+ * There should be one entry per PCC channel. This gets called for each
+ * entry in the PCC table. This uses PCCY Type1 structure for all applicable
+ * types(Type 1-4) to fetch irq
  */
-static int pcc_parse_subspace_irq(int id, struct acpi_pcct_hw_reduced *pcct_ss)
+static int pcc_parse_subspace_irq(struct pcc_chan_info *pchan,
+				  struct acpi_subtable_header *pcct_entry)
 {
-	struct pcc_chan_info *pchan = chan_info + id;
+	struct acpi_pcct_hw_reduced *pcct_ss;
 
+	if (pcct_entry->type < ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE ||
+	    pcct_entry->type > ACPI_PCCT_TYPE_EXT_PCC_SLAVE_SUBSPACE)
+		return 0;
+
+	pcct_ss = (struct acpi_pcct_hw_reduced *)pcct_entry;
 	pchan->db_irq = pcc_map_interrupt(pcct_ss->platform_interrupt,
 					  (u32)pcct_ss->flags);
 	if (pchan->db_irq <= 0) {
@@ -425,8 +433,7 @@ static int pcc_parse_subspace_irq(int id, struct acpi_pcct_hw_reduced *pcct_ss)
 		return -EINVAL;
 	}
 
-	if (pcct_ss->header.type
-		== ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE_TYPE2) {
+	if (pcct_ss->header.type == ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE_TYPE2) {
 		struct acpi_pcct_hw_reduced_type2 *pcct2_ss = (void *)pcct_ss;
 
 		pchan->db_ack_vaddr =
@@ -510,17 +517,10 @@ static int __init acpi_pcc_probe(void)
 		struct acpi_pcct_subspace *pcct_ss;
 		pcc_mbox_channels[i].con_priv = pcct_entry;
 
-		if (pcct_entry->type == ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE ||
-		    pcct_entry->type == ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE_TYPE2) {
-			struct acpi_pcct_hw_reduced *pcct_hrss;
-
-			pcct_hrss = (struct acpi_pcct_hw_reduced *) pcct_entry;
-
-			if (pcc_mbox_ctrl.txdone_irq) {
-				rc = pcc_parse_subspace_irq(i, pcct_hrss);
-				if (rc < 0)
-					goto err;
-			}
+		if (pcc_mbox_ctrl.txdone_irq) {
+			rc = pcc_parse_subspace_irq(pchan, pcct_entry);
+			if (rc < 0)
+				goto err;
 		}
 		pcct_ss = (struct acpi_pcct_subspace *) pcct_entry;
 
