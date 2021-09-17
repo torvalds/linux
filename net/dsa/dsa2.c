@@ -429,6 +429,7 @@ static int dsa_port_setup(struct dsa_port *dp)
 {
 	struct devlink_port *dlp = &dp->devlink_port;
 	bool dsa_port_link_registered = false;
+	struct dsa_switch *ds = dp->ds;
 	bool dsa_port_enabled = false;
 	int err = 0;
 
@@ -437,6 +438,12 @@ static int dsa_port_setup(struct dsa_port *dp)
 
 	INIT_LIST_HEAD(&dp->fdbs);
 	INIT_LIST_HEAD(&dp->mdbs);
+
+	if (ds->ops->port_setup) {
+		err = ds->ops->port_setup(ds, dp->index);
+		if (err)
+			return err;
+	}
 
 	switch (dp->type) {
 	case DSA_PORT_TYPE_UNUSED:
@@ -480,8 +487,11 @@ static int dsa_port_setup(struct dsa_port *dp)
 		dsa_port_disable(dp);
 	if (err && dsa_port_link_registered)
 		dsa_port_link_unregister_of(dp);
-	if (err)
+	if (err) {
+		if (ds->ops->port_teardown)
+			ds->ops->port_teardown(ds, dp->index);
 		return err;
+	}
 
 	dp->setup = true;
 
@@ -533,10 +543,14 @@ static int dsa_port_devlink_setup(struct dsa_port *dp)
 static void dsa_port_teardown(struct dsa_port *dp)
 {
 	struct devlink_port *dlp = &dp->devlink_port;
+	struct dsa_switch *ds = dp->ds;
 	struct dsa_mac_addr *a, *tmp;
 
 	if (!dp->setup)
 		return;
+
+	if (ds->ops->port_teardown)
+		ds->ops->port_teardown(ds, dp->index);
 
 	devlink_port_type_clear(dlp);
 
@@ -579,6 +593,36 @@ static void dsa_port_devlink_teardown(struct dsa_port *dp)
 	if (dp->devlink_port_setup)
 		devlink_port_unregister(dlp);
 	dp->devlink_port_setup = false;
+}
+
+/* Destroy the current devlink port, and create a new one which has the UNUSED
+ * flavour. At this point, any call to ds->ops->port_setup has been already
+ * balanced out by a call to ds->ops->port_teardown, so we know that any
+ * devlink port regions the driver had are now unregistered. We then call its
+ * ds->ops->port_setup again, in order for the driver to re-create them on the
+ * new devlink port.
+ */
+static int dsa_port_reinit_as_unused(struct dsa_port *dp)
+{
+	struct dsa_switch *ds = dp->ds;
+	int err;
+
+	dsa_port_devlink_teardown(dp);
+	dp->type = DSA_PORT_TYPE_UNUSED;
+	err = dsa_port_devlink_setup(dp);
+	if (err)
+		return err;
+
+	if (ds->ops->port_setup) {
+		/* On error, leave the devlink port registered,
+		 * dsa_switch_teardown will clean it up later.
+		 */
+		err = ds->ops->port_setup(ds, dp->index);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static int dsa_devlink_info_get(struct devlink *dl,
@@ -938,12 +982,9 @@ static int dsa_tree_setup_switches(struct dsa_switch_tree *dst)
 	list_for_each_entry(dp, &dst->ports, list) {
 		err = dsa_port_setup(dp);
 		if (err) {
-			dsa_port_devlink_teardown(dp);
-			dp->type = DSA_PORT_TYPE_UNUSED;
-			err = dsa_port_devlink_setup(dp);
+			err = dsa_port_reinit_as_unused(dp);
 			if (err)
 				goto teardown;
-			continue;
 		}
 	}
 
