@@ -2843,7 +2843,8 @@ static bool io_file_supports_nowait(struct io_kiocb *req, int rw)
 	return __io_file_supports_nowait(req->file, rw);
 }
 
-static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
+		      int rw)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct kiocb *kiocb = &req->rw.kiocb;
@@ -2865,8 +2866,13 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (unlikely(ret))
 		return ret;
 
-	/* don't allow async punt for O_NONBLOCK or RWF_NOWAIT */
-	if ((kiocb->ki_flags & IOCB_NOWAIT) || (file->f_flags & O_NONBLOCK))
+	/*
+	 * If the file is marked O_NONBLOCK, still allow retry for it if it
+	 * supports async. Otherwise it's impossible to use O_NONBLOCK files
+	 * reliably. If not, or it IOCB_NOWAIT is set, don't retry.
+	 */
+	if ((kiocb->ki_flags & IOCB_NOWAIT) ||
+	    ((file->f_flags & O_NONBLOCK) && !io_file_supports_nowait(req, rw)))
 		req->flags |= REQ_F_NOWAIT;
 
 	ioprio = READ_ONCE(sqe->ioprio);
@@ -3263,12 +3269,15 @@ static ssize_t loop_rw_iter(int rw, struct io_kiocb *req, struct iov_iter *iter)
 				ret = nr;
 			break;
 		}
+		if (!iov_iter_is_bvec(iter)) {
+			iov_iter_advance(iter, nr);
+		} else {
+			req->rw.len -= nr;
+			req->rw.addr += nr;
+		}
 		ret += nr;
 		if (nr != iovec.iov_len)
 			break;
-		req->rw.len -= nr;
-		req->rw.addr += nr;
-		iov_iter_advance(iter, nr);
 	}
 
 	return ret;
@@ -3346,7 +3355,7 @@ static int io_read_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	if (unlikely(!(req->file->f_mode & FMODE_READ)))
 		return -EBADF;
-	return io_prep_rw(req, sqe);
+	return io_prep_rw(req, sqe, READ);
 }
 
 /*
@@ -3539,7 +3548,7 @@ static int io_write_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	if (unlikely(!(req->file->f_mode & FMODE_WRITE)))
 		return -EBADF;
-	return io_prep_rw(req, sqe);
+	return io_prep_rw(req, sqe, WRITE);
 }
 
 static int io_write(struct io_kiocb *req, unsigned int issue_flags)
@@ -7515,6 +7524,14 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 			break;
 	} while (1);
 
+	if (uts) {
+		struct timespec64 ts;
+
+		if (get_timespec64(&ts, uts))
+			return -EFAULT;
+		timeout = timespec64_to_jiffies(&ts);
+	}
+
 	if (sig) {
 #ifdef CONFIG_COMPAT
 		if (in_compat_syscall())
@@ -7526,14 +7543,6 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 
 		if (ret)
 			return ret;
-	}
-
-	if (uts) {
-		struct timespec64 ts;
-
-		if (get_timespec64(&ts, uts))
-			return -EFAULT;
-		timeout = timespec64_to_jiffies(&ts);
 	}
 
 	init_waitqueue_func_entry(&iowq.wq, io_wake_function);
@@ -8284,11 +8293,27 @@ static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file,
 #endif
 }
 
+static int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
+				 struct io_rsrc_node *node, void *rsrc)
+{
+	struct io_rsrc_put *prsrc;
+
+	prsrc = kzalloc(sizeof(*prsrc), GFP_KERNEL);
+	if (!prsrc)
+		return -ENOMEM;
+
+	prsrc->tag = *io_get_tag_slot(data, idx);
+	prsrc->rsrc = rsrc;
+	list_add(&prsrc->list, &node->rsrc_list);
+	return 0;
+}
+
 static int io_install_fixed_file(struct io_kiocb *req, struct file *file,
 				 unsigned int issue_flags, u32 slot_index)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
+	bool needs_switch = false;
 	struct io_fixed_file *file_slot;
 	int ret = -EBADF;
 
@@ -8304,9 +8329,22 @@ static int io_install_fixed_file(struct io_kiocb *req, struct file *file,
 
 	slot_index = array_index_nospec(slot_index, ctx->nr_user_files);
 	file_slot = io_fixed_file_slot(&ctx->file_table, slot_index);
-	ret = -EBADF;
-	if (file_slot->file_ptr)
-		goto err;
+
+	if (file_slot->file_ptr) {
+		struct file *old_file;
+
+		ret = io_rsrc_node_switch_start(ctx);
+		if (ret)
+			goto err;
+
+		old_file = (struct file *)(file_slot->file_ptr & FFS_MASK);
+		ret = io_queue_rsrc_removal(ctx->file_data, slot_index,
+					    ctx->rsrc_node, old_file);
+		if (ret)
+			goto err;
+		file_slot->file_ptr = 0;
+		needs_switch = true;
+	}
 
 	*io_get_tag_slot(ctx->file_data, slot_index) = 0;
 	io_fixed_file_set(file_slot, file);
@@ -8318,25 +8356,12 @@ static int io_install_fixed_file(struct io_kiocb *req, struct file *file,
 
 	ret = 0;
 err:
+	if (needs_switch)
+		io_rsrc_node_switch(ctx, ctx->file_data);
 	io_ring_submit_unlock(ctx, !force_nonblock);
 	if (ret)
 		fput(file);
 	return ret;
-}
-
-static int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
-				 struct io_rsrc_node *node, void *rsrc)
-{
-	struct io_rsrc_put *prsrc;
-
-	prsrc = kzalloc(sizeof(*prsrc), GFP_KERNEL);
-	if (!prsrc)
-		return -ENOMEM;
-
-	prsrc->tag = *io_get_tag_slot(data, idx);
-	prsrc->rsrc = rsrc;
-	list_add(&prsrc->list, &node->rsrc_list);
-	return 0;
 }
 
 static int __io_sqe_files_update(struct io_ring_ctx *ctx,
@@ -10560,10 +10585,12 @@ static int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 			 * ordering. Fine to drop uring_lock here, we hold
 			 * a ref to the ctx.
 			 */
+			refcount_inc(&sqd->refs);
 			mutex_unlock(&ctx->uring_lock);
 			mutex_lock(&sqd->lock);
 			mutex_lock(&ctx->uring_lock);
-			tctx = sqd->thread->io_uring;
+			if (sqd->thread)
+				tctx = sqd->thread->io_uring;
 		}
 	} else {
 		tctx = current->io_uring;
@@ -10577,16 +10604,20 @@ static int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 	if (ret)
 		goto err;
 
-	if (sqd)
+	if (sqd) {
 		mutex_unlock(&sqd->lock);
+		io_put_sq_data(sqd);
+	}
 
 	if (copy_to_user(arg, new_count, sizeof(new_count)))
 		return -EFAULT;
 
 	return 0;
 err:
-	if (sqd)
+	if (sqd) {
 		mutex_unlock(&sqd->lock);
+		io_put_sq_data(sqd);
+	}
 	return ret;
 }
 
