@@ -3108,8 +3108,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 /* Fuse readout registers for GT */
 #define HSW_PAVP_FUSE1			_MMIO(0x911C)
-#define   HSW_F1_EU_DIS_SHIFT		16
-#define   HSW_F1_EU_DIS_MASK		(0x3 << HSW_F1_EU_DIS_SHIFT)
+#define   XEHP_SFC_ENABLE_MASK		REG_GENMASK(27, 24)
+#define   HSW_F1_EU_DIS_MASK		REG_GENMASK(17, 16)
 #define   HSW_F1_EU_DIS_10EUS		0
 #define   HSW_F1_EU_DIS_8EUS		1
 #define   HSW_F1_EU_DIS_6EUS		2

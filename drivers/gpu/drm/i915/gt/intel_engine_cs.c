@@ -398,7 +398,8 @@ static void __setup_engine_capabilities(struct intel_engine_cs *engine)
 			engine->uabi_capabilities |=
 				I915_VIDEO_AND_ENHANCE_CLASS_CAPABILITY_SFC;
 	} else if (engine->class == VIDEO_ENHANCEMENT_CLASS) {
-		if (GRAPHICS_VER(i915) >= 9)
+		if (GRAPHICS_VER(i915) >= 9 &&
+		    engine->gt->info.sfc_mask & BIT(engine->instance))
 			engine->uabi_capabilities |=
 				I915_VIDEO_AND_ENHANCE_CLASS_CAPABILITY_SFC;
 	}
@@ -474,18 +475,25 @@ void intel_engines_free(struct intel_gt *gt)
 }
 
 static
-bool gen11_vdbox_has_sfc(struct drm_i915_private *i915,
+bool gen11_vdbox_has_sfc(struct intel_gt *gt,
 			 unsigned int physical_vdbox,
 			 unsigned int logical_vdbox, u16 vdbox_mask)
 {
+	struct drm_i915_private *i915 = gt->i915;
+
 	/*
 	 * In Gen11, only even numbered logical VDBOXes are hooked
 	 * up to an SFC (Scaler & Format Converter) unit.
 	 * In Gen12, Even numbered physical instance always are connected
 	 * to an SFC. Odd numbered physical instances have SFC only if
 	 * previous even instance is fused off.
+	 *
+	 * Starting with Xe_HP, there's also a dedicated SFC_ENABLE field
+	 * in the fuse register that tells us whether a specific SFC is present.
 	 */
-	if (GRAPHICS_VER(i915) == 12)
+	if ((gt->info.sfc_mask & BIT(physical_vdbox / 2)) == 0)
+		return false;
+	else if (GRAPHICS_VER(i915) == 12)
 		return (physical_vdbox % 2 == 0) ||
 			!(BIT(physical_vdbox - 1) & vdbox_mask);
 	else if (GRAPHICS_VER(i915) == 11)
@@ -512,7 +520,7 @@ static intel_engine_mask_t init_engine_mask(struct intel_gt *gt)
 	struct intel_uncore *uncore = gt->uncore;
 	unsigned int logical_vdbox = 0;
 	unsigned int i;
-	u32 media_fuse;
+	u32 media_fuse, fuse1;
 	u16 vdbox_mask;
 	u16 vebox_mask;
 
@@ -534,6 +542,13 @@ static intel_engine_mask_t init_engine_mask(struct intel_gt *gt)
 	vebox_mask = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
 		      GEN11_GT_VEBOX_DISABLE_SHIFT;
 
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
+		fuse1 = intel_uncore_read(uncore, HSW_PAVP_FUSE1);
+		gt->info.sfc_mask = REG_FIELD_GET(XEHP_SFC_ENABLE_MASK, fuse1);
+	} else {
+		gt->info.sfc_mask = ~0;
+	}
+
 	for (i = 0; i < I915_MAX_VCS; i++) {
 		if (!HAS_ENGINE(gt, _VCS(i))) {
 			vdbox_mask &= ~BIT(i);
@@ -546,7 +561,7 @@ static intel_engine_mask_t init_engine_mask(struct intel_gt *gt)
 			continue;
 		}
 
-		if (gen11_vdbox_has_sfc(i915, i, logical_vdbox, vdbox_mask))
+		if (gen11_vdbox_has_sfc(gt, i, logical_vdbox, vdbox_mask))
 			gt->info.vdbox_sfc_access |= BIT(i);
 		logical_vdbox++;
 	}

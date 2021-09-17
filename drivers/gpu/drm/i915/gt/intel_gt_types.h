@@ -186,6 +186,9 @@ struct intel_gt {
 
 		u8 num_engines;
 
+		/* General presence of SFC units */
+		u8 sfc_mask;
+
 		/* Media engine access to SFC per instance */
 		u8 vdbox_sfc_access;
 
