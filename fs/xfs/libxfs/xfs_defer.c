@@ -650,10 +650,11 @@ xfs_defer_move(
  */
 static struct xfs_defer_capture *
 xfs_defer_ops_capture(
-	struct xfs_trans		*tp,
-	struct xfs_inode		*capture_ip)
+	struct xfs_trans		*tp)
 {
 	struct xfs_defer_capture	*dfc;
+	unsigned short			i;
+	int				error;
 
 	if (list_empty(&tp->t_dfops))
 		return NULL;
@@ -677,27 +678,48 @@ xfs_defer_ops_capture(
 	/* Preserve the log reservation size. */
 	dfc->dfc_logres = tp->t_log_res;
 
-	/*
-	 * Grab an extra reference to this inode and attach it to the capture
-	 * structure.
-	 */
-	if (capture_ip) {
-		ihold(VFS_I(capture_ip));
-		dfc->dfc_capture_ip = capture_ip;
+	error = xfs_defer_save_resources(&dfc->dfc_held, tp);
+	if (error) {
+		/*
+		 * Resource capture should never fail, but if it does, we
+		 * still have to shut down the log and release things
+		 * properly.
+		 */
+		xfs_force_shutdown(tp->t_mountp, SHUTDOWN_CORRUPT_INCORE);
 	}
+
+	/*
+	 * Grab extra references to the inodes and buffers because callers are
+	 * expected to release their held references after we commit the
+	 * transaction.
+	 */
+	for (i = 0; i < dfc->dfc_held.dr_inos; i++) {
+		ASSERT(xfs_isilocked(dfc->dfc_held.dr_ip[i], XFS_ILOCK_EXCL));
+		ihold(VFS_I(dfc->dfc_held.dr_ip[i]));
+	}
+
+	for (i = 0; i < dfc->dfc_held.dr_bufs; i++)
+		xfs_buf_hold(dfc->dfc_held.dr_bp[i]);
 
 	return dfc;
 }
 
 /* Release all resources that we used to capture deferred ops. */
 void
-xfs_defer_ops_release(
+xfs_defer_ops_capture_free(
 	struct xfs_mount		*mp,
 	struct xfs_defer_capture	*dfc)
 {
+	unsigned short			i;
+
 	xfs_defer_cancel_list(mp, &dfc->dfc_dfops);
-	if (dfc->dfc_capture_ip)
-		xfs_irele(dfc->dfc_capture_ip);
+
+	for (i = 0; i < dfc->dfc_held.dr_bufs; i++)
+		xfs_buf_relse(dfc->dfc_held.dr_bp[i]);
+
+	for (i = 0; i < dfc->dfc_held.dr_inos; i++)
+		xfs_irele(dfc->dfc_held.dr_ip[i]);
+
 	kmem_free(dfc);
 }
 
@@ -712,24 +734,21 @@ xfs_defer_ops_release(
 int
 xfs_defer_ops_capture_and_commit(
 	struct xfs_trans		*tp,
-	struct xfs_inode		*capture_ip,
 	struct list_head		*capture_list)
 {
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_defer_capture	*dfc;
 	int				error;
 
-	ASSERT(!capture_ip || xfs_isilocked(capture_ip, XFS_ILOCK_EXCL));
-
 	/* If we don't capture anything, commit transaction and exit. */
-	dfc = xfs_defer_ops_capture(tp, capture_ip);
+	dfc = xfs_defer_ops_capture(tp);
 	if (!dfc)
 		return xfs_trans_commit(tp);
 
 	/* Commit the transaction and add the capture structure to the list. */
 	error = xfs_trans_commit(tp);
 	if (error) {
-		xfs_defer_ops_release(mp, dfc);
+		xfs_defer_ops_capture_free(mp, dfc);
 		return error;
 	}
 
@@ -747,21 +766,46 @@ void
 xfs_defer_ops_continue(
 	struct xfs_defer_capture	*dfc,
 	struct xfs_trans		*tp,
-	struct xfs_inode		**captured_ipp)
+	struct xfs_defer_resources	*dres)
 {
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
 	ASSERT(!(tp->t_flags & XFS_TRANS_DIRTY));
 
 	/* Lock and join the captured inode to the new transaction. */
-	if (dfc->dfc_capture_ip) {
-		xfs_ilock(dfc->dfc_capture_ip, XFS_ILOCK_EXCL);
-		xfs_trans_ijoin(tp, dfc->dfc_capture_ip, 0);
-	}
-	*captured_ipp = dfc->dfc_capture_ip;
+	if (dfc->dfc_held.dr_inos == 2)
+		xfs_lock_two_inodes(dfc->dfc_held.dr_ip[0], XFS_ILOCK_EXCL,
+				    dfc->dfc_held.dr_ip[1], XFS_ILOCK_EXCL);
+	else if (dfc->dfc_held.dr_inos == 1)
+		xfs_ilock(dfc->dfc_held.dr_ip[0], XFS_ILOCK_EXCL);
+	xfs_defer_restore_resources(tp, &dfc->dfc_held);
+	memcpy(dres, &dfc->dfc_held, sizeof(struct xfs_defer_resources));
 
 	/* Move captured dfops chain and state to the transaction. */
 	list_splice_init(&dfc->dfc_dfops, &tp->t_dfops);
 	tp->t_flags |= dfc->dfc_tpflags;
 
 	kmem_free(dfc);
+}
+
+/* Release the resources captured and continued during recovery. */
+void
+xfs_defer_resources_rele(
+	struct xfs_defer_resources	*dres)
+{
+	unsigned short			i;
+
+	for (i = 0; i < dres->dr_inos; i++) {
+		xfs_iunlock(dres->dr_ip[i], XFS_ILOCK_EXCL);
+		xfs_irele(dres->dr_ip[i]);
+		dres->dr_ip[i] = NULL;
+	}
+
+	for (i = 0; i < dres->dr_bufs; i++) {
+		xfs_buf_relse(dres->dr_bp[i]);
+		dres->dr_bp[i] = NULL;
+	}
+
+	dres->dr_inos = 0;
+	dres->dr_bufs = 0;
+	dres->dr_ordered = 0;
 }
