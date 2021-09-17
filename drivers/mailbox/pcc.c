@@ -449,6 +449,28 @@ static int pcc_parse_subspace_irq(struct pcc_chan_info *pchan,
 }
 
 /**
+ * pcc_parse_subspace_db_reg - Parse the PCC doorbell register
+ *
+ * @pchan: Pointer to the PCC channel info structure.
+ * @pcct_entry: Pointer to the ACPI subtable header.
+ *
+ */
+static void pcc_parse_subspace_db_reg(struct pcc_chan_info *pchan,
+				      struct acpi_subtable_header *pcct_entry)
+{
+	struct acpi_pcct_subspace *pcct_ss;
+	struct acpi_generic_address *db_reg;
+
+	pcct_ss = (struct acpi_pcct_subspace *)pcct_entry;
+
+	/* If doorbell is in system memory cache the virt address */
+	db_reg = &pcct_ss->doorbell_register;
+	if (db_reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+		pchan->db_vaddr = acpi_os_ioremap(db_reg->address,
+						  db_reg->bit_width / 8);
+}
+
+/**
  * acpi_pcc_probe - Parse the ACPI tree for the PCCT.
  *
  * Return: 0 for Success, else errno.
@@ -513,8 +535,6 @@ static int __init acpi_pcc_probe(void)
 
 	for (i = 0; i < count; i++) {
 		struct pcc_chan_info *pchan = chan_info + i;
-		struct acpi_generic_address *db_reg;
-		struct acpi_pcct_subspace *pcct_ss;
 		pcc_mbox_channels[i].con_priv = pcct_entry;
 
 		if (pcc_mbox_ctrl.txdone_irq) {
@@ -522,13 +542,8 @@ static int __init acpi_pcc_probe(void)
 			if (rc < 0)
 				goto err;
 		}
-		pcct_ss = (struct acpi_pcct_subspace *) pcct_entry;
+		pcc_parse_subspace_db_reg(pchan, pcct_entry);
 
-		/* If doorbell is in system memory cache the virt address */
-		db_reg = &pcct_ss->doorbell_register;
-		if (db_reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
-			pchan->db_vaddr = acpi_os_ioremap(db_reg->address,
-							  db_reg->bit_width / 8);
 		pcct_entry = (struct acpi_subtable_header *)
 			((unsigned long) pcct_entry + pcct_entry->length);
 	}
