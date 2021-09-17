@@ -1982,6 +1982,8 @@ static int replace_nexthop_grp(struct net *net, struct nexthop *old,
 	rcu_assign_pointer(old->nh_grp, newg);
 
 	if (newg->resilient) {
+		/* Make sure concurrent readers are not using 'oldg' anymore. */
+		synchronize_net();
 		rcu_assign_pointer(oldg->res_table, tmp_table);
 		rcu_assign_pointer(oldg->spare->res_table, tmp_table);
 	}
