@@ -177,6 +177,7 @@ config XEN_GRANT_DMA_ALLOC
 
 config SWIOTLB_XEN
 	def_bool y
+	depends on XEN_PV || ARM || ARM64
 	select DMA_OPS
 	select SWIOTLB
 
