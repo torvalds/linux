@@ -400,11 +400,11 @@ static int call_undef_hook(struct pt_regs *regs)
 	unsigned long flags;
 	u32 instr;
 	int (*fn)(struct pt_regs *regs, u32 instr) = NULL;
-	void __user *pc = (void __user *)instruction_pointer(regs);
+	unsigned long pc = instruction_pointer(regs);
 
 	if (!user_mode(regs)) {
 		__le32 instr_le;
-		if (get_kernel_nofault(instr_le, (__force __le32 *)pc))
+		if (get_kernel_nofault(instr_le, (__le32 *)pc))
 			goto exit;
 		instr = le32_to_cpu(instr_le);
 	} else if (compat_thumb_mode(regs)) {
