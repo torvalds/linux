@@ -13,12 +13,14 @@
 #include <linux/completion.h>
 #include <linux/dma-mapping.h>
 #include <linux/iopoll.h>
+#include <linux/interrupt.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
-#include <linux/interrupt.h>
 #include <linux/spi/spi-mem.h>
 
 /* System control */
@@ -170,6 +172,8 @@
 
 #define SFC_DLL_TRANING_STEP		10	/* Training step */
 #define SFC_DLL_TRANING_VALID_WINDOW	80	/* Valid DLL winbow */
+
+#define ROCKCHIP_AUTOSUSPEND_DELAY	2000
 
 struct rockchip_sfc {
 	struct device *dev;
@@ -614,10 +618,16 @@ static int rockchip_sfc_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op
 	u32 len = op->data.nbytes;
 	int ret;
 
+	ret = pm_runtime_get_sync(sfc->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(sfc->dev);
+		return ret;
+	}
+
 	if (unlikely(mem->spi->max_speed_hz != sfc->frequency)) {
 		ret = clk_set_rate(sfc->clk, mem->spi->max_speed_hz);
 		if (ret)
-			return ret;
+			goto out;
 		sfc->frequency = mem->spi->max_speed_hz;
 		if (rockchip_sfc_get_version(sfc) >= SFC_VER_4) {
 			if (clk_get_rate(sfc->clk) > SFC_DLL_THRESHOLD_RATE)
@@ -644,11 +654,17 @@ static int rockchip_sfc_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op
 		if (ret != len) {
 			dev_err(sfc->dev, "xfer data failed ret %d dir %d\n", ret, op->data.dir);
 
-			return -EIO;
+			ret = -EIO;
+			goto out;
 		}
 	}
 
-	return rockchip_sfc_xfer_done(sfc, 100000);
+	ret = rockchip_sfc_xfer_done(sfc, 100000);
+out:
+	pm_runtime_mark_last_busy(sfc->dev);
+	pm_runtime_put_autosuspend(sfc->dev);
+
+	return ret;
 }
 
 static int rockchip_sfc_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
@@ -767,6 +783,8 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	platform_set_drvdata(pdev, sfc);
+
 	ret = rockchip_sfc_init(sfc);
 	if (ret)
 		goto err_irq;
@@ -774,12 +792,25 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 	sfc->max_iosize = rockchip_sfc_get_max_iosize(sfc);
 	sfc->version = rockchip_sfc_get_version(sfc);
 
+	pm_runtime_set_autosuspend_delay(dev, ROCKCHIP_AUTOSUSPEND_DELAY);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	pm_runtime_get_noresume(dev);
+
 	ret = spi_register_master(master);
 	if (ret)
-		goto err_irq;
+		goto err_register;
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 
+err_register:
+	pm_runtime_disable(sfc->dev);
+	pm_runtime_set_suspended(sfc->dev);
+	pm_runtime_dont_use_autosuspend(sfc->dev);
 err_irq:
 	clk_disable_unprepare(sfc->clk);
 err_clk:
@@ -801,6 +832,72 @@ static int rockchip_sfc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused rockchip_sfc_runtime_suspend(struct device *dev)
+{
+	struct rockchip_sfc *sfc = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(sfc->clk);
+	clk_disable_unprepare(sfc->hclk);
+
+	return 0;
+}
+
+static int __maybe_unused rockchip_sfc_runtime_resume(struct device *dev)
+{
+	struct rockchip_sfc *sfc = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(sfc->hclk);
+	if (ret < 0)
+		return ret;
+
+	ret = clk_prepare_enable(sfc->clk);
+	if (ret < 0)
+		clk_disable_unprepare(sfc->hclk);
+
+	return ret;
+}
+
+static int __maybe_unused rockchip_sfc_suspend(struct device *dev)
+{
+	pinctrl_pm_select_sleep_state(dev);
+
+	return pm_runtime_force_suspend(dev);
+}
+
+static int __maybe_unused rockchip_sfc_resume(struct device *dev)
+{
+	struct rockchip_sfc *sfc = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret < 0)
+		return ret;
+
+	pinctrl_pm_select_default_state(dev);
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(dev);
+		return ret;
+	}
+
+	rockchip_sfc_init(sfc);
+	if (sfc->dll_cells)
+		rockchip_sfc_set_delay_lines(sfc, (u16)sfc->dll_cells);
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+
+	return 0;
+}
+
+static const struct dev_pm_ops rockchip_sfc_pm_ops = {
+	SET_RUNTIME_PM_OPS(rockchip_sfc_runtime_suspend,
+			   rockchip_sfc_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(rockchip_sfc_suspend, rockchip_sfc_resume)
+};
+
 static const struct of_device_id rockchip_sfc_dt_ids[] = {
 	{ .compatible = "rockchip,sfc"},
 	{ /* sentinel */ }
@@ -811,6 +908,7 @@ static struct platform_driver rockchip_sfc_driver = {
 	.driver = {
 		.name	= "rockchip-sfc",
 		.of_match_table = rockchip_sfc_dt_ids,
+		.pm = &rockchip_sfc_pm_ops,
 	},
 	.probe	= rockchip_sfc_probe,
 	.remove	= rockchip_sfc_remove,
