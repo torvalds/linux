@@ -25,6 +25,12 @@ config STMMAC_SELFTESTS
 	  feature if you are facing problems with your HW and submit the test
 	  results to the netdev Mailing List.
 
+config STMMAC_ETHTOOL
+	bool "Ethtool feature for STMMAC"
+	default STMMAC_ETH
+	help
+	  This selects the ethtool function, default is Y.
+
 config STMMAC_PLATFORM
 	tristate "STMMAC Platform bus support"
 	depends on STMMAC_ETH
