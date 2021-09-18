@@ -19,6 +19,9 @@
 /* Megahertz */
 #define CAN_MHZ 1000000UL
 
+#define CAN_CTRLMODE_TDC_MASK					\
+	(CAN_CTRLMODE_TDC_AUTO | CAN_CTRLMODE_TDC_MANUAL)
+
 /*
  * struct can_tdc - CAN FD Transmission Delay Compensation parameters
  *
@@ -33,29 +36,43 @@
  *
  * This structure contains the parameters to calculate that SSP.
  *
- * @tdcv: Transmitter Delay Compensation Value. Distance, in time
- *	quanta, from when the bit is sent on the TX pin to when it is
- *	received on the RX pin of the transmitter. Possible options:
+ * -+----------- one bit ----------+-- TX pin
+ *  |<--- Sample Point --->|
  *
- *	  0: automatic mode. The controller dynamically measures @tdcv
- *	  for each transmitted CAN FD frame.
+ *                         --+----------- one bit ----------+-- RX pin
+ *  |<-------- TDCV -------->|
+ *                           |<------- TDCO ------->|
+ *  |<----------- Secondary Sample Point ---------->|
  *
- *	  Other values: manual mode. Use the fixed provided value.
+ * @tdcv: Transmitter Delay Compensation Value. The time needed for
+ *	the signal to propagate, i.e. the distance, in time quanta,
+ *	from the start of the bit on the TX pin to when it is received
+ *	on the RX pin. @tdcv depends on the controller modes:
+ *
+ *	  CAN_CTRLMODE_TDC_AUTO is set: The transceiver dynamically
+ *	  measures @tdcv for each transmitted CAN FD frame and the
+ *	  value provided here should be ignored.
+ *
+ *	  CAN_CTRLMODE_TDC_MANUAL is set: use the fixed provided @tdcv
+ *	  value.
+ *
+ *	N.B. CAN_CTRLMODE_TDC_AUTO and CAN_CTRLMODE_TDC_MANUAL are
+ *	mutually exclusive. Only one can be set at a time. If both
+ *	CAN_TDC_CTRLMODE_AUTO and CAN_TDC_CTRLMODE_MANUAL are unset,
+ *	TDC is disabled and all the values of this structure should be
+ *	ignored.
  *
  * @tdco: Transmitter Delay Compensation Offset. Offset value, in time
  *	quanta, defining the distance between the start of the bit
  *	reception on the RX pin of the transceiver and the SSP
  *	position such that SSP = @tdcv + @tdco.
  *
- *	If @tdco is zero, then TDC is disabled and both @tdcv and
- *	@tdcf should be ignored.
- *
  * @tdcf: Transmitter Delay Compensation Filter window. Defines the
- *	minimum value for the SSP position in time quanta. If SSP is
- *	less than @tdcf, then no delay compensations occur and the
- *	normal sampling point is used instead. The feature is enabled
- *	if and only if @tdcv is set to zero (automatic mode) and @tdcf
- *	is configured to a value greater than @tdco.
+ *	minimum value for the SSP position in time quanta. If the SSP
+ *	position is less than @tdcf, then no delay compensations occur
+ *	and the normal sampling point is used instead. The feature is
+ *	enabled if and only if @tdcv is set to zero (automatic mode)
+ *	and @tdcf is configured to a value greater than @tdco.
  */
 struct can_tdc {
 	u32 tdcv;
@@ -67,19 +84,32 @@ struct can_tdc {
  * struct can_tdc_const - CAN hardware-dependent constant for
  *	Transmission Delay Compensation
  *
- * @tdcv_max: Transmitter Delay Compensation Value maximum value.
- *	Should be set to zero if the controller does not support
- *	manual mode for tdcv.
+ * @tdcv_min: Transmitter Delay Compensation Value minimum value. If
+ *	the controller does not support manual mode for tdcv
+ *	(c.f. flag CAN_CTRLMODE_TDC_MANUAL) then this value is
+ *	ignored.
+ * @tdcv_max: Transmitter Delay Compensation Value maximum value. If
+ *	the controller does not support manual mode for tdcv
+ *	(c.f. flag CAN_CTRLMODE_TDC_MANUAL) then this value is
+ *	ignored.
+ *
+ * @tdco_min: Transmitter Delay Compensation Offset minimum value.
  * @tdco_max: Transmitter Delay Compensation Offset maximum value.
  *	Should not be zero. If the controller does not support TDC,
  *	then the pointer to this structure should be NULL.
+ *
+ * @tdcf_min: Transmitter Delay Compensation Filter window minimum
+ *	value. If @tdcf_max is zero, this value is ignored.
  * @tdcf_max: Transmitter Delay Compensation Filter window maximum
  *	value. Should be set to zero if the controller does not
  *	support this feature.
  */
 struct can_tdc_const {
+	u32 tdcv_min;
 	u32 tdcv_max;
+	u32 tdco_min;
 	u32 tdco_max;
+	u32 tdcf_min;
 	u32 tdcf_max;
 };
 

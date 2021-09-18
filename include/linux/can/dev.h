@@ -96,6 +96,10 @@ struct can_priv {
 #endif
 };
 
+static inline bool can_tdc_is_enabled(const struct can_priv *priv)
+{
+	return !!(priv->ctrlmode & CAN_CTRLMODE_TDC_MASK);
+}
 
 /* helper to define static CAN controller features at device creation time */
 static inline void can_set_static_ctrlmode(struct net_device *dev,
