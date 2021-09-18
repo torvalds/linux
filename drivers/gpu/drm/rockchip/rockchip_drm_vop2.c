@@ -634,6 +634,9 @@ struct vop2 {
 	bool support_multi_area;
 	bool disable_afbc_win;
 
+	/* no move win from one vp to another */
+	bool disable_win_move;
+
 	bool loader_protect;
 
 	const struct vop2_data *data;
@@ -933,6 +936,21 @@ static const struct vop2_connector_if_data *vop2_find_connector_if_data(struct v
 
 	return NULL;
 }
+
+static struct drm_crtc *vop2_find_crtc_by_plane_mask(struct vop2 *vop2, uint8_t phys_id)
+{
+	struct vop2_video_port *vp;
+	int i;
+
+	for (i = 0; i < vop2->data->nr_vps; i++) {
+		vp = &vop2->vps[i];
+		if (vp->plane_mask & BIT(phys_id))
+			return &vp->rockchip_crtc.crtc;
+	}
+
+	return NULL;
+}
+
 
 static void vop2_load_hdr2sdr_table(struct vop2_video_port *vp)
 {
@@ -7520,6 +7538,8 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		vp->id = vp_data->id;
 		vp->regs = vp_data->regs;
 		vp->cursor_win_id = -1;
+		if (vop2->disable_win_move)
+			possible_crtcs = BIT(registered_num_crtcs);
 
 		/*
 		 * we assume a vp with a zere plane_mask(set from dts or bootloader)
@@ -7675,6 +7695,14 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		 */
 		if (registered_num_crtcs < 2 && vop2_is_mirror_win(win))
 			continue;
+
+		if (vop2->disable_win_move) {
+			crtc = vop2_find_crtc_by_plane_mask(vop2, win->phys_id);
+			if (crtc)
+				possible_crtcs = drm_crtc_mask(crtc);
+			else
+				possible_crtcs = (1 << vop2_data->nr_vps) - 1;
+		}
 
 		ret = vop2_plane_init(vop2, win, possible_crtcs);
 		if (ret)
@@ -7897,6 +7925,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 
 	vop2->support_multi_area = of_property_read_bool(dev->of_node, "support-multi-area");
 	vop2->disable_afbc_win = of_property_read_bool(dev->of_node, "disable-afbc-win");
+	vop2->disable_win_move = of_property_read_bool(dev->of_node, "disable-win-move");
 
 	ret = vop2_pd_data_init(vop2);
 	if (ret)
