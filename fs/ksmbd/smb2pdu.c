@@ -4045,6 +4045,10 @@ static int smb2_get_ea(struct ksmbd_work *work, struct ksmbd_file *fp,
 	path = &fp->filp->f_path;
 	/* single EA entry is requested with given user.* name */
 	if (req->InputBufferLength) {
+		if (le32_to_cpu(req->InputBufferLength) <
+		    sizeof(struct smb2_ea_info_req))
+			return -EINVAL;
+
 		ea_req = (struct smb2_ea_info_req *)req->Buffer;
 	} else {
 		/* need to send all EAs, if no specific EA is requested*/
