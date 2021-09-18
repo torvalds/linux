@@ -336,38 +336,6 @@ exit:
 	return ret;
 }
 
-void rtw_IOL_cmd_tx_pkt_buf_dump(struct adapter *Adapter, int data_len)
-{
-	u32 fifo_data, reg_140;
-	u32 addr, rstatus, loop = 0;
-	u16 data_cnts = (data_len / 8) + 1;
-	u8 *pbuf = vzalloc(data_len + 10);
-	DBG_88E("###### %s ######\n", __func__);
-
-	rtw_write8(Adapter, REG_PKT_BUFF_ACCESS_CTRL, TXPKT_BUF_SELECT);
-	if (pbuf) {
-		for (addr = 0; addr < data_cnts; addr++) {
-			rtw_write32(Adapter, 0x140, addr);
-			rtw_usleep_os(2);
-			loop = 0;
-			do {
-				rstatus = (reg_140 = rtw_read32(Adapter, REG_PKTBUF_DBG_CTRL) & BIT(24));
-				if (rstatus) {
-					fifo_data = rtw_read32(Adapter, REG_PKTBUF_DBG_DATA_L);
-					memcpy(pbuf + (addr * 8), &fifo_data, 4);
-
-					fifo_data = rtw_read32(Adapter, REG_PKTBUF_DBG_DATA_H);
-					memcpy(pbuf + (addr * 8 + 4), &fifo_data, 4);
-				}
-				rtw_usleep_os(2);
-			} while (!rstatus && (loop++ < 10));
-		}
-		rtw_IOL_cmd_buf_dump(data_len, pbuf);
-		vfree(pbuf);
-	}
-	DBG_88E("###### %s ######\n", __func__);
-}
-
 static void _FWDownloadEnable(struct adapter *padapter, bool enable)
 {
 	u8 tmp;
