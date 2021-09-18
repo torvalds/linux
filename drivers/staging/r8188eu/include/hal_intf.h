@@ -84,7 +84,6 @@ enum hw_variables {
 	HW_VAR_EFUSE_BT_USAGE,
 	HW_VAR_EFUSE_BT_BYTES,
 	HW_VAR_FIFO_CLEARN_UP,
-	HW_VAR_CHECK_TXBUF,
 	HW_VAR_APFM_ON_MAC, /* Auto FSM to Turn On, include clock, isolation,
 			     * power control for MAC only */
 	/*  The valid upper nav range for the HW updating, if the true value is
