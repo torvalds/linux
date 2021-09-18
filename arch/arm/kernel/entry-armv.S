@@ -765,7 +765,7 @@ ENTRY(__switch_to)
 	.endif
 	ldr	r7, [r7, #TSK_STACK_CANARY & IMM12_MASK]
 #elif defined(CONFIG_CURRENT_POINTER_IN_TPIDRURO)
-	ldr	r7, [r2, #TI_TASK]
+	mov	r7, r2				@ Preserve 'next'
 #endif
 #ifdef CONFIG_CPU_USE_DOMAINS
 	mcr	p15, 0, r6, c3, c0, 0		@ Set domain register

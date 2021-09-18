@@ -227,10 +227,15 @@
  * Get current thread_info.
  */
 	.macro	get_thread_info, rd
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	/* thread_info is the first member of struct task_struct */
+	get_current \rd
+#else
  ARM(	mov	\rd, sp, lsr #THREAD_SIZE_ORDER + PAGE_SHIFT	)
  THUMB(	mov	\rd, sp			)
  THUMB(	lsr	\rd, \rd, #THREAD_SIZE_ORDER + PAGE_SHIFT	)
 	mov	\rd, \rd, lsl #THREAD_SIZE_ORDER + PAGE_SHIFT
+#endif
 	.endm
 
 /*
