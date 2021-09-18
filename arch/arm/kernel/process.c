@@ -269,10 +269,6 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 
 	thread_notify(THREAD_NOTIFY_COPY, thread);
 
-#ifdef CONFIG_STACKPROTECTOR_PER_TASK
-	thread->stack_canary = p->stack_canary;
-#endif
-
 	return 0;
 }
 

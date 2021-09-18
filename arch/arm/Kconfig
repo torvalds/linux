@@ -1600,7 +1600,7 @@ config XEN
 
 config STACKPROTECTOR_PER_TASK
 	bool "Use a unique stack canary value for each task"
-	depends on GCC_PLUGINS && STACKPROTECTOR && SMP && !XIP_DEFLATED_DATA
+	depends on GCC_PLUGINS && STACKPROTECTOR && THREAD_INFO_IN_TASK && !XIP_DEFLATED_DATA
 	select GCC_PLUGIN_ARM_SSP_PER_TASK
 	default y
 	help
