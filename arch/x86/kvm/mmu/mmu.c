@@ -1931,14 +1931,6 @@ static bool kvm_mmu_remote_flush_or_zap(struct kvm *kvm,
 	return true;
 }
 
-static void kvm_mmu_flush_or_zap(struct kvm_vcpu *vcpu,
-				 struct list_head *invalid_list,
-				 bool remote_flush, bool local_flush)
-{
-	if (kvm_mmu_remote_flush_or_zap(vcpu->kvm, invalid_list, remote_flush))
-		return;
-}
-
 #ifdef CONFIG_KVM_MMU_AUDIT
 #include "mmu_audit.c"
 #else
@@ -2032,7 +2024,6 @@ static int mmu_sync_children(struct kvm_vcpu *vcpu,
 	struct mmu_page_path parents;
 	struct kvm_mmu_pages pages;
 	LIST_HEAD(invalid_list);
-	bool flush = false;
 
 	while (mmu_unsync_walk(parent, &pages)) {
 		bool protected = false;
@@ -2042,27 +2033,25 @@ static int mmu_sync_children(struct kvm_vcpu *vcpu,
 
 		if (protected) {
 			kvm_flush_remote_tlbs(vcpu->kvm);
-			flush = false;
 		}
 
 		for_each_sp(pages, sp, parents, i) {
 			kvm_unlink_unsync_page(vcpu->kvm, sp);
-			flush |= kvm_sync_page(vcpu, sp, &invalid_list);
+			kvm_sync_page(vcpu, sp, &invalid_list);
 			mmu_pages_clear_parents(&parents);
 		}
 		if (need_resched() || rwlock_needbreak(&vcpu->kvm->mmu_lock)) {
-			kvm_mmu_flush_or_zap(vcpu, &invalid_list, false, flush);
+			kvm_mmu_remote_flush_or_zap(vcpu->kvm, &invalid_list, false);
 			if (!can_yield) {
 				kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
 				return -EINTR;
 			}
 
 			cond_resched_rwlock_write(&vcpu->kvm->mmu_lock);
-			flush = false;
 		}
 	}
 
-	kvm_mmu_flush_or_zap(vcpu, &invalid_list, false, flush);
+	kvm_mmu_remote_flush_or_zap(vcpu->kvm, &invalid_list, false);
 	return 0;
 }
 
@@ -5209,7 +5198,7 @@ static void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	LIST_HEAD(invalid_list);
 	u64 entry, gentry, *spte;
 	int npte;
-	bool remote_flush, local_flush;
+	bool flush = false;
 
 	/*
 	 * If we don't have indirect shadow pages, it means no page is
@@ -5217,8 +5206,6 @@ static void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	 */
 	if (!READ_ONCE(vcpu->kvm->arch.indirect_shadow_pages))
 		return;
-
-	remote_flush = local_flush = false;
 
 	pgprintk("%s: gpa %llx bytes %d\n", __func__, gpa, bytes);
 
@@ -5248,18 +5235,17 @@ static void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		if (!spte)
 			continue;
 
-		local_flush = true;
 		while (npte--) {
 			entry = *spte;
 			mmu_page_zap_pte(vcpu->kvm, sp, spte, NULL);
 			if (gentry && sp->role.level != PG_LEVEL_4K)
 				++vcpu->kvm->stat.mmu_pde_zapped;
 			if (need_remote_flush(entry, *spte))
-				remote_flush = true;
+				flush = true;
 			++spte;
 		}
 	}
-	kvm_mmu_flush_or_zap(vcpu, &invalid_list, remote_flush, local_flush);
+	kvm_mmu_remote_flush_or_zap(vcpu->kvm, &invalid_list, flush);
 	kvm_mmu_audit(vcpu, AUDIT_POST_PTE_WRITE);
 	write_unlock(&vcpu->kvm->mmu_lock);
 }
