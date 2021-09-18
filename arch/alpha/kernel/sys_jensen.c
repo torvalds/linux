@@ -17,7 +17,7 @@
 
 #include <asm/ptrace.h>
 
-#define __EXTERN_INLINE inline
+#define __EXTERN_INLINE
 #include <asm/io.h>
 #include <asm/jensen.h>
 #undef  __EXTERN_INLINE
