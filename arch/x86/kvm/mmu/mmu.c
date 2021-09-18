@@ -2582,7 +2582,8 @@ static void kvm_unsync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
  * were marked unsync (or if there is no shadow page), -EPERM if the SPTE must
  * be write-protected.
  */
-int mmu_try_to_unsync_pages(struct kvm_vcpu *vcpu, gfn_t gfn, bool can_unsync)
+int mmu_try_to_unsync_pages(struct kvm_vcpu *vcpu, gfn_t gfn, bool can_unsync,
+			    bool speculative)
 {
 	struct kvm_mmu_page *sp;
 	bool locked = false;
@@ -2607,6 +2608,9 @@ int mmu_try_to_unsync_pages(struct kvm_vcpu *vcpu, gfn_t gfn, bool can_unsync)
 
 		if (sp->unsync)
 			continue;
+
+		if (speculative)
+			return -EEXIST;
 
 		/*
 		 * TDP MMU page faults require an additional spinlock as they
