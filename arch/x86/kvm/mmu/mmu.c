@@ -2035,7 +2035,7 @@ static int mmu_sync_children(struct kvm_vcpu *vcpu,
 			protected |= rmap_write_protect(vcpu, sp->gfn);
 
 		if (protected) {
-			kvm_flush_remote_tlbs(vcpu->kvm);
+			kvm_mmu_remote_flush_or_zap(vcpu->kvm, &invalid_list, true);
 			flush = false;
 		}
 
