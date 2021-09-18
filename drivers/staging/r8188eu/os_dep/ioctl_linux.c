@@ -1289,11 +1289,6 @@ static int rtw_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
 	int wait_status;
 	struct	wifidirect_info *pwdinfo = &padapter->wdinfo;
 
-	if (padapter->pwrctrlpriv.brfoffbyhw && padapter->bDriverStopped) {
-		ret = -EINVAL;
-		goto exit;
-	}
-
 	if (!rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)) {
 		/*	P2P is enabled */
 		wait_for_surveydone = 200;
@@ -1335,8 +1330,6 @@ static int rtw_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
 
 	wrqu->data.length = ev - extra;
 	wrqu->data.flags = 0;
-
-exit:
 
 	return ret;
 }
