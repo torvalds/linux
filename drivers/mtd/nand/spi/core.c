@@ -1060,6 +1060,93 @@ static int spinand_detect(struct spinand_device *spinand)
 	return 0;
 }
 
+static int spinand_reinit(struct mtd_info *mtd)
+{
+	struct spinand_device *spinand = mtd_to_spinand(mtd);
+	struct nand_device *nand = mtd_to_nanddev(mtd);
+	struct device *dev = &spinand->spimem->spi->dev;
+	int ret, i;
+
+	ret = spinand_init_quad_enable(spinand);
+	if (ret)
+		return ret;
+
+	ret = spinand_upd_cfg(spinand, CFG_OTP_ENABLE, 0);
+	if (ret)
+		return ret;
+
+	ret = spinand_manufacturer_init(spinand);
+	if (ret) {
+		dev_err(dev,
+			"Failed to initialize the SPI NAND chip (err = %d)\n",
+			ret);
+		return ret;
+	}
+
+	ret = spinand_create_dirmaps(spinand);
+	if (ret) {
+		dev_err(dev,
+			"Failed to create direct mappings for read/write operations (err = %d)\n",
+			ret);
+		return ret;
+	}
+
+	/* After power up, all blocks are locked, so unlock them here. */
+	for (i = 0; i < nand->memorg.ntargets; i++) {
+		ret = spinand_select_target(spinand, i);
+		if (ret)
+			return ret;
+
+		ret = spinand_lock_block(spinand, BL_ALL_UNLOCKED);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+/**
+ * spinand_mtd_suspend - [MTD Interface] Suspend the spinand flash
+ * @mtd: MTD device structure
+ *
+ * Returns 0 for success or negative error code otherwise.
+ */
+static int spinand_mtd_suspend(struct mtd_info *mtd)
+{
+	struct spinand_device *spinand = mtd_to_spinand(mtd);
+	int ret = 0;
+
+	mutex_lock(&spinand->lock);
+
+	return ret;
+}
+
+/**
+ * spinand_mtd_resume - [MTD Interface] Resume the spinand flash
+ * @mtd: MTD device structure
+ */
+static void spinand_mtd_resume(struct mtd_info *mtd)
+{
+	struct spinand_device *spinand = mtd_to_spinand(mtd);
+	struct device *dev = &spinand->spimem->spi->dev;
+	int ret;
+
+	ret = spinand_reinit(mtd);
+	if (ret)
+		dev_err(dev, "Failed to resume, ret =%d !\n", ret);
+	mutex_unlock(&spinand->lock);
+}
+
+/**
+ * spinand_mtd_shutdown - [MTD Interface] Finish the current spinand operation and
+ *                 prevent further operations
+ * @mtd: MTD device structure
+ */
+static void spinand_mtd_shutdown(struct mtd_info *mtd)
+{
+	spinand_mtd_suspend(mtd);
+}
+
 static int spinand_init(struct spinand_device *spinand)
 {
 	struct device *dev = &spinand->spimem->spi->dev;
@@ -1152,6 +1239,9 @@ static int spinand_init(struct spinand_device *spinand)
 	mtd->_block_isreserved = spinand_mtd_block_isreserved;
 	mtd->_erase = spinand_mtd_erase;
 	mtd->_max_bad_blocks = nanddev_mtd_max_bad_blocks;
+	mtd->_suspend = spinand_mtd_suspend;
+	mtd->_resume = spinand_mtd_resume;
+	mtd->_reboot = spinand_mtd_shutdown;
 
 	if (spinand->eccinfo.ooblayout)
 		mtd_set_ooblayout(mtd, spinand->eccinfo.ooblayout);
