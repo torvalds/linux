@@ -337,16 +337,10 @@ void acpi_device_notify_remove(struct device *dev)
 	if (!adev)
 		return;
 
-	if (dev_is_pci(dev)) {
+	if (dev_is_pci(dev))
 		pci_acpi_cleanup(dev, adev);
-	} else {
-		struct acpi_bus_type *type = acpi_get_bus_type(dev);
-
-		if (type && type->cleanup)
-			type->cleanup(dev);
-		else if (adev->handler && adev->handler->unbind)
-			adev->handler->unbind(dev);
-	}
+	else if (adev->handler && adev->handler->unbind)
+		adev->handler->unbind(dev);
 
 	acpi_unbind_one(dev);
 }
