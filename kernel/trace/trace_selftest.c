@@ -287,6 +287,40 @@ static int trace_selftest_ops(struct trace_array *tr, int cnt)
 	if (trace_selftest_test_probe3_cnt != 4)
 		goto out_free;
 
+	/* Remove trace function from probe 3 */
+	func1_name = "!" __stringify(DYN_FTRACE_TEST_NAME);
+	len1 = strlen(func1_name);
+
+	ftrace_set_filter(&test_probe3, func1_name, len1, 0);
+
+	DYN_FTRACE_TEST_NAME();
+
+	print_counts();
+
+	if (trace_selftest_test_probe1_cnt != 3)
+		goto out_free;
+	if (trace_selftest_test_probe2_cnt != 2)
+		goto out_free;
+	if (trace_selftest_test_probe3_cnt != 4)
+		goto out_free;
+	if (cnt > 1) {
+		if (trace_selftest_test_global_cnt == 0)
+			goto out_free;
+	}
+	if (trace_selftest_test_dyn_cnt == 0)
+		goto out_free;
+
+	DYN_FTRACE_TEST_NAME2();
+
+	print_counts();
+
+	if (trace_selftest_test_probe1_cnt != 3)
+		goto out_free;
+	if (trace_selftest_test_probe2_cnt != 3)
+		goto out_free;
+	if (trace_selftest_test_probe3_cnt != 5)
+		goto out_free;
+
 	ret = 0;
  out_free:
 	unregister_ftrace_function(dyn_ops);
