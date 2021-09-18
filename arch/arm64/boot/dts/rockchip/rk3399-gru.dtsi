@@ -461,7 +461,7 @@ ap_i2c_audio: &i2c8 {
 	vpcie0v9-supply = <&pp900_pcie>;
 
 	pci_rootport: pcie@0,0 {
-		reg = <0x83000000 0x0 0x00000000 0x0 0x00000000>;
+		reg = <0x0000 0 0 0 0>;
 		#address-cells = <3>;
 		#size-cells = <2>;
 		ranges;
