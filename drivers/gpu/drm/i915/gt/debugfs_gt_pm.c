@@ -6,11 +6,11 @@
 
 #include <linux/seq_file.h>
 
-#include "debugfs_gt.h"
 #include "debugfs_gt_pm.h"
 #include "i915_drv.h"
 #include "intel_gt.h"
 #include "intel_gt_clock_utils.h"
+#include "intel_gt_debugfs.h"
 #include "intel_gt_pm.h"
 #include "intel_llc.h"
 #include "intel_rc6.h"
@@ -36,7 +36,7 @@ static int fw_domains_show(struct seq_file *m, void *data)
 
 	return 0;
 }
-DEFINE_GT_DEBUGFS_ATTRIBUTE(fw_domains);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(fw_domains);
 
 static void print_rc6_res(struct seq_file *m,
 			  const char *title,
@@ -238,7 +238,7 @@ static int drpc_show(struct seq_file *m, void *unused)
 
 	return err;
 }
-DEFINE_GT_DEBUGFS_ATTRIBUTE(drpc);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(drpc);
 
 static int frequency_show(struct seq_file *m, void *unused)
 {
@@ -480,7 +480,7 @@ static int frequency_show(struct seq_file *m, void *unused)
 
 	return 0;
 }
-DEFINE_GT_DEBUGFS_ATTRIBUTE(frequency);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(frequency);
 
 static int llc_show(struct seq_file *m, void *data)
 {
@@ -533,7 +533,7 @@ static bool llc_eval(void *data)
 	return HAS_LLC(gt->i915);
 }
 
-DEFINE_GT_DEBUGFS_ATTRIBUTE(llc);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(llc);
 
 static const char *rps_power_to_str(unsigned int power)
 {
@@ -612,11 +612,11 @@ static bool rps_eval(void *data)
 	return HAS_RPS(gt->i915);
 }
 
-DEFINE_GT_DEBUGFS_ATTRIBUTE(rps_boost);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(rps_boost);
 
 void debugfs_gt_pm_register(struct intel_gt *gt, struct dentry *root)
 {
-	static const struct debugfs_gt_file files[] = {
+	static const struct intel_gt_debugfs_file files[] = {
 		{ "drpc", &drpc_fops, NULL },
 		{ "frequency", &frequency_fops, NULL },
 		{ "forcewake", &fw_domains_fops, NULL },

@@ -3,7 +3,7 @@
  * Copyright © 2019 Intel Corporation
  */
 
-#include "debugfs_gt.h"
+#include "intel_gt_debugfs.h"
 
 #include "gem/i915_gem_lmem.h"
 #include "i915_drv.h"
@@ -15,11 +15,11 @@
 #include "intel_gt_requests.h"
 #include "intel_migrate.h"
 #include "intel_mocs.h"
+#include "intel_pm.h"
 #include "intel_rc6.h"
 #include "intel_renderstate.h"
 #include "intel_rps.h"
 #include "intel_uncore.h"
-#include "intel_pm.h"
 #include "shmem_utils.h"
 
 void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915)
@@ -434,7 +434,7 @@ void intel_gt_driver_register(struct intel_gt *gt)
 {
 	intel_rps_driver_register(&gt->rps);
 
-	debugfs_gt_register(gt);
+	intel_gt_debugfs_register(gt);
 }
 
 static int intel_gt_init_scratch(struct intel_gt *gt, unsigned int size)

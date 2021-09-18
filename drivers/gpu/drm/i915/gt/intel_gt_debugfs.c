@@ -6,13 +6,13 @@
 #include <linux/debugfs.h>
 
 #include "debugfs_engines.h"
-#include "debugfs_gt.h"
 #include "debugfs_gt_pm.h"
+#include "i915_drv.h"
+#include "intel_gt_debugfs.h"
 #include "intel_sseu_debugfs.h"
 #include "uc/intel_uc_debugfs.h"
-#include "i915_drv.h"
 
-void debugfs_gt_register(struct intel_gt *gt)
+void intel_gt_debugfs_register(struct intel_gt *gt)
 {
 	struct dentry *root;
 
@@ -31,7 +31,7 @@ void debugfs_gt_register(struct intel_gt *gt)
 }
 
 void intel_gt_debugfs_register_files(struct dentry *root,
-				     const struct debugfs_gt_file *files,
+				     const struct intel_gt_debugfs_file *files,
 				     unsigned long count, void *data)
 {
 	while (count--) {

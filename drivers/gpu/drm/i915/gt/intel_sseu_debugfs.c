@@ -4,9 +4,9 @@
  * Copyright © 2020 Intel Corporation
  */
 
-#include "debugfs_gt.h"
-#include "intel_sseu_debugfs.h"
 #include "i915_drv.h"
+#include "intel_gt_debugfs.h"
+#include "intel_sseu_debugfs.h"
 
 static void sseu_copy_subslices(const struct sseu_dev_info *sseu,
 				int slice, u8 *to_mask)
@@ -282,7 +282,7 @@ static int sseu_status_show(struct seq_file *m, void *unused)
 
 	return intel_sseu_status(m, gt);
 }
-DEFINE_GT_DEBUGFS_ATTRIBUTE(sseu_status);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(sseu_status);
 
 static int rcs_topology_show(struct seq_file *m, void *unused)
 {
@@ -293,11 +293,11 @@ static int rcs_topology_show(struct seq_file *m, void *unused)
 
 	return 0;
 }
-DEFINE_GT_DEBUGFS_ATTRIBUTE(rcs_topology);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(rcs_topology);
 
 void intel_sseu_debugfs_register(struct intel_gt *gt, struct dentry *root)
 {
-	static const struct debugfs_gt_file files[] = {
+	static const struct intel_gt_debugfs_file files[] = {
 		{ "sseu_status", &sseu_status_fops, NULL },
 		{ "rcs_topology", &rcs_topology_fops, NULL },
 	};
