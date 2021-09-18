@@ -589,14 +589,6 @@ FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	return true;
 }
 
-static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
-			      u64 *spte, const void *pte)
-{
-	pt_element_t gpte = *(const pt_element_t *)pte;
-
-	FNAME(prefetch_gpte)(vcpu, sp, spte, gpte, false);
-}
-
 static bool FNAME(gpte_changed)(struct kvm_vcpu *vcpu,
 				struct guest_walker *gw, int level)
 {
@@ -1007,7 +999,7 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root_hpa)
 						       sizeof(pt_element_t)))
 				break;
 
-			FNAME(update_pte)(vcpu, sp, sptep, &gpte);
+			FNAME(prefetch_gpte)(vcpu, sp, sptep, gpte, false);
 		}
 
 		if (!is_shadow_present_pte(*sptep) || !sp->unsync_children)
