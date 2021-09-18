@@ -1066,11 +1066,16 @@ static gpa_t FNAME(gva_to_gpa_nested)(struct kvm_vcpu *vcpu, gpa_t vaddr,
  * Using the cached information from sp->gfns is safe because:
  * - The spte has a reference to the struct page, so the pfn for a given gfn
  *   can't change unless all sptes pointing to it are nuked first.
+ *
+ * Returns
+ * < 0: the sp should be zapped
+ *   0: the sp is synced and no tlb flushing is required
+ * > 0: the sp is synced and tlb flushing is required
  */
 static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 {
 	union kvm_mmu_page_role mmu_role = vcpu->arch.mmu->mmu_role.base;
-	int i, nr_present = 0;
+	int i;
 	bool host_writable;
 	gpa_t first_pte_gpa;
 	int set_spte_ret = 0;
@@ -1098,7 +1103,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 	 */
 	if (WARN_ON_ONCE(sp->role.direct ||
 			 (sp->role.word ^ mmu_role.word) & ~sync_role_ign.word))
-		return 0;
+		return -1;
 
 	first_pte_gpa = FNAME(get_level1_sp_gpa)(sp);
 
@@ -1115,7 +1120,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 
 		if (kvm_vcpu_read_guest_atomic(vcpu, pte_gpa, &gpte,
 					       sizeof(pt_element_t)))
-			return 0;
+			return -1;
 
 		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, &sp->spt[i], gpte)) {
 			set_spte_ret |= SET_SPTE_NEED_REMOTE_TLB_FLUSH;
@@ -1127,8 +1132,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		pte_access &= FNAME(gpte_access)(gpte);
 		FNAME(protect_clean_gpte)(vcpu->arch.mmu, &pte_access, gpte);
 
-		if (sync_mmio_spte(vcpu, &sp->spt[i], gfn, pte_access,
-		      &nr_present))
+		if (sync_mmio_spte(vcpu, &sp->spt[i], gfn, pte_access))
 			continue;
 
 		if (gfn != sp->gfns[i]) {
@@ -1136,8 +1140,6 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 			set_spte_ret |= SET_SPTE_NEED_REMOTE_TLB_FLUSH;
 			continue;
 		}
-
-		nr_present++;
 
 		host_writable = sp->spt[i] & shadow_host_writable_mask;
 
@@ -1147,10 +1149,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 					 true, false, host_writable);
 	}
 
-	if (set_spte_ret & SET_SPTE_NEED_REMOTE_TLB_FLUSH)
-		kvm_flush_remote_tlbs(vcpu->kvm);
-
-	return nr_present;
+	return set_spte_ret & SET_SPTE_NEED_REMOTE_TLB_FLUSH;
 }
 
 #undef pt_element_t

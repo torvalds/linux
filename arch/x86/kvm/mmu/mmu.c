@@ -1795,7 +1795,7 @@ static void mark_unsync(u64 *spte)
 static int nonpaging_sync_page(struct kvm_vcpu *vcpu,
 			       struct kvm_mmu_page *sp)
 {
-	return 0;
+	return -1;
 }
 
 #define KVM_PAGE_ARRAY_NR 16
@@ -1909,12 +1909,14 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 static bool kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			 struct list_head *invalid_list)
 {
-	if (vcpu->arch.mmu->sync_page(vcpu, sp) == 0) {
+	int ret = vcpu->arch.mmu->sync_page(vcpu, sp);
+
+	if (ret < 0) {
 		kvm_mmu_prepare_zap_page(vcpu->kvm, sp, invalid_list);
 		return false;
 	}
 
-	return true;
+	return !!ret;
 }
 
 static bool kvm_mmu_remote_flush_or_zap(struct kvm *kvm,
@@ -2024,6 +2026,7 @@ static int mmu_sync_children(struct kvm_vcpu *vcpu,
 	struct mmu_page_path parents;
 	struct kvm_mmu_pages pages;
 	LIST_HEAD(invalid_list);
+	bool flush = false;
 
 	while (mmu_unsync_walk(parent, &pages)) {
 		bool protected = false;
@@ -2033,25 +2036,27 @@ static int mmu_sync_children(struct kvm_vcpu *vcpu,
 
 		if (protected) {
 			kvm_flush_remote_tlbs(vcpu->kvm);
+			flush = false;
 		}
 
 		for_each_sp(pages, sp, parents, i) {
 			kvm_unlink_unsync_page(vcpu->kvm, sp);
-			kvm_sync_page(vcpu, sp, &invalid_list);
+			flush |= kvm_sync_page(vcpu, sp, &invalid_list);
 			mmu_pages_clear_parents(&parents);
 		}
 		if (need_resched() || rwlock_needbreak(&vcpu->kvm->mmu_lock)) {
-			kvm_mmu_remote_flush_or_zap(vcpu->kvm, &invalid_list, false);
+			kvm_mmu_remote_flush_or_zap(vcpu->kvm, &invalid_list, flush);
 			if (!can_yield) {
 				kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
 				return -EINTR;
 			}
 
 			cond_resched_rwlock_write(&vcpu->kvm->mmu_lock);
+			flush = false;
 		}
 	}
 
-	kvm_mmu_remote_flush_or_zap(vcpu->kvm, &invalid_list, false);
+	kvm_mmu_remote_flush_or_zap(vcpu->kvm, &invalid_list, flush);
 	return 0;
 }
 
@@ -2135,6 +2140,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 				break;
 
 			WARN_ON(!list_empty(&invalid_list));
+			kvm_flush_remote_tlbs(vcpu->kvm);
 		}
 
 		__clear_sp_write_flooding_count(sp);
@@ -4191,7 +4197,7 @@ static unsigned long get_cr3(struct kvm_vcpu *vcpu)
 }
 
 static bool sync_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, gfn_t gfn,
-			   unsigned int access, int *nr_present)
+			   unsigned int access)
 {
 	if (unlikely(is_mmio_spte(*sptep))) {
 		if (gfn != get_mmio_spte_gfn(*sptep)) {
@@ -4199,7 +4205,6 @@ static bool sync_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, gfn_t gfn,
 			return true;
 		}
 
-		(*nr_present)++;
 		mark_mmio_spte(vcpu, sptep, gfn, access);
 		return true;
 	}
