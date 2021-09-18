@@ -550,6 +550,10 @@ my @files;
 my $escape_symbols = qr { ([\x01-\x08\x0e-\x1f\x21-\x29\x2b-\x2d\x3a-\x40\x7b-\xfe]) }x;
 sub parse_existing_sysfs {
 	my $file = $File::Find::name;
+
+	# Ignore cgroup and firmware
+	return if ($file =~ m#^/sys/(fs/cgroup|firmware)/#);
+
 	my $mode = (lstat($file))[2];
 	my $abs_file = abs_path($file);
 
@@ -569,9 +573,6 @@ sub parse_existing_sysfs {
 
 sub check_undefined_symbols {
 	foreach my $file (sort @files) {
-
-		# Ignore cgroup and firmware
-		next if ($file =~ m#^/sys/(fs/cgroup|firmware)/#);
 
 		my $defined = 0;
 		my $exact = 0;
