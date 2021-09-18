@@ -134,7 +134,6 @@ struct pwrctrl_priv {
 				       (pwrctrl)->pwr_state_check_interval)
 
 void rtw_init_pwrctrl_priv(struct adapter *adapter);
-void rtw_free_pwrctrl_priv(struct adapter *adapter);
 
 void rtw_set_ps_mode(struct adapter *adapter, u8 ps_mode, u8 smart_ps,
 		     u8 bcn_ant_mode);
