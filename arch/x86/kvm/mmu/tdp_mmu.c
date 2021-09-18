@@ -959,7 +959,6 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu, int write,
 	if (make_spte_ret & SET_SPTE_WRITE_PROTECTED_PT) {
 		if (write)
 			ret = RET_PF_EMULATE;
-		kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu);
 	}
 
 	/* If a MMIO SPTE is installed, the MMIO will need to be emulated. */
