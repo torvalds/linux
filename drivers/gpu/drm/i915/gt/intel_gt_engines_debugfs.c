@@ -6,10 +6,10 @@
 
 #include <drm/drm_print.h>
 
-#include "debugfs_engines.h"
 #include "i915_drv.h" /* for_each_engine! */
 #include "intel_engine.h"
 #include "intel_gt_debugfs.h"
+#include "intel_gt_engines_debugfs.h"
 
 static int engines_show(struct seq_file *m, void *data)
 {
@@ -26,7 +26,7 @@ static int engines_show(struct seq_file *m, void *data)
 }
 DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(engines);
 
-void debugfs_engines_register(struct intel_gt *gt, struct dentry *root)
+void intel_gt_engines_debugfs_register(struct intel_gt *gt, struct dentry *root)
 {
 	static const struct intel_gt_debugfs_file files[] = {
 		{ "engines", &engines_fops },
