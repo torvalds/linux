@@ -470,6 +470,7 @@ static void stmmac_get_rx_hwtstamp(struct stmmac_priv *priv, struct dma_desc *p,
 	}
 }
 
+#ifdef CONFIG_STMMAC_PTP
 /**
  *  stmmac_hwtstamp_set - control hardware timestamping.
  *  @dev: device pointer.
@@ -723,6 +724,7 @@ static int stmmac_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
 	return copy_to_user(ifr->ifr_data, config,
 			    sizeof(*config)) ? -EFAULT : 0;
 }
+#endif /* CONFIG_STMMAC_PTP */
 
 /**
  * stmmac_init_ptp - init PTP
@@ -763,7 +765,8 @@ static int stmmac_init_ptp(struct stmmac_priv *priv)
 
 static void stmmac_release_ptp(struct stmmac_priv *priv)
 {
-	clk_disable_unprepare(priv->plat->clk_ptp_ref);
+	if (IS_ENABLED(CONFIG_STMMAC_PTP))
+		clk_disable_unprepare(priv->plat->clk_ptp_ref);
 	stmmac_ptp_unregister(priv);
 }
 
@@ -2704,7 +2707,7 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 
 	stmmac_mmc_setup(priv);
 
-	if (init_ptp) {
+	if (IS_ENABLED(CONFIG_STMMAC_PTP) && init_ptp) {
 		ret = clk_prepare_enable(priv->plat->clk_ptp_ref);
 		if (ret < 0)
 			netdev_warn(priv->dev, "failed to enable PTP reference clock: %d\n", ret);
@@ -2780,7 +2783,8 @@ static void stmmac_hw_teardown(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	clk_disable_unprepare(priv->plat->clk_ptp_ref);
+	if (IS_ENABLED(CONFIG_STMMAC_PTP))
+		clk_disable_unprepare(priv->plat->clk_ptp_ref);
 }
 
 /**
@@ -2970,7 +2974,8 @@ static int stmmac_release(struct net_device *dev)
 
 	netif_carrier_off(dev);
 
-	stmmac_release_ptp(priv);
+	if (IS_ENABLED(CONFIG_STMMAC_PTP))
+		stmmac_release_ptp(priv);
 
 	return 0;
 }
@@ -4216,12 +4221,14 @@ static int stmmac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	case SIOCSMIIREG:
 		ret = phylink_mii_ioctl(priv->phylink, rq, cmd);
 		break;
+#ifdef CONFIG_STMMAC_PTP
 	case SIOCSHWTSTAMP:
 		ret = stmmac_hwtstamp_set(dev, rq);
 		break;
 	case SIOCGHWTSTAMP:
 		ret = stmmac_hwtstamp_get(dev, rq);
 		break;
+#endif
 	default:
 		break;
 	}
@@ -5229,7 +5236,8 @@ int stmmac_suspend(struct device *dev)
 		stmmac_mac_set(priv, priv->ioaddr, false);
 		pinctrl_pm_select_sleep_state(priv->device);
 		/* Disable clock in case of PWM is off */
-		clk_disable_unprepare(priv->plat->clk_ptp_ref);
+		if (IS_ENABLED(CONFIG_STMMAC_PTP))
+			clk_disable_unprepare(priv->plat->clk_ptp_ref);
 		clk_disable_unprepare(priv->plat->pclk);
 		clk_disable_unprepare(priv->plat->stmmac_clk);
 	}
@@ -5299,7 +5307,7 @@ int stmmac_resume(struct device *dev)
 		/* enable the clk previously disabled */
 		clk_prepare_enable(priv->plat->stmmac_clk);
 		clk_prepare_enable(priv->plat->pclk);
-		if (priv->plat->clk_ptp_ref)
+		if (IS_ENABLED(CONFIG_STMMAC_PTP) && priv->plat->clk_ptp_ref)
 			clk_prepare_enable(priv->plat->clk_ptp_ref);
 		/* reset the phy so that it's ready */
 		if (priv->mii)
