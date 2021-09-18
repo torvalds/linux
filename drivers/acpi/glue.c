@@ -17,6 +17,8 @@
 #include <linux/rwsem.h>
 #include <linux/acpi.h>
 #include <linux/dma-mapping.h>
+#include <linux/pci.h>
+#include <linux/pci-acpi.h>
 #include <linux/platform_device.h>
 
 #include "internal.h"
@@ -307,13 +309,17 @@ void acpi_device_notify(struct device *dev)
 	}
 	adev = ACPI_COMPANION(dev);
 
-	if (dev_is_platform(dev))
-		acpi_configure_pmsi_domain(dev);
+	if (dev_is_pci(dev)) {
+		pci_acpi_setup(dev, adev);
+	} else {
+		if (dev_is_platform(dev))
+			acpi_configure_pmsi_domain(dev);
 
-	if (type && type->setup)
-		type->setup(dev);
-	else if (adev->handler && adev->handler->bind)
-		adev->handler->bind(dev);
+		if (type && type->setup)
+			type->setup(dev);
+		else if (adev->handler && adev->handler->bind)
+			adev->handler->bind(dev);
+	}
 
 	acpi_handle_debug(ACPI_HANDLE(dev), "Bound to device %s\n",
 			  dev_name(dev));
@@ -327,16 +333,20 @@ err:
 void acpi_device_notify_remove(struct device *dev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(dev);
-	struct acpi_bus_type *type;
 
 	if (!adev)
 		return;
 
-	type = acpi_get_bus_type(dev);
-	if (type && type->cleanup)
-		type->cleanup(dev);
-	else if (adev->handler && adev->handler->unbind)
-		adev->handler->unbind(dev);
+	if (dev_is_pci(dev)) {
+		pci_acpi_cleanup(dev, adev);
+	} else {
+		struct acpi_bus_type *type = acpi_get_bus_type(dev);
+
+		if (type && type->cleanup)
+			type->cleanup(dev);
+		else if (adev->handler && adev->handler->unbind)
+			adev->handler->unbind(dev);
+	}
 
 	acpi_unbind_one(dev);
 }
