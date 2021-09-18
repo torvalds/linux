@@ -3,15 +3,6 @@
 
 #include "../include/odm_precomp.h"
 
-void ODM_DIG_LowerBound_88E(struct odm_dm_struct *dm_odm)
-{
-	struct rtw_dig *pDM_DigTable = &dm_odm->DM_DigTable;
-
-	if (dm_odm->AntDivType == CG_TRX_HW_ANTDIV)
-		pDM_DigTable->rx_gain_range_min = (u8)pDM_DigTable->AntDiv_RSSI_max;
-	/* If only one Entry connected */
-}
-
 static void odm_RX_HWAntDivInit(struct odm_dm_struct *dm_odm)
 {
 	u32	value32;
