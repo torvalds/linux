@@ -193,12 +193,13 @@ void can_calc_tdco(struct net_device *dev)
 	 * one or two.
 	 */
 	if (dbt->brp == 1 || dbt->brp == 2) {
-		/* Reuse "normal" sample point and convert it to time quanta */
-		u32 sample_point_in_tq = can_bit_time(dbt) * dbt->sample_point / 1000;
+		/* Sample point in clock periods */
+		u32 sample_point_in_tc = (CAN_SYNC_SEG + dbt->prop_seg +
+					  dbt->phase_seg1) * dbt->brp;
 
-		if (sample_point_in_tq < tdc_const->tdco_min)
+		if (sample_point_in_tc < tdc_const->tdco_min)
 			return;
-		tdc->tdco = min(sample_point_in_tq, tdc_const->tdco_max);
+		tdc->tdco = min(sample_point_in_tc, tdc_const->tdco_max);
 		priv->ctrlmode |= CAN_CTRLMODE_TDC_AUTO;
 	}
 }
