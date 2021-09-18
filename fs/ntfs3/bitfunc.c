@@ -119,8 +119,7 @@ bool are_bits_set(const ulong *lmap, size_t bit, size_t nbits)
 
 	pos = nbits & 7;
 	if (pos) {
-		u8 mask = fill_mask[pos];
-
+		mask = fill_mask[pos];
 		if ((*map & mask) != mask)
 			return false;
 	}
