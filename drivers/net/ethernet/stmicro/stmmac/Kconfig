@@ -31,6 +31,13 @@ config STMMAC_ETHTOOL
 	help
 	  This selects the ethtool function, default is Y.
 
+config STMMAC_FULL
+	bool "Support full driver for STMMAC"
+	default STMMAC_ETH
+	help
+	  This selects the full function, default is Y, full-featured version
+	  includes 4.10 and other versions, if it is N, only 4.10 core working.
+
 config STMMAC_PLATFORM
 	tristate "STMMAC Platform bus support"
 	depends on STMMAC_ETH
