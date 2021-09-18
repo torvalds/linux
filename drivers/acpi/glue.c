@@ -289,12 +289,13 @@ EXPORT_SYMBOL_GPL(acpi_unbind_one);
 
 void acpi_device_notify(struct device *dev)
 {
-	struct acpi_bus_type *type = acpi_get_bus_type(dev);
 	struct acpi_device *adev;
 	int ret;
 
 	ret = acpi_bind_one(dev, NULL);
 	if (ret) {
+		struct acpi_bus_type *type = acpi_get_bus_type(dev);
+
 		if (!type)
 			goto err;
 
@@ -306,21 +307,26 @@ void acpi_device_notify(struct device *dev)
 		ret = acpi_bind_one(dev, adev);
 		if (ret)
 			goto err;
-	}
-	adev = ACPI_COMPANION(dev);
 
-	if (dev_is_pci(dev)) {
-		pci_acpi_setup(dev, adev);
-	} else {
-		if (dev_is_platform(dev))
-			acpi_configure_pmsi_domain(dev);
-
-		if (type && type->setup)
+		if (type->setup) {
 			type->setup(dev);
-		else if (adev->handler && adev->handler->bind)
-			adev->handler->bind(dev);
+			goto done;
+		}
+	} else {
+		adev = ACPI_COMPANION(dev);
+
+		if (dev_is_pci(dev)) {
+			pci_acpi_setup(dev, adev);
+			goto done;
+		} else if (dev_is_platform(dev)) {
+			acpi_configure_pmsi_domain(dev);
+		}
 	}
 
+	if (adev->handler && adev->handler->bind)
+		adev->handler->bind(dev);
+
+done:
 	acpi_handle_debug(ACPI_HANDLE(dev), "Bound to device %s\n",
 			  dev_name(dev));
 
