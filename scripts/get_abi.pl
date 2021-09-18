@@ -546,6 +546,73 @@ sub dont_parse_special_attributes {
 my %leaf;
 my %aliases;
 my @files;
+my %root;
+
+sub graph_add_file {
+	my $file = shift;
+	my $type = shift;
+
+	my $dir = $file;
+	$dir =~ s,^(.*/).*,$1,;
+	$file =~ s,.*/,,;
+
+	my $name;
+	my $file_ref = \%root;
+	foreach my $edge(split "/", $dir) {
+		$name .= "$edge/";
+		if (!defined ${$file_ref}{$edge}) {
+			${$file_ref}{$edge} = { };
+		}
+		$file_ref = \%{$$file_ref{$edge}};
+		${$file_ref}{"__name"} = [ $name ];
+	}
+	$name .= "$file";
+	${$file_ref}{$file} = {
+		"__name" => [ $name ]
+	};
+
+	return \%{$$file_ref{$file}};
+}
+
+sub graph_add_link {
+	my $file = shift;
+	my $link = shift;
+
+	# Traverse graph to find the reference
+	my $file_ref = \%root;
+	foreach my $edge(split "/", $file) {
+		$file_ref = \%{$$file_ref{$edge}} || die "Missing node!";
+	}
+
+	# do a BFS
+
+	my @queue;
+	my %seen;
+	my $base_name;
+	my $st;
+
+	push @queue, $file_ref;
+	$seen{$start}++;
+
+	while (@queue) {
+		my $v = shift @queue;
+		my @child = keys(%{$v});
+
+		foreach my $c(@child) {
+			next if $seen{$$v{$c}};
+			next if ($c eq "__name");
+
+			# Add new name
+			my $name = @{$$v{$c}{"__name"}}[0];
+			if ($name =~ s#^$file/#$link/#) {
+				push @{$$v{$c}{"__name"}}, $name;
+			}
+			# Add child to the queue and mark as seen
+			push @queue, $$v{$c};
+			$seen{$c}++;
+		}
+	}
+}
 
 my $escape_symbols = qr { ([\x01-\x08\x0e-\x1f\x21-\x29\x2b-\x2d\x3a-\x40\x7b-\xfe]) }x;
 sub parse_existing_sysfs {
@@ -568,19 +635,50 @@ sub parse_existing_sysfs {
 	return if (defined($data{$file}));
 	return if (defined($data{$abs_file}));
 
-	push @files, $abs_file;
+	push @files, graph_add_file($abs_file, "file");
+}
+
+sub get_leave($)
+{
+	my $what = shift;
+	my $leave;
+
+	my $l = $what;
+	my $stop = 1;
+
+	$leave = $l;
+	$leave =~ s,/$,,;
+	$leave =~ s,.*/,,;
+	$leave =~ s/[\(\)]//g;
+
+	# $leave is used to improve search performance at
+	# check_undefined_symbols, as the algorithm there can seek
+	# for a small number of "what". It also allows giving a
+	# hint about a leave with the same name somewhere else.
+	# However, there are a few occurences where the leave is
+	# either a wildcard or a number. Just group such cases
+	# altogether.
+	if ($leave =~ m/^\.\*/ || $leave eq "" || $leave =~ /^\d+$/) {
+		$leave = "others";
+	}
+
+	return $leave;
 }
 
 sub check_undefined_symbols {
-	foreach my $file (sort @files) {
+	foreach my $file_ref (sort @files) {
+		my @names = @{$$file_ref{"__name"}};
+		my $file = $names[0];
 
 		my $defined = 0;
 		my $exact = 0;
-		my $whats = "";
 		my $found_string;
 
-		my $leave = $file;
-		$leave =~ s,.*/,,;
+		my $leave = get_leave($file);
+		if (!defined($leaf{$leave})) {
+			$leave = "others";
+		}
+		my $what = $leaf{$leave};
 
 		my $path = $file;
 		$path =~ s,(.*/).*,$1,;
@@ -590,41 +688,12 @@ sub check_undefined_symbols {
 			$found_string = 1;
 		}
 
-		if ($leave =~ /^\d+$/ || !defined($leaf{$leave})) {
-			$leave = "others";
-		}
-
-		print "--> $file\n" if ($found_string && $hint);
-		my $what = $leaf{$leave};
-		$whats .= " $what" if (!($whats =~ m/$what/));
-
-		foreach my $w (split / /, $what) {
-			if ($file =~ m#^$w$#) {
-				$exact = 1;
-				last;
-			}
-		}
-		# Check for aliases
-		#
-		# TODO: this algorithm is O(w * n²). It can be
-		# improved in the future in order to handle it
-		# faster, by changing parse_existing_sysfs to
-		# store the sysfs inside a tree, at the expense
-		# on making the code less readable and/or using some
-		# additional perl library.
-		foreach my $a (keys %aliases) {
-			my $new = $aliases{$a};
-			my $len = length($new);
-
-			if (substr($file, 0, $len) eq $new) {
-				my $newf = $a . substr($file, $len);
-
-				print "    $newf\n" if ($found_string && $hint);
-				foreach my $w (split / /, $what) {
-					if ($newf =~ m#^$w$#) {
-						$exact = 1;
-						last;
-					}
+		foreach my $a (@names) {
+			print "--> $a\n" if ($found_string && $hint);
+			foreach my $w (split /\xac/, $what) {
+				if ($a =~ m#^$w$#) {
+					$exact = 1;
+					last;
 				}
 			}
 		}
@@ -641,8 +710,13 @@ sub check_undefined_symbols {
 		# is not easily parseable.
 		next if ($file =~ m#/parameters/#);
 
-		if ($hint && $defined && $leave ne "others") {
-			print "$leave at $path might be one of:$whats\n"  if (!$search_string || $found_string);
+		if ($hint && $defined && (!$search_string || $found_string)) {
+			$what =~ s/\xac/\n\t/g;
+			if ($leave ne "others") {
+				print "    more likely regexes:\n\t$what\n";
+			} else {
+				print "    tested regexes:\n\t$what\n";
+			}
 			next;
 		}
 		print "$file not found.\n" if (!$search_string || $found_string);
@@ -656,8 +730,10 @@ sub undefined_symbols {
 		no_chdir => 1
 	     }, $sysfs_prefix);
 
+	$leaf{"others"} = "";
+
 	foreach my $w (sort keys %data) {
-		foreach my $what (split /\xac /,$w) {
+		foreach my $what (split /\xac/,$w) {
 			next if (!($what =~ m/^$sysfs_prefix/));
 
 			# Convert what into regular expressions
@@ -700,19 +776,7 @@ sub undefined_symbols {
 			# (this happens on a few IIO definitions)
 			$what =~ s,\s*\=.*$,,;
 
-			my $leave = $what;
-			$leave =~ s,.*/,,;
-
-			# $leave is used to improve search performance at
-			# check_undefined_symbols, as the algorithm there can seek
-			# for a small number of "what". It also allows giving a
-			# hint about a leave with the same name somewhere else.
-			# However, there are a few occurences where the leave is
-			# either a wildcard or a number. Just group such cases
-			# altogether.
-			if ($leave =~ m/^\.\*/ || $leave eq "" || $leave =~ /^\d+$/) {
-				$leave = "others" ;
-			}
+			my $leave = get_leave($what);
 
 			# Escape all other symbols
 			$what =~ s/$escape_symbols/\\$1/g;
@@ -722,17 +786,14 @@ sub undefined_symbols {
 
 			$what =~ s/\xff/\\d+/g;
 
-
 			# Special case: IIO ABI which a parenthesis.
 			$what =~ s/sqrt(.*)/sqrt\(.*\)/;
-
-			$leave =~ s/[\(\)]//g;
 
 			my $added = 0;
 			foreach my $l (split /\|/, $leave) {
 				if (defined($leaf{$l})) {
-					next if ($leaf{$l} =~ m/$what/);
-					$leaf{$l} .= " " . $what;
+					next if ($leaf{$l} =~ m/\b$what\b/);
+					$leaf{$l} .= "\xac" . $what;
 					$added = 1;
 				} else {
 					$leaf{$l} = $what;
@@ -744,6 +805,11 @@ sub undefined_symbols {
 			}
 
 		}
+	}
+	# Take links into account
+	foreach my $link (keys %aliases) {
+		my $abs_file = $aliases{$link};
+		graph_add_link($abs_file, $link);
 	}
 	check_undefined_symbols;
 }
