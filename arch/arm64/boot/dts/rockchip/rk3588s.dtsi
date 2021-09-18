@@ -1662,6 +1662,18 @@
 		status = "disabled";
 	};
 
+	crypto: crypto@fe370000 {
+		compatible = "rockchip,rk3588-crypto";
+		reg = <0x0 0xfe370000 0x0 0x2000>;
+		interrupts = <GIC_SPI 209 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCMI_ACLK_SECURE_NS>, <&cru SCMI_HCLK_SECURE_NS>,
+			 <&cru SCMI_CRYPTO_CORE>, <&cru SCMI_CRYPTO_PKA>;
+		clock-names = "aclk", "hclk", "sclk", "pka";
+		resets = <&scmi_reset SRST_CRYPTO_CORE>;
+		reset-names = "crypto-rst";
+		status = "disabled";
+	};
+
 	i2s0_8ch: i2s@fe470000 {
 		compatible = "rockchip,rk3588-i2s-tdm";
 		reg = <0x0 0xfe470000 0x0 0x1000>;
