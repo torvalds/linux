@@ -292,14 +292,15 @@ EXPORT_SYMBOL(tifm_has_ms_pif);
 int tifm_map_sg(struct tifm_dev *sock, struct scatterlist *sg, int nents,
 		int direction)
 {
-	return pci_map_sg(to_pci_dev(sock->dev.parent), sg, nents, direction);
+	return dma_map_sg(&to_pci_dev(sock->dev.parent)->dev, sg, nents,
+			  direction);
 }
 EXPORT_SYMBOL(tifm_map_sg);
 
 void tifm_unmap_sg(struct tifm_dev *sock, struct scatterlist *sg, int nents,
 		   int direction)
 {
-	pci_unmap_sg(to_pci_dev(sock->dev.parent), sg, nents, direction);
+	dma_unmap_sg(&to_pci_dev(sock->dev.parent)->dev, sg, nents, direction);
 }
 EXPORT_SYMBOL(tifm_unmap_sg);
 
