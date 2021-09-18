@@ -600,8 +600,8 @@ ret_from_straced:
 
 	/* check return.. */
 	blt	$0, $strace_error	/* the call failed */
-	stq	$31, 72($sp)		/* a3=0 => no error */
 $strace_success:
+	stq	$31, 72($sp)		/* a3=0 => no error */
 	stq	$0, 0($sp)		/* save return value */
 
 	DO_SWITCH_STACK
