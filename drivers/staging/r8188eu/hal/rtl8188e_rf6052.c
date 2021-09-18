@@ -184,7 +184,7 @@ static void getpowerbase88e(struct adapter *Adapter, u8 *pPowerLevelOFDM,
 {
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
 	u32 powerBase0, powerBase1;
-	u8 i, powerlevel[2];
+	u8 i;
 
 	for (i = 0; i < 2; i++) {
 		powerBase0 = pPowerLevelOFDM[i];
@@ -195,12 +195,11 @@ static void getpowerbase88e(struct adapter *Adapter, u8 *pPowerLevelOFDM,
 
 	/* Check HT20 to HT40 diff */
 	if (pHalData->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
-		powerlevel[i] = pPowerLevelBW20[i];
+		powerBase1 = pPowerLevelBW20[0];
 	else
-		powerlevel[i] = pPowerLevelBW40[i];
-	powerBase1 = powerlevel[i];
+		powerBase1 = pPowerLevelBW40[0];
 	powerBase1 = (powerBase1 << 24) | (powerBase1 << 16) | (powerBase1 << 8) | powerBase1;
-	*(MCSBase + i) = powerBase1;
+	*MCSBase = powerBase1;
 }
 
 static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
