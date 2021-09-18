@@ -589,44 +589,47 @@ sub check_undefined_symbols {
 			$found_string = 1;
 		}
 
+		if ($leave =~ /^\d+$/ || !defined($leaf{$leave})) {
+			$leave = "others";
+		}
+
 		print "--> $file\n" if ($found_string && $hint);
-		if (defined($leaf{$leave})) {
-			my $what = $leaf{$leave};
-			$whats .= " $what" if (!($whats =~ m/$what/));
+		my $what = $leaf{$leave};
+		$whats .= " $what" if (!($whats =~ m/$what/));
 
-			foreach my $w (split / /, $what) {
-				if ($file =~ m#^$w$#) {
-					$exact = 1;
-					last;
-				}
+		foreach my $w (split / /, $what) {
+			if ($file =~ m#^$w$#) {
+				$exact = 1;
+				last;
 			}
-			# Check for aliases
-			#
-			# TODO: this algorithm is O(w * n²). It can be
-			# improved in the future in order to handle it
-			# faster, by changing parse_existing_sysfs to
-			# store the sysfs inside a tree, at the expense
-			# on making the code less readable and/or using some
-			# additional perl library.
-			foreach my $a (keys %aliases) {
-				my $new = $aliases{$a};
-				my $len = length($new);
+		}
+		# Check for aliases
+		#
+		# TODO: this algorithm is O(w * n²). It can be
+		# improved in the future in order to handle it
+		# faster, by changing parse_existing_sysfs to
+		# store the sysfs inside a tree, at the expense
+		# on making the code less readable and/or using some
+		# additional perl library.
+		foreach my $a (keys %aliases) {
+			my $new = $aliases{$a};
+			my $len = length($new);
 
-				if (substr($file, 0, $len) eq $new) {
-					my $newf = $a . substr($file, $len);
+			if (substr($file, 0, $len) eq $new) {
+				my $newf = $a . substr($file, $len);
 
-					print "    $newf\n" if ($found_string && $hint);
-					foreach my $w (split / /, $what) {
-						if ($newf =~ m#^$w$#) {
-							$exact = 1;
-							last;
-						}
+				print "    $newf\n" if ($found_string && $hint);
+				foreach my $w (split / /, $what) {
+					if ($newf =~ m#^$w$#) {
+						$exact = 1;
+						last;
 					}
 				}
 			}
-
-			$defined++;
 		}
+
+		$defined++;
+
 		next if ($exact);
 
 		# Ignore some sysfs nodes
@@ -637,7 +640,7 @@ sub check_undefined_symbols {
 		# is not easily parseable.
 		next if ($file =~ m#/parameters/#);
 
-		if ($hint && $defined) {
+		if ($hint && $defined && $leave ne "others") {
 			print "$leave at $path might be one of:$whats\n"  if (!$search_string || $found_string);
 			next;
 		}
@@ -699,7 +702,16 @@ sub undefined_symbols {
 			my $leave = $what;
 			$leave =~ s,.*/,,;
 
-			next if ($leave =~ m/^\.\*/ || $leave eq "");
+			# $leave is used to improve search performance at
+			# check_undefined_symbols, as the algorithm there can seek
+			# for a small number of "what". It also allows giving a
+			# hint about a leave with the same name somewhere else.
+			# However, there are a few occurences where the leave is
+			# either a wildcard or a number. Just group such cases
+			# altogether.
+			if ($leave =~ m/^\.\*/ || $leave eq "" || $leave =~ /^\d+$/) {
+				$leave = "others" ;
+			}
 
 			# Escape all other symbols
 			$what =~ s/$escape_symbols/\\$1/g;
