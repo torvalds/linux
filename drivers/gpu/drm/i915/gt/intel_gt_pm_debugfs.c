@@ -6,12 +6,12 @@
 
 #include <linux/seq_file.h>
 
-#include "debugfs_gt_pm.h"
 #include "i915_drv.h"
 #include "intel_gt.h"
 #include "intel_gt_clock_utils.h"
 #include "intel_gt_debugfs.h"
 #include "intel_gt_pm.h"
+#include "intel_gt_pm_debugfs.h"
 #include "intel_llc.h"
 #include "intel_rc6.h"
 #include "intel_rps.h"
@@ -614,7 +614,7 @@ static bool rps_eval(void *data)
 
 DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(rps_boost);
 
-void debugfs_gt_pm_register(struct intel_gt *gt, struct dentry *root)
+void intel_gt_pm_debugfs_register(struct intel_gt *gt, struct dentry *root)
 {
 	static const struct intel_gt_debugfs_file files[] = {
 		{ "drpc", &drpc_fops, NULL },
