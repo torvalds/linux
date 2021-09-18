@@ -134,7 +134,6 @@ struct rk_iommu {
 	bool reset_disabled;
 	bool skip_read; /* rk3126/rk3128 can't read vop iommu registers */
 	bool dlr_disable; /* avoid access iommu when runtime ops called */
-	bool fetch_dte_time_limit; /* if have fetch dte time limit */
 	bool cmd_retry;
 	struct iommu_device iommu;
 	struct list_head node; /* entry in rk_iommu_domain.iommus */
@@ -1302,11 +1301,10 @@ static int rk_iommu_enable(struct rk_iommu *iommu)
 		rk_iommu_base_command(iommu->bases[i], RK_MMU_CMD_ZAP_CACHE);
 		rk_iommu_write(iommu->bases[i], RK_MMU_INT_MASK, RK_MMU_IRQ_MASK);
 
-		if (iommu->fetch_dte_time_limit) {
-			auto_gate = rk_iommu_read(iommu->bases[i], RK_MMU_AUTO_GATING);
-			auto_gate |= DISABLE_FETCH_DTE_TIME_LIMIT;
-			rk_iommu_write(iommu->bases[i], RK_MMU_AUTO_GATING, auto_gate);
-		}
+		/* Workaround for iommu blocked, BIT(31) default to 1 */
+		auto_gate = rk_iommu_read(iommu->bases[i], RK_MMU_AUTO_GATING);
+		auto_gate |= DISABLE_FETCH_DTE_TIME_LIMIT;
+		rk_iommu_write(iommu->bases[i], RK_MMU_AUTO_GATING, auto_gate);
 	}
 
 	ret = rk_iommu_enable_paging(iommu);
@@ -1721,11 +1719,9 @@ static int rk_iommu_probe(struct platform_device *pdev)
 					"rockchip,disable-device-link-resume");
 
 	if (of_machine_is_compatible("rockchip,rv1126") ||
-	    of_machine_is_compatible("rockchip,rv1109")) {
-		iommu->fetch_dte_time_limit = true;
+	    of_machine_is_compatible("rockchip,rv1109"))
 		iommu->cmd_retry = device_property_read_bool(dev,
 					"rockchip,enable-cmd-retry");
-	}
 
 	/*
 	 * iommu clocks should be present for all new devices and devicetrees
