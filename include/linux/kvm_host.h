@@ -608,7 +608,6 @@ struct kvm {
 	unsigned long mmu_notifier_range_start;
 	unsigned long mmu_notifier_range_end;
 #endif
-	long tlbs_dirty;
 	struct list_head devices;
 	u64 manual_dirty_log_protect;
 	struct dentry *debugfs_dentry;

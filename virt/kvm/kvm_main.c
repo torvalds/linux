@@ -326,13 +326,8 @@ EXPORT_SYMBOL_GPL(kvm_make_all_cpus_request);
 #ifndef CONFIG_HAVE_KVM_ARCH_TLB_FLUSH_ALL
 void kvm_flush_remote_tlbs(struct kvm *kvm)
 {
-	/*
-	 * Read tlbs_dirty before setting KVM_REQ_TLB_FLUSH in
-	 * kvm_make_all_cpus_request.
-	 */
-	long dirty_count = smp_load_acquire(&kvm->tlbs_dirty);
-
 	++kvm->stat.generic.remote_tlb_flush_requests;
+
 	/*
 	 * We want to publish modifications to the page tables before reading
 	 * mode. Pairs with a memory barrier in arch-specific code.
@@ -347,7 +342,6 @@ void kvm_flush_remote_tlbs(struct kvm *kvm)
 	if (!kvm_arch_flush_remote_tlb(kvm)
 	    || kvm_make_all_cpus_request(kvm, KVM_REQ_TLB_FLUSH))
 		++kvm->stat.generic.remote_tlb_flush;
-	cmpxchg(&kvm->tlbs_dirty, dirty_count, 0);
 }
 EXPORT_SYMBOL_GPL(kvm_flush_remote_tlbs);
 #endif
@@ -552,7 +546,7 @@ static __always_inline int __kvm_handle_hva_range(struct kvm *kvm,
 		}
 	}
 
-	if (range->flush_on_ret && (ret || kvm->tlbs_dirty))
+	if (range->flush_on_ret && ret)
 		kvm_flush_remote_tlbs(kvm);
 
 	if (locked)
