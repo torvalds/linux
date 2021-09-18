@@ -113,6 +113,10 @@ ifeq ($(CONFIG_CC_IS_CLANG),y)
 CFLAGS_ABI	+= -meabi gnu
 endif
 
+ifeq ($(CONFIG_CURRENT_POINTER_IN_TPIDRURO),y)
+CFLAGS_ABI	+= -mtp=cp15
+endif
+
 # Accept old syntax despite ".syntax unified"
 AFLAGS_NOWARN	:=$(call as-option,-Wa$(comma)-mno-warn-deprecated,-Wa$(comma)-W)
 

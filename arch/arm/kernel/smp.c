@@ -409,6 +409,8 @@ asmlinkage void secondary_start_kernel(struct task_struct *task)
 	struct mm_struct *mm = &init_mm;
 	unsigned int cpu;
 
+	set_current(task);
+
 	secondary_biglittle_init();
 
 	/*

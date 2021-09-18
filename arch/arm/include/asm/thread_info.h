@@ -29,6 +29,8 @@
 
 struct task_struct;
 
+DECLARE_PER_CPU(struct task_struct *, __entry_task);
+
 #include <asm/types.h>
 
 struct cpu_context_save {

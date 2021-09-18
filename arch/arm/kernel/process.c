@@ -36,6 +36,10 @@
 
 #include "signal.h"
 
+#ifdef CONFIG_CURRENT_POINTER_IN_TPIDRURO
+DEFINE_PER_CPU(struct task_struct *, __entry_task);
+#endif
+
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_STACKPROTECTOR_PER_TASK)
 #include <linux/stackprotector.h>
 unsigned long __stack_chk_guard __read_mostly;

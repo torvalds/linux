@@ -1157,6 +1157,11 @@ config SMP_ON_UP
 
 	  If you don't know what to do here, say Y.
 
+
+config CURRENT_POINTER_IN_TPIDRURO
+	def_bool y
+	depends on SMP && CPU_32v6K && !CPU_V6
+
 config ARM_CPU_TOPOLOGY
 	bool "Support cpu topology definition"
 	depends on SMP && CPU_V7
