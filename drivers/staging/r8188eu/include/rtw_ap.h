@@ -21,7 +21,6 @@ void add_RATid(struct adapter *padapter, struct sta_info *psta,
 void expire_timeout_chk(struct adapter *padapter);
 void update_sta_info_apmode(struct adapter *padapter, struct sta_info *psta);
 void rtw_ap_restore_network(struct adapter *padapter);
-void rtw_set_macaddr_acl(struct adapter *padapter, int mode);
 
 void associated_clients_update(struct adapter *padapter, u8 updated);
 void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta);

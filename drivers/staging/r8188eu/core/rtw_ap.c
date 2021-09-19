@@ -557,16 +557,6 @@ void update_sta_info_apmode(struct adapter *padapter, struct sta_info *psta)
 	spin_unlock_bh(&psta->lock);
 }
 
-void rtw_set_macaddr_acl(struct adapter *padapter, int mode)
-{
-	struct sta_priv *pstapriv = &padapter->stapriv;
-	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
-
-	DBG_88E("%s, mode =%d\n", __func__, mode);
-
-	pacl_list->mode = mode;
-}
-
 static void update_bcn_fixed_ie(struct adapter *padapter)
 {
 	DBG_88E("%s\n", __func__);
