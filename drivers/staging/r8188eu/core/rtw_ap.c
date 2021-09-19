@@ -1526,41 +1526,6 @@ u8 ap_free_sta(struct adapter *padapter, struct sta_info *psta,
 	return beacon_updated;
 }
 
-int rtw_ap_inform_ch_switch(struct adapter *padapter, u8 new_ch, u8 ch_offset)
-{
-	struct list_head *phead, *plist;
-	int ret = 0;
-	struct sta_info *psta = NULL;
-	struct sta_priv *pstapriv = &padapter->stapriv;
-	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
-	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
-	if ((pmlmeinfo->state & 0x03) != WIFI_FW_AP_STATE)
-		return ret;
-
-	DBG_88E(FUNC_NDEV_FMT" with ch:%u, offset:%u\n",
-		FUNC_NDEV_ARG(padapter->pnetdev), new_ch, ch_offset);
-
-	spin_lock_bh(&pstapriv->asoc_list_lock);
-	phead = &pstapriv->asoc_list;
-	plist = phead->next;
-
-	/* for each sta in asoc_queue */
-	while (phead != plist) {
-		psta = container_of(plist, struct sta_info, asoc_list);
-		plist = plist->next;
-
-		issue_action_spct_ch_switch(padapter, psta->hwaddr, new_ch, ch_offset);
-		psta->expire_to = ((pstapriv->expire_to * 2) > 5) ? 5 : (pstapriv->expire_to * 2);
-	}
-	spin_unlock_bh(&pstapriv->asoc_list_lock);
-
-	issue_action_spct_ch_switch(padapter, bc_addr, new_ch, ch_offset);
-
-	return ret;
-}
-
 int rtw_sta_flush(struct adapter *padapter)
 {
 	struct list_head *phead, *plist;
