@@ -334,6 +334,7 @@ struct mhi_controller_config {
  * @reg_len: Length of the MHI MMIO region (required)
  * @fbc_image: Points to firmware image buffer
  * @rddm_image: Points to RAM dump buffer
+ * @tme_supported_image: Flag to make decision about firmware download start address (optional)
  * @mhi_chan: Points to the channel configuration table
  * @lpm_chans: List of channels that require LPM notifications
  * @irq: base irq # to request (required)
@@ -422,6 +423,7 @@ struct mhi_controller {
 	size_t reg_len;
 	struct image_info *fbc_image;
 	struct image_info *rddm_image;
+	bool tme_supported_image;
 	struct mhi_chan *mhi_chan;
 	struct list_head lpm_chans;
 	int *irq;
