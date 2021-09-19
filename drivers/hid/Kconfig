@@ -468,6 +468,13 @@ config HID_VIEWSONIC
 	help
 	  Support for ViewSonic/Signotec PD1011 signature pad.
 
+config HID_XIAOMI
+	tristate "Xiaomi"
+	depends on HID
+	help
+	  Adds support for side buttons of Xiaomi Mi Dual Mode Wireless
+	  Mouse Silent Edition.
+
 config HID_GYRATION
 	tristate "Gyration remote control"
 	depends on HID
