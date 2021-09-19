@@ -995,43 +995,6 @@ void rtw_set_macaddr_acl(struct adapter *padapter, int mode)
 	pacl_list->mode = mode;
 }
 
-int rtw_acl_remove_sta(struct adapter *padapter, u8 *addr)
-{
-	struct list_head *plist, *phead;
-	int ret = 0;
-	struct rtw_wlan_acl_node *paclnode;
-	struct sta_priv *pstapriv = &padapter->stapriv;
-	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
-	struct __queue *pacl_node_q = &pacl_list->acl_node_q;
-
-	DBG_88E("%s(acl_num =%d) =%pM\n", __func__, pacl_list->num, (addr));
-
-	spin_lock_bh(&pacl_node_q->lock);
-
-	phead = get_list_head(pacl_node_q);
-	plist = phead->next;
-
-	while (phead != plist) {
-		paclnode = container_of(plist, struct rtw_wlan_acl_node, list);
-		plist = plist->next;
-
-		if (!memcmp(paclnode->addr, addr, ETH_ALEN)) {
-			if (paclnode->valid) {
-				paclnode->valid = false;
-
-				list_del_init(&paclnode->list);
-
-				pacl_list->num--;
-			}
-		}
-	}
-
-	spin_unlock_bh(&pacl_node_q->lock);
-
-	DBG_88E("%s, acl_num =%d\n", __func__, pacl_list->num);
-	return ret;
-}
-
 static void update_bcn_fixed_ie(struct adapter *padapter)
 {
 	DBG_88E("%s\n", __func__);
