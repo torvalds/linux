@@ -1421,6 +1421,8 @@ static struct phy_driver at803x_driver[] = {
 	.get_sset_count = at803x_get_sset_count,
 	.get_strings = at803x_get_strings,
 	.get_stats = at803x_get_stats,
+	.suspend		= genphy_suspend,
+	.resume			= genphy_resume,
 }, {
 	/* QCA8327-A from switch QCA8327-AL1A */
 	.phy_id = QCA8327_A_PHY_ID,
@@ -1434,6 +1436,8 @@ static struct phy_driver at803x_driver[] = {
 	.get_sset_count = at803x_get_sset_count,
 	.get_strings = at803x_get_strings,
 	.get_stats = at803x_get_stats,
+	.suspend		= genphy_suspend,
+	.resume			= genphy_resume,
 }, {
 	/* QCA8327-B from switch QCA8327-BL1A */
 	.phy_id = QCA8327_B_PHY_ID,
@@ -1447,6 +1451,8 @@ static struct phy_driver at803x_driver[] = {
 	.get_sset_count = at803x_get_sset_count,
 	.get_strings = at803x_get_strings,
 	.get_stats = at803x_get_stats,
+	.suspend		= genphy_suspend,
+	.resume			= genphy_resume,
 }, };
 
 module_phy_driver(at803x_driver);
