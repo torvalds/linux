@@ -11767,8 +11767,9 @@ static int nl80211_set_cqm_rssi(struct genl_info *info,
 	if (n_thresholds) {
 		struct cfg80211_cqm_config *cqm_config;
 
-		cqm_config = kzalloc(sizeof(struct cfg80211_cqm_config) +
-				     n_thresholds * sizeof(s32), GFP_KERNEL);
+		cqm_config = kzalloc(struct_size(cqm_config, rssi_thresholds,
+						 n_thresholds),
+				     GFP_KERNEL);
 		if (!cqm_config) {
 			err = -ENOMEM;
 			goto unlock;
@@ -11777,7 +11778,8 @@ static int nl80211_set_cqm_rssi(struct genl_info *info,
 		cqm_config->rssi_hyst = hysteresis;
 		cqm_config->n_rssi_thresholds = n_thresholds;
 		memcpy(cqm_config->rssi_thresholds, thresholds,
-		       n_thresholds * sizeof(s32));
+		       flex_array_size(cqm_config, rssi_thresholds,
+				       n_thresholds));
 
 		wdev->cqm_config = cqm_config;
 	}
@@ -15081,9 +15083,7 @@ static int nl80211_set_sar_specs(struct sk_buff *skb, struct genl_info *info)
 	if (specs > rdev->wiphy.sar_capa->num_freq_ranges)
 		return -EINVAL;
 
-	sar_spec = kzalloc(sizeof(*sar_spec) +
-			   specs * sizeof(struct cfg80211_sar_sub_specs),
-			   GFP_KERNEL);
+	sar_spec = kzalloc(struct_size(sar_spec, sub_specs, specs), GFP_KERNEL);
 	if (!sar_spec)
 		return -ENOMEM;
 
