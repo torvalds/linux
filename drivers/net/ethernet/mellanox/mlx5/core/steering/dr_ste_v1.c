@@ -586,9 +586,11 @@ static void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 	} else if (action_type_set[DR_ACTION_TYP_L2_TO_TNL_L3]) {
 		u8 *d_action;
 
-		dr_ste_v1_arr_init_next_match(&last_ste, added_stes, attr->gvmi);
-		action = MLX5_ADDR_OF(ste_mask_and_match_v1, last_ste, action);
-		action_sz = DR_STE_ACTION_TRIPLE_SZ;
+		if (action_sz < DR_STE_ACTION_TRIPLE_SZ) {
+			dr_ste_v1_arr_init_next_match(&last_ste, added_stes, attr->gvmi);
+			action = MLX5_ADDR_OF(ste_mask_and_match_v1, last_ste, action);
+			action_sz = DR_STE_ACTION_TRIPLE_SZ;
+		}
 		d_action = action + DR_STE_ACTION_SINGLE_SZ;
 
 		dr_ste_v1_set_encap_l3(last_ste,
