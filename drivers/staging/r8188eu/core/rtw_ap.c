@@ -1731,15 +1731,6 @@ void sta_info_update(struct adapter *padapter, struct sta_info *psta)
 	update_sta_info_apmode(padapter, psta);
 }
 
-/* called >= TSR LEVEL for USB or SDIO Interface*/
-void ap_sta_info_defer_update(struct adapter *padapter, struct sta_info *psta)
-{
-	if (psta->state & _FW_LINKED) {
-		/* add ratid */
-		add_RATid(padapter, psta, 0);/* DM_RATR_STA_INIT */
-	}
-}
-
 void start_ap_mode(struct adapter *padapter)
 {
 	int i;
