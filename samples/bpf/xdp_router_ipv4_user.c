@@ -397,8 +397,12 @@ static void read_arp(struct nlmsghdr *nh, int nll)
 
 	if (nh->nlmsg_type == RTM_GETNEIGH)
 		printf("READING arp entry\n");
-	printf("Address\tHwAddress\n");
+	printf("Address         HwAddress\n");
 	for (; NLMSG_OK(nh, nll); nh = NLMSG_NEXT(nh, nll)) {
+		struct in_addr dst_addr;
+		char mac_str[18];
+		int len = 0, i;
+
 		rt_msg = (struct ndmsg *)NLMSG_DATA(nh);
 		rt_attr = (struct rtattr *)RTM_RTA(rt_msg);
 		ndm_family = rt_msg->ndm_family;
@@ -419,7 +423,14 @@ static void read_arp(struct nlmsghdr *nh, int nll)
 		}
 		arp_entry.dst = atoi(dsts);
 		arp_entry.mac = atol(mac);
-		printf("%x\t\t%llx\n", arp_entry.dst, arp_entry.mac);
+
+		dst_addr.s_addr = arp_entry.dst;
+		for (i = 0; i < 6; i++)
+			len += snprintf(mac_str + len, 18 - len, "%02llx%s",
+					((arp_entry.mac >> i * 8) & 0xff),
+					i < 5 ? ":" : "");
+		printf("%-16s%s\n", inet_ntoa(dst_addr), mac_str);
+
 		if (ndm_family == AF_INET) {
 			if (bpf_map_lookup_elem(exact_match_map_fd,
 						&arp_entry.dst,
@@ -728,7 +739,7 @@ int main(int ac, char **argv)
 
 	printf("\n*******************ROUTE TABLE*************************\n");
 	get_route_table(AF_INET);
-	printf("*******************ARP TABLE***************************\n\n\n");
+	printf("\n*******************ARP TABLE***************************\n");
 	get_arp_table(AF_INET);
 	if (monitor_route() < 0) {
 		printf("Error in receiving route update");
