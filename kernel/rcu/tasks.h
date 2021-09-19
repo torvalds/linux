@@ -1121,7 +1121,8 @@ static void check_all_holdout_tasks_trace(struct list_head *hop,
 			trc_wait_for_one_reader(t, hop);
 
 		// If check succeeded, remove this task from the list.
-		if (READ_ONCE(t->trc_reader_checked))
+		if (smp_load_acquire(&t->trc_ipi_to_cpu) == -1 &&
+		    READ_ONCE(t->trc_reader_checked))
 			trc_del_holdout(t);
 		else if (needreport)
 			show_stalled_task_trace(t, firstreport);
@@ -1156,7 +1157,7 @@ static void rcu_tasks_trace_postgp(struct rcu_tasks *rtp)
 	// Yes, this assumes that CPUs process IPIs in order.  If that ever
 	// changes, there will need to be a recheck and/or timed wait.
 	for_each_online_cpu(cpu)
-		if (smp_load_acquire(per_cpu_ptr(&trc_ipi_to_cpu, cpu)))
+		if (WARN_ON_ONCE(smp_load_acquire(per_cpu_ptr(&trc_ipi_to_cpu, cpu))))
 			smp_call_function_single(cpu, rcu_tasks_trace_empty_fn, NULL, 1);
 
 	// Remove the safety count.
