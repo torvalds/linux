@@ -212,6 +212,7 @@ EBU Armada family ARMv8
 	arch/arm64/boot/dts/marvell/armada-37*
 
   Armada 7K Flavors:
+	  - 88F6040 (AP806 Quad 600 MHz + one CP110)
 	  - 88F7020 (AP806 Dual + one CP110)
 	  - 88F7040 (AP806 Quad + one CP110)
 
