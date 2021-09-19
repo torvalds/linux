@@ -244,6 +244,23 @@ EBU Armada family ARMv8
   Device tree files:
 	arch/arm64/boot/dts/marvell/armada-80*
 
+  Octeon TX2 CN913x Flavors:
+	- CN9130 (AP807 Quad + one internal CP115)
+	- CN9131 (AP807 Quad + one internal CP115 + one external CP115 / 88F8215)
+	- CN9132 (AP807 Quad + one internal CP115 + two external CP115 / 88F8215)
+
+  Core:
+	ARM Cortex A72
+
+  Homepage:
+	https://web.archive.org/web/20200803150818/https://www.marvell.com/products/infrastructure-processors/multi-core-processors/octeon-tx2/octeon-tx2-cn9130.html
+
+  Product Brief:
+	https://web.archive.org/web/20200803150818/https://www.marvell.com/content/dam/marvell/en/public-collateral/embedded-processors/marvell-infrastructure-processors-octeon-tx2-cn913x-product-brief-2020-02.pdf
+
+  Device tree files:
+	arch/arm64/boot/dts/marvell/cn913*
+
 Avanta family
 -------------
 
