@@ -5,7 +5,7 @@
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2016 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2020 Intel Corporation
+ * Copyright (C) 2018 - 2021 Intel Corporation
  */
 
 #include <linux/debugfs.h>
@@ -314,11 +314,17 @@ STA_OPS_RW(aql);
 static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 					size_t count, loff_t *ppos)
 {
-	char buf[71 + IEEE80211_NUM_TIDS * 40], *p = buf;
+	char *buf, *p;
 	int i;
 	struct sta_info *sta = file->private_data;
 	struct tid_ampdu_rx *tid_rx;
 	struct tid_ampdu_tx *tid_tx;
+	ssize_t ret;
+
+	buf = kzalloc(71 + IEEE80211_NUM_TIDS * 40, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	p = buf;
 
 	rcu_read_lock();
 
@@ -352,7 +358,9 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 	}
 	rcu_read_unlock();
 
-	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	ret = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	kfree(buf);
+	return ret;
 }
 
 static ssize_t sta_agg_status_write(struct file *file, const char __user *userbuf,
@@ -434,10 +442,16 @@ static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 	if (_cond) \
 			p += scnprintf(p, sizeof(buf)+buf-p, "\t" _str "\n"); \
 	} while (0)
-	char buf[512], *p = buf;
+	char *buf, *p;
 	int i;
 	struct sta_info *sta = file->private_data;
 	struct ieee80211_sta_ht_cap *htc = &sta->sta.ht_cap;
+	ssize_t ret;
+
+	buf = kzalloc(512, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	p = buf;
 
 	p += scnprintf(p, sizeof(buf) + buf - p, "ht %ssupported\n",
 			htc->ht_supported ? "" : "not ");
@@ -504,16 +518,24 @@ static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 				htc->mcs.tx_params);
 	}
 
-	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	ret = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	kfree(buf);
+	return ret;
 }
 STA_OPS(ht_capa);
 
 static ssize_t sta_vht_capa_read(struct file *file, char __user *userbuf,
 				 size_t count, loff_t *ppos)
 {
-	char buf[512], *p = buf;
+	char *buf, *p;
 	struct sta_info *sta = file->private_data;
 	struct ieee80211_sta_vht_cap *vhtc = &sta->sta.vht_cap;
+	ssize_t ret;
+
+	buf = kzalloc(512, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	p = buf;
 
 	p += scnprintf(p, sizeof(buf) + buf - p, "VHT %ssupported\n",
 			vhtc->vht_supported ? "" : "not ");
@@ -609,7 +631,9 @@ static ssize_t sta_vht_capa_read(struct file *file, char __user *userbuf,
 #undef PFLAG
 	}
 
-	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	ret = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	kfree(buf);
+	return ret;
 }
 STA_OPS(vht_capa);
 
