@@ -725,16 +725,52 @@ int pci_acpi_program_hp_params(struct pci_dev *dev);
 extern const struct attribute_group pci_dev_acpi_attr_group;
 void pci_set_acpi_fwnode(struct pci_dev *dev);
 int pci_dev_acpi_reset(struct pci_dev *dev, bool probe);
+bool acpi_pci_power_manageable(struct pci_dev *dev);
+bool acpi_pci_bridge_d3(struct pci_dev *dev);
+int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state);
+pci_power_t acpi_pci_get_power_state(struct pci_dev *dev);
+void acpi_pci_refresh_power_state(struct pci_dev *dev);
+int acpi_pci_wakeup(struct pci_dev *dev, bool enable);
+bool acpi_pci_need_resume(struct pci_dev *dev);
+pci_power_t acpi_pci_choose_state(struct pci_dev *pdev);
 #else
 static inline int pci_dev_acpi_reset(struct pci_dev *dev, bool probe)
 {
 	return -ENOTTY;
 }
-
 static inline void pci_set_acpi_fwnode(struct pci_dev *dev) {}
 static inline int pci_acpi_program_hp_params(struct pci_dev *dev)
 {
 	return -ENODEV;
+}
+static inline bool acpi_pci_power_manageable(struct pci_dev *dev)
+{
+	return false;
+}
+static inline bool acpi_pci_bridge_d3(struct pci_dev *dev)
+{
+	return false;
+}
+static inline int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
+{
+	return -ENODEV;
+}
+static inline pci_power_t acpi_pci_get_power_state(struct pci_dev *dev)
+{
+	return PCI_UNKNOWN;
+}
+static inline void acpi_pci_refresh_power_state(struct pci_dev *dev) {}
+static inline int acpi_pci_wakeup(struct pci_dev *dev, bool enable)
+{
+	return -ENODEV;
+}
+static inline bool acpi_pci_need_resume(struct pci_dev *dev)
+{
+	return false;
+}
+static inline pci_power_t acpi_pci_choose_state(struct pci_dev *pdev)
+{
+	return PCI_POWER_ERROR;
 }
 #endif
 

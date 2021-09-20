@@ -988,7 +988,7 @@ static inline bool platform_pci_power_manageable(struct pci_dev *dev)
 	if (pci_use_mid_pm())
 		return true;
 
-	return pci_platform_pm ? pci_platform_pm->is_manageable(dev) : false;
+	return acpi_pci_power_manageable(dev);
 }
 
 static inline int platform_pci_set_power_state(struct pci_dev *dev,
@@ -997,7 +997,7 @@ static inline int platform_pci_set_power_state(struct pci_dev *dev,
 	if (pci_use_mid_pm())
 		return mid_pci_set_power_state(dev, t);
 
-	return pci_platform_pm ? pci_platform_pm->set_state(dev, t) : -ENOSYS;
+	return acpi_pci_set_power_state(dev, t);
 }
 
 static inline pci_power_t platform_pci_get_power_state(struct pci_dev *dev)
@@ -1005,13 +1005,13 @@ static inline pci_power_t platform_pci_get_power_state(struct pci_dev *dev)
 	if (pci_use_mid_pm())
 		return mid_pci_get_power_state(dev);
 
-	return pci_platform_pm ? pci_platform_pm->get_state(dev) : PCI_UNKNOWN;
+	return acpi_pci_get_power_state(dev);
 }
 
 static inline void platform_pci_refresh_power_state(struct pci_dev *dev)
 {
-	if (!pci_use_mid_pm() && pci_platform_pm && pci_platform_pm->refresh_state)
-		pci_platform_pm->refresh_state(dev);
+	if (!pci_use_mid_pm())
+		acpi_pci_refresh_power_state(dev);
 }
 
 static inline pci_power_t platform_pci_choose_state(struct pci_dev *dev)
@@ -1019,8 +1019,7 @@ static inline pci_power_t platform_pci_choose_state(struct pci_dev *dev)
 	if (pci_use_mid_pm())
 		return PCI_POWER_ERROR;
 
-	return pci_platform_pm ?
-			pci_platform_pm->choose_state(dev) : PCI_POWER_ERROR;
+	return acpi_pci_choose_state(dev);
 }
 
 static inline int platform_pci_set_wakeup(struct pci_dev *dev, bool enable)
@@ -1028,8 +1027,7 @@ static inline int platform_pci_set_wakeup(struct pci_dev *dev, bool enable)
 	if (pci_use_mid_pm())
 		return PCI_POWER_ERROR;
 
-	return pci_platform_pm ?
-			pci_platform_pm->set_wakeup(dev, enable) : -ENODEV;
+	return acpi_pci_wakeup(dev, enable);
 }
 
 static inline bool platform_pci_need_resume(struct pci_dev *dev)
@@ -1037,7 +1035,7 @@ static inline bool platform_pci_need_resume(struct pci_dev *dev)
 	if (pci_use_mid_pm())
 		return false;
 
-	return pci_platform_pm ? pci_platform_pm->need_resume(dev) : false;
+	return acpi_pci_need_resume(dev);
 }
 
 static inline bool platform_pci_bridge_d3(struct pci_dev *dev)
@@ -1045,9 +1043,7 @@ static inline bool platform_pci_bridge_d3(struct pci_dev *dev)
 	if (pci_use_mid_pm())
 		return false;
 
-	if (pci_platform_pm && pci_platform_pm->bridge_d3)
-		return pci_platform_pm->bridge_d3(dev);
-	return false;
+	return acpi_pci_bridge_d3(dev);
 }
 
 /**
