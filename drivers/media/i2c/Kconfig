@@ -450,6 +450,7 @@ config VIDEO_TW9906
 config VIDEO_TW9910
 	tristate "Techwell TW9910 video decoder"
 	depends on VIDEO_V4L2 && I2C
+	select V4L2_ASYNC
 	help
 	  Support for Techwell TW9910 NTSC/PAL/SECAM video decoder.
 
@@ -611,6 +612,7 @@ menu "Video improvement chips"
 config VIDEO_UPD64031A
 	tristate "NEC Electronics uPD64031A Ghost Reduction"
 	depends on VIDEO_V4L2 && I2C
+	select V4L2_ASYNC
 	help
 	  Support for the NEC Electronics uPD64031A Ghost Reduction
 	  video chip. It is most often found in NTSC TV cards made for
