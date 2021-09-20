@@ -24,15 +24,7 @@ int ipc_imem_sys_wwan_open(struct iosm_imem *ipc_imem, int if_id)
 		return -EIO;
 	}
 
-	/* check for the interafce id
-	 * if if_id 1 to 8 then create IP MUX channel sessions.
-	 * To start MUX session from 0 as network interface id would start
-	 * from 1 so map it to if_id = if_id - 1
-	 */
-	if (if_id >= IP_MUX_SESSION_START && if_id <= IP_MUX_SESSION_END)
-		return ipc_mux_open_session(ipc_imem->mux, if_id - 1);
-
-	return -EINVAL;
+	return ipc_mux_open_session(ipc_imem->mux, if_id);
 }
 
 /* Release a net link to CP. */
@@ -41,7 +33,7 @@ void ipc_imem_sys_wwan_close(struct iosm_imem *ipc_imem, int if_id,
 {
 	if (ipc_imem->mux && if_id >= IP_MUX_SESSION_START &&
 	    if_id <= IP_MUX_SESSION_END)
-		ipc_mux_close_session(ipc_imem->mux, if_id - 1);
+		ipc_mux_close_session(ipc_imem->mux, if_id);
 }
 
 /* Tasklet call to do uplink transfer. */
@@ -83,13 +75,8 @@ int ipc_imem_sys_wwan_transmit(struct iosm_imem *ipc_imem,
 		goto out;
 	}
 
-	if (if_id >= IP_MUX_SESSION_START && if_id <= IP_MUX_SESSION_END)
-		/* Route the UL packet through IP MUX Layer */
-		ret = ipc_mux_ul_trigger_encode(ipc_imem->mux,
-						if_id - 1, skb);
-	else
-		dev_err(ipc_imem->dev,
-			"invalid if_id %d: ", if_id);
+	/* Route the UL packet through IP MUX Layer */
+	ret = ipc_mux_ul_trigger_encode(ipc_imem->mux, if_id, skb);
 out:
 	return ret;
 }

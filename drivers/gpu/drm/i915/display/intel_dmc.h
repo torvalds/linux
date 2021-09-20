@@ -16,17 +16,30 @@ struct drm_i915_private;
 #define DMC_VERSION_MAJOR(version)	((version) >> 16)
 #define DMC_VERSION_MINOR(version)	((version) & 0xffff)
 
+enum {
+	DMC_FW_MAIN = 0,
+	DMC_FW_PIPEA,
+	DMC_FW_PIPEB,
+	DMC_FW_MAX
+};
+
 struct intel_dmc {
 	struct work_struct work;
 	const char *fw_path;
 	u32 required_version;
 	u32 max_fw_size; /* bytes */
-	u32 *dmc_payload;
-	u32 dmc_fw_size; /* dwords */
 	u32 version;
-	u32 mmio_count;
-	i915_reg_t mmioaddr[20];
-	u32 mmiodata[20];
+	struct dmc_fw_info {
+		u32 mmio_count;
+		i915_reg_t mmioaddr[20];
+		u32 mmiodata[20];
+		u32 dmc_offset;
+		u32 start_mmioaddr;
+		u32 dmc_fw_size; /*dwords */
+		u32 *payload;
+		bool present;
+	} dmc_info[DMC_FW_MAX];
+
 	u32 dc_state;
 	u32 target_dc_state;
 	u32 allowed_dc_mask;

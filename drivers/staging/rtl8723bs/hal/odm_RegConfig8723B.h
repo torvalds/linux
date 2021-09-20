@@ -10,7 +10,7 @@
 void odm_ConfigRFReg_8723B(struct dm_odm_t *pDM_Odm,
 			   u32 Addr,
 			   u32 Data,
-			   enum odm_rf_radio_path_e RF_PATH,
+			   enum rf_path RF_PATH,
 			   u32 RegAddr
 );
 
@@ -24,13 +24,8 @@ void odm_ConfigBB_AGC_8723B(struct dm_odm_t *pDM_Odm,
 			    u32 Data
 );
 
-void odm_ConfigBB_PHY_REG_PG_8723B(struct dm_odm_t *pDM_Odm,
-				   u32 RfPath,
-				   u32 TxNum,
-				   u32 Addr,
-				   u32 Bitmask,
-				   u32 Data
-);
+void odm_ConfigBB_PHY_REG_PG_8723B(struct dm_odm_t *pDM_Odm, u32 RfPath, u32 Addr,
+				   u32 Bitmask, u32 Data);
 
 void odm_ConfigBB_PHY_8723B(struct dm_odm_t *pDM_Odm,
 			    u32 Addr,

@@ -413,7 +413,7 @@ static bool check_valid_spec(const struct mlx5_flow_spec *spec)
 	return true;
 }
 
-static struct mlx5_flow_root_namespace *find_root(struct fs_node *node)
+struct mlx5_flow_root_namespace *find_root(struct fs_node *node)
 {
 	struct fs_node *root;
 	struct mlx5_flow_namespace *ns;
@@ -1024,17 +1024,19 @@ static int connect_fwd_rules(struct mlx5_core_dev *dev,
 static int connect_flow_table(struct mlx5_core_dev *dev, struct mlx5_flow_table *ft,
 			      struct fs_prio *prio)
 {
-	struct mlx5_flow_table *next_ft;
+	struct mlx5_flow_table *next_ft, *first_ft;
 	int err = 0;
 
 	/* Connect_prev_fts and update_root_ft_create are mutually exclusive */
 
-	if (list_empty(&prio->node.children)) {
+	first_ft = list_first_entry_or_null(&prio->node.children,
+					    struct mlx5_flow_table, node.list);
+	if (!first_ft || first_ft->level > ft->level) {
 		err = connect_prev_fts(dev, ft, prio);
 		if (err)
 			return err;
 
-		next_ft = find_next_chained_ft(prio);
+		next_ft = first_ft ? first_ft : find_next_chained_ft(prio);
 		err = connect_fwd_rules(dev, ft, next_ft);
 		if (err)
 			return err;
@@ -1680,14 +1682,13 @@ static int build_match_list(struct match_list *match_head,
 
 		curr_match = kmalloc(sizeof(*curr_match), GFP_ATOMIC);
 		if (!curr_match) {
+			rcu_read_unlock();
 			free_match_list(match_head, ft_locked);
-			err = -ENOMEM;
-			goto out;
+			return -ENOMEM;
 		}
 		curr_match->g = g;
 		list_add_tail(&curr_match->list, &match_head->list);
 	}
-out:
 	rcu_read_unlock();
 	return err;
 }
@@ -2120,7 +2121,7 @@ static int disconnect_flow_table(struct mlx5_flow_table *ft)
 				node.list) == ft))
 		return 0;
 
-	next_ft = find_next_chained_ft(prio);
+	next_ft = find_next_ft(ft);
 	err = connect_fwd_rules(dev, next_ft, ft);
 	if (err)
 		return err;
@@ -2341,7 +2342,7 @@ static int create_leaf_prios(struct mlx5_flow_namespace *ns, int prio,
 
 #define FLOW_TABLE_BIT_SZ 1
 #define GET_FLOW_TABLE_CAP(dev, offset) \
-	((be32_to_cpu(*((__be32 *)(dev->caps.hca_cur[MLX5_CAP_FLOW_TABLE]) +	\
+	((be32_to_cpu(*((__be32 *)(dev->caps.hca[MLX5_CAP_FLOW_TABLE]->cur) +	\
 			offset / 32)) >>					\
 	  (32 - FLOW_TABLE_BIT_SZ - (offset & 0x1f))) & FLOW_TABLE_BIT_SZ)
 static bool has_required_caps(struct mlx5_core_dev *dev, struct node_caps *caps)
@@ -2491,7 +2492,7 @@ static void set_prio_attrs_in_prio(struct fs_prio *prio, int acc_level)
 		acc_level_ns = set_prio_attrs_in_ns(ns, acc_level);
 
 		/* If this a prio with chains, and we can jump from one chain
-		 * (namepsace) to another, so we accumulate the levels
+		 * (namespace) to another, so we accumulate the levels
 		 */
 		if (prio->node.type == FS_TYPE_PRIO_CHAINS)
 			acc_level = acc_level_ns;

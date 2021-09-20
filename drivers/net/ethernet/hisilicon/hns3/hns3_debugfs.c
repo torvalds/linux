@@ -38,9 +38,8 @@ static struct hns3_dbg_dentry_info hns3_dbg_dentry[] = {
 	},
 };
 
-static int hns3_dbg_bd_file_init(struct hnae3_handle *handle, unsigned int cmd);
-static int hns3_dbg_common_file_init(struct hnae3_handle *handle,
-				     unsigned int cmd);
+static int hns3_dbg_bd_file_init(struct hnae3_handle *handle, u32 cmd);
+static int hns3_dbg_common_file_init(struct hnae3_handle *handle, u32 cmd);
 
 static struct hns3_dbg_cmd_info hns3_dbg_cmd[] = {
 	{
@@ -696,7 +695,7 @@ static int hns3_dbg_queue_map(struct hnae3_handle *h, char *buf, int len)
 		sprintf(result[j++], "%u", i);
 		sprintf(result[j++], "%u",
 			h->ae_algo->ops->get_global_queue_id(h, i));
-		sprintf(result[j++], "%u",
+		sprintf(result[j++], "%d",
 			priv->ring[i].tqp_vector->vector_irq);
 		hns3_dbg_fill_content(content, sizeof(content), queue_map_items,
 				      (const char **)result,
@@ -798,10 +797,10 @@ static const struct hns3_dbg_item tx_bd_info_items[] = {
 	{ "T_CS_VLAN_TSO", 2 },
 	{ "OT_VLAN_TAG", 3 },
 	{ "TV", 2 },
-	{ "OLT_VLAN_LEN", 2},
-	{ "PAYLEN_OL4CS", 2},
-	{ "BD_FE_SC_VLD", 2},
-	{ "MSS_HW_CSUM", 0},
+	{ "OLT_VLAN_LEN", 2 },
+	{ "PAYLEN_OL4CS", 2 },
+	{ "BD_FE_SC_VLD", 2 },
+	{ "MSS_HW_CSUM", 0 },
 };
 
 static void hns3_dump_tx_bd_info(struct hns3_nic_priv *priv,
@@ -868,7 +867,7 @@ static void
 hns3_dbg_dev_caps(struct hnae3_handle *h, char *buf, int len, int *pos)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
-	static const char * const str[] = {"no", "yes"};
+	const char * const str[] = {"no", "yes"};
 	unsigned long *caps = ae_dev->caps;
 	u32 i, state;
 
@@ -938,20 +937,19 @@ static int hns3_dbg_dev_info(struct hnae3_handle *h, char *buf, int len)
 	return 0;
 }
 
-static int hns3_dbg_get_cmd_index(struct hnae3_handle *handle,
-				  const unsigned char *name, u32 *index)
+static int hns3_dbg_get_cmd_index(struct hns3_dbg_data *dbg_data, u32 *index)
 {
 	u32 i;
 
 	for (i = 0; i < ARRAY_SIZE(hns3_dbg_cmd); i++) {
-		if (!strncmp(name, hns3_dbg_cmd[i].name,
-			     strlen(hns3_dbg_cmd[i].name))) {
+		if (hns3_dbg_cmd[i].cmd == dbg_data->cmd) {
 			*index = i;
 			return 0;
 		}
 	}
 
-	dev_err(&handle->pdev->dev, "unknown command(%s)\n", name);
+	dev_err(&dbg_data->handle->pdev->dev, "unknown command(%d)\n",
+		dbg_data->cmd);
 	return -EINVAL;
 }
 
@@ -1019,8 +1017,7 @@ static ssize_t hns3_dbg_read(struct file *filp, char __user *buffer,
 	u32 index;
 	int ret;
 
-	ret = hns3_dbg_get_cmd_index(handle, filp->f_path.dentry->d_iname,
-				     &index);
+	ret = hns3_dbg_get_cmd_index(dbg_data, &index);
 	if (ret)
 		return ret;
 
@@ -1090,6 +1087,7 @@ static int hns3_dbg_bd_file_init(struct hnae3_handle *handle, u32 cmd)
 		char name[HNS3_DBG_FILE_NAME_LEN];
 
 		data[i].handle = handle;
+		data[i].cmd = hns3_dbg_cmd[cmd].cmd;
 		data[i].qid = i;
 		sprintf(name, "%s%u", hns3_dbg_cmd[cmd].name, i);
 		debugfs_create_file(name, 0400, entry_dir, &data[i],
@@ -1110,6 +1108,7 @@ hns3_dbg_common_file_init(struct hnae3_handle *handle, u32 cmd)
 		return -ENOMEM;
 
 	data->handle = handle;
+	data->cmd = hns3_dbg_cmd[cmd].cmd;
 	entry_dir = hns3_dbg_dentry[hns3_dbg_cmd[cmd].dentry].dentry;
 	debugfs_create_file(hns3_dbg_cmd[cmd].name, 0400, entry_dir,
 			    data, &hns3_dbg_fops);

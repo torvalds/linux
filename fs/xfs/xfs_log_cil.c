@@ -48,6 +48,34 @@ xlog_cil_ticket_alloc(
 }
 
 /*
+ * Unavoidable forward declaration - xlog_cil_push_work() calls
+ * xlog_cil_ctx_alloc() itself.
+ */
+static void xlog_cil_push_work(struct work_struct *work);
+
+static struct xfs_cil_ctx *
+xlog_cil_ctx_alloc(void)
+{
+	struct xfs_cil_ctx	*ctx;
+
+	ctx = kmem_zalloc(sizeof(*ctx), KM_NOFS);
+	INIT_LIST_HEAD(&ctx->committing);
+	INIT_LIST_HEAD(&ctx->busy_extents);
+	INIT_WORK(&ctx->push_work, xlog_cil_push_work);
+	return ctx;
+}
+
+static void
+xlog_cil_ctx_switch(
+	struct xfs_cil		*cil,
+	struct xfs_cil_ctx	*ctx)
+{
+	ctx->sequence = ++cil->xc_current_sequence;
+	ctx->cil = cil;
+	cil->xc_ctx = ctx;
+}
+
+/*
  * After the first stage of log recovery is done, we know where the head and
  * tail of the log are. We need this log initialisation done before we can
  * initialise the first CIL checkpoint context.
@@ -185,7 +213,15 @@ xlog_cil_alloc_shadow_bufs(
 			 */
 			kmem_free(lip->li_lv_shadow);
 
-			lv = kmem_alloc_large(buf_size, KM_NOFS);
+			/*
+			 * We are in transaction context, which means this
+			 * allocation will pick up GFP_NOFS from the
+			 * memalloc_nofs_save/restore context the transaction
+			 * holds. This means we can use GFP_KERNEL here so the
+			 * generic kvmalloc() code will run vmalloc on
+			 * contiguous page allocation failure as we require.
+			 */
+			lv = kvmalloc(buf_size, GFP_KERNEL);
 			memset(lv, 0, xlog_cil_iovec_space(niovecs));
 
 			lv->lv_item = lip;
@@ -535,7 +571,7 @@ xlog_discard_busy_extents(
 	struct blk_plug		plug;
 	int			error = 0;
 
-	ASSERT(mp->m_flags & XFS_MOUNT_DISCARD);
+	ASSERT(xfs_has_discard(mp));
 
 	blk_start_plug(&plug);
 	list_for_each_entry(busyp, list, list) {
@@ -576,7 +612,7 @@ xlog_cil_committed(
 	struct xfs_cil_ctx	*ctx)
 {
 	struct xfs_mount	*mp = ctx->cil->xc_log->l_mp;
-	bool			abort = XLOG_FORCED_SHUTDOWN(ctx->cil->xc_log);
+	bool			abort = xlog_is_shutdown(ctx->cil->xc_log);
 
 	/*
 	 * If the I/O failed, we're aborting the commit and already shutdown.
@@ -587,6 +623,7 @@ xlog_cil_committed(
 	 */
 	if (abort) {
 		spin_lock(&ctx->cil->xc_push_lock);
+		wake_up_all(&ctx->cil->xc_start_wait);
 		wake_up_all(&ctx->cil->xc_commit_wait);
 		spin_unlock(&ctx->cil->xc_push_lock);
 	}
@@ -596,7 +633,7 @@ xlog_cil_committed(
 
 	xfs_extent_busy_sort(&ctx->busy_extents);
 	xfs_extent_busy_clear(mp, &ctx->busy_extents,
-			     (mp->m_flags & XFS_MOUNT_DISCARD) && !abort);
+			      xfs_has_discard(mp) && !abort);
 
 	spin_lock(&ctx->cil->xc_push_lock);
 	list_del(&ctx->committing);
@@ -624,6 +661,180 @@ xlog_cil_process_committed(
 }
 
 /*
+* Record the LSN of the iclog we were just granted space to start writing into.
+* If the context doesn't have a start_lsn recorded, then this iclog will
+* contain the start record for the checkpoint. Otherwise this write contains
+* the commit record for the checkpoint.
+*/
+void
+xlog_cil_set_ctx_write_state(
+	struct xfs_cil_ctx	*ctx,
+	struct xlog_in_core	*iclog)
+{
+	struct xfs_cil		*cil = ctx->cil;
+	xfs_lsn_t		lsn = be64_to_cpu(iclog->ic_header.h_lsn);
+
+	ASSERT(!ctx->commit_lsn);
+	if (!ctx->start_lsn) {
+		spin_lock(&cil->xc_push_lock);
+		/*
+		 * The LSN we need to pass to the log items on transaction
+		 * commit is the LSN reported by the first log vector write, not
+		 * the commit lsn. If we use the commit record lsn then we can
+		 * move the tail beyond the grant write head.
+		 */
+		ctx->start_lsn = lsn;
+		wake_up_all(&cil->xc_start_wait);
+		spin_unlock(&cil->xc_push_lock);
+		return;
+	}
+
+	/*
+	 * Take a reference to the iclog for the context so that we still hold
+	 * it when xlog_write is done and has released it. This means the
+	 * context controls when the iclog is released for IO.
+	 */
+	atomic_inc(&iclog->ic_refcnt);
+
+	/*
+	 * xlog_state_get_iclog_space() guarantees there is enough space in the
+	 * iclog for an entire commit record, so we can attach the context
+	 * callbacks now.  This needs to be done before we make the commit_lsn
+	 * visible to waiters so that checkpoints with commit records in the
+	 * same iclog order their IO completion callbacks in the same order that
+	 * the commit records appear in the iclog.
+	 */
+	spin_lock(&cil->xc_log->l_icloglock);
+	list_add_tail(&ctx->iclog_entry, &iclog->ic_callbacks);
+	spin_unlock(&cil->xc_log->l_icloglock);
+
+	/*
+	 * Now we can record the commit LSN and wake anyone waiting for this
+	 * sequence to have the ordered commit record assigned to a physical
+	 * location in the log.
+	 */
+	spin_lock(&cil->xc_push_lock);
+	ctx->commit_iclog = iclog;
+	ctx->commit_lsn = lsn;
+	wake_up_all(&cil->xc_commit_wait);
+	spin_unlock(&cil->xc_push_lock);
+}
+
+
+/*
+ * Ensure that the order of log writes follows checkpoint sequence order. This
+ * relies on the context LSN being zero until the log write has guaranteed the
+ * LSN that the log write will start at via xlog_state_get_iclog_space().
+ */
+enum _record_type {
+	_START_RECORD,
+	_COMMIT_RECORD,
+};
+
+static int
+xlog_cil_order_write(
+	struct xfs_cil		*cil,
+	xfs_csn_t		sequence,
+	enum _record_type	record)
+{
+	struct xfs_cil_ctx	*ctx;
+
+restart:
+	spin_lock(&cil->xc_push_lock);
+	list_for_each_entry(ctx, &cil->xc_committing, committing) {
+		/*
+		 * Avoid getting stuck in this loop because we were woken by the
+		 * shutdown, but then went back to sleep once already in the
+		 * shutdown state.
+		 */
+		if (xlog_is_shutdown(cil->xc_log)) {
+			spin_unlock(&cil->xc_push_lock);
+			return -EIO;
+		}
+
+		/*
+		 * Higher sequences will wait for this one so skip them.
+		 * Don't wait for our own sequence, either.
+		 */
+		if (ctx->sequence >= sequence)
+			continue;
+
+		/* Wait until the LSN for the record has been recorded. */
+		switch (record) {
+		case _START_RECORD:
+			if (!ctx->start_lsn) {
+				xlog_wait(&cil->xc_start_wait, &cil->xc_push_lock);
+				goto restart;
+			}
+			break;
+		case _COMMIT_RECORD:
+			if (!ctx->commit_lsn) {
+				xlog_wait(&cil->xc_commit_wait, &cil->xc_push_lock);
+				goto restart;
+			}
+			break;
+		}
+	}
+	spin_unlock(&cil->xc_push_lock);
+	return 0;
+}
+
+/*
+ * Write out the log vector change now attached to the CIL context. This will
+ * write a start record that needs to be strictly ordered in ascending CIL
+ * sequence order so that log recovery will always use in-order start LSNs when
+ * replaying checkpoints.
+ */
+static int
+xlog_cil_write_chain(
+	struct xfs_cil_ctx	*ctx,
+	struct xfs_log_vec	*chain)
+{
+	struct xlog		*log = ctx->cil->xc_log;
+	int			error;
+
+	error = xlog_cil_order_write(ctx->cil, ctx->sequence, _START_RECORD);
+	if (error)
+		return error;
+	return xlog_write(log, ctx, chain, ctx->ticket, XLOG_START_TRANS);
+}
+
+/*
+ * Write out the commit record of a checkpoint transaction to close off a
+ * running log write. These commit records are strictly ordered in ascending CIL
+ * sequence order so that log recovery will always replay the checkpoints in the
+ * correct order.
+ */
+static int
+xlog_cil_write_commit_record(
+	struct xfs_cil_ctx	*ctx)
+{
+	struct xlog		*log = ctx->cil->xc_log;
+	struct xfs_log_iovec	reg = {
+		.i_addr = NULL,
+		.i_len = 0,
+		.i_type = XLOG_REG_TYPE_COMMIT,
+	};
+	struct xfs_log_vec	vec = {
+		.lv_niovecs = 1,
+		.lv_iovecp = &reg,
+	};
+	int			error;
+
+	if (xlog_is_shutdown(log))
+		return -EIO;
+
+	error = xlog_cil_order_write(ctx->cil, ctx->sequence, _COMMIT_RECORD);
+	if (error)
+		return error;
+
+	error = xlog_write(log, ctx, &vec, ctx->ticket, XLOG_COMMIT_TRANS);
+	if (error)
+		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
+	return error;
+}
+
+/*
  * Push the Committed Item List to the log.
  *
  * If the current sequence is the same as xc_push_seq we need to do a flush. If
@@ -641,33 +852,34 @@ static void
 xlog_cil_push_work(
 	struct work_struct	*work)
 {
-	struct xfs_cil		*cil =
-		container_of(work, struct xfs_cil, xc_push_work);
+	struct xfs_cil_ctx	*ctx =
+		container_of(work, struct xfs_cil_ctx, push_work);
+	struct xfs_cil		*cil = ctx->cil;
 	struct xlog		*log = cil->xc_log;
 	struct xfs_log_vec	*lv;
-	struct xfs_cil_ctx	*ctx;
 	struct xfs_cil_ctx	*new_ctx;
-	struct xlog_in_core	*commit_iclog;
 	struct xlog_ticket	*tic;
 	int			num_iovecs;
 	int			error = 0;
 	struct xfs_trans_header thdr;
 	struct xfs_log_iovec	lhdr;
 	struct xfs_log_vec	lvhdr = { NULL };
-	xfs_lsn_t		commit_lsn;
-	xfs_lsn_t		push_seq;
+	xfs_lsn_t		preflush_tail_lsn;
+	xfs_csn_t		push_seq;
 	struct bio		bio;
 	DECLARE_COMPLETION_ONSTACK(bdev_flush);
+	bool			push_commit_stable;
 
-	new_ctx = kmem_zalloc(sizeof(*new_ctx), KM_NOFS);
+	new_ctx = xlog_cil_ctx_alloc();
 	new_ctx->ticket = xlog_cil_ticket_alloc(log);
 
 	down_write(&cil->xc_ctx_lock);
-	ctx = cil->xc_ctx;
 
 	spin_lock(&cil->xc_push_lock);
 	push_seq = cil->xc_push_seq;
 	ASSERT(push_seq <= ctx->sequence);
+	push_commit_stable = cil->xc_push_commit_stable;
+	cil->xc_push_commit_stable = false;
 
 	/*
 	 * As we are about to switch to a new, empty CIL context, we no longer
@@ -693,7 +905,7 @@ xlog_cil_push_work(
 
 
 	/* check for a previously pushed sequence */
-	if (push_seq < cil->xc_ctx->sequence) {
+	if (push_seq < ctx->sequence) {
 		spin_unlock(&cil->xc_push_lock);
 		goto out_skip;
 	}
@@ -730,7 +942,15 @@ xlog_cil_push_work(
 	 * because we hold the flush lock exclusively. Hence we can now issue
 	 * a cache flush to ensure all the completed metadata in the journal we
 	 * are about to overwrite is on stable storage.
+	 *
+	 * Because we are issuing this cache flush before we've written the
+	 * tail lsn to the iclog, we can have metadata IO completions move the
+	 * tail forwards between the completion of this flush and the iclog
+	 * being written. In this case, we need to re-issue the cache flush
+	 * before the iclog write. To detect whether the log tail moves, sample
+	 * the tail LSN *before* we issue the flush.
 	 */
+	preflush_tail_lsn = atomic64_read(&log->l_tail_lsn);
 	xfs_flush_bdev_async(&bio, log->l_mp->m_ddev_targp->bt_bdev,
 				&bdev_flush);
 
@@ -758,19 +978,7 @@ xlog_cil_push_work(
 	}
 
 	/*
-	 * initialise the new context and attach it to the CIL. Then attach
-	 * the current context to the CIL committing list so it can be found
-	 * during log forces to extract the commit lsn of the sequence that
-	 * needs to be forced.
-	 */
-	INIT_LIST_HEAD(&new_ctx->committing);
-	INIT_LIST_HEAD(&new_ctx->busy_extents);
-	new_ctx->sequence = ctx->sequence + 1;
-	new_ctx->cil = cil;
-	cil->xc_ctx = new_ctx;
-
-	/*
-	 * The switch is now done, so we can drop the context lock and move out
+	 * Switch the contexts so we can drop the context lock and move out
 	 * of a shared context. We can't just go straight to the commit record,
 	 * though - we need to synchronise with previous and future commits so
 	 * that the commit records are correctly ordered in the log to ensure
@@ -795,7 +1003,7 @@ xlog_cil_push_work(
 	 * deferencing a freed context pointer.
 	 */
 	spin_lock(&cil->xc_push_lock);
-	cil->xc_current_sequence = new_ctx->sequence;
+	xlog_cil_ctx_switch(cil, new_ctx);
 	spin_unlock(&cil->xc_push_lock);
 	up_write(&cil->xc_ctx_lock);
 
@@ -828,76 +1036,15 @@ xlog_cil_push_work(
 	 */
 	wait_for_completion(&bdev_flush);
 
-	error = xlog_write(log, &lvhdr, tic, &ctx->start_lsn, NULL,
-				XLOG_START_TRANS);
+	error = xlog_cil_write_chain(ctx, &lvhdr);
 	if (error)
 		goto out_abort_free_ticket;
 
-	/*
-	 * now that we've written the checkpoint into the log, strictly
-	 * order the commit records so replay will get them in the right order.
-	 */
-restart:
-	spin_lock(&cil->xc_push_lock);
-	list_for_each_entry(new_ctx, &cil->xc_committing, committing) {
-		/*
-		 * Avoid getting stuck in this loop because we were woken by the
-		 * shutdown, but then went back to sleep once already in the
-		 * shutdown state.
-		 */
-		if (XLOG_FORCED_SHUTDOWN(log)) {
-			spin_unlock(&cil->xc_push_lock);
-			goto out_abort_free_ticket;
-		}
-
-		/*
-		 * Higher sequences will wait for this one so skip them.
-		 * Don't wait for our own sequence, either.
-		 */
-		if (new_ctx->sequence >= ctx->sequence)
-			continue;
-		if (!new_ctx->commit_lsn) {
-			/*
-			 * It is still being pushed! Wait for the push to
-			 * complete, then start again from the beginning.
-			 */
-			xlog_wait(&cil->xc_commit_wait, &cil->xc_push_lock);
-			goto restart;
-		}
-	}
-	spin_unlock(&cil->xc_push_lock);
-
-	error = xlog_commit_record(log, tic, &commit_iclog, &commit_lsn);
+	error = xlog_cil_write_commit_record(ctx);
 	if (error)
 		goto out_abort_free_ticket;
 
 	xfs_log_ticket_ungrant(log, tic);
-
-	/*
-	 * Once we attach the ctx to the iclog, a shutdown can process the
-	 * iclog, run the callbacks and free the ctx. The only thing preventing
-	 * this potential UAF situation here is that we are holding the
-	 * icloglock. Hence we cannot access the ctx once we have attached the
-	 * callbacks and dropped the icloglock.
-	 */
-	spin_lock(&log->l_icloglock);
-	if (commit_iclog->ic_state == XLOG_STATE_IOERROR) {
-		spin_unlock(&log->l_icloglock);
-		goto out_abort;
-	}
-	ASSERT_ALWAYS(commit_iclog->ic_state == XLOG_STATE_ACTIVE ||
-		      commit_iclog->ic_state == XLOG_STATE_WANT_SYNC);
-	list_add_tail(&ctx->iclog_entry, &commit_iclog->ic_callbacks);
-
-	/*
-	 * now the checkpoint commit is complete and we've attached the
-	 * callbacks to the iclog we can assign the commit LSN to the context
-	 * and wake up anyone who is waiting for the commit to complete.
-	 */
-	spin_lock(&cil->xc_push_lock);
-	ctx->commit_lsn = commit_lsn;
-	wake_up_all(&cil->xc_commit_wait);
-	spin_unlock(&cil->xc_push_lock);
 
 	/*
 	 * If the checkpoint spans multiple iclogs, wait for all previous iclogs
@@ -910,21 +1057,19 @@ restart:
 	 * wakeup until this commit_iclog is written to disk.  Hence we use the
 	 * iclog header lsn and compare it to the commit lsn to determine if we
 	 * need to wait on iclogs or not.
-	 *
-	 * NOTE: It is not safe to reference the ctx after this check as we drop
-	 * the icloglock if we have to wait for completion of other iclogs.
 	 */
-	if (ctx->start_lsn != commit_lsn) {
+	spin_lock(&log->l_icloglock);
+	if (ctx->start_lsn != ctx->commit_lsn) {
 		xfs_lsn_t	plsn;
 
-		plsn = be64_to_cpu(commit_iclog->ic_prev->ic_header.h_lsn);
-		if (plsn && XFS_LSN_CMP(plsn, commit_lsn) < 0) {
+		plsn = be64_to_cpu(ctx->commit_iclog->ic_prev->ic_header.h_lsn);
+		if (plsn && XFS_LSN_CMP(plsn, ctx->commit_lsn) < 0) {
 			/*
 			 * Waiting on ic_force_wait orders the completion of
 			 * iclogs older than ic_prev. Hence we only need to wait
 			 * on the most recent older iclog here.
 			 */
-			xlog_wait_on_iclog(commit_iclog->ic_prev);
+			xlog_wait_on_iclog(ctx->commit_iclog->ic_prev);
 			spin_lock(&log->l_icloglock);
 		}
 
@@ -932,16 +1077,27 @@ restart:
 		 * We need to issue a pre-flush so that the ordering for this
 		 * checkpoint is correctly preserved down to stable storage.
 		 */
-		commit_iclog->ic_flags |= XLOG_ICL_NEED_FLUSH;
+		ctx->commit_iclog->ic_flags |= XLOG_ICL_NEED_FLUSH;
 	}
 
 	/*
 	 * The commit iclog must be written to stable storage to guarantee
 	 * journal IO vs metadata writeback IO is correctly ordered on stable
 	 * storage.
+	 *
+	 * If the push caller needs the commit to be immediately stable and the
+	 * commit_iclog is not yet marked as XLOG_STATE_WANT_SYNC to indicate it
+	 * will be written when released, switch it's state to WANT_SYNC right
+	 * now.
 	 */
-	commit_iclog->ic_flags |= XLOG_ICL_NEED_FUA;
-	xlog_state_release_iclog(log, commit_iclog);
+	ctx->commit_iclog->ic_flags |= XLOG_ICL_NEED_FUA;
+	if (push_commit_stable &&
+	    ctx->commit_iclog->ic_state == XLOG_STATE_ACTIVE)
+		xlog_state_switch_iclogs(log, ctx->commit_iclog, 0);
+	xlog_state_release_iclog(log, ctx->commit_iclog, preflush_tail_lsn);
+
+	/* Not safe to reference ctx now! */
+
 	spin_unlock(&log->l_icloglock);
 	return;
 
@@ -953,9 +1109,15 @@ out_skip:
 
 out_abort_free_ticket:
 	xfs_log_ticket_ungrant(log, tic);
-out_abort:
-	ASSERT(XLOG_FORCED_SHUTDOWN(log));
-	xlog_cil_committed(ctx);
+	ASSERT(xlog_is_shutdown(log));
+	if (!ctx->commit_iclog) {
+		xlog_cil_committed(ctx);
+		return;
+	}
+	spin_lock(&log->l_icloglock);
+	xlog_state_release_iclog(log, ctx->commit_iclog, 0);
+	/* Not safe to reference ctx now! */
+	spin_unlock(&log->l_icloglock);
 }
 
 /*
@@ -989,7 +1151,7 @@ xlog_cil_push_background(
 	spin_lock(&cil->xc_push_lock);
 	if (cil->xc_push_seq < cil->xc_current_sequence) {
 		cil->xc_push_seq = cil->xc_current_sequence;
-		queue_work(log->l_mp->m_cil_workqueue, &cil->xc_push_work);
+		queue_work(cil->xc_push_wq, &cil->xc_ctx->push_work);
 	}
 
 	/*
@@ -1025,13 +1187,26 @@ xlog_cil_push_background(
 /*
  * xlog_cil_push_now() is used to trigger an immediate CIL push to the sequence
  * number that is passed. When it returns, the work will be queued for
- * @push_seq, but it won't be completed. The caller is expected to do any
- * waiting for push_seq to complete if it is required.
+ * @push_seq, but it won't be completed.
+ *
+ * If the caller is performing a synchronous force, we will flush the workqueue
+ * to get previously queued work moving to minimise the wait time they will
+ * undergo waiting for all outstanding pushes to complete. The caller is
+ * expected to do the required waiting for push_seq to complete.
+ *
+ * If the caller is performing an async push, we need to ensure that the
+ * checkpoint is fully flushed out of the iclogs when we finish the push. If we
+ * don't do this, then the commit record may remain sitting in memory in an
+ * ACTIVE iclog. This then requires another full log force to push to disk,
+ * which defeats the purpose of having an async, non-blocking CIL force
+ * mechanism. Hence in this case we need to pass a flag to the push work to
+ * indicate it needs to flush the commit record itself.
  */
 static void
 xlog_cil_push_now(
 	struct xlog	*log,
-	xfs_lsn_t	push_seq)
+	xfs_lsn_t	push_seq,
+	bool		async)
 {
 	struct xfs_cil	*cil = log->l_cilp;
 
@@ -1041,7 +1216,8 @@ xlog_cil_push_now(
 	ASSERT(push_seq && push_seq <= cil->xc_current_sequence);
 
 	/* start on any pending background push to minimise wait time on it */
-	flush_work(&cil->xc_push_work);
+	if (!async)
+		flush_workqueue(cil->xc_push_wq);
 
 	/*
 	 * If the CIL is empty or we've already pushed the sequence then
@@ -1054,7 +1230,8 @@ xlog_cil_push_now(
 	}
 
 	cil->xc_push_seq = push_seq;
-	queue_work(log->l_mp->m_cil_workqueue, &cil->xc_push_work);
+	cil->xc_push_commit_stable = async;
+	queue_work(cil->xc_push_wq, &cil->xc_ctx->push_work);
 	spin_unlock(&cil->xc_push_lock);
 }
 
@@ -1107,7 +1284,7 @@ xlog_cil_commit(
 
 	xlog_cil_insert_items(log, tp);
 
-	if (regrant && !XLOG_FORCED_SHUTDOWN(log))
+	if (regrant && !xlog_is_shutdown(log))
 		xfs_log_ticket_regrant(log, tp->t_ticket);
 	else
 		xfs_log_ticket_ungrant(log, tp->t_ticket);
@@ -1139,11 +1316,26 @@ xlog_cil_commit(
 }
 
 /*
+ * Flush the CIL to stable storage but don't wait for it to complete. This
+ * requires the CIL push to ensure the commit record for the push hits the disk,
+ * but otherwise is no different to a push done from a log force.
+ */
+void
+xlog_cil_flush(
+	struct xlog	*log)
+{
+	xfs_csn_t	seq = log->l_cilp->xc_current_sequence;
+
+	trace_xfs_log_force(log->l_mp, seq, _RET_IP_);
+	xlog_cil_push_now(log, seq, true);
+}
+
+/*
  * Conditionally push the CIL based on the sequence passed in.
  *
- * We only need to push if we haven't already pushed the sequence
- * number given. Hence the only time we will trigger a push here is
- * if the push sequence is the same as the current context.
+ * We only need to push if we haven't already pushed the sequence number given.
+ * Hence the only time we will trigger a push here is if the push sequence is
+ * the same as the current context.
  *
  * We return the current commit lsn to allow the callers to determine if a
  * iclog flush is necessary following this call.
@@ -1159,13 +1351,17 @@ xlog_cil_force_seq(
 
 	ASSERT(sequence <= cil->xc_current_sequence);
 
+	if (!sequence)
+		sequence = cil->xc_current_sequence;
+	trace_xfs_log_force(log->l_mp, sequence, _RET_IP_);
+
 	/*
 	 * check to see if we need to force out the current context.
 	 * xlog_cil_push() handles racing pushes for the same sequence,
 	 * so no need to deal with it here.
 	 */
 restart:
-	xlog_cil_push_now(log, sequence);
+	xlog_cil_push_now(log, sequence, false);
 
 	/*
 	 * See if we can find a previous sequence still committing.
@@ -1180,7 +1376,7 @@ restart:
 		 * shutdown, but then went back to sleep once already in the
 		 * shutdown state.
 		 */
-		if (XLOG_FORCED_SHUTDOWN(log))
+		if (xlog_is_shutdown(log))
 			goto out_shutdown;
 		if (ctx->sequence > sequence)
 			continue;
@@ -1189,6 +1385,7 @@ restart:
 			 * It is still being pushed! Wait for the push to
 			 * complete, then start again from the beginning.
 			 */
+			XFS_STATS_INC(log->l_mp, xs_log_force_sleep);
 			xlog_wait(&cil->xc_commit_wait, &cil->xc_push_lock);
 			goto restart;
 		}
@@ -1273,32 +1470,35 @@ xlog_cil_init(
 	cil = kmem_zalloc(sizeof(*cil), KM_MAYFAIL);
 	if (!cil)
 		return -ENOMEM;
+	/*
+	 * Limit the CIL pipeline depth to 4 concurrent works to bound the
+	 * concurrency the log spinlocks will be exposed to.
+	 */
+	cil->xc_push_wq = alloc_workqueue("xfs-cil/%s",
+			XFS_WQFLAGS(WQ_FREEZABLE | WQ_MEM_RECLAIM | WQ_UNBOUND),
+			4, log->l_mp->m_super->s_id);
+	if (!cil->xc_push_wq)
+		goto out_destroy_cil;
 
-	ctx = kmem_zalloc(sizeof(*ctx), KM_MAYFAIL);
-	if (!ctx) {
-		kmem_free(cil);
-		return -ENOMEM;
-	}
-
-	INIT_WORK(&cil->xc_push_work, xlog_cil_push_work);
 	INIT_LIST_HEAD(&cil->xc_cil);
 	INIT_LIST_HEAD(&cil->xc_committing);
 	spin_lock_init(&cil->xc_cil_lock);
 	spin_lock_init(&cil->xc_push_lock);
 	init_waitqueue_head(&cil->xc_push_wait);
 	init_rwsem(&cil->xc_ctx_lock);
+	init_waitqueue_head(&cil->xc_start_wait);
 	init_waitqueue_head(&cil->xc_commit_wait);
-
-	INIT_LIST_HEAD(&ctx->committing);
-	INIT_LIST_HEAD(&ctx->busy_extents);
-	ctx->sequence = 1;
-	ctx->cil = cil;
-	cil->xc_ctx = ctx;
-	cil->xc_current_sequence = ctx->sequence;
-
 	cil->xc_log = log;
 	log->l_cilp = cil;
+
+	ctx = xlog_cil_ctx_alloc();
+	xlog_cil_ctx_switch(cil, ctx);
+
 	return 0;
+
+out_destroy_cil:
+	kmem_free(cil);
+	return -ENOMEM;
 }
 
 void
@@ -1312,6 +1512,7 @@ xlog_cil_destroy(
 	}
 
 	ASSERT(list_empty(&log->l_cilp->xc_cil));
+	destroy_workqueue(log->l_cilp->xc_push_wq);
 	kmem_free(log->l_cilp);
 }
 

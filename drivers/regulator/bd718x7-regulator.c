@@ -55,7 +55,8 @@
 #define BD718XX_HWOPNAME(swopname) swopname##_hwcontrol
 
 #define BD718XX_OPS(name, _list_voltage, _map_voltage, _set_voltage_sel, \
-		   _get_voltage_sel, _set_voltage_time_sel, _set_ramp_delay) \
+		   _get_voltage_sel, _set_voltage_time_sel, _set_ramp_delay, \
+		   _set_uvp, _set_ovp)				\
 static const struct regulator_ops name = {			\
 	.enable = regulator_enable_regmap,			\
 	.disable = regulator_disable_regmap,			\
@@ -66,6 +67,8 @@ static const struct regulator_ops name = {			\
 	.get_voltage_sel = (_get_voltage_sel),			\
 	.set_voltage_time_sel = (_set_voltage_time_sel),	\
 	.set_ramp_delay = (_set_ramp_delay),			\
+	.set_under_voltage_protection = (_set_uvp),		\
+	.set_over_voltage_protection = (_set_ovp),		\
 };								\
 								\
 static const struct regulator_ops BD718XX_HWOPNAME(name) = {	\
@@ -76,6 +79,8 @@ static const struct regulator_ops BD718XX_HWOPNAME(name) = {	\
 	.get_voltage_sel = (_get_voltage_sel),			\
 	.set_voltage_time_sel = (_set_voltage_time_sel),	\
 	.set_ramp_delay = (_set_ramp_delay),			\
+	.set_under_voltage_protection = (_set_uvp),		\
+	.set_over_voltage_protection = (_set_ovp),		\
 }								\
 
 /*
@@ -154,17 +159,9 @@ static void voltage_change_done(struct regulator_dev *rdev, unsigned int sel,
 		 * exceed it due to the scheduling.
 		 */
 		msleep(1);
-		/*
-		 * Note for next hacker. The PWRGOOD should not be masked on
-		 * BD71847 so we will just unconditionally enable detection
-		 * when voltage is set.
-		 * If someone want's to disable PWRGOOD he must implement
-		 * caching and restoring the old value here. I am not
-		 * aware of such use-cases so for the sake of the simplicity
-		 * we just always enable PWRGOOD here.
-		 */
-		ret = regmap_update_bits(rdev->regmap, BD718XX_REG_MVRFLTMASK2,
-					 *mask, 0);
+
+		ret = regmap_clear_bits(rdev->regmap, BD718XX_REG_MVRFLTMASK2,
+					 *mask);
 		if (ret)
 			dev_err(&rdev->dev,
 				"Failed to re-enable voltage monitoring (%d)\n",
@@ -208,12 +205,27 @@ static int voltage_change_prepare(struct regulator_dev *rdev, unsigned int sel,
 		 * time configurable.
 		 */
 		if (new > now) {
+			int tmp;
+			int prot_bit;
 			int ldo_offset = rdev->desc->id - BD718XX_LDO1;
 
-			*mask = BD718XX_LDO1_VRMON80 << ldo_offset;
-			ret = regmap_update_bits(rdev->regmap,
-						 BD718XX_REG_MVRFLTMASK2,
-						 *mask, *mask);
+			prot_bit = BD718XX_LDO1_VRMON80 << ldo_offset;
+			ret = regmap_read(rdev->regmap, BD718XX_REG_MVRFLTMASK2,
+					  &tmp);
+			if (ret) {
+				dev_err(&rdev->dev,
+					"Failed to read voltage monitoring state\n");
+				return ret;
+			}
+
+			if (!(tmp & prot_bit)) {
+				/* We disable protection if it was enabled... */
+				ret = regmap_set_bits(rdev->regmap,
+						      BD718XX_REG_MVRFLTMASK2,
+						      prot_bit);
+				/* ...and we also want to re-enable it */
+				*mask = prot_bit;
+			}
 			if (ret) {
 				dev_err(&rdev->dev,
 					"Failed to stop voltage monitoring\n");
@@ -265,99 +277,6 @@ static int bd71837_set_voltage_sel_pickable_restricted(
 
 	return regulator_set_voltage_sel_pickable_regmap(rdev, sel);
 }
-
-/*
- * OPS common for BD71847 and BD71850
- */
-BD718XX_OPS(bd718xx_pickable_range_ldo_ops,
-	    regulator_list_voltage_pickable_linear_range, NULL,
-	    bd718xx_set_voltage_sel_pickable_restricted,
-	    regulator_get_voltage_sel_pickable_regmap, NULL, NULL);
-
-/* BD71847 and BD71850 LDO 5 is by default OFF at RUN state */
-static const struct regulator_ops bd718xx_ldo5_ops_hwstate = {
-	.is_enabled = never_enabled_by_hwstate,
-	.list_voltage = regulator_list_voltage_pickable_linear_range,
-	.set_voltage_sel = bd718xx_set_voltage_sel_pickable_restricted,
-	.get_voltage_sel = regulator_get_voltage_sel_pickable_regmap,
-};
-
-BD718XX_OPS(bd718xx_pickable_range_buck_ops,
-	    regulator_list_voltage_pickable_linear_range, NULL,
-	    regulator_set_voltage_sel_pickable_regmap,
-	    regulator_get_voltage_sel_pickable_regmap,
-	    regulator_set_voltage_time_sel, NULL);
-
-BD718XX_OPS(bd718xx_ldo_regulator_ops, regulator_list_voltage_linear_range,
-	    NULL, bd718xx_set_voltage_sel_restricted,
-	    regulator_get_voltage_sel_regmap, NULL, NULL);
-
-BD718XX_OPS(bd718xx_ldo_regulator_nolinear_ops, regulator_list_voltage_table,
-	    NULL, bd718xx_set_voltage_sel_restricted,
-	    regulator_get_voltage_sel_regmap, NULL, NULL);
-
-BD718XX_OPS(bd718xx_buck_regulator_ops, regulator_list_voltage_linear_range,
-	    NULL, regulator_set_voltage_sel_regmap,
-	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
-	    NULL);
-
-BD718XX_OPS(bd718xx_buck_regulator_nolinear_ops, regulator_list_voltage_table,
-	    regulator_map_voltage_ascend, regulator_set_voltage_sel_regmap,
-	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
-	    NULL);
-
-/*
- * OPS for BD71837
- */
-BD718XX_OPS(bd71837_pickable_range_ldo_ops,
-	    regulator_list_voltage_pickable_linear_range, NULL,
-	    bd71837_set_voltage_sel_pickable_restricted,
-	    regulator_get_voltage_sel_pickable_regmap, NULL, NULL);
-
-BD718XX_OPS(bd71837_pickable_range_buck_ops,
-	    regulator_list_voltage_pickable_linear_range, NULL,
-	    bd71837_set_voltage_sel_pickable_restricted,
-	    regulator_get_voltage_sel_pickable_regmap,
-	    regulator_set_voltage_time_sel, NULL);
-
-BD718XX_OPS(bd71837_ldo_regulator_ops, regulator_list_voltage_linear_range,
-	    NULL, bd71837_set_voltage_sel_restricted,
-	    regulator_get_voltage_sel_regmap, NULL, NULL);
-
-BD718XX_OPS(bd71837_ldo_regulator_nolinear_ops, regulator_list_voltage_table,
-	    NULL, bd71837_set_voltage_sel_restricted,
-	    regulator_get_voltage_sel_regmap, NULL, NULL);
-
-BD718XX_OPS(bd71837_buck_regulator_ops, regulator_list_voltage_linear_range,
-	    NULL, bd71837_set_voltage_sel_restricted,
-	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
-	    NULL);
-
-BD718XX_OPS(bd71837_buck_regulator_nolinear_ops, regulator_list_voltage_table,
-	    regulator_map_voltage_ascend, bd71837_set_voltage_sel_restricted,
-	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
-	    NULL);
-/*
- * BD71837 bucks 3 and 4 support defining their enable/disable state also
- * when buck enable state is under HW state machine control. In that case the
- * bit [2] in CTRL register is used to indicate if regulator should be ON.
- */
-static const struct regulator_ops bd71837_buck34_ops_hwctrl = {
-	.is_enabled = bd71837_get_buck34_enable_hwctrl,
-	.list_voltage = regulator_list_voltage_linear_range,
-	.set_voltage_sel = regulator_set_voltage_sel_regmap,
-	.get_voltage_sel = regulator_get_voltage_sel_regmap,
-	.set_voltage_time_sel = regulator_set_voltage_time_sel,
-	.set_ramp_delay = regulator_set_ramp_delay_regmap,
-};
-
-/*
- * OPS for all of the ICs - BD718(37/47/50)
- */
-BD718XX_OPS(bd718xx_dvs_buck_regulator_ops, regulator_list_voltage_linear_range,
-	    NULL, regulator_set_voltage_sel_regmap,
-	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
-	    /* bd718xx_buck1234_set_ramp_delay */ regulator_set_ramp_delay_regmap);
 
 /*
  * BD71837 BUCK1/2/3/4
@@ -535,6 +454,238 @@ struct bd718xx_regulator_data {
 	const struct reg_init *additional_inits;
 	int additional_init_amnt;
 };
+
+static int bd718x7_xvp_sanity_check(struct regulator_dev *rdev, int lim_uV,
+				    int severity)
+{
+	/*
+	 * BD71837/47/50 ... (ICs supported by this driver) do not provide
+	 * warnings, only protection
+	 */
+	if (severity != REGULATOR_SEVERITY_PROT) {
+		dev_err(&rdev->dev,
+			"Unsupported Under Voltage protection level\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * And protection limit is not changeable. It can only be enabled
+	 * or disabled
+	 */
+	if (lim_uV)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int bd718x7_set_ldo_uvp(struct regulator_dev *rdev, int lim_uV,
+			       int severity, bool enable)
+{
+	int ldo_offset = rdev->desc->id - BD718XX_LDO1;
+	int prot_bit, ret;
+
+	ret = bd718x7_xvp_sanity_check(rdev, lim_uV, severity);
+	if (ret)
+		return ret;
+
+	prot_bit = BD718XX_LDO1_VRMON80 << ldo_offset;
+
+	if (enable)
+		return regmap_clear_bits(rdev->regmap, BD718XX_REG_MVRFLTMASK2,
+					 prot_bit);
+
+	return regmap_set_bits(rdev->regmap, BD718XX_REG_MVRFLTMASK2,
+			       prot_bit);
+}
+
+static int bd718x7_get_buck_prot_reg(int id, int *reg)
+{
+
+	if (id > BD718XX_BUCK8) {
+		WARN_ON(id > BD718XX_BUCK8);
+		return -EINVAL;
+	}
+
+	if (id > BD718XX_BUCK4)
+		*reg = BD718XX_REG_MVRFLTMASK0;
+	else
+		*reg = BD718XX_REG_MVRFLTMASK1;
+
+	return 0;
+}
+
+static int bd718x7_get_buck_ovp_info(int id, int *reg, int *bit)
+{
+	int ret;
+
+	ret = bd718x7_get_buck_prot_reg(id, reg);
+	if (ret)
+		return ret;
+
+	*bit = BIT((id % 4) * 2 + 1);
+
+	return 0;
+}
+
+static int bd718x7_get_buck_uvp_info(int id, int *reg, int *bit)
+{
+	int ret;
+
+	ret = bd718x7_get_buck_prot_reg(id, reg);
+	if (ret)
+		return ret;
+
+	*bit = BIT((id % 4) * 2);
+
+	return 0;
+}
+
+static int bd718x7_set_buck_uvp(struct regulator_dev *rdev, int lim_uV,
+				int severity, bool enable)
+{
+	int bit, reg, ret;
+
+	ret = bd718x7_xvp_sanity_check(rdev, lim_uV, severity);
+	if (ret)
+		return ret;
+
+	ret = bd718x7_get_buck_uvp_info(rdev->desc->id, &reg, &bit);
+	if (ret)
+		return ret;
+
+	if (enable)
+		return regmap_clear_bits(rdev->regmap, reg, bit);
+
+	return regmap_set_bits(rdev->regmap, reg, bit);
+
+}
+
+static int bd718x7_set_buck_ovp(struct regulator_dev *rdev, int lim_uV,
+				int severity,
+				bool enable)
+{
+	int bit, reg, ret;
+
+	ret = bd718x7_xvp_sanity_check(rdev, lim_uV, severity);
+	if (ret)
+		return ret;
+
+	ret = bd718x7_get_buck_ovp_info(rdev->desc->id, &reg, &bit);
+	if (ret)
+		return ret;
+
+	if (enable)
+		return regmap_clear_bits(rdev->regmap, reg, bit);
+
+	return regmap_set_bits(rdev->regmap, reg, bit);
+}
+
+/*
+ * OPS common for BD71847 and BD71850
+ */
+BD718XX_OPS(bd718xx_pickable_range_ldo_ops,
+	    regulator_list_voltage_pickable_linear_range, NULL,
+	    bd718xx_set_voltage_sel_pickable_restricted,
+	    regulator_get_voltage_sel_pickable_regmap, NULL, NULL,
+	    bd718x7_set_ldo_uvp, NULL);
+
+/* BD71847 and BD71850 LDO 5 is by default OFF at RUN state */
+static const struct regulator_ops bd718xx_ldo5_ops_hwstate = {
+	.is_enabled = never_enabled_by_hwstate,
+	.list_voltage = regulator_list_voltage_pickable_linear_range,
+	.set_voltage_sel = bd718xx_set_voltage_sel_pickable_restricted,
+	.get_voltage_sel = regulator_get_voltage_sel_pickable_regmap,
+	.set_under_voltage_protection = bd718x7_set_ldo_uvp,
+};
+
+BD718XX_OPS(bd718xx_pickable_range_buck_ops,
+	    regulator_list_voltage_pickable_linear_range, NULL,
+	    regulator_set_voltage_sel_pickable_regmap,
+	    regulator_get_voltage_sel_pickable_regmap,
+	    regulator_set_voltage_time_sel, NULL, bd718x7_set_buck_uvp,
+	    bd718x7_set_buck_ovp);
+
+BD718XX_OPS(bd718xx_ldo_regulator_ops, regulator_list_voltage_linear_range,
+	    NULL, bd718xx_set_voltage_sel_restricted,
+	    regulator_get_voltage_sel_regmap, NULL, NULL, bd718x7_set_ldo_uvp,
+	    NULL);
+
+BD718XX_OPS(bd718xx_ldo_regulator_nolinear_ops, regulator_list_voltage_table,
+	    NULL, bd718xx_set_voltage_sel_restricted,
+	    regulator_get_voltage_sel_regmap, NULL, NULL, bd718x7_set_ldo_uvp,
+	    NULL);
+
+BD718XX_OPS(bd718xx_buck_regulator_ops, regulator_list_voltage_linear_range,
+	    NULL, regulator_set_voltage_sel_regmap,
+	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
+	    NULL, bd718x7_set_buck_uvp, bd718x7_set_buck_ovp);
+
+BD718XX_OPS(bd718xx_buck_regulator_nolinear_ops, regulator_list_voltage_table,
+	    regulator_map_voltage_ascend, regulator_set_voltage_sel_regmap,
+	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
+	    NULL, bd718x7_set_buck_uvp, bd718x7_set_buck_ovp);
+
+/*
+ * OPS for BD71837
+ */
+BD718XX_OPS(bd71837_pickable_range_ldo_ops,
+	    regulator_list_voltage_pickable_linear_range, NULL,
+	    bd71837_set_voltage_sel_pickable_restricted,
+	    regulator_get_voltage_sel_pickable_regmap, NULL, NULL,
+	    bd718x7_set_ldo_uvp, NULL);
+
+BD718XX_OPS(bd71837_pickable_range_buck_ops,
+	    regulator_list_voltage_pickable_linear_range, NULL,
+	    bd71837_set_voltage_sel_pickable_restricted,
+	    regulator_get_voltage_sel_pickable_regmap,
+	    regulator_set_voltage_time_sel, NULL, bd718x7_set_buck_uvp,
+	    bd718x7_set_buck_ovp);
+
+BD718XX_OPS(bd71837_ldo_regulator_ops, regulator_list_voltage_linear_range,
+	    NULL, bd71837_set_voltage_sel_restricted,
+	    regulator_get_voltage_sel_regmap, NULL, NULL, bd718x7_set_ldo_uvp,
+	    NULL);
+
+BD718XX_OPS(bd71837_ldo_regulator_nolinear_ops, regulator_list_voltage_table,
+	    NULL, bd71837_set_voltage_sel_restricted,
+	    regulator_get_voltage_sel_regmap, NULL, NULL, bd718x7_set_ldo_uvp,
+	    NULL);
+
+BD718XX_OPS(bd71837_buck_regulator_ops, regulator_list_voltage_linear_range,
+	    NULL, bd71837_set_voltage_sel_restricted,
+	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
+	    NULL, bd718x7_set_buck_uvp, bd718x7_set_buck_ovp);
+
+BD718XX_OPS(bd71837_buck_regulator_nolinear_ops, regulator_list_voltage_table,
+	    regulator_map_voltage_ascend, bd71837_set_voltage_sel_restricted,
+	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
+	    NULL, bd718x7_set_buck_uvp, bd718x7_set_buck_ovp);
+/*
+ * BD71837 bucks 3 and 4 support defining their enable/disable state also
+ * when buck enable state is under HW state machine control. In that case the
+ * bit [2] in CTRL register is used to indicate if regulator should be ON.
+ */
+static const struct regulator_ops bd71837_buck34_ops_hwctrl = {
+	.is_enabled = bd71837_get_buck34_enable_hwctrl,
+	.list_voltage = regulator_list_voltage_linear_range,
+	.set_voltage_sel = regulator_set_voltage_sel_regmap,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
+	.set_voltage_time_sel = regulator_set_voltage_time_sel,
+	.set_ramp_delay = regulator_set_ramp_delay_regmap,
+	.set_under_voltage_protection = bd718x7_set_buck_uvp,
+	.set_over_voltage_protection = bd718x7_set_buck_ovp,
+};
+
+/*
+ * OPS for all of the ICs - BD718(37/47/50)
+ */
+BD718XX_OPS(bd718xx_dvs_buck_regulator_ops, regulator_list_voltage_linear_range,
+	    NULL, regulator_set_voltage_sel_regmap,
+	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
+	    regulator_set_ramp_delay_regmap, bd718x7_set_buck_uvp,
+	    bd718x7_set_buck_ovp);
+
+
 
 /*
  * There is a HW quirk in BD71837. The shutdown sequence timings for

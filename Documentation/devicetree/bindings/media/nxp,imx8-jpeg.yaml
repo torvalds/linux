@@ -16,12 +16,17 @@ description: |-
 
 properties:
   compatible:
-    items:
-      - enum:
-            # JPEG decoder
-          - nxp,imx8qxp-jpgdec
-            # JPEG encoder
-          - nxp,imx8qxp-jpgenc
+    oneOf:
+      - items:
+          enum:
+            - nxp,imx8qxp-jpgdec
+            - nxp,imx8qxp-jpgenc
+      - items:
+          - const: nxp,imx8qm-jpgdec
+          - const: nxp,imx8qxp-jpgdec
+      - items:
+          - const: nxp,imx8qm-jpgenc
+          - const: nxp,imx8qxp-jpgenc
 
   reg:
     maxItems: 1
@@ -69,7 +74,7 @@ examples:
     };
 
     jpegenc: jpegenc@58450000 {
-        compatible = "nxp,imx8qxp-jpgenc";
+        compatible = "nxp,imx8qm-jpgenc", "nxp,imx8qxp-jpgenc";
         reg = <0x58450000 0x00050000 >;
         interrupts = <GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>,

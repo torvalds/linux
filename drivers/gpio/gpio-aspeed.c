@@ -661,7 +661,7 @@ static void aspeed_gpio_irq_handler(struct irq_desc *desc)
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct irq_chip *ic = irq_desc_get_chip(desc);
 	struct aspeed_gpio *data = gpiochip_get_data(gc);
-	unsigned int i, p, girq, banks;
+	unsigned int i, p, banks;
 	unsigned long reg;
 	struct aspeed_gpio *gpio = gpiochip_get_data(gc);
 
@@ -673,11 +673,8 @@ static void aspeed_gpio_irq_handler(struct irq_desc *desc)
 
 		reg = ioread32(bank_reg(data, bank, reg_irq_status));
 
-		for_each_set_bit(p, &reg, 32) {
-			girq = irq_find_mapping(gc->irq.domain, i * 32 + p);
-			generic_handle_irq(girq);
-		}
-
+		for_each_set_bit(p, &reg, 32)
+			generic_handle_domain_irq(gc->irq.domain, i * 32 + p);
 	}
 
 	chained_irq_exit(ic, desc);

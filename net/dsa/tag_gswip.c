@@ -75,8 +75,7 @@ static struct sk_buff *gswip_tag_xmit(struct sk_buff *skb,
 }
 
 static struct sk_buff *gswip_tag_rcv(struct sk_buff *skb,
-				     struct net_device *dev,
-				     struct packet_type *pt)
+				     struct net_device *dev)
 {
 	int port;
 	u8 *gswip_tag;

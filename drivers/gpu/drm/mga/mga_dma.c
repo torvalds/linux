@@ -949,7 +949,7 @@ static int mga_do_cleanup_dma(struct drm_device *dev, int full_cleanup)
 	 * is freed, it's too late.
 	 */
 	if (dev->irq_enabled)
-		drm_irq_uninstall(dev);
+		drm_legacy_irq_uninstall(dev);
 
 	if (dev->dev_private) {
 		drm_mga_private_t *dev_priv = dev->dev_private;

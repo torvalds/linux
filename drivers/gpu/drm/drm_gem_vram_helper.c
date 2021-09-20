@@ -96,7 +96,7 @@ static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
  * memory region. Call drm_gem_vram_offset() to retrieve this value. Typically
  * it's used to program the hardware's scanout engine for framebuffers, set
  * the cursor overlay's image for a mouse cursor, or use it as input to the
- * hardware's draing engine.
+ * hardware's drawing engine.
  *
  * To access a buffer object's memory from the DRM driver, call
  * drm_gem_vram_vmap(). It maps the buffer into kernel address
@@ -1012,9 +1012,8 @@ static void drm_vram_mm_cleanup(struct drm_vram_mm *vmm)
  * Helpers for integration with struct drm_device
  */
 
-/* deprecated; use drmm_vram_mm_init() */
-struct drm_vram_mm *drm_vram_helper_alloc_mm(
-	struct drm_device *dev, uint64_t vram_base, size_t vram_size)
+static struct drm_vram_mm *drm_vram_helper_alloc_mm(struct drm_device *dev, uint64_t vram_base,
+						    size_t vram_size)
 {
 	int ret;
 
@@ -1036,9 +1035,8 @@ err_kfree:
 	dev->vram_mm = NULL;
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL(drm_vram_helper_alloc_mm);
 
-void drm_vram_helper_release_mm(struct drm_device *dev)
+static void drm_vram_helper_release_mm(struct drm_device *dev)
 {
 	if (!dev->vram_mm)
 		return;
@@ -1047,7 +1045,6 @@ void drm_vram_helper_release_mm(struct drm_device *dev)
 	kfree(dev->vram_mm);
 	dev->vram_mm = NULL;
 }
-EXPORT_SYMBOL(drm_vram_helper_release_mm);
 
 static void drm_vram_mm_release(struct drm_device *dev, void *ptr)
 {

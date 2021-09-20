@@ -607,7 +607,9 @@ static void bcm_sysport_set_tx_coalesce(struct bcm_sysport_tx_ring *ring,
 }
 
 static int bcm_sysport_get_coalesce(struct net_device *dev,
-				    struct ethtool_coalesce *ec)
+				    struct ethtool_coalesce *ec,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
 	u32 reg;
@@ -627,7 +629,9 @@ static int bcm_sysport_get_coalesce(struct net_device *dev,
 }
 
 static int bcm_sysport_set_coalesce(struct net_device *dev,
-				    struct ethtool_coalesce *ec)
+				    struct ethtool_coalesce *ec,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
 	struct dim_cq_moder moder;

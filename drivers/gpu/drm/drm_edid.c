@@ -1919,7 +1919,7 @@ EXPORT_SYMBOL(drm_add_override_edid_modes);
  * level, drivers must make all reasonable efforts to expose it as an I2C
  * adapter and use drm_get_edid() instead of abusing this function.
  *
- * The EDID may be overridden using debugfs override_edid or firmare EDID
+ * The EDID may be overridden using debugfs override_edid or firmware EDID
  * (drm_load_edid_firmware() and drm.edid_firmware parameter), in this priority
  * order. Having either of them bypasses actual EDID reads.
  *
@@ -5906,7 +5906,7 @@ drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
 	 * (ie.vic==0 and s3d_struct==0) we will still send it if we
 	 * know that the sink can handle it. This is based on a
 	 * suggestion in HDMI 2.0 Appendix F. Apparently some sinks
-	 * have trouble realizing that they shuld switch from 3D to 2D
+	 * have trouble realizing that they should switch from 3D to 2D
 	 * mode if the source simply stops sending the infoframe when
 	 * it wants to switch from 3D to 2D.
 	 */

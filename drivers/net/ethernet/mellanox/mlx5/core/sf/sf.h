@@ -24,11 +24,11 @@ int mlx5_devlink_sf_port_new(struct devlink *devlink,
 			     unsigned int *new_port_index);
 int mlx5_devlink_sf_port_del(struct devlink *devlink, unsigned int port_index,
 			     struct netlink_ext_ack *extack);
-int mlx5_devlink_sf_port_fn_state_get(struct devlink *devlink, struct devlink_port *dl_port,
+int mlx5_devlink_sf_port_fn_state_get(struct devlink_port *dl_port,
 				      enum devlink_port_fn_state *state,
 				      enum devlink_port_fn_opstate *opstate,
 				      struct netlink_ext_ack *extack);
-int mlx5_devlink_sf_port_fn_state_set(struct devlink *devlink, struct devlink_port *dl_port,
+int mlx5_devlink_sf_port_fn_state_set(struct devlink_port *dl_port,
 				      enum devlink_port_fn_state state,
 				      struct netlink_ext_ack *extack);
 #else

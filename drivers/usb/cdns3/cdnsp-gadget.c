@@ -1882,7 +1882,7 @@ static int __cdnsp_gadget_init(struct cdns *cdns)
 	pdev->gadget.name = "cdnsp-gadget";
 	pdev->gadget.speed = USB_SPEED_UNKNOWN;
 	pdev->gadget.sg_supported = 1;
-	pdev->gadget.max_speed = USB_SPEED_SUPER_PLUS;
+	pdev->gadget.max_speed = max_speed;
 	pdev->gadget.lpm_capable = 1;
 
 	pdev->setup_buf = kzalloc(CDNSP_EP0_SETUP_SIZE, GFP_KERNEL);

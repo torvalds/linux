@@ -4,8 +4,5 @@ ccflags-$(CONFIG_CAIF_DEBUG) := -DDEBUG
 # Serial interface
 obj-$(CONFIG_CAIF_TTY) += caif_serial.o
 
-# HSI interface
-obj-$(CONFIG_CAIF_HSI) += caif_hsi.o
-
 # Virtio interface
 obj-$(CONFIG_CAIF_VIRTIO) += caif_virtio.o

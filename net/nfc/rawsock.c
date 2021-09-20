@@ -140,7 +140,7 @@ static void rawsock_data_exchange_complete(void *context, struct sk_buff *skb,
 {
 	struct sock *sk = (struct sock *) context;
 
-	BUG_ON(in_irq());
+	BUG_ON(in_hardirq());
 
 	pr_debug("sk=%p err=%d\n", sk, err);
 

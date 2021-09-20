@@ -1624,7 +1624,7 @@ EXPORT_SYMBOL_GPL(q6asm_write_async);
 
 static void q6asm_reset_buf_state(struct audio_client *ac)
 {
-	struct audio_port_data *port = NULL;
+	struct audio_port_data *port;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ac->lock, flags);

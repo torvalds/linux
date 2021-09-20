@@ -1,0 +1,9 @@
+[
+  {
+           "BriefDescription": "ddr write-cycles event",
+           "EventCode": "0x2b",
+           "EventName": "sys_ddr_pmu.write_cycles",
+           "Unit": "sys_ddr_pmu",
+           "Compat": "v8"
+   },
+]

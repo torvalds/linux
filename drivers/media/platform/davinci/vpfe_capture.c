@@ -189,7 +189,7 @@ int vpfe_register_ccdc_device(const struct ccdc_hw_device *dev)
 	if (!ccdc_cfg) {
 		/*
 		 * TODO. Will this ever happen? if so, we need to fix it.
-		 * Proabably we need to add the request to a linked list and
+		 * Probably we need to add the request to a linked list and
 		 * walk through it during vpfe probe
 		 */
 		printk(KERN_ERR "vpfe capture not initialized\n");

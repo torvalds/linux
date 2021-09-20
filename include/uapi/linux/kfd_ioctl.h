@@ -31,9 +31,10 @@
  * - 1.3 - Add SMI events support
  * - 1.4 - Indicate new SRAM EDC bit in device properties
  * - 1.5 - Add SVM API
+ * - 1.6 - Query clear flags in SVM get_attr API
  */
 #define KFD_IOCTL_MAJOR_VERSION 1
-#define KFD_IOCTL_MINOR_VERSION 5
+#define KFD_IOCTL_MINOR_VERSION 6
 
 struct kfd_ioctl_get_version_args {
 	__u32 major_version;	/* from KFD */
@@ -575,18 +576,19 @@ struct kfd_ioctl_svm_attribute {
  * @KFD_IOCTL_SVM_ATTR_PREFERRED_LOC or
  * @KFD_IOCTL_SVM_ATTR_PREFETCH_LOC resepctively. For
  * @KFD_IOCTL_SVM_ATTR_SET_FLAGS, flags of all pages will be
- * aggregated by bitwise AND. The minimum  migration granularity
- * throughout the range will be returned for
- * @KFD_IOCTL_SVM_ATTR_GRANULARITY.
+ * aggregated by bitwise AND. That means, a flag will be set in the
+ * output, if that flag is set for all pages in the range. For
+ * @KFD_IOCTL_SVM_ATTR_CLR_FLAGS, flags of all pages will be
+ * aggregated by bitwise NOR. That means, a flag will be set in the
+ * output, if that flag is clear for all pages in the range.
+ * The minimum migration granularity throughout the range will be
+ * returned for @KFD_IOCTL_SVM_ATTR_GRANULARITY.
  *
  * Querying of accessibility attributes works by initializing the
  * attribute type to @KFD_IOCTL_SVM_ATTR_ACCESS and the value to the
  * GPUID being queried. Multiple attributes can be given to allow
  * querying multiple GPUIDs. The ioctl function overwrites the
  * attribute type to indicate the access for the specified GPU.
- *
- * @KFD_IOCTL_SVM_ATTR_CLR_FLAGS is invalid for
- * @KFD_IOCTL_SVM_OP_GET_ATTR.
  */
 struct kfd_ioctl_svm_args {
 	__u64 start_addr;

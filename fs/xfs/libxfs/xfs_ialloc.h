@@ -106,7 +106,8 @@ int xfs_read_agi(struct xfs_mount *mp, struct xfs_trans *tp,
 		xfs_agnumber_t agno, struct xfs_buf **bpp);
 
 union xfs_btree_rec;
-void xfs_inobt_btrec_to_irec(struct xfs_mount *mp, union xfs_btree_rec *rec,
+void xfs_inobt_btrec_to_irec(struct xfs_mount *mp,
+		const union xfs_btree_rec *rec,
 		struct xfs_inobt_rec_incore *irec);
 int xfs_ialloc_has_inodes_at_extent(struct xfs_btree_cur *cur,
 		xfs_agblock_t bno, xfs_extlen_t len, bool *exists);
@@ -121,5 +122,8 @@ int xfs_inobt_insert_rec(struct xfs_btree_cur *cur, uint16_t holemask,
 int xfs_ialloc_cluster_alignment(struct xfs_mount *mp);
 void xfs_ialloc_setup_geometry(struct xfs_mount *mp);
 xfs_ino_t xfs_ialloc_calc_rootino(struct xfs_mount *mp, int sunit);
+
+int xfs_ialloc_check_shrink(struct xfs_trans *tp, xfs_agnumber_t agno,
+		struct xfs_buf *agibp, xfs_agblock_t new_length);
 
 #endif	/* __XFS_IALLOC_H__ */

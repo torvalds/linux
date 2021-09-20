@@ -50,10 +50,10 @@ static void __tlb_switch_to_guest(struct kvm_s2_mmu *mmu,
 	 *
 	 * ARM erratum 1165522 requires some special handling (again),
 	 * as we need to make sure both stages of translation are in
-	 * place before clearing TGE. __load_guest_stage2() already
+	 * place before clearing TGE. __load_stage2() already
 	 * has an ISB in order to deal with this.
 	 */
-	__load_guest_stage2(mmu);
+	__load_stage2(mmu, mmu->arch);
 	val = read_sysreg(hcr_el2);
 	val &= ~HCR_TGE;
 	write_sysreg(val, hcr_el2);

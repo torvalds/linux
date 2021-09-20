@@ -20,28 +20,29 @@
 /*
  * Lock ordering in mm:
  *
- * inode->i_mutex	(while writing or truncating, not reading or faulting)
+ * inode->i_rwsem	(while writing or truncating, not reading or faulting)
  *   mm->mmap_lock
- *     page->flags PG_locked (lock_page)   * (see huegtlbfs below)
- *       hugetlbfs_i_mmap_rwsem_key (in huge_pmd_share)
- *         mapping->i_mmap_rwsem
- *           hugetlb_fault_mutex (hugetlbfs specific page fault mutex)
- *           anon_vma->rwsem
- *             mm->page_table_lock or pte_lock
- *               swap_lock (in swap_duplicate, swap_info_get)
- *                 mmlist_lock (in mmput, drain_mmlist and others)
- *                 mapping->private_lock (in __set_page_dirty_buffers)
- *                   lock_page_memcg move_lock (in __set_page_dirty_buffers)
- *                     i_pages lock (widely used)
- *                       lruvec->lru_lock (in lock_page_lruvec_irq)
- *                 inode->i_lock (in set_page_dirty's __mark_inode_dirty)
- *                 bdi.wb->list_lock (in set_page_dirty's __mark_inode_dirty)
- *                   sb_lock (within inode_lock in fs/fs-writeback.c)
- *                   i_pages lock (widely used, in set_page_dirty,
- *                             in arch-dependent flush_dcache_mmap_lock,
- *                             within bdi.wb->list_lock in __sync_single_inode)
+ *     mapping->invalidate_lock (in filemap_fault)
+ *       page->flags PG_locked (lock_page)   * (see hugetlbfs below)
+ *         hugetlbfs_i_mmap_rwsem_key (in huge_pmd_share)
+ *           mapping->i_mmap_rwsem
+ *             hugetlb_fault_mutex (hugetlbfs specific page fault mutex)
+ *             anon_vma->rwsem
+ *               mm->page_table_lock or pte_lock
+ *                 swap_lock (in swap_duplicate, swap_info_get)
+ *                   mmlist_lock (in mmput, drain_mmlist and others)
+ *                   mapping->private_lock (in __set_page_dirty_buffers)
+ *                     lock_page_memcg move_lock (in __set_page_dirty_buffers)
+ *                       i_pages lock (widely used)
+ *                         lruvec->lru_lock (in lock_page_lruvec_irq)
+ *                   inode->i_lock (in set_page_dirty's __mark_inode_dirty)
+ *                   bdi.wb->list_lock (in set_page_dirty's __mark_inode_dirty)
+ *                     sb_lock (within inode_lock in fs/fs-writeback.c)
+ *                     i_pages lock (widely used, in set_page_dirty,
+ *                               in arch-dependent flush_dcache_mmap_lock,
+ *                               within bdi.wb->list_lock in __sync_single_inode)
  *
- * anon_vma->rwsem,mapping->i_mutex      (memory_failure, collect_procs_anon)
+ * anon_vma->rwsem,mapping->i_mmap_rwsem   (memory_failure, collect_procs_anon)
  *   ->tasklist_lock
  *     pte map lock
  *
@@ -1230,11 +1231,13 @@ void page_add_file_rmap(struct page *page, bool compound)
 						nr_pages);
 	} else {
 		if (PageTransCompound(page) && page_mapping(page)) {
+			struct page *head = compound_head(page);
+
 			VM_WARN_ON_ONCE(!PageLocked(page));
 
-			SetPageDoubleMap(compound_head(page));
+			SetPageDoubleMap(head);
 			if (PageMlocked(page))
-				clear_page_mlock(compound_head(page));
+				clear_page_mlock(head);
 		}
 		if (!atomic_inc_and_test(&page->_mapcount))
 			goto out;
@@ -1440,21 +1443,20 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 		/*
 		 * If the page is mlock()d, we cannot swap it out.
 		 */
-		if (!(flags & TTU_IGNORE_MLOCK)) {
-			if (vma->vm_flags & VM_LOCKED) {
-				/* PTE-mapped THP are never marked as mlocked */
-				if (!PageTransCompound(page) ||
-				    (PageHead(page) && !PageDoubleMap(page))) {
-					/*
-					 * Holding pte lock, we do *not* need
-					 * mmap_lock here
-					 */
-					mlock_vma_page(page);
-				}
-				ret = false;
-				page_vma_mapped_walk_done(&pvmw);
-				break;
-			}
+		if (!(flags & TTU_IGNORE_MLOCK) &&
+		    (vma->vm_flags & VM_LOCKED)) {
+			/*
+			 * PTE-mapped THP are never marked as mlocked: so do
+			 * not set it on a DoubleMap THP, nor on an Anon THP
+			 * (which may still be PTE-mapped after DoubleMap was
+			 * cleared).  But stop unmapping even in those cases.
+			 */
+			if (!PageTransCompound(page) || (PageHead(page) &&
+			     !PageDoubleMap(page) && !PageAnon(page)))
+				mlock_vma_page(page);
+			page_vma_mapped_walk_done(&pvmw);
+			ret = false;
+			break;
 		}
 
 		/* Unexpected PMD-mapped THP? */
@@ -1986,8 +1988,10 @@ static bool page_mlock_one(struct page *page, struct vm_area_struct *vma,
 		 */
 		if (vma->vm_flags & VM_LOCKED) {
 			/*
-			 * PTE-mapped THP are never marked as mlocked, but
-			 * this function is never called when PageDoubleMap().
+			 * PTE-mapped THP are never marked as mlocked; but
+			 * this function is never called on a DoubleMap THP,
+			 * nor on an Anon THP (which may still be PTE-mapped
+			 * after DoubleMap was cleared).
 			 */
 			mlock_vma_page(page);
 			/*
@@ -2021,6 +2025,10 @@ void page_mlock(struct page *page)
 
 	VM_BUG_ON_PAGE(!PageLocked(page) || PageLRU(page), page);
 	VM_BUG_ON_PAGE(PageCompound(page) && PageDoubleMap(page), page);
+
+	/* Anon THP are only marked as mlocked when singly mapped */
+	if (PageTransCompound(page) && PageAnon(page))
+		return;
 
 	rmap_walk(page, &rwc);
 }

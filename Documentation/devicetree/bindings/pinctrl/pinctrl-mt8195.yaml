@@ -80,10 +80,7 @@ patternProperties:
           as macros in dt-bindings/pinctrl/<soc>-pinfunc.h directly.
 
       drive-strength:
-        description: |
-          It can support some arguments which is from 0 to 7. It can only support
-          2/4/6/8/10/12/14/16mA in mt8195.
-        enum: [0, 1, 2, 3, 4, 5, 6, 7]
+        enum: [2, 4, 6, 8, 10, 12, 14, 16]
 
       bias-pull-down: true
 

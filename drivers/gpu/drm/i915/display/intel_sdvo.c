@@ -1824,7 +1824,7 @@ static void intel_enable_sdvo(struct intel_atomic_state *state,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
-	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	u32 temp;
 	bool input1, input2;
 	int i;
@@ -1835,7 +1835,7 @@ static void intel_enable_sdvo(struct intel_atomic_state *state,
 	intel_sdvo_write_sdvox(intel_sdvo, temp);
 
 	for (i = 0; i < 2; i++)
-		intel_wait_for_vblank(dev_priv, intel_crtc->pipe);
+		intel_wait_for_vblank(dev_priv, crtc->pipe);
 
 	success = intel_sdvo_get_trained_inputs(intel_sdvo, &input1, &input2);
 	/*

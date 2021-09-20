@@ -15,16 +15,30 @@
 		interrupt-parent = <&intcon>;
 
 		/*
-		 * The IXP4xx expansion bus is a set of 16 or 32MB
-		 * windows in the 256MB space from 0x50000000 to
-		 * 0x5fffffff.
+		 * The IXP4xx expansion bus is a set of up to 7 each up to 16MB
+		 * windows in the 256MB space from 0x50000000 to 0x5fffffff.
 		 */
-		bus@50000000 {
-			compatible = "simple-bus";
-			#address-cells = <1>;
+		bus@c4000000 {
+			/* compatible and reg filled in by per-soc device tree */
+			native-endian;
+			#address-cells = <2>;
 			#size-cells = <1>;
-			ranges = <0x00000000 0x50000000 0x10000000>;
-			dma-ranges = <0x00000000 0x50000000 0x10000000>;
+			ranges = <0 0x0 0x50000000 0x01000000>,
+				 <1 0x0 0x51000000 0x01000000>,
+				 <2 0x0 0x52000000 0x01000000>,
+				 <3 0x0 0x53000000 0x01000000>,
+				 <4 0x0 0x54000000 0x01000000>,
+				 <5 0x0 0x55000000 0x01000000>,
+				 <6 0x0 0x56000000 0x01000000>,
+				 <7 0x0 0x57000000 0x01000000>;
+			dma-ranges = <0 0x0 0x50000000 0x01000000>,
+				 <1 0x0 0x51000000 0x01000000>,
+				 <2 0x0 0x52000000 0x01000000>,
+				 <3 0x0 0x53000000 0x01000000>,
+				 <4 0x0 0x54000000 0x01000000>,
+				 <5 0x0 0x55000000 0x01000000>,
+				 <6 0x0 0x56000000 0x01000000>,
+				 <7 0x0 0x57000000 0x01000000>;
 		};
 
 		qmgr: queue-manager@60000000 {
@@ -79,6 +93,20 @@
 			reg-offset = <3>;
 			reg-shift = <2>;
 			interrupts = <15 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <14745600>;
+			no-loopback-test;
+		};
+
+		uart1: serial@c8001000 {
+			compatible = "intel,xscale-uart";
+			reg = <0xc8001000 0x1000>;
+			/*
+			 * The reg-offset and reg-shift is a side effect
+			 * of running the platform in big endian mode.
+			 */
+			reg-offset = <3>;
+			reg-shift = <2>;
+			interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
 			clock-frequency = <14745600>;
 			no-loopback-test;
 		};

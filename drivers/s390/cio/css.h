@@ -81,7 +81,7 @@ struct css_driver {
 	int (*chp_event)(struct subchannel *, struct chp_link *, int);
 	int (*sch_event)(struct subchannel *, int);
 	int (*probe)(struct subchannel *);
-	int (*remove)(struct subchannel *);
+	void (*remove)(struct subchannel *);
 	void (*shutdown)(struct subchannel *);
 	int (*settle)(void);
 };

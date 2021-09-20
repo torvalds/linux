@@ -21,26 +21,6 @@
  */
 
 /*
- * __has_attribute is supported on gcc >= 5, clang >= 2.9 and icc >= 17.
- * In the meantime, to support gcc < 5, we implement __has_attribute
- * by hand.
- */
-#ifndef __has_attribute
-# define __has_attribute(x) __GCC4_has_attribute_##x
-# define __GCC4_has_attribute___assume_aligned__      1
-# define __GCC4_has_attribute___copy__                0
-# define __GCC4_has_attribute___designated_init__     0
-# define __GCC4_has_attribute___externally_visible__  1
-# define __GCC4_has_attribute___no_caller_saved_registers__ 0
-# define __GCC4_has_attribute___noclone__             1
-# define __GCC4_has_attribute___no_profile_instrument_function__ 0
-# define __GCC4_has_attribute___nonstring__           0
-# define __GCC4_has_attribute___no_sanitize_address__ 1
-# define __GCC4_has_attribute___no_sanitize_undefined__ 1
-# define __GCC4_has_attribute___fallthrough__         0
-#endif
-
-/*
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-alias-function-attribute
  */
 #define __alias(symbol)                 __attribute__((__alias__(#symbol)))
@@ -74,7 +54,6 @@
  * compiler should see some alignment anyway, when the return value is
  * massaged by 'flags = ptr & 3; ptr &= ~3;').
  *
- * Optional: only supported since gcc >= 4.9
  * Optional: not supported by icc
  *
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-assume_005faligned-function-attribute
@@ -135,6 +114,17 @@
 # define __designated_init              __attribute__((__designated_init__))
 #else
 # define __designated_init
+#endif
+
+/*
+ * Optional: only supported since clang >= 14.0
+ *
+ *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-error-function-attribute
+ */
+#if __has_attribute(__error__)
+# define __compiletime_error(msg)       __attribute__((__error__(msg)))
+#else
+# define __compiletime_error(msg)
 #endif
 
 /*
@@ -297,6 +287,17 @@
  * clang: https://clang.llvm.org/docs/AttributeReference.html#nodiscard-warn-unused-result
  */
 #define __must_check                    __attribute__((__warn_unused_result__))
+
+/*
+ * Optional: only supported since clang >= 14.0
+ *
+ *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-warning-function-attribute
+ */
+#if __has_attribute(__warning__)
+# define __compiletime_warning(msg)     __attribute__((__warning__(msg)))
+#else
+# define __compiletime_warning(msg)
+#endif
 
 /*
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-weak-function-attribute

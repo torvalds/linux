@@ -1,3 +1,7 @@
+.. raw:: latex
+
+	\kerneldocCJKoff
+
 NOTE:
 This is a version of Documentation/process/howto.rst translated into korean
 This document is maintained by Minchan Kim <minchan@kernel.org>
@@ -10,6 +14,10 @@ a fork. So if you have any comments or updates for this file please
 try to update the original English file first.
 
 ----------------------------------
+
+.. raw:: latex
+
+	\kerneldocCJKon
 
 이 문서는
 Documentation/process/howto.rst

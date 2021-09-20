@@ -58,8 +58,6 @@ struct pipe_ctx *dcn20_acquire_idle_pipe_for_layer(
 		struct dc_state *state,
 		const struct resource_pool *pool,
 		struct dc_stream_state *stream);
-void dcn20_populate_dml_writeback_from_context(
-		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes);
 
 struct stream_encoder *dcn20_stream_encoder_create(
 	enum engine_id eng_id,

@@ -114,7 +114,7 @@ void vg_update_clocks(struct clk_mgr *clk_mgr_base,
 
 			display_count = vg_get_active_display_cnt_wa(dc, context);
 			/* if we can go lower, go lower */
-			if (display_count == 0) {
+			if (display_count == 0 && !IS_DIAG_DC(dc->ctx->dce_environment)) {
 				union display_idle_optimization_u idle_info = { 0 };
 
 				idle_info.idle_info.df_request_disabled = 1;

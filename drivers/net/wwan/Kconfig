@@ -38,6 +38,18 @@ config MHI_WWAN_CTRL
 	  To compile this driver as a module, choose M here: the module will be
 	  called mhi_wwan_ctrl.
 
+config MHI_WWAN_MBIM
+        tristate "MHI WWAN MBIM network driver for QCOM-based PCIe modems"
+        depends on MHI_BUS
+        help
+          MHI WWAN MBIM is a WWAN network driver for QCOM-based PCIe modems.
+          It implements MBIM over MHI, for IP data aggregation and muxing.
+          A default wwan0 network interface is created for MBIM data session
+          ID 0. Additional links can be created via wwan rtnetlink type.
+
+          To compile this driver as a module, choose M here: the module will be
+          called mhi_wwan_mbim.
+
 config RPMSG_WWAN_CTRL
 	tristate "RPMSG WWAN control driver"
 	depends on RPMSG

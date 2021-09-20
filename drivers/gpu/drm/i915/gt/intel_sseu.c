@@ -139,17 +139,36 @@ static void gen12_sseu_info_init(struct intel_gt *gt)
 	 * Gen12 has Dual-Subslices, which behave similarly to 2 gen11 SS.
 	 * Instead of splitting these, provide userspace with an array
 	 * of DSS to more closely represent the hardware resource.
+	 *
+	 * In addition, the concept of slice has been removed in Xe_HP.
+	 * To be compatible with prior generations, assume a single slice
+	 * across the entire device. Then calculate out the DSS for each
+	 * workload type within that software slice.
 	 */
-	intel_sseu_set_info(sseu, 1, 6, 16);
+	if (IS_DG2(gt->i915) || IS_XEHPSDV(gt->i915))
+		intel_sseu_set_info(sseu, 1, 32, 16);
+	else
+		intel_sseu_set_info(sseu, 1, 6, 16);
 
-	s_en = intel_uncore_read(uncore, GEN11_GT_SLICE_ENABLE) &
-		GEN11_GT_S_ENA_MASK;
+	/*
+	 * As mentioned above, Xe_HP does not have the concept of a slice.
+	 * Enable one for software backwards compatibility.
+	 */
+	if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 50))
+		s_en = 0x1;
+	else
+		s_en = intel_uncore_read(uncore, GEN11_GT_SLICE_ENABLE) &
+		       GEN11_GT_S_ENA_MASK;
 
 	dss_en = intel_uncore_read(uncore, GEN12_GT_DSS_ENABLE);
 
 	/* one bit per pair of EUs */
-	eu_en_fuse = ~(intel_uncore_read(uncore, GEN11_EU_DISABLE) &
-		       GEN11_EU_DIS_MASK);
+	if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 50))
+		eu_en_fuse = intel_uncore_read(uncore, XEHP_EU_ENABLE) & XEHP_EU_ENA_MASK;
+	else
+		eu_en_fuse = ~(intel_uncore_read(uncore, GEN11_EU_DISABLE) &
+			       GEN11_EU_DIS_MASK);
+
 	for (eu = 0; eu < sseu->max_eus_per_subslice / 2; eu++)
 		if (eu_en_fuse & BIT(eu))
 			eu_en |= BIT(eu * 2) | BIT(eu * 2 + 1);
@@ -183,83 +202,6 @@ static void gen11_sseu_info_init(struct intel_gt *gt)
 	gen11_compute_sseu_info(sseu, s_en, ss_en, eu_en);
 
 	/* ICL has no power gating restrictions. */
-	sseu->has_slice_pg = 1;
-	sseu->has_subslice_pg = 1;
-	sseu->has_eu_pg = 1;
-}
-
-static void gen10_sseu_info_init(struct intel_gt *gt)
-{
-	struct intel_uncore *uncore = gt->uncore;
-	struct sseu_dev_info *sseu = &gt->info.sseu;
-	const u32 fuse2 = intel_uncore_read(uncore, GEN8_FUSE2);
-	const int eu_mask = 0xff;
-	u32 subslice_mask, eu_en;
-	int s, ss;
-
-	intel_sseu_set_info(sseu, 6, 4, 8);
-
-	sseu->slice_mask = (fuse2 & GEN10_F2_S_ENA_MASK) >>
-		GEN10_F2_S_ENA_SHIFT;
-
-	/* Slice0 */
-	eu_en = ~intel_uncore_read(uncore, GEN8_EU_DISABLE0);
-	for (ss = 0; ss < sseu->max_subslices; ss++)
-		sseu_set_eus(sseu, 0, ss, (eu_en >> (8 * ss)) & eu_mask);
-	/* Slice1 */
-	sseu_set_eus(sseu, 1, 0, (eu_en >> 24) & eu_mask);
-	eu_en = ~intel_uncore_read(uncore, GEN8_EU_DISABLE1);
-	sseu_set_eus(sseu, 1, 1, eu_en & eu_mask);
-	/* Slice2 */
-	sseu_set_eus(sseu, 2, 0, (eu_en >> 8) & eu_mask);
-	sseu_set_eus(sseu, 2, 1, (eu_en >> 16) & eu_mask);
-	/* Slice3 */
-	sseu_set_eus(sseu, 3, 0, (eu_en >> 24) & eu_mask);
-	eu_en = ~intel_uncore_read(uncore, GEN8_EU_DISABLE2);
-	sseu_set_eus(sseu, 3, 1, eu_en & eu_mask);
-	/* Slice4 */
-	sseu_set_eus(sseu, 4, 0, (eu_en >> 8) & eu_mask);
-	sseu_set_eus(sseu, 4, 1, (eu_en >> 16) & eu_mask);
-	/* Slice5 */
-	sseu_set_eus(sseu, 5, 0, (eu_en >> 24) & eu_mask);
-	eu_en = ~intel_uncore_read(uncore, GEN10_EU_DISABLE3);
-	sseu_set_eus(sseu, 5, 1, eu_en & eu_mask);
-
-	subslice_mask = (1 << 4) - 1;
-	subslice_mask &= ~((fuse2 & GEN10_F2_SS_DIS_MASK) >>
-			   GEN10_F2_SS_DIS_SHIFT);
-
-	for (s = 0; s < sseu->max_slices; s++) {
-		u32 subslice_mask_with_eus = subslice_mask;
-
-		for (ss = 0; ss < sseu->max_subslices; ss++) {
-			if (sseu_get_eus(sseu, s, ss) == 0)
-				subslice_mask_with_eus &= ~BIT(ss);
-		}
-
-		/*
-		 * Slice0 can have up to 3 subslices, but there are only 2 in
-		 * slice1/2.
-		 */
-		intel_sseu_set_subslices(sseu, s, s == 0 ?
-					 subslice_mask_with_eus :
-					 subslice_mask_with_eus & 0x3);
-	}
-
-	sseu->eu_total = compute_eu_total(sseu);
-
-	/*
-	 * CNL is expected to always have a uniform distribution
-	 * of EU across subslices with the exception that any one
-	 * EU in any one subslice may be fused off for die
-	 * recovery.
-	 */
-	sseu->eu_per_subslice =
-		intel_sseu_subslice_total(sseu) ?
-		DIV_ROUND_UP(sseu->eu_total, intel_sseu_subslice_total(sseu)) :
-		0;
-
-	/* No restrictions on Power Gating */
 	sseu->has_slice_pg = 1;
 	sseu->has_subslice_pg = 1;
 	sseu->has_eu_pg = 1;
@@ -592,8 +534,6 @@ void intel_sseu_info_init(struct intel_gt *gt)
 		bdw_sseu_info_init(gt);
 	else if (GRAPHICS_VER(i915) == 9)
 		gen9_sseu_info_init(gt);
-	else if (GRAPHICS_VER(i915) == 10)
-		gen10_sseu_info_init(gt);
 	else if (GRAPHICS_VER(i915) == 11)
 		gen11_sseu_info_init(gt);
 	else if (GRAPHICS_VER(i915) >= 12)
@@ -759,3 +699,21 @@ void intel_sseu_print_topology(const struct sseu_dev_info *sseu,
 		}
 	}
 }
+
+u16 intel_slicemask_from_dssmask(u64 dss_mask, int dss_per_slice)
+{
+	u16 slice_mask = 0;
+	int i;
+
+	WARN_ON(sizeof(dss_mask) * 8 / dss_per_slice > 8 * sizeof(slice_mask));
+
+	for (i = 0; dss_mask; i++) {
+		if (dss_mask & GENMASK(dss_per_slice - 1, 0))
+			slice_mask |= BIT(i);
+
+		dss_mask >>= dss_per_slice;
+	}
+
+	return slice_mask;
+}
+

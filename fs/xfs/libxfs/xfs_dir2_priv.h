@@ -196,7 +196,7 @@ xfs_dir2_data_entsize(
 
 	len = offsetof(struct xfs_dir2_data_entry, name[0]) + namelen +
 			sizeof(xfs_dir2_data_off_t) /* tag */;
-	if (xfs_sb_version_hasftype(&mp->m_sb))
+	if (xfs_has_ftype(mp))
 		len += sizeof(uint8_t);
 	return round_up(len, XFS_DIR2_DATA_ALIGN);
 }

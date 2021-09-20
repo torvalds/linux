@@ -35,6 +35,7 @@ struct omap2430_glue {
 	struct device		*control_otghs;
 	unsigned int		is_runtime_suspended:1;
 	unsigned int		needs_resume:1;
+	unsigned int		phy_suspended:1;
 };
 #define glue_to_musb(g)		platform_get_drvdata(g->musb)
 
@@ -458,8 +459,10 @@ static int omap2430_runtime_suspend(struct device *dev)
 
 	omap2430_low_level_exit(musb);
 
-	phy_power_off(musb->phy);
-	phy_exit(musb->phy);
+	if (!glue->phy_suspended) {
+		phy_power_off(musb->phy);
+		phy_exit(musb->phy);
+	}
 
 	glue->is_runtime_suspended = 1;
 
@@ -474,8 +477,10 @@ static int omap2430_runtime_resume(struct device *dev)
 	if (!musb)
 		return 0;
 
-	phy_init(musb->phy);
-	phy_power_on(musb->phy);
+	if (!glue->phy_suspended) {
+		phy_init(musb->phy);
+		phy_power_on(musb->phy);
+	}
 
 	omap2430_low_level_init(musb);
 	musb_writel(musb->mregs, OTG_INTERFSEL,
@@ -489,7 +494,21 @@ static int omap2430_runtime_resume(struct device *dev)
 	return 0;
 }
 
+/* I2C and SPI PHYs need to be suspended before the glue layer */
 static int omap2430_suspend(struct device *dev)
+{
+	struct omap2430_glue *glue = dev_get_drvdata(dev);
+	struct musb *musb = glue_to_musb(glue);
+
+	phy_power_off(musb->phy);
+	phy_exit(musb->phy);
+	glue->phy_suspended = 1;
+
+	return 0;
+}
+
+/* Glue layer needs to be suspended after musb_suspend() */
+static int omap2430_suspend_late(struct device *dev)
 {
 	struct omap2430_glue *glue = dev_get_drvdata(dev);
 
@@ -501,7 +520,7 @@ static int omap2430_suspend(struct device *dev)
 	return omap2430_runtime_suspend(dev);
 }
 
-static int omap2430_resume(struct device *dev)
+static int omap2430_resume_early(struct device *dev)
 {
 	struct omap2430_glue *glue = dev_get_drvdata(dev);
 
@@ -513,10 +532,24 @@ static int omap2430_resume(struct device *dev)
 	return omap2430_runtime_resume(dev);
 }
 
+static int omap2430_resume(struct device *dev)
+{
+	struct omap2430_glue *glue = dev_get_drvdata(dev);
+	struct musb *musb = glue_to_musb(glue);
+
+	phy_init(musb->phy);
+	phy_power_on(musb->phy);
+	glue->phy_suspended = 0;
+
+	return 0;
+}
+
 static const struct dev_pm_ops omap2430_pm_ops = {
 	.runtime_suspend = omap2430_runtime_suspend,
 	.runtime_resume = omap2430_runtime_resume,
 	.suspend = omap2430_suspend,
+	.suspend_late = omap2430_suspend_late,
+	.resume_early = omap2430_resume_early,
 	.resume = omap2430_resume,
 };
 

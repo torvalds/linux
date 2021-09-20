@@ -2056,6 +2056,17 @@ Cpuset Interface Files
 	The value of "cpuset.mems" stays constant until the next update
 	and won't be affected by any memory nodes hotplug events.
 
+	Setting a non-empty value to "cpuset.mems" causes memory of
+	tasks within the cgroup to be migrated to the designated nodes if
+	they are currently using memory outside of the designated nodes.
+
+	There is a cost for this memory migration.  The migration
+	may not be complete and some memory pages may be left behind.
+	So it is recommended that "cpuset.mems" should be set properly
+	before spawning new tasks into the cpuset.  Even if there is
+	a need to change "cpuset.mems" with active tasks, it shouldn't
+	be done frequently.
+
   cpuset.mems.effective
 	A read-only multiple values file which exists on all
 	cpuset-enabled cgroups.

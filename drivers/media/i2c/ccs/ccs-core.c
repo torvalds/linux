@@ -1943,6 +1943,51 @@ static int ccs_set_stream(struct v4l2_subdev *subdev, int enable)
 	return rval;
 }
 
+static int ccs_pre_streamon(struct v4l2_subdev *subdev, u32 flags)
+{
+	struct ccs_sensor *sensor = to_ccs_sensor(subdev);
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+	int rval;
+
+	if (flags & V4L2_SUBDEV_PRE_STREAMON_FL_MANUAL_LP) {
+		switch (sensor->hwcfg.csi_signalling_mode) {
+		case CCS_CSI_SIGNALING_MODE_CSI_2_DPHY:
+			if (!(CCS_LIM(sensor, PHY_CTRL_CAPABILITY_2) &
+			      CCS_PHY_CTRL_CAPABILITY_2_MANUAL_LP_DPHY))
+				return -EACCES;
+			break;
+		case CCS_CSI_SIGNALING_MODE_CSI_2_CPHY:
+			if (!(CCS_LIM(sensor, PHY_CTRL_CAPABILITY_2) &
+			      CCS_PHY_CTRL_CAPABILITY_2_MANUAL_LP_CPHY))
+				return -EACCES;
+			break;
+		default:
+			return -EACCES;
+		}
+	}
+
+	rval = ccs_pm_get_init(sensor);
+	if (rval)
+		return rval;
+
+	if (flags & V4L2_SUBDEV_PRE_STREAMON_FL_MANUAL_LP) {
+		rval = ccs_write(sensor, MANUAL_LP_CTRL,
+				 CCS_MANUAL_LP_CTRL_ENABLE);
+		if (rval)
+			pm_runtime_put(&client->dev);
+	}
+
+	return rval;
+}
+
+static int ccs_post_streamoff(struct v4l2_subdev *subdev)
+{
+	struct ccs_sensor *sensor = to_ccs_sensor(subdev);
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+
+	return pm_runtime_put(&client->dev);
+}
+
 static int ccs_enum_mbus_code(struct v4l2_subdev *subdev,
 			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_mbus_code_enum *code)
@@ -2673,8 +2718,7 @@ static int ccs_get_skip_top_lines(struct v4l2_subdev *subdev, u32 *lines)
  */
 
 static ssize_t
-ccs_sysfs_nvm_read(struct device *dev, struct device_attribute *attr,
-		   char *buf)
+nvm_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(to_i2c_client(dev));
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
@@ -2704,11 +2748,10 @@ ccs_sysfs_nvm_read(struct device *dev, struct device_attribute *attr,
 	 */
 	return rval;
 }
-static DEVICE_ATTR(nvm, S_IRUGO, ccs_sysfs_nvm_read, NULL);
+static DEVICE_ATTR_RO(nvm);
 
 static ssize_t
-ccs_sysfs_ident_read(struct device *dev, struct device_attribute *attr,
-		     char *buf)
+ident_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(to_i2c_client(dev));
 	struct ccs_sensor *sensor = to_ccs_sensor(subdev);
@@ -2723,8 +2766,7 @@ ccs_sysfs_ident_read(struct device *dev, struct device_attribute *attr,
 				minfo->smia_manufacturer_id, minfo->model_id,
 				minfo->revision_number) + 1;
 }
-
-static DEVICE_ATTR(ident, S_IRUGO, ccs_sysfs_ident_read, NULL);
+static DEVICE_ATTR_RO(ident);
 
 /* -----------------------------------------------------------------------------
  * V4L2 subdev core operations
@@ -3058,6 +3100,8 @@ static int ccs_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 static const struct v4l2_subdev_video_ops ccs_video_ops = {
 	.s_stream = ccs_set_stream,
+	.pre_streamon = ccs_pre_streamon,
+	.post_streamoff = ccs_post_streamoff,
 };
 
 static const struct v4l2_subdev_pad_ops ccs_pad_ops = {

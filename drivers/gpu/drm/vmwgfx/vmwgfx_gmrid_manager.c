@@ -71,8 +71,40 @@ static int vmw_gmrid_man_get_node(struct ttm_resource_manager *man,
 
 	if (gman->max_gmr_pages > 0) {
 		gman->used_gmr_pages += (*res)->num_pages;
-		if (unlikely(gman->used_gmr_pages > gman->max_gmr_pages))
-			goto nospace;
+		/*
+		 * Because the graphics memory is a soft limit we can try to
+		 * expand it instead of letting the userspace apps crash.
+		 * We're just going to have a sane limit (half of RAM)
+		 * on the number of MOB's that we create and will try to keep
+		 * the system running until we reach that.
+		 */
+		if (unlikely(gman->used_gmr_pages > gman->max_gmr_pages)) {
+			const unsigned long max_graphics_pages = totalram_pages() / 2;
+			uint32_t new_max_pages = 0;
+
+			DRM_WARN("vmwgfx: mob memory overflow. Consider increasing guest RAM and graphicsMemory.\n");
+			vmw_host_printf("vmwgfx, warning: mob memory overflow. Consider increasing guest RAM and graphicsMemory.\n");
+
+			if (gman->max_gmr_pages > (max_graphics_pages / 2)) {
+				DRM_WARN("vmwgfx: guest requires more than half of RAM for graphics.\n");
+				new_max_pages = max_graphics_pages;
+			} else
+				new_max_pages = gman->max_gmr_pages * 2;
+			if (new_max_pages > gman->max_gmr_pages && new_max_pages >= gman->used_gmr_pages) {
+				DRM_WARN("vmwgfx: increasing guest mob limits to %u kB.\n",
+					 ((new_max_pages) << (PAGE_SHIFT - 10)));
+
+				gman->max_gmr_pages = new_max_pages;
+			} else {
+				char buf[256];
+				snprintf(buf, sizeof(buf),
+					 "vmwgfx, error: guest graphics is out of memory (mob limit at: %ukB).\n",
+					 ((gman->max_gmr_pages) << (PAGE_SHIFT - 10)));
+				vmw_host_printf(buf);
+				DRM_WARN("%s", buf);
+				goto nospace;
+			}
+		}
 	}
 
 	(*res)->start = id;

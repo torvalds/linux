@@ -10,6 +10,19 @@ config DRM_ARCPGU
 
 	  If M is selected the module will be called arcpgu.
 
+config DRM_BOCHS
+	tristate "DRM Support for bochs dispi vga interface (qemu stdvga)"
+	depends on DRM && PCI && MMU
+	select DRM_KMS_HELPER
+	select DRM_VRAM_HELPER
+	select DRM_TTM
+	select DRM_TTM_HELPER
+	help
+	  This is a KMS driver for qemu's stdvga output. Choose this option
+	  for qemu.
+
+	  If M is selected the module will be called bochs.
+
 config DRM_CIRRUS_QEMU
 	tristate "Cirrus driver for QEMU emulated device"
 	depends on DRM && PCI && MMU
@@ -51,8 +64,8 @@ config DRM_SIMPLEDRM
 	  buffer, size, and display format must be provided via device tree,
 	  UEFI, VESA, etc.
 
-	  On x86 and compatible, you should also select CONFIG_X86_SYSFB to
-	  use UEFI and VESA framebuffers.
+	  On x86 BIOS or UEFI systems, you should also select SYSFB_SIMPLEFB
+	  to use UEFI and VESA framebuffers.
 
 config TINYDRM_HX8357D
 	tristate "DRM support for HX8357D display panels"

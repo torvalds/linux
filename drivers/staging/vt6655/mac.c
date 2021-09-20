@@ -3,8 +3,6 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * File: mac.c
- *
  * Purpose:  MAC routines
  *
  * Author: Tevin Chen
@@ -775,7 +773,6 @@ void MACvSetKeyEntry(struct vnt_private *priv, unsigned short wKeyCtl,
 	if (byLocalID <= 1)
 		return;
 
-	pr_debug("%s\n", __func__);
 	offset = MISCFIFO_KEYETRY0;
 	offset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);
 

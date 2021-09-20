@@ -578,10 +578,6 @@ static bool jz4740_mmc_read_data(struct jz4740_mmc_host *host,
 			}
 		}
 		data->bytes_xfered += miter->length;
-
-		/* This can go away once MIPS implements
-		 * flush_kernel_dcache_page */
-		flush_dcache_page(miter->page);
 	}
 	sg_miter_stop(miter);
 
@@ -789,6 +785,8 @@ static irqreturn_t jz_mmc_irq_worker(int irq, void *devid)
 				break;
 			}
 		}
+		fallthrough;
+
 	case JZ4740_MMC_STATE_DONE:
 		break;
 	}

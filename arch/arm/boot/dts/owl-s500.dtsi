@@ -324,5 +324,15 @@
 			dma-names = "mmc";
 			status = "disabled";
 		};
+
+		ethernet: ethernet@b0310000 {
+			compatible = "actions,s500-emac", "actions,owl-emac";
+			reg = <0xb0310000 0x10000>;
+			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu CLK_ETHERNET>, <&cmu CLK_RMII_REF>;
+			clock-names = "eth", "rmii";
+			resets = <&cmu RESET_ETHERNET>;
+			status = "disabled";
+		};
 	};
 };

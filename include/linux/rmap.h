@@ -291,7 +291,9 @@ static inline int page_referenced(struct page *page, int is_locked,
 	return 0;
 }
 
-#define try_to_unmap(page, refs) false
+static inline void try_to_unmap(struct page *page, enum ttu_flags flags)
+{
+}
 
 static inline int page_mkclean(struct page *page)
 {

@@ -24,10 +24,6 @@ __asm__(".syntax unified");
 
 #ifdef CONFIG_THUMB2_KERNEL
 
-#if __GNUC__ < 4
-#error Thumb-2 kernel requires gcc >= 4
-#endif
-
 /* The CPSR bit describing the instruction set (Thumb) */
 #define PSR_ISETSTATE	PSR_T_BIT
 

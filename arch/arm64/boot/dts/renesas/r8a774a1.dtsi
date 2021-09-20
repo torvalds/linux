@@ -25,7 +25,7 @@
 		i2c4 = &i2c4;
 		i2c5 = &i2c5;
 		i2c6 = &i2c6;
-		i2c7 = &i2c_dvfs;
+		i2c7 = &iic_pmic;
 	};
 
 	/*
@@ -715,7 +715,7 @@
 			status = "disabled";
 		};
 
-		i2c_dvfs: i2c@e60b0000 {
+		iic_pmic: i2c@e60b0000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "renesas,iic-r8a774a1",

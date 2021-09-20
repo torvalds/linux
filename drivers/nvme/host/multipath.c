@@ -147,6 +147,21 @@ void nvme_mpath_clear_ctrl_paths(struct nvme_ctrl *ctrl)
 	mutex_unlock(&ctrl->scan_lock);
 }
 
+void nvme_mpath_revalidate_paths(struct nvme_ns *ns)
+{
+	struct nvme_ns_head *head = ns->head;
+	sector_t capacity = get_capacity(head->disk);
+	int node;
+
+	list_for_each_entry_rcu(ns, &head->list, siblings) {
+		if (capacity != get_capacity(ns->disk))
+			clear_bit(NVME_NS_READY, &ns->flags);
+	}
+
+	for_each_node(node)
+		rcu_assign_pointer(head->current_path[node], NULL);
+}
+
 static bool nvme_path_is_disabled(struct nvme_ns *ns)
 {
 	/*
@@ -158,7 +173,7 @@ static bool nvme_path_is_disabled(struct nvme_ns *ns)
 	    ns->ctrl->state != NVME_CTRL_DELETING)
 		return true;
 	if (test_bit(NVME_NS_ANA_PENDING, &ns->flags) ||
-	    test_bit(NVME_NS_REMOVING, &ns->flags))
+	    !test_bit(NVME_NS_READY, &ns->flags))
 		return true;
 	return false;
 }
@@ -465,6 +480,8 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 			ctrl->subsys->instance, head->instance);
 
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, head->disk->queue);
+	blk_queue_flag_set(QUEUE_FLAG_NOWAIT, head->disk->queue);
+
 	/* set to a default value of 512 until the disk is validated */
 	blk_queue_logical_block_size(head->disk->queue, 512);
 	blk_set_stacking_limits(&head->disk->queue->limits);
@@ -583,14 +600,17 @@ static int nvme_update_ana_state(struct nvme_ctrl *ctrl,
 
 	down_read(&ctrl->namespaces_rwsem);
 	list_for_each_entry(ns, &ctrl->namespaces, list) {
-		unsigned nsid = le32_to_cpu(desc->nsids[n]);
-
+		unsigned nsid;
+again:
+		nsid = le32_to_cpu(desc->nsids[n]);
 		if (ns->head->ns_id < nsid)
 			continue;
 		if (ns->head->ns_id == nsid)
 			nvme_update_ns_ana_state(desc, ns);
 		if (++n == nr_nsids)
 			break;
+		if (ns->head->ns_id > nsid)
+			goto again;
 	}
 	up_read(&ctrl->namespaces_rwsem);
 	return 0;
@@ -760,14 +780,21 @@ void nvme_mpath_add_disk(struct nvme_ns *ns, struct nvme_id_ns *id)
 #endif
 }
 
+void nvme_mpath_shutdown_disk(struct nvme_ns_head *head)
+{
+	if (!head->disk)
+		return;
+	kblockd_schedule_work(&head->requeue_work);
+	if (test_bit(NVME_NSHEAD_DISK_LIVE, &head->flags)) {
+		nvme_cdev_del(&head->cdev, &head->cdev_device);
+		del_gendisk(head->disk);
+	}
+}
+
 void nvme_mpath_remove_disk(struct nvme_ns_head *head)
 {
 	if (!head->disk)
 		return;
-	if (head->disk->flags & GENHD_FL_UP) {
-		nvme_cdev_del(&head->cdev, &head->cdev_device);
-		del_gendisk(head->disk);
-	}
 	blk_set_queue_dying(head->disk->queue);
 	/* make sure all pending bios are cleaned up */
 	kblockd_schedule_work(&head->requeue_work);

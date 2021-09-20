@@ -742,7 +742,7 @@ static const struct net_device_ops dnet_netdev_ops = {
 	.ndo_stop		= dnet_close,
 	.ndo_get_stats		= dnet_get_stats,
 	.ndo_start_xmit		= dnet_start_xmit,
-	.ndo_do_ioctl		= phy_do_ioctl_running,
+	.ndo_eth_ioctl		= phy_do_ioctl_running,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };

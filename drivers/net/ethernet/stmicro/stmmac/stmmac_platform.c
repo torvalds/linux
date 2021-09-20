@@ -9,6 +9,7 @@
 *******************************************************************************/
 
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -397,6 +398,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 	struct device_node *np = pdev->dev.of_node;
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_dma_cfg *dma_cfg;
+	int phy_mode;
 	void *ret;
 	int rc;
 
@@ -412,10 +414,11 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 		eth_zero_addr(mac);
 	}
 
-	plat->phy_interface = device_get_phy_mode(&pdev->dev);
-	if (plat->phy_interface < 0)
-		return ERR_PTR(plat->phy_interface);
+	phy_mode = device_get_phy_mode(&pdev->dev);
+	if (phy_mode < 0)
+		return ERR_PTR(phy_mode);
 
+	plat->phy_interface = phy_mode;
 	plat->interface = stmmac_of_get_mac_mode(np);
 	if (plat->interface < 0)
 		plat->interface = plat->phy_interface;
@@ -769,9 +772,52 @@ static int __maybe_unused stmmac_runtime_resume(struct device *dev)
 	return stmmac_bus_clks_config(priv, true);
 }
 
+static int __maybe_unused stmmac_pltfr_noirq_suspend(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	int ret;
+
+	if (!netif_running(ndev))
+		return 0;
+
+	if (!device_may_wakeup(priv->device) || !priv->plat->pmt) {
+		/* Disable clock in case of PWM is off */
+		clk_disable_unprepare(priv->plat->clk_ptp_ref);
+
+		ret = pm_runtime_force_suspend(dev);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int __maybe_unused stmmac_pltfr_noirq_resume(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	int ret;
+
+	if (!netif_running(ndev))
+		return 0;
+
+	if (!device_may_wakeup(priv->device) || !priv->plat->pmt) {
+		/* enable the clk previously disabled */
+		ret = pm_runtime_force_resume(dev);
+		if (ret)
+			return ret;
+
+		clk_prepare_enable(priv->plat->clk_ptp_ref);
+	}
+
+	return 0;
+}
+
 const struct dev_pm_ops stmmac_pltfr_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(stmmac_pltfr_suspend, stmmac_pltfr_resume)
 	SET_RUNTIME_PM_OPS(stmmac_runtime_suspend, stmmac_runtime_resume, NULL)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(stmmac_pltfr_noirq_suspend, stmmac_pltfr_noirq_resume)
 };
 EXPORT_SYMBOL_GPL(stmmac_pltfr_pm_ops);
 

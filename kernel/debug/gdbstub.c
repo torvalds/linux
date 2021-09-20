@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Kernel Debug Core
  *
@@ -22,10 +23,6 @@
  *
  * Original KGDB stub: David Grothe <dave@gcom.com>,
  * Tigran Aivazian <tigran@sco.com>
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #include <linux/kernel.h>
@@ -1045,8 +1042,8 @@ int gdb_serial_stub(struct kgdb_state *ks)
 				gdb_cmd_detachkill(ks);
 				return DBG_PASS_EVENT;
 			}
-#endif
 			fallthrough;
+#endif
 		case 'C': /* Exception passing */
 			tmp = gdb_cmd_exception_pass(ks);
 			if (tmp > 0)

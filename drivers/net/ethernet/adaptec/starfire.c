@@ -625,7 +625,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_tx_timeout		= tx_timeout,
 	.ndo_get_stats		= get_stats,
 	.ndo_set_rx_mode	= set_rx_mode,
-	.ndo_do_ioctl		= netdev_ioctl,
+	.ndo_eth_ioctl		= netdev_ioctl,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef VLAN_SUPPORT

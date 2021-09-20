@@ -268,11 +268,6 @@ static int rtw_pci_init_rx_ring(struct rtw_dev *rtwdev,
 	int i, allocated;
 	int ret = 0;
 
-	if (len > TRX_BD_IDX_MASK) {
-		rtw_err(rtwdev, "len %d exceeds maximum RX entries\n", len);
-		return -EINVAL;
-	}
-
 	head = dma_alloc_coherent(&pdev->dev, ring_sz, &dma, GFP_KERNEL);
 	if (!head) {
 		rtw_err(rtwdev, "failed to allocate rx ring\n");
@@ -1359,6 +1354,25 @@ static void rtw_pci_clkreq_set(struct rtw_dev *rtwdev, bool enable)
 	rtw_dbi_write8(rtwdev, RTK_PCIE_LINK_CFG, value);
 }
 
+static void rtw_pci_clkreq_pad_low(struct rtw_dev *rtwdev, bool enable)
+{
+	u8 value;
+	int ret;
+
+	ret = rtw_dbi_read8(rtwdev, RTK_PCIE_LINK_CFG, &value);
+	if (ret) {
+		rtw_err(rtwdev, "failed to read CLKREQ_L1, ret=%d", ret);
+		return;
+	}
+
+	if (enable)
+		value &= ~BIT_CLKREQ_N_PAD;
+	else
+		value |= BIT_CLKREQ_N_PAD;
+
+	rtw_dbi_write8(rtwdev, RTK_PCIE_LINK_CFG, value);
+}
+
 static void rtw_pci_aspm_set(struct rtw_dev *rtwdev, bool enable)
 {
 	u8 value;
@@ -1500,11 +1514,25 @@ static void rtw_pci_phy_cfg(struct rtw_dev *rtwdev)
 
 static int __maybe_unused rtw_pci_suspend(struct device *dev)
 {
+	struct ieee80211_hw *hw = dev_get_drvdata(dev);
+	struct rtw_dev *rtwdev = hw->priv;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_efuse *efuse = &rtwdev->efuse;
+
+	if (chip->id == RTW_CHIP_TYPE_8822C && efuse->rfe_option == 6)
+		rtw_pci_clkreq_pad_low(rtwdev, true);
 	return 0;
 }
 
 static int __maybe_unused rtw_pci_resume(struct device *dev)
 {
+	struct ieee80211_hw *hw = dev_get_drvdata(dev);
+	struct rtw_dev *rtwdev = hw->priv;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_efuse *efuse = &rtwdev->efuse;
+
+	if (chip->id == RTW_CHIP_TYPE_8822C && efuse->rfe_option == 6)
+		rtw_pci_clkreq_pad_low(rtwdev, false);
 	return 0;
 }
 
@@ -1698,6 +1726,15 @@ static const struct dmi_system_id rtw88_pci_quirks[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Protempo Ltd"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "L116HTN6SPW"),
+		},
+		.driver_data = (void *)BIT(QUIRK_DIS_PCI_CAP_ASPM),
+	},
+	{
+		.callback = disable_pci_caps,
+		.ident = "HP HP Pavilion Laptop 14-ce0xxx",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion Laptop 14-ce0xxx"),
 		},
 		.driver_data = (void *)BIT(QUIRK_DIS_PCI_CAP_ASPM),
 	},

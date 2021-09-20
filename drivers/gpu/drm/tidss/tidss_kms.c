@@ -227,10 +227,8 @@ static int tidss_dispc_modeset_init(struct tidss_device *tidss)
 		}
 
 		ret = drm_bridge_attach(enc, pipes[i].bridge, NULL, 0);
-		if (ret) {
-			dev_err(tidss->dev, "bridge attach failed: %d\n", ret);
+		if (ret)
 			return ret;
-		}
 	}
 
 	/* create overlay planes of the leftover planes */

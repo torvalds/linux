@@ -152,8 +152,8 @@ typedef void (blkcg_pol_online_pd_fn)(struct blkg_policy_data *pd);
 typedef void (blkcg_pol_offline_pd_fn)(struct blkg_policy_data *pd);
 typedef void (blkcg_pol_free_pd_fn)(struct blkg_policy_data *pd);
 typedef void (blkcg_pol_reset_pd_stats_fn)(struct blkg_policy_data *pd);
-typedef size_t (blkcg_pol_stat_pd_fn)(struct blkg_policy_data *pd, char *buf,
-				      size_t size);
+typedef bool (blkcg_pol_stat_pd_fn)(struct blkg_policy_data *pd,
+				struct seq_file *s);
 
 struct blkcg_policy {
 	int				plid;

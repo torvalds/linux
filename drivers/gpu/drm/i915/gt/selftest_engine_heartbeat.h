@@ -9,6 +9,8 @@
 struct intel_engine_cs;
 
 void st_engine_heartbeat_disable(struct intel_engine_cs *engine);
+void st_engine_heartbeat_disable_no_pm(struct intel_engine_cs *engine);
 void st_engine_heartbeat_enable(struct intel_engine_cs *engine);
+void st_engine_heartbeat_enable_no_pm(struct intel_engine_cs *engine);
 
 #endif /* SELFTEST_ENGINE_HEARTBEAT_H */

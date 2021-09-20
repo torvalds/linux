@@ -444,21 +444,24 @@ static void cfg_tap(struct hantro_ctx *ctx,
 }
 
 static void cfg_ref(struct hantro_ctx *ctx,
-		    const struct v4l2_ctrl_vp8_frame *hdr)
+		    const struct v4l2_ctrl_vp8_frame *hdr,
+		    struct vb2_v4l2_buffer *vb2_dst)
 {
 	struct hantro_dev *vpu = ctx->dev;
-	struct vb2_v4l2_buffer *vb2_dst;
 	dma_addr_t ref;
 
-	vb2_dst = hantro_get_dst_buf(ctx);
-
 	ref = hantro_get_ref(ctx, hdr->last_frame_ts);
-	if (!ref)
+	if (!ref) {
+		vpu_debug(0, "failed to find last frame ts=%llu\n",
+			  hdr->last_frame_ts);
 		ref = vb2_dma_contig_plane_dma_addr(&vb2_dst->vb2_buf, 0);
+	}
 	vdpu_write_relaxed(vpu, ref, VDPU_REG_VP8_ADDR_REF0);
 
 	ref = hantro_get_ref(ctx, hdr->golden_frame_ts);
-	WARN_ON(!ref && hdr->golden_frame_ts);
+	if (!ref && hdr->golden_frame_ts)
+		vpu_debug(0, "failed to find golden frame ts=%llu\n",
+			  hdr->golden_frame_ts);
 	if (!ref)
 		ref = vb2_dma_contig_plane_dma_addr(&vb2_dst->vb2_buf, 0);
 	if (hdr->flags & V4L2_VP8_FRAME_FLAG_SIGN_BIAS_GOLDEN)
@@ -466,7 +469,9 @@ static void cfg_ref(struct hantro_ctx *ctx,
 	vdpu_write_relaxed(vpu, ref, VDPU_REG_VP8_ADDR_REF2_5(2));
 
 	ref = hantro_get_ref(ctx, hdr->alt_frame_ts);
-	WARN_ON(!ref && hdr->alt_frame_ts);
+	if (!ref && hdr->alt_frame_ts)
+		vpu_debug(0, "failed to find alt frame ts=%llu\n",
+			  hdr->alt_frame_ts);
 	if (!ref)
 		ref = vb2_dma_contig_plane_dma_addr(&vb2_dst->vb2_buf, 0);
 	if (hdr->flags & V4L2_VP8_FRAME_FLAG_SIGN_BIAS_ALT)
@@ -475,15 +480,13 @@ static void cfg_ref(struct hantro_ctx *ctx,
 }
 
 static void cfg_buffers(struct hantro_ctx *ctx,
-			const struct v4l2_ctrl_vp8_frame *hdr)
+			const struct v4l2_ctrl_vp8_frame *hdr,
+			struct vb2_v4l2_buffer *vb2_dst)
 {
 	const struct v4l2_vp8_segment *seg = &hdr->segment;
 	struct hantro_dev *vpu = ctx->dev;
-	struct vb2_v4l2_buffer *vb2_dst;
 	dma_addr_t dst_dma;
 	u32 reg;
-
-	vb2_dst = hantro_get_dst_buf(ctx);
 
 	/* Set probability table buffer address */
 	vdpu_write_relaxed(vpu, ctx->vp8_dec.prob_tbl.dma,
@@ -507,6 +510,7 @@ int rockchip_vpu2_vp8_dec_run(struct hantro_ctx *ctx)
 {
 	const struct v4l2_ctrl_vp8_frame *hdr;
 	struct hantro_dev *vpu = ctx->dev;
+	struct vb2_v4l2_buffer *vb2_dst;
 	size_t height = ctx->dst_fmt.height;
 	size_t width = ctx->dst_fmt.width;
 	u32 mb_width, mb_height;
@@ -583,8 +587,10 @@ int rockchip_vpu2_vp8_dec_run(struct hantro_ctx *ctx)
 	cfg_qp(ctx, hdr);
 	cfg_parts(ctx, hdr);
 	cfg_tap(ctx, hdr);
-	cfg_ref(ctx, hdr);
-	cfg_buffers(ctx, hdr);
+
+	vb2_dst = hantro_get_dst_buf(ctx);
+	cfg_ref(ctx, hdr, vb2_dst);
+	cfg_buffers(ctx, hdr, vb2_dst);
 
 	hantro_end_prepare_run(ctx);
 

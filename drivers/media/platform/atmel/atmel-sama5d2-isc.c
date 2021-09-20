@@ -255,6 +255,23 @@ static void isc_sama5d2_config_rlp(struct isc_device *isc)
 	struct regmap *regmap = isc->regmap;
 	u32 rlp_mode = isc->config.rlp_cfg_mode;
 
+	/*
+	 * In sama5d2, the YUV planar modes and the YUYV modes are treated
+	 * in the same way in RLP register.
+	 * Normally, YYCC mode should be Luma(n) - Color B(n) - Color R (n)
+	 * and YCYC should be Luma(n + 1) - Color B (n) - Luma (n) - Color R (n)
+	 * but in sama5d2, the YCYC mode does not exist, and YYCC must be
+	 * selected for both planar and interleaved modes, as in fact
+	 * both modes are supported.
+	 *
+	 * Thus, if the YCYC mode is selected, replace it with the
+	 * sama5d2-compliant mode which is YYCC .
+	 */
+	if ((rlp_mode & ISC_RLP_CFG_MODE_YCYC) == ISC_RLP_CFG_MODE_YCYC) {
+		rlp_mode &= ~ISC_RLP_CFG_MODE_MASK;
+		rlp_mode |= ISC_RLP_CFG_MODE_YYCC;
+	}
+
 	regmap_update_bits(regmap, ISC_RLP_CFG + isc->offsets.rlp,
 			   ISC_RLP_CFG_MODE_MASK, rlp_mode);
 }

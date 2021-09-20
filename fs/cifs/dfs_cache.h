@@ -13,6 +13,8 @@
 #include <linux/uuid.h>
 #include "cifsglob.h"
 
+#define DFS_CACHE_TGT_LIST_INIT(var) { .tl_numtgts = 0, .tl_list = LIST_HEAD_INIT((var).tl_list), }
+
 struct dfs_cache_tgt_list {
 	int tl_numtgts;
 	struct list_head tl_list;
@@ -44,6 +46,7 @@ int dfs_cache_get_tgt_share(char *path, const struct dfs_cache_tgt_iterator *it,
 void dfs_cache_put_refsrv_sessions(const uuid_t *mount_id);
 void dfs_cache_add_refsrv_session(const uuid_t *mount_id, struct cifs_ses *ses);
 char *dfs_cache_canonical_path(const char *path, const struct nls_table *cp, int remap);
+int dfs_cache_remount_fs(struct cifs_sb_info *cifs_sb);
 
 static inline struct dfs_cache_tgt_iterator *
 dfs_cache_get_next_tgt(struct dfs_cache_tgt_list *tl,

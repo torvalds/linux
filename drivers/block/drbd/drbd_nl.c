@@ -1364,7 +1364,7 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
 
 	if (b) {
 		blk_stack_limits(&q->limits, &b->limits, 0);
-		blk_queue_update_readahead(q);
+		disk_update_readahead(device->vdisk);
 	}
 	fixup_discard_if_not_supported(q);
 	fixup_write_zeroes(device, q);

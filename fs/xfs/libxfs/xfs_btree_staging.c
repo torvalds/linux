@@ -59,10 +59,10 @@ xfs_btree_fakeroot_dup_cursor(
  */
 STATIC int
 xfs_btree_fakeroot_alloc_block(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_ptr	*start_bno,
-	union xfs_btree_ptr	*new_bno,
-	int			*stat)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_ptr	*start_bno,
+	union xfs_btree_ptr		*new_bno,
+	int				*stat)
 {
 	ASSERT(0);
 	return -EFSCORRUPTED;
@@ -112,9 +112,9 @@ xfs_btree_fakeroot_init_ptr_from_cur(
 /* Update the btree root information for a per-AG fake root. */
 STATIC void
 xfs_btree_afakeroot_set_root(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_ptr	*ptr,
-	int			inc)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_ptr	*ptr,
+	int				inc)
 {
 	struct xbtree_afakeroot	*afake = cur->bc_ag.afake;
 

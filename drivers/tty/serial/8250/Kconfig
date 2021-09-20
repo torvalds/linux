@@ -363,7 +363,7 @@ config SERIAL_8250_BCM2835AUX
 config SERIAL_8250_FSL
 	bool
 	depends on SERIAL_8250_CONSOLE
-	default PPC || ARM || ARM64
+	default PPC || ARM || ARM64 || COMPILE_TEST
 
 config SERIAL_8250_DW
 	tristate "Support for Synopsys DesignWare 8250 quirks"
@@ -375,7 +375,8 @@ config SERIAL_8250_DW
 
 config SERIAL_8250_EM
 	tristate "Support for Emma Mobile integrated serial port"
-	depends on SERIAL_8250 && ARM && HAVE_CLK
+	depends on SERIAL_8250 && HAVE_CLK
+	depends on ARM || COMPILE_TEST
 	help
 	  Selecting this option will add support for the integrated serial
 	  port hardware found on the Emma Mobile line of processors.
@@ -383,7 +384,8 @@ config SERIAL_8250_EM
 
 config SERIAL_8250_IOC3
 	tristate "SGI IOC3 8250 UART support"
-	depends on SGI_MFD_IOC3 && SERIAL_8250
+	depends on SERIAL_8250
+	depends on SGI_MFD_IOC3 || COMPILE_TEST
 	select SERIAL_8250_EXTENDED
 	select SERIAL_8250_SHARE_IRQ
 	help
@@ -495,7 +497,7 @@ config SERIAL_8250_MID
 config SERIAL_8250_PXA
 	tristate "PXA serial port support"
 	depends on SERIAL_8250
-	depends on ARCH_PXA || ARCH_MMP
+	depends on ARCH_PXA || ARCH_MMP || COMPILE_TEST
 	help
 	  If you have a machine based on an Intel XScale PXA2xx CPU you can
 	  enable its onboard serial ports by enabling this option. The option is

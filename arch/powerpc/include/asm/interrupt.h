@@ -583,6 +583,9 @@ DECLARE_INTERRUPT_HANDLER_NMI(hmi_exception_realmode);
 
 DECLARE_INTERRUPT_HANDLER_ASYNC(TAUException);
 
+/* irq.c */
+DECLARE_INTERRUPT_HANDLER_ASYNC(do_IRQ);
+
 void __noreturn unrecoverable_exception(struct pt_regs *regs);
 
 void replay_system_reset(void);

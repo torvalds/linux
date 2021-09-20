@@ -585,7 +585,7 @@ neofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	DBG("neofb_check_var");
 
-	if (PICOS2KHZ(var->pixclock) > par->maxClock)
+	if (var->pixclock && PICOS2KHZ(var->pixclock) > par->maxClock)
 		return -EINVAL;
 
 	/* Is the mode larger than the LCD panel? */

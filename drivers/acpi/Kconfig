@@ -280,9 +280,9 @@ config ACPI_CPPC_LIB
 
 config ACPI_PROCESSOR
 	tristate "Processor"
-	depends on X86 || IA64 || ARM64
+	depends on X86 || IA64 || ARM64 || LOONGARCH
 	select ACPI_PROCESSOR_IDLE
-	select ACPI_CPU_FREQ_PSS if X86 || IA64
+	select ACPI_CPU_FREQ_PSS if X86 || IA64 || LOONGARCH
 	default y
 	help
 	  This driver adds support for the ACPI Processor package. It is required
@@ -370,7 +370,7 @@ config ACPI_TABLE_UPGRADE
 config ACPI_TABLE_OVERRIDE_VIA_BUILTIN_INITRD
 	bool "Override ACPI tables from built-in initrd"
 	depends on ACPI_TABLE_UPGRADE
-	depends on INITRAMFS_SOURCE!="" && INITRAMFS_COMPRESSION=""
+	depends on INITRAMFS_SOURCE!="" && INITRAMFS_COMPRESSION_NONE
 	help
 	  This option provides functionality to override arbitrary ACPI tables
 	  from built-in uncompressed initrd.

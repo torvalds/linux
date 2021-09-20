@@ -142,7 +142,7 @@ enum iwl_bt_mxbox_dw3 {
 					 "\t%s: %d%s",			    \
 					 #_field,			    \
 					 BT_MBOX_MSG(notif, _num, _field),  \
-					 true ? "\n" : ", ");
+					 true ? "\n" : ", ")
 enum iwl_bt_activity_grading {
 	BT_OFF			= 0,
 	BT_ON_NO_CONNECTION	= 1,

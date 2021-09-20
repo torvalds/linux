@@ -291,7 +291,7 @@ static int compressed_section_fix(Elf *elf, Elf_Scn *scn, GElf_Shdr *sh)
 	sh->sh_addralign = expected;
 
 	if (gelf_update_shdr(scn, sh) == 0) {
-		printf("FAILED cannot update section header: %s\n",
+		pr_err("FAILED cannot update section header: %s\n",
 			elf_errmsg(-1));
 		return -1;
 	}
@@ -317,6 +317,7 @@ static int elf_collect(struct object *obj)
 
 	elf = elf_begin(fd, ELF_C_RDWR_MMAP, NULL);
 	if (!elf) {
+		close(fd);
 		pr_err("FAILED cannot create ELF descriptor: %s\n",
 			elf_errmsg(-1));
 		return -1;
@@ -484,7 +485,7 @@ static int symbols_resolve(struct object *obj)
 	err = libbpf_get_error(btf);
 	if (err) {
 		pr_err("FAILED: load BTF from %s: %s\n",
-			obj->path, strerror(-err));
+			obj->btf ?: obj->path, strerror(-err));
 		return -1;
 	}
 
@@ -555,8 +556,7 @@ static int id_patch(struct object *obj, struct btf_id *id)
 	int i;
 
 	if (!id->id) {
-		pr_err("FAILED unresolved symbol %s\n", id->name);
-		return -EINVAL;
+		pr_err("WARN: resolve_btfids: unresolved symbol %s\n", id->name);
 	}
 
 	for (i = 0; i < id->addr_cnt; i++) {
@@ -734,8 +734,9 @@ int main(int argc, const char **argv)
 
 	err = 0;
 out:
-	if (obj.efile.elf)
+	if (obj.efile.elf) {
 		elf_end(obj.efile.elf);
-	close(obj.efile.fd);
+		close(obj.efile.fd);
+	}
 	return err;
 }

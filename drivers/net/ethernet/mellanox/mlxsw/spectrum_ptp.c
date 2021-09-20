@@ -975,14 +975,14 @@ static int mlxsw_sp1_ptp_mtpppc_update(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 
 	if ((ing_types || egr_types) && !(orig_ing_types || orig_egr_types)) {
-		err = mlxsw_sp_nve_inc_parsing_depth_get(mlxsw_sp);
+		err = mlxsw_sp_parsing_depth_inc(mlxsw_sp);
 		if (err) {
 			netdev_err(mlxsw_sp_port->dev, "Failed to increase parsing depth");
 			return err;
 		}
 	}
 	if (!(ing_types || egr_types) && (orig_ing_types || orig_egr_types))
-		mlxsw_sp_nve_inc_parsing_depth_put(mlxsw_sp);
+		mlxsw_sp_parsing_depth_dec(mlxsw_sp);
 
 	return mlxsw_sp1_ptp_mtpppc_set(mlxsw_sp_port->mlxsw_sp,
 				       ing_types, egr_types);

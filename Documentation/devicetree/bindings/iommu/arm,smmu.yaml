@@ -52,16 +52,14 @@ properties:
         items:
           - const: marvell,ap806-smmu-500
           - const: arm,mmu-500
-      - description: NVIDIA SoCs that program two ARM MMU-500s identically
-        items:
       - description: NVIDIA SoCs that require memory controller interaction
           and may program multiple ARM MMU-500s identically with the memory
           controller interleaving translations between multiple instances
           for improved performance.
         items:
           - enum:
-              - const: nvidia,tegra194-smmu
-              - const: nvidia,tegra186-smmu
+              - nvidia,tegra194-smmu
+              - nvidia,tegra186-smmu
           - const: nvidia,smmu-500
       - items:
           - const: arm,mmu-500

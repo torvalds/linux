@@ -862,10 +862,12 @@ static long madvise_populate(struct vm_area_struct *vma,
 			switch (pages) {
 			case -EINTR:
 				return -EINTR;
-			case -EFAULT: /* Incompatible mappings / permissions. */
+			case -EINVAL: /* Incompatible mappings / permissions. */
 				return -EINVAL;
 			case -EHWPOISON:
 				return -EHWPOISON;
+			case -EFAULT: /* VM_FAULT_SIGBUS or VM_FAULT_SIGSEGV */
+				return -EFAULT;
 			default:
 				pr_warn_once("%s: unhandled return value: %ld\n",
 					     __func__, pages);
@@ -910,7 +912,7 @@ static long madvise_remove(struct vm_area_struct *vma,
 			+ ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
 
 	/*
-	 * Filesystem's fallocate may need to take i_mutex.  We need to
+	 * Filesystem's fallocate may need to take i_rwsem.  We need to
 	 * explicitly grab a reference because the vma (and hence the
 	 * vma's reference to the file) can go away as soon as we drop
 	 * mmap_lock.
@@ -1046,6 +1048,7 @@ process_madvise_behavior_valid(int behavior)
 	switch (behavior) {
 	case MADV_COLD:
 	case MADV_PAGEOUT:
+	case MADV_WILLNEED:
 		return true;
 	default:
 		return false;

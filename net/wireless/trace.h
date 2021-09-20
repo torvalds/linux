@@ -3597,6 +3597,52 @@ TRACE_EVENT(rdev_set_sar_specs,
 		  WIPHY_PR_ARG, __entry->type, __entry->num)
 );
 
+TRACE_EVENT(rdev_color_change,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 struct cfg80211_color_change_settings *params),
+	TP_ARGS(wiphy, netdev, params),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		__field(u8, count)
+		__field(u16, bcn_ofs)
+		__field(u16, pres_ofs)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		__entry->count = params->count;
+		__entry->bcn_ofs = params->counter_offset_beacon;
+		__entry->pres_ofs = params->counter_offset_presp;
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT
+		  ", count: %u",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG,
+		  __entry->count)
+);
+
+TRACE_EVENT(cfg80211_bss_color_notify,
+	TP_PROTO(struct net_device *netdev,
+		 enum nl80211_commands cmd,
+		 u8 count, u64 color_bitmap),
+	TP_ARGS(netdev, cmd, count, color_bitmap),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		__field(u32, cmd)
+		__field(u8, count)
+		__field(u64, color_bitmap)
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		__entry->cmd = cmd;
+		__entry->count = count;
+		__entry->color_bitmap = color_bitmap;
+	),
+	TP_printk(NETDEV_PR_FMT ", cmd: %x, count: %u, bitmap: %llx",
+		  NETDEV_PR_ARG, __entry->cmd, __entry->count,
+		  __entry->color_bitmap)
+);
+
 #endif /* !__RDEV_OPS_TRACE || TRACE_HEADER_MULTI_READ */
 
 #undef TRACE_INCLUDE_PATH

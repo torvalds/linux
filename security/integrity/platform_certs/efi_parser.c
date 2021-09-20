@@ -55,7 +55,7 @@ int __init parse_efi_signature_list(
 		memcpy(&list, data, sizeof(list));
 		pr_devel("LIST[%04x] guid=%pUl ls=%x hs=%x ss=%x\n",
 			 offs,
-			 list.signature_type.b, list.signature_list_size,
+			 &list.signature_type, list.signature_list_size,
 			 list.signature_header_size, list.signature_size);
 
 		lsize = list.signature_list_size;

@@ -204,7 +204,7 @@ static int dra7xx_pcie_handle_msi(struct pcie_port *pp, int index)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	unsigned long val;
-	int pos, irq;
+	int pos;
 
 	val = dw_pcie_readl_dbi(pci, PCIE_MSI_INTR0_STATUS +
 				   (index * MSI_REG_CTRL_BLOCK_SIZE));
@@ -213,9 +213,8 @@ static int dra7xx_pcie_handle_msi(struct pcie_port *pp, int index)
 
 	pos = find_next_bit(&val, MAX_MSI_IRQS_PER_CTRL, 0);
 	while (pos != MAX_MSI_IRQS_PER_CTRL) {
-		irq = irq_find_mapping(pp->irq_domain,
-				       (index * MAX_MSI_IRQS_PER_CTRL) + pos);
-		generic_handle_irq(irq);
+		generic_handle_domain_irq(pp->irq_domain,
+					  (index * MAX_MSI_IRQS_PER_CTRL) + pos);
 		pos++;
 		pos = find_next_bit(&val, MAX_MSI_IRQS_PER_CTRL, pos);
 	}
@@ -257,7 +256,7 @@ static void dra7xx_pcie_msi_irq_handler(struct irq_desc *desc)
 	struct dw_pcie *pci;
 	struct pcie_port *pp;
 	unsigned long reg;
-	u32 virq, bit;
+	u32 bit;
 
 	chained_irq_enter(chip, desc);
 
@@ -276,11 +275,8 @@ static void dra7xx_pcie_msi_irq_handler(struct irq_desc *desc)
 	case INTB:
 	case INTC:
 	case INTD:
-		for_each_set_bit(bit, &reg, PCI_NUM_INTX) {
-			virq = irq_find_mapping(dra7xx->irq_domain, bit);
-			if (virq)
-				generic_handle_irq(virq);
-		}
+		for_each_set_bit(bit, &reg, PCI_NUM_INTX)
+			generic_handle_domain_irq(dra7xx->irq_domain, bit);
 		break;
 	}
 

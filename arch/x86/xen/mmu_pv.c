@@ -1518,14 +1518,17 @@ static inline void xen_alloc_ptpage(struct mm_struct *mm, unsigned long pfn,
 	if (pinned) {
 		struct page *page = pfn_to_page(pfn);
 
-		if (static_branch_likely(&xen_struct_pages_ready))
+		pinned = false;
+		if (static_branch_likely(&xen_struct_pages_ready)) {
+			pinned = PagePinned(page);
 			SetPagePinned(page);
+		}
 
 		xen_mc_batch();
 
 		__set_pfn_prot(pfn, PAGE_KERNEL_RO);
 
-		if (level == PT_PTE && USE_SPLIT_PTE_PTLOCKS)
+		if (level == PT_PTE && USE_SPLIT_PTE_PTLOCKS && !pinned)
 			__pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
 
 		xen_mc_issue(PARAVIRT_LAZY_MMU);
@@ -2099,8 +2102,8 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
 	.set_pte = xen_set_pte_init,
 	.set_pmd = xen_set_pmd_hyper,
 
-	.ptep_modify_prot_start = __ptep_modify_prot_start,
-	.ptep_modify_prot_commit = __ptep_modify_prot_commit,
+	.ptep_modify_prot_start = xen_ptep_modify_prot_start,
+	.ptep_modify_prot_commit = xen_ptep_modify_prot_commit,
 
 	.pte_val = PV_CALLEE_SAVE(xen_pte_val),
 	.pgd_val = PV_CALLEE_SAVE(xen_pgd_val),

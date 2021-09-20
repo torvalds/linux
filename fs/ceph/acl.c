@@ -29,13 +29,16 @@ static inline void ceph_set_cached_acl(struct inode *inode,
 	spin_unlock(&ci->i_ceph_lock);
 }
 
-struct posix_acl *ceph_get_acl(struct inode *inode, int type)
+struct posix_acl *ceph_get_acl(struct inode *inode, int type, bool rcu)
 {
 	int size;
 	unsigned int retry_cnt = 0;
 	const char *name;
 	char *value = NULL;
 	struct posix_acl *acl;
+
+	if (rcu)
+		return ERR_PTR(-ECHILD);
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:

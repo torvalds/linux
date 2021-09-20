@@ -433,7 +433,7 @@ static u32 cmd_to_target_hwq(struct Scsi_Host *host, struct scsi_cmnd *scp,
 		hwq = afu->hwq_rr_count++ % afu->num_hwqs;
 		break;
 	case HWQ_MODE_TAG:
-		tag = blk_mq_unique_tag(scp->request);
+		tag = blk_mq_unique_tag(scsi_cmd_to_rq(scp));
 		hwq = blk_mq_unique_tag_to_hwq(tag);
 		break;
 	case HWQ_MODE_CPU:
@@ -1629,8 +1629,8 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 {
 	struct device *dev = &cfg->dev->dev;
 	struct pci_dev *pdev = cfg->dev;
-	int rc = 0;
-	int ro_start, ro_size, i, j, k;
+	int i, k, rc = 0;
+	unsigned int kw_size;
 	ssize_t vpd_size;
 	char vpd_data[CXLFLASH_VPD_LEN];
 	char tmp_buf[WWPN_BUF_LEN] = { 0 };
@@ -1648,24 +1648,6 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 		goto out;
 	}
 
-	/* Get the read only section offset */
-	ro_start = pci_vpd_find_tag(vpd_data, vpd_size, PCI_VPD_LRDT_RO_DATA);
-	if (unlikely(ro_start < 0)) {
-		dev_err(dev, "%s: VPD Read-only data not found\n", __func__);
-		rc = -ENODEV;
-		goto out;
-	}
-
-	/* Get the read only section size, cap when extends beyond read VPD */
-	ro_size = pci_vpd_lrdt_size(&vpd_data[ro_start]);
-	j = ro_size;
-	i = ro_start + PCI_VPD_LRDT_TAG_SIZE;
-	if (unlikely((i + j) > vpd_size)) {
-		dev_dbg(dev, "%s: Might need to read more VPD (%d > %ld)\n",
-			__func__, (i + j), vpd_size);
-		ro_size = vpd_size - i;
-	}
-
 	/*
 	 * Find the offset of the WWPN tag within the read only
 	 * VPD data and validate the found field (partials are
@@ -1681,11 +1663,9 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 	 * ports programmed and operate in an undefined state.
 	 */
 	for (k = 0; k < cfg->num_fc_ports; k++) {
-		j = ro_size;
-		i = ro_start + PCI_VPD_LRDT_TAG_SIZE;
-
-		i = pci_vpd_find_info_keyword(vpd_data, i, j, wwpn_vpd_tags[k]);
-		if (i < 0) {
+		i = pci_vpd_find_ro_info_keyword(vpd_data, vpd_size,
+						 wwpn_vpd_tags[k], &kw_size);
+		if (i == -ENOENT) {
 			if (wwpn_vpd_required)
 				dev_err(dev, "%s: Port %d WWPN not found\n",
 					__func__, k);
@@ -1693,9 +1673,7 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 			continue;
 		}
 
-		j = pci_vpd_info_field_size(&vpd_data[i]);
-		i += PCI_VPD_INFO_FLD_HDR_SIZE;
-		if (unlikely((i + j > vpd_size) || (j != WWPN_LEN))) {
+		if (i < 0 || kw_size != WWPN_LEN) {
 			dev_err(dev, "%s: Port %d WWPN incomplete or bad VPD\n",
 				__func__, k);
 			rc = -ENODEV;

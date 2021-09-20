@@ -64,10 +64,9 @@ static struct ipc_chnl_cfg modem_cfg[] = {
 
 int ipc_chnl_cfg_get(struct ipc_chnl_cfg *chnl_cfg, int index)
 {
-	int array_size = ARRAY_SIZE(modem_cfg);
-
-	if (index >= array_size) {
-		pr_err("index: %d and array_size %d", index, array_size);
+	if (index >= ARRAY_SIZE(modem_cfg)) {
+		pr_err("index: %d and array size %zu", index,
+		       ARRAY_SIZE(modem_cfg));
 		return -ECHRNG;
 	}
 

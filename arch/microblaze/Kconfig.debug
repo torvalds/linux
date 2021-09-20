@@ -1,6 +1,1 @@
 # SPDX-License-Identifier: GPL-2.0-only
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.rst.
-
-config TRACE_IRQFLAGS_SUPPORT
-	def_bool y

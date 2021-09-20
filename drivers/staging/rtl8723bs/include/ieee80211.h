@@ -154,20 +154,12 @@ enum network_type {
 
 #define SUPPORTED_24G_NETTYPE_MSK (WIRELESS_11B | WIRELESS_11G | WIRELESS_11_24N)
 
-#define IsLegacyOnly(NetType)  ((NetType) == ((NetType) & (WIRELESS_11BG)))
+#define is_legacy_only(net_type)  ((net_type) == ((net_type) & (WIRELESS_11BG)))
 
-#define IsSupported24G(NetType) ((NetType) & SUPPORTED_24G_NETTYPE_MSK ? true : false)
+#define is_supported_24g(net_type) ((net_type) & SUPPORTED_24G_NETTYPE_MSK ? true : false)
 
-#define IsEnableHWCCK(NetType) IsSupported24G(NetType)
-#define IsEnableHWOFDM(NetType) (((NetType) & (WIRELESS_11G|WIRELESS_11_24N)) ? true : false)
-
-#define IsSupportedRxCCK(NetType) IsEnableHWCCK(NetType)
-#define IsSupportedRxOFDM(NetType) IsEnableHWOFDM(NetType)
-#define IsSupportedRxHT(NetType) IsEnableHWOFDM(NetType)
-
-#define IsSupportedTxCCK(NetType) (((NetType) & (WIRELESS_11B)) ? true : false)
-#define IsSupportedTxOFDM(NetType) (((NetType) & (WIRELESS_11G) ? true : false)
-#define IsSupportedHT(NetType) (((NetType) & (WIRELESS_11_24N)) ? true : false)
+#define is_supported_tx_cck(net_type) (((net_type) & (WIRELESS_11B)) ? true : false)
+#define is_supported_ht(net_type) (((net_type) & (WIRELESS_11_24N)) ? true : false)
 
 struct ieee_param {
 	u32 cmd;
@@ -397,30 +389,6 @@ enum {
 	MGN_MCS5,
 	MGN_MCS6,
 	MGN_MCS7,
-	MGN_MCS8,
-	MGN_MCS9,
-	MGN_MCS10,
-	MGN_MCS11,
-	MGN_MCS12,
-	MGN_MCS13,
-	MGN_MCS14,
-	MGN_MCS15,
-	MGN_MCS16,
-	MGN_MCS17,
-	MGN_MCS18,
-	MGN_MCS19,
-	MGN_MCS20,
-	MGN_MCS21,
-	MGN_MCS22,
-	MGN_MCS23,
-	MGN_MCS24,
-	MGN_MCS25,
-	MGN_MCS26,
-	MGN_MCS27,
-	MGN_MCS28,
-	MGN_MCS29,
-	MGN_MCS30,
-	MGN_MCS31,
 	MGN_UNKNOWN
 };
 
@@ -811,7 +779,7 @@ void rtw_get_bcn_info(struct wlan_network *pnetwork);
 
 void rtw_macaddr_cfg(struct device *dev, u8 *mac_addr);
 
-u16 rtw_mcs_rate(u8 rf_type, u8 bw_40MHz, u8 short_GI, unsigned char *MCS_rate);
+u16 rtw_mcs_rate(u8 bw_40MHz, u8 short_GI, unsigned char *MCS_rate);
 
 int rtw_action_frame_parse(const u8 *frame, u32 frame_len, u8 *category, u8 *action);
 const char *action_public_str(u8 action);

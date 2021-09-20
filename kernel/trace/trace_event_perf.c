@@ -177,7 +177,7 @@ static void perf_trace_event_unreg(struct perf_event *p_event)
 		}
 	}
 out:
-	module_put(tp_event->mod);
+	trace_event_put_ref(tp_event);
 }
 
 static int perf_trace_event_open(struct perf_event *p_event)
@@ -224,10 +224,10 @@ int perf_trace_init(struct perf_event *p_event)
 	list_for_each_entry(tp_event, &ftrace_events, list) {
 		if (tp_event->event.type == event_id &&
 		    tp_event->class && tp_event->class->reg &&
-		    try_module_get(tp_event->mod)) {
+		    trace_event_try_get_ref(tp_event)) {
 			ret = perf_trace_event_init(tp_event, p_event);
 			if (ret)
-				module_put(tp_event->mod);
+				trace_event_put_ref(tp_event);
 			break;
 		}
 	}

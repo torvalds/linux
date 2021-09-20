@@ -411,12 +411,12 @@ static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	struct intel_connector *intel_connector =
 		lvds_encoder->attached_connector;
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
-	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	unsigned int lvds_bpp;
 	int ret;
 
 	/* Should never happen!! */
-	if (DISPLAY_VER(dev_priv) < 4 && intel_crtc->pipe == 0) {
+	if (DISPLAY_VER(dev_priv) < 4 && crtc->pipe == 0) {
 		drm_err(&dev_priv->drm, "Can't support LVDS on pipe A\n");
 		return -EINVAL;
 	}

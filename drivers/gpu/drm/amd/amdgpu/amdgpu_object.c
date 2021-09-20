@@ -196,7 +196,7 @@ void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 		c++;
 	}
 
-	BUG_ON(c >= AMDGPU_BO_MAX_PLACEMENTS);
+	BUG_ON(c > AMDGPU_BO_MAX_PLACEMENTS);
 
 	placement->num_placement = c;
 	placement->placement = places;
@@ -731,7 +731,7 @@ retry:
 /**
  * amdgpu_bo_add_to_shadow_list - add a BO to the shadow list
  *
- * @bo: BO that will be inserted into the shadow list
+ * @vmbo: BO that will be inserted into the shadow list
  *
  * Insert a BO to the shadow list.
  */
@@ -913,17 +913,12 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		return -EINVAL;
 
 	/* A shared bo cannot be migrated to VRAM */
-	if (bo->prime_shared_count || bo->tbo.base.import_attach) {
+	if (bo->tbo.base.import_attach) {
 		if (domain & AMDGPU_GEM_DOMAIN_GTT)
 			domain = AMDGPU_GEM_DOMAIN_GTT;
 		else
 			return -EINVAL;
 	}
-
-	/* This assumes only APU display buffers are pinned with (VRAM|GTT).
-	 * See function amdgpu_display_supported_domains()
-	 */
-	domain = amdgpu_bo_get_preferred_pin_domain(adev, domain);
 
 	if (bo->tbo.pin_count) {
 		uint32_t mem_type = bo->tbo.resource->mem_type;
@@ -948,6 +943,11 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 
 		return 0;
 	}
+
+	/* This assumes only APU display buffers are pinned with (VRAM|GTT).
+	 * See function amdgpu_display_supported_domains()
+	 */
+	domain = amdgpu_bo_get_preferred_domain(adev, domain);
 
 	if (bo->tbo.base.import_attach)
 		dma_buf_pin(bo->tbo.base.import_attach);
@@ -1518,14 +1518,14 @@ u64 amdgpu_bo_gpu_offset_no_check(struct amdgpu_bo *bo)
 }
 
 /**
- * amdgpu_bo_get_preferred_pin_domain - get preferred domain for scanout
+ * amdgpu_bo_get_preferred_domain - get preferred domain
  * @adev: amdgpu device object
  * @domain: allowed :ref:`memory domains <amdgpu_memory_domains>`
  *
  * Returns:
- * Which of the allowed domains is preferred for pinning the BO for scanout.
+ * Which of the allowed domains is preferred for allocating the BO.
  */
-uint32_t amdgpu_bo_get_preferred_pin_domain(struct amdgpu_device *adev,
+uint32_t amdgpu_bo_get_preferred_domain(struct amdgpu_device *adev,
 					    uint32_t domain)
 {
 	if (domain == (AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT)) {

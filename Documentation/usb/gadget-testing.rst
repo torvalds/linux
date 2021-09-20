@@ -724,18 +724,28 @@ Function-specific configfs interface
 The function name to use when creating the function directory is "uac2".
 The uac2 function provides these attributes in its function directory:
 
-	=============== ====================================================
-	c_chmask	capture channel mask
-	c_srate		capture sampling rate
-	c_ssize		capture sample size (bytes)
-	c_sync		capture synchronization type (async/adaptive)
-	fb_max          maximum extra bandwidth in async mode
-	p_chmask	playback channel mask
-	p_srate		playback sampling rate
-	p_ssize		playback sample size (bytes)
-	req_number	the number of pre-allocated request for both capture
-			and playback
-	=============== ====================================================
+	================ ====================================================
+	c_chmask         capture channel mask
+	c_srate          capture sampling rate
+	c_ssize          capture sample size (bytes)
+	c_sync           capture synchronization type (async/adaptive)
+	c_mute_present   capture mute control enable
+	c_volume_present capture volume control enable
+	c_volume_min     capture volume control min value (in 1/256 dB)
+	c_volume_max     capture volume control max value (in 1/256 dB)
+	c_volume_res     capture volume control resolution (in 1/256 dB)
+	fb_max           maximum extra bandwidth in async mode
+	p_chmask         playback channel mask
+	p_srate          playback sampling rate
+	p_ssize          playback sample size (bytes)
+	p_mute_present   playback mute control enable
+	p_volume_present playback volume control enable
+	p_volume_min     playback volume control min value (in 1/256 dB)
+	p_volume_max     playback volume control max value (in 1/256 dB)
+	p_volume_res     playback volume control resolution (in 1/256 dB)
+	req_number       the number of pre-allocated request for both capture
+	                 and playback
+	================ ====================================================
 
 The attributes have sane default values.
 
@@ -904,16 +914,26 @@ Function-specific configfs interface
 The function name to use when creating the function directory is "uac1".
 The uac1 function provides these attributes in its function directory:
 
-	========== ====================================================
-	c_chmask   capture channel mask
-	c_srate    capture sampling rate
-	c_ssize    capture sample size (bytes)
-	p_chmask   playback channel mask
-	p_srate    playback sampling rate
-	p_ssize    playback sample size (bytes)
-	req_number the number of pre-allocated request for both capture
-		   and playback
-	========== ====================================================
+	================ ====================================================
+	c_chmask         capture channel mask
+	c_srate          capture sampling rate
+	c_ssize          capture sample size (bytes)
+	c_mute_present   capture mute control enable
+	c_volume_present capture volume control enable
+	c_volume_min     capture volume control min value (in 1/256 dB)
+	c_volume_max     capture volume control max value (in 1/256 dB)
+	c_volume_res     capture volume control resolution (in 1/256 dB)
+	p_chmask         playback channel mask
+	p_srate          playback sampling rate
+	p_ssize          playback sample size (bytes)
+	p_mute_present   playback mute control enable
+	p_volume_present playback volume control enable
+	p_volume_min     playback volume control min value (in 1/256 dB)
+	p_volume_max     playback volume control max value (in 1/256 dB)
+	p_volume_res     playback volume control resolution (in 1/256 dB)
+	req_number       the number of pre-allocated request for both capture
+	                 and playback
+	================ ====================================================
 
 The attributes have sane default values.
 

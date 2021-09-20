@@ -52,9 +52,9 @@ nvkm_client_map(void *priv, u64 handle, u32 size)
 }
 
 static int
-nvkm_client_ioctl(void *priv, bool super, void *data, u32 size, void **hack)
+nvkm_client_ioctl(void *priv, void *data, u32 size, void **hack)
 {
-	return nvkm_ioctl(priv, super, data, size, hack);
+	return nvkm_ioctl(priv, data, size, hack);
 }
 
 static int

@@ -581,7 +581,7 @@ struct mlx5_priv {
 	/* end: qp staff */
 
 	/* start: alloc staff */
-	/* protect buffer alocation according to numa node */
+	/* protect buffer allocation according to numa node */
 	struct mutex            alloc_mutex;
 	int                     numa_node;
 
@@ -623,8 +623,7 @@ struct mlx5_priv {
 };
 
 enum mlx5_device_state {
-	MLX5_DEVICE_STATE_UNINITIALIZED,
-	MLX5_DEVICE_STATE_UP,
+	MLX5_DEVICE_STATE_UP = 1,
 	MLX5_DEVICE_STATE_INTERNAL_ERROR,
 };
 
@@ -730,6 +729,11 @@ struct mlx5_profile {
 	} mr_cache[MAX_MR_CACHE_ENTRIES];
 };
 
+struct mlx5_hca_cap {
+	u32 cur[MLX5_UN_SZ_DW(hca_cap_union)];
+	u32 max[MLX5_UN_SZ_DW(hca_cap_union)];
+};
+
 struct mlx5_core_dev {
 	struct device *device;
 	enum mlx5_coredev_type coredev_type;
@@ -741,8 +745,7 @@ struct mlx5_core_dev {
 	char			board_id[MLX5_BOARD_ID_LEN];
 	struct mlx5_cmd		cmd;
 	struct {
-		u32 hca_cur[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
-		u32 hca_max[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
+		struct mlx5_hca_cap *hca[MLX5_CAP_NUM];
 		u32 pcam[MLX5_ST_SZ_DW(pcam_reg)];
 		u32 mcam[MLX5_MCAM_REGS_NUM][MLX5_ST_SZ_DW(mcam_reg)];
 		u32 fpga[MLX5_ST_SZ_DW(fpga_cap)];
@@ -1044,8 +1047,7 @@ void mlx5_unregister_debugfs(void);
 void mlx5_fill_page_array(struct mlx5_frag_buf *buf, __be64 *pas);
 void mlx5_fill_page_frag_array_perm(struct mlx5_frag_buf *buf, __be64 *pas, u8 perm);
 void mlx5_fill_page_frag_array(struct mlx5_frag_buf *frag_buf, __be64 *pas);
-int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
-		    unsigned int *irqn);
+int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn);
 int mlx5_core_attach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn);
 int mlx5_core_detach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn);
 
@@ -1111,7 +1113,7 @@ static inline u8 mlx5_mkey_variant(u32 mkey)
 }
 
 /* Async-atomic event notifier used by mlx5 core to forward FW
- * evetns recived from event queue to mlx5 consumers.
+ * evetns received from event queue to mlx5 consumers.
  * Optimise event queue dipatching.
  */
 int mlx5_notifier_register(struct mlx5_core_dev *dev, struct notifier_block *nb);
@@ -1138,6 +1140,8 @@ bool mlx5_lag_is_roce(struct mlx5_core_dev *dev);
 bool mlx5_lag_is_sriov(struct mlx5_core_dev *dev);
 bool mlx5_lag_is_multipath(struct mlx5_core_dev *dev);
 bool mlx5_lag_is_active(struct mlx5_core_dev *dev);
+bool mlx5_lag_is_master(struct mlx5_core_dev *dev);
+bool mlx5_lag_is_shared_fdb(struct mlx5_core_dev *dev);
 struct net_device *mlx5_lag_get_roce_netdev(struct mlx5_core_dev *dev);
 u8 mlx5_lag_get_slave_port(struct mlx5_core_dev *dev,
 			   struct net_device *slave);
@@ -1145,6 +1149,7 @@ int mlx5_lag_query_cong_counters(struct mlx5_core_dev *dev,
 				 u64 *values,
 				 int num_counters,
 				 size_t *offsets);
+struct mlx5_core_dev *mlx5_lag_get_peer_mdev(struct mlx5_core_dev *dev);
 struct mlx5_uars_page *mlx5_get_uars_page(struct mlx5_core_dev *mdev);
 void mlx5_put_uars_page(struct mlx5_core_dev *mdev, struct mlx5_uars_page *up);
 int mlx5_dm_sw_icm_alloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type,

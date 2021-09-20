@@ -14,14 +14,13 @@ config ALPHA
 	select PCI_SYSCALL if PCI
 	select HAVE_AOUT
 	select HAVE_ASM_MODVERSIONS
-	select HAVE_IDE
 	select HAVE_PCSPKR_PLATFORM
 	select HAVE_PERF_EVENTS
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
 	select VIRT_TO_BUS
 	select GENERIC_IRQ_PROBE
-	select GENERIC_PCI_IOMAP if PCI
+	select GENERIC_PCI_IOMAP
 	select AUTO_IRQ_AFFINITY if SMP
 	select GENERIC_IRQ_SHOW
 	select ARCH_WANT_IPC_PARSE_VERSION
@@ -29,8 +28,6 @@ config ALPHA
 	select AUDIT_ARCH
 	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_SMP_IDLE_THREAD
-	select GENERIC_STRNCPY_FROM_USER
-	select GENERIC_STRNLEN_USER
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_MOD_ARCH_SPECIFIC
 	select MODULES_USE_ELF_RELA
@@ -202,7 +199,6 @@ config ALPHA_EIGER
 
 config ALPHA_JENSEN
 	bool "Jensen"
-	depends on BROKEN
 	select HAVE_EISA
 	help
 	  DEC PC 150 AXP (aka Jensen): This is a very old Digital system - one
@@ -532,7 +528,7 @@ config SMP
 	  will run faster if you say N here.
 
 	  See also the SMP-HOWTO available at
-	  <http://www.tldp.org/docs.html#howto>.
+	  <https://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
 

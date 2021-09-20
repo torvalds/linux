@@ -186,7 +186,7 @@ static irqreturn_t st_nci_irq_thread_fn(int irq, void *phy_id)
 	return IRQ_HANDLED;
 }
 
-static struct nfc_phy_ops i2c_phy_ops = {
+static const struct nfc_phy_ops i2c_phy_ops = {
 	.write = st_nci_i2c_write,
 	.enable = st_nci_i2c_enable,
 	.disable = st_nci_i2c_disable,

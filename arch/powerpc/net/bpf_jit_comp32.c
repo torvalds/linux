@@ -738,6 +738,12 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, struct codegen_context *
 			break;
 
 		/*
+		 * BPF_ST NOSPEC (speculation barrier)
+		 */
+		case BPF_ST | BPF_NOSPEC:
+			break;
+
+		/*
 		 * BPF_ST(X)
 		 */
 		case BPF_STX | BPF_MEM | BPF_B: /* *(u8 *)(dst + off) = src */

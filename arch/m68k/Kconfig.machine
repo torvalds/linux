@@ -33,6 +33,7 @@ config MAC
 	depends on MMU
 	select MMU_MOTOROLA if MMU
 	select HAVE_ARCH_NVRAM_OPS
+	select HAVE_PATA_PLATFORM
 	select LEGACY_TIMER_TICK
 	help
 	  This option enables support for the Apple Macintosh series of
@@ -464,6 +465,7 @@ config RAMKERNEL
 
 config ROMKERNEL
 	bool "ROM"
+	depends on ROM
 	help
 	  The kernel will be resident in FLASH/ROM when running. This is
 	  often referred to as Execute-in-Place (XIP), since the kernel

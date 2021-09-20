@@ -190,12 +190,15 @@ fail:
  * inode->i_mutex: down
  * BKL held [before 2.5.x]
  */
-struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
+struct posix_acl *reiserfs_get_acl(struct inode *inode, int type, bool rcu)
 {
 	char *name, *value;
 	struct posix_acl *acl;
 	int size;
 	int retval;
+
+	if (rcu)
+		return ERR_PTR(-ECHILD);
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:

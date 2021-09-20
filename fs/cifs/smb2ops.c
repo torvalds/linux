@@ -557,8 +557,8 @@ parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
 	p = buf;
 	while (bytes_left >= sizeof(*p)) {
 		info->speed = le64_to_cpu(p->LinkSpeed);
-		info->rdma_capable = le32_to_cpu(p->Capability & RDMA_CAPABLE);
-		info->rss_capable = le32_to_cpu(p->Capability & RSS_CAPABLE);
+		info->rdma_capable = le32_to_cpu(p->Capability & RDMA_CAPABLE) ? 1 : 0;
+		info->rss_capable = le32_to_cpu(p->Capability & RSS_CAPABLE) ? 1 : 0;
 
 		cifs_dbg(FYI, "%s: adding iface %zu\n", __func__, *iface_count);
 		cifs_dbg(FYI, "%s: speed %zu bps\n", __func__, info->speed);
@@ -689,13 +689,19 @@ smb2_close_cached_fid(struct kref *ref)
 		cifs_dbg(FYI, "clear cached root file handle\n");
 		SMB2_close(0, cfid->tcon, cfid->fid->persistent_fid,
 			   cfid->fid->volatile_fid);
-		cfid->is_valid = false;
-		cfid->file_all_info_is_valid = false;
-		cfid->has_lease = false;
-		if (cfid->dentry) {
-			dput(cfid->dentry);
-			cfid->dentry = NULL;
-		}
+	}
+
+	/*
+	 * We only check validity above to send SMB2_close,
+	 * but we still need to invalidate these entries
+	 * when this function is called
+	 */
+	cfid->is_valid = false;
+	cfid->file_all_info_is_valid = false;
+	cfid->has_lease = false;
+	if (cfid->dentry) {
+		dput(cfid->dentry);
+		cfid->dentry = NULL;
 	}
 }
 
@@ -2910,6 +2916,8 @@ smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 		/* ipc tcons are not refcounted */
 		spin_lock(&cifs_tcp_ses_lock);
 		tcon->tc_count--;
+		/* tc_count can never go negative */
+		WARN_ON(tcon->tc_count < 0);
 		spin_unlock(&cifs_tcp_ses_lock);
 	}
 	kfree(utf16_path);
@@ -3588,6 +3596,7 @@ static long smb3_punch_hole(struct file *file, struct cifs_tcon *tcon,
 		return rc;
 	}
 
+	filemap_invalidate_lock(inode->i_mapping);
 	/*
 	 * We implement the punch hole through ioctl, so we need remove the page
 	 * caches first, otherwise the data may be inconsistent with the server.
@@ -3605,6 +3614,7 @@ static long smb3_punch_hole(struct file *file, struct cifs_tcon *tcon,
 			sizeof(struct file_zero_data_information),
 			CIFSMaxBufSize, NULL, NULL);
 	free_xid(xid);
+	filemap_invalidate_unlock(inode->i_mapping);
 	return rc;
 }
 
@@ -3616,6 +3626,7 @@ static int smb3_simple_fallocate_write_range(unsigned int xid,
 {
 	struct cifs_io_parms io_parms = {0};
 	int nbytes;
+	int rc = 0;
 	struct kvec iov[2];
 
 	io_parms.netfid = cfile->fid.netfid;
@@ -3623,13 +3634,25 @@ static int smb3_simple_fallocate_write_range(unsigned int xid,
 	io_parms.tcon = tcon;
 	io_parms.persistent_fid = cfile->fid.persistent_fid;
 	io_parms.volatile_fid = cfile->fid.volatile_fid;
-	io_parms.offset = off;
-	io_parms.length = len;
 
-	/* iov[0] is reserved for smb header */
-	iov[1].iov_base = buf;
-	iov[1].iov_len = io_parms.length;
-	return SMB2_write(xid, &io_parms, &nbytes, iov, 1);
+	while (len) {
+		io_parms.offset = off;
+		io_parms.length = len;
+		if (io_parms.length > SMB2_MAX_BUFFER_SIZE)
+			io_parms.length = SMB2_MAX_BUFFER_SIZE;
+		/* iov[0] is reserved for smb header */
+		iov[1].iov_base = buf;
+		iov[1].iov_len = io_parms.length;
+		rc = SMB2_write(xid, &io_parms, &nbytes, iov, 1);
+		if (rc)
+			break;
+		if (nbytes > len)
+			return -EINVAL;
+		buf += nbytes;
+		off += nbytes;
+		len -= nbytes;
+	}
+	return rc;
 }
 
 static int smb3_simple_fallocate_range(unsigned int xid,
@@ -3652,11 +3675,6 @@ static int smb3_simple_fallocate_range(unsigned int xid,
 			1024 * sizeof(struct file_allocated_range_buffer),
 			(char **)&out_data, &out_data_len);
 	if (rc)
-		goto out;
-	/*
-	 * It is already all allocated
-	 */
-	if (out_data_len == 0)
 		goto out;
 
 	buf = kzalloc(1024 * 1024, GFP_KERNEL);
@@ -3778,6 +3796,24 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 	if ((cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE) == 0) {
 		rc = 0;
 		goto out;
+	}
+
+	if (keep_size == true) {
+		/*
+		 * We can not preallocate pages beyond the end of the file
+		 * in SMB2
+		 */
+		if (off >= i_size_read(inode)) {
+			rc = 0;
+			goto out;
+		}
+		/*
+		 * For fallocates that are partially beyond the end of file,
+		 * clamp len so we only fallocate up to the end of file.
+		 */
+		if (off + len > i_size_read(inode)) {
+			len = i_size_read(inode) - off;
+		}
 	}
 
 	if ((keep_size == true) || (i_size_read(inode) >= off + len)) {

@@ -391,9 +391,9 @@ static struct clk *rsnd_adg_create_null_clk(struct rsnd_priv *priv,
 	struct clk *clk;
 
 	clk = clk_register_fixed_rate(dev, name, parent, 0, 0);
-	if (IS_ERR(clk)) {
+	if (IS_ERR_OR_NULL(clk)) {
 		dev_err(dev, "create null clk error\n");
-		return NULL;
+		return ERR_CAST(clk);
 	}
 
 	return clk;
@@ -430,9 +430,9 @@ static int rsnd_adg_get_clkin(struct rsnd_priv *priv)
 	for (i = 0; i < CLKMAX; i++) {
 		clk = devm_clk_get(dev, clk_name[i]);
 
-		if (IS_ERR(clk))
+		if (IS_ERR_OR_NULL(clk))
 			clk = rsnd_adg_null_clk_get(priv);
-		if (IS_ERR(clk))
+		if (IS_ERR_OR_NULL(clk))
 			goto err;
 
 		adg->clk[i] = clk;
@@ -582,7 +582,7 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 	if (!count) {
 		clk = clk_register_fixed_rate(dev, clkout_name[CLKOUT],
 					      parent_clk_name, 0, req_rate[0]);
-		if (IS_ERR(clk))
+		if (IS_ERR_OR_NULL(clk))
 			goto err;
 
 		adg->clkout[CLKOUT] = clk;
@@ -596,7 +596,7 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 			clk = clk_register_fixed_rate(dev, clkout_name[i],
 						      parent_clk_name, 0,
 						      req_rate[0]);
-			if (IS_ERR(clk))
+			if (IS_ERR_OR_NULL(clk))
 				goto err;
 
 			adg->clkout[i] = clk;

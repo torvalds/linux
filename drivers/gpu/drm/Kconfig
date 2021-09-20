@@ -35,6 +35,11 @@ config DRM_MIPI_DSI
 	bool
 	depends on DRM
 
+config DRM_DP_AUX_BUS
+	tristate
+	depends on DRM
+	depends on OF
+
 config DRM_DP_AUX_CHARDEV
 	bool "DRM DP AUX Interface"
 	depends on DRM
@@ -251,7 +256,6 @@ config DRM_AMDGPU
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE
 	select INTERVAL_TREE
-	select CHASH
 	help
 	  Choose this option if you have a recent AMD Radeon graphics card.
 
@@ -316,8 +320,6 @@ source "drivers/gpu/drm/omapdrm/Kconfig"
 source "drivers/gpu/drm/tilcdc/Kconfig"
 
 source "drivers/gpu/drm/qxl/Kconfig"
-
-source "drivers/gpu/drm/bochs/Kconfig"
 
 source "drivers/gpu/drm/virtio/Kconfig"
 

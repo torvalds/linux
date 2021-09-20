@@ -926,12 +926,25 @@ static int cma_init_ud_qp(struct rdma_id_private *id_priv, struct ib_qp *qp)
 	return ret;
 }
 
+static int cma_init_conn_qp(struct rdma_id_private *id_priv, struct ib_qp *qp)
+{
+	struct ib_qp_attr qp_attr;
+	int qp_attr_mask, ret;
+
+	qp_attr.qp_state = IB_QPS_INIT;
+	ret = rdma_init_qp_attr(&id_priv->id, &qp_attr, &qp_attr_mask);
+	if (ret)
+		return ret;
+
+	return ib_modify_qp(qp, &qp_attr, qp_attr_mask);
+}
+
 int rdma_create_qp(struct rdma_cm_id *id, struct ib_pd *pd,
 		   struct ib_qp_init_attr *qp_init_attr)
 {
 	struct rdma_id_private *id_priv;
 	struct ib_qp *qp;
-	int ret = 0;
+	int ret;
 
 	id_priv = container_of(id, struct rdma_id_private, id);
 	if (id->device != pd->device) {
@@ -948,6 +961,8 @@ int rdma_create_qp(struct rdma_cm_id *id, struct ib_pd *pd,
 
 	if (id->qp_type == IB_QPT_UD)
 		ret = cma_init_ud_qp(id_priv, qp);
+	else
+		ret = cma_init_conn_qp(id_priv, qp);
 	if (ret)
 		goto out_destroy;
 
@@ -3116,6 +3131,9 @@ int rdma_resolve_route(struct rdma_cm_id *id, unsigned long timeout_ms)
 {
 	struct rdma_id_private *id_priv;
 	int ret;
+
+	if (!timeout_ms)
+		return -EINVAL;
 
 	id_priv = container_of(id, struct rdma_id_private, id);
 	if (!cma_comp_exch(id_priv, RDMA_CM_ADDR_RESOLVED, RDMA_CM_ROUTE_QUERY))

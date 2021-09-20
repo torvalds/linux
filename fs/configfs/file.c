@@ -91,7 +91,10 @@ static ssize_t configfs_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	}
 	pr_debug("%s: count = %zd, pos = %lld, buf = %s\n",
 		 __func__, iov_iter_count(to), iocb->ki_pos, buffer->page);
-	retval = copy_to_iter(buffer->page, buffer->count, to);
+	if (iocb->ki_pos >= buffer->count)
+		goto out;
+	retval = copy_to_iter(buffer->page + iocb->ki_pos,
+			      buffer->count - iocb->ki_pos, to);
 	iocb->ki_pos += retval;
 	if (retval == 0)
 		retval = -EFAULT;
@@ -162,7 +165,10 @@ static ssize_t configfs_bin_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		buffer->needs_read_fill = 0;
 	}
 
-	retval = copy_to_iter(buffer->bin_buffer, buffer->bin_buffer_size, to);
+	if (iocb->ki_pos >= buffer->bin_buffer_size)
+		goto out;
+	retval = copy_to_iter(buffer->bin_buffer + iocb->ki_pos,
+			      buffer->bin_buffer_size - iocb->ki_pos, to);
 	iocb->ki_pos += retval;
 	if (retval == 0)
 		retval = -EFAULT;
@@ -171,6 +177,7 @@ out:
 	return retval;
 }
 
+/* Fill @buffer with data coming from @from. */
 static int fill_write_buffer(struct configfs_buffer *buffer,
 			     struct iov_iter *from)
 {
@@ -214,7 +221,7 @@ static ssize_t configfs_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct configfs_buffer *buffer = file->private_data;
-	ssize_t len;
+	int len;
 
 	mutex_lock(&buffer->mutex);
 	len = fill_write_buffer(buffer, from);
@@ -272,7 +279,9 @@ static ssize_t configfs_bin_write_iter(struct kiocb *iocb,
 		buffer->bin_buffer_size = end_offset;
 	}
 
-	len = copy_from_iter(buffer->bin_buffer, buffer->bin_buffer_size, from);
+	len = copy_from_iter(buffer->bin_buffer + iocb->ki_pos,
+			     buffer->bin_buffer_size - iocb->ki_pos, from);
+	iocb->ki_pos += len;
 out:
 	mutex_unlock(&buffer->mutex);
 	return len ? : -EFAULT;

@@ -188,7 +188,7 @@ static ssize_t hwirq_show(struct kobject *kobj,
 
 	raw_spin_lock_irq(&desc->lock);
 	if (desc->irq_data.domain)
-		ret = sprintf(buf, "%d\n", (int)desc->irq_data.hwirq);
+		ret = sprintf(buf, "%lu\n", desc->irq_data.hwirq);
 	raw_spin_unlock_irq(&desc->lock);
 
 	return ret;

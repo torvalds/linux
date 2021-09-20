@@ -77,7 +77,7 @@
 #include "../../../../drivers/pci/pci.h"
 
 DEFINE_STATIC_KEY_FALSE(shared_processor);
-EXPORT_SYMBOL_GPL(shared_processor);
+EXPORT_SYMBOL(shared_processor);
 
 int CMO_PrPSP = -1;
 int CMO_SecPSP = -1;
@@ -486,6 +486,8 @@ static void __init pSeries_discover_phbs(void)
 
 		/* create pci_dn's for DT nodes under this PHB */
 		pci_devs_phb_init_dynamic(phb);
+
+		pseries_msi_allocate_domains(phb);
 	}
 
 	of_node_put(root);
@@ -539,9 +541,10 @@ static void init_cpu_char_feature_flags(struct h_cpu_char_result *result)
 	 * H_CPU_BEHAV_FAVOUR_SECURITY_H could be set only if
 	 * H_CPU_BEHAV_FAVOUR_SECURITY is.
 	 */
-	if (!(result->behaviour & H_CPU_BEHAV_FAVOUR_SECURITY))
+	if (!(result->behaviour & H_CPU_BEHAV_FAVOUR_SECURITY)) {
 		security_ftr_clear(SEC_FTR_FAVOUR_SECURITY);
-	else if (result->behaviour & H_CPU_BEHAV_FAVOUR_SECURITY_H)
+		pseries_security_flavor = 0;
+	} else if (result->behaviour & H_CPU_BEHAV_FAVOUR_SECURITY_H)
 		pseries_security_flavor = 1;
 	else
 		pseries_security_flavor = 2;

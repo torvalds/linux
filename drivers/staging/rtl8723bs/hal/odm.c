@@ -281,10 +281,6 @@ u32 TxScalingTable_Jaguar[TXSCALE_TABLE_SIZE] = {
 
 /* Remove Edca by Yu Chen */
 
-
-#define RxDefaultAnt1		0x65a9
-#define RxDefaultAnt2		0x569a
-
 static void odm_CommonInfoSelfInit(struct dm_odm_t *pDM_Odm)
 {
 	pDM_Odm->bCckHighPower = (bool) PHY_QueryBBReg(pDM_Odm->Adapter, ODM_REG(CCK_RPT_FORMAT, pDM_Odm), ODM_BIT(CCK_RPT_FORMAT, pDM_Odm));
@@ -395,36 +391,20 @@ u32 ODM_Get_Rate_Bitmap(
 	case (ODM_WM_B|ODM_WM_G|ODM_WM_N24G):
 	case (ODM_WM_B|ODM_WM_N24G):
 	case (ODM_WM_G|ODM_WM_N24G):
-		if (pDM_Odm->RFType == ODM_1T2R || pDM_Odm->RFType == ODM_1T1R) {
-			if (rssi_level == DM_RATR_STA_HIGH)
-				rate_bitmap = 0x000f0000;
-			else if (rssi_level == DM_RATR_STA_MIDDLE)
-				rate_bitmap = 0x000ff000;
-			else {
-				if (*(pDM_Odm->pBandWidth) == ODM_BW40M)
-					rate_bitmap = 0x000ff015;
-				else
-					rate_bitmap = 0x000ff005;
-			}
-		} else {
-			if (rssi_level == DM_RATR_STA_HIGH)
-				rate_bitmap = 0x0f8f0000;
-			else if (rssi_level == DM_RATR_STA_MIDDLE)
-				rate_bitmap = 0x0f8ff000;
-			else {
-				if (*(pDM_Odm->pBandWidth) == ODM_BW40M)
-					rate_bitmap = 0x0f8ff015;
-				else
-					rate_bitmap = 0x0f8ff005;
-			}
+		if (rssi_level == DM_RATR_STA_HIGH)
+			rate_bitmap = 0x000f0000;
+		else if (rssi_level == DM_RATR_STA_MIDDLE)
+			rate_bitmap = 0x000ff000;
+		else {
+			if (*(pDM_Odm->pBandWidth) == ODM_BW40M)
+				rate_bitmap = 0x000ff015;
+			else
+				rate_bitmap = 0x000ff005;
 		}
 		break;
 
 	default:
-		if (pDM_Odm->RFType == RF_1T2R)
-			rate_bitmap = 0x000fffff;
-		else
-			rate_bitmap = 0x0fffffff;
+		rate_bitmap = 0x0fffffff;
 		break;
 	}
 
@@ -722,7 +702,7 @@ void odm_TXPowerTrackingInit(struct dm_odm_t *pDM_Odm)
 	pDM_Odm->BbSwingIdxCckBase = pDM_Odm->DefaultCckIndex;
 	pDM_Odm->RFCalibrateInfo.CCK_index = pDM_Odm->DefaultCckIndex;
 
-	for (p = ODM_RF_PATH_A; p < MAX_RF_PATH; ++p) {
+	for (p = RF_PATH_A; p < MAX_RF_PATH; ++p) {
 		pDM_Odm->BbSwingIdxOfdmBase[p] = pDM_Odm->DefaultOfdmIndex;
 		pDM_Odm->RFCalibrateInfo.OFDM_index[p] = pDM_Odm->DefaultOfdmIndex;
 		pDM_Odm->RFCalibrateInfo.DeltaPowerIndex[p] = 0;
@@ -740,7 +720,7 @@ void ODM_TXPowerTrackingCheck(struct dm_odm_t *pDM_Odm)
 		return;
 
 	if (!pDM_Odm->RFCalibrateInfo.TM_Trigger) { /* at least delay 1 sec */
-		PHY_SetRFReg(pDM_Odm->Adapter, ODM_RF_PATH_A, RF_T_METER_NEW, (BIT17 | BIT16), 0x03);
+		PHY_SetRFReg(pDM_Odm->Adapter, RF_PATH_A, RF_T_METER_NEW, (BIT17 | BIT16), 0x03);
 
 		pDM_Odm->RFCalibrateInfo.TM_Trigger = 1;
 		return;
@@ -848,20 +828,12 @@ void ODM_CmnInfoInit(struct dm_odm_t *pDM_Odm, enum odm_cmninfo_e CmnInfo, u32 V
 		pDM_Odm->SupportAbility = (u32)Value;
 		break;
 
-	case ODM_CMNINFO_RF_TYPE:
-		pDM_Odm->RFType = (u8)Value;
-		break;
-
 	case ODM_CMNINFO_PLATFORM:
 		pDM_Odm->SupportPlatform = (u8)Value;
 		break;
 
 	case ODM_CMNINFO_INTERFACE:
 		pDM_Odm->SupportInterface = (u8)Value;
-		break;
-
-	case ODM_CMNINFO_MP_TEST_CHIP:
-		pDM_Odm->bIsMPChip = (u8)Value;
 		break;
 
 	case ODM_CMNINFO_IC_TYPE:
@@ -1100,10 +1072,6 @@ void ODM_CmnInfoUpdate(struct dm_odm_t *pDM_Odm, u32 CmnInfo, u64 Value)
 
 	case ODM_CMNINFO_ABILITY:
 		pDM_Odm->SupportAbility = (u32)Value;
-		break;
-
-	case ODM_CMNINFO_RF_TYPE:
-		pDM_Odm->RFType = (u8)Value;
 		break;
 
 	case ODM_CMNINFO_WIFI_DIRECT:

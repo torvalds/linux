@@ -83,7 +83,7 @@ static int nxp_nci_send(struct nci_dev *ndev, struct sk_buff *skb)
 	return r;
 }
 
-static struct nci_ops nxp_nci_ops = {
+static const struct nci_ops nxp_nci_ops = {
 	.open = nxp_nci_open,
 	.close = nxp_nci_close,
 	.send = nxp_nci_send,

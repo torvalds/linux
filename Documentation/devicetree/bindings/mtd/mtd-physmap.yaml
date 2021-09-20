@@ -23,6 +23,7 @@ properties:
               - amd,s29gl256n
               - amd,s29gl512n
               - arm,versatile-flash
+              - arm,vexpress-flash
               - cortina,gemini-flash
               - cypress,hyperflash
               - ge,imp3a-firmware-mirror

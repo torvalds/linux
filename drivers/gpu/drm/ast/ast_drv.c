@@ -100,7 +100,7 @@ static int ast_remove_conflicting_framebuffers(struct pci_dev *pdev)
 	primary = pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
 #endif
 
-	return drm_aperture_remove_conflicting_framebuffers(base, size, primary, "astdrmfb");
+	return drm_aperture_remove_conflicting_framebuffers(base, size, primary, &ast_driver);
 }
 
 static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)

@@ -247,8 +247,6 @@ static void armada_drm_overlay_plane_atomic_disable(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs armada_overlay_plane_helper_funcs = {
-	.prepare_fb	= armada_drm_plane_prepare_fb,
-	.cleanup_fb	= armada_drm_plane_cleanup_fb,
 	.atomic_check	= armada_drm_plane_atomic_check,
 	.atomic_update	= armada_drm_overlay_plane_atomic_update,
 	.atomic_disable	= armada_drm_overlay_plane_atomic_disable,

@@ -42,6 +42,7 @@ struct backing_dev_info;
 struct bio_list;
 struct blk_plug;
 struct bpf_local_storage;
+struct bpf_run_ctx;
 struct capture_control;
 struct cfs_rq;
 struct fs_struct;
@@ -95,7 +96,9 @@ struct task_group;
 #define TASK_WAKING			0x0200
 #define TASK_NOLOAD			0x0400
 #define TASK_NEW			0x0800
-#define TASK_STATE_MAX			0x1000
+/* RT specific auxilliary flag to mark RT lock waiters */
+#define TASK_RTLOCK_WAIT		0x1000
+#define TASK_STATE_MAX			0x2000
 
 /* Convenience macros for the sake of set_current_state: */
 #define TASK_KILLABLE			(TASK_WAKEKILL | TASK_UNINTERRUPTIBLE)
@@ -121,8 +124,6 @@ struct task_group;
 
 #define task_is_stopped_or_traced(task)	((READ_ONCE(task->__state) & (__TASK_STOPPED | __TASK_TRACED)) != 0)
 
-#ifdef CONFIG_DEBUG_ATOMIC_SLEEP
-
 /*
  * Special states are those that do not use the normal wait-loop pattern. See
  * the comment with set_special_state().
@@ -130,30 +131,37 @@ struct task_group;
 #define is_special_task_state(state)				\
 	((state) & (__TASK_STOPPED | __TASK_TRACED | TASK_PARKED | TASK_DEAD))
 
-#define __set_current_state(state_value)			\
-	do {							\
-		WARN_ON_ONCE(is_special_task_state(state_value));\
-		current->task_state_change = _THIS_IP_;		\
-		WRITE_ONCE(current->__state, (state_value));	\
-	} while (0)
-
-#define set_current_state(state_value)				\
-	do {							\
-		WARN_ON_ONCE(is_special_task_state(state_value));\
-		current->task_state_change = _THIS_IP_;		\
-		smp_store_mb(current->__state, (state_value));	\
-	} while (0)
-
-#define set_special_state(state_value)					\
+#ifdef CONFIG_DEBUG_ATOMIC_SLEEP
+# define debug_normal_state_change(state_value)				\
 	do {								\
-		unsigned long flags; /* may shadow */			\
-		WARN_ON_ONCE(!is_special_task_state(state_value));	\
-		raw_spin_lock_irqsave(&current->pi_lock, flags);	\
+		WARN_ON_ONCE(is_special_task_state(state_value));	\
 		current->task_state_change = _THIS_IP_;			\
-		WRITE_ONCE(current->__state, (state_value));		\
-		raw_spin_unlock_irqrestore(&current->pi_lock, flags);	\
 	} while (0)
+
+# define debug_special_state_change(state_value)			\
+	do {								\
+		WARN_ON_ONCE(!is_special_task_state(state_value));	\
+		current->task_state_change = _THIS_IP_;			\
+	} while (0)
+
+# define debug_rtlock_wait_set_state()					\
+	do {								 \
+		current->saved_state_change = current->task_state_change;\
+		current->task_state_change = _THIS_IP_;			 \
+	} while (0)
+
+# define debug_rtlock_wait_restore_state()				\
+	do {								 \
+		current->task_state_change = current->saved_state_change;\
+	} while (0)
+
 #else
+# define debug_normal_state_change(cond)	do { } while (0)
+# define debug_special_state_change(cond)	do { } while (0)
+# define debug_rtlock_wait_set_state()		do { } while (0)
+# define debug_rtlock_wait_restore_state()	do { } while (0)
+#endif
+
 /*
  * set_current_state() includes a barrier so that the write of current->state
  * is correctly serialised wrt the caller's subsequent test of whether to
@@ -192,26 +200,77 @@ struct task_group;
  * Also see the comments of try_to_wake_up().
  */
 #define __set_current_state(state_value)				\
-	WRITE_ONCE(current->__state, (state_value))
+	do {								\
+		debug_normal_state_change((state_value));		\
+		WRITE_ONCE(current->__state, (state_value));		\
+	} while (0)
 
 #define set_current_state(state_value)					\
-	smp_store_mb(current->__state, (state_value))
+	do {								\
+		debug_normal_state_change((state_value));		\
+		smp_store_mb(current->__state, (state_value));		\
+	} while (0)
 
 /*
  * set_special_state() should be used for those states when the blocking task
  * can not use the regular condition based wait-loop. In that case we must
- * serialize against wakeups such that any possible in-flight TASK_RUNNING stores
- * will not collide with our state change.
+ * serialize against wakeups such that any possible in-flight TASK_RUNNING
+ * stores will not collide with our state change.
  */
 #define set_special_state(state_value)					\
 	do {								\
 		unsigned long flags; /* may shadow */			\
+									\
 		raw_spin_lock_irqsave(&current->pi_lock, flags);	\
+		debug_special_state_change((state_value));		\
 		WRITE_ONCE(current->__state, (state_value));		\
 		raw_spin_unlock_irqrestore(&current->pi_lock, flags);	\
 	} while (0)
 
-#endif
+/*
+ * PREEMPT_RT specific variants for "sleeping" spin/rwlocks
+ *
+ * RT's spin/rwlock substitutions are state preserving. The state of the
+ * task when blocking on the lock is saved in task_struct::saved_state and
+ * restored after the lock has been acquired.  These operations are
+ * serialized by task_struct::pi_lock against try_to_wake_up(). Any non RT
+ * lock related wakeups while the task is blocked on the lock are
+ * redirected to operate on task_struct::saved_state to ensure that these
+ * are not dropped. On restore task_struct::saved_state is set to
+ * TASK_RUNNING so any wakeup attempt redirected to saved_state will fail.
+ *
+ * The lock operation looks like this:
+ *
+ *	current_save_and_set_rtlock_wait_state();
+ *	for (;;) {
+ *		if (try_lock())
+ *			break;
+ *		raw_spin_unlock_irq(&lock->wait_lock);
+ *		schedule_rtlock();
+ *		raw_spin_lock_irq(&lock->wait_lock);
+ *		set_current_state(TASK_RTLOCK_WAIT);
+ *	}
+ *	current_restore_rtlock_saved_state();
+ */
+#define current_save_and_set_rtlock_wait_state()			\
+	do {								\
+		lockdep_assert_irqs_disabled();				\
+		raw_spin_lock(&current->pi_lock);			\
+		current->saved_state = current->__state;		\
+		debug_rtlock_wait_set_state();				\
+		WRITE_ONCE(current->__state, TASK_RTLOCK_WAIT);		\
+		raw_spin_unlock(&current->pi_lock);			\
+	} while (0);
+
+#define current_restore_rtlock_saved_state()				\
+	do {								\
+		lockdep_assert_irqs_disabled();				\
+		raw_spin_lock(&current->pi_lock);			\
+		debug_rtlock_wait_restore_state();			\
+		WRITE_ONCE(current->__state, current->saved_state);	\
+		current->saved_state = TASK_RUNNING;			\
+		raw_spin_unlock(&current->pi_lock);			\
+	} while (0);
 
 #define get_current_state()	READ_ONCE(current->__state)
 
@@ -230,6 +289,9 @@ extern long schedule_timeout_idle(long timeout);
 asmlinkage void schedule(void);
 extern void schedule_preempt_disabled(void);
 asmlinkage void preempt_schedule_irq(void);
+#ifdef CONFIG_PREEMPT_RT
+ extern void schedule_rtlock(void);
+#endif
 
 extern int __must_check io_schedule_prepare(void);
 extern void io_schedule_finish(int token);
@@ -668,6 +730,11 @@ struct task_struct {
 #endif
 	unsigned int			__state;
 
+#ifdef CONFIG_PREEMPT_RT
+	/* saved state for "spinlock sleepers" */
+	unsigned int			saved_state;
+#endif
+
 	/*
 	 * This begins the randomizable portion of task_struct. Only
 	 * scheduling-critical items should be added above here.
@@ -748,6 +815,7 @@ struct task_struct {
 	unsigned int			policy;
 	int				nr_cpus_allowed;
 	const cpumask_t			*cpus_ptr;
+	cpumask_t			*user_cpus_ptr;
 	cpumask_t			cpus_mask;
 	void				*migration_pending;
 #ifdef CONFIG_SMP
@@ -862,6 +930,10 @@ struct task_struct {
 #ifdef CONFIG_PAGE_OWNER
 	/* Used by page_owner=on to detect recursion in page tracking. */
 	unsigned			in_page_owner:1;
+#endif
+#ifdef CONFIG_EVENTFD
+	/* Recursion prevention for eventfd_signal() */
+	unsigned			in_eventfd_signal:1;
 #endif
 
 	unsigned long			atomic_flags; /* Flags requiring atomic access. */
@@ -1357,6 +1429,9 @@ struct task_struct {
 	struct kmap_ctrl		kmap_ctrl;
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 	unsigned long			task_state_change;
+# ifdef CONFIG_PREEMPT_RT
+	unsigned long			saved_state_change;
+# endif
 #endif
 	int				pagefault_disabled;
 #ifdef CONFIG_MMU
@@ -1379,6 +1454,8 @@ struct task_struct {
 #ifdef CONFIG_BPF_SYSCALL
 	/* Used by BPF task local storage */
 	struct bpf_local_storage __rcu	*bpf_storage;
+	/* Used for BPF run context */
+	struct bpf_run_ctx		*bpf_ctx;
 #endif
 
 #ifdef CONFIG_GCC_PLUGIN_STACKLEAK
@@ -1394,10 +1471,21 @@ struct task_struct {
 					mce_whole_page : 1,
 					__mce_reserved : 62;
 	struct callback_head		mce_kill_me;
+	int				mce_count;
 #endif
 
 #ifdef CONFIG_KRETPROBES
 	struct llist_head               kretprobe_instances;
+#endif
+
+#ifdef CONFIG_ARCH_HAS_PARANOID_L1D_FLUSH
+	/*
+	 * If L1D flush is supported on mm context switch
+	 * then we use this callback head to queue kill work
+	 * to kill tasks that are not running on SMT disabled
+	 * cores
+	 */
+	struct callback_head		l1d_flush_kill;
 #endif
 
 	/*
@@ -1705,6 +1793,11 @@ extern int task_can_attach(struct task_struct *p, const struct cpumask *cs_cpus_
 #ifdef CONFIG_SMP
 extern void do_set_cpus_allowed(struct task_struct *p, const struct cpumask *new_mask);
 extern int set_cpus_allowed_ptr(struct task_struct *p, const struct cpumask *new_mask);
+extern int dup_user_cpus_ptr(struct task_struct *dst, struct task_struct *src, int node);
+extern void release_user_cpus_ptr(struct task_struct *p);
+extern int dl_task_check_affinity(struct task_struct *p, const struct cpumask *mask);
+extern void force_compatible_cpus_allowed_ptr(struct task_struct *p);
+extern void relax_compatible_cpus_allowed_ptr(struct task_struct *p);
 #else
 static inline void do_set_cpus_allowed(struct task_struct *p, const struct cpumask *new_mask)
 {
@@ -1713,6 +1806,21 @@ static inline int set_cpus_allowed_ptr(struct task_struct *p, const struct cpuma
 {
 	if (!cpumask_test_cpu(0, new_mask))
 		return -EINVAL;
+	return 0;
+}
+static inline int dup_user_cpus_ptr(struct task_struct *dst, struct task_struct *src, int node)
+{
+	if (src->user_cpus_ptr)
+		return -EINVAL;
+	return 0;
+}
+static inline void release_user_cpus_ptr(struct task_struct *p)
+{
+	WARN_ON(p->user_cpus_ptr);
+}
+
+static inline int dl_task_check_affinity(struct task_struct *p, const struct cpumask *mask)
+{
 	return 0;
 }
 #endif

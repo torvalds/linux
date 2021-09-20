@@ -39,6 +39,20 @@ MODULE_DESCRIPTION("{ip,ip6,arp,eb}_tables backend module");
 #define XT_PCPU_BLOCK_SIZE 4096
 #define XT_MAX_TABLE_SIZE	(512 * 1024 * 1024)
 
+struct xt_template {
+	struct list_head list;
+
+	/* called when table is needed in the given netns */
+	int (*table_init)(struct net *net);
+
+	struct module *me;
+
+	/* A unique name... */
+	char name[XT_TABLE_MAXNAMELEN];
+};
+
+static struct list_head xt_templates[NFPROTO_NUMPROTO];
+
 struct xt_pernet {
 	struct list_head tables[NFPROTO_NUMPROTO];
 };
@@ -1221,48 +1235,43 @@ struct xt_table *xt_find_table_lock(struct net *net, u_int8_t af,
 				    const char *name)
 {
 	struct xt_pernet *xt_net = net_generic(net, xt_pernet_id);
-	struct xt_table *t, *found = NULL;
+	struct module *owner = NULL;
+	struct xt_template *tmpl;
+	struct xt_table *t;
 
 	mutex_lock(&xt[af].mutex);
 	list_for_each_entry(t, &xt_net->tables[af], list)
 		if (strcmp(t->name, name) == 0 && try_module_get(t->me))
 			return t;
 
-	if (net == &init_net)
-		goto out;
-
-	/* Table doesn't exist in this netns, re-try init */
-	xt_net = net_generic(&init_net, xt_pernet_id);
-	list_for_each_entry(t, &xt_net->tables[af], list) {
+	/* Table doesn't exist in this netns, check larval list */
+	list_for_each_entry(tmpl, &xt_templates[af], list) {
 		int err;
 
-		if (strcmp(t->name, name))
+		if (strcmp(tmpl->name, name))
 			continue;
-		if (!try_module_get(t->me))
+		if (!try_module_get(tmpl->me))
 			goto out;
+
+		owner = tmpl->me;
+
 		mutex_unlock(&xt[af].mutex);
-		err = t->table_init(net);
+		err = tmpl->table_init(net);
 		if (err < 0) {
-			module_put(t->me);
+			module_put(owner);
 			return ERR_PTR(err);
 		}
-
-		found = t;
 
 		mutex_lock(&xt[af].mutex);
 		break;
 	}
 
-	if (!found)
-		goto out;
-
-	xt_net = net_generic(net, xt_pernet_id);
 	/* and once again: */
 	list_for_each_entry(t, &xt_net->tables[af], list)
 		if (strcmp(t->name, name) == 0)
 			return t;
 
-	module_put(found->me);
+	module_put(owner);
  out:
 	mutex_unlock(&xt[af].mutex);
 	return ERR_PTR(-ENOENT);
@@ -1749,6 +1758,58 @@ xt_hook_ops_alloc(const struct xt_table *table, nf_hookfn *fn)
 }
 EXPORT_SYMBOL_GPL(xt_hook_ops_alloc);
 
+int xt_register_template(const struct xt_table *table,
+			 int (*table_init)(struct net *net))
+{
+	int ret = -EEXIST, af = table->af;
+	struct xt_template *t;
+
+	mutex_lock(&xt[af].mutex);
+
+	list_for_each_entry(t, &xt_templates[af], list) {
+		if (WARN_ON_ONCE(strcmp(table->name, t->name) == 0))
+			goto out_unlock;
+	}
+
+	ret = -ENOMEM;
+	t = kzalloc(sizeof(*t), GFP_KERNEL);
+	if (!t)
+		goto out_unlock;
+
+	BUILD_BUG_ON(sizeof(t->name) != sizeof(table->name));
+
+	strscpy(t->name, table->name, sizeof(t->name));
+	t->table_init = table_init;
+	t->me = table->me;
+	list_add(&t->list, &xt_templates[af]);
+	ret = 0;
+out_unlock:
+	mutex_unlock(&xt[af].mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(xt_register_template);
+
+void xt_unregister_template(const struct xt_table *table)
+{
+	struct xt_template *t;
+	int af = table->af;
+
+	mutex_lock(&xt[af].mutex);
+	list_for_each_entry(t, &xt_templates[af], list) {
+		if (strcmp(table->name, t->name))
+			continue;
+
+		list_del(&t->list);
+		mutex_unlock(&xt[af].mutex);
+		kfree(t);
+		return;
+	}
+
+	mutex_unlock(&xt[af].mutex);
+	WARN_ON_ONCE(1);
+}
+EXPORT_SYMBOL_GPL(xt_unregister_template);
+
 int xt_proto_init(struct net *net, u_int8_t af)
 {
 #ifdef CONFIG_PROC_FS
@@ -1937,6 +1998,7 @@ static int __init xt_init(void)
 #endif
 		INIT_LIST_HEAD(&xt[i].target);
 		INIT_LIST_HEAD(&xt[i].match);
+		INIT_LIST_HEAD(&xt_templates[i]);
 	}
 	rv = register_pernet_subsys(&xt_net_ops);
 	if (rv < 0)

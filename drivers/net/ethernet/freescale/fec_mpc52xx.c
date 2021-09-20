@@ -792,7 +792,7 @@ static const struct net_device_ops mpc52xx_fec_netdev_ops = {
 	.ndo_set_rx_mode = mpc52xx_fec_set_multicast_list,
 	.ndo_set_mac_address = mpc52xx_fec_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,
-	.ndo_do_ioctl = phy_do_ioctl,
+	.ndo_eth_ioctl = phy_do_ioctl,
 	.ndo_tx_timeout = mpc52xx_fec_tx_timeout,
 	.ndo_get_stats = mpc52xx_fec_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER

@@ -1263,7 +1263,7 @@ static const struct net_device_ops xemaclite_netdev_ops = {
 	.ndo_start_xmit		= xemaclite_send,
 	.ndo_set_mac_address	= xemaclite_set_mac_address,
 	.ndo_tx_timeout		= xemaclite_tx_timeout,
-	.ndo_do_ioctl		= xemaclite_ioctl,
+	.ndo_eth_ioctl		= xemaclite_ioctl,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = xemaclite_poll_controller,
 #endif

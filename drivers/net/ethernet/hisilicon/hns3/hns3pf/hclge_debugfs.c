@@ -926,26 +926,45 @@ static int hclge_dbg_dump_tm_nodes(struct hclge_dev *hdev, char *buf, int len)
 	return 0;
 }
 
+static const struct hclge_dbg_item tm_pri_items[] = {
+	{ "ID", 4 },
+	{ "MODE", 2 },
+	{ "DWRR", 2 },
+	{ "C_IR_B", 2 },
+	{ "C_IR_U", 2 },
+	{ "C_IR_S", 2 },
+	{ "C_BS_B", 2 },
+	{ "C_BS_S", 2 },
+	{ "C_FLAG", 2 },
+	{ "C_RATE(Mbps)", 2 },
+	{ "P_IR_B", 2 },
+	{ "P_IR_U", 2 },
+	{ "P_IR_S", 2 },
+	{ "P_BS_B", 2 },
+	{ "P_BS_S", 2 },
+	{ "P_FLAG", 2 },
+	{ "P_RATE(Mbps)", 0 }
+};
+
 static int hclge_dbg_dump_tm_pri(struct hclge_dev *hdev, char *buf, int len)
 {
-	struct hclge_tm_shaper_para c_shaper_para;
-	struct hclge_tm_shaper_para p_shaper_para;
-	u8 pri_num, sch_mode, weight;
-	char *sch_mode_str;
-	int pos = 0;
-	int ret;
-	u8 i;
+	char data_str[ARRAY_SIZE(tm_pri_items)][HCLGE_DBG_DATA_STR_LEN];
+	struct hclge_tm_shaper_para c_shaper_para, p_shaper_para;
+	char *result[ARRAY_SIZE(tm_pri_items)], *sch_mode_str;
+	char content[HCLGE_DBG_TM_INFO_LEN];
+	u8 pri_num, sch_mode, weight, i, j;
+	int pos, ret;
 
 	ret = hclge_tm_get_pri_num(hdev, &pri_num);
 	if (ret)
 		return ret;
 
-	pos += scnprintf(buf + pos, len - pos,
-			 "ID    MODE  DWRR  C_IR_B  C_IR_U  C_IR_S  C_BS_B  ");
-	pos += scnprintf(buf + pos, len - pos,
-			 "C_BS_S  C_FLAG  C_RATE(Mbps)  P_IR_B  P_IR_U  ");
-	pos += scnprintf(buf + pos, len - pos,
-			 "P_IR_S  P_BS_B  P_BS_S  P_FLAG  P_RATE(Mbps)\n");
+	for (i = 0; i < ARRAY_SIZE(tm_pri_items); i++)
+		result[i] = &data_str[i][0];
+
+	hclge_dbg_fill_content(content, sizeof(content), tm_pri_items,
+			       NULL, ARRAY_SIZE(tm_pri_items));
+	pos = scnprintf(buf, len, "%s", content);
 
 	for (i = 0; i < pri_num; i++) {
 		ret = hclge_tm_get_pri_sch_mode(hdev, i, &sch_mode);
@@ -971,21 +990,16 @@ static int hclge_dbg_dump_tm_pri(struct hclge_dev *hdev, char *buf, int len)
 		sch_mode_str = sch_mode & HCLGE_TM_TX_SCHD_DWRR_MSK ? "dwrr" :
 			       "sp";
 
-		pos += scnprintf(buf + pos, len - pos,
-				 "%04u  %4s  %3u   %3u     %3u     %3u     ",
-				 i, sch_mode_str, weight, c_shaper_para.ir_b,
-				 c_shaper_para.ir_u, c_shaper_para.ir_s);
-		pos += scnprintf(buf + pos, len - pos,
-				 "%3u     %3u       %1u     %6u        ",
-				 c_shaper_para.bs_b, c_shaper_para.bs_s,
-				 c_shaper_para.flag, c_shaper_para.rate);
-		pos += scnprintf(buf + pos, len - pos,
-				 "%3u     %3u     %3u     %3u     %3u       ",
-				 p_shaper_para.ir_b, p_shaper_para.ir_u,
-				 p_shaper_para.ir_s, p_shaper_para.bs_b,
-				 p_shaper_para.bs_s);
-		pos += scnprintf(buf + pos, len - pos, "%1u     %6u\n",
-				 p_shaper_para.flag, p_shaper_para.rate);
+		j = 0;
+		sprintf(result[j++], "%04u", i);
+		sprintf(result[j++], "%4s", sch_mode_str);
+		sprintf(result[j++], "%3u", weight);
+		hclge_dbg_fill_shaper_content(&c_shaper_para, result, &j);
+		hclge_dbg_fill_shaper_content(&p_shaper_para, result, &j);
+		hclge_dbg_fill_content(content, sizeof(content), tm_pri_items,
+				       (const char **)result,
+				       ARRAY_SIZE(tm_pri_items));
+		pos += scnprintf(buf + pos, len - pos, "%s", content);
 	}
 
 	return 0;
@@ -1710,6 +1724,10 @@ hclge_dbg_get_imp_stats_info(struct hclge_dev *hdev, char *buf, int len)
 	}
 
 	bd_num = le32_to_cpu(req->bd_num);
+	if (!bd_num) {
+		dev_err(&hdev->pdev->dev, "imp statistics bd number is 0!\n");
+		return -EINVAL;
+	}
 
 	desc_src = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
 	if (!desc_src)

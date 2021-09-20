@@ -144,6 +144,19 @@ default VRF are only handled by a socket not bound to any VRF::
 netfilter rules on the VRF device can be used to limit access to services
 running in the default VRF context as well.
 
+Using VRF-aware applications (applications which simultaneously create sockets
+outside and inside VRFs) in conjunction with ``net.ipv4.tcp_l3mdev_accept=1``
+is possible but may lead to problems in some situations. With that sysctl
+value, it is unspecified which listening socket will be selected to handle
+connections for VRF traffic; ie. either a socket bound to the VRF or an unbound
+socket may be used to accept new connections from a VRF. This somewhat
+unexpected behavior can lead to problems if sockets are configured with extra
+options (ex. TCP MD5 keys) with the expectation that VRF traffic will
+exclusively be handled by sockets bound to VRFs, as would be the case with
+``net.ipv4.tcp_l3mdev_accept=0``. Finally and as a reminder, regardless of
+which listening socket is selected, established sockets will be created in the
+VRF based on the ingress interface, as documented earlier.
+
 --------------------------------------------------------------------------------
 
 Using iproute2 for VRFs

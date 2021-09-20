@@ -849,6 +849,8 @@ static int xts_crypt(struct skcipher_request *req, bool encrypt)
 		return -EINVAL;
 
 	err = skcipher_walk_virt(&walk, req, false);
+	if (!walk.nbytes)
+		return err;
 
 	if (unlikely(tail > 0 && walk.nbytes < walk.total)) {
 		int blocks = DIV_ROUND_UP(req->cryptlen, AES_BLOCK_SIZE) - 2;
@@ -862,7 +864,10 @@ static int xts_crypt(struct skcipher_request *req, bool encrypt)
 		skcipher_request_set_crypt(&subreq, req->src, req->dst,
 					   blocks * AES_BLOCK_SIZE, req->iv);
 		req = &subreq;
+
 		err = skcipher_walk_virt(&walk, req, false);
+		if (err)
+			return err;
 	} else {
 		tail = 0;
 	}

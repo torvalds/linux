@@ -28,30 +28,12 @@ enum { sysctl_hung_task_timeout_secs = 0 };
 
 extern unsigned int sysctl_sched_child_runs_first;
 
-extern unsigned int sysctl_sched_latency;
-extern unsigned int sysctl_sched_min_granularity;
-extern unsigned int sysctl_sched_wakeup_granularity;
-
 enum sched_tunable_scaling {
 	SCHED_TUNABLESCALING_NONE,
 	SCHED_TUNABLESCALING_LOG,
 	SCHED_TUNABLESCALING_LINEAR,
 	SCHED_TUNABLESCALING_END,
 };
-extern unsigned int sysctl_sched_tunable_scaling;
-
-extern unsigned int sysctl_numa_balancing_scan_delay;
-extern unsigned int sysctl_numa_balancing_scan_period_min;
-extern unsigned int sysctl_numa_balancing_scan_period_max;
-extern unsigned int sysctl_numa_balancing_scan_size;
-
-#ifdef CONFIG_SCHED_DEBUG
-extern __read_mostly unsigned int sysctl_sched_migration_cost;
-extern __read_mostly unsigned int sysctl_sched_nr_migrate;
-
-extern int sysctl_resched_latency_warn_ms;
-extern int sysctl_resched_latency_warn_once;
-#endif
 
 /*
  *  control realtime throttling:

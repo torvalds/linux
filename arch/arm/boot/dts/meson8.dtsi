@@ -304,13 +304,41 @@
 					  "pp2", "ppmmu2", "pp4", "ppmmu4",
 					  "pp5", "ppmmu5", "pp6", "ppmmu6";
 			resets = <&reset RESET_MALI>;
+
 			clocks = <&clkc CLKID_CLK81>, <&clkc CLKID_MALI>;
 			clock-names = "bus", "core";
+
+			assigned-clocks = <&clkc CLKID_MALI>;
+			assigned-clock-rates = <318750000>;
+
 			operating-points-v2 = <&gpu_opp_table>;
 			#cooling-cells = <2>; /* min followed by max */
 		};
 	};
 }; /* end of / */
+
+&aiu {
+	compatible = "amlogic,aiu-meson8", "amlogic,aiu";
+	clocks = <&clkc CLKID_AIU_GLUE>,
+		 <&clkc CLKID_I2S_OUT>,
+		 <&clkc CLKID_AOCLK_GATE>,
+		 <&clkc CLKID_CTS_AMCLK>,
+		 <&clkc CLKID_MIXER_IFACE>,
+		 <&clkc CLKID_IEC958>,
+		 <&clkc CLKID_IEC958_GATE>,
+		 <&clkc CLKID_CTS_MCLK_I958>,
+		 <&clkc CLKID_CTS_I958>;
+	clock-names = "pclk",
+		      "i2s_pclk",
+		      "i2s_aoclk",
+		      "i2s_mclk",
+		      "i2s_mixer",
+		      "spdif_pclk",
+		      "spdif_aoclk",
+		      "spdif_mclk",
+		      "spdif_mclk_sel";
+	resets = <&reset RESET_AIU>;
+};
 
 &aobus {
 	pmu: pmu@e0 {
@@ -333,6 +361,38 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-ranges = <&pinctrl_aobus 0 0 16>;
+		};
+
+		i2s_am_clk_pins: i2s-am-clk-out {
+			mux {
+				groups = "i2s_am_clk_out_ao";
+				function = "i2s_ao";
+				bias-disable;
+			};
+		};
+
+		i2s_out_ao_clk_pins: i2s-ao-clk-out {
+			mux {
+				groups = "i2s_ao_clk_out_ao";
+				function = "i2s_ao";
+				bias-disable;
+			};
+		};
+
+		i2s_out_lr_clk_pins: i2s-lr-clk-out {
+			mux {
+				groups = "i2s_lr_clk_out_ao";
+				function = "i2s_ao";
+				bias-disable;
+			};
+		};
+
+		i2s_out_ch01_ao_pins: i2s-out-ch01 {
+			mux {
+				groups = "i2s_out_ch01_ao";
+				function = "i2s_ao";
+				bias-disable;
+			};
 		};
 
 		uart_ao_a_pins: uart_ao_a {
@@ -452,6 +512,14 @@
 					 "sdxc_clk_b", "sdxc_cmd_b";
 				function = "sdxc_b";
 				bias-pull-up;
+			};
+		};
+
+		spdif_out_pins: spdif-out {
+			mux {
+				groups = "spdif_out";
+				function = "spdif";
+				bias-disable;
 			};
 		};
 

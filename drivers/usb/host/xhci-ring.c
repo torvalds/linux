@@ -830,9 +830,14 @@ static void xhci_giveback_invalidated_tds(struct xhci_virt_ep *ep)
 
 		ring = xhci_urb_to_transfer_ring(ep->xhci, td->urb);
 
-		if (td->cancel_status == TD_CLEARED)
+		if (td->cancel_status == TD_CLEARED) {
+			xhci_dbg(ep->xhci, "%s: Giveback cancelled URB %p TD\n",
+				 __func__, td->urb);
 			xhci_td_cleanup(ep->xhci, td, ring, td->status);
-
+		} else {
+			xhci_dbg(ep->xhci, "%s: Keep cancelled URB %p TD as cancel_status is %d\n",
+				 __func__, td->urb, td->cancel_status);
+		}
 		if (ep->xhci->xhc_state & XHCI_STATE_DYING)
 			return;
 	}
@@ -849,6 +854,10 @@ static int xhci_reset_halted_ep(struct xhci_hcd *xhci, unsigned int slot_id,
 		ret = -ENOMEM;
 		goto done;
 	}
+
+	xhci_dbg(xhci, "%s-reset ep %u, slot %u\n",
+		 (reset_type == EP_HARD_RESET) ? "Hard" : "Soft",
+		 ep_index, slot_id);
 
 	ret = xhci_queue_reset_ep(xhci, command, slot_id, ep_index, reset_type);
 done:
@@ -883,7 +892,8 @@ static int xhci_handle_halted_endpoint(struct xhci_hcd *xhci,
 	}
 
 	if (ep->ep_state & EP_HALTED) {
-		xhci_dbg(xhci, "Reset ep command already pending\n");
+		xhci_dbg(xhci, "Reset ep command for ep_index %d already pending\n",
+			 ep->ep_index);
 		return 0;
 	}
 
@@ -922,9 +932,10 @@ static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep)
 
 	list_for_each_entry_safe(td, tmp_td, &ep->cancelled_td_list, cancelled_td_list) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
-				"Removing canceled TD starting at 0x%llx (dma).",
-				(unsigned long long)xhci_trb_virt_to_dma(
-					td->start_seg, td->first_trb));
+			       "Removing canceled TD starting at 0x%llx (dma) in stream %u URB %p",
+			       (unsigned long long)xhci_trb_virt_to_dma(
+				       td->start_seg, td->first_trb),
+			       td->urb->stream_id, td->urb);
 		list_del_init(&td->td_list);
 		ring = xhci_urb_to_transfer_ring(xhci, td->urb);
 		if (!ring) {
@@ -942,17 +953,21 @@ static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep)
 					 td->urb->stream_id);
 		hw_deq &= ~0xf;
 
-		if (td->cancel_status == TD_HALTED) {
-			cached_td = td;
-		} else if (trb_in_td(xhci, td->start_seg, td->first_trb,
-			      td->last_trb, hw_deq, false)) {
+		if (td->cancel_status == TD_HALTED ||
+		    trb_in_td(xhci, td->start_seg, td->first_trb, td->last_trb, hw_deq, false)) {
 			switch (td->cancel_status) {
 			case TD_CLEARED: /* TD is already no-op */
 			case TD_CLEARING_CACHE: /* set TR deq command already queued */
 				break;
 			case TD_DIRTY: /* TD is cached, clear it */
 			case TD_HALTED:
-				/* FIXME  stream case, several stopped rings */
+				td->cancel_status = TD_CLEARING_CACHE;
+				if (cached_td)
+					/* FIXME  stream case, several stopped rings */
+					xhci_dbg(xhci,
+						 "Move dq past stream %u URB %p instead of stream %u URB %p\n",
+						 td->urb->stream_id, td->urb,
+						 cached_td->urb->stream_id, cached_td->urb);
 				cached_td = td;
 				break;
 			}
@@ -961,18 +976,24 @@ static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep)
 			td->cancel_status = TD_CLEARED;
 		}
 	}
-	if (cached_td) {
-		cached_td->cancel_status = TD_CLEARING_CACHE;
 
-		err = xhci_move_dequeue_past_td(xhci, slot_id, ep->ep_index,
-						cached_td->urb->stream_id,
-						cached_td);
-		/* Failed to move past cached td, try just setting it noop */
-		if (err) {
-			td_to_noop(xhci, ring, cached_td, false);
-			cached_td->cancel_status = TD_CLEARED;
+	/* If there's no need to move the dequeue pointer then we're done */
+	if (!cached_td)
+		return 0;
+
+	err = xhci_move_dequeue_past_td(xhci, slot_id, ep->ep_index,
+					cached_td->urb->stream_id,
+					cached_td);
+	if (err) {
+		/* Failed to move past cached td, just set cached TDs to no-op */
+		list_for_each_entry_safe(td, tmp_td, &ep->cancelled_td_list, cancelled_td_list) {
+			if (td->cancel_status != TD_CLEARING_CACHE)
+				continue;
+			xhci_dbg(xhci, "Failed to clear cancelled cached URB %p, mark clear anyway\n",
+				 td->urb);
+			td_to_noop(xhci, ring, td, false);
+			td->cancel_status = TD_CLEARED;
 		}
-		cached_td = NULL;
 	}
 	return 0;
 }
@@ -1069,6 +1090,8 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 			return;
 		case EP_STATE_RUNNING:
 			/* Race, HW handled stop ep cmd before ep was running */
+			xhci_dbg(xhci, "Stop ep completion ctx error, ep is running\n");
+
 			command = xhci_alloc_command(xhci, false, GFP_ATOMIC);
 			if (!command)
 				xhci_stop_watchdog_timer_in_irq(xhci, ep);
@@ -1212,6 +1235,7 @@ void xhci_stop_endpoint_command_watchdog(struct timer_list *t)
 	struct xhci_hcd *xhci = ep->xhci;
 	unsigned long flags;
 	u32 usbsts;
+	char str[XHCI_MSG_MAX];
 
 	spin_lock_irqsave(&xhci->lock, flags);
 
@@ -1225,7 +1249,7 @@ void xhci_stop_endpoint_command_watchdog(struct timer_list *t)
 	usbsts = readl(&xhci->op_regs->status);
 
 	xhci_warn(xhci, "xHCI host not responding to stop endpoint command.\n");
-	xhci_warn(xhci, "USBSTS:%s\n", xhci_decode_usbsts(usbsts));
+	xhci_warn(xhci, "USBSTS:%s\n", xhci_decode_usbsts(str, usbsts));
 
 	ep->ep_state &= ~EP_STOP_CMD_PENDING;
 
@@ -1389,7 +1413,12 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 		ep_ring = xhci_urb_to_transfer_ring(ep->xhci, td->urb);
 		if (td->cancel_status == TD_CLEARING_CACHE) {
 			td->cancel_status = TD_CLEARED;
+			xhci_dbg(ep->xhci, "%s: Giveback cancelled URB %p TD\n",
+				 __func__, td->urb);
 			xhci_td_cleanup(ep->xhci, td, ep_ring, td->status);
+		} else {
+			xhci_dbg(ep->xhci, "%s: Keep cancelled URB %p TD as cancel_status is %d\n",
+				 __func__, td->urb, td->cancel_status);
 		}
 	}
 cleanup:
@@ -2002,7 +2031,8 @@ cleanup:
 	 * bits are still set.  When an event occurs, switch over to
 	 * polling to avoid losing status changes.
 	 */
-	xhci_dbg(xhci, "%s: starting port polling.\n", __func__);
+	xhci_dbg(xhci, "%s: starting usb%d port polling.\n",
+		 __func__, hcd->self.busnum);
 	set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 	spin_unlock(&xhci->lock);
 	/* Pass this up to the core */

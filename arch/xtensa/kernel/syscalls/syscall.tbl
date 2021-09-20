@@ -223,7 +223,7 @@
 # 205 was old nfsservctl
 205	common	nfsservctl			sys_ni_syscall
 206	common	_sysctl				sys_ni_syscall
-207	common	bdflush				sys_bdflush
+207	common	bdflush				sys_ni_syscall
 208	common	uname				sys_newuname
 209	common	sysinfo				sys_sysinfo
 210	common	init_module			sys_init_module
@@ -417,3 +417,5 @@
 444	common	landlock_create_ruleset		sys_landlock_create_ruleset
 445	common	landlock_add_rule		sys_landlock_add_rule
 446	common	landlock_restrict_self		sys_landlock_restrict_self
+# 447 reserved for memfd_secret
+448	common	process_mrelease		sys_process_mrelease

@@ -970,11 +970,8 @@ static int hdmi_create_connector(struct drm_encoder *encoder)
 	drm_connector_helper_add(connector, &hdmi_connector_helper_funcs);
 	drm_connector_attach_encoder(connector, encoder);
 
-	if (hdata->bridge) {
+	if (hdata->bridge)
 		ret = drm_bridge_attach(encoder, hdata->bridge, NULL, 0);
-		if (ret)
-			DRM_DEV_ERROR(hdata->dev, "Failed to attach bridge\n");
-	}
 
 	cec_fill_conn_info_from_drm(&conn_info, connector);
 

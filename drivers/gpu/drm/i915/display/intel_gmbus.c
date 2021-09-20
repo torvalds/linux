@@ -600,7 +600,7 @@ do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num,
 	int i = 0, inc, try = 0;
 	int ret = 0;
 
-	/* Display WA #0868: skl,bxt,kbl,cfl,glk,cnl */
+	/* Display WA #0868: skl,bxt,kbl,cfl,glk */
 	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		bxt_gmbus_clock_gating(dev_priv, false);
 	else if (HAS_PCH_SPT(dev_priv) || HAS_PCH_CNP(dev_priv))
@@ -713,7 +713,7 @@ timeout:
 	ret = -EAGAIN;
 
 out:
-	/* Display WA #0868: skl,bxt,kbl,cfl,glk,cnl */
+	/* Display WA #0868: skl,bxt,kbl,cfl,glk */
 	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		bxt_gmbus_clock_gating(dev_priv, true);
 	else if (HAS_PCH_SPT(dev_priv) || HAS_PCH_CNP(dev_priv))

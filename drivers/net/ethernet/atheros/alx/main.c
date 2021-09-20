@@ -1701,7 +1701,7 @@ static const struct net_device_ops alx_netdev_ops = {
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_set_mac_address    = alx_set_mac_address,
 	.ndo_change_mtu         = alx_change_mtu,
-	.ndo_do_ioctl           = alx_ioctl,
+	.ndo_eth_ioctl           = alx_ioctl,
 	.ndo_tx_timeout         = alx_tx_timeout,
 	.ndo_fix_features	= alx_fix_features,
 #ifdef CONFIG_NET_POLL_CONTROLLER

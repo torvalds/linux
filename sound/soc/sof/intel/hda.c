@@ -41,6 +41,17 @@
 #define EXCEPT_MAX_HDR_SIZE	0x400
 #define HDA_EXT_ROM_STATUS_SIZE 8
 
+static const struct sof_intel_dsp_desc
+	*get_chip_info(struct snd_sof_pdata *pdata)
+{
+	const struct sof_dev_desc *desc = pdata->desc;
+	const struct sof_intel_dsp_desc *chip_info;
+
+	chip_info = desc->chip_info;
+
+	return chip_info;
+}
+
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
 
 /*
@@ -155,6 +166,8 @@ static int hda_sdw_probe(struct snd_sof_dev *sdev)
 	memset(&res, 0, sizeof(res));
 
 	res.mmio_base = sdev->bar[HDA_DSP_BAR];
+	res.shim_base = hdev->desc->sdw_shim_base;
+	res.alh_base = hdev->desc->sdw_alh_base;
 	res.irq = sdev->ipc_irq;
 	res.handle = hdev->info.handle;
 	res.parent = sdev->dev;
@@ -187,10 +200,14 @@ static int hda_sdw_probe(struct snd_sof_dev *sdev)
 int hda_sdw_startup(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hdev;
+	struct snd_sof_pdata *pdata = sdev->pdata;
 
 	hdev = sdev->pdata->hw_pdata;
 
 	if (!hdev->sdw)
+		return 0;
+
+	if (pdata->machine && !pdata->machine->mach_params.link_mask)
 		return 0;
 
 	return sdw_intel_startup(hdev->sdw);
@@ -211,7 +228,7 @@ static int hda_sdw_exit(struct snd_sof_dev *sdev)
 	return 0;
 }
 
-static bool hda_dsp_check_sdw_irq(struct snd_sof_dev *sdev)
+bool hda_common_check_sdw_irq(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hdev;
 	bool ret = false;
@@ -237,6 +254,17 @@ out:
 	return ret;
 }
 
+static bool hda_dsp_check_sdw_irq(struct snd_sof_dev *sdev)
+{
+	const struct sof_intel_dsp_desc *chip;
+
+	chip = get_chip_info(sdev->pdata);
+	if (chip && chip->check_sdw_irq)
+		return chip->check_sdw_irq(sdev);
+
+	return false;
+}
+
 static irqreturn_t hda_dsp_sdw_thread(int irq, void *context)
 {
 	return sdw_intel_thread(irq, context);
@@ -249,7 +277,7 @@ static bool hda_sdw_check_wakeen_irq(struct snd_sof_dev *sdev)
 	hdev = sdev->pdata->hw_pdata;
 	if (hdev->sdw &&
 	    snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-			     HDA_DSP_REG_SNDW_WAKE_STS))
+			     hdev->desc->sdw_shim_base + SDW_SHIM_WAKESTS))
 		return true;
 
 	return false;
@@ -668,17 +696,6 @@ skip_soundwire:
 	return 0;
 }
 
-static const struct sof_intel_dsp_desc
-	*get_chip_info(struct snd_sof_pdata *pdata)
-{
-	const struct sof_dev_desc *desc = pdata->desc;
-	const struct sof_intel_dsp_desc *chip_info;
-
-	chip_info = desc->chip_info;
-
-	return chip_info;
-}
-
 static irqreturn_t hda_dsp_interrupt_handler(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
@@ -1002,6 +1019,14 @@ static int hda_generic_machine_select(struct snd_sof_dev *sdev)
 			hda_mach->mach_params.dmic_num = dmic_num;
 			pdata->machine = hda_mach;
 			pdata->tplg_filename = tplg_filename;
+
+			if (codec_num == 2) {
+				/*
+				 * Prevent SoundWire links from starting when an external
+				 * HDaudio codec is used
+				 */
+				hda_mach->mach_params.link_mask = 0;
+			}
 		}
 	}
 

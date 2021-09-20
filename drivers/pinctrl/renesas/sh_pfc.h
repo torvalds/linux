@@ -332,8 +332,8 @@ extern const struct sh_pfc_soc_info r8a7791_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7792_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7793_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7794_pinmux_info;
-extern const struct sh_pfc_soc_info r8a77950_pinmux_info __weak;
-extern const struct sh_pfc_soc_info r8a77951_pinmux_info __weak;
+extern const struct sh_pfc_soc_info r8a77950_pinmux_info;
+extern const struct sh_pfc_soc_info r8a77951_pinmux_info;
 extern const struct sh_pfc_soc_info r8a77960_pinmux_info;
 extern const struct sh_pfc_soc_info r8a77961_pinmux_info;
 extern const struct sh_pfc_soc_info r8a77965_pinmux_info;
@@ -781,6 +781,9 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 /*
  * Bias helpers
  */
+const struct pinmux_bias_reg *
+rcar_pin_to_bias_reg(const struct sh_pfc *pfc, unsigned int pin,
+		     unsigned int *bit);
 unsigned int rcar_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin);
 void rcar_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 			  unsigned int bias);

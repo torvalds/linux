@@ -32,6 +32,9 @@ properties:
       - dallas,ds3232
       # I2C-BUS INTERFACE REAL TIME CLOCK MODULE
       - epson,rx8010
+      # I2C-BUS INTERFACE REAL TIME CLOCK MODULE
+      - epson,rx8025
+      - epson,rx8035
       # I2C-BUS INTERFACE REAL TIME CLOCK MODULE with Battery Backed RAM
       - epson,rx8571
       # I2C-BUS INTERFACE REAL TIME CLOCK MODULE

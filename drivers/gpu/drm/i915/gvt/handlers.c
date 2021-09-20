@@ -1977,6 +1977,21 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	if (drm_WARN_ON(&i915->drm, !engine))
 		return -EINVAL;
 
+	/*
+	 * Due to d3_entered is used to indicate skipping PPGTT invalidation on
+	 * vGPU reset, it's set on D0->D3 on PCI config write, and cleared after
+	 * vGPU reset if in resuming.
+	 * In S0ix exit, the device power state also transite from D3 to D0 as
+	 * S3 resume, but no vGPU reset (triggered by QEMU devic model). After
+	 * S0ix exit, all engines continue to work. However the d3_entered
+	 * remains set which will break next vGPU reset logic (miss the expected
+	 * PPGTT invalidation).
+	 * Engines can only work in D0. Thus the 1st elsp write gives GVT a
+	 * chance to clear d3_entered.
+	 */
+	if (vgpu->d3_entered)
+		vgpu->d3_entered = false;
+
 	execlist = &vgpu->submission.execlist[engine->id];
 
 	execlist->elsp_dwords.data[3 - execlist->elsp_dwords.index] = data;
@@ -3134,6 +3149,7 @@ static int init_bdw_mmio_info(struct intel_gvt *gvt)
 	MMIO_DFH(_MMIO(0xb100), D_BDW, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(_MMIO(0xb10c), D_BDW, F_CMD_ACCESS, NULL, NULL);
 	MMIO_D(_MMIO(0xb110), D_BDW);
+	MMIO_D(GEN9_SCRATCH_LNCF1, D_BDW_PLUS);
 
 	MMIO_F(_MMIO(0x24d0), 48, F_CMD_ACCESS | F_CMD_WRITE_PATCH, 0, 0,
 		D_BDW_PLUS, NULL, force_nonpriv_write);

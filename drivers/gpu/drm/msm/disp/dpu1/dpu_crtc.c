@@ -30,12 +30,6 @@
 #include "dpu_core_perf.h"
 #include "dpu_trace.h"
 
-#define DPU_DRM_BLEND_OP_NOT_DEFINED    0
-#define DPU_DRM_BLEND_OP_OPAQUE         1
-#define DPU_DRM_BLEND_OP_PREMULTIPLIED  2
-#define DPU_DRM_BLEND_OP_COVERAGE       3
-#define DPU_DRM_BLEND_OP_MAX            4
-
 /* layer mixer index on dpu_crtc */
 #define LEFT_MIXER 0
 #define RIGHT_MIXER 1
@@ -146,20 +140,43 @@ static void _dpu_crtc_setup_blend_cfg(struct dpu_crtc_mixer *mixer,
 {
 	struct dpu_hw_mixer *lm = mixer->hw_lm;
 	uint32_t blend_op;
+	uint32_t fg_alpha, bg_alpha;
+
+	fg_alpha = pstate->base.alpha >> 8;
+	bg_alpha = 0xff - fg_alpha;
 
 	/* default to opaque blending */
-	blend_op = DPU_BLEND_FG_ALPHA_FG_CONST |
-		DPU_BLEND_BG_ALPHA_BG_CONST;
-
-	if (format->alpha_enable) {
+	if (pstate->base.pixel_blend_mode == DRM_MODE_BLEND_PIXEL_NONE ||
+	    !format->alpha_enable) {
+		blend_op = DPU_BLEND_FG_ALPHA_FG_CONST |
+			DPU_BLEND_BG_ALPHA_BG_CONST;
+	} else if (pstate->base.pixel_blend_mode == DRM_MODE_BLEND_PREMULTI) {
+		blend_op = DPU_BLEND_FG_ALPHA_FG_CONST |
+			DPU_BLEND_BG_ALPHA_FG_PIXEL;
+		if (fg_alpha != 0xff) {
+			bg_alpha = fg_alpha;
+			blend_op |= DPU_BLEND_BG_MOD_ALPHA |
+				    DPU_BLEND_BG_INV_MOD_ALPHA;
+		} else {
+			blend_op |= DPU_BLEND_BG_INV_ALPHA;
+		}
+	} else {
 		/* coverage blending */
 		blend_op = DPU_BLEND_FG_ALPHA_FG_PIXEL |
-			DPU_BLEND_BG_ALPHA_FG_PIXEL |
-			DPU_BLEND_BG_INV_ALPHA;
+			DPU_BLEND_BG_ALPHA_FG_PIXEL;
+		if (fg_alpha != 0xff) {
+			bg_alpha = fg_alpha;
+			blend_op |= DPU_BLEND_FG_MOD_ALPHA |
+				    DPU_BLEND_FG_INV_MOD_ALPHA |
+				    DPU_BLEND_BG_MOD_ALPHA |
+				    DPU_BLEND_BG_INV_MOD_ALPHA;
+		} else {
+			blend_op |= DPU_BLEND_BG_INV_ALPHA;
+		}
 	}
 
 	lm->ops.setup_blend_config(lm, pstate->stage,
-				0xFF, 0, blend_op);
+				fg_alpha, bg_alpha, blend_op);
 
 	DRM_DEBUG_ATOMIC("format:%p4cc, alpha_en:%u blend_op:0x%x\n",
 		  &format->base.pixel_format, format->alpha_enable, blend_op);

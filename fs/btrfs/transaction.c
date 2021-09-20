@@ -254,23 +254,21 @@ static inline int extwriter_counter_read(struct btrfs_transaction *trans)
 }
 
 /*
- * To be called after all the new block groups attached to the transaction
- * handle have been created (btrfs_create_pending_block_groups()).
+ * To be called after doing the chunk btree updates right after allocating a new
+ * chunk (after btrfs_chunk_alloc_add_chunk_item() is called), when removing a
+ * chunk after all chunk btree updates and after finishing the second phase of
+ * chunk allocation (btrfs_create_pending_block_groups()) in case some block
+ * group had its chunk item insertion delayed to the second phase.
  */
 void btrfs_trans_release_chunk_metadata(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct btrfs_transaction *cur_trans = trans->transaction;
 
 	if (!trans->chunk_bytes_reserved)
 		return;
 
-	WARN_ON_ONCE(!list_empty(&trans->new_bgs));
-
 	btrfs_block_rsv_release(fs_info, &fs_info->chunk_block_rsv,
 				trans->chunk_bytes_reserved, NULL);
-	atomic64_sub(trans->chunk_bytes_reserved, &cur_trans->chunk_bytes_reserved);
-	cond_wake_up(&cur_trans->chunk_reserve_wait);
 	trans->chunk_bytes_reserved = 0;
 }
 
@@ -386,8 +384,6 @@ loop:
 	spin_lock_init(&cur_trans->dropped_roots_lock);
 	INIT_LIST_HEAD(&cur_trans->releasing_ebs);
 	spin_lock_init(&cur_trans->releasing_ebs_lock);
-	atomic64_set(&cur_trans->chunk_bytes_reserved, 0);
-	init_waitqueue_head(&cur_trans->chunk_reserve_wait);
 	list_add_tail(&cur_trans->list, &fs_info->trans_list);
 	extent_io_tree_init(fs_info, &cur_trans->dirty_pages,
 			IO_TREE_TRANS_DIRTY_PAGES, fs_info->btree_inode);
@@ -701,7 +697,6 @@ again:
 	h->fs_info = root->fs_info;
 
 	h->type = type;
-	h->can_flush_pending_bgs = true;
 	INIT_LIST_HEAD(&h->new_bgs);
 
 	smp_mb();

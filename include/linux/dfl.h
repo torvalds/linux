@@ -38,6 +38,7 @@ struct dfl_device {
 	int id;
 	u16 type;
 	u16 feature_id;
+	u8 revision;
 	struct resource mmio_res;
 	int *irqs;
 	unsigned int num_irqs;

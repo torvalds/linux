@@ -15,12 +15,12 @@ allOf:
 
 properties:
   compatible:
-    oneOf:
-      - const: realtek,rtl8380-spi
-      - const: realtek,rtl8382-spi
-      - const: realtek,rtl8391-spi
-      - const: realtek,rtl8392-spi
-      - const: realtek,rtl8393-spi
+    enum:
+      - realtek,rtl8380-spi
+      - realtek,rtl8382-spi
+      - realtek,rtl8391-spi
+      - realtek,rtl8392-spi
+      - realtek,rtl8393-spi
 
   reg:
     maxItems: 1

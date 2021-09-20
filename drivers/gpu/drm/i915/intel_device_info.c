@@ -59,7 +59,6 @@ static const char * const platform_names[] = {
 	PLATFORM_NAME(GEMINILAKE),
 	PLATFORM_NAME(COFFEELAKE),
 	PLATFORM_NAME(COMETLAKE),
-	PLATFORM_NAME(CANNONLAKE),
 	PLATFORM_NAME(ICELAKE),
 	PLATFORM_NAME(ELKHARTLAKE),
 	PLATFORM_NAME(JASPERLAKE),
@@ -68,6 +67,8 @@ static const char * const platform_names[] = {
 	PLATFORM_NAME(DG1),
 	PLATFORM_NAME(ALDERLAKE_S),
 	PLATFORM_NAME(ALDERLAKE_P),
+	PLATFORM_NAME(XEHPSDV),
+	PLATFORM_NAME(DG2),
 };
 #undef PLATFORM_NAME
 
@@ -96,9 +97,17 @@ static const char *iommu_name(void)
 void intel_device_info_print_static(const struct intel_device_info *info,
 				    struct drm_printer *p)
 {
-	drm_printf(p, "graphics_ver: %u\n", info->graphics_ver);
-	drm_printf(p, "media_ver: %u\n", info->media_ver);
-	drm_printf(p, "display_ver: %u\n", info->display.ver);
+	if (info->graphics_rel)
+		drm_printf(p, "graphics version: %u.%02u\n", info->graphics_ver, info->graphics_rel);
+	else
+		drm_printf(p, "graphics version: %u\n", info->graphics_ver);
+
+	if (info->media_rel)
+		drm_printf(p, "media version: %u.%02u\n", info->media_ver, info->media_rel);
+	else
+		drm_printf(p, "media version: %u\n", info->media_ver);
+
+	drm_printf(p, "display version: %u\n", info->display.ver);
 	drm_printf(p, "gt: %d\n", info->gt);
 	drm_printf(p, "iommu: %s\n", iommu_name());
 	drm_printf(p, "memory-regions: %x\n", info->memory_regions);
@@ -165,7 +174,6 @@ static const u16 subplatform_ulx_ids[] = {
 };
 
 static const u16 subplatform_portf_ids[] = {
-	INTEL_CNL_PORT_F_IDS(0),
 	INTEL_ICL_PORT_F_IDS(0),
 };
 
@@ -253,14 +261,14 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	struct intel_runtime_info *runtime = RUNTIME_INFO(dev_priv);
 	enum pipe pipe;
 
-	/* Wa_14011765242: adl-s A0 */
-	if (IS_ADLS_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0))
+	/* Wa_14011765242: adl-s A0,A1 */
+	if (IS_ADLS_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A2))
 		for_each_pipe(dev_priv, pipe)
 			runtime->num_scalers[pipe] = 0;
-	else if (GRAPHICS_VER(dev_priv) >= 10) {
+	else if (DISPLAY_VER(dev_priv) >= 11) {
 		for_each_pipe(dev_priv, pipe)
 			runtime->num_scalers[pipe] = 2;
-	} else if (GRAPHICS_VER(dev_priv) == 9) {
+	} else if (DISPLAY_VER(dev_priv) >= 9) {
 		runtime->num_scalers[PIPE_A] = 2;
 		runtime->num_scalers[PIPE_B] = 2;
 		runtime->num_scalers[PIPE_C] = 1;
@@ -271,10 +279,10 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	if (DISPLAY_VER(dev_priv) >= 13 || HAS_D12_PLANE_MINIMIZATION(dev_priv))
 		for_each_pipe(dev_priv, pipe)
 			runtime->num_sprites[pipe] = 4;
-	else if (GRAPHICS_VER(dev_priv) >= 11)
+	else if (DISPLAY_VER(dev_priv) >= 11)
 		for_each_pipe(dev_priv, pipe)
 			runtime->num_sprites[pipe] = 6;
-	else if (GRAPHICS_VER(dev_priv) == 10 || IS_GEMINILAKE(dev_priv))
+	else if (DISPLAY_VER(dev_priv) == 10)
 		for_each_pipe(dev_priv, pipe)
 			runtime->num_sprites[pipe] = 3;
 	else if (IS_BROXTON(dev_priv)) {
@@ -293,7 +301,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		for_each_pipe(dev_priv, pipe)
 			runtime->num_sprites[pipe] = 2;
-	} else if (GRAPHICS_VER(dev_priv) >= 5 || IS_G4X(dev_priv)) {
+	} else if (DISPLAY_VER(dev_priv) >= 5 || IS_G4X(dev_priv)) {
 		for_each_pipe(dev_priv, pipe)
 			runtime->num_sprites[pipe] = 1;
 	}
@@ -325,7 +333,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 			info->pipe_mask &= ~BIT(PIPE_C);
 			info->cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
 		}
-	} else if (HAS_DISPLAY(dev_priv) && GRAPHICS_VER(dev_priv) >= 9) {
+	} else if (HAS_DISPLAY(dev_priv) && DISPLAY_VER(dev_priv) >= 9) {
 		u32 dfsm = intel_de_read(dev_priv, SKL_DFSM);
 
 		if (dfsm & SKL_DFSM_PIPE_A_DISABLE) {
@@ -340,7 +348,8 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 			info->pipe_mask &= ~BIT(PIPE_C);
 			info->cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
 		}
-		if (GRAPHICS_VER(dev_priv) >= 12 &&
+
+		if (DISPLAY_VER(dev_priv) >= 12 &&
 		    (dfsm & TGL_DFSM_PIPE_D_DISABLE)) {
 			info->pipe_mask &= ~BIT(PIPE_D);
 			info->cpu_transcoder_mask &= ~BIT(TRANSCODER_D);
@@ -352,11 +361,11 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		if (dfsm & SKL_DFSM_DISPLAY_PM_DISABLE)
 			info->display.has_fbc = 0;
 
-		if (GRAPHICS_VER(dev_priv) >= 11 && (dfsm & ICL_DFSM_DMC_DISABLE))
+		if (DISPLAY_VER(dev_priv) >= 11 && (dfsm & ICL_DFSM_DMC_DISABLE))
 			info->display.has_dmc = 0;
 
-		if (GRAPHICS_VER(dev_priv) >= 10 &&
-		    (dfsm & CNL_DFSM_DISPLAY_DSC_DISABLE))
+		if (DISPLAY_VER(dev_priv) >= 10 &&
+		    (dfsm & GLK_DFSM_DISPLAY_DSC_DISABLE))
 			info->display.has_dsc = 0;
 	}
 

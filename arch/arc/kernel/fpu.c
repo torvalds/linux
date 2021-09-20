@@ -57,23 +57,26 @@ void fpu_save_restore(struct task_struct *prev, struct task_struct *next)
 
 void fpu_init_task(struct pt_regs *regs)
 {
+	const unsigned int fwe = 0x80000000;
+
 	/* default rounding mode */
 	write_aux_reg(ARC_REG_FPU_CTRL, 0x100);
 
-	/* set "Write enable" to allow explicit write to exception flags */
-	write_aux_reg(ARC_REG_FPU_STATUS, 0x80000000);
+	/* Initialize to zero: setting requires FWE be set */
+	write_aux_reg(ARC_REG_FPU_STATUS, fwe);
 }
 
 void fpu_save_restore(struct task_struct *prev, struct task_struct *next)
 {
 	struct arc_fpu *save = &prev->thread.fpu;
 	struct arc_fpu *restore = &next->thread.fpu;
+	const unsigned int fwe = 0x80000000;
 
 	save->ctrl = read_aux_reg(ARC_REG_FPU_CTRL);
 	save->status = read_aux_reg(ARC_REG_FPU_STATUS);
 
 	write_aux_reg(ARC_REG_FPU_CTRL, restore->ctrl);
-	write_aux_reg(ARC_REG_FPU_STATUS, restore->status);
+	write_aux_reg(ARC_REG_FPU_STATUS, (fwe | restore->status));
 }
 
 #endif
