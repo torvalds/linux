@@ -403,8 +403,12 @@ struct kvm_run {
 			__u32 suberror;
 			__u32 ndata;
 			__u64 flags;
-			__u8  insn_size;
-			__u8  insn_bytes[15];
+			union {
+				struct {
+					__u8  insn_size;
+					__u8  insn_bytes[15];
+				};
+			};
 		} emulation_failure;
 		/* KVM_EXIT_OSI */
 		struct {
