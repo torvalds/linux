@@ -12,6 +12,8 @@
 #include "blk-mq.h"
 #include "blk-mq-sched.h"
 
+struct elevator_type;
+
 /* Max future timer expiry for timeouts */
 #define BLK_MAX_TIMEOUT		(5 * HZ)
 

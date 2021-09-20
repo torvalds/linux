@@ -2,6 +2,8 @@
 #ifndef INT_BLK_MQ_TAG_H
 #define INT_BLK_MQ_TAG_H
 
+struct blk_mq_alloc_data;
+
 /*
  * Tag address space map.
  */

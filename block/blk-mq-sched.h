@@ -2,6 +2,7 @@
 #ifndef BLK_MQ_SCHED_H
 #define BLK_MQ_SCHED_H
 
+#include "elevator.h"
 #include "blk-mq.h"
 #include "blk-mq-tag.h"
 

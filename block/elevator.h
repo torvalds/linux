@@ -1,17 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _LINUX_ELEVATOR_H
-#define _LINUX_ELEVATOR_H
+#ifndef _ELEVATOR_H
+#define _ELEVATOR_H
 
 #include <linux/percpu.h>
 #include <linux/hashtable.h>
 
-#ifdef CONFIG_BLOCK
-
 struct io_cq;
 struct elevator_type;
-#ifdef CONFIG_BLK_DEBUG_FS
 struct blk_mq_debugfs_attr;
-#endif
 
 /*
  * Return values from elevator merger
@@ -167,14 +163,4 @@ extern struct request *elv_rb_find(struct rb_root *, sector_t);
 #define rq_entry_fifo(ptr)	list_entry((ptr), struct request, queuelist)
 #define rq_fifo_clear(rq)	list_del_init(&(rq)->queuelist)
 
-/*
- * Elevator features.
- */
-
-/* Supports zoned block devices sequential write constraint */
-#define ELEVATOR_F_ZBD_SEQ_WRITE	(1U << 0)
-/* Supports scheduling on multiple hardware queues */
-#define ELEVATOR_F_MQ_AWARE		(1U << 1)
-
-#endif /* CONFIG_BLOCK */
-#endif
+#endif /* _ELEVATOR_H */
