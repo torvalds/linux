@@ -400,7 +400,7 @@ EXPORT_SYMBOL(pci_iounmap);
 static int pci_read(struct pci_bus *bus, unsigned int devfn, int where,
 		    int size, u32 *val)
 {
-	struct zpci_dev *zdev = get_zdev_by_bus(bus, devfn);
+	struct zpci_dev *zdev = zdev_from_bus(bus, devfn);
 
 	return (zdev) ? zpci_cfg_load(zdev, where, val, size) : -ENODEV;
 }
@@ -408,7 +408,7 @@ static int pci_read(struct pci_bus *bus, unsigned int devfn, int where,
 static int pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 		     int size, u32 val)
 {
-	struct zpci_dev *zdev = get_zdev_by_bus(bus, devfn);
+	struct zpci_dev *zdev = zdev_from_bus(bus, devfn);
 
 	return (zdev) ? zpci_cfg_store(zdev, where, val, size) : -ENODEV;
 }

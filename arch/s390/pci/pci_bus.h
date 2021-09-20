@@ -33,8 +33,8 @@ void zpci_free_domain(int domain);
 int zpci_setup_bus_resources(struct zpci_dev *zdev,
 			     struct list_head *resources);
 
-static inline struct zpci_dev *get_zdev_by_bus(struct pci_bus *bus,
-					       unsigned int devfn)
+static inline struct zpci_dev *zdev_from_bus(struct pci_bus *bus,
+					     unsigned int devfn)
 {
 	struct zpci_bus *zbus = bus->sysdata;
 
