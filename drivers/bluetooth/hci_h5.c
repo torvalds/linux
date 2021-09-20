@@ -848,6 +848,8 @@ static int h5_serdev_probe(struct serdev_device *serdev)
 		h5->vnd = data->vnd;
 	}
 
+	if (data->driver_info & H5_INFO_WAKEUP_DISABLE)
+		set_bit(H5_WAKEUP_DISABLE, &h5->flags);
 
 	h5->enable_gpio = devm_gpiod_get_optional(dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(h5->enable_gpio))
@@ -861,9 +863,6 @@ static int h5_serdev_probe(struct serdev_device *serdev)
 	err = hci_uart_register_device(&h5->serdev_hu, &h5p);
 	if (err)
 		return err;
-
-	if (data->driver_info & H5_INFO_WAKEUP_DISABLE)
-		set_bit(H5_WAKEUP_DISABLE, &h5->flags);
 
 	return 0;
 }
@@ -964,11 +963,13 @@ static void h5_btrtl_open(struct h5 *h5)
 	serdev_device_set_parity(h5->hu->serdev, SERDEV_PARITY_EVEN);
 	serdev_device_set_baudrate(h5->hu->serdev, 115200);
 
-	pm_runtime_set_active(&h5->hu->serdev->dev);
-	pm_runtime_use_autosuspend(&h5->hu->serdev->dev);
-	pm_runtime_set_autosuspend_delay(&h5->hu->serdev->dev,
-					 SUSPEND_TIMEOUT_MS);
-	pm_runtime_enable(&h5->hu->serdev->dev);
+	if (!test_bit(H5_WAKEUP_DISABLE, &h5->flags)) {
+		pm_runtime_set_active(&h5->hu->serdev->dev);
+		pm_runtime_use_autosuspend(&h5->hu->serdev->dev);
+		pm_runtime_set_autosuspend_delay(&h5->hu->serdev->dev,
+						 SUSPEND_TIMEOUT_MS);
+		pm_runtime_enable(&h5->hu->serdev->dev);
+	}
 
 	/* The controller needs up to 500ms to wakeup */
 	gpiod_set_value_cansleep(h5->enable_gpio, 1);
@@ -978,7 +979,8 @@ static void h5_btrtl_open(struct h5 *h5)
 
 static void h5_btrtl_close(struct h5 *h5)
 {
-	pm_runtime_disable(&h5->hu->serdev->dev);
+	if (!test_bit(H5_WAKEUP_DISABLE, &h5->flags))
+		pm_runtime_disable(&h5->hu->serdev->dev);
 
 	gpiod_set_value_cansleep(h5->device_wake_gpio, 0);
 	gpiod_set_value_cansleep(h5->enable_gpio, 0);
