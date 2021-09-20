@@ -448,15 +448,13 @@ static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct drm_device *dev;
 	int ret;
 
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret)
 		return ret;
 
 	dev = drm_dev_alloc(&driver, &pdev->dev);
-	if (IS_ERR(dev)) {
-		ret = PTR_ERR(dev);
-		goto err_pci_disable_device;
-	}
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
 
 	pci_set_drvdata(pdev, dev);
 
@@ -474,8 +472,6 @@ err_psb_driver_unload:
 	psb_driver_unload(dev);
 err_drm_dev_put:
 	drm_dev_put(dev);
-err_pci_disable_device:
-	pci_disable_device(pdev);
 	return ret;
 }
 
