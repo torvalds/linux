@@ -36,6 +36,7 @@
 #include "amp.h"
 #include "smp.h"
 #include "msft.h"
+#include "eir.h"
 
 #define ZERO_KEY "\x00\x00\x00\x00\x00\x00\x00\x00" \
 		 "\x00\x00\x00\x00\x00\x00\x00\x00"

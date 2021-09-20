@@ -38,6 +38,7 @@
 #include "mgmt_util.h"
 #include "mgmt_config.h"
 #include "msft.h"
+#include "eir.h"
 
 #define MGMT_VERSION	1
 #define MGMT_REVISION	21
@@ -7772,7 +7773,7 @@ static u8 calculate_name_len(struct hci_dev *hdev)
 {
 	u8 buf[HCI_MAX_SHORT_NAME_LENGTH + 3];
 
-	return append_local_name(hdev, buf, 0);
+	return eir_append_local_name(hdev, buf, 0);
 }
 
 static u8 tlv_data_max_len(struct hci_dev *hdev, u32 adv_flags,
