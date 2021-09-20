@@ -78,7 +78,7 @@ static int ucsi_acpi_sync_write(struct ucsi *ucsi, unsigned int offset,
 	if (ret)
 		goto out_clear_bit;
 
-	if (!wait_for_completion_timeout(&ua->complete, 60 * HZ))
+	if (!wait_for_completion_timeout(&ua->complete, HZ))
 		ret = -ETIMEDOUT;
 
 out_clear_bit:
