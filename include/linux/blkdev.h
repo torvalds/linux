@@ -745,37 +745,6 @@ static inline bool rq_is_sync(struct request *rq)
 	return op_is_sync(rq->cmd_flags);
 }
 
-static inline bool rq_mergeable(struct request *rq)
-{
-	if (blk_rq_is_passthrough(rq))
-		return false;
-
-	if (req_op(rq) == REQ_OP_FLUSH)
-		return false;
-
-	if (req_op(rq) == REQ_OP_WRITE_ZEROES)
-		return false;
-
-	if (req_op(rq) == REQ_OP_ZONE_APPEND)
-		return false;
-
-	if (rq->cmd_flags & REQ_NOMERGE_FLAGS)
-		return false;
-	if (rq->rq_flags & RQF_NOMERGE_FLAGS)
-		return false;
-
-	return true;
-}
-
-static inline bool blk_write_same_mergeable(struct bio *a, struct bio *b)
-{
-	if (bio_page(a) == bio_page(b) &&
-	    bio_offset(a) == bio_offset(b))
-		return true;
-
-	return false;
-}
-
 static inline unsigned int blk_queue_depth(struct request_queue *q)
 {
 	if (q->queue_depth)
@@ -1028,23 +997,6 @@ static inline unsigned int blk_max_size_offset(struct request_queue *q,
 		chunk_sectors -= sector_div(offset, chunk_sectors);
 
 	return min(q->limits.max_sectors, chunk_sectors);
-}
-
-static inline unsigned int blk_rq_get_max_sectors(struct request *rq,
-						  sector_t offset)
-{
-	struct request_queue *q = rq->q;
-
-	if (blk_rq_is_passthrough(rq))
-		return q->limits.max_hw_sectors;
-
-	if (!q->limits.chunk_sectors ||
-	    req_op(rq) == REQ_OP_DISCARD ||
-	    req_op(rq) == REQ_OP_SECURE_ERASE)
-		return blk_queue_get_max_sectors(q, req_op(rq));
-
-	return min(blk_max_size_offset(q, offset, 0),
-			blk_queue_get_max_sectors(q, req_op(rq)));
 }
 
 static inline unsigned int blk_rq_count_bios(struct request *rq)
@@ -1488,22 +1440,6 @@ static inline int queue_limit_discard_alignment(struct queue_limits *lim, sector
 
 	/* Turn it back into bytes, gaah */
 	return offset << SECTOR_SHIFT;
-}
-
-/*
- * Two cases of handling DISCARD merge:
- * If max_discard_segments > 1, the driver takes every bio
- * as a range and send them to controller together. The ranges
- * needn't to be contiguous.
- * Otherwise, the bios/requests will be handled as same as
- * others which should be contiguous.
- */
-static inline bool blk_discard_mergable(struct request *req)
-{
-	if (req_op(req) == REQ_OP_DISCARD &&
-	    queue_max_discard_segments(req->q) > 1)
-		return true;
-	return false;
 }
 
 static inline int bdev_discard_alignment(struct block_device *bdev)

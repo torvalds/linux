@@ -558,6 +558,23 @@ static inline unsigned int blk_rq_get_max_segments(struct request *rq)
 	return queue_max_segments(rq->q);
 }
 
+static inline unsigned int blk_rq_get_max_sectors(struct request *rq,
+						  sector_t offset)
+{
+	struct request_queue *q = rq->q;
+
+	if (blk_rq_is_passthrough(rq))
+		return q->limits.max_hw_sectors;
+
+	if (!q->limits.chunk_sectors ||
+	    req_op(rq) == REQ_OP_DISCARD ||
+	    req_op(rq) == REQ_OP_SECURE_ERASE)
+		return blk_queue_get_max_sectors(q, req_op(rq));
+
+	return min(blk_max_size_offset(q, offset, 0),
+			blk_queue_get_max_sectors(q, req_op(rq)));
+}
+
 static inline int ll_new_hw_segment(struct request *req, struct bio *bio,
 		unsigned int nr_phys_segs)
 {
@@ -716,6 +733,13 @@ static enum elv_merge blk_try_req_merge(struct request *req,
 		return ELEVATOR_BACK_MERGE;
 
 	return ELEVATOR_NO_MERGE;
+}
+
+static inline bool blk_write_same_mergeable(struct bio *a, struct bio *b)
+{
+	if (bio_page(a) == bio_page(b) && bio_offset(a) == bio_offset(b))
+		return true;
+	return false;
 }
 
 /*
