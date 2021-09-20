@@ -59,8 +59,7 @@ static __always_inline int rwbase_read_trylock(struct rwbase_rt *rwb)
 	 * set.
 	 */
 	for (r = atomic_read(&rwb->readers); r < 0;) {
-		/* Fully-ordered if cmpxchg() succeeds, provides ACQUIRE */
-		if (likely(atomic_try_cmpxchg(&rwb->readers, &r, r + 1)))
+		if (likely(atomic_try_cmpxchg_acquire(&rwb->readers, &r, r + 1)))
 			return 1;
 	}
 	return 0;
@@ -187,7 +186,7 @@ static inline void __rwbase_write_unlock(struct rwbase_rt *rwb, int bias,
 
 	/*
 	 * _release() is needed in case that reader is in fast path, pairing
-	 * with atomic_try_cmpxchg() in rwbase_read_trylock(), provides RELEASE
+	 * with atomic_try_cmpxchg_acquire() in rwbase_read_trylock().
 	 */
 	(void)atomic_add_return_release(READER_BIAS - bias, &rwb->readers);
 	raw_spin_unlock_irqrestore(&rtm->wait_lock, flags);
