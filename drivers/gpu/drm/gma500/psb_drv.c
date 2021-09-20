@@ -124,7 +124,7 @@ void psb_spank(struct drm_psb_private *dev_priv)
 
 static int psb_do_init(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_gtt *pg = &dev_priv->gtt;
 
 	uint32_t stolen_gtt;
@@ -163,7 +163,7 @@ static int psb_do_init(struct drm_device *dev)
 
 static void psb_driver_unload(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	/* TODO: Kill vblank etc here */
 
@@ -431,7 +431,7 @@ static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct drm_device *dev = file_priv->minor->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	static unsigned int runtime_allowed;
 
 	if (runtime_allowed == 1 && dev_priv->is_lvds_on) {

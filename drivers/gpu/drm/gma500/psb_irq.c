@@ -107,8 +107,7 @@ psb_disable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask)
  */
 static void mid_pipe_event_handler(struct drm_device *dev, int pipe)
 {
-	struct drm_psb_private *dev_priv =
-	    (struct drm_psb_private *) dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	uint32_t pipe_stat_val = 0;
 	uint32_t pipe_stat_reg = psb_pipestat(pipe);
@@ -178,7 +177,7 @@ static void psb_vdc_interrupt(struct drm_device *dev, uint32_t vdc_stat)
  */
 static void psb_sgx_interrupt(struct drm_device *dev, u32 stat_1, u32 stat_2)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 val, addr;
 
 	if (stat_1 & _PSB_CE_TWOD_COMPLETE)
@@ -226,7 +225,7 @@ static void psb_sgx_interrupt(struct drm_device *dev, u32 stat_1, u32 stat_2)
 static irqreturn_t psb_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	uint32_t vdc_stat, dsp_int = 0, sgx_int = 0, hotplug_int = 0;
 	u32 sgx_stat_1, sgx_stat_2;
 	int handled = 0;
@@ -277,8 +276,7 @@ static irqreturn_t psb_irq_handler(int irq, void *arg)
 
 void psb_irq_preinstall(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv =
-	    (struct drm_psb_private *) dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
@@ -307,7 +305,7 @@ void psb_irq_preinstall(struct drm_device *dev)
 
 void psb_irq_postinstall(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned long irqflags;
 	unsigned int i;
 
@@ -356,7 +354,7 @@ int psb_irq_install(struct drm_device *dev, unsigned int irq)
 
 void psb_irq_uninstall(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	unsigned long irqflags;
 	unsigned int i;
@@ -397,7 +395,7 @@ int psb_enable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = crtc->index;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned long irqflags;
 	uint32_t reg_val = 0;
 	uint32_t pipeconf_reg = mid_pipeconf(pipe);
@@ -433,7 +431,7 @@ void psb_disable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = crtc->index;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);

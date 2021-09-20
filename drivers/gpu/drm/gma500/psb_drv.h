@@ -567,6 +567,10 @@ struct drm_psb_private {
 	uint8_t panel_type;
 };
 
+static inline struct drm_psb_private *to_drm_psb_private(struct drm_device *dev)
+{
+	return dev->dev_private;
+}
 
 /* Operations for each board type */
 struct psb_ops {
@@ -617,11 +621,6 @@ struct psb_ops {
 
 extern int drm_crtc_probe_output_modes(struct drm_device *dev, int, int);
 extern int drm_pick_crtcs(struct drm_device *dev);
-
-static inline struct drm_psb_private *psb_priv(struct drm_device *dev)
-{
-	return (struct drm_psb_private *) dev->dev_private;
-}
 
 /* psb_irq.c */
 extern void psb_irq_uninstall_islands(struct drm_device *dev, int hw_islands);
@@ -729,13 +728,13 @@ static inline void MRST_MSG_WRITE32(int domain, uint port, uint offset,
 
 static inline uint32_t REGISTER_READ(struct drm_device *dev, uint32_t reg)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	return ioread32(dev_priv->vdc_reg + reg);
 }
 
 static inline uint32_t REGISTER_READ_AUX(struct drm_device *dev, uint32_t reg)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	return ioread32(dev_priv->aux_reg + reg);
 }
 
@@ -761,14 +760,14 @@ static inline uint32_t REGISTER_READ_WITH_AUX(struct drm_device *dev,
 static inline void REGISTER_WRITE(struct drm_device *dev, uint32_t reg,
 				  uint32_t val)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	iowrite32((val), dev_priv->vdc_reg + (reg));
 }
 
 static inline void REGISTER_WRITE_AUX(struct drm_device *dev, uint32_t reg,
 				      uint32_t val)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	iowrite32((val), dev_priv->aux_reg + (reg));
 }
 
@@ -789,7 +788,7 @@ static inline void REGISTER_WRITE_WITH_AUX(struct drm_device *dev, uint32_t reg,
 static inline void REGISTER_WRITE16(struct drm_device *dev,
 					uint32_t reg, uint32_t val)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	iowrite16((val), dev_priv->vdc_reg + (reg));
 }
 
@@ -798,7 +797,7 @@ static inline void REGISTER_WRITE16(struct drm_device *dev,
 static inline void REGISTER_WRITE8(struct drm_device *dev,
 				       uint32_t reg, uint32_t val)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	iowrite8((val), dev_priv->vdc_reg + (reg));
 }
 

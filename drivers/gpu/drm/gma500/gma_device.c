@@ -15,7 +15,7 @@ void gma_get_core_freq(struct drm_device *dev)
 	struct pci_dev *pci_root =
 		pci_get_domain_bus_and_slot(pci_domain_nr(pdev->bus),
 					    0, 0);
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	/*pci_write_config_dword(pci_root, 0xD4, 0x00C32004);*/
 	/*pci_write_config_dword(pci_root, 0xD0, 0xE0033000);*/

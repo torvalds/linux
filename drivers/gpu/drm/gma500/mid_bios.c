@@ -18,7 +18,7 @@
 
 static void mid_get_fuse_settings(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct pci_dev *pci_root =
 		pci_get_domain_bus_and_slot(pci_domain_nr(pdev->bus),
@@ -325,7 +325,7 @@ out:
 
 int mid_chip_setup(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	mid_get_fuse_settings(dev);
 	mid_get_vbt_data(dev_priv);
 	mid_get_pci_revID(dev_priv);

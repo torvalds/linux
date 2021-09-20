@@ -75,7 +75,7 @@ struct intel_gpio {
 void
 gma_intel_i2c_reset(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	GMBUS_REG_WRITE(GMBUS0, 0);
 }
 
@@ -394,7 +394,7 @@ int gma_intel_setup_gmbus(struct drm_device *dev)
 		"reserved",
 		"dpd",
 	};
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	int ret, i;
 
 	dev_priv->gmbus = kcalloc(GMBUS_NUM_PORTS, sizeof(struct intel_gmbus),
@@ -480,7 +480,7 @@ void gma_intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
 
 void gma_intel_teardown_gmbus(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	int i;
 
 	if (dev_priv->gmbus == NULL)

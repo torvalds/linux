@@ -47,7 +47,7 @@ static DEFINE_SPINLOCK(power_ctrl_lock);	/* Serialize power claim */
  */
 void gma_power_init(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	/* FIXME: Move APM/OSPM base into relevant device code */
 	dev_priv->apm_base = dev_priv->apm_reg & 0xffff;
@@ -82,7 +82,7 @@ void gma_power_uninit(struct drm_device *dev)
  */
 static void gma_suspend_display(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	if (dev_priv->suspended)
 		return;
@@ -101,7 +101,7 @@ static void gma_suspend_display(struct drm_device *dev)
 static void gma_resume_display(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	/* turn on the display power island */
 	dev_priv->ops->power_up(dev);
@@ -125,7 +125,7 @@ static void gma_resume_display(struct pci_dev *pdev)
 static void gma_suspend_pci(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	int bsm, vbt;
 
 	if (dev_priv->suspended)
@@ -155,7 +155,7 @@ static void gma_suspend_pci(struct pci_dev *pdev)
 static bool gma_resume_pci(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	int ret;
 
 	if (!dev_priv->suspended)
@@ -189,7 +189,7 @@ int gma_power_suspend(struct device *_dev)
 {
 	struct pci_dev *pdev = to_pci_dev(_dev);
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	mutex_lock(&power_mutex);
 	if (!dev_priv->suspended) {
@@ -234,7 +234,7 @@ int gma_power_resume(struct device *_dev)
  */
 bool gma_power_is_on(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	return dev_priv->display_power;
 }
 
@@ -248,7 +248,7 @@ bool gma_power_is_on(struct drm_device *dev)
  */
 bool gma_power_begin(struct drm_device *dev, bool force_on)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int ret;
 	unsigned long flags;
@@ -288,7 +288,7 @@ out_false:
  */
 void gma_power_end(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned long flags;
 	spin_lock_irqsave(&power_ctrl_lock, flags);
 	dev_priv->display_count--;
@@ -310,7 +310,7 @@ int psb_runtime_resume(struct device *dev)
 int psb_runtime_idle(struct device *dev)
 {
 	struct drm_device *drmdev = pci_get_drvdata(to_pci_dev(dev));
-	struct drm_psb_private *dev_priv = drmdev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(drmdev);
 	if (dev_priv->display_count)
 		return 0;
 	else
