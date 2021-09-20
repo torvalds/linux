@@ -191,6 +191,64 @@ int ucsi_resume(struct ucsi *ucsi)
 EXPORT_SYMBOL_GPL(ucsi_resume);
 /* -------------------------------------------------------------------------- */
 
+struct ucsi_work {
+	struct delayed_work work;
+	unsigned long delay;
+	unsigned int count;
+	struct ucsi_connector *con;
+	int (*cb)(struct ucsi_connector *);
+};
+
+static void ucsi_poll_worker(struct work_struct *work)
+{
+	struct ucsi_work *uwork = container_of(work, struct ucsi_work, work.work);
+	struct ucsi_connector *con = uwork->con;
+	int ret;
+
+	mutex_lock(&con->lock);
+
+	if (!con->partner) {
+		mutex_unlock(&con->lock);
+		kfree(uwork);
+		return;
+	}
+
+	ret = uwork->cb(con);
+
+	if (uwork->count-- && (ret == -EBUSY || ret == -ETIMEDOUT))
+		queue_delayed_work(con->wq, &uwork->work, uwork->delay);
+	else
+		kfree(uwork);
+
+	mutex_unlock(&con->lock);
+}
+
+static int ucsi_partner_task(struct ucsi_connector *con,
+			     int (*cb)(struct ucsi_connector *),
+			     int retries, unsigned long delay)
+{
+	struct ucsi_work *uwork;
+
+	if (!con->partner)
+		return 0;
+
+	uwork = kzalloc(sizeof(*uwork), GFP_KERNEL);
+	if (!uwork)
+		return -ENOMEM;
+
+	INIT_DELAYED_WORK(&uwork->work, ucsi_poll_worker);
+	uwork->count = retries;
+	uwork->delay = delay;
+	uwork->con = con;
+	uwork->cb = cb;
+
+	queue_delayed_work(con->wq, &uwork->work, delay);
+
+	return 0;
+}
+
+/* -------------------------------------------------------------------------- */
+
 void ucsi_altmode_update_active(struct ucsi_connector *con)
 {
 	const struct typec_altmode *altmode = NULL;
@@ -543,6 +601,25 @@ static void ucsi_get_src_pdos(struct ucsi_connector *con, int is_partner)
 	con->num_pdos += ret / sizeof(u32);
 }
 
+static int ucsi_check_altmodes(struct ucsi_connector *con)
+{
+	int ret;
+
+	ret = ucsi_register_altmodes(con, UCSI_RECIPIENT_SOP);
+	if (ret && ret != -ETIMEDOUT)
+		dev_err(con->ucsi->dev,
+			"con%d: failed to register partner alt modes (%d)\n",
+			con->num, ret);
+
+	/* Ignoring the errors in this case. */
+	if (con->partner_altmode[0]) {
+		ucsi_altmode_update_active(con);
+		return 0;
+	}
+
+	return ret;
+}
+
 static void ucsi_pwr_opmode_change(struct ucsi_connector *con)
 {
 	switch (UCSI_CONSTAT_PWR_OPMODE(con->status.flags)) {
@@ -650,14 +727,7 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 		dev_err(con->ucsi->dev, "con:%d: failed to set usb role:%d\n",
 			con->num, u_role);
 
-	/* Can't rely on Partner Flags field. Always checking the alt modes. */
-	ret = ucsi_register_altmodes(con, UCSI_RECIPIENT_SOP);
-	if (ret)
-		dev_err(con->ucsi->dev,
-			"con%d: failed to register partner alternate modes\n",
-			con->num);
-	else
-		ucsi_altmode_update_active(con);
+	ucsi_partner_task(con, ucsi_check_altmodes, 30, 0);
 }
 
 static void ucsi_handle_connector_change(struct work_struct *work)
@@ -1045,7 +1115,17 @@ static int ucsi_register_port(struct ucsi *ucsi, int index)
 	enum typec_accessory *accessory = cap->accessory;
 	enum usb_role u_role = USB_ROLE_NONE;
 	u64 command;
+	char *name;
 	int ret;
+
+	name = kasprintf(GFP_KERNEL, "%s-con%d", dev_name(ucsi->dev), con->num);
+	if (!name)
+		return -ENOMEM;
+
+	con->wq = create_singlethread_workqueue(name);
+	kfree(name);
+	if (!con->wq)
+		return -ENOMEM;
 
 	INIT_WORK(&con->work, ucsi_handle_connector_change);
 	init_completion(&con->complete);
@@ -1164,17 +1244,8 @@ static int ucsi_register_port(struct ucsi *ucsi, int index)
 		ret = 0;
 	}
 
-	if (con->partner) {
-		ret = ucsi_register_altmodes(con, UCSI_RECIPIENT_SOP);
-		if (ret) {
-			dev_err(ucsi->dev,
-				"con%d: failed to register alternate modes\n",
-				con->num);
-			ret = 0;
-		} else {
-			ucsi_altmode_update_active(con);
-		}
-	}
+	if (con->partner)
+		ucsi_check_altmodes(con);
 
 	trace_ucsi_register_port(con->num, &con->status);
 
@@ -1182,6 +1253,12 @@ out:
 	fwnode_handle_put(cap->fwnode);
 out_unlock:
 	mutex_unlock(&con->lock);
+
+	if (ret && con->wq) {
+		destroy_workqueue(con->wq);
+		con->wq = NULL;
+	}
+
 	return ret;
 }
 
@@ -1252,6 +1329,8 @@ err_unregister:
 		ucsi_unregister_partner(con);
 		ucsi_unregister_altmodes(con, UCSI_RECIPIENT_CON);
 		ucsi_unregister_port_psy(con);
+		if (con->wq)
+			destroy_workqueue(con->wq);
 		typec_unregister_port(con->port);
 		con->port = NULL;
 	}
@@ -1374,6 +1453,8 @@ void ucsi_unregister(struct ucsi *ucsi)
 		ucsi_unregister_altmodes(&ucsi->connector[i],
 					 UCSI_RECIPIENT_CON);
 		ucsi_unregister_port_psy(&ucsi->connector[i]);
+		if (ucsi->connector[i].wq)
+			destroy_workqueue(ucsi->connector[i].wq);
 		typec_unregister_port(ucsi->connector[i].port);
 	}
 
