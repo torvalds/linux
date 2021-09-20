@@ -524,21 +524,6 @@ snd_sof_set_mach_params(const struct snd_soc_acpi_mach *mach,
 		sof_ops(sdev)->set_mach_params(mach, sdev);
 }
 
-static inline const struct snd_sof_dsp_ops
-*sof_get_ops(const struct sof_dev_desc *d,
-	     const struct sof_ops_table mach_ops[], int asize)
-{
-	int i;
-
-	for (i = 0; i < asize; i++) {
-		if (d == mach_ops[i].desc)
-			return mach_ops[i].ops;
-	}
-
-	/* not found */
-	return NULL;
-}
-
 /**
  * snd_sof_dsp_register_poll_timeout - Periodically poll an address
  * until a condition is met or a timeout occurs
