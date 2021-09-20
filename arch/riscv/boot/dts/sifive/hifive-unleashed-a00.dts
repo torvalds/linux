@@ -8,8 +8,6 @@
 #define RTCCLK_FREQ		1000000
 
 / {
-	#address-cells = <2>;
-	#size-cells = <2>;
 	model = "SiFive HiFive Unleashed A00";
 	compatible = "sifive,hifive-unleashed-a00", "sifive,fu540-c000",
 		     "sifive,fu540";
@@ -25,9 +23,6 @@
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x2 0x00000000>;
-	};
-
-	soc {
 	};
 
 	hfclk: hfclk {
