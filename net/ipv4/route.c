@@ -61,15 +61,11 @@
 #define pr_fmt(fmt) "IPv4: " fmt
 
 #include <linux/module.h>
-#include <linux/uaccess.h>
 #include <linux/bitops.h>
-#include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/memblock.h>
-#include <linux/string.h>
 #include <linux/socket.h>
-#include <linux/sockios.h>
 #include <linux/errno.h>
 #include <linux/in.h>
 #include <linux/inet.h>
@@ -84,20 +80,17 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/random.h>
 #include <linux/rcupdate.h>
-#include <linux/times.h>
 #include <linux/slab.h>
 #include <linux/jhash.h>
 #include <net/dst.h>
 #include <net/dst_metadata.h>
 #include <net/net_namespace.h>
-#include <net/protocol.h>
 #include <net/ip.h>
 #include <net/route.h>
 #include <net/inetpeer.h>
 #include <net/sock.h>
 #include <net/ip_fib.h>
 #include <net/nexthop.h>
-#include <net/arp.h>
 #include <net/tcp.h>
 #include <net/icmp.h>
 #include <net/xfrm.h>
@@ -109,7 +102,6 @@
 #endif
 #include <net/secure_seq.h>
 #include <net/ip_tunnels.h>
-#include <net/l3mdev.h>
 
 #include "fib_lookup.h"
 
