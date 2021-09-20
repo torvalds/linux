@@ -11,7 +11,6 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/memblock.h>
-#include <linux/blkdev.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/screen_info.h>
