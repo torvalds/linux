@@ -128,8 +128,10 @@ static int ucsi_exec_command(struct ucsi *ucsi, u64 cmd)
 	if (ret)
 		return ret;
 
-	if (cci & UCSI_CCI_BUSY)
+	if (cci & UCSI_CCI_BUSY) {
+		ucsi->ops->async_write(ucsi, UCSI_CANCEL, NULL, 0);
 		return -EBUSY;
+	}
 
 	if (!(cci & UCSI_CCI_COMMAND_COMPLETE))
 		return -EIO;
