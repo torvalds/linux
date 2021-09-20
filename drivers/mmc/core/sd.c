@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/pm_runtime.h>
+#include <linux/scatterlist.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>

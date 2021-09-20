@@ -431,8 +431,6 @@ enum stat_group {
 
 #define bio_op(bio) \
 	((bio)->bi_opf & REQ_OP_MASK)
-#define req_op(req) \
-	((req)->cmd_flags & REQ_OP_MASK)
 
 /* obsolete, don't use in new code */
 static inline void bio_set_op_attrs(struct bio *bio, unsigned op,

@@ -18,6 +18,7 @@
 #include <linux/mempool.h>
 #include <linux/module.h>
 #include <linux/random.h>
+#include <linux/scatterlist.h>
 
 #include "blk-crypto-internal.h"
 

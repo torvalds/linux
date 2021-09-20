@@ -23,6 +23,7 @@
 #include <linux/genhd.h>
 #include <linux/file.h>
 #include <linux/module.h>
+#include <linux/scatterlist.h>
 #include <scsi/scsi_proto.h>
 #include <asm/unaligned.h>
 
