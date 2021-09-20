@@ -127,7 +127,6 @@ out_of_memory:
 	pagefault_out_of_memory();
 	return 0;
 }
-EXPORT_SYMBOL(handle_page_fault);
 
 static void show_segv_info(struct uml_pt_regs *regs)
 {
