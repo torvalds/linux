@@ -25,8 +25,6 @@ static void _dynamic_check_timer_handlder(struct timer_list *t)
 {
 	struct adapter *adapter = from_timer(adapter, t, mlmepriv.dynamic_chk_timer);
 
-	if (adapter->registrypriv.mp_mode == 1)
-		return;
 	rtw_dynamic_check_timer_handlder(adapter);
 	_set_timer(&adapter->mlmepriv.dynamic_chk_timer, 2000);
 }

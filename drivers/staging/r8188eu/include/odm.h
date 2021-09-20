@@ -896,7 +896,6 @@ struct odm_dm_struct {
 	u8	BbSwingIdxCckCurrent;
 	u8	BbSwingIdxCckBase;
 	bool	BbSwingFlagCck;
-	u8	*mp_mode;
 	/*  ODM system resource. */
 
 	/*  ODM relative time. */

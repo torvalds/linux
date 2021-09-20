@@ -7,13 +7,6 @@ static void odm_RX_HWAntDivInit(struct odm_dm_struct *dm_odm)
 {
 	u32	value32;
 
-	if (*dm_odm->mp_mode == 1) {
-		dm_odm->AntDivType = CGCS_RX_SW_ANTDIV;
-		ODM_SetBBReg(dm_odm, ODM_REG_IGI_A_11N, BIT(7), 0); /*  disable HW AntDiv */
-		ODM_SetBBReg(dm_odm, ODM_REG_LNA_SWITCH_11N, BIT(31), 1);  /*  1:CG, 0:CS */
-		return;
-	}
-
 	/* MAC Setting */
 	value32 = ODM_GetMACReg(dm_odm, ODM_REG_ANTSEL_PIN_11N, bMaskDWord);
 	ODM_SetMACReg(dm_odm, ODM_REG_ANTSEL_PIN_11N, bMaskDWord, value32 | (BIT(23) | BIT(25))); /* Reg4C[25]=1, Reg4C[23]=1 for pin output */
@@ -34,13 +27,6 @@ static void odm_RX_HWAntDivInit(struct odm_dm_struct *dm_odm)
 static void odm_TRX_HWAntDivInit(struct odm_dm_struct *dm_odm)
 {
 	u32	value32;
-
-	if (*dm_odm->mp_mode == 1) {
-		dm_odm->AntDivType = CGCS_RX_SW_ANTDIV;
-		ODM_SetBBReg(dm_odm, ODM_REG_IGI_A_11N, BIT(7), 0); /*  disable HW AntDiv */
-		ODM_SetBBReg(dm_odm, ODM_REG_RX_ANT_CTRL_11N, BIT(5) | BIT(4) | BIT(3), 0); /* Default RX   (0/1) */
-		return;
-	}
 
 	/* MAC Setting */
 	value32 = ODM_GetMACReg(dm_odm, ODM_REG_ANTSEL_PIN_11N, bMaskDWord);
@@ -73,9 +59,6 @@ static void odm_FastAntTrainingInit(struct odm_dm_struct *dm_odm)
 	u32	value32, i;
 	struct fast_ant_train *dm_fat_tbl = &dm_odm->DM_FatTable;
 	u32	AntCombination = 2;
-
-	if (*dm_odm->mp_mode == 1)
-		return;
 
 	for (i = 0; i < 6; i++) {
 		dm_fat_tbl->Bssid[i] = 0;

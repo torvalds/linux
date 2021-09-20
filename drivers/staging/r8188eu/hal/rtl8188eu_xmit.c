@@ -19,15 +19,6 @@ s32	rtl8188eu_init_xmit_priv(struct adapter *adapt)
 	return _SUCCESS;
 }
 
-static u8 urb_zero_packet_chk(struct adapter *adapt, int sz)
-{
-	u8 set_tx_desc_offset;
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
-	set_tx_desc_offset = (((sz + TXDESC_SIZE) %  haldata->UsbBulkOutSize) == 0) ? 1 : 0;
-
-	return set_tx_desc_offset;
-}
-
 static void rtl8188eu_cal_txdesc_chksum(struct tx_desc	*ptxdesc)
 {
 	u16	*usptr = (u16 *)ptxdesc;
@@ -168,13 +159,6 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 	struct mlme_ext_priv	*pmlmeext = &adapt->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 
-	if (adapt->registrypriv.mp_mode == 0) {
-		if ((!bagg_pkt) && (urb_zero_packet_chk(adapt, sz) == 0)) {
-			ptxdesc = (struct tx_desc *)(pmem + PACKET_OFFSET_SZ);
-			pull = 1;
-		}
-	}
-
 	memset(ptxdesc, 0, sizeof(struct tx_desc));
 
 	/* 4 offset 0 */
@@ -187,13 +171,6 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 
 	if (is_multicast_ether_addr(pattrib->ra))
 		ptxdesc->txdw0 |= cpu_to_le32(BMC);
-
-	if (adapt->registrypriv.mp_mode == 0) {
-		if (!bagg_pkt) {
-			if ((pull) && (pxmitframe->pkt_offset > 0))
-				pxmitframe->pkt_offset = pxmitframe->pkt_offset - 1;
-		}
-	}
 
 	/*  pkt_offset, unit:8 bytes padding */
 	if (pxmitframe->pkt_offset > 0)
@@ -289,9 +266,6 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 		ptxdesc->txdw5 |= cpu_to_le32(MRateToHwRate(pmlmeext->tx_rate));
 	} else if ((pxmitframe->frame_tag & 0x0f) == TXAGG_FRAMETAG) {
 		DBG_88E("pxmitframe->frame_tag == TXAGG_FRAMETAG\n");
-	} else if (((pxmitframe->frame_tag & 0x0f) == MP_FRAMETAG) &&
-		   (adapt->registrypriv.mp_mode == 1)) {
-		fill_txdesc_for_mp(adapt, ptxdesc);
 	} else {
 		DBG_88E("pxmitframe->frame_tag = %d\n", pxmitframe->frame_tag);
 

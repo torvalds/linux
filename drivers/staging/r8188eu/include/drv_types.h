@@ -33,7 +33,6 @@
 #include "rtw_mlme_ext.h"
 #include "rtw_p2p.h"
 #include "rtw_ap.h"
-#include "rtw_mp.h"
 #include "rtw_br_ext.h"
 
 #define DRIVERVERSION	"v4.1.4_6773.20130222"
@@ -76,7 +75,6 @@ struct registry_priv {
 	u8	short_retry_lmt;
 	u16	busy_thresh;
 	u8	ack_policy;
-	u8	mp_mode;
 	u8	software_encrypt;
 	u8	software_decrypt;
 	u8	acm_method;
@@ -228,7 +226,6 @@ struct adapter {
 	struct	pwrctrl_priv	pwrctrlpriv;
 	struct	eeprom_priv eeprompriv;
 	struct	led_priv	ledpriv;
-	struct	mp_priv	mppriv;
 	struct	hostapd_priv	*phostapdpriv;
 	struct wifidirect_info	wdinfo;
 

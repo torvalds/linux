@@ -422,12 +422,6 @@ static void _InitRDGSetting(struct adapter *Adapter)
 	rtw_write8(Adapter, REG_RD_RESP_PKT_TH, 0x05);
 }
 
-static void _InitRxSetting(struct adapter *Adapter)
-{
-	rtw_write32(Adapter, REG_MACID, 0x87654321);
-	rtw_write32(Adapter, 0x0700, 0x87654321);
-}
-
 static void _InitRetryFunction(struct adapter *Adapter)
 {
 	u8 value8;
@@ -738,22 +732,16 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	_InitTxBufferBoundary(Adapter, 0);
 
 	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_DOWNLOAD_FW);
-	if (Adapter->registrypriv.mp_mode == 1) {
-		_InitRxSetting(Adapter);
+	status = rtl8188e_FirmwareDownload(Adapter);
+
+	if (status != _SUCCESS) {
+		DBG_88E("%s: Download Firmware failed!!\n", __func__);
 		Adapter->bFWReady = false;
 		haldata->fw_ractrl = false;
+		return status;
 	} else {
-		status = rtl8188e_FirmwareDownload(Adapter);
-
-		if (status != _SUCCESS) {
-			DBG_88E("%s: Download Firmware failed!!\n", __func__);
-			Adapter->bFWReady = false;
-			haldata->fw_ractrl = false;
-			return status;
-		} else {
-			Adapter->bFWReady = true;
-			haldata->fw_ractrl = false;
-		}
+		Adapter->bFWReady = true;
+		haldata->fw_ractrl = false;
 	}
 	rtl8188e_InitializeFirmwareVars(Adapter);
 
@@ -882,48 +870,43 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_HAL_DM);
 	rtl8188e_InitHalDm(Adapter);
 
-	if (Adapter->registrypriv.mp_mode == 1) {
-		Adapter->mppriv.channel = haldata->CurrentChannel;
-		MPT_InitializeAdapter(Adapter, Adapter->mppriv.channel);
-	} else {
-		/*  2010/08/11 MH Merge from 8192SE for Minicard init. We need to confirm current radio status */
-		/*  and then decide to enable RF or not.!!!??? For Selective suspend mode. We may not */
-		/*  call initstruct adapter. May cause some problem?? */
-		/*  Fix the bug that Hw/Sw radio off before S3/S4, the RF off action will not be executed */
-		/*  in MgntActSet_RF_State() after wake up, because the value of haldata->eRFPowerState */
-		/*  is the same as eRfOff, we should change it to eRfOn after we config RF parameters. */
-		/*  Added by tynli. 2010.03.30. */
-		pwrctrlpriv->rf_pwrstate = rf_on;
+	/*  2010/08/11 MH Merge from 8192SE for Minicard init. We need to confirm current radio status */
+	/*  and then decide to enable RF or not.!!!??? For Selective suspend mode. We may not */
+	/*  call initstruct adapter. May cause some problem?? */
+	/*  Fix the bug that Hw/Sw radio off before S3/S4, the RF off action will not be executed */
+	/*  in MgntActSet_RF_State() after wake up, because the value of haldata->eRFPowerState */
+	/*  is the same as eRfOff, we should change it to eRfOn after we config RF parameters. */
+	/*  Added by tynli. 2010.03.30. */
+	pwrctrlpriv->rf_pwrstate = rf_on;
 
-		/*  enable Tx report. */
-		rtw_write8(Adapter,  REG_FWHW_TXQ_CTRL + 1, 0x0F);
+	/*  enable Tx report. */
+	rtw_write8(Adapter,  REG_FWHW_TXQ_CTRL + 1, 0x0F);
 
-		/*  Suggested by SD1 pisa. Added by tynli. 2011.10.21. */
-		rtw_write8(Adapter, REG_EARLY_MODE_CONTROL + 3, 0x01);/* Pretx_en, for WEP/TKIP SEC */
+	/*  Suggested by SD1 pisa. Added by tynli. 2011.10.21. */
+	rtw_write8(Adapter, REG_EARLY_MODE_CONTROL + 3, 0x01);/* Pretx_en, for WEP/TKIP SEC */
 
-		/* tynli_test_tx_report. */
-		rtw_write16(Adapter, REG_TX_RPT_TIME, 0x3DF0);
+	/* tynli_test_tx_report. */
+	rtw_write16(Adapter, REG_TX_RPT_TIME, 0x3DF0);
 
-		/* enable tx DMA to drop the redundate data of packet */
-		rtw_write16(Adapter, REG_TXDMA_OFFSET_CHK, (rtw_read16(Adapter, REG_TXDMA_OFFSET_CHK) | DROP_DATA_EN));
+	/* enable tx DMA to drop the redundate data of packet */
+	rtw_write16(Adapter, REG_TXDMA_OFFSET_CHK, (rtw_read16(Adapter, REG_TXDMA_OFFSET_CHK) | DROP_DATA_EN));
 
-		HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_IQK);
-		/*  2010/08/26 MH Merge from 8192CE. */
-		if (pwrctrlpriv->rf_pwrstate == rf_on) {
-			if (haldata->odmpriv.RFCalibrateInfo.bIQKInitialized) {
-				PHY_IQCalibrate_8188E(Adapter, true);
-			} else {
-				PHY_IQCalibrate_8188E(Adapter, false);
-				haldata->odmpriv.RFCalibrateInfo.bIQKInitialized = true;
-			}
-
-			HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_PW_TRACK);
-
-			ODM_TXPowerTrackingCheck(&haldata->odmpriv);
-
-			HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_LCK);
-			PHY_LCCalibrate_8188E(Adapter);
+	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_IQK);
+	/*  2010/08/26 MH Merge from 8192CE. */
+	if (pwrctrlpriv->rf_pwrstate == rf_on) {
+		if (haldata->odmpriv.RFCalibrateInfo.bIQKInitialized) {
+			PHY_IQCalibrate_8188E(Adapter, true);
+		} else {
+			PHY_IQCalibrate_8188E(Adapter, false);
+			haldata->odmpriv.RFCalibrateInfo.bIQKInitialized = true;
 		}
+
+		HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_PW_TRACK);
+
+		ODM_TXPowerTrackingCheck(&haldata->odmpriv);
+
+		HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_LCK);
+		PHY_LCCalibrate_8188E(Adapter);
 	}
 
 /* HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_PABIAS); */
