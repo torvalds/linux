@@ -115,7 +115,7 @@ struct asoc_simple_priv {
 		     ((codec) = simple_props_to_dai_codec(props, i));	\
 	     (i)++)
 
-#define SNDRV_MAX_LINKS 128
+#define SNDRV_MAX_LINKS 512
 
 struct link_info {
 	int link; /* number of link */
