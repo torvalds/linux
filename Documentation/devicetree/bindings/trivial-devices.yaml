@@ -303,8 +303,13 @@ properties:
           - ti,hdc1050
             # Temperature and humidity sensor with i2c interface
           - ti,hdc1080
+            # Thermometer with SPI interface
+          - ti,lm70
+          - ti,lm71
             # Temperature sensor with 2-wire interface
           - ti,lm73
+            # Thermometer with SPI interface
+          - ti,lm74
             # Temperature sensor with integrated fan control
           - ti,lm96000
             # I2C Touch-Screen Controller
@@ -313,6 +318,9 @@ properties:
           - ti,tmp102
             # Low Power Digital Temperature Sensor with SMBUS/Two Wire Serial Interface
           - ti,tmp103
+            # Thermometer with SPI interface
+          - ti,tmp121
+          - ti,tmp122
             # Digital Temperature Sensor
           - ti,tmp275
             # TI Dual channel DCAP+ multiphase controller TPS53676 with AVSBus
