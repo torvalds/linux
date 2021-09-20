@@ -15,9 +15,10 @@
 #include <linux/blkdev.h>
 #include <linux/device.h>
 #include <linux/writeback.h>
-#include <linux/blk-cgroup.h>
 #include <linux/backing-dev-defs.h>
 #include <linux/slab.h>
+
+struct blkcg;
 
 static inline struct backing_dev_info *bdi_get(struct backing_dev_info *bdi)
 {

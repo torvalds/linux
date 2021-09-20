@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/smp.h>
+#include <linux/interrupt.h>
 #include <linux/llist.h>
 #include <linux/list_sort.h>
 #include <linux/cpu.h>

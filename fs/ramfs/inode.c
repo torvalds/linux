@@ -38,6 +38,7 @@
 #include <linux/uaccess.h>
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
+#include <linux/seq_file.h>
 #include "internal.h"
 
 struct ramfs_mount_opts {
