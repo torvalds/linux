@@ -42,6 +42,9 @@ properties:
   "#clock-cells":
     const: 1
 
+  "#reset-cells":
+    const: 1
+
 required:
   - compatible
   - reg
@@ -57,4 +60,5 @@ examples:
       reg = <0x10000000 0x1000>;
       clocks = <&hfclk>, <&rtcclk>;
       #clock-cells = <1>;
+      #reset-cells = <1>;
     };
