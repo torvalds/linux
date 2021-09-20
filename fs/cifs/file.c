@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1
 /*
- *   fs/cifs/file.c
  *
  *   vfs operations that deal with files
  *
@@ -883,6 +882,7 @@ int cifs_close(struct inode *inode, struct file *file)
 		dclose = kmalloc(sizeof(struct cifs_deferred_close), GFP_KERNEL);
 		if ((cinode->oplock == CIFS_CACHE_RHW_FLG) &&
 		    cinode->lease_granted &&
+		    !test_bit(CIFS_INO_CLOSE_ON_LOCK, &cinode->flags) &&
 		    dclose) {
 			if (test_bit(CIFS_INO_MODIFIED_ATTR, &cinode->flags)) {
 				inode->i_ctime = inode->i_mtime = current_time(inode);
@@ -1865,6 +1865,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *flock)
 	cifs_read_flock(flock, &type, &lock, &unlock, &wait_flag,
 			tcon->ses->server);
 	cifs_sb = CIFS_FILE_SB(file);
+	set_bit(CIFS_INO_CLOSE_ON_LOCK, &CIFS_I(d_inode(cfile->dentry))->flags);
 
 	if (cap_unix(tcon->ses) &&
 	    (CIFS_UNIX_FCNTL_CAP & le64_to_cpu(tcon->fsUnixInfo.Capability)) &&
