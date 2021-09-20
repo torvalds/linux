@@ -76,7 +76,7 @@ static void __iomem *real_ioremap(phys_addr_t offset, size_t size)
 	return NULL;
 }
 
-static void real_iounmap(void __iomem *addr)
+static void real_iounmap(volatile void __iomem *addr)
 {
 	WARN(1, "invalid iounmap for addr 0x%llx\n",
 	     (unsigned long long)(uintptr_t __force)addr);
@@ -149,7 +149,7 @@ get_area(const volatile void __iomem *addr)
 	return NULL;
 }
 
-void iounmap(void __iomem *addr)
+void iounmap(volatile void __iomem *addr)
 {
 	struct logic_iomem_area *area = get_area(addr);
 
