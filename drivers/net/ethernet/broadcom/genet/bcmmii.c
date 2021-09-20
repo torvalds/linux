@@ -288,7 +288,9 @@ int bcmgenet_mii_probe(struct net_device *dev)
 	struct device_node *dn = kdev->of_node;
 	phy_interface_t phy_iface = priv->phy_interface;
 	struct phy_device *phydev;
-	u32 phy_flags = 0;
+	u32 phy_flags = PHY_BRCM_AUTO_PWRDWN_ENABLE |
+			PHY_BRCM_DIS_TXCRXC_NOENRGY |
+			PHY_BRCM_IDDQ_SUSPEND;
 	int ret;
 
 	/* Communicate the integrated PHY revision */
