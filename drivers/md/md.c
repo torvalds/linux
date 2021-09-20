@@ -41,6 +41,7 @@
 #include <linux/sched/signal.h>
 #include <linux/kthread.h>
 #include <linux/blkdev.h>
+#include <linux/blk-integrity.h>
 #include <linux/badblocks.h>
 #include <linux/sysctl.h>
 #include <linux/seq_file.h>

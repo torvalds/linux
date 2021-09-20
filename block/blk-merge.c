@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
+#include <linux/blk-integrity.h>
 #include <linux/scatterlist.h>
 
 #include <trace/events/block.h>

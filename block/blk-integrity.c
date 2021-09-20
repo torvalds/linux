@@ -6,7 +6,7 @@
  * Written by: Martin K. Petersen <martin.petersen@oracle.com>
  */
 
-#include <linux/blkdev.h>
+#include <linux/blk-integrity.h>
 #include <linux/backing-dev.h>
 #include <linux/mempool.h>
 #include <linux/bio.h>

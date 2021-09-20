@@ -6,6 +6,7 @@
 
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
+#include <linux/blk-integrity.h>
 #include <linux/compat.h>
 #include <linux/delay.h>
 #include <linux/errno.h>

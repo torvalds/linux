@@ -16,6 +16,7 @@
 #include <linux/timer.h>
 #include <linux/fs.h>
 #include <linux/blkdev.h>
+#include <linux/blk-integrity.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/bio.h>

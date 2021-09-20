@@ -21,6 +21,7 @@
 #include <linux/hardirq.h>
 #include <linux/scatterlist.h>
 #include <linux/blk-mq.h>
+#include <linux/blk-integrity.h>
 #include <linux/ratelimit.h>
 #include <asm/unaligned.h>
 

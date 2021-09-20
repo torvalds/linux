@@ -13,6 +13,7 @@
 #include <linux/atomic.h>
 #include <linux/blk-mq.h>
 #include <linux/blk-mq-rdma.h>
+#include <linux/blk-integrity.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/mutex.h>

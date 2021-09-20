@@ -35,6 +35,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/wait.h>
 #include <linux/blkdev.h>
+#include <linux/blk-integrity.h>
 
 struct blk_ksm_keyslot {
 	atomic_t slot_refs;
