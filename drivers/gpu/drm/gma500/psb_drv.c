@@ -217,9 +217,6 @@ static void psb_driver_unload(struct drm_device *dev)
 
 		/* Destroy VBT data */
 		psb_intel_destroy_bios(dev);
-
-		kfree(dev_priv);
-		dev->dev_private = NULL;
 	}
 	gma_power_uninit(dev);
 }
@@ -227,7 +224,7 @@ static void psb_driver_unload(struct drm_device *dev)
 static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	struct drm_psb_private *dev_priv;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned long resource_start, resource_len;
 	unsigned long irqflags;
 	int ret = -ENOMEM;
@@ -235,14 +232,9 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	struct gma_encoder *gma_encoder;
 	struct psb_gtt *pg;
 
-	/* allocating and initializing driver private data */
-	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
-	if (dev_priv == NULL)
-		return -ENOMEM;
+	/* initializing driver private data */
 
 	dev_priv->ops = (struct psb_ops *)flags;
-	dev_priv->dev = dev;
-	dev->dev_private = (void *) dev_priv;
 
 	pg = &dev_priv->gtt;
 
@@ -445,6 +437,7 @@ static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 
 static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	struct drm_psb_private *dev_priv;
 	struct drm_device *dev;
 	int ret;
 
@@ -452,15 +445,16 @@ static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		return ret;
 
-	dev = drm_dev_alloc(&driver, &pdev->dev);
-	if (IS_ERR(dev))
+	dev_priv = devm_drm_dev_alloc(&pdev->dev, &driver, struct drm_psb_private, dev);
+	if (IS_ERR(dev_priv))
 		return PTR_ERR(dev);
+	dev = &dev_priv->dev;
 
 	pci_set_drvdata(pdev, dev);
 
 	ret = psb_driver_load(dev, ent->driver_data);
 	if (ret)
-		goto err_drm_dev_put;
+		return ret;
 
 	ret = drm_dev_register(dev, ent->driver_data);
 	if (ret)
@@ -470,8 +464,6 @@ static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 err_psb_driver_unload:
 	psb_driver_unload(dev);
-err_drm_dev_put:
-	drm_dev_put(dev);
 	return ret;
 }
 
@@ -481,7 +473,6 @@ static void psb_pci_remove(struct pci_dev *pdev)
 
 	drm_dev_unregister(dev);
 	psb_driver_unload(dev);
-	drm_dev_put(dev);
 }
 
 static const struct dev_pm_ops psb_pm_ops = {

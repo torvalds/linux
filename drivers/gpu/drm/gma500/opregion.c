@@ -190,7 +190,7 @@ static void psb_intel_opregion_asle_work(struct work_struct *work)
 	}
 
 	if (asle_req & ASLE_SET_BACKLIGHT)
-		asle_stat |= asle_set_backlight(dev_priv->dev, asle->bclp);
+		asle_stat |= asle_set_backlight(&dev_priv->dev, asle->bclp);
 
 	asle->aslc = asle_stat;
 

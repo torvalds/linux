@@ -429,7 +429,7 @@ static void cdv_hotplug_work_func(struct work_struct *work)
 {
         struct drm_psb_private *dev_priv = container_of(work, struct drm_psb_private,
 							hotplug_work);
-        struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->dev;
 
         /* Just fire off a uevent and let userspace tell us what to do */
         drm_helper_hpd_irq_event(dev);

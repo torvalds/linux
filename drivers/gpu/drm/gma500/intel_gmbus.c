@@ -196,7 +196,7 @@ intel_gpio_create(struct drm_psb_private *dev_priv, u32 pin)
 		 "gma500 GPIO%c", "?BACDE?F"[pin]);
 	gpio->adapter.owner = THIS_MODULE;
 	gpio->adapter.algo_data	= &gpio->algo;
-	gpio->adapter.dev.parent = dev_priv->dev->dev;
+	gpio->adapter.dev.parent = dev_priv->dev.dev;
 	gpio->algo.setsda = set_data;
 	gpio->algo.setscl = set_clock;
 	gpio->algo.getsda = get_data;
@@ -226,7 +226,7 @@ intel_i2c_quirk_xfer(struct drm_psb_private *dev_priv,
 					       adapter);
 	int ret;
 
-	gma_intel_i2c_reset(dev_priv->dev);
+	gma_intel_i2c_reset(&dev_priv->dev);
 
 	intel_i2c_quirk_set(dev_priv, true);
 	set_data(gpio, 1);
@@ -432,7 +432,7 @@ int gma_intel_setup_gmbus(struct drm_device *dev)
 		bus->force_bit = intel_gpio_create(dev_priv, i);
 	}
 
-	gma_intel_i2c_reset(dev_priv->dev);
+	gma_intel_i2c_reset(&dev_priv->dev);
 
 	return 0;
 

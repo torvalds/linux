@@ -389,7 +389,8 @@ struct psb_ops;
 struct intel_scu_ipc_dev;
 
 struct drm_psb_private {
-	struct drm_device *dev;
+	struct drm_device dev;
+
 	struct pci_dev *aux_pdev; /* Currently only used by mrst */
 	struct pci_dev *lpc_pdev; /* Currently only used by mrst */
 	const struct psb_ops *ops;
@@ -569,7 +570,7 @@ struct drm_psb_private {
 
 static inline struct drm_psb_private *to_drm_psb_private(struct drm_device *dev)
 {
-	return dev->dev_private;
+	return container_of(dev, struct drm_psb_private, dev);
 }
 
 /* Operations for each board type */
