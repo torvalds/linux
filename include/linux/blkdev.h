@@ -544,8 +544,6 @@ struct request_queue {
 
 	bool			mq_sysfs_init_done;
 
-	size_t			cmd_size;
-
 #define BLK_MAX_WRITE_HINTS	5
 	u64			write_hints[BLK_MAX_WRITE_HINTS];
 };
