@@ -700,9 +700,6 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 	enum usb_role u_role = USB_ROLE_NONE;
 	int ret;
 
-	if (!con->partner)
-		return;
-
 	switch (UCSI_CONSTAT_PARTNER_TYPE(con->status.flags)) {
 	case UCSI_CONSTAT_PARTNER_TYPE_UFP:
 	case UCSI_CONSTAT_PARTNER_TYPE_CABLE_AND_UFP:
@@ -719,10 +716,6 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 		break;
 	}
 
-	/* Complete pending data role swap */
-	if (!completion_done(&con->complete))
-		complete(&con->complete);
-
 	/* Only notify USB controller if partner supports USB data */
 	if (!(UCSI_CONSTAT_PARTNER_FLAGS(con->status.flags) & UCSI_CONSTAT_PARTNER_FLAG_USB))
 		u_role = USB_ROLE_NONE;
@@ -733,118 +726,51 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 			con->num, u_role);
 }
 
+static int ucsi_check_connection(struct ucsi_connector *con)
+{
+	u64 command;
+	int ret;
+
+	command = UCSI_GET_CONNECTOR_STATUS | UCSI_CONNECTOR_NUMBER(con->num);
+	ret = ucsi_send_command(con->ucsi, command, &con->status, sizeof(con->status));
+	if (ret < 0) {
+		dev_err(con->ucsi->dev, "GET_CONNECTOR_STATUS failed (%d)\n", ret);
+		return ret;
+	}
+
+	if (con->status.flags & UCSI_CONSTAT_CONNECTED) {
+		if (UCSI_CONSTAT_PWR_OPMODE(con->status.flags) ==
+		    UCSI_CONSTAT_PWR_OPMODE_PD)
+			ucsi_partner_task(con, ucsi_check_altmodes, 30, 0);
+	} else {
+		ucsi_partner_change(con);
+		ucsi_port_psy_changed(con);
+		ucsi_unregister_partner(con);
+	}
+
+	return 0;
+}
+
 static void ucsi_handle_connector_change(struct work_struct *work)
 {
 	struct ucsi_connector *con = container_of(work, struct ucsi_connector,
 						  work);
 	struct ucsi *ucsi = con->ucsi;
-	struct ucsi_connector_status pre_ack_status;
-	struct ucsi_connector_status post_ack_status;
 	enum typec_role role;
-	enum usb_role u_role = USB_ROLE_NONE;
-	u16 inferred_changes;
-	u16 changed_flags;
 	u64 command;
 	int ret;
 
 	mutex_lock(&con->lock);
 
-	/*
-	 * Some/many PPMs have an issue where all fields in the change bitfield
-	 * are cleared when an ACK is send. This will causes any change
-	 * between GET_CONNECTOR_STATUS and ACK to be lost.
-	 *
-	 * We work around this by re-fetching the connector status afterwards.
-	 * We then infer any changes that we see have happened but that may not
-	 * be represented in the change bitfield.
-	 *
-	 * Also, even though we don't need to know the currently supported alt
-	 * modes, we run the GET_CAM_SUPPORTED command to ensure the PPM does
-	 * not get stuck in case it assumes we do.
-	 * Always do this, rather than relying on UCSI_CONSTAT_CAM_CHANGE to be
-	 * set in the change bitfield.
-	 *
-	 * We end up with the following actions:
-	 *  1. UCSI_GET_CONNECTOR_STATUS, store result, update unprocessed_changes
-	 *  2. UCSI_GET_CAM_SUPPORTED, discard result
-	 *  3. ACK connector change
-	 *  4. UCSI_GET_CONNECTOR_STATUS, store result
-	 *  5. Infere lost changes by comparing UCSI_GET_CONNECTOR_STATUS results
-	 *  6. If PPM reported a new change, then restart in order to ACK
-	 *  7. Process everything as usual.
-	 *
-	 * We may end up seeing a change twice, but we can only miss extremely
-	 * short transitional changes.
-	 */
-
-	/* 1. First UCSI_GET_CONNECTOR_STATUS */
 	command = UCSI_GET_CONNECTOR_STATUS | UCSI_CONNECTOR_NUMBER(con->num);
-	ret = ucsi_send_command(ucsi, command, &pre_ack_status,
-				sizeof(pre_ack_status));
-	if (ret < 0) {
-		dev_err(ucsi->dev, "%s: GET_CONNECTOR_STATUS failed (%d)\n",
-			__func__, ret);
-		goto out_unlock;
-	}
-	con->unprocessed_changes |= pre_ack_status.change;
-
-	/* 2. Run UCSI_GET_CAM_SUPPORTED and discard the result. */
-	command = UCSI_GET_CAM_SUPPORTED;
-	command |= UCSI_CONNECTOR_NUMBER(con->num);
-	ucsi_send_command(con->ucsi, command, NULL, 0);
-
-	/* 3. ACK connector change */
-	ret = ucsi_acknowledge_connector_change(ucsi);
-	clear_bit(EVENT_PENDING, &ucsi->flags);
-	if (ret) {
-		dev_err(ucsi->dev, "%s: ACK failed (%d)", __func__, ret);
-		goto out_unlock;
-	}
-
-	/* 4. Second UCSI_GET_CONNECTOR_STATUS */
-	command = UCSI_GET_CONNECTOR_STATUS | UCSI_CONNECTOR_NUMBER(con->num);
-	ret = ucsi_send_command(ucsi, command, &post_ack_status,
-				sizeof(post_ack_status));
+	ret = ucsi_send_command(ucsi, command, &con->status, sizeof(con->status));
 	if (ret < 0) {
 		dev_err(ucsi->dev, "%s: GET_CONNECTOR_STATUS failed (%d)\n",
 			__func__, ret);
 		goto out_unlock;
 	}
 
-	/* 5. Inferre any missing changes */
-	changed_flags = pre_ack_status.flags ^ post_ack_status.flags;
-	inferred_changes = 0;
-	if (UCSI_CONSTAT_PWR_OPMODE(changed_flags) != 0)
-		inferred_changes |= UCSI_CONSTAT_POWER_OPMODE_CHANGE;
-
-	if (changed_flags & UCSI_CONSTAT_CONNECTED)
-		inferred_changes |= UCSI_CONSTAT_CONNECT_CHANGE;
-
-	if (changed_flags & UCSI_CONSTAT_PWR_DIR)
-		inferred_changes |= UCSI_CONSTAT_POWER_DIR_CHANGE;
-
-	if (UCSI_CONSTAT_PARTNER_FLAGS(changed_flags) != 0)
-		inferred_changes |= UCSI_CONSTAT_PARTNER_CHANGE;
-
-	if (UCSI_CONSTAT_PARTNER_TYPE(changed_flags) != 0)
-		inferred_changes |= UCSI_CONSTAT_PARTNER_CHANGE;
-
-	/* Mask out anything that was correctly notified in the later call. */
-	inferred_changes &= ~post_ack_status.change;
-	if (inferred_changes)
-		dev_dbg(ucsi->dev, "%s: Inferred changes that would have been lost: 0x%04x\n",
-			__func__, inferred_changes);
-
-	con->unprocessed_changes |= inferred_changes;
-
-	/* 6. If PPM reported a new change, then restart in order to ACK */
-	if (post_ack_status.change)
-		goto out_unlock;
-
-	/* 7. Continue as if nothing happened */
-	con->status = post_ack_status;
-	con->status.change = con->unprocessed_changes;
-	con->unprocessed_changes = 0;
+	trace_ucsi_connector_change(con->num, &con->status);
 
 	role = !!(con->status.flags & UCSI_CONSTAT_PWR_DIR);
 
@@ -858,63 +784,39 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 
 	if (con->status.change & UCSI_CONSTAT_CONNECT_CHANGE) {
 		typec_set_pwr_role(con->port, role);
-
-		switch (UCSI_CONSTAT_PARTNER_TYPE(con->status.flags)) {
-		case UCSI_CONSTAT_PARTNER_TYPE_UFP:
-		case UCSI_CONSTAT_PARTNER_TYPE_CABLE_AND_UFP:
-			u_role = USB_ROLE_HOST;
-			fallthrough;
-		case UCSI_CONSTAT_PARTNER_TYPE_CABLE:
-			typec_set_data_role(con->port, TYPEC_HOST);
-			break;
-		case UCSI_CONSTAT_PARTNER_TYPE_DFP:
-			u_role = USB_ROLE_DEVICE;
-			typec_set_data_role(con->port, TYPEC_DEVICE);
-			break;
-		default:
-			break;
-		}
+		ucsi_port_psy_changed(con);
+		ucsi_partner_change(con);
 
 		if (con->status.flags & UCSI_CONSTAT_CONNECTED) {
 			ucsi_register_partner(con);
-
-			if (UCSI_CONSTAT_PWR_OPMODE(con->status.flags) ==
-			    UCSI_CONSTAT_PWR_OPMODE_PD)
-				ucsi_partner_task(con, ucsi_check_altmodes, 30, 0);
+			ucsi_partner_task(con, ucsi_check_connection, 1, HZ);
 		} else {
 			ucsi_unregister_partner(con);
 		}
-
-		ucsi_port_psy_changed(con);
-
-		/* Only notify USB controller if partner supports USB data */
-		if (!(UCSI_CONSTAT_PARTNER_FLAGS(con->status.flags) &
-				UCSI_CONSTAT_PARTNER_FLAG_USB))
-			u_role = USB_ROLE_NONE;
-
-		ret = usb_role_switch_set_role(con->usb_role_sw, u_role);
-		if (ret)
-			dev_err(ucsi->dev, "con:%d: failed to set usb role:%d\n",
-				con->num, u_role);
 	}
 
 	if (con->status.change & UCSI_CONSTAT_POWER_OPMODE_CHANGE ||
 	    con->status.change & UCSI_CONSTAT_POWER_LEVEL_CHANGE)
 		ucsi_pwr_opmode_change(con);
 
-	if (con->status.change & UCSI_CONSTAT_PARTNER_CHANGE)
+	if (con->partner && con->status.change & UCSI_CONSTAT_PARTNER_CHANGE) {
 		ucsi_partner_change(con);
 
-	trace_ucsi_connector_change(con->num, &con->status);
-
-out_unlock:
-	if (test_and_clear_bit(EVENT_PENDING, &ucsi->flags)) {
-		schedule_work(&con->work);
-		mutex_unlock(&con->lock);
-		return;
+		/* Complete pending data role swap */
+		if (!completion_done(&con->complete))
+			complete(&con->complete);
 	}
 
-	clear_bit(EVENT_PROCESSING, &ucsi->flags);
+	if (con->status.change & UCSI_CONSTAT_CAM_CHANGE)
+		ucsi_partner_task(con, ucsi_check_altmodes, 1, 0);
+
+	clear_bit(EVENT_PENDING, &con->ucsi->flags);
+
+	ret = ucsi_acknowledge_connector_change(ucsi);
+	if (ret)
+		dev_err(ucsi->dev, "%s: ACK failed (%d)", __func__, ret);
+
+out_unlock:
 	mutex_unlock(&con->lock);
 }
 
@@ -932,9 +834,7 @@ void ucsi_connector_change(struct ucsi *ucsi, u8 num)
 		return;
 	}
 
-	set_bit(EVENT_PENDING, &ucsi->flags);
-
-	if (!test_and_set_bit(EVENT_PROCESSING, &ucsi->flags))
+	if (!test_and_set_bit(EVENT_PENDING, &ucsi->flags))
 		schedule_work(&con->work);
 }
 EXPORT_SYMBOL_GPL(ucsi_connector_change);
