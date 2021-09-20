@@ -132,12 +132,12 @@ static int imx_audmix_be_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_soc_ops imx_audmix_fe_ops = {
+static const struct snd_soc_ops imx_audmix_fe_ops = {
 	.startup = imx_audmix_fe_startup,
 	.hw_params = imx_audmix_fe_hw_params,
 };
 
-static struct snd_soc_ops imx_audmix_be_ops = {
+static const struct snd_soc_ops imx_audmix_be_ops = {
 	.hw_params = imx_audmix_be_hw_params,
 };
 
