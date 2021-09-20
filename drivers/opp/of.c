@@ -1081,6 +1081,17 @@ static void devm_pm_opp_of_table_release(void *data)
 	dev_pm_opp_of_remove_table(data);
 }
 
+static int _devm_of_add_table_indexed(struct device *dev, int index, bool getclk)
+{
+	int ret;
+
+	ret = _of_add_table_indexed(dev, index, getclk);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(dev, devm_pm_opp_of_table_release, dev);
+}
+
 /**
  * devm_pm_opp_of_add_table() - Initialize opp table from device tree
  * @dev:	device pointer used to lookup OPP table.
@@ -1102,13 +1113,7 @@ static void devm_pm_opp_of_table_release(void *data)
  */
 int devm_pm_opp_of_add_table(struct device *dev)
 {
-	int ret;
-
-	ret = dev_pm_opp_of_add_table(dev);
-	if (ret)
-		return ret;
-
-	return devm_add_action_or_reset(dev, devm_pm_opp_of_table_release, dev);
+	return _devm_of_add_table_indexed(dev, 0, true);
 }
 EXPORT_SYMBOL_GPL(devm_pm_opp_of_add_table);
 
@@ -1152,6 +1157,19 @@ int dev_pm_opp_of_add_table_indexed(struct device *dev, int index)
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table_indexed);
 
 /**
+ * devm_pm_opp_of_add_table_indexed() - Initialize indexed opp table from device tree
+ * @dev:	device pointer used to lookup OPP table.
+ * @index:	Index number.
+ *
+ * This is a resource-managed variant of dev_pm_opp_of_add_table_indexed().
+ */
+int devm_pm_opp_of_add_table_indexed(struct device *dev, int index)
+{
+	return _devm_of_add_table_indexed(dev, index, true);
+}
+EXPORT_SYMBOL_GPL(devm_pm_opp_of_add_table_indexed);
+
+/**
  * dev_pm_opp_of_add_table_noclk() - Initialize indexed opp table from device
  *		tree without getting clk for device.
  * @dev:	device pointer used to lookup OPP table.
@@ -1168,6 +1186,20 @@ int dev_pm_opp_of_add_table_noclk(struct device *dev, int index)
 	return _of_add_table_indexed(dev, index, false);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table_noclk);
+
+/**
+ * devm_pm_opp_of_add_table_noclk() - Initialize indexed opp table from device
+ *		tree without getting clk for device.
+ * @dev:	device pointer used to lookup OPP table.
+ * @index:	Index number.
+ *
+ * This is a resource-managed variant of dev_pm_opp_of_add_table_noclk().
+ */
+int devm_pm_opp_of_add_table_noclk(struct device *dev, int index)
+{
+	return _devm_of_add_table_indexed(dev, index, false);
+}
+EXPORT_SYMBOL_GPL(devm_pm_opp_of_add_table_noclk);
 
 /* CPU device specific helpers */
 
