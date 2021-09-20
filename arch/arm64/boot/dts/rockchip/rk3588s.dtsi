@@ -42,6 +42,7 @@
 		spi2 = &spi2;
 		spi3 = &spi3;
 		spi4 = &spi4;
+		spi5 = &sfc;
 	};
 
 	cpus {
@@ -1275,6 +1276,19 @@
 		phy-names = "sata-phy";
 		ports-implemented = <0x1>;
 		power-domains = <&power RK3588_PD_PHP>;
+		status = "disabled";
+	};
+
+	sfc: spi@fe2b0000 {
+		compatible = "rockchip,sfc";
+		reg = <0x0 0xfe2b0000 0x0 0x4000>;
+		interrupts = <GIC_SPI 206 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
+		clock-names = "clk_sfc", "hclk_sfc";
+		assigned-clocks = <&cru SCLK_SFC>;
+		assigned-clock-rates = <100000000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
 	};
 
