@@ -111,6 +111,8 @@ properties:
           - mps,mp2888
             # Monolithic Power Systems Inc. multi-phase controller mp2975
           - mps,mp2975
+            # Honeywell Humidicon HIH-6130 humidity/temperature sensor
+          - honeywell,hi6130
             # Infineon IR36021 digital POL buck controller
           - infineon,ir36021
             # Infineon IR38064 Voltage Regulator
