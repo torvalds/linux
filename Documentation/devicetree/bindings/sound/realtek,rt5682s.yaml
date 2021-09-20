@@ -24,18 +24,21 @@ properties:
     description: The CODEC's interrupt output.
 
   realtek,dmic1-data-pin:
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum:
       - 0 # dmic1 data is not used
       - 1 # using GPIO2 pin as dmic1 data pin
       - 2 # using GPIO5 pin as dmic1 data pin
 
   realtek,dmic1-clk-pin:
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum:
       - 0 # dmic1 clk is not used
       - 1 # using GPIO1 pin as dmic1 clock pin
       - 2 # using GPIO3 pin as dmic1 clock pin
 
   realtek,jd-src:
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum:
       - 0 # No JD is used
       - 1 # using JD1 as JD source
@@ -63,7 +66,7 @@ properties:
 
   clock-names:
     items:
-      const: mclk
+      - const: mclk
 
   "#clock-cells":
     const: 1
@@ -79,22 +82,30 @@ required:
   - compatible
   - reg
 
-example:
+examples:
   - |
-    rt5682s {
-        compatible = "realtek,rt5682s";
-        reg = <0x1a>;
-        interrupt-parent = <&gpio>;
-        interrupts = <TEGRA_GPIO(U, 6) IRQ_TYPE_LEVEL_HIGH>;
-        realtek,ldo1-en-gpios =
-            <&gpio TEGRA_GPIO(R, 2) GPIO_ACTIVE_HIGH>;
-        realtek,dmic1-data-pin = <1>;
-        realtek,dmic1-clk-pin = <1>;
-        realtek,jd-src = <1>;
+    #include <dt-bindings/gpio/tegra-gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
 
-        #clock-cells = <1>;
-        clock-output-names = "rt5682-dai-wclk", "rt5682-dai-bclk";
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-        clocks = <&osc>;
-        clock-names = "mclk";
+        codec@1a {
+            compatible = "realtek,rt5682s";
+            reg = <0x1a>;
+            interrupt-parent = <&gpio>;
+            interrupts = <TEGRA_GPIO(U, 6) IRQ_TYPE_LEVEL_HIGH>;
+            realtek,ldo1-en-gpios =
+                <&gpio TEGRA_GPIO(R, 2) GPIO_ACTIVE_HIGH>;
+            realtek,dmic1-data-pin = <1>;
+            realtek,dmic1-clk-pin = <1>;
+            realtek,jd-src = <1>;
+
+            #clock-cells = <1>;
+            clock-output-names = "rt5682-dai-wclk", "rt5682-dai-bclk";
+
+            clocks = <&osc>;
+            clock-names = "mclk";
+        };
     };
