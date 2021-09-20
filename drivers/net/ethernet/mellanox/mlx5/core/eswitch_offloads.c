@@ -482,18 +482,22 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				struct mlx5_flow_spec *spec,
 				struct mlx5_flow_attr *attr)
 {
-	struct mlx5_flow_destination dest[MLX5_MAX_FLOW_FWD_VPORTS + 1] = {};
 	struct mlx5_flow_act flow_act = { .flags = FLOW_ACT_NO_APPEND, };
 	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
 	struct mlx5_fs_chains *chains = esw_chains(esw);
 	bool split = !!(esw_attr->split_count);
 	struct mlx5_vport_tbl_attr fwd_attr;
+	struct mlx5_flow_destination *dest;
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_table *fdb;
 	int i = 0;
 
 	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
 		return ERR_PTR(-EOPNOTSUPP);
+
+	dest = kcalloc(MLX5_MAX_FLOW_FWD_VPORTS + 1, sizeof(*dest), GFP_KERNEL);
+	if (!dest)
+		return ERR_PTR(-ENOMEM);
 
 	flow_act.action = attr->action;
 	/* if per flow vlan pop/push is emulated, don't set that into the firmware */
@@ -574,6 +578,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	else
 		atomic64_inc(&esw->offloads.num_flows);
 
+	kfree(dest);
 	return rule;
 
 err_add_rule:
@@ -584,6 +589,7 @@ err_add_rule:
 err_esw_get:
 	esw_cleanup_dests(esw, attr);
 err_create_goto_table:
+	kfree(dest);
 	return rule;
 }
 
@@ -592,15 +598,19 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 			  struct mlx5_flow_spec *spec,
 			  struct mlx5_flow_attr *attr)
 {
-	struct mlx5_flow_destination dest[MLX5_MAX_FLOW_FWD_VPORTS + 1] = {};
 	struct mlx5_flow_act flow_act = { .flags = FLOW_ACT_NO_APPEND, };
 	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
 	struct mlx5_fs_chains *chains = esw_chains(esw);
 	struct mlx5_vport_tbl_attr fwd_attr;
+	struct mlx5_flow_destination *dest;
 	struct mlx5_flow_table *fast_fdb;
 	struct mlx5_flow_table *fwd_fdb;
 	struct mlx5_flow_handle *rule;
 	int i, err = 0;
+
+	dest = kcalloc(MLX5_MAX_FLOW_FWD_VPORTS + 1, sizeof(*dest), GFP_KERNEL);
+	if (!dest)
+		return ERR_PTR(-ENOMEM);
 
 	fast_fdb = mlx5_chains_get_table(chains, attr->chain, attr->prio, 0);
 	if (IS_ERR(fast_fdb)) {
@@ -654,6 +664,7 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 
 	atomic64_inc(&esw->offloads.num_flows);
 
+	kfree(dest);
 	return rule;
 err_chain_src_rewrite:
 	esw_put_dest_tables_loop(esw, attr, 0, i);
@@ -661,6 +672,7 @@ err_chain_src_rewrite:
 err_get_fwd:
 	mlx5_chains_put_table(chains, attr->chain, attr->prio, 0);
 err_get_fast:
+	kfree(dest);
 	return rule;
 }
 
