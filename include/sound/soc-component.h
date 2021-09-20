@@ -220,7 +220,7 @@ struct snd_soc_component {
 	int (*init)(struct snd_soc_component *component);
 
 	/* function mark */
-	struct snd_pcm_substream *mark_module;
+	void *mark_module;
 	struct snd_pcm_substream *mark_open;
 	struct snd_pcm_substream *mark_hw_params;
 	struct snd_pcm_substream *mark_trigger;
@@ -391,15 +391,13 @@ void snd_soc_component_exit_regmap(struct snd_soc_component *component);
 #define snd_soc_component_module_get_when_open(component, substream)	\
 	snd_soc_component_module_get(component, substream, 1)
 int snd_soc_component_module_get(struct snd_soc_component *component,
-				 struct snd_pcm_substream *substream,
-				 int upon_open);
+				 void *mark, int upon_open);
 #define snd_soc_component_module_put_when_remove(component)	\
 	snd_soc_component_module_put(component, NULL, 0, 0)
 #define snd_soc_component_module_put_when_close(component, substream, rollback) \
 	snd_soc_component_module_put(component, substream, 1, rollback)
 void snd_soc_component_module_put(struct snd_soc_component *component,
-				  struct snd_pcm_substream *substream,
-				  int upon_open, int rollback);
+				  void *mark, int upon_open, int rollback);
 
 static inline void snd_soc_component_set_drvdata(struct snd_soc_component *c,
 						 void *data)
@@ -455,8 +453,10 @@ int snd_soc_component_of_xlate_dai_id(struct snd_soc_component *component,
 int snd_soc_component_of_xlate_dai_name(struct snd_soc_component *component,
 					const struct of_phandle_args *args,
 					const char **dai_name);
-int snd_soc_component_compr_open(struct snd_compr_stream *cstream);
-void snd_soc_component_compr_free(struct snd_compr_stream *cstream,
+int snd_soc_component_compr_open(struct snd_soc_component *component,
+				 struct snd_compr_stream *cstream);
+void snd_soc_component_compr_free(struct snd_soc_component *component,
+				  struct snd_compr_stream *cstream,
 				  int rollback);
 int snd_soc_component_compr_trigger(struct snd_compr_stream *cstream, int cmd);
 int snd_soc_component_compr_set_params(struct snd_compr_stream *cstream,
