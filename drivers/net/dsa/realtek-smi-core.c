@@ -368,7 +368,7 @@ int realtek_smi_setup_mdio(struct realtek_smi *smi)
 	smi->slave_mii_bus->parent = smi->dev;
 	smi->ds->slave_mii_bus = smi->slave_mii_bus;
 
-	ret = of_mdiobus_register(smi->slave_mii_bus, mdio_np);
+	ret = devm_of_mdiobus_register(smi->dev, smi->slave_mii_bus, mdio_np);
 	if (ret) {
 		dev_err(smi->dev, "unable to register MDIO bus %s\n",
 			smi->slave_mii_bus->id);
