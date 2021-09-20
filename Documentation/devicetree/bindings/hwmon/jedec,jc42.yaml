@@ -10,6 +10,14 @@ maintainers:
   - Jean Delvare <jdelvare@suse.com>
   - Guenter Roeck <linux@roeck-us.net>
 
+select:
+  properties:
+    compatible:
+      const: jedec,jc-42.4-temp
+
+  required:
+    - compatible
+
 properties:
   compatible:
     oneOf:
@@ -31,6 +39,7 @@ properties:
               - microchip,mcp98244
               - microchip,mcp9843
               - nxp,se97
+              - nxp,se97b
               - nxp,se98
               - onnn,cat6095
               - onnn,cat34ts02
