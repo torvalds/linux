@@ -61,10 +61,6 @@ config PSERIES_ENERGY
 	  Provides: /sys/devices/system/cpu/pseries_(de)activation_hint_list
 	  and /sys/devices/system/cpu/cpuN/pseries_(de)activation_hint
 
-config SCANLOG
-	tristate "Scanlog dump interface"
-	depends on RTAS_PROC && PPC_PSERIES
-
 config IO_EVENT_IRQ
 	bool "IO Event Interrupt support"
 	depends on PPC_PSERIES
