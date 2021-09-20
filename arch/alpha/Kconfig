@@ -199,7 +199,6 @@ config ALPHA_EIGER
 
 config ALPHA_JENSEN
 	bool "Jensen"
-	depends on BROKEN
 	select HAVE_EISA
 	help
 	  DEC PC 150 AXP (aka Jensen): This is a very old Digital system - one
