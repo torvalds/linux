@@ -18,9 +18,6 @@
 #define sys_iopl sys_ni_syscall
 #define sys_ioperm sys_ni_syscall
 
-/* On UML we call it this way ("old" means it's not mmap2) */
-#define sys_mmap old_mmap
-
 #define __SYSCALL(nr, sym) extern asmlinkage long sym(unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long);
 #include <asm/syscalls_64.h>
 
