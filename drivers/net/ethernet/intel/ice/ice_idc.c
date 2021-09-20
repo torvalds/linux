@@ -271,6 +271,12 @@ int ice_plug_aux_dev(struct ice_pf *pf)
 	struct auxiliary_device *adev;
 	int ret;
 
+	/* if this PF doesn't support a technology that requires auxiliary
+	 * devices, then gracefully exit
+	 */
+	if (!ice_is_aux_ena(pf))
+		return 0;
+
 	iadev = kzalloc(sizeof(*iadev), GFP_KERNEL);
 	if (!iadev)
 		return -ENOMEM;

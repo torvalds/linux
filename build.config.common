@@ -3,9 +3,9 @@ KMI_GENERATION=0
 
 LLVM=1
 DEPMOD=depmod
-DTC=dtc
 CLANG_PREBUILT_BIN=prebuilts/clang/host/linux-x86/clang-r433403/bin
 BUILDTOOLS_PREBUILT_BIN=build/build-tools/path/linux-x86
+DTC=${ROOT_DIR}/${BUILDTOOLS_PREBUILT_BIN}/dtc
 
 EXTRA_CMDS=''
 STOP_SHIP_TRACEPRINTK=1

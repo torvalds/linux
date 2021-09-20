@@ -986,6 +986,9 @@ void i915_gem_context_release(struct kref *ref)
 	trace_i915_context_free(ctx);
 	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
 
+	if (ctx->syncobj)
+		drm_syncobj_put(ctx->syncobj);
+
 	mutex_destroy(&ctx->engines_mutex);
 	mutex_destroy(&ctx->lut_mutex);
 
@@ -1204,9 +1207,6 @@ static void context_close(struct i915_gem_context *ctx)
 	vm = i915_gem_context_vm(ctx);
 	if (vm)
 		i915_vm_close(vm);
-
-	if (ctx->syncobj)
-		drm_syncobj_put(ctx->syncobj);
 
 	ctx->file_priv = ERR_PTR(-EBADF);
 
