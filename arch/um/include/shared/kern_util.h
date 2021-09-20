@@ -58,7 +58,6 @@ extern char *uml_strdup(const char *string);
 extern unsigned long to_irq_stack(unsigned long *mask_out);
 extern unsigned long from_irq_stack(int nested);
 
-extern void syscall_trace(struct uml_pt_regs *regs, int entryexit);
 extern int singlestepping(void *t);
 
 extern void segv_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs);
