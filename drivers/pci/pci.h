@@ -744,4 +744,23 @@ extern const struct attribute_group aspm_ctrl_attr_group;
 
 extern const struct attribute_group pci_dev_reset_method_attr_group;
 
+#ifdef CONFIG_X86_INTEL_MID
+bool pci_use_mid_pm(void);
+int mid_pci_set_power_state(struct pci_dev *pdev, pci_power_t state);
+pci_power_t mid_pci_get_power_state(struct pci_dev *pdev);
+#else
+static inline bool pci_use_mid_pm(void)
+{
+	return false;
+}
+static inline int mid_pci_set_power_state(struct pci_dev *pdev, pci_power_t state)
+{
+	return -ENODEV;
+}
+static inline pci_power_t mid_pci_get_power_state(struct pci_dev *pdev)
+{
+	return PCI_UNKNOWN;
+}
+#endif
+
 #endif /* DRIVERS_PCI_H */
