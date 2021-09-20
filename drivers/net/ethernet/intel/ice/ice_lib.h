@@ -103,6 +103,7 @@ int ice_status_to_errno(enum ice_status err);
 
 void ice_write_intrl(struct ice_q_vector *q_vector, u8 intrl);
 void ice_write_itr(struct ice_ring_container *rc, u16 itr);
+void ice_set_q_vector_intrl(struct ice_q_vector *q_vector);
 
 enum ice_status
 ice_vsi_cfg_mac_fltr(struct ice_vsi *vsi, const u8 *macaddr, bool set);

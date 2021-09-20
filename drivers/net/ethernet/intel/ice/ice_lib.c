@@ -1942,6 +1942,31 @@ void ice_write_itr(struct ice_ring_container *rc, u16 itr)
 }
 
 /**
+ * ice_set_q_vector_intrl - set up interrupt rate limiting
+ * @q_vector: the vector to be configured
+ *
+ * Interrupt rate limiting is local to the vector, not per-queue so we must
+ * detect if either ring container has dynamic moderation enabled to decide
+ * what to set the interrupt rate limit to via INTRL settings. In the case that
+ * dynamic moderation is disabled on both, write the value with the cached
+ * setting to make sure INTRL register matches the user visible value.
+ */
+void ice_set_q_vector_intrl(struct ice_q_vector *q_vector)
+{
+	if (ITR_IS_DYNAMIC(&q_vector->tx) || ITR_IS_DYNAMIC(&q_vector->rx)) {
+		/* in the case of dynamic enabled, cap each vector to no more
+		 * than (4 us) 250,000 ints/sec, which allows low latency
+		 * but still less than 500,000 interrupts per second, which
+		 * reduces CPU a bit in the case of the lowest latency
+		 * setting. The 4 here is a value in microseconds.
+		 */
+		ice_write_intrl(q_vector, 4);
+	} else {
+		ice_write_intrl(q_vector, q_vector->intrl);
+	}
+}
+
+/**
  * ice_vsi_cfg_msix - MSIX mode Interrupt Config in the HW
  * @vsi: the VSI being configured
  *
