@@ -41,10 +41,6 @@ properties:
           - adi,adp5585-02
             # Analog Devices ADP5589 Keypad Decoder and I/O Expansion
           - adi,adp5589
-            # +/-1C TDM Extended Temp Range I.C
-          - adi,adt7461
-            # +/-1C TDM Extended Temp Range I.C
-          - adt7461
             # AMS iAQ-Core VOC Sensor
           - ams,iaq-core
             # i2c serial eeprom  (24cxx)
