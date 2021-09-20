@@ -554,7 +554,7 @@ static int mlxreg_fan_cooling_config(struct device *dev, struct mlxreg_fan *fan)
 {
 	int i, j;
 
-	for (i = 0; i <= MLXREG_FAN_MAX_PWM; i++) {
+	for (i = 0; i < MLXREG_FAN_MAX_PWM; i++) {
 		struct mlxreg_fan_pwm *pwm = &fan->pwm[i];
 
 		if (!pwm->connected)
