@@ -264,11 +264,6 @@ int clear_user_proc(void __user *buf, int size)
 	return clear_user(buf, size);
 }
 
-int cpu(void)
-{
-	return current_thread_info()->cpu;
-}
-
 static atomic_t using_sysemu = ATOMIC_INIT(0);
 int sysemu_supported;
 

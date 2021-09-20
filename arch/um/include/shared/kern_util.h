@@ -53,7 +53,6 @@ extern void do_uml_exitcalls(void);
 extern int __cant_sleep(void);
 extern int get_current_pid(void);
 extern int copy_from_user_proc(void *to, void *from, int size);
-extern int cpu(void);
 extern char *uml_strdup(const char *string);
 
 extern unsigned long to_irq_stack(unsigned long *mask_out);
