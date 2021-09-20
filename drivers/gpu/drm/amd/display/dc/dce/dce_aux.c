@@ -42,7 +42,7 @@
 #define DC_LOGGER \
 	engine->ctx->logger
 
-#define DC_TRACE_LEVEL_MESSAGE(...) /* do nothing */
+#define DC_TRACE_LEVEL_MESSAGE(...) do { } while (0)
 #define IS_DC_I2CAUX_LOGGING_ENABLED() (false)
 #define LOG_FLAG_Error_I2cAux LOG_ERROR
 #define LOG_FLAG_I2cAux_DceAux LOG_I2C_AUX
@@ -76,7 +76,7 @@ enum {
 #define DEFAULT_AUX_ENGINE_MULT   0
 #define DEFAULT_AUX_ENGINE_LENGTH 69
 
-#define DC_TRACE_LEVEL_MESSAGE(...) /* do nothing */
+#define DC_TRACE_LEVEL_MESSAGE(...) do { } while (0)
 
 static void release_engine(
 	struct dce_aux *engine)
