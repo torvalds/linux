@@ -627,6 +627,7 @@ static void ucsi_pwr_opmode_change(struct ucsi_connector *con)
 		con->rdo = con->status.request_data_obj;
 		typec_set_pwr_opmode(con->port, TYPEC_PWR_MODE_PD);
 		ucsi_get_src_pdos(con, 1);
+		ucsi_partner_task(con, ucsi_check_altmodes, 30, 0);
 		break;
 	case UCSI_CONSTAT_PWR_OPMODE_TYPEC1_5:
 		con->rdo = 0;
@@ -726,8 +727,6 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 	if (ret)
 		dev_err(con->ucsi->dev, "con:%d: failed to set usb role:%d\n",
 			con->num, u_role);
-
-	ucsi_partner_task(con, ucsi_check_altmodes, 30, 0);
 }
 
 static void ucsi_handle_connector_change(struct work_struct *work)
@@ -878,10 +877,15 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 			break;
 		}
 
-		if (con->status.flags & UCSI_CONSTAT_CONNECTED)
+		if (con->status.flags & UCSI_CONSTAT_CONNECTED) {
 			ucsi_register_partner(con);
-		else
+
+			if (UCSI_CONSTAT_PWR_OPMODE(con->status.flags) ==
+			    UCSI_CONSTAT_PWR_OPMODE_PD)
+				ucsi_partner_task(con, ucsi_check_altmodes, 30, 0);
+		} else {
 			ucsi_unregister_partner(con);
+		}
 
 		ucsi_port_psy_changed(con);
 
@@ -1244,7 +1248,7 @@ static int ucsi_register_port(struct ucsi *ucsi, int index)
 		ret = 0;
 	}
 
-	if (con->partner)
+	if (UCSI_CONSTAT_PWR_OPMODE(con->status.flags) == UCSI_CONSTAT_PWR_OPMODE_PD)
 		ucsi_check_altmodes(con);
 
 	trace_ucsi_register_port(con->num, &con->status);
