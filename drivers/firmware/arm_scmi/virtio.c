@@ -476,7 +476,7 @@ static int __init virtio_scmi_init(void)
 	return register_virtio_driver(&virtio_scmi_driver);
 }
 
-static void __exit virtio_scmi_exit(void)
+static void virtio_scmi_exit(void)
 {
 	unregister_virtio_driver(&virtio_scmi_driver);
 }
