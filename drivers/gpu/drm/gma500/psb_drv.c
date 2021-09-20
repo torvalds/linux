@@ -167,57 +167,56 @@ static void psb_driver_unload(struct drm_device *dev)
 
 	/* TODO: Kill vblank etc here */
 
-	if (dev_priv) {
-		if (dev_priv->backlight_device)
-			gma_backlight_exit(dev);
-		psb_modeset_cleanup(dev);
+	if (dev_priv->backlight_device)
+		gma_backlight_exit(dev);
+	psb_modeset_cleanup(dev);
 
-		if (dev_priv->ops->chip_teardown)
-			dev_priv->ops->chip_teardown(dev);
+	if (dev_priv->ops->chip_teardown)
+		dev_priv->ops->chip_teardown(dev);
 
-		psb_intel_opregion_fini(dev);
+	psb_intel_opregion_fini(dev);
 
-		if (dev_priv->pf_pd) {
-			psb_mmu_free_pagedir(dev_priv->pf_pd);
-			dev_priv->pf_pd = NULL;
-		}
-		if (dev_priv->mmu) {
-			struct psb_gtt *pg = &dev_priv->gtt;
-
-			down_read(&pg->sem);
-			psb_mmu_remove_pfn_sequence(
-				psb_mmu_get_default_pd
-				(dev_priv->mmu),
-				pg->mmu_gatt_start,
-				dev_priv->vram_stolen_size >> PAGE_SHIFT);
-			up_read(&pg->sem);
-			psb_mmu_driver_takedown(dev_priv->mmu);
-			dev_priv->mmu = NULL;
-		}
-		psb_gtt_takedown(dev);
-		if (dev_priv->scratch_page) {
-			set_pages_wb(dev_priv->scratch_page, 1);
-			__free_page(dev_priv->scratch_page);
-			dev_priv->scratch_page = NULL;
-		}
-		if (dev_priv->vdc_reg) {
-			iounmap(dev_priv->vdc_reg);
-			dev_priv->vdc_reg = NULL;
-		}
-		if (dev_priv->sgx_reg) {
-			iounmap(dev_priv->sgx_reg);
-			dev_priv->sgx_reg = NULL;
-		}
-		if (dev_priv->aux_reg) {
-			iounmap(dev_priv->aux_reg);
-			dev_priv->aux_reg = NULL;
-		}
-		pci_dev_put(dev_priv->aux_pdev);
-		pci_dev_put(dev_priv->lpc_pdev);
-
-		/* Destroy VBT data */
-		psb_intel_destroy_bios(dev);
+	if (dev_priv->pf_pd) {
+		psb_mmu_free_pagedir(dev_priv->pf_pd);
+		dev_priv->pf_pd = NULL;
 	}
+	if (dev_priv->mmu) {
+		struct psb_gtt *pg = &dev_priv->gtt;
+
+		down_read(&pg->sem);
+		psb_mmu_remove_pfn_sequence(
+			psb_mmu_get_default_pd
+			(dev_priv->mmu),
+			pg->mmu_gatt_start,
+			dev_priv->vram_stolen_size >> PAGE_SHIFT);
+		up_read(&pg->sem);
+		psb_mmu_driver_takedown(dev_priv->mmu);
+		dev_priv->mmu = NULL;
+	}
+	psb_gtt_takedown(dev);
+	if (dev_priv->scratch_page) {
+		set_pages_wb(dev_priv->scratch_page, 1);
+		__free_page(dev_priv->scratch_page);
+		dev_priv->scratch_page = NULL;
+	}
+	if (dev_priv->vdc_reg) {
+		iounmap(dev_priv->vdc_reg);
+		dev_priv->vdc_reg = NULL;
+	}
+	if (dev_priv->sgx_reg) {
+		iounmap(dev_priv->sgx_reg);
+		dev_priv->sgx_reg = NULL;
+	}
+	if (dev_priv->aux_reg) {
+		iounmap(dev_priv->aux_reg);
+		dev_priv->aux_reg = NULL;
+	}
+	pci_dev_put(dev_priv->aux_pdev);
+	pci_dev_put(dev_priv->lpc_pdev);
+
+	/* Destroy VBT data */
+	psb_intel_destroy_bios(dev);
+
 	gma_power_uninit(dev);
 }
 
