@@ -972,17 +972,6 @@ static void pci_restore_bars(struct pci_dev *dev)
 		pci_update_resource(dev, i);
 }
 
-static const struct pci_platform_pm_ops *pci_platform_pm;
-
-int pci_set_platform_pm(const struct pci_platform_pm_ops *ops)
-{
-	if (!ops->is_manageable || !ops->set_state  || !ops->get_state ||
-	    !ops->choose_state  || !ops->set_wakeup || !ops->need_resume)
-		return -EINVAL;
-	pci_platform_pm = ops;
-	return 0;
-}
-
 static inline bool platform_pci_power_manageable(struct pci_dev *dev)
 {
 	if (pci_use_mid_pm())
