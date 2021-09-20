@@ -220,6 +220,13 @@ static void psb_driver_unload(struct drm_device *dev)
 	gma_power_uninit(dev);
 }
 
+static void psb_device_release(void *data)
+{
+	struct drm_device *dev = data;
+
+	psb_driver_unload(dev);
+}
+
 static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
@@ -400,8 +407,9 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	pm_runtime_enable(dev->dev);
 	pm_runtime_set_active(dev->dev);
 #endif
-	/* Intel drm driver load is done, continue doing pvr load */
-	return 0;
+
+	return devm_add_action_or_reset(dev->dev, psb_device_release, dev);
+
 out_err:
 	psb_driver_unload(dev);
 	return ret;
@@ -457,13 +465,9 @@ static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ret = drm_dev_register(dev, ent->driver_data);
 	if (ret)
-		goto err_psb_driver_unload;
+		return ret;
 
 	return 0;
-
-err_psb_driver_unload:
-	psb_driver_unload(dev);
-	return ret;
 }
 
 static void psb_pci_remove(struct pci_dev *pdev)
@@ -471,7 +475,6 @@ static void psb_pci_remove(struct pci_dev *pdev)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
 	drm_dev_unregister(dev);
-	psb_driver_unload(dev);
 }
 
 static const struct dev_pm_ops psb_pm_ops = {
