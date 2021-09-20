@@ -3,8 +3,6 @@
 #define _LINUX_BLKDEV_H
 
 #include <linux/sched.h>
-#include <linux/sched/clock.h>
-#include <linux/major.h>
 #include <linux/genhd.h>
 #include <linux/list.h>
 #include <linux/llist.h>
@@ -12,17 +10,12 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/wait.h>
-#include <linux/mempool.h>
-#include <linux/pfn.h>
 #include <linux/bio.h>
-#include <linux/stringify.h>
 #include <linux/gfp.h>
-#include <linux/smp.h>
 #include <linux/rcupdate.h>
 #include <linux/percpu-refcount.h>
 #include <linux/scatterlist.h>
 #include <linux/blkzoned.h>
-#include <linux/pm.h>
 #include <linux/sbitmap.h>
 
 struct module;
