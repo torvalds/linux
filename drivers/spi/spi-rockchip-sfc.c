@@ -785,6 +785,15 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sfc);
 
+	if (IS_ENABLED(CONFIG_ROCKCHIP_THUNDER_BOOT)) {
+		u32 status;
+
+		if (readl_poll_timeout(sfc->regbase + SFC_SR, status,
+				       !(status & SFC_SR_IS_BUSY), 10,
+				       500 * USEC_PER_MSEC))
+			dev_err(dev, "Wait for SFC idle timeout!\n");
+	}
+
 	ret = rockchip_sfc_init(sfc);
 	if (ret)
 		goto err_irq;
