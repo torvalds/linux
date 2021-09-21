@@ -246,7 +246,7 @@ static int goodix_i2c_read(struct i2c_client *client,
  * @len: length of the buffer to write
  */
 static int goodix_i2c_write(struct i2c_client *client, u16 reg, const u8 *buf,
-			    unsigned len)
+			    int len)
 {
 	u8 *addr_buf;
 	struct i2c_msg msg;
