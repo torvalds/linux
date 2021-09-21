@@ -164,15 +164,13 @@ static void i8xx_fbc_deactivate(struct drm_i915_private *dev_priv)
 
 static void i8xx_fbc_activate(struct drm_i915_private *dev_priv)
 {
-	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
+	struct intel_fbc *fbc = &dev_priv->fbc;
+	const struct intel_fbc_reg_params *params = &fbc->params;
 	int cfb_pitch;
 	int i;
 	u32 fbc_ctl;
 
-	/* Note: fbc.limit == 1 for i8xx */
-	cfb_pitch = params->cfb_size / FBC_LL_SIZE;
-	if (params->fb.stride < cfb_pitch)
-		cfb_pitch = params->fb.stride;
+	cfb_pitch = params->cfb_stride / fbc->limit;
 
 	/* FBC_CTL wants 32B or 64B units */
 	if (DISPLAY_VER(dev_priv) == 2)
@@ -518,18 +516,14 @@ static int intel_fbc_min_limit(int fb_cpp)
 
 static int intel_fbc_max_limit(struct drm_i915_private *dev_priv)
 {
-	/*
-	 * FIXME: FBC1 can have arbitrary cfb stride,
-	 * so we could support different compression ratios.
-	 */
-	if (DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv))
-		return 1;
-
 	/* WaFbcOnly1to1Ratio:ctg */
 	if (IS_G4X(dev_priv))
 		return 1;
 
-	/* FBC2 can only do 1:1, 1:2, 1:4 */
+	/*
+	 * FBC2 can only do 1:1, 1:2, 1:4, we limit
+	 * FBC1 to the same out of convenience.
+	 */
 	return 4;
 }
 
