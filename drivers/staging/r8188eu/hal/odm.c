@@ -1207,24 +1207,12 @@ void odm_DynamicTxPower(struct odm_dm_struct *pDM_Odm)
 	switch	(pDM_Odm->SupportPlatform) {
 	case	ODM_MP:
 	case	ODM_CE:
-		odm_DynamicTxPowerNIC(pDM_Odm);
 		break;
 	case	ODM_AP:
 		odm_DynamicTxPowerAP(pDM_Odm);
 		break;
 	case	ODM_ADSL:
 		break;
-	}
-}
-
-void odm_DynamicTxPowerNIC(struct odm_dm_struct *pDM_Odm)
-{
-	if (!(pDM_Odm->SupportAbility & ODM_BB_DYNAMIC_TXPWR))
-		return;
-
-	if (pDM_Odm->SupportICType == ODM_RTL8188E) {
-		/*  ??? */
-		/*  This part need to be redefined. */
 	}
 }
 
