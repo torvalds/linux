@@ -527,8 +527,6 @@ static void icl_tc_phy_disconnect(struct intel_digital_port *dig_port)
 {
 	switch (dig_port->tc_mode) {
 	case TC_PORT_LEGACY:
-		/* Nothing to do, we never disconnect from legacy mode */
-		break;
 	case TC_PORT_DP_ALT:
 		tc_phy_take_ownership(dig_port, false);
 		dig_port->tc_mode = TC_PORT_TBT_ALT;
@@ -596,9 +594,7 @@ intel_tc_port_get_target_mode(struct intel_digital_port *dig_port)
 	if (live_status_mask)
 		return fls(live_status_mask) - 1;
 
-	return tc_phy_status_complete(dig_port) &&
-	       dig_port->tc_legacy_port ? TC_PORT_LEGACY :
-					  TC_PORT_TBT_ALT;
+	return TC_PORT_TBT_ALT;
 }
 
 static void intel_tc_port_reset_mode(struct intel_digital_port *dig_port,
@@ -659,14 +655,8 @@ void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
 				    "Port %s: PHY disconnected with %d active link(s)\n",
 				    dig_port->tc_port_name, active_links);
 		intel_tc_port_link_init_refcount(dig_port, active_links);
-
-		goto out;
 	}
 
-	if (dig_port->tc_legacy_port)
-		icl_tc_phy_connect(dig_port, 1);
-
-out:
 	drm_dbg_kms(&i915->drm, "Port %s: sanitize mode (%s)\n",
 		    dig_port->tc_port_name,
 		    tc_port_mode_name(dig_port->tc_mode));
