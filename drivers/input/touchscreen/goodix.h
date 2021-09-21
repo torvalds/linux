@@ -69,5 +69,6 @@ int goodix_i2c_write(struct i2c_client *client, u16 reg, const u8 *buf, int len)
 int goodix_i2c_write_u8(struct i2c_client *client, u16 reg, u8 value);
 int goodix_send_cfg(struct goodix_ts_data *ts, const u8 *cfg, int len);
 int goodix_int_sync(struct goodix_ts_data *ts);
+int goodix_reset_no_int_sync(struct goodix_ts_data *ts);
 
 #endif
