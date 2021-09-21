@@ -4120,7 +4120,10 @@ static inline int task_fits_capacity(struct task_struct *p, long capacity)
 
 static inline void update_misfit_status(struct task_struct *p, struct rq *rq)
 {
-	if (!static_branch_unlikely(&sched_asym_cpucapacity))
+	bool need_update = true;
+
+	trace_android_rvh_update_misfit_status(p, rq, &need_update);
+	if (!static_branch_unlikely(&sched_asym_cpucapacity) || !need_update)
 		return;
 
 	if (!p || p->nr_cpus_allowed == 1) {
@@ -4220,6 +4223,7 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 			thresh >>= 1;
 
 		vruntime -= thresh;
+		trace_android_rvh_place_entity(se, vruntime);
 	}
 
 	/* ensure we never gain time by being placed backwards. */
@@ -8485,6 +8489,7 @@ static void update_cpu_capacity(struct sched_domain *sd, int cpu)
 	if (!capacity)
 		capacity = 1;
 
+	trace_android_rvh_update_cpu_capacity(cpu, &capacity);
 	cpu_rq(cpu)->cpu_capacity = capacity;
 	trace_sched_cpu_capacity_tp(cpu_rq(cpu));
 
