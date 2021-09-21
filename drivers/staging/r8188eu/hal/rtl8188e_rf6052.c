@@ -85,7 +85,6 @@ rtl8188e_PHY_RF6052SetCckTxPower(
 		u8 *pPowerlevel)
 {
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
-	struct dm_priv *pdmpriv = &pHalData->dmpriv;
 	struct mlme_ext_priv *pmlmeext = &Adapter->mlmeextpriv;
 	u32 TxAGC[2] = {0, 0}, tmpval = 0, pwrtrac_value;
 	bool TurboScanOff = false;
@@ -112,34 +111,19 @@ rtl8188e_PHY_RF6052SetCckTxPower(
 			}
 		}
 	} else {
-		/* Driver dynamic Tx power shall not affect Tx power.
-		 * It shall be determined by power training mechanism.
-i		 *  Currently, we cannot fully disable driver dynamic
-		 * tx power mechanism because it is referenced by BT
-		 * coexist mechanism.
-		 * In the future, two mechanism shall be separated from
-		 * each other and maintained independently. */
-		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1) {
-			TxAGC[RF_PATH_A] = 0x10101010;
-			TxAGC[RF_PATH_B] = 0x10101010;
-		} else if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level2) {
-			TxAGC[RF_PATH_A] = 0x00000000;
-			TxAGC[RF_PATH_B] = 0x00000000;
-		} else {
-			for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
-				TxAGC[idx1] =
-					pPowerlevel[idx1] | (pPowerlevel[idx1] << 8) |
-					(pPowerlevel[idx1] << 16) | (pPowerlevel[idx1] << 24);
-			}
-			if (pHalData->EEPROMRegulatory == 0) {
-				tmpval = (pHalData->MCSTxPowerLevelOriginalOffset[0][6]) +
-						(pHalData->MCSTxPowerLevelOriginalOffset[0][7] << 8);
-				TxAGC[RF_PATH_A] += tmpval;
+		for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
+			TxAGC[idx1] =
+				pPowerlevel[idx1] | (pPowerlevel[idx1] << 8) |
+				(pPowerlevel[idx1] << 16) | (pPowerlevel[idx1] << 24);
+		}
+		if (pHalData->EEPROMRegulatory == 0) {
+			tmpval = (pHalData->MCSTxPowerLevelOriginalOffset[0][6]) +
+					(pHalData->MCSTxPowerLevelOriginalOffset[0][7] << 8);
+			TxAGC[RF_PATH_A] += tmpval;
 
-				tmpval = (pHalData->MCSTxPowerLevelOriginalOffset[0][14]) +
-						(pHalData->MCSTxPowerLevelOriginalOffset[0][15] << 24);
-				TxAGC[RF_PATH_B] += tmpval;
-			}
+			tmpval = (pHalData->MCSTxPowerLevelOriginalOffset[0][14]) +
+					(pHalData->MCSTxPowerLevelOriginalOffset[0][15] << 24);
+			TxAGC[RF_PATH_B] += tmpval;
 		}
 	}
 	for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
@@ -207,7 +191,6 @@ static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
 				    u32 *pOutWriteVal)
 {
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	u8	i, chnlGroup = 0, pwr_diff_limit[4], customer_pwr_limit;
 	s8	pwr_diff = 0;
 	u32	writeVal, customer_limit, rf;
@@ -283,19 +266,7 @@ static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
 					((index < 2) ? powerBase0[rf] : powerBase1[rf]);
 			break;
 		}
-/*  20100427 Joseph: Driver dynamic Tx power shall not affect Tx power. It shall be determined by power training mechanism. */
-/*  Currently, we cannot fully disable driver dynamic tx power mechanism because it is referenced by BT coexist mechanism. */
-/*  In the future, two mechanism shall be separated from each other and maintained independently. Thanks for Lanhsin's reminder. */
-		/* 92d do not need this */
-		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1)
-			writeVal = 0x14141414;
-		else if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level2)
-			writeVal = 0x00000000;
 
-		/*  20100628 Joseph: High power mode for BT-Coexist mechanism. */
-		/*  This mechanism is only applied when Driver-Highpower-Mechanism is OFF. */
-		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_BT1)
-			writeVal = writeVal - 0x06060606;
 		*(pOutWriteVal + rf) = writeVal;
 	}
 }
