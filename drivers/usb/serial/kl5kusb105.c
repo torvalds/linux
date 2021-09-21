@@ -163,21 +163,18 @@ static unsigned long klsi_105_status2linestate(const __u16 status)
  * Read line control via vendor command and return result through
  * *line_state_p
  */
-/* It seems that the status buffer has always only 2 bytes length */
-#define KLSI_STATUSBUF_LEN	2
 static int klsi_105_get_line_state(struct usb_serial_port *port,
 				   unsigned long *line_state_p)
 {
+	u16 status;
 	int rc;
-	u8 status_buf[KLSI_STATUSBUF_LEN];
-	__u16 status;
 
 	rc = usb_control_msg_recv(port->serial->dev, 0,
 				  KL5KUSB105A_SIO_POLL,
 				  USB_TYPE_VENDOR | USB_DIR_IN,
 				  0, /* value */
 				  0, /* index */
-				  status_buf, KLSI_STATUSBUF_LEN,
+				  &status, sizeof(status),
 				  10000,
 				  GFP_KERNEL);
 	if (rc) {
@@ -185,10 +182,9 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 		return rc;
 	}
 
-	status = get_unaligned_le16(status_buf);
+	le16_to_cpus(&status);
 
-	dev_dbg(&port->dev, "read status %02x %02x\n",
-		status_buf[0], status_buf[1]);
+	dev_dbg(&port->dev, "read status %04x\n", status);
 
 	*line_state_p = klsi_105_status2linestate(status);
 
