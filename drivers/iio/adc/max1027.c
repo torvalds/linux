@@ -430,17 +430,6 @@ static int max1027_debugfs_reg_access(struct iio_dev *indio_dev,
 	return spi_write(st->spi, val, 1);
 }
 
-static int max1027_validate_trigger(struct iio_dev *indio_dev,
-				    struct iio_trigger *trig)
-{
-	struct max1027_state *st = iio_priv(indio_dev);
-
-	if (st->trig != trig)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int max1027_set_cnvst_trigger_state(struct iio_trigger *trig, bool state)
 {
 	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
@@ -491,8 +480,8 @@ static irqreturn_t max1027_handler(int irq, void *private)
 	struct max1027_state *st = iio_priv(indio_dev);
 
 	/*
-	 * If buffers are disabled (raw read), we just need to unlock the
-	 * waiters which will then handle the data.
+	 * If buffers are disabled (raw read) or when using external triggers,
+	 * we just need to unlock the waiters which will then handle the data.
 	 *
 	 * When using the internal trigger, we must hand-off the choice of the
 	 * handler to the core which will then lookup through the interrupt tree
@@ -515,7 +504,19 @@ static irqreturn_t max1027_trigger_handler(int irq, void *private)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	int ret;
 
+	if (!iio_trigger_using_own(indio_dev)) {
+		ret = max1027_configure_chans_and_start(indio_dev);
+		if (ret)
+			goto out;
+
+		/* This is a threaded handler, it is fine to wait for an IRQ */
+		ret = max1027_wait_eoc(indio_dev);
+		if (ret)
+			goto out;
+	}
+
 	ret = max1027_read_scan(indio_dev);
+out:
 	if (ret)
 		dev_err(&indio_dev->dev,
 			"Cannot read scanned values (%d)\n", ret);
@@ -532,7 +533,6 @@ static const struct iio_trigger_ops max1027_trigger_ops = {
 
 static const struct iio_info max1027_info = {
 	.read_raw = &max1027_read_raw,
-	.validate_trigger = &max1027_validate_trigger,
 	.debugfs_reg_access = &max1027_debugfs_reg_access,
 };
 
