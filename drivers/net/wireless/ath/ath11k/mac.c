@@ -731,6 +731,20 @@ static int ath11k_monitor_vdev_up(struct ath11k *ar, int vdev_id)
 	return 0;
 }
 
+static inline int ath11k_mac_vdev_setup_sync(struct ath11k *ar)
+{
+	lockdep_assert_held(&ar->conf_mutex);
+
+	if (test_bit(ATH11K_FLAG_CRASH_FLUSH, &ar->ab->dev_flags))
+		return -ESHUTDOWN;
+
+	if (!wait_for_completion_timeout(&ar->vdev_setup_done,
+					 ATH11K_VDEV_SETUP_TIMEOUT_HZ))
+		return -ETIMEDOUT;
+
+	return ar->last_wmi_vdev_start_status ? -EINVAL : 0;
+}
+
 static int ath11k_mac_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	/* mac80211 requires this op to be present and that's why
@@ -5163,20 +5177,6 @@ static void ath11k_mac_op_remove_chanctx(struct ieee80211_hw *hw,
 	spin_unlock_bh(&ar->data_lock);
 
 	mutex_unlock(&ar->conf_mutex);
-}
-
-static inline int ath11k_mac_vdev_setup_sync(struct ath11k *ar)
-{
-	lockdep_assert_held(&ar->conf_mutex);
-
-	if (test_bit(ATH11K_FLAG_CRASH_FLUSH, &ar->ab->dev_flags))
-		return -ESHUTDOWN;
-
-	if (!wait_for_completion_timeout(&ar->vdev_setup_done,
-					 ATH11K_VDEV_SETUP_TIMEOUT_HZ))
-		return -ETIMEDOUT;
-
-	return ar->last_wmi_vdev_start_status ? -EINVAL : 0;
 }
 
 static int
