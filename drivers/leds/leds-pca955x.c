@@ -429,7 +429,7 @@ pca955x_get_pdata(struct i2c_client *client, struct pca955x_chipdef *chip)
 	int count;
 
 	count = device_get_child_node_count(&client->dev);
-	if (!count || count > chip->bits)
+	if (count > chip->bits)
 		return ERR_PTR(-ENODEV);
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
