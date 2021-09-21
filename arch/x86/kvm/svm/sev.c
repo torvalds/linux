@@ -1724,8 +1724,7 @@ int svm_vm_copy_asid_from(struct kvm *kvm, unsigned int source_fd)
 {
 	struct file *source_kvm_file;
 	struct kvm *source_kvm;
-	struct kvm_sev_info *mirror_sev;
-	unsigned int asid;
+	struct kvm_sev_info source_sev, *mirror_sev;
 	int ret;
 
 	source_kvm_file = fget(source_fd);
@@ -1748,7 +1747,8 @@ int svm_vm_copy_asid_from(struct kvm *kvm, unsigned int source_fd)
 		goto e_source_unlock;
 	}
 
-	asid = to_kvm_svm(source_kvm)->sev_info.asid;
+	memcpy(&source_sev, &to_kvm_svm(source_kvm)->sev_info,
+	       sizeof(source_sev));
 
 	/*
 	 * The mirror kvm holds an enc_context_owner ref so its asid can't
@@ -1768,8 +1768,16 @@ int svm_vm_copy_asid_from(struct kvm *kvm, unsigned int source_fd)
 	/* Set enc_context_owner and copy its encryption context over */
 	mirror_sev = &to_kvm_svm(kvm)->sev_info;
 	mirror_sev->enc_context_owner = source_kvm;
-	mirror_sev->asid = asid;
 	mirror_sev->active = true;
+	mirror_sev->asid = source_sev.asid;
+	mirror_sev->fd = source_sev.fd;
+	mirror_sev->es_active = source_sev.es_active;
+	mirror_sev->handle = source_sev.handle;
+	/*
+	 * Do not copy ap_jump_table. Since the mirror does not share the same
+	 * KVM contexts as the original, and they may have different
+	 * memory-views.
+	 */
 
 	mutex_unlock(&kvm->lock);
 	return 0;
