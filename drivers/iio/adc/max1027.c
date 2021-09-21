@@ -393,8 +393,6 @@ static irqreturn_t max1027_trigger_handler(int irq, void *private)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct max1027_state *st = iio_priv(indio_dev);
 
-	pr_debug("%s(irq=%d, private=0x%p)\n", __func__, irq, private);
-
 	/* fill buffer with all channel */
 	spi_read(st->spi, st->buffer, indio_dev->masklength * 2);
 
@@ -421,8 +419,6 @@ static int max1027_probe(struct spi_device *spi)
 	int ret;
 	struct iio_dev *indio_dev;
 	struct max1027_state *st;
-
-	pr_debug("%s: probe(spi = 0x%p)\n", __func__, spi);
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev) {
