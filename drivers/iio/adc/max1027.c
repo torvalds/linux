@@ -60,6 +60,9 @@
 #define MAX1027_NAVG_32   (0x03 << 2)
 #define MAX1027_AVG_EN    BIT(4)
 
+/* Device can achieve 300ksps so we assume a 3.33us conversion delay */
+#define MAX1027_CONVERSION_UDELAY 4
+
 enum max1027_id {
 	max1027,
 	max1029,
@@ -272,6 +275,15 @@ struct max1027_state {
 	u8				reg ____cacheline_aligned;
 };
 
+static int max1027_wait_eoc(struct iio_dev *indio_dev)
+{
+	unsigned int conversion_time = MAX1027_CONVERSION_UDELAY;
+
+	usleep_range(conversion_time, conversion_time * 2);
+
+	return 0;
+}
+
 /* Scan from chan 0 to the highest requested channel. Include temperature on demand. */
 static int max1027_configure_chans_and_start(struct iio_dev *indio_dev)
 {
@@ -331,9 +343,11 @@ static int max1027_read_single_value(struct iio_dev *indio_dev,
 	/*
 	 * For an unknown reason, when we use the mode "10" (write
 	 * conversion register), the interrupt doesn't occur every time.
-	 * So we just wait 1 ms.
+	 * So we just wait the maximum conversion time and deliver the value.
 	 */
-	mdelay(1);
+	ret = max1027_wait_eoc(indio_dev);
+	if (ret)
+		return ret;
 
 	/* Read result */
 	ret = spi_read(st->spi, st->buffer, (chan->type == IIO_TEMP) ? 4 : 2);
