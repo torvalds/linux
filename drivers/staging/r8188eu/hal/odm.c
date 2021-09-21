@@ -165,7 +165,6 @@ void ODM_DMInit(struct odm_dm_struct *pDM_Odm)
 
 	odm_PrimaryCCA_Init(pDM_Odm);    /*  Gary */
 	odm_DynamicBBPowerSavingInit(pDM_Odm);
-	odm_DynamicTxPowerInit(pDM_Odm);
 	odm_TXPowerTrackingInit(pDM_Odm);
 	ODM_EdcaTurboInit(pDM_Odm);
 	ODM_RAInfo_Init_all(pDM_Odm);
@@ -1172,14 +1171,6 @@ bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI, bool bForceUpdate
 		return true;
 	}
 	return false;
-}
-
-/* 3============================================================ */
-/* 3 Dynamic Tx Power */
-/* 3============================================================ */
-
-void odm_DynamicTxPowerInit(struct odm_dm_struct *pDM_Odm)
-{
 }
 
 /* 3============================================================ */
