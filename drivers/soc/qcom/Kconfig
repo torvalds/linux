@@ -134,6 +134,24 @@ config QCOM_PDR_HELPERS
 	  crash/recover without disrupting the other PDs running on
 	  the same Q6 ADSP.
 
+config QCOM_PANIC_ON_PDR_NOTIF_TIMEOUT
+	bool "Trigger kernel panic when PDR notification timeout expires"
+	help
+	  This is a debug feature where a kernel panic is triggered when
+	  pdr notification to the APPS client is taking too long. This scneario
+	  can happen if the one of notifier gets stuck and due to which subsystem
+	  did not get ack back from APPS in time and trigger timeout panic.
+	  So, trigger a kernel panic in APPS if PDR notifications is taking
+	  too long.
+
+config PDR_INDICATION_NOTIF_TIMEOUT
+	int "Pdr notifications timeout in ms"
+	default 3000
+	help
+	  The amount of time, in milliseconds, that should elapse between
+	  the start and end of notifications, before a warning
+	  is emitted.
+
 config QCOM_QMI_HELPERS
 	tristate
 	depends on NET
