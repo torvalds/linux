@@ -446,10 +446,8 @@ static int max1027_probe(struct spi_device *spi)
 	st->buffer = devm_kmalloc_array(&indio_dev->dev,
 					indio_dev->num_channels, 2,
 					GFP_KERNEL);
-	if (!st->buffer) {
-		dev_err(&indio_dev->dev, "Can't allocate buffer\n");
+	if (!st->buffer)
 		return -ENOMEM;
-	}
 
 	if (spi->irq) {
 		ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
