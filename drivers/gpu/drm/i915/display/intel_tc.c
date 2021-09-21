@@ -740,16 +740,12 @@ bool intel_tc_port_connected(struct intel_encoder *encoder)
 {
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	bool is_connected;
-	enum intel_display_power_domain domain;
-	intel_wakeref_t tc_cold_wref;
 
 	intel_tc_port_lock(dig_port);
-	tc_cold_wref = tc_cold_block(dig_port, &domain);
 
 	is_connected = tc_port_live_status_mask(dig_port) &
 		       BIT(dig_port->tc_mode);
 
-	tc_cold_unblock(dig_port, domain, tc_cold_wref);
 	intel_tc_port_unlock(dig_port);
 
 	return is_connected;
