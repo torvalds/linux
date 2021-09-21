@@ -289,6 +289,9 @@ static int max1027_wait_eoc(struct iio_dev *indio_dev)
 		if (!ret)
 			return ret;
 	} else {
+		if (indio_dev->active_scan_mask)
+			conversion_time *= hweight32(*indio_dev->active_scan_mask);
+
 		usleep_range(conversion_time, conversion_time * 2);
 	}
 
@@ -568,16 +571,18 @@ static int max1027_probe(struct spi_device *spi)
 	if (!st->buffer)
 		return -ENOMEM;
 
-	if (spi->irq) {
-		ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
-						      &iio_pollfunc_store_time,
-						      &max1027_trigger_handler,
-						      NULL);
-		if (ret < 0) {
-			dev_err(&indio_dev->dev, "Failed to setup buffer\n");
-			return ret;
-		}
+	/* Enable triggered buffers */
+	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
+					      &iio_pollfunc_store_time,
+					      &max1027_trigger_handler,
+					      NULL);
+	if (ret < 0) {
+		dev_err(&indio_dev->dev, "Failed to setup buffer\n");
+		return ret;
+	}
 
+	/* If there is an EOC interrupt, register the cnvst hardware trigger */
+	if (spi->irq) {
 		st->trig = devm_iio_trigger_alloc(&spi->dev, "%s-trigger",
 						  indio_dev->name);
 		if (!st->trig) {
