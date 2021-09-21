@@ -1335,7 +1335,7 @@ static int sd_switch_function(struct rtsx_chip *chip, u8 bus_width)
 			return STATUS_FAIL;
 	}
 
-	if (!func_to_switch || (func_to_switch == HS_SUPPORT)) {
+	if (!func_to_switch || func_to_switch == HS_SUPPORT) {
 		/* Do not try to switch current limit if the card doesn't
 		 * support UHS mode or we don't want it to support UHS mode
 		 */
