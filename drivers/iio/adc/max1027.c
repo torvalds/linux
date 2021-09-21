@@ -271,15 +271,26 @@ struct max1027_state {
 	struct iio_trigger		*trig;
 	__be16				*buffer;
 	struct mutex			lock;
+	struct completion		complete;
 
 	u8				reg ____cacheline_aligned;
 };
 
 static int max1027_wait_eoc(struct iio_dev *indio_dev)
 {
+	struct max1027_state *st = iio_priv(indio_dev);
 	unsigned int conversion_time = MAX1027_CONVERSION_UDELAY;
+	int ret;
 
-	usleep_range(conversion_time, conversion_time * 2);
+	if (st->spi->irq) {
+		ret = wait_for_completion_timeout(&st->complete,
+						  msecs_to_jiffies(1000));
+		reinit_completion(&st->complete);
+		if (!ret)
+			return ret;
+	} else {
+		usleep_range(conversion_time, conversion_time * 2);
+	}
 
 	return 0;
 }
@@ -474,6 +485,30 @@ static int max1027_read_scan(struct iio_dev *indio_dev)
 	return 0;
 }
 
+static irqreturn_t max1027_handler(int irq, void *private)
+{
+	struct iio_dev *indio_dev = private;
+	struct max1027_state *st = iio_priv(indio_dev);
+
+	/*
+	 * If buffers are disabled (raw read), we just need to unlock the
+	 * waiters which will then handle the data.
+	 *
+	 * When using the internal trigger, we must hand-off the choice of the
+	 * handler to the core which will then lookup through the interrupt tree
+	 * for the right handler registered with iio_triggered_buffer_setup()
+	 * to execute, as this trigger might very well be used in conjunction
+	 * with another device. The core will then call the relevant handler to
+	 * perform the data processing step.
+	 */
+	if (!iio_buffer_enabled(indio_dev))
+		complete(&st->complete);
+	else
+		iio_trigger_poll(indio_dev->trig);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t max1027_trigger_handler(int irq, void *private)
 {
 	struct iio_poll_func *pf = private;
@@ -518,6 +553,7 @@ static int max1027_probe(struct spi_device *spi)
 	st->info = &max1027_chip_info_tbl[spi_get_device_id(spi)->driver_data];
 
 	mutex_init(&st->lock);
+	init_completion(&st->complete);
 
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->info = &max1027_info;
@@ -561,10 +597,9 @@ static int max1027_probe(struct spi_device *spi)
 			return ret;
 		}
 
-		ret = devm_request_irq(&spi->dev, spi->irq,
-				       iio_trigger_generic_data_rdy_poll,
+		ret = devm_request_irq(&spi->dev, spi->irq, max1027_handler,
 				       IRQF_TRIGGER_FALLING,
-				       spi->dev.driver->name, st->trig);
+				       spi->dev.driver->name, indio_dev);
 		if (ret < 0) {
 			dev_err(&indio_dev->dev, "Failed to allocate IRQ.\n");
 			return ret;
