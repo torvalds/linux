@@ -12,6 +12,10 @@
 struct intel_digital_port;
 struct intel_encoder;
 
+bool intel_tc_port_in_tbt_alt_mode(struct intel_digital_port *dig_port);
+bool intel_tc_port_in_dp_alt_mode(struct intel_digital_port *dig_port);
+bool intel_tc_port_in_legacy_mode(struct intel_digital_port *dig_port);
+
 bool intel_tc_port_connected(struct intel_encoder *encoder);
 void intel_tc_port_disconnect_phy(struct intel_digital_port *dig_port);
 

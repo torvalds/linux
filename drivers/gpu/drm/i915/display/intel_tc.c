@@ -23,6 +23,30 @@ static const char *tc_port_mode_name(enum tc_port_mode mode)
 	return names[mode];
 }
 
+static bool intel_tc_port_in_mode(struct intel_digital_port *dig_port,
+				  enum tc_port_mode mode)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum phy phy = intel_port_to_phy(i915, dig_port->base.port);
+
+	return intel_phy_is_tc(i915, phy) && dig_port->tc_mode == mode;
+}
+
+bool intel_tc_port_in_tbt_alt_mode(struct intel_digital_port *dig_port)
+{
+	return intel_tc_port_in_mode(dig_port, TC_PORT_TBT_ALT);
+}
+
+bool intel_tc_port_in_dp_alt_mode(struct intel_digital_port *dig_port)
+{
+	return intel_tc_port_in_mode(dig_port, TC_PORT_DP_ALT);
+}
+
+bool intel_tc_port_in_legacy_mode(struct intel_digital_port *dig_port)
+{
+	return intel_tc_port_in_mode(dig_port, TC_PORT_LEGACY);
+}
+
 static enum intel_display_power_domain
 tc_cold_get_power_domain(struct intel_digital_port *dig_port)
 {
