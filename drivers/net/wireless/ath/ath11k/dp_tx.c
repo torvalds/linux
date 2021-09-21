@@ -1076,11 +1076,15 @@ int ath11k_dp_tx_htt_monitor_mode_ring_config(struct ath11k *ar, bool reset)
 
 	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
 		ring_id = dp->rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
-		if (!reset)
+		if (!reset) {
 			tlv_filter.rx_filter =
 					HTT_RX_MON_FILTER_TLV_FLAGS_MON_STATUS_RING;
-		else
+		} else {
 			tlv_filter = ath11k_mac_mon_status_filter_default;
+
+			if (ath11k_debugfs_is_extd_rx_stats_enabled(ar))
+				tlv_filter.rx_filter = ath11k_debugfs_rx_filter(ar);
+		}
 
 		ret = ath11k_dp_tx_htt_rx_filter_setup(ab, ring_id,
 						       dp->mac_id + i,
