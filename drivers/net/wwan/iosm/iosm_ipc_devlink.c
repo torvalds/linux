@@ -134,11 +134,11 @@ static int ipc_devlink_flash_update(struct devlink *devlink,
 {
 	struct iosm_devlink *ipc_devlink = devlink_priv(devlink);
 	enum iosm_flash_comp_type fls_type;
-	u32 rc = -EINVAL;
+	int rc = -EINVAL;
 	u8 *mdm_rsp;
 
 	if (!params->component)
-		return rc;
+		return -EINVAL;
 
 	mdm_rsp = kzalloc(IOSM_EBL_DW_PACK_SIZE, GFP_KERNEL);
 	if (!mdm_rsp)
@@ -153,11 +153,12 @@ static int ipc_devlink_flash_update(struct devlink *devlink,
 		break;
 	case FLASH_COMP_TYPE_EBL:
 		rc = ipc_flash_boot_ebl(ipc_devlink, params->fw);
-		if (!rc)
-			rc = ipc_flash_boot_set_capabilities(ipc_devlink,
-							     mdm_rsp);
-		if (!rc)
-			rc = ipc_flash_read_swid(ipc_devlink, mdm_rsp);
+		if (rc)
+			break;
+		rc = ipc_flash_boot_set_capabilities(ipc_devlink, mdm_rsp);
+		if (rc)
+			break;
+		rc = ipc_flash_read_swid(ipc_devlink, mdm_rsp);
 		break;
 	case FLASH_COMP_TYPE_FLS:
 		rc = ipc_flash_send_fls(ipc_devlink, params->fw, mdm_rsp);
@@ -185,7 +186,14 @@ static const struct devlink_ops devlink_flash_ops = {
 	.flash_update = ipc_devlink_flash_update,
 };
 
-/* Send command to modem to collect data */
+/**
+ * ipc_devlink_send_cmd - Send command to Modem
+ * @ipc_devlink: Pointer to struct iosm_devlink
+ * @cmd:         Command to be sent to modem
+ * @entry:       Command entry number
+ *
+ * Returns:      0 on success and failure value on error
+ */
 int ipc_devlink_send_cmd(struct iosm_devlink *ipc_devlink, u16 cmd, u32 entry)
 {
 	struct iosm_rpsi_cmd rpsi_cmd;
@@ -199,6 +207,7 @@ int ipc_devlink_send_cmd(struct iosm_devlink *ipc_devlink, u16 cmd, u32 entry)
 					  sizeof(rpsi_cmd));
 }
 
+/* Function to create snapshot */
 static int ipc_devlink_coredump_snapshot(struct devlink *dl,
 					 const struct devlink_region_ops *ops,
 					 struct netlink_ext_ack *extack,
@@ -223,7 +232,8 @@ static int ipc_devlink_coredump_snapshot(struct devlink *dl,
 	if (cd_list->entry == (IOSM_NOF_CD_REGION - 1))
 		ipc_coredump_get_list(ipc_devlink, rpsi_cmd_coredump_end);
 
-	return rc;
+	return 0;
+
 coredump_collect_err:
 	ipc_coredump_get_list(ipc_devlink, rpsi_cmd_coredump_end);
 	return rc;
@@ -270,7 +280,12 @@ static void ipc_devlink_destroy_region(struct iosm_devlink *ipc_devlink)
 		devlink_region_destroy(ipc_devlink->cd_regions[i]);
 }
 
-/* Handle registration to devlink framework */
+/**
+ * ipc_devlink_init - Initialize/register devlink to IOSM driver
+ * @ipc_imem:   Pointer to struct iosm_imem
+ *
+ * Returns:     Pointer to iosm_devlink on success and NULL on failure
+ */
 struct iosm_devlink *ipc_devlink_init(struct iosm_imem *ipc_imem)
 {
 	struct ipc_chnl_cfg chnl_cfg_flash = { 0 };
@@ -335,7 +350,10 @@ devlink_alloc_fail:
 	return NULL;
 }
 
-/* Handle unregistration of devlink */
+/**
+ * ipc_devlink_deinit - To unintialize the devlink from IOSM driver.
+ * @ipc_devlink:        Devlink instance
+ */
 void ipc_devlink_deinit(struct iosm_devlink *ipc_devlink)
 {
 	struct devlink *devlink_ctx = ipc_devlink->devlink_ctx;

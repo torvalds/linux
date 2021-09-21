@@ -180,28 +180,10 @@ struct iosm_rpsi_cmd {
 	__le16	crc;
 };
 
-/**
- * ipc_devlink_init - To initialize the devlink to IOSM driver
- * @ipc_imem:	Pointer to struct iosm_imem
- *
- * Returns:	Pointer to iosm_devlink on success and NULL on failure
- */
 struct iosm_devlink *ipc_devlink_init(struct iosm_imem *ipc_imem);
 
-/**
- * ipc_devlink_deinit - To unintialize the devlink from IOSM driver.
- * @ipc_devlink:	Devlink instance
- */
 void ipc_devlink_deinit(struct iosm_devlink *ipc_devlink);
 
-/**
- * ipc_devlink_send_cmd - Send command to Modem
- * @ipc_devlink: Pointer to struct iosm_devlink
- * @cmd:	 Command to be sent to modem
- * @entry:	 Command entry number
- *
- * Returns:	 0 on success and failure value on error
- */
 int ipc_devlink_send_cmd(struct iosm_devlink *ipc_devlink, u16 cmd, u32 entry);
 
 #endif /* _IOSM_IPC_DEVLINK_H */

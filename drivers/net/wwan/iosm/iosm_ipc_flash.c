@@ -40,7 +40,6 @@ static int ipc_flash_proc_check_ebl_rsp(void *hdr_rsp, void *payload_rsp)
 {
 	struct iosm_ebl_error  *err_info = payload_rsp;
 	u16 *rsp_code = hdr_rsp;
-	int res = 0;
 	u32 i;
 
 	if (*rsp_code == IOSM_EBL_RSP_BUFF) {
@@ -51,10 +50,10 @@ static int ipc_flash_proc_check_ebl_rsp(void *hdr_rsp, void *payload_rsp)
 				       err_info->error[i].error_code);
 			}
 		}
-		res = -EINVAL;
+		return -EINVAL;
 	}
 
-	return res;
+	return 0;
 }
 
 /* Send data to the modem */
@@ -90,7 +89,12 @@ ipc_free_payload:
 	return ret;
 }
 
-/* Allocate flash channel and read LER data from modem */
+/**
+ * ipc_flash_link_establish - Flash link establishment
+ * @ipc_imem:           Pointer to struct iosm_imem
+ *
+ * Returns:     0 on success and failure value on error
+ */
 int ipc_flash_link_establish(struct iosm_imem *ipc_imem)
 {
 	u8 ler_data[IOSM_LER_RSP_SIZE];
@@ -109,6 +113,7 @@ int ipc_flash_link_establish(struct iosm_imem *ipc_imem)
 
 	if (bytes_read != IOSM_LER_RSP_SIZE)
 		goto devlink_read_fail;
+
 	return 0;
 
 devlink_read_fail:
@@ -179,12 +184,16 @@ ipc_flash_send_rcv:
 	return ret;
 }
 
-/* Set the capabilities for the EBL */
+/**
+ * ipc_flash_boot_set_capabilities  - Set modem boot capabilities in flash
+ * @ipc_devlink:        Pointer to devlink structure
+ * @mdm_rsp:            Pointer to modem response buffer
+ *
+ * Returns:             0 on success and failure value on error
+ */
 int ipc_flash_boot_set_capabilities(struct iosm_devlink *ipc_devlink,
 				    u8 *mdm_rsp)
 {
-	int ret;
-
 	ipc_devlink->ebl_ctx.ebl_sw_info_version =
 			ipc_devlink->ebl_ctx.m_ebl_resp[EBL_RSP_SW_INFO_VER];
 	ipc_devlink->ebl_ctx.m_ebl_resp[EBL_SKIP_ERASE] = IOSM_CAP_NOT_ENHANCED;
@@ -205,10 +214,9 @@ int ipc_flash_boot_set_capabilities(struct iosm_devlink *ipc_devlink,
 	/* Write back the EBL capability to modem
 	 * Request Set Protcnf command
 	 */
-	ret = ipc_flash_send_receive(ipc_devlink, FLASH_SET_PROT_CONF,
+	return ipc_flash_send_receive(ipc_devlink, FLASH_SET_PROT_CONF,
 				     ipc_devlink->ebl_ctx.m_ebl_resp,
 				     IOSM_EBL_RSP_SIZE, mdm_rsp);
-	return ret;
 }
 
 /* Read the SWID type and SWID value from the EBL */
@@ -380,7 +388,14 @@ dl_region_fail:
 	return ret;
 }
 
-/* Flash the individual fls files */
+/**
+ * ipc_flash_send_fls  - Inject Modem subsystem fls file to device
+ * @ipc_devlink:        Pointer to devlink structure
+ * @fw:                 FW image
+ * @mdm_rsp:            Pointer to modem response buffer
+ *
+ * Returns:             0 on success and failure value on error
+ */
 int ipc_flash_send_fls(struct iosm_devlink *ipc_devlink,
 		       const struct firmware *fw, u8 *mdm_rsp)
 {
@@ -420,7 +435,13 @@ ipc_flash_err:
 	return ret;
 }
 
-/* Inject RPSI */
+/**
+ * ipc_flash_boot_psi - Inject PSI image
+ * @ipc_devlink:        Pointer to devlink structure
+ * @fw:                 FW image
+ *
+ * Returns:             0 on success and failure value on error
+ */
 int ipc_flash_boot_psi(struct iosm_devlink *ipc_devlink,
 		       const struct firmware *fw)
 {
@@ -470,7 +491,13 @@ ipc_flash_psi_free:
 	return ret;
 }
 
-/* Inject EBL */
+/**
+ * ipc_flash_boot_ebl  - Inject EBL image
+ * @ipc_devlink:        Pointer to devlink structure
+ * @fw:                 FW image
+ *
+ * Returns:             0 on success and failure value on error
+ */
 int ipc_flash_boot_ebl(struct iosm_devlink *ipc_devlink,
 		       const struct firmware *fw)
 {

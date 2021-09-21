@@ -5,7 +5,15 @@
 
 #include "iosm_ipc_coredump.h"
 
-/* Collect coredump data from modem */
+/**
+ * ipc_coredump_collect - To collect coredump
+ * @devlink:            Pointer to devlink instance.
+ * @data:               Pointer to snapshot
+ * @entry:              ID of requested snapshot
+ * @region_size:        Region size
+ *
+ * Returns: 0 on success, error on failure
+ */
 int ipc_coredump_collect(struct iosm_devlink *devlink, u8 **data, int entry,
 			 u32 region_size)
 {
@@ -38,20 +46,27 @@ int ipc_coredump_collect(struct iosm_devlink *devlink, u8 **data, int entry,
 
 	*data = data_ptr;
 
-	return ret;
+	return 0;
+
 get_cd_fail:
 	vfree(data_ptr);
 	return ret;
 }
 
-/* Get coredump list to be collected from modem */
+/**
+ * ipc_coredump_get_list - Get coredump list from modem
+ * @devlink:         Pointer to devlink instance.
+ * @cmd:             RPSI command to be sent
+ *
+ * Returns: 0 on success, error on failure
+ */
 int ipc_coredump_get_list(struct iosm_devlink *devlink, u16 cmd)
 {
 	u32 byte_read, num_entries, file_size;
 	struct iosm_cd_table *cd_table;
 	u8 size[MAX_SIZE_LEN], i;
 	char *filename;
-	int ret = 0;
+	int ret;
 
 	cd_table = kzalloc(MAX_CD_LIST_SIZE, GFP_KERNEL);
 	if (!cd_table) {

@@ -211,61 +211,19 @@ struct iosm_flash_data {
 	__le32  msg_length;
 };
 
-/**
- * ipc_flash_boot_psi - Inject PSI image
- * @ipc_devlink:	Pointer to devlink structure
- * @fw:			FW image
- *
- * Returns:             0 on success and failure value on error
- */
 int ipc_flash_boot_psi(struct iosm_devlink *ipc_devlink,
 		       const struct firmware *fw);
 
-/**
- * ipc_flash_boot_ebl  - Inject EBL image
- * @ipc_devlink:        Pointer to devlink structure
- * @fw:			FW image
- *
- * Returns:             0 on success and failure value on error
- */
 int ipc_flash_boot_ebl(struct iosm_devlink *ipc_devlink,
 		       const struct firmware *fw);
 
-/**
- * ipc_flash_boot_set_capabilities  - Set modem bool capabilities in flash
- * @ipc_devlink:        Pointer to devlink structure
- * @mdm_rsp:		Pointer to modem response buffer
- *
- * Returns:             0 on success and failure value on error
- */
 int ipc_flash_boot_set_capabilities(struct iosm_devlink *ipc_devlink,
 				    u8 *mdm_rsp);
 
-/**
- * ipc_flash_link_establish - Flash link establishment
- * @ipc_imem:		Pointer to struct iosm_imem
- *
- * Returns:	0 on success and failure value on error
- */
 int ipc_flash_link_establish(struct iosm_imem *ipc_imem);
 
-/**
- * ipc_flash_read_swid - Get swid during flash phase
- * @ipc_devlink:        Pointer to devlink structure
- * @mdm_rsp:		Pointer to modem response buffer
- *
- * Returns:             0 on success and failure value on error
- */
 int ipc_flash_read_swid(struct iosm_devlink *ipc_devlink, u8 *mdm_rsp);
 
-/**
- * ipc_flash_send_fls  - Inject Modem subsystem fls file to device
- * @ipc_devlink:        Pointer to devlink structure
- * @fw:			FW image
- * @mdm_rsp:		Pointer to modem response buffer
- *
- * Returns:             0 on success and failure value on error
- */
 int ipc_flash_send_fls(struct iosm_devlink *ipc_devlink,
 		       const struct firmware *fw, u8 *mdm_rsp);
 #endif
