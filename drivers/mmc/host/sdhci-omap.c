@@ -692,6 +692,22 @@ static void sdhci_omap_set_power(struct sdhci_host *host, unsigned char mode,
 		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, vdd);
 }
 
+/*
+ * MMCHS_HL_HWINFO has the MADMA_EN bit set if the controller instance
+ * is connected to L3 interconnect and is bus master capable. Note that
+ * the MMCHS_HL_HWINFO register is in the module registers before the
+ * omap registers and sdhci registers. The offset can vary for omap
+ * registers depending on the SoC. Do not use sdhci_omap_readl() here.
+ */
+static bool sdhci_omap_has_adma(struct sdhci_omap_host *omap_host, int offset)
+{
+	/* MMCHS_HL_HWINFO register is only available on omap4 and later */
+	if (offset < 0x200)
+		return false;
+
+	return readl(omap_host->base + 4) & 1;
+}
+
 static int sdhci_omap_enable_dma(struct sdhci_host *host)
 {
 	u32 reg;
@@ -1209,8 +1225,12 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 	host->mmc_host_ops.execute_tuning = sdhci_omap_execute_tuning;
 	host->mmc_host_ops.enable_sdio_irq = sdhci_omap_enable_sdio_irq;
 
-	/* Switch to external DMA only if there is the "dmas" property */
-	if (of_find_property(dev->of_node, "dmas", NULL))
+	/*
+	 * Switch to external DMA only if there is the "dmas" property and
+	 * ADMA is not available on the controller instance.
+	 */
+	if (device_property_present(dev, "dmas") &&
+	    !sdhci_omap_has_adma(omap_host, offset))
 		sdhci_switch_external_dma(host, true);
 
 	if (device_property_read_bool(dev, "ti,non-removable")) {
