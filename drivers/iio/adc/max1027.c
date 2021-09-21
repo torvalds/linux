@@ -561,12 +561,10 @@ static int max1027_probe(struct spi_device *spi)
 			return ret;
 		}
 
-		ret = devm_request_threaded_irq(&spi->dev, spi->irq,
-						iio_trigger_generic_data_rdy_poll,
-						NULL,
-						IRQF_TRIGGER_FALLING,
-						spi->dev.driver->name,
-						st->trig);
+		ret = devm_request_irq(&spi->dev, spi->irq,
+				       iio_trigger_generic_data_rdy_poll,
+				       IRQF_TRIGGER_FALLING,
+				       spi->dev.driver->name, st->trig);
 		if (ret < 0) {
 			dev_err(&indio_dev->dev, "Failed to allocate IRQ.\n");
 			return ret;
