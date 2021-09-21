@@ -29,8 +29,6 @@ struct	dm_priv {
 	int	LastMinUndecoratedPWDBForDM;
 
 	/* for High Power */
-	u8 bDynamicTxPowerEnable;
-	u8 LastDTPLvl;
 	u8 DynamicTxHighPowerLvl;/* Tx Power Control for Near/Far Range */
 	u8	PowerIndex_backup[6];
 };

@@ -1183,8 +1183,6 @@ void odm_DynamicTxPowerInit(struct odm_dm_struct *pDM_Odm)
 	struct adapter *Adapter = pDM_Odm->Adapter;
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-	pdmpriv->bDynamicTxPowerEnable = false;
-	pdmpriv->LastDTPLvl = TxHighPwrLevel_Normal;
 	pdmpriv->DynamicTxHighPowerLvl = TxHighPwrLevel_Normal;
 }
 
