@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: GPL-2.0-only or BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/lltc,ltc4151.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: LTC4151 High Voltage I2C Current and Voltage Monitor
+
+maintainers:
+  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+
+properties:
+  compatible:
+    const: lltc,ltc4151
+
+  reg:
+    maxItems: 1
+
+  shunt-resistor-micro-ohms:
+    description:
+      Shunt resistor value in micro-Ohms
+    default: 1000
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        sensor@6e {
+            compatible = "lltc,ltc4151";
+            reg = <0x6e>;
+            shunt-resistor-micro-ohms = <1500>;
+        };
+    };
