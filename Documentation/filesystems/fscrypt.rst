@@ -176,11 +176,11 @@ Master Keys
 
 Each encrypted directory tree is protected by a *master key*.  Master
 keys can be up to 64 bytes long, and must be at least as long as the
-greater of the key length needed by the contents and filenames
-encryption modes being used.  For example, if AES-256-XTS is used for
-contents encryption, the master key must be 64 bytes (512 bits).  Note
-that the XTS mode is defined to require a key twice as long as that
-required by the underlying block cipher.
+greater of the security strength of the contents and filenames
+encryption modes being used.  For example, if any AES-256 mode is
+used, the master key must be at least 256 bits, i.e. 32 bytes.  A
+stricter requirement applies if the key is used by a v1 encryption
+policy and AES-256-XTS is used; such keys must be 64 bytes.
 
 To "unlock" an encrypted directory tree, userspace must provide the
 appropriate master key.  There can be any number of master keys, each
