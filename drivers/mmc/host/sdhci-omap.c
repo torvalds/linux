@@ -21,6 +21,8 @@
 
 #include "sdhci-pltfm.h"
 
+#define SDHCI_OMAP_SYSCONFIG	0x110
+
 #define SDHCI_OMAP_CON		0x12c
 #define CON_DW8			BIT(5)
 #define CON_DMA_MASTER		BIT(20)
@@ -797,6 +799,11 @@ static void sdhci_omap_reset(struct sdhci_host *host, u8 mask)
 	struct sdhci_omap_host *omap_host = sdhci_pltfm_priv(pltfm_host);
 	unsigned long limit = MMC_TIMEOUT_US;
 	unsigned long i = 0;
+	u32 sysc;
+
+	/* Save target module sysconfig configured by SoC PM layer */
+	if (mask & SDHCI_RESET_ALL)
+		sysc = sdhci_omap_readl(omap_host, SDHCI_OMAP_SYSCONFIG);
 
 	/* Don't reset data lines during tuning operation */
 	if (omap_host->is_tuning)
@@ -816,10 +823,15 @@ static void sdhci_omap_reset(struct sdhci_host *host, u8 mask)
 			dev_err(mmc_dev(host->mmc),
 				"Timeout waiting on controller reset in %s\n",
 				__func__);
-		return;
+
+		goto restore_sysc;
 	}
 
 	sdhci_reset(host, mask);
+
+restore_sysc:
+	if (mask & SDHCI_RESET_ALL)
+		sdhci_omap_writel(omap_host, SDHCI_OMAP_SYSCONFIG, sysc);
 }
 
 #define CMD_ERR_MASK (SDHCI_INT_CRC | SDHCI_INT_END_BIT | SDHCI_INT_INDEX |\
