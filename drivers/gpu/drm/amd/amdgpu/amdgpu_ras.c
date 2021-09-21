@@ -112,7 +112,12 @@ static bool amdgpu_ras_check_bad_page_unlock(struct amdgpu_ras *con,
 static bool amdgpu_ras_check_bad_page(struct amdgpu_device *adev,
 				uint64_t addr);
 #ifdef CONFIG_X86_MCE_AMD
-static void amdgpu_register_bad_pages_mca_notifier(void);
+static void amdgpu_register_bad_pages_mca_notifier(struct amdgpu_device *adev);
+struct mce_notifier_adev_list {
+	struct amdgpu_device *devs[MAX_GPU_INSTANCE];
+	int num_gpu;
+};
+static struct mce_notifier_adev_list mce_adev_list;
 #endif
 
 void amdgpu_ras_set_error_query_ready(struct amdgpu_device *adev, bool ready)
@@ -2108,7 +2113,7 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 #ifdef CONFIG_X86_MCE_AMD
 	if ((adev->asic_type == CHIP_ALDEBARAN) &&
 	    (adev->gmc.xgmi.connected_to_cpu))
-		amdgpu_register_bad_pages_mca_notifier();
+		amdgpu_register_bad_pages_mca_notifier(adev);
 #endif
 	return 0;
 
@@ -2605,23 +2610,17 @@ void amdgpu_release_ras_context(struct amdgpu_device *adev)
 #ifdef CONFIG_X86_MCE_AMD
 static struct amdgpu_device *find_adev(uint32_t node_id)
 {
-	struct amdgpu_gpu_instance *gpu_instance;
 	int i;
 	struct amdgpu_device *adev = NULL;
 
-	mutex_lock(&mgpu_info.mutex);
+	for (i = 0; i < mce_adev_list.num_gpu; i++) {
+		adev = mce_adev_list.devs[i];
 
-	for (i = 0; i < mgpu_info.num_gpu; i++) {
-		gpu_instance = &(mgpu_info.gpu_ins[i]);
-		adev = gpu_instance->adev;
-
-		if (adev->gmc.xgmi.connected_to_cpu &&
+		if (adev && adev->gmc.xgmi.connected_to_cpu &&
 		    adev->gmc.xgmi.physical_node_id == node_id)
 			break;
 		adev = NULL;
 	}
-
-	mutex_unlock(&mgpu_info.mutex);
 
 	return adev;
 }
@@ -2718,8 +2717,18 @@ static struct notifier_block amdgpu_bad_page_nb = {
 	.priority       = MCE_PRIO_UC,
 };
 
-static void amdgpu_register_bad_pages_mca_notifier(void)
+static void amdgpu_register_bad_pages_mca_notifier(struct amdgpu_device *adev)
 {
+	/*
+	 * Add the adev to the mce_adev_list.
+	 * During mode2 reset, amdgpu device is temporarily
+	 * removed from the mgpu_info list which can cause
+	 * page retirement to fail.
+	 * Use this list instead of mgpu_info to find the amdgpu
+	 * device on which the UMC error was reported.
+	 */
+	mce_adev_list.devs[mce_adev_list.num_gpu++] = adev;
+
 	/*
 	 * Register the x86 notifier only once
 	 * with MCE subsystem.
