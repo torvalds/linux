@@ -702,3 +702,40 @@ Eswitch QoS tracepoints:
     $ cat /sys/kernel/debug/tracing/trace
     ...
     <...>-27418   [006] .... 76547.187258: mlx5_esw_group_qos_destroy: (0000:82:00.0) group=000000007b576bb3 tsar_ix=1
+
+SF tracepoints:
+
+- mlx5_sf_add: trace addition of the SF port::
+
+    $ echo mlx5:mlx5_sf_add >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    devlink-9363    [031] ..... 24610.188722: mlx5_sf_add: (0000:06:00.0) port_index=32768 controller=0 hw_id=0x8000 sfnum=88
+
+- mlx5_sf_free: trace freeing of the SF port::
+
+    $ echo mlx5:mlx5_sf_free >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    devlink-9830    [038] ..... 26300.404749: mlx5_sf_free: (0000:06:00.0) port_index=32768 controller=0 hw_id=0x8000
+
+- mlx5_sf_hwc_alloc: trace allocating of the hardware SF context::
+
+    $ echo mlx5:mlx5_sf_hwc_alloc >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    devlink-9775    [031] ..... 26296.385259: mlx5_sf_hwc_alloc: (0000:06:00.0) controller=0 hw_id=0x8000 sfnum=88
+
+- mlx5_sf_hwc_free: trace freeing of the hardware SF context::
+
+    $ echo mlx5:mlx5_sf_hwc_free >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    kworker/u128:3-9093    [046] ..... 24625.365771: mlx5_sf_hwc_free: (0000:06:00.0) hw_id=0x8000
+
+- mlx5_sf_hwc_deferred_free : trace deferred freeing of the hardware SF context::
+
+    $ echo mlx5:mlx5_sf_hwc_deferred_free >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    devlink-9519    [046] ..... 24624.400271: mlx5_sf_hwc_deferred_free: (0000:06:00.0) hw_id=0x8000
