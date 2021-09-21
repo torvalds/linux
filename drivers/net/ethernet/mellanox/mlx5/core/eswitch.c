@@ -781,9 +781,6 @@ static int esw_vport_setup(struct mlx5_eswitch *esw, struct mlx5_vport *vport)
 	if (err)
 		return err;
 
-	/* Attach vport to the eswitch rate limiter */
-	mlx5_esw_qos_vport_enable(esw, vport, vport->qos.max_rate, vport->qos.bw_share);
-
 	if (mlx5_esw_is_manager_vport(esw, vport_num))
 		return 0;
 
@@ -1746,8 +1743,10 @@ int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 	ivi->qos = evport->info.qos;
 	ivi->spoofchk = evport->info.spoofchk;
 	ivi->trusted = evport->info.trusted;
-	ivi->min_tx_rate = evport->qos.min_rate;
-	ivi->max_tx_rate = evport->qos.max_rate;
+	if (evport->qos.enabled) {
+		ivi->min_tx_rate = evport->qos.min_rate;
+		ivi->max_tx_rate = evport->qos.max_rate;
+	}
 	mutex_unlock(&esw->state_lock);
 
 	return 0;

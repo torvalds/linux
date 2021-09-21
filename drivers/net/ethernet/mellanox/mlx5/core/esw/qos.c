@@ -204,10 +204,8 @@ static int esw_qos_normalize_groups_min_rate(struct mlx5_eswitch *esw, u32 divid
 	return 0;
 }
 
-int mlx5_esw_qos_set_vport_min_rate(struct mlx5_eswitch *esw,
-				    struct mlx5_vport *evport,
-				    u32 min_rate,
-				    struct netlink_ext_ack *extack)
+static int esw_qos_set_vport_min_rate(struct mlx5_eswitch *esw, struct mlx5_vport *evport,
+				      u32 min_rate, struct netlink_ext_ack *extack)
 {
 	u32 fw_max_bw_share, previous_min_rate;
 	bool min_rate_supported;
@@ -231,10 +229,8 @@ int mlx5_esw_qos_set_vport_min_rate(struct mlx5_eswitch *esw,
 	return err;
 }
 
-int mlx5_esw_qos_set_vport_max_rate(struct mlx5_eswitch *esw,
-				    struct mlx5_vport *evport,
-				    u32 max_rate,
-				    struct netlink_ext_ack *extack)
+static int esw_qos_set_vport_max_rate(struct mlx5_eswitch *esw, struct mlx5_vport *evport,
+				      u32 max_rate, struct netlink_ext_ack *extack)
 {
 	u32 act_max_rate = max_rate;
 	bool max_rate_supported;
@@ -605,8 +601,8 @@ unlock:
 	mutex_unlock(&esw->state_lock);
 }
 
-int mlx5_esw_qos_vport_enable(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
-			      u32 max_rate, u32 bw_share)
+static int esw_qos_vport_enable(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
+				u32 max_rate, u32 bw_share)
 {
 	int err;
 
@@ -615,7 +611,7 @@ int mlx5_esw_qos_vport_enable(struct mlx5_eswitch *esw, struct mlx5_vport *vport
 		return 0;
 
 	if (vport->qos.enabled)
-		return -EEXIST;
+		return 0;
 
 	vport->qos.group = esw->qos.group0;
 
@@ -645,8 +641,25 @@ void mlx5_esw_qos_vport_disable(struct mlx5_eswitch *esw, struct mlx5_vport *vpo
 		esw_warn(esw->dev, "E-Switch destroy TSAR vport element failed (vport=%d,err=%d)\n",
 			 vport->vport, err);
 
-	vport->qos.enabled = false;
+	memset(&vport->qos, 0, sizeof(vport->qos));
 	trace_mlx5_esw_vport_qos_destroy(vport);
+}
+
+int mlx5_esw_qos_set_vport_rate(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
+				u32 min_rate, u32 max_rate)
+{
+	int err;
+
+	lockdep_assert_held(&esw->state_lock);
+	err = esw_qos_vport_enable(esw, vport, 0, 0);
+	if (err)
+		return err;
+
+	err = esw_qos_set_vport_min_rate(esw, vport, min_rate, NULL);
+	if (!err)
+		err = esw_qos_set_vport_max_rate(esw, vport, max_rate, NULL);
+
+	return err;
 }
 
 int mlx5_esw_qos_modify_vport_rate(struct mlx5_eswitch *esw, u16 vport_num, u32 rate_mbps)
@@ -654,22 +667,29 @@ int mlx5_esw_qos_modify_vport_rate(struct mlx5_eswitch *esw, u16 vport_num, u32 
 	u32 ctx[MLX5_ST_SZ_DW(scheduling_context)] = {};
 	struct mlx5_vport *vport;
 	u32 bitmask;
+	int err;
 
 	vport = mlx5_eswitch_get_vport(esw, vport_num);
 	if (IS_ERR(vport))
 		return PTR_ERR(vport);
 
-	if (!vport->qos.enabled)
-		return -EOPNOTSUPP;
+	mutex_lock(&esw->state_lock);
+	if (!vport->qos.enabled) {
+		/* Eswitch QoS wasn't enabled yet. Enable it and vport QoS. */
+		err = esw_qos_vport_enable(esw, vport, rate_mbps, vport->qos.bw_share);
+	} else {
+		MLX5_SET(scheduling_context, ctx, max_average_bw, rate_mbps);
 
-	MLX5_SET(scheduling_context, ctx, max_average_bw, rate_mbps);
-	bitmask = MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_MAX_AVERAGE_BW;
+		bitmask = MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_MAX_AVERAGE_BW;
+		err = mlx5_modify_scheduling_element_cmd(esw->dev,
+							 SCHEDULING_HIERARCHY_E_SWITCH,
+							 ctx,
+							 vport->qos.esw_tsar_ix,
+							 bitmask);
+	}
+	mutex_unlock(&esw->state_lock);
 
-	return mlx5_modify_scheduling_element_cmd(esw->dev,
-						  SCHEDULING_HIERARCHY_E_SWITCH,
-						  ctx,
-						  vport->qos.esw_tsar_ix,
-						  bitmask);
+	return err;
 }
 
 #define MLX5_LINKSPEED_UNIT 125000 /* 1Mbps in Bps */
@@ -728,7 +748,12 @@ int mlx5_esw_devlink_rate_leaf_tx_share_set(struct devlink_rate *rate_leaf, void
 		return err;
 
 	mutex_lock(&esw->state_lock);
-	err = mlx5_esw_qos_set_vport_min_rate(esw, vport, tx_share, extack);
+	err = esw_qos_vport_enable(esw, vport, 0, 0);
+	if (err)
+		goto unlock;
+
+	err = esw_qos_set_vport_min_rate(esw, vport, tx_share, extack);
+unlock:
 	mutex_unlock(&esw->state_lock);
 	return err;
 }
@@ -749,7 +774,12 @@ int mlx5_esw_devlink_rate_leaf_tx_max_set(struct devlink_rate *rate_leaf, void *
 		return err;
 
 	mutex_lock(&esw->state_lock);
-	err = mlx5_esw_qos_set_vport_max_rate(esw, vport, tx_max, extack);
+	err = esw_qos_vport_enable(esw, vport, 0, 0);
+	if (err)
+		goto unlock;
+
+	err = esw_qos_set_vport_max_rate(esw, vport, tx_max, extack);
+unlock:
 	mutex_unlock(&esw->state_lock);
 	return err;
 }
@@ -846,7 +876,9 @@ int mlx5_esw_qos_vport_update_group(struct mlx5_eswitch *esw,
 	int err;
 
 	mutex_lock(&esw->state_lock);
-	err = esw_qos_vport_update_group(esw, vport, group, extack);
+	err = esw_qos_vport_enable(esw, vport, 0, 0);
+	if (!err)
+		err = esw_qos_vport_update_group(esw, vport, group, extack);
 	mutex_unlock(&esw->state_lock);
 	return err;
 }
