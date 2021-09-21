@@ -1165,6 +1165,7 @@ static int goodix_ts_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
 	struct goodix_ts_data *ts;
+	const char *cfg_name;
 	int error;
 
 	dev_dbg(&client->dev, "I2C Address: 0x%02x\n", client->addr);
@@ -1238,10 +1239,15 @@ reset:
 
 	if (ts->load_cfg_from_disk) {
 		/* update device config */
-		ts->cfg_name = devm_kasprintf(&client->dev, GFP_KERNEL,
-					      "goodix_%s_cfg.bin", ts->id);
-		if (!ts->cfg_name)
-			return -ENOMEM;
+		error = device_property_read_string(&client->dev,
+						    "goodix,config-name",
+						    &cfg_name);
+		if (!error)
+			snprintf(ts->cfg_name, sizeof(ts->cfg_name),
+				 "goodix/%s", cfg_name);
+		else
+			snprintf(ts->cfg_name, sizeof(ts->cfg_name),
+				 "goodix_%s_cfg.bin", ts->id);
 
 		error = request_firmware_nowait(THIS_MODULE, true, ts->cfg_name,
 						&client->dev, GFP_KERNEL, ts,

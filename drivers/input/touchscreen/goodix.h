@@ -52,8 +52,8 @@ struct goodix_ts_data {
 	int gpio_count;
 	int gpio_int_idx;
 	char id[GOODIX_ID_MAX_LEN + 1];
+	char cfg_name[64];
 	u16 version;
-	const char *cfg_name;
 	bool reset_controller_at_probe;
 	bool load_cfg_from_disk;
 	struct completion firmware_loading_complete;
