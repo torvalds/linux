@@ -1303,6 +1303,19 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 
 }
 
+static void __svm_vcpu_reset(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	svm_vcpu_init_msrpm(vcpu, svm->msrpm);
+
+	svm_init_osvw(vcpu);
+	vcpu->arch.microcode_version = 0x01000065;
+
+	if (sev_es_guest(vcpu->kvm))
+		sev_es_vcpu_reset(svm);
+}
+
 static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -1311,6 +1324,9 @@ static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	svm->virt_spec_ctrl = 0;
 
 	init_vmcb(vcpu);
+
+	if (!init_event)
+		__svm_vcpu_reset(vcpu);
 }
 
 void svm_switch_vmcb(struct vcpu_svm *svm, struct kvm_vmcb_info *target_vmcb)
@@ -1370,23 +1386,12 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 
 	svm->vmcb01.ptr = page_address(vmcb01_page);
 	svm->vmcb01.pa = __sme_set(page_to_pfn(vmcb01_page) << PAGE_SHIFT);
+	svm_switch_vmcb(svm, &svm->vmcb01);
 
 	if (vmsa_page)
 		svm->vmsa = page_address(vmsa_page);
 
 	svm->guest_state_loaded = false;
-
-	svm_switch_vmcb(svm, &svm->vmcb01);
-	init_vmcb(vcpu);
-
-	svm_vcpu_init_msrpm(vcpu, svm->msrpm);
-
-	svm_init_osvw(vcpu);
-	vcpu->arch.microcode_version = 0x01000065;
-
-	if (sev_es_guest(vcpu->kvm))
-		/* Perform SEV-ES specific VMCB creation updates */
-		sev_es_create_vcpu(svm);
 
 	return 0;
 
