@@ -32,6 +32,14 @@ properties:
       Identifies the node as an MSI controller.
     $ref: /schemas/types.yaml#/definitions/flag
 
+  msi-ranges:
+    description:
+      A list of <phandle intspec span> tuples, where "phandle" is the
+      parent interrupt controller, "intspec" is the starting/base
+      interrupt specifier and "span" is the size of the
+      range. Multiple ranges can be provided.
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+
 dependencies:
   "#msi-cells": [ msi-controller ]
 
