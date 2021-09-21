@@ -745,14 +745,370 @@ static inline int ath11k_mac_vdev_setup_sync(struct ath11k *ar)
 	return ar->last_wmi_vdev_start_status ? -EINVAL : 0;
 }
 
-static int ath11k_mac_op_config(struct ieee80211_hw *hw, u32 changed)
+static void
+ath11k_mac_get_any_chandef_iter(struct ieee80211_hw *hw,
+				struct ieee80211_chanctx_conf *conf,
+				void *data)
 {
-	/* mac80211 requires this op to be present and that's why
-	 * there's an empty function, this can be extended when
-	 * required.
-	 */
+	struct cfg80211_chan_def **def = data;
+
+	*def = &conf->def;
+}
+
+static int ath11k_mac_monitor_vdev_start(struct ath11k *ar, int vdev_id,
+					 struct cfg80211_chan_def *chandef)
+{
+	struct ieee80211_channel *channel;
+	struct wmi_vdev_start_req_arg arg = {};
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	channel = chandef->chan;
+
+	arg.vdev_id = vdev_id;
+	arg.channel.freq = channel->center_freq;
+	arg.channel.band_center_freq1 = chandef->center_freq1;
+	arg.channel.band_center_freq2 = chandef->center_freq2;
+
+	arg.channel.mode = ath11k_phymodes[chandef->chan->band][chandef->width];
+	arg.channel.chan_radar = !!(channel->flags & IEEE80211_CHAN_RADAR);
+
+	arg.channel.min_power = 0;
+	arg.channel.max_power = channel->max_power * 2;
+	arg.channel.max_reg_power = channel->max_reg_power * 2;
+	arg.channel.max_antenna_gain = channel->max_antenna_gain * 2;
+
+	arg.pref_tx_streams = ar->num_tx_chains;
+	arg.pref_rx_streams = ar->num_rx_chains;
+
+	arg.channel.passive = !!(chandef->chan->flags & IEEE80211_CHAN_NO_IR);
+
+	reinit_completion(&ar->vdev_setup_done);
+	reinit_completion(&ar->vdev_delete_done);
+
+	ret = ath11k_wmi_vdev_start(ar, &arg, false);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to request monitor vdev %i start: %d\n",
+			    vdev_id, ret);
+		return ret;
+	}
+
+	ret = ath11k_mac_vdev_setup_sync(ar);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to synchronize setup for monitor vdev %i start: %d\n",
+			    vdev_id, ret);
+		return ret;
+	}
+
+	ret = ath11k_wmi_vdev_up(ar, vdev_id, 0, ar->mac_addr);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to put up monitor vdev %i: %d\n",
+			    vdev_id, ret);
+		goto vdev_stop;
+	}
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac monitor vdev %i started\n",
+		   vdev_id);
 
 	return 0;
+
+vdev_stop:
+	reinit_completion(&ar->vdev_setup_done);
+
+	ret = ath11k_wmi_vdev_stop(ar, vdev_id);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to stop monitor vdev %i after start failure: %d\n",
+			    vdev_id, ret);
+		return ret;
+	}
+
+	ret = ath11k_mac_vdev_setup_sync(ar);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to synchronize setup for vdev %i stop: %d\n",
+			    vdev_id, ret);
+		return ret;
+	}
+
+	return -EIO;
+}
+
+static int ath11k_mac_monitor_vdev_stop(struct ath11k *ar)
+{
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	reinit_completion(&ar->vdev_setup_done);
+
+	ret = ath11k_wmi_vdev_stop(ar, ar->monitor_vdev_id);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to request monitor vdev %i stop: %d\n",
+			    ar->monitor_vdev_id, ret);
+		return ret;
+	}
+
+	ret = ath11k_mac_vdev_setup_sync(ar);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to synchronize monitor vdev %i stop: %d\n",
+			    ar->monitor_vdev_id, ret);
+		return ret;
+	}
+
+	ret = ath11k_wmi_vdev_down(ar, ar->monitor_vdev_id);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to put down monitor vdev %i: %d\n",
+			    ar->monitor_vdev_id, ret);
+		return ret;
+	}
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac monitor vdev %i stopped\n",
+		   ar->monitor_vdev_id);
+
+	return 0;
+}
+
+static int ath11k_mac_monitor_vdev_create(struct ath11k *ar)
+{
+	struct ath11k_pdev *pdev = ar->pdev;
+	struct vdev_create_params param = {};
+	int bit, ret;
+	u8 tmp_addr[6] = {0};
+	u16 nss;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	if (test_bit(ATH11K_FLAG_MONITOR_VDEV_CREATED, &ar->monitor_flags))
+		return 0;
+
+	if (ar->ab->free_vdev_map == 0) {
+		ath11k_warn(ar->ab, "failed to find free vdev id for monitor vdev\n");
+		return -ENOMEM;
+	}
+
+	bit = __ffs64(ar->ab->free_vdev_map);
+
+	ar->monitor_vdev_id = bit;
+
+	param.if_id = ar->monitor_vdev_id;
+	param.type = WMI_VDEV_TYPE_MONITOR;
+	param.subtype = WMI_VDEV_SUBTYPE_NONE;
+	param.pdev_id = pdev->pdev_id;
+
+	if (pdev->cap.supported_bands & WMI_HOST_WLAN_2G_CAP) {
+		param.chains[NL80211_BAND_2GHZ].tx = ar->num_tx_chains;
+		param.chains[NL80211_BAND_2GHZ].rx = ar->num_rx_chains;
+	}
+	if (pdev->cap.supported_bands & WMI_HOST_WLAN_5G_CAP) {
+		param.chains[NL80211_BAND_5GHZ].tx = ar->num_tx_chains;
+		param.chains[NL80211_BAND_5GHZ].rx = ar->num_rx_chains;
+	}
+
+	ret = ath11k_wmi_vdev_create(ar, tmp_addr, &param);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to request monitor vdev %i creation: %d\n",
+			    ar->monitor_vdev_id, ret);
+		ar->monitor_vdev_id = -1;
+		return ret;
+	}
+
+	nss = get_num_chains(ar->cfg_tx_chainmask) ? : 1;
+	ret = ath11k_wmi_vdev_set_param_cmd(ar, ar->monitor_vdev_id,
+					    WMI_VDEV_PARAM_NSS, nss);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to set vdev %d chainmask 0x%x, nss %d :%d\n",
+			    ar->monitor_vdev_id, ar->cfg_tx_chainmask, nss, ret);
+		goto err_vdev_del;
+	}
+
+	ret = ath11k_mac_txpower_recalc(ar);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to recalc txpower for monitor vdev %d: %d\n",
+			    ar->monitor_vdev_id, ret);
+		goto err_vdev_del;
+	}
+
+	ar->allocated_vdev_map |= 1LL << ar->monitor_vdev_id;
+	ar->ab->free_vdev_map &= ~(1LL << ar->monitor_vdev_id);
+	ar->num_created_vdevs++;
+	set_bit(ATH11K_FLAG_MONITOR_VDEV_CREATED, &ar->monitor_flags);
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac monitor vdev %d created\n",
+		   ar->monitor_vdev_id);
+
+	return 0;
+
+err_vdev_del:
+	ath11k_wmi_vdev_delete(ar, ar->monitor_vdev_id);
+	ar->monitor_vdev_id = -1;
+	return ret;
+}
+
+static int ath11k_mac_monitor_vdev_delete(struct ath11k *ar)
+{
+	int ret;
+	unsigned long time_left;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	if (!test_bit(ATH11K_FLAG_MONITOR_VDEV_CREATED, &ar->monitor_flags))
+		return 0;
+
+	reinit_completion(&ar->vdev_delete_done);
+
+	ret = ath11k_wmi_vdev_delete(ar, ar->monitor_vdev_id);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to request wmi monitor vdev %i removal: %d\n",
+			    ar->monitor_vdev_id, ret);
+		return ret;
+	}
+
+	time_left = wait_for_completion_timeout(&ar->vdev_delete_done,
+						ATH11K_VDEV_DELETE_TIMEOUT_HZ);
+	if (time_left == 0) {
+		ath11k_warn(ar->ab, "Timeout in receiving vdev delete response\n");
+	} else {
+		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac monitor vdev %d deleted\n",
+			   ar->monitor_vdev_id);
+
+		ar->allocated_vdev_map &= ~(1LL << ar->monitor_vdev_id);
+		ar->ab->free_vdev_map |= 1LL << (ar->monitor_vdev_id);
+		ar->num_created_vdevs--;
+		ar->monitor_vdev_id = -1;
+		clear_bit(ATH11K_FLAG_MONITOR_VDEV_CREATED, &ar->monitor_flags);
+	}
+
+	return ret;
+}
+
+static int ath11k_mac_monitor_start(struct ath11k *ar)
+{
+	struct cfg80211_chan_def *chandef = NULL;
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	if (test_bit(ATH11K_FLAG_MONITOR_STARTED, &ar->monitor_flags))
+		return 0;
+
+	ieee80211_iter_chan_contexts_atomic(ar->hw,
+					    ath11k_mac_get_any_chandef_iter,
+					    &chandef);
+	if (!chandef)
+		return 0;
+
+	ret = ath11k_mac_monitor_vdev_start(ar, ar->monitor_vdev_id, chandef);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to start monitor vdev: %d\n", ret);
+		ath11k_mac_monitor_vdev_delete(ar);
+		return ret;
+	}
+
+	set_bit(ATH11K_FLAG_MONITOR_STARTED, &ar->monitor_flags);
+
+	ar->num_started_vdevs++;
+	ret = ath11k_dp_tx_htt_monitor_mode_ring_config(ar, false);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to configure htt monitor mode ring during start: %d",
+			    ret);
+		return ret;
+	}
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac monitor started\n");
+
+	return 0;
+}
+
+static int ath11k_mac_monitor_stop(struct ath11k *ar)
+{
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	if (!test_bit(ATH11K_FLAG_MONITOR_STARTED, &ar->monitor_flags))
+		return 0;
+
+	ret = ath11k_mac_monitor_vdev_stop(ar);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to stop monitor vdev: %d\n", ret);
+		return ret;
+	}
+
+	clear_bit(ATH11K_FLAG_MONITOR_STARTED, &ar->monitor_flags);
+	ar->num_started_vdevs--;
+
+	ret = ath11k_dp_tx_htt_monitor_mode_ring_config(ar, true);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to configure htt monitor mode ring during stop: %d",
+			    ret);
+		return ret;
+	}
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac monitor stopped ret %d\n", ret);
+
+	return 0;
+}
+
+static int ath11k_mac_op_config(struct ieee80211_hw *hw, u32 changed)
+{
+	struct ath11k *ar = hw->priv;
+	struct ieee80211_conf *conf = &hw->conf;
+	int ret = 0;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
+		if (conf->flags & IEEE80211_CONF_MONITOR) {
+			set_bit(ATH11K_FLAG_MONITOR_CONF_ENABLED, &ar->monitor_flags);
+
+			if (test_bit(ATH11K_FLAG_MONITOR_VDEV_CREATED,
+				     &ar->monitor_flags))
+				goto out;
+
+			ret = ath11k_mac_monitor_vdev_create(ar);
+			if (ret) {
+				ath11k_warn(ar->ab, "failed to create monitor vdev: %d",
+					    ret);
+				goto out;
+			}
+
+			ret = ath11k_mac_monitor_start(ar);
+			if (ret) {
+				ath11k_warn(ar->ab, "failed to start monitor: %d",
+					    ret);
+				goto err_mon_del;
+			}
+		} else {
+			clear_bit(ATH11K_FLAG_MONITOR_CONF_ENABLED, &ar->monitor_flags);
+
+			if (!test_bit(ATH11K_FLAG_MONITOR_VDEV_CREATED,
+				      &ar->monitor_flags))
+				goto out;
+
+			ret = ath11k_mac_monitor_stop(ar);
+			if (ret) {
+				ath11k_warn(ar->ab, "failed to stop monitor: %d",
+					    ret);
+				goto out;
+			}
+
+			ret = ath11k_mac_monitor_vdev_delete(ar);
+			if (ret) {
+				ath11k_warn(ar->ab, "failed to delete monitor vdev: %d",
+					    ret);
+				goto out;
+			}
+		}
+	}
+
+out:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+
+err_mon_del:
+	ath11k_mac_monitor_vdev_delete(ar);
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
 }
 
 static int ath11k_mac_setup_bcn_tmpl(struct ath11k_vif *arvif)
@@ -6771,7 +7127,12 @@ int ath11k_mac_allocate(struct ath11k_base *ab)
 
 		INIT_WORK(&ar->wmi_mgmt_tx_work, ath11k_mgmt_over_wmi_tx_work);
 		skb_queue_head_init(&ar->wmi_mgmt_tx_queue);
+
 		clear_bit(ATH11K_FLAG_MONITOR_ENABLED, &ar->monitor_flags);
+		clear_bit(ATH11K_FLAG_MONITOR_STARTED, &ar->monitor_flags);
+
+		ar->monitor_vdev_id = -1;
+		clear_bit(ATH11K_FLAG_MONITOR_VDEV_CREATED, &ar->monitor_flags);
 	}
 
 	return 0;
