@@ -10611,8 +10611,6 @@ static void fx_init(struct kvm_vcpu *vcpu)
 	 * Ensure guest xcr0 is valid for loading
 	 */
 	vcpu->arch.xcr0 = XFEATURE_MASK_FP;
-
-	vcpu->arch.cr0 |= X86_CR0_ET;
 }
 
 void kvm_free_guest_fpu(struct kvm_vcpu *vcpu)
