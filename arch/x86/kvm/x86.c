@@ -10783,6 +10783,16 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	unsigned long new_cr0;
 	u32 eax, dummy;
 
+	/*
+	 * Several of the "set" flows, e.g. ->set_cr0(), read other registers
+	 * to handle side effects.  RESET emulation hits those flows and relies
+	 * on emulated/virtualized registers, including those that are loaded
+	 * into hardware, to be zeroed at vCPU creation.  Use CRs as a sentinel
+	 * to detect improper or missing initialization.
+	 */
+	WARN_ON_ONCE(!init_event &&
+		     (old_cr0 || kvm_read_cr3(vcpu) || kvm_read_cr4(vcpu)));
+
 	kvm_lapic_reset(vcpu, init_event);
 
 	vcpu->arch.hflags = 0;
