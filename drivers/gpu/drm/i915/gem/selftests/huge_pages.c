@@ -1589,7 +1589,8 @@ static int igt_shrink_thp(void *arg)
 	i915_gem_shrink(NULL, i915, -1UL, NULL,
 			I915_SHRINK_BOUND |
 			I915_SHRINK_UNBOUND |
-			I915_SHRINK_ACTIVE);
+			I915_SHRINK_ACTIVE |
+			I915_SHRINK_WRITEBACK);
 	if (should_swap == i915_gem_object_has_pages(obj)) {
 		pr_err("unexpected pages mismatch, should_swap=%s\n",
 		       yesno(should_swap));
