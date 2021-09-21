@@ -1610,7 +1610,8 @@ static const struct sysc_revision_quirk sysc_revision_quirks[] = {
 	SYSC_QUIRK("usb_host_hs", 0, 0, 0x10, -ENODEV, 0x50700101, 0xffffffff,
 		   SYSC_QUIRK_SWSUP_SIDLE | SYSC_QUIRK_SWSUP_MSTANDBY),
 	SYSC_QUIRK("usb_otg_hs", 0, 0x400, 0x404, 0x408, 0x00000050,
-		   0xffffffff, SYSC_QUIRK_SWSUP_SIDLE | SYSC_QUIRK_SWSUP_MSTANDBY),
+		   0xffffffff, SYSC_QUIRK_SWSUP_SIDLE | SYSC_QUIRK_SWSUP_MSTANDBY |
+		   SYSC_MODULE_QUIRK_OTG),
 	SYSC_QUIRK("usb_otg_hs", 0, 0, 0x10, -ENODEV, 0x4ea2080d, 0xffffffff,
 		   SYSC_QUIRK_SWSUP_SIDLE | SYSC_QUIRK_SWSUP_MSTANDBY |
 		   SYSC_QUIRK_REINIT_ON_CTX_LOST),
@@ -1969,6 +1970,22 @@ static void sysc_module_lock_quirk_rtc(struct sysc *ddata)
 	sysc_quirk_rtc(ddata, true);
 }
 
+/* OTG omap2430 glue layer up to omap4 needs OTG_FORCESTDBY configured */
+static void sysc_module_enable_quirk_otg(struct sysc *ddata)
+{
+	int offset = 0x414;	/* OTG_FORCESTDBY */
+
+	sysc_write(ddata, offset, 0);
+}
+
+static void sysc_module_disable_quirk_otg(struct sysc *ddata)
+{
+	int offset = 0x414;	/* OTG_FORCESTDBY */
+	u32 val = BIT(0);	/* ENABLEFORCE */
+
+	sysc_write(ddata, offset, val);
+}
+
 /* 36xx SGX needs a quirk for to bypass OCP IPG interrupt logic */
 static void sysc_module_enable_quirk_sgx(struct sysc *ddata)
 {
@@ -2049,6 +2066,11 @@ static void sysc_init_module_quirks(struct sysc *ddata)
 		ddata->module_lock_quirk = sysc_module_lock_quirk_rtc;
 
 		return;
+	}
+
+	if (ddata->cfg.quirks & SYSC_MODULE_QUIRK_OTG) {
+		ddata->module_enable_quirk = sysc_module_enable_quirk_otg;
+		ddata->module_disable_quirk = sysc_module_disable_quirk_otg;
 	}
 
 	if (ddata->cfg.quirks & SYSC_MODULE_QUIRK_SGX)
