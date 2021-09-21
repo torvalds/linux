@@ -1213,6 +1213,11 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 	if (of_find_property(dev->of_node, "dmas", NULL))
 		sdhci_switch_external_dma(host, true);
 
+	if (device_property_read_bool(dev, "ti,non-removable")) {
+		dev_warn_once(dev, "using old ti,non-removable property\n");
+		mmc->caps |= MMC_CAP_NONREMOVABLE;
+	}
+
 	/* R1B responses is required to properly manage HW busy detection. */
 	mmc->caps |= MMC_CAP_NEED_RSP_BUSY;
 
