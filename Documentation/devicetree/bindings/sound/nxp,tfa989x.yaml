@@ -24,6 +24,8 @@ properties:
   '#sound-dai-cells':
     const: 0
 
+  sound-name-prefix: true
+
   vddd-supply:
     description: regulator phandle for the VDDD power supply.
 

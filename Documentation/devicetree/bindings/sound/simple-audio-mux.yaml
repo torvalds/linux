@@ -24,6 +24,8 @@ properties:
     description: |
       GPIOs used to select the input line.
 
+  sound-name-prefix: true
+
 required:
   - compatible
   - mux-gpios
