@@ -973,7 +973,7 @@ static int __kvm_set_xcr(struct kvm_vcpu *vcpu, u32 index, u64 xcr)
 	/*
 	 * Do not allow the guest to set bits that we do not support
 	 * saving.  However, xcr0 bit 0 is always set, even if the
-	 * emulated CPU does not support XSAVE (see fx_init).
+	 * emulated CPU does not support XSAVE (see kvm_vcpu_reset()).
 	 */
 	valid_bits = vcpu->arch.guest_supported_xcr0 | XFEATURE_MASK_FP;
 	if (xcr0 & ~valid_bits)
@@ -10606,11 +10606,6 @@ static void fx_init(struct kvm_vcpu *vcpu)
 	if (boot_cpu_has(X86_FEATURE_XSAVES))
 		vcpu->arch.guest_fpu->state.xsave.header.xcomp_bv =
 			host_xcr0 | XSTATE_COMPACTION_ENABLED;
-
-	/*
-	 * Ensure guest xcr0 is valid for loading
-	 */
-	vcpu->arch.xcr0 = XFEATURE_MASK_FP;
 }
 
 void kvm_free_guest_fpu(struct kvm_vcpu *vcpu)
