@@ -848,7 +848,7 @@ intel_dp_link_train_all_phys(struct intel_dp *intel_dp,
 	}
 
 	if (ret)
-		intel_dp_link_train_phy(intel_dp, crtc_state, DP_PHY_DPRX);
+		ret = intel_dp_link_train_phy(intel_dp, crtc_state, DP_PHY_DPRX);
 
 	if (intel_dp->set_idle_link_train)
 		intel_dp->set_idle_link_train(intel_dp, crtc_state);

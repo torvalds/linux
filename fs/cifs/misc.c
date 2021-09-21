@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1
 /*
- *   fs/cifs/misc.c
  *
  *   Copyright (C) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
@@ -736,7 +735,7 @@ cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode)
 			if (cancel_delayed_work(&cfile->deferred)) {
 				tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
 				if (tmp_list == NULL)
-					continue;
+					break;
 				tmp_list->cfile = cfile;
 				list_add_tail(&tmp_list->list, &file_head);
 			}
@@ -767,7 +766,7 @@ cifs_close_all_deferred_files(struct cifs_tcon *tcon)
 			if (cancel_delayed_work(&cfile->deferred)) {
 				tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
 				if (tmp_list == NULL)
-					continue;
+					break;
 				tmp_list->cfile = cfile;
 				list_add_tail(&tmp_list->list, &file_head);
 			}
@@ -780,6 +779,43 @@ cifs_close_all_deferred_files(struct cifs_tcon *tcon)
 		list_del(&tmp_list->list);
 		kfree(tmp_list);
 	}
+}
+void
+cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon, const char *path)
+{
+	struct cifsFileInfo *cfile;
+	struct list_head *tmp;
+	struct file_list *tmp_list, *tmp_next_list;
+	struct list_head file_head;
+	void *page;
+	const char *full_path;
+
+	INIT_LIST_HEAD(&file_head);
+	page = alloc_dentry_path();
+	spin_lock(&tcon->open_file_lock);
+	list_for_each(tmp, &tcon->openFileList) {
+		cfile = list_entry(tmp, struct cifsFileInfo, tlist);
+		full_path = build_path_from_dentry(cfile->dentry, page);
+		if (strstr(full_path, path)) {
+			if (delayed_work_pending(&cfile->deferred)) {
+				if (cancel_delayed_work(&cfile->deferred)) {
+					tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
+					if (tmp_list == NULL)
+						break;
+					tmp_list->cfile = cfile;
+					list_add_tail(&tmp_list->list, &file_head);
+				}
+			}
+		}
+	}
+	spin_unlock(&tcon->open_file_lock);
+
+	list_for_each_entry_safe(tmp_list, tmp_next_list, &file_head, list) {
+		_cifsFileInfo_put(tmp_list->cfile, true, false);
+		list_del(&tmp_list->list);
+		kfree(tmp_list);
+	}
+	free_dentry_path(page);
 }
 
 /* parses DFS refferal V3 structure

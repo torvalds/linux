@@ -191,19 +191,77 @@ int get_nlink(struct kstat *st)
 	return nlink;
 }
 
-void ksmbd_conv_path_to_unix(char *path)
+char *ksmbd_conv_path_to_unix(char *path)
 {
+	size_t path_len, remain_path_len, out_path_len;
+	char *out_path, *out_next;
+	int i, pre_dotdot_cnt = 0, slash_cnt = 0;
+	bool is_last;
+
 	strreplace(path, '\\', '/');
-}
+	path_len = strlen(path);
+	remain_path_len = path_len;
+	if (path_len == 0)
+		return ERR_PTR(-EINVAL);
 
-void ksmbd_strip_last_slash(char *path)
-{
-	int len = strlen(path);
+	out_path = kzalloc(path_len + 2, GFP_KERNEL);
+	if (!out_path)
+		return ERR_PTR(-ENOMEM);
+	out_path_len = 0;
+	out_next = out_path;
 
-	while (len && path[len - 1] == '/') {
-		path[len - 1] = '\0';
-		len--;
-	}
+	do {
+		char *name = path + path_len - remain_path_len;
+		char *next = strchrnul(name, '/');
+		size_t name_len = next - name;
+
+		is_last = !next[0];
+		if (name_len == 2 && name[0] == '.' && name[1] == '.') {
+			pre_dotdot_cnt++;
+			/* handle the case that path ends with "/.." */
+			if (is_last)
+				goto follow_dotdot;
+		} else {
+			if (pre_dotdot_cnt) {
+follow_dotdot:
+				slash_cnt = 0;
+				for (i = out_path_len - 1; i >= 0; i--) {
+					if (out_path[i] == '/' &&
+					    ++slash_cnt == pre_dotdot_cnt + 1)
+						break;
+				}
+
+				if (i < 0 &&
+				    slash_cnt != pre_dotdot_cnt) {
+					kfree(out_path);
+					return ERR_PTR(-EINVAL);
+				}
+
+				out_next = &out_path[i+1];
+				*out_next = '\0';
+				out_path_len = i + 1;
+
+			}
+
+			if (name_len != 0 &&
+			    !(name_len == 1 && name[0] == '.') &&
+			    !(name_len == 2 && name[0] == '.' && name[1] == '.')) {
+				next[0] = '\0';
+				sprintf(out_next, "%s/", name);
+				out_next += name_len + 1;
+				out_path_len += name_len + 1;
+				next[0] = '/';
+			}
+			pre_dotdot_cnt = 0;
+		}
+
+		remain_path_len -= name_len + 1;
+	} while (!is_last);
+
+	if (out_path_len > 0)
+		out_path[out_path_len-1] = '\0';
+	path[path_len] = '\0';
+	return out_path;
 }
 
 void ksmbd_conv_path_to_windows(char *path)
