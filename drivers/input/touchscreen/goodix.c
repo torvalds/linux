@@ -326,6 +326,11 @@ static int goodix_ts_read_input_report(struct goodix_ts_data *ts, u8 *data)
 			return touch_num;
 		}
 
+		if (data[0] == 0 && ts->firmware_name) {
+			if (goodix_handle_fw_request(ts))
+				return 0;
+		}
+
 		usleep_range(1000, 2000); /* Poll every 1 - 2 ms */
 	} while (time_before(jiffies, max_timeout));
 
@@ -940,12 +945,19 @@ static void goodix_read_config(struct goodix_ts_data *ts)
 	int x_max, y_max;
 	int error;
 
-	error = goodix_i2c_read(ts->client, ts->chip->config_addr,
-				ts->config, ts->chip->config_len);
-	if (error) {
-		ts->int_trigger_type = GOODIX_INT_TRIGGER;
-		ts->max_touch_num = GOODIX_MAX_CONTACTS;
-		return;
+	/*
+	 * On controllers where we need to upload the firmware
+	 * (controllers without flash) ts->config already has the config
+	 * at this point and the controller itself does not have it yet!
+	 */
+	if (!ts->firmware_name) {
+		error = goodix_i2c_read(ts->client, ts->chip->config_addr,
+					ts->config, ts->chip->config_len);
+		if (error) {
+			ts->int_trigger_type = GOODIX_INT_TRIGGER;
+			ts->max_touch_num = GOODIX_MAX_CONTACTS;
+			return;
+		}
 	}
 
 	ts->int_trigger_type = ts->config[TRIGGER_LOC] & 0x03;
@@ -1139,7 +1151,16 @@ static void goodix_config_cb(const struct firmware *cfg, void *ctx)
 	struct goodix_ts_data *ts = ctx;
 	int error;
 
-	if (cfg) {
+	if (ts->firmware_name) {
+		if (!cfg)
+			goto err_release_cfg;
+
+		error = goodix_check_cfg(ts, cfg->data, cfg->size);
+		if (error)
+			goto err_release_cfg;
+
+		memcpy(ts->config, cfg->data, cfg->size);
+	} else if (cfg) {
 		/* send device configuration to the firmware */
 		error = goodix_send_cfg(ts, cfg->data, cfg->size);
 		if (error)
@@ -1231,6 +1252,10 @@ reset:
 		return error;
 	}
 
+	error = goodix_firmware_check(ts);
+	if (error)
+		return error;
+
 	error = goodix_read_version(ts);
 	if (error)
 		return error;
@@ -1296,6 +1321,9 @@ static int __maybe_unused goodix_suspend(struct device *dev)
 
 	/* Free IRQ as IRQ pin is used as output in the suspend sequence */
 	goodix_free_irq(ts);
+
+	/* Save reference (calibration) info if necessary */
+	goodix_save_bak_ref(ts);
 
 	/* Output LOW on the INT pin for 5 ms */
 	error = goodix_irq_direction_output(ts, 0);
