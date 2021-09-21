@@ -1180,10 +1180,6 @@ bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI, bool bForceUpdate
 
 void odm_DynamicTxPowerInit(struct odm_dm_struct *pDM_Odm)
 {
-	struct adapter *Adapter = pDM_Odm->Adapter;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-	pdmpriv->DynamicTxHighPowerLvl = TxHighPwrLevel_Normal;
 }
 
 /* 3============================================================ */
