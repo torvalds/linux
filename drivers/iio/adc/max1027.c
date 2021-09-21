@@ -272,6 +272,19 @@ struct max1027_state {
 	u8				reg ____cacheline_aligned;
 };
 
+/* Scan from chan 0 to the highest requested channel. Include temperature on demand. */
+static int max1027_configure_chans_and_start(struct iio_dev *indio_dev)
+{
+	struct max1027_state *st = iio_priv(indio_dev);
+
+	st->reg = MAX1027_CONV_REG | MAX1027_SCAN_0_N;
+	st->reg |= MAX1027_CHAN(fls(*indio_dev->active_scan_mask) - 2);
+	if (*indio_dev->active_scan_mask & MAX1X27_SCAN_MASK_TEMP)
+		st->reg |= MAX1027_TEMP;
+
+	return spi_write(st->spi, &st->reg, 1);
+}
+
 static int max1027_enable_trigger(struct iio_dev *indio_dev, bool enable)
 {
 	struct max1027_state *st = iio_priv(indio_dev);
@@ -403,7 +416,6 @@ static int max1027_validate_trigger(struct iio_dev *indio_dev,
 static int max1027_set_cnvst_trigger_state(struct iio_trigger *trig, bool state)
 {
 	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
-	struct max1027_state *st = iio_priv(indio_dev);
 	int ret;
 
 	/*
@@ -417,17 +429,8 @@ static int max1027_set_cnvst_trigger_state(struct iio_trigger *trig, bool state)
 		return ret;
 
 	if (state) {
-		/*
-		 * Scan from chan 0 to the highest requested channel.
-		 * Include temperature on demand.
-		 */
-		st->reg = MAX1027_CONV_REG | MAX1027_SCAN_0_N;
-		st->reg |= MAX1027_CHAN(fls(*indio_dev->active_scan_mask) - 2);
-		if (*indio_dev->active_scan_mask & MAX1X27_SCAN_MASK_TEMP)
-			st->reg |= MAX1027_TEMP;
-
-		ret = spi_write(st->spi, &st->reg, 1);
-		if (ret < 0)
+		ret = max1027_configure_chans_and_start(indio_dev);
+		if (ret)
 			return ret;
 	}
 
