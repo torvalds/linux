@@ -339,11 +339,6 @@ static bool icl_tc_phy_take_ownership(struct intel_digital_port *dig_port,
 	intel_uncore_write(uncore,
 			   PORT_TX_DFLEXDPCSSS(dig_port->tc_phy_fia), val);
 
-	if (!take && wait_for(!tc_phy_status_complete(dig_port), 10))
-		drm_dbg_kms(&i915->drm,
-			    "Port %s: PHY complete clear timed out\n",
-			    dig_port->tc_port_name);
-
 	return true;
 }
 
