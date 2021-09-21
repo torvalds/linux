@@ -311,10 +311,9 @@ static int max1027_read_single_value(struct iio_dev *indio_dev,
 	int ret;
 	struct max1027_state *st = iio_priv(indio_dev);
 
-	if (iio_buffer_enabled(indio_dev)) {
-		dev_warn(&indio_dev->dev, "trigger mode already enabled");
-		return -EBUSY;
-	}
+	ret = iio_device_claim_direct_mode(indio_dev);
+	if (ret)
+		return ret;
 
 	/* Configure conversion register with the requested chan */
 	st->reg = MAX1027_CONV_REG | MAX1027_CHAN(chan->channel) |
@@ -325,6 +324,7 @@ static int max1027_read_single_value(struct iio_dev *indio_dev,
 	if (ret < 0) {
 		dev_err(&indio_dev->dev,
 			"Failed to configure conversion register\n");
+		iio_device_release_direct_mode(indio_dev);
 		return ret;
 	}
 
@@ -337,6 +337,9 @@ static int max1027_read_single_value(struct iio_dev *indio_dev,
 
 	/* Read result */
 	ret = spi_read(st->spi, st->buffer, (chan->type == IIO_TEMP) ? 4 : 2);
+
+	iio_device_release_direct_mode(indio_dev);
+
 	if (ret < 0)
 		return ret;
 
