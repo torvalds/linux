@@ -1209,15 +1209,10 @@ void odm_DynamicTxPower(struct odm_dm_struct *pDM_Odm)
 	case	ODM_CE:
 		break;
 	case	ODM_AP:
-		odm_DynamicTxPowerAP(pDM_Odm);
 		break;
 	case	ODM_ADSL:
 		break;
 	}
-}
-
-void odm_DynamicTxPowerAP(struct odm_dm_struct *pDM_Odm)
-{
 }
 
 /* 3============================================================ */
