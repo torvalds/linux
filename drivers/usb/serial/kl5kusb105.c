@@ -172,8 +172,6 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 	u8 status_buf[KLSI_STATUSBUF_LEN];
 	__u16 status;
 
-	status_buf[0] = 0xff;
-	status_buf[1] = 0xff;
 	rc = usb_control_msg_recv(port->serial->dev, 0,
 				  KL5KUSB105A_SIO_POLL,
 				  USB_TYPE_VENDOR | USB_DIR_IN,
@@ -184,16 +182,17 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 				  GFP_KERNEL);
 	if (rc) {
 		dev_err(&port->dev, "reading line status failed: %d\n", rc);
-	} else {
-		status = get_unaligned_le16(status_buf);
-
-		dev_dbg(&port->dev, "read status %02x %02x\n",
-			status_buf[0], status_buf[1]);
-
-		*line_state_p = klsi_105_status2linestate(status);
+		return rc;
 	}
 
-	return rc;
+	status = get_unaligned_le16(status_buf);
+
+	dev_dbg(&port->dev, "read status %02x %02x\n",
+		status_buf[0], status_buf[1]);
+
+	*line_state_p = klsi_105_status2linestate(status);
+
+	return 0;
 }
 
 
