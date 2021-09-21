@@ -2590,8 +2590,8 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	u64 orig_super_total_bytes;
 	u64 orig_super_num_devices;
-	int seeding_dev = 0;
 	int ret = 0;
+	bool seeding_dev = false;
 	bool locked = false;
 
 	if (sb_rdonly(sb) && !fs_devices->seeding)
@@ -2608,7 +2608,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	}
 
 	if (fs_devices->seeding) {
-		seeding_dev = 1;
+		seeding_dev = true;
 		down_write(&sb->s_umount);
 		mutex_lock(&uuid_mutex);
 		locked = true;
