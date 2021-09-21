@@ -183,7 +183,6 @@ struct apple_dart_master_cfg {
 
 static struct platform_driver apple_dart_driver;
 static const struct iommu_ops apple_dart_iommu_ops;
-static const struct iommu_flush_ops apple_dart_tlb_ops;
 
 static struct apple_dart_domain *to_dart_domain(struct iommu_domain *dom)
 {
@@ -338,22 +337,6 @@ static void apple_dart_iotlb_sync_map(struct iommu_domain *domain,
 	apple_dart_domain_flush_tlb(to_dart_domain(domain));
 }
 
-static void apple_dart_tlb_flush_all(void *cookie)
-{
-	apple_dart_domain_flush_tlb(cookie);
-}
-
-static void apple_dart_tlb_flush_walk(unsigned long iova, size_t size,
-				      size_t granule, void *cookie)
-{
-	apple_dart_domain_flush_tlb(cookie);
-}
-
-static const struct iommu_flush_ops apple_dart_tlb_ops = {
-	.tlb_flush_all = apple_dart_tlb_flush_all,
-	.tlb_flush_walk = apple_dart_tlb_flush_walk,
-};
-
 static phys_addr_t apple_dart_iova_to_phys(struct iommu_domain *domain,
 					   dma_addr_t iova)
 {
@@ -435,7 +418,6 @@ static int apple_dart_finalize_domain(struct iommu_domain *domain,
 		.ias = 32,
 		.oas = 36,
 		.coherent_walk = 1,
-		.tlb = &apple_dart_tlb_ops,
 		.iommu_dev = dart->dev,
 	};
 
