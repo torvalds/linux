@@ -157,6 +157,7 @@ struct sysc {
 
 static void sysc_parse_dts_quirks(struct sysc *ddata, struct device_node *np,
 				  bool is_child);
+static int sysc_reset(struct sysc *ddata);
 
 static void sysc_write(struct sysc *ddata, int offset, u32 value)
 {
@@ -1439,6 +1440,15 @@ static int sysc_reinit_module(struct sysc *ddata, bool leave_enabled)
 	error = sysc_runtime_resume(dev);
 	if (error)
 		dev_warn(dev, "reinit resume failed: %i\n", error);
+
+	/* Some modules like am335x gpmc need reset and restore of sysconfig */
+	if (ddata->cfg.quirks & SYSC_QUIRK_RESET_ON_CTX_LOST) {
+		error = sysc_reset(ddata);
+		if (error)
+			dev_warn(dev, "reinit reset failed: %i\n", error);
+
+		sysc_write_sysconfig(ddata, ddata->sysconfig);
+	}
 
 	if (leave_enabled)
 		return error;
