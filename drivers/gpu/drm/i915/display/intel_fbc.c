@@ -84,7 +84,8 @@ static unsigned int _intel_fbc_cfb_stride(const struct intel_fbc_state_cache *ca
 }
 
 /* minimum acceptable cfb stride in bytes, assuming 1:1 compression limit */
-static unsigned int skl_fbc_min_cfb_stride(const struct intel_fbc_state_cache *cache)
+static unsigned int skl_fbc_min_cfb_stride(struct drm_i915_private *i915,
+					   const struct intel_fbc_state_cache *cache)
 {
 	unsigned int limit = 4; /* 1:4 compression limit is the worst case */
 	unsigned int cpp = 4; /* FBC always 4 bytes per pixel */
@@ -93,6 +94,13 @@ static unsigned int skl_fbc_min_cfb_stride(const struct intel_fbc_state_cache *c
 
 	/* minimum segment stride we can use */
 	stride = cache->plane.src_w * cpp * height / limit;
+
+	/*
+	 * Wa_16011863758: icl+
+	 * Avoid some hardware segment address miscalculation.
+	 */
+	if (DISPLAY_VER(i915) >= 11)
+		stride += 64;
 
 	/*
 	 * At least some of the platforms require each 4 line segment to
@@ -116,7 +124,7 @@ static unsigned int intel_fbc_cfb_stride(struct drm_i915_private *i915,
 	 * that regardless of the compression limit we choose later.
 	 */
 	if (DISPLAY_VER(i915) >= 9)
-		return max(ALIGN(stride, 512), skl_fbc_min_cfb_stride(cache));
+		return max(ALIGN(stride, 512), skl_fbc_min_cfb_stride(i915, cache));
 	else
 		return stride;
 }
