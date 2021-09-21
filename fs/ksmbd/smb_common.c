@@ -155,20 +155,7 @@ int ksmbd_verify_smb_message(struct ksmbd_work *work)
  */
 bool ksmbd_smb_request(struct ksmbd_conn *conn)
 {
-	int type = *(char *)conn->request_buf;
-
-	switch (type) {
-	case RFC1002_SESSION_MESSAGE:
-		/* Regular SMB request */
-		return true;
-	case RFC1002_SESSION_KEEP_ALIVE:
-		ksmbd_debug(SMB, "RFC 1002 session keep alive\n");
-		break;
-	default:
-		ksmbd_debug(SMB, "RFC 1002 unknown request type 0x%x\n", type);
-	}
-
-	return false;
+	return conn->request_buf[0] == 0;
 }
 
 static bool supported_protocol(int idx)
