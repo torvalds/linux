@@ -147,24 +147,12 @@ static int klsi_105_chg_port_settings(struct usb_serial_port *port,
 	return rc;
 }
 
-/* translate a 16-bit status value from the device to linux's TIO bits */
-static unsigned long klsi_105_status2linestate(const __u16 status)
-{
-	unsigned long res = 0;
-
-	res =   ((status & KL5KUSB105A_DSR) ? TIOCM_DSR : 0)
-	      | ((status & KL5KUSB105A_CTS) ? TIOCM_CTS : 0)
-	      ;
-
-	return res;
-}
-
 /*
  * Read line control via vendor command and return result through
- * *line_state_p
+ * the state pointer.
  */
 static int klsi_105_get_line_state(struct usb_serial_port *port,
-				   unsigned long *line_state_p)
+				   unsigned long *state)
 {
 	u16 status;
 	int rc;
@@ -186,7 +174,8 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 
 	dev_dbg(&port->dev, "read status %04x\n", status);
 
-	*line_state_p = klsi_105_status2linestate(status);
+	*state = ((status & KL5KUSB105A_DSR) ? TIOCM_DSR : 0) |
+		 ((status & KL5KUSB105A_CTS) ? TIOCM_CTS : 0);
 
 	return 0;
 }
