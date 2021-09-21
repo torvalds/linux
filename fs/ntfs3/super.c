@@ -246,10 +246,6 @@ static const struct fs_parameter_spec ntfs_fs_parameters[] = {
 	fsparam_flag_no("prealloc",		Opt_prealloc),
 	fsparam_flag_no("acsrules",		Opt_noacsrules),
 	fsparam_string("iocharset",		Opt_iocharset),
-
-	__fsparam(fs_param_is_string,
-		  "nls", Opt_iocharset,
-		  fs_param_deprecated, NULL),
 	{}
 };
 
