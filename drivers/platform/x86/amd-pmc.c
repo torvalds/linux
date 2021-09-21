@@ -217,6 +217,8 @@ static int smu_fw_info_show(struct seq_file *s, void *unused)
 		   "Unknown/Fail");
 	seq_printf(s, "Time (in us) to S0i3: %lld\n", table.timeentering_s0i3_lastcapture);
 	seq_printf(s, "Time (in us) in S0i3: %lld\n", table.timein_s0i3_lastcapture);
+	seq_printf(s, "Time (in us) to resume from S0i3: %lld\n",
+		   table.timeto_resume_to_os_lastcapture);
 
 	seq_puts(s, "\n=== Active time (in us) ===\n");
 	for (idx = 0 ; idx < SOC_SUBSYSTEM_IP_MAX ; idx++) {
