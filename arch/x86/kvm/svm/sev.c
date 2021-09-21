@@ -1510,6 +1510,20 @@ static int sev_receive_finish(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	return sev_issue_cmd(kvm, SEV_CMD_RECEIVE_FINISH, &data, &argp->error);
 }
 
+static bool cmd_allowed_from_miror(u32 cmd_id)
+{
+	/*
+	 * Allow mirrors VM to call KVM_SEV_LAUNCH_UPDATE_VMSA to enable SEV-ES
+	 * active mirror VMs. Also allow the debugging and status commands.
+	 */
+	if (cmd_id == KVM_SEV_LAUNCH_UPDATE_VMSA ||
+	    cmd_id == KVM_SEV_GUEST_STATUS || cmd_id == KVM_SEV_DBG_DECRYPT ||
+	    cmd_id == KVM_SEV_DBG_ENCRYPT)
+		return true;
+
+	return false;
+}
+
 int svm_mem_enc_op(struct kvm *kvm, void __user *argp)
 {
 	struct kvm_sev_cmd sev_cmd;
@@ -1526,8 +1540,9 @@ int svm_mem_enc_op(struct kvm *kvm, void __user *argp)
 
 	mutex_lock(&kvm->lock);
 
-	/* enc_context_owner handles all memory enc operations */
-	if (is_mirroring_enc_context(kvm)) {
+	/* Only the enc_context_owner handles some memory enc operations. */
+	if (is_mirroring_enc_context(kvm) &&
+	    !cmd_allowed_from_miror(sev_cmd.id)) {
 		r = -EINVAL;
 		goto out;
 	}
