@@ -1934,9 +1934,9 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		dev->kthread_cec = kthread_run(vivid_cec_bus_thread, dev,
 					       "vivid_cec-%s", dev->v4l2_dev.name);
 		if (IS_ERR(dev->kthread_cec)) {
+			ret = PTR_ERR(dev->kthread_cec);
 			dev->kthread_cec = NULL;
 			v4l2_err(&dev->v4l2_dev, "kernel_thread() failed\n");
-			ret = PTR_ERR(dev->kthread_cec);
 			goto unreg_dev;
 		}
 	}
