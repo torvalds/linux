@@ -115,7 +115,7 @@ static unsigned int intel_fbc_cfb_stride(struct drm_i915_private *i915,
 	 * be 512 byte aligned. Aligning each line to 512 bytes guarantees
 	 * that regardless of the compression limit we choose later.
 	 */
-	if (DISPLAY_VER(i915) == 9)
+	if (DISPLAY_VER(i915) >= 9)
 		return max(ALIGN(stride, 512), skl_fbc_min_cfb_stride(cache));
 	else
 		return stride;
@@ -356,10 +356,18 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 	const struct intel_fbc_reg_params *params = &fbc->params;
 	u32 dpfc_ctl;
 
-	/* Display WA #0529: skl, kbl, bxt. */
-	if (DISPLAY_VER(dev_priv) == 9) {
+	if (DISPLAY_VER(dev_priv) >= 10) {
 		u32 val = 0;
 
+		if (params->override_cfb_stride)
+			val |= FBC_STRIDE_OVERRIDE |
+				FBC_STRIDE(params->override_cfb_stride / fbc->limit);
+
+		intel_de_write(dev_priv, GLK_FBC_STRIDE, val);
+	} else if (DISPLAY_VER(dev_priv) == 9) {
+		u32 val = 0;
+
+		/* Display WA #0529: skl, kbl, bxt. */
 		if (params->override_cfb_stride)
 			val |= CHICKEN_FBC_STRIDE_OVERRIDE |
 				CHICKEN_FBC_STRIDE(params->override_cfb_stride / fbc->limit);
