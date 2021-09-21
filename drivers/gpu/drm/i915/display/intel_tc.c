@@ -71,9 +71,6 @@ tc_cold_block_in_mode(struct intel_digital_port *dig_port, enum tc_port_mode mod
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 
-	if (DISPLAY_VER(i915) == 11 && !dig_port->tc_legacy_port)
-		return 0;
-
 	*domain = tc_cold_get_power_domain(dig_port, mode);
 
 	return intel_display_power_get(i915, *domain);
@@ -107,9 +104,6 @@ assert_tc_cold_blocked(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	bool enabled;
-
-	if (DISPLAY_VER(i915) == 11 && !dig_port->tc_legacy_port)
-		return;
 
 	enabled = intel_display_power_is_enabled(i915,
 						 tc_cold_get_power_domain(dig_port,
