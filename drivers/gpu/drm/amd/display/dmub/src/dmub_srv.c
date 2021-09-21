@@ -655,13 +655,19 @@ enum dmub_status dmub_srv_wait_for_phy_init(struct dmub_srv *dmub,
 enum dmub_status dmub_srv_wait_for_idle(struct dmub_srv *dmub,
 					uint32_t timeout_us)
 {
-	uint32_t i;
+	uint32_t i, rptr;
 
 	if (!dmub->hw_init)
 		return DMUB_STATUS_INVALID;
 
 	for (i = 0; i <= timeout_us; ++i) {
-			dmub->inbox1_rb.rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
+		rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
+
+		if (rptr > dmub->inbox1_rb.capacity)
+			return DMUB_STATUS_HW_FAILURE;
+
+		dmub->inbox1_rb.rptr = rptr;
+
 		if (dmub_rb_empty(&dmub->inbox1_rb))
 			return DMUB_STATUS_OK;
 

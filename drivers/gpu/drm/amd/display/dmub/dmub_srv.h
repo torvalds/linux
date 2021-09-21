@@ -84,6 +84,7 @@ enum dmub_status {
 	DMUB_STATUS_QUEUE_FULL,
 	DMUB_STATUS_TIMEOUT,
 	DMUB_STATUS_INVALID,
+	DMUB_STATUS_HW_FAILURE,
 };
 
 /* enum dmub_asic - dmub asic identifier */
