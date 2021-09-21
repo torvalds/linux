@@ -82,7 +82,6 @@ static void cxl_add_cfmws_decoders(struct device *dev,
 	struct cxl_decoder *cxld;
 	acpi_size len, cur = 0;
 	void *cedt_subtable;
-	unsigned long flags;
 	int rc;
 
 	len = acpi_cedt->length - sizeof(*acpi_cedt);
@@ -119,24 +118,36 @@ static void cxl_add_cfmws_decoders(struct device *dev,
 		for (i = 0; i < CFMWS_INTERLEAVE_WAYS(cfmws); i++)
 			target_map[i] = cfmws->interleave_targets[i];
 
-		flags = cfmws_to_decoder_flags(cfmws->restrictions);
-		cxld = devm_cxl_add_decoder(dev, root_port,
-					    CFMWS_INTERLEAVE_WAYS(cfmws),
-					    cfmws->base_hpa, cfmws->window_size,
-					    CFMWS_INTERLEAVE_WAYS(cfmws),
-					    CFMWS_INTERLEAVE_GRANULARITY(cfmws),
-					    CXL_DECODER_EXPANDER,
-					    flags, target_map);
+		cxld = cxl_decoder_alloc(root_port,
+					 CFMWS_INTERLEAVE_WAYS(cfmws));
+		if (IS_ERR(cxld))
+			goto next;
 
-		if (IS_ERR(cxld)) {
+		cxld->flags = cfmws_to_decoder_flags(cfmws->restrictions);
+		cxld->target_type = CXL_DECODER_EXPANDER;
+		cxld->range = (struct range) {
+			.start = cfmws->base_hpa,
+			.end = cfmws->base_hpa + cfmws->window_size - 1,
+		};
+		cxld->interleave_ways = CFMWS_INTERLEAVE_WAYS(cfmws);
+		cxld->interleave_granularity =
+			CFMWS_INTERLEAVE_GRANULARITY(cfmws);
+
+		rc = cxl_decoder_add(cxld, target_map);
+		if (rc)
+			put_device(&cxld->dev);
+		else
+			rc = cxl_decoder_autoremove(dev, cxld);
+		if (rc) {
 			dev_err(dev, "Failed to add decoder for %#llx-%#llx\n",
 				cfmws->base_hpa, cfmws->base_hpa +
 				cfmws->window_size - 1);
-		} else {
-			dev_dbg(dev, "add: %s range %#llx-%#llx\n",
-				dev_name(&cxld->dev), cfmws->base_hpa,
-				 cfmws->base_hpa + cfmws->window_size - 1);
+			goto next;
 		}
+		dev_dbg(dev, "add: %s range %#llx-%#llx\n",
+			dev_name(&cxld->dev), cfmws->base_hpa,
+			cfmws->base_hpa + cfmws->window_size - 1);
+next:
 		cur += c->length;
 	}
 }
@@ -266,6 +277,7 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 	struct acpi_device *bridge = to_cxl_host_bridge(host, match);
 	struct acpi_pci_root *pci_root;
 	struct cxl_walk_context ctx;
+	int single_port_map[1], rc;
 	struct cxl_decoder *cxld;
 	struct cxl_dport *dport;
 	struct cxl_port *port;
@@ -301,22 +313,46 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 		return -ENODEV;
 	if (ctx.error)
 		return ctx.error;
+	if (ctx.count > 1)
+		return 0;
 
 	/* TODO: Scan CHBCR for HDM Decoder resources */
 
 	/*
-	 * In the single-port host-bridge case there are no HDM decoders
-	 * in the CHBCR and a 1:1 passthrough decode is implied.
+	 * Per the CXL specification (8.2.5.12 CXL HDM Decoder Capability
+	 * Structure) single ported host-bridges need not publish a decoder
+	 * capability when a passthrough decode can be assumed, i.e. all
+	 * transactions that the uport sees are claimed and passed to the single
+	 * dport. Disable the range until the first CXL region is enumerated /
+	 * activated.
 	 */
-	if (ctx.count == 1) {
-		cxld = devm_cxl_add_passthrough_decoder(host, port);
-		if (IS_ERR(cxld))
-			return PTR_ERR(cxld);
+	cxld = cxl_decoder_alloc(port, 1);
+	if (IS_ERR(cxld))
+		return PTR_ERR(cxld);
 
+	cxld->interleave_ways = 1;
+	cxld->interleave_granularity = PAGE_SIZE;
+	cxld->target_type = CXL_DECODER_EXPANDER;
+	cxld->range = (struct range) {
+		.start = 0,
+		.end = -1,
+	};
+
+	device_lock(&port->dev);
+	dport = list_first_entry(&port->dports, typeof(*dport), list);
+	device_unlock(&port->dev);
+
+	single_port_map[0] = dport->port_id;
+
+	rc = cxl_decoder_add(cxld, single_port_map);
+	if (rc)
+		put_device(&cxld->dev);
+	else
+		rc = cxl_decoder_autoremove(host, cxld);
+
+	if (rc == 0)
 		dev_dbg(host, "add: %s\n", dev_name(&cxld->dev));
-	}
-
-	return 0;
+	return rc;
 }
 
 static int add_host_bridge_dport(struct device *match, void *arg)

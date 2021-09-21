@@ -222,6 +222,11 @@ static struct cxl_nvdimm *cxl_nvdimm_alloc(struct cxl_memdev *cxlmd)
 	return cxl_nvd;
 }
 
+static void cxl_nvd_unregister(void *dev)
+{
+	device_unregister(dev);
+}
+
 /**
  * devm_cxl_add_nvdimm() - add a bridge between a cxl_memdev and an nvdimm
  * @host: same host as @cxlmd
@@ -251,7 +256,7 @@ int devm_cxl_add_nvdimm(struct device *host, struct cxl_memdev *cxlmd)
 	dev_dbg(host, "%s: register %s\n", dev_name(dev->parent),
 		dev_name(dev));
 
-	return devm_add_action_or_reset(host, unregister_cxl_dev, dev);
+	return devm_add_action_or_reset(host, cxl_nvd_unregister, dev);
 
 err:
 	put_device(dev);

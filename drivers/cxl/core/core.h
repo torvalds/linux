@@ -9,11 +9,6 @@ extern const struct device_type cxl_nvdimm_type;
 
 extern struct attribute_group cxl_base_attribute_group;
 
-static inline void unregister_cxl_dev(void *dev)
-{
-	device_unregister(dev);
-}
-
 struct cxl_send_command;
 struct cxl_mem_query_commands;
 int cxl_query_cmd(struct cxl_memdev *cxlmd,

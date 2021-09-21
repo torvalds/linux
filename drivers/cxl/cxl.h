@@ -195,6 +195,7 @@ enum cxl_decoder_type {
  * @interleave_granularity: data stride per dport
  * @target_type: accelerator vs expander (type2 vs type3) selector
  * @flags: memory type capabilities and locking
+ * @nr_targets: number of elements in @target
  * @target: active ordered target list in current decoder configuration
  */
 struct cxl_decoder {
@@ -205,6 +206,7 @@ struct cxl_decoder {
 	int interleave_granularity;
 	enum cxl_decoder_type target_type;
 	unsigned long flags;
+	const int nr_targets;
 	struct cxl_dport *target[];
 };
 
@@ -286,15 +288,10 @@ int cxl_add_dport(struct cxl_port *port, struct device *dport, int port_id,
 
 struct cxl_decoder *to_cxl_decoder(struct device *dev);
 bool is_root_decoder(struct device *dev);
-struct cxl_decoder *
-devm_cxl_add_decoder(struct device *host, struct cxl_port *port, int nr_targets,
-		     resource_size_t base, resource_size_t len,
-		     int interleave_ways, int interleave_granularity,
-		     enum cxl_decoder_type type, unsigned long flags,
-		     int *target_map);
+struct cxl_decoder *cxl_decoder_alloc(struct cxl_port *port, int nr_targets);
+int cxl_decoder_add(struct cxl_decoder *cxld, int *target_map);
+int cxl_decoder_autoremove(struct device *host, struct cxl_decoder *cxld);
 
-struct cxl_decoder *devm_cxl_add_passthrough_decoder(struct device *host,
-						     struct cxl_port *port);
 extern struct bus_type cxl_bus_type;
 
 struct cxl_driver {
