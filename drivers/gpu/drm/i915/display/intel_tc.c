@@ -509,6 +509,10 @@ static bool icl_tc_phy_is_connected(struct intel_digital_port *dig_port)
 		return dig_port->tc_mode == TC_PORT_TBT_ALT;
 	}
 
+	/* On ADL-P the PHY complete flag is set in TBT mode as well. */
+	if (IS_ALDERLAKE_P(i915) && dig_port->tc_mode == TC_PORT_TBT_ALT)
+		return true;
+
 	if (!tc_phy_is_owned(dig_port)) {
 		drm_dbg_kms(&i915->drm, "Port %s: PHY not owned\n",
 			    dig_port->tc_port_name);
