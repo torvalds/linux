@@ -272,6 +272,25 @@ struct max1027_state {
 	u8				reg ____cacheline_aligned;
 };
 
+static int max1027_enable_trigger(struct iio_dev *indio_dev, bool enable)
+{
+	struct max1027_state *st = iio_priv(indio_dev);
+
+	st->reg = MAX1027_SETUP_REG | MAX1027_REF_MODE2;
+
+	/*
+	 * Start acquisition on:
+	 * MODE0: external hardware trigger wired to the cnvst input pin
+	 * MODE2: conversion register write
+	 */
+	if (enable)
+		st->reg |= MAX1027_CKS_MODE0;
+	else
+		st->reg |= MAX1027_CKS_MODE2;
+
+	return spi_write(st->spi, &st->reg, 1);
+}
+
 static int max1027_read_single_value(struct iio_dev *indio_dev,
 				     struct iio_chan_spec const *chan,
 				     int *val)
@@ -284,14 +303,9 @@ static int max1027_read_single_value(struct iio_dev *indio_dev,
 		return -EBUSY;
 	}
 
-	/* Start acquisition on conversion register write */
-	st->reg = MAX1027_SETUP_REG | MAX1027_REF_MODE2 | MAX1027_CKS_MODE2;
-	ret = spi_write(st->spi, &st->reg, 1);
-	if (ret < 0) {
-		dev_err(&indio_dev->dev,
-			"Failed to configure setup register\n");
+	ret = max1027_enable_trigger(indio_dev, false);
+	if (ret)
 		return ret;
-	}
 
 	/* Configure conversion register with the requested chan */
 	st->reg = MAX1027_CONV_REG | MAX1027_CHAN(chan->channel) |
@@ -397,11 +411,8 @@ static int max1027_set_cnvst_trigger_state(struct iio_trigger *trig, bool state)
 	int ret;
 
 	if (state) {
-		/* Start acquisition on cnvst */
-		st->reg = MAX1027_SETUP_REG | MAX1027_CKS_MODE0 |
-			  MAX1027_REF_MODE2;
-		ret = spi_write(st->spi, &st->reg, 1);
-		if (ret < 0)
+		ret = max1027_enable_trigger(indio_dev, state);
+		if (ret)
 			return ret;
 
 		/*
@@ -418,10 +429,8 @@ static int max1027_set_cnvst_trigger_state(struct iio_trigger *trig, bool state)
 			return ret;
 	} else {
 		/* Start acquisition on conversion register write */
-		st->reg = MAX1027_SETUP_REG | MAX1027_CKS_MODE2	|
-			  MAX1027_REF_MODE2;
-		ret = spi_write(st->spi, &st->reg, 1);
-		if (ret < 0)
+		ret = max1027_enable_trigger(indio_dev, state);
+		if (ret)
 			return ret;
 	}
 
