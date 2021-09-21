@@ -17,6 +17,7 @@
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <linux/sys_soc.h>
+#include <linux/timekeeping.h>
 #include <linux/iopoll.h>
 
 #include <linux/platform_data/ti-sysc.h>
@@ -223,33 +224,73 @@ static u32 sysc_read_sysstatus(struct sysc *ddata)
 	return sysc_read(ddata, offset);
 }
 
-/* Poll on reset status */
-static int sysc_wait_softreset(struct sysc *ddata)
+static int sysc_poll_reset_sysstatus(struct sysc *ddata)
 {
-	u32 sysc_mask, syss_done, rstval;
-	int syss_offset, error = 0;
-
-	if (ddata->cap->regbits->srst_shift < 0)
-		return 0;
-
-	syss_offset = ddata->offsets[SYSC_SYSSTATUS];
-	sysc_mask = BIT(ddata->cap->regbits->srst_shift);
+	int error, retries;
+	u32 syss_done, rstval;
 
 	if (ddata->cfg.quirks & SYSS_QUIRK_RESETDONE_INVERTED)
 		syss_done = 0;
 	else
 		syss_done = ddata->cfg.syss_mask;
 
-	if (syss_offset >= 0) {
+	if (likely(!timekeeping_suspended)) {
 		error = readx_poll_timeout_atomic(sysc_read_sysstatus, ddata,
 				rstval, (rstval & ddata->cfg.syss_mask) ==
 				syss_done, 100, MAX_MODULE_SOFTRESET_WAIT);
+	} else {
+		retries = MAX_MODULE_SOFTRESET_WAIT;
+		while (retries--) {
+			rstval = sysc_read_sysstatus(ddata);
+			if ((rstval & ddata->cfg.syss_mask) == syss_done)
+				return 0;
+			udelay(2); /* Account for udelay flakeyness */
+		}
+		error = -ETIMEDOUT;
+	}
 
-	} else if (ddata->cfg.quirks & SYSC_QUIRK_RESET_STATUS) {
+	return error;
+}
+
+static int sysc_poll_reset_sysconfig(struct sysc *ddata)
+{
+	int error, retries;
+	u32 sysc_mask, rstval;
+
+	sysc_mask = BIT(ddata->cap->regbits->srst_shift);
+
+	if (likely(!timekeeping_suspended)) {
 		error = readx_poll_timeout_atomic(sysc_read_sysconfig, ddata,
 				rstval, !(rstval & sysc_mask),
 				100, MAX_MODULE_SOFTRESET_WAIT);
+	} else {
+		retries = MAX_MODULE_SOFTRESET_WAIT;
+		while (retries--) {
+			rstval = sysc_read_sysconfig(ddata);
+			if (!(rstval & sysc_mask))
+				return 0;
+			udelay(2); /* Account for udelay flakeyness */
+		}
+		error = -ETIMEDOUT;
 	}
+
+	return error;
+}
+
+/* Poll on reset status */
+static int sysc_wait_softreset(struct sysc *ddata)
+{
+	int syss_offset, error = 0;
+
+	if (ddata->cap->regbits->srst_shift < 0)
+		return 0;
+
+	syss_offset = ddata->offsets[SYSC_SYSSTATUS];
+
+	if (syss_offset >= 0)
+		error = sysc_poll_reset_sysstatus(ddata);
+	else if (ddata->cfg.quirks & SYSC_QUIRK_RESET_STATUS)
+		error = sysc_poll_reset_sysconfig(ddata);
 
 	return error;
 }
