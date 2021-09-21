@@ -328,8 +328,8 @@ static int max1027_read_raw(struct iio_dev *indio_dev,
 }
 
 static int max1027_debugfs_reg_access(struct iio_dev *indio_dev,
-				      unsigned reg, unsigned writeval,
-				      unsigned *readval)
+				      unsigned int reg, unsigned int writeval,
+				      unsigned int *readval)
 {
 	struct max1027_state *st = iio_priv(indio_dev);
 	u8 *val = (u8 *)st->buffer;
@@ -425,7 +425,7 @@ static int max1027_probe(struct spi_device *spi)
 	pr_debug("%s: probe(spi = 0x%p)\n", __func__, spi);
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
-	if (indio_dev == NULL) {
+	if (!indio_dev) {
 		pr_err("Can't allocate iio device\n");
 		return -ENOMEM;
 	}
@@ -444,9 +444,9 @@ static int max1027_probe(struct spi_device *spi)
 	indio_dev->available_scan_masks = st->info->available_scan_masks;
 
 	st->buffer = devm_kmalloc_array(&indio_dev->dev,
-				  indio_dev->num_channels, 2,
-				  GFP_KERNEL);
-	if (st->buffer == NULL) {
+					indio_dev->num_channels, 2,
+					GFP_KERNEL);
+	if (!st->buffer) {
 		dev_err(&indio_dev->dev, "Can't allocate buffer\n");
 		return -ENOMEM;
 	}
@@ -463,7 +463,7 @@ static int max1027_probe(struct spi_device *spi)
 
 		st->trig = devm_iio_trigger_alloc(&spi->dev, "%s-trigger",
 						  indio_dev->name);
-		if (st->trig == NULL) {
+		if (!st->trig) {
 			ret = -ENOMEM;
 			dev_err(&indio_dev->dev,
 				"Failed to allocate iio trigger\n");
