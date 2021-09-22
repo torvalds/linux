@@ -35,7 +35,11 @@
 #include "amdgpu_xgmi.h"
 #include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
 #include "atom.h"
+#ifdef CONFIG_X86_MCE_AMD
+#include <asm/mce.h>
 
+static bool notifier_registered;
+#endif
 static const char *RAS_FS_NAME = "ras";
 
 const char *ras_error_string[] = {
@@ -107,6 +111,9 @@ static bool amdgpu_ras_check_bad_page_unlock(struct amdgpu_ras *con,
 				uint64_t addr);
 static bool amdgpu_ras_check_bad_page(struct amdgpu_device *adev,
 				uint64_t addr);
+#ifdef CONFIG_X86_MCE_AMD
+static void amdgpu_register_bad_pages_mca_notifier(void);
+#endif
 
 void amdgpu_ras_set_error_query_ready(struct amdgpu_device *adev, bool ready)
 {
@@ -2098,6 +2105,11 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 			adev->smu.ppt_funcs->send_hbm_bad_pages_num(&adev->smu, con->eeprom_control.ras_num_recs);
 	}
 
+#ifdef CONFIG_X86_MCE_AMD
+	if ((adev->asic_type == CHIP_ALDEBARAN) &&
+	    (adev->gmc.xgmi.connected_to_cpu))
+		amdgpu_register_bad_pages_mca_notifier();
+#endif
 	return 0;
 
 free:
@@ -2589,3 +2601,132 @@ void amdgpu_release_ras_context(struct amdgpu_device *adev)
 		kfree(con);
 	}
 }
+
+#ifdef CONFIG_X86_MCE_AMD
+static struct amdgpu_device *find_adev(uint32_t node_id)
+{
+	struct amdgpu_gpu_instance *gpu_instance;
+	int i;
+	struct amdgpu_device *adev = NULL;
+
+	mutex_lock(&mgpu_info.mutex);
+
+	for (i = 0; i < mgpu_info.num_gpu; i++) {
+		gpu_instance = &(mgpu_info.gpu_ins[i]);
+		adev = gpu_instance->adev;
+
+		if (adev->gmc.xgmi.connected_to_cpu &&
+		    adev->gmc.xgmi.physical_node_id == node_id)
+			break;
+		adev = NULL;
+	}
+
+	mutex_unlock(&mgpu_info.mutex);
+
+	return adev;
+}
+
+#define GET_MCA_IPID_GPUID(m)	(((m) >> 44) & 0xF)
+#define GET_UMC_INST(m)		(((m) >> 21) & 0x7)
+#define GET_CHAN_INDEX(m)	((((m) >> 12) & 0x3) | (((m) >> 18) & 0x4))
+#define GPU_ID_OFFSET		8
+
+static int amdgpu_bad_page_notifier(struct notifier_block *nb,
+				    unsigned long val, void *data)
+{
+	struct mce *m = (struct mce *)data;
+	struct amdgpu_device *adev = NULL;
+	uint32_t gpu_id = 0;
+	uint32_t umc_inst = 0;
+	uint32_t ch_inst, channel_index = 0;
+	struct ras_err_data err_data = {0, 0, 0, NULL};
+	struct eeprom_table_record err_rec;
+	uint64_t retired_page;
+
+	/*
+	 * If the error was generated in UMC_V2, which belongs to GPU UMCs,
+	 * and error occurred in DramECC (Extended error code = 0) then only
+	 * process the error, else bail out.
+	 */
+	if (!m || !((smca_get_bank_type(m->bank) == SMCA_UMC_V2) &&
+		    (XEC(m->status, 0x3f) == 0x0)))
+		return NOTIFY_DONE;
+
+	/*
+	 * If it is correctable error, return.
+	 */
+	if (mce_is_correctable(m))
+		return NOTIFY_OK;
+
+	/*
+	 * GPU Id is offset by GPU_ID_OFFSET in MCA_IPID_UMC register.
+	 */
+	gpu_id = GET_MCA_IPID_GPUID(m->ipid) - GPU_ID_OFFSET;
+
+	adev = find_adev(gpu_id);
+	if (!adev) {
+		DRM_WARN("%s: Unable to find adev for gpu_id: %d\n", __func__,
+								gpu_id);
+		return NOTIFY_DONE;
+	}
+
+	/*
+	 * If it is uncorrectable error, then find out UMC instance and
+	 * channel index.
+	 */
+	umc_inst = GET_UMC_INST(m->ipid);
+	ch_inst = GET_CHAN_INDEX(m->ipid);
+
+	dev_info(adev->dev, "Uncorrectable error detected in UMC inst: %d, chan_idx: %d",
+			     umc_inst, ch_inst);
+
+	memset(&err_rec, 0x0, sizeof(struct eeprom_table_record));
+
+	/*
+	 * Translate UMC channel address to Physical address
+	 */
+	channel_index =
+		adev->umc.channel_idx_tbl[umc_inst * adev->umc.channel_inst_num
+					  + ch_inst];
+
+	retired_page = ADDR_OF_8KB_BLOCK(m->addr) |
+			ADDR_OF_256B_BLOCK(channel_index) |
+			OFFSET_IN_256B_BLOCK(m->addr);
+
+	err_rec.address = m->addr;
+	err_rec.retired_page = retired_page >> AMDGPU_GPU_PAGE_SHIFT;
+	err_rec.ts = (uint64_t)ktime_get_real_seconds();
+	err_rec.err_type = AMDGPU_RAS_EEPROM_ERR_NON_RECOVERABLE;
+	err_rec.cu = 0;
+	err_rec.mem_channel = channel_index;
+	err_rec.mcumc_id = umc_inst;
+
+	err_data.err_addr = &err_rec;
+	err_data.err_addr_cnt = 1;
+
+	if (amdgpu_bad_page_threshold != 0) {
+		amdgpu_ras_add_bad_pages(adev, err_data.err_addr,
+						err_data.err_addr_cnt);
+		amdgpu_ras_save_bad_pages(adev);
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block amdgpu_bad_page_nb = {
+	.notifier_call  = amdgpu_bad_page_notifier,
+	.priority       = MCE_PRIO_UC,
+};
+
+static void amdgpu_register_bad_pages_mca_notifier(void)
+{
+	/*
+	 * Register the x86 notifier only once
+	 * with MCE subsystem.
+	 */
+	if (notifier_registered == false) {
+		mce_register_decode_chain(&amdgpu_bad_page_nb);
+		notifier_registered = true;
+	}
+}
+#endif
