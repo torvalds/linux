@@ -97,6 +97,11 @@ static inline void srr_regs_clobbered(void)
 	local_paca->hsrr_valid = 0;
 }
 #else
+static inline unsigned long search_kernel_restart_table(unsigned long addr)
+{
+	return 0;
+}
+
 static inline bool is_implicit_soft_masked(struct pt_regs *regs)
 {
 	return false;
@@ -193,13 +198,14 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrup
 		 */
 		if (TRAP(regs) != INTERRUPT_PROGRAM) {
 			CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
-			BUG_ON(is_implicit_soft_masked(regs));
+			if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
+				BUG_ON(is_implicit_soft_masked(regs));
 		}
-#ifdef CONFIG_PPC_BOOK3S
+
 		/* Move this under a debugging check */
-		if (arch_irq_disabled_regs(regs))
+		if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG) &&
+				arch_irq_disabled_regs(regs))
 			BUG_ON(search_kernel_restart_table(regs->nip));
-#endif
 	}
 	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
 		BUG_ON(!arch_irq_disabled_regs(regs) && !(regs->msr & MSR_EE));
