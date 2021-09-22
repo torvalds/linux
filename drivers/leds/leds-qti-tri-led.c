@@ -18,6 +18,7 @@
 #include <linux/pwm.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
+#include <linux/qpnp/qti-pwm.h>
 
 #define TRILED_REG_TYPE			0x04
 #define TRILED_REG_SUBTYPE		0x05
@@ -111,17 +112,24 @@ static int __tri_led_config_pwm(struct qpnp_led_dev *led,
 				struct pwm_setting *pwm)
 {
 	struct pwm_state pstate;
+	enum pwm_output_type output_type;
 	int rc;
 
 	pwm_get_state(led->pwm_dev, &pstate);
 	pstate.enabled = !!(pwm->duty_ns != 0);
 	pstate.period = pwm->period_ns;
 	pstate.duty_cycle = pwm->duty_ns;
-	pstate.output_type = led->led_setting.breath ?
+	output_type = led->led_setting.breath ?
 		PWM_OUTPUT_MODULATED : PWM_OUTPUT_FIXED;
 
-	rc = pwm_apply_state(led->pwm_dev, &pstate);
+	rc = qpnp_lpg_pwm_set_output_type(led->pwm_dev, output_type);
+	if (rc < 0) {
+		dev_err(led->chip->dev, "Set output_type for %s led failed, rc=%d\n",
+			led->cdev.name, rc);
+		return rc;
+	}
 
+	rc = pwm_apply_state(led->pwm_dev, &pstate);
 	if (rc < 0)
 		dev_err(led->chip->dev, "Apply PWM state for %s led failed, rc=%d\n",
 					led->cdev.name, rc);
@@ -418,8 +426,8 @@ static int qpnp_tri_led_register(struct qpnp_tri_led_chip *chip)
 			goto err_out;
 		}
 
-		if (pwm_get_output_type_supported(led->pwm_dev)
-				& PWM_OUTPUT_MODULATED) {
+		rc = qpnp_lpg_pwm_get_output_types_supported(led->pwm_dev);
+		if (rc > 0 && (rc & PWM_OUTPUT_MODULATED)) {
 			rc = sysfs_create_files(&led->cdev.dev->kobj,
 					breath_attrs);
 			if (rc < 0) {
