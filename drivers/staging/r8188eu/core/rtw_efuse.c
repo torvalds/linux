@@ -517,66 +517,6 @@ exit:
 }
 
 /*-----------------------------------------------------------------------------
- * Function:	efuse_ShadowRead1Byte
- *			efuse_ShadowRead2Byte
- *			efuse_ShadowRead4Byte
- *
- * Overview:	Read from efuse init map by one/two/four bytes !!!!!
- *
- * Input:       NONE
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- * When			Who		Remark
- * 11/12/2008	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
-static void
-efuse_ShadowRead1Byte(
-		struct adapter *pAdapter,
-		u16 Offset,
-		u8 *Value)
-{
-	struct eeprom_priv *pEEPROM = &pAdapter->eeprompriv;
-
-	*Value = pEEPROM->efuse_eeprom_data[Offset];
-
-}	/*  EFUSE_ShadowRead1Byte */
-
-/* Read Two Bytes */
-static void
-efuse_ShadowRead2Byte(
-		struct adapter *pAdapter,
-		u16 Offset,
-		u16 *Value)
-{
-	struct eeprom_priv *pEEPROM = &pAdapter->eeprompriv;
-
-	*Value = pEEPROM->efuse_eeprom_data[Offset];
-	*Value |= pEEPROM->efuse_eeprom_data[Offset + 1] << 8;
-
-}	/*  EFUSE_ShadowRead2Byte */
-
-/* Read Four Bytes */
-static void
-efuse_ShadowRead4Byte(
-		struct adapter *pAdapter,
-		u16 Offset,
-		u32 *Value)
-{
-	struct eeprom_priv *pEEPROM = &pAdapter->eeprompriv;
-
-	*Value = pEEPROM->efuse_eeprom_data[Offset];
-	*Value |= pEEPROM->efuse_eeprom_data[Offset + 1] << 8;
-	*Value |= pEEPROM->efuse_eeprom_data[Offset + 2] << 16;
-	*Value |= pEEPROM->efuse_eeprom_data[Offset + 3] << 24;
-
-}	/*  efuse_ShadowRead4Byte */
-
-/*-----------------------------------------------------------------------------
  * Function:	Efuse_ReadAllMap
  *
  * Overview:	Read All Efuse content
@@ -636,30 +576,3 @@ void EFUSE_ShadowMapUpdate(
 	else
 		Efuse_ReadAllMap(pAdapter, efuseType, pEEPROM->efuse_eeprom_data, pseudo);
 } /*  EFUSE_ShadowMapUpdate */
-
-/*-----------------------------------------------------------------------------
- * Function:	EFUSE_ShadowRead
- *
- * Overview:	Read from efuse init map !!!!!
- *
- * Input:       NONE
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- * When			Who		Remark
- * 11/12/2008	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
-void EFUSE_ShadowRead(struct adapter *pAdapter, u8 Type, u16 Offset, u32 *Value)
-{
-	if (Type == 1)
-		efuse_ShadowRead1Byte(pAdapter, Offset, (u8 *)Value);
-	else if (Type == 2)
-		efuse_ShadowRead2Byte(pAdapter, Offset, (u16 *)Value);
-	else if (Type == 4)
-		efuse_ShadowRead4Byte(pAdapter, Offset, (u32 *)Value);
-
-}	/*  EFUSE_ShadowRead */
