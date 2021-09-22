@@ -753,7 +753,8 @@ err_pd:
  * space.
  *
  */
-struct i915_ppgtt *gen8_ppgtt_create(struct intel_gt *gt)
+struct i915_ppgtt *gen8_ppgtt_create(struct intel_gt *gt,
+				     unsigned long lmem_pt_obj_flags)
 {
 	struct i915_ppgtt *ppgtt;
 	int err;
@@ -762,7 +763,7 @@ struct i915_ppgtt *gen8_ppgtt_create(struct intel_gt *gt)
 	if (!ppgtt)
 		return ERR_PTR(-ENOMEM);
 
-	ppgtt_init(ppgtt, gt);
+	ppgtt_init(ppgtt, gt, lmem_pt_obj_flags);
 	ppgtt->vm.top = i915_vm_is_4lvl(&ppgtt->vm) ? 3 : 2;
 	ppgtt->vm.pd_shift = ilog2(SZ_4K * SZ_4K / sizeof(gen8_pte_t));
 

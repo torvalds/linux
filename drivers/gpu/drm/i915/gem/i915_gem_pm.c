@@ -97,8 +97,12 @@ int i915_gem_backup_suspend(struct drm_i915_private *i915)
 	 * More objects may have become unpinned as requests were
 	 * retired. Now try to evict again. The gt may be wedged here
 	 * in which case we automatically fall back to memcpy.
+	 * We allow also backing up pinned objects that have not been
+	 * marked for early recover, and that may contain, for example,
+	 * page-tables for the migrate context.
 	 */
-	ret = lmem_suspend(i915, I915_TTM_BACKUP_ALLOW_GPU);
+	ret = lmem_suspend(i915, I915_TTM_BACKUP_ALLOW_GPU |
+			   I915_TTM_BACKUP_PINNED);
 	if (ret)
 		goto out_recover;
 

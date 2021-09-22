@@ -294,13 +294,16 @@ struct drm_i915_gem_object {
 #define I915_BO_ALLOC_USER        BIT(3)
 /* Object is allowed to lose its contents on suspend / resume, even if pinned */
 #define I915_BO_ALLOC_PM_VOLATILE BIT(4)
+/* Object needs to be restored early using memcpy during resume */
+#define I915_BO_ALLOC_PM_EARLY    BIT(5)
 #define I915_BO_ALLOC_FLAGS (I915_BO_ALLOC_CONTIGUOUS | \
 			     I915_BO_ALLOC_VOLATILE | \
 			     I915_BO_ALLOC_CPU_CLEAR | \
 			     I915_BO_ALLOC_USER | \
-			     I915_BO_ALLOC_PM_VOLATILE)
-#define I915_BO_READONLY          BIT(5)
-#define I915_TILING_QUIRK_BIT     6 /* unknown swizzling; do not release! */
+			     I915_BO_ALLOC_PM_VOLATILE | \
+			     I915_BO_ALLOC_PM_EARLY)
+#define I915_BO_READONLY          BIT(6)
+#define I915_TILING_QUIRK_BIT     7 /* unknown swizzling; do not release! */
 
 	/**
 	 * @mem_flags - Mutable placement-related flags

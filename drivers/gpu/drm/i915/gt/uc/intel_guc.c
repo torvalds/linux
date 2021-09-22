@@ -651,7 +651,8 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 	if (HAS_LMEM(gt->i915))
 		obj = i915_gem_object_create_lmem(gt->i915, size,
 						  I915_BO_ALLOC_CPU_CLEAR |
-						  I915_BO_ALLOC_CONTIGUOUS);
+						  I915_BO_ALLOC_CONTIGUOUS |
+						  I915_BO_ALLOC_PM_EARLY);
 	else
 		obj = i915_gem_object_create_shmem(gt->i915, size);
 

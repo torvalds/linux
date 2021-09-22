@@ -372,10 +372,13 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 	if (uc_fw->type == INTEL_UC_FW_TYPE_GUC)
 		uc_fw->private_data_size = css->private_data_size;
 
-	if (HAS_LMEM(i915))
+	if (HAS_LMEM(i915)) {
 		obj = i915_gem_object_create_lmem_from_data(i915, fw->data, fw->size);
-	else
+		if (!IS_ERR(obj))
+			obj->flags |= I915_BO_ALLOC_PM_EARLY;
+	} else {
 		obj = i915_gem_object_create_shmem_from_data(i915, fw->data, fw->size);
+	}
 
 	if (IS_ERR(obj)) {
 		err = PTR_ERR(obj);

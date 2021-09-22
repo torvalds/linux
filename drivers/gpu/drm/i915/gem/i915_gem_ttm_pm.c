@@ -57,7 +57,8 @@ static int i915_ttm_backup(struct i915_gem_apply_to_region *apply,
 	if (pm_apply->allow_gpu && i915_gem_object_evictable(obj))
 		return ttm_bo_validate(bo, i915_ttm_sys_placement(), &ctx);
 
-	if (!pm_apply->backup_pinned)
+	if (!pm_apply->backup_pinned ||
+	    (pm_apply->allow_gpu && (obj->flags & I915_BO_ALLOC_PM_EARLY)))
 		return 0;
 
 	if (obj->flags & I915_BO_ALLOC_PM_VOLATILE)
@@ -155,7 +156,7 @@ static int i915_ttm_restore(struct i915_gem_apply_to_region *apply,
 	if (!backup)
 		return 0;
 
-	if (!pm_apply->allow_gpu && (obj->flags & I915_BO_ALLOC_USER))
+	if (!pm_apply->allow_gpu && !(obj->flags & I915_BO_ALLOC_PM_EARLY))
 		return 0;
 
 	err = i915_gem_object_lock(backup, apply->ww);
