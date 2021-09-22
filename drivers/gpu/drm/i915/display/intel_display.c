@@ -8098,10 +8098,12 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 		if (bp_gamma)
 			PIPE_CONF_CHECK_COLOR_LUT(gamma_mode, hw.gamma_lut, bp_gamma);
 
-		PIPE_CONF_CHECK_BOOL(has_psr);
-		PIPE_CONF_CHECK_BOOL(has_psr2);
-		PIPE_CONF_CHECK_BOOL(enable_psr2_sel_fetch);
-		PIPE_CONF_CHECK_I(dc3co_exitline);
+		if (current_config->active_planes) {
+			PIPE_CONF_CHECK_BOOL(has_psr);
+			PIPE_CONF_CHECK_BOOL(has_psr2);
+			PIPE_CONF_CHECK_BOOL(enable_psr2_sel_fetch);
+			PIPE_CONF_CHECK_I(dc3co_exitline);
+		}
 	}
 
 	PIPE_CONF_CHECK_BOOL(double_wide);
@@ -8158,7 +8160,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 		PIPE_CONF_CHECK_I(min_voltage_level);
 	}
 
-	if (fastset && (current_config->has_psr || pipe_config->has_psr))
+	if (current_config->has_psr || pipe_config->has_psr)
 		PIPE_CONF_CHECK_X_WITH_MASK(infoframes.enable,
 					    ~intel_hdmi_infoframe_enable(DP_SDP_VSC));
 	else
@@ -10212,6 +10214,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 		intel_encoders_update_prepare(state);
 
 	intel_dbuf_pre_plane_update(state);
+	intel_psr_pre_plane_update(state);
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		if (new_crtc_state->uapi.async_flip)
@@ -10275,6 +10278,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	}
 
 	intel_dbuf_post_plane_update(state);
+	intel_psr_post_plane_update(state);
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		intel_post_plane_update(state, crtc);

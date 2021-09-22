@@ -1674,7 +1674,7 @@ void intel_dp_compute_psr_vsc_sdp(struct intel_dp *intel_dp,
 {
 	vsc->sdp_type = DP_SDP_VSC;
 
-	if (intel_dp->psr.psr2_enabled) {
+	if (crtc_state->has_psr2) {
 		if (intel_dp->psr.colorimetry_support &&
 		    intel_dp_needs_vsc_sdp(crtc_state, conn_state)) {
 			/* [PSR2, +Colorimetry] */
@@ -1828,7 +1828,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		g4x_dp_set_clock(encoder, pipe_config);
 
 	intel_vrr_compute_config(pipe_config, conn_state);
-	intel_psr_compute_config(intel_dp, pipe_config);
+	intel_psr_compute_config(intel_dp, pipe_config, conn_state);
 	intel_drrs_compute_config(intel_dp, pipe_config, output_bpp,
 				  constant_n);
 	intel_dp_compute_vsc_sdp(intel_dp, pipe_config, conn_state);
@@ -2888,7 +2888,7 @@ static void intel_write_dp_sdp(struct intel_encoder *encoder,
 
 void intel_write_dp_vsc_sdp(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state,
-			    struct drm_dp_vsc_sdp *vsc)
+			    const struct drm_dp_vsc_sdp *vsc)
 {
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);

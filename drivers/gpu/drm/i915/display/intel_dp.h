@@ -88,7 +88,7 @@ void intel_dp_compute_psr_vsc_sdp(struct intel_dp *intel_dp,
 				  struct drm_dp_vsc_sdp *vsc);
 void intel_write_dp_vsc_sdp(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state,
-			    struct drm_dp_vsc_sdp *vsc);
+			    const struct drm_dp_vsc_sdp *vsc);
 void intel_dp_set_infoframes(struct intel_encoder *encoder, bool enable,
 			     const struct intel_crtc_state *crtc_state,
 			     const struct drm_connector_state *conn_state);

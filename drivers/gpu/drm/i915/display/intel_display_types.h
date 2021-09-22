@@ -1054,12 +1054,14 @@ struct intel_crtc_state {
 	struct intel_link_m_n dp_m2_n2;
 	bool has_drrs;
 
+	/* PSR is supported but might not be enabled due the lack of enabled planes */
 	bool has_psr;
 	bool has_psr2;
 	bool enable_psr2_sel_fetch;
 	bool req_psr2_sdp_prior_scanline;
 	u32 dc3co_exitline;
 	u16 su_y_granularity;
+	struct drm_dp_vsc_sdp psr_vsc;
 
 	/*
 	 * Frequence the dpll for the port should run at. Differs from the
@@ -1523,7 +1525,6 @@ struct intel_psr {
 	u32 dc3co_exitline;
 	u32 dc3co_exit_delay;
 	struct delayed_work dc3co_work;
-	struct drm_dp_vsc_sdp vsc;
 };
 
 struct intel_dp {

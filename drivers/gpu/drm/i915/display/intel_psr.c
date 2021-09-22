@@ -950,7 +950,8 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 }
 
 void intel_psr_compute_config(struct intel_dp *intel_dp,
-			      struct intel_crtc_state *crtc_state)
+			      struct intel_crtc_state *crtc_state,
+			      struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	const struct drm_display_mode *adjusted_mode =
@@ -1002,7 +1003,10 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 
 	crtc_state->has_psr = true;
 	crtc_state->has_psr2 = intel_psr2_config_valid(intel_dp, crtc_state);
+
 	crtc_state->infoframes.enable |= intel_hdmi_infoframe_enable(DP_SDP_VSC);
+	intel_dp_compute_psr_vsc_sdp(intel_dp, crtc_state, conn_state,
+				     &crtc_state->psr_vsc);
 }
 
 void intel_psr_get_config(struct intel_encoder *encoder,
@@ -1182,8 +1186,7 @@ static bool psr_interrupt_error_check(struct intel_dp *intel_dp)
 }
 
 static void intel_psr_enable_locked(struct intel_dp *intel_dp,
-				    const struct intel_crtc_state *crtc_state,
-				    const struct drm_connector_state *conn_state)
+				    const struct intel_crtc_state *crtc_state)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
@@ -1210,9 +1213,7 @@ static void intel_psr_enable_locked(struct intel_dp *intel_dp,
 
 	drm_dbg_kms(&dev_priv->drm, "Enabling PSR%s\n",
 		    intel_dp->psr.psr2_enabled ? "2" : "1");
-	intel_dp_compute_psr_vsc_sdp(intel_dp, crtc_state, conn_state,
-				     &intel_dp->psr.vsc);
-	intel_write_dp_vsc_sdp(encoder, crtc_state, &intel_dp->psr.vsc);
+	intel_write_dp_vsc_sdp(encoder, crtc_state, &crtc_state->psr_vsc);
 	intel_snps_phy_update_psr_power_state(dev_priv, phy, true);
 	intel_psr_enable_sink(intel_dp);
 	intel_psr_enable_source(intel_dp);
@@ -1220,33 +1221,6 @@ static void intel_psr_enable_locked(struct intel_dp *intel_dp,
 	intel_dp->psr.paused = false;
 
 	intel_psr_activate(intel_dp);
-}
-
-/**
- * intel_psr_enable - Enable PSR
- * @intel_dp: Intel DP
- * @crtc_state: new CRTC state
- * @conn_state: new CONNECTOR state
- *
- * This function can only be called after the pipe is fully trained and enabled.
- */
-void intel_psr_enable(struct intel_dp *intel_dp,
-		      const struct intel_crtc_state *crtc_state,
-		      const struct drm_connector_state *conn_state)
-{
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-
-	if (!CAN_PSR(intel_dp))
-		return;
-
-	if (!crtc_state->has_psr)
-		return;
-
-	drm_WARN_ON(&dev_priv->drm, dev_priv->drrs.dp);
-
-	mutex_lock(&intel_dp->psr.lock);
-	intel_psr_enable_locked(intel_dp, crtc_state, conn_state);
-	mutex_unlock(&intel_dp->psr.lock);
 }
 
 static void intel_psr_exit(struct intel_dp *intel_dp)
@@ -1734,48 +1708,92 @@ skip_sel_fetch_set_loop:
 	return 0;
 }
 
-/**
- * intel_psr_update - Update PSR state
- * @intel_dp: Intel DP
- * @crtc_state: new CRTC state
- * @conn_state: new CONNECTOR state
- *
- * This functions will update PSR states, disabling, enabling or switching PSR
- * version when executing fastsets. For full modeset, intel_psr_disable() and
- * intel_psr_enable() should be called instead.
- */
-void intel_psr_update(struct intel_dp *intel_dp,
-		      const struct intel_crtc_state *crtc_state,
-		      const struct drm_connector_state *conn_state)
+static void _intel_psr_pre_plane_update(const struct intel_atomic_state *state,
+					const struct intel_crtc_state *crtc_state)
 {
-	struct intel_psr *psr = &intel_dp->psr;
-	bool enable, psr2_enable;
+	struct intel_encoder *encoder;
 
-	if (!CAN_PSR(intel_dp))
+	for_each_intel_encoder_mask_with_psr(state->base.dev, encoder,
+					     crtc_state->uapi.encoder_mask) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		struct intel_psr *psr = &intel_dp->psr;
+		bool needs_to_disable = false;
+
+		mutex_lock(&psr->lock);
+
+		/*
+		 * Reasons to disable:
+		 * - PSR disabled in new state
+		 * - All planes will go inactive
+		 * - Changing between PSR versions
+		 */
+		needs_to_disable |= !crtc_state->has_psr;
+		needs_to_disable |= !crtc_state->active_planes;
+		needs_to_disable |= crtc_state->has_psr2 != psr->psr2_enabled;
+
+		if (psr->enabled && needs_to_disable)
+			intel_psr_disable_locked(intel_dp);
+
+		mutex_unlock(&psr->lock);
+	}
+}
+
+void intel_psr_pre_plane_update(const struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc_state *crtc_state;
+	struct intel_crtc *crtc;
+	int i;
+
+	if (!HAS_PSR(dev_priv))
 		return;
 
-	mutex_lock(&intel_dp->psr.lock);
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i)
+		_intel_psr_pre_plane_update(state, crtc_state);
+}
 
-	enable = crtc_state->has_psr;
-	psr2_enable = crtc_state->has_psr2;
+static void _intel_psr_post_plane_update(const struct intel_atomic_state *state,
+					 const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_encoder *encoder;
 
-	if (enable == psr->enabled && psr2_enable == psr->psr2_enabled &&
-	    crtc_state->enable_psr2_sel_fetch == psr->psr2_sel_fetch_enabled) {
+	if (!crtc_state->has_psr)
+		return;
+
+	for_each_intel_encoder_mask_with_psr(state->base.dev, encoder,
+					     crtc_state->uapi.encoder_mask) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		struct intel_psr *psr = &intel_dp->psr;
+
+		mutex_lock(&psr->lock);
+
+		drm_WARN_ON(&dev_priv->drm, psr->enabled && !crtc_state->active_planes);
+
+		/* Only enable if there is active planes */
+		if (!psr->enabled && crtc_state->active_planes)
+			intel_psr_enable_locked(intel_dp, crtc_state);
+
 		/* Force a PSR exit when enabling CRC to avoid CRC timeouts */
 		if (crtc_state->crc_enabled && psr->enabled)
 			psr_force_hw_tracking_exit(intel_dp);
 
-		goto unlock;
+		mutex_unlock(&psr->lock);
 	}
+}
 
-	if (psr->enabled)
-		intel_psr_disable_locked(intel_dp);
+void intel_psr_post_plane_update(const struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc_state *crtc_state;
+	struct intel_crtc *crtc;
+	int i;
 
-	if (enable)
-		intel_psr_enable_locked(intel_dp, crtc_state, conn_state);
+	if (!HAS_PSR(dev_priv))
+		return;
 
-unlock:
-	mutex_unlock(&intel_dp->psr.lock);
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i)
+		_intel_psr_post_plane_update(state, crtc_state);
 }
 
 /**
