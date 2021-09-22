@@ -13,29 +13,6 @@
 
 extern void indicate_wx_scan_complete_event(struct adapter *padapter);
 
-u8 rtw_validate_ssid(struct ndis_802_11_ssid *ssid)
-{
-	u8	 i;
-	u8	ret = true;
-
-	if (ssid->SsidLength > 32) {
-		ret = false;
-		goto exit;
-	}
-
-	for (i = 0; i < ssid->SsidLength; i++) {
-		/* wifi, printable ascii code must be supported */
-		if (!((ssid->Ssid[i] >= 0x20) && (ssid->Ssid[i] <= 0x7e))) {
-			ret = false;
-			break;
-		}
-	}
-
-exit:
-
-	return ret;
-}
-
 u8 rtw_do_join(struct adapter *padapter)
 {
 	struct list_head *plist, *phead;
