@@ -977,13 +977,18 @@ static void *worker_testapp_validate_tx(void *arg)
 
 static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream *pkt_stream)
 {
-	u32 idx = 0, i;
+	u32 idx = 0, i, buffers_to_fill;
 	int ret;
 
-	ret = xsk_ring_prod__reserve(&umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS, &idx);
-	if (ret != XSK_RING_PROD__DEFAULT_NUM_DESCS)
+	if (umem->num_frames < XSK_RING_PROD__DEFAULT_NUM_DESCS)
+		buffers_to_fill = umem->num_frames;
+	else
+		buffers_to_fill = XSK_RING_PROD__DEFAULT_NUM_DESCS;
+
+	ret = xsk_ring_prod__reserve(&umem->fq, buffers_to_fill, &idx);
+	if (ret != buffers_to_fill)
 		exit_with_error(ENOSPC);
-	for (i = 0; i < XSK_RING_PROD__DEFAULT_NUM_DESCS; i++) {
+	for (i = 0; i < buffers_to_fill; i++) {
 		u64 addr;
 
 		if (pkt_stream->use_addr_for_fill) {
@@ -993,12 +998,12 @@ static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream
 				break;
 			addr = pkt->addr;
 		} else {
-			addr = (i % umem->num_frames) * umem->frame_size + DEFAULT_OFFSET;
+			addr = i * umem->frame_size + DEFAULT_OFFSET;
 		}
 
 		*xsk_ring_prod__fill_addr(&umem->fq, idx++) = addr;
 	}
-	xsk_ring_prod__submit(&umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS);
+	xsk_ring_prod__submit(&umem->fq, buffers_to_fill);
 }
 
 static void *worker_testapp_validate_rx(void *arg)
