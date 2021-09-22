@@ -2176,6 +2176,30 @@ static u8 mlx5e_enumerate_lag_port(struct mlx5_core_dev *mdev, int ix)
 	return (ix + port_aff_bias) % mlx5e_get_num_lag_ports(mdev);
 }
 
+static int mlx5e_channel_stats_alloc(struct mlx5e_priv *priv, int ix, int cpu)
+{
+	if (ix > priv->stats_nch)  {
+		netdev_warn(priv->netdev, "Unexpected channel stats index %d > %d\n", ix,
+			    priv->stats_nch);
+		return -EINVAL;
+	}
+
+	if (priv->channel_stats[ix])
+		return 0;
+
+	/* Asymmetric dynamic memory allocation.
+	 * Freed in mlx5e_priv_arrays_free, not on channel closure.
+	 */
+	mlx5e_dbg(DRV, priv, "Creating channel stats %d\n", ix);
+	priv->channel_stats[ix] = kvzalloc_node(sizeof(**priv->channel_stats),
+						GFP_KERNEL, cpu_to_node(cpu));
+	if (!priv->channel_stats[ix])
+		return -ENOMEM;
+	priv->stats_nch++;
+
+	return 0;
+}
+
 static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 			      struct mlx5e_params *params,
 			      struct mlx5e_channel_param *cparam,
@@ -2190,6 +2214,10 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	int err;
 
 	err = mlx5_vector2irqn(priv->mdev, ix, &irq);
+	if (err)
+		return err;
+
+	err = mlx5e_channel_stats_alloc(priv, ix, cpu);
 	if (err)
 		return err;
 
@@ -5153,7 +5181,6 @@ int mlx5e_priv_init(struct mlx5e_priv *priv,
 	priv->netdev      = netdev;
 	priv->msglevel    = MLX5E_MSG_LEVEL;
 	priv->max_nch     = nch;
-	priv->stats_nch   = nch;
 	priv->max_opened_tc = 1;
 
 	if (!alloc_cpumask_var(&priv->scratchpad.cpumask, GFP_KERNEL))
@@ -5196,20 +5223,8 @@ int mlx5e_priv_init(struct mlx5e_priv *priv,
 	if (!priv->channel_stats)
 		goto err_free_channel_tc2realtxq;
 
-	for (i = 0; i < priv->stats_nch; i++) {
-		priv->channel_stats[i] = kvzalloc_node(sizeof(**priv->channel_stats),
-						       GFP_KERNEL, node);
-		if (!priv->channel_stats[i])
-			goto err_free_channel_stats;
-	}
-
 	return 0;
 
-err_free_channel_stats:
-	while (--i >= 0)
-		kvfree(priv->channel_stats[i]);
-	kfree(priv->channel_stats);
-	i = nch;
 err_free_channel_tc2realtxq:
 	while (--i >= 0)
 		kfree(priv->channel_tc2realtxq[i]);
