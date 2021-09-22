@@ -1041,65 +1041,6 @@ void rtw_macaddr_cfg(u8 *mac_addr)
 	DBG_88E("rtw_macaddr_cfg MAC Address  = %pM\n", mac_addr);
 }
 
-void dump_ies(u8 *buf, u32 buf_len)
-{
-	u8 *pos = (u8 *)buf;
-	u8 id, len;
-
-	while (pos - buf <= buf_len) {
-		id = *pos;
-		len = *(pos + 1);
-
-		DBG_88E("%s ID:%u, LEN:%u\n", __func__, id, len);
-		dump_p2p_ie(pos, len);
-		dump_wps_ie(pos, len);
-
-		pos += (2 + len);
-	}
-}
-
-void dump_wps_ie(u8 *ie, u32 ie_len)
-{
-	u8 *pos = (u8 *)ie;
-	u16 id;
-	u16 len;
-	u8 *wps_ie;
-	uint wps_ielen;
-
-	wps_ie = rtw_get_wps_ie(ie, ie_len, NULL, &wps_ielen);
-	if (wps_ie != ie || wps_ielen == 0)
-		return;
-
-	pos += 6;
-	while (pos - ie < ie_len) {
-		id = RTW_GET_BE16(pos);
-		len = RTW_GET_BE16(pos + 2);
-		DBG_88E("%s ID:0x%04x, LEN:%u\n", __func__, id, len);
-		pos += (4 + len);
-	}
-}
-
-void dump_p2p_ie(u8 *ie, u32 ie_len)
-{
-	u8 *pos = (u8 *)ie;
-	u8 id;
-	u16 len;
-	u8 *p2p_ie;
-	uint p2p_ielen;
-
-	p2p_ie = rtw_get_p2p_ie(ie, ie_len, NULL, &p2p_ielen);
-	if (p2p_ie != ie || p2p_ielen == 0)
-		return;
-
-	pos += 6;
-	while (pos - ie < ie_len) {
-		id = *pos;
-		len = get_unaligned_le16(pos + 1);
-		DBG_88E("%s ID:%u, LEN:%u\n", __func__, id, len);
-		pos += (3 + len);
-	}
-}
-
 /**
  * rtw_get_p2p_ie - Search P2P IE from a series of IEs
  * @in_ie: Address of IEs to search
