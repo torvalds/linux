@@ -803,6 +803,11 @@ static int process_info_req(struct rtrs_srv_con *con,
 		return err;
 	}
 
+	if (strchr(msg->sessname, '/') || strchr(msg->sessname, '.')) {
+		rtrs_err(s, "sessname cannot contain / and .\n");
+		return -EINVAL;
+	}
+
 	if (exist_sessname(sess->srv->ctx,
 			   msg->sessname, &sess->srv->paths_uuid)) {
 		rtrs_err(s, "sessname is duplicated: %s\n", msg->sessname);
