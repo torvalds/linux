@@ -3511,15 +3511,8 @@ static int haptics_create_debugfs(struct haptics_chip *chip)
 		goto exit;
 	}
 
-	file = debugfs_create_u32("fifo_empty_thresh", 0600, hap_dir,
+	debugfs_create_u32("fifo_empty_thresh", 0600, hap_dir,
 			&chip->config.fifo_empty_thresh);
-	if (IS_ERR(file)) {
-		rc = PTR_ERR(file);
-		dev_err(chip->dev, "create fifo_empty_thresh debugfs failed, rc=%d\n",
-				rc);
-		goto exit;
-	}
-
 	chip->debugfs_dir = hap_dir;
 	return 0;
 
