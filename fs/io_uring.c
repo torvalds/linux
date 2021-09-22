@@ -5337,10 +5337,8 @@ static bool __io_poll_complete(struct io_kiocb *req, __poll_t mask)
 	}
 	if (req->poll.events & EPOLLONESHOT)
 		flags = 0;
-	if (!io_cqring_fill_event(ctx, req->user_data, error, flags)) {
-		req->poll.done = true;
+	if (!io_cqring_fill_event(ctx, req->user_data, error, flags))
 		flags = 0;
-	}
 	if (flags & IORING_CQE_F_MORE)
 		ctx->cq_extra++;
 
@@ -5371,6 +5369,7 @@ static void io_poll_task_func(struct io_kiocb *req, bool *locked)
 		if (done) {
 			io_poll_remove_double(req);
 			hash_del(&req->hash_node);
+			req->poll.done = true;
 		} else {
 			req->result = 0;
 			add_wait_queue(req->poll.head, &req->poll.wait);
@@ -5508,6 +5507,7 @@ static void io_async_task_func(struct io_kiocb *req, bool *locked)
 
 	hash_del(&req->hash_node);
 	io_poll_remove_double(req);
+	apoll->poll.done = true;
 	spin_unlock(&ctx->completion_lock);
 
 	if (!READ_ONCE(apoll->poll.canceled))
