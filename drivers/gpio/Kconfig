@@ -763,6 +763,18 @@ config GPIO_ZYNQ
 	help
 	  Say yes here to support Xilinx Zynq GPIO controller.
 
+config GPIO_ZYNQMP_MODEPIN
+	tristate "ZynqMP ps-mode pin gpio configuration driver"
+	depends on ZYNQMP_FIRMWARE
+	default ZYNQMP_FIRMWARE
+	help
+	  Say yes here to support the ZynqMP ps-mode pin gpio configuration
+	  driver.
+
+	  This ps-mode pin gpio driver is based on GPIO framework, PS_MODE
+	  is 4-bits boot mode pins. It sets and gets the status of
+	  the ps-mode pin. Every pin can be configured as input/output.
+
 config GPIO_LOONGSON1
 	tristate "Loongson1 GPIO support"
 	depends on MACH_LOONGSON32
