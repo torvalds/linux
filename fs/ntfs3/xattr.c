@@ -559,21 +559,14 @@ static noinline int ntfs_set_acl_ex(struct user_namespace *mnt_userns,
 		if (acl) {
 			umode_t mode = inode->i_mode;
 
-			err = posix_acl_equiv_mode(acl, &mode);
-			if (err < 0)
-				return err;
+			err = posix_acl_update_mode(mnt_userns, inode, &mode,
+						    &acl);
+			if (err)
+				goto out;
 
 			if (inode->i_mode != mode) {
 				inode->i_mode = mode;
 				mark_inode_dirty(inode);
-			}
-
-			if (!err) {
-				/*
-				 * ACL can be exactly represented in the
-				 * traditional file mode permission bits.
-				 */
-				acl = NULL;
 			}
 		}
 		name = XATTR_NAME_POSIX_ACL_ACCESS;
