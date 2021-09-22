@@ -1095,8 +1095,6 @@ enum secondary_ch_offset {
 	SCA = 1, /* secondary channel above */
 	SCB = 3,  /* secondary channel below */
 };
-u8 *rtw_set_ie_secondary_ch_offset(u8 *buf, u32 *buf_len,
-				   u8 secondary_ch_offset);
 
 u8 *rtw_get_ie(u8 *pbuf, int index, int *len, int limit);
 
