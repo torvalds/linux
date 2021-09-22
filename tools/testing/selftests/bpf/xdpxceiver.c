@@ -919,18 +919,17 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 		u64 umem_sz = ifobject->umem->num_frames * ifobject->umem->frame_size;
 		u32 ctr = 0;
 		void *bufs;
+		int ret;
 
 		bufs = mmap(NULL, umem_sz, PROT_READ | PROT_WRITE, mmap_flags, -1, 0);
 		if (bufs == MAP_FAILED)
 			exit_with_error(errno);
 
+		ret = xsk_configure_umem(&ifobject->umem_arr[i], bufs, umem_sz);
+		if (ret)
+			exit_with_error(-ret);
+
 		while (ctr++ < SOCK_RECONF_CTR) {
-			int ret;
-
-			ret = xsk_configure_umem(&ifobject->umem_arr[i], bufs, umem_sz);
-			if (ret)
-				exit_with_error(-ret);
-
 			ret = xsk_configure_socket(&ifobject->xsk_arr[i], &ifobject->umem_arr[i],
 						   ifobject, i);
 			if (!ret)
