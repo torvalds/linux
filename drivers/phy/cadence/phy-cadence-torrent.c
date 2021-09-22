@@ -235,6 +235,8 @@
 #define PHY_PMA_CMN_CTRL2		0x0001U
 #define PHY_PMA_PLL_RAW_CTRL		0x0003U
 
+#define CDNS_TORRENT_OUTPUT_CLOCKS	1
+
 static const char * const clk_names[] = {
 	[CDNS_TORRENT_REFCLK_DRIVER] = "refclk-driver",
 };
@@ -333,8 +335,7 @@ struct cdns_torrent_phy {
 	struct regmap_field *phy_pma_pll_raw_ctrl;
 	struct regmap_field *phy_reset_ctrl;
 	struct regmap_field *phy_pcs_iso_link_ctrl_1[MAX_NUM_LANES];
-	struct clk *clks[CDNS_TORRENT_REFCLK_DRIVER + 1];
-	struct clk_onecell_data clk_data;
+	struct clk_hw_onecell_data *clk_hw_data;
 };
 
 enum phy_powerstate {
@@ -1659,8 +1660,9 @@ static int cdns_torrent_derived_refclk_register(struct cdns_torrent_phy *cdns_ph
 	const char *parent_name;
 	struct regmap *regmap;
 	char clk_name[100];
+	struct clk_hw *hw;
 	struct clk *clk;
-	int i;
+	int i, ret;
 
 	derived_refclk = devm_kzalloc(dev, sizeof(*derived_refclk), GFP_KERNEL);
 	if (!derived_refclk)
@@ -1706,11 +1708,12 @@ static int cdns_torrent_derived_refclk_register(struct cdns_torrent_phy *cdns_ph
 
 	derived_refclk->hw.init = init;
 
-	clk = devm_clk_register(dev, &derived_refclk->hw);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	hw = &derived_refclk->hw;
+	ret = devm_clk_hw_register(dev, hw);
+	if (ret)
+		return ret;
 
-	cdns_phy->clks[CDNS_TORRENT_REFCLK_DRIVER] = clk;
+	cdns_phy->clk_hw_data->hws[CDNS_TORRENT_REFCLK_DRIVER] = hw;
 
 	return 0;
 }
@@ -2188,7 +2191,15 @@ static int cdns_torrent_clk_register(struct cdns_torrent_phy *cdns_phy)
 {
 	struct device *dev = cdns_phy->dev;
 	struct device_node *node = dev->of_node;
+	struct clk_hw_onecell_data *data;
 	int ret;
+
+	data = devm_kzalloc(dev, struct_size(data, hws, CDNS_TORRENT_OUTPUT_CLOCKS), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->num = CDNS_TORRENT_OUTPUT_CLOCKS;
+	cdns_phy->clk_hw_data = data;
 
 	ret = cdns_torrent_derived_refclk_register(cdns_phy);
 	if (ret) {
@@ -2196,10 +2207,7 @@ static int cdns_torrent_clk_register(struct cdns_torrent_phy *cdns_phy)
 		return ret;
 	}
 
-	cdns_phy->clk_data.clks = cdns_phy->clks;
-	cdns_phy->clk_data.clk_num = CDNS_TORRENT_REFCLK_DRIVER + 1;
-
-	ret = of_clk_add_provider(node, of_clk_src_onecell_get, &cdns_phy->clk_data);
+	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, data);
 	if (ret) {
 		dev_err(dev, "Failed to add clock provider: %s\n", node->name);
 		return ret;
