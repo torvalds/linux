@@ -494,7 +494,7 @@
 			reg = <0x0f120000 0x1000>;
 			clock-frequency = <19200000>;
 
-			frame@0f121000 {
+			frame@f121000 {
 				frame-number = <0>;
 				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
 						<GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
@@ -502,14 +502,14 @@
 				      <0x0f122000 0x1000>;
 			};
 
-			frame@0f123000 {
+			frame@f123000 {
 				frame-number = <1>;
 				interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x0f123000 0x1000>;
 				status = "disabled";
 			};
 
-			frame@0f124000 {
+			frame@f124000 {
 				frame-number = <2>;
 				interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x0f124000 0x1000>;
