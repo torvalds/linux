@@ -106,6 +106,7 @@ struct clk_alpha_pll {
 #define SUPPORTS_FSM_LEGACY_MODE	BIT(4)
 #define DISABLE_TO_OFF		BIT(5)
 #define SUPPORTS_SLEW           BIT(4)
+#define BYPASS_LATCH		BIT(6)
 #define ENABLE_IN_PREPARE	BIT(6)
 	u8 flags;
 

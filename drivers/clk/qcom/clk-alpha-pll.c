@@ -300,6 +300,7 @@ EXPORT_SYMBOL_GPL(clk_alpha_pll_regs);
 /* LUCID 5LPE PLL specific settings and offsets */
 #define LUCID_5LPE_PCAL_DONE		BIT(11)
 #define LUCID_5LPE_ALPHA_PLL_ACK_LATCH	BIT(13)
+#define LUCID_5LPE_BYPASS_LATCH		BIT(10)
 #define LUCID_5LPE_PLL_LATCH_INPUT	BIT(14)
 #define LUCID_5LPE_ENABLE_VOTE_RUN	BIT(21)
 #define LUCID_EVO_PCAL_NOT_DONE		BIT(8)
@@ -2279,29 +2280,35 @@ static int __alpha_pll_trion_set_rate(struct clk_hw *hw, unsigned long rate,
 	regmap_write(pll->clkr.regmap, PLL_L_VAL(pll), l);
 	regmap_write(pll->clkr.regmap, PLL_ALPHA_VAL(pll), a);
 
-	/* Latch the PLL input */
-	ret = regmap_update_bits(pll->clkr.regmap, PLL_MODE(pll), latch_bit, latch_bit);
-	if (ret)
-		return ret;
+	if (pll->flags & BYPASS_LATCH) {
+		regmap_update_bits(pll->clkr.regmap, PLL_USER_CTL_U(pll),
+				   LUCID_5LPE_BYPASS_LATCH, LUCID_5LPE_BYPASS_LATCH);
+	} else {
 
-	/* Wait for 2 reference cycles before checking the ACK bit. */
-	udelay(1);
-	regmap_read(pll->clkr.regmap, PLL_MODE(pll), &val);
-	if (!(val & PLL_UPDATE_BYPASS)) {
-		ret = wait_for_pll_update(pll);
+		/* Latch the PLL input */
+		ret = regmap_update_bits(pll->clkr.regmap, PLL_MODE(pll), latch_bit, latch_bit);
 		if (ret)
-			WARN_CLK(&pll->clkr.hw, 1, "PLL Update clear failed\n");
-		return ret;
-	} else if (!(val & latch_ack)) {
-		WARN_CLK(&pll->clkr.hw, 1,
-				"Lucid PLL latch failed. Output may be unstable!\n");
-		return -EINVAL;
-	}
+			return ret;
 
-	/* Return the latch input to 0 */
-	ret = regmap_update_bits(pll->clkr.regmap, PLL_MODE(pll), latch_bit, 0);
-	if (ret)
-		return ret;
+		/* Wait for 2 reference cycles before checking the ACK bit. */
+		udelay(1);
+		regmap_read(pll->clkr.regmap, PLL_MODE(pll), &val);
+		if (!(val & PLL_UPDATE_BYPASS)) {
+			ret = wait_for_pll_update(pll);
+			if (ret)
+				WARN_CLK(&pll->clkr.hw, 1, "PLL Update clear failed\n");
+			return ret;
+		} else if (!(val & latch_ack)) {
+			WARN_CLK(&pll->clkr.hw, 1,
+					"Lucid PLL latch failed. Output may be unstable!\n");
+			return -EINVAL;
+		}
+
+		/* Return the latch input to 0 */
+		ret = regmap_update_bits(pll->clkr.regmap, PLL_MODE(pll), latch_bit, 0);
+		if (ret)
+			return ret;
+	}
 
 	if (clk_hw_is_enabled(hw)) {
 		ret = wait_for_pll_enable_lock(pll);
