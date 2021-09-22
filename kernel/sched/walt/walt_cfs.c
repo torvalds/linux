@@ -693,23 +693,36 @@ static inline int wake_to_idle(struct task_struct *p)
 /* return true if cpu should be chosen over best_energy_cpu */
 static inline bool select_cpu_same_energy(int cpu, int best_cpu, int prev_cpu)
 {
+	bool new_cpu_is_idle = available_idle_cpu(cpu);
+	bool best_cpu_is_idle = available_idle_cpu(best_cpu);
+
+	if (capacity_orig_of(best_cpu) < capacity_orig_of(cpu))
+		return false;
 	if (capacity_orig_of(cpu) < capacity_orig_of(best_cpu))
+		return true;
+
+	if (best_cpu_is_idle && walt_get_idle_exit_latency(cpu_rq(best_cpu)) <= 1)
+		return false;
+	if (new_cpu_is_idle && walt_get_idle_exit_latency(cpu_rq(cpu)) <= 1)
+		return true;
+
+	if (best_cpu_is_idle && !new_cpu_is_idle)
+		return false;
+	if (new_cpu_is_idle && !best_cpu_is_idle)
 		return true;
 
 	if (best_cpu == prev_cpu)
 		return false;
+	if (cpu == prev_cpu)
+		return true;
 
-	if (available_idle_cpu(best_cpu) && walt_get_idle_exit_latency(cpu_rq(best_cpu)) <= 1)
-		return false; /* best_cpu is idle wfi or shallower */
+	if (best_cpu_is_idle && new_cpu_is_idle)
+		return false;
 
-	if (available_idle_cpu(cpu) && walt_get_idle_exit_latency(cpu_rq(cpu)) <= 1)
-		return true; /* new cpu is idle wfi or shallower */
+	if (cpu_util(best_cpu) <= cpu_util(cpu))
+		return false;
 
-	/*
-	 * If we are this far this must be a tie between a busy and deep idle,
-	 * pick the busy.
-	 */
-	return available_idle_cpu(best_cpu);
+	return true;
 }
 
 static inline unsigned int capacity_spare_of(int cpu)
