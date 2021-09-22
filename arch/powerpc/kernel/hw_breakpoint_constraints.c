@@ -127,15 +127,6 @@ bool wp_check_constraints(struct pt_regs *regs, struct ppc_inst instr,
 	return false;
 }
 
-static int cache_op_size(void)
-{
-#ifdef __powerpc64__
-	return ppc64_caches.l1d.block_size;
-#else
-	return L1_CACHE_BYTES;
-#endif
-}
-
 void wp_get_instr_detail(struct pt_regs *regs, struct ppc_inst *instr,
 			 int *type, int *size, unsigned long *ea)
 {
@@ -147,14 +138,14 @@ void wp_get_instr_detail(struct pt_regs *regs, struct ppc_inst *instr,
 	analyse_instr(&op, regs, *instr);
 	*type = GETTYPE(op.type);
 	*ea = op.ea;
-#ifdef __powerpc64__
+
 	if (!(regs->msr & MSR_64BIT))
 		*ea &= 0xffffffffUL;
-#endif
+
 
 	*size = GETSIZE(op.type);
 	if (*type == CACHEOP) {
-		*size = cache_op_size();
+		*size = l1_dcache_bytes();
 		*ea &= ~(*size - 1);
 	} else if (*type == LOAD_VMX || *type == STORE_VMX) {
 		*ea &= ~(*size - 1);
