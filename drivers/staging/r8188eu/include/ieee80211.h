@@ -1089,13 +1089,6 @@ enum parse_res rtw_ieee802_11_parse_elems(u8 *start, uint len,
 u8 *rtw_set_fixed_ie(unsigned char *pbuf, unsigned int len,
 		     unsigned char *source, unsigned int *frlen);
 u8 *rtw_set_ie(u8 *pbuf, int index, uint len, u8 *source, uint *frlen);
-
-enum secondary_ch_offset {
-	SCN = 0, /* no secondary channel */
-	SCA = 1, /* secondary channel above */
-	SCB = 3,  /* secondary channel below */
-};
-
 u8 *rtw_get_ie(u8 *pbuf, int index, int *len, int limit);
 
 void rtw_set_supported_rate(u8 *SupportedRates, uint mode);
