@@ -1211,6 +1211,14 @@ struct kvm_arch {
 	 */
 	bool memslots_have_rmaps;
 
+	/*
+	 * Set when the KVM mmu needs guest write access page tracking. If
+	 * set, the necessary gfn_track arrays have been allocated for
+	 * all memslots and should be allocated for any newly created or
+	 * modified memslots.
+	 */
+	bool memslots_mmu_write_tracking;
+
 #if IS_ENABLED(CONFIG_HYPERV)
 	hpa_t	hv_root_tdp;
 	spinlock_t hv_root_tdp_lock;

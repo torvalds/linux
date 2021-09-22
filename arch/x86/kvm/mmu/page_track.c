@@ -19,6 +19,16 @@
 #include "mmu.h"
 #include "mmu_internal.h"
 
+static bool write_tracking_enabled(struct kvm *kvm)
+{
+	/*
+	 * Read memslots_mmu_write_tracking before gfn_track pointers. Pairs
+	 * with smp_store_release in kvm_page_track_enable_mmu_write_tracking.
+	 */
+	return IS_ENABLED(CONFIG_KVM_EXTERNAL_WRITE_TRACKING) ||
+	       smp_load_acquire(&kvm->arch.memslots_mmu_write_tracking);
+}
+
 void kvm_page_track_free_memslot(struct kvm_memory_slot *slot)
 {
 	int i;
@@ -29,12 +39,16 @@ void kvm_page_track_free_memslot(struct kvm_memory_slot *slot)
 	}
 }
 
-int kvm_page_track_create_memslot(struct kvm_memory_slot *slot,
+int kvm_page_track_create_memslot(struct kvm *kvm,
+				  struct kvm_memory_slot *slot,
 				  unsigned long npages)
 {
-	int  i;
+	int i;
 
 	for (i = 0; i < KVM_PAGE_TRACK_MAX; i++) {
+		if (i == KVM_PAGE_TRACK_WRITE && !write_tracking_enabled(kvm))
+			continue;
+
 		slot->arch.gfn_track[i] =
 			kvcalloc(npages, sizeof(*slot->arch.gfn_track[i]),
 				 GFP_KERNEL_ACCOUNT);
@@ -55,6 +69,46 @@ static inline bool page_track_mode_is_valid(enum kvm_page_track_mode mode)
 		return false;
 
 	return true;
+}
+
+int kvm_page_track_enable_mmu_write_tracking(struct kvm *kvm)
+{
+	struct kvm_memslots *slots;
+	struct kvm_memory_slot *slot;
+	unsigned short **gfn_track;
+	int i;
+
+	if (write_tracking_enabled(kvm))
+		return 0;
+
+	mutex_lock(&kvm->slots_arch_lock);
+
+	if (write_tracking_enabled(kvm)) {
+		mutex_unlock(&kvm->slots_arch_lock);
+		return 0;
+	}
+
+	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
+		slots = __kvm_memslots(kvm, i);
+		kvm_for_each_memslot(slot, slots) {
+			gfn_track = slot->arch.gfn_track + KVM_PAGE_TRACK_WRITE;
+			*gfn_track = kvcalloc(slot->npages, sizeof(*gfn_track),
+					      GFP_KERNEL_ACCOUNT);
+			if (*gfn_track == NULL) {
+				mutex_unlock(&kvm->slots_arch_lock);
+				return -ENOMEM;
+			}
+		}
+	}
+
+	/*
+	 * Ensure that memslots_mmu_write_tracking becomes true strictly
+	 * after all the pointers are set.
+	 */
+	smp_store_release(&kvm->arch.memslots_mmu_write_tracking, true);
+	mutex_unlock(&kvm->slots_arch_lock);
+
+	return 0;
 }
 
 static void update_gfn_track(struct kvm_memory_slot *slot, gfn_t gfn,
@@ -92,6 +146,10 @@ void kvm_slot_page_track_add_page(struct kvm *kvm,
 	if (WARN_ON(!page_track_mode_is_valid(mode)))
 		return;
 
+	if (WARN_ON(mode == KVM_PAGE_TRACK_WRITE &&
+		    !write_tracking_enabled(kvm)))
+		return;
+
 	update_gfn_track(slot, gfn, mode, 1);
 
 	/*
@@ -126,6 +184,10 @@ void kvm_slot_page_track_remove_page(struct kvm *kvm,
 	if (WARN_ON(!page_track_mode_is_valid(mode)))
 		return;
 
+	if (WARN_ON(mode == KVM_PAGE_TRACK_WRITE &&
+		    !write_tracking_enabled(kvm)))
+		return;
+
 	update_gfn_track(slot, gfn, mode, -1);
 
 	/*
@@ -139,7 +201,8 @@ EXPORT_SYMBOL_GPL(kvm_slot_page_track_remove_page);
 /*
  * check if the corresponding access on the specified guest page is tracked.
  */
-bool kvm_slot_page_track_is_active(struct kvm_memory_slot *slot, gfn_t gfn,
+bool kvm_slot_page_track_is_active(struct kvm_vcpu *vcpu,
+				   struct kvm_memory_slot *slot, gfn_t gfn,
 				   enum kvm_page_track_mode mode)
 {
 	int index;
@@ -148,6 +211,9 @@ bool kvm_slot_page_track_is_active(struct kvm_memory_slot *slot, gfn_t gfn,
 		return false;
 
 	if (!slot)
+		return false;
+
+	if (mode == KVM_PAGE_TRACK_WRITE && !write_tracking_enabled(vcpu->kvm))
 		return false;
 
 	index = gfn_to_index(gfn, slot->base_gfn, PG_LEVEL_4K);
