@@ -346,6 +346,8 @@ static int rawrd_config_mi(struct rkisp_stream *stream)
 	default:
 		val |= CIF_CSI2_DT_RAW12;
 	}
+	rkisp_write(dev, CSI2RX_RAW_RD_CTRL,
+		    dev->csi_dev.memory << 2, false);
 	rkisp_write(dev, CSI2RX_DATA_IDS_1, val, false);
 	rkisp_rawrd_set_pic_size(dev, stream->out_fmt.width,
 				 stream->out_fmt.height);
