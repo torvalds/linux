@@ -60,6 +60,9 @@ static int i915_ttm_backup(struct i915_gem_apply_to_region *apply,
 	if (!pm_apply->backup_pinned)
 		return 0;
 
+	if (obj->flags & I915_BO_ALLOC_PM_VOLATILE)
+		return 0;
+
 	backup = i915_gem_object_create_shmem(i915, obj->base.size);
 	if (IS_ERR(backup))
 		return PTR_ERR(backup);
