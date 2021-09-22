@@ -113,11 +113,6 @@ static inline void mce_unregister_injector_chain(struct notifier_block *nb)	{ }
 #endif
 
 struct mca_config {
-	bool dont_log_ce;
-	bool cmci_disabled;
-	bool ignore_ce;
-	bool print_all;
-
 	__u64 lmce_disabled		: 1,
 	      disabled			: 1,
 	      ser			: 1,
@@ -127,11 +122,16 @@ struct mca_config {
 	      initialized		: 1,
 	      __reserved		: 58;
 
-	s8 bootlog;
+	bool dont_log_ce;
+	bool cmci_disabled;
+	bool ignore_ce;
+	bool print_all;
+
 	int tolerant;
 	int monarch_timeout;
 	int panic_timeout;
 	u32 rip_msr;
+	s8 bootlog;
 };
 
 extern struct mca_config mca_cfg;
