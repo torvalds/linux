@@ -13254,9 +13254,9 @@ F:	Documentation/scsi/NinjaSCSI.rst
 F:	drivers/scsi/nsp32*
 
 NIOS2 ARCHITECTURE
-M:	Ley Foon Tan <ley.foon.tan@intel.com>
+M:	Dinh Nguyen <dinguyen@kernel.org>
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lftan/nios2.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dinguyen/linux.git
 F:	arch/nios2/
 
 NITRO ENCLAVES (NE)
