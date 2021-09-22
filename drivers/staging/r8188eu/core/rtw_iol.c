@@ -163,20 +163,3 @@ u8 rtw_IOL_cmd_boundary_handle(struct xmit_frame *pxmit_frame)
 	}
 	return is_cmd_bndy;
 }
-
-void rtw_IOL_cmd_buf_dump(int buf_len, u8 *pbuf)
-{
-	int i;
-	int j = 1;
-
-	pr_info("###### %s ######\n", __func__);
-	for (i = 0; i < buf_len; i++) {
-		printk("%02x-", *(pbuf + i));
-
-		if (j % 32 == 0)
-			printk("\n");
-		j++;
-	}
-	printk("\n");
-	pr_info("=============ioreg_cmd len=%d===============\n", buf_len);
-}
