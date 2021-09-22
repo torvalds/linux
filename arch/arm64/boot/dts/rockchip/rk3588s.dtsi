@@ -356,6 +356,11 @@
 		reg = <0x0 0xfd5a6000 0x0 0x2000>;
 	};
 
+	vo1_grf: syscon@fd5a8000 {
+		compatible = "rockchip,rk3588-vo-grf", "syscon";
+		reg = <0x0 0xfd5a8000 0x0 0x100>;
+	};
+
 	usb_grf: syscon@fd5ac000 {
 		compatible = "rockchip,rk3588-usb-grf", "syscon";
 		reg = <0x0 0xfd5ac000 0x0 0x4000>;
@@ -452,7 +457,7 @@
 
 	hdptxphy0_grf: syscon@fd5e0000 {
 		compatible = "rockchip,rk3588-hdptxphy-grf", "syscon";
-		reg = <0x0 0xfd5e0000 0x0 0x80>;
+		reg = <0x0 0xfd5e0000 0x0 0x100>;
 	};
 
 	ioc: syscon@fd5f0000 {
@@ -1103,6 +1108,22 @@
 		resets = <&cru SRST_M_SPDIFRX0>;
 		reset-names = "spdifrx-m";
 		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
+	edp0: edp@fdec0000 {
+		compatible = "rockchip,rk3588-edp";
+		reg = <0x0 0xfdec0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_EDP0_24M>, <&cru PCLK_EDP0>,
+			 <&cru CLK_EDP0_200M>;
+		clock-names = "dp", "pclk", "spdif";
+		resets = <&cru SRST_EDP0_24M>, <&cru SRST_P_EDP0>;
+		reset-names = "dp", "apb";
+		phys = <&hdptxphy0>;
+		phy-names = "dp";
+		power-domains = <&power RK3588_PD_VO1>;
+		rockchip,grf = <&vo1_grf>;
 		status = "disabled";
 	};
 
