@@ -308,7 +308,7 @@
 &mpss {
 	status = "okay";
 
-	firmware-name = "qcom/msm8916/mba.mbn", "qcom/msm8916/modem.mbn";
+	firmware-name = "qcom/apq8016/mba.mbn", "qcom/apq8016/modem.mbn";
 };
 
 &pm8916_resin {
@@ -319,7 +319,7 @@
 &pronto {
 	status = "okay";
 
-	firmware-name = "qcom/msm8916/wcnss.mbn";
+	firmware-name = "qcom/apq8016/wcnss.mbn";
 };
 
 &sdhc_1 {
@@ -403,7 +403,7 @@
 };
 
 &wcnss_ctrl {
-	firmware-name = "qcom/msm8916/WCNSS_qcom_wlan_nv.bin";
+	firmware-name = "qcom/apq8016/WCNSS_qcom_wlan_nv_sbc.bin";
 };
 
 /* Enable CoreSight */
