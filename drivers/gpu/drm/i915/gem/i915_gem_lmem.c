@@ -67,7 +67,7 @@ bool __i915_gem_object_is_lmem(struct drm_i915_gem_object *obj)
 
 #ifdef CONFIG_LOCKDEP
 	GEM_WARN_ON(dma_resv_test_signaled(obj->base.resv, true) &&
-		    !i915_gem_object_evictable(obj));
+		    i915_gem_object_evictable(obj));
 #endif
 	return mr && (mr->type == INTEL_MEMORY_LOCAL ||
 		      mr->type == INTEL_MEMORY_STOLEN_LOCAL);
