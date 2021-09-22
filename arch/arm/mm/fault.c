@@ -194,6 +194,19 @@ void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 #define VM_FAULT_BADMAP		0x010000
 #define VM_FAULT_BADACCESS	0x020000
 
+static inline bool is_permission_fault(unsigned int fsr)
+{
+	int fs = fsr_fs(fsr);
+#ifdef CONFIG_ARM_LPAE
+	if ((fs & FS_PERM_NOLL_MASK) == FS_PERM_NOLL)
+		return true;
+#else
+	if (fs == FS_L1_PERM || fs == FS_L2_PERM)
+		return true;
+#endif
+	return false;
+}
+
 static vm_fault_t __kprobes
 __do_page_fault(struct mm_struct *mm, unsigned long addr, unsigned int flags,
 		unsigned long vma_flags, struct pt_regs *regs)
@@ -253,8 +266,13 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		vm_flags = VM_WRITE;
 	}
 
-	if (fsr & FSR_LNX_PF)
+	if (fsr & FSR_LNX_PF) {
 		vm_flags = VM_EXEC;
+
+		if (is_permission_fault(fsr) && !user_mode(regs))
+			die_kernel_fault("execution of memory",
+					 mm, addr, fsr, regs);
+	}
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, addr);
 
