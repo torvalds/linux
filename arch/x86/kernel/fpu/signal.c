@@ -106,7 +106,7 @@ static inline bool save_xstate_epilog(void __user *buf, int ia32_frame)
 	err = __copy_to_user(&x->i387.sw_reserved, sw_bytes, sizeof(*sw_bytes));
 
 	if (!use_xsave())
-		return err;
+		return !err;
 
 	err |= __put_user(FP_XSTATE_MAGIC2,
 			  (__u32 __user *)(buf + fpu_user_xstate_size));
