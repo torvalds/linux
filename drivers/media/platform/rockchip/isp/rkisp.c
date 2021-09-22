@@ -541,7 +541,7 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 	dev->rd_mode = rd_mode;
 
 	/* configure hdr params in rdbk mode */
-	if (is_upd)
+	if (is_upd || cur_frame_id == 0)
 		rkisp_params_first_cfg(&dev->params_vdev,
 				       &dev->isp_sdev.in_fmt,
 				       dev->isp_sdev.quantization);
