@@ -279,6 +279,17 @@ static int create_qp(struct rtrs_con *con, struct ib_pd *pd,
 	return ret;
 }
 
+static void destroy_cq(struct rtrs_con *con)
+{
+	if (con->cq) {
+		if (is_pollqueue(con))
+			ib_free_cq(con->cq);
+		else
+			ib_cq_pool_put(con->cq, con->nr_cqe);
+	}
+	con->cq = NULL;
+}
+
 int rtrs_cq_qp_create(struct rtrs_sess *sess, struct rtrs_con *con,
 		       u32 max_send_sge, int cq_vector, int nr_cqe,
 		       u32 max_send_wr, u32 max_recv_wr,
@@ -293,11 +304,7 @@ int rtrs_cq_qp_create(struct rtrs_sess *sess, struct rtrs_con *con,
 	err = create_qp(con, sess->dev->ib_pd, max_send_wr, max_recv_wr,
 			max_send_sge);
 	if (err) {
-		if (is_pollqueue(con))
-			ib_free_cq(con->cq);
-		else
-			ib_cq_pool_put(con->cq, con->nr_cqe);
-		con->cq = NULL;
+		destroy_cq(con);
 		return err;
 	}
 	con->sess = sess;
@@ -312,13 +319,7 @@ void rtrs_cq_qp_destroy(struct rtrs_con *con)
 		rdma_destroy_qp(con->cm_id);
 		con->qp = NULL;
 	}
-	if (con->cq) {
-		if (is_pollqueue(con))
-			ib_free_cq(con->cq);
-		else
-			ib_cq_pool_put(con->cq, con->nr_cqe);
-		con->cq = NULL;
-	}
+	destroy_cq(con);
 }
 EXPORT_SYMBOL_GPL(rtrs_cq_qp_destroy);
 
