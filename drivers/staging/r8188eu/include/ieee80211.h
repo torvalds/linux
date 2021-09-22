@@ -888,9 +888,6 @@ struct tx_pending {
 #define IEEE_G	    (1<<2)
 #define IEEE_MODE_MASK    (IEEE_A|IEEE_B|IEEE_G)
 
-/* Baron move to ieee80211.c */
-int ieee80211_is_empty_essid(const char *essid, int essid_len);
-
 /* Action category code */
 enum rtw_ieee80211_category {
 	RTW_WLAN_CATEGORY_SPECTRUM_MGMT = 0,
