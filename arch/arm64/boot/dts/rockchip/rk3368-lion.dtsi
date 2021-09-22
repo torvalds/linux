@@ -29,15 +29,15 @@
 		i2c-parent = <&i2c1>;
 		mux-gpios = <&gpio1 RK_PA7 GPIO_ACTIVE_HIGH>;
 
-		/* Q7_GPO_I2C */
-		i2c@0 {
+		/* Q7_GP0_I2C */
+		i2c_gp0: i2c@0 {
 			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
 
 		/* Q7_SMB */
-		i2c@1 {
+		i2c_smb: i2c@1 {
 			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -52,7 +52,7 @@
 		mux-gpios = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
 
 		/* Q7_LVDS_BLC_I2C */
-		i2c@0 {
+		i2c_lvds_blc: i2c@0 {
 			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -69,8 +69,8 @@
 			};
 		};
 
-		/* Q7_GP2_I2C */
-		i2c@1 {
+		/* Q7_GP2_I2C = LVDS_DID_CLK/DAT */
+		i2c_gp2: i2c@1 {
 			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
