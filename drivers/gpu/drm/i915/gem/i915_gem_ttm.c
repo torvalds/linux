@@ -10,18 +10,16 @@
 #include "intel_memory_region.h"
 #include "intel_region_ttm.h"
 
+#include "gem/i915_gem_mman.h"
 #include "gem/i915_gem_object.h"
 #include "gem/i915_gem_region.h"
 #include "gem/i915_gem_ttm.h"
-#include "gem/i915_gem_mman.h"
+#include "gem/i915_gem_ttm_pm.h"
 
-#include "gt/intel_migrate.h"
+
 #include "gt/intel_engine_pm.h"
-
-#define I915_PL_LMEM0 TTM_PL_PRIV
-#define I915_PL_SYSTEM TTM_PL_SYSTEM
-#define I915_PL_STOLEN TTM_PL_VRAM
-#define I915_PL_GGTT TTM_PL_TT
+#include "gt/intel_gt.h"
+#include "gt/intel_migrate.h"
 
 #define I915_TTM_PRIO_PURGE     0
 #define I915_TTM_PRIO_NO_PAGES  1
@@ -63,6 +61,20 @@ static struct ttm_placement i915_sys_placement = {
 	.num_busy_placement = 1,
 	.busy_placement = &sys_placement_flags,
 };
+
+/**
+ * i915_ttm_sys_placement - Return the struct ttm_placement to be
+ * used for an object in system memory.
+ *
+ * Rather than making the struct extern, use this
+ * function.
+ *
+ * Return: A pointer to a static variable for sys placement.
+ */
+struct ttm_placement *i915_ttm_sys_placement(void)
+{
+	return &i915_sys_placement;
+}
 
 static int i915_ttm_err_to_gem(int err)
 {
@@ -443,7 +455,7 @@ static int i915_ttm_accel_move(struct ttm_buffer_object *bo,
 	enum i915_cache_level src_level, dst_level;
 	int ret;
 
-	if (!i915->gt.migrate.context)
+	if (!i915->gt.migrate.context || intel_gt_is_wedged(&i915->gt))
 		return -EINVAL;
 
 	dst_level = i915_ttm_cache_level(i915, dst_mem, dst_ttm);
@@ -886,6 +898,8 @@ static const struct drm_i915_gem_object_ops i915_gem_ttm_obj_ops = {
 void i915_ttm_bo_destroy(struct ttm_buffer_object *bo)
 {
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
+
+	i915_ttm_backup_free(obj);
 
 	/* This releases all gem object bindings to the backend. */
 	__i915_gem_free_object(obj);

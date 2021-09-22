@@ -1094,9 +1094,7 @@ static int i915_drm_prepare(struct drm_device *dev)
 	 * split out that work and pull it forward so that after point,
 	 * the GPU is not woken again.
 	 */
-	i915_gem_suspend(i915);
-
-	return 0;
+	return i915_gem_backup_suspend(i915);
 }
 
 static int i915_drm_suspend(struct drm_device *dev)

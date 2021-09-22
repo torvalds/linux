@@ -534,6 +534,7 @@ struct drm_i915_gem_object {
 	struct {
 		struct sg_table *cached_io_st;
 		struct i915_gem_object_page_iter get_io_page;
+		struct drm_i915_gem_object *backup;
 		bool created:1;
 	} ttm;
 
