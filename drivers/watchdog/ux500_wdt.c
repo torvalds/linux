@@ -15,7 +15,6 @@
 #include <linux/uaccess.h>
 #include <linux/watchdog.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/ux500_wdt.h>
 
 #include <linux/mfd/dbx500-prcmu.h>
 
@@ -23,7 +22,6 @@
 
 #define WATCHDOG_MIN	0
 #define WATCHDOG_MAX28	268435  /* 28 bit resolution in ms == 268435.455 s */
-#define WATCHDOG_MAX32	4294967 /* 32 bit resolution in ms == 4294967.295 s */
 
 static unsigned int timeout = WATCHDOG_TIMEOUT;
 module_param(timeout, uint, 0);
@@ -80,22 +78,15 @@ static struct watchdog_device ux500_wdt = {
 	.info = &ux500_wdt_info,
 	.ops = &ux500_wdt_ops,
 	.min_timeout = WATCHDOG_MIN,
-	.max_timeout = WATCHDOG_MAX32,
+	.max_timeout = WATCHDOG_MAX28,
 };
 
 static int ux500_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int ret;
-	struct ux500_wdt_data *pdata = dev_get_platdata(dev);
 
-	if (pdata) {
-		if (pdata->timeout > 0)
-			timeout = pdata->timeout;
-		if (pdata->has_28_bits_resolution)
-			ux500_wdt.max_timeout = WATCHDOG_MAX28;
-	}
-
+	timeout = 600; /* Default to 10 minutes */
 	ux500_wdt.parent = dev;
 	watchdog_set_nowayout(&ux500_wdt, nowayout);
 
