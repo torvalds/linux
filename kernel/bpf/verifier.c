@@ -612,6 +612,14 @@ static const char *kernel_type_name(const struct btf* btf, u32 id)
 	return btf_name_by_offset(btf, btf_type_by_id(btf, id)->name_off);
 }
 
+/* The reg state of a pointer or a bounded scalar was saved when
+ * it was spilled to the stack.
+ */
+static bool is_spilled_reg(const struct bpf_stack_state *stack)
+{
+	return stack->slot_type[BPF_REG_SIZE - 1] == STACK_SPILL;
+}
+
 static void print_verifier_state(struct bpf_verifier_env *env,
 				 const struct bpf_func_state *state)
 {
@@ -717,7 +725,7 @@ static void print_verifier_state(struct bpf_verifier_env *env,
 			continue;
 		verbose(env, " fp%d", (-i - 1) * BPF_REG_SIZE);
 		print_liveness(env, state->stack[i].spilled_ptr.live);
-		if (state->stack[i].slot_type[0] == STACK_SPILL) {
+		if (is_spilled_reg(&state->stack[i])) {
 			reg = &state->stack[i].spilled_ptr;
 			t = reg->type;
 			verbose(env, "=%s", reg_type_str[t]);
@@ -2373,7 +2381,7 @@ static void mark_all_scalars_precise(struct bpf_verifier_env *env,
 				reg->precise = true;
 			}
 			for (j = 0; j < func->allocated_stack / BPF_REG_SIZE; j++) {
-				if (func->stack[j].slot_type[0] != STACK_SPILL)
+				if (!is_spilled_reg(&func->stack[j]))
 					continue;
 				reg = &func->stack[j].spilled_ptr;
 				if (reg->type != SCALAR_VALUE)
@@ -2415,7 +2423,7 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int regno,
 	}
 
 	while (spi >= 0) {
-		if (func->stack[spi].slot_type[0] != STACK_SPILL) {
+		if (!is_spilled_reg(&func->stack[spi])) {
 			stack_mask = 0;
 			break;
 		}
@@ -2514,7 +2522,7 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int regno,
 				return 0;
 			}
 
-			if (func->stack[i].slot_type[0] != STACK_SPILL) {
+			if (!is_spilled_reg(&func->stack[i])) {
 				stack_mask &= ~(1ull << i);
 				continue;
 			}
@@ -2713,7 +2721,7 @@ static int check_stack_write_fixed_off(struct bpf_verifier_env *env,
 		/* regular write of data into stack destroys any spilled ptr */
 		state->stack[spi].spilled_ptr.type = NOT_INIT;
 		/* Mark slots as STACK_MISC if they belonged to spilled ptr. */
-		if (state->stack[spi].slot_type[0] == STACK_SPILL)
+		if (is_spilled_reg(&state->stack[spi]))
 			for (i = 0; i < BPF_REG_SIZE; i++)
 				state->stack[spi].slot_type[i] = STACK_MISC;
 
@@ -2923,7 +2931,7 @@ static int check_stack_read_fixed_off(struct bpf_verifier_env *env,
 	stype = reg_state->stack[spi].slot_type;
 	reg = &reg_state->stack[spi].spilled_ptr;
 
-	if (stype[0] == STACK_SPILL) {
+	if (is_spilled_reg(&reg_state->stack[spi])) {
 		if (size != BPF_REG_SIZE) {
 			if (reg->type != SCALAR_VALUE) {
 				verbose_linfo(env, env->insn_idx, "; ");
@@ -4514,11 +4522,11 @@ static int check_stack_range_initialized(
 			goto mark;
 		}
 
-		if (state->stack[spi].slot_type[0] == STACK_SPILL &&
+		if (is_spilled_reg(&state->stack[spi]) &&
 		    state->stack[spi].spilled_ptr.type == PTR_TO_BTF_ID)
 			goto mark;
 
-		if (state->stack[spi].slot_type[0] == STACK_SPILL &&
+		if (is_spilled_reg(&state->stack[spi]) &&
 		    (state->stack[spi].spilled_ptr.type == SCALAR_VALUE ||
 		     env->allow_ptr_leaks)) {
 			if (clobber) {
@@ -10356,9 +10364,9 @@ static bool stacksafe(struct bpf_verifier_env *env, struct bpf_func_state *old,
 			 * return false to continue verification of this path
 			 */
 			return false;
-		if (i % BPF_REG_SIZE)
+		if (i % BPF_REG_SIZE != BPF_REG_SIZE - 1)
 			continue;
-		if (old->stack[spi].slot_type[0] != STACK_SPILL)
+		if (!is_spilled_reg(&old->stack[spi]))
 			continue;
 		if (!regsafe(env, &old->stack[spi].spilled_ptr,
 			     &cur->stack[spi].spilled_ptr, idmap))
@@ -10565,7 +10573,7 @@ static int propagate_precision(struct bpf_verifier_env *env,
 	}
 
 	for (i = 0; i < state->allocated_stack / BPF_REG_SIZE; i++) {
-		if (state->stack[i].slot_type[0] != STACK_SPILL)
+		if (!is_spilled_reg(&state->stack[i]))
 			continue;
 		state_reg = &state->stack[i].spilled_ptr;
 		if (state_reg->type != SCALAR_VALUE ||
