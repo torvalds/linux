@@ -505,16 +505,3 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 
 	return max_rate;
 }
-
-/*
-* rtw_set_channel_plan -
-* @adapter: pointer to struct adapter structure
-* @channel_plan:
-*
-* Return _SUCCESS or _FAIL
-*/
-int rtw_set_channel_plan(struct adapter *adapter, u8 channel_plan)
-{
-	/* handle by cmd_thread to sync with scan operation */
-	return rtw_set_chplan_cmd(adapter, channel_plan, 1);
-}
