@@ -286,15 +286,6 @@ u16 efuse_GetMaxSize(struct adapter *padapter)
 	return max_size;
 }
 
-u8 efuse_GetCurrentSize(struct adapter *padapter, u16 *size)
-{
-	rtl8188e_EfusePowerSwitch(padapter, false, true);
-	*size = rtl8188e_EfuseGetCurrentSize(padapter, EFUSE_WIFI, false);
-	rtl8188e_EfusePowerSwitch(padapter, false, false);
-
-	return _SUCCESS;
-}
-
 u8 rtw_efuse_map_read(struct adapter *padapter, u16 addr, u16 cnts, u8 *data)
 {
 	u16 mapLen = 0;
