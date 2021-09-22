@@ -890,7 +890,6 @@ struct tx_pending {
 
 /* Baron move to ieee80211.c */
 int ieee80211_is_empty_essid(const char *essid, int essid_len);
-int ieee80211_get_hdrlen(u16 fc);
 
 /* Action category code */
 enum rtw_ieee80211_category {
