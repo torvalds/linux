@@ -374,6 +374,11 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 
 	id->rab = 6;
 
+	if (nvmet_is_disc_subsys(ctrl->subsys))
+		id->cntrltype = NVME_CTRL_DISC;
+	else
+		id->cntrltype = NVME_CTRL_IO;
+
 	/*
 	 * XXX: figure out how we can assign a IEEE OUI, but until then
 	 * the safest is to leave it as zeroes.
