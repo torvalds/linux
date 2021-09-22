@@ -1206,7 +1206,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int swindex,
 	int ret;
 
 	/* Get the CRTC clock and the optional external clock. */
-	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_CRTC_IRQ_CLOCK)) {
+	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_CRTC_CLOCK)) {
 		sprintf(clk_name, "du.%u", hwindex);
 		name = clk_name;
 	} else {
@@ -1272,7 +1272,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int swindex,
 	drm_crtc_helper_add(crtc, &crtc_helper_funcs);
 
 	/* Register the interrupt handler. */
-	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_CRTC_IRQ_CLOCK)) {
+	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_CRTC_IRQ)) {
 		/* The IRQ's are associated with the CRTC (sw)index. */
 		irq = platform_get_irq(pdev, swindex);
 		irqflags = 0;
