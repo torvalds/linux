@@ -100,11 +100,13 @@ void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_m
 
 	if (edp_num) {
 		for (panel_inst = 0; panel_inst < edp_num; panel_inst++) {
+			bool allow_active = false;
+
 			edp_link = edp_links[panel_inst];
 			if (!edp_link->psr_settings.psr_feature_enabled)
 				continue;
 			clk_mgr->psr_allow_active_cache = edp_link->psr_settings.psr_allow_active;
-			dc_link_set_psr_allow_active(edp_link, false, false, false);
+			dc_link_set_psr_allow_active(edp_link, &allow_active, false, false, NULL);
 		}
 	}
 
@@ -124,7 +126,7 @@ void clk_mgr_optimize_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr)
 			if (!edp_link->psr_settings.psr_feature_enabled)
 				continue;
 			dc_link_set_psr_allow_active(edp_link,
-					clk_mgr->psr_allow_active_cache, false, false);
+					&clk_mgr->psr_allow_active_cache, false, false, NULL);
 		}
 	}
 

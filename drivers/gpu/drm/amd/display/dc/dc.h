@@ -342,6 +342,12 @@ enum visual_confirm {
 	VISUAL_CONFIRM_SWIZZLE = 9,
 };
 
+enum dc_psr_power_opts {
+	psr_power_opt_invalid = 0x0,
+	psr_power_opt_smu_opt_static_screen = 0x1,
+	psr_power_opt_z10_static_screen = 0x10,
+};
+
 enum dcc_option {
 	DCC_ENABLE = 0,
 	DCC_DISABLE = 1,

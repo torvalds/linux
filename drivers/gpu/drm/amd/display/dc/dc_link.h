@@ -85,6 +85,7 @@ struct psr_settings {
 	 */
 	bool psr_frame_capture_indication_req;
 	unsigned int psr_sdp_transmit_line_num_deadline;
+	unsigned int psr_power_opt;
 };
 
 /*
@@ -267,8 +268,8 @@ int dc_link_get_backlight_level(const struct dc_link *dc_link);
 
 int dc_link_get_target_backlight_pwm(const struct dc_link *link);
 
-bool dc_link_set_psr_allow_active(struct dc_link *dc_link, bool enable,
-		bool wait, bool force_static);
+bool dc_link_set_psr_allow_active(struct dc_link *dc_link, const bool *enable,
+		bool wait, bool force_static, const unsigned int *power_opts);
 
 bool dc_link_get_psr_state(const struct dc_link *dc_link, enum dc_psr_state *state);
 

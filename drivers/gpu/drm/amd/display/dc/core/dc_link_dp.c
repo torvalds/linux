@@ -3523,6 +3523,8 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 		if (psr_error_status.bits.LINK_CRC_ERROR ||
 				psr_error_status.bits.RFB_STORAGE_ERROR ||
 				psr_error_status.bits.VSC_SDP_ERROR) {
+			bool allow_active;
+
 			/* Acknowledge and clear error bits */
 			dm_helpers_dp_write_dpcd(
 				link->ctx,
@@ -3532,8 +3534,10 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 				sizeof(psr_error_status.raw));
 
 			/* PSR error, disable and re-enable PSR */
-			dc_link_set_psr_allow_active(link, false, true, false);
-			dc_link_set_psr_allow_active(link, true, true, false);
+			allow_active = false;
+			dc_link_set_psr_allow_active(link, &allow_active, true, false, NULL);
+			allow_active = true;
+			dc_link_set_psr_allow_active(link, &allow_active, true, false, NULL);
 
 			return true;
 		} else if (psr_sink_psr_status.bits.SINK_SELF_REFRESH_STATUS ==

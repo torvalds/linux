@@ -1378,6 +1378,10 @@ enum dmub_cmd_psr_type {
 	 * Forces PSR enabled until an explicit PSR disable call.
 	 */
 	DMUB_CMD__PSR_FORCE_STATIC		= 5,
+	/**
+	 * Set PSR power option
+	 */
+	DMUB_CMD__SET_PSR_POWER_OPT = 7,
 };
 
 /**
@@ -1673,6 +1677,44 @@ struct dmub_rb_cmd_psr_force_static {
 	 * Data passed from driver to FW in a DMUB_CMD__PSR_FORCE_STATIC command.
 	 */
 	struct dmub_cmd_psr_force_static_data psr_force_static_data;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__SET_PSR_POWER_OPT command.
+ */
+struct dmub_cmd_psr_set_power_opt_data {
+	/**
+	 * PSR control version.
+	 */
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+	/**
+	 * PSR power option
+	 */
+	uint32_t power_opt;
+};
+
+/**
+ * Definition of a DMUB_CMD__SET_PSR_POWER_OPT command.
+ */
+struct dmub_rb_cmd_psr_set_power_opt {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Definition of a DMUB_CMD__SET_PSR_POWER_OPT command.
+	 */
+	struct dmub_cmd_psr_set_power_opt_data psr_set_power_opt_data;
 };
 
 /**
@@ -2458,6 +2500,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__PSR_FORCE_STATIC command.
 	 */
 	struct dmub_rb_cmd_psr_force_static psr_force_static;
+	/**
+	 * Definition of a DMUB_CMD__SET_PSR_POWER_OPT command.
+	 */
+	struct dmub_rb_cmd_psr_set_power_opt psr_set_power_opt;
 	/**
 	 * Definition of a DMUB_CMD__PLAT_54186_WA command.
 	 */
