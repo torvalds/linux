@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/qpnp/qpnp-pbs.h>
+#include <linux/qpnp/qti-pwm.h>
 #include <linux/regmap.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -186,6 +187,7 @@ struct qpnp_lpg_channel {
 	struct qpnp_lpg_chip		*chip;
 	struct lpg_pwm_config		pwm_config;
 	struct lpg_ramp_config		ramp_config;
+	enum pwm_output_type		output_type;
 	u32				lpg_idx;
 	u32				reg_base;
 	u32				max_pattern_length;
@@ -1213,7 +1215,7 @@ static int qpnp_lpg_pwm_src_enable(struct qpnp_lpg_channel *lpg, bool en)
 				break;
 			lpg_idx = chip->lpg_group[i] - 1;
 			pwm = &chip->pwm_chip.pwms[lpg_idx];
-			if ((pwm_get_output_type(pwm) == PWM_OUTPUT_MODULATED)
+			if ((lpg->output_type == PWM_OUTPUT_MODULATED)
 						&& pwm_is_enabled(pwm)) {
 				rc = qpnp_lpg_masked_write(&chip->lpgs[lpg_idx],
 						REG_LPG_ENABLE_CONTROL,
@@ -1240,17 +1242,22 @@ static int qpnp_lpg_pwm_src_enable(struct qpnp_lpg_channel *lpg, bool en)
 	return rc;
 }
 
-static int qpnp_lpg_pwm_set_output_type(struct pwm_chip *pwm_chip,
-		struct pwm_device *pwm, enum pwm_output_type output_type)
+int qpnp_lpg_pwm_set_output_type(struct pwm_device *pwm,
+				enum pwm_output_type output_type)
 {
 	struct qpnp_lpg_channel *lpg;
 	enum lpg_src src_sel;
 	int rc;
 	bool is_enabled;
 
-	lpg = pwm_dev_to_qpnp_lpg(pwm_chip, pwm);
+	if (!pwm) {
+		pr_err("pwm cannot be NULL\n");
+		return -ENODEV;
+	}
+
+	lpg = pwm_dev_to_qpnp_lpg(pwm->chip, pwm);
 	if (lpg == NULL) {
-		dev_err(pwm_chip->dev, "lpg not found\n");
+		dev_err(pwm->chip->dev, "lpg not found\n");
 		return -ENODEV;
 	}
 
@@ -1258,6 +1265,9 @@ static int qpnp_lpg_pwm_set_output_type(struct pwm_chip *pwm_chip,
 		pr_debug("lpg%d only support PWM mode\n", lpg->lpg_idx);
 		return 0;
 	}
+
+	if (output_type == lpg->output_type)
+		return 0;
 
 	src_sel = (output_type == PWM_OUTPUT_MODULATED) ?
 				LUT_PATTERN : PWM_VALUE;
@@ -1275,7 +1285,7 @@ static int qpnp_lpg_pwm_set_output_type(struct pwm_chip *pwm_chip,
 		 */
 		rc = qpnp_lpg_pwm_src_enable(lpg, false);
 		if (rc < 0) {
-			dev_err(pwm_chip->dev, "Enable PWM output failed for channel %d, rc=%d\n",
+			dev_err(pwm->chip->dev, "Enable PWM output failed for channel %d, rc=%d\n",
 					lpg->lpg_idx, rc);
 			return rc;
 		}
@@ -1297,7 +1307,7 @@ static int qpnp_lpg_pwm_set_output_type(struct pwm_chip *pwm_chip,
 
 		rc = qpnp_lpg_set_ramp_config(lpg);
 		if (rc < 0) {
-			dev_err(pwm_chip->dev, "Config LPG%d ramping failed, rc=%d\n",
+			dev_err(pwm->chip->dev, "Config LPG%d ramping failed, rc=%d\n",
 					lpg->lpg_idx, rc);
 			return rc;
 		}
@@ -1308,21 +1318,47 @@ static int qpnp_lpg_pwm_set_output_type(struct pwm_chip *pwm_chip,
 	if (is_enabled) {
 		rc = qpnp_lpg_set_pwm_config(lpg);
 		if (rc < 0) {
-			dev_err(pwm_chip->dev, "Config PWM failed for channel %d, rc=%d\n",
+			dev_err(pwm->chip->dev, "Config PWM failed for channel %d, rc=%d\n",
 							lpg->lpg_idx, rc);
 			return rc;
 		}
 
 		rc = qpnp_lpg_pwm_src_enable(lpg, true);
 		if (rc < 0) {
-			dev_err(pwm_chip->dev, "Enable PWM output failed for channel %d, rc=%d\n",
+			dev_err(pwm->chip->dev, "Enable PWM output failed for channel %d, rc=%d\n",
 					lpg->lpg_idx, rc);
 			return rc;
 		}
 	}
 
+	lpg->output_type = output_type;
+
 	return 0;
 }
+EXPORT_SYMBOL(qpnp_lpg_pwm_set_output_type);
+
+int qpnp_lpg_pwm_get_output_types_supported(struct pwm_device *pwm)
+{
+	enum pwm_output_type type = PWM_OUTPUT_FIXED;
+	struct qpnp_lpg_channel *lpg;
+
+	if (!pwm) {
+		pr_err("pwm cannot be NULL\n");
+		return -ENODEV;
+	}
+
+	lpg = pwm_dev_to_qpnp_lpg(pwm->chip, pwm);
+	if (lpg == NULL) {
+		dev_err(pwm->chip->dev, "lpg not found\n");
+		return -ENODEV;
+	}
+
+	if (lpg->chip->lut != NULL)
+		type |= PWM_OUTPUT_MODULATED;
+
+	return type;
+}
+EXPORT_SYMBOL(qpnp_lpg_pwm_get_output_types_supported);
 
 static int qpnp_lpg_pwm_enable(struct pwm_chip *pwm_chip,
 				struct pwm_device *pwm)
@@ -1389,37 +1425,10 @@ static void qpnp_lpg_pwm_disable(struct pwm_chip *pwm_chip,
 							rc);
 }
 
-static int qpnp_lpg_pwm_output_types_supported(struct pwm_chip *pwm_chip,
-				struct pwm_device *pwm)
-{
-	enum pwm_output_type type = PWM_OUTPUT_FIXED;
-	struct qpnp_lpg_channel *lpg;
-
-	lpg = pwm_dev_to_qpnp_lpg(pwm_chip, pwm);
-	if (lpg == NULL) {
-		dev_err(pwm_chip->dev, "lpg not found\n");
-		return type;
-	}
-
-	if (lpg->chip->lut != NULL)
-		type |= PWM_OUTPUT_MODULATED;
-
-	return type;
-}
-
 static int qpnp_lpg_pwm_apply(struct pwm_chip *pwm_chip, struct pwm_device *pwm,
 		     const struct pwm_state *state)
 {
 	int rc;
-
-	if (state->output_type != pwm->state.output_type) {
-		rc = qpnp_lpg_pwm_set_output_type(pwm->chip, pwm,
-				state->output_type);
-		if (rc < 0)
-			return rc;
-
-		pwm->state.output_type = state->output_type;
-	}
 
 	if (state->period != pwm->state.period ||
 			state->duty_cycle != pwm->state.duty_cycle) {
@@ -1449,7 +1458,6 @@ static int qpnp_lpg_pwm_apply(struct pwm_chip *pwm_chip, struct pwm_device *pwm,
 
 static const struct pwm_ops qpnp_lpg_pwm_ops = {
 	.apply = qpnp_lpg_pwm_apply,
-	.get_output_type_supported = qpnp_lpg_pwm_output_types_supported,
 	.owner = THIS_MODULE,
 };
 
@@ -1963,6 +1971,7 @@ static int qpnp_lpg_probe(struct platform_device *pdev)
 
 	for (i = 0; i < chip->num_lpgs; i++) {
 		lpg = &chip->lpgs[i];
+		lpg->output_type = PWM_OUTPUT_FIXED;
 		if (lpg->enable_pfm) {
 			rc = qpnp_lpg_write(lpg, REG_PWM_FM_MODE,
 					FM_MODE_ENABLE);
