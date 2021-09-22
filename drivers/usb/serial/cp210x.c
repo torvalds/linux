@@ -2140,6 +2140,8 @@ static void cp210x_determine_type(struct usb_serial *serial)
 		return;
 	}
 
+	dev_dbg(&serial->interface->dev, "partnum = 0x%02x\n", priv->partnum);
+
 	switch (priv->partnum) {
 	case CP210X_PARTNUM_CP2102:
 		cp2102_determine_quirks(serial);
