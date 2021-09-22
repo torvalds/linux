@@ -2965,7 +2965,6 @@ static int sja1105_setup_ports(struct sja1105_private *priv)
 			continue;
 
 		dp->priv = sp;
-		sp->dp = dp;
 		sp->data = tagger_data;
 		slave = dp->slave;
 		kthread_init_work(&sp->xmit_work, sja1105_port_deferred_xmit);
