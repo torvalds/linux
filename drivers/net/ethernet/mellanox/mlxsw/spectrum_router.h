@@ -65,8 +65,6 @@ struct mlxsw_sp_router {
 	struct notifier_block inet6addr_nb;
 	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 	const struct mlxsw_sp_ipip_ops **ipip_ops_arr;
-	u32 adj_discard_index;
-	bool adj_discard_index_valid;
 	struct mlxsw_sp_router_nve_decap nve_decap_config;
 	struct mutex lock; /* Protects shared router resources */
 	struct work_struct fib_event_work;
