@@ -35,6 +35,7 @@
 #include <asm/byteorder.h>
 
 #include <drm/drm_print.h>
+#include <drm/drm_dp_helper.h>
 
 #include "cgs_common.h"
 
