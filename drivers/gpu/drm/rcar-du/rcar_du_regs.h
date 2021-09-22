@@ -258,6 +258,7 @@
 #define DIDSR			0x20028
 #define DIDSR_CODE		(0x7790 << 16)
 #define DIDSR_LDCS_DCLKIN(n)	(0 << (8 + (n) * 2))
+#define DIDSR_LDCS_DSI(n)	(2 << (8 + (n) * 2))	/* V3U only */
 #define DIDSR_LDCS_LVDS0(n)	(2 << (8 + (n) * 2))
 #define DIDSR_LDCS_LVDS1(n)	(3 << (8 + (n) * 2))
 #define DIDSR_LDCS_MASK(n)	(3 << (8 + (n) * 2))
