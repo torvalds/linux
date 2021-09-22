@@ -1661,7 +1661,8 @@ static int dwc3_probe(struct platform_device *pdev)
 
 	dwc3_debugfs_init(dwc);
 
-	if (of_device_is_compatible(dev->parent->of_node,
+	if (dwc->dr_mode == USB_DR_MODE_OTG &&
+	    of_device_is_compatible(dev->parent->of_node,
 				    "rockchip,rk3399-dwc3")) {
 		pm_runtime_allow(dev);
 		pm_runtime_put_sync_suspend(dev);
