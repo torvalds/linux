@@ -561,15 +561,16 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 		val |= EDP_PSR2_SU_SDP_SCANLINE;
 
 	if (intel_dp->psr.psr2_sel_fetch_enabled) {
+		u32 tmp;
+
 		/* Wa_1408330847 */
 		if (IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0))
 			intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
 				     DIS_RAM_BYPASS_PSR2_MAN_TRACK,
 				     DIS_RAM_BYPASS_PSR2_MAN_TRACK);
 
-		intel_de_write(dev_priv,
-			       PSR2_MAN_TRK_CTL(intel_dp->psr.transcoder),
-			       PSR2_MAN_TRK_CTL_ENABLE);
+		tmp = intel_de_read(dev_priv, PSR2_MAN_TRK_CTL(intel_dp->psr.transcoder));
+		drm_WARN_ON(&dev_priv->drm, !(tmp & PSR2_MAN_TRK_CTL_ENABLE));
 	} else if (HAS_PSR2_SEL_FETCH(dev_priv)) {
 		intel_de_write(dev_priv,
 			       PSR2_MAN_TRK_CTL(intel_dp->psr.transcoder), 0);
@@ -1450,6 +1451,18 @@ static void psr_force_hw_tracking_exit(struct intel_dp *intel_dp)
 	intel_de_write(dev_priv, CURSURFLIVE(intel_dp->psr.pipe), 0);
 }
 
+void intel_psr2_disable_plane_sel_fetch(struct intel_plane *plane,
+					const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
+
+	if (!crtc_state->enable_psr2_sel_fetch)
+		return;
+
+	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_CTL(pipe, plane->id), 0);
+}
+
 void intel_psr2_program_plane_sel_fetch(struct intel_plane *plane,
 					const struct intel_crtc_state *crtc_state,
 					const struct intel_plane_state *plane_state,
@@ -1464,11 +1477,11 @@ void intel_psr2_program_plane_sel_fetch(struct intel_plane *plane,
 	if (!crtc_state->enable_psr2_sel_fetch)
 		return;
 
-	val = plane_state ? plane_state->ctl : 0;
-	val &= plane->id == PLANE_CURSOR ? val : PLANE_SEL_FETCH_CTL_ENABLE;
-	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_CTL(pipe, plane->id), val);
-	if (!val || plane->id == PLANE_CURSOR)
+	if (plane->id == PLANE_CURSOR) {
+		intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_CTL(pipe, plane->id),
+				  plane_state->ctl);
 		return;
+	}
 
 	clip = &plane_state->psr2_sel_fetch_area;
 
@@ -1487,14 +1500,16 @@ void intel_psr2_program_plane_sel_fetch(struct intel_plane *plane,
 	val = (drm_rect_height(clip) - 1) << 16;
 	val |= (drm_rect_width(&plane_state->uapi.src) >> 16) - 1;
 	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_SIZE(pipe, plane->id), val);
+
+	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_CTL(pipe, plane->id),
+			  PLANE_SEL_FETCH_CTL_ENABLE);
 }
 
 void intel_psr2_program_trans_man_trk_ctl(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 
-	if (!HAS_PSR2_SEL_FETCH(dev_priv) ||
-	    !crtc_state->enable_psr2_sel_fetch)
+	if (!crtc_state->enable_psr2_sel_fetch)
 		return;
 
 	intel_de_write(dev_priv, PSR2_MAN_TRK_CTL(crtc_state->cpu_transcoder),

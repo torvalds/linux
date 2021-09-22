@@ -536,8 +536,10 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 	if (DISPLAY_VER(dev_priv) >= 9)
 		skl_write_cursor_wm(plane, crtc_state);
 
-	if (!intel_crtc_needs_modeset(crtc_state))
+	if (plane_state)
 		intel_psr2_program_plane_sel_fetch(plane, crtc_state, plane_state, 0);
+	else
+		intel_psr2_disable_plane_sel_fetch(plane, crtc_state);
 
 	if (plane->cursor.base != base ||
 	    plane->cursor.size != fbc_ctl ||

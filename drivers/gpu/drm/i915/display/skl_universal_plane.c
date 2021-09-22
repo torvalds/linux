@@ -656,6 +656,7 @@ skl_disable_plane(struct intel_plane *plane,
 
 	skl_write_plane_wm(plane, crtc_state);
 
+	intel_psr2_disable_plane_sel_fetch(plane, crtc_state);
 	intel_de_write_fw(dev_priv, PLANE_CTL(pipe, plane_id), 0);
 	intel_de_write_fw(dev_priv, PLANE_SURF(pipe, plane_id), 0);
 
@@ -1101,8 +1102,7 @@ skl_program_plane(struct intel_plane *plane,
 				  (plane_state->view.color_plane[1].y << 16) |
 				   plane_state->view.color_plane[1].x);
 
-	if (!drm_atomic_crtc_needs_modeset(&crtc_state->uapi))
-		intel_psr2_program_plane_sel_fetch(plane, crtc_state, plane_state, color_plane);
+	intel_psr2_program_plane_sel_fetch(plane, crtc_state, plane_state, color_plane);
 
 	/*
 	 * Enable the scaler before the plane so that we don't
