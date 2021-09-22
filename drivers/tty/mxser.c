@@ -706,6 +706,16 @@ static void mxser_check_modem_status(struct tty_struct *tty,
 		mxser_handle_cts(tty, port, status);
 }
 
+static void mxser_disable_and_clear_FIFO(struct mxser_port *info)
+{
+	u8 fcr = UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT;
+
+	if (info->board->must_hwid)
+		fcr |= MOXA_MUST_FCR_GDA_MODE_ENABLE;
+
+	outb(fcr, info->ioaddr + UART_FCR);
+}
+
 static int mxser_activate(struct tty_port *port, struct tty_struct *tty)
 {
 	struct mxser_port *info = container_of(port, struct mxser_port, port);
@@ -730,13 +740,7 @@ static int mxser_activate(struct tty_port *port, struct tty_struct *tty)
 	 * Clear the FIFO buffers and disable them
 	 * (they will be reenabled in mxser_change_speed())
 	 */
-	if (info->board->must_hwid)
-		outb((UART_FCR_CLEAR_RCVR |
-			UART_FCR_CLEAR_XMIT |
-			MOXA_MUST_FCR_GDA_MODE_ENABLE), info->ioaddr + UART_FCR);
-	else
-		outb((UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT),
-			info->ioaddr + UART_FCR);
+	mxser_disable_and_clear_FIFO(info);
 
 	/*
 	 * At this point there's no way the LSR could still be 0xFF;
@@ -824,13 +828,7 @@ static void mxser_shutdown_port(struct tty_port *port)
 	outb(0x00, info->ioaddr + UART_IER);
 
 	/* clear Rx/Tx FIFO's */
-	if (info->board->must_hwid)
-		outb(UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT |
-				MOXA_MUST_FCR_GDA_MODE_ENABLE,
-				info->ioaddr + UART_FCR);
-	else
-		outb(UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT,
-			info->ioaddr + UART_FCR);
+	mxser_disable_and_clear_FIFO(info);
 
 	/* read data port to reset things */
 	(void) inb(info->ioaddr + UART_RX);
