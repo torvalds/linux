@@ -558,32 +558,3 @@ int rtw_set_channel_plan(struct adapter *adapter, u8 channel_plan)
 	/* handle by cmd_thread to sync with scan operation */
 	return rtw_set_chplan_cmd(adapter, channel_plan, 1);
 }
-
-/*
-* rtw_set_country -
-* @adapter: pointer to struct adapter structure
-* @country_code: string of country code
-*
-* Return _SUCCESS or _FAIL
-*/
-int rtw_set_country(struct adapter *adapter, const char *country_code)
-{
-	int channel_plan = RT_CHANNEL_DOMAIN_GLOBAL_DOAMIN_2G;
-
-	DBG_88E("%s country_code:%s\n", __func__, country_code);
-
-	/* TODO: should have a table to match country code and RT_CHANNEL_DOMAIN */
-	/* TODO: should consider 2-character and 3-character country code */
-	if (0 == strcmp(country_code, "US"))
-		channel_plan = RT_CHANNEL_DOMAIN_FCC;
-	else if (0 == strcmp(country_code, "EU"))
-		channel_plan = RT_CHANNEL_DOMAIN_ETSI;
-	else if (0 == strcmp(country_code, "JP"))
-		channel_plan = RT_CHANNEL_DOMAIN_MKK;
-	else if (0 == strcmp(country_code, "CN"))
-		channel_plan = RT_CHANNEL_DOMAIN_CHINA;
-	else
-		DBG_88E("%s unknown country_code:%s\n", __func__, country_code);
-
-	return rtw_set_channel_plan(adapter, channel_plan);
-}
