@@ -5337,8 +5337,10 @@ static bool __io_poll_complete(struct io_kiocb *req, __poll_t mask)
 	}
 	if (req->poll.events & EPOLLONESHOT)
 		flags = 0;
-	if (!io_cqring_fill_event(ctx, req->user_data, error, flags))
+	if (!io_cqring_fill_event(ctx, req->user_data, error, flags)) {
+		req->poll.events |= EPOLLONESHOT;
 		flags = 0;
+	}
 	if (flags & IORING_CQE_F_MORE)
 		ctx->cq_extra++;
 
