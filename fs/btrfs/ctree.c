@@ -395,7 +395,7 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	if (*cow_ret == buf)
 		unlock_orig = 1;
 
-	btrfs_assert_tree_locked(buf);
+	btrfs_assert_tree_write_locked(buf);
 
 	WARN_ON(test_bit(BTRFS_ROOT_SHAREABLE, &root->state) &&
 		trans->transid != fs_info->running_transaction->transid);
@@ -2487,7 +2487,7 @@ static void insert_ptr(struct btrfs_trans_handle *trans,
 	int ret;
 
 	BUG_ON(!path->nodes[level]);
-	btrfs_assert_tree_locked(path->nodes[level]);
+	btrfs_assert_tree_write_locked(path->nodes[level]);
 	lower = path->nodes[level];
 	nritems = btrfs_header_nritems(lower);
 	BUG_ON(slot > nritems);
@@ -2827,7 +2827,7 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (slot >= btrfs_header_nritems(upper) - 1)
 		return 1;
 
-	btrfs_assert_tree_locked(path->nodes[1]);
+	btrfs_assert_tree_write_locked(path->nodes[1]);
 
 	right = btrfs_read_node_slot(upper, slot + 1);
 	/*
@@ -3065,7 +3065,7 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (right_nritems == 0)
 		return 1;
 
-	btrfs_assert_tree_locked(path->nodes[1]);
+	btrfs_assert_tree_write_locked(path->nodes[1]);
 
 	left = btrfs_read_node_slot(path->nodes[1], slot - 1);
 	/*
