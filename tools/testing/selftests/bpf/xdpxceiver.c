@@ -445,6 +445,12 @@ static void test_spec_set_name(struct test_spec *test, const char *name)
 	strncpy(test->name, name, MAX_TEST_NAME_SIZE);
 }
 
+static void pkt_stream_reset(struct pkt_stream *pkt_stream)
+{
+	if (pkt_stream)
+		pkt_stream->rx_pkt_nb = 0;
+}
+
 static struct pkt *pkt_stream_get_pkt(struct pkt_stream *pkt_stream, u32 pkt_nb)
 {
 	if (pkt_nb >= pkt_stream->nb_pkts)
@@ -1032,6 +1038,7 @@ static void testapp_validate_traffic(struct test_spec *test)
 		exit_with_error(errno);
 
 	test->current_step++;
+	pkt_stream_reset(ifobj_rx->pkt_stream);
 
 	/*Spawn RX thread */
 	pthread_create(&t0, NULL, ifobj_rx->func_ptr, test);
