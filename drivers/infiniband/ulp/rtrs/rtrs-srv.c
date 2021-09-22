@@ -1766,6 +1766,7 @@ static struct rtrs_srv_sess *__alloc_sess(struct rtrs_srv *srv,
 	strscpy(sess->s.sessname, str, sizeof(sess->s.sessname));
 
 	sess->s.con_num = con_num;
+	sess->s.irq_con_num = con_num;
 	sess->s.recon_cnt = recon_cnt;
 	uuid_copy(&sess->s.uuid, uuid);
 	spin_lock_init(&sess->state_lock);
