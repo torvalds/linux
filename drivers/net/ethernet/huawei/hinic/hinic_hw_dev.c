@@ -754,13 +754,7 @@ static int init_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 		return err;
 	}
 
-	err = hinic_devlink_register(hwdev->devlink_dev);
-	if (err) {
-		dev_err(&hwif->pdev->dev, "Failed to register devlink\n");
-		hinic_pf_to_mgmt_free(&pfhwdev->pf_to_mgmt);
-		return err;
-	}
-
+	hinic_devlink_register(hwdev->devlink_dev);
 	err = hinic_func_to_func_init(hwdev);
 	if (err) {
 		dev_err(&hwif->pdev->dev, "Failed to init mailbox\n");

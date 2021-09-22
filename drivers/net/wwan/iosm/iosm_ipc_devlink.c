@@ -290,11 +290,7 @@ struct iosm_devlink *ipc_devlink_init(struct iosm_imem *ipc_imem)
 	ipc_devlink->devlink_ctx = devlink_ctx;
 	ipc_devlink->pcie = ipc_imem->pcie;
 	ipc_devlink->dev = ipc_imem->dev;
-	rc = devlink_register(devlink_ctx);
-	if (rc) {
-		dev_err(ipc_devlink->dev, "devlink_register failed rc %d", rc);
-		goto free_dl;
-	}
+	devlink_register(devlink_ctx);
 
 	rc = devlink_params_register(devlink_ctx, iosm_devlink_params,
 				     ARRAY_SIZE(iosm_devlink_params));
@@ -334,8 +330,6 @@ region_create_fail:
 	devlink_params_unregister(devlink_ctx, iosm_devlink_params,
 				  ARRAY_SIZE(iosm_devlink_params));
 param_reg_fail:
-	devlink_unregister(devlink_ctx);
-free_dl:
 	devlink_free(devlink_ctx);
 devlink_alloc_fail:
 	return NULL;

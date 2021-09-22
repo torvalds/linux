@@ -1510,13 +1510,7 @@ int rvu_register_dl(struct rvu *rvu)
 		return -ENOMEM;
 	}
 
-	err = devlink_register(dl);
-	if (err) {
-		dev_err(rvu->dev, "devlink register failed with error %d\n", err);
-		devlink_free(dl);
-		return err;
-	}
-
+	devlink_register(dl);
 	rvu_dl = devlink_priv(dl);
 	rvu_dl->dl = dl;
 	rvu_dl->rvu = rvu;

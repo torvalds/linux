@@ -802,12 +802,7 @@ int bnxt_dl_register(struct bnxt *bp)
 	    bp->hwrm_spec_code > 0x10803)
 		bp->eswitch_mode = DEVLINK_ESWITCH_MODE_LEGACY;
 
-	rc = devlink_register(dl);
-	if (rc) {
-		netdev_warn(bp->dev, "devlink_register failed. rc=%d\n", rc);
-		goto err_dl_free;
-	}
-
+	devlink_register(dl);
 	if (!BNXT_PF(bp))
 		return 0;
 
@@ -819,7 +814,7 @@ int bnxt_dl_register(struct bnxt *bp)
 	rc = devlink_port_register(dl, &bp->dl_port, bp->pf.port_id);
 	if (rc) {
 		netdev_err(bp->dev, "devlink_port_register failed\n");
-		goto err_dl_unreg;
+		goto err_dl_free;
 	}
 
 	rc = bnxt_dl_params_register(bp);
@@ -830,8 +825,6 @@ int bnxt_dl_register(struct bnxt *bp)
 
 err_dl_port_unreg:
 	devlink_port_unregister(&bp->dl_port);
-err_dl_unreg:
-	devlink_unregister(dl);
 err_dl_free:
 	bnxt_link_bp_to_dl(bp, NULL);
 	devlink_free(dl);

@@ -793,10 +793,7 @@ int mlx5_devlink_register(struct devlink *devlink)
 {
 	int err;
 
-	err = devlink_register(devlink);
-	if (err)
-		return err;
-
+	devlink_register(devlink);
 	err = devlink_params_register(devlink, mlx5_devlink_params,
 				      ARRAY_SIZE(mlx5_devlink_params));
 	if (err)

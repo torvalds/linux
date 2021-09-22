@@ -412,11 +412,7 @@ int prestera_devlink_register(struct prestera_switch *sw)
 	struct devlink *dl = priv_to_devlink(sw);
 	int err;
 
-	err = devlink_register(dl);
-	if (err) {
-		dev_err(prestera_dev(sw), "devlink_register failed: %d\n", err);
-		return err;
-	}
+	devlink_register(dl);
 
 	err = prestera_devlink_traps_register(sw);
 	if (err) {

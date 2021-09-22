@@ -498,19 +498,11 @@ struct ice_pf *ice_allocate_pf(struct device *dev)
  *
  * Return: zero on success or an error code on failure.
  */
-int ice_devlink_register(struct ice_pf *pf)
+void ice_devlink_register(struct ice_pf *pf)
 {
 	struct devlink *devlink = priv_to_devlink(pf);
-	struct device *dev = ice_pf_to_dev(pf);
-	int err;
 
-	err = devlink_register(devlink);
-	if (err) {
-		dev_err(dev, "devlink registration failed: %d\n", err);
-		return err;
-	}
-
-	return 0;
+	devlink_register(devlink);
 }
 
 /**

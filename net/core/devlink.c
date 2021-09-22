@@ -8960,13 +8960,12 @@ EXPORT_SYMBOL_GPL(devlink_alloc_ns);
  *
  *	@devlink: devlink
  */
-int devlink_register(struct devlink *devlink)
+void devlink_register(struct devlink *devlink)
 {
 	mutex_lock(&devlink_mutex);
 	xa_set_mark(&devlinks, devlink->index, DEVLINK_REGISTERED);
 	devlink_notify(devlink, DEVLINK_CMD_NEW);
 	mutex_unlock(&devlink_mutex);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(devlink_register);
 

@@ -3760,13 +3760,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 	lio_devlink = devlink_priv(devlink);
 	lio_devlink->oct = octeon_dev;
 
-	if (devlink_register(devlink)) {
-		devlink_free(devlink);
-		dev_err(&octeon_dev->pci_dev->dev,
-			"devlink registration failed\n");
-		goto setup_nic_dev_free;
-	}
-
+	devlink_register(devlink);
 	octeon_dev->devlink = devlink;
 	octeon_dev->eswitch_mode = DEVLINK_ESWITCH_MODE_LEGACY;
 

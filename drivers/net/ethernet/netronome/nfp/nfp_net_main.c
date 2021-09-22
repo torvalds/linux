@@ -701,10 +701,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (err)
 		goto err_unmap;
 
-	err = devlink_register(devlink);
-	if (err)
-		goto err_app_clean;
-
+	devlink_register(devlink);
 	err = nfp_shared_buf_register(pf);
 	if (err)
 		goto err_devlink_unreg;
@@ -752,7 +749,6 @@ err_shared_buf_unreg:
 err_devlink_unreg:
 	cancel_work_sync(&pf->port_refresh_work);
 	devlink_unregister(devlink);
-err_app_clean:
 	nfp_net_pf_app_clean(pf);
 err_unmap:
 	nfp_net_pci_unmap_mem(pf);

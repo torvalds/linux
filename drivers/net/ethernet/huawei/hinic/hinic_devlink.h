@@ -110,7 +110,7 @@ struct host_image_st {
 
 struct devlink *hinic_devlink_alloc(struct device *dev);
 void hinic_devlink_free(struct devlink *devlink);
-int hinic_devlink_register(struct hinic_devlink_priv *priv);
+void hinic_devlink_register(struct hinic_devlink_priv *priv);
 void hinic_devlink_unregister(struct hinic_devlink_priv *priv);
 
 int hinic_health_reporters_create(struct hinic_devlink_priv *priv);

@@ -4614,12 +4614,8 @@ static int qlge_probe(struct pci_dev *pdev,
 		goto netdev_free;
 	}
 
-	err = devlink_register(devlink);
-	if (err)
-		goto netdev_free;
-
+	devlink_register(devlink);
 	err = qlge_health_create_reporters(qdev);
-
 	if (err)
 		goto devlink_unregister;
 

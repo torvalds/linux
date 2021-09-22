@@ -1973,11 +1973,8 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_emad_init;
 
-	if (!reload) {
-		err = devlink_register(devlink);
-		if (err)
-			goto err_devlink_register;
-	}
+	if (!reload)
+		devlink_register(devlink);
 
 	if (!reload) {
 		err = mlxsw_core_params_register(mlxsw_core);
@@ -2035,7 +2032,6 @@ err_fw_rev_validate:
 err_register_params:
 	if (!reload)
 		devlink_unregister(devlink);
-err_devlink_register:
 	mlxsw_emad_fini(mlxsw_core);
 err_emad_init:
 	kfree(mlxsw_core->lag.mapping);

@@ -804,10 +804,7 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	dl_priv = devlink_priv(ds->devlink);
 	dl_priv->ds = ds;
 
-	err = devlink_register(ds->devlink);
-	if (err)
-		goto free_devlink;
-
+	devlink_register(ds->devlink);
 	/* Setup devlink port instances now, so that the switch
 	 * setup() can register regions etc, against the ports
 	 */
@@ -863,10 +860,8 @@ unregister_devlink_ports:
 		if (dp->ds == ds)
 			dsa_port_devlink_teardown(dp);
 	devlink_unregister(ds->devlink);
-free_devlink:
 	devlink_free(ds->devlink);
 	ds->devlink = NULL;
-
 	return err;
 }
 

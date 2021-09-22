@@ -2429,12 +2429,7 @@ static int am65_cpsw_nuss_register_devlink(struct am65_cpsw_common *common)
 	dl_priv = devlink_priv(common->devlink);
 	dl_priv->common = common;
 
-	ret = devlink_register(common->devlink);
-	if (ret) {
-		dev_err(dev, "devlink reg fail ret:%d\n", ret);
-		goto dl_free;
-	}
-
+	devlink_register(common->devlink);
 	/* Provide devlink hook to switch mode when multiple external ports
 	 * are present NUSS switchdev driver is enabled.
 	 */
@@ -2480,9 +2475,7 @@ dl_port_unreg:
 	}
 dl_unreg:
 	devlink_unregister(common->devlink);
-dl_free:
 	devlink_free(common->devlink);
-
 	return ret;
 }
 

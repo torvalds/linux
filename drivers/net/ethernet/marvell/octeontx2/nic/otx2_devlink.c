@@ -108,13 +108,7 @@ int otx2_register_dl(struct otx2_nic *pfvf)
 		return -ENOMEM;
 	}
 
-	err = devlink_register(dl);
-	if (err) {
-		dev_err(pfvf->dev, "devlink register failed with error %d\n", err);
-		devlink_free(dl);
-		return err;
-	}
-
+	devlink_register(dl);
 	otx2_dl = devlink_priv(dl);
 	otx2_dl->dl = dl;
 	otx2_dl->pfvf = pfvf;

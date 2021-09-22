@@ -109,7 +109,6 @@ int hclge_devlink_init(struct hclge_dev *hdev)
 	struct pci_dev *pdev = hdev->pdev;
 	struct hclge_devlink_priv *priv;
 	struct devlink *devlink;
-	int ret;
 
 	devlink = devlink_alloc(&hclge_devlink_ops,
 				sizeof(struct hclge_devlink_priv), &pdev->dev);
@@ -120,20 +119,9 @@ int hclge_devlink_init(struct hclge_dev *hdev)
 	priv->hdev = hdev;
 	hdev->devlink = devlink;
 
-	ret = devlink_register(devlink);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register devlink, ret = %d\n",
-			ret);
-		goto out_reg_fail;
-	}
-
+	devlink_register(devlink);
 	devlink_reload_enable(devlink);
-
 	return 0;
-
-out_reg_fail:
-	devlink_free(devlink);
-	return ret;
 }
 
 void hclge_devlink_uninit(struct hclge_dev *hdev)
