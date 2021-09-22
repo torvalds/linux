@@ -274,12 +274,6 @@ static void __init omap3_pandora_legacy_init(void)
 }
 #endif /* CONFIG_ARCH_OMAP3 */
 
-#ifdef CONFIG_SOC_OMAP5
-static void __init omap5_uevm_legacy_init(void)
-{
-}
-#endif
-
 #ifdef CONFIG_SOC_DRA7XX
 static struct iommu_platform_data dra7_ipu1_dsp_iommu_pdata = {
 	.set_pwrdm_constraint = omap_iommu_set_pwrdm_constraint,
@@ -548,9 +542,6 @@ static struct pdata_init pdata_quirks[] __initdata = {
 	{ "technexion,omap3-tao3530", omap3_tao3530_legacy_init, },
 	{ "openpandora,omap3-pandora-600mhz", omap3_pandora_legacy_init, },
 	{ "openpandora,omap3-pandora-1ghz", omap3_pandora_legacy_init, },
-#endif
-#ifdef CONFIG_SOC_OMAP5
-	{ "ti,omap5-uevm", omap5_uevm_legacy_init, },
 #endif
 #ifdef CONFIG_SOC_DRA7XX
 	{ "ti,dra7-evm", dra7x_evm_mmc_quirk, },
