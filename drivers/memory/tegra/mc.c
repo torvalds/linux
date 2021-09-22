@@ -87,11 +87,9 @@ struct tegra_mc *devm_tegra_memory_controller_get(struct device *dev)
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 
-	err = devm_add_action(dev, tegra_mc_devm_action_put_device, mc);
-	if (err) {
-		put_device(mc->dev);
+	err = devm_add_action_or_reset(dev, tegra_mc_devm_action_put_device, mc);
+	if (err)
 		return ERR_PTR(err);
-	}
 
 	return mc;
 }
