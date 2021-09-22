@@ -222,13 +222,18 @@ static void qp_event_handler(struct ib_event *ev, void *ctx)
 	}
 }
 
+static bool is_pollqueue(struct rtrs_con *con)
+{
+	return con->cid >= con->sess->irq_con_num;
+}
+
 static int create_cq(struct rtrs_con *con, int cq_vector, int nr_cqe,
 		     enum ib_poll_context poll_ctx)
 {
 	struct rdma_cm_id *cm_id = con->cm_id;
 	struct ib_cq *cq;
 
-	if (con->cid >= con->sess->irq_con_num)
+	if (is_pollqueue(con))
 		cq = ib_alloc_cq(cm_id->device, con, nr_cqe, cq_vector,
 				 poll_ctx);
 	else
@@ -288,7 +293,7 @@ int rtrs_cq_qp_create(struct rtrs_sess *sess, struct rtrs_con *con,
 	err = create_qp(con, sess->dev->ib_pd, max_send_wr, max_recv_wr,
 			max_send_sge);
 	if (err) {
-		if (con->cid >= con->sess->irq_con_num)
+		if (is_pollqueue(con))
 			ib_free_cq(con->cq);
 		else
 			ib_cq_pool_put(con->cq, con->nr_cqe);
@@ -308,7 +313,7 @@ void rtrs_cq_qp_destroy(struct rtrs_con *con)
 		con->qp = NULL;
 	}
 	if (con->cq) {
-		if (con->cid >= con->sess->irq_con_num)
+		if (is_pollqueue(con))
 			ib_free_cq(con->cq);
 		else
 			ib_cq_pool_put(con->cq, con->nr_cqe);
