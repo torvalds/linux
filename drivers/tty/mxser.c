@@ -600,33 +600,26 @@ static void mxser_change_speed(struct tty_struct *tty, struct ktermios *old_term
 	if (cflag & CMSPAR)
 		cval |= UART_LCR_SPAR;
 
-	if ((info->type == PORT_8250) || (info->type == PORT_16450)) {
-		if (info->board->must_hwid) {
-			fcr = UART_FCR_ENABLE_FIFO;
-			fcr |= MOXA_MUST_FCR_GDA_MODE_ENABLE;
-			mxser_set_must_fifo_value(info);
-		} else
-			fcr = 0;
-	} else {
-		fcr = UART_FCR_ENABLE_FIFO;
-		if (info->board->must_hwid) {
-			fcr |= MOXA_MUST_FCR_GDA_MODE_ENABLE;
-			mxser_set_must_fifo_value(info);
-		} else {
-			switch (info->rx_high_water) {
-			case 1:
-				fcr |= UART_FCR_TRIGGER_1;
-				break;
-			case 4:
-				fcr |= UART_FCR_TRIGGER_4;
-				break;
-			case 8:
-				fcr |= UART_FCR_TRIGGER_8;
-				break;
-			default:
-				fcr |= UART_FCR_TRIGGER_14;
-				break;
-			}
+	fcr = 0;
+	if (info->board->must_hwid) {
+		fcr |= UART_FCR_ENABLE_FIFO |
+			MOXA_MUST_FCR_GDA_MODE_ENABLE;
+		mxser_set_must_fifo_value(info);
+	} else if (info->type != PORT_8250 && info->type != PORT_16450) {
+		fcr |= UART_FCR_ENABLE_FIFO;
+		switch (info->rx_high_water) {
+		case 1:
+			fcr |= UART_FCR_TRIGGER_1;
+			break;
+		case 4:
+			fcr |= UART_FCR_TRIGGER_4;
+			break;
+		case 8:
+			fcr |= UART_FCR_TRIGGER_8;
+			break;
+		default:
+			fcr |= UART_FCR_TRIGGER_14;
+			break;
 		}
 	}
 
