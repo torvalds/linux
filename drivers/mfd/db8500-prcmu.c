@@ -2939,7 +2939,7 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 };
 
 static const struct mfd_cell common_prcmu_devs[] = {
-	MFD_CELL_NAME("ux500_wdt"),
+	MFD_CELL_NAME("db8500_wdt"),
 	MFD_CELL_NAME("db8500-cpuidle"),
 };
 
