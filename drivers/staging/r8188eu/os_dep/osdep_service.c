@@ -246,27 +246,6 @@ inline bool rtw_cbuf_empty(struct rtw_cbuf *cbuf)
 }
 
 /**
- * rtw_cbuf_push - push a pointer into cbuf
- * @cbuf: pointer of struct rtw_cbuf
- * @buf: pointer to push in
- *
- * Lock free operation, be careful of the use scheme
- * Returns: true push success
- */
-bool rtw_cbuf_push(struct rtw_cbuf *cbuf, void *buf)
-{
-	if (rtw_cbuf_full(cbuf))
-		return _FAIL;
-
-	if (0)
-		DBG_88E("%s on %u\n", __func__, cbuf->write);
-	cbuf->bufs[cbuf->write] = buf;
-	cbuf->write = (cbuf->write + 1) % cbuf->size;
-
-	return _SUCCESS;
-}
-
-/**
  * rtw_cbuf_pop - pop a pointer from cbuf
  * @cbuf: pointer of struct rtw_cbuf
  *
