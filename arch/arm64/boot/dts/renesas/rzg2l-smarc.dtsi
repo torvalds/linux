@@ -89,10 +89,6 @@
 	status = "okay";
 };
 
-&extal_clk {
-	clock-frequency = <24000000>;
-};
-
 &hsusb {
 	dr_mode = "otg";
 	status = "okay";
