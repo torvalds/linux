@@ -333,13 +333,17 @@ fail:
  * @hw: handle between common and hardware-specific interfaces
  * @off: register offset
  * @bit: ON/MON bit
+ * @enabled: soft state of the clock, if it is coupled with another clock
  * @priv: CPG/MSTP private data
+ * @sibling: pointer to the other coupled clock
  */
 struct mstp_clock {
 	struct clk_hw hw;
 	u16 off;
 	u8 bit;
+	bool enabled;
 	struct rzg2l_cpg_priv *priv;
+	struct mstp_clock *sibling;
 };
 
 #define to_mod_clock(_hw) container_of(_hw, struct mstp_clock, hw)
@@ -392,11 +396,41 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 
 static int rzg2l_mod_clock_enable(struct clk_hw *hw)
 {
+	struct mstp_clock *clock = to_mod_clock(hw);
+
+	if (clock->sibling) {
+		struct rzg2l_cpg_priv *priv = clock->priv;
+		unsigned long flags;
+		bool enabled;
+
+		spin_lock_irqsave(&priv->rmw_lock, flags);
+		enabled = clock->sibling->enabled;
+		clock->enabled = true;
+		spin_unlock_irqrestore(&priv->rmw_lock, flags);
+		if (enabled)
+			return 0;
+	}
+
 	return rzg2l_mod_clock_endisable(hw, true);
 }
 
 static void rzg2l_mod_clock_disable(struct clk_hw *hw)
 {
+	struct mstp_clock *clock = to_mod_clock(hw);
+
+	if (clock->sibling) {
+		struct rzg2l_cpg_priv *priv = clock->priv;
+		unsigned long flags;
+		bool enabled;
+
+		spin_lock_irqsave(&priv->rmw_lock, flags);
+		enabled = clock->sibling->enabled;
+		clock->enabled = false;
+		spin_unlock_irqrestore(&priv->rmw_lock, flags);
+		if (enabled)
+			return;
+	}
+
 	rzg2l_mod_clock_endisable(hw, false);
 }
 
@@ -412,6 +446,9 @@ static int rzg2l_mod_clock_is_enabled(struct clk_hw *hw)
 		return 1;
 	}
 
+	if (clock->sibling)
+		return clock->enabled;
+
 	value = readl(priv->base + CLK_MON_R(clock->off));
 
 	return value & bitmask;
@@ -422,6 +459,28 @@ static const struct clk_ops rzg2l_mod_clock_ops = {
 	.disable = rzg2l_mod_clock_disable,
 	.is_enabled = rzg2l_mod_clock_is_enabled,
 };
+
+static struct mstp_clock
+*rzg2l_mod_clock__get_sibling(struct mstp_clock *clock,
+			      struct rzg2l_cpg_priv *priv)
+{
+	struct clk_hw *hw;
+	unsigned int i;
+
+	for (i = 0; i < priv->num_mod_clks; i++) {
+		struct mstp_clock *clk;
+
+		if (priv->clks[priv->num_core_clks + i] == ERR_PTR(-ENOENT))
+			continue;
+
+		hw = __clk_get_hw(priv->clks[priv->num_core_clks + i]);
+		clk = to_mod_clock(hw);
+		if (clock->off == clk->off && clock->bit == clk->bit)
+			return clk;
+	}
+
+	return NULL;
+}
 
 static void __init
 rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
@@ -484,6 +543,18 @@ rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
 
 	dev_dbg(dev, "Module clock %pC at %lu Hz\n", clk, clk_get_rate(clk));
 	priv->clks[id] = clk;
+
+	if (mod->is_coupled) {
+		struct mstp_clock *sibling;
+
+		clock->enabled = rzg2l_mod_clock_is_enabled(&clock->hw);
+		sibling = rzg2l_mod_clock__get_sibling(clock, priv);
+		if (sibling) {
+			clock->sibling = sibling;
+			sibling->sibling = clock;
+		}
+	}
+
 	return;
 
 fail:

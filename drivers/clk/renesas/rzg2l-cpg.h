@@ -93,6 +93,7 @@ enum clk_types {
  * @parent: id of parent clock
  * @off: register offset
  * @bit: ON/MON bit
+ * @is_coupled: flag to indicate coupled clock
  */
 struct rzg2l_mod_clk {
 	const char *name;
@@ -100,16 +101,24 @@ struct rzg2l_mod_clk {
 	unsigned int parent;
 	u16 off;
 	u8 bit;
+	bool is_coupled;
 };
 
-#define DEF_MOD(_name, _id, _parent, _off, _bit)	\
+#define DEF_MOD_BASE(_name, _id, _parent, _off, _bit, _is_coupled)	\
 	{ \
 		.name = _name, \
 		.id = MOD_CLK_BASE + (_id), \
 		.parent = (_parent), \
 		.off = (_off), \
 		.bit = (_bit), \
+		.is_coupled = (_is_coupled), \
 	}
+
+#define DEF_MOD(_name, _id, _parent, _off, _bit)	\
+	DEF_MOD_BASE(_name, _id, _parent, _off, _bit, false)
+
+#define DEF_COUPLED(_name, _id, _parent, _off, _bit)	\
+	DEF_MOD_BASE(_name, _id, _parent, _off, _bit, true)
 
 /**
  * struct rzg2l_reset - Reset definitions
