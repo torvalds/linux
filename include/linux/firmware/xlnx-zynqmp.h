@@ -72,6 +72,8 @@ enum pm_api_id {
 	PM_SET_REQUIREMENT = 15,
 	PM_RESET_ASSERT = 17,
 	PM_RESET_GET_STATUS = 18,
+	PM_MMIO_WRITE = 19,
+	PM_MMIO_READ = 20,
 	PM_PM_INIT_FINALIZE = 21,
 	PM_FPGA_LOAD = 22,
 	PM_FPGA_GET_STATUS = 23,
@@ -390,6 +392,8 @@ int zynqmp_pm_sd_dll_reset(u32 node_id, u32 type);
 int zynqmp_pm_reset_assert(const enum zynqmp_pm_reset reset,
 			   const enum zynqmp_pm_reset_action assert_flag);
 int zynqmp_pm_reset_get_status(const enum zynqmp_pm_reset reset, u32 *status);
+unsigned int zynqmp_pm_bootmode_read(u32 *ps_mode);
+int zynqmp_pm_bootmode_write(u32 ps_mode);
 int zynqmp_pm_init_finalize(void);
 int zynqmp_pm_set_suspend_mode(u32 mode);
 int zynqmp_pm_request_node(const u32 node, const u32 capabilities,
@@ -516,6 +520,16 @@ static inline int zynqmp_pm_reset_assert(const enum zynqmp_pm_reset reset,
 
 static inline int zynqmp_pm_reset_get_status(const enum zynqmp_pm_reset reset,
 					     u32 *status)
+{
+	return -ENODEV;
+}
+
+static inline unsigned int zynqmp_pm_bootmode_read(u32 *ps_mode)
+{
+	return -ENODEV;
+}
+
+static inline int zynqmp_pm_bootmode_write(u32 ps_mode)
 {
 	return -ENODEV;
 }
