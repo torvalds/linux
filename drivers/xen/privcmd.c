@@ -420,7 +420,7 @@ static int alloc_empty_pages(struct vm_area_struct *vma, int numpgs)
 	int rc;
 	struct page **pages;
 
-	pages = kcalloc(numpgs, sizeof(pages[0]), GFP_KERNEL);
+	pages = kvcalloc(numpgs, sizeof(pages[0]), GFP_KERNEL);
 	if (pages == NULL)
 		return -ENOMEM;
 
@@ -428,7 +428,7 @@ static int alloc_empty_pages(struct vm_area_struct *vma, int numpgs)
 	if (rc != 0) {
 		pr_warn("%s Could not alloc %d pfns rc:%d\n", __func__,
 			numpgs, rc);
-		kfree(pages);
+		kvfree(pages);
 		return -ENOMEM;
 	}
 	BUG_ON(vma->vm_private_data != NULL);
@@ -912,7 +912,7 @@ static void privcmd_close(struct vm_area_struct *vma)
 	else
 		pr_crit("unable to unmap MFN range: leaking %d pages. rc=%d\n",
 			numpgs, rc);
-	kfree(pages);
+	kvfree(pages);
 }
 
 static vm_fault_t privcmd_fault(struct vm_fault *vmf)
