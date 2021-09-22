@@ -8,6 +8,8 @@
 / {
 	aliases {
 		ethernet0 = &gmac0;
+		hdptx0 = &hdptxphy0;
+		hdptx1 = &hdptxphy1;
 	};
 
 	usbdrd3_1: usbdrd3_1 {
@@ -73,6 +75,11 @@
 				status = "disabled";
 			};
 		};
+	};
+
+	hdptxphy1_grf: syscon@fd5e4000 {
+		compatible = "rockchip,rk3588-hdptxphy-grf", "syscon";
+		reg = <0x0 0xfd5e4000 0x0 0x80>;
 	};
 
 	spdif_tx5: spdif-tx@fddb8000 {
@@ -396,6 +403,22 @@
 		phy-names = "sata-phy";
 		ports-implemented = <0x1>;
 		power-domains = <&power RK3588_PD_PHP>;
+		status = "disabled";
+	};
+
+	hdptxphy1: phy@fed70000 {
+		compatible = "rockchip,rk3588-hdptx-phy";
+		reg = <0x0 0xfed70000 0x0 0x2000>;
+		clocks = <&cru CLK_USB2PHY_HDPTXRXPHY_REF>, <&cru PCLK_HDPTX1>;
+		clock-names = "ref", "apb";
+		resets = <&cru SRST_HDPTX1>, <&cru SRST_P_HDPTX1>,
+			 <&cru SRST_HDPTX1_INIT>, <&cru SRST_HDPTX1_CMN>,
+			 <&cru SRST_HDPTX1_LANE>, <&cru SRST_HDPTX1_ROPLL>,
+			 <&cru SRST_HDPTX1_LCPLL>;
+		reset-names = "phy", "apb", "init", "cmn", "lane", "ropll",
+			      "lcpll";
+		rockchip,grf = <&hdptxphy1_grf>;
+		#phy-cells = <0>;
 		status = "disabled";
 	};
 
