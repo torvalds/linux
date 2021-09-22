@@ -1140,7 +1140,7 @@ static void nvmet_start_ctrl(struct nvmet_ctrl *ctrl)
 	 * should verify iosqes,iocqes are zeroed, however that
 	 * would break backwards compatibility, so don't enforce it.
 	 */
-	if (ctrl->subsys->type != NVME_NQN_DISC &&
+	if (!nvmet_is_disc_subsys(ctrl->subsys) &&
 	    (nvmet_cc_iosqes(ctrl->cc) != NVME_NVM_IOSQES ||
 	     nvmet_cc_iocqes(ctrl->cc) != NVME_NVM_IOCQES)) {
 		ctrl->csts = NVME_CSTS_CFS;
@@ -1281,7 +1281,7 @@ bool nvmet_host_allowed(struct nvmet_subsys *subsys, const char *hostnqn)
 	if (subsys->allow_any_host)
 		return true;
 
-	if (subsys->type == NVME_NQN_DISC) /* allow all access to disc subsys */
+	if (nvmet_is_disc_subsys(subsys)) /* allow all access to disc subsys */
 		return true;
 
 	list_for_each_entry(p, &subsys->hosts, entry) {
@@ -1413,7 +1413,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	 * Discovery controllers may use some arbitrary high value
 	 * in order to cleanup stale discovery sessions
 	 */
-	if ((ctrl->subsys->type == NVME_NQN_DISC) && !kato)
+	if (nvmet_is_disc_subsys(ctrl->subsys) && !kato)
 		kato = NVMET_DISC_KATO_MS;
 
 	/* keep-alive timeout in seconds */
