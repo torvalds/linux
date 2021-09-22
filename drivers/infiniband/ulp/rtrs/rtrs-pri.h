@@ -398,7 +398,7 @@ static ssize_t get_value##_show(struct kobject *kobj,			\
 {									\
 	type *stats = container_of(kobj, type, kobj_stats);		\
 									\
-	return print(stats, page, PAGE_SIZE);			\
+	return print(stats, page);			\
 }
 
 #define STAT_ATTR(type, stat, print, reset)				\

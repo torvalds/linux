@@ -37,8 +37,7 @@ void rtrs_clt_inc_failover_cnt(struct rtrs_clt_stats *stats)
 	s->rdma.failover_cnt++;
 }
 
-int rtrs_clt_stats_migration_cnt_to_str(struct rtrs_clt_stats *stats,
-					 char *buf, size_t len)
+int rtrs_clt_stats_migration_cnt_to_str(struct rtrs_clt_stats *stats, char *buf)
 {
 	struct rtrs_clt_stats_pcpu *s;
 
@@ -66,15 +65,13 @@ int rtrs_clt_stats_migration_cnt_to_str(struct rtrs_clt_stats *stats,
 	return used;
 }
 
-int rtrs_clt_stats_reconnects_to_str(struct rtrs_clt_stats *stats, char *buf,
-				      size_t len)
+int rtrs_clt_stats_reconnects_to_str(struct rtrs_clt_stats *stats, char *buf)
 {
 	return sysfs_emit(buf, "%d %d\n", stats->reconnects.successful_cnt,
 			  stats->reconnects.fail_cnt);
 }
 
-ssize_t rtrs_clt_stats_rdma_to_str(struct rtrs_clt_stats *stats,
-				    char *page, size_t len)
+ssize_t rtrs_clt_stats_rdma_to_str(struct rtrs_clt_stats *stats, char *page)
 {
 	struct rtrs_clt_stats_rdma sum;
 	struct rtrs_clt_stats_rdma *r;
@@ -98,8 +95,7 @@ ssize_t rtrs_clt_stats_rdma_to_str(struct rtrs_clt_stats *stats,
 			 atomic_read(&stats->inflight), sum.failover_cnt);
 }
 
-ssize_t rtrs_clt_reset_all_help(struct rtrs_clt_stats *s,
-				 char *page, size_t len)
+ssize_t rtrs_clt_reset_all_help(struct rtrs_clt_stats *s, char *page)
 {
 	return sysfs_emit(page, "echo 1 to reset all statistics\n");
 }
