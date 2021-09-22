@@ -23,7 +23,6 @@ struct xdp_buff_xsk {
 	dma_addr_t dma;
 	dma_addr_t frame_dma;
 	struct xsk_buff_pool *pool;
-	bool unaligned;
 	u64 orig_addr;
 	struct list_head free_list_node;
 };
