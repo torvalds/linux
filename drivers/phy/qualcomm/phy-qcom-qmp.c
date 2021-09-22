@@ -5154,11 +5154,7 @@ static int phy_pipe_clk_register(struct qcom_qmp *qmp, struct device_node *np)
 	 * Roll a devm action because the clock provider is the child node, but
 	 * the child node is not actually a device.
 	 */
-	ret = devm_add_action(qmp->dev, phy_clk_release_provider, np);
-	if (ret)
-		phy_clk_release_provider(np);
-
-	return ret;
+	return devm_add_action_or_reset(qmp->dev, phy_clk_release_provider, np);
 }
 
 /*
@@ -5350,11 +5346,7 @@ static int phy_dp_clks_register(struct qcom_qmp *qmp, struct qmp_phy *qphy,
 	 * Roll a devm action because the clock provider is the child node, but
 	 * the child node is not actually a device.
 	 */
-	ret = devm_add_action(qmp->dev, phy_clk_release_provider, np);
-	if (ret)
-		phy_clk_release_provider(np);
-
-	return ret;
+	return devm_add_action_or_reset(qmp->dev, phy_clk_release_provider, np);
 }
 
 static const struct phy_ops qcom_qmp_phy_gen_ops = {
