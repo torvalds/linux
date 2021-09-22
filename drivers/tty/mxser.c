@@ -249,6 +249,7 @@ struct mxser_port {
 	unsigned char x_char;	/* xon/xoff character */
 	u8 IER;			/* Interrupt Enable Register */
 	u8 MCR;			/* Modem control register */
+	u8 FCR;			/* FIFO control register */
 
 	bool ldisc_stop_rx;
 
@@ -562,7 +563,7 @@ static void mxser_handle_cts(struct tty_struct *tty, struct mxser_port *info,
 static void mxser_change_speed(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct mxser_port *info = tty->driver_data;
-	unsigned cflag, cval, fcr;
+	unsigned cflag, cval;
 
 	cflag = tty->termios.c_cflag;
 
@@ -600,25 +601,25 @@ static void mxser_change_speed(struct tty_struct *tty, struct ktermios *old_term
 	if (cflag & CMSPAR)
 		cval |= UART_LCR_SPAR;
 
-	fcr = 0;
+	info->FCR = 0;
 	if (info->board->must_hwid) {
-		fcr |= UART_FCR_ENABLE_FIFO |
+		info->FCR |= UART_FCR_ENABLE_FIFO |
 			MOXA_MUST_FCR_GDA_MODE_ENABLE;
 		mxser_set_must_fifo_value(info);
 	} else if (info->type != PORT_8250 && info->type != PORT_16450) {
-		fcr |= UART_FCR_ENABLE_FIFO;
+		info->FCR |= UART_FCR_ENABLE_FIFO;
 		switch (info->rx_high_water) {
 		case 1:
-			fcr |= UART_FCR_TRIGGER_1;
+			info->FCR |= UART_FCR_TRIGGER_1;
 			break;
 		case 4:
-			fcr |= UART_FCR_TRIGGER_4;
+			info->FCR |= UART_FCR_TRIGGER_4;
 			break;
 		case 8:
-			fcr |= UART_FCR_TRIGGER_8;
+			info->FCR |= UART_FCR_TRIGGER_8;
 			break;
 		default:
-			fcr |= UART_FCR_TRIGGER_14;
+			info->FCR |= UART_FCR_TRIGGER_14;
 			break;
 		}
 	}
@@ -679,7 +680,7 @@ static void mxser_change_speed(struct tty_struct *tty, struct ktermios *old_term
 	}
 
 
-	outb(fcr, info->ioaddr + UART_FCR);	/* set fcr */
+	outb(info->FCR, info->ioaddr + UART_FCR);
 	outb(cval, info->ioaddr + UART_LCR);
 }
 
@@ -865,7 +866,7 @@ static void mxser_flush_buffer(struct tty_struct *tty)
 	spin_lock_irqsave(&info->slock, flags);
 	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
 
-	outb(UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT,
+	outb(info->FCR | UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT,
 		info->ioaddr + UART_FCR);
 
 	spin_unlock_irqrestore(&info->slock, flags);
@@ -1572,8 +1573,7 @@ static u8 mxser_receive_chars_old(struct tty_struct *tty,
 
 		ch = inb(port->ioaddr + UART_RX);
 		if (hwid && (status & UART_LSR_OE))
-			outb(UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_RCVR |
-					MOXA_MUST_FCR_GDA_MODE_ENABLE,
+			outb(port->FCR | UART_FCR_CLEAR_RCVR,
 					port->ioaddr + UART_FCR);
 		status &= port->read_status_mask;
 		if (status & port->ignore_status_mask) {
@@ -1685,8 +1685,7 @@ static bool mxser_port_isr(struct mxser_port *port)
 	tty = tty_port_tty_get(&port->port);
 	if (!tty || port->closing || !tty_port_initialized(&port->port)) {
 		status = inb(port->ioaddr + UART_LSR);
-		outb(MOXA_MUST_FCR_GDA_MODE_ENABLE | UART_FCR_ENABLE_FIFO |
-				UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT,
+		outb(port->FCR | UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT,
 				port->ioaddr + UART_FCR);
 		inb(port->ioaddr + UART_MSR);
 
