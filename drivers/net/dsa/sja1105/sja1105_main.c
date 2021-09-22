@@ -1780,6 +1780,7 @@ static int sja1105_fdb_del(struct dsa_switch *ds, int port,
 static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 			    dsa_fdb_dump_cb_t *cb, void *data)
 {
+	struct dsa_port *dp = dsa_to_port(ds, port);
 	struct sja1105_private *priv = ds->priv;
 	struct device *dev = ds->dev;
 	int i;
@@ -1816,7 +1817,7 @@ static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 		u64_to_ether_addr(l2_lookup.macaddr, macaddr);
 
 		/* We need to hide the dsa_8021q VLANs from the user. */
-		if (!priv->vlan_aware)
+		if (!dsa_port_is_vlan_filtering(dp))
 			l2_lookup.vlanid = 0;
 		rc = cb(macaddr, l2_lookup.vlanid, l2_lookup.lockeds, data);
 		if (rc)
@@ -2309,11 +2310,6 @@ int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
 		tpid2 = ETH_P_SJA1105;
 	}
 
-	if (priv->vlan_aware == enabled)
-		return 0;
-
-	priv->vlan_aware = enabled;
-
 	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
 	general_params = table->entries;
 	/* EtherType used to identify inner tagged (C-tag) VLAN traffic */
@@ -2346,7 +2342,7 @@ int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
 	 */
 	table = &priv->static_config.tables[BLK_IDX_L2_LOOKUP_PARAMS];
 	l2_lookup_params = table->entries;
-	l2_lookup_params->shared_learn = !priv->vlan_aware;
+	l2_lookup_params->shared_learn = !enabled;
 
 	for (port = 0; port < ds->num_ports; port++) {
 		if (dsa_is_unused_port(ds, port))
