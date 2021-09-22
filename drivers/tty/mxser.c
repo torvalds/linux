@@ -1550,11 +1550,7 @@ static bool mxser_receive_chars_new(struct tty_struct *tty,
 
 	if (hwid == MOXA_OTHER_UART)
 		return false;
-	if (status & UART_LSR_BRK_ERROR_BITS)
-		return false;
-	if (hwid == MOXA_MUST_MU860_HWID && (status & MOXA_MUST_LSR_RERR))
-		return false;
-	if (status & MOXA_MUST_LSR_RERR)
+	if (status & (UART_LSR_BRK_ERROR_BITS | MOXA_MUST_LSR_RERR))
 		return false;
 
 	gdl = inb(port->ioaddr + MOXA_MUST_GDL_REGISTER);
