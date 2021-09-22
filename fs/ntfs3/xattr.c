@@ -518,11 +518,14 @@ static struct posix_acl *ntfs_get_acl_ex(struct user_namespace *mnt_userns,
 	/* Translate extended attribute to acl. */
 	if (err >= 0) {
 		acl = posix_acl_from_xattr(mnt_userns, buf, err);
-		if (!IS_ERR(acl))
-			set_cached_acl(inode, type, acl);
+	} else if (err == -ENODATA) {
+		acl = NULL;
 	} else {
-		acl = err == -ENODATA ? NULL : ERR_PTR(err);
+		acl = ERR_PTR(err);
 	}
+
+	if (!IS_ERR(acl))
+		set_cached_acl(inode, type, acl);
 
 	__putname(buf);
 
