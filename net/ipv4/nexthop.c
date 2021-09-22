@@ -3567,6 +3567,7 @@ static struct notifier_block nh_netdev_notifier = {
 };
 
 static int nexthops_dump(struct net *net, struct notifier_block *nb,
+			 enum nexthop_event_type event_type,
 			 struct netlink_ext_ack *extack)
 {
 	struct rb_root *root = &net->nexthop.rb_root;
@@ -3577,8 +3578,7 @@ static int nexthops_dump(struct net *net, struct notifier_block *nb,
 		struct nexthop *nh;
 
 		nh = rb_entry(node, struct nexthop, rb_node);
-		err = call_nexthop_notifier(nb, net, NEXTHOP_EVENT_REPLACE, nh,
-					    extack);
+		err = call_nexthop_notifier(nb, net, event_type, nh, extack);
 		if (err)
 			break;
 	}
@@ -3592,7 +3592,7 @@ int register_nexthop_notifier(struct net *net, struct notifier_block *nb,
 	int err;
 
 	rtnl_lock();
-	err = nexthops_dump(net, nb, extack);
+	err = nexthops_dump(net, nb, NEXTHOP_EVENT_REPLACE, extack);
 	if (err)
 		goto unlock;
 	err = blocking_notifier_chain_register(&net->nexthop.notifier_chain,
@@ -3605,8 +3605,17 @@ EXPORT_SYMBOL(register_nexthop_notifier);
 
 int unregister_nexthop_notifier(struct net *net, struct notifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&net->nexthop.notifier_chain,
-						  nb);
+	int err;
+
+	rtnl_lock();
+	err = blocking_notifier_chain_unregister(&net->nexthop.notifier_chain,
+						 nb);
+	if (err)
+		goto unlock;
+	nexthops_dump(net, nb, NEXTHOP_EVENT_DEL, NULL);
+unlock:
+	rtnl_unlock();
+	return err;
 }
 EXPORT_SYMBOL(unregister_nexthop_notifier);
 
