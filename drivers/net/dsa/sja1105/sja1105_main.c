@@ -27,15 +27,29 @@
 
 #define SJA1105_UNKNOWN_MULTICAST	0x010000000000ull
 
-static void sja1105_hw_reset(struct gpio_desc *gpio, unsigned int pulse_len,
-			     unsigned int startup_delay)
+/* Configure the optional reset pin and bring up switch */
+static int sja1105_hw_reset(struct device *dev, unsigned int pulse_len,
+			    unsigned int startup_delay)
 {
+	struct gpio_desc *gpio;
+
+	gpio = gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(gpio))
+		return PTR_ERR(gpio);
+
+	if (!gpio)
+		return 0;
+
 	gpiod_set_value_cansleep(gpio, 1);
 	/* Wait for minimum reset pulse length */
 	msleep(pulse_len);
 	gpiod_set_value_cansleep(gpio, 0);
 	/* Wait until chip is ready after reset */
 	msleep(startup_delay);
+
+	gpiod_put(gpio);
+
+	return 0;
 }
 
 static void
@@ -3228,16 +3242,13 @@ static int sja1105_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
+	rc = sja1105_hw_reset(dev, 1, 1);
+	if (rc)
+		return rc;
+
 	priv = devm_kzalloc(dev, sizeof(struct sja1105_private), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-
-	/* Configure the optional reset pin and bring up switch */
-	priv->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(priv->reset_gpio))
-		dev_dbg(dev, "reset-gpios not defined, ignoring\n");
-	else
-		sja1105_hw_reset(priv->reset_gpio, 1, 1);
 
 	/* Populate our driver private structure (priv) based on
 	 * the device tree node that was probed (spi)

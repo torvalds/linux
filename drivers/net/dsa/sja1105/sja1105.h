@@ -231,7 +231,6 @@ struct sja1105_private {
 	unsigned long bcast_egress_floods;
 	const struct sja1105_info *info;
 	size_t max_xfer_len;
-	struct gpio_desc *reset_gpio;
 	struct spi_device *spidev;
 	struct dsa_switch *ds;
 	u16 bridge_pvid[SJA1105_MAX_NUM_PORTS];
