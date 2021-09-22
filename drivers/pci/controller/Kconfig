@@ -312,6 +312,14 @@ config PCIE_HISI_ERR
 	  Say Y here if you want error handling support
 	  for the PCIe controller's errors on HiSilicon HIP SoCs
 
+config PCIE_MT7621
+	tristate "MediaTek MT7621 PCIe Controller"
+	depends on (RALINK && SOC_MT7621) || (MIPS && COMPILE_TEST)
+	select PHY_MT7621_PCI
+	default SOC_MT7621
+	help
+	  This selects a driver for the MediaTek MT7621 PCIe Controller.
+
 source "drivers/pci/controller/dwc/Kconfig"
 source "drivers/pci/controller/mobiveil/Kconfig"
 source "drivers/pci/controller/cadence/Kconfig"
