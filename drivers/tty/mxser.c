@@ -559,14 +559,20 @@ static void mxser_handle_cts(struct tty_struct *tty, struct mxser_port *info,
  * This routine is called to set the UART divisor registers to match
  * the specified baud rate for a serial port.
  */
-static void mxser_change_speed(struct tty_struct *tty)
+static void mxser_change_speed(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct mxser_port *info = tty->driver_data;
 	unsigned cflag, cval, fcr;
 
 	cflag = tty->termios.c_cflag;
 
-	mxser_set_baud(tty, tty_get_baud_rate(tty));
+	if (mxser_set_baud(tty, tty_get_baud_rate(tty))) {
+		/* Use previous rate on a failure */
+		if (old_termios) {
+			speed_t baud = tty_termios_baud_rate(old_termios);
+			tty_encode_baud_rate(tty, baud, baud);
+		}
+	}
 
 	/* byte size and parity */
 	switch (cflag & CSIZE) {
@@ -791,7 +797,7 @@ static int mxser_activate(struct tty_port *port, struct tty_struct *tty)
 	/*
 	 * and set the speed of the serial port
 	 */
-	mxser_change_speed(tty);
+	mxser_change_speed(tty, NULL);
 	spin_unlock_irqrestore(&info->slock, flags);
 
 	return 0;
@@ -1119,7 +1125,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 	if (tty_port_initialized(port)) {
 		if (old_speed != (port->flags & ASYNC_SPD_MASK)) {
 			spin_lock_irqsave(&info->slock, sl_flags);
-			mxser_change_speed(tty);
+			mxser_change_speed(tty, NULL);
 			spin_unlock_irqrestore(&info->slock, sl_flags);
 		}
 	} else {
@@ -1425,7 +1431,7 @@ static void mxser_set_termios(struct tty_struct *tty, struct ktermios *old_termi
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->slock, flags);
-	mxser_change_speed(tty);
+	mxser_change_speed(tty, old_termios);
 	spin_unlock_irqrestore(&info->slock, flags);
 
 	if ((old_termios->c_cflag & CRTSCTS) && !C_CRTSCTS(tty)) {
