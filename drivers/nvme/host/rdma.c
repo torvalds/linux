@@ -1112,6 +1112,13 @@ static int nvme_rdma_setup_ctrl(struct nvme_rdma_ctrl *ctrl, bool new)
 			ctrl->ctrl.opts->queue_size, ctrl->ctrl.sqsize + 1);
 	}
 
+	if (ctrl->ctrl.sqsize + 1 > NVME_RDMA_MAX_QUEUE_SIZE) {
+		dev_warn(ctrl->ctrl.device,
+			"ctrl sqsize %u > max queue size %u, clamping down\n",
+			ctrl->ctrl.sqsize + 1, NVME_RDMA_MAX_QUEUE_SIZE);
+		ctrl->ctrl.sqsize = NVME_RDMA_MAX_QUEUE_SIZE - 1;
+	}
+
 	if (ctrl->ctrl.sqsize + 1 > ctrl->ctrl.maxcmd) {
 		dev_warn(ctrl->ctrl.device,
 			"sqsize %u > ctrl maxcmd %u, clamping down\n",
