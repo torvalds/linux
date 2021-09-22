@@ -42,6 +42,45 @@
 #define DC_LOGGER \
 	dccg->ctx->logger
 
+static void dccg31_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	if (dccg->ref_dppclk && req_dppclk) {
+		int ref_dppclk = dccg->ref_dppclk;
+		int modulo, phase;
+
+		// phase / modulo = dpp pipe clk / dpp global clk
+		modulo = 0xff;   // use FF at the end
+		phase = ((modulo * req_dppclk) + ref_dppclk - 1) / ref_dppclk;
+
+		if (phase > 0xff) {
+			ASSERT(false);
+			phase = 0xff;
+		}
+
+		REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
+				DPPCLK0_DTO_PHASE, phase,
+				DPPCLK0_DTO_MODULO, modulo);
+		REG_UPDATE(DPPCLK_DTO_CTRL,
+				DPPCLK_DTO_ENABLE[dpp_inst], 1);
+	} else {
+		//DTO must be enabled to generate a 0Hz clock output
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpp) {
+			REG_UPDATE(DPPCLK_DTO_CTRL,
+					DPPCLK_DTO_ENABLE[dpp_inst], 1);
+			REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
+					DPPCLK0_DTO_PHASE, 0,
+					DPPCLK0_DTO_MODULO, 1);
+		} else {
+			REG_UPDATE(DPPCLK_DTO_CTRL,
+					DPPCLK_DTO_ENABLE[dpp_inst], 0);
+		}
+	}
+	dccg->pipe_dppclk_khz[dpp_inst] = req_dppclk;
+}
+
+
 void dccg31_set_dpstreamclk(
 		struct dccg *dccg,
 		enum hdmistreamclk_source src,
@@ -401,7 +440,7 @@ void dccg31_init(struct dccg *dccg)
 }
 
 static const struct dccg_funcs dccg31_funcs = {
-	.update_dpp_dto = dccg2_update_dpp_dto,
+	.update_dpp_dto = dccg31_update_dpp_dto,
 	.get_dccg_ref_freq = dccg31_get_dccg_ref_freq,
 	.dccg_init = dccg31_init,
 	.set_dpstreamclk = dccg31_set_dpstreamclk,
