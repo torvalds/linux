@@ -387,7 +387,7 @@ static int tegra210_mvc_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_dai_ops tegra210_mvc_dai_ops = {
+static const struct snd_soc_dai_ops tegra210_mvc_dai_ops = {
 	.hw_params	= tegra210_mvc_hw_params,
 };
 

@@ -3287,12 +3287,12 @@ static int tegra210_sfc_put_control(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_soc_dai_ops tegra210_sfc_in_dai_ops = {
+static const struct snd_soc_dai_ops tegra210_sfc_in_dai_ops = {
 	.hw_params	= tegra210_sfc_in_hw_params,
 	.startup	= tegra210_sfc_startup,
 };
 
-static struct snd_soc_dai_ops tegra210_sfc_out_dai_ops = {
+static const struct snd_soc_dai_ops tegra210_sfc_out_dai_ops = {
 	.hw_params	= tegra210_sfc_out_hw_params,
 };
 

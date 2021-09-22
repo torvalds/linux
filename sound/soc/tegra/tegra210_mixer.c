@@ -283,11 +283,11 @@ static int tegra210_mixer_out_hw_params(struct snd_pcm_substream *substream,
 					    dai->id - TEGRA210_MIXER_RX_MAX);
 }
 
-static struct snd_soc_dai_ops tegra210_mixer_out_dai_ops = {
+static const struct snd_soc_dai_ops tegra210_mixer_out_dai_ops = {
 	.hw_params	= tegra210_mixer_out_hw_params,
 };
 
-static struct snd_soc_dai_ops tegra210_mixer_in_dai_ops = {
+static const struct snd_soc_dai_ops tegra210_mixer_in_dai_ops = {
 	.hw_params	= tegra210_mixer_in_hw_params,
 };
 

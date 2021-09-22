@@ -241,12 +241,12 @@ static int tegra210_amx_put_byte_map(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_soc_dai_ops tegra210_amx_out_dai_ops = {
+static const struct snd_soc_dai_ops tegra210_amx_out_dai_ops = {
 	.hw_params	= tegra210_amx_out_hw_params,
 	.startup	= tegra210_amx_startup,
 };
 
-static struct snd_soc_dai_ops tegra210_amx_in_dai_ops = {
+static const struct snd_soc_dai_ops tegra210_amx_in_dai_ops = {
 	.hw_params	= tegra210_amx_in_hw_params,
 };
 
