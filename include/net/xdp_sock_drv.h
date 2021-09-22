@@ -77,6 +77,12 @@ static inline struct xdp_buff *xsk_buff_alloc(struct xsk_buff_pool *pool)
 	return xp_alloc(pool);
 }
 
+/* Returns as many entries as possible up to max. 0 <= N <= max. */
+static inline u32 xsk_buff_alloc_batch(struct xsk_buff_pool *pool, struct xdp_buff **xdp, u32 max)
+{
+	return xp_alloc_batch(pool, xdp, max);
+}
+
 static inline bool xsk_buff_can_alloc(struct xsk_buff_pool *pool, u32 count)
 {
 	return xp_can_alloc(pool, count);
@@ -87,6 +93,13 @@ static inline void xsk_buff_free(struct xdp_buff *xdp)
 	struct xdp_buff_xsk *xskb = container_of(xdp, struct xdp_buff_xsk, xdp);
 
 	xp_free(xskb);
+}
+
+static inline void xsk_buff_set_size(struct xdp_buff *xdp, u32 size)
+{
+	xdp->data = xdp->data_hard_start + XDP_PACKET_HEADROOM;
+	xdp->data_meta = xdp->data;
+	xdp->data_end = xdp->data + size;
 }
 
 static inline dma_addr_t xsk_buff_raw_get_dma(struct xsk_buff_pool *pool,
@@ -212,12 +225,21 @@ static inline struct xdp_buff *xsk_buff_alloc(struct xsk_buff_pool *pool)
 	return NULL;
 }
 
+static inline u32 xsk_buff_alloc_batch(struct xsk_buff_pool *pool, struct xdp_buff **xdp, u32 max)
+{
+	return 0;
+}
+
 static inline bool xsk_buff_can_alloc(struct xsk_buff_pool *pool, u32 count)
 {
 	return false;
 }
 
 static inline void xsk_buff_free(struct xdp_buff *xdp)
+{
+}
+
+static inline void xsk_buff_set_size(struct xdp_buff *xdp, u32 size)
 {
 }
 

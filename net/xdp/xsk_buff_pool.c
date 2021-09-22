@@ -507,6 +507,93 @@ struct xdp_buff *xp_alloc(struct xsk_buff_pool *pool)
 }
 EXPORT_SYMBOL(xp_alloc);
 
+static u32 xp_alloc_new_from_fq(struct xsk_buff_pool *pool, struct xdp_buff **xdp, u32 max)
+{
+	u32 i, cached_cons, nb_entries;
+
+	if (max > pool->free_heads_cnt)
+		max = pool->free_heads_cnt;
+	max = xskq_cons_nb_entries(pool->fq, max);
+
+	cached_cons = pool->fq->cached_cons;
+	nb_entries = max;
+	i = max;
+	while (i--) {
+		struct xdp_buff_xsk *xskb;
+		u64 addr;
+		bool ok;
+
+		__xskq_cons_read_addr_unchecked(pool->fq, cached_cons++, &addr);
+
+		ok = pool->unaligned ? xp_check_unaligned(pool, &addr) :
+			xp_check_aligned(pool, &addr);
+		if (unlikely(!ok)) {
+			pool->fq->invalid_descs++;
+			nb_entries--;
+			continue;
+		}
+
+		xskb = pool->free_heads[--pool->free_heads_cnt];
+		*xdp = &xskb->xdp;
+		xskb->orig_addr = addr;
+		xskb->xdp.data_hard_start = pool->addrs + addr + pool->headroom;
+		xskb->frame_dma = (pool->dma_pages[addr >> PAGE_SHIFT] &
+				   ~XSK_NEXT_PG_CONTIG_MASK) + (addr & ~PAGE_MASK);
+		xskb->dma = xskb->frame_dma + pool->headroom + XDP_PACKET_HEADROOM;
+		xdp++;
+	}
+
+	xskq_cons_release_n(pool->fq, max);
+	return nb_entries;
+}
+
+static u32 xp_alloc_reused(struct xsk_buff_pool *pool, struct xdp_buff **xdp, u32 nb_entries)
+{
+	struct xdp_buff_xsk *xskb;
+	u32 i;
+
+	nb_entries = min_t(u32, nb_entries, pool->free_list_cnt);
+
+	i = nb_entries;
+	while (i--) {
+		xskb = list_first_entry(&pool->free_list, struct xdp_buff_xsk, free_list_node);
+		list_del(&xskb->free_list_node);
+
+		*xdp = &xskb->xdp;
+		xdp++;
+	}
+	pool->free_list_cnt -= nb_entries;
+
+	return nb_entries;
+}
+
+u32 xp_alloc_batch(struct xsk_buff_pool *pool, struct xdp_buff **xdp, u32 max)
+{
+	u32 nb_entries1 = 0, nb_entries2;
+
+	if (unlikely(pool->dma_need_sync)) {
+		/* Slow path */
+		*xdp = xp_alloc(pool);
+		return !!*xdp;
+	}
+
+	if (unlikely(pool->free_list_cnt)) {
+		nb_entries1 = xp_alloc_reused(pool, xdp, max);
+		if (nb_entries1 == max)
+			return nb_entries1;
+
+		max -= nb_entries1;
+		xdp += nb_entries1;
+	}
+
+	nb_entries2 = xp_alloc_new_from_fq(pool, xdp, max);
+	if (!nb_entries2)
+		pool->fq->queue_empty_descs++;
+
+	return nb_entries1 + nb_entries2;
+}
+EXPORT_SYMBOL(xp_alloc_batch);
+
 bool xp_can_alloc(struct xsk_buff_pool *pool, u32 count)
 {
 	if (pool->free_list_cnt >= count)
