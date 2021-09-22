@@ -247,6 +247,76 @@ void dccg31_disable_symclk32_le(
 	}
 }
 
+static void dccg31_disable_dscclk(struct dccg *dccg, int inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	if (!dccg->ctx->dc->debug.root_clock_optimization.bits.dsc)
+		return;
+	//DTO must be enabled to generate a 0 Hz clock output
+	switch (inst) {
+	case 0:
+		REG_UPDATE(DSCCLK_DTO_CTRL,
+				DSCCLK0_DTO_ENABLE, 1);
+		REG_UPDATE_2(DSCCLK0_DTO_PARAM,
+				DSCCLK0_DTO_PHASE, 0,
+				DSCCLK0_DTO_MODULO, 1);
+		break;
+	case 1:
+		REG_UPDATE(DSCCLK_DTO_CTRL,
+				DSCCLK1_DTO_ENABLE, 1);
+		REG_UPDATE_2(DSCCLK1_DTO_PARAM,
+				DSCCLK1_DTO_PHASE, 0,
+				DSCCLK1_DTO_MODULO, 1);
+		break;
+	case 2:
+		REG_UPDATE(DSCCLK_DTO_CTRL,
+				DSCCLK2_DTO_ENABLE, 1);
+		REG_UPDATE_2(DSCCLK2_DTO_PARAM,
+				DSCCLK2_DTO_PHASE, 0,
+				DSCCLK2_DTO_MODULO, 1);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
+static void dccg31_enable_dscclk(struct dccg *dccg, int inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	if (!dccg->ctx->dc->debug.root_clock_optimization.bits.dsc)
+		return;
+	//Disable DTO
+	switch (inst) {
+	case 0:
+		REG_UPDATE_2(DSCCLK0_DTO_PARAM,
+				DSCCLK0_DTO_PHASE, 0,
+				DSCCLK0_DTO_MODULO, 0);
+		REG_UPDATE(DSCCLK_DTO_CTRL,
+				DSCCLK0_DTO_ENABLE, 0);
+		break;
+	case 1:
+		REG_UPDATE_2(DSCCLK1_DTO_PARAM,
+				DSCCLK1_DTO_PHASE, 0,
+				DSCCLK1_DTO_MODULO, 0);
+		REG_UPDATE(DSCCLK_DTO_CTRL,
+				DSCCLK1_DTO_ENABLE, 0);
+		break;
+	case 2:
+		REG_UPDATE_2(DSCCLK2_DTO_PARAM,
+				DSCCLK2_DTO_PHASE, 0,
+				DSCCLK2_DTO_MODULO, 0);
+		REG_UPDATE(DSCCLK_DTO_CTRL,
+				DSCCLK2_DTO_ENABLE, 0);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
 void dccg31_set_physymclk(
 		struct dccg *dccg,
 		int phy_inst,
@@ -469,6 +539,8 @@ static const struct dccg_funcs dccg31_funcs = {
 	.set_dtbclk_dto = dccg31_set_dtbclk_dto,
 	.set_audio_dtbclk_dto = dccg31_set_audio_dtbclk_dto,
 	.set_dispclk_change_mode = dccg31_set_dispclk_change_mode,
+	.disable_dsc = dccg31_disable_dscclk,
+	.enable_dsc = dccg31_enable_dscclk,
 };
 
 struct dccg *dccg31_create(
