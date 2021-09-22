@@ -543,14 +543,14 @@ static void pkt_stream_replace(struct test_spec *test, u32 nb_pkts, u32 pkt_len)
 	test->ifobj_rx->pkt_stream = pkt_stream;
 }
 
-static void pkt_stream_replace_half(struct test_spec *test, u32 pkt_len, u32 offset)
+static void pkt_stream_replace_half(struct test_spec *test, u32 pkt_len, int offset)
 {
 	struct xsk_umem_info *umem = test->ifobj_tx->umem;
 	struct pkt_stream *pkt_stream;
 	u32 i;
 
 	pkt_stream = pkt_stream_clone(umem, test->pkt_stream_default);
-	for (i = 0; i < test->pkt_stream_default->nb_pkts; i += 2) {
+	for (i = 1; i < test->pkt_stream_default->nb_pkts; i += 2) {
 		pkt_stream->pkts[i].addr = (i % umem->num_frames) * umem->frame_size + offset;
 		pkt_stream->pkts[i].len = pkt_len;
 	}
@@ -1209,7 +1209,7 @@ static bool testapp_unaligned(struct test_spec *test)
 	test->ifobj_tx->umem->unaligned_mode = true;
 	test->ifobj_rx->umem->unaligned_mode = true;
 	/* Let half of the packets straddle a buffer boundrary */
-	pkt_stream_replace_half(test, PKT_SIZE, test->ifobj_tx->umem->frame_size - 32);
+	pkt_stream_replace_half(test, PKT_SIZE, -PKT_SIZE / 2);
 	test->ifobj_rx->pkt_stream->use_addr_for_fill = true;
 	testapp_validate_traffic(test);
 
