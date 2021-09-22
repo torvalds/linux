@@ -170,7 +170,7 @@ static int dr_domain_query_vports(struct mlx5dr_domain *dmn)
 
 	/* Last vport is the wire port */
 	wire_vport = &dmn->info.caps.vports_caps[vport];
-	wire_vport->num = WIRE_PORT;
+	wire_vport->num = MLX5_VPORT_UPLINK;
 	wire_vport->icm_address_rx = esw_caps->uplink_icm_address_rx;
 	wire_vport->icm_address_tx = esw_caps->uplink_icm_address_tx;
 	wire_vport->vport_gvmi = 0;

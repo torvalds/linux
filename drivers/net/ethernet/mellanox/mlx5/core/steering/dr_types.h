@@ -4,7 +4,7 @@
 #ifndef	_DR_TYPES_
 #define	_DR_TYPES_
 
-#include <linux/mlx5/driver.h>
+#include <linux/mlx5/vport.h>
 #include <linux/refcount.h>
 #include "fs_core.h"
 #include "wq.h"
@@ -14,7 +14,6 @@
 
 #define DR_RULE_MAX_STES 18
 #define DR_ACTION_MAX_STES 5
-#define WIRE_PORT 0xFFFF
 #define DR_STE_SVLAN 0x1
 #define DR_STE_CVLAN 0x2
 #define DR_SZ_MATCH_PARAM (MLX5_ST_SZ_DW_MATCH_PARAM * 4)
@@ -1106,10 +1105,10 @@ static inline struct mlx5dr_cmd_vport_cap *
 mlx5dr_get_vport_cap(struct mlx5dr_cmd_caps *caps, u16 vport)
 {
 	if (!caps->vports_caps ||
-	    (vport >= caps->num_vports && vport != WIRE_PORT))
+	    (vport >= caps->num_vports && vport != MLX5_VPORT_UPLINK))
 		return NULL;
 
-	if (vport == WIRE_PORT)
+	if (vport == MLX5_VPORT_UPLINK)
 		vport = caps->num_vports;
 
 	return &caps->vports_caps[vport];

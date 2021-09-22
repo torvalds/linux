@@ -669,7 +669,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 			attr.hit_gvmi = action->vport->caps->vhca_gvmi;
 			dest_action = action;
 			if (rx_rule) {
-				if (action->vport->caps->num == WIRE_PORT) {
+				if (action->vport->caps->num == MLX5_VPORT_UPLINK) {
 					mlx5dr_dbg(dmn, "Device doesn't support Loopback on WIRE vport\n");
 					return -EOPNOTSUPP;
 				}
