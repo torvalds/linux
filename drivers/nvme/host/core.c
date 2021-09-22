@@ -222,7 +222,7 @@ int nvme_reset_ctrl_sync(struct nvme_ctrl *ctrl)
 static void nvme_do_delete_ctrl(struct nvme_ctrl *ctrl)
 {
 	dev_info(ctrl->device,
-		 "Removing ctrl: NQN \"%s\"\n", ctrl->opts->subsysnqn);
+		 "Removing ctrl: NQN \"%s\"\n", nvmf_ctrl_subsysnqn(ctrl));
 
 	flush_work(&ctrl->reset_work);
 	nvme_stop_ctrl(ctrl);

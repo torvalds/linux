@@ -179,6 +179,13 @@ nvmf_ctlr_matches_baseopts(struct nvme_ctrl *ctrl,
 	return true;
 }
 
+static inline char *nvmf_ctrl_subsysnqn(struct nvme_ctrl *ctrl)
+{
+	if (!ctrl->subsys)
+		return ctrl->opts->subsysnqn;
+	return ctrl->subsys->subnqn;
+}
+
 int nvmf_reg_read32(struct nvme_ctrl *ctrl, u32 off, u32 *val);
 int nvmf_reg_read64(struct nvme_ctrl *ctrl, u32 off, u64 *val);
 int nvmf_reg_write32(struct nvme_ctrl *ctrl, u32 off, u32 val);

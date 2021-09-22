@@ -3596,7 +3596,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 	dev_info(ctrl->ctrl.device,
 		"NVME-FC{%d}: new ctrl: NQN \"%s\"\n",
-		ctrl->cnum, ctrl->ctrl.opts->subsysnqn);
+		ctrl->cnum, nvmf_ctrl_subsysnqn(&ctrl->ctrl));
 
 	return &ctrl->ctrl;
 
