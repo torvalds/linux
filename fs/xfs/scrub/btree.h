@@ -39,9 +39,7 @@ struct xchk_btree {
 
 	/* internal scrub state */
 	union xfs_btree_rec		lastrec;
-	bool				firstrec;
 	union xfs_btree_key		lastkey[XFS_BTREE_MAXLEVELS];
-	bool				firstkey[XFS_BTREE_MAXLEVELS];
 	struct list_head		to_check;
 };
 int xchk_btree(struct xfs_scrub *sc, struct xfs_btree_cur *cur,

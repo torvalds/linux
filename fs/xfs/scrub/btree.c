@@ -141,9 +141,9 @@ xchk_btree_rec(
 	trace_xchk_btree_rec(bs->sc, cur, 0);
 
 	/* If this isn't the first record, are they in order? */
-	if (!bs->firstrec && !cur->bc_ops->recs_inorder(cur, &bs->lastrec, rec))
+	if (cur->bc_ptrs[0] > 1 &&
+	    !cur->bc_ops->recs_inorder(cur, &bs->lastrec, rec))
 		xchk_btree_set_corrupt(bs->sc, cur, 0);
-	bs->firstrec = false;
 	memcpy(&bs->lastrec, rec, cur->bc_ops->rec_len);
 
 	if (cur->bc_nlevels == 1)
@@ -188,10 +188,9 @@ xchk_btree_key(
 	trace_xchk_btree_key(bs->sc, cur, level);
 
 	/* If this isn't the first key, are they in order? */
-	if (!bs->firstkey[level] &&
+	if (cur->bc_ptrs[level] > 1 &&
 	    !cur->bc_ops->keys_inorder(cur, &bs->lastkey[level], key))
 		xchk_btree_set_corrupt(bs->sc, cur, level);
-	bs->firstkey[level] = false;
 	memcpy(&bs->lastkey[level], key, cur->bc_ops->key_len);
 
 	if (level + 1 >= cur->bc_nlevels)
@@ -636,7 +635,6 @@ xchk_btree(
 	struct xfs_buf			*bp;
 	struct check_owner		*co;
 	struct check_owner		*n;
-	int				i;
 	int				error = 0;
 
 	/*
@@ -649,13 +647,10 @@ xchk_btree(
 	bs->cur = cur;
 	bs->scrub_rec = scrub_fn;
 	bs->oinfo = oinfo;
-	bs->firstrec = true;
 	bs->private = private;
 	bs->sc = sc;
 
 	/* Initialize scrub state */
-	for (i = 0; i < XFS_BTREE_MAXLEVELS; i++)
-		bs->firstkey[i] = true;
 	INIT_LIST_HEAD(&bs->to_check);
 
 	/* Don't try to check a tree with a height we can't handle. */
