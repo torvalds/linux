@@ -257,7 +257,7 @@ static long privcmd_ioctl_mmap(struct file *file, void __user *udata)
 	LIST_HEAD(pagelist);
 	struct mmap_gfn_state state;
 
-	/* We only support privcmd_ioctl_mmap_batch for auto translated. */
+	/* We only support privcmd_ioctl_mmap_batch for non-auto-translated. */
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return -ENOSYS;
 
@@ -810,8 +810,7 @@ static long privcmd_ioctl_mmap_resource(struct file *file,
 						 kdata.addr & PAGE_MASK,
 						 pfns, kdata.num, errs,
 						 vma->vm_page_prot,
-						 domid,
-						 vma->vm_private_data);
+						 domid);
 		if (num < 0)
 			rc = num;
 		else if (num != kdata.num) {
