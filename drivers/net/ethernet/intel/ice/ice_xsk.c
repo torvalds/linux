@@ -365,44 +365,38 @@ bool ice_alloc_rx_bufs_zc(struct ice_ring *rx_ring, u16 count)
 	union ice_32b_rx_flex_desc *rx_desc;
 	u16 ntu = rx_ring->next_to_use;
 	struct xdp_buff **xdp;
-	bool ok = true;
+	u32 nb_buffs, i;
 	dma_addr_t dma;
-
-	if (!count)
-		return true;
 
 	rx_desc = ICE_RX_DESC(rx_ring, ntu);
 	xdp = &rx_ring->xdp_buf[ntu];
 
-	do {
-		*xdp = xsk_buff_alloc(rx_ring->xsk_pool);
-		if (!xdp) {
-			ok = false;
-			break;
-		}
+	nb_buffs = min_t(u16, count, rx_ring->count - ntu);
+	nb_buffs = xsk_buff_alloc_batch(rx_ring->xsk_pool, xdp, nb_buffs);
+	if (!nb_buffs)
+		return false;
 
+	i = nb_buffs;
+	while (i--) {
 		dma = xsk_buff_xdp_get_dma(*xdp);
 		rx_desc->read.pkt_addr = cpu_to_le64(dma);
-		rx_desc->wb.status_error0 = 0;
 
 		rx_desc++;
 		xdp++;
-		ntu++;
-
-		if (unlikely(ntu == rx_ring->count)) {
-			rx_desc = ICE_RX_DESC(rx_ring, 0);
-			xdp = rx_ring->xdp_buf;
-			ntu = 0;
-		}
-	} while (--count);
-
-	if (rx_ring->next_to_use != ntu) {
-		/* clear the status bits for the next_to_use descriptor */
-		rx_desc->wb.status_error0 = 0;
-		ice_release_rx_desc(rx_ring, ntu);
 	}
 
-	return ok;
+	ntu += nb_buffs;
+	if (ntu == rx_ring->count) {
+		rx_desc = ICE_RX_DESC(rx_ring, 0);
+		xdp = rx_ring->xdp_buf;
+		ntu = 0;
+	}
+
+	/* clear the status bits for the next_to_use descriptor */
+	rx_desc->wb.status_error0 = 0;
+	ice_release_rx_desc(rx_ring, ntu);
+
+	return count == nb_buffs ? true : false;
 }
 
 /**
@@ -545,7 +539,7 @@ int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget)
 			break;
 
 		xdp = &rx_ring->xdp_buf[rx_ring->next_to_clean];
-		(*xdp)->data_end = (*xdp)->data + size;
+		xsk_buff_set_size(*xdp, size);
 		xsk_buff_dma_sync_for_cpu(*xdp, rx_ring->xsk_pool);
 
 		xdp_res = ice_run_xdp_zc(rx_ring, *xdp);
