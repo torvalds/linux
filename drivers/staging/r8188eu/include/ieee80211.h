@@ -1097,8 +1097,6 @@ enum secondary_ch_offset {
 };
 u8 *rtw_set_ie_secondary_ch_offset(u8 *buf, u32 *buf_len,
 				   u8 secondary_ch_offset);
-u8 *rtw_set_ie_mesh_ch_switch_parm(u8 *buf, u32 *buf_len, u8 ttl,
-				   u8 flags, u16 reason, u16 precedence);
 
 u8 *rtw_get_ie(u8 *pbuf, int index, int *len, int limit);
 
