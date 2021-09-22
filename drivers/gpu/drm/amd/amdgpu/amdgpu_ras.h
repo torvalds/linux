@@ -49,15 +49,22 @@ enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__MP0,
 	AMDGPU_RAS_BLOCK__MP1,
 	AMDGPU_RAS_BLOCK__FUSE,
-	AMDGPU_RAS_BLOCK__MPIO,
+	AMDGPU_RAS_BLOCK__MCA,
 
 	AMDGPU_RAS_BLOCK__LAST
 };
 
-extern const char *ras_block_string[];
+enum amdgpu_ras_mca_block {
+	AMDGPU_RAS_MCA_BLOCK__MP0 = 0,
+	AMDGPU_RAS_MCA_BLOCK__MP1,
+	AMDGPU_RAS_MCA_BLOCK__MPIO,
+	AMDGPU_RAS_MCA_BLOCK__IOHC,
 
-#define ras_block_str(i) (ras_block_string[i])
+	AMDGPU_RAS_MCA_BLOCK__LAST
+};
+
 #define AMDGPU_RAS_BLOCK_COUNT	AMDGPU_RAS_BLOCK__LAST
+#define AMDGPU_RAS_MCA_BLOCK_COUNT	AMDGPU_RAS_MCA_BLOCK__LAST
 #define AMDGPU_RAS_BLOCK_MASK	((1ULL << AMDGPU_RAS_BLOCK_COUNT) - 1)
 
 enum amdgpu_ras_gfx_subblock {
@@ -544,8 +551,8 @@ amdgpu_ras_block_to_ta(enum amdgpu_ras_block block) {
 		return TA_RAS_BLOCK__MP1;
 	case AMDGPU_RAS_BLOCK__FUSE:
 		return TA_RAS_BLOCK__FUSE;
-	case AMDGPU_RAS_BLOCK__MPIO:
-		return TA_RAS_BLOCK__MPIO;
+	case AMDGPU_RAS_BLOCK__MCA:
+		return TA_RAS_BLOCK__MCA;
 	default:
 		WARN_ONCE(1, "RAS ERROR: unexpected block id %d\n", block);
 		return TA_RAS_BLOCK__UMC;
@@ -639,5 +646,7 @@ bool amdgpu_ras_need_emergency_restart(struct amdgpu_device *adev);
 void amdgpu_release_ras_context(struct amdgpu_device *adev);
 
 int amdgpu_persistent_edc_harvesting_supported(struct amdgpu_device *adev);
+
+const char *get_ras_block_str(struct ras_common_if *ras_block);
 
 #endif

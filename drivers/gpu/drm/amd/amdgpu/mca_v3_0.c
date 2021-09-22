@@ -52,7 +52,8 @@ const struct amdgpu_mca_ras_funcs mca_v3_0_mp0_ras_funcs = {
 	.ras_fini = mca_v3_0_mp0_ras_fini,
 	.query_ras_error_count = mca_v3_0_mp0_query_ras_error_count,
 	.query_ras_error_address = NULL,
-	.ras_block = AMDGPU_RAS_BLOCK__MP0,
+	.ras_block = AMDGPU_RAS_BLOCK__MCA,
+	.ras_sub_block = AMDGPU_RAS_MCA_BLOCK__MP0,
 	.sysfs_name = "mp0_err_count",
 };
 
@@ -79,7 +80,8 @@ const struct amdgpu_mca_ras_funcs mca_v3_0_mp1_ras_funcs = {
 	.ras_fini = mca_v3_0_mp1_ras_fini,
 	.query_ras_error_count = mca_v3_0_mp1_query_ras_error_count,
 	.query_ras_error_address = NULL,
-	.ras_block = AMDGPU_RAS_BLOCK__MP1,
+	.ras_block = AMDGPU_RAS_BLOCK__MCA,
+	.ras_sub_block = AMDGPU_RAS_MCA_BLOCK__MP1,
 	.sysfs_name = "mp1_err_count",
 };
 
@@ -106,7 +108,8 @@ const struct amdgpu_mca_ras_funcs mca_v3_0_mpio_ras_funcs = {
 	.ras_fini = mca_v3_0_mpio_ras_fini,
 	.query_ras_error_count = mca_v3_0_mpio_query_ras_error_count,
 	.query_ras_error_address = NULL,
-	.ras_block = AMDGPU_RAS_BLOCK__MPIO,
+	.ras_block = AMDGPU_RAS_BLOCK__MCA,
+	.ras_sub_block = AMDGPU_RAS_MCA_BLOCK__MPIO,
 	.sysfs_name = "mpio_err_count",
 };
 

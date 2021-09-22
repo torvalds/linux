@@ -73,8 +73,17 @@ enum ta_ras_block {
 	TA_RAS_BLOCK__MP0,
 	TA_RAS_BLOCK__MP1,
 	TA_RAS_BLOCK__FUSE,
-	TA_RAS_BLOCK__MPIO,
+	TA_RAS_BLOCK__MCA,
 	TA_NUM_BLOCK_MAX
+};
+
+enum ta_ras_mca_block
+{
+	TA_RAS_MCA_BLOCK__MP0   = 0,
+	TA_RAS_MCA_BLOCK__MP1   = 1,
+	TA_RAS_MCA_BLOCK__MPIO  = 2,
+	TA_RAS_MCA_BLOCK__IOHC  = 3,
+	TA_MCA_NUM_BLOCK_MAX
 };
 
 enum ta_ras_error_type {
