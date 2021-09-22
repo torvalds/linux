@@ -236,6 +236,44 @@
 	};
 };
 
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		uboot@0 {
+			label = "U-Boot";
+			reg = <0x0 0xd0000>;
+		};
+
+		env1@d0000 {
+			label = "ENV1";
+			reg = <0xd0000 0x10000>;
+		};
+
+		env2@e0000 {
+			label = "ENV2";
+			reg = <0xe0000 0x10000>;
+		};
+
+		dtb@f0000 {
+			label = "DTB";
+			reg = <0xf0000 0x10000>;
+		};
+
+		linux@100000 {
+			label = "Linux";
+			reg = <0x100000 0x700000>;
+		};
+
+		rootfs@800000 {
+			label = "RootFS";
+			reg = <0x800000 0x3800000>;
+		};
+	};
+};
+
 &flexcan1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_flexcan1>;
