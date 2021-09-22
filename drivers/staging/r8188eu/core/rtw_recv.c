@@ -269,19 +269,6 @@ int rtw_enqueue_recvbuf_to_head(struct recv_buf *precvbuf, struct __queue *queue
 	return _SUCCESS;
 }
 
-int rtw_enqueue_recvbuf(struct recv_buf *precvbuf, struct __queue *queue)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&queue->lock, flags);
-
-	list_del_init(&precvbuf->list);
-
-	list_add_tail(&precvbuf->list, get_list_head(queue));
-	spin_unlock_irqrestore(&queue->lock, flags);
-	return _SUCCESS;
-}
-
 static int recvframe_chkmic(struct adapter *adapter,  struct recv_frame *precvframe)
 {
 	int	i, res = _SUCCESS;
