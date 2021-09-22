@@ -45,24 +45,23 @@ int rtrs_clt_stats_migration_cnt_to_str(struct rtrs_clt_stats *stats,
 	size_t used;
 	int cpu;
 
-	used = scnprintf(buf, len, "    ");
+	used = sysfs_emit(buf, "    ");
 	for_each_possible_cpu(cpu)
-		used += scnprintf(buf + used, len - used, " CPU%u", cpu);
+		used += sysfs_emit_at(buf, used, " CPU%u", cpu);
 
-	used += scnprintf(buf + used, len - used, "\nfrom:");
+	used += sysfs_emit_at(buf, used, "\nfrom:");
 	for_each_possible_cpu(cpu) {
 		s = per_cpu_ptr(stats->pcpu_stats, cpu);
-		used += scnprintf(buf + used, len - used, " %d",
+		used += sysfs_emit_at(buf, used, " %d",
 				  atomic_read(&s->cpu_migr.from));
 	}
 
-	used += scnprintf(buf + used, len - used, "\nto  :");
+	used += sysfs_emit_at(buf, used, "\nto  :");
 	for_each_possible_cpu(cpu) {
 		s = per_cpu_ptr(stats->pcpu_stats, cpu);
-		used += scnprintf(buf + used, len - used, " %d",
-				  s->cpu_migr.to);
+		used += sysfs_emit_at(buf, used, " %d", s->cpu_migr.to);
 	}
-	used += scnprintf(buf + used, len - used, "\n");
+	used += sysfs_emit_at(buf, used, "\n");
 
 	return used;
 }
@@ -70,9 +69,8 @@ int rtrs_clt_stats_migration_cnt_to_str(struct rtrs_clt_stats *stats,
 int rtrs_clt_stats_reconnects_to_str(struct rtrs_clt_stats *stats, char *buf,
 				      size_t len)
 {
-	return scnprintf(buf, len, "%d %d\n",
-			 stats->reconnects.successful_cnt,
-			 stats->reconnects.fail_cnt);
+	return sysfs_emit(buf, "%d %d\n", stats->reconnects.successful_cnt,
+			  stats->reconnects.fail_cnt);
 }
 
 ssize_t rtrs_clt_stats_rdma_to_str(struct rtrs_clt_stats *stats,
@@ -94,7 +92,7 @@ ssize_t rtrs_clt_stats_rdma_to_str(struct rtrs_clt_stats *stats,
 		sum.failover_cnt	  += r->failover_cnt;
 	}
 
-	return scnprintf(page, len, "%llu %llu %llu %llu %u %llu\n",
+	return sysfs_emit(page, "%llu %llu %llu %llu %u %llu\n",
 			 sum.dir[READ].cnt, sum.dir[READ].size_total,
 			 sum.dir[WRITE].cnt, sum.dir[WRITE].size_total,
 			 atomic_read(&stats->inflight), sum.failover_cnt);
@@ -103,7 +101,7 @@ ssize_t rtrs_clt_stats_rdma_to_str(struct rtrs_clt_stats *stats,
 ssize_t rtrs_clt_reset_all_help(struct rtrs_clt_stats *s,
 				 char *page, size_t len)
 {
-	return scnprintf(page, len, "echo 1 to reset all statistics\n");
+	return sysfs_emit(page, "echo 1 to reset all statistics\n");
 }
 
 int rtrs_clt_reset_rdma_stats(struct rtrs_clt_stats *stats, bool enable)
