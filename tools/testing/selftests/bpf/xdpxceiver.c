@@ -1217,6 +1217,15 @@ static bool testapp_unaligned(struct test_spec *test)
 	return true;
 }
 
+static void testapp_single_pkt(struct test_spec *test)
+{
+	struct pkt pkts[] = {{0x1000, PKT_SIZE, 0, true}};
+
+	pkt_stream_generate_custom(test, pkts, ARRAY_SIZE(pkts));
+	testapp_validate_traffic(test);
+	pkt_stream_restore_default(test);
+}
+
 static void testapp_invalid_desc(struct test_spec *test)
 {
 	struct pkt pkts[] = {
@@ -1297,6 +1306,10 @@ static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_
 	case TEST_TYPE_RUN_TO_COMPLETION:
 		test_spec_set_name(test, "RUN_TO_COMPLETION");
 		testapp_validate_traffic(test);
+		break;
+	case TEST_TYPE_RUN_TO_COMPLETION_SINGLE_PKT:
+		test_spec_set_name(test, "RUN_TO_COMPLETION_SINGLE_PKT");
+		testapp_single_pkt(test);
 		break;
 	case TEST_TYPE_RUN_TO_COMPLETION_2K_FRAME:
 		test_spec_set_name(test, "RUN_TO_COMPLETION_2K_FRAME_SIZE");
