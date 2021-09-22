@@ -7,6 +7,8 @@
 
 / {
 	aliases {
+		edp0 = &edp0;
+		edp1 = &edp1;
 		ethernet0 = &gmac0;
 		hdptx0 = &hdptxphy0;
 		hdptx1 = &hdptxphy1;
@@ -79,7 +81,7 @@
 
 	hdptxphy1_grf: syscon@fd5e4000 {
 		compatible = "rockchip,rk3588-hdptxphy-grf", "syscon";
-		reg = <0x0 0xfd5e4000 0x0 0x80>;
+		reg = <0x0 0xfd5e4000 0x0 0x100>;
 	};
 
 	spdif_tx5: spdif-tx@fddb8000 {
@@ -187,6 +189,22 @@
 		resets = <&cru SRST_M_SPDIFRX2>;
 		reset-names = "spdifrx-m";
 		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
+	edp1: edp@fded0000 {
+		compatible = "rockchip,rk3588-edp";
+		reg = <0x0 0xfded0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_EDP1_24M>, <&cru PCLK_EDP1>,
+			 <&cru CLK_EDP1_200M>;
+		clock-names = "dp", "pclk", "spdif";
+		resets = <&cru SRST_EDP1_24M>, <&cru SRST_P_EDP1>;
+		reset-names = "dp", "apb";
+		phys = <&hdptxphy1>;
+		phy-names = "dp";
+		power-domains = <&power RK3588_PD_VO1>;
+		rockchip,grf = <&vo1_grf>;
 		status = "disabled";
 	};
 
