@@ -35,7 +35,7 @@
 #define UDP_PKT_DATA_SIZE (UDP_PKT_SIZE - sizeof(struct udphdr))
 #define USLEEP_MAX 10000
 #define SOCK_RECONF_CTR 10
-#define BATCH_SIZE 8
+#define BATCH_SIZE 64
 #define POLL_TMOUT 1000
 #define DEFAULT_PKT_CNT (4 * 1024)
 #define DEFAULT_UMEM_BUFFERS (DEFAULT_PKT_CNT / 4)
@@ -136,6 +136,7 @@ struct ifobject {
 	bool tx_on;
 	bool rx_on;
 	bool use_poll;
+	bool pacing_on;
 	u8 dst_mac[ETH_ALEN];
 	u8 src_mac[ETH_ALEN];
 };
@@ -151,5 +152,9 @@ struct test_spec {
 };
 
 pthread_barrier_t barr;
+pthread_mutex_t pacing_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t pacing_cond = PTHREAD_COND_INITIALIZER;
+
+u32 pkts_in_flight;
 
 #endif				/* XDPXCEIVER_H */

@@ -384,6 +384,7 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 		ifobj->umem = &ifobj->umem_arr[0];
 		ifobj->xsk = &ifobj->xsk_arr[0];
 		ifobj->use_poll = false;
+		ifobj->pacing_on = true;
 		ifobj->pkt_stream = test->pkt_stream_default;
 
 		if (i == 0) {
@@ -724,6 +725,7 @@ static void receive_pkts(struct pkt_stream *pkt_stream, struct xsk_socket_info *
 {
 	struct pkt *pkt = pkt_stream_get_next_rx_pkt(pkt_stream);
 	u32 idx_rx = 0, idx_fq = 0, rcvd, i;
+	u32 total = 0;
 	int ret;
 
 	while (pkt) {
@@ -772,6 +774,13 @@ static void receive_pkts(struct pkt_stream *pkt_stream, struct xsk_socket_info *
 
 		xsk_ring_prod__submit(&xsk->umem->fq, rcvd);
 		xsk_ring_cons__release(&xsk->rx, rcvd);
+
+		pthread_mutex_lock(&pacing_mutex);
+		pkts_in_flight -= rcvd;
+		total += rcvd;
+		if (pkts_in_flight < umem->num_frames)
+			pthread_cond_signal(&pacing_cond);
+		pthread_mutex_unlock(&pacing_mutex);
 	}
 }
 
@@ -797,10 +806,19 @@ static u32 __send_pkts(struct ifobject *ifobject, u32 pkt_nb)
 			valid_pkts++;
 	}
 
+	pthread_mutex_lock(&pacing_mutex);
+	pkts_in_flight += valid_pkts;
+	if (ifobject->pacing_on && pkts_in_flight >= ifobject->umem->num_frames - BATCH_SIZE) {
+		kick_tx(xsk);
+		pthread_cond_wait(&pacing_cond, &pacing_mutex);
+	}
+	pthread_mutex_unlock(&pacing_mutex);
+
 	xsk_ring_prod__submit(&xsk->tx, i);
 	xsk->outstanding_tx += valid_pkts;
-	complete_pkts(xsk, BATCH_SIZE);
+	complete_pkts(xsk, i);
 
+	usleep(10);
 	return i;
 }
 
@@ -819,8 +837,6 @@ static void send_pkts(struct ifobject *ifobject)
 	fds.events = POLLOUT;
 
 	while (pkt_cnt < ifobject->pkt_stream->nb_pkts) {
-		u32 sent;
-
 		if (ifobject->use_poll) {
 			int ret;
 
@@ -832,9 +848,7 @@ static void send_pkts(struct ifobject *ifobject)
 				continue;
 		}
 
-		sent = __send_pkts(ifobject, pkt_cnt);
-		pkt_cnt += sent;
-		usleep(10);
+		pkt_cnt += __send_pkts(ifobject, pkt_cnt);
 	}
 
 	wait_for_tx_completion(ifobject->xsk);
@@ -1043,6 +1057,7 @@ static void testapp_validate_traffic(struct test_spec *test)
 
 	test->current_step++;
 	pkt_stream_reset(ifobj_rx->pkt_stream);
+	pkts_in_flight = 0;
 
 	/*Spawn RX thread */
 	pthread_create(&t0, NULL, ifobj_rx->func_ptr, test);
@@ -1126,6 +1141,8 @@ static void testapp_stats(struct test_spec *test)
 	for (i = 0; i < STAT_TEST_TYPE_MAX; i++) {
 		test_spec_reset(test);
 		stat_test_type = i;
+		/* No or few packets will be received so cannot pace packets */
+		test->ifobj_tx->pacing_on = false;
 
 		switch (stat_test_type) {
 		case STAT_TEST_RX_DROPPED:
