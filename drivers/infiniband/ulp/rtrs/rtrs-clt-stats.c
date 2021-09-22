@@ -37,29 +37,38 @@ void rtrs_clt_inc_failover_cnt(struct rtrs_clt_stats *stats)
 	s->rdma.failover_cnt++;
 }
 
-int rtrs_clt_stats_migration_cnt_to_str(struct rtrs_clt_stats *stats, char *buf)
+int rtrs_clt_stats_migration_from_cnt_to_str(struct rtrs_clt_stats *stats, char *buf)
 {
 	struct rtrs_clt_stats_pcpu *s;
 
 	size_t used;
 	int cpu;
 
-	used = sysfs_emit(buf, "    ");
-	for_each_possible_cpu(cpu)
-		used += sysfs_emit_at(buf, used, " CPU%u", cpu);
-
-	used += sysfs_emit_at(buf, used, "\nfrom:");
+	used = 0;
 	for_each_possible_cpu(cpu) {
 		s = per_cpu_ptr(stats->pcpu_stats, cpu);
-		used += sysfs_emit_at(buf, used, " %d",
+		used += sysfs_emit_at(buf, used, "%d ",
 				  atomic_read(&s->cpu_migr.from));
 	}
 
-	used += sysfs_emit_at(buf, used, "\nto  :");
+	used += sysfs_emit_at(buf, used, "\n");
+
+	return used;
+}
+
+int rtrs_clt_stats_migration_to_cnt_to_str(struct rtrs_clt_stats *stats, char *buf)
+{
+	struct rtrs_clt_stats_pcpu *s;
+
+	size_t used;
+	int cpu;
+
+	used = 0;
 	for_each_possible_cpu(cpu) {
 		s = per_cpu_ptr(stats->pcpu_stats, cpu);
-		used += sysfs_emit_at(buf, used, " %d", s->cpu_migr.to);
+		used += sysfs_emit_at(buf, used, "%d ", s->cpu_migr.to);
 	}
+
 	used += sysfs_emit_at(buf, used, "\n");
 
 	return used;
