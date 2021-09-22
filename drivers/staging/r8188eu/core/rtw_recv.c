@@ -282,31 +282,6 @@ int rtw_enqueue_recvbuf(struct recv_buf *precvbuf, struct __queue *queue)
 	return _SUCCESS;
 }
 
-struct recv_buf *rtw_dequeue_recvbuf(struct __queue *queue)
-{
-	struct recv_buf *precvbuf;
-	struct list_head *plist, *phead;
-	unsigned long flags;
-
-	spin_lock_irqsave(&queue->lock, flags);
-
-	if (list_empty(&queue->queue)) {
-		precvbuf = NULL;
-	} else {
-		phead = get_list_head(queue);
-
-		plist = phead->next;
-
-		precvbuf = container_of(plist, struct recv_buf, list);
-
-		list_del_init(&precvbuf->list);
-	}
-
-	spin_unlock_irqrestore(&queue->lock, flags);
-
-	return precvbuf;
-}
-
 static int recvframe_chkmic(struct adapter *adapter,  struct recv_frame *precvframe)
 {
 	int	i, res = _SUCCESS;
