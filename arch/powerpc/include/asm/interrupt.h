@@ -149,8 +149,14 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrup
 #endif
 
 #ifdef CONFIG_PPC64
-	if (irq_soft_mask_set_return(IRQS_ALL_DISABLED) == IRQS_ENABLED)
-		trace_hardirqs_off();
+	bool trace_enable = false;
+
+	if (IS_ENABLED(CONFIG_TRACE_IRQFLAGS)) {
+		if (irq_soft_mask_set_return(IRQS_ALL_DISABLED) == IRQS_ENABLED)
+			trace_enable = true;
+	} else {
+		irq_soft_mask_set(IRQS_ALL_DISABLED);
+	}
 
 	/*
 	 * If the interrupt was taken with HARD_DIS clear, then enable MSR[EE].
@@ -164,7 +170,13 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrup
 		if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
 			BUG_ON(!(regs->msr & MSR_EE));
 		__hard_irq_enable();
+	} else {
+		__hard_RI_enable();
 	}
+
+	/* Do this when RI=1 because it can cause SLB faults */
+	if (trace_enable)
+		trace_hardirqs_off();
 
 	if (user_mode(regs)) {
 		kuap_lock();
@@ -220,13 +232,16 @@ static inline void interrupt_async_enter_prepare(struct pt_regs *regs, struct in
 	/* Ensure interrupt_enter_prepare does not enable MSR[EE] */
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
 #endif
+	interrupt_enter_prepare(regs, state);
 #ifdef CONFIG_PPC_BOOK3S_64
+	/*
+	 * RI=1 is set by interrupt_enter_prepare, so this thread flags access
+	 * has to come afterward (it can cause SLB faults).
+	 */
 	if (cpu_has_feature(CPU_FTR_CTRL) &&
 	    !test_thread_local_flags(_TLF_RUNLATCH))
 		__ppc64_runlatch_on();
 #endif
-
-	interrupt_enter_prepare(regs, state);
 	irq_enter();
 }
 
@@ -295,6 +310,8 @@ static inline void interrupt_nmi_enter_prepare(struct pt_regs *regs, struct inte
 		 */
 		regs->softe = IRQS_ALL_DISABLED;
 	}
+
+	__hard_RI_enable();
 
 	/* Don't do any per-CPU operations until interrupt state is fixed */
 
@@ -392,6 +409,8 @@ static __always_inline long ____##func(struct pt_regs *regs);		\
 interrupt_handler long func(struct pt_regs *regs)			\
 {									\
 	long ret;							\
+									\
+	__hard_RI_enable();						\
 									\
 	ret = ____##func (regs);					\
 									\
