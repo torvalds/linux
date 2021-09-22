@@ -342,23 +342,18 @@ kill_orphaned_pgrp(struct task_struct *tsk, struct task_struct *parent)
 static void coredump_task_exit(struct task_struct *tsk)
 {
 	struct core_state *core_state;
-	struct mm_struct *mm;
-
-	mm = tsk->mm;
-	if (!mm)
-		return;
 
 	/*
 	 * Serialize with any possible pending coredump.
-	 * We must hold mmap_lock around checking core_state
+	 * We must hold siglock around checking core_state
 	 * and setting PF_POSTCOREDUMP.  The core-inducing thread
 	 * will increment ->nr_threads for each thread in the
 	 * group without PF_POSTCOREDUMP set.
 	 */
-	mmap_read_lock(mm);
+	spin_lock_irq(&tsk->sighand->siglock);
 	tsk->flags |= PF_POSTCOREDUMP;
-	core_state = mm->core_state;
-	mmap_read_unlock(mm);
+	core_state = tsk->signal->core_state;
+	spin_unlock_irq(&tsk->sighand->siglock);
 	if (core_state) {
 		struct core_thread self;
 
