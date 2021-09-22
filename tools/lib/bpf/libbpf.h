@@ -269,7 +269,7 @@ struct bpf_kprobe_opts {
 	/* custom user-provided value fetchable through bpf_get_attach_cookie() */
 	__u64 bpf_cookie;
 	/* function's offset to install kprobe to */
-	unsigned long offset;
+	size_t offset;
 	/* kprobe is return probe */
 	bool retprobe;
 	size_t :0;
