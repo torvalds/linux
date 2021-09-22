@@ -214,19 +214,15 @@ struct dma_fence_ops {
 	 * Custom wait implementation, defaults to dma_fence_default_wait() if
 	 * not set.
 	 *
-	 * The dma_fence_default_wait implementation should work for any fence, as long
-	 * as @enable_signaling works correctly. This hook allows drivers to
-	 * have an optimized version for the case where a process context is
-	 * already available, e.g. if @enable_signaling for the general case
-	 * needs to set up a worker thread.
+	 * Deprecated and should not be used by new implementations. Only used
+	 * by existing implementations which need special handling for their
+	 * hardware reset procedure.
 	 *
 	 * Must return -ERESTARTSYS if the wait is intr = true and the wait was
 	 * interrupted, and remaining jiffies if fence has signaled, or 0 if wait
 	 * timed out. Can also return other error values on custom implementations,
 	 * which should be treated as if the fence is signaled. For example a hardware
 	 * lockup could be reported like that.
-	 *
-	 * This callback is optional.
 	 */
 	signed long (*wait)(struct dma_fence *fence,
 			    bool intr, signed long timeout);
@@ -589,27 +585,5 @@ static inline signed long dma_fence_wait(struct dma_fence *fence, bool intr)
 struct dma_fence *dma_fence_get_stub(void);
 struct dma_fence *dma_fence_allocate_private_stub(void);
 u64 dma_fence_context_alloc(unsigned num);
-
-#define DMA_FENCE_TRACE(f, fmt, args...) \
-	do {								\
-		struct dma_fence *__ff = (f);				\
-		if (IS_ENABLED(CONFIG_DMA_FENCE_TRACE))			\
-			pr_info("f %llu#%llu: " fmt,			\
-				__ff->context, __ff->seqno, ##args);	\
-	} while (0)
-
-#define DMA_FENCE_WARN(f, fmt, args...) \
-	do {								\
-		struct dma_fence *__ff = (f);				\
-		pr_warn("f %llu#%llu: " fmt, __ff->context, __ff->seqno,\
-			 ##args);					\
-	} while (0)
-
-#define DMA_FENCE_ERR(f, fmt, args...) \
-	do {								\
-		struct dma_fence *__ff = (f);				\
-		pr_err("f %llu#%llu: " fmt, __ff->context, __ff->seqno,	\
-			##args);					\
-	} while (0)
 
 #endif /* __LINUX_DMA_FENCE_H */

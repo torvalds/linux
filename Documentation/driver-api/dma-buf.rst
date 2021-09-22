@@ -176,12 +176,6 @@ DMA Fences Functions Reference
 .. kernel-doc:: include/linux/dma-fence.h
    :internal:
 
-Seqno Hardware Fences
-~~~~~~~~~~~~~~~~~~~~~
-
-.. kernel-doc:: include/linux/seqno-fence.h
-   :internal:
-
 DMA Fence Array
 ~~~~~~~~~~~~~~~
 

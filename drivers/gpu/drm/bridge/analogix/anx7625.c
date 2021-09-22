@@ -720,7 +720,7 @@ static int edid_read(struct anx7625_data *ctx,
 		ret = sp_tx_aux_rd(ctx, 0xf1);
 
 		if (ret) {
-			sp_tx_rst_aux(ctx);
+			ret = sp_tx_rst_aux(ctx);
 			DRM_DEV_DEBUG_DRIVER(dev, "edid read fail, reset!\n");
 		} else {
 			ret = anx7625_reg_block_read(ctx, ctx->i2c.rx_p0_client,
@@ -735,7 +735,7 @@ static int edid_read(struct anx7625_data *ctx,
 	if (cnt > EDID_TRY_CNT)
 		return -EIO;
 
-	return 0;
+	return ret;
 }
 
 static int segments_edid_read(struct anx7625_data *ctx,
@@ -785,7 +785,7 @@ static int segments_edid_read(struct anx7625_data *ctx,
 	if (cnt > EDID_TRY_CNT)
 		return -EIO;
 
-	return 0;
+	return ret;
 }
 
 static int sp_tx_edid_read(struct anx7625_data *ctx,
@@ -845,8 +845,11 @@ static int sp_tx_edid_read(struct anx7625_data *ctx,
 				if (g_edid_break == 1)
 					break;
 
-				segments_edid_read(ctx, count / 2,
-						   pblock_buf, offset);
+				ret = segments_edid_read(ctx, count / 2,
+							 pblock_buf, offset);
+				if (ret < 0)
+					return ret;
+
 				memcpy(&pedid_blocks_buf[edid_pos],
 				       pblock_buf,
 				       MAX_DPCD_BUFFER_SIZE);
@@ -863,8 +866,11 @@ static int sp_tx_edid_read(struct anx7625_data *ctx,
 				if (g_edid_break == 1)
 					break;
 
-				segments_edid_read(ctx, count / 2,
-						   pblock_buf, offset);
+				ret = segments_edid_read(ctx, count / 2,
+							 pblock_buf, offset);
+				if (ret < 0)
+					return ret;
+
 				memcpy(&pedid_blocks_buf[edid_pos],
 				       pblock_buf,
 				       MAX_DPCD_BUFFER_SIZE);
@@ -887,7 +893,11 @@ static int sp_tx_edid_read(struct anx7625_data *ctx,
 	}
 
 	/* Reset aux channel */
-	sp_tx_rst_aux(ctx);
+	ret = sp_tx_rst_aux(ctx);
+	if (ret < 0) {
+		DRM_DEV_ERROR(dev, "Failed to reset aux channel!\n");
+		return ret;
+	}
 
 	return (blocks_num + 1);
 }
@@ -1325,7 +1335,6 @@ static int anx7625_attach_dsi(struct anx7625_data *ctx)
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO	|
 		MIPI_DSI_MODE_VIDEO_SYNC_PULSE	|
-		MIPI_DSI_MODE_NO_EOT_PACKET	|
 		MIPI_DSI_MODE_VIDEO_HSE;
 
 	if (mipi_dsi_attach(dsi) < 0) {
