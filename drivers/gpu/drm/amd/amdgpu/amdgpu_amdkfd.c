@@ -31,6 +31,8 @@
 #include <linux/dma-buf.h>
 #include "amdgpu_xgmi.h"
 #include <uapi/linux/kfd_ioctl.h>
+#include "amdgpu_ras.h"
+#include "amdgpu_umc.h"
 
 /* Total memory size in system memory and all GPU VRAM. Used to
  * estimate worst case amount of memory to reserve for page tables
@@ -779,4 +781,16 @@ bool amdgpu_amdkfd_have_atomics_support(struct kgd_dev *kgd)
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
 	return adev->have_atomics_support;
+}
+
+void amdgpu_amdkfd_ras_poison_consumption_handler(struct kgd_dev *kgd)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+	struct ras_err_data err_data = {0, 0, 0, NULL};
+
+	/* CPU MCA will handle page retirement if connected_to_cpu is 1 */
+	if (!adev->gmc.xgmi.connected_to_cpu)
+		amdgpu_umc_process_ras_data_cb(adev, &err_data, NULL);
+	else
+		amdgpu_amdkfd_gpu_reset(kgd);
 }
