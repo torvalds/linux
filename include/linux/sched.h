@@ -2051,14 +2051,14 @@ extern int __cond_resched_rwlock_write(rwlock_t *lock);
 	__cond_resched_lock(lock);					\
 })
 
-#define cond_resched_rwlock_read(lock) ({			\
-	__might_sleep(__FILE__, __LINE__, PREEMPT_LOCK_OFFSET);	\
-	__cond_resched_rwlock_read(lock);			\
+#define cond_resched_rwlock_read(lock) ({				\
+	__might_resched(__FILE__, __LINE__, PREEMPT_LOCK_OFFSET);	\
+	__cond_resched_rwlock_read(lock);				\
 })
 
-#define cond_resched_rwlock_write(lock) ({			\
-	__might_sleep(__FILE__, __LINE__, PREEMPT_LOCK_OFFSET);	\
-	__cond_resched_rwlock_write(lock);			\
+#define cond_resched_rwlock_write(lock) ({				\
+	__might_resched(__FILE__, __LINE__, PREEMPT_LOCK_OFFSET);	\
+	__cond_resched_rwlock_write(lock);				\
 })
 
 static inline void cond_resched_rcu(void)
