@@ -70,6 +70,7 @@ struct mlxsw_sp_ipip_ops {
 				struct netlink_ext_ack *extack);
 };
 
-extern const struct mlxsw_sp_ipip_ops *mlxsw_sp_ipip_ops_arr[];
+extern const struct mlxsw_sp_ipip_ops *mlxsw_sp1_ipip_ops_arr[];
+extern const struct mlxsw_sp_ipip_ops *mlxsw_sp2_ipip_ops_arr[];
 
 #endif /* _MLXSW_IPIP_H_*/

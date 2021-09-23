@@ -324,7 +324,11 @@ static const struct mlxsw_sp_ipip_ops mlxsw_sp_ipip_gre4_ops = {
 	.ol_netdev_change = mlxsw_sp_ipip_ol_netdev_change_gre4,
 };
 
-const struct mlxsw_sp_ipip_ops *mlxsw_sp_ipip_ops_arr[] = {
+const struct mlxsw_sp_ipip_ops *mlxsw_sp1_ipip_ops_arr[] = {
+	[MLXSW_SP_IPIP_TYPE_GRE4] = &mlxsw_sp_ipip_gre4_ops,
+};
+
+const struct mlxsw_sp_ipip_ops *mlxsw_sp2_ipip_ops_arr[] = {
 	[MLXSW_SP_IPIP_TYPE_GRE4] = &mlxsw_sp_ipip_gre4_ops,
 };
 
