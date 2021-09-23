@@ -1536,19 +1536,22 @@ mlxsw_sp_rif_ipip_lb_op(struct mlxsw_sp_rif_ipip_lb *lb_rif, u16 ul_vr_id,
 			u16 ul_rif_id, bool enable)
 {
 	struct mlxsw_sp_rif_ipip_lb_config lb_cf = lb_rif->lb_config;
+	enum mlxsw_reg_ritr_loopback_ipip_options ipip_options;
 	struct mlxsw_sp_rif *rif = &lb_rif->common;
 	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
 	char ritr_pl[MLXSW_REG_RITR_LEN];
 	u32 saddr4;
 
+	ipip_options = MLXSW_REG_RITR_LOOPBACK_IPIP_OPTIONS_GRE_KEY_PRESET;
 	switch (lb_cf.ul_protocol) {
 	case MLXSW_SP_L3_PROTO_IPV4:
 		saddr4 = be32_to_cpu(lb_cf.saddr.addr4);
 		mlxsw_reg_ritr_pack(ritr_pl, enable, MLXSW_REG_RITR_LOOPBACK_IF,
 				    rif->rif_index, rif->vr_id, rif->dev->mtu);
 		mlxsw_reg_ritr_loopback_ipip4_pack(ritr_pl, lb_cf.lb_ipipt,
-			    MLXSW_REG_RITR_LOOPBACK_IPIP_OPTIONS_GRE_KEY_PRESET,
-			    ul_vr_id, ul_rif_id, saddr4, lb_cf.okey);
+						   ipip_options, ul_vr_id,
+						   ul_rif_id, saddr4,
+						   lb_cf.okey);
 		break;
 
 	case MLXSW_SP_L3_PROTO_IPV6:
