@@ -1311,6 +1311,11 @@ int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 		else if (ras_cmd->ras_out_message.flags.reg_access_failure_flag)
 			dev_warn(psp->adev->dev,
 				 "RAS internal register access blocked\n");
+
+		if (ras_cmd->ras_status == TA_RAS_STATUS__ERROR_UNSUPPORTED_IP)
+		    dev_warn(psp->adev->dev, "RAS WARNING: cmd failed due to unsupported ip\n");
+		else if (ras_cmd->ras_status)
+		    dev_warn(psp->adev->dev, "RAS WARNING: ras status = 0x%X\n", ras_cmd->ras_status);
 	}
 
 	return ret;
@@ -1338,9 +1343,6 @@ int psp_ras_enable_features(struct psp_context *psp,
 	ret = psp_ras_invoke(psp, ras_cmd->cmd_id);
 	if (ret)
 		return -EINVAL;
-
-	if (ras_cmd->ras_status)
-		dev_warn(psp->adev->dev, "RAS WARNING: ras status = 0x%X\n", ras_cmd->ras_status);
 
 	return 0;
 }
@@ -1484,10 +1486,8 @@ int psp_ras_trigger_error(struct psp_context *psp,
 	if (amdgpu_ras_intr_triggered())
 		return 0;
 
-	if (ras_cmd->ras_status) {
-		dev_warn(psp->adev->dev, "RAS WARNING: ras status = 0x%X\n", ras_cmd->ras_status);
+	if (ras_cmd->ras_status)
 		return -EINVAL;
-	}
 
 	return 0;
 }
