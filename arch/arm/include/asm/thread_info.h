@@ -25,6 +25,14 @@
 #define THREAD_SIZE		(PAGE_SIZE << THREAD_SIZE_ORDER)
 #define THREAD_START_SP		(THREAD_SIZE - 8)
 
+#ifdef CONFIG_VMAP_STACK
+#define THREAD_ALIGN		(2 * THREAD_SIZE)
+#else
+#define THREAD_ALIGN		THREAD_SIZE
+#endif
+
+#define OVERFLOW_STACK_SIZE	SZ_4K
+
 #ifndef __ASSEMBLY__
 
 struct task_struct;

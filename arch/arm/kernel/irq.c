@@ -56,7 +56,14 @@ static void __init init_irq_stacks(void)
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		stack = (u8 *)__get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
+		if (!IS_ENABLED(CONFIG_VMAP_STACK))
+			stack = (u8 *)__get_free_pages(GFP_KERNEL,
+						       THREAD_SIZE_ORDER);
+		else
+			stack = __vmalloc_node(THREAD_SIZE, THREAD_ALIGN,
+					       THREADINFO_GFP, NUMA_NO_NODE,
+					       __builtin_return_address(0));
+
 		if (WARN_ON(!stack))
 			break;
 		per_cpu(irq_stack_ptr, cpu) = &stack[THREAD_SIZE];

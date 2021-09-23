@@ -127,6 +127,7 @@ config ARM
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
 	select THREAD_INFO_IN_TASK if CURRENT_POINTER_IN_TPIDRURO
+	select HAVE_ARCH_VMAP_STACK if MMU && THREAD_INFO_IN_TASK && (!LD_IS_LLD || LLD_VERSION >= 140000)
 	select TRACE_IRQFLAGS_SUPPORT if !CPU_V7M
 	# Above selects are sorted alphabetically; please add new ones
 	# according to that.  Thanks.

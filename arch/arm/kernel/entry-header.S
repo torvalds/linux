@@ -423,3 +423,40 @@ scno	.req	r7		@ syscall number
 tbl	.req	r8		@ syscall table pointer
 why	.req	r8		@ Linux syscall (!= 0)
 tsk	.req	r9		@ current thread_info
+
+	.macro	do_overflow_check, frame_size:req
+#ifdef CONFIG_VMAP_STACK
+	@
+	@ Test whether the SP has overflowed. Task and IRQ stacks are aligned
+	@ so that SP & BIT(THREAD_SIZE_ORDER + PAGE_SHIFT) should always be
+	@ zero.
+	@
+ARM(	tst	sp, #1 << (THREAD_SIZE_ORDER + PAGE_SHIFT)	)
+THUMB(	tst	r1, #1 << (THREAD_SIZE_ORDER + PAGE_SHIFT)	)
+THUMB(	it	ne						)
+	bne	.Lstack_overflow_check\@
+
+	.pushsection	.text
+.Lstack_overflow_check\@:
+	@
+	@ The stack pointer is not pointing to a valid vmap'ed stack, but it
+	@ may be pointing into the linear map instead, which may happen if we
+	@ are already running from the overflow stack. We cannot detect overflow
+	@ in such cases so just carry on.
+	@
+	str	ip, [r0, #12]			@ Stash IP on the mode stack
+	ldr_l	ip, high_memory			@ Start of VMALLOC space
+ARM(	cmp	sp, ip			)	@ SP in vmalloc space?
+THUMB(	cmp	r1, ip			)
+THUMB(	itt	lo			)
+	ldrlo	ip, [r0, #12]			@ Restore IP
+	blo	.Lout\@				@ Carry on
+
+THUMB(	sub	r1, sp, r1		)	@ Restore original R1
+THUMB(	sub	sp, r1			)	@ Restore original SP
+	add	sp, sp, #\frame_size		@ Undo svc_entry's SP change
+	b	__bad_stack			@ Handle VMAP stack overflow
+	.popsection
+.Lout\@:
+#endif
+	.endm

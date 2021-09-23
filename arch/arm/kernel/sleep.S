@@ -67,6 +67,14 @@ ENTRY(__cpu_suspend)
 	ldr	r4, =cpu_suspend_size
 #endif
 	mov	r5, sp			@ current virtual SP
+#ifdef CONFIG_VMAP_STACK
+	@ Run the suspend code from the overflow stack so we don't have to rely
+	@ on vmalloc-to-phys conversions anywhere in the arch suspend code.
+	@ The original SP value captured in R5 will be restored on the way out.
+	mov_l	r6, overflow_stack_ptr	@ Base pointer
+	mrc	p15, 0, r7, c13, c0, 4	@ Get per-CPU offset
+	ldr	sp, [r6, r7]		@ Address of this CPU's overflow stack
+#endif
 	add	r4, r4, #12		@ Space for pgd, virt sp, phys resume fn
 	sub	sp, sp, r4		@ allocate CPU state on stack
 	ldr	r3, =sleep_save_sp

@@ -57,6 +57,10 @@ UNWIND(	.setfp	fpreg, sp		)
 	@
 	subs	r2, sp, r0		@ SP above bottom of IRQ stack?
 	rsbscs	r2, r2, #THREAD_SIZE	@ ... and below the top?
+#ifdef CONFIG_VMAP_STACK
+	ldr_l	r2, high_memory, cc	@ End of the linear region
+	cmpcc	r2, r0			@ Stack pointer was below it?
+#endif
 	movcs	sp, r0			@ If so, revert to incoming SP
 
 #ifndef CONFIG_UNWINDER_ARM
@@ -188,13 +192,18 @@ ENDPROC(__und_invalid)
 #define SPFIX(code...)
 #endif
 
-	.macro	svc_entry, stack_hole=0, trace=1, uaccess=1
+	.macro	svc_entry, stack_hole=0, trace=1, uaccess=1, overflow_check=1
  UNWIND(.fnstart		)
- UNWIND(.save {r0 - pc}		)
 	sub	sp, sp, #(SVC_REGS_SIZE + \stack_hole)
+ THUMB(	add	sp, r1		)	@ get SP in a GPR without
+ THUMB(	sub	r1, sp, r1	)	@ using a temp register
+
+	.if	\overflow_check
+ UNWIND(.save	{r0 - pc}	)
+	do_overflow_check (SVC_REGS_SIZE + \stack_hole)
+	.endif
+
 #ifdef CONFIG_THUMB2_KERNEL
-	add	sp, r1			@ get SP in a GPR without
-	sub	r1, sp, r1		@ using a temp register
 	tst	r1, #4			@ test stack pointer alignment
 	sub	r1, sp, r1		@ restore original R1
 	sub	sp, r1			@ restore original SP
@@ -827,12 +836,20 @@ ENTRY(__switch_to)
 	str	r7, [r8]
 #endif
 	mov	r0, r5
-#if !defined(CONFIG_THUMB2_KERNEL)
+#if !defined(CONFIG_THUMB2_KERNEL) && !defined(CONFIG_VMAP_STACK)
 	set_current r7
 	ldmia	r4, {r4 - sl, fp, sp, pc}	@ Load all regs saved previously
 #else
 	mov	r1, r7
 	ldmia	r4, {r4 - sl, fp, ip, lr}	@ Load all regs saved previously
+#ifdef CONFIG_VMAP_STACK
+	@
+	@ Do a dummy read from the new stack while running from the old one so
+	@ that we can rely on do_translation_fault() to fix up any stale PMD
+	@ entries covering the vmalloc region.
+	@
+	ldr	r2, [ip]
+#endif
 
 	@ When CONFIG_THREAD_INFO_IN_TASK=n, the update of SP itself is what
 	@ effectuates the task switch, as that is what causes the observable
@@ -848,6 +865,76 @@ ENTRY(__switch_to)
 #endif
  UNWIND(.fnend		)
 ENDPROC(__switch_to)
+
+#ifdef CONFIG_VMAP_STACK
+	.text
+	.align	2
+__bad_stack:
+	@
+	@ We've just detected an overflow. We need to load the address of this
+	@ CPU's overflow stack into the stack pointer register. We have only one
+	@ scratch register so let's use a sequence of ADDs including one
+	@ involving the PC, and decorate them with PC-relative group
+	@ relocations. As these are ARM only, switch to ARM mode first.
+	@
+	@ We enter here with IP clobbered and its value stashed on the mode
+	@ stack.
+	@
+THUMB(	bx	pc		)
+THUMB(	nop			)
+THUMB(	.arm			)
+	mrc	p15, 0, ip, c13, c0, 4		@ Get per-CPU offset
+
+	.globl	overflow_stack_ptr
+	.reloc	0f, R_ARM_ALU_PC_G0_NC, overflow_stack_ptr
+	.reloc	1f, R_ARM_ALU_PC_G1_NC, overflow_stack_ptr
+	.reloc	2f, R_ARM_LDR_PC_G2, overflow_stack_ptr
+	add	ip, ip, pc
+0:	add	ip, ip, #-4
+1:	add	ip, ip, #0
+2:	ldr	ip, [ip, #4]
+
+	str	sp, [ip, #-4]!			@ Preserve original SP value
+	mov	sp, ip				@ Switch to overflow stack
+	pop	{ip}				@ Original SP in IP
+
+#if defined(CONFIG_UNWINDER_FRAME_POINTER) && defined(CONFIG_CC_IS_GCC)
+	mov	ip, ip				@ mov expected by unwinder
+	push	{fp, ip, lr, pc}		@ GCC flavor frame record
+#else
+	str	ip, [sp, #-8]!			@ store original SP
+	push	{fpreg, lr}			@ Clang flavor frame record
+#endif
+UNWIND( ldr	ip, [r0, #4]	)		@ load exception LR
+UNWIND( str	ip, [sp, #12]	)		@ store in the frame record
+	ldr	ip, [r0, #12]			@ reload IP
+
+	@ Store the original GPRs to the new stack.
+	svc_entry uaccess=0, overflow_check=0
+
+UNWIND( .save   {sp, pc}	)
+UNWIND( .save   {fpreg, lr}	)
+UNWIND( .setfp  fpreg, sp	)
+
+	ldr	fpreg, [sp, #S_SP]		@ Add our frame record
+						@ to the linked list
+#if defined(CONFIG_UNWINDER_FRAME_POINTER) && defined(CONFIG_CC_IS_GCC)
+	ldr	r1, [fp, #4]			@ reload SP at entry
+	add	fp, fp, #12
+#else
+	ldr	r1, [fpreg, #8]
+#endif
+	str	r1, [sp, #S_SP]			@ store in pt_regs
+
+	@ Stash the regs for handle_bad_stack
+	mov	r0, sp
+
+	@ Time to die
+	bl	handle_bad_stack
+	nop
+UNWIND( .fnend			)
+ENDPROC(__bad_stack)
+#endif
 
 	__INIT
 
