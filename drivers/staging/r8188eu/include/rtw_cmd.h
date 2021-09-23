@@ -773,7 +773,6 @@ u8 rtw_ps_cmd(struct adapter*padapter);
 u8 rtw_chk_hi_queue_cmd(struct adapter*padapter);
 
 u8 rtw_set_chplan_cmd(struct adapter*padapter, u8 chplan, u8 enqueue);
-u8 rtw_tdls_cmd(struct adapter *padapter, u8 *addr, u8 option);
 
 u8 rtw_c2h_wk_cmd(struct adapter *padapter, u8 *c2h_evt);
 

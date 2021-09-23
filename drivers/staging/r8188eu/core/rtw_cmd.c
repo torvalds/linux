@@ -902,11 +902,6 @@ exit:
 	return res;
 }
 
-u8 rtw_tdls_cmd(struct adapter *padapter, u8 *addr, u8 option)
-{
-	return _SUCCESS;
-}
-
 static void traffic_status_watchdog(struct adapter *padapter)
 {
 	u8	bEnterPS;
