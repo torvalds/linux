@@ -19,6 +19,8 @@ Optional properties:
 			  interrupts per revolution). The value must be
 			  greater than zero.
 
+- retain-state-shutdown: Retain the state of the PWM on shutdown.
+
 Example:
 	fan0: pwm-fan {
 		compatible = "pwm-fan";
