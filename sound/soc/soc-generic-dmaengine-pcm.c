@@ -15,6 +15,10 @@
 
 #include <sound/dmaengine_pcm.h>
 
+static unsigned int prealloc_buffer_size_kbytes = 512;
+module_param(prealloc_buffer_size_kbytes, uint, 0444);
+MODULE_PARM_DESC(prealloc_buffer_size_kbytes, "Preallocate DMA buffer size (KB).");
+
 /*
  * The platforms dmaengine driver does not support reporting the amount of
  * bytes that are still left to transfer.
@@ -239,7 +243,7 @@ static int dmaengine_pcm_new(struct snd_soc_component *component,
 		prealloc_buffer_size = config->prealloc_buffer_size;
 		max_buffer_size = config->pcm_hardware->buffer_bytes_max;
 	} else {
-		prealloc_buffer_size = 512 * 1024;
+		prealloc_buffer_size = prealloc_buffer_size_kbytes * 1024;
 		max_buffer_size = SIZE_MAX;
 	}
 
