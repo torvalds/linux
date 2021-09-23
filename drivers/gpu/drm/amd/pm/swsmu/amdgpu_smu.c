@@ -3175,3 +3175,21 @@ int smu_wait_for_event(struct amdgpu_device *adev, enum smu_event_type event,
 
 	return ret;
 }
+
+int smu_stb_collect_info(struct smu_context *smu, void *buf, uint32_t size)
+{
+
+	if (!smu->ppt_funcs->stb_collect_info || !smu->stb_context.enabled)
+		return -EOPNOTSUPP;
+
+	/* Confirm the buffer allocated is of correct size */
+	if (size != smu->stb_context.stb_buf_size)
+		return -EINVAL;
+
+	/*
+	 * No need to lock smu mutex as we access STB directly through MMIO
+	 * and not going through SMU messaging route (for now at least).
+	 * For registers access rely on implementation internal locking.
+	 */
+	return smu->ppt_funcs->stb_collect_info(smu, buf, size);
+}
