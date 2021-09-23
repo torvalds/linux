@@ -476,8 +476,8 @@ static enum hrtimer_restart ipc_imem_startup_timer_cb(struct hrtimer *hr_timer)
 		container_of(hr_timer, struct iosm_imem, startup_timer);
 
 	if (ktime_to_ns(ipc_imem->hrtimer_period)) {
-		hrtimer_forward(&ipc_imem->startup_timer, ktime_get(),
-				ipc_imem->hrtimer_period);
+		hrtimer_forward_now(&ipc_imem->startup_timer,
+				    ipc_imem->hrtimer_period);
 		result = HRTIMER_RESTART;
 	}
 
