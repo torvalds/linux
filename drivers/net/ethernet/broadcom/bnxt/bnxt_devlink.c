@@ -736,9 +736,6 @@ static const struct devlink_param bnxt_dl_params[] = {
 			     NULL),
 };
 
-static const struct devlink_param bnxt_dl_port_params[] = {
-};
-
 static int bnxt_dl_params_register(struct bnxt *bp)
 {
 	int rc;
@@ -753,14 +750,6 @@ static int bnxt_dl_params_register(struct bnxt *bp)
 			    rc);
 		return rc;
 	}
-	rc = devlink_port_params_register(&bp->dl_port, bnxt_dl_port_params,
-					  ARRAY_SIZE(bnxt_dl_port_params));
-	if (rc) {
-		netdev_err(bp->dev, "devlink_port_params_register failed\n");
-		devlink_params_unregister(bp->dl, bnxt_dl_params,
-					  ARRAY_SIZE(bnxt_dl_params));
-		return rc;
-	}
 	devlink_params_publish(bp->dl);
 
 	return 0;
@@ -773,8 +762,6 @@ static void bnxt_dl_params_unregister(struct bnxt *bp)
 
 	devlink_params_unregister(bp->dl, bnxt_dl_params,
 				  ARRAY_SIZE(bnxt_dl_params));
-	devlink_port_params_unregister(&bp->dl_port, bnxt_dl_port_params,
-				       ARRAY_SIZE(bnxt_dl_port_params));
 }
 
 int bnxt_dl_register(struct bnxt *bp)
