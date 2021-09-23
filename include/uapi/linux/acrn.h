@@ -396,6 +396,7 @@ struct acrn_ptdev_irq {
 /* Type of PCI device assignment */
 #define ACRN_PTDEV_QUIRK_ASSIGN	(1U << 0)
 
+#define ACRN_MMIODEV_RES_NUM	3
 #define ACRN_PCI_NUM_BARS	6
 /**
  * struct acrn_pcidev - Info for assigning or de-assigning a PCI device
@@ -415,6 +416,29 @@ struct acrn_pcidev {
 	__u8	intr_line;
 	__u8	intr_pin;
 	__u32	bar[ACRN_PCI_NUM_BARS];
+};
+
+/**
+ * struct acrn_mmiodev - Info for assigning or de-assigning a MMIO device
+ * @name:			Name of the MMIO device.
+ * @res[].user_vm_pa:		Physical address of User VM of the MMIO region
+ *				for the MMIO device.
+ * @res[].service_vm_pa:	Physical address of Service VM of the MMIO
+ *				region for the MMIO device.
+ * @res[].size:			Size of the MMIO region for the MMIO device.
+ * @res[].mem_type:		Memory type of the MMIO region for the MMIO
+ *				device.
+ *
+ * This structure will be passed to hypervisor directly.
+ */
+struct acrn_mmiodev {
+	__u8	name[8];
+	struct {
+		__u64	user_vm_pa;
+		__u64	service_vm_pa;
+		__u64	size;
+		__u64	mem_type;
+	} res[ACRN_MMIODEV_RES_NUM];
 };
 
 /**
@@ -568,6 +592,10 @@ struct acrn_irqfd {
 	_IOW(ACRN_IOCTL_TYPE, 0x55, struct acrn_pcidev)
 #define ACRN_IOCTL_DEASSIGN_PCIDEV	\
 	_IOW(ACRN_IOCTL_TYPE, 0x56, struct acrn_pcidev)
+#define ACRN_IOCTL_ASSIGN_MMIODEV	\
+	_IOW(ACRN_IOCTL_TYPE, 0x57, struct acrn_mmiodev)
+#define ACRN_IOCTL_DEASSIGN_MMIODEV	\
+	_IOW(ACRN_IOCTL_TYPE, 0x58, struct acrn_mmiodev)
 
 #define ACRN_IOCTL_PM_GET_CPU_STATE	\
 	_IOWR(ACRN_IOCTL_TYPE, 0x60, __u64)
