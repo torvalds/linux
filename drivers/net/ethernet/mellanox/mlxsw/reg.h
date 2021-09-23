@@ -8187,17 +8187,38 @@ static inline void mlxsw_reg_rtdp_pack(char *payload,
 }
 
 static inline void
-mlxsw_reg_rtdp_ipip4_pack(char *payload, u16 irif,
-			  enum mlxsw_reg_rtdp_ipip_sip_check sip_check,
-			  unsigned int type_check, bool gre_key_check,
-			  u32 ipv4_usip, u32 expected_gre_key)
+mlxsw_reg_rtdp_ipip_pack(char *payload, u16 irif,
+			 enum mlxsw_reg_rtdp_ipip_sip_check sip_check,
+			 unsigned int type_check, bool gre_key_check,
+			 u32 expected_gre_key)
 {
 	mlxsw_reg_rtdp_ipip_irif_set(payload, irif);
 	mlxsw_reg_rtdp_ipip_sip_check_set(payload, sip_check);
 	mlxsw_reg_rtdp_ipip_type_check_set(payload, type_check);
 	mlxsw_reg_rtdp_ipip_gre_key_check_set(payload, gre_key_check);
-	mlxsw_reg_rtdp_ipip_ipv4_usip_set(payload, ipv4_usip);
 	mlxsw_reg_rtdp_ipip_expected_gre_key_set(payload, expected_gre_key);
+}
+
+static inline void
+mlxsw_reg_rtdp_ipip4_pack(char *payload, u16 irif,
+			  enum mlxsw_reg_rtdp_ipip_sip_check sip_check,
+			  unsigned int type_check, bool gre_key_check,
+			  u32 ipv4_usip, u32 expected_gre_key)
+{
+	mlxsw_reg_rtdp_ipip_pack(payload, irif, sip_check, type_check,
+				 gre_key_check, expected_gre_key);
+	mlxsw_reg_rtdp_ipip_ipv4_usip_set(payload, ipv4_usip);
+}
+
+static inline void
+mlxsw_reg_rtdp_ipip6_pack(char *payload, u16 irif,
+			  enum mlxsw_reg_rtdp_ipip_sip_check sip_check,
+			  unsigned int type_check, bool gre_key_check,
+			  u32 ipv6_usip_ptr, u32 expected_gre_key)
+{
+	mlxsw_reg_rtdp_ipip_pack(payload, irif, sip_check, type_check,
+				 gre_key_check, expected_gre_key);
+	mlxsw_reg_rtdp_ipip_ipv6_usip_ptr_set(payload, ipv6_usip_ptr);
 }
 
 /* RIPS - Router IP version Six Register
