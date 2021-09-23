@@ -6734,6 +6734,23 @@ mlxsw_reg_ritr_loopback_ipip4_pack(char *payload,
 	mlxsw_reg_ritr_loopback_ipip_usip4_set(payload, usip);
 }
 
+static inline void
+mlxsw_reg_ritr_loopback_ipip6_pack(char *payload,
+				   enum mlxsw_reg_ritr_loopback_ipip_type ipip_type,
+				   enum mlxsw_reg_ritr_loopback_ipip_options options,
+				   u16 uvr_id, u16 underlay_rif,
+				   const struct in6_addr *usip, u32 gre_key)
+{
+	enum mlxsw_reg_ritr_loopback_protocol protocol =
+		MLXSW_REG_RITR_LOOPBACK_PROTOCOL_IPIP_IPV6;
+
+	mlxsw_reg_ritr_loopback_protocol_set(payload, protocol);
+	mlxsw_reg_ritr_loopback_ipip_common_pack(payload, ipip_type, options,
+						 uvr_id, underlay_rif, gre_key);
+	mlxsw_reg_ritr_loopback_ipip_usip6_memcpy_to(payload,
+						     (const char *)usip);
+}
+
 /* RTAR - Router TCAM Allocation Register
  * --------------------------------------
  * This register is used for allocation of regions in the TCAM table.
