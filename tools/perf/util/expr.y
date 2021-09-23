@@ -43,6 +43,12 @@ static void expr_error(double *final_val __maybe_unused,
 	pr_debug("%s\n", s);
 }
 
+#define BINARY_LONG_OP(RESULT, OP, LHS, RHS)				\
+	RESULT = (long)LHS OP (long)RHS;
+
+#define BINARY_OP(RESULT, OP, LHS, RHS)					\
+	RESULT = LHS OP RHS;
+
 %}
 %%
 
@@ -81,14 +87,14 @@ expr:	  NUMBER
 
 					free($1);
 				}
-	| expr '|' expr		{ $$ = (long)$1 | (long)$3; }
-	| expr '&' expr		{ $$ = (long)$1 & (long)$3; }
-	| expr '^' expr		{ $$ = (long)$1 ^ (long)$3; }
-	| expr '<' expr		{ $$ = $1 < $3; }
-	| expr '>' expr		{ $$ = $1 > $3; }
-	| expr '+' expr		{ $$ = $1 + $3; }
-	| expr '-' expr		{ $$ = $1 - $3; }
-	| expr '*' expr		{ $$ = $1 * $3; }
+	| expr '|' expr { BINARY_LONG_OP($$, |, $1, $3); }
+	| expr '&' expr { BINARY_LONG_OP($$, &, $1, $3); }
+	| expr '^' expr { BINARY_LONG_OP($$, ^, $1, $3); }
+	| expr '<' expr { BINARY_OP($$, <, $1, $3); }
+	| expr '>' expr { BINARY_OP($$, >, $1, $3); }
+	| expr '+' expr { BINARY_OP($$, +, $1, $3); }
+	| expr '-' expr { BINARY_OP($$, -, $1, $3); }
+	| expr '*' expr { BINARY_OP($$, *, $1, $3); }
 	| expr '/' expr		{ if ($3 == 0) {
 					pr_debug("division by zero\n");
 					YYABORT;
