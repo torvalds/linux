@@ -143,6 +143,13 @@ int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
 						  smt_on() ? "EVENT1" : "EVENT2",
 						  (void **)&val_ptr));
 
+	/* The expression is a constant 1.0 without needing to evaluate EVENT1. */
+	expr__ctx_clear(ctx);
+	TEST_ASSERT_VAL("find ids",
+			expr__find_ids("1.0 if EVENT1 > 100.0 else 1.0",
+			NULL, ctx, 0) == 0);
+	TEST_ASSERT_VAL("find ids", hashmap__size(ctx->ids) == 0);
+
 	expr__ctx_free(ctx);
 
 	return 0;

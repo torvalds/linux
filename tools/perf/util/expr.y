@@ -142,6 +142,16 @@ if_expr: expr IF expr ELSE expr
 		$$.ids = $1.ids;
 		ids__free($3.ids);
 		ids__free($5.ids);
+	} else if ($1.val == $5.val) {
+		/*
+		 * LHS == RHS, so both are an identical constant. No need to
+		 * evaluate any events.
+		 */
+		$$.val = $1.val;
+		$$.ids = NULL;
+		ids__free($1.ids);
+		ids__free($3.ids);
+		ids__free($5.ids);
 	} else {
 		/*
 		 * Value is either the LHS or RHS and we need the IF expression
