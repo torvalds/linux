@@ -1,6 +1,7 @@
 /* Simple expression parser */
 %{
 #define YYDEBUG 1
+#include <assert.h>
 #include <math.h>
 #include "util/debug.h"
 #include "smt.h"
@@ -12,15 +13,31 @@
 
 %parse-param { double *final_val }
 %parse-param { struct expr_parse_ctx *ctx }
+%parse-param { bool compute_ids }
 %parse-param {void *scanner}
 %lex-param {void* scanner}
 
 %union {
 	double	 num;
 	char	*str;
+	struct ids {
+		/*
+		 * When creating ids, holds the working set of event ids. NULL
+		 * implies the set is empty.
+		 */
+		struct hashmap *ids;
+		/*
+		 * The metric value. When not creating ids this is the value
+		 * read from a counter, a constant or some computed value. When
+		 * creating ids the value is either a constant or BOTTOM. NAN is
+		 * used as the special BOTTOM value, representing a "set of all
+		 * values" case.
+		 */
+		double val;
+	} ids;
 }
 
-%token ID NUMBER MIN MAX IF ELSE SMT_ON D_RATIO EXPR_ERROR EXPR_PARSE EXPR_OTHER
+%token ID NUMBER MIN MAX IF ELSE SMT_ON D_RATIO EXPR_ERROR
 %left MIN MAX IF
 %left '|'
 %left '^'
@@ -32,65 +49,109 @@
 %type <num> NUMBER
 %type <str> ID
 %destructor { free ($$); } <str>
-%type <num> expr if_expr
+%type <ids> expr if_expr
+%destructor { ids__free($$.ids); } <ids>
 
 %{
 static void expr_error(double *final_val __maybe_unused,
 		       struct expr_parse_ctx *ctx __maybe_unused,
+		       bool compute_ids __maybe_unused,
 		       void *scanner,
 		       const char *s)
 {
 	pr_debug("%s\n", s);
 }
 
+/*
+ * During compute ids, the special "bottom" value uses NAN to represent the set
+ * of all values. NAN is selected as it isn't a useful constant value.
+ */
+#define BOTTOM NAN
+
+static struct ids union_expr(struct ids ids1, struct ids ids2)
+{
+	struct ids result = {
+		.val = BOTTOM,
+		.ids = ids__union(ids1.ids, ids2.ids),
+	};
+	return result;
+}
+
 #define BINARY_LONG_OP(RESULT, OP, LHS, RHS)				\
-	RESULT = (long)LHS OP (long)RHS;
+	if (!compute_ids) {						\
+		RESULT.val = (long)LHS.val OP (long)RHS.val;		\
+		RESULT.ids = NULL;					\
+	} else {							\
+	        RESULT = union_expr(LHS, RHS);				\
+	}
 
 #define BINARY_OP(RESULT, OP, LHS, RHS)					\
-	RESULT = LHS OP RHS;
+	if (!compute_ids) {						\
+		RESULT.val = LHS.val OP RHS.val;			\
+		RESULT.ids = NULL;					\
+	} else {							\
+	        RESULT = union_expr(LHS, RHS);				\
+	}
 
 %}
 %%
 
-start:
-EXPR_PARSE all_expr
-|
-EXPR_OTHER all_other
-
-all_other: all_other other
-|
-
-other: ID
+start: if_expr
 {
-	expr__add_id(ctx, $1);
-}
-|
-MIN | MAX | IF | ELSE | SMT_ON | NUMBER | '|' | '^' | '&' | '-' | '+' | '*' | '/' | '%' | '(' | ')' | ','
-|
-'<' | '>' | D_RATIO
+	if (compute_ids)
+		ctx->ids = ids__union($1.ids, ctx->ids);
 
-all_expr: if_expr			{ *final_val = $1; }
+	if (final_val)
+		*final_val = $1.val;
+}
+;
 
 if_expr: expr IF expr ELSE expr
 {
-	$$ = $3 ? $1 : $5;
+	if (!compute_ids) {
+		$$.ids = NULL;
+		if (fpclassify($3.val) == FP_ZERO) {
+			$$.val = $5.val;
+		} else {
+			$$.val = $1.val;
+		}
+	} else {
+		$$ = union_expr($1, union_expr($3, $5));
+	}
 }
 | expr
 ;
 
 expr: NUMBER
 {
-	$$ = $1;
+	$$.val = $1;
+	$$.ids = NULL;
 }
 | ID
 {
-	struct expr_id_data *data;
+	if (!compute_ids) {
+		/*
+		 * Compute the event's value from ID. If the ID isn't known then
+		 * it isn't used to compute the formula so set to NAN.
+		 */
+		struct expr_id_data *data;
 
-	$$ = NAN;
-	if (expr__resolve_id(ctx, $1, &data) == 0)
-		$$ = expr_id_data__value(data);
+		$$.val = NAN;
+		if (expr__resolve_id(ctx, $1, &data) == 0)
+			$$.val = expr_id_data__value(data);
 
-	free($1);
+		$$.ids = NULL;
+		free($1);
+	} else {
+		/*
+		 * Set the value to BOTTOM to show that any value is possible
+		 * when the event is computed. Create a set of just the ID.
+		 */
+		$$.val = BOTTOM;
+		$$.ids = ids__new();
+		if (!$$.ids || ids__insert($$.ids, $1, ctx->parent))
+			YYABORT;
+	}
 }
 | expr '|' expr { BINARY_LONG_OP($$, |, $1, $3); }
 | expr '&' expr { BINARY_LONG_OP($$, &, $1, $3); }
@@ -102,31 +163,47 @@ expr: NUMBER
 | expr '*' expr { BINARY_OP($$, *, $1, $3); }
 | expr '/' expr
 {
-	if ($3 == 0) {
-		pr_debug("division by zero\n");
-		YYABORT;
+	if (!compute_ids) {
+		if (fpclassify($3.val) == FP_ZERO) {
+			pr_debug("division by zero\n");
+			YYABORT;
+		}
+		$$.val = $1.val / $3.val;
+		$$.ids = NULL;
+	} else {
+		$$ = union_expr($1, $3);
 	}
-	$$ = $1 / $3;
 }
 | expr '%' expr
 {
-	if ((long)$3 == 0) {
-		pr_debug("division by zero\n");
-		YYABORT;
+	if (!compute_ids) {
+		if (fpclassify($3.val) == FP_ZERO) {
+			pr_debug("division by zero\n");
+			YYABORT;
+		}
+		$$.val = (long)$1.val % (long)$3.val;
+		$$.ids = NULL;
+	} else {
+		$$ = union_expr($1, $3);
 	}
-	$$ = (long)$1 % (long)$3;
 }
 | D_RATIO '(' expr ',' expr ')'
 {
-	if ($5 == 0) {
-		$$ = 0;
+	if (!compute_ids) {
+		$$.ids = NULL;
+		if (fpclassify($5.val) == FP_ZERO) {
+			$$.val = 0.0;
+		} else {
+			$$.val = $3.val / $5.val;
+		}
 	} else {
-		$$ = $3 / $5;
+		$$ = union_expr($3, $5);
 	}
 }
 | '-' expr %prec NEG
 {
-	$$ = -$2;
+	$$.val = -$2.val;
+	$$.ids = $2.ids;
 }
 | '(' if_expr ')'
 {
@@ -134,15 +211,26 @@ expr: NUMBER
 }
 | MIN '(' expr ',' expr ')'
 {
-	$$ = $3 < $5 ? $3 : $5;
+	if (!compute_ids) {
+		$$.val = $3.val < $5.val ? $3.val : $5.val;
+		$$.ids = NULL;
+	} else {
+		$$ = union_expr($3, $5);
+	}
 }
 | MAX '(' expr ',' expr ')'
 {
-	$$ = $3 > $5 ? $3 : $5;
+	if (!compute_ids) {
+		$$.val = $3.val > $5.val ? $3.val : $5.val;
+		$$.ids = NULL;
+	} else {
+		$$ = union_expr($3, $5);
+	}
 }
 | SMT_ON
 {
-	$$ = smt_on() > 0 ? 1.0 : 0.0;
+	$$.val = smt_on() > 0 ? 1.0 : 0.0;
+	$$.ids = NULL;
 }
 ;
 
