@@ -68,6 +68,12 @@ static void expr_error(double *final_val __maybe_unused,
  */
 #define BOTTOM NAN
 
+/* During computing ids, does val represent a constant (non-BOTTOM) value? */
+static bool is_const(double val)
+{
+	return isfinite(val);
+}
+
 static struct ids union_expr(struct ids ids1, struct ids ids2)
 {
 	struct ids result = {
@@ -77,8 +83,15 @@ static struct ids union_expr(struct ids ids1, struct ids ids2)
 	return result;
 }
 
+/*
+ * If we're not computing ids or $1 and $3 are constants, compute the new
+ * constant value using OP. Its invariant that there are no ids.  If computing
+ * ids for non-constants union the set of IDs that must be computed.
+ */
 #define BINARY_LONG_OP(RESULT, OP, LHS, RHS)				\
-	if (!compute_ids) {						\
+	if (!compute_ids || (is_const(LHS.val) && is_const(RHS.val))) { \
+		assert(LHS.ids == NULL);				\
+		assert(RHS.ids == NULL);				\
 		RESULT.val = (long)LHS.val OP (long)RHS.val;		\
 		RESULT.ids = NULL;					\
 	} else {							\
@@ -86,7 +99,9 @@ static struct ids union_expr(struct ids ids1, struct ids ids2)
 	}
 
 #define BINARY_OP(RESULT, OP, LHS, RHS)					\
-	if (!compute_ids) {						\
+	if (!compute_ids || (is_const(LHS.val) && is_const(RHS.val))) { \
+		assert(LHS.ids == NULL);				\
+		assert(RHS.ids == NULL);				\
 		RESULT.val = LHS.val OP RHS.val;			\
 		RESULT.ids = NULL;					\
 	} else {							\
@@ -163,40 +178,52 @@ expr: NUMBER
 | expr '*' expr { BINARY_OP($$, *, $1, $3); }
 | expr '/' expr
 {
-	if (!compute_ids) {
-		if (fpclassify($3.val) == FP_ZERO) {
-			pr_debug("division by zero\n");
-			YYABORT;
-		}
+	if (fpclassify($3.val) == FP_ZERO) {
+		pr_debug("division by zero\n");
+		YYABORT;
+	} else if (!compute_ids || (is_const($1.val) && is_const($3.val))) {
+		assert($1.ids == NULL);
+		assert($3.ids == NULL);
 		$$.val = $1.val / $3.val;
 		$$.ids = NULL;
 	} else {
+		/* LHS and/or RHS need computing from event IDs so union. */
 		$$ = union_expr($1, $3);
 	}
 }
 | expr '%' expr
 {
-	if (!compute_ids) {
-		if (fpclassify($3.val) == FP_ZERO) {
-			pr_debug("division by zero\n");
-			YYABORT;
-		}
+	if (fpclassify($3.val) == FP_ZERO) {
+		pr_debug("division by zero\n");
+		YYABORT;
+	} else if (!compute_ids || (is_const($1.val) && is_const($3.val))) {
+		assert($1.ids == NULL);
+		assert($3.ids == NULL);
 		$$.val = (long)$1.val % (long)$3.val;
 		$$.ids = NULL;
 	} else {
+		/* LHS and/or RHS need computing from event IDs so union. */
 		$$ = union_expr($1, $3);
 	}
 }
 | D_RATIO '(' expr ',' expr ')'
 {
-	if (!compute_ids) {
+	if (fpclassify($5.val) == FP_ZERO) {
+		/*
+		 * Division by constant zero always yields zero and no events
+		 * are necessary.
+		 */
+		assert($5.ids == NULL);
+		$$.val = 0.0;
 		$$.ids = NULL;
-		if (fpclassify($5.val) == FP_ZERO) {
-			$$.val = 0.0;
-		} else {
-			$$.val = $3.val / $5.val;
-		}
+		ids__free($3.ids);
+	} else if (!compute_ids || (is_const($3.val) && is_const($5.val))) {
+		assert($3.ids == NULL);
+		assert($5.ids == NULL);
+		$$.val = $3.val / $5.val;
+		$$.ids = NULL;
 	} else {
+		/* LHS and/or RHS need computing from event IDs so union. */
 		$$ = union_expr($3, $5);
 	}
 }
