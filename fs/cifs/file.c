@@ -884,7 +884,7 @@ int cifs_close(struct inode *inode, struct file *file)
 		    cinode->lease_granted &&
 		    !test_bit(CIFS_INO_CLOSE_ON_LOCK, &cinode->flags) &&
 		    dclose) {
-			if (test_bit(CIFS_INO_MODIFIED_ATTR, &cinode->flags)) {
+			if (test_and_clear_bit(CIFS_INO_MODIFIED_ATTR, &cinode->flags)) {
 				inode->i_ctime = inode->i_mtime = current_time(inode);
 				cifs_fscache_update_inode_cookie(inode);
 			}
