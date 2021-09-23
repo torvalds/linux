@@ -693,7 +693,7 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 		if (sysctl_sched_skip_sp_newly_idle_lb) {
 			if (busy_cpu == -1 &&
 				((order_index == 0 && cluster > 0) ||
-				(order_index == 2 && cluster > 0 && !help_min_cap)))
+				(order_index == 2 && cluster > 0)))
 				break;
 		}
 
