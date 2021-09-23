@@ -53,15 +53,18 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com> and Josh Triplett <josh@joshtriplett.org>");
 
 /* Bits for ->extendables field, extendables param, and related definitions. */
-#define RCUTORTURE_RDR_SHIFT	 8	/* Put SRCU index in upper bits. */
-#define RCUTORTURE_RDR_MASK	 (1 << RCUTORTURE_RDR_SHIFT)
+#define RCUTORTURE_RDR_SHIFT_1	 8	/* Put SRCU index in upper bits. */
+#define RCUTORTURE_RDR_MASK_1	 (1 << RCUTORTURE_RDR_SHIFT_1)
+#define RCUTORTURE_RDR_SHIFT_2	 9	/* Put SRCU index in upper bits. */
+#define RCUTORTURE_RDR_MASK_2	 (1 << RCUTORTURE_RDR_SHIFT_2)
 #define RCUTORTURE_RDR_BH	 0x01	/* Extend readers by disabling bh. */
 #define RCUTORTURE_RDR_IRQ	 0x02	/*  ... disabling interrupts. */
 #define RCUTORTURE_RDR_PREEMPT	 0x04	/*  ... disabling preemption. */
 #define RCUTORTURE_RDR_RBH	 0x08	/*  ... rcu_read_lock_bh(). */
 #define RCUTORTURE_RDR_SCHED	 0x10	/*  ... rcu_read_lock_sched(). */
-#define RCUTORTURE_RDR_RCU	 0x20	/*  ... entering another RCU reader. */
-#define RCUTORTURE_RDR_NBITS	 6	/* Number of bits defined above. */
+#define RCUTORTURE_RDR_RCU_1	 0x20	/*  ... entering another RCU reader. */
+#define RCUTORTURE_RDR_RCU_2	 0x40	/*  ... entering another RCU reader. */
+#define RCUTORTURE_RDR_NBITS	 7	/* Number of bits defined above. */
 #define RCUTORTURE_MAX_EXTEND	 \
 	(RCUTORTURE_RDR_BH | RCUTORTURE_RDR_IRQ | RCUTORTURE_RDR_PREEMPT | \
 	 RCUTORTURE_RDR_RBH | RCUTORTURE_RDR_SCHED)
@@ -1420,13 +1423,15 @@ static void rcutorture_one_extend(int *readstate, int newstate,
 				  struct rt_read_seg *rtrsp)
 {
 	unsigned long flags;
-	int idxnew = -1;
-	int idxold = *readstate;
+	int idxnew1 = -1;
+	int idxnew2 = -1;
+	int idxold1 = *readstate;
+	int idxold2 = idxold1;
 	int statesnew = ~*readstate & newstate;
 	int statesold = *readstate & ~newstate;
 
-	WARN_ON_ONCE(idxold < 0);
-	WARN_ON_ONCE((idxold >> RCUTORTURE_RDR_SHIFT) > 1);
+	WARN_ON_ONCE(idxold2 < 0);
+	WARN_ON_ONCE((idxold2 >> RCUTORTURE_RDR_SHIFT_2) > 1);
 	rtrsp->rt_readstate = newstate;
 
 	/* First, put new protection in place to avoid critical-section gap. */
@@ -1440,8 +1445,10 @@ static void rcutorture_one_extend(int *readstate, int newstate,
 		preempt_disable();
 	if (statesnew & RCUTORTURE_RDR_SCHED)
 		rcu_read_lock_sched();
-	if (statesnew & RCUTORTURE_RDR_RCU)
-		idxnew = cur_ops->readlock() << RCUTORTURE_RDR_SHIFT;
+	if (statesnew & RCUTORTURE_RDR_RCU_1)
+		idxnew1 = (cur_ops->readlock() & 0x1) << RCUTORTURE_RDR_SHIFT_1;
+	if (statesnew & RCUTORTURE_RDR_RCU_2)
+		idxnew2 = (cur_ops->readlock() & 0x1) << RCUTORTURE_RDR_SHIFT_2;
 
 	/*
 	 * Next, remove old protection, in decreasing order of strength
@@ -1460,13 +1467,19 @@ static void rcutorture_one_extend(int *readstate, int newstate,
 		local_bh_enable();
 	if (statesold & RCUTORTURE_RDR_RBH)
 		rcu_read_unlock_bh();
-	if (statesold & RCUTORTURE_RDR_RCU) {
+	if (statesold & RCUTORTURE_RDR_RCU_2) {
+		cur_ops->readunlock((idxold2 >> RCUTORTURE_RDR_SHIFT_2) & 0x1);
+		WARN_ON_ONCE(idxnew2 != -1);
+		idxold2 = 0;
+	}
+	if (statesold & RCUTORTURE_RDR_RCU_1) {
 		bool lockit = !statesnew && !(torture_random(trsp) & 0xffff);
 
 		if (lockit)
 			raw_spin_lock_irqsave(&current->pi_lock, flags);
-		cur_ops->readunlock(idxold >> RCUTORTURE_RDR_SHIFT);
-		idxold = 0;
+		cur_ops->readunlock((idxold1 >> RCUTORTURE_RDR_SHIFT_1) & 0x1);
+		WARN_ON_ONCE(idxnew1 != -1);
+		idxold1 = 0;
 		if (lockit)
 			raw_spin_unlock_irqrestore(&current->pi_lock, flags);
 	}
@@ -1476,13 +1489,19 @@ static void rcutorture_one_extend(int *readstate, int newstate,
 		cur_ops->read_delay(trsp, rtrsp);
 
 	/* Update the reader state. */
-	if (idxnew == -1)
-		idxnew = idxold & RCUTORTURE_RDR_MASK;
-	WARN_ON_ONCE(idxnew < 0);
-	WARN_ON_ONCE((idxnew >> RCUTORTURE_RDR_SHIFT) > 1);
-	*readstate = idxnew | newstate;
-	WARN_ON_ONCE((*readstate >> RCUTORTURE_RDR_SHIFT) < 0);
-	WARN_ON_ONCE((*readstate >> RCUTORTURE_RDR_SHIFT) > 1);
+	if (idxnew1 == -1)
+		idxnew1 = idxold1 & RCUTORTURE_RDR_MASK_1;
+	WARN_ON_ONCE(idxnew1 < 0);
+	if (WARN_ON_ONCE((idxnew1 >> RCUTORTURE_RDR_SHIFT_1) > 1))
+		pr_info("Unexpected idxnew1 value of %#x\n", idxnew1);
+	if (idxnew2 == -1)
+		idxnew2 = idxold2 & RCUTORTURE_RDR_MASK_2;
+	WARN_ON_ONCE(idxnew2 < 0);
+	WARN_ON_ONCE((idxnew2 >> RCUTORTURE_RDR_SHIFT_2) > 1);
+	*readstate = idxnew1 | idxnew2 | newstate;
+	WARN_ON_ONCE(*readstate < 0);
+	if (WARN_ON_ONCE((*readstate >> RCUTORTURE_RDR_SHIFT_2) > 1))
+		pr_info("Unexpected idxnew2 value of %#x\n", idxnew2);
 }
 
 /* Return the biggest extendables mask given current RCU and boot parameters. */
@@ -1492,7 +1511,7 @@ static int rcutorture_extend_mask_max(void)
 
 	WARN_ON_ONCE(extendables & ~RCUTORTURE_MAX_EXTEND);
 	mask = extendables & RCUTORTURE_MAX_EXTEND & cur_ops->extendables;
-	mask = mask | RCUTORTURE_RDR_RCU;
+	mask = mask | RCUTORTURE_RDR_RCU_1 | RCUTORTURE_RDR_RCU_2;
 	return mask;
 }
 
@@ -1507,12 +1526,20 @@ rcutorture_extend_mask(int oldmask, struct torture_random_state *trsp)
 	unsigned long preempts_irq = preempts | RCUTORTURE_RDR_IRQ;
 	unsigned long bhs = RCUTORTURE_RDR_BH | RCUTORTURE_RDR_RBH;
 
-	WARN_ON_ONCE(mask >> RCUTORTURE_RDR_SHIFT);
+	WARN_ON_ONCE(mask >> RCUTORTURE_RDR_SHIFT_1);
 	/* Mostly only one bit (need preemption!), sometimes lots of bits. */
 	if (!(randmask1 & 0x7))
 		mask = mask & randmask2;
 	else
 		mask = mask & (1 << (randmask2 % RCUTORTURE_RDR_NBITS));
+
+	// Can't have nested RCU reader without outer RCU reader.
+	if (!(mask & RCUTORTURE_RDR_RCU_1) && (mask & RCUTORTURE_RDR_RCU_2)) {
+		if (oldmask & RCUTORTURE_RDR_RCU_1)
+			mask &= ~RCUTORTURE_RDR_RCU_2;
+		else
+			mask |= RCUTORTURE_RDR_RCU_1;
+	}
 
 	/*
 	 * Can't enable bh w/irq disabled.
@@ -1533,7 +1560,7 @@ rcutorture_extend_mask(int oldmask, struct torture_random_state *trsp)
 			mask |= oldmask & bhs;
 	}
 
-	return mask ?: RCUTORTURE_RDR_RCU;
+	return mask ?: RCUTORTURE_RDR_RCU_1;
 }
 
 /*
