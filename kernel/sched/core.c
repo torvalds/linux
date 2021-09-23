@@ -9468,12 +9468,6 @@ void __init sched_init(void)
 }
 
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
-static inline int preempt_count_equals(int preempt_offset)
-{
-	int nested = preempt_count() + rcu_preempt_depth();
-
-	return (nested == preempt_offset);
-}
 
 void __might_sleep(const char *file, int line)
 {
@@ -9505,7 +9499,16 @@ static void print_preempt_disable_ip(int preempt_offset, unsigned long ip)
 	print_ip_sym(KERN_ERR, ip);
 }
 
-void __might_resched(const char *file, int line, int preempt_offset)
+static inline bool resched_offsets_ok(unsigned int offsets)
+{
+	unsigned int nested = preempt_count();
+
+	nested += rcu_preempt_depth() << MIGHT_RESCHED_RCU_SHIFT;
+
+	return nested == offsets;
+}
+
+void __might_resched(const char *file, int line, unsigned int offsets)
 {
 	/* Ratelimiting timestamp: */
 	static unsigned long prev_jiffy;
@@ -9515,7 +9518,7 @@ void __might_resched(const char *file, int line, int preempt_offset)
 	/* WARN_ON_ONCE() by default, no rate limit required: */
 	rcu_sleep_check();
 
-	if ((preempt_count_equals(preempt_offset) && !irqs_disabled() &&
+	if ((resched_offsets_ok(offsets) && !irqs_disabled() &&
 	     !is_idle_task(current) && !current->non_block_count) ||
 	    system_state == SYSTEM_BOOTING || system_state > SYSTEM_RUNNING ||
 	    oops_in_progress)
@@ -9534,11 +9537,11 @@ void __might_resched(const char *file, int line, int preempt_offset)
 	       in_atomic(), irqs_disabled(), current->non_block_count,
 	       current->pid, current->comm);
 	pr_err("preempt_count: %x, expected: %x\n", preempt_count(),
-	       preempt_offset);
+	       offsets & MIGHT_RESCHED_PREEMPT_MASK);
 
 	if (IS_ENABLED(CONFIG_PREEMPT_RCU)) {
-		pr_err("RCU nest depth: %d, expected: 0\n",
-		       rcu_preempt_depth());
+		pr_err("RCU nest depth: %d, expected: %u\n",
+		       rcu_preempt_depth(), offsets >> MIGHT_RESCHED_RCU_SHIFT);
 	}
 
 	if (task_stack_end_corrupted(current))
@@ -9548,7 +9551,8 @@ void __might_resched(const char *file, int line, int preempt_offset)
 	if (irqs_disabled())
 		print_irqtrace_events(current);
 
-	print_preempt_disable_ip(preempt_offset, preempt_disable_ip);
+	print_preempt_disable_ip(offsets & MIGHT_RESCHED_PREEMPT_MASK,
+				 preempt_disable_ip);
 
 	dump_stack();
 	add_taint(TAINT_WARN, LOCKDEP_STILL_OK);
