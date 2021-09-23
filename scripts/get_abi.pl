@@ -25,6 +25,7 @@ my $search_string;
 my $dbg_what_parsing = 1;
 my $dbg_what_open = 2;
 my $dbg_dump_abi_structs = 4;
+my $dbg_undefined = 8;
 
 #
 # If true, assumes that the description is formatted with ReST
@@ -692,7 +693,8 @@ sub check_undefined_symbols {
 		if (!defined($leaf{$leave})) {
 			$leave = "others";
 		}
-		my $what = $leaf{$leave};
+		my @expr = @{$leaf{$leave}->{expr}};
+		die ("missing rules for $leave") if (!defined($leaf{$leave}));
 
 		my $path = $file;
 		$path =~ s,(.*/).*,$1,;
@@ -702,10 +704,17 @@ sub check_undefined_symbols {
 			$found_string = 1;
 		}
 
-		foreach my $a (@names) {
-			print "--> $a\n" if ($found_string && $hint);
-			foreach my $w (split /\xac/, $what) {
-				if ($a =~ m#^$w$#) {
+		for (my $i = 0; $i < @names; $i++) {
+			if ($found_string && $hint) {
+				if (!$i) {
+					print "--> $names[$i]\n";
+				} else {
+					print "    $names[$i]\n";
+				}
+			}
+			foreach my $re (@expr) {
+				print "$names[$i] =~ /^$re\$/\n" if ($debug && $dbg_undefined);
+				if ($names[$i] =~ $re) {
 					$exact = 1;
 					last;
 				}
@@ -715,6 +724,7 @@ sub check_undefined_symbols {
 		next if ($exact);
 
 		if ($hint && (!$search_string || $found_string)) {
+			my $what = $leaf{$leave}->{what};
 			$what =~ s/\xac/\n\t/g;
 			if ($leave ne "others") {
 				print "    more likely regexes:\n\t$what\n";
@@ -734,7 +744,7 @@ sub undefined_symbols {
 		no_chdir => 1
 	     }, $sysfs_prefix);
 
-	$leaf{"others"} = "";
+	$leaf{"others"}->{what} = "";
 
 	foreach my $w (sort keys %data) {
 		foreach my $what (split /\xac/,$w) {
@@ -792,14 +802,15 @@ sub undefined_symbols {
 			$what =~ s/sqrt(.*)/sqrt\(.*\)/;
 
 			my $leave = get_leave($what);
+
 			my $added = 0;
 			foreach my $l (split /\|/, $leave) {
 				if (defined($leaf{$l})) {
-					next if ($leaf{$l} =~ m/\b$what\b/);
-					$leaf{$l} .= "\xac" . $what;
+					next if ($leaf{$l}->{what} =~ m/\b$what\b/);
+					$leaf{$l}->{what} .= "\xac" . $what;
 					$added = 1;
 				} else {
-					$leaf{$l} = $what;
+					$leaf{$l}->{what} = $what;
 					$added = 1;
 				}
 			}
@@ -809,6 +820,15 @@ sub undefined_symbols {
 
 		}
 	}
+	# Compile regexes
+	foreach my $l (keys %leaf) {
+		my @expr;
+		foreach my $w(split /\xac/, $leaf{$l}->{what}) {
+			push @expr, qr /^$w$/;
+		}
+		$leaf{$l}->{expr} = \@expr;
+	}
+
 	# Take links into account
 	foreach my $link (keys %aliases) {
 		my $abs_file = $aliases{$link};
