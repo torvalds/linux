@@ -62,4 +62,7 @@ void xfs_allocbt_commit_staged_btree(struct xfs_btree_cur *cur,
 
 unsigned int xfs_allocbt_maxlevels_ondisk(void);
 
+int __init xfs_allocbt_init_cur_cache(void);
+void xfs_allocbt_destroy_cur_cache(void);
+
 #endif	/* __XFS_ALLOC_BTREE_H__ */

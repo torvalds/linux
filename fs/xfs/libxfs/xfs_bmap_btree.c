@@ -22,6 +22,8 @@
 #include "xfs_trace.h"
 #include "xfs_rmap.h"
 
+static kmem_zone_t	*xfs_bmbt_cur_cache;
+
 /*
  * Convert on-disk form of btree root to in-memory form.
  */
@@ -553,7 +555,7 @@ xfs_bmbt_init_cursor(
 	ASSERT(whichfork != XFS_COW_FORK);
 
 	cur = xfs_btree_alloc_cursor(mp, tp, XFS_BTNUM_BMAP,
-			mp->m_bm_maxlevels[whichfork]);
+			mp->m_bm_maxlevels[whichfork], xfs_bmbt_cur_cache);
 	cur->bc_nlevels = be16_to_cpu(ifp->if_broot->bb_level) + 1;
 	cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_bmbt_2);
 
@@ -674,4 +676,23 @@ xfs_bmbt_calc_size(
 	unsigned long long	len)
 {
 	return xfs_btree_calc_size(mp->m_bmap_dmnr, len);
+}
+
+int __init
+xfs_bmbt_init_cur_cache(void)
+{
+	xfs_bmbt_cur_cache = kmem_cache_create("xfs_bmbt_cur",
+			xfs_btree_cur_sizeof(xfs_bmbt_maxlevels_ondisk()),
+			0, 0, NULL);
+
+	if (!xfs_bmbt_cur_cache)
+		return -ENOMEM;
+	return 0;
+}
+
+void
+xfs_bmbt_destroy_cur_cache(void)
+{
+	kmem_cache_destroy(xfs_bmbt_cur_cache);
+	xfs_bmbt_cur_cache = NULL;
 }

@@ -13,8 +13,6 @@ struct xfs_trans;
 struct xfs_ifork;
 struct xfs_perag;
 
-extern kmem_zone_t	*xfs_btree_cur_zone;
-
 /*
  * Generic key, ptr and record wrapper structures.
  *
@@ -91,12 +89,6 @@ uint32_t xfs_btree_magic(int crc, xfs_btnum_t btnum);
 	XFS_STATS_INC_OFF((cur)->bc_mp, (cur)->bc_statoff + __XBTS_ ## stat)
 #define XFS_BTREE_STATS_ADD(cur, stat, val)	\
 	XFS_STATS_ADD_OFF((cur)->bc_mp, (cur)->bc_statoff + __XBTS_ ## stat, val)
-
-/*
- * The btree cursor zone hands out cursors that can handle up to this many
- * levels.  This is the known maximum for all btree types.
- */
-#define XFS_BTREE_CUR_CACHE_MAXLEVELS	(9)
 
 struct xfs_btree_ops {
 	/* size of the key and record structures */
@@ -238,6 +230,7 @@ struct xfs_btree_cur
 	struct xfs_trans	*bc_tp;	/* transaction we're in, if any */
 	struct xfs_mount	*bc_mp;	/* file system mount struct */
 	const struct xfs_btree_ops *bc_ops;
+	kmem_zone_t		*bc_cache; /* cursor cache */
 	unsigned int		bc_flags; /* btree features - below */
 	xfs_btnum_t		bc_btnum; /* identifies which btree type */
 	union xfs_btree_irec	bc_rec;	/* current insert/search record value */
@@ -592,19 +585,22 @@ xfs_btree_alloc_cursor(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
 	xfs_btnum_t		btnum,
-	uint8_t			maxlevels)
+	uint8_t			maxlevels,
+	kmem_zone_t		*cache)
 {
 	struct xfs_btree_cur	*cur;
 
-	ASSERT(maxlevels <= XFS_BTREE_CUR_CACHE_MAXLEVELS);
-
-	cur = kmem_cache_zalloc(xfs_btree_cur_zone, GFP_NOFS | __GFP_NOFAIL);
+	cur = kmem_cache_zalloc(cache, GFP_NOFS | __GFP_NOFAIL);
 	cur->bc_tp = tp;
 	cur->bc_mp = mp;
 	cur->bc_btnum = btnum;
 	cur->bc_maxlevels = maxlevels;
+	cur->bc_cache = cache;
 
 	return cur;
 }
+
+int __init xfs_btree_init_cur_caches(void);
+void xfs_btree_destroy_cur_caches(void);
 
 #endif	/* __XFS_BTREE_H__ */

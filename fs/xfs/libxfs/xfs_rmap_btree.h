@@ -61,4 +61,7 @@ extern int xfs_rmapbt_calc_reserves(struct xfs_mount *mp, struct xfs_trans *tp,
 
 unsigned int xfs_rmapbt_maxlevels_ondisk(void);
 
+int __init xfs_rmapbt_init_cur_cache(void);
+void xfs_rmapbt_destroy_cur_cache(void);
+
 #endif /* __XFS_RMAP_BTREE_H__ */

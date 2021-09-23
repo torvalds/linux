@@ -22,6 +22,8 @@
 #include "xfs_rmap.h"
 #include "xfs_ag.h"
 
+static kmem_zone_t	*xfs_inobt_cur_cache;
+
 STATIC int
 xfs_inobt_get_minrecs(
 	struct xfs_btree_cur	*cur,
@@ -433,7 +435,7 @@ xfs_inobt_init_common(
 	struct xfs_btree_cur	*cur;
 
 	cur = xfs_btree_alloc_cursor(mp, tp, btnum,
-			M_IGEO(mp)->inobt_maxlevels);
+			M_IGEO(mp)->inobt_maxlevels, xfs_inobt_cur_cache);
 	if (btnum == XFS_BTNUM_INO) {
 		cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_ibt_2);
 		cur->bc_ops = &xfs_inobt_ops;
@@ -811,4 +813,23 @@ xfs_iallocbt_calc_size(
 	unsigned long long	len)
 {
 	return xfs_btree_calc_size(M_IGEO(mp)->inobt_mnr, len);
+}
+
+int __init
+xfs_inobt_init_cur_cache(void)
+{
+	xfs_inobt_cur_cache = kmem_cache_create("xfs_inobt_cur",
+			xfs_btree_cur_sizeof(xfs_inobt_maxlevels_ondisk()),
+			0, 0, NULL);
+
+	if (!xfs_inobt_cur_cache)
+		return -ENOMEM;
+	return 0;
+}
+
+void
+xfs_inobt_destroy_cur_cache(void)
+{
+	kmem_cache_destroy(xfs_inobt_cur_cache);
+	xfs_inobt_cur_cache = NULL;
 }

@@ -77,4 +77,7 @@ void xfs_inobt_commit_staged_btree(struct xfs_btree_cur *cur,
 
 unsigned int xfs_iallocbt_maxlevels_ondisk(void);
 
+int __init xfs_inobt_init_cur_cache(void);
+void xfs_inobt_destroy_cur_cache(void);
+
 #endif	/* __XFS_IALLOC_BTREE_H__ */

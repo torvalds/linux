@@ -22,6 +22,8 @@
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 
+static kmem_zone_t	*xfs_rmapbt_cur_cache;
+
 /*
  * Reverse map btree.
  *
@@ -453,7 +455,7 @@ xfs_rmapbt_init_common(
 
 	/* Overlapping btree; 2 keys per pointer. */
 	cur = xfs_btree_alloc_cursor(mp, tp, XFS_BTNUM_RMAP,
-			mp->m_rmap_maxlevels);
+			mp->m_rmap_maxlevels, xfs_rmapbt_cur_cache);
 	cur->bc_flags = XFS_BTREE_CRC_BLOCKS | XFS_BTREE_OVERLAPPING;
 	cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_rmap_2);
 	cur->bc_ops = &xfs_rmapbt_ops;
@@ -673,4 +675,23 @@ xfs_rmapbt_calc_reserves(
 	*used += tree_len;
 
 	return error;
+}
+
+int __init
+xfs_rmapbt_init_cur_cache(void)
+{
+	xfs_rmapbt_cur_cache = kmem_cache_create("xfs_rmapbt_cur",
+			xfs_btree_cur_sizeof(xfs_rmapbt_maxlevels_ondisk()),
+			0, 0, NULL);
+
+	if (!xfs_rmapbt_cur_cache)
+		return -ENOMEM;
+	return 0;
+}
+
+void
+xfs_rmapbt_destroy_cur_cache(void)
+{
+	kmem_cache_destroy(xfs_rmapbt_cur_cache);
+	xfs_rmapbt_cur_cache = NULL;
 }

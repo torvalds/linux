@@ -20,6 +20,7 @@
 #include "xfs_trans.h"
 #include "xfs_ag.h"
 
+static kmem_zone_t	*xfs_allocbt_cur_cache;
 
 STATIC struct xfs_btree_cur *
 xfs_allocbt_dup_cursor(
@@ -477,7 +478,8 @@ xfs_allocbt_init_common(
 
 	ASSERT(btnum == XFS_BTNUM_BNO || btnum == XFS_BTNUM_CNT);
 
-	cur = xfs_btree_alloc_cursor(mp, tp, btnum, mp->m_alloc_maxlevels);
+	cur = xfs_btree_alloc_cursor(mp, tp, btnum, mp->m_alloc_maxlevels,
+			xfs_allocbt_cur_cache);
 	cur->bc_ag.abt.active = false;
 
 	if (btnum == XFS_BTNUM_CNT) {
@@ -616,4 +618,23 @@ xfs_allocbt_calc_size(
 	unsigned long long	len)
 {
 	return xfs_btree_calc_size(mp->m_alloc_mnr, len);
+}
+
+int __init
+xfs_allocbt_init_cur_cache(void)
+{
+	xfs_allocbt_cur_cache = kmem_cache_create("xfs_bnobt_cur",
+			xfs_btree_cur_sizeof(xfs_allocbt_maxlevels_ondisk()),
+			0, 0, NULL);
+
+	if (!xfs_allocbt_cur_cache)
+		return -ENOMEM;
+	return 0;
+}
+
+void
+xfs_allocbt_destroy_cur_cache(void)
+{
+	kmem_cache_destroy(xfs_allocbt_cur_cache);
+	xfs_allocbt_cur_cache = NULL;
 }

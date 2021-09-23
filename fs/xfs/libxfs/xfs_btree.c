@@ -22,11 +22,11 @@
 #include "xfs_log.h"
 #include "xfs_btree_staging.h"
 #include "xfs_ag.h"
-
-/*
- * Cursor allocation zone.
- */
-kmem_zone_t	*xfs_btree_cur_zone;
+#include "xfs_alloc_btree.h"
+#include "xfs_ialloc_btree.h"
+#include "xfs_bmap_btree.h"
+#include "xfs_rmap_btree.h"
+#include "xfs_refcount_btree.h"
 
 /*
  * Btree magic numbers.
@@ -379,7 +379,7 @@ xfs_btree_del_cursor(
 		kmem_free(cur->bc_ops);
 	if (!(cur->bc_flags & XFS_BTREE_LONG_PTRS) && cur->bc_ag.pag)
 		xfs_perag_put(cur->bc_ag.pag);
-	kmem_cache_free(xfs_btree_cur_zone, cur);
+	kmem_cache_free(cur->bc_cache, cur);
 }
 
 /*
@@ -4961,4 +4961,43 @@ xfs_btree_has_more_records(
 		return block->bb_u.l.bb_rightsib != cpu_to_be64(NULLFSBLOCK);
 	else
 		return block->bb_u.s.bb_rightsib != cpu_to_be32(NULLAGBLOCK);
+}
+
+/* Set up all the btree cursor caches. */
+int __init
+xfs_btree_init_cur_caches(void)
+{
+	int		error;
+
+	error = xfs_allocbt_init_cur_cache();
+	if (error)
+		return error;
+	error = xfs_inobt_init_cur_cache();
+	if (error)
+		goto err;
+	error = xfs_bmbt_init_cur_cache();
+	if (error)
+		goto err;
+	error = xfs_rmapbt_init_cur_cache();
+	if (error)
+		goto err;
+	error = xfs_refcountbt_init_cur_cache();
+	if (error)
+		goto err;
+
+	return 0;
+err:
+	xfs_btree_destroy_cur_caches();
+	return error;
+}
+
+/* Destroy all the btree cursor caches, if they've been allocated. */
+void
+xfs_btree_destroy_cur_caches(void)
+{
+	xfs_allocbt_destroy_cur_cache();
+	xfs_inobt_destroy_cur_cache();
+	xfs_bmbt_destroy_cur_cache();
+	xfs_rmapbt_destroy_cur_cache();
+	xfs_refcountbt_destroy_cur_cache();
 }
