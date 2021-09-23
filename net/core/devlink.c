@@ -10117,48 +10117,6 @@ void devlink_params_unpublish(struct devlink *devlink)
 }
 EXPORT_SYMBOL_GPL(devlink_params_unpublish);
 
-/**
- *	devlink_port_params_register - register port configuration parameters
- *
- *	@devlink_port: devlink port
- *	@params: configuration parameters array
- *	@params_count: number of parameters provided
- *
- *	Register the configuration parameters supported by the port.
- */
-int devlink_port_params_register(struct devlink_port *devlink_port,
-				 const struct devlink_param *params,
-				 size_t params_count)
-{
-	return __devlink_params_register(devlink_port->devlink,
-					 devlink_port->index,
-					 &devlink_port->param_list, params,
-					 params_count,
-					 DEVLINK_CMD_PORT_PARAM_NEW,
-					 DEVLINK_CMD_PORT_PARAM_DEL);
-}
-EXPORT_SYMBOL_GPL(devlink_port_params_register);
-
-/**
- *	devlink_port_params_unregister - unregister port configuration
- *	parameters
- *
- *	@devlink_port: devlink port
- *	@params: configuration parameters array
- *	@params_count: number of parameters provided
- */
-void devlink_port_params_unregister(struct devlink_port *devlink_port,
-				    const struct devlink_param *params,
-				    size_t params_count)
-{
-	return __devlink_params_unregister(devlink_port->devlink,
-					   devlink_port->index,
-					   &devlink_port->param_list,
-					   params, params_count,
-					   DEVLINK_CMD_PORT_PARAM_DEL);
-}
-EXPORT_SYMBOL_GPL(devlink_port_params_unregister);
-
 static int
 __devlink_param_driverinit_value_get(struct list_head *param_list, u32 param_id,
 				     union devlink_param_value *init_val)
