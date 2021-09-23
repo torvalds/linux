@@ -19,7 +19,7 @@ struct expr_id {
 };
 
 struct expr_parse_ctx {
-	struct hashmap	 ids;
+	struct hashmap	*ids;
 	struct expr_id	*parent;
 };
 
@@ -30,8 +30,9 @@ struct expr_scanner_ctx {
 	int runtime;
 };
 
-void expr__ctx_init(struct expr_parse_ctx *ctx);
+struct expr_parse_ctx *expr__ctx_new(void);
 void expr__ctx_clear(struct expr_parse_ctx *ctx);
+void expr__ctx_free(struct expr_parse_ctx *ctx);
 void expr__del_id(struct expr_parse_ctx *ctx, const char *id);
 int expr__add_id(struct expr_parse_ctx *ctx, const char *id);
 int expr__add_id_val(struct expr_parse_ctx *ctx, const char *id, double val);

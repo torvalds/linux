@@ -73,7 +73,7 @@ int expr__add_id(struct expr_parse_ctx *ctx, const char *id)
 	data_ptr->parent = ctx->parent;
 	data_ptr->kind = EXPR_ID_DATA__PARENT;
 
-	ret = hashmap__set(&ctx->ids, id, data_ptr,
+	ret = hashmap__set(ctx->ids, id, data_ptr,
 			   (const void **)&old_key, (void **)&old_data);
 	if (ret)
 		free(data_ptr);
@@ -95,7 +95,7 @@ int expr__add_id_val(struct expr_parse_ctx *ctx, const char *id, double val)
 	data_ptr->val = val;
 	data_ptr->kind = EXPR_ID_DATA__VALUE;
 
-	ret = hashmap__set(&ctx->ids, id, data_ptr,
+	ret = hashmap__set(ctx->ids, id, data_ptr,
 			   (const void **)&old_key, (void **)&old_data);
 	if (ret)
 		free(data_ptr);
@@ -140,7 +140,7 @@ int expr__add_ref(struct expr_parse_ctx *ctx, struct metric_ref *ref)
 	data_ptr->ref.metric_expr = ref->metric_expr;
 	data_ptr->kind = EXPR_ID_DATA__REF;
 
-	ret = hashmap__set(&ctx->ids, name, data_ptr,
+	ret = hashmap__set(ctx->ids, name, data_ptr,
 			   (const void **)&old_key, (void **)&old_data);
 	if (ret)
 		free(data_ptr);
@@ -156,7 +156,7 @@ int expr__add_ref(struct expr_parse_ctx *ctx, struct metric_ref *ref)
 int expr__get_id(struct expr_parse_ctx *ctx, const char *id,
 		 struct expr_id_data **data)
 {
-	return hashmap__find(&ctx->ids, id, (void **)data) ? 0 : -1;
+	return hashmap__find(ctx->ids, id, (void **)data) ? 0 : -1;
 }
 
 int expr__resolve_id(struct expr_parse_ctx *ctx, const char *id,
@@ -205,15 +205,23 @@ void expr__del_id(struct expr_parse_ctx *ctx, const char *id)
 	struct expr_id_data *old_val = NULL;
 	char *old_key = NULL;
 
-	hashmap__delete(&ctx->ids, id,
+	hashmap__delete(ctx->ids, id,
 			(const void **)&old_key, (void **)&old_val);
 	free(old_key);
 	free(old_val);
 }
 
-void expr__ctx_init(struct expr_parse_ctx *ctx)
+struct expr_parse_ctx *expr__ctx_new(void)
 {
-	hashmap__init(&ctx->ids, key_hash, key_equal, NULL);
+	struct expr_parse_ctx *ctx;
+
+	ctx = malloc(sizeof(struct expr_parse_ctx));
+	if (!ctx)
+		return NULL;
+
+	ctx->ids = hashmap__new(key_hash, key_equal, NULL);
+	ctx->parent = NULL;
+	return ctx;
 }
 
 void expr__ctx_clear(struct expr_parse_ctx *ctx)
@@ -221,11 +229,24 @@ void expr__ctx_clear(struct expr_parse_ctx *ctx)
 	struct hashmap_entry *cur;
 	size_t bkt;
 
-	hashmap__for_each_entry((&ctx->ids), cur, bkt) {
+	hashmap__for_each_entry(ctx->ids, cur, bkt) {
 		free((char *)cur->key);
 		free(cur->value);
 	}
-	hashmap__clear(&ctx->ids);
+	hashmap__clear(ctx->ids);
+}
+
+void expr__ctx_free(struct expr_parse_ctx *ctx)
+{
+	struct hashmap_entry *cur;
+	size_t bkt;
+
+	hashmap__for_each_entry(ctx->ids, cur, bkt) {
+		free((char *)cur->key);
+		free(cur->value);
+	}
+	hashmap__free(ctx->ids);
+	free(ctx);
 }
 
 static int
