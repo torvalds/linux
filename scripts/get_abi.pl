@@ -685,7 +685,6 @@ sub check_undefined_symbols {
 		my @names = @{$$file_ref{"__name"}};
 		my $file = $names[0];
 
-		my $defined = 0;
 		my $exact = 0;
 		my $found_string;
 
@@ -711,13 +710,11 @@ sub check_undefined_symbols {
 					last;
 				}
 			}
+			last if ($exact);
 		}
-
-		$defined++;
-
 		next if ($exact);
 
-		if ($hint && $defined && (!$search_string || $found_string)) {
+		if ($hint && (!$search_string || $found_string)) {
 			$what =~ s/\xac/\n\t/g;
 			if ($leave ne "others") {
 				print "    more likely regexes:\n\t$what\n";
