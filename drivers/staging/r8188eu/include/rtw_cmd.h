@@ -793,7 +793,6 @@ void rtw_disassoc_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd);
 void rtw_joinbss_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd);
 void rtw_createbss_cmd_callback(struct adapter *adapt, struct cmd_obj *pcmd);
 void rtw_getbbrfreg_cmdrsp_callback(struct adapter *adapt, struct cmd_obj *cmd);
-void rtw_readtssi_cmdrsp_callback(struct adapter *adapt,  struct cmd_obj *cmd);
 
 void rtw_setstaKey_cmdrsp_callback(struct adapter *adapt, struct cmd_obj *cmd);
 void rtw_setassocsta_cmdrsp_callback(struct adapter *adapt, struct cmd_obj *cm);
