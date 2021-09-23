@@ -415,6 +415,7 @@ struct rkcif_stream {
 	wait_queue_head_t		wq_stopped;
 	unsigned int			frame_idx;
 	int				frame_phase;
+	int				frame_phase_cache;
 	unsigned int			crop_mask;
 	/* lock between irq and buf_queue */
 	struct list_head		buf_head;
