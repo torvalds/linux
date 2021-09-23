@@ -1306,17 +1306,6 @@ out:
 	return copied;
 }
 
-/*
- * we set .direct_IO to indicate direct io is supported, but since we
- * intercept O_DIRECT reads and writes early, this function should
- * never get called.
- */
-static ssize_t ceph_direct_io(struct kiocb *iocb, struct iov_iter *iter)
-{
-	WARN_ON(1);
-	return -EINVAL;
-}
-
 const struct address_space_operations ceph_aops = {
 	.readpage = ceph_readpage,
 	.readahead = ceph_readahead,
@@ -1327,7 +1316,7 @@ const struct address_space_operations ceph_aops = {
 	.set_page_dirty = ceph_set_page_dirty,
 	.invalidatepage = ceph_invalidatepage,
 	.releasepage = ceph_releasepage,
-	.direct_IO = ceph_direct_io,
+	.direct_IO = noop_direct_IO,
 };
 
 static void ceph_block_sigs(sigset_t *oldset)
