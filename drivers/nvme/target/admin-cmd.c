@@ -541,7 +541,7 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 	 * Our namespace might always be shared.  Not just with other
 	 * controllers, but also with any other user of the block device.
 	 */
-	id->nmic = (1 << 0);
+	id->nmic = NVME_NS_NMIC_SHARED;
 	id->anagrpid = cpu_to_le32(req->ns->anagrpid);
 
 	memcpy(&id->nguid, &req->ns->nguid, sizeof(id->nguid));
