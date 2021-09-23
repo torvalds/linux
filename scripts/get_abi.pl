@@ -628,6 +628,14 @@ sub parse_existing_sysfs {
 	# Ignore cgroup and firmware
 	return if ($file =~ m#^/sys/(fs/cgroup|firmware)/#);
 
+	# Ignore some sysfs nodes
+	return if ($file =~ m#/(sections|notes)/#);
+
+	# Would need to check at
+	# Documentation/admin-guide/kernel-parameters.txt, but this
+	# is not easily parseable.
+	return if ($file =~ m#/parameters/#);
+
 	my $mode = (lstat($file))[2];
 	my $abs_file = abs_path($file);
 
@@ -708,14 +716,6 @@ sub check_undefined_symbols {
 		$defined++;
 
 		next if ($exact);
-
-		# Ignore some sysfs nodes
-		next if ($file =~ m#/(sections|notes)/#);
-
-		# Would need to check at
-		# Documentation/admin-guide/kernel-parameters.txt, but this
-		# is not easily parseable.
-		next if ($file =~ m#/parameters/#);
 
 		if ($hint && $defined && (!$search_string || $found_string)) {
 			$what =~ s/\xac/\n\t/g;
