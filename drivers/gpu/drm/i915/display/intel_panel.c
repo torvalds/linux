@@ -482,6 +482,24 @@ intel_panel_detect(struct drm_connector *connector, bool force)
 	return connector_status_connected;
 }
 
+enum drm_mode_status
+intel_panel_mode_valid(struct intel_connector *connector,
+		       const struct drm_display_mode *mode)
+{
+	const struct drm_display_mode *fixed_mode = connector->panel.fixed_mode;
+
+	if (!fixed_mode)
+		return MODE_OK;
+
+	if (mode->hdisplay != fixed_mode->hdisplay)
+		return MODE_PANEL;
+
+	if (mode->vdisplay != fixed_mode->vdisplay)
+		return MODE_PANEL;
+
+	return MODE_OK;
+}
+
 int intel_panel_init(struct intel_panel *panel,
 		     struct drm_display_mode *fixed_mode,
 		     struct drm_display_mode *downclock_mode)

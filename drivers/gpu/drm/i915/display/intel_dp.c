@@ -845,11 +845,9 @@ intel_dp_mode_valid(struct drm_connector *connector,
 		return MODE_H_ILLEGAL;
 
 	if (intel_dp_is_edp(intel_dp) && fixed_mode) {
-		if (mode->hdisplay != fixed_mode->hdisplay)
-			return MODE_PANEL;
-
-		if (mode->vdisplay != fixed_mode->vdisplay)
-			return MODE_PANEL;
+		status = intel_panel_mode_valid(intel_connector, mode);
+		if (status != MODE_OK)
+			return status;
 
 		target_clock = fixed_mode->clock;
 	}
