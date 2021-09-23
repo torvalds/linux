@@ -324,12 +324,77 @@ static const struct mlxsw_sp_ipip_ops mlxsw_sp_ipip_gre4_ops = {
 	.ol_netdev_change = mlxsw_sp_ipip_ol_netdev_change_gre4,
 };
 
+static struct mlxsw_sp_ipip_parms
+mlxsw_sp1_ipip_netdev_parms_init_gre6(const struct net_device *ol_dev)
+{
+	struct mlxsw_sp_ipip_parms parms = {0};
+
+	WARN_ON_ONCE(1);
+	return parms;
+}
+
+static int
+mlxsw_sp1_ipip_nexthop_update_gre6(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
+				   struct mlxsw_sp_ipip_entry *ipip_entry,
+				   bool force, char *ratr_pl)
+{
+	WARN_ON_ONCE(1);
+	return -EINVAL;
+}
+
+static int
+mlxsw_sp1_ipip_decap_config_gre6(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_ipip_entry *ipip_entry,
+				 u32 tunnel_index)
+{
+	WARN_ON_ONCE(1);
+	return -EINVAL;
+}
+
+static bool mlxsw_sp1_ipip_can_offload_gre6(const struct mlxsw_sp *mlxsw_sp,
+					    const struct net_device *ol_dev)
+{
+	return false;
+}
+
+static struct mlxsw_sp_rif_ipip_lb_config
+mlxsw_sp1_ipip_ol_loopback_config_gre6(struct mlxsw_sp *mlxsw_sp,
+				       const struct net_device *ol_dev)
+{
+	struct mlxsw_sp_rif_ipip_lb_config config = {0};
+
+	WARN_ON_ONCE(1);
+	return config;
+}
+
+static int
+mlxsw_sp1_ipip_ol_netdev_change_gre6(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_ipip_entry *ipip_entry,
+				     struct netlink_ext_ack *extack)
+{
+	WARN_ON_ONCE(1);
+	return -EINVAL;
+}
+
+static const struct mlxsw_sp_ipip_ops mlxsw_sp1_ipip_gre6_ops = {
+	.dev_type = ARPHRD_IP6GRE,
+	.ul_proto = MLXSW_SP_L3_PROTO_IPV6,
+	.parms_init = mlxsw_sp1_ipip_netdev_parms_init_gre6,
+	.nexthop_update = mlxsw_sp1_ipip_nexthop_update_gre6,
+	.decap_config = mlxsw_sp1_ipip_decap_config_gre6,
+	.can_offload = mlxsw_sp1_ipip_can_offload_gre6,
+	.ol_loopback_config = mlxsw_sp1_ipip_ol_loopback_config_gre6,
+	.ol_netdev_change = mlxsw_sp1_ipip_ol_netdev_change_gre6,
+};
+
 const struct mlxsw_sp_ipip_ops *mlxsw_sp1_ipip_ops_arr[] = {
 	[MLXSW_SP_IPIP_TYPE_GRE4] = &mlxsw_sp_ipip_gre4_ops,
+	[MLXSW_SP_IPIP_TYPE_GRE6] = &mlxsw_sp1_ipip_gre6_ops,
 };
 
 const struct mlxsw_sp_ipip_ops *mlxsw_sp2_ipip_ops_arr[] = {
 	[MLXSW_SP_IPIP_TYPE_GRE4] = &mlxsw_sp_ipip_gre4_ops,
+	[MLXSW_SP_IPIP_TYPE_GRE6] = &mlxsw_sp1_ipip_gre6_ops,
 };
 
 static int mlxsw_sp_ipip_ecn_encap_init_one(struct mlxsw_sp *mlxsw_sp,

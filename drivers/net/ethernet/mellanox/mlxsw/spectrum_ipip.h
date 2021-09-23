@@ -21,6 +21,7 @@ bool mlxsw_sp_l3addr_is_zero(union mlxsw_sp_l3addr addr);
 
 enum mlxsw_sp_ipip_type {
 	MLXSW_SP_IPIP_TYPE_GRE4,
+	MLXSW_SP_IPIP_TYPE_GRE6,
 	MLXSW_SP_IPIP_TYPE_MAX,
 };
 
