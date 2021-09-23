@@ -181,18 +181,18 @@ union xfs_btree_irec {
 
 /* Per-AG btree information. */
 struct xfs_btree_cur_ag {
-	struct xfs_perag	*pag;
+	struct xfs_perag		*pag;
 	union {
 		struct xfs_buf		*agbp;
 		struct xbtree_afakeroot	*afake;	/* for staging cursor */
 	};
 	union {
 		struct {
-			unsigned long nr_ops;	/* # record updates */
-			int	shape_changes;	/* # of extent splits */
+			unsigned int	nr_ops;	/* # record updates */
+			unsigned int	shape_changes;	/* # of extent splits */
 		} refc;
 		struct {
-			bool	active;		/* allocation cursor state */
+			bool		active;	/* allocation cursor state */
 		} abt;
 	};
 };
