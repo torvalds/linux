@@ -1873,7 +1873,6 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
 
-
 	if (clock > max_dotclk)
 		return MODE_CLOCK_HIGH;
 
@@ -1890,14 +1889,11 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 		return MODE_CLOCK_HIGH;
 
 	if (IS_LVDS(intel_sdvo_connector)) {
-		const struct drm_display_mode *fixed_mode =
-			intel_sdvo_connector->base.panel.fixed_mode;
+		enum drm_mode_status status;
 
-		if (mode->hdisplay > fixed_mode->hdisplay)
-			return MODE_PANEL;
-
-		if (mode->vdisplay > fixed_mode->vdisplay)
-			return MODE_PANEL;
+		status = intel_panel_mode_valid(&intel_sdvo_connector->base, mode);
+		if (status != MODE_OK)
+			return status;
 	}
 
 	return MODE_OK;

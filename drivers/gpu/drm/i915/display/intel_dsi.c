@@ -5,6 +5,7 @@
 
 #include <drm/drm_mipi_dsi.h>
 #include "intel_dsi.h"
+#include "intel_panel.h"
 
 int intel_dsi_bitrate(const struct intel_dsi *intel_dsi)
 {
@@ -67,10 +68,12 @@ enum drm_mode_status intel_dsi_mode_valid(struct drm_connector *connector,
 		return MODE_NO_DBLESCAN;
 
 	if (fixed_mode) {
-		if (mode->hdisplay > fixed_mode->hdisplay)
-			return MODE_PANEL;
-		if (mode->vdisplay > fixed_mode->vdisplay)
-			return MODE_PANEL;
+		enum drm_mode_status status;
+
+		status = intel_panel_mode_valid(intel_connector, mode);
+		if (status != MODE_OK)
+			return status;
+
 		if (fixed_mode->clock > max_dotclk)
 			return MODE_CLOCK_HIGH;
 	}
