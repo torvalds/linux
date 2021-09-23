@@ -2739,13 +2739,13 @@ static int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 
 static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 				u32 timeout_us, u64 user_address,
-				u32 target_value, u16 interrupt_offset,
+				u64 target_value, u16 interrupt_offset,
 				enum hl_cs_wait_status *status)
 {
 	struct hl_user_pending_interrupt *pend;
 	struct hl_user_interrupt *interrupt;
 	unsigned long timeout, flags;
-	u32 completion_value;
+	u64 completion_value;
 	long completion_rc;
 	int rc = 0;
 
@@ -2779,7 +2779,7 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	/* We check for completion value as interrupt could have been received
 	 * before we added the node to the wait list
 	 */
-	if (copy_from_user(&completion_value, u64_to_user_ptr(user_address), 4)) {
+	if (copy_from_user(&completion_value, u64_to_user_ptr(user_address), 8)) {
 		dev_err(hdev->dev, "Failed to copy completion value from user\n");
 		rc = -EFAULT;
 		goto remove_pending_user_interrupt;
@@ -2811,7 +2811,7 @@ wait_again:
 		reinit_completion(&pend->fence.completion);
 		spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 
-		if (copy_from_user(&completion_value, u64_to_user_ptr(user_address), 4)) {
+		if (copy_from_user(&completion_value, u64_to_user_ptr(user_address), 8)) {
 			dev_err(hdev->dev, "Failed to copy completion value from user\n");
 			rc = -EFAULT;
 
