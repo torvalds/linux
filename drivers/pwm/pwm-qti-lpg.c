@@ -1995,17 +1995,13 @@ err_out:
 static int qpnp_lpg_remove(struct platform_device *pdev)
 {
 	struct qpnp_lpg_chip *chip = dev_get_drvdata(&pdev->dev);
-	int rc = 0;
 
 	of_node_put(chip->pbs_dev_node);
-	rc = pwmchip_remove(&chip->pwm_chip);
-	if (rc < 0)
-		dev_err(chip->dev, "Remove pwmchip failed, rc=%d\n", rc);
-
+	pwmchip_remove(&chip->pwm_chip);
 	mutex_destroy(&chip->bus_lock);
 	dev_set_drvdata(chip->dev, NULL);
 
-	return rc;
+	return 0;
 }
 
 static const struct of_device_id qpnp_lpg_of_match[] = {
