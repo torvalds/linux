@@ -279,7 +279,7 @@ struct futex_hash_bucket {
 
 /*
  * The base of the bucket array and its size are always used together
- * (after initialization only in hash_futex()), so ensure that they
+ * (after initialization only in futex_hash()), so ensure that they
  * reside in the same cacheline.
  */
 static struct {
@@ -380,13 +380,13 @@ static inline int hb_waiters_pending(struct futex_hash_bucket *hb)
 }
 
 /**
- * hash_futex - Return the hash bucket in the global hash
+ * futex_hash - Return the hash bucket in the global hash
  * @key:	Pointer to the futex key for which the hash is calculated
  *
  * We hash on the keys returned from get_futex_key (see below) and return the
  * corresponding hash bucket in the global hash.
  */
-static struct futex_hash_bucket *hash_futex(union futex_key *key)
+static struct futex_hash_bucket *futex_hash(union futex_key *key)
 {
 	u32 hash = jhash2((u32 *)key, offsetof(typeof(*key), both.offset) / 4,
 			  key->both.offset);
@@ -885,7 +885,7 @@ static void exit_pi_state_list(struct task_struct *curr)
 		next = head->next;
 		pi_state = list_entry(next, struct futex_pi_state, list);
 		key = pi_state->key;
-		hb = hash_futex(&key);
+		hb = futex_hash(&key);
 
 		/*
 		 * We can race against put_pi_state() removing itself from the
@@ -1634,7 +1634,7 @@ int futex_wake(u32 __user *uaddr, unsigned int flags, int nr_wake, u32 bitset)
 	if (unlikely(ret != 0))
 		return ret;
 
-	hb = hash_futex(&key);
+	hb = futex_hash(&key);
 
 	/* Make sure we really have tasks to wakeup */
 	if (!hb_waiters_pending(hb))
@@ -1731,8 +1731,8 @@ retry:
 	if (unlikely(ret != 0))
 		return ret;
 
-	hb1 = hash_futex(&key1);
-	hb2 = hash_futex(&key2);
+	hb1 = futex_hash(&key1);
+	hb2 = futex_hash(&key2);
 
 retry_private:
 	double_lock_hb(hb1, hb2);
@@ -2172,8 +2172,8 @@ retry:
 	if (requeue_pi && match_futex(&key1, &key2))
 		return -EINVAL;
 
-	hb1 = hash_futex(&key1);
-	hb2 = hash_futex(&key2);
+	hb1 = futex_hash(&key1);
+	hb2 = futex_hash(&key2);
 
 retry_private:
 	hb_waiters_inc(hb2);
@@ -2415,7 +2415,7 @@ static inline struct futex_hash_bucket *futex_q_lock(struct futex_q *q)
 {
 	struct futex_hash_bucket *hb;
 
-	hb = hash_futex(&q->key);
+	hb = futex_hash(&q->key);
 
 	/*
 	 * Increment the counter before taking the lock so that
@@ -3177,7 +3177,7 @@ retry:
 	if (ret)
 		return ret;
 
-	hb = hash_futex(&key);
+	hb = futex_hash(&key);
 	spin_lock(&hb->lock);
 
 	/*
