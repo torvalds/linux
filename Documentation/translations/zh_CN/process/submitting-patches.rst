@@ -127,8 +127,8 @@
 URL来查找补丁描述并将其放入补丁中。也就是说，补丁（系列）及其描述应该是独立的。
 这对维护人员和审查人员都有好处。一些评审者可能甚至没有收到补丁的早期版本。
 
-描述你在命令语气中的变化，例如“make xyzzy do frotz”而不是“[这个补丁]make
-xyzzy do frotz”或“[我]changed xyzzy to do frotz”，就好像你在命令代码库改变
+描述你在命令语气中的变化，例如“make xyzzy do frotz”而不是“[This patch]make
+xyzzy do frotz”或“[I]changed xyzzy to do frotz”，就好像你在命令代码库改变
 它的行为一样。
 
 如果修补程序修复了一个记录的bug条目，请按编号和URL引用该bug条目。如果补丁来
