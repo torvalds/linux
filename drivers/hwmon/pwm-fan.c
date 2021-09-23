@@ -38,6 +38,7 @@ struct pwm_fan_ctx {
 	struct pwm_fan_tach *tachs;
 	ktime_t sample_start;
 	struct timer_list rpm_timer;
+	bool retain_state_shutdown;
 
 	unsigned int pwm_value;
 	unsigned int pwm_fan_state;
@@ -312,6 +313,9 @@ static int pwm_fan_probe(struct platform_device *pdev)
 
 	mutex_init(&ctx->lock);
 
+	ctx->retain_state_shutdown =
+		of_property_read_bool(dev->of_node, "retain-state-shutdown");
+
 	ctx->pwm = devm_of_pwm_get(dev, dev->of_node, NULL);
 	if (IS_ERR(ctx->pwm))
 		return dev_err_probe(dev, PTR_ERR(ctx->pwm), "Could not get PWM\n");
@@ -490,7 +494,10 @@ static int pwm_fan_disable(struct device *dev)
 
 static void pwm_fan_shutdown(struct platform_device *pdev)
 {
-	pwm_fan_disable(&pdev->dev);
+	struct pwm_fan_ctx *ctx = platform_get_drvdata(pdev);
+
+	if (!ctx->retain_state_shutdown)
+		pwm_fan_disable(&pdev->dev);
 }
 
 #ifdef CONFIG_PM_SLEEP
