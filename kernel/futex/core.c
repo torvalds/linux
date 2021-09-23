@@ -34,14 +34,12 @@
 #include <linux/compat.h>
 #include <linux/jhash.h>
 #include <linux/pagemap.h>
-#include <linux/syscalls.h>
 #include <linux/freezer.h>
 #include <linux/memblock.h>
 #include <linux/fault-inject.h>
-#include <linux/time_namespace.h>
+#include <linux/slab.h>
 
-#include <asm/futex.h>
-
+#include "futex.h"
 #include "../locking/rtmutex_common.h"
 
 /*
@@ -144,27 +142,10 @@
  * double_lock_hb() and double_unlock_hb(), respectively.
  */
 
-#ifdef CONFIG_HAVE_FUTEX_CMPXCHG
-#define futex_cmpxchg_enabled 1
-#else
-static int  __read_mostly futex_cmpxchg_enabled;
+#ifndef CONFIG_HAVE_FUTEX_CMPXCHG
+int  __read_mostly futex_cmpxchg_enabled;
 #endif
 
-/*
- * Futex flags used to encode options to functions and preserve them across
- * restarts.
- */
-#ifdef CONFIG_MMU
-# define FLAGS_SHARED		0x01
-#else
-/*
- * NOMMU does not have per process address space. Let the compiler optimize
- * code away.
- */
-# define FLAGS_SHARED		0x00
-#endif
-#define FLAGS_CLOCKRT		0x02
-#define FLAGS_HAS_TIMEOUT	0x04
 
 /*
  * Priority Inheritance state:
@@ -329,7 +310,7 @@ static int __init setup_fail_futex(char *str)
 }
 __setup("fail_futex=", setup_fail_futex);
 
-static bool should_fail_futex(bool fshared)
+bool should_fail_futex(bool fshared)
 {
 	if (fail_futex.ignore_private && !fshared)
 		return false;
@@ -358,16 +339,7 @@ late_initcall(fail_futex_debugfs);
 
 #endif /* CONFIG_FAULT_INJECTION_DEBUG_FS */
 
-#else
-static inline bool should_fail_futex(bool fshared)
-{
-	return false;
-}
 #endif /* CONFIG_FAIL_FUTEX */
-
-#ifdef CONFIG_COMPAT
-static void compat_exit_robust_list(struct task_struct *curr);
-#endif
 
 /*
  * Reflects a new waiter being added to the waitqueue.
@@ -1647,8 +1619,7 @@ double_unlock_hb(struct futex_hash_bucket *hb1, struct futex_hash_bucket *hb2)
 /*
  * Wake up waiters matching bitset queued on this futex (uaddr).
  */
-static int
-futex_wake(u32 __user *uaddr, unsigned int flags, int nr_wake, u32 bitset)
+int futex_wake(u32 __user *uaddr, unsigned int flags, int nr_wake, u32 bitset)
 {
 	struct futex_hash_bucket *hb;
 	struct futex_q *this, *next;
@@ -1743,9 +1714,8 @@ static int futex_atomic_op_inuser(unsigned int encoded_op, u32 __user *uaddr)
  * Wake up all waiters hashed on the physical page that is mapped
  * to this virtual address:
  */
-static int
-futex_wake_op(u32 __user *uaddr1, unsigned int flags, u32 __user *uaddr2,
-	      int nr_wake, int nr_wake2, int op)
+int futex_wake_op(u32 __user *uaddr1, unsigned int flags, u32 __user *uaddr2,
+		  int nr_wake, int nr_wake2, int op)
 {
 	union futex_key key1 = FUTEX_KEY_INIT, key2 = FUTEX_KEY_INIT;
 	struct futex_hash_bucket *hb1, *hb2;
@@ -2124,9 +2094,8 @@ futex_proxy_trylock_atomic(u32 __user *pifutex, struct futex_hash_bucket *hb1,
  *  - >=0 - on success, the number of tasks requeued or woken;
  *  -  <0 - on error
  */
-static int futex_requeue(u32 __user *uaddr1, unsigned int flags,
-			 u32 __user *uaddr2, int nr_wake, int nr_requeue,
-			 u32 *cmpval, int requeue_pi)
+int futex_requeue(u32 __user *uaddr1, unsigned int flags, u32 __user *uaddr2,
+		  int nr_wake, int nr_requeue, u32 *cmpval, int requeue_pi)
 {
 	union futex_key key1 = FUTEX_KEY_INIT, key2 = FUTEX_KEY_INIT;
 	int task_count = 0, ret;
@@ -2926,8 +2895,7 @@ retry_private:
 	return ret;
 }
 
-static int futex_wait(u32 __user *uaddr, unsigned int flags, u32 val,
-		      ktime_t *abs_time, u32 bitset)
+int futex_wait(u32 __user *uaddr, unsigned int flags, u32 val, ktime_t *abs_time, u32 bitset)
 {
 	struct hrtimer_sleeper timeout, *to;
 	struct restart_block *restart;
@@ -3015,8 +2983,7 @@ static long futex_wait_restart(struct restart_block *restart)
  *
  * Also serves as futex trylock_pi()'ing, and due semantics.
  */
-static int futex_lock_pi(u32 __user *uaddr, unsigned int flags,
-			 ktime_t *time, int trylock)
+int futex_lock_pi(u32 __user *uaddr, unsigned int flags, ktime_t *time, int trylock)
 {
 	struct hrtimer_sleeper timeout, *to;
 	struct task_struct *exiting = NULL;
@@ -3186,7 +3153,7 @@ uaddr_faulted:
  * This is the in-kernel slowpath: we look up the PI state (if any),
  * and do the rt-mutex unlock.
  */
-static int futex_unlock_pi(u32 __user *uaddr, unsigned int flags)
+int futex_unlock_pi(u32 __user *uaddr, unsigned int flags)
 {
 	u32 curval, uval, vpid = task_pid_vnr(current);
 	union futex_key key = FUTEX_KEY_INIT;
@@ -3403,9 +3370,9 @@ int handle_early_requeue_pi_wakeup(struct futex_hash_bucket *hb,
  *  -  0 - On success;
  *  - <0 - On error
  */
-static int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
-				 u32 val, ktime_t *abs_time, u32 bitset,
-				 u32 __user *uaddr2)
+int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
+			  u32 val, ktime_t *abs_time, u32 bitset,
+			  u32 __user *uaddr2)
 {
 	struct hrtimer_sleeper timeout, *to;
 	struct rt_mutex_waiter rt_waiter;
@@ -3536,87 +3503,6 @@ out:
 		hrtimer_cancel(&to->timer);
 		destroy_hrtimer_on_stack(&to->timer);
 	}
-	return ret;
-}
-
-/*
- * Support for robust futexes: the kernel cleans up held futexes at
- * thread exit time.
- *
- * Implementation: user-space maintains a per-thread list of locks it
- * is holding. Upon do_exit(), the kernel carefully walks this list,
- * and marks all locks that are owned by this thread with the
- * FUTEX_OWNER_DIED bit, and wakes up a waiter (if any). The list is
- * always manipulated with the lock held, so the list is private and
- * per-thread. Userspace also maintains a per-thread 'list_op_pending'
- * field, to allow the kernel to clean up if the thread dies after
- * acquiring the lock, but just before it could have added itself to
- * the list. There can only be one such pending lock.
- */
-
-/**
- * sys_set_robust_list() - Set the robust-futex list head of a task
- * @head:	pointer to the list-head
- * @len:	length of the list-head, as userspace expects
- */
-SYSCALL_DEFINE2(set_robust_list, struct robust_list_head __user *, head,
-		size_t, len)
-{
-	if (!futex_cmpxchg_enabled)
-		return -ENOSYS;
-	/*
-	 * The kernel knows only one size for now:
-	 */
-	if (unlikely(len != sizeof(*head)))
-		return -EINVAL;
-
-	current->robust_list = head;
-
-	return 0;
-}
-
-/**
- * sys_get_robust_list() - Get the robust-futex list head of a task
- * @pid:	pid of the process [zero for current task]
- * @head_ptr:	pointer to a list-head pointer, the kernel fills it in
- * @len_ptr:	pointer to a length field, the kernel fills in the header size
- */
-SYSCALL_DEFINE3(get_robust_list, int, pid,
-		struct robust_list_head __user * __user *, head_ptr,
-		size_t __user *, len_ptr)
-{
-	struct robust_list_head __user *head;
-	unsigned long ret;
-	struct task_struct *p;
-
-	if (!futex_cmpxchg_enabled)
-		return -ENOSYS;
-
-	rcu_read_lock();
-
-	ret = -ESRCH;
-	if (!pid)
-		p = current;
-	else {
-		p = find_task_by_vpid(pid);
-		if (!p)
-			goto err_unlock;
-	}
-
-	ret = -EPERM;
-	if (!ptrace_may_access(p, PTRACE_MODE_READ_REALCREDS))
-		goto err_unlock;
-
-	head = p->robust_list;
-	rcu_read_unlock();
-
-	if (put_user(sizeof(*head), len_ptr))
-		return -EFAULT;
-	return put_user(head, head_ptr);
-
-err_unlock:
-	rcu_read_unlock();
-
 	return ret;
 }
 
@@ -3821,6 +3707,110 @@ static void exit_robust_list(struct task_struct *curr)
 	}
 }
 
+#ifdef CONFIG_COMPAT
+static void __user *futex_uaddr(struct robust_list __user *entry,
+				compat_long_t futex_offset)
+{
+	compat_uptr_t base = ptr_to_compat(entry);
+	void __user *uaddr = compat_ptr(base + futex_offset);
+
+	return uaddr;
+}
+
+/*
+ * Fetch a robust-list pointer. Bit 0 signals PI futexes:
+ */
+static inline int
+compat_fetch_robust_entry(compat_uptr_t *uentry, struct robust_list __user **entry,
+		   compat_uptr_t __user *head, unsigned int *pi)
+{
+	if (get_user(*uentry, head))
+		return -EFAULT;
+
+	*entry = compat_ptr((*uentry) & ~1);
+	*pi = (unsigned int)(*uentry) & 1;
+
+	return 0;
+}
+
+/*
+ * Walk curr->robust_list (very carefully, it's a userspace list!)
+ * and mark any locks found there dead, and notify any waiters.
+ *
+ * We silently return on any sign of list-walking problem.
+ */
+static void compat_exit_robust_list(struct task_struct *curr)
+{
+	struct compat_robust_list_head __user *head = curr->compat_robust_list;
+	struct robust_list __user *entry, *next_entry, *pending;
+	unsigned int limit = ROBUST_LIST_LIMIT, pi, pip;
+	unsigned int next_pi;
+	compat_uptr_t uentry, next_uentry, upending;
+	compat_long_t futex_offset;
+	int rc;
+
+	if (!futex_cmpxchg_enabled)
+		return;
+
+	/*
+	 * Fetch the list head (which was registered earlier, via
+	 * sys_set_robust_list()):
+	 */
+	if (compat_fetch_robust_entry(&uentry, &entry, &head->list.next, &pi))
+		return;
+	/*
+	 * Fetch the relative futex offset:
+	 */
+	if (get_user(futex_offset, &head->futex_offset))
+		return;
+	/*
+	 * Fetch any possibly pending lock-add first, and handle it
+	 * if it exists:
+	 */
+	if (compat_fetch_robust_entry(&upending, &pending,
+			       &head->list_op_pending, &pip))
+		return;
+
+	next_entry = NULL;	/* avoid warning with gcc */
+	while (entry != (struct robust_list __user *) &head->list) {
+		/*
+		 * Fetch the next entry in the list before calling
+		 * handle_futex_death:
+		 */
+		rc = compat_fetch_robust_entry(&next_uentry, &next_entry,
+			(compat_uptr_t __user *)&entry->next, &next_pi);
+		/*
+		 * A pending lock might already be on the list, so
+		 * dont process it twice:
+		 */
+		if (entry != pending) {
+			void __user *uaddr = futex_uaddr(entry, futex_offset);
+
+			if (handle_futex_death(uaddr, curr, pi,
+					       HANDLE_DEATH_LIST))
+				return;
+		}
+		if (rc)
+			return;
+		uentry = next_uentry;
+		entry = next_entry;
+		pi = next_pi;
+		/*
+		 * Avoid excessively long or circular lists:
+		 */
+		if (!--limit)
+			break;
+
+		cond_resched();
+	}
+	if (pending) {
+		void __user *uaddr = futex_uaddr(pending, futex_offset);
+
+		handle_futex_death(uaddr, curr, pip, HANDLE_DEATH_PENDING);
+	}
+}
+#endif
+
 static void futex_cleanup(struct task_struct *tsk)
 {
 	if (unlikely(tsk->robust_list)) {
@@ -3928,298 +3918,6 @@ void futex_exit_release(struct task_struct *tsk)
 	futex_cleanup(tsk);
 	futex_cleanup_end(tsk, FUTEX_STATE_DEAD);
 }
-
-long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
-		u32 __user *uaddr2, u32 val2, u32 val3)
-{
-	int cmd = op & FUTEX_CMD_MASK;
-	unsigned int flags = 0;
-
-	if (!(op & FUTEX_PRIVATE_FLAG))
-		flags |= FLAGS_SHARED;
-
-	if (op & FUTEX_CLOCK_REALTIME) {
-		flags |= FLAGS_CLOCKRT;
-		if (cmd != FUTEX_WAIT_BITSET && cmd != FUTEX_WAIT_REQUEUE_PI &&
-		    cmd != FUTEX_LOCK_PI2)
-			return -ENOSYS;
-	}
-
-	switch (cmd) {
-	case FUTEX_LOCK_PI:
-	case FUTEX_LOCK_PI2:
-	case FUTEX_UNLOCK_PI:
-	case FUTEX_TRYLOCK_PI:
-	case FUTEX_WAIT_REQUEUE_PI:
-	case FUTEX_CMP_REQUEUE_PI:
-		if (!futex_cmpxchg_enabled)
-			return -ENOSYS;
-	}
-
-	switch (cmd) {
-	case FUTEX_WAIT:
-		val3 = FUTEX_BITSET_MATCH_ANY;
-		fallthrough;
-	case FUTEX_WAIT_BITSET:
-		return futex_wait(uaddr, flags, val, timeout, val3);
-	case FUTEX_WAKE:
-		val3 = FUTEX_BITSET_MATCH_ANY;
-		fallthrough;
-	case FUTEX_WAKE_BITSET:
-		return futex_wake(uaddr, flags, val, val3);
-	case FUTEX_REQUEUE:
-		return futex_requeue(uaddr, flags, uaddr2, val, val2, NULL, 0);
-	case FUTEX_CMP_REQUEUE:
-		return futex_requeue(uaddr, flags, uaddr2, val, val2, &val3, 0);
-	case FUTEX_WAKE_OP:
-		return futex_wake_op(uaddr, flags, uaddr2, val, val2, val3);
-	case FUTEX_LOCK_PI:
-		flags |= FLAGS_CLOCKRT;
-		fallthrough;
-	case FUTEX_LOCK_PI2:
-		return futex_lock_pi(uaddr, flags, timeout, 0);
-	case FUTEX_UNLOCK_PI:
-		return futex_unlock_pi(uaddr, flags);
-	case FUTEX_TRYLOCK_PI:
-		return futex_lock_pi(uaddr, flags, NULL, 1);
-	case FUTEX_WAIT_REQUEUE_PI:
-		val3 = FUTEX_BITSET_MATCH_ANY;
-		return futex_wait_requeue_pi(uaddr, flags, val, timeout, val3,
-					     uaddr2);
-	case FUTEX_CMP_REQUEUE_PI:
-		return futex_requeue(uaddr, flags, uaddr2, val, val2, &val3, 1);
-	}
-	return -ENOSYS;
-}
-
-static __always_inline bool futex_cmd_has_timeout(u32 cmd)
-{
-	switch (cmd) {
-	case FUTEX_WAIT:
-	case FUTEX_LOCK_PI:
-	case FUTEX_LOCK_PI2:
-	case FUTEX_WAIT_BITSET:
-	case FUTEX_WAIT_REQUEUE_PI:
-		return true;
-	}
-	return false;
-}
-
-static __always_inline int
-futex_init_timeout(u32 cmd, u32 op, struct timespec64 *ts, ktime_t *t)
-{
-	if (!timespec64_valid(ts))
-		return -EINVAL;
-
-	*t = timespec64_to_ktime(*ts);
-	if (cmd == FUTEX_WAIT)
-		*t = ktime_add_safe(ktime_get(), *t);
-	else if (cmd != FUTEX_LOCK_PI && !(op & FUTEX_CLOCK_REALTIME))
-		*t = timens_ktime_to_host(CLOCK_MONOTONIC, *t);
-	return 0;
-}
-
-SYSCALL_DEFINE6(futex, u32 __user *, uaddr, int, op, u32, val,
-		const struct __kernel_timespec __user *, utime,
-		u32 __user *, uaddr2, u32, val3)
-{
-	int ret, cmd = op & FUTEX_CMD_MASK;
-	ktime_t t, *tp = NULL;
-	struct timespec64 ts;
-
-	if (utime && futex_cmd_has_timeout(cmd)) {
-		if (unlikely(should_fail_futex(!(op & FUTEX_PRIVATE_FLAG))))
-			return -EFAULT;
-		if (get_timespec64(&ts, utime))
-			return -EFAULT;
-		ret = futex_init_timeout(cmd, op, &ts, &t);
-		if (ret)
-			return ret;
-		tp = &t;
-	}
-
-	return do_futex(uaddr, op, val, tp, uaddr2, (unsigned long)utime, val3);
-}
-
-#ifdef CONFIG_COMPAT
-/*
- * Fetch a robust-list pointer. Bit 0 signals PI futexes:
- */
-static inline int
-compat_fetch_robust_entry(compat_uptr_t *uentry, struct robust_list __user **entry,
-		   compat_uptr_t __user *head, unsigned int *pi)
-{
-	if (get_user(*uentry, head))
-		return -EFAULT;
-
-	*entry = compat_ptr((*uentry) & ~1);
-	*pi = (unsigned int)(*uentry) & 1;
-
-	return 0;
-}
-
-static void __user *futex_uaddr(struct robust_list __user *entry,
-				compat_long_t futex_offset)
-{
-	compat_uptr_t base = ptr_to_compat(entry);
-	void __user *uaddr = compat_ptr(base + futex_offset);
-
-	return uaddr;
-}
-
-/*
- * Walk curr->robust_list (very carefully, it's a userspace list!)
- * and mark any locks found there dead, and notify any waiters.
- *
- * We silently return on any sign of list-walking problem.
- */
-static void compat_exit_robust_list(struct task_struct *curr)
-{
-	struct compat_robust_list_head __user *head = curr->compat_robust_list;
-	struct robust_list __user *entry, *next_entry, *pending;
-	unsigned int limit = ROBUST_LIST_LIMIT, pi, pip;
-	unsigned int next_pi;
-	compat_uptr_t uentry, next_uentry, upending;
-	compat_long_t futex_offset;
-	int rc;
-
-	if (!futex_cmpxchg_enabled)
-		return;
-
-	/*
-	 * Fetch the list head (which was registered earlier, via
-	 * sys_set_robust_list()):
-	 */
-	if (compat_fetch_robust_entry(&uentry, &entry, &head->list.next, &pi))
-		return;
-	/*
-	 * Fetch the relative futex offset:
-	 */
-	if (get_user(futex_offset, &head->futex_offset))
-		return;
-	/*
-	 * Fetch any possibly pending lock-add first, and handle it
-	 * if it exists:
-	 */
-	if (compat_fetch_robust_entry(&upending, &pending,
-			       &head->list_op_pending, &pip))
-		return;
-
-	next_entry = NULL;	/* avoid warning with gcc */
-	while (entry != (struct robust_list __user *) &head->list) {
-		/*
-		 * Fetch the next entry in the list before calling
-		 * handle_futex_death:
-		 */
-		rc = compat_fetch_robust_entry(&next_uentry, &next_entry,
-			(compat_uptr_t __user *)&entry->next, &next_pi);
-		/*
-		 * A pending lock might already be on the list, so
-		 * dont process it twice:
-		 */
-		if (entry != pending) {
-			void __user *uaddr = futex_uaddr(entry, futex_offset);
-
-			if (handle_futex_death(uaddr, curr, pi,
-					       HANDLE_DEATH_LIST))
-				return;
-		}
-		if (rc)
-			return;
-		uentry = next_uentry;
-		entry = next_entry;
-		pi = next_pi;
-		/*
-		 * Avoid excessively long or circular lists:
-		 */
-		if (!--limit)
-			break;
-
-		cond_resched();
-	}
-	if (pending) {
-		void __user *uaddr = futex_uaddr(pending, futex_offset);
-
-		handle_futex_death(uaddr, curr, pip, HANDLE_DEATH_PENDING);
-	}
-}
-
-COMPAT_SYSCALL_DEFINE2(set_robust_list,
-		struct compat_robust_list_head __user *, head,
-		compat_size_t, len)
-{
-	if (!futex_cmpxchg_enabled)
-		return -ENOSYS;
-
-	if (unlikely(len != sizeof(*head)))
-		return -EINVAL;
-
-	current->compat_robust_list = head;
-
-	return 0;
-}
-
-COMPAT_SYSCALL_DEFINE3(get_robust_list, int, pid,
-			compat_uptr_t __user *, head_ptr,
-			compat_size_t __user *, len_ptr)
-{
-	struct compat_robust_list_head __user *head;
-	unsigned long ret;
-	struct task_struct *p;
-
-	if (!futex_cmpxchg_enabled)
-		return -ENOSYS;
-
-	rcu_read_lock();
-
-	ret = -ESRCH;
-	if (!pid)
-		p = current;
-	else {
-		p = find_task_by_vpid(pid);
-		if (!p)
-			goto err_unlock;
-	}
-
-	ret = -EPERM;
-	if (!ptrace_may_access(p, PTRACE_MODE_READ_REALCREDS))
-		goto err_unlock;
-
-	head = p->compat_robust_list;
-	rcu_read_unlock();
-
-	if (put_user(sizeof(*head), len_ptr))
-		return -EFAULT;
-	return put_user(ptr_to_compat(head), head_ptr);
-
-err_unlock:
-	rcu_read_unlock();
-
-	return ret;
-}
-#endif /* CONFIG_COMPAT */
-
-#ifdef CONFIG_COMPAT_32BIT_TIME
-SYSCALL_DEFINE6(futex_time32, u32 __user *, uaddr, int, op, u32, val,
-		const struct old_timespec32 __user *, utime, u32 __user *, uaddr2,
-		u32, val3)
-{
-	int ret, cmd = op & FUTEX_CMD_MASK;
-	ktime_t t, *tp = NULL;
-	struct timespec64 ts;
-
-	if (utime && futex_cmd_has_timeout(cmd)) {
-		if (get_old_timespec32(&ts, utime))
-			return -EFAULT;
-		ret = futex_init_timeout(cmd, op, &ts, &t);
-		if (ret)
-			return ret;
-		tp = &t;
-	}
-
-	return do_futex(uaddr, op, val, tp, uaddr2, (unsigned long)utime, val3);
-}
-#endif /* CONFIG_COMPAT_32BIT_TIME */
 
 static void __init futex_detect_cmpxchg(void)
 {

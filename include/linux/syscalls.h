@@ -610,7 +610,7 @@ asmlinkage long sys_waitid(int which, pid_t pid,
 asmlinkage long sys_set_tid_address(int __user *tidptr);
 asmlinkage long sys_unshare(unsigned long unshare_flags);
 
-/* kernel/futex.c */
+/* kernel/futex/syscalls.c */
 asmlinkage long sys_futex(u32 __user *uaddr, int op, u32 val,
 			  const struct __kernel_timespec __user *utime,
 			  u32 __user *uaddr2, u32 val3);

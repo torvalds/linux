@@ -143,7 +143,7 @@ COND_SYSCALL(capset);
 /* __ARCH_WANT_SYS_CLONE3 */
 COND_SYSCALL(clone3);
 
-/* kernel/futex.c */
+/* kernel/futex/syscalls.c */
 COND_SYSCALL(futex);
 COND_SYSCALL(futex_time32);
 COND_SYSCALL(set_robust_list);
