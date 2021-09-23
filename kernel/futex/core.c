@@ -732,7 +732,7 @@ static struct futex_q *futex_top_waiter(struct futex_hash_bucket *hb,
 	return NULL;
 }
 
-static int cmpxchg_futex_value_locked(u32 *curval, u32 __user *uaddr,
+static int futex_cmpxchg_value_locked(u32 *curval, u32 __user *uaddr,
 				      u32 uval, u32 newval)
 {
 	int ret;
@@ -744,7 +744,7 @@ static int cmpxchg_futex_value_locked(u32 *curval, u32 __user *uaddr,
 	return ret;
 }
 
-static int get_futex_value_locked(u32 *dest, u32 __user *from)
+static int futex_get_value_locked(u32 *dest, u32 __user *from)
 {
 	int ret;
 
@@ -1070,7 +1070,7 @@ static int attach_to_pi_state(u32 __user *uaddr, u32 uval,
 	 * still is what we expect it to be, otherwise retry the entire
 	 * operation.
 	 */
-	if (get_futex_value_locked(&uval2, uaddr))
+	if (futex_get_value_locked(&uval2, uaddr))
 		goto out_efault;
 
 	if (uval != uval2)
@@ -1220,7 +1220,7 @@ static int handle_exit_race(u32 __user *uaddr, u32 uval,
 	 * The same logic applies to the case where the exiting task is
 	 * already gone.
 	 */
-	if (get_futex_value_locked(&uval2, uaddr))
+	if (futex_get_value_locked(&uval2, uaddr))
 		return -EFAULT;
 
 	/* If the user space value has changed, try again. */
@@ -1341,7 +1341,7 @@ static int lock_pi_update_atomic(u32 __user *uaddr, u32 uval, u32 newval)
 	if (unlikely(should_fail_futex(true)))
 		return -EFAULT;
 
-	err = cmpxchg_futex_value_locked(&curval, uaddr, uval, newval);
+	err = futex_cmpxchg_value_locked(&curval, uaddr, uval, newval);
 	if (unlikely(err))
 		return err;
 
@@ -1388,7 +1388,7 @@ static int futex_lock_pi_atomic(u32 __user *uaddr, struct futex_hash_bucket *hb,
 	 * Read the user space value first so we can validate a few
 	 * things before proceeding further.
 	 */
-	if (get_futex_value_locked(&uval, uaddr))
+	if (futex_get_value_locked(&uval, uaddr))
 		return -EFAULT;
 
 	if (unlikely(should_fail_futex(true)))
@@ -1559,7 +1559,7 @@ static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_pi_state *pi_
 		goto out_unlock;
 	}
 
-	ret = cmpxchg_futex_value_locked(&curval, uaddr, uval, newval);
+	ret = futex_cmpxchg_value_locked(&curval, uaddr, uval, newval);
 	if (!ret && (curval != uval)) {
 		/*
 		 * If a unconditional UNLOCK_PI operation (user space did not
@@ -2006,7 +2006,7 @@ futex_proxy_trylock_atomic(u32 __user *pifutex, struct futex_hash_bucket *hb1,
 	u32 curval;
 	int ret;
 
-	if (get_futex_value_locked(&curval, pifutex))
+	if (futex_get_value_locked(&curval, pifutex))
 		return -EFAULT;
 
 	if (unlikely(should_fail_futex(true)))
@@ -2182,7 +2182,7 @@ retry_private:
 	if (likely(cmpval != NULL)) {
 		u32 curval;
 
-		ret = get_futex_value_locked(&curval, uaddr1);
+		ret = futex_get_value_locked(&curval, uaddr1);
 
 		if (unlikely(ret)) {
 			double_unlock_hb(hb1, hb2);
@@ -2628,14 +2628,14 @@ retry:
 	if (!pi_state->owner)
 		newtid |= FUTEX_OWNER_DIED;
 
-	err = get_futex_value_locked(&uval, uaddr);
+	err = futex_get_value_locked(&uval, uaddr);
 	if (err)
 		goto handle_err;
 
 	for (;;) {
 		newval = (uval & FUTEX_OWNER_DIED) | newtid;
 
-		err = cmpxchg_futex_value_locked(&curval, uaddr, uval, newval);
+		err = futex_cmpxchg_value_locked(&curval, uaddr, uval, newval);
 		if (err)
 			goto handle_err;
 
@@ -2872,7 +2872,7 @@ retry:
 retry_private:
 	*hb = futex_q_lock(q);
 
-	ret = get_futex_value_locked(&uval, uaddr);
+	ret = futex_get_value_locked(&uval, uaddr);
 
 	if (ret) {
 		futex_q_unlock(*hb);
@@ -3250,7 +3250,7 @@ retry:
 	 * preserve the WAITERS bit not the OWNER_DIED one. We are the
 	 * owner.
 	 */
-	if ((ret = cmpxchg_futex_value_locked(&curval, uaddr, uval, 0))) {
+	if ((ret = futex_cmpxchg_value_locked(&curval, uaddr, uval, 0))) {
 		spin_unlock(&hb->lock);
 		switch (ret) {
 		case -EFAULT:
@@ -3588,7 +3588,7 @@ retry:
 	 * does not guarantee R/W access. If that fails we
 	 * give up and leave the futex locked.
 	 */
-	if ((err = cmpxchg_futex_value_locked(&nval, uaddr, uval, mval))) {
+	if ((err = futex_cmpxchg_value_locked(&nval, uaddr, uval, mval))) {
 		switch (err) {
 		case -EFAULT:
 			if (fault_in_user_writeable(uaddr))
@@ -3934,7 +3934,7 @@ static void __init futex_detect_cmpxchg(void)
 	 * implementation, the non-functional ones will return
 	 * -ENOSYS.
 	 */
-	if (cmpxchg_futex_value_locked(&curval, NULL, 0, 0) == -EFAULT)
+	if (futex_cmpxchg_value_locked(&curval, NULL, 0, 0) == -EFAULT)
 		futex_cmpxchg_enabled = 1;
 #endif
 }
