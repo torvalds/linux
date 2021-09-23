@@ -732,7 +732,7 @@ static void __futex_unqueue(struct futex_q *q)
  * must ensure to later call wake_up_q() for the actual
  * wakeups to occur.
  */
-static void mark_wake_futex(struct wake_q_head *wake_q, struct futex_q *q)
+static void futex_wake_mark(struct wake_q_head *wake_q, struct futex_q *q)
 {
 	struct task_struct *p = q->task;
 
@@ -818,7 +818,7 @@ int futex_wake(u32 __user *uaddr, unsigned int flags, int nr_wake, u32 bitset)
 			if (!(this->bitset & bitset))
 				continue;
 
-			mark_wake_futex(&wake_q, this);
+			futex_wake_mark(&wake_q, this);
 			if (++ret >= nr_wake)
 				break;
 		}
@@ -933,7 +933,7 @@ retry_private:
 				ret = -EINVAL;
 				goto out_unlock;
 			}
-			mark_wake_futex(&wake_q, this);
+			futex_wake_mark(&wake_q, this);
 			if (++ret >= nr_wake)
 				break;
 		}
@@ -947,7 +947,7 @@ retry_private:
 					ret = -EINVAL;
 					goto out_unlock;
 				}
-				mark_wake_futex(&wake_q, this);
+				futex_wake_mark(&wake_q, this);
 				if (++op_ret >= nr_wake2)
 					break;
 			}
@@ -1489,7 +1489,7 @@ retry_private:
 		/* Plain futexes just wake or requeue and are done */
 		if (!requeue_pi) {
 			if (++task_count <= nr_wake)
-				mark_wake_futex(&wake_q, this);
+				futex_wake_mark(&wake_q, this);
 			else
 				requeue_futex(this, hb1, hb2, &key2);
 			continue;
