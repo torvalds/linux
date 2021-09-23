@@ -1470,12 +1470,12 @@ static int futex_lock_pi_atomic(u32 __user *uaddr, struct futex_hash_bucket *hb,
 }
 
 /**
- * __unqueue_futex() - Remove the futex_q from its futex_hash_bucket
+ * __futex_unqueue() - Remove the futex_q from its futex_hash_bucket
  * @q:	The futex_q to unqueue
  *
  * The q->lock_ptr must not be NULL and must be held by the caller.
  */
-static void __unqueue_futex(struct futex_q *q)
+static void __futex_unqueue(struct futex_q *q)
 {
 	struct futex_hash_bucket *hb;
 
@@ -1502,13 +1502,13 @@ static void mark_wake_futex(struct wake_q_head *wake_q, struct futex_q *q)
 		return;
 
 	get_task_struct(p);
-	__unqueue_futex(q);
+	__futex_unqueue(q);
 	/*
 	 * The waiting task can free the futex_q as soon as q->lock_ptr = NULL
 	 * is written, without taking any locks. This is possible in the event
 	 * of a spurious wakeup, for example. A memory barrier is required here
 	 * to prevent the following store to lock_ptr from getting ahead of the
-	 * plist_del in __unqueue_futex().
+	 * plist_del in __futex_unqueue().
 	 */
 	smp_store_release(&q->lock_ptr, NULL);
 
@@ -1958,7 +1958,7 @@ void requeue_pi_wake_futex(struct futex_q *q, union futex_key *key,
 {
 	q->key = *key;
 
-	__unqueue_futex(q);
+	__futex_unqueue(q);
 
 	WARN_ON(!q->rt_waiter);
 	q->rt_waiter = NULL;
@@ -2522,7 +2522,7 @@ retry:
 			spin_unlock(lock_ptr);
 			goto retry;
 		}
-		__unqueue_futex(q);
+		__futex_unqueue(q);
 
 		BUG_ON(q->pi_state);
 
@@ -2539,7 +2539,7 @@ retry:
  */
 static void futex_unqueue_pi(struct futex_q *q)
 {
-	__unqueue_futex(q);
+	__futex_unqueue(q);
 
 	BUG_ON(!q->pi_state);
 	put_pi_state(q->pi_state);
