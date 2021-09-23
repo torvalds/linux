@@ -123,14 +123,30 @@ start: if_expr
 
 if_expr: expr IF expr ELSE expr
 {
-	if (!compute_ids) {
-		$$.ids = NULL;
-		if (fpclassify($3.val) == FP_ZERO) {
-			$$.val = $5.val;
-		} else {
-			$$.val = $1.val;
-		}
+	if (fpclassify($3.val) == FP_ZERO) {
+		/*
+		 * The IF expression evaluated to 0 so treat as false, take the
+		 * ELSE and discard everything else.
+		 */
+		$$.val = $5.val;
+		$$.ids = $5.ids;
+		ids__free($1.ids);
+		ids__free($3.ids);
+	} else if (!compute_ids || is_const($3.val)) {
+		/*
+		 * If ids aren't computed then treat the expression as true. If
+		 * ids are being computed and the IF expr is a non-zero
+		 * constant, then also evaluate the true case.
+		 */
+		$$.val = $1.val;
+		$$.ids = $1.ids;
+		ids__free($3.ids);
+		ids__free($5.ids);
 	} else {
+		/*
+		 * Value is either the LHS or RHS and we need the IF expression
+		 * to compute it.
+		 */
 		$$ = union_expr($1, union_expr($3, $5));
 	}
 }
