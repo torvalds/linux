@@ -1157,6 +1157,32 @@ mlxsw_sp_ipip_entry_saddr_matches(struct mlxsw_sp *mlxsw_sp,
 	       mlxsw_sp_l3addr_eq(&tun_saddr, &saddr);
 }
 
+static int mlxsw_sp_ipip_decap_parsing_depth_inc(struct mlxsw_sp *mlxsw_sp,
+						 enum mlxsw_sp_ipip_type ipipt)
+{
+	const struct mlxsw_sp_ipip_ops *ipip_ops;
+
+	ipip_ops = mlxsw_sp->router->ipip_ops_arr[ipipt];
+
+	/* Not all tunnels require to increase the default pasing depth
+	 * (96 bytes).
+	 */
+	if (ipip_ops->inc_parsing_depth)
+		return mlxsw_sp_parsing_depth_inc(mlxsw_sp);
+
+	return 0;
+}
+
+static void mlxsw_sp_ipip_decap_parsing_depth_dec(struct mlxsw_sp *mlxsw_sp,
+						  enum mlxsw_sp_ipip_type ipipt)
+{
+	const struct mlxsw_sp_ipip_ops *ipip_ops =
+		mlxsw_sp->router->ipip_ops_arr[ipipt];
+
+	if (ipip_ops->inc_parsing_depth)
+		mlxsw_sp_parsing_depth_dec(mlxsw_sp);
+}
+
 static int
 mlxsw_sp_fib_entry_decap_init(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_fib_entry *fib_entry,
@@ -1170,18 +1196,32 @@ mlxsw_sp_fib_entry_decap_init(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
+	err = mlxsw_sp_ipip_decap_parsing_depth_inc(mlxsw_sp,
+						    ipip_entry->ipipt);
+	if (err)
+		goto err_parsing_depth_inc;
+
 	ipip_entry->decap_fib_entry = fib_entry;
 	fib_entry->decap.ipip_entry = ipip_entry;
 	fib_entry->decap.tunnel_index = tunnel_index;
+
 	return 0;
+
+err_parsing_depth_inc:
+	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ, 1,
+			   fib_entry->decap.tunnel_index);
+	return err;
 }
 
 static void mlxsw_sp_fib_entry_decap_fini(struct mlxsw_sp *mlxsw_sp,
 					  struct mlxsw_sp_fib_entry *fib_entry)
 {
+	enum mlxsw_sp_ipip_type ipipt = fib_entry->decap.ipip_entry->ipipt;
+
 	/* Unlink this node from the IPIP entry that it's the decap entry of. */
 	fib_entry->decap.ipip_entry->decap_fib_entry = NULL;
 	fib_entry->decap.ipip_entry = NULL;
+	mlxsw_sp_ipip_decap_parsing_depth_dec(mlxsw_sp, ipipt);
 	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ,
 			   1, fib_entry->decap.tunnel_index);
 }
