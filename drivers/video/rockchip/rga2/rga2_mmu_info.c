@@ -136,16 +136,10 @@ static bool rga2_is_yuv422p_format(u32 format)
 }
 
 #ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
-static int rga2_memory_check(void *vaddr, u32 w, u32 h, u32 format, int fd)
+static int rga2_get_format_bits(u32 format)
 {
-	int bits = 32;
-	int temp_data = 0;
-	void *one_line = kzalloc(w * 4, GFP_KERNEL);
+	int bits = 0;
 
-	if (!one_line) {
-		ERR("kzalloc fail %s[%d]\n", __func__, __LINE__);
-		return 0;
-	}
 	switch (format) {
 	case RGA2_FORMAT_RGBA_8888:
 	case RGA2_FORMAT_RGBX_8888:
@@ -190,10 +184,66 @@ static int rga2_memory_check(void *vaddr, u32 w, u32 h, u32 format, int fd)
 		bits = 15;
 		break;
 	default:
-		INFO("un know format\n");
-		kfree(one_line);
+		pr_err("unknown format [%d]\n", format);
 		return -1;
 	}
+
+	return bits;
+}
+static int rga2_user_memory_check(struct page **pages, u32 w, u32 h, u32 format, int flag)
+{
+	int bits;
+	void *vaddr = NULL;
+	int taipage_num;
+	int taidata_num;
+	int *tai_vaddr = NULL;
+
+	bits = rga2_get_format_bits(format);
+	if (bits < 0)
+		return -1;
+
+	taipage_num = w * h * bits / 8 / (1024 * 4);
+	taidata_num = w * h * bits / 8 % (1024 * 4);
+	if (taidata_num == 0) {
+		vaddr = kmap(pages[taipage_num - 1]);
+		tai_vaddr = (int *)vaddr + 1023;
+	} else {
+		vaddr = kmap(pages[taipage_num]);
+		tai_vaddr = (int *)vaddr + taidata_num / 4 - 1;
+	}
+
+	if (flag == 1) {
+		pr_info("src user memory check\n");
+		pr_info("tai data is %d\n", *tai_vaddr);
+	} else {
+		pr_info("dst user memory check\n");
+		pr_info("tai data is %d\n", *tai_vaddr);
+	}
+
+	if (taidata_num == 0)
+		kunmap(pages[taipage_num - 1]);
+	else
+		kunmap(pages[taipage_num]);
+
+	return 0;
+}
+
+static int rga2_virtual_memory_check(void *vaddr, u32 w, u32 h, u32 format, int fd)
+{
+	int bits = 32;
+	int temp_data = 0;
+	void *one_line = NULL;
+
+	bits = rga2_get_format_bits(format);
+	if (bits < 0)
+		return -1;
+
+	one_line = kzalloc(w * 4, GFP_KERNEL);
+	if (!one_line) {
+		ERR("kzalloc fail %s[%d]\n", __func__, __LINE__);
+		return 0;
+	}
+
 	temp_data = w * (h - 1) * bits >> 3;
 	if (fd > 0) {
 		INFO("vaddr is%p, bits is %d, fd check\n", vaddr, bits);
@@ -205,13 +255,39 @@ static int rga2_memory_check(void *vaddr, u32 w, u32 h, u32 format, int fd)
 		       w * bits >> 3);
 		INFO("vir addr check ok.\n");
 	}
+
 	kfree(one_line);
 	return 0;
+}
+
+static int rga2_dma_memory_check(struct rga_dma_buffer_t *buffer,
+				 struct rga_img_info_t *img)
+{
+	int ret = 0;
+	void *vaddr;
+	struct dma_buf *dma_buffer;
+
+	dma_buffer = buffer->dma_buf;
+
+	if (!IS_ERR_OR_NULL(dma_buffer)) {
+		vaddr = dma_buf_vmap(dma_buffer);
+		if (vaddr) {
+			ret = rga2_virtual_memory_check(vaddr, img->vir_w, img->vir_h,
+							img->format, img->yrgb_addr);
+		} else {
+			pr_err("can't vmap the dma buffer!\n");
+			return -EINVAL;
+		}
+
+		dma_buf_vunmap(dma_buffer, vaddr);
+	}
+
+	return ret;
 }
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
-static int rga2_map_dma_buffer(struct rga_img_info_t *img,
+static int rga2_map_dma_buffer(int fd,
 			       struct rga_dma_buffer_t *rga_dma_buffer,
 			       enum dma_data_direction dir)
 {
@@ -219,14 +295,9 @@ static int rga2_map_dma_buffer(struct rga_img_info_t *img,
 	struct dma_buf *dma_buf = NULL;
 	struct dma_buf_attachment *attach = NULL;
 	struct sg_table *sgt = NULL;
-	u32 vir_w, vir_h;
-	int fd = -1;
 	int ret = 0;
 
 	rga_dev = rga2_drvdata->dev;
-	fd = (int)img->yrgb_addr;
-	vir_w = img->vir_w;
-	vir_h = img->vir_h;
 
 	dma_buf = dma_buf_get(fd);
 	if (IS_ERR(dma_buf)) {
@@ -241,17 +312,6 @@ static int rga2_map_dma_buffer(struct rga_img_info_t *img,
 		pr_err("Failed to attach dma_buf\n");
 		goto err_get_attach;
 	}
-
-#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
-	if (RGA2_CHECK_MODE) {
-		void *vaddr = dma_buf_vmap(dma_buf);
-
-		if (vaddr)
-			rga2_memory_check(vaddr, img->vir_w, img->vir_h,
-					  img->format, img->yrgb_addr);
-		dma_buf_vunmap(dma_buf, vaddr);
-	}
-#endif
 
 	sgt = dma_buf_map_attachment(attach, dir);
 	if (IS_ERR(sgt)) {
@@ -333,12 +393,21 @@ int rga2_get_dma_info(struct rga2_reg *reg, struct rga2_req *req)
 		pr_err("Fix it please enable src0 mmu\n");
 		return -EINVAL;
 	} else if (mmu_flag && src0->yrgb_addr) {
-		ret = rga2_map_dma_buffer(src0, buffer_src0, DMA_BIDIRECTIONAL);
+		ret = rga2_map_dma_buffer(src0->yrgb_addr, buffer_src0, DMA_BIDIRECTIONAL);
 		if (ret < 0) {
 			pr_err("src0: can't map dma-buf\n");
 			return ret;
 		}
 	}
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
+	if (RGA2_CHECK_MODE) {
+		ret = rga2_dma_memory_check(buffer_src0, src0);
+		if (ret < 0) {
+			pr_err("src0 channel check memory error!\n");
+			return ret;
+		}
+	}
+#endif
 	rga2_convert_addr(src0);
 
 	/* src1 chanel */
@@ -348,12 +417,21 @@ int rga2_get_dma_info(struct rga2_reg *reg, struct rga2_req *req)
 		ret = -EINVAL;
 		goto err_src1_channel;
 	} else if (mmu_flag && src1->yrgb_addr) {
-		ret = rga2_map_dma_buffer(src1, buffer_src1, DMA_BIDIRECTIONAL);
+		ret = rga2_map_dma_buffer(src1->yrgb_addr, buffer_src1, DMA_BIDIRECTIONAL);
 		if (ret < 0) {
 			pr_err("src1: can't map dma-buf\n");
 			goto err_src1_channel;
 		}
 	}
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
+	if (RGA2_CHECK_MODE) {
+		ret = rga2_dma_memory_check(buffer_src1, src1);
+		if (ret < 0) {
+			pr_err("src1 channel check memory error!\n");
+			goto err_src1_channel;
+		}
+	}
+#endif
 	rga2_convert_addr(src1);
 
 	/* dst chanel */
@@ -363,12 +441,21 @@ int rga2_get_dma_info(struct rga2_reg *reg, struct rga2_req *req)
 		ret = -EINVAL;
 		goto err_dst_channel;
 	} else if (mmu_flag && dst->yrgb_addr) {
-		ret = rga2_map_dma_buffer(dst, buffer_dst, DMA_BIDIRECTIONAL);
+		ret = rga2_map_dma_buffer(dst->yrgb_addr, buffer_dst, DMA_BIDIRECTIONAL);
 		if (ret < 0) {
 			pr_err("dst: can't map dma-buf\n");
 			goto err_dst_channel;
 		}
 	}
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
+	if (RGA2_CHECK_MODE) {
+		ret = rga2_dma_memory_check(buffer_dst, dst);
+		if (ret < 0) {
+			pr_err("dst channel check memory error!\n");
+			goto err_dst_channel;
+		}
+	}
+#endif
 	rga2_convert_addr(dst);
 
 	/* els chanel */
@@ -378,12 +465,21 @@ int rga2_get_dma_info(struct rga2_reg *reg, struct rga2_req *req)
 		ret = -EINVAL;
 		goto err_els_channel;
 	} else if (mmu_flag && els->yrgb_addr) {
-		ret = rga2_map_dma_buffer(els, buffer_els, DMA_BIDIRECTIONAL);
+		ret = rga2_map_dma_buffer(els->yrgb_addr, buffer_els, DMA_BIDIRECTIONAL);
 		if (ret < 0) {
 			pr_err("els: can't map dma-buf\n");
 			goto err_els_channel;
 		}
 	}
+#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
+	if (RGA2_CHECK_MODE) {
+		ret = rga2_dma_memory_check(buffer_els, els);
+		if (ret < 0) {
+			pr_err("els channel check memory error!\n");
+			goto err_els_channel;
+		}
+	}
+#endif
 	rga2_convert_addr(els);
 
 	return 0;
@@ -405,7 +501,6 @@ void rga2_put_dma_info(struct rga2_reg *reg)
 	rga2_unmap_dma_buffer(&reg->dma_buffer_dst);
 	rga2_unmap_dma_buffer(&reg->dma_buffer_els);
 }
-
 #else
 static int rga2_get_dma_info(struct rga2_reg *reg, struct rga2_req *req)
 {
@@ -789,86 +884,6 @@ static int rga2_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr, uns
     return pageCount;
 }
 
-#ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
-static int rga2_UserMemory_cheeck(struct page **pages, u32 w, u32 h, u32 format, int flag)
-{
-	int bits;
-	void *vaddr = NULL;
-	int taipage_num;
-	int taidata_num;
-	int *tai_vaddr = NULL;
-
-	switch (format) {
-	case RGA2_FORMAT_RGBA_8888:
-	case RGA2_FORMAT_RGBX_8888:
-	case RGA2_FORMAT_BGRA_8888:
-	case RGA2_FORMAT_BGRX_8888:
-	case RGA2_FORMAT_ARGB_8888:
-	case RGA2_FORMAT_XRGB_8888:
-	case RGA2_FORMAT_ABGR_8888:
-	case RGA2_FORMAT_XBGR_8888:
-		bits = 32;
-		break;
-	case RGA2_FORMAT_RGB_888:
-	case RGA2_FORMAT_BGR_888:
-		bits = 24;
-		break;
-	case RGA2_FORMAT_RGB_565:
-	case RGA2_FORMAT_RGBA_5551:
-	case RGA2_FORMAT_RGBA_4444:
-	case RGA2_FORMAT_BGR_565:
-	case RGA2_FORMAT_YCbCr_422_SP:
-	case RGA2_FORMAT_YCbCr_422_P:
-	case RGA2_FORMAT_YCrCb_422_SP:
-	case RGA2_FORMAT_YCrCb_422_P:
-	case RGA2_FORMAT_BGRA_5551:
-	case RGA2_FORMAT_BGRA_4444:
-	case RGA2_FORMAT_ARGB_5551:
-	case RGA2_FORMAT_ARGB_4444:
-	case RGA2_FORMAT_ABGR_5551:
-	case RGA2_FORMAT_ABGR_4444:
-		bits = 16;
-		break;
-	case RGA2_FORMAT_YCbCr_420_SP:
-	case RGA2_FORMAT_YCbCr_420_P:
-	case RGA2_FORMAT_YCrCb_420_SP:
-	case RGA2_FORMAT_YCrCb_420_P:
-		bits = 12;
-		break;
-	case RGA2_FORMAT_YCbCr_420_SP_10B:
-	case RGA2_FORMAT_YCrCb_420_SP_10B:
-	case RGA2_FORMAT_YCbCr_422_SP_10B:
-	case RGA2_FORMAT_YCrCb_422_SP_10B:
-		bits = 15;
-		break;
-	default:
-		printk("un know format\n");
-		return -1;
-	}
-	taipage_num = w * h * bits / 8 / (1024 * 4);
-	taidata_num = w * h * bits / 8 % (1024 * 4);
-	if (taidata_num == 0) {
-		vaddr = kmap(pages[taipage_num - 1]);
-		tai_vaddr = (int *)vaddr + 1023;
-	} else {
-		vaddr = kmap(pages[taipage_num]);
-		tai_vaddr = (int *)vaddr + taidata_num / 4 - 1;
-	}
-	if (flag == 1) {
-		pr_info("src user memory check\n");
-		pr_info("tai data is %d\n", *tai_vaddr);
-	} else {
-		pr_info("dst user memory check\n");
-		pr_info("tai data is %d\n", *tai_vaddr);
-	}
-	if (taidata_num == 0)
-		kunmap(pages[taipage_num - 1]);
-	else
-		kunmap(pages[taipage_num]);
-	return 0;
-}
-#endif
-
 static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 			      unsigned long Memory, uint32_t pageCount,
 			      int writeFlag, int map)
@@ -1102,7 +1117,7 @@ static int rga2_mmu_flush_cache(struct rga2_reg *reg, struct rga2_req *req)
 						 MMU_MAP_CLEAN | MMU_MAP_INVALID);
 #ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 			if (RGA2_CHECK_MODE)
-				rga2_UserMemory_cheeck(&pages[0],
+				rga2_user_memory_check(&pages[0],
 						       req->dst.vir_w,
 						       req->dst.vir_h,
 						       req->dst.format,
@@ -1217,7 +1232,7 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 						 0, MMU_MAP_CLEAN);
 #ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 			if (RGA2_CHECK_MODE)
-				rga2_UserMemory_cheeck(&pages[0],
+				rga2_user_memory_check(&pages[0],
 						       req->src.vir_w,
 						       req->src.vir_h,
 						       req->src.format,
@@ -1288,7 +1303,7 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 						 MMU_MAP_CLEAN | MMU_MAP_INVALID);
 #ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 			if (RGA2_CHECK_MODE)
-				rga2_UserMemory_cheeck(&pages[0],
+				rga2_user_memory_check(&pages[0],
 						       req->dst.vir_w,
 						       req->dst.vir_h,
 						       req->dst.format,
@@ -1305,7 +1320,7 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 						 1, MMU_MAP_INVALID);
 #ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 			if (RGA2_CHECK_MODE)
-				rga2_UserMemory_cheeck(&pages[0],
+				rga2_user_memory_check(&pages[0],
 						       req->dst.vir_w,
 						       req->dst.vir_h,
 						       req->dst.format,
@@ -1436,7 +1451,7 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_reg *reg, struct rga2_re
                 SrcStart, SrcPageCount, 0, MMU_MAP_CLEAN);
 #ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
                 if (RGA2_CHECK_MODE)
-                rga2_UserMemory_cheeck(&pages[0], req->src.vir_w,
+                rga2_user_memory_check(&pages[0], req->src.vir_w,
                 req->src.vir_h, req->src.format,
                 1);
 #endif
@@ -1467,7 +1482,7 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_reg *reg, struct rga2_re
                 DstStart, DstPageCount, 1, MMU_MAP_INVALID);
 #ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
                 if (RGA2_CHECK_MODE)
-                rga2_UserMemory_cheeck(&pages[0], req->dst.vir_w,
+                rga2_user_memory_check(&pages[0], req->dst.vir_w,
                 req->dst.vir_h, req->dst.format,
                 1);
 #endif
