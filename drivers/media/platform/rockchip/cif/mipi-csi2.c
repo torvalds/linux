@@ -350,6 +350,7 @@ static void csi2_stop(struct csi2_dev *csi2)
 	v4l2_subdev_call(csi2->src_sd, video, s_stream, 0);
 
 	csi2_disable(csi2);
+	csi2_hw_do_reset(csi2);
 	csi2_disable_clks(csi2);
 }
 
