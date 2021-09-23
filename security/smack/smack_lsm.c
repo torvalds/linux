@@ -51,8 +51,10 @@
 #define SMK_RECEIVING	1
 #define SMK_SENDING	2
 
+#ifdef SMACK_IPV6_PORT_LABELING
 static DEFINE_MUTEX(smack_ipv6_lock);
 static LIST_HEAD(smk_ipv6_port_list);
+#endif
 struct kmem_cache *smack_rule_cache;
 int smack_enabled __initdata;
 
@@ -2603,7 +2605,6 @@ static void smk_ipv6_port_label(struct socket *sock, struct sockaddr *address)
 	mutex_unlock(&smack_ipv6_lock);
 	return;
 }
-#endif
 
 /**
  * smk_ipv6_port_check - check Smack port access
@@ -2666,6 +2667,7 @@ static int smk_ipv6_port_check(struct sock *sk, struct sockaddr_in6 *address,
 
 	return smk_ipv6_check(skp, object, address, act);
 }
+#endif
 
 /**
  * smack_inode_setsecurity - set smack xattrs
@@ -2852,8 +2854,9 @@ static int smack_socket_connect(struct socket *sock, struct sockaddr *sap,
 			rc = smk_ipv6_check(ssp->smk_out, rsp, sip,
 					    SMK_CONNECTING);
 		}
-		if (__is_defined(SMACK_IPV6_PORT_LABELING))
-			rc = smk_ipv6_port_check(sock->sk, sip, SMK_CONNECTING);
+#ifdef SMACK_IPV6_PORT_LABELING
+		rc = smk_ipv6_port_check(sock->sk, sip, SMK_CONNECTING);
+#endif
 
 		return rc;
 	}
