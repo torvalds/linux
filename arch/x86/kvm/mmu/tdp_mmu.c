@@ -489,8 +489,8 @@ static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 }
 
 /*
- * tdp_mmu_set_spte_atomic_no_dirty_log - Set a TDP MMU SPTE atomically
- * and handle the associated bookkeeping, but do not mark the page dirty
+ * tdp_mmu_set_spte_atomic - Set a TDP MMU SPTE atomically
+ * and handle the associated bookkeeping.  Do not mark the page dirty
  * in KVM's dirty bitmaps.
  *
  * @kvm: kvm instance
@@ -499,9 +499,9 @@ static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
  * Returns: true if the SPTE was set, false if it was not. If false is returned,
  *	    this function will have no side-effects.
  */
-static inline bool tdp_mmu_set_spte_atomic_no_dirty_log(struct kvm *kvm,
-							struct tdp_iter *iter,
-							u64 new_spte)
+static inline bool tdp_mmu_set_spte_atomic(struct kvm *kvm,
+					   struct tdp_iter *iter,
+					   u64 new_spte)
 {
 	lockdep_assert_held_read(&kvm->mmu_lock);
 
@@ -527,24 +527,6 @@ static inline bool tdp_mmu_set_spte_atomic_no_dirty_log(struct kvm *kvm,
 	return true;
 }
 
-/*
- * tdp_mmu_map_set_spte_atomic - Set a leaf TDP MMU SPTE atomically to resolve a
- * TDP page fault.
- *
- * @vcpu: The vcpu instance that took the TDP page fault.
- * @iter: a tdp_iter instance currently on the SPTE that should be set
- * @new_spte: The value the SPTE should be set to
- *
- * Returns: true if the SPTE was set, false if it was not. If false is returned,
- *	    this function will have no side-effects.
- */
-static inline bool tdp_mmu_map_set_spte_atomic(struct kvm_vcpu *vcpu,
-					       struct tdp_iter *iter,
-					       u64 new_spte)
-{
-	return tdp_mmu_set_spte_atomic_no_dirty_log(vcpu->kvm, iter, new_spte);
-}
-
 static inline bool tdp_mmu_zap_spte_atomic(struct kvm *kvm,
 					   struct tdp_iter *iter)
 {
@@ -554,7 +536,7 @@ static inline bool tdp_mmu_zap_spte_atomic(struct kvm *kvm,
 	 * immediately installing a present entry in its place
 	 * before the TLBs are flushed.
 	 */
-	if (!tdp_mmu_set_spte_atomic_no_dirty_log(kvm, iter, REMOVED_SPTE))
+	if (!tdp_mmu_set_spte_atomic(kvm, iter, REMOVED_SPTE))
 		return false;
 
 	kvm_flush_remote_tlbs_with_address(kvm, iter->gfn,
@@ -928,7 +910,7 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
 
 	if (new_spte == iter->old_spte)
 		ret = RET_PF_SPURIOUS;
-	else if (!tdp_mmu_map_set_spte_atomic(vcpu, iter, new_spte))
+	else if (!tdp_mmu_set_spte_atomic(vcpu->kvm, iter, new_spte))
 		return RET_PF_RETRY;
 
 	/*
@@ -1020,7 +1002,7 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 			new_spte = make_nonleaf_spte(child_pt,
 						     !shadow_accessed_mask);
 
-			if (tdp_mmu_set_spte_atomic_no_dirty_log(vcpu->kvm, &iter, new_spte)) {
+			if (tdp_mmu_set_spte_atomic(vcpu->kvm, &iter, new_spte)) {
 				tdp_mmu_link_page(vcpu->kvm, sp,
 						  fault->huge_page_disallowed &&
 						  fault->req_level >= iter.level);
@@ -1208,8 +1190,7 @@ retry:
 
 		new_spte = iter.old_spte & ~PT_WRITABLE_MASK;
 
-		if (!tdp_mmu_set_spte_atomic_no_dirty_log(kvm, &iter,
-							  new_spte)) {
+		if (!tdp_mmu_set_spte_atomic(kvm, &iter, new_spte)) {
 			/*
 			 * The iter must explicitly re-read the SPTE because
 			 * the atomic cmpxchg failed.
@@ -1277,8 +1258,7 @@ retry:
 				continue;
 		}
 
-		if (!tdp_mmu_set_spte_atomic_no_dirty_log(kvm, &iter,
-							  new_spte)) {
+		if (!tdp_mmu_set_spte_atomic(kvm, &iter, new_spte)) {
 			/*
 			 * The iter must explicitly re-read the SPTE because
 			 * the atomic cmpxchg failed.
