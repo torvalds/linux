@@ -85,7 +85,7 @@ static struct page **get_pages_vram(struct drm_gem_object *obj, int npages)
 
 	paddr = physaddr(obj);
 	for (i = 0; i < npages; i++) {
-		p[i] = phys_to_page(paddr);
+		p[i] = pfn_to_page(__phys_to_pfn(paddr));
 		paddr += PAGE_SIZE;
 	}
 
