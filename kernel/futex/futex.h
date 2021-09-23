@@ -3,6 +3,8 @@
 #define _FUTEX_H
 
 #include <linux/futex.h>
+#include <linux/sched/wake_q.h>
+
 #include <asm/futex.h>
 
 /*
@@ -118,21 +120,68 @@ enum futex_access {
 extern int get_futex_key(u32 __user *uaddr, bool fshared, union futex_key *key,
 			 enum futex_access rw);
 
-extern struct futex_hash_bucket *futex_hash(union futex_key *key);
-
 extern struct hrtimer_sleeper *
 futex_setup_timer(ktime_t *time, struct hrtimer_sleeper *timeout,
 		  int flags, u64 range_ns);
+
+extern struct futex_hash_bucket *futex_hash(union futex_key *key);
+
+/**
+ * futex_match - Check whether two futex keys are equal
+ * @key1:	Pointer to key1
+ * @key2:	Pointer to key2
+ *
+ * Return 1 if two futex_keys are equal, 0 otherwise.
+ */
+static inline int futex_match(union futex_key *key1, union futex_key *key2)
+{
+	return (key1 && key2
+		&& key1->both.word == key2->both.word
+		&& key1->both.ptr == key2->both.ptr
+		&& key1->both.offset == key2->both.offset);
+}
+
+extern int futex_wait_setup(u32 __user *uaddr, u32 val, unsigned int flags,
+			    struct futex_q *q, struct futex_hash_bucket **hb);
+extern void futex_wait_queue(struct futex_hash_bucket *hb, struct futex_q *q,
+				   struct hrtimer_sleeper *timeout);
+extern void futex_wake_mark(struct wake_q_head *wake_q, struct futex_q *q);
 
 extern int fault_in_user_writeable(u32 __user *uaddr);
 extern int futex_cmpxchg_value_locked(u32 *curval, u32 __user *uaddr, u32 uval, u32 newval);
 extern int futex_get_value_locked(u32 *dest, u32 __user *from);
 extern struct futex_q *futex_top_waiter(struct futex_hash_bucket *hb, union futex_key *key);
 
+extern void __futex_unqueue(struct futex_q *q);
 extern void __futex_queue(struct futex_q *q, struct futex_hash_bucket *hb);
 extern void futex_unqueue_pi(struct futex_q *q);
 
 extern void wait_for_owner_exiting(int ret, struct task_struct *exiting);
+
+/*
+ * Reflects a new waiter being added to the waitqueue.
+ */
+static inline void futex_hb_waiters_inc(struct futex_hash_bucket *hb)
+{
+#ifdef CONFIG_SMP
+	atomic_inc(&hb->waiters);
+	/*
+	 * Full barrier (A), see the ordering comment above.
+	 */
+	smp_mb__after_atomic();
+#endif
+}
+
+/*
+ * Reflects a waiter being removed from the waitqueue by wakeup
+ * paths.
+ */
+static inline void futex_hb_waiters_dec(struct futex_hash_bucket *hb)
+{
+#ifdef CONFIG_SMP
+	atomic_dec(&hb->waiters);
+#endif
+}
 
 extern struct futex_hash_bucket *futex_q_lock(struct futex_q *q);
 extern void futex_q_unlock(struct futex_hash_bucket *hb);
@@ -149,6 +198,30 @@ extern int refill_pi_state_cache(void);
 extern void get_pi_state(struct futex_pi_state *pi_state);
 extern void put_pi_state(struct futex_pi_state *pi_state);
 extern int fixup_pi_owner(u32 __user *uaddr, struct futex_q *q, int locked);
+
+/*
+ * Express the locking dependencies for lockdep:
+ */
+static inline void
+double_lock_hb(struct futex_hash_bucket *hb1, struct futex_hash_bucket *hb2)
+{
+	if (hb1 <= hb2) {
+		spin_lock(&hb1->lock);
+		if (hb1 < hb2)
+			spin_lock_nested(&hb2->lock, SINGLE_DEPTH_NESTING);
+	} else { /* hb1 > hb2 */
+		spin_lock(&hb2->lock);
+		spin_lock_nested(&hb1->lock, SINGLE_DEPTH_NESTING);
+	}
+}
+
+static inline void
+double_unlock_hb(struct futex_hash_bucket *hb1, struct futex_hash_bucket *hb2)
+{
+	spin_unlock(&hb1->lock);
+	if (hb1 != hb2)
+		spin_unlock(&hb2->lock);
+}
 
 /* syscalls */
 
