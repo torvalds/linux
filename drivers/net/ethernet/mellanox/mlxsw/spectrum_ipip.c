@@ -24,50 +24,50 @@ mlxsw_sp_ipip_netdev_parms6(const struct net_device *ol_dev)
 	return tun->parms;
 }
 
-static bool mlxsw_sp_ipip_parms4_has_ikey(struct ip_tunnel_parm parms)
+static bool mlxsw_sp_ipip_parms4_has_ikey(const struct ip_tunnel_parm *parms)
 {
-	return !!(parms.i_flags & TUNNEL_KEY);
+	return !!(parms->i_flags & TUNNEL_KEY);
 }
 
-static bool mlxsw_sp_ipip_parms4_has_okey(struct ip_tunnel_parm parms)
+static bool mlxsw_sp_ipip_parms4_has_okey(const struct ip_tunnel_parm *parms)
 {
-	return !!(parms.o_flags & TUNNEL_KEY);
+	return !!(parms->o_flags & TUNNEL_KEY);
 }
 
-static u32 mlxsw_sp_ipip_parms4_ikey(struct ip_tunnel_parm parms)
+static u32 mlxsw_sp_ipip_parms4_ikey(const struct ip_tunnel_parm *parms)
 {
 	return mlxsw_sp_ipip_parms4_has_ikey(parms) ?
-		be32_to_cpu(parms.i_key) : 0;
+		be32_to_cpu(parms->i_key) : 0;
 }
 
-static u32 mlxsw_sp_ipip_parms4_okey(struct ip_tunnel_parm parms)
+static u32 mlxsw_sp_ipip_parms4_okey(const struct ip_tunnel_parm *parms)
 {
 	return mlxsw_sp_ipip_parms4_has_okey(parms) ?
-		be32_to_cpu(parms.o_key) : 0;
+		be32_to_cpu(parms->o_key) : 0;
 }
 
 static union mlxsw_sp_l3addr
-mlxsw_sp_ipip_parms4_saddr(struct ip_tunnel_parm parms)
+mlxsw_sp_ipip_parms4_saddr(const struct ip_tunnel_parm *parms)
 {
-	return (union mlxsw_sp_l3addr) { .addr4 = parms.iph.saddr };
+	return (union mlxsw_sp_l3addr) { .addr4 = parms->iph.saddr };
 }
 
 static union mlxsw_sp_l3addr
-mlxsw_sp_ipip_parms6_saddr(struct __ip6_tnl_parm parms)
+mlxsw_sp_ipip_parms6_saddr(const struct __ip6_tnl_parm *parms)
 {
-	return (union mlxsw_sp_l3addr) { .addr6 = parms.laddr };
+	return (union mlxsw_sp_l3addr) { .addr6 = parms->laddr };
 }
 
 static union mlxsw_sp_l3addr
-mlxsw_sp_ipip_parms4_daddr(struct ip_tunnel_parm parms)
+mlxsw_sp_ipip_parms4_daddr(const struct ip_tunnel_parm *parms)
 {
-	return (union mlxsw_sp_l3addr) { .addr4 = parms.iph.daddr };
+	return (union mlxsw_sp_l3addr) { .addr4 = parms->iph.daddr };
 }
 
 static union mlxsw_sp_l3addr
-mlxsw_sp_ipip_parms6_daddr(struct __ip6_tnl_parm parms)
+mlxsw_sp_ipip_parms6_daddr(const struct __ip6_tnl_parm *parms)
 {
-	return (union mlxsw_sp_l3addr) { .addr6 = parms.raddr };
+	return (union mlxsw_sp_l3addr) { .addr6 = parms->raddr };
 }
 
 union mlxsw_sp_l3addr
@@ -80,10 +80,10 @@ mlxsw_sp_ipip_netdev_saddr(enum mlxsw_sp_l3proto proto,
 	switch (proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
 		parms4 = mlxsw_sp_ipip_netdev_parms4(ol_dev);
-		return mlxsw_sp_ipip_parms4_saddr(parms4);
+		return mlxsw_sp_ipip_parms4_saddr(&parms4);
 	case MLXSW_SP_L3_PROTO_IPV6:
 		parms6 = mlxsw_sp_ipip_netdev_parms6(ol_dev);
-		return mlxsw_sp_ipip_parms6_saddr(parms6);
+		return mlxsw_sp_ipip_parms6_saddr(&parms6);
 	}
 
 	WARN_ON(1);
@@ -95,7 +95,7 @@ static __be32 mlxsw_sp_ipip_netdev_daddr4(const struct net_device *ol_dev)
 
 	struct ip_tunnel_parm parms4 = mlxsw_sp_ipip_netdev_parms4(ol_dev);
 
-	return mlxsw_sp_ipip_parms4_daddr(parms4).addr4;
+	return mlxsw_sp_ipip_parms4_daddr(&parms4).addr4;
 }
 
 static union mlxsw_sp_l3addr
@@ -108,10 +108,10 @@ mlxsw_sp_ipip_netdev_daddr(enum mlxsw_sp_l3proto proto,
 	switch (proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
 		parms4 = mlxsw_sp_ipip_netdev_parms4(ol_dev);
-		return mlxsw_sp_ipip_parms4_daddr(parms4);
+		return mlxsw_sp_ipip_parms4_daddr(&parms4);
 	case MLXSW_SP_L3_PROTO_IPV6:
 		parms6 = mlxsw_sp_ipip_netdev_parms6(ol_dev);
-		return mlxsw_sp_ipip_parms6_daddr(parms6);
+		return mlxsw_sp_ipip_parms6_daddr(&parms6);
 	}
 
 	WARN_ON(1);
@@ -158,8 +158,8 @@ mlxsw_sp_ipip_decap_config_gre4(struct mlxsw_sp *mlxsw_sp,
 	u32 ikey;
 
 	parms = mlxsw_sp_ipip_netdev_parms4(ipip_entry->ol_dev);
-	has_ikey = mlxsw_sp_ipip_parms4_has_ikey(parms);
-	ikey = mlxsw_sp_ipip_parms4_ikey(parms);
+	has_ikey = mlxsw_sp_ipip_parms4_has_ikey(&parms);
+	ikey = mlxsw_sp_ipip_parms4_ikey(&parms);
 
 	mlxsw_reg_rtdp_pack(rtdp_pl, MLXSW_REG_RTDP_TYPE_IPIP, tunnel_index);
 	mlxsw_reg_rtdp_egress_router_interface_set(rtdp_pl, ul_rif_id);
@@ -218,12 +218,12 @@ mlxsw_sp_ipip_ol_loopback_config_gre4(struct mlxsw_sp *mlxsw_sp,
 	struct ip_tunnel_parm parms = mlxsw_sp_ipip_netdev_parms4(ol_dev);
 	enum mlxsw_reg_ritr_loopback_ipip_type lb_ipipt;
 
-	lb_ipipt = mlxsw_sp_ipip_parms4_has_okey(parms) ?
+	lb_ipipt = mlxsw_sp_ipip_parms4_has_okey(&parms) ?
 		MLXSW_REG_RITR_LOOPBACK_IPIP_TYPE_IP_IN_GRE_KEY_IN_IP :
 		MLXSW_REG_RITR_LOOPBACK_IPIP_TYPE_IP_IN_GRE_IN_IP;
 	return (struct mlxsw_sp_rif_ipip_lb_config){
 		.lb_ipipt = lb_ipipt,
-		.okey = mlxsw_sp_ipip_parms4_okey(parms),
+		.okey = mlxsw_sp_ipip_parms4_okey(&parms),
 		.ul_protocol = MLXSW_SP_L3_PROTO_IPV4,
 		.saddr = mlxsw_sp_ipip_netdev_saddr(MLXSW_SP_L3_PROTO_IPV4,
 						    ol_dev),
@@ -245,10 +245,10 @@ mlxsw_sp_ipip_ol_netdev_change_gre4(struct mlxsw_sp *mlxsw_sp,
 
 	new_parms = mlxsw_sp_ipip_netdev_parms4(ipip_entry->ol_dev);
 
-	new_saddr = mlxsw_sp_ipip_parms4_saddr(new_parms);
-	old_saddr = mlxsw_sp_ipip_parms4_saddr(ipip_entry->parms4);
-	new_daddr = mlxsw_sp_ipip_parms4_daddr(new_parms);
-	old_daddr = mlxsw_sp_ipip_parms4_daddr(ipip_entry->parms4);
+	new_saddr = mlxsw_sp_ipip_parms4_saddr(&new_parms);
+	old_saddr = mlxsw_sp_ipip_parms4_saddr(&ipip_entry->parms4);
+	new_daddr = mlxsw_sp_ipip_parms4_daddr(&new_parms);
+	old_daddr = mlxsw_sp_ipip_parms4_daddr(&ipip_entry->parms4);
 
 	if (!mlxsw_sp_l3addr_eq(&new_saddr, &old_saddr)) {
 		u16 ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(ipip_entry->ol_dev);
@@ -265,14 +265,14 @@ mlxsw_sp_ipip_ol_netdev_change_gre4(struct mlxsw_sp *mlxsw_sp,
 		}
 
 		update_tunnel = true;
-	} else if ((mlxsw_sp_ipip_parms4_okey(ipip_entry->parms4) !=
-		    mlxsw_sp_ipip_parms4_okey(new_parms)) ||
+	} else if ((mlxsw_sp_ipip_parms4_okey(&ipip_entry->parms4) !=
+		    mlxsw_sp_ipip_parms4_okey(&new_parms)) ||
 		   ipip_entry->parms4.link != new_parms.link) {
 		update_tunnel = true;
 	} else if (!mlxsw_sp_l3addr_eq(&new_daddr, &old_daddr)) {
 		update_nhs = true;
-	} else if (mlxsw_sp_ipip_parms4_ikey(ipip_entry->parms4) !=
-		   mlxsw_sp_ipip_parms4_ikey(new_parms)) {
+	} else if (mlxsw_sp_ipip_parms4_ikey(&ipip_entry->parms4) !=
+		   mlxsw_sp_ipip_parms4_ikey(&new_parms)) {
 		update_decap = true;
 	}
 
