@@ -966,6 +966,10 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 		break;
 	}
 	case VDUSE_DEV_INJECT_CONFIG_IRQ:
+		ret = -EINVAL;
+		if (!(dev->status & VIRTIO_CONFIG_S_DRIVER_OK))
+			break;
+
 		ret = 0;
 		queue_work(vduse_irq_wq, &dev->inject);
 		break;
@@ -1044,6 +1048,10 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 	}
 	case VDUSE_VQ_INJECT_IRQ: {
 		u32 index;
+
+		ret = -EINVAL;
+		if (!(dev->status & VIRTIO_CONFIG_S_DRIVER_OK))
+			break;
 
 		ret = -EFAULT;
 		if (get_user(index, (u32 __user *)argp))
