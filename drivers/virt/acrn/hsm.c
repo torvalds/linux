@@ -118,6 +118,7 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 	struct acrn_msi_entry *msi;
 	struct acrn_pcidev *pcidev;
 	struct acrn_irqfd irqfd;
+	struct acrn_vdev *vdev;
 	struct page *page;
 	u64 cstate_cmd;
 	int i, ret = 0;
@@ -265,6 +266,29 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 			dev_dbg(acrn_dev.this_device,
 				"Failed to deassign pci device!\n");
 		kfree(pcidev);
+		break;
+	case ACRN_IOCTL_CREATE_VDEV:
+		vdev = memdup_user((void __user *)ioctl_param,
+				   sizeof(struct acrn_vdev));
+		if (IS_ERR(vdev))
+			return PTR_ERR(vdev);
+
+		ret = hcall_create_vdev(vm->vmid, virt_to_phys(vdev));
+		if (ret < 0)
+			dev_dbg(acrn_dev.this_device,
+				"Failed to create virtual device!\n");
+		kfree(vdev);
+		break;
+	case ACRN_IOCTL_DESTROY_VDEV:
+		vdev = memdup_user((void __user *)ioctl_param,
+				   sizeof(struct acrn_vdev));
+		if (IS_ERR(vdev))
+			return PTR_ERR(vdev);
+		ret = hcall_destroy_vdev(vm->vmid, virt_to_phys(vdev));
+		if (ret < 0)
+			dev_dbg(acrn_dev.this_device,
+				"Failed to destroy virtual device!\n");
+		kfree(vdev);
 		break;
 	case ACRN_IOCTL_SET_PTDEV_INTR:
 		irq_info = memdup_user((void __user *)ioctl_param,

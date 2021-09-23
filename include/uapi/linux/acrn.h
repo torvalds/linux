@@ -442,6 +442,44 @@ struct acrn_mmiodev {
 };
 
 /**
+ * struct acrn_vdev - Info for creating or destroying a virtual device
+ * @id:				Union of identifier of the virtual device
+ * @id.value:			Raw data of the identifier
+ * @id.fields.vendor:		Vendor id of the virtual PCI device
+ * @id.fields.device:		Device id of the virtual PCI device
+ * @id.fields.legacy_id:	ID of the virtual device if not a PCI device
+ * @slot:			Virtual Bus/Device/Function of the virtual
+ *				device
+ * @io_base:			IO resource base address of the virtual device
+ * @io_size:			IO resource size of the virtual device
+ * @args:			Arguments for the virtual device creation
+ *
+ * The created virtual device can be a PCI device or a legacy device (e.g.
+ * a virtual UART controller) and it is emulated by the hypervisor. This
+ * structure will be passed to hypervisor directly.
+ */
+struct acrn_vdev {
+	/*
+	 * the identifier of the device, the low 32 bits represent the vendor
+	 * id and device id of PCI device and the high 32 bits represent the
+	 * device number of the legacy device
+	 */
+	union {
+		__u64 value;
+		struct {
+			__le16 vendor;
+			__le16 device;
+			__le32 legacy_id;
+		} fields;
+	} id;
+
+	__u64	slot;
+	__u32	io_addr[ACRN_PCI_NUM_BARS];
+	__u32	io_size[ACRN_PCI_NUM_BARS];
+	__u8	args[128];
+};
+
+/**
  * struct acrn_msi_entry - Info for injecting a MSI interrupt to a VM
  * @msi_addr:	MSI addr[19:12] with dest vCPU ID
  * @msi_data:	MSI data[7:0] with vector
@@ -596,6 +634,10 @@ struct acrn_irqfd {
 	_IOW(ACRN_IOCTL_TYPE, 0x57, struct acrn_mmiodev)
 #define ACRN_IOCTL_DEASSIGN_MMIODEV	\
 	_IOW(ACRN_IOCTL_TYPE, 0x58, struct acrn_mmiodev)
+#define ACRN_IOCTL_CREATE_VDEV	\
+	_IOW(ACRN_IOCTL_TYPE, 0x59, struct acrn_vdev)
+#define ACRN_IOCTL_DESTROY_VDEV	\
+	_IOW(ACRN_IOCTL_TYPE, 0x5A, struct acrn_vdev)
 
 #define ACRN_IOCTL_PM_GET_CPU_STATE	\
 	_IOWR(ACRN_IOCTL_TYPE, 0x60, __u64)
