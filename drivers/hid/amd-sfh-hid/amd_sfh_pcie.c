@@ -234,7 +234,7 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		return -ENOMEM;
 
 	privdata->pdev = pdev;
-	pci_set_drvdata(pdev, privdata);
+	dev_set_drvdata(&pdev->dev, privdata);
 	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
@@ -269,8 +269,7 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 static int __maybe_unused amd_mp2_pci_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct amd_mp2_dev *mp2 = pci_get_drvdata(pdev);
+	struct amd_mp2_dev *mp2 = dev_get_drvdata(dev);
 	struct amdtp_cl_data *cl_data = mp2->cl_data;
 	struct amd_mp2_sensor_info info;
 	int i, status;
@@ -295,8 +294,7 @@ static int __maybe_unused amd_mp2_pci_resume(struct device *dev)
 
 static int __maybe_unused amd_mp2_pci_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct amd_mp2_dev *mp2 = pci_get_drvdata(pdev);
+	struct amd_mp2_dev *mp2 = dev_get_drvdata(dev);
 	struct amdtp_cl_data *cl_data = mp2->cl_data;
 	int i, status;
 
