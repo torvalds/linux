@@ -8,6 +8,7 @@
 #include <linux/ctype.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
@@ -214,6 +215,17 @@ static struct freq_tbl ftbl_blsp1_qup1_spi_apps_clk_src[] = {
 	F(24000000, P_GPLL0, 12.5, 1, 2),
 	F(25000000, P_GPLL0, 12, 1, 2),
 	F(48000000, P_GPLL0, 12.5, 0, 0),
+	F(50000000, P_GPLL0, 12, 0, 0),
+	{ }
+};
+
+static struct freq_tbl ftbl_blsp1_qup_spi_apps_clk_src_8992[] = {
+	F(960000, P_XO, 10, 1, 2),
+	F(4800000, P_XO, 4, 0, 0),
+	F(9600000, P_XO, 2, 0, 0),
+	F(15000000, P_GPLL0, 10, 1, 4),
+	F(19200000, P_XO, 1, 0, 0),
+	F(25000000, P_GPLL0, 12, 1, 2),
 	F(50000000, P_GPLL0, 12, 0, 0),
 	{ }
 };
@@ -971,6 +983,18 @@ static struct freq_tbl ftbl_sdcc1_apps_clk_src[] = {
 	F(100000000, P_GPLL0, 6, 0, 0),
 	F(192000000, P_GPLL4, 2, 0, 0),
 	F(384000000, P_GPLL4, 1, 0, 0),
+	{ }
+};
+
+static struct freq_tbl ftbl_sdcc1_apps_clk_src_8992[] = {
+	F(144000, P_XO, 16, 3, 25),
+	F(400000, P_XO, 12, 1, 4),
+	F(20000000, P_GPLL0, 15, 1, 2),
+	F(25000000, P_GPLL0, 12, 1, 2),
+	F(50000000, P_GPLL0, 12, 0, 0),
+	F(100000000, P_GPLL0, 6, 0, 0),
+	F(172000000, P_GPLL4, 2, 0, 0),
+	F(344000000, P_GPLL4, 1, 0, 0),
 	{ }
 };
 
@@ -2710,13 +2734,58 @@ static const struct qcom_cc_desc gcc_msm8994_desc = {
 };
 
 static const struct of_device_id gcc_msm8994_match_table[] = {
-	{ .compatible = "qcom,gcc-msm8994" },
+	{ .compatible = "qcom,gcc-msm8992" },
+	{ .compatible = "qcom,gcc-msm8994" }, /* V2 and V2.1 */
 	{}
 };
 MODULE_DEVICE_TABLE(of, gcc_msm8994_match_table);
 
 static int gcc_msm8994_probe(struct platform_device *pdev)
 {
+	if (of_device_is_compatible(pdev->dev.of_node, "qcom,gcc-msm8992")) {
+		/* MSM8992 features less clocks and some have different freq tables */
+		gcc_msm8994_desc.clks[UFS_AXI_CLK_SRC] = NULL;
+		gcc_msm8994_desc.clks[GCC_LPASS_Q6_AXI_CLK] = NULL;
+		gcc_msm8994_desc.clks[UFS_PHY_LDO] = NULL;
+		gcc_msm8994_desc.clks[GCC_UFS_AHB_CLK] = NULL;
+		gcc_msm8994_desc.clks[GCC_UFS_AXI_CLK] = NULL;
+		gcc_msm8994_desc.clks[GCC_UFS_RX_CFG_CLK] = NULL;
+		gcc_msm8994_desc.clks[GCC_UFS_RX_SYMBOL_0_CLK] = NULL;
+		gcc_msm8994_desc.clks[GCC_UFS_RX_SYMBOL_1_CLK] = NULL;
+		gcc_msm8994_desc.clks[GCC_UFS_TX_CFG_CLK] = NULL;
+		gcc_msm8994_desc.clks[GCC_UFS_TX_SYMBOL_0_CLK] = NULL;
+		gcc_msm8994_desc.clks[GCC_UFS_TX_SYMBOL_1_CLK] = NULL;
+
+		sdcc1_apps_clk_src.freq_tbl = ftbl_sdcc1_apps_clk_src_8992;
+		blsp1_qup1_i2c_apps_clk_src.freq_tbl = ftbl_blsp1_qup_spi_apps_clk_src_8992;
+		blsp1_qup2_i2c_apps_clk_src.freq_tbl = ftbl_blsp1_qup_spi_apps_clk_src_8992;
+		blsp1_qup3_i2c_apps_clk_src.freq_tbl = ftbl_blsp1_qup_spi_apps_clk_src_8992;
+		blsp1_qup4_i2c_apps_clk_src.freq_tbl = ftbl_blsp1_qup_spi_apps_clk_src_8992;
+		blsp1_qup5_i2c_apps_clk_src.freq_tbl = ftbl_blsp1_qup_spi_apps_clk_src_8992;
+		blsp1_qup6_i2c_apps_clk_src.freq_tbl = ftbl_blsp1_qup_spi_apps_clk_src_8992;
+		blsp2_qup1_i2c_apps_clk_src.freq_tbl = ftbl_blsp1_qup_spi_apps_clk_src_8992;
+		blsp2_qup2_i2c_apps_clk_src.freq_tbl = ftbl_blsp1_qup_spi_apps_clk_src_8992;
+		blsp2_qup3_i2c_apps_clk_src.freq_tbl = ftbl_blsp1_qup_spi_apps_clk_src_8992;
+		blsp2_qup4_i2c_apps_clk_src.freq_tbl = ftbl_blsp1_qup_spi_apps_clk_src_8992;
+		blsp2_qup5_i2c_apps_clk_src.freq_tbl = ftbl_blsp1_qup_spi_apps_clk_src_8992;
+		blsp2_qup6_i2c_apps_clk_src.freq_tbl = ftbl_blsp1_qup_spi_apps_clk_src_8992;
+
+		/*
+		 * Some 8992 boards might *possibly* use
+		 * PCIe1 clocks and controller, but it's not
+		 * standard and they should be disabled otherwise.
+		 */
+		gcc_msm8994_desc.clks[PCIE_1_AUX_CLK_SRC] = NULL;
+		gcc_msm8994_desc.clks[PCIE_1_PIPE_CLK_SRC] = NULL;
+		gcc_msm8994_desc.clks[PCIE_1_PHY_LDO] = NULL;
+		gcc_msm8994_desc.clks[GCC_PCIE_1_AUX_CLK] = NULL;
+		gcc_msm8994_desc.clks[GCC_PCIE_1_CFG_AHB_CLK] = NULL;
+		gcc_msm8994_desc.clks[GCC_PCIE_1_MSTR_AXI_CLK] = NULL;
+		gcc_msm8994_desc.clks[GCC_PCIE_1_PIPE_CLK] = NULL;
+		gcc_msm8994_desc.clks[GCC_PCIE_1_SLV_AXI_CLK] = NULL;
+		gcc_msm8994_desc.clks[GCC_SYS_NOC_UFS_AXI_CLK] = NULL;
+	}
+
 	return qcom_cc_probe(pdev, &gcc_msm8994_desc);
 }
 
