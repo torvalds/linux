@@ -501,6 +501,7 @@ sub search_symbols {
 
 		my $file = $data{$what}->{filepath};
 
+		$what =~ s/\xac/, /g;
 		my $bar = $what;
 		$bar =~ s/./-/g;
 
