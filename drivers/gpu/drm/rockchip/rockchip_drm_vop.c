@@ -148,7 +148,6 @@
 		} \
 	} while (0)
 
-#define to_vop(x) container_of(x, struct vop, crtc)
 #define to_vop_win(x) container_of(x, struct vop_win, base)
 #define to_vop_plane_state(x) container_of(x, struct vop_plane_state, base)
 
@@ -227,7 +226,7 @@ struct vop_win {
 };
 
 struct vop {
-	struct drm_crtc crtc;
+	struct rockchip_crtc rockchip_crtc;
 	struct device *dev;
 	struct drm_device *drm_dev;
 	struct dentry *debugfs;
@@ -335,6 +334,15 @@ static const struct drm_bus_format_enum_list drm_bus_format_enum_list[] = {
 };
 
 static DRM_ENUM_NAME_FN(drm_get_bus_format_name, drm_bus_format_enum_list)
+
+static inline struct vop *to_vop(struct drm_crtc *crtc)
+{
+	struct rockchip_crtc *rockchip_crtc;
+
+	rockchip_crtc = container_of(crtc, struct rockchip_crtc, crtc);
+
+	return container_of(rockchip_crtc, struct vop, rockchip_crtc);
+}
 
 static void vop_lock(struct vop *vop)
 {
@@ -1814,14 +1822,12 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	struct vop_dump_list *planlist;
 	unsigned long num_pages;
 	struct page **pages;
-	struct rockchip_drm_fb *rk_fb;
 	struct drm_gem_object *obj;
 	struct rockchip_gem_object *rk_obj;
 
 	num_pages = 0;
 	pages = NULL;
-	rk_fb = to_rockchip_fb(fb);
-	obj = rk_fb->obj[0];
+	obj = fb->obj[0];
 	rk_obj = to_rockchip_obj(obj);
 	if (rk_obj) {
 		num_pages = rk_obj->num_pages;
@@ -1981,17 +1987,17 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		planlist->dump_info.offset = vop_plane_state->offset;
 		planlist->dump_info.pitches = fb->pitches[0];
 		planlist->dump_info.height = actual_h;
-		planlist->dump_info.pixel_format = fb->format->format;
-		list_add_tail(&planlist->entry, &crtc->vop_dump_list_head);
+		planlist->dump_info.format = fb->format;
+		list_add_tail(&planlist->entry, &vop->rockchip_crtc.vop_dump_list_head);
 		vop_plane_state->planlist = planlist;
 	} else {
 		DRM_ERROR("can't alloc a node of planlist %p\n", planlist);
 		return;
 	}
-	if (crtc->vop_dump_status == DUMP_KEEP ||
-	    crtc->vop_dump_times > 0) {
-		vop_plane_dump(&planlist->dump_info, crtc->frame_count);
-		crtc->vop_dump_times--;
+	if (vop->rockchip_crtc.vop_dump_status == DUMP_KEEP ||
+	    vop->rockchip_crtc.vop_dump_times > 0) {
+		rockchip_drm_dump_plane_buffer(&planlist->dump_info, vop->rockchip_crtc.frame_count);
+		vop->rockchip_crtc.vop_dump_times--;
 	}
 #endif
 }
@@ -2555,7 +2561,7 @@ static int vop_crtc_debugfs_init(struct drm_minor *minor, struct drm_crtc *crtc)
 		goto remove;
 	}
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-	drm_debugfs_vop_add(crtc, vop->debugfs);
+	rockchip_drm_add_dump_buffer(crtc, vop->debugfs);
 #endif
 	for (i = 0; i < ARRAY_SIZE(vop_debugfs_files); i++)
 		vop->debugfs_files[i].data = vop;
@@ -2689,22 +2695,23 @@ static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
 	struct drm_atomic_state *state = crtc_state->state;
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	struct vop_dump_list *pos, *n;
+	struct vop *vop = to_vop(crtc);
 #endif
 
 	if (!htotal || !vdisplay)
 		return 0;
 
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-	if (!crtc->vop_dump_list_init_flag) {
-		INIT_LIST_HEAD(&crtc->vop_dump_list_head);
-		crtc->vop_dump_list_init_flag = true;
+	if (!vop->rockchip_crtc.vop_dump_list_init_flag) {
+		INIT_LIST_HEAD(&vop->rockchip_crtc.vop_dump_list_head);
+		vop->rockchip_crtc.vop_dump_list_init_flag = true;
 	}
-	list_for_each_entry_safe(pos, n, &crtc->vop_dump_list_head, entry) {
+	list_for_each_entry_safe(pos, n, &vop->rockchip_crtc.vop_dump_list_head, entry) {
 		list_del(&pos->entry);
 	}
-	if (crtc->vop_dump_status == DUMP_KEEP ||
-	    crtc->vop_dump_times > 0) {
-		crtc->frame_count++;
+	if (vop->rockchip_crtc.vop_dump_status == DUMP_KEEP ||
+	    vop->rockchip_crtc.vop_dump_times > 0) {
+		vop->rockchip_crtc.frame_count++;
 	}
 #endif
 
@@ -4049,14 +4056,14 @@ static void vop_fb_unref_worker(struct drm_flip_work *work, void *val)
 	struct vop *vop = container_of(work, struct vop, fb_unref_work);
 	struct drm_framebuffer *fb = val;
 
-	drm_crtc_vblank_put(&vop->crtc);
+	drm_crtc_vblank_put(&vop->rockchip_crtc.crtc);
 	drm_framebuffer_put(fb);
 }
 
 static void vop_handle_vblank(struct vop *vop)
 {
 	struct drm_device *drm = vop->drm_dev;
-	struct drm_crtc *crtc = &vop->crtc;
+	struct drm_crtc *crtc = &vop->rockchip_crtc.crtc;
 	unsigned long flags;
 
 	spin_lock_irqsave(&drm->event_lock, flags);
@@ -4074,7 +4081,7 @@ static void vop_handle_vblank(struct vop *vop)
 static irqreturn_t vop_isr(int irq, void *data)
 {
 	struct vop *vop = data;
-	struct drm_crtc *crtc = &vop->crtc;
+	struct drm_crtc *crtc = &vop->rockchip_crtc.crtc;
 	uint32_t active_irqs;
 	unsigned long flags;
 	int ret = IRQ_NONE;
@@ -4373,7 +4380,7 @@ static int vop_create_crtc(struct vop *vop)
 	struct drm_device *drm_dev = vop->drm_dev;
 	struct rockchip_drm_private *private = drm_dev->dev_private;
 	struct drm_plane *primary = NULL, *cursor = NULL, *plane, *tmp;
-	struct drm_crtc *crtc = &vop->crtc;
+	struct drm_crtc *crtc = &vop->rockchip_crtc.crtc;
 	struct device_node *port;
 	int ret = 0;
 	int i;
@@ -4506,7 +4513,7 @@ err_cleanup_planes:
 
 static void vop_destroy_crtc(struct vop *vop)
 {
-	struct drm_crtc *crtc = &vop->crtc;
+	struct drm_crtc *crtc = &vop->rockchip_crtc.crtc;
 	struct drm_device *drm_dev = vop->drm_dev;
 	struct drm_plane *plane, *tmp;
 
