@@ -2740,7 +2740,8 @@ static int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 				u32 timeout_us, u64 user_address,
 				u64 target_value, u16 interrupt_offset,
-				enum hl_cs_wait_status *status)
+				enum hl_cs_wait_status *status,
+				bool take_timestamp, u64 *timestamp)
 {
 	struct hl_user_pending_interrupt *pend;
 	struct hl_user_interrupt *interrupt;
@@ -2763,6 +2764,8 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	}
 
 	hl_fence_init(&pend->fence, ULONG_MAX);
+
+	pend->fence.take_timestamp = take_timestamp;
 
 	if (interrupt_offset == HL_COMMON_USER_INTERRUPT_ID)
 		interrupt = &hdev->common_user_interrupt;
@@ -2838,6 +2841,8 @@ remove_pending_user_interrupt:
 	list_del(&pend->wait_list_node);
 	spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 
+	*timestamp = ktime_to_ns(pend->fence.timestamp);
+
 	kfree(pend);
 	hl_ctx_put(ctx);
 
@@ -2851,6 +2856,7 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	struct asic_fixed_properties *prop;
 	union hl_wait_cs_args *args = data;
 	enum hl_cs_wait_status status;
+	u64 timestamp;
 	int rc;
 
 	prop = &hdev->asic_prop;
@@ -2880,7 +2886,9 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 
 	rc = _hl_interrupt_wait_ioctl(hdev, hpriv->ctx,
 				args->in.interrupt_timeout_us, args->in.addr,
-				args->in.target, interrupt_offset, &status);
+				args->in.target, interrupt_offset, &status,
+				args->in.flags & HL_CS_FLAGS_TIMESTAMP,
+				&timestamp);
 
 	if (rc) {
 		if (rc != -EINTR)
@@ -2891,6 +2899,11 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	}
 
 	memset(args, 0, sizeof(*args));
+
+	if (timestamp) {
+		args->out.timestamp_nsec = timestamp;
+		args->out.flags |= HL_WAIT_CS_STATUS_FLAG_TIMESTAMP_VLD;
+	}
 
 	switch (status) {
 	case CS_WAIT_STATUS_COMPLETED:
