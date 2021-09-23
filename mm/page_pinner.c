@@ -59,7 +59,7 @@ static bool page_pinner_enabled;
 DEFINE_STATIC_KEY_FALSE(page_pinner_inited);
 
 DEFINE_STATIC_KEY_TRUE(failure_tracking);
-EXPORT_SYMBOL_GPL(failure_tracking);
+EXPORT_SYMBOL(failure_tracking);
 
 static depot_stack_handle_t failure_handle;
 
@@ -350,7 +350,7 @@ void __page_pinner_migration_failed(struct page *page)
 	acf_pinner.pinner[idx] = record;
 	spin_unlock_irqrestore(&acf_pinner.lock, flags);
 }
-EXPORT_SYMBOL_GPL(__page_pinner_migration_failed);
+EXPORT_SYMBOL(__page_pinner_migration_failed);
 
 void __page_pinner_mark_migration_failed_pages(struct list_head *page_list)
 {
