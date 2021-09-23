@@ -226,6 +226,8 @@ static inline bool mlxsw_sp_l3addr_eq(const union mlxsw_sp_l3addr *addr1,
 
 int mlxsw_sp_ipip_ecn_encap_init(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_ipip_ecn_decap_init(struct mlxsw_sp *mlxsw_sp);
+struct net_device *
+mlxsw_sp_ipip_netdev_ul_dev_get(const struct net_device *ol_dev);
 
 extern const struct mlxsw_sp_router_ll_ops mlxsw_sp_router_ll_xm_ops;
 

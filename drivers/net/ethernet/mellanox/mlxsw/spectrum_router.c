@@ -1055,22 +1055,13 @@ static void mlxsw_sp_vrs_fini(struct mlxsw_sp *mlxsw_sp)
 	kfree(mlxsw_sp->router->vrs);
 }
 
-static struct net_device *
-__mlxsw_sp_ipip_netdev_ul_dev_get(const struct net_device *ol_dev)
-{
-	struct ip_tunnel *tun = netdev_priv(ol_dev);
-	struct net *net = dev_net(ol_dev);
-
-	return dev_get_by_index_rcu(net, tun->parms.link);
-}
-
 u32 mlxsw_sp_ipip_dev_ul_tb_id(const struct net_device *ol_dev)
 {
 	struct net_device *d;
 	u32 tb_id;
 
 	rcu_read_lock();
-	d = __mlxsw_sp_ipip_netdev_ul_dev_get(ol_dev);
+	d = mlxsw_sp_ipip_netdev_ul_dev_get(ol_dev);
 	if (d)
 		tb_id = l3mdev_fib_table(d) ? : RT_TABLE_MAIN;
 	else
@@ -1441,7 +1432,7 @@ mlxsw_sp_ipip_entry_find_by_ul_dev(const struct mlxsw_sp *mlxsw_sp,
 		struct net_device *ipip_ul_dev;
 
 		rcu_read_lock();
-		ipip_ul_dev = __mlxsw_sp_ipip_netdev_ul_dev_get(ol_dev);
+		ipip_ul_dev = mlxsw_sp_ipip_netdev_ul_dev_get(ol_dev);
 		rcu_read_unlock();
 
 		if (ipip_ul_dev == ul_dev)
@@ -1821,7 +1812,7 @@ static void mlxsw_sp_ipip_demote_tunnel_by_ul_netdev(struct mlxsw_sp *mlxsw_sp,
 		struct net_device *ipip_ul_dev;
 
 		rcu_read_lock();
-		ipip_ul_dev = __mlxsw_sp_ipip_netdev_ul_dev_get(ol_dev);
+		ipip_ul_dev = mlxsw_sp_ipip_netdev_ul_dev_get(ol_dev);
 		rcu_read_unlock();
 		if (ipip_ul_dev == ul_dev)
 			mlxsw_sp_ipip_entry_demote_tunnel(mlxsw_sp, ipip_entry);
@@ -4146,7 +4137,7 @@ static bool mlxsw_sp_ipip_netdev_ul_up(struct net_device *ol_dev)
 	bool is_up;
 
 	rcu_read_lock();
-	ul_dev = __mlxsw_sp_ipip_netdev_ul_dev_get(ol_dev);
+	ul_dev = mlxsw_sp_ipip_netdev_ul_dev_get(ol_dev);
 	is_up = ul_dev ? (ul_dev->flags & IFF_UP) : true;
 	rcu_read_unlock();
 

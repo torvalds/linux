@@ -384,3 +384,18 @@ int mlxsw_sp_ipip_ecn_decap_init(struct mlxsw_sp *mlxsw_sp)
 
 	return 0;
 }
+
+struct net_device *
+mlxsw_sp_ipip_netdev_ul_dev_get(const struct net_device *ol_dev)
+{
+	struct net *net = dev_net(ol_dev);
+	struct ip_tunnel *tun4;
+
+	switch (ol_dev->type) {
+	case ARPHRD_IPGRE:
+		tun4 = netdev_priv(ol_dev);
+		return dev_get_by_index_rcu(net, tun4->parms.link);
+	default:
+		return NULL;
+	}
+}
