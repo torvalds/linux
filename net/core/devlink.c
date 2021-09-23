@@ -10117,56 +10117,6 @@ void devlink_params_unpublish(struct devlink *devlink)
 }
 EXPORT_SYMBOL_GPL(devlink_params_unpublish);
 
-static int
-__devlink_param_driverinit_value_get(struct list_head *param_list, u32 param_id,
-				     union devlink_param_value *init_val)
-{
-	struct devlink_param_item *param_item;
-
-	param_item = devlink_param_find_by_id(param_list, param_id);
-	if (!param_item)
-		return -EINVAL;
-
-	if (!param_item->driverinit_value_valid ||
-	    !devlink_param_cmode_is_supported(param_item->param,
-					      DEVLINK_PARAM_CMODE_DRIVERINIT))
-		return -EOPNOTSUPP;
-
-	if (param_item->param->type == DEVLINK_PARAM_TYPE_STRING)
-		strcpy(init_val->vstr, param_item->driverinit_value.vstr);
-	else
-		*init_val = param_item->driverinit_value;
-
-	return 0;
-}
-
-static int
-__devlink_param_driverinit_value_set(struct devlink *devlink,
-				     unsigned int port_index,
-				     struct list_head *param_list, u32 param_id,
-				     union devlink_param_value init_val,
-				     enum devlink_command cmd)
-{
-	struct devlink_param_item *param_item;
-
-	param_item = devlink_param_find_by_id(param_list, param_id);
-	if (!param_item)
-		return -EINVAL;
-
-	if (!devlink_param_cmode_is_supported(param_item->param,
-					      DEVLINK_PARAM_CMODE_DRIVERINIT))
-		return -EOPNOTSUPP;
-
-	if (param_item->param->type == DEVLINK_PARAM_TYPE_STRING)
-		strcpy(param_item->driverinit_value.vstr, init_val.vstr);
-	else
-		param_item->driverinit_value = init_val;
-	param_item->driverinit_value_valid = true;
-
-	devlink_param_notify(devlink, port_index, param_item, cmd);
-	return 0;
-}
-
 /**
  *	devlink_param_driverinit_value_get - get configuration parameter
  *					     value for driver initializing
@@ -10181,11 +10131,26 @@ __devlink_param_driverinit_value_set(struct devlink *devlink,
 int devlink_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
 				       union devlink_param_value *init_val)
 {
+	struct devlink_param_item *param_item;
+
 	if (!devlink_reload_supported(devlink->ops))
 		return -EOPNOTSUPP;
 
-	return __devlink_param_driverinit_value_get(&devlink->param_list,
-						    param_id, init_val);
+	param_item = devlink_param_find_by_id(&devlink->param_list, param_id);
+	if (!param_item)
+		return -EINVAL;
+
+	if (!param_item->driverinit_value_valid ||
+	    !devlink_param_cmode_is_supported(param_item->param,
+					      DEVLINK_PARAM_CMODE_DRIVERINIT))
+		return -EOPNOTSUPP;
+
+	if (param_item->param->type == DEVLINK_PARAM_TYPE_STRING)
+		strcpy(init_val->vstr, param_item->driverinit_value.vstr);
+	else
+		*init_val = param_item->driverinit_value;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(devlink_param_driverinit_value_get);
 
@@ -10204,10 +10169,24 @@ EXPORT_SYMBOL_GPL(devlink_param_driverinit_value_get);
 int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 				       union devlink_param_value init_val)
 {
-	return __devlink_param_driverinit_value_set(devlink, 0,
-						    &devlink->param_list,
-						    param_id, init_val,
-						    DEVLINK_CMD_PARAM_NEW);
+	struct devlink_param_item *param_item;
+
+	param_item = devlink_param_find_by_id(&devlink->param_list, param_id);
+	if (!param_item)
+		return -EINVAL;
+
+	if (!devlink_param_cmode_is_supported(param_item->param,
+					      DEVLINK_PARAM_CMODE_DRIVERINIT))
+		return -EOPNOTSUPP;
+
+	if (param_item->param->type == DEVLINK_PARAM_TYPE_STRING)
+		strcpy(param_item->driverinit_value.vstr, init_val.vstr);
+	else
+		param_item->driverinit_value = init_val;
+	param_item->driverinit_value_valid = true;
+
+	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_NEW);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(devlink_param_driverinit_value_set);
 
