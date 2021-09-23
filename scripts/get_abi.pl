@@ -723,6 +723,22 @@ sub check_undefined_symbols {
 		}
 		next if ($exact);
 
+		if ($leave ne "others") {
+			my @expr = @{$leaf{$leave}->{expr}};
+			for (my $i = 0; $i < @names; $i++) {
+				foreach my $re (@expr) {
+					print "$names[$i] =~ /^$re\$/\n" if ($debug && $dbg_undefined);
+					if ($names[$i] =~ $re) {
+						$exact = 1;
+						last;
+					}
+				}
+				last if ($exact);
+			}
+			last if ($exact);
+		}
+		next if ($exact);
+
 		if ($hint && (!$search_string || $found_string)) {
 			my $what = $leaf{$leave}->{what};
 			$what =~ s/\xac/\n\t/g;
