@@ -154,6 +154,27 @@ extern struct futex_q *futex_top_waiter(struct futex_hash_bucket *hb, union fute
 
 extern void __futex_unqueue(struct futex_q *q);
 extern void __futex_queue(struct futex_q *q, struct futex_hash_bucket *hb);
+extern int futex_unqueue(struct futex_q *q);
+
+/**
+ * futex_queue() - Enqueue the futex_q on the futex_hash_bucket
+ * @q:	The futex_q to enqueue
+ * @hb:	The destination hash bucket
+ *
+ * The hb->lock must be held by the caller, and is released here. A call to
+ * futex_queue() is typically paired with exactly one call to futex_unqueue().  The
+ * exceptions involve the PI related operations, which may use futex_unqueue_pi()
+ * or nothing if the unqueue is done as part of the wake process and the unqueue
+ * state is implicit in the state of woken task (see futex_wait_requeue_pi() for
+ * an example).
+ */
+static inline void futex_queue(struct futex_q *q, struct futex_hash_bucket *hb)
+	__releases(&hb->lock)
+{
+	__futex_queue(q, hb);
+	spin_unlock(&hb->lock);
+}
+
 extern void futex_unqueue_pi(struct futex_q *q);
 
 extern void wait_for_owner_exiting(int ret, struct task_struct *exiting);
@@ -180,6 +201,19 @@ static inline void futex_hb_waiters_dec(struct futex_hash_bucket *hb)
 {
 #ifdef CONFIG_SMP
 	atomic_dec(&hb->waiters);
+#endif
+}
+
+static inline int futex_hb_waiters_pending(struct futex_hash_bucket *hb)
+{
+#ifdef CONFIG_SMP
+	/*
+	 * Full barrier (B), see the ordering comment above.
+	 */
+	smp_mb();
+	return atomic_read(&hb->waiters);
+#else
+	return 1;
 #endif
 }
 
