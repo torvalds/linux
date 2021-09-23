@@ -54,7 +54,7 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com> and Josh Triplett <josh@
 
 /* Bits for ->extendables field, extendables param, and related definitions. */
 #define RCUTORTURE_RDR_SHIFT	 8	/* Put SRCU index in upper bits. */
-#define RCUTORTURE_RDR_MASK	 ((1 << RCUTORTURE_RDR_SHIFT) - 1)
+#define RCUTORTURE_RDR_MASK	 (1 << RCUTORTURE_RDR_SHIFT)
 #define RCUTORTURE_RDR_BH	 0x01	/* Extend readers by disabling bh. */
 #define RCUTORTURE_RDR_IRQ	 0x02	/*  ... disabling interrupts. */
 #define RCUTORTURE_RDR_PREEMPT	 0x04	/*  ... disabling preemption. */
@@ -1466,6 +1466,7 @@ static void rcutorture_one_extend(int *readstate, int newstate,
 		if (lockit)
 			raw_spin_lock_irqsave(&current->pi_lock, flags);
 		cur_ops->readunlock(idxold >> RCUTORTURE_RDR_SHIFT);
+		idxold = 0;
 		if (lockit)
 			raw_spin_unlock_irqrestore(&current->pi_lock, flags);
 	}
@@ -1476,7 +1477,7 @@ static void rcutorture_one_extend(int *readstate, int newstate,
 
 	/* Update the reader state. */
 	if (idxnew == -1)
-		idxnew = idxold & ~RCUTORTURE_RDR_MASK;
+		idxnew = idxold & RCUTORTURE_RDR_MASK;
 	WARN_ON_ONCE(idxnew < 0);
 	WARN_ON_ONCE((idxnew >> RCUTORTURE_RDR_SHIFT) > 1);
 	*readstate = idxnew | newstate;
@@ -1626,7 +1627,7 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 			  rcu_torture_writer_state,
 			  cookie, cur_ops->get_gp_state());
 	rcutorture_one_extend(&readstate, 0, trsp, rtrsp);
-	WARN_ON_ONCE(readstate & RCUTORTURE_RDR_MASK);
+	WARN_ON_ONCE(readstate);
 	// This next splat is expected behavior if leakpointer, especially
 	// for CONFIG_RCU_STRICT_GRACE_PERIOD=y kernels.
 	WARN_ON_ONCE(leakpointer && READ_ONCE(p->rtort_pipe_count) > 1);
