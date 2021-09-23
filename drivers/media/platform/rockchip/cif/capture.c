@@ -2175,6 +2175,9 @@ static void rkcif_buf_queue(struct vb2_buffer *vb)
 	spin_lock_irqsave(&stream->vbq_lock, flags);
 	list_add_tail(&cifbuf->queue, &stream->buf_head);
 	spin_unlock_irqrestore(&stream->vbq_lock, flags);
+	v4l2_dbg(1, rkcif_debug, &stream->cifdev->v4l2_dev,
+		 "stream[%d] buf queue, index: %d\n",
+		 stream->id, vb->index);
 }
 
 static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
@@ -4365,6 +4368,9 @@ static void rkcif_vb_done_oneframe(struct rkcif_stream *stream,
 		vb_done->vb2_buf.timestamp = ktime_get_ns();
 
 	vb2_buffer_done(&vb_done->vb2_buf, VB2_BUF_STATE_DONE);
+	v4l2_dbg(1, rkcif_debug, &stream->cifdev->v4l2_dev,
+		 "stream[%d] vb done, index: %d, sequence %d\n", stream->id,
+		 vb_done->vb2_buf.index, vb_done->sequence);
 }
 
 void rkcif_irq_oneframe(struct rkcif_device *cif_dev)
@@ -4892,12 +4898,14 @@ static void rkcif_rdbk_frame_end(struct rkcif_stream *stream)
 					goto RDBK_FRM_UNMATCH;
 				}
 			}
-
-			dev->rdbk_buf[RDBK_M]->vb.sequence = dev->rdbk_buf[RDBK_L]->vb.sequence;
-			dev->rdbk_buf[RDBK_S]->vb.sequence = dev->rdbk_buf[RDBK_L]->vb.sequence;
-			rkcif_vb_done_oneframe(stream, &dev->rdbk_buf[RDBK_L]->vb);
-			rkcif_vb_done_oneframe(stream, &dev->rdbk_buf[RDBK_M]->vb);
-			rkcif_vb_done_oneframe(stream, &dev->rdbk_buf[RDBK_S]->vb);
+			dev->rdbk_buf[RDBK_L]->vb.sequence = dev->rdbk_buf[RDBK_S]->vb.sequence;
+			dev->rdbk_buf[RDBK_M]->vb.sequence = dev->rdbk_buf[RDBK_S]->vb.sequence;
+			rkcif_vb_done_oneframe(&dev->stream[RKCIF_STREAM_MIPI_ID0],
+					       &dev->rdbk_buf[RDBK_L]->vb);
+			rkcif_vb_done_oneframe(&dev->stream[RKCIF_STREAM_MIPI_ID1],
+					       &dev->rdbk_buf[RDBK_M]->vb);
+			rkcif_vb_done_oneframe(&dev->stream[RKCIF_STREAM_MIPI_ID2],
+					       &dev->rdbk_buf[RDBK_S]->vb);
 		} else {
 			if (!dev->rdbk_buf[RDBK_L])
 				v4l2_err(&dev->v4l2_dev, "lost long frames\n");
@@ -4939,11 +4947,11 @@ static void rkcif_rdbk_frame_end(struct rkcif_stream *stream)
 					goto RDBK_FRM_UNMATCH;
 				}
 			}
-
-			dev->rdbk_buf[RDBK_M]->vb.sequence =
-				dev->rdbk_buf[RDBK_L]->vb.sequence;
-			rkcif_vb_done_oneframe(stream, &dev->rdbk_buf[RDBK_L]->vb);
-			rkcif_vb_done_oneframe(stream, &dev->rdbk_buf[RDBK_M]->vb);
+			dev->rdbk_buf[RDBK_L]->vb.sequence = dev->rdbk_buf[RDBK_M]->vb.sequence;
+			rkcif_vb_done_oneframe(&dev->stream[RKCIF_STREAM_MIPI_ID0],
+					       &dev->rdbk_buf[RDBK_L]->vb);
+			rkcif_vb_done_oneframe(&dev->stream[RKCIF_STREAM_MIPI_ID1],
+					       &dev->rdbk_buf[RDBK_M]->vb);
 		} else {
 			if (!dev->rdbk_buf[RDBK_L])
 				v4l2_err(&dev->v4l2_dev, "lost long frames\n");
@@ -5172,6 +5180,11 @@ static void rkcif_update_stream(struct rkcif_device *cif_dev,
 	if (cif_dev->inf_id == RKCIF_MIPI_LVDS)
 		rkcif_deal_readout_time(stream);
 
+	if (cif_dev->chip_id == CHIP_RV1126_CIF ||
+	    cif_dev->chip_id == CHIP_RV1126_CIF_LITE ||
+	    cif_dev->chip_id == CHIP_RK3568_CIF)
+		rkcif_luma_isr(&cif_dev->luma_vdev, mipi_id, stream->frame_idx);
+
 	if (!stream->is_line_wake_up) {
 		ret = rkcif_assign_new_buffer_pingpong(stream,
 					 RKCIF_YUV_ADDR_STATE_UPDATE,
@@ -5183,16 +5196,12 @@ static void rkcif_update_stream(struct rkcif_device *cif_dev,
 		if (ret)
 			return;
 	}
-
-	if (cif_dev->chip_id == CHIP_RV1126_CIF ||
-	    cif_dev->chip_id == CHIP_RV1126_CIF_LITE ||
-	    cif_dev->chip_id == CHIP_RK3568_CIF)
-		rkcif_luma_isr(&cif_dev->luma_vdev, mipi_id, stream->frame_idx);
-	if (!stream->is_line_wake_up) {
+	if (!stream->is_line_wake_up)
 		rkcif_buf_done_prepare(stream, active_buf, mipi_id, 0);
+
 end:
+	if (!stream->is_line_wake_up)
 		stream->frame_idx++;
-	}
 }
 
 u32 rkcif_get_sof(struct rkcif_device *cif_dev)
