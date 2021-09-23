@@ -5807,7 +5807,8 @@ static void sort_parity_stripes(struct btrfs_io_context *bioc, int num_stripes)
 	}
 }
 
-static struct btrfs_io_context *alloc_btrfs_io_context(int total_stripes,
+static struct btrfs_io_context *alloc_btrfs_io_context(struct btrfs_fs_info *fs_info,
+						       int total_stripes,
 						       int real_stripes)
 {
 	struct btrfs_io_context *bioc = kzalloc(
@@ -5827,6 +5828,7 @@ static struct btrfs_io_context *alloc_btrfs_io_context(int total_stripes,
 	atomic_set(&bioc->error, 0);
 	refcount_set(&bioc->refs, 1);
 
+	bioc->fs_info = fs_info;
 	bioc->tgtdev_map = (int *)(bioc->stripes + total_stripes);
 	bioc->raid_map = (u64 *)(bioc->tgtdev_map + real_stripes);
 
@@ -5941,7 +5943,7 @@ static int __btrfs_map_block_for_discard(struct btrfs_fs_info *fs_info,
 					&stripe_index);
 	}
 
-	bioc = alloc_btrfs_io_context(num_stripes, 0);
+	bioc = alloc_btrfs_io_context(fs_info, num_stripes, 0);
 	if (!bioc) {
 		ret = -ENOMEM;
 		goto out;
@@ -6463,7 +6465,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 		tgtdev_indexes = num_stripes;
 	}
 
-	bioc = alloc_btrfs_io_context(num_alloc_stripes, tgtdev_indexes);
+	bioc = alloc_btrfs_io_context(fs_info, num_alloc_stripes, tgtdev_indexes);
 	if (!bioc) {
 		ret = -ENOMEM;
 		goto out;
@@ -6699,7 +6701,6 @@ blk_status_t btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 	bioc->orig_bio = first_bio;
 	bioc->private = first_bio->bi_private;
 	bioc->end_io = first_bio->bi_end_io;
-	bioc->fs_info = fs_info;
 	atomic_set(&bioc->stripes_pending, bioc->num_stripes);
 
 	if ((bioc->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK) &&
