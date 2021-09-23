@@ -448,22 +448,20 @@ static u64 find_target_cycles(struct mlx5_core_dev *mdev, s64 target_ns)
 	return cycles_now + cycles_delta;
 }
 
-static u64 perout_conf_internal_timer(struct mlx5_core_dev *mdev,
-				      s64 sec, u32 nsec)
+static u64 perout_conf_internal_timer(struct mlx5_core_dev *mdev, s64 sec)
 {
-	struct timespec64 ts;
+	struct timespec64 ts = {};
 	s64 target_ns;
 
 	ts.tv_sec = sec;
-	ts.tv_nsec = nsec;
 	target_ns = timespec64_to_ns(&ts);
 
 	return find_target_cycles(mdev, target_ns);
 }
 
-static u64 perout_conf_real_time(s64 sec, u32 nsec)
+static u64 perout_conf_real_time(s64 sec)
 {
-	return (u64)nsec | (u64)sec << 32;
+	return (u64)sec << 32;
 }
 
 static int mlx5_perout_configure(struct ptp_clock_info *ptp,
@@ -501,8 +499,10 @@ static int mlx5_perout_configure(struct ptp_clock_info *ptp,
 
 	if (on) {
 		bool rt_mode = mlx5_real_time_mode(mdev);
-		u32 nsec;
-		s64 sec;
+		s64 sec = rq->perout.start.sec;
+
+		if (rq->perout.start.nsec)
+			return -EINVAL;
 
 		pin_mode = MLX5_PIN_MODE_OUT;
 		pattern = MLX5_OUT_PATTERN_PERIODIC;
@@ -513,14 +513,11 @@ static int mlx5_perout_configure(struct ptp_clock_info *ptp,
 		if ((ns >> 1) != 500000000LL)
 			return -EINVAL;
 
-		nsec = rq->perout.start.nsec;
-		sec = rq->perout.start.sec;
-
 		if (rt_mode && sec > U32_MAX)
 			return -EINVAL;
 
-		time_stamp = rt_mode ? perout_conf_real_time(sec, nsec) :
-				       perout_conf_internal_timer(mdev, sec, nsec);
+		time_stamp = rt_mode ? perout_conf_real_time(sec) :
+				       perout_conf_internal_timer(mdev, sec);
 
 		field_select |= MLX5_MTPPS_FS_PIN_MODE |
 				MLX5_MTPPS_FS_PATTERN |
@@ -717,7 +714,7 @@ static u64 perout_conf_next_event_timer(struct mlx5_core_dev *mdev,
 	ts_next_sec(&ts);
 	target_ns = timespec64_to_ns(&ts);
 
-	return rt_mode ? perout_conf_real_time(ts.tv_sec, ts.tv_nsec) :
+	return rt_mode ? perout_conf_real_time(ts.tv_sec) :
 			 find_target_cycles(mdev, target_ns);
 }
 
