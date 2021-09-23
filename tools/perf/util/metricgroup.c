@@ -198,65 +198,69 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 	struct evsel *ev, *current_leader = NULL;
 	struct expr_id_data *val_ptr;
 	int i = 0, matched_events = 0, events_to_match;
-	const int idnum = (int)hashmap__size(pctx->ids);
+	int idnum = (int)hashmap__size(pctx->ids);
 
-	/*
-	 * duration_time is always grouped separately, when events are grouped
-	 * (ie has_constraint is false) then ignore it in the matching loop and
-	 * add it to metric_events at the end.
-	 */
-	if (!has_constraint &&
-	    hashmap__find(pctx->ids, "duration_time", (void **)&val_ptr))
-		events_to_match = idnum - 1;
-	else
+	if (idnum != 0) {
+		/*
+		 * duration_time is always grouped separately, when events are
+		 * grouped (ie has_constraint is false) then ignore it in the
+		 * matching loop and add it to metric_events at the end.
+		 */
 		events_to_match = idnum;
+		if (!has_constraint && hashmap__find(pctx->ids, "duration_time", (void **)&val_ptr))
+			events_to_match--;
 
-	evlist__for_each_entry (perf_evlist, ev) {
-		/*
-		 * Events with a constraint aren't grouped and match the first
-		 * events available.
-		 */
-		if (has_constraint && ev->weak_group)
-			continue;
-		/* Ignore event if already used and merging is disabled. */
-		if (metric_no_merge && test_bit(ev->core.idx, evlist_used))
-			continue;
-		if (!has_constraint && !evsel__has_leader(ev, current_leader)) {
+		evlist__for_each_entry(perf_evlist, ev) {
 			/*
-			 * Start of a new group, discard the whole match and
-			 * start again.
+			 * Events with a constraint aren't grouped and match the
+			 * first events available.
 			 */
-			matched_events = 0;
-			memset(metric_events, 0,
-				sizeof(struct evsel *) * idnum);
-			current_leader = evsel__leader(ev);
+			if (has_constraint && ev->weak_group)
+				continue;
+			/* Ignore event if already used and merging is disabled. */
+			if (metric_no_merge && test_bit(ev->core.idx, evlist_used))
+				continue;
+			if (!has_constraint && !evsel__has_leader(ev, current_leader)) {
+				/*
+				 * Start of a new group, discard the whole match
+				 * and start again.
+				 */
+				matched_events = 0;
+				memset(metric_events, 0, sizeof(struct evsel *) * idnum);
+				current_leader = evsel__leader(ev);
+			}
+			/*
+			 * Check for duplicate events with the same name. For
+			 * example, uncore_imc/cas_count_read/ will turn into 6
+			 * events per socket on skylakex. Only the first such
+			 * event is placed in metric_events. If events aren't
+			 * grouped then this also ensures that the same event in
+			 * different sibling groups aren't both added to
+			 * metric_events.
+			 */
+			if (contains_event(metric_events, matched_events, ev->name))
+				continue;
+			/* Does this event belong to the parse context? */
+			if (hashmap__find(pctx->ids, ev->name, (void **)&val_ptr))
+				metric_events[matched_events++] = ev;
+
+			if (matched_events == events_to_match)
+				break;
 		}
+	} else {
 		/*
-		 * Check for duplicate events with the same name. For example,
-		 * uncore_imc/cas_count_read/ will turn into 6 events per socket
-		 * on skylakex. Only the first such event is placed in
-		 * metric_events. If events aren't grouped then this also
-		 * ensures that the same event in different sibling groups
-		 * aren't both added to metric_events.
+		 * There are no events to match, but we need to associate the
+		 * metric with an event for printing. A duration_time event was
+		 * parsed for this.
 		 */
-		if (contains_event(metric_events, matched_events, ev->name))
-			continue;
-		/* Does this event belong to the parse context? */
-		if (hashmap__find(pctx->ids, ev->name, (void **)&val_ptr))
-			metric_events[matched_events++] = ev;
-
-		if (matched_events == events_to_match)
-			break;
+		idnum = 1;
+		events_to_match = 0;
 	}
-
 	if (events_to_match != idnum) {
 		/* Add the first duration_time. */
-		evlist__for_each_entry(perf_evlist, ev) {
-			if (!strcmp(ev->name, "duration_time")) {
-				metric_events[matched_events++] = ev;
-				break;
-			}
-		}
+		ev = evlist__find_evsel_by_str(perf_evlist, "duration_time");
+		if (ev)
+			metric_events[matched_events++] = ev;
 	}
 
 	if (matched_events != idnum) {
@@ -320,9 +324,10 @@ static int metricgroup__setup_events(struct list_head *groups,
 	list_for_each_entry (m, groups, nd) {
 		struct evsel **metric_events;
 		struct metric_ref *metric_refs = NULL;
+		const size_t ids_size = hashmap__size(m->pctx->ids);
 
 		metric_events = calloc(sizeof(void *),
-				hashmap__size(m->pctx->ids) + 1);
+				ids_size == 0 ? 2 : ids_size + 1);
 		if (!metric_events) {
 			ret = -ENOMEM;
 			break;
@@ -1240,7 +1245,8 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 		goto out;
 	pr_debug("adding %s\n", extra_events.buf);
 	bzero(&parse_error, sizeof(parse_error));
-	ret = __parse_events(perf_evlist, extra_events.buf, &parse_error, fake_pmu);
+	ret = __parse_events(perf_evlist, extra_events.len > 0 ? extra_events.buf : "duration_time",
+			     &parse_error, fake_pmu);
 	if (ret) {
 		parse_events_print_error(&parse_error, extra_events.buf);
 		goto out;
