@@ -250,6 +250,10 @@
 	status = "okay";
 };
 
+&qupv3_id_1 {
+	status = "okay";
+};
+
 &sdhc_1 {
 	status = "okay";
 
