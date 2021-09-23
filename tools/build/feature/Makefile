@@ -36,6 +36,7 @@ FILES=                                          \
          test-libslang.bin                      \
          test-libslang-include-subdir.bin       \
          test-libtraceevent.bin                 \
+         test-libtracefs.bin                    \
          test-libcrypto.bin                     \
          test-libunwind.bin                     \
          test-libunwind-debug-frame.bin         \
@@ -198,6 +199,9 @@ $(OUTPUT)test-libslang-include-subdir.bin:
 
 $(OUTPUT)test-libtraceevent.bin:
 	$(BUILD) -ltraceevent
+
+$(OUTPUT)test-libtracefs.bin:
+	$(BUILD) -ltracefs
 
 $(OUTPUT)test-libcrypto.bin:
 	$(BUILD) -lcrypto
