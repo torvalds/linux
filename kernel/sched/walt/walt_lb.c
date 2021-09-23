@@ -231,10 +231,15 @@ static void walt_lb_check_for_rotation(struct rq *src_rq)
 }
 
 static inline bool _walt_can_migrate_task(struct task_struct *p, int dst_cpu,
-					  bool to_lower)
+					  bool to_lower, bool force)
 {
 	struct walt_rq *wrq = (struct walt_rq *) task_rq(p)->android_vendor_data1;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+
+	/* Don't detach task if it is under active migration */
+	if (wrq->push_task == p)
+		return false;
+
 
 	if (to_lower) {
 		if (wts->iowaited)
@@ -244,11 +249,11 @@ static inline bool _walt_can_migrate_task(struct task_struct *p, int dst_cpu,
 			return false;
 		if (walt_pipeline_low_latency_task(p))
 			return false;
+		if (!force && walt_get_rtg_status(p))
+			return false;
+		if (!force && !task_fits_max(p, dst_cpu))
+			return false;
 	}
-
-	/* Don't detach task if it is under active migration */
-	if (wrq->push_task == p)
-		return false;
 
 	/* Don't detach task if dest cpu is halted */
 	if (cpu_halted(dst_cpu))
@@ -289,54 +294,81 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
 	to_lower = capacity_orig_of(dst_cpu) < capacity_orig_of(src_cpu);
 
 	raw_spin_lock_irqsave(&src_rq->__lock, flags);
+
 	list_for_each_entry_reverse(p, &src_rq->cfs_tasks, se.group_node) {
 
 		if (!cpumask_test_cpu(dst_cpu, p->cpus_ptr))
 			continue;
 
-		if (!_walt_can_migrate_task(p, dst_cpu, to_lower))
+		if (task_running(src_rq, p))
+			continue;
+
+		if (!_walt_can_migrate_task(p, dst_cpu, to_lower, false))
+			continue;
+
+		walt_detach_task(p, src_rq, dst_rq);
+		pulled_task = p;
+		goto unlock;
+	}
+
+	list_for_each_entry_reverse(p, &src_rq->cfs_tasks, se.group_node) {
+
+		if (!cpumask_test_cpu(dst_cpu, p->cpus_ptr))
+			continue;
+
+		if (task_running(src_rq, p))
+			continue;
+
+		if (!_walt_can_migrate_task(p, dst_cpu, to_lower, true))
+			continue;
+
+		walt_detach_task(p, src_rq, dst_rq);
+		pulled_task = p;
+		goto unlock;
+	}
+
+	list_for_each_entry_reverse(p, &src_rq->cfs_tasks, se.group_node) {
+
+		if (!cpumask_test_cpu(dst_cpu, p->cpus_ptr))
 			continue;
 
 		if (task_running(src_rq, p)) {
-
 			if (need_active_lb(p, dst_cpu, src_cpu)) {
+				bool success;
 				active_balance = true;
-				break;
+				src_rq->active_balance = 1;
+				src_rq->push_cpu = dst_cpu;
+				get_task_struct(p);
+				wrq->push_task = p;
+				mark_reserved(dst_cpu);
+
+				/* lock must be dropped before waking the stopper */
+				raw_spin_unlock_irqrestore(&src_rq->__lock, flags);
+
+				/*
+				 * Using our custom active load balance callback so that
+				 * the push_task is really pulled onto this CPU.
+				 */
+				wts = (struct walt_task_struct *) p->android_vendor_data1;
+				trace_walt_active_load_balance(p, src_cpu, dst_cpu, wts);
+				success = stop_one_cpu_nowait(src_cpu,
+						stop_walt_lb_active_migration,
+						src_rq, &src_rq->active_balance_work);
+				if (!success)
+					clear_reserved(dst_cpu);
+
+				return 0; /* we did not pull any task here */
 			}
 			continue;
 		}
 
 		walt_detach_task(p, src_rq, dst_rq);
 		pulled_task = p;
-		break;
+		goto unlock;
 	}
-
-	if (active_balance) {
-		src_rq->active_balance = 1;
-		src_rq->push_cpu = dst_cpu;
-		get_task_struct(p);
-		wrq->push_task = p;
-		mark_reserved(dst_cpu);
-	}
+unlock:
 	/* lock must be dropped before waking the stopper */
 	raw_spin_unlock_irqrestore(&src_rq->__lock, flags);
-
-	/*
-	 * Using our custom active load balance callback so that
-	 * the push_task is really pulled onto this CPU.
-	 */
-	if (active_balance) {
-		bool success;
-
-		wts = (struct walt_task_struct *) p->android_vendor_data1;
-		trace_walt_active_load_balance(p, src_cpu, dst_cpu, wts);
-		success = stop_one_cpu_nowait(src_cpu, stop_walt_lb_active_migration,
-				    src_rq, &src_rq->active_balance_work);
-		if (!success)
-			clear_reserved(dst_cpu);
-
-		return 0; /* we did not pull any task here */
-	}
 
 	if (!pulled_task)
 		return 0;
@@ -984,7 +1016,7 @@ static void walt_can_migrate_task(void *unused, struct task_struct *p,
 		return;
 	to_lower = capacity_orig_of(dst_cpu) < capacity_orig_of(task_cpu(p));
 
-	if (_walt_can_migrate_task(p, dst_cpu, to_lower))
+	if (_walt_can_migrate_task(p, dst_cpu, to_lower, true))
 		return;
 
 	*can_migrate = 0;
