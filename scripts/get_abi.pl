@@ -777,8 +777,6 @@ sub undefined_symbols {
 			# (this happens on a few IIO definitions)
 			$what =~ s,\s*\=.*$,,;
 
-			my $leave = get_leave($what);
-
 			# Escape all other symbols
 			$what =~ s/$escape_symbols/\\$1/g;
 			$what =~ s/\\\\/\\/g;
@@ -790,6 +788,7 @@ sub undefined_symbols {
 			# Special case: IIO ABI which a parenthesis.
 			$what =~ s/sqrt(.*)/sqrt\(.*\)/;
 
+			my $leave = get_leave($what);
 			my $added = 0;
 			foreach my $l (split /\|/, $leave) {
 				if (defined($leaf{$l})) {
