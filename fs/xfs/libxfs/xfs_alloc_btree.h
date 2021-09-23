@@ -60,4 +60,6 @@ extern xfs_extlen_t xfs_allocbt_calc_size(struct xfs_mount *mp,
 void xfs_allocbt_commit_staged_btree(struct xfs_btree_cur *cur,
 		struct xfs_trans *tp, struct xfs_buf *agbp);
 
+unsigned int xfs_allocbt_maxlevels_ondisk(void);
+
 #endif	/* __XFS_ALLOC_BTREE_H__ */

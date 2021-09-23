@@ -526,6 +526,17 @@ xfs_inobt_commit_staged_btree(
 	}
 }
 
+/* Calculate number of records in an inode btree block. */
+static inline unsigned int
+xfs_inobt_block_maxrecs(
+	unsigned int		blocklen,
+	bool			leaf)
+{
+	if (leaf)
+		return blocklen / sizeof(xfs_inobt_rec_t);
+	return blocklen / (sizeof(xfs_inobt_key_t) + sizeof(xfs_inobt_ptr_t));
+}
+
 /*
  * Calculate number of records in an inobt btree block.
  */
@@ -536,10 +547,54 @@ xfs_inobt_maxrecs(
 	int			leaf)
 {
 	blocklen -= XFS_INOBT_BLOCK_LEN(mp);
+	return xfs_inobt_block_maxrecs(blocklen, leaf);
+}
 
-	if (leaf)
-		return blocklen / sizeof(xfs_inobt_rec_t);
-	return blocklen / (sizeof(xfs_inobt_key_t) + sizeof(xfs_inobt_ptr_t));
+/*
+ * Maximum number of inode btree records per AG.  Pretend that we can fill an
+ * entire AG completely full of inodes except for the AG headers.
+ */
+#define XFS_MAX_INODE_RECORDS \
+	((XFS_MAX_AG_BYTES - (4 * BBSIZE)) / XFS_DINODE_MIN_SIZE) / \
+			XFS_INODES_PER_CHUNK
+
+/* Compute the max possible height for the inode btree. */
+static inline unsigned int
+xfs_inobt_maxlevels_ondisk(void)
+{
+	unsigned int		minrecs[2];
+	unsigned int		blocklen;
+
+	blocklen = min(XFS_MIN_BLOCKSIZE - XFS_BTREE_SBLOCK_LEN,
+		       XFS_MIN_CRC_BLOCKSIZE - XFS_BTREE_SBLOCK_CRC_LEN);
+
+	minrecs[0] = xfs_inobt_block_maxrecs(blocklen, true) / 2;
+	minrecs[1] = xfs_inobt_block_maxrecs(blocklen, false) / 2;
+
+	return xfs_btree_compute_maxlevels(minrecs, XFS_MAX_INODE_RECORDS);
+}
+
+/* Compute the max possible height for the free inode btree. */
+static inline unsigned int
+xfs_finobt_maxlevels_ondisk(void)
+{
+	unsigned int		minrecs[2];
+	unsigned int		blocklen;
+
+	blocklen = XFS_MIN_CRC_BLOCKSIZE - XFS_BTREE_SBLOCK_CRC_LEN;
+
+	minrecs[0] = xfs_inobt_block_maxrecs(blocklen, true) / 2;
+	minrecs[1] = xfs_inobt_block_maxrecs(blocklen, false) / 2;
+
+	return xfs_btree_compute_maxlevels(minrecs, XFS_MAX_INODE_RECORDS);
+}
+
+/* Compute the max possible height for either inode btree. */
+unsigned int
+xfs_iallocbt_maxlevels_ondisk(void)
+{
+	return max(xfs_inobt_maxlevels_ondisk(),
+		   xfs_finobt_maxlevels_ondisk());
 }
 
 /*

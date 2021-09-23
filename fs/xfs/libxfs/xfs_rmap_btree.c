@@ -519,6 +519,18 @@ xfs_rmapbt_commit_staged_btree(
 	xfs_btree_commit_afakeroot(cur, tp, agbp, &xfs_rmapbt_ops);
 }
 
+/* Calculate number of records in a reverse mapping btree block. */
+static inline unsigned int
+xfs_rmapbt_block_maxrecs(
+	unsigned int		blocklen,
+	bool			leaf)
+{
+	if (leaf)
+		return blocklen / sizeof(struct xfs_rmap_rec);
+	return blocklen /
+		(2 * sizeof(struct xfs_rmap_key) + sizeof(xfs_rmap_ptr_t));
+}
+
 /*
  * Calculate number of records in an rmap btree block.
  */
@@ -528,11 +540,33 @@ xfs_rmapbt_maxrecs(
 	int			leaf)
 {
 	blocklen -= XFS_RMAP_BLOCK_LEN;
+	return xfs_rmapbt_block_maxrecs(blocklen, leaf);
+}
 
-	if (leaf)
-		return blocklen / sizeof(struct xfs_rmap_rec);
-	return blocklen /
-		(2 * sizeof(struct xfs_rmap_key) + sizeof(xfs_rmap_ptr_t));
+/* Compute the max possible height for reverse mapping btrees. */
+unsigned int
+xfs_rmapbt_maxlevels_ondisk(void)
+{
+	unsigned int		minrecs[2];
+	unsigned int		blocklen;
+
+	blocklen = XFS_MIN_CRC_BLOCKSIZE - XFS_BTREE_SBLOCK_CRC_LEN;
+
+	minrecs[0] = xfs_rmapbt_block_maxrecs(blocklen, true) / 2;
+	minrecs[1] = xfs_rmapbt_block_maxrecs(blocklen, false) / 2;
+
+	/*
+	 * Compute the asymptotic maxlevels for an rmapbt on any reflink fs.
+	 *
+	 * On a reflink filesystem, each AG block can have up to 2^32 (per the
+	 * refcount record format) owners, which means that theoretically we
+	 * could face up to 2^64 rmap records.  However, we're likely to run
+	 * out of blocks in the AG long before that happens, which means that
+	 * we must compute the max height based on what the btree will look
+	 * like if it consumes almost all the blocks in the AG due to maximal
+	 * sharing factor.
+	 */
+	return xfs_btree_space_to_height(minrecs, XFS_MAX_CRC_AG_BLOCKS);
 }
 
 /* Compute the maximum height of an rmap btree. */
@@ -569,6 +603,7 @@ xfs_rmapbt_compute_maxlevels(
 		mp->m_rmap_maxlevels = xfs_btree_compute_maxlevels(
 				mp->m_rmap_mnr, mp->m_sb.sb_agblocks);
 	}
+	ASSERT(mp->m_rmap_maxlevels <= xfs_rmapbt_maxlevels_ondisk());
 }
 
 /* Calculate the refcount btree size for some records. */

@@ -571,6 +571,17 @@ xfs_bmbt_init_cursor(
 	return cur;
 }
 
+/* Calculate number of records in a block mapping btree block. */
+static inline unsigned int
+xfs_bmbt_block_maxrecs(
+	unsigned int		blocklen,
+	bool			leaf)
+{
+	if (leaf)
+		return blocklen / sizeof(xfs_bmbt_rec_t);
+	return blocklen / (sizeof(xfs_bmbt_key_t) + sizeof(xfs_bmbt_ptr_t));
+}
+
 /*
  * Calculate number of records in a bmap btree block.
  */
@@ -581,10 +592,24 @@ xfs_bmbt_maxrecs(
 	int			leaf)
 {
 	blocklen -= XFS_BMBT_BLOCK_LEN(mp);
+	return xfs_bmbt_block_maxrecs(blocklen, leaf);
+}
 
-	if (leaf)
-		return blocklen / sizeof(xfs_bmbt_rec_t);
-	return blocklen / (sizeof(xfs_bmbt_key_t) + sizeof(xfs_bmbt_ptr_t));
+/* Compute the max possible height for block mapping btrees. */
+unsigned int
+xfs_bmbt_maxlevels_ondisk(void)
+{
+	unsigned int		minrecs[2];
+	unsigned int		blocklen;
+
+	blocklen = min(XFS_MIN_BLOCKSIZE - XFS_BTREE_SBLOCK_LEN,
+		       XFS_MIN_CRC_BLOCKSIZE - XFS_BTREE_SBLOCK_CRC_LEN);
+
+	minrecs[0] = xfs_bmbt_block_maxrecs(blocklen, true) / 2;
+	minrecs[1] = xfs_bmbt_block_maxrecs(blocklen, false) / 2;
+
+	/* One extra level for the inode root. */
+	return xfs_btree_compute_maxlevels(minrecs, MAXEXTNUM) + 1;
 }
 
 /*

@@ -566,6 +566,17 @@ xfs_allocbt_commit_staged_btree(
 	}
 }
 
+/* Calculate number of records in an alloc btree block. */
+static inline unsigned int
+xfs_allocbt_block_maxrecs(
+	unsigned int		blocklen,
+	bool			leaf)
+{
+	if (leaf)
+		return blocklen / sizeof(xfs_alloc_rec_t);
+	return blocklen / (sizeof(xfs_alloc_key_t) + sizeof(xfs_alloc_ptr_t));
+}
+
 /*
  * Calculate number of records in an alloc btree block.
  */
@@ -576,10 +587,26 @@ xfs_allocbt_maxrecs(
 	int			leaf)
 {
 	blocklen -= XFS_ALLOC_BLOCK_LEN(mp);
+	return xfs_allocbt_block_maxrecs(blocklen, leaf);
+}
 
-	if (leaf)
-		return blocklen / sizeof(xfs_alloc_rec_t);
-	return blocklen / (sizeof(xfs_alloc_key_t) + sizeof(xfs_alloc_ptr_t));
+/* Free space btrees are at their largest when every other block is free. */
+#define XFS_MAX_FREESP_RECORDS	((XFS_MAX_AG_BLOCKS + 1) / 2)
+
+/* Compute the max possible height for free space btrees. */
+unsigned int
+xfs_allocbt_maxlevels_ondisk(void)
+{
+	unsigned int		minrecs[2];
+	unsigned int		blocklen;
+
+	blocklen = min(XFS_MIN_BLOCKSIZE - XFS_BTREE_SBLOCK_LEN,
+		       XFS_MIN_CRC_BLOCKSIZE - XFS_BTREE_SBLOCK_CRC_LEN);
+
+	minrecs[0] = xfs_allocbt_block_maxrecs(blocklen, true) / 2;
+	minrecs[1] = xfs_allocbt_block_maxrecs(blocklen, false) / 2;
+
+	return xfs_btree_compute_maxlevels(minrecs, XFS_MAX_FREESP_RECORDS);
 }
 
 /* Calculate the freespace btree size for some records. */
