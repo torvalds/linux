@@ -2804,9 +2804,8 @@ F:	arch/arm/mach-pxa/include/mach/vpac270.h
 F:	arch/arm/mach-pxa/vpac270.c
 
 ARM/VT8500 ARM ARCHITECTURE
-M:	Tony Prisk <linux@prisktech.co.nz>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
+S:	Orphan
 F:	Documentation/devicetree/bindings/i2c/i2c-wmt.txt
 F:	arch/arm/mach-vt8500/
 F:	drivers/clocksource/timer-vt8500.c
@@ -13255,9 +13254,9 @@ F:	Documentation/scsi/NinjaSCSI.rst
 F:	drivers/scsi/nsp32*
 
 NIOS2 ARCHITECTURE
-M:	Ley Foon Tan <ley.foon.tan@intel.com>
+M:	Dinh Nguyen <dinguyen@kernel.org>
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lftan/nios2.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dinguyen/linux.git
 F:	arch/nios2/
 
 NITRO ENCLAVES (NE)
@@ -14342,7 +14341,8 @@ F:	Documentation/devicetree/bindings/pci/intel,ixp4xx-pci.yaml
 F:	drivers/pci/controller/pci-ixp4xx.c
 
 PCI DRIVER FOR INTEL VOLUME MANAGEMENT DEVICE (VMD)
-M:	Jonathan Derrick <jonathan.derrick@intel.com>
+M:	Nirmal Patel <nirmal.patel@linux.intel.com>
+R:	Jonathan Derrick <jonathan.derrick@linux.dev>
 L:	linux-pci@vger.kernel.org
 S:	Supported
 F:	drivers/pci/controller/vmd.c
@@ -16955,7 +16955,6 @@ F:	drivers/misc/sgi-xp/
 
 SHARED MEMORY COMMUNICATIONS (SMC) SOCKETS
 M:	Karsten Graul <kgraul@linux.ibm.com>
-M:	Guvenc Gulce <guvenc@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 S:	Supported
 W:	http://www.ibm.com/developerworks/linux/linux390/
@@ -17968,10 +17967,11 @@ F:	Documentation/admin-guide/svga.rst
 F:	arch/x86/boot/video*
 
 SWIOTLB SUBSYSTEM
-M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+M:	Christoph Hellwig <hch@infradead.org>
 L:	iommu@lists.linux-foundation.org
 S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/konrad/swiotlb.git
+W:	http://git.infradead.org/users/hch/dma-mapping.git
+T:	git git://git.infradead.org/users/hch/dma-mapping.git
 F:	arch/*/kernel/pci-swiotlb.c
 F:	include/linux/swiotlb.h
 F:	kernel/dma/swiotlb.c
@@ -20474,7 +20474,6 @@ F:	samples/bpf/xdpsock*
 F:	tools/lib/bpf/xsk*
 
 XEN BLOCK SUBSYSTEM
-M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 M:	Roger Pau Monné <roger.pau@citrix.com>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
@@ -20522,7 +20521,7 @@ S:	Supported
 F:	drivers/net/xen-netback/*
 
 XEN PCI SUBSYSTEM
-M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+M:	Juergen Gross <jgross@suse.com>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	arch/x86/pci/*xen*
@@ -20545,7 +20544,8 @@ S:	Supported
 F:	sound/xen/*
 
 XEN SWIOTLB SUBSYSTEM
-M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+M:	Juergen Gross <jgross@suse.com>
+M:	Stefano Stabellini <sstabellini@kernel.org>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 L:	iommu@lists.linux-foundation.org
 S:	Supported
