@@ -132,7 +132,7 @@
  *
  * Note that a new waiter is accounted for in (a) even when it is possible that
  * the wait call can return error, in which case we backtrack from it in (b).
- * Refer to the comment in queue_lock().
+ * Refer to the comment in futex_q_lock().
  *
  * Similarly, in order to account for waiters being requeued on another
  * address we always increment the waiters for the destination bucket before
@@ -2410,7 +2410,7 @@ out_unlock:
 }
 
 /* The key must be already stored in q->key. */
-static inline struct futex_hash_bucket *queue_lock(struct futex_q *q)
+static inline struct futex_hash_bucket *futex_q_lock(struct futex_q *q)
 	__acquires(&hb->lock)
 {
 	struct futex_hash_bucket *hb;
@@ -2420,9 +2420,9 @@ static inline struct futex_hash_bucket *queue_lock(struct futex_q *q)
 	/*
 	 * Increment the counter before taking the lock so that
 	 * a potential waker won't miss a to-be-slept task that is
-	 * waiting for the spinlock. This is safe as all queue_lock()
+	 * waiting for the spinlock. This is safe as all futex_q_lock()
 	 * users end up calling futex_queue(). Similarly, for housekeeping,
-	 * decrement the counter at queue_unlock() when some error has
+	 * decrement the counter at futex_q_unlock() when some error has
 	 * occurred and we don't end up adding the task to the list.
 	 */
 	hb_waiters_inc(hb); /* implies smp_mb(); (A) */
@@ -2434,7 +2434,7 @@ static inline struct futex_hash_bucket *queue_lock(struct futex_q *q)
 }
 
 static inline void
-queue_unlock(struct futex_hash_bucket *hb)
+futex_q_unlock(struct futex_hash_bucket *hb)
 	__releases(&hb->lock)
 {
 	spin_unlock(&hb->lock);
@@ -2870,12 +2870,12 @@ retry:
 		return ret;
 
 retry_private:
-	*hb = queue_lock(q);
+	*hb = futex_q_lock(q);
 
 	ret = get_futex_value_locked(&uval, uaddr);
 
 	if (ret) {
-		queue_unlock(*hb);
+		futex_q_unlock(*hb);
 
 		ret = get_user(uval, uaddr);
 		if (ret)
@@ -2888,7 +2888,7 @@ retry_private:
 	}
 
 	if (uval != val) {
-		queue_unlock(*hb);
+		futex_q_unlock(*hb);
 		ret = -EWOULDBLOCK;
 	}
 
@@ -3006,7 +3006,7 @@ retry:
 		goto out;
 
 retry_private:
-	hb = queue_lock(&q);
+	hb = futex_q_lock(&q);
 
 	ret = futex_lock_pi_atomic(uaddr, hb, &q.key, &q.pi_state, current,
 				   &exiting, 0);
@@ -3030,7 +3030,7 @@ retry_private:
 			 *   exit to complete.
 			 * - EAGAIN: The user space value changed.
 			 */
-			queue_unlock(hb);
+			futex_q_unlock(hb);
 			/*
 			 * Handle the case where the owner is in the middle of
 			 * exiting. Wait for the exit to complete otherwise
@@ -3126,7 +3126,7 @@ no_block:
 	goto out;
 
 out_unlock_put_key:
-	queue_unlock(hb);
+	futex_q_unlock(hb);
 
 out:
 	if (to) {
@@ -3136,7 +3136,7 @@ out:
 	return ret != -EINTR ? ret : -ERESTARTNOINTR;
 
 uaddr_faulted:
-	queue_unlock(hb);
+	futex_q_unlock(hb);
 
 	ret = fault_in_user_writeable(uaddr);
 	if (ret)
@@ -3421,7 +3421,7 @@ int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 	 * shared futexes. We need to compare the keys:
 	 */
 	if (match_futex(&q.key, &key2)) {
-		queue_unlock(hb);
+		futex_q_unlock(hb);
 		ret = -EINVAL;
 		goto out;
 	}
