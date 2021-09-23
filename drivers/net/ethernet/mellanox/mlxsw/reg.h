@@ -7002,6 +7002,12 @@ static inline void mlxsw_reg_ratr_ipip4_entry_pack(char *payload, u32 ipv4_udip)
 	mlxsw_reg_ratr_ipip_ipv4_udip_set(payload, ipv4_udip);
 }
 
+static inline void mlxsw_reg_ratr_ipip6_entry_pack(char *payload, u32 ipv6_ptr)
+{
+	mlxsw_reg_ratr_ipip_type_set(payload, MLXSW_REG_RATR_IPIP_TYPE_IPV6);
+	mlxsw_reg_ratr_ipip_ipv6_ptr_set(payload, ipv6_ptr);
+}
+
 static inline void mlxsw_reg_ratr_counter_pack(char *payload, u64 counter_index,
 					       bool counter_enable)
 {
