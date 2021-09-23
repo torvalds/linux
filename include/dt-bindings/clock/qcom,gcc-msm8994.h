@@ -151,6 +151,15 @@
 #define CONFIG_NOC_CLK_SRC			141
 #define PERIPH_NOC_CLK_SRC			142
 #define SYSTEM_NOC_CLK_SRC			143
+#define GPLL0_OUT_MMSSCC			144
+#define GPLL0_OUT_MSSCC				145
+#define PCIE_0_PHY_LDO				146
+#define PCIE_1_PHY_LDO				147
+#define UFS_PHY_LDO					148
+#define USB_SS_PHY_LDO				149
+#define GCC_BOOT_ROM_AHB_CLK		150
+#define GCC_PRNG_AHB_CLK			151
+#define GCC_USB3_PHY_PIPE_CLK		152
 
 /* GDSCs */
 #define PCIE_GDSC			0
