@@ -271,22 +271,19 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
-	const struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	int ret;
 
 	drm_dbg_kms(&dev_priv->drm, "\n");
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
-	if (fixed_mode) {
-		ret = intel_panel_compute_config(intel_connector, adjusted_mode);
-		if (ret)
-			return ret;
+	ret = intel_panel_compute_config(intel_connector, adjusted_mode);
+	if (ret)
+		return ret;
 
-		ret = intel_panel_fitting(pipe_config, conn_state);
-		if (ret)
-			return ret;
-	}
+	ret = intel_panel_fitting(pipe_config, conn_state);
+	if (ret)
+		return ret;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
@@ -1633,25 +1630,21 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 static void vlv_dsi_add_properties(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	u32 allowed_scalers;
 
-	if (connector->panel.fixed_mode) {
-		u32 allowed_scalers;
+	allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) | BIT(DRM_MODE_SCALE_FULLSCREEN);
+	if (!HAS_GMCH(dev_priv))
+		allowed_scalers |= BIT(DRM_MODE_SCALE_CENTER);
 
-		allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) | BIT(DRM_MODE_SCALE_FULLSCREEN);
-		if (!HAS_GMCH(dev_priv))
-			allowed_scalers |= BIT(DRM_MODE_SCALE_CENTER);
+	drm_connector_attach_scaling_mode_property(&connector->base,
+						   allowed_scalers);
 
-		drm_connector_attach_scaling_mode_property(&connector->base,
-								allowed_scalers);
+	connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
 
-		connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
-
-		drm_connector_set_panel_orientation_with_quirk(
-				&connector->base,
-				intel_dsi_get_panel_orientation(connector),
-				connector->panel.fixed_mode->hdisplay,
-				connector->panel.fixed_mode->vdisplay);
-	}
+	drm_connector_set_panel_orientation_with_quirk(&connector->base,
+						       intel_dsi_get_panel_orientation(connector),
+						       connector->panel.fixed_mode->hdisplay,
+						       connector->panel.fixed_mode->vdisplay);
 }
 
 #define NS_KHZ_RATIO		1000000
