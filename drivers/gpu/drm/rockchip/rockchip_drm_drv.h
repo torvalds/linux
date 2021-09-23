@@ -19,6 +19,8 @@
 
 #include "../panel/panel-simple.h"
 
+#include "rockchip_drm_debugfs.h"
+
 #define ROCKCHIP_MAX_FB_BUFFER	3
 #define ROCKCHIP_MAX_CONNECTOR	2
 #define ROCKCHIP_MAX_CRTC	4
@@ -76,6 +78,24 @@ struct rockchip_hdr_state {
 	bool pre_overlay;
 	bool hdr2sdr_en;
 	struct rockchip_sdr2hdr_state sdr2hdr_state;
+};
+
+struct rockchip_crtc {
+	struct drm_crtc crtc;
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+	/**
+	 * @vop_dump_status the status of vop dump control
+	 * @vop_dump_list_head the list head of vop dump list
+	 * @vop_dump_list_init_flag init once
+	 * @vop_dump_times control the dump times
+	 * @frme_count the frame of dump buf
+	 */
+	enum vop_dump_status vop_dump_status;
+	struct list_head vop_dump_list_head;
+	bool vop_dump_list_init_flag;
+	int vop_dump_times;
+	int frame_count;
+#endif
 };
 
 struct rockchip_crtc_state {
