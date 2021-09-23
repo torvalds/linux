@@ -125,6 +125,21 @@ bool mlxsw_sp_l3addr_is_zero(union mlxsw_sp_l3addr addr)
 	return !memcmp(&addr, &naddr, sizeof(naddr));
 }
 
+static struct mlxsw_sp_ipip_parms
+mlxsw_sp_ipip_netdev_parms_init_gre4(const struct net_device *ol_dev)
+{
+	struct ip_tunnel_parm parms = mlxsw_sp_ipip_netdev_parms4(ol_dev);
+
+	return (struct mlxsw_sp_ipip_parms) {
+		.proto = MLXSW_SP_L3_PROTO_IPV4,
+		.saddr = mlxsw_sp_ipip_parms4_saddr(&parms),
+		.daddr = mlxsw_sp_ipip_parms4_daddr(&parms),
+		.link = parms.link,
+		.ikey = mlxsw_sp_ipip_parms4_ikey(&parms),
+		.okey = mlxsw_sp_ipip_parms4_okey(&parms),
+	};
+}
+
 static int
 mlxsw_sp_ipip_nexthop_update_gre4(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
 				  struct mlxsw_sp_ipip_entry *ipip_entry,
@@ -231,48 +246,39 @@ mlxsw_sp_ipip_ol_loopback_config_gre4(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int
-mlxsw_sp_ipip_ol_netdev_change_gre4(struct mlxsw_sp *mlxsw_sp,
-				    struct mlxsw_sp_ipip_entry *ipip_entry,
-				    struct netlink_ext_ack *extack)
+mlxsw_sp_ipip_ol_netdev_change_gre(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_ipip_entry *ipip_entry,
+				   const struct mlxsw_sp_ipip_parms *new_parms,
+				   struct netlink_ext_ack *extack)
 {
-	union mlxsw_sp_l3addr old_saddr, new_saddr;
-	union mlxsw_sp_l3addr old_daddr, new_daddr;
-	struct ip_tunnel_parm new_parms;
+	const struct mlxsw_sp_ipip_parms *old_parms = &ipip_entry->parms;
 	bool update_tunnel = false;
 	bool update_decap = false;
 	bool update_nhs = false;
 	int err = 0;
 
-	new_parms = mlxsw_sp_ipip_netdev_parms4(ipip_entry->ol_dev);
-
-	new_saddr = mlxsw_sp_ipip_parms4_saddr(&new_parms);
-	old_saddr = mlxsw_sp_ipip_parms4_saddr(&ipip_entry->parms4);
-	new_daddr = mlxsw_sp_ipip_parms4_daddr(&new_parms);
-	old_daddr = mlxsw_sp_ipip_parms4_daddr(&ipip_entry->parms4);
-
-	if (!mlxsw_sp_l3addr_eq(&new_saddr, &old_saddr)) {
+	if (!mlxsw_sp_l3addr_eq(&new_parms->saddr, &old_parms->saddr)) {
 		u16 ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(ipip_entry->ol_dev);
 
 		/* Since the local address has changed, if there is another
 		 * tunnel with a matching saddr, both need to be demoted.
 		 */
 		if (mlxsw_sp_ipip_demote_tunnel_by_saddr(mlxsw_sp,
-							 MLXSW_SP_L3_PROTO_IPV4,
-							 new_saddr, ul_tb_id,
+							 new_parms->proto,
+							 new_parms->saddr,
+							 ul_tb_id,
 							 ipip_entry)) {
 			mlxsw_sp_ipip_entry_demote_tunnel(mlxsw_sp, ipip_entry);
 			return 0;
 		}
 
 		update_tunnel = true;
-	} else if ((mlxsw_sp_ipip_parms4_okey(&ipip_entry->parms4) !=
-		    mlxsw_sp_ipip_parms4_okey(&new_parms)) ||
-		   ipip_entry->parms4.link != new_parms.link) {
+	} else if (old_parms->okey != new_parms->okey ||
+		   old_parms->link != new_parms->link) {
 		update_tunnel = true;
-	} else if (!mlxsw_sp_l3addr_eq(&new_daddr, &old_daddr)) {
+	} else if (!mlxsw_sp_l3addr_eq(&new_parms->daddr, &old_parms->daddr)) {
 		update_nhs = true;
-	} else if (mlxsw_sp_ipip_parms4_ikey(&ipip_entry->parms4) !=
-		   mlxsw_sp_ipip_parms4_ikey(&new_parms)) {
+	} else if (old_parms->ikey != new_parms->ikey) {
 		update_decap = true;
 	}
 
@@ -288,14 +294,29 @@ mlxsw_sp_ipip_ol_netdev_change_gre4(struct mlxsw_sp *mlxsw_sp,
 		err = __mlxsw_sp_ipip_entry_update_tunnel(mlxsw_sp, ipip_entry,
 							  false, false, false,
 							  extack);
+	if (err)
+		return err;
 
-	ipip_entry->parms4 = new_parms;
-	return err;
+	ipip_entry->parms = *new_parms;
+	return 0;
+}
+
+static int
+mlxsw_sp_ipip_ol_netdev_change_gre4(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_ipip_entry *ipip_entry,
+				    struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_ipip_parms new_parms;
+
+	new_parms = mlxsw_sp_ipip_netdev_parms_init_gre4(ipip_entry->ol_dev);
+	return mlxsw_sp_ipip_ol_netdev_change_gre(mlxsw_sp, ipip_entry,
+						  &new_parms, extack);
 }
 
 static const struct mlxsw_sp_ipip_ops mlxsw_sp_ipip_gre4_ops = {
 	.dev_type = ARPHRD_IPGRE,
 	.ul_proto = MLXSW_SP_L3_PROTO_IPV4,
+	.parms_init = mlxsw_sp_ipip_netdev_parms_init_gre4,
 	.nexthop_update = mlxsw_sp_ipip_nexthop_update_gre4,
 	.decap_config = mlxsw_sp_ipip_decap_config_gre4,
 	.can_offload = mlxsw_sp_ipip_can_offload_gre4,

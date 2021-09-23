@@ -24,20 +24,30 @@ enum mlxsw_sp_ipip_type {
 	MLXSW_SP_IPIP_TYPE_MAX,
 };
 
+struct mlxsw_sp_ipip_parms {
+	enum mlxsw_sp_l3proto proto;
+	union mlxsw_sp_l3addr saddr;
+	union mlxsw_sp_l3addr daddr;
+	int link;
+	u32 ikey;
+	u32 okey;
+};
+
 struct mlxsw_sp_ipip_entry {
 	enum mlxsw_sp_ipip_type ipipt;
 	struct net_device *ol_dev; /* Overlay. */
 	struct mlxsw_sp_rif_ipip_lb *ol_lb;
 	struct mlxsw_sp_fib_entry *decap_fib_entry;
 	struct list_head ipip_list_node;
-	union {
-		struct ip_tunnel_parm parms4;
-	};
+	struct mlxsw_sp_ipip_parms parms;
 };
 
 struct mlxsw_sp_ipip_ops {
 	int dev_type;
 	enum mlxsw_sp_l3proto ul_proto; /* Underlay. */
+
+	struct mlxsw_sp_ipip_parms
+	(*parms_init)(const struct net_device *ol_dev);
 
 	int (*nexthop_update)(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
 			      struct mlxsw_sp_ipip_entry *ipip_entry,

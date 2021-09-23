@@ -1131,16 +1131,7 @@ mlxsw_sp_ipip_entry_alloc(struct mlxsw_sp *mlxsw_sp,
 
 	ipip_entry->ipipt = ipipt;
 	ipip_entry->ol_dev = ol_dev;
-
-	switch (ipip_ops->ul_proto) {
-	case MLXSW_SP_L3_PROTO_IPV4:
-		ipip_entry->parms4 = mlxsw_sp_ipip_netdev_parms4(ol_dev);
-		break;
-	case MLXSW_SP_L3_PROTO_IPV6:
-		WARN_ON(1);
-		break;
-	}
-
+	ipip_entry->parms = ipip_ops->parms_init(ol_dev);
 	return ipip_entry;
 
 err_ol_ipip_lb_create:
