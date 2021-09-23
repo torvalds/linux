@@ -665,7 +665,7 @@ sub get_leave($)
 	# However, there are a few occurences where the leave is
 	# either a wildcard or a number. Just group such cases
 	# altogether.
-	if ($leave =~ m/^\.\*/ || $leave eq "" || $leave =~ /^\d+$/) {
+	if ($leave =~ m/\.\*/ || $leave eq "" || $leave =~ /\\d/) {
 		$leave = "others";
 	}
 
