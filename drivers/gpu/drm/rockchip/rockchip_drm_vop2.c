@@ -126,7 +126,6 @@
 		} \
 	} while (0)
 
-#define to_vop2_video_port(c)         container_of(c, struct vop2_video_port, crtc)
 #define to_vop2_win(x) container_of(x, struct vop2_win, base)
 #define to_vop2_plane_state(x) container_of(x, struct vop2_plane_state, base)
 #define to_wb_state(x) container_of(x, struct vop2_wb_connector_state, base)
@@ -410,7 +409,7 @@ struct vop2_wb_connector_state {
 };
 
 struct vop2_video_port {
-	struct drm_crtc crtc;
+	struct rockchip_crtc rockchip_crtc;
 	struct vop2 *vop2;
 	struct clk *dclk;
 	uint8_t id;
@@ -624,6 +623,15 @@ static const struct drm_bus_format_enum_list drm_bus_format_enum_list[] = {
 };
 
 static DRM_ENUM_NAME_FN(drm_get_bus_format_name, drm_bus_format_enum_list)
+
+static inline struct vop2_video_port *to_vop2_video_port(struct drm_crtc *crtc)
+{
+	struct rockchip_crtc *rockchip_crtc;
+
+	rockchip_crtc = container_of(crtc, struct rockchip_crtc, crtc);
+
+	return container_of(rockchip_crtc, struct vop2_video_port, rockchip_crtc);
+}
 
 static void vop2_lock(struct vop2 *vop2)
 {
@@ -967,7 +975,7 @@ static int32_t vop2_pending_done_bits(struct vop2_video_port *vp)
 			done_bits &= ~BIT(vp->id);
 		vp_id = ffs(done_bits) - 1;
 		done_vp = &vop2->vps[vp_id];
-		adjusted_mode = &done_vp->crtc.state->adjusted_mode;
+		adjusted_mode = &done_vp->rockchip_crtc.crtc.state->adjusted_mode;
 		vcnt = vop2_read_vcnt(done_vp);
 		if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
 			vcnt >>= 1;
@@ -987,14 +995,14 @@ static int32_t vop2_pending_done_bits(struct vop2_video_port *vp)
 
 		first_vp_id = ffs(done_bits) - 1;
 		first_done_vp = &vop2->vps[first_vp_id];
-		first_mode = &first_done_vp->crtc.state->adjusted_mode;
+		first_mode = &first_done_vp->rockchip_crtc.crtc.state->adjusted_mode;
 		/* set last 1/8 frame time as safe section */
 		first_vp_safe_time = 1000000 / drm_mode_vrefresh(first_mode) >> 3;
 
 		done_bits &= ~BIT(first_vp_id);
 		second_vp_id = ffs(done_bits) - 1;
 		second_done_vp = &vop2->vps[second_vp_id];
-		second_mode = &second_done_vp->crtc.state->adjusted_mode;
+		second_mode = &second_done_vp->rockchip_crtc.crtc.state->adjusted_mode;
 		/* set last 1/8 frame time as safe section */
 		second_vp_safe_time = 1000000 / drm_mode_vrefresh(second_mode) >> 3;
 
@@ -1835,7 +1843,7 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 				struct vop2_plane_state *vpstate)
 {
 	struct drm_plane_state *pstate = &vpstate->base;
-	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(vp->crtc.state);
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(vp->rockchip_crtc.crtc.state);
 	int is_input_yuv = is_yuv_support(pstate->fb->format->format);
 	int is_output_yuv = vcstate->yuv_overlay;
 	int input_csc = vpstate->color_space;
@@ -2493,7 +2501,7 @@ static void vop2_cubic_lut_init(struct vop2 *vop2)
 
 	for (i = 0; i < vop2_data->nr_vps; i++) {
 		vp = &vop2->vps[i];
-		crtc = &vp->crtc;
+		crtc = &vp->rockchip_crtc.crtc;
 		if (!crtc->dev)
 			continue;
 		vp_data = &vop2_data->vp[vp->id];
@@ -3025,14 +3033,12 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	struct vop_dump_list *planlist;
 	unsigned long num_pages;
 	struct page **pages;
-	struct rockchip_drm_fb *rk_fb;
 	struct drm_gem_object *obj;
 	struct rockchip_gem_object *rk_obj;
 
 	num_pages = 0;
 	pages = NULL;
-	rk_fb = to_rockchip_fb(fb);
-	obj = rk_fb->obj[0];
+	obj = fb->obj[0];
 	rk_obj = to_rockchip_obj(obj);
 	if (rk_obj) {
 		num_pages = rk_obj->num_pages;
@@ -3232,17 +3238,17 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 		planlist->dump_info.offset = vpstate->offset;
 		planlist->dump_info.pitches = fb->pitches[0];
 		planlist->dump_info.height = actual_h;
-		planlist->dump_info.pixel_format = fb->format->format;
-		list_add_tail(&planlist->entry, &crtc->vop_dump_list_head);
+		planlist->dump_info.format = fb->format;
+		list_add_tail(&planlist->entry, &vp->rockchip_crtc.vop_dump_list_head);
 		vpstate->planlist = planlist;
 	} else {
 		DRM_ERROR("can't alloc a node of planlist %p\n", planlist);
 		return;
 	}
-	if (crtc->vop_dump_status == DUMP_KEEP ||
-	    crtc->vop_dump_times > 0) {
-		vop_plane_dump(&planlist->dump_info, crtc->frame_count);
-		crtc->vop_dump_times--;
+	if (vp->rockchip_crtc.vop_dump_status == DUMP_KEEP ||
+	    vp->rockchip_crtc.vop_dump_times > 0) {
+		rockchip_drm_dump_plane_buffer(&planlist->dump_info, vp->rockchip_crtc.frame_count);
+		vp->rockchip_crtc.vop_dump_times--;
 	}
 #endif
 }
@@ -3818,7 +3824,7 @@ static int vop2_gamma_show(struct seq_file *s, void *data)
 		struct vop2_video_port *vp = &vop2->vps[i];
 
 		if (!vp->lut || !vp->gamma_lut_active ||
-		    !vop2->lut_regs || !vp->crtc.state->enable) {
+		    !vop2->lut_regs || !vp->rockchip_crtc.crtc.state->enable) {
 			DEBUG_PRINT("Video port%d gamma disabled\n", vp->id);
 			continue;
 		}
@@ -3845,7 +3851,7 @@ static int vop2_cubic_lut_show(struct seq_file *s, void *data)
 		struct vop2_video_port *vp = &vop2->vps[i];
 
 		if ((!vp->cubic_lut_gem_obj && !private->cubic_lut[vp->id].enable) ||
-		    !vp->cubic_lut || !vp->crtc.state->enable) {
+		    !vp->cubic_lut || !vp->rockchip_crtc.crtc.state->enable) {
 			DEBUG_PRINT("Video port%d cubic lut disabled\n", vp->id);
 			continue;
 		}
@@ -3888,7 +3894,7 @@ static int vop2_crtc_debugfs_init(struct drm_minor *minor, struct drm_crtc *crtc
 		goto remove;
 	}
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-	drm_debugfs_vop_add(crtc, vop2->debugfs);
+	rockchip_drm_add_dump_buffer(crtc, vop2->debugfs);
 #endif
 	for (i = 0; i < ARRAY_SIZE(vop2_debugfs_files); i++)
 		vop2->debugfs_files[i].data = vop2;
@@ -4018,22 +4024,23 @@ static size_t vop2_crtc_bandwidth(struct drm_crtc *crtc,
 	int i = 0;
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	struct vop_dump_list *pos, *n;
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 #endif
 
 	if (!htotal || !vdisplay)
 		return 0;
 
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-	if (!crtc->vop_dump_list_init_flag) {
-		INIT_LIST_HEAD(&crtc->vop_dump_list_head);
-		crtc->vop_dump_list_init_flag = true;
+	if (!vp->rockchip_crtc.vop_dump_list_init_flag) {
+		INIT_LIST_HEAD(&vp->rockchip_crtc.vop_dump_list_head);
+		vp->rockchip_crtc.vop_dump_list_init_flag = true;
 	}
-	list_for_each_entry_safe(pos, n, &crtc->vop_dump_list_head, entry) {
+	list_for_each_entry_safe(pos, n, &vp->rockchip_crtc.vop_dump_list_head, entry) {
 		list_del(&pos->entry);
 	}
-	if (crtc->vop_dump_status == DUMP_KEEP ||
-	    crtc->vop_dump_times > 0) {
-		crtc->frame_count++;
+	if (vp->rockchip_crtc.vop_dump_status == DUMP_KEEP ||
+	    vp->rockchip_crtc.vop_dump_times > 0) {
+		vp->rockchip_crtc.frame_count++;
 	}
 #endif
 
@@ -4518,7 +4525,7 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 	struct drm_plane *plane = &win->base;
 	struct drm_plane_state *pstate = plane->state;
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(pstate);
-	struct drm_crtc_state *cstate = vp->crtc.state;
+	struct drm_crtc_state *cstate = vp->rockchip_crtc.crtc.state;
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(cstate);
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
@@ -4802,7 +4809,7 @@ static void vop2_setup_alpha(struct vop2_video_port *vp,
 	bool bottom_layer_alpha_en = false;
 	u32 dst_global_alpha = 0xff;
 
-	drm_atomic_crtc_for_each_plane(plane, &vp->crtc) {
+	drm_atomic_crtc_for_each_plane(plane, &vp->rockchip_crtc.crtc) {
 		struct vop2_win *win = to_vop2_win(plane);
 
 		vpstate = to_vop2_plane_state(plane->state);
@@ -4908,7 +4915,7 @@ static void vop2_setup_port_mux(struct vop2_video_port *vp, uint16_t port_mux_cf
 	if (vop2->port_mux_cfg != port_mux_cfg) {
 		VOP_CTRL_SET(vop2, ovl_port_mux_cfg, port_mux_cfg);
 		vp->skip_vsync = true;
-		vop2_cfg_done(&vp->crtc);
+		vop2_cfg_done(&vp->rockchip_crtc.crtc);
 		vop2->port_mux_cfg = port_mux_cfg;
 		vop2_wait_for_port_mux_done(vop2);
 	}
@@ -5009,7 +5016,7 @@ static void vop2_setup_dly_for_vp(struct vop2_video_port *vp)
 	struct vop2 *vop2 = vp->vop2;
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
-	struct drm_crtc *crtc = &vp->crtc;
+	struct drm_crtc *crtc = &vp->rockchip_crtc.crtc;
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	u16 hsync_len = adjusted_mode->crtc_hsync_end - adjusted_mode->crtc_hsync_start;
 	u16 hdisplay = adjusted_mode->crtc_hdisplay;
@@ -5635,7 +5642,7 @@ static void vop2_fb_unref_worker(struct drm_flip_work *work, void *val)
 	struct vop2_video_port *vp = container_of(work, struct vop2_video_port, fb_unref_work);
 	struct drm_framebuffer *fb = val;
 
-	drm_crtc_vblank_put(&vp->crtc);
+	drm_crtc_vblank_put(&vp->rockchip_crtc.crtc);
 	drm_framebuffer_put(fb);
 }
 
@@ -5799,7 +5806,7 @@ static irqreturn_t vop2_isr(int irq, void *data)
 
 	for (i = 0; i < vp_max; i++) {
 		vp = &vop2->vps[i];
-		crtc = &vp->crtc;
+		crtc = &vp->rockchip_crtc.crtc;
 		active_irqs = vp_irqs[i];
 		if (active_irqs & DSP_HOLD_VALID_INTR) {
 			complete(&vp->dsp_hold_completion);
@@ -6042,7 +6049,7 @@ static int vop2_gamma_init(struct vop2 *vop2)
 
 	for (i = 0; i < vop2_data->nr_vps; i++) {
 		vp = &vop2->vps[i];
-		crtc = &vp->crtc;
+		crtc = &vp->rockchip_crtc.crtc;
 		if (!crtc->dev)
 			continue;
 		vp_data = &vop2_data->vp[vp->id];
@@ -6187,7 +6194,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 			return PTR_ERR(vp->dclk);
 		}
 
-		crtc = &vp->crtc;
+		crtc = &vp->rockchip_crtc.crtc;
 
 		port = of_graph_get_port_by_id(dev->of_node, i);
 		if (!port) {
