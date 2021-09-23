@@ -280,7 +280,7 @@ char __bootdata(early_command_line)[COMMAND_LINE_SIZE];
 static void __init setup_boot_command_line(void)
 {
 	/* copy arch command line */
-	strlcpy(boot_command_line, early_command_line, ARCH_COMMAND_LINE_SIZE);
+	strlcpy(boot_command_line, early_command_line, COMMAND_LINE_SIZE);
 }
 
 static void __init check_image_bootable(void)

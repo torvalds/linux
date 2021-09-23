@@ -9,6 +9,4 @@
 
 #define COMMAND_LINE_SIZE	4096
 
-#define ARCH_COMMAND_LINE_SIZE	896
-
 #endif /* _UAPI_ASM_S390_SETUP_H */

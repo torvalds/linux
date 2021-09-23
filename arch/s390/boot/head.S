@@ -184,35 +184,23 @@ iplstart:
 	bas	%r14,.Lloader		# load parameter file
 	ltr	%r2,%r2 		# got anything ?
 	bz	.Lnopf
-	chi	%r2,895
-	bnh	.Lnotrunc
-	la	%r2,895
+	l	%r3,MAX_COMMAND_LINE_SIZE+ARCH_OFFSET-PARMAREA(%r12)
+	ahi	%r3,-1
+	clr	%r2,%r3
+	bl	.Lnotrunc
+	lr	%r2,%r3
 .Lnotrunc:
 	l	%r4,.Linitrd
 	clc	0(3,%r4),.L_hdr		# if it is HDRx
 	bz	.Lagain1		# skip dataset header
 	clc	0(3,%r4),.L_eof		# if it is EOFx
 	bz	.Lagain1		# skip dateset trailer
-	la	%r5,0(%r4,%r2)
-	lr	%r3,%r2
-	la	%r3,COMMAND_LINE-PARMAREA(%r12) # load adr. of command line
-	mvc	0(256,%r3),0(%r4)
-	mvc	256(256,%r3),256(%r4)
-	mvc	512(256,%r3),512(%r4)
-	mvc	768(122,%r3),768(%r4)
-	slr	%r0,%r0
-	b	.Lcntlp
-.Ldelspc:
-	ic	%r0,0(%r2,%r3)
-	chi	%r0,0x20		# is it a space ?
-	be	.Lcntlp
-	ahi	%r2,1
-	b	.Leolp
-.Lcntlp:
-	brct	%r2,.Ldelspc
-.Leolp:
-	slr	%r0,%r0
-	stc	%r0,0(%r2,%r3)		# terminate buffer
+
+	lr	%r5,%r2
+	la	%r6,COMMAND_LINE-PARMAREA(%r12)
+	lr	%r7,%r2
+	ahi	%r7,1
+	mvcl	%r6,%r4
 .Lnopf:
 
 #
@@ -394,6 +382,7 @@ SYM_DATA_START(parmarea)
 	.quad	0			# OLDMEM_BASE
 	.quad	0			# OLDMEM_SIZE
 	.quad	kernel_version		# points to kernel version string
+	.quad	COMMAND_LINE_SIZE
 
 	.org	COMMAND_LINE
 	.byte	"root=/dev/ram0 ro"

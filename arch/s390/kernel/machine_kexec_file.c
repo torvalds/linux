@@ -216,7 +216,9 @@ void *kexec_file_add_components(struct kimage *image,
 				int (*add_kernel)(struct kimage *image,
 						  struct s390_load_data *data))
 {
+	unsigned long max_command_line_size = LEGACY_COMMAND_LINE_SIZE;
 	struct s390_load_data data = {0};
+	unsigned long minsize;
 	int ret;
 
 	data.report = ipl_report_init(&ipl_block);
@@ -227,11 +229,23 @@ void *kexec_file_add_components(struct kimage *image,
 	if (ret)
 		goto out;
 
-	if (image->kernel_buf_len < PARMAREA + sizeof(struct parmarea) ||
-	    image->cmdline_buf_len >= ARCH_COMMAND_LINE_SIZE) {
-		ret = -EINVAL;
+	ret = -EINVAL;
+	minsize = PARMAREA + offsetof(struct parmarea, command_line);
+	if (image->kernel_buf_len < minsize)
 		goto out;
-	}
+
+	if (data.parm->max_command_line_size)
+		max_command_line_size = data.parm->max_command_line_size;
+
+	if (minsize + max_command_line_size < minsize)
+		goto out;
+
+	if (image->kernel_buf_len < minsize + max_command_line_size)
+		goto out;
+
+	if (image->cmdline_buf_len >= max_command_line_size)
+		goto out;
+
 	memcpy(data.parm->command_line, image->cmdline_buf,
 	       image->cmdline_buf_len);
 
