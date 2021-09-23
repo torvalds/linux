@@ -152,6 +152,7 @@ static void trbe_stop_and_truncate_event(struct perf_output_handle *handle)
 	 */
 	trbe_drain_and_disable_local();
 	perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
+	perf_aux_output_end(handle, 0);
 	*this_cpu_ptr(buf->cpudata->drvdata->handle) = NULL;
 }
 
@@ -715,7 +716,7 @@ static void trbe_handle_spurious(struct perf_output_handle *handle)
 	isb();
 }
 
-static void trbe_handle_overflow(struct perf_output_handle *handle)
+static int trbe_handle_overflow(struct perf_output_handle *handle)
 {
 	struct perf_event *event = handle->event;
 	struct trbe_buf *buf = etm_perf_sink_config(handle);
@@ -739,9 +740,10 @@ static void trbe_handle_overflow(struct perf_output_handle *handle)
 		 */
 		trbe_drain_and_disable_local();
 		*this_cpu_ptr(buf->cpudata->drvdata->handle) = NULL;
-		return;
+		return -EINVAL;
 	}
-	__arm_trbe_enable(buf, handle);
+
+	return __arm_trbe_enable(buf, handle);
 }
 
 static bool is_perf_trbe(struct perf_output_handle *handle)
@@ -772,6 +774,7 @@ static irqreturn_t arm_trbe_irq_handler(int irq, void *dev)
 	struct perf_output_handle *handle = *handle_ptr;
 	enum trbe_fault_action act;
 	u64 status;
+	bool truncated = false;
 
 	/* Reads to TRBSR_EL1 is fine when TRBE is active */
 	status = read_sysreg_s(SYS_TRBSR_EL1);
@@ -796,24 +799,27 @@ static irqreturn_t arm_trbe_irq_handler(int irq, void *dev)
 	if (!is_perf_trbe(handle))
 		return IRQ_NONE;
 
-	/*
-	 * Ensure perf callbacks have completed, which may disable
-	 * the trace buffer in response to a TRUNCATION flag.
-	 */
-	irq_work_run();
-
 	act = trbe_get_fault_act(status);
 	switch (act) {
 	case TRBE_FAULT_ACT_WRAP:
-		trbe_handle_overflow(handle);
+		truncated = !!trbe_handle_overflow(handle);
 		break;
 	case TRBE_FAULT_ACT_SPURIOUS:
 		trbe_handle_spurious(handle);
 		break;
 	case TRBE_FAULT_ACT_FATAL:
 		trbe_stop_and_truncate_event(handle);
+		truncated = true;
 		break;
 	}
+
+	/*
+	 * If the buffer was truncated, ensure perf callbacks
+	 * have completed, which will disable the event.
+	 */
+	if (truncated)
+		irq_work_run();
+
 	return IRQ_HANDLED;
 }
 
