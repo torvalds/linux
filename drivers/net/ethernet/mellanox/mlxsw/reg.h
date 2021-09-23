@@ -8200,6 +8200,37 @@ mlxsw_reg_rtdp_ipip4_pack(char *payload, u16 irif,
 	mlxsw_reg_rtdp_ipip_expected_gre_key_set(payload, expected_gre_key);
 }
 
+/* RIPS - Router IP version Six Register
+ * -------------------------------------
+ * The RIPS register is used to store IPv6 addresses for use by the NVE and
+ * IPinIP
+ */
+#define MLXSW_REG_RIPS_ID 0x8021
+#define MLXSW_REG_RIPS_LEN 0x14
+
+MLXSW_REG_DEFINE(rips, MLXSW_REG_RIPS_ID, MLXSW_REG_RIPS_LEN);
+
+/* reg_rips_index
+ * Index to IPv6 address.
+ * For Spectrum, the index is to the KVD linear.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rips, index, 0x00, 0, 24);
+
+/* reg_rips_ipv6
+ * IPv6 address
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, rips, ipv6, 0x04, 16);
+
+static inline void mlxsw_reg_rips_pack(char *payload, u32 index,
+				       const struct in6_addr *ipv6)
+{
+	MLXSW_REG_ZERO(rips, payload);
+	mlxsw_reg_rips_index_set(payload, index);
+	mlxsw_reg_rips_ipv6_memcpy_to(payload, (const char *)ipv6);
+}
+
 /* RATRAD - Router Adjacency Table Activity Dump Register
  * ------------------------------------------------------
  * The RATRAD register is used to dump and optionally clear activity bits of
@@ -12281,6 +12312,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(rtar),
 	MLXSW_REG(ratr),
 	MLXSW_REG(rtdp),
+	MLXSW_REG(rips),
 	MLXSW_REG(ratrad),
 	MLXSW_REG(rdpm),
 	MLXSW_REG(ricnt),
