@@ -324,13 +324,13 @@ struct futex_hash_bucket *futex_hash(union futex_key *key)
 
 
 /**
- * match_futex - Check whether two futex keys are equal
+ * futex_match - Check whether two futex keys are equal
  * @key1:	Pointer to key1
  * @key2:	Pointer to key2
  *
  * Return 1 if two futex_keys are equal, 0 otherwise.
  */
-static inline int match_futex(union futex_key *key1, union futex_key *key2)
+static inline int futex_match(union futex_key *key1, union futex_key *key2)
 {
 	return (key1 && key2
 		&& key1->both.word == key2->both.word
@@ -381,7 +381,7 @@ futex_setup_timer(ktime_t *time, struct hrtimer_sleeper *timeout,
  * a new sequence number and will _NOT_ match, even though it is the exact same
  * file.
  *
- * It is important that match_futex() will never have a false-positive, esp.
+ * It is important that futex_match() will never have a false-positive, esp.
  * for PI futexes that can mess up the state. The above argues that false-negatives
  * are only possible for malformed programs.
  */
@@ -648,7 +648,7 @@ struct futex_q *futex_top_waiter(struct futex_hash_bucket *hb, union futex_key *
 	struct futex_q *this;
 
 	plist_for_each_entry(this, &hb->chain, list) {
-		if (match_futex(&this->key, key))
+		if (futex_match(&this->key, key))
 			return this;
 	}
 	return NULL;
@@ -808,7 +808,7 @@ int futex_wake(u32 __user *uaddr, unsigned int flags, int nr_wake, u32 bitset)
 	spin_lock(&hb->lock);
 
 	plist_for_each_entry_safe(this, next, &hb->chain, list) {
-		if (match_futex (&this->key, &key)) {
+		if (futex_match (&this->key, &key)) {
 			if (this->pi_state || this->rt_waiter) {
 				ret = -EINVAL;
 				break;
@@ -928,7 +928,7 @@ retry_private:
 	}
 
 	plist_for_each_entry_safe(this, next, &hb1->chain, list) {
-		if (match_futex (&this->key, &key1)) {
+		if (futex_match (&this->key, &key1)) {
 			if (this->pi_state || this->rt_waiter) {
 				ret = -EINVAL;
 				goto out_unlock;
@@ -942,7 +942,7 @@ retry_private:
 	if (op_ret > 0) {
 		op_ret = 0;
 		plist_for_each_entry_safe(this, next, &hb2->chain, list) {
-			if (match_futex (&this->key, &key2)) {
+			if (futex_match (&this->key, &key2)) {
 				if (this->pi_state || this->rt_waiter) {
 					ret = -EINVAL;
 					goto out_unlock;
@@ -1199,7 +1199,7 @@ futex_proxy_trylock_atomic(u32 __user *pifutex, struct futex_hash_bucket *hb1,
 		return -EINVAL;
 
 	/* Ensure we requeue to the expected futex. */
-	if (!match_futex(top_waiter->requeue_pi_key, key2))
+	if (!futex_match(top_waiter->requeue_pi_key, key2))
 		return -EINVAL;
 
 	/* Ensure that this does not race against an early wakeup */
@@ -1334,7 +1334,7 @@ retry:
 	 * The check above which compares uaddrs is not sufficient for
 	 * shared futexes. We need to compare the keys:
 	 */
-	if (requeue_pi && match_futex(&key1, &key2))
+	if (requeue_pi && futex_match(&key1, &key2))
 		return -EINVAL;
 
 	hb1 = futex_hash(&key1);
@@ -1469,7 +1469,7 @@ retry_private:
 		if (task_count - nr_wake >= nr_requeue)
 			break;
 
-		if (!match_futex(&this->key, &key1))
+		if (!futex_match(&this->key, &key1))
 			continue;
 
 		/*
@@ -1496,7 +1496,7 @@ retry_private:
 		}
 
 		/* Ensure we requeue to the expected futex for requeue_pi. */
-		if (!match_futex(this->requeue_pi_key, &key2)) {
+		if (!futex_match(this->requeue_pi_key, &key2)) {
 			ret = -EINVAL;
 			break;
 		}
@@ -2033,7 +2033,7 @@ int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 	 * The check above which compares uaddrs is not sufficient for
 	 * shared futexes. We need to compare the keys:
 	 */
-	if (match_futex(&q.key, &key2)) {
+	if (futex_match(&q.key, &key2)) {
 		futex_q_unlock(hb);
 		ret = -EINVAL;
 		goto out;
