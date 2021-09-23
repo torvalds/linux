@@ -762,7 +762,6 @@ u8 rtw_setbbreg_cmd(struct adapter * padapter, u8 offset, u8 val);
 u8 rtw_setrfreg_cmd(struct adapter * padapter, u8 offset, u32 val);
 u8 rtw_setrfintfs_cmd(struct adapter  *padapter, u8 mode);
 u8 rtw_setrttbl_cmd(struct adapter  *padapter, struct setratable_parm *prate_table);
-u8 rtw_getrttbl_cmd(struct adapter  *padapter, struct getratable_rsp *pval);
 
 u8 rtw_gettssi_cmd(struct adapter  *padapter, u8 offset,u8 *pval);
 u8 rtw_setfwdig_cmd(struct adapter*padapter, u8 type);
