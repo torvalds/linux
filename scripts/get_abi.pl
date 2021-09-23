@@ -9,6 +9,7 @@ use Getopt::Long;
 use File::Find;
 use Fcntl ':mode';
 use Cwd 'abs_path';
+use Data::Dumper;
 
 my $help = 0;
 my $hint = 0;
@@ -20,13 +21,18 @@ my $prefix="Documentation/ABI";
 my $sysfs_prefix="/sys";
 my $search_string;
 
+# Debug options
+my $dbg_what_parsing = 1;
+my $dbg_what_open = 2;
+my $dbg_dump_abi_structs = 4;
+
 #
 # If true, assumes that the description is formatted with ReST
 #
 my $description_is_rst = 1;
 
 GetOptions(
-	"debug|d+" => \$debug,
+	"debug=i" => \$debug,
 	"enable-lineno" => \$enable_lineno,
 	"rst-source!" => \$description_is_rst,
 	"dir=s" => \$prefix,
@@ -46,7 +52,7 @@ my ($cmd, $arg) = @ARGV;
 pod2usage(2) if ($cmd ne "search" && $cmd ne "rest" && $cmd ne "validate" && $cmd ne "undefined");
 pod2usage(2) if ($cmd eq "search" && !$arg);
 
-require Data::Dumper if ($debug);
+require Data::Dumper if ($debug & $dbg_dump_abi_structs);
 
 my %data;
 my %symbols;
@@ -106,7 +112,7 @@ sub parse_abi {
 	my @labels;
 	my $label = "";
 
-	print STDERR "Opening $file\n" if ($debug > 1);
+	print STDERR "Opening $file\n" if ($debug & $dbg_what_open);
 	open IN, $file;
 	while(<IN>) {
 		$ln++;
@@ -178,7 +184,7 @@ sub parse_abi {
 							$data{$what}->{filepath} .= " " . $file;
 						}
 					}
-					print STDERR "\twhat: $what\n" if ($debug > 1);
+					print STDERR "\twhat: $what\n" if ($debug & $dbg_what_parsing);
 					$data{$what}->{line_no} = $ln;
 				} else {
 					$data{$what}->{line_no} = $ln if (!defined($data{$what}->{line_no}));
@@ -827,7 +833,7 @@ if ($cmd eq "undefined" || $cmd eq "search") {
 #
 find({wanted =>\&parse_abi, no_chdir => 1}, $prefix);
 
-print STDERR Data::Dumper->Dump([\%data], [qw(*data)]) if ($debug);
+print STDERR Data::Dumper->Dump([\%data], [qw(*data)]) if ($debug & $dbg_dump_abi_structs);
 
 #
 # Handles the command
@@ -860,7 +866,7 @@ abi_book.pl - parse the Linux ABI files and produce a ReST book.
 
 =head1 SYNOPSIS
 
-B<abi_book.pl> [--debug] [--enable-lineno] [--man] [--help]
+B<abi_book.pl> [--debug <level>] [--enable-lineno] [--man] [--help]
 	       [--(no-)rst-source] [--dir=<dir>] [--show-hints]
 	       [--search-string <regex>]
 	       <COMAND> [<ARGUMENT>]
@@ -900,10 +906,14 @@ logic (--no-rst-source).
 
 Enable output of #define LINENO lines.
 
-=item B<--debug>
+=item B<--debug> I<debug level>
 
-Put the script in verbose mode, useful for debugging. Can be called multiple
-times, to increase verbosity.
+Print debug information according with the level, which is given by the
+following bitmask:
+
+    -  1: Debug parsing What entries from ABI files;
+    -  2: Shows what files are opened from ABI files;
+    -  4: Dump the structs used to store the contents of the ABI files.
 
 =item B<--show-hints>
 
