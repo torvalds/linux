@@ -44,6 +44,8 @@
  *  VERSION     : 01-00-06
  *  02 Sep 2021 : 1. Configuration of Link state L0 and L1 transaction delay for PCIe switch ports & Endpoint.
  *  VERSION     : 01-00-11
+ *  23 Sep 2021 : 1. Enabling MSI MASK for MAC EVENT Interrupt to process RBU status and update to ethtool statistics
+ *  VERSION     : 01-00-14
  */
 
 #ifndef __COMMON_H__
@@ -986,7 +988,7 @@ entry delay = n * 256 ns */
 #define TC956X_MSI_PF1				(0x000)
 #endif
 
-#define ENABLE_MSI_INTR				(0x17FFF9)
+#define ENABLE_MSI_INTR				(0x17FFFD)
 
 #define TC956X_MSI_OUT_EN_OFFSET(pf_id)	(TC956X_MSI_BASE + \
 						(pf_id * TC956X_MSI_PF1) + (0x0000))

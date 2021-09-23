@@ -60,6 +60,8 @@
  *  VERSION     : 01-00-12
  *  14 Sep 2021 : 1. Version update
  *  VERSION     : 01-00-13
+ *  23 Sep 2021 : 1. Version update
+ *  VERSION     : 01-00-14
  */
 
 #include <linux/clk-provider.h>
@@ -89,7 +91,7 @@ static unsigned int tc956x_speed = 3;
 static unsigned int tc956x_port0_interface = ENABLE_XFI_INTERFACE;
 static unsigned int tc956x_port1_interface = ENABLE_SGMII_INTERFACE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 1, 3};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 1, 4};
 
 /*
  * This struct is used to associate PCI Function of MAC controller on a board,

@@ -45,6 +45,8 @@
  * 		  3. Removed IOCTL TC956XMAC_VLAN_STRIP_CONFIG.
  * 		  4. Removed "Disable VLAN Filter" option in IOCTL TC956XMAC_VLAN_FILTERING.
  *  VERSION     : 01-00-13
+ *  23 Sep 2021 : 1. Filtering All pause frames by default
+ *  VERSION     : 01-00-14
  */
 
 #include <linux/bitrev.h>
@@ -822,7 +824,7 @@ static int tc956x_add_actual_mac_table(struct net_device *dev,
 		KPRINT_INFO("Space is not available in MAC_Table\n");
 		KPRINT_INFO("Enabling the promisc mode\n");
 		value = readl(ioaddr + XGMAC_PACKET_FILTER);
-		value |= XGMAC_FILTER_RA;
+		value |= XGMAC_FILTER_PR;
 		writel(value, ioaddr + XGMAC_PACKET_FILTER);
 	}
 	return ret_value;
@@ -947,7 +949,7 @@ static void dwxgmac2_set_filter(struct tc956xmac_priv *priv, struct mac_device_i
 	value |= XGMAC_FILTER_HPF;
 	writel(value, ioaddr + XGMAC_PACKET_FILTER);
 	if (dev->flags & IFF_PROMISC) {
-		value |= XGMAC_FILTER_RA;
+		value |= XGMAC_FILTER_PR;
 		writel(value, ioaddr + XGMAC_PACKET_FILTER);
 	} else if (dev->flags & IFF_ALLMULTI) {
 		value |= XGMAC_FILTER_PM;

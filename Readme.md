@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 14 Sep 2021
+Release Date: 23 Sep 2021
 
-Release Version: V_01-00-13 : Limited-tested version
+Release Version: V_01-00-14 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -43,17 +43,17 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
 1. Use below commands to advertise with Autonegotiation ON for speeds 10Gbps, 5Gbps, 2.5Gbps, 1Gbps, 100Mbps and 10Mbps as ethtool speed command does not support.
 
-    ethtool -s <interface> advertise 0x1000 autoneg on --> changes the advertisement to 10Gbps
+    ethtool -s <interface> advertise 0x7000 autoneg on --> changes the advertisement to 10Gbps
     
-    ethtool -s <interface> advertise 0x1000000000000 autoneg on --> changes the advertisement to 5Gbps
+    ethtool -s <interface> advertise 0x1000000006000 autoneg on --> changes the advertisement to 5Gbps
 
-    ethtool -s <interface> advertise 0x800000000000 autoneg on --> changes the advertisement to 2.5Gbps
+    ethtool -s <interface> advertise 0x800000006000 autoneg on --> changes the advertisement to 2.5Gbps
 
-    ethtool -s <interface> advertise 0x020 autoneg on --> changes the advertisement to 1Gbps
+    ethtool -s <interface> advertise 0x6020 autoneg on --> changes the advertisement to 1Gbps
 
-    ethtool -s <interface> advertise 0x008 autoneg on --> changes the advertisement to 100Mbps
+    ethtool -s <interface> advertise 0x6008 autoneg on --> changes the advertisement to 100Mbps
 
-    ethtool -s <interface> advertise 0x002 autoneg on --> changes the advertisement 10Mbps
+    ethtool -s <interface> advertise 0x6002 autoneg on --> changes the advertisement 10Mbps
 
 2. Use the below command to insert the kernel module with specific modes for interfaces:
 	
@@ -223,3 +223,9 @@ Default Configuraton:
 2. Added ethtool support to update "rx-vlan-offload", "rx-vlan-filter", and "tx-vlan-offload".
 3. Removed IOCTL TC956XMAC_VLAN_STRIP_CONFIG.
 4. Removed "Disable VLAN Filter" option in IOCTL TC956XMAC_VLAN_FILTERING.
+
+## TC956X_Host_Driver_20210923_V_01-00-14:
+
+1. Updated RX Queue Threshold limits for Activating and Deactivating Flow control 
+2. Filtering All pause frames by default.
+3. Capturing RBU status and updating to ethtool statistics for both S/W & IPA DMA channels

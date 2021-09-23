@@ -56,6 +56,8 @@
  * 		  3. Removed IOCTL TC956XMAC_VLAN_STRIP_CONFIG.
  * 		  4. Removed "Disable VLAN Filter" option in IOCTL TC956XMAC_VLAN_FILTERING.
  *  VERSION     : 01-00-13
+ *  23 Sep 2021 : 1. Capturing RBU status using MAC EVENT Interupt and updating to ethtool statistics for both S/W & IPA DMA channels
+ *  VERSION     : 01-00-14
  */
 
 #include <linux/clk.h>
@@ -3920,6 +3922,7 @@ static int tc956xmac_open(struct net_device *dev)
 		rd_val |= (1 << MSI_INT_EXT_PHY);
 	}
 
+	/* rd_val |= (1 << 2); *//* Disable MSI for MAC EVENT Interrupt */
 	/* Disable MAC Event and XPCS interrupt */
 	rd_val = ENABLE_MSI_INTR & (~rd_val);
 
@@ -5432,6 +5435,7 @@ static irqreturn_t tc956xmac_interrupt(int irq, void *dev_id)
 	u32 queue;
 	bool xmac;
 	u32 val = 0;
+	uint32_t uiIntSts, uiIntclr = 0;
 
 	xmac = priv->plat->has_gmac4 || priv->plat->has_xgmac;
 #ifdef TC956X
@@ -5479,6 +5483,17 @@ static irqreturn_t tc956xmac_interrupt(int irq, void *dev_id)
 
 	if (val & (1 << 24))
 		priv->xstats.sw_msi_n++;
+
+	/* Checking if any RBUs occurred and updating the statistics corresponding to channel */
+
+	for (queue = 0; queue < queues_count; queue++) {
+		uiIntSts = readl(priv->ioaddr + XGMAC_DMA_CH_STATUS(queue));
+		if(uiIntSts & XGMAC_RBU) {
+			priv->xstats.rx_buf_unav_irq[queue]++;
+			uiIntclr |= XGMAC_RBU;
+		}
+		writel(uiIntclr, (priv->ioaddr + XGMAC_DMA_CH_STATUS(queue)));
+	}
 
 	/* To handle GMAC own interrupts */
 	if ((priv->plat->has_gmac) || xmac) {
