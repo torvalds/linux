@@ -1198,9 +1198,13 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 	struct REPARSE_DATA_BUFFER *rp = NULL;
 	bool rp_inserted = false;
 
+	ni_lock_dir(dir_ni);
+
 	dir_root = indx_get_root(&dir_ni->dir, dir_ni, NULL, NULL);
-	if (!dir_root)
-		return ERR_PTR(-EINVAL);
+	if (!dir_root) {
+		err = -EINVAL;
+		goto out1;
+	}
 
 	if (S_ISDIR(mode)) {
 		/* Use parent's directory attributes. */
@@ -1549,6 +1553,9 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 	if (err)
 		goto out6;
 
+	/* Unlock parent directory before ntfs_init_acl. */
+	ni_unlock(dir_ni);
+
 	inode->i_generation = le16_to_cpu(rec->seq);
 
 	dir->i_mtime = dir->i_ctime = inode->i_atime;
@@ -1605,8 +1612,10 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 out7:
 
 	/* Undo 'indx_insert_entry'. */
+	ni_lock_dir(dir_ni);
 	indx_delete_entry(&dir_ni->dir, dir_ni, new_de + 1,
 			  le16_to_cpu(new_de->key_size), sbi);
+	/* ni_unlock(dir_ni); will be called later. */
 out6:
 	if (rp_inserted)
 		ntfs_remove_reparse(sbi, IO_REPARSE_TAG_SYMLINK, &new_de->ref);
@@ -1630,8 +1639,10 @@ out2:
 	kfree(rp);
 
 out1:
-	if (err)
+	if (err) {
+		ni_unlock(dir_ni);
 		return ERR_PTR(err);
+	}
 
 	unlock_new_inode(inode);
 
