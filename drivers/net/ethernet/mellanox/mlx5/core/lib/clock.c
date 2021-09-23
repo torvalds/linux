@@ -472,6 +472,7 @@ static int mlx5_perout_configure(struct ptp_clock_info *ptp,
 			container_of(ptp, struct mlx5_clock, ptp_info);
 	struct mlx5_core_dev *mdev =
 			container_of(clock, struct mlx5_core_dev, clock);
+	bool rt_mode = mlx5_real_time_mode(mdev);
 	u32 in[MLX5_ST_SZ_DW(mtpps_reg)] = {0};
 	struct timespec64 ts;
 	u32 field_select = 0;
@@ -534,6 +535,9 @@ static int mlx5_perout_configure(struct ptp_clock_info *ptp,
 	err = mlx5_set_mtpps(mdev, in, sizeof(in));
 	if (err)
 		return err;
+
+	if (rt_mode)
+		return 0;
 
 	return mlx5_set_mtppse(mdev, pin, 0,
 			       MLX5_EVENT_MODE_REPETETIVE & on);
@@ -702,20 +706,14 @@ static void ts_next_sec(struct timespec64 *ts)
 static u64 perout_conf_next_event_timer(struct mlx5_core_dev *mdev,
 					struct mlx5_clock *clock)
 {
-	bool rt_mode = mlx5_real_time_mode(mdev);
 	struct timespec64 ts;
 	s64 target_ns;
 
-	if (rt_mode)
-		ts = mlx5_ptp_gettimex_real_time(mdev, NULL);
-	else
-		mlx5_ptp_gettimex(&clock->ptp_info, &ts, NULL);
-
+	mlx5_ptp_gettimex(&clock->ptp_info, &ts, NULL);
 	ts_next_sec(&ts);
 	target_ns = timespec64_to_ns(&ts);
 
-	return rt_mode ? perout_conf_real_time(ts.tv_sec) :
-			 find_target_cycles(mdev, target_ns);
+	return find_target_cycles(mdev, target_ns);
 }
 
 static int mlx5_pps_event(struct notifier_block *nb,
