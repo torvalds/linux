@@ -268,6 +268,21 @@ extern int futex_requeue(u32 __user *uaddr1, unsigned int flags,
 extern int futex_wait(u32 __user *uaddr, unsigned int flags, u32 val,
 		      ktime_t *abs_time, u32 bitset);
 
+/**
+ * struct futex_vector - Auxiliary struct for futex_waitv()
+ * @w: Userspace provided data
+ * @q: Kernel side data
+ *
+ * Struct used to build an array with all data need for futex_waitv()
+ */
+struct futex_vector {
+	struct futex_waitv w;
+	struct futex_q q;
+};
+
+extern int futex_wait_multiple(struct futex_vector *vs, unsigned int count,
+			       struct hrtimer_sleeper *to);
+
 extern int futex_wake(u32 __user *uaddr, unsigned int flags, int nr_wake, u32 bitset);
 
 extern int futex_wake_op(u32 __user *uaddr1, unsigned int flags,
