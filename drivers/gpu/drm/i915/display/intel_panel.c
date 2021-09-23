@@ -497,6 +497,9 @@ intel_panel_mode_valid(struct intel_connector *connector,
 	if (mode->vdisplay != fixed_mode->vdisplay)
 		return MODE_PANEL;
 
+	if (drm_mode_vrefresh(mode) != drm_mode_vrefresh(fixed_mode))
+		return MODE_PANEL;
+
 	return MODE_OK;
 }
 
