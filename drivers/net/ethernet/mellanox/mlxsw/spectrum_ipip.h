@@ -7,6 +7,7 @@
 #include "spectrum_router.h"
 #include <net/ip_fib.h>
 #include <linux/if_tunnel.h>
+#include <net/ip6_tunnel.h>
 
 struct ip_tunnel_parm
 mlxsw_sp_ipip_netdev_parms4(const struct net_device *ol_dev);
@@ -41,6 +42,7 @@ struct mlxsw_sp_ipip_entry {
 	struct mlxsw_sp_fib_entry *decap_fib_entry;
 	struct list_head ipip_list_node;
 	struct mlxsw_sp_ipip_parms parms;
+	u32 dip_kvdl_index;
 };
 
 struct mlxsw_sp_ipip_ops {
@@ -70,6 +72,10 @@ struct mlxsw_sp_ipip_ops {
 	int (*ol_netdev_change)(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_ipip_entry *ipip_entry,
 				struct netlink_ext_ack *extack);
+	int (*rem_ip_addr_set)(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_ipip_entry *ipip_entry);
+	void (*rem_ip_addr_unset)(struct mlxsw_sp *mlxsw_sp,
+				  const struct mlxsw_sp_ipip_entry *ipip_entry);
 };
 
 extern const struct mlxsw_sp_ipip_ops *mlxsw_sp1_ipip_ops_arr[];

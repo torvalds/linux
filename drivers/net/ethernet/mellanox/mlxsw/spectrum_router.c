@@ -1108,6 +1108,7 @@ mlxsw_sp_ipip_entry_alloc(struct mlxsw_sp *mlxsw_sp,
 	const struct mlxsw_sp_ipip_ops *ipip_ops;
 	struct mlxsw_sp_ipip_entry *ipip_entry;
 	struct mlxsw_sp_ipip_entry *ret = NULL;
+	int err;
 
 	ipip_ops = mlxsw_sp->router->ipip_ops_arr[ipipt];
 	ipip_entry = kzalloc(sizeof(*ipip_entry), GFP_KERNEL);
@@ -1124,16 +1125,29 @@ mlxsw_sp_ipip_entry_alloc(struct mlxsw_sp *mlxsw_sp,
 	ipip_entry->ipipt = ipipt;
 	ipip_entry->ol_dev = ol_dev;
 	ipip_entry->parms = ipip_ops->parms_init(ol_dev);
+
+	err = ipip_ops->rem_ip_addr_set(mlxsw_sp, ipip_entry);
+	if (err) {
+		ret = ERR_PTR(err);
+		goto err_rem_ip_addr_set;
+	}
+
 	return ipip_entry;
 
+err_rem_ip_addr_set:
+	mlxsw_sp_rif_destroy(&ipip_entry->ol_lb->common);
 err_ol_ipip_lb_create:
 	kfree(ipip_entry);
 	return ret;
 }
 
-static void
-mlxsw_sp_ipip_entry_dealloc(struct mlxsw_sp_ipip_entry *ipip_entry)
+static void mlxsw_sp_ipip_entry_dealloc(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_ipip_entry *ipip_entry)
 {
+	const struct mlxsw_sp_ipip_ops *ipip_ops =
+		mlxsw_sp->router->ipip_ops_arr[ipip_entry->ipipt];
+
+	ipip_ops->rem_ip_addr_unset(mlxsw_sp, ipip_entry);
 	mlxsw_sp_rif_destroy(&ipip_entry->ol_lb->common);
 	kfree(ipip_entry);
 }
@@ -1332,6 +1346,11 @@ mlxsw_sp_ipip_entry_find_decap(struct mlxsw_sp *mlxsw_sp,
 		saddr_len = 4;
 		saddr_prefix_len = 32;
 		break;
+	case MLXSW_SP_L3_PROTO_IPV6:
+		saddrp = &saddr.addr6;
+		saddr_len = 16;
+		saddr_prefix_len = 128;
+		break;
 	default:
 		WARN_ON(1);
 		return NULL;
@@ -1368,7 +1387,7 @@ mlxsw_sp_ipip_entry_destroy(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_ipip_entry *ipip_entry)
 {
 	list_del(&ipip_entry->ipip_list_node);
-	mlxsw_sp_ipip_entry_dealloc(ipip_entry);
+	mlxsw_sp_ipip_entry_dealloc(mlxsw_sp, ipip_entry);
 }
 
 static bool
@@ -1563,6 +1582,7 @@ mlxsw_sp_rif_ipip_lb_op(struct mlxsw_sp_rif_ipip_lb *lb_rif, u16 ul_vr_id,
 	struct mlxsw_sp_rif *rif = &lb_rif->common;
 	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
 	char ritr_pl[MLXSW_REG_RITR_LEN];
+	struct in6_addr *saddr6;
 	u32 saddr4;
 
 	ipip_options = MLXSW_REG_RITR_LOOPBACK_IPIP_OPTIONS_GRE_KEY_PRESET;
@@ -1578,7 +1598,14 @@ mlxsw_sp_rif_ipip_lb_op(struct mlxsw_sp_rif_ipip_lb *lb_rif, u16 ul_vr_id,
 		break;
 
 	case MLXSW_SP_L3_PROTO_IPV6:
-		return -EAFNOSUPPORT;
+		saddr6 = &lb_cf.saddr.addr6;
+		mlxsw_reg_ritr_pack(ritr_pl, enable, MLXSW_REG_RITR_LOOPBACK_IF,
+				    rif->rif_index, rif->vr_id, rif->dev->mtu);
+		mlxsw_reg_ritr_loopback_ipip6_pack(ritr_pl, lb_cf.lb_ipipt,
+						   ipip_options, ul_vr_id,
+						   ul_rif_id, saddr6,
+						   lb_cf.okey);
+		break;
 	}
 
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
@@ -6960,11 +6987,38 @@ mlxsw_sp_fib6_entry_nexthop_del(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_nexthop6_group_update(mlxsw_sp, op_ctx, fib6_entry);
 }
 
-static void mlxsw_sp_fib6_entry_type_set(struct mlxsw_sp *mlxsw_sp,
-					 struct mlxsw_sp_fib_entry *fib_entry,
-					 const struct fib6_info *rt)
+static int
+mlxsw_sp_fib6_entry_type_set_local(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_fib_entry *fib_entry,
+				   const struct fib6_info *rt)
 {
-	if (rt->fib6_flags & (RTF_LOCAL | RTF_ANYCAST))
+	struct mlxsw_sp_nexthop_group_info *nhgi = fib_entry->nh_group->nhgi;
+	union mlxsw_sp_l3addr dip = { .addr6 = rt->fib6_dst.addr };
+	int ifindex = nhgi->nexthops[0].ifindex;
+	struct mlxsw_sp_ipip_entry *ipip_entry;
+
+	fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_TRAP;
+	ipip_entry = mlxsw_sp_ipip_entry_find_by_decap(mlxsw_sp, ifindex,
+						       MLXSW_SP_L3_PROTO_IPV6,
+						       dip);
+
+	if (ipip_entry && ipip_entry->ol_dev->flags & IFF_UP) {
+		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_IPIP_DECAP;
+		return mlxsw_sp_fib_entry_decap_init(mlxsw_sp, fib_entry,
+						     ipip_entry);
+	}
+
+	return 0;
+}
+
+static int mlxsw_sp_fib6_entry_type_set(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_fib_entry *fib_entry,
+					const struct fib6_info *rt)
+{
+	if (rt->fib6_flags & RTF_LOCAL)
+		return mlxsw_sp_fib6_entry_type_set_local(mlxsw_sp, fib_entry,
+							  rt);
+	if (rt->fib6_flags & RTF_ANYCAST)
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_TRAP;
 	else if (rt->fib6_type == RTN_BLACKHOLE)
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_BLACKHOLE;
@@ -6974,6 +7028,8 @@ static void mlxsw_sp_fib6_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_REMOTE;
 	else
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_LOCAL;
+
+	return 0;
 }
 
 static void
@@ -7031,12 +7087,16 @@ mlxsw_sp_fib6_entry_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_nexthop_group_vr_link;
 
-	mlxsw_sp_fib6_entry_type_set(mlxsw_sp, fib_entry, rt_arr[0]);
+	err = mlxsw_sp_fib6_entry_type_set(mlxsw_sp, fib_entry, rt_arr[0]);
+	if (err)
+		goto err_fib6_entry_type_set;
 
 	fib_entry->fib_node = fib_node;
 
 	return fib6_entry;
 
+err_fib6_entry_type_set:
+	mlxsw_sp_nexthop_group_vr_unlink(fib_entry->nh_group, fib_node->fib);
 err_nexthop_group_vr_link:
 	mlxsw_sp_nexthop6_group_put(mlxsw_sp, fib_entry);
 err_nexthop6_group_get:
@@ -7055,11 +7115,19 @@ err_fib_entry_priv_create:
 	return ERR_PTR(err);
 }
 
+static void
+mlxsw_sp_fib6_entry_type_unset(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_fib6_entry *fib6_entry)
+{
+	mlxsw_sp_fib_entry_type_unset(mlxsw_sp, &fib6_entry->common);
+}
+
 static void mlxsw_sp_fib6_entry_destroy(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_fib6_entry *fib6_entry)
 {
 	struct mlxsw_sp_fib_node *fib_node = fib6_entry->common.fib_node;
 
+	mlxsw_sp_fib6_entry_type_unset(mlxsw_sp, fib6_entry);
 	mlxsw_sp_nexthop_group_vr_unlink(fib6_entry->common.nh_group,
 					 fib_node->fib);
 	mlxsw_sp_nexthop6_group_put(mlxsw_sp, &fib6_entry->common);
