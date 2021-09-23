@@ -174,6 +174,7 @@ struct sc500ai {
 	const char		*len_name;
 	bool			has_init_exp;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
+	u32			cur_vts;
 };
 
 #define to_sc500ai(sd) container_of(sd, struct sc500ai, subdev)
@@ -293,7 +294,6 @@ static const struct regval sc500ai_linear_10_2880x1620_regs[] = {
 	{0x59ff, 0x02},
 	{0x36e9, 0x20},
 	{0x36f9, 0x53},
-	{0x0100, 0x01},
 	{REG_NULL, 0x00},
 };
 
@@ -399,7 +399,6 @@ static const struct regval sc500ai_hdr_10_2880x1620_regs[] = {
 	{0x4853, 0xfd},
 	{0x36e9, 0x53},
 	{0x36f9, 0x53},
-	{0x0100, 0x01},
 	{REG_NULL, 0x00},
 };
 
@@ -1368,6 +1367,11 @@ static int sc500ai_set_ctrl(struct v4l2_ctrl *ctrl)
 	u32 again = 0, again_fine = 0, dgain = 0, dgain_fine = 0;
 	int ret = 0;
 	u32 val = 0, vts = 0;
+	u64 delay_time = 0;
+	u32 cur_fps = 0;
+	u32 def_fps = 0;
+	u32 denominator = 0;
+	u32 numerator = 0;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -1375,9 +1379,9 @@ static int sc500ai_set_ctrl(struct v4l2_ctrl *ctrl)
 		/* Update max exposure while meeting expected vblanking */
 		max = sc500ai->cur_mode->height + ctrl->val - 5;
 		__v4l2_ctrl_modify_range(sc500ai->exposure,
-		                         sc500ai->exposure->minimum, max,
-		                         sc500ai->exposure->step,
-		                         sc500ai->exposure->default_value);
+					 sc500ai->exposure->minimum, max,
+					 sc500ai->exposure->step,
+					 sc500ai->exposure->default_value);
 		break;
 	}
 
@@ -1390,17 +1394,17 @@ static int sc500ai_set_ctrl(struct v4l2_ctrl *ctrl)
 			return ret;
 		val = ctrl->val << 1;
 		ret = sc500ai_write_reg(sc500ai->client,
-		                        SC500AI_REG_EXPOSURE_H,
-		                        SC500AI_REG_VALUE_08BIT,
-		                        SC500AI_FETCH_EXP_H(val));
+					SC500AI_REG_EXPOSURE_H,
+					SC500AI_REG_VALUE_08BIT,
+					SC500AI_FETCH_EXP_H(val));
 		ret |= sc500ai_write_reg(sc500ai->client,
-		                         SC500AI_REG_EXPOSURE_M,
-		                         SC500AI_REG_VALUE_08BIT,
-		                         SC500AI_FETCH_EXP_M(val));
+					SC500AI_REG_EXPOSURE_M,
+					SC500AI_REG_VALUE_08BIT,
+					SC500AI_FETCH_EXP_M(val));
 		ret |= sc500ai_write_reg(sc500ai->client,
-		                         SC500AI_REG_EXPOSURE_L,
-		                         SC500AI_REG_VALUE_08BIT,
-		                         SC500AI_FETCH_EXP_L(val));
+					 SC500AI_REG_EXPOSURE_L,
+					 SC500AI_REG_VALUE_08BIT,
+					 SC500AI_FETCH_EXP_L(val));
 
 		dev_dbg(&client->dev, "set exposure 0x%x\n", val);
 		break;
@@ -1410,26 +1414,26 @@ static int sc500ai_set_ctrl(struct v4l2_ctrl *ctrl)
 
 		sc500ai_get_gain_reg(ctrl->val, &again, &again_fine, &dgain, &dgain_fine);
 		ret = sc500ai_write_reg(sc500ai->client,
-		                        SC500AI_REG_DIG_GAIN,
-		                        SC500AI_REG_VALUE_08BIT,
-		                        dgain);
+					SC500AI_REG_DIG_GAIN,
+					SC500AI_REG_VALUE_08BIT,
+					dgain);
 		ret |= sc500ai_write_reg(sc500ai->client,
-		                         SC500AI_REG_DIG_FINE_GAIN,
-		                         SC500AI_REG_VALUE_08BIT,
-		                         dgain_fine);
+					 SC500AI_REG_DIG_FINE_GAIN,
+					 SC500AI_REG_VALUE_08BIT,
+					 dgain_fine);
 		ret |= sc500ai_write_reg(sc500ai->client,
-		                         SC500AI_REG_ANA_GAIN,
-		                         SC500AI_REG_VALUE_08BIT,
-		                         again);
+					 SC500AI_REG_ANA_GAIN,
+					 SC500AI_REG_VALUE_08BIT,
+					 again);
 		ret |= sc500ai_write_reg(sc500ai->client,
-		                         SC500AI_REG_ANA_FINE_GAIN,
-		                         SC500AI_REG_VALUE_08BIT,
-		                         again_fine);
+					 SC500AI_REG_ANA_FINE_GAIN,
+					 SC500AI_REG_VALUE_08BIT,
+					 again_fine);
 		sc500ai_set_hightemp_dpc(sc500ai, ctrl->val);
 
 		dev_dbg(&sc500ai->client->dev,
-		        "total_gain:%d again 0x%x, again_fine 0x%x, dgain 0x%x, dgain_fine 0x%x\n",
-		        ctrl->val, again, again_fine, dgain, dgain_fine);
+			"total_gain:%d again 0x%x, again_fine 0x%x, dgain 0x%x, dgain_fine 0x%x\n",
+			ctrl->val, again, again_fine, dgain, dgain_fine);
 		break;
 	case V4L2_CID_VBLANK:
 		vts = ctrl->val + sc500ai->cur_mode->height;
@@ -1441,39 +1445,70 @@ static int sc500ai_set_ctrl(struct v4l2_ctrl *ctrl)
 					 SC500AI_REG_VTS_L,
 					 SC500AI_REG_VALUE_08BIT,
 					 vts & 0xff);
+		sc500ai->cur_vts = vts;
 		break;
 	case V4L2_CID_HFLIP:
 		ret = sc500ai_read_reg(sc500ai->client, SC500AI_FLIP_MIRROR_REG,
-		                       SC500AI_REG_VALUE_08BIT, &val);
+				       SC500AI_REG_VALUE_08BIT, &val);
 		if (ret)
 			break;
-
 		if (ctrl->val)
 			val |= SC500AI_MIRROR_MASK;
 		else
 			val &= ~SC500AI_MIRROR_MASK;
 		ret |= sc500ai_write_reg(sc500ai->client, SC500AI_FLIP_MIRROR_REG,
-		                         SC500AI_REG_VALUE_08BIT, val);
+					 SC500AI_REG_VALUE_08BIT, val);
 		break;
 	case V4L2_CID_VFLIP:
 		ret = sc500ai_read_reg(sc500ai->client,
-		                       SC500AI_FLIP_MIRROR_REG,
-		                       SC500AI_REG_VALUE_08BIT, &val);
+				       SC500AI_FLIP_MIRROR_REG,
+				       SC500AI_REG_VALUE_08BIT, &val);
 		if (ret)
 			break;
+		denominator = sc500ai->cur_mode->max_fps.denominator;
+		numerator = sc500ai->cur_mode->max_fps.numerator;
+		def_fps = denominator / numerator;
+		cur_fps = def_fps * sc500ai->cur_mode->vts_def / sc500ai->cur_vts;
+		if (cur_fps > 25) {
+			vts = def_fps * sc500ai->cur_mode->vts_def / 25;
+			ret = sc500ai_write_reg(sc500ai->client,
+						SC500AI_REG_VTS_H,
+						SC500AI_REG_VALUE_08BIT,
+						(vts >> 8) & 0x7f);
+			ret |= sc500ai_write_reg(sc500ai->client,
+						SC500AI_REG_VTS_L,
+						SC500AI_REG_VALUE_08BIT,
+						vts & 0xff);
+			delay_time = 1000000 / 25;//one frame interval
+			delay_time *= 2;
+			usleep_range(delay_time, delay_time + 1000);
+		}
 
 		if (ctrl->val)
 			val |= SC500AI_FLIP_MASK;
 		else
 			val &= ~SC500AI_FLIP_MASK;
+
 		ret |= sc500ai_write_reg(sc500ai->client,
-		                         SC500AI_FLIP_MIRROR_REG,
-		                         SC500AI_REG_VALUE_08BIT,
-		                         val);
+					 SC500AI_FLIP_MIRROR_REG,
+					 SC500AI_REG_VALUE_08BIT,
+					 val);
+		if (cur_fps > 25) {
+			usleep_range(delay_time, delay_time + 1000);
+			vts = sc500ai->cur_vts;
+			ret = sc500ai_write_reg(sc500ai->client,
+						SC500AI_REG_VTS_H,
+						SC500AI_REG_VALUE_08BIT,
+						(vts >> 8) & 0x7f);
+			ret |= sc500ai_write_reg(sc500ai->client,
+						SC500AI_REG_VTS_L,
+						SC500AI_REG_VALUE_08BIT,
+						vts & 0xff);
+		}
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
-		         __func__, ctrl->id, ctrl->val);
+			 __func__, ctrl->id, ctrl->val);
 		break;
 	}
 
@@ -1521,6 +1556,7 @@ static int sc500ai_initialize_controls(struct sc500ai *sc500ai)
 		sc500ai->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	vblank_def = mode->vts_def - mode->height;
+	sc500ai->cur_vts = mode->vts_def;
 	sc500ai->vblank = v4l2_ctrl_new_std(handler, &sc500ai_ctrl_ops,
 	                                    V4L2_CID_VBLANK, vblank_def,
 	                                    SC500AI_VTS_MAX - mode->height,
