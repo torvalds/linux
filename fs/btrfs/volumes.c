@@ -6708,11 +6708,10 @@ blk_status_t btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 		/* In this case, map_length has been set to the length of
 		   a single stripe; not the whole write */
 		if (btrfs_op(bio) == BTRFS_MAP_WRITE) {
-			ret = raid56_parity_write(fs_info, bio, bioc,
-						  map_length);
+			ret = raid56_parity_write(bio, bioc, map_length);
 		} else {
-			ret = raid56_parity_recover(fs_info, bio, bioc,
-						    map_length, mirror_num, 1);
+			ret = raid56_parity_recover(bio, bioc, map_length,
+						    mirror_num, 1);
 		}
 
 		btrfs_bio_counter_dec(fs_info);

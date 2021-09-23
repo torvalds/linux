@@ -1400,7 +1400,7 @@ static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 	bio->bi_end_io = scrub_bio_wait_endio;
 
 	mirror_num = spage->sblock->pagev[0]->mirror_num;
-	ret = raid56_parity_recover(fs_info, bio, spage->recover->bioc,
+	ret = raid56_parity_recover(bio, spage->recover->bioc,
 				    spage->recover->map_length,
 				    mirror_num, 0);
 	if (ret)
@@ -2230,7 +2230,7 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 	bio->bi_private = sblock;
 	bio->bi_end_io = scrub_missing_raid56_end_io;
 
-	rbio = raid56_alloc_missing_rbio(fs_info, bio, bioc, length);
+	rbio = raid56_alloc_missing_rbio(bio, bioc, length);
 	if (!rbio)
 		goto rbio_out;
 
@@ -2846,8 +2846,8 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 	bio->bi_private = sparity;
 	bio->bi_end_io = scrub_parity_bio_endio;
 
-	rbio = raid56_parity_alloc_scrub_rbio(fs_info, bio, bioc,
-					      length, sparity->scrub_dev,
+	rbio = raid56_parity_alloc_scrub_rbio(bio, bioc, length,
+					      sparity->scrub_dev,
 					      sparity->dbitmap,
 					      sparity->nsectors);
 	if (!rbio)
