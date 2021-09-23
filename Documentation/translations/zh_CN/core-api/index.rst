@@ -39,10 +39,11 @@
    :maxdepth: 1
 
    kobject
+   kref
 
 Todolist:
 
-   kref
+
    assoc_array
    xarray
    idr
