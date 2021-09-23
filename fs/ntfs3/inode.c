@@ -1575,7 +1575,7 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 	if (!S_ISLNK(mode) && (sb->s_flags & SB_POSIXACL)) {
 		err = ntfs_init_acl(mnt_userns, inode, dir);
 		if (err)
-			goto out6;
+			goto out7;
 	} else
 #endif
 	{
