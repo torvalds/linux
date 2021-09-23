@@ -770,15 +770,18 @@ u32 sfc_nand_prog_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 	sfc_request(&op, plane, p_page_buf, page_size);
 
 	/*
-	 * At the moment of power lost, flash maybe work in a unkonw state
-	 * and result in bit flip, when this situation is detected by cache
-	 * recheck, it's better to wait a second for a reliable hardware
-	 * environment to avoid abnormal data written to flash array.
+	 * At the moment of power lost or dev running in harsh environment, flash
+	 * maybe work in a unkonw state and result in bit flip, when this situation
+	 * is detected by cache recheck, it's better to wait a second for a reliable
+	 * hardware environment to avoid abnormal data written to flash array.
 	 */
-	sfc_nand_read_cache(addr, (u32 *)sfc_nand_dev.recheck_buffer, 0, data_area_size);
-	if (memcmp(sfc_nand_dev.recheck_buffer, p_page_buf, data_area_size)) {
-		rkflash_print_error("%s cache bitflip1\n", __func__);
-		msleep(1000);
+	if (p_nand_info->id0 != MID_XTX) {
+		sfc_nand_read_cache(addr, (u32 *)sfc_nand_dev.recheck_buffer, 0, data_area_size);
+		if (memcmp(sfc_nand_dev.recheck_buffer, p_page_buf, data_area_size)) {
+			rkflash_print_error("%s cache bitflip1\n", __func__);
+			msleep(1000);
+			sfc_request(&op, plane, p_page_buf, page_size);
+		}
 	}
 
 	op.sfcmd.d32 = 0;
