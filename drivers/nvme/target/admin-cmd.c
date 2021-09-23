@@ -385,7 +385,8 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	 */
 
 	/* we support multiple ports, multiples hosts and ANA: */
-	id->cmic = (1 << 0) | (1 << 1) | (1 << 3);
+	id->cmic = NVME_CTRL_CMIC_MULTI_PORT | NVME_CTRL_CMIC_MULTI_CTRL |
+		NVME_CTRL_CMIC_ANA;
 
 	/* Limit MDTS according to transport capability */
 	if (ctrl->ops->get_mdts)
