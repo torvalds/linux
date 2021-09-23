@@ -684,20 +684,16 @@ static int arm_trbe_disable(struct coresight_device *csdev)
 
 static void trbe_handle_spurious(struct perf_output_handle *handle)
 {
-	struct trbe_buf *buf = etm_perf_sink_config(handle);
+	u64 limitr = read_sysreg_s(SYS_TRBLIMITR_EL1);
 
-	buf->trbe_limit = compute_trbe_buffer_limit(handle);
-	buf->trbe_write = buf->trbe_base + PERF_IDX2OFF(handle->head, buf);
-	if (buf->trbe_limit == buf->trbe_base) {
-		trbe_drain_and_disable_local();
-		/*
-		 * Just communicate trace truncation event to the user space by
-		 * marking it with PERF_AUX_FLAG_TRUNCATED.
-		 */
-		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
-		return;
-	}
-	trbe_enable_hw(buf);
+	/*
+	 * If the IRQ was spurious, simply re-enable the TRBE
+	 * back without modifying the buffer parameters to
+	 * retain the trace collected so far.
+	 */
+	limitr |= TRBLIMITR_ENABLE;
+	write_sysreg_s(limitr, SYS_TRBLIMITR_EL1);
+	isb();
 }
 
 static void trbe_handle_overflow(struct perf_output_handle *handle)
