@@ -16,6 +16,7 @@
 #define pr_fmt(fmt) DRVNAME ": " fmt
 
 #include <asm/barrier.h>
+#include "coresight-self-hosted-trace.h"
 #include "coresight-trbe.h"
 
 #define PERF_IDX2OFF(idx, buf) ((idx) % ((buf)->nr_pages << PAGE_SHIFT))
@@ -775,6 +776,7 @@ static irqreturn_t arm_trbe_irq_handler(int irq, void *dev)
 	enum trbe_fault_action act;
 	u64 status;
 	bool truncated = false;
+	u64 trfcr;
 
 	/* Reads to TRBSR_EL1 is fine when TRBE is active */
 	status = read_sysreg_s(SYS_TRBSR_EL1);
@@ -785,6 +787,8 @@ static irqreturn_t arm_trbe_irq_handler(int irq, void *dev)
 	if (!is_trbe_irq(status))
 		return IRQ_NONE;
 
+	/* Prohibit the CPU from tracing before we disable the TRBE */
+	trfcr = cpu_prohibit_trace();
 	/*
 	 * Ensure the trace is visible to the CPUs and
 	 * any external aborts have been resolved.
@@ -816,9 +820,14 @@ static irqreturn_t arm_trbe_irq_handler(int irq, void *dev)
 	/*
 	 * If the buffer was truncated, ensure perf callbacks
 	 * have completed, which will disable the event.
+	 *
+	 * Otherwise, restore the trace filter controls to
+	 * allow the tracing.
 	 */
 	if (truncated)
 		irq_work_run();
+	else
+		write_trfcr(trfcr);
 
 	return IRQ_HANDLED;
 }
