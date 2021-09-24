@@ -7117,20 +7117,18 @@ fail_req:
 		link->last->link = req;
 		link->last = req;
 
+		if (req->flags & (REQ_F_LINK | REQ_F_HARDLINK))
+			return 0;
 		/* last request of a link, enqueue the link */
-		if (!(req->flags & (REQ_F_LINK | REQ_F_HARDLINK))) {
-			link->head = NULL;
-			io_queue_sqe(head);
-		}
-	} else {
-		if (req->flags & (REQ_F_LINK | REQ_F_HARDLINK)) {
-			link->head = req;
-			link->last = req;
-		} else {
-			io_queue_sqe(req);
-		}
+		link->head = NULL;
+		req = head;
+	} else if (req->flags & (REQ_F_LINK | REQ_F_HARDLINK)) {
+		link->head = req;
+		link->last = req;
+		return 0;
 	}
 
+	io_queue_sqe(req);
 	return 0;
 }
 
