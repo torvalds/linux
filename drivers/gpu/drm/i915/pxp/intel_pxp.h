@@ -29,7 +29,9 @@ void intel_pxp_mark_termination_in_progress(struct intel_pxp *pxp);
 
 int intel_pxp_start(struct intel_pxp *pxp);
 
-int intel_pxp_key_check(struct intel_pxp *pxp, struct drm_i915_gem_object *obj);
+int intel_pxp_key_check(struct intel_pxp *pxp,
+			struct drm_i915_gem_object *obj,
+			bool assign);
 
 void intel_pxp_invalidate(struct intel_pxp *pxp);
 #else
@@ -52,7 +54,8 @@ static inline bool intel_pxp_is_active(const struct intel_pxp *pxp)
 }
 
 static inline int intel_pxp_key_check(struct intel_pxp *pxp,
-				      struct drm_i915_gem_object *obj)
+				      struct drm_i915_gem_object *obj,
+				      bool assign)
 {
 	return -ENODEV;
 }
