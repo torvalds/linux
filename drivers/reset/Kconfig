@@ -58,7 +58,7 @@ config RESET_BRCMSTB
 	  a SUN_TOP_CTRL_SW_INIT style controller.
 
 config RESET_BRCMSTB_RESCAL
-	bool "Broadcom STB RESCAL reset controller"
+	tristate "Broadcom STB RESCAL reset controller"
 	depends on HAS_IOMEM
 	depends on ARCH_BRCMSTB || COMPILE_TEST
 	default ARCH_BRCMSTB
