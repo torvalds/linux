@@ -75,6 +75,7 @@ static int ntfs_read_ea(struct ntfs_inode *ni, struct EA_FULL **ea,
 			size_t add_bytes, const struct EA_INFO **info)
 {
 	int err;
+	struct ntfs_sb_info *sbi = ni->mi.sbi;
 	struct ATTR_LIST_ENTRY *le = NULL;
 	struct ATTRIB *attr_info, *attr_ea;
 	void *ea_p;
@@ -99,10 +100,10 @@ static int ntfs_read_ea(struct ntfs_inode *ni, struct EA_FULL **ea,
 
 	/* Check Ea limit. */
 	size = le32_to_cpu((*info)->size);
-	if (size > ni->mi.sbi->ea_max_size)
+	if (size > sbi->ea_max_size)
 		return -EFBIG;
 
-	if (attr_size(attr_ea) > ni->mi.sbi->ea_max_size)
+	if (attr_size(attr_ea) > sbi->ea_max_size)
 		return -EFBIG;
 
 	/* Allocate memory for packed Ea. */
@@ -110,15 +111,16 @@ static int ntfs_read_ea(struct ntfs_inode *ni, struct EA_FULL **ea,
 	if (!ea_p)
 		return -ENOMEM;
 
-	if (attr_ea->non_res) {
+	if (!size) {
+		;
+	} else if (attr_ea->non_res) {
 		struct runs_tree run;
 
 		run_init(&run);
 
 		err = attr_load_runs(attr_ea, ni, &run, NULL);
 		if (!err)
-			err = ntfs_read_run_nb(ni->mi.sbi, &run, 0, ea_p, size,
-					       NULL);
+			err = ntfs_read_run_nb(sbi, &run, 0, ea_p, size, NULL);
 		run_close(&run);
 
 		if (err)
@@ -366,21 +368,22 @@ static noinline int ntfs_set_ea(struct inode *inode, const char *name,
 	new_ea->name[name_len] = 0;
 	memcpy(new_ea->name + name_len + 1, value, val_size);
 	new_pack = le16_to_cpu(ea_info.size_pack) + packed_ea_size(new_ea);
-
-	/* Should fit into 16 bits. */
-	if (new_pack > 0xffff) {
-		err = -EFBIG; // -EINVAL?
-		goto out;
-	}
 	ea_info.size_pack = cpu_to_le16(new_pack);
-
 	/* New size of ATTR_EA. */
 	size += add;
-	if (size > sbi->ea_max_size) {
+	ea_info.size = cpu_to_le32(size);
+
+	/*
+	 * 1. Check ea_info.size_pack for overflow.
+	 * 2. New attibute size must fit value from $AttrDef
+	 */
+	if (new_pack > 0xffff || size > sbi->ea_max_size) {
+		ntfs_inode_warn(
+			inode,
+			"The size of extended attributes must not exceed 64KiB");
 		err = -EFBIG; // -EINVAL?
 		goto out;
 	}
-	ea_info.size = cpu_to_le32(size);
 
 update_ea:
 
