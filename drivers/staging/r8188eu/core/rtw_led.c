@@ -4,11 +4,6 @@
 #include "../include/drv_types.h"
 #include "../include/rtw_led.h"
 
-/*  */
-/*	Description: */
-/*		Callback function of LED BlinkTimer, */
-/*		it just schedules to corresponding BlinkWorkItem/led_blink_hdl */
-/*  */
 void BlinkTimerCallback(struct timer_list *t)
 {
 	struct LED_871x *pLed = from_timer(pLed, t, BlinkTimer);
@@ -20,21 +15,12 @@ void BlinkTimerCallback(struct timer_list *t)
 	_set_workitem(&pLed->BlinkWorkItem);
 }
 
-/*  */
-/*	Description: */
-/*		Callback function of LED BlinkWorkItem. */
-/*		We dispatch acture LED blink action according to LedStrategy. */
-/*  */
 void BlinkWorkItemCallback(struct work_struct *work)
 {
 	struct LED_871x *pLed = container_of(work, struct LED_871x, BlinkWorkItem);
 	BlinkHandler(pLed);
 }
 
-/*  */
-/*	Description: */
-/*		Reset status of LED_871x object. */
-/*  */
 void ResetLedStatus(struct LED_871x *pLed)
 {
 	pLed->CurrLedState = RTW_LED_OFF; /*  Current LED state. */
@@ -52,8 +38,6 @@ void ResetLedStatus(struct LED_871x *pLed)
 	pLed->bLedScanBlinkInProgress = false;
 }
 
-/*Description: */
-/*		Initialize an LED_871x object. */
 void InitLed871x(struct adapter *padapter, struct LED_871x *pLed, enum LED_PIN_871x LedPin)
 {
 	pLed->padapter = padapter;
@@ -65,10 +49,6 @@ void InitLed871x(struct adapter *padapter, struct LED_871x *pLed, enum LED_PIN_8
 	_init_workitem(&pLed->BlinkWorkItem, BlinkWorkItemCallback, pLed);
 }
 
-/*  */
-/*	Description: */
-/*		DeInitialize an LED_871x object. */
-/*  */
 void DeInitLed871x(struct LED_871x *pLed)
 {
 	_cancel_workitem_sync(&pLed->BlinkWorkItem);
@@ -205,7 +185,6 @@ static void SwLedBlink1(struct LED_871x *pLed)
 	}
 }
 
- /* ALPHA, added by chiyoko, 20090106 */
 static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAction)
 {
 	struct led_priv *ledpriv = &padapter->ledpriv;
