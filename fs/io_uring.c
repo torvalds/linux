@@ -6935,12 +6935,10 @@ issue_sqe:
 	}
 }
 
-static inline void io_queue_sqe(struct io_kiocb *req)
+static void io_queue_sqe_fallback(struct io_kiocb *req)
 	__must_hold(&req->ctx->uring_lock)
 {
-	if (likely(!(req->flags & (REQ_F_FORCE_ASYNC | REQ_F_FAIL)))) {
-		__io_queue_sqe(req);
-	} else if (req->flags & REQ_F_FAIL) {
+	if (req->flags & REQ_F_FAIL) {
 		io_req_complete_fail_submit(req);
 	} else if (unlikely(req->ctx->drain_active) && io_drain_req(req)) {
 		return;
@@ -6952,6 +6950,15 @@ static inline void io_queue_sqe(struct io_kiocb *req)
 		else
 			io_queue_async_work(req, NULL);
 	}
+}
+
+static inline void io_queue_sqe(struct io_kiocb *req)
+	__must_hold(&req->ctx->uring_lock)
+{
+	if (likely(!(req->flags & (REQ_F_FORCE_ASYNC | REQ_F_FAIL))))
+		__io_queue_sqe(req);
+	else
+		io_queue_sqe_fallback(req);
 }
 
 /*
