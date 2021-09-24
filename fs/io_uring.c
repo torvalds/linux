@@ -2265,14 +2265,12 @@ static void io_free_req_work(struct io_kiocb *req, bool *locked)
 }
 
 static void io_free_batch_list(struct io_ring_ctx *ctx,
-			       struct io_wq_work_list *list)
+				struct io_wq_work_node *node)
 	__must_hold(&ctx->uring_lock)
 {
-	struct io_wq_work_node *node;
 	struct task_struct *task = NULL;
 	int task_refs = 0, ctx_refs = 0;
 
-	node = list->first;
 	do {
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    comp_list);
@@ -2319,7 +2317,7 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 	spin_unlock(&ctx->completion_lock);
 	io_cqring_ev_posted(ctx);
 
-	io_free_batch_list(ctx, &state->compl_reqs);
+	io_free_batch_list(ctx, state->compl_reqs.first);
 	INIT_WQ_LIST(&state->compl_reqs);
 }
 
@@ -2403,7 +2401,6 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 {
 	struct io_wq_work_node *pos, *start, *prev;
 	unsigned int poll_flags = BLK_POLL_NOSLEEP;
-	struct io_wq_work_list list;
 	DEFINE_IO_COMP_BATCH(iob);
 	int nr_events = 0;
 
@@ -2461,10 +2458,9 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 
 	io_commit_cqring(ctx);
 	io_cqring_ev_posted_iopoll(ctx);
-	list.first = start ? start->next : ctx->iopoll_list.first;
-	list.last = prev;
+	pos = start ? start->next : ctx->iopoll_list.first;
 	wq_list_cut(&ctx->iopoll_list, prev, start);
-	io_free_batch_list(ctx, &list);
+	io_free_batch_list(ctx, pos);
 	return nr_events;
 }
 
