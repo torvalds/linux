@@ -330,10 +330,11 @@
 			st,touch-det-delay = <5>;
 		};
 
-		stmpe-adc {
+		stmpe_adc: stmpe-adc {
 			compatible = "st,stmpe-adc";
 			/* forbid to use ADC channels 3-0 (touch) */
 			st,norequest-mask = <0x0F>;
+			#io-channel-cells = <1>;
 		};
 	};
 };
