@@ -185,6 +185,7 @@
 			      IRQ_CONSTRAINTS, regs, vector);		\
 }
 
+#ifndef CONFIG_PREEMPT_RT
 #define ASM_CALL_SOFTIRQ						\
 	"call %P[__func]				\n"
 
@@ -200,6 +201,8 @@
 	call_on_irqstack(__do_softirq, ASM_CALL_SOFTIRQ);		\
 	__this_cpu_write(hardirq_stack_inuse, false);			\
 }
+
+#endif
 
 #else /* CONFIG_X86_64 */
 /* System vector handlers always run on the stack they interrupted. */
