@@ -542,26 +542,7 @@ static inline bool tdp_mmu_map_set_spte_atomic(struct kvm_vcpu *vcpu,
 					       struct tdp_iter *iter,
 					       u64 new_spte)
 {
-	struct kvm *kvm = vcpu->kvm;
-
-	if (!tdp_mmu_set_spte_atomic_no_dirty_log(kvm, iter, new_spte))
-		return false;
-
-	/*
-	 * Use kvm_vcpu_gfn_to_memslot() instead of going through
-	 * handle_changed_spte_dirty_log() to leverage vcpu->last_used_slot.
-	 */
-	if (is_writable_pte(new_spte)) {
-		struct kvm_memory_slot *slot = kvm_vcpu_gfn_to_memslot(vcpu, iter->gfn);
-
-		if (slot && kvm_slot_dirty_track_enabled(slot)) {
-			/* Enforced by kvm_mmu_hugepage_adjust. */
-			WARN_ON_ONCE(iter->level > PG_LEVEL_4K);
-			mark_page_dirty_in_slot(kvm, slot, iter->gfn);
-		}
-	}
-
-	return true;
+	return tdp_mmu_set_spte_atomic_no_dirty_log(vcpu->kvm, iter, new_spte);
 }
 
 static inline bool tdp_mmu_zap_spte_atomic(struct kvm *kvm,

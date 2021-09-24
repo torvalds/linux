@@ -2688,9 +2688,6 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	ret = make_spte(vcpu, pte_access, level, gfn, pfn, *sptep, speculative,
 			can_unsync, host_writable, sp_ad_disabled(sp), &spte);
 
-	if (spte & PT_WRITABLE_MASK)
-		kvm_vcpu_mark_page_dirty(vcpu, gfn);
-
 	if (*sptep == spte)
 		ret |= SET_SPTE_SPURIOUS;
 	else if (mmu_spte_update(sptep, spte))
