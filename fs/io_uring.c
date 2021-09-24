@@ -868,18 +868,15 @@ struct io_kiocb {
 	struct percpu_ref		*fixed_rsrc_refs;
 
 	/* used with ctx->iopoll_list with reads/writes */
-	struct list_head		inflight_entry;
+	struct io_wq_work_node		comp_list;
 	struct io_task_work		io_task_work;
 	/* for polled requests, i.e. IORING_OP_POLL_ADD and async armed poll */
 	struct hlist_node		hash_node;
 	struct async_poll		*apoll;
-	struct io_wq_work		work;
-	const struct cred		*creds;
-
-	struct io_wq_work_node		comp_list;
-
 	/* store used ubuf, so we can prevent reloading */
 	struct io_mapped_ubuf		*imu;
+	struct io_wq_work		work;
+	const struct cred		*creds;
 };
 
 struct io_tctx_node {
