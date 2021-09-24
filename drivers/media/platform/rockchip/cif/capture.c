@@ -5503,7 +5503,7 @@ void rkcif_reset_work(struct work_struct *work)
 	ret = rkcif_do_reset_work(dev, reset_work->reset_src);
 	if (ret)
 		v4l2_info(&dev->v4l2_dev, "do reset work failed!\n");
-
+	timer->is_running = false;
 	timer->has_been_init = false;
 }
 
@@ -5584,7 +5584,7 @@ static void rkcif_init_reset_work(struct rkcif_timer *timer)
 		  timer->run_cnt, timer->reset_src);
 
 	spin_lock_irqsave(&timer->timer_lock, flags);
-	timer->is_running = false;
+	timer->is_running = true;
 	timer->is_triggered = false;
 	timer->csi2_err_cnt_odd = 0;
 	timer->csi2_err_cnt_even = 0;
