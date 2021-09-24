@@ -206,8 +206,11 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.tcl_0_only = false,
 
 		.spectral = {
-			.fft_sz = 0,
+			.fft_sz = 2,
 			.fft_pad_sz = 0,
+			.summary_pad_sz = 16,
+			.fft_hdr_len = 24,
+			.max_fft_bins = 1024,
 		},
 
 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
