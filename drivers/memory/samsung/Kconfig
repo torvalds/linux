@@ -14,11 +14,12 @@ config EXYNOS5422_DMC
 	depends on DEVFREQ_GOV_SIMPLE_ONDEMAND
 	depends on (PM_DEVFREQ && PM_DEVFREQ_EVENT)
 	help
-	  This adds driver for Exynos5422 DMC (Dynamic Memory Controller).
-	  The driver provides support for Dynamic Voltage and Frequency Scaling in
-	  DMC and DRAM. It also supports changing timings of DRAM running with
-	  different frequency. The timings are calculated based on DT memory
-	  information.
+	  This adds driver for Samsung Exynos5422 SoC DMC (Dynamic Memory
+	  Controller).  The driver provides support for Dynamic Voltage and
+	  Frequency Scaling in DMC and DRAM. It also supports changing timings
+	  of DRAM running with different frequency. The timings are calculated
+	  based on DT memory information.
+	  If unsure, say Y on devices with Samsung Exynos SoCs.
 
 config EXYNOS_SROM
 	bool "Exynos SROM controller driver" if COMPILE_TEST
@@ -29,6 +30,6 @@ config EXYNOS_SROM
 	  during suspend.  If however appropriate device tree configuration
 	  is provided, the driver enables support for external memory
 	  or external devices.
-	  If unsure, say Y on devices with Samsung Exynos SocS.
+	  If unsure, say Y on devices with Samsung Exynos SoCs.
 
 endif
