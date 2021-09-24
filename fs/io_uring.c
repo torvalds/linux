@@ -3605,7 +3605,6 @@ static int io_write(struct io_kiocb *req, unsigned int issue_flags)
 		iov_iter_save_state(iter, state);
 	}
 	req->result = iov_iter_count(iter);
-	ret2 = 0;
 
 	/* Ensure we clear previously set non-block flag */
 	if (!force_nonblock)
@@ -3670,8 +3669,6 @@ done:
 	} else {
 copy_iov:
 		iov_iter_restore(iter, state);
-		if (ret2 > 0)
-			iov_iter_advance(iter, ret2);
 		ret = io_setup_async_rw(req, iovec, inline_vecs, iter, false);
 		return ret ?: -EAGAIN;
 	}
