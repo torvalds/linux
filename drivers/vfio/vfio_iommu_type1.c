@@ -2196,7 +2196,6 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 		if (!iommu->external_domain) {
 			INIT_LIST_HEAD(&domain->group_list);
 			iommu->external_domain = domain;
-			vfio_update_pgsize_bitmap(iommu);
 		} else {
 			kfree(domain);
 		}
@@ -2582,6 +2581,7 @@ static void *vfio_iommu_type1_open(unsigned long arg)
 	mutex_init(&iommu->lock);
 	BLOCKING_INIT_NOTIFIER_HEAD(&iommu->notifier);
 	init_waitqueue_head(&iommu->vaddr_wait);
+	iommu->pgsize_bitmap = PAGE_MASK;
 
 	return iommu;
 }
