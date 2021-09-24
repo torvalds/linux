@@ -68,30 +68,6 @@ struct vfio_unbound_dev {
 	struct list_head		unbound_next;
 };
 
-enum vfio_group_type {
-	/*
-	 * Physical device with IOMMU backing.
-	 */
-	VFIO_IOMMU,
-
-	/*
-	 * Virtual device without IOMMU backing. The VFIO core fakes up an
-	 * iommu_group as the iommu_group sysfs interface is part of the
-	 * userspace ABI.  The user of these devices must not be able to
-	 * directly trigger unmediated DMA.
-	 */
-	VFIO_EMULATED_IOMMU,
-
-	/*
-	 * Physical device without IOMMU backing. The VFIO core fakes up an
-	 * iommu_group as the iommu_group sysfs interface is part of the
-	 * userspace ABI.  Users can trigger unmediated DMA by the device,
-	 * usage is highly dangerous, requires an explicit opt-in and will
-	 * taint the kernel.
-	 */
-	VFIO_NO_IOMMU,
-};
-
 struct vfio_group {
 	struct kref			kref;
 	int				minor;
@@ -219,7 +195,7 @@ static long vfio_noiommu_ioctl(void *iommu_data,
 }
 
 static int vfio_noiommu_attach_group(void *iommu_data,
-				     struct iommu_group *iommu_group)
+		struct iommu_group *iommu_group, enum vfio_group_type type)
 {
 	return 0;
 }
@@ -1129,7 +1105,8 @@ static int __vfio_container_attach_groups(struct vfio_container *container,
 	int ret = -ENODEV;
 
 	list_for_each_entry(group, &container->group_list, container_next) {
-		ret = driver->ops->attach_group(data, group->iommu_group);
+		ret = driver->ops->attach_group(data, group->iommu_group,
+						group->type);
 		if (ret)
 			goto unwind;
 	}
@@ -1387,7 +1364,8 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 	driver = container->iommu_driver;
 	if (driver) {
 		ret = driver->ops->attach_group(container->iommu_data,
-						group->iommu_group);
+						group->iommu_group,
+						group->type);
 		if (ret)
 			goto unlock_out;
 	}

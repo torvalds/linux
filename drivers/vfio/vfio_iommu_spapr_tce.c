@@ -1239,7 +1239,7 @@ release_exit:
 }
 
 static int tce_iommu_attach_group(void *iommu_data,
-		struct iommu_group *iommu_group)
+		struct iommu_group *iommu_group, enum vfio_group_type type)
 {
 	int ret = 0;
 	struct tce_container *container = iommu_data;

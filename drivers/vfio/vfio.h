@@ -4,6 +4,30 @@
  *     Author: Alex Williamson <alex.williamson@redhat.com>
  */
 
+enum vfio_group_type {
+	/*
+	 * Physical device with IOMMU backing.
+	 */
+	VFIO_IOMMU,
+
+	/*
+	 * Virtual device without IOMMU backing. The VFIO core fakes up an
+	 * iommu_group as the iommu_group sysfs interface is part of the
+	 * userspace ABI.  The user of these devices must not be able to
+	 * directly trigger unmediated DMA.
+	 */
+	VFIO_EMULATED_IOMMU,
+
+	/*
+	 * Physical device without IOMMU backing. The VFIO core fakes up an
+	 * iommu_group as the iommu_group sysfs interface is part of the
+	 * userspace ABI.  Users can trigger unmediated DMA by the device,
+	 * usage is highly dangerous, requires an explicit opt-in and will
+	 * taint the kernel.
+	 */
+	VFIO_NO_IOMMU,
+};
+
 /* events for the backend driver notify callback */
 enum vfio_iommu_notify_type {
 	VFIO_IOMMU_CONTAINER_CLOSE = 0,
@@ -20,7 +44,8 @@ struct vfio_iommu_driver_ops {
 	long		(*ioctl)(void *iommu_data, unsigned int cmd,
 				 unsigned long arg);
 	int		(*attach_group)(void *iommu_data,
-					struct iommu_group *group);
+					struct iommu_group *group,
+					enum vfio_group_type);
 	void		(*detach_group)(void *iommu_data,
 					struct iommu_group *group);
 	int		(*pin_pages)(void *iommu_data,
