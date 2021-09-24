@@ -29,6 +29,7 @@ static const unsigned short normal_i2c[] = { 0x2a, 0x4c, 0x4d, 0x4e, 0x4f,
 
 enum chips { tmp421, tmp422, tmp423, tmp441, tmp442 };
 
+#define MAX_CHANNELS				4
 /* The TMP421 registers */
 #define TMP421_STATUS_REG			0x08
 #define TMP421_CONFIG_REG_1			0x09
@@ -36,8 +37,8 @@ enum chips { tmp421, tmp422, tmp423, tmp441, tmp442 };
 #define TMP421_MANUFACTURER_ID_REG		0xFE
 #define TMP421_DEVICE_ID_REG			0xFF
 
-static const u8 TMP421_TEMP_MSB[4]		= { 0x00, 0x01, 0x02, 0x03 };
-static const u8 TMP421_TEMP_LSB[4]		= { 0x10, 0x11, 0x12, 0x13 };
+static const u8 TMP421_TEMP_MSB[MAX_CHANNELS]	= { 0x00, 0x01, 0x02, 0x03 };
+static const u8 TMP421_TEMP_LSB[MAX_CHANNELS]	= { 0x10, 0x11, 0x12, 0x13 };
 
 /* Flags */
 #define TMP421_CONFIG_SHUTDOWN			0x40
@@ -89,7 +90,7 @@ MODULE_DEVICE_TABLE(of, tmp421_of_match);
 struct tmp421_data {
 	struct i2c_client *client;
 	struct mutex update_lock;
-	u32 temp_config[5];
+	u32 temp_config[MAX_CHANNELS + 1];
 	struct hwmon_channel_info temp_info;
 	const struct hwmon_channel_info *info[2];
 	struct hwmon_chip_info chip;
@@ -97,7 +98,7 @@ struct tmp421_data {
 	unsigned long last_updated;
 	unsigned long channels;
 	u8 config;
-	s16 temp[4];
+	s16 temp[MAX_CHANNELS];
 };
 
 static int temp_from_raw(u16 reg, bool extended)
