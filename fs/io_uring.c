@@ -7225,16 +7225,19 @@ static const struct io_uring_sqe *io_get_sqe(struct io_ring_ctx *ctx)
 static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 	__must_hold(&ctx->uring_lock)
 {
+	unsigned int entries = io_sqring_entries(ctx);
 	int submitted = 0;
 
+	if (!entries)
+		return 0;
 	/* make sure SQ entry isn't read before tail */
-	nr = min3(nr, ctx->sq_entries, io_sqring_entries(ctx));
+	nr = min3(nr, ctx->sq_entries, entries);
 	if (!percpu_ref_tryget_many(&ctx->refs, nr))
 		return -EAGAIN;
 	io_get_task_refs(nr);
 
 	io_submit_state_start(&ctx->submit_state, nr);
-	while (submitted < nr) {
+	do {
 		const struct io_uring_sqe *sqe;
 		struct io_kiocb *req;
 
@@ -7253,7 +7256,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 		submitted++;
 		if (io_submit_sqe(ctx, req, sqe))
 			break;
-	}
+	} while (submitted < nr);
 
 	if (unlikely(submitted != nr)) {
 		int ref_used = (submitted == -EAGAIN) ? 0 : submitted;
