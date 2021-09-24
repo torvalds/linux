@@ -9,8 +9,12 @@
 #include <linux/types.h>
 
 struct intel_context;
+struct i915_pxp_component;
 
 struct intel_pxp {
+	struct i915_pxp_component *pxp_component;
+	bool pxp_component_added;
+
 	struct intel_context *ce;
 };
 
