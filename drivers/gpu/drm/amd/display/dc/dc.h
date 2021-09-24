@@ -664,6 +664,7 @@ struct dc_debug_options {
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* TODO - remove once tested */
 	bool legacy_dp2_lt;
+	bool set_mst_en_for_sst;
 #endif
 	union mem_low_power_enable_options enable_mem_low_power;
 	union root_clock_optimization_options root_clock_optimization;

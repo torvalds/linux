@@ -1869,8 +1869,13 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 		do_fallback = true;
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
+	/*
+	 * Temporary w/a to get DP2.0 link rates to work with SST.
+	 * TODO DP2.0 - Workaround: Remove w/a if and when the issue is resolved.
+	 */
 	if (dp_get_link_encoding_format(&link_settings) == DP_128b_132b_ENCODING &&
-			pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT) {
+			pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT &&
+			link->dc->debug.set_mst_en_for_sst) {
 		dp_enable_mst_on_sink(link, true);
 	}
 #endif
