@@ -6900,19 +6900,25 @@ EXPORT_SYMBOL(netif_napi_add);
 
 void napi_disable(struct napi_struct *n)
 {
+	unsigned long val, new;
+
 	might_sleep();
 	set_bit(NAPI_STATE_DISABLE, &n->state);
 
-	while (test_and_set_bit(NAPI_STATE_SCHED, &n->state))
-		msleep(1);
-	while (test_and_set_bit(NAPI_STATE_NPSVC, &n->state))
-		msleep(1);
+	do {
+		val = READ_ONCE(n->state);
+		if (val & (NAPIF_STATE_SCHED | NAPIF_STATE_NPSVC)) {
+			usleep_range(20, 200);
+			continue;
+		}
+
+		new = val | NAPIF_STATE_SCHED | NAPIF_STATE_NPSVC;
+		new &= ~(NAPIF_STATE_THREADED | NAPIF_STATE_PREFER_BUSY_POLL);
+	} while (cmpxchg(&n->state, val, new) != val);
 
 	hrtimer_cancel(&n->timer);
 
-	clear_bit(NAPI_STATE_PREFER_BUSY_POLL, &n->state);
 	clear_bit(NAPI_STATE_DISABLE, &n->state);
-	clear_bit(NAPI_STATE_THREADED, &n->state);
 }
 EXPORT_SYMBOL(napi_disable);
 
