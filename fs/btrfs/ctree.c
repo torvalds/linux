@@ -3605,7 +3605,7 @@ int btrfs_duplicate_item(struct btrfs_trans_handle *trans,
 		return ret;
 
 	path->slots[0]++;
-	setup_items_for_insert(root, path, new_key, &item_size, 1);
+	setup_item_for_insert(root, path, new_key, item_size);
 	leaf = path->nodes[0];
 	memcpy_extent_buffer(leaf,
 			     btrfs_item_ptr_offset(leaf, path->slots[0]),
@@ -3785,13 +3785,10 @@ void btrfs_extend_item(struct btrfs_path *path, u32 data_size)
  *
  * @root:	root we are inserting items to
  * @path:	points to the leaf/slot where we are going to insert new items
- * @cpu_key:	array of keys for items to be inserted
- * @data_size:	size of the body of each item we are going to insert
- * @nr:		size of @cpu_key/@data_size arrays
+ * @batch:      information about the batch of items to insert
  */
 void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
-			    const struct btrfs_key *cpu_key, u32 *data_size,
-			    int nr)
+			    const struct btrfs_item_batch *batch)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_item *item;
@@ -3803,14 +3800,14 @@ void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
 	int slot;
 	struct btrfs_map_token token;
 	u32 total_size;
-	u32 total_data = 0;
 
-	for (i = 0; i < nr; i++)
-		total_data += data_size[i];
-	total_size = total_data + (nr * sizeof(struct btrfs_item));
-
+	/*
+	 * Before anything else, update keys in the parent and other ancestors
+	 * if needed, then release the write locks on them, so that other tasks
+	 * can use them while we modify the leaf.
+	 */
 	if (path->slots[0] == 0) {
-		btrfs_cpu_key_to_disk(&disk_key, cpu_key);
+		btrfs_cpu_key_to_disk(&disk_key, &batch->keys[0]);
 		fixup_low_keys(path, &disk_key, 1);
 	}
 	btrfs_unlock_up_safe(path, 1);
@@ -3820,6 +3817,7 @@ void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
 
 	nritems = btrfs_header_nritems(leaf);
 	data_end = leaf_data_end(leaf);
+	total_size = batch->total_data_size + (batch->nr * sizeof(struct btrfs_item));
 
 	if (btrfs_leaf_free_space(leaf) < total_size) {
 		btrfs_print_leaf(leaf);
@@ -3849,31 +3847,32 @@ void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
 			item = btrfs_item_nr(i);
 			ioff = btrfs_token_item_offset(&token, item);
 			btrfs_set_token_item_offset(&token, item,
-						    ioff - total_data);
+						    ioff - batch->total_data_size);
 		}
 		/* shift the items */
-		memmove_extent_buffer(leaf, btrfs_item_nr_offset(slot + nr),
+		memmove_extent_buffer(leaf, btrfs_item_nr_offset(slot + batch->nr),
 			      btrfs_item_nr_offset(slot),
 			      (nritems - slot) * sizeof(struct btrfs_item));
 
 		/* shift the data */
 		memmove_extent_buffer(leaf, BTRFS_LEAF_DATA_OFFSET +
-			      data_end - total_data, BTRFS_LEAF_DATA_OFFSET +
-			      data_end, old_data - data_end);
+				      data_end - batch->total_data_size,
+				      BTRFS_LEAF_DATA_OFFSET + data_end,
+				      old_data - data_end);
 		data_end = old_data;
 	}
 
 	/* setup the item for the new data */
-	for (i = 0; i < nr; i++) {
-		btrfs_cpu_key_to_disk(&disk_key, cpu_key + i);
+	for (i = 0; i < batch->nr; i++) {
+		btrfs_cpu_key_to_disk(&disk_key, &batch->keys[i]);
 		btrfs_set_item_key(leaf, &disk_key, slot + i);
 		item = btrfs_item_nr(slot + i);
-		data_end -= data_size[i];
+		data_end -= batch->data_sizes[i];
 		btrfs_set_token_item_offset(&token, item, data_end);
-		btrfs_set_token_item_size(&token, item, data_size[i]);
+		btrfs_set_token_item_size(&token, item, batch->data_sizes[i]);
 	}
 
-	btrfs_set_header_nritems(leaf, nritems + nr);
+	btrfs_set_header_nritems(leaf, nritems + batch->nr);
 	btrfs_mark_buffer_dirty(leaf);
 
 	if (btrfs_leaf_free_space(leaf) < 0) {
@@ -3889,20 +3888,14 @@ void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
 int btrfs_insert_empty_items(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root,
 			    struct btrfs_path *path,
-			    const struct btrfs_key *cpu_key, u32 *data_size,
-			    int nr)
+			    const struct btrfs_item_batch *batch)
 {
 	int ret = 0;
 	int slot;
-	int i;
-	u32 total_size = 0;
-	u32 total_data = 0;
+	u32 total_size;
 
-	for (i = 0; i < nr; i++)
-		total_data += data_size[i];
-
-	total_size = total_data + (nr * sizeof(struct btrfs_item));
-	ret = btrfs_search_slot(trans, root, cpu_key, path, total_size, 1);
+	total_size = batch->total_data_size + (batch->nr * sizeof(struct btrfs_item));
+	ret = btrfs_search_slot(trans, root, &batch->keys[0], path, total_size, 1);
 	if (ret == 0)
 		return -EEXIST;
 	if (ret < 0)
@@ -3911,7 +3904,7 @@ int btrfs_insert_empty_items(struct btrfs_trans_handle *trans,
 	slot = path->slots[0];
 	BUG_ON(slot < 0);
 
-	setup_items_for_insert(root, path, cpu_key, data_size, nr);
+	setup_items_for_insert(root, path, batch);
 	return 0;
 }
 

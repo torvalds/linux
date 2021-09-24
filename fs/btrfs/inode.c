@@ -6445,7 +6445,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	struct btrfs_inode_ref *ref;
 	struct btrfs_key key[2];
 	u32 sizes[2];
-	int nitems = name ? 2 : 1;
+	struct btrfs_item_batch batch;
 	unsigned long ptr;
 	unsigned int nofs_flag;
 	int ret;
@@ -6537,7 +6537,11 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		goto fail;
 	}
 
-	ret = btrfs_insert_empty_items(trans, root, path, key, sizes, nitems);
+	batch.keys = &key[0];
+	batch.data_sizes = &sizes[0];
+	batch.total_data_size = sizes[0] + (name ? sizes[1] : 0);
+	batch.nr = name ? 2 : 1;
+	ret = btrfs_insert_empty_items(trans, root, path, &batch);
 	if (ret != 0)
 		goto fail_unlock;
 

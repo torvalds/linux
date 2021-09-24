@@ -679,19 +679,18 @@ static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 				     struct btrfs_path *path,
 				     struct btrfs_delayed_item *first_item)
 {
-	LIST_HEAD(batch);
+	LIST_HEAD(item_list);
 	struct btrfs_delayed_item *curr;
 	struct btrfs_delayed_item *next;
 	const int max_size = BTRFS_LEAF_DATA_SIZE(root->fs_info);
+	struct btrfs_item_batch batch;
 	int total_size;
-	int nitems;
 	char *ins_data = NULL;
-	struct btrfs_key *ins_keys;
-	u32 *ins_sizes;
 	int ret;
 
-	list_add_tail(&first_item->tree_list, &batch);
-	nitems = 1;
+	list_add_tail(&first_item->tree_list, &item_list);
+	batch.total_data_size = first_item->data_len;
+	batch.nr = 1;
 	total_size = first_item->data_len + sizeof(struct btrfs_item);
 	curr = first_item;
 
@@ -706,39 +705,43 @@ static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 		if (total_size + next_size > max_size)
 			break;
 
-		list_add_tail(&next->tree_list, &batch);
-		nitems++;
+		list_add_tail(&next->tree_list, &item_list);
+		batch.nr++;
 		total_size += next_size;
+		batch.total_data_size += next->data_len;
 		curr = next;
 	}
 
-	if (nitems == 1) {
-		ins_keys = &first_item->key;
-		ins_sizes = &first_item->data_len;
+	if (batch.nr == 1) {
+		batch.keys = &first_item->key;
+		batch.data_sizes = &first_item->data_len;
 	} else {
+		struct btrfs_key *ins_keys;
+		u32 *ins_sizes;
 		int i = 0;
 
-		ins_data = kmalloc(nitems * sizeof(u32) +
-				   nitems * sizeof(struct btrfs_key), GFP_NOFS);
+		ins_data = kmalloc(batch.nr * sizeof(u32) +
+				   batch.nr * sizeof(struct btrfs_key), GFP_NOFS);
 		if (!ins_data) {
 			ret = -ENOMEM;
 			goto out;
 		}
 		ins_sizes = (u32 *)ins_data;
-		ins_keys = (struct btrfs_key *)(ins_data + nitems * sizeof(u32));
-		list_for_each_entry(curr, &batch, tree_list) {
+		ins_keys = (struct btrfs_key *)(ins_data + batch.nr * sizeof(u32));
+		batch.keys = ins_keys;
+		batch.data_sizes = ins_sizes;
+		list_for_each_entry(curr, &item_list, tree_list) {
 			ins_keys[i] = curr->key;
 			ins_sizes[i] = curr->data_len;
 			i++;
 		}
 	}
 
-	ret = btrfs_insert_empty_items(trans, root, path, ins_keys, ins_sizes,
-				       nitems);
+	ret = btrfs_insert_empty_items(trans, root, path, &batch);
 	if (ret)
 		goto out;
 
-	list_for_each_entry(curr, &batch, tree_list) {
+	list_for_each_entry(curr, &item_list, tree_list) {
 		char *data_ptr;
 
 		data_ptr = btrfs_item_ptr(path->nodes[0], path->slots[0], char);
@@ -754,7 +757,7 @@ static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 	 */
 	btrfs_release_path(path);
 
-	list_for_each_entry_safe(curr, next, &batch, tree_list) {
+	list_for_each_entry_safe(curr, next, &item_list, tree_list) {
 		list_del(&curr->tree_list);
 		btrfs_delayed_item_release_metadata(root, curr);
 		btrfs_release_delayed_item(curr);

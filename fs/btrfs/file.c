@@ -1020,8 +1020,7 @@ delete_extent_item:
 			if (btrfs_comp_cpu_keys(&key, &slot_key) > 0)
 				path->slots[0]++;
 		}
-		setup_items_for_insert(root, path, &key,
-				       &args->extent_item_size, 1);
+		setup_item_for_insert(root, path, &key, args->extent_item_size);
 		args->extent_inserted = true;
 	}
 
