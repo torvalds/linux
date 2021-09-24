@@ -153,7 +153,11 @@ struct ath11k_hw_params {
 	bool vdev_start_delay;
 	bool htt_peer_map_v2;
 	bool tcl_0_only;
-	u8 spectral_fft_sz;
+
+	struct {
+		u8 fft_sz;
+		u8 fft_pad_sz;
+	} spectral;
 
 	u16 interface_modes;
 	bool supports_monitor;

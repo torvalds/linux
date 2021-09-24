@@ -11,8 +11,6 @@
 #define ATH11K_SPECTRAL_EVENT_TIMEOUT_MS	1
 
 #define ATH11K_SPECTRAL_DWORD_SIZE		4
-/* HW bug, expected BIN size is 2 bytes but HW report as 4 bytes */
-#define ATH11K_SPECTRAL_BIN_SIZE		4
 #define ATH11K_SPECTRAL_ATH11K_MIN_BINS		64
 #define ATH11K_SPECTRAL_ATH11K_MIN_IB_BINS	32
 #define ATH11K_SPECTRAL_ATH11K_MAX_IB_BINS	256
@@ -581,12 +579,12 @@ int ath11k_spectral_process_fft(struct ath11k *ar,
 	struct spectral_tlv *tlv;
 	int tlv_len, bin_len, num_bins;
 	u16 length, freq;
-	u8 chan_width_mhz;
+	u8 chan_width_mhz, bin_sz;
 	int ret;
 
 	lockdep_assert_held(&ar->spectral.lock);
 
-	if (!ab->hw_params.spectral_fft_sz) {
+	if (!ab->hw_params.spectral.fft_sz) {
 		ath11k_warn(ab, "invalid bin size type for hw rev %d\n",
 			    ab->hw_rev);
 		return -EINVAL;
@@ -604,7 +602,8 @@ int ath11k_spectral_process_fft(struct ath11k *ar,
 		return -EINVAL;
 	}
 
-	num_bins = bin_len / ATH11K_SPECTRAL_BIN_SIZE;
+	bin_sz = ab->hw_params.spectral.fft_sz + ab->hw_params.spectral.fft_pad_sz;
+	num_bins = bin_len / bin_sz;
 	/* Only In-band bins are useful to user for visualize */
 	num_bins >>= 1;
 
@@ -654,7 +653,7 @@ int ath11k_spectral_process_fft(struct ath11k *ar,
 	fft_sample->freq2 = __cpu_to_be16(freq);
 
 	ath11k_spectral_parse_fft(fft_sample->data, fft_report->bins, num_bins,
-				  ab->hw_params.spectral_fft_sz);
+				  ab->hw_params.spectral.fft_sz);
 
 	fft_sample->max_exp = ath11k_spectral_get_max_exp(fft_sample->max_index,
 							  search.peak_mag,
@@ -962,7 +961,7 @@ int ath11k_spectral_init(struct ath11k_base *ab)
 		      ab->wmi_ab.svc_map))
 		return 0;
 
-	if (!ab->hw_params.spectral_fft_sz)
+	if (!ab->hw_params.spectral.fft_sz)
 		return 0;
 
 	for (i = 0; i < ab->num_radios; i++) {
