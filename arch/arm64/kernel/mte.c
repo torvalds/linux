@@ -179,6 +179,30 @@ static void mte_update_sctlr_user(struct task_struct *task)
 	task->thread.sctlr_user = sctlr;
 }
 
+static void mte_update_gcr_excl(struct task_struct *task)
+{
+	/*
+	 * SYS_GCR_EL1 will be set to current->thread.mte_ctrl value by
+	 * mte_set_user_gcr() in kernel_exit, but only if KASAN is enabled.
+	 */
+	if (kasan_hw_tags_enabled())
+		return;
+
+	write_sysreg_s(
+		((task->thread.mte_ctrl >> MTE_CTRL_GCR_USER_EXCL_SHIFT) &
+		 SYS_GCR_EL1_EXCL_MASK) | SYS_GCR_EL1_RRND,
+		SYS_GCR_EL1);
+}
+
+void __init kasan_hw_tags_enable(struct alt_instr *alt, __le32 *origptr,
+				 __le32 *updptr, int nr_inst)
+{
+	BUG_ON(nr_inst != 1); /* Branch -> NOP */
+
+	if (kasan_hw_tags_enabled())
+		*updptr = cpu_to_le32(aarch64_insn_gen_nop());
+}
+
 void mte_thread_init_user(void)
 {
 	if (!system_supports_mte())
@@ -198,6 +222,7 @@ void mte_thread_switch(struct task_struct *next)
 		return;
 
 	mte_update_sctlr_user(next);
+	mte_update_gcr_excl(next);
 
 	/*
 	 * Check if an async tag exception occurred at EL1.
@@ -243,6 +268,7 @@ long set_mte_ctrl(struct task_struct *task, unsigned long arg)
 	if (task == current) {
 		preempt_disable();
 		mte_update_sctlr_user(task);
+		mte_update_gcr_excl(task);
 		update_sctlr_el1(task->thread.sctlr_user);
 		preempt_enable();
 	}
