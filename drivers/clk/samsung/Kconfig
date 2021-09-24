@@ -67,7 +67,8 @@ config EXYNOS_5420_COMMON_CLK
 	depends on COMMON_CLK_SAMSUNG
 	help
 	  Support for the clock controller present on the Samsung
-	  Exynos5420 SoCs. Choose Y here only if you build for this SoC.
+	  Exynos5420/Exynos5422/Exynos5800 SoCs. Choose Y here only if you
+	  build for this SoC.
 
 config EXYNOS_ARM64_COMMON_CLK
 	bool "Samsung Exynos ARMv8-family clock controller support" if COMPILE_TEST
@@ -79,38 +80,47 @@ config EXYNOS_AUDSS_CLK_CON
 	default y if ARCH_EXYNOS
 	help
 	  Support for the Audio Subsystem CLKCON clock controller present
-	  on some Exynos SoC variants. Choose M or Y here if you want to
-	  use audio devices such as I2S, PCM, etc.
+	  on some Samsung Exynos SoC variants. Choose M or Y here if you want
+	  to use audio devices such as I2S, PCM, etc.
 
 config EXYNOS_CLKOUT
 	tristate "Samsung Exynos clock output driver"
 	depends on COMMON_CLK_SAMSUNG
 	default y if ARCH_EXYNOS
 	help
-	  Support for the clock output (XCLKOUT) present on some of Exynos SoC
-	  variants. Usually the XCLKOUT is used to monitor the status of the
-	  certains clocks from SoC, but it could also be tied to other devices
-	  as an input clock.
+	  Support for the clock output (XCLKOUT) present on some of Samsung
+	  Exynos SoC variants. Usually the XCLKOUT is used to monitor the
+	  status of the certains clocks from SoC, but it could also be tied to
+	  other devices as an input clock.
 
 # For S3C24XX platforms, select following symbols:
 config S3C2410_COMMON_CLK
 	bool "Samsung S3C2410 clock controller support" if COMPILE_TEST
 	select COMMON_CLK_SAMSUNG
 	help
-	  Build the s3c2410 clock driver based on the common clock framework.
+	  Support for the clock controller present on the Samsung
+	  S3C2410/S3C2440/S3C2442 SoCs. Choose Y here only if you build for
+	  this SoC.
 
 config S3C2410_COMMON_DCLK
 	bool
 	select COMMON_CLK_SAMSUNG
 	select REGMAP_MMIO
 	help
-	  Temporary symbol to build the dclk driver based on the common clock
-	  framework.
+	  Support for the dclk clock controller present on the Samsung
+	  S3C2410/S3C2412/S3C2440/S3C2443 SoCs. Choose Y here only if you build
+	  for this SoC.
 
 config S3C2412_COMMON_CLK
 	bool "Samsung S3C2412 clock controller support" if COMPILE_TEST
 	select COMMON_CLK_SAMSUNG
+	help
+	  Support for the clock controller present on the Samsung S3C2412 SoCs.
+	  Choose Y here only if you build for this SoC.
 
 config S3C2443_COMMON_CLK
 	bool "Samsung S3C2443 clock controller support" if COMPILE_TEST
 	select COMMON_CLK_SAMSUNG
+	help
+	  Support for the clock controller present on the Samsung
+	  S3C2416/S3C2443 SoCs. Choose Y here only if you build for this SoC.
