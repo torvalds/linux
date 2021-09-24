@@ -24,6 +24,9 @@ Optional properties:
 		DMA specifiers listed in dmas. The string naming is to be "tx"
 		and "rx" for TX and RX DMA requests, respectively.
 
+Deprecated properties:
+- ti,non-removable: Compatible with the generic non-removable property
+
 Example:
 	mmc1: mmc@4809c000 {
 		compatible = "ti,dra7-sdhci";
