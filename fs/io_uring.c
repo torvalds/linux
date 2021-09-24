@@ -2429,16 +2429,10 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, struct list_head *done)
 	struct req_batch rb;
 	struct io_kiocb *req;
 
-	/* order with ->result store in io_complete_rw_iopoll() */
-	smp_rmb();
-
 	io_init_req_batch(&rb);
 	while (!list_empty(done)) {
 		req = list_first_entry(done, struct io_kiocb, inflight_entry);
 		list_del(&req->inflight_entry);
-
-		__io_cqring_fill_event(ctx, req->user_data, req->result,
-					io_put_rw_kbuf(req));
 
 		if (req_ref_put_and_test(req))
 			io_req_free_batch(&rb, req, &ctx->submit_state);
@@ -2498,8 +2492,12 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 	wq_list_for_each_resume(pos, prev) {
 		struct io_kiocb *req = container_of(pos, struct io_kiocb, comp_list);
 
-		if (!READ_ONCE(req->iopoll_completed))
+		/* order with io_complete_rw_iopoll(), e.g. ->result updates */
+		if (!smp_load_acquire(&req->iopoll_completed))
 			break;
+		__io_cqring_fill_event(ctx, req->user_data, req->result,
+				       io_put_rw_kbuf(req));
+
 		list_add_tail(&req->inflight_entry, &done);
 		nr_events++;
 	}
@@ -2712,10 +2710,9 @@ static void io_complete_rw_iopoll(struct kiocb *kiocb, long res, long res2)
 		}
 	}
 
-	WRITE_ONCE(req->result, res);
-	/* order with io_iopoll_complete() checking ->result */
-	smp_wmb();
-	WRITE_ONCE(req->iopoll_completed, 1);
+	req->result = res;
+	/* order with io_iopoll_complete() checking ->iopoll_completed */
+	smp_store_release(&req->iopoll_completed, 1);
 }
 
 /*
