@@ -136,7 +136,7 @@ struct tmp401_data {
 	struct i2c_client *client;
 	const struct attribute_group *groups[3];
 	struct mutex update_lock;
-	char valid; /* zero until following fields are valid */
+	bool valid; /* false until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 	enum chips kind;
 
@@ -267,7 +267,7 @@ static struct tmp401_data *tmp401_update_device(struct device *dev)
 		data->temp_crit_hyst = val;
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 abort:
@@ -413,7 +413,7 @@ static ssize_t reset_temp_history_store(struct device *dev,
 	}
 	mutex_lock(&data->update_lock);
 	i2c_smbus_write_byte_data(client, TMP401_TEMP_MSB_WRITE[5][0], val);
-	data->valid = 0;
+	data->valid = false;
 	mutex_unlock(&data->update_lock);
 
 	return count;

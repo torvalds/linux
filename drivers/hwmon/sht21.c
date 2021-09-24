@@ -41,7 +41,7 @@ struct sht21 {
 	unsigned long last_update;
 	int temperature;
 	int humidity;
-	char valid;
+	bool valid;
 	char eic[18];
 };
 
@@ -105,7 +105,7 @@ static int sht21_update_measurements(struct device *dev)
 			goto out;
 		sht21->humidity = sht21_rh_ticks_to_per_cent_mille(ret);
 		sht21->last_update = jiffies;
-		sht21->valid = 1;
+		sht21->valid = true;
 	}
 out:
 	mutex_unlock(&sht21->lock);

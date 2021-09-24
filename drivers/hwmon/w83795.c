@@ -379,7 +379,7 @@ struct w83795_data {
 	u8 enable_beep;
 	u8 beeps[6];		/* Register value */
 
-	char valid;
+	bool valid;
 	char valid_limits;
 	char valid_pwm_config;
 };
@@ -684,7 +684,7 @@ static struct w83795_data *w83795_update_device(struct device *dev)
 			     tmp & ~ALARM_CTRL_RTSACS);
 
 	data->last_updated = jiffies;
-	data->valid = 1;
+	data->valid = true;
 
 END:
 	mutex_unlock(&data->update_lock);
@@ -764,7 +764,7 @@ store_chassis_clear(struct device *dev,
 
 	/* Clear status and force cache refresh */
 	w83795_read(client, W83795_REG_ALARM(5));
-	data->valid = 0;
+	data->valid = false;
 	mutex_unlock(&data->update_lock);
 	return count;
 }
