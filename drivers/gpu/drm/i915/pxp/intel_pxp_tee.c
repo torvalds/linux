@@ -33,6 +33,9 @@ static int i915_pxp_tee_component_bind(struct device *i915_kdev,
 	pxp->pxp_component = data;
 	pxp->pxp_component->tee_dev = tee_kdev;
 
+	/* the component is required to fully start the PXP HW */
+	intel_pxp_init_hw(pxp);
+
 	return 0;
 }
 
@@ -40,6 +43,8 @@ static void i915_pxp_tee_component_unbind(struct device *i915_kdev,
 					  struct device *tee_kdev, void *data)
 {
 	struct intel_pxp *pxp = i915_dev_to_pxp(i915_kdev);
+
+	intel_pxp_fini_hw(pxp);
 
 	pxp->pxp_component = NULL;
 }

@@ -17,6 +17,9 @@ static inline bool intel_pxp_is_enabled(const struct intel_pxp *pxp)
 struct intel_gt *pxp_to_gt(const struct intel_pxp *pxp);
 void intel_pxp_init(struct intel_pxp *pxp);
 void intel_pxp_fini(struct intel_pxp *pxp);
+
+void intel_pxp_init_hw(struct intel_pxp *pxp);
+void intel_pxp_fini_hw(struct intel_pxp *pxp);
 #else
 static inline void intel_pxp_init(struct intel_pxp *pxp)
 {
