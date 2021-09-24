@@ -2264,63 +2264,41 @@ static void io_free_req_work(struct io_kiocb *req, bool *locked)
 	io_free_req(req);
 }
 
-struct req_batch {
-	struct task_struct	*task;
-	int			task_refs;
-	int			ctx_refs;
-};
-
-static inline void io_init_req_batch(struct req_batch *rb)
-{
-	rb->task_refs = 0;
-	rb->ctx_refs = 0;
-	rb->task = NULL;
-}
-
-static void io_req_free_batch_finish(struct io_ring_ctx *ctx,
-				     struct req_batch *rb)
-{
-	if (rb->ctx_refs)
-		percpu_ref_put_many(&ctx->refs, rb->ctx_refs);
-	if (rb->task)
-		io_put_task(rb->task, rb->task_refs);
-}
-
-static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req,
-			      struct io_submit_state *state)
-{
-	io_queue_next(req);
-	io_dismantle_req(req);
-
-	if (req->task != rb->task) {
-		if (rb->task)
-			io_put_task(rb->task, rb->task_refs);
-		rb->task = req->task;
-		rb->task_refs = 0;
-	}
-	rb->task_refs++;
-	rb->ctx_refs++;
-	wq_stack_add_head(&req->comp_list, &state->free_list);
-}
-
 static void io_free_batch_list(struct io_ring_ctx *ctx,
 			       struct io_wq_work_list *list)
 	__must_hold(&ctx->uring_lock)
 {
 	struct io_wq_work_node *node;
-	struct req_batch rb;
+	struct task_struct *task = NULL;
+	int task_refs = 0, ctx_refs = 0;
 
-	io_init_req_batch(&rb);
 	node = list->first;
 	do {
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    comp_list);
 
 		node = req->comp_list.next;
-		if (req_ref_put_and_test(req))
-			io_req_free_batch(&rb, req, &ctx->submit_state);
+		if (!req_ref_put_and_test(req))
+			continue;
+
+		io_queue_next(req);
+		io_dismantle_req(req);
+
+		if (req->task != task) {
+			if (task)
+				io_put_task(task, task_refs);
+			task = req->task;
+			task_refs = 0;
+		}
+		task_refs++;
+		ctx_refs++;
+		wq_stack_add_head(&req->comp_list, &ctx->submit_state.free_list);
 	} while (node);
-	io_req_free_batch_finish(ctx, &rb);
+
+	if (ctx_refs)
+		percpu_ref_put_many(&ctx->refs, ctx_refs);
+	if (task)
+		io_put_task(task, task_refs);
 }
 
 static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
