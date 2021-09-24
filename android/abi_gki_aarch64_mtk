@@ -2237,6 +2237,7 @@
   v4l2_ctrl_request_complete
   v4l2_ctrl_request_setup
   __v4l2_ctrl_s_ctrl
+  __v4l2_ctrl_s_ctrl_compound
   v4l2_ctrl_subdev_subscribe_event
   v4l2_ctrl_subscribe_event
   v4l2_device_register
