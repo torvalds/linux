@@ -9,6 +9,8 @@
 #include <linux/acpi.h>
 #include <linux/pm_runtime.h>
 
+#include <linux/dmi.h>
+
 #include "tb.h"
 
 static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
@@ -139,6 +141,11 @@ bool tb_acpi_add_links(struct tb_nhi *nhi)
  */
 bool tb_acpi_is_native(void)
 {
+	// System76 devices using coreboot only support firmware based connection manager
+	if (dmi_match(DMI_SYS_VENDOR, "System76") &&
+	    dmi_match(DMI_BIOS_VENDOR, "coreboot"))
+		return false;
+
 	return osc_sb_native_usb4_support_confirmed &&
 	       osc_sb_native_usb4_control;
 }
