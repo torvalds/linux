@@ -2421,35 +2421,13 @@ static inline bool io_run_task_work(void)
 	return false;
 }
 
-/*
- * Find and free completed poll iocbs
- */
-static void io_iopoll_complete(struct io_ring_ctx *ctx, struct list_head *done)
-{
-	struct req_batch rb;
-	struct io_kiocb *req;
-
-	io_init_req_batch(&rb);
-	while (!list_empty(done)) {
-		req = list_first_entry(done, struct io_kiocb, inflight_entry);
-		list_del(&req->inflight_entry);
-
-		if (req_ref_put_and_test(req))
-			io_req_free_batch(&rb, req, &ctx->submit_state);
-	}
-
-	io_commit_cqring(ctx);
-	io_cqring_ev_posted_iopoll(ctx);
-	io_req_free_batch_finish(ctx, &rb);
-}
-
 static int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 {
 	struct io_wq_work_node *pos, *start, *prev;
 	unsigned int poll_flags = BLK_POLL_NOSLEEP;
+	struct io_wq_work_list list;
 	DEFINE_IO_COMP_BATCH(iob);
 	int nr_events = 0;
-	LIST_HEAD(done);
 
 	/*
 	 * Only spin for completions if we don't have multiple devices hanging
@@ -2496,15 +2474,19 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 		if (!smp_load_acquire(&req->iopoll_completed))
 			break;
 		__io_cqring_fill_event(ctx, req->user_data, req->result,
-				       io_put_rw_kbuf(req));
-
-		list_add_tail(&req->inflight_entry, &done);
+					io_put_rw_kbuf(req));
 		nr_events++;
 	}
 
+	if (unlikely(!nr_events))
+		return 0;
+
+	io_commit_cqring(ctx);
+	io_cqring_ev_posted_iopoll(ctx);
+	list.first = start ? start->next : ctx->iopoll_list.first;
+	list.last = prev;
 	wq_list_cut(&ctx->iopoll_list, prev, start);
-	if (nr_events)
-		io_iopoll_complete(ctx, &done);
+	io_free_batch_list(ctx, &list);
 	return nr_events;
 }
 
