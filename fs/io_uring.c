@@ -6891,13 +6891,38 @@ static void io_queue_linked_timeout(struct io_kiocb *req)
 	io_put_req(req);
 }
 
-static void __io_queue_sqe(struct io_kiocb *req)
+static void io_queue_sqe_arm_apoll(struct io_kiocb *req)
+	__must_hold(&req->ctx->uring_lock)
+{
+	struct io_kiocb *linked_timeout = io_prep_linked_timeout(req);
+
+	switch (io_arm_poll_handler(req)) {
+	case IO_APOLL_READY:
+		if (linked_timeout) {
+			io_unprep_linked_timeout(req);
+			linked_timeout = NULL;
+		}
+		io_req_task_queue(req);
+		break;
+	case IO_APOLL_ABORTED:
+		/*
+		 * Queued up for async execution, worker will release
+		 * submit reference when the iocb is actually submitted.
+		 */
+		io_queue_async_work(req, NULL);
+		break;
+	}
+
+	if (linked_timeout)
+		io_queue_linked_timeout(linked_timeout);
+}
+
+static inline void __io_queue_sqe(struct io_kiocb *req)
 	__must_hold(&req->ctx->uring_lock)
 {
 	struct io_kiocb *linked_timeout;
 	int ret;
 
-issue_sqe:
 	ret = io_issue_sqe(req, IO_URING_F_NONBLOCK|IO_URING_F_COMPLETE_DEFER);
 
 	/*
@@ -6912,24 +6937,7 @@ issue_sqe:
 		if (linked_timeout)
 			io_queue_linked_timeout(linked_timeout);
 	} else if (ret == -EAGAIN && !(req->flags & REQ_F_NOWAIT)) {
-		linked_timeout = io_prep_linked_timeout(req);
-
-		switch (io_arm_poll_handler(req)) {
-		case IO_APOLL_READY:
-			if (linked_timeout)
-				io_unprep_linked_timeout(req);
-			goto issue_sqe;
-		case IO_APOLL_ABORTED:
-			/*
-			 * Queued up for async execution, worker will release
-			 * submit reference when the iocb is actually submitted.
-			 */
-			io_queue_async_work(req, NULL);
-			break;
-		}
-
-		if (linked_timeout)
-			io_queue_linked_timeout(linked_timeout);
+		io_queue_sqe_arm_apoll(req);
 	} else {
 		io_req_complete_failed(req, ret);
 	}
