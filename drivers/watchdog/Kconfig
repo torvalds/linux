@@ -496,16 +496,18 @@ config S3C2410_WATCHDOG
 	select WATCHDOG_CORE
 	select MFD_SYSCON if ARCH_EXYNOS
 	help
-	  Watchdog timer block in the Samsung SoCs. This will reboot
-	  the system when the timer expires with the watchdog enabled.
+	  Watchdog timer block in the Samsung S3C24xx, S3C64xx, S5Pv210 and
+	  Exynos SoCs. This will reboot the system when the timer expires with
+	  the watchdog enabled.
 
 	  The driver is limited by the speed of the system's PCLK
 	  signal, so with reasonably fast systems (PCLK around 50-66MHz)
 	  then watchdog intervals of over approximately 20seconds are
 	  unavailable.
 
+	  Choose Y/M here only if you build for such Samsung SoC.
 	  The driver can be built as a module by choosing M, and will
-	  be called s3c2410_wdt
+	  be called s3c2410_wdt.
 
 config SA1100_WATCHDOG
 	tristate "SA1100/PXA2xx watchdog"
