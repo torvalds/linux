@@ -97,6 +97,9 @@ static int __init parse_efi_cmdline(char *str)
 	if (parse_option_str(str, "noruntime"))
 		disable_runtime = true;
 
+	if (parse_option_str(str, "runtime"))
+		disable_runtime = false;
+
 	if (parse_option_str(str, "nosoftreserve"))
 		set_bit(EFI_MEM_NO_SOFT_RESERVE, &efi.flags);
 
