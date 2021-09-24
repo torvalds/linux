@@ -2899,7 +2899,7 @@ static inline int btrfs_del_item(struct btrfs_trans_handle *trans,
 
 /*
  * Describes a batch of items to insert in a btree. This is used by
- * btrfs_insert_empty_items() and setup_items_for_insert().
+ * btrfs_insert_empty_items().
  */
 struct btrfs_item_batch {
 	/*
@@ -2923,24 +2923,10 @@ struct btrfs_item_batch {
 	int nr;
 };
 
-void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
-			    const struct btrfs_item_batch *batch);
-
-static inline void setup_item_for_insert(struct btrfs_root *root,
-					 struct btrfs_path *path,
-					 const struct btrfs_key *key,
-					 u32 data_size)
-{
-	struct btrfs_item_batch batch;
-
-	batch.keys = key;
-	batch.data_sizes = &data_size;
-	batch.total_data_size = data_size;
-	batch.nr = 1;
-
-	setup_items_for_insert(root, path, &batch);
-}
-
+void btrfs_setup_item_for_insert(struct btrfs_root *root,
+				 struct btrfs_path *path,
+				 const struct btrfs_key *key,
+				 u32 data_size);
 int btrfs_insert_item(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		      const struct btrfs_key *key, void *data, u32 data_size);
 int btrfs_insert_empty_items(struct btrfs_trans_handle *trans,

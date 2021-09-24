@@ -3581,40 +3581,6 @@ int btrfs_split_item(struct btrfs_trans_handle *trans,
 }
 
 /*
- * This function duplicate a item, giving 'new_key' to the new item.
- * It guarantees both items live in the same tree leaf and the new item
- * is contiguous with the original item.
- *
- * This allows us to split file extent in place, keeping a lock on the
- * leaf the entire time.
- */
-int btrfs_duplicate_item(struct btrfs_trans_handle *trans,
-			 struct btrfs_root *root,
-			 struct btrfs_path *path,
-			 const struct btrfs_key *new_key)
-{
-	struct extent_buffer *leaf;
-	int ret;
-	u32 item_size;
-
-	leaf = path->nodes[0];
-	item_size = btrfs_item_size_nr(leaf, path->slots[0]);
-	ret = setup_leaf_for_split(trans, root, path,
-				   item_size + sizeof(struct btrfs_item));
-	if (ret)
-		return ret;
-
-	path->slots[0]++;
-	setup_item_for_insert(root, path, new_key, item_size);
-	leaf = path->nodes[0];
-	memcpy_extent_buffer(leaf,
-			     btrfs_item_ptr_offset(leaf, path->slots[0]),
-			     btrfs_item_ptr_offset(leaf, path->slots[0] - 1),
-			     item_size);
-	return 0;
-}
-
-/*
  * make the item pointed to by the path smaller.  new_size indicates
  * how small to make it, and from_end tells us if we just chop bytes
  * off the end of the item or if we shift the item to chop bytes off
@@ -3787,8 +3753,8 @@ void btrfs_extend_item(struct btrfs_path *path, u32 data_size)
  * @path:	points to the leaf/slot where we are going to insert new items
  * @batch:      information about the batch of items to insert
  */
-void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
-			    const struct btrfs_item_batch *batch)
+static void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
+				   const struct btrfs_item_batch *batch)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_item *item;
@@ -3882,6 +3848,29 @@ void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
 }
 
 /*
+ * Insert a new item into a leaf.
+ *
+ * @root:      The root of the btree.
+ * @path:      A path pointing to the target leaf and slot.
+ * @key:       The key of the new item.
+ * @data_size: The size of the data associated with the new key.
+ */
+void btrfs_setup_item_for_insert(struct btrfs_root *root,
+				 struct btrfs_path *path,
+				 const struct btrfs_key *key,
+				 u32 data_size)
+{
+	struct btrfs_item_batch batch;
+
+	batch.keys = key;
+	batch.data_sizes = &data_size;
+	batch.total_data_size = data_size;
+	batch.nr = 1;
+
+	setup_items_for_insert(root, path, &batch);
+}
+
+/*
  * Given a key and some data, insert items into the tree.
  * This does all the path init required, making room in the tree if needed.
  */
@@ -3933,6 +3922,40 @@ int btrfs_insert_item(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	}
 	btrfs_free_path(path);
 	return ret;
+}
+
+/*
+ * This function duplicates an item, giving 'new_key' to the new item.
+ * It guarantees both items live in the same tree leaf and the new item is
+ * contiguous with the original item.
+ *
+ * This allows us to split a file extent in place, keeping a lock on the leaf
+ * the entire time.
+ */
+int btrfs_duplicate_item(struct btrfs_trans_handle *trans,
+			 struct btrfs_root *root,
+			 struct btrfs_path *path,
+			 const struct btrfs_key *new_key)
+{
+	struct extent_buffer *leaf;
+	int ret;
+	u32 item_size;
+
+	leaf = path->nodes[0];
+	item_size = btrfs_item_size_nr(leaf, path->slots[0]);
+	ret = setup_leaf_for_split(trans, root, path,
+				   item_size + sizeof(struct btrfs_item));
+	if (ret)
+		return ret;
+
+	path->slots[0]++;
+	btrfs_setup_item_for_insert(root, path, new_key, item_size);
+	leaf = path->nodes[0];
+	memcpy_extent_buffer(leaf,
+			     btrfs_item_ptr_offset(leaf, path->slots[0]),
+			     btrfs_item_ptr_offset(leaf, path->slots[0] - 1),
+			     item_size);
+	return 0;
 }
 
 /*
