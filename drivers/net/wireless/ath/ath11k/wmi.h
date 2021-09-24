@@ -2146,6 +2146,24 @@ enum wmi_direct_buffer_module {
 	WMI_DIRECT_BUF_MAX
 };
 
+/* enum wmi_nss_ratio - NSS ratio received from FW during service ready ext
+ *			event
+ * WMI_NSS_RATIO_1BY2_NSS -Max nss of 160MHz is equals to half of the max nss
+ *			   of 80MHz
+ * WMI_NSS_RATIO_3BY4_NSS - Max nss of 160MHz is equals to 3/4 of the max nss
+ *			    of 80MHz
+ * WMI_NSS_RATIO_1_NSS - Max nss of 160MHz is equals to the max nss of 80MHz
+ * WMI_NSS_RATIO_2_NSS - Max nss of 160MHz is equals to two times the max
+ *			 nss of 80MHz
+ */
+
+enum wmi_nss_ratio {
+	WMI_NSS_RATIO_1BY2_NSS = 0x0,
+	WMI_NSS_RATIO_3BY4_NSS = 0x1,
+	WMI_NSS_RATIO_1_NSS = 0x2,
+	WMI_NSS_RATIO_2_NSS = 0x3,
+};
+
 struct wmi_host_pdev_band_to_mac {
 	u32 pdev_id;
 	u32 start_freq;
@@ -2390,6 +2408,12 @@ struct wmi_hw_mode_capabilities {
 } __packed;
 
 #define WMI_MAX_HECAP_PHY_SIZE                 (3)
+#define WMI_NSS_RATIO_ENABLE_DISABLE_BITPOS    BIT(0)
+#define WMI_NSS_RATIO_ENABLE_DISABLE_GET(_val) \
+	FIELD_GET(WMI_NSS_RATIO_ENABLE_DISABLE_BITPOS, _val)
+#define WMI_NSS_RATIO_INFO_BITPOS              GENMASK(4, 1)
+#define WMI_NSS_RATIO_INFO_GET(_val) \
+	FIELD_GET(WMI_NSS_RATIO_INFO_BITPOS, _val)
 
 struct wmi_mac_phy_capabilities {
 	u32 hw_mode_id;
@@ -2423,6 +2447,12 @@ struct wmi_mac_phy_capabilities {
 	u32 he_cap_info_2g_ext;
 	u32 he_cap_info_5g_ext;
 	u32 he_cap_info_internal;
+	u32 wireless_modes;
+	u32 low_2ghz_chan_freq;
+	u32 high_2ghz_chan_freq;
+	u32 low_5ghz_chan_freq;
+	u32 high_5ghz_chan_freq;
+	u32 nss_ratio;
 } __packed;
 
 struct wmi_hal_reg_capabilities_ext {

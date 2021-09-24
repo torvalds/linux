@@ -1581,6 +1581,34 @@ ath11k_peer_assoc_h_vht_limit(u16 tx_mcs_set,
 	return tx_mcs_set;
 }
 
+static u8 ath11k_get_nss_160mhz(struct ath11k *ar,
+				u8 max_nss)
+{
+	u8 nss_ratio_info = ar->pdev->cap.nss_ratio_info;
+	u8 max_sup_nss = 0;
+
+	switch (nss_ratio_info) {
+	case WMI_NSS_RATIO_1BY2_NSS:
+		max_sup_nss = max_nss >> 1;
+		break;
+	case WMI_NSS_RATIO_3BY4_NSS:
+		ath11k_warn(ar->ab, "WMI_NSS_RATIO_3BY4_NSS not supported\n");
+		break;
+	case WMI_NSS_RATIO_1_NSS:
+		max_sup_nss = max_nss;
+		break;
+	case WMI_NSS_RATIO_2_NSS:
+		ath11k_warn(ar->ab, "WMI_NSS_RATIO_2_NSS not supported\n");
+		break;
+	default:
+		ath11k_warn(ar->ab, "invalid nss ratio received from firmware: %d\n",
+			    nss_ratio_info);
+		break;
+	}
+
+	return max_sup_nss;
+}
+
 static void ath11k_peer_assoc_h_vht(struct ath11k *ar,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_sta *sta,
@@ -1595,6 +1623,7 @@ static void ath11k_peer_assoc_h_vht(struct ath11k *ar,
 	u8 max_nss, vht_mcs;
 	int i, vht_nss, nss_idx;
 	bool user_rate_valid = true;
+	u32 rx_nss, tx_nss, nss_160;
 
 	if (WARN_ON(ath11k_mac_vif_chan(vif, &def)))
 		return;
@@ -1687,10 +1716,29 @@ static void ath11k_peer_assoc_h_vht(struct ath11k *ar,
 	/* TODO:  Check */
 	arg->tx_max_mcs_nss = 0xFF;
 
-	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac vht peer %pM max_mpdu %d flags 0x%x\n",
-		   sta->addr, arg->peer_max_mpdu, arg->peer_flags);
+	if (arg->peer_phymode == MODE_11AC_VHT160 ||
+	    arg->peer_phymode == MODE_11AC_VHT80_80) {
+		tx_nss = ath11k_get_nss_160mhz(ar, max_nss);
+		rx_nss = min(arg->peer_nss, tx_nss);
+		arg->peer_bw_rxnss_override = ATH11K_BW_NSS_MAP_ENABLE;
 
-	/* TODO: rxnss_override */
+		if (!rx_nss) {
+			ath11k_warn(ar->ab, "invalid max_nss\n");
+			return;
+		}
+
+		if (arg->peer_phymode == MODE_11AC_VHT160)
+			nss_160 = FIELD_PREP(ATH11K_PEER_RX_NSS_160MHZ, rx_nss - 1);
+		else
+			nss_160 = FIELD_PREP(ATH11K_PEER_RX_NSS_80_80MHZ, rx_nss - 1);
+
+		arg->peer_bw_rxnss_override |= nss_160;
+	}
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
+		   "mac vht peer %pM max_mpdu %d flags 0x%x nss_override 0x%x\n",
+		   sta->addr, arg->peer_max_mpdu, arg->peer_flags,
+		   arg->peer_bw_rxnss_override);
 }
 
 static int ath11k_mac_get_max_he_mcs_map(u16 mcs_map, int nss)
@@ -1774,6 +1822,7 @@ static void ath11k_peer_assoc_h_he(struct ath11k *ar,
 	u16 he_tx_mcs = 0, v = 0;
 	int i, he_nss, nss_idx;
 	bool user_rate_valid = true;
+	u32 rx_nss, tx_nss, nss_160;
 
 	if (WARN_ON(ath11k_mac_vif_chan(vif, &def)))
 		return;
@@ -1937,9 +1986,30 @@ static void ath11k_peer_assoc_h_he(struct ath11k *ar,
 	}
 	arg->peer_nss = min(sta->rx_nss, max_nss);
 
+	if (arg->peer_phymode == MODE_11AX_HE160 ||
+	    arg->peer_phymode == MODE_11AX_HE80_80) {
+		tx_nss = ath11k_get_nss_160mhz(ar, max_nss);
+		rx_nss = min(arg->peer_nss, tx_nss);
+		arg->peer_bw_rxnss_override = ATH11K_BW_NSS_MAP_ENABLE;
+
+		if (!rx_nss) {
+			ath11k_warn(ar->ab, "invalid max_nss\n");
+			return;
+		}
+
+		if (arg->peer_phymode == MODE_11AX_HE160)
+			nss_160 = FIELD_PREP(ATH11K_PEER_RX_NSS_160MHZ, rx_nss - 1);
+		else
+			nss_160 = FIELD_PREP(ATH11K_PEER_RX_NSS_80_80MHZ, rx_nss - 1);
+
+		arg->peer_bw_rxnss_override |= nss_160;
+	}
+
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
-		   "mac he peer %pM nss %d mcs cnt %d\n",
-		   sta->addr, arg->peer_nss, arg->peer_he_mcs_count);
+		   "mac he peer %pM nss %d mcs cnt %d nss_override 0x%x\n",
+		   sta->addr, arg->peer_nss,
+		   arg->peer_he_mcs_count,
+		   arg->peer_bw_rxnss_override);
 }
 
 static void ath11k_peer_assoc_h_smps(struct ieee80211_sta *sta,
@@ -2227,11 +2297,11 @@ static void ath11k_peer_assoc_prepare(struct ath11k *ar,
 	ath11k_peer_assoc_h_basic(ar, vif, sta, arg);
 	ath11k_peer_assoc_h_crypto(ar, vif, sta, arg);
 	ath11k_peer_assoc_h_rates(ar, vif, sta, arg);
+	ath11k_peer_assoc_h_phymode(ar, vif, sta, arg);
 	ath11k_peer_assoc_h_ht(ar, vif, sta, arg);
 	ath11k_peer_assoc_h_vht(ar, vif, sta, arg);
 	ath11k_peer_assoc_h_he(ar, vif, sta, arg);
 	ath11k_peer_assoc_h_qos(ar, vif, sta, arg);
-	ath11k_peer_assoc_h_phymode(ar, vif, sta, arg);
 	ath11k_peer_assoc_h_smps(sta, arg);
 
 	/* TODO: amsdu_disable req? */
@@ -4426,11 +4496,6 @@ ath11k_create_vht_cap(struct ath11k *ar, u32 rate_cap_tx_chainmask,
 	vht_cap.cap = ar->pdev->cap.vht_cap;
 
 	ath11k_set_vht_txbf_cap(ar, &vht_cap.cap);
-
-	/* TODO: Enable back VHT160 mode once association issues are fixed */
-	/* Disabling VHT160 and VHT80+80 modes */
-	vht_cap.cap &= ~IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
-	vht_cap.cap &= ~IEEE80211_VHT_CAP_SHORT_GI_160;
 
 	rxmcs_map = 0;
 	txmcs_map = 0;
@@ -7345,7 +7410,9 @@ static int ath11k_mac_setup_iface_combinations(struct ath11k *ar)
 	combinations[0].radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
 						BIT(NL80211_CHAN_WIDTH_20) |
 						BIT(NL80211_CHAN_WIDTH_40) |
-						BIT(NL80211_CHAN_WIDTH_80);
+						BIT(NL80211_CHAN_WIDTH_80) |
+						BIT(NL80211_CHAN_WIDTH_80P80) |
+						BIT(NL80211_CHAN_WIDTH_160);
 
 	ar->hw->wiphy->iface_combinations = combinations;
 	ar->hw->wiphy->n_iface_combinations = 1;
@@ -7484,6 +7551,10 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	ieee80211_hw_set(ar->hw, SUPPORTS_TX_FRAG);
 	ieee80211_hw_set(ar->hw, REPORTS_LOW_ACK);
 	ieee80211_hw_set(ar->hw, SUPPORTS_TX_ENCAP_OFFLOAD);
+
+	if (cap->nss_ratio_enabled)
+		ieee80211_hw_set(ar->hw, SUPPORTS_VHT_EXT_NSS_BW);
+
 	if (ht_cap & WMI_HT_CAP_ENABLED) {
 		ieee80211_hw_set(ar->hw, AMPDU_AGGREGATION);
 		ieee80211_hw_set(ar->hw, TX_AMPDU_SETUP_IN_HW);

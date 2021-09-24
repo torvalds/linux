@@ -360,6 +360,10 @@ ath11k_pull_mac_phy_cap_svc_ready_ext(struct ath11k_pdev_wmi *wmi_handle,
 		pdev_cap->he_mcs = mac_phy_caps->he_supp_mcs_5g;
 		pdev_cap->tx_chain_mask = mac_phy_caps->tx_chain_mask_5g;
 		pdev_cap->rx_chain_mask = mac_phy_caps->rx_chain_mask_5g;
+		pdev_cap->nss_ratio_enabled =
+			WMI_NSS_RATIO_ENABLE_DISABLE_GET(mac_phy_caps->nss_ratio);
+		pdev_cap->nss_ratio_info =
+			WMI_NSS_RATIO_INFO_GET(mac_phy_caps->nss_ratio);
 	} else {
 		return -EINVAL;
 	}
@@ -783,14 +787,26 @@ int ath11k_wmi_vdev_down(struct ath11k *ar, u8 vdev_id)
 static void ath11k_wmi_put_wmi_channel(struct wmi_channel *chan,
 				       struct wmi_vdev_start_req_arg *arg)
 {
+	u32 center_freq1 = arg->channel.band_center_freq1;
+
 	memset(chan, 0, sizeof(*chan));
 
 	chan->mhz = arg->channel.freq;
 	chan->band_center_freq1 = arg->channel.band_center_freq1;
-	if (arg->channel.mode == MODE_11AC_VHT80_80)
+
+	if (arg->channel.mode == MODE_11AX_HE160) {
+		if (arg->channel.freq > arg->channel.band_center_freq1)
+			chan->band_center_freq1 = center_freq1 + 40;
+		else
+			chan->band_center_freq1 = center_freq1 - 40;
+
+		chan->band_center_freq2 = arg->channel.band_center_freq1;
+
+	} else if (arg->channel.mode == MODE_11AC_VHT80_80) {
 		chan->band_center_freq2 = arg->channel.band_center_freq2;
-	else
+	} else {
 		chan->band_center_freq2 = 0;
+	}
 
 	chan->info |= FIELD_PREP(WMI_CHAN_INFO_MODE, arg->channel.mode);
 	if (arg->channel.passive)
