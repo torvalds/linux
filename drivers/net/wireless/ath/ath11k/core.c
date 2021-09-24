@@ -66,6 +66,9 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 			 * so added pad size as 2 bytes to compensate the BIN size
 			 */
 			.fft_pad_sz = 2,
+			.summary_pad_sz = 0,
+			.fft_hdr_len = 16,
+			.max_fft_bins = 512,
 		},
 
 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
@@ -111,6 +114,9 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.spectral = {
 			.fft_sz = 4,
 			.fft_pad_sz = 0,
+			.summary_pad_sz = 0,
+			.fft_hdr_len = 16,
+			.max_fft_bins = 512,
 		},
 
 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
@@ -156,6 +162,9 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.spectral = {
 			.fft_sz = 0,
 			.fft_pad_sz = 0,
+			.summary_pad_sz = 0,
+			.fft_hdr_len = 0,
+			.max_fft_bins = 0,
 		},
 
 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
@@ -244,6 +253,9 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.spectral = {
 			.fft_sz = 0,
 			.fft_pad_sz = 0,
+			.summary_pad_sz = 0,
+			.fft_hdr_len = 0,
+			.max_fft_bins = 0,
 		},
 
 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
