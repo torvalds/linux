@@ -3670,6 +3670,8 @@ static int flush_dir_items_batch(struct btrfs_trans_handle *trans,
 	char *ins_data = NULL;
 	struct btrfs_item_batch batch;
 	struct extent_buffer *dst;
+	unsigned long src_offset;
+	unsigned long dst_offset;
 	struct btrfs_key key;
 	u32 item_size;
 	int ret;
@@ -3713,16 +3715,19 @@ static int flush_dir_items_batch(struct btrfs_trans_handle *trans,
 		goto out;
 
 	dst = dst_path->nodes[0];
-	for (i = 0; i < count; i++) {
-		unsigned long src_offset;
-		unsigned long dst_offset;
-
-		dst_offset = btrfs_item_ptr_offset(dst, dst_path->slots[0]);
-		src_offset = btrfs_item_ptr_offset(src, start_slot + i);
-		copy_extent_buffer(dst, src, dst_offset, src_offset,
-				   batch.data_sizes[i]);
-		dst_path->slots[0]++;
-	}
+	/*
+	 * Copy all the items in bulk, in a single copy operation. Item data is
+	 * organized such that it's placed at the end of a leaf and from right
+	 * to left. For example, the data for the second item ends at an offset
+	 * that matches the offset where the data for the first item starts, the
+	 * data for the third item ends at an offset that matches the offset
+	 * where the data of the second items starts, and so on.
+	 * Therefore our source and destination start offsets for copy match the
+	 * offsets of the last items (highest slots).
+	 */
+	dst_offset = btrfs_item_ptr_offset(dst, dst_path->slots[0] + count - 1);
+	src_offset = btrfs_item_ptr_offset(src, start_slot + count - 1);
+	copy_extent_buffer(dst, src, dst_offset, src_offset, batch.total_data_size);
 	btrfs_release_path(dst_path);
 out:
 	kfree(ins_data);
