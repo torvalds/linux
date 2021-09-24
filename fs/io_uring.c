@@ -412,7 +412,7 @@ struct io_ring_ctx {
 		 * For SQPOLL, only the single threaded io_sq_thread() will
 		 * manipulate the list, hence no extra locking is needed there.
 		 */
-		struct list_head	iopoll_list;
+		struct io_wq_work_list	iopoll_list;
 		struct hlist_head	*cancel_hash;
 		unsigned		cancel_hash_bits;
 		bool			poll_multi_queue;
@@ -1309,7 +1309,7 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	init_waitqueue_head(&ctx->cq_wait);
 	spin_lock_init(&ctx->completion_lock);
 	spin_lock_init(&ctx->timeout_lock);
-	INIT_LIST_HEAD(&ctx->iopoll_list);
+	INIT_WQ_LIST(&ctx->iopoll_list);
 	INIT_LIST_HEAD(&ctx->defer_list);
 	INIT_LIST_HEAD(&ctx->timeout_list);
 	INIT_LIST_HEAD(&ctx->ltimeout_list);
@@ -2441,15 +2441,9 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, struct list_head *done)
 	io_req_free_batch_finish(ctx, &rb);
 }
 
-/* same as "continue" but starts from the pos, not next to it */
-#define list_for_each_entry_safe_resume(pos, n, head, member) 		\
-	for (n = list_next_entry(pos, member);				\
-	     !list_entry_is_head(pos, head, member);			\
-	     pos = n, n = list_next_entry(n, member))
-
 static int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 {
-	struct io_kiocb *req, *tmp;
+	struct io_wq_work_node *pos, *start, *prev;
 	unsigned int poll_flags = BLK_POLL_NOSLEEP;
 	DEFINE_IO_COMP_BATCH(iob);
 	int nr_events = 0;
@@ -2462,7 +2456,8 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 	if (ctx->poll_multi_queue || force_nonspin)
 		poll_flags |= BLK_POLL_ONESHOT;
 
-	list_for_each_entry(req, &ctx->iopoll_list, inflight_entry) {
+	wq_list_for_each(pos, start, &ctx->iopoll_list) {
+		struct io_kiocb *req = container_of(pos, struct io_kiocb, comp_list);
 		struct kiocb *kiocb = &req->rw.kiocb;
 		int ret;
 
@@ -2488,14 +2483,20 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 
 	if (!rq_list_empty(iob.req_list))
 		iob.complete(&iob);
-	list_for_each_entry_safe_resume(req, tmp, &ctx->iopoll_list,
-					inflight_entry) {
+	else if (!pos)
+		return 0;
+
+	prev = start;
+	wq_list_for_each_resume(pos, prev) {
+		struct io_kiocb *req = container_of(pos, struct io_kiocb, comp_list);
+
 		if (!READ_ONCE(req->iopoll_completed))
 			break;
-		list_move_tail(&req->inflight_entry, &done);
+		list_add_tail(&req->inflight_entry, &done);
 		nr_events++;
 	}
 
+	wq_list_cut(&ctx->iopoll_list, prev, start);
 	if (nr_events)
 		io_iopoll_complete(ctx, &done);
 	return nr_events;
@@ -2511,7 +2512,7 @@ static void io_iopoll_try_reap_events(struct io_ring_ctx *ctx)
 		return;
 
 	mutex_lock(&ctx->uring_lock);
-	while (!list_empty(&ctx->iopoll_list)) {
+	while (!wq_list_empty(&ctx->iopoll_list)) {
 		/* let it sleep and repeat later if can't complete a request */
 		if (io_do_iopoll(ctx, true) == 0)
 			break;
@@ -2560,7 +2561,7 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 		 * forever, while the workqueue is stuck trying to acquire the
 		 * very same mutex.
 		 */
-		if (list_empty(&ctx->iopoll_list)) {
+		if (wq_list_empty(&ctx->iopoll_list)) {
 			u32 tail = ctx->cached_cq_tail;
 
 			mutex_unlock(&ctx->uring_lock);
@@ -2569,7 +2570,7 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 
 			/* some requests don't go through iopoll_list */
 			if (tail != ctx->cached_cq_tail ||
-			    list_empty(&ctx->iopoll_list))
+			    wq_list_empty(&ctx->iopoll_list))
 				break;
 		}
 		ret = io_do_iopoll(ctx, !min);
@@ -2729,14 +2730,13 @@ static void io_iopoll_req_issued(struct io_kiocb *req)
 	 * how we do polling eventually, not spinning if we're on potentially
 	 * different devices.
 	 */
-	if (list_empty(&ctx->iopoll_list)) {
+	if (wq_list_empty(&ctx->iopoll_list)) {
 		ctx->poll_multi_queue = false;
 	} else if (!ctx->poll_multi_queue) {
 		struct io_kiocb *list_req;
 
-		list_req = list_first_entry(&ctx->iopoll_list, struct io_kiocb,
-						inflight_entry);
-
+		list_req = container_of(ctx->iopoll_list.first, struct io_kiocb,
+					comp_list);
 		if (list_req->file != req->file)
 			ctx->poll_multi_queue = true;
 	}
@@ -2746,9 +2746,9 @@ static void io_iopoll_req_issued(struct io_kiocb *req)
 	 * it to the front so we find it first.
 	 */
 	if (READ_ONCE(req->iopoll_completed))
-		list_add(&req->inflight_entry, &ctx->iopoll_list);
+		wq_list_add_head(&req->comp_list, &ctx->iopoll_list);
 	else
-		list_add_tail(&req->inflight_entry, &ctx->iopoll_list);
+		wq_list_add_tail(&req->comp_list, &ctx->iopoll_list);
 
 	if (unlikely(in_async)) {
 		/*
@@ -7322,14 +7322,14 @@ static int __io_sq_thread(struct io_ring_ctx *ctx, bool cap_entries)
 	if (cap_entries && to_submit > IORING_SQPOLL_CAP_ENTRIES_VALUE)
 		to_submit = IORING_SQPOLL_CAP_ENTRIES_VALUE;
 
-	if (!list_empty(&ctx->iopoll_list) || to_submit) {
+	if (!wq_list_empty(&ctx->iopoll_list) || to_submit) {
 		const struct cred *creds = NULL;
 
 		if (ctx->sq_creds != current_cred())
 			creds = override_creds(ctx->sq_creds);
 
 		mutex_lock(&ctx->uring_lock);
-		if (!list_empty(&ctx->iopoll_list))
+		if (!wq_list_empty(&ctx->iopoll_list))
 			io_do_iopoll(ctx, true);
 
 		/*
@@ -7407,7 +7407,7 @@ static int io_sq_thread(void *data)
 		list_for_each_entry(ctx, &sqd->ctx_list, sqd_list) {
 			int ret = __io_sq_thread(ctx, cap_entries);
 
-			if (!sqt_spin && (ret > 0 || !list_empty(&ctx->iopoll_list)))
+			if (!sqt_spin && (ret > 0 || !wq_list_empty(&ctx->iopoll_list)))
 				sqt_spin = true;
 		}
 		if (io_run_task_work())
@@ -7428,7 +7428,7 @@ static int io_sq_thread(void *data)
 				io_ring_set_wakeup_flag(ctx);
 
 				if ((ctx->flags & IORING_SETUP_IOPOLL) &&
-				    !list_empty_careful(&ctx->iopoll_list)) {
+				    !wq_list_empty(&ctx->iopoll_list)) {
 					needs_sched = false;
 					break;
 				}
@@ -9583,7 +9583,7 @@ static void io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 		/* SQPOLL thread does its own polling */
 		if ((!(ctx->flags & IORING_SETUP_SQPOLL) && cancel_all) ||
 		    (ctx->sq_data && ctx->sq_data->thread == current)) {
-			while (!list_empty_careful(&ctx->iopoll_list)) {
+			while (!wq_list_empty(&ctx->iopoll_list)) {
 				io_iopoll_try_reap_events(ctx);
 				ret = true;
 			}

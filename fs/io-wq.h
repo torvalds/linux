@@ -32,6 +32,9 @@ struct io_wq_work_list {
 #define wq_list_for_each(pos, prv, head)			\
 	for (pos = (head)->first, prv = NULL; pos; prv = pos, pos = (pos)->next)
 
+#define wq_list_for_each_resume(pos, prv)			\
+	for (; pos; prv = pos, pos = (pos)->next)
+
 #define wq_list_empty(list)	(READ_ONCE((list)->first) == NULL)
 #define INIT_WQ_LIST(list)	do {				\
 	(list)->first = NULL;					\
