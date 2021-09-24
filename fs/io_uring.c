@@ -2453,7 +2453,7 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 }
 
 static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
-			long min)
+			bool force_nonspin)
 {
 	struct io_kiocb *req, *tmp;
 	unsigned int poll_flags = BLK_POLL_NOSLEEP;
@@ -2462,9 +2462,9 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 
 	/*
 	 * Only spin for completions if we don't have multiple devices hanging
-	 * off our complete list, and we're under the requested amount.
+	 * off our complete list.
 	 */
-	if (ctx->poll_multi_queue || *nr_events >= min)
+	if (ctx->poll_multi_queue || force_nonspin)
 		poll_flags |= BLK_POLL_ONESHOT;
 
 	list_for_each_entry_safe(req, tmp, &ctx->iopoll_list, inflight_entry) {
@@ -2516,7 +2516,7 @@ static void io_iopoll_try_reap_events(struct io_ring_ctx *ctx)
 	while (!list_empty(&ctx->iopoll_list)) {
 		unsigned int nr_events = 0;
 
-		io_do_iopoll(ctx, &nr_events, 0);
+		io_do_iopoll(ctx, &nr_events, true);
 
 		/* let it sleep and repeat later if can't complete a request */
 		if (nr_events == 0)
@@ -2578,7 +2578,7 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 			    list_empty(&ctx->iopoll_list))
 				break;
 		}
-		ret = io_do_iopoll(ctx, &nr_events, min);
+		ret = io_do_iopoll(ctx, &nr_events, !min);
 	} while (!ret && nr_events < min && !need_resched());
 out:
 	mutex_unlock(&ctx->uring_lock);
@@ -7347,7 +7347,7 @@ static int __io_sq_thread(struct io_ring_ctx *ctx, bool cap_entries)
 
 		mutex_lock(&ctx->uring_lock);
 		if (!list_empty(&ctx->iopoll_list))
-			io_do_iopoll(ctx, &nr_events, 0);
+			io_do_iopoll(ctx, &nr_events, true);
 
 		/*
 		 * Don't submit if refs are dying, good for io_uring_register(),
