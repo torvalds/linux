@@ -4998,9 +4998,21 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	bool is_6ghz = cbss->channel->band == NL80211_BAND_6GHZ;
 	bool is_5ghz = cbss->channel->band == NL80211_BAND_5GHZ;
 	struct ieee80211_bss *bss = (void *)cbss->priv;
+	struct ieee802_11_elems *elems;
+	const struct cfg80211_bss_ies *ies;
 	int ret;
 	u32 i;
 	bool have_80mhz;
+
+	rcu_read_lock();
+
+	ies = rcu_dereference(cbss->ies);
+	elems = ieee802_11_parse_elems(ies->data, ies->len, false,
+				       NULL, NULL);
+	if (!elems) {
+		rcu_read_unlock();
+		return -ENOMEM;
+	}
 
 	sband = local->hw.wiphy->bands[cbss->channel->band];
 
@@ -5024,18 +5036,9 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 					 ieee80211_vif_type_p2p(&sdata->vif)))
 		ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
 
-	rcu_read_lock();
-
 	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT) && !is_6ghz) {
-		const u8 *ht_oper_ie, *ht_cap_ie;
-
-		ht_oper_ie = ieee80211_bss_get_ie(cbss, WLAN_EID_HT_OPERATION);
-		if (ht_oper_ie && ht_oper_ie[1] >= sizeof(*ht_oper))
-			ht_oper = (void *)(ht_oper_ie + 2);
-
-		ht_cap_ie = ieee80211_bss_get_ie(cbss, WLAN_EID_HT_CAPABILITY);
-		if (ht_cap_ie && ht_cap_ie[1] >= sizeof(*ht_cap))
-			ht_cap = (void *)(ht_cap_ie + 2);
+		ht_oper = elems->ht_operation;
+		ht_cap = elems->ht_cap_elem;
 
 		if (!ht_cap) {
 			ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
@@ -5044,12 +5047,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT) && !is_6ghz) {
-		const u8 *vht_oper_ie, *vht_cap;
-
-		vht_oper_ie = ieee80211_bss_get_ie(cbss,
-						   WLAN_EID_VHT_OPERATION);
-		if (vht_oper_ie && vht_oper_ie[1] >= sizeof(*vht_oper))
-			vht_oper = (void *)(vht_oper_ie + 2);
+		vht_oper = elems->vht_operation;
 		if (vht_oper && !ht_oper) {
 			vht_oper = NULL;
 			sdata_info(sdata,
@@ -5059,25 +5057,14 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 			ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
 		}
 
-		vht_cap = ieee80211_bss_get_ie(cbss, WLAN_EID_VHT_CAPABILITY);
-		if (!vht_cap || vht_cap[1] < sizeof(struct ieee80211_vht_cap)) {
+		if (!elems->vht_cap_elem) {
 			ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
 			vht_oper = NULL;
 		}
 	}
 
 	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HE)) {
-		const struct cfg80211_bss_ies *ies;
-		const u8 *he_oper_ie;
-
-		ies = rcu_dereference(cbss->ies);
-		he_oper_ie = cfg80211_find_ext_ie(WLAN_EID_EXT_HE_OPERATION,
-						  ies->data, ies->len);
-		if (he_oper_ie &&
-		    he_oper_ie[1] >= ieee80211_he_oper_size(&he_oper_ie[3]))
-			he_oper = (void *)(he_oper_ie + 3);
-		else
-			he_oper = NULL;
+		he_oper = elems->he_operation;
 
 		if (!ieee80211_verify_sta_he_mcs_support(sdata, sband, he_oper))
 			ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
@@ -5098,13 +5085,8 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
 
 	if (sband->band == NL80211_BAND_S1GHZ) {
-		const u8 *s1g_oper_ie;
-
-		s1g_oper_ie = ieee80211_bss_get_ie(cbss,
-						   WLAN_EID_S1G_OPERATION);
-		if (s1g_oper_ie && s1g_oper_ie[1] >= sizeof(*s1g_oper))
-			s1g_oper = (void *)(s1g_oper_ie + 2);
-		else
+		s1g_oper = elems->s1g_oper;
+		if (!s1g_oper)
 			sdata_info(sdata,
 				   "AP missing S1G operation element?\n");
 	}
@@ -5120,6 +5102,9 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 				      local->rx_chains);
 
 	rcu_read_unlock();
+	/* the element data was RCU protected so no longer valid anyway */
+	kfree(elems);
+	elems = NULL;
 
 	if (ifmgd->flags & IEEE80211_STA_DISABLE_HE && is_6ghz) {
 		sdata_info(sdata, "Rejecting non-HE 6/7 GHz connection");
