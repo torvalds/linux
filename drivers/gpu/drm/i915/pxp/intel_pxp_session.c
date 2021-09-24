@@ -48,7 +48,7 @@ static int pxp_wait_for_session_state(struct intel_pxp *pxp, u32 id, bool in_pla
 	return ret;
 }
 
-int intel_pxp_create_arb_session(struct intel_pxp *pxp)
+static int pxp_create_arb_session(struct intel_pxp *pxp)
 {
 	struct intel_gt *gt = pxp_to_gt(pxp);
 	int ret;
@@ -77,12 +77,13 @@ int intel_pxp_create_arb_session(struct intel_pxp *pxp)
 	return 0;
 }
 
-int intel_pxp_terminate_arb_session_and_global(struct intel_pxp *pxp)
+static int pxp_terminate_arb_session_and_global(struct intel_pxp *pxp)
 {
 	int ret;
 	struct intel_gt *gt = pxp_to_gt(pxp);
 
-	pxp->arb_is_valid = false;
+	/* must mark termination in progress calling this function */
+	GEM_WARN_ON(pxp->arb_is_valid);
 
 	/* terminate the hw sessions */
 	ret = intel_pxp_terminate_session(pxp, ARB_SESSION);
@@ -100,4 +101,51 @@ int intel_pxp_terminate_arb_session_and_global(struct intel_pxp *pxp)
 	intel_uncore_write(gt->uncore, PXP_GLOBAL_TERMINATE, 1);
 
 	return ret;
+}
+
+static void pxp_terminate(struct intel_pxp *pxp)
+{
+	int ret;
+
+	pxp->hw_state_invalidated = true;
+
+	/*
+	 * if we fail to submit the termination there is no point in waiting for
+	 * it to complete. PXP will be marked as non-active until the next
+	 * termination is issued.
+	 */
+	ret = pxp_terminate_arb_session_and_global(pxp);
+	if (ret)
+		complete_all(&pxp->termination);
+}
+
+static void pxp_terminate_complete(struct intel_pxp *pxp)
+{
+	/* Re-create the arb session after teardown handle complete */
+	if (fetch_and_zero(&pxp->hw_state_invalidated))
+		pxp_create_arb_session(pxp);
+
+	complete_all(&pxp->termination);
+}
+
+void intel_pxp_session_work(struct work_struct *work)
+{
+	struct intel_pxp *pxp = container_of(work, typeof(*pxp), session_work);
+	struct intel_gt *gt = pxp_to_gt(pxp);
+	u32 events = 0;
+
+	spin_lock_irq(&gt->irq_lock);
+	events = fetch_and_zero(&pxp->session_events);
+	spin_unlock_irq(&gt->irq_lock);
+
+	if (!events)
+		return;
+
+	if (events & PXP_TERMINATION_REQUEST) {
+		events &= ~PXP_TERMINATION_COMPLETE;
+		pxp_terminate(pxp);
+	}
+
+	if (events & PXP_TERMINATION_COMPLETE)
+		pxp_terminate_complete(pxp);
 }

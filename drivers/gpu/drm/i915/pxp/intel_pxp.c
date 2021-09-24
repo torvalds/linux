@@ -2,7 +2,9 @@
 /*
  * Copyright(c) 2020 Intel Corporation.
  */
+#include <linux/workqueue.h>
 #include "intel_pxp.h"
+#include "intel_pxp_irq.h"
 #include "intel_pxp_session.h"
 #include "intel_pxp_tee.h"
 #include "gt/intel_context.h"
@@ -80,6 +82,16 @@ void intel_pxp_init(struct intel_pxp *pxp)
 
 	mutex_init(&pxp->tee_mutex);
 
+	/*
+	 * we'll use the completion to check if there is a termination pending,
+	 * so we start it as completed and we reinit it when a termination
+	 * is triggered.
+	 */
+	init_completion(&pxp->termination);
+	complete_all(&pxp->termination);
+
+	INIT_WORK(&pxp->session_work, intel_pxp_session_work);
+
 	ret = create_vcs_context(pxp);
 	if (ret)
 		return;
@@ -108,19 +120,61 @@ void intel_pxp_fini(struct intel_pxp *pxp)
 	destroy_vcs_context(pxp);
 }
 
+void intel_pxp_mark_termination_in_progress(struct intel_pxp *pxp)
+{
+	pxp->arb_is_valid = false;
+	reinit_completion(&pxp->termination);
+}
+
+static void intel_pxp_queue_termination(struct intel_pxp *pxp)
+{
+	struct intel_gt *gt = pxp_to_gt(pxp);
+
+	/*
+	 * We want to get the same effect as if we received a termination
+	 * interrupt, so just pretend that we did.
+	 */
+	spin_lock_irq(&gt->irq_lock);
+	intel_pxp_mark_termination_in_progress(pxp);
+	pxp->session_events |= PXP_TERMINATION_REQUEST;
+	queue_work(system_unbound_wq, &pxp->session_work);
+	spin_unlock_irq(&gt->irq_lock);
+}
+
+/*
+ * the arb session is restarted from the irq work when we receive the
+ * termination completion interrupt
+ */
+int intel_pxp_wait_for_arb_start(struct intel_pxp *pxp)
+{
+	if (!intel_pxp_is_enabled(pxp))
+		return 0;
+
+	if (!wait_for_completion_timeout(&pxp->termination,
+					 msecs_to_jiffies(100)))
+		return -ETIMEDOUT;
+
+	if (!pxp->arb_is_valid)
+		return -EIO;
+
+	return 0;
+}
+
 void intel_pxp_init_hw(struct intel_pxp *pxp)
 {
-	int ret;
-
 	kcr_pxp_enable(pxp_to_gt(pxp));
+	intel_pxp_irq_enable(pxp);
 
-	/* always emit a full termination to clean the state */
-	ret = intel_pxp_terminate_arb_session_and_global(pxp);
-	if (!ret)
-		intel_pxp_create_arb_session(pxp);
+	/*
+	 * the session could've been attacked while we weren't loaded, so
+	 * handle it as if it was and re-create it.
+	 */
+	intel_pxp_queue_termination(pxp);
 }
 
 void intel_pxp_fini_hw(struct intel_pxp *pxp)
 {
 	kcr_pxp_disable(pxp_to_gt(pxp));
+
+	intel_pxp_irq_disable(pxp);
 }

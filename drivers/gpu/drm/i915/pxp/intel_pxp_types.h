@@ -6,8 +6,10 @@
 #ifndef __INTEL_PXP_TYPES_H__
 #define __INTEL_PXP_TYPES_H__
 
+#include <linux/completion.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 
 struct intel_context;
 struct i915_pxp_component;
@@ -26,6 +28,22 @@ struct intel_pxp {
 	bool arb_is_valid;
 
 	struct mutex tee_mutex; /* protects the tee channel binding */
+
+	/*
+	 * If the HW perceives an attack on the integrity of the encryption it
+	 * will invalidate the keys and expect SW to re-initialize the session.
+	 * We keep track of this state to make sure we only re-start the arb
+	 * session when required.
+	 */
+	bool hw_state_invalidated;
+
+	bool irq_enabled;
+	struct completion termination;
+
+	struct work_struct session_work;
+	u32 session_events; /* protected with gt->irq_lock */
+#define PXP_TERMINATION_REQUEST  BIT(0)
+#define PXP_TERMINATION_COMPLETE BIT(1)
 };
 
 #endif /* __INTEL_PXP_TYPES_H__ */
