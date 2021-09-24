@@ -158,6 +158,9 @@ struct kvm_page_fault {
 	/* Shifted addr, or result of guest page table walk if addr is a gva.  */
 	gfn_t gfn;
 
+	/* The memslot containing gfn. May be NULL. */
+	struct kvm_memory_slot *slot;
+
 	/* Outputs of kvm_faultin_pfn.  */
 	kvm_pfn_t pfn;
 	hva_t hva;

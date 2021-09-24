@@ -900,7 +900,7 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
 	int ret = RET_PF_FIXED;
 	int make_spte_ret = 0;
 
-	if (unlikely(is_noslot_pfn(fault->pfn)))
+	if (unlikely(!fault->slot))
 		new_spte = make_mmio_spte(vcpu, iter->gfn, ACC_ALL);
 	else
 		make_spte_ret = make_spte(vcpu, ACC_ALL, iter->level, iter->gfn,
