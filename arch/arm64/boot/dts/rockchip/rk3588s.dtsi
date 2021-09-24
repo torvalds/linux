@@ -1667,6 +1667,7 @@
 		pinctrl-names = "default", "high_speed";
 		pinctrl-0 = <&spi0m0_cs0 &spi0m0_cs1 &spi0m0_pins>;
 		pinctrl-1 = <&spi0m0_cs0 &spi0m0_cs1 &spi0m0_pins_hs>;
+		num-cs = <2>;
 		status = "disabled";
 	};
 
@@ -1683,6 +1684,7 @@
 		pinctrl-names = "default", "high_speed";
 		pinctrl-0 = <&spi1m1_cs0 &spi1m1_cs1 &spi1m1_pins>;
 		pinctrl-1 = <&spi1m1_cs0 &spi1m1_cs1 &spi1m1_pins_hs>;
+		num-cs = <2>;
 		status = "disabled";
 	};
 
@@ -1699,6 +1701,7 @@
 		pinctrl-names = "default", "high_speed";
 		pinctrl-0 = <&spi2m0_cs0 &spi2m0_cs1 &spi2m0_pins>;
 		pinctrl-1 = <&spi2m0_cs0 &spi2m0_cs1 &spi2m0_pins_hs>;
+		num-cs = <2>;
 		status = "disabled";
 	};
 
@@ -1715,6 +1718,7 @@
 		pinctrl-names = "default", "high_speed";
 		pinctrl-0 = <&spi3m1_cs0 &spi3m1_cs1 &spi3m1_pins>;
 		pinctrl-1 = <&spi3m1_cs0 &spi3m1_cs1 &spi3m1_pins_hs>;
+		num-cs = <2>;
 		status = "disabled";
 	};
 
@@ -2066,6 +2070,7 @@
 		pinctrl-names = "default", "high_speed";
 		pinctrl-0 = <&spi4m0_cs0 &spi4m0_cs1 &spi4m0_pins>;
 		pinctrl-1 = <&spi4m0_cs0 &spi4m0_cs1 &spi4m0_pins_hs>;
+		num-cs = <2>;
 		status = "disabled";
 	};
 
