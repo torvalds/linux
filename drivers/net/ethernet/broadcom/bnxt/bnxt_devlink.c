@@ -134,7 +134,7 @@ void bnxt_dl_fw_reporters_create(struct bnxt *bp)
 {
 	struct bnxt_fw_health *health = bp->fw_health;
 
-	if (!bp->dl || !health)
+	if (!health)
 		return;
 
 	if (!(bp->fw_cap & BNXT_FW_CAP_HOT_RESET) || health->fw_reset_reporter)
@@ -188,7 +188,7 @@ void bnxt_dl_fw_reporters_destroy(struct bnxt *bp, bool all)
 {
 	struct bnxt_fw_health *health = bp->fw_health;
 
-	if (!bp->dl || !health)
+	if (!health)
 		return;
 
 	if ((all || !(bp->fw_cap & BNXT_FW_CAP_HOT_RESET)) &&
@@ -736,9 +736,6 @@ static const struct devlink_param bnxt_dl_params[] = {
 			     NULL),
 };
 
-static const struct devlink_param bnxt_dl_port_params[] = {
-};
-
 static int bnxt_dl_params_register(struct bnxt *bp)
 {
 	int rc;
@@ -753,14 +750,6 @@ static int bnxt_dl_params_register(struct bnxt *bp)
 			    rc);
 		return rc;
 	}
-	rc = devlink_port_params_register(&bp->dl_port, bnxt_dl_port_params,
-					  ARRAY_SIZE(bnxt_dl_port_params));
-	if (rc) {
-		netdev_err(bp->dev, "devlink_port_params_register failed\n");
-		devlink_params_unregister(bp->dl, bnxt_dl_params,
-					  ARRAY_SIZE(bnxt_dl_params));
-		return rc;
-	}
 	devlink_params_publish(bp->dl);
 
 	return 0;
@@ -773,14 +762,13 @@ static void bnxt_dl_params_unregister(struct bnxt *bp)
 
 	devlink_params_unregister(bp->dl, bnxt_dl_params,
 				  ARRAY_SIZE(bnxt_dl_params));
-	devlink_port_params_unregister(&bp->dl_port, bnxt_dl_port_params,
-				       ARRAY_SIZE(bnxt_dl_port_params));
 }
 
 int bnxt_dl_register(struct bnxt *bp)
 {
 	const struct devlink_ops *devlink_ops;
 	struct devlink_port_attrs attrs = {};
+	struct bnxt_dl *bp_dl;
 	struct devlink *dl;
 	int rc;
 
@@ -795,7 +783,9 @@ int bnxt_dl_register(struct bnxt *bp)
 		return -ENOMEM;
 	}
 
-	bnxt_link_bp_to_dl(bp, dl);
+	bp->dl = dl;
+	bp_dl = devlink_priv(dl);
+	bp_dl->bp = bp;
 
 	/* Add switchdev eswitch mode setting, if SRIOV supported */
 	if (pci_find_ext_capability(bp->pdev, PCI_EXT_CAP_ID_SRIOV) &&
@@ -826,7 +816,6 @@ int bnxt_dl_register(struct bnxt *bp)
 err_dl_port_unreg:
 	devlink_port_unregister(&bp->dl_port);
 err_dl_free:
-	bnxt_link_bp_to_dl(bp, NULL);
 	devlink_free(dl);
 	return rc;
 }
@@ -834,9 +823,6 @@ err_dl_free:
 void bnxt_dl_unregister(struct bnxt *bp)
 {
 	struct devlink *dl = bp->dl;
-
-	if (!dl)
-		return;
 
 	if (BNXT_PF(bp)) {
 		bnxt_dl_params_unregister(bp);
