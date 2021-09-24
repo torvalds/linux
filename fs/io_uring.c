@@ -6461,8 +6461,10 @@ static bool io_drain_req(struct io_kiocb *req)
 
 	seq = io_get_sequence(req);
 	/* Still a chance to pass the sequence check */
-	if (!req_need_defer(req, seq) && list_empty_careful(&ctx->defer_list))
+	if (!req_need_defer(req, seq) && list_empty_careful(&ctx->defer_list)) {
+		ctx->drain_active = false;
 		return false;
+	}
 
 	ret = io_req_prep_async(req);
 	if (ret)
@@ -6481,6 +6483,7 @@ fail:
 		spin_unlock(&ctx->completion_lock);
 		kfree(de);
 		io_queue_async_work(req, NULL);
+		ctx->drain_active = false;
 		return true;
 	}
 
