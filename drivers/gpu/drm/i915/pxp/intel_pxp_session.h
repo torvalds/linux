@@ -11,5 +11,6 @@
 struct intel_pxp;
 
 int intel_pxp_create_arb_session(struct intel_pxp *pxp);
+int intel_pxp_terminate_arb_session_and_global(struct intel_pxp *pxp);
 
 #endif /* __INTEL_PXP_SESSION_H__ */

@@ -281,6 +281,7 @@ i915-y += i915_perf.o
 # Protected execution platform (PXP) support
 i915-$(CONFIG_DRM_I915_PXP) += \
 	pxp/intel_pxp.o \
+	pxp/intel_pxp_cmd.o \
 	pxp/intel_pxp_session.o \
 	pxp/intel_pxp_tee.o
 

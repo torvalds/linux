@@ -7,6 +7,7 @@
 #include "i915_drv.h"
 
 #include "intel_pxp.h"
+#include "intel_pxp_cmd.h"
 #include "intel_pxp_session.h"
 #include "intel_pxp_tee.h"
 #include "intel_pxp_types.h"
@@ -14,6 +15,9 @@
 #define ARB_SESSION I915_PROTECTED_CONTENT_DEFAULT_SESSION /* shorter define */
 
 #define GEN12_KCR_SIP _MMIO(0x32260) /* KCR hwdrm session in play 0-31 */
+
+/* PXP global terminate register for session termination */
+#define PXP_GLOBAL_TERMINATE _MMIO(0x320f8)
 
 static bool intel_pxp_session_is_in_play(struct intel_pxp *pxp, u32 id)
 {
@@ -71,4 +75,29 @@ int intel_pxp_create_arb_session(struct intel_pxp *pxp)
 	pxp->arb_is_valid = true;
 
 	return 0;
+}
+
+int intel_pxp_terminate_arb_session_and_global(struct intel_pxp *pxp)
+{
+	int ret;
+	struct intel_gt *gt = pxp_to_gt(pxp);
+
+	pxp->arb_is_valid = false;
+
+	/* terminate the hw sessions */
+	ret = intel_pxp_terminate_session(pxp, ARB_SESSION);
+	if (ret) {
+		drm_err(&gt->i915->drm, "Failed to submit session termination\n");
+		return ret;
+	}
+
+	ret = pxp_wait_for_session_state(pxp, ARB_SESSION, false);
+	if (ret) {
+		drm_err(&gt->i915->drm, "Session state did not clear\n");
+		return ret;
+	}
+
+	intel_uncore_write(gt->uncore, PXP_GLOBAL_TERMINATE, 1);
+
+	return ret;
 }

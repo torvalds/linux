@@ -28,10 +28,13 @@
 #define INSTR_26_TO_24_MASK	0x7000000
 #define   INSTR_26_TO_24_SHIFT	24
 
+#define __INSTR(client) ((client) << INSTR_CLIENT_SHIFT)
+
 /*
  * Memory interface instructions used by the kernel
  */
-#define MI_INSTR(opcode, flags) (((opcode) << 23) | (flags))
+#define MI_INSTR(opcode, flags) \
+	(__INSTR(INSTR_MI_CLIENT) | (opcode) << 23 | (flags))
 /* Many MI commands use bit 22 of the header dword for GGTT vs PPGTT */
 #define  MI_GLOBAL_GTT    (1<<22)
 
@@ -57,6 +60,7 @@
 #define MI_SUSPEND_FLUSH	MI_INSTR(0x0b, 0)
 #define   MI_SUSPEND_FLUSH_EN	(1<<0)
 #define MI_SET_APPID		MI_INSTR(0x0e, 0)
+#define   MI_SET_APPID_SESSION_ID(x)	((x) << 0)
 #define MI_OVERLAY_FLIP		MI_INSTR(0x11, 0)
 #define   MI_OVERLAY_CONTINUE	(0x0<<21)
 #define   MI_OVERLAY_ON		(0x1<<21)
@@ -146,6 +150,7 @@
 #define MI_STORE_REGISTER_MEM_GEN8   MI_INSTR(0x24, 2)
 #define   MI_SRM_LRM_GLOBAL_GTT		(1<<22)
 #define MI_FLUSH_DW		MI_INSTR(0x26, 1) /* for GEN6 */
+#define   MI_FLUSH_DW_PROTECTED_MEM_EN	(1 << 22)
 #define   MI_FLUSH_DW_STORE_INDEX	(1<<21)
 #define   MI_INVALIDATE_TLB		(1<<18)
 #define   MI_FLUSH_DW_OP_STOREDW	(1<<14)
@@ -273,6 +278,19 @@
 #define   MI_MATH_REG_CF		0x33
 
 /*
+ * Media instructions used by the kernel
+ */
+#define MEDIA_INSTR(pipe, op, sub_op, flags) \
+	(__INSTR(INSTR_RC_CLIENT) | (pipe) << INSTR_SUBCLIENT_SHIFT | \
+	(op) << INSTR_26_TO_24_SHIFT | (sub_op) << 16 | (flags))
+
+#define MFX_WAIT				MEDIA_INSTR(1, 0, 0, 0)
+#define  MFX_WAIT_DW0_MFX_SYNC_CONTROL_FLAG	REG_BIT(8)
+#define  MFX_WAIT_DW0_PXP_SYNC_CONTROL_FLAG	REG_BIT(9)
+
+#define CRYPTO_KEY_EXCHANGE			MEDIA_INSTR(2, 6, 9, 0)
+
+/*
  * Commands used only by the command parser
  */
 #define MI_SET_PREDICATE        MI_INSTR(0x01, 0)
@@ -327,8 +345,6 @@
 	((0x3<<29)|(0x3<<27)|(0x0<<24)|(0x46<<16))
 #define GFX_OP_3DSTATE_BINDING_TABLE_EDIT_PS \
 	((0x3<<29)|(0x3<<27)|(0x0<<24)|(0x47<<16))
-
-#define MFX_WAIT  ((0x3<<29)|(0x1<<27)|(0x0<<16))
 
 #define COLOR_BLT     ((0x2<<29)|(0x40<<22))
 #define SRC_COPY_BLT  ((0x2<<29)|(0x43<<22))

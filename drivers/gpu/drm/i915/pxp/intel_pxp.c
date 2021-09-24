@@ -110,9 +110,14 @@ void intel_pxp_fini(struct intel_pxp *pxp)
 
 void intel_pxp_init_hw(struct intel_pxp *pxp)
 {
+	int ret;
+
 	kcr_pxp_enable(pxp_to_gt(pxp));
 
-	intel_pxp_create_arb_session(pxp);
+	/* always emit a full termination to clean the state */
+	ret = intel_pxp_terminate_arb_session_and_global(pxp);
+	if (!ret)
+		intel_pxp_create_arb_session(pxp);
 }
 
 void intel_pxp_fini_hw(struct intel_pxp *pxp)
