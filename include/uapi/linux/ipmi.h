@@ -158,7 +158,7 @@ struct kernel_ipmi_msg {
  * is used for the receive in-kernel interface and in the receive
  * IOCTL.
  *
- * The "IPMI_RESPONSE_RESPNOSE_TYPE" is a little strange sounding, but
+ * The "IPMI_RESPONSE_RESPONSE_TYPE" is a little strange sounding, but
  * it allows you to get the message results when you send a response
  * message.
  */
