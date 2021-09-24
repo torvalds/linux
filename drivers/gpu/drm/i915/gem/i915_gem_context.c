@@ -267,7 +267,9 @@ static int proto_context_set_protected(struct drm_i915_private *i915,
 		 * which in turn requires the device to be active.
 		 */
 		pc->pxp_wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-		ret = intel_pxp_wait_for_arb_start(&i915->gt.pxp);
+
+		if (!intel_pxp_is_active(&i915->gt.pxp))
+			ret = intel_pxp_start(&i915->gt.pxp);
 	}
 
 	return ret;
