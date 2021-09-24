@@ -169,15 +169,7 @@ static void vfio_release_device_set(struct vfio_device *device)
 	xa_unlock(&vfio_device_set_xa);
 }
 
-/*
- * vfio_iommu_group_{get,put} are only intended for VFIO bus driver probe
- * and remove functions, any use cases other than acquiring the first
- * reference for the purpose of calling vfio_register_group_dev() or removing
- * that symmetric reference after vfio_unregister_group_dev() should use the raw
- * iommu_group_{get,put} functions.  In particular, vfio_iommu_group_put()
- * removes the device from the dummy group and cannot be nested.
- */
-struct iommu_group *vfio_iommu_group_get(struct device *dev)
+static struct iommu_group *vfio_iommu_group_get(struct device *dev)
 {
 	struct iommu_group *group;
 	int __maybe_unused ret;
@@ -220,18 +212,6 @@ struct iommu_group *vfio_iommu_group_get(struct device *dev)
 
 	return group;
 }
-EXPORT_SYMBOL_GPL(vfio_iommu_group_get);
-
-void vfio_iommu_group_put(struct iommu_group *group, struct device *dev)
-{
-#ifdef CONFIG_VFIO_NOIOMMU
-	if (iommu_group_get_iommudata(group) == &noiommu)
-		iommu_group_remove_device(dev);
-#endif
-
-	iommu_group_put(group);
-}
-EXPORT_SYMBOL_GPL(vfio_iommu_group_put);
 
 #ifdef CONFIG_VFIO_NOIOMMU
 static void *vfio_noiommu_open(unsigned long arg)
@@ -841,7 +821,7 @@ int vfio_register_group_dev(struct vfio_device *device)
 	if (!device->dev_set)
 		vfio_assign_device_set(device, device);
 
-	iommu_group = iommu_group_get(device->dev);
+	iommu_group = vfio_iommu_group_get(device->dev);
 	if (!iommu_group)
 		return -EINVAL;
 
@@ -849,6 +829,10 @@ int vfio_register_group_dev(struct vfio_device *device)
 	if (!group) {
 		group = vfio_create_group(iommu_group);
 		if (IS_ERR(group)) {
+#ifdef CONFIG_VFIO_NOIOMMU
+			if (iommu_group_get_iommudata(iommu_group) == &noiommu)
+				iommu_group_remove_device(device->dev);
+#endif
 			iommu_group_put(iommu_group);
 			return PTR_ERR(group);
 		}
@@ -865,6 +849,10 @@ int vfio_register_group_dev(struct vfio_device *device)
 		dev_WARN(device->dev, "Device already exists on group %d\n",
 			 iommu_group_id(iommu_group));
 		vfio_device_put(existing_device);
+#ifdef CONFIG_VFIO_NOIOMMU
+		if (iommu_group_get_iommudata(iommu_group) == &noiommu)
+			iommu_group_remove_device(device->dev);
+#endif
 		vfio_group_put(group);
 		return -EBUSY;
 	}
@@ -1010,6 +998,10 @@ void vfio_unregister_group_dev(struct vfio_device *device)
 	if (list_empty(&group->device_list))
 		wait_event(group->container_q, !group->container);
 
+#ifdef CONFIG_VFIO_NOIOMMU
+	if (iommu_group_get_iommudata(group->iommu_group) == &noiommu)
+		iommu_group_remove_device(device->dev);
+#endif
 	/* Matches the get in vfio_register_group_dev() */
 	vfio_group_put(group);
 }
