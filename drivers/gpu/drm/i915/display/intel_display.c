@@ -9636,6 +9636,11 @@ static bool bo_has_valid_encryption(struct drm_i915_gem_object *obj)
 	return intel_pxp_key_check(&i915->gt.pxp, obj, false) == 0;
 }
 
+static bool pxp_is_borked(struct drm_i915_gem_object *obj)
+{
+	return i915_gem_object_is_protected(obj) && !bo_has_valid_encryption(obj);
+}
+
 static int intel_atomic_check_planes(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
@@ -9697,10 +9702,13 @@ static int intel_atomic_check_planes(struct intel_atomic_state *state)
 		new_plane_state = intel_atomic_get_new_plane_state(state, plane);
 		old_plane_state = intel_atomic_get_old_plane_state(state, plane);
 		fb = new_plane_state->hw.fb;
-		if (fb)
+		if (fb) {
 			new_plane_state->decrypt = bo_has_valid_encryption(intel_fb_obj(fb));
-		else
+			new_plane_state->force_black = pxp_is_borked(intel_fb_obj(fb));
+		} else {
 			new_plane_state->decrypt = old_plane_state->decrypt;
+			new_plane_state->force_black = old_plane_state->force_black;
+		}
 	}
 
 	return 0;
