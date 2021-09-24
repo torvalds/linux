@@ -114,6 +114,7 @@
 /* Video n Data Mode Register bits */
 #define VNDMR_A8BIT(n)		(((n) & 0xff) << 24)
 #define VNDMR_A8BIT_MASK	(0xff << 24)
+#define VNDMR_YMODE_Y8		(1 << 12)
 #define VNDMR_EXRGB		(1 << 8)
 #define VNDMR_BPSM		(1 << 4)
 #define VNDMR_ABIT		(1 << 2)
@@ -603,6 +604,7 @@ void rvin_crop_scale_comp(struct rvin_dev *vin)
 	case V4L2_PIX_FMT_SGBRG8:
 	case V4L2_PIX_FMT_SGRBG8:
 	case V4L2_PIX_FMT_SRGGB8:
+	case V4L2_PIX_FMT_GREY:
 		stride /= 2;
 		break;
 	default:
@@ -695,6 +697,7 @@ static int rvin_setup(struct rvin_dev *vin)
 	case MEDIA_BUS_FMT_SGBRG8_1X8:
 	case MEDIA_BUS_FMT_SGRBG8_1X8:
 	case MEDIA_BUS_FMT_SRGGB8_1X8:
+	case MEDIA_BUS_FMT_Y8_1X8:
 		vnmc |= VNMC_INF_RAW8;
 		break;
 	default:
@@ -773,6 +776,14 @@ static int rvin_setup(struct rvin_dev *vin)
 	case V4L2_PIX_FMT_SGRBG8:
 	case V4L2_PIX_FMT_SRGGB8:
 		dmr = 0;
+		break;
+	case V4L2_PIX_FMT_GREY:
+		if (input_is_yuv) {
+			dmr = VNDMR_DTMD_YCSEP | VNDMR_YMODE_Y8;
+			output_is_yuv = true;
+		} else {
+			dmr = 0;
+		}
 		break;
 	default:
 		vin_err(vin, "Invalid pixelformat (0x%x)\n",
@@ -1146,6 +1157,10 @@ static int rvin_mc_validate_format(struct rvin_dev *vin, struct v4l2_subdev *sd,
 		break;
 	case MEDIA_BUS_FMT_SRGGB8_1X8:
 		if (vin->format.pixelformat != V4L2_PIX_FMT_SRGGB8)
+			return -EPIPE;
+		break;
+	case MEDIA_BUS_FMT_Y8_1X8:
+		if (vin->format.pixelformat != V4L2_PIX_FMT_GREY)
 			return -EPIPE;
 		break;
 	default:

@@ -82,6 +82,10 @@ static const struct rvin_video_format rvin_formats[] = {
 		.fourcc			= V4L2_PIX_FMT_SRGGB8,
 		.bpp			= 1,
 	},
+	{
+		.fourcc			= V4L2_PIX_FMT_GREY,
+		.bpp			= 1,
+	},
 };
 
 const struct rvin_video_format *rvin_format_from_pixel(struct rvin_dev *vin,
