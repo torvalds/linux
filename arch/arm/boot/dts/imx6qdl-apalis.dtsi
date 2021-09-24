@@ -310,7 +310,7 @@
 		st,mod-12b = <1>;
 		/* internal ADC reference */
 		st,ref-sel = <0>;
-		/* ADC converstion time: 80 clocks */
+		/* ADC conversion time: 80 clocks */
 		st,sample-time = <4>;
 
 		stmpe_touchscreen: stmpe-touchscreen {
