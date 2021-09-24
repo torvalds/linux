@@ -52,9 +52,13 @@ static long restore_sigcontext(struct pt_regs *regs,
 	struct sigcontext __user *sc)
 {
 	int err = 0;
+	unsigned long sr = regs->sr;
 
 	/* sc_pt_regs is structured the same as the start of pt_regs */
 	err |= __copy_from_user(regs, &sc->sc_pt_regs, sizeof(struct pt_regs));
+
+	/* BIT(0) of regs->sr is Condition Code/Carry bit */
+	regs->sr = (sr & ~1) | (regs->sr & 1);
 
 	/* Restore the floating-point state. */
 	err |= restore_fpu_state(sc);
