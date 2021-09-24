@@ -2425,8 +2425,7 @@ static inline bool io_run_task_work(void)
 /*
  * Find and free completed poll iocbs
  */
-static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
-			       struct list_head *done)
+static void io_iopoll_complete(struct io_ring_ctx *ctx, struct list_head *done)
 {
 	struct req_batch rb;
 	struct io_kiocb *req;
@@ -2441,7 +2440,6 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 
 		__io_cqring_fill_event(ctx, req->user_data, req->result,
 					io_put_rw_kbuf(req));
-		(*nr_events)++;
 
 		if (req_ref_put_and_test(req))
 			io_req_free_batch(&rb, req, &ctx->submit_state);
@@ -2452,12 +2450,12 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 	io_req_free_batch_finish(ctx, &rb);
 }
 
-static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
-			bool force_nonspin)
+static int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 {
 	struct io_kiocb *req, *tmp;
 	unsigned int poll_flags = BLK_POLL_NOSLEEP;
 	DEFINE_IO_COMP_BATCH(iob);
+	int nr_events = 0;
 	LIST_HEAD(done);
 
 	/*
@@ -2478,6 +2476,7 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		 */
 		if (READ_ONCE(req->iopoll_completed)) {
 			list_move_tail(&req->inflight_entry, &done);
+			nr_events++;
 			continue;
 		}
 		if (!list_empty(&done))
@@ -2491,16 +2490,18 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 
 		/* iopoll may have completed current req */
 		if (!rq_list_empty(iob.req_list) ||
-		    READ_ONCE(req->iopoll_completed))
+		    READ_ONCE(req->iopoll_completed)) {
 			list_move_tail(&req->inflight_entry, &done);
+			nr_events++;
+		}
 	}
 
 	if (!rq_list_empty(iob.req_list))
 		iob.complete(&iob);
 	if (!list_empty(&done))
-		io_iopoll_complete(ctx, nr_events, &done);
+		io_iopoll_complete(ctx, &done);
 
-	return 0;
+	return nr_events;
 }
 
 /*
@@ -2514,12 +2515,8 @@ static void io_iopoll_try_reap_events(struct io_ring_ctx *ctx)
 
 	mutex_lock(&ctx->uring_lock);
 	while (!list_empty(&ctx->iopoll_list)) {
-		unsigned int nr_events = 0;
-
-		io_do_iopoll(ctx, &nr_events, true);
-
 		/* let it sleep and repeat later if can't complete a request */
-		if (nr_events == 0)
+		if (io_do_iopoll(ctx, true) == 0)
 			break;
 		/*
 		 * Ensure we allow local-to-the-cpu processing to take place,
@@ -2578,8 +2575,12 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 			    list_empty(&ctx->iopoll_list))
 				break;
 		}
-		ret = io_do_iopoll(ctx, &nr_events, !min);
-	} while (!ret && nr_events < min && !need_resched());
+		ret = io_do_iopoll(ctx, !min);
+		if (ret < 0)
+			break;
+		nr_events += ret;
+		ret = 0;
+	} while (nr_events < min && !need_resched());
 out:
 	mutex_unlock(&ctx->uring_lock);
 	return ret;
@@ -7339,7 +7340,6 @@ static int __io_sq_thread(struct io_ring_ctx *ctx, bool cap_entries)
 		to_submit = IORING_SQPOLL_CAP_ENTRIES_VALUE;
 
 	if (!list_empty(&ctx->iopoll_list) || to_submit) {
-		unsigned nr_events = 0;
 		const struct cred *creds = NULL;
 
 		if (ctx->sq_creds != current_cred())
@@ -7347,7 +7347,7 @@ static int __io_sq_thread(struct io_ring_ctx *ctx, bool cap_entries)
 
 		mutex_lock(&ctx->uring_lock);
 		if (!list_empty(&ctx->iopoll_list))
-			io_do_iopoll(ctx, &nr_events, true);
+			io_do_iopoll(ctx, true);
 
 		/*
 		 * Don't submit if refs are dying, good for io_uring_register(),
