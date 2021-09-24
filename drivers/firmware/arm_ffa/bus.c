@@ -135,7 +135,7 @@ static void ffa_release_device(struct device *dev)
 
 static int __ffa_devices_unregister(struct device *dev, void *data)
 {
-	ffa_release_device(dev);
+	device_unregister(dev);
 
 	return 0;
 }
