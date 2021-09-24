@@ -7137,11 +7137,13 @@ fail_req:
 /*
  * Batched submission is done, ensure local IO is flushed out.
  */
-static void io_submit_state_end(struct io_submit_state *state,
-				struct io_ring_ctx *ctx)
+static void io_submit_state_end(struct io_ring_ctx *ctx)
 {
+	struct io_submit_state *state = &ctx->submit_state;
+
 	if (state->link.head)
 		io_queue_sqe(state->link.head);
+	/* flush only after queuing links as they can generate completions */
 	io_submit_flush_completions(ctx);
 	if (state->plug_started)
 		blk_finish_plug(&state->plug);
@@ -7244,7 +7246,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 		percpu_ref_put_many(&ctx->refs, unused);
 	}
 
-	io_submit_state_end(&ctx->submit_state, ctx);
+	io_submit_state_end(ctx);
 	 /* Commit SQ ring head once we've consumed and submitted all SQEs */
 	io_commit_sqring(ctx);
 
