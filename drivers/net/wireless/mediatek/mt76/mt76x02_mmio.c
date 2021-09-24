@@ -491,15 +491,17 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	clear_bit(MT76_RESET, &dev->mphy.state);
 
 	mt76_worker_enable(&dev->mt76.tx_worker);
+	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
+
+	local_bh_disable();
 	napi_enable(&dev->mt76.tx_napi);
 	napi_schedule(&dev->mt76.tx_napi);
-
-	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 
 	mt76_for_each_q_rx(&dev->mt76, i) {
 		napi_enable(&dev->mt76.napi[i]);
 		napi_schedule(&dev->mt76.napi[i]);
 	}
+	local_bh_enable();
 
 	if (restart) {
 		set_bit(MT76_RESTART, &dev->mphy.state);

@@ -1390,10 +1390,12 @@ mt7921_mac_reset(struct mt7921_dev *dev)
 
 	mt7921_wpdma_reset(dev, true);
 
+	local_bh_disable();
 	mt76_for_each_q_rx(&dev->mt76, i) {
 		napi_enable(&dev->mt76.napi[i]);
 		napi_schedule(&dev->mt76.napi[i]);
 	}
+	local_bh_enable();
 
 	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
 
@@ -1418,8 +1420,11 @@ mt7921_mac_reset(struct mt7921_dev *dev)
 out:
 	clear_bit(MT76_RESET, &dev->mphy.state);
 
+	local_bh_disable();
 	napi_enable(&dev->mt76.tx_napi);
 	napi_schedule(&dev->mt76.tx_napi);
+	local_bh_enable();
+
 	mt76_worker_enable(&dev->mt76.tx_worker);
 
 	return err;
