@@ -648,6 +648,23 @@ int zynqmp_pm_sd_dll_reset(u32 node_id, u32 type)
 EXPORT_SYMBOL_GPL(zynqmp_pm_sd_dll_reset);
 
 /**
+ * zynqmp_pm_ospi_mux_select() - OSPI Mux selection
+ *
+ * @dev_id:	Device Id of the OSPI device.
+ * @select:	OSPI Mux select value.
+ *
+ * This function select the OSPI Mux.
+ *
+ * Return:	Returns status, either success or error+reason
+ */
+int zynqmp_pm_ospi_mux_select(u32 dev_id, u32 select)
+{
+	return zynqmp_pm_invoke_fn(PM_IOCTL, dev_id, IOCTL_OSPI_MUX_SELECT,
+				   select, 0, NULL);
+}
+EXPORT_SYMBOL_GPL(zynqmp_pm_ospi_mux_select);
+
+/**
  * zynqmp_pm_write_ggs() - PM API for writing global general storage (ggs)
  * @index:	GGS register index
  * @value:	Register value to be written
