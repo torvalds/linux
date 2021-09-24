@@ -1401,7 +1401,7 @@ ath11k_peer_assoc_h_ht_masked(const u8 ht_mcs_mask[IEEE80211_HT_MCS_MASK_LEN])
 }
 
 static bool
-ath11k_peer_assoc_h_vht_masked(const u16 vht_mcs_mask[NL80211_VHT_NSS_MAX])
+ath11k_peer_assoc_h_vht_masked(const u16 vht_mcs_mask[])
 {
 	int nss;
 
