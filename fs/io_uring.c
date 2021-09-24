@@ -319,7 +319,7 @@ struct io_submit_state {
 	struct io_wq_work_list	compl_reqs;
 
 	/* inline/task_work completion list, under ->uring_lock */
-	struct list_head	free_list;
+	struct io_wq_work_node	free_list;
 };
 
 struct io_ring_ctx {
@@ -379,7 +379,7 @@ struct io_ring_ctx {
 	} ____cacheline_aligned_in_smp;
 
 	/* IRQ completion list, under ->completion_lock */
-	struct list_head	locked_free_list;
+	struct io_wq_work_list	locked_free_list;
 	unsigned int		locked_free_nr;
 
 	const struct cred	*sq_creds;	/* cred used for __io_sq_thread() */
@@ -1318,8 +1318,8 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_DELAYED_WORK(&ctx->rsrc_put_work, io_rsrc_put_work);
 	init_llist_head(&ctx->rsrc_put_llist);
 	INIT_LIST_HEAD(&ctx->tctx_list);
-	INIT_LIST_HEAD(&ctx->submit_state.free_list);
-	INIT_LIST_HEAD(&ctx->locked_free_list);
+	ctx->submit_state.free_list.next = NULL;
+	INIT_WQ_LIST(&ctx->locked_free_list);
 	INIT_DELAYED_WORK(&ctx->fallback_work, io_fallback_req_func);
 	INIT_WQ_LIST(&ctx->submit_state.compl_reqs);
 	return ctx;
@@ -1806,7 +1806,7 @@ static void io_req_complete_post(struct io_kiocb *req, long res,
 		}
 		io_dismantle_req(req);
 		io_put_task(req->task, 1);
-		list_add(&req->inflight_entry, &ctx->locked_free_list);
+		wq_list_add_head(&req->comp_list, &ctx->locked_free_list);
 		ctx->locked_free_nr++;
 		percpu_ref_put(&ctx->refs);
 	}
@@ -1883,7 +1883,7 @@ static void io_flush_cached_locked_reqs(struct io_ring_ctx *ctx,
 					struct io_submit_state *state)
 {
 	spin_lock(&ctx->completion_lock);
-	list_splice_init(&ctx->locked_free_list, &state->free_list);
+	wq_list_splice(&ctx->locked_free_list, &state->free_list);
 	ctx->locked_free_nr = 0;
 	spin_unlock(&ctx->completion_lock);
 }
@@ -1900,7 +1900,7 @@ static bool io_flush_cached_reqs(struct io_ring_ctx *ctx)
 	 */
 	if (READ_ONCE(ctx->locked_free_nr) > IO_COMPL_BATCH)
 		io_flush_cached_locked_reqs(ctx, state);
-	return !list_empty(&state->free_list);
+	return !!state->free_list.next;
 }
 
 /*
@@ -1915,10 +1915,11 @@ static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
 	struct io_submit_state *state = &ctx->submit_state;
 	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
 	void *reqs[IO_REQ_ALLOC_BATCH];
+	struct io_wq_work_node *node;
 	struct io_kiocb *req;
 	int ret, i;
 
-	if (likely(!list_empty(&state->free_list) || io_flush_cached_reqs(ctx)))
+	if (likely(state->free_list.next || io_flush_cached_reqs(ctx)))
 		goto got_req;
 
 	ret = kmem_cache_alloc_bulk(req_cachep, gfp, ARRAY_SIZE(reqs), reqs);
@@ -1938,12 +1939,11 @@ static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
 		req = reqs[i];
 
 		io_preinit_req(req, ctx);
-		list_add(&req->inflight_entry, &state->free_list);
+		wq_stack_add_head(&req->comp_list, &state->free_list);
 	}
 got_req:
-	req = list_first_entry(&state->free_list, struct io_kiocb, inflight_entry);
-	list_del(&req->inflight_entry);
-	return req;
+	node = wq_stack_extract(&state->free_list);
+	return container_of(node, struct io_kiocb, comp_list);
 }
 
 static inline void io_put_file(struct file *file)
@@ -1976,7 +1976,7 @@ static void __io_free_req(struct io_kiocb *req)
 	io_put_task(req->task, 1);
 
 	spin_lock(&ctx->completion_lock);
-	list_add(&req->inflight_entry, &ctx->locked_free_list);
+	wq_list_add_head(&req->comp_list, &ctx->locked_free_list);
 	ctx->locked_free_nr++;
 	spin_unlock(&ctx->completion_lock);
 
@@ -2300,8 +2300,7 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req,
 	}
 	rb->task_refs++;
 	rb->ctx_refs++;
-
-	list_add(&req->inflight_entry, &state->free_list);
+	wq_stack_add_head(&req->comp_list, &state->free_list);
 }
 
 static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
@@ -7261,7 +7260,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 		}
 		sqe = io_get_sqe(ctx);
 		if (unlikely(!sqe)) {
-			list_add(&req->inflight_entry, &ctx->submit_state.free_list);
+			wq_stack_add_head(&req->comp_list, &ctx->submit_state.free_list);
 			break;
 		}
 		/* will complete beyond this point, count as submitted */
@@ -9193,23 +9192,21 @@ static void io_destroy_buffers(struct io_ring_ctx *ctx)
 	}
 }
 
-static void io_req_cache_free(struct list_head *list)
-{
-	struct io_kiocb *req, *nxt;
-
-	list_for_each_entry_safe(req, nxt, list, inflight_entry) {
-		list_del(&req->inflight_entry);
-		kmem_cache_free(req_cachep, req);
-	}
-}
-
 static void io_req_caches_free(struct io_ring_ctx *ctx)
 {
 	struct io_submit_state *state = &ctx->submit_state;
 
 	mutex_lock(&ctx->uring_lock);
 	io_flush_cached_locked_reqs(ctx, state);
-	io_req_cache_free(&state->free_list);
+
+	while (state->free_list.next) {
+		struct io_wq_work_node *node;
+		struct io_kiocb *req;
+
+		node = wq_stack_extract(&state->free_list);
+		req = container_of(node, struct io_kiocb, comp_list);
+		kmem_cache_free(req_cachep, req);
+	}
 	mutex_unlock(&ctx->uring_lock);
 }
 
