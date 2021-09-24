@@ -322,8 +322,8 @@ struct io_submit_state {
 	/*
 	 * Batch completion logic
 	 */
-	struct io_kiocb		*compl_reqs[IO_COMPL_BATCH];
-	unsigned int		compl_nr;
+	struct io_wq_work_list	compl_reqs;
+
 	/* inline/task_work completion list, under ->uring_lock */
 	struct list_head	free_list;
 };
@@ -882,6 +882,8 @@ struct io_kiocb {
 	struct io_wq_work		work;
 	const struct cred		*creds;
 
+	struct io_wq_work_node		comp_list;
+
 	/* store used ubuf, so we can prevent reloading */
 	struct io_mapped_ubuf		*imu;
 };
@@ -1168,7 +1170,7 @@ static inline void req_ref_get(struct io_kiocb *req)
 
 static inline void io_submit_flush_completions(struct io_ring_ctx *ctx)
 {
-	if (ctx->submit_state.compl_nr)
+	if (!wq_list_empty(&ctx->submit_state.compl_reqs))
 		__io_submit_flush_completions(ctx);
 }
 
@@ -1325,6 +1327,7 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->submit_state.free_list);
 	INIT_LIST_HEAD(&ctx->locked_free_list);
 	INIT_DELAYED_WORK(&ctx->fallback_work, io_fallback_req_func);
+	INIT_WQ_LIST(&ctx->submit_state.compl_reqs);
 	return ctx;
 err:
 	kfree(ctx->dummy_ubuf);
@@ -1826,11 +1829,16 @@ static inline bool io_req_needs_clean(struct io_kiocb *req)
 static void io_req_complete_state(struct io_kiocb *req, long res,
 				  unsigned int cflags)
 {
+	struct io_submit_state *state;
+
 	if (io_req_needs_clean(req))
 		io_clean_op(req);
 	req->result = res;
 	req->compl.cflags = cflags;
 	req->flags |= REQ_F_COMPLETE_INLINE;
+
+	state = &req->ctx->submit_state;
+	wq_list_add_tail(&req->comp_list, &state->compl_reqs);
 }
 
 static inline void __io_req_complete(struct io_kiocb *req, unsigned issue_flags,
@@ -2319,13 +2327,14 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req,
 static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 	__must_hold(&ctx->uring_lock)
 {
+	struct io_wq_work_node *node, *prev;
 	struct io_submit_state *state = &ctx->submit_state;
-	int i, nr = state->compl_nr;
 	struct req_batch rb;
 
 	spin_lock(&ctx->completion_lock);
-	for (i = 0; i < nr; i++) {
-		struct io_kiocb *req = state->compl_reqs[i];
+	wq_list_for_each(node, prev, &state->compl_reqs) {
+		struct io_kiocb *req = container_of(node, struct io_kiocb,
+						    comp_list);
 
 		__io_cqring_fill_event(ctx, req->user_data, req->result,
 					req->compl.cflags);
@@ -2335,15 +2344,18 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 	io_cqring_ev_posted(ctx);
 
 	io_init_req_batch(&rb);
-	for (i = 0; i < nr; i++) {
-		struct io_kiocb *req = state->compl_reqs[i];
+	node = state->compl_reqs.first;
+	do {
+		struct io_kiocb *req = container_of(node, struct io_kiocb,
+						    comp_list);
 
+		node = req->comp_list.next;
 		if (req_ref_put_and_test(req))
 			io_req_free_batch(&rb, req, &ctx->submit_state);
-	}
+	} while (node);
 
 	io_req_free_batch_finish(ctx, &rb);
-	state->compl_nr = 0;
+	INIT_WQ_LIST(&state->compl_reqs);
 }
 
 /*
@@ -2668,17 +2680,10 @@ static void io_req_task_complete(struct io_kiocb *req, bool *locked)
 	unsigned int cflags = io_put_rw_kbuf(req);
 	long res = req->result;
 
-	if (*locked) {
-		struct io_ring_ctx *ctx = req->ctx;
-		struct io_submit_state *state = &ctx->submit_state;
-
+	if (*locked)
 		io_req_complete_state(req, res, cflags);
-		state->compl_reqs[state->compl_nr++] = req;
-		if (state->compl_nr == ARRAY_SIZE(state->compl_reqs))
-			io_submit_flush_completions(ctx);
-	} else {
+	else
 		io_req_complete_post(req, res, cflags);
-	}
 }
 
 static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
@@ -6962,15 +6967,8 @@ issue_sqe:
 	 * doesn't support non-blocking read/write attempts
 	 */
 	if (likely(!ret)) {
-		if (req->flags & REQ_F_COMPLETE_INLINE) {
-			struct io_ring_ctx *ctx = req->ctx;
-			struct io_submit_state *state = &ctx->submit_state;
-
-			state->compl_reqs[state->compl_nr++] = req;
-			if (state->compl_nr == ARRAY_SIZE(state->compl_reqs))
-				io_submit_flush_completions(ctx);
+		if (req->flags & REQ_F_COMPLETE_INLINE)
 			return;
-		}
 
 		linked_timeout = io_prep_linked_timeout(req);
 		if (linked_timeout)
