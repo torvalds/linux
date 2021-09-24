@@ -411,7 +411,7 @@ int rvu_cgx_exit(struct rvu *rvu)
  * VF's of mapped PF and other PFs are not allowed. This fn() checks
  * whether a PFFUNC is permitted to do the config or not.
  */
-static bool is_cgx_config_permitted(struct rvu *rvu, u16 pcifunc)
+inline bool is_cgx_config_permitted(struct rvu *rvu, u16 pcifunc)
 {
 	if ((pcifunc & RVU_PFVF_FUNC_MASK) ||
 	    !is_pf_cgxmapped(rvu, rvu_get_pf(pcifunc)))
