@@ -310,12 +310,6 @@ struct io_submit_state {
 	struct blk_plug		plug;
 	struct io_submit_link	link;
 
-	/*
-	 * io_kiocb alloc cache
-	 */
-	void			*reqs[IO_REQ_CACHE_SIZE];
-	unsigned int		free_reqs;
-
 	bool			plug_started;
 	bool			need_plug;
 
@@ -1898,7 +1892,6 @@ static void io_flush_cached_locked_reqs(struct io_ring_ctx *ctx,
 static bool io_flush_cached_reqs(struct io_ring_ctx *ctx)
 {
 	struct io_submit_state *state = &ctx->submit_state;
-	int nr;
 
 	/*
 	 * If we have more than a batch's worth of requests in our IRQ side
@@ -1907,20 +1900,7 @@ static bool io_flush_cached_reqs(struct io_ring_ctx *ctx)
 	 */
 	if (READ_ONCE(ctx->locked_free_nr) > IO_COMPL_BATCH)
 		io_flush_cached_locked_reqs(ctx, state);
-
-	nr = state->free_reqs;
-	while (!list_empty(&state->free_list)) {
-		struct io_kiocb *req = list_first_entry(&state->free_list,
-					struct io_kiocb, inflight_entry);
-
-		list_del(&req->inflight_entry);
-		state->reqs[nr++] = req;
-		if (nr == ARRAY_SIZE(state->reqs))
-			break;
-	}
-
-	state->free_reqs = nr;
-	return nr != 0;
+	return !list_empty(&state->free_list);
 }
 
 /*
@@ -1934,33 +1914,36 @@ static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
 {
 	struct io_submit_state *state = &ctx->submit_state;
 	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
+	void *reqs[IO_REQ_ALLOC_BATCH];
+	struct io_kiocb *req;
 	int ret, i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(state->reqs) < IO_REQ_ALLOC_BATCH);
-
-	if (likely(state->free_reqs || io_flush_cached_reqs(ctx)))
+	if (likely(!list_empty(&state->free_list) || io_flush_cached_reqs(ctx)))
 		goto got_req;
 
-	ret = kmem_cache_alloc_bulk(req_cachep, gfp, IO_REQ_ALLOC_BATCH,
-				    state->reqs);
+	ret = kmem_cache_alloc_bulk(req_cachep, gfp, ARRAY_SIZE(reqs), reqs);
 
 	/*
 	 * Bulk alloc is all-or-nothing. If we fail to get a batch,
 	 * retry single alloc to be on the safe side.
 	 */
 	if (unlikely(ret <= 0)) {
-		state->reqs[0] = kmem_cache_alloc(req_cachep, gfp);
-		if (!state->reqs[0])
+		reqs[0] = kmem_cache_alloc(req_cachep, gfp);
+		if (!reqs[0])
 			return NULL;
 		ret = 1;
 	}
 
-	for (i = 0; i < ret; i++)
-		io_preinit_req(state->reqs[i], ctx);
-	state->free_reqs = ret;
+	for (i = 0; i < ret; i++) {
+		req = reqs[i];
+
+		io_preinit_req(req, ctx);
+		list_add(&req->inflight_entry, &state->free_list);
+	}
 got_req:
-	state->free_reqs--;
-	return state->reqs[state->free_reqs];
+	req = list_first_entry(&state->free_list, struct io_kiocb, inflight_entry);
+	list_del(&req->inflight_entry);
+	return req;
 }
 
 static inline void io_put_file(struct file *file)
@@ -2318,10 +2301,7 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req,
 	rb->task_refs++;
 	rb->ctx_refs++;
 
-	if (state->free_reqs != ARRAY_SIZE(state->reqs))
-		state->reqs[state->free_reqs++] = req;
-	else
-		list_add(&req->inflight_entry, &state->free_list);
+	list_add(&req->inflight_entry, &state->free_list);
 }
 
 static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
@@ -9228,12 +9208,6 @@ static void io_req_caches_free(struct io_ring_ctx *ctx)
 	struct io_submit_state *state = &ctx->submit_state;
 
 	mutex_lock(&ctx->uring_lock);
-
-	if (state->free_reqs) {
-		kmem_cache_free_bulk(req_cachep, state->free_reqs, state->reqs);
-		state->free_reqs = 0;
-	}
-
 	io_flush_cached_locked_reqs(ctx, state);
 	io_req_cache_free(&state->free_list);
 	mutex_unlock(&ctx->uring_lock);
