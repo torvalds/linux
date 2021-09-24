@@ -18,7 +18,7 @@ config SYNC_FILE
 	  Documentation/driver-api/sync_file.rst.
 
 config SW_SYNC
-	bool "Sync File Validation Framework"
+	tristate "Sync File Validation Framework"
 	default n
 	depends on SYNC_FILE
 	help
@@ -28,6 +28,13 @@ config SW_SYNC
 
 	  WARNING: improper use of this can result in deadlocking kernel
 	  drivers from userspace. Intended for test and debug only.
+
+config SW_SYNC_DEBUG
+	bool "SW Sync Debug"
+	depends on DEBUG_FS && SW_SYNC && NO_GKI
+	default SW_SYNC
+	help
+	  To get current fence point and timeline status.
 
 config UDMABUF
 	bool "userspace dmabuf misc driver"
