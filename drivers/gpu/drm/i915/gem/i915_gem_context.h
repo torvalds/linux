@@ -108,6 +108,12 @@ i915_gem_context_clear_user_engines(struct i915_gem_context *ctx)
 	clear_bit(CONTEXT_USER_ENGINES, &ctx->flags);
 }
 
+static inline bool
+i915_gem_context_uses_protected_content(const struct i915_gem_context *ctx)
+{
+	return ctx->uses_protected_content;
+}
+
 /* i915_gem_context.c */
 void i915_gem_init__contexts(struct drm_i915_private *i915);
 

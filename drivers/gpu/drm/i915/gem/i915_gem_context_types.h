@@ -198,6 +198,12 @@ struct i915_gem_proto_context {
 
 	/** @single_timeline: See See &i915_gem_context.syncobj */
 	bool single_timeline;
+
+	/** @uses_protected_content: See &i915_gem_context.uses_protected_content */
+	bool uses_protected_content;
+
+	/** @pxp_wakeref: See &i915_gem_context.pxp_wakeref */
+	intel_wakeref_t pxp_wakeref;
 };
 
 /**
@@ -320,6 +326,28 @@ struct i915_gem_context {
 	unsigned long flags;
 #define CONTEXT_CLOSED			0
 #define CONTEXT_USER_ENGINES		1
+
+	/**
+	 * @uses_protected_content: context uses PXP-encrypted objects.
+	 *
+	 * This flag can only be set at ctx creation time and it's immutable for
+	 * the lifetime of the context. See I915_CONTEXT_PARAM_PROTECTED_CONTENT
+	 * in uapi/drm/i915_drm.h for more info on setting restrictions and
+	 * expected behaviour of marked contexts.
+	 */
+	bool uses_protected_content;
+
+	/**
+	 * @pxp_wakeref: wakeref to keep the device awake when PXP is in use
+	 *
+	 * PXP sessions are invalidated when the device is suspended, which in
+	 * turns invalidates all contexts and objects using it. To keep the
+	 * flow simple, we keep the device awake when contexts using PXP objects
+	 * are in use. It is expected that the userspace application only uses
+	 * PXP when the display is on, so taking a wakeref here shouldn't worsen
+	 * our power metrics.
+	 */
+	intel_wakeref_t pxp_wakeref;
 
 	/** @mutex: guards everything that isn't engines or handles_vma */
 	struct mutex mutex;

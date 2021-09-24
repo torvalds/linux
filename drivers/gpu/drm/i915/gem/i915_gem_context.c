@@ -77,6 +77,8 @@
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_ring.h"
 
+#include "pxp/intel_pxp.h"
+
 #include "i915_gem_context.h"
 #include "i915_trace.h"
 #include "i915_user_extensions.h"
@@ -186,10 +188,13 @@ static int validate_priority(struct drm_i915_private *i915,
 	return 0;
 }
 
-static void proto_context_close(struct i915_gem_proto_context *pc)
+static void proto_context_close(struct drm_i915_private *i915,
+				struct i915_gem_proto_context *pc)
 {
 	int i;
 
+	if (pc->pxp_wakeref)
+		intel_runtime_pm_put(&i915->runtime_pm, pc->pxp_wakeref);
 	if (pc->vm)
 		i915_vm_put(pc->vm);
 	if (pc->user_engines) {
@@ -241,6 +246,33 @@ static int proto_context_set_persistence(struct drm_i915_private *i915,
 	return 0;
 }
 
+static int proto_context_set_protected(struct drm_i915_private *i915,
+				       struct i915_gem_proto_context *pc,
+				       bool protected)
+{
+	int ret = 0;
+
+	if (!protected) {
+		pc->uses_protected_content = false;
+	} else if (!intel_pxp_is_enabled(&i915->gt.pxp)) {
+		ret = -ENODEV;
+	} else if ((pc->user_flags & BIT(UCONTEXT_RECOVERABLE)) ||
+		   !(pc->user_flags & BIT(UCONTEXT_BANNABLE))) {
+		ret = -EPERM;
+	} else {
+		pc->uses_protected_content = true;
+
+		/*
+		 * protected context usage requires the PXP session to be up,
+		 * which in turn requires the device to be active.
+		 */
+		pc->pxp_wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+		ret = intel_pxp_wait_for_arb_start(&i915->gt.pxp);
+	}
+
+	return ret;
+}
+
 static struct i915_gem_proto_context *
 proto_context_create(struct drm_i915_private *i915, unsigned int flags)
 {
@@ -269,7 +301,7 @@ proto_context_create(struct drm_i915_private *i915, unsigned int flags)
 	return pc;
 
 proto_close:
-	proto_context_close(pc);
+	proto_context_close(i915, pc);
 	return err;
 }
 
@@ -693,6 +725,8 @@ static int set_proto_ctx_param(struct drm_i915_file_private *fpriv,
 			ret = -EPERM;
 		else if (args->value)
 			pc->user_flags |= BIT(UCONTEXT_BANNABLE);
+		else if (pc->uses_protected_content)
+			ret = -EPERM;
 		else
 			pc->user_flags &= ~BIT(UCONTEXT_BANNABLE);
 		break;
@@ -700,10 +734,12 @@ static int set_proto_ctx_param(struct drm_i915_file_private *fpriv,
 	case I915_CONTEXT_PARAM_RECOVERABLE:
 		if (args->size)
 			ret = -EINVAL;
-		else if (args->value)
-			pc->user_flags |= BIT(UCONTEXT_RECOVERABLE);
-		else
+		else if (!args->value)
 			pc->user_flags &= ~BIT(UCONTEXT_RECOVERABLE);
+		else if (pc->uses_protected_content)
+			ret = -EPERM;
+		else
+			pc->user_flags |= BIT(UCONTEXT_RECOVERABLE);
 		break;
 
 	case I915_CONTEXT_PARAM_PRIORITY:
@@ -729,6 +765,11 @@ static int set_proto_ctx_param(struct drm_i915_file_private *fpriv,
 			ret = -EINVAL;
 		ret = proto_context_set_persistence(fpriv->dev_priv, pc,
 						    args->value);
+		break;
+
+	case I915_CONTEXT_PARAM_PROTECTED_CONTENT:
+		ret = proto_context_set_protected(fpriv->dev_priv, pc,
+						  args->value);
 		break;
 
 	case I915_CONTEXT_PARAM_NO_ZEROMAP:
@@ -955,6 +996,9 @@ static void i915_gem_context_release_work(struct work_struct *work)
 	vm = ctx->vm;
 	if (vm)
 		i915_vm_put(vm);
+
+	if (ctx->pxp_wakeref)
+		intel_runtime_pm_put(&ctx->i915->runtime_pm, ctx->pxp_wakeref);
 
 	mutex_destroy(&ctx->engines_mutex);
 	mutex_destroy(&ctx->lut_mutex);
@@ -1338,6 +1382,11 @@ i915_gem_create_context(struct drm_i915_private *i915,
 			goto err_engines;
 	}
 
+	if (pc->uses_protected_content) {
+		ctx->pxp_wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+		ctx->uses_protected_content = true;
+	}
+
 	trace_i915_context_create(ctx);
 
 	return ctx;
@@ -1409,7 +1458,7 @@ int i915_gem_context_open(struct drm_i915_private *i915,
 	}
 
 	ctx = i915_gem_create_context(i915, pc);
-	proto_context_close(pc);
+	proto_context_close(i915, pc);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
 		goto err;
@@ -1436,7 +1485,7 @@ void i915_gem_context_close(struct drm_file *file)
 	unsigned long idx;
 
 	xa_for_each(&file_priv->proto_context_xa, idx, pc)
-		proto_context_close(pc);
+		proto_context_close(file_priv->dev_priv, pc);
 	xa_destroy(&file_priv->proto_context_xa);
 	mutex_destroy(&file_priv->proto_context_lock);
 
@@ -1731,6 +1780,15 @@ static int set_priority(struct i915_gem_context *ctx,
 	return 0;
 }
 
+static int get_protected(struct i915_gem_context *ctx,
+			 struct drm_i915_gem_context_param *args)
+{
+	args->size = 0;
+	args->value = i915_gem_context_uses_protected_content(ctx);
+
+	return 0;
+}
+
 static int ctx_setparam(struct drm_i915_file_private *fpriv,
 			struct i915_gem_context *ctx,
 			struct drm_i915_gem_context_param *args)
@@ -1754,6 +1812,8 @@ static int ctx_setparam(struct drm_i915_file_private *fpriv,
 			ret = -EPERM;
 		else if (args->value)
 			i915_gem_context_set_bannable(ctx);
+		else if (i915_gem_context_uses_protected_content(ctx))
+			ret = -EPERM; /* can't clear this for protected contexts */
 		else
 			i915_gem_context_clear_bannable(ctx);
 		break;
@@ -1761,10 +1821,12 @@ static int ctx_setparam(struct drm_i915_file_private *fpriv,
 	case I915_CONTEXT_PARAM_RECOVERABLE:
 		if (args->size)
 			ret = -EINVAL;
-		else if (args->value)
-			i915_gem_context_set_recoverable(ctx);
-		else
+		else if (!args->value)
 			i915_gem_context_clear_recoverable(ctx);
+		else if (i915_gem_context_uses_protected_content(ctx))
+			ret = -EPERM; /* can't set this for protected contexts */
+		else
+			i915_gem_context_set_recoverable(ctx);
 		break;
 
 	case I915_CONTEXT_PARAM_PRIORITY:
@@ -1779,6 +1841,7 @@ static int ctx_setparam(struct drm_i915_file_private *fpriv,
 		ret = set_persistence(ctx, args);
 		break;
 
+	case I915_CONTEXT_PARAM_PROTECTED_CONTENT:
 	case I915_CONTEXT_PARAM_NO_ZEROMAP:
 	case I915_CONTEXT_PARAM_BAN_PERIOD:
 	case I915_CONTEXT_PARAM_RINGSIZE:
@@ -1857,7 +1920,7 @@ finalize_create_context_locked(struct drm_i915_file_private *file_priv,
 
 	old = xa_erase(&file_priv->proto_context_xa, id);
 	GEM_BUG_ON(old != pc);
-	proto_context_close(pc);
+	proto_context_close(file_priv->dev_priv, pc);
 
 	/* One for the xarray and one for the caller */
 	return i915_gem_context_get(ctx);
@@ -1943,7 +2006,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 			goto err_pc;
 		}
 
-		proto_context_close(ext_data.pc);
+		proto_context_close(i915, ext_data.pc);
 		gem_context_register(ctx, ext_data.fpriv, id);
 	} else {
 		ret = proto_context_register(ext_data.fpriv, ext_data.pc, &id);
@@ -1957,7 +2020,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	return 0;
 
 err_pc:
-	proto_context_close(ext_data.pc);
+	proto_context_close(i915, ext_data.pc);
 	return ret;
 }
 
@@ -1988,7 +2051,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	GEM_WARN_ON(ctx && pc);
 
 	if (pc)
-		proto_context_close(pc);
+		proto_context_close(file_priv->dev_priv, pc);
 
 	if (ctx)
 		context_close(ctx);
@@ -2104,6 +2167,10 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 	case I915_CONTEXT_PARAM_PERSISTENCE:
 		args->size = 0;
 		args->value = i915_gem_context_is_persistent(ctx);
+		break;
+
+	case I915_CONTEXT_PARAM_PROTECTED_CONTENT:
+		ret = get_protected(ctx, args);
 		break;
 
 	case I915_CONTEXT_PARAM_NO_ZEROMAP:

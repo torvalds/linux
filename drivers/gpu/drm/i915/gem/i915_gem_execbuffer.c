@@ -21,6 +21,8 @@
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_ring.h"
 
+#include "pxp/intel_pxp.h"
+
 #include "i915_drv.h"
 #include "i915_gem_clflush.h"
 #include "i915_gem_context.h"
@@ -809,6 +811,22 @@ static struct i915_vma *eb_lookup_vma(struct i915_execbuffer *eb, u32 handle)
 		obj = i915_gem_object_lookup(eb->file, handle);
 		if (unlikely(!obj))
 			return ERR_PTR(-ENOENT);
+
+		/*
+		 * If the user has opted-in for protected-object tracking, make
+		 * sure the object encryption can be used.
+		 * We only need to do this when the object is first used with
+		 * this context, because the context itself will be banned when
+		 * the protected objects become invalid.
+		 */
+		if (i915_gem_context_uses_protected_content(eb->gem_context) &&
+		    i915_gem_object_is_protected(obj)) {
+			err = intel_pxp_key_check(&vm->gt->pxp, obj);
+			if (err) {
+				i915_gem_object_put(obj);
+				return ERR_PTR(err);
+			}
+		}
 
 		vma = i915_vma_instance(obj, vm, NULL);
 		if (IS_ERR(vma)) {

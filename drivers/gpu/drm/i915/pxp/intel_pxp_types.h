@@ -7,7 +7,9 @@
 #define __INTEL_PXP_TYPES_H__
 
 #include <linux/completion.h>
+#include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
@@ -26,6 +28,13 @@ struct intel_pxp {
 	 * session to know if it's valid and need to track the status in SW.
 	 */
 	bool arb_is_valid;
+
+	/*
+	 * Keep track of which key instance we're on, so we can use it to
+	 * determine if an object was created using the current key or a
+	 * previous one.
+	 */
+	u32 key_instance;
 
 	struct mutex tee_mutex; /* protects the tee channel binding */
 

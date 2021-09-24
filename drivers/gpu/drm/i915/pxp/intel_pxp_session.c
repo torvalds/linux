@@ -72,6 +72,9 @@ static int pxp_create_arb_session(struct intel_pxp *pxp)
 		return ret;
 	}
 
+	if (!++pxp->key_instance)
+		++pxp->key_instance;
+
 	pxp->arb_is_valid = true;
 
 	return 0;
@@ -84,6 +87,9 @@ static int pxp_terminate_arb_session_and_global(struct intel_pxp *pxp)
 
 	/* must mark termination in progress calling this function */
 	GEM_WARN_ON(pxp->arb_is_valid);
+
+	/* invalidate protected objects */
+	intel_pxp_invalidate(pxp);
 
 	/* terminate the hw sessions */
 	ret = intel_pxp_terminate_session(pxp, ARB_SESSION);
