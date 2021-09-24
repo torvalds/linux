@@ -13,6 +13,7 @@
 #include <linux/dmaengine.h>
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/firmware/xlnx-zynqmp.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -82,6 +83,7 @@ struct cqspi_st {
 	u32			wr_delay;
 	bool			use_direct_mode;
 	struct cqspi_flash_pdata f_pdata[CQSPI_MAX_CHIPSELECT];
+	u32			pd_dev_id;
 };
 
 struct cqspi_driver_platdata {
@@ -1299,6 +1301,7 @@ static int cqspi_of_get_pdata(struct cqspi_st *cqspi)
 {
 	struct device *dev = &cqspi->pdev->dev;
 	struct device_node *np = dev->of_node;
+	u32 id[2];
 
 	cqspi->is_decoded_cs = of_property_read_bool(np, "cdns,is-decoded-cs");
 
@@ -1322,6 +1325,10 @@ static int cqspi_of_get_pdata(struct cqspi_st *cqspi)
 		cqspi->num_chipselect = CQSPI_MAX_CHIPSELECT;
 
 	cqspi->rclk_en = of_property_read_bool(np, "cdns,rclk-en");
+
+	if (!of_property_read_u32_array(np, "power-domains", id,
+					ARRAY_SIZE(id)))
+		cqspi->pd_dev_id = id[1];
 
 	return 0;
 }
@@ -1548,6 +1555,15 @@ static int cqspi_probe(struct platform_device *pdev)
 			master->mode_bits |= SPI_RX_OCTAL | SPI_TX_OCTAL;
 		if (!(ddata->quirks & CQSPI_DISABLE_DAC_MODE))
 			cqspi->use_direct_mode = true;
+		if (of_device_is_compatible(pdev->dev.of_node,
+					    "xlnx,versal-ospi-1.0")) {
+			ret = zynqmp_pm_ospi_mux_select(cqspi->pd_dev_id,
+							PM_OSPI_MUX_SEL_LINEAR);
+			if (ret) {
+				dev_err(dev, "failed to select OSPI Mux.\n");
+				goto probe_reset_failed;
+			}
+		}
 	}
 
 	ret = devm_request_irq(dev, irq, cqspi_irq_handler, 0,
@@ -1656,6 +1672,11 @@ static const struct cqspi_driver_platdata intel_lgm_qspi = {
 	.quirks = CQSPI_DISABLE_DAC_MODE,
 };
 
+static const struct cqspi_driver_platdata versal_ospi = {
+	.hwcaps_mask = CQSPI_SUPPORTS_OCTAL,
+	.quirks = CQSPI_DISABLE_DAC_MODE,
+};
+
 static const struct of_device_id cqspi_dt_ids[] = {
 	{
 		.compatible = "cdns,qspi-nor",
@@ -1672,6 +1693,10 @@ static const struct of_device_id cqspi_dt_ids[] = {
 	{
 		.compatible = "intel,lgm-qspi",
 		.data = &intel_lgm_qspi,
+	},
+	{
+		.compatible = "xlnx,versal-ospi-1.0",
+		.data = (void *)&versal_ospi,
 	},
 	{ /* end of table */ }
 };
