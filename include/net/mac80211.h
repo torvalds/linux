@@ -632,6 +632,7 @@ struct ieee80211_fils_discovery {
  * @s1g: BSS is S1G BSS (affects Association Request format).
  * @beacon_tx_rate: The configured beacon transmit rate that needs to be passed
  *	to driver when rate control is offloaded to firmware.
+ * @power_type: power type of BSS for 6 GHz
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -702,6 +703,7 @@ struct ieee80211_bss_conf {
 	u32 unsol_bcast_probe_resp_interval;
 	bool s1g;
 	struct cfg80211_bitrate_mask beacon_tx_rate;
+	enum ieee80211_ap_reg_power power_type;
 };
 
 /**
