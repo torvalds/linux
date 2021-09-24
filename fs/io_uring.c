@@ -2303,12 +2303,31 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req,
 	wq_stack_add_head(&req->comp_list, &state->free_list);
 }
 
+static void io_free_batch_list(struct io_ring_ctx *ctx,
+			       struct io_wq_work_list *list)
+	__must_hold(&ctx->uring_lock)
+{
+	struct io_wq_work_node *node;
+	struct req_batch rb;
+
+	io_init_req_batch(&rb);
+	node = list->first;
+	do {
+		struct io_kiocb *req = container_of(node, struct io_kiocb,
+						    comp_list);
+
+		node = req->comp_list.next;
+		if (req_ref_put_and_test(req))
+			io_req_free_batch(&rb, req, &ctx->submit_state);
+	} while (node);
+	io_req_free_batch_finish(ctx, &rb);
+}
+
 static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 	__must_hold(&ctx->uring_lock)
 {
 	struct io_wq_work_node *node, *prev;
 	struct io_submit_state *state = &ctx->submit_state;
-	struct req_batch rb;
 
 	spin_lock(&ctx->completion_lock);
 	wq_list_for_each(node, prev, &state->compl_reqs) {
@@ -2322,18 +2341,7 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 	spin_unlock(&ctx->completion_lock);
 	io_cqring_ev_posted(ctx);
 
-	io_init_req_batch(&rb);
-	node = state->compl_reqs.first;
-	do {
-		struct io_kiocb *req = container_of(node, struct io_kiocb,
-						    comp_list);
-
-		node = req->comp_list.next;
-		if (req_ref_put_and_test(req))
-			io_req_free_batch(&rb, req, &ctx->submit_state);
-	} while (node);
-
-	io_req_free_batch_finish(ctx, &rb);
+	io_free_batch_list(ctx, &state->compl_reqs);
 	INIT_WQ_LIST(&state->compl_reqs);
 }
 
