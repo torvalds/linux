@@ -1822,6 +1822,7 @@ static void io_req_complete_state(struct io_kiocb *req, long res,
 {
 	struct io_submit_state *state;
 
+	/* clean per-opcode space, because req->compl is aliased with it */
 	if (io_req_needs_clean(req))
 		io_clean_op(req);
 	req->result = res;
