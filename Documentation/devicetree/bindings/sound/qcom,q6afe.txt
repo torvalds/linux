@@ -12,7 +12,7 @@ used by all apr services. Must contain the following properties.
 		  from DSP.
 		  example "qcom,q6afe"
 
-= AFE DAIs (Digial Audio Interface)
+= AFE DAIs (Digital Audio Interface)
 "dais" subnode of the AFE node. It represents afe dais, each afe dai is a
 subnode of "dais" representing board specific dai setup.
 "dais" node should have following properties followed by dai children.
