@@ -6438,23 +6438,15 @@ static bool io_drain_req(struct io_kiocb *req)
 	int ret;
 	u32 seq;
 
-	if (req->flags & REQ_F_FAIL) {
-		io_req_complete_fail_submit(req);
-		return true;
-	}
-
-	/*
-	 * If we need to drain a request in the middle of a link, drain the
-	 * head request and the next request/link after the current link.
-	 * Considering sequential execution of links, IOSQE_IO_DRAIN will be
-	 * maintained for every request of our link.
-	 */
-	if (ctx->drain_next) {
-		req->flags |= REQ_F_IO_DRAIN;
-		ctx->drain_next = false;
-	}
 	/* not interested in head, start from the first linked */
 	io_for_each_link(pos, req->link) {
+		/*
+		 * If we need to drain a request in the middle of a link, drain
+		 * the head request and the next request/link after the current
+		 * link. Considering sequential execution of links,
+		 * IOSQE_IO_DRAIN will be maintained for every request of our
+		 * link.
+		 */
 		if (pos->flags & REQ_F_IO_DRAIN) {
 			ctx->drain_next = true;
 			req->flags |= REQ_F_IO_DRAIN;
@@ -6946,13 +6938,12 @@ issue_sqe:
 static inline void io_queue_sqe(struct io_kiocb *req)
 	__must_hold(&req->ctx->uring_lock)
 {
-	if (unlikely(req->ctx->drain_active) && io_drain_req(req))
-		return;
-
 	if (likely(!(req->flags & (REQ_F_FORCE_ASYNC | REQ_F_FAIL)))) {
 		__io_queue_sqe(req);
 	} else if (req->flags & REQ_F_FAIL) {
 		io_req_complete_fail_submit(req);
+	} else if (unlikely(req->ctx->drain_active) && io_drain_req(req)) {
+		return;
 	} else {
 		int ret = io_req_prep_async(req);
 
@@ -6972,9 +6963,6 @@ static inline bool io_check_restriction(struct io_ring_ctx *ctx,
 					struct io_kiocb *req,
 					unsigned int sqe_flags)
 {
-	if (likely(!ctx->restricted))
-		return true;
-
 	if (!test_bit(req->opcode, ctx->restrictions.sqe_op))
 		return false;
 
@@ -7015,11 +7003,28 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		if ((sqe_flags & IOSQE_BUFFER_SELECT) &&
 		    !io_op_defs[req->opcode].buffer_select)
 			return -EOPNOTSUPP;
-		if (sqe_flags & IOSQE_IO_DRAIN)
+		if (sqe_flags & IOSQE_IO_DRAIN) {
+			struct io_submit_link *link = &ctx->submit_state.link;
+
 			ctx->drain_active = true;
+			req->flags |= REQ_F_FORCE_ASYNC;
+			if (link->head)
+				link->head->flags |= IOSQE_IO_DRAIN | REQ_F_FORCE_ASYNC;
+		}
 	}
-	if (!io_check_restriction(ctx, req, sqe_flags))
-		return -EACCES;
+	if (unlikely(ctx->restricted || ctx->drain_active || ctx->drain_next)) {
+		if (ctx->restricted && !io_check_restriction(ctx, req, sqe_flags))
+			return -EACCES;
+		/* knock it to the slow queue path, will be drained there */
+		if (ctx->drain_active)
+			req->flags |= REQ_F_FORCE_ASYNC;
+		/* if there is no link, we're at "next" request and need to drain */
+		if (unlikely(ctx->drain_next) && !ctx->submit_state.link.head) {
+			ctx->drain_next = false;
+			ctx->drain_active = true;
+			req->flags |= REQ_F_FORCE_ASYNC | IOSQE_IO_DRAIN;
+		}
+	}
 
 	personality = READ_ONCE(sqe->personality);
 	if (personality) {
