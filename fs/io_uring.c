@@ -6638,7 +6638,7 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 	const struct cred *creds = NULL;
 	int ret;
 
-	if ((req->flags & REQ_F_CREDS) && req->creds != current_cred())
+	if (unlikely((req->flags & REQ_F_CREDS) && req->creds != current_cred()))
 		creds = override_creds(req->creds);
 
 	switch (req->opcode) {
