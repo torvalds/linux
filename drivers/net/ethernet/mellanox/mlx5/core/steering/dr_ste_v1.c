@@ -1791,7 +1791,7 @@ static int dr_ste_v1_build_src_gvmi_qpn_tag(struct mlx5dr_match_param *value,
 		else
 			return -EINVAL;
 
-		 misc->source_eswitch_owner_vhca_id = 0;
+		misc->source_eswitch_owner_vhca_id = 0;
 	} else {
 		caps = &dmn->info.caps;
 	}

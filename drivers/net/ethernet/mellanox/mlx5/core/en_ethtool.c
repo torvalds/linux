@@ -267,9 +267,7 @@ void mlx5e_ethtool_get_strings(struct mlx5e_priv *priv, u32 stringset, u8 *data)
 		break;
 
 	case ETH_SS_TEST:
-		for (i = 0; i < mlx5e_self_test_num(priv); i++)
-			strcpy(data + i * ETH_GSTRING_LEN,
-			       mlx5e_self_tests[i]);
+		mlx5e_self_test_fill_strings(priv, data);
 		break;
 
 	case ETH_SS_STATS:

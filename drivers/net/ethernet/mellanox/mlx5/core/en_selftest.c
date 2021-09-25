@@ -35,30 +35,7 @@
 #include <net/udp.h>
 #include "en.h"
 #include "en/port.h"
-
-enum {
-	MLX5E_ST_LINK_STATE,
-	MLX5E_ST_LINK_SPEED,
-	MLX5E_ST_HEALTH_INFO,
-#ifdef CONFIG_INET
-	MLX5E_ST_LOOPBACK,
-#endif
-	MLX5E_ST_NUM,
-};
-
-const char mlx5e_self_tests[MLX5E_ST_NUM][ETH_GSTRING_LEN] = {
-	"Link Test",
-	"Speed Test",
-	"Health Test",
-#ifdef CONFIG_INET
-	"Loopback Test",
-#endif
-};
-
-int mlx5e_self_test_num(struct mlx5e_priv *priv)
-{
-	return ARRAY_SIZE(mlx5e_self_tests);
-}
+#include "eswitch.h"
 
 static int mlx5e_test_health_info(struct mlx5e_priv *priv)
 {
@@ -265,6 +242,14 @@ static void mlx5e_test_loopback_cleanup(struct mlx5e_priv *priv,
 	mlx5e_refresh_tirs(priv, false, false);
 }
 
+static int mlx5e_cond_loopback(struct mlx5e_priv *priv)
+{
+	if (is_mdev_switchdev_mode(priv->mdev))
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
 #define MLX5E_LB_VERIFY_TIMEOUT (msecs_to_jiffies(200))
 static int mlx5e_test_loopback(struct mlx5e_priv *priv)
 {
@@ -313,37 +298,47 @@ out:
 }
 #endif
 
-static int (*mlx5e_st_func[MLX5E_ST_NUM])(struct mlx5e_priv *) = {
-	mlx5e_test_link_state,
-	mlx5e_test_link_speed,
-	mlx5e_test_health_info,
+typedef int (*mlx5e_st_func)(struct mlx5e_priv *);
+
+struct mlx5e_st {
+	char name[ETH_GSTRING_LEN];
+	mlx5e_st_func st_func;
+	mlx5e_st_func cond_func;
+};
+
+static struct mlx5e_st mlx5e_sts[] = {
+	{ "Link Test", mlx5e_test_link_state },
+	{ "Speed Test", mlx5e_test_link_speed },
+	{ "Health Test", mlx5e_test_health_info },
 #ifdef CONFIG_INET
-	mlx5e_test_loopback,
+	{ "Loopback Test", mlx5e_test_loopback, mlx5e_cond_loopback },
 #endif
 };
+
+#define MLX5E_ST_NUM ARRAY_SIZE(mlx5e_sts)
 
 void mlx5e_self_test(struct net_device *ndev, struct ethtool_test *etest,
 		     u64 *buf)
 {
 	struct mlx5e_priv *priv = netdev_priv(ndev);
-	int i;
-
-	memset(buf, 0, sizeof(u64) * MLX5E_ST_NUM);
+	int i, count = 0;
 
 	mutex_lock(&priv->state_lock);
 	netdev_info(ndev, "Self test begin..\n");
 
 	for (i = 0; i < MLX5E_ST_NUM; i++) {
-		netdev_info(ndev, "\t[%d] %s start..\n",
-			    i, mlx5e_self_tests[i]);
-		buf[i] = mlx5e_st_func[i](priv);
-		netdev_info(ndev, "\t[%d] %s end: result(%lld)\n",
-			    i, mlx5e_self_tests[i], buf[i]);
+		struct mlx5e_st st = mlx5e_sts[i];
+
+		if (st.cond_func && st.cond_func(priv))
+			continue;
+		netdev_info(ndev, "\t[%d] %s start..\n", i, st.name);
+		buf[count] = st.st_func(priv);
+		netdev_info(ndev, "\t[%d] %s end: result(%lld)\n", i, st.name, buf[count]);
 	}
 
 	mutex_unlock(&priv->state_lock);
 
-	for (i = 0; i < MLX5E_ST_NUM; i++) {
+	for (i = 0; i < count; i++) {
 		if (buf[i]) {
 			etest->flags |= ETH_TEST_FL_FAILED;
 			break;
@@ -351,4 +346,25 @@ void mlx5e_self_test(struct net_device *ndev, struct ethtool_test *etest,
 	}
 	netdev_info(ndev, "Self test out: status flags(0x%x)\n",
 		    etest->flags);
+}
+
+int mlx5e_self_test_fill_strings(struct mlx5e_priv *priv, u8 *data)
+{
+	int i, count = 0;
+
+	for (i = 0; i < MLX5E_ST_NUM; i++) {
+		struct mlx5e_st st = mlx5e_sts[i];
+
+		if (st.cond_func && st.cond_func(priv))
+			continue;
+		if (data)
+			strcpy(data + count * ETH_GSTRING_LEN, st.name);
+		count++;
+	}
+	return count;
+}
+
+int mlx5e_self_test_num(struct mlx5e_priv *priv)
+{
+	return mlx5e_self_test_fill_strings(priv, NULL);
 }
