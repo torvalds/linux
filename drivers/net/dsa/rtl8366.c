@@ -292,41 +292,6 @@ int rtl8366_reset_vlan(struct realtek_smi *smi)
 }
 EXPORT_SYMBOL_GPL(rtl8366_reset_vlan);
 
-int rtl8366_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering,
-			   struct netlink_ext_ack *extack)
-{
-	struct realtek_smi *smi = ds->priv;
-	struct rtl8366_vlan_4k vlan4k;
-	int ret;
-
-	/* Use VLAN nr port + 1 since VLAN0 is not valid */
-	if (!smi->ops->is_vlan_valid(smi, port + 1))
-		return -EINVAL;
-
-	dev_info(smi->dev, "%s filtering on port %d\n",
-		 vlan_filtering ? "enable" : "disable",
-		 port);
-
-	/* TODO:
-	 * The hardware support filter ID (FID) 0..7, I have no clue how to
-	 * support this in the driver when the callback only says on/off.
-	 */
-	ret = smi->ops->get_vlan_4k(smi, port + 1, &vlan4k);
-	if (ret)
-		return ret;
-
-	/* Just set the filter to FID 1 for now then */
-	ret = rtl8366_set_vlan(smi, port + 1,
-			       vlan4k.member,
-			       vlan4k.untag,
-			       1);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rtl8366_vlan_filtering);
-
 int rtl8366_vlan_add(struct dsa_switch *ds, int port,
 		     const struct switchdev_obj_port_vlan *vlan,
 		     struct netlink_ext_ack *extack)
