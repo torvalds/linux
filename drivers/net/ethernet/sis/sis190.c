@@ -1070,7 +1070,7 @@ static int sis190_open(struct net_device *dev)
 
 	/*
 	 * Rx and Tx descriptors need 256 bytes alignment.
-	 * pci_alloc_consistent() guarantees a stronger alignment.
+	 * dma_alloc_coherent() guarantees a stronger alignment.
 	 */
 	tp->TxDescRing = dma_alloc_coherent(&pdev->dev, TX_RING_BYTES,
 					    &tp->tx_dma, GFP_KERNEL);
