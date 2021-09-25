@@ -593,8 +593,8 @@ static void pxa168fb_init_mode(struct fb_info *info,
 static int pxa168fb_probe(struct platform_device *pdev)
 {
 	struct pxa168fb_mach_info *mi;
-	struct fb_info *info = 0;
-	struct pxa168fb_info *fbi = 0;
+	struct fb_info *info = NULL;
+	struct pxa168fb_info *fbi = NULL;
 	struct resource *res;
 	struct clk *clk;
 	int irq, ret;
