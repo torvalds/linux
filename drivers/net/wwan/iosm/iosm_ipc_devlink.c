@@ -305,7 +305,6 @@ struct iosm_devlink *ipc_devlink_init(struct iosm_imem *ipc_imem)
 	ipc_devlink->devlink_ctx = devlink_ctx;
 	ipc_devlink->pcie = ipc_imem->pcie;
 	ipc_devlink->dev = ipc_imem->dev;
-	devlink_register(devlink_ctx);
 
 	rc = devlink_params_register(devlink_ctx, iosm_devlink_params,
 				     ARRAY_SIZE(iosm_devlink_params));
@@ -315,7 +314,6 @@ struct iosm_devlink *ipc_devlink_init(struct iosm_imem *ipc_imem)
 		goto param_reg_fail;
 	}
 
-	devlink_params_publish(devlink_ctx);
 	ipc_devlink->cd_file_info = list;
 
 	rc = ipc_devlink_create_region(ipc_devlink);
@@ -334,6 +332,7 @@ struct iosm_devlink *ipc_devlink_init(struct iosm_imem *ipc_imem)
 	init_completion(&ipc_devlink->devlink_sio.read_sem);
 	skb_queue_head_init(&ipc_devlink->devlink_sio.rx_list);
 
+	devlink_register(devlink_ctx);
 	dev_dbg(ipc_devlink->dev, "iosm devlink register success");
 
 	return ipc_devlink;
@@ -341,7 +340,6 @@ struct iosm_devlink *ipc_devlink_init(struct iosm_imem *ipc_imem)
 chnl_get_fail:
 	ipc_devlink_destroy_region(ipc_devlink);
 region_create_fail:
-	devlink_params_unpublish(devlink_ctx);
 	devlink_params_unregister(devlink_ctx, iosm_devlink_params,
 				  ARRAY_SIZE(iosm_devlink_params));
 param_reg_fail:
@@ -358,8 +356,8 @@ void ipc_devlink_deinit(struct iosm_devlink *ipc_devlink)
 {
 	struct devlink *devlink_ctx = ipc_devlink->devlink_ctx;
 
+	devlink_unregister(devlink_ctx);
 	ipc_devlink_destroy_region(ipc_devlink);
-	devlink_params_unpublish(devlink_ctx);
 	devlink_params_unregister(devlink_ctx, iosm_devlink_params,
 				  ARRAY_SIZE(iosm_devlink_params));
 	if (ipc_devlink->devlink_sio.devlink_read_pend) {
@@ -370,6 +368,5 @@ void ipc_devlink_deinit(struct iosm_devlink *ipc_devlink)
 		skb_queue_purge(&ipc_devlink->devlink_sio.rx_list);
 
 	ipc_imem_sys_devlink_close(ipc_devlink);
-	devlink_unregister(devlink_ctx);
 	devlink_free(devlink_ctx);
 }
