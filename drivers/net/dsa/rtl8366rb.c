@@ -985,7 +985,7 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 			return ret;
 	}
 
-	ret = rtl8366_init_vlan(smi);
+	ret = rtl8366_reset_vlan(smi);
 	if (ret)
 		return ret;
 
@@ -998,8 +998,6 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 		dev_info(smi->dev, "could not set up MDIO bus\n");
 		return -ENODEV;
 	}
-
-	ds->configure_vlan_while_not_filtering = false;
 
 	return 0;
 }
