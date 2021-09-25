@@ -12,11 +12,13 @@ extern char *strrchr(const char *, int c);
 #define __HAVE_ARCH_STRCHR
 extern char *strchr(const char *, int c);
 
+#ifndef CONFIG_KASAN_HW_TAGS
 #define __HAVE_ARCH_STRCMP
 extern int strcmp(const char *, const char *);
 
 #define __HAVE_ARCH_STRNCMP
 extern int strncmp(const char *, const char *, __kernel_size_t);
+#endif
 
 #define __HAVE_ARCH_STRLEN
 extern __kernel_size_t strlen(const char *);
