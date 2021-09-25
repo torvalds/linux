@@ -894,7 +894,7 @@ lpfc_scsi_prep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 	bpl += 2;
 	if (scsi_sg_count(scsi_cmnd)) {
 		/*
-		 * The driver stores the segment count returned from pci_map_sg
+		 * The driver stores the segment count returned from dma_map_sg
 		 * because this a count of dma-mappings used to map the use_sg
 		 * pages.  They are not guaranteed to be the same for those
 		 * architectures that implement an IOMMU.
@@ -2590,7 +2590,7 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 	bpl += 2;
 	if (scsi_sg_count(scsi_cmnd)) {
 		/*
-		 * The driver stores the segment count returned from pci_map_sg
+		 * The driver stores the segment count returned from dma_map_sg
 		 * because this a count of dma-mappings used to map the use_sg
 		 * pages.  They are not guaranteed to be the same for those
 		 * architectures that implement an IOMMU.
@@ -3250,7 +3250,7 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 	 */
 	if (scsi_sg_count(scsi_cmnd)) {
 		/*
-		 * The driver stores the segment count returned from pci_map_sg
+		 * The driver stores the segment count returned from dma_map_sg
 		 * because this a count of dma-mappings used to map the use_sg
 		 * pages.  They are not guaranteed to be the same for those
 		 * architectures that implement an IOMMU.
@@ -3489,7 +3489,7 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 	 */
 	if (scsi_sg_count(scsi_cmnd)) {
 		/*
-		 * The driver stores the segment count returned from pci_map_sg
+		 * The driver stores the segment count returned from dma_map_sg
 		 * because this a count of dma-mappings used to map the use_sg
 		 * pages.  They are not guaranteed to be the same for those
 		 * architectures that implement an IOMMU.
