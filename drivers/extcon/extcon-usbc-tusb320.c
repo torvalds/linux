@@ -19,15 +19,32 @@
 #define TUSB320_REG9_ATTACHED_STATE_MASK	0x3
 #define TUSB320_REG9_CABLE_DIRECTION		BIT(5)
 #define TUSB320_REG9_INTERRUPT_STATUS		BIT(4)
-#define TUSB320_ATTACHED_STATE_NONE		0x0
-#define TUSB320_ATTACHED_STATE_DFP		0x1
-#define TUSB320_ATTACHED_STATE_UFP		0x2
-#define TUSB320_ATTACHED_STATE_ACC		0x3
+
+#define TUSB320_REGA				0xa
+#define TUSB320_REGA_I2C_SOFT_RESET		BIT(3)
+#define TUSB320_REGA_MODE_SELECT_SHIFT		4
+#define TUSB320_REGA_MODE_SELECT_MASK		0x3
+
+enum tusb320_attached_state {
+	TUSB320_ATTACHED_STATE_NONE,
+	TUSB320_ATTACHED_STATE_DFP,
+	TUSB320_ATTACHED_STATE_UFP,
+	TUSB320_ATTACHED_STATE_ACC,
+};
+
+enum tusb320_mode {
+	TUSB320_MODE_PORT,
+	TUSB320_MODE_UFP,
+	TUSB320_MODE_DFP,
+	TUSB320_MODE_DRP,
+};
 
 struct tusb320_priv {
 	struct device *dev;
 	struct regmap *regmap;
 	struct extcon_dev *edev;
+
+	enum tusb320_attached_state state;
 };
 
 static const char * const tusb_attached_states[] = {
@@ -58,6 +75,53 @@ static int tusb320_check_signature(struct tusb320_priv *priv)
 			return -ENODEV;
 		}
 	}
+
+	return 0;
+}
+
+static int tusb320_set_mode(struct tusb320_priv *priv, enum tusb320_mode mode)
+{
+	int ret;
+
+	/* Mode cannot be changed while cable is attached */
+	if (priv->state != TUSB320_ATTACHED_STATE_NONE)
+		return -EBUSY;
+
+	/* Write mode */
+	ret = regmap_write_bits(priv->regmap, TUSB320_REGA,
+		TUSB320_REGA_MODE_SELECT_MASK << TUSB320_REGA_MODE_SELECT_SHIFT,
+		mode << TUSB320_REGA_MODE_SELECT_SHIFT);
+	if (ret) {
+		dev_err(priv->dev, "failed to write mode: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int tusb320_reset(struct tusb320_priv *priv)
+{
+	int ret;
+
+	/* Set mode to default (follow PORT pin) */
+	ret = tusb320_set_mode(priv, TUSB320_MODE_PORT);
+	if (ret && ret != -EBUSY) {
+		dev_err(priv->dev,
+			"failed to set mode to PORT: %d\n", ret);
+		return ret;
+	}
+
+	/* Perform soft reset */
+	ret = regmap_write_bits(priv->regmap, TUSB320_REGA,
+			TUSB320_REGA_I2C_SOFT_RESET, 1);
+	if (ret) {
+		dev_err(priv->dev,
+			"failed to write soft reset bit: %d\n", ret);
+		return ret;
+	}
+
+	/* Wait for chip to go through reset */
+	msleep(95);
 
 	return 0;
 }
@@ -95,6 +159,8 @@ static irqreturn_t tusb320_irq_handler(int irq, void *dev_id)
 			    (union extcon_property_value)polarity);
 	extcon_sync(priv->edev, EXTCON_USB);
 	extcon_sync(priv->edev, EXTCON_USB_HOST);
+
+	priv->state = state;
 
 	regmap_write(priv->regmap, TUSB320_REG9, reg);
 
@@ -144,6 +210,17 @@ static int tusb320_extcon_probe(struct i2c_client *client,
 
 	/* update initial state */
 	tusb320_irq_handler(client->irq, priv);
+
+	/* Reset chip to its default state */
+	ret = tusb320_reset(priv);
+	if (ret)
+		dev_warn(priv->dev, "failed to reset chip: %d\n", ret);
+	else
+		/*
+		 * State and polarity might change after a reset, so update
+		 * them again and make sure the interrupt status bit is cleared.
+		 */
+		tusb320_irq_handler(client->irq, priv);
 
 	ret = devm_request_threaded_irq(priv->dev, client->irq, NULL,
 					tusb320_irq_handler,
