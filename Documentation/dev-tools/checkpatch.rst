@@ -956,6 +956,13 @@ Functions and Variables
 
       return bar;
 
+  **UNNECESSARY_INT**
+    int used after short, long and long long is unnecessary. So remove it.
+
+  **UNSPECIFIED_INT**
+    Kernel style prefers "unsigned int <foo>" over "unsigned <foo>" and
+    "signed int <foo>" over "signed <foo>".
+
 
 Permissions
 -----------
@@ -1204,3 +1211,43 @@ Others
 
   **TYPO_SPELLING**
     Some words may have been misspelled.  Consider reviewing them.
+
+  **UNNECESSARY_ELSE**
+    Using an else statement just after a return or a break statement is
+    unnecassary. For example::
+
+      for (i = 0; i < 100; i++) {
+              int foo = bar();
+              if (foo < 1)
+                      break;
+              else
+                      usleep(1);
+      }
+
+    is generally better written as::
+
+      for (i = 0; i < 100; i++) {
+              int foo = bar();
+              if (foo < 1)
+                      break;
+              usleep(1);
+      }
+
+    So remove the else statement. But suppose if a if-else statement each
+    with a single return statement, like::
+
+      if (foo)
+              return bar;
+      else
+              return baz;
+
+    then by removing the else statement::
+
+      if (foo)
+              return bar;
+      return baz;
+
+    their is no significant increase in the readability and one can argue
+    that the first form is more readable because of indentation, so for
+    such cases do not convert the existing code from first form to second
+    form or vice-versa.
