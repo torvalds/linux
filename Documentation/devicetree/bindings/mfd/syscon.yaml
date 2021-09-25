@@ -50,6 +50,7 @@ properties:
               - rockchip,rk3066-qos
               - rockchip,rk3228-qos
               - rockchip,rk3288-qos
+              - rockchip,rk3368-qos
               - rockchip,rk3399-qos
               - rockchip,rk3568-qos
               - samsung,exynos3-sysreg
