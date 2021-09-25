@@ -1200,7 +1200,7 @@ static int b44_alloc_consistent(struct b44 *bp, gfp_t gfp)
 	bp->rx_ring = dma_alloc_coherent(bp->sdev->dma_dev, size,
 					 &bp->rx_ring_dma, gfp);
 	if (!bp->rx_ring) {
-		/* Allocation may have failed due to pci_alloc_consistent
+		/* Allocation may have failed due to dma_alloc_coherent
 		   insisting on use of GFP_DMA, which is more restrictive
 		   than necessary...  */
 		struct dma_desc *rx_ring;
