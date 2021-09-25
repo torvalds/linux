@@ -848,7 +848,6 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	dl_priv = devlink_priv(ds->devlink);
 	dl_priv->ds = ds;
 
-	devlink_register(ds->devlink);
 	/* Setup devlink port instances now, so that the switch
 	 * setup() can register regions etc, against the ports
 	 */
@@ -874,8 +873,6 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	if (err)
 		goto teardown;
 
-	devlink_params_publish(ds->devlink);
-
 	if (!ds->slave_mii_bus && ds->ops->phy_read) {
 		ds->slave_mii_bus = mdiobus_alloc();
 		if (!ds->slave_mii_bus) {
@@ -891,7 +888,7 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	}
 
 	ds->setup = true;
-
+	devlink_register(ds->devlink);
 	return 0;
 
 free_slave_mii_bus:
@@ -906,7 +903,6 @@ unregister_devlink_ports:
 	list_for_each_entry(dp, &ds->dst->ports, list)
 		if (dp->ds == ds)
 			dsa_port_devlink_teardown(dp);
-	devlink_unregister(ds->devlink);
 	devlink_free(ds->devlink);
 	ds->devlink = NULL;
 	return err;
@@ -918,6 +914,9 @@ static void dsa_switch_teardown(struct dsa_switch *ds)
 
 	if (!ds->setup)
 		return;
+
+	if (ds->devlink)
+		devlink_unregister(ds->devlink);
 
 	if (ds->slave_mii_bus && ds->ops->phy_read) {
 		mdiobus_unregister(ds->slave_mii_bus);
@@ -934,7 +933,6 @@ static void dsa_switch_teardown(struct dsa_switch *ds)
 		list_for_each_entry(dp, &ds->dst->ports, list)
 			if (dp->ds == ds)
 				dsa_port_devlink_teardown(dp);
-		devlink_unregister(ds->devlink);
 		devlink_free(ds->devlink);
 		ds->devlink = NULL;
 	}
