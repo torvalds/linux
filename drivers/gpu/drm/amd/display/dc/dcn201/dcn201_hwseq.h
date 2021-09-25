@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,41 +23,24 @@
  *
  */
 
-#ifndef __DAL_TYPES_H__
-#define __DAL_TYPES_H__
+#ifndef __DC_HWSS_DCN201_H__
+#define __DC_HWSS_DCN201_H__
 
-#include "signal_types.h"
-#include "dc_types.h"
+#include "hw_sequencer_private.h"
 
-struct dal_logger;
-struct dc_bios;
-
-enum dce_version {
-	DCE_VERSION_UNKNOWN = (-1),
-	DCE_VERSION_6_0,
-	DCE_VERSION_6_1,
-	DCE_VERSION_6_4,
-	DCE_VERSION_8_0,
-	DCE_VERSION_8_1,
-	DCE_VERSION_8_3,
-	DCE_VERSION_10_0,
-	DCE_VERSION_11_0,
-	DCE_VERSION_11_2,
-	DCE_VERSION_11_22,
-	DCE_VERSION_12_0,
-	DCE_VERSION_12_1,
-	DCE_VERSION_MAX,
-	DCN_VERSION_1_0,
-	DCN_VERSION_1_01,
-	DCN_VERSION_2_0,
-	DCN_VERSION_2_01,
-	DCN_VERSION_2_1,
-	DCN_VERSION_3_0,
-	DCN_VERSION_3_01,
-	DCN_VERSION_3_02,
-	DCN_VERSION_3_03,
-	DCN_VERSION_3_1,
-	DCN_VERSION_MAX
-};
-
-#endif /* __DAL_TYPES_H__ */
+void dcn201_set_dmdata_attributes(struct pipe_ctx *pipe_ctx);
+void dcn201_init_hw(struct dc *dc);
+void dcn201_unblank_stream(struct pipe_ctx *pipe_ctx,
+		struct dc_link_settings *link_settings);
+void dcn201_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_ctx);
+void dcn201_plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx);
+void dcn201_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx);
+void dcn201_set_cursor_attribute(struct pipe_ctx *pipe_ctx);
+void dcn201_pipe_control_lock(
+	struct dc *dc,
+	struct pipe_ctx *pipe,
+	bool lock);
+void dcn201_init_blank(
+		struct dc *dc,
+		struct timing_generator *tg);
+#endif /* __DC_HWSS_DCN201_H__ */

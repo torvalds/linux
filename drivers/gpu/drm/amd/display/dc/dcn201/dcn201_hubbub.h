@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2018 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,42 +22,24 @@
  * Authors: AMD
  *
  */
+#ifndef DAL_DC_DCN201_DCN201_HUBBUB_H_
+#define DAL_DC_DCN201_DCN201_HUBBUB_H_
 
-#ifndef __DAL_TYPES_H__
-#define __DAL_TYPES_H__
+#include "dcn20/dcn20_hubbub.h"
 
-#include "signal_types.h"
-#include "dc_types.h"
+#define HUBBUB_REG_LIST_DCN201(id)\
+	HUBBUB_REG_LIST_DCN_COMMON(), \
+	HUBBUB_VM_REG_LIST(), \
+	SR(DCHUBBUB_CRC_CTRL)
 
-struct dal_logger;
-struct dc_bios;
+#define HUBBUB_MASK_SH_LIST_DCN201(mask_sh)\
+	HUBBUB_MASK_SH_LIST_DCN_COMMON(mask_sh), \
+	HUBBUB_SF(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_REFDIV, mask_sh)
 
-enum dce_version {
-	DCE_VERSION_UNKNOWN = (-1),
-	DCE_VERSION_6_0,
-	DCE_VERSION_6_1,
-	DCE_VERSION_6_4,
-	DCE_VERSION_8_0,
-	DCE_VERSION_8_1,
-	DCE_VERSION_8_3,
-	DCE_VERSION_10_0,
-	DCE_VERSION_11_0,
-	DCE_VERSION_11_2,
-	DCE_VERSION_11_22,
-	DCE_VERSION_12_0,
-	DCE_VERSION_12_1,
-	DCE_VERSION_MAX,
-	DCN_VERSION_1_0,
-	DCN_VERSION_1_01,
-	DCN_VERSION_2_0,
-	DCN_VERSION_2_01,
-	DCN_VERSION_2_1,
-	DCN_VERSION_3_0,
-	DCN_VERSION_3_01,
-	DCN_VERSION_3_02,
-	DCN_VERSION_3_03,
-	DCN_VERSION_3_1,
-	DCN_VERSION_MAX
-};
+void hubbub201_construct(struct dcn20_hubbub *hubbub,
+	struct dc_context *ctx,
+	const struct dcn_hubbub_registers *hubbub_regs,
+	const struct dcn_hubbub_shift *hubbub_shift,
+	const struct dcn_hubbub_mask *hubbub_mask);
 
-#endif /* __DAL_TYPES_H__ */
+#endif /* DAL_DC_DCN201_DCN201_HUBBUB_H_ */

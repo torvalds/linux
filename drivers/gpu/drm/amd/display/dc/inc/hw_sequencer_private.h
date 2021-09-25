@@ -154,6 +154,10 @@ struct dce_hwseq {
 	struct hwseq_wa_state wa_state;
 	struct hwseq_private_funcs funcs;
 
+	PHYSICAL_ADDRESS_LOC fb_base;
+	PHYSICAL_ADDRESS_LOC fb_top;
+	PHYSICAL_ADDRESS_LOC fb_offset;
+	PHYSICAL_ADDRESS_LOC uma_top;
 };
 
 #endif /* __DC_HW_SEQUENCER_PRIVATE_H__ */

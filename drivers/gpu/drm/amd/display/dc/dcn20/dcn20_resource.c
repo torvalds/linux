@@ -3167,6 +3167,9 @@ void dcn20_calculate_dlg_params(
 		if (!context->res_ctx.pipe_ctx[i].stream)
 			continue;
 
+		if (dc->ctx->dce_version == DCN_VERSION_2_01)
+			cstate_en = false;
+
 		context->bw_ctx.dml.funcs.rq_dlg_get_dlg_reg(&context->bw_ctx.dml,
 				&context->res_ctx.pipe_ctx[i].dlg_regs,
 				&context->res_ctx.pipe_ctx[i].ttu_regs,

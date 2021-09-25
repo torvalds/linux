@@ -93,6 +93,18 @@ IRQ_DCN21 = irq_service_dcn21.o
 AMD_DAL_IRQ_DCN21= $(addprefix $(AMDDALPATH)/dc/irq/dcn21/,$(IRQ_DCN21))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_IRQ_DCN21)
+
+ifdef CONFIG_DRM_AMD_DC_DCN201
+###############################################################################
+# DCN 201
+###############################################################################
+IRQ_DCN201 = irq_service_dcn201.o
+
+AMD_DAL_IRQ_DCN201 = $(addprefix $(AMDDALPATH)/dc/irq/dcn201/,$(IRQ_DCN201))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_IRQ_DCN201)
+endif
+
 ###############################################################################
 # DCN 30
 ###############################################################################

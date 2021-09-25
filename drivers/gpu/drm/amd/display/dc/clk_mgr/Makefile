@@ -93,6 +93,17 @@ AMD_DAL_CLK_MGR_DCN20 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn20/,$(CLK_MGR_DC
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN20)
 
+ifdef CONFIG_DRM_AMD_DC_DCN201
+###############################################################################
+# DCN201
+###############################################################################
+CLK_MGR_DCN201 = dcn201_clk_mgr.o
+
+AMD_DAL_CLK_MGR_DCN201 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn201/,$(CLK_MGR_DCN201))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN201)
+endif
+
 ###############################################################################
 # DCN21
 ###############################################################################
