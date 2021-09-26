@@ -843,6 +843,8 @@ static bool sysrq_handle_keypress(struct sysrq_state *sysrq,
 			sysrq->shift = KEY_RESERVED;
 		else if (value != 2)
 			sysrq->shift = code;
+		if (sysrq->active)
+			sysrq->shift_use = sysrq->shift;
 		break;
 
 	case KEY_SYSRQ:
