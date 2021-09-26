@@ -780,6 +780,7 @@ static void nf_tables_table_notify(const struct nft_ctx *ctx, int event)
 {
 	struct nftables_pernet *nft_net;
 	struct sk_buff *skb;
+	u16 flags = 0;
 	int err;
 
 	if (!ctx->report &&
@@ -790,8 +791,11 @@ static void nf_tables_table_notify(const struct nft_ctx *ctx, int event)
 	if (skb == NULL)
 		goto err;
 
+	if (ctx->flags & (NLM_F_CREATE | NLM_F_EXCL))
+		flags |= ctx->flags & (NLM_F_CREATE | NLM_F_EXCL);
+
 	err = nf_tables_fill_table_info(skb, ctx->net, ctx->portid, ctx->seq,
-					event, 0, ctx->family, ctx->table);
+					event, flags, ctx->family, ctx->table);
 	if (err < 0) {
 		kfree_skb(skb);
 		goto err;
@@ -1563,6 +1567,7 @@ static void nf_tables_chain_notify(const struct nft_ctx *ctx, int event)
 {
 	struct nftables_pernet *nft_net;
 	struct sk_buff *skb;
+	u16 flags = 0;
 	int err;
 
 	if (!ctx->report &&
@@ -1573,8 +1578,11 @@ static void nf_tables_chain_notify(const struct nft_ctx *ctx, int event)
 	if (skb == NULL)
 		goto err;
 
+	if (ctx->flags & (NLM_F_CREATE | NLM_F_EXCL))
+		flags |= ctx->flags & (NLM_F_CREATE | NLM_F_EXCL);
+
 	err = nf_tables_fill_chain_info(skb, ctx->net, ctx->portid, ctx->seq,
-					event, 0, ctx->family, ctx->table,
+					event, flags, ctx->family, ctx->table,
 					ctx->chain);
 	if (err < 0) {
 		kfree_skb(skb);
@@ -2945,6 +2953,8 @@ static void nf_tables_rule_notify(const struct nft_ctx *ctx,
 	}
 	if (ctx->flags & (NLM_F_APPEND | NLM_F_REPLACE))
 		flags |= NLM_F_APPEND;
+	if (ctx->flags & (NLM_F_CREATE | NLM_F_EXCL))
+		flags |= ctx->flags & (NLM_F_CREATE | NLM_F_EXCL);
 
 	err = nf_tables_fill_rule_info(skb, ctx->net, ctx->portid, ctx->seq,
 				       event, flags, ctx->family, ctx->table,
@@ -3957,8 +3967,9 @@ static void nf_tables_set_notify(const struct nft_ctx *ctx,
 			         gfp_t gfp_flags)
 {
 	struct nftables_pernet *nft_net = nft_pernet(ctx->net);
-	struct sk_buff *skb;
 	u32 portid = ctx->portid;
+	struct sk_buff *skb;
+	u16 flags = 0;
 	int err;
 
 	if (!ctx->report &&
@@ -3969,7 +3980,10 @@ static void nf_tables_set_notify(const struct nft_ctx *ctx,
 	if (skb == NULL)
 		goto err;
 
-	err = nf_tables_fill_set(skb, ctx, set, event, 0);
+	if (ctx->flags & (NLM_F_CREATE | NLM_F_EXCL))
+		flags |= ctx->flags & (NLM_F_CREATE | NLM_F_EXCL);
+
+	err = nf_tables_fill_set(skb, ctx, set, event, flags);
 	if (err < 0) {
 		kfree_skb(skb);
 		goto err;
@@ -5245,12 +5259,13 @@ static int nf_tables_getsetelem(struct sk_buff *skb,
 static void nf_tables_setelem_notify(const struct nft_ctx *ctx,
 				     const struct nft_set *set,
 				     const struct nft_set_elem *elem,
-				     int event, u16 flags)
+				     int event)
 {
 	struct nftables_pernet *nft_net;
 	struct net *net = ctx->net;
 	u32 portid = ctx->portid;
 	struct sk_buff *skb;
+	u16 flags = 0;
 	int err;
 
 	if (!ctx->report && !nfnetlink_has_listeners(net, NFNLGRP_NFTABLES))
@@ -5259,6 +5274,9 @@ static void nf_tables_setelem_notify(const struct nft_ctx *ctx,
 	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (skb == NULL)
 		goto err;
+
+	if (ctx->flags & (NLM_F_CREATE | NLM_F_EXCL))
+		flags |= ctx->flags & (NLM_F_CREATE | NLM_F_EXCL);
 
 	err = nf_tables_fill_setelem_info(skb, ctx, 0, portid, event, flags,
 					  set, elem);
@@ -6935,7 +6953,7 @@ static int nf_tables_delobj(struct sk_buff *skb, const struct nfnl_info *info,
 
 void nft_obj_notify(struct net *net, const struct nft_table *table,
 		    struct nft_object *obj, u32 portid, u32 seq, int event,
-		    int family, int report, gfp_t gfp)
+		    u16 flags, int family, int report, gfp_t gfp)
 {
 	struct nftables_pernet *nft_net = nft_pernet(net);
 	struct sk_buff *skb;
@@ -6960,8 +6978,9 @@ void nft_obj_notify(struct net *net, const struct nft_table *table,
 	if (skb == NULL)
 		goto err;
 
-	err = nf_tables_fill_obj_info(skb, net, portid, seq, event, 0, family,
-				      table, obj, false);
+	err = nf_tables_fill_obj_info(skb, net, portid, seq, event,
+				      flags & (NLM_F_CREATE | NLM_F_EXCL),
+				      family, table, obj, false);
 	if (err < 0) {
 		kfree_skb(skb);
 		goto err;
@@ -6978,7 +6997,7 @@ static void nf_tables_obj_notify(const struct nft_ctx *ctx,
 				 struct nft_object *obj, int event)
 {
 	nft_obj_notify(ctx->net, ctx->table, obj, ctx->portid, ctx->seq, event,
-		       ctx->family, ctx->report, GFP_KERNEL);
+		       ctx->flags, ctx->family, ctx->report, GFP_KERNEL);
 }
 
 /*
@@ -7759,6 +7778,7 @@ static void nf_tables_flowtable_notify(struct nft_ctx *ctx,
 {
 	struct nftables_pernet *nft_net = nft_pernet(ctx->net);
 	struct sk_buff *skb;
+	u16 flags = 0;
 	int err;
 
 	if (!ctx->report &&
@@ -7769,8 +7789,11 @@ static void nf_tables_flowtable_notify(struct nft_ctx *ctx,
 	if (skb == NULL)
 		goto err;
 
+	if (ctx->flags & (NLM_F_CREATE | NLM_F_EXCL))
+		flags |= ctx->flags & (NLM_F_CREATE | NLM_F_EXCL);
+
 	err = nf_tables_fill_flowtable_info(skb, ctx->net, ctx->portid,
-					    ctx->seq, event, 0,
+					    ctx->seq, event, flags,
 					    ctx->family, flowtable, hook_list);
 	if (err < 0) {
 		kfree_skb(skb);
@@ -8648,7 +8671,7 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 			nft_setelem_activate(net, te->set, &te->elem);
 			nf_tables_setelem_notify(&trans->ctx, te->set,
 						 &te->elem,
-						 NFT_MSG_NEWSETELEM, 0);
+						 NFT_MSG_NEWSETELEM);
 			nft_trans_destroy(trans);
 			break;
 		case NFT_MSG_DELSETELEM:
@@ -8656,7 +8679,7 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 
 			nf_tables_setelem_notify(&trans->ctx, te->set,
 						 &te->elem,
-						 NFT_MSG_DELSETELEM, 0);
+						 NFT_MSG_DELSETELEM);
 			nft_setelem_remove(net, te->set, &te->elem);
 			if (!nft_setelem_is_catchall(te->set, &te->elem)) {
 				atomic_dec(&te->set->nelems);
