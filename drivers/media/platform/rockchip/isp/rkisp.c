@@ -347,23 +347,32 @@ int rkisp_update_sensor_info(struct rkisp_device *dev)
 	if (ret && ret != -ENOIOCTLCMD)
 		return ret;
 
+	sensor->fmt[0].pad = 0;
+	sensor->fmt[0].which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	ret = v4l2_subdev_call(sensor->sd, pad, get_fmt,
+			       &sensor->cfg, &sensor->fmt[0]);
+	if (ret && ret != -ENOIOCTLCMD)
+		return ret;
+
 	if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
 		u8 vc = 0;
 
 		memset(dev->csi_dev.mipi_di, 0,
 		       sizeof(dev->csi_dev.mipi_di));
-		memset(sensor->fmt, 0, sizeof(sensor->fmt));
 		for (i = 0; i < dev->csi_dev.max_pad - 1; i++) {
+			struct rkmodule_channel_info ch = { 0 };
+
 			fmt = &sensor->fmt[i];
-			fmt->pad = i;
-			fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
-			ret = v4l2_subdev_call(sensor->sd, pad, get_fmt,
-					       &sensor->cfg, fmt);
-			if (ret && ret != -ENOIOCTLCMD) {
+			ch.index = i;
+			ret = v4l2_subdev_call(sensor->sd, core, ioctl,
+					       RKMODULE_GET_CHANNEL_INFO, &ch);
+			if (ret) {
 				if (i)
 					*fmt = sensor->fmt[0];
-				else
-					return ret;
+			} else {
+				fmt->format.width = ch.width;
+				fmt->format.height = ch.height;
+				fmt->format.code = ch.bus_fmt;
 			}
 			ret = mbus_pixelcode_to_mipi_dt(fmt->format.code);
 			if (ret < 0) {
@@ -371,10 +380,8 @@ int rkisp_update_sensor_info(struct rkisp_device *dev)
 					 "Invalid mipi data type\n");
 				return ret;
 			}
-			/* v4l2_subdev_format reserved[0]
-			 * using as mipi virtual channel
-			 */
-			switch (fmt->reserved[0]) {
+
+			switch (ch.vc) {
 			case V4L2_MBUS_CSI2_CHANNEL_3:
 				vc = 3;
 				break;
@@ -396,13 +403,6 @@ int rkisp_update_sensor_info(struct rkisp_device *dev)
 				  fmt->format.width,
 				  fmt->format.height);
 		}
-	} else {
-		sensor->fmt[0].pad = 0;
-		sensor->fmt[0].which = V4L2_SUBDEV_FORMAT_ACTIVE;
-		ret = v4l2_subdev_call(sensor->sd, pad, get_fmt,
-				       &sensor->cfg, &sensor->fmt[0]);
-		if (ret && ret != -ENOIOCTLCMD)
-			return ret;
 	}
 
 	v4l2_subdev_call(sensor->sd, video, g_frame_interval, &sensor->fi);
