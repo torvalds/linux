@@ -17,6 +17,8 @@
 / {
 	aliases {
 		spi0 = &mcu_spi0;
+		mmc0 = &sdhci1;
+		mmc1 = &sdhci0;
 	};
 
 	chosen {
