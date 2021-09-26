@@ -74,6 +74,7 @@ struct dell_smm_data {
 	int temp_type[DELL_SMM_NO_TEMP];
 	bool fan[DELL_SMM_NO_FANS];
 	int fan_type[DELL_SMM_NO_FANS];
+	int *fan_nominal_speed[DELL_SMM_NO_FANS];
 };
 
 MODULE_AUTHOR("Massimo Dal Zotto (dz@debian.org)");
@@ -672,6 +673,13 @@ static umode_t dell_smm_is_visible(const void *drvdata, enum hwmon_sensor_types 
 				return 0444;
 
 			break;
+		case hwmon_fan_min:
+		case hwmon_fan_max:
+		case hwmon_fan_target:
+			if (data->fan_nominal_speed[channel])
+				return 0444;
+
+			break;
 		default:
 			break;
 		}
@@ -737,6 +745,25 @@ static int dell_smm_read(struct device *dev, enum hwmon_sensor_types type, u32 a
 				return ret;
 
 			*val = ret;
+
+			return 0;
+		case hwmon_fan_min:
+			*val = data->fan_nominal_speed[channel][0];
+
+			return 0;
+		case hwmon_fan_max:
+			*val = data->fan_nominal_speed[channel][data->i8k_fan_max];
+
+			return 0;
+		case hwmon_fan_target:
+			ret = i8k_get_fan_status(data, channel);
+			if (ret < 0)
+				return ret;
+
+			if (ret > data->i8k_fan_max)
+				ret = data->i8k_fan_max;
+
+			*val = data->fan_nominal_speed[channel][ret];
 
 			return 0;
 		default:
@@ -887,9 +914,12 @@ static const struct hwmon_channel_info *dell_smm_info[] = {
 			   HWMON_T_INPUT | HWMON_T_LABEL
 			   ),
 	HWMON_CHANNEL_INFO(fan,
-			   HWMON_F_INPUT | HWMON_F_LABEL,
-			   HWMON_F_INPUT | HWMON_F_LABEL,
-			   HWMON_F_INPUT | HWMON_F_LABEL
+			   HWMON_F_INPUT | HWMON_F_LABEL | HWMON_F_MIN | HWMON_F_MAX |
+			   HWMON_F_TARGET,
+			   HWMON_F_INPUT | HWMON_F_LABEL | HWMON_F_MIN | HWMON_F_MAX |
+			   HWMON_F_TARGET,
+			   HWMON_F_INPUT | HWMON_F_LABEL | HWMON_F_MIN | HWMON_F_MAX |
+			   HWMON_F_TARGET
 			   ),
 	HWMON_CHANNEL_INFO(pwm,
 			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
@@ -908,7 +938,7 @@ static int __init dell_smm_init_hwmon(struct device *dev)
 {
 	struct dell_smm_data *data = dev_get_drvdata(dev);
 	struct device *dell_smm_hwmon_dev;
-	int i, err;
+	int i, state, err;
 
 	for (i = 0; i < DELL_SMM_NO_TEMP; i++) {
 		data->temp_type[i] = i8k_get_temp_type(i);
@@ -924,8 +954,27 @@ static int __init dell_smm_init_hwmon(struct device *dev)
 		err = i8k_get_fan_status(data, i);
 		if (err < 0)
 			err = i8k_get_fan_type(data, i);
-		if (err >= 0)
-			data->fan[i] = true;
+
+		if (err < 0)
+			continue;
+
+		data->fan[i] = true;
+		data->fan_nominal_speed[i] = devm_kmalloc_array(dev, data->i8k_fan_max + 1,
+								sizeof(*data->fan_nominal_speed[i]),
+								GFP_KERNEL);
+		if (!data->fan_nominal_speed[i])
+			continue;
+
+		for (state = 0; state <= data->i8k_fan_max; state++) {
+			err = i8k_get_fan_nominal_speed(data, i, state);
+			if (err < 0) {
+				/* Mark nominal speed table as invalid in case of error */
+				devm_kfree(dev, data->fan_nominal_speed[i]);
+				data->fan_nominal_speed[i] = NULL;
+				break;
+			}
+			data->fan_nominal_speed[i][state] = err;
+		}
 	}
 
 	dell_smm_hwmon_dev = devm_hwmon_device_register_with_info(dev, "dell_smm", data,
