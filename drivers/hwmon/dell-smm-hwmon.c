@@ -26,8 +26,6 @@
 #include <linux/mutex.h>
 #include <linux/hwmon.h>
 #include <linux/uaccess.h>
-#include <linux/io.h>
-#include <linux/sched.h>
 #include <linux/ctype.h>
 #include <linux/smp.h>
 
