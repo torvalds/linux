@@ -7,65 +7,51 @@ menuconfig ROCKCHIP_MPP_SERVICE
 	help
 	  rockchip mpp service framework.
 
+if ROCKCHIP_MPP_SERVICE
+
 config ROCKCHIP_MPP_RKVDEC
-	tristate "RKV decoder device driver"
-	depends on ROCKCHIP_MPP_SERVICE
-	default n
+	bool "RKV decoder device driver"
 	help
 	  rockchip mpp rkv combo decoder and hevc decoder.
 
 config ROCKCHIP_MPP_RKVDEC2
-	tristate "RKV decoder v2 device driver"
-	depends on ROCKCHIP_MPP_SERVICE
-	default n
+	bool "RKV decoder v2 device driver"
 	help
 	  rockchip mpp rkv combo decoder v2.
 
 config ROCKCHIP_MPP_RKVENC
-	tristate "RKV encoder device driver"
-	depends on ROCKCHIP_MPP_SERVICE
-	default n
+	bool "RKV encoder device driver"
 	help
 	  rockchip mpp rkv combo encoder.
 
 config ROCKCHIP_MPP_VDPU1
-	tristate "VPU decoder v1 device driver"
-	depends on ROCKCHIP_MPP_SERVICE
-	default n
+	bool "VPU decoder v1 device driver"
 	help
 	  rockchip mpp vpu decoder v1.
 
 config ROCKCHIP_MPP_VEPU1
-	tristate "VPU encoder v1 device driver"
-	depends on ROCKCHIP_MPP_SERVICE
-	default n
+	bool "VPU encoder v1 device driver"
 	help
 	  rockchip mpp vpu encoder v1.
 
 config ROCKCHIP_MPP_VDPU2
-	tristate "VPU decoder v2 device driver"
-	depends on ROCKCHIP_MPP_SERVICE
-	default n
+	bool "VPU decoder v2 device driver"
 	help
 	  rockchip mpp vpu decoder v2.
 
 config ROCKCHIP_MPP_VEPU2
-	tristate "VPU encoder v2 device driver"
-	depends on ROCKCHIP_MPP_SERVICE
-	default n
+	bool "VPU encoder v2 device driver"
 	help
 	  rockchip mpp vpu encoder v2.
 
 config ROCKCHIP_MPP_IEP2
-	tristate "IEP v2 device driver"
-	depends on ROCKCHIP_MPP_SERVICE
-	default n
+	bool "IEP v2 device driver"
 	help
 	  rockchip iep v2.
 
 config ROCKCHIP_MPP_JPGDEC
-	tristate "RKV jpeg decoder v1 device driver"
-	depends on ROCKCHIP_MPP_SERVICE
-	default n
+	bool "RKV jpeg decoder v1 device driver"
 	help
 	  rockchip mpp rkv jpeg decoder.
+
+endif
