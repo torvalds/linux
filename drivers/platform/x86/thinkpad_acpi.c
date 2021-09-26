@@ -1001,79 +1001,6 @@ static struct platform_driver tpacpi_hwmon_pdriver = {
  * sysfs support helpers
  */
 
-struct attribute_set {
-	unsigned int members, max_members;
-	struct attribute_group group;
-};
-
-struct attribute_set_obj {
-	struct attribute_set s;
-	struct attribute *a;
-} __attribute__((packed));
-
-static struct attribute_set *create_attr_set(unsigned int max_members,
-						const char *name)
-{
-	struct attribute_set_obj *sobj;
-
-	if (max_members == 0)
-		return NULL;
-
-	/* Allocates space for implicit NULL at the end too */
-	sobj = kzalloc(sizeof(struct attribute_set_obj) +
-		    max_members * sizeof(struct attribute *),
-		    GFP_KERNEL);
-	if (!sobj)
-		return NULL;
-	sobj->s.max_members = max_members;
-	sobj->s.group.attrs = &sobj->a;
-	sobj->s.group.name = name;
-
-	return &sobj->s;
-}
-
-#define destroy_attr_set(_set) \
-	kfree(_set)
-
-/* not multi-threaded safe, use it in a single thread per set */
-static int add_to_attr_set(struct attribute_set *s, struct attribute *attr)
-{
-	if (!s || !attr)
-		return -EINVAL;
-
-	if (s->members >= s->max_members)
-		return -ENOMEM;
-
-	s->group.attrs[s->members] = attr;
-	s->members++;
-
-	return 0;
-}
-
-static int add_many_to_attr_set(struct attribute_set *s,
-			struct attribute **attr,
-			unsigned int count)
-{
-	int i, res;
-
-	for (i = 0; i < count; i++) {
-		res = add_to_attr_set(s, attr[i]);
-		if (res)
-			return res;
-	}
-
-	return 0;
-}
-
-static void delete_attr_set(struct attribute_set *s, struct kobject *kobj)
-{
-	sysfs_remove_group(kobj, &s->group);
-	destroy_attr_set(s);
-}
-
-#define register_attr_set_with_sysfs(_attr_set, _kobj) \
-	sysfs_create_group(_kobj, &_attr_set->group)
-
 static int parse_strtoul(const char *buf,
 		unsigned long max, unsigned long *value)
 {
@@ -2041,8 +1968,6 @@ static u32 hotkey_user_mask;		/* events visible to userspace */
 static u32 hotkey_acpi_mask;		/* events enabled in firmware */
 
 static u16 *hotkey_keycode_map;
-
-static struct attribute_set *hotkey_dev_attributes;
 
 static void tpacpi_driver_event(const unsigned int hkey_event);
 static void hotkey_driver_event(const unsigned int scancode);
@@ -3089,7 +3014,7 @@ static const struct attribute_group adaptive_kbd_attr_group = {
 
 /* --------------------------------------------------------------------- */
 
-static struct attribute *hotkey_attributes[] __initdata = {
+static struct attribute *hotkey_attributes[] = {
 	&dev_attr_hotkey_enable.attr,
 	&dev_attr_hotkey_bios_enabled.attr,
 	&dev_attr_hotkey_bios_mask.attr,
@@ -3103,6 +3028,26 @@ static struct attribute *hotkey_attributes[] __initdata = {
 	&dev_attr_hotkey_source_mask.attr,
 	&dev_attr_hotkey_poll_freq.attr,
 #endif
+	NULL
+};
+
+static umode_t hotkey_attr_is_visible(struct kobject *kobj,
+				      struct attribute *attr, int n)
+{
+	if (attr == &dev_attr_hotkey_tablet_mode.attr) {
+		if (!tp_features.hotkey_tablet)
+			return 0;
+	} else if (attr == &dev_attr_hotkey_radio_sw.attr) {
+		if (!tp_features.hotkey_wlsw)
+			return 0;
+	}
+
+	return attr->mode;
+}
+
+static const struct attribute_group hotkey_attr_group = {
+	.is_visible = hotkey_attr_is_visible,
+	.attrs = hotkey_attributes,
 };
 
 /*
@@ -3161,9 +3106,7 @@ static void hotkey_exit(void)
 	hotkey_poll_stop_sync();
 	mutex_unlock(&hotkey_mutex);
 #endif
-
-	if (hotkey_dev_attributes)
-		delete_attr_set(hotkey_dev_attributes, &tpacpi_pdev->dev.kobj);
+	sysfs_remove_group(&tpacpi_pdev->dev.kobj, &hotkey_attr_group);
 
 	dbg_printk(TPACPI_DBG_EXIT | TPACPI_DBG_HKEY,
 		   "restoring original HKEY status and mask\n");
@@ -3248,11 +3191,6 @@ static int hotkey_init_tablet_mode(void)
 
 	pr_info("Tablet mode switch found (type: %s), currently in %s mode\n",
 		type, in_tablet_mode ? "tablet" : "laptop");
-
-	res = add_to_attr_set(hotkey_dev_attributes,
-			      &dev_attr_hotkey_tablet_mode.attr);
-	if (res)
-		return -1;
 
 	return in_tablet_mode;
 }
@@ -3515,19 +3453,6 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 
 	tpacpi_disable_brightness_delay();
 
-	/* MUST have enough space for all attributes to be added to
-	 * hotkey_dev_attributes */
-	hotkey_dev_attributes = create_attr_set(
-					ARRAY_SIZE(hotkey_attributes) + 2,
-					NULL);
-	if (!hotkey_dev_attributes)
-		return -ENOMEM;
-	res = add_many_to_attr_set(hotkey_dev_attributes,
-			hotkey_attributes,
-			ARRAY_SIZE(hotkey_attributes));
-	if (res)
-		goto err_exit;
-
 	/* mask not supported on 600e/x, 770e, 770x, A21e, A2xm/p,
 	   A30, R30, R31, T20-22, X20-21, X22-24.  Detected by checking
 	   for HKEY interface version 0x100 */
@@ -3636,18 +3561,9 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		pr_info("radio switch found; radios are %s\n",
 			enabled(status, 0));
 	}
-	if (tp_features.hotkey_wlsw)
-		res = add_to_attr_set(hotkey_dev_attributes,
-				&dev_attr_hotkey_radio_sw.attr);
 
-	res = hotkey_init_tablet_mode();
-	if (res < 0)
-		goto err_exit;
-
-	tabletsw_state = res;
-
-	res = register_attr_set_with_sysfs(hotkey_dev_attributes,
-					   &tpacpi_pdev->dev.kobj);
+	tabletsw_state = hotkey_init_tablet_mode();
+	res = sysfs_create_group(&tpacpi_pdev->dev.kobj, &hotkey_attr_group);
 	if (res)
 		goto err_exit;
 
@@ -3746,11 +3662,8 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	return 0;
 
 err_exit:
-	delete_attr_set(hotkey_dev_attributes, &tpacpi_pdev->dev.kobj);
-	sysfs_remove_group(&tpacpi_pdev->dev.kobj,
-			&adaptive_kbd_attr_group);
-
-	hotkey_dev_attributes = NULL;
+	sysfs_remove_group(&tpacpi_pdev->dev.kobj, &hotkey_attr_group);
+	sysfs_remove_group(&tpacpi_pdev->dev.kobj, &adaptive_kbd_attr_group);
 
 	return (res < 0) ? res : 1;
 }
