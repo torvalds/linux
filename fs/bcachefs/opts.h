@@ -215,19 +215,19 @@ enum opt_type {
 	  BCH_SB_POSIX_ACL,		true,				\
 	  NULL,		"Enable POSIX acls")				\
 	x(usrquota,			u8,				\
-	  OPT_FORMAT|OPT_MOUNT,						\
+	  0,								\
 	  OPT_BOOL(),							\
-	  BCH_SB_USRQUOTA,		false,				\
+	  NO_SB_OPT,		false,					\
 	  NULL,		"Enable user quotas")				\
 	x(grpquota,			u8,				\
-	  OPT_FORMAT|OPT_MOUNT,						\
+	  0,								\
 	  OPT_BOOL(),							\
-	  BCH_SB_GRPQUOTA,		false,				\
+	  NO_SB_OPT,		false,					\
 	  NULL,		"Enable group quotas")				\
 	x(prjquota,			u8,				\
-	  OPT_FORMAT|OPT_MOUNT,						\
+	  0,								\
 	  OPT_BOOL(),							\
-	  BCH_SB_PRJQUOTA,		false,				\
+	  NO_SB_OPT,		false,					\
 	  NULL,		"Enable project quotas")			\
 	x(degraded,			u8,				\
 	  OPT_MOUNT,							\
