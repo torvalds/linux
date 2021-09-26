@@ -308,7 +308,7 @@
 			regulator-allow-set-load;
 		};
 
-		vreg_l4b_29p5: l4 {
+		vreg_l4b_2p95: l4 {
 			regulator-min-microvolt = <2944000>;
 			regulator-max-microvolt = <2952000>;
 			regulator-enable-ramp-delay = <250>;
@@ -327,7 +327,7 @@
 		 * Tighten the range to 1.8-3.328 (closest to 3.3) to
 		 * make the mmc driver happy.
 		 */
-		vreg_l5b_29p5: l5 {
+		vreg_l5b_2p95: l5 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <3328000>;
 			regulator-enable-ramp-delay = <250>;
@@ -559,14 +559,14 @@
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
 
-	vmmc-supply = <&vreg_l4b_29p5>;
+	vmmc-supply = <&vreg_l4b_2p95>;
 	vqmmc-supply = <&vreg_l8a_1p8>;
 };
 
 &sdhc_2 {
 	status = "okay";
 
-	vmmc-supply = <&vreg_l5b_29p5>;
+	vmmc-supply = <&vreg_l5b_2p95>;
 	vqmmc-supply = <&vreg_l2b_2p95>;
 };
 
