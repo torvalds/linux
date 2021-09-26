@@ -2718,16 +2718,19 @@ static int mv88e6xxx_get_max_mtu(struct dsa_switch *ds, int port)
 	struct mv88e6xxx_chip *chip = ds->priv;
 
 	if (chip->info->ops->port_set_jumbo_size)
-		return 10240 - VLAN_ETH_HLEN - ETH_FCS_LEN;
+		return 10240 - VLAN_ETH_HLEN - EDSA_HLEN - ETH_FCS_LEN;
 	else if (chip->info->ops->set_max_frame_size)
-		return 1632 - VLAN_ETH_HLEN - ETH_FCS_LEN;
-	return 1522 - VLAN_ETH_HLEN - ETH_FCS_LEN;
+		return 1632 - VLAN_ETH_HLEN - EDSA_HLEN - ETH_FCS_LEN;
+	return 1522 - VLAN_ETH_HLEN - EDSA_HLEN - ETH_FCS_LEN;
 }
 
 static int mv88e6xxx_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int ret = 0;
+
+	if (dsa_is_dsa_port(ds, port) || dsa_is_cpu_port(ds, port))
+		new_mtu += EDSA_HLEN;
 
 	mv88e6xxx_reg_lock(chip);
 	if (chip->info->ops->port_set_jumbo_size)
