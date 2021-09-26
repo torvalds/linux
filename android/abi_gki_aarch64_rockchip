@@ -879,6 +879,7 @@
   pm_runtime_get_if_active
   strscpy
   __v4l2_ctrl_modify_range
+  v4l2_ctrl_new_int_menu
 
 # required by panel-simple.ko
   drm_bus_flags_from_videomode
