@@ -561,6 +561,8 @@
   regmap_raw_write
 
 # required by dw_mmc-rockchip.ko
+  clk_get_phase
+  clk_set_phase
   mmc_send_tuning
 
 # required by dw_mmc.ko
@@ -1030,7 +1032,9 @@
   devm_clk_bulk_get_optional
   dma_get_required_mask
   sdhci_add_host
+  sdhci_adma_write_desc
   sdhci_get_property
+  sdhci_pltfm_clk_get_max_clock
   sdhci_pltfm_free
   sdhci_pltfm_init
   sdhci_remove_host
@@ -1038,6 +1042,7 @@
   sdhci_reset
   sdhci_resume_host
   sdhci_set_bus_width
+  sdhci_set_clock
   sdhci_suspend_host
 
 # required by sg.ko
