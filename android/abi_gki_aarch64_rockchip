@@ -675,6 +675,8 @@
   bitmap_free
   bitmap_zalloc
   iio_channel_get_all
+  iio_channel_release_all
+  iio_update_buffers
 
 # required by industrialio-triggered-buffer.ko
   iio_alloc_pollfunc
