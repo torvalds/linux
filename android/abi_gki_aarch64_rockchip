@@ -1028,6 +1028,8 @@
   thermal_zone_device_update
 
 # required by rtc-rk808.ko
+  _bcd2bin
+  _bin2bcd
   devm_rtc_allocate_device
   __rtc_register_device
   rtc_time64_to_tm
