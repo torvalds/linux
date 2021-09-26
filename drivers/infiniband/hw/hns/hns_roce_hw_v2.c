@@ -1165,19 +1165,10 @@ static int hns_roce_alloc_cmq_desc(struct hns_roce_dev *hr_dev,
 {
 	int size = ring->desc_num * sizeof(struct hns_roce_cmq_desc);
 
-	ring->desc = kzalloc(size, GFP_KERNEL);
+	ring->desc = dma_alloc_coherent(hr_dev->dev, size,
+					&ring->desc_dma_addr, GFP_KERNEL);
 	if (!ring->desc)
 		return -ENOMEM;
-
-	ring->desc_dma_addr = dma_map_single(hr_dev->dev, ring->desc, size,
-					     DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(hr_dev->dev, ring->desc_dma_addr)) {
-		ring->desc_dma_addr = 0;
-		kfree(ring->desc);
-		ring->desc = NULL;
-
-		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -1185,12 +1176,11 @@ static int hns_roce_alloc_cmq_desc(struct hns_roce_dev *hr_dev,
 static void hns_roce_free_cmq_desc(struct hns_roce_dev *hr_dev,
 				   struct hns_roce_v2_cmq_ring *ring)
 {
-	dma_unmap_single(hr_dev->dev, ring->desc_dma_addr,
-			 ring->desc_num * sizeof(struct hns_roce_cmq_desc),
-			 DMA_BIDIRECTIONAL);
+	dma_free_coherent(hr_dev->dev,
+			  ring->desc_num * sizeof(struct hns_roce_cmq_desc),
+			  ring->desc, ring->desc_dma_addr);
 
 	ring->desc_dma_addr = 0;
-	kfree(ring->desc);
 }
 
 static int init_csq(struct hns_roce_dev *hr_dev,
