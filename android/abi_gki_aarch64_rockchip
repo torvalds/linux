@@ -113,6 +113,7 @@
   devm_fwnode_gpiod_get_index
   devm_gpiod_get
   devm_gpiod_get_index
+  devm_gpiod_get_index_optional
   devm_gpiod_get_optional
   devm_input_allocate_device
   devm_ioremap
@@ -947,6 +948,9 @@
 # required by rk805-pwrkey.ko
   devm_request_any_context_irq
   input_set_capability
+
+# required by rk808-regulator.ko
+  gpiod_is_active_low
 
 # required by rk808.ko
   devm_mfd_add_devices
