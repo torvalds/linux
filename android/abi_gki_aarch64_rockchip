@@ -492,6 +492,7 @@
   scsi_device_lookup
   __scsi_execute
   scsi_print_sense_hdr
+  scsi_register_driver
 
 # required by clk-pwm.ko
   of_clk_add_hw_provider
