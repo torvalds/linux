@@ -555,6 +555,7 @@
 
 # required by cw2015_battery.ko
   device_property_read_u8_array
+  power_supply_am_i_supplied
   power_supply_get_battery_info
   power_supply_put_battery_info
   regmap_raw_read
