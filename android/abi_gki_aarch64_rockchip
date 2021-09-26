@@ -540,10 +540,18 @@
 
 # required by cpufreq_ondemand.ko
   cpufreq_cpu_get_raw
+  cpufreq_dbs_governor_exit
+  cpufreq_dbs_governor_init
+  cpufreq_dbs_governor_limits
+  cpufreq_dbs_governor_start
+  cpufreq_dbs_governor_stop
   cpufreq_table_index_unsorted
   cpus_read_lock
   cpus_read_unlock
+  dbs_update
   get_cpu_idle_time_us
+  gov_update_cpu_data
+  store_sampling_rate
 
 # required by cw2015_battery.ko
   device_property_read_u8_array
