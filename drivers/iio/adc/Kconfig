@@ -354,7 +354,7 @@ config BCM_IPROC_ADC
 
 config BERLIN2_ADC
 	tristate "Marvell Berlin2 ADC driver"
-	depends on ARCH_BERLIN
+	depends on ARCH_BERLIN || COMPILE_TEST
 	help
 	  Marvell Berlin2 ADC driver. This ADC has 8 channels, with one used for
 	  temperature measurement.
