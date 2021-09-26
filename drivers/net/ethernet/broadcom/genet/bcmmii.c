@@ -25,59 +25,63 @@
 
 #include "bcmgenet.h"
 
-/* setup netdev link state when PHY link status change and
- * update UMAC and RGMII block when link up
- */
-void bcmgenet_mii_setup(struct net_device *dev)
+static void bcmgenet_mac_config(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct phy_device *phydev = dev->phydev;
 	u32 reg, cmd_bits = 0;
 
-	if (phydev->link) {
-		/* speed */
-		if (phydev->speed == SPEED_1000)
-			cmd_bits = CMD_SPEED_1000;
-		else if (phydev->speed == SPEED_100)
-			cmd_bits = CMD_SPEED_100;
-		else
-			cmd_bits = CMD_SPEED_10;
-		cmd_bits <<= CMD_SPEED_SHIFT;
+	/* speed */
+	if (phydev->speed == SPEED_1000)
+		cmd_bits = CMD_SPEED_1000;
+	else if (phydev->speed == SPEED_100)
+		cmd_bits = CMD_SPEED_100;
+	else
+		cmd_bits = CMD_SPEED_10;
+	cmd_bits <<= CMD_SPEED_SHIFT;
 
-		/* duplex */
-		if (phydev->duplex != DUPLEX_FULL)
-			cmd_bits |= CMD_HD_EN;
+	/* duplex */
+	if (phydev->duplex != DUPLEX_FULL)
+		cmd_bits |= CMD_HD_EN;
 
-		/* pause capability */
-		if (!phydev->pause)
-			cmd_bits |= CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE;
+	/* pause capability */
+	if (!phydev->pause)
+		cmd_bits |= CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE;
 
-		/*
-		 * Program UMAC and RGMII block based on established
-		 * link speed, duplex, and pause. The speed set in
-		 * umac->cmd tell RGMII block which clock to use for
-		 * transmit -- 25MHz(100Mbps) or 125MHz(1Gbps).
-		 * Receive clock is provided by the PHY.
-		 */
-		reg = bcmgenet_ext_readl(priv, EXT_RGMII_OOB_CTRL);
-		reg &= ~OOB_DISABLE;
-		reg |= RGMII_LINK;
-		bcmgenet_ext_writel(priv, reg, EXT_RGMII_OOB_CTRL);
+	/* Program UMAC and RGMII block based on established
+	 * link speed, duplex, and pause. The speed set in
+	 * umac->cmd tell RGMII block which clock to use for
+	 * transmit -- 25MHz(100Mbps) or 125MHz(1Gbps).
+	 * Receive clock is provided by the PHY.
+	 */
+	reg = bcmgenet_ext_readl(priv, EXT_RGMII_OOB_CTRL);
+	reg &= ~OOB_DISABLE;
+	reg |= RGMII_LINK;
+	bcmgenet_ext_writel(priv, reg, EXT_RGMII_OOB_CTRL);
 
-		reg = bcmgenet_umac_readl(priv, UMAC_CMD);
-		reg &= ~((CMD_SPEED_MASK << CMD_SPEED_SHIFT) |
-			       CMD_HD_EN |
-			       CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE);
-		reg |= cmd_bits;
-		if (reg & CMD_SW_RESET) {
-			reg &= ~CMD_SW_RESET;
-			bcmgenet_umac_writel(priv, reg, UMAC_CMD);
-			udelay(2);
-			reg |= CMD_TX_EN | CMD_RX_EN;
-		}
+	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
+	reg &= ~((CMD_SPEED_MASK << CMD_SPEED_SHIFT) |
+		       CMD_HD_EN |
+		       CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE);
+	reg |= cmd_bits;
+	if (reg & CMD_SW_RESET) {
+		reg &= ~CMD_SW_RESET;
 		bcmgenet_umac_writel(priv, reg, UMAC_CMD);
+		udelay(2);
+		reg |= CMD_TX_EN | CMD_RX_EN;
 	}
+	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
+}
 
+/* setup netdev link state when PHY link status change and
+ * update UMAC and RGMII block when link up
+ */
+void bcmgenet_mii_setup(struct net_device *dev)
+{
+	struct phy_device *phydev = dev->phydev;
+
+	if (phydev->link)
+		bcmgenet_mac_config(dev);
 	phy_print_status(phydev);
 }
 
