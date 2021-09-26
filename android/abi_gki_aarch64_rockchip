@@ -340,6 +340,7 @@
   put_disk
   __put_page
   __put_task_struct
+  pwm_adjust_config
   pwm_apply_state
   queue_delayed_work_on
   queue_work_on
