@@ -518,12 +518,12 @@
 		qcom,local-pid = <0>;
 		qcom,remote-pid = <2>;
 
-		smp2p_adsp_out: master-kernel {
+		adsp_smp2p_out: master-kernel {
 			qcom,entry-name = "master-kernel";
 			#qcom,smem-state-cells = <1>;
 		};
 
-		smp2p_adsp_in: slave-kernel {
+		adsp_smp2p_in: slave-kernel {
 			qcom,entry-name = "slave-kernel";
 
 			interrupt-controller;
@@ -531,7 +531,7 @@
 		};
 	};
 
-	smp2p-modem {
+	smp2p-mpss {
 		compatible = "qcom,smp2p";
 		qcom,smem = <435>, <428>;
 
@@ -542,12 +542,12 @@
 		qcom,local-pid = <0>;
 		qcom,remote-pid = <1>;
 
-		modem_smp2p_out: master-kernel {
+		mpss_smp2p_out: master-kernel {
 			qcom,entry-name = "master-kernel";
 			#qcom,smem-state-cells = <1>;
 		};
 
-		modem_smp2p_in: slave-kernel {
+		mpss_smp2p_in: slave-kernel {
 			qcom,entry-name = "slave-kernel";
 
 			interrupt-controller;
@@ -566,15 +566,16 @@
 		qcom,local-pid = <0>;
 		qcom,remote-pid = <3>;
 
-		smp2p_slpi_in: slave-kernel {
-			qcom,entry-name = "slave-kernel";
-			interrupt-controller;
-			#interrupt-cells = <2>;
-		};
-
-		smp2p_slpi_out: master-kernel {
+		slpi_smp2p_out: master-kernel {
 			qcom,entry-name = "master-kernel";
 			#qcom,smem-state-cells = <1>;
+		};
+
+		slpi_smp2p_in: slave-kernel {
+			qcom,entry-name = "slave-kernel";
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 	};
 
@@ -3029,10 +3030,10 @@
 			reg = <0x09300000 0x80000>;
 
 			interrupts-extended = <&intc 0 162 IRQ_TYPE_EDGE_RISING>,
-					      <&smp2p_adsp_in 0 IRQ_TYPE_EDGE_RISING>,
-					      <&smp2p_adsp_in 1 IRQ_TYPE_EDGE_RISING>,
-					      <&smp2p_adsp_in 2 IRQ_TYPE_EDGE_RISING>,
-					      <&smp2p_adsp_in 3 IRQ_TYPE_EDGE_RISING>;
+					      <&adsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+					      <&adsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+					      <&adsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+					      <&adsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "wdog", "fatal", "ready",
 					  "handover", "stop-ack";
 
@@ -3041,7 +3042,7 @@
 
 			memory-region = <&adsp_mem>;
 
-			qcom,smem-states = <&smp2p_adsp_out 0>;
+			qcom,smem-states = <&adsp_smp2p_out 0>;
 			qcom,smem-state-names = "stop";
 
 			power-domains = <&rpmpd MSM8996_VDDCX>;
