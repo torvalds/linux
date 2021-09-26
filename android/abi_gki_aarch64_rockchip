@@ -838,6 +838,7 @@
   pci_save_state
   pci_select_bars
   pci_set_master
+  pci_sriov_configure_simple
   pci_unregister_driver
   pm_suspend_global_flags
   sg_init_table
