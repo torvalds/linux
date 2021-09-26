@@ -610,8 +610,6 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 	st->buf[3] = 0x00;
 
-	st->channel_state &= ~0x3;
-
 	if ((adap->fe_adap[0].stream.props.endpoint != 2)
 	    && (adap->fe_adap[0].stream.props.endpoint != 3)) {
 		deb_info("the endpoint number (%i) is not correct, use the adapter id instead\n",
@@ -624,7 +622,7 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	if (onoff)
 		st->channel_state |= 1 << adapt_nr;
 	else
-		st->channel_state |= 1 << (1 - adapt_nr);
+		st->channel_state &= ~(1 << adapt_nr);
 
 	st->buf[2] |= st->channel_state;
 
