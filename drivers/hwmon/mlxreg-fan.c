@@ -488,9 +488,14 @@ static int mlxreg_fan_config(struct mlxreg_fan *fan,
 				return -EINVAL;
 			}
 
-			err = mlxreg_pwm_connect_verify(fan, data);
-			if (err)
-				return err;
+			/* Validate if more then one PWM is connected. */
+			if (pwm_num) {
+				err = mlxreg_pwm_connect_verify(fan, data);
+				if (err < 0)
+					return err;
+				else if (!err)
+					continue;
+			}
 
 			fan->pwm[pwm_num].reg = data->reg;
 			fan->pwm[pwm_num].connected = true;
