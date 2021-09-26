@@ -384,28 +384,13 @@
 		#size-cells = <2>;
 		ranges;
 
-		mba_region: mba@91500000 {
-			reg = <0x0 0x91500000 0x0 0x200000>;
+		hyp_mem: memory@85800000 {
+			reg = <0x0 0x85800000 0x0 0x600000>;
 			no-map;
 		};
 
-		slpi_region: slpi@90b00000 {
-			reg = <0x0 0x90b00000 0x0 0xa00000>;
-			no-map;
-		};
-
-		venus_region: venus@90400000 {
-			reg = <0x0 0x90400000 0x0 0x700000>;
-			no-map;
-		};
-
-		adsp_region: adsp@8ea00000 {
-			reg = <0x0 0x8ea00000 0x0 0x1a00000>;
-			no-map;
-		};
-
-		mpss_region: mpss@88800000 {
-			reg = <0x0 0x88800000 0x0 0x6200000>;
+		xbl_mem: memory@85e00000 {
+			reg = <0x0 0x85e00000 0x0 0x200000>;
 			no-map;
 		};
 
@@ -414,17 +399,12 @@
 			no-map;
 		};
 
-		memory@85800000 {
-			reg = <0x0 0x85800000 0x0 0x800000>;
-			no-map;
-		};
-
-		memory@86200000 {
+		tz_mem: memory@86200000 {
 			reg = <0x0 0x86200000 0x0 0x2600000>;
 			no-map;
 		};
 
-		rmtfs@86700000 {
+		rmtfs_mem: rmtfs {
 			compatible = "qcom,rmtfs-mem";
 
 			size = <0x0 0x200000>;
@@ -435,9 +415,34 @@
 			qcom,vmid = <15>;
 		};
 
-		zap_shader_region: gpu@8f200000 {
+		mpss_mem: mpss@88800000 {
+			reg = <0x0 0x88800000 0x0 0x6200000>;
+			no-map;
+		};
+
+		adsp_mem: adsp@8ea00000 {
+			reg = <0x0 0x8ea00000 0x0 0x1b00000>;
+			no-map;
+		};
+
+		slpi_mem: slpi@90500000 {
+			reg = <0x0 0x90500000 0x0 0xa00000>;
+			no-map;
+		};
+
+		gpu_mem: gpu@90f00000 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x90b00000 0x0 0xa00000>;
+			reg = <0x0 0x90f00000 0x0 0x100000>;
+			no-map;
+		};
+
+		venus_mem: venus@91000000 {
+			reg = <0x0 0x91000000 0x0 0x500000>;
+			no-map;
+		};
+
+		mba_mem: mba@91500000 {
+			reg = <0x0 0x91500000 0x0 0x200000>;
 			no-map;
 		};
 	};
@@ -1033,7 +1038,7 @@
 			};
 
 			zap-shader {
-				memory-region = <&zap_shader_region>;
+				memory-region = <&gpu_mem>;
 			};
 		};
 
@@ -2027,7 +2032,7 @@
 				 <&venus_smmu 0x2c>,
 				 <&venus_smmu 0x2d>,
 				 <&venus_smmu 0x31>;
-			memory-region = <&venus_region>;
+			memory-region = <&venus_mem>;
 			status = "disabled";
 
 			video-decoder {
@@ -3034,7 +3039,7 @@
 			clocks = <&rpmcc RPM_SMD_BB_CLK1>;
 			clock-names = "xo";
 
-			memory-region = <&adsp_region>;
+			memory-region = <&adsp_mem>;
 
 			qcom,smem-states = <&smp2p_adsp_out 0>;
 			qcom,smem-state-names = "stop";
