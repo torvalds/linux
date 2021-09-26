@@ -304,6 +304,7 @@
   of_property_read_u32_index
   of_property_read_variable_u32_array
   of_regulator_match
+  of_usb_get_dr_mode_by_phy
   __page_pinner_migration_failed
   panic_notifier_list
   param_ops_bool
@@ -886,10 +887,13 @@
 
 # required by phy-rockchip-inno-dsidphy.ko
   devm_platform_ioremap_resource_byname
+  phy_mipi_dphy_config_validate
   platform_get_resource_byname
 
 # required by phy-rockchip-inno-usb2.ko
   devm_extcon_register_notifier
+  extcon_set_state
+  extcon_sync
   wakeup_source_remove
 
 # required by phy-rockchip-typec.ko
