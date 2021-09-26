@@ -267,6 +267,12 @@
 	vdd-gfx-supply = <&vdd_gfx>;
 };
 
+&mss_pil {
+	status = "okay";
+
+	pll-supply = <&vreg_l12a_1p8>;
+};
+
 &pcie0 {
 	status = "okay";
 
@@ -289,6 +295,12 @@
 	status = "okay";
 
 	linux,code = <KEY_VOLUMEDOWN>;
+};
+
+&slpi_pil {
+	status = "okay";
+
+	px-supply = <&vreg_lvs2a_1p8>;
 };
 
 &usb3 {
