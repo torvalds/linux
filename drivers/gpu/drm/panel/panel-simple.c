@@ -4533,26 +4533,59 @@ static const struct of_device_id platform_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, platform_of_match);
 
+static bool of_child_node_is_present(const struct device_node *node,
+				     const char *name)
+{
+	struct device_node *child;
+
+	child = of_get_child_by_name(node, name);
+	of_node_put(child);
+
+	return !!child;
+}
+
 static int panel_simple_of_get_desc_data(struct device *dev,
 					 struct panel_desc *desc)
 {
 	struct device_node *np = dev->of_node;
-	struct drm_display_mode *mode;
 	u32 bus_flags;
 	const void *data;
 	int len;
 	int err;
 
-	mode = devm_kzalloc(dev, sizeof(*mode), GFP_KERNEL);
-	if (!mode)
-		return -ENOMEM;
+	if (of_child_node_is_present(np, "display-timings")) {
+		struct drm_display_mode *mode;
 
-	err = of_get_drm_display_mode(np, mode, &bus_flags, OF_USE_NATIVE_MODE);
-	if (!err) {
-		desc->modes = mode;
-		desc->num_modes = 1;
-		desc->bus_flags = bus_flags;
+		mode = devm_kzalloc(dev, sizeof(*mode), GFP_KERNEL);
+		if (!mode)
+			return -ENOMEM;
 
+		if (!of_get_drm_display_mode(np, mode, &bus_flags,
+					     OF_USE_NATIVE_MODE)) {
+			desc->modes = mode;
+			desc->num_modes = 1;
+			desc->bus_flags = bus_flags;
+		}
+	} else if (of_child_node_is_present(np, "panel-timing")) {
+		struct display_timing *timing;
+		struct videomode vm;
+
+		timing = devm_kzalloc(dev, sizeof(*timing), GFP_KERNEL);
+		if (!timing)
+			return -ENOMEM;
+
+		if (!of_get_display_timing(np, "panel-timing", timing)) {
+			desc->timings = timing;
+			desc->num_timings = 1;
+
+			bus_flags = 0;
+			vm.flags = timing->flags;
+			drm_bus_flags_from_videomode(&vm, &bus_flags);
+			desc->bus_flags = bus_flags;
+		}
+	}
+
+	if (desc->num_modes || desc->num_timings) {
 		of_property_read_u32(np, "bpc", &desc->bpc);
 		of_property_read_u32(np, "bus-format", &desc->bus_format);
 		of_property_read_u32(np, "width-mm", &desc->size.width);
