@@ -473,6 +473,9 @@
   wakeup_source_add
   __warn_printk
 
+# required by act8865-regulator.ko
+  regulator_set_pull_down_regmap
+
 # required by adc-keys.ko
   devm_iio_channel_get
   iio_get_channel_type
