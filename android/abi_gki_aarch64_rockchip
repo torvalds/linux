@@ -480,6 +480,8 @@
   devm_iio_channel_get
   iio_get_channel_type
   iio_read_channel_processed
+  input_set_poll_interval
+  input_setup_polling
 
 # required by aes-ce-ccm.ko
   ce_aes_expandkey
