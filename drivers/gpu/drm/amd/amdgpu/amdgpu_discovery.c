@@ -245,6 +245,22 @@ void amdgpu_discovery_fini(struct amdgpu_device *adev)
 	adev->mman.discovery_bin = NULL;
 }
 
+static int amdgpu_discovery_validate_ip(const struct ip *ip)
+{
+	if (ip->number_instance >= HWIP_MAX_INSTANCE) {
+		DRM_ERROR("Unexpected number_instance (%d) from ip discovery blob\n",
+			  ip->number_instance);
+		return -EINVAL;
+	}
+	if (le16_to_cpu(ip->hw_id) >= HW_ID_MAX) {
+		DRM_ERROR("Unexpected hw_id (%d) from ip discovery blob\n",
+			  le16_to_cpu(ip->hw_id));
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 {
 	struct binary_header *bhdr;
@@ -290,6 +306,10 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 
 		for (j = 0; j < num_ips; j++) {
 			ip = (struct ip *)(adev->mman.discovery_bin + ip_offset);
+
+			if (amdgpu_discovery_validate_ip(ip))
+				goto next_ip;
+
 			num_base_address = ip->num_base_address;
 
 			DRM_DEBUG("%s(%d) #%d v%d.%d.%d:\n",
@@ -321,6 +341,7 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 
 			}
 
+next_ip:
 			ip_offset += sizeof(*ip) + 4 * (ip->num_base_address - 1);
 		}
 	}
