@@ -106,9 +106,6 @@ void bcmgenet_mii_setup(struct net_device *dev)
 		/* done if nothing has changed */
 		if (!status_changed)
 			return;
-
-		/* needed for MoCA fixed PHY to reflect correct link status */
-		netif_carrier_off(dev);
 	}
 
 	phy_print_status(phydev);
