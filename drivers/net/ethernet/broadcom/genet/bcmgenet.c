@@ -3408,11 +3408,6 @@ static void bcmgenet_netif_stop(struct net_device *dev)
 	 */
 	cancel_work_sync(&priv->bcmgenet_irq_work);
 
-	priv->old_link = -1;
-	priv->old_speed = -1;
-	priv->old_duplex = -1;
-	priv->old_pause = -1;
-
 	/* tx reclaim */
 	bcmgenet_tx_reclaim_all(dev);
 	bcmgenet_fini_dma(priv);

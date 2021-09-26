@@ -33,34 +33,8 @@ void bcmgenet_mii_setup(struct net_device *dev)
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct phy_device *phydev = dev->phydev;
 	u32 reg, cmd_bits = 0;
-	bool status_changed = false;
-
-	if (priv->old_link != phydev->link) {
-		status_changed = true;
-		priv->old_link = phydev->link;
-	}
 
 	if (phydev->link) {
-		/* check speed/duplex/pause changes */
-		if (priv->old_speed != phydev->speed) {
-			status_changed = true;
-			priv->old_speed = phydev->speed;
-		}
-
-		if (priv->old_duplex != phydev->duplex) {
-			status_changed = true;
-			priv->old_duplex = phydev->duplex;
-		}
-
-		if (priv->old_pause != phydev->pause) {
-			status_changed = true;
-			priv->old_pause = phydev->pause;
-		}
-
-		/* done if nothing has changed */
-		if (!status_changed)
-			return;
-
 		/* speed */
 		if (phydev->speed == SPEED_1000)
 			cmd_bits = CMD_SPEED_1000;
@@ -102,10 +76,6 @@ void bcmgenet_mii_setup(struct net_device *dev)
 			reg |= CMD_TX_EN | CMD_RX_EN;
 		}
 		bcmgenet_umac_writel(priv, reg, UMAC_CMD);
-	} else {
-		/* done if nothing has changed */
-		if (!status_changed)
-			return;
 	}
 
 	phy_print_status(phydev);
@@ -293,12 +263,6 @@ int bcmgenet_mii_probe(struct net_device *dev)
 	/* Communicate the integrated PHY revision */
 	if (priv->internal_phy)
 		phy_flags = priv->gphy_rev;
-
-	/* Initialize link state variables that bcmgenet_mii_setup() uses */
-	priv->old_link = -1;
-	priv->old_speed = -1;
-	priv->old_duplex = -1;
-	priv->old_pause = -1;
 
 	/* This is an ugly quirk but we have not been correctly interpreting
 	 * the phy_interface values and we have done that across different

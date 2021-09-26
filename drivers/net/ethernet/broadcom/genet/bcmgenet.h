@@ -606,10 +606,6 @@ struct bcmgenet_priv {
 	bool clk_eee_enabled;
 
 	/* PHY device variables */
-	int old_link;
-	int old_speed;
-	int old_duplex;
-	int old_pause;
 	phy_interface_t phy_interface;
 	int phy_addr;
 	int ext_phy;
