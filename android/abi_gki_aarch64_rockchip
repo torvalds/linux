@@ -904,6 +904,7 @@
   of_drm_get_panel_orientation
   of_find_i2c_adapter_by_node
   of_get_display_timing
+  of_get_drm_display_mode
   of_parse_phandle
   videomode_from_timing
 
