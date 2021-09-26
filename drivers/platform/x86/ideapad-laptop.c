@@ -868,6 +868,18 @@ static void dytc_profile_refresh(struct ideapad_private *priv)
 	}
 }
 
+static const struct dmi_system_id ideapad_dytc_v4_allow_table[] = {
+	{
+		/* Ideapad 5 Pro 16ACH6 */
+		.ident = "LENOVO 82L5",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "82L5")
+		}
+	},
+	{}
+};
+
 static int ideapad_dytc_profile_init(struct ideapad_private *priv)
 {
 	int err, dytc_version;
@@ -882,12 +894,21 @@ static int ideapad_dytc_profile_init(struct ideapad_private *priv)
 		return err;
 
 	/* Check DYTC is enabled and supports mode setting */
-	if (!test_bit(DYTC_QUERY_ENABLE_BIT, &output))
+	if (!test_bit(DYTC_QUERY_ENABLE_BIT, &output)) {
+		dev_info(&priv->platform_device->dev, "DYTC_QUERY_ENABLE_BIT returned false\n");
 		return -ENODEV;
+	}
 
 	dytc_version = (output >> DYTC_QUERY_REV_BIT) & 0xF;
-	if (dytc_version < 5)
-		return -ENODEV;
+
+	if (dytc_version < 5) {
+		if (dytc_version < 4 || !dmi_check_system(ideapad_dytc_v4_allow_table)) {
+			dev_info(&priv->platform_device->dev,
+				 "DYTC_VERSION is less than 4 or is not allowed: %d\n",
+				 dytc_version);
+			return -ENODEV;
+		}
+	}
 
 	priv->dytc = kzalloc(sizeof(*priv->dytc), GFP_KERNEL);
 	if (!priv->dytc)
