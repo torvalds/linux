@@ -252,6 +252,9 @@
   kvmalloc_node
   led_classdev_register_ext
   led_classdev_unregister
+  led_set_brightness_nosleep
+  led_trigger_register
+  led_trigger_unregister
   __list_add_valid
   __list_del_entry_valid
   __log_post_read_mmio
@@ -677,6 +680,7 @@
 
 # required by ledtrig-heartbeat.ko
   atomic_notifier_chain_unregister
+  avenrun
 
 # required by lzo-rle.ko
   lzorle1x_1_compress
