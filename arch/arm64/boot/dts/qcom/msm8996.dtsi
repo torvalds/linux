@@ -2129,6 +2129,105 @@
 			clock-names = "iface", "bus";
 		};
 
+		slpi_pil: remoteproc@1c00000 {
+			compatible = "qcom,msm8996-slpi-pil";
+			reg = <0x01c00000 0x4000>;
+
+			interrupts-extended = <&intc 0 390 IRQ_TYPE_EDGE_RISING>,
+					      <&slpi_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+					      <&slpi_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+					      <&slpi_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+					      <&slpi_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "wdog",
+					  "fatal",
+					  "ready",
+					  "handover",
+					  "stop-ack";
+
+			clocks = <&xo_board>,
+				 <&rpmcc RPM_SMD_AGGR2_NOC_CLK>;
+			clock-names = "xo", "aggre2";
+
+			memory-region = <&slpi_mem>;
+
+			qcom,smem-states = <&slpi_smp2p_out 0>;
+			qcom,smem-state-names = "stop";
+
+			power-domains = <&rpmpd MSM8996_VDDSSCX>;
+			power-domain-names = "ssc_cx";
+
+			status = "disabled";
+
+			smd-edge {
+				interrupts = <GIC_SPI 176 IRQ_TYPE_EDGE_RISING>;
+
+				label = "dsps";
+				mboxes = <&apcs_glb 25>;
+				qcom,smd-edge = <3>;
+				qcom,remote-pid = <3>;
+			};
+		};
+
+		mss_pil: remoteproc@2080000 {
+			compatible = "qcom,msm8996-mss-pil";
+			reg = <0x2080000 0x100>,
+			      <0x2180000 0x020>;
+			reg-names = "qdsp6", "rmb";
+
+			interrupts-extended = <&intc 0 448 IRQ_TYPE_EDGE_RISING>,
+					      <&mpss_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+					      <&mpss_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+					      <&mpss_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+					      <&mpss_smp2p_in 3 IRQ_TYPE_EDGE_RISING>,
+					      <&mpss_smp2p_in 7 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "wdog", "fatal", "ready",
+					  "handover", "stop-ack",
+					  "shutdown-ack";
+
+			clocks = <&gcc GCC_MSS_CFG_AHB_CLK>,
+				 <&gcc GCC_MSS_Q6_BIMC_AXI_CLK>,
+				 <&gcc GCC_BOOT_ROM_AHB_CLK>,
+				 <&xo_board>,
+				 <&gcc GCC_MSS_GPLL0_DIV_CLK>,
+				 <&gcc GCC_MSS_SNOC_AXI_CLK>,
+				 <&gcc GCC_MSS_MNOC_BIMC_AXI_CLK>,
+				 <&rpmcc RPM_SMD_PCNOC_CLK>,
+				 <&rpmcc RPM_SMD_QDSS_CLK>;
+			clock-names = "iface", "bus", "mem", "xo", "gpll0_mss",
+				      "snoc_axi", "mnoc_axi", "pnoc", "qdss";
+
+			resets = <&gcc GCC_MSS_RESTART>;
+			reset-names = "mss_restart";
+
+			power-domains = <&rpmpd MSM8996_VDDCX>,
+					<&rpmpd MSM8996_VDDMX>;
+			power-domain-names = "cx", "mx";
+
+			qcom,smem-states = <&mpss_smp2p_out 0>;
+			qcom,smem-state-names = "stop";
+
+			qcom,halt-regs = <&tcsr_mutex_regs 0x23000 0x25000 0x24000>;
+
+			status = "disabled";
+
+			mba {
+				memory-region = <&mba_mem>;
+			};
+
+			mpss {
+				memory-region = <&mpss_mem>;
+			};
+
+			smd-edge {
+				interrupts = <GIC_SPI 449 IRQ_TYPE_EDGE_RISING>;
+
+				label = "mpss";
+				mboxes = <&apcs_glb 12>;
+				qcom,smd-edge = <0>;
+				qcom,remote-pid = <1>;
+			};
+		};
+
 		stm@3002000 {
 			compatible = "arm,coresight-stm", "arm,primecell";
 			reg = <0x3002000 0x1000>,
