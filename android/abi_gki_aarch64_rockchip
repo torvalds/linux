@@ -195,6 +195,15 @@
   gpiod_set_value
   gpiod_set_value_cansleep
   hid_debug
+  hid_hw_close
+  hid_hw_open
+  hid_hw_start
+  hid_hw_stop
+  hid_open_report
+  __hid_register_driver
+  __hid_request
+  hid_unregister_driver
+  hid_validate_values
   i2c_adapter_type
   i2c_add_adapter
   i2c_del_adapter
@@ -219,6 +228,7 @@
   init_wait_entry
   __init_waitqueue_head
   input_event
+  input_ff_create_memless
   input_register_device
   input_set_abs_params
   irq_set_irq_wake
@@ -598,6 +608,9 @@
 
 # required by hid-ntrig.ko
   usb_control_msg
+
+# required by hid-primax.ko
+  hid_report_raw_event
 
 # required by i2c-dev.ko
   bus_register_notifier
