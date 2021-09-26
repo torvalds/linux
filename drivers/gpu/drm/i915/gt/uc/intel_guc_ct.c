@@ -168,12 +168,15 @@ static int guc_action_register_ct_buffer(struct intel_guc *guc, u32 type,
 		FIELD_PREP(HOST2GUC_REGISTER_CTB_REQUEST_MSG_2_DESC_ADDR, desc_addr),
 		FIELD_PREP(HOST2GUC_REGISTER_CTB_REQUEST_MSG_3_BUFF_ADDR, buff_addr),
 	};
+	int ret;
 
 	GEM_BUG_ON(type != GUC_CTB_TYPE_HOST2GUC && type != GUC_CTB_TYPE_GUC2HOST);
 	GEM_BUG_ON(size % SZ_4K);
 
 	/* CT registration must go over MMIO */
-	return intel_guc_send_mmio(guc, request, ARRAY_SIZE(request), NULL, 0);
+	ret = intel_guc_send_mmio(guc, request, ARRAY_SIZE(request), NULL, 0);
+
+	return ret > 0 ? -EPROTO : ret;
 }
 
 static int ct_register_buffer(struct intel_guc_ct *ct, u32 type,
@@ -201,11 +204,14 @@ static int guc_action_deregister_ct_buffer(struct intel_guc *guc, u32 type)
 		FIELD_PREP(GUC_HXG_REQUEST_MSG_0_ACTION, GUC_ACTION_HOST2GUC_DEREGISTER_CTB),
 		FIELD_PREP(HOST2GUC_DEREGISTER_CTB_REQUEST_MSG_1_TYPE, type),
 	};
+	int ret;
 
 	GEM_BUG_ON(type != GUC_CTB_TYPE_HOST2GUC && type != GUC_CTB_TYPE_GUC2HOST);
 
 	/* CT deregistration must go over MMIO */
-	return intel_guc_send_mmio(guc, request, ARRAY_SIZE(request), NULL, 0);
+	ret = intel_guc_send_mmio(guc, request, ARRAY_SIZE(request), NULL, 0);
+
+	return ret > 0 ? -EPROTO : ret;
 }
 
 static int ct_deregister_buffer(struct intel_guc_ct *ct, u32 type)
