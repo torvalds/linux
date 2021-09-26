@@ -140,10 +140,6 @@ int msm_submitqueue_init(struct drm_device *drm, struct msm_file_private *ctx)
 	 */
 	default_prio = DIV_ROUND_UP(max_priority, 2);
 
-	INIT_LIST_HEAD(&ctx->submitqueues);
-
-	rwlock_init(&ctx->queuelock);
-
 	return msm_submitqueue_create(drm, ctx, default_prio, 0, NULL);
 }
 
