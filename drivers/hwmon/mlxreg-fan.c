@@ -263,6 +263,13 @@ mlxreg_fan_is_visible(const void *data, enum hwmon_sensor_types type, u32 attr,
 	return 0;
 }
 
+static char *mlxreg_fan_name[] = {
+	"mlxreg_fan",
+	"mlxreg_fan1",
+	"mlxreg_fan2",
+	"mlxreg_fan3",
+};
+
 static const struct hwmon_channel_info *mlxreg_fan_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(fan,
 			   HWMON_F_INPUT | HWMON_F_FAULT,
@@ -565,8 +572,8 @@ static int mlxreg_fan_cooling_config(struct device *dev, struct mlxreg_fan *fan)
 		if (!pwm->connected)
 			continue;
 		pwm->fan = fan;
-		pwm->cdev = devm_thermal_of_cooling_device_register(dev, NULL, "mlxreg_fan", pwm,
-								    &mlxreg_fan_cooling_ops);
+		pwm->cdev = devm_thermal_of_cooling_device_register(dev, NULL, mlxreg_fan_name[i],
+								    pwm, &mlxreg_fan_cooling_ops);
 		if (IS_ERR(pwm->cdev)) {
 			dev_err(dev, "Failed to register cooling device\n");
 			return PTR_ERR(pwm->cdev);
