@@ -41,12 +41,29 @@ static void bcmgenet_mac_config(struct net_device *dev)
 	cmd_bits <<= CMD_SPEED_SHIFT;
 
 	/* duplex */
-	if (phydev->duplex != DUPLEX_FULL)
-		cmd_bits |= CMD_HD_EN;
+	if (phydev->duplex != DUPLEX_FULL) {
+		cmd_bits |= CMD_HD_EN |
+			CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE;
+	} else {
+		/* pause capability defaults to Symmetric */
+		if (priv->autoneg_pause) {
+			bool tx_pause = 0, rx_pause = 0;
 
-	/* pause capability */
-	if (!phydev->pause)
-		cmd_bits |= CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE;
+			if (phydev->autoneg)
+				phy_get_pause(phydev, &tx_pause, &rx_pause);
+
+			if (!tx_pause)
+				cmd_bits |= CMD_TX_PAUSE_IGNORE;
+			if (!rx_pause)
+				cmd_bits |= CMD_RX_PAUSE_IGNORE;
+		}
+
+		/* Manual override */
+		if (!priv->rx_pause)
+			cmd_bits |= CMD_RX_PAUSE_IGNORE;
+		if (!priv->tx_pause)
+			cmd_bits |= CMD_TX_PAUSE_IGNORE;
+	}
 
 	/* Program UMAC and RGMII block based on established
 	 * link speed, duplex, and pause. The speed set in
@@ -99,6 +116,21 @@ static int bcmgenet_fixed_phy_link_update(struct net_device *dev,
 	}
 
 	return 0;
+}
+
+void bcmgenet_phy_pause_set(struct net_device *dev, bool rx, bool tx)
+{
+	struct phy_device *phydev = dev->phydev;
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydev->advertising, rx);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, phydev->advertising,
+			 rx | tx);
+	phy_start_aneg(phydev);
+
+	mutex_lock(&phydev->lock);
+	if (phydev->link)
+		bcmgenet_mac_config(dev);
+	mutex_unlock(&phydev->lock);
 }
 
 void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
@@ -350,8 +382,6 @@ int bcmgenet_mii_probe(struct net_device *dev)
 		phy_disconnect(dev->phydev);
 		return ret;
 	}
-
-	linkmode_copy(phydev->advertising, phydev->supported);
 
 	/* The internal PHY has its link interrupts routed to the
 	 * Ethernet MAC ISRs. On GENETv5 there is a hardware issue
