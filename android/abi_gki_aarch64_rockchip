@@ -111,6 +111,7 @@
   devm_clk_get
   devm_clk_get_optional
   devm_clk_hw_register
+  devm_devfreq_event_add_edev
   devm_extcon_dev_allocate
   devm_extcon_dev_register
   devm_fwnode_gpiod_get_index
@@ -145,6 +146,9 @@
   __devm_reset_control_get
   devm_snd_dmaengine_pcm_register
   devm_snd_soc_register_component
+  dev_pm_opp_get_opp_count
+  dev_pm_opp_get_voltage
+  dev_pm_opp_put
   devres_add
   devres_alloc_node
   devres_free
@@ -239,7 +243,9 @@
   input_ff_create_memless
   input_register_device
   input_set_abs_params
+  __ioremap
   iounmap
+  irq_get_irq_data
   irq_set_irq_wake
   jiffies
   kasan_flag_enabled
@@ -324,6 +330,7 @@
   param_ops_int
   param_ops_uint
   __per_cpu_offset
+  pfn_valid
   pinctrl_dev_get_drvdata
   pinctrl_lookup_state
   pinctrl_select_state
@@ -572,7 +579,6 @@
   cpufreq_unregister_driver
   dev_pm_opp_free_cpufreq_table
   dev_pm_opp_get_max_transition_latency
-  dev_pm_opp_get_opp_count
   dev_pm_opp_get_sharing_cpus
   dev_pm_opp_get_suspend_opp_freq
   dev_pm_opp_init_cpufreq_table
@@ -727,7 +733,6 @@
   hid_input_report
   hid_parse_report
   i2c_smbus_read_byte
-  irq_get_irq_data
   request_threaded_irq
 
 # required by i2c-mux.ko
@@ -876,7 +881,6 @@
   __do_once_done
   __do_once_start
   flush_workqueue
-  __ioremap
   mempool_alloc
   mempool_create_node
   mempool_destroy
@@ -934,7 +938,6 @@
   ktime_get_real_ts64
   memremap
   memunmap
-  pfn_valid
   wait_for_completion_interruptible
 
 # required by ov2680.ko
@@ -1082,6 +1085,31 @@
   phy_drivers_register
   phy_drivers_unregister
 
+# required by rockchip_bus.ko
+  cpufreq_register_notifier
+  cpu_topology
+  devfreq_recommended_opp
+  regulator_set_voltage
+
+# required by rockchip_dmc.ko
+  cpu_latency_qos_update_request
+  devfreq_event_disable_edev
+  devfreq_event_enable_edev
+  devfreq_event_get_edev_by_phandle
+  devfreq_event_get_edev_count
+  devfreq_resume_device
+  devfreq_suspend_device
+  _dev_notice
+  dev_pm_opp_add
+  dev_pm_opp_find_freq_ceil
+  dev_pm_opp_remove
+  __memset_io
+  platform_get_irq_byname
+
+# required by rockchip_dmc_common.ko
+  down_write_trylock
+  update_devfreq
+
 # required by rockchip_saradc.ko
   devm_iio_device_alloc
   __devm_iio_device_register
@@ -1090,6 +1118,9 @@
   iio_push_to_buffers
   iio_trigger_notify_done
   wait_for_completion_timeout
+
+# required by rockchip_sip.ko
+  sched_clock
 
 # required by rockchip_thermal.ko
   devm_thermal_zone_of_sensor_register
