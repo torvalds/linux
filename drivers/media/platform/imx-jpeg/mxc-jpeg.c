@@ -816,6 +816,7 @@ static void mxc_jpeg_config_dec_desc(struct vb2_buffer *out_buf,
 	img_fmt = mxc_jpeg_fourcc_to_imgfmt(q_data_cap->fmt->fourcc);
 	desc->stm_ctrl &= ~STM_CTRL_IMAGE_FORMAT(0xF); /* clear image format */
 	desc->stm_ctrl |= STM_CTRL_IMAGE_FORMAT(img_fmt);
+	desc->stm_ctrl |= STM_CTRL_BITBUF_PTR_CLR(1);
 	desc->line_pitch = q_data_cap->bytesperline[0];
 	mxc_jpeg_addrs(desc, dst_buf, src_buf, 0);
 	mxc_jpeg_set_bufsize(desc, ALIGN(vb2_plane_size(src_buf, 0), 1024));
@@ -842,6 +843,7 @@ static void mxc_jpeg_config_dec_desc(struct vb2_buffer *out_buf,
 	cfg_desc->imgsize |= MXC_JPEG_MIN_HEIGHT;
 	cfg_desc->line_pitch = MXC_JPEG_MIN_WIDTH * 2;
 	cfg_desc->stm_ctrl = STM_CTRL_IMAGE_FORMAT(MXC_JPEG_YUV422);
+	cfg_desc->stm_ctrl |= STM_CTRL_BITBUF_PTR_CLR(1);
 	cfg_desc->stm_bufbase = cfg_stream_handle;
 	cfg_desc->stm_bufsize = ALIGN(*cfg_size, 1024);
 	print_descriptor_info(jpeg->dev, cfg_desc);
@@ -885,6 +887,7 @@ static void mxc_jpeg_config_enc_desc(struct vb2_buffer *out_buf,
 	cfg_desc->stm_bufsize = 0x0;
 	cfg_desc->imgsize = 0;
 	cfg_desc->stm_ctrl = STM_CTRL_CONFIG_MOD(1);
+	cfg_desc->stm_ctrl |= STM_CTRL_BITBUF_PTR_CLR(1);
 
 	desc->next_descpt_ptr = 0; /* end of chain */
 
@@ -899,6 +902,7 @@ static void mxc_jpeg_config_enc_desc(struct vb2_buffer *out_buf,
 		dev_err(jpeg->dev, "No valid image format detected\n");
 	desc->stm_ctrl = STM_CTRL_CONFIG_MOD(0) |
 			 STM_CTRL_IMAGE_FORMAT(img_fmt);
+	desc->stm_ctrl |= STM_CTRL_BITBUF_PTR_CLR(1);
 	mxc_jpeg_addrs(desc, src_buf, dst_buf, 0);
 	dev_dbg(jpeg->dev, "cfg_desc:\n");
 	print_descriptor_info(jpeg->dev, cfg_desc);
@@ -954,11 +958,6 @@ static void mxc_jpeg_device_run(void *priv)
 		return;
 	}
 
-	/*
-	 * TODO: this reset should be removed, once we figure out
-	 * how to overcome hardware issues both on encoder and decoder
-	 */
-	mxc_jpeg_sw_reset(reg);
 	mxc_jpeg_enable(reg);
 	mxc_jpeg_set_l_endian(reg, 1);
 
