@@ -839,163 +839,121 @@ static void free_async_extent_pages(struct async_extent *async_extent)
 	async_extent->pages = NULL;
 }
 
-/*
- * phase two of compressed writeback.  This is the ordered portion
- * of the code, which only gets called in the order the work was
- * queued.  We walk all the async extents created by compress_file_range
- * and send them down to the disk.
- */
-static noinline void submit_compressed_extents(struct async_chunk *async_chunk)
+static int submit_one_async_extent(struct btrfs_inode *inode,
+				   struct async_chunk *async_chunk,
+				   struct async_extent *async_extent,
+				   u64 *alloc_hint)
 {
-	struct btrfs_inode *inode = BTRFS_I(async_chunk->inode);
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct async_extent *async_extent;
-	u64 alloc_hint = 0;
+	struct extent_io_tree *io_tree = &inode->io_tree;
+	struct btrfs_root *root = inode->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_key ins;
 	struct extent_map *em;
-	struct btrfs_root *root = inode->root;
-	struct extent_io_tree *io_tree = &inode->io_tree;
 	int ret = 0;
+	u64 start = async_extent->start;
+	u64 end = async_extent->start + async_extent->ram_size - 1;
 
-again:
-	while (!list_empty(&async_chunk->extents)) {
-		async_extent = list_entry(async_chunk->extents.next,
-					  struct async_extent, list);
-		list_del(&async_extent->list);
+	lock_extent(io_tree, start, end);
 
-retry:
-		lock_extent(io_tree, async_extent->start,
-			    async_extent->start + async_extent->ram_size - 1);
-		/* did the compression code fall back to uncompressed IO? */
-		if (!async_extent->pages) {
-			int page_started = 0;
-			unsigned long nr_written = 0;
-
-			/* allocate blocks */
-			ret = cow_file_range(inode, async_chunk->locked_page,
-					     async_extent->start,
-					     async_extent->start +
-					     async_extent->ram_size - 1,
-					     &page_started, &nr_written, 0);
-
-			/* JDM XXX */
-
-			/*
-			 * if page_started, cow_file_range inserted an
-			 * inline extent and took care of all the unlocking
-			 * and IO for us.  Otherwise, we need to submit
-			 * all those pages down to the drive.
-			 */
-			if (!page_started && !ret)
-				extent_write_locked_range(&inode->vfs_inode,
-						  async_extent->start,
-						  async_extent->start +
-						  async_extent->ram_size - 1,
-						  WB_SYNC_ALL);
-			else if (ret && async_chunk->locked_page)
-				unlock_page(async_chunk->locked_page);
-			kfree(async_extent);
-			cond_resched();
-			continue;
-		}
-
-		ret = btrfs_reserve_extent(root, async_extent->ram_size,
-					   async_extent->compressed_size,
-					   async_extent->compressed_size,
-					   0, alloc_hint, &ins, 1, 1);
-		if (ret) {
-			free_async_extent_pages(async_extent);
-
-			if (ret == -ENOSPC) {
-				unlock_extent(io_tree, async_extent->start,
-					      async_extent->start +
-					      async_extent->ram_size - 1);
-
-				/*
-				 * we need to redirty the pages if we decide to
-				 * fallback to uncompressed IO, otherwise we
-				 * will not submit these pages down to lower
-				 * layers.
-				 */
-				extent_range_redirty_for_io(&inode->vfs_inode,
-						async_extent->start,
-						async_extent->start +
-						async_extent->ram_size - 1);
-
-				goto retry;
-			}
-			goto out_free;
-		}
-		/*
-		 * here we're doing allocation and writeback of the
-		 * compressed pages
-		 */
-		em = create_io_em(inode, async_extent->start,
-				  async_extent->ram_size, /* len */
-				  async_extent->start, /* orig_start */
-				  ins.objectid, /* block_start */
-				  ins.offset, /* block_len */
-				  ins.offset, /* orig_block_len */
-				  async_extent->ram_size, /* ram_bytes */
-				  async_extent->compress_type,
-				  BTRFS_ORDERED_COMPRESSED);
-		if (IS_ERR(em))
-			/* ret value is not necessary due to void function */
-			goto out_free_reserve;
-		free_extent_map(em);
-
-		ret = btrfs_add_ordered_extent_compress(inode,
-						async_extent->start,
-						ins.objectid,
-						async_extent->ram_size,
-						ins.offset,
-						async_extent->compress_type);
-		if (ret) {
-			btrfs_drop_extent_cache(inode, async_extent->start,
-						async_extent->start +
-						async_extent->ram_size - 1, 0);
-			goto out_free_reserve;
-		}
-		btrfs_dec_block_group_reservations(fs_info, ins.objectid);
+	/* We have fallback to uncompressed write */
+	if (!async_extent->pages) {
+		int page_started = 0;
+		unsigned long nr_written = 0;
 
 		/*
-		 * clear dirty, set writeback and unlock the pages.
+		 * Call cow_file_range() to run the delalloc range directly,
+		 * since we won't go to nocow or async path again.
 		 */
-		extent_clear_unlock_delalloc(inode, async_extent->start,
-				async_extent->start +
-				async_extent->ram_size - 1,
-				NULL, EXTENT_LOCKED | EXTENT_DELALLOC,
-				PAGE_UNLOCK | PAGE_START_WRITEBACK);
-		if (btrfs_submit_compressed_write(inode, async_extent->start,
-				    async_extent->ram_size,
-				    ins.objectid,
-				    ins.offset, async_extent->pages,
-				    async_extent->nr_pages,
-				    async_chunk->write_flags,
-				    async_chunk->blkcg_css)) {
-			const u64 start = async_extent->start;
-			const u64 end = start + async_extent->ram_size - 1;
-
-			btrfs_writepage_endio_finish_ordered(inode, NULL, start,
-							     end, false);
-
-			extent_clear_unlock_delalloc(inode, start, end, NULL, 0,
-						     PAGE_END_WRITEBACK |
-						     PAGE_SET_ERROR);
-			free_async_extent_pages(async_extent);
-		}
-		alloc_hint = ins.objectid + ins.offset;
+		ret = cow_file_range(inode, async_chunk->locked_page,
+				     start, end, &page_started, &nr_written, 0);
+		/*
+		 * If @page_started, cow_file_range() inserted an inline extent
+		 * and took care of all the unlocking and IO for us.
+		 * Otherwise, we need to submit all those pages down to the
+		 * drive.
+		 */
+		if (!page_started && !ret)
+			extent_write_locked_range(&inode->vfs_inode, start,
+						  end, WB_SYNC_ALL);
+		else if (ret && async_chunk->locked_page)
+			unlock_page(async_chunk->locked_page);
 		kfree(async_extent);
-		cond_resched();
+		return ret;
 	}
-	return;
+
+	ret = btrfs_reserve_extent(root, async_extent->ram_size,
+				   async_extent->compressed_size,
+				   async_extent->compressed_size,
+				   0, *alloc_hint, &ins, 1, 1);
+	if (ret) {
+		free_async_extent_pages(async_extent);
+		/*
+		 * Here we used to try again by going back to non-compressed
+		 * path for ENOSPC.  But we can't reserve space even for
+		 * compressed size, how could it work for uncompressed size
+		 * which requires larger size?  So here we directly go error
+		 * path.
+		 */
+		goto out_free;
+	}
+
+	/* Here we're doing allocation and writeback of the compressed pages */
+	em = create_io_em(inode, start,
+			  async_extent->ram_size,	/* len */
+			  start,			/* orig_start */
+			  ins.objectid,			/* block_start */
+			  ins.offset,			/* block_len */
+			  ins.offset,			/* orig_block_len */
+			  async_extent->ram_size,	/* ram_bytes */
+			  async_extent->compress_type,
+			  BTRFS_ORDERED_COMPRESSED);
+	if (IS_ERR(em)) {
+		ret = PTR_ERR(em);
+		goto out_free_reserve;
+	}
+	free_extent_map(em);
+
+	ret = btrfs_add_ordered_extent_compress(inode, start,	/* file_offset */
+					ins.objectid,		/* disk_bytenr */
+					async_extent->ram_size, /* num_bytes */
+					ins.offset,		/* disk_num_bytes */
+					async_extent->compress_type);
+	if (ret) {
+		btrfs_drop_extent_cache(inode, start, end, 0);
+		goto out_free_reserve;
+	}
+	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
+
+	/* Clear dirty, set writeback and unlock the pages. */
+	extent_clear_unlock_delalloc(inode, start, end,
+			NULL, EXTENT_LOCKED | EXTENT_DELALLOC,
+			PAGE_UNLOCK | PAGE_START_WRITEBACK);
+	if (btrfs_submit_compressed_write(inode, start,	/* file_offset */
+			    async_extent->ram_size,	/* num_bytes */
+			    ins.objectid,		/* disk_bytenr */
+			    ins.offset,			/* compressed_len */
+			    async_extent->pages,	/* compressed_pages */
+			    async_extent->nr_pages,
+			    async_chunk->write_flags,
+			    async_chunk->blkcg_css)) {
+		const u64 start = async_extent->start;
+		const u64 end = start + async_extent->ram_size - 1;
+
+		btrfs_writepage_endio_finish_ordered(inode, NULL, start, end, 0);
+
+		extent_clear_unlock_delalloc(inode, start, end, NULL, 0,
+					     PAGE_END_WRITEBACK | PAGE_SET_ERROR);
+		free_async_extent_pages(async_extent);
+	}
+	*alloc_hint = ins.objectid + ins.offset;
+	kfree(async_extent);
+	return ret;
+
 out_free_reserve:
 	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 	btrfs_free_reserved_extent(fs_info, ins.objectid, ins.offset, 1);
 out_free:
-	extent_clear_unlock_delalloc(inode, async_extent->start,
-				     async_extent->start +
-				     async_extent->ram_size - 1,
+	extent_clear_unlock_delalloc(inode, start, end,
 				     NULL, EXTENT_LOCKED | EXTENT_DELALLOC |
 				     EXTENT_DELALLOC_NEW |
 				     EXTENT_DEFRAG | EXTENT_DO_ACCOUNTING,
@@ -1003,7 +961,39 @@ out_free:
 				     PAGE_END_WRITEBACK | PAGE_SET_ERROR);
 	free_async_extent_pages(async_extent);
 	kfree(async_extent);
-	goto again;
+	return ret;
+}
+
+/*
+ * Phase two of compressed writeback.  This is the ordered portion of the code,
+ * which only gets called in the order the work was queued.  We walk all the
+ * async extents created by compress_file_range and send them down to the disk.
+ */
+static noinline void submit_compressed_extents(struct async_chunk *async_chunk)
+{
+	struct btrfs_inode *inode = BTRFS_I(async_chunk->inode);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct async_extent *async_extent;
+	u64 alloc_hint = 0;
+	int ret = 0;
+
+	while (!list_empty(&async_chunk->extents)) {
+		u64 extent_start;
+		u64 ram_size;
+
+		async_extent = list_entry(async_chunk->extents.next,
+					  struct async_extent, list);
+		list_del(&async_extent->list);
+		extent_start = async_extent->start;
+		ram_size = async_extent->ram_size;
+
+		ret = submit_one_async_extent(inode, async_chunk, async_extent,
+					      &alloc_hint);
+		btrfs_debug(fs_info,
+"async extent submission failed root=%lld inode=%llu start=%llu len=%llu ret=%d",
+			    inode->root->root_key.objectid,
+			    btrfs_ino(inode), extent_start, ram_size, ret);
+	}
 }
 
 static u64 get_extent_allocation_hint(struct btrfs_inode *inode, u64 start,
