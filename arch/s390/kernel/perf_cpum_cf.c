@@ -773,22 +773,46 @@ static int __init cpumf_pmu_init(void)
  * counter set via normal file operations.
  */
 
-static atomic_t cfset_opencnt = ATOMIC_INIT(0);	/* Excl. access */
+static atomic_t cfset_opencnt = ATOMIC_INIT(0);		/* Access count */
 static DEFINE_MUTEX(cfset_ctrset_mutex);/* Synchronize access to hardware */
 struct cfset_call_on_cpu_parm {		/* Parm struct for smp_call_on_cpu */
 	unsigned int sets;		/* Counter set bit mask */
 	atomic_t cpus_ack;		/* # CPUs successfully executed func */
 };
 
-static struct cfset_request {		/* CPUs and counter set bit mask */
+static struct cfset_session {		/* CPUs and counter set bit mask */
+	struct list_head head;		/* Head of list of active processes */
+} cfset_session = {
+	.head = LIST_HEAD_INIT(cfset_session.head)
+};
+
+struct cfset_request {			/* CPUs and counter set bit mask */
 	unsigned long ctrset;		/* Bit mask of counter set to read */
 	cpumask_t mask;			/* CPU mask to read from */
-} cfset_request;
+	struct list_head node;		/* Chain to cfset_session.head */
+};
 
-static void cfset_ctrset_clear(void)
+static void cfset_session_init(void)
 {
-	cpumask_clear(&cfset_request.mask);
-	cfset_request.ctrset = 0;
+	INIT_LIST_HEAD(&cfset_session.head);
+}
+
+/* Remove current request from global bookkeeping. Maintain a counter set bit
+ * mask on a per CPU basis.
+ * Done in process context under mutex protection.
+ */
+static void cfset_session_del(struct cfset_request *p)
+{
+	list_del(&p->node);
+}
+
+/* Add current request to global bookkeeping. Maintain a counter set bit mask
+ * on a per CPU basis.
+ * Done in process context under mutex protection.
+ */
+static void cfset_session_add(struct cfset_request *p)
+{
+	list_add(&p->node, &cfset_session.head);
 }
 
 /* The /dev/hwctr device access uses PMU_F_IN_USE to mark the device access
@@ -827,15 +851,23 @@ static void cfset_ioctl_off(void *parm)
 	struct cfset_call_on_cpu_parm *p = parm;
 	int rc;
 
-	cpuhw->dev_state = 0;
+	/* Check if any counter set used by /dev/hwc */
 	for (rc = CPUMF_CTR_SET_BASIC; rc < CPUMF_CTR_SET_MAX; ++rc)
-		if ((p->sets & cpumf_ctr_ctl[rc]))
-			atomic_dec(&cpuhw->ctr_set[rc]);
-	rc = lcctl(cpuhw->state);	/* Keep perf_event_open counter sets */
+		if ((p->sets & cpumf_ctr_ctl[rc])) {
+			if (!atomic_dec_return(&cpuhw->ctr_set[rc])) {
+				ctr_set_disable(&cpuhw->dev_state,
+						cpumf_ctr_ctl[rc]);
+				ctr_set_stop(&cpuhw->dev_state,
+					     cpumf_ctr_ctl[rc]);
+			}
+		}
+	/* Keep perf_event_open counter sets */
+	rc = lcctl(cpuhw->dev_state | cpuhw->state);
 	if (rc)
 		pr_err("Counter set stop %#llx of /dev/%s failed rc=%i\n",
 		       cpuhw->state, S390_HWCTR_DEVICE, rc);
-	cpuhw->flags &= ~PMU_F_IN_USE;
+	if (!cpuhw->dev_state)
+		cpuhw->flags &= ~PMU_F_IN_USE;
 	debug_sprintf_event(cf_dbg, 4, "%s rc %d state %#llx dev_state %#llx\n",
 			    __func__, rc, cpuhw->state, cpuhw->dev_state);
 }
@@ -870,11 +902,26 @@ static void cfset_release_cpu(void *p)
 
 	debug_sprintf_event(cf_dbg, 4, "%s state %#llx dev_state %#llx\n",
 			    __func__, cpuhw->state, cpuhw->dev_state);
+	cpuhw->dev_state = 0;
 	rc = lcctl(cpuhw->state);	/* Keep perf_event_open counter sets */
 	if (rc)
 		pr_err("Counter set release %#llx of /dev/%s failed rc=%i\n",
 		       cpuhw->state, S390_HWCTR_DEVICE, rc);
-	cpuhw->dev_state = 0;
+}
+
+/* This modifies the process CPU mask to adopt it to the currently online
+ * CPUs. Offline CPUs can not be addresses. This call terminates the access
+ * and is usually followed by close() or a new iotcl(..., START, ...) which
+ * creates a new request structure.
+ */
+static void cfset_all_stop(struct cfset_request *req)
+{
+	struct cfset_call_on_cpu_parm p = {
+		.sets = req->ctrset,
+	};
+
+	cpumask_and(&req->mask, &req->mask, cpu_online_mask);
+	on_each_cpu_mask(&req->mask, cfset_ioctl_off, &p, 1);
 }
 
 /* Release function is also called when application gets terminated without
@@ -882,10 +929,19 @@ static void cfset_release_cpu(void *p)
  */
 static int cfset_release(struct inode *inode, struct file *file)
 {
-	on_each_cpu(cfset_release_cpu, NULL, 1);
+	mutex_lock(&cfset_ctrset_mutex);
+	/* Open followed by close/exit has no private_data */
+	if (file->private_data) {
+		cfset_all_stop(file->private_data);
+		cfset_session_del(file->private_data);
+		kfree(file->private_data);
+		file->private_data = NULL;
+	}
+	if (!atomic_dec_return(&cfset_opencnt))
+		on_each_cpu(cfset_release_cpu, NULL, 1);
+	mutex_unlock(&cfset_ctrset_mutex);
+
 	hw_perf_event_destroy(NULL);
-	cfset_ctrset_clear();
-	atomic_set(&cfset_opencnt, 0);
 	return 0;
 }
 
@@ -893,9 +949,10 @@ static int cfset_open(struct inode *inode, struct file *file)
 {
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	/* Only one user space program can open /dev/hwctr */
-	if (atomic_xchg(&cfset_opencnt, 1))
-		return -EBUSY;
+	mutex_lock(&cfset_ctrset_mutex);
+	if (atomic_inc_return(&cfset_opencnt) == 1)
+		cfset_session_init();
+	mutex_unlock(&cfset_ctrset_mutex);
 
 	cpumf_hw_inuse();
 	file->private_data = NULL;
@@ -903,25 +960,10 @@ static int cfset_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
-static int cfset_all_stop(void)
+static int cfset_all_start(struct cfset_request *req)
 {
 	struct cfset_call_on_cpu_parm p = {
-		.sets = cfset_request.ctrset,
-	};
-	cpumask_var_t mask;
-
-	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
-		return -ENOMEM;
-	cpumask_and(mask, &cfset_request.mask, cpu_online_mask);
-	on_each_cpu_mask(mask, cfset_ioctl_off, &p, 1);
-	free_cpumask_var(mask);
-	return 0;
-}
-
-static int cfset_all_start(void)
-{
-	struct cfset_call_on_cpu_parm p = {
-		.sets = cfset_request.ctrset,
+		.sets = req->ctrset,
 		.cpus_ack = ATOMIC_INIT(0),
 	};
 	cpumask_var_t mask;
@@ -929,7 +971,7 @@ static int cfset_all_start(void)
 
 	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
 		return -ENOMEM;
-	cpumask_and(mask, &cfset_request.mask, cpu_online_mask);
+	cpumask_and(mask, &req->mask, cpu_online_mask);
 	on_each_cpu_mask(mask, cfset_ioctl_on, &p, 1);
 	if (atomic_read(&p.cpus_ack) != cpumask_weight(mask)) {
 		on_each_cpu_mask(mask, cfset_ioctl_off, &p, 1);
@@ -1045,7 +1087,7 @@ static void cfset_cpu_read(void *parm)
 			    cpuhw->sets, cpuhw->used);
 }
 
-static int cfset_all_read(unsigned long arg)
+static int cfset_all_read(unsigned long arg, struct cfset_request *req)
 {
 	struct cfset_call_on_cpu_parm p;
 	cpumask_var_t mask;
@@ -1054,46 +1096,53 @@ static int cfset_all_read(unsigned long arg)
 	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
 		return -ENOMEM;
 
-	p.sets = cfset_request.ctrset;
-	cpumask_and(mask, &cfset_request.mask, cpu_online_mask);
+	p.sets = req->ctrset;
+	cpumask_and(mask, &req->mask, cpu_online_mask);
 	on_each_cpu_mask(mask, cfset_cpu_read, &p, 1);
 	rc = cfset_all_copy(arg, mask);
 	free_cpumask_var(mask);
 	return rc;
 }
 
-static long cfset_ioctl_read(unsigned long arg)
+static long cfset_ioctl_read(unsigned long arg, struct cfset_request *req)
 {
 	struct s390_ctrset_read read;
-	int ret = 0;
+	int ret = -ENODATA;
 
-	if (copy_from_user(&read, (char __user *)arg, sizeof(read)))
-		return -EFAULT;
-	ret = cfset_all_read(arg);
-	return ret;
-}
-
-static long cfset_ioctl_stop(void)
-{
-	int ret = ENXIO;
-
-	if (cfset_request.ctrset) {
-		ret = cfset_all_stop();
-		cfset_ctrset_clear();
+	if (req && req->ctrset) {
+		if (copy_from_user(&read, (char __user *)arg, sizeof(read)))
+			return -EFAULT;
+		ret = cfset_all_read(arg, req);
 	}
 	return ret;
 }
 
-static long cfset_ioctl_start(unsigned long arg)
+static long cfset_ioctl_stop(struct file *file)
+{
+	struct cfset_request *req = file->private_data;
+	int ret = -ENXIO;
+
+	if (req) {
+		cfset_all_stop(req);
+		cfset_session_del(req);
+		kfree(req);
+		file->private_data = NULL;
+		ret = 0;
+	}
+	return ret;
+}
+
+static long cfset_ioctl_start(unsigned long arg, struct file *file)
 {
 	struct s390_ctrset_start __user *ustart;
 	struct s390_ctrset_start start;
+	struct cfset_request *preq;
 	void __user *umask;
 	unsigned int len;
 	int ret = 0;
 	size_t need;
 
-	if (cfset_request.ctrset)
+	if (file->private_data)
 		return -EBUSY;
 	ustart = (struct s390_ctrset_start __user *)arg;
 	if (copy_from_user(&start, ustart, sizeof(start)))
@@ -1108,25 +1157,36 @@ static long cfset_ioctl_start(unsigned long arg)
 		return -EINVAL;		/* Invalid counter set */
 	if (!start.counter_sets)
 		return -EINVAL;		/* No counter set at all? */
-	cpumask_clear(&cfset_request.mask);
+
+	preq = kzalloc(sizeof(*preq), GFP_KERNEL);
+	if (!preq)
+		return -ENOMEM;
+	cpumask_clear(&preq->mask);
 	len = min_t(u64, start.cpumask_len, cpumask_size());
 	umask = (void __user *)start.cpumask;
-	if (copy_from_user(&cfset_request.mask, umask, len))
+	if (copy_from_user(&preq->mask, umask, len)) {
+		kfree(preq);
 		return -EFAULT;
-	if (cpumask_empty(&cfset_request.mask))
+	}
+	if (cpumask_empty(&preq->mask)) {
+		kfree(preq);
 		return -EINVAL;
+	}
 	need = cfset_needspace(start.counter_sets);
-	if (put_user(need, &ustart->data_bytes))
-		ret = -EFAULT;
-	if (ret)
-		goto out;
-	cfset_request.ctrset = start.counter_sets;
-	ret = cfset_all_start();
-out:
-	if (ret)
-		cfset_ctrset_clear();
-	debug_sprintf_event(cf_dbg, 4, "%s sets %#lx need %ld ret %d\n",
-			    __func__, cfset_request.ctrset, need, ret);
+	if (put_user(need, &ustart->data_bytes)) {
+		kfree(preq);
+		return -EFAULT;
+	}
+	preq->ctrset = start.counter_sets;
+	ret = cfset_all_start(preq);
+	if (!ret) {
+		cfset_session_add(preq);
+		file->private_data = preq;
+		debug_sprintf_event(cf_dbg, 4, "%s set %#lx need %ld ret %d\n",
+				    __func__, preq->ctrset, need, ret);
+	} else {
+		kfree(preq);
+	}
 	return ret;
 }
 
@@ -1136,7 +1196,7 @@ out:
  *    counter set keeps running until explicitly stopped. Returns the number
  *    of bytes needed to store the counter values. If another S390_HWCTR_START
  *    ioctl subcommand is called without a previous S390_HWCTR_STOP stop
- *    command, -EBUSY is returned.
+ *    command on the same file descriptor, -EBUSY is returned.
  * S390_HWCTR_READ: Read the counter set values from specified CPU list given
  *    with the S390_HWCTR_START command.
  * S390_HWCTR_STOP: Stops the counter sets on the CPU list given with the
@@ -1150,13 +1210,13 @@ static long cfset_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	mutex_lock(&cfset_ctrset_mutex);
 	switch (cmd) {
 	case S390_HWCTR_START:
-		ret = cfset_ioctl_start(arg);
+		ret = cfset_ioctl_start(arg, file);
 		break;
 	case S390_HWCTR_STOP:
-		ret = cfset_ioctl_stop();
+		ret = cfset_ioctl_stop(file);
 		break;
 	case S390_HWCTR_READ:
-		ret = cfset_ioctl_read(arg);
+		ret = cfset_ioctl_read(arg, file->private_data);
 		break;
 	default:
 		ret = -ENOTTY;
@@ -1182,29 +1242,41 @@ static struct miscdevice cfset_dev = {
 	.fops	= &cfset_fops,
 };
 
+/* Hotplug add of a CPU. Scan through all active processes and add
+ * that CPU to the list of CPUs supplied with ioctl(..., START, ...).
+ */
 int cfset_online_cpu(unsigned int cpu)
 {
 	struct cfset_call_on_cpu_parm p;
+	struct cfset_request *rp;
 
 	mutex_lock(&cfset_ctrset_mutex);
-	if (cfset_request.ctrset) {
-		p.sets = cfset_request.ctrset;
-		cfset_ioctl_on(&p);
-		cpumask_set_cpu(cpu, &cfset_request.mask);
+	if (!list_empty(&cfset_session.head)) {
+		list_for_each_entry(rp, &cfset_session.head, node) {
+			p.sets = rp->ctrset;
+			cfset_ioctl_on(&p);
+			cpumask_set_cpu(cpu, &rp->mask);
+		}
 	}
 	mutex_unlock(&cfset_ctrset_mutex);
 	return 0;
 }
 
+/* Hotplug remove of a CPU. Scan through all active processes and clear
+ * that CPU from the list of CPUs supplied with ioctl(..., START, ...).
+ */
 int cfset_offline_cpu(unsigned int cpu)
 {
 	struct cfset_call_on_cpu_parm p;
+	struct cfset_request *rp;
 
 	mutex_lock(&cfset_ctrset_mutex);
-	if (cfset_request.ctrset) {
-		p.sets = cfset_request.ctrset;
-		cfset_ioctl_off(&p);
-		cpumask_clear_cpu(cpu, &cfset_request.mask);
+	if (!list_empty(&cfset_session.head)) {
+		list_for_each_entry(rp, &cfset_session.head, node) {
+			p.sets = rp->ctrset;
+			cfset_ioctl_off(&p);
+			cpumask_clear_cpu(cpu, &rp->mask);
+		}
 	}
 	mutex_unlock(&cfset_ctrset_mutex);
 	return 0;
