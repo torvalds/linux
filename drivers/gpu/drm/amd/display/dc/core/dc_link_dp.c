@@ -108,6 +108,9 @@ static struct dc_link_settings get_common_supported_link_settings(
 		struct dc_link_settings link_setting_b);
 static void maximize_lane_settings(const struct link_training_settings *lt_settings,
 		struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]);
+static void override_lane_settings(const struct link_training_settings *lt_settings,
+		struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]);
+
 static uint32_t get_cr_training_aux_rd_interval(struct dc_link *link,
 		const struct dc_link_settings *link_settings)
 {
@@ -734,15 +737,13 @@ void dp_decide_lane_settings(
 		}
 #endif
 	}
-
-	/* we find the maximum of the requested settings across all lanes*/
-	/* and set this maximum for all lanes*/
 	dp_hw_to_dpcd_lane_settings(lt_settings, hw_lane_settings, dpcd_lane_settings);
 
 	if (lt_settings->disallow_per_lane_settings) {
 		/* we find the maximum of the requested settings across all lanes*/
 		/* and set this maximum for all lanes*/
 		maximize_lane_settings(lt_settings, hw_lane_settings);
+		override_lane_settings(lt_settings, hw_lane_settings);
 
 		if (lt_settings->always_match_dpcd_with_hw_lane_settings)
 			dp_hw_to_dpcd_lane_settings(lt_settings, hw_lane_settings, dpcd_lane_settings);
@@ -829,6 +830,34 @@ static void maximize_lane_settings(const struct link_training_settings *lt_setti
 		lane_settings[lane].PRE_EMPHASIS = max_requested.PRE_EMPHASIS;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 		lane_settings[lane].FFE_PRESET = max_requested.FFE_PRESET;
+#endif
+	}
+}
+
+static void override_lane_settings(const struct link_training_settings *lt_settings,
+		struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX])
+{
+	uint32_t lane;
+
+	if (lt_settings->voltage_swing == NULL &&
+	    lt_settings->pre_emphasis == NULL &&
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	    lt_settings->ffe_preset == NULL &&
+#endif
+	    lt_settings->post_cursor2 == NULL)
+
+		return;
+
+	for (lane = 1; lane < LANE_COUNT_DP_MAX; lane++) {
+		if (lt_settings->voltage_swing)
+			lane_settings[lane].VOLTAGE_SWING = *lt_settings->voltage_swing;
+		if (lt_settings->pre_emphasis)
+			lane_settings[lane].PRE_EMPHASIS = *lt_settings->pre_emphasis;
+		if (lt_settings->post_cursor2)
+			lane_settings[lane].POST_CURSOR2 = *lt_settings->post_cursor2;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		if (lt_settings->ffe_preset)
+			lane_settings[lane].FFE_PRESET = *lt_settings->ffe_preset;
 #endif
 	}
 }
