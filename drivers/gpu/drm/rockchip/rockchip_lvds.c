@@ -318,21 +318,14 @@ static void rockchip_lvds_encoder_disable(struct drm_encoder *encoder)
 		drm_panel_unprepare(lvds->panel);
 }
 
-/*
- * Fix me: To to it with a GKI compatible version.
- */
-#if 0
-static int rockchip_lvds_encoder_loader_protect(struct drm_encoder *encoder,
-						bool on)
+static void rockchip_lvds_encoder_loader_protect(struct drm_encoder *encoder,
+						 bool on)
 {
 	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
 
 	if (lvds->panel)
-		return drm_panel_loader_protect(lvds->panel, on);
-
-	return 0;
+		panel_simple_loader_protect(lvds->panel);
 }
-#endif
 
 static const
 struct drm_encoder_helper_funcs rockchip_lvds_encoder_helper_funcs = {
@@ -340,7 +333,6 @@ struct drm_encoder_helper_funcs rockchip_lvds_encoder_helper_funcs = {
 	.disable = rockchip_lvds_encoder_disable,
 	.atomic_check = rockchip_lvds_encoder_atomic_check,
 	.atomic_mode_set = rockchip_lvds_encoder_atomic_mode_set,
-//	.loader_protect = rockchip_lvds_encoder_loader_protect,
 };
 
 static const struct drm_encoder_funcs rockchip_lvds_encoder_funcs = {
@@ -424,6 +416,7 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 
 		lvds->sub_dev.connector = &lvds->connector;
 		lvds->sub_dev.of_node = lvds->dev->of_node;
+		lvds->sub_dev.loader_protect = rockchip_lvds_encoder_loader_protect;
 		rockchip_drm_register_sub_dev(&lvds->sub_dev);
 		drm_object_attach_property(&connector->base, private->connector_id_prop, 0);
 	} else {
