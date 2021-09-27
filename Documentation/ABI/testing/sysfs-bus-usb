@@ -1,4 +1,4 @@
-What:		/sys/bus/usb/devices/INTERFACE/authorized
+What:		/sys/bus/usb/devices/<INTERFACE>/authorized
 Date:		August 2015
 Description:
 		This allows to authorize (1) or deauthorize (0)
