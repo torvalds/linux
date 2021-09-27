@@ -589,7 +589,7 @@ const struct sof_ipc_pipe_new *snd_sof_pipeline_find(struct snd_sof_dev *sdev,
 	return NULL;
 }
 
-int sof_set_up_pipelines(struct device *dev)
+int sof_set_up_pipelines(struct device *dev, bool verify)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	struct snd_sof_widget *swidget;
@@ -599,7 +599,7 @@ int sof_set_up_pipelines(struct device *dev)
 	/* restore pipeline components */
 	list_for_each_entry_reverse(swidget, &sdev->widget_list, list) {
 		/* only set up the widgets belonging to static pipelines */
-		if (swidget->dynamic_pipeline_widget)
+		if (!verify && swidget->dynamic_pipeline_widget)
 			continue;
 
 		/* update DAI config. The IPC will be sent in sof_widget_setup() */
@@ -630,8 +630,8 @@ int sof_set_up_pipelines(struct device *dev)
 	list_for_each_entry(sroute, &sdev->route_list, list) {
 
 		/* only set up routes belonging to static pipelines */
-		if (sroute->src_widget->dynamic_pipeline_widget ||
-		    sroute->sink_widget->dynamic_pipeline_widget)
+		if (!verify && (sroute->src_widget->dynamic_pipeline_widget ||
+				sroute->sink_widget->dynamic_pipeline_widget))
 			continue;
 
 		ret = sof_route_setup_ipc(sdev, sroute);
@@ -646,7 +646,7 @@ int sof_set_up_pipelines(struct device *dev)
 		switch (swidget->id) {
 		case snd_soc_dapm_scheduler:
 			/* only complete static pipelines */
-			if (swidget->dynamic_pipeline_widget)
+			if (!verify && swidget->dynamic_pipeline_widget)
 				continue;
 
 			swidget->complete =
@@ -661,24 +661,37 @@ int sof_set_up_pipelines(struct device *dev)
 }
 
 /*
- * This function doesn't free widgets. It only resets the set up status for all routes and
- * use_count for all widgets.
+ * This function doesn't free widgets during suspend. It only resets the set up status for all
+ * routes and use_count for all widgets.
  */
-void sof_tear_down_pipelines(struct device *dev)
+int sof_tear_down_pipelines(struct device *dev, bool verify)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	struct snd_sof_widget *swidget;
 	struct snd_sof_route *sroute;
+	int ret;
 
 	/*
-	 * No need to protect swidget->use_count and sroute->setup as this function is called only
-	 * during the suspend callback and all streams should be suspended by then
+	 * This function is called during suspend and for one-time topology verification during
+	 * first boot. In both cases, there is no need to protect swidget->use_count and
+	 * sroute->setup because during suspend all streams are suspended and during topology
+	 * loading the sound card unavailable to open PCMs.
 	 */
-	list_for_each_entry(swidget, &sdev->widget_list, list)
-		swidget->use_count = 0;
+	list_for_each_entry_reverse(swidget, &sdev->widget_list, list) {
+		if (!verify) {
+			swidget->use_count = 0;
+			continue;
+		}
+
+		ret = sof_widget_free(sdev, swidget);
+		if (ret < 0)
+			return ret;
+	}
 
 	list_for_each_entry(sroute, &sdev->route_list, list)
 		sroute->setup = false;
+
+	return 0;
 }
 
 /*
