@@ -839,6 +839,43 @@ static void free_async_extent_pages(struct async_extent *async_extent)
 	async_extent->pages = NULL;
 }
 
+static int submit_uncompressed_range(struct btrfs_inode *inode,
+				     struct async_extent *async_extent,
+				     struct page *locked_page)
+{
+	u64 start = async_extent->start;
+	u64 end = async_extent->start + async_extent->ram_size - 1;
+	unsigned long nr_written = 0;
+	int page_started = 0;
+	int ret;
+
+	/*
+	 * Call cow_file_range() to run the delalloc range directly, since we
+	 * won't go to NOCOW or async path again.
+	 *
+	 * Also we call cow_file_range() with @unlock_page == 0, so that we
+	 * can directly submit them without interruption.
+	 */
+	ret = cow_file_range(inode, locked_page, start, end, &page_started,
+			     &nr_written, 0);
+	/* Inline extent inserted, page gets unlocked and everything is done */
+	if (page_started) {
+		ret = 0;
+		goto out;
+	}
+	if (ret < 0) {
+		if (locked_page)
+			unlock_page(locked_page);
+		goto out;
+	}
+
+	ret = extent_write_locked_range(&inode->vfs_inode, start, end);
+	/* All pages will be unlocked, including @locked_page */
+out:
+	kfree(async_extent);
+	return ret;
+}
+
 static int submit_one_async_extent(struct btrfs_inode *inode,
 				   struct async_chunk *async_chunk,
 				   struct async_extent *async_extent,
@@ -848,37 +885,28 @@ static int submit_one_async_extent(struct btrfs_inode *inode,
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_key ins;
+	struct page *locked_page = NULL;
 	struct extent_map *em;
 	int ret = 0;
 	u64 start = async_extent->start;
 	u64 end = async_extent->start + async_extent->ram_size - 1;
 
+	/*
+	 * If async_chunk->locked_page is in the async_extent range, we need to
+	 * handle it.
+	 */
+	if (async_chunk->locked_page) {
+		u64 locked_page_start = page_offset(async_chunk->locked_page);
+		u64 locked_page_end = locked_page_start + PAGE_SIZE - 1;
+
+		if (!(start >= locked_page_end || end <= locked_page_start))
+			locked_page = async_chunk->locked_page;
+	}
 	lock_extent(io_tree, start, end);
 
-	/* We have fallback to uncompressed write */
-	if (!async_extent->pages) {
-		int page_started = 0;
-		unsigned long nr_written = 0;
-
-		/*
-		 * Call cow_file_range() to run the delalloc range directly,
-		 * since we won't go to nocow or async path again.
-		 */
-		ret = cow_file_range(inode, async_chunk->locked_page,
-				     start, end, &page_started, &nr_written, 0);
-		/*
-		 * If @page_started, cow_file_range() inserted an inline extent
-		 * and took care of all the unlocking and IO for us.
-		 * Otherwise, we need to submit all those pages down to the
-		 * drive.
-		 */
-		if (!page_started && !ret)
-			extent_write_locked_range(&inode->vfs_inode, start, end);
-		else if (ret && async_chunk->locked_page)
-			unlock_page(async_chunk->locked_page);
-		kfree(async_extent);
-		return ret;
-	}
+	/* We have fall back to uncompressed write */
+	if (!async_extent->pages)
+		return submit_uncompressed_range(inode, async_extent, locked_page);
 
 	ret = btrfs_reserve_extent(root, async_extent->ram_size,
 				   async_extent->compressed_size,
