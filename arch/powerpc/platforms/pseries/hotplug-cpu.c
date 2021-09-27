@@ -521,6 +521,27 @@ static bool valid_cpu_drc_index(struct device_node *parent, u32 drc_index)
 	return found;
 }
 
+static int pseries_cpuhp_attach_nodes(struct device_node *dn)
+{
+	struct of_changeset cs;
+	int ret;
+
+	/*
+	 * This device node is unattached but may have siblings; open-code the
+	 * traversal.
+	 */
+	for (of_changeset_init(&cs); dn != NULL; dn = dn->sibling) {
+		ret = of_changeset_attach_node(&cs, dn);
+		if (ret)
+			goto out;
+	}
+
+	ret = of_changeset_apply(&cs);
+out:
+	of_changeset_destroy(&cs);
+	return ret;
+}
+
 static ssize_t dlpar_cpu_add(u32 drc_index)
 {
 	struct device_node *dn, *parent;
@@ -563,7 +584,7 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 		return -EINVAL;
 	}
 
-	rc = dlpar_attach_node(dn, parent);
+	rc = pseries_cpuhp_attach_nodes(dn);
 
 	/* Regardless we are done with parent now */
 	of_node_put(parent);
@@ -600,6 +621,53 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 	return rc;
 }
 
+static unsigned int pseries_cpuhp_cache_use_count(const struct device_node *cachedn)
+{
+	unsigned int use_count = 0;
+	struct device_node *dn;
+
+	WARN_ON(!of_node_is_type(cachedn, "cache"));
+
+	for_each_of_cpu_node(dn) {
+		if (of_find_next_cache_node(dn) == cachedn)
+			use_count++;
+	}
+
+	for_each_node_by_type(dn, "cache") {
+		if (of_find_next_cache_node(dn) == cachedn)
+			use_count++;
+	}
+
+	return use_count;
+}
+
+static int pseries_cpuhp_detach_nodes(struct device_node *cpudn)
+{
+	struct device_node *dn;
+	struct of_changeset cs;
+	int ret = 0;
+
+	of_changeset_init(&cs);
+	ret = of_changeset_detach_node(&cs, cpudn);
+	if (ret)
+		goto out;
+
+	dn = cpudn;
+	while ((dn = of_find_next_cache_node(dn))) {
+		if (pseries_cpuhp_cache_use_count(dn) > 1)
+			break;
+
+		ret = of_changeset_detach_node(&cs, dn);
+		if (ret)
+			goto out;
+	}
+
+	ret = of_changeset_apply(&cs);
+out:
+	of_changeset_destroy(&cs);
+	return ret;
+}
+
 static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
 {
 	int rc;
@@ -621,7 +689,7 @@ static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
 		return rc;
 	}
 
-	rc = dlpar_detach_node(dn);
+	rc = pseries_cpuhp_detach_nodes(dn);
 	if (rc) {
 		int saved_rc = rc;
 
@@ -885,10 +953,9 @@ static int dlpar_cpu_add_by_count(u32 cpus_to_add)
 
 int dlpar_cpu(struct pseries_hp_errorlog *hp_elog)
 {
-	u32 count, drc_index;
+	u32 drc_index;
 	int rc;
 
-	count = hp_elog->_drc_u.drc_count;
 	drc_index = hp_elog->_drc_u.drc_index;
 
 	lock_device_hotplug();
