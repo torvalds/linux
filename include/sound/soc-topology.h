@@ -151,7 +151,7 @@ struct snd_soc_tplg_ops {
 		struct snd_soc_tplg_hdr *);
 
 	/* completion - called at completion of firmware loading */
-	void (*complete)(struct snd_soc_component *);
+	int (*complete)(struct snd_soc_component *comp);
 
 	/* manifest - optional to inform component of manifest */
 	int (*manifest)(struct snd_soc_component *, int index,

@@ -3567,10 +3567,11 @@ int snd_sof_complete_pipeline(struct device *dev,
 }
 
 /* completion - called at completion of firmware loading */
-static void sof_complete(struct snd_soc_component *scomp)
+static int sof_complete(struct snd_soc_component *scomp)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_sof_widget *swidget;
+	int ret;
 
 	/* some widget types require completion notificattion */
 	list_for_each_entry(swidget, &sdev->widget_list, list) {
@@ -3579,8 +3580,11 @@ static void sof_complete(struct snd_soc_component *scomp)
 
 		switch (swidget->id) {
 		case snd_soc_dapm_scheduler:
-			swidget->complete =
-				snd_sof_complete_pipeline(scomp->dev, swidget);
+			ret = snd_sof_complete_pipeline(scomp->dev, swidget);
+			if (ret < 0)
+				return ret;
+
+			swidget->complete = ret;
 			break;
 		default:
 			break;
@@ -3590,7 +3594,7 @@ static void sof_complete(struct snd_soc_component *scomp)
 	 * cache initial values of SOF kcontrols by reading DSP value over
 	 * IPC. It may be overwritten by alsa-mixer after booting up
 	 */
-	snd_sof_cache_kcontrol_val(scomp);
+	return snd_sof_cache_kcontrol_val(scomp);
 }
 
 /* manifest - optional to inform component of manifest */
