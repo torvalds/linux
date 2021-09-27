@@ -2066,6 +2066,7 @@ u16 printk_parse_prefix(const char *text, int *level,
 	return prefix_len;
 }
 
+__printf(5, 0)
 static u16 printk_sprint(char *text, u16 size, int facility,
 			 enum printk_info_flags *flags, const char *fmt,
 			 va_list args)
